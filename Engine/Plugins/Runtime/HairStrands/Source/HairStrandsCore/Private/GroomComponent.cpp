@@ -378,7 +378,7 @@ public:
 
 			{
 				// If one of the group has simulation enable, then we enable velocity rendering for meshes/cards
-				if (IsHairStrandsSimulationEnable() && HairInstance->Guides.IsValid() && (HairInstance->Guides.bIsSimulationEnable || HairInstance->Guides.bIsDeformationEnable))
+				if (IsHairStrandsSimulationEnable() && HairInstance->Guides.IsValid() && (HairInstance->Guides.bIsSimulationEnable || HairInstance->Guides.bIsDeformationEnable || HairInstance->Guides.bIsSimulationCacheEnable))
 				{
 					bAlwaysHasVelocity = true;
 				}
@@ -2187,7 +2187,8 @@ void UGroomComponent::UpdateSimulatedGroups()
 					check(Instance->HairGroupPublicData);
 					Instance->Guides.bIsSimulationEnable	 = Instance->HairGroupPublicData->IsSimulationEnable(LODIndex);
 					Instance->Guides.bHasGlobalInterpolation = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(LODIndex);
-					Instance->Guides.bIsDeformationEnable = Instance->HairGroupPublicData->bIsDeformationEnable;
+					Instance->Guides.bIsDeformationEnable	 = Instance->HairGroupPublicData->bIsDeformationEnable;
+					Instance->Guides.bIsSimulationCacheEnable= Instance->Debug.GroomCacheType == EGroomCacheType::Guides;
 				}
 				++GroupIt;
 			}
@@ -2345,6 +2346,23 @@ static UMeshComponent* ValidateBindingAsset(
 static EGroomGeometryType GetEffectiveGeometryType(EGroomGeometryType Type, bool bUseCards)
 {
 	return Type == EGroomGeometryType::Strands && (!IsHairStrandsEnabled(EHairStrandsShaderType::Strands) || bUseCards) ? EGroomGeometryType::Cards : Type;
+}
+
+static EGroomCacheType GetEffectiveGroomCacheType(const UGroomCache* InCache, const UGroomAsset* InGroom)
+{
+	if (InCache && InGroom)
+	{
+		if (InCache->GetType() == EGroomCacheType::Guides)
+		{
+			// Ensure simulation cache is enable only if the groom asset as interpolation data enabled (i.e., EnableSimulationCache=true)
+			return InGroom->EnableSimulationCache ? EGroomCacheType::Guides : EGroomCacheType::None;
+		}
+		else
+		{
+			return InCache->GetType();
+		}
+	}
+	return EGroomCacheType::None;
 }
 
 void UGroomComponent::InitResources(bool bIsBindingReloading)
@@ -2555,7 +2573,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		HairGroupInstance->Debug.MeshComponent = RegisteredMeshComponent;
 		HairGroupInstance->Debug.GroomComponentForDebug = this;
 		HairGroupInstance->Debug.GroomBindingType = BindingAsset ? BindingAsset->GroomBindingType : EGroomBindingMeshType::SkeletalMesh;
-		HairGroupInstance->Debug.GroomCacheType = GroomCache ? GroomCache->GetType() : EGroomCacheType::None;
+		HairGroupInstance->Debug.GroomCacheType = GetEffectiveGroomCacheType(GroomCache, GroomAsset);
 		HairGroupInstance->Debug.GroomCacheBuffers = GroomCacheBuffers;
 		HairGroupInstance->Debug.LODForcedIndex = LODForcedIndex;
 		HairGroupInstance->Debug.LODPredictedIndex = LODPredictedIndex;
@@ -2621,6 +2639,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				HairGroupInstance->HairGroupPublicData->LODSimulations.Add(LODSimulation);
 				HairGroupInstance->HairGroupPublicData->LODGlobalInterpolations.Add(LODGlobalInterpolation);
 			}
+			HairGroupInstance->HairGroupPublicData->bIsSimulationCacheEnable = HairGroupInstance->Debug.GroomCacheType == EGroomCacheType::Guides;
 			HairGroupInstance->HairGroupPublicData->bIsDeformationEnable = GroomAsset->IsDeformationEnable(GroupIt);
 			HairGroupInstance->HairGroupPublicData->SetLODScreenSizes(CPULODScreenSize);
 			HairGroupInstance->HairGroupPublicData->SetLODVisibilities(LODVisibility);
@@ -2637,7 +2656,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		// * Physics simulation
 		// * RBF deformation.
 		// Therefore, even if simulation is disabled, we need to run partially the update if the binding system is enabled (skin deformation + RBF correction)
-		const bool bNeedGuides = (GroupData.Guides.HasValidData() && (bHasNeedSimulation[GroupIt] || bHasNeedGlobalDeformation[GroupIt] || bHasNeedDeformation[GroupIt])) || (HairGroupInstance->Debug.GroomCacheType == EGroomCacheType::Guides);
+		const bool bNeedGuides = (GroupData.Guides.HasValidData() && (bHasNeedSimulation[GroupIt] || bHasNeedGlobalDeformation[GroupIt] || bHasNeedDeformation[GroupIt])) || HairGroupInstance->HairGroupPublicData->bIsSimulationCacheEnable;
 		if (bNeedGuides)
 		{
 			HairGroupInstance->Guides.Data = &GroupData.Guides.BulkData;
@@ -2668,6 +2687,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			HairGroupInstance->Guides.bIsSimulationEnable = IsSimulationEnable(GroupIt,LODIndex);
 			HairGroupInstance->Guides.bHasGlobalInterpolation = LocalBindingAsset && GroomAsset->IsGlobalInterpolationEnable(GroupIt,LODIndex);
 			HairGroupInstance->Guides.bIsDeformationEnable = GroomAsset->IsDeformationEnable(GroupIt);
+			HairGroupInstance->Guides.bIsSimulationCacheEnable = HairGroupInstance->HairGroupPublicData->bIsSimulationCacheEnable;
 		}
 
 		// LODBias is in the Modifier which is needed for LOD selection regardless if the strands are there or not
@@ -2727,11 +2747,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				{
 					bNeedDynamicResources = true;
 				}
+
 				// the bones deformation needs to setup the deformed resources
 				if(HairGroupInstance->HairGroupPublicData->bIsDeformationEnable)
 				{
 					bNeedDynamicResources = true;
 				}
+
 				// Mesh deformer requires to dynamic resources
 				if (MeshDeformer)
 				{
@@ -3105,6 +3127,12 @@ void UGroomComponent::PostLoad()
 	// Do not validate the groom yet as the component count be loaded, but material/binding & co will be set later on
 	// ValidateMaterials(false);
 #endif
+
+	// Warning in case the groom is using a guide cache, but the EnableSimulationCache is disabled.
+	if (GroomAsset && GroomCache && GroomCache->GetType() == EGroomCacheType::Guides && !GroomAsset->EnableSimulationCache)
+	{
+		UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - The groom instance tries to use a guide-cache, but 'Enable Guide-Cache Support' option is not enabled on the groom asset. Because of this, the Guide-Cache won't be used."), *GetPathName());
+	}
 }
 
 void UGroomComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) 
@@ -3763,28 +3791,20 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		ResetAnimationTime();
 	}
 
-	// Check to see if simulation is required, which is needed when using with the guides groom cache,
+	// Check to see if simulation cache is enabled, which is needed when using with the guides groom cache,
 	// and enable it on all groom groups if it's not already
 	const EGroomCacheType GroomCacheType = GroomCache ? GroomCache->GetType() : EGroomCacheType::None;
-	const bool bSimulationRequired = GroomCacheType == EGroomCacheType::Guides;
-	if (bSimulationRequired && GroomAsset)
+	if (GroomCacheType == EGroomCacheType::Guides && GroomAsset)
 	{
-		bool bGroomAssetChanged = false;
 		for (int32 Index = 0; Index < GroomAsset->GetNumHairGroups(); ++Index)
 		{
-			if (!IsSimulationEnable(Index, -1))
+			if (!GroomAsset->EnableSimulationCache)
 			{
-				if (!bGroomAssetChanged)
-				{
-					GroomAsset->Modify();
-					bGroomAssetChanged = true;
-				}
-				GroomAsset->HairGroupsPhysics[Index].SolverSettings.EnableSimulation = true;
+				GroomAsset->Modify();
+				GroomAsset->EnableSimulationCache = true;
+				GroomAsset->CacheDerivedDatas();
+				break;
 			}
-		}
-		if (bGroomAssetChanged)
-		{
-			GroomAsset->CacheDerivedDatas();
 		}
 	}
 

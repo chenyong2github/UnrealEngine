@@ -1435,8 +1435,9 @@ static bool IsStrandsInterpolationAttributes(const FName PropertyName)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, NumPoints)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, bEnableRigging)
 
-		// Add dependency on simulation and per LOD-simulation/global-interoplation to strip-out interoplation data if there are not needed
+		// Add dependency on simulation and per LOD-simulation/global-interpolation to strip-out interpolation data if there are not needed
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, EnableGlobalInterpolation)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, EnableSimulationCache)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairSolverSettings, EnableSimulation)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, Simulation)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, GlobalInterpolation)
@@ -2058,6 +2059,39 @@ namespace GroomDerivedDataCacheUtils
 		static FString MeshPrefixString(TEXT("MESHES_V") + FHairMeshesBuilder::GetVersion() + TEXT("_"));
 		return MeshPrefixString + Hash.ToString();
 	}
+
+	FString BuildStrandsDerivedDataKeySuffix(uint32 GroupIndex, const FHairGroupsInterpolation& InterpolationSettings, const FHairGroupsLOD& LODSettings, bool bNeedInterpolationData, const FHairDescriptionBulkData* HairBulkDescription)
+	{
+		// Serialize the build settings into a temporary array
+		// The archive is flagged as persistent so that machines of different endianness produce identical binary results.
+		TArray<uint8> TempBytes;
+		TempBytes.Reserve(64);
+		FMemoryWriter Ar(TempBytes, /*bIsPersistent=*/ true);
+
+		GroomDerivedDataCacheUtils::SerializeHairInterpolationSettingsForDDC(Ar, GroupIndex, const_cast<FHairGroupsInterpolation&>(InterpolationSettings), const_cast<FHairGroupsLOD&>(LODSettings), bNeedInterpolationData);
+
+		FString KeySuffix;
+		if (HairBulkDescription)
+		{
+			// Reserve twice the size of TempBytes because of ByteToHex below + 3 for "ID" and \0
+			KeySuffix.Reserve(HairBulkDescription->GetIdString().Len() + TempBytes.Num() * 2 + 3);
+			KeySuffix += TEXT("ID");
+			KeySuffix += HairBulkDescription->GetIdString();
+		}
+		else
+		{
+			KeySuffix.Reserve(TempBytes.Num() * 2 + 1);
+		}
+
+		// Now convert the raw bytes to a string
+		const uint8* SettingsAsBytes = TempBytes.GetData();
+		for (int32 ByteIndex = 0; ByteIndex < TempBytes.Num(); ++ByteIndex)
+		{
+			ByteToHex(SettingsAsBytes[ByteIndex], KeySuffix);
+		}
+
+		return KeySuffix;
+	}
 }
 
 bool UGroomAsset::IsFullyCached()
@@ -2108,42 +2142,6 @@ bool UGroomAsset::IsFullyCached()
 	return GetDerivedDataCacheRef().AllCachedDataProbablyExists(CacheKeys);
 }
 
-FString UGroomAsset::BuildDerivedDataKeySuffix(uint32 GroupIndex, const FHairGroupsInterpolation& InterpolationSettings, const FHairGroupsLOD& LODSettings) const
-{
-	// Serialize the build settings into a temporary array
-	// The archive is flagged as persistent so that machines of different endianness produce identical binary results.
-	TArray<uint8> TempBytes;
-	TempBytes.Reserve(64);
-	FMemoryWriter Ar(TempBytes, /*bIsPersistent=*/ true);
-	
-	// If simulation or global interpolation is enabled, then interoplation data are required. Otherwise they can be skipped
-	const bool bNeedInterpolationData = NeedsInterpolationData(GroupIndex);
-
-	GroomDerivedDataCacheUtils::SerializeHairInterpolationSettingsForDDC(Ar, GroupIndex, const_cast<FHairGroupsInterpolation&>(InterpolationSettings), const_cast<FHairGroupsLOD&>(LODSettings), bNeedInterpolationData);
-
-	FString KeySuffix;
-	if (HairDescriptionBulkData[HairDescriptionType])
-	{
-		// Reserve twice the size of TempBytes because of ByteToHex below + 3 for "ID" and \0
-		KeySuffix.Reserve(HairDescriptionBulkData[HairDescriptionType]->GetIdString().Len() + TempBytes.Num() * 2 + 3);
-		KeySuffix += TEXT("ID");
-		KeySuffix += HairDescriptionBulkData[HairDescriptionType]->GetIdString();
-	}
-	else
-	{
-		KeySuffix.Reserve(TempBytes.Num() * 2 + 1);
-	}
-
-	// Now convert the raw bytes to a string
-	const uint8* SettingsAsBytes = TempBytes.GetData();
-	for (int32 ByteIndex = 0; ByteIndex < TempBytes.Num(); ++ByteIndex)
-	{
-		ByteToHex(SettingsAsBytes[ByteIndex], KeySuffix);
-	}
-
-	return KeySuffix;
-}
-
 FString UGroomAsset::GetDerivedDataKey()
 {
 	FString Key;
@@ -2165,17 +2163,6 @@ FString UGroomAsset::GetDerivedDataKeyForCards(uint32 GroupIndex, const FString&
 	return DerivedDataKey;
 }
 
-FString UGroomAsset::GetDerivedDataKeyForStrands(uint32 GroupIndex)
-{
-	const FHairGroupsInterpolation& InterpolationSettings = HairGroupsInterpolation[GroupIndex];
-	const FHairGroupsLOD& LODSettings = HairGroupsLOD[GroupIndex];
-
-	const FString KeySuffix = BuildDerivedDataKeySuffix(GroupIndex, InterpolationSettings, LODSettings);
-	const FString DerivedDataKey = GroomDerivedDataCacheUtils::BuildGroomDerivedDataKey(KeySuffix);
-
-	return DerivedDataKey;
-}
-
 FString UGroomAsset::GetDerivedDataKeyForMeshes(uint32 GroupIndex)
 {
 	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildMeshesDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsMeshes);
@@ -2183,6 +2170,18 @@ FString UGroomAsset::GetDerivedDataKeyForMeshes(uint32 GroupIndex)
 	return DerivedDataKey;
 }
 
+FString UGroomAsset::GetDerivedDataKeyForStrands(uint32 GroupIndex)
+{
+	const FHairGroupsInterpolation& InterpolationSettings = HairGroupsInterpolation[GroupIndex];
+	const FHairGroupsLOD& LODSettings = HairGroupsLOD[GroupIndex];
+
+	// If simulation or global interpolation is enabled, then interpolation data are required. Otherwise they can be skipped
+	const bool bNeedInterpolationData = NeedsInterpolationData(GroupIndex);
+	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildStrandsDerivedDataKeySuffix(GroupIndex, InterpolationSettings, LODSettings, bNeedInterpolationData, HairDescriptionBulkData[HairDescriptionType].Get());
+	const FString DerivedDataKey = GroomDerivedDataCacheUtils::BuildGroomDerivedDataKey(KeySuffix);
+
+	return DerivedDataKey;
+}
 
 void UGroomAsset::CommitHairDescription(FHairDescription&& InHairDescription, EHairDescriptionType Type)
 {
@@ -3450,7 +3449,7 @@ bool UGroomAsset::NeedsInterpolationData(int32 GroupIndex) const
 {
 	for (int32 LODIt = 0; LODIt < HairGroupsLOD.Num(); ++LODIt)
 	{
-		if (IsSimulationEnable(GroupIndex, LODIt) || IsGlobalInterpolationEnable(GroupIndex, LODIt))
+		if (IsSimulationEnable(GroupIndex, LODIt) || IsGlobalInterpolationEnable(GroupIndex, LODIt) || EnableSimulationCache)
 		{
 			return true;
 		}

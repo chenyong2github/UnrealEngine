@@ -137,6 +137,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		bool bIsSimulationEnable = false;
 		bool bIsDeformationEnable = false;
 		bool bHasGlobalInterpolation = false;
+		bool bIsSimulationCacheEnable = false;
 	} Guides;
 
 	//////////////////////////////////////////////////////////////////////////////////////////
