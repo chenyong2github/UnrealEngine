@@ -18,6 +18,7 @@ class UActorContainer;
 class UDataLayerAsset;
 class UDataLayerInstance;
 class UWorldPartition;
+class UDataLayerManager;
 struct FHierarchicalLogArchive;
 
 enum class EWorldPartitionRuntimeCellVisualizeMode
@@ -203,6 +204,7 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual FString GetDebugName() const override;
 	//~End IWorldPartitionCell Interface
 
+	UDataLayerManager* GetDataLayerManager() const;
 	bool HasAnyDataLayerInEffectiveRuntimeState(EDataLayerRuntimeState InState) const;
 
 	bool GetBlockOnSlowLoading() const { return bBlockOnSlowLoading; }
