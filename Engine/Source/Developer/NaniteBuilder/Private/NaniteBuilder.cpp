@@ -543,6 +543,13 @@ static bool BuildNaniteData(
 		Resources.ResourceFlags |= NANITE_RESOURCE_FLAG_HAS_VERTEX_COLOR;
 	}
 
+	if (!Settings.bEnabled)
+	{
+		// If we're this far into building Nanite data, and Nanite is not enabled in the settings, we know the build was forced.
+		// This flag is useful at runtime for avoiding possible material warnings during fallback to non-Nanite rendering.
+		Resources.ResourceFlags |= NANITE_RESOURCE_FLAG_FORCE_ENABLED;
+	}
+
 #if NANITE_IMPOSTERS_SUPPORTED
 	const bool bHasImposter = CVarBuildImposters.GetValueOnAnyThread() && (Resources.NumInputMeshes == 1);
 	if (bHasImposter)

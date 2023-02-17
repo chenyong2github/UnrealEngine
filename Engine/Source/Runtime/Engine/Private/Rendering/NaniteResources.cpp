@@ -2049,6 +2049,13 @@ uint32 FSceneProxy::GetMemoryFootprint() const
 
 void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit)
 {
+	// When all meshes are forced to Nanite, we want to silence warnings, and assume Nanite usage is forced on as well
+	bool bForceEnabled = false;
+	if (const Nanite::FResources* NaniteResources = Component->GetNaniteResources())
+	{
+		bForceEnabled = (NaniteResources->ResourceFlags & NANITE_RESOURCE_FLAG_FORCE_ENABLED) != 0u;
+	}
+
 	Audit.bHasAnyError = false;
 	Audit.Entries.Reset();
 
@@ -2082,7 +2089,7 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 			Entry.bHasPixelDepthOffset		= Material->HasPixelDepthOffsetConnected();
 			Entry.bHasWorldPositionOffset	= Material->HasVertexPositionOffsetConnected();
 			Entry.bHasUnsupportedBlendMode	= !IsSupportedBlendMode(BlendMode);
-			Entry.bHasInvalidUsage			= !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
+			Entry.bHasInvalidUsage			= bForceEnabled ? false : !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
 
 			if (BlendMode == BLEND_Masked)
 			{
@@ -2099,7 +2106,7 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 				Entry.bHasUnsupportedBlendMode |
 				Entry.bHasInvalidUsage;
 
-			if (Entry.bHasAnyError && !Audit.bHasAnyError)
+			if (!bForceEnabled && Entry.bHasAnyError && !Audit.bHasAnyError)
 			{
 				// Only populate on error for performance/memory reasons
 				Audit.AssetName = Component->GetStaticMesh()->GetName();
@@ -2108,21 +2115,24 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 
 			Audit.bHasAnyError |= Entry.bHasAnyError;
 
-			if (Entry.bHasInvalidUsage)
+			if (!bForceEnabled)
 			{
-				UE_LOG(LogStaticMesh, Warning, TEXT("Invalid usage flag on material [%s] for Nanite static mesh [%s]."), *GetNameSafe(Entry.Material), *Audit.AssetName);
-			}
-			else if (Entry.bHasUnsupportedBlendMode)
-			{
-				const FString BlendModeName = GetBlendModeString(Entry.Material->GetBlendMode());
-				UE_LOG
-				(
-					LogStaticMesh, Warning,
-					TEXT("Invalid material [%s] used on Nanite static mesh [%s]. Only opaque or masked blend modes are currently supported, [%s] blend mode was specified."),
-					*Entry.Material->GetName(),
-					*Audit.AssetName,
-					*BlendModeName
-				);
+				if (Entry.bHasInvalidUsage)
+				{
+					UE_LOG(LogStaticMesh, Warning, TEXT("Invalid usage flag on material [%s] for Nanite static mesh [%s]."), *GetNameSafe(Entry.Material), *Audit.AssetName);
+				}
+				else if (Entry.bHasUnsupportedBlendMode)
+				{
+					const FString BlendModeName = GetBlendModeString(Entry.Material->GetBlendMode());
+					UE_LOG
+					(
+						LogStaticMesh, Warning,
+						TEXT("Invalid material [%s] used on Nanite static mesh [%s]. Only opaque or masked blend modes are currently supported, [%s] blend mode was specified."),
+						*Entry.Material->GetName(),
+						*Audit.AssetName,
+						*BlendModeName
+					);
+				}
 			}
 		}
 	}
