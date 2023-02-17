@@ -40,12 +40,15 @@ private:
 		{
 			UE::Net::SetUseIrisReplication(UseIrisReplication > 0);
 		}
-		
-		RegisterPropertyNetSerializerSelectorTypes();
 
-		UE_NET_IRIS_INIT_LEGACY_PUSH_MODEL();
+		if (UE::Net::ShouldUseIrisReplication())
+		{
+			RegisterPropertyNetSerializerSelectorTypes();
+
+			UE_NET_IRIS_INIT_LEGACY_PUSH_MODEL();
 		
-		ModulesChangedHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FIrisCoreModule::OnModulesChanged);
+			ModulesChangedHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FIrisCoreModule::OnModulesChanged);
+		}
 	}
 
 	virtual void ShutdownModule() override

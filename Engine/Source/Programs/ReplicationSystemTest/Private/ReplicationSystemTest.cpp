@@ -49,7 +49,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 
 	// Init cmd line used for test
 	{
-		FString CmdLineOverride(TEXT("-nullrhi -log -NoAsyncLoadingThread -NoAsyncPostLoad -noedl -unattended -ENGINEINI=Engine.ini"));
+		FString CmdLineOverride(TEXT("-nullrhi -log -NoAsyncLoadingThread -NoAsyncPostLoad -noedl -unattended -ENGINEINI=Engine.ini -UseIrisReplication=1"));
 		FString NetTraceVerbosity;
 		if(FParse::Value(ToCStr(OriginalCmdLine), TEXT("NetTrace="), NetTraceVerbosity))
 		{
@@ -172,6 +172,10 @@ static void PreInit()
 
 	// Console commands
 	IConsoleManager::Get().ProcessUserConsoleInput(TEXT("Net.IsPushModelEnabled 1"), *GLog, nullptr);
+
+	// Console commands
+	IConsoleManager::Get().ProcessUserConsoleInput(TEXT("Log LogIrisBridge Verbose"), *GLog, nullptr);
+
 
 	GGameThreadId = FPlatformTLS::GetCurrentThreadId();
 	FTaskGraphInterface::Startup(FPlatformMisc::NumberOfCores());
