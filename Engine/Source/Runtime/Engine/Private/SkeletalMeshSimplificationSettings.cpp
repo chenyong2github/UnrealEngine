@@ -1,14 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/SkeletalMeshSimplificationSettings.h"
-#include "UObject/UnrealType.h"
+#include "HAL/IConsoleManager.h"
+#include "CoreGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshSimplificationSettings)
+
+static FAutoConsoleVariable CVarSkeletalMeshReductionModule(
+	TEXT("r.SkeletalMeshReductionModule"),
+	TEXT("SkeletalMeshReduction"),
+	TEXT("Name of what skeletal mesh reduction module to choose. If blank it chooses any that exist.\n"),
+	ECVF_ReadOnly);
 
 USkeletalMeshSimplificationSettings::USkeletalMeshSimplificationSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-
 }
 
 FName USkeletalMeshSimplificationSettings::GetContainerName() const
@@ -21,6 +27,12 @@ FName USkeletalMeshSimplificationSettings::GetCategoryName() const
 {
 	static const FName EditorCategoryName("Editor");
 	return EditorCategoryName;
+}
+
+void USkeletalMeshSimplificationSettings::SetSkeletalMeshReductionModuleName(FName InSkeletalMeshReductionModuleName)
+{
+	SkeletalMeshReductionModuleName = InSkeletalMeshReductionModuleName;
+	CVarSkeletalMeshReductionModule->Set(*SkeletalMeshReductionModuleName.ToString());
 }
 
 void USkeletalMeshSimplificationSettings::PostInitProperties()

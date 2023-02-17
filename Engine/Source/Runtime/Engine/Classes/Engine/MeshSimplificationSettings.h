@@ -8,13 +8,16 @@
 #include "MeshSimplificationSettings.generated.h"
 
 UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Mesh Simplification"))
-class UMeshSimplificationSettings : public UDeveloperSettings
+class ENGINE_API UMeshSimplificationSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	virtual FName GetContainerName() const override;
 	virtual FName GetCategoryName() const override;
+
+	void SetMeshReductionModuleName(FName InMeshReductionModuleName);
+
 public:
 	/** Mesh reduction plugin to use when simplifying mesh geometry */
 	UPROPERTY(config, EditAnywhere, Category=General, meta=(ConsoleVariable="r.MeshReductionModule", DisplayName="Mesh Reduction Plugin", ConfigRestartRequired=true))
