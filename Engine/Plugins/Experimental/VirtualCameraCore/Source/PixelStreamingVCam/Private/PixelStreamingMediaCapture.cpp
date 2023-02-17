@@ -11,7 +11,7 @@ void UPixelStreamingMediaCapture::OnRHIResourceCaptured_RenderingThread(
 	TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData,
 	FTextureRHIRef InTexture)
 {
-	TSharedPtr<FPixelStreamingVideoInput> VideoInputPtr = VideoInput.Pin();
+	TSharedPtr<FPixelStreamingVideoInputVCam> VideoInputPtr = VideoInput.Pin();
 	if (VideoInputPtr)
 	{
 		VideoInputPtr->OnFrame(FPixelCaptureInputFrameRHI(InTexture));
@@ -26,7 +26,8 @@ bool UPixelStreamingMediaCapture::InitializeCapture()
 
 	// Force the MediaCapture readback to be completed on the render thread
 	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("MediaIO.ScheduleOnAnyThread"));
-	if(CVar) {
+	if (CVar)
+	{
 		CVar->Set(0, EConsoleVariableFlags::ECVF_SetByCode);
 	}
 

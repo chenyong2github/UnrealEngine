@@ -27,6 +27,11 @@ public:
 	 */
 	virtual void OnFrame(const IPixelCaptureInputFrame& InputFrame);
 
+	/**
+	 * A human readable identifier used when displaying what the streamer is streaming in the toolbar
+	 */
+	virtual FString ToString();
+
 	bool IsReady() const { return Ready; }
 
 	/**
@@ -35,7 +40,7 @@ public:
 	rtc::scoped_refptr<webrtc::VideoFrameBuffer> GetFrameBuffer();
 
 	/**
-	 * 
+	 *
 	 */
 	TSharedPtr<IPixelCaptureOutputFrame> RequestFormat(int32 Format, int32 LayerIndex = -1);
 

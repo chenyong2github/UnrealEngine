@@ -5,10 +5,9 @@
 #include "MediaOutput.h"
 #include "IPixelStreamingStreamer.h"
 #include "PixelStreamingMediaCapture.h"
-#include "PixelStreamingVideoInput.h"
+#include "PixelStreamingVideoInputVCam.h"
 #include "Delegates/DelegateCombinations.h"
 #include "PixelStreamingMediaOutput.generated.h"
-
 
 UCLASS(BlueprintType)
 class UPixelStreamingMediaOutput : public UMediaOutput
@@ -38,11 +37,11 @@ public:
 
 	DECLARE_EVENT_OneParam(UPixelStreamingMediaOutput, FRemoteResolutionChangedEvent, const FIntPoint&)
 	FRemoteResolutionChangedEvent& OnRemoteResolutionChanged() { return RemoteResolutionChangedEvent; }
-	
+
 private:
 	UPixelStreamingMediaCapture* Capture = nullptr;
 	TSharedPtr<IPixelStreamingStreamer> Streamer;
-	TSharedPtr<FPixelStreamingVideoInput> VideoInput;
+	TSharedPtr<FPixelStreamingVideoInputVCam> VideoInput;
 
 	/** Broadcasts whenever the layer changes */
 	FRemoteResolutionChangedEvent RemoteResolutionChangedEvent;

@@ -15,7 +15,6 @@
 #include "Slate/SceneViewport.h"
 #include "IPixelStreamingModule.h"
 
-
 TSharedPtr<FPixelStreamingVideoInputViewport> FPixelStreamingVideoInputViewport::Create()
 {
 	TSharedPtr<FPixelStreamingVideoInputViewport> NewInput = TSharedPtr<FPixelStreamingVideoInputViewport>(new FPixelStreamingVideoInputViewport());
@@ -86,4 +85,9 @@ void FPixelStreamingVideoInputViewport::OnViewportRendered(FViewport* InViewport
 	([&, FrameBuffer](FRHICommandList& RHICmdList) {
 		OnFrame(FPixelCaptureInputFrameRHI(FrameBuffer));
 	});
+}
+
+FString FPixelStreamingVideoInputViewport::ToString()
+{
+	return TEXT("the Target Viewport");
 }

@@ -57,24 +57,17 @@ void FPixelStreamingEditorModule::ShutdownModule()
 
 void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Module)
 {
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module.GetStreamer(Module.GetDefaultStreamerID());
-	if (!Streamer.IsValid())
-	{
-		return;
-	}
+	EditorStreamer = Module.CreateStreamer("Editor");
 
 	// Give the editor streamer the default url if the user hasn't specified one when launching the editor
-	if (Streamer->GetSignallingServerURL().IsEmpty())
+	if (EditorStreamer->GetSignallingServerURL().IsEmpty())
 	{
 		// No URL was passed on the command line, initialize defaults
-		StreamerPort = 8888;
-		SignallingDomain = TEXT("ws://127.0.0.1");
-
-		Streamer->SetSignallingServerURL(FString::Printf(TEXT("%s:%d"), *SignallingDomain, StreamerPort));
+		EditorStreamer->SetSignallingServerURL("ws://127.0.0.1:8888");
 	}
 	else
 	{
-		FString SpecifiedSignallingURL = Streamer->GetSignallingServerURL();
+		FString SpecifiedSignallingURL = EditorStreamer->GetSignallingServerURL();
 		TOptional<uint16> ExtractedStreamerPort = FGenericPlatformHttp::GetUrlPort(SpecifiedSignallingURL);
 		StreamerPort = (int32)ExtractedStreamerPort.Get(8888);
 
@@ -89,7 +82,7 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 		}
 	}
 
-	Streamer->SetConfigOption(FName(*FString(TEXT("DefaultToHover"))), TEXT("true"));
+	EditorStreamer->SetConfigOption(FName(*FString(TEXT("DefaultToHover"))), TEXT("true"));
 
 	IMainFrameModule::Get().OnMainFrameCreationFinished().AddLambda([&](TSharedPtr<SWindow> RootWindow, bool bIsRunningStartupDialog) {
 		MaybeResizeEditor(RootWindow);
@@ -107,10 +100,8 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 
 void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStreamTypes InStreamType)
 {
-	// Activate our level editor streamer
-	IPixelStreamingModule& Module = IPixelStreamingModule::Get();
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module.GetStreamer(Module.GetDefaultStreamerID());
-	if (!Streamer.IsValid())
+	// Activate our editor streamer
+	if (!EditorStreamer.IsValid())
 	{
 		return;
 	}
@@ -139,7 +130,6 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 			});
 	}
 
-	StreamType = InStreamType;
 	switch (InStreamType)
 	{
 		case UE::EditorPixelStreaming::EStreamTypes::LevelEditorViewport:
@@ -153,18 +143,18 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 
 			FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
 			FSceneViewport* SceneViewport = static_cast<FSceneViewport*>(LevelViewportClient.Viewport);
-			Streamer->SetTargetViewport(SceneViewport->GetViewportWidget());
-			Streamer->SetTargetWindow(SceneViewport->FindWindow());
-			Streamer->SetInputHandlerType(EPixelStreamingInputType::RouteToWindow);
-			Streamer->SetVideoInput(FPixelStreamingVideoInputViewport::Create());
+			EditorStreamer->SetTargetViewport(SceneViewport->GetViewportWidget());
+			EditorStreamer->SetTargetWindow(SceneViewport->FindWindow());
+			EditorStreamer->SetInputHandlerType(EPixelStreamingInputType::RouteToWindow);
+			EditorStreamer->SetVideoInput(FPixelStreamingVideoInputViewport::Create());
 		}
 		break;
 		case UE::EditorPixelStreaming::EStreamTypes::Editor:
 		{
-			Streamer->SetTargetViewport(nullptr);
-			Streamer->SetTargetWindow(nullptr);
-			Streamer->SetInputHandlerType(EPixelStreamingInputType::RouteToWindow);
-			Streamer->SetVideoInput(FPixelStreamingVideoInputBackBufferComposited::Create());
+			EditorStreamer->SetTargetViewport(nullptr);
+			EditorStreamer->SetTargetWindow(nullptr);
+			EditorStreamer->SetInputHandlerType(EPixelStreamingInputType::RouteToWindow);
+			EditorStreamer->SetVideoInput(FPixelStreamingVideoInputBackBufferComposited::Create());
 		}
 		break;
 		default:
@@ -177,19 +167,16 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 
 	if (!bUseExternalSignallingServer)
 	{
-		Streamer->SetSignallingServerURL(FString::Printf(TEXT("%s:%d"), *SignallingDomain, StreamerPort));
+		EditorStreamer->SetSignallingServerURL(FString::Printf(TEXT("%s:%d"), *SignallingDomain, StreamerPort));
 		StartSignalling();
 	}
 
-	// Use the Pixel Streaming module's start streaming method to start all streamers
-	Module.StartStreaming();
+	EditorStreamer->StartStreaming();
 }
 
 void FPixelStreamingEditorModule::StopStreaming()
 {
-	IPixelStreamingModule& Module = IPixelStreamingModule::Get();
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module.GetStreamer(Module.GetDefaultStreamerID());
-	if (!Streamer.IsValid())
+	if (!EditorStreamer.IsValid())
 	{
 		return;
 	}
@@ -199,15 +186,9 @@ void FPixelStreamingEditorModule::StopStreaming()
 		StopSignalling();
 	}
 
-	Streamer->SetTargetViewport(nullptr);
-	Streamer->SetTargetWindow(nullptr);
-	// Use the Pixel Streaming module's stop streaming method to stop all streamers
-	Module.StopStreaming();
-}
-
-UE::EditorPixelStreaming::EStreamTypes FPixelStreamingEditorModule::GetStreamType()
-{
-	return StreamType;
+	EditorStreamer->SetTargetViewport(nullptr);
+	EditorStreamer->SetTargetWindow(nullptr);
+	EditorStreamer->StopStreaming();
 }
 
 void FPixelStreamingEditorModule::StartSignalling()

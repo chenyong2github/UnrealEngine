@@ -9,7 +9,7 @@
 uint32 FPixelStreamingVideoInput::NextStreamId = 1;
 
 FPixelStreamingVideoInput::FPixelStreamingVideoInput()
-:StreamId(NextStreamId++)
+	: StreamId(NextStreamId++)
 {
 	CreateFrameCapturer();
 }
@@ -80,4 +80,9 @@ void FPixelStreamingVideoInput::CreateFrameCapturer()
 void FPixelStreamingVideoInput::OnCaptureComplete()
 {
 	OnFrameCaptured.Broadcast();
+}
+
+FString FPixelStreamingVideoInput::ToString()
+{
+	return TEXT("a Video Input");
 }

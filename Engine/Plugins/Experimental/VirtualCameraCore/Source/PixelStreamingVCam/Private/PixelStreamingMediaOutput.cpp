@@ -35,7 +35,7 @@ UMediaCapture* UPixelStreamingMediaOutput::CreateMediaCaptureImpl()
 
 	if (!VideoInput)
 	{
-		VideoInput = MakeShared<FPixelStreamingVideoInputRHI>();
+		VideoInput = FPixelStreamingVideoInputVCam::Create();
 	}
 
 	Capture->SetVideoInput(VideoInput);
@@ -73,8 +73,6 @@ void UPixelStreamingMediaOutput::StartStreaming()
 {
 	if (Streamer)
 	{
-		FPixelStreamingEditorModule::GetModule()->SetStreamType(UE::EditorPixelStreaming::EStreamTypes::VCam);
-
 		const FString SignallingDomain = FPixelStreamingEditorModule::GetModule()->GetSignallingDomain();
 		const int32 StreamerPort = FPixelStreamingEditorModule::GetModule()->GetStreamerPort();
 		const FString SignallingServerURL = FString::Printf(TEXT("%s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort));
@@ -84,7 +82,7 @@ void UPixelStreamingMediaOutput::StartStreaming()
 		if (VideoInput.IsValid())
 		{
 			TSharedPtr<FPixelStreamingVideoInput> StreamerVideoInput = Streamer->GetVideoInput().Pin();
-			if(!StreamerVideoInput.IsValid() || StreamerVideoInput != VideoInput)
+			if (!StreamerVideoInput.IsValid() || StreamerVideoInput != VideoInput)
 			{
 				Streamer->SetVideoInput(VideoInput);
 			}

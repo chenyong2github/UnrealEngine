@@ -132,14 +132,16 @@ namespace UE::PixelStreaming
 
 			// Ensure we have ImageWrapper loaded, used in Freezeframes
 			verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
-			InitDefaultStreamer();
-			bModuleReady = true;
-			ReadyEvent.Broadcast(*this);
+
 			// We don't want to start immediately streaming in editor
 			if (!GIsEditor)
 			{
+				InitDefaultStreamer();
 				StartStreaming();
 			}
+
+			bModuleReady = true;
+			ReadyEvent.Broadcast(*this);
 		});
 
 		rtc::InitializeSSL();
@@ -247,6 +249,22 @@ namespace UE::PixelStreaming
 			FScopeLock Lock(&StreamersCS);
 			Streamers.Add(StreamerId, NewStreamer);
 		}
+
+		// Any time we create a new streamer, populate it's signalling server URL with whatever is on the command line
+		FString SignallingServerURL;
+		if (!Settings::GetSignallingServerUrl(SignallingServerURL))
+		{
+			// didnt get the startup URL for pixel streaming. Check deprecated options...
+			FString SignallingServerIP;
+			uint16 SignallingServerPort;
+			if (Settings::GetSignallingServerIP(SignallingServerIP) && Settings::GetSignallingServerPort(SignallingServerPort))
+			{
+				// got both old parameters. Warn about deprecation and build the proper url.
+				UE_LOG(LogPixelStreaming, Warning, TEXT("PixelStreamingIP and PixelStreamingPort are deprecated flags. Use PixelStreamingURL instead. eg. -PixelStreamingURL=ws://%s:%d"), *SignallingServerIP, SignallingServerPort);
+				SignallingServerURL = FString::Printf(TEXT("ws://%s:%d"), *SignallingServerIP, SignallingServerPort);
+			}
+		}
+		NewStreamer->SetSignallingServerURL(SignallingServerURL);
 
 		return NewStreamer;
 	}
@@ -363,20 +381,6 @@ namespace UE::PixelStreaming
 	{
 		UE_LOG(LogPixelStreaming, Log, TEXT("PixelStreaming streamer ID: %s"), *Settings::GetDefaultStreamerID());
 
-		FString SignallingServerURL;
-		if (!Settings::GetSignallingServerUrl(SignallingServerURL))
-		{
-			// didnt get the startup URL for pixel streaming. Check deprecated options...
-			FString SignallingServerIP;
-			uint16 SignallingServerPort;
-			if (Settings::GetSignallingServerIP(SignallingServerIP) && Settings::GetSignallingServerPort(SignallingServerPort))
-			{
-				// got both old parameters. Warn about deprecation and build the proper url.
-				UE_LOG(LogPixelStreaming, Warning, TEXT("PixelStreamingIP and PixelStreamingPort are deprecated flags. Use PixelStreamingURL instead. eg. -PixelStreamingURL=ws://%s:%d"), *SignallingServerIP, SignallingServerPort);
-				SignallingServerURL = FString::Printf(TEXT("ws://%s:%d"), *SignallingServerIP, SignallingServerPort);
-			}
-		}
-
 		DefaultStreamer = CreateStreamer(Settings::GetDefaultStreamerID());
 		// The PixelStreamingEditorModule handles setting video input in the editor
 		if (!GIsEditor)
@@ -397,15 +401,11 @@ namespace UE::PixelStreaming
 			}
 		}
 
-		if (!SignallingServerURL.IsEmpty())
+		if (!DefaultStreamer->GetSignallingServerURL().IsEmpty())
 		{
 			// The user has specified a URL on the command line meaning their intention is to start streaming immediately
 			// in that case, set up the video input for them (as long as we're not in editor)
-			if (!GIsEditor)
-			{
-				DefaultStreamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
-			}
-			DefaultStreamer->SetSignallingServerURL(SignallingServerURL);
+			DefaultStreamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
 		}
 	}
 

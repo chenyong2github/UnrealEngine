@@ -37,10 +37,12 @@
 
 #define LOCTEXT_NAMESPACE "PixelStreamingEditor"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingToolbar, Log, All);
+DEFINE_LOG_CATEGORY(LogPixelStreamingToolbar);
+
 namespace UE::EditorPixelStreaming
 {
 	FPixelStreamingToolbar::FPixelStreamingToolbar()
-	: PixelStreamingModule(IPixelStreamingModule::Get())
 	{
 		FPixelStreamingCommands::Register();
 
@@ -48,185 +50,135 @@ namespace UE::EditorPixelStreaming
 
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().ExternalSignalling,
-			FExecuteAction::CreateLambda([&]()
-			{
+			FExecuteAction::CreateLambda([]() {
 				FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer = !FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer;
 				FPixelStreamingEditorModule::GetModule()->StopSignalling();
 			}),
-			FCanExecuteAction::CreateLambda([Module = &PixelStreamingModule] {  
-				if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))	
+			FCanExecuteAction::CreateLambda([] {
+				TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = FPixelStreamingEditorModule::GetModule()->GetSignallingServer();
+				if (!SignallingServer.IsValid() || !SignallingServer->HasLaunched())
 				{
-					return !Streamer->IsStreaming();
-				}				 
+					return true;
+				}
 				return false;
 			}),
-			FIsActionChecked::CreateLambda([&]()
-			{ 
+			FIsActionChecked::CreateLambda([]() {
 				return FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer;
-			})
-		);
+			}));
 
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().StreamLevelEditor,
-			FExecuteAction::CreateLambda([]()
-			{
+			FExecuteAction::CreateLambda([]() {
 				FPixelStreamingEditorModule::GetModule()->StartStreaming(EStreamTypes::LevelEditorViewport);
 			}),
-			FCanExecuteAction::CreateLambda([Module = &PixelStreamingModule] {  
-				if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))	
+			FCanExecuteAction::CreateLambda([] {
+				if (TSharedPtr<IPixelStreamingStreamer> Streamer = IPixelStreamingModule::Get().GetStreamer("Editor"))
 				{
 					return !Streamer->IsStreaming();
-				}				 
+				}
 				return false;
-			})
-		);
+			}));
 
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().StreamEditor,
-			FExecuteAction::CreateLambda([]()
-			{
+			FExecuteAction::CreateLambda([]() {
 				FPixelStreamingEditorModule::GetModule()->StartStreaming(EStreamTypes::Editor);
 			}),
-			FCanExecuteAction::CreateLambda([Module = &PixelStreamingModule] {  
-				if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))	
+			FCanExecuteAction::CreateLambda([] {
+				if (TSharedPtr<IPixelStreamingStreamer> Streamer = IPixelStreamingModule::Get().GetStreamer("Editor"))
 				{
 					return !Streamer->IsStreaming();
-				}				 
-				return false;
-			})
-		);
-	   
-		PluginCommands->MapAction(
-			FPixelStreamingCommands::Get().StopStreaming,
-			FExecuteAction::CreateLambda([]()
-			{
-				FPixelStreamingEditorModule::GetModule()->StopStreaming();
-			}),
-			FCanExecuteAction::CreateLambda([Module = &PixelStreamingModule] { 
-				if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))	
-				{
-					return Streamer->IsStreaming();
 				}
-				return true;
-			})
-		);
+				return false;
+			}));
 
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().StartSignalling,
-			FExecuteAction::CreateLambda([]()
-			{
+			FExecuteAction::CreateLambda([]() {
 				FPixelStreamingEditorModule::GetModule()->StartSignalling();
 			}),
-			FCanExecuteAction::CreateLambda([] {  
+			FCanExecuteAction::CreateLambda([] {
 				TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = FPixelStreamingEditorModule::GetModule()->GetSignallingServer();
-				if(!SignallingServer.IsValid() || !SignallingServer->HasLaunched())
+				if (!SignallingServer.IsValid() || !SignallingServer->HasLaunched())
 				{
 					return true;
 				}
 				return false;
-			})
-		);
+			}));
 
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().StopSignalling,
-			FExecuteAction::CreateLambda([]()
-			{
+			FExecuteAction::CreateLambda([]() {
 				FPixelStreamingEditorModule::GetModule()->StopSignalling();
 			}),
-			FCanExecuteAction::CreateLambda([] {  
+			FCanExecuteAction::CreateLambda([] {
 				TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = FPixelStreamingEditorModule::GetModule()->GetSignallingServer();
-				if(SignallingServer.IsValid() && SignallingServer->HasLaunched())
+				if (SignallingServer.IsValid() && SignallingServer->HasLaunched())
 				{
 					return true;
 				}
 				return false;
-			})
-		);
+			}));
 
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().VP8,
-			FExecuteAction::CreateLambda([Module = &PixelStreamingModule]()
-			{
-				Module->SetCodec(EPixelStreamingCodec::VP8);
+			FExecuteAction::CreateLambda([]() {
+				IPixelStreamingModule::Get().SetCodec(EPixelStreamingCodec::VP8);
 			}),
-			FCanExecuteAction::CreateLambda([Module = &PixelStreamingModule] { 
-				if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))	
-				{
-					return !Streamer->IsStreaming();
-				}
-				return false;
+			FCanExecuteAction::CreateLambda([] {
+				bool bCanChangeCodec = true;
+				IPixelStreamingModule::Get().ForEachStreamer([&bCanChangeCodec](TSharedPtr<IPixelStreamingStreamer> Streamer) {
+					bCanChangeCodec &= !Streamer->IsStreaming();
+				});
+
+				return bCanChangeCodec;
 			}),
-			FIsActionChecked::CreateLambda([Module = &PixelStreamingModule]()
-			{ 
-				return Module->GetCodec() == EPixelStreamingCodec::VP8;
-			})
-		);
+			FIsActionChecked::CreateLambda([]() {
+				return IPixelStreamingModule::Get().GetCodec() == EPixelStreamingCodec::VP8;
+			}));
 
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().VP9,
-			FExecuteAction::CreateLambda([Module = &PixelStreamingModule]()
-			{
-				Module->SetCodec(EPixelStreamingCodec::VP9);
+			FExecuteAction::CreateLambda([]() {
+				IPixelStreamingModule::Get().SetCodec(EPixelStreamingCodec::VP9);
 			}),
-			FCanExecuteAction::CreateLambda([Module = &PixelStreamingModule] { 
-				if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))	
-				{
-					return !Streamer->IsStreaming();
-				}
-				return false;
+			FCanExecuteAction::CreateLambda([] {
+				bool bCanChangeCodec = true;
+				IPixelStreamingModule::Get().ForEachStreamer([&bCanChangeCodec](TSharedPtr<IPixelStreamingStreamer> Streamer) {
+					bCanChangeCodec &= !Streamer->IsStreaming();
+				});
+
+				return bCanChangeCodec;
 			}),
-			FIsActionChecked::CreateLambda([Module = &PixelStreamingModule]()
-			{ 
-				return Module->GetCodec() == EPixelStreamingCodec::VP9;
-			})
-		);
+			FIsActionChecked::CreateLambda([]() {
+				return IPixelStreamingModule::Get().GetCodec() == EPixelStreamingCodec::VP9;
+			}));
 
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().H264,
-			FExecuteAction::CreateLambda([Module = &PixelStreamingModule]()
-			{
-				Module->SetCodec(EPixelStreamingCodec::H264);
+			FExecuteAction::CreateLambda([]() {
+				IPixelStreamingModule::Get().SetCodec(EPixelStreamingCodec::H264);
 			}),
-			FCanExecuteAction::CreateLambda([Module = &PixelStreamingModule] { 
-				if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))	
-				{
-					return !Streamer->IsStreaming();
-				}
-				return false;
-			}),
-			FIsActionChecked::CreateLambda([Module = &PixelStreamingModule]()
-			{ 
-				return Module->GetCodec() == EPixelStreamingCodec::H264;
-			})
-		);
+			FCanExecuteAction::CreateLambda([] {
+				bool bCanChangeCodec = true;
+				IPixelStreamingModule::Get().ForEachStreamer([&bCanChangeCodec](TSharedPtr<IPixelStreamingStreamer> Streamer) {
+					bCanChangeCodec &= !Streamer->IsStreaming();
+				});
 
-		// PluginCommands->MapAction(
-		// 	FPixelStreamingCommands::Get().H265,
-		// 	FExecuteAction::CreateLambda([Module = &PixelStreamingModule]()
-		// 	{
-		// 		Module->SetCodec(EPixelStreamingCodec::H265);
-		// 	}),
-		// 	FCanExecuteAction::CreateLambda([Module = &PixelStreamingModule] { 
-		// 		if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))	
-		// 		{
-		// 			return !Streamer->IsStreaming();
-		// 		}
-		// 		return false;
-		// 	}),
-		// 	FIsActionChecked::CreateLambda([Module = &PixelStreamingModule]()
-		// 	{ 
-		// 		return Module->GetCodec() == EPixelStreamingCodec::H265;
-		// 	})
-		// );
+				return bCanChangeCodec;
+			}),
+			FIsActionChecked::CreateLambda([]() {
+				return IPixelStreamingModule::Get().GetCodec() == EPixelStreamingCodec::H264;
+			}));
 
 		UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FPixelStreamingToolbar::RegisterMenus));
 	}
-	
+
 	FPixelStreamingToolbar::~FPixelStreamingToolbar()
 	{
 		FPixelStreamingCommands::Unregister();
 	}
-	
+
 	void FPixelStreamingToolbar::RegisterMenus()
 	{
 		FToolMenuOwnerScoped OwnerScoped(this);
@@ -241,23 +193,22 @@ namespace UE::EditorPixelStreaming
 						"PixelStreamingMenus",
 						FUIAction(),
 						FOnGetContent::CreateLambda(
-							[&]()
-							{
-								FMenuBuilder MenuBuilder(true, PluginCommands);  
+							[&]() {
+								FMenuBuilder MenuBuilder(true, PluginCommands);
 
 								// Use external signalling server option
 								MenuBuilder.BeginSection("Signalling Server Location", LOCTEXT("PixelStreamingSSLocation", "Signalling Server Location"));
 								MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().ExternalSignalling);
 								MenuBuilder.EndSection();
 
-								if(!FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
+								if (!FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
 								{
 									// Embedded Signalling Server Config (streamer port & http port)
 									RegisterEmbeddedSignallingServerConfig(MenuBuilder);
-								
+
 									// Signalling Server Viewer URLs
 									TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = FPixelStreamingEditorModule::GetModule()->GetSignallingServer();
-									if(SignallingServer.IsValid() && SignallingServer->HasLaunched())
+									if (SignallingServer.IsValid() && SignallingServer->HasLaunched())
 									{
 										RegisterSignallingServerURLs(MenuBuilder);
 									}
@@ -266,34 +217,25 @@ namespace UE::EditorPixelStreaming
 								{
 									// Remote Signalling Server Config (URL)
 									RegisterRemoteSignallingServerConfig(MenuBuilder);
-								}	
-
-								// Pixel Streaming Config (streamable viewports OR currently streamed viewport)
-								TSharedPtr<IPixelStreamingStreamer> Streamer = PixelStreamingModule.GetStreamer(PixelStreamingModule.GetDefaultStreamerID());
-								if(Streamer.IsValid())
-								{
-									RegisterPixelStreamingControls(MenuBuilder);
 								}
 
-								// VCam Config
-								RegisterVCamControls(MenuBuilder);
-								
+								// Pixel Streaming streamer controls
+								RegisterStreamerControls(MenuBuilder);
+
 								// Codec Config
 								RegisterCodecConfig(MenuBuilder);
 
 								return MenuBuilder.MakeWidget();
-							}
-						),
+							}),
 						LOCTEXT("PixelStreamingMenu", "Pixel Streaming"),
 						LOCTEXT("PixelStreamingMenuTooltip", "Configure Pixel Streaming"),
 						FSlateIcon(FPixelStreamingStyle::GetStyleSetName(), "PixelStreaming.Icon"),
 						false,
-						"PixelStreamingMenu"
-					);
+						"PixelStreamingMenu");
 					SettingsEntry.StyleNameOverride = "CalloutToolbar";
 					SettingsEntry.SetCommandList(PluginCommands);
 					Section.AddEntry(SettingsEntry);
-				}			  
+				}
 			}
 		}
 	}
@@ -303,65 +245,51 @@ namespace UE::EditorPixelStreaming
 		MenuBuilder.BeginSection("Signalling Server Options", LOCTEXT("PixelStreamingEmbeddedSSOptions", "Embedded Signalling Server Options"));
 
 		TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = FPixelStreamingEditorModule::GetModule()->GetSignallingServer();
-		if(!SignallingServer.IsValid() || !SignallingServer->HasLaunched())
+		if (!SignallingServer.IsValid() || !SignallingServer->HasLaunched())
 		{
 			TSharedRef<SWidget> StreamerPortInputBlock = SNew(SHorizontalBox)
-															+ SHorizontalBox::Slot()
-															.AutoWidth()
-															.VAlign(VAlign_Center)
-															.Padding(FMargin(36.0f, 3.0f, 8.0f, 3.0f))
-															[
-																SNew(STextBlock)
-																	.Text(FText::FromString(TEXT("Streamer Port: ")))
-																	.ColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f)))
-															]
-															+ SHorizontalBox::Slot()
-															.AutoWidth()
-															[
-																SNew(SNumericEntryBox<int32>)
-																	.MinValue(1)
-																	.Value_Lambda([&]()
-																	{
-																		return FPixelStreamingEditorModule::GetModule()->GetStreamerPort();
-																	})
-																	.OnValueChanged_Lambda([&](int32 InStreamerPort)
-																	{
-																		FPixelStreamingEditorModule::GetModule()->SetStreamerPort(InStreamerPort);
-																	})
-																	.OnValueCommitted_Lambda([&](int32 InStreamerPort, ETextCommit::Type InCommitType)
-																	{
-																		FPixelStreamingEditorModule::GetModule()->SetStreamerPort(InStreamerPort);
-																	})	  
-															];
+				+ SHorizontalBox::Slot()
+					  .AutoWidth()
+					  .VAlign(VAlign_Center)
+					  .Padding(FMargin(36.0f, 3.0f, 8.0f, 3.0f))
+						  [SNew(STextBlock)
+								  .Text(FText::FromString(TEXT("Streamer Port: ")))
+								  .ColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f)))]
+				+ SHorizontalBox::Slot()
+					  .AutoWidth()
+						  [SNew(SNumericEntryBox<int32>)
+								  .MinValue(1)
+								  .Value_Lambda([]() {
+									  return FPixelStreamingEditorModule::GetModule()->GetStreamerPort();
+								  })
+								  .OnValueChanged_Lambda([](int32 InStreamerPort) {
+									  FPixelStreamingEditorModule::GetModule()->SetStreamerPort(InStreamerPort);
+								  })
+								  .OnValueCommitted_Lambda([](int32 InStreamerPort, ETextCommit::Type InCommitType) {
+									  FPixelStreamingEditorModule::GetModule()->SetStreamerPort(InStreamerPort);
+								  })];
 			MenuBuilder.AddWidget(StreamerPortInputBlock, FText(), true);
 			TSharedRef<SWidget> ViewerPortInputBlock = SNew(SHorizontalBox)
-															+ SHorizontalBox::Slot()
-															.AutoWidth()
-															.VAlign(VAlign_Center)
-															.Padding(FMargin(36.0f, 3.0f, 8.0f, 3.0f))
-															[
-																SNew(STextBlock)
-																	.Text(FText::FromString(TEXT("Viewer Port: ")))
-																	.ColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f)))
-															]
-															+ SHorizontalBox::Slot()
-															.AutoWidth()
-															[
-																SNew(SNumericEntryBox<int32>)
-																	.MinValue(1)
-																	.Value_Lambda([&]()
-																	{
-																		return FPixelStreamingEditorModule::GetModule()->GetViewerPort();
-																	})
-																	.OnValueChanged_Lambda([&, Module = &PixelStreamingModule](int32 InViewerPort)
-																	{
-																		FPixelStreamingEditorModule::GetModule()->SetViewerPort(InViewerPort);
-																	})
-																	.OnValueCommitted_Lambda([&](int32 InViewerPort, ETextCommit::Type InCommitType)
-																	{
-																		FPixelStreamingEditorModule::GetModule()->SetViewerPort(InViewerPort);
-																	})
-															];
+				+ SHorizontalBox::Slot()
+					  .AutoWidth()
+					  .VAlign(VAlign_Center)
+					  .Padding(FMargin(36.0f, 3.0f, 8.0f, 3.0f))
+						  [SNew(STextBlock)
+								  .Text(FText::FromString(TEXT("Viewer Port: ")))
+								  .ColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f)))]
+				+ SHorizontalBox::Slot()
+					  .AutoWidth()
+						  [SNew(SNumericEntryBox<int32>)
+								  .MinValue(1)
+								  .Value_Lambda([]() {
+									  return FPixelStreamingEditorModule::GetModule()->GetViewerPort();
+								  })
+								  .OnValueChanged_Lambda([](int32 InViewerPort) {
+									  FPixelStreamingEditorModule::GetModule()->SetViewerPort(InViewerPort);
+								  })
+								  .OnValueCommitted_Lambda([](int32 InViewerPort, ETextCommit::Type InCommitType) {
+									  FPixelStreamingEditorModule::GetModule()->SetViewerPort(InViewerPort);
+								  })];
 			MenuBuilder.AddWidget(ViewerPortInputBlock, FText(), true);
 			MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().StartSignalling);
 		}
@@ -379,44 +307,38 @@ namespace UE::EditorPixelStreaming
 		MenuBuilder.BeginSection("Remote Signalling Server Options", LOCTEXT("PixelStreamingRemoteSSOptions", "Remote Signalling Server Options"));
 		{
 			TSharedRef<SWidget> URLInputBlock = SNew(SHorizontalBox)
-														+ SHorizontalBox::Slot()
-														.AutoWidth()
-														.VAlign(VAlign_Center)
-														.Padding(FMargin(36.0f, 3.0f, 8.0f, 3.0f))
-														[
-															SNew(STextBlock)
-																.Text(FText::FromString(TEXT("Remote Signalling Server URL")))
-																.ColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f)))
-														]
-														+ SHorizontalBox::Slot()
-														.AutoWidth()
-														[
-															SNew(SEditableTextBox)
-																.Text_Lambda([&]()
-																{
-																	TSharedPtr<IPixelStreamingStreamer> Streamer = PixelStreamingModule.GetStreamer(PixelStreamingModule.GetDefaultStreamerID());	
-																	return FText::FromString(Streamer->GetSignallingServerURL());
-																})
-																.OnTextChanged_Lambda([&](const FText& InText)
-																{
-																	TSharedPtr<IPixelStreamingStreamer> Streamer = PixelStreamingModule.GetStreamer(PixelStreamingModule.GetDefaultStreamerID());   
-																	Streamer->SetSignallingServerURL(InText.ToString()); 
-																})
-																.OnTextCommitted_Lambda([&](const FText& InText, ETextCommit::Type InTextCommit)
-																{
-																	TSharedPtr<IPixelStreamingStreamer> Streamer = PixelStreamingModule.GetStreamer(PixelStreamingModule.GetDefaultStreamerID());   
-																	Streamer->SetSignallingServerURL(InText.ToString()); 
-																})
-																.IsEnabled_Lambda([Module = &PixelStreamingModule]()
-																{
-																	if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))	
-																	{
-																		return !Streamer->IsStreaming();
-																	}
-																	return false;
-																})
-														];
-					MenuBuilder.AddWidget(URLInputBlock, FText(), true);							   
+				+ SHorizontalBox::Slot()
+					  .AutoWidth()
+					  .VAlign(VAlign_Center)
+					  .Padding(FMargin(36.0f, 3.0f, 8.0f, 3.0f))
+						  [SNew(STextBlock)
+								  .Text(FText::FromString(TEXT("Remote Signalling Server URL")))
+								  .ColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f)))]
+				+ SHorizontalBox::Slot()
+					  .AutoWidth()
+						  [SNew(SEditableTextBox)
+								  .Text_Lambda([]() {
+									  TSharedPtr<IPixelStreamingStreamer> Streamer = IPixelStreamingModule::Get().GetStreamer("Editor");
+									  return FText::FromString(Streamer->GetSignallingServerURL());
+								  })
+								  .OnTextChanged_Lambda([](const FText& InText) {
+									  IPixelStreamingModule::Get().ForEachStreamer([InText](TSharedPtr<IPixelStreamingStreamer> Streamer) {
+										  Streamer->SetSignallingServerURL(InText.ToString());
+									  });
+								  })
+								  .OnTextCommitted_Lambda([](const FText& InText, ETextCommit::Type InTextCommit) {
+									  IPixelStreamingModule::Get().ForEachStreamer([InText](TSharedPtr<IPixelStreamingStreamer> Streamer) {
+										  Streamer->SetSignallingServerURL(InText.ToString());
+									  });
+								  })
+								  .IsEnabled_Lambda([]() {
+									  bool bCanChangeURL = true;
+									  IPixelStreamingModule::Get().ForEachStreamer([&bCanChangeURL](TSharedPtr<IPixelStreamingStreamer> Streamer) {
+										  bCanChangeURL &= !Streamer->IsStreaming();
+									  });
+									  return bCanChangeURL;
+								  })];
+			MenuBuilder.AddWidget(URLInputBlock, FText(), true);
 		}
 		MenuBuilder.EndSection();
 	}
@@ -425,96 +347,90 @@ namespace UE::EditorPixelStreaming
 	{
 		MenuBuilder.BeginSection("Signalling Server URLs", LOCTEXT("PixelStreamingSignallingURLs", "Signalling Server URLs"));
 		{
-			MenuBuilder.AddWidget(  SNew(SBox)
-										.Padding(FMargin(16.0f, 3.0f))
-										[
-											SNew(STextBlock)
-												.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-												.Text(LOCTEXT("SignallingTip", "The Signalling Server is running and may be accessed via the following URLs (network settings permitting):"))
-												.WrapTextAt(400)
-										], 
-									FText());
+			MenuBuilder.AddWidget(SNew(SBox)
+									  .Padding(FMargin(16.0f, 3.0f))
+										  [SNew(STextBlock)
+												  .ColorAndOpacity(FSlateColor::UseSubduedForeground())
+												  .Text(LOCTEXT("SignallingTip", "The Signalling Server is running and may be accessed via the following URLs (network settings permitting):"))
+												  .WrapTextAt(400)],
+				FText());
 
-
-			MenuBuilder.AddWidget(  SNew(SBox)
-										.Padding(FMargin(32.0f, 3.0f))
-										[
-											SNew(STextBlock)
-												.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-												.Text(FText::FromString(FString::Printf(TEXT("127.0.0.1:%d"), FPixelStreamingEditorModule::GetModule()->GetViewerPort())))
-										], 
-									FText());
-
+			MenuBuilder.AddWidget(SNew(SBox)
+									  .Padding(FMargin(32.0f, 3.0f))
+										  [SNew(STextBlock)
+												  .ColorAndOpacity(FSlateColor::UseSubduedForeground())
+												  .Text(FText::FromString(FString::Printf(TEXT("127.0.0.1:%d"), FPixelStreamingEditorModule::GetModule()->GetViewerPort())))],
+				FText());
 
 			TArray<TSharedPtr<FInternetAddr>> AdapterAddresses;
 			if (ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalAdapterAddresses(AdapterAddresses))
 			{
-				for(TSharedPtr<FInternetAddr> AdapterAddress : AdapterAddresses)
+				for (TSharedPtr<FInternetAddr> AdapterAddress : AdapterAddresses)
 				{
-					MenuBuilder.AddWidget(  SNew(SBox)
-												.Padding(FMargin(32.0f, 3.0f))
-												[
-													SNew(STextBlock)
-														.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-														.Text(FText::FromString(FString::Printf(TEXT("%s:%d"), *AdapterAddress->ToString(false), FPixelStreamingEditorModule::GetModule()->GetViewerPort())))
-												], 
-											FText());
+					MenuBuilder.AddWidget(SNew(SBox)
+											  .Padding(FMargin(32.0f, 3.0f))
+												  [SNew(STextBlock)
+														  .ColorAndOpacity(FSlateColor::UseSubduedForeground())
+														  .Text(FText::FromString(FString::Printf(TEXT("%s:%d"), *AdapterAddress->ToString(false), FPixelStreamingEditorModule::GetModule()->GetViewerPort())))],
+						FText());
 				}
 			}
 		}
 		MenuBuilder.EndSection();
 	}
 
-	void FPixelStreamingToolbar::RegisterPixelStreamingControls(FMenuBuilder& MenuBuilder)
+	void FPixelStreamingToolbar::RegisterStreamerControls(FMenuBuilder& MenuBuilder)
 	{
-		TSharedPtr<IPixelStreamingStreamer> Streamer = PixelStreamingModule.GetStreamer(PixelStreamingModule.GetDefaultStreamerID());
-		MenuBuilder.BeginSection("Pixel Streaming", LOCTEXT("PixelStreamingConfig", "Pixel Streaming"));
-		{
-			if(Streamer->IsStreaming())	
-			{   
-				MenuBuilder.AddWidget(  SNew(SBox)
-											.Padding(FMargin(16.0f, 3.0f))
-											[
-												SNew(STextBlock)
-													.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-													.Text(FText::FromString(FString::Printf(TEXT("Streaming %s"), *ToString(FPixelStreamingEditorModule::GetModule()->GetStreamType()))))
-													.WrapTextAt(400)
-											], 
-										FText());
-				// We currently have to stop VCams streaming from the VCam itself
-				if(FPixelStreamingEditorModule::GetModule()->GetStreamType() != EStreamTypes::VCam)
-				{
-					MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().StopStreaming);
-				}
-			}
-			else
+		IPixelStreamingModule::Get().ForEachStreamer([&](TSharedPtr<IPixelStreamingStreamer> Streamer) {
+			FString StreamerId = Streamer->GetId();
+			MenuBuilder.BeginSection(FName(*StreamerId), FText::FromString(FString::Printf(TEXT("Streamer - %s"), *StreamerId)));
 			{
-				if(FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
-				{
-					
-				}
-				MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().StreamLevelEditor);
-				MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().StreamEditor);
-			}
-		}
-		MenuBuilder.EndSection();
-	}
 
-	void FPixelStreamingToolbar::RegisterVCamControls(FMenuBuilder& MenuBuilder)
-	{
-		MenuBuilder.BeginSection("Virtual Camera", LOCTEXT("PixelStreamingVirtualCamera", "Virtual Camera"));
-		{
-			MenuBuilder.AddWidget(  SNew(SBox)
-										.Padding(FMargin(16.0f, 3.0f))
-										[
-											SNew(STextBlock)
-												.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-												.Text(LOCTEXT("VirtualCamera", "Virtual Camera streams can be started and stopped via the Camera Actor's VCam component"))
-												.WrapTextAt(400)
-										], 
-									FText());
-		}
-		MenuBuilder.EndSection();
+				if (Streamer->IsStreaming())
+				{
+					FString VideoInput = TEXT("nothing (no video input)");
+					if (TSharedPtr<FPixelStreamingVideoInput> Video = Streamer->GetVideoInput().Pin())
+					{
+						VideoInput = Video->ToString();
+					}
+
+					MenuBuilder.AddWidget(SNew(SBox)
+											  .Padding(FMargin(16.0f, 3.0f))
+												  [SNew(STextBlock)
+														  .ColorAndOpacity(FSlateColor::UseSubduedForeground())
+														  .Text(FText::FromString(FString::Printf(TEXT("Streaming %s"), *VideoInput)))
+														  .WrapTextAt(400)],
+						FText());
+
+					MenuBuilder.AddMenuEntry(
+						LOCTEXT("PixelStreaming_StopStreaming", "Stop Streaming"),
+						LOCTEXT("PixelStreaming_StopStreamingToolTip", "Stop this streamer"),
+						FSlateIcon(),
+						FExecuteAction::CreateLambda([Streamer]() {
+							Streamer->StopStreaming();
+						}));
+				}
+				else
+				{
+					if (Streamer->GetId() == "Editor")
+					{
+						MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().StreamLevelEditor);
+						MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().StreamEditor);
+					}
+					else
+					{
+						MenuBuilder.AddMenuEntry(
+							LOCTEXT("PixelStreaming_StopStreaming", "Start Streaming"),
+							LOCTEXT("PixelStreaming_StopStreamingToolTip", "Start this streamer"),
+							FSlateIcon(),
+							FExecuteAction::CreateLambda([Streamer]() {
+								Streamer->StartStreaming();
+							}));
+					}
+				}
+			}
+			MenuBuilder.EndSection();
+		});
 	}
 
 	void FPixelStreamingToolbar::RegisterCodecConfig(FMenuBuilder& MenuBuilder)
@@ -522,7 +438,6 @@ namespace UE::EditorPixelStreaming
 		MenuBuilder.BeginSection("Codec", LOCTEXT("PixelStreamingCodecSettings", "Codec"));
 		{
 			MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().H264);
-			// MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().H265);
 			MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().VP8);
 			MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().VP9);
 		}
@@ -530,10 +445,10 @@ namespace UE::EditorPixelStreaming
 	}
 
 	TSharedRef<SWidget> FPixelStreamingToolbar::GeneratePixelStreamingMenuContent(TSharedPtr<FUICommandList> InCommandList)
-	{	 
+	{
 		FToolMenuContext MenuContext(InCommandList);
 		return UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.AddQuickMenu", MenuContext);
 	}
-}
+} // namespace UE::EditorPixelStreaming
 
 #undef LOCTEXT_NAMESPACE

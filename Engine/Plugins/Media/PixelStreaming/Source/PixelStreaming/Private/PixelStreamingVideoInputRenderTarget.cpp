@@ -16,8 +16,8 @@ FPixelStreamingVideoInputRenderTarget::~FPixelStreamingVideoInputRenderTarget()
 }
 
 FPixelStreamingVideoInputRenderTarget::FPixelStreamingVideoInputRenderTarget(UTextureRenderTarget2D* InTarget)
-: Target(InTarget)
-, DelegateHandle(FCoreDelegates::OnEndFrameRT.AddRaw(this, &FPixelStreamingVideoInputRenderTarget::OnEndFrameRenderThread))
+	: Target(InTarget)
+	, DelegateHandle(FCoreDelegates::OnEndFrameRT.AddRaw(this, &FPixelStreamingVideoInputRenderTarget::OnEndFrameRenderThread))
 {
 }
 
@@ -30,4 +30,9 @@ void FPixelStreamingVideoInputRenderTarget::OnEndFrameRenderThread()
 			OnFrame(FPixelCaptureInputFrameRHI(Texture));
 		}
 	}
+}
+
+FString FPixelStreamingVideoInputRenderTarget::ToString()
+{
+	return TEXT("a Render Target");
 }

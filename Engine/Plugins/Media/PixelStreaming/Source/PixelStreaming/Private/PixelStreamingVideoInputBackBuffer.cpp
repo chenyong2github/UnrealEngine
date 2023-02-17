@@ -47,3 +47,8 @@ void FPixelStreamingVideoInputBackBuffer::OnBackBufferReady(SWindow& SlateWindow
 {
 	OnFrame(FPixelCaptureInputFrameRHI(FrameBuffer));
 }
+
+FString FPixelStreamingVideoInputBackBuffer::ToString()
+{
+	return TEXT("the Back Buffer");
+}

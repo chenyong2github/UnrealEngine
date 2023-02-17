@@ -5,6 +5,7 @@
 #include "MediaCapture.h"
 #include "Slate/SceneViewport.h"
 #include "PixelStreamingVideoInput.h"
+#include "PixelStreamingVideoInputVCam.h"
 #include "PixelStreamingMediaCapture.generated.h"
 
 UCLASS(BlueprintType)
@@ -28,15 +29,15 @@ public:
 	TSharedPtr<FSceneViewport> GetViewport() const { return SceneViewport.Pin(); }
 	virtual void ViewportResized(FViewport* Viewport, uint32 ResizeCode);
 	bool WasViewportResized() const { return bViewportResized; }
-	void SetVideoInput(TWeakPtr<FPixelStreamingVideoInput> InVideoInput) { VideoInput = InVideoInput; }
+	void SetVideoInput(TWeakPtr<FPixelStreamingVideoInputVCam> InVideoInput) { VideoInput = InVideoInput; }
 
 	DECLARE_MULTICAST_DELEGATE(FOnCaptureViewportInitialized);
 	FOnCaptureViewportInitialized OnCaptureViewportInitialized;
 
 private:
 	TWeakPtr<FSceneViewport> SceneViewport;
-	TWeakPtr<FPixelStreamingVideoInput> VideoInput;
-	
+	TWeakPtr<FPixelStreamingVideoInputVCam> VideoInput;
+
 	/* We track whether the viewport has been resized since we created this capturer as resize means restart capturer. */
 	bool bViewportResized = false;
 };

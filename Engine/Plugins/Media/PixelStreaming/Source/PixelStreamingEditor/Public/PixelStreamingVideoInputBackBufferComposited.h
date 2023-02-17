@@ -9,7 +9,6 @@
 #include "Widgets/SWindow.h"
 #include "GenericPlatform/GenericWindowDefinition.h"
 
-
 /*
  * Use this if you want to send the full UE editor as video input.
  */
@@ -18,6 +17,8 @@ class PIXELSTREAMINGEDITOR_API FPixelStreamingVideoInputBackBufferComposited : p
 public:
 	static TSharedPtr<FPixelStreamingVideoInputBackBufferComposited> Create();
 	virtual ~FPixelStreamingVideoInputBackBufferComposited();
+
+	virtual FString ToString() override;
 
 private:
 	FPixelStreamingVideoInputBackBufferComposited();

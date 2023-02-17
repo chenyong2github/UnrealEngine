@@ -77,18 +77,17 @@ void FPixelStreamingVideoInputBackBufferComposited::OnBackBufferReady(SWindow& S
 	uint32 FrameY = FrameBuffer->GetSizeXY().Y;
 	FString Hash = UE::EditorPixelStreaming::HashWindow(SlateWindow, FrameBuffer);
 	FTextureRHIRef StagingTexture = StagingTextures.FindRef(Hash);
-	if(!StagingTexture.IsValid()) 
+	if (!StagingTexture.IsValid())
 	{
 		UE_LOG(LogPixelStreamingBackBufferComposited, Verbose, TEXT("Creating new staging texture: %dx%d"), FrameX, FrameY);
 		StagingTexture = UE::PixelStreaming::CreateRHITexture(FrameX, FrameY);
 		StagingTextures.Add(Hash, StagingTexture);
 	}
 
-
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	// Re-render FrameBuffer to StagingTexture (ensure format match)
 	UE::PixelStreaming::CopyTextureRDG(RHICmdList, FrameBuffer, StagingTexture);
-	
+
 	TopLevelWindowTextures.Add(&SlateWindow, StagingTexture);
 	TopLevelWindowsCriticalSection.Lock();
 	// Check that we have received a texture from every window in the TopLevelWindows array
@@ -101,7 +100,6 @@ void FPixelStreamingVideoInputBackBufferComposited::OnBackBufferReady(SWindow& S
 		}
 	}
 
-	
 	if (WindowsRendered == TopLevelWindows.Num())
 	{
 		// We have all the textures needed, let's composite them
@@ -110,14 +108,12 @@ void FPixelStreamingVideoInputBackBufferComposited::OnBackBufferReady(SWindow& S
 		for (TSharedRef<SWindow> Window : TopLevelWindows)
 		{
 			FTextureRHIRef Texture = TopLevelWindowTextures.FindRef(&Window.Get());
-			if (Window->GetOpacity() == 0.0f || 
-				Window->GetType() == EWindowType::CursorDecorator ||
-				Window->GetSizeInScreen() == FVector2D(0, 0))
+			if (Window->GetOpacity() == 0.0f || Window->GetType() == EWindowType::CursorDecorator || Window->GetSizeInScreen() == FVector2D(0, 0))
 			{
 				continue;
-			}	
+			}
 
-			if(!CompositedFrame.IsValid()) 
+			if (!CompositedFrame.IsValid())
 			{
 				// This is the first texture being processed, make it our base for the composited frame
 				CompositedFrame = Texture;
@@ -178,7 +174,12 @@ void FPixelStreamingVideoInputBackBufferComposited::OnBackBufferReady(SWindow& S
 		// Update the default streamer to let it know out compositedframe size. This way it can correctly scale input from the browser
 		*CompositedFrameSize.Get() = CompositedFrame->GetSizeXY();
 		IPixelStreamingModule& Module = IPixelStreamingModule::Get();
-		Module.GetStreamer(Module.GetDefaultStreamerID())->SetTargetScreenSize(CompositedFrameSize);
+		Module.GetStreamer("Editor")->SetTargetScreenSize(CompositedFrameSize);
 	}
 	TopLevelWindowsCriticalSection.Unlock();
+}
+
+FString FPixelStreamingVideoInputBackBufferComposited::ToString()
+{
+	return TEXT("the Editor");
 }

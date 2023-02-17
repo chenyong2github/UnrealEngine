@@ -6,7 +6,6 @@
 #include "Delegates/IDelegateInstance.h"
 #include "UnrealClient.h"
 
-
 /*
  * Use this if you want to send the UE primary scene viewport as video input - will only work in editor.
  */
@@ -15,6 +14,8 @@ class PIXELSTREAMINGEDITOR_API FPixelStreamingVideoInputViewport : public FPixel
 public:
 	static TSharedPtr<FPixelStreamingVideoInputViewport> Create();
 	virtual ~FPixelStreamingVideoInputViewport();
+
+	virtual FString ToString() override;
 
 private:
 	FPixelStreamingVideoInputViewport() = default;

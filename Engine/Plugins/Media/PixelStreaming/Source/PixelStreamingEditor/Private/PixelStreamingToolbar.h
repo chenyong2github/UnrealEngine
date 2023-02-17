@@ -12,28 +12,26 @@
 
 namespace UE::EditorPixelStreaming
 {
-    class FPixelStreamingToolbar
-    {
-        public:
-            FPixelStreamingToolbar();
-            virtual ~FPixelStreamingToolbar();
-            void StartStreaming();
-            void StopStreaming();
-            static TSharedRef<SWidget> GeneratePixelStreamingMenuContent(TSharedPtr<FUICommandList> InCommandList);
-            static FText GetActiveViewportName();
-            static const FSlateBrush* GetActiveViewportIcon();
-        
-        private:
-            void RegisterMenus();
-			void RegisterEmbeddedSignallingServerConfig(FMenuBuilder& MenuBuilder);
-            void RegisterRemoteSignallingServerConfig(FMenuBuilder& MenuBuilder);
-            void RegisterSignallingServerURLs(FMenuBuilder& MenuBuilder);
-            void RegisterPixelStreamingControls(FMenuBuilder& MenuBuilder);
-            void RegisterVCamControls(FMenuBuilder& MenuBuilder);
-            void RegisterCodecConfig(FMenuBuilder& MenuBuilder);
+	class FPixelStreamingToolbar
+	{
+	public:
+		FPixelStreamingToolbar();
+		virtual ~FPixelStreamingToolbar();
+		void StartStreaming();
+		void StopStreaming();
+		static TSharedRef<SWidget> GeneratePixelStreamingMenuContent(TSharedPtr<FUICommandList> InCommandList);
+		static FText GetActiveViewportName();
+		static const FSlateBrush* GetActiveViewportIcon();
 
-            TSharedPtr<class FUICommandList> PluginCommands;
+	private:
+		void RegisterMenus();
+		void RegisterEmbeddedSignallingServerConfig(FMenuBuilder& MenuBuilder);
+		void RegisterRemoteSignallingServerConfig(FMenuBuilder& MenuBuilder);
+		void RegisterSignallingServerURLs(FMenuBuilder& MenuBuilder);
+		void RegisterStreamerControls(FMenuBuilder& MenuBuilder);
+		void RegisterVCamControls(FMenuBuilder& MenuBuilder);
+		void RegisterCodecConfig(FMenuBuilder& MenuBuilder);
 
-            IPixelStreamingModule& PixelStreamingModule;
-    };
-}
+		TSharedPtr<class FUICommandList> PluginCommands;
+	};
+} // namespace UE::EditorPixelStreaming

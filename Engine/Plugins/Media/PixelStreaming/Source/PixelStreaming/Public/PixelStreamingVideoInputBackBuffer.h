@@ -16,6 +16,7 @@ public:
 	static TSharedPtr<FPixelStreamingVideoInputBackBuffer> Create();
 	virtual ~FPixelStreamingVideoInputBackBuffer();
 
+	virtual FString ToString() override;
 private:
 	FPixelStreamingVideoInputBackBuffer() = default;
 

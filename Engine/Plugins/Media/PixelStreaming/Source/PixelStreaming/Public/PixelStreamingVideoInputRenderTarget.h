@@ -18,6 +18,7 @@ public:
 	static TSharedPtr<FPixelStreamingVideoInputRenderTarget> Create(UTextureRenderTarget2D* Target);
 	virtual ~FPixelStreamingVideoInputRenderTarget();
 
+	virtual FString ToString() override;
 private:
 	FPixelStreamingVideoInputRenderTarget(UTextureRenderTarget2D* InTarget);
 	void OnEndFrameRenderThread();
