@@ -92,9 +92,6 @@ public:
 	EDisplayClusterViewportOverrideMode ViewportOverrideMode = EDisplayClusterViewportOverrideMode::None;
 	FString ViewportOverrideId;
 
-	// Override all viewport resources
-	bool bOverrideWholeViewport= true;
-
 public:
 	// Reset runtime values from prev frame
 	inline void BeginUpdateSettings()

@@ -45,15 +45,20 @@ void FDisplayClusterMediaInputViewport::PostCrossGpuTransfer_RenderThread(FRHICo
 
 	if (const IDisplayClusterViewportProxy* const CaptureViewport = ViewportManagerProxy->FindViewport_RenderThread(GetViewportId()))
 	{
-		TArray<FRHITexture*> Textures;
-		TArray<FIntRect>     Regions;
+		const bool bShouldImportMedia = !CaptureViewport->GetPostRenderSettings_RenderThread().Replace.IsEnabled();
 
-		if (CaptureViewport->GetResourcesWithRects_RenderThread(EDisplayClusterViewportResourceType::InternalRenderTargetResource, Textures, Regions))
+		if (bShouldImportMedia)
 		{
-			if (Textures.Num() > 0 && Regions.Num() > 0)
+			TArray<FRHITexture*> Textures;
+			TArray<FIntRect>     Regions;
+
+			if (CaptureViewport->GetResourcesWithRects_RenderThread(EDisplayClusterViewportResourceType::InternalRenderTargetResource, Textures, Regions))
 			{
-				FMediaTextureInfo TextureInfo{ Textures[0], Regions[0] };
-				ImportMediaData(RHICmdList, TextureInfo);
+				if (Textures.Num() > 0 && Regions.Num() > 0)
+				{
+					FMediaTextureInfo TextureInfo{ Textures[0], Regions[0] };
+					ImportMediaData(RHICmdList, TextureInfo);
+				}
 			}
 		}
 	}
