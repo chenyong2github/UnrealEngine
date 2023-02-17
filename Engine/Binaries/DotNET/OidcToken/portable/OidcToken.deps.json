@@ -429,7 +429,8 @@
           "IdentityModel.OidcClient": "4.0.0",
           "Microsoft.Extensions.Configuration": "5.0.0",
           "Microsoft.Extensions.Configuration.Binder": "5.0.0",
-          "Microsoft.Extensions.Configuration.Json": "5.0.0"
+          "Microsoft.Extensions.Configuration.Json": "5.0.0",
+          "Microsoft.Win32.Registry": "5.0.0"
         },
         "runtime": {
           "EpicGames.OIDC.dll": {}

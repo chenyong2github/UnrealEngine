@@ -270,6 +270,9 @@ namespace EpicGames.OIDC
 							{
 								loginResult = new LoginResult("Operation cancelled");
 							}
+
+							// wait a few seconds before shutting down the http server to give the browser time to actually load everything it needs
+							await Task.Delay(2000);
 						}
 					}
 
