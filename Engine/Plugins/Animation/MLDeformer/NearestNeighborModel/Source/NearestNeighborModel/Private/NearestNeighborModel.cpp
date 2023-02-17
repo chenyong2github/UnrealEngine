@@ -272,30 +272,25 @@ UE::NearestNeighborModel::EUpdateResult UNearestNeighborModel::UpdateVertexMap(i
 		ReturnCode |= EUpdateResult::ERROR;
 		UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d txt path %s does not exist"), PartId, *VertexMapPath, NumVertices);
 	}
+	else if (GetSkeletalMesh() == nullptr)
+	{
+		ReturnCode |= EUpdateResult::ERROR;
+		UE_LOG(LogNearestNeighborModel, Error, TEXT("SkeletalMesh is None"));
+	}
 	else
 	{
 		const TArray<uint32> PartVertexMap = ReadTxt(ClothPartEditorData[PartId].VertexMapPath);
-		if (PartVertexMap.Num() > NumVertices)
+		const uint32 MaxVertexIndex = FMath::Max(PartVertexMap);
+		if ((int32)MaxVertexIndex >= GetSkeletalMesh()->GetNumImportedVertices())
 		{
-			bIsVertexMapValid = false;
-			UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d vertex map has %d vertices, larger than %d vertices in skeletal mesh, using %d vertices instead"), PartId, PartVertexMap.Num(), NumVertices, NumVertices);
 			ReturnCode |= EUpdateResult::ERROR;
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d vertex map contains invalid vertex index %d, max vertex index is %d"), PartId, MaxVertexIndex, GetSkeletalMesh()->GetNumImportedVertices() - 1);
 		}
 		else
 		{
-			const int32 MaxIndex = FMath::Max(PartVertexMap);
-			if (MaxIndex >= NumVertices)
-			{
-				bIsVertexMapValid = false;
-				UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d vertex map max index is %d. There are only %d vertices in skeletal mesh, using %d vertices instead"), PartId, MaxIndex, NumVertices, NumVertices);
-				ReturnCode |= EUpdateResult::ERROR;
-			}
+			ClothPartData[PartId].VertexMap = PartVertexMap;
 		}
-		if (bIsVertexMapValid)
-		{
-			ClothPartData[PartId].VertexMap = AddConstant(PartVertexMap, StartIndex);
-			return (EUpdateResult)ReturnCode;
-		}
+		return (EUpdateResult)ReturnCode;
 	}
 
 	ClothPartData[PartId].VertexMap = Range(StartIndex, StartIndex + NumVertices);
