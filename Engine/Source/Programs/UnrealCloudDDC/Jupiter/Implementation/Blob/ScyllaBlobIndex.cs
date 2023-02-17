@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -15,14 +16,16 @@ public class ScyllaBlobIndex : IBlobIndex
 {
     private readonly IScyllaSessionManager _scyllaSessionManager;
     private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
+    private readonly IOptionsMonitor<ScyllaSettings> _scyllaSettings;
     private readonly Tracer _tracer;
     private readonly ISession _session;
     private readonly Mapper _mapper;
 
-    public ScyllaBlobIndex(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<JupiterSettings> jupiterSettings, Tracer tracer)
+    public ScyllaBlobIndex(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<JupiterSettings> jupiterSettings, IOptionsMonitor<ScyllaSettings> scyllaSettings, Tracer tracer)
     {
         _scyllaSessionManager = scyllaSessionManager;
         _jupiterSettings = jupiterSettings;
+        _scyllaSettings = scyllaSettings;
         _tracer = tracer;
         _session = scyllaSessionManager.GetSessionForReplicatedKeyspace();
         _mapper = new Mapper(_session);
@@ -36,6 +39,24 @@ public class ScyllaBlobIndex : IBlobIndex
             PRIMARY KEY ((namespace, blob_id))
         );"
         ));
+
+        _session.Execute(new SimpleStatement(@$"CREATE TABLE IF NOT EXISTS blob_index_v2 (
+            namespace text,
+            blob_id blob,
+            region text,
+            PRIMARY KEY ((namespace, blob_id), region)
+        );"
+        ));
+
+        _session.Execute(new SimpleStatement(@$"CREATE TABLE IF NOT EXISTS blob_incoming_references (
+            namespace text,
+            blob_id blob,
+            reference_id blob,
+            reference_type smallint,
+            bucket_id text,
+            PRIMARY KEY ((namespace, blob_id), reference_id)
+        );"
+        ));
     }
 
     public async Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id, string? region = null)
@@ -43,68 +64,43 @@ public class ScyllaBlobIndex : IBlobIndex
         region ??= _jupiterSettings.CurrentValue.CurrentSite;
         using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.insert_blob_index").SetAttribute("resource.name", $"{ns}.{id}");
 
-        if (_scyllaSessionManager.IsScylla)
-        {
-            await _mapper.UpdateAsync<ScyllaBlobIndexTable>("SET regions = regions + ? WHERE namespace = ? AND blob_id = ?",
-                new string[] { region }, ns.ToString(), new ScyllaBlobIdentifier(id));
-        }
-        else
-        {
-            await _mapper.UpdateAsync<CassandraBlobIndexTable>("SET regions = regions + ? WHERE namespace = ? AND blob_id = ?",
-                new string[] { region }, ns.ToString(), id.HashData);
-        }
+        await _mapper.InsertAsync<ScyllaBlobIndexEntry>(new ScyllaBlobIndexEntry(ns.ToString(), id, region));
     }
 
-    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id, BlobIndexFlags flags = BlobIndexFlags.None)
+    private async Task<List<string>?> GetOldBlobRegions(NamespaceId ns, BlobIdentifier id)
     {
-        using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.fetch_blob_index").SetAttribute("resource.name", $"{ns}.{id}");
-
-        bool includeReferences = (flags & BlobIndexFlags.IncludeReferences) != 0;
+        using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.fetch_old_blob_index").SetAttribute("resource.name", $"{ns}.{id}");
 
         if (_scyllaSessionManager.IsScylla)
         {
             ScyllaBlobIndexTable o;
-            if (includeReferences)
-            {
-                o = await _mapper.SingleOrDefaultAsync<ScyllaBlobIndexTable>("SELECT namespace, blob_id, regions, references FROM blob_index WHERE namespace = ? AND blob_id = ?", ns.ToString(), new ScyllaBlobIdentifier(id));
-            }
-            else
-            {
-                o = await _mapper.SingleOrDefaultAsync<ScyllaBlobIndexTable>("SELECT namespace, blob_id, regions FROM blob_index WHERE namespace = ? AND blob_id = ?", ns.ToString(), new ScyllaBlobIdentifier(id));
-            }
-            return o?.ToBlobInfo();
+            o = await _mapper.SingleOrDefaultAsync<ScyllaBlobIndexTable>("SELECT namespace, blob_id, regions, references FROM blob_index WHERE namespace = ? AND blob_id = ?", ns.ToString(), new ScyllaBlobIdentifier(id));
+            return o?.Regions?.ToList();
         }
         else
         {
             CassandraBlobIndexTable o;
-            if (includeReferences)
-            {
-                o = await _mapper.SingleOrDefaultAsync<CassandraBlobIndexTable>("SELECT namespace, blob_id, regions, references FROM blob_index WHERE namespace = ? AND blob_id = ?", ns.ToString(), id.HashData);
-            }
-            else
-            {
-                o = await _mapper.SingleOrDefaultAsync<CassandraBlobIndexTable>("SELECT namespace, blob_id, regions FROM blob_index WHERE namespace = ? AND blob_id = ?", ns.ToString(), id.HashData);
-            }
-            return o?.ToBlobInfo();
+            o = await _mapper.SingleOrDefaultAsync<CassandraBlobIndexTable>("SELECT namespace, blob_id, regions, references FROM blob_index WHERE namespace = ? AND blob_id = ?", ns.ToString(), id.HashData);
+            return o?.Regions?.ToList();
         }
     }
 
-    public async Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id)
+    private async Task<List<ScyllaObjectReference>?> GetOldBlobReferences(NamespaceId ns, BlobIdentifier id)
     {
-        using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.remove_from_blob_index").SetAttribute("resource.name", $"{ns}.{id}");
+        using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.fetch_old_blob_index_references").SetAttribute("resource.name", $"{ns}.{id}");
 
         if (_scyllaSessionManager.IsScylla)
         {
-            await _mapper.DeleteAsync<ScyllaBlobIndexTable>("WHERE namespace = ? AND blob_id = ?", ns.ToString(),
-                new ScyllaBlobIdentifier(id));
+            ScyllaBlobIndexTable o;
+            o = await _mapper.SingleOrDefaultAsync<ScyllaBlobIndexTable>("SELECT namespace, blob_id, regions, references FROM blob_index WHERE namespace = ? AND blob_id = ?", ns.ToString(), new ScyllaBlobIdentifier(id));
+            return o?.References?.ToList();
         }
         else
         {
-            await _mapper.DeleteAsync<CassandraBlobIndexTable>("WHERE namespace = ? AND blob_id = ?", ns.ToString(),
-                id.HashData);
+            CassandraBlobIndexTable o;
+            o = await _mapper.SingleOrDefaultAsync<CassandraBlobIndexTable>("SELECT namespace, blob_id, regions, references FROM blob_index WHERE namespace = ? AND blob_id = ?", ns.ToString(), id.HashData);
+            return o?.References?.ToList();
         }
-
-        return true;
     }
 
     public async Task RemoveBlobFromRegion(NamespaceId ns, BlobIdentifier id, string? region = null)
@@ -112,26 +108,119 @@ public class ScyllaBlobIndex : IBlobIndex
         region ??= _jupiterSettings.CurrentValue.CurrentSite;
         using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.remove_blob_index_region").SetAttribute("resource.name", $"{ns}.{id}");
 
-        if (_scyllaSessionManager.IsScylla)
+        await _mapper.DeleteAsync<ScyllaBlobIndexEntry>(new ScyllaBlobIndexEntry(ns.ToString(), id, region));
+    }
+
+    public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier, string? region = null)
+    {
+        region ??= _jupiterSettings.CurrentValue.CurrentSite;
+        ScyllaBlobIndexEntry? entry = await _mapper.SingleOrDefaultAsync<ScyllaBlobIndexEntry>("WHERE namespace = ? AND blob_id = ? AND region = ?", ns.ToString(), blobIdentifier.HashData, region);
+
+        bool blobMissing = entry == null;
+        if (blobMissing && _scyllaSettings.CurrentValue.MigrateFromOldBlobIndex)
         {
-            await _mapper.UpdateAsync<ScyllaBlobIndexTable>("SET regions = regions - ? WHERE namespace = ? AND blob_id = ?", new string[] { region }, ns.ToString(), new ScyllaBlobIdentifier(id));
-        }
-        else
-        {
-            await _mapper.UpdateAsync<CassandraBlobIndexTable>("SET regions = regions - ? WHERE namespace = ? AND blob_id = ?", new string[] { region }, ns.ToString(), id.HashData);
+            List<string>? regions = await GetOldBlobRegions(ns, blobIdentifier);
+            if (regions == null)
+            {
+                // blob didn't exist in the old table either
+                return false;
+            }
+
+            foreach (string oldRegion in regions)
+            {
+                await AddBlobToIndex(ns, blobIdentifier, oldRegion);
+            }
+
+            // blob has been migrated so it existed
+            return true;
         }
 
-        BlobInfo? blobInfo = await GetBlobInfo(ns, id);
-        if (blobInfo != null && blobInfo.Regions.Count == 0)
+        return !blobMissing;
+    }
+    public async IAsyncEnumerable<(NamespaceId, BlobIdentifier)> GetAllBlobs()
+    {
+        using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.get_all_blobs");
+
+        string cqlOptions = _scyllaSessionManager.IsScylla ? "BYPASS CACHE" : "";
+
+        foreach (ScyllaBlobIndexEntry blobIndex in await _mapper.FetchAsync<ScyllaBlobIndexEntry>(cqlOptions))
         {
-            await RemoveBlobFromIndex(ns, id);
+            yield return (new NamespaceId(blobIndex.Namespace), new BlobIdentifier(blobIndex.BlobId));
         }
     }
 
-    public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier)
+    public async Task<List<string>> GetBlobRegions(NamespaceId ns, BlobIdentifier blob)
     {
-        BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
-        return blobInfo?.Regions.Contains(_jupiterSettings.CurrentValue.CurrentSite) ?? false;
+        List<string> regions = new List<string>();
+        foreach (ScyllaBlobIndexEntry blobIndex in await _mapper.FetchAsync<ScyllaBlobIndexEntry>("WHERE namespace = ? AND blob_id = ?", ns.ToString(), blob.HashData))
+        {
+            regions.Add(blobIndex.Region);
+        }
+        
+        if (regions.Any() && _scyllaSettings.CurrentValue.MigrateFromOldBlobIndex)
+        {
+            List<string>? oldRegions = await GetOldBlobRegions(ns, blob);
+            if (oldRegions == null)
+            {
+                // regions didn't exist in the old table either
+                return regions;
+            }
+
+            foreach (string oldRegion in oldRegions)
+            {
+                await AddBlobToIndex(ns, blob, oldRegion);
+            }
+
+            // blob has been migrated lets return the old region list
+            return oldRegions;
+        }
+        return regions;
+    }
+
+    public async IAsyncEnumerable<BaseBlobReference> GetBlobReferences(NamespaceId ns, BlobIdentifier id)
+    {
+        using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.get_blob_references").SetAttribute("resource.name", $"{ns}.{id}");
+
+        // the references are rarely read so we bypass cache to reduce churn in it
+        string cqlOptions = _scyllaSessionManager.IsScylla ? "BYPASS CACHE" : "";
+
+        bool noReferencesFound = true;
+        foreach (ScyllaBlobIncomingReference incomingReference in await _mapper.FetchAsync<ScyllaBlobIncomingReference>("WHERE namespace = ? AND blob_id = ? " + cqlOptions, ns.ToString(), id.HashData))
+        {
+            noReferencesFound = false;
+            ScyllaBlobIncomingReference.BlobReferenceType referenceType = (ScyllaBlobIncomingReference.BlobReferenceType)incomingReference.ReferenceType;
+            if (referenceType == ScyllaBlobIncomingReference.BlobReferenceType.Ref)
+            {
+                if (incomingReference.BucketId == null)
+                {
+                    continue;
+                }
+                yield return new RefBlobReference(new BucketId(incomingReference.BucketId), new IoHashKey(StringUtils.FormatAsHexString(incomingReference.ReferenceId)));
+            }
+            else if (referenceType == ScyllaBlobIncomingReference.BlobReferenceType.Blob)
+            {
+                yield return new BlobToBlobReference(new BlobIdentifier(incomingReference.ReferenceId));
+            }
+            else
+            {
+                throw new NotImplementedException("Unknown blob reference type");
+            }
+        }
+
+        if (noReferencesFound && _scyllaSettings.CurrentValue.MigrateFromOldBlobIndex)
+        {
+            List<ScyllaObjectReference>? oldReferences = await GetOldBlobReferences(ns, id);
+            if (oldReferences != null)
+            {
+                foreach (ScyllaObjectReference scyllaObjectReference in oldReferences)
+                {
+                    BucketId bucket = new BucketId(scyllaObjectReference.Bucket);
+                    IoHashKey key = new IoHashKey(scyllaObjectReference.Key);
+                    await AddRefToBlobs(ns, bucket, key, new []{id});
+                    yield return new RefBlobReference(bucket, key);
+                }
+            }
+        }
     }
 
     public async Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs)
@@ -139,87 +228,44 @@ public class ScyllaBlobIndex : IBlobIndex
         using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.add_ref_blobs");
 
         string nsAsString = ns.ToString();
-        ScyllaObjectReference reference = new ScyllaObjectReference(bucket, key);
         Task[] refUpdateTasks = new Task[blobs.Length];
         for (int i = 0; i < blobs.Length; i++)
         {
             BlobIdentifier id = blobs[i];
-            Task updateTask;
-            if (_scyllaSessionManager.IsScylla)
-            {
-                updateTask = _mapper.UpdateAsync<ScyllaBlobIndexTable>(
-                    "SET references = references + ? WHERE namespace = ? AND blob_id = ?",
-                    new[] { reference },
-                    nsAsString,
-                    new ScyllaBlobIdentifier(id));
-            }
-            else
-            {
-                updateTask = _mapper.UpdateAsync<CassandraBlobIndexTable>(
-                    "SET references = references + ? WHERE namespace = ? AND blob_id = ?",
-                    new[] { reference },
-                    nsAsString,
-                    id.HashData);
-            }
+            ScyllaBlobIncomingReference incomingReference = new ScyllaBlobIncomingReference(nsAsString, id, key, bucket);
 
-            refUpdateTasks[i] = updateTask;
+            refUpdateTasks[i] = _mapper.InsertAsync<ScyllaBlobIncomingReference>(incomingReference);
         }
 
         await Task.WhenAll(refUpdateTasks);
     }
 
-    public async IAsyncEnumerable<BlobInfo> GetAllBlobs()
-    {
-        using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.get_all_blobs");
-
-        string cqlOptions = _scyllaSessionManager.IsScylla ? "BYPASS CACHE" : "";
-
-        if (_scyllaSessionManager.IsScylla)
-        {
-            foreach (ScyllaBlobIndexTable blobIndex in await _mapper.FetchAsync<ScyllaBlobIndexTable>(cqlOptions))
-            {
-                yield return blobIndex.ToBlobInfo();
-            }
-        }
-        else
-        {
-            foreach (CassandraBlobIndexTable blobIndex in await _mapper.FetchAsync<CassandraBlobIndexTable>(cqlOptions))
-            {
-                yield return blobIndex.ToBlobInfo();
-            }
-        }
-    }
-
-    public async Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<(BucketId,IoHashKey)> references)
+    public async Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<BaseBlobReference> referencesToRemove)
     {
         using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.remove_ref_blobs");
 
         string nsAsString = ns.ToString();
-        (BucketId, IoHashKey)[] blobs = references.ToArray();
-        Task[] refUpdateTasks = new Task[blobs.Length];
-        for (int i = 0; i < blobs.Length; i++)
+        int countOfReferencesToRemove = referencesToRemove.Count;
+        Task[] refUpdateTasks = new Task[countOfReferencesToRemove];
+        for (int i = 0; i < countOfReferencesToRemove; i++)
         {
-            (BucketId bucket, IoHashKey key) = blobs[i];
-            ScyllaObjectReference reference = new ScyllaObjectReference(bucket, key);
-            Task updateTask;
-            if (_scyllaSessionManager.IsScylla)
+            BaseBlobReference baseRef = referencesToRemove[i];
+            ScyllaBlobIncomingReference incomingReference;
+
+            if (baseRef is RefBlobReference refBlobReference)
             {
-                updateTask = _mapper.UpdateAsync<ScyllaBlobIndexTable>(
-                    "SET references = references - ? WHERE namespace = ? AND blob_id = ?",
-                    new[] { reference },
-                    nsAsString,
-                    new ScyllaBlobIdentifier(id));
+                incomingReference = new ScyllaBlobIncomingReference(nsAsString, id, refBlobReference.Key, refBlobReference.Bucket);
+            }
+            else if (baseRef is BlobToBlobReference blobToBlobReference)
+            {
+                incomingReference = new ScyllaBlobIncomingReference(nsAsString, id, blobToBlobReference.Blob);
             }
             else
             {
-                updateTask = _mapper.UpdateAsync<CassandraBlobIndexTable>(
-                    "SET references = references - ? WHERE namespace = ? AND blob_id = ?",
-                    new[] { reference },
-                    nsAsString,
-                    id.HashData);
+                throw new NotImplementedException("Unknown blob reference type");
             }
 
-            refUpdateTasks[i] = updateTask;
+            refUpdateTasks[i] =  _mapper.InsertAsync<ScyllaBlobIncomingReference>(incomingReference);
         }
 
         await Task.WhenAll(refUpdateTasks);
@@ -257,17 +303,6 @@ class ScyllaBlobIndexTable
 
     [Cassandra.Mapping.Attributes.Column("references")]
     public List<ScyllaObjectReference>? References { get; set; }
-
-    public BlobInfo ToBlobInfo()
-    {
-        return new BlobInfo
-        {
-            Regions = Regions ?? new HashSet<string>(),
-            BlobIdentifier = BlobId.AsBlobIdentifier(),
-            Namespace = new NamespaceId(Namespace),
-            References = References != null ? References.Select(reference => reference.AsTuple()).ToList() : new List<(BucketId, IoHashKey)>()
-        };
-    }
 }
 
 [Cassandra.Mapping.Attributes.Table("blob_index")]
@@ -301,15 +336,84 @@ class CassandraBlobIndexTable
 
     [Cassandra.Mapping.Attributes.Column("references")]
     public List<ScyllaObjectReference>? References { get; set; }
+}
 
-    public BlobInfo ToBlobInfo()
+[Cassandra.Mapping.Attributes.Table("blob_index_v2")]
+class ScyllaBlobIndexEntry
+{
+    public ScyllaBlobIndexEntry()
     {
-        return new BlobInfo
-        {
-            Regions = Regions ?? new HashSet<string>(),
-            BlobIdentifier = new BlobIdentifier(BlobId),
-            Namespace = new NamespaceId(Namespace),
-            References = References != null ? References.Select(reference => reference.AsTuple()).ToList() : new List<(BucketId, IoHashKey)>()
-        };
+        Namespace = null!;
+        BlobId = null!;
+        Region = null!;
     }
+
+    public ScyllaBlobIndexEntry(string @namespace, BlobIdentifier blobId, string region)
+    {
+        Namespace = @namespace;
+        BlobId = blobId.HashData;
+        Region = region;
+    }
+
+    [Cassandra.Mapping.Attributes.PartitionKey]
+    public string Namespace { get; set; }
+
+    [Cassandra.Mapping.Attributes.PartitionKey]
+    [Cassandra.Mapping.Attributes.Column("blob_id")]
+    public byte[] BlobId { get; set; }
+
+    [Cassandra.Mapping.Attributes.ClusteringKey]
+    [Cassandra.Mapping.Attributes.Column("region")]
+    public string Region { get; set; }
+}
+
+[Cassandra.Mapping.Attributes.Table("blob_incoming_references")]
+class ScyllaBlobIncomingReference
+{
+    public enum BlobReferenceType { Ref = 0, Blob = 1 };
+
+    public ScyllaBlobIncomingReference()
+    {
+        Namespace = null!;
+        BlobId = null!;
+        ReferenceId = null!;
+        BucketId = null!;
+    }
+
+    public ScyllaBlobIncomingReference(string @namespace, BlobIdentifier blobId, BlobIdentifier referenceId)
+    {
+        Namespace = @namespace;
+        BlobId = blobId.HashData;
+
+        BucketId = null;
+        ReferenceId = referenceId.HashData;
+        ReferenceType = (int)BlobReferenceType.Blob;
+    }
+
+    public ScyllaBlobIncomingReference(string @namespace, BlobIdentifier blobId, IoHashKey referenceId, BucketId bucketId)
+    {
+        Namespace = @namespace;
+        BlobId = blobId.HashData;
+
+        BucketId = bucketId.ToString();
+        ReferenceId = StringUtils.ToHashFromHexString(referenceId.ToString());
+        ReferenceType = (int)BlobReferenceType.Ref;
+    }
+
+    [Cassandra.Mapping.Attributes.PartitionKey]
+    public string Namespace { get; set; }
+
+    [Cassandra.Mapping.Attributes.PartitionKey]
+    [Cassandra.Mapping.Attributes.Column("blob_id")]
+    public byte[] BlobId { get; set; }
+
+    [Cassandra.Mapping.Attributes.ClusteringKey]
+    [Cassandra.Mapping.Attributes.Column("reference_id")]
+    public byte[] ReferenceId { get; set; }
+
+    [Cassandra.Mapping.Attributes.Column("bucket_id")]
+    public string? BucketId { get; set; }
+
+    [Cassandra.Mapping.Attributes.Column("reference_type")]
+    public short ReferenceType { get; set; }
 }

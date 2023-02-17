@@ -84,10 +84,9 @@ namespace Jupiter.FunctionalTests.Storage
 
             IBlobIndex? index = _server!.Services.GetService<IBlobIndex>();
             Assert.IsNotNull(index);
-            BlobInfo? blobInfo = await index.GetBlobInfo(_testNamespaceName, contentHash);
+            List<string> regions = await index.GetBlobRegions(_testNamespaceName, contentHash);
 
-            Assert.IsNotNull(blobInfo);
-            Assert.IsTrue(blobInfo.Regions.Contains("test"));
+            Assert.IsTrue(regions.Contains("test"));
         }
 
         [TestMethod]
@@ -110,15 +109,16 @@ namespace Jupiter.FunctionalTests.Storage
 
             IBlobIndex? index = _server!.Services.GetService<IBlobIndex>();
             Assert.IsNotNull(index);
-            BlobInfo? blobInfo = await index.GetBlobInfo(_testNamespaceName, objectHash, BlobIndexFlags.IncludeReferences);
+            Assert.IsTrue(await index.BlobExistsInRegion(_testNamespaceName, objectHash, "test"));
 
-            Assert.IsNotNull(blobInfo);
-            Assert.IsTrue(blobInfo.Regions.Contains("test"));
-            Assert.AreEqual(1, blobInfo.References!.Count);
+            IAsyncEnumerable<BaseBlobReference> blobReferences = index.GetBlobReferences(_testNamespaceName, objectHash);
+            List<BaseBlobReference> references = await blobReferences.ToListAsync();
+            Assert.AreEqual(1, references.Count);
 
-            (BucketId bucket, IoHashKey key) = blobInfo.References[0];
-            Assert.AreEqual("bucket", bucket.ToString());
-            Assert.AreEqual(putKey, key);
+            Assert.IsTrue(references[0] is RefBlobReference);
+            RefBlobReference refBlob = (RefBlobReference)references[0];
+            Assert.AreEqual("bucket", refBlob.Bucket.ToString());
+            Assert.AreEqual(putKey, refBlob.Key);
         }
 
         [TestMethod]
@@ -137,9 +137,7 @@ namespace Jupiter.FunctionalTests.Storage
             // verify its present in the blob index
             IBlobIndex? index = _server!.Services.GetService<IBlobIndex>();
             Assert.IsNotNull(index);
-            BlobInfo? blobInfo = await index.GetBlobInfo(_testNamespaceName, contentHash);
-            Assert.IsNotNull(blobInfo);
-            Assert.IsTrue(blobInfo.Regions.Any());
+            Assert.IsTrue(await index.BlobExistsInRegion(_testNamespaceName, contentHash));
 
             // delete the blob
             {
@@ -147,9 +145,9 @@ namespace Jupiter.FunctionalTests.Storage
                 response.EnsureSuccessStatusCode();
             }
 
-            BlobInfo? deletedBlobInfo = await index.GetBlobInfo(_testNamespaceName, contentHash);
+            List<string> regions = await index.GetBlobRegions(_testNamespaceName, contentHash);
 
-            bool hasRegions = deletedBlobInfo != null && deletedBlobInfo.Regions.Any();
+            bool hasRegions = regions.Any();
             // but the blob info will not contain the current region
             Assert.IsTrue(!hasRegions);
         }
@@ -161,8 +159,8 @@ namespace Jupiter.FunctionalTests.Storage
             Assert.IsNotNull(index);
             {
                 // verify the blob info list is empty at the start
-                BlobInfo[]? blobInfos =  await index.GetAllBlobs().ToArrayAsync();
-                Assert.AreEqual(0, blobInfos.Length);
+                int count =  await index.GetAllBlobs().CountAsync();
+                Assert.AreEqual(0, count);
             }
 
             // upload a blob
@@ -193,11 +191,11 @@ namespace Jupiter.FunctionalTests.Storage
             }
 
             {
-                BlobInfo[]? blobInfos =  await index.GetAllBlobs().ToArrayAsync();
+                (NamespaceId, BlobIdentifier)[] blobInfos =  await index.GetAllBlobs().ToArrayAsync();
                 Assert.AreEqual(2, blobInfos.Length);
 
-                Assert.IsNotNull(blobInfos.FirstOrDefault(info => info.BlobIdentifier.Equals(compressedPayloadIdentifier)));
-                Assert.IsNotNull(blobInfos.FirstOrDefault(info => info.BlobIdentifier.Equals(contentHash)));
+                Assert.IsNotNull(blobInfos.FirstOrDefault(info => info.Item2.Equals(compressedPayloadIdentifier)));
+                Assert.IsNotNull(blobInfos.FirstOrDefault(info => info.Item2.Equals(contentHash)));
             }
         }
     }
@@ -240,6 +238,7 @@ namespace Jupiter.FunctionalTests.Storage
 
             ISession replicatedKeyspace = scyllaSessionManager.GetSessionForReplicatedKeyspace();
             await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS blob_index"));
+            await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS blob_index_v2"));
         }
     }
 
@@ -270,6 +269,7 @@ namespace Jupiter.FunctionalTests.Storage
 
             ISession replicatedKeyspace = scyllaSessionManager.GetSessionForReplicatedKeyspace();
             await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS blob_index"));
+            await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS blob_index_v2"));
         }
     }
 

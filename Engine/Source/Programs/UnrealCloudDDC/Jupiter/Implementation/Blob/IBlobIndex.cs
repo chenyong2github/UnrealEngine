@@ -6,31 +6,47 @@ using EpicGames.Horde.Storage;
 
 namespace Jupiter.Implementation.Blob
 {
-    public class BlobInfo
-    {
-        public HashSet<string> Regions { get; init; } = new HashSet<string>();
-        public NamespaceId Namespace { get; init; }
-        public BlobIdentifier BlobIdentifier { get; init; } = null!;
-        public List<(BucketId, IoHashKey)>? References { get; init; } = new List<(BucketId, IoHashKey)>();
-    }
-
-    public enum BlobIndexFlags {
-        None = 0,
-        IncludeReferences = 1
-    }
 
     public interface IBlobIndex
     {
         Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id, string? region = null);
 
-        Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id, BlobIndexFlags flags = BlobIndexFlags.None);
-
-        Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id);
         Task RemoveBlobFromRegion(NamespaceId ns, BlobIdentifier id, string? region = null);
 
-        Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier);
+        Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier, string? region = null);
+        IAsyncEnumerable<(NamespaceId, BlobIdentifier)> GetAllBlobs();
+
+        IAsyncEnumerable<BaseBlobReference> GetBlobReferences(NamespaceId ns, BlobIdentifier id);
         Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs);
-        IAsyncEnumerable<BlobInfo> GetAllBlobs();
-        Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<(BucketId,IoHashKey)> references);
+
+        Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<BaseBlobReference> referencesToRemove);
+        Task<List<string>> GetBlobRegions(NamespaceId ns, BlobIdentifier blob);
+    }
+
+    public abstract class BaseBlobReference
+    {
+
+    }
+
+    public class RefBlobReference : BaseBlobReference
+    {
+        public RefBlobReference(BucketId bucket, IoHashKey key)
+        {
+            Bucket = bucket;
+            Key = key;
+        }
+
+        public BucketId Bucket { get; set; }
+        public IoHashKey Key { get; set;}
+    }
+
+    public class BlobToBlobReference : BaseBlobReference
+    {
+        public BlobToBlobReference(BlobIdentifier blob)
+        {
+            Blob = blob;
+        }
+
+        public BlobIdentifier Blob { get; set; }
     }
 }

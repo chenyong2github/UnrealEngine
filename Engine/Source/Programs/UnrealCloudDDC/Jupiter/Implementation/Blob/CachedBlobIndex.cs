@@ -19,33 +19,10 @@ public class CachedBlobIndex : IBlobIndex
         _fileSystemStore = fileSystemStore;
     }
 
-    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id, BlobIndexFlags flags = BlobIndexFlags.None)
-    {
-        if (await BlobExistsInRegion(ns, id))
-        {
-            return new BlobInfo
-            {
-                Namespace = ns,
-                BlobIdentifier = id,
-                References = new List<(BucketId, IoHashKey)>(),
-                Regions = new HashSet<string> {_jupiterSettings.CurrentValue.CurrentSite}
-            };
-        }
-
-        return null;
-    }
-
     public async Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id, string? region = null)
     {
         // We do not actually track any blob information when running in cached mode
         await Task.CompletedTask;
-    }
-
-    public async Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id)
-    {
-        // We do not actually track any blob information when running in cached mode
-        await Task.CompletedTask;
-        return false;
     }
 
     public async Task RemoveBlobFromRegion(NamespaceId ns, BlobIdentifier id, string? region = null)
@@ -54,7 +31,12 @@ public class CachedBlobIndex : IBlobIndex
         await Task.CompletedTask;
     }
 
-    public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier)
+    public IAsyncEnumerable<BaseBlobReference> GetBlobReferences(NamespaceId ns, BlobIdentifier id)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier, string? region = null)
     {
         return await _fileSystemStore.Exists(ns, blobIdentifier, forceCheck: false);
     }
@@ -65,14 +47,19 @@ public class CachedBlobIndex : IBlobIndex
         await Task.CompletedTask;
     }
 
-    public IAsyncEnumerable<BlobInfo> GetAllBlobs()
+    public IAsyncEnumerable<(NamespaceId, BlobIdentifier)> GetAllBlobs()
     {
         throw new NotImplementedException();
     }
 
-    public Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<(BucketId, IoHashKey)> references)
+    public Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<BaseBlobReference> referencesToRemove)
     {
         // We do not actually track any blob information when running in cached mode
         return Task.CompletedTask;
+    }
+
+    public Task<List<string>> GetBlobRegions(NamespaceId ns, BlobIdentifier blob)
+    {
+        throw new NotImplementedException();
     }
 }

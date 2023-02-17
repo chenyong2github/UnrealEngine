@@ -120,7 +120,7 @@ namespace Jupiter.Implementation
             return countOfBlobsRemoved;
         }
 
-        public async Task<bool> GCBlob(string storagePool, List<NamespaceId> namespacesThatSharePool, BlobIdentifier blob, DateTime lastModifiedTime, CancellationToken cancellationToken)
+        private async Task<bool> GCBlob(string storagePool, List<NamespaceId> namespacesThatSharePool, BlobIdentifier blob, DateTime lastModifiedTime, CancellationToken cancellationToken)
         {
             string storagePoolName = string.IsNullOrEmpty(storagePool) ? "default" : storagePool; 
             using TelemetrySpan removeBlobScope = _tracer.StartActiveSpan("gc.blob")
@@ -142,28 +142,51 @@ namespace Jupiter.Implementation
                     break;
                 }
 
-                BlobInfo? blobIndex = await _blobIndex.GetBlobInfo(blobNamespace, blob, BlobIndexFlags.IncludeReferences);
+                IAsyncEnumerable<BaseBlobReference> references = _blobIndex.GetBlobReferences(blobNamespace, blob);
 
-                if (blobIndex == null)
+                List<BaseBlobReference> oldReferences = new List<BaseBlobReference>();
+
+                await foreach (BaseBlobReference baseBlobReference in references.WithCancellation(cancellationToken))
                 {
-                    continue;
-                }
-
-                List<(BucketId, IoHashKey)> oldReferences = new List<(BucketId, IoHashKey)>();
-
-                foreach ((BucketId, IoHashKey) tuple in blobIndex.References!)
-                {
-                    try
+                    if (found)
                     {
-                        (BucketId bucket, IoHashKey key) = tuple;
-                        (ObjectRecord, BlobContents?) _ = await _objectService.Get(blobNamespace, bucket, key, new string[] { "name" }, doLastAccessTracking: false);
-                        found = true;
                         break;
                     }
-                    catch (ObjectNotFoundException)
+
+                    if (baseBlobReference is RefBlobReference refBlobReference)
                     {
-                        // this is not a valid reference so we should delete
-                        oldReferences.Add(tuple);
+                        BucketId bucket = refBlobReference.Bucket;
+                        IoHashKey key = refBlobReference.Key;
+
+                        try
+                        {
+                            (ObjectRecord, BlobContents?) _ = await _objectService.Get(blobNamespace, bucket, key, new string[] { "name" }, doLastAccessTracking: false);
+                            found = true;
+                            break;
+                        }
+                        catch (ObjectNotFoundException)
+                        {
+                            // this is not a valid reference so we should delete
+                            oldReferences.Add(refBlobReference);
+                        }
+                    }
+                    else if (baseBlobReference is BlobToBlobReference blobReference)
+                    {
+                        BlobIdentifier referringBlob = blobReference.Blob;
+                        bool blobFound = await _blobService.Exists(blobNamespace, referringBlob);
+                        if (blobFound)
+                        {
+                            found = true;
+                            break;
+                        }
+                        else
+                        {
+                            oldReferences.Add(blobReference);
+                        }
+                    }
+                    else
+                    {
+                        throw new NotImplementedException($"Unknown blob reference type {baseBlobReference.GetType().Name}");
                     }
                 }
 

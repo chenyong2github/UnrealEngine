@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Horde.Storage;
 using Jupiter.Implementation.Blob;
 using Jupiter.Common;
 using Microsoft.Extensions.Options;
@@ -73,8 +75,9 @@ namespace Jupiter.Implementation
                 {
                     MaxDegreeOfParallelism = _settings.CurrentValue.BlobIndexMaxParallelOperations,
                 },
-                async (blobInfo, token) =>
+                async (tuple, token) =>
                 {
+                    (NamespaceId ns, BlobIdentifier blobIdentifier) = tuple;
                     Interlocked.Increment(ref countOfBlobsChecked);
 
                     if (countOfBlobsChecked % 100 == 0)
@@ -82,85 +85,58 @@ namespace Jupiter.Implementation
                         _logger.LogInformation("Consistency check running on blob index, count of blobs processed so far: {CountOfBlobs}", countOfBlobsChecked);
                     }
 
-                    using TelemetrySpan scope = _tracer.StartActiveSpan("consistency_check.blob_index").SetAttribute("resource.name", $"{blobInfo.Namespace}.{blobInfo.BlobIdentifier}").SetAttribute("operation.name", "consistency_check.blob_index");
+                    using TelemetrySpan scope = _tracer.StartActiveSpan("consistency_check.blob_index").SetAttribute("resource.name", $"{ns}.{blobIdentifier}").SetAttribute("operation.name", "consistency_check.blob_index");
 
                     bool issueFound = false;
                     bool deleted = false;
-
+                    List<string> regions = await _blobIndex.GetBlobRegions(ns, blobIdentifier);
                     try
                     {
-                        if (!blobInfo.Regions.Any())
+                        if (regions.Contains(currentRegion))
                         {
-                            Interlocked.Increment(ref countOfIncorrectBlobsFound);
-                            _logger.LogWarning("Blob {Blob} in namespace {Namespace} is not tracked to exist in any region", blobInfo.BlobIdentifier, blobInfo.Namespace);
-                            issueFound = true;
-
-                            if (await _blobService.ExistsInRootStore(blobInfo.Namespace, blobInfo.BlobIdentifier))
-                            {
-                                _logger.LogWarning("Blob {Blob} in namespace {Namespace} was found to exist in our blob store so re-adding it to the index", blobInfo.BlobIdentifier, blobInfo.Namespace);
-
-                                // we did have it in our blob store so we adjust the index
-                                await _blobIndex.AddBlobToIndex(blobInfo.Namespace, blobInfo.BlobIdentifier);
-                            }
-                            else
-                            {
-                                if (_settings.CurrentValue.AllowDeletesInBlobIndex)
-                                {
-                                    // this blob doesn't exist anywhere so we just cleanup the blob index
-                                    _logger.LogWarning("Blob {Blob} in namespace {Namespace} was removed from the blob index as it didnt exist anywhere", blobInfo.BlobIdentifier, blobInfo.Namespace);
-
-                                    await _blobIndex.RemoveBlobFromIndex(blobInfo.Namespace, blobInfo.BlobIdentifier);
-                                    deleted = true;
-                                }
-                            }
-                        }
-                        else if (blobInfo.Regions.Contains(currentRegion))
-                        {
-                            if (!await _blobService.ExistsInRootStore(blobInfo.Namespace, blobInfo.BlobIdentifier))
+                            if (!await _blobService.ExistsInRootStore(ns, blobIdentifier))
                             {
                                 Interlocked.Increment(ref countOfIncorrectBlobsFound);
                                 issueFound = true;
                                 
-                                if (blobInfo.Regions.Count > 1)
+                                if (regions.Count > 1)
                                 {
-                                    _logger.LogWarning("Blob {Blob} in namespace {Namespace} did not exist in root store but is tracked as doing so in the blob index. Attempting to replicate it.", blobInfo.BlobIdentifier, blobInfo.Namespace);
+                                    _logger.LogWarning("Blob {Blob} in namespace {Namespace} did not exist in root store but is tracked as doing so in the blob index. Attempting to replicate it.", blobIdentifier, ns);
 
                                     try
                                     {
-                                        BlobContents _ = await _blobService.ReplicateObject(blobInfo.Namespace, blobInfo.BlobIdentifier, force: true);
+                                        BlobContents _ = await _blobService.ReplicateObject(ns, blobIdentifier, force: true);
                                     }
                                     catch (BlobReplicationException e)
                                     {
                                         // we update the blob index to accurately reflect that we do not have the blob, this is not good though as it means a upload that we thought happened now lacks content
                                         if (_settings.CurrentValue.AllowDeletesInBlobIndex)
                                         {
-                                            _logger.LogWarning("Updating blob index to remove Blob {Blob} in namespace {Namespace} as we failed to repair it.", blobInfo.BlobIdentifier, blobInfo.Namespace);
-                                            await _blobIndex.RemoveBlobFromRegion(blobInfo.Namespace, blobInfo.BlobIdentifier);
+                                            _logger.LogWarning("Updating blob index to remove Blob {Blob} in namespace {Namespace} as we failed to repair it.", blobIdentifier, ns);
+                                            await _blobIndex.RemoveBlobFromRegion(ns, blobIdentifier);
                                             deleted = true;
                                         }
                                         else
                                         {
-                                            _logger.LogError(e, "Failed to replicate Blob {Blob} in namespace {Namespace}. Unable to repair the blob index", blobInfo.BlobIdentifier, blobInfo.Namespace);
+                                            _logger.LogError(e, "Failed to replicate Blob {Blob} in namespace {Namespace}. Unable to repair the blob index", blobIdentifier, ns);
                                         }
                                     }
                                     catch (BlobNotFoundException)
                                     {
-                                        // the blob does not exist we should remove it from the blob index
-                                        await _blobIndex.RemoveBlobFromIndex(blobInfo.Namespace, blobInfo.BlobIdentifier);
-                                        deleted = true;
+                                        // the blob does not exist locally, nothing to do, it likely got deleted by the time we started the glob of blobs and us processing it
                                     }
                                 }
                                 else
                                 {
                                     // if the blob only exists in the current region there is no point in attempting to replicate it
-                                    _logger.LogWarning("Blob {Blob} in namespace {Namespace} did not exist in root store but is tracked as doing so in the blob index. Does not exist anywhere else so unable to replicate it.", blobInfo.BlobIdentifier, blobInfo.Namespace);
+                                    _logger.LogWarning("Blob {Blob} in namespace {Namespace} did not exist in root store but is tracked as doing so in the blob index. Does not exist anywhere else so unable to replicate it.", blobIdentifier, ns);
 
                                     if (_settings.CurrentValue.AllowDeletesInBlobIndex)
                                     {
                                         // this blob can not be repaired so we just delete it from the blob index
-                                        _logger.LogWarning("Blob {Blob} in namespace {Namespace} can not be repaired so removing existence from current region.", blobInfo.BlobIdentifier, blobInfo.Namespace);
+                                        _logger.LogWarning("Blob {Blob} in namespace {Namespace} can not be repaired so removing existence from current region.", blobIdentifier, ns);
 
-                                        await _blobIndex.RemoveBlobFromRegion(blobInfo.Namespace, blobInfo.BlobIdentifier);
+                                        await _blobIndex.RemoveBlobFromRegion(ns, blobIdentifier);
                                         deleted = true;
                                     }
                                 }
@@ -171,16 +147,16 @@ namespace Jupiter.Implementation
                     {
                         if (_settings.CurrentValue.AllowDeletesInBlobIndex)
                         {
-                            _logger.LogWarning("Blob {Blob} in namespace {Namespace} is of a unknown namespace, removing.", blobInfo.BlobIdentifier, blobInfo.Namespace);
+                            _logger.LogWarning("Blob {Blob} in namespace {Namespace} is of a unknown namespace, removing.", blobIdentifier, ns);
 
                             // for entries that are of a unknown namespace we simply remove them
-                            await _blobIndex.RemoveBlobFromIndex(blobInfo.Namespace, blobInfo.BlobIdentifier);
+                            await _blobIndex.RemoveBlobFromRegion(ns, blobIdentifier);
                             deleted = true;
                         }
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError(e, "Exception when doing blob index consistency check for {Blob} in namespace {Namespace}", blobInfo.BlobIdentifier, blobInfo.Namespace);
+                        _logger.LogError(e, "Exception when doing blob index consistency check for {Blob} in namespace {Namespace}", blobIdentifier, ns);
                         scope.RecordException(e);
                         scope.SetStatus(Status.Error);
                     }

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -38,6 +39,19 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
         });
     }
 
+    private async Task<MongoBlobIndexModelV0?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
+    {
+        IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
+        IAsyncCursor<MongoBlobIndexModelV0>? cursor = await collection.FindAsync(m => m.Ns == ns.ToString() && m.BlobId == id.ToString());
+        MongoBlobIndexModelV0? model = await cursor.FirstOrDefaultAsync();
+        if (model == null)
+        {
+            return null;
+        }
+
+        return model;
+    }
+
     public async Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id, string? region = null)
     {
         region ??= _jupiterSettings.CurrentValue.CurrentSite;
@@ -52,34 +66,16 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
         });
     }
 
-    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id, BlobIndexFlags flags = BlobIndexFlags.None)
-    {
-        IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
-        IAsyncCursor<MongoBlobIndexModelV0>? cursor = await collection.FindAsync(m => m.Ns == ns.ToString() && m.BlobId == id.ToString());
-        MongoBlobIndexModelV0? model = await cursor.FirstOrDefaultAsync();
-        if (model == null)
-        {
-            return null;
-        }
-
-        return model.ToBlobInfo();
-    }
-
-    public async Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id)
-    {
-        IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
-        DeleteResult result = await collection.DeleteOneAsync(m => m.Ns == ns.ToString() && m.BlobId == id.ToString());
-
-        return result.IsAcknowledged;
-    }
-
     public async Task RemoveBlobFromRegion(NamespaceId ns, BlobIdentifier id, string? region = null)
     {
         region ??= _jupiterSettings.CurrentValue.CurrentSite;
 
-        BlobInfo? blobInfo = await GetBlobInfo(ns, id);
+        MongoBlobIndexModelV0? model = await GetBlobInfo(ns, id);
+        if (model == null)
+        {
+            throw new BlobNotFoundException(ns, id);
+        }
         IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
-        MongoBlobIndexModelV0 model = new MongoBlobIndexModelV0(blobInfo!);
         model.Regions.Remove(region);
         FilterDefinition<MongoBlobIndexModelV0> filter = Builders<MongoBlobIndexModelV0>.Filter.Where(m => m.Ns == ns.ToString() && m.BlobId == id.ToString());
         await collection.FindOneAndReplaceAsync(filter, model, new FindOneAndReplaceOptions<MongoBlobIndexModelV0, MongoBlobIndexModelV0>
@@ -89,9 +85,37 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
 
     }
 
-    public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier)
+    public async IAsyncEnumerable<BaseBlobReference> GetBlobReferences(NamespaceId ns, BlobIdentifier id)
     {
-        BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
+        MongoBlobIndexModelV0? blobInfo = await GetBlobInfo(ns, id);
+        if (blobInfo == null)
+        {
+            yield break;
+        }
+
+        foreach (Dictionary<string, string> reference in blobInfo.References)
+        {
+            if (reference.ContainsKey("bucket"))
+            {
+                string bucket = reference["bucket"];
+                string key = reference["key"];
+                yield return new RefBlobReference(new BucketId(bucket), new IoHashKey(key));
+            } 
+            else if (reference.ContainsKey("blob_id"))
+            {
+                string blobId = reference["blob_id"];
+                yield return new BlobToBlobReference(new BlobIdentifier(blobId));
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+    }
+
+    public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier, string? region = null)
+    {
+        MongoBlobIndexModelV0? blobInfo = await GetBlobInfo(ns, blobIdentifier);
         return blobInfo?.Regions.Contains(_jupiterSettings.CurrentValue.CurrentSite) ?? false;
     }
 
@@ -116,7 +140,7 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
         await Task.WhenAll(refUpdateTasks);
     }
 
-    public async IAsyncEnumerable<BlobInfo> GetAllBlobs()
+    public async IAsyncEnumerable<(NamespaceId, BlobIdentifier)> GetAllBlobs()
     {
         IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
         IAsyncCursor<MongoBlobIndexModelV0>? cursor = await collection.FindAsync(FilterDefinition<MongoBlobIndexModelV0>.Empty);
@@ -125,21 +149,51 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
         {
             foreach (MongoBlobIndexModelV0 model in cursor.Current)
             {
-                yield return model.ToBlobInfo();
+                yield return (new NamespaceId(model.Ns), new BlobIdentifier(model.BlobId));
             }
         }
     }
 
-    public async Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<(BucketId,IoHashKey)> references)
+    public async Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<BaseBlobReference> referencesToRemove)
     {
         IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
 
         string nsAsString = ns.ToString();
-        List<Dictionary<string, string>> refs = references.Select(tuple => new Dictionary<string, string>() { {tuple.Item1.ToString(), tuple.Item2.ToString()}}).ToList();
+        List<Dictionary<string, string>> refs = referencesToRemove.Select(reference =>
+        {
+            if (reference is RefBlobReference refBlobReference)
+            {
+                return new Dictionary<string, string>
+                {
+                    { "bucket", refBlobReference.Bucket.ToString() }, { "key", refBlobReference.Key.ToString() }
+                };
+            }
+            else if (reference is BlobToBlobReference blobToBlobReference)
+            {
+                return new Dictionary<string, string>
+                {
+                    { "blob_id", blobToBlobReference.Blob.ToString()}
+                };
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }).ToList();
         UpdateDefinition<MongoBlobIndexModelV0> update = Builders<MongoBlobIndexModelV0>.Update.PullAll(m => m.References, refs);
         FilterDefinition<MongoBlobIndexModelV0> filter = Builders<MongoBlobIndexModelV0>.Filter.Where(m => m.Ns == nsAsString && m.BlobId == id.ToString());
 
         await collection.FindOneAndUpdateAsync(filter, update);
+    }
+
+    public async Task<List<string>> GetBlobRegions(NamespaceId ns, BlobIdentifier blob)
+    {
+        MongoBlobIndexModelV0? blobInfo = await GetBlobInfo(ns, blob);
+        if (blobInfo == null)
+        {
+            throw new BlobNotFoundException(ns, blob);
+        }
+        return blobInfo.Regions.ToList();
     }
 }
 
@@ -156,17 +210,6 @@ class MongoBlobIndexModelV0
         Regions = regions;
         References = references;
     }
-
-    public MongoBlobIndexModelV0(BlobInfo blobInfo)
-    {
-        Ns = blobInfo.Namespace.ToString();
-        BlobId = blobInfo.BlobIdentifier.ToString();
-        Regions = blobInfo.Regions.ToList();
-        if (blobInfo.References != null)
-        {
-            References = blobInfo.References.Select(pair => new Dictionary<string, string> { { "bucket", pair.Item1.ToString() }, { "key", pair.Item2.ToString() } }).ToList();
-        }
-	}
 
     public MongoBlobIndexModelV0(NamespaceId ns, BlobIdentifier blobId)
     {
@@ -185,15 +228,4 @@ class MongoBlobIndexModelV0
     [BsonDictionaryOptions(DictionaryRepresentation.Document)]
     public List<Dictionary<string, string>> References { get; set; } = new List<Dictionary<string, string>>();
 
-    public BlobInfo ToBlobInfo()
-    {
-        return new BlobInfo()
-        {
-            Namespace = new NamespaceId(Ns),
-            BlobIdentifier = new BlobIdentifier(BlobId),
-            Regions = Regions.ToHashSet(),
-            References = References.Select(dictionary =>
-                (new BucketId(dictionary["bucket"]), new IoHashKey(dictionary["key"]))).ToList(),
-        };
-    }
 }

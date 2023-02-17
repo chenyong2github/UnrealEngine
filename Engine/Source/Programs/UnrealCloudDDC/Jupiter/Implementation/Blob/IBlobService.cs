@@ -3,12 +3,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Mime;
-using System.Security;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using EpicGames.AspNet;
@@ -76,6 +76,8 @@ public class BlobService : IBlobService
     private readonly Tracer _tracer;
     private readonly BufferedPayloadFactory _bufferedPayloadFactory;
     private readonly ILogger _logger;
+    private readonly Counter<long>? _storeGetHitsCounter;
+    private readonly Counter<long>? _storeGetAttemptsCounter;
 
     internal IEnumerable<IBlobStore> BlobStore
     {
@@ -83,7 +85,7 @@ public class BlobService : IBlobService
         set => _blobStores = value.ToList();
     }
 
-    public BlobService(IServiceProvider provider, IOptionsMonitor<UnrealCloudDDCSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver, IHttpContextAccessor httpContextAccessor, RequestHelper? requestHelper, Tracer tracer, BufferedPayloadFactory bufferedPayloadFactory, ILogger<BlobService> logger)
+    public BlobService(IServiceProvider provider, IOptionsMonitor<UnrealCloudDDCSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver, IHttpContextAccessor httpContextAccessor, RequestHelper? requestHelper, Tracer tracer, BufferedPayloadFactory bufferedPayloadFactory, ILogger<BlobService> logger, Meter? meter)
     {
         _blobStores = GetBlobStores(provider, settings).ToList();
         _settings = settings;
@@ -97,6 +99,9 @@ public class BlobService : IBlobService
         _tracer = tracer;
         _bufferedPayloadFactory = bufferedPayloadFactory;
         _logger = logger;
+
+        _storeGetHitsCounter = meter?.CreateCounter<long>("store.blob_get.found");
+        _storeGetAttemptsCounter = meter?.CreateCounter<long>("store.blob_get.attempt");
     }
 
     public static IEnumerable<IBlobStore> GetBlobStores(IServiceProvider provider, IOptionsMonitor<UnrealCloudDDCSettings> settings)
@@ -359,11 +364,12 @@ public class BlobService : IBlobService
 
             string storeName = store.GetType().Name;
             using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope($"blob.get.{storeName}", $"Blob GET from: '{storeName}'");
-
+            _storeGetAttemptsCounter?.Add(1, new KeyValuePair<string, object?>("store", storeName));
             try
             {
                 blobContents = await store.GetObject(ns, blob);
                 scope.SetAttribute("ObjectFound", true.ToString());
+                _storeGetHitsCounter?.Add(1, new KeyValuePair<string, object?>("store", storeName));
                 break;
             }
             catch (BlobNotFoundException)
@@ -438,19 +444,15 @@ public class BlobService : IBlobService
 
         using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope("blob.replicate", "Replicating blob from remote instances");
 
-        BlobInfo? blobInfo = await _blobIndex.GetBlobInfo(ns, blob);
-        if (blobInfo == null)
-        {
-            throw new BlobNotFoundException(ns, blob);
-        }
+        List<string> regions = await _blobIndex.GetBlobRegions(ns, blob);
 
-        if (!blobInfo.Regions.Any())
+        if (!regions.Any())
         {
             throw new BlobReplicationException(ns, blob, "Blob not found in any region");
         }
 
         _logger.LogInformation("On-demand replicating blob {Blob} in Namespace {Namespace}", blob, ns);
-        List<(int, string)> possiblePeers = new List<(int, string)>(_peerStatusService.GetPeersByLatency(blobInfo.Regions.ToList()));
+        List<(int, string)> possiblePeers = new List<(int, string)>(_peerStatusService.GetPeersByLatency(regions));
 
         bool replicated = false;
         foreach ((int latency, string? region) in possiblePeers)

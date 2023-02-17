@@ -93,6 +93,11 @@ public class ScyllaSettings : IValidatableObject
     [Range(1, 64)]
     public uint CountOfNodes { get; set; } = 1;
 
+    /// <summary>
+    /// Enable to migrate data from blob_index table to blob_index_v2 table
+    /// </summary>
+    public bool MigrateFromOldBlobIndex { get; set; } = true;
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         List<ValidationResult> results = new List<ValidationResult>();
