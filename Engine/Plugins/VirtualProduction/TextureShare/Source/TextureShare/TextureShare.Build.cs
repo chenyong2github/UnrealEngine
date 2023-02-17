@@ -10,8 +10,8 @@ public class TextureShare : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				Path.Combine(EngineDirectory,"Source/Runtime/Renderer/Private"),
-				Path.Combine(EngineDirectory,"Plugins/VirtualProduction/TextureShare/Source/TextureShareCore/Private"),
+				Path.Combine(GetModuleDirectory("Renderer"), "Private"),
+				Path.Combine(GetModuleDirectory("TextureShareCore"), "Private"),
 			}
 		);
 
