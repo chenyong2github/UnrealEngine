@@ -7,7 +7,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraSystem.h"
-#include "NiagaraSystemToolkit.h"
+#include "Toolkits/NiagaraSystemToolkit.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraSystemFactoryNew.h"
 #include "ViewModels/NiagaraSystemViewModel.h"

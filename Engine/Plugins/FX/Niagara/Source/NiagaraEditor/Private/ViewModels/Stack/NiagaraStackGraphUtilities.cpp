@@ -42,7 +42,7 @@
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorData.h"
 #include "NiagaraGraphDataCache.h"
-#include "NiagaraScriptGraphViewModel.h"
+#include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "NiagaraSettings.h"
 #include "ViewModels/HierarchyEditor/NiagaraHierarchyViewModelBase.h"
 

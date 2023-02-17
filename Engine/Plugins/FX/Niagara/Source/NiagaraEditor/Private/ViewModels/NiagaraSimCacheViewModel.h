@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NiagaraSimCache.h"
-#include "SNiagaraSimCacheOverview.h"
+#include "Widgets/SNiagaraSimCacheOverview.h"
 
 class SNiagaraSimCacheTreeView;
 struct FNiagaraSimCacheComponentTreeItem;

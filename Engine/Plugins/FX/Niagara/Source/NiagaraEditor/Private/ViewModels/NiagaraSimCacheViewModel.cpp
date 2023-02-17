@@ -6,7 +6,7 @@
 #include "NiagaraEditorCommon.h"
 #include "NiagaraDebuggerCommon.h"
 #include "Serialization/MemoryReader.h"
-#include "SNiagaraSimCacheTreeView.h"
+#include "Widgets/SNiagaraSimCacheTreeView.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "UObject/Package.h"
 

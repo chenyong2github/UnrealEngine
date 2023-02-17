@@ -3,7 +3,7 @@
 #include "AssetDefinition_NiagaraSimCache.h"
 
 #include "NiagaraEditorStyle.h"
-#include "NiagaraSimCacheToolkit.h"
+#include "Toolkits/NiagaraSimCacheToolkit.h"
 
 FLinearColor UAssetDefinition_NiagaraSimCache::GetAssetColor() const
 {

@@ -2,7 +2,7 @@
 
 #include "SNiagaraSimCacheTreeView.h"
 
-#include "NiagaraSimCacheViewModel.h"
+#include "ViewModels/NiagaraSimCacheViewModel.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"

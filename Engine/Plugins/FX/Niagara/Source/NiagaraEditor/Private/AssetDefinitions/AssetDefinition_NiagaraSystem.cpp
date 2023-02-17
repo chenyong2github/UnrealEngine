@@ -2,7 +2,7 @@
 
 #include "AssetDefinition_NiagaraSystem.h"
 #include "NiagaraSystem.h"
-#include "NiagaraSystemToolkit.h"
+#include "Toolkits/NiagaraSystemToolkit.h"
 #include "NiagaraEditorStyle.h"
 
 FLinearColor UAssetDefinition_NiagaraSystem::GetAssetColor() const

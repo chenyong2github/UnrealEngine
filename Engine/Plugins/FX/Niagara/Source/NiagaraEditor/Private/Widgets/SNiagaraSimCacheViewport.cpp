@@ -3,7 +3,7 @@
 #include "SNiagaraSimCacheViewport.h"
 
 #include "AdvancedPreviewScene.h"
-#include "NiagaraSimCacheViewModel.h"
+#include "ViewModels/NiagaraSimCacheViewModel.h"
 #include "SEditorViewportToolBarMenu.h"
 #include "SNiagaraSimCacheViewportToolbar.h"
 #include "NiagaraComponent.h"

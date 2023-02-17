@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NiagaraSimCacheViewModel.h"
+#include "ViewModels/NiagaraSimCacheViewModel.h"
 
 #include "NiagaraEditorStyle.h"
 #include "Widgets/SNiagaraPinTypeSelector.h"
