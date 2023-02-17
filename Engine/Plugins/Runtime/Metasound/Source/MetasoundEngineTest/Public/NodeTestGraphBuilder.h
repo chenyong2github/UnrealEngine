@@ -21,14 +21,18 @@ namespace Metasound::Test
 		/** Add an input node to the graph */
 		Frontend::FNodeHandle AddInput(const FName& InputName, const FName& TypeName);
 
-		/** Add an output node to the grapn */
+		/** Add an output node to the graph */
 		Frontend::FNodeHandle AddOutput(const FName& OutputName, const FName& TypeName);
 
 		/** Build the graph and get the graph's operator to work with */
-		TUniquePtr<IOperator> BuildGraph();
+		TUniquePtr<IOperator> BuildGraph(FSampleRate SampleRate = 48000, int32 SamplesPerBlock = 256);
 
 		/** Helper that will add a single node, wire up the node's inputs and outputs, and hand back the graph's operator */
-		static TUniquePtr<IOperator> MakeSingleNodeGraph(const FNodeClassName& ClassName, int32 MajorVersion);
+		static TUniquePtr<IOperator> MakeSingleNodeGraph(
+			const FNodeClassName& ClassName,
+			int32 MajorVersion,
+			FSampleRate SampleRate = 48000,
+			int32 SamplesPerBlock = 256);
 
 	private:
 		FMetasoundFrontendDocument Document;

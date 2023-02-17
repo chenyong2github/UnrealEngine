@@ -56,7 +56,7 @@ namespace Metasound::Test
 		return RootGraph->AddOutputVertex(Output);
 	}
 
-	TUniquePtr<IOperator> FNodeTestGraphBuilder::BuildGraph()
+	TUniquePtr<IOperator> FNodeTestGraphBuilder::BuildGraph(FSampleRate SampleRate, int32 SamplesPerBlock)
 	{
 		TSet<FName> TransmittableInputNames;
 		const FString UnknownAsset = TEXT("UnknownAsset");
@@ -72,7 +72,7 @@ namespace Metasound::Test
 			BuilderSettings.bValidateVerticesExist = true;
 			FOperatorBuilder Builder{ BuilderSettings };
 
-			FOperatorSettings OperatorSettings = FOperatorSettings(48000.0f, 256);
+			FOperatorSettings OperatorSettings{SampleRate, static_cast<float>(SampleRate) / SamplesPerBlock};
 			FInputVertexInterfaceData InterfaceData;
 			FMetasoundEnvironment Environment;
 			FBuildGraphOperatorParams BuildParams{ *Graph, OperatorSettings, InterfaceData, Environment };
@@ -83,7 +83,11 @@ namespace Metasound::Test
 		return nullptr;
 	}
 
-	TUniquePtr<IOperator> FNodeTestGraphBuilder::MakeSingleNodeGraph(const FNodeClassName& ClassName, int32 MajorVersion)
+	TUniquePtr<IOperator> FNodeTestGraphBuilder::MakeSingleNodeGraph(
+		const FNodeClassName& ClassName,
+		int32 MajorVersion,
+		FSampleRate SampleRate,
+		int32 SamplesPerBlock)
 	{
 		FNodeTestGraphBuilder Builder;
 		FNodeHandle NodeHandle = Builder.AddNode(ClassName, MajorVersion);
@@ -132,6 +136,6 @@ namespace Metasound::Test
 		}
 
 		// build the graph
-		return Builder.BuildGraph();
+		return Builder.BuildGraph(SampleRate, SamplesPerBlock);
 	}
 }
