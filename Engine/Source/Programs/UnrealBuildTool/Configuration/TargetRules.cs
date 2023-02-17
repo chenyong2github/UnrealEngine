@@ -138,7 +138,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Always use the defaults for the current engine version. Note that this may cause compatibility issues when upgrading.
 		/// </summary>
-		Latest = V2,
+		Latest = V3,
 	}
 
 	/// <summary>
