@@ -3828,13 +3828,14 @@ ir_rvalue * ast_function::hir(exec_list *instructions, struct _mesa_glsl_parse_s
 	*    "[Sampler types] can only be declared as function parameters
 	*    or uniform variables (see Section 4.3.5 "Uniform")".
 	*/
-	if (return_type->contains_sampler())
-	{
-		YYLTYPE loc = this->get_location();
-		_mesa_glsl_error(&loc, state,
-			"function '%s' return type can't contain a sampler",
-			name);
-	}
+	//UE: Not useful as everthing gets inlined 
+	//if (return_type->contains_sampler())
+	//{
+	//	YYLTYPE loc = this->get_location();
+	//	_mesa_glsl_error(&loc, state,
+	//		"function '%s' return type can't contain a sampler",
+	//		name);
+	//}
 
 	/* Verify that this function's signature either doesn't match a previously
 	* seen signature for a function with the same name, or, if a match is found,

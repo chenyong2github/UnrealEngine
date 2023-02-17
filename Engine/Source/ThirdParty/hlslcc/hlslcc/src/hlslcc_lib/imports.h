@@ -124,7 +124,7 @@ typedef union { float f; int32_t i; } fi_type;
 #if defined(_MSC_VER)
 static inline float truncf(float x) { return x < 0.0f ? ceilf(x) : floorf(x); }
 static inline float exp2f(float x) { return powf(2.0f, x); }
-static inline float log2f(float x) { return logf(x) * 1.442695041f; }
+//static inline float log2f(float x) { return logf(x) * 1.442695041f; }
 static inline float asinhf(float x) { return logf(x + sqrtf(x * x + 1.0f)); }
 static inline float acoshf(float x) { return logf(x + sqrtf(x * x - 1.0f)); }
 static inline float atanhf(float x) { return (logf(1.0f + x) - logf(1.0f - x)) / 2.0f; }
