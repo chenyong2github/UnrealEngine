@@ -26,7 +26,12 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 
 	StoreSourceStructs();
 
-	const int32 BindingsBegin = PropertyBindings->PropertyPathBindings.Num();
+	struct FSortedBinding
+	{
+		FStateTreePropertyPathBinding Binding;
+		TArray<FStateTreePropertyPathIndirection> TargetIndirections;
+	};
+	TArray<FSortedBinding> NewBindings;
 
 	for (const FStateTreePropertyPathBinding& Binding : BatchPropertyBindings)
 	{
@@ -82,12 +87,45 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 			return false;
 		}
 
-		PropertyBindings->PropertyPathBindings.Emplace(FStateTreeIndex16(SourceStructIdx), Binding.GetSourcePath(), Binding.GetTargetPath());
+		FSortedBinding& NewBinding = NewBindings.AddDefaulted_GetRef();
+		NewBinding.Binding = FStateTreePropertyPathBinding(FStateTreeIndex16(SourceStructIdx), Binding.GetSourcePath(), Binding.GetTargetPath());
+		NewBinding.TargetIndirections = TargetIndirections;
 	}
 
-	const int32 BindingsEnd = PropertyBindings->PropertyPathBindings.Num();
-	if (BindingsBegin != BindingsEnd)
+	if (!NewBindings.IsEmpty())
 	{
+		// Sort bindings base on copy target memory layout.
+		NewBindings.StableSort([](const FSortedBinding& A, const FSortedBinding& B)
+		{
+			const int32 MaxSegments = FMath::Min(A.TargetIndirections.Num(), B.TargetIndirections.Num());
+			for (int32 Index = 0; Index < MaxSegments; Index++)
+			{
+				// If property A is in struct before B, copy A first. 
+				if (A.TargetIndirections[Index].GetPropertyOffset() < B.TargetIndirections[Index].GetPropertyOffset())
+				{
+					return true;
+				}
+				// If A and B points to the same property, choose the one that points to an earlier array item.
+				// Note: this assumes that INDEX_NONE = -1, which means that binding directly to an array comes before an array access,
+				// and non-array access will compare equal (both INDEX_NONE).
+				if (A.TargetIndirections[Index].GetPropertyOffset() == B.TargetIndirections[Index].GetPropertyOffset()
+					&& A.TargetIndirections[Index].GetArrayIndex() < B.TargetIndirections[Index].GetArrayIndex())
+				{
+					return true;
+				}
+			}
+			// We get here if the common path is the same, shorter path wins.
+			return A.TargetIndirections.Num() <= B.TargetIndirections.Num(); 
+		});
+
+		// Store bindings batch.
+		const int32 BindingsBegin = PropertyBindings->PropertyPathBindings.Num();
+		for (const FSortedBinding& NewBinding : NewBindings)
+		{
+			PropertyBindings->PropertyPathBindings.Add(NewBinding.Binding);
+		}
+		const int32 BindingsEnd = PropertyBindings->PropertyPathBindings.Num();
+
 		FStateTreePropertyCopyBatch& Batch = PropertyBindings->CopyBatches.AddDefaulted_GetRef();
 		Batch.TargetStruct = TargetStruct;
 		Batch.BindingsBegin = IntCastChecked<uint16>(BindingsBegin);

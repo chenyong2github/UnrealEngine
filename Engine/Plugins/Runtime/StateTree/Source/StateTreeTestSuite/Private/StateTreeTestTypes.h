@@ -381,3 +381,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "")
 	TArray<FStateTreeTest_PropertyStruct> ArrayOfStruct;
 };
+
+USTRUCT()
+struct FStateTreeTest_PropertyCopy
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "")
+	FStateTreeTest_PropertyStruct Item;
+
+	UPROPERTY(EditAnywhere, Category = "")
+	TArray<FStateTreeTest_PropertyStruct> Array;
+};

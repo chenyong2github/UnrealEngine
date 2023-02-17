@@ -1009,6 +1009,106 @@ struct FStateTreeTest_PropertyPathArrayOfInstancedObjects : FAITestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_PropertyPathArrayOfInstancedObjects, "System.StateTree.PropertyPath.ArrayOfInstancedObjects");
 
+struct FStateTreeTest_BindingsCompiler : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FStateTreeCompilerLog Log;
+		FStateTreePropertyBindings Bindings;
+		FStateTreePropertyBindingCompiler BindingCompiler;
+
+		const bool bInitResult = BindingCompiler.Init(Bindings, Log);
+		AITEST_TRUE("Expect init to succeed", bInitResult);
+
+		FStateTreeBindableStructDesc SourceADesc;
+		SourceADesc.Name = FName(TEXT("SourceA"));
+		SourceADesc.Struct = TBaseStructure<FStateTreeTest_PropertyCopy>::Get();
+		SourceADesc.DataSource = EStateTreeBindableStructSource::Parameter;
+		SourceADesc.ID = FGuid::NewGuid();
+
+		FStateTreeBindableStructDesc SourceBDesc;
+		SourceBDesc.Name = FName(TEXT("SourceB"));
+		SourceBDesc.Struct = TBaseStructure<FStateTreeTest_PropertyCopy>::Get();
+		SourceBDesc.DataSource = EStateTreeBindableStructSource::Parameter;
+		SourceBDesc.ID = FGuid::NewGuid();
+
+		FStateTreeBindableStructDesc TargetDesc;
+		TargetDesc.Name = FName(TEXT("Target"));
+		TargetDesc.Struct = TBaseStructure<FStateTreeTest_PropertyCopy>::Get();
+		TargetDesc.DataSource = EStateTreeBindableStructSource::Parameter;
+		TargetDesc.ID = FGuid::NewGuid();
+		
+		const int32 SourceAIndex = BindingCompiler.AddSourceStruct(SourceADesc);
+		const int32 SourceBIndex = BindingCompiler.AddSourceStruct(SourceBDesc);
+
+		auto MakeBinding = [](const FGuid& SourceID, const FString& Source, const FGuid& TargetID, const FString& Target)
+		{
+			FStateTreePropertyPath SourcePath;
+			SourcePath.FromString(Source);
+			SourcePath.SetStructID(SourceID);
+
+			FStateTreePropertyPath TargetPath;
+			TargetPath.FromString(Target);
+			TargetPath.SetStructID(TargetID);
+
+			return FStateTreePropertyPathBinding(SourcePath, TargetPath);
+		};
+
+		TArray<FStateTreePropertyPathBinding> PropertyBindings;
+		PropertyBindings.Add(MakeBinding(SourceBDesc.ID, TEXT("Item"), TargetDesc.ID, TEXT("Array[1]")));
+		PropertyBindings.Add(MakeBinding(SourceADesc.ID, TEXT("Item.B"), TargetDesc.ID, TEXT("Array[1].B")));
+		PropertyBindings.Add(MakeBinding(SourceADesc.ID, TEXT("Array"), TargetDesc.ID, TEXT("Array")));
+
+		int32 CopyBatchIndex = INDEX_NONE;
+		const bool bCompileBatchResult = BindingCompiler.CompileBatch(TargetDesc, PropertyBindings, CopyBatchIndex);
+		AITEST_TRUE("CompileBatch should succeed", bCompileBatchResult);
+		AITEST_NOT_EQUAL("CopyBatchIndex should not be INDEX_NONE", CopyBatchIndex, (int32)INDEX_NONE);
+
+		BindingCompiler.Finalize();
+
+		const bool bResolveResult = Bindings.ResolvePaths();
+		AITEST_TRUE("ResolvePaths should succeed", bResolveResult);
+
+		FStateTreeTest_PropertyCopy SourceA;
+		SourceA.Item.B = 123;
+		SourceA.Array.AddDefaulted_GetRef().A = 1;
+		SourceA.Array.AddDefaulted_GetRef().B = 2;
+
+		FStateTreeTest_PropertyCopy SourceB;
+		SourceB.Item.A = 41;
+		SourceB.Item.B = 42;
+
+		FStateTreeTest_PropertyCopy Target;
+
+		AITEST_TRUE("SourceAIndex should be less than max number of source structs.", SourceAIndex < Bindings.GetSourceStructNum());
+		AITEST_TRUE("SourceBIndex should be less than max number of source structs.", SourceBIndex < Bindings.GetSourceStructNum());
+
+		TArray<FStateTreeDataView> SourceViews;
+		SourceViews.SetNum(Bindings.GetSourceStructNum());
+		SourceViews[SourceAIndex] = FStateTreeDataView(TBaseStructure<FStateTreeTest_PropertyCopy>::Get(), (uint8*)&SourceA);
+		SourceViews[SourceBIndex] = FStateTreeDataView(TBaseStructure<FStateTreeTest_PropertyCopy>::Get(), (uint8*)&SourceB);
+		FStateTreeDataView TargetView(TBaseStructure<FStateTreeTest_PropertyCopy>::Get(), (uint8*)&Target);
+		
+		const bool bCopyResult = Bindings.CopyTo(SourceViews, FStateTreeIndex16(CopyBatchIndex), TargetView);
+		AITEST_TRUE("CopyTo should succeed", bCopyResult);
+
+		// Due to binding sorting, we expect them to executed in this order (sorted based on target access, earliest to latest)
+		// SourceA.Array -> Target.Array
+		// SourceB.Item -> Target.Array[1]
+		// SourceA.Item.B -> Target.Array[1].B
+
+		AITEST_EQUAL("Expect TargetArray to be copied from SourceA", Target.Array.Num(), SourceA.Array.Num());
+		AITEST_EQUAL("Expect Target.Array[0].A copied from SourceA.Array[0].A", Target.Array[0].A, SourceA.Array[0].A);
+		AITEST_EQUAL("Expect Target.Array[0].B copied from SourceA.Array[0].B", Target.Array[0].B, SourceA.Array[0].B);
+		AITEST_EQUAL("Expect Target.Array[1].A copied from SourceB.Item.A", Target.Array[1].A, SourceB.Item.A);
+		AITEST_EQUAL("Expect Target.Array[1].B copied from SourceA.Item.B", Target.Array[1].B, SourceA.Item.B);
+		
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_BindingsCompiler, "System.StateTree.BindingsCompiler");
+
+
 UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE
