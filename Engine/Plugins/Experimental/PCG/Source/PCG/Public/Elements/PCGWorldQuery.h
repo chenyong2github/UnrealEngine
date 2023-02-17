@@ -16,13 +16,15 @@ class PCG_API UPCGWorldQuerySettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("WorldVolumetric")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("World Volumetric Query")); }
+	virtual FText GetNodeTooltipText() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 
-	TArray<FPCGPinProperties> InputPinProperties() const { return TArray<FPCGPinProperties>(); }
-
 protected:
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return TArray<FPCGPinProperties>(); }
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
 
@@ -47,13 +49,15 @@ class PCG_API UPCGWorldRayHitSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("WorldRayHit")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("World Ray Hit Query")); }
+	virtual FText GetNodeTooltipText() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 
-	TArray<FPCGPinProperties> InputPinProperties() const { return TArray<FPCGPinProperties>(); }
-
 protected:
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return TArray<FPCGPinProperties>(); }
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
 

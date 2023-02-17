@@ -10,6 +10,23 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGWorldQuery)
 
+#define LOCTEXT_NAMESPACE "PCGWorldQuery"
+
+#if WITH_EDITOR
+FText UPCGWorldQuerySettings::GetNodeTooltipText() const
+{
+	return LOCTEXT("WorldQueryTooltip", "Allows generic access (based on overlaps) to collisions in the world that behaves like a volume.");
+}
+#endif
+
+TArray<FPCGPinProperties> UPCGWorldQuerySettings::OutputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Volume);
+
+	return PinProperties;
+}
+
 FPCGElementPtr UPCGWorldQuerySettings::CreateElement() const
 {
 	return MakeShared<FPCGWorldVolumetricQueryElement>();
@@ -41,6 +58,21 @@ bool FPCGWorldVolumetricQueryElement::ExecuteInternal(FPCGContext* Context) cons
 	Output.Data = Data;
 
 	return true;
+}
+
+#if WITH_EDITOR
+FText UPCGWorldRayHitSettings::GetNodeTooltipText() const
+{
+	return LOCTEXT("WorldRayHitTooltip", "Allows generic access (based on raycasts) to collisions in the world that behaves like a surface.");
+}
+#endif
+
+TArray<FPCGPinProperties> UPCGWorldRayHitSettings::OutputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Surface);
+
+	return PinProperties;
 }
 
 FPCGElementPtr UPCGWorldRayHitSettings::CreateElement() const
@@ -106,3 +138,5 @@ bool FPCGWorldRayHitQueryElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE
