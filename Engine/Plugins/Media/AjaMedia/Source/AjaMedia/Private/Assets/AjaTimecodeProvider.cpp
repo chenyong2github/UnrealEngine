@@ -2,7 +2,7 @@
 
 #include "AjaTimecodeProvider.h"
 
-#include "AJA.h"
+#include "Aja/Aja.h"
 #include "AjaMediaPrivate.h"
 #include "Misc/App.h"
 #include "UObject/VirtualProductionObjectVersion.h"

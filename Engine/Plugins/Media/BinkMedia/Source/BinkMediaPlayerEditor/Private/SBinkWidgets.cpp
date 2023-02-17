@@ -3,7 +3,7 @@
 
 #include "SBinkWidgets.h"
 
-#include "BinkMediaPlayerEditorTexture.h"
+#include "Models/BinkMediaPlayerEditorTexture.h"
 #include "Widgets/SViewport.h"
 #include "DetailsViewArgs.h"
 #include "IDetailsView.h"

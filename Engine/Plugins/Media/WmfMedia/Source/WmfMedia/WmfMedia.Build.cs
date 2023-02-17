@@ -36,13 +36,6 @@ namespace UnrealBuildTool.Rules
 					"Media",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"WmfMedia/Private",
-					"WmfMedia/Private/Player",
-					"WmfMedia/Private/Wmf",
-                });
-
 			if (Target.bCompileAgainstEngine)
 			{
 				PrivateDependencyModuleNames.Add("Engine");

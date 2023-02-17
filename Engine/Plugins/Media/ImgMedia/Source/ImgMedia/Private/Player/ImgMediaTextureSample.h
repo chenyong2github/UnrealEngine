@@ -8,7 +8,7 @@
 #include "Misc/Timespan.h"
 #include "Templates/SharedPointer.h"
 
-#include "IImgMediaReader.h"
+#include "Readers/IImgMediaReader.h"
 
 
 /**

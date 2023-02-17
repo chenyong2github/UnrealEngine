@@ -23,13 +23,6 @@ namespace UnrealBuildTool.Rules
 					"Media",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"MfMedia/Private",
-					"MfMedia/Private/Mf",
-					"MfMedia/Private/Player",
-				});
-
 			if (Target.Type != TargetType.Server)
 			{
 				if (Target.Platform == UnrealTargetPlatform.Win64)

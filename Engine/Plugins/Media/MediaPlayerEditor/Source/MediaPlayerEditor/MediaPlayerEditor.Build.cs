@@ -15,18 +15,6 @@ public class MediaPlayerEditor : ModuleRules
 				"WorkspaceMenuStructure",
 			});
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"MediaPlayerEditor/Private",
-				"MediaPlayerEditor/Private/AssetTools",
-				"MediaPlayerEditor/Private/Customizations",
-				"MediaPlayerEditor/Private/Factories",
-				"MediaPlayerEditor/Private/Models",
-				"MediaPlayerEditor/Private/Shared",
-				"MediaPlayerEditor/Private/Toolkits",
-				"MediaPlayerEditor/Private/Widgets",
-			});
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

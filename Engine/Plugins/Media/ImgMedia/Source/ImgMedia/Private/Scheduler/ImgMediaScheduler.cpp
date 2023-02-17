@@ -8,8 +8,8 @@
 #include "UObject/Class.h"
 #include "UObject/UObjectGlobals.h"
 
-#include "ImgMediaLoader.h"
-#include "ImgMediaSchedulerThread.h"
+#include "Loader/ImgMediaLoader.h"
+#include "Scheduler/ImgMediaSchedulerThread.h"
 #include "ImgMediaSettings.h"
 
 

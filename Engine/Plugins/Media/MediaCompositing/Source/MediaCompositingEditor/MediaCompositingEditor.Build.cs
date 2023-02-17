@@ -36,13 +36,6 @@ namespace UnrealBuildTool.Rules
 				{
 					"MovieSceneTools",
 				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"MediaCompositingEditor/Private",
-					"MediaCompositingEditor/Private/Sequencer",
-					"MediaCompositingEditor/Private/Shared",
-				});
 		}
 	}
 }

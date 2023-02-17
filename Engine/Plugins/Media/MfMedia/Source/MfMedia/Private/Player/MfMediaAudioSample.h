@@ -14,7 +14,7 @@
 #include "Microsoft/COMPointer.h"
 
 #include "MfMediaSample.h"
-#include "MfMediaUtils.h"
+#include "Mf/MfMediaUtils.h"
 
 
 /**

@@ -5,7 +5,7 @@
 
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
-#include "ImgMediaLoader.h"
+#include "Loader/ImgMediaLoader.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 

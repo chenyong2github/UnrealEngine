@@ -27,13 +27,6 @@ namespace UnrealBuildTool.Rules
 					"Media",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"AvfMedia/Private",
-					"AvfMedia/Private/Player",
-					"AvfMedia/Private/Shared",
-				});
-
 			PublicFrameworks.AddRange(
 				new string[] {
 					"CoreMedia",

@@ -5,7 +5,7 @@
 #include "Logging/LogMacros.h"
 #include "Misc/AutomationTest.h"
 
-#include "ImgMediaMipMapInfo.h"
+#include "Assets/ImgMediaMipMapInfo.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

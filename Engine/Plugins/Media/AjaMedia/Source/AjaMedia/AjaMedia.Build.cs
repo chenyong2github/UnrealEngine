@@ -37,15 +37,6 @@ namespace UnrealBuildTool.Rules
 					"Media",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"AjaMedia/Private",
-					"AjaMedia/Private/Aja",
-					"AjaMedia/Private/Assets",
-					"AjaMedia/Private/Player",
-					"AjaMedia/Private/Shared",
-				});
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"MediaAssets",

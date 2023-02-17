@@ -2,7 +2,7 @@
 
 #include "AjaCustomTimeStep.h"
 #include "AjaMediaPrivate.h"
-#include "AJA.h"
+#include "Aja/Aja.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/App.h"

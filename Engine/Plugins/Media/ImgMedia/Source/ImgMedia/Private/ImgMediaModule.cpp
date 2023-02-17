@@ -7,9 +7,9 @@
 #include "Misc/QueuedThreadPool.h"
 
 #include "ImgMediaGlobalCache.h"
-#include "ImgMediaPlayer.h"
+#include "Player/ImgMediaPlayer.h"
 #include "ImgMediaSceneViewExtension.h"
-#include "ImgMediaScheduler.h"
+#include "Scheduler/ImgMediaScheduler.h"
 #include "ImgMediaSource.h"
 #include "IImgMediaModule.h"
 

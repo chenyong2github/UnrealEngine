@@ -12,10 +12,10 @@
 #include "UObject/Class.h"
 #include "HardwareInfo.h"
 
-#include "WmfMediaSession.h"
+#include "Wmf/WmfMediaSession.h"
 #include "WmfMediaSettings.h"
 #include "WmfMediaTracks.h"
-#include "WmfMediaUtils.h"
+#include "Wmf/WmfMediaUtils.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 

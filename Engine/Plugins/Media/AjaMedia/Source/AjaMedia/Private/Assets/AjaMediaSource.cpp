@@ -2,7 +2,7 @@
 
 #include "AjaMediaSource.h"
 
-#include "Aja.h"
+#include "Aja/Aja.h"
 #include "AjaDeviceProvider.h"
 #include "AjaMediaPrivate.h"
 #include "MediaIOCorePlayerBase.h"

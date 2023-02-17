@@ -11,14 +11,6 @@ public class BinkMediaPlayerEditor : ModuleRules
 	{
 		DynamicallyLoadedModuleNames.AddRange( new string[] { "AssetTools", "MainFrame", "WorkspaceMenuStructure" } );
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"BinkMediaPlayerEditor/Private",
-				"BinkMediaPlayerEditor/Private/Factories",
-				"BinkMediaPlayerEditor/Private/Models",
-			}
-		);
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"ContentBrowser",

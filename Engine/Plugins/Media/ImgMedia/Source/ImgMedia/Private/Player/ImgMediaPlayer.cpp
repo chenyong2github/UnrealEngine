@@ -12,11 +12,11 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtr.h"
 
-#include "ImgMediaLoader.h"
-#include "ImgMediaMipMapInfo.h"
-#include "ImgMediaScheduler.h"
+#include "Loader/ImgMediaLoader.h"
+#include "Assets/ImgMediaMipMapInfo.h"
+#include "Scheduler/ImgMediaScheduler.h"
 #include "ImgMediaSettings.h"
-#include "ImgMediaTextureSample.h"
+#include "Player/ImgMediaTextureSample.h"
 
 #include "MediaPlayer.h"
 #include "MediaPlayerFacade.h"

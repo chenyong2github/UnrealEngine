@@ -18,12 +18,6 @@ namespace UnrealBuildTool.Rules
 					"ImgMedia",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"ImgMediaEngine/Private",
-					"ImgMediaEngine/Private/Unreal",
-				});
-
 			// Are we using the engine?
 			if (Target.bCompileAgainstEngine)
 			{

@@ -34,17 +34,6 @@ namespace UnrealBuildTool.Rules
 					"Media",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"ImgMedia/Private",
-					"ImgMedia/Private/Assets",
-					"ImgMedia/Private/GlobalCache",
-					"ImgMedia/Private/Loader",
-					"ImgMedia/Private/Player",
-					"ImgMedia/Private/Readers",
-					"ImgMedia/Private/Scheduler",
-				});
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"MediaAssets",

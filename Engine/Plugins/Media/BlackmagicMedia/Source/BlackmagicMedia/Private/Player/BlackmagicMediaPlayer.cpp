@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "BlackmagicMediaPlayer.h"
+#include "Player/BlackmagicMediaPlayer.h"
 
 #include "BlackmagicMediaPrivate.h"
 #include "BlackmagicMediaSource.h"

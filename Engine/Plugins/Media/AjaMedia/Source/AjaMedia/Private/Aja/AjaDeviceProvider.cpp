@@ -2,7 +2,7 @@
 
 #include "AjaDeviceProvider.h"
 
-#include "Aja.h"
+#include "Aja/Aja.h"
 #include "AjaMediaPrivate.h"
 
 #include "Async/Async.h"

@@ -26,12 +26,6 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"RHI",
 				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"MediaCompositing/Private",
-					"MediaCompositing/Private/MovieScene",
-				});
 		}
 	}
 }

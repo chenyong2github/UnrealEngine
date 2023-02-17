@@ -5,7 +5,7 @@
 
 #include "Misc/ScopeLock.h"
 #include "IImgMediaModule.h"
-#include "IImgMediaReader.h"
+#include "Readers/IImgMediaReader.h"
 #include "ImgMediaLoader.h"
 
 

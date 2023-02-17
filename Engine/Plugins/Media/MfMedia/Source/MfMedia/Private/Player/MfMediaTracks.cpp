@@ -16,7 +16,7 @@
 
 #include "MfMediaAudioSample.h"
 #include "MfMediaTextureSample.h"
-#include "MfMediaUtils.h"
+#include "Mf/MfMediaUtils.h"
 
 #if PLATFORM_MICROSOFT
 	#include "Microsoft/WindowsHWrapper.h"

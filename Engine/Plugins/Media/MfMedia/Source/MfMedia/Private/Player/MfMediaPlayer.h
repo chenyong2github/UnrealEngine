@@ -15,7 +15,7 @@
 #include "Templates/SharedPointer.h"
 #include "Microsoft/COMPointer.h"
 
-#include "IMfMediaSourceReaderSink.h"
+#include "Mf/IMfMediaSourceReaderSink.h"
 
 #if PLATFORM_MICROSOFT
 	#include "Microsoft/WindowsHWrapper.h"

@@ -33,7 +33,7 @@
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Text/STextBlock.h"
 
-#include "MediaPlayerEditorSettings.h"
+#include "Shared/MediaPlayerEditorSettings.h"
 #include "SMediaPlayerEditorCache.h"
 #include "SMediaPlayerEditorViewport.h"
 

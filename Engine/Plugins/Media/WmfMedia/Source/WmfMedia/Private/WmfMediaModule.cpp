@@ -19,8 +19,8 @@
 	#include "Templates/SharedPointer.h"
 	#include "ShaderCore.h"
 
-	#include "WmfMediaPlayer.h"
-	#include "WmfMediaUtils.h"
+	#include "Player/WmfMediaPlayer.h"
+	#include "Wmf/WmfMediaUtils.h"
 
 	#pragma comment(lib, "mf")
 	#pragma comment(lib, "mfplat")

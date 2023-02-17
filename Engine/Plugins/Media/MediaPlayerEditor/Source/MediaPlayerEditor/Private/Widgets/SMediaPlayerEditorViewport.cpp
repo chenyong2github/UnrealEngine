@@ -10,7 +10,7 @@
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/STextBlock.h"
 
-#include "MediaPlayerEditorSettings.h"
+#include "Shared/MediaPlayerEditorSettings.h"
 #include "SMediaPlayerEditorOutput.h"
 #include "SMediaPlayerEditorOverlay.h"
 

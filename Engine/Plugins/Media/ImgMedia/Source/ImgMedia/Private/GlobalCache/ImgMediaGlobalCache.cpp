@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImgMediaGlobalCache.h"
-#include "IImgMediaReader.h"
+#include "Readers/IImgMediaReader.h"
 #include "ImgMediaPrivate.h"
 #include "ImgMediaSettings.h"
 #include "Modules/ModuleManager.h"

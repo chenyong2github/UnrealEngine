@@ -3,7 +3,7 @@
 
 #include "BinkMediaPlayerEditorToolkit.h"
 
-#include "BinkMediaPlayerEditorCommands.h"
+#include "Models/BinkMediaPlayerEditorCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Widgets/Docking/SDockTab.h"

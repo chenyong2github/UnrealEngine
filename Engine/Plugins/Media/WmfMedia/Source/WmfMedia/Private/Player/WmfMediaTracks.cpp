@@ -26,12 +26,12 @@
 #include "WmfMediaCodec/WmfMediaDecoder.h"
 #include "WmfMediaHardwareVideoDecodingTextureSample.h"
 #include "WmfMediaOverlaySample.h"
-#include "WmfMediaSampler.h"
+#include "Wmf/WmfMediaSampler.h"
 #include "WmfMediaSettings.h"
-#include "WmfMediaSink.h"
-#include "WmfMediaStreamSink.h"
-#include "WmfMediaTopologyLoader.h"
-#include "WmfMediaUtils.h"
+#include "Wmf/WmfMediaSink.h"
+#include "Wmf/WmfMediaStreamSink.h"
+#include "Wmf/WmfMediaTopologyLoader.h"
+#include "Wmf/WmfMediaUtils.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 

@@ -16,16 +16,16 @@
 #include "UObject/Class.h"
 #include "UObject/UObjectGlobals.h"
 
-#include "GenericImgMediaReader.h"
+#include "Readers/GenericImgMediaReader.h"
 #include "IImageWrapperModule.h"
 #include "IImgMediaModule.h"
-#include "IImgMediaReader.h"
+#include "Readers/IImgMediaReader.h"
 #include "ImgMediaLoaderWork.h"
-#include "ImgMediaScheduler.h"
-#include "ImgMediaTextureSample.h"
+#include "Scheduler/ImgMediaScheduler.h"
+#include "Player/ImgMediaTextureSample.h"
 
 #if IMGMEDIA_EXR_SUPPORTED_PLATFORM
-	#include "ExrImgMediaReader.h"
+	#include "Readers/ExrImgMediaReader.h"
 #endif
 
 

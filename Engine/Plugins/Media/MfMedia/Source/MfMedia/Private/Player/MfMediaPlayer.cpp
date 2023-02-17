@@ -10,9 +10,9 @@
 #include "MediaSamples.h"
 #include "MediaPlayerOptions.h"
 
-#include "MfMediaSourceReaderCallback.h"
+#include "Mf/MfMediaSourceReaderCallback.h"
 #include "MfMediaTracks.h"
-#include "MfMediaUtils.h"
+#include "Mf/MfMediaUtils.h"
 
 #if PLATFORM_MICROSOFT
 	#include "Microsoft/WindowsHWrapper.h"

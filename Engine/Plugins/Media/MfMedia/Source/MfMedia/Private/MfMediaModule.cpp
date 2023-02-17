@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 
 #if MFMEDIA_SUPPORTED_PLATFORM
-	#include "MfMediaPlayer.h"
+	#include "Player/MfMediaPlayer.h"
 	#include "Templates/SharedPointer.h"
 #endif
 

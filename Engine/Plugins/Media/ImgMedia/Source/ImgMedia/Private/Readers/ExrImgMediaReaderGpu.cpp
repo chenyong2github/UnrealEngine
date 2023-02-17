@@ -18,7 +18,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "GlobalShader.h"
 #include "CommonRenderResources.h"
-#include "ImgMediaLoader.h"
+#include "Loader/ImgMediaLoader.h"
 #include "PostProcess/DrawRectangle.h"
 #include "RHIStaticStates.h"
 #include "SceneUtils.h"

@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "Misc/FrameRate.h"
 #include "IMediaTextureSample.h"
-#include "ImgMediaMipMapInfo.h"
+#include "Assets/ImgMediaMipMapInfo.h"
 #include "Math/IntPoint.h"
 #include "Templates/SharedPointer.h"
 #include "RHI.h"

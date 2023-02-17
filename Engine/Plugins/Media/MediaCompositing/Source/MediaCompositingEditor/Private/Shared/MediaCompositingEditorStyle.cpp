@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MediaCompositingEditorStyle.h"
+#include "Shared/MediaCompositingEditorStyle.h"
 
 #include "Math/Vector2D.h"
 #include "Styling/SlateStyleRegistry.h"

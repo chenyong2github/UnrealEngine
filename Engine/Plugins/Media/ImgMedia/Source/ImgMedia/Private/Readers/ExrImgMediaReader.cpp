@@ -13,8 +13,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "HardwareInfo.h"
 #include "IImgMediaModule.h"
-#include "ImgMediaLoader.h"
-#include "ImgMediaMipMapInfo.h"
+#include "Loader/ImgMediaLoader.h"
+#include "Assets/ImgMediaMipMapInfo.h"
 
 DECLARE_MEMORY_STAT(TEXT("EXR Reader Pool Memory."), STAT_ExrMediaReaderPoolMem, STATGROUP_ImgMediaPlugin);
 

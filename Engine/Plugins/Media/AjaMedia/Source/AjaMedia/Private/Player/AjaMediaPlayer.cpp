@@ -3,7 +3,7 @@
 #include "AjaMediaPlayer.h"
 
 
-#include "AJA.h"
+#include "Aja/Aja.h"
 #include "AjaMediaAudioSample.h"
 #include "AjaMediaBinarySample.h"
 #include "AjaMediaPrivate.h"

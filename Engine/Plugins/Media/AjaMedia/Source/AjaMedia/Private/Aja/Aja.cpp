@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Aja.h"
+#include "Aja/Aja.h"
 #include "AjaMediaPrivate.h"
 
 #include "Misc/FrameRate.h"

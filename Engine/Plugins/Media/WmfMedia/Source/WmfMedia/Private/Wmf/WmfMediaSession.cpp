@@ -7,7 +7,7 @@
 #include "IMediaEventSink.h"
 #include "Misc/ScopeLock.h"
 
-#include "WmfMediaTracks.h"
+#include "Player/WmfMediaTracks.h"
 #include "WmfMediaUtils.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"

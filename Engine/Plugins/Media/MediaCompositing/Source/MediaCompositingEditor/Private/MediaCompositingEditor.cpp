@@ -5,10 +5,10 @@
 #include "Modules/ModuleManager.h"
 
 #include "ISequenceRecorder.h"
-#include "MediaCompositingEditorStyle.h"
-#include "MediaSequenceRecorderExtender.h"
+#include "Shared/MediaCompositingEditorStyle.h"
+#include "Sequencer/MediaSequenceRecorderExtender.h"
 #include "Sequencer/MediaTrackEditor.h"
-#include "MediaPlayerPropertyTrackEditor.h"
+#include "Sequencer/MediaPlayerPropertyTrackEditor.h"
 
 
 #define LOCTEXT_NAMESPACE "MediaCompositingEditorModule"
