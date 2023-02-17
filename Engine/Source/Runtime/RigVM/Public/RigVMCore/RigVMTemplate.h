@@ -107,7 +107,7 @@ struct RIGVM_API FRigVMTemplateArgumentType
 		return CPPType != InOther.CPPType;
 	}
 
-	friend uint32 GetTypeHash(const FRigVMTemplateArgumentType& InType)
+	RIGVM_API friend FORCEINLINE uint32 GetTypeHash(const FRigVMTemplateArgumentType& InType)
 	{
 		return GetTypeHash(InType.CPPType);
 	}
@@ -234,6 +234,8 @@ struct RIGVM_API FRigVMTemplateArgument
 
 	// returns true if the argument uses an array container
 	EArrayType GetArrayType() const;
+
+	RIGVM_API friend uint32 GetTypeHash(const FRigVMTemplateArgument& InArgument);
 
 protected:
 
@@ -417,6 +419,8 @@ public:
 			Delegates.GetDispatchFactoryDelegate.IsBound();
 	}  
 
+	RIGVM_API friend uint32 GetTypeHash(const FRigVMTemplate& InTemplate);
+
 private:
 
 	// Constructor from a struct, a template name and a function index
@@ -427,6 +431,7 @@ private:
 
 	static FLinearColor GetColorFromMetadata(FString InMetadata);
 
+	void InvalidateHash() { Hash = UINT32_MAX; }
 	const TArray<FRigVMExecuteArgument>& GetExecuteArguments(const FRigVMDispatchContext& InContext) const;
 
 	int32 Index;
@@ -434,6 +439,7 @@ private:
 	TArray<FRigVMTemplateArgument> Arguments;
 	mutable TArray<FRigVMExecuteArgument> ExecuteArguments;
 	TArray<int32> Permutations;
+	mutable uint32 Hash;
 
 	FRigVMTemplateDelegates Delegates;
 

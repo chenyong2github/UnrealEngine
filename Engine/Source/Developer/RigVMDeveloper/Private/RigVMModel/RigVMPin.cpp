@@ -1310,6 +1310,15 @@ bool URigVMPin::IsOrphanPin() const
 	return false;
 }
 
+uint32 URigVMPin::GetStructureHash() const
+{
+	uint32 Hash = GetTypeHash(GetName());
+	Hash = HashCombine(Hash, GetTypeHash(GetCPPType()));
+	Hash = HashCombine(Hash, GetTypeHash((int32)GetDirection()));
+	Hash = HashCombine(Hash, FRigVMRegistry::Get().GetHashForType(GetTypeIndex()));
+	return Hash;
+}
+
 void URigVMPin::UpdateTypeInformationIfRequired() const
 {
 	if (CPPTypeObject == nullptr)

@@ -46,6 +46,7 @@ public:
 	FName GetOuterVariableName(const FName& InInnerVariableName) const;
 	// end Variable remapping
 
+	virtual uint32 GetStructureHash() const override;
 	const FRigVMGraphFunctionHeader& GetReferencedFunctionHeader() const { return ReferencedFunctionHeader; }
 
 	const FRigVMGraphFunctionData* GetReferencedFunctionData() const;

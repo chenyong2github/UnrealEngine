@@ -146,6 +146,11 @@ public:
 	TSharedPtr<FRigVMParserAST> GetRuntimeAST(const FRigVMParserASTSettings& InSettings = FRigVMParserASTSettings::Optimized(), bool bForceRefresh = false);
 	void ClearAST(bool bClearDiagnostics = true, bool bClearRuntime = true);
 
+	virtual uint32 GetStructureHash() const;
+	uint32 GetSerializedStructureHash() const { return LastStructureHash; }
+
+	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
+
 private:
 
 	FRigVMGraphModifiedEvent ModifiedEvent;
@@ -173,6 +178,9 @@ private:
 	TArray<TSharedPtr<FString>> VariableNames;
 	TArray<TSharedPtr<FString>> ParameterNames;
 #endif
+
+	UPROPERTY()
+	uint32 LastStructureHash;
 
 	UPROPERTY()
 	bool bEditable;

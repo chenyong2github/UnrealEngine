@@ -139,6 +139,8 @@ public:
 	// Will prioritize the InPreferredType if available
 	TRigVMTypeIndex TryReduceTypesToSingle(const TArray<TRigVMTypeIndex>& InTypes, const TRigVMTypeIndex PreferredType = TRigVMTypeIndex()) const;
 
+	virtual uint32 GetStructureHash() const override;
+
 protected:
 
 	virtual void InvalidateCache() override;

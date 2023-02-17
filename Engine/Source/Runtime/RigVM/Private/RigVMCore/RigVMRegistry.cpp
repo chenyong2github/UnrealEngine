@@ -76,6 +76,129 @@ const TArray<UScriptStruct*>& FRigVMRegistry::GetMathTypes()
 	return MathTypes;
 }
 
+uint32 FRigVMRegistry::GetHashForType(TRigVMTypeIndex InTypeIndex) const
+{
+	if(!Types.IsValidIndex(InTypeIndex))
+	{
+		return UINT32_MAX;
+	}
+
+	FRigVMRegistry* MutableThis = (FRigVMRegistry*)this; 
+	FTypeInfo& TypeInfo = MutableThis->Types[InTypeIndex];
+	
+	if(TypeInfo.Hash != UINT32_MAX)
+	{
+		return TypeInfo.Hash;
+	}
+
+	uint32 Hash = INDEX_NONE;
+	if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(TypeInfo.Type.CPPTypeObject))
+	{
+		Hash = GetHashForScriptStruct(ScriptStruct, false);
+	}
+	else if(const UStruct* Struct = Cast<UStruct>(TypeInfo.Type.CPPTypeObject))
+	{
+		Hash = GetHashForStruct(Struct);
+	}
+	else if(const UEnum* Enum = Cast<UEnum>(TypeInfo.Type.CPPTypeObject))
+    {
+    	Hash = GetHashForEnum(Enum, false);
+    }
+    else
+    {
+    	Hash = GetTypeHash(TypeInfo.Type.CPPType.ToString());
+    }
+
+	// for used defined structs - always recompute it
+	if(Cast<UUserDefinedStruct>(TypeInfo.Type.CPPTypeObject))
+	{
+		return Hash;
+	}
+
+	TypeInfo.Hash = Hash;
+	return Hash;
+}
+
+uint32 FRigVMRegistry::GetHashForScriptStruct(const UScriptStruct* InScriptStruct, bool bCheckTypeIndex) const
+{
+	if(bCheckTypeIndex)
+	{
+		const TRigVMTypeIndex TypeIndex = GetTypeIndex(*InScriptStruct->GetStructCPPName(), (UObject*)InScriptStruct);
+		if(TypeIndex != INDEX_NONE)
+		{
+			return GetHashForType(TypeIndex);
+		}
+	}
+	
+	const uint32 NameHash = GetTypeHash(InScriptStruct->GetStructCPPName());
+	return HashCombine(NameHash, GetHashForStruct(InScriptStruct));
+}
+
+uint32 FRigVMRegistry::GetHashForStruct(const UStruct* InStruct) const
+{
+	uint32 Hash = GetTypeHash(InStruct->GetPathName());
+	for (TFieldIterator<FProperty> It(InStruct); It; ++It)
+	{
+		const FProperty* Property = *It;
+		if(IsAllowedType(Property))
+		{
+			Hash = HashCombine(Hash, GetHashForProperty(Property));
+		}
+	}
+	return Hash;
+}
+
+uint32 FRigVMRegistry::GetHashForEnum(const UEnum* InEnum, bool bCheckTypeIndex) const
+{
+	if(bCheckTypeIndex)
+	{
+		const TRigVMTypeIndex TypeIndex = GetTypeIndex(*InEnum->CppType, (UObject*)InEnum);
+		if(TypeIndex != INDEX_NONE)
+		{
+			return GetHashForType(TypeIndex);
+		}
+	}
+	
+	uint32 Hash = GetTypeHash(InEnum->GetName());
+	for(int32 Index = 0; Index < InEnum->NumEnums(); Index++)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(InEnum->GetValueByIndex(Index)));
+		Hash = HashCombine(Hash, GetTypeHash(InEnum->GetDisplayNameTextByIndex(Index).ToString()));
+	}
+	return Hash;
+}
+
+uint32 FRigVMRegistry::GetHashForProperty(const FProperty* InProperty) const
+{
+	uint32 Hash = GetTypeHash(InProperty->GetName());
+
+	FString ExtendedCPPType;
+	const FString CPPType = InProperty->GetCPPType(&ExtendedCPPType);
+	Hash = HashCombine(Hash, GetTypeHash(CPPType + ExtendedCPPType));
+	
+	if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
+	{
+		InProperty = ArrayProperty->Inner;
+	}
+	
+	if(const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
+	{
+		Hash = HashCombine(Hash, GetHashForStruct(StructProperty->Struct));
+	}
+	else if(const FByteProperty* ByteProperty = CastField<FByteProperty>(InProperty))
+	{
+		if(ByteProperty->Enum)
+		{
+			Hash = HashCombine(Hash, GetHashForEnum(ByteProperty->Enum));
+		}
+	}
+	else if(const FEnumProperty* EnumProperty = CastField<FEnumProperty>(InProperty))
+	{
+		Hash = HashCombine(Hash, GetHashForEnum(EnumProperty->GetEnum()));
+	}
+	
+	return Hash;
+}
 
 void FRigVMRegistry::InitializeIfNeeded()
 {

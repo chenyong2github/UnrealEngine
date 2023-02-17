@@ -393,6 +393,7 @@ TArray<FString> FRigVMTemplateArgument::GetSupportedTypeStrings(const TArray<int
 FRigVMTemplate::FRigVMTemplate()
 	: Index(INDEX_NONE)
 	, Notation(NAME_None)
+	, Hash(UINT32_MAX)
 {
 
 }
@@ -432,6 +433,7 @@ void FRigVMTemplate::Serialize(FArchive& Ar)
 FRigVMTemplate::FRigVMTemplate(UScriptStruct* InStruct, const FString& InTemplateName, int32 InFunctionIndex)
 	: Index(INDEX_NONE)
 	, Notation(NAME_None)
+	, Hash(UINT32_MAX)
 {
 	TArray<FString> ArgumentNotations;
 
@@ -476,6 +478,7 @@ FRigVMTemplate::FRigVMTemplate(UScriptStruct* InStruct, const FString& InTemplat
 FRigVMTemplate::FRigVMTemplate(const FName& InTemplateName, const TArray<FRigVMTemplateArgument>& InArguments, int32 InFunctionIndex)
 	: Index(INDEX_NONE)
 	, Notation(NAME_None)
+	, Hash(UINT32_MAX)
 {
 	TArray<FString> ArgumentNotations;
 	for (const FRigVMTemplateArgument& InArgument : InArguments)
@@ -1533,6 +1536,8 @@ FString FRigVMTemplate::GetKeywords() const
 
 bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex)
 {
+	InvalidateHash();
+	
 	if(OnNewArgumentType().IsBound())
 	{
 		FRigVMTemplateTypeMap Types = OnNewArgumentType().Execute(this, InArgumentName, InTypeIndex);
@@ -1593,6 +1598,8 @@ bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, TRigVMTypeI
 
 void FRigVMTemplate::HandleTypeRemoval(TRigVMTypeIndex InTypeIndex)
 {
+	InvalidateHash();
+
 	TArray<int32> PermutationsToRemove;
 	for (int32 PermutationIndex = 0; PermutationIndex < NumPermutations(); PermutationIndex++)
 	{
@@ -1626,4 +1633,40 @@ void FRigVMTemplate::HandleTypeRemoval(TRigVMTypeIndex InTypeIndex)
 	}
 }
 
+
+uint32 GetTypeHash(const FRigVMTemplateArgument& InArgument)
+{
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	uint32 Hash = GetTypeHash(InArgument.Name.ToString());
+	Hash = HashCombine(Hash, GetTypeHash((int32)InArgument.Direction));
+	for(const TRigVMTypeIndex& TypeIndex : InArgument.TypeIndices)
+	{
+		Hash = HashCombine(Hash, Registry.GetHashForType(TypeIndex));
+	}
+	return Hash;
+}
+
+uint32 GetTypeHash(const FRigVMTemplate& InTemplate)
+{
+	if(InTemplate.Hash != UINT32_MAX)
+	{
+		return InTemplate.Hash;
+	}
+
+	uint32 Hash = GetTypeHash(InTemplate.GetNotation().ToString());
+	for(const FRigVMTemplateArgument& Argument : InTemplate.Arguments)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(Argument));
+	}
+
+	// todo: in Dev-EngineMerge we should add the execute arguments to the hash as well
+
+	if(const FRigVMDispatchFactory* Factory = InTemplate.GetDispatchFactory())
+	{
+		Hash = HashCombine(Hash, GetTypeHash(Factory->GetFactoryName().ToString()));
+	}
+
+	InTemplate.Hash = Hash;
+	return Hash;
+}
 

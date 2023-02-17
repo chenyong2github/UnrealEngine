@@ -661,6 +661,28 @@ void FRigVMClient::DestroyObject(UObject* InObject)
 	}
 }
 
+uint32 FRigVMClient::GetStructureHash() const
+{
+	uint32 Hash = 0;
+	const TArray<URigVMGraph*> ModelsAndFunctionLibrary = GetAllModels(true, true);
+	for(const URigVMGraph* Model : ModelsAndFunctionLibrary)
+	{
+		Hash = HashCombine(Hash, Model->GetStructureHash());
+	}
+	return Hash;
+}
+
+uint32 FRigVMClient::GetSerializedStructureHash() const
+{
+	uint32 Hash = 0;
+	const TArray<URigVMGraph*> ModelsAndFunctionLibrary = GetAllModels(true, true);
+	for(const URigVMGraph* Model : ModelsAndFunctionLibrary)
+	{
+		Hash = HashCombine(Hash, Model->GetSerializedStructureHash());
+	}
+	return Hash;
+}
+
 FRigVMClientPatchResult FRigVMClient::PatchModelsOnLoad()
 {
 	FRigVMClientPatchResult Result;

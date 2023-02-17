@@ -139,6 +139,9 @@ public:
 	static FName GetUniqueName(UObject* InOuter, const FName& InDesiredName);
 	static void DestroyObject(UObject* InObject);
 
+	uint32 GetStructureHash() const;
+	uint32 GetSerializedStructureHash() const;
+
 	// backwards compatibility
 	FRigVMClientPatchResult PatchModelsOnLoad();
 

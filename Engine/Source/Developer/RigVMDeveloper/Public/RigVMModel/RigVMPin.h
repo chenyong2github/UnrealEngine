@@ -447,6 +447,8 @@ public:
 	// Returns true if the pin has been orphaned
 	bool IsOrphanPin() const;
 
+	uint32 GetStructureHash() const;
+
 private:
 
 	void UpdateTypeInformationIfRequired() const;

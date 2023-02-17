@@ -1319,6 +1319,32 @@ void UControlRigBlueprint::DecrementVMRecompileBracket()
 void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadType)
 {
 	const bool bIsPostLoad = InLoadType == EControlRigBlueprintLoadType::PostLoad;
+
+	// avoid any compute if the current structure hashes match with the serialized ones
+	if(RigVMClient.GetStructureHash() == RigVMClient.GetSerializedStructureHash())
+	{
+		TArray<URigVMGraph*> ModelGraphs = RigVMClient.GetAllModels(true, true);
+		Algo::Reverse(ModelGraphs);
+		for (URigVMGraph* ModelGraph : ModelGraphs)
+		{
+			URigVMController* Controller = GetOrCreateController(ModelGraph);
+			// at this stage, allow all links to be reattached,
+			// RecomputeAllTemplateFilteredPermutations() later should break any invalid links
+			Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, true, true);
+
+			if(bIsPostLoad)
+			{
+				for(URigVMNode* ModelNode : ModelGraph->GetNodes())
+				{
+					if (URigVMLibraryNode* LibraryNode = ModelNode->GetTypedOuter<URigVMLibraryNode>())
+					{
+						Controller->UpdateLibraryTemplate(LibraryNode, false);
+					}
+				}
+			}
+		}
+		return;
+	}
 	
 	TGuardValue<bool> IsCompilingGuard(bIsCompiling, true);
 	TGuardValue<bool> ClientIgnoreModificationsGuard(RigVMClient.bIgnoreModelNotifications, true);

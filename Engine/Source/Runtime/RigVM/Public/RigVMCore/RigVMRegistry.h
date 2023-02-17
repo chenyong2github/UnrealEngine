@@ -259,6 +259,13 @@ public:
 	// Notifies other system that types have been added/removed, and template permutations have been updated
 	FOnRigVMRegistryChanged& OnRigVMRegistryChanged() { return OnRigVMRegistryChangedDelegate; }
 
+	// Returns a unique hash per type index
+	uint32 GetHashForType(TRigVMTypeIndex InTypeIndex) const;
+	uint32 GetHashForScriptStruct(const UScriptStruct* InScriptStruct, bool bCheckTypeIndex = true) const;
+	uint32 GetHashForStruct(const UStruct* InStruct) const;
+	uint32 GetHashForEnum(const UEnum* InEnum, bool bCheckTypeIndex = true) const;
+	uint32 GetHashForProperty(const FProperty* InProperty) const;
+
 private:
 
 	static const FName TemplateNameMetaName;
@@ -278,6 +285,7 @@ private:
 			, ArrayTypeIndex(INDEX_NONE)
 			, bIsArray(false)
 			, bIsExecute(false)
+			, Hash(UINT32_MAX)
 		{}
 		
 		FRigVMTemplateArgumentType Type;
@@ -285,6 +293,7 @@ private:
 		TRigVMTypeIndex ArrayTypeIndex;
 		bool bIsArray;
 		bool bIsExecute;
+		uint32 Hash;
 	};
 
 	TRigVMTypeIndex FindOrAddType_Internal(const FRigVMTemplateArgumentType& InType, bool bForce);

@@ -380,6 +380,17 @@ bool URigVMNode::IsLinkedTo(URigVMNode* InNode) const
 	return false;
 }
 
+uint32 URigVMNode::GetStructureHash() const
+{
+	uint32 Hash = GetTypeHash(GetName());
+	for(const URigVMPin* Pin : Pins)
+	{
+		const uint32 PinHash = Pin->GetStructureHash();
+		Hash = HashCombine(Hash, PinHash);
+	}
+	return Hash;
+}
+
 URigVMLibraryNode* URigVMNode::FindFunctionForNode() 
 {
 	UObject* Subject = this;

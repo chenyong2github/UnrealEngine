@@ -123,6 +123,18 @@ void URigVMTemplateNode::PostLoad()
 	}
 }
 
+uint32 URigVMTemplateNode::GetStructureHash() const
+{
+	uint32 Hash = Super::GetStructureHash();
+
+	if(const FRigVMTemplate* Template = GetTemplate())
+	{
+		Hash = HashCombine(Hash, GetTypeHash(*Template));
+	}
+
+	return Hash;
+}
+
 UScriptStruct* URigVMTemplateNode::GetScriptStruct() const
 {
 	if(const FRigVMFunction* Function = GetResolvedFunction())

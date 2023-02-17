@@ -273,6 +273,8 @@ public:
 
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const { return FRigVMStructUpgradeInfo(); }
 
+	virtual uint32 GetStructureHash() const;
+
 private:
 
 	static const FString NodeColorName;

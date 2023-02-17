@@ -7,6 +7,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "UObject/Package.h"
+#include "UObject/ObjectSaveContext.h"
 #include "RigVMTypeUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMGraph)
@@ -398,6 +399,26 @@ void URigVMGraph::ClearAST(bool bClearDiagnostics, bool bClearRuntime)
 	{
 		RuntimeAST.Reset();
 	}
+}
+
+uint32 URigVMGraph::GetStructureHash() const
+{
+	uint32 Hash = GetTypeHash(GetName());
+	for(const URigVMNode* Node : Nodes)
+	{
+		const uint32 NodeHash = Node->GetStructureHash();
+		Hash = HashCombine(Hash, NodeHash);
+	}
+	return Hash;
+}
+
+void URigVMGraph::PreSave(FObjectPreSaveContext SaveContext)
+{
+	UObject::PreSave(SaveContext);
+
+
+	// save the structure hash along side this graph
+	LastStructureHash = GetStructureHash();
 }
 
 bool URigVMGraph::IsNameAvailable(const FString& InName)

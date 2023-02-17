@@ -122,6 +122,43 @@ FName URigVMFunctionReferenceNode::GetOuterVariableName(const FName& InInnerVari
 	return NAME_None;
 }
 
+uint32 URigVMFunctionReferenceNode::GetStructureHash() const
+{
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	
+	uint32 Hash = Super::GetStructureHash();
+
+	Hash = HashCombine(Hash, GetTypeHash(ReferencedFunctionHeader.Name.ToString()));
+	Hash = HashCombine(Hash, GetTypeHash(ReferencedFunctionHeader.NodeTitle));
+	Hash = HashCombine(Hash, GetTypeHash(ReferencedFunctionHeader.LibraryPointer.LibraryNode.ToString()));
+	Hash = HashCombine(Hash, GetTypeHash(ReferencedFunctionHeader.Keywords));
+	Hash = HashCombine(Hash, GetTypeHash(ReferencedFunctionHeader.Tooltip.ToString()));
+	Hash = HashCombine(Hash, GetTypeHash(ReferencedFunctionHeader.NodeColor));
+
+	for(const FRigVMGraphFunctionArgument& Argument : ReferencedFunctionHeader.Arguments)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(Argument.Name.ToString()));
+		Hash = HashCombine(Hash, GetTypeHash((int32)Argument.Direction));
+		const TRigVMTypeIndex TypeIndex = Registry.GetTypeIndexFromCPPType(Argument.CPPType.ToString());
+		Hash = HashCombine(Hash, Registry.GetHashForType(TypeIndex));
+
+		for(const TPair<FString, FText>& Pair : Argument.PathToTooltip)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(Pair.Key));
+			Hash = HashCombine(Hash, GetTypeHash(Pair.Value.ToString()));
+		}
+	}
+
+	for(const FRigVMExternalVariable& ExternalVariable : ReferencedFunctionHeader.ExternalVariables)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(ExternalVariable.Name.ToString()));
+		const TRigVMTypeIndex TypeIndex = Registry.GetTypeIndexFromCPPType(ExternalVariable.TypeName.ToString());
+		Hash = HashCombine(Hash, Registry.GetHashForType(TypeIndex));
+	}
+
+	return Hash;
+}
+
 const FRigVMGraphFunctionData* URigVMFunctionReferenceNode::GetReferencedFunctionData() const
 {
 	if (IRigVMGraphFunctionHost* Host = ReferencedFunctionHeader.GetFunctionHost())

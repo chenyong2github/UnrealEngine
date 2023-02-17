@@ -367,3 +367,13 @@ FRigVMStructUpgradeInfo URigVMUnitNode::GetUpgradeInfo() const
 	return FRigVMStructUpgradeInfo();
 }
 
+uint32 URigVMUnitNode::GetStructureHash() const
+{
+	uint32 Hash = Super::GetStructureHash();
+	if(const UScriptStruct* ScriptStruct = GetScriptStruct())
+	{
+		Hash = HashCombine(Hash, FRigVMRegistry::Get().GetHashForScriptStruct(ScriptStruct)); 
+	}
+	return Hash;
+}
+

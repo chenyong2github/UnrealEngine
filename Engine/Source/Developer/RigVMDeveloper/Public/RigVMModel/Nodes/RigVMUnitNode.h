@@ -74,6 +74,8 @@ public:
 
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 
+	virtual uint32 GetStructureHash() const override;
+
 protected:
 
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const override;
