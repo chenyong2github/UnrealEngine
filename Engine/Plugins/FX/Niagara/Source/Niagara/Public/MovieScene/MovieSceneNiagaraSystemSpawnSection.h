@@ -51,7 +51,7 @@ public:
 
 	ENiagaraSystemSpawnSectionEndBehavior GetSectionEndBehavior() const;
 
-	ENiagaraAgeUpdateMode GetAgeUpdateMode() const;
+	NIAGARA_API ENiagaraAgeUpdateMode GetAgeUpdateMode() const;
 
 	bool GetAllowScalability()const;
 

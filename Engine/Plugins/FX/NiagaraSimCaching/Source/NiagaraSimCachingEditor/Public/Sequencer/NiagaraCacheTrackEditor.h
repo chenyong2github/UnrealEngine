@@ -53,6 +53,10 @@ private:
 	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, class UNiagaraComponent* NiagaraComponent, UMovieSceneTrack* Track);
 
 	FReply RecordCacheTrack(IMovieSceneCachedTrack* Track);
+
+	static bool IsCacheTrackOutOfDate(UMovieSceneTrack* Track);
+	bool HasConflictingLifecycleTrack(UMovieSceneTrack* Track) const;
+	FText GetCacheTrackWarnings(UMovieSceneTrack* Track) const;
 };
 
 /** Niagara cache sequencer section */
