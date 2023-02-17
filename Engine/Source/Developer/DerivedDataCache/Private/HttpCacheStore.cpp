@@ -1763,7 +1763,7 @@ bool FHttpCacheStore::AcquireAccessToken(IHttpClient* Client)
 			return true;
 		}
 
-		UE_LOG(LogDerivedDataCache, Error, TEXT("%s: OidcToken: Failed to log in to HTTP services."), *Domain);
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: OidcToken: Failed to log in to HTTP services."), *Domain);
 		FailedLoginAttempts++;
 		return false;
 	}
