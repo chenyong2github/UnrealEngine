@@ -9,6 +9,7 @@
 #include "ChaosClothAsset/DataflowNodes/CopySimulationToRenderMeshNode.h"
 #include "ChaosClothAsset/DataflowNodes/ReverseNormalsNode.h"
 #include "ChaosClothAsset/DataflowNodes/SimulationDefaultConfigNode.h"
+#include "ChaosClothAsset/DataflowNodes/BindToRootBoneNode.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -27,6 +28,7 @@ namespace UE::Chaos::ClothAsset::DataflowNodes
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetCopySimulationToRenderMeshNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetReverseNormalsNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetSimulationDefaultConfigNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetBindToRootBoneNode);
 	}
 
 	void LogAndToastWarning(const FText& Error)
