@@ -367,6 +367,12 @@ public:
 	/** Size of the border, if any, used to allow filtering without clamping for shadows stored in an atlas. */
 	uint32 BorderSize;
 
+	/** Scissor rect size to exclude portion of the CSM slices outside the view frustum */
+	FIntRect ScissorRectOptim;
+
+	/** Compute the scissors coords to exclude portion of the CSM slices outside the view frustum*/
+	void ComputeScissorRectOptim();
+
 	/** The largest percent of either the width or height of any view. */
 	float MaxScreenPercent;
 
@@ -782,6 +788,9 @@ public:
 		ShadowDepthView->DynamicPrimitiveCollector.Commit();
 		return ShadowDepthPass.BuildRenderingCommands(GraphBuilder, GPUScene, InstanceCullingDrawParams);
 	}
+
+	/** Check if we need to set the scissor rect to exclude portion of the CSM slices outside the view frustum */
+	bool ShouldUseCSMScissorOptim() const;
 
 private:
 	// 0 if Setup...() wasn't called yet

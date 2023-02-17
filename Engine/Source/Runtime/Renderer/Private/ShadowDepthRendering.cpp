@@ -668,6 +668,17 @@ void FProjectedShadowInfo::SetStateForView(FRHICommandList& RHICmdList) const
 		Y + ResolutionY + 2 * BorderSize,
 		1.0f
 	);
+
+	if (ShouldUseCSMScissorOptim())
+	{
+		RHICmdList.SetScissorRect(
+			true,
+			ScissorRectOptim.Min.X + X,
+			ScissorRectOptim.Min.Y + Y,
+			ScissorRectOptim.Max.X + X,
+			ScissorRectOptim.Max.Y + Y
+		);
+	}
 }
 
 void SetStateForShadowDepth(bool bOnePassPointLightShadow, bool bDirectionalLight, FMeshPassProcessorRenderState& DrawRenderState, EMeshPass::Type InMeshPassTargetType)
