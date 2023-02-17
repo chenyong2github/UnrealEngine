@@ -332,15 +332,22 @@ public:
 	/**
 	 * Appends to the string builder similarly to how classic sprintf works.
 	 *
-	 * @param Format A format string that specifies how to format the additional arguments. Refer to standard printf format.
+	 * @param Fmt A format string that specifies how to format the additional arguments. Refer to standard printf format.
 	 */
-	template <typename FmtType, typename... Types,
-		std::enable_if_t<TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithCharType>::Value>* = nullptr>
+	template <typename FmtType, typename... Types
+		UE_REQUIRES(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithCharType>::Value)>
 	BuilderType& Appendf(const FmtType& Fmt, Types... Args)
 	{
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to Appendf.");
 		return AppendfImpl(*this, (const CharType*)Fmt, Forward<Types>(Args)...);
 	}
+
+	/**
+	 * Appends to the string builder similarly to how classic vsprintf works.
+	 *
+	 * @param Fmt A format string that specifies how to format the additional arguments. Refer to standard printf format.
+	 */
+	CORE_API BuilderType& AppendV(const CharType* Fmt, va_list Args);
 
 private:
 	CORE_API static BuilderType& VARARGS AppendfImpl(BuilderType& Self, const CharType* Fmt, ...);

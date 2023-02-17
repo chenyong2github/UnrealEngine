@@ -5,6 +5,7 @@
 #include "HAL/PlatformMath.h"
 #include "HAL/UnrealMemory.h"
 #include "Misc/CString.h"
+#include "Misc/ScopeExit.h"
 
 static inline uint64_t NextPowerOfTwo(uint64_t x)
 {
@@ -62,27 +63,36 @@ void TStringBuilderBase<C>::FreeBuffer(void* Buffer, SIZE_T CharCount)
 }
 
 template <typename C>
-TStringBuilderBase<C>& TStringBuilderBase<C>::AppendfImpl(BuilderType& Self, const C* Fmt, ...)
+TStringBuilderBase<C>& TStringBuilderBase<C>::AppendV(const C* Fmt, va_list Args)
 {
 	for (;;)
 	{
 		va_list ArgPack;
-		va_start(ArgPack, Fmt);
-		const int32 RemainingSize = (int32)(Self.End - Self.CurPos);
-		const int32 Result = TCString<C>::GetVarArgs(Self.CurPos, RemainingSize, Fmt, ArgPack);
+		va_copy(ArgPack, Args);
+		const int32 RemainingSize = (int32)(End - CurPos);
+		const int32 Result = TCString<C>::GetVarArgs(CurPos, RemainingSize, Fmt, ArgPack);
 		va_end(ArgPack);
 
 		if (Result >= 0 && Result < RemainingSize)
 		{
-			Self.CurPos += Result;
-			return Self;
+			CurPos += Result;
+			return *this;
 		}
 		else
 		{
 			// Total size will be rounded up to the next power of two. Start with at least 64.
-			Self.Extend(64);
+			Extend(64);
 		}
 	}
+}
+
+template <typename C>
+TStringBuilderBase<C>& TStringBuilderBase<C>::AppendfImpl(BuilderType& Self, const C* Fmt, ...)
+{
+	va_list ArgPack;
+	va_start(ArgPack, Fmt);
+	ON_SCOPE_EXIT { va_end(ArgPack); };
+	return Self.AppendV(Fmt, ArgPack);
 }
 
 // Instantiate templates once
