@@ -20,7 +20,7 @@
 
 static TAutoConsoleVariable<bool> CVarAllowISMReuse(
 	TEXT("pcg.ISM.AllowReuse"),
-	false,
+	true,
 	TEXT("Controls whether ISMs can be reused and skipped when re-executing"));
 
 UPCGStaticMeshSpawnerSettings::UPCGStaticMeshSpawnerSettings(const FObjectInitializer &ObjectInitializer)
