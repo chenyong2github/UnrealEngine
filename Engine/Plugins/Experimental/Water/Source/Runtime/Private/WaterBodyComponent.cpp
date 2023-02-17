@@ -941,7 +941,7 @@ void UWaterBodyComponent::PrepareCurrentPostProcessSettings()
 
 ALandscapeProxy* UWaterBodyComponent::FindLandscape() const
 {
-	if (bAffectsLandscape && !Landscape.IsValid())
+	if (!Landscape.IsValid())
 	{
 		const FVector Location = GetComponentLocation();
 		for (TObjectIterator<ALandscapeProxy> It; It; ++It)
