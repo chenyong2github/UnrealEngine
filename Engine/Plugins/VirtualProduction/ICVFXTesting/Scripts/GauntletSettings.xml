@@ -63,7 +63,7 @@
 	<Property Name="SummaryReportPath" Value="$(AutomationLocalOutputDir)"/>
 	<Property Name="SummaryReportPath" Value="$(AutomationNetworkRootDir)" If="$(IsBuildMachine)"/>
 	
-	<Property Name="ReportCacheDirRoot" Value="$(AutomationOutputDir)/PerfCache" />
+	<Property Name="ReportCacheDirRoot" Value="$(SummaryReportPath)/PerfCache" />
 	
 	<Property Name="TestOutputDir" Value="$(AutomationOutputDir)/$(ProjectName)$(Platform)$(ProjectName)Perf"/>
 	<Property Name="LogOutputParams" Value="-logdir=&quot;$(TestOutputDir)&quot;"/>
