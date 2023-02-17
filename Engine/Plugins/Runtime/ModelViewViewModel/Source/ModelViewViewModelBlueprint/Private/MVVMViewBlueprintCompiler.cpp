@@ -5,15 +5,16 @@
 #include "Bindings/MVVMConversionFunctionHelper.h"
 #include "Bindings/MVVMFieldPathHelper.h"
 #include "Components/Widget.h"
+#include "HAL/IConsoleManager.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMDeveloperProjectSettings.h"
-#include "HAL/IConsoleManager.h"
+#include "PropertyEditorPermissionList.h"
 #include "MVVMFunctionGraphHelper.h"
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMBindingName.h"
+#include "UObject/LinkerLoad.h"
 #include "View/MVVMViewClass.h"
 #include "View/MVVMViewModelContextResolver.h"
-#include "UObject/LinkerLoad.h"
 
 #define LOCTEXT_NAMESPACE "MVVMViewBlueprintCompiler"
 
@@ -589,6 +590,8 @@ bool FMVVMViewBlueprintCompiler::PreCompile(UWidgetBlueprintGeneratedClass* Clas
 	const int32 NumBindings = BlueprintView->GetNumBindings();
 	CompilerBindings.Reset(NumBindings*2);
 	BindingSourceContexts.Reset(NumBindings*2);
+
+	FPropertyEditorPermissionList::Get().AddPermissionList(Class, FNamePermissionList(), EPropertyEditorPermissionListRules::AllowListAllProperties);
 
 	PreCompileBindingSources(Class, BlueprintView);
 	PreCompileSourceCreators(Class, BlueprintView);

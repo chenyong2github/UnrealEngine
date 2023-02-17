@@ -644,7 +644,7 @@ bool UMVVMEditorSubsystem::IsValidConversionFunction(const UFunction* Function, 
 		return false;
 	}
 
-	return true;
+	return GetDefault<UMVVMDeveloperProjectSettings>()->IsConversionFunctionAllowed(Function);
 }
 
 bool UMVVMEditorSubsystem::IsSimpleConversionFunction(const UFunction* Function) const

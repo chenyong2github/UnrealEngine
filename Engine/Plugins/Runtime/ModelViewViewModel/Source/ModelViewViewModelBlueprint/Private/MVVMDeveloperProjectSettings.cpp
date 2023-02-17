@@ -58,10 +58,14 @@ bool UMVVMDeveloperProjectSettings::IsFunctionAllowed(const UFunction* Function)
 	check(Function);
 
 	TStringBuilder<512> StringBuilder;
-	Function->GetPathName(nullptr, StringBuilder);
-	if (!GetMutableDefault<UBlueprintEditorSettings>()->GetFunctionPermissions().PassesFilter(StringBuilder.ToView()))
+	const FPathPermissionList& FunctionPermissions = GetMutableDefault<UBlueprintEditorSettings>()->GetFunctionPermissions();
+	if (FunctionPermissions.HasFiltering())
 	{
-		return false;
+		Function->GetPathName(nullptr, StringBuilder);
+		if (!FunctionPermissions.PassesFilter(StringBuilder.ToView()))
+		{
+			return false;
+		}
 	}
 
 	StringBuilder.Reset();
@@ -77,25 +81,42 @@ bool UMVVMDeveloperProjectSettings::IsFunctionAllowed(const UFunction* Function)
 
 bool UMVVMDeveloperProjectSettings::IsConversionFunctionAllowed(const UFunction* Function) const
 {
-	if (ConversionFunctionFilter == EMVVMDeveloperConversionFunctionFilterType::AllowedList)
+	static FName NAME_ComplexConversionFunction = TEXT("MVVMComplexConversionFunction");
+	if (Function->HasMetaData(NAME_ComplexConversionFunction))
+	{
+		return true;
+	}
+
+	if (ConversionFunctionFilter == EMVVMDeveloperConversionFunctionFilterType::BlueprintActionRegistry)
 	{
 		return IsFunctionAllowed(Function);
 	}
 	else
 	{
-		TStringBuilder<512> FunctionClassPath;
-		Function->GetOwnerClass()->GetPathName(nullptr, FunctionClassPath);
-		TStringBuilder<512> AllowedClassPath;
-		for (const FSoftClassPath& SoftClass : AllowedClassForConversionFunctions)
+		check(ConversionFunctionFilter == EMVVMDeveloperConversionFunctionFilterType::AllowedList);
+
+		if (Function->HasAllFunctionFlags(FUNC_Static))
 		{
-			SoftClass.ToString(AllowedClassPath);
-			if (AllowedClassPath.ToView() == FunctionClassPath.ToView())
+			TStringBuilder<512> FunctionClassPath;
+			Function->GetOwnerClass()->GetPathName(nullptr, FunctionClassPath);
+			TStringBuilder<512> AllowedClassPath;
+			for (const FSoftClassPath& SoftClass : AllowedClassForConversionFunctions)
 			{
-				return true;
+				SoftClass.ToString(AllowedClassPath);
+				if (AllowedClassPath.ToView() == FunctionClassPath.ToView())
+				{
+					return true;
+				}
+				AllowedClassPath.Reset();
 			}
-			AllowedClassPath.Reset();
+
+			return false;
 		}
-		return false;
+		else
+		{
+			// The function is on self and may have been filtered.
+			return IsFunctionAllowed(Function);
+		}
 	}
 }
 
