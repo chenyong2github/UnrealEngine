@@ -586,18 +586,27 @@ void UNiagaraNodeParameterMapGet::GatherExternalDependencyData(ENiagaraScriptUsa
 {
 	// If we are referencing any parameter collections, we need to register them here... might want to speeed this up in the future 
 	// by caching any parameter collections locally.
-	FPinCollectorArray OutputPins;
-	GetOutputPins(OutputPins);
-	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
-
-	for (int32 i = 0; i < OutputPins.Num(); i++)
+	for (const UEdGraphPin* Pin : Pins)
 	{
-		if (IsAddPin(OutputPins[i]))
+		if (Pin->Direction == EGPD_Input)
 		{
 			continue;
 		}
 
-		FNiagaraVariable Var = CastChecked<UEdGraphSchema_Niagara>(GetSchema())->PinToNiagaraVariable(OutputPins[i]);
+		if (IsAddPin(Pin))
+		{
+			continue;
+		}
+
+		FNameBuilder PinName(Pin->PinName);
+		if (!PinName.ToView().StartsWith(FNiagaraConstants::ParameterCollectionNamespaceString))
+		{
+			continue;
+		}
+
+		const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
+
+		FNiagaraVariable Var = Schema->PinToNiagaraVariable(Pin);
 		UNiagaraParameterCollection* Collection = Schema->VariableIsFromParameterCollection(Var);
 		if (Collection)
 		{

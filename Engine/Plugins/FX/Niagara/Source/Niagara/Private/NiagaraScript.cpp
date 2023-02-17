@@ -3,6 +3,7 @@
 #include "NiagaraScript.h"
 
 #include "Algo/RemoveIf.h"
+#include "Algo/Unique.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraScriptSourceBase.h"
@@ -1099,21 +1100,19 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			{
 				Id.AdditionalDefines.Add(GNiagaraForceSafeScriptAttributeTrim ? TEXT("TrimAttributesSafe") : TEXT("TrimAttributes"));
 
-				TArray<FString> PreserveAttributes;
-				auto AddAttributeToPreserve = 
-					[&](FName AttributeName)
+				TArray<FName> AttributesToPreserve;
+				auto AddAttributeToPreserve = [&](FName AttributeName) -> void
+				{
+					if (AttributeName != NAME_None)
 					{
-						if ( !AttributeName.IsNone() )
-						{
-							PreserveAttributes.AddUnique(FString::Printf(TEXT("PreserveAttribute=%s"), *AttributeName.ToString()));
-						}
-					};
+						AttributesToPreserve.Add(AttributeName);
+					}
+				};
 
 				// preserve the attributes that have been defined on the emitter directly
 				for (const FString& Attribute : EmitterData->AttributesToPreserve)
 				{
-					const FString PreserveDefine = TEXT("PreserveAttribute=") + Attribute;
-					PreserveAttributes.AddUnique(PreserveDefine);
+					AddAttributeToPreserve(*Attribute);
 				}
 
 				// Now preserve the attributes that have been defined on the renderers in use
@@ -1144,9 +1143,20 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				}
 
 				// We sort the keys so that it doesn't matter what order they were defined in.
-				PreserveAttributes.Sort([](const FString& A, const FString& B) -> bool { return A < B; });
+				if (!AttributesToPreserve.IsEmpty())
+				{
+					AttributesToPreserve.Sort(FNameLexicalLess());
+					AttributesToPreserve.SetNum(Algo::Unique(AttributesToPreserve));
 
-				Id.AdditionalDefines.Append(PreserveAttributes);
+					Id.AdditionalDefines.Reserve(Id.AdditionalDefines.Num() + AttributesToPreserve.Num());
+					for (FName AttributeName : AttributesToPreserve)
+					{
+						TStringBuilder<256> PreserveAttributeDefine;
+						PreserveAttributeDefine.Append(TEXT("PreserveAttribute="));
+						AttributeName.AppendString(PreserveAttributeDefine);
+						Id.AdditionalDefines.Add(PreserveAttributeDefine.ToString());
+					}
+				}
 			}
 
 			ComputeVMCompilationId_EmitterShared(Id, Outer, ENiagaraRendererSourceDataMode::Particles);
@@ -2773,7 +2783,7 @@ FName ResolveEmitterAlias(const FName& InName, const FString& InAlias)
 	return Var.GetName();
 }
 
-void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& InCompileId, FNiagaraVMExecutableData& InScriptVM, FString EmitterUniqueName, const TMap<FName, UNiagaraDataInterface*>& ObjectNameMap)
+void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& InCompileId, FNiagaraVMExecutableData& InScriptVM, FString EmitterUniqueName, const TMap<FName, UNiagaraDataInterface*>& ObjectNameMap, bool bApplyRapidIterationParameters)
 {
 	CachedScriptVMId = InCompileId;
 	CachedScriptVM = InScriptVM;
@@ -2827,6 +2837,19 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 			}
 		}
 		check(CachedDefaultDataInterfaces[Idx].DataInterface != nullptr);
+	}
+
+	if (bApplyRapidIterationParameters)
+	{
+		const bool bClearBindings = false;
+		RapidIterationParameters.Empty(bClearBindings);
+		for (const FNiagaraVariable& Parameter : InScriptVM.BakedRapidIterationParameters)
+		{
+			const bool bInitialize = false;
+			const bool bTriggerRebind = false;
+			RapidIterationParameters.AddParameter(Parameter, bInitialize, bTriggerRebind);
+		}
+		RapidIterationParameters.TriggerOnLayoutChanged();
 	}
 
 	GenerateStatIDs();
@@ -2917,7 +2940,7 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 			if (BinaryToExecData(this, OutData, ExeData))
 			{
 				COOK_STAT(Timer.AddHit(OutData.Num()));
-				SetVMCompilationResults(LastGeneratedVMId, ExeData, FString(), RequestDuplicateData->GetObjectNameMap());
+				SetVMCompilationResults(LastGeneratedVMId, ExeData, FString(), RequestDuplicateData->GetObjectNameMap(), false);
 				return;
 			}
 		}
@@ -2930,7 +2953,7 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 		TSharedPtr<FNiagaraVMExecutableData> ExeData = NiagaraModule.GetCompileJobResult(JobHandle, true);
 		if (ExeData)
 		{
-			SetVMCompilationResults(LastGeneratedVMId, *ExeData, FString(), RequestDuplicateData->GetObjectNameMap());
+			SetVMCompilationResults(LastGeneratedVMId, *ExeData, FString(), RequestDuplicateData->GetObjectNameMap(), false);
 			// save result to the ddc
 			if (ExecToBinaryData(this, OutData, *ExeData))
 			{

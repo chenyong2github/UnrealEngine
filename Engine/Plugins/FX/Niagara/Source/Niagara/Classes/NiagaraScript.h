@@ -445,6 +445,10 @@ public:
 	UPROPERTY()
 	TArray<FNiagaraCompileDependency> ExternalDependencies;
 
+	/** The default set of rapid iteration parameters defined by the script that this data represents.  In the case of baked
+	    in RI parameters this will be the values that are baked in, otherwise it will be the set of defaults based on the graphs. */
+	UPROPERTY()
+	TArray<FNiagaraVariable> BakedRapidIterationParameters;
 #endif
 
 	UPROPERTY()
@@ -1132,7 +1136,7 @@ public:
 	NIAGARA_API FOnPropertyChanged& OnPropertyChanged();
 
 	/** External call used to identify the values for a successful VM script compilation. OnVMScriptCompiled will be issued in this case.*/
-	void SetVMCompilationResults(const FNiagaraVMExecutableDataId& InCompileId, FNiagaraVMExecutableData& InScriptVM, FString EmitterUniqueName, const TMap<FName, UNiagaraDataInterface*>& ObjectNameMap);
+	void SetVMCompilationResults(const FNiagaraVMExecutableDataId& InCompileId, FNiagaraVMExecutableData& InScriptVM, FString EmitterUniqueName, const TMap<FName, UNiagaraDataInterface*>& ObjectNameMap, bool ApplyRapidIterationParameters);
 
 	/** In the event where we "merge" we duplicate the changes of the source script onto the newly cloned copy. This function will synchronize the compiled script 
 		results assuming that the scripts themselves are bound to the same key. This saves looking things up in the DDC. It returns true if successfully synchronized and 
