@@ -778,6 +778,8 @@ public:
 	void IterativeCookValidateOrClear(FGeneratorPackage& Generator,
 		TConstArrayView<const ITargetPlatform*> RequestedPlatforms, const FGuid& PreviousGuid, bool& bOutIdentical);
 
+	TConstArrayView<FAssetDependency> GetDependencies() const { return PackageDependencies; }
+
 public:
 	FBeginCacheObjects BeginCacheObjects;
 	FGuid Guid;
@@ -815,8 +817,8 @@ public:
 
 	/** Call the Splitter's GetGenerateList and create the PackageDatas */
 	bool TryGenerateList(UObject* OwnerObject, FPackageDatas& PackageDatas);
-	/** Call the Splitter's GetNeverCookDependencies and store them on this. */
-	void FetchNeverCookDependencies();
+	/** Record all dependencies from the Generator that are ExternalActor dependencies and store them on this. */
+	void FetchExternalActorDependencies();
 
 	/** Accessor for the packages to generate */
 	TArrayView<UE::Cook::FCookGenerationInfo> GetPackagesToGenerate() { check(IsInitialized()); return PackagesToGenerate; }
@@ -861,8 +863,8 @@ public:
 	void SetOwnerPackage(UPackage* InPackage) { OwnerPackage = InPackage; }
 	void SetPreviousGeneratedPackages(TMap<FName, FGuid>&& Packages) { PreviousGeneratedPackages = MoveTemp(Packages); }
 
-	TConstArrayView<FName> GetNeverCookDependencies() { check(IsInitialized()); return NeverCookDependencies; }
-	TArray<FName> ReleaseNeverCookDependencies() { TArray<FName> Result = MoveTemp(NeverCookDependencies); return Result; }
+	TConstArrayView<FName> GetExternalActorDependencies() { check(IsInitialized()); return ExternalActorDependencies; }
+	TArray<FName> ReleaseExternalActorDependencies() { TArray<FName> Result = MoveTemp(ExternalActorDependencies); return Result; }
 
 private:
 	void ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown Status);
@@ -877,7 +879,7 @@ private:
 	TArray<FCookGenerationInfo> PackagesToGenerate;
 	TWeakObjectPtr<UPackage> OwnerPackage;
 	TMap<FName, FGuid> PreviousGeneratedPackages;
-	TArray<FName> NeverCookDependencies;
+	TArray<FName> ExternalActorDependencies;
 
 	int32 NextPopulateIndex = 0;
 	int32 RemainingToPopulate = 0;
@@ -1232,7 +1234,7 @@ public:
 
 	/** Create and mark-cooked a batch of PackageDatas, used by DLC for cooked-in-earlier-release packages. */
 	void AddExistingPackageDatasForPlatform(TConstArrayView<FConstructPackageData> ExistingPackages,
-		const ITargetPlatform* TargetPlatform, bool bExpectPackageDatasAreNew);
+		const ITargetPlatform* TargetPlatform, bool bExpectPackageDatasAreNew, int32& OutPackageDataFromBaseGameNum);
 
 	/**
 	 * Try to find the PackageData for the given PackageName.

@@ -14,6 +14,7 @@
 #include "Cooker/CookPlatformManager.h"
 #include "Cooker/CookRequestCluster.h"
 #include "Cooker/CookWorkerClient.h"
+#include "Cooker/PackageTracker.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "Containers/StringView.h"
 #include "EditorDomain/EditorDomain.h"
@@ -1592,10 +1593,43 @@ bool FGeneratorPackage::TryGenerateList(UObject* OwnerObject, FPackageDatas& Pac
 	return true;
 }
 
-void FGeneratorPackage::FetchNeverCookDependencies()
+void FGeneratorPackage::FetchExternalActorDependencies()
 {
 	check(IsInitialized());
-	NeverCookDependencies = CookPackageSplitterInstance->GetNeverCookDependencies();
+
+	// The Generator package declares all its ExternalActor dependencies in its AssetRegistry dependencies
+	// The Generator's generated packages can also include ExternalActors from other maps due to level instancing,
+	// these are included in the dependencies reported by the Generator for each GeneratedPackage in the data
+	// returned from GetGenerateList. These sets will overlap; take the union.
+	ExternalActorDependencies.Reset();
+	IAssetRegistry::GetChecked().GetDependencies(GetOwner().GetPackageName(), ExternalActorDependencies,
+		UE::AssetRegistry::EDependencyCategory::Package);
+	for (const FCookGenerationInfo& Info : PackagesToGenerate)
+	{
+		ExternalActorDependencies.Reserve(Info.GetDependencies().Num() + ExternalActorDependencies.Num());
+		for (const FAssetDependency& Dependency : Info.GetDependencies())
+		{
+			ExternalActorDependencies.Add(Dependency.AssetId.PackageName);
+		}
+	}
+	Algo::Sort(ExternalActorDependencies, FNameFastLess());
+	ExternalActorDependencies.SetNum(Algo::Unique(ExternalActorDependencies));
+	FPackageDatas& PackageDatas = this->GetOwner().GetPackageDatas();
+	FThreadSafeSet<FName>& NeverCookPackageList =
+		GetOwner().GetPackageDatas().GetCookOnTheFlyServer().PackageTracker->NeverCookPackageList;
+
+	// Keep only on-disk PackageDatas that are marked as NeverCook
+	ExternalActorDependencies.RemoveAll([&PackageDatas, &NeverCookPackageList](FName PackageName)
+		{
+			FPackageData* PackageData = PackageDatas.TryAddPackageDataByPackageName(PackageName);
+			if (!PackageData)
+			{
+				return true;
+			}
+			bool bIsNeverCook = NeverCookPackageList.Contains(PackageData->GetFileName());
+			return !bIsNeverCook;
+		});
+	ExternalActorDependencies.Shrink();
 }
 
 FCookGenerationInfo* FGeneratorPackage::FindInfo(const FPackageData& PackageData)
@@ -2740,7 +2774,7 @@ FName FPackageDatas::GetStandardFileName(FStringView InFileName)
 }
 
 void FPackageDatas::AddExistingPackageDatasForPlatform(TConstArrayView<FConstructPackageData> ExistingPackages,
-	const ITargetPlatform* TargetPlatform, bool bExpectPackageDatasAreNew)
+	const ITargetPlatform* TargetPlatform, bool bExpectPackageDatasAreNew, int32& OutPackageDataFromBaseGameNum)
 {
 	int32 NumPackages = ExistingPackages.Num();
 	if (NumPackages == 0)
@@ -2790,6 +2824,7 @@ void FPackageDatas::AddExistingPackageDatasForPlatform(TConstArrayView<FConstruc
 		}
 		PackageData->SetPlatformCooked(TargetPlatform, ECookResult::Succeeded);
 	}
+	OutPackageDataFromBaseGameNum += ExistingPackages.Num();
 }
 
 FPackageData* FPackageDatas::UpdateFileName(FName PackageName)

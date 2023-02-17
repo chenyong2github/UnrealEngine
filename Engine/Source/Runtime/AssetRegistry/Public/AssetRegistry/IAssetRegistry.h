@@ -705,8 +705,12 @@ public:
 	 * @param OutState			This will be filled in with a copy of the asset data, platform data, and dependency data
 	 * @param Options			Serialization options that will be used to write this later
 	 * @param bRefreshExisting	If true, will not delete or add packages in OutState and will just update things that already exist
+	 * @param RequiredPackages  If non-empty, only packages in this set will be kept.
+	 * @param RemovePackages	If non-empty, packages in this set will not be kept.
 	 */
-	virtual void InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting = false) const = 0;
+	virtual void InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options,
+		bool bRefreshExisting = false, const TSet<FName>& RequiredPackages = TSet<FName>(),
+		const TSet<FName>& RemovePackages = TSet<FName>()) const = 0;
 
 	UE_DEPRECATED(5.0, "Receiving a pointer is not threadsafe. Use other functions on IAssetRegistry to access the same data, or contact Epic Core team to add the threadsafe functions you require..")
 	virtual const FAssetRegistryState* GetAssetRegistryState() const = 0;

@@ -657,7 +657,7 @@ void FCookWorkerServer::RecordResults(FPackageResultsMessage& Message)
 				PackageData->SetPlatformCooked(TargetPlatform, PlatformResult.GetCookResults());
 				HandleReceivedPackagePlatformMessages(*PackageData, TargetPlatform, PlatformResult.ReleaseMessages());
 			}
-			COTFS.RecordNeverCookDependencies(Result.GetNeverCookDependencies());
+			COTFS.RecordExternalActorDependencies(Result.GetExternalActorDependencies());
 			if (Result.IsReferencedOnlyByEditorOnlyData())
 			{
 				COTFS.PackageTracker->UncookedEditorOnlyPackages.AddUnique(Result.GetPackageName());

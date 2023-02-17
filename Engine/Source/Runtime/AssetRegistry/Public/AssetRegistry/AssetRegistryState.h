@@ -415,8 +415,9 @@ public:
 	/** Get the set of primary assets contained in this state */
 	void GetPrimaryAssetsIds(TSet<FPrimaryAssetId>& OutPrimaryAssets) const;
 
-	/** Returns non-editable pointer to the asset package data */
+	/** Returns pointer to the asset package data */
 	const FAssetPackageData* GetAssetPackageData(FName PackageName) const;
+	FAssetPackageData* GetAssetPackageData(FName PackageName);
 
 	/** Returns all package names */
 	void GetPackageNames(TArray<FName>& OutPackageNames) const

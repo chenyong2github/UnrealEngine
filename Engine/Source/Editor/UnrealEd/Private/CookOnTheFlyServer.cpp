@@ -1621,7 +1621,7 @@ void UCookOnTheFlyServer::UpdateDisplay(UE::Cook::FTickStackData& StackData, boo
 		return;
 	}
 
-	const int32 CookedPackagesCount = PackageDatas->GetNumCooked() - PackageDatas->GetNumCooked(ECookResult::NeverCookPlaceholder);
+	const int32 CookedPackagesCount = PackageDatas->GetNumCooked() - PackageDatas->GetNumCooked(ECookResult::NeverCookPlaceholder) - PackageDataFromBaseGameNum;
 	const int32 CookPendingCount = WorkerRequests->GetNumExternalRequests() + PackageDatas->GetMonitor().GetNumInProgress();
 	if (bForceDisplay ||
 		(DeltaProgressDisplayTime >= GCookProgressUpdateTime && CookPendingCount != 0 &&
@@ -2876,9 +2876,10 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::ConditionalCreateGeneratorPackage(UE:
 	Private::FRegisteredCookPackageSplitter* Splitter = nullptr;
 	UObject* SplitDataObject = nullptr;
 	bool bGeneratorExists = false;
+	bool bIncomplete = false;
 	ON_SCOPE_EXIT
 	{
-		if (!bGeneratorExists)
+		if (!bGeneratorExists && !bIncomplete)
 		{
 			// Destroy any old GeneratorPackage if we no longer find we need one
 			PackageData.DestroyGeneratorPackage();
@@ -2926,6 +2927,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::ConditionalCreateGeneratorPackage(UE:
 
 	if (bPrecaching)
 	{
+		bIncomplete = true;
 		return EPollStatus::Incomplete;
 	}
 
@@ -5665,8 +5667,8 @@ void FSaveCookedPackageContext::FinishPlatform()
 
 			if (!bHasFirstPlatformResults)
 			{
-				GeneratorPackage->FetchNeverCookDependencies();
-				COTFS.RecordNeverCookDependencies(GeneratorPackage->GetNeverCookDependencies());
+				GeneratorPackage->FetchExternalActorDependencies();
+				COTFS.RecordExternalActorDependencies(GeneratorPackage->GetExternalActorDependencies());
 			}
 		}
 		else if (GeneratorPackage = PackageData.GetGeneratedOwner(); GeneratorPackage)
@@ -5833,7 +5835,7 @@ void FSaveCookedPackageContext::FinishPackage()
 
 } // namespace UE::Cook
 
-void UCookOnTheFlyServer::RecordNeverCookDependencies(TConstArrayView<FName> NeverCookDependencies)
+void UCookOnTheFlyServer::RecordExternalActorDependencies(TConstArrayView<FName> ExternalActorDependencies)
 {
 	using namespace UE::Cook;
 
@@ -5847,7 +5849,7 @@ void UCookOnTheFlyServer::RecordNeverCookDependencies(TConstArrayView<FName> Nev
 	// WorldPartitionCookPackageSplitter. They are marked as NeverCook, but we need to add them
 	// to the cook results so we can detect whether they change in iterative cooks. Call a function
 	// on the splitter to get a list of them and add them.
-	for (FName DependencyName : NeverCookDependencies)
+	for (FName DependencyName : ExternalActorDependencies)
 	{
 		FPackageData* DependencyData = PackageDatas->TryAddPackageDataByPackageName(DependencyName);
 		if (DependencyData)
@@ -7200,6 +7202,11 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 		{
 			UE_LOG(LogCook, Display, TEXT("Found %d cooked package(s) in package store."), NumPreviousPackages);
 			continue;
+		}
+
+		if (!PlatformAssetRegistry.HasClonedGlobalAssetRegistry())
+		{
+			PlatformAssetRegistry.CloneGlobalAssetRegistryFilteredByPreviousState(*PreviousAssetRegistry);
 		}
 
 		TMap<FName, FAssetRegistryGenerator::FGeneratorPackageInfo> PreviousGeneratorPackages;
@@ -8816,10 +8823,10 @@ void UCookOnTheFlyServer::PrintFinishStats()
 	UE_LOG(LogCook, Display, TEXT("Peak Used virtual %u MiB Peak Used physical %u MiB"), MemStats.PeakUsedVirtual / 1024 / 1024, MemStats.PeakUsedPhysical / 1024 / 1024);
 
 	COOK_STAT(UE_LOG(LogCook, Display, TEXT("Packages Cooked: %d, Packages Iteratively Skipped: %d, Packages Skipped by Platform: %d, Total Packages: %d"),
-		PackageDatas->GetNumCooked(ECookResult::Succeeded) - DetailedCookStats::NumPackagesIterativelySkipped,
+		PackageDatas->GetNumCooked(ECookResult::Succeeded) - DetailedCookStats::NumPackagesIterativelySkipped - PackageDataFromBaseGameNum,
 		DetailedCookStats::NumPackagesIterativelySkipped,
 		PackageDatas->GetNumCooked(ECookResult::Failed),
-		PackageDatas->GetNumCooked() - PackageDatas->GetNumCooked(ECookResult::NeverCookPlaceholder)));
+		PackageDatas->GetNumCooked() - PackageDatas->GetNumCooked(ECookResult::NeverCookPlaceholder) - PackageDataFromBaseGameNum));
 }
 
 void UCookOnTheFlyServer::PrintDetailedCookStats()
@@ -10245,7 +10252,8 @@ void UCookOnTheFlyServer::RecordDLCPackagesFromBaseGame(FBeginCookContext& Begin
 		if (ActivePackageList.Num() > 0)
 		{
 			SCOPED_BOOT_TIMING("AddPackageDataByFileNamesForPlatform");
-			PackageDatas->AddExistingPackageDatasForPlatform(ActivePackageList, TargetPlatform, bFirstAddExistingPackageDatas);
+			PackageDatas->AddExistingPackageDatasForPlatform(ActivePackageList, TargetPlatform,
+				bFirstAddExistingPackageDatas, PackageDataFromBaseGameNum);
 		}
 
 		TArray<FName>& PlatformBasedPackages = CookByTheBookOptions->BasedOnReleaseCookedPackages.FindOrAdd(PlatformName);
@@ -10269,6 +10277,7 @@ void UCookOnTheFlyServer::RecordDLCPackagesFromBaseGame(FBeginCookContext& Begin
 			if (UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByFileName(FName(*AssetPath)))
 			{
 				PackageData->SetPlatformsCooked(BeginContext.TargetPlatforms, UE::Cook::ECookResult::Succeeded);
+				++PackageDataFromBaseGameNum;
 			}
 			else
 			{

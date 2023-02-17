@@ -2201,14 +2201,13 @@ void FAssetRegistryState::GetPrimaryAssetsIds(TSet<FPrimaryAssetId>& OutPrimaryA
 const FAssetPackageData* FAssetRegistryState::GetAssetPackageData(FName PackageName) const
 {
 	FAssetPackageData* const* FoundData = CachedPackageData.Find(PackageName);
-	if (FoundData)
-	{
-		return *FoundData;
-	}
-	else
-	{
-		return nullptr;
-	}
+	return FoundData ? *FoundData : nullptr;
+}
+
+ FAssetPackageData* FAssetRegistryState::GetAssetPackageData(FName PackageName)
+{
+	FAssetPackageData** FoundData = CachedPackageData.Find(PackageName);
+	return FoundData ? *FoundData : nullptr;
 }
 
 FAssetPackageData* FAssetRegistryState::CreateOrGetAssetPackageData(FName PackageName)

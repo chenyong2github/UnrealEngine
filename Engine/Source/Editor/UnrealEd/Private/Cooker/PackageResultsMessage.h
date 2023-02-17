@@ -77,8 +77,8 @@ public:
 	TArray<FPlatformResult, TInlineAllocator<1>>& GetPlatforms() { return Platforms; }
 	void SetPlatforms(TConstArrayView<ITargetPlatform*> OrderedSessionPlatforms);
 
-	void SetNeverCookDependencies(TArray<FName>&& InNeverCookDependencies) { NeverCookDependencies = MoveTemp(InNeverCookDependencies); }
-	TConstArrayView<FName> GetNeverCookDependencies() const { return NeverCookDependencies; }
+	void SetExternalActorDependencies(TArray<FName>&& InExternalActorDependencies) { ExternalActorDependencies = MoveTemp(InExternalActorDependencies); }
+	TConstArrayView<FName> GetExternalActorDependencies() const { return ExternalActorDependencies; }
 
 	/**
 	 * A non-atomic RefCount that can be used for storage of a refcount by the user (e.g. CookWorkerClient)
@@ -119,7 +119,7 @@ private:
 private:
 	// Fields read/writable only from the owner thread.
 	TArray<FAsyncMessage> AsyncMessages;
-	TArray<FName> NeverCookDependencies;
+	TArray<FName> ExternalActorDependencies;
 	FName PackageName;
 	/** If failure reason is InvalidSuppressCookReason, it was saved. Otherwise, holds the suppression reason */
 	ESuppressCookReason SuppressCookReason;

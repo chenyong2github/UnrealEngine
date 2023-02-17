@@ -147,9 +147,9 @@ void FPackageResultsMessage::Write(FCbWriter& Writer) const
 				Writer.EndObject();
 			}
 			Writer.EndArray();
-			if (!Result.NeverCookDependencies.IsEmpty())
+			if (!Result.ExternalActorDependencies.IsEmpty())
 			{
-				Writer << "NCD" << Result.NeverCookDependencies;
+				Writer << "EAD" << Result.ExternalActorDependencies;
 			}
 		}
 		Writer.EndObject();
@@ -214,10 +214,10 @@ bool FPackageResultsMessage::TryRead(FCbObjectView Object)
 				return false;
 			}
 		}
-		FCbFieldView NeverCookDependenciesField = ResultObject["NCD"];
-		if (NeverCookDependenciesField.IsArray())
+		FCbFieldView ExternalActorDependenciesField = ResultObject["EAD"];
+		if (ExternalActorDependenciesField.IsArray())
 		{
-			if (!LoadFromCompactBinary(NeverCookDependenciesField, Result.NeverCookDependencies))
+			if (!LoadFromCompactBinary(ExternalActorDependenciesField, Result.ExternalActorDependencies))
 			{
 				return false;
 			}

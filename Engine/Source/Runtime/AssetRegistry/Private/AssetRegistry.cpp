@@ -4474,13 +4474,34 @@ bool ReadAssetFile(FPackageReader& PackageReader, IAssetRegistry::FLoadPackageRe
 
 }
 
-void UAssetRegistryImpl::InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting) const
+void UAssetRegistryImpl::InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState,
+	const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting,
+	const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages) const
 {
 	using FAssetDataMap = UE::AssetRegistry::Private::FAssetDataMap;
 
 	FReadScopeLock InterfaceScopeLock(InterfaceLock);
 	const FAssetRegistryState& State = GuardedData.GetState();
-	OutState.InitializeFromExisting(State.CachedAssets, State.CachedDependsNodes, State.CachedPackageData, Options, bRefreshExisting ? FAssetRegistryState::EInitializationMode::OnlyUpdateExisting : FAssetRegistryState::EInitializationMode::Rebuild);
+	if (!RequiredPackages.IsEmpty() || !RemovePackages.IsEmpty())
+	{
+		if (bRefreshExisting)
+		{
+			// InitializeFromExistingAndPrune does not support EInitializationMode so we have to Initialize and then Prune
+			OutState.InitializeFromExisting(State.CachedAssets, State.CachedDependsNodes, State.CachedPackageData, Options,
+				FAssetRegistryState::EInitializationMode::OnlyUpdateExisting);
+			OutState.PruneAssetData(RequiredPackages, RemovePackages, Options);
+		}
+		else
+		{
+			TSet<int32> UnusedChunksToKeep;
+			OutState.InitializeFromExistingAndPrune(State, RequiredPackages, RemovePackages, UnusedChunksToKeep, Options);
+		}
+	}
+	else
+	{
+		OutState.InitializeFromExisting(State.CachedAssets, State.CachedDependsNodes, State.CachedPackageData, Options,
+			bRefreshExisting ? FAssetRegistryState::EInitializationMode::OnlyUpdateExisting : FAssetRegistryState::EInitializationMode::Rebuild);
+	}
 }
 
 #if ASSET_REGISTRY_STATE_DUMPING_ENABLED

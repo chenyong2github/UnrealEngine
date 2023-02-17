@@ -1271,8 +1271,8 @@ private:
 
 	/** Cook (save) a package and process the results */
 	void SaveCookedPackage(UE::Cook::FSaveCookedPackageContext& Context);
-	/** Helper for save of generator packages using ExternalActors: Record special-case ExternalActor packages for iterative builds. */
-	void RecordNeverCookDependencies(TConstArrayView<FName> NeverCookDependencies);
+	/** Helper for package saves using ExternalActors: record ExternalActors for iterative builds. */
+	void RecordExternalActorDependencies(TConstArrayView<FName> ExternalActorDependencies);
 	friend class UE::Cook::FSaveCookedPackageContext;
 
 	/**
@@ -1349,6 +1349,7 @@ private:
 	static UCookOnTheFlyServer* ActiveCOTFS;
 	uint32		StatLoadedPackageCount = 0;
 	uint32		StatSavedPackageCount = 0;
+	int32		PackageDataFromBaseGameNum = 0;
 	UE::Cook::FStatHistoryInt NumObjectsHistory;
 	UE::Cook::FStatHistoryInt VirtualMemoryHistory;
 

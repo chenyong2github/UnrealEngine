@@ -189,6 +189,7 @@ FAssetRegistryGenerator::FAssetRegistryGenerator(const ITargetPlatform* InPlatfo
 	: AssetRegistry(FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get())
 	, TargetPlatform(InPlatform)
 	, bGenerateChunks(false)
+	, bClonedGlobalAssetRegistry(false)
 	, HighestChunkId(0)
 	, DependencyInfo(*GetMutableDefault<UChunkDependencyInfo>())
 {
@@ -1108,11 +1109,11 @@ void FAssetRegistryGenerator::UpdateKeptPackages()
 {
 	for (TPair<FName, FIterativelySkippedPackageUpdateData>& Pair : PreviousPackagesToUpdate)
 	{
-		for (const FAssetData& PreviousAssetData : Pair.Value.AssetDatas)
+		for (FAssetData& PreviousAssetData : Pair.Value.AssetDatas)
 		{
-			State.UpdateAssetData(PreviousAssetData);
+			State.UpdateAssetData(MoveTemp(PreviousAssetData), true /* bCreateIfNotExists */);
 		}
-		*State.CreateOrGetAssetPackageData(Pair.Key) = Pair.Value.PackageData;
+		*State.CreateOrGetAssetPackageData(Pair.Key) = MoveTemp(Pair.Value.PackageData);
 
 		if (!Pair.Value.PackageDependencies.IsEmpty())
 		{
@@ -1123,6 +1124,7 @@ void FAssetRegistryGenerator::UpdateKeptPackages()
 			State.AddReferencers(FAssetIdentifier(Pair.Key), Pair.Value.PackageReferencers);
 		}
 	}
+	PreviousPackagesToUpdate.Empty();
 }
 
 static void AppendCookTagsToTagMap(TArray<TPair<FName, FString>>&& InTags, FAssetDataTagMap& OutTags)
@@ -1258,10 +1260,26 @@ void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages,
 
 	if (bInitializeFromExisting)
 	{
+		bClonedGlobalAssetRegistry = true;
 		AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions);
 	}
 
 	FGameDelegates::Get().GetAssignLayerChunkDelegate() = FAssignLayerChunkDelegate::CreateStatic(AssignLayerChunkDelegate);
+}
+
+void FAssetRegistryGenerator::CloneGlobalAssetRegistryFilteredByPreviousState(const FAssetRegistryState& PreviousState)
+{
+	FAssetRegistrySerializationOptions SaveOptions;
+	AssetRegistry.InitializeSerializationOptions(SaveOptions, TargetPlatform->IniPlatformName());
+
+	TSet<FName> KeepPackages;
+	const TMap<FName, const FAssetPackageData*> &PreviousPackageDatas = PreviousState.GetAssetPackageDataMap();
+	KeepPackages.Reserve(PreviousPackageDatas.Num());
+	for (const TPair<FName, const FAssetPackageData*>& Pair : PreviousPackageDatas)
+	{
+		KeepPackages.Add(Pair.Key);
+	}
+	AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions, false /* bRefreshExisting */, KeepPackages);
 }
 
 static UE::Cook::ECookResult DiskSizeToCookResult(int64 DiskSize)
@@ -1458,7 +1476,7 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 			// current state, then they must have changed themselves and so are already in the modified set.
 			TArray<FAssetIdentifier> Referencers;
 			State.GetReferencers(ModifiedPackage, Referencers, UE::AssetRegistry::EDependencyCategory::Package,
-				UE::AssetRegistry::EDependencyQuery::Hard | UE::AssetRegistry::EDependencyQuery::Build);
+				UE::AssetRegistry::EDependencyQuery::Build);
 
 			for (const FAssetIdentifier& Referencer : Referencers)
 			{
@@ -1625,11 +1643,11 @@ void FAssetRegistryGenerator::FinalizeChunkIDs(const TSet<FName>& InCookedPackag
 	// Development only packages should have been marked via UpdateAssetRegistryData with a negative size indicating why they were not cooked 
 	for (FName DevelopmentOnlyPackage : DevelopmentOnlyPackages)
 	{
-		FAssetPackageData* PackageData = State.CreateOrGetAssetPackageData(DevelopmentOnlyPackage);
-		if (PackageData->DiskSize >= 0)
+		FAssetPackageData* PackageData = State.GetAssetPackageData(DevelopmentOnlyPackage);
+		if (PackageData && PackageData->DiskSize >= 0)
 		{
 			UE_LOG(LogAssetRegistryGenerator, Warning,
-				TEXT("Package %s is a development-only package but was not marked with DiskSize explaining why it was not cooked. Marking it as a generic cook failure."),
+				TEXT("Package %s is a development-only package but was not marked with DiskSize explaining why it was not cooked. Marking it as a generic skip."),
 				*DevelopmentOnlyPackage.ToString());
 			PackageData->DiskSize = -1;
 		}
@@ -2788,7 +2806,6 @@ void FAssetRegistryGenerator::UpdateAssetRegistryData(FName PackageName, const U
 	PreviousPackagesToUpdate.Remove(PackageName);
 
 	uint32 NewPackageFlags = 0;
-	FAssetPackageData* AssetPackageData = GetAssetPackageData(PackageName);
 	bool bSaveSucceeded = CookResult == UE::Cook::ECookResult::Succeeded;
 
 	// Copy latest data for all Assets in the package into the cooked registry. This should be done even
@@ -2806,13 +2823,27 @@ void FAssetRegistryGenerator::UpdateAssetRegistryData(FName PackageName, const U
 		CreateOrFindAssetDatas(*Package);
 	}
 
-	// Set Overrides for generated packages
+	FAssetPackageData* AssetPackageData = GetAssetPackageData(PackageName);
+	if (!bClonedGlobalAssetRegistry)
+	{
+		// Copy the Dependencies and PackageData from the global AssetRegistry
+		TOptional<FAssetPackageData> GlobalPackageData = AssetRegistry.GetAssetPackageDataCopy(PackageName);
+		if (GlobalPackageData)
+		{
+			*AssetPackageData = MoveTemp(*GlobalPackageData);
+		}
+		TArray<FAssetDependency> GlobalDependencies;
+		AssetRegistry.GetDependencies(PackageName, GlobalDependencies, UE::AssetRegistry::EDependencyCategory::All);
+		State.SetDependencies(FAssetIdentifier(PackageName), GlobalDependencies, UE::AssetRegistry::EDependencyCategory::All);
+	}
 	if (OverrideAssetPackageData)
 	{
+		// Generated packages pass in their own AssetPackageData
 		*AssetPackageData = MoveTemp(*OverrideAssetPackageData);
 	}
 	if (OverridePackageDependencies)
 	{
+		// Generated and Generator packages pass in their own dependencies
 		SetOverridePackageDependencies(PackageName, *OverridePackageDependencies);
 	}
 

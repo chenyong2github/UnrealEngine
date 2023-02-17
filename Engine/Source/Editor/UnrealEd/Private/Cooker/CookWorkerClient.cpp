@@ -193,7 +193,7 @@ void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 	Result->SetPlatforms(OrderedSessionPlatforms);
 	if (FGeneratorPackage* Generator = PackageData.GetGeneratorPackage(); Generator)
 	{
-		Result->SetNeverCookDependencies(Generator->ReleaseNeverCookDependencies());
+		Result->SetExternalActorDependencies(Generator->ReleaseExternalActorDependencies());
 	}
 
 	int32 NumPlatforms = OrderedSessionPlatforms.Num();

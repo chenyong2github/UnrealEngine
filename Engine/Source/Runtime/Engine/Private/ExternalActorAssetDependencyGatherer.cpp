@@ -28,7 +28,8 @@ void FExternalActorAssetDependencyGatherer::GatherDependencies(const FAssetData&
 
 		for (const FAssetData& FilteredAsset : FilteredAssets)
 		{
-			OutDependencies.Emplace(IAssetDependencyGatherer::FGathereredDependency{ FilteredAsset.PackageName, UE::AssetRegistry::EDependencyProperty::Game });
+			OutDependencies.Emplace(IAssetDependencyGatherer::FGathereredDependency{ FilteredAsset.PackageName,
+				UE::AssetRegistry::EDependencyProperty::Game  | UE::AssetRegistry::EDependencyProperty::Build });
 		}
 	}
 }

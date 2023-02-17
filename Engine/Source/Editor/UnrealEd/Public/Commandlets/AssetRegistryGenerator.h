@@ -46,8 +46,19 @@ public:
 	 * Initializes manifest generator - creates manifest lists, hooks up delegates.
 	 */
 	void Initialize(const TArray<FName> &StartupPackages, bool bInitializeFromExisting);
+	/**
+	 * Used by DLC which does not Clone the entire global AR. Copies data from the global assetregistry
+	 * for all packages present in the previous AssetRegistry
+	 */
+	void CloneGlobalAssetRegistryFilteredByPreviousState(const FAssetRegistryState& PreviousState);
 
 	const ITargetPlatform* GetTargetPlatform() const { return TargetPlatform; }
+
+	/**
+	 * Whether *this cloned the global the AssetRegistry during its construction.
+	 * If false, package data must be copied during UpdataAssetRegistryData.
+	 */
+	bool HasClonedGlobalAssetRegistry() const { return bClonedGlobalAssetRegistry; }
 
 	/**
 	 * Options when computing the differences between current and previous state.
@@ -312,6 +323,7 @@ private:
 	TSet<FName> PackagesContainingMaps;
 	/** Should the chunks be generated or only asset registry */
 	bool bGenerateChunks;
+	bool bClonedGlobalAssetRegistry;
 	/** Highest chunk id, being used for geneating dependency tree */
 	int32 HighestChunkId;
 	/** Array of Maps with chunks<->packages assignments */

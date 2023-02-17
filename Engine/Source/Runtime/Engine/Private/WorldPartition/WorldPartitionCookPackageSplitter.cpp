@@ -114,25 +114,6 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 	return PackagesToGenerate;
 }
 
-TArray<FName> FWorldPartitionCookPackageSplitter::GetNeverCookDependencies() const
-{
-	TSet<FName> NeverCookDependencies;
-	for (const IWorldPartitionCookPackageGenerator* CookPackageGenerator : CookContext.GetCookPackageGenerators())
-	{
-		if (const TArray<FWorldPartitionCookPackage*>* CookPackages = CookContext.GetCookPackages(CookPackageGenerator))
-		{
-			for (const FWorldPartitionCookPackage* CookPackage : *CookPackages)
-			{
-				if (UWorldPartitionRuntimeCell* Cell = CookPackageGenerator->GetCellForPackage(*CookPackage))
-				{
-					NeverCookDependencies.Append(Cell->GetActorPackageNames());
-				}
-			}
-		}
-	}
-	return NeverCookDependencies.Array();
-}
-
 bool FWorldPartitionCookPackageSplitter::PopulateGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
 	const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UObject*>& OutObjectsToMove,
 	TArray<UPackage*>& OutModifiedPackages)

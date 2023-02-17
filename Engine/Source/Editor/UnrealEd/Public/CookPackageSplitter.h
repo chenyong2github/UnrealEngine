@@ -83,12 +83,6 @@ public:
 	/** Return the list of packages to generate. */
 	virtual TArray<FGeneratedPackage> GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject) = 0;
 
-	/**
-	 * Return a list of NeverCook packages that should be added to the cook results as uncooked packages for
-	 * use in detecting changes during iterative cooks. Used for support of ExternalActors; most splitters should not use this.
-	 */
-	virtual TArray<FName> GetNeverCookDependencies() const { return TArray<FName>(); }
-
 	/** Representation of a generated package that is provided when populating the generator package. */
 	struct FGeneratedPackageForPreSave
 	{
