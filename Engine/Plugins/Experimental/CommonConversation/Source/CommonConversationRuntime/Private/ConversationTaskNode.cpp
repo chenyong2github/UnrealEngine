@@ -131,10 +131,7 @@ FConversationTaskResult UConversationTaskNode::ExecuteTaskNodeWithSideEffects(co
 				if (UConversationParticipantComponent* Component = ParticipantEntry.GetParticipantComponent())
 				{
 					// Notify each client in the conversation
-					if (Component->GetOwner()->GetRemoteRole() == ROLE_AutonomousProxy)
-					{
-						Component->ServerNotifyExecuteTaskAndSideEffects(InContext.GetCurrentNodeHandle());
-					}
+					Component->ServerNotifyExecuteTaskAndSideEffects(InContext.GetCurrentNodeHandle());
 				}
 			}
 		}

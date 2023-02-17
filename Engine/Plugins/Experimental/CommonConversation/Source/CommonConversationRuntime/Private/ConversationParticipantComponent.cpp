@@ -43,9 +43,11 @@ void UConversationParticipantComponent::ServerNotifyConversationStarted(UConvers
 		// executed, the client has knowledge of what participants, before any client side task effects need to execute.
 		ClientUpdateParticipants(Auth_CurrentConversation->GetParticipantsCopy());
 
-		if (ConversationsActive == 0)
+		const int32 OldConversationsActive = ConversationsActive;
+
+		if (OldConversationsActive == 0)
 		{
-			OnEnterConversationState();
+			OnRep_ConversationsActive(OldConversationsActive);
 		}
 
 		ConversationsActive++;
@@ -54,10 +56,7 @@ void UConversationParticipantComponent::ServerNotifyConversationStarted(UConvers
 		OnServerConversationStarted(Conversation, AsParticipant);
 		ClientStartConversation(AsParticipant);
 
-		if (Owner->GetRemoteRole() == ROLE_AutonomousProxy)
-		{
-			ClientUpdateConversations(ConversationsActive);
-		}
+		ClientUpdateConversations(ConversationsActive);
 	}
 }
 
@@ -72,19 +71,17 @@ void UConversationParticipantComponent::ServerNotifyConversationEnded(UConversat
 			Auth_CurrentConversation = nullptr;
 			Auth_Conversations.Remove(Conversation);
 
+			const int32 OldConversationsActive = ConversationsActive;
 			ConversationsActive--;
 			MARK_PROPERTY_DIRTY_FROM_NAME(UConversationParticipantComponent, ConversationsActive, this);
 
 			OnServerConversationEnded(Conversation);
 
-			if (Owner->GetRemoteRole() == ROLE_AutonomousProxy)
-			{
-				ClientUpdateConversations(ConversationsActive);
-			}
+			ClientUpdateConversations(ConversationsActive);
 
 			if (ConversationsActive == 0)
 			{
-				OnLeaveConversationState();
+				OnRep_ConversationsActive(OldConversationsActive);
 			}
 		}
 	}
@@ -169,10 +166,7 @@ void UConversationParticipantComponent::SendClientConversationMessage(const FCon
 	LastMessage = Payload;
 
 	//@TODO: CONVERSATION: We could potentially send the user no choices?  I guess that's a possibility.
-	if (GetOwner()->GetRemoteRole() == ROLE_AutonomousProxy)
-	{
-		ClientUpdateConversation(LastMessage);
-	}
+	ClientUpdateConversation(LastMessage);
 #endif
 }
 
@@ -186,14 +180,11 @@ void UConversationParticipantComponent::ClientUpdateConversations_Implementation
 void UConversationParticipantComponent::SendClientUpdatedChoices(const FConversationContext& Context)
 {
 #if WITH_SERVER_CODE
-	if (GetOwner()->GetRemoteRole() == ROLE_AutonomousProxy)
+	const TArray<FClientConversationOptionEntry> NewOptions = Context.GetActiveConversation()->GetCurrentUserConversationChoices();
+	if (NewOptions != LastMessage.Options)
 	{
-		const TArray<FClientConversationOptionEntry> NewOptions = Context.GetActiveConversation()->GetCurrentUserConversationChoices();
-		if (NewOptions != LastMessage.Options)
-		{
-			LastMessage.Options = NewOptions;
-			ClientUpdateConversation(LastMessage);
-		}
+		LastMessage.Options = NewOptions;
+		ClientUpdateConversation(LastMessage);
 	}
 #endif
 }
@@ -201,23 +192,20 @@ void UConversationParticipantComponent::SendClientUpdatedChoices(const FConversa
 void UConversationParticipantComponent::SendClientRefreshedTaskChoiceData(const FConversationNodeHandle& Handle, const FConversationContext& Context)
 {
 #if WITH_SERVER_CODE
-	if (GetOwner()->GetRemoteRole() == ROLE_AutonomousProxy)
+	const TArray<FClientConversationOptionEntry> CurrentOptions = Context.GetActiveConversation()->GetCurrentUserConversationChoices();
+	
+	for (const FClientConversationOptionEntry& CurrentOption : CurrentOptions)
 	{
-		const TArray<FClientConversationOptionEntry> CurrentOptions = Context.GetActiveConversation()->GetCurrentUserConversationChoices();
-		
-		for (const FClientConversationOptionEntry& CurrentOption : CurrentOptions)
+		if (CurrentOption.ChoiceReference.NodeReference == Handle)
 		{
-			if (CurrentOption.ChoiceReference.NodeReference == Handle)
+			for (FClientConversationOptionEntry& LastOption : LastMessage.Options)
 			{
-				for (FClientConversationOptionEntry& LastOption : LastMessage.Options)
+				if (LastOption.ChoiceReference.NodeReference == Handle && 
+					LastOption.ExtraData != CurrentOption.ExtraData)
 				{
-					if (LastOption.ChoiceReference.NodeReference == Handle && 
-						LastOption.ExtraData != CurrentOption.ExtraData)
-					{
-						LastOption.ExtraData = CurrentOption.ExtraData;
-						ClientUpdateConversationTaskChoiceData(Handle, LastOption);
-						break;
-					}
+					LastOption.ExtraData = CurrentOption.ExtraData;
+					ClientUpdateConversationTaskChoiceData(Handle, LastOption);
+					break;
 				}
 			}
 		}
@@ -307,12 +295,15 @@ void UConversationParticipantComponent::ClientExecuteTaskAndSideEffects_Implemen
 
 void UConversationParticipantComponent::OnRep_ConversationsActive(int32 OldConversationsActive)
 {
-	if (OldConversationsActive == 0)
+	const bool bWasConversing = OldConversationsActive > 0;
+	const bool bIsConversing = ConversationsActive > 0;
+
+	if (!bWasConversing && bIsConversing)
 	{
 		OnEnterConversationState();
 		ConversationStatusChanged.Broadcast(true);
 	}
-	else if (ConversationsActive == 0)
+	else if (bWasConversing && !bIsConversing)
 	{
 		OnLeaveConversationState();
 		ConversationStatusChanged.Broadcast(false);
@@ -353,7 +344,7 @@ void UConversationParticipantComponent::OnConversationUpdated(const FClientConve
 void UConversationParticipantComponent::ServerAbortAllConversations()
 {
 	TArray<UConversationInstance*> Conversations = Auth_Conversations;
-	for(UConversationInstance* Conversation : Conversations)
+	for (UConversationInstance* Conversation : Conversations)
 	{
 		Conversation->ServerAbortConversation();
 	}

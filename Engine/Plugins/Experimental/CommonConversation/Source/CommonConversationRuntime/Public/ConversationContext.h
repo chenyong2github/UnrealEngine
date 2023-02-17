@@ -177,7 +177,7 @@ public:
 
 	UConversationRegistry& GetConversationRegistry() const { check(ConversationRegistry) return *ConversationRegistry; }
 
-	UConversationInstance* GetActiveConversation() const { ensure(bServer); return ActiveConversation; }
+	UConversationInstance* GetActiveConversation() const { ensure(IsServerContext()); return ActiveConversation; }
 
 	const UConversationTaskNode* GetTaskBeingConsidered() const { return TaskBeingConsidered; }
 
@@ -207,8 +207,8 @@ public:
 
 	FConversationParticipants GetParticipantsCopy() const;
 
-	bool IsServerContext() const { return bServer; }
-	bool IsClientContext() const { return !bServer; }
+	bool IsServerContext() const { return bServer_PRIVATE; }
+	bool IsClientContext() const { return bClient_PRIVATE; }
 
 private:
 	UPROPERTY()
@@ -227,7 +227,10 @@ private:
 	TArray<FConversationNodeHandle> ReturnScopeStack;
 
 	UPROPERTY()
-	bool bServer = false;
+	bool bServer_PRIVATE = false;
+
+	UPROPERTY()
+	bool bClient_PRIVATE = false;
 };
 
 //////////////////////////////////////////////////////////////////////
