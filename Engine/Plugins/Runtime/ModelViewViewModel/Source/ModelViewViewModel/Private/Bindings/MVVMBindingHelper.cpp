@@ -464,6 +464,15 @@ namespace UE::MVVM::BindingHelper
 				&& SourceObjectProperty->PropertyClass->IsChildOf(DestinationObjectProperty->PropertyClass);
 		}
 
+		bool IsObjectArrayPropertyCompatible(const FProperty* Source, const FProperty* Destination)
+		{
+			const FArrayProperty* SourceArrayObjectProperty = CastField<const FArrayProperty>(Source);
+			const FArrayProperty* DestinationArrayObjectProperty = CastField<const FArrayProperty>(Destination);
+			return SourceArrayObjectProperty
+				&& DestinationArrayObjectProperty
+				&& IsObjectPropertyCompatible(SourceArrayObjectProperty->Inner, DestinationArrayObjectProperty->Inner);
+		}
+
 
 		bool IsNumericConversionRequired(const FProperty* Source, const FProperty* Destination)
 		{
@@ -528,7 +537,8 @@ namespace UE::MVVM::BindingHelper
 
 		return Source->SameType(Destination)
 				|| Private::IsNumericConversionRequired(Source, Destination)
-				|| Private::IsObjectPropertyCompatible(Source, Destination);
+				|| Private::IsObjectPropertyCompatible(Source, Destination)
+				|| Private::IsObjectArrayPropertyCompatible(Source, Destination);
 	}
 
 

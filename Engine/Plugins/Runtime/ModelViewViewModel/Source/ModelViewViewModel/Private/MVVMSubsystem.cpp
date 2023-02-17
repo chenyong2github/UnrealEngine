@@ -56,14 +56,23 @@ namespace UE::MVVM::Private
 	{
 		// N.B. A function can be private/protected and can still be use when it's a BlueprintGetter/BlueprintSetter.
 		//But we bind to the property not the function.
+		static FName Name_AllowPrivateAccess = TEXT("AllowPrivateAccess");
+#if WITH_EDITOR
 		if (Function->HasAnyFunctionFlags(FUNC_Private) && !bCanAccessPrivate)
 		{
-			return FMVVMAvailableBinding();
+			if (!Function->GetBoolMetaData(Name_AllowPrivateAccess))
+			{
+				return FMVVMAvailableBinding();
+			}
 		}
 		if (Function->HasAnyFunctionFlags(FUNC_Protected) && !bCanAccessProtected)
 		{
-			return FMVVMAvailableBinding();
+			if (!Function->GetBoolMetaData(Name_AllowPrivateAccess))
+			{
+				return FMVVMAvailableBinding();
+			}
 		}
+#endif
 
 		const bool bIsReadable = BindingHelper::IsValidForSourceBinding(Function);
 		const bool bIsWritable = BindingHelper::IsValidForDestinationBinding(Function);
@@ -352,6 +361,17 @@ TValueOrError<bool, FText> UMVVMSubsystem::IsBindingValid(FConstDirectionalBindi
 		return MakeError(LOCTEXT("NoValueToBindAtDestination", "There is no value to bind at the destination."));
 	}
 
+	auto GetPropertyType = [](const FProperty* Property)
+	{
+		FString InnerType;
+		FString CppType = Property->GetCPPType(&InnerType);
+		if (InnerType.Len())
+		{
+			CppType.Append(InnerType);
+		}
+		return CppType;
+	};
+
 	// Test the conversion function
 	if (Args.ConversionFunction)
 	{
@@ -396,14 +416,15 @@ TValueOrError<bool, FText> UMVVMSubsystem::IsBindingValid(FConstDirectionalBindi
 			{
 				TArray<FText> ArgumentTypes;
 				ArgumentTypes.Reserve(ArgumentProperties.Num());
+				FString InnerType;
 				for (const FProperty* ArgProperty : ArgumentProperties)
 				{
-					ArgumentTypes.Add(FText::FromString(ArgProperty->GetCPPType()));
+					ArgumentTypes.Add(FText::FromString(GetPropertyType(ArgProperty)));
 				}
 
 				return MakeError(FText::Format(LOCTEXT("SourcePropertyDoesNotMatchArguments", "The source property '{0}' ({1}) does not match any of the argument types of the conversion function ({1})."), 
 					FText::FromString(SourceProperty->GetName()), 
-					FText::FromString(SourceProperty->GetCPPType()),
+					FText::FromString(GetPropertyType(SourceProperty)),
 					FText::Join(LOCTEXT("CommaDelim", ", "), ArgumentTypes))
 				);
 			}
@@ -417,7 +438,7 @@ TValueOrError<bool, FText> UMVVMSubsystem::IsBindingValid(FConstDirectionalBindi
 			{
 				return MakeError(FText::Format(LOCTEXT("DestinationPropertyDoesNotMatchReturn", "The destination property '{0}' ({1}) does not match the return type of the conversion function ({2})."), 
 					FText::FromString(DestinationProperty->GetName()), 
-					FText::FromString(DestinationProperty->GetCPPType()),
+					FText::FromString(GetPropertyType(DestinationProperty)),
 					FText::FromString(ReturnProperty->GetCPPType()))
 				);
 			}
@@ -427,9 +448,9 @@ TValueOrError<bool, FText> UMVVMSubsystem::IsBindingValid(FConstDirectionalBindi
 	{
 		return MakeError(FText::Format(LOCTEXT("SourcePropertyDoesNotMatchDestination", "The source property '{0}' ({1}) does not match the type of the destination property '{2}' ({3}). A conversion function is required."), 
 			FText::FromString(SourceProperty->GetName()),
-			FText::FromString(SourceProperty->GetCPPType()), 
+			FText::FromString(GetPropertyType(SourceProperty)),
 			FText::FromString(DestinationProperty->GetName()), 
-			FText::FromString(DestinationProperty->GetCPPType()))
+			FText::FromString(GetPropertyType(DestinationProperty)))
 		);
 	}
 

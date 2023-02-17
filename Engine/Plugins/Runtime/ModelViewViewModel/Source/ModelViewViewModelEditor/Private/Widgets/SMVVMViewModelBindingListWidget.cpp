@@ -78,14 +78,14 @@ namespace Private
 				{
 					if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Writable))
 					{
-						if (!BindingHelper::ArePropertiesCompatible(AssignableTo, BindingHelper::GetFirstArgumentProperty(Function)))
+						if (AssignableTo && !BindingHelper::ArePropertiesCompatible(AssignableTo, BindingHelper::GetFirstArgumentProperty(Function)))
 						{
 							return TOptional<FFieldVariant>();
 						}
 					}
 					if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Readable))
 					{
-						if (!BindingHelper::ArePropertiesCompatible(ReturnProperty, AssignableTo))
+						if (AssignableTo && !BindingHelper::ArePropertiesCompatible(ReturnProperty, AssignableTo))
 						{
 							return TOptional<FFieldVariant>();
 						}

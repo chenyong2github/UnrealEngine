@@ -122,10 +122,10 @@ public:
 	TObjectPtr<UMVVMViewModelContextResolver> Resolver = nullptr;
 
 	/**
-	 * Generate a setter function for this viewmodel.
+	 * Generate a public setter for this viewmodel.
 	 * @note Always true when the Creation Type is Manual.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Viewmodel", AdvancedDisplay, meta = (EditCondition = "CreationType != EMVVMBlueprintViewModelContextCreationType::Manual", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = "Viewmodel", AdvancedDisplay, meta = (DisplanName="Create Public Setter", EditCondition = "CreationType != EMVVMBlueprintViewModelContextCreationType::Manual", EditConditionHides))
 	bool bCreateSetterFunction = false;
 
 	/**
