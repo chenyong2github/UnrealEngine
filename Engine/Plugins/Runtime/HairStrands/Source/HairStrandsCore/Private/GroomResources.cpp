@@ -884,6 +884,7 @@ bool FHairStrandsRestResource::InternalIsDataLoaded()
 	return BulkDataRequest.IsCompleted();
 }
 
+bool IsHairStrandsContinousLODEnabled();
 void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
 	BulkDataRequest = FBulkDataBatchRequest();
@@ -911,6 +912,7 @@ void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	GraphBuilder.UseExternalAccessMode(Register(GraphBuilder, PositionOffsetBuffer, ERDGImportedBufferFlags::CreateSRV).Buffer, ERHIAccess::SRVMask);
 
 	// Copy curve data for CPU lookup
+	if (IsHairStrandsContinousLODEnabled())
 	{
 		CurveData.SetNum(CurveCount);
 		uint32* Data = (uint32*)CurveData.GetData();

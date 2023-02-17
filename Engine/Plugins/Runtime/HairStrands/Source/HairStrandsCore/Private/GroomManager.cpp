@@ -833,7 +833,7 @@ static void RunHairLODSelection(
 			Instance->HairGroupPublicData->ContinuousLODScreenPos = MaxContinuousLODScreenPos;
 			Instance->HairGroupPublicData->ContinuousLODBounds = SphereBound;
 
-			if (GHairStrands_ContinousLOD > 0)
+			if (IsHairStrandsContinousLODEnabled())
 			{
 				// These values are set later, once the resources are loaded
 				Instance->HairGroupPublicData->ContinuousLODCurveCount = 0;
@@ -1011,7 +1011,7 @@ static void RunHairLODSelection(
 			}
 
 			// Adapt the number curve/point based on Bound/CPU screen-size
-			if (GeometryType == EHairGeometryType::Strands && GHairStrands_ContinousLOD)
+			if (GeometryType == EHairGeometryType::Strands && IsHairStrandsContinousLODEnabled())
 			{
 				check(bIsLODDataReady);
 				check(Instance->Strands.RestResource);
