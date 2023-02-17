@@ -9,6 +9,7 @@
 
 #include "Engine/HitResult.h"
 #include "GameplayEffectTypes.h"
+#include "Engine/HitResult.h"
 #include "Net/Core/NetBitArray.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "Iris/Serialization/NetBitStreamReader.h"
