@@ -1146,7 +1146,13 @@ static void PropagateDefaultMapToInstancedMap(const FMapProperty* MapProperty, U
 				if (!bArchetypeCorrect)
 				{
 					const ADisplayClusterRootActor* RootActor =
-					CastChecked<ADisplayClusterRootActor>(InstancedObject->GetTypedOuter(ADisplayClusterRootActor::StaticClass()));
+						Cast<ADisplayClusterRootActor>(InstancedObject->GetTypedOuter(ADisplayClusterRootActor::StaticClass()));
+					if (!RootActor)
+					{
+						// Undo transactions can potentially trigger this while an object was renamed to the transient package.
+						check(InstancedObject->GetPackage() == GetTransientPackage());
+						continue;
+					}
 #if WITH_EDITOR
 					if (GEditor)
 					{

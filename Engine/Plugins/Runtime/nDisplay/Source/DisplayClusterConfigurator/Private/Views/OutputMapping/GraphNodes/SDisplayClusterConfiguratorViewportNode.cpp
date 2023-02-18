@@ -462,7 +462,7 @@ void SDisplayClusterConfiguratorViewportNode::UpdatePreviewTexture()
 		CachedTexture = CurrentTexture;
 		if (CachedTexture != nullptr)
 		{
-			if (BackgroundActiveBrush.GetResourceObject() != CachedTexture)
+			if (BackgroundActiveBrush.GetResourceObject() != CachedTexture && CachedTexture->GetResource() != nullptr)
 			{
 				BackgroundActiveBrush = FSlateBrush();
 				BackgroundActiveBrush.SetResourceObject(CachedTexture);

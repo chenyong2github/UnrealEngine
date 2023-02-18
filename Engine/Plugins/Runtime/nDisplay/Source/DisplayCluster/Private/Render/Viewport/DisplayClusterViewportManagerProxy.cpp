@@ -7,6 +7,7 @@
 
 #include "IDisplayCluster.h"
 #include "IDisplayClusterCallbacks.h"
+#include "DisplayClusterViewportManagerViewExtension.h"
 #include "Render/IDisplayClusterRenderManager.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
@@ -109,6 +110,12 @@ void FDisplayClusterViewportManagerProxy::Initialize(FDisplayClusterViewportMana
 	ViewportManagerViewExtension = InViewportManager.ViewportManagerViewExtension;
 }
 
+void FDisplayClusterViewportManagerProxy::SetViewportManagerViewExtension(
+	const TSharedPtr<FDisplayClusterViewportManagerViewExtension>& InExtension)
+{
+	ViewportManagerViewExtension = InExtension;
+}
+
 void FDisplayClusterViewportManagerProxy::DeleteResource_RenderThread(FDisplayClusterViewportResource* InDeletedResourcePtr)
 {
 	if (InDeletedResourcePtr)
@@ -153,17 +160,23 @@ void FDisplayClusterViewportManagerProxy::DeleteViewport_RenderThread(const TSha
 	check(IsInRenderingThread());
 
 	// Remove viewport obj from manager
-	int32 ViewportProxyIndex = ViewportProxies.Find(InViewportProxy);
+	const int32 ViewportProxyIndex = ViewportProxies.Find(InViewportProxy);
 	if (ViewportProxyIndex != INDEX_NONE)
 	{
-		ViewportProxies[ViewportProxyIndex].Reset();
+		if (ViewportManagerViewExtension.IsValid())
+		{
+			ViewportManagerViewExtension->DeleteViewportProxy(ViewportProxies[ViewportProxyIndex]);
+		}
 		ViewportProxies.RemoveAt(ViewportProxyIndex);
 	}
 
-	int32 ClusterViewportProxyIndex = ClusterNodeViewportProxies.Find(InViewportProxy);
+	const int32 ClusterViewportProxyIndex = ClusterNodeViewportProxies.Find(InViewportProxy);
 	if (ClusterViewportProxyIndex != INDEX_NONE)
 	{
-		ClusterNodeViewportProxies[ClusterViewportProxyIndex].Reset();
+		if (ViewportManagerViewExtension.IsValid())
+		{
+			ViewportManagerViewExtension->DeleteViewportProxy(ClusterNodeViewportProxies[ClusterViewportProxyIndex]);
+		}
 		ClusterNodeViewportProxies.RemoveAt(ClusterViewportProxyIndex);
 	}
 }

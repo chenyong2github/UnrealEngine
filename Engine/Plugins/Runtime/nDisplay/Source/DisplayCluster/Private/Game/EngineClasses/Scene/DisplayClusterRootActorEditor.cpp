@@ -939,6 +939,17 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 	ImplUpdatePreviewConfiguration_Editor(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll);
 
 	TArray<UDisplayClusterPreviewComponent*> IteratedPreviewComponents;
+
+	auto DestroyPreviewComponent = [this](UDisplayClusterPreviewComponent* PreviewComp)
+	{
+		PreviewComponents.Remove(PreviewComp->GetName());
+			
+		// Reset preview components before unregister
+		PreviewComp->ResetPreviewComponent(true);
+
+		PreviewComp->UnregisterComponent();
+		PreviewComp->DestroyComponent();
+	};
 	
 	if (CurrentConfigData != nullptr && IsPreviewEnabled())
 	{
@@ -953,6 +964,17 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 			{
 				const FString PreviewCompId = GeneratePreviewComponentName_Editor(Node.Key, Viewport.Key);
 				UDisplayClusterPreviewComponent* PreviewComp = PreviewComponents.FindRef(PreviewCompId);
+
+				if (PreviewComp && PreviewComp->GetOwner() != this)
+				{
+					// In this case a viewport was likely deleted, the blueprint compiled, then the deletion undone.
+					// Just destroy the preview component and start over.
+					ensure(!PreviewComp->GetOwner() || PreviewComp->GetOwner()->GetName().StartsWith(TEXT("REINST_")));
+					DestroyPreviewComponent(PreviewComp);
+					PreviewComp = nullptr;
+				}
+
+				Modify();
 				if (!PreviewComp)
 				{
 					PreviewComp = NewObject<UDisplayClusterPreviewComponent>(this, FName(*PreviewCompId), RF_DuplicateTransient | RF_Transactional | RF_NonPIEDuplicateTransient);
@@ -964,6 +986,9 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 					PreviewClusterNodeIndex = 0;
 				}
 
+				// Make sure we're an owned component. Possible this can be lost on undo/redo without a recompile.
+				AddOwnedComponent(PreviewComp);
+				
 				if (GetWorld() && !PreviewComp->IsRegistered())
 				{
 					PreviewComp->RegisterComponent();
@@ -989,13 +1014,7 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 	{
 		if (!IteratedPreviewComponents.Contains(ExistingComp))
 		{
-			PreviewComponents.Remove(ExistingComp->GetName());
-			
-			// Reset preview components before unregister
-			ExistingComp->ResetPreviewComponent(true);
-
-			ExistingComp->UnregisterComponent();
-			ExistingComp->DestroyComponent();
+			DestroyPreviewComponent(ExistingComp);
 		}
 	}
 }

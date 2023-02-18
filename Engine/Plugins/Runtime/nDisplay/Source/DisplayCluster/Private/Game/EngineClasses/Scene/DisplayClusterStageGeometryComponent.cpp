@@ -298,7 +298,7 @@ void UDisplayClusterStageGeometryComponent::GenerateGeometryMap(bool bIsNorthMap
 		GetSceneViewInitOptions(NormalMapDirection, RenderSettings.ViewInitOptions);
 		GeometryMap.ViewMatrices = FViewMatrices(RenderSettings.ViewInitOptions);
 
-		FTextureRenderTarget2DResource* TexResource = (FTextureRenderTarget2DResource*)GeometryMap.RenderTarget->GetResource();
+		FTextureRenderTarget2DResource* TexResource = GeometryMap.RenderTarget ? (FTextureRenderTarget2DResource*)GeometryMap.RenderTarget->GetResource() : nullptr;
 		if (TexResource)
 		{
 			FCanvas Canvas(TexResource, nullptr, World, World->Scene->GetFeatureLevel());

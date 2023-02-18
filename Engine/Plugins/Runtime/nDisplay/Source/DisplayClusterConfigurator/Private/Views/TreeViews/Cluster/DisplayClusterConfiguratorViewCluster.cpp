@@ -376,7 +376,7 @@ void FDisplayClusterConfiguratorViewCluster::DeleteSelectedNodes()
 
 	const FScopedTransaction Transaction(FText::Format(LOCTEXT("DeleteClusterNodes", "Remove Cluster {0}|plural(one=Node, other=Nodes)"), SelectedTreeItems.Num()));
 
-	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> TreeItem : SelectedTreeItems)
+	for (const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& TreeItem : SelectedTreeItems)
 	{
 		if (TreeItem->CanDeleteItem())
 		{
@@ -387,7 +387,8 @@ void FDisplayClusterConfiguratorViewCluster::DeleteSelectedNodes()
 	// Mark the cluster configuration data as dirty, allowing user to save the changes, and fire off a cluster changed event to let other
 	// parts of the UI update as well
 	GetEditorData()->MarkPackageDirty();
-	ToolkitPtr.Pin()->ClusterChanged();
+	constexpr bool bStructureChange = true;
+	ToolkitPtr.Pin()->ClusterChanged(bStructureChange);
 
 	// Clear the selection to ensure the deleted cluster item isn't still being displayed in the details panel
 	ClearSelection();

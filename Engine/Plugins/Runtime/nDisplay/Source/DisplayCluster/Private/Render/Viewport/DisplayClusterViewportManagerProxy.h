@@ -75,6 +75,9 @@ public:
 	/** Initialize ViewportManagerProxy from ViewportManager. */
 	void Initialize(FDisplayClusterViewportManager& InViewportManager);
 
+	/** Set the viewport manager view extension pointer. */
+	void SetViewportManagerViewExtension(const TSharedPtr<class FDisplayClusterViewportManagerViewExtension>& InExtension);
+
 	/** Get LightCardManager proxy object. */
 	TSharedPtr<FDisplayClusterViewportLightCardManagerProxy, ESPMode::ThreadSafe> GetLightCardManagerProxy_RenderThread() const
 	{ return LightCardManagerProxy; }

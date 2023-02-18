@@ -120,6 +120,20 @@ FScreenPassTexture FDisplayClusterViewportManagerViewExtension::ReturnUntouchedS
 	}
 }
 
+void FDisplayClusterViewportManagerViewExtension::DeleteViewportProxy(
+	const TSharedPtr<FDisplayClusterViewportProxy>& InProxy)
+{
+	const int32 Index = ViewportProxies.IndexOfByPredicate([&](const FViewportProxy& ExtensionProxy)
+	{
+		return ExtensionProxy.ViewportProxy == InProxy;
+	});
+
+	if (Index != INDEX_NONE)
+	{
+		ViewportProxies.RemoveAt(Index);
+	}
+}
+
 bool FDisplayClusterViewportManagerViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
 	static const FDisplayClusterSceneViewExtensionContext DCViewExtensionContext;

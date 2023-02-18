@@ -886,8 +886,6 @@ bool FDisplayClusterConfiguratorClusterUtils::RemoveViewportFromClusterNode(UDis
 			
 			Viewport->SetFlags(RF_Transient);
 			
-			FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(ViewportParent, true);
-			
 			return true;
 		}
 	}
