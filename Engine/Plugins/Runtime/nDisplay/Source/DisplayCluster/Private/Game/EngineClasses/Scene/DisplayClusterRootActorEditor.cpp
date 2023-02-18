@@ -194,16 +194,6 @@ void ADisplayClusterRootActor::PostLoad_Editor()
 
 void ADisplayClusterRootActor::EndPlay_Editor(const EEndPlayReason::Type EndPlayReason)
 {
-	// UE-174008: When a SIE session is ended, we can't clean up the actor's rendering resources in BeginDestroy
-	// because of an issue cleaning up the UV light card manager's preview world during the normal GC pass,
-	// so in this specific case, destroy the rendering resources here.
-	if (EndPlayReason == EEndPlayReason::EndPlayInEditor && GEditor->bIsSimulatingInEditor)
-	{
-		ResetPreviewInternals_Editor();
-		ReleasePreviewComponents();
-
-		ViewportManager.Reset();
-	}
 }
 
 void ADisplayClusterRootActor::Destroyed_Editor()

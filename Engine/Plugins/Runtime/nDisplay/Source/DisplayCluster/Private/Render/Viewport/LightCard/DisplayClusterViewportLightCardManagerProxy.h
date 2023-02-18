@@ -6,11 +6,10 @@
 
 #include "DisplayClusterViewportLightCardResource.h"
 
-#include "RHI.h"
-#include "RHICommandList.h"
 #include "RHIResources.h"
 #include "Templates/SharedPointer.h"
 
+struct FDisplayClusterShaderParameters_UVLightCards;
 class FSceneInterface;
 
 /*
@@ -29,7 +28,7 @@ public:
 	void ReleaseUVLightCardResource();
 
 	/** Render UVLightCard. */
-	void RenderUVLightCard(FSceneInterface* InSceneInterface, const float InUVPlaneDefaultSize, const bool bRenderFinalColor) const;
+	void RenderUVLightCard(FSceneInterface* InSceneInterface, const FDisplayClusterShaderParameters_UVLightCards& InParameters) const;
 
 	/** Get current UVLightCard RHI resource on rendering thread. */
 	FRHITexture* GetUVLightCardRHIResource_RenderThread() const;
@@ -38,9 +37,9 @@ protected:
 	void ImplUpdateUVLightCardResource_RenderThread(const TSharedPtr<FDisplayClusterViewportLightCardResource, ESPMode::ThreadSafe>& InUVLightCardMapResource);
 	void ImplReleaseUVLightCardResource_RenderThread();
 
-	void ImplRenderUVLightCard_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneInterface* InSceneInterface, const float InUVPlaneDefaultSize, const bool bRenderFinalColor) const;
+	void ImplRenderUVLightCard_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneInterface* InScene, const FDisplayClusterShaderParameters_UVLightCards& InParameters) const;
 
 private:
-	/** The render thread copy of the pointer to the UV ligth card map */
+	/** The render thread copy of the pointer to the UV light card map */
 	TSharedPtr<FDisplayClusterViewportLightCardResource, ESPMode::ThreadSafe> UVLightCardMapResource;
 };

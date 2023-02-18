@@ -3,6 +3,7 @@
 #include "DisplayClusterViewportLightCardManager.h"
 #include "DisplayClusterViewportLightCardManagerProxy.h"
 #include "DisplayClusterViewportLightCardResource.h"
+#include "ShaderParameters/DisplayClusterShaderParameters_UVLightCards.h"
 
 #include "DisplayClusterLightCardActor.h"
 #include "Blueprints/DisplayClusterBlueprintLib.h"
@@ -10,11 +11,8 @@
 #include "IDisplayClusterShaders.h"
 
 #include "Render/Viewport/DisplayClusterViewportManager.h"
-#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrame.h"
 
 #include "PreviewScene.h"
-#include "SceneInterface.h"
-#include "UObject/Package.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 /** Console variable used to control the size of the UV light card map texture */
@@ -43,15 +41,11 @@ FDisplayClusterViewportLightCardManager::~FDisplayClusterViewportLightCardManage
 void FDisplayClusterViewportLightCardManager::Release()
 {
 	// The destructor is usually called from the rendering thread, so Release() must be called first from the game thread.
-	const bool bIsInRenderingThread = IsInRenderingThread();
-	check(!bIsInRenderingThread || (bIsInRenderingThread && PreviewWorld == nullptr));
+	check(!IsInRenderingThread());
 
 	// Release UVLightCard
 	ReleaseUVLightCardData();
 	ReleaseUVLightCardResource();
-
-	// Deleting PreviewScene is only called from the game thread
-	DestroyPreviewWorld();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,13 +56,10 @@ void FDisplayClusterViewportLightCardManager::UpdateConfiguration()
 
 void FDisplayClusterViewportLightCardManager::HandleStartScene()
 {
-	InitializePreviewWorld();
 }
 
 void FDisplayClusterViewportLightCardManager::HandleEndScene()
 {
-	DestroyPreviewWorld();
-
 	ReleaseUVLightCardData();
 }
 
@@ -174,22 +165,41 @@ void FDisplayClusterViewportLightCardManager::UpdateUVLightCardResource()
 void FDisplayClusterViewportLightCardManager::RenderUVLightCard()
 {
 	// Render UV LightCard:
-	if (IsUVLightCardEnabled() && PreviewWorld && LightCardManagerProxy.IsValid())
+	UWorld* World = ViewportManager.GetCurrentWorld();
+	if (IsUVLightCardEnabled() && World && LightCardManagerProxy.IsValid())
 	{
 		UpdateUVLightCardResource();
 
 		if (UVLightCardResource.IsValid())
 		{
-			for (UPrimitiveComponent* LoadedComponent : UVLightCardPrimitiveComponents)
+			FDisplayClusterShaderParameters_UVLightCards UVLightCardParameters;
+			UVLightCardParameters.ProjectionPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
+			UVLightCardParameters.bRenderFinalColor = ViewportManager.ShouldRenderFinalColor();
+
+			// Store any components that were invisible but forced to be visible so they can be set back to invisible after the render
+			TArray<UPrimitiveComponent*> ComponentsToUnload;
+			for (UPrimitiveComponent* PrimitiveComponent : UVLightCardPrimitiveComponents)
 			{
-				PreviewWorld->Scene->AddPrimitive(LoadedComponent);
+				// Set the component's visibility to true and force it to generate its scene proxies
+				if (!PrimitiveComponent->IsVisible())
+				{
+					PrimitiveComponent->SetVisibility(true);
+					PrimitiveComponent->RecreateRenderState_Concurrent();
+					ComponentsToUnload.Add(PrimitiveComponent);
+				}
+
+				if (PrimitiveComponent->SceneProxy)
+				{
+					UVLightCardParameters.PrimitivesToRender.Add(PrimitiveComponent->SceneProxy);
+				}
 			}
 
-			LightCardManagerProxy->RenderUVLightCard(PreviewWorld->Scene, ADisplayClusterLightCardActor::UVPlaneDefaultSize, ViewportManager.ShouldRenderFinalColor());
+			LightCardManagerProxy->RenderUVLightCard(World->Scene, UVLightCardParameters);
 
-			for (UPrimitiveComponent* LoadedComponent : UVLightCardPrimitiveComponents)
+			for (UPrimitiveComponent* LoadedComponent : ComponentsToUnload)
 			{
-				PreviewWorld->Scene->RemovePrimitive(LoadedComponent);
+				LoadedComponent->SetVisibility(false);
+				LoadedComponent->RecreateRenderState_Concurrent();
 			}
 		}
 	}
@@ -203,45 +213,4 @@ void FDisplayClusterViewportLightCardManager::RenderUVLightCard()
 ///////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterViewportLightCardManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObject(PreviewWorld);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterViewportLightCardManager::InitializePreviewWorld()
-{
-	if (!PreviewWorld)
-	{
-		FName UniqueWorldName = MakeUniqueObjectName(GetTransientPackage(), UWorld::StaticClass(), FName(TEXT("DisplayClusterLightCardManager_PreviewWorld")));
-		PreviewWorld = NewObject<UWorld>(GetTransientPackage(), UniqueWorldName);
-		PreviewWorld->WorldType = EWorldType::GamePreview;
-
-		FWorldContext& WorldContext = GEngine->CreateNewWorldContext(PreviewWorld->WorldType);
-		WorldContext.SetCurrentWorld(PreviewWorld);
-
-		PreviewWorld->InitializeNewWorld(UWorld::InitializationValues()
-			.AllowAudioPlayback(false)
-			.CreatePhysicsScene(false)
-			.RequiresHitProxies(false)
-			.CreateNavigation(false)
-			.CreateAISystem(false)
-			.ShouldSimulatePhysics(false)
-			.SetTransactional(false));
-	}
-}
-
-void FDisplayClusterViewportLightCardManager::DestroyPreviewWorld()
-{
-	if (PreviewWorld)
-	{
-		// Hack to avoid issue where the engine considers this world a leaked object; When UEngine loads a new map, it checks to see if there are any UWorlds
-		// still in memory that aren't what it considers "persistent" worlds, worlds with type Inactive or EditorPreview. Even if the UWorld object has been marked for
-		// GC and has no references to it, UEngine will still flag it as "leaked" unless it is one of these two types.
-		PreviewWorld->WorldType = EWorldType::Inactive;
-
-		GEngine->DestroyWorldContext(PreviewWorld);
-
-		PreviewWorld->DestroyWorld(false);
-		PreviewWorld->MarkObjectsPendingKill();
-		PreviewWorld = nullptr;
-	}
 }

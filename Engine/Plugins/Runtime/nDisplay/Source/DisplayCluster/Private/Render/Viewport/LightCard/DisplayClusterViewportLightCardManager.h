@@ -55,13 +55,6 @@ public:
 	void RenderFrame();
 
 private:
-	/** Initializes the preview world used to render the UV light cards*/
-	void InitializePreviewWorld();
-
-	/** Destroys the preview world used to render the UV light cards */
-	void DestroyPreviewWorld();
-
-private:
 	/** Render UVLightCard */
 	void RenderUVLightCard();
 
@@ -83,9 +76,6 @@ private:
 private:
 	/** A reference to the owning viewport manager */
 	FDisplayClusterViewportManager& ViewportManager;
-
-	/** The preview world the UV light card proxies live in for rendering */
-	UWorld* PreviewWorld = nullptr;
 
 private:
 	/** A list of primitive components that have been added to the preview scene for rendering in the current frame */

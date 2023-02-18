@@ -3,6 +3,7 @@
 #include "DisplayClusterViewportLightCardManagerProxy.h"
 
 #include "IDisplayClusterShaders.h"
+#include "ShaderParameters/DisplayClusterShaderParameters_UVLightCards.h"
 
 #include "SceneInterface.h"
 #include "RenderingThread.h"
@@ -39,12 +40,12 @@ void FDisplayClusterViewportLightCardManagerProxy::ReleaseUVLightCardResource()
 		});
 }
 
-void FDisplayClusterViewportLightCardManagerProxy::RenderUVLightCard(FSceneInterface* InSceneInterface, const float UVPlaneDefaultSize, const bool bRenderFinalColor) const
+void FDisplayClusterViewportLightCardManagerProxy::RenderUVLightCard(FSceneInterface* InScene, const FDisplayClusterShaderParameters_UVLightCards& InParameters) const
 {
 	ENQUEUE_RENDER_COMMAND(DisplayClusterViewportLightCardManagerProxy_RenderUVLightCard)(
-		[InProxyData = SharedThis(this), SceneInterface = InSceneInterface, UVPlaneDefaultSize, bRenderFinalColor](FRHICommandListImmediate& RHICmdList)
+		[InProxyData = SharedThis(this), Scene = InScene, Parameters = InParameters](FRHICommandListImmediate& RHICmdList)
 		{
-			InProxyData->ImplRenderUVLightCard_RenderThread(RHICmdList, SceneInterface, UVPlaneDefaultSize, bRenderFinalColor);
+			InProxyData->ImplRenderUVLightCard_RenderThread(RHICmdList, Scene, Parameters);
 		});
 }
 
@@ -74,11 +75,11 @@ void FDisplayClusterViewportLightCardManagerProxy::ImplReleaseUVLightCardResourc
 	}
 }
 
-void FDisplayClusterViewportLightCardManagerProxy::ImplRenderUVLightCard_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneInterface* InSceneInterface, const float InUVPlaneDefaultSize, const bool bRenderFinalColor) const
+void FDisplayClusterViewportLightCardManagerProxy::ImplRenderUVLightCard_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneInterface* InSceneInterface, const FDisplayClusterShaderParameters_UVLightCards& InParameters) const
 {
-	if(InSceneInterface && UVLightCardMapResource.IsValid())
+	if (InParameters.PrimitivesToRender.Num() && UVLightCardMapResource.IsValid())
 	{
 		IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
-		ShadersAPI.RenderPreprocess_UVLightCards(RHICmdList, InSceneInterface, UVLightCardMapResource.Get(), InUVPlaneDefaultSize, bRenderFinalColor);
+		ShadersAPI.RenderPreprocess_UVLightCards(RHICmdList, InSceneInterface, UVLightCardMapResource.Get(), InParameters);
 	}
 }

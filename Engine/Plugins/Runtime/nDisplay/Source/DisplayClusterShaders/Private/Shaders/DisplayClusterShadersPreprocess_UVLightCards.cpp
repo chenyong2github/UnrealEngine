@@ -9,14 +9,14 @@
 #include "InstanceCulling/InstanceCullingContext.h"
 #include "MeshMaterialShader.h"
 #include "MeshPassProcessor.h"
+#include "MeshPassProcessor.inl"
 #include "PrimitiveSceneInfo.h"
 #include "PrimitiveSceneProxy.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphResources.h"
 #include "SceneInterface.h"
 #include "SceneRendererInterface.h"
-#include "SceneRenderTargetParameters.h"
-#include "MeshPassProcessor.inl"
+#include "ShaderParameters/DisplayClusterShaderParameters_UVLightCards.h"
 #include "UnrealClient.h"
 
 class FUVLightCardVS : public FMeshMaterialShader
@@ -173,11 +173,11 @@ END_SHADER_PARAMETER_STRUCT()
 
 DECLARE_GPU_STAT_NAMED(nDisplay_UVLightCards_Render, TEXT("nDisplay UVLightCards::Render"));
 
-bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCards(FRHICommandListImmediate& RHICmdList, FSceneInterface* InScene, FRenderTarget* InRenderTarget, float ProjectionPlaneSize, bool bRenderFinalColor)
+bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCards(FRHICommandListImmediate& RHICmdList, FSceneInterface* InScene, FRenderTarget* InRenderTarget, const FDisplayClusterShaderParameters_UVLightCards& InParameters)
 {
 	check(IsInRenderingThread());
 
-	if (InRenderTarget == nullptr || InScene->GetPrimitiveSceneProxies().IsEmpty())
+	if (InRenderTarget == nullptr || InParameters.PrimitivesToRender.IsEmpty())
 	{
 		return false;
 	}
@@ -237,7 +237,7 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 
 	const float ZScale = 0.5f / UE_OLD_HALF_WORLD_MAX;
 	const float ZOffset = UE_OLD_HALF_WORLD_MAX;
-	const float OrthoSize = 0.5f * ProjectionPlaneSize;
+	const float OrthoSize = 0.5f * InParameters.ProjectionPlaneSize;
 
 	if ((bool)ERHIZBuffer::IsInverted)
 	{
@@ -263,13 +263,13 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 	GetRendererModule().CreateAndInitSingleView(RHICmdList, &ViewFamily, &ViewInitOptions);
 	FSceneView* View = (FSceneView*)ViewFamily.Views[0];
 
-	if (!bRenderFinalColor)
+	if (!InParameters.bRenderFinalColor)
 	{
 		ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
 	}
 
 	ViewFamily.EngineShowFlags.SetToneCurve(false);
-	// This flags sets tonampper to output to ETonemapperOutputDevice::LinearNoToneCurve
+	// This flags sets tonemapper to output to ETonemapperOutputDevice::LinearNoToneCurve
 	View->FinalPostProcessSettings.bOverride_ToneCurveAmount = 1;
 	View->FinalPostProcessSettings.ToneCurveAmount = 0.0;
 
@@ -285,21 +285,15 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 	GraphBuilder.AddPass(RDG_EVENT_NAME("DisplayClusterUVLightCards::Render"),
 		PassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
-		[View, InScene](FRHICommandList& RHICmdList)
+		[View, &InParameters](FRHICommandList& RHICmdList)
 		{
 			FIntRect ViewRect = View->UnscaledViewRect;
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
-			DrawDynamicMeshPass(*View, RHICmdList, [View, InScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+			DrawDynamicMeshPass(*View, RHICmdList, [View, &InParameters](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
-				TArray<FPrimitiveSceneProxy*> SceneProxies;
-				for (FPrimitiveSceneProxy* SceneProxy : InScene->GetPrimitiveSceneProxies())
-				{
-					SceneProxies.Add(SceneProxy);
-				}
-
 				FUVLightCardPassProcessor MeshPassProcessor(View, DynamicMeshPassContext);
-				for (FPrimitiveSceneProxy* SceneProxy : SceneProxies)
+				for (FPrimitiveSceneProxy* SceneProxy : InParameters.PrimitivesToRender)
 				{
 					if (const FMeshBatch* MeshBatch = SceneProxy->GetPrimitiveSceneInfo()->GetMeshBatch(SceneProxy->GetPrimitiveSceneInfo()->StaticMeshes.Num() - 1))
 					{

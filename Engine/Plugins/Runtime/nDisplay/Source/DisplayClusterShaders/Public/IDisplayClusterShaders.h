@@ -16,6 +16,7 @@ class FDisplayClusterShaderParameters_Override;
 struct FDisplayClusterShaderParameters_GenerateMips;
 struct FDisplayClusterShaderParameters_PostprocessBlur;
 struct FDisplayClusterShaderParameters_WarpBlend;
+struct FDisplayClusterShaderParameters_UVLightCards;
 class IDisplayClusterWarpBlendManager;
 class FSceneInterface;
 class FRenderTarget;
@@ -90,7 +91,20 @@ public:
 	*
 	* @return - true if success
 	*/
+	UE_DEPRECATED(5.2, "Use version that takes FDisplayClusterShaderParameters_UVLightCards instead")
 	virtual bool RenderPreprocess_UVLightCards(FRHICommandListImmediate& RHICmdList, FSceneInterface* InScene, FRenderTarget* InRenderTarget, float ProjectionPlaneSize, bool bRenderFinalColor) const = 0;
+
+	/**
+	* Render UV light cards to texture that can be sampled by viewports to place light cards in UV space
+	*
+	* @param RHICmdList                    - RHI command list
+	* @param InScene                       - The scene the light cards live in
+	* @param InRenderTarget                - Destination RTT texture
+	* @param InParameters                  - Parameters for the render
+	*
+	* @return - true if success
+	*/
+	virtual bool RenderPreprocess_UVLightCards(FRHICommandListImmediate& RHICmdList, FSceneInterface* InScene, FRenderTarget* InRenderTarget, const FDisplayClusterShaderParameters_UVLightCards& InParameters) const = 0;
 
 	/**
 	* Render postprocess OutputRemap
