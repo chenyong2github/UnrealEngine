@@ -4,7 +4,7 @@
 
 #include "Modules/ModuleManager.h"
 
-#include "AvfMediaPlayer.h"
+#include "Player/AvfMediaPlayer.h"
 #include "IAvfMediaModule.h"
 
 

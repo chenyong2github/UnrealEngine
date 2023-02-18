@@ -14,7 +14,7 @@
 #include "AvfMediaAudioSample.h"
 #include "AvfMediaOverlaySample.h"
 #include "AvfMediaVideoSampler.h"
-#include "AvfMediaUtils.h"
+#include "Shared/AvfMediaUtils.h"
 
 #import <AudioToolbox/AudioToolbox.h>
 
