@@ -206,7 +206,7 @@ struct FMemoryImageResult
 	TArray<FMemoryImageNamePointer> MemoryImageNames;
 
 	CORE_API void SaveToArchive(FArchive& Ar) const;
-	CORE_API void ApplyPatches(void* FrozenObject) const;
+	CORE_API bool ApplyPatches(void* FrozenObject, uint64 FrozenObjectSize) const;
 	CORE_API static FMemoryImageObject LoadFromArchive(FArchive& Ar, const FTypeLayoutDesc& TypeDesc, FPointerTableBase* PointerTable, FPlatformTypeLayoutParameters& OutLayoutParameters);
 };
 
