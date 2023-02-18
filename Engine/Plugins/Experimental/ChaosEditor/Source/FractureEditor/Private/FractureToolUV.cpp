@@ -196,8 +196,7 @@ void UFractureToolAutoUV::UpdateUVChannels(int32 TargetNumUVChannels)
 						}
 					}
 				}
-				GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-				GeometryCollectionComponent->MarkRenderStateDirty();
+				Edit.GetRestCollection()->RebuildRenderData();
 			}
 		}
 		MinUVChannels = TargetNumUVChannels;
@@ -242,8 +241,7 @@ void UFractureToolAutoUV::BoxProjectUVs()
 			(FVector2f)AutoUVSettings->ProjectionUVOffset,
 			AutoUVSettings->bAutoFitToBounds, AutoUVSettings->bCenterAtPivot, AutoUVSettings->bUniformProjectionScale);
 
-		GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-		GeometryCollectionComponent->MarkRenderStateDirty();
+		Edit.GetRestCollection()->RebuildRenderData();
 	}
 }
 
@@ -458,8 +456,7 @@ void UFractureToolAutoUV::LayoutUVs()
 		Edit.GetRestCollection()->Modify();
 		LayoutUVsForComponent(GeometryCollectionComponent);
 
-		GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-		GeometryCollectionComponent->MarkRenderStateDirty();
+		Edit.GetRestCollection()->RebuildRenderData();
 	}
 }
 

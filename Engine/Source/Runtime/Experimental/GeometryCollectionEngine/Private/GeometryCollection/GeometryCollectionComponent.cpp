@@ -468,7 +468,10 @@ namespace
 			{
 				const TManagedArray<FVector3f>& ExplodedVectors = GeometryCollection.GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
 
-				check(NumMatrices == ExplodedVectors.Num());
+				if (!ensure(NumMatrices == ExplodedVectors.Num()))
+				{
+					return;
+				}
 				for (int32 TransformIndex = 0; TransformIndex < ExplodedVectors.Num(); ++TransformIndex)
 				{
 					GlobalMatricesIn[TransformIndex] = GlobalMatricesIn[TransformIndex].ConcatTranslation((FVector)ExplodedVectors[TransformIndex]);

@@ -37,8 +37,7 @@ void UFractureToolMaterials::RemoveMaterialSlot()
 		UGeometryCollection* Collection = Edit.GetRestCollection();
 		if (Collection->RemoveLastMaterialSlot())
 		{
-			GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-			GeometryCollectionComponent->MarkRenderStateDirty();
+			Collection->RebuildRenderData();
 		}
 	}
 	UpdateActiveMaterialsList();
@@ -61,8 +60,7 @@ void UFractureToolMaterials::AddMaterialSlot()
 			GeometryCollectionComponent->SetMaterial(NewSlotIdx, GeometryCollectionComponent->GetMaterial(NewSlotIdx - 1));
 		}
 
-		GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-		GeometryCollectionComponent->MarkRenderStateDirty();
+		Collection->RebuildRenderData();
 	}
 	UpdateActiveMaterialsList();
 }
