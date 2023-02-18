@@ -32,28 +32,11 @@ public:
 	static inline bool IsAvailable() { return FModuleManager::Get().IsModuleLoaded("PixelStreamingInput"); }
 
 	/**
-	 * Register a new message type that peers can send and pixel streaming can receive
-	 * @param MessageDirection The direction the message will travel. eg Streamer->Player or Player->Streamer
-	 * @param MessageType The human readable identifier (eg "TouchStarted")
-	 * @param Message The object used to define the structure of the message
-	 * @param Handler The handler for this message type. This function will be executed whenever the corresponding message type is received
-	 */
-	virtual void RegisterMessage(EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler) = 0;
-
-	/**
-	 * @brief Find the function to be called whenever the specified message type is received.
+	 * @brief Create a Input Handler object
 	 *
-	 * @param MessageType The human readable identifier for the message
-	 * @return TFunction<void(FMemoryReader)> The function called when this message type is received.
+	 * @return TSharedPtr<IPixelStreamingInputHandler> the input handler for this streamer
 	 */
-	virtual TFunction<void(FMemoryReader)> FindMessageHandler(const FString& MessageType) = 0;
-
-	/**
-	 * @brief Get the Input Handler for this module
-	 *
-	 * @return TSharedPtr<IPixelStreamingInputHandler> the input handler
-	 */
-	virtual TSharedPtr<IPixelStreamingInputHandler> GetInputHandler() = 0;
+	virtual TSharedPtr<IPixelStreamingInputHandler> CreateInputHandler() = 0;
 
 	/**
 	 * Attempts to create a new input device interface
@@ -64,7 +47,4 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE(FOnProtocolUpdated);
 	FOnProtocolUpdated OnProtocolUpdated;
-
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSendMessage, FMemoryReader);
-	FOnSendMessage OnSendMessage;
 };

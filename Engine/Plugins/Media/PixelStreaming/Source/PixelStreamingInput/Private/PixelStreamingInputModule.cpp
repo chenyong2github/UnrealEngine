@@ -17,11 +17,10 @@ namespace UE::PixelStreamingInput
 		{
 			return;
 		}
+
 		PopulateProtocol();
 
-		TSharedPtr<FPixelStreamingApplicationWrapper> PixelStreamerApplicationWrapper = MakeShareable(new FPixelStreamingApplicationWrapper(FSlateApplication::Get().GetPlatformApplication()));
-		TSharedPtr<FGenericApplicationMessageHandler> BaseHandler = FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler();
-		InputHandler = MakeShared<FPixelStreamingInputHandler>(PixelStreamerApplicationWrapper, BaseHandler);
+		InputDevice = FPixelStreamingInputDevice::GetInputDevice();
 
 		Settings::InitialiseSettings();
 
@@ -33,28 +32,21 @@ namespace UE::PixelStreamingInput
 		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 	}
 
-	void FPixelStreamingInputModule::RegisterMessage(EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler)
+	TSharedPtr<IPixelStreamingInputHandler> FPixelStreamingInputModule::CreateInputHandler()
 	{
-		if (MessageDirection == EPixelStreamingMessageDirection::ToStreamer)
-		{
-			FPixelStreamingInputProtocol::ToStreamerProtocol.Add(MessageType, Message);
-			InputHandler->RegisterMessageHandler(MessageType, Handler);
-		}
-		else if (MessageDirection == EPixelStreamingMessageDirection::FromStreamer)
-		{
-			FPixelStreamingInputProtocol::FromStreamerProtocol.Add(MessageType, Message);
-		}
-		OnProtocolUpdated.Broadcast();
-	}
+		TSharedPtr<FPixelStreamingApplicationWrapper> PixelStreamerApplicationWrapper = MakeShareable(new FPixelStreamingApplicationWrapper(FSlateApplication::Get().GetPlatformApplication()));
+		TSharedPtr<FGenericApplicationMessageHandler> BaseHandler = FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler();
+		TSharedPtr<IPixelStreamingInputHandler> InputHandler = MakeShared<FPixelStreamingInputHandler>(PixelStreamerApplicationWrapper, BaseHandler);
 
-	TFunction<void(FMemoryReader)> FPixelStreamingInputModule::FindMessageHandler(const FString& MessageType)
-	{
-		return InputHandler->FindMessageHandler(MessageType);
+		// Add this input handler to the input device's array of handlers. This ensures that it's ticked
+		InputDevice->AddInputHandler(InputHandler);
+
+		return InputHandler;
 	}
 
 	TSharedPtr<IInputDevice> FPixelStreamingInputModule::CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 	{
-		return InputHandler;
+		return InputDevice;
 	}
 
 	void FPixelStreamingInputModule::PopulateProtocol()

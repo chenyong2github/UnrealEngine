@@ -33,7 +33,9 @@ namespace UE::PixelStreaming
 
 		const TFunction<void(FMemoryReader)> Handler = [this](FMemoryReader Ar) { /* Do nothing */ };
 
-		PixelStreamingInputModule.RegisterMessage(MessageDirection, "CustomMessage", Message, Handler);
+		TSharedPtr<IPixelStreamingInputHandler> InputHandler = Streamer->GetInputHandler().Pin();
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("CustomMessage", Message);
+		InputHandler->RegisterMessageHandler("CustomMessage", Handler);
 
 		TSharedPtr<FMockPlayer> Player = CreatePlayer(FMockPlayer::EMode::AcceptOffers);
 		TSharedPtr<FMockVideoSink> VideoSink = MakeShared<FMockVideoSink>();
@@ -105,7 +107,9 @@ namespace UE::PixelStreaming
 			TestTrue(TEXT("Expected message content to be 1337."), Out == 1337);
 		};
 
-		PixelStreamingInputModule.RegisterMessage(MessageDirection, "CustomMessage", Message, Handler);
+		TSharedPtr<IPixelStreamingInputHandler> InputHandler = Streamer->GetInputHandler().Pin();
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("CustomMessage", Message);
+		InputHandler->RegisterMessageHandler("CustomMessage", Handler);
 
 		TSharedPtr<FMockPlayer> Player = CreatePlayer(FMockPlayer::EMode::AcceptOffers);
 		TSharedPtr<FMockVideoSink> VideoSink = MakeShared<FMockVideoSink>();

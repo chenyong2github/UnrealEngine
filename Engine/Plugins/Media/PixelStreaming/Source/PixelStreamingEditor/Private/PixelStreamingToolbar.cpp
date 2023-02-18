@@ -420,8 +420,8 @@ namespace UE::EditorPixelStreaming
 					else
 					{
 						MenuBuilder.AddMenuEntry(
-							LOCTEXT("PixelStreaming_StopStreaming", "Start Streaming"),
-							LOCTEXT("PixelStreaming_StopStreamingToolTip", "Start this streamer"),
+							LOCTEXT("PixelStreaming_StartStreaming", "Start Streaming"),
+							LOCTEXT("PixelStreaming_StartStreamingToolTip", "Start this streamer"),
 							FSlateIcon(),
 							FExecuteAction::CreateLambda([Streamer]() {
 								Streamer->StartStreaming();
