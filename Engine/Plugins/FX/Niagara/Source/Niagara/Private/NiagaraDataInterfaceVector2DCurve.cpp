@@ -115,7 +115,13 @@ bool UNiagaraDataInterfaceVector2DCurve::CopyToInternal(UNiagaraDataInterface* D
 	UNiagaraDataInterfaceVector2DCurve* DestinationVector2DCurve = CastChecked<UNiagaraDataInterfaceVector2DCurve>(Destination);
 	DestinationVector2DCurve->XCurve = XCurve;
 	DestinationVector2DCurve->YCurve = YCurve;
-
+#if WITH_EDITORONLY_DATA
+	DestinationVector2DCurve->UpdateLUT();
+	if (!CompareLUTS(DestinationVector2DCurve->ShaderLUT))
+	{
+		UE_LOG(LogNiagara, Log, TEXT("Post CopyToInternal LUT generation is out of sync. Please investigate. %s"), *GetPathName());
+	}
+#endif
 	return true;
 }
 
