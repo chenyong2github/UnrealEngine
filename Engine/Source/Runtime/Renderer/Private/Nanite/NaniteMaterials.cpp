@@ -57,6 +57,15 @@ static FAutoConsoleVariableRef CVarNaniteBarrierTest(
 	ECVF_RenderThreadSafe
 );
 
+// TODO: Heavily work in progress / experimental - do not use!
+static int32 GNaniteQuadBinning = 1;
+static FAutoConsoleVariableRef CVarNaniteQuadBinning(
+	TEXT("r.Nanite.QuadBinning"),
+	GNaniteQuadBinning,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
 static int32 GNaniteMaterialVisibility = 0;
 static FAutoConsoleVariableRef CVarNaniteMaterialVisibility(
 	TEXT("r.Nanite.MaterialVisibility"),
@@ -479,7 +488,8 @@ class FShadingBinBuildCS : public FNaniteGlobalShader
 
 	class FBuildPassDim : SHADER_PERMUTATION_SPARSE_INT("SHADING_BIN_PASS", NANITE_SHADING_BIN_COUNT, NANITE_SHADING_BIN_SCATTER);
 	class FGatherStatsDim : SHADER_PERMUTATION_BOOL("GATHER_STATS");
-	using FPermutationDomain = TShaderPermutationDomain<FBuildPassDim, FGatherStatsDim>;
+	class FQuadBinningDim : SHADER_PERMUTATION_BOOL("QUAD_BINNING");
+	using FPermutationDomain = TShaderPermutationDomain<FBuildPassDim, FGatherStatsDim, FQuadBinningDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -511,7 +521,7 @@ class FShadingBinBuildCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ShadingMask)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ShadingMaskSampler)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FUintVector4>, OutShadingBinMeta)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutShadingBinQuads)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutShadingBinData)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutShadingBinArgs)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -523,7 +533,8 @@ class FShadingBinReserveCS : public FNaniteGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FShadingBinReserveCS, FNaniteGlobalShader);
 
 	class FGatherStatsDim : SHADER_PERMUTATION_BOOL("GATHER_STATS");
-	using FPermutationDomain = TShaderPermutationDomain<FGatherStatsDim>;
+	class FQuadBinningDim : SHADER_PERMUTATION_BOOL("QUAD_BINNING");
+	using FPermutationDomain = TShaderPermutationDomain<FGatherStatsDim, FQuadBinningDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -607,7 +618,7 @@ TRDGUniformBufferRef<FNaniteUniformParameters> CreateDebugNaniteUniformBuffer(FR
 #endif
 
 	UniformParameters->ShadingBinMeta			= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<FUint32Vector4>(GraphBuilder), PF_R32G32B32A32_UINT);
-	UniformParameters->ShadingBinQuads			= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder), PF_R32_UINT);
+	UniformParameters->ShadingBinData			= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder), PF_R32_UINT);
 
 	const FRDGSystemTextures& SystemTextures		= FRDGSystemTextures::Get(GraphBuilder);
 	UniformParameters->VisBuffer64					= SystemTextures.Black;
@@ -960,12 +971,12 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 
 		if (bShadeBinning)
 		{
-			UniformParameters->ShadingBinQuads = GraphBuilder.CreateSRV(ShadeBinning.ShadingBinQuads);
+			UniformParameters->ShadingBinData = GraphBuilder.CreateSRV(ShadeBinning.ShadingBinData);
 			UniformParameters->ShadingBinMeta = GraphBuilder.CreateSRV(ShadeBinning.ShadingBinMeta);
 		}
 		else
 		{
-			UniformParameters->ShadingBinQuads = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder), PF_R32_UINT);
+			UniformParameters->ShadingBinData = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder), PF_R32_UINT);
 			UniformParameters->ShadingBinMeta = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<FUint32Vector4>(GraphBuilder), PF_R32G32B32A32_UINT);
 		}
 
@@ -1157,12 +1168,12 @@ void DispatchBasePass(
 
 		// .X = Active Shading Bin
 		// .Y = VRS Tile Size
-		// .Z = Unused
+		// .Z = Quad Binning Flag
 		// .W = Unused
 		FUint32Vector4 PassData(
 			0, // Set per shading command
 			GetShadingRateTileSize(),
-			0,
+			GNaniteQuadBinning != 0,
 			0
 		);
 
@@ -2296,7 +2307,7 @@ void DrawLumenMeshCapturePass(
 			UniformParameters->MaterialDepthTable			= GraphBuilder.GetPooledBuffer(GSystemTextures.GetDefaultBuffer(GraphBuilder, 4, 0u))->GetSRV(FRHIBufferSRVCreateInfo(PF_R32_UINT));
 
 			UniformParameters->ShadingBinMeta				= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<FUint32Vector4>(GraphBuilder), PF_R32G32B32A32_UINT);
-			UniformParameters->ShadingBinQuads				= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder), PF_R32_UINT);
+			UniformParameters->ShadingBinData				= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder), PF_R32_UINT);
 
 			UniformParameters->MultiViewEnabled				= 1;
 			UniformParameters->MultiViewIndices				= GraphBuilder.CreateSRV(ViewIndexBuffer);
@@ -2954,6 +2965,7 @@ FShadeBinning ShadeBinning(
 	}
 
 	const bool bGatherStats = GNaniteShowStats != 0;
+	const bool bQuadBinning = GNaniteQuadBinning != 0;
 
 	const FUintVector4 ViewRect = FUintVector4(uint32(View.ViewRect.Min.X), uint32(View.ViewRect.Min.Y), uint32(View.ViewRect.Max.X), uint32(View.ViewRect.Max.Y));
 
@@ -2962,17 +2974,17 @@ FShadeBinning ShadeBinning(
 	const int32 QuadWidth = FMath::DivideAndRoundUp(View.ViewRect.Width(), 2);
 	const int32 QuadHeight = FMath::DivideAndRoundUp(View.ViewRect.Height(), 2);
 
-	const FIntVector QuadDispatchDim = FComputeShaderUtils::GetGroupCount(FIntPoint(QuadWidth, QuadHeight), FIntPoint(8u, 8u));
-	const FIntVector  BinDispatchDim = FComputeShaderUtils::GetGroupCount(ShadingBinCount, 64u);
+	const FIntVector  QuadDispatchDim = FComputeShaderUtils::GetGroupCount(FIntPoint(QuadWidth, QuadHeight), FIntPoint(8u, 8u));
+	const FIntVector   BinDispatchDim = FComputeShaderUtils::GetGroupCount(ShadingBinCount, 64u);
 
 	Binning.ShadingBinMeta   = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FUint32Vector4), FMath::RoundUpToPowerOfTwo(ShadingBinCount)), TEXT("Nanite.ShadingBinMeta"));
 	Binning.ShadingBinArgs   = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(0xFFFFu * 4u /* XYZ and Padding */), TEXT("Nanite.ShadingBinArgs"));
-	Binning.ShadingBinQuads  = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), PixelCount), TEXT("Nanite.ShadingBinQuads"));
+	Binning.ShadingBinData   = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), PixelCount), TEXT("Nanite.ShadingBinData"));
 	Binning.ShadingBinStats  = bGatherStats ? GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FUint32Vector4), 1u), TEXT("Nanite.ShadingBinStats")) : nullptr;
 
 	FRDGBufferUAVRef ShadingBinMetaUAV  = GraphBuilder.CreateUAV(Binning.ShadingBinMeta);
 	FRDGBufferUAVRef ShadingBinArgsUAV  = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Binning.ShadingBinArgs, PF_R32_UINT));
-	FRDGBufferUAVRef ShadingBinQuadsUAV = GraphBuilder.CreateUAV(Binning.ShadingBinQuads);
+	FRDGBufferUAVRef ShadingBinDataUAV = GraphBuilder.CreateUAV(Binning.ShadingBinData);
 	FRDGBufferUAVRef ShadingBinStatsUAV = bGatherStats ? GraphBuilder.CreateUAV(Binning.ShadingBinStats) : nullptr;
 
 	AddClearUAVPass(GraphBuilder, ShadingBinMetaUAV, 0);
@@ -2991,12 +3003,13 @@ FShadeBinning ShadeBinning(
 		PassParameters->ShadingMaskSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->ShadingMask = RasterResults.ShadingMask;
 		PassParameters->OutShadingBinMeta = ShadingBinMetaUAV;
-		PassParameters->OutShadingBinQuads = nullptr;
+		PassParameters->OutShadingBinData = nullptr;
 		PassParameters->OutShadingBinArgs = ShadingBinArgsUAV;
 
 		FShadingBinBuildCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FShadingBinBuildCS::FBuildPassDim>(NANITE_SHADING_BIN_COUNT);
 		PermutationVector.Set<FShadingBinBuildCS::FGatherStatsDim>(bGatherStats);
+		PermutationVector.Set<FShadingBinBuildCS::FQuadBinningDim>(bQuadBinning);
 		auto ComputeShader = View.ShaderMap->GetShader<FShadingBinBuildCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -3023,6 +3036,7 @@ FShadeBinning ShadeBinning(
 
 		FShadingBinReserveCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FShadingBinReserveCS::FGatherStatsDim>(bGatherStats);
+		PermutationVector.Set<FShadingBinReserveCS::FQuadBinningDim>(bQuadBinning);
 		auto ComputeShader = View.ShaderMap->GetShader<FShadingBinReserveCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -3044,7 +3058,7 @@ FShadeBinning ShadeBinning(
 		PassParameters->ShadingMaskSampler = TStaticSamplerState<SF_Point>::GetRHI(); 
 		PassParameters->ShadingMask = RasterResults.ShadingMask;
 		PassParameters->OutShadingBinMeta = ShadingBinMetaUAV;
-		PassParameters->OutShadingBinQuads = ShadingBinQuadsUAV;
+		PassParameters->OutShadingBinData = ShadingBinDataUAV;
 		PassParameters->OutShadingBinArgs = nullptr;
 
 		const bool bVariableRateShading = PassParameters->ShadingRateTileSize != 0u;
@@ -3052,6 +3066,7 @@ FShadeBinning ShadeBinning(
 		FShadingBinBuildCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FShadingBinBuildCS::FBuildPassDim>(NANITE_SHADING_BIN_SCATTER);
 		PermutationVector.Set<FShadingBinBuildCS::FGatherStatsDim>(false);
+		PermutationVector.Set<FShadingBinBuildCS::FQuadBinningDim>(bQuadBinning);
 		auto ComputeShader = View.ShaderMap->GetShader<FShadingBinBuildCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(

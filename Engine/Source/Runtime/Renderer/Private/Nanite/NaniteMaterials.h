@@ -482,7 +482,7 @@ struct FShadeBinning
 {
 	FRDGBufferRef ShadingBinMeta  = nullptr;
 	FRDGBufferRef ShadingBinArgs  = nullptr;
-	FRDGBufferRef ShadingBinQuads = nullptr;
+	FRDGBufferRef ShadingBinData = nullptr;
 	FRDGBufferRef ShadingBinStats = nullptr;
 };
 

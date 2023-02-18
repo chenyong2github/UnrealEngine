@@ -43,7 +43,7 @@ RWBuffer<uint> OutShadingBinArgs;
 #endif
 
 #if SHADING_BIN_SCATTER
-RWStructuredBuffer<uint> OutShadingBinQuads;
+RWStructuredBuffer<uint> OutShadingBinData;
 #endif
 
 #if SHADING_BIN_COUNT || SHADING_BIN_SCATTER
@@ -55,18 +55,24 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 	const uint ViewHeight = ViewRect.w - ViewRect.y;
 
 	const uint2 QuadTLCoord = uint2(ThreadGlobalId.xy << 1u) + uint2(ViewRect.xy);
-	const uint2 QuadTRCoord = QuadTLCoord + uint2(1, 0);
-	const uint2 QuadBLCoord = QuadTLCoord + uint2(0, 1);
-	const uint2 QuadBRCoord = QuadTLCoord + uint2(1, 1);
+
+	// .x = TL, .y = TR, .z = BL, .w = BR
+	const uint2 QuadCoords[4] =
+	{
+		QuadTLCoord,
+		QuadTLCoord + uint2(1, 0),
+		QuadTLCoord + uint2(0, 1),
+		QuadTLCoord + uint2(1, 1)
+	};
 
 #if GATHER4_OPTIMIZATION
 	uint4 QuadShadingMask = ShadingMask.GatherRed(ShadingMaskSampler, float2(QuadTLCoord + 0.5f) / float2(ViewRect.z, ViewRect.w)).wzxy;
 #else
 	uint4 QuadShadingMask;
-	QuadShadingMask.x = ShadingMask[QuadTLCoord];
-	QuadShadingMask.y = ShadingMask[QuadTRCoord];
-	QuadShadingMask.z = ShadingMask[QuadBLCoord];
-	QuadShadingMask.w = ShadingMask[QuadBRCoord];
+	QuadShadingMask.x = ShadingMask[QuadCoords[0]];
+	QuadShadingMask.y = ShadingMask[QuadCoords[1]];
+	QuadShadingMask.z = ShadingMask[QuadCoords[2]];
+	QuadShadingMask.w = ShadingMask[QuadCoords[3]];
 #endif
 
 	FShadingMask ShadingMaskTL = UnpackShadingMask(QuadShadingMask.x);
@@ -93,6 +99,8 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 		// Quad is entirely non-Nanite
 		return;
 	}
+
+	uint4 CopyMasks = uint4(0, 0, 0, 0);
 
 #if SHADING_BIN_SCATTER && VARIABLE_SHADING_RATE
 	uint WaveShadingRate = D3D12_SHADING_RATE_1X1;
@@ -139,13 +147,14 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 				}
 			}
 
-			const uint BinQuadCount = WaveActiveCountBits(Coverage != 0u);
-
-	#if SHADING_BIN_COUNT
-		#if GATHER_STATS
+		#if !QUAD_BINNING || GATHER_STATS
 			const uint SampleCount  = countbits(Coverage);
 			const uint BinSampleCount = WaveActiveSum(SampleCount);
 		#endif
+
+	#if QUAD_BINNING
+			const uint BinQuadCount = WaveActiveCountBits(Coverage != 0u);
+		#if SHADING_BIN_COUNT
 			if (WaveIsFirstLane())
 			{
 				InterlockedAdd(OutShadingBinMeta[CurrentBin].x, BinQuadCount);
@@ -153,7 +162,7 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 				InterlockedAdd(OutShadingBinMeta[CurrentBin].y, BinSampleCount);
 			#endif
 			}
-	#elif SHADING_BIN_SCATTER
+		#elif SHADING_BIN_SCATTER
 			uint WaveWriteOffset;
 			if (WaveIsFirstLane())
 			{
@@ -165,9 +174,36 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 			const uint QuadWriteOffset = WavePrefixCountBits(Coverage != 0u);
 			if (Coverage != 0u)
 			{
-				OutShadingBinQuads[WaveWriteOffset + QuadWriteOffset] = PackShadingQuad(QuadTLCoord, Coverage);
+				OutShadingBinData[WaveWriteOffset + QuadWriteOffset] = PackShadingQuad(QuadTLCoord, Coverage);
 			}
-	#endif
+		#endif
+	#else // QUAD_BINNING
+		#if SHADING_BIN_COUNT
+			if (WaveIsFirstLane())
+			{
+				InterlockedAdd(OutShadingBinMeta[CurrentBin].y, BinSampleCount);
+			}
+		#elif SHADING_BIN_SCATTER
+			uint WaveWriteOffset;
+			if (WaveIsFirstLane())
+			{
+				InterlockedAdd(OutShadingBinMeta[CurrentBin].y, BinSampleCount, WaveWriteOffset);
+				WaveWriteOffset += OutShadingBinMeta[CurrentBin].z;
+			}
+			WaveWriteOffset = WaveReadLaneFirst(WaveWriteOffset);
+
+			const uint LaneWriteOffset = WavePrefixSum(SampleCount);
+
+			UNROLL
+			for (uint SampleIndex = 0u; SampleIndex < 4u; ++SampleIndex)
+			{
+				if ((Coverage & (1u << SampleIndex)) != 0u)
+				{
+					OutShadingBinData[WaveWriteOffset + LaneWriteOffset + SampleIndex] = PackShadingPixel(QuadCoords[SampleIndex], CopyMasks[SampleIndex]);
+				}
+			}
+		#endif
+	#endif // QUAD_BINNING
 		}
 	}
 }
@@ -187,6 +223,7 @@ void ShadingBinReserveCS(uint ShadingBin : SV_DispatchThreadID)
 {
 	if (ShadingBin < ShadingBinCount)
 	{
+#if QUAD_BINNING
 		const uint BinQuadCount = OutShadingBinMeta[ShadingBin].x;
 
 		if (BinQuadCount > 0)
@@ -215,6 +252,27 @@ void ShadingBinReserveCS(uint ShadingBin : SV_DispatchThreadID)
 			InterlockedAdd(OutShadingBinStats[0].z, WaveBinHelperCount);
 		}
 	#endif
+#else // QUAD_BINNING
+		const uint BinPixelCount = OutShadingBinMeta[ShadingBin].y;
+
+		if (BinPixelCount > 0)
+		{
+			uint RangeStart;
+			InterlockedAdd(OutShadingBinAllocator[0], BinPixelCount, RangeStart);
+			OutShadingBinMeta[ShadingBin].y = 0;
+			OutShadingBinMeta[ShadingBin].z = RangeStart;
+		}
+
+		const uint ArgsOffset = ShadingBin * 4u;
+
+	#if GATHER_STATS
+		const uint WaveBinPixelCount = WaveActiveSum(BinPixelCount);
+		if (WaveIsFirstLane())
+		{
+			InterlockedAdd(OutShadingBinStats[0].y, WaveBinPixelCount);
+		}
+	#endif
+#endif // QUAD_BINNING
 
 		OutShadingBinArgs[ArgsOffset + 0] = (BinPixelCount + 63u) / 64u;	// ThreadGroupCountX
 		OutShadingBinArgs[ArgsOffset + 1] = 1;								// ThreadGroupCountY
