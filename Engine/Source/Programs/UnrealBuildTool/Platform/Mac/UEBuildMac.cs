@@ -223,7 +223,7 @@ namespace UnrealBuildTool
 			}
 			else if (DefaultArchitecture.Contains("host"))
 			{
-				if (MacExports.IsRunningOnAppleArchitecture && bSupportsArm64)
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac && MacExports.IsRunningOnAppleArchitecture && bSupportsArm64)
 				{
 					Architectures.Add(UnrealArch.Arm64);
 				}
