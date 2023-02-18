@@ -61,6 +61,13 @@ namespace UnrealBuildTool
 		[CommandLine("-NoCompileCommands")]
 		private bool bNoCompileCommands = false;
 
+		/// <summary>
+		/// Create a workspace file for use with VS Code extension that communicates directly with UBT. 
+		/// </summary>
+		[XmlConfigFile(Name = "UseVSCodeExtension")]
+		[CommandLine("-UseVSCodeExtension")]
+		private bool bUseVSCodeExtension = false;
+
 		private enum EPathType
 		{
 			Absolute,
@@ -246,7 +253,7 @@ namespace UnrealBuildTool
 
 		public override bool ShouldGenerateIntelliSenseData()
 		{
-			return !bNoCompileCommands;
+			return !bNoCompileCommands && !bUseVSCodeExtension;
 		}
 
 		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
@@ -734,11 +741,17 @@ namespace UnrealBuildTool
 				OutFile.AddField("intelliSenseMode", "clang-x64");
 			}
 
-			OutFile.AddField("configurationProvider", "epic.ue");
+			if (bUseVSCodeExtension)
+			{
+				OutFile.AddField("configurationProvider", "epic.ue");
+			}
 
-			FileReference CompileCommands = FileReference.Combine(OutputDirectory, string.Format("compileCommands_{0}.json", ProjectName));
-			WriteCompileCommands(CompileCommands, SourceFiles, CompilerPath!, ModuleCommandLines);
-			OutFile.AddField("compileCommands", MakePathString(CompileCommands, bInAbsolute: true, bForceSkipQuotes: true));
+			if (ShouldGenerateIntelliSenseData())
+			{
+				FileReference CompileCommands = FileReference.Combine(OutputDirectory, string.Format("compileCommands_{0}.json", ProjectName));
+				WriteCompileCommands(CompileCommands, SourceFiles, CompilerPath!, ModuleCommandLines);
+				OutFile.AddField("compileCommands", MakePathString(CompileCommands, bInAbsolute: true, bForceSkipQuotes: true));
+			}
 
 			OutFile.EndObject();
 		}
@@ -1058,9 +1071,12 @@ namespace UnrealBuildTool
 
 				OutFile.BeginArray("tasks");
 				{
-					foreach (ProjectData.Project NativeProject in ProjectData.NativeProjects)
+					if (!bUseVSCodeExtension)
 					{
-						WriteNativeTask(NativeProject, OutFile);
+						foreach (ProjectData.Project NativeProject in ProjectData.NativeProjects)
+						{
+							WriteNativeTask(NativeProject, OutFile);
+						}
 					}
 
 					foreach (ProjectData.Project CSharpProject in ProjectData.CSharpProjects)
@@ -1468,9 +1484,12 @@ namespace UnrealBuildTool
 
 				OutFile.BeginArray("configurations");
 				{
-					foreach (ProjectData.Project Project in ProjectData.NativeProjects)
+					if (!bUseVSCodeExtension)
 					{
-						WriteNativeLaunchConfig(Project, OutFile, Logger);
+						foreach (ProjectData.Project Project in ProjectData.NativeProjects)
+						{
+							WriteNativeLaunchConfig(Project, OutFile, Logger);
+						}
 					}
 
 					foreach (ProjectData.Project Project in ProjectData.CSharpProjects)
@@ -1623,6 +1642,21 @@ namespace UnrealBuildTool
 			{
 				// disable autodetect for typescript files to workaround slowdown in vscode as a result of parsing all files
 				WorkspaceFile.AddField("typescript.tsc.autoDetect", "off");
+				// disable npm script autodetect to avoid lag populating tasks list 
+				WorkspaceFile.AddField("npm.autoDetect", "off");
+
+				if (bUseVSCodeExtension)
+				{
+					WorkspaceFile.AddField("UE.loggingLevel", "Warning");
+					if (HostPlatform == UnrealTargetPlatform.Win64)
+					{
+						WorkspaceFile.AddField("UE.UBTScriptPath", MakePathString(FileReference.Combine(ProjectRoot, "Engine", "Build", "BatchFiles", "Build.bat"), true));
+					}
+					else
+					{
+						WorkspaceFile.AddField("UE.UBTScriptPath", MakePathString(FileReference.Combine(ProjectRoot, "Engine", "Build", "BatchFiles", HostPlatform.ToString(), "Build.sh"), true));
+					}
+				}
 			}
 			WorkspaceFile.EndObject();
 			
@@ -1636,6 +1670,11 @@ namespace UnrealBuildTool
 					// WorkspaceFile.AddUnnamedField("epic.vscode-ue");
 					WorkspaceFile.AddUnnamedField("ms-vscode.cpptools");
 					WorkspaceFile.AddUnnamedField("ms-dotnettools.csharp");
+
+					if (bUseVSCodeExtension)
+					{
+						WorkspaceFile.AddUnnamedField("epic.vscode-ue");
+					}
 
 					// If the platform we run the generator on uses mono, there are additional debugging extensions to add.
 					if (!RuntimePlatform.IsWindows)

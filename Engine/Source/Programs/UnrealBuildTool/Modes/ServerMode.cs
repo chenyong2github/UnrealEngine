@@ -96,7 +96,7 @@ namespace UnrealBuildTool
 		public CommandType Type { get { return CommandType.SetTarget; } }
 		public long Sequence { get; set; }
 	}
-	struct QueryFileResponse : ICommandResponse 
+	struct QueryFileResponse : ICommandResponse
 	{
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public CommandType Type { get { return CommandType.QueryFile; } }
@@ -110,22 +110,10 @@ namespace UnrealBuildTool
 		public CommandType Type { get { return CommandType.GetBrowseConfiguration; } }
 		public long Sequence { get; set; }
 		public bool Success { get; set; }
-		
+
 		public List<string> Paths { get; set; }
 		public string? Standard { get; set; }
-		public string? WindowsSdkVersion { get; set; } 
-	}
-
-	class CompileSettings
-	{
-		public List<string> IncludePaths { get; set; } = new();
-		public List<string> Defines { get; set; } = new();
-		public string? Standard { get; set; }
-		public List<string> ForcedIncludes { get; set; } = new();
-		public string? CompilerPath { get; set; }
-		public List<string> CompilerArgs { get; set; } = new();
 		public string? WindowsSdkVersion { get; set; }
-
 	}
 
 	class GetCompileSettingsResponse : ICommandResponse
@@ -133,42 +121,12 @@ namespace UnrealBuildTool
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public CommandType Type { get { return CommandType.GetCompileSettings; } }
 		public long Sequence { get; set; }
-		public List<CompileSettings?> Settings { get; set; } = new();
+		public List<TargetIntellisenseInfo.CompileSettings?> Settings { get; set; } = new();
 	}
 
-	internal class TargetIntellisenseInfo
-	{
-		public Dictionary<UEBuildModule, CompileSettings> ModuleToCompileSettings = new();
-		public Dictionary<DirectoryReference, UEBuildModule> DirToModule = new();
 
-		public UEBuildModule? FindModuleForFile(FileReference File)
-		{
-			DirectoryReference? Dir = File.Directory;
-			while (Dir != null)
-			{
-				if (DirToModule.TryGetValue(Dir, out UEBuildModule? Module))
-				{
-					return Module;
-				}
-				Dir = Dir.ParentDirectory;
-			}
-			return null;
-		}
-		public UEBuildModule? FindModuleForDirectory(DirectoryReference Directory)
-		{
-			DirectoryReference? Dir = Directory;
-			while (Dir != null)
-			{
-				if (DirToModule.TryGetValue(Dir, out UEBuildModule? Module))
-				{
-					return Module;
-				}
-				Dir = Dir.ParentDirectory;
-			}
-			return null;
-		}
-	}
-
+	// TODO: Deprecate 
+	[Obsolete]
 	[ToolMode("Server", ToolModeOptions.BuildPlatforms | ToolModeOptions.XmlConfig | ToolModeOptions.UseStartupTraceListener)]
 	class ServerMode : ToolMode
 	{
@@ -417,7 +375,7 @@ namespace UnrealBuildTool
 							BrowseConfigurationFolders.Add(Dir.ToString());
 						}
 
-						CompileSettings Settings = new CompileSettings();
+						var Settings = new TargetIntellisenseInfo.CompileSettings();
 						Settings.IncludePaths.AddRange(ModuleCompileEnvironment.SystemIncludePaths.Select(x => x.ToString()));
 						Settings.IncludePaths.AddRange(ModuleCompileEnvironment.UserIncludePaths.Select(x => x.ToString()));
 						Settings.Defines = ModuleCompileEnvironment.Definitions;
@@ -500,7 +458,7 @@ namespace UnrealBuildTool
 				GetCompileSettingsResponse Response = new GetCompileSettingsResponse { };
 				foreach (string AbsolutePath in Command.AbsolutePaths)
 				{
-					CompileSettings? Settings = null;
+					TargetIntellisenseInfo.CompileSettings? Settings = null;
 					var Path = System.IO.Path.GetFullPath(AbsolutePath); // convert absolute path to dos? 
 					UEBuildModule? Module = CurrentTargetIntellisenseInfo!.FindModuleForFile(new FileReference(Path));
 					if (Module is not null)
