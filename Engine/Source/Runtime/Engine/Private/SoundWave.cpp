@@ -4186,13 +4186,13 @@ int32 FSoundWaveProxy::GetNumFrames() const
 	return SoundWaveDataPtr->GetNumFrames();
 }
 
-uint32 FSoundWaveProxy::GetNumChunks()
+uint32 FSoundWaveProxy::GetNumChunks() const
 {
 	check(SoundWaveDataPtr);
 	return SoundWaveDataPtr->GetNumChunks();
 }
 
-const uint32 FSoundWaveProxy::GetNumChannels() const
+uint32 FSoundWaveProxy::GetNumChannels() const
 {
 	check(SoundWaveDataPtr);
 	return SoundWaveDataPtr->GetNumChannels();
