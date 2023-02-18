@@ -346,7 +346,7 @@ public:
 #endif
 
 #if WITH_EDITOR
-	void EnsureDataIsCooked(bool bInitResources, bool bIsTransacting, bool bIsPersistant);
+	void EnsureDataIsCooked(bool bInitResources, bool bIsTransacting, bool bIsPersistant, bool bAllowCopyFromDDC = true);
 #endif
 
 	/** Accessors for internal geometry collection */

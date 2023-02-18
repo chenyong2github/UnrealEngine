@@ -864,7 +864,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 		if (Ar.IsSaving() && !Ar.IsTransacting())
 		{
-			EnsureDataIsCooked(false /*bInitResourcs*/, Ar.IsTransacting(), Ar.IsPersistent());
+			EnsureDataIsCooked(false /*bInitResources*/, Ar.IsTransacting(), Ar.IsPersistent(), false /*bAllowCopyFromDDC*/);
 		}
 #endif
 		if (Ar.IsLoading())
@@ -1424,11 +1424,11 @@ bool UGeometryCollection::Modify(bool bAlwaysMarkDirty /*= true*/)
 	return bSuperResult;
 }
 
-void UGeometryCollection::EnsureDataIsCooked(bool bInitResources, bool bIsTransacting, bool bIsPersistant)
+void UGeometryCollection::EnsureDataIsCooked(bool bInitResources, bool bIsTransacting, bool bIsPersistant, bool bAllowCopyFromDDC)
 {
 	if (StateGuid != LastBuiltSimulationDataGuid)
 	{
-		CreateSimulationDataImp(/*bCopyFromDDC=*/ !bIsTransacting);
+		CreateSimulationDataImp(/*bCopyFromDDC=*/ bAllowCopyFromDDC && !bIsTransacting);
 		LastBuiltSimulationDataGuid = StateGuid;
 	}
 

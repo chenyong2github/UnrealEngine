@@ -276,7 +276,7 @@ void FMeshPaintGeometryCollectionComponentAdapter::PostEdit()
 		return;
 	}
 
-	GeometryCollectionComponent->MarkRenderStateDirty();
+	GetGeometryCollectionObject()->RebuildRenderData();
 }
 
 void FMeshPaintGeometryCollectionComponentAdapter::GetVertexColor(int32 VertexIndex, FColor& OutColor, bool bInstance /*= true*/) const
