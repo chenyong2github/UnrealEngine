@@ -5,6 +5,7 @@
 
 #include "NiagaraAsyncGpuTraceProvider.h"
 #include "NiagaraGpuScratchPad.h"
+#include "NiagaraSettings.h"
 
 #include "RHIDefinitions.h"
 
