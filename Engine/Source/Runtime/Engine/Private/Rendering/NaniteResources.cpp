@@ -2049,18 +2049,18 @@ uint32 FSceneProxy::GetMemoryFootprint() const
 
 void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit)
 {
-	// When all meshes are forced to Nanite, we want to silence warnings, and assume Nanite usage is forced on as well
-	bool bForceEnabled = false;
-	if (const Nanite::FResources* NaniteResources = Component->GetNaniteResources())
-	{
-		bForceEnabled = (NaniteResources->ResourceFlags & NANITE_RESOURCE_FLAG_FORCE_ENABLED) != 0u;
-	}
-
 	Audit.bHasAnyError = false;
 	Audit.Entries.Reset();
 
 	if (Component != nullptr)
 	{
+		// When all meshes are forced to Nanite, we want to silence warnings, and assume Nanite usage is forced on as well
+		bool bForceEnabled = false;
+		if (const Nanite::FResources* NaniteResources = Component->GetNaniteResources())
+		{
+			bForceEnabled = (NaniteResources->ResourceFlags & NANITE_RESOURCE_FLAG_FORCE_ENABLED) != 0u;
+		}
+
 		const int32 NumMaterials = Component->GetNumMaterials();
 		const TArray<FName> MaterialSlotNames = Component->GetMaterialSlotNames();
 		for (const FName& SlotName : MaterialSlotNames)
