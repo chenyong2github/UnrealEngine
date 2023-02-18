@@ -263,7 +263,22 @@ void FPackagesDialogModule::AddPackageItem(UPackage* InPackage, ECheckBoxState I
  */
 void FPackagesDialogModule::AddButton(EDialogReturnType Type, const FText& Name, const FText& ToolTip/*=FText()*/,  TAttribute<bool> Disabled /*= false*/)
 {
-	PackagesDialogWidget.Get()->AddButton(MakeShareable(new FPackageButton(this, Type, Name, ToolTip, Disabled)));
+	EDialogButtonStyle Style = (Type == DRT_Save) || (Type == DRT_CheckOut) ? DBS_Primary : DBS_Normal;
+	PackagesDialogWidget.Get()->AddButton(MakeShareable(new FPackageButton(this, Type, Style, Name, ToolTip, Disabled)));
+}
+
+/**
+ * Adds a new button to the package dialog window
+ *
+ * @param	Type		The type of this button
+ * @param	Style		The style of this button
+ * @param	Name		The name to display
+ * @param	ToolTip		The tooltip to display
+ * @param	Disabled	If the button should be disabled
+ */
+void FPackagesDialogModule::AddButton(EDialogReturnType Type, EDialogButtonStyle Style, const FText& Name, const FText& ToolTip/*=FText()*/, TAttribute<bool> Disabled /*= false*/)
+{
+	PackagesDialogWidget.Get()->AddButton(MakeShareable(new FPackageButton(this, Type, Style, Name, ToolTip, Disabled)));
 }
 
 /**

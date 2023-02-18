@@ -18,7 +18,14 @@ enum EDialogReturnType
 	DRT_MakeWritable,
 	DRT_Cancel,
 	DRT_Skip,
+	DRT_Revert,
 	DRT_None
+};
+
+enum EDialogButtonStyle
+{
+	DBS_Normal			= 0,
+	DBS_Primary,
 };
 
 class FPackagesDialogModule : public IModuleInterface
@@ -107,11 +114,13 @@ public:
 	 * Adds a new button to the package dialog window
 	 *
 	 * @param	Type		The type of this button
+	 * @param	ButtonStyle	The style of this button
 	 * @param	Name		The name to display
 	 * @param	ToolTip		The tooltip to display
 	 * @param	Disabled	If the button should be disabled
 	 */
 	virtual void AddButton(EDialogReturnType Type, const FText& Name, const FText& ToolTip = FText(), TAttribute<bool> Disabled = false);
+	virtual void AddButton(EDialogReturnType Type, EDialogButtonStyle ButtonStyle, const FText& Name, const FText& ToolTip = FText(), TAttribute<bool> Disabled = false);
 
 	/**
 	 * Override this to set whether your module is allowed to be unloaded on the fly

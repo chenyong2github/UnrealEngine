@@ -49,11 +49,12 @@ struct FKeyEvent;
 class FPackageButton : public TSharedFromThis<FPackageButton>
 {
 public:
-	FPackageButton(FPackagesDialogModule* InModule, EDialogReturnType InType, const FText& InName, const FText& InToolTip, TAttribute<bool> InDisabled = false)
+	FPackageButton(FPackagesDialogModule* InModule, EDialogReturnType InType, EDialogButtonStyle InStyle, const FText& InName, const FText& InToolTip, TAttribute<bool> InDisabled = false)
 		: Module(InModule)
 		, Name(InName)
 		, ToolTip(InToolTip)
 		, Type(InType)
+		, Style(InStyle)
 		, Clicked(false)
 		, Disabled(InDisabled)
 	{ }
@@ -99,9 +100,16 @@ public:
 	/**
 	 * Gets the type of the button
 	 *
-	 * @return the tupe of the button
+	 * @return the type of the button
 	 */
 	EDialogReturnType GetType() const { return Type; }
+
+	/**
+	 * Gets the style of the button
+	 *
+	 * @return the style of the button
+	 */
+	EDialogButtonStyle GetStyle() const { return Style; }
 
 	/**
 	 * Sets if the button should be disabled
@@ -129,6 +137,7 @@ private:
 	FText Name;						// Name of the button
 	FText ToolTip;					// Tool tip for this button
 	EDialogReturnType Type;			// Button type
+	EDialogButtonStyle Style;		// Button style
 	bool Clicked;					// Stores if the button was clicked to close the dialog
 	TAttribute<bool> Disabled;		// Stores if the button is disabled or not
 };

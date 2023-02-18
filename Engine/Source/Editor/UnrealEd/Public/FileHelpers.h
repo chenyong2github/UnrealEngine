@@ -656,6 +656,12 @@ private:
 	/** Prompts for package checkout without reentrance check */
 	static bool PromptToCheckoutPackagesInternal(bool bCheckDirty, const TArray<UPackage*>& PackagesToCheckOut, TArray<UPackage*>* OutPackagesCheckedOutOrMadeWritable, TArray<UPackage*>* OutPackagesNotNeedingCheckout, const bool bPromptingAfterModify, const bool bAllowSkip);
 
+	/** Tries to checkout packages without prompting and only prompts (for revert) if that fails */
+	static bool AutomaticCheckoutOrPromptToRevertPackages(const TArray<UPackage*>& PackagesToCheckOut, TArray<UPackage*>* OutPackagesCheckedOutOrMadeWritable, TArray<UPackage*>* OutPackagesNotNeedingCheckout, TArray<UPackage*>* OutPackagesToRevert);
+
+	/** Tries to make the given packages writable */
+	static void MakePackagesWritable(const TArray<UPackage*>& PackagesToMakeWritable, TArray<UPackage*>* OutPackagesMadeWritable, TArray<UPackage*>* OutPackagesMadeWritableFailed);
+
 	static bool bIsLoadingDefaultStartupMap;
 
 	/** Flag used to determine if the checkout and save prompt is already open to prevent re-entrance */
