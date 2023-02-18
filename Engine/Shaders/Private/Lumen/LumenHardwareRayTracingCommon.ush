@@ -195,7 +195,9 @@ struct FRayTracedLightingResult
 	bool bIsRadianceCompleted; // Is radiance computation completed or do we need a fallback shading pass
 	float3 Radiance;
 
+	float3 GeometryWorldNormal;
 	float3 WorldVelocity;
+
 	bool bValidSurfaceCache;
 	uint MaterialShaderIndex;
 	FLumenRayHitBookmark Bookmark;
@@ -211,6 +213,7 @@ FRayTracedLightingResult CreateRayTracedLightingResult()
 	Result.TraceHitDistance = 0;
 	Result.bIsRadianceCompleted = true;
 	Result.Radiance = 0;
+	Result.GeometryWorldNormal = 0.0f;
 	Result.WorldVelocity = 0;
 	Result.bValidSurfaceCache = false;
 	Result.MaterialShaderIndex = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
@@ -240,6 +243,7 @@ FRayTracedLightingResult CreateRayTracedLightingResult(
 		Result.Bookmark = MinimalRayResult.Bookmark;
 		Result.bIsRadianceCompleted = SurfaceCacheSample.bValid;
 		Result.Radiance = SurfaceCacheSample.Radiance;
+		Result.GeometryWorldNormal = MinimalRayResult.HitNormal;
 	}
 
 	if (MinimalRayResult.bHit && Context.bCalculateHitVelocity)
@@ -569,22 +573,22 @@ float3 CalculateRayTracedLighting(
 	}
 	else
 	{
-		float3 SurfaceCacheLookupNormal = RayHitWorldNormal;
-
-		// Reverse surface cache lookup normal to match non hit lighting path (usually surface cache is only valid on front faces)
-		if (Payload.IsTwoSided() && !Payload.IsFrontFace())
-		{
-			SurfaceCacheLookupNormal = -RayHitWorldNormal;
-		}
+		float3 RayHitGeometryWorldNormal = Payload.GetGeometryNormal();
 
 		// The Surface Cache lighting was computed using the front face, don't leak to the backface
-		if (dot(Ray.Direction, RayHitWorldNormal) <= 0 || Payload.IsTwoSided())
+		if (dot(Ray.Direction, RayHitGeometryWorldNormal) <= 0 || Payload.IsTwoSided())
 		{
+			// Reverse surface cache lookup normal to match non hit lighting path (usually surface cache is only valid on front faces)
+			if (Payload.IsTwoSided() && !Payload.IsFrontFace())
+			{
+				RayHitGeometryWorldNormal = -RayHitGeometryWorldNormal;
+			}
+
 			FSurfaceCacheSample SurfaceCacheSample = CalculateSurfaceCacheLighting(
 				Ray,
 				Context,
 				RayHitTranslatedWorldPosition,
-				SurfaceCacheLookupNormal,
+				RayHitGeometryWorldNormal,
 				HitDistance,
 				SceneInstanceIndex);
 
@@ -637,6 +641,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 		uint SceneInstanceIndex = Payload.GetSceneInstanceIndex();
 		Result.TraceHitDistance = Payload.HitT;
 		Result.Radiance = CalculateRayTracedLighting(Ray, Context, Payload, Result.TraceHitDistance, SceneInstanceIndex, LightingMode);
+		Result.GeometryWorldNormal = Payload.GetGeometryNormal();
 	}
 
 	return Result;

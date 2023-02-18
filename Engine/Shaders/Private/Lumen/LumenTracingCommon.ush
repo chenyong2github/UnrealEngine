@@ -123,6 +123,7 @@ struct FConeTraceResult
 	float OpaqueHitDistance;
 	float ExpandSurfaceAmount;
 	float3 Debug;
+	float3 GeometryWorldNormal;
 	float3 WorldVelocity;
 };
 
@@ -666,7 +667,7 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 	OutResult.OpaqueHitDistance = TraceMeshSDFResult.HitDistance;
 }
 
-float3 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTraceResult SDFTraceResult)
+void EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTraceResult SDFTraceResult, inout FConeTraceResult ConeTraceResult)
 {
 	const float3 SampleWorldPosition = TraceInput.ConeOrigin + TraceInput.ConeDirection * SDFTraceResult.HitTime;
 	const float3 SampleTranslatedWorldPosition = TraceInput.ConeTranslatedOrigin + TraceInput.ConeDirection * SDFTraceResult.HitTime;
@@ -785,7 +786,10 @@ float3 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTrac
 		Radiance = RadianceFactor * SurfaceCacheSample.Radiance;
 	}
 
-	return Radiance;
+	ConeTraceResult.Lighting = Radiance;
+	ConeTraceResult.Transparency = 0.0f;
+	ConeTraceResult.OpaqueHitDistance = SDFTraceResult.HitTime;
+	ConeTraceResult.GeometryWorldNormal = SampleWorldNormal;
 }
 
 /**
@@ -809,17 +813,15 @@ void RayTraceGlobalDistanceField(
 	}
 
 	OutResult = (FConeTraceResult)0;
-	OutResult.Lighting = 0.0f;
+	OutResult.Lighting = float3(0.0f, 0.0f, 0.0f);
 	OutResult.Transparency = 1.0f;
-	OutResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
 	OutResult.NumSteps = SDFTraceResult.TotalStepsTaken;
+	OutResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
 	OutResult.ExpandSurfaceAmount = SDFTraceResult.ExpandSurfaceAmount;
 
 	if (GlobalSDFTraceResultIsHit(SDFTraceResult))
 	{
-		OutResult.Lighting = EvaluateGlobalDistanceFieldHit(TraceInput, SDFTraceResult);
-		OutResult.Transparency = 0.0f;
-		OutResult.OpaqueHitDistance = SDFTraceResult.HitTime;
+		EvaluateGlobalDistanceFieldHit(TraceInput, SDFTraceResult, OutResult);
 	}
 }
 
@@ -903,6 +905,8 @@ void ConeTraceLumenSceneVoxels(
 		OutResult.Transparency *= VoxelTraceResult.Transparency;
 		OutResult.NumSteps += VoxelTraceResult.NumSteps;
 		OutResult.OpaqueHitDistance = min(OutResult.OpaqueHitDistance, VoxelTraceResult.OpaqueHitDistance);
+		OutResult.GeometryWorldNormal = VoxelTraceResult.GeometryWorldNormal;
+		OutResult.WorldVelocity = VoxelTraceResult.WorldVelocity;
 	}
 #endif
 }

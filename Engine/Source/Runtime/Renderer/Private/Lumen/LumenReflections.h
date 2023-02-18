@@ -75,6 +75,7 @@ namespace LumenReflections
 	bool IsHitLightingForceEnabled(const FViewInfo& View);
 	bool UseHitLightingForReflections(const FViewInfo& View);
 	bool UseSurfaceCacheFeedback();
+	float GetSampleSceneColorNormalTreshold();
 };
 
 extern void TraceReflections(

@@ -1613,7 +1613,7 @@ namespace Strata
 	static uint32 InternalGetRayTracingMaterialPayloadSizeInBytes(uint32 InBytePerPixels, uint32 InNormalQuality)
 	{
 		// If Strata is enabled, resize the payload accordingly to the byte per pixel request
-		const uint32 HeaderPayload = sizeof(uint32) * (5u); // See FPackedMaterialClosestHitPayload in RayTracingCommon.ush
+		const uint32 HeaderPayload = sizeof(uint32) * (6u); // See FPackedMaterialClosestHitPayload in RayTracingCommon.ush
 		const uint32 TopNormalPayload = sizeof(uint32) * (InNormalQuality == 1 ? 2u : 1u);
 
 		return HeaderPayload + TopNormalPayload + InBytePerPixels;

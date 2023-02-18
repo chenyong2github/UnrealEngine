@@ -7,6 +7,7 @@
 #pragma once
 
 #include "../Common.ush"
+#include "LumenMaterial.ush"
 #include "../FastMath.ush"
 #include "../SceneTextureParameters.ush"
 
@@ -302,7 +303,9 @@ float4 PrevScreenPositionScaleBias;
 float4 PrevScreenPositionScaleBiasForDepth;
 float PrevSceneColorPreExposureCorrection;
 
-void SampleSceneColorAtHit(float3 HitTranslatedWorldPosition, uint2 SvPosition, float RelativeDepthThickness, inout float3 Lighting)
+float SampleSceneColorNormalTreshold;
+
+void SampleSceneColorAtHit(float3 HitTranslatedWorldPosition, float3 HitGeometryWorldNormal, uint2 SvPosition, float RelativeDepthThickness, inout float3 Lighting)
 {
 	float4 HitClipPosition = mul(float4(HitTranslatedWorldPosition, 1.0f), View.TranslatedWorldToClip);
 
@@ -317,7 +320,11 @@ void SampleSceneColorAtHit(float3 HitTranslatedWorldPosition, uint2 SvPosition, 
 			float HitSceneDepth = ConvertFromDeviceZ(HitDeviceZ);
 			float RayHitSceneDepth = HitClipPosition.w;
 
-			if (abs(RayHitSceneDepth - HitSceneDepth) < RelativeDepthThickness * max(HitSceneDepth, .00001f))
+			FLumenMaterialData LumenMaterial = ReadMaterialData(HitScreenUV * View.BufferSizeAndInvSize.xy, HitScreenUV);
+
+			// Discard screen points which are either too far or face the other direction
+			if (abs(RayHitSceneDepth - HitSceneDepth) < RelativeDepthThickness * max(HitSceneDepth, .00001f)
+				&& dot(LumenMaterial.WorldNormal, HitGeometryWorldNormal) >= SampleSceneColorNormalTreshold)
 			{
 				float3 HitHistoryScreenPosition = GetPrevScreenPosition(HitScreenPosition, HitScreenUV, HitDeviceZ);
 

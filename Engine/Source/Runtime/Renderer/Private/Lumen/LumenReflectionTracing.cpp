@@ -100,6 +100,19 @@ FAutoConsoleVariableRef GVarLumenReflectionSampleSceneColorRelativeDepthThreshol
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarLumenReflectionsSampleSceneColorNormalTreshold(
+	TEXT("r.Lumen.Reflections.SampleSceneColorNormalTreshold"),
+	85.0f,
+	TEXT("Normal threshold in degrees that controls how close ray hit normal and screen normal have to be, before sampling SceneColor is allowed. 0 - only exactly matching normals allowed. 180 - all normals allowed."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float LumenReflections::GetSampleSceneColorNormalTreshold()
+{
+	const float Radians = FMath::DegreesToRadians(FMath::Clamp(CVarLumenReflectionsSampleSceneColorNormalTreshold.GetValueOnRenderThread(), 0.0f, 180.0f));
+	return FMath::Cos(Radians);
+}
+
 class FReflectionClearTracesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FReflectionClearTracesCS)
@@ -377,6 +390,7 @@ class FReflectionTraceVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHZBScreenTraceParameters, HZBScreenTraceParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER(float, RelativeDepthThickness)
+		SHADER_PARAMETER(float, SampleSceneColorNormalTreshold)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FThreadGroupSize32 : SHADER_PERMUTATION_BOOL("THREADGROUP_SIZE_32");
@@ -845,6 +859,7 @@ void TraceReflections(
 			}
 
 			PassParameters->RelativeDepthThickness = GLumenReflectionSampleSceneColorRelativeDepthThreshold;
+			PassParameters->SampleSceneColorNormalTreshold = LumenReflections::GetSampleSceneColorNormalTreshold();
 
 			FReflectionTraceVoxelsCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set< FReflectionTraceVoxelsCS::FThreadGroupSize32 >(Lumen::UseThreadGroupSize32());

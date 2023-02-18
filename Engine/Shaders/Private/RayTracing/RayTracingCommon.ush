@@ -400,6 +400,23 @@ float3 TLASWorldToTranslatedWorld(float3 TLASWorldPosition)
 	return TranslatedWorldPosition;
 }
 
+// Pack normal vector into an uint32 using Octahedron encoding
+uint PackNormalToUInt32(float3 Normal)
+{
+	float2 NormalAsOctahedron = UnitVectorToOctahedron(Normal);
+	uint2 QuantizedOctahedron = clamp((NormalAsOctahedron * 0.5 + 0.5) * 65535.0 + 0.5, 0.0, 65535.0);
+	return ((QuantizedOctahedron.x & 0xFFFF) << 16) | (QuantizedOctahedron.y & 0xFFFF);
+}
+
+// Pack normal vector into from an uint32 using Octahedron encoding
+float3 UnpackNormalFromUInt32(uint PackedNormal)
+{
+	uint2 QuantizedOctahedron = uint2((PackedNormal >> 16) & 0xFFFF, PackedNormal & 0xFFFF);
+	float2 WorldNormalAsOctahedron = ((QuantizedOctahedron / 65535.0) - 0.5) * 2.0;
+	float3 WorldNormal = OctahedronToUnitVector(WorldNormalAsOctahedron);
+	return WorldNormal;
+}
+
 #if !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
 
 struct FRayDesc
@@ -541,10 +558,11 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	uint PackedRayCone;                                  // 4  bytes (fp16 width, fp16 spread) aliased with RayDirection for MS lighting payload
 	uint Flags;											 // 4  bytes (see layout above)
 	uint Radiance;										 // 4  bytes
+	uint PackedGeometryNormal;							 // 4  bytes
 	uint SceneInstanceIndex;                             // 4  bytes - GPUSceneInstanceIndex
-														 //=24 bytes
+														 //=28 bytes - must be in sync with HeaderPayload in InternalGetRayTracingMaterialPayloadSizeInBytes()
 	FStrataRaytracingPayload StrataData;				 // 44 bytes
-														 //=64 bytes total
+														 //=68 bytes total
 
 	void SetMinimalPayloadMode()			{ Flags |= RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD; }
 	bool IsMinimalPayloadMode()				{ return (Flags & RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD) != 0; }
@@ -571,8 +589,16 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	float3 GetIndirectIrradiance()			{ return 0.f; }
 
 	float3 GetWorldNormal()					{ return StrataUnpackTopLayerData(StrataData.PackedTopLayerData).WorldNormal; }
-	float3 GetGeometryNormal()				{ return GetWorldNormal(); }
-	void   SetGeometryNormal(float3 In)		{ }
+
+	void SetGeometryNormal(float3 GeometryNormal) 
+	{
+		PackedGeometryNormal = PackNormalToUInt32(GeometryNormal); 
+	}
+
+	float3 GetGeometryNormal()
+	{ 
+		return UnpackNormalFromUInt32(PackedGeometryNormal); 
+	}
 
 	bool IsValid()							{ return any(StrataData.PackedTopLayerData != 0); }
 	uint  GetShadingModelID()				{ return IsValid() ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT; }
@@ -706,7 +732,7 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	uint PackedIndirectIrradiance[2];                    // 8  bytes
 	uint PackedCustomData;                               // 4  bytes
 	uint WorldTangentAndAnisotropy[2];                   // 8  bytes
-	uint Unused;                                         // 4  bytes (available for future extension)
+	uint PackedGeometryNormal;                           // 4  bytes
 	                                                     // 64 bytes total
 
 	void SetMinimalPayloadMode() { IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask |= RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD << 23; }
@@ -827,13 +853,15 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 
 	void SetGeometryNormal(float3 GeometryNormal)
 	{
-		RadianceAndNormal[1] |= f32tof16(GeometryNormal.x) << 16;
-		RadianceAndNormal[2] = f32tof16(GeometryNormal.y);
-		RadianceAndNormal[2] |= f32tof16(GeometryNormal.z) << 16;
+		PackedGeometryNormal = PackNormalToUInt32(GeometryNormal);
+	}
+
+	float3 GetGeometryNormal() 
+	{ 
+		return UnpackNormalFromUInt32(PackedGeometryNormal);
 	}
 
 	int GetSceneInstanceIndex() { return WorldTangentAndAnisotropy[1]; }
-	float3 GetGeometryNormal() { return GetWorldNormal(); }
 };
 
 FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayload Input, in FRayCone RayCone)

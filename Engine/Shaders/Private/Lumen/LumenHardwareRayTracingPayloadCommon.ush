@@ -48,17 +48,12 @@ struct FLumenMinimalPayload : FMinimalPayload
 
 	void SetWorldNormal(float3 WorldNormal)
 	{
-		float2 WorldNormalAsOctahedron = UnitVectorToOctahedron(WorldNormal);
-		uint2 QuantizedOctahedron = clamp((WorldNormalAsOctahedron * 0.5 + 0.5) * 65535.0 + 0.5, 0.0, 65535.0);
-		PackedData[NORMAL_INDEX] = ((QuantizedOctahedron.x & 0xFFFF) << 16) | (QuantizedOctahedron.y & 0xFFFF);
+		PackedData[NORMAL_INDEX] = PackNormalToUInt32(WorldNormal);
 	}
 
 	float3 GetWorldNormal()
 	{
-		uint2 QuantizedOctahedron = uint2((PackedData[NORMAL_INDEX] >> 16) & 0xFFFF, PackedData[NORMAL_INDEX] & 0xFFFF);
-		float2 WorldNormalAsOctahedron = ((QuantizedOctahedron / 65535.0) - 0.5) * 2.0;
-		float3 WorldNormal = OctahedronToUnitVector(WorldNormalAsOctahedron);
-		return WorldNormal;
+		return UnpackNormalFromUInt32(PackedData[NORMAL_INDEX]);
 	}
 
 	void SetPrimitiveIndex(int PrimitiveIndex)

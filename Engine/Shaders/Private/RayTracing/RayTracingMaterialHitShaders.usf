@@ -585,6 +585,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		const int PrimitiveIndex = GetInstanceUserData();
 		const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
 		PackedPayload.SetSceneInstanceIndex(GetGPUSceneInstanceIndex(PrimitiveIndex, PrimitiveInstanceIndex));
+		PackedPayload.SetGeometryNormal(GeoNormal);
 	}
 
 #endif // USE_MATERIAL_CLOSEST_HIT_SHADER

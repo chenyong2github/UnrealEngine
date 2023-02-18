@@ -188,6 +188,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		TraceResult.Lighting = Result.Radiance;
 		TraceResult.Transparency = 1;
 		TraceResult.OpaqueHitDistance = Result.TraceHitDistance;
+		TraceResult.GeometryWorldNormal = Result.GeometryWorldNormal;
 
 #if DIM_WRITE_FINAL_LIGHTING
 
@@ -225,7 +226,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		if (Result.bIsHit && SampleSceneColor > 0)
 		{
 			float3 HitTranslatedWorldPosition = Ray.Origin + Ray.Direction * TraceResult.OpaqueHitDistance;
-			SampleSceneColorAtHit(HitTranslatedWorldPosition, ReflectionTracingCoord.Coord, RelativeDepthThickness, TraceResult.Lighting);
+			SampleSceneColorAtHit(HitTranslatedWorldPosition, TraceResult.GeometryWorldNormal, ReflectionTracingCoord.Coord, RelativeDepthThickness, TraceResult.Lighting);
 		}
 #endif
 
