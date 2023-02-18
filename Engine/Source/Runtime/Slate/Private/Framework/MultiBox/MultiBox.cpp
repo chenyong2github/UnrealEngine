@@ -954,7 +954,6 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 	TSharedPtr<SHorizontalBox> ButtonRow;
 
 	TSharedPtr< STileView< TSharedPtr<SWidget> > > TileView;
-	const FToolBarStyle& Style = StyleSet->GetWidgetStyle<FToolBarStyle>(MultiBox->GetStyleName());
 
 	switch (MultiBox->GetType())
 	{
@@ -1001,6 +1000,8 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 		// @TODO: ~Move hardcodes into styling file
 	case EMultiBoxType::SlimHorizontalUniformToolBar:
 		{
+			const FToolBarStyle& Style = StyleSet->GetWidgetStyle<FToolBarStyle>(MultiBox->GetStyleName());
+			
 			MainWidget = VerticalBox = SNew (SVerticalBox)
 
 			+SVerticalBox::Slot()
