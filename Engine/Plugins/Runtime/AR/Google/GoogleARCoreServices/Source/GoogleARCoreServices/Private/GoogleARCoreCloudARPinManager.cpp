@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GoogleARCoreCloudARPinManager.h"
+#include "IXRTrackingSystem.h"
+
 #if PLATFORM_ANDROID
 #include "arcore_c_api.h"
 #elif PLATFORM_IOS
