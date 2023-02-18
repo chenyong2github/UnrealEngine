@@ -30,8 +30,6 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"AssetTools",
 				});
-
-			PrivateIncludePaths.Add("BlackmagicMediaEditor/Private");
 		}
 	}
 }

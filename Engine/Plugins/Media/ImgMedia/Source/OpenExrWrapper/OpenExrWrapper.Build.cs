@@ -29,8 +29,6 @@ namespace UnrealBuildTool.Rules
             {
                 System.Console.WriteLine("OpenExrWrapper does not supported this platform");
             }
-
-			PrivateIncludePaths.Add("OpenExrWrapper/Private");
         }
 	}
 }

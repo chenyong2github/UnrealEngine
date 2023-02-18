@@ -10,7 +10,6 @@ public class BuildPatchTool : ModuleRules
 
 		// For LaunchEngineLoop.cpp include
 		PrivateIncludePaths.Add("Runtime/Launch/Private");
-		PrivateIncludePaths.Add("Programs/BuildPatchTool/Private");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]

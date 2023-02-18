@@ -6,8 +6,6 @@ public class TimecodeSynchronizerEditor : ModuleRules
 {
 	public TimecodeSynchronizerEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("TimecodeSynchronizerEditor/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"AssetTools",

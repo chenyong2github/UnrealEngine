@@ -28,12 +28,6 @@ public class ActorSequenceEditor : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"ActorSequenceEditor/Private",
-			}
-		);
-
 		var DynamicModuleNames = new string[] {
 			"LevelEditor",
 			"PropertyEditor",

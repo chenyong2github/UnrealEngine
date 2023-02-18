@@ -31,8 +31,6 @@ namespace UnrealBuildTool.Rules
 					"AjaCore",
 					"AssetTools"
 				});
-
-			PrivateIncludePaths.Add("AjaMediaEditor/Private");
 		}
 	}
 }

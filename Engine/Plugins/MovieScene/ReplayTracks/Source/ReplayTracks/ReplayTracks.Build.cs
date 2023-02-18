@@ -6,8 +6,6 @@ public class ReplayTracks : ModuleRules
 {
 	public ReplayTracks(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("ReplayTracks/Private");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

@@ -22,7 +22,6 @@ namespace UnrealBuildTool.Rules
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "Imath");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "UEOpenExr");
 				PrivateDependencyModuleNames.Add("OpenExrWrapper");
-				PrivateIncludePaths.Add("ExrReaderGpu/Private");
 			}
 		}
 	}

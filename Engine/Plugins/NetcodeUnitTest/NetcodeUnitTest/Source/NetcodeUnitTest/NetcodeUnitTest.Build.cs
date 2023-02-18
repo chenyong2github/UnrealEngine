@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public NetcodeUnitTest(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("NetcodeUnitTest/Private");
-
 			PublicDependencyModuleNames.AddRange
 			(
 				new string[]

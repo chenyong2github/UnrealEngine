@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public NUTUnrealEngine(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("NUTUnrealEngine/Private");
-
 			PublicDependencyModuleNames.AddRange
 			(
 				new string[]

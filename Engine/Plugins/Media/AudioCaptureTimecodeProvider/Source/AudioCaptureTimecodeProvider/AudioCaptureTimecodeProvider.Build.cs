@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public AudioCaptureTimecodeProvider(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("AudioCaptureTimecodeProvider/Private");
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

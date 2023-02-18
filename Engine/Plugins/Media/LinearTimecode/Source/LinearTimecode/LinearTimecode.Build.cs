@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public LinearTimecode(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("LinearTimecode/Private");
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

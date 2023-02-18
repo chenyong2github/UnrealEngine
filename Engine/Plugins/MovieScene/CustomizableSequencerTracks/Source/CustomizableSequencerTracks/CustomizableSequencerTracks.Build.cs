@@ -8,12 +8,6 @@ public class CustomizableSequencerTracks : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"CustomizableSequencerTracks/Private",
-			}
-		);
-
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
