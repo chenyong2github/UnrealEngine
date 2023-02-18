@@ -140,6 +140,8 @@ protected:
 	int32 AllocatedCulledCounts = 0;
 	/** Whether or not the culled counts were acquired this frame */
 	bool bAcquiredCulledCounts = false;
+	/** Used to track RHI access for the culled counts buffer. */
+	ERHIAccess CulledCountsRHIAccess = ERHIAccess::Unknown;
 
 	/** A buffer holding the each emitter particle count after a simulation tick. */
 	FRWBuffer CountBuffer;
