@@ -2085,6 +2085,9 @@ void UGeometryCollectionComponent::GetRestTransforms(TArray<FMatrix44f>& OutRest
 {
 	TArray<FMatrix> RestMatrices;
 	GeometryCollectionAlgo::GlobalMatrices(RestCollection->GetGeometryCollection()->Transform, RestCollection->GetGeometryCollection()->Parent, RestMatrices);
+#if WITH_EDITOR
+	UpdateGlobalMatricesWithExplodedVectors(RestMatrices, *(RestCollection->GetGeometryCollection()));
+#endif
 	CopyTransformsWithConversionWhenNeeded(OutRestTransforms, RestMatrices);
 }
 
