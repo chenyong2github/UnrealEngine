@@ -47,7 +47,7 @@ namespace UE::PoseSearch
 		int32 IndexAssetIndex = INDEX_NONE;
 		int32 CurrentPoseIndex = INDEX_NONE;
 
-		FInstancedStruct Sampler;
+		TSharedPtr<FAssetSamplerBase> Sampler;
 
 		bool IsValid() const;
 		void Process();

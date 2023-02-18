@@ -288,7 +288,7 @@ void FPoseHistory::DebugDraw(const UWorld* World, const USkeleton* Skeleton) con
 			{
 				const FTransform GlobalTransforms = Entry.ComponentSpaceTransforms[i] * Entry.RootTransform;
 
-				DrawDebugLine(World, PrevGlobalTransforms[i].GetLocation(), GlobalTransforms.GetLocation(), Color, false, 0.f, ESceneDepthPriorityGroup::SDPG_Foreground + 2);
+				DrawDebugLine(World, PrevGlobalTransforms[i].GetTranslation(), GlobalTransforms.GetTranslation(), Color, false, 0.f, ESceneDepthPriorityGroup::SDPG_Foreground + 2);
 
 				PrevGlobalTransforms[i] = GlobalTransforms;
 			}

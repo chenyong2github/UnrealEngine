@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchFeatureChannel_Phase.h"
-#include "DrawDebugHelpers.h"
 #include "PoseSearch/PoseSearchAssetIndexer.h"
 #include "PoseSearch/PoseSearchAssetSampler.h"
 #include "PoseSearch/PoseSearchContext.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
+#if WITH_EDITOR
 namespace UE::PoseSearch
 {
 	struct LocalMinMax
@@ -40,7 +40,7 @@ namespace UE::PoseSearch
 		return (Values[Num - 1] - Values[Num - 2]) * (Sample - (Num - 1)) + Values[Num - 1];
 	}
 
-	static void CollectBonePositions(TArray<FVector>& BonePositions, IAssetIndexer& Indexer, int8 SchemaBoneIdx)
+	static void CollectBonePositions(TArray<FVector>& BonePositions, FAssetIndexer& Indexer, int8 SchemaBoneIdx)
 	{
 		const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
 		const float FiniteDelta = IndexingContext.Schema->GetSamplingInterval();
@@ -282,6 +282,7 @@ namespace UE::PoseSearch
 	}
 
 } // namespace UE::PoseSearch
+#endif // WITH_EDITOR
 
 void UPoseSearchFeatureChannel_Phase::Finalize(UPoseSearchSchema* Schema)
 {
@@ -291,6 +292,7 @@ void UPoseSearchFeatureChannel_Phase::Finalize(UPoseSearchSchema* Schema)
 	SchemaBoneIdx = Schema->AddBoneReference(Bone);
 }
 
+#if WITH_EDITOR
 void UPoseSearchFeatureChannel_Phase::FillWeights(TArray<float>& Weights) const
 {
 	for (int32 i = 0; i < ChannelCardinality; ++i)
@@ -299,7 +301,7 @@ void UPoseSearchFeatureChannel_Phase::FillWeights(TArray<float>& Weights) const
 	}
 }
 
-void UPoseSearchFeatureChannel_Phase::IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const
+void UPoseSearchFeatureChannel_Phase::IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const
 {
 	using namespace UE::PoseSearch;
 
@@ -341,6 +343,7 @@ void UPoseSearchFeatureChannel_Phase::IndexAsset(UE::PoseSearch::IAssetIndexer& 
 		FFeatureVectorHelper::EncodeVector2D(IndexingContext.GetPoseVector(VectorIdx, FeatureVectorTable), ChannelDataOffset, Phases[VectorIdx]);
 	}
 }
+#endif // WITH_EDITOR
 
 void UPoseSearchFeatureChannel_Phase::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
@@ -364,9 +367,9 @@ void UPoseSearchFeatureChannel_Phase::BuildQuery(UE::PoseSearch::FSearchContext&
 	}
 }
 
+#if ENABLE_DRAW_DEBUG
 void UPoseSearchFeatureChannel_Phase::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
 {
-#if ENABLE_DRAW_DEBUG
 	using namespace UE::PoseSearch;
 
 	static float ScaleFactor = 1.f;
@@ -390,8 +393,8 @@ void UPoseSearchFeatureChannel_Phase::DebugDraw(const UE::PoseSearch::FDebugDraw
 	FMatrix CircleTransform;
 	CircleTransform.SetAxes(&TransformXAxisVector, &TransformYAxisVector, &TransformZAxisVector, &BonePos);
 	DrawDebugCircle(DrawParams.World, CircleTransform, PhaseVector.Length(), Segments, Color, bPersistent, LifeTime, DepthPriority, 0.f, false);
-#endif // ENABLE_DRAW_DEBUG
 }
+#endif // ENABLE_DRAW_DEBUG
 
 #if WITH_EDITOR
 FString UPoseSearchFeatureChannel_Phase::GetLabel() const

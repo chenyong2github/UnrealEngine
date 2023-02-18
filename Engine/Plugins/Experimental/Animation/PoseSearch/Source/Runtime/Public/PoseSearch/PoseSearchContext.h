@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DrawDebugHelpers.h"
 #include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchIndex.h"
 #include "PoseSearch/PoseSearchResult.h"
@@ -115,7 +116,7 @@ private:
 	TArray<FCachedTransform<FTransformType>, TInlineAllocator<64>> CachedTransforms;
 };
 
-// @todo: FDebugDrawParams should be enclosed with #if ENABLE_DRAW_DEBUG
+#if ENABLE_DRAW_DEBUG
 struct POSESEARCH_API FDebugDrawParams
 {
 	const UWorld* World = nullptr;
@@ -146,10 +147,11 @@ private:
 POSESEARCH_API void DrawFeatureVector(FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector);
 POSESEARCH_API void DrawFeatureVector(FDebugDrawParams& DrawParams, int32 PoseIdx);
 
+#endif // ENABLE_DRAW_DEBUG
+
 struct POSESEARCH_API FSearchContext
 {
 	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
-	FDebugDrawParams DebugDrawParams;
 	const FPoseHistory* History = nullptr;
 	const FTrajectorySampleRange* Trajectory = nullptr;
 	FSearchResult CurrentResult;

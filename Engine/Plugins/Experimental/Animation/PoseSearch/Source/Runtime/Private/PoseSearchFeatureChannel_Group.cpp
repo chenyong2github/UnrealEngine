@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchFeatureChannel_Group.h"
-#include "DrawDebugHelpers.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
 void UPoseSearchFeatureChannel_GroupBase::Finalize(UPoseSearchSchema* Schema)
@@ -17,6 +16,7 @@ void UPoseSearchFeatureChannel_GroupBase::Finalize(UPoseSearchSchema* Schema)
 	ChannelCardinality = Schema->SchemaCardinality - ChannelDataOffset;
 }
 
+#if WITH_EDITOR
 void UPoseSearchFeatureChannel_GroupBase::FillWeights(TArray<float>& Weights) const
 {
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
@@ -28,7 +28,7 @@ void UPoseSearchFeatureChannel_GroupBase::FillWeights(TArray<float>& Weights) co
 	}
 }
 
-void UPoseSearchFeatureChannel_GroupBase::IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const
+void UPoseSearchFeatureChannel_GroupBase::IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const
 {
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
@@ -38,6 +38,7 @@ void UPoseSearchFeatureChannel_GroupBase::IndexAsset(UE::PoseSearch::IAssetIndex
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 void UPoseSearchFeatureChannel_GroupBase::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
@@ -50,9 +51,9 @@ void UPoseSearchFeatureChannel_GroupBase::BuildQuery(UE::PoseSearch::FSearchCont
 	}
 }
 
+#if ENABLE_DRAW_DEBUG
 void UPoseSearchFeatureChannel_GroupBase::PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
 {
-#if ENABLE_DRAW_DEBUG
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
@@ -60,12 +61,10 @@ void UPoseSearchFeatureChannel_GroupBase::PreDebugDraw(UE::PoseSearch::FDebugDra
 			SubChannel->PreDebugDraw(DrawParams, PoseVector);
 		}
 	}
-#endif // ENABLE_DRAW_DEBUG
 }
 
 void UPoseSearchFeatureChannel_GroupBase::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
 {
-#if ENABLE_DRAW_DEBUG
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
@@ -73,8 +72,8 @@ void UPoseSearchFeatureChannel_GroupBase::DebugDraw(const UE::PoseSearch::FDebug
 			SubChannel->DebugDraw(DrawParams, PoseVector);
 		}
 	}
-#endif // ENABLE_DRAW_DEBUG
 }
+#endif // ENABLE_DRAW_DEBUG
 
 // IPoseFilter interface
 bool UPoseSearchFeatureChannel_GroupBase::IsPoseFilterActive() const

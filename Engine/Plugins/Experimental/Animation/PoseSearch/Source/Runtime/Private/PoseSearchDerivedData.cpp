@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PoseSearch/PoseSearchDerivedData.h"
-
 #if WITH_EDITOR
 
+#include "PoseSearch/PoseSearchDerivedData.h"
 #include "Animation/AnimComposite.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"

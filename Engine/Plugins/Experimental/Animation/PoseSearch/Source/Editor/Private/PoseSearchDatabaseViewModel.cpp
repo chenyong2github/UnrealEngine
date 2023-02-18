@@ -36,21 +36,20 @@ namespace UE::PoseSearch
 
 	void FDatabasePreviewActor::Process()
 	{
-		FAssetSamplerBase* SamplerInterface = Sampler.GetMutablePtr<FAssetSamplerBase>();
-		check(SamplerInterface);
-		SamplerInterface->Process();
+		check(Sampler);
+		Sampler->Process();
 	}
 
 	const FAssetSamplerBase* FDatabasePreviewActor::GetSampler() const
 	{
-		const FAssetSamplerBase* SamplerInterface = Sampler.GetPtr<FAssetSamplerBase>();
-		check(SamplerInterface);
-		return SamplerInterface;
+		check(Sampler);
+		return Sampler.Get();
 	}
 
 	float FDatabasePreviewActor::GetScaledTime(float Time) const
 	{
-		return GetSampler()->GetScaledTime(Time);
+		check(Sampler);
+		return Sampler->GetScaledTime(Time);
 	}
 
 	UDebugSkelMeshComponent* FDatabasePreviewActor::GetDebugSkelMeshComponent()
@@ -216,10 +215,9 @@ namespace UE::PoseSearch
 			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
 			Input.SequenceBase = DatabaseSequence->Sequence;
 
-			PreviewActor.Sampler = FInstancedStruct::Make(FSequenceBaseSampler());
-			FSequenceBaseSampler* Sampler = PreviewActor.Sampler.GetMutablePtr<FSequenceBaseSampler>();
-			check(Sampler);
+			TSharedPtr<FSequenceBaseSampler> Sampler = MakeShared<FSequenceBaseSampler>();
 			Sampler->Init(Input);
+			PreviewActor.Sampler = Sampler;
 		}
 		else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
 		{
@@ -227,10 +225,9 @@ namespace UE::PoseSearch
 			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
 			Input.SequenceBase = DatabaseAnimComposite->AnimComposite;
 
-			PreviewActor.Sampler = FInstancedStruct::Make(FSequenceBaseSampler());
-			FSequenceBaseSampler* Sampler = PreviewActor.Sampler.GetMutablePtr<FSequenceBaseSampler>();
-			check(Sampler);
+			TSharedPtr<FSequenceBaseSampler> Sampler = MakeShared<FSequenceBaseSampler>();
 			Sampler->Init(Input);
+			PreviewActor.Sampler = Sampler;
 		}
 		else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
 		{
@@ -240,10 +237,9 @@ namespace UE::PoseSearch
 			Input.BlendSpace = DatabaseBlendSpace->BlendSpace;
 			Input.BlendParameters = IndexAsset.BlendParameters;
 
-			PreviewActor.Sampler = FInstancedStruct::Make(FBlendSpaceSampler());
-			FBlendSpaceSampler* Sampler = PreviewActor.Sampler.GetMutablePtr<FBlendSpaceSampler>();
-			check(Sampler);
+			TSharedPtr<FBlendSpaceSampler> Sampler = MakeShared<FBlendSpaceSampler>();
 			Sampler->Init(Input);
+			PreviewActor.Sampler = Sampler;
 		}
 		else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimMontage>())
 		{
@@ -251,10 +247,9 @@ namespace UE::PoseSearch
 			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
 			Input.AnimMontage = DatabaseAnimMontage->AnimMontage;
 
-			PreviewActor.Sampler = FInstancedStruct::Make(FAnimMontageSampler());
-			FAnimMontageSampler* Sampler = PreviewActor.Sampler.GetMutablePtr<FAnimMontageSampler>();
-			check(Sampler);
+			TSharedPtr<FAnimMontageSampler> Sampler = MakeShared<FAnimMontageSampler>();
 			Sampler->Init(Input);
+			PreviewActor.Sampler = Sampler;
 		}
 		else
 		{

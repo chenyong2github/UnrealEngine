@@ -4,6 +4,7 @@
 
 #include "IO/IoHash.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
+#include "DrawDebugHelpers.h"
 #include "PoseSearchFeatureChannel.generated.h"
 
 class UPoseSearchSchema;
@@ -41,7 +42,10 @@ namespace UE::PoseSearch
 
 struct FDebugDrawParams;
 struct FSearchContext;
-class IAssetIndexer;
+
+#if WITH_EDITOR
+class FAssetIndexer;
+#endif // WITH_EDITOR
 
 /** Helper class for extracting and encoding features into a float buffer */
 class POSESEARCH_API FFeatureVectorHelper
@@ -89,28 +93,30 @@ public:
 	// Called during UPoseSearchSchema::Finalize to prepare the schema for this channel
 	virtual void Finalize(UPoseSearchSchema* Schema) PURE_VIRTUAL(UPoseSearchFeatureChannel::Finalize, );
 	
+	// Called at runtime to add this channel's data to the query pose vector
+	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, );
+
+	// UPoseSearchFeatureChannels can hold sub channels
+	virtual TArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() { return TArrayView<TObjectPtr<UPoseSearchFeatureChannel>>(); }
+	virtual TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() const { return TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>>(); }
+
+#if ENABLE_DRAW_DEBUG
+	// API called before DebugDraw to collect shared channel informations such as decoded positions form the PoseVector
+	virtual void PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const {}
+
+	// Draw this channel's data for the given pose vector
+	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
+#endif //ENABLE_DRAW_DEBUG
+
+#if WITH_EDITOR
 	// Called at database build time to collect feature weights.
 	// Weights is sized to the cardinality of the schema and the feature channel should write
 	// its weights at the channel's data offset. Channels should provide a weight for each dimension.
 	virtual void FillWeights(TArray<float>& Weights) const PURE_VIRTUAL(UPoseSearchFeatureChannel::FillWeights, );
 
 	// Called at database build time to populate pose vectors with this channel's data
-	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
+	virtual void IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
 
-	// Called at runtime to add this channel's data to the query pose vector
-	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, );
-
-	// API called before DebugDraw to collect shared channel informations such as decoded positions form the PoseVector
-	virtual void PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const {}
-
-	// Draw this channel's data for the given pose vector
-	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
-
-	// UPoseSearchFeatureChannels can hold sub channels
-	virtual TArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() { return TArrayView<TObjectPtr<UPoseSearchFeatureChannel>>(); }
-	virtual TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() const { return TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>>(); }
-
-#if WITH_EDITOR
 	// returns the FString used editor side to identify this UPoseSearchFeatureChannel (for instance in the pose search debugger)
 	virtual FString GetLabel() const;
 	virtual bool CanBeNormalizedWith(const UPoseSearchFeatureChannel* Other) const;

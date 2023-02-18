@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PoseSearchAssetIndexer.h"
-
 #if WITH_EDITOR
 
+#include "PoseSearch/PoseSearchAssetIndexer.h"
 #include "AnimationRuntime.h"
 #include "Animation/MirrorDataTable.h"
 #include "PoseSearch/PoseSearchAnimNotifies.h"
 #include "PoseSearch/PoseSearchAssetSampler.h"
 #include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchFeatureChannel.h"
+#include "PoseSearch/PoseSearchIndex.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
 namespace UE::PoseSearch
@@ -74,29 +74,10 @@ static FSamplingParam WrapOrClampSamplingParam(bool bCanWrap, float SamplingPara
 
 //////////////////////////////////////////////////////////////////////////
 // FAssetIndexer
-void FAssetIndexer::FOutput::Reset()
-{
-	FirstIndexedSample = 0;
-	LastIndexedSample = 0;
-	NumIndexedPoses = 0;
-
-	FeatureVectorTable.Reset(0);
-	PoseMetadata.Reset(0);
-}
-
-void FAssetIndexer::FStats::Reset()
-{
-	NumAccumulatedSamples = 0;
-	AccumulatedSpeed = 0.f;
-	MaxSpeed = 0.f;
-	AccumulatedAcceleration = 0.f;
-	MaxAcceleration = 0.f;
-}
-
 void FAssetIndexer::Reset()
 {
-	Output.Reset();
-	Stats.Reset();
+	Output = FOutput();
+	Stats = FStats();
 }
 
 void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext, const FBoneContainer& InBoneContainer)
@@ -157,7 +138,7 @@ bool FAssetIndexer::Process()
 
 void FAssetIndexer::ComputeStats()
 {
-	Stats.Reset();
+	Stats = FStats();
 
 	const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
 	check(SamplingContext->FiniteDelta > UE_KINDA_SMALL_NUMBER);
@@ -336,7 +317,7 @@ FAssetIndexer::CachedEntry& FAssetIndexer::GetEntry(float SampleTime)
 				BoneContainer.GetCompactPoseNumBones());
 		}
 
-		const IAssetIndexer::FSampleInfo Sample = GetSampleInfo(SampleTime);
+		const FAssetIndexer::FSampleInfo Sample = GetSampleInfo(SampleTime);
 		float CurrentTime = Sample.ClipTime;
 		float PreviousTime = CurrentTime - SamplingContext->FiniteDelta;
 
@@ -385,17 +366,17 @@ FAssetIndexer::CachedEntry& FAssetIndexer::GetEntry(float SampleTime)
 
 		Entry->ComponentSpacePose.InitPose(MoveTemp(Pose));
 		Entry->RootTransform = Sample.RootTransform;
-		Entry->Clamped = Sample.bClamped;
+		Entry->bClamped = Sample.bClamped;
 	}
 
 	return *Entry;
 }
 
 // returns the transform in component space for the bone indexed by Schema->BoneReferences[SchemaBoneIdx] at SampleTime seconds
-FTransform FAssetIndexer::GetComponentSpaceTransform(float SampleTime, bool& Clamped, int8 SchemaBoneIdx)
+FTransform FAssetIndexer::GetComponentSpaceTransform(float SampleTime, bool& bClamped, int8 SchemaBoneIdx)
 {
 	CachedEntry& Entry = GetEntry(SampleTime);
-	Clamped = Entry.Clamped;
+	bClamped = Entry.bClamped;
 
 	if (SchemaBoneIdx >= 0 && IndexingContext.Schema->BoneReferences[SchemaBoneIdx].HasValidSetup())
 	{
@@ -406,10 +387,10 @@ FTransform FAssetIndexer::GetComponentSpaceTransform(float SampleTime, bool& Cla
 }
 
 // returns the transform in animation space for the bone indexed by Schema->BoneReferences[SchemaBoneIdx] at SampleTime seconds
-FTransform FAssetIndexer::GetTransform(float SampleTime, bool& Clamped, int8 SchemaBoneIdx)
+FTransform FAssetIndexer::GetTransform(float SampleTime, bool& bClamped, int8 SchemaBoneIdx)
 {
 	CachedEntry& Entry = GetEntry(SampleTime);
-	Clamped = Entry.Clamped;
+	bClamped = Entry.bClamped;
 
 	const FTransform MirroredRootTransform = MirrorTransform(Entry.RootTransform);
 	if (SchemaBoneIdx >= 0 && IndexingContext.Schema->BoneReferences[SchemaBoneIdx].HasValidSetup())
@@ -429,16 +410,16 @@ FTransform FAssetIndexer::CalculateComponentSpaceTransform(FAssetIndexer::Cached
 
 // returns the transform in component space for the bone indexed by Schema->BoneReferences[SchemaBoneIdx] 
 // at SampleTime-OriginTime seconds ahead (or behind) the pose at OriginTime
-FTransform FAssetIndexer::GetComponentSpaceTransform(float SampleTime, float OriginTime, bool& Clamped, int8 SchemaBoneIdx)
+FTransform FAssetIndexer::GetComponentSpaceTransform(float SampleTime, float OriginTime, bool& bClamped, int8 SchemaBoneIdx)
 {
 	if (SampleTime == OriginTime)
 	{
-		return GetComponentSpaceTransform(SampleTime, Clamped, SchemaBoneIdx);
+		return GetComponentSpaceTransform(SampleTime, bClamped, SchemaBoneIdx);
 	}
 
-	bool Unused = false;
-	const FTransform RootBoneTransform = GetTransform(OriginTime, Unused);
-	FTransform BoneTransform = GetTransform(SampleTime, Clamped, SchemaBoneIdx);
+	bool bUnused = false;
+	const FTransform RootBoneTransform = GetTransform(OriginTime, bUnused);
+	FTransform BoneTransform = GetTransform(SampleTime, bClamped, SchemaBoneIdx);
 	BoneTransform.SetToRelativeTransform(RootBoneTransform);
 	return BoneTransform;
 }

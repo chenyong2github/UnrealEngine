@@ -5,37 +5,6 @@
 #include "BonePose.h"
 #include "PoseSearchAssetSampler.generated.h"
 
-struct FAnimationPoseData;
-struct FAnimExtractContext;
-class UAnimationAsset;
-class UAnimInstance;
-class UAnimNotifyState_PoseSearchBase;
-class UBlendSpace;
-class UMirrorDataTable;
-
-namespace UE::PoseSearch
-{
-	struct POSESEARCH_API FAssetSamplingContext
-	{
-		// Time delta used for computing pose derivatives
-		static constexpr float FiniteDelta = 1 / 60.0f;
-
-		// Mirror data table pointer copied from Schema for convenience
-		TObjectPtr<const UMirrorDataTable> MirrorDataTable;
-
-		// Compact pose format of Mirror Bone Map
-		TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex> CompactPoseMirrorBones;
-
-		// Pre-calculated component space rotations of reference pose, which allows mirror to work with any joint orientation
-		// Only initialized and used when a mirroring table is specified
-		TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex> ComponentSpaceRefRotations;
-
-		void Init(const UMirrorDataTable* InMirrorDataTable, const FBoneContainer& BoneContainer);
-		FTransform MirrorTransform(const FTransform& Transform) const;
-	};
-
-} // namespace UE::PoseSearch
-
 USTRUCT()
 struct POSESEARCH_API FPoseSearchExtrapolationParameters
 {
@@ -54,15 +23,43 @@ struct POSESEARCH_API FPoseSearchExtrapolationParameters
 	float SampleTime = 0.05f;
 };
 
+#if WITH_EDITOR
+
+struct FAnimationPoseData;
+struct FAnimExtractContext;
+class UAnimationAsset;
+class UAnimInstance;
+class UAnimNotifyState_PoseSearchBase;
+class UBlendSpace;
+class UMirrorDataTable;
+
+namespace UE::PoseSearch
+{
+
+struct POSESEARCH_API FAssetSamplingContext
+{
+	// Time delta used for computing pose derivatives
+	static constexpr float FiniteDelta = 1 / 60.0f;
+
+	// Mirror data table pointer copied from Schema for convenience
+	TObjectPtr<const UMirrorDataTable> MirrorDataTable;
+
+	// Compact pose format of Mirror Bone Map
+	TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex> CompactPoseMirrorBones;
+
+	// Pre-calculated component space rotations of reference pose, which allows mirror to work with any joint orientation
+	// Only initialized and used when a mirroring table is specified
+	TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex> ComponentSpaceRefRotations;
+
+	void Init(const UMirrorDataTable* InMirrorDataTable, const FBoneContainer& BoneContainer);
+	FTransform MirrorTransform(const FTransform& Transform) const;
+};
+
 /**
  * Helper interface for sampling data from animation assets
  */
-USTRUCT()
-struct POSESEARCH_API FAssetSamplerBase
+struct POSESEARCH_API FAssetSamplerBase : public TSharedFromThis<FAssetSamplerBase>
 {
-	GENERATED_BODY()
-
-public:
 	virtual ~FAssetSamplerBase() {}
 
 	virtual float GetPlayLength() const { return 0.f; }
@@ -89,12 +86,8 @@ public:
 };
 
 // Sampler working with UAnimSequenceBase so it can be used for UAnimSequence as well as UAnimComposite.
-USTRUCT()
 struct POSESEARCH_API FSequenceBaseSampler : public FAssetSamplerBase
 {
-	GENERATED_BODY()
-
-public:
 	struct FInput
 	{
 		TWeakObjectPtr<const UAnimSequenceBase> SequenceBase;
@@ -116,12 +109,8 @@ public:
 	virtual const UAnimationAsset* GetAsset() const override;
 };
 
-USTRUCT()
 struct POSESEARCH_API FBlendSpaceSampler : public FAssetSamplerBase
 {
-	GENERATED_BODY()
-
-public:
 	struct FInput
 	{
 		FBoneContainer BoneContainer;
@@ -159,12 +148,8 @@ private:
 	FTransform ExtractBlendSpaceRootMotionFromRange(float StartTrackPosition, float EndTrackPosition) const;
 };
 
-USTRUCT()
 struct POSESEARCH_API FAnimMontageSampler : public FAssetSamplerBase
 {
-	GENERATED_BODY()
-
-public:
 	struct FInput
 	{
 		// @todo: add support for SlotName / multiple SlotAnimTracks
@@ -190,3 +175,6 @@ private:
 	FTransform ExtractRootTransformInternal(float StartTime, float EndTime) const;
 };
 
+} // namespace UE::PoseSearch
+
+#endif // WITH_EDITOR

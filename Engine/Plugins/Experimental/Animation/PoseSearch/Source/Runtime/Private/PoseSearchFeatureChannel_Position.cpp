@@ -2,7 +2,6 @@
 
 #include "PoseSearchFeatureChannel_Position.h"
 #include "Animation/MotionTrajectoryTypes.h"
-#include "DrawDebugHelpers.h"
 #include "PoseSearch/PoseSearchAssetIndexer.h"
 #include "PoseSearch/PoseSearchAssetSampler.h"
 #include "PoseSearch/PoseSearchContext.h"
@@ -18,6 +17,7 @@ void UPoseSearchFeatureChannel_Position::Finalize(UPoseSearchSchema* Schema)
 	SchemaBoneIdx = Schema->AddBoneReference(Bone);
 }
 
+#if WITH_EDITOR
 void UPoseSearchFeatureChannel_Position::FillWeights(TArray<float>& Weights) const
 {
 	for (int32 i = 0; i < ChannelCardinality; ++i)
@@ -26,7 +26,7 @@ void UPoseSearchFeatureChannel_Position::FillWeights(TArray<float>& Weights) con
 	}
 }
 
-void UPoseSearchFeatureChannel_Position::IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const
+void UPoseSearchFeatureChannel_Position::IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const
 {
 	using namespace UE::PoseSearch;
 
@@ -44,6 +44,7 @@ void UPoseSearchFeatureChannel_Position::IndexAsset(UE::PoseSearch::IAssetIndexe
 		FFeatureVectorHelper::EncodeVector(IndexingContext.GetPoseVector(VectorIdx, FeatureVectorTable), ChannelDataOffset, BoneTransformsPresent.GetTranslation(), ComponentStripping);
 	}
 }
+#endif // WITH_EDITOR
 
 void UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
@@ -71,18 +72,16 @@ void UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchConte
 	}
 }
 
+#if ENABLE_DRAW_DEBUG
 void UPoseSearchFeatureChannel_Position::PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
 {
-#if ENABLE_DRAW_DEBUG
 	using namespace UE::PoseSearch;
 	const FVector BonePos = DrawParams.RootTransform.TransformPosition(FFeatureVectorHelper::DecodeVector(PoseVector, ChannelDataOffset, ComponentStripping));
 	DrawParams.AddCachedPosition(SampleTimeOffset, SchemaBoneIdx, BonePos);
-#endif // ENABLE_DRAW_DEBUG
 }
 
 void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
 {
-#if ENABLE_DRAW_DEBUG
 	using namespace UE::PoseSearch;
 
 	const float LifeTime = DrawParams.DefaultLifeTime;
@@ -109,8 +108,8 @@ void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugD
 		check(Schema && Schema->IsValid());
 		DrawDebugString(DrawParams.World, BonePos + FVector(0.0, 0.0, 10.0), Schema->BoneReferences[SchemaBoneIdx].BoneName.ToString(), nullptr, Color, LifeTime, false, 1.0f);
 	}
-#endif // ENABLE_DRAW_DEBUG
 }
+#endif // ENABLE_DRAW_DEBUG
 
 #if WITH_EDITOR
 FString UPoseSearchFeatureChannel_Position::GetLabel() const

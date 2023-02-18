@@ -3,7 +3,6 @@
 #include "PoseSearch/PoseSearchContext.h"
 #include "Animation/MotionTrajectoryTypes.h"
 #include "AnimationRuntime.h"
-#include "DrawDebugHelpers.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "PoseSearch/PoseSearchHistory.h"
@@ -12,20 +11,16 @@
 namespace UE::PoseSearch
 {
 	
+#if ENABLE_DRAW_DEBUG
 //////////////////////////////////////////////////////////////////////////
 // FDebugDrawParams
 bool FDebugDrawParams::CanDraw() const
 {
-#if ENABLE_DRAW_DEBUG
 	return World && Database && Database->Schema && Database->Schema->IsValid();
-#else // ENABLE_DRAW_DEBUG
-	return false;
-#endif // ENABLE_DRAW_DEBUG
 }
 
 FColor FDebugDrawParams::GetColor(int32 ColorPreset) const
 {
-#if ENABLE_DRAW_DEBUG
 	FLinearColor Color = FLinearColor::Red;
 
 	const UPoseSearchSchema* Schema = GetSchema();
@@ -57,9 +52,6 @@ FColor FDebugDrawParams::GetColor(int32 ColorPreset) const
 	}
 
 	return Color.ToFColor(true);
-#else // ENABLE_DRAW_DEBUG
-	return FColor::Black;
-#endif // ENABLE_DRAW_DEBUG
 }
 
 const FPoseSearchIndex* FDebugDrawParams::GetSearchIndex() const
@@ -96,7 +88,7 @@ FVector FDebugDrawParams::GetCachedPosition(float TimeOffset, int8 SchemaBoneIdx
 
 		if (Mesh.IsValid() && SchemaBoneIdx >= 0)
 		{
-			return Mesh->GetSocketTransform(Schema->BoneReferences[SchemaBoneIdx].BoneName).GetLocation();
+			return Mesh->GetSocketTransform(Schema->BoneReferences[SchemaBoneIdx].BoneName).GetTranslation();
 		}
 	}
 	return RootTransform.GetTranslation();
@@ -104,7 +96,6 @@ FVector FDebugDrawParams::GetCachedPosition(float TimeOffset, int8 SchemaBoneIdx
 
 void DrawFeatureVector(FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector)
 {
-#if ENABLE_DRAW_DEBUG
 	DrawParams.ClearCachedPositions();
 
 	if (DrawParams.CanDraw())
@@ -131,19 +122,17 @@ void DrawFeatureVector(FDebugDrawParams& DrawParams, TConstArrayView<float> Pose
 			}
 		}
 	}
-#endif // ENABLE_DRAW_DEBUG
 }
 
 void DrawFeatureVector(FDebugDrawParams& DrawParams, int32 PoseIdx)
 {
-#if ENABLE_DRAW_DEBUG
 	// if we're editing the schema while in PIE with Rewind Debugger active, PoseIdx could be out of bound / stale
 	if (DrawParams.CanDraw() && PoseIdx >= 0 && PoseIdx < DrawParams.GetSearchIndex()->NumPoses)
 	{
 		DrawFeatureVector(DrawParams, DrawParams.GetSearchIndex()->GetPoseValues(PoseIdx));
 	}
-#endif // ENABLE_DRAW_DEBUG
 }
+#endif // ENABLE_DRAW_DEBUG
 
 //////////////////////////////////////////////////////////////////////////
 // FSearchContext

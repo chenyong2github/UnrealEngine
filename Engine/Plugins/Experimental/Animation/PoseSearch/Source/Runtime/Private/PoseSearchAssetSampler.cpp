@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_EDITOR
+
 #include "PoseSearch/PoseSearchAssetSampler.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimMontage.h"
@@ -108,8 +110,6 @@ FTransform FAssetSamplingContext::MirrorTransform(const FTransform& InTransform)
 	FTransform Result = FTransform(Q, T, InTransform.GetScale3D());
 	return Result;
 }
-
-} // namespace UE::PoseSearch
 
 //////////////////////////////////////////////////////////////////////////
 // FSequenceBaseSampler
@@ -731,3 +731,7 @@ const UAnimationAsset* FAnimMontageSampler::GetAsset() const
 {
 	return Input.AnimMontage.Get();
 }
+
+} // namespace UE::PoseSearch
+
+#endif // WITH_EDITOR

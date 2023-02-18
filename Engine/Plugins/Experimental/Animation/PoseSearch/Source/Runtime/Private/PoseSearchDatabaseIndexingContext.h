@@ -4,9 +4,8 @@
 
 #if WITH_EDITOR
 
-#include "InstancedStruct.h"
+#include "PoseSearch/PoseSearchAssetIndexer.h"
 #include "PoseSearch/PoseSearchAssetSampler.h"
-#include "PoseSearchAssetIndexer.h"
 
 struct FPoseSearchIndexBase;
 class UPoseSearchDatabase;
@@ -18,7 +17,7 @@ struct FDatabaseIndexingContext
 {
 	FPoseSearchIndexBase* SearchIndexBase = nullptr;
 	FAssetSamplingContext SamplingContext;
-	TArray<FInstancedStruct> Samplers;
+	TArray<TSharedPtr<FAssetSamplerBase>> Samplers;
 	TArray<FAssetIndexer> Indexers;
 
 	void Prepare(const UPoseSearchDatabase* Database);

@@ -2,14 +2,19 @@
 
 #pragma once
 
+#if WITH_EDITOR
+
+#include "BonePose.h"
 #include "CoreMinimal.h"
 #include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
-struct FAssetSamplerBase;
+struct FPoseSearchPoseMetadata;
 
 namespace UE::PoseSearch
 {
+
+struct FAssetSamplerBase;
 struct FAssetSamplingContext;
 
 /**
@@ -19,7 +24,7 @@ struct FAssetIndexingContext
 {
 	const FAssetSamplingContext* SamplingContext = nullptr;
 	const UPoseSearchSchema* Schema = nullptr;
-	const FAssetSamplerBase* AssetSampler = nullptr;
+	TSharedPtr<FAssetSamplerBase> AssetSampler;
 	bool bMirrored = false;
 	FFloatInterval RequestedSamplingRange = FFloatInterval(0.0f, 0.0f);
 	
@@ -34,25 +39,71 @@ struct FAssetIndexingContext
 	}
 };
 
-class POSESEARCH_API IAssetIndexer
+class POSESEARCH_API FAssetIndexer
 {
 public:
-	struct FSampleInfo
+	struct FOutput
 	{
-		const FAssetSamplerBase* Clip = nullptr;
-		FTransform RootTransform;
-		float ClipTime = 0.0f;
-		bool bClamped = false;
+		int32 FirstIndexedSample = 0;
+		int32 LastIndexedSample = 0;
+		int32 NumIndexedPoses = 0;
 
-		bool IsValid() const { return Clip != nullptr; }
+		TArray<float> FeatureVectorTable;
+		TArray<FPoseSearchPoseMetadata> PoseMetadata;
 	};
 
-	virtual ~IAssetIndexer() {}
+	struct FStats
+	{
+		int32 NumAccumulatedSamples = 0;
+		float AccumulatedSpeed = 0.f;
+		float MaxSpeed = 0.f;
+		float AccumulatedAcceleration = 0.f;
+		float MaxAcceleration = 0.f;
+	};
 
-	virtual const FAssetIndexingContext& GetIndexingContext() const = 0;
-	virtual FTransform GetTransform(float SampleTime, bool& Clamped, int8 SchemaBoneIdx = RootSchemaBoneIdx) = 0;
-	virtual FTransform GetComponentSpaceTransform(float SampleTime, bool& Clamped, int8 SchemaBoneIdx = RootSchemaBoneIdx) = 0;
-	virtual FTransform GetComponentSpaceTransform(float SampleTime, float OriginTime, bool& Clamped, int8 SchemaBoneIdx = RootSchemaBoneIdx) = 0;
+	void Reset();
+	void Init(const FAssetIndexingContext& IndexingContext, const FBoneContainer& InBoneContainer);
+	bool Process();
+	const FOutput& GetOutput() const { return Output; }
+	const FStats& GetStats() const { return Stats; }
+
+	const FAssetIndexingContext& GetIndexingContext() const { return IndexingContext; }
+	FTransform GetTransform(float SampleTime, bool& bClamped, int8 SchemaBoneIdx = RootSchemaBoneIdx);
+	FTransform GetComponentSpaceTransform(float SampleTime, bool& bClamped, int8 SchemaBoneIdx = RootSchemaBoneIdx);
+	FTransform GetComponentSpaceTransform(float SampleTime, float OriginTime, bool& bClamped, int8 SchemaBoneIdx = RootSchemaBoneIdx);
+	
+private:
+	struct FSampleInfo
+	{
+		TSharedPtr<FAssetSamplerBase> Clip;
+		FTransform RootTransform;
+		float ClipTime = 0.f;
+		bool bClamped = false;
+	};
+
+	struct CachedEntry
+	{
+		float SampleTime;
+		bool bClamped;
+
+		FTransform RootTransform;
+		FCSPose<FCompactPose> ComponentSpacePose;
+	};
+
+	FSampleInfo GetSampleInfo(float SampleTime) const;
+	FPoseSearchPoseMetadata GetMetadata(int32 SampleIdx) const;
+	FTransform MirrorTransform(const FTransform& Transform) const;
+	CachedEntry& GetEntry(float SampleTime);
+	FTransform CalculateComponentSpaceTransform(CachedEntry& Entry, int8 SchemaBoneIdx);
+	void ComputeStats();
+
+	FBoneContainer BoneContainer;
+	FAssetIndexingContext IndexingContext;
+	TMap<float, CachedEntry> CachedEntries;
+	FOutput Output;
+	FStats Stats;
 };
 
 } // namespace UE::PoseSearch
+
+#endif // WITH_EDITOR

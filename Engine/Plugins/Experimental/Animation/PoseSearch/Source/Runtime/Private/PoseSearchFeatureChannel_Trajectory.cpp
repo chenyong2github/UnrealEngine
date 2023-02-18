@@ -2,7 +2,6 @@
 
 #include "PoseSearchFeatureChannel_Trajectory.h"
 #include "Animation/Skeleton.h"
-#include "DrawDebugHelpers.h"
 #include "PoseSearch/PoseSearchContext.h"
 #include "PoseSearch/PoseSearchDerivedDataKey.h"
 #include "PoseSearch/PoseSearchSchema.h"
@@ -31,7 +30,6 @@ void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 
 	for (const FPoseSearchTrajectorySample& Sample : Samples)
 	{
-		// @todo: implement PositionXY properly as 2 dimension channel
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Position | EPoseSearchTrajectoryFlags::PositionXY))
 		{
 			UPoseSearchFeatureChannel_Position* Position = NewObject<UPoseSearchFeatureChannel_Position>(this, NAME_None, RF_Transient);
@@ -95,9 +93,9 @@ void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 	Super::Finalize(Schema);
 }
 
+#if ENABLE_DRAW_DEBUG
 void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
 {
-#if ENABLE_DRAW_DEBUG
 	using namespace UE::PoseSearch;
 
 	TArray<const UPoseSearchFeatureChannel_Position*, TInlineAllocator<32>> Positions;
@@ -146,8 +144,8 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 	}
 
 	Super::DebugDraw(DrawParams, PoseVector);
-#endif // ENABLE_DRAW_DEBUG
 }
+#endif // ENABLE_DRAW_DEBUG
 
 #if WITH_EDITOR
 FString UPoseSearchFeatureChannel_Trajectory::GetLabel() const
