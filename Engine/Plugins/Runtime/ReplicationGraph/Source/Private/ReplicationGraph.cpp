@@ -1224,9 +1224,13 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 				{
 					FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap.Get(DebugActor);
 					FConnectionReplicationActorInfo& ActorInfo = ConnectionActorInfoMap.FindOrAdd(DebugActor);
-					int64 DebugActorBits = ReplicateSingleActor(DebugActor, ActorInfo, GlobalInfo, ConnectionActorInfoMap, *ConnectionManager, FrameNum);
-					// Do not count the debug actor towards our bandwidth limit
-					NetConnection->QueuedBits -= DebugActorBits;
+
+					if (ReadyForNextReplication(ActorInfo, GlobalInfo, FrameNum))
+					{
+						int64 DebugActorBits = ReplicateSingleActor(DebugActor, ActorInfo, GlobalInfo, ConnectionActorInfoMap, *ConnectionManager, FrameNum);
+						// Do not count the debug actor towards our bandwidth limit
+						NetConnection->QueuedBits -= DebugActorBits;
+					}
 				}
 			}
 #endif

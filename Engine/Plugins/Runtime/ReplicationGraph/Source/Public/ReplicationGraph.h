@@ -59,7 +59,9 @@ struct FReplicationGraphDestructionSettings;
 
 typedef TObjectKey<class UNetReplicationGraphConnection> FRepGraphConnectionKey;
 
+#ifndef DO_ENABLE_REPGRAPH_DEBUG_ACTOR
 #define DO_ENABLE_REPGRAPH_DEBUG_ACTOR !(UE_BUILD_SHIPPING)
+#endif // DO_ENABLE_REPGRAPH_DEBUG_ACTOR
 
 UCLASS(abstract, transient, config=Engine)
 class REPLICATIONGRAPH_API UReplicationGraphNode : public UObject
@@ -1422,6 +1424,7 @@ public:
 	AReplicationGraphDebugActor()
 	{
 		bReplicates = true; // must be set for RPCs to be sent
+		NetUpdateFrequency = 10.0f;
 	}
 
 	// To prevent demo netdriver from replicating.
