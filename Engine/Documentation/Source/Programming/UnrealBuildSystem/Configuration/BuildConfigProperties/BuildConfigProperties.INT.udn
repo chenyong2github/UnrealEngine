@@ -650,6 +650,8 @@ $ AddDebugCoreConfig : Whether VS Code project generation should include debug c
 
 $ NoCompileCommands : Do not create compile commands json files with compiler arguments for each file; works better with VS Code extension using UBT server mode.
 
+$ UseVSCodeExtension : Create a workspace file for use with VS Code extension that communicates directly with UBT.
+
 $ bIncludeDocumentation : True if we should include documentation in the generated projects.
 
 $ bUsePrecompiled : True if build targets should pass the -useprecompiled argument.
