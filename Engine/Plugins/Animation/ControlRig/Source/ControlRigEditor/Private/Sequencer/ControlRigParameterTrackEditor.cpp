@@ -2998,29 +2998,6 @@ void FControlRigParameterTrackEditor::HandleOnInitialized(URigVMHost* Subject, c
 			GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshTree);
 		}
 	}
-	//also do to new procedural rigs, we may be creating controls dynamically, so here we need to check to see if we need to reconstruct channels
-	UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
-	const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
-	for (const FMovieSceneBinding& Binding : Bindings)
-	{
-		UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
-		if (Track && Track->GetControlRig() == ControlRig)
-		{
-			TArray<FRigControlElement*> SortedControls;
-			ControlRig->GetControlsInOrder(SortedControls);
-			for (UMovieSceneSection* BaseSection : Track->GetAllSections())
-			{
-				if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(BaseSection))
-				{
-					if (Section->IsDifferentThanLastControlsUsedToReconstruct(SortedControls))
-					{
-						Section->ReconstructChannelProxy();
-						Section->MarkAsChanged();
-					}
-				}
-			}
-		}
-	}
 }
 
 void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* ControlRig, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context)

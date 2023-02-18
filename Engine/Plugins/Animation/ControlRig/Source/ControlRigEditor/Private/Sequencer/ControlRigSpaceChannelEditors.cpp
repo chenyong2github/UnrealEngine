@@ -60,6 +60,7 @@
 #include "Fonts/FontMeasure.h"
 #include "CurveEditorSettings.h"
 #include "TimeToPixel.h"
+#include "Templates/Tuple.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditMode"
 
@@ -254,7 +255,26 @@ FSpaceChannelAndSection FControlRigSpaceChannelHelpers::FindSpaceChannelAndSecti
 	return SpaceChannelAndSection;
 }
 
+static TTuple<FRigControlElement*, FChannelMapInfo*, int32, int32> GetControlAndChannelInfos(UControlRig* ControlRig, UMovieSceneControlRigParameterSection* ControlRigSection, FName ControlName)
+{
+	FRigControlElement* ControlElement = nullptr;
+	FChannelMapInfo* pChannelIndex = nullptr;
+	int32 NumChannels = 0;
+	int32 ChannelIndex = 0;
+	Tie(ControlElement, pChannelIndex) = FControlRigSpaceChannelHelpers::GetControlAndChannelInfo(ControlRig, ControlRigSection, ControlName);
 
+	if (pChannelIndex && ControlElement)
+	{
+		// get the number of float channels to treat
+		NumChannels = FControlRigSpaceChannelHelpers::GetNumFloatChannels(ControlElement->Settings.ControlType);
+		if (NumChannels > 0)
+		{
+			ChannelIndex = pChannelIndex->ChannelIndex;
+		}
+	}
+
+	return TTuple<FRigControlElement*, FChannelMapInfo*, int32, int32>(ControlElement, pChannelIndex, NumChannels,ChannelIndex);
+}
 
 /*
 *  Situations to handle\
@@ -358,24 +378,23 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 
 		// store tangents to keep the animation when switching 
 		TArray<FMovieSceneTangentData> Tangents;
-		int32 ChannelIndex = 0, NumChannels = 0;
 		UMovieSceneControlRigParameterSection* ControlRigSection = Cast<UMovieSceneControlRigParameterSection>(SectionToKey);
 		if (ControlRigSection)
 		{
 			FChannelMapInfo* pChannelIndex = nullptr;
 			FRigControlElement* ControlElement = nullptr;
-			Tie(ControlElement, pChannelIndex) = GetControlAndChannelInfo(ControlRig, ControlRigSection, ControlKey.Name);
+			int32 NumChannels = 0;
+			int32 ChannelIndex = 0;
+			Tie(ControlElement, pChannelIndex,NumChannels, ChannelIndex) = GetControlAndChannelInfos(ControlRig, ControlRigSection, ControlKey.Name);
 
-			if (pChannelIndex && ControlElement)
+			if (pChannelIndex && ControlElement && NumChannels > 0)
 			{
-				// get the number of float channels to treat
-				NumChannels = GetNumFloatChannels(ControlElement->Settings.ControlType);
-				if (NumChannels > 0)
-				{
-					ChannelIndex = pChannelIndex->ChannelIndex;
-					EvaluateTangentAtThisTime<FMovieSceneFloatChannel>(ChannelIndex, NumChannels,ControlRigSection, Time, Tangents);
-				}
+				EvaluateTangentAtThisTime<FMovieSceneFloatChannel>(ChannelIndex, NumChannels,ControlRigSection, Time, Tangents);
 			}
+		}
+		else
+		{
+			return Handle;
 		}
 		
 		// if current Value not the same as the previous add new space key
@@ -435,17 +454,23 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Time - 1));
 			ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[0], true, Context);
 
-			// need to update the tangents here to keep the arriving animation
-			if (ControlRigSection  && NumChannels > 0)
+			//need to do this after eval
+			FChannelMapInfo* pChannelIndex = nullptr;
+			FRigControlElement* ControlElement = nullptr;
+			int32 NumChannels = 0;
+			int32 ChannelIndex = 0;
+			Tie(ControlElement, pChannelIndex, NumChannels, ChannelIndex) = GetControlAndChannelInfos(ControlRig, ControlRigSection, ControlKey.Name);
+
+			if (pChannelIndex && ControlElement && NumChannels > 0)
 			{
-				SetTangentsAtThisTime<FMovieSceneFloatChannel>(ChannelIndex, NumChannels, ControlRigSection,GlobalTime.GetFrame(), Tangents);
+				// need to update the tangents here to keep the arriving animation
+				SetTangentsAtThisTime<FMovieSceneFloatChannel>(ChannelIndex, NumChannels, ControlRigSection, GlobalTime.GetFrame(), Tangents);
 			}
 		}
 
 		// effectively switch to new space
 		URigHierarchy::TElementDependencyMap Dependencies = ControlRig->GetHierarchy()->GetDependenciesForVM(ControlRig->GetVM());
 		ControlRig->GetHierarchy()->SwitchToParent(ControlKey, SpaceKey, false, true, Dependencies, nullptr);
-
 		// add new keys in the new space context
 		int32 FramesIndex = 0;
 		for (const FFrameNumber& Frame : Frames)
@@ -460,8 +485,15 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Frame));
 			ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[FramesIndex], true, Context);
 
+			//need to do this after eval
+			FChannelMapInfo* pChannelIndex = nullptr;
+			FRigControlElement* ControlElement = nullptr;
+			int32 NumChannels = 0;
+			int32 ChannelIndex = 0;
+			Tie(ControlElement, pChannelIndex, NumChannels, ChannelIndex) = GetControlAndChannelInfos(ControlRig, ControlRigSection, ControlKey.Name);
+
 			// need to update the tangents here to keep the leaving animation
-			if (bSetPreviousKey && FramesIndex == 0)
+			if (NumChannels > 0 && bSetPreviousKey && FramesIndex == 0)
 			{
 				if (ControlRigSection && NumChannels > 0)
 				{

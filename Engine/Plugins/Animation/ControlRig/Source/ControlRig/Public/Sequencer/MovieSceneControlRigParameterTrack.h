@@ -27,6 +27,7 @@ class UMovieSceneControlRigParameterTrack
 	GENERATED_UCLASS_BODY()
 
 public:
+	virtual ~UMovieSceneControlRigParameterTrack();
 
 	// UMovieSceneTrack interface
 	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
@@ -53,6 +54,9 @@ public:
 	//INodeAndMappingsInterface
 	virtual TArray<FFBXNodeAndChannels>* GetNodeAndChannelMappings(UMovieSceneSection* InSection)  override;
 	virtual void GetSelectedNodes(TArray<FName>& OutSelectedNodes) override;
+
+	//UControlRig Delegates
+	void HandleOnInitialized(URigVMHost* Subject, const FName& InEventName);
 
 #if WITH_EDITOR
 	void HandlePackageDone(const FEndLoadPackageContext& Context);

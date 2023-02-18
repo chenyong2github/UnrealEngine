@@ -29,6 +29,15 @@ UMovieSceneControlRigParameterTrack::UMovieSceneControlRigParameterTrack(const F
 	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
 
 }
+
+UMovieSceneControlRigParameterTrack::~UMovieSceneControlRigParameterTrack()
+{
+	if (IsValid(ControlRig))
+	{
+		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
+	}
+}
+
 FMovieSceneEvalTemplatePtr UMovieSceneControlRigParameterTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
 {
 	return FMovieSceneControlRigParameterTemplate(*CastChecked<UMovieSceneControlRigParameterSection>(&InSection), *this);
@@ -424,6 +433,32 @@ void UMovieSceneControlRigParameterTrack::PostLoad()
 #endif
 	{		
 		ReconstructControlRig();
+	}
+
+	if (IsValid(ControlRig))
+	{
+		ControlRig->OnInitialized_AnyThread().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnInitialized);
+	}
+}
+
+
+void UMovieSceneControlRigParameterTrack::HandleOnInitialized(URigVMHost* Subject, const FName& InEventName)
+{
+	if (IsValid(ControlRig))
+	{
+		TArray<FRigControlElement*> SortedControls;
+		ControlRig->GetControlsInOrder(SortedControls);
+		for (UMovieSceneSection* BaseSection : GetAllSections())
+		{
+			if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(BaseSection))
+			{
+				if (Section->IsDifferentThanLastControlsUsedToReconstruct(SortedControls))
+				{
+					//Section->ReconstructChannelProxy();
+					Section->RecreateWithThisControlRig(ControlRig, Section->GetBlendType() == EMovieSceneBlendType::Absolute);
+				}
+			}
+		}
 	}
 }
 
