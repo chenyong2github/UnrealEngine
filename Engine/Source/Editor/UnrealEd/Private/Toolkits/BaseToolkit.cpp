@@ -414,8 +414,12 @@ void FModeToolkit::InvokeUI()
 					ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, GetToolPaletteDisplayName(Palette), PaletteWidget);
 				}
 			}
-			TSharedPtr<SDockTab> CreatedToolbarTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::VerticalToolbarID);
-			ModeToolbarTab = CreatedToolbarTab;
+			if (!HasToolkitBuilder())
+			{
+				const TSharedPtr<SDockTab> CreatedToolbarTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::VerticalToolbarID);
+				ModeToolbarTab = CreatedToolbarTab;				
+			}
+
 
 		}
 	}
