@@ -19,6 +19,7 @@
 #include "Sound/SoundWaveProcedural.h"
 #include "DSP/FloatArrayMath.h"
 #include "DSP/MultichannelBuffer.h"
+#include "Containers/UnrealString.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAudioDerivedData, Log, All);
 
@@ -166,6 +167,19 @@ Derived data key generation.
 // VS->Tools->Create GUID and paste it here. https://www.guidgen.com works too.
 #define STREAMEDAUDIO_DERIVEDDATA_VER		TEXT("E9A61FD4C181422A8EAAB060B1690F6A")
 
+#ifndef CASE_ENUM_TO_TEXT
+#define CASE_ENUM_TO_TEXT(X) case X: return TEXT(#X);
+#endif
+
+const TCHAR* LexToString(const ESoundwaveSampleRateSettings Enum)
+{
+	switch (Enum)
+	{
+		FOREACH_ENUM_ESOUNDWAVESAMPLERATESETTINGS(CASE_ENUM_TO_TEXT)
+	}
+	return TEXT("<Unknown ESoundwaveSampleRateSettings>");
+}
+
 /**
  * Computes the derived data key suffix for a SoundWave's Streamed Audio.
  * @param SoundWave - The SoundWave for which to compute the derived data key.
@@ -200,9 +214,20 @@ static void GetStreamedAudioDerivedDataKeySuffix(
 		FPlatformAudioCookOverrides::GetHashSuffix(CompressionOverrides, AudioFormatNameString);
 	}
 
+	// Hash the parts of the SoundWave that can affect the compressed data. It doesn't hurt to do this. 
+	// Typically the GUID will change if compressed data changes, but some settings can affect 
+	// the SoundWave. i.e. DefaultSoundWaveQuality which won't change the GUID. So is better
+	// it's reflected here.
+	using FPCU = FPlatformCompressionUtilities;
+	FString SoundWaveHash;
+	FPCU::AppendHash(SoundWaveHash, TEXT("QLT"), SoundWave.GetCompressionQuality());
+	FPCU::AppendHash(SoundWaveHash, TEXT("CHN"), SoundWave.NumChannels);
+	FPCU::AppendHash(SoundWaveHash, TEXT("SRQ"), SoundWave.SampleRateQuality);
+		
 	// build the key
-	OutKeySuffix = FString::Printf(TEXT("%s_%d_%s"),
+	OutKeySuffix = FString::Printf(TEXT("%s_%s_%d_%s"),
 		*AudioFormatNameString,
+		*SoundWaveHash,
 		Version,
 		*SoundWave.CompressedDataGuid.ToString()
 		);

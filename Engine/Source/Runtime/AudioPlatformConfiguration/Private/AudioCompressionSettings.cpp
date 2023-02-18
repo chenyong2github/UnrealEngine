@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioCompressionSettings.h"
+#include "AudioCompressionSettingsUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioCompressionSettings)
 
@@ -22,15 +23,7 @@ int32 FPlatformAudioCookOverrides::GetStreamCachingVersion()
 {
 	return 5028;
 }
-namespace PlatformAudioCookOverridesPrivate
-{
-	template<typename HashType>
-	void AppendHash(FString& OutString, const TCHAR* InName, const HashType& InValueToHash)
-	{
-		FString Lexed = LexToString(InValueToHash); // Using temporary prevents TCHAR/String mismatch in printf
-		OutString += FString::Printf(TEXT("%s_%s_"), InName, *Lexed);
-	}
-}
+
 
 void FPlatformAudioCookOverrides::GetHashSuffix(const FPlatformAudioCookOverrides* InOverrides, FString& OutSuffix)
 {
@@ -39,36 +32,37 @@ void FPlatformAudioCookOverrides::GetHashSuffix(const FPlatformAudioCookOverride
 		return;
 	}	
 	
-	using namespace PlatformAudioCookOverridesPrivate;
+	using FPCU = FPlatformCompressionUtilities;
+	FString SoundWaveHash;
 
 	// Starting Delim is important, as FSoundWaveData::FindRuntimeFormat, uses it determine format from the inline chunk name.
 	OutSuffix += TEXT("_");
 
 	// Start with StreamCache version.
-	AppendHash(OutSuffix, TEXT("SCVER"), GetStreamCachingVersion());
+	FPCU::AppendHash(OutSuffix, TEXT("SCVER"), GetStreamCachingVersion());
 	
 	// Each member in declaration order.
 	
 	// FPlatformAudioCookOverrides
-	AppendHash(OutSuffix, TEXT("R4DV"), InOverrides->bResampleForDevice);
+	FPCU::AppendHash(OutSuffix, TEXT("R4DV"), InOverrides->bResampleForDevice);
 
 	TArray<float> Rates;
 	InOverrides->PlatformSampleRates.GenerateValueArray(Rates);
 	for (int32 i = 0; i < Rates.Num(); ++i)
 	{
-		AppendHash(OutSuffix, *FString::Printf(TEXT("SR%d"), i), Rates[i]);
+		FPCU::AppendHash(OutSuffix, *FString::Printf(TEXT("SR%d"), i), Rates[i]);
 	}
 
-	AppendHash(OutSuffix, TEXT("QMOD"), InOverrides->CompressionQualityModifier);
-	AppendHash(OutSuffix, TEXT("CQLT"), InOverrides->SoundCueCookQualityIndex);
-	AppendHash(OutSuffix, TEXT("ASTH"), InOverrides->AutoStreamingThreshold);
-	AppendHash(OutSuffix, TEXT("INLC"), InOverrides->bInlineStreamedAudioChunks);		
+	FPCU::AppendHash(OutSuffix, TEXT("QMOD"), InOverrides->CompressionQualityModifier);
+	FPCU::AppendHash(OutSuffix, TEXT("CQLT"), InOverrides->SoundCueCookQualityIndex);
+	FPCU::AppendHash(OutSuffix, TEXT("ASTH"), InOverrides->AutoStreamingThreshold);
+	FPCU::AppendHash(OutSuffix, TEXT("INLC"), InOverrides->bInlineStreamedAudioChunks);
 
 	// FAudioStreamCachingSettings
-	AppendHash(OutSuffix, TEXT("CSZE"), InOverrides->StreamCachingSettings.CacheSizeKB);
-	AppendHash(OutSuffix, TEXT("LCF"), InOverrides->StreamCachingSettings.bForceLegacyStreamChunking);
-	AppendHash(OutSuffix, TEXT("ZCS"), InOverrides->StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB);
-	AppendHash(OutSuffix, TEXT("MCSO"), InOverrides->StreamCachingSettings.MaxChunkSizeOverrideKB);
+	FPCU::AppendHash(OutSuffix, TEXT("CSZE"), InOverrides->StreamCachingSettings.CacheSizeKB);
+	FPCU::AppendHash(OutSuffix, TEXT("LCF"), InOverrides->StreamCachingSettings.bForceLegacyStreamChunking);
+	FPCU::AppendHash(OutSuffix, TEXT("ZCS"), InOverrides->StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB);
+	FPCU::AppendHash(OutSuffix, TEXT("MCSO"), InOverrides->StreamCachingSettings.MaxChunkSizeOverrideKB);
 	
 	OutSuffix += TEXT("END");
 }

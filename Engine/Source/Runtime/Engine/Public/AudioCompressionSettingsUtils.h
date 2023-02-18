@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-
-#include "CoreMinimal.h"
-#include "IAudioExtensionPlugin.h"
-#include "AudioPluginUtilities.h"
 #include "AudioCompressionSettings.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
@@ -40,6 +36,12 @@ public:
 
 	/** This is used at runtime in BuildCachedStreamingManagerParams, as well as cooktime in FStreamedAudioCacheDerivedDataWorker::BuildStreamedAudio to split compressed audio.  */
 	static uint32 GetMaxChunkSizeForCookOverrides(const FPlatformAudioCookOverrides* InCompressionOverrides);
+
+	template<typename HashType>
+	static void AppendHash(FString& OutString, const TCHAR* InName, const HashType& InValueToHash)
+	{
+		OutString += FString::Printf(TEXT("%s_%s_"), InName, ToCStr(LexToString(InValueToHash)));
+	}
 
 private:
 	static const FPlatformRuntimeAudioCompressionOverrides* GetRuntimeCompressionOverridesForCurrentPlatform();
