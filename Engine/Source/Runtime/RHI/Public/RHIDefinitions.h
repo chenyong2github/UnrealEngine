@@ -684,6 +684,8 @@ enum EVRSShadingRate : uint8
 	VRSSR_2x4  = (VRSASR_2X << 2) + VRSASR_4X,
 	VRSSR_4x2  = (VRSASR_4X << 2) + VRSASR_2X,
 	VRSSR_4x4  = (VRSASR_4X << 2) + VRSASR_4X,
+	
+	VRSSR_Last  = VRSSR_4x4
 };
 
 enum EVRSRateCombiner : uint8

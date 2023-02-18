@@ -167,6 +167,41 @@ static void LoadValidationCache(VkDevice Device, VkValidationCacheEXT& OutValida
 }
 #endif
 
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+static VkExtent2D GetBestMatchedShadingRateExtents(uint32 ShadingRate, const TArray<VkPhysicalDeviceFragmentShadingRateKHR>& FragmentShadingRates)
+{
+	// Given that for Vulkan we need to query available device shading rates, we're not guaranteed to have everything that's in our enum;
+	// This function walks the list of supported fragment rates returned by the device, and returns the closest match to the rate requested.
+	const VkExtent2D DirectMappedExtent = { 
+		1u << (ShadingRate >> 2), 
+		1u << (ShadingRate & 0x03) 
+	};
+	VkExtent2D BestMatchedExtent = { 1, 1 };
+
+	if (BestMatchedExtent.width != DirectMappedExtent.width || 
+		BestMatchedExtent.height != DirectMappedExtent.height)
+	{
+		for (auto const& Rate : FragmentShadingRates)
+		{
+			if (Rate.fragmentSize.width == DirectMappedExtent.width && 
+				Rate.fragmentSize.height == DirectMappedExtent.height)
+			{
+				BestMatchedExtent = DirectMappedExtent;
+				break;
+			}
+
+			if ((Rate.fragmentSize.width >= BestMatchedExtent.width && Rate.fragmentSize.width <= DirectMappedExtent.width && Rate.fragmentSize.height <= DirectMappedExtent.height && Rate.fragmentSize.height >= BestMatchedExtent.height) ||
+				(Rate.fragmentSize.height >= BestMatchedExtent.height && Rate.fragmentSize.height <= DirectMappedExtent.height && Rate.fragmentSize.width <= DirectMappedExtent.width && Rate.fragmentSize.width >= BestMatchedExtent.width))
+			{
+				BestMatchedExtent = Rate.fragmentSize;
+			}
+		}
+	}
+
+	return BestMatchedExtent;
+}
+#endif
+
 
 FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 	: Device(VK_NULL_HANDLE)
@@ -441,6 +476,12 @@ void FVulkanDevice::CreateDevice(TArray<const ANSICHAR*>& DeviceLayers, FVulkanD
 				ZeroVulkanStruct(FragmentShadingRates[i], VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_KHR);
 			}
 			VulkanRHI::vkGetPhysicalDeviceFragmentShadingRatesKHR(Gpu, &FragmentShadingRateCount, FragmentShadingRates.GetData());
+
+			// Build a map from EVRSShadingRate to fragment size
+			for (uint32 ShadingRate = 0u; ShadingRate < (uint32)FragmentSizeMap.Num(); ++ShadingRate)
+			{
+				FragmentSizeMap[ShadingRate] = GetBestMatchedShadingRateExtents(ShadingRate, FragmentShadingRates);
+			}
 		}
 	}
 #endif // VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
@@ -1360,36 +1401,6 @@ const VkComponentMapping& FVulkanDevice::GetFormatComponentMapping(EPixelFormat 
 	check(GPixelFormats[UEFormat].Supported);
 	return PixelFormatComponentMapping[UEFormat];
 }
-
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-VkExtent2D FVulkanDevice::GetBestMatchedShadingRateExtents(EVRSShadingRate ShadingRate) const
-{
-	// Given that for Vulkan we need to query available device shading rates, we're not guaranteed to have everything that's in our enum;
-	// This function walks the list of supported fragment rates returned by the device, and returns the closest match to the rate requested.
-	const VkExtent2D DirectMappedExtent = { (uint32)(ShadingRate >> 2) + 1, (uint32)((ShadingRate & 0x03) + 1) };
-	VkExtent2D BestMatchedExtent = { 1, 1 };
-	
-	if (BestMatchedExtent.width != DirectMappedExtent.width && BestMatchedExtent.height != DirectMappedExtent.height)
-	{
-		for (auto const& Rate : FragmentShadingRates)
-		{
-			if (Rate.fragmentSize.width == DirectMappedExtent.width && Rate.fragmentSize.height == DirectMappedExtent.height)
-			{
-				BestMatchedExtent = DirectMappedExtent;
-				break;
-			}
-
-			if ((Rate.fragmentSize.width >= BestMatchedExtent.width && Rate.fragmentSize.width <= DirectMappedExtent.width && Rate.fragmentSize.height <= DirectMappedExtent.height && Rate.fragmentSize.height >= BestMatchedExtent.height) ||
-				(Rate.fragmentSize.height >= BestMatchedExtent.height && Rate.fragmentSize.height <= DirectMappedExtent.height && Rate.fragmentSize.width <= DirectMappedExtent.width && Rate.fragmentSize.width >= BestMatchedExtent.width))
-			{
-				BestMatchedExtent = Rate.fragmentSize;
-			}
-		}
-	}
-
-	return BestMatchedExtent;
-}
-#endif
 
 void FVulkanDevice::NotifyDeletedImage(VkImage Image, bool bRenderTarget)
 {

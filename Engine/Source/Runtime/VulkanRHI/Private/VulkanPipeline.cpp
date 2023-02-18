@@ -1355,13 +1355,12 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 	PipelineInfo.pDynamicState = &DynamicState;
 
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	const VkExtent2D FragmentSize = Device->GetBestMatchedShadingRateExtents(PSO->Desc.ShadingRate);
-	VkFragmentShadingRateCombinerOpKHR PipelineToPrimitiveCombinerOperation = FragmentCombinerOpMap[(uint8)PSO->Desc.Combiner];
-
 	VkPipelineFragmentShadingRateStateCreateInfoKHR PipelineFragmentShadingRate;
-
-	if (GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled)
+	if (GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled && PSO->Desc.ShadingRate != EVRSShadingRate::VRSSR_1x1)
 	{
+		const VkExtent2D FragmentSize = Device->GetBestMatchedFragmentSize(PSO->Desc.ShadingRate);
+		VkFragmentShadingRateCombinerOpKHR PipelineToPrimitiveCombinerOperation = FragmentCombinerOpMap[(uint8)PSO->Desc.Combiner];
+		
 		ZeroVulkanStruct(PipelineFragmentShadingRate, VK_STRUCTURE_TYPE_PIPELINE_FRAGMENT_SHADING_RATE_STATE_CREATE_INFO_KHR);
 		PipelineFragmentShadingRate.fragmentSize = FragmentSize;
 		PipelineFragmentShadingRate.combinerOps[0] = PipelineToPrimitiveCombinerOperation;
