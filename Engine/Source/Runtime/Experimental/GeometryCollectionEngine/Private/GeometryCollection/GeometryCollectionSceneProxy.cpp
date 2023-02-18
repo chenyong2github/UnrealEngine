@@ -346,7 +346,11 @@ void FGeometryCollectionSceneProxy::CreateRenderThreadResources()
 		uint16 const* BoneMapData = &MeshResource.BoneMapVertexBuffer.BoneIndex(0);
 		ParallelFor(MeshDescription.NumVertices, [&](int32 i)
 		{
-			const uint16 ProxyIndex = BoneMapData[i];
+			// Note that some fracture undo/redo operations can: recreate scene proxy, then update render data, then recreate proxy again.
+			// In that case we can come here the first time with too few hit proxy objects for the bone map which hasn't updated.
+			// But we then enter here a second time with the render data correct.
+			int16 ProxyIndex = BoneMapData[i];
+			ProxyIndex = HitProxies.IsValidIndex(ProxyIndex) ? ProxyIndex : 0;
 			HitProxyIdBuffer.VertexColor(i) = HitProxies[ProxyIndex]->Id.GetColor();
 		});
 
