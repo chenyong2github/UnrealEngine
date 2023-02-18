@@ -4,6 +4,7 @@
 
 #include "Containers/Map.h"
 #include "Misc/ScopeLock.h"
+#include "PixelStreamingInputMessage.h"
 
 /**
  * @brief An map type that broadcasts the OnProtocolUpdated whenever
