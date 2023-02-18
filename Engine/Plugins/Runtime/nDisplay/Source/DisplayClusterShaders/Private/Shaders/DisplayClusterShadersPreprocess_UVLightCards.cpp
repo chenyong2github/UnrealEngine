@@ -16,6 +16,7 @@
 #include "RenderGraphResources.h"
 #include "SceneInterface.h"
 #include "SceneRendererInterface.h"
+#include "SceneTexturesConfig.h"
 #include "ShaderParameters/DisplayClusterShaderParameters_UVLightCards.h"
 #include "UnrealClient.h"
 
