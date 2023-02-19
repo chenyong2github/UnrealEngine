@@ -104,7 +104,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FVectorArrayNormalizeDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeQuaternionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMultiplyTransformDataflowNode);
-		
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FInvertTransformDataflowNode);
 
 		// GeometryCollection
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("GeometryCollection", FLinearColor(0.55f, 0.45f, 1.0f), CDefaultNodeBodyTintColor);
@@ -1637,6 +1637,12 @@ void FMultiplyTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const
 	}
 }
 
-
-
-
+void FInvertTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FTransform>(&OutTransform))
+	{
+		FTransform InXf = GetValue<FTransform>(Context, &InTransform, FTransform::Identity);
+		FTransform OutXf = InXf.Inverse();
+		SetValue<FTransform>(Context, OutXf, &OutTransform);
+	}
+}

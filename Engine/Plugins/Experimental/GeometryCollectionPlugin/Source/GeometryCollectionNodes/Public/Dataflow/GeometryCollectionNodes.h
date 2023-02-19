@@ -2334,6 +2334,35 @@ public:
 
 /**
  *
+ * Invert a transform.
+ *
+ */
+USTRUCT()
+struct FInvertTransformDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FInvertTransformDataflowNode, "InvertTransform", "Math|Transform", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput, DisplayName = "InTransform"));
+	FTransform InTransform = FTransform::Identity;
+
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "OutTransform"));
+	FTransform OutTransform = FTransform::Identity;
+
+	FInvertTransformDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&InTransform);
+		RegisterOutputConnection(&OutTransform);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
+
+/**
+ *
  *
  *
  */
