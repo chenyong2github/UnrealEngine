@@ -136,6 +136,38 @@ void DrawFeatureVector(FDebugDrawParams& DrawParams, int32 PoseIdx)
 
 //////////////////////////////////////////////////////////////////////////
 // FSearchContext
+FQuat FSearchContext::GetSampleRotation(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseHistoryRoot)
+{
+	// @todo: add support for SchemaSampleBoneIdx
+	if (SchemaOriginBoneIdx != RootSchemaBoneIdx)
+	{
+		UE_LOG(LogPoseSearch,
+			Error,
+			TEXT("FSearchContext::GetSampleRotation: support for non root origin bones not implemented (bone: '%s', schema: '%s'"),
+			*Schema->BoneReferences[SchemaOriginBoneIdx].BoneName.ToString(),
+			*GetNameSafe(Schema));
+	}
+
+	return GetComponentSpaceTransform(SampleTimeOffset, Schema, SchemaSampleBoneIdx).GetRotation();
+}
+
+FVector FSearchContext::GetSamplePosition(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseHistoryRoot)
+{
+	return GetSamplePositionInternal(SampleTimeOffset, 0.f, Schema, SchemaSampleBoneIdx, SchemaOriginBoneIdx, bUseHistoryRoot);
+}
+
+FVector FSearchContext::GetSampleVelocity(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseCharacterSpaceVelocities, bool bUseHistoryRoot)
+{
+	const float HistorySampleInterval = History ? History->GetSampleTimeInterval() : 1 / 60.0f;
+	check(HistorySampleInterval > UE_KINDA_SMALL_NUMBER);
+
+	// calculating the Position in component space for the bone indexed by SchemaSampleBoneIdx
+	const FVector CurrentTranslation = GetSamplePositionInternal(SampleTimeOffset, 0.f, Schema, SchemaSampleBoneIdx, SchemaOriginBoneIdx, bUseHistoryRoot);
+	const FVector PreviousTranslation = GetSamplePositionInternal(SampleTimeOffset - HistorySampleInterval, bUseCharacterSpaceVelocities ? -HistorySampleInterval : 0.f, Schema, SchemaSampleBoneIdx, SchemaOriginBoneIdx, bUseHistoryRoot);
+
+	const FVector LinearVelocity = (CurrentTranslation - PreviousTranslation) / HistorySampleInterval;
+	return LinearVelocity;
+}
 
 FTransform FSearchContext::GetTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool bUseHistoryRoot)
 {
@@ -196,17 +228,30 @@ FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, const UP
 	return FTransform::Identity;
 }
 
-FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, float OriginTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool bUseHistoryRoot)
+FVector FSearchContext::GetSamplePositionInternal(float SampleTime, float OriginTime, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseHistoryRoot)
 {
 	if (SampleTime == OriginTime)
 	{
-		return GetComponentSpaceTransform(SampleTime, Schema, SchemaBoneIdx);
+		if (Schema->IsRootBone(SchemaOriginBoneIdx))
+		{
+			return GetComponentSpaceTransform(SampleTime, Schema, SchemaSampleBoneIdx).GetTranslation();
+		}
+
+		const FVector SampleBonePosition = GetComponentSpaceTransform(SampleTime, Schema, SchemaSampleBoneIdx).GetTranslation();
+		const FVector OriginBonePosition = GetComponentSpaceTransform(OriginTime, Schema, SchemaOriginBoneIdx).GetTranslation();
+		return SampleBonePosition - OriginBonePosition;
 	}
 
 	const FTransform RootBoneTransform = GetTransform(OriginTime, Schema, RootSchemaBoneIdx, bUseHistoryRoot);
-	FTransform BoneTransform = GetTransform(SampleTime, Schema, SchemaBoneIdx, bUseHistoryRoot);
-	BoneTransform.SetToRelativeTransform(RootBoneTransform);
-	return BoneTransform;
+	const FTransform SampleBoneTransform = GetTransform(SampleTime, Schema, SchemaSampleBoneIdx, bUseHistoryRoot);
+	if (Schema->IsRootBone(SchemaOriginBoneIdx))
+	{
+		return RootBoneTransform.InverseTransformPosition(SampleBoneTransform.GetTranslation());
+	}
+
+	const FTransform OriginBoneTransform = GetTransform(OriginTime, Schema, SchemaOriginBoneIdx, bUseHistoryRoot);
+	const FVector DeltaBoneTranslation = SampleBoneTransform.GetTranslation() - OriginBoneTransform.GetTranslation();
+	return RootBoneTransform.InverseTransformVector(DeltaBoneTranslation);
 }
 
 void FSearchContext::ClearCachedEntries()

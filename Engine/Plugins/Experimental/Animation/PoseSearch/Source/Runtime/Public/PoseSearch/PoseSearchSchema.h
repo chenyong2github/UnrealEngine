@@ -130,6 +130,8 @@ public:
 
 	FBoneIndexType GetBoneIndexType(int8 SchemaBoneIdx) const;
 
+	bool IsRootBone(int8 SchemaBoneIdx) const;
+	
 private:
 	void Finalize();
 	void ResolveBoneReferences();

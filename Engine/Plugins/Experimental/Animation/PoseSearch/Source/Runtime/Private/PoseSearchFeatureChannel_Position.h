@@ -16,6 +16,9 @@ public:
 	FBoneReference Bone;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
+	FBoneReference OriginBone;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	float Weight = 1.f;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
@@ -23,6 +26,9 @@ public:
 
 	UPROPERTY(Transient)
 	int8 SchemaBoneIdx = 0;
+
+	UPROPERTY(Transient)
+	int8 SchemaOriginBoneIdx = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ExcludeFromHash))
 	int32 ColorPresetIndex = 0;

@@ -378,7 +378,7 @@ FTransform FAssetIndexer::GetComponentSpaceTransform(float SampleTime, bool& bCl
 	CachedEntry& Entry = GetEntry(SampleTime);
 	bClamped = Entry.bClamped;
 
-	if (SchemaBoneIdx >= 0 && IndexingContext.Schema->BoneReferences[SchemaBoneIdx].HasValidSetup())
+	if (!IndexingContext.Schema->IsRootBone(SchemaBoneIdx))
 	{
 		return CalculateComponentSpaceTransform(Entry, SchemaBoneIdx);
 	}
@@ -393,7 +393,7 @@ FTransform FAssetIndexer::GetTransform(float SampleTime, bool& bClamped, int8 Sc
 	bClamped = Entry.bClamped;
 
 	const FTransform MirroredRootTransform = MirrorTransform(Entry.RootTransform);
-	if (SchemaBoneIdx >= 0 && IndexingContext.Schema->BoneReferences[SchemaBoneIdx].HasValidSetup())
+	if (!IndexingContext.Schema->IsRootBone(SchemaBoneIdx))
 	{
 		return CalculateComponentSpaceTransform(Entry, SchemaBoneIdx) * MirroredRootTransform;
 	}
@@ -408,21 +408,97 @@ FTransform FAssetIndexer::CalculateComponentSpaceTransform(FAssetIndexer::Cached
 	return Entry.ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex);
 }
 
-// returns the transform in component space for the bone indexed by Schema->BoneReferences[SchemaBoneIdx] 
-// at SampleTime-OriginTime seconds ahead (or behind) the pose at OriginTime
-FTransform FAssetIndexer::GetComponentSpaceTransform(float SampleTime, float OriginTime, bool& bClamped, int8 SchemaBoneIdx)
+FQuat FAssetIndexer::GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx)
+{
+	const float OriginTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), IndexingContext.AssetSampler->GetPlayLength());
+	const float SampleTime = OriginTime + SampleTimeOffset;
+
+	// @todo: add support for SchemaSampleBoneIdx
+	if (!IndexingContext.Schema->IsRootBone(SchemaOriginBoneIdx))
+	{
+		UE_LOG(LogPoseSearch,
+			Error,
+			TEXT("FAssetIndexer::GetSampleRotation: support for non root origin bones not implemented (bone: '%s', schema: '%s'"), 
+			*IndexingContext.Schema->BoneReferences[SchemaOriginBoneIdx].BoneName.ToString(),
+			*GetNameSafe(IndexingContext.Schema));
+	}
+
+	bool bUnused;
+	if (SampleTime == OriginTime)
+	{
+		return GetComponentSpaceTransform(SampleTime, bUnused, SchemaSampleBoneIdx).GetRotation();
+	}
+
+	const FTransform RootBoneTransform = GetTransform(OriginTime, bUnused);
+	FTransform BoneTransform = GetTransform(SampleTime, bUnused, SchemaSampleBoneIdx);
+	BoneTransform.SetToRelativeTransform(RootBoneTransform);
+	return BoneTransform.GetRotation();
+}
+
+FVector FAssetIndexer::GetSamplePosition(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx)
+{
+	const float OriginTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), IndexingContext.AssetSampler->GetPlayLength());
+	const float SampleTime = OriginTime + SampleTimeOffset;
+
+	bool bUnused;
+	return GetSamplePositionInternal(SampleTime, OriginTime, bUnused, SchemaSampleBoneIdx, SchemaOriginBoneIdx);
+}
+
+FVector FAssetIndexer::GetSamplePositionInternal(float SampleTime, float OriginTime, bool& bClamped, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx)
 {
 	if (SampleTime == OriginTime)
 	{
-		return GetComponentSpaceTransform(SampleTime, bClamped, SchemaBoneIdx);
+		if (IndexingContext.Schema->IsRootBone(SchemaOriginBoneIdx))
+		{
+			return GetComponentSpaceTransform(SampleTime, bClamped, SchemaSampleBoneIdx).GetTranslation();
+		}
+
+		bool bOriginClamped;
+		const FVector SampleBonePosition = GetComponentSpaceTransform(SampleTime, bClamped, SchemaSampleBoneIdx).GetTranslation();
+		const FVector OriginBonePosition = GetComponentSpaceTransform(OriginTime, bOriginClamped, SchemaOriginBoneIdx).GetTranslation();
+		bClamped |= bOriginClamped;
+		return SampleBonePosition - OriginBonePosition;
 	}
 
-	bool bUnused = false;
-	const FTransform RootBoneTransform = GetTransform(OriginTime, bUnused);
-	FTransform BoneTransform = GetTransform(SampleTime, bClamped, SchemaBoneIdx);
-	BoneTransform.SetToRelativeTransform(RootBoneTransform);
-	return BoneTransform;
+	bool Unused;
+	const FTransform RootBoneTransform = GetTransform(OriginTime, Unused);
+	const FTransform SampleBoneTransform = GetTransform(SampleTime, bClamped, SchemaSampleBoneIdx);
+	if (IndexingContext.Schema->IsRootBone(SchemaOriginBoneIdx))
+	{
+		return RootBoneTransform.InverseTransformPosition(SampleBoneTransform.GetTranslation());
+	}
+
+	bool bOriginClamped;
+	const FTransform OriginBoneTransform = GetTransform(OriginTime, bOriginClamped, SchemaOriginBoneIdx);
+	bClamped |= bOriginClamped;
+	const FVector DeltaBoneTranslation = SampleBoneTransform.GetTranslation() - OriginBoneTransform.GetTranslation();
+	return RootBoneTransform.InverseTransformVector(DeltaBoneTranslation);
 }
+
+FVector FAssetIndexer::GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseCharacterSpaceVelocities)
+{
+	const float OriginSampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), IndexingContext.AssetSampler->GetPlayLength());
+	const float SubsampleTime = OriginSampleTime + SampleTimeOffset;
+	const float FiniteDelta = IndexingContext.SamplingContext->FiniteDelta;
+
+	bool bClampedPast, bClampedPresent;
+	const FVector BonePositionPast = GetSamplePositionInternal(SubsampleTime - FiniteDelta, bUseCharacterSpaceVelocities ? OriginSampleTime - FiniteDelta : OriginSampleTime, bClampedPast, SchemaSampleBoneIdx, SchemaOriginBoneIdx);
+	const FVector BonePositionPresent = GetSamplePositionInternal(SubsampleTime, OriginSampleTime, bClampedPresent, SchemaSampleBoneIdx, SchemaOriginBoneIdx);
+
+	FVector LinearVelocity;
+	if (!bClampedPast)
+	{
+		LinearVelocity = (BonePositionPresent - BonePositionPast) / FiniteDelta;
+	}
+	else
+	{
+		bool Unused;
+		const FVector BonePositionFuture = GetSamplePositionInternal(SubsampleTime + FiniteDelta, bUseCharacterSpaceVelocities ? OriginSampleTime + FiniteDelta : OriginSampleTime, Unused, SchemaSampleBoneIdx, SchemaOriginBoneIdx);
+		LinearVelocity = (BonePositionFuture - BonePositionPresent) / FiniteDelta;
+	}
+	return LinearVelocity;
+}
+
 
 } // namespace UE::PoseSearch
 #endif // WITH_EDITOR

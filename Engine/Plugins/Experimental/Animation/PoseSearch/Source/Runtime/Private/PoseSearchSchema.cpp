@@ -59,6 +59,11 @@ FBoneIndexType UPoseSearchSchema::GetBoneIndexType(int8 SchemaBoneIdx) const
 	return SchemaBoneIdx >= 0 && BoneReferences[SchemaBoneIdx].HasValidSetup() ? BoneReferences[SchemaBoneIdx].BoneIndex : RootBoneIndexType;
 }
 
+bool UPoseSearchSchema::IsRootBone(int8 SchemaBoneIdx) const
+{
+	return SchemaBoneIdx < 0 || !BoneReferences[SchemaBoneIdx].HasValidSetup();
+}
+
 void UPoseSearchSchema::Finalize()
 {
 	BoneReferences.Reset();

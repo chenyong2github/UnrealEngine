@@ -43,8 +43,6 @@ namespace UE::PoseSearch
 	static void CollectBonePositions(TArray<FVector>& BonePositions, FAssetIndexer& Indexer, int8 SchemaBoneIdx)
 	{
 		const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
-		const float FiniteDelta = IndexingContext.Schema->GetSamplingInterval();
-		const float SampleTimeStart = FMath::Min(IndexingContext.BeginSampleIdx * FiniteDelta, IndexingContext.AssetSampler->GetPlayLength());
 		const int32 NumSamples = IndexingContext.EndSampleIdx - IndexingContext.BeginSampleIdx;
 
 		// collecting all the bone transforms
@@ -52,9 +50,7 @@ namespace UE::PoseSearch
 		BonePositions.AddDefaulted(NumSamples);
 		for (int32 SampleIdx = 0; SampleIdx != NumSamples; ++SampleIdx)
 		{
-			const float SampleTime = SampleTimeStart + SampleIdx * FiniteDelta;
-			bool bUnused;
-			BonePositions[SampleIdx] = Indexer.GetComponentSpaceTransform(SampleTime, SampleTimeStart, bUnused, SchemaBoneIdx).GetTranslation();
+			BonePositions[SampleIdx] = Indexer.GetSamplePosition(0.f, SampleIdx, SchemaBoneIdx);
 		}
 	}
 

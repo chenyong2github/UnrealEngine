@@ -55,15 +55,12 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::IndexAsset(UE::PoseSearch::FA
 
 	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
 	{
-		const float SubsampleTime = SampleIdx * IndexingContext.Schema->GetSamplingInterval();
+		const FVector RightThighPosition = Indexer.GetSamplePosition(0.f, SampleIdx, RightThighIdx);
+		const FVector LeftThighPosition = Indexer.GetSamplePosition(0.f, SampleIdx, LeftThighIdx);
+		const FVector RightFootPosition = Indexer.GetSamplePosition(0.f, SampleIdx, RightFootIdx);
+		const FVector LeftFootPosition = Indexer.GetSamplePosition(0.f, SampleIdx, LeftFootIdx);
 
-		bool bUnused;
-		const FTransform RightThighTransform = Indexer.GetComponentSpaceTransform(SubsampleTime, bUnused, RightThighIdx);
-		const FTransform LeftThighTransform = Indexer.GetComponentSpaceTransform(SubsampleTime, bUnused, LeftThighIdx);
-		const FTransform RightFootTransform = Indexer.GetComponentSpaceTransform(SubsampleTime, bUnused, RightFootIdx);
-		const FTransform LeftFootTransform = Indexer.GetComponentSpaceTransform(SubsampleTime, bUnused, LeftFootIdx);
-
-		const float CrashingLegsValue = ComputeCrashingLegsValue(RightThighTransform.GetTranslation(), LeftThighTransform.GetTranslation(), RightFootTransform.GetTranslation(), LeftFootTransform.GetTranslation());
+		const float CrashingLegsValue = ComputeCrashingLegsValue(RightThighPosition, LeftThighPosition, RightFootPosition, LeftFootPosition);
 
 		const int32 VectorIdx = SampleIdx - IndexingContext.BeginSampleIdx;
 		FFeatureVectorHelper::EncodeFloat(IndexingContext.GetPoseVector(VectorIdx, FeatureVectorTable), ChannelDataOffset, CrashingLegsValue);
@@ -89,13 +86,13 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::BuildQuery(UE::PoseSearch::FS
 	}
 	else
 	{
-		const float SampleTime = 0.f;
-		const FTransform LeftThighTransform = SearchContext.GetComponentSpaceTransform(SampleTime, InOutQuery.GetSchema(), LeftThighIdx);
-		const FTransform RightThighTransform = SearchContext.GetComponentSpaceTransform(SampleTime, InOutQuery.GetSchema(), RightThighIdx);
-		const FTransform LeftFootTransform = SearchContext.GetComponentSpaceTransform(SampleTime, InOutQuery.GetSchema(), LeftFootIdx);
-		const FTransform RightFootTransform = SearchContext.GetComponentSpaceTransform(SampleTime, InOutQuery.GetSchema(), RightFootIdx);
+		const FVector RightThighPosition = SearchContext.GetSamplePosition(0.f, InOutQuery.GetSchema(), RightThighIdx);
+		const FVector LeftThighPosition = SearchContext.GetSamplePosition(0.f, InOutQuery.GetSchema(), LeftThighIdx);
+		const FVector RightFootPosition = SearchContext.GetSamplePosition(0.f, InOutQuery.GetSchema(), RightFootIdx);
+		const FVector LeftFootPosition = SearchContext.GetSamplePosition(0.f, InOutQuery.GetSchema(), LeftFootIdx);
 
-		const float CrashingLegsValue = ComputeCrashingLegsValue(RightThighTransform.GetTranslation(), LeftThighTransform.GetTranslation(), RightFootTransform.GetTranslation(), LeftFootTransform.GetTranslation());
+		const float CrashingLegsValue = ComputeCrashingLegsValue(RightThighPosition, LeftThighPosition, RightFootPosition, LeftFootPosition);
+
 		FFeatureVectorHelper::EncodeFloat(InOutQuery.EditValues(), ChannelDataOffset, CrashingLegsValue);
 	}
 }
