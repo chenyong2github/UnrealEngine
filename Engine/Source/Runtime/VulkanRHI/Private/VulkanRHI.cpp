@@ -90,6 +90,15 @@ static FAutoConsoleVariableRef GCVarEnableTransientResourceAllocator(
 	ECVF_ReadOnly
 );
 
+int32 GVulkanAllowVariableRateShading = 1;
+static FAutoConsoleVariableRef CVarVulkanVariableRateShading(
+	TEXT("r.Vulkan.AllowVariableRateShading"),
+	GVulkanAllowVariableRateShading,
+	TEXT("0 to disable variable rate shading")
+	TEXT("1 to allow use of variable rate shading if available (default)"),
+	ECVF_ReadOnly
+);
+
 bool GGPUCrashDebuggingEnabled = false;
 
 
@@ -216,6 +225,7 @@ FVulkanDynamicRHI::FVulkanDynamicRHI()
 	GRHISupportsMultithreading = true;
 	GRHISupportsMultithreadedResources = true;
 	GRHISupportsPipelineFileCache = true;
+	GRHIVariableRateShadingEnabled &= (GVulkanAllowVariableRateShading != 0); // before extensions setup
 	GRHITransitionPrivateData_SizeInBytes = sizeof(FVulkanPipelineBarrier);
 	GRHITransitionPrivateData_AlignInBytes = alignof(FVulkanPipelineBarrier);
 	GConfig->GetInt(TEXT("TextureStreaming"), TEXT("PoolSizeVRAMPercentage"), GPoolSizeVRAMPercentage, GEngineIni);
