@@ -10,22 +10,23 @@
 
 #include "Delegates/Delegate.h"
 
-class FRepChangedPropertyTracker;
-
 namespace UE::Net::Private
 {
 
 class NETCORE_API FPropertyConditionDelegates
 {
 public:
-	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPropertyCustomConditionChanged, const UObject*, const uint16, const bool);
+	using FOnPropertyCustomConditionChanged = TMulticastDelegate<void(const UObject* OwningObject, const uint16 RepIndex, const bool bActive)>;
+	using FOnPropertyDynamicConditionChanged = TMulticastDelegate<void(const UObject* OwningObject, const uint16 RepIndex, const ELifetimeCondition Condition)>;
 	
 	static FOnPropertyCustomConditionChanged& GetOnPropertyCustomConditionChangedDelegate() { return OnPropertyCustomConditionChangedDelegate; }
+	static FOnPropertyDynamicConditionChanged& GetOnPropertyDynamicConditionChangedDelegate() { return OnPropertyDynamicConditionChangedDelegate; }
 
 private:
 	static FOnPropertyCustomConditionChanged OnPropertyCustomConditionChangedDelegate;
+	static FOnPropertyDynamicConditionChanged OnPropertyDynamicConditionChangedDelegate;
 };
 
-}; // UE::Net::Private
+} // UE::Net::Private
 
 #endif

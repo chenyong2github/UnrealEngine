@@ -14,6 +14,7 @@ namespace UE::Net::Private
 {
 #if UE_WITH_IRIS
 FPropertyConditionDelegates::FOnPropertyCustomConditionChanged FPropertyConditionDelegates::OnPropertyCustomConditionChangedDelegate;
+FPropertyConditionDelegates::FOnPropertyDynamicConditionChanged FPropertyConditionDelegates::OnPropertyDynamicConditionChangedDelegate;
 #endif // UE_WITH_IRIS
 
 FNetPropertyConditionManager::FNetPropertyConditionManager()
@@ -38,6 +39,15 @@ void FNetPropertyConditionManager::SetPropertyActive(const FObjectKey ObjectKey,
 	if (Tracker.IsValid())
 	{
 		Tracker->CallSetCustomIsActiveOverride(ObjectKey.ResolveObjectPtr(), RepIndex, bActive);
+	}
+}
+
+void FNetPropertyConditionManager::SetPropertyDynamicCondition(const FObjectKey ObjectKey, const uint16 RepIndex, const ELifetimeCondition Condition)
+{
+	TSharedPtr<FRepChangedPropertyTracker> Tracker = FindPropertyTracker(ObjectKey);
+	if (Tracker.IsValid())
+	{
+		Tracker->CallSetDynamicCondition(ObjectKey.ResolveObjectPtr(), RepIndex, Condition);
 	}
 }
 

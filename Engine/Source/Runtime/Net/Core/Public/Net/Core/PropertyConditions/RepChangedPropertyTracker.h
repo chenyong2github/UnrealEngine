@@ -73,7 +73,22 @@ public:
 		return ActiveState.GetNumProperties();
 	}
 
+	ELifetimeCondition GetDynamicCondition(uint16 ParentIndex) const
+	{
+		return ActiveState.GetDynamicCondition(ParentIndex);
+	}
+
+	uint32 GetDynamicConditionChangeCounter() const
+	{
+		return ActiveState.GetDynamicConditionChangeCounter();
+	}
+
 private:
+	friend UE::Net::Private::FNetPropertyConditionManager;
+
+	// Called from FNetPropertyConditionManager 
+	void CallSetDynamicCondition(const UObject* OwningObject, const uint16 RepIndex, const ELifetimeCondition Condition);
+
 	/** Activation data for top level Properties on the given Actor / Object. */
 	FCustomPropertyConditionState ActiveState;
 

@@ -418,7 +418,7 @@ private:
 	// Setup replication info to be able to send attachments to objects not in scope
 	void SetupReplicationInfoForAttachmentsToObjectsNotInScope();
 
-	void ApplyFilterToChangeMask(uint32 ParentInternalIndex, uint32 InternalIndex, FReplicationInfo& Info, const FReplicationProtocol* Protocol, const uint8* InternalStateBuffer);
+	void ApplyFilterToChangeMask(uint32 ParentInternalIndex, uint32 InternalIndex, FReplicationInfo& Info, const FReplicationProtocol* Protocol, const uint8* InternalStateBuffer, bool bIsInitialState);
 
 	// Patchup changemask to include any in-flight changes. Returns true if in-flight changes were added.
 	bool PatchupObjectChangeMaskWithInflightChanges(uint32 InternalIndex, FReplicationInfo& Info);

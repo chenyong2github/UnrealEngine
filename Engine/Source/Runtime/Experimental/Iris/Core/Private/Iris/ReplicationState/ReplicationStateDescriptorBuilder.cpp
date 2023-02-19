@@ -1784,6 +1784,7 @@ EMemberPropertyTraits FPropertyReplicationStateDescriptorBuilder::GetConnectionF
 		{COND_ReplayOnly, EMemberPropertyTraits::HasLifetimeConditionals},
 		{COND_SimulatedOnlyNoReplay, EMemberPropertyTraits::HasLifetimeConditionals},
 		{COND_SimulatedOrPhysicsNoReplay, EMemberPropertyTraits::HasLifetimeConditionals},
+		{COND_Dynamic, EMemberPropertyTraits::HasLifetimeConditionals},
 	};
 
 	static_assert(TConditionPairIsSorted<>(ConditionPairs), "ConditionPairs order needs to be updated.");

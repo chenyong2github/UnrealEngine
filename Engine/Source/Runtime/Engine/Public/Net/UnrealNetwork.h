@@ -344,6 +344,23 @@ static FProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 	} \
 }
 
+/** To be used in a UObject's GetReplicatedCustomConditionState for example. */
+#define DOREPDYNAMICCONDITION_INITCONDITION_FAST(c,v,cond) \
+{ \
+	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
+	OutActiveState.SetDynamicCondition((uint16)c::ENetFields_Private::v, cond); \
+}
+
+/**
+ * To be used when a condition is to be changed. This should be called as soon as the condition changes, not during PreReplication.
+ * @note Changing the condition of a custom delta property, such as a FastArraySerializer, after it has replicated can result in unexpected behavior.
+ */
+#define DOREPDYNAMICCONDITION_SETCONDITION_FAST(c,v,cond) \
+{ \
+	UE::Net::Private::FNetPropertyConditionManager::Get().SetPropertyDynamicCondition(this, (uint16)c::ENetFields_Private::v, cond); \
+}
+
+
 
 ENGINE_API void RegisterReplicatedLifetimeProperty(
 	const FProperty* ReplicatedProperty,

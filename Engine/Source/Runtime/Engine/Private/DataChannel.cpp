@@ -3465,6 +3465,17 @@ int64 UActorChannel::ReplicateActor()
 	RepFlags.bReplay		= bReplay;
 	RepFlags.bClientReplay	= ActorWorld->IsRecordingClientReplay();
 	RepFlags.bForceInitialDirty = Connection->IsForceInitialDirty();
+	if (EnumHasAnyFlags(ActorReplicator->RepLayout->GetFlags(), ERepLayoutFlags::HasDynamicConditionProperties))
+	{
+		if (const FRepState* RepState = ActorReplicator->RepState.Get())
+		{
+			const FSendingRepState* SendingRepState = RepState->GetSendingRepState();
+			if (const FRepChangedPropertyTracker* PropertyTracker = SendingRepState ? SendingRepState->RepChangedPropertyTracker.Get() : nullptr)
+			{
+				RepFlags.CondDynamicChangeCounter = PropertyTracker->GetDynamicConditionChangeCounter();
+			}
+		}
+	}
 
 	UE_LOG(LogNetTraffic, Log, TEXT("Replicate %s, bNetInitial: %d, bNetOwner: %d"), *Actor->GetName(), RepFlags.bNetInitial, RepFlags.bNetOwner);
 

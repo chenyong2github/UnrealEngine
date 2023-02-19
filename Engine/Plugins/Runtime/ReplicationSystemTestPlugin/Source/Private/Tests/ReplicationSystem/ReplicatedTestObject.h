@@ -347,6 +347,36 @@ public:
 	TArray<UE::Net::FReplicationFragment*> ReplicationFragments;
 };
 
+/**
+ *  A test class for Replication that itself uses Property based replication but also has "components" that uses a mix of property based replication and native ReplicationStates
+ */
+UCLASS()
+class UTestReplicatedIrisObjectWithDynamicCondition : public UReplicatedTestObject
+{
+	GENERATED_BODY()
+
+public:
+	UTestReplicatedIrisObjectWithDynamicCondition();
+
+	// Sets the condition for the DynamicConditionInt member.
+	void SetDynamicCondition(ELifetimeCondition Condition);
+
+	// Sets custom condition on DynamicConditionInt member.
+	void SetDynamicConditionCustomCondition(bool bActive);
+
+public:
+	UPROPERTY(Transient, Replicated)
+	int32 DynamicConditionInt;
+
+private:
+	// Network interface must be part of base.
+	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
+
+public:
+	// Network data only for test
+	TArray<UE::Net::FReplicationFragment*> ReplicationFragments;
+};
+
 UCLASS()
 class UReplicatedSubObjectOrderObject : public UReplicatedTestObject
 {

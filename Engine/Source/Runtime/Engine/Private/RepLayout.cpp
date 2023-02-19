@@ -1395,7 +1395,19 @@ static bool CompareParentProperty(
 	// Further, this will keep the last active state of the property in the shadow buffer,
 	// meaning the next time the property becomes active it will be sent to all connections.
 	const bool bIsActive = SharedParams.bForceCustomPropsActive || !SharedParams.RepChangedPropertyTracker || SharedParams.RepChangedPropertyTracker->IsParentActive(ParentIndex);
-	const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
+	bool bShouldSkip = !bIsLifetime || !bIsActive;
+	if (!bShouldSkip)
+	{
+		ELifetimeCondition Condition = Parent.Condition;
+		if (Condition == COND_Dynamic)
+		{
+			Condition = SharedParams.RepChangedPropertyTracker ? SharedParams.RepChangedPropertyTracker->GetDynamicCondition(ParentIndex) : COND_Dynamic;
+			bShouldSkip = Condition == COND_Never;
+		}
+
+		// Skip initial state if we're not replicating it.
+		bShouldSkip |= !SharedParams.bIsInitial && Condition == COND_InitialOnly;
+	}
 
 	if (bShouldSkip)
 	{
@@ -1510,7 +1522,8 @@ static void CompareParentProperties(
 
 			for (int32 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
 			{
-				const bool bRecompareInitialProperties = SharedParams.bIsInitial && SharedParams.Parents[ParentIndex].Condition == COND_InitialOnly;
+				const ELifetimeCondition Condition = SharedParams.Parents[ParentIndex].Condition;
+				const bool bRecompareInitialProperties = SharedParams.bIsInitial && (Condition == COND_InitialOnly || (Condition == COND_Dynamic && SharedParams.RepChangedPropertyTracker && SharedParams.RepChangedPropertyTracker->GetDynamicCondition(ParentIndex) == COND_InitialOnly));
 
 				const bool bIsPropertyDirty = bRecompareInitialProperties ||
 												UE_RepLayout_Private::IsPropertyDirty(ParentIndex, bRecentlyCollectedGarbage, SharedParams, StackParams);
@@ -1522,7 +1535,7 @@ static void CompareParentProperties(
 		}
 #endif // WITH_PUSH_VALIDATION_SUPPORT
 
-		else if (UNLIKELY(SharedParams.bIsInitial && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::HasInitialOnlyProperties)))
+		else if (UNLIKELY(SharedParams.bIsInitial && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::HasInitialOnlyProperties | ERepLayoutFlags::HasDynamicConditionProperties)))
 		{
 			/*
 				Most replication conditions don't actually effect whether or not we compare properties,
@@ -1554,8 +1567,9 @@ static void CompareParentProperties(
 
 			for (int32 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
 			{
-				if (SharedParams.Parents[ParentIndex].Condition == COND_InitialOnly ||
-					UE_RepLayout_Private::IsPropertyDirty(ParentIndex, bRecentlyCollectedGarbage, SharedParams, StackParams))
+				const ELifetimeCondition Condition = SharedParams.Parents[ParentIndex].Condition;
+				if (Condition == COND_InitialOnly || UE_RepLayout_Private::IsPropertyDirty(ParentIndex, bRecentlyCollectedGarbage, SharedParams, StackParams)
+					|| (Condition == COND_Dynamic && SharedParams.RepChangedPropertyTracker && SharedParams.RepChangedPropertyTracker->GetDynamicCondition(ParentIndex) == COND_InitialOnly))
 				{
 					UE_RepLayout_Private::CompareParentPropertyHelper(ParentIndex, SharedParams, StackParams);
 				}
@@ -6249,6 +6263,10 @@ void FRepLayout::InitFromClass(
 			{
 				Flags |= ERepLayoutFlags::HasInitialOnlyProperties;
 			}
+			else if (LifetimeProps[i].Condition == COND_Dynamic)
+			{
+				Flags |= ERepLayoutFlags::HasDynamicConditionProperties;
+			}
 
 			if (EnumHasAnyFlags(Parents[ParentIndex].Flags, ERepParentFlags::HasNetSerializeProperties | ERepParentFlags::HasObjectProperties))
 			{
@@ -7149,6 +7167,7 @@ TStaticBitArray<COND_Max> FSendingRepState::BuildConditionMapFromRepFlags(const 
 	ConditionMap[COND_SkipReplay] = !bIsReplay;
 
 	ConditionMap[COND_Custom] = true;
+	ConditionMap[COND_Dynamic] = true;
 	ConditionMap[COND_Never] = false;
 
 	return ConditionMap;
@@ -7167,19 +7186,33 @@ bool FSendingRepState::HasAnyPendingRetirements() const
 	return false;
 }
 
-void FRepLayout::RebuildConditionalProperties(
-	FSendingRepState* RESTRICT RepState,
-	const FReplicationFlags& RepFlags) const
+void FRepLayout::RebuildConditionalProperties(FSendingRepState* RepState, const FReplicationFlags RepFlags) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NetRebuildConditionalTime);
 	
-	TStaticBitArray<COND_Max> ConditionMap = FSendingRepState::BuildConditionMapFromRepFlags(RepFlags);
-	for (auto It = TBitArray<>::FIterator(RepState->InactiveParents); It; ++It)
-	{
-		It.GetValue() = !ConditionMap[Parents[It.GetIndex()].Condition];
-	}
-
 	RepState->RepFlags = RepFlags;
+
+	TStaticBitArray<COND_Max> ConditionMap = FSendingRepState::BuildConditionMapFromRepFlags(RepFlags);
+	if (EnumHasAnyFlags(Flags, ERepLayoutFlags::HasDynamicConditionProperties) && RepState->RepChangedPropertyTracker.IsValid())
+	{
+		const FRepChangedPropertyTracker* RepChangedPropertyTracker = RepState->RepChangedPropertyTracker.Get();
+		for (auto It = TBitArray<>::FIterator(RepState->InactiveParents); It; ++It)
+		{
+			ELifetimeCondition Condition = Parents[It.GetIndex()].Condition;
+			if (Condition == COND_Dynamic)
+			{
+				Condition = RepChangedPropertyTracker->GetDynamicCondition(It.GetIndex());
+			}
+			It.GetValue() = !ConditionMap[Condition];
+		}
+	}
+	else
+	{
+		for (auto It = TBitArray<>::FIterator(RepState->InactiveParents); It; ++It)
+		{
+			It.GetValue() = !ConditionMap[Parents[It.GetIndex()].Condition];
+		}
+	}
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -8440,6 +8473,8 @@ const TCHAR* LexToString(ERepLayoutFlags Flag)
 		return TEXT("FullPushProperties");
 	case ERepLayoutFlags::HasInitialOnlyProperties:
 		return TEXT("HasInitialOnlyProperties");
+	case ERepLayoutFlags::HasDynamicConditionProperties:
+		return TEXT("HasDynamicConditionProperties");
 	default:
 		check(false);
 		return TEXT("Unknown");

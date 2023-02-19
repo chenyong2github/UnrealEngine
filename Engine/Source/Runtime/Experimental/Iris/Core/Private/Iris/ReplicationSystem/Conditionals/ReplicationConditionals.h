@@ -4,8 +4,10 @@
 
 #include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "Net/Core/NetBitArray.h"
 
+enum ELifetimeCondition : int;
 namespace UE::Net
 {
 	enum class EReplicationCondition : uint32;
@@ -59,10 +61,11 @@ public:
 	// For property custom conditions only
 	void InitPropertyCustomConditions(FInternalNetRefIndex ObjectIndex);
 	bool SetPropertyCustomCondition(FInternalNetRefIndex ObjectIndex, const void* Owner, uint16 RepIndex, bool bIsActive);
+	bool SetPropertyDynamicCondition(FInternalNetRefIndex ObjectIndex, const void* Owner, uint16 RepIndex, ELifetimeCondition Condition);
 
 	void Update();
 
-	bool ApplyConditionalsToChangeMask(uint32 ReplicatingConnectionId, FInternalNetRefIndex ParentObjectIndex, FInternalNetRefIndex ObjectIndex, uint32* ChangeMaskData, const uint32* ConditionalChangeMaskData, const FReplicationProtocol* Protocol);
+	bool ApplyConditionalsToChangeMask(uint32 ReplicatingConnectionId, bool bIsInitialState, FInternalNetRefIndex ParentObjectIndex, FInternalNetRefIndex ObjectIndex, uint32* ChangeMaskData, const uint32* ConditionalChangeMaskData, const FReplicationProtocol* Protocol);
 
 	using FSubObjectsToReplicateArray = TArray<FInternalNetRefIndex, TInlineAllocator<32>>;
 	void GetSubObjectsToReplicate(uint32 ReplicationConnectionId, FInternalNetRefIndex ParentObjectIndex, FSubObjectsToReplicateArray& OutSubObjectsToReplicate);
@@ -96,18 +99,27 @@ private:
 		int8 Condition;
 	};
 
+	struct FObjectDynamicConditions
+	{
+		// RepIndex and ELifetimeCondition expressed as int16
+		TMap<uint16, int16> DynamicConditions;
+	};
+
 private:
 	void UpdateObjectsInScope();
 
-	FConditionalsMask GetLifetimeConditionals(uint32 ReplicatingConnectionId, FInternalNetRefIndex ParentObjectIndex) const;
-	bool ObjectHasLifetimeConditionals(FInternalNetRefIndex ObjectIndex) const;	
+	FConditionalsMask GetLifetimeConditionals(uint32 ReplicatingConnectionId, FInternalNetRefIndex ParentObjectIndex, bool bInitialState) const;
 
 	FPerObjectInfo* GetPerObjectInfo(FInternalNetRefIndex ObjectIndex);
 	const FPerObjectInfo* GetPerObjectInfo(FInternalNetRefIndex ObjectIndex) const;
 	void ClearPerObjectInfo(FInternalNetRefIndex ObjectIndex);
 	void ClearConnectionInfosForObject(const FNetBitArray& ValidConnections, uint32 MaxConnectionId, FInternalNetRefIndex ObjectIndex);
 
-	void GetChildSubObjectsToReplicate(uint32 ReplicatingConnectionId, const FConditionalsMask& LifetimeConditionals,  const FInternalNetRefIndex ParentObjectIndex, FSubObjectsToReplicateArray& OutSubObjectsToReplicate);
+	void GetChildSubObjectsToReplicate(uint32 ReplicatingConnectionId, const FConditionalsMask& LifetimeConditionals, const FInternalNetRefIndex ParentObjectIndex, FSubObjectsToReplicateArray& OutSubObjectsToReplicate);
+
+	ELifetimeCondition GetDynamicCondition(FInternalNetRefIndex ObjectIndex, uint16 RepIndex) const;
+	void SetDynamicCondition(FInternalNetRefIndex ObjectIndex, uint16 RepIndex, ELifetimeCondition Condition);
+	bool DynamicConditionChangeRequiresBaselineInvalidation(ELifetimeCondition OldCondition, ELifetimeCondition NewCondition) const;
 
 private:
 	const FNetRefHandleManager* NetRefHandleManager = nullptr;
@@ -121,6 +133,7 @@ private:
 
 	TArray<FPerObjectInfo> PerObjectInfos;
 	TArray<FPerConnectionInfo> ConnectionInfos;
+	TMap<FInternalNetRefIndex, FObjectDynamicConditions> DynamicConditions;
 };
 
 inline FReplicationConditionals::FPerObjectInfo* FReplicationConditionals::GetPerObjectInfo(FInternalNetRefIndex ObjectIndex)

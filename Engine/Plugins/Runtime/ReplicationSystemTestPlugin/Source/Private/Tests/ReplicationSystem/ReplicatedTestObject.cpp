@@ -301,15 +301,23 @@ void FTestReplicatedIrisComponent::ApplyReplicationState(const FFakeGeneratedRep
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Implementation for UTestReplicationSystem_TestClass
+// Implementation for UTestReplicatedIrisObject
 //////////////////////////////////////////////////////////////////////////
-void UTestReplicatedIrisObject::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
-{
-}
-
 UTestReplicatedIrisObject::UTestReplicatedIrisObject()
 : UReplicatedTestObject()
 {
+}
+
+void UTestReplicatedIrisObject::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = false;
+
+	Params.Condition = COND_None;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, IntA, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, IntB, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, IntC, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, StructD, Params);
 }
 
 void UTestReplicatedIrisObject::AddComponents(const UTestReplicatedIrisObject::FComponents& InComponents)
@@ -414,7 +422,7 @@ void UTestReplicatedIrisObject::RegisterReplicationFragments(UE::Net::FFragmentR
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Implementation for UTestReplicationSystem_TestClass
+// Implementation for UTestReplicatedIrisObjectWithObjectReference
 //////////////////////////////////////////////////////////////////////////
 
 void UTestReplicatedIrisObjectWithObjectReference::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
@@ -464,6 +472,44 @@ void UReplicatedSubObjectOrderObject::RegisterReplicationFragments(UE::Net::FFra
 		this->ReplicationFragments.Reset();
 		UE::Net::FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags, &this->ReplicationFragments);
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Implementation for UTestReplicatedIrisObjectWithDynamicCondition
+//////////////////////////////////////////////////////////////////////////
+UTestReplicatedIrisObjectWithDynamicCondition::UTestReplicatedIrisObjectWithDynamicCondition()
+: UReplicatedTestObject()
+{
+}
+
+void UTestReplicatedIrisObjectWithDynamicCondition::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
+{
+	Super::RegisterReplicationFragments(Context, RegistrationFlags);
+
+	// Base object owns the fragment in this case
+	{
+		this->ReplicationFragments.Reset();
+		UE::Net::FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags, &this->ReplicationFragments);
+	}
+}
+
+void UTestReplicatedIrisObjectWithDynamicCondition::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = false;
+
+	Params.Condition = COND_Dynamic;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, DynamicConditionInt, Params);
+}
+
+void UTestReplicatedIrisObjectWithDynamicCondition::SetDynamicCondition(ELifetimeCondition Condition)
+{
+	DOREPDYNAMICCONDITION_SETCONDITION_FAST(ThisClass, DynamicConditionInt, Condition);
+}
+
+void UTestReplicatedIrisObjectWithDynamicCondition::SetDynamicConditionCustomCondition(bool bActive)
+{
+	DOREPCUSTOMCONDITION_SETACTIVE_FAST(ThisClass, DynamicConditionInt, bActive);	
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -32,6 +32,7 @@ enum ELifetimeCondition : int
 	COND_SimulatedOnlyNoReplay = 11			UMETA(DisplayName = "Simulated Only No Replay"),		// This property will send to actors only, but not to replay connections
 	COND_SimulatedOrPhysicsNoReplay = 12	UMETA(DisplayName = "Simulated Or Physics No Replay"),	// This property will send to simulated Or bRepPhysics actors, but not to replay connections
 	COND_SkipReplay = 13					UMETA(DisplayName = "Skip Replay"),						// This property will not send to the replay connection
+	COND_Dynamic = 14						UMETA(Hidden),											// This property wants to override the condition at runtime. Defaults to always replicate until you override it to a new condition.
 	COND_Never = 15							UMETA(Hidden),											// This property will never be replicated
 	COND_NetGroup = 16						UMETA(Hidden),											// This subobject will replicate to connections that are part of the same group the subobject is registered to. Not usable on properties.
 	COND_Max = 17							UMETA(Hidden)

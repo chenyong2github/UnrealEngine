@@ -121,28 +121,15 @@ void UObjectReplicationBridge::Initialize(UReplicationSystem* InReplicationSyste
 
 	LoadConfig();
 
-	// Hookup delegate when a property custom conditions is changed
-	OnCustomConditionChangedHandle = UE::Net::Private::FPropertyConditionDelegates::GetOnPropertyCustomConditionChangedDelegate().AddLambda([this](const UObject* Owner, uint16 RepIndex, bool bEnable)
-	{
-		using namespace UE::Net;
-		using namespace UE::Net::Private;
-
-		const FNetRefHandle RefHandle = this->GetReplicatedRefHandle(Owner);
-		if (RefHandle.IsValid())
-		{
-			FReplicationSystemInternal* ReplicationSystemInternal = this->GetReplicationSystem()->GetReplicationSystemInternal();
-			const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
-			FReplicationConditionals& Conditionals = ReplicationSystemInternal->GetConditionals();
-
-			Conditionals.SetPropertyCustomCondition(LocalNetRefHandleManager.GetInternalIndex(RefHandle), Owner, RepIndex, bEnable);
-		}
-	});
+	InitConditionalPropertyDelegates();
 }
 
 void UObjectReplicationBridge::Deinitialize()
 {
 	UE::Net::Private::FPropertyConditionDelegates::GetOnPropertyCustomConditionChangedDelegate().Remove(OnCustomConditionChangedHandle);
+	UE::Net::Private::FPropertyConditionDelegates::GetOnPropertyDynamicConditionChangedDelegate().Remove(OnDynamicConditionChangedHandle);
 	OnCustomConditionChangedHandle.Reset();
+	OnDynamicConditionChangedHandle.Reset();
 	PollFrequencyLimiter->Deinit();
 	Super::Deinitialize();
 }
@@ -1413,4 +1400,38 @@ void UObjectReplicationBridge::SetShouldSubclassUseSameFilterFunction(TFunction<
 	}
 
 	ShouldSubclassUseSameFilterFunction = InShouldSubclassUseSameFilterFunction;
+}
+
+void UObjectReplicationBridge::InitConditionalPropertyDelegates()
+{
+	using namespace UE::Net;
+	using namespace UE::Net::Private;
+
+	// Hookup delegate for when a property custom condition is changed
+	OnCustomConditionChangedHandle = UE::Net::Private::FPropertyConditionDelegates::GetOnPropertyCustomConditionChangedDelegate().AddLambda([this](const UObject* Owner, uint16 RepIndex, bool bEnable)
+	{
+		const FNetRefHandle RefHandle = this->GetReplicatedRefHandle(Owner);
+		if (RefHandle.IsValid())
+		{
+			FReplicationSystemInternal* ReplicationSystemInternal = this->GetReplicationSystem()->GetReplicationSystemInternal();
+			const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
+			FReplicationConditionals& Conditionals = ReplicationSystemInternal->GetConditionals();
+
+			Conditionals.SetPropertyCustomCondition(LocalNetRefHandleManager.GetInternalIndex(RefHandle), Owner, RepIndex, bEnable);
+		}
+	});
+
+	// Hookup delegate for when a property dynamic condition is changed
+	OnDynamicConditionChangedHandle = UE::Net::Private::FPropertyConditionDelegates::GetOnPropertyDynamicConditionChangedDelegate().AddLambda([this](const UObject* Owner, uint16 RepIndex, ELifetimeCondition Condition)
+	{
+		const FNetRefHandle RefHandle = this->GetReplicatedRefHandle(Owner);
+		if (RefHandle.IsValid())
+		{
+			FReplicationSystemInternal* ReplicationSystemInternal = this->GetReplicationSystem()->GetReplicationSystemInternal();
+			const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
+			FReplicationConditionals& Conditionals = ReplicationSystemInternal->GetConditionals();
+
+			Conditionals.SetPropertyDynamicCondition(LocalNetRefHandleManager.GetInternalIndex(RefHandle), Owner, RepIndex, Condition);
+		}
+	});
 }

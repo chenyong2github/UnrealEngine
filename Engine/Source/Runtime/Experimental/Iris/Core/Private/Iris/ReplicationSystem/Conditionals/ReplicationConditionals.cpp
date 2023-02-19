@@ -307,6 +307,136 @@ bool FReplicationConditionals::SetPropertyCustomCondition(FInternalNetRefIndex O
 	return false;
 }
 
+bool FReplicationConditionals::SetPropertyDynamicCondition(FInternalNetRefIndex ObjectIndex, const void* Owner, uint16 RepIndex, ELifetimeCondition Condition)
+{
+	IRIS_PROFILER_SCOPE(FReplicationConditionals_SetPropertyDynamicCondition);
+
+	const FNetRefHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(ObjectIndex);
+	const FReplicationProtocol* Protocol = ReplicatedObjectData.Protocol;
+
+	if (NetRefHandleManager->GetReplicatedObjectStateBufferNoCheck(ObjectIndex) == nullptr || !EnumHasAnyFlags(Protocol->ProtocolTraits, EReplicationProtocolTraits::HasLifetimeConditionals))
+	{
+		return false;
+	}
+
+	if (Protocol->LifetimeConditionalsStateCount == 1U)
+	{
+		const SIZE_T StateIndex = Protocol->FirstLifetimeConditionalsStateIndex;
+		const FReplicationInstanceProtocol* InstanceProtocol = ReplicatedObjectData.InstanceProtocol;
+		const FReplicationInstanceProtocol::FFragmentData& Fragment = InstanceProtocol->FragmentData[StateIndex];
+		const FReplicationStateDescriptor* StateDescriptor = Protocol->ReplicationStateDescriptors[StateIndex];
+
+		if (RepIndex >= StateDescriptor->RepIndexCount)
+		{
+			UE_LOG(LogIris, Warning, TEXT("Trying to change non-existing dynamic conditional for RepIndex %u in protocol %s"), RepIndex, ToCStr(Protocol->DebugName));
+			return false;
+		}
+
+		const FReplicationStateMemberRepIndexToMemberIndexDescriptor& RepIndexToMemberIndexDescriptor = StateDescriptor->MemberRepIndexToMemberIndexDescriptors[RepIndex];
+		const uint16 MemberIndex = RepIndexToMemberIndexDescriptor.MemberIndex;
+		if ((MemberIndex == FReplicationStateMemberRepIndexToMemberIndexDescriptor::InvalidEntry))
+		{
+			UE_LOG(LogIris, Warning, TEXT("Trying to change non-existing dynamic conditional for RepIndex %u in protocol %s"), RepIndex, ToCStr(Protocol->DebugName));
+			return false;
+		}
+
+		if (StateDescriptor->MemberLifetimeConditionDescriptors[MemberIndex].Condition != COND_Dynamic)
+		{
+			UE_LOG(LogIris, Warning, TEXT("Trying to change condition for member %s with wrong condition in protocol %s"), ToCStr(StateDescriptor->MemberDebugDescriptors[MemberIndex].DebugName), ToCStr(Protocol->DebugName));
+			return false;
+		}
+
+		const ELifetimeCondition OldCondition = GetDynamicCondition(ObjectIndex, RepIndex);
+		SetDynamicCondition(ObjectIndex, RepIndex, Condition);
+
+		// If a condition may cause something to go from not replicated to replicated we mark the changemask as dirty and invalidate baselines.
+		if (DynamicConditionChangeRequiresBaselineInvalidation(OldCondition, Condition))
+		{
+			const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskDescriptor = StateDescriptor->MemberChangeMaskDescriptors[MemberIndex];
+
+			FNetBitArrayView MemberChangeMask = UE::Net::Private::GetMemberChangeMask(Fragment.ExternalSrcBuffer, StateDescriptor);
+			FReplicationStateHeader& ReplicationStateHeader = UE::Net::Private::GetReplicationStateHeader(Fragment.ExternalSrcBuffer, StateDescriptor);
+			MarkDirty(ReplicationStateHeader, MemberChangeMask, ChangeMaskDescriptor);
+
+			// $TODO Consider more extensive checking to see if only a single connection requires baseline invalidation.
+			BaselineInvalidationTracker->InvalidateBaselines(ObjectIndex, BaselineInvalidationTracker->InvalidateBaselineForAllConnections);
+		}
+
+		return true;
+	}
+	else
+	{
+		constexpr uint32 MaxFragmentOwnerCount = 1U;
+		UObject* FragmentOwners[MaxFragmentOwnerCount] = {};
+		FReplicationStateOwnerCollector FragmentOwnerCollector(FragmentOwners, MaxFragmentOwnerCount);
+
+		const FReplicationInstanceProtocol* InstanceProtocol = ReplicatedObjectData.InstanceProtocol;
+
+		const SIZE_T FirstRelevantStateIndex = Protocol->FirstLifetimeConditionalsStateIndex;
+		for (const FReplicationStateDescriptor*& StateDescriptor : MakeArrayView(Protocol->ReplicationStateDescriptors + FirstRelevantStateIndex, Protocol->ReplicationStateCount - FirstRelevantStateIndex))
+		{
+			if (EnumHasAnyFlags(StateDescriptor->Traits, EReplicationStateTraits::HasLifetimeConditionals))
+			{
+				const SIZE_T StateIndex = &StateDescriptor - Protocol->ReplicationStateDescriptors;
+
+				// Is the passed Owner the owner of the fragment?
+				{
+					const FReplicationFragment* ReplicationFragment = InstanceProtocol->Fragments[StateIndex];
+
+					FragmentOwnerCollector.Reset();
+					ReplicationFragment->CollectOwner(&FragmentOwnerCollector);
+					if (FragmentOwnerCollector.GetOwnerCount() == 0U || FragmentOwnerCollector.GetOwners()[0] != Owner)
+					{
+						// Not the right owner.
+						continue;
+					}
+				}
+
+				// Can this state contain this property?
+				if (RepIndex >= StateDescriptor->RepIndexCount)
+				{
+					continue;
+				}
+
+				// Does this state contain this property?
+				const FReplicationStateMemberRepIndexToMemberIndexDescriptor& RepIndexToMemberIndexDescriptor = StateDescriptor->MemberRepIndexToMemberIndexDescriptors[RepIndex];
+				const uint16 MemberIndex = RepIndexToMemberIndexDescriptor.MemberIndex;
+				if (MemberIndex == FReplicationStateMemberRepIndexToMemberIndexDescriptor::InvalidEntry)
+				{
+					continue;
+				}
+
+				// We've found the relevant state. Verify it's a dynamic condition member.
+				if (StateDescriptor->MemberLifetimeConditionDescriptors[MemberIndex].Condition != COND_Dynamic)
+				{
+					UE_LOG(LogIris, Warning, TEXT("Trying to change condition for member %s with wrong condition in protocol %s"), ToCStr(StateDescriptor->MemberDebugDescriptors[MemberIndex].DebugName), ToCStr(Protocol->DebugName));
+					return false;
+				}
+
+				const ELifetimeCondition OldCondition = GetDynamicCondition(ObjectIndex, RepIndex);
+				SetDynamicCondition(ObjectIndex, RepIndex, Condition);
+
+				// If a condition may cause something to go from not replicated to replicated we mark the changemask as dirty and invalidate baselines.
+				if (DynamicConditionChangeRequiresBaselineInvalidation(OldCondition, Condition))
+				{
+					const FReplicationInstanceProtocol::FFragmentData& Fragment = InstanceProtocol->FragmentData[StateIndex];
+					const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskDescriptor = StateDescriptor->MemberChangeMaskDescriptors[MemberIndex];
+
+					FNetBitArrayView MemberChangeMask = UE::Net::Private::GetMemberChangeMask(Fragment.ExternalSrcBuffer, StateDescriptor);
+					FReplicationStateHeader& ReplicationStateHeader = UE::Net::Private::GetReplicationStateHeader(Fragment.ExternalSrcBuffer, StateDescriptor);
+					MarkDirty(ReplicationStateHeader, MemberChangeMask, ChangeMaskDescriptor);
+
+					BaselineInvalidationTracker->InvalidateBaselines(ObjectIndex, BaselineInvalidationTracker->InvalidateBaselineForAllConnections);
+				}
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void FReplicationConditionals::Update()
 {
 	UpdateObjectsInScope();
@@ -386,11 +516,12 @@ void FReplicationConditionals::GetSubObjectsToReplicate(uint32 ReplicationConnec
 	// For now, we do nothing to detect if a conditional has changed on the RootParent, we simply defer this until the next
 	// time the subobjects are marked as dirty. We might want to consider to explicitly mark object and subobjects as dirty when 
 	// the owning connections or conditionals such as bRepPhysics or Role is changed.
-	const FConditionalsMask LifetimeConditionals = GetLifetimeConditionals(ReplicationConnectionId, RootObjectIndex);
+	constexpr bool bInitialState = false;
+	const FConditionalsMask LifetimeConditionals = GetLifetimeConditionals(ReplicationConnectionId, RootObjectIndex, bInitialState);
 	GetChildSubObjectsToReplicate(ReplicationConnectionId, LifetimeConditionals, RootObjectIndex, OutSubObjectsToReplicate);
 }
 
-bool FReplicationConditionals::ApplyConditionalsToChangeMask(uint32 ReplicatingConnectionId, FInternalNetRefIndex ParentObjectIndex, FInternalNetRefIndex ObjectIndex, uint32* ChangeMaskData, const uint32* ConditionalChangeMaskData, const FReplicationProtocol* Protocol)
+bool FReplicationConditionals::ApplyConditionalsToChangeMask(uint32 ReplicatingConnectionId, bool bIsInitialState, FInternalNetRefIndex ParentObjectIndex, FInternalNetRefIndex ObjectIndex, uint32* ChangeMaskData, const uint32* ConditionalChangeMaskData, const FReplicationProtocol* Protocol)
 {
 	IRIS_PROFILER_SCOPE(FReplicationConditionals_ApplyConditionalsToChangeMask);
 
@@ -402,7 +533,7 @@ bool FReplicationConditionals::ApplyConditionalsToChangeMask(uint32 ReplicatingC
 	// Legacy lifetime conditionals support.
 	if (EnumHasAnyFlags(Protocol->ProtocolTraits, EReplicationProtocolTraits::HasLifetimeConditionals))
 	{
-		const FConditionalsMask LifetimeConditionals = GetLifetimeConditionals(ReplicatingConnectionId, ParentObjectIndex);
+		const FConditionalsMask LifetimeConditionals = GetLifetimeConditionals(ReplicatingConnectionId, ParentObjectIndex, bIsInitialState);
 		FConditionalsMask PrevLifeTimeConditions = ConnectionInfos[ReplicatingConnectionId].ObjectConditionals[ObjectIndex];
 		if (PrevLifeTimeConditions.IsUninitialized())
 		{
@@ -421,7 +552,16 @@ bool FReplicationConditionals::ApplyConditionalsToChangeMask(uint32 ReplicatingC
 			for (uint32 MemberIt = 0U, MemberEndIt = StateDescriptor->MemberCount; MemberIt != MemberEndIt; ++MemberIt)
 			{
 				const FReplicationStateMemberLifetimeConditionDescriptor& LifetimeConditionDescriptor = LifetimeConditionDescriptors[MemberIt];
-				const ELifetimeCondition Condition = static_cast<ELifetimeCondition>(LifetimeConditionDescriptor.Condition);
+				ELifetimeCondition Condition = static_cast<ELifetimeCondition>(LifetimeConditionDescriptor.Condition);
+				if (Condition == COND_Dynamic)
+				{
+					const FProperty* Property = StateDescriptor->MemberProperties[MemberIt];
+					if (ensure(Property != nullptr))
+					{
+						Condition = GetDynamicCondition(ObjectIndex, Property->RepIndex);
+					}
+				}
+				
 				// If condition was enabled we need to dirty changemask of relevant members. If it was disabled we clear the changemask of relevant members.
 				if (LifetimeConditionals.IsConditionEnabled(Condition))
 				{
@@ -460,7 +600,16 @@ bool FReplicationConditionals::ApplyConditionalsToChangeMask(uint32 ReplicatingC
 					for (uint32 MemberIt = 0U, MemberEndIt = StateDescriptor->MemberCount; MemberIt != MemberEndIt; ++MemberIt)
 					{
 						const FReplicationStateMemberLifetimeConditionDescriptor& LifetimeConditionDescriptor = LifetimeConditionDescriptors[MemberIt];
-						const ELifetimeCondition Condition = static_cast<ELifetimeCondition>(LifetimeConditionDescriptor.Condition);
+						ELifetimeCondition Condition = static_cast<ELifetimeCondition>(LifetimeConditionDescriptor.Condition);
+						if (Condition == COND_Dynamic)
+						{
+							const FProperty* Property = StateDescriptor->MemberProperties[MemberIt];
+							if (ensure(Property != nullptr))
+							{
+								Condition = GetDynamicCondition(ObjectIndex, Property->RepIndex);
+							}
+						}
+
 						// If the condition is fulfilled the changemask will remain intact so we can continue to the next member.
 						if (LifetimeConditionals.IsConditionEnabled(Condition))
 						{
@@ -580,7 +729,7 @@ void FReplicationConditionals::UpdateObjectsInScope()
 	}
 }
 
-FReplicationConditionals::FConditionalsMask FReplicationConditionals::GetLifetimeConditionals(uint32 ReplicatingConnectionId, FInternalNetRefIndex ParentObjectIndex) const
+FReplicationConditionals::FConditionalsMask FReplicationConditionals::GetLifetimeConditionals(uint32 ReplicatingConnectionId, FInternalNetRefIndex ParentObjectIndex, bool bIsInitialState) const
 {
 	FConditionalsMask ConditionalsMask{0};
 
@@ -594,12 +743,14 @@ FReplicationConditionals::FConditionalsMask FReplicationConditionals::GetLifetim
 
 	ConditionalsMask.SetConditionEnabled(COND_None, true);
 	ConditionalsMask.SetConditionEnabled(COND_Custom, true);
+	ConditionalsMask.SetConditionEnabled(COND_Dynamic, true);
 	ConditionalsMask.SetConditionEnabled(COND_OwnerOnly, bIsReplicatingToOwner);
 	ConditionalsMask.SetConditionEnabled(COND_SkipOwner, !bIsReplicatingToOwner);
 	ConditionalsMask.SetConditionEnabled(COND_SimulatedOnly, bRoleSimulated);
 	ConditionalsMask.SetConditionEnabled(COND_AutonomousOnly, bRoleAutonomous);
 	ConditionalsMask.SetConditionEnabled(COND_SimulatedOrPhysics, bRoleSimulated | bRepPhysics);
-	ConditionalsMask.SetConditionEnabled(COND_InitialOrOwner, bIsReplicatingToOwner);
+	ConditionalsMask.SetConditionEnabled(COND_InitialOnly, bIsInitialState);
+	ConditionalsMask.SetConditionEnabled(COND_InitialOrOwner, bIsReplicatingToOwner | bIsInitialState);
 	ConditionalsMask.SetConditionEnabled(COND_ReplayOrOwner, bIsReplicatingToOwner);
 	ConditionalsMask.SetConditionEnabled(COND_SimulatedOnlyNoReplay, bRoleSimulated);
 	ConditionalsMask.SetConditionEnabled(COND_SimulatedOrPhysicsNoReplay, bRoleSimulated | bRepPhysics);
@@ -611,6 +762,9 @@ void FReplicationConditionals::ClearPerObjectInfo(FInternalNetRefIndex ObjectInd
 {
 	FPerObjectInfo& PerObjectInfo = PerObjectInfos.GetData()[ObjectIndex];
 	PerObjectInfo = {};
+
+	// Remove any dynamic conditions information stored.
+	DynamicConditions.Remove(ObjectIndex);
 }
 
 void FReplicationConditionals::ClearConnectionInfosForObject(const FNetBitArray& ValidConnections, uint32 MaxConnectionId, FInternalNetRefIndex ObjectIndex)
@@ -629,6 +783,40 @@ void FReplicationConditionals::ClearConnectionInfosForObject(const FNetBitArray&
 		FPerConnectionInfo& ConnectionInfo = ConnectionInfos[ConnectionId];
 		ConnectionInfo.ObjectConditionals[ObjectIndex] = FConditionalsMask{};
 	}
+}
+
+ELifetimeCondition FReplicationConditionals::GetDynamicCondition(FInternalNetRefIndex ObjectIndex, uint16 RepIndex) const
+{
+	const FObjectDynamicConditions* ObjectConditions = DynamicConditions.Find(ObjectIndex);
+	if (ObjectConditions == nullptr)
+	{
+		return COND_Dynamic;
+	}
+
+	const int16* Condition = ObjectConditions->DynamicConditions.Find(RepIndex);
+	if (Condition == nullptr)
+	{
+		return COND_Dynamic;
+	}
+
+	return static_cast<const ELifetimeCondition>(*Condition);
+}
+
+void FReplicationConditionals::SetDynamicCondition(FInternalNetRefIndex ObjectIndex, uint16 RepIndex, ELifetimeCondition Condition)
+{
+	FObjectDynamicConditions& ObjectConditions = DynamicConditions.FindOrAdd(ObjectIndex);
+	ObjectConditions.DynamicConditions.Emplace(RepIndex, static_cast<int16>(Condition));
+}
+
+bool FReplicationConditionals::DynamicConditionChangeRequiresBaselineInvalidation(ELifetimeCondition OldCondition, ELifetimeCondition NewCondition) const
+{
+	// If the old condition didn't cause the member to always be replicated it could have been not replicated to one or more connections.
+	const bool OldConditionMayHaveBeenDisabled = !(OldCondition == COND_None || OldCondition == COND_Dynamic);
+
+	// If the new condition is something other than never replicating then it may be replicated.
+	const bool NewConditionMayBeEnabled = (NewCondition != COND_Never);
+
+	return OldConditionMayHaveBeenDisabled && NewConditionMayBeEnabled;
 }
 
 }

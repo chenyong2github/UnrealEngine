@@ -25,6 +25,8 @@ public:
 	static FNetPropertyConditionManager& Get();
 
 	void SetPropertyActive(const FObjectKey ObjectKey, const uint16 RepIndex, const bool bActive);
+	void SetPropertyDynamicCondition(const FObjectKey ObjectKey, const uint16 RepIndex, const ELifetimeCondition Condition);
+
 	void NotifyObjectDestroyed(const FObjectKey ObjectKey);
 
 	TSharedPtr<FRepChangedPropertyTracker> FindOrCreatePropertyTracker(const FObjectKey ObjectKey);

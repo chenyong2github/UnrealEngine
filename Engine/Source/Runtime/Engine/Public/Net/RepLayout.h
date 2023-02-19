@@ -1053,6 +1053,7 @@ enum class ERepLayoutFlags : uint8
 	NoReplicatedProperties				= (1 << 4), //! Will be set if the RepLayout has no lifetime properties, or they are all disabled.
 	FullPushProperties					= (1 << 5), //! All properties in this RepLayout use Push Model.
 	HasInitialOnlyProperties			= (1 << 6), //! There is at least 1 Initial Only Lifetime property on this RepLayout.
+	HasDynamicConditionProperties		= (1 << 7), //! There is at least 1 Dynamic lifetime property on this RepLayout.
 };
 ENUM_CLASS_FLAGS(ERepLayoutFlags);
 
@@ -1591,8 +1592,8 @@ private:
 		TArray<uint16>& MergedDirty) const;
 
 	void RebuildConditionalProperties(
-		FSendingRepState* RESTRICT RepState,
-		const FReplicationFlags& RepFlags) const;
+		FSendingRepState* RepState,
+		const FReplicationFlags RepFlags) const;
 
 	void UpdateChangelistHistory(
 		FSendingRepState* RepState,

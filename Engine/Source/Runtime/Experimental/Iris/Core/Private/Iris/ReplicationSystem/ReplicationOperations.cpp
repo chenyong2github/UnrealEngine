@@ -44,7 +44,7 @@ static FNetDebugName s_LifetimeConditionDebugNames[] =
 	{TEXT("SimulatedOnlyNoReplay"), 0},
 	{TEXT("SimulatedOrPhysicsNoReplay"), 0},
 	{TEXT("SkipReplay"), 0},
-	{TEXT("ILLEGAL"), 0},
+	{TEXT("Dynamic"), 0},
 	{TEXT("Never"), 0},
 	{TEXT("NetGroup"), 0},
 };

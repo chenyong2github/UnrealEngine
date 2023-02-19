@@ -253,6 +253,8 @@ private:
 
 	FName GetConfigClassPathName(const UClass* Class);
 
+	void InitConditionalPropertyDelegates();
+
 private:
 
 	TMap<const UClass*, FName> ConfigClassPathNameCache;
@@ -294,6 +296,7 @@ private:
 	UE::Net::FNetObjectFilterHandle DefaultSpatialFilterHandle;
 
 	FDelegateHandle OnCustomConditionChangedHandle;
+	FDelegateHandle OnDynamicConditionChangedHandle;
 
 	bool bHasPollOverrides = false;
 	bool bHasDirtyClassesInPollPeriodOverrides = false;

@@ -3086,9 +3086,14 @@ struct FReplicationFlags
 			uint32 bUseCustomSubobjectReplication : 1;
 			/** True if this actor is replicating on a replay connection on a game client. */
 			uint32 bClientReplay : 1;
+			/** Padding bits to align to a 16-bit boundary. NOTE: Need to be adjusted if adding/removing bitfields. */
+			uint32 Padding0 : 4;
+
+			/** COND_Dynamic change counter in order to force rebuilding conditionals when appropriate. */
+			uint32 CondDynamicChangeCounter : 16;
 		};
 
-		uint32	Value;
+		uint32 Value;
 	};
 	FReplicationFlags()
 	{

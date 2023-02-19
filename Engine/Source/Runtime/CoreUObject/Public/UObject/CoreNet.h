@@ -565,8 +565,9 @@ class FCustomPropertyConditionState
 public:
 	FCustomPropertyConditionState() = delete;
 	FCustomPropertyConditionState(int32 NumProperties)
+	: CurrentState(true /* initial value of all bits */, NumProperties)
+	, DynamicConditionChangeCounter(0)
 	{
-		CurrentState.Init(true, NumProperties);
 	}
 
 	void SetActiveState(const uint16 RepIndex, const bool bIsActive)
@@ -579,9 +580,33 @@ public:
 		return CurrentState[RepIndex];
 	}
 
+	void SetDynamicCondition(const uint16 RepIndex, const ELifetimeCondition Condition)
+	{
+		static_assert(static_cast<__underlying_type(ELifetimeCondition)>(ELifetimeCondition::COND_Max - 1) <= int16(32767), "Unable to use int16 for ELifetimeCondition values");
+
+		++DynamicConditionChangeCounter;
+		DynamicConditions.Emplace(RepIndex, static_cast<int16>(Condition));
+	}
+
+	ELifetimeCondition GetDynamicCondition(const uint16 RepIndex) const
+	{
+		if (const int16* Condition = DynamicConditions.Find(RepIndex))
+		{
+			return static_cast<const ELifetimeCondition>(*Condition);
+		}
+
+		return COND_Dynamic;
+	}
+
+
 	int32 GetNumProperties() const
 	{
 		return CurrentState.Num();
+	}
+
+	uint32 GetDynamicConditionChangeCounter() const
+	{
+		return DynamicConditionChangeCounter;
 	}
 
 	void CountBytes(FArchive& Ar) const
@@ -591,6 +616,9 @@ public:
 
 private:
 	TBitArray<> CurrentState;
+	// Storing int16 instead of int-sized ELifetimeCondition to save some memory.
+	TMap<uint16, int16> DynamicConditions;
+	uint32 DynamicConditionChangeCounter;
 };
 
 /**

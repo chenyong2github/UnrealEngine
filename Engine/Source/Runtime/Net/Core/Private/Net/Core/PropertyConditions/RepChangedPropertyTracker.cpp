@@ -36,6 +36,31 @@ void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject
 #endif // UE_WITH_IRIS
 }
 
+void FRepChangedPropertyTracker::CallSetDynamicCondition(const UObject* OwningObject, const uint16 RepIndex, const ELifetimeCondition Condition)
+{
+	using namespace UE::Net::Private;
+
+	const ELifetimeCondition OldCondition = ActiveState.GetDynamicCondition(RepIndex);
+	if (Condition == OldCondition)
+	{
+		return;
+	}
+
+	ActiveState.SetDynamicCondition(RepIndex, Condition);
+
+#if WITH_PUSH_MODEL
+	MARK_PROPERTY_DIRTY_UNSAFE(OwningObject, RepIndex);
+#endif
+
+#if UE_WITH_IRIS
+	FPropertyConditionDelegates::FOnPropertyDynamicConditionChanged& Delegate = FPropertyConditionDelegates::GetOnPropertyDynamicConditionChangedDelegate();
+	if (Delegate.IsBound())
+	{
+		Delegate.Broadcast(OwningObject, RepIndex, Condition);
+	}
+#endif
+}
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FRepChangedPropertyTracker::SetExternalData(const uint8* Src, const int32 NumBits)
 {
