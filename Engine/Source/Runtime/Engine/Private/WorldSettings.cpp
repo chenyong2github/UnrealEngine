@@ -304,6 +304,7 @@ void AWorldSettings::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & O
 	DOREPLIFETIME( AWorldSettings, CinematicTimeDilation );
 	DOREPLIFETIME( AWorldSettings, WorldGravityZ );
 	DOREPLIFETIME( AWorldSettings, bHighPriorityLoading );
+	DOREPLIFETIME( AWorldSettings, NaniteSettings );
 }
 
 const FGuid FWorldSettingCustomVersion::GUID(0x1ED048F4, 0x2F2E4C68, 0x89D053A4, 0xF18F102D);

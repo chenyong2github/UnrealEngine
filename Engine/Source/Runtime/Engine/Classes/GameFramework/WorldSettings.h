@@ -730,7 +730,7 @@ public:
 
 	/************************************/
 	/** NANITE SETTINGS **/
-	UPROPERTY(EditAnywhere, config, Category = Nanite)
+	UPROPERTY(EditAnywhere, config, replicated, Category = Nanite)
 	FNaniteSettings NaniteSettings;
 
 	/************************************/
