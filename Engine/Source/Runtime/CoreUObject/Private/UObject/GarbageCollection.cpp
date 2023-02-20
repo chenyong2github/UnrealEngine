@@ -2851,7 +2851,15 @@ private:
 		}
 		else if (FGCObject::GGCObjectReferencer == Referencer)
 		{
-			Ref.ReferencerName = *FGCObject::GGCObjectReferencer->GetCurrentlySerializingObject()->GetReferencerName();
+			FGCObject* SerializingObj = FGCObject::GGCObjectReferencer->GetCurrentlySerializingObject();
+			if(SerializingObj)
+			{
+				Ref.ReferencerName = *SerializingObj->GetReferencerName();
+			}			
+			else
+			{
+				Ref.ReferencerName = TEXT("Unknown");
+			}
 		}
 
 		TArray<FGCDirectReference>*& DirectReferences = Context.History.FindOrAdd(Referencer);
