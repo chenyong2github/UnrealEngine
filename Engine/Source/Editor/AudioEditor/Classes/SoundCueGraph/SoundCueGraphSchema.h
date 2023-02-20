@@ -3,18 +3,15 @@
 #pragma once
 
 #include "AssetRegistry/AssetData.h"
-#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "ClassViewerModule.h"
 #include "EdGraph/EdGraphSchema.h"
-#include "HAL/PlatformMath.h"
 #include "Internationalization/Text.h"
 #include "Math/Color.h"
-#include "Math/Vector2D.h"
+#include "SSoundCuePalette.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
 #include "Templates/UnrealTemplate.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "SoundCueGraphSchema.generated.h"
 
@@ -36,7 +33,7 @@ struct AUDIOEDITOR_API FSoundCueGraphSchemaAction_NewNode : public FEdGraphSchem
 
 	/** Class of node we want to create */
 	UPROPERTY()
-	TObjectPtr<class UClass> SoundNodeClass;
+	TSubclassOf<USoundNode> SoundNodeClass;
 
 
 	FSoundCueGraphSchemaAction_NewNode() 
@@ -145,20 +142,17 @@ class USoundCueGraphSchema : public UEdGraphSchema
 	virtual int32 GetNodeSelectionCount(const UEdGraph* Graph) const override;
 	virtual TSharedPtr<FEdGraphSchemaAction> GetCreateCommentAction() const override;
 	//~ End EdGraphSchema Interface
+	
+	/** Update list of component classes */
+	void UpdateSoundNodeList(const SSoundCuePalette::FSoundNodeFilterData&);
 
 private:
 	/** Adds actions for creating every type of SoundNode */
 	void GetAllSoundNodeActions(FGraphActionMenuBuilder& ActionMenuBuilder, bool bShowSelectedActions) const;
 	/** Adds action for creating a comment */
 	void GetCommentAction(FGraphActionMenuBuilder& ActionMenuBuilder, const UEdGraph* CurrentGraph = NULL) const;
-
-private:
-	/** Generates a list of all available SoundNode classes */
-	static void InitSoundNodeClasses();
-
-	/** A list of all available SoundNode classes */
-	static TArray<UClass*> SoundNodeClasses;
-	/** Whether the list of SoundNode classes has been populated */
-	static bool bSoundNodeClassesInitialized;
+	
+	/** Soundnodes that can be selected in this graph */
+	TArray<TSubclassOf<USoundNode>> AllowedSoundNodes;
 };
 
