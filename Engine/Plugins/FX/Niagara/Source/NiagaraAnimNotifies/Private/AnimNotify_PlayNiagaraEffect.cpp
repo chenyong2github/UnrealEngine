@@ -4,8 +4,6 @@
 
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
-#include "Kismet/GameplayStatics.h"
-#include "Animation/AnimSequenceBase.h"
 
 #if WITH_EDITOR
 #include "Logging/MessageLog.h"

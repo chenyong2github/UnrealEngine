@@ -2,8 +2,8 @@
 
 #include "AnimNotifyState_TimedNiagaraEffect.h"
 
+#include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Kismet/GameplayStatics.h"
 
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"

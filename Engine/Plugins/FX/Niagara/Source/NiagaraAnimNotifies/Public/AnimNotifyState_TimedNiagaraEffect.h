@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
-#include "Animation/AnimInstance.h"
 #include "AnimNotifyState_TimedNiagaraEffect.generated.h"
 
+class UMeshComponent;
 class UNiagaraSystem;
 class USkeletalMeshComponent;
 class UFXSystemAsset;
@@ -123,3 +122,8 @@ protected:
 	};
 	TMap<UMeshComponent*, FInstanceProgressInfo> ProgressInfoMap;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "Animation/AnimInstance.h"
+#include "CoreMinimal.h"
+#endif
