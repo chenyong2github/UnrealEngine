@@ -52,7 +52,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			check(InputTensorDescs.Num() == 1);
 			check(OutputTensorDescs.Num() == 1);
 
-			Axes = Attributes.GetValue<TArray<int32>>(TEXT("pads"));
+			Axes = Attributes.GetValue<TArray<int32>>(TEXT("axes"));
 			for (int32 Axe : Axes)
 			{
 				if (Axe < 0)

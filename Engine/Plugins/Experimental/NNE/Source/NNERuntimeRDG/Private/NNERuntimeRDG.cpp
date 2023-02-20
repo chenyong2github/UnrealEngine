@@ -3,6 +3,7 @@
 #include "NNERuntimeRDG.h"
 
 #include "NNECoreRuntimeFormat.h"
+#include "NNEUtilsLogHelper.h"
 #include "NNEUtilsModelOptimizer.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
@@ -58,7 +59,8 @@ bool FInputValidator::Validate(TConstArrayView<ENNETensorDataType> InputTypes)
 		check(TemplateIdx < TemplateTypes.Num());
 		if (INDEX_NONE == TemplateTypes[TemplateIdx].Find(InputTypes[Idx]))
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Input '%d' from template idx '%d' is of type '%d' is not supported."), Idx, TemplateIdx, (int)InputTypes[Idx]);
+			FString TargetType = NNEUtils::Internal::GetTensorDataTypeName(InputTypes[Idx]);
+			UE_LOG(LogNNE, Warning, TEXT("Input at index '%d' (from template T%d) is of type '%s' witch is not supported for that input."), Idx, TemplateIdx, *TargetType);
 			bAreInputValid = false;
 		}
 	}

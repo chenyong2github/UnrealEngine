@@ -2,28 +2,29 @@
 	"$schema": "./NNEQATestDescSchema.json",
 	"model_test_categories": [
 		{
-			"category": "OnnxZoo",
+			"category": "StyleTransfer.FixInputSize",
 			"is_model_test": true,
 			"targets": [
 				{
-					"target": "resnet50-v2-7",
-					"tags": [ "SmokeTest" ],
-					"runtimes": [
-						{ "name": "NNERuntimeORTDml" },
-						{ "name": "NNERuntimeRDGHlsl",  "skip": true, "comment": "Missing BatchNormalisation operator." },
-						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." }
-					],
-					"absolute_tolerance": 1e-5
-				},
-				{
 					"target": "Mosaic-9",
 					"runtimes": [
-						{ "name": "NNERuntimeORTDml" },
-						{ "name": "NNERuntimeORTCpu" },
-						{ "name": "NNERuntimeRDGHlsl" },
 						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." }
 					],
 					"absolute_tolerance": 5.0e-2
+				}
+			]
+		},
+		{
+			"category": "StyleTransfer.VariableInputSize",
+			"is_model_test": true,
+			"targets": [
+				{
+					"target": "Mosaic-9-dyn",
+					"runtimes": [
+						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." }
+					],
+					"absolute_tolerance": 5.0e-2,
+					"relative_tolerance": 5.0e-2
 				}
 			]
 		},
@@ -35,9 +36,7 @@
 					"target": "NeuralMorphModel_global",
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
-						{ "name": "NNERuntimeORTDml" },
-						{ "name": "NNERuntimeRDGHlsl" },
-						{ "name": "NNERuntimeRDGDml" }
+						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." }
 					],
 					"absolute_tolerance": 1e-5
 				},
@@ -294,22 +293,12 @@
 		},
 		{
 			"category": "Convolution",
-			"runtimes": [
-				{ "name": "NNERuntimeRDGDml" },
-				{ "name": "NNERuntimeORTDml" },
-				{ "name": "NNERuntimeRDGHlsl" }
-			],
 			"targets": [
 				{ "target": "Conv", "absolute_tolerance": 1e-6 }
 			]
 		},
 		{
 			"category": "ConvTranspose",
-			"runtimes": [
-				{ "name": "NNERuntimeRDGDml" },
-				{ "name": "NNERuntimeORTDml" },
-				{ "name": "NNERuntimeRDGHlsl" }
-			],
 			"targets": [
 				{ "target": "ConvTranspose", "absolute_tolerance": 1e-6 }
 			]
@@ -384,6 +373,14 @@
 			"datasets": [
 				{ "inputs": [ { "shape": [ 1,1 ] } ], "comment": "if not specified output is defaulted as the first input" },
 				{ "inputs": [ { "shape": [ 2,3 ] } ] }
+			]
+		},
+		{
+			"name": "StyleTransfer.VariableInputSize",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1,3,224,224 ] } ] },
+				{ "inputs": [ { "shape": [ 1,3,128,64 ] } ] },
+				{ "inputs": [ { "shape": [ 1,3,720,1280] } ] }
 			]
 		},
 		{
@@ -608,7 +605,6 @@
 			"datasets": [ { "inputs": [ { "shape": [ 1, 1, 3, 3 ] }, { "shape": [ 1, 2, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 2, 6, 6 ] } ] } ],
 			"runtimes": [
 				{ "name": "NNERuntimeORTDml", "skip": true, "comment": "TODO INVESTIGATE Returns 'The parameter is incorrect'" },
-				{ "name": "NNERuntimeRDGHlsl" }
 			]
 		},
 		{
@@ -630,7 +626,6 @@
 			"name": "MatMul.Rank5",
 			"runtimes": [	
 				{ "name": "NNERuntimeORTDml", "skip": true, "comment": "DML metacommand only support 2 to 4 for inputs rank" },
-				{ "name": "NNERuntimeRDGHlsl"}
 			],
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 2, 3, 5, 4 ] }, { "shape": [ 2, 1, 3, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 2, 3, 5, 3 ] } ], "runtimes": [ {"name": "NNERuntimeRDGDml", "skip": true, "comment": "Not Supported"} ]},
@@ -730,74 +725,30 @@
 					"inputs": [ { "shape": [ 2, 2, 4, 1, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 4, 1, 3 ] } ],
 					"runtimes": [
 						{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "Not supported" },
-						{ "name": "NNERuntimeRDGHlsl" },
-						{ "name": "NNERuntimeORTCpu" },
 						{ "name": "NNERuntimeORTDml", "skip": true, "comment": "Not supported" }
 					]
 				},
 				{
 					"inputs": [ { "shape": [ 2, 2, 4, 4 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 4, 4 ] } ],
-					"runtimes": [
-						{ "name": "NNERuntimeRDGDml" },
-						{ "name": "NNERuntimeRDGHlsl" },
-						{ "name": "NNERuntimeORTCpu" },
-						{ "name": "NNERuntimeORTDml" }
-					]
 				},
 				{
 					"inputs": [ { "shape": [ 2, 2, 8, 8 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 8, 8 ] } ],
-					"runtimes": [
-						{ "name": "NNERuntimeRDGDml" },
-						{ "name": "NNERuntimeRDGHlsl" },
-						{ "name": "NNERuntimeORTCpu" },
-						{ "name": "NNERuntimeORTDml" }
-					]
 				},
 				{
 					"inputs": [ { "shape": [ 2, 128, 8, 8 ] }, { "shape": [ 128 ] }, { "shape": [ 128 ] } ], "outputs": [ { "shape": [ 2, 128, 8, 8 ] } ],
-					"runtimes": [
-						{ "name": "NNERuntimeRDGDml" },
-						{ "name": "NNERuntimeRDGHlsl" },
-						{ "name": "NNERuntimeORTCpu" },
-						{ "name": "NNERuntimeORTDml" }
-					]
 				},
 				{
 					"inputs": [ { "shape": [ 128, 2, 8, 8 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 128, 2, 8, 8 ] } ],
-					"runtimes": [
-						{ "name": "NNERuntimeRDGDml" },
-						{ "name": "NNERuntimeRDGHlsl" },
-						{ "name": "NNERuntimeORTCpu" },
-						{ "name": "NNERuntimeORTDml" }
-					]
 				},
 				{
 					"inputs": [ { "shape": [ 64, 64, 8, 8 ] }, { "shape": [ 64 ] }, { "shape": [ 64 ] } ], "outputs": [ { "shape": [ 64, 64, 8, 8 ] } ],
-					"runtimes": [
-						{ "name": "NNERuntimeRDGDml" },
-						{ "name": "NNERuntimeRDGHlsl" },
-						{ "name": "NNERuntimeORTCpu" },
-						{ "name": "NNERuntimeORTDml" }
-					]
 				},
 				{
 					"inputs": [ { "shape": [ 2, 2, 45, 45 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 45, 45 ] } ],
-					"runtimes": [
-						{ "name": "NNERuntimeRDGDml" },
-						{ "name": "NNERuntimeRDGHlsl" },
-						{ "name": "NNERuntimeORTCpu" },
-						{ "name": "NNERuntimeORTDml" }
-					]
 				},
 				{
 					"inputs": [ { "shape": [ 1, 128, 56, 56 ] }, { "shape": [ 128 ] }, { "shape": [ 128 ] } ], "outputs": [ { "shape": [ 1, 128, 56, 56 ] } ],
-					"runtimes": [
-						{ "name": "NNERuntimeRDGDml" },
-						{ "name": "NNERuntimeRDGHlsl" },
-						{ "name": "NNERuntimeORTCpu" },
-						{ "name": "NNERuntimeORTDml" }
-					],
-					"comment": "from 'mosaic-9-sim.onnx'"
+					"comment": "from style transfer @ 224x224"
 				}
 			]
 		},

@@ -260,10 +260,10 @@ public:
 		}
 		
 		
-		const int HiddenSizeParam = Attributes.GetValueOrDefault<int>(TEXT("hidden_size"), HiddenSize);
+		const int HiddenSizeParam = Attributes.GetValueOrDefault<int32>(TEXT("hidden_size"), HiddenSize);
 		check(HiddenSize == HiddenSizeParam);
 
-		const int Layout = Attributes.GetValueOrDefault<int>(TEXT("layout"), 0);
+		const int Layout = Attributes.GetValueOrDefault<int32>(TEXT("layout"), 0);
 		if(Layout != 0)
 		{
 			UE_LOG(LogNNE, Error, TEXT("GRU's layout attribute should be 0 for DML inference"));
@@ -296,7 +296,7 @@ public:
 		DmlGRUOpDesc.ActivationDescs = ActivationOpDescs.GetData();
 		
 		DmlGRUOpDesc.LinearBeforeReset = 
-			Attributes.GetValueOrDefault<int>(TEXT("linear_before_reset"), 0) == 0 ? false : true;
+			Attributes.GetValueOrDefault<int32>(TEXT("linear_before_reset"), 0) == 0 ? false : true;
 
 		DML_OPERATOR_DESC DmlOpDesc{};
 

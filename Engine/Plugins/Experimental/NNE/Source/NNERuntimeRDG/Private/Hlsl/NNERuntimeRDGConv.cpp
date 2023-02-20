@@ -95,7 +95,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 			FConvCS::LexFromString(AutoPad, *Attributes.GetValue<FString>(TEXT("auto_pad")));
 			Dilations = Attributes.GetValueOrDefault<TArray<int32>>(TEXT("dilations"), DilationsOrStridesDefault);
-			Group = Attributes.GetValueOrDefault<int>(TEXT("group"), 1);
+			Group = Attributes.GetValueOrDefault<int32>(TEXT("group"), 1);
 			if (AutoPad == EConvAutoPad::NOTSET)
 			{
 				TArray<int32> PadsDefault;

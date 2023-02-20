@@ -95,7 +95,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 			FConvTransposeCS::LexFromString(AutoPad, *Attributes.GetValue<FString>(TEXT("auto_pad")));
 			Dilations = Attributes.GetValueOrDefault<TArray<int32>>(TEXT("dilations"), DilationsOrStridesDefault);
-			Group = Attributes.GetValueOrDefault<int>(TEXT("group"), 1);
+			Group = Attributes.GetValueOrDefault<int32>(TEXT("group"), 1);
 			
 			TArray<int32> OutputPaddingDefault;
 			OutputPaddingDefault.Init(0, NumDimensions);

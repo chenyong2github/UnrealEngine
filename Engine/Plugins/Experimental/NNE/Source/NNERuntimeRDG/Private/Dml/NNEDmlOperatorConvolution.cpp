@@ -138,7 +138,7 @@ class FOperatorDmlConv : public FOperatorDml
 				SetAutoPadding(InputShape.GetData(), FilterShape.GetData());
 			}
 
-			Group = Attributes.GetValueOrDefault<int>(TEXT("group"), 1);
+			Group = Attributes.GetValueOrDefault<int32>(TEXT("group"), 1);
 
 			if (Direction == DML_CONVOLUTION_DIRECTION_FORWARD)
 			{

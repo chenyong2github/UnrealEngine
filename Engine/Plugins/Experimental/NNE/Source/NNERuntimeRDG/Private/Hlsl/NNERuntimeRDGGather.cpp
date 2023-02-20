@@ -33,7 +33,6 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		{
 			check(InputTensors.Num() == 2)
 			check(OutputTensors.Num() == 1)
-			UE_LOG(LogNNE, Warning, TEXT("Gather shape inference is not implemented at the moment"));
 
 			const NNECore::Internal::FTensor& Data = *InputTensors[0];
 			const NNECore::Internal::FTensor& Indices = *InputTensors[1];
@@ -85,21 +84,12 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			const NNECore::FTensorDesc& Indices = InputTensorDescs[1];
 			const NNECore::FTensorDesc& Output = OutputTensorDescs[0];
 
-			if (Output.GetShape().Rank() <= MaxNumDimensions)
+			if (Output.GetShape().Rank() > MaxNumDimensions)
 			{
-				UE_LOG(LogNNE, Warning, TEXT("Gather first input should be of rank %d or less"), MaxNumDimensions);
+				UE_LOG(LogNNE, Warning, TEXT("Gather first input should be of rank %d or less but is %d"), MaxNumDimensions, Output.GetShape().Rank());
 				return false;
 			}
-			if (Data.GetShape().Rank() == 0)
-			{
-				UE_LOG(LogNNE, Warning, TEXT("Gather first input should be at least of rank 1"));
-				return false;
-			}
-			if (Indices.GetShape().Rank() == 0)
-			{
-				UE_LOG(LogNNE, Warning, TEXT("Gather second input should be at least of rank 1"));
-				return false;
-			}
+
 			if ((Data.GetShape().Rank() + Indices.GetShape().Rank() - 1) > MaxNumDimensions)
 			{
 				UE_LOG(LogNNE, Warning, TEXT("Gather sum of input 0 and 1 ranks -1 should be less than %d"), MaxNumDimensions);
@@ -183,6 +173,8 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		InputValidator.SetTemplateCount(2);
 	
 		InputValidator.AddSupportedType(ENNETensorDataType::Float, 0);
+		InputValidator.AddSupportedType(ENNETensorDataType::Int32, 0);
+		InputValidator.AddSupportedType(ENNETensorDataType::Int64, 0);
 		InputValidator.AddRequired(0);
 
 		InputValidator.AddSupportedType(ENNETensorDataType::Int32, 1);

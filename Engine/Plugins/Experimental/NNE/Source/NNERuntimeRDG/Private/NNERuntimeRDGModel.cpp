@@ -224,13 +224,20 @@ int FModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNECore::FTen
 		return -1;
 	}
 
-	//Create buffer for intermediate tensors
+	//Create buffer for not const intermediate tensors
 	for (FTensorRDG& TensorRDG : IntermediateTensorRDGs)
 	{
-		const FRDGBufferDesc BufferDesc = CreateRDGBufferDescForTensorRDG(TensorRDG);
-		const FRDGBufferRef TensorBuffer = RDGBuilder.CreateBuffer(BufferDesc, *TensorRDG.GetName(), ERDGBufferFlags::None);
-		check(TensorRDG.GetBuffer() == nullptr);
-		TensorRDG.SetBuffer(TensorBuffer);
+		if (!TensorRDG.HasPreparedData())
+		{
+			const FRDGBufferDesc BufferDesc = CreateRDGBufferDescForTensorRDG(TensorRDG);
+			const FRDGBufferRef TensorBuffer = RDGBuilder.CreateBuffer(BufferDesc, *TensorRDG.GetName(), ERDGBufferFlags::None);
+			check(TensorRDG.GetBuffer() == nullptr);
+			TensorRDG.SetBuffer(TensorBuffer);
+		}
+		else
+		{
+			check(TensorRDG.GetBuffer() != nullptr);
+		}
 	}
 
 	if (AddWeightsToRDGGraph(RDGBuilder))

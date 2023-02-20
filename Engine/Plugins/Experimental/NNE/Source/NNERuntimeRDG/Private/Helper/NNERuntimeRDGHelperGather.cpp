@@ -11,7 +11,7 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::Gather
 		TConstArrayView<TInd> IndicesData = IndicesTensor.GetPreparedData<TInd>();
 		TArray<TData> OutputData;
 
-		check(IndicesData.Num() == OutputTensor.GetShape().GetData()[0]);
+		check(IndicesData.Num() == OutputTensor.GetVolume());
 		OutputData.Reserve(IndicesData.Num());
 
 		for (TInd indices : IndicesData)
@@ -66,7 +66,7 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::Gather
 			return;
 		}
 
-		if (DataTensor.GetShape().Rank() != 1 || IndicesTensor.GetShape().Rank() != 1)
+		if (DataTensor.GetShape().Rank() > 1 || IndicesTensor.GetShape().Rank() > 1)
 		{
 			return;
 		}
