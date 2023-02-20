@@ -81,7 +81,7 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 										{
 											TSoftClassPtr<UAnimInstance> AnimInstance(SoftClassProperty->GetPropertyValue(AnimBPData).ToSoftObjectPath());
 
-											if (AnimInstance)
+											if (!AnimInstance.IsNull())
 											{
 												GenerationContext.AnimBPAssetsMap.Add(AnimInstance.ToString(), AnimInstance);
 
