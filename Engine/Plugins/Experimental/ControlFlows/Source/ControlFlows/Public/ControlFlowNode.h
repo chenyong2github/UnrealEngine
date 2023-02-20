@@ -48,10 +48,10 @@ public:
 
 	CONTROLFLOWS_API TSharedPtr<FTrackedActivity> GetTrackedActivity() const;
 
+	[[nodiscard]] bool HasCancelBeenRequested() const { return bCancelled; }
+
 protected:
 	friend class FControlFlow;
-
-	bool HasCancelBeenRequested() const { return bCancelled; }
 	
 	virtual void Execute() {}
 
