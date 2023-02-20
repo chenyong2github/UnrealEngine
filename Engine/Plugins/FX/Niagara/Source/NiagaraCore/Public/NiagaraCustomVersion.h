@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
+#include "HAL/Platform.h"
+
+struct FGuid;
 
 // Custom serialization version for all packages containing Niagara asset types
 struct FNiagaraCustomVersion
@@ -207,3 +208,8 @@ private:
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CoreMinimal.h"
+#include "Misc/Guid.h"
+#endif
