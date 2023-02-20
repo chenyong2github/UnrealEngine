@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosCloth/SkeletalMeshComponentCacheAdapter.h"
+#include "ChaosCloth/ChaosClothingCacheSchema.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/ChaosCache.h"
 #include "Chaos/CacheManagerActor.h"
-#include "Chaos/PBDEvolution.h"
 #include "ChaosCloth/ChaosClothingSimulation.h"
 #include "ChaosCloth/ChaosClothingSimulationSolver.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -38,101 +38,18 @@ namespace Chaos
 
 	void FSkeletalMeshCacheAdapter::Record_PostSolve(UPrimitiveComponent* InComponent, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime) const
 	{
-		if( Chaos::FClothingSimulationSolver* ClothSolver = GetClothSolver(InComponent))
+		if( const FClothingSimulationSolver* ClothSolver = GetClothSolver(InComponent))
 		{
-			const uint32 NumParticles = ClothSolver->GetNumParticles();
-			if(NumParticles > 0)
-			{
-				const Softs::FSolverVec3* ParticleXs = ClothSolver->GetParticleXs(0);
-				const Softs::FSolverVec3* ParticleVs = ClothSolver->GetParticleVs(0);
-				
-				TArray<float> PendingVX, PendingVY, PendingVZ, PendingPX, PendingPY, PendingPZ;
-				TArray<int32>& PendingID = OutFrame.PendingChannelsIndices;
-
-				PendingID.SetNum(NumParticles);
-				PendingVX.SetNum(NumParticles);
-				PendingVY.SetNum(NumParticles);
-				PendingVZ.SetNum(NumParticles);
-				PendingPX.SetNum(NumParticles);
-				PendingPY.SetNum(NumParticles);
-				PendingPZ.SetNum(NumParticles);
-
-				for(uint32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
-				{
-					const Softs::FSolverVec3& ParticleV = ParticleVs[ParticleIndex];
-					const Softs::FSolverVec3& ParticleX = ParticleXs[ParticleIndex];
-					
-					// Adding the vertices relative position to the particle write datas
-					FPendingParticleWrite NewData;
-
-					NewData.ParticleIndex = ParticleIndex; 
-					OutFrame.PendingParticleData.Add(MoveTemp(NewData));
-
-					PendingID[ParticleIndex] = ParticleIndex;
-					PendingVX[ParticleIndex] = ParticleV.X;
-					PendingVY[ParticleIndex] = ParticleV.Y;
-					PendingVZ[ParticleIndex] = ParticleV.Z;
-
-					PendingPX[ParticleIndex] = ParticleX.X;
-					PendingPY[ParticleIndex] = ParticleX.Y;
-					PendingPZ[ParticleIndex] = ParticleX.Z;
-				}
-
-				OutFrame.PendingChannelsData.Add(VelocityXName, PendingVX);
-				OutFrame.PendingChannelsData.Add(VelocityYName, PendingVY);
-				OutFrame.PendingChannelsData.Add(VelocityZName, PendingVZ);
-				OutFrame.PendingChannelsData.Add(PositionXName, PendingPX);
-				OutFrame.PendingChannelsData.Add(PositionYName, PendingPY);
-				OutFrame.PendingChannelsData.Add(PositionZName, PendingPZ);
-			}
+			FClothingCacheSchema::RecordPostSolve(*ClothSolver, OutFrame, InTime);			
 		}
 	}
 
 	void FSkeletalMeshCacheAdapter::Playback_PreSolve(UPrimitiveComponent* InComponent, UChaosCache* InCache, Chaos::FReal InTime, FPlaybackTickRecord& TickRecord, TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& OutUpdatedRigids) const
 	{
-		if( Chaos::FClothingSimulationSolver* ClothSolver = GetClothSolver(InComponent))
+		check(InCache);
+		if (FClothingSimulationSolver* ClothSolver = GetClothSolver(InComponent))
 		{
-			FCacheEvaluationContext Context(TickRecord);
-			Context.bEvaluateTransform = false;
-			Context.bEvaluateCurves = true;
-			Context.bEvaluateEvents = false;
-
-			// The evaluated result are already in world space since we are passing the tickrecord.spacetransform in the context
-			FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context, nullptr);
-			const int32 NumCurves = EvaluatedResult.Curves.Num();
-
-			const uint32 NumParticles = ClothSolver->GetNumParticles();
-			if(NumParticles > 0 && NumParticles == NumCurves)
-			{
-				Softs::FSolverVec3* ParticleXs = ClothSolver->GetParticleXs(0);
-				Softs::FSolverVec3* ParticleVs = ClothSolver->GetParticleVs(0);
-
-				TArray<float>* PendingVX = EvaluatedResult.Channels.Find(VelocityXName);
-				TArray<float>* PendingVY = EvaluatedResult.Channels.Find(VelocityYName);
-				TArray<float>* PendingVZ = EvaluatedResult.Channels.Find(VelocityZName);
-				TArray<float>* PendingPX = EvaluatedResult.Channels.Find(PositionXName);
-				TArray<float>* PendingPY = EvaluatedResult.Channels.Find(PositionYName);
-				TArray<float>* PendingPZ = EvaluatedResult.Channels.Find(PositionZName);
-					
-				if(PendingVX && PendingVY && PendingVZ && PendingPX && PendingPY && PendingPZ)
-				{
-					for(uint32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
-					{
-						Softs::FSolverVec3& ParticleV = ParticleVs[ParticleIndex];
-						Softs::FSolverVec3& ParticleX = ParticleXs[ParticleIndex];
-					
-						// Directly set the result of the cache into the solver particles
-						const int32 TransformIndex = EvaluatedResult.ParticleIndices[ParticleIndex];
-
-						ParticleV.X = (*PendingVX)[TransformIndex];
-						ParticleV.Y = (*PendingVY)[TransformIndex];
-						ParticleV.Z = (*PendingVZ)[TransformIndex];
-						ParticleX.X = (*PendingPX)[TransformIndex];
-						ParticleX.Y = (*PendingPY)[TransformIndex];
-						ParticleX.Z = (*PendingPZ)[TransformIndex];
-					}
-				}
-			}
+			FClothingCacheSchema::PlaybackPreSolve(*InCache, InTime, TickRecord, *ClothSolver);
 		}
 	}
 
@@ -150,7 +67,7 @@ namespace Chaos
 		return MeshComp && MeshComp->GetSkinnedAsset() && InCache->TrackToParticle.Num() > 0;
 	}
 
-	Chaos::FClothingSimulationSolver* FSkeletalMeshCacheAdapter::GetClothSolver(UPrimitiveComponent* InComponent) const
+	FClothingSimulationSolver* FSkeletalMeshCacheAdapter::GetClothSolver(UPrimitiveComponent* InComponent) const
 	{
 		if(InComponent)
 		{
@@ -158,14 +75,14 @@ namespace Chaos
 			{
 				if(MeshComp->GetClothingSimulation())
 				{
-					return StaticCast<Chaos::FClothingSimulation*>(MeshComp->GetClothingSimulation())->Solver.Get();
+					return StaticCast<FClothingSimulation*>(MeshComp->GetClothingSimulation())->Solver.Get();
 				}
 			}
 		}
 		return nullptr;
 	}
 
-	Chaos::FPhysicsSolverEvents* FSkeletalMeshCacheAdapter::BuildEventsSolver(UPrimitiveComponent* InComponent) const
+	FPhysicsSolverEvents* FSkeletalMeshCacheAdapter::BuildEventsSolver(UPrimitiveComponent* InComponent) const
 	{
 		if(USkeletalMeshComponent* MeshComp = CastChecked<USkeletalMeshComponent>(InComponent))
 		{
@@ -178,12 +95,12 @@ namespace Chaos
 		return nullptr;
 	}
 	
-	Chaos::FPhysicsSolver* FSkeletalMeshCacheAdapter::GetComponentSolver(UPrimitiveComponent* InComponent) const
+	FPhysicsSolver* FSkeletalMeshCacheAdapter::GetComponentSolver(UPrimitiveComponent* InComponent) const
 	{
 		return nullptr;
 	}
 	
-	void FSkeletalMeshCacheAdapter::SetRestState(UPrimitiveComponent* InComponent, UChaosCache* InCache, const FTransform& InRootTransform, Chaos::FReal InTime) const
+	void FSkeletalMeshCacheAdapter::SetRestState(UPrimitiveComponent* InComponent, UChaosCache* InCache, const FTransform& InRootTransform, FReal InTime) const
 	{
 		if (!InCache || InCache->GetDuration() == 0.0f)
 		{
@@ -193,51 +110,13 @@ namespace Chaos
 		if(USkeletalMeshComponent* MeshComp = CastChecked<USkeletalMeshComponent>(InComponent))
 		{
 			InitializeForRestState(InComponent);
-		
-			FPlaybackTickRecord TickRecord;
-			TickRecord.SetLastTime(InTime);
-		
-			FCacheEvaluationContext Context(TickRecord);
-			Context.bEvaluateTransform = false;
-			Context.bEvaluateCurves = false;
-			Context.bEvaluateEvents = false;
-			Context.bEvaluateChannels = true;
-
-			FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context,nullptr);
 
 			if( MeshComp->GetClothingSimulationContext())
 			{
-				FClothingSimulationContext* SimulationContext =
-						StaticCast<FClothingSimulationContext*>(MeshComp->GetClothingSimulationContext());
-				
-				const int32 NumCurves = EvaluatedResult.ParticleIndices.Num();
-				if(NumCurves == EvaluatedResult.ParticleIndices.Num())
-				{
-					SimulationContext->CachedPositions.SetNum(NumCurves);
-					SimulationContext->CachedVelocities.SetNum(NumCurves);
+				FClothingSimulationCacheData& SimulationContextData =
+						StaticCast<FClothingSimulationContext*>(MeshComp->GetClothingSimulationContext())->CacheData;
 
-					TArray<float>* PendingVX = EvaluatedResult.Channels.Find(VelocityXName);
-					TArray<float>* PendingVY = EvaluatedResult.Channels.Find(VelocityYName);
-					TArray<float>* PendingVZ = EvaluatedResult.Channels.Find(VelocityZName);
-					TArray<float>* PendingPX = EvaluatedResult.Channels.Find(PositionXName);
-					TArray<float>* PendingPY = EvaluatedResult.Channels.Find(PositionYName);
-					TArray<float>* PendingPZ = EvaluatedResult.Channels.Find(PositionZName);
-					
-					if(PendingVX && PendingVY && PendingVZ && PendingPX && PendingPY && PendingPZ)
-					{
-						for(int32 ParticleIndex = 0; ParticleIndex < NumCurves; ++ParticleIndex)
-						{
-							const int32 TransformIndex = EvaluatedResult.ParticleIndices[ParticleIndex];
-							
-							SimulationContext->CachedVelocities[ParticleIndex].X = (*PendingVX)[TransformIndex];
-							SimulationContext->CachedVelocities[ParticleIndex].Y = (*PendingVY)[TransformIndex];
-							SimulationContext->CachedVelocities[ParticleIndex].Z = (*PendingVZ)[TransformIndex];
-							SimulationContext->CachedPositions[ParticleIndex].X = (*PendingPX)[TransformIndex];
-							SimulationContext->CachedPositions[ParticleIndex].Y = (*PendingPY)[TransformIndex];
-							SimulationContext->CachedPositions[ParticleIndex].Z = (*PendingPZ)[TransformIndex];
-						}
-					}
-				}
+				FClothingCacheSchema::LoadCacheData(InCache, InTime, SimulationContextData);
 			}
 		}
 	}
@@ -258,7 +137,7 @@ namespace Chaos
 			MeshComp->RecreateClothingActors();
 		}
 
-		if( Chaos::FClothingSimulationSolver* ClothSolver = GetClothSolver(InComponent))
+		if( FClothingSimulationSolver* ClothSolver = GetClothSolver(InComponent))
 		{
 			ClothSolver->SetEnableSolver(false);
 		}
@@ -266,7 +145,7 @@ namespace Chaos
 
 	bool FSkeletalMeshCacheAdapter::InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache)
 	{
-		if( Chaos::FClothingSimulationSolver* ClothSolver = GetClothSolver(InComponent))
+		if( FClothingSimulationSolver* ClothSolver = GetClothSolver(InComponent))
 		{
 			ClothSolver->SetEnableSolver(true);
 		}
@@ -277,7 +156,7 @@ namespace Chaos
 	{
 		EnsureIsInGameThreadContext();
 		
-		if( Chaos::FClothingSimulationSolver* ClothSolver = GetClothSolver(InComponent))
+		if( FClothingSimulationSolver* ClothSolver = GetClothSolver(InComponent))
 		{
 			ClothSolver->SetEnableSolver(false);
 		}

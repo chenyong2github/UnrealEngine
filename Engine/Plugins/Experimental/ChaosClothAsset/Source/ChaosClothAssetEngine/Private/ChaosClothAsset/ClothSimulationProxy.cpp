@@ -12,6 +12,7 @@
 #include "ChaosCloth/ChaosClothingSimulationSolver.h"
 #include "ChaosCloth/ChaosClothVisualization.h"
 #include "PhysicsEngine/PhysicsSettings.h"
+#include "ClothingSimulation.h"
 
 #if INTEL_ISPC
 #include "ClothSimulationProxy.ispc.generated.h"
@@ -148,14 +149,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		CompleteParallelSimulation_GameThread();
 	}
 
-	void FClothSimulationProxy::Tick_GameThread(float DeltaTime, const TArray<FVector>* CachedPositions, const TArray<FVector>* CachedVelocities)
+	void FClothSimulationProxy::Tick_GameThread(float DeltaTime, FClothingSimulationCacheData* CacheData)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ClothSimulationProxy_TickGame);
 
 		// Fill a new context, note the context is also needed when the simulation is suspended
-		ClothSimulationContext.Fill(ClothComponent, DeltaTime, MaxDeltaTime, false, CachedPositions, CachedVelocities);
+		ClothSimulationContext.Fill(ClothComponent, DeltaTime, MaxDeltaTime, false, CacheData);
 
-		const bool bUseCache = ClothSimulationContext.CachedPositions.Num() > 0 || ClothSimulationContext.CachedVelocities.Num() > 0;
+		const bool bUseCache = ClothSimulationContext.CacheData.CacheIndices.Num() > 0;
 		if (bUseCache)
 		{
 			Solver->SetEnableSolver(false);
@@ -186,7 +187,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(FClothSimulationProxy_TickPhysics);
 		SCOPE_CYCLE_COUNTER(STAT_ClothSimulationProxy_TickPhysics);
-		const bool bUseCache = ClothSimulationContext.CachedPositions.Num() > 0 || ClothSimulationContext.CachedVelocities.Num() > 0;
+		const bool bUseCache = ClothSimulationContext.CacheData.HasData();
 
 		if (ClothSimulationContext.DeltaTime == 0.f && !bUseCache)
 		{
@@ -229,7 +230,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{
-			Solver->UpdateFromCache(ClothSimulationContext.CachedPositions, ClothSimulationContext.CachedVelocities);
+			Solver->UpdateFromCache(ClothSimulationContext.CacheData);
 		}
 
 		// Keep the actual used number of iterations for the stats

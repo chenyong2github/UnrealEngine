@@ -111,6 +111,38 @@ void UChaosCache::FlushPendingFrames()
 	QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheFlushPendingFrames);
 	bool bWroteParticleData = false;
 	FPendingFrameWrite NewData;
+
+	auto WriteDataToTransformTrack = [](FParticleTransformTrack& PTrack, const float Time, const bool bPendingDeactivate, const FTransform& PendingTransform) -> bool
+	{
+		if (PTrack.GetNumKeys() == 0)
+		{
+			// Initial write to this particle
+			PTrack.BeginOffset = Time;
+
+			// Particle will hold at end of recording.
+			PTrack.bDeactivateOnEnd = false;
+		}
+
+		if (bPendingDeactivate)
+		{
+			// Signals that this is the final keyframe and that the particle then deactivates.
+			PTrack.bDeactivateOnEnd = true;
+		}
+		
+		if (ensure(PTrack.GetNumKeys() == 0 || Time > PTrack.KeyTimestamps.Last()))
+		{
+			PTrack.KeyTimestamps.Add(Time);
+
+			// Append the transform (ignoring scale)
+			FRawAnimSequenceTrack& RawTrack = PTrack.RawTransformTrack;
+			RawTrack.ScaleKeys.Add(FVector3f(1.0f));
+			RawTrack.PosKeys.Add(FVector3f(PendingTransform.GetTranslation()));
+			RawTrack.RotKeys.Add(FQuat4f(PendingTransform.GetRotation()));
+			return true;
+		}
+		return false;
+	};
+
 	while(PendingWrites.Dequeue(NewData))
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheFlushSingleFrame);
@@ -157,32 +189,8 @@ void UChaosCache::FlushPendingFrames()
 			FPerParticleCacheData& TargetCacheData = ParticleTracks[TrackIndex];
 			FParticleTransformTrack& PTrack = TargetCacheData.TransformData;
 
-			if(PTrack.GetNumKeys() == 0)
+			if (WriteDataToTransformTrack(PTrack, NewData.Time, ParticleData.bPendingDeactivate, ParticleData.PendingTransform))
 			{
-				// Initial write to this particle
-				PTrack.BeginOffset = NewData.Time;
-
-				// Particle will hold at end of recording.
-				PTrack.bDeactivateOnEnd = false; 
-			}
-
-			if (ParticleData.bPendingDeactivate)
-			{
-				// Signals that this is the final keyframe and that the particle then deactivates.
-				PTrack.bDeactivateOnEnd = true;
-			}
-
-			// Make sure we're actually appending to the track - shouldn't be adding data from the past
-			if(ensure(PTrack.GetNumKeys() == 0 || NewData.Time > PTrack.KeyTimestamps.Last()))
-			{
-				PTrack.KeyTimestamps.Add(NewData.Time);
-
-				// Append the transform (ignoring scale)
-				FRawAnimSequenceTrack& RawTrack = PTrack.RawTransformTrack;
-				RawTrack.ScaleKeys.Add(FVector3f(1.0f));
-				RawTrack.PosKeys.Add(FVector3f(ParticleData.PendingTransform.GetTranslation()));
-				RawTrack.RotKeys.Add(FQuat4f(ParticleData.PendingTransform.GetRotation()));
-
 				for(TPair<FName, float> CurveKeyPair : ParticleData.PendingCurveData)
 				{
 					FRichCurve& TargetCurve = TargetCacheData.CurveData.FindOrAdd(CurveKeyPair.Key);
@@ -201,6 +209,16 @@ void UChaosCache::FlushPendingFrames()
 			}
 
 			CacheTrack->Merge(MoveTemp(PendingTrack.Value));
+		}
+
+		for (const TTuple<FName, FTransform>& PendingNamedTransform : NewData.PendingNamedTransformData)
+		{
+			FNamedTransformTrack* TransformCacheTrack = NamedTransformTracks.Find(PendingNamedTransform.Key);
+			if (!TransformCacheTrack)
+			{
+				TransformCacheTrack = &NamedTransformTracks.Add(PendingNamedTransform.Key, FNamedTransformTrack());
+			}
+			WriteDataToTransformTrack(*TransformCacheTrack, NewData.Time, false, PendingNamedTransform.Value);			
 		}
 
 		++NumRecordedFrames;
@@ -239,6 +257,7 @@ FCacheUserToken UChaosCache::BeginRecord(UPrimitiveComponent* InComponent, FGuid
 			TrackToParticle.Reset();
 			CurveData.Reset();
 			EventTracks.Reset();
+			NamedTransformTracks.Reset();
 
 			PendingWrites.Empty();
 
@@ -362,7 +381,7 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 
 	Result.EvaluatedTime = InContext.TickRecord.GetTime();
 
-	if(!InContext.bEvaluateTransform && !InContext.bEvaluateCurves && !InContext.bEvaluateEvents && !InContext.bEvaluateChannels)
+	if(!InContext.bEvaluateTransform && !InContext.bEvaluateCurves && !InContext.bEvaluateEvents && !InContext.bEvaluateChannels && !InContext.bEvaluateNamedTransforms)
 	{
 		// no evaluation requested
 		return Result;
@@ -498,6 +517,15 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 	{
 		Result.Events.Reserve(EventTracks.Num());
 		EvaluateEvents(InContext.TickRecord, Result.Events);
+	}
+
+	if (InContext.bEvaluateNamedTransforms)
+	{
+		Result.NamedTransforms.Reset();
+		for (const TPair<FName, FNamedTransformTrack>& NamedTransform : NamedTransformTracks)
+		{
+			Result.NamedTransforms.Add(NamedTransform.Key, NamedTransform.Value.Evaluate(InContext.TickRecord.GetTime(), nullptr));
+		}
 	}
 
 	// Update the tick record on completion for the next run

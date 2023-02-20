@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Math/Transform.h"
+#include "ClothingSimulation.h"
 
 class UChaosClothComponent;
 
@@ -47,13 +48,10 @@ namespace UE::Chaos::ClothAsset
 		/** Wind velocity at the component location. */
 		FVector WindVelocity;
 
-		/** Positions used by ChaosCache */
-		TArray<FVector> CachedPositions;
-
-		/** Velocities used by ChaosCache */
-		TArray<FVector> CachedVelocities;
+		/* Data used by Chaos Cache*/
+		FClothingSimulationCacheData CacheData;
 
 		/** Fill the context from data collected from the specified component. */
-		void Fill(const UChaosClothComponent& ClothComponent, float InDeltaTime, float MaxDeltaTime, bool bIsInitialization = false, const TArray<FVector>* InCachedPositions = nullptr, const TArray<FVector>* InCachedVelocities = nullptr);
+		void Fill(const UChaosClothComponent& ClothComponent, float InDeltaTime, float MaxDeltaTime, bool bIsInitialization = false, FClothingSimulationCacheData* CacheData = nullptr);
 	};
 }

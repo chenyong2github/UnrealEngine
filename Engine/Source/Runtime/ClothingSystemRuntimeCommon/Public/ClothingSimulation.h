@@ -2,6 +2,7 @@
 #pragma once
 
 #include "ClothingSimulationInterface.h"
+#include "ClothingSimulationCacheData.h"
 #include "Containers/Array.h"
 #include "Math/Transform.h"
 #include "Math/Vector.h"
@@ -75,10 +76,15 @@ public:
 	// The predicted LOD of the skeletal mesh component running the simulation
 	int32 PredictedLod;
 	
-	// World space cached positions for the kinematics targets
+	// Data read from the cache.
+	FClothingSimulationCacheData CacheData;
+
+	// World space cached positions for the kinematics targets.
+	UE_DEPRECATED(5.3, "Use CacheData.CachedPositions instead")
 	TArray<FVector> CachedPositions;
 
-	// World space cached velocities for the kinematics targets
+	// World space cached velocities for the kinematics targets.
+	UE_DEPRECATED(5.3, "Use CacheData.CachedVelocities instead")
 	TArray<FVector> CachedVelocities;
 };
 

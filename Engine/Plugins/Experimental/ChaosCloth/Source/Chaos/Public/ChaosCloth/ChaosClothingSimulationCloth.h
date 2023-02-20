@@ -8,6 +8,7 @@
 #include "ChaosCloth/ChaosClothConstraints.h"
 
 struct FManagedArrayCollection;
+struct FClothingSimulationCacheData;
 
 namespace Chaos
 {
@@ -156,6 +157,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FAABB3 CalculateBoundingBox(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD offset in the solver's particle array, or INDEX_NONE if no LOD is currently selected.
 		int32 GetOffset(const FClothingSimulationSolver* Solver) const;
+		// Return the current LOD num particles, or 0 if no LOD is currently selected.
+		int32 GetNumParticles(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD mesh.
 		const FTriangleMesh& GetTriangleMesh(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD weightmaps.
@@ -175,6 +178,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		void PreUpdate(FClothingSimulationSolver* Solver);
 		void Update(FClothingSimulationSolver* Solver);
 		void PostUpdate(FClothingSimulationSolver* Solver);
+
+		void UpdateFromCache(const FClothingSimulationCacheData& CacheData);
 		// ---- End of the Solver interface ----
 
 	private:

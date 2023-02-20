@@ -526,14 +526,24 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		}
 
 		// Step the simulation
-		if(Solver->GetEnableSolver() || (Context->CachedPositions.Num() == 0 && Context->CachedVelocities.Num() == 0))
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS // Supporting deprecated CachedPositions instead of new CacheData
+		if(Solver->GetEnableSolver() || (!Context->CacheData.HasData() && Context->CachedPositions.Num() == 0))
 		{
 			Solver->Update(SmoothedDeltaTime);
 		}
 		else
 		{
-			Solver->UpdateFromCache(Context->CachedPositions, Context->CachedVelocities);
+			if (Context->CacheData.HasData())
+			{
+				Solver->UpdateFromCache(Context->CacheData);
+			}
+			else
+			{
+				check(Context->CachedPositions.Num());
+				Solver->UpdateFromCache(Context->CachedPositions, Context->CachedVelocities);
+			}
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Keep the actual used number of iterations for the stats
 		NumIterations = Solver->GetNumUsedIterations();

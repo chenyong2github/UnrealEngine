@@ -161,6 +161,7 @@ struct FCacheEvaluationContext
 		, bEvaluateTransform(false)
 		, bEvaluateCurves(false)
 		, bEvaluateEvents(false)
+		, bEvaluateNamedTransforms(false)
 	{
 	}
 
@@ -170,6 +171,7 @@ struct FCacheEvaluationContext
 	bool                 bEvaluateEvents;
 	TArray<int32>        EvaluationIndices;
 	bool                 bEvaluateChannels;
+	bool                 bEvaluateNamedTransforms;
 };
 
 struct FCacheEvaluationResult
@@ -181,6 +183,7 @@ public:
 	TArray<TMap<FName, float>>             Curves;
 	TMap<FName, TArray<FCacheEventHandle>> Events;
 	TMap<FName, TArray<float>>             Channels;
+	TMap<FName, FTransform>                NamedTransforms;
 };
 
 struct FPendingParticleWrite
@@ -209,6 +212,8 @@ struct FPendingFrameWrite
 
 	TArray<int32>				  PendingChannelsIndices;
 	TMap<FName, TArray<float>>	  PendingChannelsData;
+
+	TMap<FName, FTransform>       PendingNamedTransformData;
 
 	template<typename T>
 	FCacheEventTrack& FindOrAddEventTrack(FName InName)
@@ -380,13 +385,18 @@ public:
 	UPROPERTY()
 	TArray<FPerParticleCacheData> ParticleTracks;
 
-	/** Per-particle data, includes transforms, velocities and other per-particle, per-frame data */
+	/** Per-particle curve data, continuous per-frame data */
 	UPROPERTY()
 	TMap<FName,FRichCurves> ChannelsTracks;
 
 	/** Per component/cache curve data, any continuous data that isn't per-particle can be stored here */
 	UPROPERTY()
 	TMap<FName, FRichCurve> CurveData;
+
+	/** Per component/cache transform data.*/
+	typedef FParticleTransformTrack FNamedTransformTrack;
+	UPROPERTY()
+	TMap<FName, FParticleTransformTrack> NamedTransformTracks;
 
 	template<typename T>
 	FCacheEventTrack& FindOrAddEventTrack(FName InName)

@@ -23,6 +23,7 @@ class UChaosClothComponent;
 class UChaosClothAsset;
 struct FChaosClothSimulationModel;
 struct FReferenceSkeleton;
+struct FClothingSimulationCacheData;
 
 namespace UE::Chaos::ClothAsset
 {
@@ -42,7 +43,7 @@ namespace UE::Chaos::ClothAsset
 		FClothSimulationProxy& operator=(const FClothSimulationProxy&) = delete;
 		FClothSimulationProxy& operator=(FClothSimulationProxy&&) = delete;
 
-		void Tick_GameThread(float DeltaTime, const TArray<FVector>* CachedPositions = nullptr, const TArray<FVector>* CachedVelocities = nullptr);
+		void Tick_GameThread(float DeltaTime, FClothingSimulationCacheData* CacheData = nullptr);
 
 		/** Wait for the parallel task to complete if one was running, and update the simulation data. */
 		void CompleteParallelSimulation_GameThread();

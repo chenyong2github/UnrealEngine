@@ -20,6 +20,7 @@ static TAutoConsoleVariable<float> GClothMaxDeltaTimeTeleportMultiplier(
 	TEXT("A multiplier of the MaxPhysicsDelta time at which we will automatically just teleport cloth to its new location\n")
 	TEXT(" default: 1.5"));
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // CachedPositions, CachedVelocities
 FClothingSimulationContextCommon::FClothingSimulationContextCommon()
 	: ComponentToWorld(FTransform::Identity)
 	, WorldGravity(FVector::ZeroVector)
@@ -31,9 +32,12 @@ FClothingSimulationContextCommon::FClothingSimulationContextCommon()
 	, MaxDistanceScale(1.f)
 	, PredictedLod(INDEX_NONE)
 {}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // CachedPositions, CachedVelocities
 FClothingSimulationContextCommon::~FClothingSimulationContextCommon()
 {}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FClothingSimulationContextCommon::Fill(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta)
 {

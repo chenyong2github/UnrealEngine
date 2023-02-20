@@ -730,6 +730,12 @@ int32 FClothingSimulationCloth::GetOffset(const FClothingSimulationSolver* Solve
 	return LODData.IsValidIndex(LODIndex) ? GetOffset(Solver, LODIndex) : INDEX_NONE;
 }
 
+int32 FClothingSimulationCloth::GetNumParticles(const FClothingSimulationSolver* Solver) const
+{
+	const int32 LODIndex = LODIndices.FindChecked(Solver);
+	return LODData.IsValidIndex(LODIndex) ? GetNumParticles(LODIndex) : 0;
+}
+
 const FTriangleMesh& FClothingSimulationCloth::GetTriangleMesh(const FClothingSimulationSolver* Solver) const
 {
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
@@ -969,6 +975,15 @@ void FClothingSimulationCloth::PostUpdate(FClothingSimulationSolver* Solver)
 	{
 		// Update normals
 		LODData[LODIndex]->UpdateNormals(Solver);
+	}
+}
+
+void FClothingSimulationCloth::UpdateFromCache(const FClothingSimulationCacheData& CacheData)
+{
+	if (const FTransform* CachedReferenceSpaceTransform = CacheData.CachedReferenceSpaceTransforms.Find(GetGroupId()))
+	{
+		ReferenceSpaceTransform = *CachedReferenceSpaceTransform;
+		ReferenceSpaceTransform.SetScale3D(FVec3(1.f));
 	}
 }
 

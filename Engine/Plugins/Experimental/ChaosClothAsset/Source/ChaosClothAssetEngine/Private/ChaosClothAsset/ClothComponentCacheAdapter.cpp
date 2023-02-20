@@ -5,6 +5,7 @@
 #include "Chaos/ChaosCache.h"
 #include "Chaos/CacheManagerActor.h"
 #include "Chaos/PBDEvolution.h"
+#include "ChaosCloth/ChaosClothingCacheSchema.h"
 #include "ChaosCloth/ChaosClothingSimulation.h"
 #include "ChaosCloth/ChaosClothingSimulationSolver.h"
 #include "ChaosClothAsset/ClothComponent.h"
@@ -81,53 +82,12 @@ namespace UE::Chaos::ClothAsset
 
 		if (UChaosClothComponent* ClothComp = GetClothComponent(InComponent))
 		{
-			FPlaybackTickRecord TickRecord;
-			TickRecord.SetLastTime(InTime);
-		
-			FCacheEvaluationContext Context(TickRecord);
-			Context.bEvaluateTransform = false;
-			Context.bEvaluateCurves = false;
-			Context.bEvaluateEvents = false;
-			Context.bEvaluateChannels = true;
-
-			FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context, nullptr);
-			const int32 NumCurves = EvaluatedResult.ParticleIndices.Num();
-
-			const TArray<float>* const PendingVX = EvaluatedResult.Channels.Find(VelocityXName);
-			const TArray<float>* const PendingVY = EvaluatedResult.Channels.Find(VelocityYName);
-			const TArray<float>* const PendingVZ = EvaluatedResult.Channels.Find(VelocityZName);
-			const TArray<float>* const PendingPX = EvaluatedResult.Channels.Find(PositionXName);
-			const TArray<float>* const PendingPY = EvaluatedResult.Channels.Find(PositionYName);
-			const TArray<float>* const PendingPZ = EvaluatedResult.Channels.Find(PositionZName);
-
-			TArray<FVector> CachedPositions; 
-			const bool bHasPositions = PendingPX && PendingPY && PendingPZ;
-			if (bHasPositions)
-			{
-				CachedPositions.SetNum(NumCurves);
-				for(int32 ParticleIndex = 0; ParticleIndex < NumCurves; ++ParticleIndex)
-				{
-					const int32 TransformIndex = EvaluatedResult.ParticleIndices[ParticleIndex];
-					CachedPositions[ParticleIndex] = FVector((*PendingPX)[TransformIndex], (*PendingPY)[TransformIndex], (*PendingPZ)[TransformIndex]);
-				}
-			}
-			TArray<FVector>* CachedPositionsPtr = bHasPositions ? &CachedPositions : nullptr;
-
-			TArray<FVector> CachedVelocities; 
-			const bool bHasVelocities = PendingVX && PendingVY && PendingVZ;
-			if (bHasVelocities)
-			{
-				CachedVelocities.SetNum(NumCurves);
-				for(int32 ParticleIndex = 0; ParticleIndex < NumCurves; ++ParticleIndex)
-				{
-					const int32 TransformIndex = EvaluatedResult.ParticleIndices[ParticleIndex];
-					CachedVelocities[ParticleIndex] = FVector((*PendingVX)[TransformIndex], (*PendingVY)[TransformIndex], (*PendingVZ)[TransformIndex]);
-				}
-			}
-			TArray<FVector>* CachedVelocitiesPtr = bHasVelocities ? &CachedVelocities : nullptr;
+			FClothingSimulationCacheData CacheData;
+			::Chaos::FClothingCacheSchema::LoadCacheData(InCache, InTime, CacheData);
 
 			FClothSimulationProxy* Proxy = ClothComp->ClothSimulationProxy.Get();
-			Proxy->Tick_GameThread(0, CachedPositionsPtr, CachedVelocitiesPtr);
+
+			Proxy->Tick_GameThread(0, &CacheData);
 			Proxy->CompleteParallelSimulation_GameThread();
 			ClothComp->MarkRenderDynamicDataDirty();
 			ClothComp->DoDeferredRenderUpdates_Concurrent();

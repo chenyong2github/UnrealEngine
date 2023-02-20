@@ -11,6 +11,7 @@
 
 class USkeletalMeshComponent;
 class UClothingAssetCommon;
+struct FClothingSimulationCacheData;
 
 namespace Chaos
 {
@@ -89,6 +90,8 @@ namespace Chaos
 		FSolverReal GetDeltaTime() const { return DeltaTime; }
 
 		/** Set the cached positions onto the particles */
+		void UpdateFromCache(const FClothingSimulationCacheData& CacheData);
+		UE_DEPRECATED(5.3, "Use UpdateFromCache(CacheData) instead")
 		void UpdateFromCache(const TArray<FVector>& CachedPositions, const TArray<FVector>& CachedVelocities);
 
 		// Return the actual of number of iterations used by the Evolution solver after the update (different from the number of iterations, depends on frame rate)

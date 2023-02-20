@@ -1181,6 +1181,31 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 	OldLocalSpaceLocation = LocalSpaceLocation;
 }
 
+
+void FClothingSimulationSolver::UpdateFromCache(const FClothingSimulationCacheData& CacheData)
+{
+	Chaos::Softs::FSolverParticles& SolverParticles = Evolution->Particles();
+	const int32 NumParticles = GetNumParticles();
+	const int32 NumCachedParticles = CacheData.CacheIndices.Num();	
+	const bool bHasVelocity = CacheData.CachedVelocities.Num() > 0;
+	for (int32 CacheIndex = 0; CacheIndex < NumCachedParticles; ++CacheIndex)
+	{
+		const int32 ParticleIndex = CacheData.CacheIndices[CacheIndex];
+		if (ensure(ParticleIndex < NumParticles))
+		{
+			SolverParticles.X(ParticleIndex) = CacheData.CachedPositions[CacheIndex];
+			SolverParticles.V(ParticleIndex) = bHasVelocity ? (FSolverVec3)CacheData.CachedVelocities[CacheIndex] : FSolverVec3::ZeroVector;
+		}
+	}
+	PhysicsParallelFor(Cloths.Num(), [this, &CacheData](int32 ClothIndex)
+	{
+		FClothingSimulationCloth* const Cloth = Cloths[ClothIndex];
+		Cloth->UpdateFromCache(CacheData);
+		Cloth->PostUpdate(this);
+	}, /*bForceSingleThreaded =*/ !bClothSolverParallelClothPostUpdate);
+
+}
+
 void FClothingSimulationSolver::UpdateFromCache(const TArray<FVector>& CachedPositions, const TArray<FVector>& CachedVelocities) 
 {
 	Chaos::Softs::FSolverParticles& SolverParticles = Evolution->Particles();

@@ -50,11 +50,5 @@ namespace Chaos
 		*/
 		void InitializeForRestState(UPrimitiveComponent* InComponent) const;
 
-		inline static const FName VelocityXName = TEXT("VelocityX");
-		inline static const FName VelocityYName = TEXT("VelocityY");
-		inline static const FName VelocityZName = TEXT("VelocityZ");
-		inline static const FName PositionXName = TEXT("PositionX");
-		inline static const FName PositionYName = TEXT("PositionY");
-		inline static const FName PositionZName = TEXT("PositionZ");
 	};
 }    // namespace Chaos
