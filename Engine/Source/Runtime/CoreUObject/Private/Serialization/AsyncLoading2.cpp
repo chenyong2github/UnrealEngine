@@ -1828,10 +1828,7 @@ private:
 
 		if (UNLIKELY(HeaderData->BulkDataMap.IsEmpty()))
 		{
-			FBulkMetaResource SerializedMeta;
-			Ar << SerializedMeta;
-			Meta = FBulkMetaData::FromSerialized(SerializedMeta, ElementSize);
-			DuplicateSerialOffset = SerializedMeta.DuplicateOffset;
+			FBulkMetaData::FromSerialized(Ar, ElementSize,  Meta, DuplicateSerialOffset);
 		}
 		else
 		{

@@ -195,10 +195,85 @@ FArchive& operator<<(FArchive& Ar, FBulkMetaResource& BulkMeta)
 	return Ar;
 }
 
+/** 
+ * Attempt to return the best debug name we can from a given archive.
+ * First we check to see the archive has a FLinkerLoad from which we
+ * can find the name of the package being loaded from. If not we 
+ * return an unknown string as the FArchive name is often not very 
+ * useful for identification purposes.
+ */
+FString GetDebugNameFromArchive(FArchive& Ar)
+{
+	if (FLinkerLoad* LinkerLoad = Cast<FLinkerLoad>(Ar.GetLinker()))
+	{
+		return LinkerLoad->GetDebugName();
+	}
+	else
+	{
+		return TEXT("Unknown");
+	}
+}
+
+bool FBulkMetaData::FromSerialized(FArchive& Ar, int64 ElementSize, FBulkMetaData& OutMetaData, int64& OutDuplicateOffset)
+{
+	FBulkMetaResource Resource;
+	Ar << Resource;
+
+	if (Ar.IsError())
+	{
+		// Note that setting the error flag on the archive is not enough to stop the package from being loaded so for now we 
+		// need to fatal error to prevent the process from continuing to use the corrupted package.
+		UE_LOG(LogSerialization, Fatal, TEXT("Bulkdata error when serializing '%s', could not serialize FBulkMetaResource correctly"), *GetDebugNameFromArchive(Ar));
+		OutMetaData = FBulkMetaData();
+		return false;
+	}
+
+	if (Resource.ElementCount > 0)
+	{
+		// TODO: This would be a good use case for FGuardedInt64 once it is moved to core
+		if (Resource.ElementCount < (MAX_int64 / ElementSize))
+		{
+			OutMetaData.SetSize(Resource.ElementCount * ElementSize);
+		}
+		else
+		{
+			// We should only get here if the package is severely corrupted (which should get detected earlier in package loading)
+			// Note that setting the error flag on the archive is not enough to stop the package from being loaded so for now we 
+			// need to fatal error to prevent the process from continuing to use the corrupted package.
+			Ar.SetError();
+
+			UE_LOG(LogSerialization, Fatal,
+				TEXT("Bulkdata error when serializing '%s', ElementCount (%" INT64_FMT ") and ElementSize (%" INT64_FMT ") would cause an int64 overflow"),
+				*GetDebugNameFromArchive(Ar),
+				Resource.ElementCount,
+				ElementSize);
+
+			OutMetaData = FBulkMetaData();
+			return false;
+		}
+	}
+
+	OutMetaData.SetSizeOnDisk(Resource.SizeOnDisk);
+	OutMetaData.SetOffset(Resource.Offset);
+	OutMetaData.SetFlags(Resource.Flags);
+
+	check(Resource.ElementCount <= 0 || OutMetaData.GetSize() == Resource.ElementCount * ElementSize);
+	check(OutMetaData.GetOffset() == Resource.Offset);
+	check(OutMetaData.GetFlags() == Resource.Flags);
+
+#if !USE_RUNTIME_BULKDATA
+	check(Resource.ElementCount <= 0 || OutMetaData.GetSizeOnDisk() == Resource.SizeOnDisk);
+#endif
+
+	OutDuplicateOffset = Resource.DuplicateOffset;
+
+	return true;
+}
+
 } // namespace UE::BulkData::Private
 
 /*-----------------------------------------------------------------------------
-	Memory managament
+	Memory management
 -----------------------------------------------------------------------------*/
 
 void FBulkData::FAllocatedPtr::Free(FBulkData* Owner)
@@ -1198,9 +1273,7 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 		{
 			checkf(IsUnlocked(), TEXT("Serialize bulk data FAILED, bulk data is locked"));
 
-			FBulkMetaResource MetaResource;
-			Ar << MetaResource;
-			BulkMeta = FBulkMetaData::FromSerialized(MetaResource, ElementSize);
+			FBulkMetaData::FromSerialized(Ar, ElementSize, BulkMeta);
 			BulkChunkId = FIoChunkId::InvalidChunkId;
 
 			const int64 BulkDataSize = GetBulkDataSize();

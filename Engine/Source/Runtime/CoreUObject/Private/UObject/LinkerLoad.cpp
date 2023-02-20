@@ -6836,10 +6836,7 @@ void FLinkerLoad::SerializeBulkMeta(UE::BulkData::Private::FBulkMetaData& Meta, 
 
 	if (DataResourceMap.IsEmpty())
 	{
-		FBulkMetaResource SerializedMeta;
-		Ar << SerializedMeta;
-		Meta = FBulkMetaData::FromSerialized(SerializedMeta, ElementSize);
-		DuplicateSerialOffset = SerializedMeta.DuplicateOffset;
+		FBulkMetaData::FromSerialized(Ar, ElementSize, Meta, DuplicateSerialOffset);
 	}
 	else
 	{

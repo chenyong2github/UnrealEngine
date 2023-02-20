@@ -446,26 +446,17 @@ public:
 		return (GetFlags() & Flags) == Flags;
 	}
 
-	static FBulkMetaData FromSerialized(const FBulkMetaResource& MetaResource, int64 ElementSize)
+	/** 
+	 * Serializes FBulkMetaResource from the given archive and builds the returned FBulkMetaData from it. 
+	 * The offset for duplicated data will also be returned
+	 */
+	COREUOBJECT_API static bool FromSerialized(FArchive& Ar, int64 ElementSize, FBulkMetaData& OutMetaData, int64& OutDuplicateOffset);
+
+	/** Serializes FBulkMetaResource from the given archive and builds the returned FBulkMetaData from it. */
+	static bool FromSerialized(FArchive& Ar, int64 ElementSize, FBulkMetaData& OutMetaData)
 	{
-		FBulkMetaData Meta;
-		
-		if (MetaResource.ElementCount > 0)
-		{
-			Meta.SetSize(MetaResource.ElementCount * ElementSize);
-		}
-
-		Meta.SetSizeOnDisk(MetaResource.SizeOnDisk);
-		Meta.SetOffset(MetaResource.Offset);
-		Meta.SetFlags(MetaResource.Flags);
-
-		check(MetaResource.ElementCount <= 0 || Meta.GetSize() == MetaResource.ElementCount * ElementSize);
-		check(Meta.GetOffset() == MetaResource.Offset);
-		check(Meta.GetFlags() == MetaResource.Flags);
-#if !USE_RUNTIME_BULKDATA
-		check(MetaResource.ElementCount <= 0 || Meta.GetSizeOnDisk() == MetaResource.SizeOnDisk);
-#endif
-		return Meta;
+		int64 DuplicateOffset = INDEX_NONE;
+		return FromSerialized(Ar, ElementSize, OutMetaData, DuplicateOffset);
 	}
 
 private:
