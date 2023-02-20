@@ -598,12 +598,12 @@ void AWaterZone::OnLevelChanged(ULevel* InLevel, UWorld* InWorld)
 	}
 
 	const FBox WaterZoneBounds = GetZoneBounds();
-	const bool bContainsGroundActors = Algo::AnyOf(InLevel->Actors, [this, &WaterZoneBounds](const AActor* Actor)
+	const bool bContainsActorsAffectingWaterZone = Algo::AnyOf(InLevel->Actors, [this, &WaterZoneBounds](const AActor* Actor)
 	{
 		return IsAffectingWaterZone(WaterZoneBounds, Actor);
 	});
 
-	if (bContainsGroundActors)
+	if (bContainsActorsAffectingWaterZone)
 	{
 		MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
 	}
@@ -616,7 +616,17 @@ bool AWaterZone::IsAffectingWaterZone(const FBox& InWaterZoneBounds, const AActo
 		return false;
 	}
 
-	if (const ALandscapeProxy* LandscapeProxy = Cast<const ALandscapeProxy>(InActor))
+	if (const AWaterBody* WaterBodyActor = Cast<const AWaterBody>(InActor))
+	{
+		if (const UWaterBodyComponent* WaterBodyComponent = WaterBodyActor->GetWaterBodyComponent())
+		{
+			if (WaterBodyComponent->GetWaterZone() == this)
+			{
+				return WaterBodyComponent->AffectsWaterInfo();
+			}
+		}
+	}
+	else if (const ALandscapeProxy* LandscapeProxy = Cast<const ALandscapeProxy>(InActor))
 	{
 		bool bIntersectsWaterZone = false;
 
