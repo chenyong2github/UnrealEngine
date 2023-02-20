@@ -54,13 +54,30 @@ DECLARE_MULTICAST_DELEGATE_FourParams(FOnHotfixProgress, uint32, uint32, uint64,
 typedef FOnHotfixProgress::FDelegate FOnHotfixProgressDelegate;
 
 /**
- * Delegate fired as each file is applied
+ * Delegate fired for each new/updated file after it is applied
  *
  * @param FriendlyName the human readable version of the file name (DefaultEngine.ini)
  * @param CachedFileName the full path to the file on disk
  */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHotfixProcessedFile, const FString&, const FString&);
 typedef FOnHotfixProcessedFile::FDelegate FOnHotfixProcessedFileDelegate;
+
+/**
+ * Delegate fired for each removed file
+ *
+ * @param FriendlyName the human readable version of the file name (DefaultEngine.ini)
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHotfixRemovedFile, const FString&);
+typedef FOnHotfixRemovedFile::FDelegate FOnHotfixRemovedFileDelegate;
+
+/**
+ * Delegate fired for each added/updated file
+ *
+ * @param FriendlyName the human readable version of the file name (DefaultEngine.ini)
+ * @param FileContents the preprocessed contents of the file.
+ */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHotfixUpdatedFile, const FString&, const TArray<uint8>&);
+typedef FOnHotfixUpdatedFile::FDelegate FOnHotfixUpdatedFileDelegate;
 
 /**
  * This class manages the downloading and application of hotfix data
@@ -100,9 +117,19 @@ protected:
 	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnHotfixProgress, uint32, uint32, uint64, uint64);
 
 	/**
-	 * Delegate fired as the hotfix files are applied
+	 * Delegate fired for each new/updated file after it is applied
 	 */
 	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnHotfixProcessedFile, const FString&, const FString&);
+
+	/**
+	 * Delegate fired for each removed file
+	 */
+	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnHotfixRemovedFile, const FString&);
+
+	/**
+	 * Delegate fired for each added/updated file
+	 */
+	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnHotfixUpdatedFile, const FString&, const TArray<uint8>&);
 
 	struct FPendingFileDLProgress
 	{
@@ -248,13 +275,23 @@ protected:
 	 */
 	virtual bool ApplyHotfixProcessing(const FCloudFileHeader& FileHeader);
 	/**
-	* Called prior to reading the file data.
-	*
-	* @param FileData - byte data of the hotfix file
-	*
-	* @return whether the file was successfully preprocessed
-	*/
+	 * Called prior to reading the file data.
+	 *
+	 * @param FileData - byte data of the hotfix file
+	 *
+	 * @return whether the file was successfully preprocessed
+	 */
+	UE_DEPRECATED(5.3, "Replaced with PreProcessDownloadedFileData taking a FCloudFileHeader")
 	virtual bool PreProcessDownloadedFileData(TArray<uint8>& FileData) const { return true;	}
+	/**
+	 * Called prior to reading the file data.
+	 *
+	 * @param FileHeader - the header information for the file in question
+	 * @param FileData - byte data of the hotfix file. Intentionally not const, so the array is modifiable as part of preprocessing.
+	 *
+	 * @return whether the file was successfully preprocessed
+	 */
+	virtual bool PreProcessDownloadedFileData(const FCloudFileHeader& FileHeader, TArray<uint8>& FileData) const { return true; }
 	/**
 	 * Override this to change the default INI file handling (merge delta INI changes into the config cache)
 	 *

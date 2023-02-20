@@ -435,6 +435,11 @@ void UOnlineHotfixManager::OnEnumerateFilesComplete(bool bWasSuccessful, const F
 							// Perform any undo operations needed
 							RestoreBackupIniFiles();
 							UnmountHotfixFiles();
+
+							for (const FCloudFileHeader& FileHeader : RemovedHotfixFileList)
+							{
+								TriggerOnHotfixRemovedFileDelegates(FileHeader.FileName);
+							}
 							
 							TriggerHotfixComplete(EHotfixResult::SuccessNoChange);
 						}));
@@ -701,6 +706,11 @@ EHotfixResult UOnlineHotfixManager::ApplyHotfix()
 	RestoreBackupIniFiles();
 	UnmountHotfixFiles();
 
+	for (const FCloudFileHeader& FileHeader : RemovedHotfixFileList)
+	{
+		TriggerOnHotfixRemovedFileDelegates(FileHeader.FileName);
+	}
+
 	for (const FCloudFileHeader& FileHeader : ChangedHotfixFileList)
 	{
 		if (!ApplyHotfixProcessing(FileHeader))
@@ -711,6 +721,7 @@ EHotfixResult UOnlineHotfixManager::ApplyHotfix()
 		// Let anyone listening know we just processed this file
 		TriggerOnHotfixProcessedFileDelegates(FileHeader.FileName, GetCachedDirectory() / FileHeader.DLName);
 	}
+
 	UE_LOG(LogHotfixManager, Display, TEXT("Hotfix data has been successfully applied"));
 	EHotfixResult Result = EHotfixResult::Success;
 	if (ChangedOrRemovedPakCount > 0)
@@ -790,20 +801,29 @@ bool UOnlineHotfixManager::ApplyHotfixProcessing(const FCloudFileHeader& FileHea
 
 	bool bSuccess = false;
 	const FString Extension = FPaths::GetExtension(FileHeader.FileName);
-	if (Extension == TEXT("INI"))
+	if (Extension == TEXT("PAK"))
+	{
+		bSuccess = HotfixPakFile(FileHeader);
+	}
+	else
 	{
 		TArray<uint8> FileData;
 		if (OnlineTitleFile->GetFileContents(FileHeader.DLName, FileData))
 		{
-			UE_LOG(LogHotfixManager, Log, TEXT("Applying hotfix %s"), *FileHeader.FileName);
-
-			if (PreProcessDownloadedFileData(FileData))
+			if (PreProcessDownloadedFileData(FileHeader, FileData))
 			{
-				// Convert to a FString
-				FileData.Add(0);
-				FString HotfixStr;
-				FFileHelper::BufferToString(HotfixStr, FileData.GetData(), FileData.Num());
-				bSuccess = HotfixIniFile(FileHeader.FileName, HotfixStr);
+				TriggerOnHotfixUpdatedFileDelegates(FileHeader.FileName, FileData);
+
+				if (Extension == TEXT("INI"))
+				{
+					UE_LOG(LogHotfixManager, Log, TEXT("Applying hotfix %s"), *FileHeader.FileName);
+
+					// Convert to a FString
+					FileData.Add(0);
+					FString HotfixStr;
+					FFileHelper::BufferToString(HotfixStr, FileData.GetData(), FileData.Num());
+					bSuccess = HotfixIniFile(FileHeader.FileName, HotfixStr);
+				}
 			}
 			else
 			{
@@ -814,10 +834,6 @@ bool UOnlineHotfixManager::ApplyHotfixProcessing(const FCloudFileHeader& FileHea
 		{
 			UE_LOG(LogHotfixManager, Warning, TEXT("Failed to get contents of %s"), *FileHeader.FileName);
 		}
-	}
-	else if (Extension == TEXT("PAK"))
-	{
-		bSuccess = HotfixPakFile(FileHeader);
 	}
 	OnlineTitleFile->ClearFile(FileHeader.FileName);
 	return bSuccess;
