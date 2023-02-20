@@ -103,6 +103,11 @@ public:
 
 	/** Remove an island from the graph. */
 	void RemoveIsland(const FGraphIslandHandle& IslandHandle);
+
+	int32 NumVertices() const { return Vertices.Num(); }
+	int32 NumEdges() const { return Edges.Num(); }
+	int32 NumIslands() const { return Islands.Num(); }
+
 protected:
 	const TMap<FGraphVertexHandle, TObjectPtr<UGraphVertex>>& GetVertices() const { return Vertices; }
 	const TMap<FGraphEdgeHandle, TObjectPtr<UGraphEdge>>& GetEdges() const { return Edges; }
