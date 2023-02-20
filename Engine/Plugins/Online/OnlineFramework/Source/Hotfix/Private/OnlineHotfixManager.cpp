@@ -618,6 +618,10 @@ void UOnlineHotfixManager::BuildHotfixFileListDeltas()
 			}
 		}
 	}
+
+	UE_LOG(LogHotfixManager, Log, TEXT("Hotfix deltas: updated:[%s], removed:[%s]"),
+		*FString::JoinBy(ChangedHotfixFileList, TEXT(", "), &FCloudFileHeader::FileName),
+		*FString::JoinBy(RemovedHotfixFileList, TEXT(", "), &FCloudFileHeader::FileName));
 }
 
 void UOnlineHotfixManager::FilterHotfixFiles()
