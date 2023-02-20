@@ -3638,8 +3638,26 @@ public: \
 		return false;\
 	}
 
+#define UTEST_EQUAL_EXPR(Actual, Expected)\
+	if (!TestEqual(TEXT(#Actual), Actual, Expected))\
+	{\
+		return false;\
+	}
+
 #define UTEST_EQUAL_TOLERANCE(What, Actual, Expected, Tolerance)\
 	if (!TestEqual(What, Actual, Expected, Tolerance))\
+	{\
+		return false;\
+	}
+
+#define UTEST_EQUAL_TOLERANCE_EXPR(Actual, Expected, Tolerance)\
+	if (!TestEqual(TEXT(#Actual), Actual, Expected, Tolerance))\
+	{\
+		return false;\
+	}
+
+#define UTEST_NEARLY_EQUAL_EXPR(Actual, Expected, Tolerance)\
+	if (!TestNearlyEqual(TEXT(#Actual), Actual, Expected, Tolerance))\
 	{\
 		return false;\
 	}
@@ -3650,8 +3668,20 @@ public: \
 		return false;\
 	}
 
+#define UTEST_EQUAL_INSENSITIVE_EXPR(Actual, Expected)\
+	if (!TestEqualInsensitive(TEXT(#Actual), Actual, Expected))\
+	{\
+		return false;\
+	}
+
 #define UTEST_NOT_EQUAL(What, Actual, Expected)\
 	if (!TestNotEqual(What, Actual, Expected))\
+	{\
+		return false;\
+	}
+
+#define UTEST_NOT_EQUAL_EXPR(Actual, Expected)\
+	if (!TestNotEqual(FString::Printf(TEXT("%s != %s"), TEXT(#Actual), TEXT(#Expected)), Actual, Expected))\
 	{\
 		return false;\
 	}
@@ -3662,8 +3692,20 @@ public: \
 		return false;\
 	}
 
+#define UTEST_SAME_EXPR(Actual, Expected)\
+	if (!TestSame(FString::Printf(TEXT("%s == %s"), TEXT(#Actual), TEXT(#Expected)), Actual, Expected))\
+	{\
+		return false;\
+	}
+
 #define UTEST_NOT_SAME(What, Actual, Expected)\
 	if (!TestNotSame(What, Actual, Expected))\
+	{\
+		return false;\
+	}
+
+#define UTEST_NOT_SAME_EXPR(Actual, Expected)\
+	if (!TestNotSame(FString::Printf(TEXT("%s != %s"), TEXT(#Actual), TEXT(#Expected)), Actual, Expected))\
 	{\
 		return false;\
 	}
@@ -3674,8 +3716,20 @@ public: \
 		return false;\
 	}
 
+#define UTEST_TRUE_EXPR(Expression)\
+	if (!TestTrue(TEXT(#Expression), Expression))\
+	{\
+		return false;\
+	}
+
 #define UTEST_FALSE(What, Value)\
 	if (!TestFalse(What, Value))\
+	{\
+		return false;\
+	}
+
+#define UTEST_FALSE_EXPR(Expression)\
+	if (!TestFalse(TEXT(#Expression), Expression))\
 	{\
 		return false;\
 	}
@@ -3686,8 +3740,20 @@ public: \
 		return false;\
 	}
 
+#define UTEST_VALID_EXPR(SharedPointer)\
+	if (!TestValid(TEXT(#SharedPointer), SharedPointer))\
+	{\
+		return false;\
+	}
+
 #define UTEST_INVALID(What, SharedPointer)\
 	if (!TestInvalid(What, SharedPointer))\
+	{\
+		return false;\
+	}
+
+#define UTEST_INVALID_EXPR(SharedPointer)\
+	if (!TestInvalid(TEXT(#SharedPointer), SharedPointer))\
 	{\
 		return false;\
 	}
@@ -3698,8 +3764,20 @@ public: \
 		return false;\
 	}
 
+#define UTEST_NULL_EXPR(Pointer)\
+	if (!TestNull(TEXT(#Pointer), Pointer))\
+	{\
+		return false;\
+	}
+
 #define UTEST_NOT_NULL(What, Pointer)\
 	if (!TestNotNull(What, Pointer))\
+	{\
+		return false;\
+	}
+
+#define UTEST_NOT_NULL_EXPR(Pointer)\
+	if (!TestNotNull(TEXT(#Pointer), Pointer))\
 	{\
 		return false;\
 	}

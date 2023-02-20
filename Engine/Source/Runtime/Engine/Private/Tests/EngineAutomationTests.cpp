@@ -834,6 +834,92 @@ bool FAutomationTestNearlyEqualFTransformNegative::RunTest(const FString& Parame
 	return true;
 }
 
+class FAutomationUTestMacrosExpr : public FAutomationTestBase
+{
+public:
+	FAutomationUTestMacrosExpr(const FString& InName, const bool bInComplexTask)
+		: FAutomationTestBase(InName, bInComplexTask)
+	{
+	}
+
+protected:
+
+	static const float PositiveToleranceFloat;
+	static const float ActualFloatValue;
+	static const float ExpectedFloatValue;
+	static const float WrongFloatValue;
+	static const float ExpectedFloatValueOutOfTolerance;
+	static const FString ActualFStringValue;
+	static const FString ExpectedFStringValueLowerCase;
+};
+
+const float FAutomationUTestMacrosExpr::PositiveToleranceFloat(1.e-4f);
+const float FAutomationUTestMacrosExpr::ActualFloatValue(0.f);
+const float FAutomationUTestMacrosExpr::ExpectedFloatValue(ActualFloatValue);
+const float FAutomationUTestMacrosExpr::WrongFloatValue(ActualFloatValue + 1.f);
+const float FAutomationUTestMacrosExpr::ExpectedFloatValueOutOfTolerance(ActualFloatValue + PositiveToleranceFloat);
+const FString FAutomationUTestMacrosExpr::ActualFStringValue(TEXT("EQUALS"));
+const FString FAutomationUTestMacrosExpr::ExpectedFStringValueLowerCase(TEXT("equals"));
+
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FAutomationEqualEXPR, FAutomationUTestMacrosExpr, "System.Automation.Validation.UTestEqual", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+bool FAutomationEqualEXPR::RunTest(const FString& Parameters)
+{
+
+	UTEST_EQUAL_EXPR(ActualFloatValue, ExpectedFloatValue);
+	UTEST_NEARLY_EQUAL_EXPR(ActualFloatValue, ExpectedFloatValueOutOfTolerance, PositiveToleranceFloat);
+	UTEST_EQUAL_TOLERANCE_EXPR(ActualFloatValue, ExpectedFloatValueOutOfTolerance, PositiveToleranceFloat);
+	UTEST_NOT_EQUAL_EXPR(ActualFloatValue, WrongFloatValue);
+	UTEST_EQUAL_INSENSITIVE_EXPR(*ActualFStringValue, *ExpectedFStringValueLowerCase);
+
+	return true;
+}
+
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FAutomationSameNotSameEXPR, FAutomationUTestMacrosExpr, "System.Automation.Validation.UTestSameNotSame", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+bool FAutomationSameNotSameEXPR::RunTest(const FString& Parameters)
+{
+
+	UTEST_SAME_EXPR(ActualFStringValue, ActualFStringValue);
+	UTEST_NOT_SAME_EXPR(ActualFStringValue, ExpectedFStringValueLowerCase);
+
+	return true;
+}
+
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FAutomationTrueFalseEXPR, FAutomationUTestMacrosExpr, "System.Automation.Validation.UTestTrueFalse", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+bool FAutomationTrueFalseEXPR::RunTest(const FString& Parameters)
+{
+
+	UTEST_TRUE_EXPR(ActualFloatValue == ExpectedFloatValue);
+	UTEST_FALSE_EXPR(ActualFloatValue > ExpectedFloatValue);
+
+	return true;
+}
+
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FAutomationValidInvalidEXPR, FAutomationUTestMacrosExpr, "System.Automation.Validation.UTestValidInvalid", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+bool FAutomationValidInvalidEXPR::RunTest(const FString& Parameters)
+{
+	struct HandleResumeContext
+	{
+		const char* PackageIdentifier = nullptr;
+	};
+	TSharedPtr<HandleResumeContext, ESPMode::ThreadSafe> Context = MakeShared<HandleResumeContext, ESPMode::ThreadSafe>();
+	TSharedPtr< UObject > Entry = nullptr;
+	UTEST_VALID_EXPR(Context);
+	UTEST_INVALID_EXPR(Entry);
+
+	return true;
+}
+
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FAutomationNullNotNullPtrEXPR, FAutomationUTestMacrosExpr, "System.Automation.Validation.UTestNullNotNull", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+bool FAutomationNullNotNullPtrEXPR::RunTest(const FString& Parameters)
+{
+	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
+
+	UTEST_NULL_EXPR(nullptr);
+	UTEST_NOT_NULL_EXPR(World);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAutomationAttachment, "System.Engine.Attachment", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 #define DUMP_EXPECTED_TRANSFORMS 0
