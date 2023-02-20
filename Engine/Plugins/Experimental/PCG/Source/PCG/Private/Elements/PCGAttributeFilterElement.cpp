@@ -96,6 +96,14 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGAttributeFilterSettings* Settings = Context->GetInputSettings<UPCGAttributeFilterSettings>();
 
 	const bool bAddAttributesFromParent = (Settings->Operation == EPCGAttributeFilterOperation::DeleteSelectedAttributes);
+	const EPCGMetadataFilterMode FilterMode = bAddAttributesFromParent ? EPCGMetadataFilterMode::ExcludeAttributes : EPCGMetadataFilterMode::IncludeAttributes;
+
+	TSet<FName> AttributesToFilter; 
+	const TArray<FString> FilterAttributes = PCGHelpers::GetStringArrayFromCommaSeparatedString(Settings->SelectedAttributes);
+	for (const FString& FilterAttribute : FilterAttributes)
+	{
+		AttributesToFilter.Add(FName(*FilterAttribute));
+	}
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputsByPin(PCGPinConstants::DefaultInputLabel);
 
@@ -113,7 +121,7 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 			UPCGSpatialData* NewSpatialData = InputSpatialData->DuplicateData(/*bInitializeFromThisData=*/false);
 			Metadata = NewSpatialData->Metadata;
-			NewSpatialData->Metadata->Initialize(ParentMetadata, bAddAttributesFromParent);
+			NewSpatialData->Metadata->InitializeWithAttributeFilter(ParentMetadata, AttributesToFilter, FilterMode);
 
 			// No need to inherit metadata since we already initialized it.
 			NewSpatialData->InitializeFromData(InputSpatialData, /*InMetadataParentOverride=*/ nullptr, /*bInheritMetadata=*/ false);
@@ -126,30 +134,14 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 			UPCGParamData* NewParamData = NewObject<UPCGParamData>();
 			Metadata = NewParamData->Metadata;
+			Metadata->InitializeAsCopyWithAttributeFilter(ParentMetadata, AttributesToFilter, FilterMode);
 
-			Metadata->Initialize(InputParamData->Metadata, bAddAttributesFromParent);
 			OutputData = NewParamData;
 		}
 		else
 		{
 			PCGE_LOG(Error, "Invalid data as input. Only support spatial and params");
 			continue;
-		}
-
-		TArray<FString> AttributesToKeep = PCGHelpers::GetStringArrayFromCommaSeparatedString(Settings->SelectedAttributes);
-
-		// Then add/remove each attribute in the list explicitly
-		for (const FString& AttributeName : AttributesToKeep)
-		{
-			switch (Settings->Operation)
-			{
-			case EPCGAttributeFilterOperation::KeepSelectedAttributes:
-				Metadata->AddAttribute(ParentMetadata, FName(AttributeName));
-				break;
-			case EPCGAttributeFilterOperation::DeleteSelectedAttributes:
-				Metadata->DeleteAttribute(FName(AttributeName));
-				break;
-			}
 		}
 
 		TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
