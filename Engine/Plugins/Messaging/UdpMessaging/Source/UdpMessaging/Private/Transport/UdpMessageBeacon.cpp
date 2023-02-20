@@ -8,7 +8,7 @@
 #include "HAL/RunnableThread.h"
 #include "Serialization/ArrayWriter.h"
 #include "Sockets.h"
-#include "UdpMessageSegment.h"
+#include "Shared/UdpMessageSegment.h"
 
 /* FUdpMessageHelloSender static initialization
  *****************************************************************************/

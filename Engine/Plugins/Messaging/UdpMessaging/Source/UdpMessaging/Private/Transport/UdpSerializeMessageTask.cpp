@@ -9,7 +9,7 @@
 
 #include "UdpMessagingPrivate.h"
 #include "Transport/UdpSerializedMessage.h"
-#include "UdpMessagingSettings.h"
+#include "Shared/UdpMessagingSettings.h"
 #include "UdpMessagingTracing.h"
 
 namespace UdpSerializeMessageTaskDetails

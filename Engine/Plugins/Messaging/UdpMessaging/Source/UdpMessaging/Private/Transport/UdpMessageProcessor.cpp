@@ -15,7 +15,7 @@
 #include "Transport/UdpReassembledMessage.h"
 #include "Transport/UdpSerializedMessage.h"
 #include "Transport/UdpSerializeMessageTask.h"
-#include "UdpMessageSegment.h"
+#include "Shared/UdpMessageSegment.h"
 
 
 /* FUdpMessageHelloSender static initialization

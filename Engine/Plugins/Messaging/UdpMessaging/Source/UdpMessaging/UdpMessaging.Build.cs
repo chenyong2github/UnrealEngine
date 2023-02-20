@@ -29,15 +29,6 @@ namespace UnrealBuildTool.Rules
 					"MessagingCommon",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"UdpMessaging/Private",
-					"UdpMessaging/Private/Shared",
-					"UdpMessaging/Private/Transport",
-					"UdpMessaging/Private/Tunnel",
-					"UdpMessaging/Public/Shared",
-				});
-
 			if (Target.Type == TargetType.Editor)
 			{
 				DynamicallyLoadedModuleNames.AddRange(

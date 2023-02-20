@@ -3,7 +3,7 @@
 #include "Misc/AutomationTest.h"
 
 #include "UdpMessagingPrivate.h"
-#include "UdpMessagingSettings.h"
+#include "Shared/UdpMessagingSettings.h"
 #include "MessageEndpoint.h"
 #include "Transport/UdpSerializedMessage.h"
 #include "Transport/UdpSerializeMessageTask.h"

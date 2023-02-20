@@ -8,7 +8,7 @@
 #include "StructDeserializer.h"
 #include "Serialization/MemoryReader.h"
 #include "Transport/UdpReassembledMessage.h"
-#include "UdpMessagingSettings.h"
+#include "Shared/UdpMessagingSettings.h"
 #include "UdpMessagingTracing.h"
 
 /* FUdpDeserializedMessage structors

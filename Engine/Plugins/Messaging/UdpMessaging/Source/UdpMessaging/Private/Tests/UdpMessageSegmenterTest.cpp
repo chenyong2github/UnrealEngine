@@ -4,7 +4,7 @@
 #include "Containers/ArrayBuilder.h"
 
 #include "UdpMessagingPrivate.h"
-#include "UdpMessagingSettings.h"
+#include "Shared/UdpMessagingSettings.h"
 #include "Transport/UdpSerializedMessage.h"
 #include "Transport/UdpMessageSegmenter.h"
 
