@@ -48,6 +48,7 @@
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DeprecatedDataLayerInstance.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/WorldPartition.h"
 
 class SWidget;
@@ -198,6 +199,9 @@ void UDataLayerEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	// Register the engine broadcast bridge
 	OnActorDataLayersEditorLoadingStateChangedEngineBridgeHandle = DataLayerEditorLoadingStateChanged.AddStatic(&FDataLayersEditorBroadcast::StaticOnActorDataLayersEditorLoadingStateChanged);
+
+	// Register actor descriptor loading filter
+	IWorldPartitionActorLoaderInterface::RegisterActorDescFilter([this](UWorld* World, const FWorldPartitionHandle& ActorHandle) { return PassDataLayersFilter(World, ActorHandle); });
 }
 
 void UDataLayerEditorSubsystem::Deinitialize()
@@ -1130,6 +1134,35 @@ bool UDataLayerEditorSubsystem::HasDeprecatedDataLayers() const
 		return WorldDataLayers->HasDeprecatedDataLayers();
 	}
 	return false;
+}
+
+bool UDataLayerEditorSubsystem::PassDataLayersFilter(UWorld* World, const FWorldPartitionHandle& ActorHandle)
+{
+	UWorld* OwningWorld = World->PersistentLevel->GetWorld();
+
+	if (UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(OwningWorld))
+	{
+		FWorldPartitionActorViewProxy ActorDescProxy(*ActorHandle);
+
+		if (IsRunningCookCommandlet())
+		{
+			// When running cook commandlet, dont allow loading of actors with runtime loaded data layers
+			for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayerInstanceNames())
+			{
+				const UDataLayerInstance* DataLayerInstance = DataLayerManager->GetDataLayerInstance(DataLayerInstanceName);
+				if (DataLayerInstance && DataLayerInstance->IsRuntime())
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		return DataLayerManager->ResolveIsLoadedInEditor(ActorDescProxy.GetDataLayerInstanceNames());
+	}
+
+	return true;
 }
 
 UDataLayerInstance* UDataLayerEditorSubsystem::GetDataLayerInstance(const FName& DataLayerInstanceName) const

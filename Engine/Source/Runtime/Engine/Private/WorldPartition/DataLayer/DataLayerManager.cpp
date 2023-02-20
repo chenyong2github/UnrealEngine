@@ -19,6 +19,7 @@
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
+#include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 #include "WorldPartition/ActorDescList.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Modules/ModuleManager.h"
@@ -784,6 +785,7 @@ FDataLayersEditorBroadcast& FDataLayersEditorBroadcast::Get()
 void FDataLayersEditorBroadcast::StaticOnActorDataLayersEditorLoadingStateChanged(bool bIsFromUserChange)
 {
 	Get().DataLayerEditorLoadingStateChanged.Broadcast(bIsFromUserChange);
+	IWorldPartitionActorLoaderInterface::RefreshLoadedState(bIsFromUserChange);
 }
 
 #endif

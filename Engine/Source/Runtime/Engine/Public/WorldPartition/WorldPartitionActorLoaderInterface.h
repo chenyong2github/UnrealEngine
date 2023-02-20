@@ -55,13 +55,12 @@ public:
 
 		// Actors filtering
 		virtual bool PassActorDescFilter(const FWorldPartitionHandle& Actor) const;
-		virtual bool PassDataLayersFilter(const FWorldPartitionHandle& Actor) const;
 		void RefreshLoadedState();
 
 		void PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads);
 		void AddReferenceToActor(FWorldPartitionHandle& Actor);
 		void RemoveReferenceToActor(FWorldPartitionHandle& Actor);
-		void OnActorDataLayersEditorLoadingStateChanged(bool bFromUserOperation);		
+		void OnRefreshLoadedState(bool bFromUserOperation);		
 
 	private:
 		UWorld* World;
@@ -74,8 +73,16 @@ public:
 
 	virtual ILoaderAdapter* GetLoaderAdapter() =0;
 
+	using FActorDescFilter = TFunction<bool(class UWorld*, const FWorldPartitionHandle&)>;
+	static void RegisterActorDescFilter(const FActorDescFilter& InActorDescFilter);
+
+	static void RefreshLoadedState(bool bIsFromUserChange);
+
 private:
-	static bool PassDataLayersFilter(class UWorld* InWorld, const TArray<FName>& InDataLayerInstanceNames);
+	DECLARE_EVENT_OneParam(IWorldPartitionActorLoaderInterface, FOnActorLoaderInterfaceRefreshState, bool /*bIsFromUserChange*/);
+	static FOnActorLoaderInterfaceRefreshState ActorLoaderInterfaceRefreshState;
+
+	static TArray<FActorDescFilter> ActorDescFilters;
 	friend class ILoaderAdapter;
 #endif
 };

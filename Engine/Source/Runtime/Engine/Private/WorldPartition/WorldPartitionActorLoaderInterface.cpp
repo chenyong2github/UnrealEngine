@@ -9,9 +9,6 @@
 #include "Engine/Level.h"
 #include "Misc/ScopedSlowTask.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionActorDescViewProxy.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/DataLayer/DataLayerManager.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
@@ -21,6 +18,14 @@ UWorldPartitionActorLoaderInterface::UWorldPartitionActorLoaderInterface(const F
 {}
 
 #if WITH_EDITOR
+TArray<IWorldPartitionActorLoaderInterface::FActorDescFilter> IWorldPartitionActorLoaderInterface::ActorDescFilters;
+IWorldPartitionActorLoaderInterface::FOnActorLoaderInterfaceRefreshState IWorldPartitionActorLoaderInterface::ActorLoaderInterfaceRefreshState;
+
+void IWorldPartitionActorLoaderInterface::RegisterActorDescFilter(const FActorDescFilter& InActorDescFilter)
+{
+	ActorDescFilters.Add(InActorDescFilter);
+}
+
 IWorldPartitionActorLoaderInterface::ILoaderAdapter::ILoaderAdapter(UWorld* InWorld)
 	: World(InWorld)
 	, bLoaded(false)
@@ -94,8 +99,9 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::IsLoaded() const
 
 void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RegisterDelegates()
 {
-	FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().AddRaw(this, &IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDataLayersEditorLoadingStateChanged);
-	check(World->GetWorldPartition() != nullptr);
+	ActorLoaderInterfaceRefreshState.AddRaw(this, &IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnRefreshLoadedState);
+
+	check(World->GetWorldPartition());
 	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 	{
 		WorldPartition->OnActorDescContainerRegistered.AddRaw(this, &IWorldPartitionActorLoaderInterface::ILoaderAdapter::ILoaderAdapter::OnActorDescContainerInitialize);
@@ -105,8 +111,9 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RegisterDelegates()
 
 void IWorldPartitionActorLoaderInterface::ILoaderAdapter::UnregisterDelegates()
 {
-	FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().RemoveAll(this);
-	check(World->GetWorldPartition() != nullptr);
+	ActorLoaderInterfaceRefreshState.RemoveAll(this);
+
+	check(World->GetWorldPartition());
 	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 	{
 		WorldPartition->OnActorDescContainerRegistered.RemoveAll(this);
@@ -117,42 +124,6 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::UnregisterDelegates()
 bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::PassActorDescFilter(const FWorldPartitionHandle& Actor) const
 {
 	return Actor->IsEditorRelevant();
-}
-
-// Helper added to since the nested class IWorldPartitionActorLoaderInterface::ILoaderAdapter can't be friend of UDataLayerManager.
-bool IWorldPartitionActorLoaderInterface::PassDataLayersFilter(UWorld* InWorld, const TArray<FName>& InDataLayerInstanceNames)
-{
-	check(!IsRunningCookCommandlet());
-	UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(InWorld);
-	return DataLayerManager ? DataLayerManager->ResolveIsLoadedInEditor(InDataLayerInstanceNames) : true;
-}
-
-bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::PassDataLayersFilter(const FWorldPartitionHandle& Actor) const
-{
-	UWorld* OwningWorld = World->PersistentLevel->GetWorld();
-	if (UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(OwningWorld))
-	{
-		FWorldPartitionActorViewProxy ActorDescProxy(*Actor);
-
-		if (IsRunningCookCommandlet())
-		{
-			// When running cook commandlet, dont allow loading of actors with runtime loaded data layers
-			for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayerInstanceNames())
-			{
-				const UDataLayerInstance* DataLayerInstance = DataLayerManager->GetDataLayerInstance(DataLayerInstanceName);
-				if (DataLayerInstance && DataLayerInstance->IsRuntime())
-				{
-					return false;
-				}
-			}
-		}
-		else
-		{
-			return IWorldPartitionActorLoaderInterface::PassDataLayersFilter(OwningWorld, ActorDescProxy.GetDataLayerInstanceNames());
-		}
-	}
-
-	return true;
 }
 
 void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
@@ -261,7 +232,21 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDescContainerUn
 bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::ShouldActorBeLoaded(const FWorldPartitionHandle& Actor) const
 {
 	check(Actor.IsValid());
-	return PassActorDescFilter(Actor) && PassDataLayersFilter(Actor);
+
+	if (!PassActorDescFilter(Actor))
+	{
+		return false;
+	}
+
+	for (auto& ActorDescFilter : ActorDescFilters)
+	{
+		if (!ActorDescFilter(World, Actor))
+		{
+			return false;
+		}
+	}
+
+	return true;
 };
 
 void IWorldPartitionActorLoaderInterface::ILoaderAdapter::PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads)
@@ -318,9 +303,14 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RemoveReferenceToActor
 	ActorReferences.Remove(ActorHandle->GetGuid());
 }
 
-void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDataLayersEditorLoadingStateChanged(bool bFromUserOperation)
+void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnRefreshLoadedState(bool bFromUserOperation)
 {
 	RefreshLoadedState();
+}
+
+void IWorldPartitionActorLoaderInterface::RefreshLoadedState(bool bIsFromUserChange)
+{
+	ActorLoaderInterfaceRefreshState.Broadcast(bIsFromUserChange);
 }
 #endif
 
