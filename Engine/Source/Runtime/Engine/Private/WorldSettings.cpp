@@ -29,6 +29,7 @@
 #include "Engine/BookMark.h"
 #include "WorldSettingsCustomVersion.h"
 #include "Materials/Material.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -813,6 +814,11 @@ void AWorldSettings::InternalPostPropertyChanged(FName PropertyName)
 					OverrideBaseMaterial = GEngine->DefaultHLODFlattenMaterial;
 				}
 			}
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FNaniteSettings, bAllowMaskedMaterials))
+		{
+			// Need to recreate scene proxies when this flag changes.
+			FGlobalComponentRecreateRenderStateContext Context;
 		}
 	}
 }
