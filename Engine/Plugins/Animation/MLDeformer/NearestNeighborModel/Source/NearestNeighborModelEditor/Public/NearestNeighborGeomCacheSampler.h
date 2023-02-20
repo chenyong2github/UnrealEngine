@@ -18,6 +18,7 @@ namespace UE::NearestNeighborModel
 		uint8 GenerateMeshMappingIndices();
 		uint8 CheckGeomCacheVertCount(int32 NumVertsFromGeomCache, int32 NumVertsFromVertexMap) const;
 		uint8 CheckMeshMappingsEmpty() const;
+		TArray<uint32> GetMeshIndexBuffer() const;
 
 	protected:
 		TArray<float> PartVertexDeltas;

@@ -64,6 +64,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Python")
 	int32 GetKmeansNumClusters() const;
 
+	UFUNCTION(BlueprintPure, Category = "Python")
+	const TArray<float> GetUnskinnedVertexPositions() const;
+
+	UFUNCTION(BlueprintPure, Category = "Python")
+	const TArray<int32> GetMeshIndexBuffer() const;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")

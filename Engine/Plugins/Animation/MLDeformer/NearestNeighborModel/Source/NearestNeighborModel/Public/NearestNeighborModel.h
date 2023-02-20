@@ -111,7 +111,7 @@ struct FClothPartData
 	UPROPERTY()
 	TArray<float> VertexMean;
 
-	/** PCA coefficients of the nearest neighbors. This is a flattened array of size (PCACoeffNum, NumNeighbors) */
+	/** PCA coefficients of the nearest neighbors. This is a flattened array of size (NumNeighbors, PCACoeffNum) */
 	UPROPERTY()
 	TArray<float> NeighborCoeffs;
 
@@ -206,7 +206,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Nearest Neighbor Model")
 	void SetNumNeighbors(int32 PartId, int32 InNumNeighbors) { ClothPartData[PartId].NumNeighbors = InNumNeighbors; }
-
+	
 	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
 	const TArray<float>& NeighborCoeffs(int32 PartId) const { return ClothPartData[PartId].NeighborCoeffs; }
 
@@ -322,7 +322,6 @@ public:
 	static FName GetRecomputeDeltasPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, bRecomputeDeltas); }
 	static FName GetRecomputePCAPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, bRecomputePCA); }
 
-
 	bool GetUsePartOnlyMesh() const { return bUsePartOnlyMesh; }
 	static FName GetUsePartOnlyMeshPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, bUsePartOnlyMesh); }
 
@@ -361,6 +360,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cloth Parts")
 	TArray<FClothPartEditorData> ClothPartEditorData;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cloth Parts", meta = (ClampMin = "0"))
+	int32 BasisSmoothIter = 0;
+
 	UPROPERTY()
 	bool bNearestNeighborDataValid = false;
 
@@ -390,6 +392,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Cache")
 	bool bRecomputePCA = true;
+
 #endif
 
 	static constexpr int32 NearestNeighborNumFloatsPerBone = 3;

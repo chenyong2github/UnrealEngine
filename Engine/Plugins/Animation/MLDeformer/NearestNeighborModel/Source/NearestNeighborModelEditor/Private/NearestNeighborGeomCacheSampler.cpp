@@ -356,5 +356,38 @@ namespace UE::NearestNeighborModel
 			}
 		}
 		return EUpdateResult::SUCCESS;
-	} 
+	}
+
+	TArray<uint32> FNearestNeighborGeomCacheSampler::GetMeshIndexBuffer() const
+	{
+		TArray<uint32> IndexBuffer;
+
+		if (SkeletalMeshComponent == nullptr)
+		{
+			return IndexBuffer;
+		}
+
+		USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
+		if (Mesh == nullptr)
+		{
+			return IndexBuffer;
+		}
+
+		constexpr int32 LODIndex = 0;
+		const FSkeletalMeshLODRenderData& SkelMeshLODData = Mesh->GetResourceForRendering()->LODRenderData[LODIndex];
+		SkelMeshLODData.MultiSizeIndexContainer.GetIndexBuffer(IndexBuffer);
+
+		const FSkeletalMeshModel* SkeletalMeshModel = Mesh->GetImportedModel();
+		const TArray<int32>& ImportedVertexNumbers = SkeletalMeshModel->LODModels[LODIndex].MeshToImportVertexMap;
+		
+		if (ImportedVertexNumbers.Num() > 0)
+		{
+			for (int32 Index = 0; Index < IndexBuffer.Num(); Index++)
+			{
+				IndexBuffer[Index] = ImportedVertexNumbers[IndexBuffer[Index]];
+			}
+		}
+
+		return IndexBuffer;
+	}
 };

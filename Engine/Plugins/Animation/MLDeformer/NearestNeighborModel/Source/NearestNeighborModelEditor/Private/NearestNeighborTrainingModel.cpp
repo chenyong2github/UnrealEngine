@@ -90,5 +90,25 @@ int32 UNearestNeighborTrainingModel::GetKmeansNumClusters() const
 	return NearestNeighborModel->NumClusters;
 }
 
+const TArray<float> UNearestNeighborTrainingModel::GetUnskinnedVertexPositions() const
+{
+	const TArray<FVector3f>& PositionsVec = EditorModel->GetSampler()->GetUnskinnedVertexPositions();
+	TArray<float> PositionsFloat; 
+	PositionsFloat.SetNumUninitialized(PositionsVec.Num() * 3);
+	for (int32 i = 0; i < PositionsVec.Num(); i++)
+	{
+		PositionsFloat[i * 3] = PositionsVec[i].X;
+		PositionsFloat[i * 3 + 1] = PositionsVec[i].Y;
+		PositionsFloat[i * 3 + 2] = PositionsVec[i].Z;
+	}
+	return PositionsFloat;
+}
+
+const TArray<int32> UNearestNeighborTrainingModel::GetMeshIndexBuffer() const
+{
+	FNearestNeighborGeomCacheSampler* Sampler = static_cast<FNearestNeighborGeomCacheSampler*>(EditorModel->GetSampler());
+	TArray<uint32> UIndexBuffer = Sampler->GetMeshIndexBuffer();
+	return TArray<int32>((int32*)UIndexBuffer.GetData(), UIndexBuffer.Num());
+}
 
 #undef LOCTEXT_NAMESPACE
