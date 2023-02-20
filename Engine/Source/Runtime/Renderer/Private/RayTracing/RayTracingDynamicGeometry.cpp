@@ -159,7 +159,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	const FScene* Scene,
 	const FSceneView* View,
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
-	FRayTracingDynamicGeometryUpdateParams UpdateParams,
+	const FRayTracingDynamicGeometryUpdateParams& UpdateParams,
 	uint32 PrimitiveId
 )
 {

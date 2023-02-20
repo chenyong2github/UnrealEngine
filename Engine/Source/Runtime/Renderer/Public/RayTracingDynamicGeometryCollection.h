@@ -22,7 +22,7 @@ public:
 		const FScene* Scene, 
 		const FSceneView* View, 
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy, 
-		FRayTracingDynamicGeometryUpdateParams Params,
+		const FRayTracingDynamicGeometryUpdateParams& Params,
 		uint32 PrimitiveId 
 	);
 

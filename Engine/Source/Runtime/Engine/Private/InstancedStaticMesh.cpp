@@ -2095,7 +2095,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 						RayTracingWPODynamicTemplate.Materials,
 						false,
 						(uint32)LODModel.GetNumVertices(),
-						uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
+						uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector3f)),
 						DynamicData.DynamicGeometry.Initializer.TotalPrimitiveCount,
 						&DynamicData.DynamicGeometry,
 						nullptr,
