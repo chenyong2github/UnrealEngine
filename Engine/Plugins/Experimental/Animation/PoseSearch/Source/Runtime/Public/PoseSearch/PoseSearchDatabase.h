@@ -8,7 +8,10 @@
 #include "PoseSearchDatabase.generated.h"
 
 struct FInstancedStruct;
+class UAnimationAsset;
 class UAnimComposite;
+class UAnimMontage;
+class UBlendSpace;
 
 UENUM()
 enum class EPoseSearchMode : int32
