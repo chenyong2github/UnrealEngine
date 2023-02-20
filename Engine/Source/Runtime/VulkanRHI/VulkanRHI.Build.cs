@@ -6,8 +6,6 @@ using System.IO;
 
 public class VulkanRHI : ModuleRules
 {
-	protected virtual bool bShouldIncludePlatformPrivate { get { return true; } }
-
 	public VulkanRHI(ReadOnlyTargetRules Target) : base(Target)
 	{
 		IWYUSupport = IWYUSupport.None;
@@ -15,19 +13,7 @@ public class VulkanRHI : ModuleRules
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
-			PrivateIncludePaths.Add("Runtime/VulkanRHI/Private/Windows");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
-		}
-		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-		{
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
-			{
-				PrivateIncludePaths.Add("Runtime/VulkanRHI/Private/Linux");
-			}
-		}
-		else if (bShouldIncludePlatformPrivate)
-		{
-			PrivateIncludePaths.Add("Runtime/VulkanRHI/Private/" + Target.Platform);
 		}
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))

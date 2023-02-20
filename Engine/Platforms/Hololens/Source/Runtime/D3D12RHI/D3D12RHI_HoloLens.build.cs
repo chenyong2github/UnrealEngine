@@ -8,7 +8,6 @@ namespace UnrealBuildTool.Rules
 
 		public D3D12RHI_HoloLens(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("../Platforms/HoloLens/Source/Runtime/D3D12RHI/Private");
 		}
 	}
 }
