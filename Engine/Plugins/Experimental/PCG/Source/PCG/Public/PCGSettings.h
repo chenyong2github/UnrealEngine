@@ -18,7 +18,8 @@ class UPCGGraph;
 class UPCGNode;
 class UPCGSettings;
 
-typedef TMap<FName, TSet<TWeakObjectPtr<const UPCGSettings>>> FPCGTagToSettingsMap;
+using FPCGSettingsAndCulling = TPair<TWeakObjectPtr<const UPCGSettings>, bool>;
+using FPCGTagToSettingsMap = TMap<FName, TSet<FPCGSettingsAndCulling>>;
 
 UENUM()
 enum class EPCGSettingsExecutionMode : uint8

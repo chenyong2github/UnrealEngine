@@ -239,6 +239,10 @@ protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TArray<FName> TrackedActorTags;
 
+	/** If this is checked, found actors that are outside component bounds will not trigger a refresh. Only works for tags for now in editor. */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Settings)
+	bool bTrackActorsOnlyWithinBounds = false;
+
 	UPROPERTY()
 	bool bCreatesArtifacts_DEPRECATED = false;
 

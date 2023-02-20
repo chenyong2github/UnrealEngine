@@ -13,6 +13,18 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPropertyToParamData)
 
+#if WITH_EDITOR
+void UPCGPropertyToParamDataSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
+{
+	if (ActorSelector.ActorSelection == EPCGActorSelection::ByTag &&
+		ActorSelector.ActorFilter == EPCGActorFilter::AllWorldActors)
+	{
+		OutTagToSettings.FindOrAdd(ActorSelector.ActorSelectionTag).Emplace({ this, bTrackActorsOnlyWithinBounds });
+	}
+
+}
+#endif // WITH_EDITOR
+
 void UPCGPropertyToParamDataSettings::PostLoad()
 {
 	Super::PostLoad();

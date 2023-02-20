@@ -19,7 +19,7 @@ void UPCGDataFromActorSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTag
 	if (ActorSelector.ActorSelection == EPCGActorSelection::ByTag &&
 		ActorSelector.ActorFilter == EPCGActorFilter::AllWorldActors)
 	{
-		OutTagToSettings.FindOrAdd(ActorSelector.ActorSelectionTag).Add(this);
+		OutTagToSettings.FindOrAdd(ActorSelector.ActorSelectionTag).Emplace({ this, bTrackActorsOnlyWithinBounds });
 	}
 }
 

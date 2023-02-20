@@ -307,6 +307,7 @@ private:
 	void SetManagedResources(const TArray<TObjectPtr<UPCGManagedResource>>& Resources);
 
 	bool GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds);
+	bool GetActorsFromTags(const TMap<FName, bool>& InTagsAndCulling, TSet<TWeakObjectPtr<AActor>>& OutActors);
 
 	void RefreshAfterGraphChanged(UPCGGraphInterface* InGraph, bool bIsStructural, bool bDirtyInputs);
 	void OnGraphChanged(UPCGGraphInterface* InGraph, EPCGChangeType ChangeType);
@@ -342,13 +343,13 @@ private:
 	bool RemoveTrackedActor(AActor* InActor);
 	bool UpdateTrackedActor(AActor* InActor);
 	bool DirtyTrackedActor(AActor* InActor);
-	void DirtyCacheFromTag(const FName& InTag);
+	bool DirtyCacheFromTag(const FName& InTag, const AActor* InActor, bool bIgnoreCull = false);
 	void DirtyCacheForAllTrackedTags();
 
 	bool GraphUsesLandscapePin() const;
 #endif
 
-	FBox GetGridBounds(AActor* InActor) const;
+	FBox GetGridBounds(const AActor* InActor) const;
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
 	TObjectPtr<UPCGData> CachedPCGData = nullptr;
@@ -403,6 +404,8 @@ private:
 	bool bIsInspecting = false;
 	FBox LastGeneratedBoundsPriorToUndo = FBox(EForceInit::ForceInit);
 	FPCGTagToSettingsMap CachedTrackedTagsToSettings;
+
+	TMap<FName, bool> CachedTrackedTagsToCulling;
 
 	void SetupLandscapeTracking();
 	void TeardownLandscapeTracking();

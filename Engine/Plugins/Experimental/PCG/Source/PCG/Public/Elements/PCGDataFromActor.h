@@ -60,6 +60,12 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Mode == EPCGGetDataFromActorMode::GetDataFromProperty", EditConditionHides))
 	FName PropertyName = NAME_None;
+
+#if WITH_EDITORONLY_DATA
+	/** If this is checked, found actors that are outside component bounds will not trigger a refresh. Only works for tags for now in editor. */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Settings)
+	bool bTrackActorsOnlyWithinBounds = true;
+#endif // WITH_EDITORONLY_DATA
 };
 
 class FPCGDataFromActorContext : public FPCGContext

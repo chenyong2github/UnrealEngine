@@ -27,6 +27,7 @@ public:
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PropertyToParamData")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Param; }
+	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const override;
 #endif
 
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
@@ -63,6 +64,12 @@ public:
 	/** If this is true, we will never put this element in cache, and will always try to re-query the actors and read the latest properties from them. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bAlwaysRequeryActors = true;
+
+#if WITH_EDITORONLY_DATA
+	/** If this is checked, found actors that are outside component bounds will not trigger a refresh. Only works for tags for now in editor. */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Settings)
+	bool bTrackActorsOnlyWithinBounds = false;
+#endif // WITH_EDITORONLY_DATA
 
 private:
 	UPROPERTY()

@@ -192,32 +192,39 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 #if WITH_EDITOR
 	const bool bHasDirtyInput = InputType != NewInputType;
 	const bool bHasDirtyExclusions = !(ExcludedTags.Num() == Original->ExcludedTags.Num() && ExcludedTags.Includes(Original->ExcludedTags));
-	const bool bIsDirty = bHasDirtyInput || bHasDirtyExclusions || GraphInstance->Graph != Original->GraphInstance;
 
-	if (bHasDirtyExclusions)
+	TSet<FName> TrackedTags;
+	TSet<FName> OriginalTrackedTags;
+	CachedTrackedTagsToSettings.GetKeys(TrackedTags);
+	Original->CachedTrackedTagsToSettings.GetKeys(OriginalTrackedTags);
+	const bool bHasDirtyTracking = !(TrackedTags.Num() == OriginalTrackedTags.Num() && TrackedTags.Includes(OriginalTrackedTags));
+
+	const bool bGraphInstanceIsDifferent = GraphInstance->Graph != Original->GraphInstance;
+	const bool bIsDirty = bHasDirtyInput || bHasDirtyExclusions || bHasDirtyTracking || bGraphInstanceIsDifferent;
+#endif // WITH_EDITOR
+
+	InputType = NewInputType;
+	Seed = Original->Seed;
+	GraphInstance->SetGraph(Original->GraphInstance);
+	GenerationTrigger = Original->GenerationTrigger;
+
+#if WITH_EDITOR
+	if (bHasDirtyExclusions || bHasDirtyTracking)
 	{
 		TeardownTrackingCallbacks();
 		ExcludedTags = Original->ExcludedTags;
 		SetupTrackingCallbacks();
 		RefreshTrackingData();
 	}
-#else
-	ExcludedTags = Original->ExcludedTags;
-#endif
 
-	InputType = NewInputType;
-	Seed = Original->Seed;
-	GraphInstance->SetGraph(Original->GraphInstance);
-
-	GenerationTrigger = Original->GenerationTrigger;
-
-#if WITH_EDITOR
 	// Note that while we dirty here, we won't trigger a refresh since we don't have the required context
 	if (bIsDirty)
 	{
 		Modify();
 		DirtyGenerated((bHasDirtyInput ? EPCGComponentDirtyFlag::Input : EPCGComponentDirtyFlag::None) | (bHasDirtyExclusions ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None));
 	}
+#else
+	ExcludedTags = Original->ExcludedTags;
 #endif
 }
 
@@ -302,6 +309,7 @@ FPCGTaskId UPCGComponent::CreateGenerateTask(bool bForce, const TArray<FPCGTaskI
 
 bool UPCGComponent::GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::GetActorsFromTags::Excluded);
 	UWorld* World = GetWorld();
 
 	if (!World)
@@ -318,6 +326,48 @@ bool UPCGComponent::GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjec
 	bool bHasValidTag = false;
 	for (const FName& Tag : InTags)
 	{
+		if (Tag != NAME_None)
+		{
+			bHasValidTag = true;
+			UGameplayStatics::GetAllActorsWithTag(World, Tag, PerTagActors);
+
+			for (AActor* Actor : PerTagActors)
+			{
+				if (!bCullAgainstLocalBounds || LocalBounds.Intersect(GetGridBounds(Actor)))
+				{
+					OutActors.Emplace(Actor);
+				}
+			}
+
+			PerTagActors.Reset();
+		}
+	}
+
+	return bHasValidTag;
+}
+
+bool UPCGComponent::GetActorsFromTags(const TMap<FName, bool>& InTagsAndCulling, TSet<TWeakObjectPtr<AActor>>& OutActors)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::GetActorsFromTags::Tracked);
+	UWorld* World = GetWorld();
+
+	if (!World)
+	{
+		return false;
+	}
+
+	const FBox LocalBounds = GetGridBounds();
+
+	TArray<AActor*> PerTagActors;
+
+	OutActors.Reset();
+
+	bool bHasValidTag = false;
+	for (const TPair<FName, bool>& TagAndCulling : InTagsAndCulling)
+	{
+		const FName& Tag = TagAndCulling.Key;
+		const bool bCullAgainstLocalBounds = TagAndCulling.Value;
+
 		if (Tag != NAME_None)
 		{
 			bHasValidTag = true;
@@ -1291,9 +1341,31 @@ void UPCGComponent::TeardownActorCallbacks()
 void UPCGComponent::SetupTrackingCallbacks()
 {
 	CachedTrackedTagsToSettings.Reset();
+	CachedTrackedTagsToCulling.Reset();
 	if (UPCGGraph* PCGGraph = GetGraph())
 	{
 		CachedTrackedTagsToSettings = PCGGraph->GetTrackedTagsToSettings();
+
+		// A tag should be culled, if only all the settings that track this tag should cull.
+		// Note that is only impact the fact that we track (or not) this tag.
+		// If a setting is marked as "should cull", it will only be dirtied (at least by default), if the actor with the
+		// given tag intersect with the component.
+		for (const TPair<FName, TSet<FPCGSettingsAndCulling>>& It : CachedTrackedTagsToSettings)
+		{
+			const FName& Tag = It.Key;
+
+			bool bShouldCull = true;
+			for (const FPCGSettingsAndCulling& SettingsAndCulling : It.Value)
+			{
+				if (!SettingsAndCulling.Value)
+				{
+					bShouldCull = false;
+					break;
+				}
+			}
+
+			CachedTrackedTagsToCulling.Emplace(Tag, bShouldCull);
+		}
 	}
 
 	if(!ExcludedTags.IsEmpty() || !CachedTrackedTagsToSettings.IsEmpty())
@@ -1305,11 +1377,9 @@ void UPCGComponent::SetupTrackingCallbacks()
 
 void UPCGComponent::RefreshTrackingData()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::RefreshTrackingData);
 	GetActorsFromTags(ExcludedTags, CachedExcludedActors, /*bCullAgainstLocalBounds=*/true);
-
-	TSet<FName> TrackedTags;
-	CachedTrackedTagsToSettings.GetKeys(TrackedTags);
-	GetActorsFromTags(TrackedTags, CachedTrackedActors, /*bCullAgainstLocalBounds=*/false);
+	GetActorsFromTags(CachedTrackedTagsToCulling, CachedTrackedActors);
 	PopulateTrackedActorToTagsMap(/*bForce=*/true);
 }
 
@@ -1342,6 +1412,7 @@ bool UPCGComponent::ActorHasExcludedTag(AActor* InActor) const
 
 bool UPCGComponent::UpdateExcludedActor(AActor* InActor)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::UpdateExcludedActor);
 	// Dirty data in all cases - the tag or positional changes will be picked up in the test later
 	if (CachedExcludedActors.Contains(InActor))
 	{
@@ -1387,6 +1458,7 @@ bool UPCGComponent::ActorIsTracked(AActor* InActor) const
 
 void UPCGComponent::OnActorAdded(AActor* InActor)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::OnActorAdded);
 	if (!InActor || InActor->bIsEditorPreviewActor)
 	{
 		return;
@@ -1404,6 +1476,7 @@ void UPCGComponent::OnActorAdded(AActor* InActor)
 
 void UPCGComponent::OnActorDeleted(AActor* InActor)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::OnActorDeleted);
 	if (!InActor || InActor->bIsEditorPreviewActor)
 	{
 		return;
@@ -1421,6 +1494,7 @@ void UPCGComponent::OnActorDeleted(AActor* InActor)
 
 void UPCGComponent::OnActorMoved(AActor* InActor)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::OnActorMoved);
 	if (!InActor || InActor->bIsEditorPreviewActor)
 	{
 		return;
@@ -1457,7 +1531,7 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 
 		if (bDirtyAndRefresh)
 		{
-			DirtyGenerated(bDirtyExclusions ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/true);
+			DirtyGenerated(bDirtyExclusions ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/false);
 			Refresh();
 		}
 	}
@@ -1561,6 +1635,7 @@ void UPCGComponent::OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandsc
 
 void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::OnObjectPropertyChanged);
 	bool bValueNotInteractive = (InEvent.ChangeType != EPropertyChangeType::Interactive);
 	// Special exception for actor tags, as we can't track otherwise an actor "losing" a tag
 	bool bActorTagChange = (InEvent.Property && InEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, Tags));
@@ -1607,6 +1682,7 @@ void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedE
 
 void UPCGComponent::OnActorChanged(AActor* Actor, UObject* InObject, bool bActorTagChange)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::OnActorChanged);
 	if (Actor == GetOwner())
 	{
 		// Something has changed on the owner (including properties of this component)
@@ -1902,6 +1978,7 @@ TArray<UPCGData*> UPCGComponent::GetPCGExclusionData()
 
 void UPCGComponent::UpdatePCGExclusionData()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::UpdatePCGExclusionData);
 	const UPCGData* InputData = GetInputPCGData();
 	const UPCGSpatialData* InputSpatialData = Cast<const UPCGSpatialData>(InputData);
 
@@ -2335,7 +2412,7 @@ FBox UPCGComponent::GetGridBounds() const
 	return PCGHelpers::GetGridBounds(GetOwner(), this);
 }
 
-FBox UPCGComponent::GetGridBounds(AActor* Actor) const
+FBox UPCGComponent::GetGridBounds(const AActor* Actor) const
 {
 	return PCGHelpers::GetGridBounds(Actor, this);
 }
@@ -2348,6 +2425,7 @@ UPCGSubsystem* UPCGComponent::GetSubsystem() const
 #if WITH_EDITOR
 bool UPCGComponent::PopulateTrackedActorToTagsMap(bool bForce)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::PopulateTrackedActorToTagsMap);
 	if (bActorToTagsMapPopulated && !bForce)
 	{
 		return false;
@@ -2369,6 +2447,7 @@ bool UPCGComponent::PopulateTrackedActorToTagsMap(bool bForce)
 
 bool UPCGComponent::AddTrackedActor(AActor* InActor, bool bForce)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::AddTrackedActor);
 	if (!bForce)
 	{
 		PopulateTrackedActorToTagsMap();
@@ -2377,11 +2456,30 @@ bool UPCGComponent::AddTrackedActor(AActor* InActor, bool bForce)
 	check(InActor);
 	bool bAppliedChange = false;
 
+	bool bIntersectionComputed = false;
+	bool bIntersect = false;
+
 	for (const FName& Tag : InActor->Tags)
 	{
-		if (!CachedTrackedTagsToSettings.Contains(Tag))
+		const bool* ShouldCullPtr = CachedTrackedTagsToCulling.Find(Tag);
+
+		if (!ShouldCullPtr)
 		{
 			continue;
+		}
+
+		if (*ShouldCullPtr)
+		{
+			if (!bIntersectionComputed)
+			{
+				bIntersect = GetGridBounds().Intersect(GetGridBounds(InActor));
+				bIntersectionComputed = true;
+			}
+
+			if (!bIntersect)
+			{
+				continue;
+			}
 		}
 
 		bAppliedChange = true;
@@ -2390,7 +2488,8 @@ bool UPCGComponent::AddTrackedActor(AActor* InActor, bool bForce)
 
 		if (!bForce)
 		{
-			DirtyCacheFromTag(Tag);
+			// Since we arrived here, we already verified culling, so we can ignore it.
+			DirtyCacheFromTag(Tag, InActor, /*bIgnoreCull=*/true);
 		}
 	}
 
@@ -2399,6 +2498,7 @@ bool UPCGComponent::AddTrackedActor(AActor* InActor, bool bForce)
 
 bool UPCGComponent::RemoveTrackedActor(AActor* InActor)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::RemoveTrackedActor);
 	PopulateTrackedActorToTagsMap();
 
 	check(InActor);
@@ -2408,12 +2508,11 @@ bool UPCGComponent::RemoveTrackedActor(AActor* InActor)
 	{
 		for (const FName& Tag : CachedTrackedActorToTags[InActor])
 		{
-			DirtyCacheFromTag(Tag);
+			bAppliedChange |= DirtyCacheFromTag(Tag, InActor);
 		}
 
 		CachedTrackedActorToTags.Remove(InActor);
 		CachedTrackedActorToDependencies.Remove(InActor);
-		bAppliedChange = true;
 	}
 
 	return bAppliedChange;
@@ -2421,6 +2520,7 @@ bool UPCGComponent::RemoveTrackedActor(AActor* InActor)
 
 bool UPCGComponent::UpdateTrackedActor(AActor* InActor)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::UpdateTrackedActor);
 	check(InActor);
 	// If the tracked data wasn't initialized before, then it is not possible to know if we need to update or not - take no chances
 	bool bAppliedChange = PopulateTrackedActorToTagsMap();
@@ -2434,9 +2534,8 @@ bool UPCGComponent::UpdateTrackedActor(AActor* InActor)
 		{
 			if (!InActor->Tags.Contains(CachedTag))
 			{
+				bAppliedChange |= DirtyCacheFromTag(CachedTag, InActor);
 				CachedTrackedActorToTags[InActor].Remove(CachedTag);
-				DirtyCacheFromTag(CachedTag);
-				bAppliedChange = true;
 			}
 		}
 	}
@@ -2453,8 +2552,7 @@ bool UPCGComponent::UpdateTrackedActor(AActor* InActor)
 		{
 			CachedTrackedActorToTags[InActor].Add(Tag);
 			PCGHelpers::GatherDependencies(InActor, CachedTrackedActorToDependencies.FindOrAdd(InActor), 1);
-			DirtyCacheFromTag(Tag);
-			bAppliedChange = true;
+			bAppliedChange |= DirtyCacheFromTag(Tag, InActor);
 		}
 	}
 
@@ -2470,48 +2568,115 @@ bool UPCGComponent::UpdateTrackedActor(AActor* InActor)
 
 bool UPCGComponent::DirtyTrackedActor(AActor* InActor)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::DirtyTrackedActor);
 	PopulateTrackedActorToTagsMap();
 
 	check(InActor);
 	bool bAppliedChange = false;
 
+	bool bIntersectionComputed = false;
+	bool bIntersect = false;
+
 	if (CachedTrackedActorToTags.Contains(InActor))
 	{
-		for (const FName& Tag : CachedTrackedActorToTags[InActor])
+		TSet<FName> CachedTags = CachedTrackedActorToTags[InActor];
+		for (const FName& CachedTag : CachedTags)
 		{
-			DirtyCacheFromTag(Tag);
-		}
+			const bool* ShouldCullPtr = CachedTrackedTagsToCulling.Find(CachedTag);
 
-		bAppliedChange = true;
+			if (!ShouldCullPtr)
+			{
+				continue;
+			}
+
+			if (*ShouldCullPtr)
+			{
+				if (!bIntersectionComputed)
+				{
+					bIntersect = GetGridBounds().Intersect(GetGridBounds(InActor));
+					bIntersectionComputed = true;
+				}
+
+				if (!bIntersect)
+				{
+					// We were tracking the tag, but it is now culled. We'll need to dirty the settings
+					// even if it is culled (that's why we ignore cull here).
+					bAppliedChange |= DirtyCacheFromTag(CachedTag, InActor, /*bIgnoreCull=*/ true);
+					CachedTrackedActorToTags[InActor].Remove(CachedTag);
+					continue;
+				}
+			}
+
+			bAppliedChange |= DirtyCacheFromTag(CachedTag, InActor);
+		}
 	}
 	else if (AddTrackedActor(InActor))
 	{
 		bAppliedChange = true;
 	}
 
+	// Since we might have remove some tags, do some cleaning there
+	if (CachedTrackedActorToTags.Contains(InActor) && CachedTrackedActorToTags[InActor].IsEmpty())
+	{
+		CachedTrackedActorToTags.Remove(InActor);
+		CachedTrackedActorToDependencies.Remove(InActor);
+	}
+
 	return bAppliedChange;
 }
 
-void UPCGComponent::DirtyCacheFromTag(const FName& InTag)
+bool UPCGComponent::DirtyCacheFromTag(const FName& InTag, const AActor* InActor, bool bIgnoreCull)
 {
-	if (CachedTrackedTagsToSettings.Contains(InTag))
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::DirtyCacheFromTag);
+	bool bWasDirtied = false;
+
+	const TSet<FPCGSettingsAndCulling>* SettingsAndCullingPtr = CachedTrackedTagsToSettings.Find(InTag);
+
+	if (SettingsAndCullingPtr)
 	{
-		for (TWeakObjectPtr<const UPCGSettings> Settings : CachedTrackedTagsToSettings[InTag])
+		// Don't compute the bounds if we never cull.
+		bool bIntersectionComputed = false;
+		bool bIntersect = false;
+
+		for (const FPCGSettingsAndCulling& SettingsAndCulling : *SettingsAndCullingPtr)
 		{
+			const TWeakObjectPtr<const UPCGSettings>& Settings = SettingsAndCulling.Key;
+			const bool bShouldCull = SettingsAndCulling.Value && !bIgnoreCull;
+
 			if (Settings.IsValid() && GetSubsystem())
 			{
+				// If we cull and no intersection, continue
+				if (bShouldCull)
+				{
+					if (!bIntersectionComputed)
+					{
+						bIntersect = GetGridBounds().Intersect(GetGridBounds(InActor));
+						bIntersectionComputed = true;
+					}
+
+					if (!bIntersect)
+					{
+						continue;
+					}
+				}
+
 				GetSubsystem()->CleanFromCache(Settings->GetElement().Get(), Settings.Get());
+				bWasDirtied = true;
 			}
 		}
 	}
+
+	return bWasDirtied;
 }
 
 void UPCGComponent::DirtyCacheForAllTrackedTags()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::DirtyCacheForAllTrackedTags);
 	for (const auto& TagToSettings : CachedTrackedTagsToSettings)
 	{
-		for (TWeakObjectPtr<const UPCGSettings> Settings : TagToSettings.Value)
+		for (const FPCGSettingsAndCulling& SettingsAndCulling : TagToSettings.Value)
 		{
+			const TWeakObjectPtr<const UPCGSettings>& Settings = SettingsAndCulling.Key;
 			if (Settings.IsValid() && GetSubsystem())
 			{
 				GetSubsystem()->CleanFromCache(Settings->GetElement().Get(), Settings.Get());

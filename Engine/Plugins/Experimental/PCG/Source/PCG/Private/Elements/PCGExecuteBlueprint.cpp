@@ -394,12 +394,10 @@ EPCGSettingsType UPCGBlueprintSettings::GetType() const
 
 void UPCGBlueprintSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
 {
-#if WITH_EDITOR
 	for (const FName& Tag : TrackedActorTags)
 	{
-		OutTagToSettings.FindOrAdd(Tag).Add(this);
+		OutTagToSettings.FindOrAdd(Tag).Emplace({ this, bTrackActorsOnlyWithinBounds });
 	}
-#endif // WITH_EDITOR
 }
 
 UObject* UPCGBlueprintSettings::GetJumpTargetForDoubleClick() const

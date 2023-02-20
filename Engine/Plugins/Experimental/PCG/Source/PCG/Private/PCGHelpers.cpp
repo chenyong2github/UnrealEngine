@@ -58,13 +58,13 @@ namespace PCGHelpers
 		}
 	}
 
-	FBox GetGridBounds(AActor* Actor, const UPCGComponent* Component)
+	FBox GetGridBounds(const AActor* Actor, const UPCGComponent* Component)
 	{
 		check(Actor);
 
 		FBox Bounds(EForceInit::ForceInit);
 
-		if (APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(Actor))
+		if (const APCGPartitionActor* PartitionActor = Cast<const APCGPartitionActor>(Actor))
 		{
 			// First, get the bounds from the partition actor
 			Bounds = PartitionActor->GetFixedBounds();
@@ -79,7 +79,7 @@ namespace PCGHelpers
 			}
 		}
 		// TODO: verify this works as expected in non-editor builds
-		else if (ALandscapeProxy* LandscapeActor = Cast<ALandscape>(Actor))
+		else if (const ALandscapeProxy* LandscapeActor = Cast<const ALandscape>(Actor))
 		{
 			Bounds = GetLandscapeBounds(LandscapeActor);
 		}
@@ -91,7 +91,7 @@ namespace PCGHelpers
 		return Bounds;
 	}
 
-	FBox GetActorBounds(AActor* InActor, bool bIgnorePCGCreatedComponents)
+	FBox GetActorBounds(const AActor* InActor, bool bIgnorePCGCreatedComponents)
 	{
 		// Specialized version of GetComponentsBoundingBox that skips over PCG generated components
 		// This is to ensure stable bounds and no timing issues (cleared ISMs, etc.)
@@ -121,7 +121,7 @@ namespace PCGHelpers
 		return Box;
 	}
 
-	FBox GetActorLocalBounds(AActor* InActor, bool bIgnorePCGCreatedComponents)
+	FBox GetActorLocalBounds(const AActor* InActor, bool bIgnorePCGCreatedComponents)
 	{
 		// Specialized version of CalculateComponentsBoundingBoxInLocalScape that skips over PCG generated components
 		// This is to ensure stable bounds and no timing issues (cleared ISMs, etc.)
@@ -162,11 +162,11 @@ namespace PCGHelpers
 #endif // WITH_EDITOR
 	}
 
-	FBox GetLandscapeBounds(ALandscapeProxy* InLandscape)
+	FBox GetLandscapeBounds(const ALandscapeProxy* InLandscape)
 	{
 		check(InLandscape);
 
-		if (ALandscape* Landscape = Cast<ALandscape>(InLandscape))
+		if (const ALandscape* Landscape = Cast<const ALandscape>(InLandscape))
 		{
 			// If the landscape isn't done being loaded, we're very unlikely to want to interact with it
 			if (Landscape->GetLandscapeInfo() == nullptr)

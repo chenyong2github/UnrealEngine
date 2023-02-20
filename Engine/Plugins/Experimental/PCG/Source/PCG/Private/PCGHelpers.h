@@ -28,11 +28,11 @@ namespace PCGHelpers
 	FBox OverlapBounds(const FBox& InBoxA, const FBox& InBoxB);
 
 	/** Returns the bounds of InActor, intersected with the component if InActor is a partition actor */
-	FBox GetGridBounds(AActor* InActor, const UPCGComponent* InComponent);
+	FBox GetGridBounds(const AActor* InActor, const UPCGComponent* InComponent);
 
-	FBox GetActorBounds(AActor* InActor, bool bIgnorePCGCreatedComponents = true);
-	FBox GetActorLocalBounds(AActor* InActor, bool bIgnorePCGCreatedComponents = true);
-	FBox GetLandscapeBounds(ALandscapeProxy* InLandscape);
+	FBox GetActorBounds(const AActor* InActor, bool bIgnorePCGCreatedComponents = true);
+	FBox GetActorLocalBounds(const AActor* InActor, bool bIgnorePCGCreatedComponents = true);
+	FBox GetLandscapeBounds(const ALandscapeProxy* InLandscape);
 
 	ALandscape* GetLandscape(UWorld* InWorld, const FBox& InActorBounds);
 	TArray<TWeakObjectPtr<ALandscapeProxy>> GetLandscapeProxies(UWorld* InWorld, const FBox& InActorBounds);
