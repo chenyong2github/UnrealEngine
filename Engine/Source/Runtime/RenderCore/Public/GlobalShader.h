@@ -200,15 +200,15 @@ public:
 	template<typename ShaderType>
 	TShaderRef<ShaderType> GetShader() const
 	{
-		ensureMsgf(ShaderType::StaticType.GetPermutationCount() == 1, TEXT("Failed to provide PermutationId for shader type %s with %u permutations"), ShaderType::StaticType.GetName(), ShaderType::StaticType.GetPermutationCount());
+		ensureMsgf(ShaderType::GetStaticType().GetPermutationCount() == 1, TEXT("Failed to provide PermutationId for shader type %s with %u permutations"), ShaderType::GetStaticType().GetName(), ShaderType::GetStaticType().GetPermutationCount());
 		return GetShader<ShaderType>(0);
 	}
 
 	template<typename ShaderType>
 	TShaderRef<ShaderType> GetShader(int32 PermutationId) const
 	{
-		TShaderRef<FShader> Shader = GetShader(&ShaderType::StaticType, PermutationId);
-		checkf(Shader.IsValid(), TEXT("Failed to find shader type %s in Platform %s"), ShaderType::StaticType.GetName(), *LegacyShaderPlatformToShaderFormat(Platform).ToString());
+		TShaderRef<FShader> Shader = GetShader(&ShaderType::GetStaticType(), PermutationId);
+		checkf(Shader.IsValid(), TEXT("Failed to find shader type %s in Platform %s"), ShaderType::GetStaticType().GetName(), *LegacyShaderPlatformToShaderFormat(Platform).ToString());
 		return TShaderRef<ShaderType>::Cast(Shader);
 	}
 
@@ -480,5 +480,5 @@ void ForceInitGlobalShaderType(FShaderType& ShaderType);
 template <typename TShaderType>
 inline void ForceInitGlobalShaderType()
 {
-	ForceInitGlobalShaderType(TShaderType::StaticType);
+	ForceInitGlobalShaderType(TShaderType::GetStaticType());
 }

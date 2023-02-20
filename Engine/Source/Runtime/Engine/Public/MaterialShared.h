@@ -1211,11 +1211,11 @@ public:
 	}
 	template<typename ShaderType> TShaderRef<ShaderType> GetShader(int32 PermutationId = 0) const
 	{
-		return TShaderRef<ShaderType>::Cast(GetShader(&ShaderType::StaticType, PermutationId));
+		return TShaderRef<ShaderType>::Cast(GetShader(&ShaderType::GetStaticType(), PermutationId));
 	}
 	template<typename ShaderType> TShaderRef<ShaderType> GetShader(const typename ShaderType::FPermutationDomain& PermutationVector) const
 	{
-		return TShaderRef<ShaderType>::Cast(GetShader(&ShaderType::StaticType, PermutationVector.ToDimensionValueId()));
+		return TShaderRef<ShaderType>::Cast(GetShader(&ShaderType::GetStaticType(), PermutationVector.ToDimensionValueId()));
 	}
 
 	uint32 GetMaxNumInstructionsForShader(FShaderType* ShaderType) const { return GetContent()->GetMaxNumInstructionsForShader(*this, ShaderType); }
@@ -2146,7 +2146,7 @@ public:
 	template <typename ShaderType>
 	TShaderRef<ShaderType> GetShader(FVertexFactoryType* VertexFactoryType, int32 PermutationId = 0, bool bFatalIfMissing = true) const
 	{
-		return TShaderRef<ShaderType>::Cast(GetShader(&ShaderType::StaticType, VertexFactoryType, PermutationId, bFatalIfMissing));
+		return TShaderRef<ShaderType>::Cast(GetShader(&ShaderType::GetStaticType(), VertexFactoryType, PermutationId, bFatalIfMissing));
 	}
 
 	ENGINE_API FShaderPipelineRef GetShaderPipeline(class FShaderPipelineType* ShaderPipelineType, FVertexFactoryType* VertexFactoryType, bool bFatalIfNotFound = true) const;

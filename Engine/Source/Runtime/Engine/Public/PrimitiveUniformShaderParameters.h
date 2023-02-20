@@ -557,9 +557,7 @@ inline FPrimitiveUniformShaderParameters GetIdentityPrimitiveParameters()
 class FIdentityPrimitiveUniformBuffer : public TUniformBuffer<FPrimitiveUniformShaderParameters>
 {
 public:
-
-	/** Default constructor. */
-	FIdentityPrimitiveUniformBuffer()
+	void InitContents()
 	{
 		SetContents(GetIdentityPrimitiveParameters());
 	}

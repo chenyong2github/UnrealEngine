@@ -199,8 +199,8 @@ bool FShaderType::bInitializedSerializationHistory = false;
 
 static TArray<FShaderType*>& GetSortedShaderTypes(FShaderType::EShaderTypeForDynamicCast Type)
 {
-	static TArray<FShaderType*> SortedTypes[(uint32)FShaderType::EShaderTypeForDynamicCast::NumShaderTypes];
-	return SortedTypes[(uint32)Type];
+	static TArray<FShaderType*>* SortedTypesArray = new TArray<FShaderType*>[(uint32)FShaderType::EShaderTypeForDynamicCast::NumShaderTypes];
+	return SortedTypesArray[(uint32)Type];
 }
 
 
@@ -290,6 +290,25 @@ FShaderType::~FShaderType()
 	const int32 SortedIndex = Algo::BinarySearchBy(SortedTypes, HashedName, [](const FShaderType* InType) { return InType->GetHashedName(); });
 	check(SortedIndex != INDEX_NONE);
 	SortedTypes.RemoveAt(SortedIndex);
+}
+
+static TArray<const FShaderTypeRegistration*>* GShaderTypeRegistrationInstances = nullptr;
+TArray<const FShaderTypeRegistration*>& FShaderTypeRegistration::GetInstances()
+{
+	if (GShaderTypeRegistrationInstances == nullptr)
+	{
+		GShaderTypeRegistrationInstances = new TArray<const FShaderTypeRegistration*>();
+	}
+	return *GShaderTypeRegistrationInstances;
+}
+
+void FShaderTypeRegistration::CommitAll()
+{
+	for (const auto& Instance : GetInstances())
+	{
+		FShaderType& ShaderType = Instance->LazyShaderTypeAccessor(); // constructs and registers type
+	}
+	GetInstances().Empty();
 }
 
 TLinkedList<FShaderType*>*& FShaderType::GetTypeList()
