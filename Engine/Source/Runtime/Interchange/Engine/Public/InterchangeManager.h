@@ -218,6 +218,12 @@ namespace UE
 			FCriticalSection CreatedFactoriesLock;
 			TMap<FString, UInterchangeFactoryBase*> CreatedFactories;
 
+			// Set of classes which creation has been denied
+			TSet<UClass*> DeniedClasses;
+
+			// Set of classes which creation is allowed
+			TSet<UClass*> AllowedClasses;
+
 			struct FImportedObjectInfo
 			{
 				UObject* ImportedObject = nullptr; // The object that was imported

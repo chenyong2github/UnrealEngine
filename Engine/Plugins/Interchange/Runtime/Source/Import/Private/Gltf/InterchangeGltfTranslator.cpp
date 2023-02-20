@@ -1015,6 +1015,28 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		int32 TextureIndex = 0;
 		for ( const GLTF::FTexture& GltfTexture : GltfAsset.Textures )
 		{
+			// The glTF reader enforces the spec on the image format for buffers, URIs and file paths
+			// Skip the texture is the glTF reader has not recognized the format
+			if (GltfTexture.Source.Format == GLTF::FImage::EFormat::Unknown)
+			{
+				UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+
+				FText TextMessage;
+				if (GltfTexture.Source.FilePath.IsEmpty())
+				{
+					Message->Text = FText::Format(LOCTEXT("TextureCreationFailed", "The image format of the buffer for texture {0} is not supported."), FText::FromString(GltfTexture.Name));
+				}
+				else
+				{
+					Message->SourceAssetName = GetSourceData()->GetFilename();
+					Message->Text = FText::Format(
+						LOCTEXT("TextureCreationFailed", "The extension of the image file, {0}, for texture {1} is not supported."),
+						FText::FromString(GltfTexture.Source.FilePath), FText::FromString(GltfTexture.Name));
+				}
+
+				continue;
+			}
+
 			UInterchangeTexture2DNode* TextureNode = UInterchangeTexture2DNode::Create(&NodeContainer, GltfTexture.UniqueId);
 			TextureNode->SetDisplayLabel(GltfTexture.Name);
 

@@ -121,23 +121,52 @@ namespace UE
 				return false;
 			}
 
-			bool CanImportClass(UClass* Class)
+			bool CanImportClass(UE::Interchange::FImportAsyncHelper& AsyncHelper, UInterchangeFactoryBaseNode& FactoryNode, int32 SourceIndex)
 			{
-#if WITH_EDITOR
-				if (!Class)
+			#if WITH_EDITOR
+				if (UClass* Class = FactoryNode.GetObjectClass())
 				{
-					return true;
-				}
-				IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
-				TSharedPtr<FPathPermissionList> AssetClassPermissionList = AssetTools.GetAssetClassPathPermissionList(EAssetClassAction::ImportAsset);
-				if (AssetClassPermissionList && AssetClassPermissionList->HasFiltering())
-				{
-					if (!AssetClassPermissionList->PassesFilter(Class->GetPathName()))
+					if (AsyncHelper.AllowedClasses.Contains(Class))
+					{
+						return true;
+					}
+					else if (AsyncHelper.DeniedClasses.Contains(Class))
 					{
 						return false;
 					}
+					else
+					{
+						IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
+						TSharedPtr<FPathPermissionList> AssetClassPermissionList = AssetTools.GetAssetClassPathPermissionList(EAssetClassAction::ImportAsset);
+						if (AssetClassPermissionList && AssetClassPermissionList->HasFiltering())
+						{
+							if (!AssetClassPermissionList->PassesFilter(Class->GetPathName()))
+							{
+								UInterchangeResultError_Generic* Message = AsyncHelper.AssetImportResult->GetResults()->Add<UInterchangeResultError_Generic>();
+								Message->SourceAssetName = AsyncHelper.SourceDatas[SourceIndex]->GetFilename();
+								FString AssetName = FactoryNode.GetAssetName();
+								UE::Interchange::SanitizeObjectName(AssetName);
+								Message->DestinationAssetName = AssetName;
+								Message->AssetType = Class;
+								Message->Text = FText::Format(NSLOCTEXT("Interchange", "NotAllowedClass", "The creation of asset of class '{0}' is not allowed in this project."), FText::FromString(Class->GetName()));
+
+								AsyncHelper.DeniedClasses.Add(Class);
+
+								return false;
+							}
+						}
+
+						AsyncHelper.AllowedClasses.Add(Class);
+
+						return true;
+					}
 				}
-#endif //WITH_EDITOR
+				else
+				{
+					return false;
+				}
+			#endif //WITH_EDITOR
+
 				return true;
 			}
 		}//ns Private
@@ -150,16 +179,17 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 #if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
 	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(CreatePackage)
 #endif
-	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
+	using namespace UE::Interchange;
+
+	TSharedPtr<FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
 
-	//Verify if the task was cancel
-	if (AsyncHelper->bCancel
-		|| !FactoryNode
-		|| !UE::Interchange::Private::CanImportClass(FactoryNode->GetObjectClass()))
+	//Verify if the task was cancel or class to import is denied
+	if (AsyncHelper->bCancel || !FactoryNode || !Private::CanImportClass(*AsyncHelper, *FactoryNode, SourceIndex))
 	{
 		return;
 	}
+
 	//The create package thread must always execute on the game thread
 	check(IsInGameThread());
 
@@ -215,7 +245,7 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 	{
 		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
 		// We can not create assets that share the name of a map file in the same location
-		if (UE::Interchange::FPackageUtils::IsMapPackageAsset(PackageName))
+		if (FPackageUtils::IsMapPackageAsset(PackageName))
 		{
 			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
@@ -265,8 +295,8 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 				NodeAsset->SetInternalFlags(EInternalObjectFlags::Async);
 			}
 			FScopeLock Lock(&AsyncHelper->ImportedAssetsPerSourceIndexLock);
-			TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedInfos = AsyncHelper->ImportedAssetsPerSourceIndex.FindOrAdd(SourceIndex);
-			UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
+			TArray<FImportAsyncHelper::FImportedObjectInfo>& ImportedInfos = AsyncHelper->ImportedAssetsPerSourceIndex.FindOrAdd(SourceIndex);
+			FImportAsyncHelper::FImportedObjectInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
 			AssetInfo.ImportedObject = NodeAsset;
 			AssetInfo.Factory = Factory;
 			AssetInfo.FactoryNode = FactoryNode;
@@ -289,13 +319,13 @@ void UE::Interchange::FTaskImportObject_Async::DoTask(ENamedThreads::Type Curren
 #if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
 	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(CreateAsset)
 #endif
-	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
+		using namespace UE::Interchange;
+
+	TSharedPtr<FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
 
 	//Verify if the task was cancel
-	if (AsyncHelper->bCancel
-		|| !FactoryNode
-		|| !UE::Interchange::Private::CanImportClass(FactoryNode->GetObjectClass()))
+	if (AsyncHelper->bCancel || !FactoryNode || !Private::CanImportClass(*AsyncHelper, *FactoryNode, SourceIndex))
 	{
 		return;
 	}
@@ -388,15 +418,15 @@ void UE::Interchange::FTaskImportObject_Async::DoTask(ENamedThreads::Type Curren
 		if (!bSkipAsset)
 		{
 			FScopeLock Lock(&AsyncHelper->ImportedAssetsPerSourceIndexLock);
-			TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedInfos = AsyncHelper->ImportedAssetsPerSourceIndex.FindOrAdd(SourceIndex);
-			UE::Interchange::FImportAsyncHelper::FImportedObjectInfo* AssetInfoPtr = ImportedInfos.FindByPredicate([NodeAsset](const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& CurInfo)
+			TArray<FImportAsyncHelper::FImportedObjectInfo>& ImportedInfos = AsyncHelper->ImportedAssetsPerSourceIndex.FindOrAdd(SourceIndex);
+			FImportAsyncHelper::FImportedObjectInfo* AssetInfoPtr = ImportedInfos.FindByPredicate([NodeAsset](const FImportAsyncHelper::FImportedObjectInfo& CurInfo)
 			{
 				return CurInfo.ImportedObject == NodeAsset;
 			});
 
 			if (!AssetInfoPtr)
 			{
-				UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
+				FImportAsyncHelper::FImportedObjectInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
 				AssetInfo.ImportedObject = NodeAsset;
 				AssetInfo.Factory = Factory;
 				AssetInfo.FactoryNode = FactoryNode;
