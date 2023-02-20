@@ -22,6 +22,7 @@
 #include "OpenGLDrv.h"
 #include "OpenGLDrvPrivate.h"
 #include "SceneUtils.h"
+#include "GlobalShader.h"
 
 #include "HardwareInfo.h"
 #include "OpenGLProgramBinaryFileCache.h"

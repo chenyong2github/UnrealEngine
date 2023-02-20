@@ -26,6 +26,7 @@
 #include "RHIValidation.h"
 #include "HAL/ExceptionHandling.h"
 #include "HDRHelper.h"
+#include "GlobalShader.h"
 
 #if NV_AFTERMATH
 bool GDX11NVAfterMathEnabled = false;
