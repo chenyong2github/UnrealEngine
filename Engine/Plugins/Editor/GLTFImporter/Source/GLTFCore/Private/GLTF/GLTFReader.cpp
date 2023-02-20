@@ -295,10 +295,14 @@ namespace GLTF
 		}
 
 		// Morph Target Weights:
-		const TArray<TSharedPtr<FJsonValue> >& MorphTargetWeightsArray = Object.GetArrayField(TEXT("weights"));
-		for (TSharedPtr<FJsonValue> Value : MorphTargetWeightsArray)
+		if (Object.HasField(TEXT("weights")))
+
 		{
-			Mesh.MorphTargetWeights.Add(Value->AsNumber());
+			const TArray<TSharedPtr<FJsonValue> >& MorphTargetWeightsArray = Object.GetArrayField(TEXT("weights"));
+			for (TSharedPtr<FJsonValue> Value : MorphTargetWeightsArray)
+			{
+				Mesh.MorphTargetWeights.Add(Value->AsNumber());
+			}
 		}
 
 		// Morph Target Names:
