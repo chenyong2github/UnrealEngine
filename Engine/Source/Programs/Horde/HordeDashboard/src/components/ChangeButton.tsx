@@ -225,7 +225,7 @@ function getJobSummary(job: GetJobResponse): { text: string, color: string } {
 }
 
 
-export const ChangeButton: React.FC<{ job?: JobData, stepRef?: GetJobStepRefResponse, commit?: GetChangeSummaryResponse, hideAborted?: boolean, rangeCL?: number, pinned?: boolean }> = ({ job, stepRef, commit, hideAborted, rangeCL, pinned }) => {
+export const ChangeButton: React.FC<{ job?: JobData, stepRef?: GetJobStepRefResponse, commit?: GetChangeSummaryResponse, hideAborted?: boolean, rangeCL?: number, pinned?: boolean, prefix?: string }> = ({ job, stepRef, commit, hideAborted, rangeCL, pinned, prefix }) => {
 
    const [menuShown, setMenuShown] = useState(false);
 
@@ -246,6 +246,10 @@ export const ChangeButton: React.FC<{ job?: JobData, stepRef?: GetJobStepRefResp
 
    if (stepRef) {
       change = stepRef.change.toString();
+   }
+
+   if (prefix) {
+      change = `${prefix} ${change}`;
    }
    
    return (<Stack verticalAlign="center" verticalFill={true} horizontalAlign="start"> <div style={{ paddingBottom: "1px" }}>

@@ -17,8 +17,10 @@ import { LabelStatusIcon, StepStatusIcon } from "../StatusIcon";
 
 export abstract class JobDataView {
 
-   constructor(details: JobDetailsV2) {
-      makeObservable(this);
+   constructor(details: JobDetailsV2, initObservable?:boolean) {
+      if (initObservable === undefined || initObservable) {
+         makeObservable(this);   
+      }      
       this.details = details;
    }
 
