@@ -873,6 +873,11 @@ namespace AutomationTool
 			LogError("Not implemented for the %s platform.", ClientPlatform);
 		}
 
+		public virtual void SetSecondaryRemoteMac(string ProjectFilePath, string ClientPlatform)
+		{
+			LogError("Not implemented for this platform.");
+		}
+
 		// let the platform set the exe extension if it chooses (otherwise, use
 		// the switch statement in GetExeExtension below)
 		protected virtual string GetPlatformExeExtension()

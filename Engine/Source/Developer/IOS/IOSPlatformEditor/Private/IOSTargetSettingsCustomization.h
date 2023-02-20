@@ -118,7 +118,8 @@ private:
 	void BuildPListSection(IDetailLayoutBuilder& DetailLayout);
 	void BuildIconSection(IDetailLayoutBuilder& DetailLayout);
     void BuildRemoteBuildingSection(IDetailLayoutBuilder& DetailLayout);
-
+    void BuildSecondaryRemoteMacBuildingSection(IDetailLayoutBuilder& DetailLayout);
+    
 	// Navigates to the plist in explorer or finder
 	FReply OpenPlistFolder();
 
@@ -140,7 +141,7 @@ private:
 	FReply OnGenerateImageClicked(const FString SourceImagePath, const FString TargetImagePath, FIntPoint IconRequiredSize);
 
 	// ssh key request
-	FReply OnGenerateSSHKey();
+	FReply OnGenerateSSHKey(bool IsPrimary);
 
 	// Get the image to display for the provision status
 	const FSlateBrush* GetProvisionStatus() const;

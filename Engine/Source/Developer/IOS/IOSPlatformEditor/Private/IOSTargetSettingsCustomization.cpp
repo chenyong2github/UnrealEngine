@@ -149,6 +149,8 @@ void FIOSTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Det
 	BuildIconSection(DetailLayout);
 
 	BuildRemoteBuildingSection(DetailLayout);
+    
+    BuildSecondaryRemoteMacBuildingSection(DetailLayout);
 
 	AudioPluginWidgetManager.BuildAudioCategory(DetailLayout, FString(TEXT("IOS")));
 
@@ -941,31 +943,31 @@ void FIOSTargetSettingsCustomization::BuildRemoteBuildingSection(IDetailLayoutBu
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.Padding(FMargin(0, 1, 0, 1))
-			.FillWidth(1.0f)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("RemoteServerNameLabel", "Remote Server Name"))
-				.Font(DetailLayout.GetDetailFont())
-			]
+		.Padding(FMargin(0, 1, 0, 1))
+		.FillWidth(1.0f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("RemoteServerNameLabel", "Remote Server Name"))
+		.Font(DetailLayout.GetDetailFont())
 		]
-		.ValueContent()
+		]
+	.ValueContent()
 		.MinDesiredWidth(150.0f)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.Padding(FMargin(0.0f, 8.0f))
-			[
-				SNew(SEditableTextBox)
-				.IsEnabled(this, &FIOSTargetSettingsCustomization::IsImportEnabled)
-				.Text(this, &FIOSTargetSettingsCustomization::GetBundleText, RemoteServerNamePropertyHandle)
-				.Font(DetailLayout.GetDetailFont())
-				.SelectAllTextOnCommit(true)
-				.SelectAllTextWhenFocused(true)
-				.ClearKeyboardFocusOnCommit(false)
-				.ToolTipText(RemoteServerNamePropertyHandle->GetToolTipText())
-				.OnTextCommitted(this, &FIOSTargetSettingsCustomization::OnRemoteServerChanged, RemoteServerNamePropertyHandle)
-			]
+		.Padding(FMargin(0.0f, 8.0f))
+		[
+			SNew(SEditableTextBox)
+			.IsEnabled(this, &FIOSTargetSettingsCustomization::IsImportEnabled)
+		.Text(this, &FIOSTargetSettingsCustomization::GetBundleText, RemoteServerNamePropertyHandle)
+		.Font(DetailLayout.GetDetailFont())
+		.SelectAllTextOnCommit(true)
+		.SelectAllTextWhenFocused(true)
+		.ClearKeyboardFocusOnCommit(false)
+		.ToolTipText(RemoteServerNamePropertyHandle->GetToolTipText())
+		.OnTextCommitted(this, &FIOSTargetSettingsCustomization::OnRemoteServerChanged, RemoteServerNamePropertyHandle)
+		]
 
 		];
 
@@ -982,36 +984,36 @@ void FIOSTargetSettingsCustomization::BuildRemoteBuildingSection(IDetailLayoutBu
 	RSyncUsernamePropertyRow
 		.ToolTip(RSyncUsernamePropertyHandle->GetToolTipText())
 		.CustomWidget()
-			.NameContent()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.Padding(FMargin(0, 1, 0, 1))
-				.FillWidth(1.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("RSyncUserNameLabel", "RSync User Name"))
-					.Font(DetailLayout.GetDetailFont())
-				]
-			]
-			.ValueContent()
-			.MinDesiredWidth(150.0f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.Padding(FMargin(0.0f, 8.0f))
-				[
-					SNew(SEditableTextBox)
-					.IsEnabled(this, &FIOSTargetSettingsCustomization::IsImportEnabled)
-					.Text(this, &FIOSTargetSettingsCustomization::GetBundleText, RSyncUsernamePropertyHandle)
-					.Font(DetailLayout.GetDetailFont())
-					.SelectAllTextOnCommit(true)
-					.SelectAllTextWhenFocused(true)
-					.ClearKeyboardFocusOnCommit(false)
-					.ToolTipText(RSyncUsernamePropertyHandle->GetToolTipText())
-					.OnTextCommitted(this, &FIOSTargetSettingsCustomization::OnRemoteServerChanged, RSyncUsernamePropertyHandle)
-				]
-			];
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+		.Padding(FMargin(0, 1, 0, 1))
+		.FillWidth(1.0f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("RSyncUserNameLabel", "RSync User Name"))
+		.Font(DetailLayout.GetDetailFont())
+		]
+		]
+	.ValueContent()
+		.MinDesiredWidth(150.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 8.0f))
+		[
+			SNew(SEditableTextBox)
+			.IsEnabled(this, &FIOSTargetSettingsCustomization::IsImportEnabled)
+		.Text(this, &FIOSTargetSettingsCustomization::GetBundleText, RSyncUsernamePropertyHandle)
+		.Font(DetailLayout.GetDetailFont())
+		.SelectAllTextOnCommit(true)
+		.SelectAllTextWhenFocused(true)
+		.ClearKeyboardFocusOnCommit(false)
+		.ToolTipText(RSyncUsernamePropertyHandle->GetToolTipText())
+		.OnTextCommitted(this, &FIOSTargetSettingsCustomization::OnRemoteServerChanged, RSyncUsernamePropertyHandle)
+		]
+		];
 
 
 	// Add Remote Server Override Build Path 
@@ -1042,28 +1044,170 @@ void FIOSTargetSettingsCustomization::BuildRemoteBuildingSection(IDetailLayoutBu
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(0, 5, 0, 10))
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.OnClicked(this, &FIOSTargetSettingsCustomization::OnGenerateSSHKey)
-						.IsEnabled(this, &FIOSTargetSettingsCustomization::IsImportEnabled)
-						[
-							SNew(STextBlock)
-							.Text(GenerateSSHText)
-						]
-					]
-				]
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+		.Padding(FMargin(0, 5, 0, 10))
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.OnClicked(this, &FIOSTargetSettingsCustomization::OnGenerateSSHKey, true)
+		.IsEnabled(this, &FIOSTargetSettingsCustomization::IsImportEnabled)
+		[
+			SNew(STextBlock)
+			.Text(GenerateSSHText)
+		]
+		]
+		]
 		];
 #endif
 }
 
+void FIOSTargetSettingsCustomization::BuildSecondaryRemoteMacBuildingSection(IDetailLayoutBuilder& DetailLayout)
+{
+#if PLATFORM_WINDOWS
+	IDetailCategoryBuilder& BuildCategory = DetailLayout.EditCategory(TEXT("Build"));
+
+	// Sub group we wish to add remote building options to.
+	FText RemoteBuildingGroupName = LOCTEXT("RemoteBuildingGroupName", "Secondary Remote Build Options");
+	IDetailGroup& RemoteBuildingGroup = BuildCategory.AddGroup(*RemoteBuildingGroupName.ToString(), RemoteBuildingGroupName, false);
+
+	// Remote Server Name Property
+	TSharedRef<IPropertyHandle> RemoteServerNamePropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, SecondaryRemoteServerName));
+
+	IDetailPropertyRow& RemoteServerNamePropertyRow = RemoteBuildingGroup.AddPropertyRow(RemoteServerNamePropertyHandle);
+	RemoteServerNamePropertyRow
+		.ToolTip(RemoteServerNamePropertyHandle->GetToolTipText())
+		.CustomWidget()
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+		.Padding(FMargin(0, 1, 0, 1))
+		.FillWidth(1.0f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("RemoteServerNameLabel", "Secondary Remote Server Name"))
+		.Font(DetailLayout.GetDetailFont())
+		]
+		]
+	.ValueContent()
+		.MinDesiredWidth(150.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 8.0f))
+		[
+			SNew(SEditableTextBox)
+			.IsEnabled(this, &FIOSTargetSettingsCustomization::IsImportEnabled)
+		.Text(this, &FIOSTargetSettingsCustomization::GetBundleText, RemoteServerNamePropertyHandle)
+		.Font(DetailLayout.GetDetailFont())
+		.SelectAllTextOnCommit(true)
+		.SelectAllTextWhenFocused(true)
+		.ClearKeyboardFocusOnCommit(false)
+		.ToolTipText(RemoteServerNamePropertyHandle->GetToolTipText())
+		.OnTextCommitted(this, &FIOSTargetSettingsCustomization::OnRemoteServerChanged, RemoteServerNamePropertyHandle)
+		]
+
+		];
+
+
+
+	// Add Use RSync Property
+	TSharedRef<IPropertyHandle> UseRSyncPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bUseRSync));
+	BuildCategory.AddProperty(UseRSyncPropertyHandle)
+		.Visibility(EVisibility::Hidden);
+
+	// Add RSync Username Property
+	TSharedRef<IPropertyHandle> RSyncUsernamePropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, SecondaryRSyncUsername));
+	IDetailPropertyRow& RSyncUsernamePropertyRow = RemoteBuildingGroup.AddPropertyRow(RSyncUsernamePropertyHandle);
+	RSyncUsernamePropertyRow
+		.ToolTip(RSyncUsernamePropertyHandle->GetToolTipText())
+		.CustomWidget()
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+		.Padding(FMargin(0, 1, 0, 1))
+		.FillWidth(1.0f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("RSyncUserNameLabel", "Secondary RSync User Name"))
+		.Font(DetailLayout.GetDetailFont())
+		]
+		]
+	.ValueContent()
+		.MinDesiredWidth(150.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 8.0f))
+		[
+			SNew(SEditableTextBox)
+			.IsEnabled(this, &FIOSTargetSettingsCustomization::IsImportEnabled)
+		.Text(this, &FIOSTargetSettingsCustomization::GetBundleText, RSyncUsernamePropertyHandle)
+		.Font(DetailLayout.GetDetailFont())
+		.SelectAllTextOnCommit(true)
+		.SelectAllTextWhenFocused(true)
+		.ClearKeyboardFocusOnCommit(false)
+		.ToolTipText(RSyncUsernamePropertyHandle->GetToolTipText())
+		.OnTextCommitted(this, &FIOSTargetSettingsCustomization::OnRemoteServerChanged, RSyncUsernamePropertyHandle)
+		]
+		];
+
+
+	// Add Remote Server Override Build Path 
+	TSharedRef<IPropertyHandle> RemoteServerOverrideBuildPathPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, SecondaryRemoteServerOverrideBuildPath));
+	IDetailPropertyRow& RemoteServerOverrideBuildPathPropertyRow = RemoteBuildingGroup.AddPropertyRow(RemoteServerOverrideBuildPathPropertyHandle);
+	RemoteServerOverrideBuildPathPropertyRow
+		.ToolTip(RemoteServerOverrideBuildPathPropertyHandle->GetToolTipText());
+
+	// Add existing SSH path label.
+	TSharedRef<IPropertyHandle> SSHPrivateKeyLocationPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, SecondarySSHPrivateKeyLocation));
+	IDetailPropertyRow& SSHPrivateKeyLocationPropertyRow = RemoteBuildingGroup.AddPropertyRow(SSHPrivateKeyLocationPropertyHandle);
+	SSHPrivateKeyLocationPropertyRow
+		.ToolTip(SSHPrivateKeyLocationPropertyHandle->GetToolTipText());
+
+	// cwRsync path
+	TSharedRef<IPropertyHandle> CwRsyncOverridePathPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, SecondaryCwRsyncInstallPath));
+	IDetailPropertyRow& CwRsyncOverridePathPropertyRow = RemoteBuildingGroup.AddPropertyRow(CwRsyncOverridePathPropertyHandle);
+
+	const FText GenerateSSHText = LOCTEXT("GenerateSSHKey", "Secondary Generate SSH Key");
+
+	// Add a generate key button
+	RemoteBuildingGroup.AddWidgetRow()
+		.FilterString(GenerateSSHText)
+		.WholeRowWidget
+		.MinDesiredWidth(0.f)
+		.MaxDesiredWidth(0.f)
+		.HAlign(HAlign_Fill)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+		.Padding(FMargin(0, 5, 0, 10))
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.OnClicked(this, &FIOSTargetSettingsCustomization::OnGenerateSSHKey, false)
+		.IsEnabled(this, &FIOSTargetSettingsCustomization::IsImportEnabled)
+		[
+			SNew(STextBlock)
+			.Text(GenerateSSHText)
+		]
+		]
+		]
+		];
+#endif
+}
 
 void FIOSTargetSettingsCustomization::BuildIconSection(IDetailLayoutBuilder& DetailLayout)
 {
@@ -1469,28 +1613,47 @@ FReply FIOSTargetSettingsCustomization::OnCertificateRequestClicked()
 	return FReply::Handled();
 }
 
-FReply FIOSTargetSettingsCustomization::OnGenerateSSHKey()
+FReply FIOSTargetSettingsCustomization::OnGenerateSSHKey(bool IsPrimary)
 {
 	// see if the key is already generated
 	const UIOSRuntimeSettings& Settings = *GetDefault<UIOSRuntimeSettings>();
 
 	FString RemoteServerAddress;
 	FString RemoteServerPort;
+	FString RSyncUsername;
 	int32	colonIndex;
 
-	if(Settings.RemoteServerName.FindChar(':', colonIndex))
+	if (IsPrimary)
 	{
-		RemoteServerAddress = Settings.RemoteServerName.Left(colonIndex);
-		RemoteServerPort = Settings.RemoteServerName.RightChop(colonIndex + 1);
+		if (Settings.RemoteServerName.FindChar(':', colonIndex))
+		{
+			RemoteServerAddress = Settings.RemoteServerName.Left(colonIndex);
+			RemoteServerPort = Settings.RemoteServerName.RightChop(colonIndex + 1);
+		}
+		else
+		{
+			RemoteServerAddress = Settings.RemoteServerName;
+			RemoteServerPort = "22";
+		}
+		RSyncUsername = Settings.RSyncUsername;
 	}
 	else
 	{
-		RemoteServerAddress = Settings.RemoteServerName;
-		RemoteServerPort = "22";
+		if (Settings.SecondaryRemoteServerName.FindChar(':', colonIndex))
+		{
+			RemoteServerAddress = Settings.SecondaryRemoteServerName.Left(colonIndex);
+			RemoteServerPort = Settings.SecondaryRemoteServerName.RightChop(colonIndex + 1);
+		}
+		else
+		{
+			RemoteServerAddress = Settings.SecondaryRemoteServerName;
+			RemoteServerPort = "22";
+		}
+		RSyncUsername = Settings.SecondaryRSyncUsername;
 	}
 
 	FString Path = FPlatformMisc::GetEnvironmentVariable(TEXT("APPDATA"));
-	FString Destination = FString::Printf(TEXT("%s\\Unreal Engine\\UnrealBuildTool\\SSHKeys\\%s\\%s\\RemoteToolChainPrivate.key"), *Path, *RemoteServerAddress, *(Settings.RSyncUsername));
+	FString Destination = FString::Printf(TEXT("%s\\Unreal Engine\\UnrealBuildTool\\SSHKeys\\%s\\%s\\RemoteToolChainPrivate.key"), *Path, *RemoteServerAddress, *RSyncUsername);
 	if (FPaths::FileExists(Destination))
 	{
 		FString MessagePrompt = FString::Printf(TEXT("An SSH Key already exists.  Do you want to replace this key?"));

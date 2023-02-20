@@ -37,6 +37,7 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	bGeneratedSYMBundle = false;
 	bGenerateXCArchive = false;
 	bShipForBitcode = true;
+	bSupportSecondaryMac = false;
 	bUseRSync = true;
 	bCustomLaunchscreenStoryboard = false;
 	AdditionalPlistData = TEXT("");

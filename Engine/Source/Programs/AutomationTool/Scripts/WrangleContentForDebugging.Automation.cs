@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using AutomationTool;
 using UnrealBuildTool;
 using System.IO;
-//using System.Linq;
 using EpicGames.Core;
 
 namespace AutomationScripts
@@ -17,7 +16,7 @@ namespace AutomationScripts
 
 			if (ParseParam("usage"))
 			{
-				LogInformation("Arguments : \n -platform=<platform> \n -ProjectFilePath=<path/ProjectName.uproject> Mandatory. Path to a path to the roject you want to Wrangle Debug Data to. \n -SourcePackage=<path/PackageName.ipa> Optional. Specify the .ipa to wrangle data for debug from. When not specified, [ProjectPath]/Build/[IOS|TVOS]/[ProjectName].ipa will be used.");
+				LogInformation("Arguments : \n -platform=<platform> \n -ProjectFilePath=<path/ProjectName.uproject> Mandatory. Path to the project you want to debug. \n -SourcePackage=<path/PackageName.ipa> Optional. Specify the .ipa to wrangle data for debug from. When not specified, [ProjectPath]/Build/[IOS|TVOS]/[ProjectName].ipa will be used.");
 			}
 
 			FileReference ProjectFile = new FileReference(ParseParamValue("ProjectFilePath=", null));

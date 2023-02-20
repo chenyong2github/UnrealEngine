@@ -182,6 +182,20 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Set a secondary remote Mac to retrieve built data on a remote Mac.
+		/// </summary>
+		/// <returns></returns>
+		
+		public static void SetSecondaryRemoteMac(string ClientPlatform, FileReference ProjectFile, ILogger Logger)
+		{
+			RemoteMac Remote = new RemoteMac(ProjectFile, Logger, true, true);
+			Remote.RetrieveFilesGeneratedOnPrimaryMac(ProjectFile, Logger, ClientPlatform);
+
+			RemoteMac SecondaryRemote = new RemoteMac(ProjectFile, Logger, false);
+			SecondaryRemote.UploadToSecondaryMac(ProjectFile, Logger);
+		}
+
+		/// <summary>
 		/// Prepare the build and project on a Remote Mac to be able to debug an iOS or tvOS package built remotely
 		/// </summary>
 		/// <param name="ClientPlatform">TargetPlatform, iOS or tvOS</param>

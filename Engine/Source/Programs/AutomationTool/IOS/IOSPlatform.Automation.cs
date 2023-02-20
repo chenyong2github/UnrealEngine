@@ -2294,6 +2294,12 @@ public class IOSPlatform : ApplePlatform
 		return DirectoryReference.Combine(RuntimeRoot, "cookeddata/" + RelativeProjectRootForStage.Name);
 	}
 
+	public override void SetSecondaryRemoteMac(string ProjectFilePath, string ClientPlatform)
+	{
+		PrepareForDebugging("", ProjectFilePath, ClientPlatform);
+		IOSExports.SetSecondaryRemoteMac(ClientPlatform, new FileReference(ProjectFilePath), Log.Logger);
+	}
+
 	public override void PrepareForDebugging(string SourcePackage, string ProjectFilePath, string ClientPlatform)
 	{
 		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64 || HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Mac)

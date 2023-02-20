@@ -130,7 +130,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">Project to read settings from</param>
 		/// <param name="Logger">Logger for output</param>
-		public RemoteMac(FileReference? ProjectFile, ILogger Logger)
+		/// <param name="bIsPrimary">Is the primary Remote Mac or not. True by default.</param>
+		/// <param name="bPrepareForSecondaryMac">Added arguments when preparing a secondary Mac for debug. False by default.</param>
+		public RemoteMac(FileReference? ProjectFile, ILogger Logger, bool bIsPrimary = true, bool bPrepareForSecondaryMac = false)
 		{
 			this.RsyncExe = FileReference.Combine(Unreal.EngineDirectory, "Extras", "ThirdPartyNotUE", "cwrsync", "bin", "rsync.exe");
 			this.SshExe = FileReference.Combine(Unreal.EngineDirectory, "Extras", "ThirdPartyNotUE", "cwrsync", "bin", "ssh.exe");
@@ -162,7 +164,8 @@ namespace UnrealBuildTool
 			{
 				// Read the server name
 				string IniServerName;
-				if (Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "RemoteServerName", out IniServerName) && !String.IsNullOrEmpty(IniServerName))
+
+				if ((bIsPrimary ? Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "RemoteServerName", out IniServerName) : Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "SecondaryRemoteServerName", out IniServerName)) && !String.IsNullOrEmpty(IniServerName))
 				{
 					this.ServerName = IniServerName;
 				}
@@ -173,7 +176,7 @@ namespace UnrealBuildTool
 
 				// Parse the username
 				string IniUserName;
-				if (Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "RSyncUsername", out IniUserName) && !String.IsNullOrEmpty(IniUserName))
+				if ((bIsPrimary ? Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "RSyncUsername", out IniUserName) : Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "SecondaryRSyncUsername", out IniUserName)) && !String.IsNullOrEmpty(IniUserName))
 				{
 					this.UserName = IniUserName;
 				}
@@ -202,7 +205,7 @@ namespace UnrealBuildTool
 
 			// Get the path to the SSH private key
 			string OverrideSshPrivateKeyPath;
-			if (Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "SSHPrivateKeyOverridePath", out OverrideSshPrivateKeyPath) && !String.IsNullOrEmpty(OverrideSshPrivateKeyPath))
+			if ((bIsPrimary ? Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "SSHPrivateKeyOverridePath", out OverrideSshPrivateKeyPath) : Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "SecondarySSHPrivateKeyOverridePath", out OverrideSshPrivateKeyPath)) && !String.IsNullOrEmpty(OverrideSshPrivateKeyPath))
 			{
 				SshPrivateKey = new FileReference(OverrideSshPrivateKeyPath);
 				if (!FileReference.Exists(SshPrivateKey))
@@ -266,15 +269,18 @@ namespace UnrealBuildTool
 			CommonRsyncArguments = new List<string>(BasicRsyncArguments);
 			CommonRsyncArguments.Add("--copy-links");
 			CommonRsyncArguments.Add("--recursive");
-			CommonRsyncArguments.Add("--delete"); // Delete anything not in the source directory
-			CommonRsyncArguments.Add("--delete-excluded"); // Delete anything not in the source directory
+			if (!bPrepareForSecondaryMac)
+			{
+				CommonRsyncArguments.Add("--delete"); // Delete anything not in the source directory
+				CommonRsyncArguments.Add("--delete-excluded"); // Delete anything not in the source directory
+			}
 			CommonRsyncArguments.Add("--times"); // Preserve modification times
 			CommonRsyncArguments.Add("--omit-dir-times"); // Ignore modification times for directories
 			CommonRsyncArguments.Add("--prune-empty-dirs"); // Remove empty directories from the file list
 
 			// Get the remote base directory
 			string RemoteServerOverrideBuildPath;
-			if (Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "RemoteServerOverrideBuildPath", out RemoteServerOverrideBuildPath) && !String.IsNullOrEmpty(RemoteServerOverrideBuildPath))
+			if ((bIsPrimary ? Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "RemoteServerOverrideBuildPath", out RemoteServerOverrideBuildPath) : Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "SecondaryRemoteServerOverrideBuildPath", out RemoteServerOverrideBuildPath)) && !String.IsNullOrEmpty(RemoteServerOverrideBuildPath))
 			{
 				RemoteBaseDir = String.Format("{0}/{1}", RemoteServerOverrideBuildPath.Trim().TrimEnd('/'), Environment.MachineName);
 			}
@@ -711,6 +717,12 @@ namespace UnrealBuildTool
 			DownloadFile(OutputFile, Logger);
 		}
 
+		/// <summary>
+		/// Prepare the remotely built iOS or tvOS client to de debugged on Mac
+		/// </summary>
+		/// <param name="CookedDataDirectory">Where the content has been previously cooked</param>
+		/// <param name="ProjectFile">The project file</param>
+		/// <param name="Logger">The logger</param>
 		public void PrepareToDebug(string CookedDataDirectory, FileReference ProjectFile, ILogger Logger)
         {
 			Logger.LogInformation("[Remote] Uploading the default uprojectdirs ...");
@@ -728,6 +740,49 @@ namespace UnrealBuildTool
 			UploadDirectory(new DirectoryReference(CookedDataDirectory), Logger);
 
 			Logger.LogInformation("An Xcode project file has been generated on your remote Mac at the above address. Please access it to debug your IPA.");
+		}
+
+		/// <summary>
+		/// Retrieves data from the primary Mac to the Windows machine
+		/// </summary>
+		/// <param name="ProjectFile">The project file</param>
+		/// <param name="Logger">The logger</param>
+		/// <param name="ClientPlatform">The platfrom for the client (typically iOS or tvOS)</param>
+		public void RetrieveFilesGeneratedOnPrimaryMac(FileReference ProjectFile, ILogger Logger, string ClientPlatform)
+        {
+			Logger.LogInformation("[Remote] Downloading files generated on the Primary Remote Mac ...");
+			DownloadDirectory(DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate"), Logger);
+			DownloadDirectory(DirectoryReference.Combine(Unreal.EngineDirectory, "Saved"), Logger);
+			
+			DownloadDirectory(DirectoryReference.Combine(Unreal.EngineDirectory, "Binaries", ClientPlatform), Logger);
+			DownloadDirectory(DirectoryReference.Combine(ProjectFile.Directory, "Intermediate"), Logger);
+			DownloadDirectory(DirectoryReference.Combine(ProjectFile.Directory, "Binaries", ClientPlatform), Logger);
+			DownloadDirectory(DirectoryReference.Combine(new DirectoryReference("UE5.xcworkspace")), Logger);
+
+		}
+
+		/// <summary>
+		/// Upload retrieved data from the primary Mac from the Windows machine to the secondary Mac
+		/// </summary>
+		/// <param name="ProjectFile">The project file</param>
+		/// <param name="Logger">The logger</param>
+		public void UploadToSecondaryMac(FileReference ProjectFile, ILogger Logger)
+		{
+			Logger.LogInformation("[Remote] Uploading workspace to the secondary Mac ...");
+
+			UploadWorkspace(DirectoryReference.Combine(Unreal.EngineDirectory, ".."), Logger);
+			UploadFile(new FileReference("Default.uprojectdirs"), Logger);
+			UploadDirectory(DirectoryReference.Combine(ProjectFile.Directory, "Intermediate"), Logger);
+			UploadDirectory(DirectoryReference.Combine(ProjectFile.Directory, "Binaries"), Logger);
+			UploadDirectory(DirectoryReference.Combine(ProjectFile.Directory, "Saved"), Logger);
+
+			Logger.LogInformation("[Remote] Generating an Xcode Project file...");
+			string CommandLine = EscapeShellArgument(GetRemotePath(Unreal.EngineDirectory));
+			CommandLine += "/Build/BatchFiles/Mac/GenerateProjectFiles.sh";
+			StringBuilder BuildCommandLine = new StringBuilder(CommandLine);	
+			Execute(GetRemotePath(Unreal.RootDirectory), CommandLine, Logger);
+
+			UploadDirectory(new DirectoryReference("UE5.xcworkspace"), Logger);
 		}
 
 		/// <summary>
