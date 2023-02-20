@@ -8,7 +8,6 @@
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/MassConditioning.h"
 #include "Chaos/PBDCollisionConstraints.h"
-#include "Chaos/PBDCollisionSpringConstraints.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleGravity.h"
