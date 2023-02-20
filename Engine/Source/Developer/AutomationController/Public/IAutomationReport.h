@@ -31,6 +31,14 @@ enum class EAutomationArtifactType : uint8
 	Comparison
 };
 
+UENUM()
+enum class EComparisonFileTypes : uint8
+{
+	Unapproved,
+	Approved,
+	Difference
+};
+
 USTRUCT()
 struct FAutomationArtifact
 {
@@ -43,7 +51,7 @@ public:
 	{
 	}
 
-	FAutomationArtifact(FGuid InUniqueId, const FString& InName, EAutomationArtifactType InType, const TMap<FString, FString>& InLocalFiles)
+	FAutomationArtifact(FGuid InUniqueId, const FString& InName, EAutomationArtifactType InType, const TMap<EComparisonFileTypes, FString>& InLocalFiles)
 		: Id(InUniqueId)
 		, Name(InName)
 		, Type(InType)
@@ -63,11 +71,12 @@ public:
 	EAutomationArtifactType Type;
 
 	UPROPERTY()
-	TMap<FString, FString> Files;
+	TMap<EComparisonFileTypes, FString> Files;
 
 	// Local Files are the files generated during a testing run, once exported, the individual file paths
 	// should be stored in the Files map.
-	TMap<FString, FString> LocalFiles;
+
+	TMap<EComparisonFileTypes, FString> LocalFiles;
 };
 
 /**
