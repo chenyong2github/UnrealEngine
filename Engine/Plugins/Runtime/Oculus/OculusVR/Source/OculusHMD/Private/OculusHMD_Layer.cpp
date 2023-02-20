@@ -4,9 +4,6 @@
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 //#include "MediaTexture.h"
-//#include "ScreenRendering.h"
-//#include "ScenePrivate.h"
-//#include "PostProcess/SceneFilterRendering.h"
 #include "Engine/GameEngine.h"
 #include "Engine/Texture2D.h"
 #include "HeadMountedDisplayTypes.h" // for LogHMD
@@ -15,7 +12,6 @@
 #include "OculusHMD.h"
 #include "OculusHMDModule.h"
 #include "OculusHMDPrivate.h"
-//#include "PostProcess/SceneRenderTargets.h"
 #include "SceneUtils.h"
 #include "UObject/ConstructorHelpers.h"
 #include "XRThreadUtils.h"

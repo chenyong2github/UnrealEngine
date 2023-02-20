@@ -19,8 +19,6 @@
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "DataDrivenShaderPlatformInfo.h"
-//#include "PostProcess/SceneFilterRendering.h"
-//#include "ScenePrivate.h"
 #include "ScreenPass.h"
 
 //////////////////////////////////////////////////////////////////////////
