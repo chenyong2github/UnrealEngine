@@ -41,26 +41,23 @@ namespace Metasound
 		bAlreadyRegisteredThisDataType = true;
 
 		// Node registry entry specialized to FNodeType.
-		class FNodeRegistryEntry : public Frontend::INodeRegistryEntry
+		class FNodeRegistryEntryBase : public Frontend::INodeRegistryEntry
 		{
 		public:
-			FNodeRegistryEntry(const Metasound::FNodeClassMetadata& InMetadata)
+			FNodeRegistryEntryBase(const Metasound::FNodeClassMetadata& InMetadata)
 			: ClassInfo(FMetasoundFrontendClassMetadata::GenerateClassMetadata(InMetadata, EMetasoundFrontendClassType::External))
 			, FrontendClass(Metasound::Frontend::GenerateClass(InMetadata))
 			{
 			}
 
-			virtual ~FNodeRegistryEntry() = default;
+			virtual ~FNodeRegistryEntryBase() = default;
 
 			virtual const Frontend::FNodeClassInfo& GetClassInfo() const override
 			{
 				return ClassInfo;
 			}
 
-			virtual TUniquePtr<INode> CreateNode(const FNodeInitData& InParams) const override
-			{
-				return MakeUnique<FNodeType>(InParams);
-			}
+			virtual TUniquePtr<INode> CreateNode(const FNodeInitData& InParams) const = 0;
 
 			virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&& InParams) const override
 			{
@@ -83,10 +80,7 @@ namespace Metasound
 				return FrontendClass;
 			}
 
-			virtual TUniquePtr<INodeRegistryEntry> Clone() const override
-			{
-				return MakeUnique<FNodeRegistryEntry>(*this);
-			}
+			virtual TUniquePtr<INodeRegistryEntry> Clone() const override = 0;
 
 			virtual bool IsNative() const override
 			{
@@ -97,6 +91,25 @@ namespace Metasound
 
 			Frontend::FNodeClassInfo ClassInfo;
 			FMetasoundFrontendClass FrontendClass;
+		};
+
+		class FNodeRegistryEntry : public FNodeRegistryEntryBase
+		{
+		public:
+			FNodeRegistryEntry(const Metasound::FNodeClassMetadata& InMetadata)
+				: FNodeRegistryEntryBase(InMetadata)
+			{
+			}
+
+			virtual TUniquePtr<INode> CreateNode(const FNodeInitData& InParams) const override
+			{
+				return MakeUnique<FNodeType>(InParams);
+			}
+
+			virtual TUniquePtr<Frontend::INodeRegistryEntry> Clone() const override
+			{
+				return MakeUnique<FNodeRegistryEntry>(*this);
+			}
 		};
 
 

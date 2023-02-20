@@ -249,20 +249,20 @@ namespace ImplMakeAnalyticsEventAttributeArray
 {
 	/** Recursion terminator. Empty list. */
 	template <typename Allocator>
-	inline void MakeArray(TArray<FAnalyticsEventAttribute, Allocator>& Attrs)
+	FORCEINLINE void MakeArray(TArray<FAnalyticsEventAttribute, Allocator>& Attrs)
 	{
 	}
 
 	/** Recursion terminator. Convert the key/value pair to analytics strings. */
 	template <typename Allocator, typename KeyType, typename ValueType>
-	inline void MakeArray(TArray<FAnalyticsEventAttribute, Allocator>& Attrs, KeyType&& Key, ValueType&& Value)
+	FORCEINLINE void MakeArray(TArray<FAnalyticsEventAttribute, Allocator>& Attrs, KeyType&& Key, ValueType&& Value)
 	{
 		Attrs.Emplace(Forward<KeyType>(Key), Forward<ValueType>(Value));
 	}
 
 	/** recursively add the arguments to the array. */
 	template <typename Allocator, typename KeyType, typename ValueType, typename...ArgTypes>
-	inline void MakeArray(TArray<FAnalyticsEventAttribute, Allocator>& Attrs, KeyType&& Key, ValueType&& Value, ArgTypes&&...Args)
+	FORCEINLINE void MakeArray(TArray<FAnalyticsEventAttribute, Allocator>& Attrs, KeyType&& Key, ValueType&& Value, ArgTypes&&...Args)
 	{
 		// pop off the top two args and recursively apply the rest.
 		Attrs.Emplace(Forward<KeyType>(Key), Forward<ValueType>(Value));
@@ -272,7 +272,7 @@ namespace ImplMakeAnalyticsEventAttributeArray
 
 /** Helper to create an array of attributes using a single expression. Reserves the necessary space in advance. There must be an even number of arguments, one for each key/value pair. */
 template <typename Allocator = FDefaultAllocator, typename...ArgTypes>
-inline TArray<FAnalyticsEventAttribute, Allocator> MakeAnalyticsEventAttributeArray(ArgTypes&&...Args)
+FORCEINLINE TArray<FAnalyticsEventAttribute, Allocator> MakeAnalyticsEventAttributeArray(ArgTypes&&...Args)
 {
 	static_assert(sizeof...(Args) % 2 == 0, "Must pass an even number of arguments.");
 	TArray<FAnalyticsEventAttribute, Allocator> Attrs;
@@ -283,7 +283,7 @@ inline TArray<FAnalyticsEventAttribute, Allocator> MakeAnalyticsEventAttributeAr
 
 /** Helper to append to an array of attributes using a single expression. Reserves the necessary space in advance. There must be an even number of arguments, one for each key/value pair. */
 template <typename Allocator = FDefaultAllocator, typename...ArgTypes>
-inline TArray<FAnalyticsEventAttribute, Allocator>& AppendAnalyticsEventAttributeArray(TArray<FAnalyticsEventAttribute, Allocator>& Attrs, ArgTypes&&...Args)
+FORCEINLINE TArray<FAnalyticsEventAttribute, Allocator>& AppendAnalyticsEventAttributeArray(TArray<FAnalyticsEventAttribute, Allocator>& Attrs, ArgTypes&&...Args)
 {
 	static_assert(sizeof...(Args) % 2 == 0, "Must pass an even number of arguments.");
 	Attrs.Reserve(Attrs.Num() + (sizeof...(Args) / 2));
