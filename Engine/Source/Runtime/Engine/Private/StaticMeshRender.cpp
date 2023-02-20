@@ -93,10 +93,9 @@ static FAutoConsoleCommand GToggleReversedIndexBuffersCmd(
 	);
 
 // TODO: Should move this outside of SM, since Nanite can be used for multiple primitive types
-int32 GRenderNaniteMeshes = 1;
-FAutoConsoleVariableRef CVarRenderNaniteMeshes(
+TAutoConsoleVariable<int32> CVarRenderNaniteMeshes(
 	TEXT("r.Nanite"),
-	GRenderNaniteMeshes,
+	1,
 	TEXT("Render static meshes using Nanite."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
 	{

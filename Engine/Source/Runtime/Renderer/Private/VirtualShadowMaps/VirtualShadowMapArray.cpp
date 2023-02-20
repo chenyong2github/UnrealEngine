@@ -65,10 +65,9 @@ FAutoConsoleVariableRef CVarVSMShowLightDrawEvents(
 	ECVF_RenderThreadSafe
 );
 
-int32 GEnableVirtualShadowMaps = 0;
-FAutoConsoleVariableRef CVarEnableVirtualShadowMaps(
+TAutoConsoleVariable<int32> CVarEnableVirtualShadowMaps(
 	TEXT("r.Shadow.Virtual.Enable"),
-	GEnableVirtualShadowMaps,
+	0,
 	TEXT("Enable Virtual Shadow Maps."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
 	{
