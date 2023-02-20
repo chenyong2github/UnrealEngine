@@ -16,11 +16,17 @@
 
 #define LOCTEXT_NAMESPACE "UMGEditor"
 
-FWidgetTemplateBlueprintClass::FWidgetTemplateBlueprintClass(const FAssetData& InWidgetAssetData, TSubclassOf<UUserWidget> InUserWidgetClass, bool bInIsBlueprintGeneratedClass)
+//FWidgetTemplateBlueprintClass::FWidgetTemplateBlueprintClass(const FAssetData& InWidgetAssetData, TSubclassOf<UUserWidget> InUserWidgetClass, bool bInIsBlueprintGeneratedClass)
+//	: FWidgetTemplateBlueprintClass(InWidgetAssetData, InUserWidgetClass)
+//{}
+
+FWidgetTemplateBlueprintClass::FWidgetTemplateBlueprintClass(const FAssetData& InWidgetAssetData, TSubclassOf<UUserWidget> InUserWidgetClass)
 	: FWidgetTemplateClass(InWidgetAssetData, InUserWidgetClass)
-	, bIsBlueprintGeneratedClass(bInIsBlueprintGeneratedClass)
 {
 	// Blueprints get the class type actions for their parent native class - this avoids us having to load the blueprint
+	static const FTopLevelAssetPath BlueprintGeneratedClassAssetPath = UWidgetBlueprintGeneratedClass::StaticClass()->GetClassPathName();
+	bool bClassIsUWidgetBlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(InUserWidgetClass.Get()) != nullptr;
+	bIsBlueprintGeneratedClass = BlueprintGeneratedClassAssetPath == InWidgetAssetData.AssetClassPath || bClassIsUWidgetBlueprintGeneratedClass;
 	if (bIsBlueprintGeneratedClass && !InUserWidgetClass && InWidgetAssetData.IsValid())
 	{
 		FString ParentClassName;

@@ -25,7 +25,10 @@ public:
 	* @param InUserWidgetClass The user-created widget class that will be created by this template
 	* @param bCacheParentClass True means we will search for parent class and cache, this is a slow operation, but useful for BPGCs.
 	*/
-	FWidgetTemplateBlueprintClass(const FAssetData& InWidgetAssetData, TSubclassOf<UUserWidget> InUserWidgetClass = nullptr, bool bInIsBlueprintGeneratedClass = false);
+	FWidgetTemplateBlueprintClass(const FAssetData& InWidgetAssetData, TSubclassOf<UUserWidget> InUserWidgetClass = nullptr);
+
+	//UE_DEPRECATED(5.3, "FWidgetTemplateBlueprintClass with bInIsBlueprintGeneratedClass is deprecated.")
+	//FWidgetTemplateBlueprintClass(const FAssetData& InWidgetAssetData, TSubclassOf<UUserWidget> InUserWidgetClass, bool bInIsBlueprintGeneratedClass);
 
 	/** Destructor */
 	virtual ~FWidgetTemplateBlueprintClass();

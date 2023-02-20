@@ -238,8 +238,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 
 		if (WidgetClass->IsChildOf(UUserWidget::StaticClass()))
 		{
-			bool bIsBlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(WidgetClass) != nullptr;
-			AddWidgetTemplate(MakeShared<FWidgetTemplateBlueprintClass>(FAssetData(WidgetClass), WidgetClass, bIsBlueprintGeneratedClass));
+			AddWidgetTemplate(MakeShared<FWidgetTemplateBlueprintClass>(FAssetData(WidgetClass), WidgetClass));
 		}
 		else
 		{
@@ -283,8 +282,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 
 		if (Usable.GetValue().NativeParentClass->IsChildOf(UUserWidget::StaticClass()))
 		{
-			bool bIsBlueprintGeneratedClass = false;
-			AddWidgetTemplate(MakeShared<FWidgetTemplateBlueprintClass>(BPAssetData, nullptr, bIsBlueprintGeneratedClass));
+			AddWidgetTemplate(MakeShared<FWidgetTemplateBlueprintClass>(BPAssetData, nullptr));
 		}
 		else
 		{
@@ -308,6 +306,12 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 			continue;
 		}
 
+		// Was already parsed by the TObjectIterator<UClass>
+		if (BPAssetData.IsAssetLoaded())
+		{
+			continue;
+		}
+
 		TValueOrError<FWidgetBlueprintEditorUtils::FUsableWidgetClassResult, void> Usable = FWidgetBlueprintEditorUtils::IsUsableWidgetClass(BPAssetData);
 		if (Usable.HasError())
 		{
@@ -319,8 +323,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 			continue;
 		}
 
-		bool bIsBlueprintGeneratedClass = true;
-		AddWidgetTemplate(MakeShared<FWidgetTemplateBlueprintClass>(BPAssetData, nullptr, bIsBlueprintGeneratedClass));
+		AddWidgetTemplate(MakeShared<FWidgetTemplateBlueprintClass>(BPAssetData, nullptr));
 	}
 }
 
