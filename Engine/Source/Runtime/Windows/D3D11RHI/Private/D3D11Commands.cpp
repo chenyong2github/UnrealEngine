@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "D3D11RHIPrivate.h"
-#include "Windows/D3D11RHIPrivateUtil.h"
+#include "D3D11RHIPrivateUtil.h"
 #include "StaticBoundShaderState.h"
 #include "GlobalShader.h"
 #include "OneColorShader.h"
