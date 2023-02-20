@@ -515,6 +515,26 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Hyperlink", Hyperlink);
 	}
 
+	// Common styles for blueprint/code references that also need to be exposed to external tools
+	{
+		FTextBlockStyle InheritedFromNativeTextStyle = FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Regular", 10));
+
+		Style->Set("Common.InheritedFromNativeTextStyle", InheritedFromNativeTextStyle);
+
+		// Go to native class hyperlink
+		FButtonStyle EditNativeHyperlinkButton = FButtonStyle()
+			.SetNormal(BORDER_BRUSH("Old/HyperlinkDotted", FMargin(0, 0, 0, 3 / 16.0f)))
+			.SetPressed(FSlateNoResource())
+			.SetHovered(BORDER_BRUSH("Old/HyperlinkUnderline", FMargin(0, 0, 0, 3 / 16.0f)));
+		FHyperlinkStyle EditNativeHyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(EditNativeHyperlinkButton)
+			.SetTextStyle(InheritedFromNativeTextStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("Common.GotoNativeCodeHyperlink", EditNativeHyperlinkStyle);
+	}
+
 	// SProgressBar defaults...
 	{
 		Style->Set("ProgressBar", FProgressBarStyle()
