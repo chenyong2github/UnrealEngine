@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "MLDeformerGeomCacheVizSettings.h"
 #include "MLDeformerMorphModelVizSettings.generated.h"
 

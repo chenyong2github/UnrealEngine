@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "MLDeformerModel.h"
 #include "VertexDeltaGraphDataInterface.h"
 #include "OptimusComputeDataInterface.h"

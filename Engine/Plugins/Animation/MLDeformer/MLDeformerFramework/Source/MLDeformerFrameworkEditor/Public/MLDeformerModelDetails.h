@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "IDetailCustomization.h"
 #include "AssetRegistry/AssetData.h"
 #include "Input/Reply.h"

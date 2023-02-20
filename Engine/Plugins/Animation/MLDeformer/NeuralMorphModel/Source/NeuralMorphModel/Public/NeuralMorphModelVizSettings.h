@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "MLDeformerMorphModelVizSettings.h"
 #include "NeuralMorphModelVizSettings.generated.h"
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "MLDeformerModel.h"
 #include "MLDeformerVizSettings.h"
 #include "MLDeformerInputInfo.h"

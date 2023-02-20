@@ -2,7 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Internationalization/Text.h"
+#include "Math/MathFwd.h"
 
 class UGeometryCache;
 class USkeletalMesh;

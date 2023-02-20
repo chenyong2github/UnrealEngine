@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "MLDeformerAssetFactory.h"
 #include "MLDeformerAsset.h"
 #include "AssetTypeCategories.h"
@@ -47,6 +46,12 @@ FText UMLDeformerFactory::GetToolTip() const
 FString UMLDeformerFactory::GetDefaultNewAssetName() const
 {
 	return FString(TEXT("MLD_NewDeformer"));
+}
+
+const TArray<FText>& UMLDeformerFactory::GetMenuCategorySubMenus() const
+{
+	static TArray<FText> SubMenus { LOCTEXT("SubMenuDeformers", "Deformers") };
+	return SubMenus;
 }
 
 #undef LOCTEXT_NAMESPACE

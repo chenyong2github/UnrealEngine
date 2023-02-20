@@ -2,16 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 #include "Components/ActorComponent.h"
 #include "RenderCommandFence.h"
 #include "MLDeformerPerfCounter.h"
 #include "MLDeformerComponent.generated.h"
 
 class UMLDeformerAsset;
-class USkeletalMeshComponent;
 class UMLDeformerModelInstance;
+class USkeletalMeshComponent;
 
 /**
  * The ML mesh deformer component.

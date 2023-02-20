@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Engine/SkeletalMesh.h"
 #include "Misc/AutomationTest.h"
 

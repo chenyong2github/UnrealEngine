@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "UObject/Object.h"
 #include "SlateFwd.h"
 #include "Widgets/SCompoundWidget.h"

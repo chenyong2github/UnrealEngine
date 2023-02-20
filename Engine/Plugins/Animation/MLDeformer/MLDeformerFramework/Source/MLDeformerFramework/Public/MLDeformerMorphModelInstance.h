@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreTypes.h"
 #include "MLDeformerModelInstance.h"
 #include "MLDeformerMorphModelInstance.generated.h"
 

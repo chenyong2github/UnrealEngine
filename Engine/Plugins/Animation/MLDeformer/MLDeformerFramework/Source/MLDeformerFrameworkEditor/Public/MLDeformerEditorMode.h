@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "IPersonaEditMode.h"
 
 class UMLDeformerVizSettings;

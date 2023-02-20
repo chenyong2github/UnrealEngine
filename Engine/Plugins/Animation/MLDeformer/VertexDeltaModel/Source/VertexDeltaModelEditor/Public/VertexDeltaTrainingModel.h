@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "MLDeformerTrainingModel.h"
 #include "VertexDeltaTrainingModel.generated.h"
 

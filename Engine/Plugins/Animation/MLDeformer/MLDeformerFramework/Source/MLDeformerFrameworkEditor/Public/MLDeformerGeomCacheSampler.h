@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "MLDeformerSampler.h"
 #include "MLDeformerModel.h"
 #include "MLDeformerGeomCacheHelpers.h"

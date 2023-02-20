@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "NearestNeighborOptimizedNetworkLoader.generated.h"
 
 class UNearestNeighborOptimizedNetwork;

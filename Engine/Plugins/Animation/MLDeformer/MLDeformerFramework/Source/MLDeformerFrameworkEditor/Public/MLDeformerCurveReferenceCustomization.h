@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "IPropertyTypeCustomization.h"
 #include "PropertyHandle.h"
 #include "DetailWidgetRow.h"

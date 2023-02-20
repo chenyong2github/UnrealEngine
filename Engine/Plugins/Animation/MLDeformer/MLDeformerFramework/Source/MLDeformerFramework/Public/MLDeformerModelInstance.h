@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "MLDeformerModule.h"
 #include "UObject/ObjectPtr.h"
 #include "RenderCommandFence.h"

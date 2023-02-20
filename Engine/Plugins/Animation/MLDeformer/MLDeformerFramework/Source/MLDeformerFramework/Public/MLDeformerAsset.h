@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 #include "MLDeformerAsset.generated.h"
 
 class UMLDeformerModel;

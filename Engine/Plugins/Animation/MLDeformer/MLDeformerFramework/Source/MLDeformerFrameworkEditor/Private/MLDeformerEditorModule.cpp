@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLDeformerEditorModule.h"
-#include "MLDeformerAssetActions.h"
 #include "MLDeformerEditorMode.h"
 #include "MLDeformerModule.h"
 #include "MLDeformerEditorModel.h"
@@ -20,8 +19,6 @@ namespace UE::MLDeformer
 {
 	void FMLDeformerEditorModule::StartupModule()
 	{
-		MLDeformerAssetActions = MakeShareable(new FMLDeformerAssetActions);
-		FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get().RegisterAssetTypeActions(MLDeformerAssetActions.ToSharedRef());
 		FEditorModeRegistry::Get().RegisterMode<FMLDeformerEditorMode>(FMLDeformerEditorMode::ModeName, LOCTEXT("MLDeformerEditorMode", "MLDeformer"), FSlateIcon(), false);
 
 		// Register object detail customizations.
@@ -34,14 +31,6 @@ namespace UE::MLDeformer
 	void FMLDeformerEditorModule::ShutdownModule()
 	{
 		FEditorModeRegistry::Get().UnregisterMode(FMLDeformerEditorMode::ModeName);
-		if (MLDeformerAssetActions.IsValid())
-		{
-			if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
-			{
-				FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get().UnregisterAssetTypeActions(MLDeformerAssetActions.ToSharedRef());
-			}
-			MLDeformerAssetActions.Reset();
-		}
 
 		// Unregister object detail customizations.
 		if (FModuleManager::Get().IsModuleLoaded(TEXT("PropertyEditor")))

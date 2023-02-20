@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Factories/Factory.h"
 #include "MLDeformerAssetFactory.generated.h"
 
@@ -27,5 +27,6 @@ public:
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	virtual bool ConfigureProperties() override;
 	virtual bool ShouldShowInNewMenu() const override;
+	virtual const TArray<FText>& GetMenuCategorySubMenus() const override;
 	// ~END UFactory overrides.
 };

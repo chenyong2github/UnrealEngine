@@ -46,7 +46,8 @@ namespace UnrealBuildTool.Rules
 					"SequencerWidgets",
 					"TimeManagement",
 					"RenderCore",
-					"RHI"
+					"RHI",
+					"AssetDefinition"
 				}
 			);
 

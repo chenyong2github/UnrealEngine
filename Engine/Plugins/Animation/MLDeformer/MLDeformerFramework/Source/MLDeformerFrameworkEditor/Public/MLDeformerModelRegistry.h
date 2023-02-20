@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
 
 class UMLDeformerModel;
+
 
 namespace UE::MLDeformer
 {

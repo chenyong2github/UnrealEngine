@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/NameTypes.h"
+#include "Serialization/Archive.h"
 #include "MLDeformerCurveReference.generated.h"
 
 /** A reference to a curve implemented as a name. */

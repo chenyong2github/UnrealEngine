@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Modules/ModuleInterface.h"
 #include "MLDeformerModelRegistry.h"
 
 namespace UE::MLDeformer
 {
-	class FMLDeformerAssetActions;
-
 	/**
 	 * The ML Deformer editor module.
 	 * This registers the editor mode and custom property customizations.
@@ -35,8 +33,5 @@ namespace UE::MLDeformer
 	private:
 		/** The model registry, which keeps track of all model types and instances created of these models, and how to create the editor models for specific runtime model types. */
 		FMLDeformerEditorModelRegistry ModelRegistry;
-
-		/** The asset actions for the ML Deformer asset type. */
-		TSharedPtr<FMLDeformerAssetActions> MLDeformerAssetActions;
 	};
 }	// namespace UE::MLDeformer

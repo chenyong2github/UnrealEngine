@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Modules/ModuleManager.h"
 
 // The log category for the ML Deformer framework.

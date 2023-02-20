@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "MLDeformerGeomCacheVizSettings.h"
 #include "UObject/Object.h"
 #include "VertexDeltaModelVizSettings.generated.h"

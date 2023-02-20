@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "MLDeformerModel.h"
 #include "MLDeformerModelInstance.h"
 #include "MLDeformerTestModel.generated.h"
