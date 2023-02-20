@@ -298,6 +298,7 @@ namespace AutomationTool
             this.ClientDependentPlatformMap = InParams.ClientDependentPlatformMap;
 			this.ServerTargetPlatforms = InParams.ServerTargetPlatforms;
             this.ServerDependentPlatformMap = InParams.ServerDependentPlatformMap;
+			this.ConfigOverrideParams = InParams.ConfigOverrideParams;
 			this.Build = InParams.Build;
 			this.SkipBuildClient = InParams.SkipBuildClient;
 			this.SkipBuildEditor = InParams.SkipBuildEditor;
@@ -454,6 +455,7 @@ namespace AutomationTool
             Dictionary<TargetPlatformDescriptor, TargetPlatformDescriptor> ClientDependentPlatformMap = null,
 			List<TargetPlatformDescriptor> ServerTargetPlatforms = null,
             Dictionary<TargetPlatformDescriptor, TargetPlatformDescriptor> ServerDependentPlatformMap = null,
+			List<string> ConfigOverrideParams = null,
 			bool? Build = null,
 			bool? SkipBuildClient = null,
 			bool? SkipBuildEditor = null,
@@ -1237,6 +1239,10 @@ namespace AutomationTool
                 this.RunTimeoutSeconds = Command.ParseParamInt("runtimeoutseconds");
             }
 
+			if (ConfigOverrideParams != null)
+			{
+				this.ConfigOverrideParams = ConfigOverrideParams;
+			}
 			// Gather up any '-ini:' arguments and save them. We'll pass these along to other tools that may be spawned in a new process as part of the command.
 			if(Command != null)
 			{
@@ -3087,6 +3093,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("CreateAppBundle={0}", CreateAppBundle);
 				CommandUtils.LogLog("BaseArchiveDirectory={0}", BaseArchiveDirectory);
 				CommandUtils.LogLog("BaseStageDirectory={0}", BaseStageDirectory);
+				CommandUtils.LogLog("ConfigOverrideParams=-{0}", string.Join(" -", ConfigOverrideParams));
 				CommandUtils.LogLog("Build={0}", Build);
 				CommandUtils.LogLog("SkipBuildClient={0}", SkipBuildClient);
 				CommandUtils.LogLog("SkipBuildEditor={0}", SkipBuildEditor);

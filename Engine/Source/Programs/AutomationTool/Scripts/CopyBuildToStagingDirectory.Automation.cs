@@ -2660,7 +2660,12 @@ namespace AutomationScripts
 
 			// read some compression settings from the project (once, shared across all pak commands)
 
-			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType, SC.CustomConfig);
+			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(
+					ConfigHierarchyType.Game,
+					DirectoryReference.FromFile(Params.RawProjectPath),
+					SC.StageTargetPlatform.IniPlatformType,
+					SC.CustomConfig,
+					Params.ConfigOverrideParams.ToArray());
 
 			// in standard runs, ProjectPackagingSettings/bCompressed is read by the program invoking this script
 			//	and used to pass "-compressed" on the command line
@@ -2793,8 +2798,12 @@ namespace AutomationScripts
 				// it's the DLL to use during packaging, not during runtime, so it needs to be for the platform the packager runs on, not the platform you're packaging for.
 				// Most of the compression options come from the platform you're packaging FOR
 
-				ConfigHierarchy BuildPlatformEngineConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Params.RawProjectPath),
-					BuildHostPlatform.Current.Platform);
+				ConfigHierarchy BuildPlatformEngineConfig = ConfigCache.ReadHierarchy(
+					ConfigHierarchyType.Engine,
+					DirectoryReference.FromFile(Params.RawProjectPath),
+					BuildHostPlatform.Current.Platform,
+					SC.CustomConfig,
+					Params.ConfigOverrideParams.ToArray());
 
 				string OodleCompressDLL;
 				BuildPlatformEngineConfig.GetString("OodleDataCompressionFormat", "OodleCompressDLL", out OodleCompressDLL);
