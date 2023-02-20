@@ -228,30 +228,7 @@ void UVCamOutputProviderBase::DisplayUMG()
 {
 	if (UMGWidget)
 	{
-		UWorld* ActorWorld = nullptr;
-		int32 WorldType = -1;
-
-		for (const FWorldContext& Context : GEngine->GetWorldContexts())
-		{
-			if (Context.World())
-			{
-				// Prioritize PIE and Game modes if active
-				if ((Context.WorldType == EWorldType::PIE) || (Context.WorldType == EWorldType::Game))
-				{
-					ActorWorld = Context.World();
-					WorldType = (int32)Context.WorldType;
-					break;
-				}
-				else if (Context.WorldType == EWorldType::Editor)
-				{
-					// Only grab the Editor world if PIE and Game aren't available
-					ActorWorld = Context.World();
-					WorldType = (int32)Context.WorldType;
-				}
-			}
-		}
-
-		if (ActorWorld)
+		if (UWorld* ActorWorld = GetWorld())
 		{
 			UMGWidget->SetCustomPostProcessSettingsSource(TargetCamera.Get());
 			UMGWidget->Display(ActorWorld);
@@ -260,7 +237,6 @@ void UVCamOutputProviderBase::DisplayUMG()
 				UE::VCamCore::WidgetSnapshotUtils::Private::ApplyTreeHierarchySnapshot(WidgetSnapshot, *Subwidget);
 				// Note that NotifyWidgetOfComponentChange will cause InitializeConnections to be called - this is important for the connections to get applied!
 			}
-			UE_LOG(LogVCamOutputProvider, Log, TEXT("DisplayUMG widget displayed in WorldType %d"), WorldType);
 		}
 
 		NotifyAboutComponentChange();

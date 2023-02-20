@@ -1460,7 +1460,15 @@ void UVCamComponent::OnEndPIE(const bool bInIsSimulating)
 	else if (World->WorldType == EWorldType::Editor)
 	{
 		bIsEditorObjectButPIEIsRunning = false;
-		Initialize();
+		// Next tick because there is still some pending clean up happening this frame after OnEndPIE finishes.
+		// In particular, viewports may still be associated with PIE which will cause UVPFullScreenUserWidget to not know where to add itself.
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakThis = TWeakObjectPtr<UVCamComponent>(this)]()
+		{
+			if (LIKELY(WeakThis.IsValid()))
+			{
+				WeakThis->Initialize();
+			}
+		}));
 	}
 }
 
