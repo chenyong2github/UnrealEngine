@@ -376,6 +376,12 @@ private:
 	 */
 	void OnEndPIE(const bool bIsSimulating);
 
+	/**
+	 * Called when Content added to delay content browser tick for a frame
+	 * Prevents content browser from slowing down initialization by ticking as content is loaded
+	 */
+	void OnContentPathMounted(const FString& AssetPath, const FString& ContentPath);
+
 	//~ IContentBrowserItemDataSink interface
 	virtual void QueueItemDataUpdate(FContentBrowserItemDataUpdate&& InUpdate) override;
 	virtual void NotifyItemDataRefreshed() override;
@@ -427,6 +433,11 @@ private:
 	 * True if Play in Editor is active.
 	 */
 	bool bIsPIEActive = false;
+
+	/**
+	 * True if content was just mounted this frame
+	 */
+	bool bContentMountedThisFrame = false;
 
 	/**
 	 * >0 if Tick events have currently been suppressed.

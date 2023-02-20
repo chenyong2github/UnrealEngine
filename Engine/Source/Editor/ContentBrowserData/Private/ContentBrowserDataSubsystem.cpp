@@ -106,6 +106,8 @@ void UContentBrowserDataSubsystem::Initialize(FSubsystemCollectionBase& Collecti
 	FEditorDelegates::BeginPIE.AddUObject(this, &UContentBrowserDataSubsystem::OnBeginPIE);
 	FEditorDelegates::EndPIE.AddUObject(this, &UContentBrowserDataSubsystem::OnEndPIE);
 
+	FPackageName::OnContentPathMounted().AddUObject(this, &UContentBrowserDataSubsystem::OnContentPathMounted);
+
 	// Tick during normal operation
 	TickHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("ContentBrowserData"), 0.1f, [this](const float InDeltaTime)
 	{
@@ -128,6 +130,8 @@ void UContentBrowserDataSubsystem::Deinitialize()
 
 	FEditorDelegates::BeginPIE.RemoveAll(this);
 	FEditorDelegates::EndPIE.RemoveAll(this);
+
+	FPackageName::OnContentPathMounted().RemoveAll(this);
 
 	ActiveDataSources.Reset();
 	AvailableDataSources.Reset();
@@ -681,6 +685,13 @@ void UContentBrowserDataSubsystem::Tick(const float InDeltaTime)
 		return;
 	}
 
+	if (bContentMountedThisFrame)
+	{
+		// Content just added, defer tick for a frame or we risk slowing down content load
+		bContentMountedThisFrame = false;
+		return;
+	}
+
 	for (const auto& AvailableDataSourcePair : AvailableDataSources)
 	{
 		AvailableDataSourcePair.Value->Tick(InDeltaTime);
@@ -727,6 +738,11 @@ void UContentBrowserDataSubsystem::Tick(const float InDeltaTime)
 			ItemDataDiscoveryCompleteDelegate.Broadcast();
 		}
 	}
+}
+
+void UContentBrowserDataSubsystem::OnContentPathMounted(const FString& AssetPath, const FString& ContentPath)
+{
+	bContentMountedThisFrame = true;
 }
 
 void UContentBrowserDataSubsystem::QueueItemDataUpdate(FContentBrowserItemDataUpdate&& InUpdate)
