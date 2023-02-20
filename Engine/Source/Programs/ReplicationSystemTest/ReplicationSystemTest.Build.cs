@@ -6,17 +6,8 @@ public class ReplicationSystemTest : ModuleRules
 {
 	public ReplicationSystemTest(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-
-		// For LaunchEngineLoop.cpp include
-		PrivateIncludePaths.Add("Runtime/Launch/Private");
-
-		PrivateIncludePathModuleNames.AddRange(
-			new string[]
-			{
-				"DerivedDataCache",
-			}
-		);
+		PublicIncludePathModuleNames.Add("Launch");
+		PrivateIncludePathModuleNames.Add("DerivedDataCache");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]

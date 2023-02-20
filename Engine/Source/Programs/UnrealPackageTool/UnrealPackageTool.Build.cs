@@ -6,9 +6,7 @@ public class UnrealPackageTool : ModuleRules
 {
 	public UnrealPackageTool(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-		PrivateIncludePaths.Add("Runtime/Launch/Private");
-
+		PublicIncludePathModuleNames.Add("Launch");
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("CoreUObject");
 		PrivateDependencyModuleNames.Add("Projects");

@@ -9,9 +9,7 @@ public class HeadlessChaosPerf : ModuleRules
 {
 	public HeadlessChaosPerf(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-
-		PrivateIncludePaths.Add("Runtime/Launch/Private");
+		PublicIncludePathModuleNames.Add("Launch");
 
 		SetupModulePhysicsSupport(Target);
 

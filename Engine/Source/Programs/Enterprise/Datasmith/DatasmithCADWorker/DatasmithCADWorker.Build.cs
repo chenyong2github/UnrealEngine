@@ -7,9 +7,7 @@ public class DatasmithCADWorker : ModuleRules
 {
 	public DatasmithCADWorker(ReadOnlyTargetRules Target) : base(Target)
 	{
-
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-		PrivateIncludePaths.Add("Runtime/Launch/Private");
+		PublicIncludePathModuleNames.Add("Launch");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]

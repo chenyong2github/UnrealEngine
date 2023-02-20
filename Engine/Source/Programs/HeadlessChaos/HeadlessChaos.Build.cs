@@ -7,10 +7,7 @@ public class HeadlessChaos : TestModuleRules
 {
 	public HeadlessChaos(ReadOnlyTargetRules Target) : base(Target, false)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-
-		// For LaunchEngineLoop.cpp include
-		PrivateIncludePaths.Add("Runtime/Launch/Private");
+		PublicIncludePathModuleNames.Add("Launch");
 
 		// For testing access to private Chaos classes
 		PrivateIncludePaths.Add("Runtime/Experimental/Chaos/Private");

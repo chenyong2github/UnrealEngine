@@ -10,12 +10,8 @@ namespace UnrealBuildTool.Rules
 		public DatasmithArchiCAD(ReadOnlyTargetRules Target)
 			: base(Target)
 		{
-			PublicIncludePaths.Add("Runtime/Launch/Public");
-
-			PrivateIncludePaths.Add("Runtime/Launch/Private");
-
+			PublicIncludePathModuleNames.Add("Launch");
 			PrivateDependencyModuleNames.Add("Core");
-			//PrivateDependencyModuleNames.Add("Projects");
 		}
 	}
 }

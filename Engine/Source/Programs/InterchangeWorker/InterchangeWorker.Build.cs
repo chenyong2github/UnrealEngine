@@ -14,8 +14,7 @@ public class InterchangeWorker : ModuleRules
 			throw new BuildException("InterchangeWorker program do not support target platform {0}.", Target.Platform.ToString());
 		}
 
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-		PrivateIncludePaths.Add("Runtime/Launch/Private");
+		PublicIncludePathModuleNames.Add("Launch");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]

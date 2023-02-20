@@ -33,7 +33,6 @@ public class LiveCodingConsole : ModuleRules
 			PrivateDependencyModuleNames.Add("VisualStudioSourceCodeAccess");
 		}
 
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-		PrivateIncludePaths.Add("Runtime/Launch/Private");      // For LaunchEngineLoop.cpp include
+		PublicIncludePathModuleNames.Add("Launch");
 	}
 }

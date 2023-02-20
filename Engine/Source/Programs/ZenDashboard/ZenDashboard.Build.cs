@@ -30,7 +30,6 @@ public class ZenDashboard : ModuleRules
 			);
 		}
 
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-		PrivateIncludePaths.Add("Runtime/Launch/Private");      // For LaunchEngineLoop.cpp include
+		PublicIncludePathModuleNames.Add("Launch");
 	}
 }

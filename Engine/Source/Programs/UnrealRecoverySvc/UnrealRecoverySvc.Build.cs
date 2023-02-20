@@ -24,12 +24,5 @@ public class UnrealRecoverySvc : ModuleRules
 				"ConcertSyncServer",
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/Launch/Private",           // for LaunchEngineLoop.cpp include
-			}
-		);
-
 	}
 }

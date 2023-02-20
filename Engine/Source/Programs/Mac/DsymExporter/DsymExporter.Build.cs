@@ -7,7 +7,6 @@ public class DsymExporter : ModuleRules
 	public DsymExporter( ReadOnlyTargetRules Target ) : base(Target)
 	{
 		PrivateIncludePathModuleNames.Add( "Launch" );
-		PrivateIncludePaths.Add( "Runtime/Launch/Private" );
 	
 		PrivateDependencyModuleNames.AddRange(
 			new string[] 

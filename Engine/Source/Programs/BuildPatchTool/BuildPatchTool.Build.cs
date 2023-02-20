@@ -6,10 +6,7 @@ public class BuildPatchTool : ModuleRules
 {
 	public BuildPatchTool( ReadOnlyTargetRules Target ) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-
-		// For LaunchEngineLoop.cpp include
-		PrivateIncludePaths.Add("Runtime/Launch/Private");
+		PublicIncludePathModuleNames.Add("Launch");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]

@@ -6,7 +6,7 @@ public class SlateUGS : ModuleRules
 {
 	public SlateUGS(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
+		PublicIncludePathModuleNames.Add("Launch");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
@@ -24,8 +24,6 @@ public class SlateUGS : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.Add("Runtime/Launch/Private");		// For LaunchEngineLoop.cpp include
-		
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
 			PrivateDependencyModuleNames.AddRange(

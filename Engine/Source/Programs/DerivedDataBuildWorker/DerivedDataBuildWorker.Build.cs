@@ -53,9 +53,8 @@ public class DerivedDataBuildWorker : ModuleRules
 {
 	public DerivedDataBuildWorker(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-		PublicIncludePaths.Add("Developer/DerivedDataCache/Public");
-		PrivateIncludePaths.Add("Runtime/Launch/Private");		// For LaunchEngineLoop.cpp include
+		PublicIncludePathModuleNames.Add("Launch");
+		PublicIncludePathModuleNames.Add("DerivedDataCache");
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{

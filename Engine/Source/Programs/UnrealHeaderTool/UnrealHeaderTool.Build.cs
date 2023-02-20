@@ -6,7 +6,15 @@ public class UnrealHeaderTool : ModuleRules
 {
 	public UnrealHeaderTool(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
+		PublicIncludePathModuleNames.Add("Launch");
+
+		PrivateIncludePathModuleNames.AddRange(
+			new string[]
+			{
+				"RHI",
+				"RigVM",
+			}
+		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
@@ -17,17 +25,6 @@ public class UnrealHeaderTool : ModuleRules
 				"Projects"
 			}
 		);
-	
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				// For LaunchEngineLoop.cpp includes
-				"Runtime/Launch/Private",
-				"Runtime/RHI/Public",
-				"Programs/UnrealHeaderTool/Private",
-				// For RigVM Defines
-				"Runtime/RigVM/Public",
-			});
 		
 		bEnableExceptions = true;
 

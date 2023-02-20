@@ -8,7 +8,7 @@ namespace UnrealBuildTool.Rules
 		public DatasmithSDK(ReadOnlyTargetRules Target)
 			: base(Target)
 		{
-			PublicIncludePaths.Add("Runtime/Launch/Public");
+			PublicIncludePathModuleNames.Add("Launch");
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

@@ -35,8 +35,7 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			PrivateIncludePaths.Add("Runtime/Launch/Public");
-			PrivateIncludePaths.Add("Runtime/Launch/Private");      // For LaunchEngineLoop.cpp include
+			PrivateIncludePathModuleNames.Add("Launch");
 
 			// PrecompileForTargets = PrecompileTargetsType.Any;
 		}

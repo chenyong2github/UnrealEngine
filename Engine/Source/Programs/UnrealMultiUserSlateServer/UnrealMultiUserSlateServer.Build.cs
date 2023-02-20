@@ -28,12 +28,6 @@ public class UnrealMultiUserSlateServer : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/Launch/Private",           // for LaunchEngineLoop.cpp include
-			}
-		);
-
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"ConcertSyncServer",

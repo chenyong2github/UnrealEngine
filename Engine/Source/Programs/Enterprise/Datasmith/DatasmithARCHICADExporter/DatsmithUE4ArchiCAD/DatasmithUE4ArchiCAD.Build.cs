@@ -11,7 +11,7 @@ namespace UnrealBuildTool.Rules
 			bUseRTTI = true;
 			PCHUsage = PCHUsageMode.NoPCHs;
 
-			PublicIncludePaths.Add("Runtime/Launch/Public");
+			PublicIncludePathModuleNames.Add("Launch");
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

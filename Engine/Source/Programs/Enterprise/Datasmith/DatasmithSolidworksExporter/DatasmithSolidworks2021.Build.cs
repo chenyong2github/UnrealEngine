@@ -19,13 +19,7 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-					"Runtime/Launch/Public",
-					"Runtime/Launch/Private",
-				}
-			);
+			PrivateIncludePathModuleNames.Add("Launch");
 		}
 
 		public abstract string GetVersion();

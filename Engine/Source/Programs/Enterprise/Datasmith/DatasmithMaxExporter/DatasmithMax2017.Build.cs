@@ -32,8 +32,7 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-
-			PrivateIncludePaths.AddRange( new string[] { "Runtime/Launch/Public", "Runtime/Launch/Private", ModuleDirectory } );
+			PrivateIncludePathModuleNames.Add("Launch");
 
 			// Max SDK setup
 			{

@@ -6,17 +6,11 @@ public class UnrealFrontend : ModuleRules
 {
 	public UnrealFrontend( ReadOnlyTargetRules Target ) : base(Target)
 	{
-		PublicIncludePaths.AddRange(
-            new string[] {
-                "Runtime/Launch/Public",
-            }
-        );
+		PublicIncludePathModuleNames.Add("Launch");
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Programs/UnrealFrontend/Private",
 				"Programs/UnrealFrontend/Private/Commands",
-				"Runtime/Launch/Private",					// for LaunchEngineLoop.cpp include
 			}
 		);
 

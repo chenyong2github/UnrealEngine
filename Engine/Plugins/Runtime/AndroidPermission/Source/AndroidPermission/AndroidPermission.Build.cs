@@ -7,14 +7,8 @@ public class AndroidPermission : ModuleRules
 {
 	public AndroidPermission(ReadOnlyTargetRules Target) : base(Target)
 	{
-		
-		PublicIncludePaths.AddRange(
-			new string[] {
-				"Runtime/Launch/Public"
-			}
-			);
-			
-		
+		PublicIncludePathModuleNames.Add("Launch");
+
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{

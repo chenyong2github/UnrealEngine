@@ -20,14 +20,7 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-					"Runtime/Launch/Public",
-					"Runtime/Launch/Private",
-					ModuleDirectory
-				}
-			);
+			PrivateIncludePathModuleNames.Add("Launch");
 		}
 
 		public abstract string GetRevitVersion();

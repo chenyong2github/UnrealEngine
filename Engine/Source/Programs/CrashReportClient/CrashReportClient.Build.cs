@@ -6,14 +6,7 @@ public class CrashReportClient : ModuleRules
 {
 	public CrashReportClient(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.AddRange
-		(
-			new string[] 
-			{ 
-				"Runtime/Launch/Public",
-				"Programs/CrashReportClient/Private",
-			}
-		);
+		PublicIncludePathModuleNames.Add("Launch");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] 
@@ -53,8 +46,6 @@ public class CrashReportClient : ModuleRules
 				}
 			);
 		}
-
-		PrivateIncludePaths.Add("Runtime/Launch/Private");		// For LaunchEngineLoop.cpp include
 
 		PrivateDefinitions.AddRange(
 			new string[]

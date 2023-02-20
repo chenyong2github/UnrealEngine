@@ -7,9 +7,9 @@ public class UnrealLightmass : ModuleRules
 {
 	public UnrealLightmass(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
+		PublicIncludePathModuleNames.Add("Launch");
 
-        PrivateDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "zlib", "SwarmInterface", "Projects", "ApplicationCore" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "zlib", "SwarmInterface", "Projects", "ApplicationCore" });
 
 		PublicDefinitions.Add("UE_LIGHTMASS=1");
 
@@ -47,7 +47,6 @@ public class UnrealLightmass : ModuleRules
 		// Warning: This means buffer overwrites will not be detected
 		bEnableBufferSecurityChecks = false;
 
-		PrivateIncludePaths.Add("Runtime/Launch/Private");		// For LaunchEngineLoop.cpp include
 		PrivateIncludePaths.Add("Programs/UnrealLightmass/Private/Launch");
 		PrivateIncludePaths.Add("Programs/UnrealLightmass/Private/ImportExport");
 		PrivateIncludePaths.Add("Programs/UnrealLightmass/Private/CPUSolver");

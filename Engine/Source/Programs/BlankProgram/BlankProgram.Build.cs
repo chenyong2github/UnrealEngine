@@ -6,10 +6,7 @@ public class BlankProgram : ModuleRules
 {
 	public BlankProgram(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-
-		PrivateIncludePaths.Add("Runtime/Launch/Private");		// For LaunchEngineLoop.cpp include
-
+		PublicIncludePathModuleNames.Add("Launch");
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("Projects");
 	}

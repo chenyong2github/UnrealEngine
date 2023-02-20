@@ -6,8 +6,7 @@ public class UnrealVersionSelector : ModuleRules
 {
 	public UnrealVersionSelector(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
-		PublicIncludePaths.Add("Runtime/Launch/Private"); // Yuck. Required for RequiredProgramMainCPPInclude.h. (Also yuck).
+		PublicIncludePathModuleNames.Add("Launch");
 
 		if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
