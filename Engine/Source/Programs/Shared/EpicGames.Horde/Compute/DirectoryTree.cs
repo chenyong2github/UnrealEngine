@@ -3,6 +3,7 @@
 using EpicGames.Core;
 using EpicGames.Serialization;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace EpicGames.Horde.Compute
 {
@@ -27,6 +28,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Reference to a named file within a <see cref="DirectoryTree"/>
 	/// </summary>
+	[DebuggerDisplay("{Name}")]
 	public class FileNode
 	{
 		/// <summary>
@@ -82,6 +84,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Reference to a named directory within a <see cref="DirectoryTree"/>
 	/// </summary>
+	[DebuggerDisplay("{Name}")]
 	public class DirectoryNode
 	{
 		/// <summary>
