@@ -36,7 +36,6 @@ protected:
 	virtual bool ShouldWarnAboutMissingWhenPatchingFromIni(const FString& AssetPath) const override;
 	virtual void PatchAssetsFromIniFiles() override;
 
-	virtual bool PreProcessDownloadedFileData(TArray<uint8>& FileData) const override;
 	virtual void OnHotfixAvailablityCheck(const TArray<FCloudFileHeader>& PendingChangedFiles, const TArray<FCloudFileHeader>& PendingRemoveFiles) override;
 
 	virtual bool HotfixIniFile(const FString& FileName, const FString& IniData) override;
