@@ -5,7 +5,9 @@
 #include "Templates/UnrealTemplate.h"
 #include "Misc/ByteSwap.h"
 
-#if PLATFORM_ANDROID_ARM64 || PLATFORM_LINUXARM64 || PLATFORM_IOS
+#if defined(__clang__) && defined(__ARM_FEATURE_CRYPTO)
+#	define DETECT_HW_CRC32_SUPPORT_IN_RUNTIME 0
+#elif PLATFORM_ANDROID_ARM64 || PLATFORM_LINUXARM64 || PLATFORM_IOS
 #	define DETECT_HW_CRC32_SUPPORT_IN_RUNTIME 1
 #else
 #	define DETECT_HW_CRC32_SUPPORT_IN_RUNTIME 0
@@ -347,10 +349,14 @@ uint32 FCrc::CRCTablesSB8[8][256] =
 };
 
 static uint32 MemCrc32SW(const void* InData, int32 Length, uint32 CRC/*=0 */);
-FCrc::MemCrc32Functor FCrc::MemCrc32Func = &MemCrc32SW;
-
 #if defined(__clang__) && PLATFORM_CPU_ARM_FAMILY
 static uint32 MemCrc32ArmHW(const void* InData, int32 Length, uint32 CRC/*=0 */);
+#endif
+
+#if defined(__clang__) && defined(__ARM_FEATURE_CRYPTO)
+FCrc::MemCrc32Functor FCrc::MemCrc32Func = &MemCrc32ArmHW;
+#else
+FCrc::MemCrc32Functor FCrc::MemCrc32Func = &MemCrc32SW;
 #endif
 
 #if DETECT_HW_CRC32_SUPPORT_IN_RUNTIME
