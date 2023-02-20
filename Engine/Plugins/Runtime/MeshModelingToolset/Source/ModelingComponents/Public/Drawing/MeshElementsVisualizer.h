@@ -79,9 +79,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, AdvancedDisplay, meta = (UIMin = -2.0, UIMax = 2.0, EditCondition = "bVisible"))
 	float DepthBias = 0.2;
 
-	/** If true, the depth bias will be adjusted depending on the diagonal length of the mesh bounding box (smaller for smaller meshes). */
-	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, AdvancedDisplay, meta = (EditCondition = "bVisible"))
-	bool bAdjustDepthBiasUsingMeshSize = true;
+	//~ Will be removed- generally not desirable with percentage-wise depth offset
+	UPROPERTY()
+	bool bAdjustDepthBiasUsingMeshSize = false;
 };
 
 
