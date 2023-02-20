@@ -110,4 +110,19 @@ uint GetBaseInstanceIndex()
 	return HitGroupSystemRootConstants.BaseInstanceIndex;
 }
 
+float3 GetGeometryNormalFromTriangleBaseAttributes(uint PrimitiveIndex)
+{
+	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex);
+
+	float3 LocalEdges[2] = {
+		Tri.LocalPositions[1] - Tri.LocalPositions[0],
+		Tri.LocalPositions[2] - Tri.LocalPositions[0]
+	};
+	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);
+
+	float3x3 InverseTranspose3x3 = transpose((float3x3)WorldToObject4x3());
+	float3 WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
+	return WorldNormal;
+}
+
 #endif // RAYTRACINGHITGROUPCOMMON_USH_INCLUDED // Workarround for UE-66460

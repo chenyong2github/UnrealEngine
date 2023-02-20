@@ -216,29 +216,6 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	#endif
 }
 
-float3 GetLumenGeometryNormal()
-{
-	float3 WorldPositions[3];
-
-	for (int i = 0; i < 3; i++)
-	{
-		FVertexFactoryInput Input = LoadVertexFactoryInputForHGS(PrimitiveIndex(), i);
-		FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
-		float4 WorldPositionExcludingWPO = VertexFactoryGetWorldPosition(Input, VFIntermediates);
-
-		WorldPositions[i] = WorldPositionExcludingWPO.xyz;
-	}
-
-	float3 PA = WorldPositions[1] - WorldPositions[0];
-	float3 PB = WorldPositions[2] - WorldPositions[0];
-	float3 Unnormalized = cross(PB, PA);
-
-	// Safe normal
-	float SqareLength = dot(Unnormalized, Unnormalized);
-	float3 Normal = lerp(rsqrt(SqareLength) * Unnormalized, -WorldRayDirection(), SqareLength == 0.0f);
-	return Normal;
-}
-
 void GetMaterialPayload(
 	FPixelMaterialInputs PixelMaterialInputs,
 	FMaterialPixelParameters MaterialParameters,
@@ -499,7 +476,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	float3 GeoNormal = 0;
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(TranslatedWorldRayOrigin(), WorldRayDirection(), RayTCurrent(), PrimitiveIndex(), Attributes, HitKind(), GeoNormal);
 #else
-	float3 GeoNormal = GetLumenGeometryNormal();
+	float3 GeoNormal = GetGeometryNormalFromTriangleBaseAttributes(PrimitiveIndex());
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
 #endif
 
