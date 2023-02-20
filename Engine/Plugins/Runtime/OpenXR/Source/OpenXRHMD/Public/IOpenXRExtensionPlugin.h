@@ -290,6 +290,7 @@ public:
 	/**
 	* Callback to provide extra view configurations that should be rendered in the main render pass
 	*/
+	UE_DEPRECATED(5.2, "Support for new view configurations should be added to FOpenXRHMD instead.")
 	virtual void GetViewConfigurations(XrSystemId InSystem, TArray<XrViewConfigurationView>& OutViews)
 	{
 	}
@@ -297,6 +298,7 @@ public:
 	/**
 	* Callback to provide the pose and fov of each view that was provided in GetViewConfigurations
 	*/
+	UE_DEPRECATED(5.2, "Support for new view configurations should be added to FOpenXRHMD instead.")
 	virtual void GetViewLocations(XrSession InSession, XrTime InDisplayTime, XrSpace InViewSpace, TArray<XrView>& OutViews)
 	{
 	}

@@ -1463,7 +1463,9 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
 		TArray<XrViewConfigurationView> ViewConfigs;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 		Module->GetViewConfigurations(System, ViewConfigs);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 
 		const EStereoscopicPass PluginPassType = ViewConfigs.Num() > 1 ? EStereoscopicPass::eSSP_PRIMARY : EStereoscopicPass::eSSP_FULL;
 		for (int32 i = 0; i < ViewConfigs.Num(); i++)
@@ -1490,7 +1492,9 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 			if (PipelineState.PluginViewInfos.ContainsByPredicate(Predicate))
 			{
 				TArray<XrView> Views;
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 				Module->GetViewLocations(Session, PipelineState.FrameState.predictedDisplayTime, DeviceSpaces[HMDDeviceId].Space, Views);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 				check(Views.Num() > 0);
 				PipelineState.Views.Append(Views);
 			}
