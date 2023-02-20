@@ -648,7 +648,7 @@ bool URenderGridJob::GetRemoteControlFieldIdFromLabel(const FString& Label, FGui
 	const FName LabelName = FName(Label);
 	for (URemoteControlPreset* RemoteControlPreset : GetRemoteControlPresets())
 	{
-		if (const FGuid RemoteControlFieldId = RemoteControlPreset->GetExposedEntityId(LabelName); FieldId.IsValid())
+		if (const FGuid RemoteControlFieldId = RemoteControlPreset->GetExposedEntityId(LabelName); RemoteControlFieldId.IsValid())
 		{
 			FieldId = RemoteControlFieldId;
 			return true;
@@ -945,6 +945,11 @@ URenderGridQueue* URenderGrid::Render()
 	return RenderJobs(GetEnabledRenderGridJobs());
 }
 
+URenderGridQueue* URenderGrid::RenderJob(URenderGridJob* Job)
+{
+	return RenderJobs({Job});
+}
+
 URenderGridQueue* URenderGrid::RenderJobs(const TArray<URenderGridJob*>& Jobs)
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
@@ -973,9 +978,42 @@ URenderGridQueue* URenderGrid::RenderJobs(const TArray<URenderGridJob*>& Jobs)
 	return nullptr;
 }
 
-URenderGridQueue* URenderGrid::RenderJob(URenderGridJob* Job)
+URenderGridQueue* URenderGrid::RenderSingleFrame(const double FramePosition)
 {
-	return RenderJobs({Job});
+	return RenderJobsSingleFrame(GetEnabledRenderGridJobs(), FramePosition);
+}
+
+URenderGridQueue* URenderGrid::RenderJobSingleFrame(URenderGridJob* Job, const double FramePosition)
+{
+	return RenderJobsSingleFrame({Job}, FramePosition);
+}
+
+URenderGridQueue* URenderGrid::RenderJobsSingleFrame(const TArray<URenderGridJob*>& Jobs, const double FramePosition)
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		if (URenderGrid* DefaultObject = Cast<URenderGrid>(GetClass()->GetDefaultObject(true)); IsValid(DefaultObject))
+		{
+			CopyAllProperties(DefaultObject);
+			return DefaultObject->RenderJobsSingleFrame(Jobs, FramePosition);
+		}
+		return nullptr;
+	}
+
+	TArray<URenderGridJob*> JobsToRender;
+	for (URenderGridJob* Job : Jobs)
+	{
+		if (IsValid(Job) && HasRenderGridJob(Job))
+		{
+			JobsToRender.Add(Job);
+		}
+	}
+	if (URenderGridQueue* RenderQueue = UE::RenderGrid::IRenderGridModule::Get().GetManager().CreateBatchRenderQueueSingleFrame(this, Jobs, FramePosition); IsValid(RenderQueue))
+	{
+		RenderQueue->Execute();
+		return RenderQueue;
+	}
+	return nullptr;
 }
 
 void URenderGrid::SetPropsSource(ERenderGridPropsSourceType InPropsSourceType, UObject* InPropsSourceOrigin)

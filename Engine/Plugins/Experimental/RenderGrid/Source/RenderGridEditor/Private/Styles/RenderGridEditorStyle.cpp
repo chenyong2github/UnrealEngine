@@ -67,6 +67,11 @@ const FSlateBrush* UE::RenderGrid::Private::FRenderGridEditorStyle::GetBrush(FNa
 #define BORDER_BRUSH(RelativePath, ...) FSlateBorderBrush(Style->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 #define IMAGE_BRUSH_SVG(RelativePath, ...) FSlateVectorImageBrush(Style->RootToContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 
+#define CORE_IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(Style->RootToCoreContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+#define CORE_BOX_BRUSH(RelativePath, ...) FSlateBoxBrush(Style->RootToCoreContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+#define CORE_BORDER_BRUSH(RelativePath, ...) FSlateBorderBrush(Style->RootToCoreContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+#define CORE_IMAGE_BRUSH_SVG(RelativePath, ...) FSlateVectorImageBrush(Style->RootToCoreContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
+
 const FVector2D Icon64x64(64.f, 64.f);
 const FVector2D Icon40x40(40.0f, 40.0f);
 const FVector2D Icon20x20(20.0f, 20.0f);
@@ -100,8 +105,8 @@ TSharedRef<FSlateStyleSet> UE::RenderGrid::Private::FRenderGridEditorStyle::Crea
 	Style->Set("HoverHintOnly",
 		FButtonStyle()
 		.SetNormal(FSlateNoResource())
-		.SetHovered(BOX_BRUSH("Common/ButtonHoverHint", FMargin(4/16.0f), FLinearColor(1,1,1,0.05f)))
-		.SetPressed(BOX_BRUSH("Common/ButtonHoverHint", FMargin(4/16.0f), FLinearColor(1,1,1,0.15f)))
+		.SetHovered(CORE_BOX_BRUSH("Common/ButtonHoverHint", FMargin(4/16.0f), FLinearColor(1,1,1,0.05f)))
+		.SetPressed(CORE_BOX_BRUSH("Common/ButtonHoverHint", FMargin(4/16.0f), FLinearColor(1,1,1,0.15f)))
 		.SetNormalPadding(FMargin())
 		.SetPressedPadding(FMargin())
 	);
@@ -113,3 +118,8 @@ TSharedRef<FSlateStyleSet> UE::RenderGrid::Private::FRenderGridEditorStyle::Crea
 #undef BOX_BRUSH
 #undef BORDER_BRUSH
 #undef IMAGE_BRUSH_SVG
+
+#undef CORE_IMAGE_BRUSH
+#undef CORE_BOX_BRUSH
+#undef CORE_BORDER_BRUSH
+#undef CORE_IMAGE_BRUSH_SVG

@@ -85,10 +85,12 @@ namespace UE::RenderGrid
 		/** The number of characters for a generated ID. For example, a value of 4 results in IDs: "0001", "0002", etc. */
 		static constexpr int32 GeneratedIdCharacterLength = 4;
 
-
 	public:
 		/** Batch render the given render grid job(s) of the given render grid. */
 		URenderGridQueue* CreateBatchRenderQueue(URenderGrid* Grid, const TArray<URenderGridJob*>& Jobs);
+
+		/** Batch render the given render grid job(s) of the given render grid. Only renders a single frame of each job. The frame number it renders is based on the given FramePosition (0.0 is the first frame, 1.0 is the last frame, 0.5 is the frame in the middle, etc). */
+		URenderGridQueue* CreateBatchRenderQueueSingleFrame(URenderGrid* Grid, const TArray<URenderGridJob*>& Jobs, const double FramePosition);
 
 
 		/** Render a preview frame (or multiple if no frame number is specified) of the given render grid job. */
@@ -115,7 +117,6 @@ namespace UE::RenderGrid
 
 		/** Restores the props that were previously applied, to the values that they were before. */
 		void RestorePropValues(const FRenderGridManagerPreviousPropValues& PreviousPropValues);
-
 
 	private:
 		/** The map that stores the start frame (of a render) of each rendered render grid job. */

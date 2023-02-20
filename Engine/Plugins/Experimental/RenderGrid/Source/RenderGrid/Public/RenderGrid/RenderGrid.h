@@ -548,13 +548,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Render Grid")
 	URenderGridQueue* Render();
 
+	/** Renders the given job of this render grid. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid")
+	URenderGridQueue* RenderJob(URenderGridJob* Job);
+
 	/** Renders all the given jobs of this render grid. */
 	UFUNCTION(BlueprintCallable, Category="Render Grid")
 	URenderGridQueue* RenderJobs(const TArray<URenderGridJob*>& Jobs);
 
-	/** Renders the given job of this render grid. */
+	/** Renders all the enabled jobs of this render grid. Only renders a single frame of each job. The frame number it renders is based on the given FramePosition (0.0 is the first frame, 1.0 is the last frame, 0.5 is the frame in the middle, etc). */
 	UFUNCTION(BlueprintCallable, Category="Render Grid")
-	URenderGridQueue* RenderJob(URenderGridJob* Job);
+	URenderGridQueue* RenderSingleFrame(const double FramePosition);
+
+	/** Renders the given job of this render grid. Only renders a single frame. The frame number it renders is based on the given FramePosition (0.0 is the first frame, 1.0 is the last frame, 0.5 is the frame in the middle, etc). */
+	UFUNCTION(BlueprintCallable, Category="Render Grid")
+	URenderGridQueue* RenderJobSingleFrame(URenderGridJob* Job, const double FramePosition);
+
+	/** Renders all the given jobs of this render grid. Only renders a single frame of each job. The frame number it renders is based on the given FramePosition (0.0 is the first frame, 1.0 is the last frame, 0.5 is the frame in the middle, etc). */
+	UFUNCTION(BlueprintCallable, Category="Render Grid")
+	URenderGridQueue* RenderJobsSingleFrame(const TArray<URenderGridJob*>& Jobs, const double FramePosition);
 
 public:
 	/** Returns the GUID, which is randomly generated at creation. */

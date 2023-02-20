@@ -5,7 +5,6 @@
 #include "RenderGridManager.h"
 #include "Utils/RenderGridUtils.h"
 #include "Tickable.h"
-#include "Containers/Queue.h"
 #include "UObject/ObjectPtr.h"
 #include "RenderGridQueue.generated.h"
 
@@ -53,6 +52,9 @@ namespace UE::RenderGrid
 
 		/** The movie pipeline settings classes to disable (things like Anti-Aliasing, High-Res, etc). */
 		TArray<TSubclassOf<UMoviePipelineSetting>> DisablePipelineSettingsClasses;
+
+		/** The specific frame number that will be rendered. */
+		TOptional<double> FramePosition;
 
 		/** Whether it should run the Begin and End Batch Render events or not. */
 		bool bIsBatchRender = false;
@@ -200,6 +202,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="executing execution execute running rendering"))
 	static URenderGridQueue* GetCurrentlyRenderingQueue();
 
+	/** Returns the number of rendering queues that are currently queued up. This also includes the currently rendering queue. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="executing execution execute running rendering left todo queued"))
+	static int32 GetRemainingRenderingQueuesCount();
+
 private:
 	/** Adds the given queue. Will automatically start rendering it if it's the only one currently. */
 	static void AddRenderingQueue(URenderGridQueue* Queue);
@@ -209,7 +215,7 @@ private:
 
 private:
 	/** The queue of rendering queues. This contains the currently rendering queue, as well as the ones that should be rendered after it. */
-	static TQueue<TObjectPtr<URenderGridQueue>> RenderingQueues;
+	static TArray<TObjectPtr<URenderGridQueue>> RenderingQueues;
 
 	/** The delegate for when data in the ExecutingQueues has changed. */
 	static FOnRenderingQueueChanged OnRenderingQueueChangedDelegate;

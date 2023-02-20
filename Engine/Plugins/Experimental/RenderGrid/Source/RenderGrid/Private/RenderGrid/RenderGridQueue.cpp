@@ -168,6 +168,14 @@ URenderGridMoviePipelineRenderJob* URenderGridMoviePipelineRenderJob::Create(URe
 		Setting->CustomStartFrame = Job->GetSequenceStartFrame().Get(0);
 		Setting->CustomEndFrame = Job->GetSequenceEndFrame().Get(0);
 
+		if (Args.FramePosition.IsSet())
+		{
+			double FramePosition = FMath::Clamp<double>(Args.FramePosition.Get(0.0), 0.0, 1.0);
+			int32 Frame = FMath::Lerp<int32, double>(Setting->CustomStartFrame, Setting->CustomEndFrame - 1, FramePosition);
+			Setting->CustomStartFrame = Frame;
+			Setting->CustomEndFrame = Frame + 1;
+		}
+
 		if (Args.bForceUseSequenceFrameRate)
 		{
 			Setting->bUseCustomFrameRate = false;
@@ -342,7 +350,7 @@ void URenderGridMoviePipelineRenderJob::ExecuteFinished(UMoviePipelineExecutorBa
 }
 
 
-TQueue<TObjectPtr<URenderGridQueue>> URenderGridQueue::RenderingQueues;
+TArray<TObjectPtr<URenderGridQueue>> URenderGridQueue::RenderingQueues;
 URenderGridQueue::FOnRenderingQueueChanged URenderGridQueue::OnRenderingQueueChangedDelegate;
 bool URenderGridQueue::bExitOnCompletion = false;
 
@@ -368,12 +376,12 @@ bool URenderGridQueue::IsRenderingAny()
 URenderGridQueue* URenderGridQueue::GetCurrentlyRenderingQueue()
 {
 	bool bRemovedAny = false;
-	while (TObjectPtr<URenderGridQueue>* CurrentlyExecutingQueue = RenderingQueues.Peek())
+	while (!RenderingQueues.IsEmpty())
 	{
-		URenderGridQueue* Queue = CurrentlyExecutingQueue->Get();
+		URenderGridQueue* Queue = RenderingQueues[0];
 		if (!IsValid(Queue))
 		{
-			RenderingQueues.Pop();
+			RenderingQueues.RemoveAt(0);
 			bRemovedAny = true;
 			continue;
 		}
@@ -390,9 +398,18 @@ URenderGridQueue* URenderGridQueue::GetCurrentlyRenderingQueue()
 	return nullptr;
 }
 
+int32 URenderGridQueue::GetRemainingRenderingQueuesCount()
+{
+	return RenderingQueues.Num();
+}
+
 void URenderGridQueue::AddRenderingQueue(URenderGridQueue* Queue)
 {
-	RenderingQueues.Enqueue(Queue);
+	if (!IsValid(Queue))
+	{
+		return;
+	}
+	RenderingQueues.Add(Queue);
 	if ((GetCurrentlyRenderingQueue() == Queue) && !Queue->bPaused)
 	{
 		Queue->Queue->Start(); // can be called twice here, which is fine (once in GetCurrentlyExecutingQueue() if the previous Queue became invalid, and then once again here)
@@ -402,7 +419,11 @@ void URenderGridQueue::AddRenderingQueue(URenderGridQueue* Queue)
 
 void URenderGridQueue::DoNextRenderingQueue()
 {
-	RenderingQueues.Pop();
+	if (RenderingQueues.IsEmpty())
+	{
+		return;
+	}
+	RenderingQueues.RemoveAt(0);
 	if (URenderGridQueue* Queue = GetCurrentlyRenderingQueue())
 	{
 		if (!Queue->bPaused)
