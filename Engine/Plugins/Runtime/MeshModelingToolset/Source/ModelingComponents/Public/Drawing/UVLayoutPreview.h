@@ -10,6 +10,7 @@
 #include "UVLayoutPreview.generated.h"
 
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
+class UMeshElementsVisualizer;
 
 /**
  * Where should in-viewport UVLayoutPreview be shown, relative to target object
@@ -131,6 +132,10 @@ public:
 	/** PreviewMesh is initialized with a copy of an input mesh with UVs mapped to position, ie such that (X,Y,Z) = (U,V,0) */
 	UPROPERTY()
 	TObjectPtr<UPreviewMesh> PreviewMesh;
+
+	/** MeshElementsVisualizer references the PreviewMesh to handle drawing the wireframes for UVs */
+	UPROPERTY()
+	TObjectPtr<UMeshElementsVisualizer> MeshElementsVisualizer;
 
 	/** Set of additional triangles to draw, eg for backing rectangle, etc */
 	UPROPERTY()

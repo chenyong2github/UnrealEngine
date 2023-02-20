@@ -3,6 +3,7 @@
 #include "Drawing/UVLayoutPreview.h"
 #include "SceneManagement.h"
 #include "ToolSetupUtil.h"
+#include "Drawing/MeshElementsVisualizer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UVLayoutPreview)
 
@@ -21,6 +22,12 @@ void UUVLayoutPreview::CreateInWorld(UWorld* World)
 	PreviewMesh->CreateInWorld(World, FTransform::Identity);
 	PreviewMesh->SetShadowsEnabled(false);
 
+	MeshElementsVisualizer = NewObject<UMeshElementsVisualizer>(this);
+	MeshElementsVisualizer->CreateInWorld(World, FTransform::Identity);
+	MeshElementsVisualizer->SetMeshAccessFunction([this](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc) {
+		PreviewMesh->ProcessMesh(ProcessFunc);
+	});	
+
 	TriangleComponent = NewObject<UTriangleSetComponent>(PreviewMesh->GetActor());
 	TriangleComponent->SetupAttachment(PreviewMesh->GetRootComponent());
 	TriangleComponent->RegisterComponent();
@@ -30,6 +37,17 @@ void UUVLayoutPreview::CreateInWorld(UWorld* World)
 	Settings->WatchProperty(Settings->bShowWireframe, [this](bool) { bSettingsModified = true; });
 	//Settings->WatchProperty(Settings->bWireframe, [this](bool) { bSettingsModified = true; });
 	bSettingsModified = true;
+
+	MeshElementsVisualizer->Settings->bVisible = Settings->bEnabled;
+	MeshElementsVisualizer->Settings->bShowWireframe = Settings->bShowWireframe;
+	MeshElementsVisualizer->Settings->bShowBorders = Settings->bShowWireframe;
+	MeshElementsVisualizer->Settings->bShowUVSeams = false;
+	MeshElementsVisualizer->Settings->bShowNormalSeams = false;
+	MeshElementsVisualizer->Settings->bShowColorSeams = false;
+	MeshElementsVisualizer->Settings->ThicknessScale = 0.5;
+	MeshElementsVisualizer->Settings->DepthBias = 0.5;
+	MeshElementsVisualizer->Settings->bAdjustDepthBiasUsingMeshSize = false;
+	MeshElementsVisualizer->Settings->CheckAndUpdateWatched();
 
 	BackingRectangleMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor::White, nullptr);
 	if (BackingRectangleMaterial == nullptr)
@@ -43,6 +61,9 @@ void UUVLayoutPreview::Disconnect()
 {
 	PreviewMesh->Disconnect();
 	PreviewMesh = nullptr;
+
+	MeshElementsVisualizer->Disconnect();
+	MeshElementsVisualizer = nullptr;
 }
 
 
@@ -71,12 +92,15 @@ void UUVLayoutPreview::SetCurrentCameraState(const FViewCameraState& CameraState
 void UUVLayoutPreview::SetTransform(const FTransform& UseTransform)
 {
 	PreviewMesh->SetTransform(UseTransform);
+	MeshElementsVisualizer->SetTransform(UseTransform);
 }
 
 
 void UUVLayoutPreview::SetVisible(bool bVisible)
 {
 	PreviewMesh->SetVisible(bVisible);
+	MeshElementsVisualizer->Settings->bVisible = bVisible;
+	MeshElementsVisualizer->Settings->SilentUpdateWatched();
 }
 
 
@@ -112,10 +136,14 @@ void UUVLayoutPreview::OnTick(float DeltaTime)
 	{
 		SetVisible(Settings->bEnabled);
 
-		PreviewMesh->EnableWireframe(Settings->bShowWireframe);
+		MeshElementsVisualizer->Settings->bShowWireframe = Settings->bShowWireframe;
+		MeshElementsVisualizer->Settings->bShowBorders = Settings->bShowWireframe;
+		MeshElementsVisualizer->Settings->CheckAndUpdateWatched();
 
 		bSettingsModified = false;
 	}
+
+	MeshElementsVisualizer->OnTick(DeltaTime);
 }
 
 
@@ -187,6 +215,7 @@ void UUVLayoutPreview::UpdateUVMesh(const FDynamicMesh3* SourceMesh, int32 Sourc
 	}
 
 	PreviewMesh->UpdatePreview(MoveTemp(UVMesh));
+	MeshElementsVisualizer->NotifyMeshChanged();
 }
 
 
