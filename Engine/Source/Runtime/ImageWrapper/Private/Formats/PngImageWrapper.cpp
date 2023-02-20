@@ -618,7 +618,7 @@ void FPngImageWrapper::user_error_fn(png_structp png_ptr, png_const_charp error_
 		FString ErrorMsg = ANSI_TO_TCHAR(error_msg);
 		ctx->SetError(*ErrorMsg);
 
-		UE_LOG(LogImageWrapper, Error, TEXT("PNG Error: %s"), *ErrorMsg);
+		UE_LOG(LogImageWrapper, Error, TEXT("PNG Error(%s): %s"), ctx->DebugImageName != nullptr ? ctx->DebugImageName : TEXT(""), *ErrorMsg);
 
 	#if !PLATFORM_EXCEPTIONS_DISABLED
 		/** 
@@ -647,7 +647,9 @@ void FPngImageWrapper::user_error_fn(png_structp png_ptr, png_const_charp error_
 
 void FPngImageWrapper::user_warning_fn(png_structp png_ptr, png_const_charp warning_msg)
 {
-	UE_LOG(LogImageWrapper, Warning, TEXT("PNG Warning: %s"), ANSI_TO_TCHAR(warning_msg));
+	FPngImageWrapper* ctx = (FPngImageWrapper*)png_get_error_ptr(png_ptr);
+	const TCHAR* LocalDebugImageName = ctx != nullptr ? ctx->DebugImageName : nullptr;
+	UE_LOG(LogImageWrapper, Warning, TEXT("PNG Warning(%s) %s"), LocalDebugImageName != nullptr ? LocalDebugImageName : TEXT(""), ANSI_TO_TCHAR(warning_msg));
 }
 
 void* FPngImageWrapper::user_malloc(png_structp /*png_ptr*/, png_size_t size)

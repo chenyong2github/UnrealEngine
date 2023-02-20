@@ -59,12 +59,13 @@ public:
 	 * Create an IImageWrapper helper of a specific type 
 	 *
 	 * @param InFormat - The type of image we want to deal with
-	 * @return The helper base class to manage the data
+	 * @param InOptionalDebugImageName - An optional string to be displayed with any errors or warnings
 	 * 
-	 * EImageFormat is a compressor / file format , not a pixel format
+	 * @return The helper base class to manage the data
+	 * EImageFormat is a compressor / file format, not a pixel format
 	 * Deprecated.  Prefer CompressImage/DecompressImage.
 	 */
-	virtual TSharedPtr<IImageWrapper> CreateImageWrapper(const EImageFormat InFormat) = 0;
+	virtual TSharedPtr<IImageWrapper> CreateImageWrapper(const EImageFormat InFormat, const TCHAR* InOptionalDebugImageName = nullptr) = 0;
 
 	/**
 	 * Detect image format by looking at the first few bytes of the compressed image data.

@@ -109,6 +109,10 @@ enum class EImageCompressionQuality : uint8
  */
 class IImageWrapper
 {
+protected:
+	// debug image name string for any errors or warnings
+	const TCHAR* DebugImageName =  nullptr;
+
 public:
 
 
@@ -332,6 +336,13 @@ public:
 		int BitDepth = GetBitDepth();
 		ERawImageFormat::Type Ret = ConvertRGBFormat(Format,BitDepth,bIsExactMatch);
 		return Ret;
+	}
+
+	/* Set the debug image name
+	 */
+	void SetDebugImageName(const TCHAR* InDebugImageName)
+	{
+		DebugImageName = InDebugImageName;
 	}
 
 public:

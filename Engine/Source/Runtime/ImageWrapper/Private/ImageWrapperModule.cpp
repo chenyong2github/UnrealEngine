@@ -74,7 +74,7 @@ public:
 
 	//~ IImageWrapperModule interface
 
-	virtual TSharedPtr<IImageWrapper> CreateImageWrapper(const EImageFormat InFormat) override
+	virtual TSharedPtr<IImageWrapper> CreateImageWrapper(const EImageFormat InFormat, const TCHAR* InOptionalDebugImageName = nullptr) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ImageWrapper.Create);
 
@@ -135,6 +135,11 @@ public:
 
 		default:
 			break;
+		}
+
+		if (InOptionalDebugImageName != nullptr)
+		{
+			ImageWrapper->SetDebugImageName(InOptionalDebugImageName);
 		}
 
 		return ImageWrapper;

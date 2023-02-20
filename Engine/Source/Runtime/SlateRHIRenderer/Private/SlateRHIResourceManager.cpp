@@ -525,7 +525,7 @@ bool FSlateRHIResourceManager::LoadTexture( const FName& TextureName, const FStr
 		{
 			ImageFormat = EImageFormat::PNG;
 		}
-		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(ImageFormat);
+		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(ImageFormat, *ResourcePath);
 
 		if ( ImageWrapper.IsValid() && ImageWrapper->SetCompressed( RawFileData.GetData(), RawFileData.Num()) )
 		{
