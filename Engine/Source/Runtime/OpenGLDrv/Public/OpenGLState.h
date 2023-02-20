@@ -183,9 +183,15 @@ struct FOpenGLBlendStateData
 
 class FOpenGLBlendState : public FRHIBlendState
 {
+	FBlendStateInitializerRHI RHIInitializer;
 public:
-	virtual bool GetInitializer(FBlendStateInitializerRHI& Init) override final;
-	
+	FOpenGLBlendState(const FBlendStateInitializerRHI& Initializer) : RHIInitializer(Initializer) {}
+	virtual bool GetInitializer(FBlendStateInitializerRHI& Init) override final
+	{ 
+		Init = RHIInitializer; 
+		return true;
+	}
+
 	FOpenGLBlendStateData Data;
 };
 
