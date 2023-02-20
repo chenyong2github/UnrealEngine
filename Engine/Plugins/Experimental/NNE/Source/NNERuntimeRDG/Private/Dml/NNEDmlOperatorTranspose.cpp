@@ -54,7 +54,7 @@ public:
             return false;
         }
         
-        DmlInputTensorDesc.SetStridesFromFTensor(InputTensors[0]);
+        DmlInputTensorDesc.SetStridesFromTensor(InputTensors[0]);
 
         // Initialize Output tensor desc
         DmlUtil::FTensorDesc DmlOutputTensorDesc;
@@ -75,7 +75,7 @@ public:
                 return Permuted;
             };
         
-        DmlInputTensorDesc.UpdateShapesAndStrides(PermuteFunc(DmlInputTensorDesc.Sizes), PermuteFunc(DmlInputTensorDesc.Strides));
+        DmlInputTensorDesc.UpdateShapeAndStrides(PermuteFunc(DmlInputTensorDesc.Sizes), PermuteFunc(DmlInputTensorDesc.Strides));
         
         check(DmlOutputTensorDesc.Sizes == DmlInputTensorDesc.Sizes);        
 

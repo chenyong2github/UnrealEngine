@@ -11,28 +11,6 @@ namespace UE::NNERuntimeRDG::Private::Dml
 namespace DmlUtil
 {
 
-	void FTensorDesc::UpdateShapesAndStrides(TConstArrayView<uint32> InSizes, TConstArrayView<uint32> InStrides)
-	{
-		Sizes = InSizes;
-        BuffDesc.Sizes = Sizes.GetData();
-
-		Strides = InStrides;
-        BuffDesc.Strides = Strides.GetData();
-	}
-
-	void FTensorDesc::SetStridesFromFTensor(const NNECore::Internal::FTensor& InputDesc)
-	{
-		uint32 CurrStride = 1;
-
-		Strides.SetNum(InputDesc.GetShape().Rank());
-		
-		for (int32 i = InputDesc.GetShape().Rank() - 1; i >= 0; --i)
-		{
-			Strides[i] = CurrStride;
-			CurrStride *= InputDesc.GetShape().GetData()[i];
-		}
-	}
-
 	bool FTensorDesc::InitFromTensor(const NNECore::Internal::FTensor& Tensor, int32 MinTensorRank, TConstArrayView<uint32> BroadcastShape, TConstArrayView<uint32> CustomShape)
 	{
 		Reset();
@@ -87,6 +65,39 @@ namespace DmlUtil
 		Update(DmlDataType);
 
 		return true;
+	}
+
+	void FTensorDesc::UpdateShapeAndStrides(TConstArrayView<uint32> InShape, TConstArrayView<uint32> InStrides)
+	{
+		check(!InStrides.IsEmpty() && (InStrides.Num() == InShape.Num()));
+
+		Sizes = InShape;
+		BuffDesc.Sizes = Sizes.GetData();
+		BuffDesc.DimensionCount = Sizes.Num();
+
+		if (!InStrides.IsEmpty())
+		{
+			Strides = InStrides;
+			BuffDesc.Strides = nullptr;
+		}
+		else
+		{
+			Strides.Reset();
+			BuffDesc.Strides = nullptr;
+		}
+	}
+
+	void FTensorDesc::SetStridesFromTensor(const NNECore::Internal::FTensor& InputDesc)
+	{
+		uint32 CurrStride = 1;
+
+		Strides.SetNum(InputDesc.GetShape().Rank());
+		
+		for (int32 i = InputDesc.GetShape().Rank() - 1; i >= 0; --i)
+		{
+			Strides[i] = CurrStride;
+			CurrStride *= InputDesc.GetShape().GetData()[i];
+		}
 	}
 
 	void FTensorDesc::Reset()
@@ -336,7 +347,6 @@ namespace DmlUtil
 //
 // DirectML operator base class
 //
-
 TConstArrayView<int32> FOperatorDml::GetConstantCPUInputs() const
 {
 	return ConstantCPUInputs;

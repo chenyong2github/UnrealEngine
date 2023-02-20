@@ -45,6 +45,8 @@ public:
 
 namespace DmlUtil
 {
+	template<typename T>
+	using FSmallArray = TArray<T, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
 	using FSmallIntArray = TArray<int32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
 	using FSmallUIntArray = TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
 
@@ -60,9 +62,9 @@ namespace DmlUtil
 		bool InitFromTensor(const NNECore::Internal::FTensor& InputDesc, int32 MinTensorRank, TConstArrayView<uint32> Broadcast = MakeArrayView((uint32*) nullptr, 0), TConstArrayView<uint32> CustomShape = MakeArrayView((uint32*) nullptr, 0));
 		bool InitFromTensor1D(const NNECore::Internal::FTensor& InputDesc, int32 Rank);
 
-		void SetStridesFromFTensor(const NNECore::Internal::FTensor& InputDesc);
+		void SetStridesFromTensor(const NNECore::Internal::FTensor& InputDesc);
 
-		void UpdateShapesAndStrides(TConstArrayView<uint32> InSizes, TConstArrayView<uint32> InStrides);
+		void UpdateShapeAndStrides(TConstArrayView<uint32> InShape, TConstArrayView<uint32> InStrides = MakeArrayView((uint32*) nullptr, 0));
 
 	private:
 		void Reset();
