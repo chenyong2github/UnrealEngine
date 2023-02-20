@@ -10,6 +10,11 @@ namespace UE::NearestNeighborModel
 		: public UE::MLDeformer::FMLDeformerGeomCacheSampler
 	{
 	public:
+		// FMLDeformerGeomCacheSampler overrides
+		virtual void Sample(int32 InAnimFrameIndex) override;
+		// ~END FMLDeformerGeomCacheSampler overrides
+
+		virtual void SampleDualQuaternionDeltas(int32 InAnimFrameIndex);
 		virtual uint8 SamplePart(int32 InAnimFrameIndex, int32 PartId);
 		virtual bool SampleKMeansAnim(const int32 SkeletonId);
 		virtual bool SampleKMeansFrame(const int32 Frame);
@@ -19,6 +24,7 @@ namespace UE::NearestNeighborModel
 		uint8 CheckGeomCacheVertCount(int32 NumVertsFromGeomCache, int32 NumVertsFromVertexMap) const;
 		uint8 CheckMeshMappingsEmpty() const;
 		TArray<uint32> GetMeshIndexBuffer() const;
+		FVector3f CalcDualQuaternionDelta(int32 VertexIndex, const FVector3f& WorldDelta, const FSkeletalMeshLODRenderData& SkelMeshLODData, const FSkinWeightVertexBuffer& SkinWeightBuffer) const;
 
 	protected:
 		TArray<float> PartVertexDeltas;

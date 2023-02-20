@@ -331,6 +331,8 @@ public:
 	int32 GetPartMeshIndex(int32 PartId) const { return ClothPartEditorData[PartId].MeshIndex; }
 	void SetPartMeshIndex(int32 PartId, int32 MeshIndex) { ClothPartEditorData[PartId].MeshIndex = MeshIndex; }
 	int32 GetMaxPartMeshIndex() const;
+
+	bool DoesUseDualQuaternionDeltas() const { return bUseDualQuaternionDeltas; }
 #endif
 
 
@@ -362,6 +364,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cloth Parts", meta = (ClampMin = "0"))
 	int32 BasisSmoothIter = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cloth Parts")
+	bool bUseDualQuaternionDeltas = false;
 
 	UPROPERTY()
 	bool bNearestNeighborDataValid = false;

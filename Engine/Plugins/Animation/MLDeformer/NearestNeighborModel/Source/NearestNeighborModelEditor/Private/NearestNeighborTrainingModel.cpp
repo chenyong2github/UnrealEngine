@@ -101,7 +101,7 @@ const TArray<float> UNearestNeighborTrainingModel::GetUnskinnedVertexPositions()
 		PositionsFloat[i * 3 + 1] = PositionsVec[i].Y;
 		PositionsFloat[i * 3 + 2] = PositionsVec[i].Z;
 	}
-	return PositionsFloat;
+	return MoveTemp(PositionsFloat);
 }
 
 const TArray<int32> UNearestNeighborTrainingModel::GetMeshIndexBuffer() const
