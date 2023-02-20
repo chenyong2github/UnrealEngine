@@ -71,7 +71,7 @@ public class Flite : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicIncludePaths.Add(FliteIncludePath);
+		PublicSystemIncludePaths.Add(FliteIncludePath);
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{

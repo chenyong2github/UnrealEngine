@@ -100,6 +100,6 @@ public class BinkMediaPlayerSDK : ModuleRules
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, Lib));
 		}
-        PublicIncludePaths.Add(IncDirectory);
+        PublicSystemIncludePaths.Add(IncDirectory);
 	}
 }
