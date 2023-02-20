@@ -668,6 +668,17 @@ void FNiagaraWorldManager::PreGarbageCollect()
 			}
 		}
 	}
+	
+	for (auto It = ScalabilityManagers.CreateIterator(); It; ++It)
+	{
+		UNiagaraEffectType* EffectType = It.Key();
+		FNiagaraScalabilityManager& ScalabilityMan = It.Value();
+
+		if(!IsValid(EffectType) || ScalabilityMan.NumRegisteredComponents() == 0)
+		{
+			It.RemoveCurrent();
+		}
+	}
 }
 
 void FNiagaraWorldManager::PostReachabilityAnalysis()

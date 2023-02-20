@@ -611,8 +611,6 @@ FNiagaraSystemSimulationTickContext::FNiagaraSystemSimulationTickContext(class F
 
 void FNiagaraSystemSimulation::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	//We keep a hard ref to the system.
-	Collector.AddReferencedObject(EffectType);
 }
 
 FNiagaraSystemSimulation::FNiagaraSystemSimulation()
@@ -2148,9 +2146,9 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 	}
 
 	check(IsInGameThread());
-	if (EffectType)
+	if (UNiagaraEffectType* FXType = EffectType.Get())
 	{
-		--EffectType->NumInstances;
+		--FXType->NumInstances;
 	}
 
 	// Remove from pending promotions list
@@ -2198,10 +2196,10 @@ void FNiagaraSystemSimulation::AddInstance(FNiagaraSystemInstance* Instance)
 		System->RegisterActiveInstance();
 	}
 
-	if (EffectType)
+	if (UNiagaraEffectType* FXType = EffectType.Get())
 	{
-		++EffectType->NumInstances;
-		EffectType->bNewSystemsSinceLastScalabilityUpdate = true;
+		++FXType->NumInstances;
+		FXType->bNewSystemsSinceLastScalabilityUpdate = true;
 	}
 
 	check(GetSystemInstances(ENiagaraSystemInstanceState::Running).Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());

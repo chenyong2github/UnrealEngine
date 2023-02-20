@@ -360,7 +360,7 @@ protected:
 	UNiagaraSystem* System;
 
 	/** We cache off the effect type in the unlikely even that someone GCs the System from under us so that we can keep the effect types instance count etc accurate. */
-	UNiagaraEffectType* EffectType;
+	TWeakObjectPtr<UNiagaraEffectType> EffectType;
 
 	/** Which tick group we are in, only valid when not in Solo mode. */
 	ETickingGroup SystemTickGroup = TG_MAX;

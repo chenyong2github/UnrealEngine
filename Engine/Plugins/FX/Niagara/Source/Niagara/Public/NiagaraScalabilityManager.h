@@ -75,6 +75,8 @@ struct FNiagaraScalabilityManager
 
 	void OnRefreshOwnerAllowsScalability();
 
+	int32 NumRegisteredComponents()const { return ManagedComponents.Num(); }
+
 #if DEBUG_SCALABILITY_STATE
 	void Dump();
 #endif
