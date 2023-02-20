@@ -1688,20 +1688,18 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 
 		{
-			static IConsoleVariable* MobileShadingPathCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.ShadingPath"));			
-			if (MobileShadingPathCVar)
+			bool bIsMobileDeferredShading = IsMobileDeferredShadingEnabled(Platform);
+
+			if (bIsMobileDeferredShading)
 			{
-				if (MobileShadingPathCVar->GetInt() != 0)
+				KeyString += (MobileUsesExtenedGBuffer(Platform) ? TEXT("_MobDShEx") : TEXT("_MobDSh"));
+			}
+			else
+			{
+				static IConsoleVariable* MobileForwardEnableClusteredReflectionsCVAR = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.Forward.EnableClusteredReflections"));
+				if (MobileForwardEnableClusteredReflectionsCVAR && MobileForwardEnableClusteredReflectionsCVAR->GetInt() != 0)
 				{
-					KeyString += (MobileUsesExtenedGBuffer(Platform) ? TEXT("_MobDShEx") : TEXT("_MobDSh"));
-				}
-				else
-				{
-					static IConsoleVariable* MobileForwardEnableClusteredReflectionsCVAR = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.Forward.EnableClusteredReflections"));
-					if (MobileForwardEnableClusteredReflectionsCVAR && MobileForwardEnableClusteredReflectionsCVAR->GetInt() != 0)
-					{
-						KeyString += TEXT("_MobFCR");
-					}
+					KeyString += TEXT("_MobFCR");
 				}
 			}
 		}
