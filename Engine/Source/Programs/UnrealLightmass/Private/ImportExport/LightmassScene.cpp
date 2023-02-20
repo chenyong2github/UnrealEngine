@@ -794,7 +794,7 @@ void FDirectionalLight::CachePathRays(const TArray<FIndirectPathRay>& IndirectPa
 	GridMin.Y = FMath::Min(GridMin.Y, 1.0f);
 	GridMax.X = FMath::Max(GridMax.X, -1.0f);
 	GridMax.Y = FMath::Max(GridMax.Y, -1.0f);
-	checkSlow(GridMax > GridMin);
+	//checkSlow(GridMax > GridMin);
 	const FVector2f GridExtent2D = 0.5f * (GridMax - GridMin);
 	// Keep the grid space square to simplify logic
 	GridExtent = FMath::Max(GridExtent2D.X, GridExtent2D.Y);

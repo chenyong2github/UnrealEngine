@@ -6,8 +6,8 @@
 #include "Audio.h"
 #include <ogg/os_types.h>
 #include <vorbis/codec.h>
-#if PLATFORM_WINDOWS
 #include "Misc/Paths.h"
+#if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
 #endif
 
