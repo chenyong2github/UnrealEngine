@@ -334,11 +334,6 @@ namespace UE::PixelStreamingServers
 		// Send config to newly connected player, which kicks off making a new RTC connection
 		TSharedPtr<FJsonObject> ConfigJSON = CreateConfigJSON();
 		SendPlayerMessage(ConnectionId, ConfigJSON);
-
-		if (StreamersWS->Count() == 1)
-		{
-			SubscribePlayer(ConnectionId, StreamersWS->GetConnectionNames()[0]);
-		}
 	}
 
 	void FSignallingServer::OnPlayerDisconnected(uint16 ConnectionId)
