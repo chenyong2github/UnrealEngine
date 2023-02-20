@@ -143,7 +143,7 @@ bool FLinkerLoad::ShouldCreateThrottledSlowTask() const
 	return ShouldReportProgress();
 }
 
-int32 GTreatVerifyImportErrorsAsWarnings = 0;
+COREUOBJECT_API int32 GTreatVerifyImportErrorsAsWarnings = 0;
 static FAutoConsoleVariableRef CVarTreatVerifyImportErrorsAsWarnings(
 	TEXT("linker.TreatVerifyImportErrorsAsWarnings"),
 	GTreatVerifyImportErrorsAsWarnings,
