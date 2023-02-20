@@ -31,7 +31,7 @@ struct FTcpMessageHeader
 	{
 		return
 			MagicNumber == TCP_MESSAGING_TRANSPORT_PROTOCOL_MAGIC &&
-			Version == ETcpMessagingVersion::OldestSupportedVersion &&
+			Version >= ETcpMessagingVersion::OldestSupportedVersion &&
 			NodeId.IsValid();
 	}
 
