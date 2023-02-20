@@ -44,19 +44,23 @@ public:
 		RHI_VALIDATION_CHECK((ThreadGroupCountZ <= (uint32)GRHIMaxDispatchThreadGroupsPerDimension.Z), *FString::Printf(TEXT("ThreadGroupCountZ is invalid: %u. Must be greater than 0 and less than %d"), ThreadGroupCountZ, GRHIMaxDispatchThreadGroupsPerDimension.Z));
 	}
 
-	static inline void ValidateIndirectArgsBuffer(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
+	static inline void ValidateIndirectArgsBuffer(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset, uint32 ArgumentSize, uint32 ArgumentsBoundarySize)
 	{
-		auto GetBufferDesc = [&]() -> FString { return FString::Printf(TEXT("Buffer: %s, Size: %u, Stride: %u, Offset: %u"), ArgumentBuffer->GetDebugName(), ArgumentBuffer->GetSize(), ArgumentBuffer->GetStride(), ArgumentOffset); };
-
+		auto GetBufferDesc = [&]() -> FString { return FString::Printf(TEXT("Buffer: %s, Size: %u, Stride: %u, Offset: %u, ArgSize: %u"), ArgumentBuffer->GetDebugName(), ArgumentBuffer->GetSize(), ArgumentBuffer->GetStride(), ArgumentOffset, ArgumentSize); };
 		RHI_VALIDATION_CHECK(EnumHasAnyFlags(ArgumentBuffer->GetUsage(), EBufferUsageFlags::VertexBuffer), *FString::Printf(TEXT("Indirect argument buffer must be a vertex buffer to be used as an indirect dispatch parameter. %s"), *GetBufferDesc()));
 		RHI_VALIDATION_CHECK(EnumHasAnyFlags(ArgumentBuffer->GetUsage(), EBufferUsageFlags::DrawIndirect), *FString::Printf(TEXT("Indirect dispatch parameter buffer was not flagged with BUF_DrawIndirect. %s"), *GetBufferDesc()));
-		RHI_VALIDATION_CHECK((ArgumentOffset % 4) == 0, *FString::Printf(TEXT("Offset into buffer for compute shader indirect dispatch must be a multiple of 4. %s"), *GetBufferDesc()));
-		RHI_VALIDATION_CHECK((ArgumentOffset + ArgumentBuffer->GetStride()) <= ArgumentBuffer->GetSize(),
-			*FString::Printf(TEXT("Indirect parameter buffer for compute shader indirect dispatch at byte offset %u doesn't have enough room for one element. %s"), ArgumentOffset, *GetBufferDesc()));
-#if PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE != 0
-		RHI_VALIDATION_CHECK(ArgumentOffset / PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE == (ArgumentOffset + ArgumentBuffer->GetStride() - 1) / PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE,
-			*FString::Printf(TEXT("Compute indirect dispatch arguments cannot cross %d byte boundary. %s"), PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE, *GetBufferDesc()));
-#endif // #if PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE != 0
+		RHI_VALIDATION_CHECK((ArgumentOffset % 4) == 0, *FString::Printf(TEXT("Indirect argument offset must be a multiple of 4. %s"), *GetBufferDesc()));
+		RHI_VALIDATION_CHECK((ArgumentOffset + ArgumentSize) <= ArgumentBuffer->GetSize(), *FString::Printf(TEXT("Indirect argument doesn't fit in the buffer. %s"), *GetBufferDesc()));
+		if (ArgumentsBoundarySize > 0)
+		{
+			RHI_VALIDATION_CHECK(ArgumentOffset / ArgumentsBoundarySize == (ArgumentOffset + sizeof(FRHIDispatchIndirectParametersNoPadding) - 1) / ArgumentsBoundarySize,
+				*FString::Printf(TEXT("Indirect arguments cannot cross %d byte boundary. %s"), ArgumentsBoundarySize, *GetBufferDesc()));
+		}
+	}
+
+	static inline void ValidateDispatchIndirectArgsBuffer(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
+	{
+		ValidateIndirectArgsBuffer(ArgumentBuffer, ArgumentOffset, sizeof(FRHIDispatchIndirectParametersNoPadding), PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE);
 	}
 
 	virtual void Init() override final
