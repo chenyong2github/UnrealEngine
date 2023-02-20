@@ -17,28 +17,23 @@ void UDMXPixelMappingColorSpace_xyY::SetRGBA(const FLinearColor& InColor)
 		SRGBColorSpace;
 
 	// Convert RGB to CIE XYZ
-	const FMatrix44d Matrix = InputColorSpace.GetRgbToXYZ();
+	const FMatrix44d& Matrix = InputColorSpace.GetRgbToXYZ();
 	const FVector4 XYZW = Matrix.TransformVector(FVector(InColor));
-
-	const double SumXYZ = XYZW.X + XYZW.Y + XYZW.Z;
-
-	// Calculate chromaticity coordinates x and y, use white point if SumXYZ is zero
-	const double x = SumXYZ > 0.f ? XYZW.X / SumXYZ : 0.3127;
-	const double y = SumXYZ > 0.f ? XYZW.Y / SumXYZ : 0.3290;
+	const FVector3d xyY = UE::Color::XYZToxyY(XYZW);
 
 	if (XAttribute.IsValid())
 	{
-		SetAttributeValue(XAttribute, x);
+		SetAttributeValue(XAttribute, xyY[0]);
 	}
 
 	if (YAttribute.IsValid())
 	{
-		SetAttributeValue(YAttribute, y);
+		SetAttributeValue(YAttribute, xyY[1]);
 	}
 
 	if (LuminanceAttribute.IsValid())
 	{
-		const float Luminance = FMath::Clamp(XYZW.Y, MinLuminance, MaxLuminance);
+		const float Luminance = FMath::Clamp(xyY[2], MinLuminance, MaxLuminance);
 		SetAttributeValue(LuminanceAttribute, Luminance);
 	}
 }
