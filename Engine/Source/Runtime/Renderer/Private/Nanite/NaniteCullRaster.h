@@ -126,8 +126,8 @@ struct FRasterContext
 	FRDGTextureRef		DbgBuffer64;
 	FRDGTextureRef		DbgBuffer32;
 
-	uint32				VisualizeModeBitMask;
 	bool				VisualizeActive;
+	bool				VisualizeModeOverdraw;
 
 	bool				bCustomPass;
 };

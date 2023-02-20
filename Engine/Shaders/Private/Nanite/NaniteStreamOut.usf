@@ -445,7 +445,7 @@ struct FNaniteTraversalStreamOutCallback
 		FCluster Cluster = GetCluster(CandidateCluster.PageIndex, CandidateCluster.ClusterIndex);
 
 		bool bSmallEnoughToDraw = StreamOutCutError > Cluster.LODError;
-		bool bVisible = bSmallEnoughToDraw || (Cluster.Flags & NANITE_CLUSTER_FLAG_LEAF);
+		bool bVisible = bSmallEnoughToDraw || (Cluster.Flags & NANITE_CLUSTER_FLAG_STREAMING_LEAF);
 
 		BRANCH
 		if (bVisible)

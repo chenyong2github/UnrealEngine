@@ -901,7 +901,7 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER( FIntVector4,	PageConstants )
 	SHADER_PARAMETER( uint32,		MaxVisibleClusters )
 	SHADER_PARAMETER( uint32,		RenderFlags )
-	SHADER_PARAMETER( uint32,		VisualizeModeBitMask )
+	SHADER_PARAMETER( uint32,		VisualizeModeOverdraw )
 	SHADER_PARAMETER( uint32,		ActiveRasterizerBin )
 	SHADER_PARAMETER( FVector2f,	HardwareViewportSize )
 
@@ -3169,7 +3169,7 @@ FBinningData AddPass_Rasterize(
 	RasterPassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 	RasterPassParameters->GPUSceneParameters = GPUSceneParameters;
 	RasterPassParameters->RasterParameters = RasterParameters;
-	RasterPassParameters->VisualizeModeBitMask = RasterContext.VisualizeModeBitMask;
+	RasterPassParameters->VisualizeModeOverdraw = RasterContext.VisualizeModeOverdraw ? 1u : 0u;
 	RasterPassParameters->PageConstants = PageConstants;
 	RasterPassParameters->HardwareViewportSize = FVector2f(ViewRect.Width(), ViewRect.Height());
 	RasterPassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
@@ -3465,11 +3465,11 @@ FRasterContext InitRasterContext(
 	{
 		if (VisualizationData.GetActiveModeID() == 0) // Overview
 		{
-			RasterContext.VisualizeModeBitMask = VisualizationData.GetOverviewModeBitMask();
+			RasterContext.VisualizeModeOverdraw = VisualizationData.GetOverviewModeIDs().Contains(NANITE_VISUALIZE_OVERDRAW);
 		}
 		else
 		{
-			RasterContext.VisualizeModeBitMask |= VisualizationData.GetActiveModeID();
+			RasterContext.VisualizeModeOverdraw = (VisualizationData.GetActiveModeID() == NANITE_VISUALIZE_OVERDRAW);
 		}
 	}
 
@@ -3723,6 +3723,19 @@ void CullRasterize(
 		CullingContext.NumInstancesPreCull = Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize();
 	}
 
+	
+	{
+		CullingContext.DebugFlags &= ~NANITE_DEBUG_FLAG_RENDER_ONLY_ROOT_DATA;
+		if (SceneView.Family->EngineShowFlags.VisualizeNanite)
+		{
+			const FNaniteVisualizationData& VisualizationData = GetNaniteVisualizationData();
+			if (VisualizationData.IsActive() && VisualizationData.GetActiveModeID() == NANITE_VISUALIZE_ROOT_GEOMETRY)
+			{
+				CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_RENDER_ONLY_ROOT_DATA;
+			}
+		}
+	}
+	
 	if (CullingContext.DebugFlags != 0)
 	{
 		FNaniteStats Stats;

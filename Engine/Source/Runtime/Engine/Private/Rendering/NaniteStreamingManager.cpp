@@ -134,23 +134,6 @@ static FAutoConsoleVariableRef CVarNaniteStreamingPrefetch(
 	ECVF_RenderThreadSafe
 );
 
-static int32 GNaniteStreamingTrimLockRegion = 1;
-static FAutoConsoleVariableRef CVarNaniteStreamingTrimLockRegion(
-	TEXT("r.Nanite.Streaming.Debug.TrimLockRegion"),
-	GNaniteStreamingTrimLockRegion,
-	TEXT("Debug: Trim the upload buffer lock region to the smallest PO2 that will fit the data."),
-	ECVF_RenderThreadSafe
-);
-
-static int32 GNaniteStreamingPersistPageUploadBuffer = 0;
-static FAutoConsoleVariableRef CVarNaniteStreamingPersistPageUploadBuffer(
-	TEXT("r.Nanite.Streaming.Debug.PersistPageUploadBuffer"),
-	GNaniteStreamingPersistPageUploadBuffer,
-	TEXT("Debug: Persist an upload buffer of maximum size seen so far. If disabled, it will allocate a new pooled buffer of minimal (PO2) size on every upload."),
-	ECVF_RenderThreadSafe
-);
-
-
 static_assert(NANITE_MAX_GPU_PAGES_BITS + MAX_RUNTIME_RESOURCE_VERSIONS_BITS + NANITE_STREAMING_REQUEST_MAGIC_BITS <= 32,	"Streaming request member RuntimeResourceID_Magic doesn't fit in 32 bits");
 static_assert(NANITE_MAX_RESOURCE_PAGES_BITS + NANITE_MAX_GROUP_PARTS_BITS + NANITE_STREAMING_REQUEST_MAGIC_BITS <= 32,			"Streaming request member PageIndex_NumPages_Magic doesn't fit in 32 bits");
 
@@ -227,8 +210,8 @@ class FTranscodePageToGPU_CS : public FGlobalShader
 		SHADER_PARAMETER(uint32,								StartPageIndex)
 		SHADER_PARAMETER(FIntVector4,							PageConstants)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPageInstallInfo>,InstallInfoBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>,			PageDependenciesBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer,					SrcPageBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>,	PageDependenciesBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer,		SrcPageBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer,	DstPageBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -264,8 +247,73 @@ class FClearStreamingRequestCount_CS : public FGlobalShader
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FClearStreamingRequestCount_CS, "/Engine/Private/Nanite/NaniteClusterCulling.usf", "ClearStreamingRequestCount", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FClearStreamingRequestCount_CS, "/Engine/Private/Nanite/NaniteStreaming.usf", "ClearStreamingRequestCount", SF_Compute);
 
+class FUpdateClusterLeafFlags_CS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FUpdateClusterLeafFlags_CS);
+	SHADER_USE_PARAMETER_STRUCT(FUpdateClusterLeafFlags_CS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, NumClusterUpdates)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PackedClusterUpdates)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, ClusterPageBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FUpdateClusterLeafFlags_CS, "/Engine/Private/Nanite/NaniteStreaming.usf", "UpdateClusterLeafFlags", SF_Compute);
+
+static void AddPass_ClearStreamingRequestCount(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAVRef)
+{
+	// Need to always clear streaming requests on all GPUs.  We sometimes write to streaming request buffers on a mix of
+	// GPU masks (shadow rendering on all GPUs, other passes on a single GPU), and we need to make sure all are clear
+	// when they get used again.
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+
+	FClearStreamingRequestCount_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearStreamingRequestCount_CS::FParameters>();
+	PassParameters->OutStreamingRequests = BufferUAVRef;
+
+	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FClearStreamingRequestCount_CS>();
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("ClearStreamingRequestCount"),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, 1)
+	);
+}
+
+static void AddPass_UpdateClusterLeafFlags(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef ClusterPageBufferUAV, const TArray<uint32>& PackedUpdates)
+{
+	const uint32 NumClusterUpdates = PackedUpdates.Num();
+
+	const uint32 NumUpdatesBufferElements = FMath::RoundUpToPowerOfTwo(NumClusterUpdates);
+	FRDGBufferRef UpdatesBuffer = CreateStructuredBuffer(	GraphBuilder, TEXT("Nanite.PackedClusterUpdatesBuffer"), PackedUpdates.GetTypeSize(),
+															NumUpdatesBufferElements, PackedUpdates.GetData(), PackedUpdates.Num() * PackedUpdates.GetTypeSize());
+
+	FUpdateClusterLeafFlags_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FUpdateClusterLeafFlags_CS::FParameters>();
+	PassParameters->NumClusterUpdates		= NumClusterUpdates;
+	PassParameters->PackedClusterUpdates	= GraphBuilder.CreateSRV(UpdatesBuffer);
+	PassParameters->ClusterPageBuffer		= ClusterPageBufferUAV;
+
+	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FUpdateClusterLeafFlags_CS>();
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("UpdateClusterLeafFlags"),
+		ComputeShader,
+		PassParameters,
+		FComputeShaderUtils::GetGroupCount(NumClusterUpdates, 64)
+		);
+}
 
 // Lean hash table for deduplicating requests.
 // Linear probing hash table that only supports add and never grows.
@@ -377,15 +425,13 @@ public:
 			PageDependenciesBuffer = nullptr;
 		}
 
-		uint32 PageAllocationSize = FMath::RoundUpToPowerOfTwo(MaxPageBytes); //TODO: Revisit po2 rounding once upload buffer refactor lands
-		if (!GNaniteStreamingPersistPageUploadBuffer || PageAllocationSize > TryGetSize(PageUploadBuffer))
-		{
-			// Add EBufferUsageFlags::Dynamic to skip the unneeded copy from upload to VRAM resource on d3d12 RHI
-			FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateByteAddressUploadDesc(PageAllocationSize);
-			BufferDesc.Usage = BufferDesc.Usage | EBufferUsageFlags::Dynamic;
-			AllocatePooledBuffer(BufferDesc, PageUploadBuffer, TEXT("Nanite.PageUploadBuffer"));
-		}
-
+		const uint32 PageAllocationSize = FMath::RoundUpToPowerOfTwo(MaxPageBytes); //TODO: Revisit po2 rounding once upload buffer refactor lands
+		
+		// Add EBufferUsageFlags::Dynamic to skip the unneeded copy from upload to VRAM resource on d3d12 RHI
+		FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateByteAddressUploadDesc(PageAllocationSize);
+		BufferDesc.Usage = BufferDesc.Usage | EBufferUsageFlags::Dynamic;
+		AllocatePooledBuffer(BufferDesc, PageUploadBuffer, TEXT("Nanite.PageUploadBuffer"));
+	
 		PageDataPtr = (uint8*)RHILockBuffer(PageUploadBuffer->GetRHI(), 0, PageAllocationSize, RLM_WriteOnly);
 	}
 
@@ -533,11 +579,7 @@ public:
 			StartPageIndex += NumPagesInPass;
 		}
 
-		ResetState();
-		if (!GNaniteStreamingPersistPageUploadBuffer)
-		{
-			Release();
-		}
+		Release();
 	}
 private:
 	struct FPageInstallInfo
@@ -699,7 +741,6 @@ void FStreamingManager::ReleaseRHI()
 	ImposterData.Release();
 	ClusterPageData.Release();
 	Hierarchy.Release();
-	ClusterFixupUploadBuffer = {};
 	StreamingRequestsBuffer.SafeRelease();
 
 	delete RequestsHashTable;
@@ -937,8 +978,7 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 
 	const uint32 RuntimeResourceID = Resources.RuntimeResourceID;
 	const uint32 HierarchyOffset = Resources.HierarchyOffset;
-	uint32 Flags = bUninstall ? NANITE_CLUSTER_FLAG_LEAF : 0;
-
+	
 	// Fixup clusters
 	for( uint32 i = 0; i < FixupChunk.Header.NumClusterFixups; i++ )
 	{
@@ -978,10 +1018,11 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 		
 		if(TargetGPUPageIndex != INVALID_PAGE_INDEX)
 		{
-			uint32 ClusterIndex = Fixup.GetClusterIndex();
-			uint32 FlagsOffset = offsetof( FPackedCluster, Flags );
-			uint32 Offset = GPUPageIndexToGPUOffset( TargetGPUPageIndex ) + NANITE_GPU_PAGE_HEADER_SIZE + ( ( FlagsOffset >> 4 ) * NumTargetPageClusters + ClusterIndex ) * 16 + ( FlagsOffset & 15 );
-			ClusterFixupUploadBuffer.Add( Offset / sizeof( uint32 ), &Flags, 1 );
+			const uint32 ClusterIndex = Fixup.GetClusterIndex();
+			const uint32 FlagsOffset = offsetof( FPackedCluster, Flags );
+			const uint32 Offset = GPUPageIndexToGPUOffset( TargetGPUPageIndex ) + NANITE_GPU_PAGE_HEADER_SIZE + ( ( FlagsOffset >> 4 ) * NumTargetPageClusters + ClusterIndex ) * 16 + ( FlagsOffset & 15 );
+			check(Offset < (1u << 31));
+			ClusterLeafFlagUpdates.Add((Offset << 1) | (bUninstall ? 1u : 0u));
 		}
 	}
 
@@ -1706,7 +1747,7 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 		Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_SourceCopy);
 		FRDGBufferRef StreamingRequestsBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.StreamingRequests"));
 		
-		ClearStreamingRequestCount(GraphBuilder, GraphBuilder.CreateUAV(StreamingRequestsBufferRef));
+		AddPass_ClearStreamingRequestCount(GraphBuilder, GraphBuilder.CreateUAV(StreamingRequestsBufferRef));
 
 		StreamingRequestsBuffer = GraphBuilder.ConvertToExternalBuffer(StreamingRequestsBufferRef);
 	}
@@ -1722,10 +1763,10 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AllocBuffers);
 		// Prepare buffers for upload
-		const uint32 NumPages = GNaniteStreamingTrimLockRegion ? AsyncState.NumReadyPages : MaxPageInstallsPerUpdate;
-		PageUploader->Init(GraphBuilder, NumPages, GNaniteStreamingTrimLockRegion ? TotalPageSize : (MaxPageInstallsPerUpdate * NANITE_MAX_PAGE_DISK_SIZE), MaxStreamingPages);
-		ClusterFixupUploadBuffer.Init(GraphBuilder, NumPages * NANITE_MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("Nanite.ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
+		const uint32 NumPages = AsyncState.NumReadyPages;
+		PageUploader->Init(GraphBuilder, NumPages, TotalPageSize, MaxStreamingPages);
 		Hierarchy.UploadBuffer.Init(GraphBuilder, 2 * NumPages * NANITE_MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("Nanite.HierarchyUploadBuffer"));	// Allocate enough to load all selected pages and evict old pages
+		check(ClusterLeafFlagUpdates.Num() == 0);
 	}
 
 	// Find latest most recent ready readback buffer
@@ -2253,10 +2294,11 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UploadPages);
 
-
-		PageUploader->ResourceUploadTo(GraphBuilder, GraphBuilder.RegisterExternalBuffer(ClusterPageData.DataBuffer));
+		const FRDGBufferRef ClusterPageDataBuffer = GraphBuilder.RegisterExternalBuffer(ClusterPageData.DataBuffer);
+		PageUploader->ResourceUploadTo(GraphBuilder, ClusterPageDataBuffer);
 		Hierarchy.UploadBuffer.ResourceUploadTo(GraphBuilder, GraphBuilder.RegisterExternalBuffer(Hierarchy.DataBuffer));
-		ClusterFixupUploadBuffer.ResourceUploadTo(GraphBuilder, GraphBuilder.RegisterExternalBuffer(ClusterPageData.DataBuffer));
+		AddPass_UpdateClusterLeafFlags(GraphBuilder, GraphBuilder.CreateUAV(ClusterPageDataBuffer), ClusterLeafFlagUpdates);
+		ClusterLeafFlagUpdates.Empty();
 
 		NumPendingPages -= AsyncState.NumReadyPages;
 	}
@@ -2298,33 +2340,12 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 		ReadbackBuffer->EnqueueCopy(RHICmdList, Buffer->GetRHI(), 0u);
 	});
 
-	ClearStreamingRequestCount(GraphBuilder, GraphBuilder.CreateUAV(Buffer));
+	AddPass_ClearStreamingRequestCount(GraphBuilder, GraphBuilder.CreateUAV(Buffer));
 
 	ReadbackBuffersWriteIndex = ( ReadbackBuffersWriteIndex + 1u ) % MaxStreamingReadbackBuffers;
 	ReadbackBuffersNumPending = FMath::Min( ReadbackBuffersNumPending + 1u, MaxStreamingReadbackBuffers );
 	StreamingRequestsBufferVersion++;
 }
-
-void FStreamingManager::ClearStreamingRequestCount(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAVRef)
-{
-	// Need to always clear streaming requests on all GPUs.  We sometimes write to streaming request buffers on a mix of
-	// GPU masks (shadow rendering on all GPUs, other passes on a single GPU), and we need to make sure all are clear
-	// when they get used again.
-	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
-
-	FClearStreamingRequestCount_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearStreamingRequestCount_CS::FParameters>();
-	PassParameters->OutStreamingRequests = BufferUAVRef;
-
-	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FClearStreamingRequestCount_CS>();
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("ClearStreamingRequestCount"),
-		ComputeShader,
-		PassParameters,
-		FIntVector(1, 1, 1)
-	);
-}
-
 
 bool FStreamingManager::IsAsyncUpdateInProgress()
 {

@@ -113,7 +113,7 @@ bool NaniteClustersIntersection(
 
 		++NaniteIntersectionResult.ClusterIntersectionCount;
 
-		if ((!bSmallEnoughToDraw && !(Cluster.Flags & NANITE_CLUSTER_FLAG_LEAF)) || !bBoxIntersection)
+		if ((!bSmallEnoughToDraw && !(Cluster.Flags & NANITE_CLUSTER_FLAG_STREAMING_LEAF)) || !bBoxIntersection)
 			continue;
 
 		NaniteIntersectionResult.TriangleIntersectionCount += Cluster.NumTris;

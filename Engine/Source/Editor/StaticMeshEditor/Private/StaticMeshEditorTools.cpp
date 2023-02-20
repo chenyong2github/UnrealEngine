@@ -5337,7 +5337,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 		[
 			SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(LOCTEXT("MinimumResidency", "Minimum Residency"))
+			.Text(LOCTEXT("MinimumResidencyRootGeometry", "Minimum Residency (Root Geometry)"))
 			.ToolTipText(LOCTEXT("ResidencyTooltip", "How much should always be in memory. The rest will be streamed. Higher values require more memory, but also mitigate streaming pop-in issues."))
 		]
 		.ValueContent()

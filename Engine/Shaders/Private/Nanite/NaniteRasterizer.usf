@@ -108,7 +108,7 @@ ViewState ResolveView(FNaniteView NaniteView)
 	return Ret;
 }
 
-uint VisualizeModeBitMask;
+uint VisualizeModeOverdraw;
 
 uint2 GetVisualizeValues()
 {
@@ -123,7 +123,7 @@ uint2 GetVisualizeValues()
 	VisualizeValueMax = 1; // Hardware Raster
 #endif
 
-	if (VisualizeModeBitMask & NANITE_VISUALIZE_OVERDRAW)
+	if (VisualizeModeOverdraw)
 	{
 		VisualizeValueAdd = 1;
 	}

@@ -31,11 +31,8 @@
 #define CHECK_AND_TRIM_CLUSTER_COUNT (CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN || CULLING_PASS == CULLING_PASS_OCCLUSION_POST)
 
 #if NANITE_HIERARCHY_TRAVERSAL
-
 #	define NANITE_HIERARCHY_TRAVERSAL_TYPE (CULLING_TYPE)
-
 #	include "NaniteHierarchyTraversal.ush"
-
 #endif
 
 #include "../Common.ush"
@@ -46,10 +43,9 @@
 #include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
 #endif
 #include "NaniteCullingCommon.ush"
-
 #include "NaniteDataDecode.ush"
 #include "NaniteHZBCull.ush"
-#include "NaniteCulling.ush"
+#include "NaniteStreaming.ush"
 #include "../GPUMessaging.ush"
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
@@ -64,13 +60,6 @@ groupshared uint GroupOccludedBitmask[NANITE_MAX_BVH_NODES_PER_GROUP];
 
 RWCoherentByteAddressBuffer	MainAndPostNodesAndClusterBatches;
 RWCoherentByteAddressBuffer	MainAndPostCandididateClusters;
-
-struct FStreamingRequest
-{
-	uint RuntimeResourceID_Magic;
-	uint PageIndex_NumPages_Magic;
-	uint Priority_Magic;
-};
 
 Buffer<uint>							OffsetClustersArgsSWHW;
 StructuredBuffer<uint2>					InTotalPrevDrawClusters;
@@ -182,30 +171,6 @@ bool SmallEnoughToDraw( FNaniteView NaniteView, FInstanceSceneData InstanceData,
 	}
 
 	return bVisible;
-}
-
-void RequestPageRange( uint RuntimeResourceID, uint StartPageIndex, uint NumPages, uint PriorityCategory, float Priority )
-{
-	if ((RenderFlags & NANITE_RENDER_FLAG_OUTPUT_STREAMING_REQUESTS) && NumPages > 0)
-	{
-		uint Index;
-		WaveInterlockedAddScalar_(OutStreamingRequests[0].RuntimeResourceID_Magic, 1, Index);	// HACK: Store count in RuntimeResourceID_Magic of first request.
-		if (Index < NANITE_MAX_STREAMING_REQUESTS - 1)
-		{
-			FStreamingRequest Request;
-			Request.RuntimeResourceID_Magic		= (RuntimeResourceID << NANITE_STREAMING_REQUEST_MAGIC_BITS);
-			Request.PageIndex_NumPages_Magic	= (((StartPageIndex << NANITE_MAX_GROUP_PARTS_BITS) | NumPages) << NANITE_STREAMING_REQUEST_MAGIC_BITS);
-			const uint UIntPriority				= (PriorityCategory << 30) | (asuint(Priority) >> 2);
-			Request.Priority_Magic				= UIntPriority & ~NANITE_STREAMING_REQUEST_MAGIC_MASK;		// Mask off low bits to leave space for magic
-#if NANITE_SANITY_CHECK_STREAMING_REQUESTS
-			const uint FrameNibble = StreamingRequestsBufferVersion & 0xF;
-			Request.RuntimeResourceID_Magic		|= 0xA0 | FrameNibble;
-			Request.PageIndex_NumPages_Magic	|= 0xB0 | FrameNibble;
-			Request.Priority_Magic				|= 0xC0 | FrameNibble;
-#endif
-			OutStreamingRequests[Index + 1]		= Request;
-		}
-	}
 }
 
 #if NANITE_HIERARCHY_TRAVERSAL
@@ -371,7 +336,7 @@ struct FNaniteTraversalClusterCullCallback
 	{
 		if (bVisible && HierarchyNodeSlice.bLeaf)
 		{
-			RequestPageRange(InstanceData.NaniteRuntimeResourceID, HierarchyNodeSlice.StartPageIndex, HierarchyNodeSlice.NumPages, NaniteView.StreamingPriorityCategory, StreamingPriority);
+			RequestPageRange(OutStreamingRequests, InstanceData.NaniteRuntimeResourceID, HierarchyNodeSlice.StartPageIndex, HierarchyNodeSlice.NumPages, NaniteView.StreamingPriorityCategory, StreamingPriority);
 		}
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
@@ -549,7 +514,19 @@ struct FNaniteTraversalClusterCullCallback
 				if ((VisibleCluster.Flags & NANITE_CULLING_FLAG_TEST_LOD) != 0)
 #endif
 				{
-					bVisible = SmallEnoughToDraw(NaniteView, InstanceData, DynamicData, Cluster.LODBounds, Cluster.LODError, Cluster.EdgeLength, bUseHWRaster) || (Cluster.Flags & NANITE_CLUSTER_FLAG_LEAF);
+
+					const bool bSmallEnoughToDraw = SmallEnoughToDraw(NaniteView, InstanceData, DynamicData, Cluster.LODBounds, Cluster.LODError, Cluster.EdgeLength, bUseHWRaster);
+
+#if DEBUG_FLAGS
+					if ((DebugFlags & NANITE_DEBUG_FLAG_RENDER_ONLY_ROOT_DATA) != 0u)
+					{
+						bVisible = (Cluster.Flags & NANITE_CLUSTER_FLAG_ROOT_GROUP) && (bSmallEnoughToDraw || (Cluster.Flags & NANITE_CLUSTER_FLAG_ROOT_LEAF));
+					}
+					else
+#endif
+					{
+						bVisible = bSmallEnoughToDraw || (Cluster.Flags & NANITE_CLUSTER_FLAG_STREAMING_LEAF);
+					}
 				}
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 				else
@@ -967,12 +944,6 @@ void InitCullArgs()
 	OutCullArgs[1] = 1;
 	OutCullArgs[2] = 1;
 #endif
-}
-
-[numthreads(1, 1, 1)]
-void ClearStreamingRequestCount()
-{
-	OutStreamingRequests[0].RuntimeResourceID_Magic = 0;	// First entry holds count
 }
 
 Buffer<uint> InMainRasterizerArgsSWHW;

@@ -26,110 +26,41 @@ struct FPageKey
 {
 	uint32 RuntimeResourceID	= INDEX_NONE;
 	uint32 PageIndex			= INDEX_NONE;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FPageKey& Key)
+	{
+		return Key.RuntimeResourceID * 0xFC6014F9u + Key.PageIndex * 0x58399E77u;
+	}
+
+	FORCEINLINE bool operator==(const FPageKey& Other) const 
+	{
+		return RuntimeResourceID == Other.RuntimeResourceID && PageIndex == Other.PageIndex;
+	}
+
+	FORCEINLINE bool operator!=(const FPageKey& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	FORCEINLINE bool operator<(const FPageKey& Other) const
+	{
+		return RuntimeResourceID != Other.RuntimeResourceID ? RuntimeResourceID < Other.RuntimeResourceID : PageIndex < Other.PageIndex;
+	}
 };
 
-FORCEINLINE uint32 GetTypeHash( const FPageKey& Key )
-{
-	return Key.RuntimeResourceID * 0xFC6014F9u + Key.PageIndex * 0x58399E77u;
-}
-
-FORCEINLINE bool operator==( const FPageKey& A, const FPageKey& B )
-{
-	return A.RuntimeResourceID == B.RuntimeResourceID && A.PageIndex == B.PageIndex;
-}
-
-FORCEINLINE bool operator!=(const FPageKey& A, const FPageKey& B)
-{
-	return !(A == B);
-}
-
-FORCEINLINE bool operator<(const FPageKey& A, const FPageKey& B)
-{
-	return A.RuntimeResourceID != B.RuntimeResourceID ? A.RuntimeResourceID < B.RuntimeResourceID : A.PageIndex < B.PageIndex;
-}
-
-
-// Before deduplication
-struct FGPUStreamingRequest
-{
-	uint32		RuntimeResourceID_Magic;
-	uint32		PageIndex_NumPages_Magic;
-	uint32		Priority_Magic;
-};
-
-// After deduplication
 struct FStreamingRequest
 {
 	FPageKey	Key;
 	uint32		Priority;
-};
-
-FORCEINLINE bool operator<(const FStreamingRequest& A, const FStreamingRequest& B)
-{
-	return A.Key != B.Key ? A.Key < B.Key : A.Priority > B.Priority;
-}
-
-struct FStreamingPageInfo
-{
-	FStreamingPageInfo* Next;
-	FStreamingPageInfo* Prev;
-
-	FPageKey	RegisteredKey;
-	FPageKey	ResidentKey;
 	
-	uint32		GPUPageIndex;
-	uint32		LatestUpdateIndex;
-	uint32		RefCount;
-};
-
-struct FPrioritizedStreamingPage
-{
-	FStreamingPageInfo* Page;
-	uint32 Priority;
-};
-
-struct FRootPageInfo
-{
-	uint32	RuntimeResourceID;
-	uint32	NumClusters;
-};
-
-struct FPendingPage
-{
-#if WITH_EDITOR
-	FSharedBuffer			SharedBuffer;
-	enum class EState
+	FORCEINLINE bool operator<(const FStreamingRequest& Other) const 
 	{
-		None,
-		DDC_Pending,
-		DDC_Ready,
-		DDC_Failed,
-		Memory,
-		Disk,
-	} State = EState::None;
-	uint32					RetryCount = 0;
-#endif
-	FIoBuffer				RequestBuffer;
-	FBulkDataBatchReadRequest Request;
-
-	uint32					GPUPageIndex = INDEX_NONE;
-	FPageKey				InstallKey;
-#if !UE_BUILD_SHIPPING
-	uint32					BytesLeftToStream = 0;
-#endif
+		return Key != Other.Key ? Key < Other.Key : Priority > Other.Priority;
+	}
 };
 
 class FRequestsHashTable;
 class FStreamingPageUploader;
-
-struct FAsyncState
-{
-	FRHIGPUBufferReadback*	LatestReadbackBuffer		= nullptr;
-	const uint32*			LatestReadbackBufferPtr		= nullptr;
-	uint32					NumReadyPages				= 0;
-	bool					bUpdateActive				= false;
-	bool					bBuffersTransitionedToWrite = false;
-};
 
 /*
  * Streaming manager for Nanite.
@@ -155,7 +86,10 @@ public:
 		return GraphBuilder.RegisterExternalBuffer(StreamingRequestsBuffer);
 	}
 
-	uint32		GetStreamingRequestsBufferVersion() { return StreamingRequestsBufferVersion; }
+	uint32 GetStreamingRequestsBufferVersion() const
+	{
+		return StreamingRequestsBufferVersion;
+	}
 
 	FRDGBufferSRV* GetHierarchySRV(FRDGBuilder& GraphBuilder) const
 	{
@@ -172,7 +106,10 @@ public:
 		return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(ImposterData.DataBuffer));
 	}
 
-	uint32		GetMaxStreamingPages() const			{ return MaxStreamingPages; }
+	uint32 GetMaxStreamingPages() const	
+	{
+		return MaxStreamingPages;
+	}
 
 	inline bool HasResourceEntries() const
 	{
@@ -194,6 +131,78 @@ public:
 private:
 	friend class FStreamingUpdateTask;
 
+	struct FStreamingPageInfo
+	{
+		FStreamingPageInfo* Next;
+		FStreamingPageInfo* Prev;
+
+		FPageKey	RegisteredKey;
+		FPageKey	ResidentKey;
+
+		uint32		GPUPageIndex;
+		uint32		LatestUpdateIndex;
+		uint32		RefCount;
+	};
+
+	struct FPrioritizedStreamingPage
+	{
+		FStreamingPageInfo* Page;
+		uint32 Priority;
+	};
+
+	struct FRootPageInfo
+	{
+		uint32	RuntimeResourceID;
+		uint32	NumClusters;
+	};
+
+	struct FGPUStreamingRequest
+	{
+		uint32		RuntimeResourceID_Magic;
+		uint32		PageIndex_NumPages_Magic;
+		uint32		Priority_Magic;
+	};
+
+	struct FResourcePrefetch
+	{
+		uint32 RuntimeResourceID;
+		uint32 NumFramesUntilRender;
+	};
+
+	struct FAsyncState
+	{
+		FRHIGPUBufferReadback*	LatestReadbackBuffer = nullptr;
+		const uint32*			LatestReadbackBufferPtr = nullptr;
+		uint32					NumReadyPages = 0;
+		bool					bUpdateActive = false;
+		bool					bBuffersTransitionedToWrite = false;
+	};
+
+	struct FPendingPage
+	{
+#if WITH_EDITOR
+		FSharedBuffer			SharedBuffer;
+		enum class EState
+		{
+			None,
+			DDC_Pending,
+			DDC_Ready,
+			DDC_Failed,
+			Memory,
+			Disk,
+		} State = EState::None;
+		uint32					RetryCount = 0;
+#endif
+		FIoBuffer				RequestBuffer;
+		FBulkDataBatchReadRequest Request;
+
+		uint32					GPUPageIndex = INDEX_NONE;
+		FPageKey				InstallKey;
+#if !UE_BUILD_SHIPPING
+		uint32					BytesLeftToStream = 0;
+#endif
+	};
+
 	struct FHeapBuffer
 	{
 		int32							TotalUpload = 0;
@@ -210,17 +219,11 @@ private:
 		}
 	};
 
-	struct FResourcePrefetch
-	{
-		uint32 RuntimeResourceID;
-		uint32 NumFramesUntilRender;
-	};
-
 	FHeapBuffer				ClusterPageData;	// FPackedCluster*, GeometryData { Index, Position, TexCoord, TangentX, TangentZ }*
 	FHeapBuffer				Hierarchy;
 	FHeapBuffer				ImposterData;
-	FRDGScatterUploadBuffer ClusterFixupUploadBuffer;
 	TRefCountPtr< FRDGPooledBuffer > StreamingRequestsBuffer;
+	TArray<uint32>			ClusterLeafFlagUpdates;
 
 	uint32					StreamingRequestsBufferVersion;
 	uint32					MaxStreamingPages;
@@ -288,7 +291,6 @@ private:
 	TArray<FPageKey>						SelectedPages;
 	TArray<FPrioritizedStreamingPage>		UpdatedPages;
 
-
 	void AddPendingGPURequests();
 	void AddPendingExplicitRequests();
 	void AddPendingResourcePrefetchRequests();
@@ -312,8 +314,6 @@ private:
 	void InstallReadyPages( uint32 NumReadyPages );
 
 	void AsyncUpdate();
-
-	void ClearStreamingRequestCount(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAVRef);
 #if DO_CHECK
 	void VerifyPageLRU( FStreamingPageInfo& List, uint32 TargetListLength, bool bCheckUpdateIndex );
 #endif

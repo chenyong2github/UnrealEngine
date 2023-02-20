@@ -178,7 +178,8 @@ struct FPageStreamingState
 	uint32			BulkSize;
 	uint32			PageSize;
 	uint32			DependenciesStart;
-	uint32			DependenciesNum;
+	uint16			DependenciesNum;
+	uint16			MaxHierarchyDepth;
 	uint32			Flags;
 };
 

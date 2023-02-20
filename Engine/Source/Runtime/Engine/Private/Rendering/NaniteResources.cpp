@@ -140,6 +140,7 @@ FArchive& operator<<( FArchive& Ar, FPageStreamingState& PageStreamingState )
 	Ar << PageStreamingState.PageSize;
 	Ar << PageStreamingState.DependenciesStart;
 	Ar << PageStreamingState.DependenciesNum;
+	Ar << PageStreamingState.MaxHierarchyDepth;
 	Ar << PageStreamingState.Flags;
 	return Ar;
 }

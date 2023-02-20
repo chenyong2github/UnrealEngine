@@ -107,6 +107,7 @@ struct FPage
 	uint32	PartsStartIndex = 0;
 	uint32	PartsNum = 0;
 	uint32	NumClusters = 0;
+	uint32	MaxHierarchyDepth = 0;
 	bool	bRelativeEncoding = false;
 
 	FPageSections	GpuSizes;
@@ -658,7 +659,7 @@ static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FClust
 
 	// 4
 	OutCluster.BoxBoundsExtent			= (InCluster.Bounds.Max - InCluster.Bounds.Min) * 0.5f;
-	OutCluster.Flags					= NANITE_CLUSTER_FLAG_LEAF;
+	OutCluster.Flags					= NANITE_CLUSTER_FLAG_STREAMING_LEAF | NANITE_CLUSTER_FLAG_ROOT_LEAF;
 	
 	// 5
 	check(NumTexCoords <= NANITE_MAX_UVS);
@@ -1736,6 +1737,7 @@ static void WritePages(	FResources& Resources,
 		const FFixupChunk& FixupChunk = FixupChunks[PageIndex];
 		FPageStreamingState& PageStreamingState = Resources.PageStreamingStates[PageIndex];
 		PageStreamingState.DependenciesStart = Resources.PageDependencies.Num();
+		PageStreamingState.MaxHierarchyDepth = Pages[PageIndex].MaxHierarchyDepth;
 
 		for (uint32 i = 0; i < FixupChunk.Header.NumClusterFixups; i++)
 		{
@@ -1902,22 +1904,48 @@ static void WritePages(	FResources& Resources,
 		{
 			const FClusterGroupPart& Part = Parts[Page.PartsStartIndex + LocalPartIndex];
 			const FClusterGroup& Group = Groups[Part.GroupIndex];
+			
+			bool bRootGroup = false;
+			{
+				uint32 PageDependencyStart = Group.PageIndexStart;
+				uint32 PageDependencyNum = Group.PageIndexNum;
+				RemoveRootPagesFromRange(PageDependencyStart, PageDependencyNum, Resources.NumRootPages);
+				bRootGroup = (PageDependencyNum == 0);
+			}
+			
 			for (uint32 ClusterPositionInPart = 0; ClusterPositionInPart < (uint32)Part.Clusters.Num(); ClusterPositionInPart++)
 			{
 				const FCluster& Cluster = Clusters[Part.Clusters[ClusterPositionInPart]];
+				uint32& ClusterFlags = PackedClusters[Part.PageClusterOffset + ClusterPositionInPart].Flags;
+
+				if (bRootGroup)
+				{
+					ClusterFlags |= NANITE_CLUSTER_FLAG_ROOT_GROUP;
+				}
+
 				if (Cluster.GeneratingGroupIndex != MAX_uint32)
 				{
 					const FClusterGroup& GeneratingGroup = Groups[Cluster.GeneratingGroupIndex];
 					uint32 PageDependencyStart = GeneratingGroup.PageIndexStart;
 					uint32 PageDependencyNum = GeneratingGroup.PageIndexNum;
 					RemoveRootPagesFromRange(PageDependencyStart, PageDependencyNum, Resources.NumRootPages);
+					if (PageDependencyNum == 0)
+					{
+						// Dependencies met by root pages
+						ClusterFlags &= ~NANITE_CLUSTER_FLAG_ROOT_LEAF;
+					}
+
 					RemovePageFromRange(PageDependencyStart, PageDependencyNum, PageIndex);
 					
 					if (PageDependencyNum == 0)
 					{
-						// Dependencies already met by current page and/or root pages. Fixup directly.
-						PackedClusters[Part.PageClusterOffset + ClusterPositionInPart].Flags &= ~NANITE_CLUSTER_FLAG_LEAF;	// Mark parent as no longer leaf
+						// Dependencies met by current page and/or root pages
+						ClusterFlags &= ~NANITE_CLUSTER_FLAG_STREAMING_LEAF;
 					}
+				}
+				else
+				{
+					ClusterFlags |= NANITE_CLUSTER_FLAG_FULL_LEAF;
 				}
 			}
 		}
@@ -2187,7 +2215,7 @@ struct FIntermediateNode
 	TArray< uint32 >	Children;
 };
 
-static uint32 BuildHierarchyRecursive(TArray<Nanite::FHierarchyNode>& HierarchyNodes, const TArray<FIntermediateNode>& Nodes, const TArray<Nanite::FClusterGroup>& Groups, TArray<Nanite::FClusterGroupPart>& Parts, uint32 CurrentNodeIndex)
+static uint32 BuildHierarchyRecursive(TArray<FPage>& Pages, TArray<Nanite::FHierarchyNode>& HierarchyNodes, const TArray<FIntermediateNode>& Nodes, const TArray<Nanite::FClusterGroup>& Groups, TArray<Nanite::FClusterGroupPart>& Parts, uint32 CurrentNodeIndex, uint32 Depth)
 {
 	const FIntermediateNode& INode = Nodes[ CurrentNodeIndex ];
 	check( INode.PartIndex == MAX_uint32 );
@@ -2221,12 +2249,14 @@ static uint32 BuildHierarchyRecursive(TArray<Nanite::FHierarchyNode>& HierarchyN
 			check(HNode.NumChildren[ChildIndex] <= NANITE_MAX_CLUSTERS_PER_GROUP);
 			Part.HierarchyNodeIndex = HNodeIndex;
 			Part.HierarchyChildIndex = ChildIndex;
+
+			Pages[Part.PageIndex].MaxHierarchyDepth = FMath::Max(Pages[Part.PageIndex].MaxHierarchyDepth, Depth);
 		}
 		else
 		{
 
 			// Hierarchy node
-			uint32 ChildHierarchyNodeIndex = BuildHierarchyRecursive(HierarchyNodes, Nodes, Groups, Parts, ChildNodeIndex);
+			uint32 ChildHierarchyNodeIndex = BuildHierarchyRecursive(Pages, HierarchyNodes, Nodes, Groups, Parts, ChildNodeIndex, Depth + 1);
 
 			const Nanite::FHierarchyNode& ChildHNode = HierarchyNodes[ChildHierarchyNodeIndex];
 
@@ -2426,7 +2456,7 @@ static uint32 BuildHierarchyTopDown(TArray<FIntermediateNode>& Nodes, TArrayView
 	return NewRootIndex;
 }
 
-static void BuildHierarchies(FResources& Resources, const TArray<FClusterGroup>& Groups, TArray<FClusterGroupPart>& Parts, uint32 NumMeshes)
+static void BuildHierarchies(FResources& Resources, TArray<FPage>& Pages, const TArray<FClusterGroup>& Groups, TArray<FClusterGroupPart>& Parts, uint32 NumMeshes)
 {
 	TArray<TArray<uint32>> PartsByMesh;
 	PartsByMesh.SetNum(NumMeshes);
@@ -2531,7 +2561,7 @@ static void BuildHierarchies(FResources& Resources, const TArray<FClusterGroup>&
 #endif
 
 		TArray< FHierarchyNode > HierarchyNodes;
-		BuildHierarchyRecursive(HierarchyNodes, Nodes, Groups, Parts, RootIndex);
+		BuildHierarchyRecursive(Pages, HierarchyNodes, Nodes, Groups, Parts, RootIndex, 0);
 
 		// Convert hierarchy to packed format
 		const uint32 NumHierarchyNodes = HierarchyNodes.Num();
@@ -4355,7 +4385,7 @@ void Encode(
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::BuildHierarchyNodes);
-		BuildHierarchies(Resources, Groups, GroupParts, NumMeshes);
+		BuildHierarchies(Resources, Pages, Groups, GroupParts, NumMeshes);
 	}
 
 	{

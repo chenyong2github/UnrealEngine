@@ -87,11 +87,6 @@ public:
 		return CurrentOverviewModeIDs;
 	}
 
-	inline uint32 GetOverviewModeBitMask() const
-	{
-		return CurrentOverviewModeBitMask;
-	}
-
 	inline const TModeMap& GetModeMap() const
 	{
 		return ModeMap;
@@ -149,8 +144,8 @@ private:
 	/** Tokenized Nanite visualization mode names. */
 	TArray<FName, TInlineAllocator<32>> CurrentOverviewModeNames;
 	TArray<int32, TInlineAllocator<32>> CurrentOverviewModeIDs;
-	uint32 CurrentOverviewModeBitMask = 0x0;
-
+	bool bOverviewListEmpty = true;
+	
 	/** Storage for console variable documentation strings. **/
 	FString ConsoleDocumentationVisualizationMode;
 	FString ConsoleDocumentationOverviewTargets;

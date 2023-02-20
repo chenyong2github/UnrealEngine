@@ -38,6 +38,7 @@ void FNaniteVisualizationData::Initialize()
 		AddVisualizationMode(TEXT("MaterialID"), LOCTEXT("MaterialID", "Material ID"), FModeType::Standard, NANITE_VISUALIZE_MATERIAL_DEPTH, true);
 		AddVisualizationMode(TEXT("LightmapUV"), LOCTEXT("LightmapUV", "Lightmap UV"), FModeType::Standard, NANITE_VISUALIZE_LIGHTMAP_UVS, true);
 		AddVisualizationMode(TEXT("EvaluateWPO"), LOCTEXT("EvaluateWPO", "Evaluate WPO"), FModeType::Standard, NANITE_VISUALIZE_EVALUATE_WORLD_POSITION_OFFSET, true);
+		AddVisualizationMode(TEXT("RootGeometry"), LOCTEXT("RootGeometry", "Root Geometry"), FModeType::Standard, NANITE_VISUALIZE_ROOT_GEOMETRY, true);
 
 		AddVisualizationMode(TEXT("Picking"), LOCTEXT("Picking", "Picking"), FModeType::Advanced, NANITE_VISUALIZE_PICKING, true);
 		AddVisualizationMode(TEXT("Groups"), LOCTEXT("Groups", "Groups"), FModeType::Advanced, NANITE_VISUALIZE_GROUPS, true);
@@ -138,12 +139,12 @@ bool FNaniteVisualizationData::IsActive() const
 	{
 		return false;
 	}
-
-	if (GetActiveModeID() == NANITE_VISUALIZE_OVERVIEW && GetOverviewModeBitMask() == 0x0)
+	
+	if (GetActiveModeID() == NANITE_VISUALIZE_OVERVIEW && bOverviewListEmpty)
 	{
 		return false;
 	}
-
+	
 	return true;
 }
 
@@ -168,7 +169,7 @@ bool FNaniteVisualizationData::Update(const FName& InViewMode)
 				SetCurrentOverviewModeList(OverviewModeList);
 				CurrentOverviewModeNames.Reset();
 				CurrentOverviewModeIDs.Reset();
-				CurrentOverviewModeBitMask = 0x0;
+				bOverviewListEmpty = true;
 
 				// Extract each mode name from the comma separated string
 				while (OverviewModeList.Len())
@@ -200,7 +201,7 @@ bool FNaniteVisualizationData::Update(const FName& InViewMode)
 						else
 						{
 							CurrentOverviewModeIDs.Emplace(ModeID);
-							CurrentOverviewModeBitMask |= ModeID;
+							bOverviewListEmpty = false;
 						}
 
 						CurrentOverviewModeNames.Emplace(ModeName);
