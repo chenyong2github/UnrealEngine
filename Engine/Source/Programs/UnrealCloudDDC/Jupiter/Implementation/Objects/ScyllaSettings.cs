@@ -98,6 +98,11 @@ public class ScyllaSettings : IValidatableObject
     /// </summary>
     public bool MigrateFromOldBlobIndex { get; set; } = true;
 
+    /// <summary>
+    /// Enable to use list namespaces from the old table, this can set for a period while migration from old to new table happens
+    /// </summary>
+    public bool ListObjectsFromOldNamespaceTable { get; set; } = true;
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         List<ValidationResult> results = new List<ValidationResult>();
