@@ -1063,6 +1063,8 @@ static bool CheckForOverlappingSphere(UWorld* InWorld, const UFoliageType* Setti
 
 static bool CheckLocationForPotentialInstance(UWorld* InWorld, const UFoliageType* Settings, const bool bSingleInstanceMode, const FVector& Location, const FVector& Normal, TArray<FVector>& PotentialInstanceLocations, FFoliageInstanceHash& PotentialInstanceHash)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CheckLocationForPotentialInstance);
+
 	if (CheckLocationForPotentialInstance_ThreadSafe(Settings, Location, Normal) == false)
 	{
 		return false;
@@ -1080,14 +1082,10 @@ static bool CheckLocationForPotentialInstance(UWorld* InWorld, const UFoliageTyp
 		}
 
 		// Check with other potential instances we're about to add.
-		const float RadiusSquared = FMath::Square(SettingsRadius);
-		auto TempInstances = PotentialInstanceHash.GetInstancesOverlappingBox(FBox::BuildAABB(Location, FVector(SettingsRadius)));
-		for (int32 Idx : TempInstances)
+		TArrayView<const FVector> InstanceLocationsView = PotentialInstanceLocations;
+		if (PotentialInstanceHash.IsAnyInstanceInSphere([InstanceLocationsView](int32 Index) -> FVector { return InstanceLocationsView[Index]; }, Location, SettingsRadius))
 		{
-			if ((PotentialInstanceLocations[Idx] - Location).SizeSquared() < RadiusSquared)
-			{
-				return false;
-			}
+			return false;
 		}
 	}
 

@@ -2706,14 +2706,9 @@ void FFoliageInfo::GetInstanceAtLocation(const FVector& Location, int32& OutInst
 // Returns whether or not there is are any instances overlapping the sphere specified
 bool FFoliageInfo::CheckForOverlappingSphere(const FSphere& Sphere) const
 {
-	auto TempInstances = InstanceHash->GetInstancesOverlappingBox(FBox::BuildAABB(Sphere.Center, FVector(Sphere.W)));
-	for (int32 Idx : TempInstances)
-	{
-		if (FSphere(Instances[Idx].Location, 0.f).IsInside(Sphere))
-		{
-			return true;
-		}
-	}
+	TArrayView<const FFoliageInstance> InstancesView = Instances;
+	return InstanceHash->IsAnyInstanceInSphere([InstancesView](int32 Index) -> FVector { return InstancesView[Index].Location; }, Sphere.Center, Sphere.W);
+
 	return false;
 }
 
