@@ -62,8 +62,12 @@ class StartViewController : BaseViewController {
         NetUtility.triggerLocalNetworkPrivacyAlert()
         
         self.ipAddress.text = AppSettings.shared.lastConnectionAddress
+        self.ipAddress.inputAssistantItem.leadingBarButtonGroups.removeAll()
+        self.ipAddress.inputAssistantItem.trailingBarButtonGroups.removeAll()
         textFieldChanged(self.ipAddress)
         
+        self.rebuildRecentAddressesBarButtons()
+
         self.tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap))
         self.tapGesture.cancelsTouchesInView = false
         self.tapGesture.delegate = self
@@ -167,6 +171,10 @@ class StartViewController : BaseViewController {
 
         if segue.identifier == "showVideoView" {
 
+            // connection was successful, we save the last address in our recents list
+            AppSettings.shared.addRecentConnectionAddress(AppSettings.shared.lastConnectionAddress)
+            self.rebuildRecentAddressesBarButtons()
+
             if let vc = segue.destination as? VideoViewController {
                 
                 // stop the timer locally which is sending LL identity xform
@@ -193,7 +201,7 @@ class StartViewController : BaseViewController {
         let connectButtonFrame = self.view.convert(connect.frame, from: connect.superview)
         
         if keyboardFrame.minY < connectButtonFrame.maxY {
-            self.entryViewYConstraint.constant = -(self.view.frame.height - keyboardFrame.size.height) / 2.0
+            self.entryViewYConstraint.constant = -keyboardFrame.size.height / 2.0
         } else {
             self.entryViewYConstraint.constant = 0
         }
@@ -209,6 +217,55 @@ class StartViewController : BaseViewController {
 
             UIView.animate(withDuration: 0.2) {
                 self.view.layoutIfNeeded()
+            }
+        }
+    }
+    
+    func rebuildRecentAddressesBarButtons() {
+
+        var view : UIView?
+
+        if let addresses = AppSettings.shared.recentConnectionAddresses {
+            for address in addresses {
+                
+                if view == nil {
+                    view = UIView()
+                }
+
+                let item = UIButton(configuration: UIButton.Configuration.gray())
+                item.setTitle(address, for: .normal)
+                item.setTitleColor(UIColor.white, for: .normal)
+                item.addTarget(self, action: #selector(handleRecentAddressSelection), for: .touchUpInside)
+                
+                view!.addSubview(item)
+                item.layoutToSuperview(.centerY)
+                
+                if view!.subviews.count == 1 {
+                    item.layoutToSuperview(.left)
+                } else {
+                    item.layout(.left, to: .right, of: view!.subviews[view!.subviews.count - 2], offset: 20)
+                }
+            }
+
+        }
+        
+        if let v = view {
+            v.subviews.last?.layoutToSuperview(.right)
+            let inputView = UIInputView(frame: CGRect(x: 0, y: 0, width: 100, height: 50), inputViewStyle: .keyboard)
+            inputView.addSubview(v)
+            v.layoutToSuperview(.top, offset: 4)
+            v.layoutToSuperview(.centerX, .bottom)
+            
+            self.ipAddress.inputAccessoryView = inputView  // inputAssistantItem.leadingBarButtonGroups.append(group)
+        }
+        
+    }
+    
+    @objc func handleRecentAddressSelection(_ sender : Any?) {
+        if let btn = sender as? UIButton {
+            if let addr = btn.title(for: .normal) {
+                self.ipAddress.text = addr
+                self.ipAddress.resignFirstResponder()
             }
         }
     }

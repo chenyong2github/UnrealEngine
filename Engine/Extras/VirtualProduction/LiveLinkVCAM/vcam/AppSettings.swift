@@ -25,7 +25,8 @@ class AppSettings : NSObject {
     private class Keys {
         static let didAcceptEULA = "didAcceptEULA"
         static let lastConnectionAddress = "lastConnectionAddress"
-        
+        static let recentConnectionAddresses = "recentConnectionAddresses"
+
         static let liveLinkSubjectName = "liveLinkSubjectName"
 
         static let timecodeSource = "timecodeSource"
@@ -43,6 +44,7 @@ class AppSettings : NSObject {
         return [
             Keys.didAcceptEULA : false,
             Keys.lastConnectionAddress : "",
+            Keys.recentConnectionAddresses : [],
 
             Keys.liveLinkSubjectName : defaultLiveLinkSubjectName(),
             
@@ -83,9 +85,29 @@ class AppSettings : NSObject {
             UserDefaults.standard.set(didAcceptEULA, forKey: Keys.didAcceptEULA)
         }
     }
+
+    func addRecentConnectionAddress(_ address : String) {
+        if let recents = UserDefaults.standard.array(forKey: Keys.recentConnectionAddresses) as? [String] {
+            // remove this connection address if it's already in the recent list and re-insert it at the front (most recent)
+            var newRecents = recents.filter { $0 != address }
+            if newRecents.count > 4 {
+                newRecents = Array(newRecents[...3])
+            }
+            newRecents.insert(address, at: 0)
+            UserDefaults.standard.set(newRecents, forKey: Keys.recentConnectionAddresses)
+        } else {
+            UserDefaults.standard.set([address], forKey: Keys.recentConnectionAddresses)
+        }
+    }
+    
+    var recentConnectionAddresses : [String]? {
+        get {
+            UserDefaults.standard.array(forKey: Keys.recentConnectionAddresses) as? [String]
+        }
+    }
     
     @objc dynamic var lastConnectionAddress : String = UserDefaults.standard.string(forKey: Keys.lastConnectionAddress) ?? "" {
-        didSet {
+        didSet{
             UserDefaults.standard.set(lastConnectionAddress, forKey: Keys.lastConnectionAddress)
         }
     }
