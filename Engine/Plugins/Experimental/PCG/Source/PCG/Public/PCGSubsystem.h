@@ -204,6 +204,7 @@ private:
 private:
 	APCGWorldActor* PCGWorldActor = nullptr;
 	FPCGGraphExecutor* GraphExecutor = nullptr;
+	bool bHasTickedOnce = false;
 
 #if WITH_EDITOR
 	FCriticalSection PCGWorldActorLock;

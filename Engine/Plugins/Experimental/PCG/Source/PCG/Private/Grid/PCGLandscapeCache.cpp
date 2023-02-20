@@ -2,17 +2,17 @@
 
 #include "Grid/PCGLandscapeCache.h"
 
-#include "Engine/World.h"
+#include "PCGPoint.h"
 #include "Helpers/PCGBlueprintHelpers.h"
 #include "Metadata/PCGMetadata.h"
 
-
+#include "Async/ParallelFor.h"
+#include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
 #include "LandscapeComponent.h"
 #include "LandscapeInfoMap.h"
 #include "LandscapeProxy.h"
 #include "LandscapeDataAccess.h"
-#include "Kismet/GameplayStatics.h"
-#include "PCGPoint.h"
 #include "Serialization/BufferWriter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGLandscapeCache)
@@ -548,13 +548,16 @@ void UPCGLandscapeCache::PrimeCache()
 		return;
 	}
 
+	// First, gather all potential cached data to create, emplace a nullptr at these locations
+	TArray<TTuple<ULandscapeInfo*, ULandscapeComponent*, TPair<FGuid, FIntPoint>>> CacheEntriesToBuild;
+
 	for (auto It = ULandscapeInfoMap::GetLandscapeInfoMap(World).Map.CreateIterator(); It; ++It)
 	{
 		ULandscapeInfo* LandscapeInfo = It.Value();
 		if (IsValid(LandscapeInfo))
 		{
 			// Build per-component information
-			LandscapeInfo->ForAllLandscapeProxies([this, LandscapeInfo](const ALandscapeProxy* LandscapeProxy)
+			LandscapeInfo->ForAllLandscapeProxies([this, LandscapeInfo, &CacheEntriesToBuild](const ALandscapeProxy* LandscapeProxy)
 			{
 				check(LandscapeProxy);
 				const FGuid LandscapeGuid = LandscapeProxy->GetLandscapeGuid();
@@ -571,13 +574,29 @@ void UPCGLandscapeCache::PrimeCache()
 
 					if (!CachedData.Contains(ComponentKey))
 					{
-						if (FPCGLandscapeCacheEntry* NewEntry = FPCGLandscapeCacheEntry::CreateCacheEntry(LandscapeInfo, LandscapeComponent))
-						{
-							CachedData.Add(ComponentKey, NewEntry);
-						}
+						CacheEntriesToBuild.Emplace(LandscapeInfo, LandscapeComponent, ComponentKey);
 					}
 				}
 			});
+		}
+	}
+
+	// Then create the landscape cache entries
+	TArray<FPCGLandscapeCacheEntry*> NewEntries;
+	NewEntries.SetNum(CacheEntriesToBuild.Num());
+
+	ParallelFor(CacheEntriesToBuild.Num(), [&CacheEntriesToBuild, &NewEntries](int32 EntryIndex)
+	{
+		const TTuple<ULandscapeInfo*, ULandscapeComponent*, TPair<FGuid, FIntPoint>>& CacheEntryInfo = CacheEntriesToBuild[EntryIndex];
+		NewEntries[EntryIndex] = FPCGLandscapeCacheEntry::CreateCacheEntry(CacheEntryInfo.Get<0>(), CacheEntryInfo.Get<1>());
+	});
+
+	// Finally, write them back to the cache
+	for (int32 EntryIndex = 0; EntryIndex < CacheEntriesToBuild.Num(); ++EntryIndex)
+	{
+		if (NewEntries[EntryIndex])
+		{
+			CachedData.Add(CacheEntriesToBuild[EntryIndex].Get<2>(), NewEntries[EntryIndex]);
 		}
 	}
 
@@ -616,7 +635,7 @@ const FPCGLandscapeCacheEntry* UPCGLandscapeCache::GetCacheEntry(ULandscapeCompo
 			if (FPCGLandscapeCacheEntry* NewEntry = FPCGLandscapeCacheEntry::CreateCacheEntry(LandscapeComponent->GetLandscapeInfo(), LandscapeComponent))
 			{
 				CacheEntry = NewEntry;
-				CachedData.Add(ComponentKey, NewEntry);				
+				CachedData.Add(ComponentKey, NewEntry);
 			}
 		}
 

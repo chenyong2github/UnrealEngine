@@ -61,6 +61,25 @@ namespace PCGSubsystemConsole
 					World->GetSubsystem<UPCGSubsystem>()->FlushCache();
 				}
 			}));
+
+#if WITH_EDITOR
+	static FAutoConsoleCommand CommandBuildLandscapeCache(
+		TEXT("pcg.BuildLandscapeCache"),
+		TEXT("Builds the landscape cache in the current world."),
+		FConsoleCommandDelegate::CreateLambda([]()
+			{
+				UWorld* World = (GEditor ? (GEditor->PlayWorld ? GEditor->PlayWorld.Get() : GEditor->GetEditorWorldContext().World()) : (GEngine ? GEngine->GetCurrentPlayWorld() : nullptr));
+				if(World && World->GetSubsystem<UPCGSubsystem>())
+				{
+					World->GetSubsystem<UPCGSubsystem>()->BuildLandscapeCache();
+				}
+			}));
+
+	static TAutoConsoleVariable<bool> CVarRebuildLandscapeOnPIE(
+		TEXT("pcg.PIE.RebuildLandscapeOnPIE"),
+		true,
+		TEXT("Controls whether the landscape cache will be rebuilt on PIE"));
+#endif
 }
 
 #if WITH_EDITOR
@@ -87,6 +106,7 @@ void UPCGSubsystem::Deinitialize()
 	GraphExecutor = nullptr;
 
 	PCGWorldActor = nullptr;
+	bHasTickedOnce = false;
 
 	Super::Deinitialize();
 }
@@ -116,6 +136,18 @@ void UPCGSubsystem::PostInitialize()
 void UPCGSubsystem::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	if (!bHasTickedOnce)
+	{
+#if WITH_EDITOR
+		if (PCGSubsystemConsole::CVarRebuildLandscapeOnPIE.GetValueOnAnyThread() && PCGHelpers::IsRuntimeOrPIE())
+		{
+			BuildLandscapeCache();
+		}
+#endif
+
+		bHasTickedOnce = true;
+	}
 
 	// If we have any tasks to execute, schedule some
 	GraphExecutor->Execute();
@@ -1609,6 +1641,7 @@ void UPCGSubsystem::CleanFromCache(const IPCGElement* InElement, const UPCGSetti
 
 void UPCGSubsystem::BuildLandscapeCache()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::BuildLandscapeCache);
 	if (UPCGLandscapeCache* LandscapeCache = GetLandscapeCache())
 	{
 		PCGWorldActor->Modify();
