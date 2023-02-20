@@ -52,6 +52,16 @@ public:
 	FURLRequestFilter(FRequestMap&& InAllowedRequests);
 
 	/**
+	 * Update the allow list by corresponding section in a config file
+	 */
+	void UpdateConfig(const TCHAR* ConfigSectionRootName, const FString& ConfigFileName);
+
+	/**
+	 * Check if allow list is empty
+	 */
+	bool IsEmpty() const { return AllowedRequests.IsEmpty(); }
+
+	/**
 	 * Matches InURL against the configued list of allowed URL schemes and domains. Returns true if the URL is allowed.
 	 */
 	bool IsRequestAllowed(FStringView InURL) const;

@@ -18,6 +18,23 @@ namespace UE::Core
 
 FURLRequestFilter::FURLRequestFilter(const TCHAR* ConfigSectionRootName, const FString& ConfigFileName)
 {
+	UpdateConfig(ConfigSectionRootName, ConfigFileName);
+}
+
+FURLRequestFilter::FURLRequestFilter(const FRequestMap& InAllowedRequests)
+	: AllowedRequests(InAllowedRequests)
+{
+}
+
+FURLRequestFilter::FURLRequestFilter(FRequestMap&& InAllowedRequests)
+	: AllowedRequests(MoveTemp(InAllowedRequests))
+{
+}
+
+void FURLRequestFilter::UpdateConfig(const TCHAR* ConfigSectionRootName, const FString& ConfigFileName)
+{
+	AllowedRequests.Empty();
+
 	FConfigFile* File = GConfig->FindConfigFile(ConfigFileName);
 	if (File != nullptr)
 	{
@@ -60,16 +77,6 @@ FURLRequestFilter::FURLRequestFilter(const TCHAR* ConfigSectionRootName, const F
 				}
 			});
 	}
-}
-
-FURLRequestFilter::FURLRequestFilter(const FRequestMap& InAllowedRequests)
-	: AllowedRequests(InAllowedRequests)
-{
-}
-
-FURLRequestFilter::FURLRequestFilter(FRequestMap&& InAllowedRequests)
-	: AllowedRequests(MoveTemp(InAllowedRequests))
-{
 }
 
 bool FURLRequestFilter::IsRequestAllowed(FStringView InURL) const

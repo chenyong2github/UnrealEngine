@@ -134,6 +134,13 @@ FString FHttpManager::CreateCorrelationId() const
 
 bool FHttpManager::IsDomainAllowed(const FString& Url) const
 {
+	if (!URLRequestFilter.IsEmpty())
+	{
+		return URLRequestFilter.IsRequestAllowed(Url);
+	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 #if !UE_BUILD_SHIPPING
 #if !(UE_GAME || UE_SERVER)
 	// Allowed domain filtering is opt-in in non-shipping non-game/server builds
@@ -152,7 +159,7 @@ bool FHttpManager::IsDomainAllowed(const FString& Url) const
 #endif
 #endif // !UE_BUILD_SHIPPING
 
-	// check to see if the Domain is allowed (either on the list or the list was empty)
+	// Check to see if the Domain is allowed (either on the list or the list was empty)
 	const TArray<FString>& AllowedDomains = FHttpModule::Get().GetAllowedDomains();
 	if (AllowedDomains.Num() > 0)
 	{
@@ -167,6 +174,8 @@ bool FHttpManager::IsDomainAllowed(const FString& Url) const
 		return false;
 	}
 	return true;
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /*static*/
@@ -193,6 +202,8 @@ void FHttpManager::OnEndFramePostFork()
 
 void FHttpManager::UpdateConfigs()
 {
+	URLRequestFilter.UpdateConfig(TEXT("Online.HttpManager"), GEngineIni);
+
 	ReloadFlushTimeLimits();
 
 	if (Thread)

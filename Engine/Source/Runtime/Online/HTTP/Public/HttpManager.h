@@ -14,6 +14,7 @@
 #include "HttpPackage.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Misc/EnumRange.h"
+#include "Misc/URLRequestFilter.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 
@@ -251,6 +252,9 @@ protected:
 
 	/** Delegate that will get called when a request completes */
 	FHttpManagerRequestCompletedDelegate RequestCompletedDelegate;
+
+	/** Url request filter, if specified in the config, it will launch http request only when the url is in the allowlist */
+	UE::Core::FURLRequestFilter URLRequestFilter;
 
 	struct FHttpFlushTimeLimit
 	{
