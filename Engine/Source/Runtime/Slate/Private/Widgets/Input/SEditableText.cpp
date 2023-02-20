@@ -454,6 +454,11 @@ void SEditableText::AdvanceSearch(const bool InReverse)
 	EditableTextLayout->AdvanceSearch(InReverse);
 }
 
+void SEditableText::EnableTextInputMethodContext()
+{
+	EditableTextLayout->EnableTextInputMethodContext();
+}
+
 void SEditableText::SynchronizeTextStyle()
 {
 	// Has the style used for this editable text changed?

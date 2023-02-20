@@ -469,6 +469,10 @@ void SEditableTextBox::SetVirtualKeyboardDismissAction(TAttribute<EVirtualKeyboa
 	EditableText->SetVirtualKeyboardDismissAction(InVirtualKeyboardDismissAction);
 }
 
+void SEditableTextBox::EnableTextInputMethodContext()
+{
+	EditableText->EnableTextInputMethodContext();
+}
 #if WITH_ACCESSIBILITY
 TSharedRef<FSlateAccessibleWidget> SEditableTextBox::CreateAccessibleWidget()
 {

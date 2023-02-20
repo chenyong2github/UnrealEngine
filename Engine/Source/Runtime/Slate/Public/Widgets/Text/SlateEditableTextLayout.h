@@ -129,6 +129,9 @@ public:
 	/** Get the IME context for this text layout */
 	TSharedRef<ITextInputMethodContext> GetTextInputMethodContext() const;
 
+	/** Register and activate the IME context for this text layout */
+	void EnableTextInputMethodContext();
+
 	/** Refresh this editable text immediately, rather than wait for the usual caching mechanisms to take affect on the text Tick */
 	bool Refresh();
 

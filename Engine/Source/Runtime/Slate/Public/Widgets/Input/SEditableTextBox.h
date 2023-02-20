@@ -393,6 +393,9 @@ public:
 	/** Advance the current search to the next match (does nothing if not currently searching) */
 	void AdvanceSearch(const bool InReverse = false);
 
+	/** Register and activate the IME context for the text layout of this textbox */
+	void EnableTextInputMethodContext();
+
 	bool HasError() const;
 
 	// SWidget overrides

@@ -366,6 +366,9 @@ public:
 	/** Advance the current search to the next match (does nothing if not currently searching) */
 	void AdvanceSearch(const bool InReverse = false);
 
+	/** Register and activate the IME context for this text layout */
+	void EnableTextInputMethodContext();
+
 protected:
 	//~ Begin SWidget Interface
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;

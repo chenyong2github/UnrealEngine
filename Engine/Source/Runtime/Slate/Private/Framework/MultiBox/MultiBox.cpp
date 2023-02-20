@@ -896,6 +896,21 @@ void SMultiBoxWidget::CreateSearchTextWidget()
 /** Called when the SearchText changes */
 void SMultiBoxWidget::OnFilterTextChanged(const FText& InFilterText)
 {
+	// Activate the searchbox if it was empty and we are putting text in it for the first time.
+	// This is for IME keyboards only because they don't go through the OnKeyChar route.
+	if (bSearchable && SearchText.IsEmpty() 
+		&& !InFilterText.IsEmpty() 
+		&& !FSlateApplication::Get().HasUserFocusedDescendants(SearchTextWidget.ToSharedRef(), 0))
+	{
+		if (SearchTextWidget.IsValid() && SearchBlockWidget.IsValid())
+		{
+			// Make the search box visible and focused
+			SearchBlockWidget->SetVisibility(EVisibility::Visible);
+			FSlateApplication::Get().SetUserFocus(0, SearchTextWidget);
+
+		}
+	}
+
 	SearchText = InFilterText;
 
 	FilterMultiBoxEntries();
@@ -1537,6 +1552,11 @@ FReply SMultiBoxWidget::OnFocusReceived( const FGeometry& MyGeometry, const FFoc
 	if (InFocusEvent.GetCause() != EFocusCause::Mouse)
 	{
 		ResetSearch();
+	}
+
+	if (SearchTextWidget.IsValid())
+	{
+		SearchTextWidget->EnableTextInputMethodContext();
 	}
 
 	if (InFocusEvent.GetCause() == EFocusCause::Navigation)
