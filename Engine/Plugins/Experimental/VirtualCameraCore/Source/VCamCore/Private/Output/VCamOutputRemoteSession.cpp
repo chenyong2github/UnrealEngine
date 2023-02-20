@@ -53,7 +53,7 @@ void UVCamOutputRemoteSession::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UVCamOutputRemoteSession::Activate()
+void UVCamOutputRemoteSession::OnActivate()
 {
 	// If we don't have a UMG assigned, we still need to create an empty 'dummy' UMG in order to properly route the input back from the RemoteSession device
 	if (!GetUMGClass())
@@ -63,14 +63,14 @@ void UVCamOutputRemoteSession::Activate()
 	}
 
 	CreateRemoteSession();
-	Super::Activate();
+	Super::OnActivate();
 }
 
-void UVCamOutputRemoteSession::Deactivate()
+void UVCamOutputRemoteSession::OnDeactivate()
 {
 	DestroyRemoteSession();
 
-	Super::Deactivate();
+	Super::OnDeactivate();
 
 	if (bUsingDummyUMG)
 	{

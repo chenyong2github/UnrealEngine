@@ -72,7 +72,7 @@ void UVCamOutputProviderBase::Initialize()
 		{
 			if (IsOuterComponentEnabled())
 			{
-				Activate();
+				OnActivate();
 			}
 		}
 	}
@@ -82,31 +82,26 @@ void UVCamOutputProviderBase::Deinitialize()
 {
 	if (bInitialized)
 	{
-		Deactivate();
+		OnDeactivate();
 		bInitialized = false;
 	}
 }
 
-void UVCamOutputProviderBase::Activate()
+void UVCamOutputProviderBase::OnActivate()
 {
 	ConditionallySetUpGameplayViewTargets();
+	ReapplyOverrideResolution();
 	
 	CreateUMG();
 	DisplayUMG();
 
-	if (ShouldOverrideResolutionOnActivationEvents() && bUseOverrideResolution)
-	{
-		ApplyOverrideResolutionForViewport(TargetViewport);
-	}
-	
 	OnActivatedDelegate.Broadcast(true);
 }
 
-void UVCamOutputProviderBase::Deactivate()
+void UVCamOutputProviderBase::OnDeactivate()
 {
 	CleanUpGameplayViewTargets();
-	
-	if (ShouldOverrideResolutionOnActivationEvents())
+	if (bUseOverrideResolution)
 	{
 		RestoreOverrideResolutionForViewport(TargetViewport);
 	}
@@ -132,11 +127,11 @@ void UVCamOutputProviderBase::SetActive(const bool bInActive)
 	{
 		if (bIsActive)
 		{
-			Activate();
+			OnActivate();
 		}
 		else
 		{
-			Deactivate();
+			OnDeactivate();
 		}
 	}
 }
@@ -157,7 +152,7 @@ void UVCamOutputProviderBase::SetTargetCamera(const UCineCameraComponent* InTarg
 	if (InTargetCamera != TargetCamera)
 	{
 		TargetCamera = InTargetCamera;
-		NotifyWidgetOfComponentChange();
+		NotifyAboutComponentChange();
 	}
 }
 
@@ -196,6 +191,23 @@ void UVCamOutputProviderBase::CreateUMG()
 	UE_LOG(LogVCamOutputProvider, Log, TEXT("CreateUMG widget named %s from class %s"), *UMGWidget->GetName(), *UMGWidget->WidgetClass->GetName());
 }
 
+void UVCamOutputProviderBase::ReapplyOverrideResolution()
+{
+	if (!IsActiveAndOuterComponentEnabled())
+	{
+		return;
+	}
+	
+	if (bUseOverrideResolution)
+	{
+		ApplyOverrideResolutionForViewport(TargetViewport);
+	}
+	else
+	{
+		RestoreOverrideResolutionForViewport(TargetViewport);
+	}
+}
+
 void UVCamOutputProviderBase::RestoreOverrideResolutionForViewport(EVCamTargetViewportID ViewportToRestore)
 {
 	if (const TSharedPtr<FSceneViewport> TargetSceneViewport = GetSceneViewport(ViewportToRestore))
@@ -209,18 +221,6 @@ void UVCamOutputProviderBase::ApplyOverrideResolutionForViewport(EVCamTargetView
 	if (const TSharedPtr<FSceneViewport> TargetSceneViewport = GetSceneViewport(Viewport))
 	{
 		TargetSceneViewport->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
-	}
-}
-
-void UVCamOutputProviderBase::ReapplyOverrideResolution(EVCamTargetViewportID Viewport)
-{
-	if (bUseOverrideResolution)
-	{
-		ApplyOverrideResolutionForViewport(Viewport);
-	}
-	else
-	{
-		RestoreOverrideResolutionForViewport(Viewport);
 	}
 }
 
@@ -263,7 +263,7 @@ void UVCamOutputProviderBase::DisplayUMG()
 			UE_LOG(LogVCamOutputProvider, Log, TEXT("DisplayUMG widget displayed in WorldType %d"), WorldType);
 		}
 
-		NotifyWidgetOfComponentChange();
+		NotifyAboutComponentChange();
 #if WITH_EDITOR
 		// Start registering after the initial calls to InitializeConnections to prevent unneeded snapshotting.
 		StartDetectAndSnapshotWhenConnectionsChange();
@@ -325,7 +325,7 @@ bool UVCamOutputProviderBase::NeedsForceLockToViewport() const
 	return DisplayType == EVPWidgetDisplayType::PostProcess;
 }
 
-void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
+void UVCamOutputProviderBase::NotifyAboutComponentChange()
 {
 	if (UMGWidget && UMGWidget->IsDisplayed())
 	{
@@ -543,7 +543,7 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 		else if (PropertyName == NAME_UMGClass)
 		{
 			WidgetSnapshot.Reset();
-			if (bIsActive)
+			if (IsActiveAndOuterComponentEnabled())
 			{
 				// In case a child class resets UMGClass, reapply the correct value we got the PostEditChangeProperty for.
 				const TSubclassOf<UUserWidget> ProtectUMGClass = UMGClass;
@@ -558,7 +558,7 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 			{
 				RestoreOverrideResolutionForViewport(static_cast<EVCamTargetViewportID>(i));
 			}
-			ReapplyOverrideResolution(TargetViewport);
+			ReapplyOverrideResolution();
 
 			if (bIsActive)
 			{
@@ -568,7 +568,7 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 		}
 		else if (PropertyName == NAME_OverrideResolution || PropertyName == NAME_bUseOverrideResolution)
 		{
-			ReapplyOverrideResolution(TargetViewport);
+			ReapplyOverrideResolution();
 		}
 	}
 

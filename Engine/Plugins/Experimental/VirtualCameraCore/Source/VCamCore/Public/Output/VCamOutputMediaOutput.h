@@ -28,8 +28,8 @@ public:
 	UVCamOutputMediaOutput();
 	
 	//~ Begin UVCamOutputProviderBase Interface
-	virtual void Activate() override;
-	virtual void Deactivate() override;
+	virtual void OnActivate() override;
+	virtual void OnDeactivate() override;
 	//~ End UVCamOutputProviderBase Interface
 
 #if WITH_EDITOR

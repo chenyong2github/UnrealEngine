@@ -10,16 +10,16 @@ UVCamOutputMediaOutput::UVCamOutputMediaOutput()
 	InitViewTargetPolicyInSubclass();
 }
 
-void UVCamOutputMediaOutput::Activate()
+void UVCamOutputMediaOutput::OnActivate()
 {
 	StartCapturing();
-	Super::Activate();
+	Super::OnActivate();
 }
 
-void UVCamOutputMediaOutput::Deactivate()
+void UVCamOutputMediaOutput::OnDeactivate()
 {
 	StopCapturing();
-	Super::Deactivate();
+	Super::OnDeactivate();
 }
 
 void UVCamOutputMediaOutput::StartCapturing()

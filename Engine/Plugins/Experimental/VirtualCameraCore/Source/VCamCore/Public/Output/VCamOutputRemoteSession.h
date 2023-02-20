@@ -27,8 +27,8 @@ public:
 	//~ Begin UVCamOutputProviderBase Interface
 	virtual void Initialize() override;
 	virtual void Deinitialize() override;
-	virtual void Activate() override;
-	virtual void Deactivate() override;
+	virtual void OnActivate() override;
+	virtual void OnDeactivate() override;
 	virtual void Tick(const float DeltaTime) override;
 	//~ End UVCamOutputProviderBase Interface
 
@@ -45,10 +45,6 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<URemoteSessionMediaCapture> MediaCapture = nullptr;
-
-	//~ Begin UVCamOutputProviderBase Interface
-	virtual bool ShouldOverrideResolutionOnActivationEvents() const { return true; }
-	//~ End UVCamOutputProviderBase Interface
 
 private:
 	

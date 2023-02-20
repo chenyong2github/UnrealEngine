@@ -48,7 +48,7 @@ void UVCamPixelStreamingSession::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UVCamPixelStreamingSession::Activate()
+void UVCamPixelStreamingSession::OnActivate()
 {
 	if (!IsInitialized())
 	{
@@ -104,7 +104,7 @@ void UVCamPixelStreamingSession::Activate()
 	SetupCapture();
 
 	// Super::Activate() creates our UMG which we need before setting up our custom input handling
-	Super::Activate();
+	Super::OnActivate();
 
 	// We setup custom handling of ARKit transforms coming from iOS devices here
 	SetupCustomInputHandling();
@@ -329,7 +329,7 @@ void UVCamPixelStreamingSession::StopSignallingServer()
 	}
 }
 
-void UVCamPixelStreamingSession::Deactivate()
+void UVCamPixelStreamingSession::OnDeactivate()
 {
 	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
 	{
@@ -355,7 +355,7 @@ void UVCamPixelStreamingSession::Deactivate()
 		StopSignallingServer();
 	}
 
-	Super::Deactivate();
+	Super::OnDeactivate();
 	if (bUsingDummyUMG)
 	{
 		SetUMGClass(nullptr);

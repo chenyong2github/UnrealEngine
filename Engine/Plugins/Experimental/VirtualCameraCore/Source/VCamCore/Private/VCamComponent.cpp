@@ -347,11 +347,11 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			SetInputDeviceSettings(InputDeviceSettings);
 		}
 
-		for (const UVCamOutputProviderBase* OutputProvider : OutputProviders)
+		for (UVCamOutputProviderBase* OutputProvider : OutputProviders)
 		{
 			if (IsValid(OutputProvider))
 			{
-				OutputProvider->NotifyWidgetOfComponentChange();
+				OutputProvider->NotifyAboutComponentChange();
 			}
 		}
 	}

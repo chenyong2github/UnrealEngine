@@ -57,11 +57,6 @@ public:
 	/** Called when the provider is being shutdown such as before changing level or on exit */
 	virtual void Deinitialize();
 
-	/** Called when the provider is Activated */
-	virtual void Activate();
-	/** Called when the provider is Deactivated */
-	virtual void Deactivate();
-
 	virtual void Tick(const float DeltaTime);
 	
 	/** @return Whether this output provider should require the viewport to be locked to the camera in order to function correctly. */
@@ -73,7 +68,7 @@ public:
 	void RestoreOutput();
 	
 	/** Calls the VCamModifierInterface on the widget if it exists and also requests any child VCam Widgets to reconnect */
-	void NotifyWidgetOfComponentChange() const;
+	void NotifyAboutComponentChange();
 
 	/** Called to turn on or off this output provider */
 	UFUNCTION(BlueprintCallable, Category = "Output")
@@ -130,18 +125,20 @@ protected:
 	 */
 	UPROPERTY(EditAnywhere, Instanced, Category = "Output", meta = (DisplayPriority = "99"))
 	TObjectPtr<UGameplayViewTargetPolicy> GameplayViewTargetPolicy;
-
+	
+	/** Called when the provider is Activated */
+	virtual void OnActivate();
+	/** Called when the provider is Deactivated */
+	virtual void OnDeactivate();
+	
 	/** Called to create the UMG overlay widget. */
 	virtual void CreateUMG();
-
-	/** Whether this subclass supports override resolutions. */
-	virtual bool ShouldOverrideResolutionOnActivationEvents() const { return false; }
 	
+	void ReapplyOverrideResolution();
 	/** Removes the override resolution from the given viewport. */
 	void RestoreOverrideResolutionForViewport(EVCamTargetViewportID ViewportToRestore);
 	/** Applies OverrideResolution to the passed in viewport - bUseOverrideResolution was already checked. */
 	void ApplyOverrideResolutionForViewport(EVCamTargetViewportID Viewport);
-	void ReapplyOverrideResolution(EVCamTargetViewportID Viewport);
 
 	void DisplayUMG();
 	void DestroyUMG();
@@ -199,7 +196,8 @@ private:
 	/** If in a game world, these player controllers must have their view targets reverted when this output provider is deactivated. */
 	UPROPERTY(Transient)
 	TSet<TWeakObjectPtr<APlayerController>> PlayersWhoseViewTargetsWereSet; 
-	
+
+	bool IsActiveAndOuterComponentEnabled() const { return bIsActive && IsOuterComponentEnabled(); }
 	bool IsOuterComponentEnabled() const;
 
 #if WITH_EDITOR
