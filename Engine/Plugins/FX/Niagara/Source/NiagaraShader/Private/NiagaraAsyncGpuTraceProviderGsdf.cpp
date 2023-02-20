@@ -11,6 +11,7 @@
 #include "RenderGraphUtils.h"
 #include "SceneInterface.h"
 #include "SceneManagement.h"
+#include "SceneView.h"
 #include "ShaderParameterStruct.h"
 
 static int GNiagaraAsyncGpuTraceGsdfEnabled = 1;

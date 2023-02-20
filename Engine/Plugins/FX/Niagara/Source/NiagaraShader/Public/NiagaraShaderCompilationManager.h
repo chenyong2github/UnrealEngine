@@ -4,7 +4,6 @@
 
 #if WITH_EDITOR
 
-#include "NiagaraShared.h"
 #include "ShaderCompiler.h"
 
 /** Results for a single compiled shader map. */
@@ -58,5 +57,9 @@ private:
 };
 
 extern NIAGARASHADER_API FNiagaraShaderCompilationManager GNiagaraShaderCompilationManager;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "NiagaraShared.h"
+#endif
 
 #endif //WITH_EDITOR

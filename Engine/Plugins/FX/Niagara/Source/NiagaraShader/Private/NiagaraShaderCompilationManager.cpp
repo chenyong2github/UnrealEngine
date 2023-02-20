@@ -2,14 +2,9 @@
 
 #include "NiagaraShaderCompilationManager.h"
 
-#include "GlobalShader.h"
-#include "HAL/FileManager.h"
-#if WITH_EDITOR
-#include "Interfaces/IShaderFormat.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#endif
 #include "Misc/Paths.h"
 #include "NiagaraShared.h"
+#include "RenderingThread.h"
 #include "ShaderCompiler.h"
 #include "Tickable.h"
 #include "UObject/UObjectThreadContext.h"

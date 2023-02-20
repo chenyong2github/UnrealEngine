@@ -2,14 +2,11 @@
 
 #include "NiagaraClearCounts.h"
 
+#include "GlobalShader.h"
 #include "RHI.h"
-#include "ScreenRendering.h"
-#include "CommonRenderResources.h"
-#include "Modules/ModuleManager.h"
-
+#include "RHIUtilities.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
-#include "ScreenPass.h"
 
 //////////////////////////////////////////////////////////////////////////
 

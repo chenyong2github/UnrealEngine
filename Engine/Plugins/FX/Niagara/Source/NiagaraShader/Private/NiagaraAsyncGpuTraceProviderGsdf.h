@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "GlobalDistanceFieldParameters.h"
 #include "NiagaraAsyncGpuTraceProvider.h"
+
+class FViewUniformShaderParameters;
 
 class FNiagaraAsyncGpuTraceProviderGsdf : public FNiagaraAsyncGpuTraceProvider
 {

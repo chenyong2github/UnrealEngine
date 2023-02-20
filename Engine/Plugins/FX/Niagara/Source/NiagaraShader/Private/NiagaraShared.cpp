@@ -11,16 +11,14 @@
 #include "NiagaraShader.h"
 #include "NiagaraScriptBase.h"
 #include "NiagaraScript.h"		//-TODO: This should be fixed so we are not reading structures from modules we do not depend on
+#include "PipelineStateCache.h"
 #include "Stats/StatsMisc.h"
-#include "UObject/CoreObjectVersion.h"
 #include "Misc/App.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
 #include "PSOPrecache.h"
 #include "ShaderCompiler.h"
 #include "NiagaraShaderCompilationManager.h"
-#include "RendererInterface.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraCustomVersion.h"
 #if WITH_EDITOR

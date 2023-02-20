@@ -4,6 +4,8 @@
 
 #include "BatchedElements.h"
 
+class FTexture;
+
 /**
  * Batched element parameters for gathering attributes from different slices into a single color
  */

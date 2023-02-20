@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "GPUSceneWriter.h"
 #include "RHI.h"
 #include "RHIDefinitions.h"
-#include "ShaderParameterStruct.h"
-#include "ShaderParameterUtils.h"
 #include "NiagaraMeshVertexFactory.h"
 #include "SceneView.h"
 
@@ -44,3 +42,9 @@ public:
 		bool bPreciseMotionVectors
 	);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CoreMinimal.h"
+#include "ShaderParameterStruct.h"
+#include "ShaderParameterUtils.h"
+#endif

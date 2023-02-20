@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CommonRenderResources.h"
-#include "RenderGraphResources.h"
-#include "RHI.h"
+#include "Containers/Map.h"
+#include "RenderGraphFwd.h"
+
+class FRDGBuilder;
+class FRHICommandList;
+class FRHIUnorderedAccessView;
 
 namespace NiagaraClearCounts
 {
@@ -13,3 +16,10 @@ namespace NiagaraClearCounts
 	//-TODO:RDG: Deprecated
 	NIAGARASHADER_API void ClearCountsInt(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, TConstArrayView<TPair<uint32, int32>> IndexAndValueArray);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "RHIFwd.h"
+#include "CommonRenderResources.h"
+#include "RHI.h"
+#include "RenderGraphResources.h"
+#endif

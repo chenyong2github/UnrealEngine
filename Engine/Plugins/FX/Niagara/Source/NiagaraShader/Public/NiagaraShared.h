@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
 #include "Misc/Guid.h"
 #include "Engine/EngineTypes.h"
@@ -15,11 +14,7 @@
 #include "MaterialShared.h"
 #include "RHI.h"
 #include "RenderResource.h"
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "RenderingThread.h"
-#endif
 #include "RenderDeferredCleanup.h"
-#include "UniformBuffer.h"
 #include "Shader.h"
 #include "VertexFactory.h"
 #include "SceneTypes.h"
@@ -34,8 +29,10 @@ class FNiagaraShaderScript;
 class FNiagaraShaderMap;
 class FNiagaraShader;
 class FNiagaraShaderMapId;
+class FThreadSafeBool;
 class UNiagaraScriptBase;
 struct FNiagaraVMExecutableDataId;
+struct FSharedShaderCompilerEnvironment;
 
 /** Defines the compile event types for translation/compilation.*/
 UENUM()
@@ -1031,3 +1028,12 @@ namespace FNiagaraCVarUtilities
 	NIAGARASHADER_API FNiagaraCompileEventSeverity GetCompileEventSeverityForFailIfNotSet();
 	NIAGARASHADER_API bool GetShouldEmitMessagesForFailIfNotSet();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "RenderingThread.h"
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CoreMinimal.h"
+#include "UniformBuffer.h"
+#endif

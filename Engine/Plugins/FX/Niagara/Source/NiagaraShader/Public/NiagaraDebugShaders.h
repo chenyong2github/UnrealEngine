@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "RHI.h"
-#include "ScreenRendering.h"
-#include "CommonRenderResources.h"
+#include "Math/Vector2D.h"
+#include "RenderGraphFwd.h"
+
+class FRDGBuilder;
+
+class FSceneView;
 
 struct FScreenPassRenderTarget;
 namespace NiagaraDebugShaders
@@ -28,3 +31,9 @@ namespace NiagaraDebugShaders
 		const FVector2D& PreviewDisplayRange = FVector2D::ZeroVector
 	);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CommonRenderResources.h"
+#include "RHI.h"
+#include "ScreenRendering.h"
+#endif

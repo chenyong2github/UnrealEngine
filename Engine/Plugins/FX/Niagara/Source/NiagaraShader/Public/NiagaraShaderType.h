@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Shader.h"
-#include "GlobalShader.h"
-#include "Engine/EngineTypes.h"
 
+struct FCachedUniformBufferDeclaration;
 struct FNiagaraShaderScriptParametersMetadata;
+struct FShaderTarget;
+struct FSharedShaderCompilerEnvironment;
 
 /** A macro to implement Niagara shaders. */
 #define IMPLEMENT_NIAGARA_SHADER_TYPE(TemplatePrefix,ShaderClass,SourceFilename,FunctionName,Frequency) \
@@ -180,3 +180,9 @@ protected:
 	}
 #endif // WITH_EDITOR
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "GlobalShader.h"
+#endif

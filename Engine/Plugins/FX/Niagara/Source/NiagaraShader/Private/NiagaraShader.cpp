@@ -2,23 +2,19 @@
 
 #include "NiagaraShader.h"
 #include "NiagaraShared.h"
-#include "NiagaraShaderMap.h"
 #include "NiagaraScriptBase.h"
+#include "RenderingThread.h"
 #include "Stats/StatsMisc.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
-#include "ProfilingDebugging/DiagnosticTable.h"
 #include "ShaderCompiler.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "UObject/DevObjectVersion.h"
 #include "NiagaraShaderCompilationManager.h"
-#include "UObject/CoreRedirects.h"
 #if WITH_EDITOR
 	#include "Interfaces/ITargetPlatformManagerModule.h"
-	#include "TickableEditorObject.h"
 	#include "DerivedDataCacheInterface.h"
 	#include "Interfaces/ITargetPlatformManagerModule.h"
-	#include "Interfaces/ITargetPlatform.h"
 #endif
 #include "ProfilingDebugging/CookStats.h"
 

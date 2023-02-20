@@ -6,7 +6,6 @@ NiagaraRibbonCompute.h: Niagara ribbon compute shaders for initialization of rib
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GlobalShader.h"
 #include "ShaderPermutation.h"
 #include "ShaderParameterStruct.h"
@@ -303,3 +302,7 @@ class NIAGARASHADER_API FNiagaraRibbonCreateIndexBufferCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CoreMinimal.h"
+#endif

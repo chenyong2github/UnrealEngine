@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "GlobalShader.h"
 #include "ShaderParameters.h"
 #include "SceneView.h"
 #include "Shader.h"
@@ -19,6 +18,7 @@
 #include "RendererUtils.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "GlobalShader.h"
 #include "RenderGraph.h"
 #include "SceneRenderTargetParameters.h"
 #endif

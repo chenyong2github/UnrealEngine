@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "NiagaraSettings.h"
 #include "RHIDefinitions.h"
+#include "RHIUtilities.h"
+
+class FPrimitiveComponentId;
+class FSceneInterface;
+namespace ENDICollisionQuery_AsyncGpuTraceProvider { enum Type : int; }
 
 class FNiagaraGpuComputeDispatchInterface;
 class FScene;
@@ -93,3 +95,8 @@ public:
 private:
 	UE_NONCOPYABLE(FNiagaraAsyncGpuTraceProvider);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CoreMinimal.h"
+#include "NiagaraSettings.h"
+#endif

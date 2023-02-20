@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "NiagaraAsyncGpuTraceProvider.h"
+#include "ShaderParameterMacros.h"
+
+class FViewUniformShaderParameters;
 
 #if RHI_RAYTRACING
 

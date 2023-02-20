@@ -3,7 +3,6 @@
 #include "NiagaraShaderParticleID.h"
 #include "GlobalShader.h"
 #include "RenderGraphUtils.h"
-#include "ShaderParameterUtils.h"
 #include "PipelineStateCache.h"
 #include "DataDrivenShaderPlatformInfo.h"
 

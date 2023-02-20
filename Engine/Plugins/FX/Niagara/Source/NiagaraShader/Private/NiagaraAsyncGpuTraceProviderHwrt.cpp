@@ -5,12 +5,12 @@
 
 #if RHI_RAYTRACING
 
+#include "Containers/StridedView.h"
 #include "FXRenderingUtils.h"
 #include "GlobalShader.h"
 #include "MeshPassProcessor.h"
-#include "NiagaraRenderer.h"
 #include "NiagaraSettings.h"
-#include "SceneInterface.h"
+#include "PipelineStateCache.h"
 #include "ShaderParameterMacros.h"
 #include "ShaderParameterStruct.h"
 #include "Templates/Function.h"
