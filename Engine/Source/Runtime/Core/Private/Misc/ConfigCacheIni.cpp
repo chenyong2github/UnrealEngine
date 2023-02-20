@@ -836,6 +836,7 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer, const FString& FileHi
 				}
 
 				const TCHAR* KeyName = Start;
+				FConfigSection* OriginalCurrentSection = CurrentSection;
 				// look up for key remap
 				if (CurrentKeyRemap != nullptr)
 				{
@@ -846,6 +847,16 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer, const FString& FileHi
 
 						// the Remap will not ever reallocate, so we can just point right into the FString
 						KeyName = **FoundRemap;
+
+						// look for a section:name remap
+						int32 ColonLoc;
+						if (FoundRemap->FindChar(':', ColonLoc))
+						{
+							// find or create a section for name before the :
+							CurrentSection = FindOrAddSection(*FoundRemap->Mid(0, ColonLoc));
+							// the name can still point right into the FString, but right after the :
+							KeyName = **FoundRemap + ColonLoc + 1;
+						}
 					}
 				}
 				
@@ -921,6 +932,9 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer, const FString& FileHi
 						}
 					}
 				}
+				
+				// restore the current section, in case it was overridden
+				CurrentSection = OriginalCurrentSection;
 
 				// Mark as dirty so "Write" will actually save the changes.
 				Dirty = true;
