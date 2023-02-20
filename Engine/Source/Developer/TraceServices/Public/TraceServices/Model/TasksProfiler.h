@@ -47,6 +47,8 @@ namespace TraceServices
 		// the last reference is released and the task is destroyed
 		double DestroyedTimestamp = InvalidTimestamp;
 		uint32 DestroyedThreadId;
+		// task size including user-provided task body
+		uint64 TaskSize = 0;
 
 		//  relation with another task, when and where it was established
 		struct FRelationInfo
@@ -80,6 +82,18 @@ namespace TraceServices
 		double FinishedTimestamp = FTaskInfo::InvalidTimestamp;
 	};
 
+	enum class ETaskEnumerationOption
+	{
+		Alive,
+		Active,
+		WaitingForPrerequisites,
+		Queued,
+		Executing,
+		WaitingForNested,
+		Completed,
+		Count
+	};
+
 	enum class ETaskEnumerationResult
 	{
 		Continue,
@@ -109,7 +123,7 @@ namespace TraceServices
 		virtual int64 GetNumTasks() const = 0;
 
 		// Calls the callback for each task stored in the provider with CreatedTimestamp <= EndTime and FinishedTimestamp >= StartTime
-		virtual void EnumerateTasks(double StartTime, double EndTime, TaskCallback Callback) const = 0;
+		virtual void EnumerateTasks(double StartTime, double EndTime, ETaskEnumerationOption EnumerationOption, TaskCallback Callback) const = 0;
 	};
 
 	TRACESERVICES_API const ITasksProvider* ReadTasksProvider(const IAnalysisSession& Session);

@@ -2401,7 +2401,12 @@ bool FTaskGraphInterface::IsMultithread()
 
 #if TASKGRAPH_NEW_FRONTEND
 
-FGraphEventImplAllocator GraphEventImplAllocator;
+FGraphEventImplAllocator& GetGraphEventImplAllocator()
+{
+	static FGraphEventImplAllocator Singleton;
+	return Singleton;
+}
+
 FGraphTaskAllocator SmallTaskAllocator;
 
 #else
@@ -2477,10 +2482,10 @@ void FGraphEvent::DispatchSubsequents(TArray<FBaseGraphTask*>& NewTasks, ENamedT
 				}
 			}
 
-#if UE_TASK_TRACE_ENABLED
-			// regenerate TraceId as we're going to use the same event with another task
-			TraceId = TaskTrace::GenerateTaskId();
-#endif
+//#if UE_TASK_TRACE_ENABLED
+//			// regenerate TraceId as we're going to use the same event with another task
+//			TraceId = TaskTrace::GenerateTaskId();
+//#endif
 			TGraphTask<FNullGraphTask>::CreateTask(FGraphEventRef(this), &TempEventsToWaitFor, CurrentThreadIfKnown).ConstructAndDispatchWhenReady(GET_STATID(STAT_FNullGraphTask_DontCompleteUntil), LocalThreadToDoGatherOn);
 			return;
 		}

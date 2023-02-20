@@ -379,7 +379,7 @@ namespace ParallelForImpl
 					TaskTrace::Destroyed(TracedTask.TraceId);
 				}
 				TracedTask.TraceId = TaskTrace::GenerateTaskId();
-				TaskTrace::Launched(TracedTask.TraceId, DebugName, false, ENamedThreads::AnyThread);
+				TaskTrace::Launched(TracedTask.TraceId, DebugName, false, ENamedThreads::AnyThread, 0);
 
 				TracedTask.Task.Init(DebugName, InPriority, FParallelExecutor(MoveTemp(InData), InWorkerIndex, InPriority));
 				verify(LowLevelTasks::TryLaunch(TracedTask.Task, LowLevelTasks::EQueuePreference::GlobalQueuePreference));

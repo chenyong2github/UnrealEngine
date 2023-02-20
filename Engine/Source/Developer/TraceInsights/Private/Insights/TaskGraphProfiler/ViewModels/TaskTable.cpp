@@ -32,6 +32,7 @@ const FName FTaskTableColumns::CompletedTimestampColumnId(TEXT("CompletedTimesta
 const FName FTaskTableColumns::CompletedThreadIdColumnId(TEXT("CompletedThreadId"));
 const FName FTaskTableColumns::DestroyedTimestampColumnId(TEXT("DestroyedTimestamp"));
 const FName FTaskTableColumns::DestroyedThreadIdColumnId(TEXT("DestroyedThreadId"));
+const FName FTaskTableColumns::TaskSizeColumnId(TEXT("TaskSize"));
 const FName FTaskTableColumns::NumParentColumnId(TEXT("NumParents"));
 const FName FTaskTableColumns::NumNestedColumnId(TEXT("NumNested"));
 const FName FTaskTableColumns::NumSubsequentsColumnId(TEXT("NumSubsequents"));
@@ -93,6 +94,8 @@ struct DefaultTaskFieldGetterFuncts
 
 	static FTableCellValue GetDestroyedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetDestroyedTimestamp()); }
 	static FTableCellValue GetDestroyedThreadId(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetDestroyedThreadId()); }
+
+	static FTableCellValue GetTaskSize(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetTaskSize()); }
 
 	static FTableCellValue GetNumParents(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetNumParents()); }
 	static FTableCellValue GetNumNested(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetNumNested());	}
@@ -620,6 +623,36 @@ void FTaskTable::AddDefaultColumns()
 		Column.SetDataType(ETableCellDataType::Int64);
 
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetDestroyedThreadId>>();
+		Column.SetValueGetter(Getter);
+
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+		Column.SetValueFormatter(Formatter);
+
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
+		Column.SetValueSorter(Sorter);
+
+		AddColumn(ColumnRef);
+	}
+	//////////////////////////////////////////////////
+	// Task Size Column
+	{
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FTaskTableColumns::TaskSizeColumnId);
+		FTableColumn& Column = *ColumnRef;
+
+		Column.SetIndex(ColumnIndex++);
+
+		Column.SetShortName(LOCTEXT("TaskSizeColumnName", "Task Size"));
+		Column.SetTitleName(LOCTEXT("TaskSizeColumnTitle", "Task Size"));
+		Column.SetDescription(LOCTEXT("TaskSizeColumnDesc", "The size of the task including user-provided task body."));
+
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+
+		Column.SetHorizontalAlignment(HAlign_Left);
+		Column.SetInitialWidth(60.0f);
+
+		Column.SetDataType(ETableCellDataType::Int64);
+
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetTaskSize>>();
 		Column.SetValueGetter(Getter);
 
 		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();

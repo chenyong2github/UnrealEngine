@@ -25,11 +25,12 @@ FTaskEntry::FTaskEntry(const TraceServices::FTaskInfo& TaskInfo)
 	, CompletedThreadId(TaskInfo.CompletedThreadId)
 	, DestroyedTimestamp(TaskInfo.DestroyedTimestamp)
 	, DestroyedThreadId(TaskInfo.DestroyedThreadId)
+	, TaskSize(TaskInfo.TaskSize)
+	, NumSubsequents(TaskInfo.Subsequents.Num())
+	, NumPrerequisites(TaskInfo.Prerequisites.Num())
+	, NumParents(TaskInfo.ParentTasks.Num())
+	, NumNested(TaskInfo.NestedTasks.Num())
 {
-	NumSubsequents = TaskInfo.Subsequents.Num();
-	NumPrerequisites = TaskInfo.Prerequisites.Num();
-	NumParents = TaskInfo.ParentTasks.Num();
-	NumNested = TaskInfo.NestedTasks.Num();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

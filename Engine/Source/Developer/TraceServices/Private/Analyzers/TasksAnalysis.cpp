@@ -58,7 +58,8 @@ bool FTasksAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 		{
 			double Timestamp = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Timestamp"));
 			TaskTrace::FId TaskId = EventData.GetValue<TaskTrace::FId>("TaskId");
-			TasksProvider.TaskCreated(TaskId, Timestamp, ThreadId);
+			uint64 TaskSize = EventData.GetValue<uint64>("TaskSize");
+			TasksProvider.TaskCreated(TaskId, Timestamp, ThreadId, TaskSize);
 			break;
 		}
 		case RouteId_Launched:
@@ -75,8 +76,9 @@ bool FTasksAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 
 			bool bTracked = EventData.GetValue<bool>("Tracked");
 			int32 ThreadToExecuteOn = EventData.GetValue<int32>("ThreadToExecuteOn");
+			uint64 TaskSize = EventData.GetValue<uint64>("TaskSize");
 
-			TasksProvider.TaskLaunched(TaskId, DebugName, bTracked, ThreadToExecuteOn, Timestamp, ThreadId);
+			TasksProvider.TaskLaunched(TaskId, DebugName, bTracked, ThreadToExecuteOn, Timestamp, ThreadId, TaskSize);
 
 			break;
 		}

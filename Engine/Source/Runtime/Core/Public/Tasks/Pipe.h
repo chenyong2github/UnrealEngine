@@ -72,7 +72,7 @@ namespace UE::Tasks
 
 			FExecutableTask* Task = FExecutableTask::Create(InDebugName, Forward<TaskBodyType>(TaskBody), Priority, ExtendedPriority);
 			Task->SetPipe(*this);
-			Task->TryLaunch();
+			Task->TryLaunch(sizeof(*Task));
 			return TTask<FResult>{ Task };
 		}
 
@@ -98,7 +98,7 @@ namespace UE::Tasks
 			FExecutableTask* Task = FExecutableTask::Create(InDebugName, Forward<TaskBodyType>(TaskBody), Priority, ExtendedPriority);
 			Task->SetPipe(*this);
 			Task->AddPrerequisites(Forward<PrerequisitesCollectionType>(Prerequisites));
-			Task->TryLaunch();
+			Task->TryLaunch(sizeof(*Task));
 			return TTask<FResult>{ Task };
 		}
 

@@ -483,7 +483,7 @@ public:
 
 	void Unlock(ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
-		TryLaunch();
+		TryLaunch(0);
 	}
 
 	void Execute(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread, bool bDeleteOnCompletion)
@@ -529,7 +529,7 @@ public:
 	{
 		//check(CurrentThreadIfKnown == ENamedThreads::AnyThread); // the feature is not used
 		AddRef(); // scheduler's reference
-		TryLaunch();
+		TryLaunch(0);
 	}
 
 	void DispatchSubsequents(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
@@ -646,7 +646,7 @@ public:
 		FORCEINLINE_DEBUGGABLE FGraphEventRef ConstructAndDispatchWhenReady(T&&... Args)
 		{
 			FGraphEventRef Ref{ ConstructAndHoldImpl(Forward<T>(Args)...) };
-			Ref->TryLaunch();
+			Ref->TryLaunch(sizeof(TGraphTask));
 			return Ref;
 		}
 
@@ -655,7 +655,7 @@ public:
 		FORCEINLINE_DEBUGGABLE TGraphTask* ConstructAndHold(T&&... Args)
 		{
 			TGraphTask* Task = ConstructAndHoldImpl(Forward<T>(Args)...);
-			TaskTrace::Created(Task->GetTraceId());
+			TaskTrace::Created(Task->GetTraceId(), sizeof(*Task));
 			return Task;
 		}
 
@@ -752,7 +752,8 @@ public:
 	FGraphEventImpl()
 		: FBaseGraphTask(nullptr)
 	{
-		Init(TEXT("GraphEvent"), UE::Tasks::ETaskPriority::Normal, UE::Tasks::EExtendedTaskPriority::TaskEvent);
+		TaskTrace::Created(GetTraceId(), sizeof(*this));
+		Init((TEXT("GraphEvent"), UE::Tasks::ETaskPriority::Normal, UE::Tasks::EExtendedTaskPriority::TaskEvent);
 	}
 
 	static void* operator new(size_t Size);
@@ -767,16 +768,16 @@ private:
 };
 
 using FGraphEventImplAllocator = TLockFreeFixedSizeAllocator_TLSCache<sizeof(FGraphEventImpl), PLATFORM_CACHE_LINE_SIZE>;
-CORE_API extern FGraphEventImplAllocator GraphEventImplAllocator;
+CORE_API FGraphEventImplAllocator& GetGraphEventImplAllocator();
 
 inline void* FGraphEventImpl::operator new(size_t Size)
 {
-	return GraphEventImplAllocator.Allocate();
+	return GetGraphEventImplAllocator().Allocate();
 }
 
 inline void FGraphEventImpl::operator delete(void* Ptr)
 {
-	GraphEventImplAllocator.Free(Ptr);
+	GetGraphEventImplAllocator().Free(Ptr);
 }
 
 inline FGraphEventRef FBaseGraphTask::CreateGraphEvent()
@@ -1280,7 +1281,7 @@ public:
 
 	void Unlock(ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
-		TaskTrace::Launched(GetTraceId(), nullptr, Subsequents.IsValid(), ((TTask*)&TaskStorage)->GetDesiredThread());
+		TaskTrace::Launched(GetTraceId(), nullptr, Subsequents.IsValid(), ((TTask*)&TaskStorage)->GetDesiredThread(), sizeof(*this));
 
 		bool bWakeUpWorker = true;
 		ConditionalQueueTask(CurrentThreadIfKnown, bWakeUpWorker);
@@ -1415,7 +1416,7 @@ private:
 	 **/
 	FGraphEventRef Setup(const FGraphEventArray* Prerequisites = NULL, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
-		TaskTrace::Launched(GetTraceId(), nullptr, Subsequents.IsValid(), ((TTask*)&TaskStorage)->GetDesiredThread());
+		TaskTrace::Launched(GetTraceId(), nullptr, Subsequents.IsValid(), ((TTask*)&TaskStorage)->GetDesiredThread(), sizeof(*this));
 
 		FGraphEventRef ReturnedEventRef = Subsequents; // very important so that this doesn't get destroyed before we return
 		SetupPrereqs(Prerequisites, CurrentThreadIfKnown, true);
@@ -1435,7 +1436,7 @@ private:
 	 **/
 	TGraphTask* Hold(const FGraphEventArray* Prerequisites = NULL, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
-		TaskTrace::Created(GetTraceId());
+		TaskTrace::Created(GetTraceId(), sizeof(*this));
 
 		SetupPrereqs(Prerequisites, CurrentThreadIfKnown, false);
 		return this;

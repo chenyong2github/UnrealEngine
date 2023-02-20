@@ -146,7 +146,7 @@ namespace UE::Tasks
 				FExecutableTask* Task = FExecutableTask::Create(DebugName, Forward<TaskBodyType>(TaskBody), Priority, ExtendedPriority);
 				// this must happen before launching, to support an ability to access the task itself from inside it
 				*Pimpl.GetInitReference() = Task;
-				Task->TryLaunch();
+				Task->TryLaunch(sizeof(*Task));
 			}
 
 			// launches a task for asynchronous execution, with prerequisites that must be completed before the task is scheduled
@@ -172,7 +172,7 @@ namespace UE::Tasks
 				Task->AddPrerequisites(Forward<PrerequisitesCollectionType>(Prerequisites));
 				// this must happen before launching, to support an ability to access the task itself from inside it
 				*Pimpl.GetInitReference() = Task;
-				Task->TryLaunch();
+				Task->TryLaunch(sizeof(*Task));
 			}
 
 			bool IsAwaitable() const
@@ -255,7 +255,7 @@ namespace UE::Tasks
 				// An event is not "in the system" until it's triggered, and should be kept alive only by external references. Once it's triggered it's in the system 
 				// and can outlive external references, so we need to keep it alive by holding an internal reference. It will be released when the event is signalled
 				Pimpl->AddRef();
-				Pimpl->TryLaunch();
+				Pimpl->TryLaunch(sizeof(*Pimpl));
 			}
 		}
 	};
@@ -355,7 +355,7 @@ namespace UE::Tasks
 		FWaitingTask WaitingTask{ TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter */,  EExtendedTaskPriority::Inline };
 		WaitingTask.AddPrerequisites(Tasks);
 
-		if (WaitingTask.TryLaunch())
+		if (WaitingTask.TryLaunch(sizeof(WaitingTask)))
 		{	// was executed inline
 			check(WaitingTask.IsCompleted());
 		}
@@ -395,7 +395,7 @@ namespace UE::Tasks
 		TRefCountPtr<FWaitingTask> WaitingTask{ FWaitingTask::Create(TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter */, EExtendedTaskPriority::Inline), /*bAddRef=*/ false};
 		WaitingTask->AddPrerequisites(Tasks);
 
-		if (WaitingTask->TryLaunch())
+		if (WaitingTask->TryLaunch(sizeof(WaitingTask)))
 		{	// was executed inline
 			check(WaitingTask->IsCompleted());
 			return true;

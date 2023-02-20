@@ -301,9 +301,9 @@ namespace UE::Tasks
 
 			// Tries to schedule task execution. Returns false if the task has incomplete dependencies (prerequisites or is blocked by a pipe). 
 			// In this case the task will be automatically scheduled when all dependencies are completed.
-			bool TryLaunch()
+			bool TryLaunch(uint64 TaskSize)
 			{
-				TaskTrace::Launched(GetTraceId(), LowLevelTask.GetDebugName(), true, (ENamedThreads::Type)0xff);
+				TaskTrace::Launched(GetTraceId(), LowLevelTask.GetDebugName(), true, (ENamedThreads::Type)0xff, TaskSize);
 				return TryUnlock();
 			}
 
@@ -792,6 +792,7 @@ namespace UE::Tasks
 			FTaskEventBase(const TCHAR* InDebugName)
 				: FTaskBase(/*InitRefCount=*/ 1) // for the initial reference (we don't increment it on passing to `TRefCountPtr`)
 			{
+				TaskTrace::Created(GetTraceId(), sizeof(*this));
 				Init(InDebugName, ETaskPriority::Normal, EExtendedTaskPriority::TaskEvent);
 			}
 

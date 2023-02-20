@@ -216,7 +216,7 @@ namespace UE::Tasks
 			FWaitingTask WaitingTask{ TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter*/, EExtendedTaskPriority::Inline };
 			WaitingTask.AddPrerequisites(*this);
 
-			if (WaitingTask.TryLaunch())
+			if (WaitingTask.TryLaunch(sizeof(WaitingTask)))
 			{	// was executed inline
 				check(WaitingTask.IsCompleted());
 			}
@@ -259,7 +259,7 @@ namespace UE::Tasks
 			TRefCountPtr<FWaitingTask> WaitingTask{ FWaitingTask::Create(TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter*/, EExtendedTaskPriority::Inline), /*bAddRef=*/ false };
 			WaitingTask->AddPrerequisites(*this);
 
-			if (WaitingTask->TryLaunch())
+			if (WaitingTask->TryLaunch(sizeof(WaitingTask)))
 			{	// was executed inline
 				check(WaitingTask->IsCompleted());
 				return true;
@@ -319,7 +319,7 @@ namespace UE::Tasks
 				using FReturnFromNamedThreadTask = TExecutableTask<decltype(TaskBody)>;
 				FReturnFromNamedThreadTask ReturnTask{ TEXT("ReturnFromNamedThreadTask"), MoveTemp(TaskBody), ETaskPriority::High, ExtendedPriority };
 				ReturnTask.AddPrerequisites(Task);
-				ReturnTask.TryLaunch(); // the result doesn't matter
+				ReturnTask.TryLaunch(sizeof(ReturnTask)); // the result doesn't matter
 
 				TaskGraph.ProcessThreadUntilRequestReturn(CurrentThread);
 				return true;

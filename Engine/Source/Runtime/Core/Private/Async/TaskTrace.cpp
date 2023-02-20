@@ -20,6 +20,7 @@ namespace TaskTrace
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Created)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
 		UE_TRACE_EVENT_FIELD(uint64, TaskId)
+		UE_TRACE_EVENT_FIELD(uint64, TaskSize)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Launched)
@@ -28,6 +29,7 @@ namespace TaskTrace
 		UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DebugName)
 		UE_TRACE_EVENT_FIELD(bool, Tracked)
 		UE_TRACE_EVENT_FIELD(int32, ThreadToExecuteOn)
+		UE_TRACE_EVENT_FIELD(uint64, TaskSize)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Scheduled)
@@ -92,7 +94,7 @@ namespace TaskTrace
 #endif
 	}
 
-	void Created(FId TaskId)
+	void Created(FId TaskId, uint64 TaskSize)
 	{
 		if (!bGTaskTraceInitialized)
 		{
@@ -103,10 +105,11 @@ namespace TaskTrace
 
 		UE_TRACE_LOG(TaskTrace, Created, TaskChannel)
 			<< Created.Timestamp(FPlatformTime::Cycles64())
-			<< Created.TaskId(TaskId);
+			<< Created.TaskId(TaskId)
+			<< Created.TaskSize(TaskSize);
 	}
 
-	void Launched(FId TaskId, const TCHAR* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn)
+	void Launched(FId TaskId, const TCHAR* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn, uint64 TaskSize)
 	{
 		if (!bGTaskTraceInitialized)
 		{
@@ -120,7 +123,8 @@ namespace TaskTrace
 			<< Launched.TaskId(TaskId)
 			<< Launched.DebugName(DebugName != nullptr ? DebugName : TEXT(""))
 			<< Launched.Tracked(bTracked)
-			<< Launched.ThreadToExecuteOn(ThreadToExecuteOn);
+			<< Launched.ThreadToExecuteOn(ThreadToExecuteOn)
+			<< Launched.TaskSize(TaskSize);
 	}
 
 	void Scheduled(FId TaskId)

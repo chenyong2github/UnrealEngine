@@ -37,8 +37,8 @@ namespace TaskTrace
 	FId CORE_API GenerateTaskId();
 
 	void CORE_API Init();
-	void CORE_API Created(FId TaskId); // optional, used only if a task was created but not launched immediately
-	void CORE_API Launched(FId TaskId, const TCHAR* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn);
+	void CORE_API Created(FId TaskId, uint64 TaskSize); // optional, used only if a task was created but not launched immediately
+	void CORE_API Launched(FId TaskId, const TCHAR* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn, uint64 TaskSize);
 	void CORE_API Scheduled(FId TaskId);
 	void CORE_API SubsequentAdded(FId TaskId, FId SubsequentId);
 	void CORE_API Started(FId TaskId);
@@ -67,8 +67,8 @@ namespace TaskTrace
 	// NOOP implementation
 	inline FId GenerateTaskId() { return InvalidId; }
 	inline void Init() {}
-	inline void Created(FId TaskId) {}
-	inline void Launched(FId TaskId, const TCHAR* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn) {}
+	inline void Created(FId TaskId, uint64 TaskSize) {}
+	inline void Launched(FId TaskId, const TCHAR* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn, uint64 TaskSize) {}
 	inline void Scheduled(FId TaskId) {}
 	inline void SubsequentAdded(FId TaskId, FId SubsequentId) {}
 	inline void Started(FId TaskId) {}
