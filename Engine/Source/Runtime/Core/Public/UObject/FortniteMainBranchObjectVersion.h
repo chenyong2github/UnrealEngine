@@ -268,6 +268,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Add an attribute to geometry collection to track internal faces, rather than relying on material ID numbering
 		ChaosGeometryCollectionInternalFacesAttribute,
 
+		// Dynamic cast nodes use an enumerated pure node state to include a value for the default setting
+		DynamicCastNodesUsePureStateEnum,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

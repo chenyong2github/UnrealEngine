@@ -808,6 +808,66 @@ void UK2Node_CallFunction::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin
 	}
 	// END TEMP
 
+	const UBlueprint* Blueprint = GetBlueprint();
+	if (Blueprint && Blueprint->bIsRegeneratingOnLoad)
+	{
+		// Older nodes incorrectly used an interface context for the target pin for calls to locally-implemented interface
+		// functions (due to an earlier regression). This was compounded by occasional confusion in the context menu, where
+		// a user might have chosen the wrong calling context for an interface implementation and then linked a term with an
+		// incompatible object type to the target input. At runtime this worked fine because both the calling context as well
+		// as the linked object context both implemented the target interface, which allowed any external object context to
+		// be linked to the target pin, so long as it also implemented the interface. After the target pin context was fixed
+		// to match the function context, the target pin context no longer matched the linked pin's context, so the connection
+		// would otherwise be orphaned and result in a Blueprint compiler error. So, rather than cause confusion about nodes
+		// that were not previously broken prior to the fix, we change the context to an interface for backwards compatibility.
+		const UEdGraphPin* OldSelfPin = FindSelfPin(OldPins);
+		if (OldSelfPin
+			&& OldSelfPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface
+			&& OldSelfPin->LinkedTo.Num() > 0)
+		{
+			if (const UFunction* TargetFunction = GetTargetFunction())
+			{
+				// Get the function context. This should match the target pin context, but due to the regression that's noted above,
+				// in older assets this may not match the self pin if the context represents an implementation of an interface function.
+				const UClass* FunctionContext = TargetFunction->GetOwnerClass()->GetAuthoritativeClass();
+
+				// Get the interface context from the old target pin (this should already be non-NULL, but we'll check that below).
+				const UClass* InterfaceContext = Cast<UClass>(OldSelfPin->PinType.PinSubCategoryObject);
+
+				// If we're not already using an interface context, but the function's outer class implements the old target pin's type...
+				if (ensure(FunctionContext)
+					&& !FunctionContext->IsChildOf<UInterface>()
+					&& ensure(InterfaceContext)
+					&& FunctionContext->ImplementsInterface(InterfaceContext))
+				{
+					// Check for any linked object pins that aren't compatible with the current function context.
+					for (const UEdGraphPin* LinkedTo : OldSelfPin->LinkedTo)
+					{
+						if (ensure(LinkedTo)
+							&& LinkedTo->PinType.PinCategory == UEdGraphSchema_K2::PC_Object)
+						{
+							// If any linked object pin is not compatible with the current function context, but implements the old target pin's interface,
+							// reset the function context to reference the interface method instead. This will change the function call to an interface call,
+							// which will be compatible with any object context that's being passed in. When we reallocate the pins below, we'll reconstruct
+							// the node using the proper function context in which all linked pins will remain backwards-compatible with the existing target.
+							const UClass* LinkedToPinContext = Cast<UClass>(LinkedTo->PinType.PinSubCategoryObject);
+							if (LinkedToPinContext
+								&& !LinkedToPinContext->IsChildOf(FunctionContext)
+								&& LinkedToPinContext->ImplementsInterface(InterfaceContext))
+							{
+								if (UFunction* InterfaceFunction = FindUField<UFunction>(InterfaceContext, FunctionReference.GetMemberName()))
+								{
+									SetFromFunction(InterfaceFunction);
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	Super::ReallocatePinsDuringReconstruction(OldPins);
 
 	// Connect Execute and Then pins for functions, which became pure.
@@ -2334,6 +2394,24 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 			).ToString();
 			MessageLog.Error(*ErrorString, this);
 		}
+		else if (Pin && Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object && Pin->PinName == UEdGraphSchema_K2::PN_Self)
+		{
+			const UEdGraphPin* SelfPin = MessageLog.FindSourcePin(Pin);
+			for (const UEdGraphPin* LinkedTo : SelfPin->LinkedTo)
+			{
+				if (ensure(LinkedTo) && LinkedTo->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface)
+				{
+					if (LinkedTo->PinType.IsArray())
+					{
+						MessageLog.Note(*FText::Format(LOCTEXT("InterfaceArrayTargetConnectionNote", "@@: An array of interface types can no longer be directly connected to '{0}'. Each entry must first be cast to the object type. However, the existing connection to '{1}' will continue to work for backwards-compatibility."), FText::FromString(SelfPin->GetName()), FText::FromString(LinkedTo->GetName())).ToString(), this);
+					}
+					else
+					{
+						MessageLog.Note(*FText::Format(LOCTEXT("InterfaceTargetConnectionNote", "@@: An interface type can no longer be directly connected to '{0}'. It must first be cast to the object type. However, the existing connection to '{1}' will continue to work for backwards-compatibility."), FText::FromString(SelfPin->GetName()), FText::FromString(LinkedTo->GetName())).ToString(), this);
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -2833,18 +2911,34 @@ void UK2Node_CallFunction::ExpandNode(class FKismetCompilerContext& CompilerCont
 		}
 	}
 
+	// Older assets may have interface pins wired directly to the target pin in the source graph (due to an earlier regression).
+	UEdGraphPin* SelfPin = Schema->FindSelfPin(*this, EEdGraphPinDirection::EGPD_Input);
+	if (SelfPin && SelfPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object)
+	{
+		for (UEdGraphPin* PinLinkedToSelfPin : SelfPin->LinkedTo)
+		{
+			if (PinLinkedToSelfPin && PinLinkedToSelfPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface && !PinLinkedToSelfPin->PinType.IsContainer())
+			{
+				PinLinkedToSelfPin->BreakLinkTo(SelfPin);
+				if (!Schema->TryCreateConnection(PinLinkedToSelfPin, SelfPin))
+				{
+					PinLinkedToSelfPin->MakeLinkTo(SelfPin);
+				}
+			}
+		}
+	}
+
 	// Then we go through and expand out array iteration if necessary
 	const bool bAllowMultipleSelfs = AllowMultipleSelfs(true);
-	UEdGraphPin* MultiSelf = Schema->FindSelfPin(*this, EEdGraphPinDirection::EGPD_Input);
-	if(bAllowMultipleSelfs && MultiSelf && !MultiSelf->PinType.IsArray())
+	if (bAllowMultipleSelfs && SelfPin && !SelfPin->PinType.IsArray())
 	{
-		const bool bProperInputToExpandForEach = 
-			(1 == MultiSelf->LinkedTo.Num()) && 
-			(nullptr != MultiSelf->LinkedTo[0]) && 
-			(MultiSelf->LinkedTo[0]->PinType.IsArray());
-		if(bProperInputToExpandForEach)
+		const bool bProperInputToExpandForEach =
+			(1 == SelfPin->LinkedTo.Num()) &&
+			(nullptr != SelfPin->LinkedTo[0]) &&
+			(SelfPin->LinkedTo[0]->PinType.IsArray());
+		if (bProperInputToExpandForEach)
 		{
-			CallForEachElementInArrayExpansion(this, MultiSelf, CompilerContext, SourceGraph);
+			CallForEachElementInArrayExpansion(this, SelfPin, CompilerContext, SourceGraph);
 		}
 	}
 }

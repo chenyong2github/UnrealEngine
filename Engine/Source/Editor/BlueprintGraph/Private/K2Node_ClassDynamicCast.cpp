@@ -49,22 +49,8 @@ void UK2Node_ClassDynamicCast::AllocateDefaultPins()
 	//@TODO: Move this somewhere more sensible
 	ensure((TargetType == nullptr) || (!TargetType->HasAnyClassFlags(CLASS_NewerVersionExists)));
 
-	const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(GetSchema());
-	check(K2Schema != nullptr);
-	if (!K2Schema->DoesGraphSupportImpureFunctions(GetGraph()))
-	{
-		bIsPureCast = true;
-	}
-
-	if (!bIsPureCast)
-	{
-		// Input - Execution Pin
-		CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Execute);
-
-		// Output - Execution Pins
-		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_CastSucceeded);
-		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_CastFailed);
-	}
+	// Exec pins (if needed)
+	CreateExecPins();
 
 	// Input - Source type Pin
 	CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Class, UObject::StaticClass(), FClassDynamicCastHelper::ClassToCastName);
@@ -76,8 +62,8 @@ void UK2Node_ClassDynamicCast::AllocateDefaultPins()
 		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Class, *TargetType, *CastResultPinName);
 	}
 
-	UEdGraphPin* BoolSuccessPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Boolean, FClassDynamicCastHelper::CastSuccessPinName);
-	BoolSuccessPin->bHidden = !bIsPureCast;
+	// Output - Success
+	CreateSuccessPin();
 
 	UK2Node::AllocateDefaultPins();
 }
