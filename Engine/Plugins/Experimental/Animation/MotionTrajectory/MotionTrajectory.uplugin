@@ -21,5 +21,11 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault"
 		}
+	],
+	"Plugins": [
+		{
+			"Name": "PoseSearch",
+			"Enabled": true
+		}
 	]
 }

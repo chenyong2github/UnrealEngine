@@ -27,7 +27,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinShownByDefault))
 	FGameplayTagContainer ActiveTagsContainer;
 
-	// Motion trajectory samples for pose search queries
+	// Motion trajectory samples for pose search queries. Expected to be in the space of the SkeletalMeshComponent.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
 	FTrajectorySampleRange Trajectory;
 

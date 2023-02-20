@@ -14,7 +14,8 @@ public class MotionTrajectory : ModuleRules
 				"Core",
 				"CoreUObject",
                 "Engine",
-				"AnimGraphRuntime"
+				"AnimGraphRuntime",
+				"PoseSearch"
 			}
 		);
 	}
