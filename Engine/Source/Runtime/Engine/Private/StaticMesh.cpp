@@ -2528,6 +2528,7 @@ static void SerializeNaniteSettingsForDDC(FArchive& Ar, FMeshNaniteSettings& Nan
 	Ar << NaniteSettings.TargetMinimumResidencyInKB;
 	Ar << NaniteSettings.KeepPercentTriangles;
 	Ar << NaniteSettings.TrimRelativeError;
+	Ar << NaniteSettings.FallbackTarget;
 	Ar << NaniteSettings.FallbackPercentTriangles;
 	Ar << NaniteSettings.FallbackRelativeError;
 	Ar << NaniteSettings.DisplacementUVChannel;
@@ -5653,6 +5654,18 @@ void UStaticMesh::Serialize(FArchive& Ar)
 	if (Ar.IsLoading() && Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::DistanceFieldSelfShadowBias)
 	{
 		DistanceFieldSelfShadowBias = GetSourceModel(0).BuildSettings.DistanceFieldBias_DEPRECATED * 10.0f;
+	}
+
+	if (Ar.IsLoading() && Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::NaniteFallbackTarget)
+	{
+		if( NaniteSettings.FallbackRelativeError != 1.0f )
+		{
+			NaniteSettings.FallbackTarget = ENaniteFallbackTarget::RelativeError;
+		}
+		else if( NaniteSettings.FallbackPercentTriangles != 1.0f )
+		{
+			NaniteSettings.FallbackTarget = ENaniteFallbackTarget::PercentTriangles;
+		}
 	}
 
 	if (Ar.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::RefactorMeshEditorMaterials)

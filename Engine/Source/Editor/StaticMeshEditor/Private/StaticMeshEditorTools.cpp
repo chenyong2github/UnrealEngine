@@ -5199,6 +5199,29 @@ void FNaniteSettingsLayout::UpdateSettings(const FMeshNaniteSettings& InSettings
 	NaniteSettings = InSettings;
 }
 
+template< typename StructType, typename MemberType >
+IDetailPropertyRow& AddDefaultRow( IDetailCategoryBuilder& CategoryBuilder, StructType& Struct, MemberType (StructType::*MemberPointer), FName PropertyName )
+{
+	TSharedPtr< FStructOnScope > TempStruct = MakeShared< FStructOnScope >( StructType::StaticStruct() );
+	StructType::StaticStruct()->CopyScriptStruct( TempStruct->GetStructMemory(), &Struct, 1 );
+	IDetailPropertyRow* PropertyRow = CategoryBuilder.AddExternalStructureProperty( TempStruct, PropertyName );
+	PropertyRow->GetPropertyHandle()->SetOnPropertyValueChanged( FSimpleDelegate::CreateLambda(
+		[ &Struct, TempStruct, MemberPointer ] 
+		{
+			StructType* TempStruct2 = (StructType*)TempStruct->GetStructMemory();
+			Struct.*MemberPointer = TempStruct2->*MemberPointer;
+		}
+	));
+	PropertyRow->GetPropertyHandle()->SetOnChildPropertyValueChanged( FSimpleDelegate::CreateLambda(
+		[ &Struct, TempStruct, MemberPointer ] 
+		{
+			StructType* TempStruct2 = (StructType*)TempStruct->GetStructMemory();
+			Struct.*MemberPointer = TempStruct2->*MemberPointer;
+		}
+	));
+	return *PropertyRow;
+}
+
 void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilder)
 {
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
@@ -5289,7 +5312,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	}
 
 	{
-		TSharedPtr<STextComboBox> TerminationCriterionCombo;
+		TSharedPtr<STextComboBox> ComboBox;
 		NaniteSettingsCategory.AddCustomRow(LOCTEXT("PositionPrecision", "Position Precision"))
 		.NameContent()
 		[
@@ -5301,7 +5324,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 		.ValueContent()
 		.VAlign(VAlign_Center)
 		[
-			SAssignNew(TerminationCriterionCombo, STextComboBox)
+			SAssignNew(ComboBox, STextComboBox)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.OptionsSource(&PositionPrecisionOptions)
 			.InitiallySelectedItem(PositionPrecisionOptions[PositionPrecisionValueToIndex(NaniteSettings.PositionPrecision)])
@@ -5310,7 +5333,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	}
 
 	{
-		TSharedPtr<STextComboBox> TerminationCriterionCombo;
+		TSharedPtr<STextComboBox> ComboBox;
 		NaniteSettingsCategory.AddCustomRow(LOCTEXT("NormalPrecision", "Normal Precision"))
 		.NameContent()
 		[
@@ -5322,7 +5345,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 		.ValueContent()
 		.VAlign(VAlign_Center)
 		[
-			SAssignNew(TerminationCriterionCombo, STextComboBox)
+			SAssignNew(ComboBox, STextComboBox)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.OptionsSource(&NormalPrecisionOptions)
 			.InitiallySelectedItem(NormalPrecisionOptions[NormalPrecisionValueToIndex(NaniteSettings.NormalPrecision)])
@@ -5331,7 +5354,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	}
 
 	{
-		TSharedPtr<STextComboBox> TerminationCriterionCombo;
+		TSharedPtr<STextComboBox> ComboBox;
 		NaniteSettingsCategory.AddCustomRow(LOCTEXT("MinimumResidency", "Minimum Residency"))
 		.NameContent()
 		[
@@ -5342,7 +5365,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 		]
 		.ValueContent()
 		[
-			SAssignNew(TerminationCriterionCombo, STextComboBox)
+			SAssignNew(ComboBox, STextComboBox)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.OptionsSource(&ResidencyOptions)
 			.InitiallySelectedItem(ResidencyOptions[MinimumResidencyValueToIndex(NaniteSettings.TargetMinimumResidencyInKB)])
@@ -5396,6 +5419,9 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 		];
 	}
 
+	AddDefaultRow( NaniteSettingsCategory, NaniteSettings, &FMeshNaniteSettings::FallbackTarget, GET_MEMBER_NAME_CHECKED( FMeshNaniteSettings, FallbackTarget ) )
+	.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([this, NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked() && IsHiResDataEmpty(); })));
+
 	{
 		NaniteSettingsCategory.AddCustomRow( LOCTEXT("FallbackTrianglePercent", "Fallback Triangle Percent") )
 
@@ -5417,7 +5443,11 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 			.Value(this, &FNaniteSettingsLayout::GetFallbackPercentTriangles)
 			.OnValueChanged(this, &FNaniteSettingsLayout::OnFallbackPercentTrianglesChanged)
 			.OnValueCommitted(this, &FNaniteSettingsLayout::OnFallbackPercentTrianglesCommitted)
-		];
+		]
+		.Visibility(TAttribute<EVisibility>::Create( TAttribute<EVisibility>::FGetter::CreateLambda([this]()
+			{
+				return NaniteSettings.FallbackTarget == ENaniteFallbackTarget::PercentTriangles ? EVisibility::Visible : EVisibility::Hidden;
+			} )));
 	}
 
 	{
@@ -5439,7 +5469,11 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 			.MinValue(0.0f)
 			.Value(this, &FNaniteSettingsLayout::GetFallbackRelativeError)
 			.OnValueChanged(this, &FNaniteSettingsLayout::OnFallbackRelativeErrorChanged)
-		];
+		]
+		.Visibility(TAttribute<EVisibility>::Create( TAttribute<EVisibility>::FGetter::CreateLambda([this]()
+			{
+				return NaniteSettings.FallbackTarget == ENaniteFallbackTarget::RelativeError ? EVisibility::Visible : EVisibility::Hidden;
+			} )));
 	}
 
 	//Source import filename

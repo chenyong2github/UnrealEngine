@@ -2701,6 +2701,17 @@ struct FSkeletalMeshBuildSettings
 	}
 };
 
+UENUM()
+enum class ENaniteFallbackTarget : uint8
+{
+	/** Automatic heuristic based on project settings. */
+	Auto,
+	/** Percentage of triangles to keep from source mesh for fallback. */
+	PercentTriangles,
+	/** Reduce until the specified error is reached relative to size of the mesh */
+	RelativeError
+};
+
 USTRUCT(BlueprintType)
 struct FMeshDisplacementMap
 {
@@ -2766,6 +2777,10 @@ struct FMeshNaniteSettings
 	/** Reduce until at least this amount of error is reached relative to size of the mesh */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	float TrimRelativeError = 0.0f;
+
+	/** Which heuristic to use when generating the fallback mesh. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
+	ENaniteFallbackTarget FallbackTarget = ENaniteFallbackTarget::Auto;
 	
 	/** Percentage of triangles to keep from source mesh for fallback. 1.0 = no reduction, 0.0 = no triangles. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
@@ -2806,6 +2821,7 @@ struct FMeshNaniteSettings
 			&& TargetMinimumResidencyInKB == Other.TargetMinimumResidencyInKB
 			&& KeepPercentTriangles == Other.KeepPercentTriangles
 			&& TrimRelativeError == Other.TrimRelativeError
+			&& FallbackTarget == Other.FallbackTarget
 			&& FallbackPercentTriangles == Other.FallbackPercentTriangles
 			&& FallbackRelativeError == Other.FallbackRelativeError
 			&& DisplacementUVChannel == Other.DisplacementUVChannel;

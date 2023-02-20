@@ -32,6 +32,12 @@ static TAutoConsoleVariable<bool> CVarBuildImposters(
 );
 #endif
 
+static TAutoConsoleVariable<int32> CVarFallbackThreshold(
+	TEXT("r.Nanite.Builder.FallbackTriangleThreshold"),
+	0,
+	TEXT("Triangle count <= to this threshold uses the source mesh unchanged as the fallback."),
+	ECVF_ReadOnly );
+
 namespace Nanite
 {
 
@@ -83,6 +89,8 @@ const FString& FBuilderModule::GetVersionString() const
 		VersionString = FString::Printf(TEXT("%s_CONSTRAINED%s%s"), *FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER).ToString(EGuidFormats::DigitsWithHyphens),
 										NANITE_USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""),
 										bBuildImposters ? TEXT("_IMPOSTERS") : TEXT(""));
+
+		VersionString.Appendf( TEXT("%i"), CVarFallbackThreshold.GetValueOnAnyThread() );
 
 #if PLATFORM_CPU_ARM_FAMILY
 		// Separate out arm keys as x64 and arm64 clang do not generate the same data for a given

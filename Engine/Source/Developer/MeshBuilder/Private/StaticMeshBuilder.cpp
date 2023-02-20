@@ -99,13 +99,32 @@ static void ComputeBoundsFromVertexList(const TArray<FStaticMeshBuildVertex>& Ve
 	BoundsOut.SphereRadius = FMath::Sqrt( RadiusSqr );
 }
 
+static void CorrectFallbackSettings( FMeshNaniteSettings& NaniteSettings, int32 NumTris )
+{
+	static const auto CVarFallbackThreshold = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.Builder.FallbackTriangleThreshold"));
+
+	switch( NaniteSettings.FallbackTarget )
+	{
+	case ENaniteFallbackTarget::Auto:
+		NaniteSettings.FallbackPercentTriangles = 1.0f;
+		NaniteSettings.FallbackRelativeError = NumTris <= CVarFallbackThreshold->GetValueOnAnyThread() ? 0.0f : 1.0f;
+		break;
+	case ENaniteFallbackTarget::PercentTriangles:
+		NaniteSettings.FallbackRelativeError = 0.0f;
+		break;
+	case ENaniteFallbackTarget::RelativeError:
+		NaniteSettings.FallbackPercentTriangles = 1.0f;
+		break;
+	}
+}
+
 static bool BuildNanite(
 	UStaticMesh* StaticMesh,
 	FStaticMeshSourceModel& SourceModel,
 	FStaticMeshLODResourcesArray& LODResources,
 	FStaticMeshVertexFactoriesArray& LODVertexFactories,
 	Nanite::FResources& NaniteResources,
-	const FMeshNaniteSettings& NaniteSettings, 
+	FMeshNaniteSettings& NaniteSettings, 
 	TArrayView<float> PercentTriangles,
 	FBoxSphereBounds& BoundsOut
 )
@@ -121,6 +140,8 @@ static bool BuildNanite(
 
 	FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
 	FStaticMeshLODResources& StaticMeshLOD = LODResources[0];
+
+	CorrectFallbackSettings( NaniteSettings, MeshDescription.Triangles().Num() );
 
 	// compute tangents, lightmap UVs, etc
 
@@ -307,7 +328,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 	const FMeshSectionInfoMap BeforeBuildSectionInfoMap = StaticMesh->GetSectionInfoMap();
 	const FMeshSectionInfoMap BeforeBuildOriginalSectionInfoMap = StaticMesh->GetOriginalSectionInfoMap();
-	const FMeshNaniteSettings NaniteSettings = StaticMesh->NaniteSettings;
+	FMeshNaniteSettings NaniteSettings = StaticMesh->NaniteSettings;
 
 	bool bNaniteDataBuilt = false;		// true once we have finished building Nanite, which can happen in multiple places
 	int32 NaniteBuiltLevels = 0;

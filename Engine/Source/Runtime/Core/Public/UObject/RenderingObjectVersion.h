@@ -127,6 +127,8 @@ struct CORE_API FRenderingObjectVersion
 		// Add a new virtual texture to support virtual texture light map on mobile
 		VirtualTexturedLightmapsV3,
 
+		NaniteFallbackTarget,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
