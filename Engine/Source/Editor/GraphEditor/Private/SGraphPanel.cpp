@@ -481,6 +481,8 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 			ConnectionDrawingPolicy = FNodeFactory::CreateConnectionPolicy(Schema, WireLayerId, MaxLayerId, ZoomFactor, MyCullingRect, OutDrawElements, GraphObj);
 		}
 
+		const bool bUseDrawStateCaching = ConnectionDrawingPolicy->UseDrawStateCaching();
+		
 		TArray<TSharedPtr<SGraphPin>> OverridePins;
 		for (const FGraphPinHandle& Handle : PreviewConnectorFromPins)
 		{
@@ -575,9 +577,13 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 					ConnectionDrawingPolicy->DrawPreviewConnector(PinGeometry->Geometry, StartPoint, EndPoint, CurrentStartPin.Get()->GetPinObj());
 				}
 
-				//@TODO: Re-evaluate this incompatible mojo; it's mutating every pin state every frame to accomplish a visual effect
-				ConnectionDrawingPolicy->SetIncompatiblePinDrawState(CurrentStartPin, VisiblePins);
+				if (!bUseDrawStateCaching || !bIsDrawStateCached)
+				{
+					//@TODO: Re-evaluate this incompatible mojo; it's mutating every pin state every frame to accomplish a visual effect
+					ConnectionDrawingPolicy->SetIncompatiblePinDrawState(CurrentStartPin, VisiblePins);
+				}
 			}
+			bIsDrawStateCached = true;
 		}
 		else
 		{
@@ -1295,6 +1301,7 @@ void SGraphPanel::OnBeginMakingConnection(FGraphPinHandle PinHandle)
 		DismissContextMenu();
 
 		PreviewConnectorFromPins.Add(PinHandle);
+		bIsDrawStateCached = false;
 	}
 }
 
@@ -1304,6 +1311,7 @@ void SGraphPanel::OnStopMakingConnection(bool bForceStop)
 	{
 		PreviewConnectorFromPins.Reset();
 		bPreservePinPreviewConnection = false;
+		bIsDrawStateCached = false;
 	}
 }
 

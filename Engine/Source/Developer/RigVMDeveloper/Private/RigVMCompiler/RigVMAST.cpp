@@ -1907,8 +1907,8 @@ bool FRigVMParserAST::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FS
 		return true;
 	}
 
-	FRigVMASTProxy SourceNodeProxy = FRigVMASTProxy::MakeFromUObject(SourceNode);
-	FRigVMASTProxy TargetNodeProxy = FRigVMASTProxy::MakeFromUObject(TargetNode);
+	const FRigVMASTProxy SourceNodeProxy = FRigVMASTProxy::MakeFromUObject(SourceNode);
+	const FRigVMASTProxy TargetNodeProxy = FRigVMASTProxy::MakeFromUObject(TargetNode);
 
 	const FRigVMExprAST* SourceExpression = nullptr;
 	if (FRigVMExprAST* const* SourceExpressionPtr = SubjectToExpression.Find(SourceNodeProxy))
@@ -1959,19 +1959,46 @@ bool FRigVMParserAST::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FS
 	{
 		return true;
 	}
+	const FRigVMBlockExprAST* SourceRoot = SourceBlock->GetRootBlock();
+	const FRigVMBlockExprAST* TargetRoot = TargetBlock->GetRootBlock();
+	
+	bool bNeedsCycleChecking = (SourceBlock == TargetBlock);
 
-	if (SourceBlock == TargetBlock ||
-		SourceBlock->Contains(TargetBlock) ||
-		TargetBlock->Contains(SourceBlock) ||
-		TargetBlock->GetRootBlock()->Contains(SourceBlock) ||
-		SourceBlock->GetRootBlock()->Contains(TargetBlock))
+	// check if source block/root contains the target
+	if (!bNeedsCycleChecking)
 	{
-		if (SourceVarExpression)
+		TMap<const FRigVMExprAST*, bool> SourceCache;
+
+		// check root first
+		bNeedsCycleChecking = SourceRoot->Contains(TargetBlock, &SourceCache);
+
+		// check block if needed (avoid doing it twice)
+		if (!bNeedsCycleChecking && SourceBlock != SourceRoot)
 		{
-			if (SourceVarExpression->SupportsSoftLinks())
-			{
-				return true;
-			}
+			bNeedsCycleChecking = SourceBlock->Contains(TargetBlock, &SourceCache);
+		}		
+	}
+
+	// check if target block/root contains the source
+	if (!bNeedsCycleChecking)
+	{
+		TMap<const FRigVMExprAST*, bool> TargetCache;
+
+		// check root first
+		bNeedsCycleChecking = TargetRoot->Contains(SourceBlock, &TargetCache);
+
+		// check block if needed (avoid doing it twice)
+		if (!bNeedsCycleChecking && TargetBlock != TargetRoot)
+		{
+			bNeedsCycleChecking = TargetBlock->Contains(SourceBlock, &TargetCache);
+		}
+	}
+
+	if (bNeedsCycleChecking)
+	{
+		if (SourceVarExpression && SourceVarExpression->SupportsSoftLinks())
+		{
+			return true;
 		}
 
 		if (LastCycleCheckExpr != SourceExpression && LastCycleCheckExpr != TargetExpression)
@@ -2043,8 +2070,7 @@ bool FRigVMParserAST::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FS
 	{
 		// if one of the blocks is not part of the current 
 		// execution - that's fine.
-		if (SourceBlock->GetRootBlock()->ContainsEntry() != 
-			TargetBlock->GetRootBlock()->ContainsEntry())
+		if (SourceRoot->ContainsEntry() != TargetRoot->ContainsEntry())
 		{
 			return true;
 		}

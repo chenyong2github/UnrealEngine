@@ -610,17 +610,27 @@ void FKismetConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin
 
 void FKismetConnectionDrawingPolicy::SetIncompatiblePinDrawState(const TSharedPtr<SGraphPin>& StartPin, const TSet< TSharedRef<SWidget> >& VisiblePins)
 {
+	if (VisiblePins.IsEmpty())
+	{
+		return;
+	}
+	
+	static const FLinearColor DisallowColor(0.25f, 0.25f, 0.25f, 0.5f);
+	
 	ResetIncompatiblePinDrawState(VisiblePins);
 
+	const UEdGraphPin* StartPinObj = StartPin->GetPinObj();
+	const UEdGraphSchema* EdGraphSchema = StartPinObj->GetSchema();
+	
 	for (auto VisiblePinIterator = VisiblePins.CreateConstIterator(); VisiblePinIterator; ++VisiblePinIterator)
 	{
 		TSharedPtr<SGraphPin> CheckPin = StaticCastSharedRef<SGraphPin>(*VisiblePinIterator);
 		if (CheckPin != StartPin)
 		{
-			const FPinConnectionResponse Response = StartPin->GetPinObj()->GetSchema()->CanCreateConnection(StartPin->GetPinObj(), CheckPin->GetPinObj());
+			const FPinConnectionResponse Response = EdGraphSchema->CanCreateConnection(StartPinObj, CheckPin->GetPinObj());
 			if (Response.Response == CONNECT_RESPONSE_DISALLOW) //-V1051
 			{
-				CheckPin->SetPinColorModifier(FLinearColor(0.25f, 0.25f, 0.25f, 0.5f));
+				CheckPin->SetPinColorModifier(DisallowColor);
 			}
 		}
 	}

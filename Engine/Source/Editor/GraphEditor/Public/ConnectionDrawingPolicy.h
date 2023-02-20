@@ -175,6 +175,9 @@ public:
 		/*out*/ FArrangedWidget*& EndWidgetGeometry
 		);
 
+	// Choose whether we want to cache the pins draw state to avoid resetting it for every tick 
+	virtual bool UseDrawStateCaching() const { return false; }
+	
 	virtual void SetIncompatiblePinDrawState(const TSharedPtr<SGraphPin>& StartPin, const TSet< TSharedRef<SWidget> >& VisiblePins);
 	virtual void ResetIncompatiblePinDrawState(const TSet< TSharedRef<SWidget> >& VisiblePins);
 

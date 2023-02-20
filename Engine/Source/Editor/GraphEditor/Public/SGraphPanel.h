@@ -286,6 +286,7 @@ protected:
 	/** Sometimes the panel draws a preview connector; e.g. when the user is connecting pins */
 	TArray< FGraphPinHandle > PreviewConnectorFromPins;
 	FVector2D PreviewConnectorEndpoint;
+	mutable bool bIsDrawStateCached = false;
 
 	/** Last mouse position seen, used for paint-centric highlighting */
 	FVector2D SavedMousePosForOnPaintEventLocalSpace;

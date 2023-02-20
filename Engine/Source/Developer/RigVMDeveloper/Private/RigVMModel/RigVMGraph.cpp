@@ -444,12 +444,96 @@ void URigVMGraph::PrepareCycleChecking(URigVMPin* InPin, bool bAsInput)
 	GetDiagnosticsAST(false, LinksToSkip)->PrepareCycleChecking(InPin);
 }
 
+
+{
+	bool AreNodesLinked(const URigVMNode* InNodeToGetLinksFrom, const URigVMNode* InNodeToCheck, TSet<URigVMNode*>& OutNodes, const bool bSource)
+	{
+		const TArray<URigVMLink*> RigVMLinks = InNodeToGetLinksFrom->GetLinks();
+		for (const URigVMLink* Link: RigVMLinks)
+		{
+			const URigVMPin* Pin = bSource ? Link->GetSourcePin() : Link->GetTargetPin();
+			if (URigVMNode* Node = Pin ? Pin->GetNode() : nullptr)
+			{
+				if (Node != InNodeToGetLinksFrom && !OutNodes.Contains(Node))
+				{
+					if (Node == InNodeToCheck)
+					{
+						return true;
+					}
+					OutNodes.Add(Node);
+					
+					if (AreNodesLinked(Node, InNodeToCheck, OutNodes, bSource))
+					{
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	bool AreNodesGoingToCycle(const URigVMNode* InSourceNode, const URigVMNode* InTargetNode)
+	{
+		TSet<URigVMNode*> CheckedNodes;
+
+		const bool bIsTargetAlreadyASource = AreNodesLinked(InSourceNode, InTargetNode, CheckedNodes, true);
+		if (bIsTargetAlreadyASource)
+		{
+			return true;
+		}
+
+		CheckedNodes.Reset();
+		const bool bIsSourceAlreadyATarget = AreNodesLinked(InTargetNode, InSourceNode, CheckedNodes, false);
+		if(bIsSourceAlreadyATarget)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	bool AreNodesAlreadyConnected(const URigVMNode* InSourceNode, const URigVMNode* InTargetNode)
+	{
+		TSet<URigVMNode*> CheckedNodes;
+
+		const bool bIsTargetAlreadyATarget = AreNodesLinked(InSourceNode, InTargetNode, CheckedNodes, false);
+		if (bIsTargetAlreadyATarget)
+		{
+			return true;
+		}
+
+		CheckedNodes.Reset();
+		const bool bIsSourceAlreadyASource = AreNodesLinked(InTargetNode, InSourceNode, CheckedNodes, true);
+		if (bIsSourceAlreadyASource)
+		{
+			return true;
+		}
+
+		return false;
+	}
+}
+
 bool URigVMGraph::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection, bool bEnableTypeCasting)
 {
 	if (!URigVMPin::CanLink(InSourcePin, InTargetPin, OutFailureReason, InByteCode, InUserLinkDirection, false, bEnableTypeCasting))
 	{
 		return false;
 	}
+
+	const URigVMNode* SourceNode = InSourcePin->GetNode();
+	const URigVMNode* TargetNode = InTargetPin->GetNode();
+
+	// check for cycling nodes dependencies before going into the AST 
+	if (AreNodesGoingToCycle(SourceNode, TargetNode))
+	{
+		if (OutFailureReason)
+		{
+			*OutFailureReason = TEXT("Cycles are not allowed.");
+		}
+		return false;
+	}
+
+	// full check needed
 	return GetDiagnosticsAST()->CanLink(InSourcePin, InTargetPin, OutFailureReason);
 }
 
