@@ -273,7 +273,8 @@ namespace Horde.Build.Agents.Fleet
 
 			if (pool.LastScaleResult == null || !pool.LastScaleResult.Equals(result))
 			{
-				_logger.LogInformation("Scale result: {Result}", result.Message);
+				_logger.LogInformation("Scale result: Outcome={Outcome} AgentsAdded={AgentsAdded} AgentsRemoved={AgentsRemoved} Message={Message}", 
+					result.Outcome, result.AgentsAddedCount, result.AgentsAddedCount, result.Message);
 			}
 
 			await _poolCollection.TryUpdateAsync(

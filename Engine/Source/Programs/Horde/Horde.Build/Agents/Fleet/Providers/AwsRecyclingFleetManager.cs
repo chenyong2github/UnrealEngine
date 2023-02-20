@@ -466,8 +466,8 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	public async Task<ScaleResult> ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 	{
 		await AwsFleetManager.ShrinkPoolViaAgentShutdownRequestAsync(_agentCollection, pool, agents, count, cancellationToken);
-		return new ScaleResult(FleetManagerOutcome.Success, 0, count);
-	} 
+		return new ScaleResult(FleetManagerOutcome.Success, 0, count, "Pool scaled in");
+	}
 
 	/// <inheritdoc/>
 	public async Task<int> GetNumStoppedInstancesAsync(IPool pool, CancellationToken cancellationToken)
