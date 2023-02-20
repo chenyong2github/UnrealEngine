@@ -27,8 +27,6 @@ class UMovieSceneControlRigParameterTrack
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual ~UMovieSceneControlRigParameterTrack();
-
 	// UMovieSceneTrack interface
 	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
@@ -43,6 +41,7 @@ public:
 	virtual FName GetTrackName() const override { return TrackName; }
 	// UObject
 	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
 #if WITH_EDITORONLY_DATA
 	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif

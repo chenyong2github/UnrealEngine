@@ -30,8 +30,9 @@ UMovieSceneControlRigParameterTrack::UMovieSceneControlRigParameterTrack(const F
 
 }
 
-UMovieSceneControlRigParameterTrack::~UMovieSceneControlRigParameterTrack()
+void UMovieSceneControlRigParameterTrack::BeginDestroy()
 {
+	Super::BeginDestroy();
 	if (IsValid(ControlRig))
 	{
 		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
@@ -191,13 +192,26 @@ FText UMovieSceneControlRigParameterTrack::GetDefaultDisplayName() const
 
 UMovieSceneSection* UMovieSceneControlRigParameterTrack::CreateControlRigSection(FFrameNumber StartTime, UControlRig* InControlRig, bool bInOwnsControlRig)
 {
+	if (InControlRig == nullptr)
+	{
+		return nullptr;
+	}
 	if (!bInOwnsControlRig)
 	{
 		InControlRig->Rename(nullptr, this);
 	}
+
+	if (IsValid(ControlRig))
+	{
+		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
+	}
+
 	ControlRig = InControlRig;
-	UMovieSceneControlRigParameterSection*  NewSection = Cast<UMovieSceneControlRigParameterSection>(CreateNewSection());
-	
+
+	ControlRig->OnInitialized_AnyThread().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnInitialized);
+
+	UMovieSceneControlRigParameterSection* NewSection = Cast<UMovieSceneControlRigParameterSection>(CreateNewSection());
+
 	UMovieScene* OuterMovieScene = GetTypedOuter<UMovieScene>();
 	NewSection->SetRange(TRange<FFrameNumber>::All());
 
@@ -454,7 +468,6 @@ void UMovieSceneControlRigParameterTrack::HandleOnInitialized(URigVMHost* Subjec
 			{
 				if (Section->IsDifferentThanLastControlsUsedToReconstruct(SortedControls))
 				{
-					//Section->ReconstructChannelProxy();
 					Section->RecreateWithThisControlRig(ControlRig, Section->GetBlendType() == EMovieSceneBlendType::Absolute);
 				}
 			}
@@ -535,10 +548,21 @@ void UMovieSceneControlRigParameterTrack::RenameParameterName(const FName& OldPa
 
 void UMovieSceneControlRigParameterTrack::ReplaceControlRig(UControlRig* NewControlRig, bool RecreateChannels)
 {
-	ControlRig = NewControlRig;
-	if (ControlRig->GetOuter() != this)
+	if (IsValid(ControlRig))
 	{
-		ControlRig->Rename(nullptr, this);
+		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
+	}
+
+	ControlRig = NewControlRig;
+
+	if (IsValid(ControlRig))
+	{
+		ControlRig->OnInitialized_AnyThread().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnInitialized);
+
+		if (ControlRig->GetOuter() != this)
+		{
+			ControlRig->Rename(nullptr, this);
+		}
 	}
 	for (UMovieSceneSection* Section : Sections)
 	{
@@ -552,7 +576,7 @@ void UMovieSceneControlRigParameterTrack::ReplaceControlRig(UControlRig* NewCont
 			{
 				CRSection->SetControlRig(NewControlRig);
 			}
-		}	
+		}
 	}
 }
 
