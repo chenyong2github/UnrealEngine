@@ -727,10 +727,10 @@ namespace UC
 		/// Declares that instances of this class should always have an outer of the specified class.  This is inherited by subclasses unless overridden.
 		Within, /* =OuterClassName */
 
-		/// Exposes this class as a type that can be used for variables in blueprints
+		/// Exposes this class as a type that can be used for variables in blueprints. This is inherited by subclasses unless overridden.
 		BlueprintType,
 
-		/// Prevents this class from being used for variables in blueprints
+		/// Prevents this class from being used for variables in blueprints. This is inherited by subclasses unless overridden.
 		NotBlueprintType,
 
 		/// Exposes this class as an acceptable base class for creating blueprints. The default is NotBlueprintable, unless inherited otherwise. This is inherited by subclasses.
