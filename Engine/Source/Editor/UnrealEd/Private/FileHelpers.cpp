@@ -4563,6 +4563,12 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 			// Revert packages that could not be checked out.
 			USourceControlHelpers::RevertAndReloadPackages(USourceControlHelpers::PackageFilenames(PackagesToRevert), /*bRevertAll=*/false, /*bReloadWorld=*/bReloadWorld);
 		}
+
+		// Update SCC state for packages that were made writable outside of SCC
+		if (PackagesCheckedOutOrMadeWritable.Num())
+		{
+			ISourceControlModule::Get().QueueStatusUpdate(PackagesCheckedOutOrMadeWritable);
+		}
 	}
 
 	return ReturnResponse;
