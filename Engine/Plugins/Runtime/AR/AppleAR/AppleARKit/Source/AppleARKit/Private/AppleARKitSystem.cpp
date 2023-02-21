@@ -949,6 +949,26 @@ UARPin* FAppleARKitSystem::OnPinComponent( USceneComponent* ComponentToPin, cons
 
 void FAppleARKitSystem::OnRemovePin(UARPin* PinToRemove)
 {
+#if SUPPORTS_ARKIT_1_0
+	// Release the underlying ARKit anchor for this pin.
+	{
+		ARAnchor* Anchor = static_cast<ARAnchor*>(PinToRemove->GetNativeResource());
+		if (Anchor)
+		{
+			FScopeLock ScopeLock(&AnchorsLock);
+
+			const auto Guid = FAppleARKitConversion::ToFGuid(Anchor.identifier);
+			if (auto Record = AllAnchors.Find(Guid))
+			{
+				ARAnchor* SavedAnchor = *Record;
+				check(SavedAnchor == Anchor); // SavedAnchor should be the same as Anchor.
+				[SavedAnchor release] ;
+				AllAnchors.Remove(Guid);
+			}
+		}
+	}
+#endif
+
 	Pins.RemoveSingleSwap(PinToRemove);
 }
 
