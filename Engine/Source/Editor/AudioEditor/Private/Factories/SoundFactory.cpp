@@ -23,10 +23,44 @@
 #include "EditorFramework/AssetImportData.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "SoundFileIO/SoundFileIO.h"
+#include "Misc/NamePermissionList.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
+
+// Disable user import
+static int32 EnableUserSoundwaveImportCvar = 1;
+FAutoConsoleVariableRef CVarEnableUserSoundwaveImport(
+	TEXT("au.EnableUserSoundwaveImport"),
+	EnableUserSoundwaveImportCvar,
+	TEXT("Enables letting the user import soundwaves in editor.\n")
+	TEXT("0: Disabled, 1: Enabled"),
+	ECVF_Default);
 
 
 namespace
 {
+
+	bool CanImportSoundWaves()
+	{
+		// disabled via cvar?
+		if(EnableUserSoundwaveImportCvar == 0)
+		{
+			return false;
+		}
+
+		IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
+		TSharedPtr<FPathPermissionList> AssetClassPermissionList = AssetTools.GetAssetClassPathPermissionList(EAssetClassAction::ImportAsset);
+		if (AssetClassPermissionList && AssetClassPermissionList->HasFiltering())
+		{
+			if (!AssetClassPermissionList->PassesFilter(USoundWave::StaticClass()->GetPathName()))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	void InsertSoundNode(USoundCue* SoundCue, UClass* NodeClass, int32 NodeIndex)
 	{
 		USoundNode* SoundNode = SoundCue->ConstructSoundNode<USoundNode>(NodeClass);
@@ -212,6 +246,14 @@ UObject* USoundFactory::CreateObject
 				return nullptr;
 			}
 		}
+
+		if (!CanImportSoundWaves())
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(NSLOCTEXT("SoundFactory", "Soundwave Import Not Allowed", "Soundwave import is not allowed ({0}: {1})"), FText::FromString(CuePackageName), Reason));
+			GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
+			return nullptr;
+		}
+
 
 		// if we are creating the cue move it when necessary
 		UPackage* CuePackage = bMoveCue ? CreatePackage( *CuePackageName) : nullptr;

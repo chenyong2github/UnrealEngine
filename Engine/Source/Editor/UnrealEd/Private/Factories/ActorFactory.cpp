@@ -139,6 +139,9 @@ ActorFactory.cpp:
 
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
+#include "Misc/NamePermissionList.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
 
 DEFINE_LOG_CATEGORY(LogActorFactory);
 
@@ -1495,6 +1498,13 @@ UActorFactoryAmbientSound::UActorFactoryAmbientSound(const FObjectInitializer& O
 
 bool UActorFactoryAmbientSound::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
 {
+
+	if(!CanImportAmbientSounds())
+	{
+		OutErrorMsg = NSLOCTEXT("CanCreateActor", "AssetNotAllowed", "Ambient Sound Actors are disabled in this environment.");
+		return false;
+	}
+
 	//We allow creating AAmbientSounds without an existing sound asset
 	if ( UActorFactory::CanCreateActorFrom( AssetData, OutErrorMsg ) )
 	{
@@ -1544,6 +1554,21 @@ void UActorFactoryAmbientSound::PostCreateBlueprint( UObject* Asset, AActor* CDO
 			NewSound->GetAudioComponent()->SetSound(AmbientSound);
 		}
 	}
+}
+
+bool UActorFactoryAmbientSound::CanImportAmbientSounds()
+{
+	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
+	TSharedPtr<FPathPermissionList> AssetClassPermissionList = AssetTools.GetAssetClassPathPermissionList(EAssetClassAction::ImportAsset);
+	if (AssetClassPermissionList && AssetClassPermissionList->HasFiltering())
+	{
+		if (!AssetClassPermissionList->PassesFilter(AAmbientSound::StaticClass()->GetPathName()))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /*-----------------------------------------------------------------------------

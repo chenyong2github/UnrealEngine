@@ -26,6 +26,8 @@ class UActorFactoryAmbientSound : public UActorFactory
 	virtual bool CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg ) override;
 	virtual UObject* GetAssetFromActorInstance(AActor* ActorInstance) override;
 	//~ End UActorFactory Interface
+
+	static bool CanImportAmbientSounds();
 };
 
 
