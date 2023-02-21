@@ -30,7 +30,6 @@ public class Core : ModuleRules
 		PrivateDependencyModuleNames.Add("OodleDataCompression");
 
 		PublicDependencyModuleNames.Add("TraceLog");
-		PublicIncludePaths.Add("Runtime/TraceLog/Public");
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
