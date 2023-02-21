@@ -26,7 +26,7 @@ static FString ConfigureConsoleCommand(FStrataVisualizationData::TModeMap& ModeM
 	}
 
 	FString Out;
-	Out = TEXT("When the viewport view-mode is set to 'Strata Visualization', this command specifies which of the various channels to display. Values entered other than the allowed values shown below will be ignored.");
+	Out = TEXT("When the viewport view-mode is set to 'Substrate Visualization', this command specifies which of the various channels to display. Values entered other than the allowed values shown below will be ignored.");
 	Out += AvailableVisualizationModes;
 
 	IConsoleManager::Get().RegisterConsoleVariable(
@@ -72,7 +72,7 @@ void FStrataVisualizationData::Initialize()
 			AllModeMap,
 			TEXT("MaterialProperties"),
 			LOCTEXT("MaterialProperties", "Material Properties"),
-			LOCTEXT("MaterialPropertiesDesc", "Visualizes Strata material properties under mouse cursor"),
+			LOCTEXT("MaterialPropertiesDesc", "Visualizes Substrate material properties under mouse cursor"),
 			FViewMode::MaterialProperties,
 			true,
 			true,
@@ -82,7 +82,7 @@ void FStrataVisualizationData::Initialize()
 			AllModeMap,
 			TEXT("MaterialCount"),
 			LOCTEXT("MaterialCount", "Material Count"),
-			LOCTEXT("MaterialCountDesc", "Visualizes Strata material count per pixel"),
+			LOCTEXT("MaterialCountDesc", "Visualizes Substrate material count per pixel"),
 			FViewMode::MaterialCount,
 			true,
 			true,
@@ -92,17 +92,17 @@ void FStrataVisualizationData::Initialize()
 			AllModeMap,
 			TEXT("AdvancedMaterialProperties"),
 			LOCTEXT("AdvancedMaterialProperties", "Advanced Material Properties"),
-			LOCTEXT("AdvancedMaterialPropertiesDesc", "Visualizes Strata advanced material properties"),
+			LOCTEXT("AdvancedMaterialPropertiesDesc", "Visualizes Substrate advanced material properties"),
 			FViewMode::AdvancedMaterialProperties,
 			true,
 			Strata::IsAdvancedVisualizationEnabled(),
-			LOCTEXT("IsStrataAdvancedDebugShaderEnabled", "Strata advanced debugging r.Strata.Debug.AdvancedVisualizationShaders is disabled"));
+			LOCTEXT("IsSubstrateAdvancedDebugShaderEnabled", "Substrate advanced debugging r.Substrate.Debug.AdvancedVisualizationShaders is disabled"));
 
 		AddVisualizationMode(
 			AllModeMap,
 			TEXT("MaterialClassification"),
 			LOCTEXT("MaterialClassification", "Material Classification"),
-			LOCTEXT("MaterialClassificationDesc", "Visualizes Strata material classification"),
+			LOCTEXT("MaterialClassificationDesc", "Visualizes Substrate material classification"),
 			FViewMode::MaterialClassification,
 			true,
 			true,
@@ -112,27 +112,27 @@ void FStrataVisualizationData::Initialize()
 			AllModeMap,
 			TEXT("DecalClassification"),
 			LOCTEXT("DecalClassification", "Decal classification"),
-			LOCTEXT("DecalClassificationDesc", "Visualizes Strata decal classification"),
+			LOCTEXT("DecalClassificationDesc", "Visualizes Substrate decal classification"),
 			FViewMode::DecalClassification,
 			true,
 			false, // Disable for now, as it is not important, and is mainly used for debugging
-			LOCTEXT("IsStrataDBufferPassEnabled", "Strata tiled DBuffer pass (r.Strata.DBufferPass and r.Strata.DBufferPass.DedicatedTiles) is disabled"));
+			LOCTEXT("IsSubstrateBufferPassEnabled", "Substrate tiled DBuffer pass (r.Substrate.DBufferPass and r.Substrate.DBufferPass.DedicatedTiles) is disabled"));
 
 		AddVisualizationMode(
 			AllModeMap,
 			TEXT("RoughRefractionClassification"),
 			LOCTEXT("RoughRefractionClassification", "Rough Refraction Classification"),
-			LOCTEXT("RoughRefractionClassificationDesc", "Visualizes Strata rough refraction classification"),
+			LOCTEXT("RoughRefractionClassificationDesc", "Visualizes Substrate rough refraction classification"),
 			FViewMode::RoughRefractionClassification,
 			true,
 			Strata::IsOpaqueRoughRefractionEnabled(),
-			LOCTEXT("IsStrataRoughRefractionEnabled", "Strata rough refraction r.Strata.OpaqueMaterialRoughRefraction is disabled"));
+			LOCTEXT("IsSubstrateRoughRefractionEnabled", "Substrate rough refraction r.Substrate.OpaqueMaterialRoughRefraction is disabled"));
 
 		AddVisualizationMode(
 			AllModeMap,
-			TEXT("StrataInfo"),
-			LOCTEXT("StrataInfo", "Strata Info"),
-			LOCTEXT("StrataInfoDesc", "Visualizes Strata info"),
+			TEXT("SubstrateInfo"),
+			LOCTEXT("SubstrateInfo", "Substrate Info"),
+			LOCTEXT("SubstrateInfoDesc", "Visualizes Substrate info"),
 			FViewMode::StrataInfo,
 			true,
 			true,

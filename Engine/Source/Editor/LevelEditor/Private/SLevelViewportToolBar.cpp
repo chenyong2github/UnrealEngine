@@ -1621,9 +1621,9 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 	{
 		FToolMenuSection& Section = Menu->FindOrAddSection("ViewMode");
 		Section.AddSubMenu(
-			"VisualizeStrataViewMode",
-			LOCTEXT("VisualizeStrataViewModeDisplayName", "Strata"),
-			LOCTEXT("StrataVisualizationMenu_ToolTip", "Select a mode for Strata visualization"),
+			"VisualizeSubstrateViewMode",
+			LOCTEXT("VisualizeSubstrateViewModeDisplayName", "Substrate"),
+			LOCTEXT("SubstrateVisualizationMenu_ToolTip", "Select a mode for Substrate visualization"),
 			FNewMenuDelegate::CreateStatic(&FStrataVisualizationMenuCommands::BuildVisualisationSubMenu),
 			FUIAction(
 				FExecuteAction(),
@@ -1633,12 +1633,12 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 						const TSharedRef<SEditorViewport> ViewportRef = Viewport.Pin().ToSharedRef();
 						const TSharedPtr<FEditorViewportClient> ViewportClient = ViewportRef->GetViewportClient();
 						check(ViewportClient.IsValid());
-						return ViewportClient->IsViewModeEnabled(VMI_VisualizeStrata);
+						return ViewportClient->IsViewModeEnabled(VMI_VisualizeSubstrate);
 					})
 			),
 			EUserInterfaceActionType::RadioButton,
 						/* bInOpenSubMenuOnClick = */ false,
-						FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeStrataMode")
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeSubstrateMode")
 						);
 	}
 

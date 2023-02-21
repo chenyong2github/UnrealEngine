@@ -1185,7 +1185,7 @@ public:
 	/** Current Lumen visualization mode */
 	FName CurrentLumenVisualizationMode;
 
-	/** Current Strata visualization mode */
+	/** Current Substrate visualization mode */
 	FName CurrentStrataVisualizationMode;
 
 	/** Current Groom visualization mode */

@@ -14,8 +14,8 @@
 #include "ShaderCompiler.h"
 
 
-static TAutoConsoleVariable<float> CVarStrataOpaqueMaterialRoughRefractionBlurScale(
-	TEXT("r.Strata.OpaqueMaterialRoughRefraction.BlurScale"),
+static TAutoConsoleVariable<float> CVarSubstrateOpaqueMaterialRoughRefractionBlurScale(
+	TEXT("r.Substrate.OpaqueMaterialRoughRefraction.BlurScale"),
 	1.0f,
 	TEXT("Scale opaque rough refraction strengh for debug purposes."),
 	ECVF_RenderThreadSafe);
@@ -66,7 +66,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 {
 	const uint32 ViewCount = Views.Num();
 	const bool bOpaqueRoughRefractionEnabled = IsOpaqueRoughRefractionEnabled() && ViewCount > 0;
-	RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, bOpaqueRoughRefractionEnabled, "Strata::OpaqueRoughRefraction");
+	RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, bOpaqueRoughRefractionEnabled, "Substrate::OpaqueRoughRefraction");
 	if (!bOpaqueRoughRefractionEnabled)
 	{
 		return;
@@ -86,7 +86,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 
 		if (TempTexture == nullptr)
 		{
-			TempTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(View.GetSceneTexturesConfig().Extent, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("Strata.RoughRefrac.TempTexture"));
+			TempTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(View.GetSceneTexturesConfig().Extent, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("Substrate.RoughRefrac.TempTexture"));
 		}
 
 		FRDGTextureRef SeparatedOpaqueRoughRefractionSceneColor = View.StrataViewData.SceneData->SeparatedOpaqueRoughRefractionSceneColor;
@@ -99,7 +99,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = SeparatedOpaqueRoughRefractionSceneColor;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(TempTexture, LoadAction);
 		PassParameters->BlurDirection = FVector2f(1.0f, 0.0f);
-		PassParameters->BlurScale = FMath::Max(0.0f, CVarStrataOpaqueMaterialRoughRefractionBlurScale.GetValueOnAnyThread());
+		PassParameters->BlurScale = FMath::Max(0.0f, CVarSubstrateOpaqueMaterialRoughRefractionBlurScale.GetValueOnAnyThread());
 
 		FOpaqueRoughRefractionPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FOpaqueRoughRefractionPS::FEnableBlur>(true);
@@ -114,7 +114,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		PassParameters->StrataTile = Strata::SetTileParameters(GraphBuilder, View, StrataTileType, PrimitiveType);
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Strata::OpaqueRoughRefraction(Blur,Horizontal)"),
+			RDG_EVENT_NAME("Substrate::OpaqueRoughRefraction(Blur,Horizontal)"),
 			PassParameters,
 			ERDGPassFlags::Raster,
 			[&View, TileVertexShader, PixelShader, PassParameters, StrataTileType, PrimitiveType](FRHICommandList& RHICmdList)
@@ -156,7 +156,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = TempTexture;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->BlurDirection = FVector2f(0.0f, 1.0f);
-		PassParameters->BlurScale = FMath::Max(0.0f, CVarStrataOpaqueMaterialRoughRefractionBlurScale.GetValueOnAnyThread());
+		PassParameters->BlurScale = FMath::Max(0.0f, CVarSubstrateOpaqueMaterialRoughRefractionBlurScale.GetValueOnAnyThread());
 
 		FOpaqueRoughRefractionPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FOpaqueRoughRefractionPS::FEnableBlur>(true);
@@ -171,7 +171,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		PassParameters->StrataTile = Strata::SetTileParameters(GraphBuilder, View, StrataTileType, PrimitiveType);
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Strata::OpaqueRoughRefraction(Blur,Vertical)"),
+			RDG_EVENT_NAME("Substrate::OpaqueRoughRefraction(Blur,Vertical)"),
 			PassParameters,
 			ERDGPassFlags::Raster,
 			[&View, TileVertexShader, PixelShader, PassParameters, StrataTileType, PrimitiveType](FRHICommandList& RHICmdList)
@@ -214,7 +214,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		PassParameters->SeparatedOpaqueRoughRefractionSceneColor = SeparatedOpaqueRoughRefractionSceneColor;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->BlurDirection = FVector2f(0.0f, 0.0f);
-		PassParameters->BlurScale = FMath::Max(0.0f, CVarStrataOpaqueMaterialRoughRefractionBlurScale.GetValueOnAnyThread());
+		PassParameters->BlurScale = FMath::Max(0.0f, CVarSubstrateOpaqueMaterialRoughRefractionBlurScale.GetValueOnAnyThread());
 
 		FOpaqueRoughRefractionPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FOpaqueRoughRefractionPS::FEnableBlur>(false);
@@ -229,7 +229,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 		PassParameters->StrataTile = Strata::SetTileParameters(GraphBuilder, View, StrataTileType, PrimitiveType);
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Strata::OpaqueRoughRefraction(SSS)"),
+			RDG_EVENT_NAME("Substrate::OpaqueRoughRefraction(SSS)"),
 			PassParameters,
 			ERDGPassFlags::Raster,
 			[&View, TileVertexShader, PixelShader, PassParameters, StrataTileType, PrimitiveType](FRHICommandList& RHICmdList)
@@ -265,15 +265,15 @@ void AddStrataOpaqueRoughRefractionPasses(
 
 #if STRATA_ROUGH_REFRACTION_RND
 
-static TAutoConsoleVariable<int32> CVarStrataRoughRefractionShadersShowRoughRefractionRnD(
-	TEXT("r.Strata.ShowRoughRefractionRnD"),
+static TAutoConsoleVariable<int32> CVarSubstrateRoughRefractionShadersShowRoughRefractionRnD(
+	TEXT("r.Substrate.ShowRoughRefractionRnD"),
 	1,
-	TEXT("Enable strata rough refraction shaders."),
+	TEXT("Enable Substrate rough refraction shaders."),
 	ECVF_RenderThreadSafe);
 
 bool ShouldRenderStrataRoughRefractionRnD()
 {
-	return CVarStrataRoughRefractionShadersShowRoughRefractionRnD.GetValueOnAnyThread() > 0;
+	return CVarSubstrateRoughRefractionShadersShowRoughRefractionRnD.GetValueOnAnyThread() > 0;
 }
 
 #else
@@ -423,11 +423,11 @@ void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 		// Texture to count
 		const uint32 SampleCountTextureWidth = 64;
 		const FIntPoint SampleCountTextureSize(SampleCountTextureWidth, SampleCountTextureWidth);
-		FRDGTextureRef SampleCountTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SampleCountTextureSize, PF_R32_UINT, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource), TEXT("Strata.RoughRefrac.SampleCount"));
+		FRDGTextureRef SampleCountTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SampleCountTextureSize, PF_R32_UINT, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource), TEXT("Substrate.RoughRefrac.SampleCount"));
 		FRDGTextureUAVRef SampleCountTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SampleCountTexture));
 		FRDGTextureSRVRef SampleCountTextureSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SampleCountTexture));
 
-		FRDGBufferRef LobStatisticsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float) * 8, 16), TEXT("Strata.RoughRefrac.LobStat"));
+		FRDGBufferRef LobStatisticsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float) * 8, 16), TEXT("Substrate.RoughRefrac.LobStat"));
 		FRDGBufferUAVRef LobStatisticsBufferUAV = GraphBuilder.CreateUAV(LobStatisticsBuffer, PF_R32_UINT);
 		FRDGBufferSRVRef LobStatisticsBufferSRV = GraphBuilder.CreateSRV(LobStatisticsBuffer, PF_R32_UINT);
 
@@ -451,7 +451,7 @@ void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("Strata::EvaluateRoughRefractionLobeCS"),
+				RDG_EVENT_NAME("Substrate::EvaluateRoughRefractionLobeCS"),
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(1, FEvaluateRoughRefractionLobeCS::ThreadGroupSize));
@@ -484,7 +484,7 @@ void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 
 			FRHIBlendState* PreMultipliedColorTransmittanceBlend = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
 
-			FPixelShaderUtils::AddFullscreenPass<FVisualizeRoughRefractionPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Strata::VisualizeRoughRefractionPS"),
+			FPixelShaderUtils::AddFullscreenPass<FVisualizeRoughRefractionPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Substrate::VisualizeRoughRefractionPS"),
 				PixelShader, PassParameters, View.ViewRect, PreMultipliedColorTransmittanceBlend);
 		}
 
@@ -492,7 +492,7 @@ void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 		// Sample variance as a function of roughness
 		{
 			const uint32 RoughRefracDataByteSize = sizeof(float) * 2 * FRoughRefracDataCS::ThreadGroupSize;
-			FRDGBufferRef RoughRefracDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float) * 2, FRoughRefracDataCS::ThreadGroupSize), TEXT("Strata.RoughRefrac.LobStat"));
+			FRDGBufferRef RoughRefracDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float) * 2, FRoughRefracDataCS::ThreadGroupSize), TEXT("Substrate.RoughRefrac.LobStat"));
 			FRDGBufferUAVRef RoughRefracDataBufferUAV = GraphBuilder.CreateUAV(RoughRefracDataBuffer, PF_G32R32F);
 
 			// Generate data in a buffer
@@ -506,7 +506,7 @@ void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
-					RDG_EVENT_NAME("Strata::FRoughRefracDataCS"),
+					RDG_EVENT_NAME("Substrate::FRoughRefracDataCS"),
 					ComputeShader,
 					PassParameters,
 					FComputeShaderUtils::GetGroupCount(FRoughRefracDataCS::ThreadGroupSize, FRoughRefracDataCS::ThreadGroupSize));
@@ -518,7 +518,7 @@ void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 				PassParameters->Buffer = RoughRefracDataBuffer;
 
 				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("Strata::FRoughRefracData ReadBack"),
+					RDG_EVENT_NAME("Substrate::FRoughRefracData ReadBack"),
 					PassParameters,
 					ERDGPassFlags::Readback,
 					[RoughRefracDataBuffer, RoughRefracDataByteSize](FRHICommandListImmediate& RHICmdList)

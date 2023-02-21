@@ -2689,18 +2689,18 @@ FText FEditorViewportClient::GetCurrentVirtualShadowMapVisualizationModeDisplayN
 
 void FEditorViewportClient::ChangeStrataVisualizationMode(FName InName)
 {
-	SetViewMode(VMI_VisualizeStrata);
+	SetViewMode(VMI_VisualizeSubstrate);
 	CurrentStrataVisualizationMode = InName;
 }
 
 bool FEditorViewportClient::IsStrataVisualizationModeSelected(FName InName) const
 {
-	return IsViewModeEnabled(VMI_VisualizeStrata) && CurrentStrataVisualizationMode == InName;
+	return IsViewModeEnabled(VMI_VisualizeSubstrate) && CurrentStrataVisualizationMode == InName;
 }
 
 FText FEditorViewportClient::GetCurrentStrataVisualizationModeDisplayName() const
 {
-	checkf(IsViewModeEnabled(VMI_VisualizeStrata), TEXT("In order to call GetCurrentStrataVisualizationMode(), first you must set ViewMode to VMI_VisualizeStrata."));
+	checkf(IsViewModeEnabled(VMI_VisualizeSubstrate), TEXT("In order to call GetCurrentSubstrateVisualizationMode(), first you must set ViewMode to VMI_VisualizeSubstrate."));
 	return GetStrataVisualizationData().GetModeDisplayName(CurrentStrataVisualizationMode);
 }
 

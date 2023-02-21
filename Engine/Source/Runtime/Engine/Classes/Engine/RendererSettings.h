@@ -788,7 +788,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
 		ConsoleVariable = "r.GBufferFormat", DisplayName = "GBuffer Format",
-		ToolTip = "Selects which GBuffer format should be used. Affects performance primarily via how much GPU memory bandwidth used. This also controls Strata normal quality and, in this case, a restart is required.",
+		ToolTip = "Selects which GBuffer format should be used. Affects performance primarily via how much GPU memory bandwidth used. This also controls Substrate normal quality and, in this case, a restart is required.",
 		ConfigRestartRequired = true))
 	TEnumAsByte<EGBufferFormat::Type> GBufferFormat;
 
@@ -922,29 +922,29 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bSupportCloudShadowOnSingleLayerWater : 1;
 
 	/**
-	"Enable Strata materials (Beta)."
+	"Enable Substrate materials (Beta)."
 	*/
-	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
-		ConsoleVariable = "r.Strata", DisplayName = "Strata materials (Experimental)",
-		ToolTip = "Enable Strata materials (Experimental).",
+	UPROPERTY(config, EditAnywhere, Category = Substrate, meta = (
+		ConsoleVariable = "r.Substrate", DisplayName = "Substrate materials (Experimental)",
+		ToolTip = "Enable Substrate materials (Experimental).",
 		ConfigRestartRequired = true))
 		uint32 bEnableStrata : 1;
 
 	/**
-	"Enable Strata opaque material rough refractions effect from top layers over layers below."
+	"Enable Substrate opaque material rough refractions effect from top layers over layers below."
 	*/
-	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
-		ConsoleVariable = "r.Strata.OpaqueMaterialRoughRefraction", DisplayName = "Strata opaque material rough refraction",
-		ToolTip = "Enable Strata opaque material rough refractions effect from top layers over layers below.",
+	UPROPERTY(config, EditAnywhere, Category = Substrate, meta = (
+		ConsoleVariable = "r.Substrate.OpaqueMaterialRoughRefraction", DisplayName = "Substrate opaque material rough refraction",
+		ToolTip = "Enable Substrate opaque material rough refractions effect from top layers over layers below.",
 		ConfigRestartRequired = true))
 		uint32 StrataOpaqueMaterialRoughRefraction : 1;
 
 	/**
-	"Enable advanced strata material debug visualization shaders. Base pas shaders can output such advanced data."
+	"Enable advanced Substrate material debug visualization shaders. Base pas shaders can output such advanced data."
 	*/
-	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
-		ConsoleVariable = "r.Strata.Debug.AdvancedVisualizationShaders", DisplayName = "Strata advanced visualization shaders",
-		ToolTip = "Enable advanced strata material debug visualization shaders. Base pass shaders can output such advanced data.",
+	UPROPERTY(config, EditAnywhere, Category = Substrate, meta = (
+		ConsoleVariable = "r.Substrate.Debug.AdvancedVisualizationShaders", DisplayName = "Substrate advanced visualization shaders",
+		ToolTip = "Enable advanced Substrate material debug visualization shaders. Base pass shaders can output such advanced data.",
 		ConfigRestartRequired = true))
 		uint32 StrataDebugAdvancedVisualizationShaders : 1;
 
@@ -962,7 +962,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	*/
 	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (
 		ConsoleVariable = "r.Material.EnergyConservation", DisplayName = "Enable Energy Conservation on Material",
-		ToolTip = "Enable Energy Conservation on Material. Please note that when Strata is enabled, energy conservation is forced to enabled.",
+		ToolTip = "Enable Energy Conservation on Material. Please note that when Substrate is enabled, energy conservation is forced to enabled.",
 		ConfigRestartRequired = true))
 		uint32 bMaterialEnergyConservation : 1;
 

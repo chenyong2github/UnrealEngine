@@ -60,7 +60,7 @@ enum class EMaterialCompilerType
 };
 
 
-/** Whether we need some data export from a Strata material from spatially varying properties, e.g. diffuse color for Lighmass to generate lightmaps. */
+/** Whether we need some data export from a Substrate material from spatially varying properties, e.g. diffuse color for Lighmass to generate lightmaps. */
 enum EStrataMaterialExport : uint8
 {
 	SME_None			= 0,

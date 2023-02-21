@@ -445,7 +445,7 @@ void FMaterialEditor::RegisterToolbarTab(const TSharedRef<class FTabManager>& In
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Layers"));
 
 	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::StrataTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_Strata))
-		.SetDisplayName(LOCTEXT("StrataTab", "Strata"))
+		.SetDisplayName(LOCTEXT("SubstrateTab", "Substrate"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.Palette"));	// STRATA_TODO a strata icon
 
@@ -5185,7 +5185,7 @@ TSharedRef<SDockTab> FMaterialEditor::SpawnTab_Strata(const FSpawnTabArgs& Args)
 	check(Args.GetTabId() == FMaterialEditorTabs::StrataTabId);
 
 	TSharedRef<SDockTab> StrataTab = SNew(SDockTab)
-		.Label(LOCTEXT("MaterialStrataTabTitle", "Strata"))
+		.Label(LOCTEXT("MaterialSubstrateTabTitle", "Substrate"))
 		[
 			SNew(SBox)
 			[

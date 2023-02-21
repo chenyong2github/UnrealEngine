@@ -65,7 +65,7 @@ public:
 	/** Return the console command name for enabling single mode visualization. */
 	static const TCHAR* GetVisualizeConsoleCommandName()
 	{
-		return TEXT("r.Strata.ViewMode");
+		return TEXT("r.Substrate.ViewMode");
 	}
 
 private:

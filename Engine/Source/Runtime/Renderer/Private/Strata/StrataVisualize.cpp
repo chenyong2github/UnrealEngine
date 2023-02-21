@@ -229,7 +229,7 @@ static void AddVisualizeMaterialPropertiesPasses(FRDGBuilder& GraphBuilder, cons
 	ShaderPrint::RequestSpaceForCharacters(1024);
 	FRDGBufferUAVRef PrintOffsetBufferUAV = nullptr;
 
-	FRDGBufferRef PrintOffsetBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 2), TEXT("Strata.DebugPrintPositionOffset"));
+	FRDGBufferRef PrintOffsetBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 2), TEXT("Substrate.DebugPrintPositionOffset"));
 	PrintOffsetBufferUAV = GraphBuilder.CreateUAV(PrintOffsetBuffer, PF_R32_UINT);
 	AddClearUAVPass(GraphBuilder, PrintOffsetBufferUAV, 50u);
 	const uint32 MaxBSDFCount = 8;
@@ -245,7 +245,7 @@ static void AddVisualizeMaterialPropertiesPasses(FRDGBuilder& GraphBuilder, cons
 		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
 
 		TShaderMapRef<FMaterialPrintInfoCS> ComputeShader(View.ShaderMap);
-		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Strata::VisualizeMaterial(Print, BSDF=%d)", BSDFIndex), ComputeShader, PassParameters, FIntVector(1, 1, 1));
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Substrate::VisualizeMaterial(Print, BSDF=%d)", BSDFIndex), ComputeShader, PassParameters, FIntVector(1, 1, 1));
 	}
 }
 
@@ -269,7 +269,7 @@ static void AddVisualizeMaterialCountPasses(FRDGBuilder & GraphBuilder, const FV
 	FVisualizeMaterialCountPS::FPermutationDomain PermutationVector;
 	TShaderMapRef<FVisualizeMaterialCountPS> PixelShader(View.ShaderMap, PermutationVector);
 
-	FPixelShaderUtils::AddFullscreenPass<FVisualizeMaterialCountPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Strata::VisualizeMaterial(Draw)"), PixelShader, PassParameters, ScreenPassSceneColor.ViewRect, PreMultipliedColorTransmittanceBlend);
+	FPixelShaderUtils::AddFullscreenPass<FVisualizeMaterialCountPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Substrate::VisualizeMaterial(Draw)"), PixelShader, PassParameters, ScreenPassSceneColor.ViewRect, PreMultipliedColorTransmittanceBlend);
 }
 
 float GetStrataTileOverflowRatio(const FViewInfo& View);
@@ -302,7 +302,7 @@ static void AddVisualizeSystemInfoPasses(FRDGBuilder& GraphBuilder, const FViewI
 	ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
 
 	TShaderMapRef<FStrataSystemInfoCS> ComputeShader(View.ShaderMap);
-	FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Strata::VisualizeSystemInfo"), ComputeShader, PassParameters, FIntVector(1, 1, 1));
+	FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Substrate::VisualizeSystemInfo"), ComputeShader, PassParameters, FIntVector(1, 1, 1));
 }
 
 // Draw each material layer independently
@@ -326,7 +326,7 @@ static void AddVisualizeAdvancedMaterialPasses(FRDGBuilder& GraphBuilder, const 
 		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
 
 		TShaderMapRef<FMaterialDebugStrataTreeCS> ComputeShader(View.ShaderMap);
-		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Strata::StrataAdvancedVisualization(Print)"), ComputeShader, PassParameters, FIntVector(1, 1, 1));
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Substrate::StrataAdvancedVisualization(Print)"), ComputeShader, PassParameters, FIntVector(1, 1, 1));
 	}
 
 	{
@@ -345,7 +345,7 @@ static void AddVisualizeAdvancedMaterialPasses(FRDGBuilder& GraphBuilder, const 
 		FMaterialDebugStrataTreePS::FPermutationDomain PermutationVector;
 		TShaderMapRef<FMaterialDebugStrataTreePS> PixelShader(View.ShaderMap, PermutationVector);
 
-		FPixelShaderUtils::AddFullscreenPass<FMaterialDebugStrataTreePS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Strata::StrataAdvancedVisualization(Draw)"), PixelShader, PassParameters, ScreenPassSceneColor.ViewRect, PreMultipliedColorTransmittanceBlend);
+		FPixelShaderUtils::AddFullscreenPass<FMaterialDebugStrataTreePS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Substrate::StrataAdvancedVisualization(Draw)"), PixelShader, PassParameters, ScreenPassSceneColor.ViewRect, PreMultipliedColorTransmittanceBlend);
 	}
 }
 
@@ -358,8 +358,8 @@ static FStrataVisualizationData::FViewMode GetStrataVisualizeMode(const FViewInf
 	if (IsStrataEnabled() && StrataDebugVisualizationCanRunOnPlatform(View.GetShaderPlatform()))
 	{
 		// Variable defined in StrataVisualizationData.h/.cpp
-		static const auto CVarStrataViewMode = IConsoleManager::Get().FindConsoleVariable(FStrataVisualizationData::GetVisualizeConsoleCommandName());
-		const uint32 ViewMode = CVarStrataViewMode && CVarStrataViewMode->AsVariableInt() ? CVarStrataViewMode->AsVariableInt()->GetValueOnRenderThread() : 0;
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(FStrataVisualizationData::GetVisualizeConsoleCommandName());
+		const uint32 ViewMode = CVar && CVar->AsVariableInt() ? CVar->AsVariableInt()->GetValueOnRenderThread() : 0;
 		switch (ViewMode)
 		{
 			case 1: return FStrataVisualizationData::FViewMode::MaterialProperties;
@@ -372,7 +372,7 @@ static FStrataVisualizationData::FViewMode GetStrataVisualizeMode(const FViewInf
 		}
 
 		const FStrataVisualizationData& VisualizationData = GetStrataVisualizationData();
-		if (View.Family && View.Family->EngineShowFlags.VisualizeStrata)
+		if (View.Family && View.Family->EngineShowFlags.VisualizeSubstrate)
 		{
 			Out = VisualizationData.GetViewMode(View.CurrentStrataVisualizationMode);
 		}
@@ -392,7 +392,7 @@ FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewIn
 	const FStrataVisualizationData::FViewMode DebugMode = GetStrataVisualizeMode(View);
 	if (DebugMode != FStrataVisualizationData::FViewMode::None)
 	{
-		RDG_EVENT_SCOPE(GraphBuilder, "Strata::VisualizeMaterial");
+		RDG_EVENT_SCOPE(GraphBuilder, "Substrate::VisualizeMaterial");
 
 		const bool bDebugPass = true;
 		if (DebugMode == FStrataVisualizationData::FViewMode::MaterialProperties)

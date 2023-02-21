@@ -123,7 +123,7 @@ void FMaterialGraphSchemaAction_NewNode::SetFunctionInputType(UMaterialExpressio
 		FunctionInput->InputType = FunctionInput_MaterialAttributes;
 		break;
 	case MCT_Strata:
-		FunctionInput->InputType = FunctionInput_Strata;
+		FunctionInput->InputType = FunctionInput_Substrate;
 		break;
 	default:
 		break;
@@ -1007,7 +1007,7 @@ void UMaterialGraphSchema::GetMaterialFunctionActions(FGraphActionMenuBuilder& A
 					bool bSkipMaterialFunction = false;
 					for (const FText& Category : LibraryCategoriesText)
 					{
-						if (Category.ToString().Contains("Strata"))
+						if (Category.ToString().Contains("Substrate"))
 						{
 							bSkipMaterialFunction = !Strata::IsStrataEnabled();
 							break;

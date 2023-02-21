@@ -144,7 +144,7 @@ bool UMaterialGraphNode::CanPasteHere(const UEdGraph* TargetGraph) const
 		if (MaterialExpression->IsA(UMaterialExpressionStrataLegacyConversion::StaticClass()))
 		{
 			// We could have used CanDuplicateNode() returning false to prevent the copy but it is nicer to have a notification about why the copy is not happening.
-			FText NotificationText = NSLOCTEXT("UMaterialGraphNode", "SkippedStrataLegacyConversion", "StrataLegacyConversion node cannot be copied! It is only used to convert legacy material to Strata.");
+			FText NotificationText = NSLOCTEXT("UMaterialGraphNode", "SkippedSubstrateLegacyConversion", "SubstrateLegacyConversion node cannot be copied! It is only used to convert legacy material to Substrate.");
 			FNotificationInfo Info(NotificationText);
 			Info.ExpireDuration = 5.0f;
 			Info.bUseLargeFont = false;

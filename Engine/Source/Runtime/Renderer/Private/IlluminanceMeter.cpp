@@ -213,6 +213,6 @@ void FScene::ProcessAndRenderIlluminanceMeter(FRDGBuilder& GraphBuilder, TArrayV
 		FPrintIlluminanceMeterPS::FPermutationDomain PermutationVector;
 		TShaderMapRef<FPrintIlluminanceMeterPS> PixelShader(MainView.ShaderMap, PermutationVector);
 
-		FPixelShaderUtils::AddFullscreenPass<FPrintIlluminanceMeterPS>(GraphBuilder, MainView.ShaderMap, RDG_EVENT_NAME("Strata::VisualizeMaterial(Draw)"), PixelShader, PassParameters, MainView.ViewRect, PreMultipliedColorTransmittanceBlend);
+		FPixelShaderUtils::AddFullscreenPass<FPrintIlluminanceMeterPS>(GraphBuilder, MainView.ShaderMap, RDG_EVENT_NAME("Substrate::VisualizeMaterial(Draw)"), PixelShader, PassParameters, MainView.ViewRect, PreMultipliedColorTransmittanceBlend);
 	}
 }

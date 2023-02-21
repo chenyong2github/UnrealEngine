@@ -254,11 +254,11 @@ enum EBlendMode : int
 	BLEND_Modulate UMETA(DisplayName="Modulate"),
 	BLEND_AlphaComposite UMETA(DisplayName = "AlphaComposite (Premultiplied Alpha)"),
 	BLEND_AlphaHoldout UMETA(DisplayName = "AlphaHoldout"),
-	BLEND_TranslucentColoredTransmittance UMETA(DisplayName = "STRATA_ONLY - Translucent - Colored Transmittance"), /*Strata only */
+	BLEND_TranslucentColoredTransmittance UMETA(DisplayName = "SUBSTRATE_ONLY - Translucent - Colored Transmittance"), /*Substrate only */
 	BLEND_MAX UMETA(Hidden),
 	// Renamed blend modes. These blend modes are remapped onto legacy ones and kept hidden for not confusing users in legacy mode, while allowing to use the new blend mode names into code.
-	BLEND_TranslucentGreyTransmittance = BLEND_Translucent UMETA(Hidden, DisplayName = "Translucent - Grey Transmittance"), /*Strata only */
-	BLEND_ColoredTransmittanceOnly = BLEND_Modulate UMETA(Hidden, DisplayName = "Colored Transmittance Only"), /*Strata only */
+	BLEND_TranslucentGreyTransmittance = BLEND_Translucent UMETA(Hidden, DisplayName = "Translucent - Grey Transmittance"), /*Substrate only */
+	BLEND_ColoredTransmittanceOnly = BLEND_Modulate UMETA(Hidden, DisplayName = "Colored Transmittance Only"), /*Substrate only */
 };
 
 class FMaterial;
@@ -564,13 +564,13 @@ namespace EGBufferFormat
 {
 	enum Type : int
 	{
-		/** Forces all GBuffers to 8 bits per channel. Intended as profiling for best performance. (Strata: Octahedral encoding as 2x11bits for simple and single materials, 2x16bits for complex materials) */
+		/** Forces all GBuffers to 8 bits per channel. Intended as profiling for best performance. (Substrate: Octahedral encoding as 2x11bits for simple and single materials, 2x16bits for complex materials) */
 		Force8BitsPerChannel = 0 UMETA(DisplayName = "Force 8 Bits Per Channel"),
-		/** See GBuffer allocation function for layout details. (Strata: Octahedral encoding as 2x11bits for simple and single material, 2x16bits for complex materials) */
+		/** See GBuffer allocation function for layout details. (Substrate: Octahedral encoding as 2x11bits for simple and single material, 2x16bits for complex materials) */
 		Default = 1,
-		/** Same as Default except normals are encoded at 16 bits per channel. (Strata: Octahedral encoding as 2x16bits for all materials.) */
+		/** Same as Default except normals are encoded at 16 bits per channel. (Substrate: Octahedral encoding as 2x16bits for all materials.) */
 		HighPrecisionNormals = 3,
-		/** Forces all GBuffers to 16 bits per channel. Intended as profiling for best quality. (Strata: Octahedral encoding as 2x16bits for all materials.) */
+		/** Forces all GBuffers to 16 bits per channel. Intended as profiling for best quality. (Substrate: Octahedral encoding as 2x16bits for all materials.) */
 		Force16BitsPerChannel = 5 UMETA(DisplayName = "Force 16 Bits Per Channel"),
 	};
 }
@@ -614,7 +614,7 @@ enum EMaterialShadingModel : int
 	MSM_Eye						UMETA(DisplayName="Eye"),
 	MSM_SingleLayerWater		UMETA(DisplayName="SingleLayerWater"),
 	MSM_ThinTranslucent			UMETA(DisplayName="Thin Translucent"),
-	MSM_Strata					UMETA(DisplayName="Strata", Hidden),
+	MSM_Strata					UMETA(DisplayName="Substrate", Hidden),
 	/** Number of unique shading models. */
 	MSM_NUM						UMETA(Hidden),
 	/** Shading model will be determined by the Material Expression Graph,
@@ -671,7 +671,7 @@ private:
 };
 
 /**
- * Specifies the Strata runtime shading model summarized from the material graph
+ * Specifies the Substrate runtime shading model summarized from the material graph
  */
 UENUM()
 enum EStrataShadingModel : int
@@ -692,7 +692,7 @@ enum EStrataShadingModel : int
 };
 static_assert(SSM_NUM <= 16, "Do not exceed 16 shading models without expanding FStrataMaterialShadingModelField to support uint32 instead of uint16!");
 
-/** Gather information from the Strata material graph to setup material for runtime. */
+/** Gather information from the Substrate material graph to setup material for runtime. */
 USTRUCT()
 struct ENGINE_API FStrataMaterialInfo
 {

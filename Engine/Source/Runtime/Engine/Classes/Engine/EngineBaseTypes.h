@@ -921,8 +921,8 @@ enum EViewModeIndex : int
 	/** Visualize Skin Cache. */
 	VMI_VisualizeGPUSkinCache = 33 UMETA(DisplayName = "GPU Skin Cache Visualization"),
 
-	/** Visualize Strata debug views */
-	VMI_VisualizeStrata = 34 UMETA(DisplayName = "Strata Visualization"),
+	/** Visualize Substrate debug views */
+	VMI_VisualizeSubstrate = 34 UMETA(DisplayName = "Substrate Visualization"),
 
 	/** Visualize Groom debug views */
 	VMI_VisualizeGroom = 35 UMETA(DisplayName = "Groom Visualization"),

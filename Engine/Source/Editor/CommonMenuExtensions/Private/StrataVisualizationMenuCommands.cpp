@@ -16,13 +16,13 @@
 #include "Styling/AppStyle.h"
 #include "UObject/UnrealNames.h"
 
-#define LOCTEXT_NAMESPACE "StrataVisualizationMenuCommands"
+#define LOCTEXT_NAMESPACE "SubstrateVisualizationMenuCommands"
 
 FStrataVisualizationMenuCommands::FStrataVisualizationMenuCommands()
 	: TCommands<FStrataVisualizationMenuCommands>
 	(
-		TEXT("StrataVisualizationMenu"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "StrataVisualizationMenu", "Strata"), // Localized context name for displaying
+		TEXT("SubstrateVisualizationMenu"), // Context name for fast lookup
+		NSLOCTEXT("Contexts", "SubstrateVisualizationMenu", "Substrate"), // Localized context name for displaying
 		NAME_None, // Parent context name.  
 		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	),
@@ -73,7 +73,7 @@ void FStrataVisualizationMenuCommands::BuildVisualisationSubMenu(FMenuBuilder& M
 	const FStrataVisualizationMenuCommands& Commands = FStrataVisualizationMenuCommands::Get();
 	if (Commands.IsPopulated())
 	{
-		Menu.BeginSection("LevelViewportStrataVisualizationMode", LOCTEXT("StrataVisualizationHeader", "Strata Visualization Mode"));
+		Menu.BeginSection("LevelViewportSubstrateVisualizationMode", LOCTEXT("SubstrateVisualizationHeader", "Substrate Visualization Mode"));
 
 		Commands.AddCommandTypeToMenu(Menu, FStrataVisualizationType::MaterialProperties);
 		Commands.AddCommandTypeToMenu(Menu, FStrataVisualizationType::MaterialCount);

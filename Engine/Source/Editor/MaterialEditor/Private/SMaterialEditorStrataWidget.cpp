@@ -101,7 +101,7 @@ void SMaterialEditorStrataWidget::Construct(const FArguments& InArgs, TWeakPtr<F
 					.ColorAndOpacity(FLinearColor::Yellow)
 					.ShadowColorAndOpacity(FLinearColor::Black)
 					.ShadowOffset(FVector2D::UnitVector)
-					.Text(LOCTEXT("StrataWidgetNotEnable", "Strata is not enabled."))
+					.Text(LOCTEXT("SubstrateWidgetNotEnable", "Substrate is not enabled."))
 				]
 			]
 		];

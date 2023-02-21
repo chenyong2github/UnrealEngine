@@ -136,8 +136,8 @@ public:
 	/** Changes the viewport to visualize Lumen debug views */
 	TSharedPtr< FUICommandInfo > VisualizeLumenMode;
 
-	/** Changes the viewport to visualize Strata debug views */
-	TSharedPtr< FUICommandInfo > VisualizeStrataMode;
+	/** Changes the viewport to visualize Substrate debug views */
+	TSharedPtr< FUICommandInfo > VisualizeSubstrateMode;
 
 	/** Changes the viewport to visualize Groom debug views */
 	TSharedPtr< FUICommandInfo > VisualizeGroomMode;

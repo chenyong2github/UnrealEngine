@@ -1516,69 +1516,69 @@ ERayTracingMode GetRayTracingMode()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Strata settings interface
 
-static TAutoConsoleVariable<int32> CVarStrata(
-	TEXT("r.Strata"),
+static TAutoConsoleVariable<int32> CVarSubstrate(
+	TEXT("r.Substrate"),
 	0,
-	TEXT("Enable Strata materials (Beta)."),
+	TEXT("Enable Substrate materials (Beta)."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarStrataBytePerPixel(
-	TEXT("r.Strata.BytesPerPixel"),
+static TAutoConsoleVariable<int32> CVarSubstrateBytePerPixel(
+	TEXT("r.Substrate.BytesPerPixel"),
 	80,
-	TEXT("Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented."),
+	TEXT("Substrate allocated byte per pixel to store materials data. Higher value means more complex material can be represented."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarStrataBackCompatibility(
-	TEXT("r.StrataBackCompatibility"),
+static TAutoConsoleVariable<int32> CVarSubstrateBackCompatibility(
+	TEXT("r.SubstrateBackCompatibility"),
 	0,
-	TEXT("Disables Strata multiple scattering and replaces Chan diffuse by Lambert."),
+	TEXT("Disables Substrate multiple scattering and replaces Chan diffuse by Lambert."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarStrataOpaqueMaterialRoughRefraction(
-	TEXT("r.Strata.OpaqueMaterialRoughRefraction"),
+static TAutoConsoleVariable<int32> CVarSubstrateOpaqueMaterialRoughRefraction(
+	TEXT("r.Substrate.OpaqueMaterialRoughRefraction"),
 	0,
-	TEXT("Enable Strata opaque material rough refractions effect from top layers over layers below."),
+	TEXT("Enable Substrate opaque material rough refractions effect from top layers over layers below."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarStrataShadingQuality(
-	TEXT("r.Strata.ShadingQuality"),
+static TAutoConsoleVariable<int32> CVarSubstrateShadingQuality(
+	TEXT("r.Substrate.ShadingQuality"),
 	1,
-	TEXT("Define Strata shading quality (1: accurate lighting, 2: approximate lighting). This variable is read-only."),
+	TEXT("Define Substrate shading quality (1: accurate lighting, 2: approximate lighting). This variable is read-only."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarStrataDBufferPass(
-	TEXT("r.Strata.DBufferPass"),
+static TAutoConsoleVariable<int32> CVarSubstrateDBufferPass(
+	TEXT("r.Substrate.DBufferPass"),
 	0,
 	TEXT("Apply DBuffer after the base-pass as a separate pass. Read only because when this is changed, it will require the recompilation of all shaders."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-// Transition render settings that will disapear when strata gets enabled
+// Transition render settings that will disappear when Substrate gets enabled
 static TAutoConsoleVariable<int32> CVarMaterialRoughDiffuse(
 	TEXT("r.Material.RoughDiffuse"),
 	0,
 	TEXT("Enable rough diffuse material."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarStrataRoughDiffuse(
-	TEXT("r.Strata.RoughDiffuse"),
+static TAutoConsoleVariable<int32> CVarSubstrateRoughDiffuse(
+	TEXT("r.Substrate.RoughDiffuse"),
 	1,
-	TEXT("Enable Strata rough diffuse model (works only if r.Material.RoughDiffuse is enabled in the project settings). Togglable at runtime"),
+	TEXT("Enable Substrate rough diffuse model (works only if r.Material.RoughDiffuse is enabled in the project settings). Togglable at runtime"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarStrataDebugAdvancedVisualizationShaders(
-	TEXT("r.Strata.Debug.AdvancedVisualizationShaders"),
+static TAutoConsoleVariable<int32> CVarSubstrateDebugAdvancedVisualizationShaders(
+	TEXT("r.Substrate.Debug.AdvancedVisualizationShaders"),
 	0,
-	TEXT("Enable advanced strata material debug visualization shaders. Base pass shaders can output such advanced data."),
+	TEXT("Enable advanced Substrate material debug visualization shaders. Base pass shaders can output such advanced data."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarStrataTileCoord8Bits(
-	TEXT("r.Strata.TileCoord8bits"),
+static TAutoConsoleVariable<int32> CVarSubstrateTileCoord8Bits(
+	TEXT("r.Substrate.TileCoord8bits"),
 	0,
 	TEXT("Format of tile coord. This variable is read-only."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarStrataAccurateSRGB(
-	TEXT("r.Strata.AccurateSRGB"),
+static TAutoConsoleVariable<int32> CVarSubstrateAccurateSRGB(
+	TEXT("r.Substrate.AccurateSRGB"),
 	0,
 	TEXT("Enable accurate sRGB encoding for pixel data encoding/decoding during rendering passes (base pass, lighting, ...). Otherwise use a simple 'Gamma2' approximation."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
@@ -1587,7 +1587,7 @@ namespace Strata
 {
 	bool IsStrataEnabled()
 	{
-		return CVarStrata.GetValueOnAnyThread() > 0;
+		return CVarSubstrate.GetValueOnAnyThread() > 0;
 	}
 
 	static uint32 InternalGetBytePerPixel(uint32 InBytePerPixel)
@@ -1600,13 +1600,13 @@ namespace Strata
 
 	uint32 GetBytePerPixel()
 	{
-		return InternalGetBytePerPixel(CVarStrataBytePerPixel.GetValueOnAnyThread());
+		return InternalGetBytePerPixel(CVarSubstrateBytePerPixel.GetValueOnAnyThread());
 	}
 
 	uint32 GetBytePerPixel(EShaderPlatform InPlatform)
 	{
 		// Variant for shader compilation per platform
-		static FShaderPlatformCachedIniValue<int32> CVarBudget(TEXT("r.Strata.BytesPerPixel"));
+		static FShaderPlatformCachedIniValue<int32> CVarBudget(TEXT("r.Substrate.BytesPerPixel"));
 		return InternalGetBytePerPixel(CVarBudget.Get(InPlatform));
 	}
 
@@ -1637,34 +1637,33 @@ namespace Strata
 
 	bool IsBackCompatibilityEnabled()
 	{
-		return CVarStrataBackCompatibility.GetValueOnAnyThread() > 0 ? 1 : 0;
+		return CVarSubstrateBackCompatibility.GetValueOnAnyThread() > 0 ? 1 : 0;
 	}
 	
 	bool IsRoughDiffuseEnabled()
 	{
-		return CVarStrataRoughDiffuse.GetValueOnAnyThread() > 0;
+		return CVarSubstrateRoughDiffuse.GetValueOnAnyThread() > 0;
 	}
 
 	bool Is8bitTileCoordEnabled()
 	{
-		return CVarStrataTileCoord8Bits.GetValueOnAnyThread() > 0 ? 1 : 0;
+		return CVarSubstrateTileCoord8Bits.GetValueOnAnyThread() > 0 ? 1 : 0;
 	}
 
 	bool IsAccurateSRGBEnabled()
 	{
-		return CVarStrataAccurateSRGB.GetValueOnAnyThread() > 0 ? 1 : 0;
+		return CVarSubstrateAccurateSRGB.GetValueOnAnyThread() > 0 ? 1 : 0;
 	}
 
 	uint32 GetShadingQuality()
 	{
-		return CVarStrataShadingQuality.GetValueOnAnyThread();
+		return CVarSubstrateShadingQuality.GetValueOnAnyThread();
 	}
 
 	uint32 GetShadingQuality(EShaderPlatform InPlatform)
-
 	{
-		static FShaderPlatformCachedIniValue<int32> CVarStrataShadingQualityPlatform(TEXT("r.Strata.ShadingQuality"));
-		return CVarStrataShadingQualityPlatform.Get(InPlatform);
+		static FShaderPlatformCachedIniValue<int32> CVarSubstrateShadingQualityPlatform(TEXT("r.Substrate.ShadingQuality"));
+		return CVarSubstrateShadingQualityPlatform.Get(InPlatform);
 	}
 	
 	bool IsDBufferPassEnabled(EShaderPlatform InPlatform)
@@ -1672,21 +1671,21 @@ namespace Strata
 		// DBuffer pass is only available if high quality normal is disabled, or if we are on a console.
 		// That is because in high quality normals requires a uint2 UAV which is only supported on some graphic cards on PC 
 		// and this is an unknown when compiling shaders at this stage.
-		// !!! If this is changed, please update all sites reading r.Strata.DBufferPass !!!
-		const uint32 StrataNormalQuality = GetNormalQuality();
-		const bool bDBufferPassSupported = StrataNormalQuality == 0 || (StrataNormalQuality > 0 && IsConsolePlatform(InPlatform));
+		// !!! If this is changed, please update all sites reading r.Substrate.DBufferPass !!!
+		const uint32 NormalQuality = GetNormalQuality();
+		const bool bDBufferPassSupported = NormalQuality == 0 || (NormalQuality > 0 && IsConsolePlatform(InPlatform));
 		
-		static FShaderPlatformCachedIniValue<int32> CVarStrataDBufferPassPlatform(TEXT("r.Strata.DBufferPass"));
-		return IsStrataEnabled() && IsUsingDBuffers(InPlatform) && bDBufferPassSupported && CVarStrataDBufferPassPlatform.Get(InPlatform) > 0;
+		static FShaderPlatformCachedIniValue<int32> CVarSubstrateDBufferPassPlatform(TEXT("r.Substrate.DBufferPass"));
+		return IsStrataEnabled() && IsUsingDBuffers(InPlatform) && bDBufferPassSupported && CVarSubstrateDBufferPassPlatform.Get(InPlatform) > 0;
 	}
 
 	bool IsOpaqueRoughRefractionEnabled()
 	{
-		return IsStrataEnabled() && CVarStrataOpaqueMaterialRoughRefraction.GetValueOnAnyThread() > 0;
+		return IsStrataEnabled() && CVarSubstrateOpaqueMaterialRoughRefraction.GetValueOnAnyThread() > 0;
 	}
 
 	bool IsAdvancedVisualizationEnabled()
 	{
-		return CVarStrataDebugAdvancedVisualizationShaders.GetValueOnAnyThread() > 0;
+		return CVarSubstrateDebugAdvancedVisualizationShaders.GetValueOnAnyThread() > 0;
 	}
 }

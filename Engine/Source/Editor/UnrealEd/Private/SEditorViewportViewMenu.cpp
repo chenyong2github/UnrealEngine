@@ -56,7 +56,7 @@ FText SEditorViewportViewMenu::GetViewMenuLabel() const
 		{
 			Label = ViewportClient->GetCurrentLumenVisualizationModeDisplayName();
 		}
-		else if (ViewMode == VMI_VisualizeStrata)
+		else if (ViewMode == VMI_VisualizeSubstrate)
 		{
 			Label = ViewportClient->GetCurrentStrataVisualizationModeDisplayName();
 		}

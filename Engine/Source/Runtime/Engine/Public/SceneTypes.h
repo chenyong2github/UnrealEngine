@@ -162,8 +162,8 @@ enum EMaterialProperty : int
 	MP_EmissiveColor = 0 UMETA(DisplayName = "Emissive"),
 	MP_Opacity UMETA(DisplayName = "Opacity"),
 	MP_OpacityMask UMETA(DisplayName = "Opacity Mask"),
-	MP_DiffuseColor UMETA(Hidden),			// used in Lightmass, not exposed to user, computed from: BaseColor, Metallic				Also used in Strata which uses Albedo/F0 parameterrization
-	MP_SpecularColor UMETA(Hidden),			// used in Lightmass, not exposed to user, derived from: SpecularColor, Metallic, Specular	Also used in Strata which uses Albedo/F0 parameterrization
+	MP_DiffuseColor UMETA(Hidden),			// used in Lightmass, not exposed to user, computed from: BaseColor, Metallic				Also used in Substrate which uses Albedo/F0 parameterization
+	MP_SpecularColor UMETA(Hidden),			// used in Lightmass, not exposed to user, derived from: SpecularColor, Metallic, Specular	Also used in Substrate which uses Albedo/F0 parameterization
 	MP_BaseColor UMETA(DisplayName = "Diffuse"),
 	MP_Metallic UMETA(DisplayName = "Metallic"),
 	MP_Specular UMETA(DisplayName = "Specular"),

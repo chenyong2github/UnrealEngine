@@ -171,7 +171,7 @@ const TCHAR* ToString(EVirtualShadowMapProjectionInputType In)
 	switch (In)
 	{
 	case EVirtualShadowMapProjectionInputType::HairStrands: return TEXT("HairStrands");
-	case EVirtualShadowMapProjectionInputType::GBuffer:     return Strata::IsStrataEnabled() ? TEXT("Strata") : TEXT("GBuffer");
+	case EVirtualShadowMapProjectionInputType::GBuffer:     return Strata::IsStrataEnabled() ? TEXT("Substrate") : TEXT("GBuffer");
 	}
 	return TEXT("Invalid");
 }

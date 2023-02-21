@@ -32,9 +32,9 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLightmassRender, Error, All);
 
-extern bool Lightmass_IsStrataEnabled()
+extern bool Lightmass_IsSubstrateEnabled()
 {
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Substrate"));
 	return CVar && CVar->GetValueOnAnyThread() > 0;
 }
 
@@ -255,7 +255,7 @@ public:
 	{
 		if (InMaterialInterface)
 		{
-			bStrataEnabled = Lightmass_IsStrataEnabled();
+			bStrataEnabled = Lightmass_IsSubstrateEnabled();
 			MaterialInterface = InMaterialInterface;
 			Material = MaterialInterface ? MaterialInterface->GetMaterial() : NULL;
 			PropertyToCompile = InPropertyToCompile;
@@ -1048,7 +1048,7 @@ void FLightmassMaterialRenderer::BeginGenerateMaterialData(
 	if (BaseMaterial)
 	{
 		check(!MaterialExportData.Contains(InMaterial));
-		const bool bStrataEnabled = Lightmass_IsStrataEnabled();
+		const bool bStrataEnabled = Lightmass_IsSubstrateEnabled();
 
 		FMaterialExportDataEntry& MaterialData = MaterialExportData.Add(InMaterial, FMaterialExportDataEntry(ChannelName));
 
@@ -1109,7 +1109,7 @@ bool FLightmassMaterialRenderer::GenerateMaterialData(
 	check(BaseMaterial);
 
 	EBlendMode BlendMode = InMaterial.GetBlendMode();
-	const bool bStrataEnabled = Lightmass_IsStrataEnabled();
+	const bool bStrataEnabled = Lightmass_IsSubstrateEnabled();
 
 	FMaterialShadingModelField ShadingModels = InMaterial.GetShadingModels();
  	if (!bStrataEnabled &&		// Shading models are irrelevant when using Strata

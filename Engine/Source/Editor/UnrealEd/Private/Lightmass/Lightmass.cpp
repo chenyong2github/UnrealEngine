@@ -57,7 +57,7 @@
 
 extern FSwarmDebugOptions GSwarmDebugOptions;
 
-bool Lightmass_IsStrataEnabled();
+bool Lightmass_IsSubstrateEnabled();
 
 DEFINE_LOG_CATEGORY_STATIC(LogLightmassSolver, Warning, All);
 /**
@@ -1357,10 +1357,10 @@ void FLightmassExporter::GetMaterialHash(const UMaterialInterface* Material, FSH
 		}
 	}
 
-	if (Lightmass_IsStrataEnabled())
+	if (Lightmass_IsSubstrateEnabled())
 	{
-		uint32 LightmassStrataVersion = 0XB6A0D99F; // This can be change when the code/logic for converting material to strata for lightmap has changed.
-		HashState.Update((const uint8*)&LightmassStrataVersion, sizeof(LightmassStrataVersion));
+		uint32 LightmassSubstrateVersion = 0XB6A0D99F; // This can be change when the code/logic for converting material to Substrate for lightmap has changed.
+		HashState.Update((const uint8*)&LightmassSubstrateVersion, sizeof(LightmassSubstrateVersion));
 	}
 
 	HashState.Final();
