@@ -14,6 +14,11 @@ ULandmassBlueprintFunctionLibrary::ULandmassBlueprintFunctionLibrary(const FObje
 
 bool ULandmassBlueprintFunctionLibrary::GetCursorWorldRay(FVector& CameraLocation, FVector& RayOrigin, FVector& RayDirection)
 {
+	if (GCurrentLevelEditingViewportClient == nullptr)
+	{
+		return false;
+	}
+
 	FViewportCursorLocation CursorLocation = GCurrentLevelEditingViewportClient->GetCursorWorldLocationFromMousePos();
 
 	CameraLocation = CursorLocation.GetOrigin();
