@@ -68,6 +68,11 @@ private:
 	void RecordEmbeddedEdges(TArray<int>& PathVertIDs);
 
 	void BooleanPath(FProgressCancel* Progress);
+
+	// Fix issues like self-intersection on an input polygon
+	// Note: We could change this to return an array of general polygons in the future, to handle the most general case,
+	// but currently the embedding process does not support holes
+	TArray<FPolygon2d> CleanPolygon(const FPolygon2d& Input);
 };
 
 } // end namespace UE::Geometry
