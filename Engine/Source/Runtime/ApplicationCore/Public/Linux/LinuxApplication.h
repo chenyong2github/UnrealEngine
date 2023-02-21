@@ -317,6 +317,9 @@ private:
 	/** TODO: describe */
 	bool bIsMouseCaptureEnabled;
 
+	/** True after every SDL_WINDOWEVENT_HIT_TEST until a following SDL_WINDOWEVENT_MOVED */
+	bool bFirstFrameOfWindowMove = false;
+
 	/** Window that we think has been activated last. */
 	TSharedPtr< FLinuxWindow > CurrentlyActiveWindow;
 	TSharedPtr< FLinuxWindow > CurrentFocusWindow;

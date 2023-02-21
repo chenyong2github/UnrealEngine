@@ -804,6 +804,16 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 						ClientScreenY += BorderSizeY;
 
 						MessageHandler->OnMovedWindow(CurrentEventWindow.ToSharedRef(), ClientScreenX, ClientScreenY);
+
+						if (bFirstFrameOfWindowMove)
+						{
+							bFirstFrameOfWindowMove = false;
+
+							if (NotificationWindows.Num() > 0)
+							{
+								RaiseNotificationWindows(CurrentEventWindow);
+							}
+						}
 					}
 					break;
 
@@ -811,6 +821,11 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 					{
 						MessageHandler->OnWindowAction(CurrentEventWindow.ToSharedRef(), EWindowAction::Maximize);
 						UE_LOG(LogLinuxWindowEvent, Verbose, TEXT("Window: '%d' got maximized"), CurrentEventWindow->GetID());
+
+						if (NotificationWindows.Num() > 0)
+						{
+							RaiseNotificationWindows(CurrentEventWindow);
+						}
 					}
 					break;
 
@@ -818,6 +833,11 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 					{
 						MessageHandler->OnWindowAction(CurrentEventWindow.ToSharedRef(), EWindowAction::Restore);
 						UE_LOG(LogLinuxWindowEvent, Verbose, TEXT("Window: '%d' got restored"), CurrentEventWindow->GetID());
+
+						if (NotificationWindows.Num() > 0)
+						{
+							RaiseNotificationWindows(CurrentEventWindow);
+						}
 					}
 					break;
 
@@ -880,6 +900,8 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 						{
 							RaiseNotificationWindows(CurrentEventWindow);
 						}
+
+						bFirstFrameOfWindowMove = true;
 					}
 					break;
 
