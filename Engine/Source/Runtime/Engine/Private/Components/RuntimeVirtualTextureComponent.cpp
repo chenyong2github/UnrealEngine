@@ -191,7 +191,7 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 	return Settings.PackedValue;
 }
 
-bool URuntimeVirtualTextureComponent::IsStreamingLowMips(EShadingPath ShadingPath) const
+bool URuntimeVirtualTextureComponent::IsStreamingLowMips() const
 {
 #if WITH_EDITOR
 	if (!bUseStreamingLowMipsInEditor && GIsEditor)
@@ -199,29 +199,15 @@ bool URuntimeVirtualTextureComponent::IsStreamingLowMips(EShadingPath ShadingPat
 		return false;
 	}
 #endif
-	return VirtualTexture != nullptr && StreamingTexture != nullptr && StreamingTexture->GetVirtualTexture(ShadingPath) != nullptr;
+	return VirtualTexture != nullptr && StreamingTexture != nullptr && StreamingTexture->Texture != nullptr;
 }
-
-bool URuntimeVirtualTextureComponent::IsStreamingTextureInvalid(EShadingPath ShadingPath) const
-{
-	return 
-		VirtualTexture != nullptr && 
-		StreamingTexture != nullptr && 
-		StreamingTexture->GetVirtualTexture(ShadingPath) != nullptr && 
-		StreamingTexture->BuildHash != CalculateStreamingTextureSettingsHash();
-}
-
-#if WITH_EDITOR
 
 bool URuntimeVirtualTextureComponent::IsStreamingTextureInvalid() const
 {
-	return 
-		VirtualTexture != nullptr && 
-		StreamingTexture != nullptr && 
-		StreamingTexture->GetVirtualTexture(EShadingPath::Deferred) != nullptr && 
-		StreamingTexture->GetVirtualTexture(EShadingPath::Mobile) != nullptr && 
-		StreamingTexture->BuildHash != CalculateStreamingTextureSettingsHash();
+	return VirtualTexture != nullptr && StreamingTexture != nullptr && StreamingTexture->Texture != nullptr && StreamingTexture->BuildHash != CalculateStreamingTextureSettingsHash();
 }
+
+#if WITH_EDITOR
 
 // RAII class to release and recreate runtime virtual texture producers associated with a UVirtualTextureBuilder.
 // Required around modifications of a UVirtualTextureBuilder because virtual producers hold pointers to the internal data.
@@ -266,7 +252,7 @@ static void GetLayerFormatSettings(FTextureFormatSettings& OutFormatSettings, EP
 	OutFormatSettings.CompressionYCoCg = IsLayerYCoCg;
 	OutFormatSettings.SRGB = IsLayerSRGB;
 }
-void URuntimeVirtualTextureComponent::InitializeStreamingTexture(EShadingPath ShadingPath, uint32 InSizeX, uint32 InSizeY, uint8* InData)
+void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX, uint32 InSizeY, uint8* InData)
 {
 	// We need an existing StreamingTexture object to update.
 	if (VirtualTexture != nullptr && StreamingTexture != nullptr)
@@ -302,7 +288,7 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(EShadingPath Sh
 		BuildDesc.InData = InData;
 
 		StreamingTexture->Modify();
-		StreamingTexture->BuildTexture(ShadingPath, BuildDesc);
+		StreamingTexture->BuildTexture(BuildDesc);
 	}
 }
 
