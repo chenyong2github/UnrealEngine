@@ -71,7 +71,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 	// Check if we can reuse existing resources
 	bool bSkippedDueToReuse = false;
 
-	if (CVarAllowISMReuse.GetValueOnAnyThread())
+	if (Context->CurrentInputIndex == 0 && CVarAllowISMReuse.GetValueOnAnyThread())
 	{
 		// Compute CRC if it has not been computed (it likely isn't, but this is to futureproof this)
 		if (!Context->DependenciesCrc.IsValid())
@@ -115,9 +115,14 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	for (const FPCGTaggedData& Input : Inputs)
+	while(Context->CurrentInputIndex < Inputs.Num())
 	{
+		const FPCGTaggedData& Input = Inputs[Context->CurrentInputIndex];
 		const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Input.Data);
+
+		// Preincrement so we can have all paths continue properly - note that this works because none of this is internally time-sliced
+		++Context->CurrentInputIndex;
+
 		if (!SpatialData)
 		{
 			PCGE_LOG(Error, "Invalid input data");
@@ -182,6 +187,12 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 		InstanceListData.SpatialData = PointData;
 		InstanceListData.MeshInstances = MoveTemp(MeshInstances);
 		InstanceListData.PackedCustomData = MoveTemp(PackedCustomData);
+
+		// Continue on to next iteration if there is time left, otherwise, exit here
+		if (Context->ShouldStop() && Context->CurrentInputIndex < Inputs.Num())
+		{
+			return false;
+		}
 	}
 
 	return true;

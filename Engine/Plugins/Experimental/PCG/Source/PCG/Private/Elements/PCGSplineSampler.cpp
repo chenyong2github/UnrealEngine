@@ -13,6 +13,7 @@
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
 
+#include "Async/ParallelFor.h"
 #include "Components/SplineComponent.h"
 #include "Voronoi/Voronoi.h"
 
@@ -693,9 +694,9 @@ namespace PCGSplineSampler
 		}
 	}
  
-	void SampleInteriorData(const UPCGPolyLineData* LineData, const UPCGSpatialData* SpatialData, const UPCGSpatialData* InBoundingShape, const FPCGSplineSamplerParams& Params, UPCGPointData* OutPointData)
+	void SampleInteriorData(FPCGContext* Context, const UPCGPolyLineData* LineData, const UPCGSpatialData* SpatialData, const UPCGSpatialData* InBoundingShape, const FPCGSplineSamplerParams& Params, UPCGPointData* OutPointData)
 	{
-		check(LineData && OutPointData);
+		check(Context && LineData && OutPointData);
 
 		TSoftObjectPtr<USplineComponent> Spline;
 
@@ -747,13 +748,17 @@ namespace PCGSplineSampler
 		{
 			// Treat spline interface points as vertices of a polyline
 			const int NumSegments = LineData->GetNumSegments();
+			SplineSamplePoints.Reserve(NumSegments);
+
 			for (int32 SegmentIndex = 0; SegmentIndex < NumSegments; ++SegmentIndex)
 			{
 				SplineSamplePoints.Add(LineData->GetLocationAtDistance(SegmentIndex, 0, /*bWorldSpace=*/false));
 			}
 		}
-		else
+		else if(Params.InteriorBorderSampleSpacing > 0)
 		{
+			SplineSamplePoints.Reserve(1 + SplineLength / Params.InteriorBorderSampleSpacing);
+
 			// Get sample points along the spline that are higher resolution than our PolyLine
 			for (FVector::FReal Length = 0.f; Length < SplineLength; Length += Params.InteriorBorderSampleSpacing)
 			{
@@ -763,6 +768,8 @@ namespace PCGSplineSampler
 
 		// Flat polygon representation of our spline points
 		TArray<FVector2D> SplineSamplePoints2D;
+		SplineSamplePoints2D.Reserve(SplineSamplePoints.Num());
+
 		for (const FVector& Point : SplineSamplePoints)
 		{
 			SplineSamplePoints2D.Add(FVector2D(Point));
@@ -777,6 +784,7 @@ namespace PCGSplineSampler
 			if (Params.bTreatSplineAsPolyline)
 			{
 				// If we already computed the polygon, use a copy instead of generating it again
+				PolygonPoints.Reserve(SplineSamplePoints.Num());
 				for (const FVector& SplinePoint : SplineSamplePoints)
 				{
 					FVector& PolygonPoint = PolygonPoints.Add_GetRef(SplinePoint);
@@ -786,6 +794,8 @@ namespace PCGSplineSampler
 			else
 			{
 				const int NumSegments = LineData->GetNumSegments();
+				PolygonPoints.Reserve(NumSegments);
+
 				for (int32 SegmentIndex = 0; SegmentIndex < NumSegments; ++SegmentIndex)
 				{
 					FVector& PolygonPoint = PolygonPoints.Add_GetRef(LineData->GetLocationAtDistance(SegmentIndex, 0, /*bWorldSpace=*/false));
@@ -794,6 +804,8 @@ namespace PCGSplineSampler
 			}
 
 			TArray<FVector2D> PolygonPoints2D;
+			PolygonPoints2D.Reserve(PolygonPoints.Num());
+
 			for (const FVector& Point : PolygonPoints)
 			{
 				PolygonPoints2D.Add(FVector2D(Point));
@@ -802,7 +814,10 @@ namespace PCGSplineSampler
 			TArray<TTuple<FVector, FVector>> VoronoiEdges;
 			TArray<int32> CellMember;
 
-			GetVoronoiEdges(PolygonPoints, FBox(MinPoint, FVector(MaxPoint.X, MaxPoint.Y, MinPoint.Z)), VoronoiEdges, CellMember);
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSplineSamplerElement::Execute::GetVoronoiEdges);
+				GetVoronoiEdges(PolygonPoints, FBox(MinPoint, FVector(MaxPoint.X, MaxPoint.Y, MinPoint.Z)), VoronoiEdges, CellMember);
+			}
 
 			// Find the subset of the Voronoi Diagram which composes the Medial Axis
 			for (const TTuple<FVector, FVector>& Edge : VoronoiEdges)
@@ -833,156 +848,189 @@ namespace PCGSplineSampler
 		}
 
 		TArray<FPCGPoint>& OutPoints = OutPointData->GetMutablePoints();
-		TArray<FVector::FReal> DistancesSquaredOnXY;
 
 		// RayPadding should be large enough to avoid potential misclassifications in SegmentPolygonIntersection2D
 		const FVector::FReal RayPadding = 100.f;
 		const FVector::FReal MinY = FMath::CeilToDouble(MinPoint.Y / Params.InteriorSampleSpacing) * Params.InteriorSampleSpacing;
 		const FVector::FReal MaxY = FMath::FloorToDouble(MaxPoint.Y / Params.InteriorSampleSpacing) * Params.InteriorSampleSpacing;
 
-		// Point sampling
-		for (FVector::FReal Y = MinY; Y < MaxY + UE_KINDA_SMALL_NUMBER; Y += Params.InteriorSampleSpacing)
+		constexpr int32 MinIterationPerDispatch = 4;
+		const int32 NumIterations = (MaxY + UE_KINDA_SMALL_NUMBER - MinY) / Params.InteriorSampleSpacing;
+		const int32 NumDispatch = FMath::Max(1, FMath::Min(Context->NumAvailableTasks, NumIterations / MinIterationPerDispatch));
+		const int32 NumIterationsPerDispatch = NumIterations / NumDispatch;
+
+		TArray<TArray<TTuple<FTransform, FVector, float>>> InteriorSplinePointData;
+		InteriorSplinePointData.SetNum(NumDispatch);
+
+		ParallelFor(NumDispatch, [&](int32 DispatchIndex)
 		{
-			const FVector2D RayMin(MinPoint.X - RayPadding, Y);
-			const FVector2D RayMax(MaxPoint.X + RayPadding, Y);
+			const bool bIsLastIteration = (DispatchIndex == (NumDispatch - 1));
+			const int32 StartIterationIndex = DispatchIndex * NumIterationsPerDispatch;
+			const int32 EndIterationIndex = bIsLastIteration ? NumIterations : (StartIterationIndex + NumIterationsPerDispatch);
 
-			// Get the intersections along this ray, sorted by Y value
-			TArray<FVector2D> Intersections;
-			PCGSplineSamplerHelpers::SegmentPolygonIntersection2D(RayMin, RayMax, SplineSamplePoints2D, Intersections);
+			const FVector::FReal LocalMinY = MinY + StartIterationIndex * Params.InteriorSampleSpacing;
+			const FVector::FReal LocalMaxY = bIsLastIteration ? (MaxY + UE_KINDA_SMALL_NUMBER) : (MinY + EndIterationIndex * Params.InteriorSampleSpacing);
 
-			if (Intersections.Num() % 2 != 0)
+			TArray<FVector::FReal> DistancesSquaredOnXY;
+
+			// Point sampling
+			for(FVector::FReal Y = LocalMinY; Y < LocalMaxY; Y += Params.InteriorSampleSpacing)
 			{
-				UE_LOG(LogPCG, Error, TEXT("Intersection test failed, skipping samples for this row"));
-				continue;
-			}
+				const FVector2D RayMin(MinPoint.X - RayPadding, Y);
+				const FVector2D RayMax(MaxPoint.X + RayPadding, Y);
 
-			Intersections.Sort([](const FVector2D& LHS, const FVector2D& RHS) { return LHS.X < RHS.X; });
+				// Get the intersections along this ray, sorted by Y value
+				TArray<FVector2D> Intersections;
+				PCGSplineSamplerHelpers::SegmentPolygonIntersection2D(RayMin, RayMax, SplineSamplePoints2D, Intersections);
 
-			// TODO: async processing
-			// Each pair of intersections defines a range in which point samples may lie
-			for (int32 RangeIndex = 0; RangeIndex < Intersections.Num(); RangeIndex += 2)
-			{
-				const FVector::FReal MinX = FMath::CeilToDouble(Intersections[RangeIndex].X / Params.InteriorSampleSpacing) * Params.InteriorSampleSpacing;
-				const FVector::FReal MaxX = FMath::FloorToDouble(Intersections[RangeIndex + 1].X / Params.InteriorSampleSpacing) * Params.InteriorSampleSpacing;
-
-				if (MaxX - MinX < Params.InteriorSampleSpacing)
+				if (Intersections.Num() % 2 != 0)
 				{
+					UE_LOG(LogPCG, Error, TEXT("Intersection test failed, skipping samples for this row"));
 					continue;
 				}
 
-				for (FVector::FReal X = MinX; X < MaxX + UE_KINDA_SMALL_NUMBER; X += Params.InteriorSampleSpacing)
+				Intersections.Sort([](const FVector2D& LHS, const FVector2D& RHS) { return LHS.X < RHS.X; });
+
+				// TODO: async processing
+				// Each pair of intersections defines a range in which point samples may lie
+				for (int32 RangeIndex = 0; RangeIndex < Intersections.Num(); RangeIndex += 2)
 				{
-					FPCGPoint& Point = OutPoints.Emplace_GetRef();
+					const FVector::FReal MinX = FMath::CeilToDouble(Intersections[RangeIndex].X / Params.InteriorSampleSpacing) * Params.InteriorSampleSpacing;
+					const FVector::FReal MaxX = FMath::FloorToDouble(Intersections[RangeIndex + 1].X / Params.InteriorSampleSpacing) * Params.InteriorSampleSpacing;
 
-					const FVector2D SampleLocation = FVector2D(X, Y);
-					FVector SurfaceLocation = FVector(SampleLocation, MinPoint.Z);
-
-					if (bProjectOntoSurface)
+					if (MaxX - MinX < Params.InteriorSampleSpacing)
 					{
-						// Precompute 2D distance to every spline point
-						DistancesSquaredOnXY.Reset(SplineSamplePoints.Num());
-						for (const FVector& SplinePoint : SplineSamplePoints)
-						{
-							FVector::FReal DistanceSquared = FVector::DistSquaredXY(SurfaceLocation, SplinePoint);
-							DistancesSquaredOnXY.Add(DistanceSquared);
-						}
-
-						// Compute average Z value weighted by 1 / Distance^2
-						FVector::FReal SumZ = 0.f;
-						FVector::FReal SumWeights = 0.f;
-						for (int32 PointIndex = 0; PointIndex < SplineSamplePoints.Num(); ++PointIndex)
-						{
-							const FVector::FReal DistanceSquared = DistancesSquaredOnXY[PointIndex];
-
-							// If sample point overlaps exactly with a border point, then that must be the height
-							if (FMath::IsNearlyZero(DistanceSquared))
-							{
-								SumZ = SplineSamplePoints[PointIndex].Z;
-								SumWeights = 1.f;
-								break;
-							}
-
-							// TODO: it would be more accurate to use distance to the polyline instead of distance to the polyline points,
-							// however it would also be much more expensive. Perhaps worth investigating when Params.bTreatSplineAsPolyline is true
-							const FVector::FReal Weight = 1.f / DistanceSquared;
-
-							SumWeights += Weight;
-							SumZ += SplineSamplePoints[PointIndex].Z * Weight;
-						}
-
-						SurfaceLocation.Z = SumZ / SumWeights;
+						continue;
 					}
 
-					// if bTreatAsPolyline, then we shouldnt use this, we should use nearest point on the polygon line segments
-					float Dummy;
-					const float NearestSplineKey = bFindNearestSplineKey ? Spline->SplineCurves.Position.InaccurateFindNearest(SurfaceLocation, Dummy) : 0.f;
-
-					const FVector PointLocationLS = (Params.bProjectOntoSurface ? FVector(SurfaceLocation) : FVector(SampleLocation, MinPoint.Z));
-
-					FTransform TransformLS = FTransform::Identity;
-					TransformLS.SetLocation(PointLocationLS);
-
-					if (Params.InteriorOrientation == EPCGSplineSamplingInteriorOrientation::FollowCurvature)
+					for (FVector::FReal X = MinX; X < MaxX + UE_KINDA_SMALL_NUMBER; X += Params.InteriorSampleSpacing)
 					{
-						TransformLS.SetRotation(Spline->GetQuaternionAtSplineInputKey(NearestSplineKey, ESplineCoordinateSpace::Local));
-					}
+						const FVector2D SampleLocation = FVector2D(X, Y);
+						FVector SurfaceLocation = FVector(SampleLocation, MinPoint.Z);
 
-					// Calculate density fall off
-					if (bGenerateMedialAxis && MedialAxisEdges.Num())
-					{
-						FVector::FReal SmallestDistSquared = MaxDimensionSquared;
-
-						// Find distance from SampleLocation to MedialAxis
-						for (const TTuple<FVector2D, FVector2D>& Edge : MedialAxisEdges)
+						if (bProjectOntoSurface)
 						{
-							const FVector::FReal DistSquared = FMath::PointDistToSegmentSquared(FVector(SampleLocation, 0), FVector(Edge.Get<0>(), 0), FVector(Edge.Get<1>(), 0));
-
-							if (DistSquared < SmallestDistSquared)
+							// Precompute 2D distance to every spline point
+							DistancesSquaredOnXY.Reset(SplineSamplePoints.Num());
+							for (const FVector& SplinePoint : SplineSamplePoints)
 							{
-								SmallestDistSquared = DistSquared;
+								FVector::FReal DistanceSquared = FVector::DistSquaredXY(SurfaceLocation, SplinePoint);
+								DistancesSquaredOnXY.Add(DistanceSquared);
 							}
-						}
 
-						const FVector::FReal SmallestDist = FMath::Sqrt(SmallestDistSquared);
-
-						FVector::FReal PointToSplineDist = 0.f;
-
-						if (Params.bTreatSplineAsPolyline)
-						{
-							SmallestDistSquared = MaxDimensionSquared;
+							// Compute average Z value weighted by 1 / Distance^2
+							FVector::FReal SumZ = 0.f;
+							FVector::FReal SumWeights = 0.f;
 							for (int32 PointIndex = 0; PointIndex < SplineSamplePoints.Num(); ++PointIndex)
 							{
-								const FVector::FReal DistSquared = FMath::PointDistToSegmentSquared(SurfaceLocation, SplineSamplePoints[PointIndex], SplineSamplePoints[(PointIndex + 1) % SplineSamplePoints.Num()]);
+								const FVector::FReal DistanceSquared = DistancesSquaredOnXY[PointIndex];
+
+								// If sample point overlaps exactly with a border point, then that must be the height
+								if (FMath::IsNearlyZero(DistanceSquared))
+								{
+									SumZ = SplineSamplePoints[PointIndex].Z;
+									SumWeights = 1.f;
+									break;
+								}
+
+								// TODO: it would be more accurate to use distance to the polyline instead of distance to the polyline points,
+								// however it would also be much more expensive. Perhaps worth investigating when Params.bTreatSplineAsPolyline is true
+								const FVector::FReal Weight = 1.f / DistanceSquared;
+
+								SumWeights += Weight;
+								SumZ += SplineSamplePoints[PointIndex].Z * Weight;
+							}
+
+							SurfaceLocation.Z = SumZ / SumWeights;
+						}
+
+						// if bTreatAsPolyline, then we shouldnt use this, we should use nearest point on the polygon line segments
+						float Dummy;
+						const float NearestSplineKey = bFindNearestSplineKey ? Spline->SplineCurves.Position.InaccurateFindNearest(SurfaceLocation, Dummy) : 0.f;
+
+						const FVector PointLocationLS = (Params.bProjectOntoSurface ? FVector(SurfaceLocation) : FVector(SampleLocation, MinPoint.Z));
+
+						FTransform TransformLS = FTransform::Identity;
+						TransformLS.SetLocation(PointLocationLS);
+
+						if (Params.InteriorOrientation == EPCGSplineSamplingInteriorOrientation::FollowCurvature)
+						{
+							TransformLS.SetRotation(Spline->GetQuaternionAtSplineInputKey(NearestSplineKey, ESplineCoordinateSpace::Local));
+						}
+
+						// Calculate density fall off
+						float Density = 1.0f;
+
+						if (bGenerateMedialAxis && MedialAxisEdges.Num())
+						{
+							FVector::FReal SmallestDistSquared = MaxDimensionSquared;
+
+							// Find distance from SampleLocation to MedialAxis
+							for (const TTuple<FVector2D, FVector2D>& Edge : MedialAxisEdges)
+							{
+								const FVector::FReal DistSquared = FMath::PointDistToSegmentSquared(FVector(SampleLocation, 0), FVector(Edge.Get<0>(), 0), FVector(Edge.Get<1>(), 0));
 
 								if (DistSquared < SmallestDistSquared)
 								{
 									SmallestDistSquared = DistSquared;
 								}
 							}
-							
-							PointToSplineDist = FMath::Sqrt(SmallestDistSquared);
+
+							const FVector::FReal SmallestDist = FMath::Sqrt(SmallestDistSquared);
+
+							FVector::FReal PointToSplineDist = 0.f;
+
+							if (Params.bTreatSplineAsPolyline)
+							{
+								SmallestDistSquared = MaxDimensionSquared;
+								for (int32 PointIndex = 0; PointIndex < SplineSamplePoints.Num(); ++PointIndex)
+								{
+									const FVector::FReal DistSquared = FMath::PointDistToSegmentSquared(SurfaceLocation, SplineSamplePoints[PointIndex], SplineSamplePoints[(PointIndex + 1) % SplineSamplePoints.Num()]);
+
+									if (DistSquared < SmallestDistSquared)
+									{
+										SmallestDistSquared = DistSquared;
+									}
+								}
+
+								PointToSplineDist = FMath::Sqrt(SmallestDistSquared);
+							}
+							else
+							{
+								const FVector NearestSplineLocation = Spline->GetLocationAtSplineInputKey(NearestSplineKey, ESplineCoordinateSpace::Local);
+								PointToSplineDist = FVector2D::Distance(SampleLocation, FVector2D(NearestSplineLocation.X, NearestSplineLocation.Y));
+							}
+
+							// Linear fall off in the range [0, 1]
+							const FVector::FReal T = SmallestDist / (SmallestDist + PointToSplineDist + UE_KINDA_SMALL_NUMBER);
+							Density = DensityFalloffCurve->Eval(T);
 						}
-						else
-						{
-							const FVector NearestSplineLocation = Spline->GetLocationAtSplineInputKey(NearestSplineKey, ESplineCoordinateSpace::Local);
-							PointToSplineDist = FVector2D::Distance(SampleLocation, FVector2D(NearestSplineLocation.X, NearestSplineLocation.Y));
-						}
 
-						// Linear fall off in the range [0, 1]
-						const FVector::FReal T = SmallestDist / (SmallestDist + PointToSplineDist + UE_KINDA_SMALL_NUMBER);
-
-						Point.Density = DensityFalloffCurve->Eval(T);
+						InteriorSplinePointData[DispatchIndex].Emplace(TransformLS * LineData->GetTransform(), PointLocationLS, Density);
 					}
-					else
-					{
-						Point.Density = 1.f;
-					}
-
-					Point.BoundsMin = BoundsMin;
-					Point.BoundsMax = BoundsMax;
-					Point.Transform = TransformLS * LineData->GetTransform();
-					SetSeed(Point, PointLocationLS, Params);
 				}
+			}
+		});
+
+		// Finally, gather the data and push to the points
+		int32 PointCount = 0;
+		for (const TArray<TTuple<FTransform, FVector, float>>& InteriorData : InteriorSplinePointData)
+		{
+			PointCount += InteriorData.Num();
+		}
+
+		// TODO: should we parallel for this too?
+		OutPoints.Reserve(PointCount);
+		for (const TArray<TTuple<FTransform, FVector, float>>& InteriorData : InteriorSplinePointData)
+		{
+			for (const TTuple<FTransform, FVector, float>& InteriorPoint : InteriorData)
+			{
+				FPCGPoint& Point = OutPoints.Emplace_GetRef();
+				Point.Transform = InteriorPoint.Get<0>();
+				SetSeed(Point, InteriorPoint.Get<1>(), Params);
+				Point.Density = InteriorPoint.Get<2>();
+				Point.BoundsMin = BoundsMin;
+				Point.BoundsMax = BoundsMax;
 			}
 		}
 	}
@@ -1095,7 +1143,7 @@ bool FPCGSplineSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (SamplerParams.Dimension == EPCGSplineSamplingDimension::OnInterior)
 		{
-			PCGSplineSampler::SampleInteriorData(LineData, SpatialData, BoundingShapeSpatialInput, SamplerParams, SampledPointData);
+			PCGSplineSampler::SampleInteriorData(Context, LineData, SpatialData, BoundingShapeSpatialInput, SamplerParams, SampledPointData);
 		}
 		else
 		{

@@ -34,18 +34,20 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 		switch (Context->CurrentPhase)
 		{
-			case EPCGExecutionPhase::NotExecuted: // Fall-through
+			case EPCGExecutionPhase::NotExecuted:
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(EPCGExecutionPhase::NotExecuted);
 				PreExecute(Context);
+
+				// Will override the settings if there is any override.
+				Context->OverrideSettings();
+
 				break;
 			}
 
 			case EPCGExecutionPhase::PrepareData:
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(EPCGExecutionPhase::PrepareData);
-				// Will override the settings if there is any override.
-				Context->OverrideSettings();
 
 				if (PrepareDataInternal(Context))
 				{

@@ -114,6 +114,8 @@ struct FPCGStaticMeshSpawnerContext : public FPCGContext
 	};
 
 	TArray<FPackedInstanceListData> MeshInstancesData;
+	// Index of input in the context (for selection)
+	int32 CurrentInputIndex = 0;
 	// Index of MeshInstances/PackedCustomData in last MeshInstancesData element
 	int32 CurrentDataIndex = 0;
 };
