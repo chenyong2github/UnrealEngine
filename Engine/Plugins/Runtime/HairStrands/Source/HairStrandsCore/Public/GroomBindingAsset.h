@@ -96,7 +96,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
 	int32 NumInterpolationPoints = 100;
 
-	/** Number of points used for the rbf interpolation */
+	/** Section to pick to transfer the positions */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
 	int32 MatchingSection = 0;
 
