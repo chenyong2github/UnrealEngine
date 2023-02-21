@@ -26,7 +26,7 @@ namespace PerfReportTool
     class Version
     {
 		// Format: Major.Minor.Bugfix
-        private static string VersionString = "4.102.0";
+        private static string VersionString = "4.103.0";
 
         public static string Get() { return VersionString; }
     };
