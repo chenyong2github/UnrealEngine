@@ -12,7 +12,7 @@ enum class ECommonInputType : uint8;
 class SAnalogSlider;
 
 /**
- * A simple widget that shows a sliding bar with a handle that allows you to control the value between 0..1.
+ * A simple widget that shows a sliding bar with a handle that allows you to control the value in a user define range (between 0..1 by default).
  *
  * * No Children
  */

@@ -118,6 +118,9 @@ void USlider::ReleaseSlateResources(bool bReleaseChildren)
 
 void USlider::HandleOnValueChanged(float InValue)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Value = InValue;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	OnValueChanged.Broadcast(InValue);
 	BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Value);
 }

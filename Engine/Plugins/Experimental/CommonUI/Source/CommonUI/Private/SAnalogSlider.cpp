@@ -119,7 +119,7 @@ FReply SAnalogSlider::OnAnalogValueChanged(const FGeometry& MyGeometry, const FA
 
 	if (bCommitNewValue)
 	{
-		CommitValue(FMath::Clamp(NewValue, 0.0f, 1.0f));
+		CommitValue(FMath::Clamp(NewValue, MinValue, MaxValue));
 		OnAnalogCapture.ExecuteIfBound(GetValue());
 		LastAnalogStepTime = FPlatformTime::Seconds();
 	}
@@ -134,14 +134,14 @@ FNavigationReply SAnalogSlider::OnNavigation(const FGeometry& MyGeometry, const 
 	{
 		if (InNavigationEvent.GetNavigationType() == EUINavigation::Left)
 		{
-			CommitValue(FMath::Clamp(GetValue() - GetStepSize(), 0.0f, 1.0f));
+			CommitValue(FMath::Clamp(GetValue() - GetStepSize(), MinValue, MaxValue));
 			OnAnalogCapture.ExecuteIfBound(GetValue());
 
 			return FNavigationReply::Explicit(nullptr);
 		}
 		else if (InNavigationEvent.GetNavigationType() == EUINavigation::Right)
 		{
-			CommitValue(FMath::Clamp(GetValue() + GetStepSize(), 0.0f, 1.0f));
+			CommitValue(FMath::Clamp(GetValue() + GetStepSize(), MinValue, MaxValue));
 			OnAnalogCapture.ExecuteIfBound(GetValue());
 
 			return FNavigationReply::Explicit(nullptr);

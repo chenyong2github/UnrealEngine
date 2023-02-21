@@ -405,14 +405,17 @@ void SSlider::CommitValue(float NewValue)
 {
 	const float OldValue = GetValue();
 
-	if (!ValueSlateAttribute.IsBound(*this))
+	if (NewValue != OldValue)
 	{
-		ValueSlateAttribute.Assign(*this, NewValue);
+		if (!ValueSlateAttribute.IsBound(*this))
+		{
+			ValueSlateAttribute.Assign(*this, NewValue);
+		}
+
+		Invalidate(EInvalidateWidgetReason::Paint);
+
+		OnValueChanged.ExecuteIfBound(NewValue);
 	}
-
-	Invalidate(EInvalidateWidgetReason::Paint);
-
-	OnValueChanged.ExecuteIfBound(NewValue);
 }
 
 float SSlider::PositionToValue( const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& AbsolutePosition )
@@ -509,6 +512,7 @@ float SSlider::GetNormalizedValue() const
 
 void SSlider::SetValue(TAttribute<float> InValueAttribute)
 {
+	CommitValue(FMath::Clamp(InValueAttribute.Get(), MinValue, MaxValue));
 	ValueSlateAttribute.Assign(*this, MoveTemp(InValueAttribute));
 }
 

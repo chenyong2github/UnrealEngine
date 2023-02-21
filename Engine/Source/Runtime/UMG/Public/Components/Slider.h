@@ -18,7 +18,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnControllerCaptureEndEvent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFloatValueChangedEvent, float, Value);
 
 /**
- * A simple widget that shows a sliding bar with a handle that allows you to control the value between 0..1.
+ * A simple widget that shows a sliding bar with a handle that allows you to control the value in a user define range (between 0..1 by default).
  *
  * * No Children
  */
