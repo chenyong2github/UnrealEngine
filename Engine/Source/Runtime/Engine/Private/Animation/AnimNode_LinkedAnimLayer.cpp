@@ -60,15 +60,19 @@ void FAnimNode_LinkedAnimLayer::OnUninitializeAnimInstance(UAnimInstance* InOwni
 	// Owning anim instance is being destroyed, clean dynamic layer data 
 	if (UAnimInstance* CurrentTarget = GetTargetInstance<UAnimInstance>())
 	{
-		USkeletalMeshComponent* MeshComp = InOwningAnimInstance->GetSkelMeshComponent();
-		if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FAnimSubsystem_SharedLinkedAnimLayers::GetFromMesh(MeshComp))
+		// Skip self layers
+		if (CurrentTarget != InOwningAnimInstance)
 		{
-			// If target instance is a shared instance, unlink it when owner uninitialize
-			if (FLinkedAnimLayerInstanceData* PreviousLinkedLayerInstanceData = SharedLinkedAnimLayers->FindInstanceData(CurrentTarget))
+			USkeletalMeshComponent* MeshComp = InOwningAnimInstance->GetSkelMeshComponent();
+			if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FAnimSubsystem_SharedLinkedAnimLayers::GetFromMesh(MeshComp))
 			{
-				DynamicUnlink(InOwningAnimInstance);
-				SetTargetInstance(nullptr);
-				CleanupSharedLinkedLayersData(InOwningAnimInstance, CurrentTarget);
+				// If target instance is a shared instance, unlink it when owner uninitialize
+				if (SharedLinkedAnimLayers->IsSharedInstance(CurrentTarget))
+				{
+					DynamicUnlink(InOwningAnimInstance);
+					SetTargetInstance(nullptr);
+					CleanupSharedLinkedLayersData(InOwningAnimInstance, CurrentTarget);
+				}
 			}
 		}
 	}
@@ -187,7 +191,7 @@ bool FAnimNode_LinkedAnimLayer::CanTeardownLinkedInstance(const UAnimInstance* L
 	USkeletalMeshComponent* MeshComp = LinkedInstance->GetSkelMeshComponent();
 	if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FAnimSubsystem_SharedLinkedAnimLayers::GetFromMesh(MeshComp))
 	{
-		return SharedLinkedAnimLayers->FindInstanceData(LinkedInstance) == nullptr;
+		return !SharedLinkedAnimLayers->IsSharedInstance(LinkedInstance);
 	}
 	return true; 
 }
@@ -199,23 +203,9 @@ void FAnimNode_LinkedAnimLayer::CleanupSharedLinkedLayersData(const UAnimInstanc
 		USkeletalMeshComponent* MeshComp = InPreviousTargetInstance->GetSkelMeshComponent();
 		if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FAnimSubsystem_SharedLinkedAnimLayers::GetFromMesh(MeshComp))
 		{
-			if (FLinkedAnimLayerInstanceData* PreviousLinkedLayerInstanceData = SharedLinkedAnimLayers->FindInstanceData(InPreviousTargetInstance))
+			if (SharedLinkedAnimLayers->IsSharedInstance(InPreviousTargetInstance))
 			{
-				const FName FunctionToLink = GetDynamicLinkFunctionName();
-
-				// The owning anim instance should never be part of the dynamic linked instance data
-				check(InOwningAnimInstance != InPreviousTargetInstance);
-
-				PreviousLinkedLayerInstanceData->RemoveLinkedFunction(FunctionToLink);
-				// Instance isn't used anymore, delete it
-				if (PreviousLinkedLayerInstanceData->GetLinkedFunctions().Num() == 0)
-				{
-					SharedLinkedAnimLayers->RemoveInstance(InPreviousTargetInstance);
-					MeshComp->GetLinkedAnimInstances().Remove(InPreviousTargetInstance);
-					// Only call UninitializeAnimation if we are not the owning anim instance
-					InPreviousTargetInstance->UninitializeAnimation();
-					InPreviousTargetInstance->MarkAsGarbage();
-				}
+				SharedLinkedAnimLayers->RemoveLinkedFunction(InPreviousTargetInstance, GetDynamicLinkFunctionName());
 			}
 		}
 	}

@@ -19,8 +19,11 @@ struct FLinkedAnimLayerInstanceData
 	GENERATED_USTRUCT_BODY()
 
 	FLinkedAnimLayerInstanceData() {}
-	FLinkedAnimLayerInstanceData(UAnimInstance* AnimInstance) { Instance = AnimInstance; }
+	FLinkedAnimLayerInstanceData(UAnimInstance* AnimInstance, bool bInIsPersistent) { Instance = AnimInstance; bIsPersistent = bInIsPersistent; }
 
+	bool IsPersistent() const { return bIsPersistent; }
+	void SetPersistence(bool bInIsPersistent) { bIsPersistent = bInIsPersistent; }
+	
 	// Mark a function as linked
 	void AddLinkedFunction(FName Function, UAnimInstance* AnimInstance);
 	// Unmark a function as linked
@@ -33,8 +36,12 @@ struct FLinkedAnimLayerInstanceData
 	TObjectPtr<UAnimInstance> Instance;
 
 private:
+	
 	UPROPERTY(Transient)
 	TMap<FName, TWeakObjectPtr<UAnimInstance>> LinkedFunctions;
+
+	// True if this is a persistent instance that remains alive when unlinked
+	bool bIsPersistent = false;
 };
 
 // Linked layer class info
@@ -44,27 +51,35 @@ struct FLinkedAnimLayerClassData
 	GENERATED_BODY()
 
 	FLinkedAnimLayerClassData() {}
-	FLinkedAnimLayerClassData(TSubclassOf<UAnimInstance> AnimClass) { Class = AnimClass; }
+	FLinkedAnimLayerClassData(TSubclassOf<UAnimInstance> AnimClass, bool bInIsPersistent) { Class = AnimClass; bIsPersistent = bInIsPersistent; }
+
+	bool IsPersistent() const { return bIsPersistent; }
+	void SetPersistence(bool bInIsPersistent);
 
 	// Find instance data for given instance if it exists, returns nullptr otherwise
 	FLinkedAnimLayerInstanceData* FindInstanceData(const UAnimInstance* AnimInstance);
 
-	// Find an existing instance to link given function if one is available, returns nullptr otherwise
-	FLinkedAnimLayerInstanceData* FindInstanceForLinking(FName Function);
+	// Find an existing instance to link given function if one is available, creates one otherwise
+	UAnimInstance* FindOrAddInstanceForLinking(UAnimInstance* OwningInstance, FName Function, bool& IsNewInstance);
 	
-	// Add given instance
-	FLinkedAnimLayerInstanceData& AddInstance(UAnimInstance* AnimInstance);
-	// Remove given instance
-	void RemoveInstance(const UAnimInstance* AnimInstance);
-
 	TSubclassOf<UAnimInstance> GetClass() const {return Class;}
 	const TArray<FLinkedAnimLayerInstanceData>& GetInstancesData() const {return InstancesData;}
 
+	void RemoveLinkedFunction(UAnimInstance* AnimInstance, FName Function);
+
 private:
+	// Add given instance
+	FLinkedAnimLayerInstanceData& AddInstance(UAnimInstance* AnimInstance);
+	// Remove given instance
+	void RemoveInstance(UAnimInstance* AnimInstance);
+
 	TSubclassOf<UAnimInstance> Class;
 
 	UPROPERTY(Transient)
 	TArray<FLinkedAnimLayerInstanceData> InstancesData;
+
+	// If true, one instance will be kept alive when unlinked so that we don't recreate it from scratch next time it's linked
+	bool bIsPersistent;
 };
 
 // Data for shared linked anim instances module
@@ -79,6 +94,24 @@ struct ENGINE_API FAnimSubsystem_SharedLinkedAnimLayers : public FAnimSubsystemI
 	// Clear all linked layers data
 	void Reset();
 
+	// Check if a given anim instance is shared
+	bool IsSharedInstance(const UAnimInstance* AnimInstance) { return FindInstanceData(AnimInstance) != nullptr; }
+
+	const TArray<FLinkedAnimLayerClassData>& GetClassesData() const { return ClassesData; }
+
+	// Add a class to the persistent class array, insuring one instance is kept alive even when unlinked
+	void AddPersistentAnimLayerClass(TSubclassOf<UAnimInstance> AnimInstanceClass) { PersistentClasses.AddUnique(AnimInstanceClass); }
+
+	// Remove a class from the persistent class array. 
+	void RemovePersistentAnimLayerClass(TSubclassOf<UAnimInstance> AnimInstanceClass);
+
+	// Add a linked function to be managed by a shared anim instance. Returns the instance to bind to the function
+	UAnimInstance* AddLinkedFunction(UAnimInstance* OwningInstance, TSubclassOf<UAnimInstance> AnimClass, FName Function, bool& bIsNewInstance);
+
+	// Remove a linked function, cleaning the instance if it's not used anymore and not persistent
+	void RemoveLinkedFunction(UAnimInstance* AnimInstance, FName Function);
+
+private:
 	// Find instance data for given instance if it exists, returns nullptr otherwise
 	FLinkedAnimLayerInstanceData* FindInstanceData(const UAnimInstance* AnimInstance);
 
@@ -88,11 +121,10 @@ struct ENGINE_API FAnimSubsystem_SharedLinkedAnimLayers : public FAnimSubsystemI
 	// Find or add ClassData for given AnimClass
 	FLinkedAnimLayerClassData& FindOrAddClassData(TSubclassOf<UAnimInstance> AnimClass);
 
-	// Remove given instance
-	void RemoveInstance(const UAnimInstance* AnimInstance);
-
-	const TArray<FLinkedAnimLayerClassData>& GetClassesData() const { return ClassesData; }
-private:
 	UPROPERTY(Transient)
 	TArray<FLinkedAnimLayerClassData> ClassesData;
+
+	// Anim instance classes that should be kept alive even when unlinked
+	UPROPERTY(Transient)
+	TArray<TSubclassOf<UAnimInstance>> PersistentClasses;
 };

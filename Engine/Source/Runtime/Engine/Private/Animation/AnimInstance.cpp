@@ -3078,40 +3078,17 @@ void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance
 							// Skip setting if the class is the same
 							if (TargetInstance == nullptr || ClassToSet != TargetInstance->GetClass())
 							{
-								FLinkedAnimLayerClassData& ClassesData = SharedLinkedAnimLayers->FindOrAddClassData(ClassToSet);
-
-								const FName FunctionToLink = LayerNode->GetDynamicLinkFunctionName();
-
-								// Try to find an existing instance whose function is available for linking
-								FLinkedAnimLayerInstanceData* LayerAnimInstanceData = ClassesData.FindInstanceForLinking(FunctionToLink);
-
 								bool bIsNewInstance;
-								UAnimInstance* LinkedInstance = nullptr;
-								// Use existing instance if possible
-								if (LayerAnimInstanceData)
+ 								const FName FunctionToLink = LayerNode->GetDynamicLinkFunctionName();
+								UAnimInstance* LinkedInstance = SharedLinkedAnimLayers->AddLinkedFunction(this, ClassToSet, FunctionToLink, bIsNewInstance);
+
+								if (bIsNewInstance)
 								{
-									bIsNewInstance = false;
-									LinkedInstance = LayerAnimInstanceData->Instance;
-								}
-								// Create the new linked instance if needed
-								else
-								{
-									bIsNewInstance = true;
-									
-									// Init new instance
-									LinkedInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
-									LinkedInstance->bCreatedByLinkedAnimGraph = true;
-									LinkedInstance->InitializeAnimation();
-									
-									// Insert new instance data
-									LayerAnimInstanceData = &ClassesData.AddInstance(LinkedInstance);
-									
 									// Unlink any layer nodes in the new linked instance, as they may have been hooked up to self in InitializeAnimation above.
 									UnlinkLayerNodesInInstance(LinkedInstance, LayerPair.Value);
 								}
 
 								// Mark function as linked
-								LayerAnimInstanceData->AddLinkedFunction(FunctionToLink, this);
 								LayerNode->SetLinkedLayerInstance(this, LinkedInstance);
 
 								// Propagate notify flags. If any nodes have this set then we need to propagate to the group.
@@ -3125,11 +3102,6 @@ void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance
 
 									// Initialize the correct parts of the linked instance
 									InitializeAndCacheBonesForLinkedRoot(LayerNode, ThisProxy, LinkedInstance, LinkedProxy);
-								}
-
-								if (bIsNewInstance)
-								{
-									MeshComp->GetLinkedAnimInstances().Add(LinkedInstance);
 								}
 							}
 						}

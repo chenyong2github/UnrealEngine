@@ -311,7 +311,8 @@ class ENGINE_API USkeletalMeshComponent : public USkinnedMeshComponent, public I
 	friend struct FAnimNode_LinkedAnimGraph;
 	friend struct FAnimNode_LinkedAnimLayer;
 	friend struct FLinkedInstancesAdapter;
-
+	friend struct FLinkedAnimLayerClassData;
+	
 #if WITH_EDITORONLY_DATA
 private:
 	/** The skeletal mesh used by this component. */
