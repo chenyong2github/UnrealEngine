@@ -199,16 +199,25 @@ class FFragmentRegistrationContext
 {
 public:
 	explicit FFragmentRegistrationContext(Private::FReplicationStateDescriptorRegistry* InReplicationStateRegistry, EReplicationFragmentTraits InFragmentTraits)
-	: ReplicationStateRegistry(InReplicationStateRegistry)
-	, FragmentTraits(InFragmentTraits)
+		: ReplicationStateRegistry(InReplicationStateRegistry)
+		, FragmentTraits(InFragmentTraits)
 	{
 	}
 
-	/* Returns the traits */
+	/** Returns the traits */
 	const EReplicationFragmentTraits GetFragmentTraits() const { return FragmentTraits; }
 
-	/* Register ReplicationFragment */
+	/** Register ReplicationFragment */
 	void RegisterReplicationFragment(FReplicationFragment* Fragment, const FReplicationStateDescriptor* Descriptor, void* SrcReplicationStateBuffer) { Fragments.Add({ Descriptor, SrcReplicationStateBuffer, Fragment }); }
+
+	/** Call this when you have a netobject that is replicated but will never contain any RPCs or replicated properties. Prevents the registration code from complaining about potential errors. */
+	void SetIsFragmentlessNetObject(bool bIsFragmentless) { bIsAFragmentlessNetObject = bIsFragmentless; }
+
+	/** Returns true when the netobject knows it won't contain any replicated properties or RPCs */
+	bool IsFragmentlessNetObject() const { return bIsAFragmentlessNetObject; }
+
+	/** Returns the number of fragments registered */
+	int32 NumFragments() const { return Fragments.Num(); }
 
 	Private::FReplicationStateDescriptorRegistry* GetReplicationStateRegistry() const { return ReplicationStateRegistry; }
 
@@ -218,6 +227,7 @@ private:
 	FReplicationFragments Fragments;
 	Private::FReplicationStateDescriptorRegistry* ReplicationStateRegistry;
 	const EReplicationFragmentTraits FragmentTraits;
+	bool bIsAFragmentlessNetObject = false;
 };
 
 }

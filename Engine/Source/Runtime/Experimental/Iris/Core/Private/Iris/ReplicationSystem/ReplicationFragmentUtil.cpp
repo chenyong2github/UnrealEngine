@@ -69,6 +69,12 @@ uint32 FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(UObject* Ob
 		}
 	}
 
+	// If we did not find any fragments to create, tell the context it's known.
+	if (Context.NumFragments() <= 0)
+	{
+		Context.SetIsFragmentlessNetObject(true);
+	}
+
 	return NumCreatedReplicationFragments;
 }
 

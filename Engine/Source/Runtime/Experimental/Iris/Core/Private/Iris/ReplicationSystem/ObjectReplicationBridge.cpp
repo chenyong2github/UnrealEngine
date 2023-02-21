@@ -224,6 +224,25 @@ UE::Net::FNetRefHandle UObjectReplicationBridge::BeginReplication(UObject* Insta
 
 	const FReplicationFragments& RegisteredFragments = FFragmentRegistrationContextPrivateAccessor::GetReplicationFragments(FragmentRegistrationContext);
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (RegisteredFragments.IsEmpty() && !FragmentRegistrationContext.IsFragmentlessNetObject())
+	{
+		// Look if the class registered replicated properties
+		TArray<FLifetimeProperty> ReplicatedProps;
+		Instance->GetLifetimeReplicatedProps(ReplicatedProps);
+		
+		if (ReplicatedProps.IsEmpty())
+		{
+			ensureMsgf(!RegisteredFragments.IsEmpty(), TEXT("NetObject %s (class %s) registered no fragments. Call SetIsFragmentlessNetObject if this is intentional."), *GetNameSafe(Instance), *GetNameSafe(Instance->GetClass()));
+		}
+		else
+		{
+			ensureMsgf(!RegisteredFragments.IsEmpty(), TEXT("NetObject %s (class %s) registered no fragments but GetLifetimeReplicatedProps returned %d variables. Make sure to call CreateAndRegisterFragmentsForObject in RegisterReplicationFragments"),
+				*GetNameSafe(Instance), *GetNameSafe(Instance->GetClass()), ReplicatedProps.Num());
+		}
+	}
+#endif
+
 	// We currently identify protocols by local archetype or CDO pointer and verified the protocol id received from server and the hash of the default state
 	const UObject* ArchetypeOrCDOUsedAsKey = Instance->GetArchetype();
 
