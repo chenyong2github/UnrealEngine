@@ -895,17 +895,6 @@ public:
 	/** called to gather blueprint replicated properties */
 	virtual void GetLifetimeBlueprintReplicationList(TArray<class FLifetimeProperty>& OutLifetimeProps) const;
 
-	UE_DEPRECATED(5.0, "To be removed in a future release.")
-	/** called prior to replication of an instance of this BP class */
-	virtual void InstancePreReplication(UObject* Obj, class IRepChangedPropertyTracker& ChangedPropertyTracker) const
-	{
-		UBlueprintGeneratedClass* SuperBPClass = Cast<UBlueprintGeneratedClass>(GetSuperStruct());
-		if (SuperBPClass != NULL)
-		{
-			SuperBPClass->InstancePreReplication(Obj, ChangedPropertyTracker);
-		}
-	}
-
 protected:
 	/** Internal helper method used to recursively build the custom property list that's used for post-construct initialization. */
 	bool BuildCustomPropertyListForPostConstruction(FCustomPropertyListNode*& InPropertyList, UStruct* InStruct, const uint8* DataPtr, const uint8* DefaultDataPtr);

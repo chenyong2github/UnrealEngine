@@ -510,7 +510,7 @@ public:
 	virtual ELifetimeCondition GetReplicationCondition() const { return GetIsReplicated() ? COND_None : COND_Never;  }
 
 	/** Called on the component right before replication occurs */
-	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker);
+	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker) {}
 
 	/** Returns true if this type of component can ever replicate, override to disable the default behavior */
 	virtual bool GetComponentClassCanReplicate() const;

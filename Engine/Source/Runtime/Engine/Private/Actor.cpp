@@ -1505,14 +1505,6 @@ void AActor::PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker)
 		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
 	}
 #endif
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(GetClass());
-	if (BPClass != nullptr)
-	{
-		BPClass->InstancePreReplication(this, ChangedPropertyTracker);
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::CallPreReplication(UNetDriver* NetDriver)

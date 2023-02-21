@@ -2177,17 +2177,6 @@ bool UActorComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bun
 	return false;
 }
 
-void UActorComponent::PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(GetClass());
-	if (BPClass != NULL)
-	{
-		BPClass->InstancePreReplication(this, ChangedPropertyTracker);
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 bool UActorComponent::GetComponentClassCanReplicate() const
 {
 	return true;
