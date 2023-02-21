@@ -21,7 +21,7 @@ uint ShadingBinCount;
 
 #define GATHER4_OPTIMIZATION 0
 
-#if SHADING_BIN_SCATTER && VARIABLE_SHADING_RATE
+#if VARIABLE_SHADING_RATE
 uint ShadingRateTileSize;
 Texture2D<uint> ShadingRateImage;
 #endif
@@ -87,7 +87,7 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 		QuadTLCoord.y < ViewHeight - 1u
 	);
 
-	const bool4 ValidPixels = bool4(
+	bool4 ValidPixels = bool4(
 		all(ValidMask.xy) && ShadingMaskTL.bIsNanitePixel,
 		all(ValidMask.zy) && ShadingMaskTR.bIsNanitePixel,
 		all(ValidMask.xw) && ShadingMaskBL.bIsNanitePixel,
@@ -102,7 +102,7 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 
 	uint4 CopyMasks = uint4(0, 0, 0, 0);
 
-#if SHADING_BIN_SCATTER && VARIABLE_SHADING_RATE
+#if VARIABLE_SHADING_RATE
 	uint WaveShadingRate = D3D12_SHADING_RATE_1X1;
 	if (WaveIsFirstLane() && ShadingRateTileSize != 0)
 	{
@@ -120,6 +120,69 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 		ShadingMaskBL.ShadingBin,
 		ShadingMaskBR.ShadingBin
 	);
+
+#if VARIABLE_SHADING_RATE
+	// TODO: Optimize - proof of concept
+	if (all(ValidPixels))
+	{
+		// For now we don't want to worry about VRS for quads that contain non-Nanite or out of bound pixels
+		if (WaveShadingRate == D3D12_SHADING_RATE_1X2)
+		{
+			// [A]
+			// [B]
+
+			const uint CopyHMask = PackPixelCopy(bool3(true, false, false));
+
+			if (VotingBins[0] == VotingBins[1])
+			{
+				ValidPixels[1] = false;
+				CopyMasks[0] = CopyHMask;
+			}
+
+			if (VotingBins[2] == VotingBins[3])
+			{
+				ValidPixels[3] = false;
+				CopyMasks[2] = CopyHMask;
+			}
+		}
+		else if (WaveShadingRate == D3D12_SHADING_RATE_2X1)
+		{
+			// [A][B]
+
+			const uint CopyVMask = PackPixelCopy(bool3(false, true, false));
+
+			if (VotingBins[0] == VotingBins[2])
+			{
+				ValidPixels[2] = false;
+				CopyMasks[0] = CopyVMask;
+			}
+
+			if (VotingBins[1] == VotingBins[3])
+			{
+				ValidPixels[3] = false;
+				CopyMasks[1] = CopyVMask;
+			}
+		}
+		else if (WaveShadingRate == D3D12_SHADING_RATE_2X2)
+		{
+			// [A][B]
+			// [C][D]
+
+			const uint CopyAMask = PackPixelCopy(bool3(true, true, true));
+
+			if (VotingBins[0] == VotingBins[1] &&
+				VotingBins[0] == VotingBins[2] &&
+				VotingBins[0] == VotingBins[3])
+			{
+				ValidPixels[1] = false;
+				ValidPixels[2] = false;
+				ValidPixels[3] = false;
+
+				CopyMasks[0] = CopyAMask;
+			}
+		}
+	}
+#endif
 
 	const uint LaneIndex = WaveGetLaneIndex();
 

@@ -489,7 +489,8 @@ class FShadingBinBuildCS : public FNaniteGlobalShader
 	class FBuildPassDim : SHADER_PERMUTATION_SPARSE_INT("SHADING_BIN_PASS", NANITE_SHADING_BIN_COUNT, NANITE_SHADING_BIN_SCATTER);
 	class FGatherStatsDim : SHADER_PERMUTATION_BOOL("GATHER_STATS");
 	class FQuadBinningDim : SHADER_PERMUTATION_BOOL("QUAD_BINNING");
-	using FPermutationDomain = TShaderPermutationDomain<FBuildPassDim, FGatherStatsDim, FQuadBinningDim>;
+	class FVariableRateDim : SHADER_PERMUTATION_BOOL("VARIABLE_SHADING_RATE");
+	using FPermutationDomain = TShaderPermutationDomain<FBuildPassDim, FGatherStatsDim, FQuadBinningDim, FVariableRateDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -510,7 +511,6 @@ class FShadingBinBuildCS : public FNaniteGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("VARIABLE_SHADING_RATE"), 0); // TODO: Hook up again
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -2998,8 +2998,8 @@ FShadeBinning ShadeBinning(
 		FShadingBinBuildCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FShadingBinBuildCS::FParameters>();
 		PassParameters->ViewRect = ViewRect;
 		PassParameters->ShadingBinCount = ShadingBinCount;
-		PassParameters->ShadingRateTileSize = 0u;
-		PassParameters->ShadingRateImage = nullptr;
+		PassParameters->ShadingRateTileSize = GetShadingRateTileSize();
+		PassParameters->ShadingRateImage = GetShadingRateImage(GraphBuilder, View);
 		PassParameters->ShadingMaskSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->ShadingMask = RasterResults.ShadingMask;
 		PassParameters->OutShadingBinMeta = ShadingBinMetaUAV;
@@ -3010,6 +3010,7 @@ FShadeBinning ShadeBinning(
 		PermutationVector.Set<FShadingBinBuildCS::FBuildPassDim>(NANITE_SHADING_BIN_COUNT);
 		PermutationVector.Set<FShadingBinBuildCS::FGatherStatsDim>(bGatherStats);
 		PermutationVector.Set<FShadingBinBuildCS::FQuadBinningDim>(bQuadBinning);
+		PermutationVector.Set<FShadingBinBuildCS::FVariableRateDim>(PassParameters->ShadingRateTileSize != 0u);
 		auto ComputeShader = View.ShaderMap->GetShader<FShadingBinBuildCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -3055,7 +3056,7 @@ FShadeBinning ShadeBinning(
 		PassParameters->ShadingBinCount = ShadingBinCount;
 		PassParameters->ShadingRateTileSize = GetShadingRateTileSize();
 		PassParameters->ShadingRateImage = GetShadingRateImage(GraphBuilder, View);
-		PassParameters->ShadingMaskSampler = TStaticSamplerState<SF_Point>::GetRHI(); 
+		PassParameters->ShadingMaskSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->ShadingMask = RasterResults.ShadingMask;
 		PassParameters->OutShadingBinMeta = ShadingBinMetaUAV;
 		PassParameters->OutShadingBinData = ShadingBinDataUAV;
@@ -3067,6 +3068,7 @@ FShadeBinning ShadeBinning(
 		PermutationVector.Set<FShadingBinBuildCS::FBuildPassDim>(NANITE_SHADING_BIN_SCATTER);
 		PermutationVector.Set<FShadingBinBuildCS::FGatherStatsDim>(false);
 		PermutationVector.Set<FShadingBinBuildCS::FQuadBinningDim>(bQuadBinning);
+		PermutationVector.Set<FShadingBinBuildCS::FVariableRateDim>(PassParameters->ShadingRateTileSize != 0u);
 		auto ComputeShader = View.ShaderMap->GetShader<FShadingBinBuildCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(

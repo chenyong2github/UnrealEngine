@@ -91,7 +91,7 @@ uint4 PassData;
 
 #endif // STRATA_OPAQUE_DEFERRED
 
-FPixelShaderOut ShadePixel(const float2 PixelPos, uint QuadIndex)
+FPixelShaderOut ShadePixel(const uint2 PixelPos, uint QuadIndex)
 {
 #if PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS
 #if IS_NANITE_PASS
@@ -111,7 +111,7 @@ FPixelShaderOut ShadePixel(const float2 PixelPos, uint QuadIndex)
 	FPixelShaderOut PixelShaderOut = (FPixelShaderOut)0;
 
 	const float2 HalfPixelOffset = float2(0.5f, 0.5f);
-	PixelShaderIn.SvPosition = float4(PixelPos + HalfPixelOffset, 0.0f, 1.0f);
+	PixelShaderIn.SvPosition = float4(float2(PixelPos) + HalfPixelOffset, 0.0f, 1.0f);
 
 	// Nanite does not support OPTIONAL_IsFrontFace, Instead, Nanite determines this in GetMaterialPixelParameters().
 	PixelShaderIn.bIsFrontFace = false;
@@ -367,13 +367,15 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 G
 
 	const bool bQuadBinning = PassData.z != 0u;
 
-	float2 PixelPos;
+	uint2 PixelPos;
 	uint QuadIndex;
 	bool bActiveLane = true;
 
 #if VIS_HELPER_LANES
 	uint HelperLaneCount = 0u;
 #endif
+
+	bool3 PixelCopy = bool3(false, false, false); // H, V, D
 
 	BRANCH
 	if (bQuadBinning)
@@ -420,7 +422,7 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 G
 	#endif
 
 		// Determine final pixel position on the screen for shading
-		PixelPos = float2(Quad.TopLeft) + float2(CornerIndex & 1u, (CornerIndex >> 1u) & 1u);
+		PixelPos = Quad.TopLeft + uint2(CornerIndex & 1u, (CornerIndex >> 1u) & 1u);
 	}
 	else
 	{
@@ -434,7 +436,8 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 G
 
 		const uint PixelStart = Nanite.ShadingBinMeta[ShadingBin].z;
 		FShadingPixel Pixel = UnpackShadingPixel(Nanite.ShadingBinData[PixelStart + PixelIndex]);
-		PixelPos = float2(Pixel.PosXY);
+		PixelPos = Pixel.PosXY;
+		PixelCopy = Pixel.Copy;
 	}
 
 	// All lanes shade (regardless of export - so ddx/ddy are valid)
@@ -462,5 +465,24 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 G
 	if (bActiveLane)
 	{
 		ExportPixel(PixelPos, ShadedPixel);
+
+		BRANCH
+		if (PixelCopy.x) // Copy H
+		{
+			ExportPixel(PixelPos + uint2(1, 0), ShadedPixel);
+		}
+
+		BRANCH
+		if (PixelCopy.y) // Copy V
+		{
+			ExportPixel(PixelPos + uint2(0, 1), ShadedPixel);
+		}
+
+		BRANCH
+		if (PixelCopy.z) // Copy D
+		{
+			ExportPixel(PixelPos + uint2(1, 1), ShadedPixel);
+		}
 	}
 }
+
