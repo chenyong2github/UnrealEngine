@@ -39,7 +39,7 @@ const inline TCHAR* GetDataLayerRuntimeStateName(EDataLayerRuntimeState State)
 	return TEXT("Invalid");
 }
 
-UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, BlueprintType, AutoCollapseCategories = ("Data Layer|Advanced"), AutoExpandCategories = ("Data Layer|Editor", "Data Layer|Advanced|Runtime"))
+UCLASS(Config = Engine, PerObjectConfig, BlueprintType, AutoCollapseCategories = ("Data Layer|Advanced"), AutoExpandCategories = ("Data Layer|Editor", "Data Layer|Advanced|Runtime"))
 class ENGINE_API UDataLayerInstance : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -49,6 +49,18 @@ class ENGINE_API UDataLayerInstance : public UObject
 
 public:
 	virtual void PostLoad() override;
+	
+	template<class T>
+	T* GetTypedOuter() const
+	{
+		static_assert(!std::is_same<T, UWorld>::value, "Use GetOuterWorld instead");
+		static_assert(!std::is_same<T, ULevel>::value, "Use GetOuterWorld()->PersistentLevel instead");
+		static_assert(!std::is_same<T, AWorldDataLayers>::value, "Use GetOuterWorldDataLayers instead");
+		return Super::GetTypedOuter<T>();
+	}
+
+	UWorld* GetOuterWorld() const;
+	AWorldDataLayers* GetOuterWorldDataLayers() const;
 
 #if WITH_EDITOR
 	void SetVisible(bool bIsVisible);

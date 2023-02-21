@@ -496,9 +496,10 @@ bool UDataLayerEditorSubsystem::AddActorsToDataLayers(const TArray<AActor*>& Act
 			{
 				if (const UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayerInstance))
 				{
-					// If actor's level doesn't match this DataLayerInstance outer level, 
-					// Make sure that a DataLayer Instance for this Data Layer Asset exists in the Actor's level.
-					if (Actor->GetLevel() != DataLayerInstance->GetTypedOuter<ULevel>())
+					// If actor's level WorldDataLayers doesn't match this DataLayerInstance outer WorldDataLayers, 
+					// Make sure that a DataLayer Instance for this Data Layer Asset exists in the Actor's level WorldDataLayers.
+					AWorldDataLayers* TargetWorldDataLayers = Actor->GetLevel()->GetWorldDataLayers();
+					if (TargetWorldDataLayers != DataLayerInstance->GetOuterWorldDataLayers())
 					{
 						UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(Actor);
 						if (ensureMsgf(DataLayerManager, TEXT("No DataLayerManager found for Actor %s, can't add actors to data layers."), *Actor->GetName()))
@@ -508,7 +509,7 @@ bool UDataLayerEditorSubsystem::AddActorsToDataLayers(const TArray<AActor*>& Act
 							bool bDataLayerInstanceExistsInActorLevel = DataLayerInstance != nullptr;
 							if (!bDataLayerInstanceExistsInActorLevel)
 							{
-								DataLayerInstance = CreateDataLayerInstance<UDataLayerInstanceWithAsset>(Actor->GetLevel()->GetWorldDataLayers(), DataLayerInstanceWithAsset->GetAsset());
+								DataLayerInstance = CreateDataLayerInstance<UDataLayerInstanceWithAsset>(TargetWorldDataLayers, DataLayerInstanceWithAsset->GetAsset());
 							}
 						}
 					}
@@ -1240,7 +1241,7 @@ void UDataLayerEditorSubsystem::DeleteDataLayers(const TArray<UDataLayerInstance
 	TArray<UDataLayerInstance*> DeletedDataLayerInstances;
 	for (UDataLayerInstance* DataLayerToDelete : DataLayersToDelete)
 	{
-		if (AWorldDataLayers* OuterWorldDataLayers = DataLayerToDelete ? DataLayerToDelete->GetOuterAWorldDataLayers() : nullptr)
+		if (AWorldDataLayers* OuterWorldDataLayers = DataLayerToDelete ? DataLayerToDelete->GetOuterWorldDataLayers() : nullptr)
 		{
 			if (OuterWorldDataLayers->RemoveDataLayer(DataLayerToDelete))
 			{
@@ -1257,7 +1258,7 @@ void UDataLayerEditorSubsystem::DeleteDataLayers(const TArray<UDataLayerInstance
 void UDataLayerEditorSubsystem::DeleteDataLayer(UDataLayerInstance* DataLayerToDelete)
 {
 	UE_CLOG(!GetWorld(), LogDataLayerEditorSubsystem, Error, TEXT("%s - Failed because world in null."), ANSI_TO_TCHAR(__FUNCTION__));
-	if (AWorldDataLayers* OuterWorldDataLayers = DataLayerToDelete ? DataLayerToDelete->GetOuterAWorldDataLayers() : nullptr)
+	if (AWorldDataLayers* OuterWorldDataLayers = DataLayerToDelete ? DataLayerToDelete->GetOuterWorldDataLayers() : nullptr)
 	{
 		if (OuterWorldDataLayers->RemoveDataLayer(DataLayerToDelete))
 		{

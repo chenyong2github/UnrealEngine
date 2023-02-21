@@ -59,7 +59,7 @@ bool UDataLayerInstanceWithAsset::CanAddActor(AActor* InActor) const
 
 bool UDataLayerInstanceWithAsset::PerformAddActor(AActor* InActor) const
 {	
-	check(GetTypedOuter<ULevel>() == InActor->GetLevel()); // Make sure the instance is part of the same world as the actor.
+	check(GetOuterWorldDataLayers() == InActor->GetLevel()->GetWorldDataLayers()); // Make sure the instance is part of the same WorldDataLayers as the actor's level WorldDataLayer.
 	check(UDataLayerManager::GetDataLayerManager(InActor)->GetDataLayerInstance(DataLayerAsset) != nullptr); // Make sure the DataLayerInstance exists for this level
 	return FAssignActorDataLayer::AddDataLayerAsset(InActor, DataLayerAsset);
 }

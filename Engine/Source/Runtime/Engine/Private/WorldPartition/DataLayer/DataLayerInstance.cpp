@@ -42,6 +42,16 @@ void UDataLayerInstance::PostLoad()
 	}
 }
 
+UWorld* UDataLayerInstance::GetOuterWorld() const
+{
+	return UObject::GetTypedOuter<UWorld>();
+}
+
+AWorldDataLayers* UDataLayerInstance::GetOuterWorldDataLayers() const
+{
+	return GetOuterWorld()->GetWorldDataLayers();
+}
+
 #if WITH_EDITOR
 void UDataLayerInstance::SetVisible(bool bInIsVisible)
 {
@@ -111,7 +121,7 @@ bool UDataLayerInstance::IsLocked() const
 		return true;
 	}
 
-	return IsRuntime() && !GetOuterAWorldDataLayers()->GetAllowRuntimeDataLayerEditing();
+	return IsRuntime() && !GetOuterWorldDataLayers()->GetAllowRuntimeDataLayerEditing();
 }
 
 bool UDataLayerInstance::IsReadOnly() const
@@ -158,7 +168,7 @@ bool UDataLayerInstance::CanParent(const UDataLayerInstance* InParent) const
 {
 	return (this != InParent)
 		&& (Parent != InParent) 
-		&& (InParent == nullptr || (IsDataLayerTypeValidToParent(InParent->GetType()) && (InParent->GetOuterAWorldDataLayers() == GetOuterAWorldDataLayers())));
+		&& (InParent == nullptr || (IsDataLayerTypeValidToParent(InParent->GetType()) && (InParent->GetOuterWorldDataLayers() == GetOuterWorldDataLayers())));
 }
 
 bool UDataLayerInstance::IsDataLayerTypeValidToParent(EDataLayerType ParentDataLayerType) const
@@ -242,17 +252,17 @@ bool UDataLayerInstance::Validate(IStreamingGenerationErrorHandler* ErrorHandler
 
 bool UDataLayerInstance::IsInActorEditorContext() const
 {
-	return GetOuterAWorldDataLayers()->IsInActorEditorContext(this);
+	return GetOuterWorldDataLayers()->IsInActorEditorContext(this);
 }
 
 bool UDataLayerInstance::AddToActorEditorContext()
 {
-	return GetOuterAWorldDataLayers()->AddToActorEditorContext(this);
+	return GetOuterWorldDataLayers()->AddToActorEditorContext(this);
 }
 
 bool UDataLayerInstance::RemoveFromActorEditorContext()
 {
-	return GetOuterAWorldDataLayers()->RemoveFromActorEditorContext(this);
+	return GetOuterWorldDataLayers()->RemoveFromActorEditorContext(this);
 }
 
 #endif
@@ -304,7 +314,7 @@ void UDataLayerInstance::ForEachChild(TFunctionRef<bool(const UDataLayerInstance
 
 void UDataLayerInstance::AddChild(UDataLayerInstance* InDataLayer)
 {
-	check(InDataLayer->GetOuterAWorldDataLayers() == GetOuterAWorldDataLayers())
+	check(InDataLayer->GetOuterWorldDataLayers() == GetOuterWorldDataLayers())
 	Modify();
 	checkSlow(!Children.Contains(InDataLayer));
 	Children.Add(InDataLayer);
@@ -312,19 +322,19 @@ void UDataLayerInstance::AddChild(UDataLayerInstance* InDataLayer)
 
 EDataLayerRuntimeState UDataLayerInstance::GetRuntimeState() const
 {
-	return GetOuterAWorldDataLayers()->GetDataLayerRuntimeStateByName(GetDataLayerFName());
+	return GetOuterWorldDataLayers()->GetDataLayerRuntimeStateByName(GetDataLayerFName());
 }
 
 EDataLayerRuntimeState UDataLayerInstance::GetEffectiveRuntimeState() const
 {
-	return GetOuterAWorldDataLayers()->GetDataLayerEffectiveRuntimeStateByName(GetDataLayerFName());
+	return GetOuterWorldDataLayers()->GetDataLayerEffectiveRuntimeStateByName(GetDataLayerFName());
 }
 
 bool UDataLayerInstance::SetRuntimeState(EDataLayerRuntimeState InState, bool bInIsRecursive) const
 {
-	if (GetOuterAWorldDataLayers()->HasAuthority())
+	if (GetOuterWorldDataLayers()->HasAuthority())
 	{
-		GetOuterAWorldDataLayers()->SetDataLayerRuntimeState(this, InState, bInIsRecursive);
+		GetOuterWorldDataLayers()->SetDataLayerRuntimeState(this, InState, bInIsRecursive);
 		return true;
 	}
 	UE_LOG(LogWorldPartition, Error, TEXT("SetDataLayerRuntimeState can only execute on authority"));
