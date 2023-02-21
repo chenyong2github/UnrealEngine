@@ -42,19 +42,6 @@
 *		
 *		UReplicationGraphNode_TearOff_ForConnection
 *		Connection specific node for handling tear off actors. This is created and managed in the base implementation of Replication Graph.
-*		
-*	Dependent Actors (ALyraWeapon)
-*		
-*		Replication Graph introduces a concept of dependent actor replication. This is an actor (ALyraWeapon) that only replicates when another actor replicates (Pawn). I.e, the weapon
-*		actor itself never goes into the Replication Graph. It is never gathered on its own and never prioritized. It just has a chance to replicate when the Pawn replicates. This keeps
-*		the graph leaner since no extra work has to be done for the weapon actors.
-* 
-*		Something to note is how this parent/dependent relationship can affect certain functionality, such as ForceNetUpdate and dormancy. Unless the dependent is routed elsewhere in the
-*		graph, it will rely entirely on the parent to be replicated. This means that if ForceNetUpdate is called on only the dependent, it will have no effect, but calling ForceNetUpdate
-*		on the parent will force both actors to replicate on the next update. This also means if the parent is set as dormant, the dependent will no longer replicate despite not being 
-*		marked as dormant itself, which can lead to the dependent actor's channel being closed due to inactivity.
-*		
-*		See ULyraReplicationGraph::OnCharacterWeaponChange: this is how actors are added/removed from the dependent actor list. 
 *	
 *	How To Use
 *	
