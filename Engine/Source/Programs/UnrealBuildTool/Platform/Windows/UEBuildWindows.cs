@@ -1496,8 +1496,11 @@ namespace UnrealBuildTool
 			CompileEnvironment.Definitions.Add("PLATFORM_WINDOWS=1");
 			CompileEnvironment.Definitions.Add("PLATFORM_MICROSOFT=1");
 
-			// both Win32 and Win64 use Windows headers, so we enforce that here
-			CompileEnvironment.Definitions.Add(String.Format("OVERRIDE_PLATFORM_HEADER_NAME={0}", GetPlatformName()));
+			string? OverridePlatformHeaderName = GetOverridePlatformHeaderName();
+			if (!String.IsNullOrEmpty(OverridePlatformHeaderName))
+			{
+				CompileEnvironment.Definitions.Add(String.Format("OVERRIDE_PLATFORM_HEADER_NAME={0}", OverridePlatformHeaderName));
+			}
 
 			// Ray tracing only supported on 64-bit Windows.
 			if (Target.Platform == UnrealTargetPlatform.Win64 && Target.WindowsPlatform.bEnableRayTracing)
@@ -1690,6 +1693,15 @@ namespace UnrealBuildTool
 		public override void Deploy(TargetReceipt Receipt)
 		{
 			new UEDeployWindows(Logger).PrepTargetForDeployment(Receipt);
+		}
+
+		/// <summary>
+		/// Allows the platform header name to be overridden to differ from the platform name.
+		/// </summary>
+		protected virtual string? GetOverridePlatformHeaderName()
+		{
+			// Both Win32 and Win64 use Windows headers, so we enforce that here.
+			return GetPlatformName();
 		}
 	}
 
