@@ -297,6 +297,8 @@ namespace UnrealBuildTool
 			{
 				Target.bDisableLinking = true;
 				Target.bIgnoreBuildOutputs = true;
+				// Disable chaining PCHs for the moment because it is crashing clang
+				Target.bChainPCHs = false;
 			}
 
 			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac)
