@@ -8,6 +8,7 @@
 #include "JsonObjectConverter.h"
 #include "Misc/DataValidation.h"
 #include "Serialization/JsonSerializerMacros.h"
+#include "UObject/UObjectThreadContext.h"
 
 #define LOCTEXT_NAMESPACE "AssetActionUtility"
 
