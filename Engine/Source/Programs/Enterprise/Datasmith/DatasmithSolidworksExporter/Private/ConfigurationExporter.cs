@@ -99,6 +99,11 @@ namespace DatasmithSolidworks
 					return false;
 				}
 
+				if (ReferenceEquals(MeshData, Other.MeshData))
+				{
+					return true;
+				}
+				
 				if (!MeshData.Vertices.SequenceEqual(Other.MeshData.Vertices))
 				{
 					return false;
