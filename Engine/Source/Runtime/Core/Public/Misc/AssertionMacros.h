@@ -112,7 +112,6 @@ public:
 
 private:
 	static bool VARARGS OptionallyLogFormattedEnsureMessageReturningFalseImpl(bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* FormattedMsg, ...);
-	static bool OptionallyLogFormattedEnsureMessageReturningFalseImpl(bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* FormattedMsg, va_list Args);
 
 public:
 	/**
@@ -137,11 +136,6 @@ public:
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to ensureMsgf");
 
 		return OptionallyLogFormattedEnsureMessageReturningFalseImpl(bLog, Expr, File, Line, ProgramCounter, (const TCHAR*)FormattedMsg, Args...);
-	}
-
-	static FORCEINLINE bool OptionallyLogFormattedEnsureMessageReturningFalse(bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* FormattedMsg, va_list Args)
-	{
-		return OptionallyLogFormattedEnsureMessageReturningFalseImpl(bLog, Expr, File, Line, ProgramCounter, FormattedMsg, Args);
 	}
 
 #endif // DO_CHECK || DO_GUARD_SLOW
@@ -212,17 +206,6 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 	#define PLATFORM_BREAK_IF_DESIRED() PLATFORM_BREAK();
 #endif // !UE_BUILD_SHIPPING
 
-#if PLATFORM_WINDOWS
-	// We want to break inline of an assertion macro on Windows for ease of debugging
-#	define PLATFORM_BREAK_IF_DESIRED_INLINE() PLATFORM_BREAK_IF_DESIRED()
-#	define PLATFORM_BREAK_IF_DESIRED_NONINLINE()
-#else
-	// ... however on every other platform this causes significant code bloat and we want to avoid it.
-	// So stepping up through callstack in a debugger is a necessary price to pay
-#	define PLATFORM_BREAK_IF_DESIRED_INLINE()
-#	define PLATFORM_BREAK_IF_DESIRED_NONINLINE() PLATFORM_BREAK_IF_DESIRED()
-#endif
-
 
 #if DO_CHECK
 #ifndef checkCode
@@ -242,8 +225,15 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 		{ \
 			if(UNLIKELY(!(expr))) \
 			{ \
-				FDebug::CheckVerifyFailedImpl(#expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), TEXT("")); \
-				PLATFORM_BREAK_IF_DESIRED_INLINE(); \
+				struct Impl \
+				{ \
+					static void FORCENOINLINE UE_DEBUG_SECTION ExecCheckImplInternal() \
+					{ \
+						FDebug::CheckVerifyFailedImpl(#expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), TEXT("")); \
+					} \
+				}; \
+				Impl::ExecCheckImplInternal(); \
+				PLATFORM_BREAK_IF_DESIRED(); \
 				CA_ASSUME(false); \
 			} \
 		}
@@ -263,8 +253,11 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 		{ \
 			if(UNLIKELY(!(expr))) \
 			{ \
-				FDebug::CheckVerifyFailedImpl(#expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), format, ##__VA_ARGS__); \
-				PLATFORM_BREAK_IF_DESIRED_INLINE(); \
+				DispatchCheckVerify([] (const auto& LFormat, const auto&... UE_LOG_Args) UE_DEBUG_SECTION \
+				{ \
+					FDebug::CheckVerifyFailedImpl(#expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), LFormat, UE_LOG_Args...); \
+				}, format, ##__VA_ARGS__); \
+				PLATFORM_BREAK_IF_DESIRED(); \
 				CA_ASSUME(false); \
 			} \
 		}
@@ -359,40 +352,29 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
  */
 
 #if DO_ENSURE && !USING_CODE_ANALYSIS // The Visual Studio 2013 analyzer doesn't understand these complex conditionals
-	struct FValidateArgsInternal
-	{
-		template <typename... Types>
-		FValidateArgsInternal(Types... Args)
-		{
-			static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to ensureMsgf");
-		}
-	};
 
-	CORE_API void UE_DEBUG_SECTION VARARGS CheckVerifyImpl(bool& InOutExecuted, bool Always, const ANSICHAR* File, int32 Line, void* ProgramCounter, const ANSICHAR* Expr, const TCHAR* Format, ...);
-
-	#define UE_ENSURE_IMPL(Capture, Always, InExpression, InFormat) \
+	#define UE_ENSURE_IMPL(Capture, Always, InExpression, ...) \
 		(LIKELY(!!(InExpression)) || (DispatchCheckVerify<bool>([Capture] () UE_DEBUG_SECTION \
 		{ \
 			static bool bExecuted = false; \
-			CheckVerifyImpl(bExecuted, Always, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), #InExpression, InFormat); \
-			PLATFORM_BREAK_IF_DESIRED_INLINE(); \
+			if ((!bExecuted || Always) && FPlatformMisc::IsEnsureAllowed()) \
+			{ \
+				bExecuted = true; \
+				FDebug::OptionallyLogFormattedEnsureMessageReturningFalse(true, #InExpression, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), ##__VA_ARGS__); \
+				if (!FPlatformMisc::IsDebuggerPresent()) \
+				{ \
+					FPlatformMisc::PromptForRemoteDebugging(true); \
+					return false; \
+				} \
+				return true; \
+			} \
 			return false; \
-		})))
-
-	#define UE_ENSURE_IMPL2(Capture, Always, InExpression, ...) \
-		(LIKELY(!!(InExpression)) || (DispatchCheckVerify<bool>([Capture] () UE_DEBUG_SECTION \
-		{ \
-			static bool bExecuted = false; \
-			FValidateArgsInternal(__VA_ARGS__); \
-			CheckVerifyImpl(bExecuted, Always, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), #InExpression, ##__VA_ARGS__); \
-			PLATFORM_BREAK_IF_DESIRED_INLINE(); \
-			return false; \
-		})))
+		}) && ([] () { PLATFORM_BREAK_IF_DESIRED(); } (), false)))
 
 	#define ensure(           InExpression                ) UE_ENSURE_IMPL( , false, InExpression, TEXT(""))
-	#define ensureMsgf(       InExpression, InFormat, ... ) UE_ENSURE_IMPL2(&, false, InExpression, InFormat, ##__VA_ARGS__)
+	#define ensureMsgf(       InExpression, InFormat, ... ) UE_ENSURE_IMPL(&, false, InExpression, InFormat, ##__VA_ARGS__)
 	#define ensureAlways(     InExpression                ) UE_ENSURE_IMPL( , true,  InExpression, TEXT(""))
-	#define ensureAlwaysMsgf( InExpression, InFormat, ... ) UE_ENSURE_IMPL2(&, true,  InExpression, InFormat, ##__VA_ARGS__)
+	#define ensureAlwaysMsgf( InExpression, InFormat, ... ) UE_ENSURE_IMPL(&, true,  InExpression, InFormat, ##__VA_ARGS__)
 
 #else	// DO_ENSURE
 
@@ -463,11 +445,17 @@ namespace UEAsserts_Private
 ----------------------------------------------------------------------------*/
 
 /** low level fatal error handler. */
-CORE_API void UE_DEBUG_SECTION VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Format=TEXT(""), ... );
+CORE_API void VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Format=TEXT(""), ... );
 
 #define LowLevelFatalError(Format, ...) \
 	{ \
 		static_assert(TIsArrayOrRefOfTypeByPredicate<decltype(Format), TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array."); \
-		LowLevelFatalErrorHandler(__FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), (const TCHAR*)Format, ##__VA_ARGS__); \
+		DispatchCheckVerify([] (const auto& LFormat, const auto&... UE_LOG_Args) UE_DEBUG_SECTION \
+		{ \
+			void* ProgramCounter = PLATFORM_RETURN_ADDRESS(); \
+			LowLevelFatalErrorHandler(__FILE__, __LINE__, ProgramCounter, (const TCHAR*)LFormat, UE_LOG_Args...); \
+			UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE(); \
+			FDebug::ProcessFatalError(ProgramCounter); \
+		}, Format, ##__VA_ARGS__); \
 	}
 
