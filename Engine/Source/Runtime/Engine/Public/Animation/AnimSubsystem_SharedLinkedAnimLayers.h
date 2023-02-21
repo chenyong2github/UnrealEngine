@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Animation/AnimInstance.h"
 #include "Templates/SubclassOf.h"
 #include "Animation/AnimSubsystemInstance.h"
 #include "AnimSubsystem_SharedLinkedAnimLayers.generated.h"
