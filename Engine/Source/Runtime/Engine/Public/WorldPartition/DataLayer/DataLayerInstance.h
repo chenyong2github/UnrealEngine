@@ -12,7 +12,9 @@
 
 #define DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED 1
 
+class AWorldDataLayers;
 class IStreamingGenerationErrorHandler;
+class UWorld;
 
 UENUM(BlueprintType)
 enum class EDataLayerRuntimeState : uint8
