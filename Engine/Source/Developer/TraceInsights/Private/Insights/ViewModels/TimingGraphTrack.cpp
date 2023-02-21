@@ -51,6 +51,7 @@ FString FTimingGraphSeries::FormatValue(double Value) const
 		return FString::Printf(TEXT("%s (%g fps)"), *TimeUtils::FormatTimeAuto(Value), 1.0 / Value);
 
 	case FTimingGraphSeries::ESeriesType::Timer:
+	case FTimingGraphSeries::ESeriesType::FrameStatsTimer:
 		return TimeUtils::FormatTimeAuto(Value);
 
 	case FTimingGraphSeries::ESeriesType::StatsCounter:
@@ -183,6 +184,10 @@ void FTimingGraphTrack::Update(const ITimingTrackUpdateContext& Context)
 
 				case FTimingGraphSeries::ESeriesType::Timer:
 					UpdateTimerSeries(*TimingSeries, Viewport);
+					break;
+
+				case FTimingGraphSeries::ESeriesType::FrameStatsTimer:
+					UpdateFrameStatsTimerSeries(*TimingSeries, Viewport);
 					break;
 
 				case FTimingGraphSeries::ESeriesType::StatsCounter:
@@ -395,6 +400,179 @@ void FTimingGraphTrack::UpdateTimerSeries(FTimingGraphSeries& Series, const FTim
 		{
 			const FTimingGraphSeries::FSimpleTimingEvent& Event = Series.CachedEvents[Index];
 			Builder.AddEvent(Event.StartTime, Event.Duration, Event.Duration);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Frams Stats Timer Series
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::GetFrameStatsTimerSeries(uint32 TimerId)
+{
+	TSharedPtr<FGraphSeries>* Ptr = AllSeries.FindByPredicate([TimerId](const TSharedPtr<FGraphSeries>& Series)
+		{
+			const TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
+			return TimingSeries->Type == FTimingGraphSeries::ESeriesType::FrameStatsTimer && TimingSeries->TimerId == TimerId;
+		});
+	return (Ptr != nullptr) ? StaticCastSharedPtr<FTimingGraphSeries>(*Ptr) : nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddFrameStatsTimerSeries(uint32 TimerId, FLinearColor Color)
+{
+	TSharedRef<FTimingGraphSeries> Series = MakeShared<FTimingGraphSeries>(FTimingGraphSeries::ESeriesType::FrameStatsTimer);
+
+	Series->SetName(TEXT("<Frame Stats Timer>"));
+	Series->SetDescription(TEXT("Frame Stats Timer series"));
+
+	const FLinearColor BorderColor(Color.R + 0.4f, Color.G + 0.4f, Color.B + 0.4f, 1.0f);
+	Series->SetColor(Color, BorderColor);
+
+	Series->TimerId = TimerId;
+	//Series->CpuOrGpu = ;
+	//Series->TimelineIndex = ;
+
+	// Use shared viewport.
+	Series->SetBaselineY(SharedValueViewport.GetBaselineY());
+	Series->SetScaleY(SharedValueViewport.GetScaleY());
+	Series->EnableSharedViewport();
+
+	Series->CachedSessionDuration = 0.0;
+
+	AllSeries.Add(Series);
+	return Series;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingGraphTrack::RemoveFrameStatsTimerSeries(uint32 TimerId)
+{
+	AllSeries.RemoveAll([TimerId](const TSharedPtr<FGraphSeries>& Series)
+		{
+			const TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
+			return TimingSeries->Type == FTimingGraphSeries::ESeriesType::FrameStatsTimer && TimingSeries->TimerId == TimerId;
+		});
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingGraphTrack::UpdateFrameStatsTimerSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport)
+{
+	FGraphTrackBuilder Builder(*this, Series, Viewport);
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+		const double SessionDuration = Session->GetDurationSeconds();
+		if (Series.CachedSessionDuration != SessionDuration)
+		{
+			Series.CachedSessionDuration = SessionDuration;
+
+			const TraceServices::IFrameProvider& FramesProvider = ReadFrameProvider(*Session.Get());
+
+			Series.FrameStatsCachedEvents.Empty();
+			uint32 FrameCount = FramesProvider.GetFrameCount(ETraceFrameType::TraceFrameType_Game);
+			if (FrameCount == 0)
+			{
+				return;
+			}
+
+			FramesProvider.EnumerateFrames(ETraceFrameType::TraceFrameType_Game, 0, FrameCount, [&Series](const TraceServices::FFrame& Frame)
+				{
+					FTimingGraphSeries::FAtomicTimingEvent Event;
+					Event.FrameStartTime = Frame.StartTime;
+					Event.FrameEndTime = Frame.EndTime;
+					Event.Duration.store(0.0f);
+					Series.FrameStatsCachedEvents.Add(Event);
+				});
+
+			const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
+
+			const TraceServices::ITimingProfilerTimerReader* TimerReader;
+			TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+
+			const uint32 TimelineCount = TimingProfilerProvider.GetTimelineCount();
+			for (uint32 TimelineIndex = 0; TimelineIndex < TimelineCount; ++TimelineIndex)
+			{
+				TimingProfilerProvider.ReadTimeline(TimelineIndex,
+					[SessionDuration, &Series, TimerReader](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
+					{
+						TArray<TArray<FTimingGraphSeries::FSimpleTimingEvent>> Events;
+						TraceServices::ITimeline<TraceServices::FTimingProfilerEvent>::EnumerateAsyncParams Params;
+						Params.IntervalStart = 0;
+						Params.IntervalEnd = SessionDuration;
+						Params.Resolution = 0.0;
+						Params.SetupCallback = [&Events](uint32 NumTasks) {};
+						Params.Callback = [&Events, TimerReader, &Series, SessionDuration](double StartTime, double EndTime, uint32 Depth, const TraceServices::FTimingProfilerEvent& Event, uint32 TaskIndex)
+						{
+							const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
+							if (ensure(Timer != nullptr))
+							{
+								if (Timer->Id == Series.TimerId)
+								{
+									int32 Index = Algo::UpperBoundBy(Series.FrameStatsCachedEvents, StartTime, &FTimingGraphSeries::FAtomicTimingEvent::FrameStartTime);
+									if (Index > 0)
+									{
+										--Index;
+									}
+
+									// This can can happen when the event is between frames.
+									if (StartTime > Series.FrameStatsCachedEvents[Index].FrameEndTime)
+									{
+										Index++;
+										if (Index >= Series.FrameStatsCachedEvents.Num())
+										{
+											return TraceServices::EEventEnumerate::Continue;
+										}
+									}
+
+									do
+									{
+										FTimingGraphSeries::FAtomicTimingEvent& Entry = Series.FrameStatsCachedEvents[Index];
+
+										if (EndTime < Entry.FrameStartTime)
+										{
+											return TraceServices::EEventEnumerate::Continue;
+										}
+
+										if (StartTime < Entry.FrameStartTime)
+										{
+											StartTime = Entry.FrameStartTime;
+										}
+
+										const double Duration = FMath::Min(EndTime, Entry.FrameEndTime) - StartTime;
+										ensure(Duration >= 0.0f);
+										for (double Value = Entry.Duration.load(); !Entry.Duration.compare_exchange_strong(Value, Value + Duration););
+
+										Index++;
+									} while (Index < Series.FrameStatsCachedEvents.Num());
+								}
+							}
+							return TraceServices::EEventEnumerate::Continue;
+						};
+
+						Timeline.EnumerateEventsDownSampledAsync(Params);
+					});
+			}
+		}
+
+		int32 StartIndex = Algo::UpperBoundBy(Series.FrameStatsCachedEvents, Viewport.GetStartTime(), &FTimingGraphSeries::FAtomicTimingEvent::FrameStartTime);
+		if (StartIndex > 0)
+		{
+			StartIndex--;
+		}
+		int32 EndIndex = Algo::UpperBoundBy(Series.FrameStatsCachedEvents, Viewport.GetEndTime(), &FTimingGraphSeries::FAtomicTimingEvent::FrameStartTime);
+		if (EndIndex < Series.FrameStatsCachedEvents.Num())
+		{
+			EndIndex++;
+		}
+		for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+		{
+			const FTimingGraphSeries::FAtomicTimingEvent& Entry = Series.FrameStatsCachedEvents[Index];
+			Builder.AddEvent(Entry.FrameStartTime, Entry.Duration.load(), Entry.Duration.load());
 		}
 	}
 }

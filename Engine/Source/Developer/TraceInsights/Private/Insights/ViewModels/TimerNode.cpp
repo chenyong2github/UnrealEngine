@@ -22,7 +22,7 @@ FTimerNode::FTimerNode(uint32 InTimerId, const TCHAR* InName, ETimerNodeType InT
 	, TimerId(InTimerId)
 	, MetaGroupName(InType == ETimerNodeType::CpuScope ? CpuGroup : InType == ETimerNodeType::GpuScope ? GpuGroup : NAME_None)
 	, Type(InType)
-	, bIsAddedToGraph(false)
+	, NumGraphs(0)
 	, bIsHotPath(false)
 {
 	uint32 Color32 = FTimingEvent::ComputeEventColor(InName);
@@ -42,7 +42,7 @@ FTimerNode::FTimerNode(const FName InGroupName)
 	, TimerId(InvalidTimerId)
 	, Type(ETimerNodeType::Group)
 	, Color(0.0, 0.0, 0.0, 1.0)
-	, bIsAddedToGraph(false)
+	, NumGraphs(0)
 	, bIsHotPath(false)
 {
 	ResetAggregatedStats();

@@ -93,12 +93,18 @@ public:
 
 	bool IsAddedToGraph() const
 	{
-		return bIsAddedToGraph;
+		return NumGraphs > 0;
 	}
 
-	void SetAddedToGraphFlag(bool bOnOff)
+	void OnAddedToGraph()
 	{
-		bIsAddedToGraph = bOnOff;
+		++NumGraphs;
+	}
+
+	void OnRemovedFromGraph()
+	{
+		ensure(NumGraphs > 0);
+		--NumGraphs;
 	}
 
 	/**
@@ -127,8 +133,9 @@ private:
 
 	/** Color of the node. */
 	FLinearColor Color;
-
-	bool bIsAddedToGraph;
+	
+	/** The number of graphs created for this timer. */
+	int32 NumGraphs;
 
 	/** True if this tree node is on the hot path. */
 	bool bIsHotPath;

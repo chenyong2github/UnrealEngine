@@ -534,6 +534,40 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 			}
 		}
 
+		// Add/remove frame stats series to/from graph track
+		{
+			FUIAction Action_ToggleFrameStatsTimerInGraphTrack;
+			Action_ToggleFrameStatsTimerInGraphTrack.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute); 
+			Action_ToggleFrameStatsTimerInGraphTrack.ExecuteAction = FExecuteAction::CreateSP(this, &STimersView::ToggleTimingViewMainGraphEventFrameStatsSeries, SelectedNode);
+
+			if (SelectedNode.IsValid() &&
+				SelectedNode->GetType() != ETimerNodeType::Group &&
+				IsFrameStatsSeriesInTimingViewMainGraph(SelectedNode))
+			{
+				MenuBuilder.AddMenuEntry
+				(
+					LOCTEXT("ContextMenu_RemoveFrameStatsFromGraphTrack", "Remove frame stats series from graph track"),
+					LOCTEXT("ContextMenu_RemoveFrameStatsFromGraphTrack_Desc", "Removes the frame stats series containing event instances of the selected timer from the Main Graph track."),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.RemoveGraphSeries"),
+					Action_ToggleFrameStatsTimerInGraphTrack,
+					NAME_None,
+					EUserInterfaceActionType::Button
+				);
+			}
+			else
+			{
+				MenuBuilder.AddMenuEntry
+				(
+					LOCTEXT("ContextMenu_AddFrameStatsSeriesToGraphTrack", "Add frame stats series to graph track"),
+					LOCTEXT("ContextMenu_AddFrameStatsSeriesToGraphTrack_Desc", "Adds a frame stats series containing event instances of the selected timer to the Main Graph track."),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.AddGraphSeries"),
+					Action_ToggleFrameStatsTimerInGraphTrack,
+					NAME_None,
+					EUserInterfaceActionType::Button
+				);
+			}
+		}
+
 		// Open Source in IDE
 		{
 			ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
@@ -2181,7 +2215,7 @@ void STimersView::ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FT
 	{
 		GraphTrack->RemoveTimerSeries(TimerId);
 		GraphTrack->SetDirtyFlag();
-		NodePtr->SetAddedToGraphFlag(false);
+		NodePtr->OnRemovedFromGraph();
 	}
 	else
 	{
@@ -2189,7 +2223,7 @@ void STimersView::ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FT
 		Series = GraphTrack->AddTimerSeries(TimerId, NodePtr->GetColor());
 		Series->SetName(FText::FromName(NodePtr->GetName()));
 		GraphTrack->SetDirtyFlag();
-		NodePtr->SetAddedToGraphFlag(true);
+		NodePtr->OnAddedToGraph();
 	}
 }
 
@@ -2218,6 +2252,56 @@ void STimersView::ToggleTimingViewMainGraphEventSeries(FTimerNodePtr TimerNode) 
 	if (GraphTrack.IsValid())
 	{
 		ToggleGraphSeries(GraphTrack.ToSharedRef(), TimerNode.ToSharedRef());
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ToggleGraphFrameStatsSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef NodePtr) const
+{
+	const uint32 TimerId = NodePtr->GetTimerId();
+	TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetFrameStatsTimerSeries(TimerId);
+	if (Series.IsValid())
+	{
+		GraphTrack->RemoveFrameStatsTimerSeries(TimerId);
+		GraphTrack->SetDirtyFlag();
+		NodePtr->OnRemovedFromGraph();
+	}
+	else
+	{
+		GraphTrack->Show();
+		Series = GraphTrack->AddFrameStatsTimerSeries(TimerId, NodePtr->GetColor());
+		Series->SetName(FText::FromName(NodePtr->GetName()));
+		GraphTrack->SetDirtyFlag();
+		NodePtr->OnAddedToGraph();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersView::IsFrameStatsSeriesInTimingViewMainGraph(FTimerNodePtr TimerNode) const
+{
+	TSharedPtr<FTimingGraphTrack> GraphTrack = GetTimingViewMainGraphTrack();
+
+	if (GraphTrack.IsValid())
+	{
+		const uint32 TimerId = TimerNode->GetTimerId();
+		TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetFrameStatsTimerSeries(TimerId);
+
+		return Series.IsValid();
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ToggleTimingViewMainGraphEventFrameStatsSeries(FTimerNodePtr TimerNode) const
+{
+	TSharedPtr<FTimingGraphTrack> GraphTrack = GetTimingViewMainGraphTrack();
+	if (GraphTrack.IsValid())
+	{
+		ToggleGraphFrameStatsSeries(GraphTrack.ToSharedRef(), TimerNode.ToSharedRef());
 	}
 }
 

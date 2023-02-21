@@ -17,13 +17,35 @@ public:
 	{
 		Frame,
 		Timer,
-		StatsCounter
+		StatsCounter,
+		FrameStatsTimer
 	};
 
 	struct FSimpleTimingEvent
 	{
 		double StartTime;
 		double Duration;
+	};
+
+	struct FAtomicTimingEvent
+	{
+		FAtomicTimingEvent()
+		{
+			FrameStartTime = 0.0f;
+			FrameEndTime = 0.0f;
+			Duration.store(0.0f);
+		}
+
+		FAtomicTimingEvent(const FAtomicTimingEvent& Other)
+		{
+			FrameStartTime = Other.FrameStartTime;
+			FrameEndTime = Other.FrameEndTime;
+			Duration.store(Other.Duration.load());
+		}
+
+		double FrameEndTime;
+		double FrameStartTime;
+		std::atomic<double> Duration;
 	};
 
 public:
@@ -48,6 +70,7 @@ public:
 
 	double CachedSessionDuration;
 	TArray<FSimpleTimingEvent> CachedEvents; // used by Timer series
+	TArray<FAtomicTimingEvent> FrameStatsCachedEvents; // used by Frame Stats Timer series
 
 	bool bIsTime; // the unit for values is [second]
 	bool bIsMemory; // the unit for value is [byte]
@@ -72,6 +95,10 @@ public:
 	TSharedPtr<FTimingGraphSeries> AddTimerSeries(uint32 TimerId, FLinearColor Color);
 	void RemoveTimerSeries(uint32 TimerId);
 
+	TSharedPtr<FTimingGraphSeries> GetFrameStatsTimerSeries(uint32 TimerId);
+	TSharedPtr<FTimingGraphSeries> AddFrameStatsTimerSeries(uint32 TimerId, FLinearColor Color);
+	void RemoveFrameStatsTimerSeries(uint32 TimerId);
+
 	TSharedPtr<FTimingGraphSeries> GetStatsCounterSeries(uint32 CounterId);
 	TSharedPtr<FTimingGraphSeries> AddStatsCounterSeries(uint32 CounterId, FLinearColor Color);
 	void RemoveStatsCounterSeries(uint32 CounterId);
@@ -79,6 +106,7 @@ public:
 protected:
 	void UpdateFrameSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
 	void UpdateTimerSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
+	void UpdateFrameStatsTimerSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
 	void UpdateStatsCounterSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
 
 	virtual void DrawVerticalAxisGrid(const ITimingTrackDrawContext& Context) const override;
