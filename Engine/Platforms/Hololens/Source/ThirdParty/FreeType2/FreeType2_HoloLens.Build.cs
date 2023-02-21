@@ -15,7 +15,7 @@ namespace UnrealBuildTool.Rules
 					"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{
-				LibPath = Path.Combine(LibPath, Target.Architecture.WindowsName);
+				LibPath = Path.Combine(LibPath, Target.Architecture.WindowsLibDir);
 			}
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "freetype26MT.lib"));

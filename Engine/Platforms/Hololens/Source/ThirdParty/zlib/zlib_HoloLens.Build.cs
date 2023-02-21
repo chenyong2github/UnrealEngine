@@ -14,7 +14,7 @@ namespace UnrealBuildTool.Rules
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", Target.Architecture.WindowsName, "Release", "zlibstatic.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", Target.Architecture.WindowsLibDir, "Release", "zlibstatic.lib"));
 			}
 		}
 	}
