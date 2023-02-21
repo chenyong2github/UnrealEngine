@@ -28,7 +28,7 @@ TSharedRef<FQosInterface> FQosModule::GetQosInterface()
 	return QosInterface.ToSharedRef();
 }
 
-bool FQosModule::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FQosModule::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	bool bWasHandled = false;
 

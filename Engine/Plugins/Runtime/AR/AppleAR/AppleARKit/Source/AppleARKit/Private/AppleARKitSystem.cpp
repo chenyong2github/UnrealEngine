@@ -2891,7 +2891,7 @@ int32 UAppleARKitSettings::GetRenderThreadPriorityOverride()
 	return RenderThreadPriorityOverride;
 }
 
-bool UAppleARKitSettings::Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
+bool UAppleARKitSettings::Exec_Runtime(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (FParse::Command(&Cmd, TEXT("ARKitSettings")))
 	{

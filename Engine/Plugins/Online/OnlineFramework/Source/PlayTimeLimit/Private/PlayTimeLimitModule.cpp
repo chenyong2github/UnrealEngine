@@ -29,7 +29,7 @@ void FPlayTimeLimitModule::ShutdownModule()
 	}
 }
 
-bool FPlayTimeLimitModule::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FPlayTimeLimitModule::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	bool bWasHandled = false;
 

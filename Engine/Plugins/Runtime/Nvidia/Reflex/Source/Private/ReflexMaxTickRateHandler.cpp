@@ -191,7 +191,7 @@ bool FReflexMaxTickRateHandler::GetAvailable()
 	return true;
 }
 
-bool FReflexMaxTickRateHandler::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FReflexMaxTickRateHandler::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	bool bHandled = false;
 	FString ReflexMode;

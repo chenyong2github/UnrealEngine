@@ -397,7 +397,7 @@ bool FTestVoice::Tick(float DeltaTime)
 	return true;
 }
 
-bool FTestVoice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FTestVoice::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	bool bWasHandled = false;
 	if (FParse::Command(&Cmd, TEXT("killtestvoice")))

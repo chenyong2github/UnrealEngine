@@ -331,9 +331,6 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	FString GetVoiceDebugState() const override;
 
-	// FSelfRegisteringExec
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	virtual void GetVoiceSettingsOverride(const FUniqueNetIdWrapper& RemoteTalkerId, FVoiceSettings& VoiceSettings) {}
 
 
@@ -351,6 +348,10 @@ public:
 
 
 	virtual bool PatchLocalTalkerOutputToEndpoint(const FString& InDeviceName) override;
+
+protected:
+	// FSelfRegisteringExec
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 private:
 

@@ -50,8 +50,6 @@ public:
 	virtual void SetFlashIndicatorEnabled(bool bInEnabled) override;
 	virtual bool GetFlashIndicatorEnabled() override;
 
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	virtual void SetInputSampleLatencyMarker(uint64 FrameNumber) override;
 	virtual void SetSimulationLatencyMarkerStart(uint64 FrameNumber) override;
 	virtual void SetSimulationLatencyMarkerEnd(uint64 FrameNumber) override;
@@ -78,4 +76,7 @@ public:
 	virtual float GetDriverOffsetFromFrameStartInMs() override { return DriverOffsetMs; }
 	virtual float GetOSRenderQueueOffsetFromFrameStartInMs() override { return OSRenderQueueOffsetMs; }
 	virtual float GetGPURenderOffsetFromFrameStartInMs() override { return GPURenderOffsetMs; }
+
+protected:
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 };

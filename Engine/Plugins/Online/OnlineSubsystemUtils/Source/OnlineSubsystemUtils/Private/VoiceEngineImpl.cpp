@@ -736,7 +736,7 @@ FString FVoiceEngineImpl::GetVoiceDebugState() const
 	return Output;
 }
 
-bool FVoiceEngineImpl::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FVoiceEngineImpl::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	bool bWasHandled = false;
 

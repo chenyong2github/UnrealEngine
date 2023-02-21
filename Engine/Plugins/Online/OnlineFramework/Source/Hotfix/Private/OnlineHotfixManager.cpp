@@ -1958,7 +1958,8 @@ UWorld* UOnlineHotfixManager::GetWorld() const
 struct FHotfixManagerExec :
 	public FSelfRegisteringExec
 {
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override
+protected:
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override
 	{
 		if (FParse::Command(&Cmd, TEXT("HOTFIX")))
 		{

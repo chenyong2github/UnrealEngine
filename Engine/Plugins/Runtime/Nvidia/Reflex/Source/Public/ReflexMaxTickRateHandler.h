@@ -16,8 +16,6 @@ public:
 	virtual bool GetEnabled() override;
 	virtual bool GetAvailable() override;
 
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	// Used to provide a generic customization interface for custom tick rate handlers
 	virtual void SetFlags(uint32 Flags);
 	virtual uint32 GetFlags();
@@ -34,4 +32,7 @@ public:
 
 	uint32 CustomFlags = 0;
 	uint32 LastCustomFlags = 0;
+
+protected:
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 };

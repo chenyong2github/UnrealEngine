@@ -85,7 +85,7 @@ public:
 
 protected:
 	//~ FSelfRegisteringExec
-	virtual bool Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	virtual bool Exec_Runtime(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	//~ FSelfRegisteringExec
 
 	/** Where to write the curve files and image files */

@@ -455,7 +455,7 @@ bool FTestSessionInterface::Tick(float DeltaTime)
 	return true;
 }
 
-bool FTestSessionInterface::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FTestSessionInterface::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	bool bWasHandled = false;
 

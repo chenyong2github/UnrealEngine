@@ -14,9 +14,6 @@ class FPlayTimeLimitModule :
 {
 
 public:
-	// FSelfRegisteringExec
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!
 	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
@@ -37,6 +34,10 @@ public:
 	{
 		return FModuleManager::Get().IsModuleLoaded("PlayTimeLimit");
 	}
+
+protected:
+	// FSelfRegisteringExec
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 private:
 

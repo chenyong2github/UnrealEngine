@@ -30,7 +30,8 @@ struct FMemoryUsageQueriesExec : public FSelfRegisteringExec
 {
 	FMemoryUsageQueriesExec() {}
 
-	virtual bool Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+protected:
+	virtual bool Exec_Runtime(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 };
 
 struct FAssetMemoryBreakdown
@@ -75,7 +76,7 @@ struct FAssetMemoryDetails
 static FMemoryUsageQueriesExec DebugSettinsSubsystemExecInstance;
 static int32 DefaultResultLimit = 15;
 
-bool FMemoryUsageQueriesExec::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FMemoryUsageQueriesExec::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (FParse::Command(&Cmd, TEXT("MemQuery")))
 	{

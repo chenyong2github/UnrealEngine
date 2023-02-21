@@ -310,7 +310,7 @@ bool FReflexLatencyMarkers::GetAvailable()
 	return true;
 }
 
-bool FReflexLatencyMarkers::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FReflexLatencyMarkers::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	bool bHandled = false;
 	FString ReflexLatencyMarkers;

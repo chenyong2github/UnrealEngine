@@ -810,7 +810,7 @@ protected:
 	// End IARKitBlendShapePublisher
 
 	//~ FSelfRegisteringExec
-	virtual bool Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	virtual bool Exec_Runtime(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	//~ FSelfRegisteringExec
 
 	virtual FString BuildSaveData() = 0;

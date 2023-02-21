@@ -344,9 +344,6 @@ class TestOnlineSearchSettings;
 	// FTSTickerObjectBase
 	bool Tick(float DeltaTime) override;
 
-	// FSelfRegisteringExec
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	// FTestSessionInterface
 
 	/**
@@ -360,6 +357,10 @@ class TestOnlineSearchSettings;
 	 * Clear out any existing delegates created
 	 */
 	void ClearDelegates();
+
+protected:
+	// FSelfRegisteringExec
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
  };
 
 #endif //WITH_DEV_AUTOMATION_TESTS

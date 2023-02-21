@@ -538,7 +538,7 @@ void FAppleARKitLiveLinkFileWriter::PublishBlendShapes(FName SubjectName, const 
 	}
 }
 
-bool FAppleARKitLiveLinkFileWriter::Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FAppleARKitLiveLinkFileWriter::Exec_Runtime(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (FParse::Command(&Cmd, TEXT("FaceAR")))
 	{

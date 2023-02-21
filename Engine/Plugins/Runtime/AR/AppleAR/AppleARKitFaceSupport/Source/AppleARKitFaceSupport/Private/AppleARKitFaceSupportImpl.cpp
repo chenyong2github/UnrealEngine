@@ -103,7 +103,7 @@ void FAppleARKitFaceSupport::Shutdown()
 	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 }
 
-bool FAppleARKitFaceSupport::Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FAppleARKitFaceSupport::Exec_Runtime(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (FParse::Command(&Cmd, TEXT("LiveLinkFaceAR")))
 	{

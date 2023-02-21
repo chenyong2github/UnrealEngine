@@ -52,14 +52,14 @@ private:
 	
 	FName GetLiveLinkSubjectName(const FGuid& AnchorId);
 
-	//~ FSelfRegisteringExec
-	virtual bool Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
-	//~ FSelfRegisteringExec
-
 	/** Whether the face data is mirrored or not */
 	bool bFaceMirrored;
 	
 protected:
+	//~ FSelfRegisteringExec
+	virtual bool Exec_Runtime(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	//~ FSelfRegisteringExec
+
 	/** If requested, publishes face ar updates to LiveLink for the animation system to use */
 	TSharedPtr<ILiveLinkSourceARKit> LiveLinkSource;
 	/** The id of this device */

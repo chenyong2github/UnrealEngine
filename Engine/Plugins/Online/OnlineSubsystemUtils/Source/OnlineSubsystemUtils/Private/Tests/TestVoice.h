@@ -27,10 +27,11 @@ public:
 	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
-	// FSelfRegisteringExec
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	void Test();
+
+protected:
+	// FSelfRegisteringExec
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 private:
 
