@@ -29,12 +29,12 @@ namespace UE::StructUtils
 		return 0;
 	}
 
-	STRUCTUTILS_API uint32 GetStructCrc32(const FStructView StructView, const uint32 CRC /*= 0*/)
+	STRUCTUTILS_API uint32 GetStructCrc32(const FStructView& StructView, const uint32 CRC /*= 0*/)
 	{
 		return GetStructCrc32Helper(StructView, CRC);
 	}
 
-	STRUCTUTILS_API uint32 GetStructCrc32(const FConstStructView StructView, const uint32 CRC /*= 0*/)
+	STRUCTUTILS_API uint32 GetStructCrc32(const FConstStructView& StructView, const uint32 CRC /*= 0*/)
 	{
 		return GetStructCrc32Helper(StructView, CRC);
 	}

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "StructView.h"
 #include <type_traits>
 
 #ifndef WITH_STRUCTUTILS_DEBUG
@@ -19,8 +18,8 @@ class FReferenceCollector;
 namespace UE::StructUtils
 {
 	extern STRUCTUTILS_API uint32 GetStructCrc32(const UScriptStruct& ScriptStruct, const uint8* StructMemory, const uint32 CRC = 0);
-	extern STRUCTUTILS_API uint32 GetStructCrc32(const FStructView StructView, const uint32 CRC = 0);
-	extern STRUCTUTILS_API uint32 GetStructCrc32(const FConstStructView StructView, const uint32 CRC = 0);
+	extern STRUCTUTILS_API uint32 GetStructCrc32(const FStructView& StructView, const uint32 CRC = 0);
+	extern STRUCTUTILS_API uint32 GetStructCrc32(const FConstStructView& StructView, const uint32 CRC = 0);
 	extern STRUCTUTILS_API uint32 GetStructCrc32(const FSharedStruct& SharedView, const uint32 CRC = 0);
 	extern STRUCTUTILS_API uint32 GetStructCrc32(const FConstSharedStruct& SharedView, const uint32 CRC = 0);
 
