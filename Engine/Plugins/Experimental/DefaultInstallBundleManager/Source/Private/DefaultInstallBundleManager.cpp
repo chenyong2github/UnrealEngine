@@ -2922,6 +2922,15 @@ bool FDefaultInstallBundleManager::HasBundleSource(EInstallBundleSourceType Sour
 	return BundleSources.Contains(SourceType);
 }
 
+const TSharedPtr<IInstallBundleSource> FDefaultInstallBundleManager::GetBundleSource(EInstallBundleSourceType SourceType) const
+{
+	if (InitState != EInstallBundleManagerInitState::Succeeded)
+		return nullptr;
+
+	const TSharedPtr<IInstallBundleSource>* Found = BundleSources.Find(SourceType);
+	return Found ? *Found : nullptr;
+}
+
 FDelegateHandle FDefaultInstallBundleManager::PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback)
 {
 	InitErrorHandlerStack.Push(MoveTemp(Callback));

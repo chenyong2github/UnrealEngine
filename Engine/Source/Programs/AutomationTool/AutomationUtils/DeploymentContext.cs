@@ -41,6 +41,8 @@ public class FilesToStage
 	/// </summary>
 	public Dictionary<StagedFileReference, FileReference> UFSFiles = new Dictionary<StagedFileReference, FileReference>();
 
+	public Dictionary<StagedFileReference, FileReference> LooseFiles = new Dictionary<StagedFileReference, FileReference>();
+
 	/// <summary>
 	/// After staging, this is a map from staged file to source file. These file are binaries, etc and can't go into a pak file.
 	/// </summary>

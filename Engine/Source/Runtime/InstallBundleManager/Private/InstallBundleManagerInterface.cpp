@@ -48,6 +48,12 @@ TSharedPtr<IInstallBundleManager> IInstallBundleManager::GetPlatformInstallBundl
 	return {};
 }
 
+const TSharedPtr<IInstallBundleSource> IInstallBundleManager::GetBundleSource(EInstallBundleSourceType SourceType) const
+{
+	return {};
+}
+
+
 TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> IInstallBundleManager::RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags, ELogVerbosity::Type LogVerbosityOverride /*= ELogVerbosity::NoLogging*/)
 {
 	return RequestUpdateContent(MakeArrayView(&BundleName, 1), Flags, LogVerbosityOverride);

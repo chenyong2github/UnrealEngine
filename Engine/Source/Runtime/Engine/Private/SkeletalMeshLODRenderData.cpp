@@ -33,7 +33,12 @@ static FAutoConsoleVariableRef CVarStripSkeletalMeshLodsBelowMinLod(
 	TEXT("If set will strip skeletal mesh LODs under the minimum renderable LOD for the target platform during cooking.")
 );
 
-
+int32 GAllOptionalLODs = 0;
+static FAutoConsoleVariableRef CVarAllOptionalLODs(
+	TEXT("r.Skinned.AllOptionalLODs"),
+	GAllOptionalLODs,
+	TEXT("All LODs are marked as optional")
+);
 
 int32 GAllowSkinnedMorphDataStreaming = 0;
 static FAutoConsoleVariableRef CVarAllowSkinnedMorphDataStreaming(
@@ -932,7 +937,7 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 					SerializeStreamedData(MemWriter, OwnerMesh, Idx, ClassDataStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
 				}
 
-				bIsLODOptional = bIsBelowMinLOD;
+				bIsLODOptional = GAllOptionalLODs != 0 ? true : bIsBelowMinLOD;
 				const uint32 BulkDataFlags = (bDiscardBulkData ? 0 : BULKDATA_Force_NOT_InlinePayload)
 					| (bIsLODOptional ? BULKDATA_OptionalPayload : 0);
 				const uint32 OldBulkDataFlags = BulkData.GetBulkDataFlags();
