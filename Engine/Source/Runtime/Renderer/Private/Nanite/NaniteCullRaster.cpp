@@ -101,13 +101,6 @@ FAutoConsoleVariableRef CVarNanitePrimShaderRasterization(
 	TEXT("")
 );
 
-int32 GNaniteAutoShaderCulling = 0;
-FAutoConsoleVariableRef CVarNaniteAutoShaderCulling(
-	TEXT("r.Nanite.AutoShaderCulling"),
-	GNaniteAutoShaderCulling,
-	TEXT("")
-);
-
 int32 GNaniteRasterSetupTask = 1;
 FAutoConsoleVariableRef CVarNaniteRasterSetupTask(
 	TEXT("r.Nanite.RasterSetupTask"),
@@ -323,13 +316,6 @@ static bool UsePrimitiveShader()
 static bool AllowProgrammableRaster(EShaderPlatform ShaderPlatform)
 {
 	return GNaniteAllowProgrammableRaster != 0;
-}
-
-static bool UseAutoCullingShader(bool bUsePrimitiveShader)
-{
-	return GRHISupportsPrimitiveShaders &&
-		   !bUsePrimitiveShader &&
-		   GNaniteAutoShaderCulling != 0;
 }
 
 static bool UseAsyncComputeForShadowMaps(const FViewFamilyInfo& ViewFamily)
@@ -1059,11 +1045,10 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 
 	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
-	class FAutoShaderCullDim : SHADER_PERMUTATION_BOOL("NANITE_AUTO_SHADER_CULL");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FVertexProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_VERTEX_PROGRAMMABLE");
 	class FPixelProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_PIXEL_PROGRAMMABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FDepthOnlyDim, FPrimShaderDim, FAutoShaderCullDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FDepthOnlyDim, FPrimShaderDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -1091,16 +1076,9 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 			return false;
 		}
 
-		if ((PermutationVector.Get<FPrimShaderDim>() || PermutationVector.Get<FAutoShaderCullDim>()) &&
-			!FDataDrivenShaderPlatformInfo::GetSupportsPrimitiveShaders(Parameters.Platform))
+		if (PermutationVector.Get<FPrimShaderDim>() && !FDataDrivenShaderPlatformInfo::GetSupportsPrimitiveShaders(Parameters.Platform))
 		{
 			// Only some platforms support primitive shaders.
-			return false;
-		}
-
-		if (PermutationVector.Get<FPrimShaderDim>() && PermutationVector.Get<FAutoShaderCullDim>())
-		{
-			// Mutually exclusive.
 			return false;
 		}
 
@@ -1140,10 +1118,6 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 				OutEnvironment.SetDefine(TEXT("NANITE_VERT_REUSE_BATCH"), 1);
 				OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 			}
-		}
-		else if (PermutationVector.Get<FAutoShaderCullDim>())
-		{
-			OutEnvironment.CompilerFlags.Add(CFLAG_VertexUseAutoCulling);
 		}
 
 		OutEnvironment.SetDefine(TEXT("NANITE_HW_COUNTER_INDEX"), bIsPrimitiveShader ? 4 : 5); // Mesh and primitive shaders use an index of 4 instead of 5
@@ -1380,7 +1354,6 @@ void SetupProgrammableRasterizePermutationVectors(
 	EOutputBufferMode RasterMode,
 	bool bUseMeshShader,
 	bool bUsePrimitiveShader,
-	bool bUseAutoCullingShader,
 	bool bVisualizeActive,
 	bool bHasVirtualShadowMapArray,
 	FHWRasterizeVS::FPermutationDomain& PermutationVectorVS,
@@ -1390,7 +1363,6 @@ void SetupProgrammableRasterizePermutationVectors(
 {
 	PermutationVectorVS.Set<FHWRasterizeVS::FDepthOnlyDim>(RasterMode == EOutputBufferMode::DepthOnly);
 	PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
-	PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
 	PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(bHasVirtualShadowMapArray);
 
 	PermutationVectorMS.Set<FHWRasterizeMS::FDepthOnlyDim>(RasterMode == EOutputBufferMode::DepthOnly);
@@ -1605,14 +1577,13 @@ void CollectRasterPSOInitializersForPipeline(
 	const EOutputBufferMode RasterMode = Pipeline == EPipeline::Shadows ? EOutputBufferMode::DepthOnly : EOutputBufferMode::VisBuffer;
 	const bool bHasVirtualShadowMapArray = Pipeline == EPipeline::Shadows; // true during shadow pass
 	const bool bVisualizeActive = false; // no precache for visualization modes
-	const bool bUseAutoCullingShader = UseAutoCullingShader(bUsePrimitiveShader);
 	const bool bForceDisableWPO = false; // no precache for force disable WPO
 		
 	FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
 	FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
 	FHWRasterizePS::FPermutationDomain PermutationVectorPS;
 	FMicropolyRasterizeCS::FPermutationDomain PermutationVectorCS;
-	SetupProgrammableRasterizePermutationVectors(RasterMode, bUseMeshShader, bUsePrimitiveShader, bUseAutoCullingShader, bVisualizeActive, bHasVirtualShadowMapArray,
+	SetupProgrammableRasterizePermutationVectors(RasterMode, bUseMeshShader, bUsePrimitiveShader, bVisualizeActive, bHasVirtualShadowMapArray,
 		PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS);
 
 	if (PreCacheParams.bDefaultMaterial)
@@ -2762,13 +2733,11 @@ FBinningData AddPass_Rasterize(
 		auto& ActiveRasterBins = PassData.ActiveRasterBins;
 		auto& FixedFunctionPassIndex = PassData.FixedFunctionPassIndex;
 
-		const bool bUseAutoCullingShader = UseAutoCullingShader(bUsePrimitiveShader);
-
 		FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
 		FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
 		FHWRasterizePS::FPermutationDomain PermutationVectorPS;
 		FMicropolyRasterizeCS::FPermutationDomain PermutationVectorCS;
-		SetupProgrammableRasterizePermutationVectors(RasterMode, bUseMeshShader, bUsePrimitiveShader, bUseAutoCullingShader, VisualizeActive, bHasVirtualShadowMap,
+		SetupProgrammableRasterizePermutationVectors(RasterMode, bUseMeshShader, bUsePrimitiveShader, VisualizeActive, bHasVirtualShadowMap,
 			PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS);
 
 		const FMaterial* FixedMaterial = FixedMaterialProxy->GetMaterialNoFallback(FeatureLevel);
@@ -2843,7 +2812,6 @@ FBinningData AddPass_Rasterize(
 				RasterMaterialCacheKey.bForceDisableWPO      = RasterEntry.bForceDisableWPO;
 				RasterMaterialCacheKey.bUseMeshShader        = bUseMeshShader;
 				RasterMaterialCacheKey.bUsePrimitiveShader   = bUsePrimitiveShader;
-				RasterMaterialCacheKey.bUseAutoCullingShader = bUseAutoCullingShader;
 				RasterMaterialCacheKey.bVisualizeActive      = VisualizeActive;
 				RasterMaterialCacheKey.bHasVirtualShadowMap  = bHasVirtualShadowMap;
 				RasterMaterialCacheKey.bIsDepthOnly          = RasterMode == EOutputBufferMode::DepthOnly;

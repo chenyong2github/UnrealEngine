@@ -513,7 +513,6 @@ struct FNaniteRasterMaterialCacheKey
 			uint16 bForceDisableWPO      : 1;
 			uint16 bUseMeshShader        : 1;
 			uint16 bUsePrimitiveShader   : 1;
-			uint16 bUseAutoCullingShader : 1;
 			uint16 bVisualizeActive      : 1;
 			uint16 bHasVirtualShadowMap  : 1;
 			uint16 bIsDepthOnly          : 1;
