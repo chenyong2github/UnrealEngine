@@ -121,7 +121,8 @@ DEFINE_STAT(STAT_PrimitiveCull);
 DEFINE_STAT(STAT_DecompressPrecomputedOcclusion);
 DEFINE_STAT(STAT_ViewVisibilityTime);
 
-DEFINE_STAT(STAT_RayTracingInstances);
+DEFINE_STAT(STAT_RayTracingTotalInstances);
+DEFINE_STAT(STAT_RayTracingActiveInstances);
 DEFINE_STAT(STAT_ProcessedPrimitives);
 DEFINE_STAT(STAT_CulledPrimitives);
 DEFINE_STAT(STAT_VisibleRayTracingPrimitives);

@@ -270,7 +270,8 @@ void FillRayTracingInstanceUploadBuffer(
 		TotalNumNativeInstances += NumNativeInstances;
 	}
 
-	SET_DWORD_STAT(STAT_RayTracingInstances, TotalNumNativeInstances - NumInactiveNativeInstances);
+	SET_DWORD_STAT(STAT_RayTracingTotalInstances, TotalNumNativeInstances);
+	SET_DWORD_STAT(STAT_RayTracingActiveInstances, TotalNumNativeInstances - NumInactiveNativeInstances);
 #endif
 }
 
