@@ -34,6 +34,10 @@ class PCG_API UPCGSpatialData : public UPCGData
 public:
 	UPCGSpatialData(const FObjectInitializer& ObjectInitializer);
 
+	//~Begin UObject Interface
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	//~End UObject Interface
+
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial; }
 	// ~End UPCGData interface
@@ -150,6 +154,10 @@ class PCG_API UPCGSpatialDataWithPointCache : public UPCGSpatialData
 	GENERATED_BODY()
 
 public:
+	//~Begin UObject Interface
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	//~End UObject Interface
+
 	// ~UPCGSpatialData implementation
 	virtual const UPCGPointData* ToPointData(FPCGContext* Context, const FBox& InBounds = FBox(EForceInit::ForceInit)) const override;
 	// ~End UPCGSpatialData implementation

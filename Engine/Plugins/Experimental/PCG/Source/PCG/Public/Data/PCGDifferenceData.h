@@ -49,6 +49,7 @@ public:
 
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial; }
+	virtual void VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const override;
 	// ~End UPCGData interface
 
 	//~Begin UPCGSpatialData interface

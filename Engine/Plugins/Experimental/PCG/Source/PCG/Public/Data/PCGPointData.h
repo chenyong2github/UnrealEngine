@@ -67,6 +67,10 @@ class PCG_API UPCGPointData : public UPCGSpatialData
 public:
 	typedef TOctree2<FPCGPointRef, FPCGPointRefSemantics> PointOctree;
 
+	//~Begin UObject Interface
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	//~End UObject Interface
+
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Point; }
 	virtual void AddToCrc(FArchiveCrc32& Ar) const override;

@@ -70,6 +70,17 @@ void UPCGUnionData::AddData(const UPCGSpatialData* InData)
 	}
 }
 
+void UPCGUnionData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const
+{
+	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
+	{
+		if (Datum)
+		{
+			Datum->VisitDataNetwork(Action);
+		}
+	}
+}
+
 int UPCGUnionData::GetDimension() const
 {
 	return CachedDimension;

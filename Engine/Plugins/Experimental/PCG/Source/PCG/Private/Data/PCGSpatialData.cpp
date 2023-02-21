@@ -15,6 +15,26 @@ UPCGSpatialData::UPCGSpatialData(const FObjectInitializer& ObjectInitializer)
 	Metadata = ObjectInitializer.CreateDefaultSubobject<UPCGMetadata>(this, TEXT("Metadata"));
 }
 
+void UPCGSpatialDataWithPointCache::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	if (CachedPointData)
+	{
+		const_cast<UPCGPointData*>(CachedPointData.Get())->GetResourceSizeEx(CumulativeResourceSize);
+	}
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(CachedBoundedPointDataBoxes.GetAllocatedSize() + CachedBoundedPointData.GetAllocatedSize());
+
+	for (const UPCGPointData* Data : CachedBoundedPointData)
+	{
+		if (Data)
+		{
+			const_cast<UPCGPointData*>(Data)->GetResourceSizeEx(CumulativeResourceSize);
+		}
+	}
+}
+
 const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData(FPCGContext* Context, const FBox& InBounds) const
 {
 	if (InBounds.IsValid && SupportsBoundedPointData())
@@ -56,6 +76,16 @@ const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData(FPCGContext* Con
 		}
 
 		return CachedPointData;
+	}
+}
+
+void UPCGSpatialData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	if (Metadata)
+	{
+		Metadata->GetResourceSizeEx(CumulativeResourceSize);
 	}
 }
 

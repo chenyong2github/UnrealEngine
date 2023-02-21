@@ -104,6 +104,11 @@ void UPCGData::AddToCrc(FArchiveCrc32& Ar) const
 	Ar << UIDValue;
 }
 
+void UPCGData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const
+{
+	Action(this);
+}
+
 bool FPCGTaggedData::operator==(const FPCGTaggedData& Other) const
 {
 	return Data == Other.Data &&
@@ -218,6 +223,22 @@ UPCGParamData* FPCGDataCollection::GetFirstParamsOnParamsPin() const
 {
 	TArray<FPCGTaggedData> ParamsOnDefaultPin = GetParamsByPin(PCGPinConstants::DefaultParamsLabel);
 	return (ParamsOnDefaultPin.IsEmpty() ? nullptr : Cast<UPCGParamData>(ParamsOnDefaultPin[0].Data));
+}
+
+void FPCGDataCollection::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
+{
+	for (const FPCGTaggedData& Data : TaggedData)
+	{
+		if (Data.Data)
+		{
+			Data.Data->VisitDataNetwork([&CumulativeResourceSize](const UPCGData* Data) {
+				// Cast away const-ness. The extended mode of GetResourceSizeEx accounts memory for all objects outer'd
+				// to this object, and that calls GetObjectsWithOuter which is non-const. We don't use this extended mode
+				// and we need to be able to operate on const objects.
+				const_cast<UPCGData*>(Data)->GetResourceSizeEx(CumulativeResourceSize);
+			});
+		}
+	}
 }
 
 const UPCGSettings* FPCGDataCollection::GetSettings(const UPCGSettings* InDefaultSettings) const

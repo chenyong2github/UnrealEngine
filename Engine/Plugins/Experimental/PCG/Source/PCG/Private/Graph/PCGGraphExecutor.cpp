@@ -879,6 +879,9 @@ void FPCGGraphExecutor::Execute()
 			}
 		}
 
+		// Purge things from cache if memory usage is too high
+		GraphCache.EnforceMemoryBudget();
+
 #if WITH_EDITOR
 		// Save & release resources when running in-editor
 		SaveDirtyActors();

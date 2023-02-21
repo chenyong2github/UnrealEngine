@@ -5,26 +5,58 @@
 #include "PCGCrc.h"
 #include "PCGData.h"
 
+#include "Containers/Array.h"
+#include "Containers/RingBuffer.h"
+#include "Containers/LruCache.h"
+
 class IPCGElement;
 class UPCGComponent;
 class UPCGNode;
 class UPCGSettings;
-class AActor;
 
-struct FPCGGraphCacheEntry
+/** A record kept each data object instance to count how many instances are tracked. */
+struct FCachedMemoryRecord
 {
-	FPCGGraphCacheEntry() = default;
-	FPCGGraphCacheEntry(const FPCGCrc& InCrc, const FPCGDataCollection& InOutput, FPCGRootSet& OutRootSet);
+	FCachedMemoryRecord() = default;
 
-	FPCGDataCollection Output;
+	/** Number of instances that are contributing to used memory. */
+	uint32 InstanceCount = 0;
 
-	/** A Crc value that encapsulates all information that can affect the result of an element. */
-	FPCGCrc DependenciesCrc;
+	/** Memory usage in bytes of one instance. Cached here to save recomputing later. */
+	SIZE_T MemoryPerInstance = 0;
 };
 
-// TODO: investigate if we need a more evolved data structure here
-// since we could want to have a lock per entries structure
-typedef TArray<FPCGGraphCacheEntry> FPCGGraphCacheEntries;
+struct FPCGCacheEntryKey
+{
+	FPCGCacheEntryKey(const IPCGElement* InElement, const FPCGCrc& InCrc)
+		: Element(InElement)
+		, Crc(InCrc)
+	{
+		check(Element);
+		ensure(Crc.IsValid());
+
+		Hash = GetTypeHash(Element);
+		Hash = HashCombine(Hash, Crc.GetValue());
+	}
+
+	bool operator==(const FPCGCacheEntryKey& Other) const
+	{
+		return Element == Other.Element && Crc == Other.Crc;
+	}
+
+	friend uint32 GetTypeHash(const FPCGCacheEntryKey& Key)
+	{
+		return Key.Hash;
+	}
+
+	const IPCGElement* GetElement() const { return Element; }
+
+private:
+	const IPCGElement* Element = nullptr;
+	FPCGCrc Crc;
+
+	uint32 Hash = 0;
+};
 
 /** Core idea is to store cache entries per node, but that will be less efficient
 * In cases where we have some subgraph reuse. Under that premise, we can then
@@ -44,6 +76,9 @@ struct FPCGGraphCache
 	/** Removes all entries from the cache, unroots data, etc. */
 	void ClearCache();
 
+	/** While memory usage is more than budget, remove cache entries for elements, LRU policy. Returns true if something removed. */
+	void EnforceMemoryBudget();
+
 	/** True if debugging features enabled. Exposes a CVar so it can be called from editor module. */
 	bool IsDebuggingEnabled() const;
 
@@ -56,13 +91,25 @@ struct FPCGGraphCache
 #endif
 
 private:
+	/** For each data element in collection, keep records of memory usage and instance count. */
+	void AddDataToAccountedMemory(const FPCGDataCollection& InCollection);
+
+	/** For each data element in collection, update records to reflect removal and update total memory figure if all instances removed. */
+	void RemoveFromMemoryTotal(const FPCGDataCollection& InCollection);
+
 	// Note: we are not going to serialize this as-is, since the pointers will change
 	// We will have to serialize on a node id basis most likely
-	TMap<const IPCGElement*, FPCGGraphCacheEntries> CacheData;
+	TLruCache<FPCGCacheEntryKey, FPCGDataCollection> CacheData;
 	TWeakObjectPtr<UObject> Owner = nullptr;
 
 	/** To prevent garbage collection on data in the cache, we'll need to root some data */
 	FPCGRootSet* RootSet = nullptr;
+
+	/** Map from data UIDs to records. Provides ref counting and caches memory size. */
+	TMap<uint64, FCachedMemoryRecord> MemoryRecords;
+
+	/** Total memory usage by all data objects in cache. */
+	uint64 TotalMemoryUsed = 0;
 
 	mutable FRWLock CacheLock;
 };

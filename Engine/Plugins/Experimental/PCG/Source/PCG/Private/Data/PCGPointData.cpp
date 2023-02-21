@@ -241,6 +241,13 @@ FPCGPointRef::FPCGPointRef(const FPCGPointRef& InPointRef)
 	Bounds = InPointRef.Bounds;
 }
 
+void UPCGPointData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Points.GetAllocatedSize() + Octree.GetSizeBytes() + sizeof(Bounds));
+}
+
 TArray<FPCGPoint>& UPCGPointData::GetMutablePoints()
 {
 	bOctreeIsDirty = true;

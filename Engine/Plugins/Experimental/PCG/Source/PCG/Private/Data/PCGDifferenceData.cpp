@@ -89,6 +89,17 @@ void UPCGDifferenceData::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 }
 #endif
 
+void UPCGDifferenceData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const
+{
+	check(Source);
+	Source->VisitDataNetwork(Action);
+
+	if (Difference)
+	{
+		Difference->VisitDataNetwork(Action);
+	}
+}
+
 int UPCGDifferenceData::GetDimension() const
 {
 	return Source->GetDimension();

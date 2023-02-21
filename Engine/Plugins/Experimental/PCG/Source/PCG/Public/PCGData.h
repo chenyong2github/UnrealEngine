@@ -35,6 +35,9 @@ public:
 	/** Contributes to Crc. Fallback implementation that writes object instance UID. */
 	virtual void AddToCrc(FArchiveCrc32& Ar) const;
 
+	/** Executes a lambda over all connected data objects. */
+	virtual void VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const;
+
 	/** Unique ID for this object instance. */
 	UPROPERTY(Transient)
 	uint64 UID = 0;
@@ -111,6 +114,9 @@ struct PCG_API FPCGDataCollection
 
 	const UPCGSettingsInterface* GetSettingsInterface() const;
 	const UPCGSettingsInterface* GetSettingsInterface(const UPCGSettingsInterface* InDefaultSettingsInterface) const;
+
+	/** Memory size calculation. Forward call to the data objects in the collection. */
+	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 
 	template<typename SettingsType>
 	const SettingsType* GetSettings() const;

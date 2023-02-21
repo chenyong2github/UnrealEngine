@@ -47,6 +47,13 @@ void UPCGIntersectionData::Initialize(const UPCGSpatialData* InA, const UPCGSpat
 	}
 }
 
+void UPCGIntersectionData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const
+{
+	check(A && B);
+	A->VisitDataNetwork(Action);
+	B->VisitDataNetwork(Action);
+}
+
 int UPCGIntersectionData::GetDimension() const
 {
 	check(A && B);

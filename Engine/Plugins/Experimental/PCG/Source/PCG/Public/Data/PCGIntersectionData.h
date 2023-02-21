@@ -26,6 +26,7 @@ public:
 
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial; }
+	virtual void VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const override;
 	// ~End UPCGData interface
 
 	//~Begin UPCGSpatialData interface
@@ -36,6 +37,7 @@ public:
 	virtual bool HasNonTrivialTransform() const override;
 	virtual const UPCGSpatialData* FindShapeFromNetwork(const int InDimension) const override;
 	virtual const UPCGSpatialData* FindFirstConcreteShapeFromNetwork() const override;
+
 protected:
 	virtual UPCGSpatialData* CopyInternal() const override;
 	//~End UPCGSpatialData interface
