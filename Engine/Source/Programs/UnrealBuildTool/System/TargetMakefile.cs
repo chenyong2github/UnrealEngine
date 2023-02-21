@@ -872,7 +872,7 @@ namespace UnrealBuildTool
 				{
 					if (WorkingSet.Contains(SourceFile) && SourceFile.LastWriteTimeUtc > Makefile.CreateTimeUtc)
 					{
-						Logger.LogDebug("{File} was part of source working set and now is not", SourceFile.Location);
+						Logger.LogDebug("{File} was not part of source working set and should be", SourceFile.Location);
 						ReasonNotLoaded = string.Format("working set of source files changed");
 						return false;
 					}
