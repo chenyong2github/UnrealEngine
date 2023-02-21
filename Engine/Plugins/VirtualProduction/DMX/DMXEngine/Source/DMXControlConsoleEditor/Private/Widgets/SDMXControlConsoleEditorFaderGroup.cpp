@@ -205,6 +205,20 @@ FReply SDMXControlConsoleEditorFaderGroup::OnMouseButtonDown(const FGeometry& My
 	return FReply::Handled();
 }
 
+FReply SDMXControlConsoleEditorFaderGroup::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		if (ExpandArrowButton.IsValid())
+		{
+			ExpandArrowButton->ToggleExpandArrow();
+			return FReply::Handled();
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
 UDMXControlConsoleFaderGroup* SDMXControlConsoleEditorFaderGroup::GetFaderGroup() const
 {
 	return FaderGroupView.IsValid() ? FaderGroupView.Pin()->GetFaderGroup() : nullptr;
