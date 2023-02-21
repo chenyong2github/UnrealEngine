@@ -2,6 +2,7 @@
 
 #include "HLMediaSource.h"
 
+#include "HLMediaPrivate.h"
 #include "Templates/SharedPointer.h"
 
 namespace HLMediaSource

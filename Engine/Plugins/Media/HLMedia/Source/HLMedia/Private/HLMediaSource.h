@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "HLMediaPrivate.h"
-
 #include "BaseMediaSource.h"
 
 #include "HLMediaSource.generated.h"
