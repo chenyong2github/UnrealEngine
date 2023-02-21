@@ -80,6 +80,8 @@ namespace UnrealBuildTool.Rules
 			{
 				PrivateIncludePaths.Add(ItooInterfaceLocation);
 			}
+
+			PrivateIncludePaths.Add(ModuleDirectory);
 		}
 
 		public abstract string GetMaxVersion();
