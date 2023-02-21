@@ -38,6 +38,19 @@ FVulkanDescriptorPool::FVulkanDescriptorPool(FVulkanDevice* InDevice, const FVul
 		}
 	}
 
+#if VULKAN_RHI_RAYTRACING
+	{
+		uint32 NumTypesUsed = Layout.GetTypesUsed(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
+		if (NumTypesUsed > 0)
+		{
+			VkDescriptorPoolSize* Type = new(Types) VkDescriptorPoolSize;
+			FMemory::Memzero(*Type);
+			Type->type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+			Type->descriptorCount = NumTypesUsed * MaxSetsAllocations;
+		}
+	}
+#endif
+
 	VkDescriptorPoolCreateInfo PoolInfo;
 	ZeroVulkanStruct(PoolInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO);
 	// you don't need this flag because pool reset feature. Also this flag increase pool size in memory and vkResetDescriptorPool time.
@@ -74,6 +87,12 @@ void FVulkanDescriptorPool::TrackAddUsage(const FVulkanDescriptorSetsLayout& InL
 		ensure(Layout.GetTypesUsed((VkDescriptorType)TypeIndex) == InLayout.GetTypesUsed((VkDescriptorType)TypeIndex));
 	}
 
+#if VULKAN_RHI_RAYTRACING
+	{
+		ensure(Layout.GetTypesUsed(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR) == InLayout.GetTypesUsed(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR));
+	}
+#endif
+
 	NumAllocatedDescriptorSets += InLayout.GetLayouts().Num();
 	PeakAllocatedDescriptorSets = FMath::Max(NumAllocatedDescriptorSets, PeakAllocatedDescriptorSets);
 }
@@ -84,6 +103,12 @@ void FVulkanDescriptorPool::TrackRemoveUsage(const FVulkanDescriptorSetsLayout& 
 	{
 		check(Layout.GetTypesUsed((VkDescriptorType)TypeIndex) == InLayout.GetTypesUsed((VkDescriptorType)TypeIndex));
 	}
+
+#if VULKAN_RHI_RAYTRACING
+	{
+		check(Layout.GetTypesUsed(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR) == InLayout.GetTypesUsed(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR));
+	}
+#endif
 
 	NumAllocatedDescriptorSets -= InLayout.GetLayouts().Num();
 }
