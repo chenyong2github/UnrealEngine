@@ -149,16 +149,6 @@ float3 GetDirectionalLightingVectorFromTranslucentLightingVolume(float3 InnerVol
 
 #include "SphericalGaussian.ush"
 
-float NormalCurvatureToRoughness(float3 WorldNormal)
-{
-	float3 dNdx = ddx(WorldNormal);
-	float3 dNdy = ddy(WorldNormal);
-	float x = dot(dNdx, dNdx);
-	float y = dot(dNdy, dNdy);
-	float CurvatureApprox = pow(max(x, y), View.NormalCurvatureToRoughnessScaleBias.z);
-	return saturate(CurvatureApprox * View.NormalCurvatureToRoughnessScaleBias.x + View.NormalCurvatureToRoughnessScaleBias.y);
-}
-
 struct FShadingOcclusion
 {
 	half  DiffOcclusion;

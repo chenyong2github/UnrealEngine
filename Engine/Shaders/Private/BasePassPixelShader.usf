@@ -1072,13 +1072,7 @@ void FPixelShaderInOut_MainPS(
 	GBuffer.SpecularColor = ComputeF0(Specular, BaseColor, Metallic);
 
 #if MATERIAL_NORMAL_CURVATURE_TO_ROUGHNESS
-	// Curvature-to-roughness uses derivatives of the WorldVertexNormal, which is incompatible with centroid interpolation because
-	// the samples are not uniformly distributed. Therefore we use WorldVertexNormal_Center which is guaranteed to be center interpolated.
-#if USE_WORLDVERTEXNORMAL_CENTER_INTERPOLATION
-	float GeometricAARoughness = NormalCurvatureToRoughness(MaterialParameters.WorldVertexNormal_Center);
-#else
-	float GeometricAARoughness = NormalCurvatureToRoughness(MaterialParameters.TangentToWorld[2].xyz);
-#endif
+	const float GeometricAARoughness = GetRoughnessFromNormalCurvature(MaterialParameters);
 	GBuffer.Roughness = max(GBuffer.Roughness, GeometricAARoughness);
 
 #if MATERIAL_SHADINGMODEL_CLEAR_COAT

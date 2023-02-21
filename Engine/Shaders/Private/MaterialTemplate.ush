@@ -3057,6 +3057,31 @@ float3 CalculateAnisotropyTangent(in out FMaterialPixelParameters Parameters, FP
 	return Tangent;
 }
 
+float NormalCurvatureToRoughness(float3 WorldNormal)
+{
+	float3 dNdx = ddx(WorldNormal);
+	float3 dNdy = ddy(WorldNormal);
+	float x = dot(dNdx, dNdx);
+	float y = dot(dNdy, dNdy);
+	float CurvatureApprox = pow(max(x, y), View.NormalCurvatureToRoughnessScaleBias.z);
+	return saturate(CurvatureApprox * View.NormalCurvatureToRoughnessScaleBias.x + View.NormalCurvatureToRoughnessScaleBias.y);
+}
+
+float GetRoughnessFromNormalCurvature(FMaterialPixelParameters InMaterialParameters)
+{
+#if MATERIAL_NORMAL_CURVATURE_TO_ROUGHNESS
+	// Curvature-to-roughness uses derivatives of the WorldVertexNormal, which is incompatible with centroid interpolation because
+	// the samples are not uniformly distributed. Therefore we use WorldVertexNormal_Center which is guaranteed to be center interpolated.
+	#if USE_WORLDVERTEXNORMAL_CENTER_INTERPOLATION
+	return NormalCurvatureToRoughness(InMaterialParameters.WorldVertexNormal_Center);
+	#else
+	return NormalCurvatureToRoughness(InMaterialParameters.TangentToWorld[2].xyz);
+	#endif
+#else
+	return 0.f;
+#endif
+}
+
 // EvaluateMaterialAttributes
 %s
 
@@ -3071,7 +3096,7 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 %s
 
 #if TEMPLATE_USES_STRATA
-	Parameters.StrataPixelFootprint = StrataGetPixelFootprint(Parameters.WorldPosition_CamRelative);
+	Parameters.StrataPixelFootprint = StrataGetPixelFootprint(Parameters.WorldPosition_CamRelative, GetRoughnessFromNormalCurvature(Parameters));
 	Parameters.SharedLocalBases = StrataInitialiseSharedLocalBases();
 	Parameters.StrataTree = GetInitialisedStrataTree();
 #endif
@@ -3129,7 +3154,7 @@ void CalcPixelMaterialInputsAnalyticDerivatives(in out FMaterialPixelParameters 
 %s
 
 #if TEMPLATE_USES_STRATA
-	Parameters.StrataPixelFootprint = StrataGetPixelFootprint(Parameters.WorldPosition_CamRelative);
+	Parameters.StrataPixelFootprint = StrataGetPixelFootprint(Parameters.WorldPosition_CamRelative, GetRoughnessFromNormalCurvature(Parameters));
 	Parameters.SharedLocalBases = StrataInitialiseSharedLocalBases();
 	Parameters.StrataTree = GetInitialisedStrataTree();
 #endif

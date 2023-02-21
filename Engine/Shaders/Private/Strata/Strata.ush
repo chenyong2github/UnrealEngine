@@ -1339,20 +1339,22 @@ FStrataData GetInitialisedStrataData()
 
 struct FStrataPixelFootprint
 {
-	float PixelRadiusInWorldSpace; // In cm
+	float PixelRadiusInWorldSpace;	// In cm
+	float NormalCurvatureRoughness; // Surface curvature converted into roughness for AA purpose
 };
 
-FStrataPixelFootprint StrataGetPixelFootprint(float3 dPdx, float3 dPdy)
+FStrataPixelFootprint StrataGetPixelFootprint(float3 dPdx, float3 dPdy, float InNormalCurvatureRoughness)
 {
 	const float dX = lengthFast(dPdx);
 	const float dY = lengthFast(dPdy);
 
 	FStrataPixelFootprint Out;
 	Out.PixelRadiusInWorldSpace = min(dX, dY) * 0.5f;
+	Out.NormalCurvatureRoughness = InNormalCurvatureRoughness;
 	return Out;
 }
 
-FStrataPixelFootprint StrataGetPixelFootprint(float3 InWorldPosition)
+FStrataPixelFootprint StrataGetPixelFootprint(float3 InWorldPosition, float InNormalCurvatureRoughness)
 {
 #if CLOUD_LAYER_PIXEL_SHADER==1
 	// Clouds materials feature dynamic loops and thus cannot support derivatives.
@@ -1360,7 +1362,7 @@ FStrataPixelFootprint StrataGetPixelFootprint(float3 InWorldPosition)
 #else
 	const float3 dPdx = ddx(InWorldPosition);
 	const float3 dPdy = ddy(InWorldPosition);
-	return StrataGetPixelFootprint(dPdx, dPdy);
+	return StrataGetPixelFootprint(dPdx, dPdy, InNormalCurvatureRoughness);
 #endif
 }
 
@@ -1379,6 +1381,12 @@ FStrataData GetStrataSlabBSDF(
 	bool bIsThinSurface,
 	uint SharedLocalBasisIndex, inout uint SharedLocalBasisTypes)
 {
+	// Curvature-based roughness for geometric AA
+	Roughness		= max(Roughness, InPixelFootprint.NormalCurvatureRoughness);
+	SecondRoughness = max(SecondRoughness, InPixelFootprint.NormalCurvatureRoughness);
+	FuzzRoughness	= max(FuzzRoughness, InPixelFootprint.NormalCurvatureRoughness);
+	
+
 	FStrataData StrataData = GetInitialisedStrataData();
 
 	SSSMFPScale = saturate(SSSMFPScale);
