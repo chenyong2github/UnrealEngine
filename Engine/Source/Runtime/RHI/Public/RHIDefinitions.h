@@ -819,6 +819,7 @@ enum class EGpuVendorId
 	Apple		= 0x106B,
 	Vivante		= 0x7a05,
 	VeriSilicon	= 0x1EB1,
+	SamsungAMD  = 0x144D,
 
 	Kazan		= 0x10003,	// VkVendorId
 	Codeplay	= 0x10004,	// VkVendorId
@@ -1284,6 +1285,7 @@ inline EGpuVendorId RHIConvertToGpuVendorId(uint32 VendorId)
 	case EGpuVendorId::Broadcom:
 	case EGpuVendorId::Qualcomm:
 	case EGpuVendorId::Intel:
+	case EGpuVendorId::SamsungAMD:
 		return (EGpuVendorId)VendorId;
 
 	default:

@@ -71,6 +71,7 @@ const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId)
 	case EGpuVendorId::Kazan:		return TEXT("Kazan");
 	case EGpuVendorId::Codeplay:	return TEXT("Codeplay");
 	case EGpuVendorId::Mesa:		return TEXT("Mesa");
+	case EGpuVendorId::SamsungAMD:	return TEXT("SamsungAMD");
 	case EGpuVendorId::NotQueried:	return TEXT("Not Queried");
 	default:                        return TEXT("Unknown");
 	}
