@@ -509,7 +509,7 @@ class COREUOBJECT_API FBulkData
 
 		void Free(FBulkData* Owner);
 
-		void* ReallocateData(FBulkData* Owner, SIZE_T SizeInBytes);
+		void* ReallocateData(FBulkData* Owner, int64 SizeInBytes);
 
 		void SetData(FBulkData* Owner, void* Buffer);
 		void SetMemoryMappedData(FBulkData* Owner, IMappedFileHandle* MappedHandle, IMappedFileRegion* MappedRegion);
@@ -1076,7 +1076,7 @@ private:
 	bool CanDiscardInternalData() const;
 	
 	/** Reallocate bulk data */
-	inline void* ReallocateData(SIZE_T SizeInBytes) { return DataAllocation.ReallocateData(this, SizeInBytes); }
+	inline void* ReallocateData(int64 SizeInBytes) { return DataAllocation.ReallocateData(this, SizeInBytes); }
 
 	/** Free bulk data */
 	inline void  FreeData() { DataAllocation.Free(this); }
