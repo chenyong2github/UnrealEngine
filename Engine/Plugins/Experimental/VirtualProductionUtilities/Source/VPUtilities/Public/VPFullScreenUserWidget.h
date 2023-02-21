@@ -251,7 +251,8 @@ public:
 #endif
 
 protected:
-	void InitWidget();
+	
+	bool InitWidget();
 	void ReleaseWidget();
 
 	FVector2D FindSceneViewportSize();

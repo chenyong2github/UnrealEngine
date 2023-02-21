@@ -98,6 +98,7 @@ public:
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 	//~ End UObject Interface
 
 #if WITH_EDITOR
@@ -208,5 +209,4 @@ private:
 
 	void ConditionallySetUpGameplayViewTargets();
 	void CleanUpGameplayViewTargets();
-	
 };

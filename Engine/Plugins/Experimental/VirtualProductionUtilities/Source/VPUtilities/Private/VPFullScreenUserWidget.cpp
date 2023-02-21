@@ -784,9 +784,14 @@ bool UVPFullScreenUserWidget::Display(UWorld* InWorld)
 	bool bWasAdded = false;
 	if (InWorld && WidgetClass && ShouldDisplay(InWorld) && CurrentDisplayType == EVPWidgetDisplayType::Inactive)
 	{
-		CurrentDisplayType = GetDisplayType(InWorld);
-		InitWidget();
+		const bool bCreatedWidget = InitWidget();
+		if (!bCreatedWidget)
+		{
+			UE_LOG(LogVPUtilities, Error, TEXT("Failed to create subwidget for UVPFullScreenUserWidget."));
+			return false;
+		}
 		
+		CurrentDisplayType = GetDisplayType(InWorld);
 		TAttribute<float> GetDpiScaleAttribute = TAttribute<float>::CreateLambda([WeakThis = TWeakObjectPtr<UVPFullScreenUserWidget>(this)]()
 		{
 			return WeakThis.IsValid() ? WeakThis->GetViewportDPIScale() : 1.f;
@@ -923,18 +928,23 @@ void UVPFullScreenUserWidget::ResetEditorTargetViewport()
 }
 #endif
 
-void UVPFullScreenUserWidget::InitWidget()
+bool UVPFullScreenUserWidget::InitWidget()
 {
-	// Don't do any work if Slate is not initialized
-	if (FSlateApplication::IsInitialized())
+	const bool bCanCreate = !Widget && WidgetClass && ensure(World.Get()) && FSlateApplication::IsInitialized();
+	if (!bCanCreate)
 	{
-		if (WidgetClass && Widget == nullptr)
-		{
-			check(World.Get());
-			Widget = CreateWidget(World.Get(), WidgetClass);
-			Widget->SetFlags(RF_Transient);
-		}
+		return false;
 	}
+
+	// Could fail e.g. if the class has been marked deprecated or abstract.
+	Widget = CreateWidget(World.Get(), WidgetClass);
+	UE_CLOG(!Widget, LogVPUtilities, Warning, TEXT("Failed to create widget with class %s. Review the log for more info."), *WidgetClass->GetPathName())
+	if (Widget)
+	{
+		Widget->SetFlags(RF_Transient);
+	}
+
+	return Widget != nullptr;
 }
 
 void UVPFullScreenUserWidget::ReleaseWidget()

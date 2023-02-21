@@ -37,6 +37,14 @@ DEFINE_LOG_CATEGORY(LogVCamOutputProvider);
 namespace UE::VCamCore::Private
 {
 	static const FName LevelEditorName(TEXT("LevelEditor"));
+
+	static bool ValidateOverlayClassAndLogErrors(const TSubclassOf<UUserWidget>& InUMGClass)
+	{
+		// Null IS allowed and means "do not create any class"
+		const bool bHasCorrectClassFlags = !InUMGClass || !InUMGClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated);
+		UE_CLOG(!bHasCorrectClassFlags, LogVCamOutputProvider, Warning, TEXT("Class %s cannot be deprecated nor abstract"), *InUMGClass->GetPathName());
+		return bHasCorrectClassFlags;
+	}
 }
 
 UVCamOutputProviderBase::UVCamOutputProviderBase()
@@ -163,7 +171,10 @@ void UVCamOutputProviderBase::SetTargetViewport(EVCamTargetViewportID Value)
 
 void UVCamOutputProviderBase::SetUMGClass(const TSubclassOf<UUserWidget> InUMGClass)
 {
-	UMGClass = InUMGClass;
+	if (UE::VCamCore::Private::ValidateOverlayClassAndLogErrors(InUMGClass))
+	{
+		UMGClass = InUMGClass;
+	}
 }
 
 void UVCamOutputProviderBase::CreateUMG()
@@ -231,10 +242,15 @@ void UVCamOutputProviderBase::DisplayUMG()
 		if (UWorld* ActorWorld = GetWorld())
 		{
 			UMGWidget->SetCustomPostProcessSettingsSource(TargetCamera.Get());
-			UMGWidget->Display(ActorWorld);
-			if (UUserWidget* Subwidget = UMGWidget->GetWidget(); ensure(Subwidget) && WidgetSnapshot.HasData())
+			if (!UMGWidget->Display(ActorWorld)
+				|| !ensureAlwaysMsgf(UMGWidget->GetWidget(), TEXT("UVPFullScreenUserWidget::Display returned true but did not create any subwidget!")))
 			{
-				UE::VCamCore::WidgetSnapshotUtils::Private::ApplyTreeHierarchySnapshot(WidgetSnapshot, *Subwidget);
+				return;
+			}
+
+			if (WidgetSnapshot.HasData())
+			{
+				UE::VCamCore::WidgetSnapshotUtils::Private::ApplyTreeHierarchySnapshot(WidgetSnapshot, *UMGWidget->GetWidget());
 				// Note that NotifyWidgetOfComponentChange will cause InitializeConnections to be called - this is important for the connections to get applied!
 			}
 		}
@@ -342,6 +358,18 @@ void UVCamOutputProviderBase::Serialize(FArchive& Ar)
 		TargetViewport = OuterComponent
 			? OuterComponent->TargetViewport_DEPRECATED
 			: TargetViewport;
+	}
+}
+
+void UVCamOutputProviderBase::PostLoad()
+{
+	Super::PostLoad();
+
+	// Class may have been marked deprecated or abstract since the last time it was set
+	if (!UE::VCamCore::Private::ValidateOverlayClassAndLogErrors(UMGClass))
+	{
+		Modify();
+		SetUMGClass(nullptr);
 	}
 }
 
@@ -524,7 +552,8 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 				// In case a child class resets UMGClass, reapply the correct value we got the PostEditChangeProperty for.
 				const TSubclassOf<UUserWidget> ProtectUMGClass = UMGClass;
 				SetActive(false);
-				UMGClass = ProtectUMGClass;
+				// Does additional checks; Unreal Editor already ensures we do not get deprecated / abstract classes but we may add more checks in future.
+				SetUMGClass(ProtectUMGClass);
 				SetActive(true);
 			}
 		}
@@ -553,11 +582,11 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 
 void UVCamOutputProviderBase::StartDetectAndSnapshotWhenConnectionsChange()
 {
-	check(UMGWidget);
-	UUserWidget* Widget = UMGWidget->GetWidget();
-	check(Widget);
+	checkf(UMGWidget, TEXT("Should only be called as part of UMGWidget initialization"));
+	UUserWidget* Subwidget = UMGWidget->GetWidget();
+	check(Subwidget);
 	
-	UE::VCamCore::ForEachWidgetToConsiderForVCam(*Widget, [this](UWidget* Widget)
+	UE::VCamCore::ForEachWidgetToConsiderForVCam(*Subwidget, [this](UWidget* Widget)
 	{
 		if (UVCamWidget* VCamWidget = Cast<UVCamWidget>(Widget))
 		{
