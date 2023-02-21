@@ -77,23 +77,23 @@ public:
 	TArray<uint16> BoneIndicesWithParents;
 
 	// cost added to the continuing pose from databases that uses this schema
-	UPROPERTY(EditAnywhere, Category = "Schema")
+	UPROPERTY(EditAnywhere, Category = "Bias")
 	float ContinuingPoseCostBias = 0.f;
 
 	// base cost added to all poses from databases that uses this schema. it can be overridden by UAnimNotifyState_PoseSearchModifyCost
-	UPROPERTY(EditAnywhere, Category = "Schema")
+	UPROPERTY(EditAnywhere, Category = "Bias")
 	float BaseCostBias = 0.f;
 
 	// If there's a mirroring mismatch between the currently playing asset and a search candidate, this cost will be 
 	// added to the candidate, making it less likely to be selected
-	UPROPERTY(EditAnywhere, Category = "Schema")
+	UPROPERTY(EditAnywhere, Category = "Bias")
 	float MirrorMismatchCostBias = 0.f;
 
 	// cost added to all poses from looping assets of databases that uses this schema
-	UPROPERTY(EditAnywhere, Category = "Schema")
+	UPROPERTY(EditAnywhere, Category = "Bias")
 	float LoopingCostBias = 0.f;
 
-	UPROPERTY(EditAnywhere, Category = "Schema", meta = (ExcludeFromHash))
+	UPROPERTY(EditAnywhere, Category = "Debug", meta = (ExcludeFromHash))
 	TArray<FPoseSearchSchemaColorPreset> ColorPresets;
 	
 	bool IsValid () const;

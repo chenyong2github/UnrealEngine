@@ -45,13 +45,10 @@ void UPoseSearchFeatureChannel_Heading::IndexAsset(UE::PoseSearch::FAssetIndexer
 {
 	using namespace UE::PoseSearch;
 
-	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
-
-	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
+	for (int32 SampleIdx = Indexer.GetBeginSampleIdx(); SampleIdx != Indexer.GetEndSampleIdx(); ++SampleIdx)
 	{
 		const FVector Heading = GetAxis(Indexer.GetSampleRotation(SampleTimeOffset, SampleIdx, SchemaBoneIdx));
-		const int32 VectorIdx = SampleIdx - IndexingContext.BeginSampleIdx;
-		FFeatureVectorHelper::EncodeVector(IndexingContext.GetPoseVector(VectorIdx, FeatureVectorTable), ChannelDataOffset, Heading, ComponentStripping);
+		FFeatureVectorHelper::EncodeVector(Indexer.GetPoseVector(SampleIdx, FeatureVectorTable), ChannelDataOffset, Heading, ComponentStripping);
 	}
 }
 #endif // WITH_EDITOR

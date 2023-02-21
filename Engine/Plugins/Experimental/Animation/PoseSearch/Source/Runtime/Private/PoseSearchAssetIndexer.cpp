@@ -99,16 +99,12 @@ void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext, const F
 	Output.PoseMetadata.SetNum(Output.NumIndexedPoses);
 }
 
-bool FAssetIndexer::Process()
+void FAssetIndexer::Process()
 {
-	check(IndexingContext.Schema);
-	check(IndexingContext.Schema->IsValid());
+	check(GetSchema()->IsValid());
 	check(IndexingContext.AssetSampler);
 
 	FMemMark Mark(FMemStack::Get());
-
-	IndexingContext.BeginSampleIdx = Output.FirstIndexedSample;
-	IndexingContext.EndSampleIdx = Output.LastIndexedSample + 1;
 
 	if (IndexingContext.Schema->SchemaCardinality > 0)
 	{
@@ -123,17 +119,13 @@ bool FAssetIndexer::Process()
 	}
 
 	// Generate pose metadata
-	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
+	for (int32 SampleIdx = GetBeginSampleIdx(); SampleIdx != GetEndSampleIdx(); ++SampleIdx)
 	{
-		const int32 PoseIdx = SampleIdx - Output.FirstIndexedSample;
-		FPoseSearchPoseMetadata& OutputPoseMetadata = Output.PoseMetadata[PoseIdx];
-		OutputPoseMetadata = GetMetadata(SampleIdx);
+		Output.PoseMetadata[GetVectorIdx(SampleIdx)] = GetMetadata(SampleIdx);
 	}
 
 	// Computing stats
 	ComputeStats();
-
-	return true;
 }
 
 void FAssetIndexer::ComputeStats()
@@ -143,10 +135,8 @@ void FAssetIndexer::ComputeStats()
 	const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
 	check(SamplingContext->FiniteDelta > UE_KINDA_SMALL_NUMBER);
 
-	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
+	for (int32 SampleIdx = GetBeginSampleIdx(); SampleIdx != GetEndSampleIdx(); ++SampleIdx)
 	{
-		const int32 VectorIdx = SampleIdx - IndexingContext.BeginSampleIdx;
-
 		const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), IndexingContext.AssetSampler->GetPlayLength());
 
 		bool AnyClamped = false;
@@ -499,6 +489,22 @@ FVector FAssetIndexer::GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx
 	return LinearVelocity;
 }
 
+int32 FAssetIndexer::GetVectorIdx(int32 SampleIdx) const
+{
+	return SampleIdx - GetBeginSampleIdx();
+}
+
+TArrayView<float> FAssetIndexer::GetPoseVector(int32 SampleIdx, TArrayView<float> FeatureVectorTable) const
+{
+	check(IndexingContext.Schema);
+	return MakeArrayView(&FeatureVectorTable[GetVectorIdx(SampleIdx) * IndexingContext.Schema->SchemaCardinality], IndexingContext.Schema->SchemaCardinality);
+}
+
+const UPoseSearchSchema* FAssetIndexer::GetSchema() const
+{
+	check(IndexingContext.Schema);
+	return IndexingContext.Schema;
+}
 
 } // namespace UE::PoseSearch
 #endif // WITH_EDITOR

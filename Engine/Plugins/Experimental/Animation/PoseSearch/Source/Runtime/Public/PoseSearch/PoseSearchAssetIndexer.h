@@ -27,16 +27,6 @@ struct FAssetIndexingContext
 	TSharedPtr<FAssetSamplerBase> AssetSampler;
 	bool bMirrored = false;
 	FFloatInterval RequestedSamplingRange = FFloatInterval(0.0f, 0.0f);
-	
-	// Index this asset's data from BeginPoseIdx up to but not including EndPoseIdx
-	int32 BeginSampleIdx = 0;
-	int32 EndSampleIdx = 0;
-
-	TArrayView<float> GetPoseVector(int32 VectorIdx, TArrayView<float> FeatureVectorTable) const
-	{
-		check(Schema);
-		return MakeArrayView(&FeatureVectorTable[VectorIdx * Schema->SchemaCardinality], Schema->SchemaCardinality);
-	}
 };
 
 class POSESEARCH_API FAssetIndexer
@@ -63,17 +53,22 @@ public:
 
 	void Reset();
 	void Init(const FAssetIndexingContext& IndexingContext, const FBoneContainer& InBoneContainer);
-	bool Process();
+	void Process();
 	const FOutput& GetOutput() const { return Output; }
 	const FStats& GetStats() const { return Stats; }
-
-	const FAssetIndexingContext& GetIndexingContext() const { return IndexingContext; }
 
 	FQuat GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx);
 	FVector GetSamplePosition(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx);
 	FVector GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseCharacterSpaceVelocities = true);
 
+	int32 GetBeginSampleIdx() const { return Output.FirstIndexedSample; }
+	int32 GetEndSampleIdx() const { return Output.LastIndexedSample + 1; }
+	
+	TArrayView<float> GetPoseVector(int32 SampleIdx, TArrayView<float> FeatureVectorTable) const;
+	const UPoseSearchSchema* GetSchema() const;
+
 private:
+	int32 GetVectorIdx(int32 SampleIdx) const;
 	FTransform GetTransform(float SampleTime, bool& bClamped, int8 SchemaBoneIdx = RootSchemaBoneIdx);
 	FTransform GetComponentSpaceTransform(float SampleTime, bool& bClamped, int8 SchemaBoneIdx = RootSchemaBoneIdx);
 	FVector GetSamplePositionInternal(float SampleTime, float OriginTime, bool& bClamped, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx);

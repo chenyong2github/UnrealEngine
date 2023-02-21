@@ -42,8 +42,7 @@ namespace UE::PoseSearch
 
 	static void CollectBonePositions(TArray<FVector>& BonePositions, FAssetIndexer& Indexer, int8 SchemaBoneIdx)
 	{
-		const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
-		const int32 NumSamples = IndexingContext.EndSampleIdx - IndexingContext.BeginSampleIdx;
+		const int32 NumSamples = Indexer.GetEndSampleIdx() - Indexer.GetBeginSampleIdx();
 
 		// collecting all the bone transforms
 		BonePositions.Reset();
@@ -307,8 +306,7 @@ void UPoseSearchFeatureChannel_Phase::IndexAsset(UE::PoseSearch::FAssetIndexer& 
 	static float SmoothingWindowTime = 0.3f; // seconds
 
 
-	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
-	const UPoseSearchSchema* Schema = IndexingContext.Schema;
+	const UPoseSearchSchema* Schema = Indexer.GetSchema();
 	const float FiniteDelta = Schema->GetSamplingInterval();
 	
 	TArray<FVector2D> Phases;
@@ -333,10 +331,9 @@ void UPoseSearchFeatureChannel_Phase::IndexAsset(UE::PoseSearch::FAssetIndexer& 
 	ValidateLocalMinMax(LocalMinMax);
 	CalculatePhasesFromLocalMinMax(LocalMinMax, Phases, SmoothedSignal.Num());
 
-	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
+	for (int32 SampleIdx = Indexer.GetBeginSampleIdx(); SampleIdx != Indexer.GetEndSampleIdx(); ++SampleIdx)
 	{
-		const int32 VectorIdx = SampleIdx - IndexingContext.BeginSampleIdx;
-		FFeatureVectorHelper::EncodeVector2D(IndexingContext.GetPoseVector(VectorIdx, FeatureVectorTable), ChannelDataOffset, Phases[VectorIdx]);
+		FFeatureVectorHelper::EncodeVector2D(Indexer.GetPoseVector(SampleIdx, FeatureVectorTable), ChannelDataOffset, Phases[SampleIdx - Indexer.GetBeginSampleIdx()]);
 	}
 }
 #endif // WITH_EDITOR
