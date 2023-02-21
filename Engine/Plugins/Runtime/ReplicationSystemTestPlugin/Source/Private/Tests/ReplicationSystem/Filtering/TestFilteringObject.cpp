@@ -11,8 +11,6 @@ void UTestFilteringObject::SetFilterOut(bool bFilterOut)
 
 void UTestFilteringObject::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
 {
-	Super::RegisterReplicationFragments(Context, RegistrationFlags);
-
 	// Build descriptors and allocate PropertyReplicationFragments for this object
 	UE::Net::FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags);
 }

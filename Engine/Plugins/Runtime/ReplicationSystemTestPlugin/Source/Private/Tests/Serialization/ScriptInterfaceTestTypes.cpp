@@ -11,7 +11,6 @@ UTestScriptInterfaceReplicatedObjectWithDefaultSubobject::UTestScriptInterfaceRe
 
 void UTestObjectReferencingScriptInterface::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
 {
-	Super::RegisterReplicationFragments(Context, RegistrationFlags);
 	UE::Net::FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags);
 }
 

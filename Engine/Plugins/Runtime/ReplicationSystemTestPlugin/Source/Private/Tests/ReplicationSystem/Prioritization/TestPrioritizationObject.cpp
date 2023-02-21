@@ -16,7 +16,6 @@ void UTestPrioritizationNativeIrisObject::RegisterReplicationFragments(UE::Net::
 {
 	using namespace UE::Net;
 
-	Super::RegisterReplicationFragments(Context, RegistrationFlags);
 	PriorityState.RegisterReplicationFragments(Context, RegistrationFlags);
 
 }
@@ -49,8 +48,6 @@ void UTestPrioritizationObject::SetPriority(float Priority)
 
 void UTestPrioritizationObject::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
 {
-	Super::RegisterReplicationFragments(Context, RegistrationFlags);
-
 	// Build descriptors and allocate PropertyReplicationFragments for this object
 	UE::Net::FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags);
 }

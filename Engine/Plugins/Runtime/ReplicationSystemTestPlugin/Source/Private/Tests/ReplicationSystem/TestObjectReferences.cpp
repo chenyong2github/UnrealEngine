@@ -17,7 +17,6 @@ class UObject;
 
 void UTestObjectReferences_TestClassWithReferences::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
 {
-	Super::RegisterReplicationFragments(Context, RegistrationFlags);
 	UE::Net::FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags);
 }
 
@@ -44,7 +43,6 @@ UTestObjectReferences_TestClassWithDefaultSubObject::UTestObjectReferences_TestC
 
 void UTestObjectReferences_TestClassWithDefaultSubObject::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
 {
-	Super::RegisterReplicationFragments(Context, RegistrationFlags);
 	UE::Net::FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags);
 
 	// Include subobject as well in the protocol

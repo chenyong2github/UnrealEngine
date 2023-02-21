@@ -414,8 +414,6 @@ void UAttributeSet::RegisterReplicationFragments(UE::Net::FFragmentRegistrationC
 {
 	using namespace UE::Net;
 
-	Super::RegisterReplicationFragments(Context, RegistrationFlags);
-
 	// Build descriptors and allocate PropertyReplicationFragments for this object
 	FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags);
 }

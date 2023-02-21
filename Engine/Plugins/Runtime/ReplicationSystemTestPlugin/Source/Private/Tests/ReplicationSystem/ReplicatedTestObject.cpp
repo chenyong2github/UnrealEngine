@@ -378,8 +378,6 @@ void UTestReplicatedIrisObject::RegisterReplicationFragments(UE::Net::FFragmentR
 {
 	using namespace UE::Net;
 
-	Super::RegisterReplicationFragments(Context, RegistrationFlags);
-
 	// Base object owns the fragment in this case
 	{
 		this->ReplicationFragments.Reset();
@@ -436,8 +434,6 @@ UTestReplicatedIrisObjectWithObjectReference::UTestReplicatedIrisObjectWithObjec
 
 void UTestReplicatedIrisObjectWithObjectReference::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
 {
-	Super::RegisterReplicationFragments(Context, RegistrationFlags);
-
 	// Base object owns the fragment in this case
 	{
 		this->ReplicationFragments.Reset();
@@ -465,8 +461,6 @@ UReplicatedSubObjectOrderObject::UReplicatedSubObjectOrderObject()
 
 void UReplicatedSubObjectOrderObject::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
 {
-	Super::RegisterReplicationFragments(Context, RegistrationFlags);
-
 	// Base object owns the fragment in this case
 	{
 		this->ReplicationFragments.Reset();
