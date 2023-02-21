@@ -30,8 +30,8 @@ public:
 	//~ End IModuleInterface Interface.
 
 	//~ Begin IVirtualTexturingEditorModule Interface.
-	virtual bool HasStreamedMips(URuntimeVirtualTextureComponent* InComponent) const override;
-	virtual bool BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent) const override;
+	virtual bool HasStreamedMips(EShadingPath ShadingPath, URuntimeVirtualTextureComponent* InComponent) const override;
+	virtual bool BuildStreamedMips(EShadingPath ShadingPath, URuntimeVirtualTextureComponent* InComponent) const override;
 	virtual void ConvertVirtualTextures(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial *>* RelatedMaterials /* = nullptr */) const override;
 	virtual void ConvertVirtualTexturesWithDialog(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual) const override;
 	//~ End IVirtualTexturingEditorModule Interface.
@@ -82,14 +82,14 @@ void FVirtualTexturingEditorModule::OnPlacementModeRefresh(FName CategoryName)
 	}
 }
 
-bool FVirtualTexturingEditorModule::HasStreamedMips(URuntimeVirtualTextureComponent* InComponent) const
+bool FVirtualTexturingEditorModule::HasStreamedMips(EShadingPath ShadingPath, URuntimeVirtualTextureComponent* InComponent) const
 {
-	return RuntimeVirtualTexture::HasStreamedMips(InComponent);
+	return RuntimeVirtualTexture::HasStreamedMips(ShadingPath, InComponent);
 }
 
-bool FVirtualTexturingEditorModule::BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent) const
+bool FVirtualTexturingEditorModule::BuildStreamedMips(EShadingPath ShadingPath, URuntimeVirtualTextureComponent* InComponent) const
 {
-	return RuntimeVirtualTexture::BuildStreamedMips(InComponent, ERuntimeVirtualTextureDebugType::None);
+	return RuntimeVirtualTexture::BuildStreamedMips(ShadingPath, InComponent, ERuntimeVirtualTextureDebugType::None);
 }
 
 void FVirtualTexturingEditorModule::ConvertVirtualTextures(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial *>* RelatedMaterials /* = nullptr */) const

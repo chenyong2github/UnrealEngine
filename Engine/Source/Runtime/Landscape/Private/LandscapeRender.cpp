@@ -243,7 +243,13 @@ void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 	{
 		OutMaterials.Append(MobileMaterialInterfaces.FilterByPredicate([](UMaterialInterface* MaterialInstance) { return MaterialInstance != nullptr; }));
 	}
-
+#if	WITH_EDITORONLY_DATA	
+	if (MobileCombinationMaterialInstances.Num())
+	{
+		OutMaterials.Append(MobileCombinationMaterialInstances.FilterByPredicate([](UMaterialInstanceConstant* MaterialInstance) { return MaterialInstance != nullptr; }));
+	}
+#endif
+	
 	if (OverrideMaterial)
 	{
 		OutMaterials.Add(OverrideMaterial);

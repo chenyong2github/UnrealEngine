@@ -57,6 +57,8 @@
 #include "WorldPartition/WorldPartitionBuildNavigationOptions.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionRuntimeVirtualTextureBuilder.h"
+#include "AssetCompilingManager.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorBuildUtils, Log, All);
 
@@ -1629,6 +1631,29 @@ bool FEditorBuildUtils::EditorBuildMaterialTextureStreamingData(UPackage* Packag
 	return bAnyPackagesDirtied;
 }
 
+static bool BuildVirtualTextureComponents(IVirtualTexturingEditorModule* Module, EShadingPath ShadingPath, TArray<URuntimeVirtualTextureComponent*>& Components)
+{
+	if (Components.Num() == 0)
+	{
+		return true;
+	}
+
+	FScopedSlowTask BuildTask(static_cast<float>(Components.Num()), LOCTEXT("VirtualTextureBuild", "Building Virtual Textures"));
+	BuildTask.MakeDialog(true);
+
+	for (URuntimeVirtualTextureComponent* Component : Components)
+	{
+		BuildTask.EnterProgressFrame();
+
+		// Note that Build*() functions return true if the associated Has*() functions return false
+		if (BuildTask.ShouldCancel() || !Module->BuildStreamedMips(ShadingPath, Component))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 bool FEditorBuildUtils::EditorBuildVirtualTexture(UWorld* InWorld)
 {
 	if (InWorld == nullptr)
@@ -1657,33 +1682,50 @@ bool FEditorBuildUtils::EditorBuildVirtualTexture(UWorld* InWorld)
 			UWorldPartitionRuntimeVirtualTextureBuilder::LoadRuntimeVirtualTextureActors(WorldPartition, ForEachActorWithLoadingResult);
 		}
 
-		TArray<URuntimeVirtualTextureComponent*> Components;
+		// We will need to build VTs for both shading paths
+		const ERHIFeatureLevel::Type CurFeatureLevel = InWorld->FeatureLevel;
+		const ERHIFeatureLevel::Type AltFeatureLevel = (CurFeatureLevel == ERHIFeatureLevel::ES3_1 ? GMaxRHIFeatureLevel : ERHIFeatureLevel::ES3_1);
+		const EShadingPath CurShadingPath = FSceneInterface::GetShadingPath(CurFeatureLevel);
+		const EShadingPath AltShadingPath = FSceneInterface::GetShadingPath(AltFeatureLevel);
+
+		TArray<URuntimeVirtualTextureComponent*> Components[2];
 		for (TObjectIterator<URuntimeVirtualTextureComponent> It; It; ++It)
 		{
-			if (Module->HasStreamedMips(*It))
+			if (Module->HasStreamedMips(CurShadingPath, *It))
 			{
-				Components.Add(*It);
+				Components[0].Add(*It);
+			}
+
+			if (Module->HasStreamedMips(AltShadingPath, *It))
+			{
+				Components[1].Add(*It);
 			}
 		}
-
-		if (Components.Num() == 0)
+		
+		// Build for a current feature level first
+		if (!BuildVirtualTextureComponents(Module, CurShadingPath, Components[0]))
 		{
-			return true;
+			return false;
 		}
-
-		FScopedSlowTask BuildTask(static_cast<float>(Components.Num()), LOCTEXT("VirtualTextureBuild", "Building Virtual Textures"));
-		BuildTask.MakeDialog(true);
-
-		for (URuntimeVirtualTextureComponent* Component : Components)
+		
+		// Build for others if any
+		bool bResult = true;
+		if (Components[1].Num() != 0)
 		{
-			BuildTask.EnterProgressFrame();
-
-			// Note that Build*() functions return true if the associated Has*() functions return false
-			if (BuildTask.ShouldCancel() || !Module->BuildStreamedMips(Component))
+			InWorld->ChangeFeatureLevel(AltFeatureLevel);
+			// Make sure all assets are finished compiling. Recreate render state after shader compilation complete
 			{
-				return false;
+				UMaterialInterface::SubmitRemainingJobsForWorld(InWorld);
+				FAssetCompilingManager::Get().FinishAllCompilation();
+				FAssetCompilingManager::Get().ProcessAsyncTasks();
+				FGlobalComponentRecreateRenderStateContext Context;
 			}
+			bResult = BuildVirtualTextureComponents(Module, AltShadingPath, Components[1]);
 		}
+		
+		// Restore world feature level
+		InWorld->ChangeFeatureLevel(CurFeatureLevel);
+		return bResult;
 	}
 	
 	return true;

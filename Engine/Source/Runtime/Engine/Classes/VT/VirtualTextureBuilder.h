@@ -51,17 +51,29 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture)
 	TObjectPtr<class UVirtualTexture2D> Texture;
 
+	/** The UTexture object for Mobile rendering. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture)
+	TObjectPtr<class UVirtualTexture2D> TextureMobile;
+
 	/** Some client defined hash of that defines how the Texture was built. */
 	UPROPERTY()
 	uint64 BuildHash;
 
+	/** Virtual texture for a specific shading path */
+	UVirtualTexture2D* GetVirtualTexture(EShadingPath ShadingPath) const;
+
+	/** Whether to use a separate texture for Mobile rendering. A separate texure will be built using mobile preview editor mode */
+	UPROPERTY(EditAnywhere, Category = Texture)
+	bool bSeparateTextureForMobile = false;
+
 #if WITH_EDITOR
 	/** Creates a new UVirtualTexture2D and stores it in the contained Texture. */
-	void BuildTexture(FVirtualTextureBuildDesc const& BuildDesc);
+	void BuildTexture(EShadingPath ShadingPath, FVirtualTextureBuildDesc const& BuildDesc);
 #endif
 
 protected:
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 	//~ End UObject Interface
 };
