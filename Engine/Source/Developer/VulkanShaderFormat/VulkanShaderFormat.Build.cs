@@ -10,7 +10,7 @@ public class VulkanShaderFormat : ModuleRules
 		PrivateIncludePathModuleNames.Add("TargetPlatform");
 
 		// Do not link the module (as that would require the vulkan dll), only the include paths
-		PublicIncludePathModuleNames.Add("VulkanRHI");
+		PublicIncludePaths.Add("Runtime/VulkanRHI/Public");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
