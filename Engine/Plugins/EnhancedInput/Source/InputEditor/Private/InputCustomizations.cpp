@@ -17,6 +17,11 @@
 #include "UObject/UObjectIterator.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Text/STextBlock.h"
+#include "EnhancedInputPlayerMappableNameValidator.h"
+#include "PlayerMappableKeySettings.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "EnhancedInputPlayerMappableNameValidator.h"
+#include "InputEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "InputCustomization"
 
@@ -487,6 +492,176 @@ void FEnhancedInputDeveloperSettingsCustomization::RebuildDetailsViewForAsset(co
 			}
 		}
 	}
+}
+
+/////////////////////////////////////////////////////////////////
+// FPlayerMappableKeyChildSettingsCustomization
+
+namespace UE::EnhancedInput
+{
+	/** Flag to enable or disable name validation in the editor for UPlayerMappableKeySettings assets */
+	static bool bEnableNameValidation = true;
+	static FAutoConsoleVariableRef CVarEnableNameValidation(
+		TEXT("EnhancedInput.bEnableNameValidation"),
+		bEnableNameValidation,
+		TEXT("Flag to enable or disable name validation in the editor for UPlayerMappableKeySettings assets"),
+		ECVF_Default);
+}
+
+TSharedRef<IPropertyTypeCustomization> FPlayerMappableKeyChildSettingsCustomization::MakeInstance()
+{
+	return MakeShareable(new FPlayerMappableKeyChildSettingsCustomization());
+}
+
+void FPlayerMappableKeyChildSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	SettingsPropHandle = PropertyHandle;
+	UPlayerMappableKeySettings* Settings = GetSettingsObject();
+	
+	HeaderRow.NameContent()
+	[
+		PropertyHandle->CreatePropertyNameWidget()
+	];
+	
+	HeaderRow.ValueContent()
+	[
+		PropertyHandle->CreatePropertyValueWidget()
+	];	
+}
+
+void FPlayerMappableKeyChildSettingsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{				
+	// Customize the name handle to have some validation on what users can type in
+	static const FName MappingPropertyHandleName = GET_MEMBER_NAME_CHECKED(UPlayerMappableKeySettings, Name);
+
+	uint32 NumChildren = 0;
+	TSharedPtr<IPropertyHandle> SettingsHandle;
+	TSharedPtr<IPropertyHandle> TempHandle = PropertyHandle->GetChildHandle(0);
+
+	if (TempHandle.IsValid())
+	{
+		TempHandle->GetNumChildren(NumChildren);
+
+		// For instanced properties there can be multiple layers of "children" until we get to the ones
+		// that we care about. Iterate all the children until we find one with more then one
+		// child, or we run out of children.
+		while (!SettingsHandle.IsValid() || !TempHandle.IsValid())
+		{
+			TempHandle->GetNumChildren(NumChildren);
+
+			if (NumChildren > 1)
+			{
+				SettingsHandle = TempHandle;
+			}
+			else
+			{
+				TempHandle = TempHandle->GetChildHandle(0);
+			}		
+		}	
+	}	
+	
+	if (!SettingsHandle.IsValid())
+	{
+		return;
+	}
+
+	for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+	{
+		TSharedPtr<IPropertyHandle> ChildHandle = SettingsHandle->GetChildHandle(ChildIndex);
+		if (!ChildHandle.IsValid())
+		{
+			continue;
+		}
+		
+		const FName PropertyName = ChildHandle->GetProperty()->GetFName();
+
+		// Add a customization to handle name validation on the mappable name if it's enabled
+		if (PropertyName == MappingPropertyHandleName && UE::EnhancedInput::bEnableNameValidation)
+		{
+			MappingNamePropHandle = ChildHandle;
+			IDetailPropertyRow& NameRow = ChildBuilder.AddProperty(MappingNamePropHandle.ToSharedRef());       
+            
+            NameRow.CustomWidget()
+            .NameContent()
+            [
+            	MappingNamePropHandle->CreatePropertyNameWidget()
+            ]
+            .ValueContent()
+            [
+            	SNew(SEditableTextBox)
+            		.Text(this, &FPlayerMappableKeyChildSettingsCustomization::OnGetMappingNameText)
+            		.OnTextCommitted(this, &FPlayerMappableKeyChildSettingsCustomization::OnMappingNameTextCommited)
+            		.ToolTipText(this, &FPlayerMappableKeyChildSettingsCustomization::OnGetMappingNameToolTipText)
+            		.OnVerifyTextChanged(this, &FPlayerMappableKeyChildSettingsCustomization::OnVerifyMappingName)
+            		.Font(IDetailLayoutBuilder::GetDetailFont())
+            ];
+		}
+		else
+		{
+			ChildBuilder.AddProperty(ChildHandle.ToSharedRef());
+		}
+	}
+}
+
+FName FPlayerMappableKeyChildSettingsCustomization::GetCurrentName() const
+{
+	if (UPlayerMappableKeySettings* Settings = GetSettingsObject())
+	{
+		return Settings->Name;
+	}
+	ensure(false);
+	return NAME_None;
+}
+
+UPlayerMappableKeySettings* FPlayerMappableKeyChildSettingsCustomization::GetSettingsObject() const
+{
+	if (SettingsPropHandle.IsValid())
+	{
+		UObject* SettingsObject = nullptr;
+		SettingsPropHandle->GetValue(SettingsObject);
+		return Cast<UPlayerMappableKeySettings>(SettingsObject);	
+	}
+
+	return nullptr;
+}
+
+FText FPlayerMappableKeyChildSettingsCustomization::OnGetMappingNameText() const
+{
+	// this is the value in the actual text box
+	if (UPlayerMappableKeySettings* Settings = GetSettingsObject())
+	{
+		return FText::FromName(Settings->Name);
+	}
+	
+	return FText::FromName(NAME_None);
+}
+
+FText FPlayerMappableKeyChildSettingsCustomization::OnGetMappingNameToolTipText() const
+{
+	static const FText Tooltip = LOCTEXT("MappingNameToolTip", "This mapping name will be the key that is used to save player mapping data for this action. It can be overriden by individual mappings, or specified by the Input Action. These names need to be unique for each player mapping you wish to save.");
+	return Tooltip;
+}
+
+void FPlayerMappableKeyChildSettingsCustomization::OnMappingNameTextCommited(const FText& NewText, ETextCommit::Type InTextCommit)
+{
+	// set the actual property value on the settings object
+	if (InTextCommit == ETextCommit::OnEnter || InTextCommit == ETextCommit::OnUserMovedFocus)
+	{
+		MappingNamePropHandle->SetValue(NewText.ToString());
+	}
+}
+
+bool FPlayerMappableKeyChildSettingsCustomization::OnVerifyMappingName(const FText& InNewText, FText& OutErrorMessage)
+{
+	UPlayerMappableKeySettings* Settings = GetSettingsObject();
+	const FName CurrentName = Settings ? Settings->Name : NAME_None;
+	
+	// Validate that the new name can be used
+	FEnhancedInputPlayerMappableNameValidator NameValidator(CurrentName);
+	EValidatorResult Result = NameValidator.IsValid(InNewText.ToString(), false);
+	OutErrorMessage = INameValidatorInterface::GetErrorText(InNewText.ToString(), Result);
+
+	return Result == EValidatorResult::Ok || Result == EValidatorResult::ExistingName;
 }
 
 #undef LOCTEXT_NAMESPACE

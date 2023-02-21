@@ -22,6 +22,16 @@ public:
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+
+	/**
+	 * Get the known mapping names that are current in use. This is a helper function if you want to use a "GetOptions" metadata on a UPROPERTY.
+	 * For example, the following will display a little drop down menu to select from all current mapping names:
+	 *
+	 *  UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(GetOptions="EnhancedInput.PlayerMappableKeySettings.GetKnownMappingNames"))
+	 *  FName MappingName;
+	 */
+	UFUNCTION()
+	static const TArray<FName>& GetKnownMappingNames();	
 #endif // WITH_EDITOR
 
 	/** Metadata that can used to store any other related items to this key mapping such as icons, ability assets, etc. */

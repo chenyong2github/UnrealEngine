@@ -33,6 +33,9 @@ public:
 
 	static EAssetTypeCategories::Type GetInputAssetsCategory() { return InputAssetsCategory; }
 	
+	/** Returns true if the given name is in use by a player mappable key setting */
+	INPUTEDITOR_API static bool IsMappingNameInUse(const FName InName);
+		
 private:
 	void RegisterAssetTypeActions(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
 	{
@@ -95,23 +98,6 @@ class INPUTEDITOR_API UPlayerMappableInputConfig_Factory : public UFactory
 public:
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 };
-
-// TODO: Add trigger/modifier factories and hook up RegisterAssetTypeActions type construction.
-//
-//UCLASS()
-//class INPUTEDITOR_API UInputTrigger_Factory : public UBlueprintFactory
-//{
-//	GENERATED_UCLASS_BODY()
-//};
-//
-//UCLASS()
-//class INPUTEDITOR_API UInputModifier_Factory : public UBlueprintFactory
-//{
-//	GENERATED_UCLASS_BODY()
-//
-//	UPROPERTY(EditAnywhere, Category = DataAsset)
-//	TSubclassOf<UDataAsset> DataAssetClass;
-//};
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"

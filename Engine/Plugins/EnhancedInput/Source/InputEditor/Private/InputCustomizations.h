@@ -6,7 +6,7 @@
 #include "IPropertyTypeCustomization.h"
 
 class FKeyStructCustomization;
-
+class UPlayerMappableKeySettings;
 class IDetailPropertyRow;
 class IDetailLayoutBuilder;
 
@@ -108,4 +108,31 @@ private:
 	 * This is reset when CustomizeCDOValues is called
 	 */
 	static TSet<FName> ExcludedAssetNames;
+};
+
+/**
+ * Input customization for UPlayerMappableKeySettings to have some name validation
+ * on the custom saved FNames for mappings.
+ */
+class FPlayerMappableKeyChildSettingsCustomization : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+
+	/** IPropertyTypeCustomization interface */
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+
+private:
+	
+	UPlayerMappableKeySettings* GetSettingsObject() const;
+	FName GetCurrentName() const;
+	
+	FText OnGetMappingNameText() const;
+	FText OnGetMappingNameToolTipText() const;
+	void OnMappingNameTextCommited(const FText& NewText, ETextCommit::Type InTextCommit);
+	bool OnVerifyMappingName(const FText& InNewText, FText& OutErrorMessage);
+
+	TSharedPtr<IPropertyHandle> SettingsPropHandle;
+	TSharedPtr<IPropertyHandle> MappingNamePropHandle;
 };

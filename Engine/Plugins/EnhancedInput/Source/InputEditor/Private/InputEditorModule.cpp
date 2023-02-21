@@ -39,6 +39,7 @@
 #include "SourceControlHelpers.h"
 #include "HAL/FileManager.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "PlayerMappableKeySettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputEditorModule)
 
@@ -409,6 +410,7 @@ void FInputEditorModule::StartupModule()
 	PropertyModule.RegisterCustomClassLayout("InputMappingContext", FOnGetDetailCustomizationInstance::CreateStatic(&FInputContextDetails::MakeInstance));
 	PropertyModule.RegisterCustomPropertyTypeLayout("EnhancedActionKeyMapping", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FEnhancedActionMappingCustomization::MakeInstance));
 	PropertyModule.RegisterCustomClassLayout(UEnhancedInputDeveloperSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FEnhancedInputDeveloperSettingsCustomization::MakeInstance));
+	PropertyModule.RegisterCustomPropertyTypeLayout(UPlayerMappableKeySettings::StaticClass()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPlayerMappableKeyChildSettingsCustomization::MakeInstance));
 	PropertyModule.NotifyCustomizationModuleChanged();
 
 	// Register input assets
@@ -462,6 +464,7 @@ void FInputEditorModule::ShutdownModule()
 	PropertyModule.UnregisterCustomClassLayout("InputContext");
 	PropertyModule.UnregisterCustomPropertyTypeLayout("EnhancedActionKeyMapping");
 	PropertyModule.UnregisterCustomClassLayout("EnhancedInputDeveloperSettings");
+	PropertyModule.UnregisterCustomPropertyTypeLayout("PlayerMappableKeySettings");
 	PropertyModule.NotifyCustomizationModuleChanged();
 
 	// Unregister slate stylings
@@ -550,6 +553,21 @@ void FInputEditorModule::AutoUpgradeDefaultInputClasses()
 			}
 		}
 	}
+}
+
+bool FInputEditorModule::IsMappingNameInUse(const FName InName)
+{
+	// Instanced objects that have been deleted will have an outer of the transient package, and we don't want to include them
+	for (TObjectIterator<UPlayerMappableKeySettings> Itr(RF_ClassDefaultObject | RF_Transient, true, EInternalObjectFlags::Garbage | EInternalObjectFlags::Unreachable); Itr; ++Itr)
+	{
+		UPlayerMappableKeySettings* Settings = *Itr;		
+		if (Settings && Settings->GetOuter() != GetTransientPackage() && Settings->Name == InName)
+		{
+			return true;
+		}
+	}
+	
+	return false;
 }
 
 void FInputEditorModule::Tick(float DeltaTime)
