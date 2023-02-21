@@ -2812,9 +2812,23 @@ TOptional<UEdGraphSchema_K2::FFindSpecializedConversionNodeResults> UEdGraphSche
 		else if (!OutputPinType.IsContainer())
 		{
 			// Note: Cast nodes do not support a ForEach-style expansion, so we exclude container types here.
+		
+			const UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(InputPin.GetOwningNode());
+			UClass* BlueprintClass = (Blueprint->GeneratedClass != nullptr) ? Blueprint->GeneratedClass : Blueprint->ParentClass;
 
-			UClass* InputClass  = FBlueprintEditorUtils::GetTypeForPin(InputPin);
+			UClass* InputClass = Cast<UClass>(InputPin.PinType.PinSubCategoryObject.Get());
+
+			if ((InputClass == nullptr) && (InputPin.PinType.PinSubCategory == UEdGraphSchema_K2::PSC_Self))
+			{
+				InputClass = BlueprintClass;
+			}
+
 			const UClass* OutputClass = Cast<UClass>(OutputPinType.PinSubCategoryObject.Get());
+
+			if ((OutputClass == nullptr) && (OutputPinType.PinSubCategory == UEdGraphSchema_K2::PSC_Self))
+			{
+				OutputClass = BlueprintClass;
+			}
 
 			bool bNeedsDynamicCast = false;
 			if ((OutputPinType.PinCategory == PC_Interface) && (InputPinType.PinCategory == PC_Object))
