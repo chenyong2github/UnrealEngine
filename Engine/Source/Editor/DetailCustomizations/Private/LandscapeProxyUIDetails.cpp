@@ -268,6 +268,7 @@ void FLandscapeProxyUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory("Nanite", FText::GetEmpty(), ECategoryPriority::Default);
 		TSharedRef<IPropertyHandle> EnableNaniteProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscape, bEnableNanite));
 		CategoryBuilder.AddCustomRow(FText::FromString(TEXT("Rebuild Nanite Data")))
+		.RowTag("RebuildNaniteData")
 		[
 			SNew(SHorizontalBox)
 			.IsEnabled_Lambda([HasAtLeastOneNaniteLandscape] { return HasAtLeastOneNaniteLandscape(); })
