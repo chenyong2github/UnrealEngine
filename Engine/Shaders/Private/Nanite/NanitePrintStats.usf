@@ -347,7 +347,7 @@ void CalculateShadingStats()
 	OutStatsBuffer[0].NumEmptyShadingBins = NumEmptyShadingBins;
 
 	OutStatsBuffer[0].NumShadedQuads  = ShadingBinStats[0].x;
-	OutStatsBuffer[0].NumShadedPixels = ShadingBinStats[0].y;
+	OutStatsBuffer[0].NumShadedPixels = ShadingBinStats[0].y - ShadingBinStats[0].z; // Don't count helper lanes as pixels
 	OutStatsBuffer[0].NumHelperLanes  = ShadingBinStats[0].z;
 }
 
