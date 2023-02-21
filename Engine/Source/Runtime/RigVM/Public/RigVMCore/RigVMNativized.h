@@ -470,6 +470,31 @@ protected:
 		FTransform& Transform;
 	};
 
+	class FMatrixSetter
+	{
+	public:
+		FMatrixSetter(FMatrix& InOutMatrix)
+			: Matrix(InOutMatrix)
+		{
+		}
+
+		void SetPlane(int32 InPlaneIndex, const FPlane& InPlane)
+		{
+			Matrix.M[InPlaneIndex][0] = InPlane.X;
+			Matrix.M[InPlaneIndex][1] = InPlane.Y;
+			Matrix.M[InPlaneIndex][2] = InPlane.Z;
+			Matrix.M[InPlaneIndex][3] = InPlane.W;
+		}
+
+		void SetComponent(int32 InPlaneIndex, int32 InComponentIndex, double InValue)
+		{
+			Matrix.M[InPlaneIndex][InComponentIndex] = InValue;
+		}
+
+	private:
+		FMatrix& Matrix;
+	};
+
 	template <typename T,
 			  typename TEnableIf<!TIsArray<T>::Value, int>::Type = 0>
 	bool ImportDefaultValue(T& OutValue, const FProperty* Property, const FString& InBuffer)
