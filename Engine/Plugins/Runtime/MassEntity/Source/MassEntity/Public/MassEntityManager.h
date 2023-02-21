@@ -387,7 +387,7 @@ public:
 		{
 			if (Predicate(Struct))
 			{
-				ExecuteFunction(Struct.GetMutable<T>());
+				ExecuteFunction(Struct.Get<T>());
 			}
 		}
 	}

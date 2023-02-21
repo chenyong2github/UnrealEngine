@@ -13,7 +13,8 @@ namespace UE::StructUtils
 		static_assert(!TIsDerivedFrom<T, struct FInstancedStruct>::IsDerived &&
 					  !TIsDerivedFrom<T, struct FConstStructView>::IsDerived &&
 					  !TIsDerivedFrom<T, struct FStructView>::IsDerived &&
-					  !TIsDerivedFrom<T, struct FConstSharedStruct>::IsDerived, "It does not make sense to create a instanced struct over an other struct wrapper type");
+					  !TIsDerivedFrom<T, struct FStructView>::IsDerived &&
+					  !TIsDerivedFrom<T, struct FConstSharedStruct>::IsDerived, "It does not make sense to create wrapper over these types.");
 	}
 
 	/** Returns reference to the struct, this assumes that all data is valid. */

@@ -18,9 +18,37 @@ struct FTestStructSimple : public FTestStructSimpleBase
 	
 	FTestStructSimple() = default;
 	FTestStructSimple(const float InFloat) : Float(InFloat) {}
+
+	bool operator==(const FTestStructSimple& Other) const
+	{
+		return Float == Other.Float;
+	}
 	
 	UPROPERTY()
 	float Float = 0.0f;
+};
+
+USTRUCT()
+struct FTestStructSimpleNonZeroDefault : public FTestStructSimpleBase
+{
+	GENERATED_BODY()
+
+	FTestStructSimpleNonZeroDefault() = default;
+
+	bool operator==(const FTestStructSimpleNonZeroDefault& Other) const
+	{
+		return Float == Other.Float && Bool == Other.Bool;
+	}
+
+	bool operator!=(const FTestStructSimpleNonZeroDefault& Other) const
+	{
+		return !operator==(Other);
+	}
+
+	UPROPERTY()
+	float Float = 100.0f;
+	bool Bool = true;
+
 };
 
 USTRUCT()

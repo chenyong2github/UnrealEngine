@@ -2,6 +2,9 @@
 
 #include "StructUtilsTypes.h"
 #include "Serialization/ArchiveCrc32.h"
+#include "StructView.h"
+#include "InstancedStruct.h"
+#include "SharedStruct.h"
 
 namespace UE::StructUtils
 {
@@ -16,12 +19,33 @@ namespace UE::StructUtils
 		return Ar.GetCrc();
 	}
 
-	STRUCTUTILS_API uint32 GetStructCrc32(const FConstStructView StructView, const uint32 CRC /*= 0*/)
+	template<typename T>
+	uint32 GetStructCrc32Helper(const T& Struct, const uint32 CRC /*= 0*/)
 	{
-		if (const UScriptStruct* ScriptStruct = StructView.GetScriptStruct())
+		if (const UScriptStruct* ScriptStruct = Struct.GetScriptStruct())
 		{
-			return GetStructCrc32(*ScriptStruct, StructView.GetMemory(), CRC);
+			return GetStructCrc32(*ScriptStruct, Struct.GetMemory(), CRC);
 		}
 		return 0;
+	}
+
+	STRUCTUTILS_API uint32 GetStructCrc32(const FStructView StructView, const uint32 CRC /*= 0*/)
+	{
+		return GetStructCrc32Helper(StructView, CRC);
+	}
+
+	STRUCTUTILS_API uint32 GetStructCrc32(const FConstStructView StructView, const uint32 CRC /*= 0*/)
+	{
+		return GetStructCrc32Helper(StructView, CRC);
+	}
+
+	STRUCTUTILS_API uint32 GetStructCrc32(const FSharedStruct& SharedView, const uint32 CRC /*= 0*/)
+	{
+		return GetStructCrc32Helper(SharedView, CRC);
+	}
+
+	STRUCTUTILS_API uint32 GetStructCrc32(const FConstSharedStruct& SharedView, const uint32 CRC /*= 0*/)
+	{
+		return GetStructCrc32Helper(SharedView, CRC);
 	}
 }

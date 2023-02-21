@@ -7,6 +7,7 @@
 #include "StructArrayView.h"
 #include "Subsystems/Subsystem.h"
 #include "MassExternalSubsystemTraits.h"
+#include "SharedStruct.h"
 #include "MassEntityTypes.generated.h"
 
 

@@ -3,8 +3,10 @@
 #pragma once
 
 #include "InstancedStruct.h"
-#include "SharedStruct.h"
 #include "StructUtils.h"
+
+struct FSharedStruct;
+struct FConstSharedStruct;
 
 ///////////////////////////////////////////////////////////////// FStructView /////////////////////////////////////////////////////////////////
 
@@ -19,7 +21,7 @@
  * data can be mutated. Use FConstStructView to prevent mutation of the actual struct data.
  * See FConstStructView for examples.
  */
-struct FStructView
+struct STRUCTUTILS_API FStructView
 {
 public:
 
@@ -34,9 +36,7 @@ public:
 		: FStructView(InstancedStruct.GetScriptStruct(), InstancedStruct.GetMutableMemory())
 	{}
 
-	FStructView(FSharedStruct& SharedStruct)
-		: FStructView(SharedStruct.GetScriptStruct(), SharedStruct.GetMutableMemory())
-	{}
+	FStructView(FSharedStruct& SharedStruct);
 
 	/** Creates a new FStructView from the templated struct. Note its not safe to make InStruct const ref as the original object may have been declared const */
 	template<typename T>
@@ -144,8 +144,7 @@ protected:
  * e.g. FStructView A; const FStructView B; A = B; // compiles as the struct B is pointing to can't be made to point at something else but A isn't cosnt.
  * e.g. const FStructView A; FStructView B; A = B; // doesn't compile as attempting to make const view point at something else
  */
-
-struct FConstStructView
+struct STRUCTUTILS_API FConstStructView
 {
 public:
 
@@ -160,16 +159,16 @@ public:
 		: FConstStructView(InstancedStruct.GetScriptStruct(), InstancedStruct.GetMemory())
 	{}
 
-	FConstStructView(const FConstSharedStruct& SharedStruct)
-		: FConstStructView(SharedStruct.GetScriptStruct(), SharedStruct.GetMemory())
-	{}
+	FConstStructView(const FSharedStruct SharedStruct);
 
-	FConstStructView(const FStructView& StructView)
+	FConstStructView(const FConstSharedStruct SharedStruct);
+
+	FConstStructView(const FStructView StructView)
 		: FConstStructView(StructView.GetScriptStruct(), StructView.GetMemory())
 
 	{}
 
-	/** Creates a new FStructView from the templated struct */
+	/** Creates a new FConstStructView from the templated struct */
 	template<typename T>
 	static FConstStructView Make(const T& Struct)
 	{
@@ -255,3 +254,7 @@ protected:
 	const UScriptStruct* ScriptStruct = nullptr;
 	const uint8* StructMemory = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "SharedStruct.h"
+#endif

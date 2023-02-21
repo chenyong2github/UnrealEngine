@@ -260,7 +260,7 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(
 		FMassArchetypeSharedFragmentValues SharedFragmentValues;
 		
 		const uint32 Hash = HashCombine(Definition.GetUniqueID(), SlotIndex);
-		FConstSharedStruct& SharedFragment = EntityManager->GetOrCreateSharedFragmentByHash<FSmartObjectSlotDefinitionFragment>(Hash, Definition, SlotDefinition);
+		FConstSharedStruct SharedFragment = EntityManager->GetOrCreateSharedFragmentByHash<FSmartObjectSlotDefinitionFragment>(Hash, Definition, SlotDefinition);
 		
 		SharedFragmentValues.AddConstSharedFragment(SharedFragment);
 
