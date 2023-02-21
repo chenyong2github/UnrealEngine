@@ -2307,11 +2307,32 @@ public class IOSPlatform : ApplePlatform
 			int StartPos = ProjectFilePath.LastIndexOf("/");
 			int StringLength = ProjectFilePath.Length - 10; // 9 for .uproject, 1 for the /
 			string PackageName = ProjectFilePath.Substring(StartPos + 1, StringLength - StartPos);
+			string PackagePath = Path.Combine(Path.GetDirectoryName(ProjectFilePath), "Binaries", ClientPlatform);
 			if (string.IsNullOrEmpty(SourcePackage))
 			{
-				SourcePackage = Path.Combine(Path.GetDirectoryName(ProjectFilePath), "Binaries", ClientPlatform, PackageName + ".ipa");
+				SourcePackage = Path.Combine(PackagePath, PackageName + ".ipa");
 			}
+			
+			string[] IPAFiles;
+			if (!File.Exists(SourcePackage))
+            {
+				IPAFiles = Directory.GetFiles(PackagePath, "*.ipa");
+				LogWarning("Source package not found : {0}, trying to find another IPA file in the same folder.", SourcePackage);
+				if (IPAFiles.Length == 0)
+                {
+					LogError("No IPA file found in : {0}. Aborting.", PackagePath);
+					throw new AutomationException(ExitCode.Error_MissingExecutable, "No IPA file found in {0}.", PackagePath);
+				}
+				else
+                {
+					if (IPAFiles.Length > 1)
+                    {
+						LogWarning("More than one IPA file found. Taking the first one found, {0}", IPAFiles[0]);
+					}
+					SourcePackage = IPAFiles[0];
+				}					
 
+			}
 			string ZipFile = Path.ChangeExtension(SourcePackage, "zip");
 
 			string PayloadPath = SourcePackage;
@@ -2356,8 +2377,6 @@ public class IOSPlatform : ApplePlatform
 			LogInformation("Deleting temp files ...");
 			File.Delete(ZipFile);
 			LogInformation("{0} deleted", ZipFile);
-			Directory.Delete(PayloadPath, true);
-			LogInformation("{0} deleted", PayloadPath);
 		}
 		else
 		{
