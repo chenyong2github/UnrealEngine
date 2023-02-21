@@ -265,7 +265,11 @@ namespace FControlRigShapeHelper
 				ShapeActor->ColorParameterName = CreationParam.ColorParameterName;
 				UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(CreationParam.Material.Get(), ShapeActor);
 				MaterialInstance->SetVectorParameterValue(CreationParam.ColorParameterName, FVector(CreationParam.Color));
-				MeshComponent->SetMaterial(0, MaterialInstance);
+
+				for (int32 i=0; i<MeshComponent->GetNumMaterials(); ++i)
+				{
+					MeshComponent->SetMaterial(i, MaterialInstance);
+				}
 			}
 			return ShapeActor;
 		}

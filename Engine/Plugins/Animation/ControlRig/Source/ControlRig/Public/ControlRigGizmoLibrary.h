@@ -48,7 +48,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "ShapeLibrary")
 	FControlRigShapeDefinition DefaultShape;
 
-	UPROPERTY(EditAnywhere, Category = "ShapeLibrary")
+	UPROPERTY(EditAnywhere, Category = "ShapeLibrary", meta = (DisplayName = "Override Material"))
 	TSoftObjectPtr<UMaterial> DefaultMaterial;
 
 	UPROPERTY(EditAnywhere, Category = "ShapeLibrary")

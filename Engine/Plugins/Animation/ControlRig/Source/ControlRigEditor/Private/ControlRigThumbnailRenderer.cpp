@@ -151,7 +151,11 @@ void UControlRigThumbnailRenderer::AddAdditionalPreviewSceneContent(UObject* Obj
 
 							UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(DefaultMaterial, ShapeActor);
 							MaterialInstance->SetVectorParameterValue(ShapeDef->Library.Get()->MaterialColorParameter,FVector(ControlElement->Settings.ShapeColor));
-							ShapeActor->GetStaticMeshComponent()->SetMaterial(0, MaterialInstance);
+							UStaticMeshComponent* MeshComponent = ShapeActor->GetStaticMeshComponent();
+							for (int32 i=0; i<MeshComponent->GetNumMaterials(); ++i)
+							{
+								MeshComponent->SetMaterial(i, MaterialInstance);
+							}
 
 							ShapeActors.Add(ControlElement->GetName(), ShapeActor);
 

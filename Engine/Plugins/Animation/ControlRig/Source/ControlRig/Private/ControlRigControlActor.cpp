@@ -242,7 +242,10 @@ void AControlRigControlActor::Refresh()
 						Component->bCastDynamicShadow = bCastShadows;
 
 						UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(BaseMaterial, Component);
-						Component->SetMaterial(0, MaterialInstance);
+						for (int32 i=0; i<Component->GetNumMaterials(); ++i)
+						{
+							Component->SetMaterial(i, MaterialInstance);
+						}
 
 						ControlNames.Add(ControlElement->GetName());
 						ShapeTransforms.Add(ShapeDef->Transform * Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal));
