@@ -889,13 +889,32 @@ UNiagaraStackEntry::FStackIssueFixDelegate UNiagaraStackModuleItem::GetUpgradeVe
 
 void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 {
-	if (!GetIsEnabled() || GetSystemViewModel()->GetIsForDataProcessingOnly())
+	if (GetSystemViewModel()->GetIsForDataProcessingOnly())
 	{
 		NewIssues.Empty();
 		return;
 	}
 
 	if (FunctionCallNode == nullptr)
+	{
+		return;
+	}
+
+	if (FunctionCallNode->FunctionScript != nullptr)
+	{
+		const UNiagaraEditorSettings* EditorSettings = GetDefault<UNiagaraEditorSettings>();
+		if (EditorSettings->IsAllowedAssetObjectByClassUsage(*FunctionCallNode->FunctionScript) == false)
+		{
+			NewIssues.Add(FStackIssue(
+				EStackIssueSeverity::Error,
+				LOCTEXT("UnsupportedModuleScriptShort", "Unsupported Module Script"),
+				LOCTEXT("UnsupportedModuleScriptLong", "This module uses a script which uses types which are unsupported in this editor context.  This module must either be deleted, or the referenced script must be fixed."),
+				GetStackEditorDataKey(),
+				false));
+		}
+	}
+
+	if (!GetIsEnabled())
 	{
 		return;
 	}

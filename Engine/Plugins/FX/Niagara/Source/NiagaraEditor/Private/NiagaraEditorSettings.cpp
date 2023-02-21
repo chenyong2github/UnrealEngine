@@ -665,6 +665,11 @@ void UNiagaraEditorSettings::SetOnIsClassPathAllowed(const FOnIsClassPathAllowed
 	OnIsClassPathAllowedDelegate = InOnIsClassPathAllowed;
 }
 
+void UNiagaraEditorSettings::SetOnShouldFilterAssetByClassUsage(const FOnShouldFilterAssetByClassUsage& InOnShouldFilterAssetByClassUsage)
+{
+	OnShouldFilterAssetByClassUsage = InOnShouldFilterAssetByClassUsage;
+}
+
 bool UNiagaraEditorSettings::IsAllowedClass(const UClass* InClass) const
 {
 	return OnIsClassAllowedDelegate.IsBound() == false || OnIsClassAllowedDelegate.Execute(InClass);
@@ -719,41 +724,57 @@ UObject::FAssetRegistryTag UNiagaraEditorSettings::CreateClassUsageAssetRegistry
 	return UObject::FAssetRegistryTag(ClassUsageListTagName, ClassUsageList, FAssetRegistryTag::TT_Hidden);
 }
 
+bool UNiagaraEditorSettings::IsAllowedAssetObjectByClassUsageInternal(const UObject& AssetObject, TSet<const UObject*>& CheckedAssetObjects) const
+{
+	CheckedAssetObjects.Add(&AssetObject);
+
+	TArray<UObject*> ObjectsInPackage;
+	GetObjectsWithPackage(AssetObject.GetOutermost(), ObjectsInPackage);
+	for (UObject* ObjectInPackage : ObjectsInPackage)
+	{
+		if (ShouldTrackClassUsage(ObjectInPackage->GetClass()) && IsAllowedClass(ObjectInPackage->GetClass()) == false)
+		{
+			if (GbLogFoundButNotAllowedAssets)
+			{
+				UE_LOG(LogNiagaraEditor, Log, TEXT("Asset %s is not allowed due to object %s with class %s which is not allowed in this editor context."),
+					*AssetObject.GetPathName(), *ObjectInPackage->GetPathName(), *ObjectInPackage->GetClass()->GetClassPathName().ToString());
+			}
+			return false;
+		}
+
+		const UNiagaraNode* NiagaraNode = Cast<UNiagaraNode>(ObjectInPackage);
+		if (NiagaraNode != nullptr &&
+			NiagaraNode->GetReferencedAsset() != nullptr &&
+			OnShouldFilterAssetByClassUsage.Execute(FTopLevelAssetPath(NiagaraNode->GetReferencedAsset()->GetPathName())) &&
+			CheckedAssetObjects.Contains(NiagaraNode->GetReferencedAsset()) == false)
+		{
+			if (IsAllowedAssetObjectByClassUsageInternal(*NiagaraNode->GetReferencedAsset(), CheckedAssetObjects) == false)
+			{
+				UE_LOG(LogNiagaraEditor, Log, TEXT("Asset %s is not allowed due to referenced asset %s which is not allowed in this editor context."),
+					*AssetObject.GetPathName(), *NiagaraNode->GetReferencedAsset()->GetPathName());
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 bool UNiagaraEditorSettings::IsAllowedAssetByClassUsage(const FAssetData& InAssetData) const
 {
-	if (OnIsClassAllowedDelegate.IsBound() == false)
+	if (OnShouldFilterAssetByClassUsage.IsBound() == false ||
+		OnIsClassAllowedDelegate.IsBound() == false ||
+		OnShouldFilterAssetByClassUsage.Execute(FTopLevelAssetPath(InAssetData.GetObjectPathString())) == false)
 	{
 		return true;
 	}
 
-	const UObject* AssetObject = nullptr;
 	bool bClassDataFound = false;
 	bool bInvalidClassFound = false;
-	if (InAssetData.IsAssetLoaded())
+	if (InAssetData.IsAssetLoaded() && InAssetData.GetAsset() != nullptr)
 	{
-		AssetObject = InAssetData.GetAsset();
-		if (AssetObject != nullptr)
-		{
-			bClassDataFound = true;
-			TArray<UObject*> ObjectsInPackage;
-			GetObjectsWithPackage(AssetObject->GetOutermost(), ObjectsInPackage);
-			for (UObject* ObjectInPackage : ObjectsInPackage)
-			{
-				if (ShouldTrackClassUsage(ObjectInPackage->GetClass()) && IsAllowedClass(ObjectInPackage->GetClass()) == false)
-				{
-					bInvalidClassFound = true;
-					if (GbLogFoundButNotAllowedAssets)
-					{
-						UE_LOG(LogNiagaraEditor, Log, TEXT("Asset %s is not allowed due to object %s with class %s which is not allowed in this editor context."),
-							*InAssetData.GetFullName(), *ObjectInPackage->GetPathName(), *ObjectInPackage->GetClass()->GetClassPathName().ToString());
-					}
-					else
-					{
-						break;
-					}
-				}
-			}
-		}
+		TSet<const UObject*> CheckedAssetObjects;
+		bClassDataFound = true;
+		bInvalidClassFound = IsAllowedAssetObjectByClassUsageInternal(*InAssetData.GetAsset(), CheckedAssetObjects) == false;
 	}
 	else
 	{
@@ -791,8 +812,20 @@ bool UNiagaraEditorSettings::IsAllowedAssetByClassUsage(const FAssetData& InAsse
 			}
 		}
 	}
-
 	return bClassDataFound && bInvalidClassFound == false;
+}
+
+bool UNiagaraEditorSettings::IsAllowedAssetObjectByClassUsage(const UObject& InAssetObject) const
+{
+	if (OnShouldFilterAssetByClassUsage.IsBound() == false ||
+		OnIsClassAllowedDelegate.IsBound() == false ||
+		OnShouldFilterAssetByClassUsage.Execute(FTopLevelAssetPath(InAssetObject.GetPathName())) == false)
+	{
+		return true;
+	}
+
+	TSet<const UObject*> CheckedAssetObjects;
+	return IsAllowedAssetObjectByClassUsageInternal(InAssetObject, CheckedAssetObjects);
 }
 
 #undef LOCTEXT_NAMESPACE

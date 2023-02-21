@@ -368,12 +368,16 @@ public:
 
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnIsClassAllowed, const UClass* /*InClass*/);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnIsClassPathAllowed, const FTopLevelAssetPath& /*InClassPath*/);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnShouldFilterAssetByClassUsage, const FTopLevelAssetPath& /*InAssetPath*/)
 	
 	/** Sets a delegate that allows external code to restrict which features can be used within the niagara editor by filtering which classes are allowed. */
 	void SetOnIsClassAllowed(const FOnIsClassAllowed& InOnIsClassAllowed);
 
 	/** Sets a delegate that allows external code to restrict which features can be used within the niagara editor by filtering which classes are allowed by class path. */
 	void SetOnIsClassPathAllowed(const FOnIsClassPathAllowed& InOnIsClassPathAllowed);
+
+	/** Sets a delegate that allows external code to restrict which features can be used within the niagara editor by filtering which assets are allowed. */
+	void SetOnShouldFilterAssetByClassUsage(const FOnShouldFilterAssetByClassUsage& InOnShouldFilterAssetByClassUsage);
 
 	/** Returns whether or not the supplied class can be used in the current editor context. */
 	bool IsAllowedClass(const UClass* InClass) const;
@@ -387,8 +391,11 @@ public:
 	FAssetRegistryTag CreateClassUsageAssetRegistryTag(const UObject* SourceObject) const;
 
 	bool IsAllowedAssetByClassUsage(const FAssetData& InAssetData) const;
+	bool IsAllowedAssetObjectByClassUsage(const UObject& InAssetObject) const;
 
 private:
+	bool IsAllowedAssetObjectByClassUsageInternal(const UObject& InAssetObject, TSet<const UObject*>& CheckedAssetObjects) const;
+
 	void SetupNamespaceMetadata();
 	void BuildCachedPlaybackSpeeds() const;
 	bool ShouldTrackClassUsage(const UClass* InClass) const;
@@ -479,6 +486,7 @@ private:
 
 	FOnIsClassAllowed OnIsClassAllowedDelegate;
 	FOnIsClassPathAllowed OnIsClassPathAllowedDelegate;
+	FOnShouldFilterAssetByClassUsage OnShouldFilterAssetByClassUsage;
 
 	TArray<UClass*> TrackedUsageBaseClasses;
 

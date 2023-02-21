@@ -62,10 +62,14 @@ void SNiagaraGraphNode::CreateOutputSideAddButton(TSharedPtr<SVerticalBox> Outpu
 void SNiagaraGraphNode::UpdateErrorInfo()
 {
 	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
-	if (GraphNode != nullptr && GraphNode->IsA<UNiagaraNode>() && NiagaraEditorSettings->IsAllowedClass(GraphNode->GetClass()) == false)
+	if (NiagaraNode.IsValid())
 	{
-		ErrorMsg = FString(TEXT("UNSUPPORTED!"));
-		ErrorColor = FAppStyle::GetColor("ErrorReporting.BackgroundColor");
+		if (NiagaraEditorSettings->IsAllowedClass(GraphNode->GetClass()) == false || 
+			(NiagaraNode->GetReferencedAsset() != nullptr && NiagaraEditorSettings->IsAllowedAssetObjectByClassUsage(*NiagaraNode->GetReferencedAsset()) == false))
+		{
+			ErrorMsg = FString(TEXT("UNSUPPORTED!"));
+			ErrorColor = FAppStyle::GetColor("ErrorReporting.BackgroundColor");
+		}
 	}
 	else
 	{

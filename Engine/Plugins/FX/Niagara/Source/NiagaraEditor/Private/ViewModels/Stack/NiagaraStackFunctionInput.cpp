@@ -760,6 +760,18 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 						true));
 				}
 
+				const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+				if (InputValues.DynamicNode->FunctionScript != nullptr &&
+					NiagaraEditorSettings->IsAllowedAssetObjectByClassUsage(*InputValues.DynamicNode->FunctionScript) == false)
+				{
+					NewIssues.Add(FStackIssue(
+						EStackIssueSeverity::Error,
+						LOCTEXT("UnsupportedDynamicInputScriptShort", "Unsupported Dynamic Input Script"),
+						LOCTEXT("UnsupportedDynamicInputScriptLong", "This dynamic input uses a script which uses types which are unsupported in this editor context.  This dynamic input must either be deleted, or the referenced script must be fixed."),
+						GetStackEditorDataKey(),
+						false));
+				}
+
 				if (!ScriptData->NoteMessage.IsEmptyOrWhitespace())
 				{
 					FStackIssue NoteIssue = FStackIssue(
