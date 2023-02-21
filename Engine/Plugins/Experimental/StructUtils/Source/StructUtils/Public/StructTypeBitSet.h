@@ -3,6 +3,7 @@
 #pragma once
 
 #include "StructUtilsTypes.h"
+#include "InstancedStruct.h"
 
 
 /**
