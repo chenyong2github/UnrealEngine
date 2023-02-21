@@ -1360,6 +1360,8 @@ namespace HairCards
 		OutData.StrandsPoints.SetNum(OutTotalPointCount, 0u);
 		OutData.HairDensity = InData.HairDensity;
 
+		const uint32 InAttribute = InData.GetAttributes();
+
 		uint32 OutPointOffset = 0;
 		for (uint32 OutCurveIndex = 0; OutCurveIndex < OutCurveCount; ++OutCurveIndex)
 		{
@@ -1367,21 +1369,14 @@ namespace HairCards
 			const uint32 InPointOffset = InData.StrandsCurves.CurvesOffset[InCurveIndex];
 			const uint32 PointCount = InData.StrandsCurves.CurvesCount[InCurveIndex];
 			OutData.StrandsCurves.CurvesCount[OutCurveIndex] = PointCount;
-			OutData.StrandsCurves.CurvesRootUV[OutCurveIndex] = InData.StrandsCurves.CurvesRootUV[InCurveIndex];
 			OutData.StrandsCurves.CurvesOffset[OutCurveIndex] = OutPointOffset;
-			OutData.StrandsCurves.CurvesLength[OutCurveIndex] = InData.StrandsCurves.CurvesLength[InCurveIndex] * InData.StrandsCurves.MaxLength;
 			OutData.StrandsCurves.MaxLength = InData.StrandsCurves.MaxLength;
 			OutData.StrandsCurves.MaxRadius = InData.StrandsCurves.MaxRadius;
-			if (bHasClumpID)
-			{
-				OutData.StrandsCurves.CurvesOffset[OutCurveIndex] = InData.StrandsCurves.ClumpIDs[InCurveIndex];
-			}
+			FHairStrandsDatas::CopyCurve(InData, OutData, InAttribute, InCurveIndex, OutCurveIndex);
 
 			for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 			{
-				OutData.StrandsPoints.PointsPosition[PointIndex + OutPointOffset] = InData.StrandsPoints.PointsPosition[PointIndex + InPointOffset];
-				OutData.StrandsPoints.PointsCoordU[PointIndex + OutPointOffset] = InData.StrandsPoints.PointsCoordU[PointIndex + InPointOffset];
-				OutData.StrandsPoints.PointsRadius[PointIndex + OutPointOffset] = InData.StrandsPoints.PointsRadius[PointIndex + InPointOffset];
+				FHairStrandsDatas::CopyPoint(InData, OutData, InAttribute, PointIndex + InPointOffset, PointIndex + OutPointOffset);
 			}
 			OutPointOffset += PointCount;
 		}
@@ -1637,6 +1632,8 @@ namespace HairCards
 			}			
 		}
 
+		const uint32 InAttribute = SimStrandsData.GetAttributes();
+
 		// Store the cluster guide points
 		uint32 ClusterOffset = 0;
 		OutClusters.GuidePoints.SetNum(SimStrandsData.GetNumPoints());
@@ -1644,7 +1641,7 @@ namespace HairCards
 		{
 			const uint32 SimCount  = SimStrandsData.StrandsCurves.CurvesCount[GuideIndex];
 			const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[GuideIndex];
-			const FVector2f SimRootUV = SimStrandsData.StrandsCurves.CurvesRootUV[GuideIndex];
+			const FVector2f SimRootUV = HasHairAttribute(InAttribute, EHairAttribute::RootUV) ? SimStrandsData.StrandsCurves.CurvesRootUV[GuideIndex] : FVector2f(0,0);
 
 			const uint32 ClusterIt = GuideIndexToClusterIndex[GuideIndex];
 			if (GuideIndexToClusterIndex[GuideIndex] >= 0)
@@ -2786,7 +2783,7 @@ namespace HairCards
 			OutGuides.StrandsCurves.CurvesCount[ClusterIt] = PointCount;
 			OutGuides.StrandsCurves.CurvesOffset[ClusterIt] = PointOffset;
 			OutGuides.StrandsCurves.CurvesLength[ClusterIt] = TotalLength;
-			OutGuides.StrandsCurves.CurvesRootUV[ClusterIt] = FVector2f(0, 0);
+			//OutGuides.StrandsCurves.CurvesRootUV[ClusterIt] = FVector2f(0, 0);
 			//OutGuides.StrandsCurves.StrandIDs[ClusterIt] = ClusterIt;
 			//OutGuides.StrandsCurves.GroomIDToIndex[ClusterIt] = ;
 			OutGuides.StrandsCurves.MaxLength = FMath::Max(OutGuides.StrandsCurves.MaxLength, TotalLength);
@@ -2801,8 +2798,8 @@ namespace HairCards
 				OutGuides.BoundingBox += (FVector)P0;
 
 				OutGuides.StrandsPoints.PointsPosition[PointIndex] = P0;
-				OutGuides.StrandsPoints.PointsBaseColor[PointIndex] = FLinearColor(FVector3f::ZeroVector);
-				OutGuides.StrandsPoints.PointsRoughness[PointIndex] = 0;
+				//OutGuides.StrandsPoints.PointsBaseColor[PointIndex] = FLinearColor(FVector3f::ZeroVector);
+				//OutGuides.StrandsPoints.PointsRoughness[PointIndex] = 0;
 				OutGuides.StrandsPoints.PointsCoordU[PointIndex] = FMath::Clamp(CurrentLength / TotalLength, 0.f, 1.f);
 				OutGuides.StrandsPoints.PointsRadius[PointIndex] = 1;
 
@@ -3079,7 +3076,7 @@ namespace HairCards
 			OutGuides.StrandsCurves.CurvesCount[CardIt] = PointCount;
 			OutGuides.StrandsCurves.CurvesOffset[CardIt] = PointOffset;
 			OutGuides.StrandsCurves.CurvesLength[CardIt] = TotalLength;
-			OutGuides.StrandsCurves.CurvesRootUV[CardIt] = FVector2f(0, 0);
+			if (OutGuides.StrandsCurves.CurvesRootUV.Num()) OutGuides.StrandsCurves.CurvesRootUV[CardIt] = FVector2f(0, 0);
 			OutGuides.StrandsCurves.MaxLength = FMath::Max(OutGuides.StrandsCurves.MaxLength, TotalLength);
 			OutGuides.StrandsCurves.MaxRadius = GuideRadius;
 
@@ -3273,7 +3270,7 @@ namespace HairCards
 					const uint32 PointIndex = PointOffset + PointIt;
 
 					const float StrandsU = InStrands.StrandsPoints.PointsCoordU[PointIndex];
-					const FVector2f RootUV = InStrands.StrandsCurves.CurvesRootUV[CurveIndex];
+					const FVector2f RootUV = InStrands.StrandsCurves.CurvesRootUV.Num() ? InStrands.StrandsCurves.CurvesRootUV[CurveIndex] : FVector2f(0,0);
 					const float Seed = 0.f; // TODO float(InStrands.RenderData.Attributes[PointIndex].Seed) / 255.f;
 
 					const FVector3f& P0_Rest = InStrands.StrandsPoints.PointsPosition[PointIndex];
@@ -3949,6 +3946,7 @@ bool InternalImportGeometry(
 		};
 		TArray<FStrandsRootData> StrandsRoots;
 		{
+			const uint32 InAttribute = InStrandsData.GetAttributes();
 			const uint32 CurveCount = InStrandsData.StrandsCurves.Num();
 			StrandsRoots.Reserve(CurveCount);
 			for (uint32 CurveIt = 0; CurveIt < CurveCount; ++CurveIt)
@@ -3956,7 +3954,7 @@ bool InternalImportGeometry(
 				const uint32 Offset = InStrandsData.StrandsCurves.CurvesOffset[CurveIt];
 				FStrandsRootData& RootData = StrandsRoots.AddDefaulted_GetRef();
 				RootData.Position = InStrandsData.StrandsPoints.PointsPosition[Offset];
-				RootData.RootUV = InStrandsData.StrandsCurves.CurvesRootUV[CurveIt];
+				RootData.RootUV = HasHairAttribute(InAttribute, EHairAttribute::RootUV) ? InStrandsData.StrandsCurves.CurvesRootUV[CurveIt] : FVector2f(0,0);
 				RootData.CurveIndex = CurveIt;
 			}
 		}

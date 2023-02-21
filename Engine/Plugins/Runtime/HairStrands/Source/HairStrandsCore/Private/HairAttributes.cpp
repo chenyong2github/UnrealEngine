@@ -92,6 +92,7 @@ bool FHairStrandsPoints::HasAttribute(EHairAttribute In) const
 
 bool FHairStrandsCurves::HasAttribute(EHairAttribute In) const
 {
+	if (In == EHairAttribute::RootUV)					{ return CurvesRootUV.Num() > 0; }
 	if (In == EHairAttribute::PrecomputedGuideWeights)	{ return CurvesClosestGuideIDs.Num() > 0 && CurvesClosestGuideWeights.Num() > 0; }
 	if (In == EHairAttribute::ClumpID)					{ return ClumpIDs.Num() > 0; }
 	if (In == EHairAttribute::StrandID)					{ return StrandIDs.Num() > 0; }
@@ -139,8 +140,11 @@ void FHairStrandsDatas::CopyPointLerp(const FHairStrandsDatas& In, FHairStrandsD
 
 void FHairStrandsDatas::CopyCurve(const FHairStrandsDatas& In, FHairStrandsDatas& Out, uint32 InAttributes, uint32 InIndex, uint32 OutIndex)
 {
-	Out.StrandsCurves.CurvesRootUV[OutIndex] = In.StrandsCurves.CurvesRootUV[InIndex];
 	Out.StrandsCurves.CurvesLength[OutIndex] = In.StrandsCurves.CurvesLength[InIndex];
+	if (HasHairAttribute(InAttributes, EHairAttribute::RootUV))
+	{
+		Out.StrandsCurves.CurvesRootUV[OutIndex] = In.StrandsCurves.CurvesRootUV[InIndex];
+	}
 	if (HasHairAttribute(InAttributes, EHairAttribute::PrecomputedGuideWeights))
 	{
 		Out.StrandsCurves.CurvesClosestGuideIDs[OutIndex] = In.StrandsCurves.CurvesClosestGuideIDs[InIndex];

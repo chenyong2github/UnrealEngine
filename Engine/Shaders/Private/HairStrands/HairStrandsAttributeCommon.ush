@@ -109,8 +109,15 @@ float2 GetHairStrandsDimensions(uint HairPrimitiveId, float2 HairPrimitiveUV)
 
 float2 GetHairStrandsRootUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
 {
-	// Encoding need to match GroomBuilder.cpp - 
-	return UnpackHairRootUV(InternalGetHairStrandsAttributesPerCurve(HairPrimitiveId, HAIR_ATTRIBUTE_OFFSET_ROOTUV(HairStrandsVF.AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_ROOTUV, HairStrandsVF.AttributeBuffer, HairStrandsVF.PointToCurveBuffer));
+	const uint RootUVOffset = HAIR_ATTRIBUTE_OFFSET_ROOTUV(HairStrandsVF.AttributeOffsets);
+	if (IsAttributeValid(RootUVOffset))
+	{
+		return UnpackHairRootUV(InternalGetHairStrandsAttributesPerCurve(HairPrimitiveId, RootUVOffset, HAIR_ATTRIBUTE_STRIDE_ROOTUV, HairStrandsVF.AttributeBuffer, HairStrandsVF.PointToCurveBuffer));
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 float GetHairStrandsSeed(uint HairPrimitiveId, float2 HairPrimitiveUV)

@@ -18,9 +18,9 @@ void FHairStrandsCurves::SetNum(const uint32 NumCurves, uint32 InAttributes)
 	CurvesOffset.SetNum(NumCurves + 1);
 	CurvesCount.SetNum(NumCurves);
 	CurvesLength.SetNum(NumCurves);
-	CurvesRootUV.SetNum(NumCurves);
 
 	// Not initialized to track if the data are available
+	if (HasHairAttribute(InAttributes, EHairAttribute::RootUV))		{ CurvesRootUV.SetNum(NumCurves); }
 	if (HasHairAttribute(InAttributes, EHairAttribute::StrandID))	{ StrandIDs.SetNum(NumCurves); }
 	if (HasHairAttribute(InAttributes, EHairAttribute::ClumpID))	{ ClumpIDs.SetNum(NumCurves); }
 	if (HasHairAttribute(InAttributes, EHairAttribute::PrecomputedGuideWeights))

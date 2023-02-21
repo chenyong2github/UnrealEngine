@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v7");
+	return TEXT("v8");
 }
 
 namespace FHairStrandsDecimation
@@ -61,90 +61,8 @@ namespace FHairStrandsDecimation
 
 namespace HairStrandsBuilder
 {
-	FVector2D SignNotZero(const FVector2D& v)
-	{
-		return FVector2D((v.X >= 0.0) ? +1.0 : -1.0, (v.Y >= 0.0) ? +1.0 : -1.0);
-	}
-
-	// A Survey of Efficient Representations for Independent Unit Vectors
-	// Reference: http://jcgt.org/published/0003/02/01/paper.pdf
-	// Assume normalized input. Output is on [-1, 1] for each component.
-	FVector2D SphericalToOctahedron(const FVector& v)
-	{
-		// Project the sphere onto the octahedron, and then onto the xy plane
-		FVector2D p = FVector2D(v.X, v.Y) * (1.0 / (abs(v.X) + abs(v.Y) + abs(v.Z)));
-		// Reflect the folds of the lower hemisphere over the diagonals
-		return (v.Z <= 0.0) ? ((FVector2D(1, 1) - FVector2D(abs(p.Y), abs(p.X))) * SignNotZero(p)) : p;
-	}
-
-	// Auto-generate Root UV data if not loaded
-	void ComputeRootUV(FHairStrandsCurves& Curves, FHairStrandsPoints& Points)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(HairStrandsBuilder::ComputeRootUV);
-
-		TArray<FVector> RootPoints;
-		const uint32 CurveCount = Curves.Num();
-		RootPoints.Reserve(Curves.Num());
-		FVector MinAABB(MAX_FLT, MAX_FLT, MAX_FLT);
-		FVector MaxAABB(-MAX_FLT, -MAX_FLT, -MAX_FLT);
-		FMatrix Rotation = FRotationMatrix::Make(FRotator(0, 0, -90));
-		for (uint32 CurveIndex=0; CurveIndex< CurveCount; ++CurveIndex)
-		{
-			const uint32 Offset = Curves.CurvesOffset[CurveIndex];
-			check(Offset < uint32(Points.PointsPosition.Num()));
-			const FVector P = Rotation.TransformPosition((FVector)Points.PointsPosition[Offset]);
-
-			RootPoints.Add(P);
-			MinAABB.X = FMath::Min(P.X, MinAABB.X);
-			MinAABB.Y = FMath::Min(P.Y, MinAABB.Y);
-			MinAABB.Z = FMath::Min(P.Z, MinAABB.Z);
-
-			MaxAABB.X = FMath::Max(P.X, MaxAABB.X);
-			MaxAABB.Y = FMath::Max(P.Y, MaxAABB.Y);
-			MaxAABB.Z = FMath::Max(P.Z, MaxAABB.Z);
-		}
-
-		// Compute sphere bound
-		const FVector Extent = MaxAABB - MinAABB;
-		FSphere SBound;
-		SBound.Center = (MaxAABB + MinAABB) * 0.5f;
-		SBound.W = FMath::Max(Extent.X, FMath::Max(Extent.Y, Extent.Z));
-
-		// Project root point onto the bounding sphere and map it onto 
-		// an octahedron, which is unfold onto the unit space [0,1]^2
-		TArray<FVector2D> RootUVs;
-		RootUVs.Reserve(Curves.Num());
-		FVector2D MinUV(MAX_FLT, MAX_FLT);
-		FVector2D MaxUV(-MAX_FLT, -MAX_FLT);
-		for (const FVector& RootP : RootPoints)
-		{
-			FVector D = RootP - SBound.Center;
-			D.Normalize();
-			FVector2D UV = SphericalToOctahedron(D);
-			UV += FVector2D(1, 1);
-			UV *= 0.5f;
-			RootUVs.Add(UV);
-
-			MinUV.X = FMath::Min(UV.X, MinUV.X);
-			MinUV.Y = FMath::Min(UV.Y, MinUV.Y);
-
-			MaxUV.X = FMath::Max(UV.X, MaxUV.X);
-			MaxUV.Y = FMath::Max(UV.Y, MaxUV.Y);
-		}
-
-		// Find the minimal UV space cover by root point, and 
-		// offsets/scales it to maximize UV space
-		const FVector2f UVScale(1 / (MaxUV.X - MinUV.X), 1 / (MaxUV.Y - MinUV.Y));
-		const FVector2f UVOffset(-MinUV.X, -MinUV.Y);
-		uint32 Index = 0;
-		for (FVector2f& RootUV : Curves.CurvesRootUV)
-		{
-			RootUV = (FVector2f(RootUVs[Index++]) + UVOffset) * UVScale;	// LWC_TODO: Precision loss
-		}
-	}
-
 	/** Build the internal points and curves data */
-	void BuildInternalData(FHairStrandsDatas& HairStrands, bool bComputeRootUV)
+	void BuildInternalData(FHairStrandsDatas& HairStrands)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HairStrandsBuilder::BuildInternalData);
 
@@ -221,11 +139,6 @@ namespace HairStrandsBuilder
 				{
 					*LengthIterator /= Curves.MaxLength;
 				}
-			}
-
-			if (bComputeRootUV)
-			{
-				ComputeRootUV(Curves, Points);
 			}
 		}
 	}
@@ -388,6 +301,7 @@ namespace HairStrandsBuilder
 			}
 
 			// Per-Curve Root UVs
+			if (HasHairAttribute(Attributes, EHairAttribute::RootUV))
 			{
 				FVector2D RootUV = FVector2D(Curves.CurvesRootUV[CurveIndex]);
 				// Root UV support UDIM texture coordinate but limit the spans of the UDIM to be in 256x256 instead of 9999x9999.
@@ -422,8 +336,8 @@ namespace HairStrandsBuilder
 
 			// Curves
 			{
-				UE_CLOG(PointCount > 0xFF, LogGroomBuilder, Warning, TEXT("Curve point count is > 256"));
-				UE_CLOG(IndexOffset > 0xFFFFFF, LogGroomBuilder, Warning, TEXT("Curve point offset is > 24M"));
+				UE_CLOG(PointCount > 0xFF, LogGroomBuilder, Warning, TEXT("[Groom] Curve point count is > 256, which is not supported."));
+				UE_CLOG(IndexOffset > 0xFFFFFF, LogGroomBuilder, Warning, TEXT("[Groom] Curve point offset is > 24M, which is not supported."));
 				FHairStrandsCurveFormat::Type& Curve = OutPackedCurves[CurveIndex];
 				Curve.PointCount  = FMath::Min(uint32(PointCount), 0xFFu);
 				Curve.PointOffset = FMath::Min(uint32(IndexOffset), 0xFFFFFFu);
@@ -456,6 +370,7 @@ namespace HairStrandsBuilder
 				OutBulkData.AttributeOffsets[AttributeIt] = 0xFFFFFFFF;
 			}
 
+			if (HasHairAttribute(Attributes, EHairAttribute::RootUV))
 			{
 				OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_ROOTUV] = OutPackedAttributes.Num() * UintToByte;
 				OutPackedAttributes.Append(AttributeRootUV);
@@ -1887,7 +1802,7 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 
 void FGroomBuilder::BuildData(FHairStrandsDatas& OutStrands)
 {
-	HairStrandsBuilder::BuildInternalData(OutStrands, false);
+	HairStrandsBuilder::BuildInternalData(OutStrands);
 }
 
 void FGroomBuilder::BuildData(
@@ -1916,7 +1831,7 @@ void FGroomBuilder::BuildData(
 		{
 			OutRen = InHairDescriptionGroup.Strands;
 
-			HairStrandsBuilder::BuildInternalData(OutRen, !HasHairAttribute(InHairDescriptionGroup.Attributes, EHairAttribute::RootUV));
+			HairStrandsBuilder::BuildInternalData(OutRen);
 
 			// Decimate
 			if (CurveDecimation < 1 || VertexDecimation < 1 || bCurveReordering)
@@ -1940,7 +1855,7 @@ void FGroomBuilder::BuildData(
 			OutSim = InHairDescriptionGroup.Guides;
 			if (InHairDescriptionGroup.Info.NumGuides > 0 && !InSettings.InterpolationSettings.bOverrideGuides)
 			{
-				HairStrandsBuilder::BuildInternalData(OutSim, true); // Imported guides don't currently have root UVs so force computing them
+				HairStrandsBuilder::BuildInternalData(OutSim);
 			}
 			else
 			{
@@ -1951,7 +1866,7 @@ void FGroomBuilder::BuildData(
 					{
 						// We pick the new guides among the imported ones
 						FHairStrandsDatas TempSim = InHairDescriptionGroup.Guides;
-						HairStrandsBuilder::BuildInternalData(TempSim, true);
+						HairStrandsBuilder::BuildInternalData(TempSim);
 						FHairStrandsDecimation::Decimate(TempSim, InSettings.RiggingSettings.NumCurves, InSettings.RiggingSettings.NumPoints, OutSim);
 					}
 					else
@@ -2152,7 +2067,7 @@ void Decimate(
 			FHairStrandsDatas::CopyPointLerp(InData, OutData, InAttributes, PointBegin, PointEnd, PointAlpha, PointCount);
 		}
 	}
-	HairStrandsBuilder::BuildInternalData(OutData, false);
+	HairStrandsBuilder::BuildInternalData(OutData);
 }
 	
 void Decimate(
@@ -2276,7 +2191,7 @@ void Decimate(
 		OutPointOffset += OutPointCount;
 	}
 
-	HairStrandsBuilder::BuildInternalData(OutData, false);
+	HairStrandsBuilder::BuildInternalData(OutData);
 }
 } // namespace FHairStrandsDecimation
 
@@ -2386,7 +2301,7 @@ static void Voxelize(const FHairDescriptionGroups& InGroups, FHairGrid& Out)
 	{
 		// Local copy of the hair strands data, and build the derived data so that curve offset are available
 		FHairStrandsDatas In = Group.Strands;
-		HairStrandsBuilder::BuildInternalData(In, false);
+		HairStrandsBuilder::BuildInternalData(In);
 
 		const uint32 Attributes = In.GetAttributes();
 

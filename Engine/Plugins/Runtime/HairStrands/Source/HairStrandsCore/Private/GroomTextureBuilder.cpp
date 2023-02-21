@@ -106,6 +106,12 @@ struct FPixel
 // CPU raster
 static void RasterToTexture(int32 Resolution, int32 KernelExtent, uint32 Channel, const FHairStrandsDatas& InStrandsData, FPixel* OutPixels)
 {
+	const uint32 Attribute = InStrandsData.GetAttributes();
+	if (!HasHairAttribute(Attribute, EHairAttribute::RootUV))
+	{
+		return;
+	}
+
 	const uint32 CurveCount = InStrandsData.GetNumCurves();
 	for (uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
 	{
@@ -312,7 +318,7 @@ static void InternalBuildFollicleTexture_GPU(
 		}
 
 		// Create root UVs buffer
-		if (Info.StrandsData)
+		if (Info.StrandsData && HasHairAttribute(Info.StrandsData->GetAttributes(), EHairAttribute::RootUV))
 		{
 			const uint32 DataCount = Info.StrandsData->StrandsCurves.CurvesRootUV.Num();
 			const uint32 DataSizeInBytes = sizeof(FVector2f) * DataCount;
@@ -330,7 +336,7 @@ static void InternalBuildFollicleTexture_GPU(
 		}
 	}
 
-	const EPixelFormat Format = bCopyDataBackToCPU ? PF_B8G8R8A8 : PF_R8G8B8A8;		 
+	const EPixelFormat Format = bCopyDataBackToCPU ? PF_B8G8R8A8 : PF_R8G8B8A8;
 	InternalGenerateFollicleTexture_GPU(GraphBuilder, ShaderMap, bCopyDataBackToCPU, Resolution, MipCount, Format, KernelSizeInPixels, RootUVBuffers[0], RootUVBuffers[1], RootUVBuffers[2], RootUVBuffers[3], OutTexture);
 }
 

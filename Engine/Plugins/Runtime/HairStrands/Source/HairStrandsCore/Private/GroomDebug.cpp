@@ -971,7 +971,7 @@ static void AddHairDebugPrintInstancePass(
 						const uint32 Index = GetHairAttributeIndex(Attribute);
 						if (Index < HAIR_ATTRIBUTE_COUNT)
 						{
-							Data2.W |= Instance->Strands.Data->AttributeOffsets[Index] != 0xFFFFFFFF ? (1u<<Index) : 0u;
+							Data2.W |= Instance->Strands.Data->AttributeOffsets[Index] != 0xFFFFFFFF ? (1u<<AttributeIt) : 0u;
 						}
 					}
 				}
@@ -1033,7 +1033,6 @@ static void AddHairDebugPrintInstancePass(
 		// Only add valid optional attribute 
 		// HAIR_ATTRIBUTE_XXX and EHairAttribute don't have a 1:1 mapping
 		const EHairAttribute Attribute = (EHairAttribute)AttributeIt;
-		if (GetHairAttributeIndex(Attribute) < HAIR_ATTRIBUTE_COUNT)
 		{
 			const FString Name = GetHairAttributeText(Attribute);
 			FHairDebugNameInfo& NameInfo = AttributeNameInfos.AddDefaulted_GetRef();
