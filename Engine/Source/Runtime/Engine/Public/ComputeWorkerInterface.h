@@ -19,6 +19,9 @@ class ENGINE_API IComputeTaskWorker
 public:
 	virtual ~IComputeTaskWorker() {}
 
+	/** Returns true if there is any scheduled work. */
+	virtual bool HasWork(FName InExecutionGroupName) const = 0;
+
 	/** Add any scheduled work to an RDGBuilder ready for execution. */
 	virtual void SubmitWork(FRDGBuilder& GraphBuilder, FName InExecutionGroupName, ERHIFeatureLevel::Type FeatureLevel) = 0;
 };

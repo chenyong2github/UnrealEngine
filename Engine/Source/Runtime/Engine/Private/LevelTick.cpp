@@ -1009,9 +1009,12 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates& SendAllEndOfFr
 				SCOPED_GPU_STAT(RHICmdList, ComputeTaskWorkerUpdates);
 				for (IComputeTaskWorker* ComputeTaskWorker : ComputeTaskWorkers)
 				{
-					FRDGBuilder GraphBuilder(RHICmdList);
-					ComputeTaskWorker->SubmitWork(GraphBuilder, ComputeTaskExecutionGroup::EndOfFrameUpdate, FeatureLevel);
-					GraphBuilder.Execute();
+					if (ComputeTaskWorker->HasWork(ComputeTaskExecutionGroup::EndOfFrameUpdate))
+					{
+						FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("ComputeTaskWorker"));
+						ComputeTaskWorker->SubmitWork(GraphBuilder, ComputeTaskExecutionGroup::EndOfFrameUpdate, FeatureLevel);
+						GraphBuilder.Execute();
+					}
 				}
 			}
 		});

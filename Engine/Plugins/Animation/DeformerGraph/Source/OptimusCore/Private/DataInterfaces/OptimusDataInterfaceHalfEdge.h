@@ -4,9 +4,11 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
+#include "RenderCommandFence.h"
 #include "OptimusDataInterfaceHalfEdge.generated.h"
 
 class FHalfEdgeDataInterfaceParameters;
+class FHalfEdgeBufferResources;
 class FRDGBuffer;
 class FRDGBufferSRV;
 class FSkeletalMeshObject;
@@ -51,21 +53,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
 	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
 
+	//~ Begin UObject Interface
+	void BeginDestroy() override;
+	bool IsReadyForFinishDestroy() override;
+	//~ End UObject Interface
+
 	//~ Begin UComputeDataProvider Interface
 	FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
 
-	TArray< TArray<int32> > VertexToEdgePerLod;
-	TArray< TArray<int32> > EdgeToTwinEdgePerLod;
+	TSharedPtr<FHalfEdgeBufferResources> HalfEdgeBuffers;
+	FRenderCommandFence DestroyFence;
 };
 
 class FOptimusHalfEdgeDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
 	FOptimusHalfEdgeDataProviderProxy(
-		USkinnedMeshComponent* SkinnedMeshComponent, 
-		TArray< TArray<int32> >& InVertexToEdgePerLod,
-		TArray< TArray<int32> >& InEdgeToTwinEdgeBuffer);
+		USkinnedMeshComponent* InSkinnedMeshComponent, 
+		TSharedPtr<FHalfEdgeBufferResources>& InHalfEdgeBuffers);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	bool IsValid(FValidationData const& InValidationData) const override;
@@ -77,12 +83,8 @@ private:
 	using FParameters = FHalfEdgeDataInterfaceParameters;
 
 	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
+	TSharedPtr<FHalfEdgeBufferResources> HalfEdgeBuffers;
 
-	TArray< TArray<int32> > const& VertexToEdgePerLod;
-	FRDGBuffer* VertexToEdgeBuffer = nullptr;
 	FRDGBufferSRV* VertexToEdgeBufferSRV = nullptr;
-
-	TArray< TArray<int32> > const& EdgeToTwinEdgePerLod;
-	FRDGBuffer* EdgeToTwinEdgeBuffer = nullptr;
 	FRDGBufferSRV* EdgeToTwinEdgeBufferSRV = nullptr;
 };

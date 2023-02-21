@@ -20,6 +20,12 @@ struct COMPUTEFRAMEWORK_API FComputeGraphInstance
 
 public:
 	/** 
+	 * Set the priority used when sorting work. 
+	 * Kernels in instances with a lower sort prioirty will always be submitted first.
+	 */
+	void SetGraphSortPriority(uint8 InPriority) { GraphSortPriority = InPriority; }
+
+	/** 
 	 * Create the Data Provider objects for a single binding of a ComputeGraph. 
 	 * The type of binding object is expected to match the associated Binding on the UComputeGraph.
 	 */
@@ -38,4 +44,7 @@ private:
 	/** The currently bound Data Provider objects. */
 	UPROPERTY(Transient)
 	TArray< TObjectPtr<UComputeDataProvider> > DataProviders;
+
+	/** Priority used when sorting work. */
+	uint8 GraphSortPriority = 0;
 };

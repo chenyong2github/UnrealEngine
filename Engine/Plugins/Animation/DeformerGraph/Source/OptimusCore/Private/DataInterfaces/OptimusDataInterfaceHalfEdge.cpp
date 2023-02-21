@@ -225,6 +225,67 @@ namespace
 	}
 }
 
+/*
+ * Render resource containing the half edge buffers. 
+ * todo[CF]: We need to move this to the skeletal mesh cooked mesh data to avoid the perf and memory hit everytime we instantiate a deformer.
+ */ 
+class FHalfEdgeBufferResources : public FRenderResource
+{
+public:
+	FHalfEdgeBufferResources(TArray< TArray<int32> >&& InVertexToEdgeData, TArray< TArray<int32> >&& InEdgeToTwinEdgeData)
+	{
+		VertexToEdgeData = MoveTemp(InVertexToEdgeData);
+		EdgeToTwinEdgeData = MoveTemp(InEdgeToTwinEdgeData);
+	}
+
+	void InitRHI() override
+	{
+		FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
+
+		const int32 NumLods = VertexToEdgeData.Num();
+		VertexToEdgeBuffers.SetNum(NumLods);
+		EdgeToTwinEdgeBuffers.SetNum(NumLods);
+		
+		for (int32 LodIndex = 0; LodIndex < NumLods; ++LodIndex)
+		{
+			FRDGBuffer* VertexToEdgeBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), VertexToEdgeData[LodIndex].Num()), TEXT("Optimus.VertexToEdge"));
+			GraphBuilder.QueueBufferUpload(VertexToEdgeBuffer, VertexToEdgeData[LodIndex].GetData(), VertexToEdgeData[LodIndex].Num() * sizeof(int32));
+			VertexToEdgeBuffers[LodIndex] = GraphBuilder.ConvertToExternalBuffer(VertexToEdgeBuffer);
+			
+			FRDGBuffer* EdgeToTwinEdgeBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), EdgeToTwinEdgeData[LodIndex].Num()), TEXT("Optimus.EdgeToTwinEdge"));
+			GraphBuilder.QueueBufferUpload(EdgeToTwinEdgeBuffer, EdgeToTwinEdgeData[LodIndex].GetData(), EdgeToTwinEdgeData[LodIndex].Num() * sizeof(int32));
+			EdgeToTwinEdgeBuffers[LodIndex] = GraphBuilder.ConvertToExternalBuffer(EdgeToTwinEdgeBuffer);
+		}
+
+		GraphBuilder.Execute();
+
+		VertexToEdgeData.Reset();
+		EdgeToTwinEdgeData.Reset();
+	}
+
+	void ReleaseRHI() override
+	{
+		VertexToEdgeBuffers.Reset();
+		EdgeToTwinEdgeBuffers.Reset();
+	}
+
+	TRefCountPtr<FRDGPooledBuffer> GetVertexToEdgeBuffer(int32 InLodIndex)
+	{
+		return VertexToEdgeBuffers[InLodIndex];
+	}
+
+	TRefCountPtr<FRDGPooledBuffer> GetEdgeToTwinBuffer(int32 InLodIndex)
+	{
+		return EdgeToTwinEdgeBuffers[InLodIndex];
+	}
+
+private:
+	TArray< TArray<int32> > VertexToEdgeData;
+	TArray< TArray<int32> > EdgeToTwinEdgeData;
+	TArray< TRefCountPtr<FRDGPooledBuffer> > VertexToEdgeBuffers;
+	TArray< TRefCountPtr<FRDGPooledBuffer> > EdgeToTwinEdgeBuffers;
+};
+
 
 FString UOptimusHalfEdgeDataInterface::GetDisplayName() const
 {
@@ -314,19 +375,25 @@ UComputeDataProvider* UOptimusHalfEdgeDataInterface::CreateDataProvider(TObjectP
 
 	if (Provider->SkinnedMesh != nullptr)
 	{
-		// Build data and store with the provider.
-		// todo[CF]: We need to move this to the skeletal mesh and make part of cooked mesh data instead.
 		FSkeletalMeshRenderData const* SkeletalMeshRenderData = Provider->SkinnedMesh->GetSkeletalMeshRenderData();
 		if (SkeletalMeshRenderData != nullptr)
 		{
-			Provider->VertexToEdgePerLod.SetNum(SkeletalMeshRenderData->NumInlinedLODs);
-			Provider->EdgeToTwinEdgePerLod.SetNum(SkeletalMeshRenderData->NumInlinedLODs);
+			// Build half edge data.
+			TArray< TArray<int32> > VertexToEdgePerLod;
+			VertexToEdgePerLod.SetNum(SkeletalMeshRenderData->NumInlinedLODs);
+			TArray< TArray<int32> > EdgeToTwinEdgePerLod;
+			EdgeToTwinEdgePerLod.SetNum(SkeletalMeshRenderData->NumInlinedLODs);
 
 			for (int32 LodIndex = 0; LodIndex < SkeletalMeshRenderData->NumInlinedLODs; ++LodIndex)
 			{
 				FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData->LODRenderData[LodIndex];
-				BuildHalfEdgeBuffers(*LodRenderData, Provider->VertexToEdgePerLod[LodIndex], Provider->EdgeToTwinEdgePerLod[LodIndex]);
+				BuildHalfEdgeBuffers(*LodRenderData, VertexToEdgePerLod[LodIndex], EdgeToTwinEdgePerLod[LodIndex]);
 			}
+
+			// Upload data to a resource stored on the provider.
+			Provider->HalfEdgeBuffers = MakeShared<FHalfEdgeBufferResources>(MoveTemp(VertexToEdgePerLod), MoveTemp(EdgeToTwinEdgePerLod));
+
+			BeginInitResource(Provider->HalfEdgeBuffers.Get());
 		}
 	}
 
@@ -334,19 +401,32 @@ UComputeDataProvider* UOptimusHalfEdgeDataInterface::CreateDataProvider(TObjectP
 }
 
 
+void UOptimusHalfEdgeDataProvider::BeginDestroy()
+{
+	Super::BeginDestroy();
+	if (HalfEdgeBuffers)
+	{
+		BeginReleaseResource(HalfEdgeBuffers.Get());
+	}
+	DestroyFence.BeginFence();
+}
+
+bool UOptimusHalfEdgeDataProvider::IsReadyForFinishDestroy()
+{
+	return Super::IsReadyForFinishDestroy() && DestroyFence.IsFenceComplete();
+}
+
 FComputeDataProviderRenderProxy* UOptimusHalfEdgeDataProvider::GetRenderProxy()
 {
-	return new FOptimusHalfEdgeDataProviderProxy(SkinnedMesh, VertexToEdgePerLod, EdgeToTwinEdgePerLod);
+	return new FOptimusHalfEdgeDataProviderProxy(SkinnedMesh, HalfEdgeBuffers);
 }
 
 
 FOptimusHalfEdgeDataProviderProxy::FOptimusHalfEdgeDataProviderProxy(
-	USkinnedMeshComponent* SkinnedMeshComponent, 
-	TArray< TArray<int32> >& InVertexToEdgePerLod,
-	TArray< TArray<int32> >& InEdgeToTwinEdgePerLod)
-	: SkeletalMeshObject(SkinnedMeshComponent != nullptr ? SkinnedMeshComponent->MeshObject : nullptr)
-	, VertexToEdgePerLod(InVertexToEdgePerLod)
-	, EdgeToTwinEdgePerLod(InEdgeToTwinEdgePerLod)
+	USkinnedMeshComponent* InSkinnedMeshComponent, 
+	TSharedPtr<FHalfEdgeBufferResources>& InHalfEdgeBuffers)
+	: SkeletalMeshObject(InSkinnedMeshComponent != nullptr ? InSkinnedMeshComponent->MeshObject : nullptr)
+	, HalfEdgeBuffers(InHalfEdgeBuffers)
 {
 }
 
@@ -356,7 +436,7 @@ bool FOptimusHalfEdgeDataProviderProxy::IsValid(FValidationData const& InValidat
 	{
 		return false;
 	}
-	if (SkeletalMeshObject == nullptr || VertexToEdgePerLod.Num() == 0 || EdgeToTwinEdgePerLod.Num() == 0)
+	if (SkeletalMeshObject == nullptr || !HalfEdgeBuffers.IsValid())
 	{
 		return false;
 	}
@@ -372,19 +452,11 @@ void FOptimusHalfEdgeDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuil
 {
 	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 
-	// todo[CF]: Updating buffer every frame is obviously bad, but just getting things working initially.
-	{
-		TArray<int32> const& Data = VertexToEdgePerLod[LodIndex];
-		VertexToEdgeBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), Data.Num()), TEXT("Optimus.VertexToEdge"));
-		VertexToEdgeBufferSRV = GraphBuilder.CreateSRV(VertexToEdgeBuffer);
-		GraphBuilder.QueueBufferUpload(VertexToEdgeBuffer, Data.GetData(), Data.Num() * sizeof(uint32), ERDGInitialDataFlags::None);
-	}
-	{
-		TArray<int32> const& Data = EdgeToTwinEdgePerLod[LodIndex];
-		EdgeToTwinEdgeBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), Data.Num()), TEXT("Optimus.EdgeToTwinEdge"));
-		EdgeToTwinEdgeBufferSRV = GraphBuilder.CreateSRV(EdgeToTwinEdgeBuffer);
-		GraphBuilder.QueueBufferUpload(EdgeToTwinEdgeBuffer, Data.GetData(), Data.Num() * sizeof(uint32), ERDGInitialDataFlags::None);
-	}
+	FRDGBuffer* VertexToEdgeBuffer = GraphBuilder.RegisterExternalBuffer(HalfEdgeBuffers->GetVertexToEdgeBuffer(LodIndex));
+	VertexToEdgeBufferSRV = GraphBuilder.CreateSRV(VertexToEdgeBuffer);
+	
+	FRDGBuffer* EdgeToTwinEdgeBuffer = GraphBuilder.RegisterExternalBuffer(HalfEdgeBuffers->GetEdgeToTwinBuffer(LodIndex));
+	EdgeToTwinEdgeBufferSRV = GraphBuilder.CreateSRV(EdgeToTwinEdgeBuffer);
 }
 
 void FOptimusHalfEdgeDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)

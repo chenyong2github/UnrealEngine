@@ -309,12 +309,17 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 	ComputeGraphExecInfos.Reset();
 	GraphsToRunOnNextTick.Reset();
 
-	for (const FOptimusComputeGraphInfo& ComputeGraphInfo : InDeformer->ComputeGraphs)
+	for (int32 GraphIndex = 0; GraphIndex < InDeformer->ComputeGraphs.Num(); ++GraphIndex)
 	{
+		FOptimusComputeGraphInfo const& ComputeGraphInfo = InDeformer->ComputeGraphs[GraphIndex];
 		FOptimusDeformerInstanceExecInfo& Info = ComputeGraphExecInfos.AddDefaulted_GetRef();
 		Info.GraphName = ComputeGraphInfo.GraphName;
 		Info.GraphType = ComputeGraphInfo.GraphType;
 		Info.ComputeGraph = ComputeGraphInfo.ComputeGraph;
+
+		// ComputeGraphs are sorted by the order we want to run them in. 
+		// Using the graph index as our sort priority prevents kernels from the different (but related) graphs running simultaineously.
+		Info.ComputeGraphInstance.SetGraphSortPriority(GraphIndex);
 
 		if (BoundComponents.Num())
 		{
