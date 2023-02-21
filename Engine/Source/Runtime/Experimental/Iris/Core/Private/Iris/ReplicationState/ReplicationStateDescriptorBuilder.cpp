@@ -92,6 +92,9 @@ struct FLazyGetPathNameHelper
 		{
 			Object->GetPathName(nullptr, StringBuilder);
 
+			// Ensure we have a valid string
+			StringBuilder.ToString();
+
 			// Make sure that the path have consistent casing
 			TCString<TCHAR>::Strupr(StringBuilder.GetData(), StringBuilder.Len());
 		}
