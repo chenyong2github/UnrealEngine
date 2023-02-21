@@ -1225,6 +1225,9 @@ void UWorld::PostLoad()
 	// Add the garbage collection callbacks
 	FLevelStreamingGCHelper::AddGarbageCollectorCallback();
 
+	// Initially set up the parameter collection list. This may be run again in UWorld::InitWorld but it's required here for some editor and streaming cases
+	SetupParameterCollectionInstances();
+
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
