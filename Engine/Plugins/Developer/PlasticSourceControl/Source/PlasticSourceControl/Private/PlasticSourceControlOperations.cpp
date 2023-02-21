@@ -2,26 +2,27 @@
 
 #include "PlasticSourceControlOperations.h"
 
+#include "PackageUtils.h"
 #include "PlasticSourceControlCommand.h"
 #include "PlasticSourceControlModule.h"
 #include "PlasticSourceControlProvider.h"
 #include "PlasticSourceControlSettings.h"
 #include "PlasticSourceControlState.h"
 #include "PlasticSourceControlUtils.h"
+#include "PlasticSourceControlVersions.h"
+#include "ScopedTempFile.h"
 
+#include "Algo/AnyOf.h"
+#include "Algo/NoneOf.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/Async.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
-#include "SourceControlOperations.h"
+
 #include "ISourceControlModule.h"
-#include "Algo/NoneOf.h"
+#include "SourceControlOperations.h"
 
 #define LOCTEXT_NAMESPACE "PlasticSourceControl"
-
-// 11.0.16.7248 add support for --descriptionfile for multi-line descriptions and support for special characters
-// https://www.plasticscm.com/download/releasenotes/11.0.16.7248
-static const FSoftwareVersion s_NewChangelistFileArgsPlasticScmVersion(11, 0, 16, 7248);
 
 template<typename Type>
 static FPlasticSourceControlWorkerRef InstantiateWorker(FPlasticSourceControlProvider& PlasticSourceControlProvider)
@@ -42,6 +43,7 @@ void IPlasticSourceControlWorker::RegisterWorkers(FPlasticSourceControlProvider&
 	PlasticSourceControlProvider.RegisterWorker("RevertAll", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticRevertAllWorker>));
 	PlasticSourceControlProvider.RegisterWorker("MakeWorkspace", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticMakeWorkspaceWorker>));
 	PlasticSourceControlProvider.RegisterWorker("Sync", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticSyncWorker>));
+	PlasticSourceControlProvider.RegisterWorker("SyncAll", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticSyncWorker>));
 	PlasticSourceControlProvider.RegisterWorker("CheckIn", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticCheckInWorker>));
 	PlasticSourceControlProvider.RegisterWorker("Copy", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticCopyWorker>));
 	PlasticSourceControlProvider.RegisterWorker("Resolve", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticResolveWorker>));
@@ -51,6 +53,10 @@ void IPlasticSourceControlWorker::RegisterWorkers(FPlasticSourceControlProvider&
 	PlasticSourceControlProvider.RegisterWorker("DeleteChangelist", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticDeleteChangelistWorker>));
 	PlasticSourceControlProvider.RegisterWorker("EditChangelist", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticEditChangelistWorker>));
 	PlasticSourceControlProvider.RegisterWorker("MoveToChangelist", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticReopenWorker>));
+
+	PlasticSourceControlProvider.RegisterWorker("Shelve", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticShelveWorker>));
+	PlasticSourceControlProvider.RegisterWorker("Unshelve", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticUnshelveWorker>));
+	PlasticSourceControlProvider.RegisterWorker("DeleteShelved", FGetPlasticSourceControlWorker::CreateStatic(&InstantiateWorker<FPlasticDeleteShelveWorker>));
 }
 
 
@@ -110,7 +116,7 @@ bool FPlasticConnectWorker::Execute(FPlasticSourceControlCommand& InCommand)
 	if (GetProvider().IsPlasticAvailable())
 	{
 		// Get workspace name
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::GetWorkspaceName(GetProvider().GetPathToWorkspaceRoot(), InCommand.WorkspaceName, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::GetWorkspaceName(InCommand.PathToWorkspaceRoot, InCommand.WorkspaceName, InCommand.ErrorMessages);
 		if (InCommand.bCommandSuccessful)
 		{
 			// Get repository, server URL, branch and current changeset number
@@ -127,7 +133,7 @@ bool FPlasticConnectWorker::Execute(FPlasticSourceControlCommand& InCommand)
 				{
 					TArray<FString> ContentDir;
 					ContentDir.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-					PlasticSourceControlUtils::RunUpdateStatus(ContentDir, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+					PlasticSourceControlUtils::RunUpdateStatus(ContentDir, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 				}
 			}
 			else
@@ -179,11 +185,20 @@ static void UpdateChangelistState(FPlasticSourceControlProvider& SCCProvider, co
 
 		for (const FPlasticSourceControlState& InState : InStates)
 		{
-			if ((InState.WorkspaceState != EWorkspaceState::CheckedOut) && (InState.WorkspaceState != EWorkspaceState::Added) && InState.WorkspaceState != EWorkspaceState::Deleted)
+			// cm cannot yet handle local modifications in changelists, only the GUI can
+			if (   InState.WorkspaceState != EWorkspaceState::CheckedOut
+				&& InState.WorkspaceState != EWorkspaceState::Added
+				&& InState.WorkspaceState != EWorkspaceState::Deleted
+				&& InState.WorkspaceState != EWorkspaceState::Copied
+				&& InState.WorkspaceState != EWorkspaceState::Moved
+				&& InState.WorkspaceState != EWorkspaceState::Conflicted	// In source control, waiting for merged
+				&& InState.WorkspaceState != EWorkspaceState::Replaced		// In source control, merged, waiting for checkin to conclude the merge
+				)
 			{
 				continue;
 			}
 
+			// Add a shared reference to the state of the file, that will then be updated by PlasticSourceControlUtils::UpdateCachedStates()
 			TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> State = SCCProvider.GetStateInternal(InState.GetFilename());
 			ChangelistState->Files.Add(State);
 
@@ -192,6 +207,7 @@ static void UpdateChangelistState(FPlasticSourceControlProvider& SCCProvider, co
 		}
 	}
 }
+
 
 FName FPlasticCheckOutWorker::GetName() const
 {
@@ -207,15 +223,15 @@ bool FPlasticCheckOutWorker::Execute(FPlasticSourceControlCommand& InCommand)
 	// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
 	if (-1 != InCommand.ChangesetNumber)
 	{
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("checkout"), TArray<FString>(), InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("checkout"), TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 	}
 	else
 	{
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial checkout"), TArray<FString>(), InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial checkout"), TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 	}
 
 	// now update the status of our files
-	PlasticSourceControlUtils::RunUpdateStatus(InCommand.Files, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+	PlasticSourceControlUtils::RunUpdateStatus(InCommand.Files, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -230,15 +246,15 @@ bool FPlasticCheckOutWorker::UpdateStates()
 	return PlasticSourceControlUtils::UpdateCachedStates(MoveTemp(States));
 }
 
-bool DeleteChangelist(const FPlasticSourceControlProvider& PlasticSourceControlProvider, const FPlasticSourceControlChangelist& InChangelist, const EConcurrency::Type InConcurrency, TArray<FString>& OutResults, TArray<FString>& OutErrorMessages)
+bool DeleteChangelist(const FPlasticSourceControlProvider& PlasticSourceControlProvider, const FPlasticSourceControlChangelist& InChangelist, TArray<FString>& OutResults, TArray<FString>& OutErrorMessages)
 {
 	TArray<FString> Parameters;
 	TArray<FString> Files;
-	if (PlasticSourceControlProvider.GetPlasticScmVersion() < s_NewChangelistFileArgsPlasticScmVersion)
+	if (PlasticSourceControlProvider.GetPlasticScmVersion() < PlasticSourceControlVersions::NewChangelistFileArgs)
 	{
 		Parameters.Add(TEXT("rm"));
 		Files.Add(InChangelist.GetName());
-		return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, Files, InConcurrency, OutResults, OutErrorMessages);
+		return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, Files, OutResults, OutErrorMessages);
 	}
 	else
 	{
@@ -246,7 +262,7 @@ bool DeleteChangelist(const FPlasticSourceControlProvider& PlasticSourceControlP
 		const FScopedTempFile ChangelistNameFile(InChangelist.GetName());
 		Parameters.Add(FString::Printf(TEXT("--namefile=\"%s\""), *FPaths::ConvertRelativePathToFull(ChangelistNameFile.GetFilename())));
 		UE_LOG(LogSourceControl, Verbose, TEXT("DeleteChangelist(%s)"), *InChangelist.GetName());
-		return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, Files, InConcurrency, OutResults, OutErrorMessages);
+		return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, Files, OutResults, OutErrorMessages);
 	}
 }
 
@@ -287,6 +303,23 @@ static FText ParseCheckInResults(const TArray<FString>& InResults)
 	return FText();
 }
 
+
+TArray<FString> GetFilesFromCommand(FPlasticSourceControlProvider& PlasticSourceControlProvider, FPlasticSourceControlCommand& InCommand)
+{
+	TArray<FString> Files;
+	if (InCommand.Changelist.IsInitialized() && InCommand.Files.IsEmpty())
+	{
+		TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PlasticSourceControlProvider.GetStateInternal(InCommand.Changelist);
+		Files = FileNamesFromFileStates(ChangelistState->Files);
+	}
+	else
+	{
+		Files = InCommand.Files;
+	}
+	return Files;
+}
+
+
 FName FPlasticCheckInWorker::GetName() const
 {
 	return "CheckIn";
@@ -298,26 +331,28 @@ bool FPlasticCheckInWorker::Execute(FPlasticSourceControlCommand& InCommand)
 
 	check(InCommand.Operation->GetName() == GetName());
 	TSharedRef<FCheckIn, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FCheckIn>(InCommand.Operation);
+	FText Description = Operation->GetDescription();
 
-	TArray<FString> Files;
-	if (InCommand.Changelist.IsInitialized() && InCommand.Files.IsEmpty())
-	{
-		TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetProvider().GetStateInternal(InCommand.Changelist);
-		Files = FileNamesFromFileStates(ChangelistState->Files);
-
-		InChangelist = InCommand.Changelist;
-	}
-	else
-	{
-		Files = InCommand.Files;
-	}
+	const TArray<FString> Files = GetFilesFromCommand(GetProvider(), InCommand);
 
 	if (Files.Num() > 0)
 	{
-		UE_LOG(LogSourceControl, Verbose, TEXT("CheckIn: %d file(s) Description: '%s'"), Files.Num(), *Operation->GetDescription().ToString());
+		if (InCommand.Changelist.IsInitialized())
+		{
+			TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetProvider().GetStateInternal(InCommand.Changelist);
+
+			if (Description.IsEmpty())
+			{
+				Description = ChangelistState->GetDescriptionText();
+			}
+
+			InChangelist = InCommand.Changelist;
+		}
+
+		UE_LOG(LogSourceControl, Verbose, TEXT("CheckIn: %d file(s) Description: '%s'"), Files.Num(), *Description.ToString());
 
 		// make a temp file to place our commit message in
-		const FScopedTempFile CommitMsgFile(Operation->GetDescription());
+		const FScopedTempFile CommitMsgFile(Description);
 		if (!CommitMsgFile.GetFilename().IsEmpty())
 		{
 			TArray<FString> Parameters;
@@ -328,12 +363,12 @@ bool FPlasticCheckInWorker::Execute(FPlasticSourceControlCommand& InCommand)
 				Parameters.Add(TEXT("--all")); // Also files Changed (not CheckedOut) and Moved/Deleted Locally
 			//  NOTE: --update added as #23 but removed as #32 because most assets are locked by the Unreal Editor
 			//  Parameters.Add(TEXT("--update")); // Processes the update-merge automatically if it eventually happens.
-				InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("checkin"), Parameters, Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+				InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("checkin"), Parameters, Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 			}
 			else
 			{
 				Parameters.Add(TEXT("--applychanged")); // Also files Changed (not CheckedOut) and Moved/Deleted Locally
-				InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial checkin"), Parameters, Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+				InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial checkin"), Parameters, Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 			}
 			if (InCommand.bCommandSuccessful)
 			{
@@ -354,13 +389,13 @@ bool FPlasticCheckInWorker::Execute(FPlasticSourceControlCommand& InCommand)
 
 			if (InChangelist.IsInitialized() && !InChangelist.IsDefault())
 			{
-				// NOTE: we need to explicitly delete persistent changelists when we submit its content
-				DeleteChangelist(GetProvider(), InChangelist, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+				// NOTE: we need to explicitly delete persistent changelists when we submit its content, except for the Default changelist
+				DeleteChangelist(GetProvider(), InChangelist, InCommand.InfoMessages, InCommand.ErrorMessages);
 			}
 		}
 
 		// now update the status of our files
-		PlasticSourceControlUtils::RunUpdateStatus(Files, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+		PlasticSourceControlUtils::RunUpdateStatus(Files, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 	}
 	else
 	{
@@ -374,6 +409,7 @@ bool FPlasticCheckInWorker::UpdateStates()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticCheckInWorker::UpdateStates);
 
+	// Is the submit of a full changelist (from the View Changelists window) or a set of files (from the Submit Content window)?
 	if (InChangelist.IsInitialized())
 	{
 		if (InChangelist.IsDefault())
@@ -384,7 +420,30 @@ bool FPlasticCheckInWorker::UpdateStates()
 		}
 		else
 		{
+			// Remove references to the changelist (else it later creates a phantom of the old changelist in the cache)
+			for (const FPlasticSourceControlState& NewState : States)
+			{
+				TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> State = GetProvider().GetStateInternal(NewState.GetFilename());
+				State->Changelist.Reset();
+			}
+
 			GetProvider().RemoveChangelistFromCache(InChangelist);
+		}
+	}
+	else
+	{
+		// Update affected changelists if any
+		for (const FPlasticSourceControlState& NewState : States)
+		{
+			TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> State = GetProvider().GetStateInternal(NewState.GetFilename());
+			if (State->Changelist.IsInitialized())
+			{
+				// 1- Remove these files from their previous changelist
+				TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> PreviousChangelist = GetProvider().GetStateInternal(State->Changelist);
+				PreviousChangelist->Files.Remove(State);
+				// 2- And reset the reference to their previous changelist
+				State->Changelist.Reset();
+			}
 		}
 	}
 
@@ -423,15 +482,15 @@ bool FPlasticMarkForAddWorker::Execute(FPlasticSourceControlCommand& InCommand)
 		// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
 		if (-1 != InCommand.ChangesetNumber)
 		{
-			InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("add"), Parameters, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+			InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("add"), Parameters, InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 		}
 		else
 		{
-			InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial add"), Parameters, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+			InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial add"), Parameters, InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 		}
 
 		// now update the status of our files
-		PlasticSourceControlUtils::RunUpdateStatus(InCommand.Files, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+		PlasticSourceControlUtils::RunUpdateStatus(InCommand.Files, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 	}
 	else
 	{
@@ -465,15 +524,15 @@ bool FPlasticDeleteWorker::Execute(FPlasticSourceControlCommand& InCommand)
 	// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
 	if (-1 != InCommand.ChangesetNumber)
 	{
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("remove"), TArray<FString>(), InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("remove"), TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 	}
 	else
 	{
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial remove"), TArray<FString>(), InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial remove"), TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 	}
 
 	// now update the status of our files
-	PlasticSourceControlUtils::RunUpdateStatus(InCommand.Files, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+	PlasticSourceControlUtils::RunUpdateStatus(InCommand.Files, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -498,67 +557,55 @@ bool FPlasticRevertWorker::Execute(FPlasticSourceControlCommand& InCommand)
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticRevertWorker::Execute);
 
 	check(InCommand.Operation->GetName() == GetName());
+	TSharedRef<FRevert, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FRevert>(InCommand.Operation);
 
-	TArray<FString> Files;
-	if (InCommand.Changelist.IsInitialized() && InCommand.Files.IsEmpty())
+	TArray<FString> Files = GetFilesFromCommand(GetProvider(), InCommand);
+
+	for (int i = 0; i < Files.Num(); i++) // Required for loop on index since we are adding to the Files array as we go
 	{
-		TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetProvider().GetStateInternal(InCommand.Changelist);
-		Files = FileNamesFromFileStates(ChangelistState->Files);
-	}
-	else
-	{
-		Files = InCommand.Files;
-	}
+		const FString& File = Files[i];
 
-	TArray<FString> ChangedFiles;
-	TArray<FString> CheckedOutFiles;
+		const TSharedRef<const FPlasticSourceControlState, ESPMode::ThreadSafe> State = GetProvider().GetStateInternal(File);
 
-	for (const FString& File : Files)
-	{
-		TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> State = GetProvider().GetStateInternal(File);
-
-		if (EWorkspaceState::Changed == State->WorkspaceState)
+		if (State->WorkspaceState == EWorkspaceState::Moved)
 		{
-			// only revert the changes of the given file in workspace
-			ChangedFiles.Add(State->LocalFilename);
-		}
-		else
-		{
-			CheckedOutFiles.Add(State->LocalFilename);
-			// in case of a Moved/Renamed, find the rename origin to revert both at once
-			if (EWorkspaceState::Moved == State->WorkspaceState)
+			const FString& MovedFrom = State->MovedFrom;
+
+			// In case of a file Moved/Renamed, consider the rename Origin (where there is now a Redirector file Added)
+			// and add it to the list of files to revert (only if it is not already in) to revert both at once
+			if (!Files.FindByPredicate([&MovedFrom](const FString& File) { return File.Equals(MovedFrom, ESearchCase::IgnoreCase); }))
 			{
-				CheckedOutFiles.Add(State->MovedFrom);
-
-				// Delete the redirector
-				IFileManager::Get().Delete(*State->MovedFrom);
+				Files.Add(MovedFrom);
 			}
+
+			// and delete the Redirector (else the reverted file will collide with it and create a *.private.0 file)
+			IFileManager::Get().Delete(*MovedFrom);
+		}
+
+		if (State->WorkspaceState == EWorkspaceState::Added && Operation->ShouldDeleteNewFiles())
+		{
+			IFileManager::Get().Delete(*File);
 		}
 	}
 
 	InCommand.bCommandSuccessful = true;
 
-	if (ChangedFiles.Num() > 0)
-	{
-		InCommand.bCommandSuccessful &= PlasticSourceControlUtils::RunCommand(TEXT("undochange"), TArray<FString>(), ChangedFiles, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
-	}
-
-	if (CheckedOutFiles.Num() > 0)
+	if (Files.Num() > 0)
 	{
 		// revert the checkout and any changes of the given file in workspace
 		// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
 		if (-1 != InCommand.ChangesetNumber)
 		{
-			InCommand.bCommandSuccessful &= PlasticSourceControlUtils::RunCommand(TEXT("undocheckout"), TArray<FString>(), CheckedOutFiles, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+			InCommand.bCommandSuccessful &= PlasticSourceControlUtils::RunCommand(TEXT("undo"), TArray<FString>(), Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 		}
 		else
 		{
-			InCommand.bCommandSuccessful &= PlasticSourceControlUtils::RunCommand(TEXT("partial undocheckout"), TArray<FString>(), CheckedOutFiles, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+			InCommand.bCommandSuccessful &= PlasticSourceControlUtils::RunCommand(TEXT("partial undo"), TArray<FString>(), Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 		}
 	}
 
 	// update the status of our files
-	PlasticSourceControlUtils::RunUpdateStatus(Files, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+	PlasticSourceControlUtils::RunUpdateStatus(Files, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -567,7 +614,7 @@ bool FPlasticRevertWorker::UpdateStates()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticRevertWorker::UpdateStates);
 
-	// Update affected changelist if any
+	// Update affected changelists if any
 	for (const FPlasticSourceControlState& NewState : States)
 	{
 		TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> State = GetProvider().GetStateInternal(NewState.GetFilename());
@@ -576,6 +623,8 @@ bool FPlasticRevertWorker::UpdateStates()
 			// 1- Remove these files from their previous changelist
 			TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> PreviousChangelist = GetProvider().GetStateInternal(State->Changelist);
 			PreviousChangelist->Files.Remove(State);
+			// 2- And reset the reference to their previous changelist
+			State->Changelist.Reset();
 		}
 	}
 
@@ -596,26 +645,17 @@ bool FPlasticRevertUnchangedWorker::Execute(FPlasticSourceControlCommand& InComm
 	TArray<FString> Parameters;
 	Parameters.Add(TEXT("-R"));
 
-	TArray<FString> Files;
-	if (InCommand.Changelist.IsInitialized() && InCommand.Files.IsEmpty())
-	{
-		TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetProvider().GetStateInternal(InCommand.Changelist);
-		Files = FileNamesFromFileStates(ChangelistState->Files);
-	}
-	else
-	{
-		Files = InCommand.Files;
-	}
+	TArray<FString> Files = GetFilesFromCommand(GetProvider(), InCommand);
 
 	// revert the checkout of all unchanged files recursively
-	InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("uncounchanged"), Parameters, Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+	InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("uncounchanged"), Parameters, Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 
 	// Now update the status of either the files, or all assets in the Content directory
 	if (Files.Num() == 0)
 	{
 		Files.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
 	}
-	PlasticSourceControlUtils::RunUpdateStatus(Files, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+	PlasticSourceControlUtils::RunUpdateStatus(Files, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -624,7 +664,7 @@ bool FPlasticRevertUnchangedWorker::UpdateStates()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticRevertUnchangedWorker::UpdateStates);
 
-	// Update affected changelist if any
+	// Update affected changelists if any
 	for (const FPlasticSourceControlState& NewState : States)
 	{
 		if (!NewState.IsModified())
@@ -635,6 +675,8 @@ bool FPlasticRevertUnchangedWorker::UpdateStates()
 				// 1- Remove these files from their previous changelist
 				TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> PreviousChangelist = GetProvider().GetStateInternal(State->Changelist);
 				PreviousChangelist->Files.Remove(State);
+				// 2- And reset the reference to their previous changelist
+				State->Changelist.Reset();
 			}
 		}
 	}
@@ -652,24 +694,63 @@ bool FPlasticRevertAllWorker::Execute(FPlasticSourceControlCommand& InCommand)
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticRevertAllWorker::Execute);
 
 	check(InCommand.Operation->GetName() == GetName());
+	TSharedRef<FPlasticRevertAll, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FPlasticRevertAll>(InCommand.Operation);
 
+	// Start by updating the Status of all Content, to find all the changes that will be reverted
+	{
+		TArray<FPlasticSourceControlState> TempStates;
+		TArray<FString> ContentDir;
+		ContentDir.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
+		PlasticSourceControlUtils::RunUpdateStatus(ContentDir, false, InCommand.ErrorMessages, TempStates, InCommand.ChangesetNumber, InCommand.BranchName);
+
+		for (auto& State : TempStates)
+		{
+			if (State.IsModified())
+			{
+				if (State.WorkspaceState == EWorkspaceState::Added && Operation->ShouldDeleteNewFiles())
+				{
+					IFileManager::Get().Delete(*State.GetFilename());
+				}
+
+				// Add all modified files to the list of files to be updated (reverted and then reloaded)
+				Operation->UpdatedFiles.Add(MoveTemp(State.LocalFilename));
+
+				if (State.WorkspaceState == EWorkspaceState::Moved)
+				{
+					// In case of a file Moved/Renamed, consider the rename Origin (where there is now a Redirector file Added)
+					// and add it to the list of files to revert
+					Operation->UpdatedFiles.Add(MoveTemp(State.MovedFrom));
+
+					// and delete the Redirector (else the reverted file will collide with it and create a *.private.0 file)
+					IFileManager::Get().Delete(*State.MovedFrom);
+				}
+			}
+		}
+	}
+
+	TArray<FString> Results;
 	TArray<FString> Parameters;
 	Parameters.Add(TEXT("--all"));
 	// revert the checkout of all files recursively
 	// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
 	if (-1 != InCommand.ChangesetNumber)
 	{
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("undocheckout"), Parameters, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("undocheckout"), Parameters, TArray<FString>(), Results, InCommand.ErrorMessages);
 	}
 	else
 	{
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial undocheckout"), Parameters, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial undocheckout"), Parameters, TArray<FString>(), Results, InCommand.ErrorMessages);
 	}
 
-	// Now update the status of assets in the Content directory
-	TArray<FString> ContentDir;
-	ContentDir.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-	PlasticSourceControlUtils::RunUpdateStatus(ContentDir, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+	// NOTE: don't parse the Results, it has too many quirks, uses the list from the status update;
+	// - Renames are not easy to parse without a clean separator in "Origin Destination"
+	// - Files added in folders are not accounted for by "undo", only the folder is listed in the results
+
+	// now update the status of the updated files
+	if (Operation->UpdatedFiles.Num())
+	{
+		PlasticSourceControlUtils::RunUpdateStatus(Operation->UpdatedFiles, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+	}
 
 	return InCommand.bCommandSuccessful;
 }
@@ -677,6 +758,23 @@ bool FPlasticRevertAllWorker::Execute(FPlasticSourceControlCommand& InCommand)
 bool FPlasticRevertAllWorker::UpdateStates()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticRevertAllWorker::UpdateStates);
+
+	// Update affected changelists if any
+	for (const FPlasticSourceControlState& NewState : States)
+	{
+		if (!NewState.IsModified())
+		{
+			TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> State = GetProvider().GetStateInternal(NewState.GetFilename());
+			if (State->Changelist.IsInitialized())
+			{
+				// 1- Remove these files from their previous changelist
+				TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> PreviousChangelist = GetProvider().GetStateInternal(State->Changelist);
+				PreviousChangelist->Files.Remove(State);
+				// 2- And reset the reference to their previous changelist
+				State->Changelist.Reset();
+			}
+		}
+	}
 
 	return PlasticSourceControlUtils::UpdateCachedStates(MoveTemp(States));
 }
@@ -697,14 +795,14 @@ bool FPlasticMakeWorkspaceWorker::Execute(FPlasticSourceControlCommand& InComman
 		TArray<FString> Parameters;
 		Parameters.Add(Operation->ServerUrl);
 		Parameters.Add(Operation->RepositoryName);
-		PlasticSourceControlUtils::RunCommand(TEXT("makerepository"), Parameters, TArray<FString>(), EConcurrency::Synchronous, InCommand.InfoMessages, InCommand.ErrorMessages);
+		PlasticSourceControlUtils::RunCommand(TEXT("makerepository"), Parameters, TArray<FString>(), InCommand.InfoMessages, InCommand.ErrorMessages);
 	}
 	{
 		TArray<FString> Parameters;
 		Parameters.Add(Operation->WorkspaceName);
 		Parameters.Add(TEXT(".")); // current path, ie. ProjectDir
 		Parameters.Add(FString::Printf(TEXT("--repository=rep:%s@repserver:%s"), *Operation->RepositoryName, *Operation->ServerUrl));
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("makeworkspace"), Parameters, TArray<FString>(), EConcurrency::Synchronous, InCommand.InfoMessages, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("makeworkspace"), Parameters, TArray<FString>(), InCommand.InfoMessages, InCommand.ErrorMessages);
 	}
 
 	return InCommand.bCommandSuccessful;
@@ -731,27 +829,25 @@ bool FPlasticUpdateStatusWorker::Execute(FPlasticSourceControlCommand& InCommand
 	UE_LOG(LogSourceControl, Log, TEXT("status (of %d files, ShouldUpdateHistory=%d, ShouldGetOpenedOnly=%d, ShouldUpdateModifiedState=%d)"),
 		InCommand.Files.Num(), Operation->ShouldUpdateHistory(), Operation->ShouldGetOpenedOnly(), Operation->ShouldUpdateModifiedState());
 
-	TArray<FString> Files;
-	if (InCommand.Changelist.IsInitialized() && InCommand.Files.IsEmpty())
-	{
-		TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetProvider().GetStateInternal(InCommand.Changelist);
-		Files = FileNamesFromFileStates(ChangelistState->Files);
-	}
-	else
-	{
-		Files = InCommand.Files;
-	}
+	const TArray<FString> Files = GetFilesFromCommand(GetProvider(), InCommand);
 
 	if (Files.Num() > 0)
 	{
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunUpdateStatus(Files, Operation->ShouldUpdateHistory(), InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunUpdateStatus(Files, Operation->ShouldUpdateHistory(), InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 		// Remove all "is not in a workspace" error and convert the result to "success" if there are no other errors
 		PlasticSourceControlUtils::RemoveRedundantErrors(InCommand, TEXT("is not in a workspace."));
 		if (!InCommand.bCommandSuccessful)
 		{
+			TArray<FString> ErrorMessages;
+			TArray<FString> Parameters;
+			FString BranchName, RepositoryName, ServerUrl;
+			if (PlasticSourceControlUtils::GetWorkspaceInfo(BranchName, RepositoryName, ServerUrl, ErrorMessages))
+			{
+				Parameters.Add(FString::Printf(TEXT("--server=%s"), *ServerUrl));
+			}
 			UE_LOG(LogSourceControl, Error, TEXT("FPlasticUpdateStatusWorker(ErrorMessages.Num()=%d) => checkconnection"), InCommand.ErrorMessages.Num());
 			// In case of error, execute a 'checkconnection' command to check the connectivity of the server.
-			InCommand.bConnectionDropped = !PlasticSourceControlUtils::RunCommand(TEXT("checkconnection"), TArray<FString>(), TArray<FString>(), InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+			InCommand.bConnectionDropped = !PlasticSourceControlUtils::RunCommand(TEXT("checkconnection"), Parameters, TArray<FString>(), InCommand.InfoMessages, InCommand.ErrorMessages);
 			return false;
 		}
 
@@ -765,7 +861,8 @@ bool FPlasticUpdateStatusWorker::Execute(FPlasticSourceControlCommand& InCommand
 			{
 				if (State.IsConflicted())
 				{
-					// In case of a merge conflict, we need to put the tip of the "remote branch" on top of the history
+					// In case of a merge conflict, the Editor expects the tip of the "source (remote)" branch to be at the top of the history (index 0)
+					// as a way to represent the "merge in progress" in a 1D graph of the current branch "target (local)"
 					UE_LOG(LogSourceControl, Log, TEXT("%s: PendingMergeSourceChangeset %d"), *State.LocalFilename, State.PendingMergeSourceChangeset);
 					for (int32 IdxRevision = 0; IdxRevision < State.History.Num(); IdxRevision++)
 					{
@@ -802,7 +899,7 @@ bool FPlasticUpdateStatusWorker::Execute(FPlasticSourceControlCommand& InCommand
 	{
 		TArray<FString> ProjectDirs;
 		ProjectDirs.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunUpdateStatus(ProjectDirs, Operation->ShouldUpdateHistory(), InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunUpdateStatus(ProjectDirs, Operation->ShouldUpdateHistory(), InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 	}
 	else
 	{
@@ -821,6 +918,23 @@ bool FPlasticUpdateStatusWorker::Execute(FPlasticSourceControlCommand& InCommand
 bool FPlasticUpdateStatusWorker::UpdateStates()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticUpdateStatusWorker::UpdateStates);
+
+	// Update affected changelists if any (in case of a file reverted outside of the Unreal Editor)
+	for (const FPlasticSourceControlState& NewState : States)
+	{
+		if (!NewState.IsModified())
+		{
+			TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> State = GetProvider().GetStateInternal(NewState.GetFilename());
+			if (State->Changelist.IsInitialized())
+			{
+				// 1- Remove these files from their previous changelist
+				TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> PreviousChangelist = GetProvider().GetStateInternal(State->Changelist);
+				PreviousChangelist->Files.Remove(State);
+				// 2- And reset the reference to their previous changelist
+				State->Changelist.Reset();
+			}
+		}
+	}
 
 	return PlasticSourceControlUtils::UpdateCachedStates(MoveTemp(States));
 }
@@ -842,7 +956,7 @@ bool FPlasticCopyWorker::Execute(FPlasticSourceControlCommand& InCommand)
 		const FString& Origin = InCommand.Files[0];
 		const FString Destination = FPaths::ConvertRelativePathToFull(Operation->GetDestination());
 
-		// Detects if the operation is a Move/Rename "Branch" that we need to track (or just a Duplicate/Copy, already Added to source control)
+		// Branch: The new file is branched from the original file (vs Add: The new file has no relation to the original file)
 		const bool bIsMoveOperation = (Operation->CopyMethod == FCopy::ECopyMethod::Branch);
 		if (bIsMoveOperation)
 		{
@@ -852,7 +966,7 @@ bool FPlasticCopyWorker::Execute(FPlasticSourceControlCommand& InCommand)
 			{
 				TArray<FString> DestinationFiles;
 				DestinationFiles.Add(Destination);
-				InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("undochange"), TArray<FString>(), DestinationFiles, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+				InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("undochange"), TArray<FString>(), DestinationFiles, InCommand.InfoMessages, InCommand.ErrorMessages);
 			}
 			// - execute a 'cm move --nomoveondisk' command to the destination to tell cm what happened
 			if (InCommand.bCommandSuccessful)
@@ -865,11 +979,11 @@ bool FPlasticCopyWorker::Execute(FPlasticSourceControlCommand& InCommand)
 				// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
 				if (-1 != InCommand.ChangesetNumber)
 				{
-					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("move"), Parameters, Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("move"), Parameters, Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 				}
 				else
 				{
-					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial move"), Parameters, Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial move"), Parameters, Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 				}
 			}
 			// - add the redirector file (if it exists) to source control
@@ -880,11 +994,11 @@ bool FPlasticCopyWorker::Execute(FPlasticSourceControlCommand& InCommand)
 				// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
 				if (-1 != InCommand.ChangesetNumber)
 				{
-					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("add"), TArray<FString>(), Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("add"), TArray<FString>(), Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 				}
 				else
 				{
-					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial add"), TArray<FString>(), Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+					InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial add"), TArray<FString>(), Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 				}
 			}
 		}
@@ -898,7 +1012,7 @@ bool FPlasticCopyWorker::Execute(FPlasticSourceControlCommand& InCommand)
 		TArray<FString> BothFiles;
 		BothFiles.Add(Origin);
 		BothFiles.Add(Destination);
-		PlasticSourceControlUtils::RunUpdateStatus(BothFiles, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+		PlasticSourceControlUtils::RunUpdateStatus(BothFiles, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 	}
 	else
 	{
@@ -924,50 +1038,19 @@ bool FPlasticSyncWorker::Execute(FPlasticSourceControlCommand& InCommand)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSyncWorker::Execute);
 
-	check(InCommand.Operation->GetName() == GetName());
+	TArray<FString> UpdatedFiles;
+	InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunUpdate(InCommand.Files, GetProvider().IsPartialWorkspace(), UpdatedFiles, InCommand.ErrorMessages);
 
-	// Update specified directory to the head of the repository
-	// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
-	if (-1 != InCommand.ChangesetNumber)
+	// now update the status of the updated files
+	if (UpdatedFiles.Num())
 	{
-		TSharedRef<FSync, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FSync>(InCommand.Operation);
-
-		TArray<FString> Parameters;
-
-		if (Operation->IsForced())
-		{
-			Parameters.Add(TEXT("--forced"));
-		}
-
-		if (Operation->GetRevision().IsEmpty())
-		{
-			Parameters.Add(TEXT("--last"));
-			Parameters.Add(TEXT("--dontmerge"));
-		}
-		else
-		{
-			Parameters.Add(FString::Printf(TEXT("--changeset=%s"), *Operation->GetRevision()));
-		}
-
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("update"), Parameters, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
-	}
-	else
-	{
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial update"), {}, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		PlasticSourceControlUtils::RunUpdateStatus(UpdatedFiles, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 	}
 
-	if (InCommand.bCommandSuccessful)
+	if ((InCommand.Operation->GetName() == FName("SyncAll")))
 	{
-		// now update the status of our files
-		// detect the special case of a Sync of the root folder:
-		if ((InCommand.Files.Num() == 1) && (InCommand.Files.Last() == InCommand.PathToWorkspaceRoot))
-		{
-			// only update the status of assets in the Content directory
-			TArray<FString> ContentDir;
-			ContentDir.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-			PlasticSourceControlUtils::RunUpdateStatus(ContentDir, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
-		}
-		// else: optim, no need to update the status of our files since this is done immediately after by the Editor
+		TSharedRef<FPlasticSyncAll, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FPlasticSyncAll>(InCommand.Operation);
+		Operation->UpdatedFiles = MoveTemp(UpdatedFiles);
 	}
 
 	return InCommand.bCommandSuccessful;
@@ -1011,11 +1094,11 @@ bool FPlasticResolveWorker::Execute(FPlasticSourceControlCommand& InCommand)
 		UE_LOG(LogSourceControl, Log, TEXT("resolve %s"), *State->PendingMergeFilename);
 
 		// Mark the conflicted file as resolved
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("merge"), Parameters, OneFile, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("merge"), Parameters, OneFile, InCommand.InfoMessages, InCommand.ErrorMessages);
 	}
 
 	// now update the status of our files
-	PlasticSourceControlUtils::RunUpdateStatus(InCommand.Files, false, InCommand.Concurrency, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+	PlasticSourceControlUtils::RunUpdateStatus(InCommand.Files, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -1039,7 +1122,7 @@ bool FPlasticGetPendingChangelistsWorker::Execute(FPlasticSourceControlCommand& 
 	check(InCommand.Operation->GetName() == GetName());
 	TSharedRef<FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FUpdatePendingChangelistsStatus>(InCommand.Operation);
 
-	InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunGetChangelists(InCommand.Concurrency, OutChangelistsStates, OutCLFilesStates, InCommand.ErrorMessages);
+	InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunGetChangelists(OutChangelistsStates, OutCLFilesStates, InCommand.ErrorMessages);
 	if (InCommand.bCommandSuccessful)
 	{
 		// Remove the changelist that were not requested by the user.
@@ -1055,6 +1138,8 @@ bool FPlasticGetPendingChangelistsWorker::Execute(FPlasticSourceControlCommand& 
 						});
 				});
 		}
+
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunGetShelves(OutChangelistsStates, InCommand.ErrorMessages);
 	}
 
 	bCleanupCache = InCommand.bCommandSuccessful;
@@ -1088,11 +1173,6 @@ bool FPlasticGetPendingChangelistsWorker::UpdateStates()
 			for (const auto& FileState : OutCLFilesStates[StatusIndex])
 			{
 				TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> CachedFileState = GetProvider().GetStateInternal(FileState.LocalFilename);
-				// Don't override "fileinfo" information and the potential LockedByOther state
-				if (CachedFileState->WorkspaceState != EWorkspaceState::LockedByOther)
-				{
-					CachedFileState->WorkspaceState = FileState.WorkspaceState;
-				}
 				CachedFileState->Changelist = CLStatus.Changelist;
 				ChangelistState->Files.AddUnique(CachedFileState);
 			}
@@ -1143,19 +1223,19 @@ FPlasticSourceControlChangelist GenerateUniqueChangelistName(FPlasticSourceContr
 	return NewChangelist;
 }
 
-FPlasticSourceControlChangelist CreatePendingChangelist(FPlasticSourceControlProvider& PlasticSourceControlProvider, const FString& InDescription, EConcurrency::Type InConcurrency, TArray<FString>& InInfoMessages, TArray<FString>& InErrorMessages)
+FPlasticSourceControlChangelist CreatePendingChangelist(FPlasticSourceControlProvider& PlasticSourceControlProvider, const FString& InDescription, TArray<FString>& InInfoMessages, TArray<FString>& InErrorMessages)
 {
 	FPlasticSourceControlChangelist NewChangelist = GenerateUniqueChangelistName(PlasticSourceControlProvider);
 
 	bool bCommandSuccessful;
 	TArray<FString> Parameters;
-	if (PlasticSourceControlProvider.GetPlasticScmVersion() < s_NewChangelistFileArgsPlasticScmVersion)
+	if (PlasticSourceControlProvider.GetPlasticScmVersion() < PlasticSourceControlVersions::NewChangelistFileArgs)
 	{
 		Parameters.Add(TEXT("add"));
 		Parameters.Add(TEXT("\"") + NewChangelist.GetName() + TEXT("\""));
 		Parameters.Add(TEXT("\"") + InDescription + TEXT("\""));
 		Parameters.Add(TEXT("--persistent")); // Create a persistent changelist to stay close to Perforce behavior
-		bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, TArray<FString>(), InConcurrency, InInfoMessages, InErrorMessages);
+		bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, TArray<FString>(), InInfoMessages, InErrorMessages);
 	}
 	else
 	{
@@ -1166,7 +1246,7 @@ FPlasticSourceControlChangelist CreatePendingChangelist(FPlasticSourceControlPro
 		Parameters.Add(FString::Printf(TEXT("--descriptionfile=\"%s\""), *FPaths::ConvertRelativePathToFull(ChangelistDescriptionFile.GetFilename())));
 		Parameters.Add(TEXT("--persistent")); // Create a persistent changelist to stay close to Perforce behavior
 		UE_LOG(LogSourceControl, Verbose, TEXT("CreatePendingChangelist(%s):\n\"%s\""), *NewChangelist.GetName(), *InDescription);
-		bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, TArray<FString>(), InConcurrency, InInfoMessages, InErrorMessages);
+		bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, TArray<FString>(), InInfoMessages, InErrorMessages);
 	}
 	if (!bCommandSuccessful)
 	{
@@ -1176,16 +1256,16 @@ FPlasticSourceControlChangelist CreatePendingChangelist(FPlasticSourceControlPro
 	return NewChangelist;
 }
 
-bool EditChangelistDescription(const FPlasticSourceControlProvider& PlasticSourceControlProvider, const FPlasticSourceControlChangelist& InChangelist, const FString& InDescription, EConcurrency::Type InConcurrency, TArray<FString>& InInfoMessages, TArray<FString>& InErrorMessages)
+bool EditChangelistDescription(const FPlasticSourceControlProvider& PlasticSourceControlProvider, const FPlasticSourceControlChangelist& InChangelist, const FString& InDescription, TArray<FString>& InInfoMessages, TArray<FString>& InErrorMessages)
 {
 	TArray<FString> Parameters;
 	Parameters.Add(TEXT("edit"));
-	if (PlasticSourceControlProvider.GetPlasticScmVersion() < s_NewChangelistFileArgsPlasticScmVersion)
+	if (PlasticSourceControlProvider.GetPlasticScmVersion() < PlasticSourceControlVersions::NewChangelistFileArgs)
 	{
 		Parameters.Add(TEXT("\"") + InChangelist.GetName() + TEXT("\""));
 		Parameters.Add(TEXT("description"));
 		Parameters.Add(TEXT("\"") + InDescription + TEXT("\""));
-		return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, TArray<FString>(), InConcurrency, InInfoMessages, InErrorMessages);
+		return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, TArray<FString>(), InInfoMessages, InErrorMessages);
 	}
 	else
 	{
@@ -1195,20 +1275,20 @@ bool EditChangelistDescription(const FPlasticSourceControlProvider& PlasticSourc
 		const FScopedTempFile ChangelistDescriptionFile(InDescription);
 		Parameters.Add(FString::Printf(TEXT("--descriptionfile=\"%s\""), *FPaths::ConvertRelativePathToFull(ChangelistDescriptionFile.GetFilename())));
 		UE_LOG(LogSourceControl, Verbose, TEXT("EditChangelistDescription(%s\n%s)"), *InChangelist.GetName(), *InDescription);
-		return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, TArray<FString>(), InConcurrency, InInfoMessages, InErrorMessages);
+		return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, TArray<FString>(), InInfoMessages, InErrorMessages);
 	}
 }
 
-bool MoveFilesToChangelist(const FPlasticSourceControlProvider& PlasticSourceControlProvider, const FPlasticSourceControlChangelist& InChangelist, const TArray<FString>& InFiles, const EConcurrency::Type InConcurrency, TArray<FString>& OutResults, TArray<FString>& OutErrorMessages)
+bool MoveFilesToChangelist(const FPlasticSourceControlProvider& PlasticSourceControlProvider, const FPlasticSourceControlChangelist& InChangelist, const TArray<FString>& InFiles, TArray<FString>& OutResults, TArray<FString>& OutErrorMessages)
 {
 	if (InFiles.Num() > 0)
 	{
 		TArray<FString> Parameters;
-		if (PlasticSourceControlProvider.GetPlasticScmVersion() < s_NewChangelistFileArgsPlasticScmVersion)
+		if (PlasticSourceControlProvider.GetPlasticScmVersion() < PlasticSourceControlVersions::NewChangelistFileArgs)
 		{
 			Parameters.Add(TEXT("\"") + InChangelist.GetName() + TEXT("\""));
 			Parameters.Add(TEXT("add"));
-			return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, InFiles, InConcurrency, OutResults, OutErrorMessages);
+			return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, InFiles, OutResults, OutErrorMessages);
 		}
 		else
 		{
@@ -1216,7 +1296,7 @@ bool MoveFilesToChangelist(const FPlasticSourceControlProvider& PlasticSourceCon
 			Parameters.Add(FString::Printf(TEXT("--namefile=\"%s\""), *FPaths::ConvertRelativePathToFull(ChangelistNameFile.GetFilename())));
 			Parameters.Add(TEXT("add"));
 			UE_LOG(LogSourceControl, Verbose, TEXT("MoveFilesToChangelist(%s)"), *InChangelist.GetName());
-			return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, InFiles, InConcurrency, OutResults, OutErrorMessages);
+			return PlasticSourceControlUtils::RunCommand(TEXT("changelist"), Parameters, InFiles, OutResults, OutErrorMessages);
 		}
 	}
 	return true;
@@ -1242,7 +1322,7 @@ bool FPlasticNewChangelistWorker::Execute(class FPlasticSourceControlCommand& In
 
 	FString Description = Operation->GetDescription().ToString();
 	// Note: old "cm" doesn't support newlines, quotes, and question marks on changelist's name or description
-	if (GetProvider().GetPlasticScmVersion() < s_NewChangelistFileArgsPlasticScmVersion)
+	if (GetProvider().GetPlasticScmVersion() < PlasticSourceControlVersions::NewChangelistFileArgs)
 	{
 		Description.ReplaceInline(TEXT("\r\n"), TEXT(" "), ESearchCase::CaseSensitive);
 		Description.ReplaceCharInline(TEXT('\n'), TEXT(' '), ESearchCase::CaseSensitive);
@@ -1252,7 +1332,7 @@ bool FPlasticNewChangelistWorker::Execute(class FPlasticSourceControlCommand& In
 	}
 
 	// Create a new numbered persistent changelist ala Perforce
-	NewChangelist = CreatePendingChangelist(GetProvider(), Description, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+	NewChangelist = CreatePendingChangelist(GetProvider(), Description, InCommand.InfoMessages, InCommand.ErrorMessages);
 
 	// Successfully created new changelist
 	if (NewChangelist.IsInitialized())
@@ -1266,7 +1346,7 @@ bool FPlasticNewChangelistWorker::Execute(class FPlasticSourceControlCommand& In
 
 		if (InCommand.Files.Num() > 0)
 		{
-			InCommand.bCommandSuccessful = MoveFilesToChangelist(GetProvider(), NewChangelist, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+			InCommand.bCommandSuccessful = MoveFilesToChangelist(GetProvider(), NewChangelist, InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 			if (InCommand.bCommandSuccessful)
 			{
 				MovedFiles = InCommand.Files;
@@ -1332,14 +1412,14 @@ bool FPlasticDeleteChangelistWorker::Execute(class FPlasticSourceControlCommand&
 		check(InCommand.Operation->GetName() == GetName());
 		TSharedRef<FDeleteChangelist, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FDeleteChangelist>(InCommand.Operation);
 
-		InCommand.bCommandSuccessful = DeleteChangelist(GetProvider(), InCommand.Changelist, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = DeleteChangelist(GetProvider(), InCommand.Changelist, InCommand.InfoMessages, InCommand.ErrorMessages);
 
 		// NOTE: for now it is not possible to delete a changelist with files through the Editor
 		if (InCommand.Files.Num() > 0 && InCommand.bCommandSuccessful)
 		{
 			TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetProvider().GetStateInternal(InCommand.Changelist);
 			const TArray<FString> Files = FileNamesFromFileStates(ChangelistState->Files);
-			InCommand.bCommandSuccessful = MoveFilesToChangelist(GetProvider(), FPlasticSourceControlChangelist::DefaultChangelist, Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+			InCommand.bCommandSuccessful = MoveFilesToChangelist(GetProvider(), FPlasticSourceControlChangelist::DefaultChangelist, Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 		}
 
 		// Keep track of changelist to update the cache
@@ -1379,7 +1459,7 @@ bool FPlasticEditChangelistWorker::Execute(class FPlasticSourceControlCommand& I
 
 	EditedDescription = Operation->GetDescription().ToString();
 	// Note: old "cm" doesn't support newlines, quotes, and question marks on changelist's name or description
-	if (GetProvider().GetPlasticScmVersion() < s_NewChangelistFileArgsPlasticScmVersion)
+	if (GetProvider().GetPlasticScmVersion() < PlasticSourceControlVersions::NewChangelistFileArgs)
 	{
 		EditedDescription.ReplaceInline(TEXT("\r\n"), TEXT(" "), ESearchCase::CaseSensitive);
 		EditedDescription.ReplaceCharInline(TEXT('\n'), TEXT(' '), ESearchCase::CaseSensitive);
@@ -1391,18 +1471,18 @@ bool FPlasticEditChangelistWorker::Execute(class FPlasticSourceControlCommand& I
 	if (InCommand.Changelist.IsDefault())
 	{
 		// Create a new numbered persistent changelist since we cannot edit the default changelist
-		EditedChangelist = CreatePendingChangelist(GetProvider(), EditedDescription, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		EditedChangelist = CreatePendingChangelist(GetProvider(), EditedDescription, InCommand.InfoMessages, InCommand.ErrorMessages);
 		if (EditedChangelist.IsInitialized())
 		{
 			// And then move all its files to the new changelist
 			TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetProvider().GetStateInternal(InCommand.Changelist);
 			ReopenedFiles = FileNamesFromFileStates(ChangelistState->Files);
-			InCommand.bCommandSuccessful = MoveFilesToChangelist(GetProvider(), EditedChangelist, ReopenedFiles, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+			InCommand.bCommandSuccessful = MoveFilesToChangelist(GetProvider(), EditedChangelist, ReopenedFiles, InCommand.InfoMessages, InCommand.ErrorMessages);
 		}
 	}
 	else
 	{
-		InCommand.bCommandSuccessful = EditChangelistDescription(GetProvider(), InCommand.Changelist, EditedDescription, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = EditChangelistDescription(GetProvider(), InCommand.Changelist, EditedDescription, InCommand.InfoMessages, InCommand.ErrorMessages);
 		if (InCommand.bCommandSuccessful)
 		{
 			EditedChangelist = InCommand.Changelist;
@@ -1461,7 +1541,7 @@ bool FPlasticReopenWorker::Execute(FPlasticSourceControlCommand& InCommand)
 
 	check(InCommand.Operation->GetName() == GetName());
 
-	InCommand.bCommandSuccessful = MoveFilesToChangelist(GetProvider(), InCommand.Changelist, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+	InCommand.bCommandSuccessful = MoveFilesToChangelist(GetProvider(), InCommand.Changelist, InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 	if (InCommand.bCommandSuccessful)
 	{
 		ReopenedFiles = InCommand.Files;
@@ -1504,4 +1584,391 @@ bool FPlasticReopenWorker::UpdateStates()
 		return false;
 	}
 }
+
+bool CreateShelve(const FString& InChangelistName, const FString& InChangelistDescription, const TArray<FString>& InFilesToShelve, int32& OutShelveId, TArray<FString>& OutErrorMessages)
+{
+	TArray<FString> Results;
+	TArray<FString> Parameters;
+	const FString ShelveDescription = FString::Printf(TEXT("Changelist%s: %s"), *InChangelistName, *InChangelistDescription);
+	const FScopedTempFile CommentsFile(ShelveDescription);
+	Parameters.Add(TEXT("create"));
+	Parameters.Add(FString::Printf(TEXT("-commentsfile=\"%s\""), *FPaths::ConvertRelativePathToFull(CommentsFile.GetFilename())));
+	const bool bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("shelveset"), Parameters, InFilesToShelve, Results, OutErrorMessages);
+	if (bCommandSuccessful && Results.Num() > 0)
+	{
+		// Parse the result to update the changelist state with the id of the shelve
+		// "Created shelve sh:12@UE5PlasticPluginDev@test@cloud (mount:'/')"
+		FString CreatedShelveStatus = Results[Results.Num() - 1];
+		if (CreatedShelveStatus.StartsWith(TEXT("Created shelve sh:")))
+		{
+			CreatedShelveStatus.RightChopInline(18);
+			int32 SeparatorIndex;
+			if (CreatedShelveStatus.FindChar(TEXT('@'), SeparatorIndex))
+			{
+				CreatedShelveStatus.LeftInline(SeparatorIndex);
+				OutShelveId = FCString::Atoi(*CreatedShelveStatus);
+			}
+		}
+	}
+
+	return OutShelveId != ISourceControlState::INVALID_REVISION;
+}
+
+bool DeleteShelve(const int32 InShelveId, TArray<FString>& OutErrorMessages)
+{
+	TArray<FString> Results;
+	TArray<FString> Parameters;
+	Parameters.Add(TEXT("delete"));
+	Parameters.Add(FString::Printf(TEXT("sh:%d"), InShelveId));
+	return PlasticSourceControlUtils::RunCommand(TEXT("shelveset"), Parameters, TArray<FString>(), Results, OutErrorMessages);
+}
+
+FName FPlasticShelveWorker::GetName() const
+{
+	return "Shelve";
+}
+
+bool FPlasticShelveWorker::Execute(FPlasticSourceControlCommand& InCommand)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticShelveWorker::Execute);
+
+	check(InCommand.Operation->GetName() == GetName());
+	TSharedRef<FShelve, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FShelve>(InCommand.Operation);
+
+	FPlasticSourceControlChangelist Changelist(InCommand.Changelist);
+
+	TArray<FString> FilesToShelve = InCommand.Files;
+
+	int32 PreviousShelveId = ISourceControlState::INVALID_REVISION;
+
+	InCommand.bCommandSuccessful = true;
+
+	if (InCommand.Changelist.IsInitialized())
+	{
+		TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetProvider().GetStateInternal(InCommand.Changelist);
+
+		PreviousShelveId = ChangelistState->ShelveId;
+
+		// If the command has specified a changelist but no files, then get all files from it
+		if (FilesToShelve.Num() == 0)
+		{
+			FilesToShelve = FileNamesFromFileStates(ChangelistState->Files);
+		}
+		// If the command has specified some files, and if there was already a shelve,
+		// ensure that the previous shelved files are also put back into the new one.
+		// This is to mimic Perforce behavior, where we can add files to a shelve after we made more changes.
+		// NOTE: this is a workaround for the fact that we cannot edit an existing shelve.
+		else if (ChangelistState->ShelvedFiles.Num() > 0)
+		{
+			for (const FSourceControlStateRef& ShelveFile : ChangelistState->ShelvedFiles)
+			{
+				FilesToShelve.AddUnique(ShelveFile->GetFilename());
+			}
+		}
+
+		// Ensure that all the files to shelve are indeed in the changelist, so that we can actually shelve them
+		// NOTE: this is because of the workaround that requires to create a new shelve and delete the old one
+		for (FString& FileToShelve : FilesToShelve)
+		{
+			if (!ChangelistState->Files.ContainsByPredicate([&FileToShelve](const FSourceControlStateRef& FileState) { return FileToShelve == FileState->GetFilename(); }))
+			{
+				FPaths::MakePathRelativeTo(FileToShelve, *FPaths::ProjectDir());
+				UE_LOG(LogSourceControl, Error, TEXT("The file /%s is not in the changelist anymore, so the shelve cannot be updated. Unshelve the corresponding change and retry."), *FileToShelve);
+				InCommand.bCommandSuccessful = false;
+			}
+		}
+	}
+
+	if (InCommand.bCommandSuccessful)
+	{
+		// If the command is issued on the default changelist, then we need to create a new changelist,
+		// move the files to the new changelist, then shelve the files
+		if (InCommand.Changelist.IsDefault())
+		{
+			// Create a new numbered persistent changelist ala Perforce
+			Changelist = CreatePendingChangelist(GetProvider(), Operation->GetDescription().ToString(), InCommand.InfoMessages, InCommand.ErrorMessages);
+			if (Changelist.IsInitialized())
+			{
+				InCommand.bCommandSuccessful = MoveFilesToChangelist(GetProvider(), Changelist, FilesToShelve, InCommand.InfoMessages, InCommand.ErrorMessages);
+				if (InCommand.bCommandSuccessful)
+				{
+					MovedFiles = FilesToShelve;
+				}
+			}
+		}
+	}
+
+	if (InCommand.bCommandSuccessful)
+	{
+		ChangelistDescription = *Operation->GetDescription().ToString();
+
+		InCommand.bCommandSuccessful = CreateShelve(Changelist.GetName(), ChangelistDescription, FilesToShelve, ShelveId, InCommand.ErrorMessages);
+		if (InCommand.bCommandSuccessful)
+		{
+			InChangelistToUpdate = InCommand.Changelist;
+			OutChangelistToUpdate = Changelist;
+			ShelvedFiles = FilesToShelve;
+
+			// If there was already a shelve, we have now created a new one with updated files, so we must delete the old one
+			if (PreviousShelveId != ISourceControlState::INVALID_REVISION)
+			{
+				DeleteShelve(PreviousShelveId, InCommand.ErrorMessages);
+			}
+		}
+		else
+		{
+			// In case of failure to shelve, if we had to create a new changelist, move the files back to the default changelist and delete the changelist
+			if (Changelist != InCommand.Changelist)
+			{
+				if (MovedFiles.Num() > 0)
+				{
+					MoveFilesToChangelist(GetProvider(), InCommand.Changelist, MovedFiles, InCommand.InfoMessages, InCommand.ErrorMessages);
+				}
+
+				DeleteChangelist(GetProvider(), Changelist, InCommand.InfoMessages, InCommand.ErrorMessages);
+			}
+		}
+	}
+
+	return InCommand.bCommandSuccessful;
+}
+
+bool FPlasticShelveWorker::UpdateStates()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticShelveWorker::UpdateStates);
+
+	if (OutChangelistToUpdate.IsInitialized())
+	{
+		TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> DestinationChangelistState = GetProvider().GetStateInternal(OutChangelistToUpdate);
+
+		bool bMovedFiles = false;
+
+		// If we moved files to a new changelist, then we must make sure that the files are properly moved
+		if (InChangelistToUpdate != OutChangelistToUpdate && MovedFiles.Num() > 0)
+		{
+			const FDateTime Now = FDateTime::Now();
+			TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> SourceChangelistState = GetProvider().GetStateInternal(InChangelistToUpdate);
+
+			DestinationChangelistState->Changelist = OutChangelistToUpdate;
+			DestinationChangelistState->Description = ChangelistDescription;
+
+			for (const FString& MovedFile : MovedFiles)
+			{
+				TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> FileState = GetProvider().GetStateInternal(MovedFile);
+
+				SourceChangelistState->Files.Remove(FileState);
+				DestinationChangelistState->Files.Add(FileState);
+				FileState->Changelist = OutChangelistToUpdate;
+				FileState->TimeStamp = Now;
+			}
+
+			bMovedFiles = true;
+		}
+
+		DestinationChangelistState->ShelveId = ShelveId;
+
+		// And finally, add the shelved files to the changelist state
+		DestinationChangelistState->ShelvedFiles.Reset(ShelvedFiles.Num());
+		for (FString ShelvedFile : ShelvedFiles)
+		{
+			TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> FileState = GetProvider().GetStateInternal(ShelvedFile);
+			PlasticSourceControlUtils::AddShelvedFileToChangelist(DestinationChangelistState.Get(), MoveTemp(ShelvedFile), FileState->WorkspaceState);
+		}
+
+		return bMovedFiles || ShelvedFiles.Num() > 0;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+
+
+FName FPlasticUnshelveWorker::GetName() const
+{
+	return "Unshelve";
+}
+
+bool FPlasticUnshelveWorker::Execute(FPlasticSourceControlCommand& InCommand)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticUnshelveWorker::Execute);
+
+	// Get the state of the changelist to operate on
+	TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetProvider().GetStateInternal(InCommand.Changelist);
+
+	InCommand.bCommandSuccessful = (ChangelistState->ShelveId != ISourceControlState::INVALID_REVISION);
+
+	// Detect if any file to unshelve has some local modification, which would fail the "unshelve" operation with a merge conflict
+	// NOTE: we could decide to automatically undo the local changes in order for this process to be automatic, like with Perforce
+	for (FString& File : InCommand.Files)
+	{
+		if (ChangelistState->Files.FindByPredicate([&File](const FSourceControlStateRef& FileState) { return FileState->GetFilename().Equals(File, ESearchCase::IgnoreCase); }))
+		{
+			FPaths::MakePathRelativeTo(File, *FPaths::ProjectDir());
+			UE_LOG(LogSourceControl, Error, TEXT("Revert /%s before unshelving the corresponding change from the shelve."), *File);
+			InCommand.bCommandSuccessful = false;
+		}
+	}
+
+	if (InCommand.bCommandSuccessful)
+	{
+		// Get the list of files to unshelve if not all of them are selected
+		TArray<FString> FilesToUnshelve;
+		if (InCommand.Files.Num() < ChangelistState->ShelvedFiles.Num())
+		{
+			if (GetProvider().GetPlasticScmVersion() < PlasticSourceControlVersions::ShelvesetApplySelection)
+			{
+				// On old version, don't unshelve the files if they are not all selected (since we couldn't apply only a selection of files from a shelve)
+				UE_LOG(LogSourceControl, Error,
+					TEXT("Plastic SCM %s cannot unshelve a selection of files from a shelve. Unshelve them all at once or update to %s or above."),
+					*GetProvider().GetPlasticScmVersion().String,
+					*PlasticSourceControlVersions::ShelvesetApplySelection.String
+				);
+				return false;
+			}
+			const FString PathToWorkspaceRoot = GetProvider().GetPathToWorkspaceRoot();
+			FilesToUnshelve.Reset(InCommand.Files.Num());
+			for (FString File : InCommand.Files)
+			{
+				// Make path relative the workspace root, since the shelveset apply operation require server paths
+				FPaths::MakePathRelativeTo(File, *PathToWorkspaceRoot);
+				FilesToUnshelve.Add(TEXT("/") + File);
+			}
+		}
+
+		// Make the Editor Unlink the assets if they are loaded in memory so that source control can override the corresponding files
+		PackageUtils::UnlinkPackagesInMainThread(InCommand.Files);
+
+		{
+			// 'cm shelveset apply sh:88 "/Content/Blueprints/BP_CheckedOut.uasset"'
+			TArray<FString> Parameters;
+			Parameters.Add(TEXT("apply"));
+			Parameters.Add(FString::Printf(TEXT("sh:%d"), ChangelistState->ShelveId));
+			InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("shelveset"), Parameters, FilesToUnshelve, InCommand.InfoMessages, InCommand.ErrorMessages);
+		}
+
+		// Reload packages that where updated by the Unshelve operation (and the current map if needed)
+		PackageUtils::ReloadPackagesInMainThread(InCommand.Files);
+	}
+
+	if (InCommand.bCommandSuccessful)
+	{
+		// move all the unshelved files back to the changelist
+		InCommand.bCommandSuccessful = MoveFilesToChangelist(GetProvider(), InCommand.Changelist, InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
+	}
+
+	if (InCommand.bCommandSuccessful)
+	{
+		// now update the status of our files
+		PlasticSourceControlUtils::RunUpdateStatus(InCommand.Files, false, InCommand.ErrorMessages, States, InCommand.ChangesetNumber, InCommand.BranchName);
+
+		ChangelistToUpdate = InCommand.Changelist;
+	}
+
+	return InCommand.bCommandSuccessful;
+}
+
+bool FPlasticUnshelveWorker::UpdateStates()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticUnshelveWorker::UpdateStates);
+
+	UpdateChangelistState(GetProvider(), ChangelistToUpdate, States);
+
+	return PlasticSourceControlUtils::UpdateCachedStates(MoveTemp(States));
+}
+
+FName FPlasticDeleteShelveWorker::GetName() const
+{
+	return "DeleteShelved";
+}
+
+bool FPlasticDeleteShelveWorker::Execute(FPlasticSourceControlCommand& InCommand)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticDeleteShelveWorker::Execute);
+
+	TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetProvider().GetStateInternal(InCommand.Changelist);
+
+	InCommand.bCommandSuccessful = (ChangelistState->ShelveId != ISourceControlState::INVALID_REVISION);
+
+	// Get the list of files to keep in the shelve if not all of them are selected (to create a new shelve with them)
+	TArray<FString> FilesToShelve;
+	if (InCommand.Files.Num() < ChangelistState->ShelvedFiles.Num())
+	{
+		for (const auto& ShelveState : ChangelistState->ShelvedFiles)
+		{
+			if (!InCommand.Files.Contains(ShelveState->GetFilename()))
+			{
+				FString File = ShelveState->GetFilename();
+				
+				// Check that all this files are is still in the corresponding changelist, else we won't be able to create the new shelve!
+				if (ChangelistState->Files.ContainsByPredicate([&File](FSourceControlStateRef& State) { return File == State->GetFilename(); }))
+				{
+					FilesToShelve.Add(MoveTemp(File));
+				}
+				else
+				{
+
+					FPaths::MakePathRelativeTo(File, *FPaths::ProjectDir());
+					UE_LOG(LogSourceControl, Error, TEXT("The file /%s is not in the changelist anymore, so the shelve cannot be updated. Unshelve the corresponding change and retry."), *File);
+					InCommand.bCommandSuccessful = false;
+				}
+			}
+		}
+	}
+
+	if (InCommand.bCommandSuccessful)
+	{
+		ChangelistToUpdate = InCommand.Changelist;
+		FilesToRemove = InCommand.Files;
+	}
+	
+	if (InCommand.bCommandSuccessful && FilesToShelve.Num() > 0)
+	{
+		// Create a new shelve with the other files
+		InCommand.bCommandSuccessful = CreateShelve(InCommand.Changelist.GetName(), ChangelistState->GetDescriptionText().ToString(), FilesToShelve, ShelveId, InCommand.ErrorMessages);
+	}
+
+	if (InCommand.bCommandSuccessful)
+	{
+		// Delete the old shelve
+		InCommand.bCommandSuccessful = DeleteShelve(ChangelistState->ShelveId, InCommand.ErrorMessages);
+	}
+
+	return InCommand.bCommandSuccessful;
+}
+
+bool FPlasticDeleteShelveWorker::UpdateStates()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticDeleteShelveWorker::UpdateStates);
+
+	if (ChangelistToUpdate.IsInitialized())
+	{
+		TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetProvider().GetStateInternal(ChangelistToUpdate);
+
+		ChangelistState->ShelveId = ShelveId;
+
+		if (FilesToRemove.Num() > 0)
+		{
+			// NOTE: for now, Plastic SCM cannot delete a selection of files from a shelve, so FilesToRemove and this specific case aren't really needed (yet)
+			return ChangelistState->ShelvedFiles.RemoveAll([this](FSourceControlStateRef& State) -> bool
+				{
+					return Algo::AnyOf(FilesToRemove, [&State](const FString& File) {
+						return State->GetFilename() == File;
+					});
+				}) > 0;
+		}
+		else
+		{
+			bool bHadShelvedFiles = (ChangelistState->ShelvedFiles.Num() > 0);
+			ChangelistState->ShelvedFiles.Reset();
+			return bHadShelvedFiles;
+		}
+	}
+	else
+	{
+		return false;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

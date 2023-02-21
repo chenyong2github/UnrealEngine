@@ -15,11 +15,10 @@
 #include "UObject/Linker.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/MessageDialog.h"
 #include "Styling/AppStyle.h"
 
-#include "PackageTools.h"
+#include "PackageUtils.h"
 #include "FileHelpers.h"
 #include "ISettingsModule.h"
 
@@ -87,83 +86,9 @@ bool FPlasticSourceControlMenu::SaveDirtyPackages()
 /// Find all packages in Content directory
 TArray<FString> FPlasticSourceControlMenu::ListAllPackages()
 {
-	TArray<FString> PackageRelativePaths;
-	FPackageName::FindPackagesInDirectory(PackageRelativePaths, FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
-
-	TArray<FString> PackageNames;
-	PackageNames.Reserve(PackageRelativePaths.Num());
-	for (const FString& Path : PackageRelativePaths)
-	{
-		FString PackageName;
-		FString FailureReason;
-		if (FPackageName::TryConvertFilenameToLongPackageName(Path, PackageName, &FailureReason))
-		{
-			PackageNames.Add(PackageName);
-		}
-		else
-		{
-			FMessageLog("SourceControl").Error(FText::FromString(FailureReason));
-		}
-	}
-
-	return PackageNames;
-}
-
-/// Unkink all loaded packages to allow to update them
-TArray<UPackage*> FPlasticSourceControlMenu::UnlinkPackages(const TArray<FString>& InPackageNames)
-{
-	TArray<UPackage*> LoadedPackages;
-
-	// Inspired from ContentBrowserUtils::SyncPathsFromSourceControl()
-	if (InPackageNames.Num() > 0)
-	{
-		// Form a list of loaded packages to reload...
-		LoadedPackages.Reserve(InPackageNames.Num());
-		for (const FString& PackageName : InPackageNames)
-		{
-			UPackage* Package = FindPackage(nullptr, *PackageName);
-			if (Package)
-			{
-				LoadedPackages.Emplace(Package);
-
-				// Detach the linkers of any loaded packages so that SCC can overwrite the files...
-				if (!Package->IsFullyLoaded())
-				{
-					FlushAsyncLoading();
-					Package->FullyLoad();
-				}
-				ResetLoaders(Package);
-			}
-		}
-		UE_LOG(LogSourceControl, Log, TEXT("Reseted Loader for %d Packages"), LoadedPackages.Num());
-	}
-
-	return LoadedPackages;
-}
-
-void FPlasticSourceControlMenu::ReloadPackages(TArray<UPackage*>& InPackagesToReload)
-{
-	UE_LOG(LogSourceControl, Log, TEXT("Reloading %d Packages..."), InPackagesToReload.Num());
-
-	// Syncing may have deleted some packages, so we need to unload those rather than re-load them...
-	TArray<UPackage*> PackagesToUnload;
-	InPackagesToReload.RemoveAll([&](UPackage* InPackage) -> bool
-	{
-		const FString PackageExtension = InPackage->ContainsMap() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
-		const FString PackageFilename = FPackageName::LongPackageNameToFilename(InPackage->GetName(), PackageExtension);
-		if (!FPaths::FileExists(PackageFilename))
-		{
-			PackagesToUnload.Emplace(InPackage);
-			return true; // remove package
-		}
-		return false; // keep package
-	});
-
-	// Hot-reload the new packages...
-	UPackageTools::ReloadPackages(InPackagesToReload);
-
-	// Unload any deleted packages...
-	UPackageTools::UnloadPackages(PackagesToUnload);
+	TArray<FString> PackageFilePaths;
+	FPackageName::FindPackagesInDirectory(PackageFilePaths, FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()));
+	return PackageFilePaths;
 }
 
 void FPlasticSourceControlMenu::SyncProjectClicked()
@@ -174,11 +99,11 @@ void FPlasticSourceControlMenu::SyncProjectClicked()
 		if (bSaved)
 		{
 			// Find and Unlink all packages in Content directory to allow to update them
-			PackagesToReload = UnlinkPackages(ListAllPackages());
+			PackageUtils::UnlinkPackages(ListAllPackages());
 
-			// Launch a "Sync" operation
+			// Launch a custom "SyncAll" operation
 			FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
-			TSharedRef<FSync, ESPMode::ThreadSafe> SyncOperation = ISourceControlOperation::Create<FSync>();
+			TSharedRef<FPlasticSyncAll, ESPMode::ThreadSafe> SyncOperation = ISourceControlOperation::Create<FPlasticSyncAll>();
 			const ECommandResult::Type Result = Provider.Execute(SyncOperation, TArray<FString>(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateRaw(this, &FPlasticSourceControlMenu::OnSourceControlOperationComplete));
 			if (Result == ECommandResult::Succeeded)
 			{
@@ -187,9 +112,8 @@ void FPlasticSourceControlMenu::SyncProjectClicked()
 			}
 			else
 			{
-				// Report failure with a notification and Reload all packages
+				// Report failure with a notification (but nothing need to be reloaded since no local change is expected)
 				DisplayFailureNotification(SyncOperation->GetName());
-				ReloadPackages(PackagesToReload);
 			}
 		}
 		else
@@ -214,9 +138,7 @@ void FPlasticSourceControlMenu::RevertUnchangedClicked()
 		// Launch a "RevertUnchanged" Operation
 		FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
 		TSharedRef<FPlasticRevertUnchanged, ESPMode::ThreadSafe> RevertUnchangedOperation = ISourceControlOperation::Create<FPlasticRevertUnchanged>();
-		TArray<FString> WorkspaceRoot;
-		WorkspaceRoot.Add(Provider.GetPathToWorkspaceRoot()); // Revert the root of the workspace (needs an absolute path)
-		const ECommandResult::Type Result = Provider.Execute(RevertUnchangedOperation, WorkspaceRoot, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateRaw(this, &FPlasticSourceControlMenu::OnSourceControlOperationComplete));
+		const ECommandResult::Type Result = Provider.Execute(RevertUnchangedOperation, TArray<FString>(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateRaw(this, &FPlasticSourceControlMenu::OnSourceControlOperationComplete));
 		if (Result == ECommandResult::Succeeded)
 		{
 			// Display an ongoing notification during the whole operation
@@ -249,14 +171,12 @@ void FPlasticSourceControlMenu::RevertAllClicked()
 			if (bSaved)
 			{
 				// Find and Unlink all packages in Content directory to allow to update them
-				PackagesToReload = UnlinkPackages(ListAllPackages());
+				PackageUtils::UnlinkPackages(ListAllPackages());
 
 				// Launch a "RevertAll" Operation
 				FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
 				TSharedRef<FPlasticRevertAll, ESPMode::ThreadSafe> RevertAllOperation = ISourceControlOperation::Create<FPlasticRevertAll>();
-				TArray<FString> WorkspaceRoot;
-				WorkspaceRoot.Add(Provider.GetPathToWorkspaceRoot()); // Revert the root of the workspace (needs an absolute path)
-				const ECommandResult::Type Result = Provider.Execute(RevertAllOperation, WorkspaceRoot, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateRaw(this, &FPlasticSourceControlMenu::OnSourceControlOperationComplete));
+				const ECommandResult::Type Result = Provider.Execute(RevertAllOperation, TArray<FString>(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateRaw(this, &FPlasticSourceControlMenu::OnSourceControlOperationComplete));
 				if (Result == ECommandResult::Succeeded)
 				{
 					// Display an ongoing notification during the whole operation
@@ -264,9 +184,8 @@ void FPlasticSourceControlMenu::RevertAllClicked()
 				}
 				else
 				{
-					// Report failure with a notification and Reload all packages
+					// Report failure with a notification (but nothing need to be reloaded since no local change is expected)
 					DisplayFailureNotification(RevertAllOperation->GetName());
-					ReloadPackages(PackagesToReload);
 				}
 			}
 			else
@@ -416,10 +335,17 @@ void FPlasticSourceControlMenu::OnSourceControlOperationComplete(const FSourceCo
 {
 	RemoveInProgressNotification();
 
-	if ((InOperation->GetName() == "Sync") || (InOperation->GetName() == "RevertAll"))
+	if (InOperation->GetName() == "SyncAll")
 	{
-		// Reload packages that where unlinked at the beginning of the Sync operation
-		ReloadPackages(PackagesToReload);
+		// Reload packages that where updated by the Sync operation (and the current map if needed)
+		TSharedRef<FPlasticSyncAll, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FPlasticSyncAll>(InOperation);
+		PackageUtils::ReloadPackages(Operation->UpdatedFiles);
+	}
+	else if (InOperation->GetName() == "RevertAll")
+	{
+		// Reload packages that where updated by the Revert operation (and the current map if needed)
+		TSharedRef<FPlasticRevertAll, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FPlasticRevertAll>(InOperation);
+		PackageUtils::ReloadPackages(Operation->UpdatedFiles);
 	}
 
 	// Report result with a notification
@@ -436,6 +362,17 @@ void FPlasticSourceControlMenu::OnSourceControlOperationComplete(const FSourceCo
 void FPlasticSourceControlMenu::AddMenuExtension(FToolMenuSection& Menu)
 {
 	Menu.AddMenuEntry(
+		"PlasticSync",
+		LOCTEXT("PlasticSync",			"Sync/Update Workspace"),
+		LOCTEXT("PlasticSyncTooltip",	"Update the workspace to the latest changeset of the branch, and reload all affected assets."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Sync"),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::SyncProjectClicked),
+			FCanExecuteAction()
+		)
+	);
+
+	Menu.AddMenuEntry(
 		"PlasticRevertUnchanged",
 		LOCTEXT("PlasticRevertUnchanged",			"Revert Unchanged"),
 		LOCTEXT("PlasticRevertUnchangedTooltip",	"Revert checked-out but unchanged files in the workspace."),
@@ -447,9 +384,20 @@ void FPlasticSourceControlMenu::AddMenuExtension(FToolMenuSection& Menu)
 	);
 
 	Menu.AddMenuEntry(
+		"PlasticRevertAll",
+		LOCTEXT("PlasticRevertAll",			"Revert All"),
+		LOCTEXT("PlasticRevertAllTooltip",	"Revert all files in the workspace to their controlled/unchanged state."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::RevertAllClicked),
+			FCanExecuteAction()
+		)
+	);
+
+	Menu.AddMenuEntry(
 		"PlasticRefresh",
 		LOCTEXT("PlasticRefresh",			"Refresh"),
-		LOCTEXT("PlasticRefreshTooltip",	"Update the source control status of all files in the workspace."),
+		LOCTEXT("PlasticRefreshTooltip",	"Update the local source control status of all files in the workspace (no expensive checks for locks or changes on other branches)."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::RefreshClicked),
@@ -478,6 +426,7 @@ void FPlasticSourceControlMenu::AddMenuExtension(FToolMenuSection& Menu)
 			FCanExecuteAction()
 		)
 	);
+
 	Menu.AddMenuEntry(
 		"PlasticProjectSettings",
 		LOCTEXT("PlasticProjectSettings",			"Project Settings - Source Control - Plastic SCM"),
@@ -511,6 +460,5 @@ void FPlasticSourceControlMenu::AddMenuExtension(FToolMenuSection& Menu)
 		)
 	);
 }
-
 
 #undef LOCTEXT_NAMESPACE

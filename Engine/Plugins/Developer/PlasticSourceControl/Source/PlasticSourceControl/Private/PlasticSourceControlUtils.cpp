@@ -1,363 +1,54 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlasticSourceControlUtils.h"
+
 #include "PlasticSourceControlCommand.h"
 #include "PlasticSourceControlModule.h"
 #include "PlasticSourceControlProjectSettings.h"
 #include "PlasticSourceControlProvider.h"
 #include "PlasticSourceControlSettings.h"
+#include "PlasticSourceControlShell.h"
 #include "PlasticSourceControlState.h"
+#include "PlasticSourceControlVersions.h"
+#include "ISourceControlModule.h"
+
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
-#include "HAL/FileManager.h"
-#include "Misc/ScopeLock.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "HAL/PlatformTime.h"
-#include "Modules/ModuleManager.h"
 #include "XmlParser.h"
-#include "ISourceControlModule.h"
 #include "SoftwareVersion.h"
+#include "ScopedTempFile.h"
+
 #include "PlasticSourceControlChangelist.h"
 #include "PlasticSourceControlChangelistState.h"
 
-#if PLATFORM_LINUX
-#include <sys/ioctl.h>
-#endif
-
-#if PLATFORM_WINDOWS
-#include "Windows/WindowsHWrapper.h" // SECURITY_ATTRIBUTES
-#undef GetUserName
-#endif
-
-
-namespace PlasticSourceControlConstants
-{
-#if PLATFORM_WINDOWS
-	const TCHAR* pchDelim = TEXT("\r\n");
-#else
-	const TCHAR* pchDelim = TEXT("\n");
-#endif
-}
-
-FScopedTempFile::FScopedTempFile(const FString& InText)
-{
-	Filename = FPaths::CreateTempFilename(*FPaths::ProjectLogDir(), TEXT("Plastic-Temp"), TEXT(".txt"));
-	if (!FFileHelper::SaveStringToFile(InText, *Filename, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
-	{
-		UE_LOG(LogSourceControl, Error, TEXT("Failed to write to temp file: %s"), *Filename);
-	}
-}
-
-FScopedTempFile::FScopedTempFile(const FText& InText)
-{
-	Filename = FPaths::CreateTempFilename(*FPaths::ProjectLogDir(), TEXT("Plastic-Temp"), TEXT(".txt"));
-	if (!FFileHelper::SaveStringToFile(InText.ToString(), *Filename, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
-	{
-		UE_LOG(LogSourceControl, Error, TEXT("Failed to write to temp file: %s"), *Filename);
-	}
-}
-
-FScopedTempFile::~FScopedTempFile()
-{
-	if (FPaths::FileExists(Filename))
-	{
-		if (!FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*Filename))
-		{
-			UE_LOG(LogSourceControl, Error, TEXT("Failed to delete temp file: %s"), *Filename);
-		}
-	}
-}
-
-const FString& FScopedTempFile::GetFilename() const
-{
-	return Filename;
-}
-
 namespace PlasticSourceControlUtils
 {
-// In/Out Pipes for the 'cm shell' persistent child process
-static void*			ShellOutputPipeRead = nullptr;
-static void*			ShellOutputPipeWrite = nullptr;
-static void*			ShellInputPipeRead = nullptr;
-static void*			ShellInputPipeWrite = nullptr;
-static FProcHandle		ShellProcessHandle;
-static FCriticalSection	ShellCriticalSection;
-static size_t			ShellCommandCounter = -1;
-static double			ShellCumulatedTime = 0.;
 
-// Internal function to cleanup (called under the critical section)
-static void _CleanupBackgroundCommandLineShell()
+// Run a command and return the result as raw strings
+bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, const TArray<FString>& InFiles, FString& OutResults, FString& OutErrors)
 {
-	FPlatformProcess::ClosePipe(ShellOutputPipeRead, ShellOutputPipeWrite);
-	FPlatformProcess::ClosePipe(ShellInputPipeRead, ShellInputPipeWrite);
-	ShellOutputPipeRead = ShellOutputPipeWrite = nullptr;
-	ShellInputPipeRead = ShellInputPipeWrite = nullptr;
+	return PlasticSourceControlShell::RunCommand(InCommand, InParameters, InFiles, OutResults, OutErrors);
 }
 
-// Internal function to launch the Plastic SCM background 'cm' process in interactive shell mode (called under the critical section)
-static bool _StartBackgroundPlasticShell(const FString& InPathToPlasticBinary, const FString& InWorkingDirectory)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::_StartBackgroundPlasticShell);
-
-	const FString FullCommand(TEXT("shell --encoding=UTF-8"));
-
-	const bool bLaunchDetached = false;				// the new process will NOT have its own window
-	const bool bLaunchHidden = true;				// the new process will be minimized in the task bar
-	const bool bLaunchReallyHidden = bLaunchHidden; // the new process will not have a window or be in the task bar
-
-	const double StartTimestamp = FPlatformTime::Seconds();
-
-	verify(FPlatformProcess::CreatePipe(ShellOutputPipeRead, ShellOutputPipeWrite, false));	// For reading outputs from cm shell child process
-	verify(FPlatformProcess::CreatePipe(ShellInputPipeRead, ShellInputPipeWrite, true));	// For writing commands to cm shell child process
-
-	ShellProcessHandle = FPlatformProcess::CreateProc(*InPathToPlasticBinary, *FullCommand, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, nullptr, 0, *InWorkingDirectory, ShellOutputPipeWrite, ShellInputPipeRead);
-	if (!ShellProcessHandle.IsValid())
-	{
-		UE_LOG(LogSourceControl, Warning, TEXT("Failed to launch 'cm shell'")); // not a bug, just no Plastic SCM cli found
-		_CleanupBackgroundCommandLineShell();
-	}
-	else
-	{
-		const double ElapsedTime = (FPlatformTime::Seconds() - StartTimestamp);
-		UE_LOG(LogSourceControl, Verbose, TEXT("_StartBackgroundPlasticShell: '%s %s' ok (in %.3lfs, handle %d)"), *InPathToPlasticBinary, *FullCommand, ElapsedTime, ShellProcessHandle.Get());
-		ShellCommandCounter = 0;
-		ShellCumulatedTime = ElapsedTime;
-	}
-
-	return ShellProcessHandle.IsValid();
-}
-
-// Internal function (called under the critical section)
-static void _ExitBackgroundCommandLineShell()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::_ExitBackgroundCommandLineShell);
-
-	if (ShellProcessHandle.IsValid())
-	{
-		if (FPlatformProcess::IsProcRunning(ShellProcessHandle))
-		{
-			// Tell the 'cm shell' to exit
-			FPlatformProcess::WritePipe(ShellInputPipeWrite, TEXT("exit"));
-			// And wait up to one second for its termination
-			const double Timeout = 1.0;
-			const double StartTimestamp = FPlatformTime::Seconds();
-			while (FPlatformProcess::IsProcRunning(ShellProcessHandle))
-			{
-				if ((FPlatformTime::Seconds() - StartTimestamp) > Timeout)
-				{
-					UE_LOG(LogSourceControl, Warning, TEXT("ExitBackgroundCommandLineShell: cm shell didn't stop gracefully in %lfs."), Timeout);
-					FPlatformProcess::TerminateProc(ShellProcessHandle);
-					break;
-				}
-				FPlatformProcess::Sleep(0.01f);
-			}
-		}
-		FPlatformProcess::CloseProc(ShellProcessHandle);
-		_CleanupBackgroundCommandLineShell();
-	}
-}
-
-// Internal function (called under the critical section)
-static void _RestartBackgroundCommandLineShell()
-{
-	const FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
-	const FString& PathToPlasticBinary = Provider.AccessSettings().GetBinaryPath();
-	const FString& WorkingDirectory = Provider.GetPathToWorkspaceRoot();
-
-	_ExitBackgroundCommandLineShell();
-	_StartBackgroundPlasticShell(PathToPlasticBinary, WorkingDirectory);
-}
-
-// Internal function (called under the critical section)
-static bool _RunCommandInternal(const FString& InCommand, const TArray<FString>& InParameters, const TArray<FString>& InFiles, const EConcurrency::Type InConcurrency, FString& OutResults, FString& OutErrors)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::_RunCommandInternal);
-
-	bool bResult = false;
-
-	ShellCommandCounter++;
-
-	// Detect previous crash of cm.exe and restart 'cm shell'
-	if (!FPlatformProcess::IsProcRunning(ShellProcessHandle))
-	{
-		UE_LOG(LogSourceControl, Warning, TEXT("RunCommand: 'cm shell' has stopped. Restarting!"));
-		_RestartBackgroundCommandLineShell();
-	}
-
-	// Start with the Plastic command itself ("status", "log", "checkin"...)
-	FString FullCommand = InCommand;
-	// Append to the command all parameters, and then finally the files
-	for (const FString& Parameter : InParameters)
-	{
-		FullCommand += TEXT(" ");
-		FullCommand += Parameter;
-	}
-	for (const FString& File : InFiles)
-	{
-		FullCommand += TEXT(" \"");
-		FullCommand += File;
-		FullCommand += TEXT("\"");
-	}
-	const FString LoggableCommand = FullCommand.Left(256); // Limit command log size to 256 characters
-	UE_LOG(LogSourceControl, Verbose, TEXT("RunCommand: '%s' (%d chars, %d files)"), *LoggableCommand, FullCommand.Len()+1, InFiles.Num());
-	FullCommand += TEXT('\n'); // Finalize the command line
-
-	// Send command to 'cm shell' process in UTF-8
-	// NOTE: this explicit conversion to UTF-8 shouldn't be needed since FPlatformProcess::WritePipe() says it does it, but reading the implementation for Windows Platform show it merily truncates 16bits to 8bits chars!
-	// NOTE: on the other hand, ReadPipe() does the conversion from UTF-8 correctly already!
-	const FTCHARToUTF8 FullCommandUtf8(*FullCommand);
-	const bool bWriteOk = FPlatformProcess::WritePipe(ShellInputPipeWrite, reinterpret_cast<const uint8*>(FullCommandUtf8.Get()), FullCommandUtf8.Length());
-
-	// And wait up to 180.0 seconds for any kind of output from cm shell: in case of lengthier operation, intermediate output (like percentage of progress) is expected, which would refresh the timeout
-	static const double Timeout = 180.0;
-	const double StartTimestamp = FPlatformTime::Seconds();
-	double LastActivity = StartTimestamp;
-	double LastLog = StartTimestamp;
-	static const double LogInterval = 5.0;
-	int32 PreviousLogLen = 0;
-	while (FPlatformProcess::IsProcRunning(ShellProcessHandle))
-	{
-		FString Output = FPlatformProcess::ReadPipe(ShellOutputPipeRead);
-		if (!Output.IsEmpty())
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::_RunCommandInternal::ParseOutput);
-
-			LastActivity = FPlatformTime::Seconds(); // freshen the timestamp while cm is still actively outputting information
-			OutResults.Append(MoveTemp(Output));
-			// Search the output for the line containing the result code, also indicating the end of the command
-			const uint32 IndexCommandResult = OutResults.Find(TEXT("CommandResult "), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-			if (INDEX_NONE != IndexCommandResult)
-			{
-				const uint32 IndexEndResult = OutResults.Find(PlasticSourceControlConstants::pchDelim, ESearchCase::CaseSensitive, ESearchDir::FromStart, IndexCommandResult + 14);
-				if (INDEX_NONE != IndexEndResult)
-				{
-					const FString Result = OutResults.Mid(IndexCommandResult + 14, IndexEndResult - IndexCommandResult - 14);
-					const int32 ResultCode = FCString::Atoi(*Result);
-					bResult = (ResultCode == 0);
-					// remove the CommandResult line from the OutResults
-					OutResults.RemoveAt(IndexCommandResult, OutResults.Len() - IndexCommandResult);
-					break;
-				}
-			}
-		}
-		else if ((FPlatformTime::Seconds() - LastLog > LogInterval) && (PreviousLogLen < OutResults.Len()))
-		{
-			// In case of long running operation, start to print intermediate output from cm shell (like percentage of progress)
-			UE_LOG(LogSourceControl, Log, TEXT("RunCommand: '%s' in progress for %.3lfs...\n%s"), *InCommand, (FPlatformTime::Seconds() - StartTimestamp), *OutResults.Mid(PreviousLogLen));
-			PreviousLogLen = OutResults.Len();
-			LastLog = FPlatformTime::Seconds(); // freshen the timestamp of last log
-		}
-		else if (FPlatformTime::Seconds() - LastActivity > Timeout)
-		{
-			// In case of timeout, ask the blocking 'cm shell' process to exit, detach from it and restart it immediately
-			UE_LOG(LogSourceControl, Error, TEXT("RunCommand: '%s' TIMEOUT after %.3lfs output (%d chars):\n%s"), *InCommand, (FPlatformTime::Seconds() - StartTimestamp), OutResults.Len(), *OutResults.Mid(PreviousLogLen));
-			_RestartBackgroundCommandLineShell();
-			return false;
-		}
-		else if (IsEngineExitRequested())
-		{
-			UE_LOG(LogSourceControl, Warning, TEXT("RunCommand: '%s' Engine Exit was requested after %.3lfs output (%d chars):\n%s"), *InCommand, (FPlatformTime::Seconds() - StartTimestamp), OutResults.Len(), *OutResults.Mid(PreviousLogLen));
-			_ExitBackgroundCommandLineShell();
-		}
-
-		TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::_RunCommandInternal::Sleep);
-		FPlatformProcess::Sleep(0.001f);
-	}
-	const double ElapsedTime = (FPlatformTime::Seconds() - StartTimestamp);
-
-	if (!InCommand.Equals(TEXT("exit")))
-	{
-		if (!FPlatformProcess::IsProcRunning(ShellProcessHandle))
-		{
-			// 'cm shell' normally only terminates in case of 'exit' command. Will restart on next command.
-			UE_LOG(LogSourceControl, Error, TEXT("RunCommand: '%s' 'cm shell' stopped after %.3lfs output (%d chars):\n%s"), *LoggableCommand, ElapsedTime, OutResults.Len(), *OutResults.Left(4096)); // Limit result size to 4096 characters
-		}
-		else if (!bResult)
-		{
-			UE_LOG(LogSourceControl, Warning, TEXT("RunCommand: '%s' (in %.3lfs) output (%d chars):\n%s"), *LoggableCommand, ElapsedTime, OutResults.Len(), *OutResults.Left(4096)); // Limit result size to 4096 characters
-		}
-		else
-		{
-			if (PreviousLogLen > 0)
-			{
-				UE_LOG(LogSourceControl, Log, TEXT("RunCommand: '%s' (in %.3lfs) output (%d chars):\n%s"), *LoggableCommand, ElapsedTime, OutResults.Len(), *OutResults.Mid(PreviousLogLen).Left(4096)); // Limit result size to 4096 characters
-			}
-			else
-			{
-				if (OutResults.Len() <= 200) // Limit result size to 200 characters
-				{
-					UE_LOG(LogSourceControl, Log, TEXT("RunCommand: '%s' (in %.3lfs) output (%d chars):\n%s"), *LoggableCommand, ElapsedTime, OutResults.Len(), *OutResults);
-				}
-				else
-				{
-					UE_LOG(LogSourceControl, Log, TEXT("RunCommand: '%s' (in %.3lfs) (output %d chars not displayed)"), *LoggableCommand, ElapsedTime, OutResults.Len());
-					UE_LOG(LogSourceControl, Verbose, TEXT("\n%s"), *OutResults.Left(4096));; // Limit result size to 4096 characters
-				}
-			}
-		}
-	}
-	// Return output as error if result code is an error
-	if (!bResult)
-	{
-		OutErrors = MoveTemp(OutResults);
-	}
-
-	ShellCumulatedTime += ElapsedTime;
-	UE_LOG(LogSourceControl, Verbose, TEXT("RunCommand: cumulated time spent in shell: %.3lfs (count %d)"), ShellCumulatedTime, ShellCommandCounter);
-
-	return bResult;
-}
-
-// Launch the Plastic SCM background 'cm shell' process in background for optimized successive commands (thread-safe)
-bool LaunchBackgroundPlasticShell(const FString& InPathToPlasticBinary, const FString& InWorkingDirectory)
-{
-	// Protect public APIs from multi-thread access
-	FScopeLock Lock(&ShellCriticalSection);
-
-	// terminate previous shell if one is already running
-	_ExitBackgroundCommandLineShell();
-
-	return _StartBackgroundPlasticShell(InPathToPlasticBinary, InWorkingDirectory);
-}
-
-// Terminate the background 'cm shell' process and associated pipes (thread-safe)
-void Terminate()
-{
-	// Protect public APIs from multi-thread access
-	FScopeLock Lock(&ShellCriticalSection);
-
-	_ExitBackgroundCommandLineShell();
-}
-
-// Run command (thread-safe)
-bool RunCommandInternal(const FString& InCommand, const TArray<FString>& InParameters, const TArray<FString>& InFiles, const EConcurrency::Type InConcurrency, FString& OutResults, FString& OutErrors)
-{
-	// Protect public APIs from multi-thread access
-	FScopeLock Lock(&ShellCriticalSection);
-
-	return _RunCommandInternal(InCommand, InParameters, InFiles, InConcurrency, OutResults, OutErrors);
-}
-
-// Basic parsing or results & errors from the Plastic command line process
-bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, const TArray<FString>& InFiles, const EConcurrency::Type InConcurrency, TArray<FString>& OutResults, TArray<FString>& OutErrorMessages)
+// Run a command with basic parsing or results & errors from the Plastic command line process
+bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, const TArray<FString>& InFiles, TArray<FString>& OutResults, TArray<FString>& OutErrorMessages)
 {
 	FString Results;
 	FString Errors;
 
-	const bool bResult = RunCommandInternal(InCommand, InParameters, InFiles, InConcurrency, Results, Errors);
+	const bool bResult = PlasticSourceControlShell::RunCommand(InCommand, InParameters, InFiles, Results, Errors);
 
-	Results.ParseIntoArray(OutResults, PlasticSourceControlConstants::pchDelim, true);
-	Errors.ParseIntoArray(OutErrorMessages, PlasticSourceControlConstants::pchDelim, true);
+	Results.ParseIntoArray(OutResults, PlasticSourceControlShell::pchDelim, true);
+	Errors.ParseIntoArray(OutErrorMessages, PlasticSourceControlShell::pchDelim, true);
 
 	return bResult;
 }
 
 const FSoftwareVersion& GetOldestSupportedPlasticScmVersion()
 {
-	// https://www.plasticscm.com/download/releasenotes/9.0.16.4839 cm changelist 'persistent' flag now contain a '--' prefix.
-	static FSoftwareVersion s_OldestSupportedPlasticScmVersion(TEXT("9.0.16.4839"));
-	return s_OldestSupportedPlasticScmVersion;
+	return PlasticSourceControlVersions::OldestSupported;
 }
 
 FString FindPlasticBinaryPath()
@@ -370,44 +61,21 @@ FString FindPlasticBinaryPath()
 }
 
 // Find the root of the Plastic workspace, looking from the provided path and upward in its parent directories.
-bool FindRootDirectory(const FString& InPath, FString& OutWorkspaceRoot)
+bool GetWorkspacePath(const FString& InPath, FString& OutWorkspaceRoot)
 {
-	bool bFound = false;
-	FString PathToPlasticSubdirectory;
-	OutWorkspaceRoot = InPath;
-
-	auto TrimTrailing = [](FString& Str, const TCHAR Char)
+	TArray<FString> Results;
+	TArray<FString> ErrorMessages;
+	TArray<FString> Parameters;
+	Parameters.Add(TEXT("--format={wkpath}"));
+	Parameters.Add(TEXT("."));
+	const bool bFound = RunCommand(TEXT("getworkspacefrompath"), Parameters, TArray<FString>(), Results, ErrorMessages);
+	if (bFound && Results.Num() > 0)
 	{
-		int32 Len = Str.Len();
-		while (Len && Str[Len - 1] == Char)
-		{
-			Str = Str.LeftChop(1);
-			Len = Str.Len();
-		}
-	};
-
-	TrimTrailing(OutWorkspaceRoot, '\\');
-	TrimTrailing(OutWorkspaceRoot, '/');
-
-	while (!bFound && !OutWorkspaceRoot.IsEmpty())
-	{
-		// Look for the ".plastic" subdirectory present at the root of every Plastic workspace
-		PathToPlasticSubdirectory = OutWorkspaceRoot / TEXT(".plastic");
-		bFound = FPaths::DirectoryExists(*PathToPlasticSubdirectory);
-		if (!bFound)
-		{
-			int32 LastSlashIndex;
-			if (OutWorkspaceRoot.FindLastChar(TEXT('/'), LastSlashIndex))
-			{
-				OutWorkspaceRoot = OutWorkspaceRoot.Left(LastSlashIndex);
-			}
-			else
-			{
-				OutWorkspaceRoot.Empty();
-			}
-		}
+		OutWorkspaceRoot = MoveTemp(Results[0]);
+		FPaths::NormalizeDirectoryName(OutWorkspaceRoot);
+		OutWorkspaceRoot.AppendChar(TEXT('/'));
 	}
-	if (!bFound)
+	else
 	{
 		OutWorkspaceRoot = InPath; // If not found, return the provided dir as best possible root.
 	}
@@ -417,62 +85,91 @@ bool FindRootDirectory(const FString& InPath, FString& OutWorkspaceRoot)
 // This is called once by FPlasticSourceControlProvider::CheckPlasticAvailability()
 bool GetPlasticScmVersion(FSoftwareVersion& OutPlasticScmVersion)
 {
-	TArray<FString> InfoMessages;
+	TArray<FString> Results;
 	TArray<FString> ErrorMessages;
-	const bool bResult = RunCommand(TEXT("version"), TArray<FString>(), TArray<FString>(), EConcurrency::Synchronous, InfoMessages, ErrorMessages);
-	if (bResult && InfoMessages.Num() > 0)
+	const bool bResult = RunCommand(TEXT("version"), TArray<FString>(), TArray<FString>(), Results, ErrorMessages);
+	if (bResult && Results.Num() > 0)
 	{
-		OutPlasticScmVersion = FSoftwareVersion(InfoMessages[0]);
+		OutPlasticScmVersion = FSoftwareVersion(MoveTemp(Results[0]));
 		return true;
+	}
+	return false;
+}
+
+bool GetCmLocation(FString& OutCmLocation)
+{
+	TArray<FString> Results;
+	TArray<FString> ErrorMessages;
+	const bool bResult = RunCommand(TEXT("location"), TArray<FString>(), TArray<FString>(), Results, ErrorMessages);
+	if (bResult && Results.Num() > 0)
+	{
+		OutCmLocation = MoveTemp(Results[0]);
+		return true;
+	}
+	return false;
+}
+
+bool GetConfigSetFilesAsReadOnly()
+{
+	TArray<FString> Results;
+	TArray<FString> ErrorMessages;
+	TArray<FString> Parameters;
+	Parameters.Add(TEXT("setfileasreadonly"));
+	const bool bResult = RunCommand(TEXT("getconfig"), Parameters, TArray<FString>(), Results, ErrorMessages);
+	if (bResult && Results.Num() > 0)
+	{
+		if ((Results[0].Compare(TEXT("yes"), ESearchCase::IgnoreCase) == 0) || (Results[0].Compare(TEXT("true"), ESearchCase::IgnoreCase) == 0))
+		{
+			return true;
+		}
 	}
 	return false;
 }
 
 void GetUserName(FString& OutUserName)
 {
-	TArray<FString> InfoMessages;
+	TArray<FString> Results;
 	TArray<FString> ErrorMessages;
-	const bool bResult = RunCommand(TEXT("whoami"), TArray<FString>(), TArray<FString>(), EConcurrency::Synchronous, InfoMessages, ErrorMessages);
-	if (bResult && InfoMessages.Num() > 0)
+	const bool bResult = RunCommand(TEXT("whoami"), TArray<FString>(), TArray<FString>(), Results, ErrorMessages);
+	if (bResult && Results.Num() > 0)
 	{
-		OutUserName = InfoMessages[0];
+		OutUserName = MoveTemp(Results[0]);
 	}
 }
 
 bool GetWorkspaceName(const FString& InWorkspaceRoot, FString& OutWorkspaceName, TArray<FString>& OutErrorMessages)
 {
-	TArray<FString> InfoMessages;
-
+	TArray<FString> Results;
 	TArray<FString> Parameters;
-	Parameters.Add(TEXT("--format={0}"));
+	Parameters.Add(TEXT("--format={wkname}"));
 	TArray<FString> Files;
-	Files.Add(InWorkspaceRoot);
+	Files.Add(InWorkspaceRoot); // Uses an absolute path so that the error message is explicit
 	// Get the workspace name
-	const bool bResult = RunCommand(TEXT("getworkspacefrompath"), Parameters, Files, EConcurrency::Synchronous, InfoMessages, OutErrorMessages);
-	if (bResult && InfoMessages.Num() > 0)
+	const bool bResult = RunCommand(TEXT("getworkspacefrompath"), Parameters, Files, Results, OutErrorMessages);
+	if (bResult && Results.Num() > 0)
 	{
 		// NOTE: an old version of cm getworkspacefrompath didn't return an error code so we had to rely on the error message
-		if (!InfoMessages[0].EndsWith(TEXT(" is not in a workspace.")))
+		if (!Results[0].EndsWith(TEXT(" is not in a workspace.")))
 		{
-			OutWorkspaceName = MoveTemp(InfoMessages[0]);
+			OutWorkspaceName = MoveTemp(Results[0]);
 		}
 	}
 
 	return bResult;
 }
 
-static bool ParseWorkspaceInformation(const TArray<FString>& InInfoMessages, int32& OutChangeset, FString& OutRepositoryName, FString& OutServerUrl, FString& OutBranchName)
+static bool ParseWorkspaceInformation(const TArray<FString>& InResults, int32& OutChangeset, FString& OutRepositoryName, FString& OutServerUrl, FString& OutBranchName)
 {
 	bool bResult = true;
 
 	// Get workspace status, in the form "cs:41@rep:UEPlasticPlugin@repserver:localhost:8087" (disabled by the "--nostatus" flag)
 	//                                or "cs:41@rep:UEPlasticPlugin@repserver:SRombauts@cloud" (when connected directly to the cloud)
-	if (InInfoMessages.Num() > 0)
+	if (InResults.Num() > 0)
 	{
 		static const FString ChangesetPrefix(TEXT("cs:"));
 		static const FString RepPrefix(TEXT("@rep:"));
 		static const FString ServerPrefix(TEXT("@repserver:"));
-		const FString& WorkspaceStatus = InInfoMessages[0];
+		const FString& WorkspaceStatus = InResults[0];
 		const int32 RepIndex = WorkspaceStatus.Find(RepPrefix, ESearchCase::CaseSensitive);
 		const int32 ServerIndex = WorkspaceStatus.Find(ServerPrefix, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 		if ((RepIndex > INDEX_NONE) && (ServerIndex > INDEX_NONE))
@@ -487,11 +184,11 @@ static bool ParseWorkspaceInformation(const TArray<FString>& InInfoMessages, int
 			bResult = false;
 		}
 	}
-	// Get the branch name, in the form "Branch /main@UEPlasticPluginDev" (enabled by the "--wkconfig" flag)
-	if (InInfoMessages.Num() > 1)
+	// Get the branch name, in the form "Branch /main@UE5PlasticPluginDev@test@cloud" (enabled by the "--wkconfig" flag)
+	if (InResults.Num() > 1)
 	{
 		static const FString BranchPrefix(TEXT("Branch "));
-		const FString& BranchInfo = InInfoMessages[1];
+		const FString& BranchInfo = InResults[1];
 		const int32 BranchIndex = BranchInfo.Find(BranchPrefix, ESearchCase::CaseSensitive);
 		if (BranchIndex > INDEX_NONE)
 		{
@@ -504,16 +201,71 @@ static bool ParseWorkspaceInformation(const TArray<FString>& InInfoMessages, int
 
 bool GetWorkspaceInformation(int32& OutChangeset, FString& OutRepositoryName, FString& OutServerUrl, FString& OutBranchName, TArray<FString>& OutErrorMessages)
 {
-	TArray<FString> InfoMessages;
+	TArray<FString> Results;
 	TArray<FString> Parameters;
 	Parameters.Add(TEXT("--compact"));
 	Parameters.Add(TEXT("--header")); // Only prints the workspace status. No file status.
 	// NOTE: --wkconfig results in two network calls GetBranchInfoByName & GetLastChangesetOnBranch so it's okay to do it once here but not all the time
 	Parameters.Add(TEXT("--wkconfig")); // Branch name. NOTE: Deprecated in 8.0.16.3000 https://www.plasticscm.com/download/releasenotes/8.0.16.3000
-	bool bResult = RunCommand(TEXT("status"), Parameters, TArray<FString>(), EConcurrency::Synchronous, InfoMessages, OutErrorMessages);
+	bool bResult = RunCommand(TEXT("status"), Parameters, TArray<FString>(), Results, OutErrorMessages);
 	if (bResult)
 	{
-		bResult = ParseWorkspaceInformation(InfoMessages, OutChangeset, OutRepositoryName, OutServerUrl, OutBranchName);
+		bResult = ParseWorkspaceInformation(Results, OutChangeset, OutRepositoryName, OutServerUrl, OutBranchName);
+	}
+
+	return bResult;
+}
+
+static bool ParseWorkspaceInfo(const TArray<FString>& InResults, FString& OutBranchName, FString& OutRepositoryName, FString& OutServerUrl)
+{
+	if (InResults.Num() == 0)
+	{
+		return false;
+	}
+
+	// Get workspace information, in the form "Branch /main@UE5PlasticPluginDev@localhost:8087"
+	//                                     or "Branch /main@UE5PlasticPluginDev@test@cloud" (when connected directly to the cloud)
+	//                                     or "Branch /main@rep:UE5OpenWorldPerfTest@repserver:test@cloud"
+	static const FString BranchPrefix(TEXT("Branch "));
+	if (!InResults[0].StartsWith(BranchPrefix, ESearchCase::CaseSensitive))
+	{
+		return false;
+	}
+	FString Temp = InResults[0].RightChop(BranchPrefix.Len());
+	int32 SeparatorIndex;
+	if (!Temp.FindChar(TEXT('@'), SeparatorIndex))
+	{
+		return false;
+	}
+	OutBranchName = Temp.Left(SeparatorIndex);
+	Temp.RightChopInline(SeparatorIndex + 1);
+	if (!Temp.FindChar(TEXT('@'), SeparatorIndex))
+	{
+		return false;
+	}
+	OutRepositoryName = Temp.Left(SeparatorIndex);
+	static const FString RepPrefix(TEXT("rep:"));
+	if (OutRepositoryName.StartsWith(RepPrefix, ESearchCase::CaseSensitive))
+	{
+		OutRepositoryName.RightChopInline(RepPrefix.Len());
+	}
+	OutServerUrl = Temp.RightChop(SeparatorIndex + 1);
+	static const FString RepserverPrefix(TEXT("repserver:"));
+	if (OutServerUrl.StartsWith(RepserverPrefix, ESearchCase::CaseSensitive))
+	{
+		OutServerUrl.RightChopInline(RepserverPrefix.Len());
+	}
+
+	return true;
+}
+
+bool GetWorkspaceInfo(FString& OutRepositoryName, FString& OutServerUrl, FString& OutBranchName, TArray<FString>& OutErrorMessages)
+{
+	TArray<FString> Results;
+	bool bResult = RunCommand(TEXT("workspaceinfo"), TArray<FString>(), TArray<FString>(), Results, OutErrorMessages);
+	if (bResult)
+	{
+		bResult = ParseWorkspaceInfo(Results, OutRepositoryName, OutServerUrl, OutBranchName);
 	}
 
 	return bResult;
@@ -552,7 +304,7 @@ static FString RenamedFromPlasticStatus(const FString& InResult)
 {
 	FString RenamedFrom;
 	int32 RenameIndex;
-	if (InResult.FindLastChar('>', RenameIndex))
+	if (InResult.FindLastChar(TEXT('>'), RenameIndex))
 	{
 		// Extract only the first part of a rename "from -> to" (after the 2 letters status surrounded by 2 spaces)
 		RenamedFrom = InResult.Mid(9, RenameIndex - 9 - 2);
@@ -565,6 +317,7 @@ static FString RenamedFromPlasticStatus(const FString& InResult)
  *
  * Examples of status results:
  CO Content\CheckedOut_BP.uasset
+ CO Content\Merged_BP.uasset (Merge from 140)
  MV 100% Content\ToMove_BP.uasset -> Content\Moved_BP.uasset
  *
  * @param[in] InResult One line of status
@@ -576,7 +329,7 @@ static FString FilenameFromPlasticStatus(const FString& InResult)
 {
 	FString RelativeFilename;
 	int32 RenameIndex;
-	if (InResult.FindLastChar('>', RenameIndex))
+	if (InResult.FindLastChar(TEXT('>'), RenameIndex))
 	{
 		// Extract only the second part of a rename "from -> to"
 		RelativeFilename = InResult.RightChop(RenameIndex + 2);
@@ -585,6 +338,12 @@ static FString FilenameFromPlasticStatus(const FString& InResult)
 	{
 		// Extract the relative filename from the Plastic SCM status result (after the 2 letters status surrounded by 2 spaces)
 		RelativeFilename = InResult.RightChop(4);
+
+		const int32 MergeIndex = RelativeFilename.Find(TEXT(" (Merge from "));
+		if (MergeIndex != INDEX_NONE)
+		{
+			RelativeFilename.LeftInline(MergeIndex);
+		}
 	}
 
 	return RelativeFilename;
@@ -629,9 +388,9 @@ private:
  MV 100% Content\ToMove_BP.uasset -> Content\Moved_BP.uasset
  LM 100% Content\ToMove2_BP.uasset -> Content\Moved2_BP.uasset
  */
-static EWorkspaceState::Type StateFromPlasticStatus(const FString& InResult)
+static EWorkspaceState StateFromPlasticStatus(const FString& InResult)
 {
-	EWorkspaceState::Type State;
+	EWorkspaceState State;
 	const FString FileStatus = (InResult[0] == TEXT(' ')) ? InResult.Mid(1, 2) : InResult;
 
 	if (FileStatus == "CH") // Modified but not Checked-Out
@@ -707,7 +466,7 @@ static EWorkspaceState::Type StateFromPlasticStatus(const FString& InResult)
  */
 static void ParseFileStatusResult(TArray<FString>&& InFiles, const TArray<FString>& InResults, TArray<FPlasticSourceControlState>& OutStates, int32& OutChangeset, FString& OutBranchName)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::ParseFileStatusResult);
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::ParseFileStatusResult);
 
 	const FString& WorkingDirectory = FPlasticSourceControlModule::Get().GetProvider().GetPathToWorkspaceRoot();
 
@@ -779,14 +538,14 @@ static void ParseFileStatusResult(TArray<FString>&& InFiles, const TArray<FStrin
 */
 static void ParseDirectoryStatusResultForDeleted(const TArray<FString>& InResults, TArray<FPlasticSourceControlState>& OutStates)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::ParseDirectoryStatusResultForDeleted);
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::ParseDirectoryStatusResultForDeleted);
 
 	const FString& WorkingDirectory = FPlasticSourceControlModule::Get().GetProvider().GetPathToWorkspaceRoot();
 
 	// Iterate on each line of result of the status command
 	for (const FString& Result : InResults)
 	{
-		const EWorkspaceState::Type WorkspaceState = StateFromPlasticStatus(Result);
+		const EWorkspaceState WorkspaceState = StateFromPlasticStatus(Result);
 		if ((EWorkspaceState::Deleted == WorkspaceState) || (EWorkspaceState::LocallyDeleted == WorkspaceState))
 		{
 			FString RelativeFilename = FilenameFromPlasticStatus(Result);
@@ -833,9 +592,9 @@ public:
  * @param[out]	OutChangeset		The current Changeset Number
  * @param[out]	OutBranchName		Name of the current checked-out branch
  */
-static bool RunStatus(const FString& InDir, TArray<FString>&& InFiles, const EConcurrency::Type InConcurrency, TArray<FString>& OutErrorMessages, TArray<FPlasticSourceControlState>& OutStates, int32& OutChangeset, FString& OutBranchName)
+static bool RunStatus(const FString& InDir, TArray<FString>&& InFiles, TArray<FString>& OutErrorMessages, TArray<FPlasticSourceControlState>& OutStates, int32& OutChangeset, FString& OutBranchName)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::RunStatus);
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::RunStatus);
 
 	check(InFiles.Num() > 0);
 
@@ -859,7 +618,7 @@ static bool RunStatus(const FString& InDir, TArray<FString>&& InFiles, const ECo
 	}
 	TArray<FString> Results;
 	TArray<FString> ErrorMessages;
-	const bool bResult = RunCommand(TEXT("status"), Parameters, OnePath, InConcurrency, Results, ErrorMessages);
+	const bool bResult = RunCommand(TEXT("status"), Parameters, OnePath, Results, ErrorMessages);
 	OutErrorMessages.Append(MoveTemp(ErrorMessages));
 	if (bResult)
 	{
@@ -933,7 +692,7 @@ public:
  */
 static void ParseFileinfoResults(const TArray<FString>& InResults, TArray<FPlasticSourceControlState>& InOutStates)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::ParseFileinfoResults);
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::ParseFileinfoResults);
 
 	const FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
 
@@ -952,13 +711,6 @@ static void ParseFileinfoResults(const TArray<FString>& InResults, TArray<FPlast
 		FileState.RepSpec = FileinfoParser.RepSpec;
 		FileState.LockedBy = MoveTemp(FileinfoParser.LockedBy);
 		FileState.LockedWhere = MoveTemp(FileinfoParser.LockedWhere);
-
-		// If a file is locked but not checked-out locally (or moved/renamed) this means it is locked by someone else or elsewhere
-		if ((FileState.WorkspaceState != EWorkspaceState::CheckedOut) && (FileState.WorkspaceState != EWorkspaceState::Moved) && !FileState.LockedBy.IsEmpty())
-		{
-			UE_LOG(LogSourceControl, Verbose, TEXT("LockedByOther(%s) by '%s!=%s' (or %s!=%s)"), *File, *FileState.LockedBy, *Provider.GetUserName(), *FileState.LockedWhere, *Provider.GetWorkspaceName());
-			FileState.WorkspaceState = EWorkspaceState::LockedByOther;
-		}
 
 		// debug log (only for the first few files)
 		if (IdxResult < 20)
@@ -980,13 +732,12 @@ static void ParseFileinfoResults(const TArray<FString>& InResults, TArray<FPlast
  *
  * @param[in]		bInWholeDirectory	If executed on a whole directory (typically Content/) for a "Submit Content" operation, optimize fileinfo more aggressively
  * @param			bInUpdateHistory	If getting the history of files, force execute the fileinfo command required to get RepSpec of XLinks (history view or visual diff)
- * @param[in]		InConcurrency		Is the command running in the background, or blocking the main thread
  * @param[out]		OutErrorMessages	Error messages from the "fileinfo" command
  * @param[in,out]	InOutStates			List of file states in the directory, gathered by the "status" command, completed by results of the "fileinfo" command
  */
-static bool RunFileinfo(const bool bInWholeDirectory, const bool bInUpdateHistory, const EConcurrency::Type InConcurrency, TArray<FString>& OutErrorMessages, TArray<FPlasticSourceControlState>& InOutStates)
+static bool RunFileinfo(const bool bInWholeDirectory, const bool bInUpdateHistory, TArray<FString>& OutErrorMessages, TArray<FPlasticSourceControlState>& InOutStates)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::RunFileinfo);
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::RunFileinfo);
 
 	bool bResult = true;
 	TArray<FString> SelectedFiles;
@@ -1029,7 +780,7 @@ static bool RunFileinfo(const bool bInWholeDirectory, const bool bInUpdateHistor
 		TArray<FString> ErrorMessages;
 		TArray<FString> Parameters;
 		Parameters.Add(TEXT("--format=\"{RevisionChangeset};{RevisionHeadChangeset};{RepSpec};{LockedBy};{LockedWhere}\""));
-		bResult = RunCommand(TEXT("fileinfo"), Parameters, SelectedFiles, InConcurrency, Results, ErrorMessages);
+		bResult = RunCommand(TEXT("fileinfo"), Parameters, SelectedFiles, Results, ErrorMessages);
 		OutErrorMessages.Append(MoveTemp(ErrorMessages));
 		if (bResult)
 		{
@@ -1057,13 +808,13 @@ public:
 			{
 				Filename = Temp.Left(WhitespaceIndex);
 			}
-			Temp = Temp.RightChop(WhitespaceIndex + 1);
+			Temp.RightChopInline(WhitespaceIndex + 1);
 			if (Temp.FindChar(TEXT(' '), WhitespaceIndex))
 			{
 				const FString Base = Temp.Left(WhitespaceIndex);
 				BaseChangeset = FCString::Atoi(*Base);
 			}
-			Temp = Temp.RightChop(WhitespaceIndex + 1);
+			Temp.RightChopInline(WhitespaceIndex + 1);
 			if (Temp.FindChar(TEXT(' '), WhitespaceIndex))
 			{
 				const FString Source = Temp.Left(WhitespaceIndex);
@@ -1080,7 +831,7 @@ public:
 // Check if merging, and from which changelist, then execute a cm merge command to amend status for listed files
 static bool RunCheckMergeStatus(const TArray<FString>& InFiles, TArray<FString>& OutErrorMessages, TArray<FPlasticSourceControlState>& OutStates)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::RunCheckMergeStatus);
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::RunCheckMergeStatus);
 
 	bool bResult = false;
 	const FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
@@ -1137,7 +888,7 @@ static bool RunCheckMergeStatus(const TArray<FString>& InFiles, TArray<FString>&
 					const TArray<FString> PendingMergeParameters = Parameters;
 					Parameters.Add(TEXT("--machinereadable"));
 					// call 'cm merge cs:xxx --machinereadable' (only dry-run, without the --merge parameter)
-					bResult = RunCommand(TEXT("merge"), Parameters, TArray<FString>(), EConcurrency::Synchronous, Results, ErrorMessages);
+					bResult = RunCommand(TEXT("merge"), Parameters, TArray<FString>(), Results, ErrorMessages);
 					OutErrorMessages.Append(MoveTemp(ErrorMessages));
 					// Parse the result, one line for each conflicted files:
 					for (const FString& Result : Results)
@@ -1194,7 +945,7 @@ struct FFilesInCommonDir
 };
 
 // Run a batch of Plastic "status" and "fileinfo" commands to update status of given files and directories.
-bool RunUpdateStatus(const TArray<FString>& InFiles, const bool bInUpdateHistory, const EConcurrency::Type InConcurrency, TArray<FString>& OutErrorMessages, TArray<FPlasticSourceControlState>& OutStates, int32& OutChangeset, FString& OutBranchName)
+bool RunUpdateStatus(const TArray<FString>& InFiles, const bool bInUpdateHistory, TArray<FString>& OutErrorMessages, TArray<FPlasticSourceControlState>& OutStates, int32& OutChangeset, FString& OutBranchName)
 {
 	bool bResults = true;
 
@@ -1245,7 +996,7 @@ bool RunUpdateStatus(const TArray<FString>& InFiles, const bool bInUpdateHistory
 				}
 				else
 				{
-					FString Path = FPaths::GetPath(File) + TEXT("/");
+					FString Path = FPaths::GetPath(File) + TEXT('/');
 					GroupOfFiles.Add(RootDir, { MoveTemp(Path), {File}});
 				}
 
@@ -1259,7 +1010,7 @@ bool RunUpdateStatus(const TArray<FString>& InFiles, const bool bInUpdateHistory
 		// This should be an edge case (typically the uproject file) .
 		if (!bDirFound)
 		{
-			FString Path = FPaths::GetPath(File) + TEXT("/");
+			FString Path = FPaths::GetPath(File) + TEXT('/');
 			FFilesInCommonDir* ExistingGroup = GroupOfFiles.Find(Path);
 			if (ExistingGroup != nullptr)
 			{
@@ -1289,14 +1040,18 @@ bool RunUpdateStatus(const TArray<FString>& InFiles, const bool bInUpdateHistory
 		// Run a "status" command on the directory to get workspace file states.
 		// (ie. Changed, CheckedOut, Copied, Replaced, Added, Private, Ignored, Deleted, LocallyDeleted, Moved, LocallyMoved)
 		TArray<FPlasticSourceControlState> States;
-		const bool bGroupOk = RunStatus(Group.Value.CommonDir, MoveTemp(Group.Value.Files), InConcurrency, OutErrorMessages, States, OutChangeset, OutBranchName);
-		if (bGroupOk && (States.Num() > 0))
+		const bool bGroupOk = RunStatus(Group.Value.CommonDir, MoveTemp(Group.Value.Files), OutErrorMessages, States, OutChangeset, OutBranchName);
+		if (!bGroupOk)
+		{
+			bResults = false;
+		}
+		else if (States.Num() > 0)
 		{
 			// Run a "fileinfo" command to update complementary status information of given files.
 			// (ie RevisionChangeset, RevisionHeadChangeset, RepSpec, LockedBy, LockedWhere)
 			// In case of "whole directory status", there is no explicit file in the group (it contains only the directory)
 			// => work on the list of files discovered by RunStatus()
-			bResults &= RunFileinfo(bWholeDirectory, bInUpdateHistory, InConcurrency, OutErrorMessages, States);
+			bResults &= RunFileinfo(bWholeDirectory, bInUpdateHistory, OutErrorMessages, States);
 		}
 		OutStates.Append(MoveTemp(States));
 	}
@@ -1311,7 +1066,7 @@ bool RunUpdateStatus(const TArray<FString>& InFiles, const bool bInUpdateHistory
 // cm cat revid:1230@rep:myrep@repserver:myserver:8084 --raw --file=Name124.tmp
 bool RunDumpToFile(const FString& InPathToPlasticBinary, const FString& InRevSpec, const FString& InDumpFileName)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::RunDumpToFile);
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::RunDumpToFile);
 
 	int32	ReturnCode = 0;
 	FString Results;
@@ -1366,6 +1121,8 @@ FString DecodeXmlEntities(const FString& InString)
 		  <Repository>UE4PlasticPluginDev</Repository>
 		  <Server>localhost:8087</Server>
 		  <RepositorySpec>UE4PlasticPluginDev@localhost:8087</RepositorySpec>
+		  <Size>22356</Size>
+		  <Hash>zzuB6G9fbWz1md12+tvBxg==</Hash>
 		</Revision>
 		...
 		<Revision>
@@ -1379,6 +1136,8 @@ FString DecodeXmlEntities(const FString& InString)
 		  <Repository>UE4PlasticPluginDev</Repository>
 		  <Server>localhost:8087</Server>
 		  <RepositorySpec>UE4PlasticPluginDev@localhost:8087</RepositorySpec>
+		  <Size>22406</Size>
+		  <Hash>uR7NdDRAyKqADdyAqh67Rg==</Hash>
 		</Revision>
 
 	  </Revisions>
@@ -1392,7 +1151,7 @@ FString DecodeXmlEntities(const FString& InString)
 */
 static bool ParseHistoryResults(const bool bInUpdateHistory, const FXmlFile& InXmlResult, TArray<FPlasticSourceControlState>& InOutStates)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::ParseHistoryResults);
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::ParseHistoryResults);
 
 	const FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
 	const FString RootRepSpec = FString::Printf(TEXT("%s@%s"), *Provider.GetRepositoryName(), *Provider.GetServerUrl());
@@ -1409,6 +1168,8 @@ static bool ParseHistoryResults(const bool bInUpdateHistory, const FXmlFile& InX
 	static const FString ChangesetNumber(TEXT("ChangesetNumber"));
 	static const FString Owner(TEXT("Owner"));
 	static const FString Comment(TEXT("Comment"));
+	static const FString Size(TEXT("Size"));
+	static const FString Hash(TEXT("Hash"));
 
 	const FXmlNode* RevisionHistoriesResultNode = InXmlResult.GetRootNode();
 	if (RevisionHistoriesResultNode == nullptr || RevisionHistoriesResultNode->GetTag() != RevisionHistoriesResult)
@@ -1526,9 +1287,16 @@ static bool ParseHistoryResults(const bool bInUpdateHistory, const FXmlFile& InX
 				{
 					SourceControlRevision->Branch = BranchNode->GetContent();
 				}
+				if (const FXmlNode* SizeNode = RevisionNode->FindChildNode(Size))
+				{
+					SourceControlRevision->FileSize = FCString::Atoi(*SizeNode->GetContent());
+				}
 
 				// Detect and skip more recent changesets on other branches (ie above the RevisionHeadChangeset)
-				if (SourceControlRevision->ChangesetNumber > InOutState.DepotRevisionChangeset)
+				// since we usually don't want to display changes from other branches in the History window...
+				// except in case of a merge conflict, where the Editor expects the tip of the "source (remote)" branch to be at the top of the history!
+				if (   (SourceControlRevision->ChangesetNumber > InOutState.DepotRevisionChangeset)
+					&& (SourceControlRevision->ChangesetNumber != InOutState.PendingMergeSourceChangeset))
 				{
 					InOutState.HeadBranch = SourceControlRevision->Branch;
 					InOutState.HeadAction = SourceControlRevision->Action;
@@ -1561,6 +1329,8 @@ static bool ParseHistoryResults(const bool bInUpdateHistory, const FXmlFile& InX
 // Run a Plastic "history" command and parse it's XML result.
 bool RunGetHistory(const bool bInUpdateHistory, TArray<FPlasticSourceControlState>& InOutStates, TArray<FString>& OutErrorMessages)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::RunGetHistory);
+
 	bool bResult = true;
 	FString Results;
 	FString Errors;
@@ -1572,6 +1342,20 @@ bool RunGetHistory(const bool bInUpdateHistory, TArray<FPlasticSourceControlStat
 	}
 	Parameters.Add(TEXT("--xml"));
 	Parameters.Add(TEXT("--encoding=\"utf-8\""));
+	const FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
+	if (Provider.GetPlasticScmVersion() >= PlasticSourceControlVersions::NewHistoryLimit)
+	{
+		if (bInUpdateHistory)
+		{
+			// --limit=0 will not limit the number of revisions, as stated by LimitNumberOfRevisionsInHistory
+			Parameters.Add(FString::Printf(TEXT("--limit=%d"), GetDefault<UPlasticSourceControlProjectSettings>()->LimitNumberOfRevisionsInHistory));
+		}
+		else
+		{
+			// when only searching for more recent changes on other branches, only the last revision is needed (to compare to the head of the current branch)
+			Parameters.Add(TEXT("--limit=1"));
+		}
+	}
 
 	TArray<FString> Files;
 	Files.Reserve(InOutStates.Num());
@@ -1588,17 +1372,21 @@ bool RunGetHistory(const bool bInUpdateHistory, TArray<FPlasticSourceControlStat
 	}
 	if (Files.Num() > 0)
 	{
-		bResult = RunCommandInternal(TEXT("history"), Parameters, Files, EConcurrency::Synchronous, Results, Errors);
+		bResult = RunCommand(TEXT("history"), Parameters, Files, Results, Errors);
 		if (bResult)
 		{
 			FXmlFile XmlFile;
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::RunGetHistory::FXmlFile::LoadFile);
+				TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::RunGetHistory::FXmlFile::LoadFile);
 				bResult = XmlFile.LoadFile(Results, EConstructMethod::ConstructFromBuffer);
 			}
 			if (bResult)
 			{
 				bResult = ParseHistoryResults(bInUpdateHistory, XmlFile, InOutStates);
+			}
+			else
+			{
+				UE_LOG(LogSourceControl, Error, TEXT("RunGetHistory: XML parse error '%s'"), *XmlFile.GetLastError())
 			}
 		}
 		if (!Errors.IsEmpty())
@@ -1610,6 +1398,139 @@ bool RunGetHistory(const bool bInUpdateHistory, TArray<FPlasticSourceControlStat
 	return bResult;
 }
 
+
+/* Parse results of the 'cm update --xml=tempfile.xml --encoding="utf-8"' command.
+ * 
+ * Results of the update command looks like that:
+<UpdatedItems>
+  <List>
+	<UpdatedItem>
+	  <Path>c:\Workspace\UE5PlasticPluginDev\Content\NewFolder\BP_CheckedOut.uasset</Path>
+	  <User>sebastien.rombauts@unity3d.com</User>
+	  <Changeset>94</Changeset>
+	  <Date>2022-10-27T11:58:02+02:00</Date>
+	</UpdatedItem>
+  </List>
+</UpdatedItems>
+*/
+static bool ParseUpdateResults(const FXmlFile& InXmlResult, TArray<FString>& OutFiles)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::ParseUpdateResults);
+
+	static const FString UpdatedItems(TEXT("UpdatedItems"));
+	static const FString List(TEXT("List"));
+	static const FString UpdatedItem(TEXT("UpdatedItem"));
+	static const FString Path(TEXT("Path"));
+
+	const FXmlNode* UpdatedItemsNode = InXmlResult.GetRootNode();
+	if (UpdatedItemsNode == nullptr || UpdatedItemsNode->GetTag() != UpdatedItems)
+	{
+		return false;
+	}
+
+	const FXmlNode* ListNode = UpdatedItemsNode->FindChildNode(List);
+	if (ListNode == nullptr)
+	{
+		return false;
+	}
+
+	const TArray<FXmlNode*>& UpdatedItemNodes = ListNode->GetChildrenNodes();
+	for (const FXmlNode* UpdatedItemNode : UpdatedItemNodes)
+	{
+		if (const FXmlNode* PathNode = UpdatedItemNode->FindChildNode(Path))
+		{
+			FString Filename = PathNode->GetContent();
+			FPaths::NormalizeFilename(Filename);
+			OutFiles.Add(Filename);
+		}
+	}
+
+	return true;
+}
+
+
+/* Parse results of the 'cm partial update --report --machinereadable' command.
+ *
+ * Results of the update command looks like that:
+STAGE Plastic is updating your workspace. Wait a moment, please...
+STAGE Updated 63.01 KB of 63.01 KB (12 of 12 files to download / 16 of 21 operations to apply) /Content/Collections/SebSharedCollection.collection
+AD c:\Workspace\UE5PlasticPluginDev\Content\LevelPrototyping\Materials\MI_Solid_Red.uasset
+CH c:\Workspace\UE5PlasticPluginDev\Config\DefaultEditor.ini
+DE c:\Workspace\UE5PlasticPluginDev\Content\Collections\SebSharedCollection.collection
+*/
+static bool ParseUpdateResults(const TArray<FString>& InResults, TArray<FString>& OutFiles)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::ParseUpdateResultsString);
+
+	static const FString Stage = TEXT("STAGE ");
+	static const int32 PrefixLen = 3; // "XX " typically "CH ", "AD " or "DE "
+
+	for (const FString& Result : InResults)
+	{
+		if (Result.StartsWith(Stage))
+			continue;
+
+		FString Filename = Result.RightChop(PrefixLen);
+		FPaths::NormalizeFilename(Filename);
+		OutFiles.Add(Filename);
+	}
+
+	return true;
+}
+
+// Run a Plastic "update" command to sync the workspace and parse its XML results.
+bool RunUpdate(const TArray<FString>& InFiles, const bool bInIsPartialWorkspace, TArray<FString>& OutUpdatedFiles, TArray<FString>& OutErrorMessages)
+{
+	bool bResult = false;
+
+	TArray<FString> Parameters;
+	// Update specified directory to the head of the repository
+	// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
+	if (!bInIsPartialWorkspace)
+	{
+		const FScopedTempFile TempFile;
+		TArray<FString> InfoMessages;
+		Parameters.Add(FString::Printf(TEXT("--xml=\"%s\""), *TempFile.GetFilename()));
+		Parameters.Add(TEXT("--encoding=\"utf-8\""));
+		Parameters.Add(TEXT("--last"));
+		Parameters.Add(TEXT("--dontmerge"));
+		bResult = PlasticSourceControlUtils::RunCommand(TEXT("update"), Parameters, TArray<FString>(), InfoMessages, OutErrorMessages);
+		if (bResult)
+		{
+			// Load and parse the result of the update command
+			FString Results;
+			if (FFileHelper::LoadFileToString(Results, *TempFile.GetFilename()))
+			{
+				FXmlFile XmlFile;
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::RunUpdate::FXmlFile::LoadFile);
+					bResult = XmlFile.LoadFile(Results, EConstructMethod::ConstructFromBuffer);
+				}
+				if (bResult)
+				{
+					bResult = ParseUpdateResults(XmlFile, OutUpdatedFiles);
+				}
+				else
+				{
+					UE_LOG(LogSourceControl, Error, TEXT("RunUpdate: XML parse error '%s'"), *XmlFile.GetLastError())
+				}
+			}
+		}
+	}
+	else
+	{
+		TArray<FString> Results;
+		Parameters.Add(TEXT("--report"));
+		Parameters.Add(TEXT("--machinereadable"));
+		bResult = PlasticSourceControlUtils::RunCommand(TEXT("partial update"), Parameters, InFiles, Results, OutErrorMessages);
+		if (bResult)
+		{
+			bResult = ParseUpdateResults(Results, OutUpdatedFiles);
+		}
+	}
+
+	return bResult;
+}
 
 /**
  * Parse results of the 'cm status --changelists --controlledchanged --xml --encoding="utf-8"' command.
@@ -1657,7 +1578,7 @@ bool RunGetHistory(const bool bInUpdateHistory, TArray<FPlasticSourceControlStat
 */
 static bool ParseChangelistsResults(const FXmlFile& InXmlResult, TArray<FPlasticSourceControlChangelistState>& OutChangelistsStates, TArray<TArray<FPlasticSourceControlState>>& OutCLFilesStates)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::ParseChangelistsResults);
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::ParseChangelistsResults);
 
 	static const FString StatusOutput(TEXT("StatusOutput"));
 	static const FString WkConfigType(TEXT("WkConfigType"));
@@ -1741,8 +1662,11 @@ static bool ParseChangelistsResults(const FXmlFile& InXmlResult, TArray<FPlastic
 	return true;
 }
 
-bool RunGetChangelists(const EConcurrency::Type InConcurrency, TArray<FPlasticSourceControlChangelistState>& OutChangelistsStates, TArray<TArray<FPlasticSourceControlState>>& OutCLFilesStates, TArray<FString>& OutErrorMessages)
+// Run a Plastic "status --changelist --xml" and parse its XML result.
+bool RunGetChangelists(TArray<FPlasticSourceControlChangelistState>& OutChangelistsStates, TArray<TArray<FPlasticSourceControlState>>& OutCLFilesStates, TArray<FString>& OutErrorMessages)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::RunGetChangelists);
+
 	FString Results;
 	FString Errors;
 	TArray<FString> Parameters;
@@ -1751,17 +1675,21 @@ bool RunGetChangelists(const EConcurrency::Type InConcurrency, TArray<FPlasticSo
 	Parameters.Add(TEXT("--noheader"));
 	Parameters.Add(TEXT("--xml"));
 	Parameters.Add(TEXT("--encoding=\"utf-8\""));
-	bool bResult = PlasticSourceControlUtils::RunCommandInternal(TEXT("status"), Parameters, TArray<FString>(), InConcurrency, Results, Errors);
+	bool bResult = RunCommand(TEXT("status"), Parameters, TArray<FString>(), Results, Errors);
 	if (bResult)
 	{
 		FXmlFile XmlFile;
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlUtils::RunGetHistory::FXmlFile::LoadFile);
+			TRACE_CPUPROFILER_EVENT_SCOPE(PlasticSourceControlUtils::RunGetChangelists::FXmlFile::LoadFile);
 			bResult = XmlFile.LoadFile(Results, EConstructMethod::ConstructFromBuffer);
 		}
 		if (bResult)
 		{
 			bResult = ParseChangelistsResults(XmlFile, OutChangelistsStates, OutCLFilesStates);
+		}
+		else
+		{
+			UE_LOG(LogSourceControl, Error, TEXT("RunGetChangelists: XML parse error '%s'"), *XmlFile.GetLastError())
 		}
 	}
 	if (!Errors.IsEmpty())
@@ -1770,6 +1698,246 @@ bool RunGetChangelists(const EConcurrency::Type InConcurrency, TArray<FPlasticSo
 	}
 
 	return bResult;
+}
+
+// Parse the one letter file status in front of each line of the 'cm diff sh:<ShelveId>'
+EWorkspaceState ParseShelveFileStatus(const TCHAR InFileStatus)
+{
+	if (InFileStatus == 'A') // Added
+	{
+		return EWorkspaceState::Added;
+	}
+	else if (InFileStatus == 'D') // Deleted
+	{
+		return EWorkspaceState::Deleted;
+	}
+	else if (InFileStatus == 'C') // Changed (CheckedOut or not)
+	{
+		return EWorkspaceState::CheckedOut;
+	}
+	else if (InFileStatus == 'M') // Moved/Renamed (or Locally Moved)
+	{
+		return EWorkspaceState::Moved;
+	}
+	else
+	{
+		UE_LOG(LogSourceControl, Warning, TEXT("Unknown file status '%c'"), InFileStatus);
+		return EWorkspaceState::Unknown;
+	}
+}
+
+void AddShelvedFileToChangelist(FPlasticSourceControlChangelistState& InOutChangelistsState, FString&& InFilename, EWorkspaceState InShelveStatus)
+{
+	TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> ShelveState = MakeShared<FPlasticSourceControlState>(MoveTemp(InFilename), InShelveStatus);
+
+	// Add one revision to be able to fetch the shelved file for diff, if it's not marked for deletion.
+	if (InShelveStatus != EWorkspaceState::Deleted)
+	{
+		const TSharedRef<FPlasticSourceControlRevision, ESPMode::ThreadSafe> SourceControlRevision = MakeShared<FPlasticSourceControlRevision>();
+		SourceControlRevision->State = &ShelveState.Get();
+		SourceControlRevision->Filename = ShelveState->GetFilename();
+		SourceControlRevision->ShelveId = InOutChangelistsState.ShelveId;
+		SourceControlRevision->ChangesetNumber = InOutChangelistsState.ShelveId; // Note: for display in the diff window only
+		SourceControlRevision->Date = InOutChangelistsState.ShelveDate; // Note: not yet used for display as of UE5.1.1
+
+		ShelveState->History.Add(SourceControlRevision);
+	}
+
+	// In case of a Moved file, it would appear twice in the list, so overwrite it if already in
+	if (FSourceControlStateRef* ExistingShelveState = InOutChangelistsState.ShelvedFiles.FindByPredicate(
+		[&ShelveState](const FSourceControlStateRef& State)
+		{
+			return State->GetFilename().Equals(ShelveState->GetFilename());
+		}))
+	{
+		*ExistingShelveState = MoveTemp(ShelveState);
+	}
+	else
+	{
+		InOutChangelistsState.ShelvedFiles.Add(MoveTemp(ShelveState));
+	}
+}
+
+
+/**
+ * Parse results of the 'cm diff sh:<ShelveId>' command.
+ *
+ * Results of the diff command looks like that:
+C "Content\NewFolder\BP_CheckedOut.uasset"
+C "Content\NewFolder\BP_Renamed.uasset"
+A "Content\NewFolder\BP_ControlledUnchanged.uasset"
+D "Content\NewFolder\BP_Changed.uasset"
+M "Content\NewFolder\BP_ControlledUnchanged.uasset" "Content\NewFolder\BP_Renamed.uasset"
+*/
+bool ParseShelveDiffResults(const FString InWorkingDirectory, TArray<FString>&& InResults, FPlasticSourceControlChangelistState& InOutChangelistsState)
+{
+	bool bCommandSuccessful = true;
+
+	InOutChangelistsState.ShelvedFiles.Reset(InResults.Num());
+	for (FString& Result : InResults)
+	{
+		EWorkspaceState ShelveStatus = ParseShelveFileStatus(Result[0]);
+		
+		// Remove outer double quotes
+		Result.MidInline(3, Result.Len() - 4, false);
+		if (ShelveStatus == EWorkspaceState::Moved)
+		{
+			// Search for the inner double quotes in the middle of "Content/Source.uasset" "Content/Destination.uasset" to keep only the destination filename
+			int32 RenameIndex;
+			if (Result.FindLastChar(TEXT('"'), RenameIndex))
+			{
+				Result.RightChopInline(RenameIndex + 1);
+			}
+		}
+		
+		if (ShelveStatus != EWorkspaceState::Unknown && !Result.IsEmpty())
+		{
+			FString AbsoluteFilename = FPaths::ConvertRelativePathToFull(InWorkingDirectory, MoveTemp(Result));
+			AddShelvedFileToChangelist(InOutChangelistsState, MoveTemp(AbsoluteFilename), ShelveStatus);
+		}
+		else
+		{
+			bCommandSuccessful = false;
+		}
+	}
+
+	return bCommandSuccessful;
+}
+
+/**
+ * Run for each shelve a "diff sh:<ShelveId>" and parse their result to list their files.
+ * @param	InOutChangelistsStates	The list of changelists, filled with their shelved files
+ * @param	OutErrorMessages		Any errors (from StdErr) as an array per-line
+ */
+bool RunGetShelveFiles(TArray<FPlasticSourceControlChangelistState>& InOutChangelistsStates, TArray<FString>& OutErrorMessages)
+{
+	bool bCommandSuccessful = true;
+
+	const FString& WorkingDirectory = FPlasticSourceControlModule::Get().GetProvider().GetPathToWorkspaceRoot();
+
+	for (FPlasticSourceControlChangelistState& ChangelistState : InOutChangelistsStates)
+	{
+		if (ChangelistState.ShelveId != ISourceControlState::INVALID_REVISION)
+		{
+			TArray<FString> Results;
+			TArray<FString> Parameters;
+			Parameters.Add(FString::Printf(TEXT("sh:%d"), ChangelistState.ShelveId));
+			const bool bDiffSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("diff"), Parameters, TArray<FString>(), Results, OutErrorMessages);
+			if (bDiffSuccessful)
+			{
+				bCommandSuccessful = ParseShelveDiffResults(WorkingDirectory, MoveTemp(Results), ChangelistState);
+			}
+		}
+	}
+
+	return bCommandSuccessful;
+}
+
+/**
+ * Parse results of the 'cm find "shelves where owner='me'" --xml --encoding="utf-8"' command.
+ *
+ * Find shelves with comments starting like "ChangelistXXX: " and matching an existing Changelist number XXX
+ *
+ * Results of the find command looks like the following; note the "Changelist67: " prefix of the comment:
+<?xml version="1.0" encoding="utf-8" ?>
+<PLASTICQUERY>
+  <SHELVE>
+	<ID>1376</ID>
+	<SHELVEID>9</SHELVEID>
+    <COMMENT>Changelist67: test by Sebastien</COMMENT>
+	<DATE>2022-06-30T16:39:55+02:00</DATE>
+    <OWNER>sebastien.rombauts@unity3d.com</OWNER>
+    <REPOSITORY>UE5PlasticPluginDev</REPOSITORY>
+    <REPNAME>UE5PlasticPluginDev</REPNAME>
+    <REPSERVER>test@cloud</REPSERVER>
+	<PARENT>45</PARENT>
+	<GUID>8fbefbcc-81a7-4b81-9b99-b51f4873d09f</GUID>
+  </SHELVE>
+  [...]
+</PLASTICQUERY>
+*/
+static bool ParseShelvesResults(const FXmlFile& InXmlResult, TArray<FPlasticSourceControlChangelistState>& InOutChangelistsStates)
+{
+	static const FString PlasticQuery(TEXT("PLASTICQUERY"));
+	static const FString Shelve(TEXT("SHELVE"));
+	static const FString ShelveId(TEXT("SHELVEID"));
+	static const FString Date(TEXT("DATE"));
+	static const FString Comment(TEXT("COMMENT"));
+
+	const FString& WorkingDirectory = FPlasticSourceControlModule::Get().GetProvider().GetPathToWorkspaceRoot();
+
+	const FXmlNode* PlasticQueryNode = InXmlResult.GetRootNode();
+	if (PlasticQueryNode == nullptr || PlasticQueryNode->GetTag() != PlasticQuery)
+	{
+		return false;
+	}
+
+	const TArray<FXmlNode*>& ShelvesNodes = PlasticQueryNode->GetChildrenNodes();
+	for (const FXmlNode* ShelveNode : ShelvesNodes)
+	{
+		check(ShelveNode);
+		const FXmlNode* ShelveIdNode = ShelveNode->FindChildNode(ShelveId);
+		const FXmlNode* CommentNode = ShelveNode->FindChildNode(Comment);
+		if (ShelveIdNode == nullptr || CommentNode == nullptr)
+		{
+			continue;
+		}
+
+		const FString& ShelveIdString = ShelveIdNode->GetContent();
+		const FString& CommentString = CommentNode->GetContent();
+
+		// Search if there is a changelist matching the shelve (that is, a shelve with a comment starting with "ChangelistXXX: ")
+		for (FPlasticSourceControlChangelistState& ChangelistState : InOutChangelistsStates)
+		{
+			FPlasticSourceControlChangelistRef Changelist = StaticCastSharedRef<FPlasticSourceControlChangelist>(ChangelistState.GetChangelist());
+			const FString ChangelistPrefix = FString::Printf(TEXT("Changelist%s: "), *Changelist->GetName());
+			if (CommentString.StartsWith(ChangelistPrefix))
+			{
+				ChangelistState.ShelveId = FCString::Atoi(*ShelveIdString);
+
+				if (const FXmlNode* DateNode = ShelveNode->FindChildNode(Date))
+				{
+					const FString& DateIso = DateNode->GetContent();
+					FDateTime::ParseIso8601(*DateIso, ChangelistState.ShelveDate);
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+// Run find "shelves where owner='me'" and for each shelve matching a changelist a "diff sh:<ShelveId>" and parse their results.
+bool RunGetShelves(TArray<FPlasticSourceControlChangelistState>& InOutChangelistsStates, TArray<FString>& OutErrorMessages)
+{
+	bool bCommandSuccessful;
+
+	FString Results;
+	FString Errors;
+	TArray<FString> Parameters;
+	Parameters.Add(TEXT("\"shelves where owner = 'me'\""));
+	Parameters.Add(TEXT("--xml"));
+	Parameters.Add(TEXT("--encoding=\"utf-8\""));
+	bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("find"), Parameters, TArray<FString>(), Results, Errors);
+	if (bCommandSuccessful)
+	{
+		FXmlFile XmlFile;
+		bCommandSuccessful = XmlFile.LoadFile(Results, EConstructMethod::ConstructFromBuffer);
+		if (bCommandSuccessful)
+		{
+			bCommandSuccessful = ParseShelvesResults(XmlFile, InOutChangelistsStates);
+			if (bCommandSuccessful)
+			{
+				bCommandSuccessful = RunGetShelveFiles(InOutChangelistsStates, OutErrorMessages);
+			}
+		}
+	}
+	if (!Errors.IsEmpty())
+	{
+		OutErrorMessages.Add(MoveTemp(Errors));
+	}
+
+	return bCommandSuccessful;
 }
 
 bool UpdateCachedStates(TArray<FPlasticSourceControlState>&& InStates)

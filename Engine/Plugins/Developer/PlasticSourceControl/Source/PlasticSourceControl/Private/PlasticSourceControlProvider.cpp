@@ -7,6 +7,7 @@
 #include "PlasticSourceControlOperations.h"
 #include "PlasticSourceControlProjectSettings.h"
 #include "PlasticSourceControlSettings.h"
+#include "PlasticSourceControlShell.h"
 #include "PlasticSourceControlState.h"
 #include "PlasticSourceControlUtils.h"
 #include "SPlasticSourceControlSettings.h"
@@ -58,9 +59,13 @@ void FPlasticSourceControlProvider::Init(bool bForceConnection)
 	{
 		// Execute a 'checkconnection' command to set bServerAvailable based on the connectivity of the server
 		TArray<FString> InfoMessages, ErrorMessages;
-		const bool bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("checkconnection"), TArray<FString>(), TArray<FString>(), EConcurrency::Synchronous, InfoMessages, ErrorMessages);
-		bServerAvailable = bCommandSuccessful;
-		if (!bCommandSuccessful)
+		TArray<FString> Parameters;
+		if (PlasticSourceControlUtils::GetWorkspaceInfo(BranchName, RepositoryName, ServerUrl, ErrorMessages))
+		{
+			Parameters.Add(FString::Printf(TEXT("--server=%s"), *ServerUrl));
+		}
+		bServerAvailable = PlasticSourceControlUtils::RunCommand(TEXT("checkconnection"), Parameters, TArray<FString>(), InfoMessages, ErrorMessages);
+		if (!bServerAvailable)
 		{
 			FMessageLog SourceControlLog("SourceControl");
 			for (const FString& ErrorMessage : ErrorMessages)
@@ -90,10 +95,9 @@ void FPlasticSourceControlProvider::CheckPlasticAvailability()
 	{
 		// Find the path to the root Plastic directory (if any, else uses the ProjectDir)
 		const FString PathToProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-		bWorkspaceFound = PlasticSourceControlUtils::FindRootDirectory(PathToProjectDir, PathToWorkspaceRoot);
 
 		// Launch the Plastic SCM cli shell on the background to issue all commands during this session
-		bPlasticAvailable = PlasticSourceControlUtils::LaunchBackgroundPlasticShell(PathToPlasticBinary, PathToWorkspaceRoot);
+		bPlasticAvailable = PlasticSourceControlShell::Launch(PathToPlasticBinary, PathToProjectDir);
 		if (!bPlasticAvailable)
 		{
 			return;
@@ -104,6 +108,14 @@ void FPlasticSourceControlProvider::CheckPlasticAvailability()
 		{
 			return;
 		}
+
+		FString ActualPathToPlasticBinary;
+		PlasticSourceControlUtils::GetCmLocation(ActualPathToPlasticBinary);
+
+		bWorkspaceFound = PlasticSourceControlUtils::GetWorkspacePath(PathToProjectDir, PathToWorkspaceRoot);
+
+
+		bUsesLocalReadOnlyState = PlasticSourceControlUtils::GetConfigSetFilesAsReadOnly();
 
 		// Get user name (from the global Plastic SCM client config)
 		PlasticSourceControlUtils::GetUserName(UserName);
@@ -126,7 +138,7 @@ void FPlasticSourceControlProvider::Close()
 	// clear the cache
 	StateCache.Empty();
 	// terminate the background 'cm shell' process and associated pipes
-	PlasticSourceControlUtils::Terminate();
+	PlasticSourceControlShell::Terminate();
 	// Remove all extensions to the "Source Control" menu in the Editor Toolbar
 	PlasticSourceControlMenu.Unregister();
 	// Unregister Console Commands
@@ -181,13 +193,13 @@ FText FPlasticSourceControlProvider::GetStatusText() const
 	Args.Add(TEXT("WorkspaceName"), FText::FromString(WorkspaceName));
 	Args.Add(TEXT("BranchName"), FText::FromString(BranchName));
 	// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
-	if (-1 != ChangesetNumber)
+	if (IsPartialWorkspace())
 	{
-		Args.Add(TEXT("ChangesetNumber"), FText::FromString(FString::Printf(TEXT("%d  (regular full workspace)"), ChangesetNumber)));
+		Args.Add(TEXT("ChangesetNumber"), FText::FromString(FString::Printf(TEXT("N/A  (Gluon partial workspace)"))));
 	}
 	else
 	{
-		Args.Add(TEXT("ChangesetNumber"), FText::FromString(FString::Printf(TEXT("N/A  (Gluon/partial workspace)"))));
+		Args.Add(TEXT("ChangesetNumber"), FText::FromString(FString::Printf(TEXT("%d  (regular full workspace)"), ChangesetNumber)));
 	}
 	Args.Add(TEXT("UserName"), FText::FromString(UserName));
 	const FString DisplayName = PlasticSourceControlUtils::UserNameToDisplayName(UserName);
@@ -310,7 +322,6 @@ TArray<FSourceControlChangelistStateRef> FPlasticSourceControlProvider::GetCache
 	return Result;
 }
 
-
 TArray<FSourceControlStateRef> FPlasticSourceControlProvider::GetCachedStateByPredicate(TFunctionRef<bool(const FSourceControlStateRef&)> Predicate) const
 {
 	TArray<FSourceControlStateRef> Result;
@@ -401,7 +412,7 @@ void FPlasticSourceControlProvider::CancelOperation(const FSourceControlOperatio
 
 bool FPlasticSourceControlProvider::UsesLocalReadOnlyState() const
 {
-	return false; // TODO: use configuration
+	return bUsesLocalReadOnlyState;
 }
 
 bool FPlasticSourceControlProvider::UsesChangelists() const
@@ -431,12 +442,12 @@ bool FPlasticSourceControlProvider::AllowsDiffAgainstDepot() const
 
 TOptional<bool> FPlasticSourceControlProvider::IsAtLatestRevision() const
 {
-	return TOptional<bool>();
+	return TOptional<bool>(); // NOTE: used by code in UE5's Status Bar but currently dormant as far as I can tell
 }
 
 TOptional<int> FPlasticSourceControlProvider::GetNumLocalChanges() const
 {
-	return TOptional<int>();
+	return TOptional<int>(); // NOTE: used by code in UE5's Status Bar but currently dormant as far as I can tell
 }
 
 TSharedPtr<IPlasticSourceControlWorker, ESPMode::ThreadSafe> FPlasticSourceControlProvider::CreateWorker(const FName& InOperationName)
@@ -561,9 +572,13 @@ void FPlasticSourceControlProvider::Tick()
 			// dump any messages to output log
 			OutputCommandMessages(Command);
 
-			if (Command.Files.Num())
+			if (Command.Files.Num() > 1)
 			{
 				UE_LOG(LogSourceControl, Log, TEXT("%s of %d files processed in %.3lfs"), *Command.Operation->GetName().ToString(), Command.Files.Num(), (FPlatformTime::Seconds() - Command.StartTimestamp));
+			}
+			else if (Command.Files.Num() == 1)
+			{
+				UE_LOG(LogSourceControl, Log, TEXT("%s of %s processed in %.3lfs"), *Command.Operation->GetName().ToString(), *Command.Files[0], (FPlatformTime::Seconds() - Command.StartTimestamp));
 			}
 			else
 			{
@@ -600,7 +615,7 @@ TArray<TSharedRef<ISourceControlLabel>> FPlasticSourceControlProvider::GetLabels
 	return Tags;
 }
 
-TArray<FSourceControlChangelistRef> FPlasticSourceControlProvider::GetChangelists( EStateCacheUsage::Type InStateCacheUsage )
+TArray<FSourceControlChangelistRef> FPlasticSourceControlProvider::GetChangelists(EStateCacheUsage::Type InStateCacheUsage)
 {
 	if (!IsEnabled())
 	{

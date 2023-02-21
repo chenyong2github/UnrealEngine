@@ -8,10 +8,8 @@
 #include "PlasticSourceControlRevision.h"
 #include "PlasticSourceControlChangelist.h"
 
-namespace EWorkspaceState
+enum class EWorkspaceState
 {
-	enum Type
-	{
 		Unknown,
 		Ignored,
 		Controlled, // called "Pristine" in Perforce, "Unchanged" in Git, "Clean" in SVN
@@ -24,19 +22,20 @@ namespace EWorkspaceState
 		LocallyDeleted, // Missing
 		Changed, // Modified but not CheckedOut
 		Conflicted,
-		LockedByOther, // LockedBy with name of someone else than cm whoami
 		Private, // "Not Controlled"/"Not In Depot"/"Untracked"
-	};
-
-	// debug log utility
-	const TCHAR* ToString(EWorkspaceState::Type InWorkspaceState);
-} // namespace EWorkspaceState
+};
 
 class FPlasticSourceControlState : public ISourceControlState
 {
 public:
 	explicit FPlasticSourceControlState(FString&& InLocalFilename)
 		: LocalFilename(MoveTemp(InLocalFilename))
+	{
+	}
+
+	FPlasticSourceControlState(FString&& InLocalFilename, EWorkspaceState InWorkspaceState)
+		: LocalFilename(MoveTemp(InLocalFilename))
+		, WorkspaceState(InWorkspaceState)
 	{
 	}
 
@@ -65,6 +64,7 @@ public:
 		PendingMergeSourceChangeset = InState.PendingMergeSourceChangeset;
 		PendingMergeParameters = MoveTemp(InState.PendingMergeParameters);
 		// Update "fileinfo" information only if the command was issued
+		// Don't override "fileinfo" information in case of an optimized/lightweight "whole folder status" triggered by a global Submit Content or Refresh
 		if (InState.DepotRevisionChangeset != INVALID_REVISION)
 		{
 			LockedBy = MoveTemp(InState.LockedBy);
@@ -79,12 +79,6 @@ public:
 			HeadUserName = MoveTemp(InState.HeadUserName);
 			HeadModTime = MoveTemp(InState.HeadModTime);
 		}
-		// Don't override "fileinfo" information in case of an optimized/lightweight "whole folder status" triggered by a global Submit Content or Refresh
-		// and regenerate the LockedByOther state based on LockedBy
-		else if (!IsCheckedOut() && !LockedBy.IsEmpty())
-		{
-			WorkspaceState = EWorkspaceState::LockedByOther;
-		}
 		MovedFrom = MoveTemp(InState.MovedFrom);
 		TimeStamp = InState.TimeStamp;
 
@@ -96,10 +90,7 @@ public:
 	}
 
 	// debug log utility
-	const TCHAR* ToString() const
-	{
-		return EWorkspaceState::ToString(WorkspaceState);
-	}
+	const TCHAR* ToString() const;
 
 	/** ISourceControlState interface */
 	virtual int32 GetHistorySize() const override;
@@ -165,9 +156,9 @@ public:
 	FString LockedWhere;
 
 	/** State of the workspace */
-	EWorkspaceState::Type WorkspaceState = EWorkspaceState::Unknown;
+	EWorkspaceState WorkspaceState = EWorkspaceState::Unknown;
 
-	/** Latest revision number of the file in the depot */
+	/** Latest revision number of the file in the depot (on the current branch) */
 	int DepotRevisionChangeset = INVALID_REVISION;
 
 	/** Latest revision number at which a file was synced to before being edited */

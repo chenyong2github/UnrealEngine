@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 
 #include "ISourceControlChangelistState.h"
+
 #include "PlasticSourceControlChangelist.h"
 
 /**
- * An abstraction of the state of a pending changelist under source control: description and list of files
+ * The state of a pending changelist under source control: description and list of files
  */
 class FPlasticSourceControlChangelistState : public ISourceControlChangelistState
 {
@@ -74,7 +75,10 @@ public:
 
 	TArray<FSourceControlStateRef> Files;
 
-	TArray<FSourceControlStateRef> ShelvedFiles; // TODO: shelves are not yet implemented
+	int32 ShelveId = ISourceControlState::INVALID_REVISION;
+	FDateTime ShelveDate;
+
+	TArray<FSourceControlStateRef> ShelvedFiles;
 
 	/** The timestamp of the last update */
 	FDateTime TimeStamp;

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// Specialization of classes defineds in Engine\Source\Developer\SourceControl\Public\SourceControlOperations.h
+// Specialization of classes defined in Engine\Source\Developer\SourceControl\Public\SourceControlOperations.h
 
 #pragma once
 
@@ -9,6 +9,7 @@
 #include "PlasticSourceControlRevision.h"
 #include "PlasticSourceControlState.h"
 #include "ISourceControlOperation.h"
+#include "SourceControlOperations.h"
 
 #include "PlasticSourceControlChangelist.h"
 #include "PlasticSourceControlChangelistState.h"
@@ -29,15 +30,35 @@ public:
 
 
 /**
+ * Internal operation used to sync all files in the workspace
+*/
+class FPlasticSyncAll final : public FSync
+{
+public:
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "SyncAll";
+	}
+
+	/** List of files updated by the operation */
+	TArray<FString> UpdatedFiles;
+};
+
+
+/**
  * Internal operation used to revert checked-out files
 */
-class FPlasticRevertAll final : public ISourceControlOperation
+class FPlasticRevertAll final : public FRevert
 {
 public:
 	// ISourceControlOperation interface
 	virtual FName GetName() const override;
 
 	virtual FText GetInProgressString() const override;
+
+	/** List of files updated by the operation */
+	TArray<FString> UpdatedFiles;
 };
 
 
@@ -397,5 +418,79 @@ protected:
 
 	/** Destination changelist */
 	FPlasticSourceControlChangelist DestinationChangelist;
+};
+
+class FPlasticShelveWorker final : public IPlasticSourceControlWorker
+{
+public:
+	explicit FPlasticShelveWorker(FPlasticSourceControlProvider& InSourceControlProvider)
+		: IPlasticSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPlasticShelveWorker() = default;
+
+	// IPlasticSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(FPlasticSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() override;
+
+protected:
+	int32 ShelveId = ISourceControlState::INVALID_REVISION;
+
+	TArray<FString> ShelvedFiles;
+
+	/** Files that were moved to a new changelist if shelving from the Default Changelist */
+	TArray<FString> MovedFiles;
+
+	/** Changelist description if needed */
+	FString ChangelistDescription;
+
+	/** Changelist(s) to be updated */
+	FPlasticSourceControlChangelist InChangelistToUpdate;
+	FPlasticSourceControlChangelist OutChangelistToUpdate;
+};
+
+class FPlasticUnshelveWorker final : public IPlasticSourceControlWorker
+{
+public:
+	explicit FPlasticUnshelveWorker(FPlasticSourceControlProvider& InSourceControlProvider)
+		: IPlasticSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPlasticUnshelveWorker() = default;
+
+	// IPlasticSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(FPlasticSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() override;
+
+protected:
+	/** List of files states after the unshelve */
+	TArray<FPlasticSourceControlState> States;
+
+	/** Changelist to be updated */
+	FPlasticSourceControlChangelist ChangelistToUpdate;
+};
+
+class FPlasticDeleteShelveWorker final : public IPlasticSourceControlWorker
+{
+public:
+	explicit FPlasticDeleteShelveWorker(FPlasticSourceControlProvider& InSourceControlProvider)
+		: IPlasticSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPlasticDeleteShelveWorker() = default;
+
+	// IPlasticSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(FPlasticSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() override;
+
+protected:
+	/** List of files to remove from shelved files in changelist state */
+	TArray<FString> FilesToRemove;
+
+	/** Changelist to be updated */
+	FPlasticSourceControlChangelist ChangelistToUpdate;
+
+	/** Id of the new shelve (if only a selection of files are deleted from the shelve) */
+	int32 ShelveId = ISourceControlState::INVALID_REVISION;
 };
 

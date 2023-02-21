@@ -2,9 +2,9 @@
 
 #include "SoftwareVersion.h"
 
-FSoftwareVersion::FSoftwareVersion(const FString& InVersionString)
+FSoftwareVersion::FSoftwareVersion(FString&& InVersionString)
 {
-	String = InVersionString;
+	String = MoveTemp(InVersionString);
 	TArray<FString> Parts;
 	const int32 N = String.ParseIntoArray(Parts, TEXT("."));
 	if (N == 4)
@@ -14,15 +14,6 @@ FSoftwareVersion::FSoftwareVersion(const FString& InVersionString)
 		Patch = FCString::Atoi(*Parts[2]);
 		Changeset = FCString::Atoi(*Parts[3]);
 	}
-}
-
-FSoftwareVersion::FSoftwareVersion(const int& InMajor, const int& InMinor, const int& InPatch, const int& InChangeset)
-{
-	String = FString::Printf(TEXT("%d.%d.%d.%d"), InMajor, InMinor, InPatch);
-	Major = InMajor;
-	Minor = InMinor;
-	Patch = InPatch;
-	Changeset = InChangeset;
 }
 
 bool operator==(const FSoftwareVersion& Rhs, const FSoftwareVersion& Lhs)
@@ -41,4 +32,9 @@ bool operator<(const FSoftwareVersion& Rhs, const FSoftwareVersion& Lhs)
 	if (Rhs.Changeset < Lhs.Changeset) return true;
 	if (Rhs.Changeset > Lhs.Changeset) return false;
 	return false; // Equal
+}
+
+bool operator>=(const FSoftwareVersion& Rhs, const FSoftwareVersion& Lhs)
+{
+	return !(Rhs < Lhs);
 }

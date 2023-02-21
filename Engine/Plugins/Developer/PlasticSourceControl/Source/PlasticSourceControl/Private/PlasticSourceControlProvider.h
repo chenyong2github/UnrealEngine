@@ -31,15 +31,15 @@ public:
 	virtual bool QueryStateBranchConfig(const FString& ConfigSrc, const FString& ConfigDest) override { return false; }
 	virtual void RegisterStateBranches(const TArray<FString>& BranchNames, const FString& ContentRoot) override {}
 	virtual int32 GetStateBranchIndex(const FString& InBranchName) const override { return INDEX_NONE; }
-	virtual ECommandResult::Type GetState( const TArray<FString>& InFiles, TArray<FSourceControlStateRef>& OutState, EStateCacheUsage::Type InStateCacheUsage ) override;
+	virtual ECommandResult::Type GetState(const TArray<FString>& InFiles, TArray<FSourceControlStateRef>& OutState, EStateCacheUsage::Type InStateCacheUsage) override;
 	virtual ECommandResult::Type GetState(const TArray<FSourceControlChangelistRef>& InChangelists, TArray<FSourceControlChangelistStateRef>& OutState, EStateCacheUsage::Type InStateCacheUsage) override;
 	virtual TArray<FSourceControlStateRef> GetCachedStateByPredicate(TFunctionRef<bool(const FSourceControlStateRef&)> Predicate) const override;
-	virtual FDelegateHandle RegisterSourceControlStateChanged_Handle( const FSourceControlStateChanged::FDelegate& SourceControlStateChanged ) override;
-	virtual void UnregisterSourceControlStateChanged_Handle( FDelegateHandle Handle ) override;
-	virtual ECommandResult::Type Execute( const FSourceControlOperationRef& InOperation, FSourceControlChangelistPtr InChangelist, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency = EConcurrency::Synchronous, const FSourceControlOperationComplete& InOperationCompleteDelegate = FSourceControlOperationComplete() ) override;
+	virtual FDelegateHandle RegisterSourceControlStateChanged_Handle(const FSourceControlStateChanged::FDelegate& SourceControlStateChanged) override;
+	virtual void UnregisterSourceControlStateChanged_Handle(FDelegateHandle Handle) override;
+	virtual ECommandResult::Type Execute(const FSourceControlOperationRef& InOperation, FSourceControlChangelistPtr InChangelist, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency = EConcurrency::Synchronous, const FSourceControlOperationComplete& InOperationCompleteDelegate = FSourceControlOperationComplete() ) override;
 	virtual bool CanExecuteOperation( const FSourceControlOperationRef& InOperation ) const override;
-	virtual bool CanCancelOperation( const FSourceControlOperationRef& InOperation ) const override;
-	virtual void CancelOperation( const FSourceControlOperationRef& InOperation ) override;
+	virtual bool CanCancelOperation(const FSourceControlOperationRef& InOperation) const override;
+	virtual void CancelOperation(const FSourceControlOperationRef& InOperation) override;
 	virtual bool UsesLocalReadOnlyState() const override;
 	virtual bool UsesChangelists() const override;
 	virtual bool UsesUncontrolledChangelists() const override;
@@ -49,8 +49,8 @@ public:
 	virtual TOptional<bool> IsAtLatestRevision() const override;
 	virtual TOptional<int> GetNumLocalChanges() const override;
 	virtual void Tick() override;
-	virtual TArray< TSharedRef<class ISourceControlLabel> > GetLabels( const FString& InMatchingSpec ) const override;
-	virtual TArray<FSourceControlChangelistRef> GetChangelists( EStateCacheUsage::Type InStateCacheUsage ) override;
+	virtual TArray<TSharedRef<class ISourceControlLabel>> GetLabels(const FString& InMatchingSpec) const override;
+	virtual TArray<FSourceControlChangelistRef> GetChangelists(EStateCacheUsage::Type InStateCacheUsage) override;
 #if SOURCE_CONTROL_WITH_SLATE
 	virtual TSharedRef<class SWidget> MakeSettingsWidget() const override;
 #endif
@@ -116,6 +116,12 @@ public:
 		return ChangesetNumber;
 	}
 
+	/** A partial/Gluon workspace doesn't match with a single changeset, which is identified by -1 */
+	inline bool IsPartialWorkspace() const
+	{
+		return (ChangesetNumber == -1);
+	}
+
 	/** Version of the Plastic SCM executable used */
 	inline const FSoftwareVersion& GetPlasticScmVersion() const
 	{
@@ -144,7 +150,7 @@ public:
 	 * Register a worker with the provider.
 	 * This is used internally so the provider can maintain a map of all available operations.
 	 */
-	void RegisterWorker( const FName& InName, const FGetPlasticSourceControlWorker& InDelegate );
+	void RegisterWorker(const FName& InName, const FGetPlasticSourceControlWorker& InDelegate);
 
 	/** Remove a named file from the state cache */
 	bool RemoveFileFromCache(const FString& Filename);
@@ -180,6 +186,9 @@ private:
 
 	/** Indicates if source control integration is available or not. */
 	bool bServerAvailable = false;
+
+	/** Whether Plastic SCM is configured to uses local read-only state to signal whether a file is editable ("SetFilesAsReadOnly" in client.conf) */
+	bool bUsesLocalReadOnlyState = false;
 
 	/** Critical section for thread safety of error messages that occurred after last Plastic command */
 	mutable FCriticalSection LastErrorsCriticalSection;

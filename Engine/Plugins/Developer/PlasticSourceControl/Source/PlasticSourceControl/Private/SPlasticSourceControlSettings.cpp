@@ -29,7 +29,7 @@
 
 void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 {
-	FSlateFontInfo Font = FAppStyle::GetFontStyle(TEXT("SourceControl.LoginWindow.Font"));
+	const FSlateFontInfo Font = FAppStyle::GetFontStyle(TEXT("SourceControl.LoginWindow.Font"));
 
 	bAutoCreateIgnoreFile = CanAutoCreateIgnoreFile();
 	bAutoInitialCommit = true;
@@ -55,7 +55,13 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 			.ToolTipText(LOCTEXT("PlasticVersions_Tooltip", "Plastic SCM and Plugin versions"))
 			+SHorizontalBox::Slot()
 			.FillWidth(1.0f)
-			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("PlasticVersions", "Plastic SCM version"))
+				.Font(Font)
+			]
+			+SHorizontalBox::Slot()
+			.FillWidth(2.0f)
 			[
 				SNew(STextBlock)
 				.Text(this, &SPlasticSourceControlSettings::GetVersions)
@@ -85,7 +91,7 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 			.FillWidth(1.0f)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("PathLabel", "Plastic SCM Path to cm"))
+				.Text(LOCTEXT("PathLabel", "Plastic SCM path to cm"))
 				.Font(Font)
 			]
 			+SHorizontalBox::Slot()
@@ -155,7 +161,7 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 		// Explanation text
 		+SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.Padding(2.0f)
+		.Padding(2.0f, 5.0f)
 		[
 			SNew(STextBlock)
 			.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
@@ -306,7 +312,7 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 			.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedUpdateStatusOtherBranches)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("UpdateStatusOtherBranches", "Update status also check branch history."))
+				.Text(LOCTEXT("UpdateStatusOtherBranches", "Update Status also checks history to detect changes on other branches."))
 				.Font(Font)
 			]
 		]
@@ -396,7 +402,7 @@ void SPlasticSourceControlSettings::OnBinaryPathTextCommited(const FText& InText
 FText SPlasticSourceControlSettings::GetVersions() const
 {
 	const FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
-	return FText::FromString(TEXT("Plastic SCM ") + Provider.GetPlasticScmVersion().String + TEXT(" (plugin v") + Provider.GetPluginVersion() + TEXT(")"));
+	return FText::FromString(Provider.GetPlasticScmVersion().String + TEXT(" (plugin v") + Provider.GetPluginVersion() + TEXT(")"));
 }
 
 FText SPlasticSourceControlSettings::GetPathToWorkspaceRoot() const
@@ -664,7 +670,7 @@ FReply SPlasticSourceControlSettings::OnClickedAddIgnoreFile() const
 		Parameters.Add(TEXT("-R"));
 		TArray<FString> Files;
 		Files.Add(TEXT("ignore.conf"));
-		PlasticSourceControlUtils::RunCommand(TEXT("add"), Parameters, Files, EConcurrency::Synchronous, InfoMessages, ErrorMessages);
+		PlasticSourceControlUtils::RunCommand(TEXT("add"), Parameters, Files, InfoMessages, ErrorMessages);
 	}
 	return FReply::Handled();
 }
@@ -721,7 +727,7 @@ const FString SPlasticSourceControlSettings::GetIgnoreFileName() const
 /** Create a standard "ignore.conf" file with common patterns for a typical Blueprint & C++ project */
 bool SPlasticSourceControlSettings::CreateIgnoreFile() const
 {
-	const FString IgnoreFileContent = TEXT("Binaries\nBuild\nDerivedDataCache\nIntermediate\nSaved\nScript\nenc_temp_folder\n.idea\n.vscode\n.vs\n*.VC.db\n*.opensdf\n*.opendb\n*.sdf\n*.sln\n*.suo\n*.xcodeproj\n*.xcworkspace");
+	const FString IgnoreFileContent = TEXT("Binaries\nBuild\nDerivedDataCache\nIntermediate\nSaved\nScript\nenc_temp_folder\n.idea\n.vscode\n.vs\n.vsconfig\n.ignore\n*.VC.db\n*.opensdf\n*.opendb\n*.sdf\n*.sln\n*.suo\n*.code-workspace\n*.xcodeproj\n*.xcworkspace");
 	return FFileHelper::SaveStringToFile(IgnoreFileContent, *GetIgnoreFileName(), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 }
 
@@ -736,7 +742,7 @@ TArray<FString> SPlasticSourceControlSettings::GetProjectFiles() const
 	{
 		ProjectFiles.Add(FPaths::ConvertRelativePathToFull(FPaths::GameSourceDir()));
 	}
-	if (bAutoCreateIgnoreFile)
+	if (FPaths::FileExists(GetIgnoreFileName()))
 	{
 		ProjectFiles.Add(GetIgnoreFileName());
 	}
