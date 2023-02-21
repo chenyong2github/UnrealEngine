@@ -2624,7 +2624,7 @@ void FBodyInstance::DrawCOMPosition(FPrimitiveDrawInterface* PDI, float COMRende
 {
 	if (IsValidBodyInstance())
 	{
-		DrawWireStar(PDI, GetCOMPosition(), COMRenderSize, COMRenderColor, SDPG_World);
+		DrawWireStar(PDI, GetCOMPosition(), COMRenderSize, COMRenderColor, SDPG_Foreground);
 	}
 }
 

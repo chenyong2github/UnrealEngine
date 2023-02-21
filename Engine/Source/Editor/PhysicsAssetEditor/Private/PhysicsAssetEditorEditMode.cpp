@@ -603,7 +603,7 @@ void FPhysicsAssetEditorEditMode::DrawHUD(FEditorViewportClient* ViewportClient,
 	int32 HalfY = Viewport->GetSizeXY().Y / 2;
 
 	// If showing center-of-mass, and physics is started up..
-	if (SharedData->bShowCOM)
+	if (SharedData->GetShowCom())
 	{
 		// iterate over each bone
 		for (int32 i = 0; i <SharedData->EditorSkelComp->Bodies.Num(); ++i)

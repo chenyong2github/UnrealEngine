@@ -249,6 +249,11 @@ public:
 	/** Returns true if the clipboard contains data this class can process */
 	static bool ClipboardHasCompatibleData();
 
+	/** Control whether we draw a CoM marker in the viewport */
+	void ToggleShowCom();
+	void SetShowCom(bool InValue);
+	bool GetShowCom() const;
+
 private:
 	/** Initializes a constraint setup */
 	void InitConstraintSetup(UPhysicsConstraintTemplate* ConstraintSetup, int32 ChildBodyIndex, int32 ParentBodyIndex);
@@ -349,9 +354,6 @@ public:
 	}
 
 	struct FPhysicsAssetRenderSettings* GetRenderSettings() const;
-
-	/** Show flags */
-	bool bShowCOM;
 
 	/** Misc toggles */
 	bool bRunningSimulation;

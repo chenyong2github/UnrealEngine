@@ -71,9 +71,6 @@ FPhysicsAssetEditorSharedData::FPhysicsAssetEditorSharedData()
 	, bSuspendSelectionBroadcast(false)
 	, InsideSelChange(0)
 {
-	// Editor variables
-	bShowCOM = false;
-
 	bRunningSimulation = false;
 	bNoGravitySimulation = false;
 
@@ -288,6 +285,32 @@ bool FPhysicsAssetEditorSharedData::ClipboardHasCompatibleData()
 	FString DummyObjectType;
 	UObject* DummyObject = nullptr;
 	return ParseClipboard(DummyAsset, DummyObjectType, DummyObject);
+}
+
+void FPhysicsAssetEditorSharedData::ToggleShowCom()
+{
+	if(FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		PhysicsAssetRenderSettings->bShowCOM = !PhysicsAssetRenderSettings->bShowCOM;
+	}
+}
+
+void FPhysicsAssetEditorSharedData::SetShowCom(bool InValue)
+{
+	if(FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		PhysicsAssetRenderSettings->bShowCOM = InValue;
+	}
+}
+
+bool FPhysicsAssetEditorSharedData::GetShowCom() const
+{
+	if(FPhysicsAssetRenderSettings* const PhysicsAssetRenderSettings = GetRenderSettings())
+	{
+		return PhysicsAssetRenderSettings->bShowCOM;
+	}
+
+	return false;
 }
 
 bool FPhysicsAssetEditorSharedData::ParseClipboard(UPhysicsAsset*& OutAsset, FString& OutObjectType, UObject*& OutObject)

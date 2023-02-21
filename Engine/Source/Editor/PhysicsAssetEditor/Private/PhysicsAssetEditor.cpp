@@ -2621,14 +2621,14 @@ bool FPhysicsAssetEditor::IsConstraintRenderingMode(EPhysicsAssetEditorConstrain
 
 void FPhysicsAssetEditor::OnToggleMassProperties()
 {
-	SharedData->bShowCOM = !SharedData->bShowCOM;
+	SharedData->ToggleShowCom();
 
 	RefreshPreviewViewport();
 }
 
 bool FPhysicsAssetEditor::IsToggleMassProperties() const
 {
-	return SharedData->bShowCOM;
+	return SharedData->GetShowCom();
 }
 
 void FPhysicsAssetEditor::OnSetCollision(bool bEnable)
