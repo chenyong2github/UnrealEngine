@@ -59,14 +59,15 @@ uint32 HtoNL(uint32 val)
 
 FIcmpEchoResult IcmpEchoImpl(ISocketSubsystem* SocketSub, const FString& TargetAddress, float Timeout)
 {
-	static const SIZE_T IpHeaderSize = sizeof(struct ip);
+	static const SIZE_T IpHeaderFixedPartSize = sizeof(struct ip);
+	static const SIZE_T IpHeaderVariablePartMaxSize = 40;
 	static const SIZE_T IcmpHeaderSize = sizeof(struct icmp);
 
 	// The packet we send is just the ICMP header plus our payload
 	static const SIZE_T PacketSize = IcmpHeaderSize + IcmpPosix::IcmpPayloadSize;
 
 	// The result read back will need a room for the IP header as well the icmp echo reply packet
-	static const SIZE_T ResultPacketSize = IpHeaderSize + PacketSize;
+	static const SIZE_T MaxResultPacketSize = IpHeaderFixedPartSize + IpHeaderVariablePartMaxSize + PacketSize;
 	static int PingSequence = 0;
 
 	FIcmpEchoResult Result;
@@ -109,7 +110,7 @@ FIcmpEchoResult IcmpEchoImpl(ISocketSubsystem* SocketSub, const FString& TargetA
 	// Calculate the IP checksum
 	PacketHeader->icmp_cksum = CalculateChecksum(Packet, PacketSize);
 
-	uint8 ResultBuffer[ResultPacketSize];
+	uint8 ResultBuffer[MaxResultPacketSize];
 
 	// We can only have one ping in flight at once, as otherwise we risk swapping echo replies between requests
 	{
@@ -139,7 +140,7 @@ FIcmpEchoResult IcmpEchoImpl(ISocketSubsystem* SocketSub, const FString& TargetA
 				}
 				else if (NumReady == 1)
 				{
-					int ReadSize = recv(IcmpSocket, ResultBuffer, ResultPacketSize, 0);
+					int ReadSize = recv(IcmpSocket, ResultBuffer, MaxResultPacketSize, 0);
 
 					double EndTime = FPlatformTime::Seconds();
 
@@ -148,19 +149,27 @@ FIcmpEchoResult IcmpEchoImpl(ISocketSubsystem* SocketSub, const FString& TargetA
 
 					TimeLeft = FPlatformMath::Max(0.0, (double)Timeout - Result.Time);
 
-					if (ReadSize > IpHeaderSize)
+					if (ReadSize == -1)
 					{
-						struct ip* IpHeader = reinterpret_cast<struct ip*>(ResultBuffer);
-						if (IpHeader->ip_p != IPPROTO_ICMP)
+						Result.Status = EIcmpResponseStatus::InternalError;
+						bDone = true;
+					}
+					else if (ReadSize > IpHeaderFixedPartSize)
+					{
+						struct ip* IpHeaderFixedPart = reinterpret_cast<struct ip*>(ResultBuffer);
+						if (IpHeaderFixedPart->ip_p != IPPROTO_ICMP)
 						{
 							// We got a non-ICMP packet back??!
 						}
 						else
 						{
-							PacketHeader = reinterpret_cast<struct icmp*>(ResultBuffer + IpHeaderSize);
-							Result.ReplyFrom = IcmpPosix::IpToString(&IpHeader->ip_src.s_addr);
-							switch (PacketHeader->icmp_type)
+							SIZE_T IpHeaderSize = IpHeaderFixedPart->ip_hl;
+							if (ReadSize >= IpHeaderSize + IcmpHeaderSize)
 							{
+								PacketHeader = reinterpret_cast<struct icmp*>(ResultBuffer + IpHeaderSize);
+								Result.ReplyFrom = IcmpPosix::IpToString(&IpHeaderFixedPart->ip_src.s_addr);
+								switch (PacketHeader->icmp_type)
+								{
 								case ICMP_ECHOREPLY:
 									if (Result.ReplyFrom == ResolvedAddress &&
 										PacketHeader->icmp_id == SentId && PacketHeader->icmp_seq == SentSeq)
@@ -176,6 +185,12 @@ FIcmpEchoResult IcmpEchoImpl(ISocketSubsystem* SocketSub, const FString& TargetA
 									break;
 								default:
 									break;
+								}
+							}
+							else
+							{
+								Result.Status = EIcmpResponseStatus::InternalError;
+								bDone = true;
 							}
 						}
 					}
