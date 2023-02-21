@@ -24,7 +24,10 @@ namespace UE::VCamCoreEditor::Private
 
 		FConnectionTargetNodeBuilder(TSharedRef<IPropertyHandle> ConnectionTargets, TAttribute<TArray<FName>> ChooseableConnections, IPropertyTypeCustomizationUtils& CustomizationUtils);
 
+		void InitDelegates();
+
 		//~ Begin IDetailCustomNodeBuilder Interface
+		virtual void SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren) override;
 		virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override;
 		virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override;
 		virtual FName GetName() const override { return TEXT("Connection Targets"); }
@@ -33,15 +36,20 @@ namespace UE::VCamCoreEditor::Private
 	private:
 		
 		/** Handle to FWidgetConnectionConfig::ConnectionTargets */
-		TSharedRef<IPropertyHandle> ConnectionTargets;
+		const TSharedRef<IPropertyHandle> ConnectionTargets;
 
 		/** Gets the list of connections on the VCamWidget */
-		TAttribute<TArray<FName>> ChooseableConnections;
+		const TAttribute<TArray<FName>> ChooseableConnections;
 
-		FSlateFontInfo RegularFont;
-		TSharedPtr<IPropertyUtilities> PropertyUtilities;
+		const FSlateFontInfo RegularFont;
+		const TSharedPtr<IPropertyUtilities> PropertyUtilities;
+
+		FSimpleDelegate OnRegenerateChildren;
 
 		TArray<FString> GetChooseableConnectionsAsStringArray() const;
+
+		void ScheduleChildRebuild();
+		void RebuilChildren();
 	};
 }
 

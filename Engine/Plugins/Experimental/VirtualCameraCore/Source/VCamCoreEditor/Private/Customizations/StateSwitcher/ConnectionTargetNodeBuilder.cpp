@@ -22,11 +22,19 @@ namespace UE::VCamCoreEditor::Private
 		, ChooseableConnections(MoveTemp(ChooseableConnections))
 		, RegularFont(CustomizationUtils.GetRegularFont())
 		, PropertyUtilities(CustomizationUtils.GetPropertyUtilities())
+	{}
+
+	void FConnectionTargetNodeBuilder::InitDelegates()
 	{
-		ConnectionTargets->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([PropertyUtils = PropertyUtilities]()
-		{
-			PropertyUtils->ForceRefresh();
-		}));
+		ConnectionTargets->SetOnPropertyValueChanged(
+			// Must be latent because SetOnPropertyValueChanged is called before the value is finally set
+			FSimpleDelegate::CreateSP(this, &FConnectionTargetNodeBuilder::ScheduleChildRebuild)
+			);
+	}
+
+	void FConnectionTargetNodeBuilder::SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren)
+	{
+		OnRegenerateChildren = MoveTemp(InOnRegenerateChildren);
 	}
 
 	void FConnectionTargetNodeBuilder::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
@@ -99,13 +107,17 @@ namespace UE::VCamCoreEditor::Private
 								return Value;
 							})
 							.ItemList(this, &FConnectionTargetNodeBuilder::GetChooseableConnectionsAsStringArray)
-							.OnItemSelected_Lambda([KeyHandle, PropertyUtils = PropertyUtilities](const FString& SelectedItem)
+							.OnItemSelected_Lambda([WeakThis = TWeakPtr<FConnectionTargetNodeBuilder>(SharedThis(this)), KeyHandle, PropertyUtils = PropertyUtilities](const FString& SelectedItem)
 							{
 								KeyHandle->NotifyPreChange();
 								KeyHandle->SetValue(FName(*SelectedItem));
 								KeyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 									
-								PropertyUtils->ForceRefresh();
+								if (const TSharedPtr<FConnectionTargetNodeBuilder> This = WeakThis.Pin())
+								{
+									// Must be latent because SetOnPropertyValueChanged is called before the value is finally set
+									This->ScheduleChildRebuild();
+								}
 							})
 							.Font(RegularFont)
 					]
@@ -113,13 +125,17 @@ namespace UE::VCamCoreEditor::Private
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					[
-						PropertyCustomizationHelpers::MakeInsertDeleteDuplicateButton({}, FExecuteAction::CreateLambda([EntryIndex, ConnectionTargetsPin = ConnectionTargets, PropertyUtils = PropertyUtilities]()
+						PropertyCustomizationHelpers::MakeInsertDeleteDuplicateButton({}, FExecuteAction::CreateLambda([WeakThis = TWeakPtr<FConnectionTargetNodeBuilder>(SharedThis(this)), EntryIndex, ConnectionTargetsPin = ConnectionTargets]()
 						{
 							ConnectionTargetsPin->NotifyPreChange();
 							ConnectionTargetsPin->AsMap()->DeleteItem(EntryIndex);
 							ConnectionTargetsPin->NotifyPostChange(EPropertyChangeType::ValueSet);
-							
-							PropertyUtils->ForceRefresh();
+
+							if (const TSharedPtr<FConnectionTargetNodeBuilder> This = WeakThis.Pin())
+							{
+								// Must be latent because SetOnPropertyValueChanged is called before the value is finally set
+								This->ScheduleChildRebuild();
+							}
 						}), {})
 					]
 				];
@@ -131,6 +147,17 @@ namespace UE::VCamCoreEditor::Private
 		TArray<FString> AsArray;
 		Algo::Transform(ChooseableConnections.Get(), AsArray, [](FName Connection){ return Connection.ToString(); });
 		return AsArray;
+	}
+
+	void FConnectionTargetNodeBuilder::ScheduleChildRebuild()
+	{
+		PropertyUtilities->EnqueueDeferredAction(FSimpleDelegate::CreateSP(this, &FConnectionTargetNodeBuilder::RebuilChildren));
+	}
+
+	void FConnectionTargetNodeBuilder::RebuilChildren()
+	{
+		check(OnRegenerateChildren.IsBound());
+		OnRegenerateChildren.Execute();
 	}
 }
 

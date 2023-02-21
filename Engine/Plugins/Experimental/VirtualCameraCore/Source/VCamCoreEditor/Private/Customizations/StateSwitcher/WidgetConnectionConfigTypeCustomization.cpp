@@ -86,6 +86,7 @@ namespace UE::VCamCoreEditor::Private
 			CreateGetConnectionsFromChildWidgetAttribute(StructPropertyHandle, CustomizationUtils),
 			CustomizationUtils
 			);
+		CustomBuilder->InitDelegates();
 		ChildBuilder.AddCustomBuilder(CustomBuilder);
 	}
 
