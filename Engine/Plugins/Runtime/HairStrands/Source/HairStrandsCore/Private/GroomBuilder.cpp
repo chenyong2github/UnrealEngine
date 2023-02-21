@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8");
+	return TEXT("v8a");
 }
 
 namespace FHairStrandsDecimation
@@ -83,9 +83,6 @@ namespace HairStrandsBuilder
 			TArray<uint32>::TIterator OffsetIterator = Curves.CurvesOffset.CreateIterator();
 			TArray<float>::TIterator LengthIterator = Curves.CurvesLength.CreateIterator();
 
-			Curves.MaxRadius = 0.0;
-			Curves.MaxLength = 0.0;
-
 			uint32 StrandOffset = 0;
 			*OffsetIterator = StrandOffset; ++OffsetIterator;
 
@@ -108,11 +105,8 @@ namespace HairStrandsBuilder
 					}
 					*CoordUIterator = StrandLength;
 					PreviousPosition = (FVector)*PositionIterator;
-
-					Curves.MaxRadius = FMath::Max(Curves.MaxRadius, *RadiusIterator);
 				}
 				*LengthIterator = StrandLength;
-				Curves.MaxLength = FMath::Max(Curves.MaxLength, StrandLength);
 			}
 
 			CountIterator.Reset();
@@ -130,14 +124,6 @@ namespace HairStrandsBuilder
 					{
 						*CoordUIterator /= *LengthIterator;
 					}
-					if (Curves.MaxRadius > 0.0f)
-					{
-						*RadiusIterator /= Curves.MaxRadius;
-					}
-				}
-				if (Curves.MaxLength > 0.0f)
-				{
-					*LengthIterator /= Curves.MaxLength;
 				}
 			}
 		}
@@ -215,6 +201,9 @@ namespace HairStrandsBuilder
 		const FHairStrandsCurves& Curves = HairStrands.StrandsCurves;
 		const FHairStrandsPoints& Points = HairStrands.StrandsPoints;
 
+		const float MaxLength = GetHairStrandsMaxLength(HairStrands);
+		const float MaxRadius = GetHairStrandsMaxRadius(HairStrands);
+
 		struct FPackedRadiusAndType
 		{
 			union
@@ -242,7 +231,7 @@ namespace HairStrandsBuilder
 				// Packed Position|CoordU|NormalizedRadius
 				{
 					const float CoordU = Points.PointsCoordU[PointIndex + IndexOffset];
-					const float NormalizedRadius = Points.PointsRadius[PointIndex + IndexOffset];
+					const float NormalizedRadius = Points.PointsRadius[PointIndex + IndexOffset] / MaxRadius;
 
 					FHairStrandsPositionFormat::Type& PackedPosition = OutPackedPositions[PointIndex + IndexOffset];
 					CopyVectorToPosition(PointPosition - HairBoxCenter, PackedPosition);
@@ -289,9 +278,8 @@ namespace HairStrandsBuilder
 
 			// Per-Curve Length
 			{
-				const float Length = Curves.CurvesLength[CurveIndex] * Curves.MaxLength;
 				FFloat16* Packed = (FFloat16*)AttributeLength.GetData();
-				Packed[CurveIndex] = Length;
+				Packed[CurveIndex] = Curves.CurvesLength[CurveIndex];
 			}
 
 			// Per-Curve Seed
@@ -347,8 +335,8 @@ namespace HairStrandsBuilder
 		OutBulkData.BoundingBox = HairStrands.BoundingBox;
 		OutBulkData.CurveCount = HairStrands.GetNumCurves();
 		OutBulkData.PointCount = HairStrands.GetNumPoints();
-		OutBulkData.MaxLength = HairStrands.StrandsCurves.MaxLength;
-		OutBulkData.MaxRadius = HairStrands.StrandsCurves.MaxRadius;
+		OutBulkData.MaxLength = MaxLength;
+		OutBulkData.MaxRadius = MaxRadius;
 		OutBulkData.Flags = FHairStrandsBulkData::DataFlags_HasData;
 
 		// Concatenate all attributes
@@ -503,8 +491,7 @@ namespace HairInterpolationBuilder
 		const FHairStrandsDatas& GuideCurvesDatas, const uint32 GuideCurveIndex, const float RootImportance, 
 		const float ShapeImportance, const float ProximityImportance)
 	{
-		const float AverageLength = FMath::Max(0.5f * (RenderCurvesDatas.StrandsCurves.CurvesLength[RenderCurveIndex] * RenderCurvesDatas.StrandsCurves.MaxLength +
-			GuideCurvesDatas.StrandsCurves.CurvesLength[GuideCurveIndex] * GuideCurvesDatas.StrandsCurves.MaxLength), SMALL_NUMBER);
+		const float AverageLength = FMath::Max(0.5f * (RenderCurvesDatas.StrandsCurves.CurvesLength[RenderCurveIndex] + GuideCurvesDatas.StrandsCurves.CurvesLength[GuideCurveIndex]), SMALL_NUMBER);
 
 		static const float DeltaCoord = 1.0f / static_cast<float>(NumSamples-1);
 
@@ -1027,7 +1014,7 @@ namespace HairInterpolationBuilder
 		{
 			const uint32 PointOffset = InData.StrandsCurves.CurvesOffset[CurveIndex];
 			const uint32 PointCount = InData.StrandsCurves.CurvesCount[CurveIndex];
-			const float  CurveLength = InData.StrandsCurves.CurvesLength[CurveIndex] * InData.StrandsCurves.MaxLength;
+			const float  CurveLength = InData.StrandsCurves.CurvesLength[CurveIndex];
 			check(PointCount > 1);
 			const FVector& P0 = (FVector)InData.StrandsPoints.PointsPosition[PointOffset];
 			const FVector& P1 = (FVector)InData.StrandsPoints.PointsPosition[PointOffset + 1];
@@ -1057,7 +1044,7 @@ namespace HairInterpolationBuilder
 	{
 		const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
 
-		const float CurveLength = SimStrandsData.StrandsCurves.CurvesLength[SimCurveIndex] * SimStrandsData.StrandsCurves.MaxLength;
+		const float CurveLength = SimStrandsData.StrandsCurves.CurvesLength[SimCurveIndex];
 
 		// Find with with vertex the vertex should be paired
 		const uint32 SimPointCount = SimStrandsData.StrandsCurves.CurvesCount[SimCurveIndex];
@@ -1223,7 +1210,7 @@ namespace HairInterpolationBuilder
 			{
 				const uint32 PointGlobalIndex = RenPointIndex + RenOffset;
 				const FVector& RenPointPosition = (FVector)RenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
-				const float RenPointDistance = RenStrandsData.StrandsPoints.PointsCoordU[PointGlobalIndex] * RenStrandsData.StrandsCurves.CurvesLength[RenCurveIndex] * RenStrandsData.StrandsCurves.MaxLength;
+				const float RenPointDistance = RenStrandsData.StrandsPoints.PointsCoordU[PointGlobalIndex] * RenStrandsData.StrandsCurves.CurvesLength[RenCurveIndex];
 
 				float TotalWeight = 0;
 				for (uint32 KIndex = 0; KIndex < FClosestGuides::Count; ++KIndex)
@@ -1414,7 +1401,7 @@ namespace HairInterpolationBuilder
 			{
 				const uint32 PointGlobalIndex = VertexIndex + CurveOffset;
 				const FVector& RenPointPosition = (FVector)RenData.StrandsPoints.PointsPosition[PointGlobalIndex];
-				const float RenPointDistance = RenData.StrandsPoints.PointsCoordU[PointGlobalIndex] * RenData.StrandsCurves.CurvesLength[CurveIndex] * RenData.StrandsCurves.MaxLength;
+				const float RenPointDistance = RenData.StrandsPoints.PointsCoordU[PointGlobalIndex] * RenData.StrandsCurves.CurvesLength[CurveIndex];
 
 				bool bHasValidGuide = false;
 				float TotalWeight = 0;
@@ -1570,7 +1557,6 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 		FHairDescriptionGroup& Group = Out.HairGroups.AddDefaulted_GetRef();
 		Group.Info.GroupID = GroupID;
 		Group.Info.GroupName = (GroupName != NAME_None) ? GroupName : FName(FString::Printf(TEXT("Group_%d"), GroupID));
-		Group.Info.MaxImportedWidth = -1.0f; // Invalid width
 		return Group;
 	};
 
@@ -1675,20 +1661,12 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 		if (GroomHairWidth) 
 		{
 			StrandWidth = GroomHairWidth.GetValue();
-			if (!bIsGuide)
-			{
-				Group.Info.MaxImportedWidth = FMath::Max(Group.Info.MaxImportedWidth, StrandWidth);
-			}
 		}
 
 		// Curve
 		if (StrandWidths.IsValid())
 		{
 			StrandWidth = StrandWidths[StrandID];
-			if (!bIsGuide)
-			{
-				Group.Info.MaxImportedWidth = FMath::Max(Group.Info.MaxImportedWidth, StrandWidth);
-			}
 		}
 
 		for (int32 VertexIndex = 0; VertexIndex < CurveNumVertices; ++VertexIndex, ++GlobalVertexIndex)
@@ -1715,10 +1693,6 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 			if (VertexWidths.IsValid())
 			{
 				VertexWidth = VertexWidths[VertexID];
-				if (!bIsGuide)
-				{
-					Group.Info.MaxImportedWidth = FMath::Max(Group.Info.MaxImportedWidth, VertexWidth);
-				}
 			}
 			else if (StrandWidth != 0.f)
 			{
@@ -1824,7 +1798,6 @@ void FGroomBuilder::BuildData(
 	{
 		OutGroupInfo.GroupID = InHairDescriptionGroup.Info.GroupID;
 		OutGroupInfo.GroupName = InHairDescriptionGroup.Info.GroupName;
-		OutGroupInfo.MaxImportedWidth = InHairDescriptionGroup.Info.MaxImportedWidth;
 
 		// Rendering data
 		if (InHairDescriptionGroup.Strands.IsValid())
@@ -1842,7 +1815,7 @@ void FGroomBuilder::BuildData(
 			}
 			OutGroupInfo.NumCurves			= OutRen.GetNumCurves();
 			OutGroupInfo.NumCurveVertices	= OutRen.GetNumPoints();
-			OutGroupInfo.MaxCurveLength		= OutRen.StrandsCurves.MaxLength;
+			OutGroupInfo.MaxCurveLength		= GetHairStrandsMaxLength(OutRen);
 
 			// Sanity check
 			check(OutGroupInfo.NumCurves		<= InHairDescriptionGroup.Info.NumCurves);
@@ -2039,8 +2012,6 @@ void Decimate(
 	OutData.StrandsPoints.SetNum(PointCount, InAttributes);
 	OutData.HairDensity = InData.HairDensity;
 
-	check(InData.StrandsCurves.MaxRadius > 0);
-
 	PointCount = 0;
 	for(uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
 	{
@@ -2052,8 +2023,6 @@ void Decimate(
 		const float BoneSpace = FMath::Max(1.0,float(GuideCount-1) / (MaxPoints-1));
 
 		OutData.StrandsCurves.CurvesCount[CurveIndex]  = MaxPoints;
-		OutData.StrandsCurves.MaxLength = InData.StrandsCurves.MaxLength;
-		OutData.StrandsCurves.MaxRadius = InData.StrandsCurves.MaxRadius;
 		FHairStrandsDatas::CopyCurve(InData, OutData, InAttributes, GuideIndex, CurveIndex);
 	
 		for(int32 PointIndex = 0; PointIndex < MaxPoints; ++PointIndex, ++PointCount)
@@ -2085,7 +2054,6 @@ void Decimate(
 	const uint32 InCurveCount = InData.StrandsCurves.Num();
 	const uint32 OutCurveCount = FMath::Clamp(uint32(InCurveCount * CurveDecimationPercentage), 1u, InCurveCount);
 	const uint32 InAttributes = InData.GetAttributes();
-	check(InData.StrandsCurves.MaxRadius > 0);
 
 	FRandomStream Random;
 	Random.Initialize(0xdeedbeed);
@@ -2184,8 +2152,6 @@ void Decimate(
 
 		OutData.StrandsCurves.CurvesCount[OutCurveIndex]  = OutPointCount;
 		OutData.StrandsCurves.CurvesOffset[OutCurveIndex] = OutPointOffset;
-		OutData.StrandsCurves.MaxLength = InData.StrandsCurves.MaxLength;
-		OutData.StrandsCurves.MaxRadius = InData.StrandsCurves.MaxRadius;
 		FHairStrandsDatas::CopyCurve(InData, OutData, InAttributes, EffectiveCurveIndex, OutCurveIndex);
 
 		OutPointOffset += OutPointCount;
@@ -2755,7 +2721,7 @@ static void BuildClusterData(
 				RCurve.Area += InRenStrandsData.StrandsPoints.PointsRadius[PointGlobalIndex] * OutLength;
 			}
 
-			const float PointRadius = InRenStrandsData.StrandsPoints.PointsRadius[PointGlobalIndex] * InRenStrandsData.StrandsCurves.MaxRadius;
+			const float PointRadius = InRenStrandsData.StrandsPoints.PointsRadius[PointGlobalIndex];
 			RCurve.AvgRadius += PointRadius;
 			RCurve.MaxRadius = FMath::Max(RCurve.MaxRadius, PointRadius);
 		}

@@ -59,8 +59,6 @@ void FHairStrandsCurves::Reset()
 	ClumpIDs.Reset();
 	CurvesClosestGuideIDs.Reset();
 	CurvesClosestGuideWeights.Reset();
-	MaxLength = 0;
-	MaxRadius = 0;
 }
 
 void FHairStrandsPoints::Reset()
@@ -71,6 +69,26 @@ void FHairStrandsPoints::Reset()
 	PointsBaseColor.Reset();
 	PointsRoughness.Reset();
 	PointsAO.Reset();
+}
+
+float GetHairStrandsMaxLength(const FHairStrandsDatas& In)
+{
+	float MaxLength = 0;
+	for (float CurveLength : In.StrandsCurves.CurvesLength)
+	{
+		MaxLength = FMath::Max(MaxLength, CurveLength);
+	}
+	return MaxLength;
+}
+
+float GetHairStrandsMaxRadius(const FHairStrandsDatas& In)
+{
+	float MaxRadius = 0;
+	for (float PointRadius : In.StrandsPoints.PointsRadius)
+	{
+		MaxRadius = FMath::Max(MaxRadius, PointRadius);
+	}
+	return MaxRadius;
 }
 
 FArchive& operator<<(FArchive& Ar, FVector4_16& Vertex)

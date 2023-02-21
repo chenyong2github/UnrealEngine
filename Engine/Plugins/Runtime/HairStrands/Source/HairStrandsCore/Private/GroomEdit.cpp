@@ -65,7 +65,7 @@ static void HairStrandsDataToEditableHairStrands(const FHairStrandsDatas& In, TA
 			const uint32 EffectiveIndex = PointIt + PointOffset;
 			Out[StrandsIt].ControlPoints[PointIt].Position	= In.StrandsPoints.PointsPosition[EffectiveIndex];
 			Out[StrandsIt].ControlPoints[PointIt].U			= In.StrandsPoints.PointsCoordU[EffectiveIndex];
-			Out[StrandsIt].ControlPoints[PointIt].Radius	= In.StrandsPoints.PointsRadius[EffectiveIndex] * In.StrandsCurves.MaxRadius;
+			Out[StrandsIt].ControlPoints[PointIt].Radius	= In.StrandsPoints.PointsRadius[EffectiveIndex];
 			Out[StrandsIt].ControlPoints[PointIt].BaseColor	= In.StrandsPoints.PointsBaseColor[EffectiveIndex];
 			Out[StrandsIt].ControlPoints[PointIt].Roughness	= In.StrandsPoints.PointsRoughness[EffectiveIndex];
 			Out[StrandsIt].ControlPoints[PointIt].AO		= In.StrandsPoints.PointsAO[EffectiveIndex];

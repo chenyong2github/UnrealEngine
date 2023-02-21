@@ -385,7 +385,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 	/** Get the number of Curves */
 	uint32 Num() const { return CurvesCount.Num(); }
 
-	bool HasPrecomputedWeights() const { return CurvesClosestGuideIDs.Num() > 0 && CurvesClosestGuideWeights.Num() > 0; }
+	bool HasPrecomputedWeights() const;
 
 	bool HasAttribute(EHairAttribute In) const;
 
@@ -415,12 +415,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 
 	/** Custom guid weights (indexed with StrandID) (optional) */
 	TArray<FVector> CurvesClosestGuideWeights;
-
-	/** Max strands Curves length */
-	float MaxLength = 0;
-
-	/** Max strands Curves radius */
-	float MaxRadius = 0;
 };
 
 struct FHairStrandsBulkData;
@@ -457,6 +451,9 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 	/* Strands bounding box */
 	FBox BoundingBox = FBox(EForceInit::ForceInit);
 };
+
+float GetHairStrandsMaxLength(const FHairStrandsDatas& In);
+float GetHairStrandsMaxRadius(const FHairStrandsDatas& In);
 
 struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 {

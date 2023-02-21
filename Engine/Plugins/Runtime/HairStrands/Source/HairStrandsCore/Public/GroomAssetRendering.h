@@ -19,8 +19,10 @@ struct HAIRSTRANDSCORE_API FHairGeometrySettings
 	FHairGeometrySettings();
 
 	/** Hair width (in centimeters) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeometrySettings", meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "1.0", SliderExponent = 6))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeometrySettings", meta = (editcondition = "HairWidth_Override", ClampMin = "0.0001", UIMin = "0.001", UIMax = "1.0", SliderExponent = 6))
 	float HairWidth;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool HairWidth_Override = false;
 
 	/** Scale the hair width at the root */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeometrySettings", AdvancedDisplay, meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "2.0", SliderExponent = 6))

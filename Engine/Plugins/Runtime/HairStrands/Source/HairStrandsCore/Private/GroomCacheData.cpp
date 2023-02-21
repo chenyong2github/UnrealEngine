@@ -55,10 +55,10 @@ void FGroomCacheVertexData::Serialize(FArchive& Ar, int32 Version, EGroomCacheAt
 	}
 }
 
-FGroomCacheStrandData::FGroomCacheStrandData(FHairStrandsCurves&& CurvesData)
+FGroomCacheStrandData::FGroomCacheStrandData(FHairStrandsCurves&& CurvesData, float InMaxLength, float InMaxRadius)
 : CurvesLength(MoveTemp(CurvesData.CurvesLength))
-, MaxLength(CurvesData.MaxLength)
-, MaxRadius(CurvesData.MaxRadius)
+, MaxLength(InMaxLength)
+, MaxRadius(InMaxRadius)
 {
 }
 
@@ -71,7 +71,7 @@ void FGroomCacheStrandData::Serialize(FArchive& Ar, int32 Version, EGroomCacheAt
 
 FGroomCacheGroupData::FGroomCacheGroupData(FHairStrandsDatas&& GroupData)
 : VertexData(MoveTemp(GroupData.StrandsPoints))
-, StrandData(MoveTemp(GroupData.StrandsCurves))
+, StrandData(MoveTemp(GroupData.StrandsCurves), GetHairStrandsMaxLength(GroupData), GetHairStrandsMaxRadius(GroupData))
 , BoundingBox(GroupData.BoundingBox)
 {
 }

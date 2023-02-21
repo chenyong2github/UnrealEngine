@@ -135,7 +135,18 @@ static FHairGroupDesc GetGroomGroupsDesc(const UGroomAsset* Asset, UGroomCompone
 	O.HairLength = Asset->HairGroupsData[GroupIndex].Strands.BulkData.MaxLength;
 	O.LODBias 	 = Asset->EffectiveLODBias[GroupIndex] > 0 ? FMath::Max(O.LODBias, Asset->EffectiveLODBias[GroupIndex]) : O.LODBias;
 
-	if (!O.HairWidth_Override)					{ O.HairWidth					= Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairWidth;					}
+	// Width can be overridden at 3 levels:
+	// * Instance width override
+	// * Asset width override
+	// * Imported width
+	if (!O.HairWidth_Override)
+	{ 
+		O.HairWidth = 
+			Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairWidth_Override ? 
+			Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairWidth : 
+			Asset->HairGroupsData[GroupIndex].Strands.BulkData.MaxRadius * 2.0f;
+	}
+
 	if (!O.HairRootScale_Override)				{ O.HairRootScale				= Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairRootScale;				}
 	if (!O.HairTipScale_Override)				{ O.HairTipScale				= Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairTipScale;					}
 	if (!O.bSupportVoxelization_Override)		{ O.bSupportVoxelization		= Asset->HairGroupsRendering[GroupIndex].ShadowSettings.bVoxelize;						}

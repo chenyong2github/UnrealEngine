@@ -719,6 +719,15 @@ void UGroomAsset::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);	// Needed to support MeshDescription AttributesSet serialization
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);    // Needed to support Cards and Cluster culling serialization
 
+	// For older assets, force width override to preserve prior to fixing the imported groom's width.
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::GroomAssetWidthOverride && Ar.IsLoading())
+	{
+		for (FHairGroupsRendering& Group : HairGroupsRendering)
+		{
+			Group.GeometrySettings.HairWidth_Override = true;
+		}
+	}
+
 	if (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::GroomWithDescription)
 	{
 		FStripDataFlags StripFlags(Ar, ClassDataStripFlags);

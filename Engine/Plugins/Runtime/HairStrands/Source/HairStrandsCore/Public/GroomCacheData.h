@@ -127,7 +127,7 @@ struct FGroomCacheVertexData
 struct FGroomCacheStrandData
 {
 	FGroomCacheStrandData() = default;
-	FGroomCacheStrandData(struct FHairStrandsCurves&& CurvesData);
+	FGroomCacheStrandData(struct FHairStrandsCurves&& CurvesData, float InMaxLength, float InMaxRadius);
 
 	TArray<float> CurvesLength;
 	float MaxLength = 0.0f;

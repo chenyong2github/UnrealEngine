@@ -334,6 +334,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Allow custom event nodes to use access specifiers
 		AccessSpecifiersForCustomEvents,
 
+		// Explicit override of Groom's hair width
+		GroomAssetWidthOverride,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

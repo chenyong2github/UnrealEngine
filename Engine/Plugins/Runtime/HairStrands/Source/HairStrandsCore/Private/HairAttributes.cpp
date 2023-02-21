@@ -99,6 +99,11 @@ bool FHairStrandsCurves::HasAttribute(EHairAttribute In) const
 	return false;
 }
 
+bool FHairStrandsCurves::HasPrecomputedWeights() const
+{ 
+	return HasAttribute(EHairAttribute::PrecomputedGuideWeights); 
+}
+
 uint32 FHairStrandsDatas::GetAttributes() const
 {
 	uint32 Out = 0;
@@ -118,7 +123,7 @@ void FHairStrandsDatas::CopyPoint(const FHairStrandsDatas& In, FHairStrandsDatas
 	// Multiply by MaxRadius as HairStrandsBuilder::BuildInternalData will recompute MaxRadius based on the actual Radius not the not the normalized radius.
 	Out.StrandsPoints.PointsPosition[OutIndex]	= In.StrandsPoints.PointsPosition[InIndex];
 	Out.StrandsPoints.PointsCoordU[OutIndex]	= In.StrandsPoints.PointsCoordU[InIndex];
-	Out.StrandsPoints.PointsRadius[OutIndex]	= In.StrandsPoints.PointsRadius[InIndex] * In.StrandsCurves.MaxRadius;
+	Out.StrandsPoints.PointsRadius[OutIndex]	= In.StrandsPoints.PointsRadius[InIndex];
 
 	if (HasHairAttribute(InAttributes, EHairAttribute::Color))		{ Out.StrandsPoints.PointsBaseColor[OutIndex] = In.StrandsPoints.PointsBaseColor[InIndex]; }
 	if (HasHairAttribute(InAttributes, EHairAttribute::Roughness))	{ Out.StrandsPoints.PointsRoughness[OutIndex] = In.StrandsPoints.PointsRoughness[InIndex]; }
@@ -131,7 +136,7 @@ void FHairStrandsDatas::CopyPointLerp(const FHairStrandsDatas& In, FHairStrandsD
 	// Multiply by MaxRadius as HairStrandsBuilder::BuildInternalData will recompute MaxRadius based on the actual Radius not the not the normalized radius.
 	Out.StrandsPoints.PointsPosition[OutIndex]	= FMath::Lerp(In.StrandsPoints.PointsPosition[InIndex0], In.StrandsPoints.PointsPosition[InIndex1], InAlpha);
 	Out.StrandsPoints.PointsCoordU[OutIndex]	= FMath::Lerp(In.StrandsPoints.PointsCoordU[InIndex0], In.StrandsPoints.PointsCoordU[InIndex1], InAlpha);
-	Out.StrandsPoints.PointsRadius[OutIndex]	= FMath::Lerp(In.StrandsPoints.PointsRadius[InIndex0] , In.StrandsPoints.PointsRadius[InIndex1], InAlpha) * In.StrandsCurves.MaxRadius;
+	Out.StrandsPoints.PointsRadius[OutIndex]	= FMath::Lerp(In.StrandsPoints.PointsRadius[InIndex0], In.StrandsPoints.PointsRadius[InIndex1], InAlpha);
 
 	if (HasHairAttribute(InAttributes, EHairAttribute::Color))		{ Out.StrandsPoints.PointsBaseColor[OutIndex]	= FMath::Lerp(In.StrandsPoints.PointsBaseColor[InIndex0], In.StrandsPoints.PointsBaseColor[InIndex1], InAlpha); }
 	if (HasHairAttribute(InAttributes, EHairAttribute::Roughness))	{ Out.StrandsPoints.PointsRoughness[OutIndex]	= FMath::Lerp(In.StrandsPoints.PointsRoughness[InIndex0], In.StrandsPoints.PointsRoughness[InIndex1], InAlpha); }
