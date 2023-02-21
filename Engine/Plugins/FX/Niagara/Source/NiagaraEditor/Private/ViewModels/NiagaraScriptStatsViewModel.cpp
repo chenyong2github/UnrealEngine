@@ -147,12 +147,13 @@ namespace NiagaraScriptStatsLocal
 						NiagaraEmitter.GetEmitterData()->ForEachScript(
 							[&](UNiagaraScript* NiagaraScript)
 							{
-								TArray<FNiagaraShaderScript*> NewResources;
+								TArray<TUniquePtr<FNiagaraShaderScript>> NewResources;
 								NiagaraScript->CacheResourceShadersForCooking(ShaderPlatform, NewResources);
 								if (NewResources.Num() > 0)
 								{
 									ensure(NewResources.Num() == 1);
-									ShaderScripts.Emplace(NewResources[0]);
+									FNiagaraShaderScript* ShaderScript = NewResources[0].Release();
+									ShaderScripts.Emplace(ShaderScript);
 								}
 							}
 						);
@@ -240,7 +241,7 @@ namespace NiagaraScriptStatsLocal
 		bool bIsGPU = false;
 		bool bHasError = false;
 		FString ResultsString;
-		TArray<TUniquePtr<class FNiagaraShaderScript, FNiagaraScriptSafeDelete>> ShaderScripts;
+		TArray<TUniquePtr<FNiagaraShaderScript, FNiagaraScriptSafeDelete>> ShaderScripts;
 	};
 }
 

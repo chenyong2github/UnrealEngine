@@ -1032,7 +1032,7 @@ public:
 
 	// Infrastructure for GPU compute Shaders
 #if WITH_EDITOR
-	NIAGARA_API void CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FNiagaraShaderScript*>& InOutCachedResources, const ITargetPlatform* TargetPlatform = nullptr);
+	NIAGARA_API void CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<TUniquePtr<FNiagaraShaderScript>>& InOutCachedResources, const ITargetPlatform* TargetPlatform = nullptr);
 
 	NIAGARA_API void CacheResourceShadersForRendering(bool bRegenerateId, bool bForceRecompile=false);
 	void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform);
@@ -1043,7 +1043,6 @@ public:
 	TArray<FName> FindShaderFormatsForCooking(const ITargetPlatform* TargetPlatform) const;
 
 #endif // WITH_EDITOR
-	FNiagaraShaderScript* AllocateResource();
 	FNiagaraShaderScript* GetRenderThreadScript()
 	{
 		return ScriptResource.Get();
@@ -1250,11 +1249,11 @@ private:
 	FNiagaraVMExecutableDataId& GetLastGeneratedVMId(const FGuid& VersionGuid = FGuid()) const;
 #endif
 
-	TUniquePtr<FNiagaraShaderScript> ScriptResource;
+	TSharedPtr<FNiagaraShaderScript> ScriptResource;
 
 #if WITH_EDITORONLY_DATA
 	TArray<FNiagaraShaderScript> LoadedScriptResources;
-	FNiagaraShaderScript* ScriptResourcesByFeatureLevel[ERHIFeatureLevel::Num];
+	TSharedPtr<FNiagaraShaderScript> ScriptResourcesByFeatureLevel[ERHIFeatureLevel::Num];
 #endif
 
 	/** Compute shader compiled for this script */
@@ -1269,7 +1268,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	/* script resources being cached for cooking. */
-	TMap<const class ITargetPlatform*, TArray<FNiagaraShaderScript*>> CachedScriptResourcesForCooking;
+	TMap<const class ITargetPlatform*, TArray<TUniquePtr<FNiagaraShaderScript>>> CachedScriptResourcesForCooking;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UObject>> ActiveCompileRoots;

@@ -940,7 +940,7 @@ UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 #endif
 {
 #if WITH_EDITORONLY_DATA
-	ScriptResource = MakeUnique<FNiagaraShaderScript>();
+	ScriptResource = MakeShared<FNiagaraShaderScript>();
 	ScriptResource->OnCompilationComplete().AddUniqueDynamic(this, &UNiagaraScript::RaiseOnGPUCompilationComplete);
 
 	RapidIterationParameters.DebugName = *GetFullName();
@@ -1940,10 +1940,10 @@ void UNiagaraScript::SaveShaderStableKeys(const class ITargetPlatform* TP)
 	SaveKeyVal.ClassNameAndObjectPath.SetCompactFullNameFromObject(this);
 	static FName FName_Niagara(TEXT("Niagara"));
 	SaveKeyVal.MaterialDomain = FName_Niagara;
-	const TArray<FNiagaraShaderScript*>* ScriptResourcesToSavePtr = CachedScriptResourcesForCooking.Find(TP);
+	const TArray<TUniquePtr<FNiagaraShaderScript>>* ScriptResourcesToSavePtr = CachedScriptResourcesForCooking.Find(TP);
 	if (ScriptResourcesToSavePtr != nullptr)
 	{
-		for (FNiagaraShaderScript* Resource : *ScriptResourcesToSavePtr)
+		for (const TUniquePtr<FNiagaraShaderScript>& Resource : *ScriptResourcesToSavePtr)
 		{
 			if (Resource)
 			{
@@ -2313,9 +2313,9 @@ void UNiagaraScript::SetPreviewFeatureLevel(ERHIFeatureLevel::Type InPreviewFeat
 			continue;
 		}
 
-		for ( FNiagaraShaderScript* ExistingScript : Script->ScriptResourcesByFeatureLevel )
+		for (TSharedPtr<FNiagaraShaderScript>& ExistingScript : Script->ScriptResourcesByFeatureLevel )
 		{
-			if (ExistingScript == Script->ScriptResource.Get())
+			if (ExistingScript == Script->ScriptResource)
 			{
 				Script->CacheResourceShadersForRendering(true, false);
 				break;
@@ -3283,7 +3283,7 @@ void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 			return;
 		}
 
-		TArray<FNiagaraShaderScript*>& CachedScriptResourcesForPlatform = CachedScriptResourcesForCooking.FindOrAdd(TargetPlatform);
+		TArray<TUniquePtr<FNiagaraShaderScript>>& CachedScriptResourcesForPlatform = CachedScriptResourcesForCooking.FindOrAdd(TargetPlatform);
 
 		// Cache for all the shader formats that the cooking target requires
 		for (const FName& ShaderFormat : ShaderFormatsForCooking)
@@ -3313,14 +3313,14 @@ bool UNiagaraScript::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Tar
 
 		if (!bHasOutstandingCompilationRequests)
 		{
-			const TArray<FNiagaraShaderScript*>* CachedScriptResourcesForPlatform = CachedScriptResourcesForCooking.Find(TargetPlatform);
+			const TArray<TUniquePtr<FNiagaraShaderScript>>* CachedScriptResourcesForPlatform = CachedScriptResourcesForCooking.Find(TargetPlatform);
 			if (CachedScriptResourcesForPlatform)
 			{
-				for (const auto& MaterialResource : *CachedScriptResourcesForPlatform)
+				for (const TUniquePtr<FNiagaraShaderScript>& MaterialResource : *CachedScriptResourcesForPlatform)
 				{
 					if (MaterialResource->IsCompilationFinished() == false)
 					{
-						// For now, finish compilation here until we can make sure compilation is finished in the cook commandlet asyncronously before serialize
+						// For now, finish compilation here until we can make sure compilation is finished in the cook commandlet asynchronously before serialize
 						MaterialResource->FinishCompilation();
 
 						if (MaterialResource->IsCompilationFinished() == false)
@@ -3340,7 +3340,7 @@ bool UNiagaraScript::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Tar
 	return true;
 }
 
-void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FNiagaraShaderScript*>& InOutCachedResources, const ITargetPlatform* TargetPlatform)
+void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<TUniquePtr<FNiagaraShaderScript>>& InOutCachedResources, const ITargetPlatform* TargetPlatform)
 {
 	if (CanBeRunOnGpu())
 	{
@@ -3348,7 +3348,7 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 		if (Usage == ENiagaraScriptUsage::ParticleGPUComputeScript)
 		{
 			ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
-			const auto FindExistingScriptPredicate = [&](const FNiagaraShaderScript* ExistingScript)
+			const auto FindExistingScriptPredicate = [&](const TUniquePtr<FNiagaraShaderScript>& ExistingScript)
 			{
 				return ExistingScript->MatchesScript(TargetFeatureLevel, ShaderPlatform, CachedScriptVMId);
 			};
@@ -3359,8 +3359,7 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 				return;
 			}
 
-			FNiagaraShaderScript *ResourceToCache = nullptr;
-			FNiagaraShaderScript* NewResource = AllocateResource();
+			TUniquePtr<FNiagaraShaderScript> NewResource = MakeUnique<FNiagaraShaderScript>();
 			check(CachedScriptVMId.CompilerVersionID.IsValid());
 			check(CachedScriptVMId.BaseScriptCompileHash.IsValid());
 
@@ -3368,16 +3367,13 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 				CachedScriptVMId.GetAdditionalVariableStrings(),
 				CachedScriptVMId.BaseScriptCompileHash,	CachedScriptVMId.ReferencedCompileHashes,
 				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
-			ResourceToCache = NewResource;
 
-			check(ResourceToCache);
-
-			CacheShadersForResources(ResourceToCache, false, false, true, TargetPlatform);
+			CacheShadersForResources(NewResource.Get(), false, false, true, TargetPlatform);
 
 			INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>(TEXT("Niagara"));
 			NiagaraModule.ProcessShaderCompilationQueue();
 
-			InOutCachedResources.Add(ResourceToCache);
+			InOutCachedResources.Emplace(MoveTemp(NewResource));
 		}
 	}
 }
@@ -3424,11 +3420,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 		// Regenerate this script's Id if requested
 		for (int32 Idx = 0; Idx < ERHIFeatureLevel::Num; Idx++)
 		{
-			if (ScriptResourcesByFeatureLevel[Idx])
-			{
-				ScriptResourcesByFeatureLevel[Idx]->ReleaseShaderMap();
-				ScriptResourcesByFeatureLevel[Idx] = nullptr;
-			}
+			ScriptResourcesByFeatureLevel[Idx] = nullptr;
 		}
 	}
 
@@ -3455,7 +3447,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 			ScriptResource->BuildScriptParametersMetadata(CachedScriptVM.ShaderScriptParametersMetadata);
 
 			CacheShadersForResources(ScriptResource.Get(), true);
-			ScriptResourcesByFeatureLevel[CacheFeatureLevel] = ScriptResource.Get();
+			ScriptResourcesByFeatureLevel[CacheFeatureLevel] = ScriptResource;
 		}
 		else
 		{
@@ -3825,7 +3817,7 @@ void UNiagaraScript::SerializeNiagaraShaderMaps(FArchive& Ar, int32 NiagaraVer, 
 		Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 		int32 NumResourcesToSave = 0;
-		const TArray<FNiagaraShaderScript*>* ScriptResourcesToSavePtr = nullptr;
+		TArray<TUniquePtr<FNiagaraShaderScript>>* ScriptResourcesToSavePtr = nullptr;
 
 		if (Ar.IsCooking())
 		{
@@ -3840,7 +3832,7 @@ void UNiagaraScript::SerializeNiagaraShaderMaps(FArchive& Ar, int32 NiagaraVer, 
 
 		if (ScriptResourcesToSavePtr != nullptr)
 		{
-			for (FNiagaraShaderScript* ScriptResourceToSave : (*ScriptResourcesToSavePtr))
+			for (TUniquePtr<FNiagaraShaderScript>& ScriptResourceToSave : (*ScriptResourcesToSavePtr))
 			{
 				checkf(ScriptResourceToSave != nullptr, TEXT("Invalid script resource was cached"));
 				ScriptResourceToSave->SerializeShaderMap(Ar);
@@ -3889,7 +3881,7 @@ void UNiagaraScript::SerializeNiagaraShaderMaps(FArchive& Ar, int32 NiagaraVer, 
 					{
 						if (GMaxRHIShaderPlatform == ShaderMap->GetShaderPlatform())
 						{
-							ScriptResource = MakeUnique<FNiagaraShaderScript>(Resource);
+							ScriptResource = MakeShared<FNiagaraShaderScript>(Resource);
 						}
 					}
 				}
@@ -3911,13 +3903,13 @@ void UNiagaraScript::ProcessSerializedShaderMaps()
 		if (LoadedShaderMap && LoadedShaderMap->GetShaderPlatform() == GMaxRHIShaderPlatform)
 		{
 			HasScriptResource = true;
-			ScriptResource = MakeUnique<FNiagaraShaderScript>(LoadedResource);
+			ScriptResource = MakeShared<FNiagaraShaderScript>(LoadedResource);
 			ScriptResource->OnCompilationComplete().AddUniqueDynamic(this, &UNiagaraScript::RaiseOnGPUCompilationComplete);
 
 			ERHIFeatureLevel::Type LoadedFeatureLevel = LoadedShaderMap->GetShaderMapId().FeatureLevel;
 			if (!ScriptResourcesByFeatureLevel[LoadedFeatureLevel])
 			{
-				ScriptResourcesByFeatureLevel[LoadedFeatureLevel] = AllocateResource();
+				ScriptResourcesByFeatureLevel[LoadedFeatureLevel] = MakeShared<FNiagaraShaderScript>();
 			}
 
 			ScriptResourcesByFeatureLevel[LoadedFeatureLevel]->SetShaderMap(LoadedShaderMap);
@@ -3936,11 +3928,6 @@ void UNiagaraScript::ProcessSerializedShaderMaps()
 	{
 		ScriptResource->BuildScriptParametersMetadata(CachedScriptVM.ShaderScriptParametersMetadata);
 	}
-}
-
-FNiagaraShaderScript* UNiagaraScript::AllocateResource()
-{
-	return new FNiagaraShaderScript();
 }
 
 #if WITH_EDITORONLY_DATA
