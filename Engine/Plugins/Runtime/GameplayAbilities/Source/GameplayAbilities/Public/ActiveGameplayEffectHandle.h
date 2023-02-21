@@ -47,8 +47,7 @@ struct GAMEPLAYABILITIES_API FActiveGameplayEffectHandle
 	static void ResetGlobalHandleMap();
 
 	/** Returns the ability system component that created this handle */
-	UAbilitySystemComponent* GetOwningAbilitySystemComponent();
-	const UAbilitySystemComponent* GetOwningAbilitySystemComponent() const;
+	UAbilitySystemComponent* GetOwningAbilitySystemComponent() const;
 
 	/** Remove this from the GetOwningAbilitySystemComponent map */
 	void RemoveFromGlobalMap();
