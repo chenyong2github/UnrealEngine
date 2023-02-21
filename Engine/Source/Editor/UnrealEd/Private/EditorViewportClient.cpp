@@ -1892,7 +1892,7 @@ void FEditorViewportClient::UpdateCameraMovement( float DeltaTime )
 		EditorMovementDeltaUpperBound = .15f;
 #endif
 		// Check whether the camera is being moved by the mouse or keyboard
-		bool bHasMovement = bIsTracking;
+		bool bHasMovement = GetDefault<ULevelEditorViewportSettings>()->bUseLegacyCameraMovementNotifications;
 
 		if ((*CameraUserImpulseData).RotateYawVelocityModifier != 0.0f ||
 			(*CameraUserImpulseData).RotatePitchVelocityModifier != 0.0f ||
@@ -1908,6 +1908,7 @@ void FEditorViewportClient::UpdateCameraMovement( float DeltaTime )
 		{
 			bHasMovement = true;
 		}
+		bHasMovement = bHasMovement && bIsTracking;
 
 		BeginCameraMovement(bHasMovement);
 

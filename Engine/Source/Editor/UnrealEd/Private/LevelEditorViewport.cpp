@@ -1801,6 +1801,18 @@ void FTrackingTransaction::Cancel()
 	{
 		ScopedTransaction->Cancel();
 	}
+
+	// If the transaction is cancelled, reset the package dirty states to reflect their original state
+	for (const TTuple<UPackage*, bool>& InitialPackageDirtyState : InitialPackageDirtyStates)
+	{
+		UPackage* Package = InitialPackageDirtyState.Key;
+		const bool bInitialDirtyState = InitialPackageDirtyState.Value;
+		if (!bInitialDirtyState && Package->IsDirty())
+		{
+			Package->SetDirtyFlag(false);
+		}
+	}
+
 	End();
 }
 
@@ -2146,6 +2158,7 @@ bool FLevelEditorViewportClient::ShouldLockPitch() const
 
 void FLevelEditorViewportClient::BeginCameraMovement(bool bHasMovement)
 {
+	const bool bIsUsingLegacyMovementNotify = GetDefault<ULevelEditorViewportSettings>()->bUseLegacyCameraMovementNotifications;
 	// If there's new movement broadcast it
 	if (bHasMovement)
 	{
@@ -2167,10 +2180,15 @@ void FLevelEditorViewportClient::BeginCameraMovement(bool bHasMovement)
 					FCoreUObjectDelegates::OnPreObjectPropertyChanged.Broadcast(ActorLock, PropertyChain);
 				}
 			}
+
+			if (!bIsUsingLegacyMovementNotify)
+			{
+				TrackingTransaction.Cancel();
+			}
 			bIsCameraMoving = true;
 		}
 	}
-	else
+	else if (bIsUsingLegacyMovementNotify || !bIsTracking)
 	{
 		bIsCameraMoving = false;
 	}

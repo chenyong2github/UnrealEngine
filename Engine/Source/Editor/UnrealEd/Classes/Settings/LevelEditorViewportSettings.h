@@ -331,6 +331,10 @@ class UNREALED_API ULevelEditorViewportSettings
 	/** The sensitivity of mouse movement when rotating the camera. */
 	UPROPERTY(EditAnywhere, config, Category=Controls, meta=(DisplayName="Mouse Sensitivity", ClampMin="0.01",ClampMax="1.0") )
 	float MouseSensitivty;
+
+	/** Camera movement notification toggle to switch back to the behavior that caused camera notifications to be sent during gizmo movement. */
+	UPROPERTY(EditAnywhere, config, Category = Controls)
+	uint32 bUseLegacyCameraMovementNotifications : 1;
 	
 	/** Whether or not to invert mouse on the y axis in free look mode */
 	UPROPERTY(EditAnywhere, config, Category = Controls, meta = (DisplayName = "Invert Mouse Look Y Axis"))
