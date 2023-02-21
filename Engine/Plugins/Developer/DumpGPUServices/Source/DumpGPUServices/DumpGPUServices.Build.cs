@@ -8,12 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public DumpGPUServices(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					EngineDirectory + "/Source/Runtime/RenderCore/Private",
-				}
-				);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
