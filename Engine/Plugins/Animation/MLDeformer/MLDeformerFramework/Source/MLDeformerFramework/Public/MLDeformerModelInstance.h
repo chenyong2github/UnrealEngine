@@ -192,6 +192,13 @@ protected:
 	 */
 	void UpdateBoneTransforms();
 
+	/** 
+	 * Check whether we have valid transforms in the skeletal mesh component.
+	 * When this returns false, we can't really execute the deformer.
+	 * @return Returns true if the skeletal mesh component, or its leader component has non-empty transform buffers.
+	 */
+	bool HasValidTransforms() const;
+
 protected:
 	/** The fence that let's us wait for all render commands to finish, before we continue. */
 	FRenderCommandFence RenderCommandFence;

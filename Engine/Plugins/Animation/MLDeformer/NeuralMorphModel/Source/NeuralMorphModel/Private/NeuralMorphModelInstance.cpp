@@ -134,7 +134,7 @@ int64 UNeuralMorphModelInstance::SetCurveValues(float* OutputBuffer, int64 Outpu
 	const int32 NumCurveFloats = AssetNumCurves * NumFloatsPerCurve;
 	checkf((Index + NumCurveFloats) <= OutputBufferSize, TEXT("Writing curves past the end of the input buffer"));
 
-	if (NumCurveFloats > 1)
+	if (NumFloatsPerCurve > 1)
 	{
 		// First write all zeros.
 		for (int32 CurveIndex = 0; CurveIndex < NumCurveFloats; ++CurveIndex)
@@ -156,7 +156,7 @@ int64 UNeuralMorphModelInstance::SetCurveValues(float* OutputBuffer, int64 Outpu
 	}
 	else
 	{
-		checkSlow(NumCurveFloats == 1);
+		checkSlow(NumFloatsPerCurve == 1);
 		UAnimInstance* AnimInstance = SkeletalMeshComponent->GetAnimInstance();
 		if (AnimInstance)
 		{
