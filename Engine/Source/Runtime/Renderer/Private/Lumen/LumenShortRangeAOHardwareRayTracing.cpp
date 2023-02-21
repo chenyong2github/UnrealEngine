@@ -65,6 +65,7 @@ class FLumenShortRangeAOHardwareRayTracing : public FGlobalShader
 		SHADER_PARAMETER(uint32, NumRays)
 		SHADER_PARAMETER(float, NormalBias)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FHairStrandsVoxel : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
@@ -131,6 +132,7 @@ void RenderHardwareRayTracingShortRangeAO(
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->NumRays = NumPixelRays;
 		PassParameters->NormalBias = CVarLumenShortRangeAOHardwareRayTracingNormalBias.GetValueOnRenderThread();
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 		if (bNeedTraceHairVoxel)
 		{

@@ -23,16 +23,27 @@ float NormalBias;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenShortRangeAOHardwareRayTracing)
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
-	float2 ScreenUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
-	FGBufferData GBufferData = GetGBufferDataFromSceneTexturesLoad(PixelCoord);
+	const uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
+	const float2 ScreenUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
 
-	if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
+#if STRATA_ENABLED
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
+	const bool bIsValid = IsStrataMaterial(TopLayerData);
+	const float3 WorldNormal = TopLayerData.WorldNormal;
+	const float Depth = ConvertFromDeviceZ(SceneDepthTexture.Load(int3(PixelCoord, 0)).r);
+#else
+	const FGBufferData GBufferData = GetGBufferDataFromSceneTexturesLoad(PixelCoord);
+	const bool bIsValid = GBufferData.ShadingModelID != SHADINGMODELID_UNLIT;
+	const float3 WorldNormal = GBufferData.WorldNormal;
+	const float Depth = GBufferData.Depth;
+#endif
+
+	if (bIsValid)
 	{
-		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, GBufferData.Depth);
-		float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
+		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, Depth);
+		float3x3 TangentBasis = GetTangentBasis(WorldNormal);
 		float MaxScreenTraceFraction = ScreenProbeDownsampleFactor * 2 * View.ViewSizeAndInvSize.z;
-		float TraceDistance = GBufferData.Depth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
+		float TraceDistance = Depth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
 
 		float3 UnoccludedSum = 0;
 		float3 BentNormal = 0;
@@ -53,7 +64,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenShortRangeAOHardwareRayTracing)
 				Ray.Direction = RayDirection;
 				Ray.TMax = TraceDistance;
 
-				ApplyCameraRelativeDepthBias(Ray, PixelCoord, ConvertToDeviceZ(GBufferData.Depth), GBufferData.WorldNormal, NormalBias);
+				ApplyCameraRelativeDepthBias(Ray, PixelCoord, ConvertToDeviceZ(Depth), WorldNormal, NormalBias);
 
 				uint RayFlags = RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
 				const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
@@ -77,7 +88,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenShortRangeAOHardwareRayTracing)
 
 					TraceHairVoxels(
 						NoiseCoord,
-						GBufferData.Depth,
+						Depth,
 						TranslatedWorldPosition,
 						RayDirection,
 						TraceDistance,
