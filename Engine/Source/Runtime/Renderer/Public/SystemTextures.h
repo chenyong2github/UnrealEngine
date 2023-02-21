@@ -54,11 +54,18 @@ struct FDefaultTexture
 	TRefCountPtr<IPooledRenderTarget> Texture;
 };
 
+enum class EDefaultBufferType
+{
+	VertexBuffer,
+	StructuredBuffer,
+	ByteAddressBuffer
+};
+
 struct FDefaultBufferKey
 {
 	uint32 ValueAsUInt[4] = { 0u,0u,0u,0u };
 	uint32 NumBytePerElement = 0;
-	bool bIsStructuredBuffer = false;
+	EDefaultBufferType BufferType = EDefaultBufferType::VertexBuffer;
 };
 struct FDefaultBuffer
 {
@@ -200,6 +207,7 @@ public:
 	// Create default buffer initialize to zero.
 	FRDGBufferRef RENDERER_API GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement);
 	FRDGBufferRef RENDERER_API GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement);
+	FRDGBufferRef RENDERER_API GetDefaultByteAddressBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement);
 
 	template <typename T>
 	FRDGBufferRef GetDefaultBuffer(FRDGBuilder& GraphBuilder)

@@ -1461,7 +1461,7 @@ FRDGTextureRef GetInternalDefaultTexture(
 // Default Buffers
 
 template<typename T>
-static FDefaultBufferKey GetDefaultBufferKey(uint32 NumBytePerElement, bool bIsStructuredBuffer, const T* In)
+static FDefaultBufferKey GetDefaultBufferKey(uint32 NumBytePerElement, EDefaultBufferType BufferType, const T* In)
 {
 	FDefaultBufferKey Out;
 	if (In)
@@ -1475,14 +1475,14 @@ static FDefaultBufferKey GetDefaultBufferKey(uint32 NumBytePerElement, bool bIsS
 	}
 
 	Out.NumBytePerElement	= NumBytePerElement;
-	Out.bIsStructuredBuffer = bIsStructuredBuffer;
+	Out.BufferType			= BufferType;
 	return Out;
 }
 
 bool operator !=(const FDefaultBufferKey& A, const FDefaultBufferKey& B)
 {
 	return A.NumBytePerElement != B.NumBytePerElement ||
-		A.bIsStructuredBuffer != B.bIsStructuredBuffer ||
+		A.BufferType != B.BufferType ||
 		A.ValueAsUInt[0] != B.ValueAsUInt[0] ||
 		A.ValueAsUInt[1] != B.ValueAsUInt[1] ||
 		A.ValueAsUInt[2] != B.ValueAsUInt[2] ||
@@ -1495,15 +1495,15 @@ FRDGBufferRef GetInternalDefaultBuffer(
 	TArray<FDefaultBuffer>& DefaultBuffers,
 	FHashTable& HashDefaultBuffers,
 	uint32 NumBytePerElement,
-	bool bIsStructuredBuffer,
+	EDefaultBufferType BufferType,
 	const TClearValue* Value)
 {
 	// Buffer key
 	const uint32 NumElements = 1;
-	const FDefaultBufferKey Key = GetDefaultBufferKey(NumBytePerElement, bIsStructuredBuffer, Value);
-	const uint32 Hash = Murmur32({uint32(Key.bIsStructuredBuffer ? 0x20000000u : 0x10000000u) | Key.NumBytePerElement, Key.ValueAsUInt[0], Key.ValueAsUInt[1], Key.ValueAsUInt[2], Key.ValueAsUInt[3] });
+	const FDefaultBufferKey Key = GetDefaultBufferKey(NumBytePerElement, BufferType, Value);
+	const uint32 Hash = Murmur32({(uint32)BufferType, Key.NumBytePerElement, Key.ValueAsUInt[0], Key.ValueAsUInt[1], Key.ValueAsUInt[2], Key.ValueAsUInt[3] });
 
-	// Find exsting buffer ("fast" path)
+	// Find existing buffer ("fast" path)
 	uint32 Index = HashDefaultBuffers.First(Hash);
 	while (HashDefaultBuffers.IsValid(Index) && DefaultBuffers[Index].Key != Key)
 	{
@@ -1523,22 +1523,26 @@ FRDGBufferRef GetInternalDefaultBuffer(
 
 	// Adding new buffer if there is no fit (slow path)
 	TRefCountPtr<FRHIBuffer> RHIBuffer;
-	if (bIsStructuredBuffer)
+	switch (BufferType)
 	{
-		CreateInfo.DebugName = TEXT("DefaultStructuredBuffer");
-
-		BufferDesc = FRDGBufferDesc::CreateStructuredDesc(NumBytePerElement, NumElements);
-		BufferDesc.Usage = BUF_Static | BUF_ShaderResource;
-
-		RHIBuffer = RHICreateStructuredBuffer(NumBytePerElement, BufferSize, BufferDesc.Usage, CreateInfo);
-	}
-	else
-	{
+	case EDefaultBufferType::VertexBuffer:
 		CreateInfo.DebugName = TEXT("DefaultBuffer");
-
 		BufferDesc = FRDGBufferDesc::CreateUploadDesc(NumBytePerElement, NumElements);
-
 		RHIBuffer = RHICreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource, CreateInfo);
+		break;
+
+	case EDefaultBufferType::StructuredBuffer:
+		CreateInfo.DebugName = TEXT("DefaultStructuredBuffer");
+		BufferDesc = FRDGBufferDesc::CreateStructuredDesc(NumBytePerElement, NumElements);
+		RHIBuffer = RHICreateStructuredBuffer(NumBytePerElement, BufferSize, BufferDesc.Usage, CreateInfo);
+		break;
+
+	case EDefaultBufferType::ByteAddressBuffer:
+		CreateInfo.DebugName = TEXT("DefaultByteAddressBuffer");
+		BufferDesc = FRDGBufferDesc::CreateByteAddressDesc(BufferSize);
+		RHIBuffer = RHICreateStructuredBuffer(NumBytePerElement, BufferSize, BufferDesc.Usage, CreateInfo);
+		break;
+
 	}
 
 	uint8* DestPtr = static_cast<uint8*>(GraphBuilder.RHICmdList.LockBuffer(RHIBuffer, 0, BufferSize, RLM_WriteOnly));
@@ -1607,18 +1611,19 @@ FRDGTextureRef FSystemTextures::GetDefaultTexture(FRDGBuilder& GraphBuilder, ETe
 // Buffers
 
 // Default init to 0
-FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement)										{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, false, (uint32*)nullptr); }
-FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement)								{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, true,  (uint32*)nullptr); }
+FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement)										{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::VertexBuffer, (uint32*)nullptr); }
+FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement)								{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::StructuredBuffer, (uint32*)nullptr); }
+FRDGBufferRef FSystemTextures::GetDefaultByteAddressBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement)								{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::ByteAddressBuffer, (uint32*)nullptr); }
 
 // Default value of an element
-FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, float Value)							{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, false/* Vertex */, &Value); }
-FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, uint32 Value)							{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, false/* Vertex */, &Value); }
-FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector3f& Value)					{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, false/* Vertex */, &Value); }
-FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector4f& Value)					{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, false/* Vertex */, &Value); }
-FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FUintVector4& Value)				{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, false/* Vertex */, &Value); }
+FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, float Value)							{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::VertexBuffer, &Value); }
+FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, uint32 Value)							{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::VertexBuffer, &Value); }
+FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector3f& Value)				{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::VertexBuffer, &Value); }
+FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector4f& Value)				{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::VertexBuffer, &Value); }
+FRDGBufferRef FSystemTextures::GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FUintVector4& Value)				{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::VertexBuffer, &Value); }
 
-FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, float Value)					{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, true /* Structured */, &Value); }
-FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, uint32 Value)				{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, true /* Structured */, &Value); }
-FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector3f& Value)		{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, true /* Structured */, &Value); }
-FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector4f& Value)		{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, true /* Structured */, &Value); }
-FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FUintVector4& Value)	{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, true /* Structured */, &Value); }
+FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, float Value)					{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::StructuredBuffer, &Value); }
+FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, uint32 Value)				{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::StructuredBuffer, &Value); }
+FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector3f& Value)		{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::StructuredBuffer, &Value); }
+FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector4f& Value)		{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::StructuredBuffer, &Value); }
+FRDGBufferRef FSystemTextures::GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FUintVector4& Value)	{ return GetInternalDefaultBuffer(GraphBuilder, DefaultBuffers, HashDefaultBuffers, NumBytePerElement, EDefaultBufferType::StructuredBuffer, &Value); }
