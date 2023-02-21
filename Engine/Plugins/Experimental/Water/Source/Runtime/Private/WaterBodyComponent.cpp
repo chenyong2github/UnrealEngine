@@ -37,6 +37,7 @@
 #include "WaterModule.h"
 #include "StaticMeshAttributes.h"
 #include "WaterBodyHLODBuilder.h"
+#include "MeshMergeModule.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Water"
@@ -2196,13 +2197,26 @@ TSubclassOf<UHLODBuilder> UWaterBodyComponent::GetCustomHLODBuilderClass() const
 
 FMeshDescription UWaterBodyComponent::GetHLODMeshDescription() const
 {
-	if (WaterMeshOverride)
-	{
-		return *WaterMeshOverride->GetMeshDescription(WaterMeshOverride->GetNumLODs() - 1);
-	}
-	
 	FMeshDescription MeshDescription;
 
+	if (WaterMeshOverride)
+	{
+		const int32 LastLOD = WaterMeshOverride->GetNumLODs() - 1;
+
+		// If source model is valid, return the mesh description directly, otherwise recreate it from the render data
+		if (WaterMeshOverride->IsSourceModelValid(LastLOD))
+		{
+			MeshDescription = *WaterMeshOverride->GetMeshDescription(LastLOD);
+		}
+		else
+		{
+			const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
+			MeshMergeUtilities.RetrieveMeshDescription(WaterMeshOverride, LastLOD, MeshDescription);
+		}
+
+		return MeshDescription;
+	}
+	
 	FStaticMeshAttributes StaticMeshAttributes(MeshDescription);
 	StaticMeshAttributes.Register();
 

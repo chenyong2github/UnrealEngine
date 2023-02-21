@@ -61,7 +61,8 @@ public class Water : ModuleRules
 					"SourceControl",
 					"UnrealEd",
 					"StaticMeshDescription",
-					"MeshConversion"
+					"MeshConversion",
+					"MeshMergeUtilities"
 				}
 			);
 		}
