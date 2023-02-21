@@ -449,6 +449,7 @@ namespace IncludeTool
 			"/Engine/Source/Runtime/Core/Public/Templates/SharedPointerFwd.h", // Has an enum as well
 			"/Engine/Source/Runtime/Core/Public/Templates/SharedPointerFwd.h", // Has an enum as well
 			"/Engine/Source/Runtime/Core/Public/Misc/OptionalFwd.h", // Has special struct
+			"/Engine/Source/Runtime/CoreUObject/Public/UObject/ScriptDelegateFwd.h", // error: invalid forward declaration - 'typedef TScriptDelegate<FWeakObjectPtr> FScriptDelegate;'
 			"/Engine/Source/Runtime/CoreUObject/Public/UObject/WeakObjectPtrFwd.h", // error: invalid forward declaration - 'template<> struct TIsPODType<FWeakObjectPtr> { enum { Value = true }; };'
 			"/Engine/Source/Runtime/Core/Public/UObject/WeakObjectPtrTemplatesFwd.h", // error: invalid forward declaration - 'template<class T> struct TIsPODType<TWeakObjectPtr<T> > { enum { Value = true }; };'
 		};
