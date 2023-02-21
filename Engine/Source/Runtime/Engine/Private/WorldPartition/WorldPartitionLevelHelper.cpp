@@ -17,6 +17,7 @@
 #include "UnrealEngine.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionPackageHelper.h"
+#include "WorldPartition/ContentBundle/ContentBundleEditor.h"
 #include "LevelUtils.h"
 #include "ActorFolder.h"
 #include "Containers/StringFwd.h"
@@ -239,6 +240,19 @@ bool FWorldPartitionLevelHelper::RemapActorPath(const FActorContainerID& InConta
 	}
 
 	return false;
+}
+
+bool FWorldPartitionLevelHelper::RemapLevelCellPathInContentBundle(ULevel* Level, const class FContentBundleEditor* ContentBundleEditor, const UWorldPartitionRuntimeCell* Cell)
+{
+	FString CellPath = ContentBundleEditor->GetExternalStreamingObjectPackageName();
+	CellPath += TEXT(".");
+	CellPath += ContentBundleEditor->GetExternalStreamingObjectName();
+	CellPath += TEXT(".");
+	CellPath += Cell->GetName();
+	
+	Level->WorldPartitionRuntimeCell = FSoftObjectPath(CellPath);
+
+	return Level->WorldPartitionRuntimeCell.IsValid();
 }
 
 /**

@@ -50,6 +50,10 @@ private:
 	static FString GetContainerPackage(const FActorContainerID& InContainerID, const FString& InPackageName, const FString& InDestLevelPackageName = FString());
 	static UWorld::InitializationValues GetWorldInitializationValues();
 
+
+	friend class FContentBundleEditor;
+	static bool RemapLevelCellPathInContentBundle(ULevel* Level, const class FContentBundleEditor* ContentBundleEditor, const UWorldPartitionRuntimeCell* Cell);
+
 	struct FPackageReference
 	{
 		TSet<FPackageReferencer*> Referencers;

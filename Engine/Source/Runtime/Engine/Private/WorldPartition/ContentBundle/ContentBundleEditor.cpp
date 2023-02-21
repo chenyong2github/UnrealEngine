@@ -18,6 +18,7 @@
 #include "WorldPartition/ContentBundle/ContentBundlePaths.h"
 #include "WorldPartition/Cook/WorldPartitionCookPackageContextInterface.h"
 #include "WorldPartition/Cook/WorldPartitionCookPackage.h"
+#include "WorldPartition/WorldPartitionLevelHelper.h"
 
 FContentBundleEditor::FContentBundleEditor(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld)
 	: FContentBundleBase(InClient, InWorld)
@@ -437,12 +438,33 @@ bool FContentBundleEditor::PopulateGeneratedPackageForCook(class IWorldPartition
 				if (!Cell->IsAlwaysLoaded())
 				{
 					TArray<UPackage*> ModifiedPackages;
-					if (!Cell->PopulateGeneratedPackageForCook(PackageToCook.GetPackage(), OutModifiedPackages))
+					if (Cell->PopulateGeneratedPackageForCook(PackageToCook.GetPackage(), OutModifiedPackages))
+					{
+						UWorld* CellWorld = FindObject<UWorld>(PackageToCook.GetPackage(), *GetInjectedWorld()->GetName());
+						if (CellWorld != nullptr)
+						{
+							// @todo_ow : Order on PopulateGeneratedPackageForCook for each PackageToCook parameters is not deterministic.
+							// PopulateGeneratedPackageForCook can be called on some cell(s) before it was called for the ExternalStreamingObject.
+							// This lead to a wrong path in ULevel::WorldPartitionRuntimeCell because the ExternalStreamingObject could not yet have been renamed.
+							// Compute & set ULevel::WorldPartitionRuntimeCell by hand in FWorldPartitionLevelHelper::RemapLevelCellPathInContentBundle
+							// We already know that the cell will reside in the ExternalStreamingObject package at runtime.
+							if (!FWorldPartitionLevelHelper::RemapLevelCellPathInContentBundle(CellWorld->PersistentLevel, this, Cell))
+							{
+								UE_LOG(LogContentBundle, Warning, TEXT("%s[Cook] Failed to Remap cell in level for package %s."), *ContentBundle::Log::MakeDebugInfoString(*this), *PackageToCook.RelativePath);
+								bIsSuccess = false;
+							}
+						}
+						else
+						{
+							UE_LOG(LogContentBundle, Warning, TEXT("%s[Cook] Failed to retrieve cell world from package %s."), *ContentBundle::Log::MakeDebugInfoString(*this), *PackageToCook.RelativePath);
+							bIsSuccess = false;
+						}
+					}
+					else
 					{
 						UE_LOG(LogContentBundle, Error, TEXT("%s[Cook] Failed to populate cell package %s."), *ContentBundle::Log::MakeDebugInfoString(*this), *PackageToCook.RelativePath);
 						bIsSuccess = false;
 					}
-					
 				}
 				else
 				{
