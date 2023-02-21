@@ -142,7 +142,7 @@ void UPCGSubsystem::Tick(float DeltaSeconds)
 #if WITH_EDITOR
 		if (PCGSubsystemConsole::CVarRebuildLandscapeOnPIE.GetValueOnAnyThread() && PCGHelpers::IsRuntimeOrPIE())
 		{
-			BuildLandscapeCache();
+			BuildLandscapeCache(/*bQuiet=*/true);
 		}
 #endif
 
@@ -1639,7 +1639,7 @@ void UPCGSubsystem::CleanFromCache(const IPCGElement* InElement, const UPCGSetti
 	}
 }
 
-void UPCGSubsystem::BuildLandscapeCache()
+void UPCGSubsystem::BuildLandscapeCache(bool bQuiet)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::BuildLandscapeCache);
 	if (UPCGLandscapeCache* LandscapeCache = GetLandscapeCache())
@@ -1647,7 +1647,7 @@ void UPCGSubsystem::BuildLandscapeCache()
 		PCGWorldActor->Modify();
 		LandscapeCache->PrimeCache();
 	}
-	else
+	else if(!bQuiet)
 	{
 		UE_LOG(LogPCG, Error, TEXT("Unable to build landscape cache because either the world is null or there is no PCG world actor"));
 	}

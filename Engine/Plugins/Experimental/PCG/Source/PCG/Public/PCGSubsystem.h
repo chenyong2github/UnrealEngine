@@ -160,7 +160,7 @@ public:
 	void ResetPartitionActorsMap();
 
 	/** Builds the landscape data cache */
-	void BuildLandscapeCache();
+	void BuildLandscapeCache(bool bQuiet = false);
 
 	/** Clears the landscape data cache */
 	void ClearLandscapeCache();
