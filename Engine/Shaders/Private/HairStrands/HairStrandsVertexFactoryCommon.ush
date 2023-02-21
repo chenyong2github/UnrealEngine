@@ -99,13 +99,13 @@ uint UnpackHairClumpID(uint In)
 	return (In & 0xFFFF);
 }
 
-float3 UnpackHairBaseColor(uint In)
+float3 UnpackHairColor(uint In)
 {
 	float3 Out;
-	Out.x = (In       & 0xFF) / 255.f;
-	Out.y = ((In>>8)  & 0xFF) / 255.f;
-	Out.z = ((In>>16) & 0xFF) / 255.f;
-	return Out * Out; // Cheap sRGB encoding
+	Out.x = (In       & 0x7FF) / 2047.f;
+	Out.y = ((In>>11) & 0x7FF) / 2047.f;
+	Out.z = ((In>>22) & 0x3FF) / 1023.f;
+	return Out;
 }
 
 float UnpackHairRoughness(uint In)

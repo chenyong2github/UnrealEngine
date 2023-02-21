@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v6l");
+	return TEXT("v7");
 }
 
 namespace FHairStrandsDecimation
@@ -350,15 +350,13 @@ namespace HairStrandsBuilder
 					OutVertexToCurve32[PointIndex + IndexOffset] = CurveIndex;
 				}
 
-				// Per-Vertex BaseColor
+				// Per-Vertex Color
 				if (HasHairAttribute(Attributes, EHairAttribute::Color))
 				{
 					uint32& Packed = AttributeBaseColor[PointIndex + IndexOffset];
-
-					// Cheap sRGB encoding
-					Packed= FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].R) * 0xFF), 0u, 0xFFu)|
-							FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].G) * 0xFF), 0u, 0xFFu)|
-							FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].B) * 0xFF), 0u, 0xFFu);
+					Packed |= FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].R) * 0x7FF), 0u, 0x7FFu);
+					Packed |= FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].G) * 0x7FF), 0u, 0x7FFu)<<11;
+					Packed |= FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].B) * 0x3FF), 0u, 0x3FFu)<<22;
 				}
 
 				// Per-Vertex Roughness
