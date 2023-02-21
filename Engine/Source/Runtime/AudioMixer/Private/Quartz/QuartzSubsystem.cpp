@@ -57,27 +57,6 @@ static TUniquePtr<FScopeLock> GetPersistentStateScopeLock(const UWorld* InWorld)
 	return {}; // Empty lock for AudioMixer-less runtimes (server)
 }
 
-bool UQuartzSubsystem::ShouldCreateSubsystem(UObject* Outer) const
-{
-	// Only create the Subsystem if we're using an Audio Mixer Device
-	if (UWorld* OuterWorld = Outer->GetWorld())
-	{
-		FAudioDevice* OuterAudioDevice = OuterWorld->GetAudioDeviceRaw();
-
-		if (OuterAudioDevice && OuterAudioDevice->IsAudioMixerEnabled())
-		{
-			UE_LOG(LogAudioQuartz, Verbose, TEXT("Audio mixer device valid, will create subsystem"));
-
-			// If we do have an audio mixer device, we can create this subsystem.
-			return true;
-		}
-	}
-
-	UE_LOG(LogAudioQuartz, Verbose, TEXT("Quartz Subsystem cannot be created, Audio Mixer is not enabled"));
-
-	// Quartz is not currently supported on non-audio mixer devices.
-	return false;
-}
 
 void UQuartzSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
