@@ -551,6 +551,7 @@ public:
 	void SetDynamicGeometry(TUniquePtr<FImplicitObject>&& Unique) { GeometryParticles->SetDynamicGeometry(ParticleIdx, MoveTemp(Unique)); }
 
 	const FShapesArray& ShapesArray() const { return GeometryParticles->ShapesArray(ParticleIdx); }
+	const FShapeInstanceArray& ShapeInstances() const { return GeometryParticles->ShapeInstances(ParticleIdx); }
 
 	const TAABB<T, d>& LocalBounds() const { return GeometryParticles->LocalBounds(ParticleIdx); }
 	void SetLocalBounds(const TAABB<T, d>& NewBounds) { GeometryParticles->LocalBounds(ParticleIdx) = NewBounds; }
@@ -2105,6 +2106,7 @@ public:
 	}
 
 	const FShapesArray& ShapesArray() const { return MHandle->ShapesArray(); }
+	const FShapeInstanceArray& ShapeInstances() const { return MHandle->ShapeInstances(); }
 
 	static constexpr EParticleType StaticType()
 	{
@@ -2469,20 +2471,45 @@ public:
 
 	void MergeShapesArray(FShapesArray&& OtherShapesArray)
 	{
-		int Idx = MShapesArray.Num() - OtherShapesArray.Num();
-		for (TUniquePtr<FPerShapeData>& Shape : OtherShapesArray)
-		{
-			ensure(Idx < MShapesArray.Num());
-			MShapesArray[Idx++] = MoveTemp(reinterpret_cast<FShapeInstanceProxyPtr&>(Shape));
-		}
+		MergeShapeInstances(reinterpret_cast<FShapeInstanceProxyArray&&>(OtherShapesArray));
 	}
 
-	void SetIgnoreAnalyticCollisionsImp(FImplicitObject* Implicit, bool bIgnoreAnalyticCollisions);
-	CHAOS_API void SetIgnoreAnalyticCollisions(bool bIgnoreAnalyticCollisions);
+	const FShapesArray& ShapesArray() const { return reinterpret_cast<const FShapesArray&>(MShapesArray); }
+
 
 	TSerializablePtr<FImplicitObject> Geometry() const { return MakeSerializable(MNonFrequentData.Read().Geometry()); }
 
-	const FShapesArray& ShapesArray() const { return reinterpret_cast<const FShapesArray&>(MShapesArray); }
+	const FShapeInstanceProxyArray& ShapeInstances() const
+	{ 
+		return MShapesArray;
+	}
+
+	//Note: this must be called after setting geometry. This API seems bad. Should probably be part of setting geometry
+	void SetShapeInstances(FShapeInstanceProxyArray&& InShapes)
+	{ 
+		// This is only called after setting or merging geometry which resizes the shapes array
+		// so we should always have enough elements at this point
+		check(InShapes.Num() == MShapesArray.Num());
+		MShapesArray = MoveTemp(InShapes);
+	}
+
+	// Overwite the last N shapes with the data from InShapes. This is a highly dubious operation
+	// provided as a utility for use in FPhysInterface_Chaos::AddGeometry. Ideally we would remove this
+	void MergeShapeInstances(FShapeInstanceProxyArray&& InShapes)
+	{
+		check(InShapes.Num() <= MShapesArray.Num());
+		int Idx = MShapesArray.Num() - InShapes.Num();
+		for (FShapeInstanceProxyPtr& Shape : InShapes)
+		{
+			ensure(Idx < MShapesArray.Num());
+			MShapesArray[Idx++] = MoveTemp(Shape);
+		}
+	}
+
+
+	void SetIgnoreAnalyticCollisionsImp(FImplicitObject* Implicit, bool bIgnoreAnalyticCollisions);
+	
+	CHAOS_API void SetIgnoreAnalyticCollisions(bool bIgnoreAnalyticCollisions);
 
 	EObjectStateType ObjectState() const;
 
@@ -2491,6 +2518,7 @@ public:
 		return Type;
 	}
 
+	
 
 	const TKinematicGeometryParticle<T, d>* CastToKinematicParticle() const;
 	TKinematicGeometryParticle<T, d>* CastToKinematicParticle();

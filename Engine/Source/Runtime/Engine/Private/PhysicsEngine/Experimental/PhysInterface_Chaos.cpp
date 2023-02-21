@@ -703,9 +703,10 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 			//FPhysInterface_Chaos::SetMaterials(NewHandle, InParams.ComplexMaterials.Num() > 0 ? InParams.ComplexMaterials : SimpleView);
 		}
 
+		// NOTE: Both MergeGeometry and SetGeometry will extend the ShapesInstances array to contain enough elements for
+		// each geometry in the Union. However the shape data will not have been filled in, hence the call to MergeShapeInstance at the end.
+		// todo: we should not be creating unique geometry per actor
 		bool bMergeShapesArray = false;
-		//todo: we should not be creating unique geometry per actor
-		// we always have a union so we can support any future welding operations. (Non-trivial converting the SharedPtr to UniquePtr)
 		{
 			if (InActor->GetGameThreadAPI().Geometry()) // geometry already exists - combine new geometry with the existing
 			{
@@ -714,10 +715,13 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 			}
 			else
 			{
+				// we always have a union so we can support any future welding operations. (Non-trivial converting the SharedPtr to UniquePtr)
 				InActor->GetGameThreadAPI().SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
 			}
 		}
 
+		// Update the newly added shapes with the collision filters, materials etc
+		// NOTE: MergeShapes overwrites the last N shapes (see comments above)
 		if (bMergeShapesArray)
 		{
 			InActor->GetGameThreadAPI().MergeShapesArray(MoveTemp(Shapes));

@@ -332,6 +332,8 @@ namespace Chaos
 
 		CHAOS_API const FShapesArray& ShapesArray(const int32 Index) const { return reinterpret_cast<const FShapesArray&>(MShapesArray[Index]); }
 
+		CHAOS_API const FShapeInstanceArray& ShapeInstances(const int32 Index) const { return MShapesArray[Index]; }
+
 #if CHAOS_DETERMINISTIC
 		CHAOS_API FParticleID ParticleID(const int32 Idx) const { return MParticleIDs[Idx]; }
 		CHAOS_API FParticleID& ParticleID(const int32 Idx) { return MParticleIDs[Idx]; }
