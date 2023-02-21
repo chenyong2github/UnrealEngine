@@ -40,10 +40,7 @@ FObjectMixerEditorListRowActor* FObjectMixerUtils::AsActorRow(TSharedPtr<ISceneO
 	
 	if (FActorTreeItem* AsActor = InTreeItem->CastTo<FActorTreeItem>())
 	{
-		if (AsActor->Actor.IsValid())
-		{
-			return StaticCast<FObjectMixerEditorListRowActor*>(AsActor);
-		}
+		return StaticCast<FObjectMixerEditorListRowActor*>(AsActor);
 	}
 
 	return nullptr;
@@ -60,10 +57,7 @@ FObjectMixerEditorListRowComponent* FObjectMixerUtils::AsComponentRow(TSharedPtr
 	
 	if (FComponentTreeItem* AsComponent = InTreeItem->CastTo<FComponentTreeItem>())
 	{
-		if (AsComponent->Component.IsValid())
-		{
-			return StaticCast<FObjectMixerEditorListRowComponent*>(AsComponent);
-		}
+		return StaticCast<FObjectMixerEditorListRowComponent*>(AsComponent);
 	}
 
 	return nullptr;
@@ -73,10 +67,7 @@ FObjectMixerEditorListRowUObject* FObjectMixerUtils::AsObjectRow(TSharedPtr<ISce
 {
 	if (FObjectMixerEditorListRowUObject* AsObject = InTreeItem->CastTo<FObjectMixerEditorListRowUObject>())
 	{
-		if (IsValid(AsObject->ObjectPtr))
-		{
-			return AsObject;
-		}
+		return AsObject;
 	}
 
 	return nullptr;
@@ -86,22 +77,34 @@ FObjectMixerEditorListRowData* FObjectMixerUtils::GetRowData(TSharedPtr<ISceneOu
 {
 	if (FObjectMixerEditorListRowFolder* AsFolder = AsFolderRow(InTreeItem))
 	{
-		return &AsFolder->RowData;
+		if (AsFolder->RowData.IsValid())
+		{
+			return &AsFolder->RowData;
+		}
 	}
 
 	if (FObjectMixerEditorListRowActor* AsActor = AsActorRow(InTreeItem))
 	{
-		return &AsActor->RowData;
+		if (AsActor->RowData.IsValid())
+		{
+			return &AsActor->RowData;
+		}
 	}
 
 	if (FObjectMixerEditorListRowComponent* AsComponent = AsComponentRow(InTreeItem))
 	{
-		return &AsComponent->RowData;
+		if (AsComponent->RowData.IsValid())
+		{
+			return &AsComponent->RowData;
+		}
 	}
 
 	if (FObjectMixerEditorListRowUObject* AsObject = AsObjectRow(InTreeItem))
 	{
-		return &AsObject->RowData;
+		if (AsObject->RowData.IsValid())
+		{
+			return &AsObject->RowData;
+		}
 	}
 
 	return nullptr;
@@ -115,18 +118,28 @@ UObject* FObjectMixerUtils::GetRowObject(TSharedPtr<ISceneOutlinerTreeItem> InTr
 		{
 			return ActorRow->RowData.GetHybridComponent();
 		}
-		
-		return ActorRow->Actor.Get();
+
+		if (ActorRow->Actor.IsValid() && !ActorRow->Actor.IsStale())
+		{
+			return ActorRow->Actor.Get();
+		}
+
+		return ActorRow->OriginalObjectSoftPtr.Get();
 	}
 
 	if (const FObjectMixerEditorListRowComponent* ComponentRow = AsComponentRow(InTreeItem))
 	{
-		return ComponentRow->Component.Get();
+		if (ComponentRow->Component.IsValid() && !ComponentRow->Component.IsStale())
+		{
+			return ComponentRow->Component.Get();
+		}
+
+		return ComponentRow->OriginalObjectSoftPtr.Get();
 	}
 
 	if (const FObjectMixerEditorListRowUObject* ObjectRow = AsObjectRow(InTreeItem))
 	{
-		return ObjectRow->ObjectPtr.Get();
+		ObjectRow->ObjectSoftPtr.Get();
 	}
 
 	return nullptr;
@@ -168,7 +181,7 @@ bool FObjectMixerUtils::IsObjectRefInCollection(const FName& CollectionName, TSh
 {	
 	if (const UObject* Object = GetRowObject(InTreeItem))
 	{
-		if (SObjectMixerEditorList* ListView = GetRowData(InTreeItem)->GetListView())
+		if (TSharedPtr<SObjectMixerEditorList> ListView = GetRowData(InTreeItem)->GetListView().Pin())
 		{
 			if (const TSharedPtr<FObjectMixerEditorList> ListModel = ListView->GetListModelPtr().Pin())
 			{

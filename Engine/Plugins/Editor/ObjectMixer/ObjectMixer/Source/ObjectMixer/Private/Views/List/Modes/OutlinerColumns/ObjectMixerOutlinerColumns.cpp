@@ -105,7 +105,6 @@ void FObjectMixerOutlinerSoloColumn::SortItems(TArray<FSceneOutlinerTreeItemPtr>
 FSlateColor FObjectMixerOutlinerSoloColumn::GetForegroundColor(
 	FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>* Row) const
 {
-	// todo when hybrid rows are back: const TSharedRef<ISceneOutlinerTreeItem> RowPtr = GetHybridChildOrRowItemIfNull(TreeItem);
 	if (FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(TreeItem))
 	{
 		if (RowData->GetIsSelected(TreeItem) || RowData->GetRowSoloState())
@@ -126,7 +125,7 @@ void FObjectMixerOutlinerSoloColumn::OnClickSoloIcon(const FSceneOutlinerTreeIte
 {
 	if (FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(RowPtr))
 	{
-		if (SObjectMixerEditorList* ListView = RowData->GetListView())
+		if (TSharedPtr<SObjectMixerEditorList> ListView = RowData->GetListView().Pin())
 		{
 			const bool bNewSolo = !RowData->GetRowSoloState();
 								
@@ -225,26 +224,31 @@ void FObjectMixerOutlinerPropertyColumn::OnPropertyChanged(const FPropertyChange
 	{
 		if (FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(TreeItem))
 		{
-			const EPropertyValueSetFlags::Type Flag =
-				 Event.ChangeType == EPropertyChangeType::Interactive ?
-					 EPropertyValueSetFlags::InteractiveChange : EPropertyValueSetFlags::DefaultFlags;
-
-			FObjectMixerEditorListRowData::FPropertyPropagationInfo PropagationInfo; 
-			PropagationInfo.RowIdentifier = TreeItem->GetID();
-			PropagationInfo.PropertyName = Property->GetFName();
-			PropagationInfo.PropertyValueSetFlags = Flag;
-		
-			if (Flag == EPropertyValueSetFlags::InteractiveChange)
+			if (const TSharedPtr<SObjectMixerEditorList> ListView = RowData->GetListView().Pin())
 			{
-				RowData->PropagateChangesToSimilarSelectedRowProperties(TreeItem.ToSharedRef(), PropagationInfo);
-			}
-			else
-			{
-				// If not an interactive change, schedule property propagation on next frame
-				if (SObjectMixerEditorList* ListView = RowData->GetListView())
+				// If fewer than 2 items are selected, there is nothing to propagate. Early out.
+				if (ListView->GetSelectedTreeViewItemCount() < 2)
 				{
+					return;
+				}
+				
+				const EPropertyValueSetFlags::Type Flag =
+					 Event.ChangeType & EPropertyChangeType::Interactive ?
+						 EPropertyValueSetFlags::InteractiveChange : EPropertyValueSetFlags::DefaultFlags;
+
+				FObjectMixerEditorListRowData::FPropertyPropagationInfo PropagationInfo; 
+				PropagationInfo.RowIdentifier = TreeItem->GetID();
+				PropagationInfo.PropertyName = Property->GetFName();
+				PropagationInfo.PropertyValueSetFlags = Flag;
+		
+				if (Flag == EPropertyValueSetFlags::InteractiveChange)
+				{
+					RowData->PropagateChangesToSimilarSelectedRowProperties(TreeItem.ToSharedRef(), PropagationInfo);
+				}
+				else
+				{
+					// If not an interactive change, schedule property propagation on next frame
 					ListView->AddToPendingPropertyPropagations(PropagationInfo);
-					ListView->RequestRebuildList();
 				}
 			}
 		}

@@ -105,7 +105,7 @@ namespace ObjectMixerOutliner
 		return false;
 	}
 
-	bool FComponentSelector::operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, TObjectPtr<UActorComponent>& DataOut) const
+	bool FComponentSelector::operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, UActorComponent*& DataOut) const
 	{
 		if (TSharedPtr<ISceneOutlinerTreeItem> ItemPtr = Item.Pin())
 		{
@@ -564,12 +564,6 @@ void FObjectMixerOutlinerMode::OnLevelSelectionChanged(UObject* Obj)
 		SceneOutliner->FullRefresh();
 		return;
 	}
-
-	if (bShouldPauseSelectionSyncFromEditorTemporarily)
-	{
-		bShouldPauseSelectionSyncFromEditorTemporarily = false;
-		return;
-	}
 	
 	// If the SceneOutliner's reentrant flag is set, the selection change has already been handled in the outliner class
 	if (!SceneOutliner->GetIsReentrant())
@@ -628,6 +622,130 @@ void FObjectMixerOutlinerMode::OnLevelActorRequestsRename(const AActor* Actor)
 void FObjectMixerOutlinerMode::OnPostLoadMapWithWorld(UWorld* World)
 {
 	SceneOutliner->FullRefresh();
+}
+
+bool FObjectMixerOutlinerMode::HasActorSelectionChanged(TArray<AActor*>& OutSelectedActors, bool& bOutAreAnyInPIE)
+{
+	bool bHasSelectionChanged = false;
+	for (AActor* Actor : OutSelectedActors)
+	{
+		if (!bOutAreAnyInPIE && Actor && Actor->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
+		{
+			bOutAreAnyInPIE = true;
+		}
+		if (!GEditor->GetSelectedActors()->IsSelected(Actor))
+		{
+			bHasSelectionChanged = true;
+			break;
+		}
+	}
+
+	for (FSelectionIterator SelectionIt(*GEditor->GetSelectedActors()); SelectionIt && !bHasSelectionChanged; ++SelectionIt)
+	{
+		const AActor* Actor = CastChecked< AActor >(*SelectionIt);
+		if (!bOutAreAnyInPIE && Actor->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
+		{
+			bOutAreAnyInPIE = true;
+		}
+		if (!OutSelectedActors.Contains(Actor))
+		{
+			// Actor has been deselected
+			bHasSelectionChanged = true;
+
+			// If actor was a group actor, remove its members from the ActorsToSelect list
+			const AGroupActor* DeselectedGroupActor = Cast<AGroupActor>(Actor);
+			if (DeselectedGroupActor)
+			{
+				TArray<AActor*> GroupActors;
+				DeselectedGroupActor->GetGroupActors(GroupActors);
+
+				for (auto* GroupActor : GroupActors)
+				{
+					OutSelectedActors.Remove(GroupActor);
+				}
+
+			}
+		}
+	}
+
+	return bHasSelectionChanged;
+}
+
+bool FObjectMixerOutlinerMode::HasComponentSelectionChanged(TArray<UActorComponent*>& OutSelectedComponents, bool& bOutAreAnyInPIE)
+{
+	bool bHasSelectionChanged = false;
+	for (UActorComponent* Component : OutSelectedComponents)
+	{
+		if (!bOutAreAnyInPIE && Component && Component->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
+		{
+			bOutAreAnyInPIE = true;
+		}
+		if (!GEditor->GetSelectedComponents()->IsSelected(Component))
+		{
+			bHasSelectionChanged = true;
+			break;
+		}
+	}
+
+	for (FSelectionIterator SelectionIt(*GEditor->GetSelectedComponents()); SelectionIt && !bHasSelectionChanged; ++SelectionIt)
+	{
+		const UActorComponent* Actor = CastChecked< UActorComponent >(*SelectionIt);
+		if (!bOutAreAnyInPIE && Actor->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
+		{
+			bOutAreAnyInPIE = true;
+		}
+		if (!OutSelectedComponents.Contains(Actor))
+		{
+			// Actor has been deselected
+			bHasSelectionChanged = true;
+		}
+	}
+
+	return bHasSelectionChanged;
+}
+
+void FObjectMixerOutlinerMode::SelectActorsInEditor(const TArray<AActor*>& InSelectedActors)
+{
+	GEditor->GetSelectedActors()->Modify();
+				
+	// We'll batch selection changes instead by using BeginBatchSelectOperation()
+	GEditor->GetSelectedActors()->BeginBatchSelectOperation();
+
+	// Clear the selection
+	GEditor->GetSelectedActors()->DeselectAll();
+				
+	for (AActor* Actor : InSelectedActors)
+	{
+		constexpr bool bShouldSelect = true;
+		constexpr bool bNotifyAfterSelect = false;
+		constexpr bool bSelectEvenIfHidden = true;
+		GEditor->SelectActor(Actor, bShouldSelect, bNotifyAfterSelect, bSelectEvenIfHidden);
+	}
+
+	// Commit selection changes
+	GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify*/false);
+}
+
+void FObjectMixerOutlinerMode::SelectComponentsInEditor(const TArray<UActorComponent*>& InSelectedComponents)
+{	
+	GEditor->GetSelectedComponents()->Modify();
+				
+	// We'll batch selection changes instead by using BeginBatchSelectOperation()
+	GEditor->GetSelectedComponents()->BeginBatchSelectOperation();
+
+	// Clear the selection
+	GEditor->GetSelectedComponents()->DeselectAll();
+				
+	for (UActorComponent* Component : InSelectedComponents)
+	{
+		constexpr bool bShouldSelect = true;
+		constexpr bool bNotifyAfterSelect = false;
+		constexpr bool bSelectEvenIfHidden = true;
+		GEditor->SelectComponent(Component, bShouldSelect, bNotifyAfterSelect, bSelectEvenIfHidden);
+	}
+
+	// Commit selection changes
+	GEditor->GetSelectedComponents()->EndBatchSelectOperation(/*bNotify*/false);
 }
 
 void FObjectMixerOutlinerMode::OnActorLabelChanged(AActor* ChangedActor)
@@ -1675,84 +1793,35 @@ void FObjectMixerOutlinerMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr 
 {
 	if (GetDefault<UObjectMixerEditorSettings>()->bSyncSelection)
 	{
-		bShouldPauseSelectionSyncFromEditorTemporarily = true;
-		TArray<AActor*> SelectedActors = Selection.GetData<AActor*>(ObjectMixerOutliner::FActorSelector());
-		
+		bool bAreAnyInPIE = false;
+
+		// Actors
 		SynchronizeSelectedActorDescs();
-
-		bool bChanged = false;
-		bool bAnyInPIE = false;
-		for (auto* Actor : SelectedActors)
+		TArray<AActor*> SelectedActors = Selection.GetData<AActor*>(ObjectMixerOutliner::FActorSelector());
+		bool bHasActorSelectionChanged = HasActorSelectionChanged(SelectedActors, bAreAnyInPIE);
+		
+		// Components
+		TArray<UActorComponent*> SelectedComponents = Selection.GetData<UActorComponent*>(ObjectMixerOutliner::FComponentSelector());
+		bool bHasComponentSelectionChanged = HasComponentSelectionChanged(SelectedComponents, bAreAnyInPIE);
+		
+		// If there's a discrepancy, update the selected objects to reflect the list.
+		if (bHasActorSelectionChanged || bHasComponentSelectionChanged)
 		{
-			if (!bAnyInPIE && Actor && Actor->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
+			const FScopedTransaction Transaction(LOCTEXT("ClickingOnActorsAndComponents", "Clicking on Actors & Components"), !bAreAnyInPIE);
+
+			if (bHasActorSelectionChanged)
 			{
-				bAnyInPIE = true;
+				SelectActorsInEditor(SelectedActors);
 			}
-			if (!GEditor->GetSelectedActors()->IsSelected(Actor))
+			
+			if (bHasComponentSelectionChanged)
 			{
-				bChanged = true;
-				break;
+				SelectComponentsInEditor(SelectedComponents);
 			}
-		}
-
-		for (FSelectionIterator SelectionIt(*GEditor->GetSelectedActors()); SelectionIt && !bChanged; ++SelectionIt)
-		{
-			const AActor* Actor = CastChecked< AActor >(*SelectionIt);
-			if (!bAnyInPIE && Actor->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
-			{
-				bAnyInPIE = true;
-			}
-			if (!SelectedActors.Contains(Actor))
-			{
-				// Actor has been deselected
-				bChanged = true;
-
-				// If actor was a group actor, remove its members from the ActorsToSelect list
-				const AGroupActor* DeselectedGroupActor = Cast<AGroupActor>(Actor);
-				if (DeselectedGroupActor)
-				{
-					TArray<AActor*> GroupActors;
-					DeselectedGroupActor->GetGroupActors(GroupActors);
-
-					for (auto* GroupActor : GroupActors)
-					{
-						SelectedActors.Remove(GroupActor);
-					}
-
-				}
-			}
-		}
-
-		// If there's a discrepancy, update the selected actors to reflect this list.
-		if (bChanged)
-		{
-			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "ClickingOnActors", "Clicking on Actors"), !bAnyInPIE);
-			GEditor->GetSelectedActors()->Modify();
-
-			// We'll batch selection changes instead by using BeginBatchSelectOperation()
-			GEditor->GetSelectedActors()->BeginBatchSelectOperation();
-
-			// Clear the selection.
-			GEditor->SelectNone(false, true, true);
-
-			const bool bShouldSelect = true;
-			const bool bNotifyAfterSelect = false;
-			const bool bSelectEvenIfHidden = true;	// @todo outliner: Is this actually OK?
-			for (auto* Actor : SelectedActors)
-			{
-				UE_LOG(LogObjectMixerEditor, Verbose, TEXT("Clicking on Actor (Object Mixer): %s (%s)"), *Actor->GetClass()->GetName(), *Actor->GetActorLabel());
-				GEditor->SelectActor(Actor, bShouldSelect, bNotifyAfterSelect, bSelectEvenIfHidden);
-			}
-
-			// Commit selection changes
-			GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify*/false);
 
 			SceneOutliner->RefreshSelection();
 		}
 	}
-
-	// Set this outliner as the most recently interacted with
-	SetAsMostRecentOutliner();
 }
 
 void FObjectMixerOutlinerMode::OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item)
@@ -2149,6 +2218,46 @@ bool FObjectMixerOutlinerMode::ParseDragDrop(FSceneOutlinerDragDropPayload& OutP
 FFolder FObjectMixerOutlinerMode::GetWorldDefaultRootFolder() const
 {
 	return FFolder::GetWorldRootFolder(RepresentingWorld.Get());
+}
+
+void FObjectMixerOutlinerMode::SynchronizeComponentSelection()
+{
+	USelection* SelectedComponents = GEditor->GetSelectedComponents();
+
+	// Deselect components in the tree that are no longer selected in the world
+	const FSceneOutlinerItemSelection Selection(SceneOutliner->GetSelection());
+	auto DeselectComponents = [this](FComponentTreeItem& Item)
+	{
+		if (!Item.Component.IsValid() || !Item.Component.Get()->IsSelected())
+		{
+			SceneOutliner->SetItemSelection(Item.AsShared(), false);
+		}
+	};
+	Selection.ForEachItem<FComponentTreeItem>(DeselectComponents);
+
+	// See if the tree view selector is pointing at a selected item
+	bool bSelectorInSelectionSet = false;
+
+	TArray<FSceneOutlinerTreeItemPtr> ComponentItems;
+	for (FSelectionIterator SelectionIt(*SelectedComponents); SelectionIt; ++SelectionIt)
+	{
+		UActorComponent* Component = CastChecked< UActorComponent >(*SelectionIt);
+		if (FSceneOutlinerTreeItemPtr ComponentItem = SceneOutliner->GetTreeItem(Component))
+		{
+			if (!bSelectorInSelectionSet && SceneOutliner->HasSelectorFocus(ComponentItem))
+			{
+				bSelectorInSelectionSet = true;
+			}
+
+			ComponentItems.Add(ComponentItem);
+		}
+	}
+
+	// If NOT bSelectorInSelectionSet then we want to just move the selector to the first selected item.
+	ESelectInfo::Type SelectInfo = bSelectorInSelectionSet ? ESelectInfo::Direct : ESelectInfo::OnMouseClick;
+	SceneOutliner->AddToSelection(ComponentItems, SelectInfo);
+
+	FSceneOutlinerDelegates::Get().SelectionChanged.Broadcast();
 }
 
 void FObjectMixerOutlinerMode::SynchronizeSelectedActorDescs()
@@ -3008,6 +3117,7 @@ void FObjectMixerOutlinerMode::SynchronizeSelection()
 	if (GetDefault<UObjectMixerEditorSettings>()->bSyncSelection)
 	{
 		SynchronizeActorSelection();
+		SynchronizeComponentSelection();
 		SynchronizeSelectedActorDescs();
 	}
 }

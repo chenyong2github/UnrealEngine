@@ -12,6 +12,9 @@ const FSceneOutlinerTreeItemType FObjectMixerEditorListRowActor::Type(&FActorTre
 void FObjectMixerEditorListRowActor::OnVisibilityChanged(const bool bNewVisibility)
 {
 	RowData.OnChangeVisibility(SharedThis(this), bNewVisibility);
-								
-	RowData.GetListView()->EvaluateAndSetEditorVisibilityPerRow();
+
+	if (TSharedPtr<SObjectMixerEditorList> ListView = RowData.GetListView().Pin())
+	{
+		ListView->EvaluateAndSetEditorVisibilityPerRow();
+	}
 }

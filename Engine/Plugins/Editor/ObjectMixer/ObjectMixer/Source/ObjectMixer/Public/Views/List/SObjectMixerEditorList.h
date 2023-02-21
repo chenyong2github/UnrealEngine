@@ -176,16 +176,13 @@ protected:
 	/** A reference to the struct that controls this widget */
 	TWeakPtr<FObjectMixerEditorList> ListModelPtr;
 
-	TSharedPtr<SSearchBox> SearchBoxPtr;
-	TSharedPtr<SComboButton> ViewOptionsComboButton;
-
 	// User Collections
 	
 	TSharedPtr<SWrapBox> CollectionSelectorBox;
 
 	bool bIsRebuildRequested = false;
 	
-	TArray<FObjectMixerEditorListRowData::FPropertyPropagationInfo> PendingPropertyPropagations;
+	TSet<FObjectMixerEditorListRowData::FPropertyPropagationInfo> PendingPropertyPropagations;
 
 	TArray<FObjectMixerSceneOutlinerColumnInfo> HeaderColumnInfos;
 

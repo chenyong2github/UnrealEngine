@@ -36,34 +36,53 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowData
 		FSceneOutlinerTreeItemID RowIdentifier;
 		FName PropertyName = NAME_None;
 		EPropertyValueSetFlags::Type PropertyValueSetFlags = 0;
+
+		bool operator==(const FPropertyPropagationInfo& Other) const
+		{
+			return PropertyName == Other.PropertyName;
+		}
+
+		friend uint32 GetTypeHash (const FPropertyPropagationInfo& Other)
+		{
+			return GetTypeHash(Other.PropertyName);
+		}
 	};
 	
 	FObjectMixerEditorListRowData(
 		SSceneOutliner* InSceneOutliner, const FText& InDisplayNameOverride = FText::GetEmpty())
-	: SceneOutlinerPtr(InSceneOutliner)
-	, DisplayNameOverride(InDisplayNameOverride)
-	{}
+	: DisplayNameOverride(InDisplayNameOverride)
+	{
+		if (InSceneOutliner)
+		{
+			SceneOutlinerPtr = StaticCastSharedRef<SSceneOutliner>(InSceneOutliner->AsShared());
+		}
+	}
 	
 	FObjectMixerEditorListRowData() = default;
 
 	~FObjectMixerEditorListRowData() = default;
 
+	bool IsValid() const
+	{
+		return SceneOutlinerPtr.IsValid();
+	}
+
 	const TArray<TObjectPtr<UObjectMixerObjectFilter>>& GetObjectFilterInstances() const;
 
 	const UObjectMixerObjectFilter* GetMainObjectFilterInstance() const;
 
-	UE_NODISCARD bool GetIsTreeViewItemExpanded(const TSharedRef<ISceneOutlinerTreeItem> InRow);
+	[[nodiscard]] bool GetIsTreeViewItemExpanded(const TSharedRef<ISceneOutlinerTreeItem> InRow);
 	void SetIsTreeViewItemExpanded(const TSharedRef<ISceneOutlinerTreeItem> InRow, const bool bNewExpanded);
 
-	UE_NODISCARD bool GetIsSelected(const TSharedRef<ISceneOutlinerTreeItem> InRow);
+	[[nodiscard]] bool GetIsSelected(const TSharedRef<ISceneOutlinerTreeItem> InRow);
 	void SetIsSelected(const TSharedRef<ISceneOutlinerTreeItem> InRow, const bool bNewSelected);
 
-	UE_NODISCARD bool HasAtLeastOneChildThatIsNotSolo(
+	[[nodiscard]] bool HasAtLeastOneChildThatIsNotSolo(
 		const TSharedRef<ISceneOutlinerTreeItem> InRow, const bool bRecursive = true) const;
 
-	UE_NODISCARD FText GetDisplayName(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem) const;
+	[[nodiscard]] FText GetDisplayName(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem) const;
 
-	UE_NODISCARD const FText& GetDisplayNameOverride() const
+	[[nodiscard]] const FText& GetDisplayNameOverride() const
 	{
 		return DisplayNameOverride;
 	}
@@ -73,13 +92,13 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowData
 		DisplayNameOverride = InDisplayNameOverride;
 	}
 
-	UE_NODISCARD SObjectMixerEditorList* GetListView() const;
+	[[nodiscard]] TWeakPtr<SObjectMixerEditorList> GetListView() const;
 
-	UE_NODISCARD TArray<TSharedPtr<ISceneOutlinerTreeItem>> GetSelectedTreeViewItems() const;
+	[[nodiscard]] TArray<TSharedPtr<ISceneOutlinerTreeItem>> GetSelectedTreeViewItems() const;
 	
 	void OnChangeVisibility(const FSceneOutlinerTreeItemRef TreeItem, const bool bNewVisible);
 	
-	UE_NODISCARD const FTransientEditorVisibilityRules& GetVisibilityRules() const;
+	[[nodiscard]] const FTransientEditorVisibilityRules& GetVisibilityRules() const;
 	void SetVisibilityRules(const FTransientEditorVisibilityRules& InVisibilityRules);
 
 	bool IsUserSetHiddenInEditor() const;
@@ -92,31 +111,39 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowData
 
 	bool GetIsHybridRow() const
 	{
-		return HybridComponent.IsValid();
+		return HybridComponentPath.IsValid();
 	}
 
 	UActorComponent* GetHybridComponent() const
 	{
-		return HybridComponent.Get();
+		return HybridComponentPath.Get();
 	}
 	
 	/** If this row represents an actor or other container and should show the data for a single child component, define it here. */
 	void SetHybridComponent(UActorComponent* InHybridComponent)
 	{
-		HybridComponent = InHybridComponent;
+		HybridComponentPath = InHybridComponent;
 	}
 
-	void PropagateChangesToSimilarSelectedRowProperties(
+	/** Attempt to propagate a property's new value to other selected rows.
+	 * @return Returns true if the property's handle was found or there is no work to do (i.e., no property name specified or this row is not selected)
+	 */
+	bool PropagateChangesToSimilarSelectedRowProperties(
 		const TSharedRef<ISceneOutlinerTreeItem> InRow, const FPropertyPropagationInfo PropertyPropagationInfo);
 	
 	TMap<FName, TWeakPtr<IPropertyHandle>> PropertyNamesToHandles;
 
-	SSceneOutliner* SceneOutlinerPtr;
+	TWeakPtr<SSceneOutliner> SceneOutlinerPtr;
 
 protected:
 	FTransientEditorVisibilityRules VisibilityRules;
 
 	FText DisplayNameOverride;
 
-	TWeakObjectPtr<UActorComponent> HybridComponent = nullptr;
+	/**
+	 * A breadcrumb trail to a single component that matches the selected Object Mixer Filters.
+	 * For example, if your filter is looking for lights and you have an actor with a single light component,
+	 * this will show the actor and component on the same line rather than requiring the user to unfold the actor row to see one component.
+	 */
+	TSoftObjectPtr<UActorComponent> HybridComponentPath = nullptr;
 };

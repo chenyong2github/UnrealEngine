@@ -21,11 +21,15 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowActor : FActorTreeItem
 		AActor* InObject, 
 		SSceneOutliner* InSceneOutliner, const FText& InDisplayNameOverride = FText::GetEmpty())
 	: FActorTreeItem(InObject)
+	, OriginalObjectSoftPtr(InObject)
 	{
 		RowData = FObjectMixerEditorListRowData(InSceneOutliner, InDisplayNameOverride);
 	}
 	
 	FObjectMixerEditorListRowData RowData;
+	
+	/** Used in scenarios where the original object may be reconstructed or trashed, such as when running a construction script. */
+	TSoftObjectPtr<AActor> OriginalObjectSoftPtr;
 
 	/* Begin ISceneOutlinerTreeItem Implementation */
 	static const FSceneOutlinerTreeItemType Type;

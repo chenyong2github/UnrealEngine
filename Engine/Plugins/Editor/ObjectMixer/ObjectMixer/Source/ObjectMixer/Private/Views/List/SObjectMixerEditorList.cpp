@@ -368,28 +368,37 @@ void SObjectMixerEditorList::AddToPendingPropertyPropagations(
 
 TArray<TSharedPtr<ISceneOutlinerTreeItem>> SObjectMixerEditorList::GetSelectedTreeViewItems() const
 {
-	auto Selection = GetTree().GetSelectedItems();
-	int32 Count = Selection.Num();
-	UE_LOG(LogTemp, Display, TEXT("%i"), Count);
-	return Selection;
+	if (const TSharedPtr<SSceneOutlinerTreeView> Tree = GetTreeView())
+	{
+		return Tree->GetSelectedItems();
+	}
+
+	return {};
 }
 
 int32 SObjectMixerEditorList::GetSelectedTreeViewItemCount() const
-{	
-	return GetTree().GetSelectedItems().Num();
+{
+	if (const TSharedPtr<SSceneOutlinerTreeView> Tree = GetTreeView())
+	{
+		return Tree->GetSelectedItems().Num();
+	}
+
+	return INDEX_NONE;
 }
 
 void SObjectMixerEditorList::SetTreeViewItemSelected(TSharedRef<ISceneOutlinerTreeItem> Item, const bool bNewSelected)
 {
-	GetTreeView()->SetItemSelection(Item, bNewSelected);
+	if (const TSharedPtr<SSceneOutlinerTreeView> Tree = GetTreeView())
+	{
+		Tree->SetItemSelection(Item, bNewSelected);
+	}
 }
 
 bool SObjectMixerEditorList::IsTreeViewItemSelected(TSharedPtr<ISceneOutlinerTreeItem> Item)
 {
 	if (const TSharedPtr<SSceneOutlinerTreeView> Tree = GetTreeView())
 	{
-		TArray<TSharedPtr<ISceneOutlinerTreeItem, ESPMode::ThreadSafe>> SelectedItems = Tree->GetSelectedItems();
-		return SelectedItems.Contains(Item);
+		return Tree->IsItemSelected(Item);
 	}
 	
 	return false;
@@ -626,23 +635,22 @@ void SObjectMixerEditorList::CustomAddToToolbar(TSharedPtr<SHorizontalBox> Toolb
 
 void SObjectMixerEditorList::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-
+	// Early out so we have widgets to act upon next frame
+	SSceneOutliner::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	
 	if (bIsRebuildRequested)
 	{
 		RebuildList();
-		
-		// Early out so we have widgets to act upon next frame
-		SSceneOutliner::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-		return;
 	}
 
 	if (PendingPropertyPropagations.Num() > 0)
 	{
 		PropagatePropertyChangesToSelectedRows();
+		if (PendingPropertyPropagations.Num() == 0)
+		{
+			RequestRebuildList();
+		}
 	}
-
-	SSceneOutliner::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
 TSharedRef<SWidget> SObjectMixerEditorList::GenerateHeaderRowContextMenu() const
@@ -1316,12 +1324,12 @@ void SObjectMixerEditorList::PropagatePropertyChangesToSelectedRows()
 {
 	using LambdaType = void(*)(const TSet<TWeakPtr<ISceneOutlinerTreeItem>>&,
 			TSharedPtr<STreeView<TSharedPtr<ISceneOutlinerTreeItem>>>,
-			const TArray<FObjectMixerEditorListRowData::FPropertyPropagationInfo>&);
+			TSet<FObjectMixerEditorListRowData::FPropertyPropagationInfo>&);
 	
 	static LambdaType RecursivelyPropagatePropertyChangesToSelectedRows = [](
 		const TSet<TWeakPtr<ISceneOutlinerTreeItem>>& InObjects,
 		TSharedPtr<STreeView<TSharedPtr<ISceneOutlinerTreeItem>>> InTreeViewPtr,
-		const TArray<FObjectMixerEditorListRowData::FPropertyPropagationInfo>& InPendingPropertyPropagations)
+		TSet<FObjectMixerEditorListRowData::FPropertyPropagationInfo>& InPendingPropagations)
 	{
 		for (const TWeakPtr<ISceneOutlinerTreeItem>& TreeViewItem : InObjects)
 		{
@@ -1331,21 +1339,25 @@ void SObjectMixerEditorList::PropagatePropertyChangesToSelectedRows()
 				{
 					const FSceneOutlinerTreeItemID TreeItemUniqueIdentifier = PinnedItem->GetID();
 
-					if (const FObjectMixerEditorListRowData::FPropertyPropagationInfo* PendingPropagation =
+					if (const FObjectMixerEditorListRowData::FPropertyPropagationInfo* Match =
 						Algo::FindByPredicate(
-							InPendingPropertyPropagations,
+							InPendingPropagations,
 							[&TreeItemUniqueIdentifier](const FObjectMixerEditorListRowData::FPropertyPropagationInfo& Other)
 							{
 								return Other.RowIdentifier == TreeItemUniqueIdentifier;
 							}))
 					{
-						RowData->PropagateChangesToSimilarSelectedRowProperties(PinnedItem.ToSharedRef(), *PendingPropagation);
+						
+						if (RowData->PropagateChangesToSimilarSelectedRowProperties(PinnedItem.ToSharedRef(), *Match))
+						{
+							// Only remove this propagation from the list if it was successfully propagated (or there is no work to do)
+							InPendingPropagations.Remove(*Match);
+						}
 					}
 				}
 
 				RecursivelyPropagatePropertyChangesToSelectedRows(
-					PinnedItem->GetChildren(), InTreeViewPtr, InPendingPropertyPropagations
-				);
+					PinnedItem->GetChildren(), InTreeViewPtr, InPendingPropagations);
 			}
 		}
 	};
@@ -1353,11 +1365,8 @@ void SObjectMixerEditorList::PropagatePropertyChangesToSelectedRows()
 	if (GetSelectedTreeViewItemCount() > 1)
 	{
 		RecursivelyPropagatePropertyChangesToSelectedRows(
-		   GetWeakTreeRootItems(), GetTreeView(), PendingPropertyPropagations
-		);
+			GetWeakTreeRootItems(), GetTreeView(), PendingPropertyPropagations);
 	}
-
-	PendingPropertyPropagations.Empty();
 }
 
 #undef LOCTEXT_NAMESPACE

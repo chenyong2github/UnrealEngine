@@ -6,5 +6,5 @@ const FSceneOutlinerTreeItemType FObjectMixerEditorListRowUObject::Type(&ISceneO
 
 FString FObjectMixerEditorListRowUObject::GetDisplayString() const
 {
-	return ObjectPtr ? ObjectPtr.GetName() : FString();
+	return IsValid() ? ObjectSoftPtr.Get()->GetName() : FString();
 }

@@ -21,21 +21,15 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowComponent : FComponentTree
 		UActorComponent* InObject, 
 		SSceneOutliner* InSceneOutliner, const FText& InDisplayNameOverride = FText::GetEmpty())
 	: FComponentTreeItem(InObject)
+	, OriginalObjectSoftPtr(InObject)
 	{
 		RowData = FObjectMixerEditorListRowData(InSceneOutliner, InDisplayNameOverride);
 	}
 	
 	FObjectMixerEditorListRowData RowData;
-
-	AActor* GetOwningActor() const
-	{
-		if (const UActorComponent* WrappedComponent = Component.Get())
-		{
-			return WrappedComponent->GetOwner();
-		}
-
-		return nullptr;
-	}
+	
+	/** Used in scenarios where the original object may be reconstructed or trashed, such as when running a construction script. */
+	TSoftObjectPtr<UActorComponent> OriginalObjectSoftPtr;
 	
 	/* Begin ISceneOutlinerTreeItem Implementation */
 	static const FSceneOutlinerTreeItemType Type;

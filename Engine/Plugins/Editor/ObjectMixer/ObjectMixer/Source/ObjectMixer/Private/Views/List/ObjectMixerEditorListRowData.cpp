@@ -12,8 +12,8 @@
 
 const TArray<TObjectPtr<UObjectMixerObjectFilter>>& FObjectMixerEditorListRowData::GetObjectFilterInstances() const
 {
-	SObjectMixerEditorList* ListView = GetListView();
-	check (ListView)
+	TSharedPtr<SObjectMixerEditorList> ListView = GetListView().Pin();
+	check (ListView.IsValid());
 
 	const TSharedPtr<FObjectMixerEditorList> PinnedListModel = ListView->GetListModelPtr().Pin();
 	check (PinnedListModel);
@@ -23,7 +23,7 @@ const TArray<TObjectPtr<UObjectMixerObjectFilter>>& FObjectMixerEditorListRowDat
 
 const UObjectMixerObjectFilter* FObjectMixerEditorListRowData::GetMainObjectFilterInstance() const
 {
-	if (SObjectMixerEditorList* ListView = GetListView())
+	if (TSharedPtr<SObjectMixerEditorList> ListView = GetListView().Pin(); ListView.IsValid())
 	{
 		if (const TSharedPtr<FObjectMixerEditorList> PinnedListModel = ListView->GetListModelPtr().Pin())
 		{
@@ -36,17 +36,25 @@ const UObjectMixerObjectFilter* FObjectMixerEditorListRowData::GetMainObjectFilt
 
 bool FObjectMixerEditorListRowData::GetIsTreeViewItemExpanded(const TSharedRef<ISceneOutlinerTreeItem> InRow)
 {
-	return GetListView()->IsTreeViewItemExpanded(InRow);
+	if (TSharedPtr<SObjectMixerEditorList> ListView = GetListView().Pin(); ListView.IsValid())
+	{
+		return ListView->IsTreeViewItemExpanded(InRow);
+	}
+
+	return false;
 }
 
 void FObjectMixerEditorListRowData::SetIsTreeViewItemExpanded(const TSharedRef<ISceneOutlinerTreeItem> InRow, const bool bNewExpanded)
 {
-	GetListView()->SetTreeViewItemExpanded(InRow, bNewExpanded);
+	if (TSharedPtr<SObjectMixerEditorList> ListView = GetListView().Pin(); ListView.IsValid())
+	{
+		ListView->SetTreeViewItemExpanded(InRow, bNewExpanded);
+	}
 }
 
 bool FObjectMixerEditorListRowData::GetIsSelected(const TSharedRef<ISceneOutlinerTreeItem> InRow)
 {
-	if (SObjectMixerEditorList* ListView = GetListView())
+	if (TSharedPtr<SObjectMixerEditorList> ListView = GetListView().Pin(); ListView.IsValid())
 	{
 		return ListView->IsTreeViewItemSelected(InRow);
 	}
@@ -56,7 +64,7 @@ bool FObjectMixerEditorListRowData::GetIsSelected(const TSharedRef<ISceneOutline
 
 void FObjectMixerEditorListRowData::SetIsSelected(const TSharedRef<ISceneOutlinerTreeItem> InRow, const bool bNewSelected)
 {
-	if (SObjectMixerEditorList* ListView = GetListView())
+	if (TSharedPtr<SObjectMixerEditorList> ListView = GetListView().Pin(); ListView.IsValid())
 	{
 		return ListView->SetTreeViewItemSelected(InRow, bNewSelected);
 	}
@@ -102,14 +110,19 @@ FText FObjectMixerEditorListRowData::GetDisplayName(TSharedPtr<ISceneOutlinerTre
 	return FText::GetEmpty();
 }
 
-SObjectMixerEditorList* FObjectMixerEditorListRowData::GetListView() const
+TWeakPtr<SObjectMixerEditorList> FObjectMixerEditorListRowData::GetListView() const
 {
-	return StaticCast<SObjectMixerEditorList*>(SceneOutlinerPtr);
+	if (SceneOutlinerPtr.IsValid())
+	{
+		return StaticCastSharedPtr<SObjectMixerEditorList>(SceneOutlinerPtr.Pin());
+	}
+
+	return nullptr;
 }
 
 TArray<TSharedPtr<ISceneOutlinerTreeItem>> FObjectMixerEditorListRowData::GetSelectedTreeViewItems() const
 {
-	if (SObjectMixerEditorList* ListView = GetListView())
+	if (TSharedPtr<SObjectMixerEditorList> ListView = GetListView().Pin(); ListView.IsValid())
 	{
 		return ListView->GetSelectedTreeViewItems();
 	}
@@ -121,7 +134,7 @@ void FObjectMixerEditorListRowData::OnChangeVisibility(const FSceneOutlinerTreeI
 {
 	if (FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(TreeItem))
 	{
-		if (SObjectMixerEditorList* ListView = RowData->GetListView())
+		if (TSharedPtr<SObjectMixerEditorList> ListView = GetListView().Pin(); ListView.IsValid())
 		{
 			ListView->ClearSoloRows();
 		}
@@ -152,12 +165,12 @@ void FObjectMixerEditorListRowData::SetRowSoloState(const bool bNewSolo)
 
 void FObjectMixerEditorListRowData::ClearSoloRows() const
 {
-	if (SObjectMixerEditorList* ListView = GetListView())
+	if (TSharedPtr<SObjectMixerEditorList> ListView = GetListView().Pin(); ListView.IsValid())
 	{
 		ListView->ClearSoloRows();
 	}
 }
-
+DECLARE_STATS_GROUP(TEXT("ObjectMixer"), STATGROUP_ObjectMixer, STATCAT_Advanced);
 void SetValueOnSelectedItems(
 	const FString& ValueAsString, const TArray<TSharedPtr<ISceneOutlinerTreeItem>>& OtherSelectedItems,
 	const FName& PropertyName, const TSharedPtr<ISceneOutlinerTreeItem> PinnedItem,
@@ -165,24 +178,18 @@ void SetValueOnSelectedItems(
 {
 	if (!ValueAsString.IsEmpty())
 	{
-		const EPropertyValueSetFlags::Type Flags = InFlags | EPropertyValueSetFlags::NotTransactable;
-		const bool bShouldTransact = InFlags & EPropertyValueSetFlags::DefaultFlags;
+		// Skip transactions on interactive and explicitly non-transactable value set
+		const bool bShouldTransact = !(InFlags & EPropertyValueSetFlags::NotTransactable) && !(InFlags & EPropertyValueSetFlags::InteractiveChange);
 
-		if (bShouldTransact && GEditor->CanTransact())
+		if (bShouldTransact && GEditor->CanTransact() && !GEditor->IsTransactionActive())
 		{
 			GEditor->BeginTransaction(
-			   NSLOCTEXT("ObjectMixerEditor","OnPropertyChangedTransaction", "Object Mixer - Edit Selected Row Properties"));
+			   NSLOCTEXT("ObjectMixerEditor","BulkOnPropertyChangedTransaction", "Object Mixer - Bulk Edit Selected Row Properties"));
 		}
 		
 		for (const TSharedPtr<ISceneOutlinerTreeItem>& SelectedRow : OtherSelectedItems)
 		{
 			if (SelectedRow == PinnedItem)
-			{
-				continue;
-			}
-
-			FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(SelectedRow);
-			if (!RowData)
 			{
 				continue;
 			}
@@ -195,25 +202,37 @@ void SetValueOnSelectedItems(
 
 			UObject* ObjectToModify = FObjectMixerUtils::GetRowObject(SelectedRow, true);
 			
-			if (IsValid(ObjectToModify))
+			if (!IsValid(ObjectToModify))
 			{
-				ObjectToModify->Modify();
-			}
-			else
-			{
-				UE_LOG(LogObjectMixerEditor, Warning, TEXT("%hs: Row '%s' has no valid associated object to modify."), __FUNCTION__, *RowData->GetDisplayName(SelectedRow).ToString());
+				UE_LOG(LogObjectMixerEditor, Warning, TEXT("%hs: Row '%s' has no valid associated object to modify."), __FUNCTION__, *SelectedRow->GetDisplayString());
 				continue;
 			}
-		
+
 			// Use handles if valid, otherwise use ImportText. Need to use the handles to ensure the Blueprints update properly.
-			
-			// Transactions are handled automatically by the handles, so no need to start a new transaction.
-			if (const TWeakPtr<IPropertyHandle>* SelectedHandlePtr = RowData->PropertyNamesToHandles.Find(PropertyName))
+			if (FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(SelectedRow))
 			{
-				if (SelectedHandlePtr->IsValid())
-				{				
-					SelectedHandlePtr->Pin()->SetValueFromFormattedString(ValueAsString, Flags);
-					continue;
+				// Transactions are handled automatically by the handles, so no need to start a new transaction.
+				if (const TWeakPtr<IPropertyHandle>* SelectedHandlePtr = RowData->PropertyNamesToHandles.Find(PropertyName))
+				{
+					if (SelectedHandlePtr->IsValid())
+					{
+						bool bShouldProceed = true;
+
+						// If we need to transact, there's a possibility objects have been reconstructed
+						// so we need to ensure we have handles matching ObjectToModify
+						if (bShouldTransact)
+						{
+							TArray<UObject*> OuterObjects;
+							SelectedHandlePtr->Pin()->GetOuterObjects(OuterObjects);
+							bShouldProceed = OuterObjects.Contains(ObjectToModify);
+						}
+						
+						if (bShouldProceed)
+						{
+							SelectedHandlePtr->Pin()->SetValueFromFormattedString(ValueAsString, InFlags);
+							continue;
+						}
+					}
 				}
 			}
 
@@ -233,26 +252,23 @@ void SetValueOnSelectedItems(
 							? EPropertyChangeType::Interactive
 							: EPropertyChangeType::ValueSet;
 
-					// Set the actual property value
+					// Set the actual property value and propagate to outer chain
 					PropertyToChange->ImportText_Direct(*ValueAsString, ValuePtr, ObjectToModify, PPF_None);
-					FPropertyChangedEvent ChangeEvent(
-						PropertyToChange,
-						ChangeType,
-						MakeArrayView({ObjectToModify}));
-					ObjectToModify->PostEditChangeProperty(ChangeEvent);
 
-					// Propagate to outers
+					TArray<UObject*> ObjectsToModify = {ObjectToModify};
 					UObject* Outer = ObjectToModify->GetOuter();
 					while (Outer) 
 					{
-						FPropertyChangedEvent ActorChangeEvent(
-							PropertyToChange,
-							ChangeType,
-							MakeArrayView({Outer}));
-						Outer->PostEditChangeProperty(ActorChangeEvent);
+						ObjectsToModify.Add(Outer);
 
 						Outer = Outer->GetOuter();
 					}
+					
+					FPropertyChangedEvent ChangeEvent(
+						PropertyToChange,
+						ChangeType,
+						MakeArrayView(ObjectsToModify));
+					ObjectToModify->PostEditChangeProperty(ChangeEvent);
 				}
 			}
 		}
@@ -264,17 +280,17 @@ void SetValueOnSelectedItems(
 	}
 }
 
-void FObjectMixerEditorListRowData::PropagateChangesToSimilarSelectedRowProperties(
+bool FObjectMixerEditorListRowData::PropagateChangesToSimilarSelectedRowProperties(
 	const TSharedRef<ISceneOutlinerTreeItem> InRow, const FPropertyPropagationInfo PropertyPropagationInfo)
 {
 	if (PropertyPropagationInfo.PropertyName == NAME_None)
 	{
-		return;
+		return true;
 	}
 
 	if (!GetIsSelected(InRow))
 	{
-		return;
+		return true;
 	}
 
 	FObjectMixerEditorListRowData* RowData = FObjectMixerUtils::GetRowData(InRow);
@@ -292,7 +308,10 @@ void FObjectMixerEditorListRowData::PropagateChangesToSimilarSelectedRowProperti
 				ValueAsString, OtherSelectedItems, PropertyPropagationInfo.PropertyName,
 				InRow, PropertyPropagationInfo.PropertyValueSetFlags);
 		}
+		return true;
 	}
+
+	return false;
 }
 
 const FObjectMixerEditorListRowData::FTransientEditorVisibilityRules& FObjectMixerEditorListRowData::GetVisibilityRules() const

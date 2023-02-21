@@ -21,7 +21,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowUObject : ISceneOutlinerTr
 		UObject* InObject, 
 		SSceneOutliner* InSceneOutliner, const FText& InDisplayNameOverride = FText::GetEmpty())
 	: ISceneOutlinerTreeItem(Type)
-	, ObjectPtr(InObject)
+	, ObjectSoftPtr(InObject)
 	, ID(InObject)
 	{
 		RowData = FObjectMixerEditorListRowData(InSceneOutliner, InDisplayNameOverride);
@@ -29,7 +29,8 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowUObject : ISceneOutlinerTr
 	
 	FObjectMixerEditorListRowData RowData;
 
-	TObjectPtr<UObject> ObjectPtr;
+	/** Used in scenarios where the original object may be reconstructed or trashed, such as when running a construction script. */
+	TSoftObjectPtr<UObject> ObjectSoftPtr;
 	
 	/** Constant identifier for this tree item */
 	const FObjectKey ID;
@@ -38,7 +39,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowUObject : ISceneOutlinerTr
 	static const FSceneOutlinerTreeItemType Type;
 	virtual FString GetDisplayString() const override;
 	virtual bool CanInteract() const override { return true; }
-	virtual bool IsValid() const override { return ObjectPtr != nullptr; }
+	virtual bool IsValid() const override { return !ObjectSoftPtr.IsNull(); }
 	virtual FSceneOutlinerTreeItemID GetID() const override { return ID; }
 	/* End ISceneOutlinerTreeItem Implementation */
 };

@@ -23,7 +23,7 @@ namespace ObjectMixerOutliner
 
 	struct FComponentSelector
 	{
-		bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, TObjectPtr<UActorComponent>& DataOut) const;
+		bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, UActorComponent*& DataOut) const;
 	};
 
 	/** Functor which can be used to get weak actor pointers from a selection */
@@ -278,6 +278,11 @@ protected:
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 	void OnLevelActorRequestsRename(const AActor* Actor);
 	void OnPostLoadMapWithWorld(UWorld* World);
+
+	bool HasActorSelectionChanged(TArray<AActor*>& OutSelectedActors, bool& bOutAreAnyInPIE);
+	bool HasComponentSelectionChanged(TArray<UActorComponent*>& OutSelectedComponents, bool& bOutAreAnyInPIE);
+	static void SelectActorsInEditor(const TArray<AActor*>& InSelectedActors);
+	static void SelectComponentsInEditor(const TArray<UActorComponent*>& InSelectedComponents);
 	
 	/** Build and up the context menu */
 	TSharedPtr<SWidget> BuildContextMenu();
@@ -288,6 +293,7 @@ protected:
 	bool GetFolderNamesFromPayload(const FSceneOutlinerDragDropPayload& InPayload, TArray<FName>& OutFolders, FFolder::FRootObject& OutCommonRootObject) const;
 	FFolder GetWorldDefaultRootFolder() const;
 
+	void SynchronizeComponentSelection();
 	void SynchronizeSelectedActorDescs();
 
 	void OnActorEditorContextSubsystemChanged();
@@ -341,6 +347,4 @@ protected:
 	
 	TArray<FFilterClassSelectionInfo> FilterClassSelectionInfos;
 	TSharedRef<SWidget> OnGenerateFilterClassMenu();
-
-	bool bShouldPauseSelectionSyncFromEditorTemporarily = false;
 };
