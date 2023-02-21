@@ -54,13 +54,13 @@ public class Core : ModuleRules
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				"IntelTBB",
 				"zlib"
 				);
 
-			if (Target.Architecture.bIsX64)
+			if (Target.WindowsPlatform.Architecture != UnrealArch.Arm64)
 			{
 				AddEngineThirdPartyPrivateStaticDependencies(Target,
+					"IntelTBB",
 					"IntelVTune"
 					);
 			}

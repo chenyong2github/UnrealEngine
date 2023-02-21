@@ -26,7 +26,7 @@ namespace UnrealBuildTool.Rules
 				});
 
 			if (Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Platform == UnrealTargetPlatform.Win64 ||
+				(Target.Platform == UnrealTargetPlatform.Win64 && Target.WindowsPlatform.Architecture != UnrealArch.Arm64) ||
 				(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.X64))
 			{
 				PublicDependencyModuleNames.Add("LibVpx");

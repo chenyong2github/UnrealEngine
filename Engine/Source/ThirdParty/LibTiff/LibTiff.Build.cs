@@ -9,7 +9,7 @@ public class LibTiff : ModuleRules
 		Type = ModuleType.External;
 
 		bool bWithLibTiff = false;
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64 && Target.WindowsPlatform.Architecture != UnrealArch.Arm64)
 		{
 			string LibPath = Path.Combine(ModuleDirectory, "Lib", Target.Platform.ToString());
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "tiff.lib"));

@@ -33,8 +33,10 @@ public class WebMMoviePlayer : ModuleRules
 		}
 		PrivateIncludePaths.Add("WebMMoviePlayer/Private/Audio");
 
-		// Some Linux architectures don't have the libs built yet
-		bool bHaveWebMlibs = (!Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) || Target.Architecture == UnrealArch.X64);
+		bool bHaveWebMlibs = 
+			Target.Platform == UnrealTargetPlatform.Mac ||
+			(Target.Platform == UnrealTargetPlatform.Win64 && Target.WindowsPlatform.Architecture != UnrealArch.Arm64) ||
+			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.X64);
 		PublicDefinitions.Add("WITH_WEBM_LIBS=" + (bHaveWebMlibs ? "1" : "0"));
 	}
 }
