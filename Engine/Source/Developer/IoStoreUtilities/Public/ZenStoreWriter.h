@@ -119,10 +119,12 @@ private:
 
 	struct FPackageDataEntry
 	{
+		~FPackageDataEntry();
+
 		TFuture<FCompressedBuffer> CompressedPayload;
 		FPackageInfo Info;
 		FCbObjectId ChunkId;
-		FPackageStoreEntryResource PackageStoreEntry;
+		TUniquePtr<class FPackageStorePackage> OptimizedPackage;
 		bool IsValid = false;
 	};
 
@@ -137,7 +139,7 @@ private:
 	struct FPendingPackageState
 	{
 		FName PackageName;
-		FPackageDataEntry PackageData;
+		TArray<FPackageDataEntry> PackageData;
 		TArray<FBulkDataEntry> BulkData;
 		TArray<FFileDataEntry> FileData;
 		TRefCountPtr<FPackageHashes> PackageHashes;

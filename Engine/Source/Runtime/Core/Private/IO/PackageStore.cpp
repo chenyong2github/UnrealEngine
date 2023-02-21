@@ -52,6 +52,8 @@ FArchive& operator<<(FArchive& Ar, FPackageStoreEntryResource& PackageStoreEntry
 	Ar << PackageStoreEntry.Region;
 	Ar << PackageStoreEntry.ExportInfo;
 	Ar << PackageStoreEntry.ImportedPackageIds;
+	Ar << PackageStoreEntry.OptionalSegmentExportInfo;
+	Ar << PackageStoreEntry.OptionalSegmentImportedPackageIds;
 
 	if (Ar.IsLoading())
 	{
@@ -92,6 +94,18 @@ FCbWriter& operator<<(FCbWriter& Writer, const FPackageStoreEntryResource& Packa
 		Writer.EndArray();
 	}
 
+	Writer << "optionalsegmentexportinfo" << PackageStoreEntry.OptionalSegmentExportInfo;
+
+	if (PackageStoreEntry.OptionalSegmentImportedPackageIds.Num())
+	{
+		Writer.BeginArray("optionalsegmentimportedpackageids");
+		for (const FPackageId& ImportedPackageId : PackageStoreEntry.OptionalSegmentImportedPackageIds)
+		{
+			Writer << ImportedPackageId.Value();
+		}
+		Writer.EndArray();
+	}
+
 	Writer.EndObject();
 
 	return Writer;
@@ -122,6 +136,16 @@ FPackageStoreEntryResource FPackageStoreEntryResource::FromCbObject(const FCbObj
 		{
 			FSHAHash& ShaderMapHash = Entry.ShaderMapHashes.AddDefaulted_GetRef();
 			ShaderMapHash.FromString(FUTF8ToTCHAR(ArrayField.AsString()));
+		}
+	}
+
+	Entry.OptionalSegmentExportInfo = FPackageStoreExportInfo::FromCbObject(Obj["optionalsegmentexportinfo"].AsObject());
+
+	if (Obj["optionalsegmentimportedpackageids"])
+	{
+		for (FCbFieldView ArrayField : Obj["optionalsegmentimportedpackageids"])
+		{
+			Entry.OptionalSegmentImportedPackageIds.Add(FPackageId::FromValue(ArrayField.AsUInt64()));
 		}
 	}
 

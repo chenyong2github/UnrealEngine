@@ -798,14 +798,14 @@ public:
 		(new FAutoDeleteAsyncTask<FReadChunkTask>(ZenStoreClient.Get(), ChunkId, MoveTemp(Callback)))->StartBackgroundTask();
 	}
 	
-	TIoStatusOr<FIoBuffer> ReadPackageHeaderFromZen(FPackageId PackageId)
+	TIoStatusOr<FIoBuffer> ReadPackageHeaderFromZen(FPackageId PackageId, uint16 ChunkIndex)
 	{
 		if (const FPackageStoreEntryResource* Entry = PackageIdToEntry.Find(PackageId))
 		{
 			FIoReadOptions ReadOptions;
 			ReadOptions.SetRange(0, 64 << 10);
 			
-			TIoStatusOr<FIoBuffer> Status = ZenStoreClient->ReadChunk(CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData), ReadOptions.GetOffset(), ReadOptions.GetSize());
+			TIoStatusOr<FIoBuffer> Status = ZenStoreClient->ReadChunk(CreateIoChunkId(PackageId.Value(), ChunkIndex, EIoChunkType::ExportBundleData), ReadOptions.GetOffset(), ReadOptions.GetSize());
 			if (!Status.IsOk())
 			{
 				return Status;
@@ -817,7 +817,7 @@ public:
 			{
 				ReadOptions.SetRange(0, HeaderSize);
 
-				Status = ZenStoreClient->ReadChunk(CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData), ReadOptions.GetOffset(), ReadOptions.GetSize());
+				Status = ZenStoreClient->ReadChunk(CreateIoChunkId(PackageId.Value(), ChunkIndex, EIoChunkType::ExportBundleData), ReadOptions.GetOffset(), ReadOptions.GetSize());
 				if (!Status.IsOk())
 				{
 					return Status;
@@ -1631,12 +1631,20 @@ static void ParsePackageAssetsFromZen(FCookedPackageStore& PackageStore, TArray<
 		&Packages](int32 Index)
 	{
 		FLegacyCookedPackage* Package = Packages[Index];
-		TIoStatusOr<FIoBuffer> HeaderBuffer = PackageStore.ReadPackageHeaderFromZen(Package->GlobalPackageId);
+		TIoStatusOr<FIoBuffer> HeaderBuffer = PackageStore.ReadPackageHeaderFromZen(Package->GlobalPackageId, 0);
 		Package->UExpSize = Package->UAssetSize - HeaderBuffer.ValueOrDie().DataSize();
 		Package->UAssetSize = HeaderBuffer.ValueOrDie().DataSize();
 		const FPackageStoreEntryResource* PackageStoreEntry = Package->PackageStoreEntry;
 		Package->OptimizedPackage = PackageStoreOptimizer.CreatePackageFromZenPackageHeader(Package->PackageName, HeaderBuffer.ValueOrDie(), PackageStoreEntry->ExportInfo.ExportBundleCount, PackageStoreEntry->ImportedPackageIds);
 		check(Package->OptimizedPackage->GetId() == Package->GlobalPackageId);
+		if (Package->OptionalSegmentUAssetSize)
+		{
+			TIoStatusOr<FIoBuffer> OptionalSegmentHeaderBuffer = PackageStore.ReadPackageHeaderFromZen(Package->GlobalPackageId, 1);
+			Package->OptionalSegmentUExpSize = Package->OptionalSegmentUAssetSize - OptionalSegmentHeaderBuffer.ValueOrDie().DataSize();
+			Package->OptionalSegmentUAssetSize = OptionalSegmentHeaderBuffer.ValueOrDie().DataSize();
+			Package->OptimizedOptionalSegmentPackage = PackageStoreOptimizer.CreatePackageFromZenPackageHeader(Package->PackageName, OptionalSegmentHeaderBuffer.ValueOrDie(), PackageStoreEntry->OptionalSegmentExportInfo.ExportBundleCount, PackageStoreEntry->OptionalSegmentImportedPackageIds);
+			check(Package->OptimizedOptionalSegmentPackage->GetId() == Package->GlobalPackageId);
+		}
 	}, EParallelForFlags::Unbalanced);
 }
 
