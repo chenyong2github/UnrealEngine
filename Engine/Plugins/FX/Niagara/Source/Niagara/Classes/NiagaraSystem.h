@@ -6,6 +6,7 @@
 
 #include "NiagaraDataSetCompiledData.h"
 #include "NiagaraDataSetAccessor.h"
+#include "NiagaraEffectType.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraParameterDefinitionsSubscriber.h"
@@ -18,7 +19,6 @@
 #include "NiagaraBakerSettings.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
-#include "NiagaraEffectType.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraSystemStaticBuffers.h"
 #include "Particles/ParticlePerfStats.h"
