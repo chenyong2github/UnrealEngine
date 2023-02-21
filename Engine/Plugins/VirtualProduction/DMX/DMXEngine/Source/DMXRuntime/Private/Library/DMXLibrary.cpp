@@ -30,22 +30,6 @@ UDMXLibrary::UDMXLibrary()
 	GeneralSceneDescription = NewObject<UDMXMVRGeneralSceneDescription>(this, GeneralSceneDescriptionName);
 }
 
-void UDMXLibrary::Serialize(FArchive& Ar)
-{
-// More performant without. Instead Update the General Scene Description on demand when it's actually needed.
-// Serialize is only here because the 5.1.1 hotfix doens't allow a header change and can be removed in 5.2.
-// 
-// #if WITH_EDITORONLY_DATA
-//	if (Ar.IsSaving())
-//	{
-//		// Update the General Scene Description before saving it
-//		UpdateGeneralSceneDescription();
-//	}
-//#endif
-
-	Super::Serialize(Ar);
-}
-
 void UDMXLibrary::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -91,6 +75,12 @@ void UDMXLibrary::PostLoad()
 			{
 				UE_LOG(LogDMXRuntime, Warning, TEXT("Invalid Entity found in Library %s. Please resave the library."), *GetName());
 				Entities.Remove(Entity);
+			}
+
+			// UE-177836: Fix RF_Public flag is not set on Entities in 5.0, 5.1.
+			if (!Entity->HasAnyFlags(RF_Public))
+			{
+				Entity->SetFlags(Entity->GetFlags() | RF_Public);
 			}
 		}
 	}

@@ -56,7 +56,6 @@ public:
 
 protected:
 	// ~Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
