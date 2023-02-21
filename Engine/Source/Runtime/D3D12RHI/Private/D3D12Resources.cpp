@@ -298,6 +298,7 @@ FD3D12Heap::~FD3D12Heap()
 	if (GPUVirtualAddress != 0)
 	{
 		MemoryTrace_UnmarkAllocAsHeap(GPUVirtualAddress, TraceHeapId);
+		MemoryTrace_Free(GPUVirtualAddress, EMemoryTraceRootHeap::VideoMemory);
 	}
 #endif	
 
@@ -349,8 +350,14 @@ void FD3D12Heap::SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bIn
 		GPUVirtualAddress = TempResource->GetGPUVirtualAddress();
 #if UE_MEMORY_TRACE_ENABLED
 		TraceHeapId = MemoryTrace_HeapSpec(TraceParentHeapId, *(FString(InName) + TEXT(" D3D12Heap")));
-		MemoryTrace_Alloc(GPUVirtualAddress, HeapSize, HeapDesc.Alignment, EMemoryTraceRootHeap::VideoMemory);
-		MemoryTrace_MarkAllocAsHeap(GPUVirtualAddress, TraceHeapId);
+		// Calling GetResourceAllocationInfo is not trivial, only do it if memory trace is enabled
+		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel))
+		{
+			const D3D12_RESOURCE_DESC ResourceDesc = TempResource->GetDesc();
+			const D3D12_RESOURCE_ALLOCATION_INFO Info = Adapter->GetD3DDevice()->GetResourceAllocationInfo(0, 1, &ResourceDesc);
+			MemoryTrace_Alloc(GPUVirtualAddress, Info.SizeInBytes, Info.Alignment, EMemoryTraceRootHeap::VideoMemory);
+			MemoryTrace_MarkAllocAsHeap(GPUVirtualAddress, TraceHeapId);
+		}
 #endif				
 #if TRACK_RESOURCE_ALLOCATIONS
 		if (bTrack)
@@ -578,7 +585,8 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const FD3D12ResourceDesc& InDesc, FD
 #endif		
 #if UE_MEMORY_TRACE_ENABLED
 		// Calling GetResourceAllocationInfo is not cheap so check memory allocation tracking is enabled
-		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel))
+		// Don't track resources allocated on transient heaps
+		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel) && !BackingHeap->GetIsTransient())
 		{
 			const D3D12_RESOURCE_DESC ResourceDesc = (*ppOutResource)->GetResource()->GetDesc();
 			const D3D12_RESOURCE_ALLOCATION_INFO Info = RootDevice->GetResourceAllocationInfo(0, 1, &ResourceDesc);

@@ -311,7 +311,16 @@ void UpdateBufferStats(FD3D12Buffer* Buffer, bool bAllocating)
 #if UE_MEMORY_TRACE_ENABLED
 	if (bAllocating)
 	{
-		MemoryTrace_Alloc(GPUAddress, BufferSize, Buffer->BufferAlignment, EMemoryTraceRootHeap::VideoMemory);
+		bool bStandalone = Buffer->ResourceLocation.GetType() == FD3D12ResourceLocation::ResourceLocationType::eStandAlone;
+		bool bPoolPlacedResource = (!bStandalone && Buffer->ResourceLocation.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool) ?
+									Buffer->ResourceLocation.GetPoolAllocator()->GetAllocationStrategy() == EResourceAllocationStrategy::kPlacedResource : false;
+		// Skip if it's created as a
+		// 1) standalone resource, because MemoryTrace_Alloc has been called in FD3D12Adapter::CreateCommittedResource
+		// 2) placed resource from a pool allocator, because MemoryTrace_Alloc has been called in FD3D12Adapter::CreatePlacedResource
+		if (!bStandalone && !bPoolPlacedResource)
+		{
+			MemoryTrace_Alloc(GPUAddress, BufferSize, Buffer->BufferAlignment, EMemoryTraceRootHeap::VideoMemory);
+		}
 	}
 	else
 	{

@@ -385,6 +385,8 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const D
 	INC_MEMORY_STAT_BY_FName(GetRHIStatEnum(Desc.Flags, bCubeMap, b3D).GetName(), TextureSize);
 	INC_MEMORY_STAT_BY(STAT_D3D12MemoryCurrentTotal, TextureSize);
 
+	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress = Texture.ResourceLocation.GetGPUVirtualAddress();
+
 	if (TextureSize > 0)
 	{
 #if PLATFORM_WINDOWS
@@ -394,7 +396,19 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const D
 		LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, Texture.GetResource(), TextureSize, ELLMTag::Textures));
 		{
 			LLM(UE_MEMSCOPE_DEFAULT(ELLMTag::Textures));
-			MemoryTrace_Alloc((uint64)Texture.GetResource(), TextureSize, 1024, EMemoryTraceRootHeap::VideoMemory);
+
+#if UE_MEMORY_TRACE_ENABLED
+			bool bStandalone = (Texture.ResourceLocation.GetType() == FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
+			bool bPoolPlacedResource = (!bStandalone && Texture.ResourceLocation.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool) ?
+										Texture.ResourceLocation.GetPoolAllocator()->GetAllocationStrategy() == EResourceAllocationStrategy::kPlacedResource : false;
+			// Skip if it's created as a
+			// 1) standalone resource, because MemoryTrace_Alloc has been called in FD3D12Adapter::CreateCommittedResource
+			// 2) placed resource from a pool allocator, because MemoryTrace_Alloc has been called in FD3D12Adapter::CreatePlacedResource
+			if (!bStandalone && !bPoolPlacedResource)
+			{
+				MemoryTrace_Alloc(GPUAddress, TextureSize, Desc.Alignment, EMemoryTraceRootHeap::VideoMemory);
+			}
+#endif
 		}
 #endif
 		INC_DWORD_STAT(STAT_D3D12TexturesAllocated);
@@ -404,7 +418,10 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const D
 #if PLATFORM_WINDOWS
 		LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Texture.GetResource()));
 		LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, Texture.GetResource()));
-		MemoryTrace_Free((uint64)Texture.GetResource(), EMemoryTraceRootHeap::VideoMemory);
+
+#if UE_MEMORY_TRACE_ENABLED
+		MemoryTrace_Free(GPUAddress, EMemoryTraceRootHeap::VideoMemory);
+#endif
 #endif
 		INC_DWORD_STAT(STAT_D3D12TexturesReleased);
 	}

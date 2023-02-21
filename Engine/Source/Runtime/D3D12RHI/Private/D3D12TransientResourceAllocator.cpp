@@ -87,6 +87,7 @@ FD3D12TransientHeap::FD3D12TransientHeap(const FInitializer& Initializer, FD3D12
 
 	Heap = new FD3D12Heap(Device, VisibleNodeMask);
 	Heap->SetHeap(D3DHeap, TEXT("TransientResourceAllocator Backing Heap"), true, true);
+	Heap->SetIsTransient(true);
 	Heap->BeginTrackingResidency(Desc.SizeInBytes);
 
 	SetGpuVirtualAddress(Heap->GetGPUVirtualAddress());

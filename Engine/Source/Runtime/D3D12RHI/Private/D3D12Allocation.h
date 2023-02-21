@@ -465,6 +465,8 @@ struct FD3D12FastAllocatorPage
 		, FastAllocData(nullptr)
 		, FrameFence(0) {};
 
+	~FD3D12FastAllocatorPage();
+
 	void Reset()
 	{
 		NextFastAllocOffset = 0;

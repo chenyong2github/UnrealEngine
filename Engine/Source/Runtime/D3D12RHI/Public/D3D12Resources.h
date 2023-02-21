@@ -86,6 +86,8 @@ public:
 	inline D3D12_HEAP_DESC GetHeapDesc() const { return HeapDesc; }
 	inline FD3D12ResidencyHandle& GetResidencyHandle() { return ResidencyHandle; }
 	inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
+	inline void SetIsTransient(bool bInIsTransient) { bIsTransient = bInIsTransient; }
+	inline bool GetIsTransient() const { return bIsTransient; }
 
 private:
 
@@ -97,6 +99,7 @@ private:
 	FD3D12ResidencyHandle ResidencyHandle;
 	HeapId TraceHeapId;
 	HeapId TraceParentHeapId;
+	bool bIsTransient = false; // Whether this is a transient heap
 };
 
 struct FD3D12ResourceDesc : public D3D12_RESOURCE_DESC

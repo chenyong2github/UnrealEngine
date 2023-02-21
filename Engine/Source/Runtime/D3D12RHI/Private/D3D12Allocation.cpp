@@ -2161,6 +2161,14 @@ FD3D12FastAllocatorPage* FD3D12FastAllocatorPagePool::RequestFastAllocatorPage()
 	return Page;
 }
 
+FD3D12FastAllocatorPage::~FD3D12FastAllocatorPage()
+{
+#if UE_MEMORY_TRACE_ENABLED
+	// Matches MemoryTrace_Alloc issued from CreateBuffer call inside RequestFastAllocatorPage() function
+	MemoryTrace_Free(FastAllocBuffer->GetGPUVirtualAddress(), EMemoryTraceRootHeap::VideoMemory);
+#endif
+}
+
 void FD3D12FastAllocatorPage::UpdateFence()
 {
 	// Fence value must be updated every time the page is used to service an allocation.
