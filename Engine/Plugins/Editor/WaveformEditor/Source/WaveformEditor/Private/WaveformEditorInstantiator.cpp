@@ -2,63 +2,54 @@
 
 #include "WaveformEditorInstantiator.h"
 
-#include "ContentBrowserModule.h"
+#include "Algo/AnyOf.h"
+#include "ContentBrowserMenuContexts.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Sound/SoundWave.h"
+#include "Sound/SoundWaveProcedural.h"
 #include "SWaveformEditorMessageDialog.h"
+#include "ToolMenu.h"
+#include "ToolMenus.h"
+#include "ToolMenuSection.h"
 #include "WaveformEditor.h"
 #include "WaveformEditorLog.h"
 
 #define LOCTEXT_NAMESPACE "WaveformEditorInstantiator"
 
+namespace WaveEditorInstantiatorPrivate
+{
+	auto FilterUnwantedAssets = [](const FAssetData& AssetData) { return !AssetData.IsInstanceOf<USoundWaveProcedural>(); };
+}
+
 void FWaveformEditorInstantiator::ExtendContentBrowserSelectionMenu()
 {
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.SoundWave");
+	FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
 
-	TArray<FContentBrowserMenuExtender_SelectedAssets>& ContentBrowserExtenders = ContentBrowserModule.GetAllAssetViewContextMenuExtenders();
-	ContentBrowserExtenders.Add(FContentBrowserMenuExtender_SelectedAssets::CreateSP(this, &FWaveformEditorInstantiator::OnExtendContentBrowserAssetSelectionMenu));
-}
-
-TSharedRef<FExtender> FWaveformEditorInstantiator::OnExtendContentBrowserAssetSelectionMenu(const TArray<FAssetData>& SelectedAssets)
-{
-	TSharedRef<FExtender> Extender = MakeShared<FExtender>();
-
-	Extender->AddMenuExtension(
-		"GetAssetActions",
-		EExtensionHook::After,
-		nullptr,
-		FMenuExtensionDelegate::CreateSP(this, &FWaveformEditorInstantiator::AddWaveformEditorMenuEntry, SelectedAssets)
-	);
-
-	return Extender;
-}
-
-void FWaveformEditorInstantiator::AddWaveformEditorMenuEntry(FMenuBuilder& MenuBuilder, TArray<FAssetData> SelectedAssets)
-{
-	if (SelectedAssets.Num() > 0)
-	{
-		// check that all selected assets are USoundWaves.
-		TArray<USoundWave*> SelectedSoundWaves;
-		for (const FAssetData& SelectedAsset : SelectedAssets)
+	Section.AddDynamicEntry("SoundWaveEditing_CreateWaveformEditor", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
 		{
-			if (SelectedAsset.GetClass() != USoundWave::StaticClass())
+			if (const UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>())
 			{
-				return;
+				if (Algo::AnyOf(Context->SelectedAssets, WaveEditorInstantiatorPrivate::FilterUnwantedAssets))
+				{
+					const TAttribute<FText> Label = LOCTEXT("SoundWave_WaveformEditor", "Edit Waveform");
+					const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_WaveformEditor_Tooltip", "Open waveform editor");
+					const FSlateIcon Icon = FSlateIcon();
+					const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateSP(this, &FWaveformEditorInstantiator::ExecuteCreateWaveformEditor);
+
+					InSection.AddMenuEntry("SoundWave_CreateWaveformEditor", Label, ToolTip, Icon, UIAction);
+				}
 			}
+		}));
+}
 
-			SelectedSoundWaves.Add(static_cast<USoundWave*>(SelectedAsset.GetAsset()));
-		}
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("SoundWave_WaveformEditor", "Edit Waveform"),
-			LOCTEXT("SoundWave_WaveformEditor_Tooltip", "Open waveform editor"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &FWaveformEditorInstantiator::CreateWaveformEditor, SelectedSoundWaves),
-				FCanExecuteAction()
-			)
-		);
+void FWaveformEditorInstantiator::ExecuteCreateWaveformEditor(const FToolMenuContext& MenuContext)
+{
+	if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(MenuContext))
+	{
+		TArray<USoundWave*> SoundWavesToEdit = Context->LoadSelectedObjectsIf<USoundWave>(WaveEditorInstantiatorPrivate::FilterUnwantedAssets);
+		CreateWaveformEditor(SoundWavesToEdit);
 	}
 }
 
