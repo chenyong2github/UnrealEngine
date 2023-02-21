@@ -167,6 +167,10 @@ public:
 	bool DetailViewShowsRigElement(FRigElementKey InKey) const;
 
 	void ClearDetailObject(bool bChangeUISelectionState = true);
+private:
+
+	void ClearDetailsViewWrapperObjects();
+public:
 
 	/** Get the persona toolkit */
 	TSharedRef<IPersonaToolkit> GetPersonaToolkit() const { return PersonaToolkit.ToSharedRef(); }
