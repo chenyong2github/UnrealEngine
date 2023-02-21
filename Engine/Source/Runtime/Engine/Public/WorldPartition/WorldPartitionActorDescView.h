@@ -95,6 +95,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	const FWorldPartitionActorDesc* GetActorDesc() const { return ActorDesc; }
 
+	bool GetProperty(FName PropertyName, FName* PropertyValue) const;
+	bool HasProperty(FName PropertyName) const;
+
 protected:
 	const FWorldPartitionActorDesc* ActorDesc;
 	bool bIsForcedNonSpatiallyLoaded;

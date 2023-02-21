@@ -1034,7 +1034,7 @@ bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InAc
 	StreamingGeneratorParams.WorldPartitionContext = this;
 	StreamingGeneratorParams.ModifiedActorsDescList = ModifiedActorsDescList;
 	StreamingGeneratorParams.IsValidGrid = [this](FName GridName) { return RuntimeHash->IsValidGrid(GridName); };
-	StreamingGeneratorParams.ErrorHandler = ErrorHandler;
+	StreamingGeneratorParams.ErrorHandler = StreamingGenerationErrorHandlerOverride ? (*StreamingGenerationErrorHandlerOverride)(ErrorHandler) : ErrorHandler;
 	StreamingGeneratorParams.bEnableStreaming = IsStreamingEnabled();
 
 	FWorldPartitionStreamingGenerator StreamingGenerator(StreamingGeneratorParams);
@@ -1077,7 +1077,7 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 		FStreamingGenerationLogErrorHandler LogErrorHandler;
 		FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
 		StreamingGeneratorParams.WorldPartitionContext = this;
-		StreamingGeneratorParams.ErrorHandler = &LogErrorHandler;
+		StreamingGeneratorParams.ErrorHandler = StreamingGenerationErrorHandlerOverride ? (*StreamingGenerationErrorHandlerOverride)(&LogErrorHandler) : &LogErrorHandler;
 		StreamingGeneratorParams.bEnableStreaming = IsStreamingEnabled();
 		StreamingGeneratorParams.FilteredClasses.Add(AWorldPartitionHLOD::StaticClass());
 		StreamingGeneratorParams.IsValidGrid = [this](FName GridName) { return RuntimeHash->IsValidGrid(GridName); };
@@ -1100,7 +1100,7 @@ void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHand
 	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
 	StreamingGeneratorParams.WorldPartitionContext = this;
 	StreamingGeneratorParams.ModifiedActorsDescList = &ModifiedActorDescList;
-	StreamingGeneratorParams.ErrorHandler = ErrorHandler;
+	StreamingGeneratorParams.ErrorHandler = StreamingGenerationErrorHandlerOverride ? (*StreamingGenerationErrorHandlerOverride)(ErrorHandler) : ErrorHandler;
 	StreamingGeneratorParams.IsValidGrid = [this](FName GridName) { return RuntimeHash->IsValidGrid(GridName); };
 	StreamingGeneratorParams.bEnableStreaming = IsStreamingEnabled();
 
@@ -1139,7 +1139,7 @@ void UWorldPartition::CheckForErrors(const FCheckForErrorsParams& Params)
 	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
 	StreamingGeneratorParams.WorldPartitionContext = Params.ActorDescContainer->GetWorldPartition();
 	StreamingGeneratorParams.ModifiedActorsDescList = !Params.ActorDescContainer->IsTemplateContainer() ? &ModifiedActorDescList : nullptr;
-	StreamingGeneratorParams.ErrorHandler = Params.ErrorHandler;
+	StreamingGeneratorParams.ErrorHandler = StreamingGenerationErrorHandlerOverride ? (*StreamingGenerationErrorHandlerOverride)(Params.ErrorHandler) : Params.ErrorHandler;
 	StreamingGeneratorParams.IsValidGrid = [](FName GridName) { return true; };
 	StreamingGeneratorParams.bEnableStreaming = Params.bEnableStreaming;
 	StreamingGeneratorParams.ActorGuidsToContainerMap = Params.ActorGuidsToContainerMap;

@@ -243,4 +243,13 @@ AActor* FWorldPartitionActorDescView::GetActor() const
 {
 	return ActorDesc->GetActor();
 }
+
+bool FWorldPartitionActorDescView::GetProperty(FName PropertyName, FName* PropertyValue) const
+{
+	return ActorDesc->GetProperty(PropertyName, PropertyValue);
+}
+bool FWorldPartitionActorDescView::HasProperty(FName PropertyName) const
+{
+	return ActorDesc->HasProperty(PropertyName);
+}
 #endif

@@ -216,6 +216,9 @@ public:
 
 	static void CheckForErrors(const FCheckForErrorsParams& Params);
 
+	using FStreamingGenerationErrorHandlerOverride = TFunction<IStreamingGenerationErrorHandler*(IStreamingGenerationErrorHandler* InErrorHandler)>;
+	inline static TOptional<FStreamingGenerationErrorHandlerOverride> StreamingGenerationErrorHandlerOverride;
+
 	void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FActorDescContainerRegistrationDelegate, UActorDescContainer*);
