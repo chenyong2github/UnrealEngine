@@ -592,6 +592,7 @@ public:
 	const inline bool IsValid() const { return Type != ResourceLocationType::eUndefined; }
 
 	void AsStandAlone(FD3D12Resource* Resource, uint64 InSize = 0, bool bInIsTransient = false, const D3D12_HEAP_PROPERTIES* CustomHeapProperties = nullptr);
+	bool IsStandaloneOrPooledPlacedResource() const;
 
 	inline void AsHeapAliased(FD3D12Resource* Resource)
 	{

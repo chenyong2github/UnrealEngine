@@ -398,13 +398,10 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const D
 			LLM(UE_MEMSCOPE_DEFAULT(ELLMTag::Textures));
 
 #if UE_MEMORY_TRACE_ENABLED
-			bool bStandalone = (Texture.ResourceLocation.GetType() == FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
-			bool bPoolPlacedResource = (!bStandalone && Texture.ResourceLocation.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool) ?
-										Texture.ResourceLocation.GetPoolAllocator()->GetAllocationStrategy() == EResourceAllocationStrategy::kPlacedResource : false;
 			// Skip if it's created as a
 			// 1) standalone resource, because MemoryTrace_Alloc has been called in FD3D12Adapter::CreateCommittedResource
 			// 2) placed resource from a pool allocator, because MemoryTrace_Alloc has been called in FD3D12Adapter::CreatePlacedResource
-			if (!bStandalone && !bPoolPlacedResource)
+			if (!Texture.ResourceLocation.IsStandaloneOrPooledPlacedResource())
 			{
 				MemoryTrace_Alloc(GPUAddress, TextureSize, Desc.Alignment, EMemoryTraceRootHeap::VideoMemory);
 			}

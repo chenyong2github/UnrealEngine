@@ -1176,6 +1176,13 @@ void FD3D12ResourceLocation::UnlockPoolData()
 	}
 }
 
+bool FD3D12ResourceLocation::IsStandaloneOrPooledPlacedResource() const
+{
+	bool bStandalone = Type == ResourceLocationType::eStandAlone;
+	bool bPoolPlacedResource = (!bStandalone && AllocatorType == AT_Pool) ? PoolAllocator->GetAllocationStrategy() == EResourceAllocationStrategy::kPlacedResource : false;
+	return bStandalone || bPoolPlacedResource;
+}
+
 /////////////////////////////////////////////////////////////////////
 //	FD3D12 Resource Barrier Batcher
 /////////////////////////////////////////////////////////////////////
