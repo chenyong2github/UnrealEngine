@@ -568,14 +568,6 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 			]
 			.OnClicked_Static(&FSourceControlMenuHelpers::OnSourceControlCheckInChangesClicked)
 		]
-		+ SHorizontalBox::Slot() // Separator after check in button, only visible when the check in button is visible
-		.AutoWidth()
-		[
-			SNew(SSeparator)
-			.Visibility_Static(&FSourceControlMenuHelpers::GetSourceControlCheckInStatusVisibility)
-			.Thickness(1.0)
-			.Orientation(EOrientation::Orient_Vertical)
-		]
 		+SHorizontalBox::Slot() // Check In Kebab Combo button
 		.VAlign(VAlign_Center)
 		.AutoWidth()
@@ -586,6 +578,15 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 			.MenuPlacement(MenuPlacement_AboveAnchor)
 			.Visibility_Static(&FSourceControlMenuHelpers::GetSourceControlCheckInStatusVisibility)
 			.OnGetMenuContent(FOnGetContent::CreateStatic(&FSourceControlMenuHelpers::GenerateCheckInComboButtonContent))
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SSeparator)
+			.Visibility_Static(&FSourceControlMenuHelpers::GetSourceControlCheckInStatusVisibility)
+			.Thickness(1.0)
+			.Orientation(EOrientation::Orient_Vertical)
 		]
 		+ SHorizontalBox::Slot() // Sync Latest Button
 		.VAlign(VAlign_Center)
@@ -617,6 +618,15 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 				]
 			]
 			.OnClicked_Static(&FSourceControlMenuHelpers::OnSourceControlSyncClicked)
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SSeparator)
+			.Visibility_Static(&FSourceControlMenuHelpers::GetSourceControlCheckInStatusVisibility)
+			.Thickness(1.0)
+			.Orientation(EOrientation::Orient_Vertical)
 		]
 		+ SHorizontalBox::Slot() // Source Control Menu
 		.VAlign(VAlign_Center)
