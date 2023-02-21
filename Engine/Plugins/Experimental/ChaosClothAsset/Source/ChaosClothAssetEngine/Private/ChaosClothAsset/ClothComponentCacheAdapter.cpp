@@ -59,7 +59,7 @@ namespace UE::Chaos::ClothAsset
 	bool FClothComponentCacheAdapter::ValidForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const
 	{
 		const UChaosClothComponent* ClothComp = GetClothComponent(InComponent);
-		return ClothComp && InCache->TrackToParticle.Num() > 0;
+		return ClothComp && InCache->ChannelCurveToParticle.Num() > 0;
 	}
 
 	::Chaos::FPhysicsSolverEvents* FClothComponentCacheAdapter::BuildEventsSolver(UPrimitiveComponent* InComponent) const

@@ -203,7 +203,16 @@ struct FRichCurves
 	TArray<FRichCurve> RichCurves;
 };
 
-struct FPendingFrameWrite
+USTRUCT()
+struct FCompressedRichCurves
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FCompressedRichCurve> CompressedRichCurves;
+};
+
+struct CHAOSCACHING_API FPendingFrameWrite
 {
 	float                         Time;
 	TArray<FPendingParticleWrite> PendingParticleData;
@@ -371,6 +380,8 @@ public:
 	void EvaluateCurves(const FPerParticleCacheData& InData, float InTime, TMap<FName, float>& OutCurves);
 	void EvaluateEvents(FPlaybackTickRecord& InTickRecord, TMap<FName, TArray<FCacheEventHandle>>& OutEvents);
 
+	void CompressChannelsData(float ErrorThreshold, float SampleRate);
+
 	UPROPERTY(VisibleAnywhere, Category = "Caching")
 	float RecordedDuration;
 
@@ -385,9 +396,16 @@ public:
 	UPROPERTY()
 	TArray<FPerParticleCacheData> ParticleTracks;
 
-	/** Per-particle curve data, continuous per-frame data */
+	/** Map a curve index in the cache to the original particle index specified when recording */
+	UPROPERTY()
+	TArray<int32> ChannelCurveToParticle;
+
+	/** Per-particle data,  continuous per-frame data */
 	UPROPERTY()
 	TMap<FName,FRichCurves> ChannelsTracks;
+
+	UPROPERTY()
+	TMap<FName, FCompressedRichCurves> CompressedChannelsTracks;
 
 	/** Per component/cache curve data, any continuous data that isn't per-particle can be stored here */
 	UPROPERTY()
@@ -397,6 +415,15 @@ public:
 	typedef FParticleTransformTrack FNamedTransformTrack;
 	UPROPERTY()
 	TMap<FName, FParticleTransformTrack> NamedTransformTracks;
+
+	UPROPERTY()
+	bool bCompressChannels = false;
+
+	UPROPERTY()
+	float ChannelsCompressionErrorThreshold = 1e-5;
+
+	UPROPERTY()
+	float ChannelsCompressionSampleRate = 1.f / 30.f;
 
 	template<typename T>
 	FCacheEventTrack& FindOrAddEventTrack(FName InName)

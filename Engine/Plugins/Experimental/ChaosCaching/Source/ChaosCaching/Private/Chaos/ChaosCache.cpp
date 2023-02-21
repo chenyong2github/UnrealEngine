@@ -168,6 +168,23 @@ void UChaosCache::FlushPendingFrames()
 					TargetCurve->RichCurves[ParticleIndex++].AddKey(NewData.Time, ChannelValue);
 				}
 			}
+
+			const bool bContainsParticleData = NewData.PendingParticleData.Num() > 0;
+			// If there is no particle data, use ChannelCurveToParticle instead. 
+			if (!bContainsParticleData)
+			{
+				// If there are more particles, append the curve index to the particle index map
+				const int32 OldNum = ChannelCurveToParticle.Num();
+				const int32 NewNum = NewData.PendingChannelsIndices.Num();	
+				if (OldNum < NewNum)
+				{
+					ChannelCurveToParticle.SetNum(NewNum);
+					for(int32 Index = OldNum; Index < NewNum; ++Index)
+					{
+						ChannelCurveToParticle[Index] = NewData.PendingChannelsIndices[Index];
+					}
+				}
+			}
 		}
 		
 		const int32 ParticleCount = NewData.PendingParticleData.Num();
@@ -235,6 +252,21 @@ void UChaosCache::FlushPendingFrames()
 			Max = FMath::Max(Max, ParticleData.TransformData.GetEndTime());
 		}
 
+		for(const TPair<FName, FRichCurves>& Pair : ChannelsTracks)
+		{
+			const FRichCurves& RichCurves = Pair.Value;
+			for(const FRichCurve& Curve : RichCurves.RichCurves)
+			{
+				float CurveMin, CurveMax;
+				Curve.GetTimeRange(CurveMin, CurveMax);
+				Min = FMath::Min(Min, CurveMin);
+				Max = FMath::Max(Max, CurveMax);
+
+				// assuming all curves have the same time range
+				break;
+			}
+		}
+
 		RecordedDuration = Max - Min;
 	}
 }
@@ -255,6 +287,7 @@ FCacheUserToken UChaosCache::BeginRecord(UPrimitiveComponent* InComponent, FGuid
 			ParticleTracks.Reset();
 			ChannelsTracks.Reset();
 			TrackToParticle.Reset();
+			ChannelCurveToParticle.Reset();
 			CurveData.Reset();
 			EventTracks.Reset();
 			NamedTransformTracks.Reset();
@@ -314,6 +347,11 @@ void UChaosCache::EndRecord(FCacheUserToken& InOutToken)
 		{
 			UE_LOG(LogChaosCache, Warning, TEXT("Attempted to close a recording session with an invalid token"));
 		}
+	}
+
+	if (bCompressChannels)
+	{
+		CompressChannelsData(ChannelsCompressionErrorThreshold, ChannelsCompressionSampleRate);
 	}
 }
 
@@ -414,6 +452,21 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 					ResultData[CacheIndex] = ChannelData.Value.RichCurves[CacheIndex].Eval(InContext.TickRecord.GetTime(),0.0);
 				}
 			}
+			for(const TPair<FName, FCompressedRichCurves>& CompressedChannelData : CompressedChannelsTracks)
+			{
+				TArray<float>& ResultData = Result.Channels.FindOrAdd(CompressedChannelData.Key);
+				ResultData.Init(0.0, NumProvidedIndices);
+				
+				for(int32 EvalIndex = 0; EvalIndex < NumProvidedIndices; ++EvalIndex)
+				{
+					ResultData[EvalIndex] = CompressedChannelData.Value.CompressedRichCurves[EvalIndex].Eval(InContext.TickRecord.GetTime(),0.0);
+				}
+			}
+			if (ChannelCurveToParticle.Num() > 0)
+			{
+				ensure(ParticleTracks.Num() == 0);
+				Result.ParticleIndices = ChannelCurveToParticle;
+			}
 		}
 
 		for(int32 EvalIndex = 0; EvalIndex < NumProvidedIndices; ++EvalIndex)
@@ -461,17 +514,35 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 		}
 		if(InContext.bEvaluateChannels)
 		{
+			const int32 NumCurves = NumParticles > 0 ? NumParticles : ChannelCurveToParticle.Num();
 			for(auto& ChannelData : ChannelsTracks)
 			{
 				TArray<float>& ResultData = Result.Channels.FindOrAdd(ChannelData.Key);
-				ResultData.Init(0.0, NumParticles);
+				ResultData.Init(0.0, NumCurves);
 				
-				for(int32 EvalIndex = 0; EvalIndex < NumParticles; ++EvalIndex)
+				for(int32 EvalIndex = 0; EvalIndex < NumCurves; ++EvalIndex)
 				{
 					ResultData[EvalIndex] = ChannelData.Value.RichCurves[EvalIndex].Eval(InContext.TickRecord.GetTime(),0.0);
 				}
 			}
+			for(const TPair<FName, FCompressedRichCurves>& CompressedChannelData : CompressedChannelsTracks)
+			{
+				TArray<float>& ResultData = Result.Channels.FindOrAdd(CompressedChannelData.Key);
+				ResultData.Init(0.0, NumCurves);
+				
+				for(int32 EvalIndex = 0; EvalIndex < NumCurves; ++EvalIndex)
+				{
+					ResultData[EvalIndex] = CompressedChannelData.Value.CompressedRichCurves[EvalIndex].Eval(InContext.TickRecord.GetTime(),0.0);
+				}
+			}
+
+			if (ChannelCurveToParticle.Num() > 0)
+			{
+				ensure(ParticleTracks.Num() == 0);
+				Result.ParticleIndices = ChannelCurveToParticle;
+			}
 		}
+
 		for(int32 Index = 0; Index < NumParticles; ++Index)
 		{
 			if(ParticleTracks[Index].TransformData.BeginOffset > InContext.TickRecord.GetTime())
@@ -620,6 +691,21 @@ void UChaosCache::EvaluateEvents(FPlaybackTickRecord& InTickRecord, TMap<FName, 
 			OutEvents.Add(TTuple<FName, TArray<FCacheEventHandle>>(Track.Key, MoveTemp(NewHandles)));
 		}
 	}
+}
+
+void UChaosCache::CompressChannelsData(float ErrorThreshold, float SampleRate)
+{
+	for(TPair<FName, FRichCurves>& ChannelData : ChannelsTracks)
+	{
+		FCompressedRichCurves &CompressedRichCurves = CompressedChannelsTracks.FindOrAdd(ChannelData.Key);
+		const int32 NumCurves = ChannelData.Value.RichCurves.Num();
+		CompressedRichCurves.CompressedRichCurves.SetNum(NumCurves);
+		::ParallelFor(NumCurves, [&ChannelData, &CompressedRichCurves, ErrorThreshold, SampleRate](int32 CurveIndex)
+		{
+			ChannelData.Value.RichCurves[CurveIndex].CompressCurve(CompressedRichCurves.CompressedRichCurves[CurveIndex], ErrorThreshold, SampleRate);
+		}, false);
+	}
+	ChannelsTracks.Reset();
 }
 
 FTransform FParticleTransformTrack::Evaluate(float InCacheTime, const FTransform* MassToLocal) const
