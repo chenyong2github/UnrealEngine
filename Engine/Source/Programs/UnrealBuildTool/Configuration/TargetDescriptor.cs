@@ -62,6 +62,12 @@ namespace UnrealBuildTool
 		public List<FileReference> SpecificFilesToCompile = new List<FileReference>();
 
 		/// <summary>
+		/// Will build all files that directly include any of the files provided in -SingleFile
+		/// </summary>
+		[CommandLine("-SingleFileBuildDependents")]
+		public bool bSingleFileBuildDependents;
+
+		/// <summary>
 		/// Whether to perform hot reload for this target
 		/// </summary>
 		[CommandLine("-NoHotReload", Value = nameof(HotReloadMode.Disabled))]

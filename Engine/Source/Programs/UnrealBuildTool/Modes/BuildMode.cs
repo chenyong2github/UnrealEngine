@@ -454,7 +454,8 @@ namespace UnrealBuildTool
 					if (FilesToBuild.Count != 0)
 					{
 						// If there are headers in the list, expand the FilesToBuild to also include all files that include those headers
-						FilesToBuild = GetAllSourceFilesIncludingHeader(FilesToBuild, TargetDescriptor.ProjectFile, Makefiles[Idx].Actions, Logger);
+						if (TargetDescriptor.bSingleFileBuildDependents)
+							FilesToBuild = GetAllSourceFilesIncludingHeader(FilesToBuild, TargetDescriptor.ProjectFile, Makefiles[Idx].Actions, Logger);
 
 						// We have specific files to compile so we will only queue up those files.
 						List<FileItem> ProducedItems = CreateLinkedActionsFromFileList(TargetDescriptor, BuildConfiguration, FilesToBuild, QueuedActions[Idx], Logger);
