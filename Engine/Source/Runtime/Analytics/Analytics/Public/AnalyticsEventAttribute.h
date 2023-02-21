@@ -184,12 +184,7 @@ inline FAnalyticsEventAttribute& FAnalyticsEventAttribute::operator+(const FAnal
 		return *this;
 	}
 
-	const_cast<FString&>(AttrName) = RHS.AttrName;
-	const_cast<FString&>(AttrValueString) = RHS.AttrValueString;
 	const_cast<double&>(AttrValueNumber) += RHS.AttrValueNumber;
-	const_cast<bool&>(AttrValueBool) |= RHS.AttrValueBool;
-	const_cast<AttrTypeEnum&>(AttrType) = RHS.AttrType;
-
 	return *this;
 }
 
