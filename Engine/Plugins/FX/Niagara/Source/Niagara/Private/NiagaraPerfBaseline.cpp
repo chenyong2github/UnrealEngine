@@ -15,6 +15,7 @@
 #include "CanvasTypes.h"
 #include "HAL/FileManager.h"
 #include "UnrealClient.h"
+#include "UObject/UObjectIterator.h" // IWYU pragma: keep
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraPerfBaseline)
 
