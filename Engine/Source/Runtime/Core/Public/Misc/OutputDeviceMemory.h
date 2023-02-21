@@ -15,19 +15,6 @@
  */
 class CORE_API FOutputDeviceMemory : public FOutputDevice
 {
-	class FOutputDeviceMemoryProxyArchive : public FArchive
-	{
-		FOutputDeviceMemory& OutputDevice;
-	public:
-		FOutputDeviceMemoryProxyArchive(FOutputDeviceMemory& InOutputDevice)
-			: OutputDevice(InOutputDevice)
-		{}
-		virtual void Serialize(void* V, int64 Length) override
-		{
-			OutputDevice.SerializeToBuffer((ANSICHAR*)V, Length / sizeof(ANSICHAR));
-		}
-	} ArchiveProxy;
-
 public:
 	/** 
 	 * Constructor, initializing member variables.
@@ -74,6 +61,20 @@ private:
 	
 	/** Serialize cast data to the actual memory buffer */
 	void SerializeToBuffer(ANSICHAR* Data, int32 Length);
+
+
+	class FOutputDeviceMemoryProxyArchive : public FArchive
+	{
+		FOutputDeviceMemory& OutputDevice;
+	public:
+		FOutputDeviceMemoryProxyArchive(FOutputDeviceMemory& InOutputDevice)
+			: OutputDevice(InOutputDevice)
+		{}
+		virtual void Serialize(void* V, int64 Length) override
+		{
+			OutputDevice.SerializeToBuffer((ANSICHAR*)V, Length / sizeof(ANSICHAR));
+		}
+	} ArchiveProxy;
 
 	/** Ring buffer */
 	TArray<ANSICHAR> Buffer;

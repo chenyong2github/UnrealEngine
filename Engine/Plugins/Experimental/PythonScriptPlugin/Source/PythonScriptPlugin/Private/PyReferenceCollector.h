@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UObject/GCObject.h"
+#include "UObject/ScriptDelegateFwd.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Containers/ArrayView.h"
 

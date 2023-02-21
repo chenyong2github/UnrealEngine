@@ -320,12 +320,6 @@ struct TStaticDeprecateExpression
  */
 struct FPlatformUserId
 {
-	/** Create a default invalid Id */
-	FORCEINLINE FPlatformUserId() : InternalId(INDEX_NONE) {}
-
-	FPlatformUserId(const FPlatformUserId&) = default;
-	FPlatformUserId& operator=(const FPlatformUserId&) = default;
-
 	/** Sees if this is a valid user */
 	FORCEINLINE bool IsValid() const
 	{
@@ -361,21 +355,17 @@ struct FPlatformUserId
 		return UserId.InternalId;
 	}
 
-	// This is needed until input and online code handles FPlatformUserId properly
-	UE_DEPRECATED(5.0, "Implicit conversion from user index is deprecated, use FPlatformMisc::GetPlatformUserForUserIndex")
-	FORCEINLINE constexpr FPlatformUserId(int32 InIndex) : InternalId(InIndex) {}
-
 	// This should be deprecated when the online code uniformly handles FPlatformUserId */
 	// UE_DEPRECATED(5.x, "Implicit conversion to user index is deprecated, use FPlatformMisc::GetUserIndexForPlatformUser")
 	FORCEINLINE constexpr operator int32() const { return InternalId; }
 
 private:
 	/** Raw id, will be allocated by application layer */
-	int32 InternalId;
+	int32 InternalId = INDEX_NONE;
 };
 
 /** Static invalid platform user */
-const FPlatformUserId PLATFORMUSERID_NONE;
+inline constexpr FPlatformUserId PLATFORMUSERID_NONE;
 
 /**
  * Represents a single input device such as a gamepad, keyboard, or mouse.
@@ -384,12 +374,6 @@ const FPlatformUserId PLATFORMUSERID_NONE;
  */
 struct FInputDeviceId
 {
-	FORCEINLINE explicit FInputDeviceId()
-		: InternalId(INDEX_NONE)
-	{}
-	
-	FInputDeviceId(const FInputDeviceId&) = default;
-	
 	/** Explicit function to create from an internal id */
 	FORCEINLINE static FInputDeviceId CreateFromInternalId(int32 InInternalId)
 	{
@@ -451,11 +435,11 @@ private:
 	 * 
 	 * @see IPlatformInputDeviceMapper::AllocateNewInputDeviceId
 	 */
-	int32 InternalId;
+	int32 InternalId = INDEX_NONE;
 };
 
 /** Static invalid input device. */
-const FInputDeviceId INPUTDEVICEID_NONE;
+inline constexpr FInputDeviceId INPUTDEVICEID_NONE;
 
 /** Represents the connection status of a given FInputDeviceId */
 enum class EInputDeviceConnectionState : uint8

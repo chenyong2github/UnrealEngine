@@ -6,6 +6,8 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "Misc/ConfigCacheIni.h"
 
+#if WITH_EDITOR
+
 /*******************************************************************************
  * FNodeTextCache
  ******************************************************************************/
@@ -229,3 +231,5 @@ private:
 	/** */
 	FNodeTextCache CachedTooltip;
 };
+
+#endif

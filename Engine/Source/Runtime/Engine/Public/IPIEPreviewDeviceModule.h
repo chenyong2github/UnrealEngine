@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "IDeviceProfileSelectorModule.h"
 #include "Widgets/SWindow.h"
-#include "PIEPreviewDeviceEnumeration.h"
 
 class IPIEPreviewDeviceModule : public IDeviceProfileSelectorModule
 {

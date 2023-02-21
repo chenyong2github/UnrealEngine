@@ -34,7 +34,6 @@ template <class TEnum> class TEnumAsByte;
 
 namespace UE::StructuredArchive::Private
 {
-	FElementId GetCurrentSlotElementIdImpl(FStructuredArchive& StructuredArchive);
 	FArchiveFormatterType& GetFormatterImpl(FStructuredArchive& StructuredArchive);
 }
 
@@ -113,15 +112,7 @@ public:
 
 	void Serialize(TArray<uint8>& Data);
 	void Serialize(void* Data, uint64 DataSize);
-
-	FORCEINLINE bool IsFilled() const
-	{
-#if WITH_TEXT_ARCHIVE_SUPPORT
-		return UE::StructuredArchive::Private::GetCurrentSlotElementIdImpl(StructuredArchive) != ElementId;
-#else
-		return true;
-#endif
-	}
+	bool IsFilled() const;
 
 private:
 	friend FStructuredArchive;

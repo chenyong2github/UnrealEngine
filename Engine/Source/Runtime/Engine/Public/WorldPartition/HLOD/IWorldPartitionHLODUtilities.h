@@ -8,6 +8,8 @@
 #include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
 #include "WorldPartition/DataLayer/DataLayersID.h"
 
+#if WITH_EDITOR
+
 class AActor;
 class UWorldPartition;
 class UHLODLayer;
@@ -15,13 +17,13 @@ class UHLODBuilder;
 class UHLODBuilderSettings;
 class AWorldPartitionHLOD;
 
-struct ENGINE_API FHLODCreationContext
+struct FHLODCreationContext
 {
 	TMap<FName, FWorldPartitionHandle> HLODActorDescs;
 	TArray<FWorldPartitionReference> ActorReferences;
 };
 
-struct ENGINE_API FHLODCreationParams
+struct FHLODCreationParams
 {
 	UWorldPartition* WorldPartition;
 
@@ -87,3 +89,4 @@ public:
 		return CreateHLODActors(InCreationContext, InCreationParams, InActors);
 	}
 };
+#endif

@@ -562,6 +562,8 @@ FDynamicSkelMeshObjectDataCPUSkin::FDynamicSkelMeshObjectDataCPUSkin(
 #endif
 }
 
+FDynamicSkelMeshObjectDataCPUSkin::~FDynamicSkelMeshObjectDataCPUSkin() = default;
+
 /*-----------------------------------------------------------------------------
 	FSkeletalMeshObjectCPUSkin - morph target blending implementation
 -----------------------------------------------------------------------------*/

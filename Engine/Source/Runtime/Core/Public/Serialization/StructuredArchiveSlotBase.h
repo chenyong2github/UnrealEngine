@@ -10,9 +10,6 @@ struct FArchiveState;
 
 namespace UE::StructuredArchive::Private
 {
-	FArchive& GetUnderlyingArchiveImpl(FStructuredArchive& Ar);
-	FArchiveState& GetUnderlyingArchiveStateImpl(FStructuredArchive& Ar);
-
 	struct FElementId
 	{
 		FElementId() = default;
@@ -89,15 +86,8 @@ namespace UE::StructuredArchive::Private
 		}
 #endif
 
-		FArchive& GetUnderlyingArchive() const
-		{
-			return GetUnderlyingArchiveImpl(StructuredArchive);
-		}
-
-		const FArchiveState& GetArchiveState() const
-		{
-			return GetUnderlyingArchiveStateImpl(StructuredArchive);
-		}
+		FArchive& GetUnderlyingArchive() const;
+		const FArchiveState& GetArchiveState() const;
 
 	protected:
 		FStructuredArchive& StructuredArchive;

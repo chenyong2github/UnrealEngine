@@ -210,15 +210,7 @@ public:
 	/**
 	 * Called from the game thread to destroy the material instance on the rendering thread.
 	 */
-	void GameThread_Destroy()
-	{
-		FMaterialInstanceResource* Resource = this;
-		ENQUEUE_RENDER_COMMAND(FDestroyMaterialInstanceResourceCommand)(
-			[Resource](FRHICommandList& RHICmdList)
-			{
-				delete Resource;
-			});
-	}
+	void GameThread_Destroy();
 
 	// FRenderResource interface.
 	virtual FString GetFriendlyName() const override { return Owner->GetName(); }

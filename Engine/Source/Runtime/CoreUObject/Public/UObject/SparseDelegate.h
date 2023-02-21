@@ -15,6 +15,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ScriptDelegateFwd.h"
 #include "UObject/UObjectArray.h"
 #include "UObject/WeakObjectPtr.h"
 

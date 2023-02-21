@@ -713,7 +713,7 @@ enum class EAnimInterpolationType : uint8
 	// ID type, should be used to access SmartNames as fundamental type may change.
 	typedef uint16 UID_Type;
 	// Max UID used for overflow checking
-	static const UID_Type MaxUID = MAX_uint16;
+	inline constexpr UID_Type MaxUID = MAX_uint16;
 }
 /**
  * Animation Key extraction helper as we have a lot of code that messes up the key length

@@ -9,13 +9,13 @@
 struct FSkelMeshRenderSection;
 class UMorphTarget;
 
-class ENGINE_API FMorphTargetVertexInfoBuffers : public FRenderResource
+class FMorphTargetVertexInfoBuffers : public FRenderResource
 {
 public:
-	FMorphTargetVertexInfoBuffers();
-	~FMorphTargetVertexInfoBuffers();
+	ENGINE_API FMorphTargetVertexInfoBuffers();
+	ENGINE_API ~FMorphTargetVertexInfoBuffers();
 
-	void InitMorphResources(EShaderPlatform ShaderPlatform, const TArray<FSkelMeshRenderSection>& RenderSections, const TArray<UMorphTarget*>& MorphTargets, int NumVertices, int32 LODIndex, float TargetPositionErrorTolerance);
+	ENGINE_API void InitMorphResources(EShaderPlatform ShaderPlatform, const TArray<FSkelMeshRenderSection>& RenderSections, const TArray<UMorphTarget*>& MorphTargets, int NumVertices, int32 LODIndex, float TargetPositionErrorTolerance);
 
 	inline bool IsMorphResourcesInitialized() const { return bResourcesInitialized; }
 	inline bool IsRHIIntialized() const { return bRHIIntialized; }
@@ -24,11 +24,11 @@ public:
 	bool GetEmptyMorphCPUDataOnInitRHI() const { return bEmptyMorphCPUDataOnInitRHI; }
 	void SetEmptyMorphCPUDataOnInitRHI(bool bEmpty) { bEmptyMorphCPUDataOnInitRHI = bEmpty; }
 
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void ReleaseRHI() override;
 
 	UE_DEPRECATED(5.2, "GetMaximumThreadGroupSize will be removed as it is no longer used.")
-	static uint32 GetMaximumThreadGroupSize();
+	static ENGINE_API uint32 GetMaximumThreadGroupSize();
 
 	uint32 GetNumBatches(uint32 index = UINT_MAX) const
 	{
@@ -69,23 +69,23 @@ public:
 		return MorphData.Num() * sizeof(uint32);
 	}
 
-	static const float CalculatePositionPrecision(float TargetPositionErrorTolerance);
+	static ENGINE_API const float CalculatePositionPrecision(float TargetPositionErrorTolerance);
 
 	const float GetTangentZPrecision() const
 	{
 		return TangentZPrecision;
 	}
 
-	static bool IsPlatformShaderSupported(EShaderPlatform ShaderPlatform);
+	static ENGINE_API bool IsPlatformShaderSupported(EShaderPlatform ShaderPlatform);
 
 	FBufferRHIRef MorphDataBuffer;
 	FShaderResourceViewRHIRef MorphDataSRV;
 
 protected:
-	void ResetCPUData();
+	ENGINE_API void ResetCPUData();
 
-	void ValidateVertexBuffers(bool bMorphTargetsShouldBeValid);
-	void Serialize(FArchive& Ar);
+	ENGINE_API void ValidateVertexBuffers(bool bMorphTargetsShouldBeValid);
+	ENGINE_API void Serialize(FArchive& Ar);
 
 	// Transient data. Gets deleted as soon as the GPU resource has been initialized (unless excplicitly disabled by bEmptyMorphCPUDataOnInitRHI).
 	TResourceArray<uint32> MorphData;

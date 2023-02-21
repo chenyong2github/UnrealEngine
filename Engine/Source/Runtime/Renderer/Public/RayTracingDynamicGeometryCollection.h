@@ -10,6 +10,7 @@
 class FPrimitiveSceneProxy;
 class FScene;
 class FSceneView;
+struct FMeshComputeDispatchCommand;
 struct FRayTracingDynamicGeometryUpdateParams;
 
 class RENDERER_API FRayTracingDynamicGeometryCollection
@@ -39,7 +40,7 @@ public:
 
 private:
 
-	TArray<struct FMeshComputeDispatchCommand> DispatchCommands;
+	TArray<FMeshComputeDispatchCommand> DispatchCommands;
 	TArray<FRayTracingGeometryBuildParams> BuildParams;
 	TArray<FRayTracingGeometrySegment> Segments;
 

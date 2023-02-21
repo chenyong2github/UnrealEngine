@@ -147,6 +147,16 @@ FMaterialInstanceResource::FMaterialInstanceResource(UMaterialInstance* InOwner)
 {
 }
 
+void FMaterialInstanceResource::GameThread_Destroy()
+{
+	FMaterialInstanceResource* Resource = this;
+	ENQUEUE_RENDER_COMMAND(FDestroyMaterialInstanceResourceCommand)(
+		[Resource](FRHICommandList& RHICmdList)
+		{
+			delete Resource;
+		});
+}
+
 #if 0
 const FMaterial& FMaterialInstanceResource::GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const
 {

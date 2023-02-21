@@ -3,6 +3,7 @@
 
 #include "CoreTypes.h"
 #include "Logging/LogMacros.h"
+#include "UObject/ScriptDelegateFwd.h"
 #include "UObject/WeakObjectPtrFwd.h"
 
 class UFunction;

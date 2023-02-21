@@ -38,7 +38,7 @@ struct FRHIRG16
 	uint16 G;
 };
 
-static inline void ConvertRawR16DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
+inline void ConvertRawR16DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
 {
 	// e.g. shadow maps
 	for (uint32 Y = 0; Y < Height; Y++)
@@ -58,7 +58,7 @@ static inline void ConvertRawR16DataToFColor(uint32 Width, uint32 Height, uint8 
 	}
 }
 
-static inline void ConvertRawR8G8B8A8DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
+inline void ConvertRawR8G8B8A8DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
 {
 	for (uint32 Y = 0; Y < Height; Y++)
 	{
@@ -73,7 +73,7 @@ static inline void ConvertRawR8G8B8A8DataToFColor(uint32 Width, uint32 Height, u
 	}
 }
 
-static inline void ConvertRawB8G8R8A8DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
+inline void ConvertRawB8G8R8A8DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
 {
 	const uint32 DstPitch = Width * sizeof(FColor);
 
@@ -96,7 +96,7 @@ static inline void ConvertRawB8G8R8A8DataToFColor(uint32 Width, uint32 Height, u
 	}
 }
 
-static inline void ConvertRawR16G16B16A16FDataToFFloat16Color(uint32 Width, uint32 Height, uint8* In, uint32 SrcPitch, FFloat16Color* Out)
+inline void ConvertRawR16G16B16A16FDataToFFloat16Color(uint32 Width, uint32 Height, uint8* In, uint32 SrcPitch, FFloat16Color* Out)
 {
 	const uint32 DstPitch = Width * sizeof(FFloat16Color);
 
@@ -119,7 +119,7 @@ static inline void ConvertRawR16G16B16A16FDataToFFloat16Color(uint32 Width, uint
 	}
 }
 
-static inline void ConvertRawR10G10B10A2DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
+inline void ConvertRawR10G10B10A2DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
 {
 	for (uint32 Y = 0; Y < Height; Y++)
 	{
@@ -139,7 +139,7 @@ static inline void ConvertRawR10G10B10A2DataToFColor(uint32 Width, uint32 Height
 	}
 }
 
-static inline void ConvertRawB10G10R10A2DataToFColor(uint32 Width, uint32 Height, uint8* In, uint32 SrcPitch, FColor* Out)
+inline void ConvertRawB10G10R10A2DataToFColor(uint32 Width, uint32 Height, uint8* In, uint32 SrcPitch, FColor* Out)
 {
 	for (uint32 Y = 0; Y < Height; Y++)
 	{
@@ -159,7 +159,7 @@ static inline void ConvertRawB10G10R10A2DataToFColor(uint32 Width, uint32 Height
 	}
 }
 
-static inline void ConvertRawR16G16B16A16FDataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
+inline void ConvertRawR16G16B16A16FDataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
 {
 	FPlane	MinValue(0.0f, 0.0f, 0.0f, 0.0f),
 		MaxValue(1.0f, 1.0f, 1.0f, 1.0f);
@@ -204,7 +204,7 @@ static inline void ConvertRawR16G16B16A16FDataToFColor(uint32 Width, uint32 Heig
 	}
 }
 
-static inline void ConvertRawR11G11B10DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
+inline void ConvertRawR11G11B10DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
 {
 	check(sizeof(FFloat3Packed) == sizeof(uint32));
 
@@ -224,7 +224,7 @@ static inline void ConvertRawR11G11B10DataToFColor(uint32 Width, uint32 Height, 
 	}
 }
 
-static inline void ConvertRawR9G9B9E5DataToFColor(uint32 Width, uint32 Height, uint8* In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
+inline void ConvertRawR9G9B9E5DataToFColor(uint32 Width, uint32 Height, uint8* In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
 {
 	check(sizeof(FFloat3PackedSE) == sizeof(uint32));
 
@@ -244,7 +244,7 @@ static inline void ConvertRawR9G9B9E5DataToFColor(uint32 Width, uint32 Height, u
 	}
 }
 
-static inline void ConvertRawR32G32B32A32DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
+inline void ConvertRawR32G32B32A32DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
 {
 	FPlane MinValue(0.0f, 0.0f, 0.0f, 0.0f);
 	FPlane MaxValue(1.0f, 1.0f, 1.0f, 1.0f);
@@ -287,7 +287,8 @@ static inline void ConvertRawR32G32B32A32DataToFColor(uint32 Width, uint32 Heigh
 	}
 }
 
-static inline void ConvertRawR24G8DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, FReadSurfaceDataFlags InFlags)
+
+inline void ConvertRawR24G8DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, FReadSurfaceDataFlags InFlags)
 {
 	bool bLinearToGamma = InFlags.GetLinearToGamma();
 	// Depth stencil
@@ -318,7 +319,7 @@ static inline void ConvertRawR24G8DataToFColor(uint32 Width, uint32 Height, uint
 	}
 }
 
-static inline void ConvertRawR32DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, FReadSurfaceDataFlags InFlags)
+inline void ConvertRawR32DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, FReadSurfaceDataFlags InFlags)
 {
 	bool bLinearToGamma = InFlags.GetLinearToGamma();
 	for (uint32 Y = 0; Y < Height; Y++)
@@ -340,7 +341,7 @@ static inline void ConvertRawR32DataToFColor(uint32 Width, uint32 Height, uint8 
 	}
 }
 
-static inline void ConvertRawR16G16B16A16DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
+inline void ConvertRawR16G16B16A16DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
 {
 	for (uint32 Y = 0; Y < Height; Y++)
 	{
@@ -360,7 +361,7 @@ static inline void ConvertRawR16G16B16A16DataToFColor(uint32 Width, uint32 Heigh
 	}
 }
 
-static inline void ConvertRawR16G16DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
+inline void ConvertRawR16G16DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
 {
 	for (uint32 Y = 0; Y < Height; Y++)
 	{
@@ -378,7 +379,7 @@ static inline void ConvertRawR16G16DataToFColor(uint32 Width, uint32 Height, uin
 	}
 }
 
-static inline void ConvertRawR8DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
+inline void ConvertRawR8DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
 {
 	for (uint32 Y = 0; Y < Height; Y++)
 	{
@@ -393,7 +394,7 @@ static inline void ConvertRawR8DataToFColor(uint32 Width, uint32 Height, uint8 *
 	}
 }
 
-static inline void ConvertRawD32S8DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, FReadSurfaceDataFlags InFlags)
+inline void ConvertRawD32S8DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, FReadSurfaceDataFlags InFlags)
 {
 	bool bLinearToGamma = InFlags.GetLinearToGamma();
 	// Depth
@@ -438,7 +439,7 @@ static inline void ConvertRawD32S8DataToFColor(uint32 Width, uint32 Height, uint
 
 // Linear functions
 
-static inline void ConvertRawR16DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
+inline void ConvertRawR16DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
 {
 	// e.g. shadow maps
 	for (uint32 Y = 0; Y < Height; Y++)
@@ -458,7 +459,7 @@ static inline void ConvertRawR16DataToFLinearColor(uint32 Width, uint32 Height, 
 	}
 }
 
-static inline void ConvertRawR8G8B8A8DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
+inline void ConvertRawR8G8B8A8DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
 {
 	// Read the data out of the buffer, converting it from ABGR to ARGB.
 	for (uint32 Y = 0; Y < Height; Y++)
@@ -475,7 +476,7 @@ static inline void ConvertRawR8G8B8A8DataToFLinearColor(uint32 Width, uint32 Hei
 	}
 }
 
-static inline void ConvertRawB8G8R8A8DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
+inline void ConvertRawB8G8R8A8DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
 {
 	for (uint32 Y = 0; Y < Height; Y++)
 	{
@@ -491,7 +492,7 @@ static inline void ConvertRawB8G8R8A8DataToFLinearColor(uint32 Width, uint32 Hei
 	}
 }
 
-static inline void ConvertRawA2B10G10R10DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
+inline void ConvertRawA2B10G10R10DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
 {
 	// Read the data out of the buffer, converting it from R10G10B10A2 to FLinearColor.
 	for (uint32 Y = 0; Y < Height; Y++)
@@ -512,7 +513,7 @@ static inline void ConvertRawA2B10G10R10DataToFLinearColor(uint32 Width, uint32 
 	}
 }
 
-static inline void ConvertRawR16G16B16A16FDataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out, FReadSurfaceDataFlags InFlags)
+inline void ConvertRawR16G16B16A16FDataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out, FReadSurfaceDataFlags InFlags)
 {
 	if (InFlags.GetCompressionMode() == RCM_MinMax)
 	{
@@ -574,7 +575,8 @@ static inline void ConvertRawR16G16B16A16FDataToFLinearColor(uint32 Width, uint3
 	}
 }
 
-static inline void ConvertRawRR11G11B10DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
+
+inline void ConvertRawRR11G11B10DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
 {
 	check(sizeof(FFloat3Packed) == sizeof(uint32));
 
@@ -592,7 +594,7 @@ static inline void ConvertRawRR11G11B10DataToFLinearColor(uint32 Width, uint32 H
 	}
 }
 
-static inline void ConvertRawR32G32B32A32DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out, FReadSurfaceDataFlags InFlags)
+inline void ConvertRawR32G32B32A32DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out, FReadSurfaceDataFlags InFlags)
 {
 	if (InFlags.GetCompressionMode() == RCM_MinMax)
 	{
@@ -648,7 +650,7 @@ static inline void ConvertRawR32G32B32A32DataToFLinearColor(uint32 Width, uint32
 	}
 }
 
-static inline void ConvertRawR24G8DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out, FReadSurfaceDataFlags InFlags)
+inline void ConvertRawR24G8DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out, FReadSurfaceDataFlags InFlags)
 {
 	// Depth stencil
 	for (uint32 Y = 0; Y < Height; Y++)
@@ -669,7 +671,7 @@ static inline void ConvertRawR24G8DataToFLinearColor(uint32 Width, uint32 Height
 	}
 }
 
-static inline void ConvertRawR32DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out, FReadSurfaceDataFlags InFlags)
+inline void ConvertRawR32DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out, FReadSurfaceDataFlags InFlags)
 {
 	// Depth stencil
 	for (uint32 Y = 0; Y < Height; Y++)
@@ -689,7 +691,7 @@ static inline void ConvertRawR32DataToFLinearColor(uint32 Width, uint32 Height, 
 	}
 }
 
-static inline void ConvertRawR16G16B16A16DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
+inline void ConvertRawR16G16B16A16DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
 {
 	// Read the data out of the buffer, converting it to FLinearColor.
 	for (uint32 Y = 0; Y < Height; Y++)
@@ -710,7 +712,7 @@ static inline void ConvertRawR16G16B16A16DataToFLinearColor(uint32 Width, uint32
 	}
 }
 
-static inline void ConvertRawR16G16DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
+inline void ConvertRawR16G16DataToFLinearColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FLinearColor* Out)
 {
 	// Read the data out of the buffer, converting it to FLinearColor.
 	for (uint32 Y = 0; Y < Height; Y++)
@@ -728,3 +730,4 @@ static inline void ConvertRawR16G16DataToFLinearColor(uint32 Width, uint32 Heigh
 		}
 	}
 }
+

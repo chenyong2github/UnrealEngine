@@ -4,6 +4,25 @@
 #include "Serialization/StructuredArchiveContainer.h"
 #include "Containers/UnrealString.h"
 
+FArchive& UE::StructuredArchive::Private::FSlotBase::GetUnderlyingArchive() const
+{
+	return GetUnderlyingArchiveImpl(StructuredArchive);
+}
+
+const FArchiveState& UE::StructuredArchive::Private::FSlotBase::GetArchiveState() const
+{
+	return GetUnderlyingArchiveStateImpl(StructuredArchive);
+}
+
+bool FStructuredArchiveSlot::IsFilled() const
+{
+#if WITH_TEXT_ARCHIVE_SUPPORT
+	return UE::StructuredArchive::Private::GetCurrentSlotElementIdImpl(StructuredArchive) != ElementId;
+#else
+	return true;
+#endif
+}
+
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
 //////////// FStructuredArchiveSlot ////////////

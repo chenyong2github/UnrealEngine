@@ -6,7 +6,7 @@
 #include "Rendering/MorphTargetVertexInfoBuffers.h"
 
 /** An external morph target set. External morph targets are managed by systems outside of the skinned meshes. */
-struct ENGINE_API FExternalMorphSet
+struct FExternalMorphSet
 {
 	/** A name for this set, useful for debugging. */
 	FName Name = FName(TEXT("Unknown"));

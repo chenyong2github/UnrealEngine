@@ -12,12 +12,10 @@
 #include "UObject/NameTypes.h"
 #include "Templates/SharedPointer.h"
 
-struct FWeakObjectPtr;
-
 /**
  * Script delegate base class.
  */
-template <typename TWeakPtr = FWeakObjectPtr>
+template <typename TWeakPtr /*= FWeakObjectPtr*/>
 class TScriptDelegate
 {
 	// Although templated, the parameter is not intended to be anything other than the default,
@@ -317,7 +315,7 @@ template<typename TWeakPtr> struct TIsZeroConstructType<TScriptDelegate<TWeakPtr
 /**
  * Script multi-cast delegate base class
  */
-template <typename TWeakPtr = FWeakObjectPtr>
+template <typename TWeakPtr/* = FWeakObjectPtr*/>
 class TMulticastScriptDelegate
 {
 public:

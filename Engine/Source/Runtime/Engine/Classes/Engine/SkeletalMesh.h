@@ -816,7 +816,7 @@ private:
 	/** Struct containing information for each LOD level, such as materials to use, and when use the LOD. */
 	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, EditFixedSize, Category=LevelOfDetail)
-	TArray<struct FSkeletalMeshLODInfo> LODInfo;
+	TArray<FSkeletalMeshLODInfo> LODInfo;
 
 #if !WITH_EDITOR
 	/** Acceleration struct used for faster socket lookups */

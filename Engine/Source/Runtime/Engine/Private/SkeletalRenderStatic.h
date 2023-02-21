@@ -17,24 +17,24 @@
 class FPrimitiveDrawInterface;
 class UMorphTarget;
 
-class ENGINE_API FSkeletalMeshObjectStatic : public FSkeletalMeshObject
+class FSkeletalMeshObjectStatic : public FSkeletalMeshObject
 {
 public:
 	/** @param	InSkeletalMeshComponent - skeletal mesh primitive we want to render */
-	FSkeletalMeshObjectStatic(USkinnedMeshComponent* InMeshComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, ERHIFeatureLevel::Type InFeatureLevel);
-	virtual ~FSkeletalMeshObjectStatic();
+	ENGINE_API FSkeletalMeshObjectStatic(USkinnedMeshComponent* InMeshComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, ERHIFeatureLevel::Type InFeatureLevel);
+	ENGINE_API virtual ~FSkeletalMeshObjectStatic();
 
 	//~ Begin FSkeletalMeshObject Interface
-	virtual void InitResources(USkinnedMeshComponent* InMeshComponent) override;
-	virtual void ReleaseResources() override;
+	ENGINE_API virtual void InitResources(USkinnedMeshComponent* InMeshComponent) override;
+	ENGINE_API virtual void ReleaseResources() override;
 	virtual void Update(int32 LODIndex,USkinnedMeshComponent* InMeshComponent,const FMorphTargetWeightMap& InActiveMorphTargets, const TArray<float>& MorphTargetWeights, EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode, const FExternalMorphWeightData& InExternalMorphWeightData) override {};
 	//virtual void UpdateRecomputeTangent(int32 MaterialIndex, int32 LODIndex, bool bRecomputeTangent) override {};
 	virtual void EnableOverlayRendering(bool bEnabled, const TArray<int32>* InBonesOfInterest, const TArray<UMorphTarget*>* InMorphTargetOfInterest) override {};
 	virtual void CacheVertices(int32 LODIndex, bool bForce) const override {};
 	virtual bool IsCPUSkinned() const override { return true; }
-	virtual const FVertexFactory* GetSkinVertexFactory(const FSceneView* View, int32 LODIndex, int32 ChunkIdx, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const override;
-	virtual TArray<FTransform>* GetComponentSpaceTransforms() const override;
-	virtual const TArray<FMatrix44f>& GetReferenceToLocalMatrices() const override;
+	ENGINE_API virtual const FVertexFactory* GetSkinVertexFactory(const FSceneView* View, int32 LODIndex, int32 ChunkIdx, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const override;
+	ENGINE_API virtual TArray<FTransform>* GetComponentSpaceTransforms() const override;
+	ENGINE_API virtual const TArray<FMatrix44f>& GetReferenceToLocalMatrices() const override;
 
 	virtual int32 GetLOD() const override
 	{
@@ -107,6 +107,6 @@ private:
 	};
 
 	/** Render data for each LOD */
-	TArray<struct FSkeletalMeshObjectLOD> LODs;
+	TArray<FSkeletalMeshObjectLOD> LODs;
 };
 
