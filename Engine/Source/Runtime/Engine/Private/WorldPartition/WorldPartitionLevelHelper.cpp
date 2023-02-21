@@ -252,7 +252,7 @@ bool FWorldPartitionLevelHelper::RemapLevelCellPathInContentBundle(ULevel* Level
 	
 	Level->WorldPartitionRuntimeCell = FSoftObjectPath(CellPath);
 
-	return Level->WorldPartitionRuntimeCell.IsValid();
+	return !Level->WorldPartitionRuntimeCell.GetUniqueID().IsNull();
 }
 
 /**
