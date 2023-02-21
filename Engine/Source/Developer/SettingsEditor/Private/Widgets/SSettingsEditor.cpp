@@ -450,6 +450,12 @@ void SSettingsEditor::HandleCultureChanged()
 
 void SSettingsEditor::HandleModelSelectionChanged()
 {
+	// This callback can trigger on unregister during shutdown, simply return in this case
+	if (!FSlateApplication::IsInitialized())
+	{
+		return;
+	}
+
 	ISettingsSectionPtr SelectedSection = Model->GetSelectedSection();
 
 	if (SelectedSection.IsValid())
