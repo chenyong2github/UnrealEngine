@@ -37,10 +37,39 @@ FOperatorHlsl* OpCreate(const FString& OpName, TConstArrayView<NNECore::FTensorD
 
 } // namespace ModelUtils
 
-bool FModel::AddWeightsToRDGGraph(FRDGBuilder& RDGBuilder)
+bool FModel::PrepareModelRDG(FRDGBuilder& RDGBuilder)
 {
-	check(WeightTensorRDGs.Num() == WeightsExternalRDGResources.Num());
+	//Register constant tensors to graph, uploading if needed
+	check(IntermediateTensorRDGs.Num() == ConstantsExternalRDGResources.Num());
+	for (int32 Idx = 0; Idx < ConstantsExternalRDGResources.Num(); ++Idx)
+	{
+		FTensorRDG& Tensor = IntermediateTensorRDGs[Idx];
+		TRefCountPtr<FRDGPooledBuffer>& PooledBuffer = ConstantsExternalRDGResources[Idx];
 
+		if (Tensor.HasPreparedData())
+		{
+			if (!PooledBuffer.IsValid())
+			{
+				FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateBufferDesc(Tensor.GetElemByteSize(), Tensor.GetVolume());
+				const FRDGBufferRef TransientRDGBuffer = RDGBuilder.CreateBuffer(BufferDesc, *Tensor.GetName(), ERDGBufferFlags::None);
+				const uint8* TensorData = Tensor.GetPreparedData<uint8>().GetData();
+				PooledBuffer = RDGBuilder.ConvertToExternalBuffer(TransientRDGBuffer);
+
+				// Data is copied so model can be released safely or another upload added to the queue
+				RDGBuilder.QueueBufferUpload(TransientRDGBuffer, TensorData, Tensor.GetDataSize(), ERDGInitialDataFlags::None);
+			}
+			check(PooledBuffer.IsValid())
+			FRDGBufferRef Buffer = RDGBuilder.RegisterExternalBuffer(PooledBuffer);
+			Tensor.SetBuffer(Buffer);
+		}
+		else
+		{
+			Tensor.SetBuffer(nullptr);
+		}
+	}
+
+	//Register weight tensors to graph
+	check(WeightTensorRDGs.Num() == WeightsExternalRDGResources.Num());
 	for (int32 Idx = 0; Idx < WeightsExternalRDGResources.Num(); ++Idx)
 	{
 		const TRefCountPtr<FRDGPooledBuffer>& PooledBuffer = WeightsExternalRDGResources[Idx];
@@ -175,6 +204,10 @@ int FModel::PrepareTensorShapesAndData()
 		}
 	);
 
+	//Release uploaded GPU side constants tensors.
+	ConstantsExternalRDGResources.Reset();
+	ConstantsExternalRDGResources.SetNum(IntermediateTensorRDGs.Num());
+
 	// Run model preparation (including shape inference) on all operators
 	// This loop could be abstracted to a different system as it apply on FTensorRef & IPrepareOperator witch are RDG agnostics.
 	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
@@ -214,12 +247,6 @@ int FModel::PrepareTensorShapesAndData()
 			checkf(AllInitializedTensors[i], TEXT("Tensor at index %d, was not initialized by model preparation."));
 		};
 	);
-
-	if (!PrepareConstants())
-	{
-		UE_LOG(LogNNE, Warning, TEXT("Constant tensors could not be uploaded to GPU memory."));
-		return -1;
-	}
 
 	return 0;
 }
@@ -272,7 +299,6 @@ void EnqueueTensorUpload(TArray<TRefCountPtr<FRDGPooledBuffer>>& OutExternalRDGR
 						const uint8* TensorData = Tensor.GetPreparedData<uint8>().GetData();
 
 						OutExternalRDGResources[i] = RDGBuilder.ConvertToExternalBuffer(TransientRDGBuffer);
-						Tensor.SetBuffer(TransientRDGBuffer);
 						RDGBuilder.QueueBufferUpload(TransientRDGBuffer, TensorData, Tensor.GetDataSize(), CopyDataFlag);
 					}
 				}
@@ -294,14 +320,6 @@ void EnqueueTensorUpload(TArray<TRefCountPtr<FRDGPooledBuffer>>& OutExternalRDGR
 
 		FGenericPlatformProcess::ReturnSynchEventToPool(Signal);
 	}
-}
-
-bool FModel::PrepareConstants()
-{
-	// Data is copied so model can be released safely or another upload added to the queue (via SetInputShapes).
-	UploadHelper::EnqueueTensorUpload(ConstantsExternalRDGResources, IntermediateTensorRDGs, ERDGInitialDataFlags::None);
-	
-	return true;
 }
 
 bool FModel::PrepareWeights()

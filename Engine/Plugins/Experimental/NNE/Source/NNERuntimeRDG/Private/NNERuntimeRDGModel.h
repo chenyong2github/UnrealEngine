@@ -25,7 +25,7 @@ namespace UE::NNERuntimeRDG::Private
 		int SetTensors(FRDGBuilder& GraphBuilder, FTensorRDGArray& InTensorRDGs, TConstArrayView<NNECore::FTensorBindingRDG> InBindings);
 
 		virtual int PrepareTensorShapesAndData() = 0;
-		virtual bool AddWeightsToRDGGraph(FRDGBuilder& RDGBuilder) { return false; }
+		virtual bool PrepareModelRDG(FRDGBuilder& RDGBuilder) { return false; }
 		virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) = 0;
 
 		//Tensor descriptor

@@ -23,11 +23,10 @@ public:
 protected:
 
 	virtual int PrepareTensorShapesAndData() override;
-	virtual bool AddWeightsToRDGGraph(FRDGBuilder& RDGBuilder) override;
+	virtual bool PrepareModelRDG(FRDGBuilder& RDGBuilder) override;
 	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override;
 
 	bool PrepareWeights();
-	bool PrepareConstants();
 
 private:
 

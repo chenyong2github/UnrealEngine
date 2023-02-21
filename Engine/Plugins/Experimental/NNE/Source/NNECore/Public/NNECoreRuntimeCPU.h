@@ -74,6 +74,7 @@ public:
 	 *
 	 * The call is mandatory before a model can be run.
 	 * The function will run shape inference and resolve, if possible, the output shapes which can then be accessed by calling GetOutputTensorShapes().
+	 * This is a potentially expensive call and should be called lazily if possible.
 	 *
 	 * @param InInputShapes The input shapes to prepare the model with.
 	 * @return 0 on success or a non-zero number otherwise.

@@ -224,7 +224,11 @@ int FModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNECore::FTen
 		return -1;
 	}
 
-	//Create buffer for not const intermediate tensors
+	
+	//Register constant and weights tensors resources to RDG graph, uploading constant tensors if needed
+	bool bBuffersUploadedAndRegisteredToRDGGraph = PrepareModelRDG(RDGBuilder);
+
+	//Create temporary buffers for NOT const intermediate tensors
 	for (FTensorRDG& TensorRDG : IntermediateTensorRDGs)
 	{
 		if (!TensorRDG.HasPreparedData())
@@ -234,23 +238,13 @@ int FModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNECore::FTen
 			check(TensorRDG.GetBuffer() == nullptr);
 			TensorRDG.SetBuffer(TensorBuffer);
 		}
-		else
-		{
-			check(TensorRDG.GetBuffer() != nullptr);
-		}
 	}
 
-	if (AddWeightsToRDGGraph(RDGBuilder))
+	//Note: DirectML uses RHI buffers instead of RDG buffers
+	//For now weights tensors are not uploaded to GPU thus GetBuffer will return nullptr for them.
+	if (bBuffersUploadedAndRegisteredToRDGGraph)
 	{
-		//Note: DirectML uses RHI buffers instead of RDG buffers
-		//For now weights tensors are not uploaded to GPU thus GetBuffer will return nullptr for them.
-		checkCode(for (const FTensorRDG* TensorRDG : AllTensorRDGRefs) { if (TensorRDG != nullptr) { check(TensorRDG->GetBuffer() != nullptr); } });	
-	}
-
-	//Insert weights tensors
-	for (int32 i = 0; i < WeightTensorIndices.Num(); ++i)
-	{
-		AllTensorRDGRefs[WeightTensorIndices[i]] = &WeightTensorRDGs[i];
+		checkCode(for (const FTensorRDG* TensorRDG : AllTensorRDGRefs) { if (TensorRDG != nullptr) { check(TensorRDG->GetBuffer() != nullptr); } });
 	}
 
 	// We can now dispatch operators
