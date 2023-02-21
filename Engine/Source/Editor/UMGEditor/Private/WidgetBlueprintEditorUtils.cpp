@@ -237,7 +237,7 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 
 	bool bRenamed = false;
 
-	TSharedPtr<INameValidatorInterface> NameValidator = MakeShareable(new FKismetNameValidator(Blueprint));
+	TSharedPtr<INameValidatorInterface> NameValidator = MakeShareable(new FKismetNameValidator(Blueprint, OldObjectName));
 
 	const FName NewFName = SanitizeWidgetName(NewDisplayName, Widget->GetFName());
 
