@@ -13,6 +13,7 @@
 #include "Misc/PackagePath.h"
 #include "UObject/Class.h"
 #include "UObject/Linker.h"
+#include "UObject/PackageRelocation.h"
 #include "UObject/PackageTrailer.h"
 
 
@@ -323,6 +324,19 @@ bool FPackageReader::SerializePackageTrailer(FAssetPackageData& PackageData)
 	return true;
 }
 
+void FPackageReader::ApplyRelocationToImportMapAndSoftPackageReferenceList(FStringView LoadedPackageName, TArray<FName>& OutSoftPackageReferenceList)
+{
+#if WITH_EDITOR
+	UE::Package::Relocation::Private::FPackageRelocationContext RelocationArgs;
+	if (UE::Package::Relocation::Private::ShouldApplyRelocation(PackageFileSummary, LoadedPackageName, RelocationArgs))
+	{
+		UE_LOG(LogPackageRelocation, Verbose, TEXT("Detected relocated package (%.*s). The package was saved as (%s)."), LoadedPackageName.Len(), LoadedPackageName.GetData(), *PackageFileSummary.PackageName);
+		UE::Package::Relocation::Private::ApplyRelocationToObjectImportMap(RelocationArgs, ImportMap);
+		UE::Package::Relocation::Private::ApplyRelocationToNameArray(RelocationArgs, OutSoftPackageReferenceList);
+	}
+#endif
+}
+
 bool FPackageReader::ReadAssetDataFromThumbnailCache(TArray<FAssetData*>& AssetDataList)
 {
 	if (!StartSerializeSection(PackageFileSummary.ThumbnailTableOffset))
@@ -519,6 +533,8 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 		{
 			return false;
 		}
+
+		ApplyRelocationToImportMapAndSoftPackageReferenceList(PackageNameString, SoftPackageReferenceList);
 
 		OutDependencyData.LoadDependenciesFromPackageHeader(OutDependencyData.PackageName, ImportMap, SoftPackageReferenceList,
 			SearchableNames.SearchableNamesMap, ImportUsedInGame, SoftPackageUsedInGame);

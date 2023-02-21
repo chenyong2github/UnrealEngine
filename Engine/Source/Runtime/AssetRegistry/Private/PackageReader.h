@@ -93,6 +93,8 @@ private:
 		const TArray<FObjectImport>& InImportMap, const TArray<FName>& SoftPackageReferenceList);
 	bool SerializePackageTrailer(FAssetPackageData& PackageData);
 
+	void ApplyRelocationToImportMapAndSoftPackageReferenceList(FStringView LoadedPackageName, TArray<FName>& OutSoftPackageReferenceList);
+
 	/** Returns flags the asset package was saved with */
 	uint32 GetPackageFlags() const;
 

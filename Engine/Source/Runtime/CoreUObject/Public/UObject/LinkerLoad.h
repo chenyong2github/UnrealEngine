@@ -430,8 +430,10 @@ private:
 	bool					bHasFixedUpImportMap:1;
 	/** Whether we already populated the instancing context.																*/
 	bool					bHasPopulatedInstancingContext:1;
-	/** Whether we already populated the relocation context.																*/
-	bool					bHasPopulatedRelocationContext:1;
+	/** Whether we already relocated references.																			*/
+	bool					bHasRelocatedReferences:1;
+	/** Whether we already applied the instancing context to the soft object list.											*/
+	bool					bHasAppliedInstancingContext : 1;
 	/** Used for ActiveClassRedirects functionality */
 	bool					bFixupExportMapDone:1;
 	/** Whether we already matched up existing exports.																		*/
@@ -1156,10 +1158,9 @@ private:
 	 */
 	ELinkerStatus PopulateInstancingContext();
 
-	/**
-	 * Generate remapping for the relocation context if this is a relocated package.
-	 */
-	ELinkerStatus PopulateRelocationContext();
+	ELinkerStatus RelocateReferences();
+
+	ELinkerStatus ApplyInstancingContext();
 
 	/**
 	 * Serializes the export map.

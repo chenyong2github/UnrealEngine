@@ -53,6 +53,7 @@
 #include "Serialization/EditorBulkData.h"
 #include "HAL/FileManager.h"
 #include "UObject/CoreRedirects.h"
+#include "UObject/PackageRelocation.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/EngineBuildSettings.h"
@@ -798,11 +799,18 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::ProcessPackageSummary(TMap<TPair<FName, 
 		Status = PopulateInstancingContext();
 	}
 
-	// Populate the linker instancing context for relocation loading if needed.
+	// Modify the ImportMap and SoftObjectPathList to account for the potential relocation of the packages
 	if (Status == LINKER_Loaded)
 	{
-		SCOPED_LOADTIMER(LinkerLoad_PopulateRelocationContext);
-		Status = PopulateRelocationContext();
+		SCOPED_LOADTIMER(LinkerLoad_ApplyRelocationToImportMapAndSoftObjectPathList);
+		Status = RelocateReferences();
+	}
+
+	// Modify the SoftObjectPathList for the instancing context
+	if (Status == LINKER_Loaded)
+	{
+		SCOPED_LOADTIMER(LinkerLoad_ApplyInstancingContextToSoftObjectPathList);
+		Status = ApplyInstancingContext();
 	}
 
 	// Fix up export map for object class conversion 
@@ -966,7 +974,8 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 , bHasSerializedPreloadDependencies(false)
 , bHasFixedUpImportMap(false)
 , bHasPopulatedInstancingContext(false)
-, bHasPopulatedRelocationContext(false)
+, bHasRelocatedReferences(false)
+, bHasAppliedInstancingContext(false)
 , bFixupExportMapDone(false)
 , bHasFoundExistingExports(false)
 , bHasFinishedInitialization(false)
@@ -1772,8 +1781,6 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeSoftObjectPathList()
 		FSoftObjectPath& SoftObjectPath = SoftObjectPathList.AddDefaulted_GetRef();
 		FStructuredArchive::FSlot Slot = Stream.EnterElement();
 		SoftObjectPath.SerializePath(Slot.GetUnderlyingArchive());
-
-		FixupSoftObjectPathForInstancedPackage(SoftObjectPath);
 		++SoftObjectPathListIndex;
 	}
 
@@ -2090,120 +2097,48 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::PopulateInstancingContext()
 	return IsTimeLimitExceeded(TEXT("populating instancing context")) ? LINKER_TimedOut : LINKER_Loaded;
 }
 
-/**
- * Generate a package name with the same relative pathing from the current package path as from the original package path
- * i.e.
- * OriginalPath: /Game/Folder/
- * CurrentPath: /Game/OtherFolder/SubFolder/
- * Example 1:
- * PackageName: /Game/Folder/Sub/Asset
- * Result: /Game/OtherFolder/SubFolder/Sub/Asset
- * Example 2:
- * PackageName: /Game/OtherAsset
- * Result: /Game/OtherFolder/OtherAsset
- * @param InOriginalPackagePath The original package path where this package was located
- * @param InCurrentPackagePath The current location of the package
- * @param InPackageName The package name we want to remap relative to the current location
- * @return FName new package name keeping the same relative location to the current path as the original
- */
-FName GenerateCurrentRelativePackageName(FStringView InOriginalPackagePath, FStringView InCurrentPackagePath, FStringView InPackageName)
+FLinkerLoad::ELinkerStatus FLinkerLoad::RelocateReferences()
 {
-	FName Result = NAME_None;
-	FString RelPackageName(InPackageName);
-	//@todo 5.2: Create and use a string view version of MakePathRelativeTo
-	FString OriginalPackagePath(InOriginalPackagePath);
-	FPaths::MakePathRelativeTo(RelPackageName, *OriginalPackagePath);
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FLinkerLoad::RelocateReferences"), STAT_LinkerLoad_RelocateReferences, STATGROUP_LinkerLoad);
 
-	// Strip the mount point from the current path prior to collapsing as we do not want to allow it to be collapsed
-	FStringView CurrentMount, MountlessCurrentPath;
-	FPathViews::SplitFirstComponent(FStringView(InCurrentPackagePath.RightChop(1)), CurrentMount, MountlessCurrentPath);
-	TStringBuilder<64> MountBuilder;
-	MountBuilder << '/' << CurrentMount << '/';
-
-	// Build the new path to collapse against the current path
-	TStringBuilder<256> Builder;
-	if (MountlessCurrentPath.Len() > 0)
-	{
-		Builder << MountlessCurrentPath << '/' << RelPackageName;
-	}
-	else
-	{
-		Builder << RelPackageName;
-	}
-	bool bSuccess = FPathViews::CollapseRelativeDirectories(Builder);
-
-	// if we successfully collapsed the path prepend the mount point back
-	if (bSuccess)
-	{
-		Builder.Prepend(MountBuilder);
-		Result = FName(*Builder);
-	}
-	// if we couldn't, at least fix up the mount point if needed
-	else if (!InPackageName.StartsWith(MountBuilder.ToView()))
-	{
-		FStringView PackageMount, MountlessPackagePath;
-		FPathViews::SplitFirstComponent(FStringView(InPackageName.RightChop(1)), PackageMount, MountlessPackagePath);
-		Builder.Reset();
-		Builder << MountBuilder << MountlessPackagePath;
-		Result = FName(*Builder);
-	}
-	return Result;
-}
-
-FLinkerLoad::ELinkerStatus FLinkerLoad::PopulateRelocationContext()
-{
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FLinkerLoad::PopulateRelocationContext"), STAT_LinkerLoad_PopulateRelocationContext, STATGROUP_LinkerLoad);
-
-	if (!bHasPopulatedRelocationContext)
+	if (!bHasRelocatedReferences)
 	{
 #if WITH_EDITOR
 		// Validate if the package was moved and we want to generate fix up for references
 		FString PackageNameToLoad = GetPackagePath().GetPackageName();
-		// Check the summmary versioning alongside, PackageName used to be FolderName which wasn't actively used and got deprecated
-		bool bRelocated = false;// PackageNameToLoad != Summary.PackageName && Summary.GetFileVersionUE() >= EUnrealEngineObjectUE5Version::ADD_SOFTOBJECTPATH_LIST;
+
+		UE::Package::Relocation::Private::FPackageRelocationContext RelocationArgs;
+
+		bool bRelocated = UE::Package::Relocation::Private::ShouldApplyRelocation(Summary, PackageNameToLoad, RelocationArgs);
 		// Do not consider a package relocated if it's being loaded for Diff
 		if (bRelocated && (LoadFlags & LOAD_ForDiff) == 0)
 		{
-			// Only Generate relative fix up if the file was actually moved not just renamed
-			FStringView PackagePathToLoad = FPathViews::GetPath(PackageNameToLoad);
-			FStringView OriginalPackagePath = FPathViews::GetPath(Summary.PackageName);
-
-			if (PackagePathToLoad != OriginalPackagePath)
-			{
-				//@todo 5.2: switch to use the string view version
-				//FStringView PackageMount = FPathViews::GetMountPointNameFromPath(OriginalPackagePath, nullptr, false);
-				FString PackageMount = FPackageName::GetPackageMountPoint(FString(OriginalPackagePath.GetData(), OriginalPackagePath.Len()), false).ToString();
-
-				for (const FObjectImport& Import : ImportMap)
-				{
-					if (!Import.OuterIndex.IsNull())
-					{
-						continue;
-					}
-
-					// Generate relative fix-up for package path from the same original package mount point of the package we are loading
-					FString ImportPackageName = Import.ObjectName.ToString();
-					if (FPathViews::IsParentPathOf(PackageMount, ImportPackageName))
-					{
-						FName GeneratedName = GenerateCurrentRelativePackageName(OriginalPackagePath, PackagePathToLoad, ImportPackageName);
-						if (!GeneratedName.IsNone())
-						{
-							FName& RelocatedName = InstancingContext.RelocatedPackageMapping.FindOrAdd(Import.ObjectName);
-							// if there isn't already a remapping for that package, create one
-							if (RelocatedName.IsNone())
-							{
-								RelocatedName = GeneratedName;
-							}
-						}
-					}
-				}
-			}
+			UE_LOG(LogPackageRelocation, Verbose, TEXT("Loading relocated package (%s). The package was saved as (%s)."), *PackageNameToLoad, *Summary.PackageName);
+			UE::Package::Relocation::Private::ApplyRelocationToObjectImportMap(RelocationArgs, ImportMap);
+			UE::Package::Relocation::Private::ApplyRelocationToSoftObjectArray(RelocationArgs, SoftObjectPathList);
 		}
 #endif
 		// Avoid duplicate work in async case.
-		bHasPopulatedRelocationContext = true;
+		bHasRelocatedReferences = true;
 	}
-	return IsTimeLimitExceeded(TEXT("populating relocation context")) ? LINKER_TimedOut : LINKER_Loaded;
+	return IsTimeLimitExceeded(TEXT("relocating the ImportMap and SoftObjectPathList")) ? LINKER_TimedOut : LINKER_Loaded;
+}
+
+FLinkerLoad::ELinkerStatus FLinkerLoad::ApplyInstancingContext()
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FLinkerLoad::ApplyInstancingContext"), STAT_LinkerLoad_ApplyInstancingContext, STATGROUP_LinkerLoad);
+	if (!bHasAppliedInstancingContext)
+	{ 
+		for (FSoftObjectPath& SoftObjectPath : SoftObjectPathList)
+		{
+			FixupSoftObjectPathForInstancedPackage(SoftObjectPath);
+		}
+
+		// Avoid duplicate work in async case.
+		bHasAppliedInstancingContext = true;
+	}
+
+	return IsTimeLimitExceeded(TEXT("applying the instancing context to the SoftObjectPathList")) ? LINKER_TimedOut : LINKER_Loaded;;
 }
 
 /**
@@ -3351,9 +3286,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		FUObjectSerializeContext* SerializeContext = GetSerializeContext();
 
 		// Resolve the package name for the import, potentially remapping it, if instancing
-		FName OriginalPackageToLoad = !Import.HasPackageName() ? Import.ObjectName : Import.GetPackageName();
-		FName PackageToLoad = InstancingContext.RelocatePackage(OriginalPackageToLoad);
-
+		FName PackageToLoad = !Import.HasPackageName() ? Import.ObjectName : Import.GetPackageName();
 		FName PackageToLoadInto = InstancingContext.RemapPackage(PackageToLoad);
 #if WITH_EDITOR
 		if (SlowTask)
@@ -3447,13 +3380,6 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		// to be linked to any other package's ImportMaps
 		if (!Package || Package->HasAnyPackageFlags(PKG_Compiling))
 		{
-			FName RelocatedName;
-			if (InstancingContext.RelocatedPackageMapping.RemoveAndCopyValue(OriginalPackageToLoad, RelocatedName))
-			{
-				UE_ASSET_LOG(LogLinker, Warning, PackagePath, TEXT("VerifyImport: Failed to load package for import object '%s' through using relative path '%s'. Using orginal location as fallback."), *GetImportFullName(ImportIndex), *RelocatedName.ToString());
-				return nullptr;
-			}
-
 			if (!FLinkerLoad::IsKnownMissingPackage(PackageToLoad))
 			{
 				FLinkerLoad::AddKnownMissingPackage(PackageToLoad);
