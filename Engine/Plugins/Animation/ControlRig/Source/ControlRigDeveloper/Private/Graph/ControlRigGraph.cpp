@@ -494,31 +494,6 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 
 					ModelNodePathToEdNode.Add(ModelNode->GetFName(), NewNode);
 				}
-				else if (URigVMRerouteNode* RerouteModelNode = Cast<URigVMRerouteNode>(ModelNode))
-				{
-					UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(this, GetControlRigGraphSchema()->GetGraphNodeClass(), ModelNode->GetFName());
-					AddNode(NewNode, false, false);
-
-					NewNode->ModelNodePath = ModelNode->GetNodePath();
-					NewNode->CreateNewGuid();
-					NewNode->PostPlacedNewNode();
-					NewNode->AllocateDefaultPins();
-
-					NewNode->NodePosX = ModelNode->GetPosition().X;
-					NewNode->NodePosY = ModelNode->GetPosition().Y;
-
-					NewNode->SetFlags(RF_Transactional);
-
-					if (URigVMPin* ModelPin = ModelNode->FindPin("Value"))
-					{
-						if (UEdGraphPin* ValuePin = NewNode->FindPin(ModelPin->GetPinPath()))
-						{
-							NewNode->SetColorFromModel(GetSchema()->GetPinTypeColor(ValuePin->PinType));
-						}
-					}
-
-					ModelNodePathToEdNode.Add(ModelNode->GetFName(), NewNode);
-				}
 				else // struct, library, parameter + variable
 				{
 					UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(this, GetControlRigGraphSchema()->GetGraphNodeClass(), ModelNode->GetFName());
@@ -532,7 +507,20 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 
 					NewNode->NodePosX = ModelNode->GetPosition().X;
 					NewNode->NodePosY = ModelNode->GetPosition().Y;
-					NewNode->SetColorFromModel(ModelNode->GetNodeColor());
+					if (URigVMRerouteNode* RerouteModelNode = Cast<URigVMRerouteNode>(ModelNode))
+					{
+						if (URigVMPin* ModelPin = ModelNode->FindPin("Value"))
+						{
+							if (UEdGraphPin* ValuePin = NewNode->FindPin(ModelPin->GetPinPath()))
+							{
+								NewNode->SetColorFromModel(GetSchema()->GetPinTypeColor(ValuePin->PinType));
+							}
+						}
+					}
+					else
+					{
+						NewNode->SetColorFromModel(ModelNode->GetNodeColor());
+					}
 					NewNode->SetFlags(RF_Transactional);
 
 					ModelNodePathToEdNode.Add(ModelNode->GetFName(), NewNode);
