@@ -6,9 +6,9 @@ namespace UnrealBuildTool.Rules
 	{
 		public MaterialAnalyzer(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PublicIncludePaths.AddRange(
+			PublicIncludePathModuleNames.AddRange(
 				new string[] {
-				"Editor/WorkspaceMenuStructure/Public"
+				"WorkspaceMenuStructure"
 				}
 			);
 			PublicDependencyModuleNames.AddRange(new string[] {

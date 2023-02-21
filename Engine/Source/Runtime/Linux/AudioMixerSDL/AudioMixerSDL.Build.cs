@@ -7,8 +7,7 @@ public class AudioMixerSDL : ModuleRules
 	public AudioMixerSDL(ReadOnlyTargetRules Target) : base(Target)
 	{
         PrivateIncludePathModuleNames.Add("TargetPlatform");
-		PublicIncludePaths.Add("Runtime/AudioMixer/Public");
-		PrivateIncludePaths.Add("Runtime/AudioMixer/Private");
+		PrivateIncludePathModuleNames.Add("AudioMixer");
 
 		string PlatformName = Target.Platform.ToString();
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))

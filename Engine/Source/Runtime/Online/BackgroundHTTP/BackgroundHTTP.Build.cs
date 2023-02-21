@@ -6,16 +6,10 @@ public class BackgroundHTTP : ModuleRules
 {
     public BackgroundHTTP(ReadOnlyTargetRules Target) : base(Target)
     {
-        PublicIncludePaths.AddRange(
+        PublicIncludePathModuleNames.AddRange(
             new string[] {
-                "Runtime/Online/HTTP/Public",
+                "HTTP",
             }
-        );
-
-        PrivateIncludePaths.AddRange(
-            new string[] {
-				"Runtime/Online/HTTP/Private",
-			}
         );
 
         PublicDependencyModuleNames.AddRange(

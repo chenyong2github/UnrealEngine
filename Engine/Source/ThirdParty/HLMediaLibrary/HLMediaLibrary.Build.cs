@@ -23,6 +23,7 @@ public class HLMediaLibrary : ModuleRules
 
 		string Config = Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release";
 		string Arch = Target.Architecture.WindowsLibDir;
+		string IncPath = Path.Combine(BaseDir, "inc");
 		string SubPath = Path.Combine(Platform, Config, Arch);
 
 		string LibPath = Path.Combine(BaseDir, "lib", SubPath);
@@ -41,5 +42,8 @@ public class HLMediaLibrary : ModuleRules
 			// Ensure that the DLL is staged along with the executable
 			RuntimeDependencies.Add(Path.Combine(BinariesPath, dll));
 		}
+
+		// Add the include path
+		PublicSystemIncludePaths.Add(IncPath);
 	}
 }

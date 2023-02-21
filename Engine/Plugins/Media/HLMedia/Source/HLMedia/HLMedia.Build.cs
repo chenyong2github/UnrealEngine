@@ -43,8 +43,6 @@ public class HLMedia : ModuleRules
 			"D3D12RHI"
         });
 
-        PrivateIncludePaths.Add(Path.Combine(EngineDirectory, "Source/ThirdParty/HLMediaLibrary/inc"));
-
         PublicSystemLibraries.Add("mfplat.lib");
         PublicSystemLibraries.Add("mfreadwrite.lib");
         PublicSystemLibraries.Add("mfuuid.lib");

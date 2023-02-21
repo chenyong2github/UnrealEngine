@@ -15,14 +15,6 @@ public class UnrealEd : ModuleRules
 		PrivatePCHHeaderFile = "Private/UnrealEdPrivatePCH.h";
 		SharedPCHHeaderFile = "Public/UnrealEdSharedPCH.h";
 
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"Editor/PackagesDialog/Public",
-				"Developer/TargetPlatform/Public",
-			}
-		);
-
 		PrivateIncludePathModuleNames.AddRange(
 			new string[]
 			{
@@ -73,7 +65,9 @@ public class UnrealEd : ModuleRules
 				"LandscapeEditor",
 				"Blutility",
 				"WidgetRegistration",
-				"SlateReflector"
+				"SlateReflector",
+				"PackagesDialog",
+				"TargetPlatform",
 			}
 		);
 

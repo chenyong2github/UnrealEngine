@@ -38,7 +38,7 @@ public class DirectXMesh : ModuleRules
                 }
             }
 
-            PublicIncludePaths.Add(HeaderDir);
+            PublicSystemIncludePaths.Add(HeaderDir);
 
             // Construct the OpenVDB directory name
             string LibDirName = ModuleDirectory + "/Deploy/";

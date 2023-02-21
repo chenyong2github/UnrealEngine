@@ -61,10 +61,10 @@ namespace UnrealBuildTool.Rules
 						"D3D12RHI",
 					});
 
-					PrivateIncludePaths.AddRange(
+					PrivateIncludePathModuleNames.AddRange(
 						new string[]
 						{
-							"OculusMR/Public",
+							"OculusMR",
 						});
 
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11", "DX12");
@@ -88,10 +88,10 @@ namespace UnrealBuildTool.Rules
 			else if (Target.Platform == UnrealTargetPlatform.Android)
 			{
 				// We are not currently supporting Mixed Reality on Android, but we need to include IOculusMRModule.h for OCULUS_MR_SUPPORTED_PLATFORMS definition
-				PrivateIncludePaths.AddRange(
+				PrivateIncludePathModuleNames.AddRange(
 						new string[]
 						{
-							"OculusMR/Public"
+							"OculusMR"
 						});
 
 				// Vulkan

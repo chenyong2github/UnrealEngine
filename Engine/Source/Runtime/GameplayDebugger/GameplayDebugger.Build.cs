@@ -27,10 +27,7 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("DrawPrimitiveDebugger");
 			}
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Developer/Settings/Public",
-				});
+			PrivateIncludePathModuleNames.Add("Settings");
 
 			if (Target.bBuildEditor)
 			{

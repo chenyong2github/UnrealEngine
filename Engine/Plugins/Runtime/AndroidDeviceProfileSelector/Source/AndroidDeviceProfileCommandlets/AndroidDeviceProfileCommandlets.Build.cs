@@ -7,7 +7,7 @@ public class AndroidDeviceProfileCommandlets : ModuleRules
 {
 	public AndroidDeviceProfileCommandlets(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Developer/Android/AndroidDeviceDetection/Public");
+		PublicIncludePathModuleNames.Add("AndroidDeviceDetection");
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]

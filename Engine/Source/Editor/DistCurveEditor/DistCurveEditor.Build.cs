@@ -6,7 +6,7 @@ public class DistCurveEditor : ModuleRules
 {
 	public DistCurveEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Editor/UnrealEd/Public");
+		PublicIncludePathModuleNames.Add("UnrealEd");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

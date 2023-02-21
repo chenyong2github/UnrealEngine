@@ -15,15 +15,11 @@ public class WebBrowserTexture : ModuleRules
             Target.bBuildEditor == true)
 		{			
 			// Needed for external texture support
-			PublicIncludePaths.AddRange(
+			PublicIncludePathModuleNames.AddRange(
 				new string[] {
-				"Runtime/MediaUtils/Public",
-				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-				"Runtime/MediaUtils/Private",
-				});
+					"MediaUtils",
+				}
+			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

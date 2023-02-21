@@ -6,7 +6,7 @@ public class CryptoKeysOpenSSL : ModuleRules
 {
 	public CryptoKeysOpenSSL(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("CryptoKeys/Classes");
+		PrivateIncludePathModuleNames.Add("CryptoKeys");
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]

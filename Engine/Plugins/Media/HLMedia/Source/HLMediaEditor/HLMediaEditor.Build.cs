@@ -21,10 +21,11 @@ namespace UnrealBuildTool.Rules
                     "HLMedia",
                 });
 
+			PrivateIncludePathModuleNames.Add("HLMediaLibrary");
+
             PrivateIncludePaths.AddRange(
                 new string[] {
                     "HLMedia/Private",
-					Path.Combine(EngineDirectory, "Source/ThirdParty/HLMediaLibrary/inc"),
 		});
         }
     }

@@ -7,9 +7,9 @@ public class BlueprintGraph : ModuleRules
 {
 	public BlueprintGraph(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
+		PrivateIncludePathModuleNames.AddRange(
             new string[] {
-                "Editor/KismetCompiler/Public",
+                "KismetCompiler",
             }
 		);
 

@@ -6,10 +6,10 @@ public class PhysicsAssetEditor : ModuleRules
 {
 	public PhysicsAssetEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.AddRange(
+		PublicIncludePathModuleNames.AddRange(
              new string[] {
-                "Editor/UnrealEd/Public",
-                "Editor/Persona/Public"
+                "UnrealEd",
+                "Persona"
             }
         );
 

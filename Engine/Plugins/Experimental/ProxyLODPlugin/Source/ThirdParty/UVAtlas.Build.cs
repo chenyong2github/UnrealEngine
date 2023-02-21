@@ -38,7 +38,7 @@ public class UVAtlas : ModuleRules
                 }
             }
 
-            PublicIncludePaths.Add(UVAtlasHeaderDir);
+            PublicSystemIncludePaths.Add(UVAtlasHeaderDir);
 
             // Construct the OpenVDB directory name
             string LibDirName = ModuleDirectory + "/Deploy/";

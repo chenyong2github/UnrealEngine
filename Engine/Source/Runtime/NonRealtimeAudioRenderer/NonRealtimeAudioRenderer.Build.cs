@@ -8,14 +8,7 @@ namespace UnrealBuildTool.Rules
 		{
             PrivateIncludePathModuleNames.Add("TargetPlatform");
 
-            PrivateIncludePaths.AddRange(
-				new string[]
-				{
-					"Runtime/AudioMixer/Private",
-				}
-			);
-
-            PublicIncludePaths.Add("Runtime/AudioMixer/Public");
+            PublicIncludePathModuleNames.Add("AudioMixer");
 
             PrivateDependencyModuleNames.AddRange(
             new string[] {

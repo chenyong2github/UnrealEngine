@@ -380,7 +380,6 @@ public class Engine : ModuleRules
 			PrivateDependencyModuleNames.Add("TextureCompressor");
 
 			PrivateIncludePathModuleNames.Add("TextureCompressor");
-			PrivateIncludePaths.Add("Developer/TextureCompressor/Public");
 
 			PrivateIncludePathModuleNames.Add("HierarchicalLODUtilities");
 			DynamicallyLoadedModuleNames.Add("HierarchicalLODUtilities");
@@ -439,11 +438,7 @@ public class Engine : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 		{
-			PublicIncludePaths.AddRange(
-            	new string[] {
-               		"Runtime/IOS/IOSPlatformFeatures/Public"
-                });
-
+			PublicIncludePathModuleNames.Add("IOSPlatformFeatures");
 			PrivateIncludePathModuleNames.Add("IOSRuntimeSettings");
 		}
 

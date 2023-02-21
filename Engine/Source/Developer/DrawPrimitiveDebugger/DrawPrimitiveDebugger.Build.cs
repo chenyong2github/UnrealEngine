@@ -23,10 +23,7 @@ namespace UnrealBuildTool.Rules
 					"DeveloperSettings",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Developer/Settings/Public",
-				});
+			PrivateIncludePathModuleNames.Add("Settings");
 
 			// TODO: Decide whether Test builds should also remain restricted
 			if (Target.bBuildDeveloperTools || (Target.Configuration != UnrealTargetConfiguration.Shipping))

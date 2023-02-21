@@ -6,10 +6,10 @@ public class Cascade : ModuleRules
 {
 	public Cascade(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.AddRange(
+		PublicIncludePathModuleNames.AddRange(
 			new string[] {
-				"Editor/DistCurveEditor/Public",
-				"Editor/UnrealEd/Public",
+				"DistCurveEditor",
+				"UnrealEd",
 			}
 		);
 
