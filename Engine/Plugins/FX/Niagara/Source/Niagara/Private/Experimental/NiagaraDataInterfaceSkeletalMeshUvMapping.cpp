@@ -4,8 +4,7 @@
 
 #include "Experimental/NiagaraMeshUvMapping.h"
 #include "NDISkeletalMeshCommon.h"
-#include "NiagaraResourceArrayWriter.h"
-#include "NiagaraStats.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 
 template<bool UseFullPrecisionUv>
 struct FSkelMeshVertexAccessorHelper

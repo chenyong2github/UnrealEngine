@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSystemSimulation.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraModule.h"
 #include "NiagaraTypes.h"
-#include "NiagaraEvents.h"
-#include "NiagaraSettings.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemGpuComputeProxy.h"

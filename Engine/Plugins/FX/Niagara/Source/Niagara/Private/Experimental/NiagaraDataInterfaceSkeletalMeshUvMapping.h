@@ -2,10 +2,13 @@
 #pragma once
 
 #include "Experimental/NiagaraMeshUvMapping.h"
-#include "NiagaraDataInterfaceSkeletalMesh.h"
 #include "NiagaraUvQuadTree.h"
 #include "RenderResource.h"
+#include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+
+class FSkeletalMeshLODRenderData;
+class USkeletalMesh;
 
 struct FSkeletalMeshUvMapping : public FMeshUvMapping
 {

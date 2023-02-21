@@ -1,20 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceAudioOscilloscope.h"
+#include "AudioDevice.h"
 #include "NiagaraTypes.h"
-#include "NiagaraCustomVersion.h"
+#include "AudioDeviceManager.h"
 #include "AudioResampler.h"
-#include "NiagaraShader.h"
-#include "ShaderParameterUtils.h"
-#include "ClearQuad.h"
-#include "TextureResource.h"
-#include "Engine/Texture2D.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraDataInterfaceAudio.h"
 #include "NiagaraShaderParametersBuilder.h"
-#include "NiagaraSystemInstance.h"
-#include "Engine/TextureRenderTarget2D.h"
-#include "Engine/Engine.h"
-#include "NiagaraComponent.h"
+#include "RenderingThread.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceAudioOscilloscope)
 

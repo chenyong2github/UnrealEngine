@@ -5,7 +5,6 @@ Class used help realtime debug Gpu Compute simulations
 ==============================================================================*/
 #pragma once
 
-#include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 #include "NiagaraRenderGraphUtils.h"
 #include "RenderGraphDefinitions.h"

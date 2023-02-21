@@ -7,6 +7,8 @@
 #include "VectorVM.h"
 #include "NiagaraDataInterfaceVirtualTexture.generated.h"
 
+struct FNiagaraDataInterfaceGeneratedFunction;
+
 class URuntimeVirtualTexture;
 
 /** Data Interface allowing sampling of a texture */

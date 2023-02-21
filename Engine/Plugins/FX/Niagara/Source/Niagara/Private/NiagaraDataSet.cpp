@@ -2,10 +2,7 @@
 
 #include "NiagaraDataSet.h"
 #include "NiagaraCommon.h"
-#include "NiagaraShader.h"
 #include "GlobalShader.h"
-#include "UpdateTextureShaders.h"
-#include "ShaderParameterUtils.h"
 #include "NiagaraStats.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraGPUInstanceCountManager.h"

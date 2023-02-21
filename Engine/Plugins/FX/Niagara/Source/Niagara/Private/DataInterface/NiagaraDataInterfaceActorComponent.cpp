@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataInterface/NiagaraDataInterfaceActorComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/Pawn.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraTypes.h"
-#include "NiagaraCustomVersion.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraWorldManager.h"
@@ -13,7 +14,6 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
 #include "ShaderCompilerCore.h"
-#include "ShaderParameterUtils.h"
 #include "Misc/LargeWorldRenderPosition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceActorComponent)

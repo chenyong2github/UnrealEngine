@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceEmitterProperties.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraEmitterInstance.h"
-#include "NiagaraComputeExecutionContext.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 
 #include "Internationalization/Internationalization.h"
 #include "ShaderCompilerCore.h"
-#include "ShaderParameterUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceEmitterProperties)
 

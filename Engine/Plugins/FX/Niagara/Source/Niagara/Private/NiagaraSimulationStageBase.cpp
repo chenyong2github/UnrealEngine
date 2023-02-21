@@ -3,6 +3,7 @@
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraCompileHashVisitor.h"
 #include "NiagaraEmitter.h"
+#include "NiagaraSimulationStageCompileData.h"
 #include "NiagaraSystem.h"
 #include "NiagaraScriptSourceBase.h"
 

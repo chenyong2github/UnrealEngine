@@ -6,6 +6,9 @@
 #include "Channels/MovieSceneBoolChannel.h"
 #include "MovieSceneNiagaraBoolParameterSectionTemplate.generated.h"
 
+struct FNiagaraVariable;
+struct FNiagaraVariableBase;
+
 USTRUCT()
 struct FMovieSceneNiagaraBoolParameterSectionTemplate : public FMovieSceneNiagaraParameterSectionTemplate
 {

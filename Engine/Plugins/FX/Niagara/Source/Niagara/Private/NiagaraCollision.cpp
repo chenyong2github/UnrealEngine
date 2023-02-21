@@ -2,10 +2,9 @@
 
 #include "NiagaraCollision.h"
 #include "Engine/World.h"
-#include "NiagaraEmitterInstance.h"
-#include "NiagaraSystemInstance.h"
-#include "NiagaraComponent.h"
+#include "HAL/IConsoleManager.h"
 #include "NiagaraStats.h"
+#include "Misc/ScopeRWLock.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
 DECLARE_CYCLE_STAT(TEXT("Event Emission"), STAT_NiagaraEventWrite, STATGROUP_Niagara);

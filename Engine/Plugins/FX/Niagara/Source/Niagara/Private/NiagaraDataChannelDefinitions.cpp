@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataChannelDefinitions.h"
+#include "Modules/ModuleManager.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataChannel.h"
 #include "NiagaraDataChannelManager.h"
@@ -13,6 +14,8 @@
 #include "AssetRegistry/AssetData.h"
 
 #include "Misc/MessageDialog.h"
+#include "NiagaraSystem.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataChannelDefinitions"
 

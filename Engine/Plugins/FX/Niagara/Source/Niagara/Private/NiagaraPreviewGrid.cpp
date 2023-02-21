@@ -2,14 +2,10 @@
 
 #include "NiagaraPreviewGrid.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/Texture2D.h"
 #include "NiagaraComponent.h"
-#include "NiagaraEffectType.h"
 #include "NiagaraSystem.h"
 
-#include "Components/TextRenderComponent.h"
-#include "Components/StaticMeshComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraPreviewGrid)
 

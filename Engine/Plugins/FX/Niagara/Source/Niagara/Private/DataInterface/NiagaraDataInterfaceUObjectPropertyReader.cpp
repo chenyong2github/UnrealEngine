@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceUObjectPropertyReader.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraComputeExecutionContext.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 
 #include "Internationalization/Internationalization.h"
-#include "ShaderParameterUtils.h"
+#include "UObject/EnumProperty.h"
+#include "UObject/WeakFieldPtr.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceUObjectPropertyReader)
 

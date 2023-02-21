@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceGrid3DCollection.h"
 #include "NiagaraCompileHashVisitor.h"
+#include "NiagaraComponent.h"
 #include "NiagaraConstants.h"
+#include "NiagaraEmitter.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraRenderGraphUtils.h"
 #include "NiagaraSimStageData.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSettings.h"
-#include "NiagaraShader.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemInstanceController.h"
@@ -15,10 +17,8 @@
 
 #include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/TextureRenderTargetVolume.h"
-#include "Engine/VolumeTexture.h"
-#include "ClearQuad.h"
+#include "RHIStaticStates.h"
 #include "RenderGraphUtils.h"
-#include "ShaderParameterUtils.h"
 #include "TextureResource.h"
 
 #include "NiagaraDataInterfaceGrid3DCollectionReader.h"

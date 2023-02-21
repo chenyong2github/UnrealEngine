@@ -6,6 +6,9 @@
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "MovieSceneNiagaraIntegerParameterSectionTemplate.generated.h"
 
+struct FNiagaraVariable;
+struct FNiagaraVariableBase;
+
 USTRUCT()
 struct FMovieSceneNiagaraIntegerParameterSectionTemplate : public FMovieSceneNiagaraParameterSectionTemplate
 {

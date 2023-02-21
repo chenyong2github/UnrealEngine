@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraConstants.h"
+#include "NiagaraCommon.h"
 #include "NiagaraModule.h"
 
 #include "Internationalization/Internationalization.h"

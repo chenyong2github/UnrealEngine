@@ -2,6 +2,7 @@
 
 #include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 
+#include "Engine/World.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceArrayFloat.h"
 #include "NiagaraDataInterfaceArrayInt.h"

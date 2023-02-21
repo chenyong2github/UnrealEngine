@@ -5,8 +5,12 @@
 #include "NiagaraShared.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceEmitterBinding.h"
-#include "NiagaraParameterStore.h"
 #include "NiagaraDataInterfaceEmitterProperties.generated.h"
+
+enum class ENiagaraSimTarget : uint8;
+struct FNiagaraDataInterfaceGeneratedFunction;
+struct FNiagaraFunctionSignature;
+struct FVMExternalFunctionBindingInfo;
 
 /**
 Allows access to various emitter properties that are not part of the simulation data.

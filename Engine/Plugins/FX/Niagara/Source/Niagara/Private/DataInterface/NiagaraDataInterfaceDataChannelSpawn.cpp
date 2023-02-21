@@ -7,15 +7,14 @@ A specialized version of the Read DI that allows for direct spawning into emitte
 
 #include "NiagaraDataInterfaceDataChannelSpawn.h"
 
-#include "CoreMinimal.h"
 
 #include "NiagaraCommon.h"
 #include "NiagaraDataChannel.h"
-#include "NiagaraDataChannelHandler.h"
-#include "NiagaraDataChannelDefinitions.h"
 
 #include "NiagaraDataSetAccessor.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraModule.h"
 
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceDataChannelSpawn"

@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceVectorField.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraEmitter.h"
 #include "VectorField/VectorFieldStatic.h"
 #include "VectorField/VectorFieldAnimated.h"
-#include "NiagaraShader.h"
-#include "ShaderParameterUtils.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraComponent.h"

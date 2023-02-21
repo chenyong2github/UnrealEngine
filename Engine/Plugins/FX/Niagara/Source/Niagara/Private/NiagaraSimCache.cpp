@@ -2,6 +2,8 @@
 
 #include "NiagaraSimCache.h"
 
+#include "Engine/World.h"
+#include "Misc/LargeWorldRenderPosition.h"
 #include "NiagaraConstants.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceUtilities.h"

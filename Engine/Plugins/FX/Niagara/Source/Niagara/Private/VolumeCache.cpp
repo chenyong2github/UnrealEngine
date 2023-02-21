@@ -6,8 +6,8 @@
 
 #include "VolumeCache.h"
 #include "NiagaraSettings.h"
-#include "RHICommandList.h"
 #include "NiagaraUseOpenVDB.h"
+#include "RHICommandList.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VolumeCache)
 

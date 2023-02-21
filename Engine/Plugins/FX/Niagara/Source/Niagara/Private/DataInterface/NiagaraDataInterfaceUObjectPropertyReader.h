@@ -4,8 +4,9 @@
 #include "NiagaraCommon.h"
 #include "NiagaraShared.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraParameterStore.h"
 #include "NiagaraDataInterfaceUObjectPropertyReader.generated.h"
+
+struct FNiagaraDataInterfaceGeneratedFunction;
 
 USTRUCT()
 struct FNiagaraUObjectPropertyReaderRemap

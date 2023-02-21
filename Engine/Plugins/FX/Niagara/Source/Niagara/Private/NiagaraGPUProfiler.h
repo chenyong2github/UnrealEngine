@@ -3,9 +3,6 @@
 #pragma once
 
 #include "NiagaraCommon.h"
-#include "NiagaraEmitter.h"
-#include "RHI.h"
-#include "RHICommandList.h"
 #include "RHIResources.h"
 #include "HAL/Platform.h"
 #include "Misc/Build.h"

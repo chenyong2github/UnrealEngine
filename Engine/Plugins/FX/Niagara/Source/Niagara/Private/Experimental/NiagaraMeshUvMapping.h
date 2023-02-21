@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "Experimental/NiagaraMeshUvMappingHandle.h"
+#include "Containers/DynamicRHIResourceArray.h"
+#include "Math/Vector.h"
 #include "NiagaraUvQuadTree.h"
 #include "RenderResource.h"
-#include "RHI.h"
-#include "Containers/DynamicRHIResourceArray.h"
+#include "RHIResources.h"
+
+struct FMeshUvMappingUsage;
 
 struct FMeshUvMapping;
 class FNiagaraUvQuadTree;

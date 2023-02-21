@@ -2,10 +2,9 @@
 
 #include "NiagaraDataInterfaceCurlNoise.h"
 #include "NiagaraCompileHashVisitor.h"
-#include "NiagaraShader.h"
 #include "NiagaraShaderParametersBuilder.h"
-#include "ShaderParameterUtils.h"
 #include "Math/IntVector.h"
+#include "RenderingThread.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceCurlNoise)
 

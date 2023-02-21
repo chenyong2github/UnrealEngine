@@ -2,6 +2,7 @@
 
 #include "NiagaraDataChannelManager.h"
 
+#include "NiagaraModule.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataChannel.h"
 #include "NiagaraDataChannelHandler.h"

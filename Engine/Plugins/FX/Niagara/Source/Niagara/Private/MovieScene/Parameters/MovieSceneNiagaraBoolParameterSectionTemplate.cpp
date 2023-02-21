@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneNiagaraBoolParameterSectionTemplate.h"
-#include "NiagaraComponent.h"
 #include "NiagaraTypes.h"
-#include "IMovieScenePlayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraBoolParameterSectionTemplate)
 

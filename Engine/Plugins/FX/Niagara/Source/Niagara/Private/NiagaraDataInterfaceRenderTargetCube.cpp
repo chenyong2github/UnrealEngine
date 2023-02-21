@@ -1,16 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceRenderTargetCube.h"
-#include "ShaderParameterUtils.h"
-#include "ClearQuad.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "TextureResource.h"
 #include "Engine/TextureRenderTargetCube.h"
 
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraDataInterfaceRenderTargetCommon.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraStats.h"
-#include "NiagaraRenderer.h"
-#include "NiagaraSettings.h"
-#include "NiagaraShader.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraGpuComputeDebugInterface.h"
 #include "NiagaraGpuComputeDispatchInterface.h"

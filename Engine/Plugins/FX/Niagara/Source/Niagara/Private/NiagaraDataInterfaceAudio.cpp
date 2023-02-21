@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceAudio.h"
 
 #include "AudioDevice.h"
+#include "AudioDeviceManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceAudio)
 

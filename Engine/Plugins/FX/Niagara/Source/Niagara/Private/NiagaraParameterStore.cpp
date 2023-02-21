@@ -2,11 +2,8 @@
 
 #include "NiagaraParameterStore.h"
 #include "Algo/Find.h"
-#include "NiagaraDataSet.h"
-#include "NiagaraComponent.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraSystemInstance.h"
 #include "NiagaraStats.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraParameterStore)

@@ -2,10 +2,11 @@
 
 #include "NiagaraRendererComponents.h"
 #include "Engine/World.h"
-#include "NiagaraConstants.h"
 #include "NiagaraDataSet.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraStats.h"
 #include "NiagaraComponentRendererProperties.h"
+#include "NiagaraSystem.h"
 #include "NiagaraSystemInstance.h"
 #include "Async/Async.h"
 

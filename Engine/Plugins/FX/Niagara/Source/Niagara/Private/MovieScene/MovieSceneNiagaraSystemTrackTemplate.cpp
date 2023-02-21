@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneNiagaraSystemTrackTemplate.h"
+#include "Evaluation/MovieSceneExecutionTokens.h"
 #include "MovieSceneExecutionToken.h"
+#include "MovieScene/MovieSceneNiagaraSystemSpawnSection.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystemInstanceController.h"
 #include "IMovieScenePlayer.h"

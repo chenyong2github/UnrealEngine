@@ -3,15 +3,13 @@
 #include "NiagaraDataInterfaceCamera.h"
 
 #include "Engine/LocalPlayer.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraTypes.h"
 #include "NiagaraWorldManager.h"
 #include "Internationalization/Internationalization.h"
-#include "NiagaraGPUSystemTick.h"
 #include "NiagaraShaderParametersBuilder.h"
-#include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraSystemInstance.h"
 #include "GameFramework/PlayerController.h"
-#include "ShaderParameterUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceCamera)
 

@@ -2,9 +2,8 @@
 
 #include "NiagaraScriptExecutionParameterStore.h"
 #include "NiagaraConstants.h"
-#include "NiagaraStats.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraSystemInstance.h"
+#include "NiagaraScript.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScriptExecutionParameterStore)
 

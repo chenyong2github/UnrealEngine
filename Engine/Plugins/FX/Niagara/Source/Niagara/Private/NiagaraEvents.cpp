@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEvents.h"
-#include "NiagaraSystemInstance.h"
 #include "NiagaraStats.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEvents)

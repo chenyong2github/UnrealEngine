@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceVirtualTexture.h"
-#include "NiagaraComputeExecutionContext.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraCustomVersion.h"
-#include "NiagaraGpuComputeDispatchInterface.h"
-#include "NiagaraShader.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 

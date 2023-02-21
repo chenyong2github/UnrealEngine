@@ -1,20 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "NiagaraAsyncGpuTraceProvider.h"
 #include "NiagaraGpuScratchPad.h"
 #include "NiagaraSettings.h"
-
+#include "PrimitiveComponentId.h"
 #include "RHIDefinitions.h"
-
-#include "PrimitiveSceneInfo.h"
-#include "RHI.h"
 #include "RHIUtilities.h"
 
 struct FNiagaraDataInterfaceProxy;
 class FNiagaraGpuComputeDispatchInterface;
+class FPrimitiveSceneInfo;
 class FRayTracingPipelineState;
 class FRHICommandList;
 class FRHIRayTracingScene;

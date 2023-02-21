@@ -2,19 +2,21 @@
 
 
 #include "NiagaraSystem.h"
+#include "Components/PrimitiveComponent.h"
 #include "NiagaraSystemImpl.h"
 
 #include "AssetRegistry/IAssetRegistry.h"
 #include "INiagaraEditorOnlyDataUtlities.h"
+#include "Materials/MaterialInterface.h"
 #include "NiagaraAsyncCompile.h"
 #include "NiagaraConstants.h"
 #include "NiagaraBakerSettings.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraEditorDataBase.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraModule.h"
-#include "NiagaraPrecompileContainer.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraScratchPadContainer.h"
 #include "NiagaraScriptSourceBase.h"
@@ -27,27 +29,23 @@
 #include "NiagaraTypes.h"
 #include "NiagaraWorldManager.h"
 #include "Algo/RemoveIf.h"
-#include "Async/Async.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "Interfaces/ITargetPlatform.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ScopeExit.h"
 #include "Modules/ModuleManager.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
-#include "UObject/UObjectThreadContext.h"
-#include "ShaderCompiler.h"
 #include "PipelineStateCache.h"
 #include "NiagaraDataChannel.h"
 #include "NiagaraDataChannelDefinitions.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSystem)
 
 #define LOCTEXT_NAMESPACE "NiagaraSystem"
 
 #if WITH_EDITOR
-#include "DerivedDataCacheInterface.h"
 #endif
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - CompileScript"), STAT_Niagara_System_CompileScript, STATGROUP_Niagara);

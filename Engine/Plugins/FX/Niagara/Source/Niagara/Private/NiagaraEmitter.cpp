@@ -4,15 +4,18 @@
 #include "NiagaraEmitter.h"
 
 #include "INiagaraEditorOnlyDataUtlities.h"
+#include "NiagaraBoundsCalculator.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraMessageDataBase.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "NiagaraEditorDataBase.h"
 #include "NiagaraModule.h"
-#include "NiagaraRenderer.h"
 #include "NiagaraRendererProperties.h"
+#include "NiagaraScratchPadContainer.h"
 #include "NiagaraScript.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraSettings.h"
+#include "NiagaraShader.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraStats.h"
 #include "NiagaraSystem.h"
@@ -20,10 +23,12 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Modules/ModuleManager.h"
+#include "Templates/Greater.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
+#include "WorldCollision.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEmitter)
 

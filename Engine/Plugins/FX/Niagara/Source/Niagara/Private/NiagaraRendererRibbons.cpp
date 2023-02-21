@@ -4,16 +4,16 @@
 
 #include "GlobalRenderResources.h"
 #include "GPUSortManager.h"
-#include "ParticleResources.h"
+#include "Materials/Material.h"
 #include "NiagaraRibbonVertexFactory.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraDataSetAccessor.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraSceneProxy.h"
+#include "NiagaraGpuComputeDataManager.h"
 #include "NiagaraStats.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraComponent.h"
-#include "RayTracingDefinitions.h"
-#include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "MaterialDomain.h"
@@ -21,8 +21,9 @@
 #include "NiagaraCullProxyComponent.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraRibbonCompute.h"
-#include "Misc/LazySingleton.h"
 #include "RenderGraphUtils.h"
+#include "RenderUtils.h"
+#include "SceneManagement.h"
 
 DECLARE_CYCLE_STAT(TEXT("Generate Ribbon Vertex Data [GT]"), STAT_NiagaraGenRibbonVertexData, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Ribbons [RT]"), STAT_NiagaraRenderRibbons, STATGROUP_Niagara);

@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceCurveBase.h"
-#include "Curves/CurveVector.h"
 #include "Engine/Texture2D.h"
 #include "Internationalization/Internationalization.h"
-#include "ShaderParameterUtils.h"
 
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraRenderer.h"
-#include "NiagaraShader.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraStats.h"
 #include "NiagaraSystemStaticBuffers.h"

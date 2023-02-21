@@ -8,6 +8,8 @@
 #include "HAL/PlatformAtomics.h"
 #include "NiagaraDataInterfaceSimpleCounter.generated.h"
 
+struct FNiagaraDataInterfaceGeneratedFunction;
+
 /**
 Thread safe counter starts at the initial value on start / reset.
 When operating between CPU & GPU ensure you set the appropriate sync mode.

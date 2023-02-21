@@ -1,18 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDebugHud.h"
+#include "BatchedElements.h"
 #include "Engine/Engine.h"
+#include "DrawDebugHelpers.h"
 #include "GameFramework/Pawn.h"
 #include "NiagaraComponent.h"
-#include "NiagaraComputeExecutionContext.h"
 #include "NiagaraDataSetDebugAccessor.h"
 #include "NiagaraDataSetReadback.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraMeshRendererProperties.h"
 #include "NiagaraScript.h"
 #include "NiagaraSpriteRendererProperties.h"
 #include "NiagaraSystem.h"
+#include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraSystemInstanceController.h"
 #include "NiagaraWorldManager.h"
 
@@ -22,6 +25,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Particles/FXBudget.h"
 #include "SceneInterface.h"
+#include "SceneView.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_NIAGARA_DEBUGGER
 

@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "Engine/TextureRenderTarget2D.h"
+#include "HAL/Platform.h"
+
+enum ETextureRenderTargetFormat : int;
 
 namespace NiagaraDataInterfaceRenderTargetCommon
 {

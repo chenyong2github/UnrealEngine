@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraRibbonRendererProperties.h"
+#include "NiagaraModule.h"
 #include "NiagaraRendererRibbons.h"
 #include "NiagaraConstants.h"
 #include "NiagaraBoundsCalculatorHelper.h"

@@ -2,7 +2,6 @@
 
 #include "NiagaraDataChannelAccessor.h"
 
-#include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 #include "NiagaraDataChannel.h"

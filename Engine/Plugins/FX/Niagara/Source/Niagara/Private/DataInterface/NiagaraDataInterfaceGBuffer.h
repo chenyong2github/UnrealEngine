@@ -6,6 +6,8 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceGBuffer.generated.h"
 
+struct FNiagaraDataInterfaceGeneratedFunction;
+
 UCLASS(EditInlineNew, Category = "Rendering", meta = (DisplayName = "GBuffer"))
 class NIAGARA_API UNiagaraDataInterfaceGBuffer : public UNiagaraDataInterface
 {

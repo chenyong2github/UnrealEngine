@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraLightRendererProperties.h"
+#include "NiagaraBoundsCalculator.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraConstants.h"
+#include "NiagaraModule.h"
 #include "NiagaraRendererLights.h"
 #include "Modules/ModuleManager.h"
 
@@ -13,7 +15,6 @@
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/SWidget.h"
 #include "Styling/SlateBrush.h"
-#include "AssetThumbnail.h"
 #include "Widgets/Text/STextBlock.h"
 #endif
 

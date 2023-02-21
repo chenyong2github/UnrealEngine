@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceSkeletalMesh.h"
-#include "NiagaraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "SkeletalMeshTypes.h"
 #include "NiagaraStats.h"
 #include "NDISkeletalMeshCommon.h"
+#include "Templates/IntegralConstant.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceSkeletalMesh_BoneSampling"
 

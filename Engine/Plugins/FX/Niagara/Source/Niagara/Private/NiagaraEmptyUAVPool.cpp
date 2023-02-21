@@ -2,6 +2,8 @@
 
 #include "NiagaraEmptyUAVPool.h"
 #include "NiagaraStats.h"
+#include "NiagaraTypes.h"
+#include "RHICommandList.h"
 
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("# EmptyUAVs"), STAT_NiagaraEmptyUAVPool, STATGROUP_Niagara);
 

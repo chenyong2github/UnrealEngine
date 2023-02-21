@@ -2,6 +2,7 @@
 
 
 #include "NiagaraScratchPadContainer.h"
+#include "NiagaraScript.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScratchPadContainer)
 

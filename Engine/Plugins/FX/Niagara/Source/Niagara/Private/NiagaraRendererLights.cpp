@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraRendererLights.h"
-#include "ParticleResources.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraEmitterInstance.h"
@@ -9,13 +8,12 @@
 #include "NiagaraSettings.h"
 #include "NiagaraStats.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraVertexFactory.h"
 #include "NiagaraComponent.h"
-#include "Engine/Engine.h"
 
 #include "NiagaraLightRendererProperties.h"
 #include "NiagaraRendererLights.h"
 #include "NiagaraCullProxyComponent.h"
+#include "PrimitiveViewRelevance.h"
 #include "SceneInterface.h"
 
 

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSimCacheGpuResource.h"
+#include "NiagaraSimCache.h"
+#include "RenderingThread.h"
 
 void FNiagaraSimCacheGpuResource::FDeletor::operator()(FNiagaraSimCacheGpuResource* Ptr)
 {

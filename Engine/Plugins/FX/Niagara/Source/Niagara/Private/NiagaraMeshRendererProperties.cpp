@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraMeshRendererProperties.h"
+#include "Materials/Material.h"
 #include "NiagaraRendererMeshes.h"
 #include "NiagaraConstants.h"
 #include "NiagaraBoundsCalculatorHelper.h"
@@ -18,17 +19,17 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraMeshRendererProperties)
 
 #if WITH_EDITOR
-#include "Editor.h"
 #include "AssetThumbnail.h"
+#include "NiagaraModule.h"
 #include "Styling/SlateIconFinder.h"
 #include "Internationalization/Regex.h"
 #include "Dialogs/Dialogs.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "StaticMeshResources.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Subsystems/ImportSubsystem.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "UNiagaraMeshRendererProperties"

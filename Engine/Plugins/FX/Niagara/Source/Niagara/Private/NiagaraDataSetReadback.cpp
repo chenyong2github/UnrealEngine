@@ -2,6 +2,7 @@
 
 #include "NiagaraDataSetReadback.h"
 #include "NiagaraComputeExecutionContext.h"
+#include "NiagaraEmitterHandle.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraGpuComputeDispatchInterface.h"

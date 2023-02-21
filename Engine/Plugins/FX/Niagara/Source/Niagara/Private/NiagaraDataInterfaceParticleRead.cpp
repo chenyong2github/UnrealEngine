@@ -3,14 +3,15 @@
 #include "NiagaraDataInterfaceParticleRead.h"
 #include "NiagaraCompileHashVisitor.h"
 #include "NiagaraComputeExecutionContext.h"
-#include "NiagaraConstants.h"
 #include "NiagaraDataSetAccessor.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraGPUSystemTick.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraSimStageData.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraShaderParametersBuilder.h"
 
-#include "ShaderParameterUtils.h"
+#include "NiagaraSystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceParticleRead)
 

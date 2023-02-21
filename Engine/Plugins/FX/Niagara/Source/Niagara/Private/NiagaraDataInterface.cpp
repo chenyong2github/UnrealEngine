@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterface.h"
-#include "Curves/CurveVector.h"
-#include "Curves/CurveLinearColor.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraTypes.h"
-#include "ShaderParameterUtils.h"
 #include "NiagaraGPUSystemTick.h"
 #include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraShader.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSystemGpuComputeProxy.h"
 #include "ShaderCompilerCore.h"
 #include "NiagaraDataInterfaceUtilities.h"
 

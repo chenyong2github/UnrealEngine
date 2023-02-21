@@ -1,19 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceVolumeCache.h"
-#include "NiagaraShader.h"
-#include "ShaderParameterUtils.h"
-#include "ClearQuad.h"
-#include "TextureResource.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraRenderer.h"
-#include "Engine/VolumeTexture.h"
-#include "Engine/TextureRenderTargetVolume.h"
-#include "NiagaraSettings.h"
-#include "NiagaraConstants.h"
-#include "NiagaraComputeExecutionContext.h"
 #include "NiagaraShaderParametersBuilder.h"
+#include "NiagaraSystem.h"
 #include "RHIStaticStates.h"
 #include "GlobalRenderResources.h"
+#include "VolumeCache.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceVolumeCache)
 

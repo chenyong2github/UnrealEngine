@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraGPUSystemTick.h"
-#include "NiagaraSystemGpuComputeProxy.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraSystemSimulation.h"
+#include "NiagaraSystem.h"
 
 void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 {

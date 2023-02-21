@@ -2,22 +2,23 @@
 
 #include "NiagaraDataInterfaceLandscape.h"
 
-#include "NiagaraComponent.h"
-#include "NiagaraShader.h"
+#include "Containers/ResourceArray.h"
 #include "NiagaraShaderParametersBuilder.h"
+#include "GlobalRenderResources.h"
 #include "NiagaraStats.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraWorldManager.h"
 
 #include "Algo/RemoveIf.h"
+#include "RHIStaticStates.h"
 #include "VT/RuntimeVirtualTexture.h"
-#include "EngineModule.h"
 #include "EngineUtils.h"
 #include "Landscape.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "LandscapeInfo.h"
 #include "LandscapeProxy.h"
+#include "RenderUtils.h"
 #include "ShaderCompilerCore.h"
-#include "ShaderParameterUtils.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceLandscape)

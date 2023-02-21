@@ -2,15 +2,15 @@
 
 #include "DataInterface/NiagaraDataInterfaceDataChannelWrite.h"
 
-#include "CoreMinimal.h"
+#include "NiagaraModule.h"
 #include "Stats/Stats.h"
 #include "NiagaraCommon.h"
 #include "NiagaraShared.h"
 
+#include "NiagaraSystem.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraSystemInstance.h"
 
-#include "NiagaraSystemImpl.h"
 
 #include "NiagaraDataChannel.h"
 #include "NiagaraDataChannelHandler.h"

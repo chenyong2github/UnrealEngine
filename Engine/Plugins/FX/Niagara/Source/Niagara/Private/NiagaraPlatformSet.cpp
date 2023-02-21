@@ -3,19 +3,17 @@
 #include "NiagaraPlatformSet.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "NiagaraEmitter.h"
 #include "Scalability.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ConfigUtilities.h"
-#include "Interfaces/ITargetPlatform.h"
 #include "NiagaraSystemImpl.h"
 #include "NiagaraSettings.h"
-#include "SystemSettings.h"
 #include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraPlatformSet)
 
 #if WITH_EDITOR
-#include "PlatformInfo.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "NiagaraPlatformSet"

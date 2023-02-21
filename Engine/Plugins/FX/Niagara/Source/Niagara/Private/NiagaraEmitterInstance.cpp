@@ -2,18 +2,19 @@
 
 #include "NiagaraEmitterInstance.h"
 #include "Engine/Engine.h"
+#include "NiagaraBoundsCalculator.h"
 #include "NiagaraStats.h"
 #include "NiagaraConstants.h"
-#include "NiagaraRenderer.h"
+#include "NiagaraModule.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraParameterCollection.h"
-#include "NiagaraWorldManager.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraComponentSettings.h"
+#include "NiagaraSystemSimulation.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Custom Events"), STAT_NiagaraNumCustomEvents, STATGROUP_Niagara);
 

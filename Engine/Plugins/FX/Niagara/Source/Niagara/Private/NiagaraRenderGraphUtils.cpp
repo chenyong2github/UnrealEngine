@@ -2,7 +2,6 @@
 #include "NiagaraRenderGraphUtils.h"
 #include "NiagaraStats.h"
 
-#include "RenderGraph.h"
 #include "RenderGraphUtils.h"
 
 //////////////////////////////////////////////////////////////////////////

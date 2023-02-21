@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceSimCacheReader.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSimCache.h"
@@ -10,7 +11,6 @@
 #include "NiagaraSystemInstance.h"
 
 #include "Internationalization/Internationalization.h"
-#include "ShaderParameterUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceSimCacheReader)
 

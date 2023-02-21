@@ -8,14 +8,13 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Components/TextRenderComponent.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
+#include "NiagaraSystem.h"
 #include "RenderingThread.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/FileManager.h"
-#include "Slate/SceneViewport.h"
-#include "HighResScreenshot.h"
 #include "CanvasTypes.h"
 #include "HAL/FileManager.h"
-#include "UObject/UObjectIterator.h"
+#include "UnrealClient.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraPerfBaseline)
 

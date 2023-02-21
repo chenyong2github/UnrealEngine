@@ -2,15 +2,14 @@
 
 #include "NiagaraDataInterfaceSkeletalMesh.h"
 
-#include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "NDISkeletalMeshCommon.h"
-#include "NiagaraComponent.h"
-#include "NiagaraDataInterfaceArrayInt.h"
 #include "Experimental/NiagaraDataInterfaceSkeletalMeshUvMapping.h"
+#include "NiagaraDataInterfaceMeshCommon.h"
 #include "NiagaraStats.h"
 #include "SkeletalMeshTypes.h"
 #include "Templates/AlignmentTemplates.h"
+#include "Templates/IntegralConstant.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceSkeletalMesh_TriangleSampling"
 

@@ -3,7 +3,6 @@
 #include "NiagaraDataInterfaceAudioPlayer.h"
 
 #include "NiagaraTypes.h"
-#include "NiagaraCustomVersion.h"
 #include "NiagaraStats.h"
 #include "Internationalization/Internationalization.h"
 #include "NiagaraSystemInstance.h"

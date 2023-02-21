@@ -9,6 +9,7 @@
 #include "NiagaraEmitter.h"
 
 #include "Async/Async.h"
+#include "NiagaraSimStageData.h"
 
 #if WITH_NIAGARA_GPU_PROFILER
 

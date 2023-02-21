@@ -1,25 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataInterface/NiagaraDataInterfaceStaticMesh.h"
-#include "NiagaraEmitterInstance.h"
-#include "NiagaraComponent.h"
-#include "NiagaraDistanceFieldHelper.h"
+#include "Components/StaticMeshComponent.h"
 #include "NiagaraStats.h"
+#include "Containers/StridedView.h"
 #include "NiagaraSystemInstance.h"
+#include "Engine/StaticMesh.h"
 #include "NiagaraRenderer.h"
+#include "Misc/LargeWorldRenderPosition.h"
 #include "NiagaraSettings.h"
-#include "NiagaraScript.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraShaderParametersBuilder.h"
+#include "NiagaraDataInterfaceMeshCommon.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataInterfaceUtilities.h"
+#include "NiagaraSystem.h"
 #include "SceneInterface.h"
-#include "ShaderParameterUtils.h"
+#include "SceneView.h"
 #include "StaticMeshComponentLODInfo.h"
 #include "NiagaraStats.h"
 #include "PrimitiveSceneInfo.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "StaticMeshResources.h"
 #include "Subsystems/ImportSubsystem.h"
 #endif
 
@@ -31,7 +35,6 @@
 #include "ShaderCompilerCore.h"
 
 #include "NiagaraGpuComputeDispatchInterface.h"
-#include "NiagaraGpuComputeDispatch.h"
 #include "FXRenderingUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceStaticMesh)

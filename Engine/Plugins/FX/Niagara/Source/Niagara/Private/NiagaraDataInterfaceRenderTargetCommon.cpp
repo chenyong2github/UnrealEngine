@@ -4,6 +4,7 @@
 
 #include "NiagaraCommon.h"
 #include "NiagaraSettings.h"
+#include "RHI.h"
 
 namespace NiagaraDataInterfaceRenderTargetCommon
 {

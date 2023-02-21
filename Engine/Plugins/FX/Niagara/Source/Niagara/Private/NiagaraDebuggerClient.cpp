@@ -6,14 +6,18 @@
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
 #include "IMessageContext.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraComponent.h"
+#include "NiagaraModule.h"
 #include "NiagaraSystemInstanceController.h"
 #include "NiagaraDebugHud.h"
 #include "Containers/Ticker.h"
 #include "NiagaraSimCache.h"
+#include "NiagaraSystemGpuComputeProxy.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_NIAGARA_DEBUGGER
 

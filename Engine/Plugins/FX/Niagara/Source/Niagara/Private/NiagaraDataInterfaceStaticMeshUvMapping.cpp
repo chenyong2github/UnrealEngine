@@ -3,8 +3,6 @@
 #include "NiagaraDataInterfaceStaticMeshUvMapping.h"
 
 #include "Experimental/NiagaraMeshUvMapping.h"
-#include "NiagaraResourceArrayWriter.h"
-#include "NiagaraStats.h"
 #include "RawIndexBuffer.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshResources.h"

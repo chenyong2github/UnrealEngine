@@ -3,16 +3,15 @@
 #include "NiagaraDataInterfacePhysicsAsset.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "SkeletalRenderPublic.h"
-#include "SkeletalMeshTypes.h"
 #include "AnimationRuntime.h"
-#include "NiagaraShader.h"
-#include "NiagaraComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraSimStageData.h"
 #include "NiagaraShaderParametersBuilder.h"
+#include "NiagaraSystem.h"
 #include "NiagaraSystemInstance.h"
-#include "ShaderParameterUtils.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfacePhysicsAsset)
 

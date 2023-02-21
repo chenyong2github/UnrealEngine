@@ -10,6 +10,7 @@
 #include "NiagaraPrecompileContainer.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraStats.h"
+#include "NiagaraSystem.h"
 #include "UObject/Package.h"
 #include "VectorVM.h"
 

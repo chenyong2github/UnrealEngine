@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceRW.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
-#include "NiagaraShader.h"
 #include "NiagaraSimStageData.h"
 #include "RenderGraph.h"
-#include "ShaderParameterUtils.h"
-#include "ClearQuad.h"
 
 #include "UObject/UE5MainStreamObjectVersion.h"
 

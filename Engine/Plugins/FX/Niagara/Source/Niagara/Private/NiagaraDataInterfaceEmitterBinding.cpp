@@ -2,6 +2,7 @@
 
 #include "NiagaraDataInterfaceEmitterBinding.h"
 #include "NiagaraEmitterInstance.h"
+#include "NiagaraSystem.h"
 #include "NiagaraSystemInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceEmitterBinding)

@@ -6,6 +6,12 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceDebugDraw.generated.h"
 
+enum class ENiagaraSimTarget : uint8;
+struct FNiagaraDataInterfaceGeneratedFunction;
+struct FNiagaraFunctionSignature;
+struct FNiagaraScriptDataInterfaceCompileInfo;
+struct FVMExternalFunctionBindingInfo;
+
 UCLASS(EditInlineNew, Category = "Debug", meta = (DisplayName = "DebugDraw"))
 class NIAGARA_API UNiagaraDataInterfaceDebugDraw : public UNiagaraDataInterface
 {

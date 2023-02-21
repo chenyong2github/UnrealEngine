@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceDebugDraw.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraTypes.h"
+#include "NiagaraEmitter.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuComputeDebug.h"
-#include "NiagaraWorldManager.h"
 #include "NiagaraShaderParametersBuilder.h"
+#include "NiagaraSystem.h"
 #include "NiagaraSystemInstance.h"
 
-#include "Async/Async.h"
-#include "DrawDebugHelpers.h"
-#include "ShaderParameterUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceDebugDraw)
 

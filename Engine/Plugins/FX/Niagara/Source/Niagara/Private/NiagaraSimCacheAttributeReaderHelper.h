@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Math/Float16.h"
 #include "NiagaraSimCache.h"
 
 struct FNiagaraSimCacheAttributeReaderHelper

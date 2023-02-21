@@ -2,18 +2,18 @@
 
 #include "NiagaraRenderer.h"
 #include "Engine/Texture.h"
-#include "ParticleResources.h"
 #include "MaterialDomain.h"
+#include "Materials/Material.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraSceneProxy.h"
 #include "NiagaraStats.h"
-#include "NiagaraComponent.h"
 #include "DynamicBufferAllocator.h"
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraGPUSortInfo.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraSystemInstanceController.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "PrimitiveViewRelevance.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sort Particles"), STAT_NiagaraSortParticles, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Global Float Alloc - All"), STAT_NiagaraAllocateGlobalFloatAll, STATGROUP_Niagara);

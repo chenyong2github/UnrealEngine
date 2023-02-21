@@ -2,13 +2,15 @@
 
 #include "NiagaraDataInterfaceSkeletalMeshConnectivity.h"
 
-#include "Algo/StableSort.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
-#include "NiagaraResourceArrayWriter.h"
+#include "NiagaraDataInterfaceSkeletalMesh.h"
 #include "NiagaraSettings.h"
 #include "NiagaraStats.h"
 
+#include "Rendering/SkeletalMeshRenderData.h"
 #include <limits>
+#include "RenderingThread.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - SkelMesh - BuildAdjacencyBuffer"), STAT_NiagaraSkel_Connectivity_Adjacency, STATGROUP_Niagara);
 

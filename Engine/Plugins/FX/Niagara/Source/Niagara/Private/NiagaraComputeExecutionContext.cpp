@@ -1,18 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraComputeExecutionContext.h"
-#include "NiagaraStats.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraScript.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraSystemGpuComputeProxy.h"
-#include "NiagaraWorldManager.h"
-#include "NiagaraEmitterInstance.h"
-#include "NiagaraFunctionLibrary.h"
 #include "NiagaraGPUInstanceCountManager.h"
 #include "NiagaraGPUSystemTick.h"
 #include "NiagaraDataInterfaceRW.h"
+#include "NiagaraShader.h"
 
 FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	: MainDataSet(nullptr)

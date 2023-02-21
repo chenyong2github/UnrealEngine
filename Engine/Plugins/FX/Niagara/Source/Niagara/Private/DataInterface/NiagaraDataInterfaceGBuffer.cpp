@@ -1,16 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceGBuffer.h"
+#include "Containers/StridedView.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
-#include "NiagaraGpuComputeDispatch.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraTypes.h"
 #include "NiagaraShaderParametersBuilder.h"
-#include "NiagaraSystemInstance.h"
-#include "NiagaraWorldManager.h"
 
 #include "Internationalization/Internationalization.h"
-#include "ShaderParameterUtils.h"
 #include "FXRenderingUtils.h"
+#include "RHIStaticStates.h"
+#include "RenderGraphResources.h"
+#include "SceneView.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceGBuffer)
 

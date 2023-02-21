@@ -2,14 +2,15 @@
 
 #include "NiagaraBakerOutput.h"
 #include "Misc/Paths.h"
-#include "NiagaraEffectType.h"
 #include "NiagaraSystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraBakerOutput)
 
 #if WITH_EDITOR
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Factories/Factory.h"
+#include "IAssetTools.h"
 #include "Misc/MessageDialog.h"
 #include "AssetToolsModule.h"
 #endif //WITH_EDITOR

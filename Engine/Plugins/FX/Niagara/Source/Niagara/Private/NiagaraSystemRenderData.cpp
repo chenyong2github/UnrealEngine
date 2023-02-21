@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSystemRenderData.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraCrashReporterHandler.h"
+#include "NiagaraSystem.h"
+#include "PrimitiveViewRelevance.h"
+#include "SceneView.h"
 
 void FNiagaraSystemRenderData::ExecuteDynamicDataCommands_RenderThread(const FSetDynamicDataCommandList& Commands)
 {

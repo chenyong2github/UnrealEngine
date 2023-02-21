@@ -2,22 +2,20 @@
 
 #include "NiagaraDataInterfaceAsyncGpuTrace.h"
 
-#include "GlobalDistanceFieldParameters.h"
 #include "NiagaraAsyncGpuTraceHelper.h"
-#include "NiagaraComponent.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
-#include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraSimStageData.h"
 #include "NiagaraShaderParametersBuilder.h"
-#include "NiagaraStats.h"
+#include "NiagaraSystem.h"
 #include "NiagaraTypes.h"
-#include "NiagaraWorldManager.h"
+#include "NiagaraSystemInstance.h"
 #include "RenderResource.h"
+#include "RenderGraphBuilder.h"
 #include "Shader.h"
 #include "ShaderCore.h"
 #include "ShaderCompilerCore.h"
-#include "ShaderParameterUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceAsyncGpuTrace)
 

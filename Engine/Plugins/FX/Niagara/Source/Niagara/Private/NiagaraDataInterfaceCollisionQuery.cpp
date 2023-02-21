@@ -4,19 +4,17 @@
 
 #include "FXRenderingUtils.h"
 #include "GlobalDistanceFieldParameters.h"
-#include "NiagaraAsyncGpuTraceHelper.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraDistanceFieldHelper.h"
-#include "NiagaraComponent.h"
+#include "NiagaraEmitter.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
-#include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraShaderParametersBuilder.h"
-#include "NiagaraStats.h"
+#include "NiagaraSystem.h"
 #include "NiagaraTypes.h"
-#include "NiagaraWorldManager.h"
+#include "NiagaraSystemInstance.h"
 #include "Shader.h"
 #include "ShaderCore.h"
 #include "ShaderCompilerCore.h"
-#include "ShaderParameterUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceCollisionQuery)
 

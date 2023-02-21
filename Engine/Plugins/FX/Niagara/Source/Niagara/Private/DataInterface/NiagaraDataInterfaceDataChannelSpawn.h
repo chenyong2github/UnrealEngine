@@ -10,6 +10,10 @@ Specialization of the Read DI that allows Emitters to Spawn directly from Data C
 #include "NiagaraDataInterfaceEmitterBinding.h"
 #include "NiagaraDataInterfaceDataChannelSpawn.generated.h"
 
+enum class ENiagaraSimTarget : uint8;
+struct FNiagaraFunctionSignature;
+struct FVMExternalFunctionBindingInfo;
+
 
 UCLASS(Experimental, EditInlineNew, Category = "Data Channels", meta = (DisplayName = "Spawn From Data Channel"))
 class NIAGARA_API UNiagaraDataInterfaceDataChannelSpawn : public UNiagaraDataInterfaceDataChannelRead

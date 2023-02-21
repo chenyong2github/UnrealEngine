@@ -2,6 +2,6 @@
 
 #include "NiagaraTrace.h"
 
-#include "Trace/Trace.inl"
+#include "Trace/Detail/Channel.h"
 
 UE_TRACE_CHANNEL_DEFINE(NiagaraChannel);

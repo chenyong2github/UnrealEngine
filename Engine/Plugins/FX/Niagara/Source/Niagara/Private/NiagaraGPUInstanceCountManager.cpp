@@ -2,15 +2,15 @@
 
 #include "NiagaraGPUInstanceCountManager.h"
 #include "NiagaraEmptyUAVPool.h"
-#include "NiagaraGpuComputeDispatch.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraStats.h"
 
 #include "Containers/DynamicRHIResourceArray.h"
 #include "GPUSortManager.h" // CopyUIntBufferToTargets
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
-#include "ClearQuad.h"
 #include "PipelineStateCache.h"
+#include "RHIGPUReadback.h"
 
 int32 GNiagaraMinGPUInstanceCount = 2048;
 static FAutoConsoleVariableRef CVarNiagaraMinGPUInstanceCount(

@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "RHIDefinitions.h"
-#include "PrimitiveSceneInfo.h"
-#include "RHI.h"
 #include "RHIUtilities.h"
+#include "RendererInterface.h"
 
 class FScene;
 class FSceneView;

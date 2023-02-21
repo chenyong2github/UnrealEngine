@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NiagaraDataInterfaceSkeletalMesh.h"
-#include "NiagaraUvQuadTree.h"
+#include "Containers/DynamicRHIResourceArray.h"
 #include "RenderResource.h"
+#include "RHIResources.h"
+#include "UObject/WeakObjectPtr.h"
+
+class FSkeletalMeshLODRenderData;
+class USkeletalMesh;
+struct FSkeletalMeshConnectivityUsage;
 
 struct FSkeletalMeshConnectivity;
 

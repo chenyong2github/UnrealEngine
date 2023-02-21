@@ -7,24 +7,19 @@ the same VectorVM byte code / compute shader code
 ==============================================================================*/
 #pragma once
 
-#include "CoreMinimal.h"
 #include "FXSystem.h"
-#include "Modules/ModuleManager.h"
 #include "NiagaraCommon.h"
 #include "NiagaraComputeExecutionContext.h"
-#include "NiagaraEmitter.h"
 #include "NiagaraGPUProfiler.h"
-#include "NiagaraGPUSortInfo.h"
 #include "NiagaraGPUSystemTick.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
-#include "NiagaraParameters.h"
-#include "NiagaraRendererProperties.h"
-#include "NiagaraSystemGpuComputeProxy.h"
-#include "ParticleResources.h"
+#include "NiagaraSimStageData.h"
 #include "RenderGraphUtils.h"
 #include "RHIResources.h"
 #include "RendererInterface.h"
-#include "Tickable.h"
+
+enum class EGPUSortFlags : uint32;
+struct FNiagaraGPUSortInfo;
 
 class FGPUSortManager;
 class FNiagaraAsyncGpuTraceHelper;

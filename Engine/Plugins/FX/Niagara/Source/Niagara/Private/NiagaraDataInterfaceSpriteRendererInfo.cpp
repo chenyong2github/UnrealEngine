@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceSpriteRendererInfo.h"
-#include "NiagaraSystem.h"
-#include "NiagaraEmitter.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraSpriteRendererProperties.h"
-#include "ShaderParameterUtils.h"
-#include "NiagaraStats.h"
-#include "NiagaraRenderer.h"
 #include "NiagaraShaderParametersBuilder.h"
+#include "RenderingThread.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceSpriteRendererInfo)
 

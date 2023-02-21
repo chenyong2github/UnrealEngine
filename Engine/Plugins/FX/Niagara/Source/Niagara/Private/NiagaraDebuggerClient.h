@@ -7,13 +7,14 @@ Controller class running on game clients that handles the passing of messages to
 #pragma once
 
 #include "Containers/Ticker.h"
-#include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDebuggerCommon.h"
 #include "IMessageContext.h"
+#include "NiagaraDefines.h"
 #include "Particles/ParticlePerfStatsManager.h"
-#include "NiagaraSimCache.h"
 #include "UObject/StrongObjectPtr.h"
+
+class UNiagaraSimCache;
 
 class FMessageEndpoint;
 

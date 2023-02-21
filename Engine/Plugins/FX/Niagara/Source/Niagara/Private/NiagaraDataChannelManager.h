@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "NiagaraDataChannelCommon.h"
+#include "UObject/ObjectPtr.h"
 
+class FNiagaraWorldManager;
+class UNiagaraDataChannel;
+class UNiagaraDataChannelHandler;
+enum ETickingGroup : int;
 
 /**
 Manager class for all Niagara DataChannels at the System/World level.

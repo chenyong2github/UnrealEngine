@@ -5,6 +5,9 @@
 #include "NiagaraDataChannelCommon.h"
 #include "NiagaraDataChannelAccessor.generated.h"
 
+class UNiagaraDataChannelHandler;
+struct FNiagaraSpawnInfo;
+struct FNiagaraVariableBase;
 
 /** 
 Initial simple API for reading and writing data in a data channel from game code / BP. 

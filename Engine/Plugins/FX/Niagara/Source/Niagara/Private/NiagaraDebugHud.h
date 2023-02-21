@@ -5,10 +5,9 @@ Class used help debugging Niagara simulations
 ==============================================================================*/
 #pragma once
 
-#include "CoreMinimal.h"
 #include "NiagaraCommon.h"
+#include "NiagaraDefines.h"
 #include "NiagaraTypes.h"
-#include "RHI.h"
 #include "RHICommandList.h"
 #include "NiagaraDebuggerCommon.h"
 #include "NiagaraGPUProfilerInterface.h"

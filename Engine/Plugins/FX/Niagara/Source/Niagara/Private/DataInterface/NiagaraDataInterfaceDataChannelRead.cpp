@@ -2,12 +2,13 @@
 
 #include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
 
+#include "NiagaraCompileHashVisitor.h"
 #include "ShaderCompilerCore.h"
-#include "ShaderParameterUtils.h"
+#include "NiagaraModule.h"
 #include "NiagaraShaderParametersBuilder.h"
 
-#include "CoreMinimal.h"
 #include "NiagaraCommon.h"
+#include "NiagaraSystem.h"
 #include "NiagaraWorldManager.h"
 
 #include "NiagaraDataChannel.h"

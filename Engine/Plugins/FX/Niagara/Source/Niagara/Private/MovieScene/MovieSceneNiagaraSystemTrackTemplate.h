@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "NiagaraCommon.h"
-#include "MovieScene/MovieSceneNiagaraSystemSpawnSection.h"
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Evaluation/MovieSceneTrackImplementation.h"
 #include "MovieSceneNiagaraSystemTrackTemplate.generated.h"
+
+enum class ENiagaraAgeUpdateMode : uint8;
+enum class ENiagaraSystemSpawnSectionEndBehavior;
+enum class ENiagaraSystemSpawnSectionEvaluateBehavior;
+enum class ENiagaraSystemSpawnSectionStartBehavior;
 
 USTRUCT()
 struct FMovieSceneNiagaraSystemTrackTemplate : public FMovieSceneEvalTemplate

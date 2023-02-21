@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraParameterCollection.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/World.h"
+#include "Modules/ModuleManager.h"
 #include "NiagaraDataInterface.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialParameterCollectionInstance.h"
 #include "Misc/SecureHash.h"
 #if WITH_EDITORONLY_DATA
-	#include "IAssetTools.h"
 #endif
 #include "AssetRegistry/AssetRegistryModule.h"
 

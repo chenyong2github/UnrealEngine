@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "Containers/StaticArray.h"
 #include "Math/Box2D.h"

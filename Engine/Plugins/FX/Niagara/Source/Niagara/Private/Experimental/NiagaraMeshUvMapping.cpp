@@ -5,6 +5,7 @@
 #include "Experimental/NiagaraMeshUvMappingHandle.h"
 #include "NiagaraResourceArrayWriter.h"
 #include "NiagaraStats.h"
+#include "RenderingThread.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - UvQuadTree Cpu"), STAT_Niagara_UvMapping_Cpu, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara - UvQuadTree Gpu"), STAT_Niagara_UvMapping_Gpu, STATGROUP_Niagara);

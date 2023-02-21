@@ -2,6 +2,7 @@
 
 #include "NiagaraDataInterfaceSimpleCounter.h"
 #include "NiagaraClearCounts.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuReadbackManager.h"
 #include "NiagaraShaderParametersBuilder.h"
@@ -10,7 +11,6 @@
 #include "Internationalization/Internationalization.h"
 #include "Async/Async.h"
 #include "RenderGraphUtils.h"
-#include "ShaderParameterUtils.h"
 #include "ShaderCompilerCore.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceSimpleCounter)

@@ -4,8 +4,9 @@
 
 #include "Templates/SharedPointer.h"
 
-#include "NiagaraSimCache.h"
 #include "NiagaraRenderer.h"
+
+class UNiagaraSimCache;
 
 struct FNiagaraSimCacheGpuResource
 {

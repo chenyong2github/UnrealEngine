@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Engine/StaticMesh.h"
 #include "Experimental/NiagaraMeshUvMapping.h"
 #include "NiagaraUvQuadTree.h"
 #include "RenderResource.h"
+#include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 class UStaticMesh;

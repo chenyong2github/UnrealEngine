@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "NiagaraScript.h"
 
 #include "NiagaraAsyncCompile.generated.h"

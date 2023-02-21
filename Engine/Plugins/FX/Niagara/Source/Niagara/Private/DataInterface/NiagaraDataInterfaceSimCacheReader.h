@@ -6,6 +6,8 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceSimCacheReader.generated.h"
 
+struct FNiagaraDataInterfaceGeneratedFunction;
+
 class UNiagaraSimCache;
 
 /**

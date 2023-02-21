@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSystemStaticBuffers.h"
+#include "RenderingThread.h"
 
 FNiagaraSystemStaticBuffers::~FNiagaraSystemStaticBuffers()
 {

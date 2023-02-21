@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraScriptExecutionContext.h"
+#include "NiagaraScript.h"
 #include "NiagaraSettings.h"
 #include "NiagaraStats.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraSystem.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraWorldManager.h"
 #include "NiagaraFunctionLibrary.h"
-#include "NiagaraGPUInstanceCountManager.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "HAL/PlatformFileManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Register Setup"), STAT_NiagaraSimRegisterSetup, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Context Ticking"), STAT_NiagaraScriptExecContextTick, STATGROUP_Niagara);

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSystemGpuComputeProxy.h"
+#include "NiagaraSystem.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraComputeExecutionContext.h"

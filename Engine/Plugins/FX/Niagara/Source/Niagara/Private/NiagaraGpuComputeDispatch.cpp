@@ -4,15 +4,13 @@
 
 #include "Async/Async.h"
 #include "CanvasTypes.h"
-#include "ClearQuad.h"
 #include "EngineModule.h"
-#include "Engine/Canvas.h"
 #include "Engine/Engine.h"
-#include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "EngineModule.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "Misc/ScopeExit.h"
+#include "NiagaraGPUSortInfo.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
 #include "NiagaraAsyncGpuTraceHelper.h"
@@ -23,6 +21,7 @@
 #include "NiagaraGPUProfilerInterface.h"
 #include "NiagaraGpuReadbackManager.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraScript.h"
 #include "NiagaraShader.h"
 #include "NiagaraShaderParticleID.h"
 #include "NiagaraSortingGPU.h"
@@ -33,7 +32,6 @@
 #include "RHI.h"
 #include "SceneInterface.h"
 #include "SceneRenderTargetParameters.h"
-#include "ShaderParameterUtils.h"
 #include "TextureResource.h"
 #include "FXRenderingUtils.h"
 

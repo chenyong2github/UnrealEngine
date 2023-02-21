@@ -2,10 +2,10 @@
 
 #include "NiagaraComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/Level.h"
 #include "Engine/TextureRenderTarget.h"
-#include "EngineUtils.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "NiagaraCommon.h"
+#include "NiagaraComponentPool.h"
 #include "NiagaraComponentSettings.h"
 #include "NiagaraConstants.h"
 #include "NiagaraCustomVersion.h"
@@ -14,16 +14,20 @@
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSceneProxy.h"
+#include "NiagaraSimCache.h"
 #include "NiagaraStats.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemInstanceController.h"
 #include "NiagaraWorldManager.h"
 #include "PrimitiveSceneInfo.h"
+#include "PrimitiveViewRelevance.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "SceneManagement.h"
 #include "UObject/NameTypes.h"
 #include "Engine/StaticMesh.h"
 #include "NiagaraCullProxyComponent.h"
 #include "SceneInterface.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraComponent)
 

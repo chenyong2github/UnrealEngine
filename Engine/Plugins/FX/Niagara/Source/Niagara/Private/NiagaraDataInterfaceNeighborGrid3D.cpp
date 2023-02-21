@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceNeighborGrid3D.h"
-#include "NiagaraShader.h"
-#include "ShaderParameterUtils.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraRenderer.h"
-#include "NiagaraShaderParticleID.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "RenderGraphUtils.h"
 
