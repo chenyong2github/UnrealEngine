@@ -5,8 +5,8 @@
 #include "Iris/Serialization/PolymorphicNetSerializer.h"
 #include "UObject/ObjectMacros.h"
 #include "Tests/ReplicationSystem/ReplicatedTestObject.h"
-#include "Core/Public/Iris/ReplicationState/IrisFastArraySerializer.h"
-#include "Core/Public/Iris/ReplicationState/Private/IrisFastArraySerializerInternal.h"
+#include "Iris/ReplicationState/IrisFastArraySerializer.h"
+#include "Iris/ReplicationState/Private/IrisFastArraySerializerInternal.h"
 #include "TestPolymorphicStructNetSerializer.generated.h"
 
 // Example BaseStruct used to support replication of polymorphic structs

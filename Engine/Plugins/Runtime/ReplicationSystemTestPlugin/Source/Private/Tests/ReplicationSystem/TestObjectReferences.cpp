@@ -9,7 +9,7 @@
 #include "Iris/ReplicationSystem/ReplicationOperationsInternal.h"
 #include "Iris/ReplicationSystem/ReplicationSystemInternal.h"
 #include "Iris/ReplicationSystem/ReplicationFragmentUtil.h"
-#include "Engine/Public/Net/UnrealNetwork.h"
+#include "Net/UnrealNetwork.h"
 #include "Iris/ReplicationSystem/Filtering/NetObjectFilter.h"
 #include "Iris/Core/IrisDebugging.h"
 

@@ -11,7 +11,7 @@
 #include "Iris/ReplicationState/PropertyNetSerializerInfoRegistry.h"
 #include "Iris/Serialization/NetReferenceCollector.h"
 #include "Net/UnrealNetwork.h"
-#include "Core/Public/Iris/ReplicationSystem/ReplicationFragmentUtil.h"
+#include "Iris/ReplicationSystem/ReplicationFragmentUtil.h"
 
 namespace UE::Net
 {
