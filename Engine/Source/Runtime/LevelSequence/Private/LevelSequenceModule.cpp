@@ -253,7 +253,7 @@ bool HandleLevelSequenceSetClockSource(UWorld* InWorld, const TCHAR** InStr, FOu
 
 } // empty namespace
 
-bool FLevelSequenceModule::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FLevelSequenceModule::Exec_Runtime(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (FParse::Command(&Cmd, TEXT("Sequencer")))
 	{

@@ -165,7 +165,7 @@ protected:
 	void FileModifiedCallback( const FString& Filename );
 	
 	
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	virtual bool Exec_Runtime(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 
 	/**

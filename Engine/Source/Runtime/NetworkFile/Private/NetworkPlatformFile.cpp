@@ -1528,7 +1528,7 @@ void FNetworkPlatformFile::Tick()
 	}
 }
 
-bool FNetworkPlatformFile::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
+bool FNetworkPlatformFile::Exec_Runtime(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	if (FParse::Command(&Cmd, TEXT("networkfile")))
 	{

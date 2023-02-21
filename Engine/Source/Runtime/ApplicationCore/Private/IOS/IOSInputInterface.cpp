@@ -706,7 +706,7 @@ void FIOSInputInterface::CalibrateMotion(uint32 PlayerIndex)
     }
 }
 
-bool FIOSInputInterface::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FIOSInputInterface::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
     // Keep track whether the command was handled or not.
     bool bHandledCommand = false;

@@ -26,7 +26,7 @@ class FHttpModule :
 	public IModuleInterface, public FSelfRegisteringExec
 {
 
-public:
+protected:
 
 	// FSelfRegisteringExec
 
@@ -39,7 +39,9 @@ public:
 	 *
 	 * @return true if the handler consumed the input, false to continue searching handlers
 	 */
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+
+public:
 
 	/** 
 	 * Exec command handlers

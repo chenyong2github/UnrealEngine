@@ -29,7 +29,7 @@ class XMPP_API FXmppModule :
 	public IModuleInterface, public FSelfRegisteringExec, public FTSTickerObjectBase
 {
 
-public:
+protected:
 
 	// FSelfRegisteringExec
 
@@ -42,7 +42,9 @@ public:
 	 *
 	 * @return true if the handler consumed the input, false to continue searching handlers
 	 */
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+
+public:
 
 	/** 
 	 * Exec command handlers

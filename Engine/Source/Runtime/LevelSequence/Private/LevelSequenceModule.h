@@ -18,13 +18,14 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	// FSelfRegisteringExec interface
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-	
 	// ILevelSequenceModule interface
 	virtual FDelegateHandle RegisterObjectSpawner(FOnCreateMovieSceneObjectSpawner InOnCreateMovieSceneObjectSpawner) override;
 	virtual void GenerateObjectSpawners(TArray<TSharedRef<IMovieSceneObjectSpawner>>& OutSpawners) const override;
 	virtual void UnregisterObjectSpawner(FDelegateHandle InHandle) override;
+
+protected:
+	// FSelfRegisteringExec interface
+	virtual bool Exec_Runtime(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 public:
 	/** List of object spawner delegates used to extend the spawn register */

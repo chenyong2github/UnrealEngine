@@ -176,14 +176,12 @@ public:
 
 	virtual FString GetVersionInfo() const;
 
-
+protected:
 
 	//////////////////////////////////////////////////////////////////////////
 	// FSelfRegisteringExec interface
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
+	virtual bool Exec_Runtime(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
 
-
-protected:
 
 	/**
 	 * Send a heartbeat message to the file server. This will tell it we are alive, as well as

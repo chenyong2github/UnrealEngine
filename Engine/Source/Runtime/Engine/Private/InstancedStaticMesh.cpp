@@ -143,7 +143,7 @@ static TAutoConsoleVariable<int32> CVarEnableViewportSMInstanceSelection(
 
 class FISMExecHelper : public FSelfRegisteringExec
 {
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+	virtual bool Exec_Runtime(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		if (FParse::Command(&Cmd, TEXT("LIST ISM")))
 		{

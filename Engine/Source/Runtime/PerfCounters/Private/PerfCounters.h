@@ -36,10 +36,6 @@ public:
 	/** FTSTickerObjectBase */
 	virtual bool Tick(float DeltaTime) override;
 
-	//~ Begin Exec Interface
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
-	//~ End Exec Interface
-
 	//~ Begin IPerfCounters Interface
 	const FString& GetInstanceName() const override { return UniqueInstanceId; }
 	virtual double GetNumber(const FString& Name, double DefaultValue = 0.0) override;
@@ -58,6 +54,11 @@ public:
 	virtual bool StopMachineLoadTracking();
 	virtual bool ReportUnplayableCondition(const FString& ConditionDescription);
 	//~ Begin IPerfCounters Interface end
+
+protected:
+	//~ Begin Exec Interface
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
+	//~ End Exec Interface
 
 private:
 	

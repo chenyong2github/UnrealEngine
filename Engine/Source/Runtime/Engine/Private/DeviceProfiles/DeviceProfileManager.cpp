@@ -1400,10 +1400,10 @@ static bool GetCVarForDeviceProfile( FOutputDevice& Ar, FString DPName, FString 
 
 class FPlatformCVarExec : public FSelfRegisteringExec
 {
-public:
+protected:
 
 	// FSelfRegisteringExec interface
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override
 	{
 		if (FParse::Command(&Cmd, TEXT("dpcvar")))
 		{

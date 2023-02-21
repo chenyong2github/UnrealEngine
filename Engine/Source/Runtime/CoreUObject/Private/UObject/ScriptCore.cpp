@@ -1891,11 +1891,12 @@ static void OutputTotalBytecodeSize(FOutputDevice& Ar)
 struct FScriptAuditExec 
 	: public FSelfRegisteringExec
 {
+protected:
 	// FSelfRegisteringExec:
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 } ScriptAudit;
 
-bool FScriptAuditExec::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FScriptAuditExec::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (FParse::Command(&Cmd, TEXT("ScriptAudit")))
 	{

@@ -1385,7 +1385,7 @@ FString FNetworkFileServerClientConnection::GetDescription() const
 }
 
 
-bool FNetworkFileServerClientConnection::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) 
+bool FNetworkFileServerClientConnection::Exec_Runtime(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) 
 {
 	if (FParse::Command(&Cmd, TEXT("networkserverconnection")))
 	{

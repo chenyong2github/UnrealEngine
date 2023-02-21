@@ -37,7 +37,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogSkinCache, Log, All);
 /** Exec helper to handle GPU Skin Cache related commands. */
 class FSkinCacheExecHelper : public FSelfRegisteringExec
 {
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+	virtual bool Exec_Runtime(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override
 	{
 		/** Command to list all skeletal mesh lods which have the skin cache disabled. */
 		if (FParse::Command(&Cmd, TEXT("list skincacheusage")))

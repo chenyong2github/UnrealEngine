@@ -88,10 +88,6 @@ public:
 	static APPLICATIONCORE_API void QueueTouchInput(const TArray<TouchInput>& InTouchEvents);
 	static void QueueKeyInput(int32 Key, int32 Char);
 
-	//~ Begin Exec Interface
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-	//~ End Exec Interface
-
 	void SetGamepadsAllowed(bool bAllowed) { bAllowControllers = bAllowed; }
 	void SetGamepadsBlockDeviceFeedback(bool bBlock) { bControllersBlockDeviceFeedback = bBlock; }
 
@@ -102,7 +98,13 @@ public:
     static bool IsKeyboardInhibited() { return bKeyboardInhibited; }
     
     NSData* GetGamepadGlyphRawData(const FGamepadKeyNames::Type& ButtonKey, uint32 ControllerIndex);
-    
+
+protected:
+
+	//~ Begin Exec Interface
+	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	//~ End Exec Interface
+
 private:
 
 	FIOSInputInterface( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler );

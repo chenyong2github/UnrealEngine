@@ -294,9 +294,9 @@ static FString ShortenName( TCHAR const* LongName )
 /** Exec used to execute engine stats command on the game thread. */
 static class FStatCmdEngine : private FSelfRegisteringExec
 {
-public:
+protected:
 	/** Console commands. */
-	virtual bool Exec( UWorld*, const TCHAR* Cmd, FOutputDevice& Ar ) override
+	virtual bool Exec_Runtime( UWorld*, const TCHAR* Cmd, FOutputDevice& Ar ) override
 	{
 		if( FParse::Command( &Cmd, TEXT( "stat" ) ) )
 		{

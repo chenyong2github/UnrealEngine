@@ -558,7 +558,7 @@ class FLogSuppressionImplementation: public FLogSuppressionInterface, private FS
 	}
 
 	/** Console commands, see embeded usage statement **/
-	virtual bool Exec( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar )
+	virtual bool Exec_Runtime( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		if(FParse::Command(&Cmd,TEXT("LOG")))
 		{

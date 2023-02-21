@@ -4542,7 +4542,7 @@ bool UNavigationSystemV1::HandleCountNavMemCommand()
 //----------------------------------------------------------------------//
 // Commands
 //----------------------------------------------------------------------//
-bool FNavigationSystemExec::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FNavigationSystemExec::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	UNavigationSystemV1*  NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(InWorld);
 

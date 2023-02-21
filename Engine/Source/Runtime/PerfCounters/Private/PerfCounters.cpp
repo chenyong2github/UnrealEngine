@@ -216,7 +216,7 @@ void FPerfCounters::TickSystemCounters(float DeltaTime)
 	}
 }
 
-bool FPerfCounters::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FPerfCounters::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	// ignore everything that doesn't start with PerfCounters
 	if (!FParse::Command(&Cmd, TEXT("perfcounters")))
