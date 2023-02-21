@@ -650,11 +650,11 @@ public:
 	FLandscapePatternBrushWorldSpaceSettings WorldSpacePatternBrushSettings;
 
 	// Mask texture to use
-	UPROPERTY(Category="Brush Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Texture", ShowForBrushes="BrushSet_Alpha,BrushSet_Pattern"))
+	UPROPERTY(Category  ="Brush Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Texture", ShowForBrushes="BrushSet_Alpha,BrushSet_Pattern"))
 	TObjectPtr<UTexture2D> AlphaTexture;
 
 	// Channel of Mask Texture to use
-	UPROPERTY(Category="Brush Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Texture Channel", ShowForBrushes="BrushSet_Alpha,BrushSet_Pattern"))
+	UPROPERTY(Category = "Brush Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Texture Channel", ShowForBrushes="BrushSet_Alpha,BrushSet_Pattern"))
 	ELandscapeTextureColorChannel AlphaTextureChannel;
 
 	UPROPERTY(NonTransactional)
@@ -667,8 +667,11 @@ public:
 	// Component Brush:
 
 	// Number of components X/Y to affect at once. 1 means 1x1, 2 means 2x2, etc
-	UPROPERTY(Category="Brush Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Brush Size", ShowForBrushes="BrushSet_Component", ClampMin="1", ClampMax="128", UIMin="1", UIMax="64", SliderExponent="3"))
+	UPROPERTY(Category = "Brush Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Brush Size", ShowForBrushes="BrushSet_Component", ClampMin="1", ClampMax="128", UIMin="1", UIMax="64", SliderExponent="3"))
 	int32 BrushComponentSize;
+
+	UPROPERTY(Category = "Brush Settings", EditAnywhere, NonTransactional, meta = (DisplayName = "Include Border", ShowForBrushes = "BrushSet_Component", ShowForTools = "Paint,Sculpt", ToolTip = "When true, the brush will affect all pixels within the component, including those on the border, which means neightboring components (which share a line/row with their neighbor) will be affected as well"))
+	bool bBrushComponentIncludeBorder = true;
 
 
 	// Target Layer Settings:

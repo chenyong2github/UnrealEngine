@@ -390,6 +390,8 @@ class FLandscapeBrushComponent : public FLandscapeBrush
 protected:
 	FVector2D LastMousePosition;
 	UMaterialInterface* BrushMaterial;
+	FIntRect BrushExtentsInclusive; // True extents of the brush (in landscape coordinates)
+
 public:
 	FEdModeLandscape* EdMode;
 
@@ -445,6 +447,8 @@ public:
 				const float BrushOriginY = LastMousePosition.Y / LandscapeInfo->ComponentSizeQuads - (BrushSize - 1) / 2.0f;
 				const int32 ComponentIndexX = FMath::FloorToInt(BrushOriginX);
 				const int32 ComponentIndexY = FMath::FloorToInt(BrushOriginY);
+				BrushExtentsInclusive.Min = FIntPoint(ComponentIndexX * LandscapeInfo->ComponentSizeQuads, ComponentIndexY * LandscapeInfo->ComponentSizeQuads);
+				BrushExtentsInclusive.Max = FIntPoint((ComponentIndexX + BrushSize) * LandscapeInfo->ComponentSizeQuads + 1, (ComponentIndexY + BrushSize) * LandscapeInfo->ComponentSizeQuads + 1);
 
 				for (int32 YIndex = 0; YIndex < BrushSize; ++YIndex)
 				{
@@ -557,20 +561,30 @@ public:
 
 			for (int32 X = Bounds.Min.X; X < Bounds.Max.X; X++)
 			{
-				float PaintAmount = 1.0f;
-				if (EdMode->CurrentTool && EdMode->CurrentTool->GetToolType() != ELandscapeToolType::Mask
-					&& EdMode->UISettings->bUseSelectedRegion && LandscapeInfo->SelectedRegion.Num() > 0)
+				const int32 ComponentIndexX = FMath::FloorToInt(static_cast<float>(X) / LandscapeInfo->ComponentSizeQuads);
+				const int32 ComponentIndexY = FMath::FloorToInt(static_cast<float>(Y) / LandscapeInfo->ComponentSizeQuads);
+				// Skip the pixels from the border if requested :
+				if (EdMode->UISettings->bBrushComponentIncludeBorder 
+					|| ((X > BrushExtentsInclusive.Min.X)
+						&& (X < (BrushExtentsInclusive.Max.X - 1))
+						&& (Y > BrushExtentsInclusive.Min.Y)
+						&& (Y < (BrushExtentsInclusive.Max.Y - 1))))
 				{
-					float MaskValue = LandscapeInfo->SelectedRegion.FindRef(FIntPoint(X, Y));
-					if (EdMode->UISettings->bUseNegativeMask)
+					float PaintAmount = 1.0f;
+					if (EdMode->CurrentTool && EdMode->CurrentTool->GetToolType() != ELandscapeToolType::Mask
+						&& EdMode->UISettings->bUseSelectedRegion && LandscapeInfo->SelectedRegion.Num() > 0)
 					{
-						MaskValue = 1.0f - MaskValue;
+						float MaskValue = LandscapeInfo->SelectedRegion.FindRef(FIntPoint(X, Y));
+						if (EdMode->UISettings->bUseNegativeMask)
+						{
+							MaskValue = 1.0f - MaskValue;
+						}
+						PaintAmount *= MaskValue;
 					}
-					PaintAmount *= MaskValue;
-				}
 
-				// Set the brush value for this vertex
-				Scanline[X] = PaintAmount;
+					// Set the brush value for this vertex
+					Scanline[X] = PaintAmount;
+				}
 			}
 		}
 
