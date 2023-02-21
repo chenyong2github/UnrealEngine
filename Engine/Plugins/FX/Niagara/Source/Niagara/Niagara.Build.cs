@@ -81,7 +81,7 @@ public class Niagara : ModuleRules
             });
         }
 
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) && Target.Architecture.bIsX64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.Architecture != UnrealArch.Arm64)
 		{ 
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"IntelTBB",
