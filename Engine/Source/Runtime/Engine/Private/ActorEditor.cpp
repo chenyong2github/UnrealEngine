@@ -1600,44 +1600,12 @@ EDataValidationResult AActor::IsDataValid(TArray<FText>& ValidationErrors)
 
 bool AActor::AddDataLayer(const UDataLayerInstance* DataLayerInstance)
 {
-	if (!SupportsDataLayer())
-	{
-		return false;
-	}
 	return DataLayerInstance->AddActor(this);
-}
-
-bool AActor::AddDataLayer(const UDataLayerAsset* DataLayerAsset)
-{
-	bool bActorWasModified = false;
-	if (SupportsDataLayer() && DataLayerAsset && !DataLayerAssets.Contains(DataLayerAsset))
-	{
-		Modify();
-		bActorWasModified = true;
-		DataLayerAssets.Add(DataLayerAsset);
-	}
-	return bActorWasModified;
 }
 
 bool AActor::RemoveDataLayer(const UDataLayerInstance* DataLayerInstance)
 {
 	return DataLayerInstance->RemoveActor(this);
-}
-
-bool AActor::RemoveDataLayer(const UDataLayerAsset* DataLayerAsset)
-{
-	bool bActorWasModified = false;
-	if (DataLayerAsset && DataLayerAssets.Contains(DataLayerAsset))
-	{
-		if (!bActorWasModified)
-		{
-			Modify();
-			bActorWasModified = true;
-		}
-
-		DataLayerAssets.Remove(DataLayerAsset);
-	}
-	return bActorWasModified;
 }
 
 bool AActor::RemoveAllDataLayers()
@@ -1782,6 +1750,34 @@ bool AActor::SupportsDataLayer() const
 			ActorTypeSupportsDataLayer() &&
 			!FActorEditorUtils::IsABuilderBrush(this) &&
 			!GetClass()->GetDefaultObject<AActor>()->bHiddenEd);
+}
+
+bool FAssignActorDataLayer::AddDataLayerAsset(AActor* InActor, const UDataLayerAsset* InDataLayerAsset)
+{
+	check(InDataLayerAsset != nullptr);
+
+	if (!InActor->ContainsDataLayer(InDataLayerAsset))
+	{
+		InActor->Modify();
+		InActor->DataLayerAssets.Add(InDataLayerAsset);
+		return true;
+	}
+
+	return false;
+}
+
+bool FAssignActorDataLayer::RemoveDataLayerAsset(AActor* InActor, const UDataLayerAsset* InDataLayerAsset)
+{
+	check(InDataLayerAsset != nullptr);
+	
+	if (InActor->DataLayerAssets.Contains(InDataLayerAsset))
+	{
+		InActor->Modify();
+		InActor->DataLayerAssets.Remove(InDataLayerAsset);
+		return true;
+	}
+
+	return false;
 }
 
 //~ Begin Deprecated

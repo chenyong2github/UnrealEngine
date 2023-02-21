@@ -22,8 +22,8 @@ public:
 	virtual void PostEditUndo() override;
 	virtual bool IsLocked() const override;
 	virtual bool IsReadOnly() const override;
-	virtual bool AddActor(AActor* Actor) const override;
-	virtual bool RemoveActor(AActor* Actor) const override;
+	virtual bool CanAddActor(AActor* InActor) const override;
+	virtual bool CanRemoveActor(AActor* InActor) const override;
 
 	virtual bool Validate(IStreamingGenerationErrorHandler* ErrorHandler) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -39,6 +39,12 @@ public:
 
 	virtual FString GetDataLayerShortName() const override { return DataLayerAsset != nullptr ? DataLayerAsset->GetName() : GetDataLayerFName().ToString(); }
 	virtual FString GetDataLayerFullName() const override { return DataLayerAsset != nullptr ? DataLayerAsset->GetPathName() : GetDataLayerFName().ToString(); }
+
+protected:
+#if WITH_EDITOR
+	virtual bool PerformAddActor(AActor* InActor) const;
+	virtual bool PerformRemoveActor(AActor* InActor) const;
+#endif
 
 private:
 	UPROPERTY(Category = "Data Layer", EditAnywhere)

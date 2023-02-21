@@ -581,16 +581,7 @@ uint32 UDataLayerToAssetCommandlet::RemapDataLayersAssetsFromPreviousConversions
 		{
 			if (DataLayerConversionInfo->IsAPreviousConversion())
 			{
-				if (Actor->AddDataLayer(DataLayerConversionInfo->GetCurrentConversion()->DataLayerInstance))
-				{
-					if (!Actor->RemoveDataLayer(DataLayerConversionInfo->DataLayerAsset))
-					{
-						ErrorCount++;
-						UE_LOG(LogDataLayerToAssetCommandlet, Error, TEXT("Failed to remove deprecated data layer asset %s in Actor %s"),
-							*DataLayerConversionInfo->DataLayerAsset->GetFullName(), *Actor->GetName());
-					}
-				}
-				else
+				if (!DataLayerConversionInfo->GetCurrentConversion()->DataLayerInstance->AddActor(Actor))
 				{
 					ErrorCount++;
 					UE_LOG(LogDataLayerToAssetCommandlet, Error, TEXT("Failed to replace data layer asset %s in Actor %s"),

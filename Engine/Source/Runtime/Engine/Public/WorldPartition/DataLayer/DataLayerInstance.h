@@ -75,8 +75,11 @@ public:
 	virtual bool IsLocked() const;
 	virtual bool IsReadOnly() const;
 	virtual bool CanEditChange(const FProperty* InProperty) const;
-	virtual bool AddActor(AActor* Actor) const { return false; }
-	virtual bool RemoveActor(AActor* Actor) const { return false; }
+	
+	virtual bool CanAddActor(AActor* Actor) const;
+	virtual bool AddActor(AActor* Actor) const;
+	virtual bool CanRemoveActor(AActor* Actor) const;
+	virtual bool RemoveActor(AActor* Actor) const;
 
 	bool IsInActorEditorContext() const;
 	bool AddToActorEditorContext();
@@ -143,6 +146,11 @@ private:
 #endif
 
 protected:
+#if WITH_EDITOR
+	virtual bool PerformAddActor(AActor* InActor) const { return false; }
+	virtual bool PerformRemoveActor(AActor* InActor) const { return false;  }
+#endif
+
 #if WITH_EDITORONLY_DATA
 	/** Whether actors associated with the DataLayer are visible in the viewport */
 	UPROPERTY(Transient)

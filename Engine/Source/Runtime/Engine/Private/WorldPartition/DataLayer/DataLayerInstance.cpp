@@ -124,6 +124,36 @@ const TCHAR* UDataLayerInstance::GetDataLayerIconName() const
 	return FDataLayerUtils::GetDataLayerIconName(GetType());
 }
 
+bool UDataLayerInstance::CanAddActor(AActor* InActor) const
+{
+	return InActor != nullptr && InActor->SupportsDataLayer() && !InActor->ContainsDataLayer(this);
+}
+
+bool UDataLayerInstance::AddActor(AActor* InActor) const
+{
+	if (CanAddActor(InActor))
+	{
+		return PerformAddActor(InActor);
+	}
+
+	return false;
+}
+
+bool UDataLayerInstance::CanRemoveActor(AActor* InActor) const
+{
+	return InActor->ContainsDataLayer(this);
+}
+
+bool UDataLayerInstance::RemoveActor(AActor* InActor) const
+{
+	if (CanRemoveActor(InActor))
+	{
+		return PerformRemoveActor(InActor);
+	}
+
+	return false;
+}
+
 bool UDataLayerInstance::CanParent(const UDataLayerInstance* InParent) const
 {
 	return (this != InParent)

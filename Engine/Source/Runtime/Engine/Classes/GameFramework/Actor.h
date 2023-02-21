@@ -1238,9 +1238,7 @@ private:
 	virtual bool ActorTypeSupportsDataLayer() const { return true; }
 	virtual bool ActorTypeShouldSkipFromLevelInstance() const { return false; }
 public:
-	bool AddDataLayer(const UDataLayerAsset* DataLayerAsset);
 	bool AddDataLayer(const UDataLayerInstance* DataLayerInstance);
-	bool RemoveDataLayer(const UDataLayerAsset* DataLayerAsset);
 	bool RemoveDataLayer(const UDataLayerInstance* DataLayerInstance);
 	bool RemoveAllDataLayers();
 	bool SupportsDataLayer() const;
@@ -1265,6 +1263,12 @@ public:
 	bool RemoveDataLayer(const UDEPRECATED_DataLayer* DataLayer);
 
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UE_DEPRECATED(5.3, "Use UDataLayerInstance::AddActor(AActor*) instead.")
+	bool AddDataLayer(const UDataLayerAsset* DataLayerAsset) { return false; }
+
+	UE_DEPRECATED(5.3, "Use UDataLayerInstance::RemoveDataLayer(AActor*) instead.")
+	bool RemoveDataLayer(const UDataLayerAsset* DataLayerAsset) { return false; }
 
 	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use AddDataLayer(UDataLayerAsset*)")
 	bool AddDataLayer(const FActorDataLayer& ActorDataLayer);
@@ -3954,6 +3958,7 @@ private:
 	friend struct FSetActorHiddenInSceneOutliner;
 	friend struct FSetActorGuid;
 	friend struct FSetActorContentBundleGuid;
+	friend struct FAssignActorDataLayer;
 	friend struct FSetActorSelectable;
 #endif
 
@@ -4218,6 +4223,16 @@ private:
 		InActor->ContentBundleGuid = InContentBundleGuid;
 	}
 	friend class FContentBundleEditor;
+};
+
+struct FAssignActorDataLayer
+{
+private:
+	static bool AddDataLayerAsset(AActor* InActor, const UDataLayerAsset* InDataLayerAsset);
+	static bool RemoveDataLayerAsset(AActor* InActor, const UDataLayerAsset* InDataLayerAsset);
+
+	friend class UDataLayerInstanceWithAsset;
+	friend class ULevelInstanceSubsystem;
 };
 #endif
 

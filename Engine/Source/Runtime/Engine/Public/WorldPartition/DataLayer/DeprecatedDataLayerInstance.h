@@ -45,8 +45,8 @@ public:
 
 private:
 #if WITH_EDITOR
-	virtual bool AddActor(AActor* Actor) const override;
-	virtual bool RemoveActor(AActor* Actor) const override;
+	virtual bool PerformAddActor(AActor* InActor) const override;
+	virtual bool PerformRemoveActor(AActor* InActor) const override;
 
 	virtual bool SupportRelabeling() const override { return true; }
 	virtual bool RelabelDataLayer(FName NewDataLayerLabel) override;

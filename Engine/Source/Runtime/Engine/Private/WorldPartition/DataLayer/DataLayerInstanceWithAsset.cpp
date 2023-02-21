@@ -52,16 +52,26 @@ bool UDataLayerInstanceWithAsset::IsLocked() const
 	return IsReadOnly();
 }
 
-bool UDataLayerInstanceWithAsset::AddActor(AActor* Actor) const
-{	
-	check(GetTypedOuter<ULevel>() == Actor->GetLevel()); // Make sure the instance is part of the same world as the actor.
-	check(UDataLayerManager::GetDataLayerManager(Actor)->GetDataLayerInstance(DataLayerAsset) != nullptr); // Make sure the DataLayerInstance exists for this level
-	return Actor->AddDataLayer(DataLayerAsset);
+bool UDataLayerInstanceWithAsset::CanAddActor(AActor* InActor) const
+{
+	return DataLayerAsset != nullptr && Super::CanAddActor(InActor);
 }
 
-bool UDataLayerInstanceWithAsset::RemoveActor(AActor* Actor) const
+bool UDataLayerInstanceWithAsset::PerformAddActor(AActor* InActor) const
+{	
+	check(GetTypedOuter<ULevel>() == InActor->GetLevel()); // Make sure the instance is part of the same world as the actor.
+	check(UDataLayerManager::GetDataLayerManager(InActor)->GetDataLayerInstance(DataLayerAsset) != nullptr); // Make sure the DataLayerInstance exists for this level
+	return FAssignActorDataLayer::AddDataLayerAsset(InActor, DataLayerAsset);
+}
+
+bool UDataLayerInstanceWithAsset::CanRemoveActor(AActor* InActor) const
 {
-	return Actor->RemoveDataLayer(DataLayerAsset);
+	return DataLayerAsset != nullptr && Super::CanRemoveActor(InActor);
+}
+
+bool UDataLayerInstanceWithAsset::PerformRemoveActor(AActor* InActor) const
+{
+	return FAssignActorDataLayer::RemoveDataLayerAsset(InActor, DataLayerAsset);
 }
 
 bool UDataLayerInstanceWithAsset::Validate(IStreamingGenerationErrorHandler* ErrorHandler) const
