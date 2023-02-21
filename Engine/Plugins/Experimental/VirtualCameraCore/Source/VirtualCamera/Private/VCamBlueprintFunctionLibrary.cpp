@@ -48,20 +48,18 @@ UVirtualCameraUserSettings* UVCamBlueprintFunctionLibrary::GetUserSettings()
 ULevelSequence* UVCamBlueprintFunctionLibrary::GetCurrentLevelSequence()
 {
 #if WITH_EDITOR
-	ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
+	return ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
+#else
+	return nullptr;
+#endif
+}
 
-	//if there's no sequence open in sequencer, use take recorder's pending take
-	if (!LevelSequence)
-	{
-		ITakeRecorderModule& TakeRecorderModule = FModuleManager::LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
-		UTakePreset* TakePreset = TakeRecorderModule.GetPendingTake();
-		
-		if (TakePreset)
-		{
-			LevelSequence = TakePreset->GetLevelSequence();
-		}
-	}
-	return LevelSequence;
+ULevelSequence* UVCamBlueprintFunctionLibrary::GetPendingTakeLevelSequence()
+{
+#if WITH_EDITOR
+	const ITakeRecorderModule& TakeRecorderModule = FModuleManager::LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
+	const UTakePreset* TakePreset = TakeRecorderModule.GetPendingTake();
+	return TakePreset ? TakePreset->GetLevelSequence() : nullptr;
 #else
 	return nullptr;
 #endif

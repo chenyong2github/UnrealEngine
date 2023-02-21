@@ -31,9 +31,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	static UVirtualCameraUserSettings* GetUserSettings();
 
-	/** Get the currently opened level sequence asset */
+	/**
+	 * Get the currently opened level sequence asset
+	 * @see ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence
+	 */
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	static ULevelSequence* GetCurrentLevelSequence();
+
+	/**
+	 * Gets the level sequence associated with the current pending take.
+	 * @see ITakeRecorderModule::GetPendingTake
+	 */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
+	static ULevelSequence* GetPendingTakeLevelSequence();
 
 	/** Play the current level sequence */
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
