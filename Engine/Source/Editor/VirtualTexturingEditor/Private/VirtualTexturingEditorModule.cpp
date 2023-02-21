@@ -30,8 +30,6 @@ public:
 	//~ End IModuleInterface Interface.
 
 	//~ Begin IVirtualTexturingEditorModule Interface.
-	virtual bool HasStreamedMips(URuntimeVirtualTextureComponent* InComponent) const override;
-	virtual bool BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent) const override;
 	virtual bool HasStreamedMips(EShadingPath ShadingPath, URuntimeVirtualTextureComponent* InComponent) const override;
 	virtual bool BuildStreamedMips(EShadingPath ShadingPath, URuntimeVirtualTextureComponent* InComponent) const override;
 	virtual void ConvertVirtualTextures(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial *>* RelatedMaterials /* = nullptr */) const override;
@@ -82,16 +80,6 @@ void FVirtualTexturingEditorModule::OnPlacementModeRefresh(FName CategoryName)
 		IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
 		PlacementModeModule.RegisterPlaceableItem(CategoryName, MakeShareable(new FPlaceableItem(nullptr, FAssetData(ARuntimeVirtualTextureVolume::StaticClass()))));
 	}
-}
-
-bool FVirtualTexturingEditorModule::HasStreamedMips(URuntimeVirtualTextureComponent* InComponent) const
-{
-	return RuntimeVirtualTexture::HasStreamedMips(EShadingPath::Deferred, InComponent);
-}
-
-bool FVirtualTexturingEditorModule::BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent) const
-{
-	return RuntimeVirtualTexture::BuildStreamedMips(EShadingPath::Deferred, InComponent, ERuntimeVirtualTextureDebugType::None);
 }
 
 bool FVirtualTexturingEditorModule::HasStreamedMips(EShadingPath ShadingPath, URuntimeVirtualTextureComponent* InComponent) const
