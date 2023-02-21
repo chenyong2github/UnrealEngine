@@ -1393,6 +1393,18 @@ TSoftClassPtr<UObject> UKismetSystemLibrary::Conv_ClassToSoftClassReference(cons
 	return TSoftClassPtr<UObject>(*Class);
 }
 
+FSoftComponentReference UKismetSystemLibrary::Conv_ComponentReferenceToSoftComponentReference(const FComponentReference& ComponentReference)
+{
+	FSoftComponentReference SoftComponentReference;
+	SoftComponentReference.ComponentProperty = ComponentReference.ComponentProperty;
+	SoftComponentReference.PathToComponent = ComponentReference.PathToComponent;
+	if (ComponentReference.OtherActor.IsValid())
+	{
+		SoftComponentReference.OtherActor = ComponentReference.OtherActor.Get();
+	}
+	return SoftComponentReference;
+}
+
 void UKismetSystemLibrary::SetTextPropertyByName(UObject* Object, FName PropertyName, const FText& Value)
 {
 	if(Object != nullptr)

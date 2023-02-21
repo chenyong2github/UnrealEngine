@@ -179,6 +179,25 @@ UActorComponent* FSoftComponentReference::GetComponent(AActor* OwningActor) cons
 	return ExtractComponent(SearchActor);
 }
 
+bool FSoftComponentReference::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
+{
+	static const FName ComponentReferenceContextName("ComponentReference");
+	if (Tag.Type == NAME_StructProperty && Tag.StructName == ComponentReferenceContextName)
+	{
+		FComponentReference Reference;
+		FComponentReference::StaticStruct()->SerializeItem(Slot, &Reference, nullptr);
+		if (Reference.OtherActor.IsValid())
+		{
+			OtherActor = Reference.OtherActor.Get();
+			ComponentProperty = Reference.ComponentProperty;
+			PathToComponent = Reference.PathToComponent;
+		}
+		return true;
+	}
+
+	return false;
+}
+
 const TCHAR* LexToString(const EWorldType::Type Value)
 {
 	switch (Value)

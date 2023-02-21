@@ -3215,6 +3215,17 @@ struct ENGINE_API FSoftComponentReference : public FBaseComponentReference
 	{
 		return (OtherActor == Other.OtherActor) && (FBaseComponentReference::operator==(Other));
 	}
+
+	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+};
+
+template<>
+struct TStructOpsTypeTraits<FSoftComponentReference> : public TStructOpsTypeTraitsBase2<FSoftComponentReference>
+{
+	enum
+	{
+		WithStructuredSerializeFromMismatchedTag = true,
+	};
 };
 
 
