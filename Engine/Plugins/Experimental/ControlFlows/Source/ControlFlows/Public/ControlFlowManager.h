@@ -8,7 +8,7 @@
 #include "ControlFlowContainer.h"
 // IWYU pragma: end_keep
 
-class CONTROLFLOWS_API FControlFlowStatics
+class FControlFlowStatics
 {
 public:
 	template<typename OwningObjectT>
@@ -73,16 +73,16 @@ public:
 
 private:
 	// These flows will be checked the next frame to make sure they are executed. If they are not, it will execute the flow and remove from this array.
-	static TArray<TSharedRef<FControlFlowContainerBase>>& GetNewlyCreatedFlows();
+	CONTROLFLOWS_API static TArray<TSharedRef<FControlFlowContainerBase>>& GetNewlyCreatedFlows();
 
 	// These flows will not be checked the next frame, and will be moved to executing when we find ourselves executing.
-	static TArray<TSharedRef<FControlFlowContainerBase>>& GetPersistentFlows();
+	CONTROLFLOWS_API static TArray<TSharedRef<FControlFlowContainerBase>>& GetPersistentFlows();
 
 	// Flows that are actively running.
-	static TArray<TSharedRef<FControlFlowContainerBase>>& GetExecutingFlows();
+	CONTROLFLOWS_API static TArray<TSharedRef<FControlFlowContainerBase>>& GetExecutingFlows();
 
 	// Final Array that flows are moved to before being deleted.
-	static TArray<TSharedRef<FControlFlowContainerBase>>& GetFinishedFlows();
+	CONTROLFLOWS_API static TArray<TSharedRef<FControlFlowContainerBase>>& GetFinishedFlows();
 
 private:
 	template<typename OwningObjectT>
@@ -140,8 +140,8 @@ private:
 	static void HandleControlFlowFinishedNotification() { CheckForInvalidFlows(); }
 
 private:
-	static void CheckNewlyCreatedFlows();
-	static void CheckForInvalidFlows();
+	CONTROLFLOWS_API static void CheckNewlyCreatedFlows();
+	CONTROLFLOWS_API static void CheckForInvalidFlows();
 
 private:
 	static bool IterateThroughNewlyCreatedFlows(float DeltaTime);

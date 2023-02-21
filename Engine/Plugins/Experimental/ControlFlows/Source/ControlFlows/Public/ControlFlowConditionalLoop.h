@@ -8,15 +8,15 @@
 class FControlFlow;
 
 // In contrast to, for example, iterator loops
-class CONTROLFLOWS_API FConditionalLoop : public TSharedFromThis<FConditionalLoop>
+class FConditionalLoop : public TSharedFromThis<FConditionalLoop>
 {
 public:
-	FConditionalLoop();
+	CONTROLFLOWS_API FConditionalLoop();
 	
-	FControlFlow& CheckConditionFirst();
-	FControlFlow& RunLoopFirst();
-	FControlFlow& ExecuteAtLeastOnce();
-	FControlFlow& SetCheckConditionFirst(bool bInValue);
+	CONTROLFLOWS_API FControlFlow& CheckConditionFirst();
+	CONTROLFLOWS_API FControlFlow& RunLoopFirst();
+	CONTROLFLOWS_API FControlFlow& ExecuteAtLeastOnce();
+	CONTROLFLOWS_API FControlFlow& SetCheckConditionFirst(bool bInValue);
 
 private:
 	friend class FControlFlowTask_ConditionalLoop;
