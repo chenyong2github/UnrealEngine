@@ -5,8 +5,8 @@
 #include "PCGComponent.h"
 #include "PCGModule.h"
 
-#include "HAL/IConsoleManager.h"
 #include "GameFramework/Actor.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/ScopeRWLock.h"
 
 static TAutoConsoleVariable<bool> CVarCacheDebugging(

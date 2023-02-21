@@ -5,8 +5,6 @@
 #include "PCGCrc.h"
 #include "PCGData.h"
 
-#include "Containers/Array.h"
-#include "Containers/RingBuffer.h"
 #include "Containers/LruCache.h"
 
 class IPCGElement;
