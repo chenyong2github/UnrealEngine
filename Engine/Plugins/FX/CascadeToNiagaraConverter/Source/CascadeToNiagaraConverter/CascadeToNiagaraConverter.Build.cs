@@ -7,10 +7,6 @@ public class CascadeToNiagaraConverter : ModuleRules
 	public CascadeToNiagaraConverter(ReadOnlyTargetRules Target) : base(Target)
 	{
         PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-
-        PrivateIncludePaths.AddRange(new string[] {
-				"CascadeToNiagaraConverter/Private",
-		});
 		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]

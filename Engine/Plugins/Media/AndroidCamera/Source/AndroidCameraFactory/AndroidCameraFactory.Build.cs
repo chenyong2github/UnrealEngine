@@ -22,11 +22,6 @@ namespace UnrealBuildTool.Rules
 					"Media",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"AndroidCameraFactory/Private",
-				});
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

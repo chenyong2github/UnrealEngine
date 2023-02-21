@@ -6,13 +6,7 @@ public class ModularGameplay : ModuleRules
 {
 	public ModularGameplay(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;				
-		
-		PrivateIncludePaths.AddRange(
-			new string[] {
-                "ModularGameplay/Private"
-            }
-			);
+		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 			
 		
 		PublicDependencyModuleNames.AddRange(

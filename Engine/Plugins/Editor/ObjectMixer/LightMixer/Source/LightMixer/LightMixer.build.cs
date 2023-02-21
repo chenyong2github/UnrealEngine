@@ -9,8 +9,6 @@ public class LightMixer : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
-		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
-
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{

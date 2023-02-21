@@ -23,11 +23,6 @@ namespace UnrealBuildTool.Rules
 					"AjaMedia",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"AjaMediaFactory/Private",
-				});
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

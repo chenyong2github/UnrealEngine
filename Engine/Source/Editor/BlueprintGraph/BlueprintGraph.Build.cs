@@ -9,7 +9,6 @@ public class BlueprintGraph : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
             new string[] {
-                "Editor/BlueprintGraph/Private",
                 "Editor/KismetCompiler/Public",
             }
 		);

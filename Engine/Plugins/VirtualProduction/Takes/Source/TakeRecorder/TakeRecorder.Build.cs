@@ -51,8 +51,6 @@ public class TakeRecorder : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"TakeRecorder/Private",
-				"TakeRecorder/Public",
                 "TakeRecorderSources/Private",
             }
         );

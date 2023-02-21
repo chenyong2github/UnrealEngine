@@ -15,7 +15,6 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					"Runtime/Messaging/Private",
 					"Runtime/Messaging/Private/Bus",
 					"Runtime/Messaging/Private/Bridge",
 				});

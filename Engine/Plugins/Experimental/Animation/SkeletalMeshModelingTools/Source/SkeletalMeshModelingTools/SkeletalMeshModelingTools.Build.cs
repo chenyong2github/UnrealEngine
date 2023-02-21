@@ -6,12 +6,6 @@ public class SkeletalMeshModelingTools : ModuleRules
 {
 	public SkeletalMeshModelingTools(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"SkeletalMeshModelingTools/Private",
-			}
-		);
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

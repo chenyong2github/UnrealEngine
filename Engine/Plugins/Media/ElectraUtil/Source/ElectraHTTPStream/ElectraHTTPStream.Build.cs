@@ -74,11 +74,6 @@ public class ElectraHTTPStream : ModuleRules
 	{
 		PublicDefinitions.Add("ELECTRA_HTTPSTREAM_PACKAGE=1");
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"ElectraHTTPStream/Private",
-			});
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core"

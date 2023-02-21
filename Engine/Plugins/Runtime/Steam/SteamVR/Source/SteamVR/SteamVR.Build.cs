@@ -6,13 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public SteamVR(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"SteamVR/Private",
-					// ... add other private include paths required here ...
-				}
-				);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

@@ -23,11 +23,5 @@ public class ReplayTracksEditor : ModuleRules
 				"TimeManagement",
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"ReplayTracksEditor/Private",
-			}
-		);
 	}
 }

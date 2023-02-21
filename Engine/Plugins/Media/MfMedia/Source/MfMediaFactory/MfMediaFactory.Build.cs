@@ -24,11 +24,6 @@ namespace UnrealBuildTool.Rules
 					"MfMedia",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"MfMediaFactory/Private",
-				});
-
 			if (DoAllowHTTPSPlayback())
 			{
 				PrivateDefinitions.Add("MFMEDIAFACTORY_ALLOW_HTTPS=1");

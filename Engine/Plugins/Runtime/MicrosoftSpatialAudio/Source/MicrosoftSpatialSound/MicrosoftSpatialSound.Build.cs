@@ -44,7 +44,6 @@ public class MicrosoftSpatialSound : ModuleRules
 		
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"MicrosoftSpatialSound/Private",
 				System.IO.Path.Combine(EngineDir, "Source/ThirdParty/SpatialAudioClientInterop"),
 			}
 			);

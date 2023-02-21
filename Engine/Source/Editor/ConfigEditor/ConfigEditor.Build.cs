@@ -8,7 +8,6 @@ public class ConfigEditor : ModuleRules
 	{
 		PublicIncludePaths.AddRange(
 			new string[] {
-				"Editor/ConfigEditor/Public",
 				"Editor/ConfigEditor/Public/PropertyVisualization",
 			}
 		);

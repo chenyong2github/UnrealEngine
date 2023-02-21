@@ -30,11 +30,6 @@ namespace UnrealBuildTool.Rules
                 PublicDefinitions.Add("UE_PLATFORM_ELECTRAPLAYER=1");
             }
 
-            PrivateIncludePaths.AddRange(
-                new string[] {
-                    "ElectraPlayerFactory/Private",
-                });
-
             PublicDependencyModuleNames.AddRange(
                 new string[] {
                     "Core",

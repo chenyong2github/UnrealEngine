@@ -16,7 +16,6 @@ namespace UnrealBuildTool.Rules
 
             PrivateIncludePaths.AddRange(
                 new string[] {
-                    "OculusAudioEditor/Public",
                     "OculusAudio/Private",
                     "OculusAudio/Public",
  					// ... add other private include paths required here ...

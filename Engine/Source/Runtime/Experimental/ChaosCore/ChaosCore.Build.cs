@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
     {
         public ChaosCore(ReadOnlyTargetRules Target) : base(Target)
         {
-            PublicIncludePaths.Add("Runtime/Experimental/ChaosCore/Public");
-
             PublicDependencyModuleNames.AddRange(
                 new string[] {
                 "Core",

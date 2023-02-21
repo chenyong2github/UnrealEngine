@@ -7,8 +7,6 @@ public class LandmassEditor : ModuleRules
 	public LandmassEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
-		PrivateIncludePaths.Add("Editor/Private");
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {

@@ -14,13 +14,6 @@ namespace UnrealBuildTool.Rules
 					"MediaIOCore",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-					"AjaMediaOutput/Private"
-				}
-			);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

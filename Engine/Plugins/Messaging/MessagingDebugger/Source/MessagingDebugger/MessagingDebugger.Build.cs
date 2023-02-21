@@ -24,7 +24,6 @@ public class MessagingDebugger : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"MessagingDebugger/Private",
 				"MessagingDebugger/Private/Models",
 				"MessagingDebugger/Private/Styles",
 				"MessagingDebugger/Private/Widgets",

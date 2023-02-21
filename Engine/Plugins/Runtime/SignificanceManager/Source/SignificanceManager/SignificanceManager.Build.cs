@@ -14,11 +14,5 @@ public class SignificanceManager : ModuleRules
 				"EngineSettings"
 			}
 		);
-
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "SignificanceManager/Private"
-            })
-		;
 	}
 }

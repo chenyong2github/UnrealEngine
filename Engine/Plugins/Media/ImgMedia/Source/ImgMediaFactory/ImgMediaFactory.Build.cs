@@ -22,11 +22,6 @@ namespace UnrealBuildTool.Rules
 					"ImgMedia",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"ImgMediaFactory/Private",
-				});
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

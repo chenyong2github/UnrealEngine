@@ -10,7 +10,6 @@ public class AIGraph : ModuleRules
 
 		PrivateIncludePaths.AddRange(
             new string[] {
-				System.IO.Path.Combine(GetModuleDirectory("AIGraph"), "Private"),
 				System.IO.Path.Combine(GetModuleDirectory("Kismet"), "Private"),
 			}
         );

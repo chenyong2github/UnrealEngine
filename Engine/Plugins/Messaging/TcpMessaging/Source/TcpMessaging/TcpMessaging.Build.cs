@@ -34,7 +34,6 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					"TcpMessaging/Private",
 					"TcpMessaging/Private/Settings",
 					"TcpMessaging/Private/Transport",
 				});

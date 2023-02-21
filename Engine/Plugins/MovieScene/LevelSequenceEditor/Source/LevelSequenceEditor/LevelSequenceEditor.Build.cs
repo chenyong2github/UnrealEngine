@@ -67,8 +67,6 @@ public class LevelSequenceEditor : ModuleRules
 
         PrivateIncludePaths.AddRange(
             new string[] {
-            	"LevelSequenceEditor/Public",
-				"LevelSequenceEditor/Private",
 				"LevelSequenceEditor/Private/AssetTools",
 				"LevelSequenceEditor/Private/Factories",
                 "LevelSequenceEditor/Private/Misc",

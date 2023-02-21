@@ -7,8 +7,6 @@ public class WaterEditor : ModuleRules
 	public WaterEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
-        PrivateIncludePaths.Add("Editor/Private");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

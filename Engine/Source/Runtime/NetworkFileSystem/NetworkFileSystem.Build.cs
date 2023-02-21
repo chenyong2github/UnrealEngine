@@ -19,11 +19,6 @@ namespace UnrealBuildTool.Rules
 					"CookOnTheFlyNetServer"
 				});
 
-			PublicIncludePaths.AddRange(
-				new string[] {
-					"Runtime/NetworkFileSystem/Public",
-				});
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

@@ -8,8 +8,6 @@ public class Landmass : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
-		PrivateIncludePaths.Add("Runtime/Private");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

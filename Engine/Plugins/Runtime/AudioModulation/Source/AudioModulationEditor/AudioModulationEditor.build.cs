@@ -40,7 +40,6 @@ public class AudioModulationEditor : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[]
 			{
-				"AudioModulationEditor/Private",
 				"AudioModulation/Private"
 			}
 		);

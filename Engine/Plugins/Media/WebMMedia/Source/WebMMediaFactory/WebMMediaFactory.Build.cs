@@ -21,11 +21,6 @@ namespace UnrealBuildTool.Rules
 					"Media",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"WebMMediaFactory/Private",
-				});
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

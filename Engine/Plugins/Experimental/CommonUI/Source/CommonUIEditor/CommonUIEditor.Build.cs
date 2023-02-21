@@ -35,7 +35,6 @@ public class CommonUIEditor : ModuleRules
 			new string[]
 			{
 				System.IO.Path.Combine(GetModuleDirectory("CommonUI"), "Private"),
-				System.IO.Path.Combine(GetModuleDirectory("CommonUIEditor"), "Private"),
 			}
 		);
 

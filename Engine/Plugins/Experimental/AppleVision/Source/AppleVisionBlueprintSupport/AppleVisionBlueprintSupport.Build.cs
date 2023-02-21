@@ -10,7 +10,6 @@ namespace UnrealBuildTool.Rules
             PrivateIncludePaths.AddRange(
                 new string[] {
                     "AppleVision/Public",
-                    "AppleVisionBlueprintSupport/Classes"
                     // ... add other private include paths required here ...
                 }
                 );

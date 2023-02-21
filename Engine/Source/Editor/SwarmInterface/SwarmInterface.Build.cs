@@ -7,12 +7,6 @@ public class SwarmInterface : ModuleRules
 {
 	public SwarmInterface(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.AddRange(
-			new string[] {
-				"Editor/SwarmInterface/Public"
-			}
-		);
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

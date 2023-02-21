@@ -6,12 +6,6 @@ public class EyeTracker : ModuleRules
 {
     public EyeTracker(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.AddRange(
-			new string[] {
-				"Runtime/EyeTracker/Public"
-			}
-		);
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

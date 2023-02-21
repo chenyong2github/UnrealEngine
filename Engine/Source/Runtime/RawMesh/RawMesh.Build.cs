@@ -6,7 +6,6 @@ public class RawMesh : ModuleRules
 {
     public RawMesh(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PublicIncludePaths.AddRange(new string[] {"Runtime/RawMesh/Public"});
         PrivateDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject" });
 	}
 }

@@ -8,7 +8,6 @@ public class GoogleARCoreRendering : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(new string[]
 		{
-			"GoogleARCoreRendering/Private",
 			"GoogleARCoreBase/Private",
 		});
 			

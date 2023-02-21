@@ -24,11 +24,6 @@ namespace UnrealBuildTool.Rules
                     "HLMedia",
                 });
 
-            PrivateIncludePaths.AddRange(
-                new string[] {
-                    "HLMediaFactory/Private",
-                });
-
             DynamicallyLoadedModuleNames.Add("HLMedia");
         }
     }

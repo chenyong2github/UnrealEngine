@@ -31,12 +31,6 @@ public class TemplateSequenceEditor : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"TemplateSequenceEditor/Private",
-			}
-		);
-
 		var DynamicModuleNames = new string[] {
 			"LevelEditor",
 			"PropertyEditor",

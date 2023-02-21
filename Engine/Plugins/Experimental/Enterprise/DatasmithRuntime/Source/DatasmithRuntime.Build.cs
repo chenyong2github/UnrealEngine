@@ -11,8 +11,6 @@ public class DatasmithRuntime : ModuleRules
 		OptimizeCode = CodeOptimization.InShippingBuildsOnly;
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PrivateIncludePaths.Add("Private");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"DatasmithContent",

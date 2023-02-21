@@ -34,7 +34,6 @@ public class OculusEditor : ModuleRules
 		PrivateIncludePaths.AddRange(
 				new string[] {
 					// Relative to Engine\Plugins\Runtime\Oculus\OculusVR\Source
-					"OculusEditor/Private",
 					"OculusHMD/Private",
 				});
 

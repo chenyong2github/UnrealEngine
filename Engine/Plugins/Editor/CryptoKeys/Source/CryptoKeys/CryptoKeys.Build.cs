@@ -6,8 +6,6 @@ public class CryptoKeys : ModuleRules
 {
 	public CryptoKeys(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("CryptoKeys/Classes");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{

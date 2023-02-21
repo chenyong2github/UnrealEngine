@@ -5,8 +5,6 @@ public class HierarchicalLODUtilities : ModuleRules
 {
     public HierarchicalLODUtilities(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PublicIncludePaths.Add("Developer/HierarchicalLODUtilities/Public");
-
         PublicDependencyModuleNames.AddRange(
             new string[]
 			{

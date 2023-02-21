@@ -6,8 +6,6 @@ public class PhysicsCore: ModuleRules
 {
 	public PhysicsCore(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PublicIncludePaths.Add("Runtime/PhysicsCore/Public");
-
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

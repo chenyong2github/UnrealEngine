@@ -14,11 +14,6 @@ namespace UnrealBuildTool.Rules
 					"MediaAssets",
 					"UnrealEd",
 				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"AndroidCameraEditor/Private",
-				});
 		}
 	}
 }

@@ -10,7 +10,6 @@ namespace UnrealBuildTool.Rules
 		{
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					"SteamAudioEditor/Private",
 					"SteamAudio/Private",
 				}
 			);

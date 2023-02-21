@@ -6,8 +6,6 @@ public class ChaosClothEditor : ModuleRules
 {
     public ChaosClothEditor(ReadOnlyTargetRules Target) : base(Target)
     {
-        PrivateIncludePaths.Add("Chaos/Private");
-
         PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "Core",

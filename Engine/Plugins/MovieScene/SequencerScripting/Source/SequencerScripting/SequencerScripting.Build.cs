@@ -15,7 +15,6 @@ public class SequencerScripting : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"SequencerScripting/Private",
 				"SequencerScripting/Private/ExtensionLibraries",
                 "SequencerScripting/Private/KeysAndChannels",
             }

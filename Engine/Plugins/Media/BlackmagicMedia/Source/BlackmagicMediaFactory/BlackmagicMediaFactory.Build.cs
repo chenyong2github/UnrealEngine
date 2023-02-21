@@ -23,11 +23,6 @@ namespace UnrealBuildTool.Rules
 					"BlackmagicMedia",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"BlackmagicMediaFactory/Private",
-				});
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

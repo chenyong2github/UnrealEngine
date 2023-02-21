@@ -8,7 +8,6 @@ public class Sequencer : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Editor/Sequencer/Private",
 				"Editor/UnrealEd/Private" // TODO: Fix this, for now it's needed for the fbx exporter
 				}
 			);

@@ -24,11 +24,6 @@ namespace UnrealBuildTool.Rules
 					"WmfMedia",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"WmfMediaFactory/Private",
-				});
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

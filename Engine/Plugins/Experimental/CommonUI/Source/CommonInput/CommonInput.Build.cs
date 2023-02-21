@@ -28,13 +28,6 @@ public class CommonInput : ModuleRules
             }
 		);
 
-        PrivateIncludePaths.AddRange(
-			new string[]
-			{
-                "CommonInput/Private",
-			}
-		);
-
         if (Target.Type == TargetType.Editor)
         {
             PublicDependencyModuleNames.AddRange(

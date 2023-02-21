@@ -6,12 +6,6 @@ namespace UnrealBuildTool.Rules
     {
         public OptimusDeveloper(ReadOnlyTargetRules Target) : base(Target)
         {
-	        PrivateIncludePaths.AddRange(
-                new string[] {
-					"OptimusDeveloper/Private",
-				}
-            );
-
             PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

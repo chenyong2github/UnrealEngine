@@ -37,11 +37,6 @@ public class HLMedia : ModuleRules
                 "Media",
             });
 
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "HLMedia/Private",
-            });
-
         PrivateDependencyModuleNames.AddRange(new string[] 
         {
             "HLMediaLibrary",

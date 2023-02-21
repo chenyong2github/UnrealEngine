@@ -12,7 +12,6 @@ public class LevelSnapshotFilters : ModuleRules
 		PublicIncludePaths.AddRange(
 			new string[] 
 			{
-				Path.Combine(ModuleDirectory, "Public"),
 				Path.Combine(ModuleDirectory, "Public", "Builtin"),
 			}
 		);
