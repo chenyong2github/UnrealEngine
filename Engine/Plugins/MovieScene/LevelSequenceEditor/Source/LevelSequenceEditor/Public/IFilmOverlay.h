@@ -19,6 +19,9 @@ struct IFilmOverlay
 	/** Get a localized display name that is representative of this overlay */
 	virtual FText GetDisplayName() const = 0;
 
+	/** Get a localized tooltip for this overlay */
+	virtual FText GetToolTip() const { return GetDisplayName(); }
+
 	/** Get a slate thumbnail brush that is representative of this overlay. 36x24 recommended */
 	virtual const FSlateBrush* GetThumbnail() const = 0;
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CinematicViewport/FilmOverlays.h"
+#include "CinematicViewportCommands.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SHeader.h"
 #include "Widgets/Layout/SGridPanel.h"
@@ -76,6 +77,11 @@ struct FFilmOverlay_None : IFilmOverlay
 {
 	FText GetDisplayName() const { return LOCTEXT("OverlayDisabled", "Disabled"); }
 	
+	FText GetToolTip() const
+	{
+		return FCinematicViewportCommands::Get().Disabled.Get()->GetInputText();
+	}
+
 	const FSlateBrush* GetThumbnail() const { return FLevelSequenceEditorStyle::Get()->GetBrush("FilmOverlay.Disabled"); }
 
 	void Paint(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
@@ -101,6 +107,22 @@ struct FFilmOverlay_Grid : IFilmOverlay
 		);
 	}
 	
+	FText GetToolTip() const
+	{
+		if (NumDivsH == 2 && NumDivsV == 2)
+		{
+			return FCinematicViewportCommands::Get().Grid2x2.Get()->GetInputText();
+		}
+		else if (NumDivsH == 3 && NumDivsV == 3)
+		{
+			return FCinematicViewportCommands::Get().Grid3x3.Get()->GetInputText();
+		}
+		else
+		{
+			return GetDisplayName();
+		}
+	}
+
 	const FSlateBrush* GetThumbnail() const
 	{
 		return FLevelSequenceEditorStyle::Get()->GetBrush(BrushName);
@@ -156,7 +178,9 @@ private:
 struct FFilmOverlay_Rabatment : IFilmOverlay
 {
 	FText GetDisplayName() const { return LOCTEXT("RabatmentName", "Rabatment"); }
-	
+
+	FText GetToolTip() const { return FCinematicViewportCommands::Get().Rabatment.Get()->GetInputText(); }
+
 	const FSlateBrush* GetThumbnail() const { return FLevelSequenceEditorStyle::Get()->GetBrush("FilmOverlay.Rabatment"); }
 
 	void Paint(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
@@ -197,6 +221,7 @@ struct FFilmOverlay_Rabatment : IFilmOverlay
 struct FFilmOverlay_Crosshair : IFilmOverlay
 {
 	FText GetDisplayName() const { return LOCTEXT("CrosshairName", "Crosshair"); }
+	FText GetToolTip() const { return FCinematicViewportCommands::Get().Crosshair.Get()->GetInputText(); }
 	const FSlateBrush* GetThumbnail() const { return FLevelSequenceEditorStyle::Get()->GetBrush("FilmOverlay.Crosshair"); }
 	void Paint(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 	{
@@ -263,6 +288,22 @@ struct FFilmOverlay_SafeFrame : IFilmOverlay
 	}
 
 	FText GetDisplayName() const { return DisplayName; }
+	FText GetToolTip() const
+	{
+		if (GetDisplayName().EqualTo(FCinematicViewportCommands::Get().ActionSafe->GetLabel()))
+		{
+			return FCinematicViewportCommands::Get().ActionSafe.Get()->GetInputText();
+		}
+		else if (GetDisplayName().EqualTo(FCinematicViewportCommands::Get().TitleSafe->GetLabel()))
+		{
+			return FCinematicViewportCommands::Get().TitleSafe.Get()->GetInputText();
+		}
+		else if (GetDisplayName().EqualTo(FCinematicViewportCommands::Get().CustomSafe->GetLabel()))
+		{
+			return FCinematicViewportCommands::Get().CustomSafe.Get()->GetInputText();
+		}
+		return GetDisplayName();
+	}
 
 	const FSlateBrush* GetThumbnail() const { return nullptr; }
 
@@ -339,6 +380,7 @@ struct FFilmOverlay_LetterBox : IFilmOverlay
 	}
 
 	FText GetDisplayName() const { return LOCTEXT("LetterboxMask", "Letterbox Mask"); }
+	FText GetToolTip() const { return FCinematicViewportCommands::Get().Letterbox.Get()->GetInputText(); }
 
 	const FSlateBrush* GetThumbnail() const { return nullptr; }
 
@@ -464,10 +506,10 @@ void SFilmOverlayOptions::Construct(const FArguments& InArgs)
 	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay(NAME_None, PrimaryOverlays.Last());
 
 	PrimaryOverlays.Add(MakeShareable(new FFilmOverlay_Grid(3, 3)));
-	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay("3x3Grid", PrimaryOverlays.Last());
+	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay("Grid3x3", PrimaryOverlays.Last());
 
 	PrimaryOverlays.Add(MakeShareable(new FFilmOverlay_Grid(2, 2)));
-	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay("2x2Grid", PrimaryOverlays.Last());
+	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay("Grid2x2", PrimaryOverlays.Last());
 
 	PrimaryOverlays.Add(MakeShareable(new FFilmOverlay_Crosshair));
 	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay("Crosshair", PrimaryOverlays.Last());
@@ -475,14 +517,14 @@ void SFilmOverlayOptions::Construct(const FArguments& InArgs)
 	PrimaryOverlays.Add(MakeShareable(new FFilmOverlay_Rabatment));
 	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay("Rabatment", PrimaryOverlays.Last());
 
-	ToggleableOverlays.Add(MakeShareable(new FFilmOverlay_SafeFrame(LOCTEXT("ActionSafeFrame", "Action Safe"), 95.f, FLinearColor::Red)));
-	UFilmOverlayToolkit::RegisterToggleableFilmOverlay("ActionSafeFrame", ToggleableOverlays.Last());
+	ToggleableOverlays.Add(MakeShareable(new FFilmOverlay_SafeFrame(LOCTEXT("ActionSafe", "Action Safe"), 95.f, FLinearColor::Red)));
+	UFilmOverlayToolkit::RegisterToggleableFilmOverlay("ActionSafe", ToggleableOverlays.Last());
 
-	ToggleableOverlays.Add(MakeShareable(new FFilmOverlay_SafeFrame(LOCTEXT("TitleSafeFrame", "Title Safe"), 90.f, FLinearColor::Yellow)));
-	UFilmOverlayToolkit::RegisterToggleableFilmOverlay("TitleSafeFrame", ToggleableOverlays.Last());
+	ToggleableOverlays.Add(MakeShareable(new FFilmOverlay_SafeFrame(LOCTEXT("TitleSafe", "Title Safe"), 90.f, FLinearColor::Yellow)));
+	UFilmOverlayToolkit::RegisterToggleableFilmOverlay("TitleSafe", ToggleableOverlays.Last());
 
-	ToggleableOverlays.Add(MakeShareable(new FFilmOverlay_SafeFrame(LOCTEXT("CustomSafeFrame", "Custom Safe"), 85.f, FLinearColor::Green)));
-	UFilmOverlayToolkit::RegisterToggleableFilmOverlay("CustomSafeFrame", ToggleableOverlays.Last());
+	ToggleableOverlays.Add(MakeShareable(new FFilmOverlay_SafeFrame(LOCTEXT("CustomSafe", "Custom Safe"), 85.f, FLinearColor::Green)));
+	UFilmOverlayToolkit::RegisterToggleableFilmOverlay("CustomSafe", ToggleableOverlays.Last());
 	
 	ToggleableOverlays.Add(MakeShareable(new FFilmOverlay_LetterBox));
 	UFilmOverlayToolkit::RegisterToggleableFilmOverlay("LetterBox",	ToggleableOverlays.Last());
@@ -612,6 +654,7 @@ TSharedRef<SWidget> SFilmOverlayOptions::ConstructPrimaryOverlaysMenu()
 			SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.OnClicked(this, &SFilmOverlayOptions::SetPrimaryFilmOverlay, OverlayNames[OverlayIndex])
+			.ToolTipText(Overlay.GetToolTip())
 			[
 				SNew(SVerticalBox)
 
@@ -683,6 +726,7 @@ TSharedRef<SWidget> SFilmOverlayOptions::ConstructToggleableOverlaysMenu()
 			SNew(SCheckBox)
 			.OnCheckStateChanged_Lambda(OnCheckStateChanged)
 			.IsChecked_Lambda(IsChecked)
+			.ToolTipText(FilmOverlay->GetToolTip())
 			[
 				SNew(STextBlock)
 				.Text(Pair.Value->GetDisplayName())
@@ -714,6 +758,17 @@ FReply SFilmOverlayOptions::SetPrimaryFilmOverlay(FName InName)
 	if (Overlay)
 	{
 		Overlay->SetTint(PrimaryColorTint);
+	}
+	return FReply::Unhandled();
+}
+
+FReply SFilmOverlayOptions::ToggleFilmOverlay(FName InName)
+{
+	const TSharedPtr<IFilmOverlay>* FilmOverlay = UFilmOverlayToolkit::GetToggleableFilmOverlays().Find(InName);
+
+	if (FilmOverlay && FilmOverlay->IsValid())
+	{
+		FilmOverlay->Get()->SetEnabled(!FilmOverlay->Get()->IsEnabled());
 	}
 	return FReply::Unhandled();
 }
@@ -766,6 +821,81 @@ IFilmOverlay* SFilmOverlayOptions::GetPrimaryFilmOverlay() const
 		return UFilmOverlayToolkit::GetPrimaryFilmOverlays()[CurrentPrimaryOverlay].Get();
 	}
 	return nullptr;
+}
+
+void SFilmOverlayOptions::BindCommands(TSharedRef<FUICommandList> Bindings)
+{
+	const FCinematicViewportCommands& Commands = FCinematicViewportCommands::Get();
+
+	TArray<FName> PrimaryOverlayNames;
+	UFilmOverlayToolkit::GetPrimaryFilmOverlays().GenerateKeyArray(PrimaryOverlayNames);
+
+	TArray<FName> ToggleableOverlayNames;
+	UFilmOverlayToolkit::GetToggleableFilmOverlays().GenerateKeyArray(ToggleableOverlayNames);
+
+	Bindings->MapAction(
+		Commands.Disabled,
+		FExecuteAction::CreateLambda([this] { SetPrimaryFilmOverlay(NAME_None); }));
+
+	for (int32 OverlayIndex = 0; OverlayIndex < PrimaryOverlayNames.Num(); ++OverlayIndex)
+	{
+		IFilmOverlay& Overlay = *UFilmOverlayToolkit::GetPrimaryFilmOverlays()[PrimaryOverlayNames[OverlayIndex]].Get();
+
+		if (Commands.Grid2x2.Get()->GetCommandName() == PrimaryOverlayNames[OverlayIndex])
+		{
+			Bindings->MapAction(
+				Commands.Grid2x2,
+				FExecuteAction::CreateLambda([this, OverlayName = PrimaryOverlayNames[OverlayIndex]] { SetPrimaryFilmOverlay(OverlayName); }));
+		}
+		else if (Commands.Grid3x3.Get()->GetCommandName() == PrimaryOverlayNames[OverlayIndex])
+		{
+			Bindings->MapAction(
+				Commands.Grid3x3,
+				FExecuteAction::CreateLambda([this, OverlayName = PrimaryOverlayNames[OverlayIndex]] { SetPrimaryFilmOverlay(OverlayName); }));
+		}
+		else if (Commands.Crosshair.Get()->GetCommandName() == PrimaryOverlayNames[OverlayIndex])
+		{
+			Bindings->MapAction(
+				Commands.Crosshair,
+				FExecuteAction::CreateLambda([this, OverlayName = PrimaryOverlayNames[OverlayIndex]] { SetPrimaryFilmOverlay(OverlayName); }));
+		}
+		else if (Commands.Rabatment.Get()->GetCommandName() == PrimaryOverlayNames[OverlayIndex])
+		{
+			Bindings->MapAction(
+				Commands.Rabatment,
+				FExecuteAction::CreateLambda([this, OverlayName = PrimaryOverlayNames[OverlayIndex]] { SetPrimaryFilmOverlay(OverlayName); }));
+		}
+	}
+
+	for (int32 OverlayIndex = 0; OverlayIndex < ToggleableOverlayNames.Num(); ++OverlayIndex)
+	{
+		IFilmOverlay& Overlay = *UFilmOverlayToolkit::GetToggleableFilmOverlays()[ToggleableOverlayNames[OverlayIndex]].Get();
+
+		if (Commands.ActionSafe.Get()->GetCommandName() == ToggleableOverlayNames[OverlayIndex])
+		{
+			Bindings->MapAction(
+				Commands.ActionSafe,
+				FExecuteAction::CreateLambda([this, OverlayName = ToggleableOverlayNames[OverlayIndex]] { ToggleFilmOverlay(OverlayName); }));
+		}
+		else if (Commands.TitleSafe.Get()->GetCommandName() == ToggleableOverlayNames[OverlayIndex])
+		{
+			Bindings->MapAction(
+				Commands.TitleSafe,
+				FExecuteAction::CreateLambda([this, OverlayName = ToggleableOverlayNames[OverlayIndex]] { ToggleFilmOverlay(OverlayName); }));
+		}
+		else if (Commands.CustomSafe.Get()->GetCommandName() == ToggleableOverlayNames[OverlayIndex])
+		{
+			Bindings->MapAction(
+				Commands.CustomSafe,
+				FExecuteAction::CreateLambda([this, OverlayName = ToggleableOverlayNames[OverlayIndex]] { ToggleFilmOverlay(OverlayName); }));
+		}
+		else if (Commands.Letterbox.Get()->GetCommandName() == ToggleableOverlayNames[OverlayIndex])
+		{
+			Bindings->MapAction(
+				Commands.Letterbox,
+				FExecuteAction::CreateLambda([this, OverlayName = ToggleableOverlayNames[OverlayIndex]] { ToggleFilmOverlay(OverlayName); }));
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

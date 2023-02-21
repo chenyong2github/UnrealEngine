@@ -19,6 +19,7 @@
 #include "Tracks/MovieSceneCinematicShotTrack.h"
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "SequencerKeyCollection.h"
+#include "CinematicViewport/CinematicViewportCommands.h"
 #include "CinematicViewport/SCinematicTransportRange.h"
 #include "CinematicViewport/FilmOverlays.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
@@ -448,8 +449,12 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 	});
 
 	CommandList = MakeShareable( new FUICommandList );
+
 	// Ensure the commands are registered
+	FCinematicViewportCommands::Register();
 	FLevelSequenceEditorCommands::Register();
+
+	FilmOverlayOptions->BindCommands(CommandList.ToSharedRef());
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 

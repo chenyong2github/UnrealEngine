@@ -45,6 +45,9 @@ public:
 	/** Retrieve the actual overlay widget that this widget controls. Can be positioned in any other widget hierarchy. */
 	TSharedRef<SFilmOverlay> GetFilmOverlayWidget() const;
 
+	/** Bind commands for the overlays */
+	void BindCommands(TSharedRef<FUICommandList>);
+
 private:
 
 	/** Generate menu content for the combo button */
@@ -73,6 +76,9 @@ private:
 	/** Get/Set the color tint override for the current primary overlay */
 	FLinearColor GetPrimaryColorTint() const;
 	void OnPrimaryColorTintChanged(const FLinearColor& Tint);
+	
+	/** Toggle the film overlay enabled or disabled */
+	FReply ToggleFilmOverlay(FName InName);
 
 private:
 
