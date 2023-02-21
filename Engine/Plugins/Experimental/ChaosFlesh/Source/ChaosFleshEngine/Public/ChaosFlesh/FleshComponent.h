@@ -58,7 +58,7 @@ public:
 	const UFleshDynamicAsset* GetDynamicCollection() const { return DynamicCollection; }
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attributes)
+	UPROPERTY()
 	TObjectPtr<UProceduralMeshComponent> Mesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
@@ -71,7 +71,7 @@ private:
 	TObjectPtr<const UFleshAsset> RestCollection;
 
 	// Current simulation state.
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics")
+	UPROPERTY()
 	TObjectPtr<UFleshDynamicAsset> DynamicCollection;
 
 	//

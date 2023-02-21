@@ -40,7 +40,7 @@ public:
 	void RemoveStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent);
 	//void RemoveStaticMeshComponents(const TArray<TObjectPtr<UStaticMeshComponent>>& StaticMeshComponents);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chaos Deformable")
+	UPROPERTY(BlueprintReadOnly, Category = "Chaos Deformable")
 	TArray< TObjectPtr<UStaticMeshComponent> >  CollisionBodies;
 
 protected:
