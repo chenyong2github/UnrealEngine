@@ -205,108 +205,74 @@ void USocialDebugTools::Logout(const FString& Instance, const FLogoutComplete& O
 
 void USocialDebugTools::JoinParty(const FString& Instance, const FString& FriendName, const FJoinPartyComplete& OnComplete)
 {
-	IOnlineSubsystem* OnlineSub = GetContext(Instance).GetOSS();
+	FInstanceContext& Context = GetContext(Instance);
+	IOnlineSubsystem* OnlineSub = Context.GetOSS();
 	if (OnlineSub)
 	{
-		IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
-		if (OnlineIdentity.IsValid())
+		if (FUniqueNetIdPtr LocalUserId = Context.GetLocalUserId())
 		{
-			FUniqueNetIdPtr LocalUserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
-			if (LocalUserId.IsValid())
+			IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
+			if (OnlineParty.IsValid())
 			{
-				IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
-				if (OnlineParty.IsValid())
+				// query user id by name
+				if (!FriendName.IsEmpty())
 				{
-					// query user id by name
-					if (!FriendName.IsEmpty())
+					IOnlineUserPtr OnlineUser = OnlineSub->GetUserInterface();
+					if (OnlineUser.IsValid())
 					{
-						IOnlineUserPtr OnlineUser = OnlineSub->GetUserInterface();
-						if (OnlineUser.IsValid())
+						OnlineUser->QueryUserIdMapping(*LocalUserId, FriendName, IOnlineUser::FOnQueryUserMappingComplete::CreateLambda([this, Instance, OnlineParty, OnComplete](bool bWasSuccessful, const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FUniqueNetId& FoundUserId, const FString& Error)
 						{
-							OnlineUser->QueryUserIdMapping(*LocalUserId, FriendName, IOnlineUser::FOnQueryUserMappingComplete::CreateLambda([this, Instance, OnlineParty, OnComplete](bool bWasSuccessful, const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FUniqueNetId& FoundUserId, const FString& Error)
+							if (bWasSuccessful)
 							{
-								if (bWasSuccessful)
+								IOnlinePartyJoinInfoConstPtr JoinInfo = OnlineParty->GetAdvertisedParty(UserId, FoundUserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
+								if (JoinInfo.IsValid())
 								{
-									IOnlinePartyJoinInfoConstPtr JoinInfo = OnlineParty->GetAdvertisedParty(UserId, FoundUserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
-									if (JoinInfo.IsValid())
+									OnlineParty->JoinParty(UserId, *JoinInfo, FOnJoinPartyComplete::CreateLambda([this, Instance, OnlineParty, OnComplete](const FUniqueNetId& UserIdTmp, const FOnlinePartyId& PartyId, const EJoinPartyCompletionResult Result, const int32 NotApprovedReason)
 									{
-										OnlineParty->JoinParty(UserId, *JoinInfo, FOnJoinPartyComplete::CreateLambda([this, Instance, OnlineParty, OnComplete](const FUniqueNetId& UserIdTmp, const FOnlinePartyId& PartyId, const EJoinPartyCompletionResult Result, const int32 NotApprovedReason)
+										bool bSuccess = Result == EJoinPartyCompletionResult::Succeeded;
+										if (bSuccess)
 										{
-											bool bSuccess = Result == EJoinPartyCompletionResult::Succeeded;
-											if (bSuccess)
+											FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
+											if (PartyMemberData.IsValid())
 											{
-												FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
-												if (PartyMemberData.IsValid())
-												{
-													OnlineParty->UpdatePartyMemberData(UserIdTmp, PartyId, DefaultPartyDataNamespace, *PartyMemberData);
-												}
+												OnlineParty->UpdatePartyMemberData(UserIdTmp, PartyId, DefaultPartyDataNamespace, *PartyMemberData);
 											}
-											else
-											{
-												UE_LOG(LogParty, Warning, TEXT("Party context[%s] join attempt denied for reason [%d]"), *Instance, (int32)Result);
-											}
-											OnComplete.ExecuteIfBound(bSuccess);
-										}));
-										return;
-									}
+										}
+										else
+										{
+											UE_LOG(LogParty, Warning, TEXT("Party context[%s] join attempt denied for reason [%d]"), *Instance, (int32)Result);
+										}
+										OnComplete.ExecuteIfBound(bSuccess);
+									}));
+									return;
 								}
-								OnComplete.ExecuteIfBound(false);
-							}));
-							return;
-						}
-					}					
-					else
-					{	
-						IOnlinePartyJoinInfoConstPtr JoinInfo = GetDefaultPartyJoinInfo();
-						if (JoinInfo.IsValid())
-						{
-							OnlineParty->JoinParty(*LocalUserId, *JoinInfo, FOnJoinPartyComplete::CreateLambda([this, Instance, OnlineParty, OnComplete](const FUniqueNetId& UserId, const FOnlinePartyId& PartyId, const EJoinPartyCompletionResult Result, const int32 NotApprovedReason)
-							{
-								bool bSuccess = Result == EJoinPartyCompletionResult::Succeeded;
-								if (bSuccess)
-								{
-									FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
-									if (PartyMemberData.IsValid())
-									{
-										OnlineParty->UpdatePartyMemberData(UserId, PartyId, DefaultPartyDataNamespace, *PartyMemberData);
-									}
-								}
-								else
-								{
-									UE_LOG(LogParty, Warning, TEXT("Party context[%s] join attempt denied for reason [%d]"), *Instance, (int32)Result);
-								}
-								OnComplete.ExecuteIfBound(bSuccess);
-							}));
-							return;
-						}
+							}
+							OnComplete.ExecuteIfBound(false);
+						}));
+						return;
 					}
-				}
-			}
-		}
-	}
-	OnComplete.ExecuteIfBound(false);
-}
-
-void USocialDebugTools::LeaveParty(const FString& Instance, const FLeavePartyComplete& OnComplete)
-{
-	IOnlineSubsystem* OnlineSub = GetContext(Instance).GetOSS();
-	if (OnlineSub)
-	{
-		IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
-		if (OnlineIdentity.IsValid())
-		{
-			FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
-			if (UserId.IsValid())
-			{
-				IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
-				if (OnlineParty.IsValid())
-				{
-					TSharedPtr<const FOnlineParty> ExistingParty = OnlineParty->GetParty(*UserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
-					if (ExistingParty.IsValid())
+				}					
+				else
+				{	
+					IOnlinePartyJoinInfoConstPtr JoinInfo = GetDefaultPartyJoinInfo();
+					if (JoinInfo.IsValid())
 					{
-						OnlineParty->LeaveParty(*UserId, *ExistingParty->PartyId, FOnLeavePartyComplete::CreateLambda([this, Instance, OnComplete](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const ELeavePartyCompletionResult Result)
+						OnlineParty->JoinParty(*LocalUserId, *JoinInfo, FOnJoinPartyComplete::CreateLambda([this, Instance, OnlineParty, OnComplete](const FUniqueNetId& UserId, const FOnlinePartyId& PartyId, const EJoinPartyCompletionResult Result, const int32 NotApprovedReason)
 						{
-							OnComplete.ExecuteIfBound(Result == ELeavePartyCompletionResult::Succeeded);
+							bool bSuccess = Result == EJoinPartyCompletionResult::Succeeded;
+							if (bSuccess)
+							{
+								FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
+								if (PartyMemberData.IsValid())
+								{
+									OnlineParty->UpdatePartyMemberData(UserId, PartyId, DefaultPartyDataNamespace, *PartyMemberData);
+								}
+							}
+							else
+							{
+								UE_LOG(LogParty, Warning, TEXT("Party context[%s] join attempt denied for reason [%d]"), *Instance, (int32)Result);
+							}
+							OnComplete.ExecuteIfBound(bSuccess);
 						}));
 						return;
 					}
@@ -317,26 +283,48 @@ void USocialDebugTools::LeaveParty(const FString& Instance, const FLeavePartyCom
 	OnComplete.ExecuteIfBound(false);
 }
 
-void USocialDebugTools::CleanupParties(const FString& Instance, const FCleanupPartiesComplete& OnComplete)
+void USocialDebugTools::LeaveParty(const FString& Instance, const FLeavePartyComplete& OnComplete)
 {
+	FInstanceContext& Context = GetContext(Instance);
 	IOnlineSubsystem* OnlineSub = GetContext(Instance).GetOSS();
 	if (OnlineSub)
 	{
-		IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
-		if (OnlineIdentity.IsValid())
+		if (FUniqueNetIdPtr UserId = Context.GetLocalUserId())
 		{
-			FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
-			if (UserId.IsValid())
+			IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
+			if (OnlineParty.IsValid())
 			{
-				IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
-				if (OnlineParty.IsValid())
+				TSharedPtr<const FOnlineParty> ExistingParty = OnlineParty->GetParty(*UserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
+				if (ExistingParty.IsValid())
 				{
-					OnlineParty->CleanupParties(*UserId, FOnCleanupPartiesComplete::CreateLambda([this, Instance, OnComplete](const FUniqueNetId& LocalUserId, const FOnlineError& Result)
+					OnlineParty->LeaveParty(*UserId, *ExistingParty->PartyId, FOnLeavePartyComplete::CreateLambda([this, Instance, OnComplete](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const ELeavePartyCompletionResult Result)
 					{
-						OnComplete.ExecuteIfBound(Result.WasSuccessful());
+						OnComplete.ExecuteIfBound(Result == ELeavePartyCompletionResult::Succeeded);
 					}));
 					return;
 				}
+			}
+		}
+	}
+	OnComplete.ExecuteIfBound(false);
+}
+
+void USocialDebugTools::CleanupParties(const FString& Instance, const FCleanupPartiesComplete& OnComplete)
+{
+	FInstanceContext& Context = GetContext(Instance);
+	IOnlineSubsystem* OnlineSub = Context.GetOSS();
+	if (OnlineSub)
+	{
+		if (FUniqueNetIdPtr UserId = Context.GetLocalUserId())
+		{
+			IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
+			if (OnlineParty.IsValid())
+			{
+				OnlineParty->CleanupParties(*UserId, FOnCleanupPartiesComplete::CreateLambda([this, Instance, OnComplete](const FUniqueNetId& LocalUserId, const FOnlineError& Result)
+				{
+					OnComplete.ExecuteIfBound(Result.WasSuccessful());
+				}));
+				return;
 			}
 		}
 	}
@@ -364,24 +352,19 @@ void USocialDebugTools::SetPartyMemberData(const FString& Instance, const UStruc
 		IOnlineSubsystem* OnlineSub = Context.GetOSS();
 		if (OnlineSub)
 		{
-			IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
-			if (OnlineIdentity.IsValid())
+			if (FUniqueNetIdPtr UserId = Context.GetLocalUserId())
 			{
-				FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
-				if (UserId.IsValid())
+				IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
+				if (OnlineParty.IsValid())
 				{
-					IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
-					if (OnlineParty.IsValid())
+					TSharedPtr<const FOnlineParty> ExistingParty = OnlineParty->GetParty(*UserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
+					if (ExistingParty.IsValid())
 					{
-						TSharedPtr<const FOnlineParty> ExistingParty = OnlineParty->GetParty(*UserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
-						if (ExistingParty.IsValid())
+						const FOnlinePartyId& PartyId = *ExistingParty->PartyId;
+						if (StructType->IsChildOf(FPartyMemberRepData::StaticStruct()))
 						{
-							const FOnlinePartyId& PartyId = *ExistingParty->PartyId;
-							if (StructType->IsChildOf(FPartyMemberRepData::StaticStruct()))
-							{
-								UE_LOG(LogParty, Display, TEXT("Sending rep data update for member within party [%s]."), *PartyId.ToDebugString());
-								bResult = OnlineParty->UpdatePartyMemberData(*UserId, PartyId, DefaultPartyDataNamespace, *Context.PartyMemberData);
-							}
+							UE_LOG(LogParty, Display, TEXT("Sending rep data update for member within party [%s]."), *PartyId.ToDebugString());
+							bResult = OnlineParty->UpdatePartyMemberData(*UserId, PartyId, DefaultPartyDataNamespace, *Context.PartyMemberData);
 						}
 					}
 				}
@@ -410,22 +393,17 @@ void USocialDebugTools::SetPartyMemberDataJson(const FString& Instance, const FS
 		IOnlineSubsystem* OnlineSub = Context.GetOSS();
 		if (OnlineSub)
 		{
-			IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
-			if (OnlineIdentity.IsValid())
+			if (FUniqueNetIdPtr UserId = Context.GetLocalUserId())
 			{
-				FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
-				if (UserId.IsValid())
+				IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
+				if (OnlineParty.IsValid())
 				{
-					IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
-					if (OnlineParty.IsValid())
+					TSharedPtr<const FOnlineParty> ExistingParty = OnlineParty->GetParty(*UserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
+					if (ExistingParty.IsValid())
 					{
-						TSharedPtr<const FOnlineParty> ExistingParty = OnlineParty->GetParty(*UserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
-						if (ExistingParty.IsValid())
-						{
-							const FOnlinePartyId& PartyId = *ExistingParty->PartyId;
-							UE_LOG(LogParty, Display, TEXT("Sending rep data update for member within party [%s]."), *PartyId.ToDebugString());
-							bResult = OnlineParty->UpdatePartyMemberData(*UserId, PartyId, DefaultPartyDataNamespace, *Context.PartyMemberData);
-						}
+						const FOnlinePartyId& PartyId = *ExistingParty->PartyId;
+						UE_LOG(LogParty, Display, TEXT("Sending rep data update for member within party [%s]."), *PartyId.ToDebugString());
+						bResult = OnlineParty->UpdatePartyMemberData(*UserId, PartyId, DefaultPartyDataNamespace, *Context.PartyMemberData);
 					}
 				}
 			}
@@ -448,7 +426,6 @@ IOnlineSubsystem* USocialDebugTools::GetDefaultOSS() const
 	{
 		return IOnlineSubsystem::Get(MCP_SUBSYSTEM);
 	}
-	
 }
 
 USocialManager& USocialDebugTools::GetSocialManager() const
@@ -510,12 +487,9 @@ USocialDebugTools::FInstanceContext* USocialDebugTools::GetContextForUser(const 
 		FInstanceContext& Context = Entry.Value;
 		if (Context.GetOSS())
 		{
-			IOnlineIdentityPtr OnlineIdentity = Context.GetOSS()->GetIdentityInterface();
-			if (OnlineIdentity.IsValid())
+			if (FUniqueNetIdPtr LocalUserId = Context.GetLocalUserId())
 			{
-				FUniqueNetIdPtr LocalUser = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
-				if (LocalUser.IsValid() &&
-					*LocalUser == UserId)
+				if (*LocalUserId == UserId)
 				{
 					Result = &Context;
 					break;
@@ -706,6 +680,20 @@ void USocialDebugTools::FInstanceContext::Shutdown()
 		const FString OSSName = FName(MCP_SUBSYSTEM).ToString() + TEXT(":") + Name;
 		IOnlineSubsystem::Destroy(*OSSName);
 	}
+}
+
+FUniqueNetIdPtr USocialDebugTools::FInstanceContext::GetLocalUserId() const
+{
+	FUniqueNetIdPtr LocalUserId;
+	if (OnlineSub)
+	{
+		IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
+		if (OnlineIdentity.IsValid())
+		{
+			LocalUserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
+		}
+	}
+	return LocalUserId;
 }
 
 void USocialDebugTools::HandleFriendInviteReceived(const FUniqueNetId& LocalUserId, const FUniqueNetId& FriendId)

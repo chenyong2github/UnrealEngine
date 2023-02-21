@@ -15,13 +15,14 @@ class IOnlinePartyPendingJoinRequestInfo;
 typedef TSharedPtr<const class IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstPtr;
 typedef TSharedPtr<class FOnlinePartyData> FOnlinePartyDataPtr;
 typedef TSharedPtr<const class FOnlinePartyData> FOnlinePartyDataConstPtr;
+using FUniqueNetIdPtr = TSharedPtr<const FUniqueNetId>;
 
 UCLASS(Within = SocialManager, Config = Game)
 class PARTY_API USocialDebugTools : public UObject, public FExec
 {
 	GENERATED_BODY()
 
-	static const int32 LocalUserNum = 0;
+	static constexpr const int32 LocalUserNum = 0;
 
 public:
 	USocialManager& GetSocialManager() const;
@@ -65,8 +66,9 @@ public:
 
 		void Init();
 		void Shutdown();
-		inline IOnlineSubsystem* GetOSS() { return OnlineSub; }
-		inline FOnlinePartyDataConstPtr GetPartyMemberData() { return PartyMemberData; }
+		IOnlineSubsystem* GetOSS() const { return OnlineSub; }
+		FOnlinePartyDataPtr GetPartyMemberData() const { return PartyMemberData; }
+		FUniqueNetIdPtr GetLocalUserId() const;
 
 		FString Name;
 		IOnlineSubsystem* OnlineSub;
