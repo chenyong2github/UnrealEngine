@@ -4814,7 +4814,7 @@ struct FGatherShadowPrimitivesPrepareTask
 			}
 		}
 
-		if (TaskData.bMultithreadedCreateAndFilterShadows && Prereqs.Num() > 0)
+		if (TaskData.bMultithreadedCreateAndFilterShadows)
 		{
 			FGraphEventRef FinalizeTask = FFunctionGraphTask::CreateAndDispatchWhenReady([TaskData = &TaskData]()
 				{
