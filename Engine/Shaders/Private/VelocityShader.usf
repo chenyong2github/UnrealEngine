@@ -137,7 +137,36 @@ void MainPixelShader(
 #if MATERIALBLENDING_MASKED_USING_COVERAGE
 	OutCoverage = DiscardMaterialWithPixelCoverage(MaterialParameters, PixelMaterialInputs);
 #else
-	GetMaterialClippingVelocity(MaterialParameters, PixelMaterialInputs, VELOCITY_THIN_TRANSLUCENT_MODE > 0);
+
+#if STRATA_ENABLED
+	const bool bThinTranslucentMaterial = false;
+
+	FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
+	FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
+
+	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
+	StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
+	StrataPixelHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount;
+	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
+
+	float MaterialOpacity = 1.0f;
+	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
+	if (StrataTree.BSDFCount > 0)
+	{
+		// Update tree (coverage/transmittance/luminace weights)
+		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
+		const float3 V = MaterialParameters.CameraVector;
+		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, Settings);
+
+		MaterialOpacity = StrataTree.Operators[StrataData.OperatorIndex].Coverage;
+	}
+
+#else
+	const bool bThinTranslucentMaterial = VELOCITY_THIN_TRANSLUCENT_MODE > 0;
+	const float MaterialOpacity = GetMaterialOpacity(PixelMaterialInputs);
+#endif
+
+	GetMaterialClippingVelocity(MaterialParameters, PixelMaterialInputs, bThinTranslucentMaterial, MaterialOpacity);
 #endif
 
 	// 3d velocity, includes camera an object motion
