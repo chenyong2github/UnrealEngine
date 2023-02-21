@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "Tickable.h"
 #include "Containers/Queue.h" 
+#include "HAL/CriticalSection.h"
 #include "Templates/SharedPointer.h"
 
 struct FDMXInputPortConfig;
@@ -141,6 +142,9 @@ private:
 
 	/** Map of raw isteners */
 	TSet<TSharedRef<FDMXRawListener>> RawListeners;
+
+	/** Mutex access for the RawListeners array */
+	FCriticalSection AccessRawListenersMutex;
 
 	/** True if the port is registered with it its protocol */
 	bool bRegistered = false;

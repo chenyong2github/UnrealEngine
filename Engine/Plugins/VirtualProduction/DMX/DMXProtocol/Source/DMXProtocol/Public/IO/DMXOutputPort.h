@@ -20,6 +20,8 @@ class FDMXPortManager;
 class FDMXSignal;
 class IDMXSender;
 
+class FEvent;
+
 
 /** Helper to determine how DMX should be communicated (loopback, send) */
 struct FDMXOutputPortCommunicationDeterminator
@@ -93,7 +95,9 @@ struct DMXPROTOCOL_API FDMXSignalFragment
  *
  * To loopback outputs refer to DMXRawListener and DMXTickedUniverseListener.
  *
- * Can only be constructed via DMXPortManger, see FDMXPortManager::CreateOutputPort and FDMXPortManager::CreateOutputPortFromConfig
+ * Can only be constructed via DMXPortManger, see FDMXPortManager::CreateOutputPort and FDMXPortManager::CreateOutputPortFromConfig.
+ * 
+ * Note, internally locks have to be acquired in order as they're declared in the header.
  */
 class DMXPROTOCOL_API FDMXOutputPort
 	: public FDMXPort
@@ -134,9 +138,6 @@ public:
 	/** Clears all buffers */
 	void ClearBuffers();
 
-	/** Returns true if the port loopsback to engine */
-	bool IsLoopbackToEngine() const;
-
 	/** 
 	 * Game-Thread only: Gets the last signal received in specified local universe. 
 	 * 
@@ -153,10 +154,6 @@ public:
 	/**  DEPRECATED 4.27. Gets the DMX signal from an extern (remote) Universe ID. */
 	UE_DEPRECATED(4.27, "Use GameThreadGetDMXSignal instead. GameThreadGetDMXSignalFromRemoteUniverse only exists to support deprecated blueprint nodes.")
 	bool GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr& OutDMXSignal, int32 RemoteUniverseID, bool bEvenIfNotLoopbackToEngine);
-
-	/** DEPRECATED 5.0 */
-	UE_DEPRECATED(5.0, "Output Ports now support many destination addresses. Please use FDMXOutputPort::GetDestinationAddresses instead.")
-	FString GetDestinationAddress() const;
 
 	/** Returns the output port's delay in seconds */
 	FORCEINLINE double GetDelaySeconds() const { return DelaySeconds; }
@@ -198,8 +195,14 @@ private:
 	/** The DMX senders in use */
 	TArray<TSharedPtr<IDMXSender>> DMXSenderArray;
 
+	/** Mutex access for the RawListeners array */
+	mutable FCriticalSection AccessDMXSenderArrayMutex;
+
 	/** Buffer of the signals that are to be sent in the next frame */
 	TQueue<TSharedPtr<FDMXSignalFragment, ESPMode::ThreadSafe>> SignalFragments;
+
+	/** Mutex access for the SignalFragments Queue */
+	mutable FCriticalSection AccessSignalFragmentsMutex;
 
 	/** Map that holds the latest Signal per Universe on the Game Thread */
 	TMap<int32, FDMXSignalSharedPtr> ExternUniverseToLatestSignalMap_GameThread;
@@ -207,17 +210,29 @@ private:
 	/** Map that holds the latest Signal per Universe on the Port Thread */
 	TMap<int32, FDMXSignalSharedPtr> ExternUniverseToLatestSignalMap_PortThread;
 
+	/** Mutex access for the ExternUniverseToLatestSignalMap_PortThread map */
+	mutable FCriticalSection AccessExternUniverseToLatestSignalMap_PortThreadMutex;
+
 	/** The Destination Address to send to, can be irrelevant, e.g. for art-net broadcast */
 	TArray<FDMXOutputPortDestinationAddress> DestinationAddresses;
 
+	/** Mutex access for the DestinationAddresses  */
+	mutable FCriticalSection AccessDestinationAddressesMutex;
+
 	/** Helper to determine how dmx should be communicated (loopback, send) */
 	FDMXOutputPortCommunicationDeterminator CommunicationDeterminator;
+	
+	/** Mutex access for the CommunicationDeterminator */
+	mutable FCriticalSection AccessCommunicationDeterminatorMutex;
 
 	/** Priority on which packets are being sent */
 	int32 Priority = 0;
 
 	/** Map of raw Inputs */
 	TSet<TSharedRef<FDMXRawListener>> RawListeners;
+
+	/** Mutex access for the RawListeners array */
+	mutable FCriticalSection AccessRawListenersMutex;
 
 	/** True if the port is registered with it its protocol */
 	bool bRegistered = false;
@@ -231,13 +246,10 @@ private:
 	/** The frame rate of the delay */
 	FFrameRate DelayFrameRate;
 
-	/** Critical section required to be used when clearing buffers */
-	FCriticalSection AccessSenderArrayCriticalSection;
+	/** Send DMX sync event */
+	FEvent* SendDMXEvent = nullptr;
 
-	/** Critical section required to be used when clearing buffers */
-	FCriticalSection ClearBuffersCriticalSection;
-
-	/** Holds the thread object. */
+	/** Holds this thread object */
 	FRunnableThread* Thread = nullptr;
 
 	/** Flag indicating that the thread is stopping. */

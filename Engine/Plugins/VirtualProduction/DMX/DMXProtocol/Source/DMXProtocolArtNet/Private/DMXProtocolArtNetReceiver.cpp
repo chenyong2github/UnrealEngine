@@ -96,7 +96,7 @@ void FDMXProtocolArtNetReceiver::AssignInputPort(const TSharedPtr<FDMXInputPort,
 {
 	check(!AssignedInputPorts.Contains(InputPort));
 
-	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
+	const FScopeLock LockInputPorts(&AccessInputPortsMutex);
 	AssignedInputPorts.Add(InputPort);
 }
 
@@ -104,7 +104,7 @@ void FDMXProtocolArtNetReceiver::UnassignInputPort(const TSharedPtr<FDMXInputPor
 {
 	check(AssignedInputPorts.Contains(InputPort));
 
-	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
+	const FScopeLock LockInputPorts(&AccessInputPortsMutex);
 	AssignedInputPorts.Remove(InputPort);
 }
 
@@ -150,8 +150,6 @@ void FDMXProtocolArtNetReceiver::Update(const FTimespan& SocketWaitTime)
 	{
 		return;
 	}
-
-	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
 
 	uint32 Size = 0;
 	int32 Read = 0;
@@ -240,10 +238,13 @@ void FDMXProtocolArtNetReceiver::HandleDataPacket(const TSharedRef<FArrayReader>
 
 		constexpr int32 Priority = 0;
 		FDMXSignalSharedRef DMXSignal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>(FPlatformTime::Seconds(), UniverseID, Priority, TArray<uint8>(ArtNetDMXPacket.Data, DMX_UNIVERSE_SIZE));
+
+		AccessInputPortsMutex.Lock();
 		for (const TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>& InputPort : AssignedInputPorts)
 		{				
 			InputPort->InputDMXSignal(DMXSignal);
 		}
+		AccessInputPortsMutex.Unlock();
 
 		INC_DWORD_STAT(STAT_ArtNetPackagesReceived);
 	}

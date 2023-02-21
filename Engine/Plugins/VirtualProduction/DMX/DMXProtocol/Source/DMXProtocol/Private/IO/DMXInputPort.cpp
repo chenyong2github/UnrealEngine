@@ -598,16 +598,17 @@ bool FDMXInputPort::CheckPriority(const int32 InPriority)
 
 void FDMXInputPort::AddRawListener(TSharedRef<FDMXRawListener> InRawListener)
 {
-	check(!RawListeners.Contains(InRawListener));
+	const FScopeLock LockRawListeners(&AccessRawListenersMutex);
 
-	// Inputs need to run in the game thread
-	check(IsInGameThread());
+	check(!RawListeners.Contains(InRawListener));
 
 	RawListeners.Add(InRawListener);
 }
 
 void FDMXInputPort::RemoveRawListener(TSharedRef<FDMXRawListener> InRawListenerToRemove)
 {
+	const FScopeLock LockRawListeners(&AccessRawListenersMutex);
+
 	RawListeners.Remove(InRawListenerToRemove);
 }
 
@@ -670,10 +671,12 @@ void FDMXInputPort::ClearBuffers()
 	check(IsInGameThread());
 #endif // UE_BUILD_DEBUG
 
+	AccessRawListenersMutex.Lock();
 	for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 	{
 		RawListener->ClearBuffer();
 	}
+	AccessRawListenersMutex.Unlock();
 
 	DefaultInputQueue.Empty();
 	ExternUniverseToLatestSignalMap.Reset();
@@ -686,10 +689,12 @@ void FDMXInputPort::InputDMXSignal(const FDMXSignalSharedRef& DMXSignal)
 		int32 ExternUniverseID = DMXSignal->ExternUniverseID;
 		if (IsExternUniverseInPortRange(ExternUniverseID))
 		{
+			AccessRawListenersMutex.Lock();
 			for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 			{
 				RawListener->EnqueueSignal(this, DMXSignal);
 			}
+			AccessRawListenersMutex.Unlock();
 
 			if (bUseDefaultInputQueue)
 			{
@@ -708,10 +713,12 @@ void FDMXInputPort::SingleProducerInputDMXSignal(const FDMXSignalSharedRef& DMXS
 		int32 ExternUniverseID = DMXSignal->ExternUniverseID;
 		if (IsExternUniverseInPortRange(ExternUniverseID))
 		{
+			AccessRawListenersMutex.Lock();
 			for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 			{
 				RawListener->EnqueueSignal(this, DMXSignal);
 			}
+			AccessRawListenersMutex.Unlock();
 
 			if (bUseDefaultInputQueue)
 			{

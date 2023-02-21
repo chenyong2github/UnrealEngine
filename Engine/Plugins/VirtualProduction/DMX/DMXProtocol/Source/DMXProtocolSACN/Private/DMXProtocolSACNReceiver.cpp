@@ -110,7 +110,7 @@ void FDMXProtocolSACNReceiver::AssignInputPort(const TSharedPtr<FDMXInputPort, E
 {
 	check(!AssignedInputPorts.Contains(InputPort));
 
-	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
+	const FScopeLock LockInputPorts(&AccessInputPortsMutex);
 	AssignedInputPorts.Add(InputPort);
 
 	// Join the multicast groups for the ports where needed
@@ -143,7 +143,7 @@ void FDMXProtocolSACNReceiver::UnassignInputPort(const TSharedPtr<FDMXInputPort,
 {
 	check(AssignedInputPorts.Contains(InputPort));
 
-	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
+	const FScopeLock LockInputPorts(&AccessInputPortsMutex);
 	AssignedInputPorts.Remove(InputPort);
 
 	// Leave multicast groups outside of remaining port's universe ranges
@@ -212,8 +212,6 @@ void FDMXProtocolSACNReceiver::Update(const FTimespan& SocketWaitTime)
 	{
 		return;
 	}
-
-	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
 
 	uint32 Size = 0;
 	int32 NumBytesRead = 0;
@@ -351,6 +349,8 @@ void FDMXProtocolSACNReceiver::HandleDataPacket(uint16 UniverseID, const TShared
 	FMemory::Memcpy(UniverseData->GetData() + IncomingDMXDMPLayer.FirstPropertyAddress, IncomingDMXDMPLayer.DMX.GetData(), IncomingDMXDMPLayer.PropertyValueCount - 1);
 	
 	FDMXSignalSharedRef DMXSignal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>(FPlatformTime::Seconds(), UniverseID, IncomingDMXFramingLayer.Priority, PropertiesCacheValues[UniverseID]);
+	
+	AccessInputPortsMutex.Lock();
 	for (const TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>& InputPort : AssignedInputPorts)
 	{
 		// Check packet priority
@@ -360,6 +360,7 @@ void FDMXProtocolSACNReceiver::HandleDataPacket(uint16 UniverseID, const TShared
 		}
 		InputPort->InputDMXSignal(DMXSignal);
 	}
+	AccessInputPortsMutex.Unlock();
 
 	INC_DWORD_STAT(STAT_SACNPackagesReceived);
 }

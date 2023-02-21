@@ -62,6 +62,9 @@ private:
 	/** The input ports the receiver uses */
 	TSet<TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>> AssignedInputPorts;
 
+	/** Mutex access to the input ports array */
+	FCriticalSection AccessInputPortsMutex;
+
 protected:
 	//~ Begin FRunnable implementation
 	virtual bool Init() override;
@@ -112,9 +115,6 @@ private:
 
 	/** The sender when packets were received */
 	TSharedPtr<FInternetAddr> ReceivedSenderInternetAddr;
-
-	/** Critical section to be used when assigned input ports are changed */
-	FCriticalSection ChangeAssignedInputPortsCriticalSection;
 
 	/** Flag indicating that the thread is stopping. */
 	TAtomic<bool> bStopping;
