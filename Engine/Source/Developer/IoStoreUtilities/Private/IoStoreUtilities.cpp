@@ -3419,7 +3419,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	TSharedPtr<IIoStoreWriterHashDatabase> HashDatabase = MakeShared<FIoStoreHashDb>();
 	if (((FIoStoreHashDb&)*HashDatabase).Initialize(Arguments.CookedDir) == false)
 	{
-		UE_LOG(LogIoStore, Warning, TEXT("Unabled to initialize the hash database from the asset registry!"));
+		UE_LOG(LogIoStore, Display, TEXT("Unabled to initialize the hash database from the asset registry!"));
 	}
 	if (Arguments.bVerifyHashDatabase)
 	{
