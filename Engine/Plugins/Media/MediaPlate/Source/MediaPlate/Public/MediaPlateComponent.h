@@ -356,6 +356,11 @@ private:
 	/** True if we should resume where we left off when we open the media. */
 	bool bResumeWhenOpened = false;
 
+#if WITH_EDITOR
+	/** True if we are in normal mode (as opposed to proxy mode). */
+	bool bIsNormalMode = false;
+#endif
+
 	/**
 	 * Contains all of our layers.
 	 * Each layer contains which textures it has.
@@ -435,6 +440,11 @@ private:
 	 * Sets up the textures we have.
 	 */
 	void SetUpTextures(UE::MediaPlateComponent::ESetUpTexturesFlags Flags);
+
+	/**
+	 * Sets either normal mode or proxy mode for something like Sequencer.
+	 */
+	void SetNormalMode(bool bInIsNormalMode);
 
 	/**
 	 * Sets textures in our material according to the layer assignments.
