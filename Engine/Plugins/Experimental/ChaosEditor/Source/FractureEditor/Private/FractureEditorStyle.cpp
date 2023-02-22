@@ -57,6 +57,7 @@ FFractureEditorStyle::FFractureEditorStyle()
 	Set("FractureEditor.FlushEmbeddedGeometry",new IMAGE_BRUSH_SVG("FractureFlush", IconSize));
 
 	Set("FractureEditor.AutoUV",               new IMAGE_BRUSH_SVG("FractureAutoUV", IconSize));
+	Set("FractureEditor.Material",             new IMAGE_BRUSH("EditMats_40x", IconSize));
 
 	Set("FractureEditor.DeleteBranch",         new IMAGE_BRUSH_SVG("FracturePrune", IconSize));
 	Set("FractureEditor.Hide",				   new IMAGE_BRUSH_SVG("FractureHide", IconSize));
