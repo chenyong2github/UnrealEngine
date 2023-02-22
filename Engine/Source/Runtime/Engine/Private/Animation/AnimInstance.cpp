@@ -2109,18 +2109,20 @@ bool UAnimInstance::IsPlayingSlotAnimation(const UAnimSequenceBase* Asset, FName
 
 bool UAnimInstance::IsSlotActive(FName SlotNodeName) const
 {
-	if (SlotNodeName != NAME_None)
-	{
-		for (const FAnimMontageInstance* Instance : MontageInstances)
-		{
-			if (Instance && Instance->Montage && Instance->Montage->IsValidSlot(SlotNodeName) && Instance->IsActive())
-			{
-				return true;
-			}
-		}
-	}
-	
-	return false;
+   if (SlotNodeName != NAME_None)
+   {
+      const FAnimInstanceProxy& Proxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
+      
+      for (const FMontageEvaluationState & EvaluationState : Proxy.GetMontageEvaluationData())
+      {
+         if (EvaluationState.Montage.IsValid() && EvaluationState.Montage->IsValidSlot(SlotNodeName) && EvaluationState.bIsActive)
+         {
+            return true;
+         }
+      }
+   }
+   
+   return false;
 }
 
 float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FMontageBlendSettings& BlendInSettings, float InPlayRate /*= 1.f*/, EMontagePlayReturnType ReturnValueType /*= EMontagePlayReturnType::MontageLength*/, float InTimeToStartMontageAt /*= 0.f*/, bool bStopAllMontages /*= true*/)
