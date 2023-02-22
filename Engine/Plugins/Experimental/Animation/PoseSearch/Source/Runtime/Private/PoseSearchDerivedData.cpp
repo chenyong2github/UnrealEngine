@@ -946,20 +946,13 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 					}
 
 					FDatabaseIndexingContext DbIndexingContext;
-					DbIndexingContext.SearchIndexBase = &SearchIndexBase;
-					DbIndexingContext.Prepare(IndexBaseDatabase.Get());
-
-					if (Owner.IsCanceled())
+					if (!DbIndexingContext.IndexDatabase(SearchIndexBase, *IndexBaseDatabase, Owner))
 					{
-						UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
-						SearchIndex.Reset();
-						return;
-					}
-
-					const bool bSuccess = DbIndexingContext.IndexAssets();
-					if (!bSuccess)
-					{
-						if (IndexBaseDatabase == Database)
+						if (Owner.IsCanceled())
+						{
+							UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
+						}
+						else if (IndexBaseDatabase == Database)
 						{
 							UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Failed"), *LexToString(FullIndexKey.Hash), *Database->GetName());
 						}
@@ -967,21 +960,7 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 						{
 							UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Failed because of dependent database fail '%s'"), *LexToString(FullIndexKey.Hash), *Database->GetName(), *IndexBaseDatabase->GetName());
 						}
-						SearchIndex.Reset();
-						return;
-					}
 
-					if (Owner.IsCanceled())
-					{
-						UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
-						SearchIndex.Reset();
-						return;
-					}
-
-					DbIndexingContext.JoinIndex();
-					if (Owner.IsCanceled())
-					{
-						UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
 						SearchIndex.Reset();
 						return;
 					}

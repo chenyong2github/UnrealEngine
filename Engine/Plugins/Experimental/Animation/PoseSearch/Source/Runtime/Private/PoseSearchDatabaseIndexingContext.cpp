@@ -7,6 +7,7 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
+#include "DerivedDataRequestOwner.h"
 #include "InstancedStruct.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchDefines.h"
@@ -15,9 +16,9 @@
 namespace UE::PoseSearch
 {
 
-void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
+bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBase, const UPoseSearchDatabase& Database, UE::DerivedData::FRequestOwner& Owner)
 {
-	const UPoseSearchSchema* Schema = Database->Schema;
+	const UPoseSearchSchema* Schema = Database.Schema;
 	check(Schema);
 
 	FBoneContainer BoneContainer;
@@ -28,15 +29,21 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 
 	SamplingContext.Init(Schema->MirrorDataTable, BoneContainer);
 
+	if (Owner.IsCanceled())
+	{
+		return false;
+	}
+
 	// Prepare samplers for all animation assets.
-	for (const FInstancedStruct& DatabaseAssetStruct : Database->AnimationAssets)
+	////////////////////////////////////////////////////////////////////////////////////////////////////////
+	for (const FInstancedStruct& DatabaseAssetStruct : Database.AnimationAssets)
 	{
 		auto AddSequenceBaseSampler = [&](const UAnimSequenceBase* Sequence)
 		{
 			if (Sequence && !SamplerMap.Contains(Sequence))
 			{
 				FSequenceBaseSampler::FInput Input;
-				Input.ExtrapolationParameters = Database->ExtrapolationParameters;
+				Input.ExtrapolationParameters = Database.ExtrapolationParameters;
 				Input.SequenceBase = Sequence;
 
 				SamplerMap.Add(Sequence, Samplers.Num());
@@ -72,7 +79,7 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 						{
 							FBlendSpaceSampler::FInput Input;
 							Input.BoneContainer = BoneContainer;
-							Input.ExtrapolationParameters = Database->ExtrapolationParameters;
+							Input.ExtrapolationParameters = Database.ExtrapolationParameters;
 							Input.BlendSpace = DatabaseBlendSpace->BlendSpace;
 							Input.BlendParameters = BlendParameters;
 
@@ -91,7 +98,7 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 			if (DatabaseAnimMontage->AnimMontage && !SamplerMap.Contains(DatabaseAnimMontage->AnimMontage))
 			{
 				FAnimMontageSampler::FInput Input;
-				Input.ExtrapolationParameters = Database->ExtrapolationParameters;
+				Input.ExtrapolationParameters = Database.ExtrapolationParameters;
 				Input.AnimMontage = DatabaseAnimMontage->AnimMontage;
 
 				SamplerMap.Add(DatabaseAnimMontage->AnimMontage, Samplers.Num());
@@ -109,12 +116,20 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 
 	ParallelFor(Samplers.Num(), [this](int32 SamplerIdx) { Samplers[SamplerIdx]->Process(); }, ParallelForFlags);
 
-	// prepare indexers
-	Indexers.Reserve(SearchIndexBase->Assets.Num());
-
-	for (int32 AssetIdx = 0; AssetIdx != SearchIndexBase->Assets.Num(); ++AssetIdx)
+	if (Owner.IsCanceled())
 	{
-		const FPoseSearchIndexAsset& SearchIndexAsset = SearchIndexBase->Assets[AssetIdx];
+		return false;
+	}
+
+	// prepare indexers
+	////////////////////////////////////////////////////////////////////////////////////////////////////////
+	Indexers.Reserve(SearchIndexBase.Assets.Num());
+
+	int32 TotalPoses = 0;
+	for (int32 AssetIdx = 0; AssetIdx != SearchIndexBase.Assets.Num(); ++AssetIdx)
+	{
+		FPoseSearchIndexAsset& SearchIndexAsset = SearchIndexBase.Assets[AssetIdx];
+		SearchIndexAsset.FirstPoseIdx = TotalPoses;
 
 		FAssetIndexingContext IndexerContext;
 		IndexerContext.SamplingContext = &SamplingContext;
@@ -122,7 +137,7 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 		IndexerContext.RequestedSamplingRange = SearchIndexAsset.SamplingInterval;
 		IndexerContext.bMirrored = SearchIndexAsset.bMirrored;
 
-		const FInstancedStruct& DatabaseAsset = Database->GetAnimationAssetStruct(SearchIndexAsset.SourceAssetIdx);
+		const FInstancedStruct& DatabaseAsset = Database.GetAnimationAssetStruct(SearchIndexAsset.SourceAssetIdx);
 		if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>())
 		{
 			if (DatabaseSequence->Sequence)
@@ -159,78 +174,62 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 
 		FAssetIndexer& Indexer = Indexers.AddDefaulted_GetRef();
 		Indexer.Init(IndexerContext, BoneContainer);
-	}
-}
 
-bool FDatabaseIndexingContext::IndexAssets()
-{
-	// Index asset data
-	ParallelFor(Indexers.Num(), [this](int32 AssetIdx) { Indexers[AssetIdx].Process(); }, ParallelForFlags);
-	return true;
-}
-
-float FDatabaseIndexingContext::CalculateMinCostAddend() const
-{
-	float MinCostAddend = 0.f;
-
-	check(SearchIndexBase);
-	if (!SearchIndexBase->PoseMetadata.IsEmpty())
-	{
-		MinCostAddend = MAX_FLT;
-		for (const FPoseSearchPoseMetadata& PoseMetadata : SearchIndexBase->PoseMetadata)
-		{
-			if (PoseMetadata.CostAddend < MinCostAddend)
-			{
-				MinCostAddend = PoseMetadata.CostAddend;
-			}
-		}
-	}
-	return MinCostAddend;
-}
-
-void FDatabaseIndexingContext::JoinIndex()
-{
-	// Write index info to asset and count up total poses and storage required
-	int32 TotalPoses = 0;
-	int32 TotalFloats = 0;
-
-	check(SearchIndexBase);
-
-	// Join animation data into a single search index
-	SearchIndexBase->Values.Reset();
-	SearchIndexBase->PoseMetadata.Reset();
-	SearchIndexBase->OverallFlags = EPoseSearchPoseFlags::None;
-	SearchIndexBase->Stats = FPoseSearchStats();
-
-	int32 NumAccumulatedSamples = 0;
-	for (int32 AssetIdx = 0; AssetIdx != SearchIndexBase->Assets.Num(); ++AssetIdx)
-	{
-		const FAssetIndexer::FOutput& Output = Indexers[AssetIdx].GetOutput();
-
-		FPoseSearchIndexAsset& SearchIndexAsset = SearchIndexBase->Assets[AssetIdx];
+		const FAssetIndexer::FOutput& Output = Indexer.GetOutput();
 		SearchIndexAsset.NumPoses = Output.NumIndexedPoses;
-		SearchIndexAsset.FirstPoseIdx = TotalPoses;
-
-		const int32 PoseMetadataStartIdx = SearchIndexBase->PoseMetadata.Num();
-		const int32 PoseMetadataEndIdx = PoseMetadataStartIdx + Output.PoseMetadata.Num();
-
-		SearchIndexBase->Values.Append(Output.FeatureVectorTable.GetData(), Output.FeatureVectorTable.Num());
-		SearchIndexBase->PoseMetadata.Append(Output.PoseMetadata);
-
-		for (int32 i = PoseMetadataStartIdx; i < PoseMetadataEndIdx; ++i)
-		{
-			SearchIndexBase->PoseMetadata[i].AssetIndex = AssetIdx;
-			SearchIndexBase->OverallFlags |= SearchIndexBase->PoseMetadata[i].Flags;
-		}
-
 		TotalPoses += Output.NumIndexedPoses;
-		TotalFloats += Output.FeatureVectorTable.Num();
+	}
 
+	// allocating Values and PoseMetadata
+	SearchIndexBase.Values.Reset();
+	SearchIndexBase.PoseMetadata.Reset();
+
+	SearchIndexBase.Values.SetNumZeroed(Schema->SchemaCardinality * TotalPoses);
+	SearchIndexBase.PoseMetadata.SetNumZeroed(TotalPoses);
+
+	// assigning local data to each Indexer
+	TotalPoses = 0;
+	for (int32 AssetIdx = 0; AssetIdx != SearchIndexBase.Assets.Num(); ++AssetIdx)
+	{
+		FAssetIndexer::FOutput& Output = Indexers[AssetIdx].EditOutput();
+		Output.FeatureVectorTable = MakeArrayView(SearchIndexBase.Values.GetData() + Schema->SchemaCardinality * TotalPoses, Schema->SchemaCardinality * Output.NumIndexedPoses);
+		Output.PoseMetadata = MakeArrayView(SearchIndexBase.PoseMetadata.GetData() + TotalPoses, Output.NumIndexedPoses);
+		TotalPoses += Output.NumIndexedPoses;
+	}
+
+	if (Owner.IsCanceled())
+	{
+		return false;
+	}
+
+	// Index asset data
+	////////////////////////////////////////////////////////////////////////////////////////////////////////
+	ParallelFor(Indexers.Num(), [this](int32 AssetIdx) { Indexers[AssetIdx].Process(AssetIdx); }, ParallelForFlags);
+
+	if (Owner.IsCanceled())
+	{
+		return false;
+	}
+
+	// Joining Metadata.Flags into OverallFlags
+	////////////////////////////////////////////////////////////////////////////////////////////////////////
+	SearchIndexBase.OverallFlags = EPoseSearchPoseFlags::None;
+	for (const FPoseSearchPoseMetadata& Metadata : SearchIndexBase.PoseMetadata)
+	{
+		SearchIndexBase.OverallFlags |= Metadata.Flags;
+	}
+
+	// Joining Stats
+	////////////////////////////////////////////////////////////////////////////////////////////////////////
+	int32 NumAccumulatedSamples = 0;
+	SearchIndexBase.Stats = FPoseSearchStats();
+	for (int32 AssetIdx = 0; AssetIdx != SearchIndexBase.Assets.Num(); ++AssetIdx)
+	{
 		const FAssetIndexer::FStats& Stats = Indexers[AssetIdx].GetStats();
-		SearchIndexBase->Stats.AverageSpeed += Stats.AccumulatedSpeed;
-		SearchIndexBase->Stats.MaxSpeed = FMath::Max(SearchIndexBase->Stats.MaxSpeed, Stats.MaxSpeed);
-		SearchIndexBase->Stats.AverageAcceleration += Stats.AccumulatedAcceleration;
-		SearchIndexBase->Stats.MaxAcceleration = FMath::Max(SearchIndexBase->Stats.MaxAcceleration, Stats.MaxAcceleration);
+		SearchIndexBase.Stats.AverageSpeed += Stats.AccumulatedSpeed;
+		SearchIndexBase.Stats.MaxSpeed = FMath::Max(SearchIndexBase.Stats.MaxSpeed, Stats.MaxSpeed);
+		SearchIndexBase.Stats.AverageAcceleration += Stats.AccumulatedAcceleration;
+		SearchIndexBase.Stats.MaxAcceleration = FMath::Max(SearchIndexBase.Stats.MaxAcceleration, Stats.MaxAcceleration);
 
 		NumAccumulatedSamples += Stats.NumAccumulatedSamples;
 	}
@@ -238,12 +237,34 @@ void FDatabaseIndexingContext::JoinIndex()
 	if (NumAccumulatedSamples > 0)
 	{
 		const float Denom = 1.f / float(NumAccumulatedSamples);
-		SearchIndexBase->Stats.AverageSpeed *= Denom;
-		SearchIndexBase->Stats.AverageAcceleration *= Denom;
+		SearchIndexBase.Stats.AverageSpeed *= Denom;
+		SearchIndexBase.Stats.AverageAcceleration *= Denom;
 	}
 
-	SearchIndexBase->NumPoses = TotalPoses;
-	SearchIndexBase->MinCostAddend = CalculateMinCostAddend();
+	SearchIndexBase.NumPoses = TotalPoses;
+
+	// Calculate Min Cost Addend
+	////////////////////////////////////////////////////////////////////////////////////////////////////////
+	SearchIndexBase.MinCostAddend = 0.f;
+
+	if (!SearchIndexBase.PoseMetadata.IsEmpty())
+	{
+		SearchIndexBase.MinCostAddend = MAX_FLT;
+		for (const FPoseSearchPoseMetadata& PoseMetadata : SearchIndexBase.PoseMetadata)
+		{
+			if (PoseMetadata.CostAddend < SearchIndexBase.MinCostAddend)
+			{
+				SearchIndexBase.MinCostAddend = PoseMetadata.CostAddend;
+			}
+		}
+	}
+
+	if (Owner.IsCanceled())
+	{
+		return false;
+	}
+
+	return true;
 }
 
 } // namespace UE::PoseSearch

@@ -95,11 +95,11 @@ void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext, const F
 	Output.LastIndexedSample = FMath::Max(0, FMath::CeilToInt(IndexingContext.RequestedSamplingRange.Max * IndexingContext.Schema->SampleRate));
 	Output.NumIndexedPoses = Output.LastIndexedSample - Output.FirstIndexedSample + 1;
 
-	Output.FeatureVectorTable.SetNumZeroed(IndexingContext.Schema->SchemaCardinality * Output.NumIndexedPoses);
-	Output.PoseMetadata.SetNum(Output.NumIndexedPoses);
+	Output.FeatureVectorTable = TArrayView<float>();
+	Output.PoseMetadata = TArrayView<FPoseSearchPoseMetadata>();
 }
 
-void FAssetIndexer::Process()
+void FAssetIndexer::Process(int32 AssetIdx)
 {
 	check(GetSchema()->IsValid());
 	check(IndexingContext.AssetSampler);
@@ -121,7 +121,7 @@ void FAssetIndexer::Process()
 	// Generate pose metadata
 	for (int32 SampleIdx = GetBeginSampleIdx(); SampleIdx != GetEndSampleIdx(); ++SampleIdx)
 	{
-		Output.PoseMetadata[GetVectorIdx(SampleIdx)] = GetMetadata(SampleIdx);
+		Output.PoseMetadata[GetVectorIdx(SampleIdx)] = GetMetadata(SampleIdx, AssetIdx);
 	}
 
 	// Computing stats
@@ -245,7 +245,7 @@ FTransform FAssetIndexer::MirrorTransform(const FTransform& Transform) const
 	return IndexingContext.bMirrored ? IndexingContext.SamplingContext->MirrorTransform(Transform) : Transform;
 }
 
-FPoseSearchPoseMetadata FAssetIndexer::GetMetadata(int32 SampleIdx) const
+FPoseSearchPoseMetadata FAssetIndexer::GetMetadata(int32 SampleIdx, int32 AssetIdx) const
 {
 	const float SequenceLength = IndexingContext.AssetSampler->GetPlayLength();
 	const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), SequenceLength);
@@ -281,6 +281,7 @@ FPoseSearchPoseMetadata FAssetIndexer::GetMetadata(int32 SampleIdx) const
 		Metadata.CostAddend += IndexingContext.Schema->LoopingCostBias;
 	}
 
+	Metadata.AssetIndex = AssetIdx;
 	return Metadata;
 }
 

@@ -9,21 +9,19 @@
 
 struct FPoseSearchIndexBase;
 class UPoseSearchDatabase;
+namespace UE::DerivedData { class FRequestOwner; }
 
 namespace UE::PoseSearch
 {
 
 struct FDatabaseIndexingContext
 {
-	FPoseSearchIndexBase* SearchIndexBase = nullptr;
+	bool IndexDatabase(FPoseSearchIndexBase& SearchIndexBase, const UPoseSearchDatabase& Database, UE::DerivedData::FRequestOwner& Owner);
+
+private:
 	FAssetSamplingContext SamplingContext;
 	TArray<TSharedPtr<FAssetSamplerBase>> Samplers;
 	TArray<FAssetIndexer> Indexers;
-
-	void Prepare(const UPoseSearchDatabase* Database);
-	bool IndexAssets();
-	void JoinIndex();
-	float CalculateMinCostAddend() const;
 };
 
 } // namespace UE::PoseSearch

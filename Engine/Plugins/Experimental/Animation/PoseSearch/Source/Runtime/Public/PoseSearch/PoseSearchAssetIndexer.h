@@ -38,8 +38,8 @@ public:
 		int32 LastIndexedSample = 0;
 		int32 NumIndexedPoses = 0;
 
-		TArray<float> FeatureVectorTable;
-		TArray<FPoseSearchPoseMetadata> PoseMetadata;
+		TArrayView<float> FeatureVectorTable;
+		TArrayView<FPoseSearchPoseMetadata> PoseMetadata;
 	};
 
 	struct FStats
@@ -53,8 +53,9 @@ public:
 
 	void Reset();
 	void Init(const FAssetIndexingContext& IndexingContext, const FBoneContainer& InBoneContainer);
-	void Process();
+	void Process(int32 AssetIdx);
 	const FOutput& GetOutput() const { return Output; }
+	FOutput& EditOutput() { return Output; }
 	const FStats& GetStats() const { return Stats; }
 
 	FQuat GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx);
@@ -91,7 +92,7 @@ private:
 	};
 
 	FSampleInfo GetSampleInfo(float SampleTime) const;
-	FPoseSearchPoseMetadata GetMetadata(int32 SampleIdx) const;
+	FPoseSearchPoseMetadata GetMetadata(int32 SampleIdx, int32 AssetIdx) const;
 	FTransform MirrorTransform(const FTransform& Transform) const;
 	CachedEntry& GetEntry(float SampleTime);
 	FTransform CalculateComponentSpaceTransform(CachedEntry& Entry, int8 SchemaBoneIdx);
