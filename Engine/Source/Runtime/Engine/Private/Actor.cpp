@@ -5883,6 +5883,11 @@ void AActor::PostRename(UObject* OldOuter, const FName OldName)
 
 bool AActor::IsHLODRelevant() const
 {
+	if (HasAnyFlags(RF_Transient))
+	{
+		return false;
+	}
+
 	if (IsHidden())
 	{
 		return false;

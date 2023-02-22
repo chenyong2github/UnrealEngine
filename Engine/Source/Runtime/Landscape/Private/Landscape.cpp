@@ -1620,6 +1620,11 @@ void ULandscapeComponent::PropagateLightingScenarioChange()
 
 bool ULandscapeComponent::IsHLODRelevant() const
 {
+	if (HasAnyFlags(RF_Transient))
+	{
+		return false;
+	}
+
 #if WITH_EDITOR
 	return bEnableAutoLODGeneration;
 #else

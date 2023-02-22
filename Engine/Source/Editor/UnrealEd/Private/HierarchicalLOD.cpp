@@ -704,11 +704,6 @@ bool FHierarchicalLODBuilder::ShouldGenerateCluster(AActor* Actor, const int32 H
 		return false;
 	}
 
-	if( Actor->HasAnyFlags( RF_Transient ) )
-	{
-		return false;
-	}
-
 	if (ALODActor* LODActor = Cast<ALODActor>(Actor))
 	{
 		// Ignore previous LOD actors
