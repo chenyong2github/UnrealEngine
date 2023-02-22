@@ -3,7 +3,6 @@
 #pragma once
 
 #include "IPropertyTypeCustomization.h"
-#include "PropertyEditorModule.h"
 
 namespace UE::ChooserEditor
 {

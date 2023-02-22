@@ -26,7 +26,7 @@ namespace UE::ChooserEditor
 		});
 		
 		Args.CurrentBindingColor = MakeAttributeLambda([ContextProperty, BindingColor]() {
-			 if (ContextProperty!= nullptr && ContextProperty->PropertyBindingChain.Num() > 0)
+			 if (ContextProperty!= nullptr && ContextProperty->Binding.PropertyBindingChain.Num() > 0)
 			 {
 				return BindingColor;
 			 }
@@ -44,7 +44,7 @@ namespace UE::ChooserEditor
 				if (ContextProperty != nullptr)
 				{
 					const FScopedTransaction Transaction(NSLOCTEXT("ContextPropertyWidget", "Change Property Binding", "Change Property Binding"));
-					TransactionObject->Modify(true); // todo
+					TransactionObject->Modify(true);
 					ContextProperty->SetBinding(InBindingChain);
 				}
 			});
@@ -54,12 +54,12 @@ namespace UE::ChooserEditor
 					const FText Bind = NSLOCTEXT("ContextPropertyWidget", "Bind", "Bind");
 					FText CurrentValue = Bind;
 	
-					if (ContextProperty != nullptr && ContextProperty->PropertyBindingChain.Num()>0)
+					if (ContextProperty != nullptr && ContextProperty->Binding.PropertyBindingChain.Num()>0)
 					{
 						TArray<FText> BindingChainText;
-						BindingChainText.Reserve(ContextProperty->PropertyBindingChain.Num());
+						BindingChainText.Reserve(ContextProperty->Binding.PropertyBindingChain.Num());
 					 
-						for (const FName& Name : ContextProperty->PropertyBindingChain)
+						for (const FName& Name : ContextProperty->Binding.PropertyBindingChain)
 						{
 							BindingChainText.Add(FText::FromName(Name));
 						}
@@ -77,21 +77,21 @@ namespace UE::ChooserEditor
 	
 					if (ContextProperty != nullptr)
 					{
-						int BindingChainLength = ContextProperty->PropertyBindingChain.Num();
+						int BindingChainLength = ContextProperty->Binding.PropertyBindingChain.Num();
 						if (BindingChainLength > 0)
 						{
 							if (BindingChainLength == 1)
 							{
 								// single property, just use the property name
-								CurrentValue = FText::FromName(ContextProperty->PropertyBindingChain.Last());
+								CurrentValue = FText::FromName(ContextProperty->Binding.PropertyBindingChain.Last());
 							}
 							else
 							{
 								// for longer chains always show the last struct/object name, and the final property name (full path in tooltip)
 								CurrentValue = FText::Join(NSLOCTEXT("ContextPropertyWidget", "PropertyPathSeparator","."),
 									TArray<FText>({
-										FText::FromName(ContextProperty->PropertyBindingChain[BindingChainLength-2]),
-										FText::FromName(ContextProperty->PropertyBindingChain[BindingChainLength-1])
+										FText::FromName(ContextProperty->Binding.PropertyBindingChain[BindingChainLength-2]),
+										FText::FromName(ContextProperty->Binding.PropertyBindingChain[BindingChainLength-1])
 									}));
 							}
 						}

@@ -31,6 +31,5 @@ struct FChooserParameterEnumBase : public FChooserParameterBase
 
 	#if WITH_EDITOR
     	virtual const UEnum* GetEnum() const { return nullptr; }
-    	FSimpleMulticastDelegate OnEnumChanged;
     #endif
 };

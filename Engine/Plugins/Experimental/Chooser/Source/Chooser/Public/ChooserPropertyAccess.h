@@ -33,6 +33,17 @@ struct FChooserPropertyBinding
 	TArray<FName> PropertyBindingChain;
 };
 
+USTRUCT()
+struct FChooserEnumPropertyBinding : public FChooserPropertyBinding
+{
+	GENERATED_BODY()
+	
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TObjectPtr<const UEnum> Enum = nullptr;
+#endif
+};
+
 namespace UE::Chooser
 {
 	CHOOSER_API bool ResolvePropertyChain(const void*& Container, UStruct*& StructType, const TArray<FName>& PropertyBindingChain);

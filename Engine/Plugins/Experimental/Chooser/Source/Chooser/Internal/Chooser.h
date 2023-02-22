@@ -6,12 +6,13 @@
 #include "IObjectChooser.h"
 #include "InstancedStruct.h"
 #include "IChooserColumn.h"
+#include "ChooserPropertyAccess.h"
 
 #include "Chooser.generated.h"
 
 
 UCLASS(MinimalAPI, BlueprintType)
-class UChooserTable : public UObject
+class UChooserTable : public UObject, public IHasContextClass
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -42,6 +43,8 @@ public:
 #if WITH_EDITOR
 	virtual void PostLoad() override;
 #endif
+
+	virtual UClass* GetContextClass() override { return ContextObjectType; }
 };
 
 

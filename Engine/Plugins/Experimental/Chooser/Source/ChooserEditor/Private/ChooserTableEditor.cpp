@@ -194,7 +194,8 @@ void FChooserTableEditor::NotifyPostChange(const FPropertyChangedEvent& Property
 		// rebuild all result widgets
 		UpdateTableRows();
 	}
-	if (PropertyThatChanged->GetNameCPP() == GET_MEMBER_NAME_STRING_CHECKED(UChooserTable, ContextObjectType))
+	if (PropertyThatChanged->GetNameCPP() == GET_MEMBER_NAME_STRING_CHECKED(UChooserTable, ContextObjectType)     // refresh columns property selector if the Context Object changed
+		|| PropertyThatChanged->GetNameCPP() == "InputValue" || PropertyThatChanged->GetNameCPP() == "Binding")   // refresh column widgets if the Input value or its binding was changed from the details panel
 	{
 		// rebuild all column header widgets
 		UpdateTableColumns();
@@ -805,7 +806,7 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 				}
 				Chooser->ColumnsStructs.Insert(NewColumn, InsertIndex);
 			}
-			
+
 			UpdateTableColumns();
 			UpdateTableRows();
 
@@ -1215,17 +1216,17 @@ void FChooserColumnDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder
 	
 	if (Chooser->ColumnsStructs.Num() > Column->Column)
 	{
-		IDetailCategoryBuilder& PropertiesCategory = DetailBuilder.EditCategory("Row Properties");
+		IDetailCategoryBuilder& PropertiesCategory = DetailBuilder.EditCategory("Column Properties");
 
 		TSharedPtr<IPropertyHandle> ChooserProperty = DetailBuilder.GetProperty("Chooser", Column->StaticClass());
 		DetailBuilder.HideProperty(ChooserProperty);
 	
 		TSharedPtr<IPropertyHandle> ColumnsArrayProperty = ChooserProperty->GetChildHandle("ColumnsStructs");
 		TSharedPtr<IPropertyHandle> CurrentColumnProperty = ColumnsArrayProperty->AsArray()->GetElement(Column->Column);
-		IDetailPropertyRow& NewResultProperty = PropertiesCategory.AddProperty(CurrentColumnProperty);
-		NewResultProperty.DisplayName(LOCTEXT("Selected Column","Selected Column"));
-		NewResultProperty.ShowPropertyButtons(false); // hide array add button
-		NewResultProperty.ShouldAutoExpand(true);
+		IDetailPropertyRow& NewColumnProperty = PropertiesCategory.AddProperty(CurrentColumnProperty);
+		NewColumnProperty.DisplayName(LOCTEXT("Selected Column","Selected Column"));
+		NewColumnProperty.ShowPropertyButtons(false); // hide array add button
+		NewColumnProperty.ShouldAutoExpand(true);
 	}
 }
 

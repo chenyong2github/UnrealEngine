@@ -7,9 +7,9 @@ bool FGameplayTagContextProperty::GetValue(const UObject* ContextObject, const F
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
 	
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
 	{
-		if (const FStructProperty* Property = FindFProperty<FStructProperty>(StructType, PropertyBindingChain.Last()))
+		if (const FStructProperty* Property = FindFProperty<FStructProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
 			OutResult = Property->ContainerPtrToValuePtr<FGameplayTagContainer>(Container);
 			return true;

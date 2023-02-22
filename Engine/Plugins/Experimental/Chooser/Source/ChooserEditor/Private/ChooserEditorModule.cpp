@@ -9,6 +9,7 @@
 #include "GameplayTagColumnEditor.h"
 #include "ChooserTableEditorCommands.h"
 #include "ChooserPropertyAccess.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "ChooserEditorModule"
 
@@ -28,6 +29,7 @@ void FModule::StartupModule()
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	
 	PropertyModule.RegisterCustomPropertyTypeLayout(FChooserPropertyBinding::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<FPropertyAccessChainCustomization>(); }));
+	PropertyModule.RegisterCustomPropertyTypeLayout(FChooserEnumPropertyBinding::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<FPropertyAccessChainCustomization>(); }));
 
 }
 

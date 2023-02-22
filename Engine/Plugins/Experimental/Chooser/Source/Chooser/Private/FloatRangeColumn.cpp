@@ -7,15 +7,15 @@ bool FFloatContextProperty::GetValue(const UObject* ContextObject, float& OutRes
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
 	
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
 	{
-		if (const FDoubleProperty* DoubleProperty = FindFProperty<FDoubleProperty>(StructType, PropertyBindingChain.Last()))
+		if (const FDoubleProperty* DoubleProperty = FindFProperty<FDoubleProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
 			OutResult = *DoubleProperty->ContainerPtrToValuePtr<double>(Container);
 			return true;
 		}
 		
-		if (const FFloatProperty* FloatProperty = FindFProperty<FFloatProperty>(StructType, PropertyBindingChain.Last()))
+		if (const FFloatProperty* FloatProperty = FindFProperty<FFloatProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
 			OutResult = *FloatProperty->ContainerPtrToValuePtr<float>(Container);
 			return true;

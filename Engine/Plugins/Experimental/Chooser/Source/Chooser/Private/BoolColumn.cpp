@@ -7,9 +7,9 @@ bool FBoolContextProperty::GetValue(const UObject* ContextObject, bool& OutResul
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
 	
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
 	{
-		if (const FBoolProperty* Property = FindFProperty<FBoolProperty>(StructType, PropertyBindingChain.Last()))
+		if (const FBoolProperty* Property = FindFProperty<FBoolProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
 			OutResult = *Property->ContainerPtrToValuePtr<bool>(Container);
 			return true;
@@ -24,9 +24,9 @@ bool FBoolContextProperty::SetValue(UObject* ContextObject, bool InValue) const
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
 	
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
 	{
-		if (FBoolProperty* Property = FindFProperty<FBoolProperty>(StructType, PropertyBindingChain.Last()))
+		if (FBoolProperty* Property = FindFProperty<FBoolProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
 			// const cast is here just because ResolvePropertyChain expects a const void*&
 			*Property->ContainerPtrToValuePtr<bool>(const_cast<void*>(Container)) = InValue;

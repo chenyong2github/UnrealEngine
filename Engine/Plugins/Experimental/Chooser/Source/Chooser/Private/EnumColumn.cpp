@@ -11,15 +11,15 @@ bool FEnumContextProperty::GetValue(const UObject* ContextObject, uint8& OutResu
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
 
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
 	{
-		if (const FEnumProperty* EnumProperty = FindFProperty<FEnumProperty>(StructType, PropertyBindingChain.Last()))
+		if (const FEnumProperty* EnumProperty = FindFProperty<FEnumProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
 			OutResult = *EnumProperty->ContainerPtrToValuePtr<uint8>(Container);
 			return true;
 		}
 
-		if (const FByteProperty* ByteProperty = FindFProperty<FByteProperty>(StructType, PropertyBindingChain.Last()))
+		if (const FByteProperty* ByteProperty = FindFProperty<FByteProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
 			if (ByteProperty->IsEnum())
 			{
@@ -36,25 +36,19 @@ bool FEnumContextProperty::GetValue(const UObject* ContextObject, uint8& OutResu
 
 void FEnumContextProperty::SetBinding(const TArray<FBindingChainElement>& InBindingChain)
 {
-	const UEnum* PreviousEnum = Enum;
-	Enum = nullptr;
+	const UEnum* PreviousEnum = Binding.Enum;
+	Binding.Enum = nullptr;
 
-	UE::Chooser::CopyPropertyChain(InBindingChain, PropertyBindingChain);
+	UE::Chooser::CopyPropertyChain(InBindingChain, Binding.PropertyBindingChain);
 
 	const FField* Field = InBindingChain.Last().Field.ToField();
 	if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Field))
 	{
-		Enum = EnumProperty->GetEnum();
+		Binding.Enum = EnumProperty->GetEnum();
 	}
 	else if (const FByteProperty* ByteProperty = CastField<FByteProperty>(Field))
 	{
-		Enum = ByteProperty->Enum;
-	}
-
-	if (Enum != PreviousEnum)
-	{
-		// Our enum type has changed! Need to refresh the UI to update enum value pickers.
-		OnEnumChanged.Broadcast();
+		Binding.Enum = ByteProperty->Enum;
 	}
 }
 
@@ -64,36 +58,13 @@ FEnumColumn::FEnumColumn()
 {
 #if WITH_EDITOR
 	InputValue.InitializeAs(FEnumContextProperty::StaticStruct());
-	InputChanged();
 #endif
 }
 
 bool FChooserEnumRowData::Evaluate(const uint8 LeftHandSide) const
 {
-	switch (Comparison)
-	{
-	case EChooserEnumComparison::Equal:
-		return LeftHandSide == Value;
-
-	case EChooserEnumComparison::NotEqual:
-		return LeftHandSide != Value;
-
-	case EChooserEnumComparison::GreaterThan:
-		return LeftHandSide > Value;
-
-	case EChooserEnumComparison::GreaterThanEqual:
-		return LeftHandSide >= Value;
-
-	case EChooserEnumComparison::LessThan:
-		return LeftHandSide < Value;
-
-	case EChooserEnumComparison::LessThanEqual:
-		return LeftHandSide <= Value;
-
-	default:
-		checkf(false, TEXT("Unsupported comparison type for enum comparison operation!"));
-		return false;
-	}
+	bool Equal = LeftHandSide == Value;
+	return Equal ^ CompareNotEqual;
 }
 
 void FEnumColumn::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const

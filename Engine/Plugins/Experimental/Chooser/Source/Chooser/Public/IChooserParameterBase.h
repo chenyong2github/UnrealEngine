@@ -14,5 +14,7 @@ struct FChooserParameterBase
 
 	virtual void GetDisplayName(FText& OutName) const { }
 
+	virtual void PostLoad() {};
+
 	virtual ~FChooserParameterBase() {}
 };

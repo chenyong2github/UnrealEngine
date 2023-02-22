@@ -6,6 +6,7 @@
 #include "ChooserPropertyAccess.h"
 #include "PropertyHandle.h"
 #include "DetailWidgetRow.h"
+#include "GraphEditorSettings.h"
 #include "SClassViewer.h"
 #include "IDetailChildrenBuilder.h"
 #include "IPropertyAccessEditor.h"
@@ -23,8 +24,10 @@ void FPropertyAccessChainCustomization::CustomizeHeader(TSharedRef<IPropertyHand
 
 	UClass* ContextClass = nullptr;
 	static FName TypeMetaData = "BindingType";
+	static FName ColorMetaData = "BindingColor";
 
 	FString TypeFilter = PropertyHandle->GetMetaData(TypeMetaData);
+	FString BindingColor = PropertyHandle->GetMetaData(ColorMetaData);
 
 	TArray<UObject*> OuterObjects;
 	PropertyHandle->GetOuterObjects(OuterObjects);
@@ -48,24 +51,44 @@ void FPropertyAccessChainCustomization::CustomizeHeader(TSharedRef<IPropertyHand
 	
 	Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda([TypeFilter](FProperty* Property)
 	{
-		if (TypeFilter == "")
+		if (TypeFilter == "" || Property == nullptr)
 		{
 			return true;
 		}
-		else
+		else if (TypeFilter == "enum")
 		{
-			return Property == nullptr || Property->GetCPPType() == TypeFilter;
+            if (const FEnumProperty* EnumProperty = CastField<const FEnumProperty>(Property))
+            {
+             	return true;
+			}
+            else if (const FByteProperty* ByteProperty = CastField<const FByteProperty>(Property))
+            {
+            	return ByteProperty->Enum != nullptr;
+            }
+			return false;
 		}
 		
+		return Property->GetCPPType() == TypeFilter;
 	});
 	
-	Args.OnCanBindToClass = FOnCanBindToClass::CreateLambda([ContextClass ](UClass* InClass)
+	Args.OnCanBindToClass = FOnCanBindToClass::CreateLambda([ContextClass](UClass* InClass)
 	{
 		return true;
 	});
 
-	Args.CurrentBindingColor = MakeAttributeLambda([]() {
-		return FLinearColor::Gray;
+
+	FLinearColor BindingColorValue = FLinearColor::Gray;
+	if (BindingColor != "")
+	{
+		const UGraphEditorSettings* GraphEditorSettings = GetDefault<UGraphEditorSettings>();
+		if (const FStructProperty* ColorProperty = FindFProperty<FStructProperty>(GraphEditorSettings->GetClass(), FName(BindingColor)))
+		{
+			BindingColorValue = *ColorProperty->ContainerPtrToValuePtr<FLinearColor>(GraphEditorSettings);
+		}
+	}
+
+	Args.CurrentBindingColor = MakeAttributeLambda([BindingColorValue]() {
+		return BindingColorValue;
 	});
 
 	Args.OnCanAcceptPropertyOrChildren = FOnCanBindProperty::CreateLambda([](FProperty* InProperty)
@@ -74,7 +97,7 @@ void FPropertyAccessChainCustomization::CustomizeHeader(TSharedRef<IPropertyHand
 			return InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible);
 		});	
 
-	Args.OnAddBinding = FOnAddBinding::CreateLambda([PropertyHandle](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+	Args.OnAddBinding = FOnAddBinding::CreateLambda([TypeFilter, PropertyHandle](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
 		{
 			TArray<UObject*> OuterObjects;
 			PropertyHandle->GetOuterObjects(OuterObjects);
@@ -90,8 +113,23 @@ void FPropertyAccessChainCustomization::CustomizeHeader(TSharedRef<IPropertyHand
 				{
 					PropertyHandle->NotifyPreChange();
 					
-					OuterObjects[i]->Modify(true); // todo
+					OuterObjects[i]->Modify(true);
 					Chooser::CopyPropertyChain(InBindingChain, PropertyValue->PropertyBindingChain);
+
+					if (TypeFilter == "enum")
+					{
+						FField* Property = InBindingChain.Last().Field.ToField();
+						FChooserEnumPropertyBinding* EnumPropertyValue = static_cast<FChooserEnumPropertyBinding*>(PropertyValue);
+						
+						if (const FEnumProperty* EnumProperty = CastField<const FEnumProperty>(Property))
+						{
+							EnumPropertyValue->Enum = EnumProperty->GetEnum();
+						}
+						else if (const FByteProperty* ByteProperty = CastField<const FByteProperty>(Property))
+						{
+							EnumPropertyValue->Enum = ByteProperty->Enum;
+						}
+					}
 
 					PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 				}
