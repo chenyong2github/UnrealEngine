@@ -3,6 +3,7 @@
 #include "PCGManagedResource.h"
 
 #include "PCGComponent.h"
+#include "PCGHelpers.h"
 #include "PCGModule.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Utils/PCGGeneratedResourcesLogging.h"
@@ -69,6 +70,15 @@ bool UPCGManagedActors::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>&
 	{
 		PCGGeneratedResourcesLogging::LogManagedActorsSoftRelease(GeneratedActors);
 
+		// Mark actors as potentially-to-be-cleaned-up
+		for (TSoftObjectPtr<AActor> GeneratedActor : GeneratedActors)
+		{
+			if (GeneratedActor.IsValid())
+			{
+				GeneratedActor->Tags.Add(PCGHelpers::MarkedForCleanupPCGTag);
+			}
+		}
+
 		return false;
 	}
 
@@ -123,6 +133,26 @@ bool UPCGManagedActors::MoveResourceToNewActor(AActor* NewActor)
 	GeneratedActors.Empty();
 
 	return true;
+}
+
+void UPCGManagedActors::MarkAsUsed()
+{
+	Super::MarkAsUsed();
+	// Technically we don't ever have to "use" a preexisting managed actor resource, but this is to be consistent with the other implementations
+	ensure(0);
+}
+
+void UPCGManagedActors::MarkAsReused()
+{
+	Super::MarkAsReused();
+
+	for (TSoftObjectPtr<AActor> GeneratedActor : GeneratedActors)
+	{
+		if (GeneratedActor.IsValid())
+		{
+			GeneratedActor->Tags.Remove(PCGHelpers::MarkedForCleanupPCGTag);
+		}
+	}
 }
 
 void UPCGManagedComponent::PostEditImport()
@@ -181,6 +211,7 @@ bool UPCGManagedComponent::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor
 		{
 			// We can only mark it unused if we can reset the component.
 			bIsMarkedUnused = true;
+			GeneratedComponent->ComponentTags.Add(PCGHelpers::MarkedForCleanupPCGTag);
 		}
 	}
 
@@ -241,11 +272,27 @@ void UPCGManagedComponent::MarkAsUsed()
 		return;
 	}
 
+	Super::MarkAsUsed();
+
 	// Can't reuse a resource if we can't reset it. Make sure we never take this path in this case.
 	check(SupportsComponentReset());
 
 	ResetComponent();
-	bIsMarkedUnused = false;
+
+	if (GeneratedComponent.Get())
+	{
+		GeneratedComponent->ComponentTags.Remove(PCGHelpers::MarkedForCleanupPCGTag);
+	}
+}
+
+void UPCGManagedComponent::MarkAsReused()
+{
+	Super::MarkAsReused();
+
+	if (GeneratedComponent.Get())
+	{
+		GeneratedComponent->ComponentTags.Remove(PCGHelpers::MarkedForCleanupPCGTag);
+	}
 }
 
 bool UPCGManagedISMComponent::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)

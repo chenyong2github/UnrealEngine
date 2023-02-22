@@ -52,8 +52,14 @@ bool UPCGWorldVolumetricData::SamplePoint(const FTransform& InTransform, const F
 			continue;
 		}
 
-		// Skip PCG-created objects optionally
-		if (QueryParams.bIgnorePCGHits && OverlappedComponent->ComponentTags.Contains(PCGHelpers::DefaultPCGTag))
+		// Skip to-be-cleaned-up PCG-created objects
+		if (OverlappedComponent->ComponentHasTag(PCGHelpers::MarkedForCleanupPCGTag) || (OverlappedComponent->GetOwner() && OverlappedComponent->GetOwner()->ActorHasTag(PCGHelpers::MarkedForCleanupPCGTag)))
+		{
+			continue;
+		}
+
+		// Optionally skip all PCG created objects
+		if (QueryParams.bIgnorePCGHits && (OverlappedComponent->ComponentHasTag(PCGHelpers::DefaultPCGTag) || (OverlappedComponent->GetOwner() && OverlappedComponent->GetOwner()->ActorHasTag(PCGHelpers::DefaultPCGActorTag))))
 		{
 			continue;
 		}
@@ -187,8 +193,14 @@ bool UPCGWorldRayHitData::SamplePoint(const FTransform& InTransform, const FBox&
 			continue;
 		}
 		
-		// Skip PCG-created objects optionally
-		if (QueryParams.bIgnorePCGHits && HitComponent->ComponentTags.Contains(PCGHelpers::DefaultPCGTag))
+		// Skip to-be-cleaned-up PCG-created objects
+		if (HitComponent->ComponentHasTag(PCGHelpers::MarkedForCleanupPCGTag) || (HitComponent->GetOwner() && HitComponent->GetOwner()->ActorHasTag(PCGHelpers::MarkedForCleanupPCGTag)))
+		{
+			continue;
+		}
+
+		// Optionally skip all PCG created objects
+		if (QueryParams.bIgnorePCGHits && (HitComponent->ComponentHasTag(PCGHelpers::DefaultPCGTag) || (HitComponent->GetOwner() && HitComponent->GetOwner()->ActorHasTag(PCGHelpers::DefaultPCGActorTag))))
 		{
 			continue;
 		}

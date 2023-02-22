@@ -64,6 +64,8 @@ public:
 	virtual bool Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
 	virtual bool ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
 	virtual bool MoveResourceToNewActor(AActor* NewActor) override;
+	virtual void MarkAsUsed() override;
+	virtual void MarkAsReused() override;
 	//~End UPCGManagedResource interface
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GeneratedData)
@@ -89,6 +91,7 @@ public:
 	virtual void ResetComponent() { check(0); }
 	virtual bool SupportsComponentReset() const { return false; }
 	virtual void MarkAsUsed() override;
+	virtual void MarkAsReused() override;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GeneratedData)
 	TSoftObjectPtr<UActorComponent> GeneratedComponent;

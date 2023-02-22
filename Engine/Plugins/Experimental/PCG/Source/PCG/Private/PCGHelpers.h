@@ -17,6 +17,7 @@ namespace PCGHelpers
 	const FName DefaultPCGTag = TEXT("PCG Generated Component");
 	const FName DefaultPCGDebugTag = TEXT("PCG Generated Debug Component");
 	const FName DefaultPCGActorTag = TEXT("PCG Generated Actor");
+	const FName MarkedForCleanupPCGTag = TEXT("PCG Marked For Cleanup");
 
 	int ComputeSeed(int A);
 	int ComputeSeed(int A, int B);
