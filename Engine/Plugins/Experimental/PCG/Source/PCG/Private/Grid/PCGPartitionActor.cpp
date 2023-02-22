@@ -318,6 +318,8 @@ void APCGPartitionActor::AddGraphInstance(UPCGComponent* OriginalComponent)
 
 void APCGPartitionActor::RemapGraphInstance(const UPCGComponent* OldOriginalComponent, UPCGComponent* NewOriginalComponent)
 {
+	check(OldOriginalComponent && NewOriginalComponent);
+
 	UPCGComponent* LocalComponent = GetLocalComponent(OldOriginalComponent);
 
 	if (!LocalComponent)
@@ -325,7 +327,14 @@ void APCGPartitionActor::RemapGraphInstance(const UPCGComponent* OldOriginalComp
 		return;
 	}
 
-	Modify();
+	// If the old original component was loaded, we can assume we are in a loading phase.
+	// In this case, we don't want to dirty or register a transaction
+	const bool bIsLoading = OldOriginalComponent->HasAnyFlags(RF_WasLoaded);
+
+	if (!bIsLoading)
+	{
+		Modify();
+	}
 
 	OriginalToLocal.Remove(OldOriginalComponent);
 	LocalToOriginal.Remove(LocalComponent);
@@ -336,7 +345,10 @@ void APCGPartitionActor::RemapGraphInstance(const UPCGComponent* OldOriginalComp
 
 #if WITH_EDITOR
 	// When changing original data, it means that the data we have might point to newly stale data, hence we need to force dirty here
-	LocalComponent->DirtyGenerated(EPCGComponentDirtyFlag::Actor);
+	if (!bIsLoading)
+	{
+		LocalComponent->DirtyGenerated(EPCGComponentDirtyFlag::Actor);
+	}
 #endif
 }
 

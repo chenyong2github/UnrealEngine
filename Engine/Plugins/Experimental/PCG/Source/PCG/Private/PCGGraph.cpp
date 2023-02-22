@@ -26,6 +26,18 @@ bool UPCGGraphInterface::IsInstance() const
 	return this != GetGraph();
 }
 
+bool UPCGGraphInterface::IsEquivalent(const UPCGGraphInterface* Other) const
+{
+	if (this == Other)
+	{
+		return true;
+	}
+
+	const UPCGGraph* OtherGraph = Other ? Other->GetGraph() : nullptr;
+
+	return GetGraph() == OtherGraph;
+}
+
 /****************************
 * UPCGGraph
 ****************************/

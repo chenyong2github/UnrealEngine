@@ -199,7 +199,7 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 	Original->CachedTrackedTagsToSettings.GetKeys(OriginalTrackedTags);
 	const bool bHasDirtyTracking = !(TrackedTags.Num() == OriginalTrackedTags.Num() && TrackedTags.Includes(OriginalTrackedTags));
 
-	const bool bGraphInstanceIsDifferent = GraphInstance->Graph != Original->GraphInstance;
+	const bool bGraphInstanceIsDifferent = !GraphInstance->IsEquivalent(Original->GraphInstance);
 	const bool bIsDirty = bHasDirtyInput || bHasDirtyExclusions || bHasDirtyTracking || bGraphInstanceIsDifferent;
 #endif // WITH_EDITOR
 
@@ -979,6 +979,9 @@ void UPCGComponent::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
+	// Force dirty to be false on load. We should never refresh on load.
+	bDirtyGenerated = false;
+
 	if (!ExclusionTags_DEPRECATED.IsEmpty() && ExcludedTags.IsEmpty())
 	{
 		ExcludedTags.Append(ExclusionTags_DEPRECATED);

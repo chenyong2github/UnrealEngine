@@ -24,6 +24,9 @@ public:
 
 	bool IsInstance() const;
 
+	/** A graph interface is equivalent to another graph interface if they are the same (same ptr), or if they have the same graph. Will be overriden when graph instance supports overrides. */
+	virtual bool IsEquivalent(const UPCGGraphInterface* Other) const;
+
 #if WITH_EDITOR
 	FOnPCGGraphChanged OnGraphChangedDelegate;
 #endif // WITH_EDITOR
