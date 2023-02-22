@@ -183,7 +183,7 @@ export const StepsPanelInner: React.FC<{ jobDetails: JobDetailsV2, depStepId?: s
    const buildColumns = (): IColumn[] => {
 
       const widths: Record<string, number> = {
-         "Name": 732,
+         "Name": 1074,
          "Progress": 120,
          "Start": 100,
          "End": 100,
