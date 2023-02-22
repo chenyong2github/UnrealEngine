@@ -125,6 +125,12 @@ namespace mu
 		//! Set the texture layout packing strategy
 		EPackStrategy GetLayoutPackingStrategy() const;
 
+		//! Set at which LOD the unassigned vertices warnings will star to be ignored
+		void SetIgnoreLODWarnings(int32 LOD);
+
+		//! Get the LOD where the unassigned vertices warnings starts to be ignored
+		int32 GetIgnoreLODWarnings();
+
 	protected:
 
 		//! Forbidden. Manage with the Ptr<> template.
@@ -202,10 +208,13 @@ namespace mu
 		//! Packing strategy
 		EPackStrategy m_strategy = EPackStrategy::RESIZABLE_LAYOUT;
 
+		int32 FirstLODToIgnoreWarnings;
+
+
 		//!
 		void Serialise(OutputArchive& arch) const
 		{
-			uint32 ver = 3;
+			uint32 ver = 4;
 			arch << ver;
 
 			arch << m_size;
@@ -213,6 +222,7 @@ namespace mu
 
 			arch << m_maxsize;
 			arch << uint32(m_strategy);
+			arch << FirstLODToIgnoreWarnings;
 		}
 
 		//!
@@ -220,7 +230,7 @@ namespace mu
 		{
 			uint32 ver;
 			arch >> ver;
-			check(ver == 3);
+			check(ver <= 4);
 
 			arch >> m_size;
 
@@ -230,6 +240,11 @@ namespace mu
 			uint32 temp;
 			arch >> temp;
 			m_strategy = EPackStrategy(temp);
+
+			if (ver >= 4)
+			{
+				arch >> FirstLODToIgnoreWarnings;
+			}
 		}
 
 		//!

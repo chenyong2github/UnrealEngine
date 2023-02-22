@@ -402,6 +402,19 @@ namespace mu
 
 		return layout;
 	}
+
+	//---------------------------------------------------------------------------------------------
+	void NodeLayoutBlocks::SetIgnoreWarningsLOD(int32 LOD)
+	{
+		m_pD->m_pLayout->SetIgnoreLODWarnings(LOD);
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	int32 NodeLayoutBlocks::GetIgnoreWarningsLOD()
+	{
+		return m_pD->m_pLayout->GetIgnoreLODWarnings();
+	}
 }
 
 

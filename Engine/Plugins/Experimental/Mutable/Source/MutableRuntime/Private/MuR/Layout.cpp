@@ -42,6 +42,7 @@ namespace mu {
 		pResult->m_maxsize = m_maxsize;
 		pResult->m_blocks = m_blocks;
 		pResult->m_strategy = m_strategy;
+		pResult->FirstLODToIgnoreWarnings = FirstLODToIgnoreWarnings;
 		return pResult;
 	}
 
@@ -52,7 +53,9 @@ namespace mu {
 		return  (m_size == o.m_size) &&
 			(m_maxsize == o.m_maxsize) &&
 			(m_blocks == o.m_blocks) &&
-			(m_strategy == o.m_strategy);
+			(m_strategy == o.m_strategy) &&
+			// maybe this is not needed
+			(FirstLODToIgnoreWarnings == o.FirstLODToIgnoreWarnings);;
 	}
 
 
@@ -217,6 +220,20 @@ namespace mu {
 			return true;
 		}
 		return false;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	void Layout::SetIgnoreLODWarnings(int32 LOD)
+	{
+		FirstLODToIgnoreWarnings = LOD;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	int32 Layout::GetIgnoreLODWarnings()
+	{
+		return FirstLODToIgnoreWarnings;
 	}
 }
 

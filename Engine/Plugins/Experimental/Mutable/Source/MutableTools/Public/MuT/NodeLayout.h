@@ -149,6 +149,12 @@ namespace mu
 		//! Generate the blocks of a layout using the UV of the meshes
 		static NodeLayoutBlocksPtr GenerateLayoutBlocks(const MeshPtr pMesh, int layoutIndex, int gridSizeX, int gridSizeY);
 
+		//! Set at which LOD the unassigned vertices warnings will star to be ignored
+		void SetIgnoreWarningsLOD(int32 LOD);
+
+		//! Get the LOD where the unassigned vertices warnings starts to be ignored
+		int32 GetIgnoreWarningsLOD();
+
 
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern

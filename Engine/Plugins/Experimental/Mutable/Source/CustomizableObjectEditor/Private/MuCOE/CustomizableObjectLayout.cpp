@@ -167,4 +167,16 @@ int32 UCustomizableObjectLayout::FindBlock(const FGuid& InId) const
 	return -1;
 }
 
+
+void UCustomizableObjectLayout::SetIgnoreVertexLayoutWarnings(bool bValue)
+{
+	bIgnoreUnassignedVertexWarning = bValue;
+}
+
+
+void UCustomizableObjectLayout::SetIgnoreWarningsLOD(int32 LODValue)
+{
+	FirstLODToIgnore = LODValue;
+}
+
 #undef LOCTEXT_NAMESPACE

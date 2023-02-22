@@ -49,11 +49,15 @@ public:
 
 	UCustomizableObjectLayout();
 
+	// Sets the layout parameters
 	void SetLayout(UObject* InMesh, int32 LODIndex, int32 MatIndex, int32 UVIndex);
 	void SetPackingStrategy(ECustomizableObjectTextureLayoutPackingStrategy Strategy);
 	void SetGridSize(FIntPoint Size);
 	void SetMaxGridSize(FIntPoint Size);
 	void SetLayoutName(FString Name);
+	void SetIgnoreVertexLayoutWarnings(bool bValue);
+	void SetIgnoreWarningsLOD(int32 LODValue);
+
 
 	int32 GetLOD() const { return LOD; }
 	int32 GetMaterial() const { return Material; }
@@ -63,6 +67,8 @@ public:
 	FIntPoint GetGridSize() const { return GridSize; }
 	FIntPoint GetMaxGridSize() const { return MaxGridSize; }
 	ECustomizableObjectTextureLayoutPackingStrategy GetPackingStrategy() const { return PackingStrategy; }
+	bool GetIgnoreVertexLayoutWarnings() const { return bIgnoreUnassignedVertexWarning; };
+	int32 GetFirstLODToIgnoreWarnings() { return FirstLODToIgnore; };
 
 	void GetUVChannel(TArray<FVector2f>& UVs, int32 UVChannelIndex = 0) const;
 
@@ -102,5 +108,13 @@ private:
 
 	UPROPERTY()
 	FString LayoutName;
+
+	/* If true, vertex warning messages will be ignored */
+	UPROPERTY()
+	bool bIgnoreUnassignedVertexWarning = false;
+
+	/* First LOD from which unassigned vertices warning will be ignored */
+	UPROPERTY()
+	int32 FirstLODToIgnore = 0;
 
 };

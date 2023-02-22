@@ -228,7 +228,7 @@ class Node;
         }
 
         int outside = currentLayoutMesh->GetVertexBuffers().GetElementCount() - inside;
-        if (outside>0)
+        if (outside>0 && (pLayout->FirstLODToIgnoreWarnings == -1 || m_currentParents.Last().m_lod < pLayout->FirstLODToIgnoreWarnings))
         {
             char buf[256];
             mutable_snprintf
