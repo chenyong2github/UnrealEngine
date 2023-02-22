@@ -5301,9 +5301,9 @@ void FDeferredShadingSceneRenderer::BeginInitViews(
 	{
 		FComputeViewVisibilityCallbacks ComputeViewVisibilityCallbacks;
 
-		ComputeViewVisibilityCallbacks.PreGatherDynamicMeshElements = [this, &TaskDatas]
+		ComputeViewVisibilityCallbacks.PreGatherDynamicMeshElements = [this, &GraphBuilder, &TaskDatas]
 		{
-			PreGatherDynamicMeshElements(TaskDatas);
+			PreGatherDynamicMeshElements(GraphBuilder, TaskDatas);
 		};
 
 		ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBufferForInitViews, DynamicVertexBufferForInitViews, DynamicReadBufferForInitViews, InstanceCullingManager, VirtualTextureUpdater, ComputeViewVisibilityCallbacks);
@@ -5463,23 +5463,10 @@ void FDeferredShadingSceneRenderer::EndInitViews(
 
 	SetupSceneReflectionCaptureBuffer(RHICmdList);
 
-	BeginUpdateLumenSceneTasks(GraphBuilder, FrameTemporaries);
-
-	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
-
-	if (ViewFamily.EngineShowFlags.DynamicShadows
-		&& !ViewFamily.EngineShowFlags.HitProxies
-		&& !bHasRayTracedOverlay)
+	if (IsForwardShadingEnabled(ShaderPlatform))
 	{
-		// Setup dynamic shadows.
-		if (TaskDatas.DynamicShadows)
-		{
-			FinishInitDynamicShadows(GraphBuilder, TaskDatas.DynamicShadows, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager, ExternalAccessQueue);
-		}
-		else
-		{
-			TaskDatas.DynamicShadows = InitDynamicShadows(GraphBuilder, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager, ExternalAccessQueue);
-		}
+		// Dynamic shadows are synced earlier when forward shading is enabled.
+		FinishInitDynamicShadows(GraphBuilder, TaskDatas.DynamicShadows, InstanceCullingManager, ExternalAccessQueue);
 	}
 }
 

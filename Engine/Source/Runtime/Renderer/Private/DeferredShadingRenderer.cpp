@@ -2354,7 +2354,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 #endif // RHI_RAYTRACING
 
-void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements(FInitViewTaskDatas& TaskDatas)
+void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements(FRDGBuilder& GraphBuilder, FInitViewTaskDatas& TaskDatas)
 {
 #if RHI_RAYTRACING
 	if (bAnyRayTracingPassEnabled)
@@ -2382,6 +2382,11 @@ void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements(FInitViewTaskDa
 		TaskDatas.DynamicShadows = BeginInitDynamicShadows(true);
 	}
 
+	if (TaskDatas.LumenFrameTemporaries)
+	{
+		BeginUpdateLumenSceneTasks(GraphBuilder, *TaskDatas.LumenFrameTemporaries);
+	}
+
 	BeginGatherLumenLights(TaskDatas.LumenDirectLighting);
 
 	if (IsNaniteEnabled() && Views.Num() > 0)
@@ -2407,6 +2412,27 @@ void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements(FInitViewTaskDa
 			&NaniteRasterPipeline,
 			&NaniteMaterials
 		);
+	}
+}
+
+void FDeferredShadingSceneRenderer::FinishInitDynamicShadows(FRDGBuilder& GraphBuilder, FDynamicShadowsTaskData*& TaskData, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue)
+{
+	if (ViewFamily.EngineShowFlags.DynamicShadows && !ViewFamily.EngineShowFlags.HitProxies && !HasRayTracedOverlay(ViewFamily))
+	{
+		// Setup dynamic shadows.
+		if (TaskData)
+		{
+			FSceneRenderer::FinishInitDynamicShadows(GraphBuilder, TaskData, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager, ExternalAccessQueue);
+		}
+		else
+		{
+			TaskData = InitDynamicShadows(GraphBuilder, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager, ExternalAccessQueue);
+		}
+
+		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
+		DynamicVertexBufferForInitShadows.Commit();
+		DynamicIndexBufferForInitShadows.Commit();
+		DynamicReadBufferForInitShadows.Commit();
 	}
 }
 
@@ -2701,7 +2727,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(GetSceneUniforms(), Scene->GPUScene.IsEnabled(), GraphBuilder);
 
+	FLumenSceneFrameTemporaries LumenFrameTemporaries;
+
 	FInitViewTaskDatas InitViewTaskDatas;
+	InitViewTaskDatas.LumenFrameTemporaries = &LumenFrameTemporaries;
 
 	::Strata::PreInitViews(*Scene);
 
@@ -2974,7 +3003,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	PrepareDistanceFieldScene(GraphBuilder, InitViewTaskDatas.DynamicShadows, ExternalAccessQueue);
 
-	FLumenSceneFrameTemporaries LumenFrameTemporaries;
 	{
 		{
 			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
@@ -2987,13 +3015,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			DynamicIndexBufferForInitViews.Commit();
 			DynamicVertexBufferForInitViews.Commit();
 			DynamicReadBufferForInitViews.Commit();
-		}
-
-		{
-			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
-			DynamicVertexBufferForInitShadows.Commit();
-			DynamicIndexBufferForInitShadows.Commit();
-			DynamicReadBufferForInitShadows.Commit();
 		}
 	}
 
@@ -3230,6 +3251,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
 
 	GVRSImageManager.PrepareImageBasedVRS(GraphBuilder, ViewFamily, SceneTextures);
+
+	if (!IsForwardShadingEnabled(ShaderPlatform))
+	{
+		// Dynamic shadows are synced later when using the deferred path to make more headroom for tasks.
+		FinishInitDynamicShadows(GraphBuilder, InitViewTaskDatas.DynamicShadows, InstanceCullingManager, ExternalAccessQueue);
+	}
 
 	FComputeLightGridOutput ComputeLightGridOutput = {};
 

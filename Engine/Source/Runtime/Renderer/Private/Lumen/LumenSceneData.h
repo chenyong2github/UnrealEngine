@@ -18,6 +18,7 @@
 #include "RenderTransform.h"
 #include "ShaderParameterMacros.h"
 #include "UnifiedBuffer.h"
+#include "Tasks/Task.h"
 
 class FDistanceFieldSceneData;
 class FLumenCardBuildData;
@@ -57,6 +58,14 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthAtlas)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+namespace Lumen
+{
+	constexpr uint32 FeedbackBufferElementStride = 2;
+
+	uint32 GetFeedbackBufferSize(const FViewFamilyInfo& ViewFamily);
+	uint32 GetCompactedFeedbackBufferSize();
+};
 
 struct FLumenSurfaceMipMap
 {
@@ -393,6 +402,11 @@ struct FLumenSceneFrameTemporaries
 	FRDGBufferSRV* CardPageHighResLastUsedBufferSRV = nullptr;
 
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer = nullptr;
+
+	FRHIGPUBufferReadback* SurfaceCacheFeedbackBuffer = nullptr;
+
+	UE::Tasks::FTask UpdateSceneTask;
+	bool bReallocateAtlas = false;
 };
 
 // Tracks scene-wide lighting state whose changes we should propagate quickly by flushing various lighting caches
@@ -560,7 +574,13 @@ public:
 	uint32 GetCardCaptureRefreshNumPages() const;
 	ESurfaceCacheCompression GetPhysicalAtlasCompression() const { return PhysicalAtlasCompression; }
 
-	void UpdateSurfaceCacheFeedback(const TArray<FVector, TInlineAllocator<2>>& LumenSceneCameraOrigins, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& MeshCardsUpdate, const FViewFamilyInfo& ViewFamily);
+	struct FFeedbackData
+	{
+		const uint32* Data = nullptr;
+		uint32 NumElements = 0;
+	};
+
+	void UpdateSurfaceCacheFeedback(FFeedbackData Data, const TArray<FVector, TInlineAllocator<2>>& LumenSceneCameraOrigins, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& MeshCardsUpdate, const FViewFamilyInfo& ViewFamily);
 
 	void ProcessLumenSurfaceCacheRequests(
 		const FViewInfo& MainView,

@@ -73,6 +73,7 @@ public:
 	TArray<FCardPageRenderData, SceneRenderingAllocator> CardPagesToRender;
 
 	TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> LandscapePrimitivesInRange;
+	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> PrimitivesToUpdateUniformBuffer;
 
 	int32 NumCardTexelsToCapture;
 	FMeshCommandOneFrameArray MeshDrawCommands;
@@ -541,11 +542,14 @@ private:
 	#endif
 		FDynamicShadowsTaskData* DynamicShadows = nullptr;
 		FLumenDirectLightingTaskData* LumenDirectLighting = nullptr;
+		FLumenSceneFrameTemporaries* LumenFrameTemporaries = nullptr;
 	};
 
-	void PreGatherDynamicMeshElements(FInitViewTaskDatas& TaskDatas);
+	void PreGatherDynamicMeshElements(FRDGBuilder& GraphBuilder, FInitViewTaskDatas& TaskDatas);
 
 	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig);
+
+	void FinishInitDynamicShadows(FRDGBuilder& GraphBuilder, FDynamicShadowsTaskData*& TaskData, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
 
 	void ComputeLightVisibility();
 

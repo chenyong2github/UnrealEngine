@@ -1500,7 +1500,7 @@ float ComputeMaxCardUpdateDistanceFromCamera(const FViewInfo& View)
  * Make sure that all mesh rendering data is prepared before we render this primitive group
  * @return Will return true it primitive group is ready to render or we need to wait until next frame
  */
-bool UpdateStaticMeshes(FLumenPrimitiveGroup& PrimitiveGroup)
+bool UpdateStaticMeshes(FLumenPrimitiveGroup& PrimitiveGroup, FLumenCardRenderer& LumenCardRenderer)
 {
 	bool bReadyToRender = true;
 
@@ -1510,7 +1510,7 @@ bool UpdateStaticMeshes(FLumenPrimitiveGroup& PrimitiveGroup)
 		{
 			if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
 			{
-				PrimitiveSceneInfo->UpdateUniformBuffer(FRHICommandListExecutor::GetImmediateCommandList());
+				LumenCardRenderer.PrimitivesToUpdateUniformBuffer.Add(PrimitiveSceneInfo);
 			}
 
 			if (PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
@@ -1635,7 +1635,7 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 				}
 
 				const FLumenMeshCards& MeshCardsElement = MeshCards[Card.MeshCardsIndex];
-				if (bCanAlloc && UpdateStaticMeshes(PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex]))
+				if (bCanAlloc && UpdateStaticMeshes(PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex], LumenCardRenderer))
 				{
 					Card.bVisible = true;
 					Card.DesiredLockedResLevel = Request.ResLevel;
@@ -1740,7 +1740,7 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 			}
 
 			const FLumenMeshCards& MeshCardsElement = MeshCards[Card.MeshCardsIndex];
-			if (bCanAlloc && UpdateStaticMeshes(PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex]))
+			if (bCanAlloc && UpdateStaticMeshes(PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex], LumenCardRenderer))
 			{
 				const bool bLockPages = false;
 				const bool bResampleLastLighting = Card.IsAllocated();
@@ -1962,6 +1962,7 @@ void UpdateSurfaceCachePrimitives(
 
 void UpdateSurfaceCacheMeshCards(
 	FLumenSceneData& LumenSceneData,
+	FLumenSceneData::FFeedbackData LumenFeedbackData,
 	const TArray<FVector, TInlineAllocator<2>>& LumenSceneCameraOrigins,
 	float LumenSceneDetail,
 	float MaxCardUpdateDistanceFromCamera,
@@ -2025,7 +2026,7 @@ void UpdateSurfaceCacheMeshCards(
 		}
 	}
 
-	LumenSceneData.UpdateSurfaceCacheFeedback(LumenSceneCameraOrigins, SurfaceCacheRequests, ViewFamily);
+	LumenSceneData.UpdateSurfaceCacheFeedback(LumenFeedbackData, LumenSceneCameraOrigins, SurfaceCacheRequests, ViewFamily);
 
 	if (SurfaceCacheRequests.Num() > 0)
 	{
@@ -2236,15 +2237,37 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 	LumenCardRenderer.Reset();
 
-	if (bAnyLumenActive
-		&& !ViewFamily.EngineShowFlags.HitProxies)
+	if (!bAnyLumenActive || ViewFamily.EngineShowFlags.HitProxies)
+	{
+		return;
+	}
+
+	const FRHIGPUMask GPUMask = GraphBuilder.RHICmdList.GetGPUMask();
+
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
+	LumenSceneData.bDebugClearAllCachedState = GLumenSceneRecaptureLumenSceneEveryFrame != 0;
+	FrameTemporaries.bReallocateAtlas = LumenSceneData.UpdateAtlasSize();
+
+	FLumenSceneData::FFeedbackData LumenFeedbackData;
+
+	extern int32 GLumenSurfaceCacheFeedback;
+
+	if (GLumenSurfaceCacheFeedback != 0)
+	{
+		FrameTemporaries.SurfaceCacheFeedbackBuffer = LumenSceneData.SurfaceCacheFeedback.GetLatestReadbackBuffer();
+
+		if (FrameTemporaries.SurfaceCacheFeedbackBuffer)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(LockBuffer);
+			LumenFeedbackData.NumElements = Lumen::GetCompactedFeedbackBufferSize();
+			LumenFeedbackData.Data = (const uint32*)FrameTemporaries.SurfaceCacheFeedbackBuffer->Lock(LumenFeedbackData.NumElements * sizeof(uint32) * Lumen::FeedbackBufferElementStride);
+		}
+	}
+
+	FrameTemporaries.UpdateSceneTask = GraphBuilder.AddSetupTask([this, GPUMask, &LumenSceneData, bReallocateAtlas = FrameTemporaries.bReallocateAtlas, LumenFeedbackData]
 	{
 		SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_BeginUpdateLumenSceneTasks, FColor::Emerald);
 		QUICK_SCOPE_CYCLE_COUNTER(BeginUpdateLumenSceneTasks);
-
-		FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
-		LumenSceneData.bDebugClearAllCachedState = GLumenSceneRecaptureLumenSceneEveryFrame != 0;
-		const bool bReallocateAtlas = LumenSceneData.UpdateAtlasSize();
 
 		// Surface cache reset for debugging
 		if ((GLumenSceneSurfaceCacheReset != 0)
@@ -2264,7 +2287,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		LumenSceneData.NumLockedCardsToUpdate = 0;
 		LumenSceneData.NumHiResPagesToAdd = 0;
 
-		UpdateLumenScenePrimitives(GraphBuilder.RHICmdList.GetGPUMask(), Scene);
+		UpdateLumenScenePrimitives(GPUMask, Scene);
 		UpdateDistantScene(Scene, Views[0]);
 
 		if (LumenSceneData.bDebugClearAllCachedState || bReallocateAtlas)
@@ -2300,6 +2323,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 			UpdateSurfaceCacheMeshCards(
 				LumenSceneData,
+				LumenFeedbackData,
 				LumenSceneCameraOrigins,
 				LumenSceneDetail,
 				MaxCardUpdateDistanceFromCamera,
@@ -2311,43 +2335,11 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 				MaxCardUpdateDistanceFromCamera,
 				MaxTileCapturesPerFrame,
 				LumenCardRenderer,
-				GraphBuilder.RHICmdList.GetGPUMask(),
+				GPUMask,
 				SurfaceCacheRequests);
 		}
 
-		// Atlas reallocation
-		if (bReallocateAtlas || !LumenSceneData.AlbedoAtlas)
-		{
-			LumenSceneData.AllocateCardAtlases(GraphBuilder, FrameTemporaries);
-			ClearLumenSurfaceCacheAtlas(GraphBuilder, FrameTemporaries, Views[0].ShaderMap);
-		}
-
-		LumenSceneData.FillFrameTemporaries(GraphBuilder, FrameTemporaries);
-
-		if (LumenSceneData.bDebugClearAllCachedState)
-		{
-			ClearLumenSurfaceCacheAtlas(GraphBuilder, FrameTemporaries, Views[0].ShaderMap);
-		}
-
 		TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender = LumenCardRenderer.CardPagesToRender;
-
-		if (CardPagesToRender.Num())
-		{
-			UpdateLumenCardSceneUniformBuffer(GraphBuilder, Scene, *Scene->GetLumenSceneData(Views[0]), FrameTemporaries);
-
-			// Before we update the GPU page table, read from the persistent atlases for the card pages we are reallocating, and write it to the card capture atlas
-			// This is a resample operation, as the original data may have been at a different mip level, or didn't exist at all
-			ResampleLightingHistory(
-				GraphBuilder,
-				Views[0],
-				Scene,
-				FrameTemporaries,
-				CardPagesToRender,
-				LumenSceneData,
-				LumenCardRenderer.ResampledCardCaptureAtlas);
-		}
-
-		LumenSceneData.UploadPageTable(GraphBuilder, FrameTemporaries);
 
 		if (CardPagesToRender.Num() > 0)
 		{
@@ -2407,7 +2399,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 				CardPageRenderData.NumMeshDrawCommands = LumenCardRenderer.MeshDrawCommands.Num() - CardPageRenderData.StartMeshDrawCommandIndex;
 			}
 		}
-	}
+	});
 }
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, "LumenCardScene");
@@ -2680,6 +2672,13 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::UpdateLumenScene);
 
+	FrameTemporaries.UpdateSceneTask.Wait();
+
+	if (FrameTemporaries.SurfaceCacheFeedbackBuffer)
+	{
+		FrameTemporaries.SurfaceCacheFeedbackBuffer->Unlock();
+	}
+
 	bool bAnyLumenActive = false;
 
 	for (FViewInfo& View : Views)
@@ -2735,6 +2734,44 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 		RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, UpdateLumenSceneBuffers);
 		RDG_GPU_STAT_SCOPE(GraphBuilder, LumenSceneUpdate);
 		RDG_EVENT_SCOPE(GraphBuilder, "LumenSceneUpdate: %u card captures %.3fM texels", CardPagesToRender.Num(), LumenCardRenderer.NumCardTexelsToCapture / (1024.0f * 1024.0f));
+
+		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : LumenCardRenderer.PrimitivesToUpdateUniformBuffer)
+		{
+			PrimitiveSceneInfo->UpdateUniformBuffer(GraphBuilder.RHICmdList);
+		}
+		LumenCardRenderer.PrimitivesToUpdateUniformBuffer.Empty();
+
+		// Atlas reallocation
+		if (FrameTemporaries.bReallocateAtlas || !LumenSceneData.AlbedoAtlas)
+		{
+			LumenSceneData.AllocateCardAtlases(GraphBuilder, FrameTemporaries);
+			ClearLumenSurfaceCacheAtlas(GraphBuilder, FrameTemporaries, Views[0].ShaderMap);
+		}
+
+		LumenSceneData.FillFrameTemporaries(GraphBuilder, FrameTemporaries);
+
+		if (LumenSceneData.bDebugClearAllCachedState)
+		{
+			ClearLumenSurfaceCacheAtlas(GraphBuilder, FrameTemporaries, Views[0].ShaderMap);
+		}
+
+		if (CardPagesToRender.Num())
+		{
+			UpdateLumenCardSceneUniformBuffer(GraphBuilder, Scene, *Scene->GetLumenSceneData(Views[0]), FrameTemporaries);
+
+			// Before we update the GPU page table, read from the persistent atlases for the card pages we are reallocating, and write it to the card capture atlas
+			// This is a resample operation, as the original data may have been at a different mip level, or didn't exist at all
+			ResampleLightingHistory(
+				GraphBuilder,
+				Views[0],
+				Scene,
+				FrameTemporaries,
+				CardPagesToRender,
+				LumenSceneData,
+				LumenCardRenderer.ResampledCardCaptureAtlas);
+		}
+
+		LumenSceneData.UploadPageTable(GraphBuilder, FrameTemporaries);
 
 		LumenCardRenderer.bPropagateGlobalLightingChange = UpdateGlobalLightingState(Scene, Views[0], LumenSceneData);
 

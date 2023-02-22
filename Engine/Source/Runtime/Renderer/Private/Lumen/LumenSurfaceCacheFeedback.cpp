@@ -53,14 +53,6 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackUniqueElements(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-namespace Lumen
-{
-	constexpr uint32 FeedbackBufferElementStride = 2;
-
-	uint32 GetFeedbackBufferSize(const FViewFamilyInfo& ViewFamily);
-	uint32 GetCompactedFeedbackBufferSize();
-};
-
 uint32 Lumen::GetFeedbackBufferTileSize()
 {
 	return FMath::RoundUpToPowerOfTwo(FMath::Clamp(GLumenSurfaceCacheFeedbackTileSize, 1, 256));
@@ -403,31 +395,21 @@ FRHIGPUBufferReadback* FLumenSurfaceCacheFeedback::GetLatestReadbackBuffer()
 	return LatestReadbackBuffer;
 }
 
-void FLumenSceneData::UpdateSurfaceCacheFeedback(const TArray<FVector, TInlineAllocator<2>>& LumenSceneCameraOrigins, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests, const FViewFamilyInfo& ViewFamily)
+void FLumenSceneData::UpdateSurfaceCacheFeedback(FFeedbackData FeedbackData, const TArray<FVector, TInlineAllocator<2>>& LumenSceneCameraOrigins, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests, const FViewFamilyInfo& ViewFamily)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSurfaceCacheFeedback);
 
 	NumHiResPagesToAdd = 0;
 
-	FRHIGPUBufferReadback* ReadbackBuffer = SurfaceCacheFeedback.GetLatestReadbackBuffer();
-
-	if (ReadbackBuffer && GLumenSurfaceCacheFeedback != 0)
+	if (FeedbackData.Data)
 	{
-		const uint32 CompactedFeedbackBufferSize = Lumen::GetCompactedFeedbackBufferSize();
-		const uint32* FeedbackData = nullptr;
-
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(LockBuffer);
-			FeedbackData = (const uint32*)ReadbackBuffer->Lock(CompactedFeedbackBufferSize * sizeof(uint32) * Lumen::FeedbackBufferElementStride);
-		}
-
 		const int32 HeaderSize = 1;
-		const int32 NumFeedbackElements = FMath::Min<int32>(FeedbackData[0], CompactedFeedbackBufferSize - HeaderSize);
+		const int32 NumFeedbackElements = FMath::Min<int32>(FeedbackData.Data[0], FeedbackData.NumElements - HeaderSize);
 
 		for (int32 FeedbackElementIndex = 0; FeedbackElementIndex < NumFeedbackElements; ++FeedbackElementIndex)
 		{
-			const uint32 PackedA = FeedbackData[(FeedbackElementIndex + HeaderSize) * Lumen::FeedbackBufferElementStride + 0];
-			const uint32 PackedB = FeedbackData[(FeedbackElementIndex + HeaderSize) * Lumen::FeedbackBufferElementStride + 1];
+			const uint32 PackedA = FeedbackData.Data[(FeedbackElementIndex + HeaderSize) * Lumen::FeedbackBufferElementStride + 0];
+			const uint32 PackedB = FeedbackData.Data[(FeedbackElementIndex + HeaderSize) * Lumen::FeedbackBufferElementStride + 1];
 
 			int32 CardIndex = PackedA & 0xFFFFFF;
 			uint16 DesiredResLevel = FMath::Clamp(PackedA >> 24, Lumen::MinResLevel, Lumen::MaxResLevel);
@@ -492,8 +474,6 @@ void FLumenSceneData::UpdateSurfaceCacheFeedback(const TArray<FVector, TInlineAl
 				}
 			}
 		}
-
-		ReadbackBuffer->Unlock();
 	}
 }
 
