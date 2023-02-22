@@ -35,4 +35,4 @@ void FCinePrestreamingEditorModule::UnregisterTrackEditors()
 
 #undef LOCTEXT_NAMESPACE
 	
-IMPLEMENT_MODULE(FCinePrestreamingEditorModule, CinePrestreamingEditor)
+IMPLEMENT_MODULE(FCinePrestreamingEditorModule, CinematicPrestreamingEditor)
