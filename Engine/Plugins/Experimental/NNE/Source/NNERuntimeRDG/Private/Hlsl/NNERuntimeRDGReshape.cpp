@@ -1,41 +1,52 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNERuntimeRDGUnsqueeze.h"
+#include "NNERuntimeRDGReshape.h"
 #include "NNECoreTensor.h"
 #include "NNECoreTypes.h"
 #include "RenderGraphUtils.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNEOperatorUnsqueeze, TEXT("NNE.Operator.Hlsl.Unsqueeze"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorReshape, TEXT("NNE.Operator.Hlsl.Reshape"));
 
 	/**
-	 * Unsqueeze operator implementation
+	 * Reshape operator implementation
 	 */
-	class FUnsqueeze : public FOperatorHlsl
+	class FReshape : public FOperatorHlsl
 	{
 	public:
 
-		FUnsqueeze() {}
-		virtual ~FUnsqueeze() = default;
-
-		TArray<int32> Axes;
+		FReshape() {}
+		virtual ~FReshape() = default;
 
 	public:
 
 		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
 		{
-			check(InputTensors.Num() == 1);
+			check(InputTensors.Num() == 2);
 			check(OutputTensors.Num() == 1);
 
 			const NNECore::Internal::FTensor& X = *InputTensors[0];
-			TArray<uint32> OutputShapeData(X.GetShape().GetData());
+			const NNECore::Internal::FTensor& ShapeTensor = *InputTensors[1];
+			TArray<uint32> OutputShapeData;
 
-			for (int32 Axe : Axes)
+			check(ShapeTensor.GetDataType() == ENNETensorDataType::Int64);
+
+			if (!ShapeTensor.HasPreparedData())
 			{
-				OutputShapeData.Insert(1, Axe);
+				UE_LOG(LogNNE, Warning, TEXT("Reshape input 'Shape' (name: %s) should be constant for shape inference to succeed, however it is not."), *ShapeTensor.GetName());
+				return -1;
 			}
-			
+			for (int64 Dim : ShapeTensor.GetPreparedData<int64>())
+			{
+				if (Dim <= 0)
+				{
+					UE_LOG(LogNNE, Warning, TEXT("Cannot reshape 'Data' (name: %s) to a shape with a dimension less or equal to 0."), *X.GetName());
+					return -1;
+				}
+				OutputShapeData.Add((uint32)Dim);
+			}
+
 			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
 			
 			OutputTensors[0]->SetShape(OutputShape);
@@ -49,32 +60,15 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
 		{
-			check(InputTensorDescs.Num() == 1);
+			check(InputTensorDescs.Num() == 2);
 			check(OutputTensorDescs.Num() == 1);
-
-			Axes = Attributes.GetValue<TArray<int32>>(TEXT("axes"));
-			for (int32 Axe : Axes)
-			{
-				if (Axe < 0)
-				{
-					UE_LOG(LogNNE, Warning, TEXT("Unsqueeze operator does not support negative axes"));
-					return false;
-				}
-				if (Axe >= InputTensorDescs[0].GetShape().Rank() + Axes.Num())
-				{
-					UE_LOG(LogNNE, Warning, TEXT("Unsqueeze operator does not support axes greater than the number of dimensions of the resulting tensor shape"));
-					return false;
-				}
-			}
-
-			Axes.Sort();
 			
 			return true;
 		}
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InputTensors, TConstArrayView<FTensorRDGRef> OutputTensors) override
 		{
-			check(InputTensors.Num() == 1);
+			check(InputTensors.Num() == 2);
 			check(OutputTensors.Num() == 1);
 			check(InputTensors[0] != nullptr);
 			check(OutputTensors[0] != nullptr);
@@ -82,24 +76,24 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			const FTensorRDG& Data = *InputTensors[0];
 			const FTensorRDG& Output = *OutputTensors[0];
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Unsqueeze");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorUnsqueeze);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Reshape");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorReshape);
 
 			AddCopyBufferPass(GraphBuilder, Output.GetBuffer(), Data.GetBuffer());
 		}
 	};
 
-	bool ValidateUnsqueezeOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputUnsqueezes)
+	bool ValidateReshapeOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputReshapes)
 	{
 		bool bIsValid = true;
 
-		//This match version 1 of the Unsqueeze operator, next version are 11 and 13
-		//https://github.com/onnx/onnx/blob/main/docs/Operators.md#Unsqueeze
+		//This match version 5 of the Reshape operator, next version is 13
+		//https://github.com/onnx/onnx/blob/main/docs/Operators.md#Reshape
 		FAttributeValidator AttributeValidator;
-		AttributeValidator.AddRequired(TEXT("axes"), ENNEAttributeDataType::Int32Array);
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		FInputValidator InputValidator;
+		InputValidator.SetTemplateCount(2);
 		InputValidator.AddSupportedType(ENNETensorDataType::Half);
 		InputValidator.AddSupportedType(ENNETensorDataType::Float);
 		InputValidator.AddSupportedType(ENNETensorDataType::Double);
@@ -113,19 +107,22 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		InputValidator.AddSupportedType(ENNETensorDataType::UInt64);
 		InputValidator.AddRequired();
 
+		InputValidator.AddSupportedType(ENNETensorDataType::Int64, 1);
+		InputValidator.AddRequired(1);
+
 		bIsValid &= InputValidator.Validate(InputTypes);
 
 		return bIsValid;
 	}
 
-	FOperatorHlsl* CreateUnsqueezeOperator()
+	FOperatorHlsl* CreateReshapeOperator()
 	{
-		return new FUnsqueeze();
+		return new FReshape();
 	}
 
-	bool RegisterUnsqueezeOperator(FOperatorRegistryHlsl& Registry)
+	bool RegisterReshapeOperator(FOperatorRegistryHlsl& Registry)
 	{
-		Registry.OpAdd(TEXT("Unsqueeze"), CreateUnsqueezeOperator, ValidateUnsqueezeOperator);
+		Registry.OpAdd(TEXT("Reshape"), CreateReshapeOperator, ValidateReshapeOperator);
 		return true;
 	}
 } // UE::NNERuntimeRDG::Private::Hlsl

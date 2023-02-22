@@ -357,6 +357,16 @@
 			]
 		},
 		{
+			"category": "SizeOp",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGDml", "skip": true },
+				{ "name": "NNERuntimeRDGHlsl", "skip_static_test": true  }
+			],
+			"targets": [
+				{ "target": "Size" }
+			]
+		},
+		{
 			"category": "Concat",
 			"runtimes": [
 				{ "name": "NNERuntimeRDGHlsl", "skip": true }
@@ -368,10 +378,27 @@
 		{
 			"category": "Reshape",
 			"runtimes": [
-				{ "name": "NNERuntimeRDGHlsl", "skip": true }
 			],
 			"targets": [
 				{ "target": "Reshape" }
+			]
+		},
+		{
+			"category": "SqueezeOp",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGDml", "skip": true },
+			],
+			"targets": [
+				{ "target": "Squeeze" }
+			]
+		},
+		{
+			"category": "Unsqueeze",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGDml", "skip": true },
+			],
+			"targets": [
+				{ "target": "Unsqueeze" }
 			]
 		}
 	],
@@ -811,16 +838,36 @@
 				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] } ],  "outputs": [ { "shape": [ 5 ], "type": "int64"} ] }
 			]
 		},
+		{
+			"name": "SizeOp",
+			"datasets": [
+				{ "inputs":  [ { "shape": [ 3 ] } ], "outputs": [ { "shape": [ ], "type": "int64" } ] },
+				{ "inputs":  [ { "shape": [ 1, 128, 50, 55 ] } ], "outputs": [ { "shape": [ ], "type": "int64"} ] },
+				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] } ],  "outputs": [ { "shape": [ ], "type": "int64"} ] }
+			]
+		},
 		{ 
 			"name": "Concat.Concat1",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 3 ] }, { "shape": [ 2, 4 ] } ], "outputs": [ { "shape": [ 2, 7 ] } ] }
 			]
 		},
-		{ 
+		{
 			"name": "Concat.Concat2",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 4, 2, 4 ] }, { "shape": [ 6, 2, 4 ] }, { "shape": [ 1, 2, 4 ] } ], "outputs": [ { "shape": [ 11, 2, 4 ] } ] }
+			]
+		},
+		{ 
+			"name": "Unsqueeze",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3, 4 ] } ], "outputs": [ { "shape": [ 2, 1, 3, 4 ] } ] }
+			]
+		},
+		{ 
+			"name": "SqueezeOp",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3, 1, 4 ] } ], "outputs": [ { "shape": [ 2, 3, 4 ] } ] }
 			]
 		},
 		{ 
@@ -1223,6 +1270,22 @@
 			"name": "TransposeOp.Default",
 			"attribute_maps": [
 				{ "attributes": [] }
+			]
+		},
+		{
+			"name": "SqueezeOp",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "axes", "value": [2], "type": "Int32Array" }
+				] }
+			]
+		},
+		{
+			"name": "Unsqueeze",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "axes", "value": [1], "type": "Int32Array" }
+				] }
 			]
 		},
 		{

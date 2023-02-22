@@ -19,8 +19,11 @@
 #include "Hlsl/NNERuntimeRDGGemm.h"
 #include "Hlsl/NNERuntimeRDGInstanceNormalization.h"
 #include "Hlsl/NNERuntimeRDGPad.h"
+#include "Hlsl/NNERuntimeRDGReshape.h"
 #include "Hlsl/NNERuntimeRDGShape.h"
+#include "Hlsl/NNERuntimeRDGSize.h"
 #include "Hlsl/NNERuntimeRDGSlice.h"
+#include "Hlsl/NNERuntimeRDGSqueeze.h"
 #include "Hlsl/NNERuntimeRDGUnsqueeze.h"
 #include "Hlsl/NNERuntimeRDGUpsample.h"
 #include "Hlsl/NNERuntimeRDGMatMul.h"
@@ -35,22 +38,25 @@ bool UNNERuntimeRDGHlslImpl::Init()
 	FOperatorRegistryHlsl* registry = FOperatorRegistryHlsl::Get();
 	check(registry != nullptr);
 
-	RegisterElementWiseUnaryOperators(*registry);
-	RegisterElementWiseBinaryOperators(*registry);
-	RegisterElementWiseVariadicOperators(*registry);
-	RegisterGemmOperator(*registry);
-	RegisterConvOperator(*registry);
-	RegisterConvTransposeOperator(*registry);
-	RegisterMatMulOperator(*registry);
-	RegisterInstanceNormalizationOperator(*registry);
-	RegisterUpsampleOperator(*registry);
-	RegisterPadOperator(*registry);
-	RegisterShapeOperator(*registry);
-	RegisterSliceOperator(*registry);
-	RegisterConcatOperator(*registry);
-	RegisterUnsqueezeOperator(*registry);
 	RegisterCastOperator(*registry);
+	RegisterConvOperator(*registry);
+	RegisterConcatOperator(*registry);
+	RegisterConvTransposeOperator(*registry);
+	RegisterElementWiseBinaryOperators(*registry);
+	RegisterElementWiseUnaryOperators(*registry);
+	RegisterElementWiseVariadicOperators(*registry);
 	RegisterGatherOperator(*registry);
+	RegisterGemmOperator(*registry);
+	RegisterInstanceNormalizationOperator(*registry);
+	RegisterPadOperator(*registry);
+	RegisterReshapeOperator(*registry);
+	RegisterShapeOperator(*registry);
+	RegisterSizeOperator(*registry);
+	RegisterSliceOperator(*registry);
+	RegisterSqueezeOperator(*registry);
+	RegisterUnsqueezeOperator(*registry);
+	RegisterUpsampleOperator(*registry);
+	RegisterMatMulOperator(*registry);
 
 	return true;
 }

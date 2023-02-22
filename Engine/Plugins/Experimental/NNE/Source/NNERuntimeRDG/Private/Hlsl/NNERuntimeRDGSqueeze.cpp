@@ -1,23 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNERuntimeRDGUnsqueeze.h"
+#include "NNERuntimeRDGSqueeze.h"
 #include "NNECoreTensor.h"
 #include "NNECoreTypes.h"
 #include "RenderGraphUtils.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNEOperatorUnsqueeze, TEXT("NNE.Operator.Hlsl.Unsqueeze"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorSqueeze, TEXT("NNE.Operator.Hlsl.Squeeze"));
 
 	/**
-	 * Unsqueeze operator implementation
+	 * Squeeze operator implementation
 	 */
-	class FUnsqueeze : public FOperatorHlsl
+	class FSqueeze : public FOperatorHlsl
 	{
 	public:
 
-		FUnsqueeze() {}
-		virtual ~FUnsqueeze() = default;
+		FSqueeze() {}
+		virtual ~FSqueeze() = default;
 
 		TArray<int32> Axes;
 
@@ -33,7 +33,13 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 			for (int32 Axe : Axes)
 			{
-				OutputShapeData.Insert(1, Axe);
+				if (OutputShapeData[Axe] != 1)
+				{
+					UE_LOG(LogNNE, Warning, TEXT("Squeeze at axe %d for 'Data' (name: %s) should be targeting a dimension of size 1 but it is %d."), Axe, *X.GetName(), OutputShapeData[Axe]);
+					return -1;
+				}
+
+				OutputShapeData.RemoveAt(Axe);
 			}
 			
 			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
@@ -57,12 +63,12 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			{
 				if (Axe < 0)
 				{
-					UE_LOG(LogNNE, Warning, TEXT("Unsqueeze operator does not support negative axes"));
+					UE_LOG(LogNNE, Warning, TEXT("Squeeze operator does not support negative axes"));
 					return false;
 				}
-				if (Axe >= InputTensorDescs[0].GetShape().Rank() + Axes.Num())
+				if (Axe >= InputTensorDescs[0].GetShape().Rank())
 				{
-					UE_LOG(LogNNE, Warning, TEXT("Unsqueeze operator does not support axes greater than the number of dimensions of the resulting tensor shape"));
+					UE_LOG(LogNNE, Warning, TEXT("Squeeze operator does not support axes greater than the number of dimensions of the input tensor shape"));
 					return false;
 				}
 			}
@@ -78,23 +84,23 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			check(OutputTensors.Num() == 1);
 			check(InputTensors[0] != nullptr);
 			check(OutputTensors[0] != nullptr);
-
+			
 			const FTensorRDG& Data = *InputTensors[0];
 			const FTensorRDG& Output = *OutputTensors[0];
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Unsqueeze");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorUnsqueeze);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Squeeze");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorSqueeze);
 
 			AddCopyBufferPass(GraphBuilder, Output.GetBuffer(), Data.GetBuffer());
 		}
 	};
 
-	bool ValidateUnsqueezeOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputUnsqueezes)
+	bool ValidateSqueezeOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputSqueezes)
 	{
 		bool bIsValid = true;
 
-		//This match version 1 of the Unsqueeze operator, next version are 11 and 13
-		//https://github.com/onnx/onnx/blob/main/docs/Operators.md#Unsqueeze
+		//This match version 1 of the Squeeze operator, next version are 11 and 13
+		//https://github.com/onnx/onnx/blob/main/docs/Operators.md#Squeeze
 		FAttributeValidator AttributeValidator;
 		AttributeValidator.AddRequired(TEXT("axes"), ENNEAttributeDataType::Int32Array);
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
@@ -118,14 +124,14 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		return bIsValid;
 	}
 
-	FOperatorHlsl* CreateUnsqueezeOperator()
+	FOperatorHlsl* CreateSqueezeOperator()
 	{
-		return new FUnsqueeze();
+		return new FSqueeze();
 	}
 
-	bool RegisterUnsqueezeOperator(FOperatorRegistryHlsl& Registry)
+	bool RegisterSqueezeOperator(FOperatorRegistryHlsl& Registry)
 	{
-		Registry.OpAdd(TEXT("Unsqueeze"), CreateUnsqueezeOperator, ValidateUnsqueezeOperator);
+		Registry.OpAdd(TEXT("Squeeze"), CreateSqueezeOperator, ValidateSqueezeOperator);
 		return true;
 	}
 } // UE::NNERuntimeRDG::Private::Hlsl
