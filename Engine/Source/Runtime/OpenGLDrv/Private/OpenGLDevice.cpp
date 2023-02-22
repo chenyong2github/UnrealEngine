@@ -391,7 +391,7 @@ static void APIENTRY OpenGLDebugMessageCallbackARB(
 	ELogVerbosity::Type Verbosity = ELogVerbosity::Warning;
 	if (Type == GL_DEBUG_TYPE_ERROR_ARB && Severity == GL_DEBUG_SEVERITY_HIGH_ARB)
 	{
-		Verbosity = ELogVerbosity::Fatal;
+		Verbosity = ELogVerbosity::Error;
 	}
 
 	if ((Verbosity & ELogVerbosity::VerbosityMask) <= FLogCategoryLogRHI::CompileTimeVerbosity)

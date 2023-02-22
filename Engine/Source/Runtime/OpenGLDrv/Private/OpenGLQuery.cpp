@@ -784,8 +784,6 @@ static FOpenGLRenderQuery* GetTimeQuery()
 
 void FOpenGLBufferedGPUTiming::InitResources()
 {
-	VERIFY_GL_SCOPE();
-
 	StaticInitialize(OpenGLRHI, PlatformStaticInitialize);
 
 	CurrentTimestamp = 0;
@@ -1100,10 +1098,11 @@ bool FOpenGLDisjointTimeStampQuery::GetResult( uint64* OutResult/*=NULL*/ )
 
 void FOpenGLDisjointTimeStampQuery::InitResources()
 {
-	VERIFY_GL_SCOPE();
-	if ( IsSupported() )
+	if (IsSupported())
 	{
-		PlatformGetNewRenderQuery(&DisjointQuery, &Context);
+		FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda([this](FRHICommandListImmediate&) { 
+				PlatformGetNewRenderQuery(&DisjointQuery, &Context); 
+		});
 	}
 }
 
