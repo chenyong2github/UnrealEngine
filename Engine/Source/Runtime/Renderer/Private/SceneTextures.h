@@ -97,35 +97,3 @@ struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
 
 /** Extracts scene textures into the global extraction instance. */
 void QueueSceneTextureExtractions(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
-
-/** Utility functions for accessing common global scene texture configuration state. Reads a bit less awkwardly than the singleton access. */
-
-UE_DEPRECATED(5.1, "Single pass multiple view family rendering makes this obsolete.  Use ViewFamily.SceneTexturesConfig.NumSamples instead.")
-inline uint32 GetSceneTextureNumSamples()
-{
-	return FSceneTexturesConfig::Get().NumSamples;
-}
-
-UE_DEPRECATED(5.1, "Single pass multiple view family rendering makes this obsolete.  Use ViewFamily.SceneTexturesConfig.EditorPrimitiveNumSamples instead.")
-inline uint32 GetEditorPrimitiveNumSamples()
-{
-	return FSceneTexturesConfig::Get().EditorPrimitiveNumSamples;
-}
-
-UE_DEPRECATED(5.1, "Single pass multiple view family rendering makes this obsolete.  Use ViewFamily.SceneTexturesConfig.DepthClearValue instead.")
-inline FClearValueBinding GetSceneDepthClearValue()
-{
-	return FSceneTexturesConfig::Get().DepthClearValue;
-}
-
-UE_DEPRECATED(5.1, "Single pass multiple view family rendering makes this obsolete.  Use ViewFamily.SceneTexturesConfig.ColorClearValue instead.")
-inline FClearValueBinding GetSceneColorClearValue()
-{
-	return FSceneTexturesConfig::Get().ColorClearValue;
-}
-
-UE_DEPRECATED(5.1, "Single pass multiple view family rendering makes this obsolete.  Use ViewFamily.SceneTexturesConfig.ColorFormat instead.")
-inline EPixelFormat GetSceneColorFormat()
-{
-	return FSceneTexturesConfig::Get().ColorFormat;
-}
