@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System.IO;
 
 public class VulkanShaderFormat : ModuleRules
 {
@@ -10,7 +9,7 @@ public class VulkanShaderFormat : ModuleRules
 		PrivateIncludePathModuleNames.Add("TargetPlatform");
 
 		// Do not link the module (as that would require the vulkan dll), only the include paths
-		PublicIncludePaths.Add("Runtime/VulkanRHI/Public");
+		PublicIncludePathModuleNames.Add("VulkanRHI");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

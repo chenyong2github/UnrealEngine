@@ -36,7 +36,7 @@ typedef enum VkDescriptorType {
     VK_DESCRIPTOR_TYPE_MAX_ENUM = 0x7FFFFFFF
 } VkDescriptorType;
 #else
-#include "vulkan.h"
+#include "IVulkanDynamicRHI.h"
 #endif
 #include "VulkanBackend.h"
 #include "VulkanShaderResources.h"
