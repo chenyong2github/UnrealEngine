@@ -18,7 +18,7 @@ public class WindowsTargetPlatform : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"Settings",
+				"Settings"
 			}
 		);
 
