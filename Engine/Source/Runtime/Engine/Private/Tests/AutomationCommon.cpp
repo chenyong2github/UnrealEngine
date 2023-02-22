@@ -675,7 +675,15 @@ bool FWaitForInteractiveFrameRate::Update()
 	return false;
 }
 
+bool FWaitForNextEngineFrameCommand::Update()
+{
+	if (LastFrame == 0)
+	{
+		LastFrame = GFrameCounter;
+	}
 
+	return LastFrame != GFrameCounter;
+}
 
 ///////////////////////////////////////////////////////////////////////
 // Common Latent commands which are used across test type. I.e. Engine, Network, etc...

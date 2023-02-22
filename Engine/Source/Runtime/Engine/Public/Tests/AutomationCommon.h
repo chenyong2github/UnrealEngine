@@ -215,6 +215,21 @@ private:
 };
 
 /**
+ * Latent command to wait for one engine frame
+ */
+class ENGINE_API FWaitForNextEngineFrameCommand : public IAutomationLatentCommand
+{
+public:
+
+	bool Update() override;
+
+private:
+
+	// Frame to be passed to consider the waiting over
+	uint64 LastFrame = 0;
+};
+
+/**
 * Request an Image Comparison and queue the result to the test report
 * @param InImageName	Name used to identify the comparison
 * @param InContext		Optional context used to identify the comparison, by default the full name of the test is used
