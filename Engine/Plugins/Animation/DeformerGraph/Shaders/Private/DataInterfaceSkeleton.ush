@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "/Engine/Private/GpuSkinCommon.ush"
+
 uint {DataInterfaceName}_NumVertices;
 uint {DataInterfaceName}_InputStreamStart;
 uint {DataInterfaceName}_NumBoneInfluences;
