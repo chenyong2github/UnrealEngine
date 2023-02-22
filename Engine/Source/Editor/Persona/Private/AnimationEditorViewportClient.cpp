@@ -39,6 +39,7 @@
 #include "CameraController.h"
 #include "ContextObjectStore.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "IPersonaToolkit.h"
 #include "Animation/MorphTarget.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "UnrealWidget.h"
@@ -526,7 +527,17 @@ void FAnimationViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterf
 	TArray<UDebugSkelMeshComponent*> PreviewMeshComponents = GetPreviewScene()->GetAllPreviewMeshComponents();
 	for (UDebugSkelMeshComponent* PreviewMeshComponent : PreviewMeshComponents)
 	{
-		if (!(PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMeshAsset() && !PreviewMeshComponent->GetSkeletalMeshAsset()->IsCompiling()))
+		const bool bValidComponent = PreviewMeshComponent != nullptr;
+		const bool bValidSkeletalMesh = PreviewMeshComponent->GetSkeletalMeshAsset() != nullptr;
+
+		if (bValidComponent && !bValidSkeletalMesh && GetBoneDrawMode() == EBoneDrawMode::All)
+		{
+			if (const USkeleton* Skeleton = GetPreviewScene()->GetPersonaToolkit()->GetSkeleton())
+			{
+				DrawBonesFromSkeleton(Skeleton, PDI);
+			}
+		}
+		else if (!(bValidComponent && bValidSkeletalMesh && !PreviewMeshComponent->GetSkeletalMeshAsset()->IsCompiling()))
 		{
 			continue;
 		}
@@ -1641,6 +1652,57 @@ void FAnimationViewportClient::DrawMeshBonesBakedAnimation(UDebugSkelMeshCompone
 	{
 		DrawBonesFromTransforms(MeshComponent->BakedAnimationPoses, MeshComponent, PDI, FColor(0, 128, 192, 255), FColor(0, 128, 192, 255));
 	}
+}
+
+void FAnimationViewportClient::DrawBonesFromSkeleton(const USkeleton* Skeleton, FPrimitiveDrawInterface* PDI) const
+{
+	check(Skeleton);
+
+	// Draw from skeleton ref pose
+	const TArray<FTransform>& SkeletonRefPose = Skeleton->GetRefLocalPoses(NAME_None);
+	TArray<FTransform> WorldTransforms;
+	WorldTransforms.AddUninitialized(SkeletonRefPose.Num());
+
+	TArray<FLinearColor> BoneColours;
+	BoneColours.AddUninitialized(SkeletonRefPose.Num());
+
+	TArray<FBoneIndexType> RequiredBones;
+
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+
+	const UPersonaOptions* PersonaOptions = GetDefault<UPersonaOptions>();
+	for (FBoneIndexType BoneIndex = 0; BoneIndex < SkeletonRefPose.Num(); ++BoneIndex)
+	{
+		const int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
+
+		//add to the list
+		RequiredBones.AddUnique(BoneIndex);
+
+		if (ParentIndex >= 0)
+		{
+			WorldTransforms[BoneIndex] = SkeletonRefPose[BoneIndex] * WorldTransforms[ParentIndex];
+		}
+		else
+		{
+			WorldTransforms[BoneIndex] = SkeletonRefPose[BoneIndex];
+		}
+
+		BoneColours[BoneIndex] = PersonaOptions->DefaultBoneColor;
+	}
+
+	constexpr bool bForceDraw = true;
+	constexpr bool bAddHitProxy = false;
+	const TArray<int32> BonesOfInterest;
+	DrawBones(
+		FVector::ZeroVector,
+		RequiredBones,
+		RefSkeleton,
+		WorldTransforms,
+		BonesOfInterest,
+		BoneColours,
+		PDI,
+		bForceDraw,
+		bAddHitProxy);
 }
 
 void FAnimationViewportClient::DrawMeshBones(UDebugSkelMeshComponent* MeshComponent, FPrimitiveDrawInterface* PDI) const
