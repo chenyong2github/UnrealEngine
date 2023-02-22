@@ -279,6 +279,9 @@ protected:
 	void OnLevelActorRequestsRename(const AActor* Actor);
 	void OnPostLoadMapWithWorld(UWorld* World);
 
+	bool ShouldSyncSelectionToEditor();
+	bool ShouldSyncSelectionFromEditor();
+	void SynchronizeAllSelectionsToEditor();
 	bool HasActorSelectionChanged(TArray<AActor*>& OutSelectedActors, bool& bOutAreAnyInPIE);
 	bool HasComponentSelectionChanged(TArray<UActorComponent*>& OutSelectedComponents, bool& bOutAreAnyInPIE);
 	static void SelectActorsInEditor(const TArray<AActor*>& InSelectedActors);
@@ -347,4 +350,9 @@ protected:
 	
 	TArray<FFilterClassSelectionInfo> FilterClassSelectionInfos;
 	TSharedRef<SWidget> OnGenerateFilterClassMenu();
+
+	/** Used in case of a selection sync override. */
+	
+	bool bShouldTemporarilyForceSelectionSyncFromEditor = false;
+	bool bShouldTemporarilyForceSelectionSyncToEditor = false;
 };
