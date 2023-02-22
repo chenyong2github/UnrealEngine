@@ -133,8 +133,12 @@ void SPackageTableTreeView::RebuildTree(bool bResync)
 	if (CookProvider)
 	{
 		TraceServices::FProviderReadScopeLock ProviderReadScope(*CookProvider);
-		TArray<FTableTreeNodePtr>* Nodes = &TableTreeNodes;
 
+		const uint32 NumPackages = CookProvider->GetNumPackages();
+		Packages.Reserve(NumPackages);
+		TableTreeNodes.Reserve(NumPackages);
+
+		TArray<FTableTreeNodePtr>* Nodes = &TableTreeNodes;
 		CookProvider->EnumeratePackages(0, 0, [&Packages, &PackageTable, Nodes](const TraceServices::FPackageData& Package)
 			{
 				Packages.Emplace(Package);
