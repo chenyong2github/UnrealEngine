@@ -20,7 +20,7 @@
 #if WITH_EDITOR
 #endif
 
-UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FISMComponentDescriptor& InISMCDescriptor)
+UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FISMComponentDescriptor& InISMCDescriptor)
 {
 	check(InTargetActor);
 	check(InSourceComponent);
@@ -52,7 +52,7 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 			if (ManagedDescriptor == InISMCDescriptor)
 			{
 				MISMC->MarkAsUsed();
-				return ISMC;
+				return MISMC;
 			}
 		}
 	}
@@ -100,7 +100,7 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 	Resource->GeneratedComponent = ISMC;
 	InSourceComponent->AddToManagedResources(Resource);
 
-	return ISMC;
+	return Resource;
 }
 
 UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FPCGISMCBuilderParameters& InParams)
