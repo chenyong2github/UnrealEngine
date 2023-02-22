@@ -513,13 +513,16 @@ public:
 
 inline ERHIBindlessConfiguration GetBindlessConfiguration(FName ShaderFormat, const TCHAR* SettingName, IConsoleVariable* CVar)
 {
-	const FString ShaderFormatStr = ShaderFormat.ToString();
-	const FShaderSettingHelper Helper(*ShaderFormatStr, nullptr, SettingName, CVar);
-
 	const EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormat);
 
 	FString SettingValue;
-	Helper.GetStringForPlatform(SettingValue, ShaderFormat);
+#if WITH_EDITOR
+	if (FConfigCacheIni* PlatformConfig = FShaderSettingHelper::GetPlatformConfigForFormat(ShaderFormat))
+	{
+		const FString ShaderFormatStr = ShaderFormat.ToString();
+		SettingValue = PlatformConfig->GetStr(*ShaderFormatStr, SettingName, GEngineIni);
+	}
+#endif
 
 	FString CVarString;
 	if (CVar)
