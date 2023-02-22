@@ -15,6 +15,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/FileHelper.h"
 #include "Async/Async.h"
+#include "Async/ParallelFor.h"
 
 #include "Editor.h"
 
@@ -414,7 +415,6 @@ void USparseVolumeTextureFactory::CleanUp()
 UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename,
 	const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
-
 #if OPENVDB_AVAILABLE
 
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, InClass, InParent, InName, Parms);
@@ -453,7 +453,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 	}
 
 	// Utility function for computing the bounding box encompassing the bounds of all frames in the SVT.
-	auto ExpandVolumeBounds = [](const FOpenVDBImportOptions& ImportOptions, const TArray<FOpenVDBGridInfo>& GridInfoArray, FBox& VolumeBounds)
+	auto ExpandVolumeBounds = [](const FOpenVDBImportOptions& ImportOptions, const TArray<FOpenVDBGridInfo>& GridInfoArray, FIntVector3& VolumeBoundsMin, FIntVector3& VolumeBoundsMax)
 	{
 		for (const FOpenVDBSparseVolumeAttributesDesc& Attributes : ImportOptions.Attributes)
 		{
@@ -462,17 +462,32 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 				if (Mapping.SourceGridIndex != INDEX_NONE)
 				{
 					const FOpenVDBGridInfo& GridInfo = GridInfoArray[Mapping.SourceGridIndex];
-					VolumeBounds.Min.X = FMath::Min(VolumeBounds.Min.X, GridInfo.VolumeActiveAABBMin.X);
-					VolumeBounds.Min.Y = FMath::Min(VolumeBounds.Min.Y, GridInfo.VolumeActiveAABBMin.Y);
-					VolumeBounds.Min.Z = FMath::Min(VolumeBounds.Min.Z, GridInfo.VolumeActiveAABBMin.Z);
+					VolumeBoundsMin.X = FMath::Min(VolumeBoundsMin.X, GridInfo.VolumeActiveAABBMin.X);
+					VolumeBoundsMin.Y = FMath::Min(VolumeBoundsMin.Y, GridInfo.VolumeActiveAABBMin.Y);
+					VolumeBoundsMin.Z = FMath::Min(VolumeBoundsMin.Z, GridInfo.VolumeActiveAABBMin.Z);
 
-					VolumeBounds.Max.X = FMath::Max(VolumeBounds.Max.X, GridInfo.VolumeActiveAABBMax.X);
-					VolumeBounds.Max.Y = FMath::Max(VolumeBounds.Max.Y, GridInfo.VolumeActiveAABBMax.Y);
-					VolumeBounds.Max.Z = FMath::Max(VolumeBounds.Max.Z, GridInfo.VolumeActiveAABBMax.Z);
+					VolumeBoundsMax.X = FMath::Max(VolumeBoundsMax.X, GridInfo.VolumeActiveAABBMax.X);
+					VolumeBoundsMax.Y = FMath::Max(VolumeBoundsMax.Y, GridInfo.VolumeActiveAABBMax.Y);
+					VolumeBoundsMax.Z = FMath::Max(VolumeBoundsMax.Z, GridInfo.VolumeActiveAABBMax.Z);
 				}
 			}
 		}
 	};
+
+	auto ComputeNumMipLevels = [](const FIntVector3& VolumeBoundsMin, const FIntVector3& VolumeBoundsMax)
+	{
+		int32 Levels = 1;
+		FIntVector3 Resolution = VolumeBoundsMax - VolumeBoundsMin;
+		while (Resolution.X > 1 || Resolution.Y > 1 || Resolution.Z > 1)
+		{
+			Resolution /= 2;
+			++Levels;
+		}
+		return Levels;
+	};
+
+	FIntVector3 VolumeBoundsMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
+	FIntVector3 VolumeBoundsMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
 
 	// Import as either single static SVT or a sequence of frames, making up an animated SVT
 	if (!ImportOptions.bIsSequence)
@@ -485,24 +500,14 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		FName NewName(InName.ToString() + TEXT("VDB"));
 		UStaticSparseVolumeTexture* StaticSVTexture = NewObject<UStaticSparseVolumeTexture>(InParent, UStaticSparseVolumeTexture::StaticClass(), NewName, Flags);
 
-		FBox VolumeBounds(FVector(FLT_MAX), FVector(-FLT_MAX));
-		ExpandVolumeBounds(ImportOptions, PreviewData.GridInfo, VolumeBounds);
-		StaticSVTexture->VolumeBounds = VolumeBounds;
+		ExpandVolumeBounds(ImportOptions, PreviewData.GridInfo, VolumeBoundsMin, VolumeBoundsMax);
+		StaticSVTexture->VolumeResolution = VolumeBoundsMax - VolumeBoundsMin;
 		StaticSVTexture->Frames.SetNum(1);
 
+		const int32 NumMipLevels = ComputeNumMipLevels(VolumeBoundsMin, VolumeBoundsMax);
+
 		FSparseVolumeRawSource SparseVolumeRawSource{};
-
-		FOpenVDBToSVTConversionResult SVTResult;
-		SVTResult.Header = &SparseVolumeRawSource.Header;
-		SVTResult.PageTable = &SparseVolumeRawSource.PageTable;
-		SVTResult.PhysicalTileDataA = &SparseVolumeRawSource.PhysicalTileDataA;
-		SVTResult.PhysicalTileDataB = &SparseVolumeRawSource.PhysicalTileDataB;
-
-		const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(
-			PreviewData.LoadedFile,
-			ImportOptions,
-			&SVTResult,
-			false, FVector::Zero(), FVector::Zero());
+		const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(PreviewData.LoadedFile, ImportOptions, VolumeBoundsMin, SparseVolumeRawSource);
 
 		if (!bConversionSuccess)
 		{
@@ -511,9 +516,17 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		}
 
 		// Serialize the raw source data into the asset object.
+		// After serializing the data, we generate the next mip level by downsampling the current one (with a call to GenerateMipMap())
+		// and then repeating the loop until we processed all levels.
+		StaticSVTexture->Frames[0].SetNum(NumMipLevels);
+		for (int32 MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
 		{
-			UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(StaticSVTexture->Frames[0].RawData);
+			UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(StaticSVTexture->Frames[0][MipLevel].RawData);
 			SparseVolumeRawSource.Serialize(RawDataArchiveWriter);
+			if ((MipLevel + 1) < NumMipLevels)
+			{
+				SparseVolumeRawSource = SparseVolumeRawSource.GenerateMipMap();
+			}
 		}
 
 		if (ImportTask.ShouldCancel())
@@ -537,21 +550,89 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		
 		const int32 NumFrames = PreviewData.SequenceFilenames.Num();
 
-		FScopedSlowTask ImportTask(NumFrames, LOCTEXT("ImportingVDBAnim", "Importing OpenVDB animation"));
+		FScopedSlowTask ImportTask(NumFrames + 1, LOCTEXT("ImportingVDBAnim", "Importing OpenVDB animation"));
 		ImportTask.MakeDialog(true);
 
 		// Allocate space for each frame
 		AnimatedSVTexture->Frames.SetNum(NumFrames);
 
-		FEvent* AllTasksFinishedEvent = FPlatformProcess::GetSynchEventFromPool();
 		std::atomic_bool bErrored = false;
 		std::atomic_bool bCanceled = false;
+
+		// Compute volume bounds and check sequence files for compatiblity
+		std::mutex VolumeBoundsMutex;
+		ParallelFor(NumFrames, [&bErrored, &VolumeBoundsMutex, &VolumeBoundsMin, &VolumeBoundsMax, &ExpandVolumeBounds, &PreviewData, &ImportOptions](int32 FrameIdx)
+			{
+				if (bErrored.load())
+				{
+					return;
+				}
+
+				// Load file and get info about each contained grid
+				const FString& FrameFilename = PreviewData.SequenceFilenames[FrameIdx];
+				TArray<uint8> LoadedFrameFile;
+				if (!FFileHelper::LoadFileToArray(LoadedFrameFile, *FrameFilename))
+				{
+					UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file could not be loaded: %s"), *FrameFilename);
+					bErrored.store(true);
+					return;
+				}
+
+				TArray<FOpenVDBGridInfo> FrameGridInfo;
+				if (!GetOpenVDBGridInfo(LoadedFrameFile, true, &FrameGridInfo))
+				{
+					UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("Failed to read OpenVDB file: %s"), *FrameFilename);
+					bErrored.store(true);
+					return;
+				}
+
+				// Sanity check for compatibility
+				for (const FOpenVDBSparseVolumeAttributesDesc& AttributesDesc : ImportOptions.Attributes)
+				{
+					for (const FOpenVDBSparseVolumeComponentMapping& Mapping : AttributesDesc.Mappings)
+					{
+						const uint32 SourceGridIndex = Mapping.SourceGridIndex;
+						if (SourceGridIndex != INDEX_NONE)
+						{
+							if ((int32)SourceGridIndex >= FrameGridInfo.Num())
+							{
+								UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file is incompatible with other frames in the sequence: %s"), *FrameFilename);
+								bErrored.store(true);
+								return;
+							}
+							const FOpenVDBGridInfo& OrigSourceGrid = PreviewData.GridInfo[SourceGridIndex];
+							const FOpenVDBGridInfo& FrameSourceGrid = FrameGridInfo[SourceGridIndex];
+							if (OrigSourceGrid.Type != FrameSourceGrid.Type || OrigSourceGrid.Name != FrameSourceGrid.Name)
+							{
+								UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file is incompatible with other frames in the sequence: %s"), *FrameFilename);
+								bErrored.store(true);
+								return;
+							}
+						}
+					}
+				}
+
+				// Update sequence volume bounds and increment ProcessedFramesCounter
+				{
+					std::lock_guard<std::mutex> Lock(VolumeBoundsMutex);
+					ExpandVolumeBounds(ImportOptions, FrameGridInfo, VolumeBoundsMin, VolumeBoundsMax);
+				}
+			});
+
+		if (bErrored.load())
+		{
+			return nullptr;
+		}
+
+		ImportTask.EnterProgressFrame(1.0f, LOCTEXT("ConvertingVDBAnim", "Converting OpenVDB animation"));
+
+		const int32 NumMipLevels = ComputeNumMipLevels(VolumeBoundsMin, VolumeBoundsMax);
+
+		FEvent* AllTasksFinishedEvent = FPlatformProcess::GetSynchEventFromPool();
 		std::atomic_int FinishedTasksCounter = 0; // Will be incremented even if frame processing failed
 		std::atomic_int ProcessedFramesCounter = 0;
-		std::mutex Mutex;
-		FBox VolumeBounds(FVector(FLT_MAX), FVector(-FLT_MAX));
 
-		// Load individual frames, check them for compatibility with the first loaded file and append them to the resulting asset
+		// Load individual frames, process/convert them and append them to the resulting asset
 		for (int32 FrameIdx = 0; FrameIdx < NumFrames; ++FrameIdx)
 		{
 			// Increments the atomic counter when going out of scope. Triggers an event once the counter reaches a given value.
@@ -572,8 +653,8 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 			};
 
 			AsyncTask(ENamedThreads::AnyNormalThreadNormalTask, 
-				[FrameIdx, NumFrames, &PreviewData, &ImportOptions, &AnimatedSVTexture, &ExpandVolumeBounds,
-				AllTasksFinishedEvent, &bErrored, &bCanceled, &Mutex, &FinishedTasksCounter, &ProcessedFramesCounter, &VolumeBounds]()
+				[FrameIdx, NumFrames, &PreviewData, &ImportOptions, &AnimatedSVTexture,
+				AllTasksFinishedEvent, &bErrored, &bCanceled, &FinishedTasksCounter, &ProcessedFramesCounter, &VolumeBoundsMin, &NumMipLevels]()
 				{
 					// Ensure the FinishedTasksCounter will be incremented in all cases
 					FScopedIncrementer Incremeter(FinishedTasksCounter, NumFrames, AllTasksFinishedEvent);
@@ -587,7 +668,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 					UE_LOG(LogSparseVolumeTextureFactory, Display, TEXT("Loading OpenVDB sequence frame #%i %s."), FrameIdx, *FrameFilename);
 
-					// Load file and get info about each contained grid
+					// Load file
 					TArray<uint8> LoadedFrameFile;
 					if (!FFileHelper::LoadFileToArray(LoadedFrameFile, *FrameFilename))
 					{
@@ -596,53 +677,8 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 						return;
 					}
 
-					TArray<FOpenVDBGridInfo> FrameGridInfo;
-					if (!GetOpenVDBGridInfo(LoadedFrameFile, true, &FrameGridInfo))
-					{
-						UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("Failed to read OpenVDB file: %s"), *FrameFilename);
-						bErrored.store(true);
-						return;
-					}
-
-					// Sanity check for compatibility
-					for (const FOpenVDBSparseVolumeAttributesDesc& AttributesDesc : ImportOptions.Attributes)
-					{
-						for (const FOpenVDBSparseVolumeComponentMapping& Mapping : AttributesDesc.Mappings)
-						{
-							const uint32 SourceGridIndex = Mapping.SourceGridIndex;
-							if (SourceGridIndex != INDEX_NONE)
-							{
-								if ((int32)SourceGridIndex >= FrameGridInfo.Num())
-								{
-									UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file is incompatible with other frames in the sequence: %s"), *FrameFilename);
-									bErrored.store(true);
-									return;
-								}
-								const FOpenVDBGridInfo& OrigSourceGrid = PreviewData.GridInfo[SourceGridIndex];
-								const FOpenVDBGridInfo& FrameSourceGrid = FrameGridInfo[SourceGridIndex];
-								if (OrigSourceGrid.Type != FrameSourceGrid.Type || OrigSourceGrid.Name != FrameSourceGrid.Name)
-								{
-									UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file is incompatible with other frames in the sequence: %s"), *FrameFilename);
-									bErrored.store(true);
-									return;
-								}
-							}
-						}
-					}
-
 					FSparseVolumeRawSource SparseVolumeRawSource{};
-
-					FOpenVDBToSVTConversionResult SVTResult;
-					SVTResult.Header = &SparseVolumeRawSource.Header;
-					SVTResult.PageTable = &SparseVolumeRawSource.PageTable;
-					SVTResult.PhysicalTileDataA = &SparseVolumeRawSource.PhysicalTileDataA;
-					SVTResult.PhysicalTileDataB = &SparseVolumeRawSource.PhysicalTileDataB;
-
-					const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(
-						LoadedFrameFile,
-						ImportOptions,
-						&SVTResult,
-						false, FVector::Zero(), FVector::Zero());
+					const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(LoadedFrameFile, ImportOptions, VolumeBoundsMin, SparseVolumeRawSource);
 
 					if (!bConversionSuccess)
 					{
@@ -652,16 +688,20 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 					}
 
 					// Serialize the raw source data from this frame into the asset object.
+					// After serializing the data, we generate the next mip level by downsampling the current one (with a call to GenerateMipMap())
+					// and then repeating the loop until we processed all levels.
+					AnimatedSVTexture->Frames[FrameIdx].SetNum(NumMipLevels);
+					for (int32 MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
 					{
-						UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(AnimatedSVTexture->Frames[FrameIdx].RawData);
+						UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(AnimatedSVTexture->Frames[FrameIdx][MipLevel].RawData);
 						SparseVolumeRawSource.Serialize(RawDataArchiveWriter);
+						if ((MipLevel + 1) < NumMipLevels)
+						{
+							SparseVolumeRawSource = SparseVolumeRawSource.GenerateMipMap();
+						}
 					}
 
-					// Update sequence volume bounds and increment ProcessedFramesCounter
-					{
-						std::lock_guard<std::mutex> Lock(Mutex);
-						ExpandVolumeBounds(ImportOptions, FrameGridInfo, VolumeBounds);
-					}
+					// Increment ProcessedFramesCounter
 					ProcessedFramesCounter.fetch_add(1);
 				});
 		}
@@ -709,7 +749,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 			return nullptr;
 		}
 
-		AnimatedSVTexture->VolumeBounds = VolumeBounds;
+		AnimatedSVTexture->VolumeResolution = VolumeBoundsMax - VolumeBoundsMin;
 
 		ResultAssets.Add(AnimatedSVTexture);
 	}

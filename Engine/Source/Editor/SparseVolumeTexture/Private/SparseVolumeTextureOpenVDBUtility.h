@@ -22,9 +22,9 @@ enum class EOpenVDBGridType : uint8
 struct FOpenVDBGridInfo
 {
 	FMatrix44f Transform;
-	FVector VolumeActiveAABBMin;
-	FVector VolumeActiveAABBMax;
-	FVector VolumeActiveDim;
+	FIntVector3 VolumeActiveAABBMin;
+	FIntVector3 VolumeActiveAABBMax;
+	FIntVector3 VolumeActiveDim;
 	FVector VolumeVoxelSize;
 	FString Name;
 	FString DisplayString; // Contains Index (into source file grids), Type and Name
@@ -47,13 +47,7 @@ bool IsOpenVDBGridValid(const FOpenVDBGridInfo& GridInfo, const FString& Filenam
 
 bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, bool bCreateStrings, TArray<FOpenVDBGridInfo>* OutGridInfo);
 
-bool ConvertOpenVDBToSparseVolumeTexture(
-	TArray<uint8>& SourceFile,
-	struct FOpenVDBImportOptions& ImportOptions,
-	struct FOpenVDBToSVTConversionResult* OutResult,
-	bool bOverrideActiveMinMax,
-	FVector ActiveMin,
-	FVector ActiveMax);
+bool ConvertOpenVDBToSparseVolumeTexture(TArray<uint8>& SourceFile, const struct FOpenVDBImportOptions& ImportOptions, const FIntVector3& VolumeBoundsMin, struct FSparseVolumeRawSource& OutResult);
 
 const TCHAR* OpenVDBGridTypeToString(EOpenVDBGridType Type);
 

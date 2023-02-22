@@ -10,37 +10,26 @@
 class UStreamableSparseVolumeTexture;
 class FSparseVolumeTextureSceneProxy;
 
-struct FLoadedSparseVolumeTextureFrame
+struct FLoadedSparseVolumeTextureChunk
 {
-	std::atomic<FSparseVolumeTextureSceneProxy*> Proxy;
-	class IBulkDataIORequest* IORequest;
-	double RequestStart;
-	int32 FrameIndex;
-	bool bOwnsProxy;
+	std::atomic<FSparseVolumeTextureSceneProxy*> Proxy = nullptr;
+	class IBulkDataIORequest* IORequest = nullptr;
+	double RequestStart = -1.0;
+	int32 ChunkIndex = INDEX_NONE;
+	bool bOwnsProxy = false;
 
-	explicit FLoadedSparseVolumeTextureFrame()
-		:Proxy(),
-		IORequest(),
-		RequestStart(-1.0),
-		FrameIndex(INDEX_NONE)
-	{
-	}
-	~FLoadedSparseVolumeTextureFrame()
-	{
-		checkf(Proxy.load() == nullptr, TEXT("Render proxy ptr not null (%p), FrameIndex: %u"), Proxy.load(), FrameIndex);
-	}
-
+	~FLoadedSparseVolumeTextureChunk();
 	void CleanUpIORequest();
 };
 
 struct FStreamingSparseVolumeTextureData
 {
 	UStreamableSparseVolumeTexture* SparseVolumeTexture;
-	TArray<FLoadedSparseVolumeTextureFrame> LoadedFrames;
-	TArray<int32> LoadedFrameIndices;
-	TArray<int32> RequestedFrameIndices;
-	TArray<int32> LoadFailedFrameIndices;
-	mutable FCriticalSection LoadedFramesCriticalSection;
+	TArray<FLoadedSparseVolumeTextureChunk> LoadedChunks;
+	TArray<int32> LoadedChunkIndices;
+	TArray<int32> RequestedChunkIndices;
+	TArray<int32> LoadFailedChunkIndices;
+	mutable FCriticalSection LoadedChunksCriticalSection;
 
 	explicit FStreamingSparseVolumeTextureData();
 	~FStreamingSparseVolumeTextureData();
@@ -60,9 +49,9 @@ struct FStreamingSparseVolumeTextureData
 private:
 	class FSparseVolumeTextureStreamingManager* StreamingManager;
 
-	FLoadedSparseVolumeTextureFrame& AddNewLoadedFrame(int32 FrameIndex, FSparseVolumeTextureSceneProxy* ExistingProxy);
-	void FreeLoadedFrame(FLoadedSparseVolumeTextureFrame& LoadedFrame);
-	void ResetRequestedFrames();
+	FLoadedSparseVolumeTextureChunk& AddNewLoadedChunk(int32 ChunkIndex, FSparseVolumeTextureSceneProxy* ExistingProxy);
+	void FreeLoadedChunk(FLoadedSparseVolumeTextureChunk& LoadedChunk);
+	void ResetRequestedChunks();
 };
 
 class FSparseVolumeTextureStreamingManager : public ISparseVolumeTextureStreamingManager
@@ -86,10 +75,10 @@ public:
 	virtual void AddSparseVolumeTexture(UStreamableSparseVolumeTexture* SparseVolumeTexture) override;
 	virtual bool RemoveSparseVolumeTexture(UStreamableSparseVolumeTexture* SparseVolumeTexture) override;
 	virtual void GetMemorySizeForSparseVolumeTexture(const UStreamableSparseVolumeTexture* SparseVolumeTexture, SIZE_T* SizeCPU, SIZE_T* SizeGPU) const override;
-	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy(const UStreamableSparseVolumeTexture* SparseVolumeTexture, int32 FrameIndex, bool bTrackAsRequested) override;
+	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy(const UStreamableSparseVolumeTexture* SparseVolumeTexture, int32 FrameIndex, int32 MipLevel, bool bTrackAsRequested) override;
 	//~ End ISparseVolumeTextureStreamingManager Interface
 
-	void OnAsyncFileCallback(FStreamingSparseVolumeTextureData* StreamingSVTData, int32 FrameIndex, int64 ReadSize, IBulkDataIORequest* ReadRequest, bool bWasCancelled);
+	void OnAsyncFileCallback(FStreamingSparseVolumeTextureData* StreamingSVTData, int32 ChunkIndex, int64 ReadSize, IBulkDataIORequest* ReadRequest, bool bWasCancelled);
 
 private:
 	TMap<UStreamableSparseVolumeTexture*, FStreamingSparseVolumeTextureData*> StreamingSparseVolumeTextures;

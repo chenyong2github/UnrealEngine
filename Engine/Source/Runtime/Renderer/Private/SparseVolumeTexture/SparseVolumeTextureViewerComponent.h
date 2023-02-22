@@ -44,6 +44,12 @@ class USparseVolumeTextureViewerComponent : public UPrimitiveComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Asset Preview", meta = (UIMin = 0, UIMax = 7, ClampMin = 0, ClampMax = 7))
 	int32 ComponentToVisualize;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Asset Preview", meta = (UIMin = 0, UIMax = 11, ClampMin = 0, ClampMax = 11))
+	int32 MipLevel;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Asset Preview", meta = (UIMin = 0.0, UIMax = 1.0, ClampMin = 0))
+	float Extinction = 0.025f;
+
 	TObjectPtr<class USparseVolumeTextureFrame> SparseVolumeTextureFrame;
 
 	//~ Begin UPrimitiveComponent Interface.

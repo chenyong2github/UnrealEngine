@@ -18,32 +18,49 @@ namespace UE { namespace DerivedData { class FRequestOwner; } }
 
 #define SPARSE_VOLUME_TILE_RES	16
 
+uint32 SparseVolumeTexturePackPageTableEntry(const FIntVector3& Coord);
+FIntVector3 SparseVolumeTextureUnpackPageTableEntry(uint32 Packed);
+
 struct ENGINE_API FSparseVolumeAssetHeader
 {
-	FIntVector3 PageTableVolumeResolution;
-	FIntVector3 TileDataVolumeResolution;
-	FIntVector3 SourceVolumeResolution;
-	FIntVector3 SourceVolumeAABBMin;
-	EPixelFormat AttributesAFormat;
-	EPixelFormat AttributesBFormat;
+	FIntVector3 VirtualVolumeResolution = FIntVector3(0, 0, 0);
+	FIntVector3 VirtualVolumeAABBMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
+	FIntVector3 VirtualVolumeAABBMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
+	FIntVector3 PageTableVolumeResolution = FIntVector3(0, 0, 0);
+	FIntVector3 PageTableVolumeAABBMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
+	FIntVector3 PageTableVolumeAABBMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
+	FIntVector3 TileDataVolumeResolution = FIntVector3(0, 0, 0);
+	TStaticArray<EPixelFormat, 2> AttributesFormats = TStaticArray<EPixelFormat, 2>(InPlace, PF_Unknown);
+	int32 MipLevel = 0;
+	bool bHasNullTile = false;
 
 	// The current data format version for the header.
 	static const uint32 kVersion = 0;
 
 	// This version can be used to convert existing header to new version later.
-	uint32 Version;
+	uint32 Version = kVersion;
 
 	void Serialize(FArchive& Ar);
+};
 
-	FSparseVolumeAssetHeader()
-		: PageTableVolumeResolution(FIntVector3(0, 0, 0))
-		, TileDataVolumeResolution(FIntVector3(0, 0, 0))
-		, SourceVolumeResolution(FIntVector3(0, 0, 0))
-		, AttributesAFormat(PF_Unknown)
-		, AttributesBFormat(PF_Unknown)
-		, Version(kVersion)
+class ISparseVolumeRawSourceConstructionAdapter
+{
+public:
+	struct FAttributesInfo
 	{
-	}
+		EPixelFormat Format;
+		FVector4f FallbackValue;
+		FVector4f NormalizeScale;
+		FVector4f NormalizeBias;
+		bool bNormalized;
+	};
+
+	virtual void GetAttributesInfo(FAttributesInfo& OutInfoA, FAttributesInfo& OutInfoB) const = 0;
+	virtual FIntVector3 GetAABBMin() const = 0;
+	virtual FIntVector3 GetAABBMax() const = 0;
+	virtual FIntVector3 GetResolution() const = 0;
+	virtual void IteratePhysicalSource(TFunctionRef<void(const FIntVector3& Coord, int32 AttributesIdx, int32 ComponentIdx, float VoxelValue)> OnVisit) const = 0;
+	virtual ~ISparseVolumeRawSourceConstructionAdapter() = default;
 };
 
 // The structure represent the source asset in high quality. It is used to cook the runtime data
@@ -61,6 +78,16 @@ struct ENGINE_API FSparseVolumeRawSource
 	uint32 Version;
 
 	void Serialize(FArchive& Ar);
+
+	bool Construct(const ISparseVolumeRawSourceConstructionAdapter& Adapter);
+	uint32 ReadPageTablePacked(const FIntVector3& PageTableCoord) const;
+	FIntVector3 ReadPageTable(const FIntVector3& PageTableCoord) const;
+	FVector4f ReadTileDataVoxel(const FIntVector3& TileDataCoord, int32 AttributesIdx) const;
+	FVector4f Sample(const FIntVector3& VolumeCoord, int32 AttributesIdx) const;
+	void Sample(const FIntVector3& VolumeCoord, FVector4f& OutAttributesA, FVector4f& OutAttributesB) const;
+	void WriteTileDataVoxel(const FIntVector3& TileDataCoord, int32 AttributesIdx, const FVector4f& Value, int32 DstComponent = -1);
+	void FillNullTile(const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
+	FSparseVolumeRawSource GenerateMipMap() const;
 
 	FSparseVolumeRawSource()
 		: Version(kVersion)
@@ -163,6 +190,8 @@ struct ENGINE_API FSparseVolumeTextureFrame
 	void Serialize(FArchive& Ar, UStreamableSparseVolumeTexture* Owner, int32 FrameIndex);
 };
 
+using FSparseVolumeTextureFrameMips = TArray<FSparseVolumeTextureFrame, TInlineAllocator<1u>>;
+
 
 enum ESparseVolumeTextureShaderUniform
 {
@@ -185,17 +214,18 @@ public:
 	virtual ~USparseVolumeTexture() = default;
 
 	UFUNCTION(BlueprintCallable, Category = "Texture")
-	virtual int32 GetSizeX() const { return FMath::CeilToInt32(GetVolumeBounds().GetSize().X); }
+	virtual int32 GetSizeX() const { return GetVolumeResolution().X; }
 
 	UFUNCTION(BlueprintCallable, Category = "Texture")
-	virtual int32 GetSizeY() const { return FMath::CeilToInt32(GetVolumeBounds().GetSize().Y); }
+	virtual int32 GetSizeY() const { return GetVolumeResolution().Y; }
 
 	UFUNCTION(BlueprintCallable, Category = "Texture")
-	virtual int32 GetSizeZ() const { return FMath::CeilToInt32(GetVolumeBounds().GetSize().Z); }
+	virtual int32 GetSizeZ() const { return GetVolumeResolution().Z; }
 
 	UFUNCTION(BlueprintCallable, Category = "Texture")
-	virtual int32 GetFrameCount() const { return 0; }
-	virtual FBox GetVolumeBounds() const { return FBox(); }
+	virtual int32 GetNumFrames() const { return 0; }
+	virtual int32 GetNumMipLevels() const { return 0; }
+	virtual FIntVector GetVolumeResolution() const { return FIntVector(); }
 	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const { return nullptr; }
 
 	/** Getter for the shader uniform parameters with index as ESparseVolumeTextureShaderUniform. */
@@ -221,8 +251,8 @@ class UStreamableSparseVolumeTexture : public USparseVolumeTexture
 
 public:
 
-	UPROPERTY(VisibleAnywhere, Category = "Rendering", meta = (DisplayName = "Volume Bounds"))
-	FBox VolumeBounds;
+	UPROPERTY(VisibleAnywhere, Category = "Rendering")
+	FIntVector VolumeResolution;
 
 	UStreamableSparseVolumeTexture();
 	virtual ~UStreamableSparseVolumeTexture() = default;
@@ -239,16 +269,17 @@ public:
 	//~ End UObject Interface.
 
 	//~ Begin USparseVolumeTexture Interface.
-	int32 GetFrameCount() const override { return Frames.Num(); }
-	FBox GetVolumeBounds() const override { return VolumeBounds; };
-	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return GetStreamedFrameProxyOrFallback(0); };
+	int32 GetNumFrames() const override { return Frames.Num(); }
+	int32 GetNumMipLevels() const override { return Frames.IsEmpty() ? 0 : Frames[0].Num(); }
+	FIntVector GetVolumeResolution() const override { return VolumeResolution; };
+	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return GetStreamedFrameProxyOrFallback(0 /*FrameIndex*/, 0 /*MipLevel*/); };
 	//~ End USparseVolumeTexture Interface.
 
-	const FSparseVolumeTextureSceneProxy* GetStreamedFrameProxyOrFallback(int32 FrameIndex) const;
-	TArrayView<const FSparseVolumeTextureFrame> GetFrames() const;
+	const FSparseVolumeTextureSceneProxy* GetStreamedFrameProxyOrFallback(int32 FrameIndex, int32 MipLevel) const;
+	TArrayView<const FSparseVolumeTextureFrameMips> GetFrames() const;
 
 protected:
-	TArray<FSparseVolumeTextureFrame, TInlineAllocator<1u>> Frames;
+	TArray<FSparseVolumeTextureFrameMips> Frames;
 
 	void GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
 	void GenerateOrLoadDDCRuntimeDataForFrame(FSparseVolumeTextureFrame& Frame, UE::DerivedData::FRequestOwner& DDCRequestOwner);
@@ -265,7 +296,7 @@ public:
 	virtual ~UStaticSparseVolumeTexture() = default;
 
 	//~ Begin USparseVolumeTexture Interface.
-	int32 GetFrameCount() const override { return 1; }
+	int32 GetNumFrames() const override { return 1; }
 	//~ End USparseVolumeTexture Interface.
 
 private:
@@ -291,8 +322,8 @@ public:
 	//~ End USparseVolumeTexture Interface.
 
 	// Used for debugging a specific frame of an animated sequence.
-	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureFrameSceneProxy(int32 FrameIndex) const;
-	const FSparseVolumeAssetHeader* GetSparseVolumeTextureFrameHeader(int32 FrameIndex) const;
+	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureFrameSceneProxy(int32 FrameIndex, int32 MipLevel) const;
+	const FSparseVolumeAssetHeader* GetSparseVolumeTextureFrameHeader(int32 FrameIndex, int32 MipLevel) const;
 
 private:
 
@@ -301,6 +332,7 @@ private:
 #endif
 	
 	int32 PreviewFrameIndex;
+	int32 PreviewMipLevel;
 };
 
 // USparseVolumeTextureFrame inherits from USparseVolumeTexture to be viewed using any given frame of a UAnimatedSparseVolumeTexture (or UStaticSparseVolumeTexture)
@@ -313,18 +345,19 @@ public:
 	USparseVolumeTextureFrame();
 	virtual ~USparseVolumeTextureFrame() = default;
 
-	static USparseVolumeTextureFrame* CreateFrame(USparseVolumeTexture* Texture, int32 FrameIndex);
+	static USparseVolumeTextureFrame* CreateFrame(USparseVolumeTexture* Texture, int32 FrameIndex, int32 MipLevel);
 
-	void Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FBox& InVolumeBounds);
+	void Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FIntVector& InVolumeResolution);
 
 	//~ Begin USparseVolumeTexture Interface.
-	int32 GetFrameCount() const override { return 1; }
-	FBox GetVolumeBounds() const override { return VolumeBounds; };
+	int32 GetNumFrames() const override { return 1; }
+	int32 GetNumMipLevels() const override { return 1; }
+	FIntVector GetVolumeResolution() const override { return VolumeResolution; };
 	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return SceneProxy; };
 	//~ End USparseVolumeTexture Interface.
 
 private:
-	FBox VolumeBounds;
+	FIntVector3 VolumeResolution;
 	const FSparseVolumeTextureSceneProxy* SceneProxy;
 };
 
@@ -335,8 +368,11 @@ class ENGINE_API UAnimatedSparseVolumeTextureController : public UObject
 
 public:
 
-	UPROPERTY(BlueprintReadWrite, Category = "Animation", meta = (DisplayName = "Frame Rate"))
+	UPROPERTY(BlueprintReadWrite, Category = "Animation")
 	float FrameRate = 24.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rendering")
+	int32 MipLevel = 0;
 
 	UAnimatedSparseVolumeTextureController();
 	virtual ~UAnimatedSparseVolumeTextureController() = default;

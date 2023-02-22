@@ -17,9 +17,29 @@ static FAutoConsoleVariableRef CVarSVTStreamingPrefetchCount(
 	TEXT("Number of frames to prefetch when streaming animated SparseVolumeTexture frames."),
 	ECVF_Scalability);
 
+static int32 SVTFrameAndLevelToChunkIndex(int32 FrameIndex, int32 MipLevel, int32 NumFrames)
+{
+	return MipLevel * NumFrames + FrameIndex;
+}
+
+static int32 SVTChunkIndexToFrame(int32 ChunkIndex, int32 NumFrames)
+{
+	return ChunkIndex % NumFrames;
+}
+
+static int32 SVTChunkIndexToMipLevel(int32 ChunkIndex, int32 NumFrames)
+{
+	return ChunkIndex / NumFrames;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLoadedSparseVolumeTextureFrame::CleanUpIORequest()
+FLoadedSparseVolumeTextureChunk::~FLoadedSparseVolumeTextureChunk()
+{
+	checkf(Proxy.load() == nullptr, TEXT("Render proxy ptr not null (%p), ChunkIndex: %i"), Proxy.load(), ChunkIndex);
+}
+
+void FLoadedSparseVolumeTextureChunk::CleanUpIORequest()
 {
 	if (IORequest)
 	{
@@ -33,7 +53,7 @@ void FLoadedSparseVolumeTextureFrame::CleanUpIORequest()
 
 FStreamingSparseVolumeTextureData::FStreamingSparseVolumeTextureData()
 {
-	ResetRequestedFrames();
+	ResetRequestedChunks();
 }
 
 FStreamingSparseVolumeTextureData::~FStreamingSparseVolumeTextureData()
@@ -54,12 +74,13 @@ bool FStreamingSparseVolumeTextureData::Initialize(UStreamableSparseVolumeTextur
 	StreamingManager = InStreamingManager;
 
 	// Always get the first frame of data so we can play immediately
-	check(LoadedFrames.IsEmpty());
-	check(LoadedFrameIndices.IsEmpty());
+	check(LoadedChunks.IsEmpty());
+	check(LoadedChunkIndices.IsEmpty());
 	check(!InSparseVolumeTexture->GetFrames().IsEmpty()); // Must hold at least the first frame
+	check(!InSparseVolumeTexture->GetFrames()[0].IsEmpty()); // Must hold at least the first frame
 
-	AddNewLoadedFrame(0, InSparseVolumeTexture->GetFrames()[0].SparseVolumeTextureSceneProxy);
-	LoadedFrameIndices.Add(0);
+	AddNewLoadedChunk(0, InSparseVolumeTexture->GetFrames()[0][0].SparseVolumeTextureSceneProxy);
+	LoadedChunkIndices.Add(0);
 
 	return true;
 }
@@ -77,9 +98,9 @@ void FStreamingSparseVolumeTextureData::FreeResources()
 		check(Pass < 2); // we should be done after two passes. Pass 0 will start anything we need and pass 1 will complete those requests
 	}
 
-	for (FLoadedSparseVolumeTextureFrame& LoadedFrame : LoadedFrames)
+	for (FLoadedSparseVolumeTextureChunk& LoadedChunk : LoadedChunks)
 	{
-		FreeLoadedFrame(LoadedFrame);
+		FreeLoadedChunk(LoadedChunk);
 	}
 }
 
@@ -90,24 +111,24 @@ bool FStreamingSparseVolumeTextureData::UpdateStreamingStatus()
 		return false;
 	}
 
-	// Handle failed frames first
-	for (int32 LoadedFrameIdx = 0; LoadedFrameIdx < LoadedFrames.Num(); ++LoadedFrameIdx)
+	// Handle failed chunks first
+	for (int32 LoadedChunkIdx = 0; LoadedChunkIdx < LoadedChunks.Num(); ++LoadedChunkIdx)
 	{
-		FLoadedSparseVolumeTextureFrame& LoadedFrame = LoadedFrames[LoadedFrameIdx];
-		if (LoadFailedFrameIndices.Contains(LoadedFrame.FrameIndex))
+		FLoadedSparseVolumeTextureChunk& LoadedChunk = LoadedChunks[LoadedChunkIdx];
+		if (LoadFailedChunkIndices.Contains(LoadedChunk.ChunkIndex))
 		{
 			// Mark as not loaded
-			LoadedFrameIndices.Remove(LoadedFrame.FrameIndex);
+			LoadedChunkIndices.Remove(LoadedChunk.ChunkIndex);
 
-			// Remove this frame
-			FreeLoadedFrame(LoadedFrame);
+			// Remove this chunk
+			FreeLoadedChunk(LoadedChunk);
 
-			FScopeLock LoadedFramesLock(&LoadedFramesCriticalSection);
-			LoadedFrames.RemoveAtSwap(LoadedFrameIdx, 1, false);
+			FScopeLock LoadedChunksLock(&LoadedChunksCriticalSection);
+			LoadedChunks.RemoveAtSwap(LoadedChunkIdx, 1, false);
 		}
 	}
 
-	LoadFailedFrameIndices.Reset();
+	LoadFailedChunkIndices.Reset();
 
 	bool bHasPendingRequestInFlight = false;
 	TArray<int32> IndicesToLoad;
@@ -115,25 +136,25 @@ bool FStreamingSparseVolumeTextureData::UpdateStreamingStatus()
 
 	if (HasPendingRequests(IndicesToLoad, IndicesToFree))
 	{
-		for (FLoadedSparseVolumeTextureFrame& LoadedFrame : LoadedFrames)
+		for (FLoadedSparseVolumeTextureChunk& LoadedChunk : LoadedChunks)
 		{
-			if (LoadedFrame.IORequest)
+			if (LoadedChunk.IORequest)
 			{
-				const bool bRequestFinished = LoadedFrame.IORequest->PollCompletion();
+				const bool bRequestFinished = LoadedChunk.IORequest->PollCompletion();
 				bHasPendingRequestInFlight |= !bRequestFinished;
 				if (bRequestFinished)
 				{
-					LoadedFrame.CleanUpIORequest();
+					LoadedChunk.CleanUpIORequest();
 				}
 			}
 		}
 
-		LoadedFrameIndices = RequestedFrameIndices;
+		LoadedChunkIndices = RequestedChunkIndices;
 
 		BeginPendingRequests(IndicesToLoad, IndicesToFree);
 	}
 
-	ResetRequestedFrames();
+	ResetRequestedChunks();
 
 	// Print out the currently resident frames to the screen
 #if 0
@@ -144,21 +165,22 @@ bool FStreamingSparseVolumeTextureData::UpdateStreamingStatus()
 #else
 		FString Message = TEXT("Streaming SVT Frames in Memory: ");
 #endif
-		TArray<int32> FramesInMemoryIndices;
-		for (FLoadedSparseVolumeTextureFrame& LoadedFrame : LoadedFrames)
+		TArray<int32> InMemoryChunkIndices;
+		for (FLoadedSparseVolumeTextureChunk& LoadedChunk : LoadedChunks)
 		{
-			if (LoadedFrame.bOwnsProxy)
+			if (LoadedChunk.bOwnsProxy)
 			{
-				FramesInMemoryIndices.Add(LoadedFrame.FrameIndex);
+				InMemoryChunkIndices.Add(LoadedChunk.ChunkIndex);
 			}
 		}
 		
-		if (!FramesInMemoryIndices.IsEmpty())
+		if (!InMemoryChunkIndices.IsEmpty())
 		{
-			FramesInMemoryIndices.Sort();
-			for (int32 FrameIndex : FramesInMemoryIndices)
+			const int32 NumFrames = SparseVolumeTexture->GetNumFrames();
+			InMemoryChunkIndices.Sort();
+			for (int32 ChunkIndex : InMemoryChunkIndices)
 			{
-				Message += FString::Format(TEXT("{0}, "), { FrameIndex });
+				Message += FString::Format(TEXT("F:{0} M:{1}, "), { SVTChunkIndexToFrame(ChunkIndex, NumFrames), SVTChunkIndexToMipLevel(ChunkIndex, NumFrames) });
 			}
 			GEngine->AddOnScreenDebugMessage(-1, 0.1f, FColor::Yellow, Message);
 		}
@@ -174,18 +196,18 @@ bool FStreamingSparseVolumeTextureData::HasPendingRequests(TArray<int32>& Indice
 	IndicesToFree.Reset();
 
 	// Find indices that aren't loaded
-	for (int32 RequestedIndex : RequestedFrameIndices)
+	for (int32 RequestedIndex : RequestedChunkIndices)
 	{
-		if (!LoadedFrameIndices.Contains(RequestedIndex))
+		if (!LoadedChunkIndices.Contains(RequestedIndex))
 		{
 			IndicesToLoad.AddUnique(RequestedIndex);
 		}
 	}
 
 	// Find indices that aren't needed anymore
-	for (int32 LoadedIndex : LoadedFrameIndices)
+	for (int32 LoadedIndex : LoadedChunkIndices)
 	{
-		if (!RequestedFrameIndices.Contains(LoadedIndex))
+		if (!RequestedChunkIndices.Contains(LoadedIndex))
 		{
 			IndicesToFree.AddUnique(LoadedIndex);
 		}
@@ -196,19 +218,19 @@ bool FStreamingSparseVolumeTextureData::HasPendingRequests(TArray<int32>& Indice
 
 void FStreamingSparseVolumeTextureData::BeginPendingRequests(const TArray<int32>& IndicesToLoad, const TArray<int32>& IndicesToFree)
 {
-	// Mark frames for removal in case they can be reused
+	// Mark chunks for removal in case they can be reused
 	{
 		for (int32 IndexToFree : IndicesToFree)
 		{
-			for (int32 LoadedFrameIdx = 0; LoadedFrameIdx < LoadedFrames.Num(); ++LoadedFrameIdx)
+			for (int32 LoadedChunkIdx = 0; LoadedChunkIdx < LoadedChunks.Num(); ++LoadedChunkIdx)
 			{
 				check(IndexToFree != 0);
-				if (LoadedFrames[LoadedFrameIdx].FrameIndex == IndexToFree)
+				if (LoadedChunks[LoadedChunkIdx].ChunkIndex == IndexToFree)
 				{
-					FreeLoadedFrame(LoadedFrames[LoadedFrameIdx]);
+					FreeLoadedChunk(LoadedChunks[LoadedChunkIdx]);
 
-					FScopeLock LoadedFramesLock(&LoadedFramesCriticalSection);
-					LoadedFrames.RemoveAtSwap(LoadedFrameIdx, 1, false);
+					FScopeLock LoadedChunksLock(&LoadedChunksCriticalSection);
+					LoadedChunks.RemoveAtSwap(LoadedChunkIdx, 1, false);
 					break;
 				}
 			}
@@ -216,32 +238,36 @@ void FStreamingSparseVolumeTextureData::BeginPendingRequests(const TArray<int32>
 	}
 
 	// Set off all IO Requests
-
+	const int32 NumFrames = SparseVolumeTexture->GetNumFrames();
+	const int32 NumMipLevels = SparseVolumeTexture->GetNumMipLevels();
+	check(NumFrames > 0 && NumMipLevels > 0);
 	const EAsyncIOPriorityAndFlags AsyncIOPriority = AIOP_CriticalPath; //Set to Crit temporarily as emergency speculative fix for streaming issue
-	TArrayView<const FSparseVolumeTextureFrame> SVTFrames = SparseVolumeTexture->GetFrames();
+	TArrayView<const FSparseVolumeTextureFrameMips> SVTFrames = SparseVolumeTexture->GetFrames();
 	for (int32 IndexToLoad : IndicesToLoad)
 	{
-		const FSparseVolumeTextureFrame& Frame = SVTFrames[IndexToLoad];
+		const int32 FrameToLoad = SVTChunkIndexToFrame(IndexToLoad, NumFrames) % NumFrames;
+		const int32 MipLevelToLoad = FMath::Clamp(SVTChunkIndexToMipLevel(IndexToLoad, NumFrames), 0, NumMipLevels - 1);
+		const FSparseVolumeTextureFrame& Frame = SVTFrames[FrameToLoad][MipLevelToLoad];
 		FSparseVolumeTextureSceneProxy* ExistingProxy = Frame.SparseVolumeTextureSceneProxy;
-		FLoadedSparseVolumeTextureFrame& FrameStorage = AddNewLoadedFrame(IndexToLoad, ExistingProxy);
+		FLoadedSparseVolumeTextureChunk& ChunkStorage = AddNewLoadedChunk(IndexToLoad, ExistingProxy);
 
 		if (!ExistingProxy)
 		{
-			UE_CLOG(FrameStorage.Proxy.load() != nullptr, LogSparseVolumeTextureStreaming, Fatal, TEXT("Existing render proxy for streaming SparseVolumeTexture frame."));
-			UE_CLOG(FrameStorage.IORequest, LogSparseVolumeTextureStreaming, Fatal, TEXT("Streaming SparseVolumeTexture frame already has IORequest."));
+			UE_CLOG(ChunkStorage.Proxy.load() != nullptr, LogSparseVolumeTextureStreaming, Fatal, TEXT("Existing render proxy for streaming SparseVolumeTexture frame."));
+			UE_CLOG(ChunkStorage.IORequest, LogSparseVolumeTextureStreaming, Fatal, TEXT("Streaming SparseVolumeTexture frame already has IORequest."));
 
-			int64 FrameSize = Frame.RuntimeStreamedInData.GetBulkDataSize();
-			FrameStorage.RequestStart = FPlatformTime::Seconds();
-			UE_LOG(LogSparseVolumeTextureStreaming, Warning, TEXT("SparseVolumeTexture streaming request started %s Frame:%i At:%.3f\n"), *SparseVolumeTexture->GetName(), IndexToLoad, FrameStorage.RequestStart);
-			FBulkDataIORequestCallBack AsyncFileCallBack = [this, IndexToLoad, FrameSize](bool bWasCancelled, IBulkDataIORequest* Req)
+			const int64 ChunkSize = Frame.RuntimeStreamedInData.GetBulkDataSize();
+			ChunkStorage.RequestStart = FPlatformTime::Seconds();
+			UE_LOG(LogSparseVolumeTextureStreaming, Warning, TEXT("SparseVolumeTexture streaming request started %s Frame:%i At:%.3f\n"), *SparseVolumeTexture->GetName(), IndexToLoad, ChunkStorage.RequestStart);
+			FBulkDataIORequestCallBack AsyncFileCallBack = [this, IndexToLoad, ChunkSize](bool bWasCancelled, IBulkDataIORequest* Req)
 			{
-				StreamingManager->OnAsyncFileCallback(this, IndexToLoad, FrameSize, Req, bWasCancelled);
+				StreamingManager->OnAsyncFileCallback(this, IndexToLoad, ChunkSize, Req, bWasCancelled);
 			};
 
 			UE_LOG(LogSparseVolumeTextureStreaming, Warning, TEXT("Loading streaming SparseVolumeTexture %s Frame:%i Offset:%i Size:%i File:%s\n"),
 				*SparseVolumeTexture->GetName(), IndexToLoad, Frame.RuntimeStreamedInData.GetBulkDataOffsetInFile(), Frame.RuntimeStreamedInData.GetBulkDataSize(), *Frame.RuntimeStreamedInData.GetDebugName());
-			FrameStorage.IORequest = Frame.RuntimeStreamedInData.CreateStreamingRequest(AsyncIOPriority, &AsyncFileCallBack, nullptr);
-			if (!FrameStorage.IORequest)
+			ChunkStorage.IORequest = Frame.RuntimeStreamedInData.CreateStreamingRequest(AsyncIOPriority, &AsyncFileCallBack, nullptr);
+			if (!ChunkStorage.IORequest)
 			{
 				UE_LOG(LogSparseVolumeTextureStreaming, Error, TEXT("SparseVolumeTexture streaming read request failed."));
 			}
@@ -254,26 +280,26 @@ bool FStreamingSparseVolumeTextureData::BlockTillAllRequestsFinished(float TimeL
 	QUICK_SCOPE_CYCLE_COUNTER(FStreamingSparseVolumeTextureData_BlockTillAllRequestsFinished);
 	if (TimeLimit == 0.0f)
 	{
-		for (FLoadedSparseVolumeTextureFrame& LoadedFrame : LoadedFrames)
+		for (FLoadedSparseVolumeTextureChunk& LoadedChunk : LoadedChunks)
 		{
-			LoadedFrame.CleanUpIORequest();
+			LoadedChunk.CleanUpIORequest();
 		}
 	}
 	else
 	{
 		double EndTime = FPlatformTime::Seconds() + TimeLimit;
-		for (FLoadedSparseVolumeTextureFrame& LoadedFrame : LoadedFrames)
+		for (FLoadedSparseVolumeTextureChunk& LoadedChunk : LoadedChunks)
 		{
-			if (LoadedFrame.IORequest)
+			if (LoadedChunk.IORequest)
 			{
 				float ThisTimeLimit = EndTime - FPlatformTime::Seconds();
 				if (ThisTimeLimit < 0.001f || // one ms is the granularity of the platform event system
-					!LoadedFrame.IORequest->WaitCompletion(ThisTimeLimit))
+					!LoadedChunk.IORequest->WaitCompletion(ThisTimeLimit))
 				{
 					return false;
 				}
 
-				LoadedFrame.CleanUpIORequest();
+				LoadedChunk.CleanUpIORequest();
 			}
 		}
 	}
@@ -282,41 +308,41 @@ bool FStreamingSparseVolumeTextureData::BlockTillAllRequestsFinished(float TimeL
 
 void FStreamingSparseVolumeTextureData::GetMemorySize(SIZE_T* SizeCPU, SIZE_T* SizeGPU) const
 {
-	FScopeLock LoadedFramesLock(&LoadedFramesCriticalSection);
-	for (const FLoadedSparseVolumeTextureFrame& LoadedFrame : LoadedFrames)
+	FScopeLock LoadedChunksLock(&LoadedChunksCriticalSection);
+	for (const FLoadedSparseVolumeTextureChunk& LoadedChunk : LoadedChunks)
 	{
-		const FSparseVolumeTextureSceneProxy* Proxy = LoadedFrame.Proxy.load();
-		if (LoadedFrame.bOwnsProxy && Proxy)
+		const FSparseVolumeTextureSceneProxy* Proxy = LoadedChunk.Proxy.load();
+		if (LoadedChunk.bOwnsProxy && Proxy)
 		{
 			Proxy->GetMemorySize(SizeCPU, SizeGPU);
 		}
 	}
 }
 
-FLoadedSparseVolumeTextureFrame& FStreamingSparseVolumeTextureData::AddNewLoadedFrame(int32 FrameIndex, FSparseVolumeTextureSceneProxy* ExistingProxy)
+FLoadedSparseVolumeTextureChunk& FStreamingSparseVolumeTextureData::AddNewLoadedChunk(int32 ChunkIndex, FSparseVolumeTextureSceneProxy* ExistingProxy)
 {
-	FScopeLock LoadedFramesLock(&LoadedFramesCriticalSection);
-	const int32 NewIndex = LoadedFrames.AddDefaulted();
+	FScopeLock LoadedChunksLock(&LoadedChunksCriticalSection);
+	const int32 NewIndex = LoadedChunks.AddDefaulted();
 
-	LoadedFrames[NewIndex].Proxy = ExistingProxy;
-	LoadedFrames[NewIndex].FrameIndex = FrameIndex;
-	LoadedFrames[NewIndex].bOwnsProxy = false;
-	return LoadedFrames[NewIndex];
+	LoadedChunks[NewIndex].Proxy = ExistingProxy;
+	LoadedChunks[NewIndex].ChunkIndex = ChunkIndex;
+	LoadedChunks[NewIndex].bOwnsProxy = false;
+	return LoadedChunks[NewIndex];
 }
 
-void FStreamingSparseVolumeTextureData::FreeLoadedFrame(FLoadedSparseVolumeTextureFrame& LoadedFrame)
+void FStreamingSparseVolumeTextureData::FreeLoadedChunk(FLoadedSparseVolumeTextureChunk& LoadedChunk)
 {
-	if (LoadedFrame.IORequest)
+	if (LoadedChunk.IORequest)
 	{
-		LoadedFrame.IORequest->Cancel();
-		LoadedFrame.IORequest->WaitCompletion();
-		delete LoadedFrame.IORequest;
-		LoadedFrame.IORequest = nullptr;
+		LoadedChunk.IORequest->Cancel();
+		LoadedChunk.IORequest->WaitCompletion();
+		delete LoadedChunk.IORequest;
+		LoadedChunk.IORequest = nullptr;
 	}
 
-	if (LoadedFrame.bOwnsProxy)
+	if (LoadedChunk.bOwnsProxy)
 	{
-		FSparseVolumeTextureSceneProxy* Proxy = LoadedFrame.Proxy.load();
+		FSparseVolumeTextureSceneProxy* Proxy = LoadedChunk.Proxy.load();
 		ENQUEUE_RENDER_COMMAND(FStreamingSparseVolumeTextureData_DeleteSVTProxy)(
 			[Proxy](FRHICommandListImmediate& RHICmdList)
 			{
@@ -325,15 +351,15 @@ void FStreamingSparseVolumeTextureData::FreeLoadedFrame(FLoadedSparseVolumeTextu
 			});
 	}
 
-	LoadedFrame.Proxy = nullptr;
-	LoadedFrame.bOwnsProxy = false;
-	LoadedFrame.FrameIndex = INDEX_NONE;
+	LoadedChunk.Proxy = nullptr;
+	LoadedChunk.bOwnsProxy = false;
+	LoadedChunk.ChunkIndex = INDEX_NONE;
 }
 
-void FStreamingSparseVolumeTextureData::ResetRequestedFrames()
+void FStreamingSparseVolumeTextureData::ResetRequestedChunks()
 {
-	RequestedFrameIndices.Reset();
-	RequestedFrameIndices.Add(0); //Always want first frame
+	RequestedChunkIndices.Reset();
+	RequestedChunkIndices.Add(0); //Always want first frame
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -431,29 +457,30 @@ void FSparseVolumeTextureStreamingManager::GetMemorySizeForSparseVolumeTexture(c
 	}
 }
 
-const FSparseVolumeTextureSceneProxy* FSparseVolumeTextureStreamingManager::GetSparseVolumeTextureSceneProxy(const UStreamableSparseVolumeTexture* SparseVolumeTexture, int32 FrameIndex, bool bTrackAsRequested)
+const FSparseVolumeTextureSceneProxy* FSparseVolumeTextureStreamingManager::GetSparseVolumeTextureSceneProxy(const UStreamableSparseVolumeTexture* SparseVolumeTexture, int32 FrameIndex, int32 MipLevel, bool bTrackAsRequested)
 {
 	FScopeLock Lock(&CriticalSection);
 
 	FStreamingSparseVolumeTextureData* StreamingData = StreamingSparseVolumeTextures.FindRef(SparseVolumeTexture);
 	if (StreamingData)
 	{
+		const int32 NumFrames = SparseVolumeTexture->GetNumFrames();
+		const int32 ChunkIndex = SVTFrameAndLevelToChunkIndex(FrameIndex, MipLevel, NumFrames);
 		if (bTrackAsRequested)
 		{
-			StreamingData->RequestedFrameIndices.AddUnique(FrameIndex);
+			StreamingData->RequestedChunkIndices.AddUnique(ChunkIndex);
 
 			// Prefetch next frames
-			const int32 NumFrames = SparseVolumeTexture->GetFrames().Num();
 			const int32 NumPrefetchFrames = FMath::Clamp(GSVTNumPrefetchFrames, 0, NumFrames - 1);
 			for (int32 i = 0; i < NumPrefetchFrames; ++i)
 			{
-				StreamingData->RequestedFrameIndices.AddUnique((FrameIndex + 1 + i) % NumFrames);
+				StreamingData->RequestedChunkIndices.AddUnique(SVTFrameAndLevelToChunkIndex((FrameIndex + 1 + i) % NumFrames, MipLevel, NumFrames));
 			}
 		}
 
-		if (StreamingData->LoadedFrameIndices.Contains(FrameIndex))
+		if (StreamingData->LoadedChunkIndices.Contains(ChunkIndex))
 		{
-			if (const FLoadedSparseVolumeTextureFrame* Frame = Algo::FindBy(StreamingData->LoadedFrames, FrameIndex, &FLoadedSparseVolumeTextureFrame::FrameIndex))
+			if (const FLoadedSparseVolumeTextureChunk* Frame = Algo::FindBy(StreamingData->LoadedChunks, ChunkIndex, &FLoadedSparseVolumeTextureChunk::ChunkIndex))
 			{
 				if (Frame->Proxy.load() == nullptr)
 				{
@@ -464,7 +491,7 @@ const FSparseVolumeTextureSceneProxy* FSparseVolumeTextureStreamingManager::GetS
 			}
 			else
 			{
-				UE_LOG(LogSparseVolumeTextureStreaming, Warning, TEXT("Unable to find requested frame: %i, SVT: %s - Is in LoadedFrameIndices however"), FrameIndex, *SparseVolumeTexture->GetFullName());
+				UE_LOG(LogSparseVolumeTextureStreaming, Warning, TEXT("Unable to find requested frame: %i, SVT: %s - Is in LoadedChunkIndices however"), FrameIndex, *SparseVolumeTexture->GetFullName());
 			}
 		}
 		else
@@ -480,23 +507,23 @@ const FSparseVolumeTextureSceneProxy* FSparseVolumeTextureStreamingManager::GetS
 	return nullptr;
 }
 
-void FSparseVolumeTextureStreamingManager::OnAsyncFileCallback(FStreamingSparseVolumeTextureData* StreamingSVTData, int32 FrameIndex, int64 ReadSize, IBulkDataIORequest* ReadRequest, bool bWasCancelled)
+void FSparseVolumeTextureStreamingManager::OnAsyncFileCallback(FStreamingSparseVolumeTextureData* StreamingSVTData, int32 ChunkIndex, int64 ReadSize, IBulkDataIORequest* ReadRequest, bool bWasCancelled)
 {
 	// Check to see if we successfully managed to load anything
 	uint8* Mem = ReadRequest->GetReadResults();
 
-	FScopeLock Lock(&StreamingSVTData->LoadedFramesCriticalSection);
+	FScopeLock Lock(&StreamingSVTData->LoadedChunksCriticalSection);
 
-	const int32 LoadedFrameIdx = StreamingSVTData->LoadedFrames.IndexOfByPredicate([FrameIndex](const FLoadedSparseVolumeTextureFrame& Frame) { return Frame.FrameIndex == FrameIndex; });
-	check(LoadedFrameIdx != INDEX_NONE);
-	FLoadedSparseVolumeTextureFrame& FrameStorage = StreamingSVTData->LoadedFrames[LoadedFrameIdx];
+	const int32 LoadedChunkIdx = StreamingSVTData->LoadedChunks.IndexOfByPredicate([ChunkIndex](const FLoadedSparseVolumeTextureChunk& Frame) { return Frame.ChunkIndex == ChunkIndex; });
+	check(LoadedChunkIdx != INDEX_NONE);
+	FLoadedSparseVolumeTextureChunk& ChunkStorage = StreamingSVTData->LoadedChunks[LoadedChunkIdx];
 
 	const double CurrentTime = FPlatformTime::Seconds();
-	const double RequestDuration = CurrentTime - FrameStorage.RequestStart;
+	const double RequestDuration = CurrentTime - ChunkStorage.RequestStart;
 
 	if (Mem)
 	{
-		checkf(FrameStorage.Proxy.load() == nullptr, TEXT("Frame storage already has data. (0x%p) FrameIndex:%i LoadedFrameIdx:%i"), FrameStorage.Proxy.load(), FrameIndex, LoadedFrameIdx);
+		checkf(ChunkStorage.Proxy.load() == nullptr, TEXT("Chunk storage already has data. (0x%p) ChunkIndex:%i LoadedChunkIdx:%i"), ChunkStorage.Proxy.load(), ChunkIndex, LoadedChunkIdx);
 
 		TArrayView<const uint8> MemView(Mem, ReadSize);
 		FMemoryReaderView Reader(MemView);
@@ -505,9 +532,9 @@ void FSparseVolumeTextureStreamingManager::OnAsyncFileCallback(FStreamingSparseV
 		NewProxy->GetRuntimeData().Serialize(Reader);
 		BeginInitResource(NewProxy);
 
-		FrameStorage.Proxy = NewProxy;
-		FrameStorage.bOwnsProxy = true;
-		FrameStorage.RequestStart = -2.0; //Signify we have finished loading
+		ChunkStorage.Proxy = NewProxy;
+		ChunkStorage.bOwnsProxy = true;
+		ChunkStorage.RequestStart = -2.0; //Signify we have finished loading
 
 		UE_LOG(LogSparseVolumeTextureStreaming, Log, TEXT("Request Finished %.2f\n SparseVolumeTexture Frame Streamed %.4f\n"), CurrentTime, RequestDuration);
 
@@ -516,8 +543,8 @@ void FSparseVolumeTextureStreamingManager::OnAsyncFileCallback(FStreamingSparseV
 	else
 	{
 		const TCHAR* WasCancelledText = bWasCancelled ? TEXT("Yes") : TEXT("No");
-		UE_LOG(LogSparseVolumeTextureStreaming, Warning, TEXT("Streaming SparseVolumeTexture failed to load frame: %i Load Duration:%.3f, SVT:%s WasCancelled: %s\n"), FrameIndex, RequestDuration, *StreamingSVTData->SparseVolumeTexture->GetName(), WasCancelledText);
+		UE_LOG(LogSparseVolumeTextureStreaming, Warning, TEXT("Streaming SparseVolumeTexture failed to load chunk: %i Load Duration:%.3f, SVT:%s WasCancelled: %s\n"), ChunkIndex, RequestDuration, *StreamingSVTData->SparseVolumeTexture->GetName(), WasCancelledText);
 		
-		StreamingSVTData->LoadFailedFrameIndices.AddUnique(FrameIndex);
+		StreamingSVTData->LoadFailedChunkIndices.AddUnique(ChunkIndex);
 	}
 }

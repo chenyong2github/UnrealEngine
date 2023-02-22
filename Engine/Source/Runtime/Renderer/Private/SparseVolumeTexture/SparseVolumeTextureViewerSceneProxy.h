@@ -21,6 +21,7 @@ public:
 	FMatrix44f WorldToLocal;
 	FMatrix44f WorldToLocalNoScale;
 	uint32 ComponentToVisualize;
+	float Extinction;
 
 protected:
 

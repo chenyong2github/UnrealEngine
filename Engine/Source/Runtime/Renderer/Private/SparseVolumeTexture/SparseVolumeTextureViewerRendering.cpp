@@ -65,6 +65,8 @@ class FVisualizeSparseVolumeTexturePS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, SparseVolumeTextureResolution)
 		SHADER_PARAMETER(FVector3f, SparseVolumeTexturePageTableResolution)
 		SHADER_PARAMETER(uint32, ComponentToVisualize)
+		SHADER_PARAMETER(uint32, MipLevel)
+		SHADER_PARAMETER(float, Extinction)
 		SHADER_PARAMETER_TEXTURE(Texture3D, SparseVolumeTextureA)
 		SHADER_PARAMETER_TEXTURE(Texture3D, SparseVolumeTextureB)
 		SHADER_PARAMETER_TEXTURE(Texture3D<uint>, SparseVolumeTexturePageTable)
@@ -133,6 +135,8 @@ void AddSparseVolumeTextureViewerRenderPass(FRDGBuilder& GraphBuilder, FSceneRen
 			PsPassParameters->WorldToLocalNoScale1 = FVector3f(WorldToLocalNoScale.M[0][1], WorldToLocalNoScale.M[1][1], WorldToLocalNoScale.M[2][1]);
 			PsPassParameters->WorldToLocalNoScale2 = FVector3f(WorldToLocalNoScale.M[0][2], WorldToLocalNoScale.M[1][2], WorldToLocalNoScale.M[2][2]);
 			PsPassParameters->ComponentToVisualize = SVTProxy->ComponentToVisualize;
+			PsPassParameters->MipLevel = 0;
+			PsPassParameters->Extinction = SVTProxy->Extinction;
 			PsPassParameters->SparseVolumeTextureResolution = FVector3f::OneVector;
 			PsPassParameters->SparseVolumeTexturePageTableResolution = FVector3f::OneVector;
 			PsPassParameters->SparseVolumeTextureA = GBlackVolumeTexture->TextureRHI;
@@ -144,8 +148,9 @@ void AddSparseVolumeTextureViewerRenderPass(FRDGBuilder& GraphBuilder, FSceneRen
 			{
 				const FSparseVolumeAssetHeader& Header = SVTProxy->SparseVolumeTextureSceneProxy->GetHeader();
 
-				PsPassParameters->SparseVolumeTextureResolution = FVector3f(Header.SourceVolumeResolution);
+				PsPassParameters->SparseVolumeTextureResolution = FVector3f(Header.VirtualVolumeResolution);
 				PsPassParameters->SparseVolumeTexturePageTableResolution = FVector3f(Header.PageTableVolumeResolution);
+				PsPassParameters->MipLevel = (uint32)Header.MipLevel;
 
 				FRHITexture* TextureA = SVTProxy->SparseVolumeTextureSceneProxy->GetPhysicalTileDataATextureRHI();
 				if (TextureA)

@@ -648,9 +648,10 @@ struct ISparseVolumeTextureStreamingManager : public IStreamingManager
 	 *
 	 * @param SparseVolumeTexture	SparseVolumeTexture we want a frame from
 	 * @param FrameIndex			Index of the frame we want
+	 * @param MipLevel				MipLevel of the frame we want
 	 * @return Either the desired frame proxy or NULL if it's not loaded
 	 */
-	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy(const UStreamableSparseVolumeTexture* SparseVolumeTexture, int32 FrameIndex, bool bTrackAsRequested) = 0;
+	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy(const UStreamableSparseVolumeTexture* SparseVolumeTexture, int32 FrameIndex, int32 MipLevel, bool bTrackAsRequested) = 0;
 };
 
 

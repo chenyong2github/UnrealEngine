@@ -30,6 +30,10 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTexture, Log, All);
 
+// We are using this instead of GMaxVolumeTextureDimensions to be independent of the platform that
+// the asset is imported on. 2048 should be a safe value that should be supported by all our platforms.
+static constexpr int32 SVTMaxVolumeTextureDim = 2048;
+
 namespace UE
 {
 namespace SVT
@@ -47,9 +51,68 @@ namespace Private
 			Target = static_cast<T>(Buffer);
 		}
 	}
+
+	static float F16ToF32(uint16 Packed)
+	{
+		FFloat16 F16{};
+		F16.Encoded = Packed;
+		return F16.GetFloat();
+	};
+
+	static FIntVector3 AdvanceTileCoord(const FIntVector3& TileCoord, const FIntVector3& TileCoordResolution)
+	{
+		FIntVector3 Result = TileCoord;
+		Result.X++;
+		if (Result.X >= TileCoordResolution.X)
+		{
+			Result.X = 0;
+			Result.Y++;
+		}
+		if (Result.Y >= TileCoordResolution.Y)
+		{
+			Result.Y = 0;
+			Result.Z++;
+		}
+		return Result;
+	};
+
+	static FIntVector3 ComputeTileDataVolumeResolution(int32 NumAllocatedPages, bool bAnyEmptyPageExists)
+	{
+		const int32 EffectivelyAllocatedPageEntries = NumAllocatedPages + (bAnyEmptyPageExists ? 1 : 0);
+		int32 TileVolumeResolutionCube = 1;
+		while (TileVolumeResolutionCube * TileVolumeResolutionCube * TileVolumeResolutionCube < EffectivelyAllocatedPageEntries)
+		{
+			TileVolumeResolutionCube++;				// We use a simple loop to compute the minimum resolution of a cube to store all the tile data
+		}
+		FIntVector3 TileDataVolumeResolution = FIntVector3(TileVolumeResolutionCube, TileVolumeResolutionCube, TileVolumeResolutionCube);
+		while (TileDataVolumeResolution.X * TileDataVolumeResolution.Y * (TileDataVolumeResolution.Z - 1) > EffectivelyAllocatedPageEntries)
+		{
+			TileDataVolumeResolution.Z--;	// We then trim an edge to get back space.
+		}
+
+		return TileDataVolumeResolution * SPARSE_VOLUME_TILE_RES;
+	}
 } // Private
 } // SVT
 } // UE
+
+uint32 SparseVolumeTexturePackPageTableEntry(const FIntVector3& Coord)
+{
+	// A page encodes the physical tile coord as unsigned int of 11 11 10 bits
+	// This means a page coord cannot be larger than 2047 for x and y and 1023 for z
+	// which mean we cannot have more than 2048*2048*1024 = 4 Giga tiles of 16^3 tiles.
+	uint32 Result = (Coord.X & 0x7FF) | ((Coord.Y & 0x7FF) << 11) | ((Coord.Z & 0x3FF) << 22);
+	return Result;
+}
+
+FIntVector3 SparseVolumeTextureUnpackPageTableEntry(uint32 Packed)
+{
+	FIntVector3 Result;
+	Result.X = Packed & 0x7FF;
+	Result.Y = (Packed >> 11) & 0x7FF;
+	Result.Z = (Packed >> 22) & 0x3FF;
+	return Result;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -72,6 +135,471 @@ void FSparseVolumeRawSource::Serialize(FArchive& Ar)
 	}
 }
 
+bool FSparseVolumeRawSource::Construct(const ISparseVolumeRawSourceConstructionAdapter& Adapter)
+{
+	ISparseVolumeRawSourceConstructionAdapter::FAttributesInfo AttributesInfo[2];
+	Adapter.GetAttributesInfo(AttributesInfo[0], AttributesInfo[1]);
+
+	Header.VirtualVolumeResolution = Adapter.GetResolution();
+	Header.VirtualVolumeAABBMin = Adapter.GetAABBMin();
+	Header.VirtualVolumeAABBMax = Adapter.GetAABBMax();
+	Header.AttributesFormats[0] = AttributesInfo[0].Format;
+	Header.AttributesFormats[1] = AttributesInfo[1].Format;
+
+	Header.PageTableVolumeAABBMin = Header.VirtualVolumeAABBMin / SPARSE_VOLUME_TILE_RES;
+	Header.PageTableVolumeAABBMax = (Header.VirtualVolumeAABBMax + FIntVector3(SPARSE_VOLUME_TILE_RES - 1)) / SPARSE_VOLUME_TILE_RES;
+	Header.bHasNullTile = false;
+
+	const FIntVector3 PageTableVolumeResolution = Header.PageTableVolumeAABBMax - Header.PageTableVolumeAABBMin;
+
+	if (PageTableVolumeResolution.X > SVTMaxVolumeTextureDim
+		|| PageTableVolumeResolution.Y > SVTMaxVolumeTextureDim
+		|| PageTableVolumeResolution.Z > SVTMaxVolumeTextureDim)
+	{
+		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("SparseVolumeTexture page table texture dimensions exceed limit (%ix%ix%i): %ix%ix%i"), 
+			SVTMaxVolumeTextureDim, SVTMaxVolumeTextureDim, SVTMaxVolumeTextureDim, 
+			PageTableVolumeResolution.X, PageTableVolumeResolution.Y, PageTableVolumeResolution.Z);
+		return false;
+	}
+
+	Header.PageTableVolumeResolution = PageTableVolumeResolution;
+	Header.TileDataVolumeResolution = FIntVector::ZeroValue;	// unknown for now
+
+	// Tag all pages with valid data
+	TBitArray PagesWithData(false, Header.PageTableVolumeResolution.Z * Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.X);
+	Adapter.IteratePhysicalSource([&](const FIntVector3& Coord, int32 AttributesIdx, int32 ComponentIdx, float VoxelValue)
+		{
+			const bool bIsFallbackValue = (VoxelValue == AttributesInfo[AttributesIdx].FallbackValue[ComponentIdx]);
+			if (!bIsFallbackValue)
+			{
+				const FIntVector3 GridCoord = Coord;
+				check(GridCoord.X >= 0 && GridCoord.Y >= 0 && GridCoord.Z >= 0);
+				check(GridCoord.X < Header.VirtualVolumeAABBMax.X && GridCoord.Y < Header.VirtualVolumeAABBMax.Y && GridCoord.Z < Header.VirtualVolumeAABBMax.Z);
+				const FIntVector3 PageCoord = (GridCoord / SPARSE_VOLUME_TILE_RES) - Header.PageTableVolumeAABBMin;
+				check(PageCoord.X >= 0 && PageCoord.Y >= 0 && PageCoord.Z >= 0);
+				check(PageCoord.X < Header.PageTableVolumeResolution.X && PageCoord.Y < Header.PageTableVolumeResolution.Y && PageCoord.Z < Header.PageTableVolumeResolution.Z);
+
+				const int32 PageIndex = PageCoord.Z * (Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.X) + PageCoord.Y * Header.PageTableVolumeResolution.X + PageCoord.X;
+				PagesWithData[PageIndex] = true;
+			}
+		});
+
+	// Allocate some memory for temp data (worst case)
+	TArray<FIntVector3> LinearAllocatedPages;
+	LinearAllocatedPages.SetNum(Header.PageTableVolumeResolution.X * Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.Z);
+
+	// Go over each potential page from the source data and push allocate it if it has any data.
+	// Otherwise point to the default empty page.
+	int32 NumAllocatedPages = 0;
+	for (int32_t PageZ = 0; PageZ < Header.PageTableVolumeResolution.Z; ++PageZ)
+	{
+		for (int32_t PageY = 0; PageY < Header.PageTableVolumeResolution.Y; ++PageY)
+		{
+			for (int32_t PageX = 0; PageX < Header.PageTableVolumeResolution.X; ++PageX)
+			{
+				const int32 PageIndex = PageZ * (Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.X) + PageY * Header.PageTableVolumeResolution.X + PageX;
+				const bool bHasAnyData = PagesWithData[PageIndex];
+				if (bHasAnyData)
+				{
+					LinearAllocatedPages[NumAllocatedPages] = FIntVector3(PageX, PageY, PageZ);
+					NumAllocatedPages++;
+				}
+				Header.bHasNullTile |= !bHasAnyData;
+			}
+		}
+	}
+
+	// Compute Page and Tile VolumeResolution from allocated pages
+	Header.TileDataVolumeResolution = UE::SVT::Private::ComputeTileDataVolumeResolution(NumAllocatedPages, Header.bHasNullTile);
+	const FIntVector3 TileCoordResolution = Header.TileDataVolumeResolution / SPARSE_VOLUME_TILE_RES;
+
+	if (Header.TileDataVolumeResolution.X > SVTMaxVolumeTextureDim
+		|| Header.TileDataVolumeResolution.Y > SVTMaxVolumeTextureDim
+		|| Header.TileDataVolumeResolution.Z > SVTMaxVolumeTextureDim)
+	{
+		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("SparseVolumeTexture tile data texture dimensions exceed limit (%ix%ix%i): %ix%ix%i"), SVTMaxVolumeTextureDim, SVTMaxVolumeTextureDim, SVTMaxVolumeTextureDim, Header.TileDataVolumeResolution.X, Header.TileDataVolumeResolution.Y, Header.TileDataVolumeResolution.Z);
+		return false;
+	}
+
+	// Initialize the SparseVolumeTexture page and tile.
+	const int32 FormatSize[] = { GPixelFormats[(SIZE_T)Header.AttributesFormats[0]].BlockBytes, GPixelFormats[(SIZE_T)Header.AttributesFormats[1]].BlockBytes };
+	PageTable.SetNumZeroed(Header.PageTableVolumeResolution.X * Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.Z);
+	PhysicalTileDataA.SetNumZeroed(Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y * Header.TileDataVolumeResolution.Z * FormatSize[0]);
+	PhysicalTileDataB.SetNumZeroed(Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y * Header.TileDataVolumeResolution.Z * FormatSize[1]);
+
+	// Generate page table and tile volume data by splatting the data
+	{
+		FIntVector3 DstTileCoord = FIntVector3::ZeroValue;
+
+		// Add an empty tile is needed, reserve slot at coord 0
+		if (Header.bHasNullTile)
+		{
+			// Fill null tile with fallback/background value
+			FVector4f FallbackValues[] = { AttributesInfo[0].FallbackValue, AttributesInfo[1].FallbackValue };
+			for (int32 AttributesIdx = 0; AttributesIdx < 2; ++AttributesIdx)
+			{
+				if (AttributesInfo[AttributesIdx].bNormalized)
+				{
+					FallbackValues[AttributesIdx] = FallbackValues[AttributesIdx] * AttributesInfo[AttributesIdx].NormalizeScale + AttributesInfo[AttributesIdx].NormalizeBias;
+				}
+			}
+			FillNullTile(FallbackValues[0], FallbackValues[1]);
+
+			// PageTable is all cleared to zero, simply skip a tile
+			DstTileCoord = UE::SVT::Private::AdvanceTileCoord(DstTileCoord, TileCoordResolution);
+		}
+
+		for (int32 i = 0; i < NumAllocatedPages; ++i)
+		{
+			const FIntVector3 PageCoordToSplat = LinearAllocatedPages[i];
+			const uint32 DestinationTileCoord32bit = SparseVolumeTexturePackPageTableEntry(DstTileCoord);
+
+			// Setup the page table entry
+			PageTable
+				[
+					PageCoordToSplat.Z * Header.PageTableVolumeResolution.X * Header.PageTableVolumeResolution.Y +
+					PageCoordToSplat.Y * Header.PageTableVolumeResolution.X +
+					PageCoordToSplat.X
+				] = DestinationTileCoord32bit;
+
+			// Set the next tile to be written to
+			DstTileCoord = UE::SVT::Private::AdvanceTileCoord(DstTileCoord, TileCoordResolution);
+		}
+	}
+
+	// Write physical tile data
+	Adapter.IteratePhysicalSource([&](const FIntVector3& Coord, int32 AttributesIdx, int32 ComponentIdx, float VoxelValue)
+		{
+			const FIntVector3 GridCoord = Coord;
+			check(GridCoord.X >= 0 && GridCoord.Y >= 0 && GridCoord.Z >= 0);
+			check(GridCoord.X < Header.VirtualVolumeAABBMax.X && GridCoord.Y < Header.VirtualVolumeAABBMax.Y && GridCoord.Z < Header.VirtualVolumeAABBMax.Z);
+			const FIntVector3 PageCoord = (GridCoord / SPARSE_VOLUME_TILE_RES) - Header.PageTableVolumeAABBMin;
+			check(PageCoord.X >= 0 && PageCoord.Y >= 0 && PageCoord.Z >= 0);
+			check(PageCoord.X < Header.PageTableVolumeResolution.X && PageCoord.Y < Header.PageTableVolumeResolution.Y && PageCoord.Z < Header.PageTableVolumeResolution.Z);
+
+			const int32 PageIndex = PageCoord.Z * (Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.X) + PageCoord.Y * Header.PageTableVolumeResolution.X + PageCoord.X;
+
+			if (!PagesWithData[PageIndex])
+			{
+				return;
+			}
+
+			float WriteValue = VoxelValue;
+			if (AttributesInfo[AttributesIdx].bNormalized)
+			{
+				WriteValue = WriteValue * AttributesInfo[AttributesIdx].NormalizeScale[ComponentIdx] + AttributesInfo[AttributesIdx].NormalizeBias[ComponentIdx];
+			}
+
+			const FIntVector3 WriteTileCoord = SparseVolumeTextureUnpackPageTableEntry(PageTable[PageIndex]);
+			const FIntVector3 TileLocalCoord = GridCoord % SPARSE_VOLUME_TILE_RES;
+			const FIntVector3 WriteCoord = WriteTileCoord * SPARSE_VOLUME_TILE_RES + TileLocalCoord;
+			WriteTileDataVoxel(WriteCoord, AttributesIdx, FVector4f(WriteValue, WriteValue, WriteValue, WriteValue), ComponentIdx);
+		});
+
+	return true;
+}
+
+uint32 FSparseVolumeRawSource::ReadPageTablePacked(const FIntVector3& PageTableCoord) const
+{
+	if (PageTableCoord.X < 0 || PageTableCoord.Y < 0 || PageTableCoord.Z < 0
+		|| PageTableCoord.X >= Header.PageTableVolumeResolution.X 
+		|| PageTableCoord.Y >= Header.PageTableVolumeResolution.Y 
+		|| PageTableCoord.Z >= Header.PageTableVolumeResolution.Z)
+	{
+		return 0;
+	}
+
+	const int32 PageIndex = PageTableCoord.Z * (Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.X) + PageTableCoord.Y * Header.PageTableVolumeResolution.X + PageTableCoord.X;
+	if (PageTable.IsValidIndex(PageIndex))
+	{
+		return PageTable[PageIndex];
+	}
+	return 0;
+}
+
+FIntVector3 FSparseVolumeRawSource::ReadPageTable(const FIntVector3& PageTableCoord) const
+{
+	const uint32 Packed = ReadPageTablePacked(PageTableCoord);
+	const FIntVector3 Unpacked = SparseVolumeTextureUnpackPageTableEntry(Packed);
+	return Unpacked;
+}
+
+FVector4f FSparseVolumeRawSource::ReadTileDataVoxel(const FIntVector3& TileDataCoord, int32 AttributesIdx) const
+{
+	using namespace UE::SVT::Private;
+	check(AttributesIdx >= 0 && AttributesIdx <= 1);
+	if ((AttributesIdx == 0 && PhysicalTileDataA.IsEmpty()) || (AttributesIdx == 1 && PhysicalTileDataB.IsEmpty()))
+	{
+		return FVector4f();
+	}
+
+	if (TileDataCoord.X < 0 || TileDataCoord.Y < 0 || TileDataCoord.Z < 0
+		|| TileDataCoord.X >= Header.TileDataVolumeResolution.X 
+		|| TileDataCoord.Y >= Header.TileDataVolumeResolution.Y 
+		|| TileDataCoord.Z >= Header.TileDataVolumeResolution.Z)
+	{
+		return FVector4f();
+	}
+
+	const int32 VoxelIndex = TileDataCoord.Z * (Header.TileDataVolumeResolution.Y * Header.TileDataVolumeResolution.X) + TileDataCoord.Y * Header.TileDataVolumeResolution.X + TileDataCoord.X;
+	const uint8* TileData = AttributesIdx == 0 ? PhysicalTileDataA.GetData() : PhysicalTileDataB.GetData();
+	const EPixelFormat Format = Header.AttributesFormats[AttributesIdx];
+
+	switch (Format)
+	{
+	case PF_R8:
+		return FVector4f(TileData[VoxelIndex] / 255.0f, 0.0f, 0.0f, 0.0f);
+	case PF_R8G8:
+		return FVector4f(TileData[VoxelIndex * 2 + 0] / 255.0f, TileData[VoxelIndex * 2 + 1] / 255.0f, 0.0f, 0.0f);
+	case PF_R8G8B8A8:
+		return FVector4f(TileData[VoxelIndex * 4 + 0] / 255.0f, TileData[VoxelIndex * 4 + 1] / 255.0f, TileData[VoxelIndex * 4 + 2] / 255.0f, TileData[VoxelIndex * 4 + 3] / 255.0f);
+	case PF_R16F:
+		return FVector4f(F16ToF32(((const uint16*)TileData)[VoxelIndex]), 0.0f, 0.0f, 0.0f);
+	case PF_G16R16F:
+		return FVector4f(F16ToF32(((const uint16*)TileData)[VoxelIndex * 2 + 0]), F16ToF32(((const uint16*)TileData)[VoxelIndex * 2 + 1]), 0.0f, 0.0f);
+	case PF_FloatRGBA:
+		return FVector4f(F16ToF32(((const uint16*)TileData)[VoxelIndex * 4 + 0]), F16ToF32(((const uint16*)TileData)[VoxelIndex * 4 + 1]), F16ToF32(((const uint16*)TileData)[VoxelIndex * 4 + 2]), F16ToF32(((const uint16*)TileData)[VoxelIndex * 4 + 3]));
+	case PF_R32_FLOAT:
+		return FVector4f(((const float*)TileData)[VoxelIndex], 0.0f, 0.0f, 0.0f);
+	case PF_G32R32F:
+		return FVector4f(((const float*)TileData)[VoxelIndex * 2 + 0], ((const float*)TileData)[VoxelIndex * 2 + 1], 0.0f, 0.0f);
+	case PF_A32B32G32R32F:
+		return FVector4f(((const float*)TileData)[VoxelIndex * 4 + 0], ((const float*)TileData)[VoxelIndex * 4 + 1], ((const float*)TileData)[VoxelIndex * 4 + 2], ((const float*)TileData)[VoxelIndex * 4 + 3]);
+	default:
+		checkNoEntry();
+		return FVector4f();
+	}
+}
+
+FVector4f FSparseVolumeRawSource::Sample(const FIntVector3& VolumeCoord, int32 AttributesIdx) const
+{
+	const FIntVector3 PageTableCoord = (VolumeCoord / SPARSE_VOLUME_TILE_RES) - Header.PageTableVolumeAABBMin;
+	const FIntVector3 TileCoord = ReadPageTable(PageTableCoord);
+	const FIntVector3 VoxelCoord = (TileCoord * SPARSE_VOLUME_TILE_RES) + (VolumeCoord % SPARSE_VOLUME_TILE_RES);
+	const FVector4f Sample = ReadTileDataVoxel(VoxelCoord, AttributesIdx);
+	return Sample;
+}
+
+void FSparseVolumeRawSource::Sample(const FIntVector3& VolumeCoord, FVector4f& OutAttributesA, FVector4f& OutAttributesB) const
+{
+	const FIntVector3 PageTableCoord = (VolumeCoord / SPARSE_VOLUME_TILE_RES) - Header.PageTableVolumeAABBMin;
+	const FIntVector3 TileCoord = ReadPageTable(PageTableCoord);
+	const FIntVector3 VoxelCoord = (TileCoord * SPARSE_VOLUME_TILE_RES) + (VolumeCoord % SPARSE_VOLUME_TILE_RES);
+	OutAttributesA = ReadTileDataVoxel(VoxelCoord, 0);
+	OutAttributesB = ReadTileDataVoxel(VoxelCoord, 1);
+}
+
+void FSparseVolumeRawSource::WriteTileDataVoxel(const FIntVector3& TileDataCoord, int32 AttributesIdx, const FVector4f& Value, int32 DstComponent)
+{
+	check(AttributesIdx >= 0 && AttributesIdx <= 1);
+	if ((AttributesIdx == 0 && PhysicalTileDataA.IsEmpty()) || (AttributesIdx == 1 && PhysicalTileDataB.IsEmpty()))
+	{
+		return;
+	}
+
+	const int32 VoxelIndex = TileDataCoord.Z * (Header.TileDataVolumeResolution.Y * Header.TileDataVolumeResolution.X) + TileDataCoord.Y * Header.TileDataVolumeResolution.X + TileDataCoord.X;
+	uint8* TileData = AttributesIdx == 0 ? PhysicalTileDataA.GetData() : PhysicalTileDataB.GetData();
+	const EPixelFormat Format = Header.AttributesFormats[AttributesIdx];
+
+	switch (Format)
+	{
+	case PF_R8:
+		if (DstComponent == -1 || DstComponent == 0) TileData[VoxelIndex] = uint8(FMath::Clamp(Value.X, 0.0f, 1.0f) * 255.0f);
+		break;
+	case PF_R8G8:
+		if (DstComponent == -1 || DstComponent == 0) TileData[VoxelIndex * 2 + 0] = uint8(FMath::Clamp(Value.X, 0.0f, 1.0f) * 255.0f);
+		if (DstComponent == -1 || DstComponent == 1) TileData[VoxelIndex * 2 + 1] = uint8(FMath::Clamp(Value.Y, 0.0f, 1.0f) * 255.0f);
+		break;
+	case PF_R8G8B8A8:
+		if (DstComponent == -1 || DstComponent == 0) TileData[VoxelIndex * 4 + 0] = uint8(FMath::Clamp(Value.X, 0.0f, 1.0f) * 255.0f);
+		if (DstComponent == -1 || DstComponent == 1) TileData[VoxelIndex * 4 + 1] = uint8(FMath::Clamp(Value.Y, 0.0f, 1.0f) * 255.0f);
+		if (DstComponent == -1 || DstComponent == 2) TileData[VoxelIndex * 4 + 2] = uint8(FMath::Clamp(Value.Z, 0.0f, 1.0f) * 255.0f);
+		if (DstComponent == -1 || DstComponent == 3) TileData[VoxelIndex * 4 + 3] = uint8(FMath::Clamp(Value.W, 0.0f, 1.0f) * 255.0f);
+		break;
+	case PF_R16F:
+		if (DstComponent == -1 || DstComponent == 0) ((uint16*)TileData)[VoxelIndex] = FFloat16(Value.X).Encoded;
+		break;
+	case PF_G16R16F:
+		if (DstComponent == -1 || DstComponent == 0) ((uint16*)TileData)[VoxelIndex * 2 + 0] = FFloat16(Value.X).Encoded;
+		if (DstComponent == -1 || DstComponent == 1) ((uint16*)TileData)[VoxelIndex * 2 + 1] = FFloat16(Value.Y).Encoded;
+		break;
+	case PF_FloatRGBA:
+		if (DstComponent == -1 || DstComponent == 0) ((uint16*)TileData)[VoxelIndex * 4 + 0] = FFloat16(Value.X).Encoded;
+		if (DstComponent == -1 || DstComponent == 1) ((uint16*)TileData)[VoxelIndex * 4 + 1] = FFloat16(Value.Y).Encoded;
+		if (DstComponent == -1 || DstComponent == 2) ((uint16*)TileData)[VoxelIndex * 4 + 2] = FFloat16(Value.Z).Encoded;
+		if (DstComponent == -1 || DstComponent == 3) ((uint16*)TileData)[VoxelIndex * 4 + 3] = FFloat16(Value.W).Encoded;
+		break;
+	case PF_R32_FLOAT:
+		if (DstComponent == -1 || DstComponent == 0) ((float*)TileData)[VoxelIndex] = Value.X;
+		break;
+	case PF_G32R32F:
+		if (DstComponent == -1 || DstComponent == 0) ((float*)TileData)[VoxelIndex * 2 + 0] = Value.X;
+		if (DstComponent == -1 || DstComponent == 1) ((float*)TileData)[VoxelIndex * 2 + 1] = Value.Y;
+		break;
+	case PF_A32B32G32R32F:
+		if (DstComponent == -1 || DstComponent == 0) ((float*)TileData)[VoxelIndex * 4 + 0] = Value.X;
+		if (DstComponent == -1 || DstComponent == 1) ((float*)TileData)[VoxelIndex * 4 + 1] = Value.Y;
+		if (DstComponent == -1 || DstComponent == 2) ((float*)TileData)[VoxelIndex * 4 + 2] = Value.Z;
+		if (DstComponent == -1 || DstComponent == 3) ((float*)TileData)[VoxelIndex * 4 + 3] = Value.W;
+		break;
+	default:
+		checkNoEntry();
+	}
+}
+
+void FSparseVolumeRawSource::FillNullTile(const FVector4f& FallbackValueA, const FVector4f& FallbackValueB)
+{
+	for (int32 AttributesIdx = 0; AttributesIdx < 2; ++AttributesIdx)
+	{
+		if ((AttributesIdx == 0 && PhysicalTileDataA.IsEmpty()) || (AttributesIdx == 1 && PhysicalTileDataB.IsEmpty()))
+		{
+			continue;
+		}
+
+		const FVector4f& FallbackValue = AttributesIdx == 0 ? FallbackValueA : FallbackValueB;
+
+		for (int32 Z = 0; Z < SPARSE_VOLUME_TILE_RES; ++Z)
+		{
+			for (int32 Y = 0; Y < SPARSE_VOLUME_TILE_RES; ++Y)
+			{
+				for (int32 X = 0; X < SPARSE_VOLUME_TILE_RES; ++X)
+				{
+					const FIntVector3 WriteCoord = FIntVector3(X, Y, Z);
+					WriteTileDataVoxel(WriteCoord, AttributesIdx, FallbackValue);
+				}
+			}
+		}
+	}
+}
+
+FSparseVolumeRawSource FSparseVolumeRawSource::GenerateMipMap() const
+{
+	FSparseVolumeRawSource Result{};
+	Result.Header = Header; // Overwrite values later
+	Result.Header.VirtualVolumeAABBMin = Header.VirtualVolumeAABBMin / 2;
+	Result.Header.VirtualVolumeAABBMax = FIntVector3(FMath::Max(1, Header.VirtualVolumeAABBMax.X / 2), FMath::Max(1, Header.VirtualVolumeAABBMax.Y / 2), FMath::Max(1, Header.VirtualVolumeAABBMax.Z / 2));
+	Result.Header.VirtualVolumeResolution = Result.Header.VirtualVolumeAABBMax - Result.Header.VirtualVolumeAABBMin;
+	Result.Header.PageTableVolumeAABBMin = Result.Header.VirtualVolumeAABBMin / SPARSE_VOLUME_TILE_RES;
+	Result.Header.PageTableVolumeAABBMax = (Result.Header.VirtualVolumeAABBMax + FIntVector3(SPARSE_VOLUME_TILE_RES - 1)) / SPARSE_VOLUME_TILE_RES;
+	Result.Header.PageTableVolumeResolution = Result.Header.PageTableVolumeAABBMax - Result.Header.PageTableVolumeAABBMin;
+	Result.Header.MipLevel = Header.MipLevel + 1;
+	Result.Header.bHasNullTile = false;
+
+	// Allocate some memory for temp data (worst case)
+	TArray<FIntVector3> LinearAllocatedPages;
+	LinearAllocatedPages.SetNum(Result.Header.PageTableVolumeResolution.X * Result.Header.PageTableVolumeResolution.Y * Result.Header.PageTableVolumeResolution.Z);
+
+	// Go over each potential page from the source data and push allocate it if it has any data.
+	// Otherwise point to the default empty page.
+	int32 NumAllocatedPages = 0;
+	for (int32_t PageZ = 0; PageZ < Result.Header.PageTableVolumeResolution.Z; ++PageZ)
+	{
+		for (int32_t PageY = 0; PageY < Result.Header.PageTableVolumeResolution.Y; ++PageY)
+		{
+			for (int32_t PageX = 0; PageX < Result.Header.PageTableVolumeResolution.X; ++PageX)
+			{
+				const FIntVector3 PageCoord = FIntVector3(PageX, PageY, PageZ);
+				bool bHasAnyData = false;
+				for (int32_t OffsetIdx = 0; OffsetIdx < 8; ++OffsetIdx)
+				{
+					const FIntVector3 Offset = FIntVector3(OffsetIdx, OffsetIdx >> 1, OffsetIdx >> 2) & 1;
+					const FIntVector3 ParentPageTableCoord = (Result.Header.PageTableVolumeAABBMin + PageCoord) * 2 + Offset - Header.PageTableVolumeAABBMin;
+					const uint32 PageSample = ReadPageTablePacked(ParentPageTableCoord);
+					
+					if (PageSample != 0 || !Header.bHasNullTile)
+					{
+						bHasAnyData = true;
+					}
+				}
+				if (bHasAnyData)
+				{
+					LinearAllocatedPages[NumAllocatedPages] = PageCoord;
+					NumAllocatedPages++;
+				}
+				Result.Header.bHasNullTile |= !bHasAnyData;
+			}
+		}
+	}
+
+	// Compute Page and Tile VolumeResolution from allocated pages
+	Result.Header.TileDataVolumeResolution = UE::SVT::Private::ComputeTileDataVolumeResolution(NumAllocatedPages, Result.Header.bHasNullTile);
+	const FIntVector3 TileCoordResolution = Result.Header.TileDataVolumeResolution / SPARSE_VOLUME_TILE_RES;
+
+	// Compute byte sizes of formats as NumTotalBytes/NumVoxels. Note that we do this on the data from this object, not the new downsampled one.
+	const int32 FormatSizeA = PhysicalTileDataA.Num() / (Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y * Header.TileDataVolumeResolution.Z);
+	const int32 FormatSizeB = PhysicalTileDataB.Num() / (Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y * Header.TileDataVolumeResolution.Z);
+
+	// Initialize the SparseVolumeTexture page and tile.
+	Result.PageTable.SetNumZeroed(Result.Header.PageTableVolumeResolution.X * Result.Header.PageTableVolumeResolution.Y * Result.Header.PageTableVolumeResolution.Z);
+	Result.PhysicalTileDataA.SetNumZeroed(Result.Header.TileDataVolumeResolution.X * Result.Header.TileDataVolumeResolution.Y * Result.Header.TileDataVolumeResolution.Z * FormatSizeA);
+	Result.PhysicalTileDataB.SetNumZeroed(Result.Header.TileDataVolumeResolution.X * Result.Header.TileDataVolumeResolution.Y * Result.Header.TileDataVolumeResolution.Z * FormatSizeB);
+
+	// Generate page table and tile volume data by splatting the data
+	{
+		FIntVector3 DstTileCoord = FIntVector3::ZeroValue;
+
+		// Add an empty tile is needed, reserve slot at coord 0
+		if (Result.Header.bHasNullTile)
+		{
+			Result.FillNullTile(ReadTileDataVoxel(FIntVector3(), 0), ReadTileDataVoxel(FIntVector3(), 1));
+			
+			// PageTable is all cleared to zero, simply skip a tile
+			DstTileCoord = UE::SVT::Private::AdvanceTileCoord(DstTileCoord, TileCoordResolution);
+		}
+
+		for (int32 i = 0; i < NumAllocatedPages; ++i)
+		{
+			const FIntVector3 PageCoordToSplat = LinearAllocatedPages[i];
+			const uint32 DestinationTileCoord32bit = SparseVolumeTexturePackPageTableEntry(DstTileCoord);
+
+			// Setup the page table entry
+			Result.PageTable
+				[
+					PageCoordToSplat.Z * Result.Header.PageTableVolumeResolution.X * Result.Header.PageTableVolumeResolution.Y +
+					PageCoordToSplat.Y * Result.Header.PageTableVolumeResolution.X +
+					PageCoordToSplat.X
+				] = DestinationTileCoord32bit;
+
+			// Write tile data
+			const FIntVector3 ParentVolumeCoordBase = (Result.Header.PageTableVolumeAABBMin + PageCoordToSplat) * SPARSE_VOLUME_TILE_RES * 2;
+			for (int32 AttributesIdx = 0; AttributesIdx < 2; ++AttributesIdx)
+			{
+				if ((AttributesIdx == 0 && PhysicalTileDataA.IsEmpty()) || (AttributesIdx == 1 && PhysicalTileDataB.IsEmpty()))
+				{
+					continue;
+				}
+
+				for (int32 Z = 0; Z < SPARSE_VOLUME_TILE_RES; ++Z)
+				{
+					for (int32 Y = 0; Y < SPARSE_VOLUME_TILE_RES; ++Y)
+					{
+						for (int32 X = 0; X < SPARSE_VOLUME_TILE_RES; ++X)
+						{
+							FVector4f DownsampledValue = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+							for (int32_t OffsetIdx = 0; OffsetIdx < 8; ++OffsetIdx)
+							{
+								const FIntVector3 Offset = FIntVector3(OffsetIdx, OffsetIdx >> 1, OffsetIdx >> 2) & 1;
+								const FIntVector3 SourceCoord = ParentVolumeCoordBase + FIntVector3(X, Y, Z) * 2 + Offset;
+								const FVector4f SampleValue = Sample(SourceCoord, AttributesIdx);
+								DownsampledValue += SampleValue;
+							}
+							DownsampledValue /= 8.0f;
+
+							const FIntVector3 WriteCoord = DstTileCoord * SPARSE_VOLUME_TILE_RES + FIntVector3(X, Y, Z);
+							Result.WriteTileDataVoxel(WriteCoord, AttributesIdx, DownsampledValue);
+						}
+					}
+				}
+			}
+
+			// Set the next tile to be written to
+			DstTileCoord = UE::SVT::Private::AdvanceTileCoord(DstTileCoord, TileCoordResolution);
+		}
+	}
+
+	return Result;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FSparseVolumeAssetHeader::Serialize(FArchive& Ar)
@@ -80,12 +608,17 @@ void FSparseVolumeAssetHeader::Serialize(FArchive& Ar)
 
 	if (Version == 0)
 	{
+		Ar << VirtualVolumeResolution;
+		Ar << VirtualVolumeAABBMin;
+		Ar << VirtualVolumeAABBMax;
 		Ar << PageTableVolumeResolution;
+		Ar << PageTableVolumeAABBMin;
+		Ar << PageTableVolumeAABBMax;
 		Ar << TileDataVolumeResolution;
-		Ar << SourceVolumeResolution;
-		Ar << SourceVolumeAABBMin;
-		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, AttributesAFormat);
-		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, AttributesBFormat);
+		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, AttributesFormats[0]);
+		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, AttributesFormats[1]);
+		Ar << MipLevel;
+		Ar << bHasNullTile;
 	}
 	else
 	{
@@ -166,8 +699,8 @@ void FSparseVolumeTextureSceneProxy::InitRHI()
 {
 	// Page table
 	{
-		EPixelFormat PageEntryFormat = PF_R32_UINT;
-		FIntVector3 PageTableVolumeResolution = SparseVolumeTextureRuntime.Header.PageTableVolumeResolution;
+		const EPixelFormat PageEntryFormat = PF_R32_UINT;
+		const FIntVector3 PageTableVolumeResolution = SparseVolumeTextureRuntime.Header.PageTableVolumeResolution;
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create3D(TEXT("SparseVolumeTexture.PageTable.RHITexture"),
 				PageTableVolumeResolution.X, PageTableVolumeResolution.Y, PageTableVolumeResolution.Z, PageEntryFormat)
@@ -182,9 +715,9 @@ void FSparseVolumeTextureSceneProxy::InitRHI()
 
 	// Tile data
 	{
-		FIntVector3 TileDataVolumeResolution = SparseVolumeTextureRuntime.Header.TileDataVolumeResolution;
-		EPixelFormat VoxelFormatA = SparseVolumeTextureRuntime.Header.AttributesAFormat;
-		EPixelFormat VoxelFormatB = SparseVolumeTextureRuntime.Header.AttributesBFormat;
+		const FIntVector3 TileDataVolumeResolution = SparseVolumeTextureRuntime.Header.TileDataVolumeResolution;
+		const EPixelFormat VoxelFormatA = SparseVolumeTextureRuntime.Header.AttributesFormats[0];
+		const EPixelFormat VoxelFormatB = SparseVolumeTextureRuntime.Header.AttributesFormats[1];
 		const FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, TileDataVolumeResolution.X, TileDataVolumeResolution.Y, TileDataVolumeResolution.Z);
 
 		// A
@@ -398,19 +931,15 @@ void USparseVolumeTexture::GetFrameUVScaleBias(FVector* OutScale, FVector* OutBi
 	if (Proxy)
 	{
 		const FSparseVolumeAssetHeader& Header = Proxy->GetHeader();
-		const FBox VolumeBounds = GetVolumeBounds();
-		check(VolumeBounds.GetVolume() > 0.0);
-		const FBox FrameBounds = FBox(FVector(Header.SourceVolumeAABBMin), FVector(Header.SourceVolumeAABBMin + Header.SourceVolumeResolution)); // AABB of current frame
-		const FBox FrameBoundsPadded = FBox(FVector(Header.SourceVolumeAABBMin), FVector(Header.SourceVolumeAABBMin + Header.PageTableVolumeResolution * SPARSE_VOLUME_TILE_RES)); // padded to multiple of page size
-		const FVector FrameExtent = FrameBounds.GetExtent();
+		const int32 MipFactor = 1 << Header.MipLevel;
+		const FVector GlobalVolumeRes = FVector(GetVolumeResolution()) / MipFactor;
+		check(GlobalVolumeRes.X > 0.0 && GlobalVolumeRes.Y > 0.0 && GlobalVolumeRes.Z > 0.0);
+		const FVector FrameBoundsPaddedMin = FVector(Header.PageTableVolumeAABBMin * SPARSE_VOLUME_TILE_RES); // padded to multiple of page size
+		const FVector FrameBoundsPaddedMax = FVector(Header.PageTableVolumeAABBMax * SPARSE_VOLUME_TILE_RES);
+		const FVector FramePaddedSize = FrameBoundsPaddedMax - FrameBoundsPaddedMin;
 
-		// 3D UV coordinates are specified in [0, 1]. Before addressing the page tables which might have padding,
-		// since source volume resolution might not align to tile resolution, we have to rescale the uv so that [0,1] maps to the source texture boundaries.
-		const FVector UVToPhysical = FrameExtent / FrameBoundsPadded.GetExtent();
-
-		*OutScale = VolumeBounds.GetExtent() / FrameExtent;
-		*OutScale *= UVToPhysical;
-		*OutBias = -((FrameBounds.Min - VolumeBounds.Min) / (VolumeBounds.Max - VolumeBounds.Min) * *OutScale);
+		*OutScale = GlobalVolumeRes / FramePaddedSize; // scale from SVT UV space to frame (padded) local UV space
+		*OutBias = -(FrameBoundsPaddedMin / GlobalVolumeRes * *OutScale);
 	}
 }
 
@@ -457,17 +986,20 @@ void UStreamableSparseVolumeTexture::FinishDestroy()
 void UStreamableSparseVolumeTexture::BeginDestroy()
 {
 	Super::BeginDestroy();
-	for (FSparseVolumeTextureFrame& Frame : Frames)
+	for (FSparseVolumeTextureFrameMips& FrameMips : Frames)
 	{
-		if (Frame.SparseVolumeTextureSceneProxy)
+		for (FSparseVolumeTextureFrame& Frame : FrameMips)
 		{
-			ENQUEUE_RENDER_COMMAND(UStreamableSparseVolumeTexture_DeleteSVTProxy)(
-				[Proxy = Frame.SparseVolumeTextureSceneProxy](FRHICommandListImmediate& RHICmdList)
-				{
-					Proxy->ReleaseResource();
-					delete Proxy;
-				});
-			Frame.SparseVolumeTextureSceneProxy = nullptr;
+			if (Frame.SparseVolumeTextureSceneProxy)
+			{
+				ENQUEUE_RENDER_COMMAND(UStreamableSparseVolumeTexture_DeleteSVTProxy)(
+					[Proxy = Frame.SparseVolumeTextureSceneProxy](FRHICommandListImmediate& RHICmdList)
+					{
+						Proxy->ReleaseResource();
+						delete Proxy;
+					});
+				Frame.SparseVolumeTextureSceneProxy = nullptr;
+			}
 		}
 	}
 }
@@ -478,6 +1010,8 @@ void UStreamableSparseVolumeTexture::Serialize(FArchive& Ar)
 
 	int32 NumFrames = Frames.Num();
 	Ar << NumFrames;
+	int32 NumMipLevels = Frames.IsEmpty() ? 0 : Frames[0].Num();
+	Ar << NumMipLevels;
 
 	if (Ar.IsLoading())
 	{
@@ -486,7 +1020,11 @@ void UStreamableSparseVolumeTexture::Serialize(FArchive& Ar)
 	}
 	for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
 	{
-		Frames[FrameIndex].Serialize(Ar, this, FrameIndex);
+		Frames[FrameIndex].SetNum(NumMipLevels);
+		for (int32 MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
+		{
+			Frames[FrameIndex][MipLevel].Serialize(Ar, this, FrameIndex);
+		}
 	}
 }
 
@@ -505,11 +1043,15 @@ void UStreamableSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& Cumulati
 	SIZE_T SizeCPU = sizeof(Frames);
 	SIZE_T SizeGPU = 0;
 	SizeCPU += Frames.GetAllocatedSize();
-	for (const FSparseVolumeTextureFrame& Frame : Frames)
+	for (const FSparseVolumeTextureFrameMips& FrameMips : Frames)
 	{
-		if (Frame.SparseVolumeTextureSceneProxy)
+		SizeCPU += FrameMips.GetAllocatedSize();
+		for (const FSparseVolumeTextureFrame& Frame : FrameMips)
 		{
-			Frame.SparseVolumeTextureSceneProxy->GetMemorySize(&SizeCPU, &SizeGPU);
+			if (Frame.SparseVolumeTextureSceneProxy)
+			{
+				Frame.SparseVolumeTextureSceneProxy->GetMemorySize(&SizeCPU, &SizeGPU);
+			}
 		}
 	}
 	ISparseVolumeTextureStreamingManager& StreamingManager = IStreamingManager::Get().GetSparseVolumeTextureStreamingManager();
@@ -518,10 +1060,10 @@ void UStreamableSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& Cumulati
 	CumulativeResourceSize.AddDedicatedVideoMemoryBytes(SizeGPU);
 }
 
-const FSparseVolumeTextureSceneProxy* UStreamableSparseVolumeTexture::GetStreamedFrameProxyOrFallback(int32 FrameIndex) const
+const FSparseVolumeTextureSceneProxy* UStreamableSparseVolumeTexture::GetStreamedFrameProxyOrFallback(int32 FrameIndex, int32 MipLevel) const
 {
 	ISparseVolumeTextureStreamingManager& StreamingManager = IStreamingManager::Get().GetSparseVolumeTextureStreamingManager();
-	const FSparseVolumeTextureSceneProxy* Proxy = StreamingManager.GetSparseVolumeTextureSceneProxy(this, FrameIndex, true);
+	const FSparseVolumeTextureSceneProxy* Proxy = StreamingManager.GetSparseVolumeTextureSceneProxy(this, FrameIndex, MipLevel, true);
 
 	int32 FallbackFrameIndex = FrameIndex;
 	while (!Proxy)
@@ -532,13 +1074,13 @@ const FSparseVolumeTextureSceneProxy* UStreamableSparseVolumeTexture::GetStreame
 			UE_LOG(LogSparseVolumeTexture, Warning, TEXT("Failed to get ANY streamed SparseVolumeTexture frame  SVT: %s, FrameIndex: %i"), *GetName(), FrameIndex);
 			return nullptr;
 		}
-		Proxy = StreamingManager.GetSparseVolumeTextureSceneProxy(this, FallbackFrameIndex, false);
+		Proxy = StreamingManager.GetSparseVolumeTextureSceneProxy(this, FallbackFrameIndex, MipLevel, false);
 	}
 
 	return Proxy;
 }
 
-TArrayView<const FSparseVolumeTextureFrame> UStreamableSparseVolumeTexture::GetFrames() const
+TArrayView<const FSparseVolumeTextureFrameMips> UStreamableSparseVolumeTexture::GetFrames() const
 {
 	return Frames;
 }
@@ -549,29 +1091,35 @@ void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataAndCreateSceneP
 	UE::DerivedData::FRequestOwner DDCRequestOwner(UE::DerivedData::EPriority::Normal);
 	{
 		UE::DerivedData::FRequestBarrier DDCRequestBarrier(DDCRequestOwner);
-		for (FSparseVolumeTextureFrame& Frame : Frames)
+		for (FSparseVolumeTextureFrameMips& FrameMips : Frames)
 		{
-			// Release any previously allocated render thread proxy
-			if (Frame.SparseVolumeTextureSceneProxy)
+			for (FSparseVolumeTextureFrame& Frame : FrameMips)
 			{
-				BeginReleaseResource(Frame.SparseVolumeTextureSceneProxy);
-			}
-			else
-			{
-				Frame.SparseVolumeTextureSceneProxy = new FSparseVolumeTextureSceneProxy();
-			}
+				// Release any previously allocated render thread proxy
+				if (Frame.SparseVolumeTextureSceneProxy)
+				{
+					BeginReleaseResource(Frame.SparseVolumeTextureSceneProxy);
+				}
+				else
+				{
+					Frame.SparseVolumeTextureSceneProxy = new FSparseVolumeTextureSceneProxy();
+				}
 
-			GenerateOrLoadDDCRuntimeDataForFrame(Frame, DDCRequestOwner);
+				GenerateOrLoadDDCRuntimeDataForFrame(Frame, DDCRequestOwner);
+			}
 		}
 	}
 
 	// Wait for all DDC requests to complete before creating the proxies
 	DDCRequestOwner.Wait();
 
-	for (FSparseVolumeTextureFrame& Frame : Frames)
+	for (FSparseVolumeTextureFrameMips& FrameMips : Frames)
 	{
-		// Runtime data is now valid, initialize the render thread proxy
-		BeginInitResource(Frame.SparseVolumeTextureSceneProxy);
+		for (FSparseVolumeTextureFrame& Frame : FrameMips)
+		{
+			// Runtime data is now valid, initialize the render thread proxy
+			BeginInitResource(Frame.SparseVolumeTextureSceneProxy);
+		}
 	}
 
 	IStreamingManager::Get().GetSparseVolumeTextureStreamingManager().AddSparseVolumeTexture(this);
@@ -664,21 +1212,24 @@ const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVol
 	// When an AnimatedSparseVolumeTexture is used as SparseVolumeTexture, it can only be previewed using a single preview frame.
 	check(!Frames.IsEmpty());
 	const int32 FrameIndex = PreviewFrameIndex % Frames.Num();
-	return GetStreamedFrameProxyOrFallback(FrameIndex);
+	const int32 MipLevel = FMath::Clamp(PreviewMipLevel, 0, GetNumMipLevels() - 1);
+	return GetStreamedFrameProxyOrFallback(FrameIndex, MipLevel);
 }
 
-const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureFrameSceneProxy(int32 FrameIndex) const
+const FSparseVolumeTextureSceneProxy* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureFrameSceneProxy(int32 FrameIndex, int32 MipLevel) const
 {
 	check(!Frames.IsEmpty());
 	FrameIndex = FrameIndex % Frames.Num();
-	return GetStreamedFrameProxyOrFallback(FrameIndex);
+	MipLevel = FMath::Clamp(MipLevel, 0, GetNumMipLevels() - 1);
+	return GetStreamedFrameProxyOrFallback(FrameIndex, MipLevel);
 }
 
-const FSparseVolumeAssetHeader* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureFrameHeader(int32 FrameIndex) const
+const FSparseVolumeAssetHeader* UAnimatedSparseVolumeTexture::GetSparseVolumeTextureFrameHeader(int32 FrameIndex, int32 MipLevel) const
 {
 	check(!Frames.IsEmpty());
 	FrameIndex = FrameIndex % Frames.Num();
-	const FSparseVolumeTextureSceneProxy* Proxy = GetStreamedFrameProxyOrFallback(FrameIndex);
+	MipLevel = FMath::Clamp(MipLevel, 0, GetNumMipLevels() - 1);
+	const FSparseVolumeTextureSceneProxy* Proxy = GetStreamedFrameProxyOrFallback(FrameIndex, MipLevel);
 	return Proxy ? &Proxy->GetHeader() : nullptr;
 }
 
@@ -689,7 +1240,7 @@ USparseVolumeTextureFrame::USparseVolumeTextureFrame(const FObjectInitializer& O
 {
 }
 
-USparseVolumeTextureFrame* USparseVolumeTextureFrame::CreateFrame(USparseVolumeTexture* Texture, int32 FrameIndex)
+USparseVolumeTextureFrame* USparseVolumeTextureFrame::CreateFrame(USparseVolumeTexture* Texture, int32 FrameIndex, int32 MipLevel)
 {
 	if (!Texture)
 	{
@@ -701,7 +1252,7 @@ USparseVolumeTextureFrame* USparseVolumeTextureFrame::CreateFrame(USparseVolumeT
 	{
 		UStreamableSparseVolumeTexture* StreamableSVT = CastChecked<UStreamableSparseVolumeTexture>(Texture);
 		check(StreamableSVT);
-		Proxy = StreamableSVT->GetStreamedFrameProxyOrFallback(FrameIndex);
+		Proxy = StreamableSVT->GetStreamedFrameProxyOrFallback(FrameIndex, MipLevel);
 	}
 	else
 	{
@@ -711,17 +1262,17 @@ USparseVolumeTextureFrame* USparseVolumeTextureFrame::CreateFrame(USparseVolumeT
 	if (Proxy)
 	{
 		USparseVolumeTextureFrame* Frame = NewObject<USparseVolumeTextureFrame>();
-		Frame->Initialize(Proxy, Texture->GetVolumeBounds());
+		Frame->Initialize(Proxy, Texture->GetVolumeResolution());
 		return Frame;
 	}
 	
 	return nullptr;
 }
 
-void USparseVolumeTextureFrame::Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FBox& InVolumeBounds)
+void USparseVolumeTextureFrame::Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FIntVector& InVolumeResolution)
 {
 	SceneProxy = InSceneProxy;
-	VolumeBounds = InVolumeBounds;
+	VolumeResolution = InVolumeResolution;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -792,7 +1343,7 @@ void UAnimatedSparseVolumeTextureController::SetFractionalFrameIndex(float Frame
 		return;
 	}
 
-	const int32 FrameCount = SparseVolumeTexture->GetFrameCount();
+	const int32 FrameCount = SparseVolumeTexture->GetNumFrames();
 	Frame = FMath::Fmod(Frame, (float)FrameCount);
 	Time = Frame / (FrameRate + UE_SMALL_NUMBER);
 }
@@ -814,7 +1365,7 @@ float UAnimatedSparseVolumeTextureController::GetFractionalFrameIndex()
 		return 0.0f;
 	}
 
-	const int32 FrameCount = SparseVolumeTexture->GetFrameCount();
+	const int32 FrameCount = SparseVolumeTexture->GetNumFrames();
 	const float FrameIndexF = FMath::Fmod(Time * FrameRate, (float)FrameCount);
 	return FrameIndexF;
 }
@@ -831,7 +1382,7 @@ USparseVolumeTextureFrame* UAnimatedSparseVolumeTextureController::GetCurrentFra
 	const int32 FrameIndex = (int32)FrameIndexF;
 
 	// Create and initialize a USparseVolumeTextureFrame which holds the frame to sample and can be bound to shaders
-	USparseVolumeTextureFrame* Frame = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexture, FrameIndex);
+	USparseVolumeTextureFrame* Frame = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexture, FrameIndex, MipLevel);
 
 	return Frame;
 }
@@ -849,8 +1400,8 @@ void UAnimatedSparseVolumeTextureController::GetLerpFrames(USparseVolumeTextureF
 	LerpAlpha = FMath::Frac(FrameIndexF);
 
 	// Create and initialize a USparseVolumeTextureFrame which holds the frame to sample and can be bound to shaders
-	Frame0 = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexture, FrameIndex);
-	Frame1 = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexture, FrameIndex + 1);
+	Frame0 = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexture, FrameIndex, MipLevel);
+	Frame1 = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexture, FrameIndex + 1, MipLevel);
 }
 
 float UAnimatedSparseVolumeTextureController::GetDuration()
@@ -860,7 +1411,7 @@ float UAnimatedSparseVolumeTextureController::GetDuration()
 		return 0.0f;
 	}
 
-	const int32 FrameCount = SparseVolumeTexture->GetFrameCount();
+	const int32 FrameCount = SparseVolumeTexture->GetNumFrames();
 	const float AnimationDuration = FrameCount / (FrameRate + UE_SMALL_NUMBER);
 	return AnimationDuration;
 }

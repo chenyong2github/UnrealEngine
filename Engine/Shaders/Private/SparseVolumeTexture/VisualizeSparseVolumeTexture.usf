@@ -47,6 +47,8 @@ float3 WorldToLocalNoScale0;
 float3 WorldToLocalNoScale1;
 float3 WorldToLocalNoScale2;
 uint ComponentToVisualize;
+uint MipLevel;
+float Extinction;
 
 
 Texture3D<float4> SparseVolumeTextureA;
@@ -130,62 +132,21 @@ void VisualizeSparseVolumeTexturePS(
 		tMax.y *= tDelta.y;
 		tMax.z *= tDelta.z;
 
+		float StepLength = float(1 << MipLevel);
+
 		LOOP
 		while (P.x >= 0 && P.y >= 0 && P.z >= 0 && P.x <= VolumeResolution.x && P.y <= VolumeResolution.y && P.z <= VolumeResolution.z)
 		{
-			float StepLength = 0.0;
-#if 0
-			// Slow reference
-			P += RayDir * 0.005;
-			StepLength = 0.005;
-#else
-			// Amanatides 3D-DDA 
-			if (tMax.x < tMax.y)
+			if (all(P >= 0.0f) && all(P < SparseVolumeTextureResolution))
 			{
-				if (tMax.x < tMax.z)
-				{
-					P.x += stepSign.x;
-					tMax.x += tDelta.x;
-
-					StepLength += 1;
-				}
-				else
-				{
-					P.z += stepSign.z;
-					tMax.z += tDelta.z;
-
-					StepLength += 1;
-				}
-			}
-			else
-			{
-				if (tMax.y < tMax.z)
-				{
-					P.y += stepSign.y;
-					tMax.y += tDelta.y;
-
-					StepLength += 1;
-				}
-				else
-				{
-					P.z += stepSign.z;
-					tMax.z += tDelta.z;
-
-					StepLength += 1;
-				}
-			}
-#endif
-
-			float3 PageCoordF = floor(P * (1.0 / SPARSE_VOLUME_TILE_RES));
-			const uint EncodedPage = SparseVolumeTexturePageTable.Load(int4(int3(PageCoordF), 0));
-			if (EncodedPage)
-			{
+				const float3 PageCoordF = floor(P * (1.0 / SPARSE_VOLUME_TILE_RES));
+				const uint EncodedPage = SparseVolumeTexturePageTable.Load(int4(int3(PageCoordF), 0));
 				const int3 TileCoord = int3(
-					 EncodedPage         & 0x7FF,
-					(EncodedPage >> 11 ) & 0x7FF,
-					(EncodedPage >> 22 ) & 0x3FF);
+					EncodedPage & 0x7FF,
+					(EncodedPage >> 11) & 0x7FF,
+					(EncodedPage >> 22) & 0x3FF);
 
-				int3 VoxelCoord = TileCoord * SPARSE_VOLUME_TILE_RES + int3(P - PageCoordF * SPARSE_VOLUME_TILE_RES);
+				const int3 VoxelCoord = TileCoord * SPARSE_VOLUME_TILE_RES + int3(P - PageCoordF * SPARSE_VOLUME_TILE_RES);
 
 				float Density = 0.0f;
 				if (ComponentToVisualize < 4)
@@ -200,18 +161,51 @@ void VisualizeSparseVolumeTexturePS(
 				}
 
 				if (Density > 0.0f)
-
 				{
-				#if 0
+#if 0
 					//OutLuminanceAlpha = float4(Rand3DPCG16(PageCoordF).x / 65535.0f, Rand3DPCG16(VoxelCoord).y / 65535.0f, 0.0, 0.0);
 					//OutLuminanceAlpha = float4(Rand3DPCG16(PageCoordF) / 65535.0f, 0.0);
 					OutLuminanceAlpha = float4(Rand3DPCG16(VoxelCoord) / 65535.0f, 0.0);
 					break;
-				#else
-					Transmittance *= exp(-StepLength * Density * 0.025);
-				#endif
+#else
+					Transmittance *= exp(-StepLength * Density * Extinction);
+#endif
 				}
 			}
+
+#if 0
+			// Slow reference
+			P += RayDir * 0.005;
+			StepLength = 0.005;
+#else
+			// Amanatides 3D-DDA 
+			if (tMax.x < tMax.y)
+			{
+				if (tMax.x < tMax.z)
+				{
+					P.x += stepSign.x;
+					tMax.x += tDelta.x;
+				}
+				else
+				{
+					P.z += stepSign.z;
+					tMax.z += tDelta.z;
+				}
+			}
+			else
+			{
+				if (tMax.y < tMax.z)
+				{
+					P.y += stepSign.y;
+					tMax.y += tDelta.y;
+				}
+				else
+				{
+					P.z += stepSign.z;
+					tMax.z += tDelta.z;
+				}
+			}
+#endif
 		}
 	}
 
