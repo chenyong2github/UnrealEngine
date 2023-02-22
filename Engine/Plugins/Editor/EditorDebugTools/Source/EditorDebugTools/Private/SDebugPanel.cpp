@@ -43,15 +43,6 @@ void SDebugPanel::Construct(const FArguments& InArgs)
 		.HAlign(HAlign_Left)
 		[
 			SNew( SButton )
-			.Text( NSLOCTEXT("DeveloperToolbox", "TestSuite", "Test Suite") )
-			.OnClicked( this, &SDebugPanel::OnTestSuiteClicked )
-		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding( 4.0f )
-		.HAlign(HAlign_Left)
-		[
-			SNew( SButton )
 			.Text( NSLOCTEXT("DeveloperToolbox", "DisplayTextureAtlases", "Display Texture Atlases") )
 			.OnClicked( this, &SDebugPanel::OnDisplayTextureAtlases )
 		]
@@ -94,20 +85,5 @@ FReply SDebugPanel::OnDisplayFontAtlases()
 FReply SDebugPanel::OnFlushFontCacheClicked()
 {
 	FSlateApplication::Get().GetRenderer()->FlushFontCache(TEXT("SDebugPanel::OnFlushFontCacheClicked"));
-	return FReply::Handled();
-}
-
-FReply SDebugPanel::OnTestSuiteClicked()
-{
-#if !UE_BUILD_SHIPPING
-	if (FCoreStyle::IsStarshipStyle())
-	{
-		RestoreStarshipSuite();
-	}
-	else
-	{
-		RestoreSlateTestSuite();
-	}
-#endif
 	return FReply::Handled();
 }
