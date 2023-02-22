@@ -830,7 +830,12 @@ namespace mu
     inline ImagePtr ImageResizeLinear( int imageCompressionQuality, const Image* pBasePtr,
                                        FImageSize destSize )
     {
-		MUTABLE_CPUPROFILER_SCOPE(ImageResizeLinear)
+		MUTABLE_CPUPROFILER_SCOPE(ImageResizeLinear);
+		
+		if(pBasePtr->GetSize()==destSize)
+		{
+			return pBasePtr->Clone();
+		}
 
 		check(!(pBasePtr->m_flags & Image::IF_CANNOT_BE_SCALED));
 

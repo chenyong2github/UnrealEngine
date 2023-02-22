@@ -11,6 +11,7 @@
 #include "MuR/MeshPrivate.h"
 #include "MuR/InstancePrivate.h"
 #include "MuR/ParametersPrivate.h"
+#include "MuR/MutableTrace.h"
 
 
 namespace mu
@@ -385,7 +386,7 @@ namespace mu
 
 			inline bool IsValid() const
 			{
-				return bool(it0) && bool(it1);
+				return bool(it0) || bool(it1);
 			}
 		};
 
@@ -407,27 +408,25 @@ namespace mu
 	/** Interface for storage of data while Mutable code is being executed. */
 	class FProgramCache
 	{
-	private:
+	public:
 
 		TArray< ExecutionIndex, TInlineAllocator<4> > m_usedRangeIndices;
 
-		// first value of the pair:
-		// 0 : value not valid (not set).
-		// 1 : valid, not worth freeing for memory
-		// 2 : valid, worth freeing
+		/** Cached resources while the program is executing. 
+		* first value of the pair:
+		* 0 : value not valid (not set).
+		* 1 : valid, not worth freeing for memory
+		* 2 : valid, worth freeing
+		*/
 		CodeContainer< TPair<int32, Ptr<const RefCounted>> > m_resources;
-
-		// TODO
-	public:
 
 		//! Addressed with OP::ADDRESS. It is true if value for an image desc is valid.
 		TArray<bool> m_descCache;
 
-		//! The number of times an operation will be run for the current build operation.
-		//! \todo: this could be optimised by merging in other CodeContainers here.
-		CodeContainer<int> m_opHitCount;
-
-	public:
+		/** The number operation stages waiting for the output of a specific operation.
+		 * \todo: this could be optimised by merging in other CodeContainers here.
+		 */
+		CodeContainer<int32> m_opHitCount;
 
 
 		inline const ExecutionIndex& GetRageIndex(uint32_t i)
@@ -469,7 +468,8 @@ namespace mu
 
 		void Init(size_t size)
 		{
-			m_resources.clear();
+			// This prevents live update cache reusal
+			//m_resources.clear();
 			m_resources.resize(size);
 			m_opHitCount.resize(size);
 		}
@@ -512,6 +512,43 @@ namespace mu
 		}
 
 
+		/** Remove all intermediate data (big and small) from the memory except for the one that has been explicitely
+		* marked as state cache.
+		*/
+		void CheckHitCountsCleared()
+		{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			//MUTABLE_CPUPROFILER_SCOPE(CheckHitCountsCleared);
+
+			//int32 IncorrectCount = 0;
+			//CodeContainer<int>::iterator it = m_opHitCount.begin();
+			//for (; it.IsValid(); ++it)
+			//{
+			//	int32 Count = *it;
+			//	if (Count>0 && Count < 3000000)
+			//	{
+			//		// We don't manage the hitcounts of small types that don't use much memory
+			//		if (m_resources[it.get_address()].Key==2)
+			//		{
+			//			// Op hitcount should have reached 0, otherwise, it means we requested an operation but never read 
+			//			// the result.
+			//			++IncorrectCount;
+			//		}
+			//	}
+			//}
+
+			//if (IncorrectCount > 0)
+			//{
+			//	UE_LOG(LogMutableCore, Log, TEXT("The op-hit-count didn't hit 0 for %5d operations. This may mean that too much memory is cached."), IncorrectCount);
+			//	//check(false);
+			//}
+#endif
+		}
+
+
+		/** Remove all intermediate data (big and small) from the memory except for the one that has been explicitely
+		* marked as state cache.
+		*/
 		void ClearCacheLayer0()
 		{
 			MUTABLE_CPUPROFILER_SCOPE(ClearLayer0);
@@ -522,22 +559,29 @@ namespace mu
 				int32 Count = *it;
 				if (Count < 3000000)
 				{
-					SetUnused(it.get_address());
+					// SetUnused only clears if the data size is relevant (mesh or image) but we need to 
+					// clear it in all cases here, because it may have become invalid because of parameter changes.
+					// SetUnused(it.get_address());
+					m_resources[it.get_address()].Value = nullptr;
+					m_resources[it.get_address()].Key = 0;
 					*it = 0;
 				}
 			}
 		}
 
 
+		/** Remove all intermediate data (big and small) from the memory including the one that has been explicitely
+		* marked as state cache.
+		*/
 		void ClearCacheLayer1()
 		{
 			MUTABLE_CPUPROFILER_SCOPE(ClearLayer1);
 
-			CodeContainer<int>::iterator it = m_opHitCount.begin();
+			CodeContainer< TPair<int32, Ptr<const RefCounted>> >::iterator it = m_resources.begin();
 			for (; it.IsValid(); ++it)
 			{
-				m_resources[it.get_address()].Value = nullptr;
-				m_resources[it.get_address()].Key = 0;
+				(*it).Value = nullptr;
+				(*it).Key = 0;
 			}
 
 			m_descCache.SetNum(0);
@@ -775,11 +819,18 @@ namespace mu
 
 		inline void IncreaseHitCount(FCacheAddress at)
 		{
-			m_opHitCount[at] += 1;
+			// Don't count hits for instruction 0, which is always null. It is usually already
+			// check that At is not 0, and then it is not requested, generating a stray non-zero count
+			// at its position.
+			if (at.At)
+			{
+				m_opHitCount[at] += 1;
+			}
 		}
 
 		inline void SetForceCached(OP::ADDRESS at)
 		{
+			// \TODO: Review the ,0,0
 			m_opHitCount[{at, 0, 0}] = 0xffffff;
 		}
 
@@ -1000,10 +1051,6 @@ namespace mu
         bool CheckUpdatedParameters( const FLiveInstance* pLiveInstance,
 			const Ptr<const Parameters>& pParams,
 			uint64& OutUpdatedParameters );
-
-        // Profile metrics
-        std::atomic<uint64> m_profileMetrics[ size_t(ProfileMetric::_Count) ];
-
 
 	public:
 

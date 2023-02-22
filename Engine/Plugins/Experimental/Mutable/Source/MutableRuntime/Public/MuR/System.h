@@ -13,9 +13,13 @@
 #include "MuR/Types.h"
 #include "Templates/Tuple.h"
 
-// This define will use the newer task graph interface to manage mutable concurrency. 
-// This is currently broken in Switch and maybe other consoles, for some unknown reason.
+/** This define will use the newer task graph interface to manage mutable concurrency. It has not been fully tested. */
 //#define MUTABLE_USE_NEW_TASKGRAPH
+
+/** If set to 1, this enables some expensive Unreal Insights traces, but can lead to 5x slower mutable operation. 
+* Other cheaper traces are enabled at all times.
+*/
+#define UE_MUTABLE_ENABLE_SLOW_TRACES	0
 
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
 #include "Tasks/Task.h"
@@ -45,6 +49,7 @@ namespace mu
 
         //! A memory allocation failed
         OutOfMemory,
+
 
         //! A file was missing or the data was corrupted.
         StreamingError,
@@ -194,34 +199,6 @@ namespace mu
         //! that keep models loaded. This could be called when a game finishes, or a change of
         //! level.
         void ClearCaches();
-
-        //-----------------------------------------------------------------------------------------
-        // Debugging and profiling
-        //-----------------------------------------------------------------------------------------
-
-        //! Types of metrics that can be queried
-        enum class ProfileMetric : uint8
-        {
-            //! No metric
-            None,
-
-            //! Number of model instances currently being created or updated.
-            LiveInstanceCount,
-
-            //! Number of bytes currently loaded for streaming data.
-            StreamingCacheBytes,
-
-            //! Number of update operations performed since the system was created.
-            InstanceUpdateCount,
-
-            //! Utility value that doesn't really represent a metric.
-            _Count
-        };
-
-        //! Get the values of several profile metrics. This can be called any time in a valid
-        //! system object from any thread.
-        //! These values can change any time.
-        uint64 GetProfileMetric( ProfileMetric ) const;
 
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern

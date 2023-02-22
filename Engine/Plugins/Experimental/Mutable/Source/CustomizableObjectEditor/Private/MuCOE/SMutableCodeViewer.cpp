@@ -123,7 +123,13 @@ public:
 			// See if the operation type accepts additional information in the label
 			switch ( Type )
 			{
+			case mu::OP_TYPE::BO_PARAMETER:
 			case mu::OP_TYPE::NU_PARAMETER:
+			case mu::OP_TYPE::SC_PARAMETER:
+			case mu::OP_TYPE::CO_PARAMETER:
+			case mu::OP_TYPE::PR_PARAMETER:
+			case mu::OP_TYPE::IM_PARAMETER:
+			case mu::OP_TYPE::ST_PARAMETER:
 			{
 				mu::OP::ParameterArgs Args = Program.GetOpArgs<mu::OP::ParameterArgs>(RowItem->MutableOperation);
 				OpName += TEXT(" ");

@@ -349,7 +349,7 @@ namespace  mu
 
 			if (dep.Type == FScheduledOp::EType::Full)
 			{
-				m_pSystem->m_memory->IncreaseHitCount(at);				
+				m_pSystem->m_memory->IncreaseHitCount(at);
 			}
 		}
 
@@ -358,6 +358,9 @@ namespace  mu
 
 		/** */
 		void CompleteRomLoadOp(FRomLoadOp& o);
+		
+		/** Update debug stats. */
+		void UpdateTraces();
 
     };
 

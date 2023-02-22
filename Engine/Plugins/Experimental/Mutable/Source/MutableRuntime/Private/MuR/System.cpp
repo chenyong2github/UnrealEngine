@@ -31,6 +31,7 @@
 #include "Templates/SharedPointer.h"
 #include "Templates/Tuple.h"
 #include "Trace/Detail/Channel.h"
+#include "ProfilingDebugging/CountersTrace.h"
 
 
 namespace mu
@@ -107,11 +108,6 @@ namespace mu
         m_pStreamInterface = nullptr;
         m_pImageParameterGenerator = nullptr;
         m_maxMemory = 0;
-
-        for(uint8 p=0; p< uint8(ProfileMetric::_Count); ++p)
-        {
-            m_profileMetrics[p]=0;
-        }
 	
 		m_modelCache.m_romBudget = pSettings->GetPrivate()->m_streamingCacheBytes;
 	}
@@ -181,17 +177,8 @@ namespace mu
         // TODO
     }
 
-
-    //---------------------------------------------------------------------------------------------
-    uint64 System::GetProfileMetric( ProfileMetric m ) const
-    {
-        size_t metric = size_t(m);
-
-        if (metric>=size_t(ProfileMetric::_Count)) return 0;
-
-        return m_pD->m_profileMetrics[metric];
-    }
-
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_LiveInstances, TEXT("MutableRuntime/LiveInstances"));
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_Updates, TEXT("MutableRuntime/Updates"));
 
     //---------------------------------------------------------------------------------------------
     Instance::ID System::NewInstance( const TSharedPtr<const Model>& pModel )
@@ -207,7 +194,7 @@ namespace mu
 		instanceData.m_memory = MakeShared<FProgramCache>();
 		m_pD->m_liveInstances.Add(instanceData);
 
-		m_pD->m_profileMetrics[size_t(System::ProfileMetric::LiveInstanceCount)]++;
+		TRACE_COUNTER_SET(MutableRuntime_LiveInstances, m_pD->m_liveInstances.Num());
 
 		return instanceData.m_instanceID;
 	}
@@ -221,6 +208,7 @@ namespace mu
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 		MUTABLE_CPUPROFILER_SCOPE(SystemBeginUpdate);
+		TRACE_COUNTER_INCREMENT(MutableRuntime_Updates);
 
 		if (!pParams)
 		{
@@ -275,13 +263,14 @@ namespace mu
 
 		InstancePtrConst pResult = pLiveInstance->m_memory->GetInstance(FCacheAddress(rootAt, 0, 0));
 
+		// Debug check to see if we managed the op-hit-counts correctly
+		pLiveInstance->m_memory->CheckHitCountsCleared();
+
 		pLiveInstance->m_pInstance = pResult;
 		if (pResult)
 		{
 			pResult->GetPrivate()->m_id = pLiveInstance->m_instanceID;
 		}
-
-		m_pD->m_profileMetrics[size_t(System::ProfileMetric::InstanceUpdateCount)]++;
 
 		m_pD->m_memory = nullptr;
 
@@ -311,7 +300,7 @@ namespace mu
 					pLiveInstance->m_pOldParameters.get(),
 					res.m_rootAddress, MipsToSkip, InImageLOD);
 
-				// We always need ot return something valid.
+				// We always need to return something valid.
 				if (!pResult)
 				{
 					pResult = new mu::Image(16, 16, 1, EImageFormat::IF_RGBA_UBYTE);
@@ -433,14 +422,22 @@ namespace mu
 
 		// Reduce the cache until it fits the limit.
 		uint64 totalMemory = m_pD->m_modelCache.EnsureCacheBelowBudget(0, [](const Model*, int) {return false;});
-		m_pD->m_profileMetrics[size_t(System::ProfileMetric::StreamingCacheBytes)] = totalMemory;
-
 
 		Private::FLiveInstance* pLiveInstance = m_pD->FindLiveInstance(instanceID);
 		if (pLiveInstance)
 		{
 			pLiveInstance->m_pInstance = nullptr;
-			pLiveInstance->m_memory->ClearCacheLayer1();
+			
+			// Debug check to see if we managed the op-hit-counts correctly
+			pLiveInstance->m_memory->CheckHitCountsCleared();
+
+			// We don't want to clear the cache layer 1 because it contains data that can be useful for a 
+			// future update (same states, just runtime parameters changed).
+			//pLiveInstance->m_memory->ClearCacheLayer1();
+
+			// We need to clear the layer 0 cache, because it contains data that is only valid for the current 
+			// parameter values (unless it is data marked as state cache)
+			pLiveInstance->m_memory->ClearCacheLayer0();
 		}
 	}
 
@@ -456,7 +453,9 @@ namespace mu
 			{
 				return (Instance.m_instanceID == instanceID);
 			});
-		m_pD->m_profileMetrics[int32(System::ProfileMetric::LiveInstanceCount)]-=Removed;
+
+		TRACE_COUNTER_SET(MutableRuntime_LiveInstances, m_pD->m_liveInstances.Num());
+
 	}
 
 
@@ -626,6 +625,9 @@ namespace mu
 		m_memory = MakeShared<FProgramCache>();
 		m_memory->Init(pModel->GetPrivate()->m_program.m_opAddress.Num());
 
+		// Remove previously results cached from previous builds.
+		m_memory->ClearCacheLayer0();
+
 		PrepareCache(pModel.Get(), -1);
 	}
 
@@ -744,13 +746,16 @@ namespace mu
 		mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 		if (GetOpDataType(opType) == DT_IMAGE)
 		{
-			m_memory->ClearCacheLayer0();
 			RunCode(pModel, pParams, at, System::AllLODs, uint8(MipsToSkip), InImageLOD);
 			if (bUnrecoverableError)
 			{
 				return nullptr;
 			}
 			ImagePtrConst Result = m_memory->GetImage(FCacheAddress(at, 0, MipsToSkip));
+
+			// Debug check to see if we managed the op-hit-counts correctly
+			m_memory->CheckHitCountsCleared();
+
 			return Result;
 		}
 
@@ -766,13 +771,16 @@ namespace mu
 		mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 		if (GetOpDataType(opType) == DT_MESH)
 		{
-			m_memory->ClearCacheLayer0();
 			RunCode(pModel, pParams, at);
 			if (bUnrecoverableError)
 			{
 				return nullptr;
 			}
 			MeshPtrConst pResult = m_memory->GetMesh(FCacheAddress(at, 0, 0));
+
+			// Debug check to see if we managed the op-hit-counts correctly
+			m_memory->CheckHitCountsCleared();
+
 			return pResult;
 		}
 
@@ -883,6 +891,8 @@ namespace mu
         return m_cachePerModel.Last();
     }
 
+	/** */
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_StreamingBytes, TEXT("MutableRuntime/StreamingBytes"));
 
     //---------------------------------------------------------------------------------------------
     uint64 FModelCache::EnsureCacheBelowBudget( uint64 additionalMemory,
@@ -955,7 +965,10 @@ namespace mu
                 {
                     // None found
                     finished = true;
-                    UE_LOG(LogMutableCore,Log, TEXT("EnsureCacheBelowBudget failed to free all the necessary memory."));
+
+					// If we reached this it means we need to use more memory for streaming data that was given to mutable.
+					// Try to continue anyway.
+                    //UE_LOG(LogMutableCore,Log, TEXT("EnsureCacheBelowBudget failed to free all the necessary memory."));
                 }
                 else
                 {
@@ -967,6 +980,8 @@ namespace mu
                 }
             }
         }
+
+		TRACE_COUNTER_SET(MutableRuntime_StreamingBytes, totalMemory);
 
         return totalMemory;
     }

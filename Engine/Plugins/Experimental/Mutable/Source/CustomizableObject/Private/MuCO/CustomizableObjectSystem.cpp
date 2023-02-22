@@ -71,11 +71,6 @@ DEFINE_STAT(STAT_MutableInstanceBuildTimeAvrg);
 DEFINE_STAT(STAT_MutableStreamingOps);
 DEFINE_STAT(STAT_MutableStreamingCache);
 
-// These stats are provided by the mutable runtime
-DEFINE_STAT(STAT_MutableProfile_LiveInstanceCount);
-DEFINE_STAT(STAT_MutableProfile_StreamingCacheBytes);
-DEFINE_STAT(STAT_MutableProfile_InstanceUpdateCount);
-
 DECLARE_CYCLE_STAT(TEXT("MutablePendingRelease Time"), STAT_MutablePendingRelease, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("MutableTask"), STAT_MutableTask, STATGROUP_Game);
 
@@ -1163,11 +1158,13 @@ namespace impl
 
 			TArray<bool> Relevant;
 			Relevant.SetNumZeroed(NumParameters);
-			MutableSystem->GetParameterRelevancy(MutableModel, MutableParameters, Relevant.GetData());
+			// This prevents live update cache reusal
+			//MutableSystem->GetParameterRelevancy(MutableModel, MutableParameters, Relevant.GetData());
 
 			for (int32 ParamIndex = 0; ParamIndex < NumParameters; ++ParamIndex)
 			{
-				if (Relevant[ParamIndex])
+				// This prevents live update cache reusal
+				//if (Relevant[ParamIndex])
 				{
 					OperationData->RelevantParametersInProgress.Add(ParamIndex);
 				}
@@ -1763,20 +1760,6 @@ namespace impl
 			SET_DWORD_STAT(STAT_MutableInstanceBuildTime, deltaMs);
 			SET_DWORD_STAT(STAT_MutableInstanceBuildTimeAvrg, CustomizableObjectSystemPrivateData->TotalBuildMs / CustomizableObjectSystemPrivateData->TotalBuiltInstances);
 			SET_DWORD_STAT(STAT_MutableStreamingCache, streamingCache);
-
-			mu::System* MutableSystem = CustomizableObjectSystemPrivateData->MutableSystem.get();
-			if (MutableSystem)
-			{
-				SET_DWORD_STAT(STAT_MutableProfile_LiveInstanceCount, MutableSystem->GetProfileMetric(mu::System::ProfileMetric::LiveInstanceCount));
-				SET_DWORD_STAT(STAT_MutableProfile_StreamingCacheBytes, MutableSystem->GetProfileMetric(mu::System::ProfileMetric::StreamingCacheBytes));
-				SET_DWORD_STAT(STAT_MutableProfile_InstanceUpdateCount, MutableSystem->GetProfileMetric(mu::System::ProfileMetric::InstanceUpdateCount));
-			}
-			else
-			{
-				SET_DWORD_STAT(STAT_MutableProfile_LiveInstanceCount, 0);
-				SET_DWORD_STAT(STAT_MutableProfile_StreamingCacheBytes, 0);
-				SET_DWORD_STAT(STAT_MutableProfile_InstanceUpdateCount, 0);
-			}
 		}
 
 		// End Update

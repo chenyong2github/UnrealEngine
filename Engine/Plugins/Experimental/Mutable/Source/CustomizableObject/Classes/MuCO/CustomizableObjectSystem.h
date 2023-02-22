@@ -65,11 +65,6 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Avrg Instance Build Time"), STAT_Mut
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Streaming Ops"), STAT_MutableStreamingOps, STATGROUP_Mutable, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Streaming Cache"), STAT_MutableStreamingCache, STATGROUP_Mutable, );
 
-// These stats are provided by the mutable runtime
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Profile-LiveInstanceCount"), STAT_MutableProfile_LiveInstanceCount, STATGROUP_Mutable, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Profile-StreamingCacheBytes"), STAT_MutableProfile_StreamingCacheBytes, STATGROUP_Mutable, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Profile-InstanceUpdateCount"), STAT_MutableProfile_InstanceUpdateCount, STATGROUP_Mutable, );
-
 
 #if WITH_EDITOR
 

@@ -11,6 +11,7 @@
 #include "Math/UnrealMathSSE.h"
 #include "Misc/AssertionMacros.h"
 #include "MuR/CodeRunner.h"
+#include "MuR/System.h"
 #include "MuR/Image.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/Layout.h"
@@ -42,6 +43,7 @@
 #include "Templates/SharedPointer.h"
 #include "Templates/Tuple.h"
 #include "Trace/Detail/Channel.h"
+#include "ProfilingDebugging/CountersTrace.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("MutableCoreTask"), STAT_MutableCoreTask, STATGROUP_Game);
@@ -101,8 +103,91 @@ namespace mu
 	}
 
 
+	//---------------------------------------------------------------------------------------------
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_OpenTask, TEXT("MutableRuntime/OpenTask"));
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_ClosedTasks, TEXT("MutableRuntime/ClosedTasks"));
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_IssuedTasks, TEXT("MutableRuntime/IssuedTasks"));
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_PCache_Keep, TEXT("MutableRuntime/PCache/Keep"));
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_PCache_Burn, TEXT("MutableRuntime/PCache/Burn"));
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_PCache_Update, TEXT("MutableRuntime/PCache/UpdateCount"));
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_PCache_UpdateSize, TEXT("MutableRuntime/PCache/UpdateSize"));
+
+	void CodeRunner::UpdateTraces()
+	{
+#if UE_MUTABLE_ENABLE_SLOW_TRACES && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+
+		//// Code runner status
+		//TRACE_COUNTER_SET(MutableRuntime_OpenTask, OpenTasks.Num());
+		//TRACE_COUNTER_SET(MutableRuntime_ClosedTasks, ClosedTasks.Num());
+		//TRACE_COUNTER_SET(MutableRuntime_IssuedTasks, IssuedTasks.Num());
+
+		//// Program cache status
+		//{
+		//	CodeContainer< TPair<int32, Ptr<const RefCounted>> >::iterator It = GetMemory().m_resources.begin();
+		//	int32 NumKeep = 0;
+		//	int32 NumBurn = 0;
+		//	for (; It.IsValid(); ++It)
+		//	{
+		//		int32 State = (*It).Key;
+		//		if (State == 1)
+		//		{
+		//			++NumKeep;
+		//		}
+		//		else if (State == 2)
+		//		{
+		//			++NumBurn;
+		//		}
+		//	}
+		//	TRACE_COUNTER_SET(MutableRuntime_PCache_Keep, NumKeep);
+		//	TRACE_COUNTER_SET(MutableRuntime_PCache_Burn, NumBurn);
+		//}
+
+		//// Program cache types
+		//{
+		//	int32 NumUpdateCacheResources = 0;
+		//	int32 UpdateCacheResourcesSize = 0;
+		//	CodeContainer<int32>::iterator It = GetMemory().m_opHitCount.begin();
+		//	for (; It.IsValid(); ++It)
+		//	{
+		//		int32 Count = *It;
+		//		if ( (Count > 0x0fffff)
+		//			&& 
+		//			GetMemory().IsValid(It.get_address()))
+		//		{
+		//			++NumUpdateCacheResources;
+
+		//			OP_TYPE OpType = m_pModel->GetPrivate()->m_program.GetOpType(It.get_address().At);
+		//			DATATYPE DataType = GetOpDataType(OpType);
+		//			switch (DataType)
+		//			{
+		//			case DATATYPE::DT_MESH:
+		//			{
+		//				const Mesh* Resource = reinterpret_cast<const Mesh*>(GetMemory().m_resources[It.get_address()].Value.get());
+		//				UpdateCacheResourcesSize += Resource->GetDataSize();
+		//				break;
+		//			}
+		//			case DATATYPE::DT_IMAGE:
+		//			{
+		//				const Image* Resource = reinterpret_cast<const Image*>(GetMemory().m_resources[It.get_address()].Value.get());
+		//				UpdateCacheResourcesSize += Resource->GetDataSize();
+		//				break;
+		//			}
+		//			default:
+		//				check(false);
+		//				break;
+		//			}
+		//		}
+		//	}
+		//	TRACE_COUNTER_SET(MutableRuntime_PCache_Update, NumUpdateCacheResources);
+		//	TRACE_COUNTER_SET(MutableRuntime_PCache_UpdateSize, UpdateCacheResourcesSize);
+		//}
+
+#endif
+	}
+
+
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::Run ()
+    void CodeRunner::Run()
     {
 		bUnrecoverableError = false;
 
@@ -116,6 +201,7 @@ namespace mu
 
         while( !OpenTasks.IsEmpty() || !ClosedTasks.IsEmpty() || !IssuedTasks.IsEmpty())
         {
+			UpdateTraces();
 			// Debug: log the amount of tasks that we'd be able to run concurrently:
 			//{
 			//	int32 ClosedReady = ClosedTasks.Num();
@@ -160,6 +246,7 @@ namespace mu
 				}
 			}
 
+			UpdateTraces();
 
 			while (!OpenTasks.IsEmpty())
 			{
@@ -261,6 +348,8 @@ namespace mu
 					}
 				}
 
+				UpdateTraces();
+
 				if (bProfile)
 				{
 					++NumRunOps;
@@ -275,6 +364,8 @@ namespace mu
 				{
 					CompleteRomLoadOp(o);
 				}
+
+				UpdateTraces();
 			}
 
 			// Look for a closed task with dependencies satisfied and move them to open.
@@ -305,6 +396,8 @@ namespace mu
 				{
 					++Index;
 				}
+
+				UpdateTraces();
 			}
 
 			// Debug: Did we dead-lock?
@@ -360,6 +453,7 @@ namespace mu
 					//check(false);
 				}
 
+				UpdateTraces();
 			}
 		}
 
