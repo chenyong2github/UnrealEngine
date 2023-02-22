@@ -6469,9 +6469,9 @@ bool UMaterial::CastsRayTracedShadows() const
 	return bCastRayTracedShadows;
 }
 
-float UMaterial::GetMaxWorldPositionOffsetDistance() const
+float UMaterial::GetMaxWorldPositionOffsetDisplacement() const
 {
-	return MaxWorldPositionOffsetDistance;
+	return MaxWorldPositionOffsetDisplacement;
 }
 
 void UMaterial::SetShadingModel(EMaterialShadingModel NewModel)

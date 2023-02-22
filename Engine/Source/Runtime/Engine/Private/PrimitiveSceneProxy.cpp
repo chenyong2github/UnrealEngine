@@ -344,7 +344,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	VirtualTextureMinCoverage(InComponent->VirtualTextureMinCoverage)
 ,	DynamicIndirectShadowMinVisibility(0)
 ,	DistanceFieldSelfShadowBias(0.0f)
-,	MaxWPODistance(0.0f)
+,	MaxWPODisplacement(0.0f)
 ,	PrimitiveComponentId(InComponent->ComponentId)
 ,	Scene(InComponent->GetScene())
 ,	PrimitiveSceneInfo(nullptr)
@@ -580,7 +580,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.CacheShadowAsStatic(PrimitiveSceneInfo ? PrimitiveSceneInfo->ShouldCacheShadowAsStatic() : false)
 				.OutputVelocity(bOutputVelocity)
 				.EvaluateWorldPositionOffset(EvaluateWorldPositionOffset() && AnyMaterialHasWorldPositionOffset())
-				.MaxWorldPositionOffsetDistance(GetMaxWorldPositionOffsetDistance())
+				.MaxWorldPositionOffsetDisplacement(GetMaxWorldPositionOffsetDisplacement())
 				.LightingChannelMask(GetLightingChannelMask())
 				.LightmapDataIndex(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0)
 				.LightmapUVIndex(GetLightMapCoordinateIndex())
@@ -687,7 +687,7 @@ void FPrimitiveSceneProxy::SetTransform(const FMatrix& InLocalToWorld, const FBo
 	bIsLocalToWorldDeterminantNegative = LocalToWorld.Determinant() < 0.0f;
 
 	// Update the cached bounds. Pad them to account for max WPO
-	const float PadAmount = GetMaxWorldPositionOffsetDistance();
+	const float PadAmount = GetMaxWorldPositionOffsetDisplacement();
 	Bounds = PadBounds(InBounds, PadAmount);
 	LocalBounds = PadLocalBounds(InLocalBounds, LocalToWorld, PadAmount);
 	ActorPosition = InActorPosition;
@@ -891,7 +891,7 @@ bool FPrimitiveSceneProxy::WouldSetTransformBeRedundant_AnyThread(const FMatrix&
 	// Can be called by any thread, so be careful about modifying this.
 
 	// Account for padding that will be added to the bounds in SetTransform
-	const float PadAmount = GetMaxWorldPositionOffsetDistance();
+	const float PadAmount = GetMaxWorldPositionOffsetDisplacement();
 
 	if (ActorPosition != InActorPosition)
 	{
@@ -1084,7 +1084,7 @@ void FPrimitiveSceneProxy::GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds)
 {
 	// if we padded the local bounds for WPO, un-pad them for the "pre-skinned" bounds
 	// (the idea being that WPO is a form of deformation, similar to skinning)
-	OutBounds = PadLocalBounds(LocalBounds, GetLocalToWorld(), -GetMaxWorldPositionOffsetDistance());
+	OutBounds = PadLocalBounds(LocalBounds, GetLocalToWorld(), -GetMaxWorldPositionOffsetDisplacement());
 }
 
 /**
@@ -1133,7 +1133,7 @@ void FPrimitiveSceneProxy::SetLightingChannels_GameThread(FLightingChannels Ligh
 void FPrimitiveSceneProxy::SetInstanceLocalBounds(uint32 InstanceIndex, const FRenderBounds& InBounds, bool bPadForWPO)
 {
 	InstanceLocalBounds[InstanceIndex] = bPadForWPO ? 
-		PadLocalRenderBounds(InBounds, GetLocalToWorld(), GetMaxWorldPositionOffsetDistance()) : InBounds;
+		PadLocalRenderBounds(InBounds, GetLocalToWorld(), GetMaxWorldPositionOffsetDisplacement()) : InBounds;
 }
 
 #if ENABLE_DRAW_DEBUG

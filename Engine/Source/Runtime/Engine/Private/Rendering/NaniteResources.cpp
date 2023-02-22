@@ -508,12 +508,12 @@ void FSceneProxyBase::DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* 
 	}
 }
 
-void FSceneProxyBase::CalculateMaxWPODistance()
+void FSceneProxyBase::CalculateMaxWPODisplacement()
 {
-	MaxWPODistance = 0.0f;
+	MaxWPODisplacement = 0.0f;
 	for (const auto& MaterialSection : GetMaterialSections())
 	{
-		MaxWPODistance = FMath::Max(MaxWPODistance, MaterialSection.MaxWPODistance);
+		MaxWPODisplacement = FMath::Max(MaxWPODisplacement, MaterialSection.MaxWPODisplacement);
 	}
 }
 
@@ -671,7 +671,7 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 		if (bEvaluateWorldPositionOffset && MaterialSection.MaterialRelevance.bUsesWorldPositionOffset)
 		{
 			bProgrammableRasterMaterial = true;
-			MaterialSection.MaxWPODistance = ShadingMaterial->GetMaxWorldPositionOffsetDistance();
+			MaterialSection.MaxWPODisplacement = ShadingMaterial->GetMaxWorldPositionOffsetDisplacement();
 		}
 
 		// NOTE: MaterialRelevance.bTwoSided does not go into bHasProgrammableRaster because we want only want this flag to control culling, not a full raster bin
@@ -690,8 +690,8 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 		bHasProgrammableRaster |= bProgrammableRasterMaterial;
 	}
 
-	// Now that the material sections are initialized, we can determine MaxWPODistance
-	CalculateMaxWPODistance();
+	// Now that the material sections are initialized, we can determine MaxWPODisplacement
+	CalculateMaxWPODisplacement();
 
 	// Nanite supports distance field representation for fully opaque meshes.
 	bSupportsDistanceFieldRepresentation = CombinedMaterialRelevance.bOpaque && DistanceFieldData && DistanceFieldData->IsValid();;

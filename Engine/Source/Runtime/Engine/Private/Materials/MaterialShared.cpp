@@ -4497,7 +4497,7 @@ FMaterialInstanceBasePropertyOverrides::FMaterialInstanceBasePropertyOverrides()
 	,bOverride_TwoSided(false)
 	,bOverride_bIsThinSurface(false)
 	,bOverride_OutputTranslucentVelocity(false)
-	,bOverride_MaxWorldPositionOffsetDistance(false)
+	,bOverride_MaxWorldPositionOffsetDisplacement(false)
 	,TwoSided(0)
 	,bIsThinSurface(false)
 	,DitheredLODTransition(0)
@@ -4506,7 +4506,7 @@ FMaterialInstanceBasePropertyOverrides::FMaterialInstanceBasePropertyOverrides()
 	,BlendMode(BLEND_Opaque)
 	,ShadingModel(MSM_DefaultLit)
 	,OpacityMaskClipValue(.333333f)
-	,MaxWorldPositionOffsetDistance(0.0f)
+	,MaxWorldPositionOffsetDisplacement(0.0f)
 {
 
 }
@@ -4520,7 +4520,7 @@ bool FMaterialInstanceBasePropertyOverrides::operator==(const FMaterialInstanceB
 		bOverride_bIsThinSurface == Other.bOverride_bIsThinSurface &&
 		bOverride_DitheredLODTransition == Other.bOverride_DitheredLODTransition &&
 		bOverride_OutputTranslucentVelocity == Other.bOverride_OutputTranslucentVelocity &&
-		bOverride_MaxWorldPositionOffsetDistance == Other.bOverride_MaxWorldPositionOffsetDistance &&
+		bOverride_MaxWorldPositionOffsetDisplacement == Other.bOverride_MaxWorldPositionOffsetDisplacement &&
 		OpacityMaskClipValue == Other.OpacityMaskClipValue &&
 		BlendMode == Other.BlendMode &&
 		ShadingModel == Other.ShadingModel &&
@@ -4528,7 +4528,7 @@ bool FMaterialInstanceBasePropertyOverrides::operator==(const FMaterialInstanceB
 		bIsThinSurface == Other.bIsThinSurface &&
 		DitheredLODTransition == Other.DitheredLODTransition &&
 		bCastDynamicShadowAsMasked == Other.bCastDynamicShadowAsMasked &&
-		MaxWorldPositionOffsetDistance == Other.MaxWorldPositionOffsetDistance;
+		MaxWorldPositionOffsetDisplacement == Other.MaxWorldPositionOffsetDisplacement;
 }
 
 bool FMaterialInstanceBasePropertyOverrides::operator!=(const FMaterialInstanceBasePropertyOverrides& Other)const

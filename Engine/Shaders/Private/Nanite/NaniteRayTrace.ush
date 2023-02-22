@@ -92,7 +92,7 @@ bool RayAABBIntersection(float3 RayOrigin, float3 RayDirection, float3 BoxCenter
 
 bool NaniteClustersIntersection(
 	uint PageIndex, uint BaseClusterIndex, uint NumClusters, float CutError,
-	float3 Origin, float3 Direction, float4x4 LocalToTranslatedWorld, float3 InvScale, float3 BoundsCenter, float MaxWPODistance,
+	float3 Origin, float3 Direction, float4x4 LocalToTranslatedWorld, float3 InvScale, float3 BoundsCenter, float MaxWPODisplacement,
 	float TMin, inout float RayTCurrent, inout FNaniteIntersectionResult NaniteIntersectionResult)
 {
 	bool bIntersection = false;
@@ -104,7 +104,7 @@ bool NaniteClustersIntersection(
 
 #if TEST_BBOX
 		float3 BoxBoundsCenter = (Cluster.BoxBoundsCenter - BoundsCenter) * InvScale;
-		float3 BoxBoundsExtent = (Cluster.BoxBoundsExtent + MaxWPODistance) * InvScale;
+		float3 BoxBoundsExtent = (Cluster.BoxBoundsExtent + MaxWPODisplacement) * InvScale;
 
 		const bool bBoxIntersection = RayAABBIntersection(Origin, Direction, BoxBoundsCenter, BoxBoundsExtent, TMin, RayTCurrent);
 #else
@@ -203,7 +203,7 @@ bool NaniteIntersection(float3 Origin, float3 Direction, FInstanceSceneData Inst
 
 #if TEST_BBOX
 			float3 BoxBoundsCenter = (HierarchyNodeSlice.BoxBoundsCenter - BoundsCenter) * InvScale;
-			float3 BoxBoundsExtent = (HierarchyNodeSlice.BoxBoundsExtent + PrimitiveData.MaxWPODistance) * InvScale;
+			float3 BoxBoundsExtent = (HierarchyNodeSlice.BoxBoundsExtent + PrimitiveData.MaxWPODisplacement) * InvScale;
 
 			bool bBoxIntersection = RayAABBIntersection(Origin, Direction, BoxBoundsCenter, BoxBoundsExtent, TMin, RayTCurrent);
 #else
@@ -225,7 +225,7 @@ bool NaniteIntersection(float3 Origin, float3 Direction, FInstanceSceneData Inst
 				const uint PageIndex = HierarchyNodeSlice.ChildStartReference >> NANITE_MAX_CLUSTERS_PER_PAGE_BITS;
 				const uint BaseClusterIndex = HierarchyNodeSlice.ChildStartReference & NANITE_MAX_CLUSTERS_PER_PAGE_MASK;
 
-				if (NaniteClustersIntersection(PageIndex, BaseClusterIndex, NumClusters, CutError, Origin, Direction, LocalToTranslatedWorld, InvScale, BoundsCenter, PrimitiveData.MaxWPODistance, TMin, RayTCurrent, NaniteIntersectionResult))
+				if (NaniteClustersIntersection(PageIndex, BaseClusterIndex, NumClusters, CutError, Origin, Direction, LocalToTranslatedWorld, InvScale, BoundsCenter, PrimitiveData.MaxWPODisplacement, TMin, RayTCurrent, NaniteIntersectionResult))
 				{
 					bIntersection = true;
 				}

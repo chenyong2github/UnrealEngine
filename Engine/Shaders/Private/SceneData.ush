@@ -181,7 +181,7 @@ struct FPrimitiveSceneData
 	float2 		InstanceDrawDistanceMinMaxSquared;
 	float		InstanceWPODisableDistanceSquared;
 	uint		NaniteRayTracingDataOffset;
-	float		MaxWPODistance;
+	float		MaxWPODisplacement;
 	uint		CustomStencilValueAndMask;
 	float4		CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA]; // TODO: Move to associated array to shrink primitive data and pack cachelines more effectively
 };
@@ -230,7 +230,7 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 	PrimitiveData.InstanceWPODisableDistanceSquared	= Primitive.InstanceWPODisableDistanceSquared;
 	PrimitiveData.PersistentPrimitiveIndex			= Primitive.PersistentPrimitiveIndex;
 	PrimitiveData.NaniteRayTracingDataOffset		= Primitive.NaniteRayTracingDataOffset;
-	PrimitiveData.MaxWPODistance					= Primitive.MaxWPODistance;
+	PrimitiveData.MaxWPODisplacement				= Primitive.MaxWPODisplacement;
 	PrimitiveData.CustomStencilValueAndMask			= Primitive.CustomStencilValueAndMask;
 	
 	UNROLL
@@ -360,7 +360,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.InstanceDrawDistanceMinMaxSquared		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).xy;
 	PrimitiveData.InstanceWPODisableDistanceSquared		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).z;
 	PrimitiveData.NaniteRayTracingDataOffset			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).w);
-	PrimitiveData.MaxWPODistance						= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).x;
+	PrimitiveData.MaxWPODisplacement					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).x;
 	PrimitiveData.CustomStencilValueAndMask				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).y);
 	// .zw Unused
 

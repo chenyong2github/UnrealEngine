@@ -731,11 +731,11 @@ public:
 
 	inline bool EvaluateWorldPositionOffset() const { return bEvaluateWorldPositionOffset; }
 	inline bool AnyMaterialHasWorldPositionOffset() const { return bAnyMaterialHasWorldPositionOffset; }
-	inline float GetMaxWorldPositionOffsetDistance() const
+	inline float GetMaxWorldPositionOffsetDisplacement() const
 	{
 		if (EvaluateWorldPositionOffset() && AnyMaterialHasWorldPositionOffset())
 		{
-			return MaxWPODistance;
+			return MaxWPODisplacement;
 		}
 		return 0.0f;
 	}
@@ -1424,7 +1424,7 @@ protected:
 	 * Maximum distance of World Position Offset used by materials. Values > 0.0 will cause the WPO to be clamped and the primitive's
 	 * bounds to be padded to account for it. Value of zero will not clamp the WPO of materials nor pad bounds (legacy behavior)
 	 */
-	float MaxWPODistance;
+	float MaxWPODisplacement;
 
 	/** Array of runtime virtual textures that this proxy should render to. */
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;

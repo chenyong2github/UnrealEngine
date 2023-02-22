@@ -1691,9 +1691,9 @@ bool UMaterialInstanceDynamic::IsMasked() const
 	return Parent ? Parent->IsMasked() : false;
 }
 
-float UMaterialInstanceDynamic::GetMaxWorldPositionOffsetDistance() const
+float UMaterialInstanceDynamic::GetMaxWorldPositionOffsetDisplacement() const
 {
-	return Parent ? Parent->GetMaxWorldPositionOffsetDistance() : 0.0f;
+	return Parent ? Parent->GetMaxWorldPositionOffsetDisplacement() : 0.0f;
 }
 
 FMaterialShadingModelField UMaterialInstanceDynamic::GetShadingModels() const
@@ -2086,7 +2086,7 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 		DitheredLODTransition = 0;
 		bIsShadingModelFromMaterialExpression = 0;
 		bOutputTranslucentVelocity = false;
-		MaxWorldPositionOffsetDistance = 0.0f;
+		MaxWorldPositionOffsetDisplacement = 0.0f;
 		return;
 	}
 
@@ -2208,14 +2208,14 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 		BasePropertyOverrides.DitheredLODTransition = DitheredLODTransition;
 	}
 
-	if (BasePropertyOverrides.bOverride_MaxWorldPositionOffsetDistance)
+	if (BasePropertyOverrides.bOverride_MaxWorldPositionOffsetDisplacement)
 	{
-		MaxWorldPositionOffsetDistance = BasePropertyOverrides.MaxWorldPositionOffsetDistance;
+		MaxWorldPositionOffsetDisplacement = BasePropertyOverrides.MaxWorldPositionOffsetDisplacement;
 	}
 	else
 	{
-		MaxWorldPositionOffsetDistance = Parent->GetMaxWorldPositionOffsetDistance();
-		BasePropertyOverrides.MaxWorldPositionOffsetDistance = MaxWorldPositionOffsetDistance;
+		MaxWorldPositionOffsetDisplacement = Parent->GetMaxWorldPositionOffsetDisplacement();
+		BasePropertyOverrides.MaxWorldPositionOffsetDisplacement = MaxWorldPositionOffsetDisplacement;
 	}
 }
 
@@ -4290,12 +4290,12 @@ void UMaterialInstance::GetBasePropertyOverridesHash(FSHAHash& OutHash)const
 		bHasOverrides = true;
 	}
 
-	float UsedMaxWorldPositionOffsetDistance = GetMaxWorldPositionOffsetDistance();
-	if (FMath::Abs(UsedMaxWorldPositionOffsetDistance - Mat->GetMaxWorldPositionOffsetDistance()) > UE_SMALL_NUMBER)
+	float UsedMaxWorldPositionOffsetDisplacement = GetMaxWorldPositionOffsetDisplacement();
+	if (FMath::Abs(UsedMaxWorldPositionOffsetDisplacement - Mat->GetMaxWorldPositionOffsetDisplacement()) > UE_SMALL_NUMBER)
 	{
-		const FString HashString = TEXT("bOverride_MaxWorldPositionOffsetDistance");
+		const FString HashString = TEXT("bOverride_MaxWorldPositionOffsetDisplacement");
 		Hash.UpdateWithString(*HashString, HashString.Len());
-		Hash.Update((uint8*)&UsedMaxWorldPositionOffsetDistance, sizeof(UsedMaxWorldPositionOffsetDistance));
+		Hash.Update((uint8*)&UsedMaxWorldPositionOffsetDisplacement, sizeof(UsedMaxWorldPositionOffsetDisplacement));
 		bHasOverrides = true;
 	}
 
@@ -4318,7 +4318,7 @@ bool UMaterialInstance::HasOverridenBaseProperties()const
 		(IsDitheredLODTransition() != Parent->IsDitheredLODTransition()) ||
 		(GetCastDynamicShadowAsMasked() != Parent->GetCastDynamicShadowAsMasked()) ||
 		(IsTranslucencyWritingVelocity() != Parent->IsTranslucencyWritingVelocity()) ||
-		(GetMaxWorldPositionOffsetDistance() != Parent->GetMaxWorldPositionOffsetDistance())
+		(GetMaxWorldPositionOffsetDisplacement() != Parent->GetMaxWorldPositionOffsetDisplacement())
 		))
 	{
 		return true;
@@ -4341,7 +4341,7 @@ FString UMaterialInstance::GetBasePropertyOverrideString() const
 		BasePropString += FString::Printf(TEXT("bOverride_DitheredLODTransition_%d, "), (IsDitheredLODTransition() != Parent->IsDitheredLODTransition()));
 		BasePropString += FString::Printf(TEXT("bOverride_CastDynamicShadowAsMasked_%d, "), (GetCastDynamicShadowAsMasked() != Parent->GetCastDynamicShadowAsMasked()));
 		BasePropString += FString::Printf(TEXT("bOverride_OutputTranslucentVelocity_%d "), (IsTranslucencyWritingVelocity() != Parent->IsTranslucencyWritingVelocity()));
-		BasePropString += FString::Printf(TEXT("bOverride_MaxWorldPositionOffsetDistance_%d "), (GetMaxWorldPositionOffsetDistance() != Parent->GetMaxWorldPositionOffsetDistance()));
+		BasePropString += FString::Printf(TEXT("bOverride_MaxWorldPositionOffsetDisplacement_%d "), (GetMaxWorldPositionOffsetDisplacement() != Parent->GetMaxWorldPositionOffsetDisplacement()));
 	}
 	return BasePropString;
 }
@@ -4392,9 +4392,9 @@ bool UMaterialInstance::IsDitheredLODTransition() const
 	return DitheredLODTransition;
 }
 
-float UMaterialInstance::GetMaxWorldPositionOffsetDistance() const
+float UMaterialInstance::GetMaxWorldPositionOffsetDisplacement() const
 {
-	return MaxWorldPositionOffsetDistance;
+	return MaxWorldPositionOffsetDisplacement;
 }
 
 bool UMaterialInstance::IsMasked() const

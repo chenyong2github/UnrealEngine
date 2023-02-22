@@ -945,9 +945,9 @@ void UMaterialEditorInstanceConstant::CopyBasePropertiesFromParent()
 	{
 		BasePropertyOverrides.DitheredLODTransition = SourceInstance->IsDitheredLODTransition();
 	}
-	if (!BasePropertyOverrides.bOverride_MaxWorldPositionOffsetDistance)
+	if (!BasePropertyOverrides.bOverride_MaxWorldPositionOffsetDisplacement)
 	{
-		BasePropertyOverrides.MaxWorldPositionOffsetDistance = SourceInstance->GetMaxWorldPositionOffsetDistance();
+		BasePropertyOverrides.MaxWorldPositionOffsetDisplacement = SourceInstance->GetMaxWorldPositionOffsetDisplacement();
 	}
 
 	// Copy the Lightmass settings...

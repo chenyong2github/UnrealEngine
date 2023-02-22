@@ -2885,7 +2885,7 @@ bool ShouldEnableWorldPositionOffset(FMaterialVertexParameters Parameters)
 
 float3 ClampWorldPositionOffset(FMaterialVertexParameters Parameters, float3 InOffset)
 {
-	const float MaxWPODim = GetPrimitiveData(Parameters).MaxWPODistance;
+	const float MaxWPODim = GetPrimitiveData(Parameters).MaxWPODisplacement;
 	return MaxWPODim <= 0.0f ? InOffset : clamp(InOffset, -MaxWPODim.xxx, MaxWPODim.xxx);
 }
 

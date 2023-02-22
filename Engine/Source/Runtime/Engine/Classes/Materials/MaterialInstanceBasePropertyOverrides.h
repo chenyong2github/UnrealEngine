@@ -47,7 +47,7 @@ struct ENGINE_API FMaterialInstanceBasePropertyOverrides
 
 	/** Enables override of the max world position offset property. */
 	UPROPERTY(EditAnywhere, Category = Material)
-	uint8 bOverride_MaxWorldPositionOffsetDistance : 1;
+	uint8 bOverride_MaxWorldPositionOffsetDisplacement : 1;
 
 	/** Indicates that the material should be rendered without backface culling and the normal should be flipped for backfaces. */
 	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_TwoSided"))
@@ -82,8 +82,8 @@ struct ENGINE_API FMaterialInstanceBasePropertyOverrides
 	float OpacityMaskClipValue;
 
 	/** The maximum World Position Offset distance. Zero means no maximum. */
-	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_MaxWorldPositionOffsetDistance", ClampMin=0.0f, NoSpinbox = true))
-	float MaxWorldPositionOffsetDistance;
+	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_MaxWorldPositionOffsetDisplacement", ClampMin=0.0f, NoSpinbox = true))
+	float MaxWorldPositionOffsetDisplacement;
 
 	FMaterialInstanceBasePropertyOverrides();
 

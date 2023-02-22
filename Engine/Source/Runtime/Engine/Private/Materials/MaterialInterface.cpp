@@ -1221,7 +1221,7 @@ bool UMaterialInterface::IsMasked() const
 	return false;
 }
 
-float UMaterialInterface::GetMaxWorldPositionOffsetDistance() const
+float UMaterialInterface::GetMaxWorldPositionOffsetDisplacement() const
 {
 	return 0.0f;
 }
