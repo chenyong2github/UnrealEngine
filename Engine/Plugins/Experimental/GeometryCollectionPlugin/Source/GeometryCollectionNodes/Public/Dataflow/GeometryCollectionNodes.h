@@ -367,6 +367,61 @@ public:
 
 };
 
+UENUM(BlueprintType)
+enum class EFloatArrayToIntArrayFunctionEnum : uint8
+{
+	Dataflow_FloatToInt_Function_Floor UMETA(DisplayName = "Floor()"),
+	Dataflow_FloatToInt_Function_Ceil UMETA(DisplayName = "Ceil()"),
+	Dataflow_FloatToInt_Function_Round UMETA(DisplayName = "Round()"),
+	Dataflow_FloatToInt_Function_Truncate UMETA(DisplayName = "Truncate()"),
+	Dataflow_FloatToInt_NonZeroToIndex UMETA(DisplayName = "Non-zero to Index"),
+	Dataflow_FloatToInt_ZeroToIndex UMETA(DisplayName = "Zero to Index"),
+	//~~~
+	//256th entry
+	Dataflow_Max                UMETA(Hidden)
+};
+
+/**
+ *
+ * Converts a Float array to Int array using the specified method.
+ *
+ */
+USTRUCT()
+struct FFloatArrayToIntArrayDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+		DATAFLOW_NODE_DEFINE_INTERNAL(FFloatArrayToIntArrayDataflowNode, "FloatArrayToIntArray", "Math|Conversions", "")
+
+public:
+	/** Conversion method:
+	* Floor takes the floor of each input float value - 1.1 turns into 1.
+	* Ceil takes the ceil - 1.1 turns into 2.
+	* Round rounds to the nearest integer - 1.1 turns into 1.
+	* Tuncate trucates like a type cast - 1.1 turns into 1.
+	* Non-zero to Index appends the index of all non-zero values to the output array.
+	* Zero to Index appends the index of all zero values to the output array.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Float");
+	EFloatArrayToIntArrayFunctionEnum Function = EFloatArrayToIntArrayFunctionEnum::Dataflow_FloatToInt_NonZeroToIndex;
+
+	/** Float array value to convert */
+	UPROPERTY(EditAnywhere, Category = "Float", meta = (DataflowInput))
+	TArray<float> FloatArray;
+
+	/** Int array output */
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<int32> IntArray;
+
+	FFloatArrayToIntArrayDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&FloatArray);
+		RegisterOutputConnection(&IntArray);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
 
 /**
  *
