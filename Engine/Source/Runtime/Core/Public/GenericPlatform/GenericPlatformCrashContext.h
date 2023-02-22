@@ -431,6 +431,9 @@ public:
 	/** Helper to clean out old files in the crash report client config folder. */
 	CORE_API static void PurgeOldCrashConfig();
 
+	/** Set or change the epic account id associated with the crash session. Will override the epic account id stored in the registry for reporting when present. */ 
+	static void SetEpicAccountId(const FString& EpicAccountId);
+
 	/** Clears the engine data dictionary */
 	CORE_API static void ResetEngineData();
 

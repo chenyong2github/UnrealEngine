@@ -38,8 +38,8 @@ IAnalyticsProviderET& FCrashReportAnalytics::GetProvider()
 	checkf(bIsInitialized && Analytics.IsValid(), TEXT("FCrashReportAnalytics::GetProvider called outside of Initialize/Shutdown."));
 	return *Analytics.Get();
 }
- 
-void FCrashReportAnalytics::Initialize()
+
+void FCrashReportAnalytics::Initialize(const FString& EpicAccountId)
 {
 	checkf(!bIsInitialized, TEXT("FCrashReportAnalytics::Initialize called more than once."));
 
@@ -68,7 +68,8 @@ void FCrashReportAnalytics::Initialize()
 		Analytics = FAnalyticsET::Get().CreateAnalyticsProvider(Config);
 		if( Analytics.IsValid() )
 		{
-			Analytics->SetUserID(FString::Printf(TEXT("%s|%s|%s"), *FPlatformMisc::GetLoginId(), *FPlatformMisc::GetEpicAccountId(), *FPlatformMisc::GetOperatingSystemId()));
+			const FString AnalyticsEpicAccountId = EpicAccountId.IsEmpty() ? *FPlatformMisc::GetEpicAccountId() : *EpicAccountId;
+			Analytics->SetUserID(FString::Printf(TEXT("%s|%s|%s"), *FPlatformMisc::GetLoginId(), *AnalyticsEpicAccountId, *FPlatformMisc::GetOperatingSystemId()));
 			Analytics->StartSession();
 		}
 	}

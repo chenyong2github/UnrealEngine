@@ -888,6 +888,7 @@ static bool LoadTempCrashContextFromFile(FSharedCrashContext& CrashContext, uint
 	FindAndCopyValue(ContextProperties, TEXT("AppDefaultLocale"), SessionContext.DefaultLocale);
 	FindAndParseValue(ContextProperties, TEXT("IsUERelease"), SessionContext.bIsUERelease);
 	FindAndCopyValue(ContextProperties, TEXT("UserName"), SessionContext.UserName);
+	FindAndCopyValue(ContextProperties, TEXT("EpicAccountId"), SessionContext.EpicAccountId);
 	FindAndCopyValue(ContextProperties, TEXT("BaseDir"), SessionContext.BaseDir);
 	FindAndCopyValue(ContextProperties, TEXT("RootDir"), SessionContext.RootDir);
 	FindAndCopyValue(ContextProperties, TEXT("LoginId"), SessionContext.LoginIdStr);
@@ -1123,7 +1124,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					const bool bReportCrashAnalyticInfo = CrashContext.UserSettings.bSendUsageData;
 					if (bReportCrashAnalyticInfo)
 					{
-						FCrashReportAnalytics::Initialize();
+						FCrashReportAnalytics::Initialize(CrashContext.SessionContext.EpicAccountId);
 					}
 
 					FCrashReportAnalyticsSessionSummary::Get().OnCrashReportCollecting();
@@ -1196,7 +1197,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			FMemory::Memzero(TempCrashContext);
 			if (LoadTempCrashContextFromFile(TempCrashContext, MonitorPid) && TempCrashContext.UserSettings.bSendUsageData)
 			{
-				FCrashReportAnalytics::Initialize();
+				FCrashReportAnalytics::Initialize(TempCrashContext.SessionContext.EpicAccountId);
 				if (FCrashReportAnalytics::IsAvailable())
 				{
 					TOptional<int32> ExitCodeOpt;

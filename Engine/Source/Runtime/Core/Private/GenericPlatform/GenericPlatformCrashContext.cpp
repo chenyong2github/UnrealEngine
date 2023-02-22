@@ -1094,6 +1094,11 @@ void FGenericCrashContext::PurgeOldCrashConfig()
 	}
 }
 
+void FGenericCrashContext::SetEpicAccountId(const FString& EpicAccountId)
+{
+	NCached::Set(NCached::Session.EpicAccountId, *EpicAccountId);
+}
+
 void FGenericCrashContext::ResetEngineData()
 {
 	NCached::EngineData.Reset();

@@ -243,12 +243,31 @@ TSharedPtr<IAnalyticsPropertyStore> FAnalyticsSessionSummaryManager::MakeStore(u
 		PropertyStore.Reset(); // Ensure to return a null pointer if the store failed to create (not enough disk space for example)
 	}
 
+	WeakPropertyStores.Add(PropertyStore);
+	PruneTrackedPropertyStores();
+
 	return StaticCastSharedPtr<IAnalyticsPropertyStore>(PropertyStore);
 }
 
 void FAnalyticsSessionSummaryManager::SetSender(TSharedPtr<IAnalyticsSessionSummarySender> Sender)
 {
 	SummarySender = Sender;
+}
+
+void FAnalyticsSessionSummaryManager::SetUserId(const FString& InUserId)
+{
+	UserId = InUserId;
+
+	PruneTrackedPropertyStores();
+
+	for (TWeakPtr<IAnalyticsPropertyStore>& WeakPropertyStore : WeakPropertyStores)
+	{
+		if (TSharedPtr<IAnalyticsPropertyStore> PropertyStore = WeakPropertyStore.Pin())
+		{
+			AnalyticsManagerProperties::InternalSessionUserId.Set(PropertyStore.Get(), UserId);
+			PropertyStore->Flush();
+		}
+	}
 }
 
 void FAnalyticsSessionSummaryManager::Shutdown(bool bDiscard)
@@ -310,6 +329,17 @@ void FAnalyticsSessionSummaryManager::Tick()
 bool FAnalyticsSessionSummaryManager::IsPrincipalProcess() const
 {
 	return bIsPrincipal;
+}
+
+void FAnalyticsSessionSummaryManager::PruneTrackedPropertyStores()
+{
+	for (int32 index = WeakPropertyStores.Num() - 1; index >= 0; --index)
+	{
+		if (!WeakPropertyStores[index].IsValid())
+		{
+			WeakPropertyStores.RemoveAtSwap(index);
+		}
+	}
 }
 
 TMap<FString, FAnalyticsSessionSummaryManager::FProcessGroup> FAnalyticsSessionSummaryManager::GetSessionFiles() const

@@ -106,6 +106,12 @@ public:
 	void SetSender(TSharedPtr<IAnalyticsSessionSummarySender> Sender);
 
 	/**
+	 * Sets a the user id used for reporting analytics. Allows for changing the application user after startup. Will set the user id on
+	 * all existing stores created from this session summary manager.
+	 */
+	void SetUserId(const FString& UserId);
+
+	/**
 	 * Shuts down and sends the session summaries that can be sent, if a sender is set. Remember to flush and discard the
 	 * property store returned by MakeStore() before shutting down to prevent delaying the report.
 	 * @param bDiscard Whether the current session is discarded or not. Discarded sessions are not sent.
@@ -176,7 +182,11 @@ private:
 	/** Returns whether this manager instance represents the principal process of a group. */
 	bool IsPrincipalProcess() const;
 
+	/** Prune the list of property stores for invalid entries. */
+	void PruneTrackedPropertyStores();
+
 private:
+	TArray<TWeakPtr<IAnalyticsPropertyStore>> WeakPropertyStores;
 	TSharedPtr<IAnalyticsSessionSummarySender> SummarySender;
 	FString ProcessName;
 	FString ProcessGroupId;

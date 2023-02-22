@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ContainersFwd.h"
+#include "Delegates/Delegate.h"
 #include "IAnalyticsProviderET.h" // NOTE: Consider changing the code to replace IAnalyticProvider.h by IAnalyticProviderET.h
 
 class FEngineSessionManager;
@@ -57,11 +59,17 @@ public:
 	static ENGINE_API void LowDriveSpaceDetected();
 
 private:
+	static void AppendMachineStats(TArray<FAnalyticsEventAttribute>& EventAttributes);
+	static void OnEpicAccountIdChanged(const FString& EpicAccountId);
+
 	static bool bIsInitialized;
 	static ENGINE_API TSharedPtr<IAnalyticsProviderET> Analytics;
+	static ENGINE_API TSet<FString> SessionEpicAccountIds;
 };
 
 namespace UE::Analytics::Private {
+
+DECLARE_DELEGATE_OneParam(FOnEpicAccountIdChanged, const FString&);
 
 /**
   * Interface for allowing changes to engine analytics configuration intended for use by internal tools.
@@ -73,7 +81,7 @@ class IEngineAnalyticsConfigOverride
 public:
 	virtual ~IEngineAnalyticsConfigOverride() = default;
 	virtual void ApplyConfiguration(FAnalyticsET::Config& Config) = 0;
-	virtual void OnProviderCreated(IAnalyticsProviderET& provider) = 0;
+	virtual void OnInitialized(IAnalyticsProviderET& provider, const FOnEpicAccountIdChanged& OnEpicAccountIdChanged) = 0;
 };
 
 extern ENGINE_API IEngineAnalyticsConfigOverride* EngineAnalyticsConfigOverride;
