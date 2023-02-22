@@ -4,7 +4,7 @@
 #include "TestCommon/CoreUtilities.h"
 #include "TestCommon/CoreUObjectUtilities.h"
 #include "TestCommon/EngineUtilities.h"
-
+#include "Misc/DelayedAutoRegister.h"
 
 void InitAllThreadPoolsEditorEx(bool MultiThreaded)
 {
@@ -19,6 +19,8 @@ void InitStats()
 #if STATS
 	FThreadStats::StartThread();
 #endif // #if STATS
+
+	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StatSystemReady);
 }
 
 void InitAll(bool bAllowLogging, bool bMultithreaded)

@@ -6,6 +6,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Logging/LogSuppressionInterface.h"
 #include "Misc/CommandLine.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "Misc/QueuedThreadPool.h"
 
 #include "TestCommon/CoreUtilities.h"
@@ -98,6 +99,8 @@ void InitTaskGraph(bool MultiThreaded, ENamedThreads::Type ThreadToAttach)
 	FTaskTagScope Scope(ETaskTag::EGameThread);
 	FTaskGraphInterface::Startup(MultiThreaded ? FPlatformMisc::NumberOfWorkerThreadsToSpawn() : 1);
 	FTaskGraphInterface::Get().AttachToThread(ThreadToAttach);
+
+	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::TaskGraphSystemReady);
 }
 
 void CleanupTaskGraph()
