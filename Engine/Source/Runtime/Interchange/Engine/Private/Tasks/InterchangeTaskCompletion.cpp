@@ -61,12 +61,14 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 						ObjectInfo.Factory->Cancel();
 					}
 				}
-				break;
+				//Skip if cancel
+				continue;
 			}
 
 			const int32 SourceIndex = ObjectInfosPerSourceIndexPair.Key;
 			const bool bCallPostImportGameThreadCallback = ensure(AsyncHelper->SourceDatas.IsValidIndex(SourceIndex));
 
+			//First iteration to call SetupObject_GameThread and pipeline ExecutePostFactoryPipeline
 			for (const FImportAsyncHelper::FImportedObjectInfo& ObjectInfo : ObjectInfosPerSourceIndexPair.Value)
 			{
 				UObject* ImportedObject = ObjectInfo.ImportedObject;
@@ -130,11 +132,29 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 						, ImportedObject
 						, ObjectInfo.bIsReimport);
 				}
+			}
 
 #if WITH_EDITOR
+			//Second iteration to call PostEditChange
+			for (const FImportAsyncHelper::FImportedObjectInfo& ObjectInfo : ObjectInfosPerSourceIndexPair.Value)
+			{
+				UObject* ImportedObject = ObjectInfo.ImportedObject;
+				if (ImportedObject == nullptr || !IsValid(ImportedObject))
+				{
+					continue;
+				}
 				ImportedObject->PostEditChange();
-#endif
+			}
+#endif //WITH_EDITOR
 
+			//Third iteration to call FinalizeObject_GameThread
+			for (const FImportAsyncHelper::FImportedObjectInfo& ObjectInfo : ObjectInfosPerSourceIndexPair.Value)
+			{
+				UObject* ImportedObject = ObjectInfo.ImportedObject;
+				if (ImportedObject == nullptr || !IsValid(ImportedObject))
+				{
+					continue;
+				}
 				//Post import broadcast
 				if (bIsAsset)
 				{

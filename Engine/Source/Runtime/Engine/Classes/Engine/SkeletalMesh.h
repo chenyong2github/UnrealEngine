@@ -2129,10 +2129,6 @@ public:
 	/** Returns false if there is currently an async task running. USkinnedAsset interface. */
 	virtual bool IsAsyncTaskComplete() const override;
 
-	/** Try to cancel any pending async tasks.
-	 *  Returns true if there is no more async tasks pending, false otherwise.
-	 */
-	bool TryCancelAsyncTasks();
 #endif // WITH_EDITOR
 
 	/**

@@ -53,6 +53,7 @@ FSkinnedAssetCompilingManager::FSkinnedAssetCompilingManager()
 	: Notification(GetAssetNameFormat())
 {
 	SkinnedAssetCompilingManagerImpl::EnsureInitializedCVars();
+	PostReachabilityAnalysisHandle = FCoreUObjectDelegates::PostReachabilityAnalysis.AddRaw(this, &FSkinnedAssetCompilingManager::OnPostReachabilityAnalysis);
 }
 
 FName FSkinnedAssetCompilingManager::GetAssetTypeName() const
@@ -146,6 +147,8 @@ void FSkinnedAssetCompilingManager::Shutdown()
 			FinishCompilation(PendingSkinnedAssets);
 		}
 	}
+
+	FCoreUObjectDelegates::PostReachabilityAnalysis.Remove(PostReachabilityAnalysisHandle);
 }
 
 bool FSkinnedAssetCompilingManager::IsAsyncCompilationEnabled() const
@@ -464,6 +467,37 @@ void FSkinnedAssetCompilingManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 	ProcessSkinnedAssets(bLimitExecutionTime);
 
 	UpdateCompilationNotification();
+}
+
+void FSkinnedAssetCompilingManager::OnPostReachabilityAnalysis()
+{
+	if (GetNumRemainingJobs())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSkinnedAssetCompilingManager::CancelUnreachableMeshes);
+
+		TArray<USkinnedAsset*> PendingSkinnedMeshes;
+		PendingSkinnedMeshes.Reserve(GetNumRemainingJobs());
+
+		for (auto Iterator = RegisteredSkinnedAsset.CreateIterator(); Iterator; ++Iterator)
+		{
+			USkinnedAsset* SkinnedMesh = Iterator->GetEvenIfUnreachable();
+			if (SkinnedMesh && SkinnedMesh->IsUnreachable())
+			{
+				UE_LOG(LogSkeletalMesh, Verbose, TEXT("Cancelling skinned mesh %s async compilation because it's being garbage collected"), *SkinnedMesh->GetName());
+
+				if (SkinnedMesh->TryCancelAsyncTasks())
+				{
+					Iterator.RemoveCurrent();
+				}
+				else
+				{
+					PendingSkinnedMeshes.Add(SkinnedMesh);
+				}
+			}
+		}
+
+		FinishCompilation(PendingSkinnedMeshes);
+	}
 }
 
 #endif // #if WITH_EDITOR

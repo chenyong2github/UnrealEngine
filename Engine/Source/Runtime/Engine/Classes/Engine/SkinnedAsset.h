@@ -303,6 +303,11 @@ protected:
 	/** Complete the async task process - Can't be done in parallel. */
 	virtual void FinishAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) {}
 
+	/** Try to cancel any pending async tasks.
+	 *  Returns true if there is no more async tasks pending, false otherwise.
+	 */
+	virtual bool TryCancelAsyncTasks();
+
 	/** Holds the pointer to an async task if one exists. */
 	TUniquePtr<FSkinnedAssetAsyncBuildTask> AsyncTask;
 #endif // WITH_EDITOR

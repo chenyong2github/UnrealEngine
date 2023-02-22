@@ -392,6 +392,21 @@ TArray<FSkeletalMaterial>& USkinnedAsset::GetSkeletalMaterialDummyArray()
 	return Dummy;
 }
 
+#if WITH_EDITOR
+bool USkinnedAsset::TryCancelAsyncTasks()
+{
+	if (AsyncTask)
+	{
+		if (AsyncTask->IsDone() || AsyncTask->Cancel())
+		{
+			AsyncTask.Reset();
+		}
+	}
+
+	return AsyncTask == nullptr;
+}
+#endif //WITH_EDITOR
+
 FString USkinnedAsset::GetLODPathName(const USkinnedAsset* Mesh, int32 LODIndex)
 {
 #if RHI_ENABLE_RESOURCE_INFO

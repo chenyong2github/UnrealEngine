@@ -96,6 +96,9 @@ private:
 
 	void PostCompilation(USkinnedAsset* SkinnedAsset);
 	void PostCompilation(TArrayView<USkinnedAsset* const> InSkinnedAssets);
+
+	void OnPostReachabilityAnalysis();
+	FDelegateHandle PostReachabilityAnalysisHandle;
 };
 
 #endif // #if WITH_EDITOR
