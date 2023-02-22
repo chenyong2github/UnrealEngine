@@ -50,33 +50,12 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FAppendCollectionAssetsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FPrintStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FLogStringDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeLiteralStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoundingBoxDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExpandBoundingBoxDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FVectorToStringDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatToStringDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakePointsDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeBoxDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeSphereDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeLiteralFloatDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeLiteralIntDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeLiteralBoolDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeLiteralVectorDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FIntToStringDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoolToStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExpandVectorDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FIntToFloatDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FStringAppendDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRandomFloatDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRandomFloatInRangeDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRandomUnitVectorDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRandomUnitVectorInConeDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRadiansToDegreesDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FDegreesToRadiansDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FHashStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FHashVectorDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatToIntDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMathConstantsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetArrayElementDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetNumArrayElementsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetBoundingBoxesFromCollectionDataflowNode);
@@ -98,11 +77,9 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoolArrayToFaceSelectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatArrayToVertexSelectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVertexColorInCollectionFromVertexSelectionDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeTransformDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVertexColorInCollectionFromFloatArrayDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatArrayNormalizeDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FVectorArrayNormalizeDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeQuaternionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMultiplyTransformDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FInvertTransformDataflowNode);
 
@@ -116,8 +93,6 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("Fracture", FLinearColor(1.f, 1.f, 0.8f), CDefaultNodeBodyTintColor);
 		// Utilities
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("Utilities", FLinearColor(1.f, 1.f, 0.f), CDefaultNodeBodyTintColor);
-		// Math
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("Math", FLinearColor(0.f, 0.4f, 0.8f), CDefaultNodeBodyTintColor);
 		// Generators
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("Generators", FLinearColor(.4f, 0.8f, 0.f), CDefaultNodeBodyTintColor);
 	}
@@ -182,13 +157,6 @@ void FLogStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 	}
 }
 
-void FMakeLiteralStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FString>(&String))
-	{
-		SetValue<FString>(Context, Value, &String);
-	}
-}
 
 
 void FBoundingBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
@@ -231,116 +199,6 @@ void FExpandBoundingBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const
 	}
 }
 
-void FVectorToStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FString>(&String))
-	{
-		FString Value = GetValue<FVector>(Context, &Vector).ToString();
-		SetValue<FString>(Context, Value, &String);
-	}
-}
-
-void FFloatToStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FString>(&String))
-	{
-		FString Value = FString::Printf(TEXT("%f"), GetValue<float>(Context, &Float));
-		SetValue<FString>(Context, Value, &String);
-	}
-}
-
-void FMakePointsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TArray<FVector>>(&Points))
-	{
-		SetValue<TArray<FVector>>(Context, Point, &Points);
-	}
-}
-
-void FMakeBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FBox>(&Box))
-	{
-		if (DataType == EMakeBoxDataTypeEnum::Dataflow_MakeBox_DataType_MinMax)
-		{
-			FVector MinVal = GetValue<FVector>(Context, &Min);
-			FVector MaxVal = GetValue<FVector>(Context, &Max);
-
-			SetValue<FBox>(Context, FBox(MinVal, MaxVal), &Box);
-		}
-		else if (DataType == EMakeBoxDataTypeEnum::Dataflow_MakeBox_DataType_CenterSize)
-		{
-			FVector CenterVal = GetValue<FVector>(Context, &Center);
-			FVector SizeVal = GetValue<FVector>(Context, &Size);
-
-			SetValue<FBox>(Context, FBox(CenterVal - 0.5 * SizeVal, CenterVal + 0.5 * SizeVal), &Box);
-		}
-	}
-}
-
-
-void FMakeSphereDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FSphere>(&Sphere))
-	{
-		FVector CenterVal = GetValue<FVector>(Context, &Center);
-		float RadiusVal = GetValue<float>(Context, &Radius);
-
-		SetValue<FSphere>(Context, FSphere(CenterVal, RadiusVal), &Sphere);
-	}
-}
-
-
-void FMakeLiteralFloatDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<float>(&Float))
-	{
-		SetValue<float>(Context, Value, &Float);
-	}
-}
-
-void FMakeLiteralIntDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<int32>(&Int))
-	{
-		SetValue<int32>(Context, Value, &Int);
-	}
-}
-
-void FMakeLiteralBoolDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<bool>(&Bool))
-	{
-		SetValue<bool>(Context, Value, &Bool);
-	}
-}
-
-void FMakeLiteralVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FVector>(&Vector))
-	{
-		FVector Value(GetValue<float>(Context, &X, X), GetValue<float>(Context, &Y, Y), GetValue<float>(Context, &Z, Z));
-		SetValue<FVector>(Context, Value, &Vector);
-	}
-}
-
-void FIntToStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FString>(&String))
-	{
-		FString Value = FString::Printf(TEXT("%d"), GetValue<int32>(Context, &Int));
-		SetValue<FString>(Context, Value, &String);
-	}
-}
-
-void FBoolToStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FString>(&String))
-	{
-		FString Value = FString::Printf(TEXT("%s"), GetValue<bool>(Context, &Bool) ? TEXT("true") : TEXT("false"));
-		SetValue<FString>(Context, Value, &String);
-	}
-}
 
 void FExpandVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -360,116 +218,12 @@ void FExpandVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 	}
 }
 
-void FIntToFloatDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<float>(&Float))
-	{
-		float Value = float(GetValue<int32>(Context, &Int));
-		SetValue<float>(Context, Value, &Float);
-	}
-}
-
-
 void FStringAppendDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<FString>(&String))
 	{
 		const FString StringOut = GetValue<FString>(Context, &String1) + GetValue<FString>(Context, &String2);
 		SetValue<FString>(Context, StringOut, &String);
-	}
-}
-
-void FRandomFloatDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<float>(&Float))
-	{
-		if (bDeterministic)
-		{
-			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
-
-			FRandomStream Stream(RandomSeedVal);
-			SetValue<float>(Context, Stream.FRand(), &Float);
-		}
-		else
-		{
-			SetValue<float>(Context, FMath::FRand(), &Float);
-		}
-	}
-}
-
-void FRandomFloatInRangeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<float>(&Float))
-	{
-		float MinVal = GetValue<float>(Context, &Min);
-		float MaxVal = GetValue<float>(Context, &Max);
-
-		if (bDeterministic)
-		{
-			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
-
-			FRandomStream Stream(RandomSeedVal);
-			SetValue<float>(Context, Stream.FRandRange(MinVal, MaxVal), &Float);
-		}
-		else
-		{
-			SetValue<float>(Context, FMath::FRandRange(MinVal, MaxVal), &Float);
-		}
-	}
-}
-
-void FRandomUnitVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FVector>(&Vector))
-	{
-		if (bDeterministic)
-		{
-			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
-
-			FRandomStream Stream(RandomSeedVal);
-			SetValue<FVector>(Context, Stream.VRand(), &Vector);
-		}
-		else
-		{
-			SetValue<FVector>(Context, FMath::VRand(), &Vector);
-		}
-	}
-}
-
-void FRandomUnitVectorInConeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FVector>(&Vector))
-	{
-		FVector ConeDirectionVal = GetValue<FVector>(Context, &ConeDirection);
-		float ConeHalfAngleVal = GetValue<float>(Context, &ConeHalfAngle);
-
-		if (bDeterministic)
-		{
-			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
-
-			FRandomStream Stream(RandomSeedVal);
-			SetValue<FVector>(Context, Stream.VRandCone(ConeDirectionVal, ConeHalfAngleVal), &Vector);
-		}
-		else
-		{
-			SetValue<FVector>(Context, FMath::VRandCone(ConeDirectionVal, ConeHalfAngleVal), &Vector);
-		}
-	}
-}
-
-void FRadiansToDegreesDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<float>(&Degrees))
-	{
-		SetValue<float>(Context, FMath::RadiansToDegrees(GetValue<float>(Context, &Radians)), &Degrees);
-	}
-}
-
-void FDegreesToRadiansDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<float>(&Radians))
-	{
-		SetValue<float>(Context, FMath::DegreesToRadians(GetValue<float>(Context, &Degrees)), &Radians);
 	}
 }
 
@@ -487,93 +241,6 @@ void FHashVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 	if (Out->IsA<int32>(&Hash))
 	{
 		SetValue<int32>(Context, GetTypeHash(GetValue<FVector>(Context, &Vector)), &Hash);
-	}
-}
-
-void FFloatToIntDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<int32>(&Int))
-	{
-		float FloatVal = GetValue<float>(Context, &Float);
-		if (Function == EFloatToIntFunctionEnum::Dataflow_FloatToInt_Function_Floor)
-		{
-			SetValue<int32>(Context, FMath::FloorToInt32(FloatVal), &Int);
-		}
-		else if (Function == EFloatToIntFunctionEnum::Dataflow_FloatToInt_Function_Ceil)
-		{
-			SetValue<int32>(Context, FMath::CeilToInt32(FloatVal), &Int);
-		}
-		else if (Function == EFloatToIntFunctionEnum::Dataflow_FloatToInt_Function_Round)
-		{
-			SetValue<int32>(Context, FMath::RoundToInt32(FloatVal), &Int);
-		}
-		else if (Function == EFloatToIntFunctionEnum::Dataflow_FloatToInt_Function_Truncate)
-		{
-			SetValue<int32>(Context, int32(FMath::TruncToFloat(FloatVal)), &Int);
-		}
-	}
-}
-
-void FMathConstantsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<float>(&Float))
-	{
-		if (Constant == EMathConstantsEnum::Dataflow_MathConstants_Pi)
-		{
-			SetValue<float>(Context, FMathf::Pi, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_HalfPi)
-		{
-			SetValue<float>(Context, FMathf::HalfPi, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_TwoPi)
-		{
-			SetValue<float>(Context, FMathf::TwoPi, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_FourPi)
-		{
-			SetValue<float>(Context, FMathf::FourPi, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_InvPi)
-		{
-			SetValue<float>(Context, FMathf::InvPi, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_InvTwoPi)
-		{
-			SetValue<float>(Context, FMathf::InvTwoPi, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_Sqrt2)
-		{
-			SetValue<float>(Context, FMathf::Sqrt2, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_InvSqrt2)
-		{
-			SetValue<float>(Context, FMathf::InvSqrt2, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_Sqrt3)
-		{
-			SetValue<float>(Context, FMathf::Sqrt3, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_InvSqrt3)
-		{
-			SetValue<float>(Context, FMathf::InvSqrt3, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_FloatToInt_Function_E)
-		{
-			SetValue<float>(Context, 2.71828182845904523536f, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_FloatToInt_Function_Gamma)
-		{
-			SetValue<float>(Context, 0.577215664901532860606512090082f, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_FloatToInt_Function_GoldenRatio)
-		{
-			SetValue<float>(Context, 1.618033988749894f, &Float);
-		}
-		else if (Constant == EMathConstantsEnum::Dataflow_FloatToInt_Function_ZeroTolerance)
-		{
-			SetValue<float>(Context, FMathf::ZeroTolerance, &Float);
-		}
 	}
 }
 
@@ -1437,19 +1104,6 @@ void FSetVertexColorInCollectionFromVertexSelectionDataflowNode::Evaluate(Datafl
 }
 
 
-void FMakeTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FTransform>(&OutTransform))
-	{
-		SetValue<FTransform>(Context,
-			FTransform(FQuat::MakeFromEuler(GetValue<FVector>(Context, &InRotation))
-			, GetValue<FVector>(Context, &InTranslation)
-			, GetValue<FVector>(Context, &InScale))
-			, &OutTransform);
-	}
-}
-
-
 void FSetVertexColorInCollectionFromFloatArrayDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
@@ -1613,16 +1267,6 @@ void FVectorArrayNormalizeDataflowNode::Evaluate(Dataflow::FContext& Context, co
 		}
 
 		SetValue<TArray<FVector>>(Context, TArray<FVector>(), &OutVectorArray);
-	}
-}
-
-
-void FMakeQuaternionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FQuat>(&Quaternion))
-	{
-		FQuat Value(GetValue<float>(Context, &X, X), GetValue<float>(Context, &Y, Y), GetValue<float>(Context, &Z, Z), GetValue<float>(Context, &W, W));
-		SetValue<FQuat>(Context, Value, &Quaternion);
 	}
 }
 
