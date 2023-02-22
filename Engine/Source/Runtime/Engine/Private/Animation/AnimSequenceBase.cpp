@@ -240,7 +240,7 @@ void UAnimSequenceBase::PostLoad()
 	if(USkeleton* MySkeleton = GetSkeleton())
 	{
 #if WITH_EDITOR
-		if (ensure(IsDataModelValid()))
+		if (IsDataModelValid())
 		{
 			const bool bDoNotTransactAction = false;
 			if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::FixUpNoneNameAnimationCurves)
