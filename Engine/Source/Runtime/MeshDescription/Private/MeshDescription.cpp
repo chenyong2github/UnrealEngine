@@ -379,6 +379,12 @@ struct FFixAttributesSizeHelper
 		check(false);
 	}
 
+	void operator()(const FName AttributeName, TMeshAttributesRef<T, FTransform> AttributeArrayRef)
+	{
+		// Not expecting FTransform in legacy attributes
+		check(false);
+	}
+
 	template <typename U>
 	void operator()(const FName AttributeName, TMeshAttributesRef<T, U> AttributeArrayRef)
 	{

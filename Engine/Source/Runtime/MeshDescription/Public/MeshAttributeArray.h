@@ -53,7 +53,8 @@ using AttributeTypes = TTuple
 	float,
 	int32,
 	bool,
-	FName
+	FName,
+	FTransform
 >;
 
 
