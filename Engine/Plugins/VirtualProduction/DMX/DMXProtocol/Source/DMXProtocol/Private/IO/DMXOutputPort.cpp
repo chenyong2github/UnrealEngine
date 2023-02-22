@@ -577,9 +577,7 @@ FDMXOutputPortConfig FDMXOutputPort::MakeOutputPortConfig() const
 {
 	checkf(IsInGameThread(), TEXT("Only game-thread can read port configs."));
 
-	// Acquire locks in order as they're declared in the header
-	const FScopeLock LockDestinationAddresses(&AccessDestinationAddressesMutex);
-	const FScopeLock LockCommunicationDeterminator(&AccessCommunicationDeterminatorMutex);
+	const FScopeLock Lock(&SendDMXMutex);
 
 	FDMXOutputPortConfigParams Params;
 	Params.PortName = PortName;
@@ -604,9 +602,7 @@ void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& InOutOutputPortConfi
 {	
 	checkf(IsInGameThread(), TEXT("Only game-thread can update a port from a config."));
 
-	// Acquire locks in order as they're declared in the header
-	const FScopeLock LockDestinationAddresses(&AccessDestinationAddressesMutex);
-	const FScopeLock LockCommunicationDeterminator(&AccessCommunicationDeterminatorMutex);
+	const FScopeLock Lock(&SendDMXMutex);
 
 	// Need a valid config for the port
 	InOutOutputPortConfig.MakeValid();
@@ -703,10 +699,7 @@ void FDMXOutputPort::ClearBuffers()
 	// Otherwise the Send methods would need a lock on enqueuing, deterring the lock-free implementation.
 	checkf(IsInGameThread(), TEXT("Only the game-thread can ever clear buffers."));
 
-	// Acquire locks in order as they're declared in the header
-	const FScopeLock LockSignalFragments(&AccessSignalFragmentsMutex);
-	const FScopeLock LockExternUniverseToLatestSignalMap_PortThread(&AccessExternUniverseToLatestSignalMap_PortThreadMutex);
-	const FScopeLock LockRawlisteners(&AccessRawListenersMutex);
+	const FScopeLock Lock(&SendDMXMutex);
 
 	ExternUniverseToLatestSignalMap_GameThread.Reset();
 	ExternUniverseToLatestSignalMap_PortThread.Reset();
@@ -721,7 +714,7 @@ void FDMXOutputPort::ClearBuffers()
 
 TArray<FString> FDMXOutputPort::GetDestinationAddresses() const
 {
-	const FScopeLock LockDestinationAddresses(&AccessDestinationAddressesMutex);
+	const FScopeLock Lock(&SendDMXMutex);
 
 	TArray<FString> Result;
 	Result.Reserve(DestinationAddresses.Num());
@@ -737,7 +730,6 @@ bool FDMXOutputPort::GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalSha
 {
 	check(IsInGameThread());
 
-	// We don't mind to lock the communication determinator, it is ok if it is out of sync while changing.
 	const bool bNeedsLoopbackToEngine = CommunicationDeterminator.NeedsLoopbackToEngine();
 	if (bNeedsLoopbackToEngine || bEvenIfNotLoopbackToEngine)
 	{
@@ -759,7 +751,6 @@ bool FDMXOutputPort::GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPt
 	// DEPRECATED 4.27
 	check(IsInGameThread());
 
-	// We don't mind to lock the communication determinator, it is ok if it is out of sync while changing
 	const bool bNeedsLoopbackToEngine = CommunicationDeterminator.NeedsLoopbackToEngine();
 	if (bNeedsLoopbackToEngine || bEvenIfNotLoopbackToEngine)
 	{
@@ -776,30 +767,21 @@ bool FDMXOutputPort::GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPt
 
 bool FDMXOutputPort::IsRegistered() const
 {	
-	const FScopeLock LockSenderArray(&AccessDMXSenderArrayMutex);
-	if (DMXSenderArray.Num() > 0)
-	{
-		return true;
-	}
-
-	return false;
+	return bRegistered;
 }
 
 void FDMXOutputPort::AddRawListener(TSharedRef<FDMXRawListener> InRawListener)
 {
-	const FScopeLock LockRawListeners(&AccessRawListenersMutex);
+	const FScopeLock Lock(&SendDMXMutex);
 
 	check(!RawListeners.Contains(InRawListener));
-
-	// Needs to run in the game thread
-	check(IsInGameThread());
 
 	RawListeners.Add(InRawListener);
 }
 
 void FDMXOutputPort::RemoveRawListener(TSharedRef<FDMXRawListener> InRawListenerToRemove)
 {
-	const FScopeLock LockRawListeners(&AccessRawListenersMutex);
+	const FScopeLock Lock(&SendDMXMutex);
 
 	RawListeners.Remove(InRawListenerToRemove);
 }
@@ -850,7 +832,6 @@ void FDMXOutputPort::SendDMXToRemoteUniverse(const TMap<int32, uint8>& ChannelTo
 
 	if (IsExternUniverseInPortRange(RemoteUniverse))
 	{
-		// We don't mind to lock the communication determinator, it is ok if it is true while changing
 		const bool bNeedsSendDMX = CommunicationDeterminator.NeedsSendDMX();
 		const bool bNeedsLoopbackToEngine = CommunicationDeterminator.NeedsLoopbackToEngine();
 
@@ -886,9 +867,9 @@ void FDMXOutputPort::SendDMXToRemoteUniverse(const TMap<int32, uint8>& ChannelTo
 
 bool FDMXOutputPort::Register()
 {
-	// Acquire locks in order as they're declared in the header
-	const FScopeLock LockAccessSenderArray(&AccessDMXSenderArrayMutex);
-	const FScopeLock LockCommunicationDeterminator(&AccessCommunicationDeterminatorMutex);
+	checkf(IsInGameThread(), TEXT("Only Game Thread can register output ports."));
+
+	const FScopeLock Lock(&SendDMXMutex);
 
 	if (Protocol.IsValid() && IsValidPortSlow() && CommunicationDeterminator.IsSendDMXEnabled() && !FDMXPortManager::Get().AreProtocolsSuspended())
 	{
@@ -897,21 +878,23 @@ bool FDMXOutputPort::Register()
 		if (DMXSenderArray.Num() > 0)
 		{
 			CommunicationDeterminator.SetHasValidSender(true);
+			bRegistered = true;
 
 			return true;
 		}
 	}
 
 	CommunicationDeterminator.SetHasValidSender(false);
+	bRegistered = false;
 
 	return false;
 }
 
 void FDMXOutputPort::Unregister()
-{	
-	// Acquire locks in order as they're declared in the header
-	const FScopeLock LockAccessSenderArray(&AccessDMXSenderArrayMutex);
-	const FScopeLock AccesssCommunicationDeterminator(&AccessCommunicationDeterminatorMutex);
+{
+	checkf(IsInGameThread(), TEXT("Only Game Thread can unregister output ports."));
+
+	const FScopeLock Lock(&SendDMXMutex);
 
 	if (IsRegistered())
 	{
@@ -924,13 +907,13 @@ void FDMXOutputPort::Unregister()
 	}
 
 	CommunicationDeterminator.SetHasValidSender(false);
+	bRegistered = false;
 }
 
 void FDMXOutputPort::OnSetSendDMXEnabled(bool bEnabled)
 {
 	checkf(IsInGameThread(), TEXT("Only the game thread can enable and disable send DMX."));
 
-	const FScopeLock AccesssCommunicationDeterminator(&AccessCommunicationDeterminatorMutex);
 	CommunicationDeterminator.SetSendEnabled(bEnabled);
 
 	FDMXOutputPortConfig Config = MakeOutputPortConfig();
@@ -941,7 +924,6 @@ void FDMXOutputPort::OnSetReceiveDMXEnabled(bool bEnabled)
 {
 	checkf(IsInGameThread(), TEXT("Only the game thread can enable and disable send DMX."));
 
-	const FScopeLock AccesssCommunicationDeterminator(&AccessCommunicationDeterminatorMutex);
 	CommunicationDeterminator.SetReceiveEnabled(bEnabled);
 
 	FDMXOutputPortConfig Config = MakeOutputPortConfig();
@@ -1003,12 +985,8 @@ void FDMXOutputPort::ProcessSendDMX()
 	// Delay signals
 	const double Now = FPlatformTime::Seconds();
 
-	// Locking Overhead here is minimal as the locks are only in place while changing port properties.
-	// Acquire locks in order as they're declared in the header. 
-	const FScopeLock LockDMXSenderArray(&AccessDMXSenderArrayMutex);
-	const FScopeLock LockSignalFragments(&AccessSignalFragmentsMutex);
-	const FScopeLock LockExternUniverseToLatestSignalMap_PortThread(&AccessExternUniverseToLatestSignalMap_PortThreadMutex);
-	const FScopeLock LockRawListeners(&AccessRawListenersMutex);
+	// Locking Overhead here is minimal as this is only locked while changing port properties.
+	const FScopeLock Lock(&SendDMXMutex);
 
 	// Write dmx fragments
 	for (;;)
@@ -1048,9 +1026,7 @@ void FDMXOutputPort::ProcessSendDMX()
 	}
 
 	// Send new and alive DMX Signals
-	AccessCommunicationDeterminatorMutex.Lock();
 	const bool bNeedsSendDMX = CommunicationDeterminator.NeedsSendDMX();
-	AccessCommunicationDeterminatorMutex.Unlock();
 
 	for (const TTuple<int32, FDMXSignalSharedPtr>& UniverseToSignalPair : ExternUniverseToLatestSignalMap_PortThread)
 	{

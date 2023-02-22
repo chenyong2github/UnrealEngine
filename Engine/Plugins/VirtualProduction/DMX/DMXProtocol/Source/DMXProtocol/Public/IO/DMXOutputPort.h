@@ -58,10 +58,10 @@ struct FDMXOutputPortCommunicationDeterminator
 	FORCEINLINE bool IsLoopbackToEngineEnabled() const { return bLoopbackToEngine; }
 
 private:
-	bool bLoopbackToEngine;
-	bool bReceiveEnabled;
-	bool bSendEnabled;
-	bool bHasValidSender;
+	TAtomic<bool> bLoopbackToEngine;
+	TAtomic<bool> bReceiveEnabled;
+	TAtomic<bool> bSendEnabled;
+	TAtomic<bool> bHasValidSender;
 };
 
 
@@ -195,14 +195,8 @@ private:
 	/** The DMX senders in use */
 	TArray<TSharedPtr<IDMXSender>> DMXSenderArray;
 
-	/** Mutex access for the RawListeners array */
-	mutable FCriticalSection AccessDMXSenderArrayMutex;
-
 	/** Buffer of the signals that are to be sent in the next frame */
 	TQueue<TSharedPtr<FDMXSignalFragment, ESPMode::ThreadSafe>> SignalFragments;
-
-	/** Mutex access for the SignalFragments Queue */
-	mutable FCriticalSection AccessSignalFragmentsMutex;
 
 	/** Map that holds the latest Signal per Universe on the Game Thread */
 	TMap<int32, FDMXSignalSharedPtr> ExternUniverseToLatestSignalMap_GameThread;
@@ -210,20 +204,14 @@ private:
 	/** Map that holds the latest Signal per Universe on the Port Thread */
 	TMap<int32, FDMXSignalSharedPtr> ExternUniverseToLatestSignalMap_PortThread;
 
-	/** Mutex access for the ExternUniverseToLatestSignalMap_PortThread map */
-	mutable FCriticalSection AccessExternUniverseToLatestSignalMap_PortThreadMutex;
-
 	/** The Destination Address to send to, can be irrelevant, e.g. for art-net broadcast */
 	TArray<FDMXOutputPortDestinationAddress> DestinationAddresses;
 
-	/** Mutex access for the DestinationAddresses  */
-	mutable FCriticalSection AccessDestinationAddressesMutex;
-
 	/** Helper to determine how dmx should be communicated (loopback, send) */
 	FDMXOutputPortCommunicationDeterminator CommunicationDeterminator;
-	
-	/** Mutex access for the CommunicationDeterminator */
-	mutable FCriticalSection AccessCommunicationDeterminatorMutex;
+
+	/** Mutex access to members required to send DMX  */
+	mutable FCriticalSection SendDMXMutex;
 
 	/** Priority on which packets are being sent */
 	int32 Priority = 0;
@@ -231,11 +219,8 @@ private:
 	/** Map of raw Inputs */
 	TSet<TSharedRef<FDMXRawListener>> RawListeners;
 
-	/** Mutex access for the RawListeners array */
-	mutable FCriticalSection AccessRawListenersMutex;
-
-	/** True if the port is registered with it its protocol */
-	bool bRegistered = false;
+	/** True if the port is registered with its protocol */
+	TAtomic<bool> bRegistered = false;
 
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */
 	FGuid PortGuid;
