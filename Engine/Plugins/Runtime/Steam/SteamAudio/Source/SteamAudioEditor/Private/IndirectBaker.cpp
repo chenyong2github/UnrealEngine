@@ -9,7 +9,6 @@
 #include "PhononScene.h"
 #include "SteamAudioSettings.h"
 #include "SteamAudioEditorModule.h"
-#include "PhononReverb.h"
 #include "SteamAudioEnvironment.h"
 
 #include "LevelEditor.h"

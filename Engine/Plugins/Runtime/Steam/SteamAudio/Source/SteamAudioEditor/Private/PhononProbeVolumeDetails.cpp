@@ -7,7 +7,6 @@
 #include "PhononCommon.h"
 #include "SteamAudioEditorModule.h"
 #include "SteamAudioSettings.h"
-#include "PhononReverb.h"
 #include "SteamAudioEnvironment.h"
 
 #include "DetailLayoutBuilder.h"

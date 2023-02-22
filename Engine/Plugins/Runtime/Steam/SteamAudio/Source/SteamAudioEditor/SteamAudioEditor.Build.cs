@@ -8,12 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public SteamAudioEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"SteamAudio/Private",
-				}
-			);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
