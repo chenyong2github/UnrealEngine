@@ -559,7 +559,17 @@ void SAssetFamilyShortcutBar::BuildShortcuts()
 			.Visibility_Lambda([Class]()
 			{
 				IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-				return AssetTools.IsAssetClassSupported(Class) ? EVisibility::Visible : EVisibility::Collapsed;
+
+				bool bIsVisible = false;
+				TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetTools.GetAssetTypeActionsForClass(Class);
+				if (AssetTypeActions.IsValid())
+				{
+					if (const UClass* SupportedClass = AssetTypeActions.Pin()->GetSupportedClass())
+					{
+						bIsVisible = AssetTools.GetAssetClassPathPermissionList(EAssetClassAction::ViewAsset)->PassesFilter(SupportedClass->GetClassPathName().ToString());
+					}
+				}
+				return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 			})
 		];
 	}
