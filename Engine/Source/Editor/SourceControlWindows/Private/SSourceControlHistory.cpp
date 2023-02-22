@@ -651,38 +651,16 @@ public:
 	{
 	}
 
+	static void CreateDiffMenu(UToolMenu* InToolMenu);
+
 	void Construct( const FArguments& InArgs )
 	{	
 		if (!UToolMenus::Get()->IsMenuRegistered(SourceControlHistoryContextMenu))
 		{
 			UToolMenu* ContextMenu = UToolMenus::Get()->RegisterMenu(SourceControlHistoryContextMenu);
 			ContextMenu->bShouldCloseWindowAfterMenuSelection = true;
-			
-			FToolMenuSection& DiffSection = ContextMenu->AddSection("DiffTools");
-			DiffSection.AddMenuEntry(
-				TEXT("DiffAgainstPrevious"),
-				NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffAgainstPrev", "Diff Against Previous Revision"),
-				NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffAgainstPrevTooltip", "See changes between this revision and the previous one."),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &SSourceControlHistoryWidget::OnDiffAgainstPreviousRev),
-					FCanExecuteAction::CreateSP(this, &SSourceControlHistoryWidget::CanDiffAgainstPreviousRev)
-				)
-			);
 
-			DiffSection.AddMenuEntry(
-				TEXT("DiffAgainstWorkspace"),
-				NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffAgainstWorkspace", "Diff Against Workspace File"),
-				NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffAgainstWorkspaceTooltip", "See changes between this revision and your version of the asset."),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &SSourceControlHistoryWidget::OnDiffAgainstWorkspace),
-					FCanExecuteAction::CreateSP(this, &SSourceControlHistoryWidget::CanDiffAgainstWorkspace)
-				)
-			);
-
-			DiffSection.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateSP(this, &SSourceControlHistoryWidget::CreateDiffSelectedMenu));
-			
+			ContextMenu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateStatic(&SSourceControlHistoryWidget::CreateDiffMenu));
 		}
 
 		AddHistoryInfo(InArgs._SourceControlStates.Get());
@@ -1188,6 +1166,9 @@ private:
 		if (CanDiff())
 		{
 			FToolMenuContext Context;
+			USourceControlHistoryWidgetContext* SourceControlHistoryWidgetContext = NewObject<USourceControlHistoryWidgetContext>();
+			SourceControlHistoryWidgetContext->HistoryWidget = SharedThis(this);
+			Context.AddObject(SourceControlHistoryWidgetContext);
 			if (UToolMenu* GeneratedContextMenu = UToolMenus::Get()->GenerateMenu(SourceControlHistoryContextMenu, Context))
 			{
 				return UToolMenus::Get()->GenerateWidget(GeneratedContextMenu);
@@ -1625,6 +1606,46 @@ private:
 	/** Pointer to the parent window */
 	TWeakPtr<SWindow> ParentWindow;
 };
+
+void SSourceControlHistoryWidget::CreateDiffMenu(UToolMenu* InToolMenu)
+{
+	USourceControlHistoryWidgetContext* FoundContext = InToolMenu->FindContext<USourceControlHistoryWidgetContext>();
+	if (!FoundContext)
+	{
+		return;
+	}
+
+	TSharedPtr<SSourceControlHistoryWidget> PinnedHistoryWidget = FoundContext->HistoryWidget.Pin();
+	if (!PinnedHistoryWidget)
+	{
+		return;
+	}
+
+	FToolMenuSection& DiffSection = InToolMenu->AddSection("DiffTools");
+	DiffSection.AddMenuEntry(
+		TEXT("DiffAgainstPrevious"),
+		NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffAgainstPrev", "Diff Against Previous Revision"),
+		NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffAgainstPrevTooltip", "See changes between this revision and the previous one."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(PinnedHistoryWidget.Get(), &SSourceControlHistoryWidget::OnDiffAgainstPreviousRev),
+			FCanExecuteAction::CreateSP(PinnedHistoryWidget.Get(), &SSourceControlHistoryWidget::CanDiffAgainstPreviousRev)
+		)
+	);
+
+	DiffSection.AddMenuEntry(
+		TEXT("DiffAgainstWorkspace"),
+		NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffAgainstWorkspace", "Diff Against Workspace File"),
+		NSLOCTEXT("SourceControl.HistoryWindow.Menu", "DiffAgainstWorkspaceTooltip", "See changes between this revision and your version of the asset."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(PinnedHistoryWidget.Get(), &SSourceControlHistoryWidget::OnDiffAgainstWorkspace),
+			FCanExecuteAction::CreateSP(PinnedHistoryWidget.Get(), &SSourceControlHistoryWidget::CanDiffAgainstWorkspace)
+		)
+	);
+
+	DiffSection.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateSP(PinnedHistoryWidget.Get(), &SSourceControlHistoryWidget::CreateDiffSelectedMenu));
+}
 
 void FSourceControlWindows::DisplayRevisionHistory( const TArray<FString>& InPackageNames )
 {
