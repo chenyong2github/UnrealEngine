@@ -212,17 +212,30 @@ bool RequiresBxDFImportanceSampling(uint ShadingModelID)
 FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 {
 	FLumenMaterialData Out = (FLumenMaterialData)0;
-#if STRATA_ENABLED && STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
+
+#if STRATA_ENABLED
+
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(InPixelPos, 0)));
+	Out.WorldNormal						= TopLayerData.WorldNormal;
+	Out.Roughness						= TopLayerData.Roughness;
+	Out.TopLayerRoughness				= TopLayerData.Roughness;
+
+	Out.bIsFrontLayerTranslucency		= false;
+	Out.bHasSecondSpecularLobe			= false;
+	Out.Anisotropy						= 0;
+	Out.TangentBasis					= float3x3(1, 0, 0, 0, 1, 0, 0, 0, 1);;
+
+	Out.SceneDepth						= ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(InPixelPos, 0)).r);
+
+#if STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
+
 	FStrataAddressing StrataAddressing			= GetStrataPixelDataByteOffset(InPixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 	const FStrataPixelHeader StrataPixelHeader	= UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
-	const FStrataTopLayerData TopLayerData		= StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(InPixelPos, 0)));
 	const FStrataSubsurfaceHeader SSSHeader		= StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, InPixelPos);
 
 	// When Lumen is not used, only MaterialAO and ShadingID (see IsValid) are read, sourced form the single UINT read for the StrataPixelHeader.
 	const uint BSDFType = StrataGetBSDFType(StrataPixelHeader);
 
-	Out.SceneDepth						= ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(InPixelPos, 0)).r);
-	Out.WorldNormal						= TopLayerData.WorldNormal;
 	Out.MaterialAO						= StrataGetIrradianceAndAO(StrataPixelHeader).MaterialAO;
 	Out.ShadingID						= IsStrataMaterial(StrataPixelHeader) ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
 	Out.DiffuseIndirectSampleOcclusion	= StrataGetIrradianceAndAO(StrataPixelHeader).DiffuseIndirectSampleOcclusion;
@@ -231,14 +244,6 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	Out.bIsHair							= BSDFType == STRATA_BSDF_TYPE_HAIR;
 	Out.bHasBackfaceDiffuse				= BSDFType == STRATA_BSDF_TYPE_SLAB && HasSubsurface(StrataPixelHeader);
 	Out.bRequiresBxDFImportanceSampling = Out.bIsHair;
-	Out.bIsFrontLayerTranslucency		= false;
-
-	Out.Roughness						= TopLayerData.Roughness;
-	Out.TopLayerRoughness				= TopLayerData.Roughness;
-	Out.bHasSecondSpecularLobe			= false;
-
-	Out.Anisotropy		= 0;
-	Out.TangentBasis	= (float3x3)0;
 
 	// STRATA_TODO: For now, use only the last BSDF (arbitrary)
 	Strata_for(uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
@@ -249,7 +254,9 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 		Out.TangentBasis			= Context.TangentBasis;
 		Out.Anisotropy				= StrataGetBSDFAnisotropy(BSDF);
 	}
-#endif
+#endif // STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
+#endif // STRATA_ENABLED
+
 	return Out;
 }
 
