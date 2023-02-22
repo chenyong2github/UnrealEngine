@@ -96,7 +96,7 @@ namespace mu
 
         // For each source vertex, true if it is removed.
         int resultVertexCount = pResult->GetVertexCount();
-        uint8_t* removedVertices = (uint8_t*)mutable_malloc_aligned( resultVertexCount, 16 );
+		uint8* removedVertices = reinterpret_cast<uint8*>(FMemory::Malloc(resultVertexCount, 16));
 		FMemory::Memzero(removedVertices,resultVertexCount);
         {
 			TArray<ID_INTERVAL> intervals;
@@ -224,7 +224,7 @@ namespace mu
             pResult->GetIndexBuffers().SetElementCount( faceCount*3-(int)removedIndices );
         }
 
-        mutable_free_aligned( removedVertices, resultVertexCount );
+        FMemory::Free( removedVertices );
 
         // Rebuild the vertex buffers
         for ( int b=0; b<pResult->GetVertexBuffers().GetBufferCount(); ++b )

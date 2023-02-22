@@ -28,7 +28,7 @@ namespace mu
 		m_pD->m_pos = 0;
         m_pD->m_readBytes = 0;
 
-        m_pD->m_buffer = (uint8_t*)mutable_malloc_aligned(MUTABLE_STREAM_BUFFER_SIZE,16);
+        m_pD->m_buffer = reinterpret_cast<uint8*>(FMemory::Malloc(MUTABLE_STREAM_BUFFER_SIZE,16));
 	}
 
 
@@ -40,7 +40,7 @@ namespace mu
             fclose( m_pD->m_pFile );
         }
 
-        mutable_free_aligned( m_pD->m_buffer, MUTABLE_STREAM_BUFFER_SIZE );
+		FMemory::Free( m_pD->m_buffer );
         m_pD->m_buffer = nullptr;
 
         delete m_pD;
@@ -124,7 +124,7 @@ namespace mu
 		m_pD = new Private();
 		m_pD->m_pFile = mutable_fopen( strFile, "wb" );
 		m_pD->m_pos = 0;
-        m_pD->m_buffer = (uint8_t*)mutable_malloc_aligned(MUTABLE_STREAM_BUFFER_SIZE,16);
+		m_pD->m_buffer = reinterpret_cast<uint8*>(FMemory::Malloc(MUTABLE_STREAM_BUFFER_SIZE, 16));
 
 		check( m_pD->m_pFile );
 	}
@@ -182,7 +182,7 @@ namespace mu
 
 		fclose( m_pD->m_pFile );
 
-        mutable_free_aligned( m_pD->m_buffer, MUTABLE_STREAM_BUFFER_SIZE );
+        FMemory::Free( m_pD->m_buffer );
         m_pD->m_buffer = nullptr;
 
         delete m_pD;

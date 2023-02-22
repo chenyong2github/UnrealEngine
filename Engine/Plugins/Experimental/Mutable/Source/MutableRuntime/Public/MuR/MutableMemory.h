@@ -4,7 +4,6 @@
 
 #include "CoreTypes.h"
 
-#include <cstring>	// for size_t in some platforms
 #include <new>
 
 namespace mu
@@ -24,24 +23,13 @@ namespace mu
 	//! \param customFree Function pointer to a function taking a pointer obtained reviously with
 	//! 	   customMalloc, that needs to be freed.
 	//! \ingroup runtime
-	MUTABLERUNTIME_API extern void Initialize
-		(
-            void* (*customMalloc)( size_t, uint32 ),
-            void (*customFree)( void* )
-		);
+	MUTABLERUNTIME_API extern void Initialize();
 
     //! \brief Shutdown everything related to mutable.
     //! This should be called when no other mutable objects will be used, created or destroyed,
     //! and all threads involving mutable tasks have been terminated.
 	MUTABLERUNTIME_API extern void Finalize();
 
-	//! Memory management functions to be used inside the library. No other memory allocation is
-	//! allowed.
-	MUTABLERUNTIME_API extern void* mutable_malloc(size_t size);
-	MUTABLERUNTIME_API extern void* mutable_malloc_aligned(size_t size, uint32 alignment);
-	MUTABLERUNTIME_API extern void mutable_free(void* ptr);
-	MUTABLERUNTIME_API extern void mutable_free(void* ptr, size_t size);
-	MUTABLERUNTIME_API extern void mutable_free_aligned(void* ptr, size_t size);
 
     //! \brief %Base class from which all library classes inherit to control memory allocation.
 	//! For internal use only.
@@ -50,15 +38,15 @@ namespace mu
 	{
 	public:
 
-		inline void* operator new(size_t s)
-		{
-			return mutable_malloc(s);
-		}
+		//inline void* operator new(size_t s)
+		//{
+		//	return mutable_malloc(s);
+		//}
 
-		inline void operator delete(void* p, size_t size)
-		{
-			mutable_free(p, size);
-		}
+		//inline void operator delete(void* p, size_t size)
+		//{
+		//	mutable_free(p, size);
+		//}
     };
 
 }
