@@ -114,6 +114,14 @@ void FNiagaraRendererGeometryCache::PostSystemTick_GameThread(const UNiagaraRend
 		return;
 	}
 
+#if WITH_EDITORONLY_DATA
+	if (SystemInstance->GetIsolateEnabled() && !Emitter->GetEmitterHandle().IsIsolated())
+	{
+		ResetComponentPool(true);
+		return;
+	}
+#endif
+
 	USceneComponent* AttachComponent = SystemInstance->GetAttachComponent();
 	if (!AttachComponent)
 	{

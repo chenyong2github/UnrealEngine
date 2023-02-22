@@ -385,6 +385,14 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 		return;
 	}
 
+#if WITH_EDITORONLY_DATA
+	if (SystemInstance->GetIsolateEnabled() && !Emitter->GetEmitterHandle().IsIsolated())
+	{
+		ResetComponentPool(true);
+		return;
+	}
+#endif
+
 	USceneComponent* AttachComponent = SystemInstance->GetAttachComponent();
 	if (!AttachComponent)
 	{
