@@ -7,8 +7,6 @@
 #include "IAssetTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
-#include "AssetTypeActions_SparseVolumeTexture.h"
-
 /**
  * A sparse volume texture
  */
@@ -34,6 +32,4 @@ private:
 	 * Called before the module is unloaded, right before the module object is destroyed.
 	 */
 	virtual void ShutdownModule();
-
-	TSharedPtr<FAssetTypeActions_SparseVolumeTexture> AssetTypeActionsForSparseVolumeTexture;
 };
