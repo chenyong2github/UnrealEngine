@@ -120,13 +120,6 @@ public class WebSockets : ModuleRules
 				bWithWinHttpWebSockets = true;
 
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "WinHttp");
-
-				// We need to access the WinHttp folder in HTTP
-				PrivateIncludePaths.AddRange(
-					new string[] {
-						"Runtime/Online/HTTP/Private",
-					}
-				);
 			}
 		}
 
