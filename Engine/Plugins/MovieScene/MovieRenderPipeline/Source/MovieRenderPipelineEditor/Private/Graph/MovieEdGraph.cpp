@@ -15,7 +15,6 @@ UMovieGraphConfig* UMoviePipelineEdGraph::GetPipelineGraph() const
 	return CastChecked<UMovieGraphConfig>(GetOuter());
 }
 
-
 void UMoviePipelineEdGraph::InitFromRuntimeGraph(UMovieGraphConfig* InGraph)
 {
 	// Don't allow reinitialization of an existing graph
@@ -31,6 +30,7 @@ void UMoviePipelineEdGraph::InitFromRuntimeGraph(UMovieGraphConfig* InGraph)
 		UMoviePipelineEdGraphNodeInput* InputGraphNode = InputNodeCreator.CreateNode(bSelectNewNode);
 		InputGraphNode->Construct(InputNode);
 		InputNodeCreator.Finalize();
+		NodeLookup.Add(InputNode, InputGraphNode);
 	}
 
 	// Output
@@ -40,6 +40,7 @@ void UMoviePipelineEdGraph::InitFromRuntimeGraph(UMovieGraphConfig* InGraph)
 		UMoviePipelineEdGraphNodeOutput* OutputGraphNode = OutputNodeCreator.CreateNode(bSelectNewNode);
 		OutputGraphNode->Construct(OutputNode);
 		OutputNodeCreator.Finalize();
+		NodeLookup.Add(OutputNode, OutputGraphNode);
 	}
 
 	// Create the rest of the nodes in the graph
@@ -127,7 +128,6 @@ void UMoviePipelineEdGraph::CreateLinks(UMoviePipelineEdGraphNodeBase* InGraphNo
 			}
 		}
 	};
-
 
 	if (bCreateInboundLinks)
 	{

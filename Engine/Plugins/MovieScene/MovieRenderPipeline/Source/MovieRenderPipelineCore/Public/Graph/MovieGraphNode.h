@@ -23,7 +23,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphNodeChanged, UMovieGraphNode*);
 * which contains data about it's visual position in the graph, comments, etc.
 */
 UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphNode: public UObject
+class MOVIERENDERPIPELINECORE_API UMovieGraphNode : public UObject
 {
 	GENERATED_BODY()
 
@@ -64,6 +64,14 @@ public:
 	UMovieGraphPin* GetInputPin(const FName& InPinLabel) const;
 	UMovieGraphPin* GetOutputPin(const FName& InPinLabel) const;
 
+#if WITH_EDITOR
+	int32 GetNodePosX() const { return NodePosX; }
+	int32 GetNodePosY() const { return NodePosY; }
+
+	void SetNodePosX(const int32 InNodePosX) { NodePosX = InNodePosX; }
+	void SetNodePosY(const int32 InNodePosY) { NodePosY = InNodePosY; }
+#endif
+
 public:
 	FOnMovieGraphNodeChanged OnNodeChangedDelegate;
 
@@ -95,6 +103,14 @@ protected:
 
 	UPROPERTY()
 	TArray<FName> ExposedDynamicPropertyNames;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	int32 NodePosX = 0;
+
+	UPROPERTY()
+	int32 NodePosY = 0;
+#endif
 };
 
 // Dummy test nodes

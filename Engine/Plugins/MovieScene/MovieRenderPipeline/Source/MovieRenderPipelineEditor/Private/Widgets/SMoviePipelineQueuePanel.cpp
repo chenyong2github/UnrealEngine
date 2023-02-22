@@ -13,7 +13,7 @@
 #include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineQueueSubsystem.h"
 #include "Graph/MovieGraphConfig.h"
-#include "Graph/MovieGraphAssetEditor.h"
+#include "Graph/MovieGraphAssetToolkit.h"
 
 // Slate Includes
 #include "Widgets/SBoxPanel.h"
@@ -368,23 +368,17 @@ void SMoviePipelineQueuePanel::OnEditJobConfigRequested(TWeakObjectPtr<UMoviePip
 	UMovieGraphConfig* GraphToEdit = nullptr;
 	if (InShot.IsValid() && InShot->IsUsingGraphConfiguration())
 	{
-		GraphToEdit = InShot->GetGraphPreset();
+		GraphToEdit = (InShot->GetGraphPreset() != nullptr) ? InShot->GetGraphPreset() : InShot->GetGraphConfig();
 	}
 	else if (InJob.IsValid() && InJob->IsUsingGraphConfiguration())
 	{
-		GraphToEdit = InJob->GetGraphPreset();
+		GraphToEdit = (InJob->GetGraphPreset() != nullptr) ? InJob->GetGraphPreset() : InJob->GetGraphConfig();
 	}
 
 	if (GraphToEdit)
 	{
-		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
-		{
-			if (UMovieGraphAssetEditor* AssetEditor = NewObject<UMovieGraphAssetEditor>(AssetEditorSubsystem, NAME_None, RF_Transient))
-			{
-				AssetEditor->SetObjectToEdit(GraphToEdit);
-				AssetEditor->Initialize();
-			}
-		}
+		const TSharedRef<FMovieGraphAssetToolkit> MovieGraphEditor(new FMovieGraphAssetToolkit());
+		MovieGraphEditor->InitMovieGraphAssetToolkit(EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), GraphToEdit);
 
 		return;
 	}

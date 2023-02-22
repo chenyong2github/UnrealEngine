@@ -51,6 +51,7 @@
 
 #include "Graph/MovieGraphConfig.h"
 #include "Graph/MovieEdGraph.h"
+#include "Graph/MovieEdGraphNode.h"
 #include "Graph/MovieGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "GraphEditor.h"
@@ -60,14 +61,7 @@
 UE_DISABLE_OPTIMIZATION_SHIP
 void SMoviePipelineGraphPanel::Construct(const FArguments& InArgs)
 {
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.bAllowSearch = false;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	DetailsViewArgs.bHideSelectionTip = true;
-	DetailsViewArgs.ColumnWidth = 0.7f;
-
-	JobDetailsPanelWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	OnGraphSelectionChangedEvent = InArgs._OnGraphSelectionChanged;
 
 	// Create the child widgets that need to know about our pipeline
 	PipelineQueueEditorWidget = SNew(SMoviePipelineQueueEditor)
@@ -97,8 +91,7 @@ void SMoviePipelineGraphPanel::Construct(const FArguments& InArgs)
 	InEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &SMoviePipelineGraphPanel::OnNodeDoubleClicked);
 	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &SMoviePipelineGraphPanel::OnNodeTitleCommitted);
 
-	CurrentGraph = NewObject<UMovieGraphConfig>(GetTransientPackage());
-	CurrentGraph->AddToRoot();
+	CurrentGraph = InArgs._Graph;
 	
 	UMoviePipelineEdGraph* GraphToEdit = Cast<UMoviePipelineEdGraph>(FBlueprintEditorUtils::CreateNewGraph(CurrentGraph, TEXT("MoviePipelineEdGraph"), UMoviePipelineEdGraph::StaticClass(), UMovieGraphSchema::StaticClass()));
 
@@ -121,30 +114,7 @@ void SMoviePipelineGraphPanel::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SSplitter)
-		.Orientation(EOrientation::Orient_Horizontal)
-		+ SSplitter::Slot()
-		.Value(3)
-		[
-			GraphEditor
-		]
-		+ SSplitter::Slot()
-		.Value(1)
-		[
-			SNew(SBorder)
-			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
-			.Padding(FMargin(1.f, 1.0f))
-			.Content()
-			[
-				JobDetailsPanelWidget.ToSharedRef()
-			]
-		]
-		+SSplitter::Slot()
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("OK", "OK"))
-			.OnClicked(this, &SMoviePipelineGraphPanel::OnDebugButtonClicked)
-		]
+		GraphEditor
 	];
 }
 
@@ -155,15 +125,22 @@ FReply SMoviePipelineGraphPanel::OnDebugButtonClicked()
 	return FReply::Handled();
 }
 
-void SMoviePipelineGraphPanel::OnSelectedNodesChanged(const TSet<class UObject*>& NewSelection)
+void SMoviePipelineGraphPanel::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	TArray<UObject*> SelectedObjects;
 	for (UObject* Obj : NewSelection)
 	{
-		SelectedObjects.Add(Obj);
+		// The selected objects will be editor objects. Get the underlying runtime object for each editor object.
+		if (const UMoviePipelineEdGraphNodeBase* NodeBase = Cast<UMoviePipelineEdGraphNodeBase>(Obj))
+		{
+			if (UMovieGraphNode* GraphNode = NodeBase->GetRuntimeNode())
+			{
+				SelectedObjects.Add(GraphNode);
+			}
+		}
 	}
 
-	JobDetailsPanelWidget->SetObjects(SelectedObjects);
+	OnGraphSelectionChangedEvent.ExecuteIfBound(SelectedObjects);
 }
 
 void SMoviePipelineGraphPanel::OnNodeDoubleClicked(class UEdGraphNode* Node)
@@ -388,31 +365,7 @@ void SMoviePipelineGraphPanel::OnSelectionChanged(const TArray<UMoviePipelineExe
 		Jobs.Add(Job);
 	}
 	
-	JobDetailsPanelWidget->SetObjects(Jobs);
 	NumSelectedJobs = InSelectedJobs.Num();
-}
-
-int32 SMoviePipelineGraphPanel::GetDetailsViewWidgetIndex() const
-{
-	return NumSelectedJobs == 0;
-}
-
-bool SMoviePipelineGraphPanel::IsDetailsViewEnabled() const
-{
-	TArray<TWeakObjectPtr<UObject>> OutObjects= JobDetailsPanelWidget->GetSelectedObjects();
-
-	bool bAllEnabled = true;
-	for (TWeakObjectPtr<UObject> Object : OutObjects)
-	{
-		const UMoviePipelineExecutorJob* Job = Cast<UMoviePipelineExecutorJob>(Object);
-		if (Job && Job->IsConsumed())
-		{
-			bAllEnabled = false;
-			break;
-		}
-	}
-
-	return bAllEnabled;
 }
 
 TSharedRef<SWidget> SMoviePipelineGraphPanel::OnGenerateSavedQueuesMenu()

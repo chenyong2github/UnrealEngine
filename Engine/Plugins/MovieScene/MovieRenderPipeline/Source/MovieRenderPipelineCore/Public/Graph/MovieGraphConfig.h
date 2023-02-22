@@ -60,7 +60,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	// Not strongly typed to avoid a circular dependency between the editor only module
 	// and the runtime module, but it should be a UMoviePipelineEdGraph.
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TObjectPtr<UEdGraph> PipelineEdGraph;
 #endif
 

@@ -19,15 +19,17 @@ struct FAssetData;
 class SMoviePipelineGraphPanel : public SCompoundWidget
 {
 public:
+	DECLARE_DELEGATE_OneParam(FOnGraphSelectionChanged, TArray<UObject*>);
+	
 	SLATE_BEGIN_ARGS(SMoviePipelineGraphPanel)
-		: _BasePreset(nullptr)
+		: _Graph(nullptr)
 
 		{}
 
-		/*~ All following arguments are mutually-exclusive */
-		/*-------------------------------------------------*/
-		/** A preset asset to base the pipeline off */
-		SLATE_ARGUMENT(UMoviePipelineConfigBase*, BasePreset)
+		SLATE_EVENT(FOnGraphSelectionChanged, OnGraphSelectionChanged)
+
+		/** The graph that is initially displayed */
+		SLATE_ARGUMENT(class UMovieGraphConfig*, Graph)
 
 	SLATE_END_ARGS()
 
@@ -48,8 +50,6 @@ private:
 	void OnConfigWindowClosed();
 
 	void OnSelectionChanged(const TArray<UMoviePipelineExecutorJob*>& InSelectedJobs);
-	int32 GetDetailsViewWidgetIndex() const;
-	bool IsDetailsViewEnabled() const;
 
 	TSharedRef<SWidget> OnGenerateSavedQueuesMenu();
 	bool OpenSaveDialog(const FString& InDefaultPath, const FString& InNewNameSuggestion, FString& OutPackageName);
@@ -72,10 +72,9 @@ private:
 	/** The main movie pipeline queue editor widget */
 	TSharedPtr<SMoviePipelineQueueEditor> PipelineQueueEditorWidget;
 
-	/** The details panel for the selected job(s) */
-	TSharedPtr<IDetailsView> JobDetailsPanelWidget;
-
 	TWeakPtr<SWindow> WeakEditorWindow;
 	
 	int32 NumSelectedJobs;
+
+	FOnGraphSelectionChanged OnGraphSelectionChangedEvent;
 };

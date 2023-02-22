@@ -23,6 +23,10 @@ public:
 	//~ Begin UEdGraphNode Interface
 	virtual void ReconstructNode() override;
 	//~ End UEdGraphNode Interface
+	
+	//~ Begin UObject interface
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	//~ End UObject interface
 
 protected:
 	virtual bool ShouldCreatePin(const UMovieGraphPin* InPin) const;
@@ -33,6 +37,8 @@ protected:
 
 	/** Recreate the pins on this node, discarding all existing pins. */
 	void ReconstructPins();
+
+	void UpdatePosition();
 
 protected:
 	UPROPERTY()

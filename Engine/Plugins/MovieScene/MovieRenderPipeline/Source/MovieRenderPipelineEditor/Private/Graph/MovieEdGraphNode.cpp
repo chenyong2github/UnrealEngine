@@ -5,6 +5,7 @@
 #include "Graph/MovieGraphPin.h"
 #include "Graph/MovieGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "MovieEdGraph.h"
 #include "PropertyBag.h"
 #include "ToolMenu.h"
@@ -18,11 +19,22 @@ void UMoviePipelineEdGraphNodeBase::Construct(UMovieGraphNode* InRuntimeNode)
 	RuntimeNode->GraphNode = this;
 	RuntimeNode->OnNodeChangedDelegate.AddUObject(this, &UMoviePipelineEdGraphNodeBase::OnRuntimeNodeChanged);
 	
-	// NodePosX = InRuntimeNode->PositionX;
-	// NodePosY = InRuntimeNode->PositionY;
+	NodePosX = InRuntimeNode->GetNodePosX();
+	NodePosY = InRuntimeNode->GetNodePosY();
 	// NodeComment = InRuntimeNode->NodeComment;
 	// bCommentBubblePinned = InRuntimeNode->bCommentBubblePinned;
 	// bCommentBubbleVisible = InRuntimeNode->bCommentBubbleVisible;
+}
+
+void UMoviePipelineEdGraphNodeBase::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+{
+	const TArray<FName> ChangedProperties = TransactionEvent.GetChangedProperties();
+
+	if (ChangedProperties.Contains(GET_MEMBER_NAME_CHECKED(UEdGraphNode, NodePosX)) ||
+		ChangedProperties.Contains(GET_MEMBER_NAME_CHECKED(UEdGraphNode, NodePosY)))
+	{
+		UpdatePosition();
+	}
 }
 
 FEdGraphPinType UMoviePipelineEdGraphNodeBase::GetPinType(const UMovieGraphPin* InPin)
@@ -33,6 +45,16 @@ FEdGraphPinType UMoviePipelineEdGraphNodeBase::GetPinType(const UMovieGraphPin* 
 	EdPinType.PinCategory = FName("TestCategory");
 	EdPinType.PinSubCategory = FName("TestSubCategory");
 	return EdPinType;
+}
+
+void UMoviePipelineEdGraphNodeBase::UpdatePosition()
+{
+	if (RuntimeNode)
+	{
+		RuntimeNode->Modify();
+		RuntimeNode->SetNodePosX(NodePosX);
+		RuntimeNode->SetNodePosY(NodePosY);
+	}
 }
 
 void UMoviePipelineEdGraphNode::AllocateDefaultPins()
