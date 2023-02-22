@@ -189,7 +189,6 @@ namespace Horde.Agent
 			services.AddSingleton<JobHandler>();
 
 			services.AddSingleton<LeaseHandler, ComputeHandler>();
-			services.AddSingleton<LeaseHandler, ComputeHandlerV2>();
 			services.AddSingleton<LeaseHandler, ConformHandler>();
 			services.AddSingleton<LeaseHandler, JobHandler>(x => x.GetRequiredService<JobHandler>());
 			services.AddSingleton<LeaseHandler, RestartHandler>();

@@ -131,7 +131,7 @@ namespace EpicGames.Serialization
 			}
 		}
 
-		const int DefaultChunkSize = 1024;
+		public const int DefaultChunkSize = 1024;
 
 		readonly List<Chunk> _chunks = new List<Chunk>();
 		readonly Stack<Scope> _openScopes = new Stack<Scope>();

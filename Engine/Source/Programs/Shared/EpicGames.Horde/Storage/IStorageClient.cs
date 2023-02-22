@@ -53,67 +53,6 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Locates a node in storage
-	/// </summary>
-	public struct NodeLocator : IEquatable<NodeLocator>
-	{
-		/// <summary>
-		/// Location of the blob containing this node
-		/// </summary>
-		public BlobLocator Blob { get; }
-
-		/// <summary>
-		/// Index of the export within the blob
-		/// </summary>
-		public int ExportIdx { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public NodeLocator(BlobLocator blob, int exportIdx)
-		{
-			Blob = blob;
-			ExportIdx = exportIdx;
-		}
-
-		/// <summary>
-		/// Determines if this locator points to a valid entry
-		/// </summary>
-		public bool IsValid() => Blob.IsValid();
-
-		/// <summary>
-		/// Parse a string as a node locator
-		/// </summary>
-		/// <param name="text">Text to parse</param>
-		/// <returns></returns>
-		public static NodeLocator Parse(ReadOnlySpan<char> text)
-		{
-			int hashIdx = text.IndexOf('#');
-			int exportIdx = Int32.Parse(text.Slice(hashIdx + 1), NumberStyles.None, CultureInfo.InvariantCulture);
-			BlobLocator blobLocator = new BlobLocator(new Utf8String(text.Slice(0, hashIdx)));
-			return new NodeLocator(blobLocator, exportIdx);
-		}
-
-		/// <inheritdoc/>
-		public override bool Equals([NotNullWhen(true)] object? obj) => obj is NodeLocator locator && Equals(locator);
-
-		/// <inheritdoc/>
-		public bool Equals(NodeLocator other) => Blob == other.Blob && ExportIdx == other.ExportIdx;
-
-		/// <inheritdoc/>
-		public override int GetHashCode() => HashCode.Combine(Blob, ExportIdx);
-
-		/// <inheritdoc/>
-		public override string ToString() => $"{Blob}#{ExportIdx}";
-
-		/// <inheritdoc/>
-		public static bool operator ==(NodeLocator left, NodeLocator right) => left.Equals(right);
-
-		/// <inheritdoc/>
-		public static bool operator !=(NodeLocator left, NodeLocator right) => !left.Equals(right);
-	}
-
-	/// <summary>
 	/// Base interface for a low-level storage backend. Blobs added to this store are not content addressed, but referenced by <see cref="BlobLocator"/>.
 	/// </summary>
 	public interface IStorageClient

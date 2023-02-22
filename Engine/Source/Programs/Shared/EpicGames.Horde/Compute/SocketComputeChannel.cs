@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using EpicGames.Serialization;
 using System;
-using System.IO;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Threading;
@@ -16,14 +14,12 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Transfers messages via a AES-encrypted socket
 	/// </summary>
-	public class SocketComputeChannel : IComputeChannel
+	public sealed class SocketComputeChannel : IComputeChannel, IDisposable
 	{
 		readonly Socket _socket;
 		readonly int _blockSize;
 		readonly ICryptoTransform _decryptor;
 		readonly ICryptoTransform _encryptor;
-
-		readonly CbWriter _writer;
 
 		byte[] _readBuffer = new byte[128];
 		int _decryptedLength;
@@ -49,8 +45,13 @@ namespace EpicGames.Horde.Compute
 			_blockSize = aes.BlockSize / 8;
 			_decryptor = aes.CreateDecryptor();
 			_encryptor = aes.CreateEncryptor();
+		}
 
-			_writer = new CbWriter();
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			_decryptor.Dispose();
+			_encryptor.Dispose();
 		}
 
 		/// <summary>
@@ -58,7 +59,7 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public async Task<object> ReadAsync(CancellationToken cancellationToken)
+		public async Task<ReadOnlyMemory<byte>> ReadMessageAsync(CancellationToken cancellationToken)
 		{
 			// Discard any data from the previous message
 			if (_paddedMessageLength > 0)
@@ -66,25 +67,28 @@ namespace EpicGames.Horde.Compute
 				Buffer.BlockCopy(_readBuffer, _paddedMessageLength, _readBuffer, 0, _encryptedLength - _paddedMessageLength);
 				_encryptedLength -= _paddedMessageLength;
 				_decryptedLength -= _paddedMessageLength;
+				_paddedMessageLength = 0;
 			}
 
 			// Read the next message data
 			for (; ; )
 			{
 				// Check the object in the buffer
-				if (_decryptedLength >= 2)
+				if (_decryptedLength > 0)
 				{
-					int messageLength = 1 + VarInt.Measure(_readBuffer[1]);
-					if (_decryptedLength > messageLength)
+					int headerLength = VarInt.Measure(_readBuffer);
+
+					int messageLength = headerLength;
+					if (_decryptedLength >= headerLength)
 					{
-						messageLength += (int)VarInt.ReadUnsigned(_readBuffer.AsSpan(1));
+						messageLength += (int)VarInt.ReadUnsigned(_readBuffer);
 					}
 
 					_paddedMessageLength = messageLength + GetPadding(messageLength);
 
 					if (_decryptedLength >= _paddedMessageLength)
 					{
-						return ComputeMessage.Deserialize(_readBuffer.AsMemory(0, messageLength));
+						return _readBuffer.AsMemory(headerLength, messageLength - headerLength);
 					}
 
 					if (_readBuffer.Length < _paddedMessageLength)
@@ -97,7 +101,7 @@ namespace EpicGames.Horde.Compute
 				int read = await _socket.ReceiveAsync(_readBuffer.AsMemory(_encryptedLength), SocketFlags.Partial, cancellationToken);
 				if (read == 0)
 				{
-					throw new EndOfStreamException();
+					return ReadOnlyMemory<byte>.Empty;
 				}
 				_encryptedLength += read;
 
@@ -114,16 +118,15 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Sends a message to the remote
 		/// </summary>
-		/// <param name="message">Message to be sent</param>
+		/// <param name="message">Message to be written</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns></returns>
-		public async Task WriteAsync(object message, CancellationToken cancellationToken)
+		public async Task WriteMessageAsync(ReadOnlyMemory<byte> message, CancellationToken cancellationToken)
 		{
-			// Format the output object
-			ComputeMessage.Serialize(message, _writer);
-
 			// Serialize it to the write buffer
-			int length = _writer.GetSize();
+			int headerLength = VarInt.MeasureUnsigned(message.Length);
+
+			int length = headerLength + message.Length;
 			length += GetPadding(length);
 
 			if (length > _writeBuffer.Length)
@@ -131,7 +134,9 @@ namespace EpicGames.Horde.Compute
 				_writeBuffer = new byte[length];
 			}
 
-			_writer.CopyTo(_writeBuffer);
+			// Write the data to the buffer
+			VarInt.WriteUnsigned(_writeBuffer, message.Length);
+			message.CopyTo(_writeBuffer.AsMemory(headerLength));
 
 			// Encrypt the data and send it
 			int transformed = _encryptor.TransformBlock(_writeBuffer, 0, length, _writeBuffer, 0);

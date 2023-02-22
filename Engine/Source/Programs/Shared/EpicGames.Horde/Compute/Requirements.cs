@@ -40,10 +40,20 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Construct a requirements object with a condition
 		/// </summary>
-		/// <param name="condition"></param>
+		/// <param name="condition">Condition for matching machines to execute the work</param>
 		public Requirements(Condition? condition)
 		{
 			Condition = condition;
+		}
+
+		/// <summary>
+		/// Serialize this object to bytes
+		/// </summary>
+		public byte[] Serialize()
+		{
+			CbWriter writer = new CbWriter();
+			CbSerializer.Serialize(writer, this);
+			return writer.ToByteArray();
 		}
 
 		/// <inheritdoc/>

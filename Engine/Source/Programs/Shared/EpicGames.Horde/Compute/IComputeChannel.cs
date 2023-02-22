@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,35 +12,17 @@ namespace EpicGames.Horde.Compute
 	public interface IComputeChannel
 	{
 		/// <summary>
-		/// Receives a message from the remote
+		/// Reads a message from the channel
 		/// </summary>
-		/// <param name="cancellationToken"></param>
-		/// <returns></returns>
-		Task<object> ReadAsync(CancellationToken cancellationToken);
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Data for the message that was read. This buffer is ephemeral, and may be overwritten on the next read call.</returns>
+		Task<ReadOnlyMemory<byte>> ReadMessageAsync(CancellationToken cancellationToken);
 
 		/// <summary>
-		/// Sends a message to the remote
+		/// Writes a message to the channel
 		/// </summary>
-		/// <param name="message">Message to be sent</param>
-		/// <param name="cancellationToken">Cancellation token</param>
-		/// <returns></returns>
-		Task WriteAsync(object message, CancellationToken cancellationToken);
-	}
-
-	/// <summary>
-	/// Extension methods for compute channels
-	/// </summary>
-	public static class ComputeChannelExtensions
-	{
-		/// <summary>
-		/// Receives a message from the remote
-		/// </summary>
-		/// <param name="channel">Channel to read from</param>
-		/// <param name="cancellationToken"></param>
-		/// <returns></returns>
-		public static async Task<T> ReadAsync<T>(this IComputeChannel channel, CancellationToken cancellationToken)
-		{
-			return (T)await channel.ReadAsync(cancellationToken);
-		}
+		/// <param name="buffer">Buffer containing the data to be written</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		Task WriteMessageAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken);
 	}
 }
