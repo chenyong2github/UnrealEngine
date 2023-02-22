@@ -22,11 +22,6 @@ public class WindowsTargetPlatform : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-			}
-		);
-
 		// compile with Engine
 		if (Target.bCompileAgainstEngine)
 		{
