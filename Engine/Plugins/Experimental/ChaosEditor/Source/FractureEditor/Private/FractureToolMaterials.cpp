@@ -26,6 +26,47 @@ void UFractureMaterialsSettings::RemoveMaterialSlot()
 	MaterialsTool->RemoveMaterialSlot();
 }
 
+void UFractureMaterialsSettings::UseAssetMaterialsOnComponents()
+{
+	UFractureToolMaterials* MaterialsTool = Cast<UFractureToolMaterials>(OwnerTool.Get());
+	MaterialsTool->ClearMaterialOverridesOnComponents(bOnlySelectedComponents);
+}
+
+void UFractureToolMaterials::ClearMaterialOverridesOnComponents(bool bOnlySelectedComponents)
+{
+	if (!ActiveSelectedComponent.IsValid())
+	{
+		return;
+	}
+
+	// update materials on all components using this GeometryCollection
+	if (!bOnlySelectedComponents)
+	{
+		for (FThreadSafeObjectIterator Iter(UGeometryCollectionComponent::StaticClass()); Iter; ++Iter)
+		{
+			UGeometryCollectionComponent* GCComponent = Cast<UGeometryCollectionComponent>(*Iter);
+			if (GCComponent->GetRestCollection() == ActiveSelectedComponent->GetRestCollection())
+			{
+				GCComponent->EmptyOverrideMaterials();
+				GCComponent->MarkRenderStateDirty();
+			}
+		}
+	}
+	else
+	{
+		TSet<UGeometryCollectionComponent*> GeomCompSelection;
+		GetSelectedGeometryCollectionComponents(GeomCompSelection);
+		for (UGeometryCollectionComponent* Component : GeomCompSelection)
+		{
+			if (Component->GetRestCollection() == ActiveSelectedComponent->GetRestCollection())
+			{
+				Component->EmptyOverrideMaterials();
+				Component->MarkRenderStateDirty();
+			}
+		}
+	}
+}
+
 void UFractureToolMaterials::RemoveMaterialSlot()
 {
 	TSet<UGeometryCollectionComponent*> GeomCompSelection;
@@ -40,7 +81,7 @@ void UFractureToolMaterials::RemoveMaterialSlot()
 			Collection->RebuildRenderData();
 		}
 	}
-	UpdateActiveMaterialsList();
+	UpdateActiveMaterialsInfo();
 }
 
 void UFractureToolMaterials::AddMaterialSlot()
@@ -54,15 +95,10 @@ void UFractureToolMaterials::AddMaterialSlot()
 		UGeometryCollection* Collection = Edit.GetRestCollection();
 
 		int32 NewSlotIdx = Collection->AddNewMaterialSlot();
-		if (NewSlotIdx > 0)
-		{
-			// copy an adjacent material into the new slot on the component as well
-			GeometryCollectionComponent->SetMaterial(NewSlotIdx, GeometryCollectionComponent->GetMaterial(NewSlotIdx - 1));
-		}
 
 		Collection->RebuildRenderData();
 	}
-	UpdateActiveMaterialsList();
+	UpdateActiveMaterialsInfo();
 }
 
 UFractureToolMaterials::UFractureToolMaterials(const FObjectInitializer& ObjInit)
@@ -94,7 +130,7 @@ FText UFractureToolMaterials::GetTooltipText() const
 
 FSlateIcon UFractureToolMaterials::GetToolIcon() const
 {
-	return FSlateIcon("FractureEditorStyle", "FractureEditor.ToMesh");
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.Material");
 }
 
 void UFractureToolMaterials::RegisterUICommand(FFractureEditorCommands* BindingContext)
@@ -114,13 +150,28 @@ void UFractureToolMaterials::FractureContextChanged()
 {
 }
 
+void UFractureToolMaterials::SelectedBonesChanged()
+{
+	UpdateActiveMaterialsInfo();
+}
+
 void UFractureToolMaterials::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 }
 
 void UFractureToolMaterials::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	// update any cached data 
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_STRING_CHECKED(UFractureMaterialsSettings, Materials))
+	{
+		if (ActiveSelectedComponent.IsValid())
+		{
+			FGeometryCollectionEdit GCEdit = ActiveSelectedComponent->EditRestCollection(GeometryCollection::EEditUpdate::Rest);
+			GCEdit.GetRestCollection()->Materials = MaterialsSettings->Materials;
+			GCEdit.GetRestCollection()->RebuildRenderData();
+			UpdateActiveMaterialsInfo();
+		}
+	}
 }
 
 TArray<FFractureToolContext> UFractureToolMaterials::GetFractureToolContexts() const
@@ -140,6 +191,49 @@ TArray<FFractureToolContext> UFractureToolMaterials::GetFractureToolContexts() c
 	}
 
 	return Contexts;
+}
+
+
+void UFractureToolMaterials::UpdateActiveMaterialsInfo()
+{
+	// Choose a single asset to update for the asset materials options
+	TSet<UGeometryCollectionComponent*> GeomCompSelection;
+	GetSelectedGeometryCollectionComponents(GeomCompSelection, true);
+	const UGeometryCollection* RestCollection = nullptr;
+	UGeometryCollectionComponent* FoundComponent = nullptr;
+	for (UGeometryCollectionComponent* Component : GeomCompSelection)
+	{
+		FoundComponent = Component;
+		RestCollection = Component->GetRestCollection();
+		if (RestCollection)
+		{
+			break;
+		}
+	}
+	bool bHaveTargetCollectionUpdate = false;
+	if (RestCollection)
+	{
+		ActiveSelectedComponent = FoundComponent;
+		bHaveTargetCollectionUpdate = true;
+		int32 NumMaterials = RestCollection->Materials.Num();
+		MaterialsSettings->Materials = RestCollection->Materials;
+		RestCollection->GetName(MaterialsSettings->EditingCollection);
+	}
+	else
+	{
+		bHaveTargetCollectionUpdate = false;
+		MaterialsSettings->EditingCollection = LOCTEXT("NoActiveGeometryCollection", "None").ToString();
+		MaterialsSettings->Materials.Empty();
+		ActiveSelectedComponent = nullptr;
+	}
+	if (MaterialsSettings->bHaveTargetCollection != bHaveTargetCollectionUpdate)
+	{
+		MaterialsSettings->bHaveTargetCollection = bHaveTargetCollectionUpdate;
+		NotifyOfPropertyChangeByTool(MaterialsSettings);
+	}
+	
+	// Set active material list from full selection, since the material assignment applies to all selected collections
+	MaterialsSettings->UpdateActiveMaterialNames(GetSelectedComponentMaterialNames(false, false));
 }
 
 
@@ -164,7 +258,7 @@ int32 UFractureToolMaterials::ExecuteFracture(const FFractureToolContext& Fractu
 			(MaterialsSettings->ToFaces == EMaterialAssignmentTargets::OnlyInternalFaces) ? FFractureEngineMaterials::ETargetFaces::InternalFaces :
 			FFractureEngineMaterials::ETargetFaces::ExternalFaces;
 
-		if (MaterialsSettings->bOnlySelected)
+		if (MaterialsSettings->bOnlySelectedBones)
 		{
 			FFractureEngineMaterials::SetMaterial(Collection, FractureContext.GetSelection(), TargetFaces, MatID);
 		}

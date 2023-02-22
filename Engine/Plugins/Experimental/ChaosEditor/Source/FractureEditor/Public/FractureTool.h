@@ -78,7 +78,13 @@ public:
 	};
 
 public:
-	static void GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection);
+
+	/**
+	 * Get the Geometry Collection components in the current selection
+	 * @param GeomCompSelection					the set to fill with Geometry Collection components
+	 * @param bFilterForUniqueRestCollections	if true, and selection contains multiple components backed by the same Rest Collection asset, the selection will be filtered to only contain one component per asset
+	 */
+	static void GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection, bool bFilterForUniqueRestCollections = false);
 	static TArray<FString> GetSelectedComponentMaterialNames(bool bIncludeDefault, bool bUseFullNamesIfPossible = true);
 
 	

@@ -161,7 +161,7 @@ void UFractureActionTool::AddAdditionalAttributesIfRequired(UGeometryCollection*
 	}
 }
 
-void UFractureActionTool::GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection)
+void UFractureActionTool::GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection, bool bFilterForUniqueRestCollections)
 {
 	USelection* SelectionSet = GEditor->GetSelectedActors();
 	TArray<AActor*> SelectedActors;
@@ -170,11 +170,28 @@ void UFractureActionTool::GetSelectedGeometryCollectionComponents(TSet<UGeometry
 
 	GeomCompSelection.Empty(SelectionSet->Num());
 
+	TSet<const UGeometryCollection*> AddedRestCollections;
+
 	for (AActor* Actor : SelectedActors)
 	{
 		TInlineComponentArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
 		Actor->GetComponents(GeometryCollectionComponents);
-		GeomCompSelection.Append(GeometryCollectionComponents);
+		if (bFilterForUniqueRestCollections)
+		{
+			for (UGeometryCollectionComponent* Component : GeometryCollectionComponents)
+			{
+				bool bWasInSet = false;
+				AddedRestCollections.FindOrAdd(Component->GetRestCollection(), &bWasInSet);
+				if (!bWasInSet)
+				{
+					GeomCompSelection.Add(Component);
+				}
+			}
+		}
+		else
+		{
+			GeomCompSelection.Append(GeometryCollectionComponents);
+		}
 	}
 }
 
@@ -215,7 +232,9 @@ TArray<FString> UFractureActionTool::GetSelectedComponentMaterialNames(bool bInc
 				{
 					continue;
 				}
-				MaterialNames.Add(FString::Printf(TEXT("[%d] %s"), MatIdx, *Component->GetMaterial(MatIdx)->GetName()));
+				UMaterialInterface* Material = Component->GetMaterial(MatIdx);
+				FString MaterialName = Material ? Material->GetName() : LOCTEXT("NoMaterialName", "None").ToString();
+				MaterialNames.Add(FString::Printf(TEXT("[%d] %s"), MatIdx, *MaterialName));
 			}
 		}
 	}

@@ -17,7 +17,7 @@ enum class EMaterialAssignmentTargets
 	AllFaces
 };
 
-/** Settings related to geometry collection -> static mesh conversion **/
+/** Settings related to setting materials on a Geometry Collection **/
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureMaterialsSettings : public UFractureToolSettings
 {
@@ -29,25 +29,42 @@ public:
 		: Super(ObjInit)
 	{}
 
+
+	/** Geometry Collection selected for editing */
+	UPROPERTY(VisibleAnywhere, Category = AssetMaterials, meta = (NoResetToDefault))
+	FString EditingCollection;
+	
+	/** Materials on the selected Geometry Collection's underlying asset (the Rest Collection). */
+	UPROPERTY(EditAnywhere, Category = AssetMaterials, EditFixedSize, meta = (DisplayName = "Asset Materials", NoResetToDefault, EditCondition = "bHaveTargetCollection", HideEditConditionToggle))
+	TArray<TObjectPtr<UMaterialInterface>> Materials;
+	
 	/** Add a new material slot to the selected geometry collections */
-	UFUNCTION(CallInEditor, Category = MaterialEditing, meta = (DisplayName = "Add Material Slot"))
+	UFUNCTION(CallInEditor, Category = AssetMaterials)
 	void AddMaterialSlot();
 
-	/** Remove the last material slot from the selected geometry collections. (Will not remove the final material.) */
-	UFUNCTION(CallInEditor, Category = MaterialEditing, meta = (DisplayName = "Remove Material Slot"))
+	/** Remove the last material slot from the selected Geometry Collections. (Will not remove the final material.) */
+	UFUNCTION(CallInEditor, Category = AssetMaterials)
 	void RemoveMaterialSlot();
 
+	/** Clear material overrides on components using this asset, so the asset materials are used */
+	UFUNCTION(CallInEditor, Category = ComponentMaterials)
+	void UseAssetMaterialsOnComponents();
+
+	/** Whether 'Use Asset Materials On Components' should only update the selected components, or update all components using this asset */
+	UPROPERTY(EditAnywhere, Category = ComponentMaterials)
+	bool bOnlySelectedComponents = false;
+
 	/** Material to assign to selected faces */
-	UPROPERTY(EditAnywhere, Category = MaterialEditing, meta = (TransientToolProperty, DisplayName = "Assign Material", GetOptions = GetMaterialNamesFunc, NoResetToDefault))
+	UPROPERTY(EditAnywhere, Category = AssignMaterials, meta = (TransientToolProperty, DisplayName = "Assign Material", GetOptions = GetMaterialNamesFunc, NoResetToDefault))
 	FString AssignMaterial;
 
 	/** Which subset of faces to update materials assignments on, for the selected geometry */
-	UPROPERTY(EditAnywhere, Category = MaterialEditing)
+	UPROPERTY(EditAnywhere, Category = AssignMaterials)
 	EMaterialAssignmentTargets ToFaces = EMaterialAssignmentTargets::OnlyInternalFaces;
 
 	/** Whether to only assign materials for faces in the selected bones, or the whole geometry collection */
-	UPROPERTY(EditAnywhere, Category = MaterialEditing)
-	bool bOnlySelected = true;
+	UPROPERTY(EditAnywhere, Category = AssignMaterials)
+	bool bOnlySelectedBones = true;
 
 	UFUNCTION()
 	const TArray<FString>& GetMaterialNamesFunc() { return AssignMaterialNamesList; }
@@ -65,6 +82,9 @@ public:
 	{
 		return AssignMaterialNamesList.Find(AssignMaterial);
 	}
+
+	UPROPERTY()
+	bool bHaveTargetCollection = false;
 
 private:
 
@@ -105,30 +125,34 @@ public:
 	}
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
-	virtual void SelectedBonesChanged()
-	{
-		Super::SelectedBonesChanged();
-		UpdateActiveMaterialsList();
-	}
+	virtual void SelectedBonesChanged() override;
 
 	// Called when the modal tool is entered
-	virtual void Setup()
+	virtual void Setup() override
 	{
 		Super::Setup();
-		UpdateActiveMaterialsList();
+		UpdateActiveMaterialsInfo();
 	}
 
-	void UpdateActiveMaterialsList()
+	virtual void Shutdown()
 	{
-		MaterialsSettings->UpdateActiveMaterialNames(GetSelectedComponentMaterialNames(false, false));
+		Super::Shutdown();
+		ActiveSelectedComponent = nullptr;
 	}
+
+	void UpdateActiveMaterialsInfo();
 
 	virtual TArray<FFractureToolContext> GetFractureToolContexts() const override;
 
 	void RemoveMaterialSlot();
 	void AddMaterialSlot();
+	void ClearMaterialOverridesOnComponents(bool bOnlySelected = false);
 
 protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	TObjectPtr<UFractureMaterialsSettings> MaterialsSettings;
+
+	// Track the geometry collection asset last used to populate the materials list, if any
+	UPROPERTY()
+	TWeakObjectPtr<UGeometryCollectionComponent> ActiveSelectedComponent = nullptr;
 };
