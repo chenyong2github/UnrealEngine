@@ -3579,7 +3579,11 @@ private:
         paramTypes.push_back(context.UnsignedLongLongTy);
         break;
       case LICOMPTYPE_UINT:
-        paramTypes.push_back(context.UnsignedIntTy);
+        if (pArgs[i].uLegalTemplates == LITEMPLATE_VECTOR) {
+          paramTypes.push_back(LookupVectorType(HLSLScalarType::HLSLScalarType_uint32, pArgs[i].uCols));
+        } else {
+          paramTypes.push_back(context.UnsignedIntTy);
+        }
         break;
       case LICOMPTYPE_VOID:
         paramTypes.push_back(context.VoidTy);
