@@ -94,8 +94,7 @@ void ConvertConstraintProfileToControlData(
 		GetLinearDriveStiffness(InProfileProperties.LinearDrive), 
 		GetLinearDriveDamping(InProfileProperties.LinearDrive));
 
-	OutControlData.MaxForce = FloatCastChecked<float>(
-		GetLinearDriveMaxForce(InProfileProperties.LinearDrive), UE::LWC::DefaultFloatPrecision);
+	OutControlData.MaxForce = float(GetLinearDriveMaxForce(InProfileProperties.LinearDrive));
 
 	ConvertSpringToStrengthParams(
 		OutControlData.AngularStrength,
@@ -104,8 +103,7 @@ void ConvertConstraintProfileToControlData(
 		GetAngularDriveStiffness(InProfileProperties.AngularDrive),
 		GetAngularDriveDamping(InProfileProperties.AngularDrive));
 
-	OutControlData.MaxTorque = FloatCastChecked<float>(
-		GetAngularDriveMaxTorque(InProfileProperties.AngularDrive), UE::LWC::DefaultFloatPrecision);
+	OutControlData.MaxTorque = float(GetAngularDriveMaxTorque(InProfileProperties.AngularDrive));
 }
 
 //======================================================================================================================

@@ -54,11 +54,11 @@ void ConvertStrengthToSpringParams(
 	TOut& OutSpring, TOut& OutDamping,
 	double InStrength, double InDampingRatio, double InExtraDamping)
 {
-	TOut AngularFrequency = FloatCastChecked<TOut>(InStrength * UE_DOUBLE_TWO_PI, UE::LWC::DefaultFloatPrecision);
+	TOut AngularFrequency = TOut(InStrength * UE_DOUBLE_TWO_PI);
 	TOut Stiffness = AngularFrequency * AngularFrequency;
 
 	OutSpring = Stiffness;
-	OutDamping = FloatCastChecked<TOut>(InExtraDamping + 2 * InDampingRatio * AngularFrequency, UE::LWC::DefaultFloatPrecision);
+	OutDamping = TOut(InExtraDamping + 2 * InDampingRatio * AngularFrequency);
 }
 
 
@@ -72,27 +72,27 @@ static void ConvertSpringToStrengthParams(
 	const double InSpring, const double InDamping)
 {
 	// Simple calculation to get the strength
-	TOut AngularFrequency = FloatCastChecked<TOut>(FMath::Sqrt(InSpring), UE::LWC::DefaultFloatPrecision);
+	TOut AngularFrequency = TOut(FMath::Sqrt(InSpring));
 	OutStrength = AngularFrequency / UE_TWO_PI;
 
 	// For damping, try to put as much into the damping ratio as possible, up to a max DR of 1. Then
 	// the rest goes into extra damping.
 	OutDampingRatio = 1;
-	TOut ImpliedDamping = FloatCastChecked<TOut>(2.0 * OutDampingRatio * AngularFrequency, UE::LWC::DefaultFloatPrecision);
+	TOut ImpliedDamping = TOut(2.0 * OutDampingRatio * AngularFrequency);
 
 	if (ImpliedDamping < InDamping)
 	{
-		OutExtraDamping = FloatCastChecked<TOut>(InDamping, UE::LWC::DefaultFloatPrecision) - ImpliedDamping;
+		OutExtraDamping = TOut(InDamping) - ImpliedDamping;
 	}
 	else if (AngularFrequency > 0)
 	{
 		OutExtraDamping = 0;
-		OutDampingRatio = FloatCastChecked<TOut>(InDamping, UE::LWC::DefaultFloatPrecision) / (2 * AngularFrequency);
+		OutDampingRatio = TOut(InDamping) / (2 * AngularFrequency);
 	}
 	else
 	{
 		OutDampingRatio = 1;
-		OutExtraDamping = FloatCastChecked<TOut>(InDamping, UE::LWC::DefaultFloatPrecision);
+		OutExtraDamping = TOut(InDamping);
 	}
 }
 

@@ -750,6 +750,8 @@ public:
 	 * @param MovementType Whether to enable/disable simulation on the body
 	 * @param CollisionType Collision type to set on the body
 	 * @param GravityMultiplier The amount of gravity to apply when simulating
+	 * @param PhysicsBlendWeight The blend weight between the body transform coming from
+	 *        animation and that coming from simulation.
 	 * @param bUseSkeletalAnimation Whether the kinematic target is specified in the frame of the
 	 *                              skeletal animation, rather than world space. Only relevant if the
 	 *                              body is part of a skeletal mesh.
@@ -776,6 +778,8 @@ public:
 	 * @param MovementType Whether to enable/disable simulation on the body
 	 * @param CollisionType Collision type to set on the body
 	 * @param GravityMultiplier The amount of gravity to apply when simulating
+	 * @param PhysicsBlendWeight The blend weight between the body transform coming from
+	 *        animation and that coming from simulation.
 	 * @param bUseSkeletalAnimation Whether the kinematic target is specified in the frame of the
 	 *                              skeletal animation, rather than world space. Only relevant if the
 	 *                              body is part of a skeletal mesh.
@@ -803,6 +807,8 @@ public:
 	 * @param MovementType Whether to enable/disable simulation on the body
 	 * @param CollisionType Collision type to set on the body
 	 * @param GravityMultiplier The amount of gravity to apply when simulating
+	 * @param PhysicsBlendWeight The blend weight between the body transform coming from
+	 *        animation and that coming from simulation.
 	 * @param bUseSkeletalAnimation Whether the kinematic target is specified in the frame of the
 	 *                              skeletal animation, rather than world space. Only relevant if the
 	 *                              body is part of a skeletal mesh.
@@ -829,6 +835,8 @@ public:
 	 * @param MovementType Whether to enable/disable simulation on the body
 	 * @param CollisionType Collision type to set on the body
 	 * @param GravityMultiplier The amount of gravity to apply when simulating
+	 * @param PhysicsBlendWeight The blend weight between the body transform coming from
+	 *        animation and that coming from simulation.
 	 * @param bUseSkeletalAnimation Whether the kinematic target is specified in the frame of the
 	 *                              skeletal animation, rather than world space. Only relevant if the
 	 *                              body is part of a skeletal mesh.
@@ -1002,7 +1010,8 @@ public:
 	 * Sets the physics blend weight for a body modifier
 	 *
 	 * @param Name The name of the body modifier to access. 
-	 * @param PhysicsBlendWeight The amount of gravity to apply when simulating
+	 * @param PhysicsBlendWeight The blend weight between the body transform coming from 
+	 *        animation and that coming from simulation.
 	 * @return true if the body modifier was found, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
@@ -1014,8 +1023,9 @@ public:
 	 * Sets the physics blend weight for body modifiers
 	 *
 	 * @param Names The names of the body modifiers to access. Note that if you have these in a FPhysicsControlNameArray
-	 *              then it can be split.
-	 * @param PhysicsBlendWeight The amount of gravity to apply when simulating
+	 *        then it can be split.
+	 * @param PhysicsBlendWeight The blend weight between the body transform coming from
+	 *        animation and that coming from simulation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	void SetBodyModifiersPhysicsBlendWeight(
@@ -1027,7 +1037,8 @@ public:
 	 *
 	 * @param Set The set of body modifiers to modify. Standard sets will include "All" and things like
 	 *        "ArmLeft", depending on how body modifiers have been created.
-	 * @param PhysicsBlendWeight The amount of gravity to apply when simulating
+	 * @param PhysicsBlendWeight The blend weight between the body transform coming from
+	 *        animation and that coming from simulation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	void SetBodyModifiersInSetPhysicsBlendWeight(

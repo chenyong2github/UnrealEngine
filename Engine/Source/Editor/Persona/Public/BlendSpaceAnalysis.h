@@ -283,7 +283,7 @@ static bool CalculateComponentSampleValue(
 {
 	double DoubleResult = Result;
 	bool bResult = CalculateComponentSampleValue(DoubleResult, Fn, BlendSpace, AnalysisProperties, Animation, RateScale);
-	Result = FloatCastChecked<float>(DoubleResult, UE::LWC::DefaultFloatPrecision);
+	Result = float(DoubleResult);
 	return bResult;
 }
 
