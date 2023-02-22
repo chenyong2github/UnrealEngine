@@ -87,6 +87,11 @@ TSharedPtr<INetworkReplayStreamer> FReplayHelper::Init(const FURL& URL)
 	FWorldDelegates::LevelRemovedFromWorld.AddRaw(this, &FReplayHelper::OnLevelRemovedFromWorld);
 	FWorldDelegates::LevelAddedToWorld.AddRaw(this, &FReplayHelper::OnLevelAddedToWorld);
 
+	if (DemoURL.HasOption(TEXT("CheckpointSaveMaxMSPerFrame")))
+	{
+		CheckpointSaveMaxMSPerFrame = FCString::Atof(DemoURL.GetOption(TEXT("CheckpointSaveMaxMSPerFrame="), nullptr));
+	}
+
 	return ReplayStreamer;
 }
 

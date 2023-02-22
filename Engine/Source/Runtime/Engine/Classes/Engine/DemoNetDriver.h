@@ -334,8 +334,12 @@ public:
 	virtual void ProcessRemoteFunction(class AActor* Actor, class UFunction* Function, void* Parameters, struct FOutParmRec* OutParms, struct FFrame* Stack, class UObject* SubObject = nullptr) override;
 	virtual bool IsAvailable() const override { return true; }
 	void SkipTime(const float InTimeToSkip);
+	
+	UE_DEPRECATED(5.3, "Internal call will be made private in the future.")
 	void SkipTimeInternal(const float SecondsToSkip, const bool InFastForward, const bool InIsForCheckpoint);
+	UE_DEPRECATED(5.3, "Internal call will be made private in the future.")
 	bool InitConnectInternal(FString& Error);
+
 	virtual bool ShouldClientDestroyTearOffActors() const override;
 	virtual bool ShouldSkipRepNotifies() const override;
 	virtual bool ShouldQueueBunchesForActorGUID(FNetworkGUID InGUID) const override;
@@ -768,4 +772,5 @@ private:
 	bool bSkipStartupActorRollback = false;
 
 	friend class UDemoNetConnection;
+	friend class FQueuedReplayTask;
 };

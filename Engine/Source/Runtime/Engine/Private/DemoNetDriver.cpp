@@ -588,7 +588,9 @@ public:
 
 		Driver->GetReplayStreamer()->SetHighPriorityTimeRange(Driver->GetDemoCurrentTimeInMS(), TimeInMSToCheck);
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Driver->SkipTimeInternal(SecondsToSkip, true, false);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	virtual bool Tick() override
@@ -873,6 +875,21 @@ bool UDemoNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, cons
 		}
 
 		ResetDemoState();
+
+		if (URL.HasOption(TEXT("MaxDesiredReplayRecordTimeMS")))
+		{
+			MaxDesiredRecordTimeMS = FCString::Atof(URL.GetOption(TEXT("MaxDesiredReplayRecordTimeMS="), nullptr));
+		}
+
+		if (URL.HasOption(TEXT("CheckpointSaveMaxMSPerFrame")))
+		{
+			CheckpointSaveMaxMSPerFrame = FCString::Atof(URL.GetOption(TEXT("CheckpointSaveMaxMSPerFrame="), nullptr));
+		}
+
+		if (URL.HasOption(TEXT("ActorPrioritizationEnabled")))
+		{
+			bPrioritizeActors = FCString::Atoi(URL.GetOption(TEXT("ActorPrioritizationEnabled="), nullptr)) != 0;
+		}
 
 		ReplayStreamer = ReplayHelper.Init(URL);
 
@@ -3203,10 +3220,12 @@ void UDemoNetDriver::ReplayStreamingReady(const FStartStreamingResult& Result)
 		
 		const double StartTime = FPlatformTime::Seconds();
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (!InitConnectInternal(Error))
 		{
 			return;
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// InitConnectInternal calls ResetDemoState which will reset this, so restore the value
 		bWasStartStreamingSuccessful = Result.WasSuccessful();
@@ -4282,7 +4301,9 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 		if (GotoResult.ExtraTimeMS != -1)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			SkipTimeInternal((float)GotoResult.ExtraTimeMS / 1000.0f, true, true);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{
@@ -4490,8 +4511,10 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 	if (GotoResult.ExtraTimeMS != -1)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		// If we need to skip more time for fine scrubbing, set that up now
 		SkipTimeInternal((float)GotoResult.ExtraTimeMS / 1000.0f, true, true);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{
