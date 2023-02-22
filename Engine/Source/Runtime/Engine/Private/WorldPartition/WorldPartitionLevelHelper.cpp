@@ -244,7 +244,7 @@ bool FWorldPartitionLevelHelper::RemapActorPath(const FActorContainerID& InConta
 
 bool FWorldPartitionLevelHelper::RemapLevelCellPathInContentBundle(ULevel* Level, const class FContentBundleEditor* ContentBundleEditor, const UWorldPartitionRuntimeCell* Cell)
 {
-	FString CellPath = ContentBundleEditor->GetExternalStreamingObjectPackageName();
+	FString CellPath = ContentBundleEditor->GetExternalStreamingObjectPackagePath();
 	CellPath += TEXT(".");
 	CellPath += ContentBundleEditor->GetExternalStreamingObjectName();
 	CellPath += TEXT(".");

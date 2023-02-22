@@ -450,8 +450,8 @@ bool FContentBundleEditor::PopulateGeneratedPackageForCook(class IWorldPartition
 							// We already know that the cell will reside in the ExternalStreamingObject package at runtime.
 							if (!FWorldPartitionLevelHelper::RemapLevelCellPathInContentBundle(CellWorld->PersistentLevel, this, Cell))
 							{
-								//UE_LOG(LogContentBundle, Warning, TEXT("%s[Cook] Failed to Remap cell in level for package %s."), *ContentBundle::Log::MakeDebugInfoString(*this), *PackageToCook.RelativePath);
-								//bIsSuccess = false;
+								UE_LOG(LogContentBundle, Warning, TEXT("%s[Cook] Failed to Remap cell in level for package %s."), *ContentBundle::Log::MakeDebugInfoString(*this), *PackageToCook.RelativePath);
+								bIsSuccess = false;
 							}
 						}
 						else
