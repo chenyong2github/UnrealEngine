@@ -407,6 +407,8 @@ bool UContentBrowserAssetDataSource::CreatePathFilter(FAssetFilterInputParams& P
 
 bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& Params, FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter, FCompileARFilterFunc CreateCompiledFilter)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UContentBrowserAssetDataSource::CreateAssetFilter);
+
 	// If we're not including files, then we can bail now as the rest of this function deals with assets
 	if (!Params.bIncludeFiles)
 	{
@@ -526,14 +528,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				InternalPathFilter.bRecursivePaths = InFilter.bRecursivePaths;
 				CreateCompiledFilter(InternalPathFilter, CompiledInternalPathFilter);
 
-				// Remove paths that do not pass item attribute filter (Engine, Plugins, Developer, Localized, __ExternalActors__ etc..)
-				for (auto It = CompiledInternalPathFilter.PackagePaths.CreateIterator(); It; ++It)
 				{
-					FNameBuilder PathStr(*It);
-					FStringView Path(PathStr);
-					if (!ContentBrowserDataUtils::PathPassesAttributeFilter(Path, 0, InFilter.ItemAttributeFilter))
+					TRACE_CPUPROFILER_EVENT_SCOPE(UContentBrowserAssetDataSource::CreateAssetFilter::RemovePaths);
+			
+					// Remove paths that do not pass item attribute filter (Engine, Plugins, Developer, Localized, __ExternalActors__ etc..)
+					for (auto It = CompiledInternalPathFilter.PackagePaths.CreateIterator(); It; ++It)
 					{
-						It.RemoveCurrent();
+						FNameBuilder PathStr(*It);
+						FStringView Path(PathStr);
+						if (!ContentBrowserDataUtils::PathPassesAttributeFilter(Path, 0, InFilter.ItemAttributeFilter))
+						{
+							It.RemoveCurrent();
+						}
 					}
 				}
 			}

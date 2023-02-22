@@ -3162,6 +3162,8 @@ namespace UE::AssetRegistry
 void FAssetRegistryImpl::CompileFilter(Impl::FClassInheritanceContext& InheritanceContext, const FARFilter& InFilter,
 	FARCompiledFilter& OutCompiledFilter) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FAssetRegistryImpl::CompileFilter);
+
 	OutCompiledFilter.Clear();
 	OutCompiledFilter.PackageNames.Append(InFilter.PackageNames);
 	OutCompiledFilter.PackagePaths.Reserve(InFilter.PackagePaths.Num());
@@ -3206,6 +3208,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (InFilter.bRecursivePaths)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAssetRegistryImpl::CompileFilter::AddPaths);
+		
 		// Add the sub-paths of all the input paths to the expanded list
 		for (const FName& PackagePath : InFilter.PackagePaths)
 		{
