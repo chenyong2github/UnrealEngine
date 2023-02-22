@@ -46,6 +46,7 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FControlRigOnBreakLinksDialogRequestedDel
 DECLARE_DELEGATE_RetVal_OneParam(TRigVMTypeIndex, FControlRigOnPinTypeSelectionRequestedDelegate, const TArray<TRigVMTypeIndex>&);
 DECLARE_EVENT(UControlRigBlueprint, FOnBreakpointAdded);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnRequestInspectObject, const TArray<UObject*>& );
+DECLARE_DELEGATE_RetVal(URigVMGraph*, FControlRigBlueprintGetFocusedGraph);
 
 USTRUCT(meta = (Deprecated = "5.2"))
 struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionArg
@@ -279,6 +280,8 @@ public:
 
 #endif	// #if WITH_EDITOR
 
+	FControlRigBlueprintGetFocusedGraph& OnGetFocusedGraph() { return OnGetFocusedGraphDelegate; }
+
 	virtual bool ShouldBeMarkedDirtyUponTransaction() const override { return false; }
 
 	/** IInterface_PreviewMeshProvider interface */
@@ -334,6 +337,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	bool RemoveModel(FString InName = TEXT("Rig Graph"), bool bSetupUndoRedo = true, bool bPrintPythonCommand = true);
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	URigVMGraph* GetFocusedModel() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	URigVMController* GetController(const URigVMGraph* InGraph = nullptr) const;
@@ -747,7 +753,8 @@ private:
 	TArray<URigVMNode*> RigVMBreakpointNodes;
 
 	FOnRequestInspectObject OnRequestInspectObjectEvent;
-	
+	FControlRigBlueprintGetFocusedGraph OnGetFocusedGraphDelegate;
+		
 public:
 
 	/** Sets the execution mode. In Release mode the rig will ignore all breakpoints. */

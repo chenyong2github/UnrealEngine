@@ -275,6 +275,7 @@ FControlRigEditor::~FControlRigEditor()
 		RigBlueprint->SetDebugMode(false);
 		RigBlueprint->ClearBreakpoints();
 		SetHaltedNode(nullptr);
+		RigBlueprint->OnGetFocusedGraph().Unbind();
 #endif
 	}
 
@@ -542,6 +543,9 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		InControlRigBlueprint->OnRequestBreakLinksDialog().BindSP(this, &FControlRigEditor::OnRequestBreakLinksDialog);
 		InControlRigBlueprint->OnRequestPinTypeSelectionDialog().BindSP(this, &FControlRigEditor::OnRequestPinTypeSelectionDialog);
 		InControlRigBlueprint->OnRequestJumpToHyperlink().BindSP(this, &FControlRigEditor::HandleJumpToHyperlink);
+#if WITH_EDITOR
+		InControlRigBlueprint->OnGetFocusedGraph().BindSP(this, &FControlRigEditor::GetFocusedModel);
+#endif
 	}
 
 	UpdateStaleWatchedPins();

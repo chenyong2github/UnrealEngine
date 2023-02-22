@@ -1982,6 +1982,17 @@ bool UControlRigBlueprint::RemoveModel(FString InName, bool bSetupUndoRedo, bool
 	return RigVMClient.RemoveModel(InName, bSetupUndoRedo);
 }
 
+URigVMGraph* UControlRigBlueprint::GetFocusedModel() const
+{
+#if WITH_EDITOR
+	if(OnGetFocusedGraphDelegate.IsBound())
+	{
+		return OnGetFocusedGraphDelegate.Execute(); 
+	}
+#endif
+	return RigVMClient.GetDefaultModel();
+}
+
 URigVMController* UControlRigBlueprint::GetController(const URigVMGraph* InGraph) const
 {
 	return RigVMClient.GetController(InGraph);
