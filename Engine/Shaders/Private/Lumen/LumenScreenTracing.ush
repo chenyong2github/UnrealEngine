@@ -320,7 +320,7 @@ void SampleSceneColorAtHit(float3 HitTranslatedWorldPosition, float3 HitGeometry
 			float HitSceneDepth = ConvertFromDeviceZ(HitDeviceZ);
 			float RayHitSceneDepth = HitClipPosition.w;
 
-			FLumenMaterialData LumenMaterial = ReadMaterialData(HitScreenUV * View.BufferSizeAndInvSize.xy, HitScreenUV);
+			FLumenMaterialData LumenMaterial = ReadMaterialDataOpaque(HitScreenUV * View.BufferSizeAndInvSize.xy, HitScreenUV);
 
 			// Discard screen points which are either too far or face the other direction
 			if (abs(RayHitSceneDepth - HitSceneDepth) < RelativeDepthThickness * max(HitSceneDepth, .00001f)
