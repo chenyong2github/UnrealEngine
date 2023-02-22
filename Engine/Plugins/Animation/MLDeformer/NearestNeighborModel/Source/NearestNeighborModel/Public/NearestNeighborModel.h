@@ -246,7 +246,7 @@ public:
 	bool LoadOptimizedNetwork(const FString& OnnxPath);
 
 	UNeuralNetwork* GetNNINetwork() const;
-	void SetNNINetwork(UNeuralNetwork* InNeuralNetwork);
+	void SetNNINetwork(UNeuralNetwork* InNeuralNetwork, bool bBroadcast = true);
 
 #if WITH_EDITORONLY_DATA
 	TObjectPtr<UAnimSequence> GetNearestNeighborSkeletons(int32 PartId);

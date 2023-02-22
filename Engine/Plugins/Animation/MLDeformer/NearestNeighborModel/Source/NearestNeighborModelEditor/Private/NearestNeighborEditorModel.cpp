@@ -84,7 +84,7 @@ namespace UE::NearestNeighborModel
 
 	void FNearestNeighborEditorModel::OnPostTraining(ETrainingResult TrainingResult, bool bUsePartiallyTrainedWhenAborted)
 	{
-		FMLDeformerMorphModelEditorModel::OnPostTraining(TrainingResult, bUsePartiallyTrainedWhenAborted);
+		FMLDeformerEditorModel::OnPostTraining(TrainingResult, bUsePartiallyTrainedWhenAborted);
 		if (TrainingResult == ETrainingResult::Success || (TrainingResult == ETrainingResult::Aborted && bUsePartiallyTrainedWhenAborted))
 		{
 			InitTestMLDeformerPreviousWeights();
@@ -133,7 +133,7 @@ namespace UE::NearestNeighborModel
 				if (NearestNeighborModel->DoesEditorSupportOptimizedNetwork())
 				{
 					// We still need NNINetwork for serialization in nearest neighbor update and kmeans update.
-					NearestNeighborModel->SetNNINetwork(Network);
+					NearestNeighborModel->SetNNINetwork(Network, false);
 
 					const bool bSuccess = NearestNeighborModel->LoadOptimizedNetwork(OnnxFile);
 					if (bSuccess)

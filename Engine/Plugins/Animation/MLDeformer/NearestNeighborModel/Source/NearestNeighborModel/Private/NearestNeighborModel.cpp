@@ -101,9 +101,12 @@ void UNearestNeighborModel::PostLoad()
 #endif
 }
 
-void UNearestNeighborModel::SetNNINetwork(UNeuralNetwork* InNeuralNetwork)
+void UNearestNeighborModel::SetNNINetwork(UNeuralNetwork* InNeuralNetwork, bool bBroadcast)
 {
-	GetNeuralNetworkModifyDelegate().Broadcast();
+	if (bBroadcast)
+	{
+		GetNeuralNetworkModifyDelegate().Broadcast();
+	}
 	NNINetwork = InNeuralNetwork;
 }
 
@@ -534,6 +537,8 @@ bool UNearestNeighborModel::LoadOptimizedNetwork(const FString& OnnxPath)
 		const bool bSuccess = Loader->LoadOptimizedNetwork(OnnxFile);
 		if (bSuccess)
 		{
+			// Clear optimized network to avoid error messages in SetOptimizedNetwork. 
+			OptimizedNetwork = nullptr;
 			SetOptimizedNetwork(Result);
 			return true;
 		}
