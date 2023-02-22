@@ -15,6 +15,7 @@
 #include "OpenColorIOColorTransform.generated.h"
 
 
+struct FImageView;
 class UOpenColorIOConfiguration;
 
 

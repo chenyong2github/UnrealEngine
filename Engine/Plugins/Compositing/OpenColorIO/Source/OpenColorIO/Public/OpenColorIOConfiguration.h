@@ -18,6 +18,7 @@ class FOpenColorIONativeConfiguration;
 class FOpenColorIOTransformResource;
 class FTextureResource;
 class UOpenColorIOColorTransform;
+struct FImageView;
 struct FFileChangeData;
 class SNotificationItem;
 namespace ERHIFeatureLevel { enum Type : int; }
