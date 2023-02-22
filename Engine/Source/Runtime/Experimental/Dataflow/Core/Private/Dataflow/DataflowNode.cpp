@@ -472,7 +472,11 @@ FString FDataflowNode::GetPinToolTip(const FName& PropertyName)
 
 							if (NumElems == 2)
 							{
-								return OutArr[1];
+								return OutArr[1];  // Return tooltip meta text
+							}
+							else if (NumElems == 1)
+							{
+								return OutArr[0];  // Return doc comment
 							}
 						}
 					}
