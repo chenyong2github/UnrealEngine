@@ -162,6 +162,7 @@ public:
 	*/
 	virtual void InitializeStatsMetadata();
 
+#if UE_ALLOW_EXEC_COMMANDS
 	/**
 	 * Handles any commands passed in on the command line
 	 */
@@ -169,6 +170,7 @@ public:
 	{ 
 		return false; 
 	}
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 	/** Called once per frame, gathers and sets all memory allocator statistics into the corresponding stats. MUST BE THREAD SAFE. */
 	virtual void UpdateStats();

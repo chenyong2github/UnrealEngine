@@ -115,7 +115,9 @@ namespace Audio
 		virtual class ICompressedAudioInfo* CreateCompressedAudioInfo(const USoundWave* SoundWave) const override;
 		virtual class ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxyPtr& SoundWave) const override;
 		virtual bool ValidateAPICall(const TCHAR* Function, uint32 ErrorCode) override;
+#if UE_ALLOW_EXEC_COMMANDS
 		virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+#endif
 		virtual void CountBytes(class FArchive& Ar) override;
 		virtual bool IsExernalBackgroundSoundActive() override;
 		virtual void ResumeContext() override;

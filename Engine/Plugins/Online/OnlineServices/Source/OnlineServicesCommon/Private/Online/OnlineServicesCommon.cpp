@@ -193,6 +193,7 @@ void FOnlineServicesCommon::RegisterExecHandler(const FString& Name, TUniquePtr<
 	ExecCommands.Emplace(Name, MoveTemp(Handler));
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool FOnlineServicesCommon::Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (FParse::Command(&Cmd, TEXT("OnlineServices")))
@@ -218,5 +219,6 @@ bool FOnlineServicesCommon::Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice&
 	}
 	return false;
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 /* UE::Online */ }

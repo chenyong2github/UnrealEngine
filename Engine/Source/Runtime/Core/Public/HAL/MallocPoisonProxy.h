@@ -114,10 +114,12 @@ public:
 		return UsedMalloc->ValidateHeap();
 	}
 
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override
 	{
 		return UsedMalloc->Exec(InWorld, Cmd, Ar);
 	}
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 	virtual bool GetAllocationSize(void *Original, SIZE_T &SizeOut) override
 	{

@@ -723,7 +723,9 @@ public:
 	static NETWORKREPLAYSTREAMING_API FString GetReplayFileExtension();
 
 	// FSelfRegisteringExec interface
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+#endif
 
 private:
 	TSet<FName> LoadedFactories;

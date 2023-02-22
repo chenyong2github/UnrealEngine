@@ -38,7 +38,9 @@ class WEBSOCKETNETWORKING_API UWebSocketNetDriver : public UNetDriver
 	//~ End UNetDriver Interface.
 
 	//~ Begin FExec Interface
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar = *GLog) override;
+#endif
 	//~ End FExec Interface
 
 	/**

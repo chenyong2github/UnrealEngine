@@ -1400,6 +1400,7 @@ UWorld* UNetConnection::GetWorld() const
 	return World;
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool UNetConnection::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	if ( Super::Exec( InWorld, Cmd,Ar) )
@@ -1412,6 +1413,8 @@ bool UNetConnection::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar 
 	}
 	return false;
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
+
 void UNetConnection::AssertValid()
 {
 	// Make sure this connection is in a reasonable state.

@@ -15,10 +15,12 @@ class CORE_API FMallocDoubleFreeFinder final : public FMallocCallstackHandler
 public:
 	FMallocDoubleFreeFinder(FMalloc* InMalloc);
 
+#if UE_ALLOW_EXEC_COMMANDS
 	/**
 	 * Handles any commands passed in on the command line
 	 */
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+#endif
 
 	/**
 	 * If you get an allocation/memory error outside of the allocator you can call this directly

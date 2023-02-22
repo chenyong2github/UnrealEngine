@@ -240,11 +240,13 @@ void FSystemSettings::CVarSink()
 	ApplyOverrides();
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool FSystemSettings::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	// no longer needed, we have the "Scalability" console command
 	return false;
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 /*-----------------------------------------------------------------------------
 	Resolution.

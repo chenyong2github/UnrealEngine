@@ -2262,6 +2262,7 @@ void FAudioDevice::SetMixDebugState(EDebugState InDebugState)
 	DebugState = InDebugState;
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool FAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 #if !UE_BUILD_SHIPPING
@@ -2417,6 +2418,7 @@ bool FAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 
 	return false;
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 void FAudioDevice::InitSoundClasses()
 {

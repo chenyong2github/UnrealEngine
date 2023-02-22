@@ -629,6 +629,7 @@ bool UUnrealEdEngine::HandleDisasmScriptCommand(const TCHAR* Str, FOutputDevice&
 	return true;
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& Ar )
 {
 	const TCHAR* Str = Stream;
@@ -1266,6 +1267,7 @@ bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice&
 	}
 	return false;
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 bool UUnrealEdEngine::AnyWorldsAreDirty( UWorld* InWorld ) const
 {

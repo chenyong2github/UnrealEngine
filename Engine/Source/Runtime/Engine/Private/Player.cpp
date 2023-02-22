@@ -91,6 +91,7 @@ APlayerController* UPlayer::GetPlayerController(const UWorld* const InWorld) con
 	return nullptr;
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool UPlayer::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
 {
 	// Route through Exec_Dev and Exec_Editor first
@@ -154,6 +155,7 @@ bool UPlayer::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
 	}
 	return false;
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 void UPlayer::SwitchController(class APlayerController* PC)
 {

@@ -916,9 +916,9 @@ public:
 
 
 	//~ Begin FExec Interface.
-
+#if UE_ALLOW_EXEC_COMMANDS
 	ENGINE_API virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar=*GLog ) override;
-
+#endif
 	//~ End FExec Interface.
 
 	/** read input */

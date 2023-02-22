@@ -210,7 +210,9 @@ public:
 #endif
 
 	//~ Begin FExec Interface
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out = *GLog) override;
+#endif
 	//~ End FExec Interface
 
 	//~ Begin UObject Interface

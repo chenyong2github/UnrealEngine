@@ -127,10 +127,12 @@ public:
 		return true;
 	}
 
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override
 	{
 		return false;
 	}
+#endif
 
 	virtual const TCHAR* GetDescriptiveName() override
 	{

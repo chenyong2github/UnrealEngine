@@ -37,7 +37,9 @@ class UPlayer : public UObject, public FExec
 
 public:
 	//~ Begin FExec Interface.
+#if UE_ALLOW_EXEC_COMMANDS
 	ENGINE_API virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar) override;
+#endif
 	//~ End FExec Interface.
 
 	/**

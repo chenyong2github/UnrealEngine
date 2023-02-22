@@ -734,6 +734,7 @@ namespace Audio
 		return false;
 	}
 
+#if UE_ALLOW_EXEC_COMMANDS
 	bool FMixerDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		if (FAudioDevice::Exec(InWorld, Cmd, Ar))
@@ -743,6 +744,7 @@ namespace Audio
 
 		return false;
 	}
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 	void FMixerDevice::CountBytes(FArchive& InArchive)
 	{

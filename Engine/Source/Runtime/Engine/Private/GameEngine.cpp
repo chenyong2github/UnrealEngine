@@ -1016,6 +1016,7 @@ public:
 		return GEngineIni;
 	}
 
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override
 	{
 		if (FParse::Command(&Cmd, TEXT("exitembedded")))
@@ -1092,7 +1093,7 @@ public:
 		}
 		return false;
 	}
-
+#endif // UE_ALLOW_EXEC_COMMANDS
 } GEmbeddedCommunicationExec;
 
 
@@ -1378,6 +1379,7 @@ bool UGameEngine::ShouldDoAsyncEndOfFrameTasks() const
 	Command line executor.
 -----------------------------------------------------------------------------*/
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool UGameEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	if( FParse::Command( &Cmd,TEXT("REATTACHCOMPONENTS")) || FParse::Command( &Cmd,TEXT("REREGISTERCOMPONENTS")))
@@ -1532,6 +1534,7 @@ bool UGameEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		return false;
 	}
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 bool UGameEngine::HandleExitCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {

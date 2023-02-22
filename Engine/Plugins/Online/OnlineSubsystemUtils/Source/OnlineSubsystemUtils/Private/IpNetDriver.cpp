@@ -1710,6 +1710,7 @@ void UIpNetDriver::TestSuddenPortChange(uint32 NumConnections)
 }
 #endif
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool UIpNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	if (FParse::Command(&Cmd,TEXT("SOCKETS")))
@@ -1727,6 +1728,7 @@ bool UIpNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 
 	return UNetDriver::Exec( InWorld, Cmd,Ar);
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 UIpConnection* UIpNetDriver::GetServerConnection() 
 {

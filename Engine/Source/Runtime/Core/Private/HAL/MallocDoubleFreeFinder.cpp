@@ -134,6 +134,7 @@ void FMallocDoubleFreeFinder::TrackSpecial(void* Ptr)
 	}
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool FMallocDoubleFreeFinder::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (FParse::Command(&Cmd, TEXT("DoubleFreeFinderCrash")))
@@ -147,7 +148,7 @@ bool FMallocDoubleFreeFinder::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 
 	return UsedMalloc->Exec(InWorld, Cmd, Ar);
 }
-
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 FMalloc* FMallocDoubleFreeFinder::OverrideIfEnabled(FMalloc*InUsedAlloc)
 {

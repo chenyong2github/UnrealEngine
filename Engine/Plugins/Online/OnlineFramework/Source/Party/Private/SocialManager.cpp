@@ -1401,6 +1401,7 @@ void USocialManager::HandleFindSessionForJoinComplete(bool bWasSuccessful, const
 	}
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool USocialManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out)
 {
 	if (FParse::Command(&Cmd, TEXT("SOCIAL")))
@@ -1423,6 +1424,7 @@ bool USocialManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice
 	}
 	return false;
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 USocialDebugTools* USocialManager::GetDebugTools() const
 {

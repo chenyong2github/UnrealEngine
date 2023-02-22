@@ -312,7 +312,9 @@ public:
 	
 	void RegisterExecHandler(const FString& Name, TUniquePtr<IOnlineExecHandler>&& Handler);
 
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar) override;
+#endif
 
 	FOnlineAsyncOpCache OpCache;
 

@@ -110,6 +110,7 @@ void FNetworkReplayStreaming::Flush()
 	}
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool FNetworkReplayStreaming::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	// expected usage is "replaystreamer <streamer factory name> <streamer specific args>"
@@ -130,6 +131,7 @@ bool FNetworkReplayStreaming::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 
 	return false;
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 FString LexToString(const EReplayStreamerState State)
 {

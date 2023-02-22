@@ -47,7 +47,9 @@ public:
 	void ApplyOverrides();
 	
 	//~ Begin Exec Interface
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
+#endif
 	//~ End Exec Interface
 
 	/** Mask where 1 bits mean we want to force the engine show flag to be off */

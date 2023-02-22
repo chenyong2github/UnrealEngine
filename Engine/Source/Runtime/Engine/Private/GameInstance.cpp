@@ -755,6 +755,7 @@ bool UGameInstance::HandleTravelCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWo
 	return Engine->HandleTravelCommand(Cmd, Ar, InWorld);
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool UGameInstance::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	// @todo a bunch of stuff in UEngine probably belongs here as well
@@ -777,6 +778,7 @@ bool UGameInstance::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 
 	return false;
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 ULocalPlayer* UGameInstance::CreateInitialPlayer(FString& OutError)
 {

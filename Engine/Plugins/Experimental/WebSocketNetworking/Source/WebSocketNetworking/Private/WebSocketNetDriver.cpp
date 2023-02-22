@@ -190,6 +190,7 @@ bool UWebSocketNetDriver::HandleSocketsCommand(const TCHAR* Cmd, FOutputDevice& 
 	return UNetDriver::Exec(InWorld, TEXT("SOCKETS"), Ar);
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool UWebSocketNetDriver::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (FParse::Command(&Cmd, TEXT("SOCKETS")))
@@ -198,6 +199,7 @@ bool UWebSocketNetDriver::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 	}
 	return UNetDriver::Exec(InWorld, Cmd, Ar);
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 UWebSocketConnection* UWebSocketNetDriver::GetServerConnection()
 {

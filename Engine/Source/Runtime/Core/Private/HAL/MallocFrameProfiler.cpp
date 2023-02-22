@@ -163,6 +163,7 @@ void FMallocFrameProfiler::UpdateStats()
 	CallStackStatsArray.Reset();
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool FMallocFrameProfiler::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (FParse::Command(&Cmd, TEXT("MallocFrameProfiler")))
@@ -183,7 +184,7 @@ bool FMallocFrameProfiler::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice
 
 	return UsedMalloc->Exec(InWorld, Cmd, Ar);
 }
-
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 FMalloc* FMallocFrameProfiler::OverrideIfEnabled(FMalloc*InUsedAlloc)
 {
