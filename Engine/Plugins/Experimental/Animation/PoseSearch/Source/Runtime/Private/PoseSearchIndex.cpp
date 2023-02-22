@@ -32,6 +32,30 @@ void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, T
 } // namespace UE::PoseSearch
 
 //////////////////////////////////////////////////////////////////////////
+// FPoseSearchPoseMetadata
+FArchive& operator<<(FArchive& Ar, FPoseSearchPoseMetadata& Metadata)
+{
+	Ar << Metadata.Flags;
+	Ar << Metadata.CostAddend;
+	Ar << Metadata.ContinuingPoseCostAddend;
+	Ar << Metadata.AssetIndex;
+	return Ar;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FPoseSearchIndexAsset
+FArchive& operator<<(FArchive& Ar, FPoseSearchIndexAsset& IndexAsset)
+{
+	Ar << IndexAsset.SourceAssetIdx;
+	Ar << IndexAsset.bMirrored;
+	Ar << IndexAsset.BlendParameters;
+	Ar << IndexAsset.SamplingInterval;
+	Ar << IndexAsset.FirstPoseIdx;
+	Ar << IndexAsset.NumPoses;
+	return Ar;
+}
+
+//////////////////////////////////////////////////////////////////////////
 // FPoseSearchStats
 FArchive& operator<<(FArchive& Ar, FPoseSearchStats& Stats)
 {
@@ -39,7 +63,6 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchStats& Stats)
 	Ar << Stats.MaxSpeed;
 	Ar << Stats.AverageAcceleration;
 	Ar << Stats.MaxAcceleration;
-
 	return Ar;
 }
 
@@ -77,46 +100,13 @@ void FPoseSearchIndexBase::Reset()
 
 FArchive& operator<<(FArchive& Ar, FPoseSearchIndexBase& Index)
 {
-	int32 NumValues = 0;
-	int32 NumAssets = 0;
-
-	if (Ar.IsSaving())
-	{
-		NumValues = Index.Values.Num();
-		NumAssets = Index.Assets.Num();
-	}
-
 	Ar << Index.NumPoses;
-	Ar << NumValues;
-	Ar << NumAssets;
+	Ar << Index.Values;
+	Ar << Index.PoseMetadata;
 	Ar << Index.OverallFlags;
-
-	if (Ar.IsLoading())
-	{
-		Index.Values.SetNumUninitialized(NumValues);
-		Index.PoseMetadata.SetNumUninitialized(Index.NumPoses);
-		Index.Assets.SetNumUninitialized(NumAssets);
-	}
-
-	if (Index.Values.Num() > 0)
-	{
-		Ar.Serialize(&Index.Values[0], Index.Values.Num() * Index.Values.GetTypeSize());
-	}
-
-	if (Index.PoseMetadata.Num() > 0)
-	{
-		Ar.Serialize(&Index.PoseMetadata[0], Index.PoseMetadata.Num() * Index.PoseMetadata.GetTypeSize());
-	}
-
-	if (Index.Assets.Num() > 0)
-	{
-		Ar.Serialize(&Index.Assets[0], Index.Assets.Num() * Index.Assets.GetTypeSize());
-	}
-
+	Ar << Index.Assets;
 	Ar << Index.MinCostAddend;
-
 	Ar << Index.Stats;
-
 	return Ar;
 }
 
@@ -205,37 +195,11 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
 	Ar << static_cast<FPoseSearchIndexBase&>(Index);
 
 	Ar << Index.WeightsSqrt;
+	Ar << Index.PCAValues;
+	Ar << Index.PCAProjectionMatrix;
+	Ar << Index.Mean;
+	Ar << Index.PCAExplainedVariance;
 
-	int32 NumPCAValues = Ar.IsSaving() ? Index.PCAValues.Num() : 0;
-	Ar << NumPCAValues;
-
-	if (NumPCAValues > 0)
-	{
-		if (Ar.IsLoading())
-		{
-			Index.PCAValues.SetNumUninitialized(NumPCAValues);
-		}
-
-		if (Index.PCAValues.Num() > 0)
-		{
-			Ar.Serialize(&Index.PCAValues[0], Index.PCAValues.Num() * Index.PCAValues.GetTypeSize());
-		}
-
-		Ar << Index.Mean;
-		Ar << Index.PCAProjectionMatrix;
-
-		Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
-
-		Ar << Index.PCAExplainedVariance;
-	}
-	else if (Ar.IsLoading())
-	{
-		Index.PCAValues.Reset();
-		Index.Mean.Reset();
-		Index.PCAProjectionMatrix.Reset();
-		Index.KDTree.Reset();
-		Index.PCAExplainedVariance = 0.f;
-	}
-
+	Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
 	return Ar;
 }

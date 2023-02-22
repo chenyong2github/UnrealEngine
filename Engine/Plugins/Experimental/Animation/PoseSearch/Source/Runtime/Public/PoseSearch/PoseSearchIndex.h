@@ -63,6 +63,8 @@ struct POSESEARCH_API FPoseSearchPoseMetadata
 	// @todo: consider int16
 	UPROPERTY(meta = (NeverInHash))
 	int32 AssetIndex = INDEX_NONE;
+
+	friend FArchive& operator<<(FArchive& Ar, FPoseSearchPoseMetadata& Metadata);
 };
 
 /**
@@ -106,6 +108,7 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 	int32 NumPoses = 0;
 
 	bool IsPoseInRange(int32 PoseIdx) const { return (PoseIdx >= FirstPoseIdx) && (PoseIdx < FirstPoseIdx + NumPoses); }
+	friend FArchive& operator<<(FArchive& Ar, FPoseSearchIndexAsset& IndexAsset);
 };
 
 USTRUCT()

@@ -218,20 +218,21 @@ FArchive& SerializeSubTree(FArchive& Ar, FKDTree& KDTree, FKDTreeImplementation:
 FArchive& Serialize(FArchive& Ar, FKDTree& KDTree, const float* KDTreeData)
 {
 #if UE_POSE_SEARCH_USE_NANOFLANN
+	uint32 KDTreeSize = KDTree.Impl ? KDTree.Impl->m_size : 0;
 
-	if (Ar.IsLoading() && !KDTree.Impl)
-	{
-		KDTree.Impl = new FKDTreeImplementation(0, KDTree.DataSource, nanoflann::KDTreeSingleIndexAdaptorParams(0));
-	}
-
-	check(KDTree.Impl);
-	check(KDTree.Impl->m_size < UINT_MAX);
-	uint32 KDTreeSize = KDTree.Impl->m_size;
 	Ar << KDTreeSize;
-	KDTree.Impl->m_size = KDTreeSize;
 
-	if (KDTree.Impl->m_size  > 0)
+	check(KDTreeSize < UINT_MAX);
+
+	if (KDTreeSize > 0)
 	{
+		if (Ar.IsLoading() && !KDTree.Impl)
+		{
+			KDTree.Impl = new FKDTreeImplementation(0, KDTree.DataSource, nanoflann::KDTreeSingleIndexAdaptorParams(0));
+		}
+
+		KDTree.Impl->m_size = KDTreeSize;
+
 		Ar << KDTree.Impl->dim;
 
 		uint32 root_bbox_size = KDTree.Impl->root_bbox.size();
@@ -269,6 +270,10 @@ FArchive& Serialize(FArchive& Ar, FKDTree& KDTree, const float* KDTreeData)
 			Ar << el;
 		}
 		SerializeSubTree(Ar, KDTree, KDTree.Impl->root_node);
+	}
+	else if (Ar.IsLoading())
+	{
+		KDTree.Reset();
 	}
 #endif
 
