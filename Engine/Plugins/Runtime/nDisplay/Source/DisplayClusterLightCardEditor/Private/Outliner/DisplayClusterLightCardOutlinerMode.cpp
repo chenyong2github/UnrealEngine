@@ -23,7 +23,7 @@
 #include "WorldTreeItem.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
-#include "Editor/SceneOutliner/Private/SSocketChooser.h"
+#include "SSocketChooser.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
