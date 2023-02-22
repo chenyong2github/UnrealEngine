@@ -529,6 +529,14 @@ uint32 GetTypeHash(const FHardwareDeviceIdentifier& InDevice)
 	return HashCombine(GetTypeHash(InDevice.InputClassName), GetTypeHash(InDevice.HardwareDeviceIdentifier));
 }
 
+FArchive& operator<<(FArchive& Ar, FHardwareDeviceIdentifier& InDevice)
+{
+	Ar << InDevice.InputClassName;
+	Ar << InDevice.HardwareDeviceIdentifier;
+	
+	return Ar;
+}
+
 bool FHardwareDeviceIdentifier::IsValid() const
 {
 	return InputClassName.IsValid() && HardwareDeviceIdentifier.IsValid();

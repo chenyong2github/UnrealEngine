@@ -340,6 +340,7 @@ struct ENGINE_API FHardwareDeviceIdentifier
 	}
 
 	ENGINE_API friend uint32 GetTypeHash(const FHardwareDeviceIdentifier& InDevice);
+	ENGINE_API friend FArchive& operator<<(FArchive& Ar, FHardwareDeviceIdentifier& InDevice);
 };
 
 /** Per-Platform input options */
