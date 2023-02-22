@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/SCompoundWidget.h"
 #include "IFilmOverlay.h"
 
