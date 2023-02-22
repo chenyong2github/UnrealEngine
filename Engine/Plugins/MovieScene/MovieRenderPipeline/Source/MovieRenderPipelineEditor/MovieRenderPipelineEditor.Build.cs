@@ -66,6 +66,7 @@ public class MovieRenderPipelineEditor : ModuleRules
 				"AutomationMessages",
 				"ToolWidgets",
 				"ConsoleVariablesEditor",
+				"StructUtils",
 			}
         );
 

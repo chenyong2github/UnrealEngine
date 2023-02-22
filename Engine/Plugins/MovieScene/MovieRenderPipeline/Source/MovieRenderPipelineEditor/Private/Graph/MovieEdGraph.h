@@ -27,6 +27,9 @@ public:
 	/** Returns the runtime UMovieGraphConfig that contains this editor graph */
 	class UMovieGraphConfig* GetPipelineGraph() const;
 
+	/** Creates the links/edges between nodes in the graph */
+	void CreateLinks(UMoviePipelineEdGraphNodeBase* InGraphNode, bool bCreateInboundLinks, bool bCreateOutboundLinks);
+
 protected:
 	void CreateLinks(UMoviePipelineEdGraphNodeBase* InGraphNode, bool bCreateInboundLinks, bool bCreateOutboundLinks,
 		const TMap<UMovieGraphNode*, UMoviePipelineEdGraphNodeBase*>& RuntimeNodeToEdNodeMap);

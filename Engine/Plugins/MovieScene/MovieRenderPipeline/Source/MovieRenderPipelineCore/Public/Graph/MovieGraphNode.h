@@ -15,6 +15,8 @@ class UMovieGraphPin;
 class UEdGraphNode;
 #endif
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphNodeChanged, UMovieGraphNode*);
+
 /**
 * This is a base class for all nodes that can exist in the UMovieGraphConfig network.
 * In the editor, each node in the network will have an editor-only representation too 
@@ -50,16 +52,21 @@ public:
 
 	virtual TArray<FName> GetExposedDynamicProperties() const
 	{ 
-		return TArray<FName>();
+		return ExposedDynamicPropertyNames;
 	}
+
+	/** Promotes the property with the given name to a pin on the node via a dynamic property. */
+	virtual void PromoteDynamicPropertyToPin(const FName& PropertyName);
 
 	void UpdatePins();
 	void UpdateDynamicProperties();
 	class UMovieGraphConfig* GetGraph() const;
 	UMovieGraphPin* GetInputPin(const FName& InPinLabel) const;
 	UMovieGraphPin* GetOutputPin(const FName& InPinLabel) const;
-protected:
+
 public:
+	FOnMovieGraphNodeChanged OnNodeChangedDelegate;
+
 #if WITH_EDITORONLY_DATA
 	/** Editor Node Graph representation. Not strongly typed to avoid circular dependency between editor/runtime modules. */
 	UPROPERTY()
@@ -72,6 +79,9 @@ public:
 	virtual FText GetMenuDescription() const { return FText(); }
 	virtual FText GetMenuCategory() const { return FText(); }
 #endif
+
+protected:
+	virtual TArray<FMovieGraphPinProperties> GetExposedDynamicPinProperties() const;
 
 protected:
 	UPROPERTY()

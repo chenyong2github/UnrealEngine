@@ -247,7 +247,7 @@ UEdGraphNode* FMovieGraphSchemaAction_NewNativeElement::PerformAction(UEdGraph* 
 	// Now create the editor graph node
 	FGraphNodeCreator<UMoviePipelineEdGraphNode> NodeCreator(*ParentGraph);
 	UMoviePipelineEdGraphNode* GraphNode = NodeCreator.CreateUserInvokedNode(bSelectNewNode);
-	GraphNode->SetRuntimeNode(RuntimeNode);
+	GraphNode->Construct(RuntimeNode);
 	GraphNode->NodePosX = Location.X;
 	GraphNode->NodePosY = Location.Y;
 

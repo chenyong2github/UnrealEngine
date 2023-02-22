@@ -8,11 +8,50 @@ UMovieGraphNode::UMovieGraphNode()
 {
 }
 
+TArray<FMovieGraphPinProperties> UMovieGraphNode::GetExposedDynamicPinProperties() const
+{
+	TArray<FMovieGraphPinProperties> Properties;
+
+	// Exposed dynamic properties are tracked by name; convert to pin properties
+	for (const FName& PropertyName : GetExposedDynamicProperties())
+	{
+		// Note: Currently hardcoded to not allow multiple connections, but this may need to change in the future
+		const bool bInAllowMultipleConnections = false;
+		Properties.Add(FMovieGraphPinProperties(PropertyName, bInAllowMultipleConnections));
+	}
+
+	return Properties;
+}
+
+void UMovieGraphNode::PromoteDynamicPropertyToPin(const FName& PropertyName)
+{
+	// Ensure this is a real dynamic property
+	bool bFoundMatchingProperty = false;
+	for (const FPropertyBagPropertyDesc& PropertyDescription : GetDynamicPropertyDescriptions())
+	{
+		if (PropertyDescription.Name == PropertyName)
+		{
+			bFoundMatchingProperty = true;
+			break;
+		}
+	}
+
+	// Add this property to promoted properties if it hasn't already been promoted
+	if (bFoundMatchingProperty && !ExposedDynamicPropertyNames.Contains(PropertyName))
+	{
+		ExposedDynamicPropertyNames.Add(PropertyName);
+	}
+
+	UpdatePins();
+}
+
 void UMovieGraphNode::UpdatePins()
 {
-	
 	TArray<FMovieGraphPinProperties> InputPinProperties = GetInputPinProperties();
 	TArray<FMovieGraphPinProperties> OutputPinProperties = GetOutputPinProperties();
+
+	// Include the exposed dynamic properties in the input pins
+	InputPinProperties.Append(GetExposedDynamicPinProperties());
 
 	auto UpdatePins = [this](TArray<UMovieGraphPin*>& Pins, const TArray<FMovieGraphPinProperties>& PinProperties)
 	{
@@ -80,6 +119,8 @@ void UMovieGraphNode::UpdatePins()
 
 	UpdatePins(InputPins, InputPinProperties);
 	UpdatePins(OutputPins, OutputPinProperties);
+
+	OnNodeChangedDelegate.Broadcast(this);
 }
 
 void UMovieGraphNode::UpdateDynamicProperties()

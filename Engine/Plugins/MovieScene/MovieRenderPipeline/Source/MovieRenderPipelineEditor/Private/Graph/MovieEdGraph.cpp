@@ -64,6 +64,24 @@ void UMoviePipelineEdGraph::InitFromRuntimeGraph(UMovieGraphConfig* InGraph)
 	bInitialized = true;
 }
 
+void UMoviePipelineEdGraph::CreateLinks(UMoviePipelineEdGraphNodeBase* InGraphNode, bool bCreateInboundLinks, bool bCreateOutboundLinks)
+{
+	check(InGraphNode);
+	
+	// Build runtime node to editor node map
+	TMap<UMovieGraphNode*, UMoviePipelineEdGraphNodeBase*> RuntimeNodeToEdNodeMap;
+
+	for (const TObjectPtr<UEdGraphNode>& EdGraphNode : Nodes)
+	{
+		if (UMoviePipelineEdGraphNodeBase* MovieEdNode = Cast<UMoviePipelineEdGraphNodeBase>(EdGraphNode))
+		{
+			RuntimeNodeToEdNodeMap.Add(MovieEdNode->GetRuntimeNode(), MovieEdNode);
+		}
+	}
+
+	CreateLinks(InGraphNode, bCreateInboundLinks, bCreateOutboundLinks, RuntimeNodeToEdNodeMap);
+}
+
 void UMoviePipelineEdGraph::CreateLinks(UMoviePipelineEdGraphNodeBase* InGraphNode, bool bCreateInboundLinks, bool bCreateOutboundLinks,
 	const TMap<UMovieGraphNode*, UMoviePipelineEdGraphNodeBase*>& RuntimeNodeToEdNodeMap)
 {
@@ -117,6 +135,6 @@ void UMoviePipelineEdGraph::CreateLinks(UMoviePipelineEdGraphNodeBase* InGraphNo
 	}
 	if (bCreateOutboundLinks)
 	{
-		CreateLinks(RuntimeNode->GetInputPins(), EEdGraphPinDirection::EGPD_Output);
+		CreateLinks(RuntimeNode->GetOutputPins(), EEdGraphPinDirection::EGPD_Output);
 	}
 }
