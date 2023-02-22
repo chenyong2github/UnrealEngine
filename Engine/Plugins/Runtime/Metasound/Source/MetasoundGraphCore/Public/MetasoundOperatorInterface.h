@@ -7,6 +7,7 @@
 
 namespace Metasound
 {
+
 	/** IOperator
 	 *
 	 *  IOperator defines the interface for render time operations.  IOperators are created using an INodeOperatorFactory.
@@ -14,11 +15,17 @@ namespace Metasound
 	class IOperator
 	{
 	public:
-		/** Pointer to execute function for an operator.
-		 *
-		 * @param IOperator* - The operator associated with the function pointer.
+		/** FResetOperatorParams holds the parameters provided to an IOperator's 
+		 * reset function.
 		 */
-		typedef void(*FExecuteFunction)(IOperator*);
+		struct FResetParams
+		{
+			/** General operator settings for the graph. */
+			const FOperatorSettings& OperatorSettings; 
+
+			/** Environment settings available. */
+			const FMetasoundEnvironment& Environment;
+		};
 
 		virtual ~IOperator() {}
 
@@ -51,6 +58,28 @@ namespace Metasound
 			InVertexData.GetInputs().Bind(GetInputs());
 			InVertexData.GetOutputs().Bind(GetOutputs());
 		}
+
+		/** Pointer to intialize function for an operator.
+		 *
+		 * @param IOperator* - The operator associated with the function pointer.
+		 */
+		using FResetFunction = void(*)(IOperator*, const FResetParams& InParams);
+
+		/** Return the reset function to call during graph execution.
+		 *
+		 * The IOperator* argument to the FExecutionFunction will be the same IOperator instance
+		 * which returned the execution function.
+		 *
+		 * nullptr return values are valid and signal an IOperator which does not need to be
+		 * reset.
+		 */
+		virtual FResetFunction GetResetFunction() = 0;
+
+		/** Pointer to execute function for an operator.
+		 *
+		 * @param IOperator* - The operator associated with the function pointer.
+		 */
+		using FExecuteFunction = void(*)(IOperator*);
 
 		/** Return the execution function to call during graph execution.
 		 *

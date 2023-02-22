@@ -10,18 +10,27 @@
 
 namespace Metasound
 {
-
-	FGraphOperator::~FGraphOperator()
-	{
-	}
-
 	void FGraphOperator::AppendOperator(FOperatorPtr InOperator)
 	{
 		if (InOperator.IsValid())
 		{
-			if (nullptr != InOperator->GetExecuteFunction())
+			bool bIsOperatorInAnyStack = false;
+
+			if (FExecuteFunction ExecuteFunc = InOperator->GetExecuteFunction())
 			{
-				OperatorStack.Emplace(MoveTemp(InOperator));
+				ExecuteStack.Emplace(*InOperator, ExecuteFunc);
+				bIsOperatorInAnyStack = true;
+			}
+
+			if (FResetFunction ResetFunc = InOperator->GetResetFunction())
+			{
+				ResetStack.Emplace(*InOperator, ResetFunc);
+				bIsOperatorInAnyStack = true;
+			}
+
+			if (bIsOperatorInAnyStack)
+			{
+				ActiveOperators.Add(MoveTemp(InOperator));
 			}
 		}
 	}
@@ -56,27 +65,47 @@ namespace Metasound
 		InVertexData.Bind(VertexData);
 	}
 
-	IOperator::FExecuteFunction FGraphOperator::GetExecuteFunction()
-	{
-		return &FGraphOperator::ExecuteFunction;
-	}
-
 	void FGraphOperator::Execute()
 	{
-		FExecuter* StackPtr = OperatorStack.GetData();
-		const int32 Num = OperatorStack.Num();
+		FExecuteEntry* StackPtr = ExecuteStack.GetData();
+		const int32 Num = ExecuteStack.Num();
 		for (int32 i = 0; i < Num; i++)
 		{
 			StackPtr[i].Execute();
 		}
 	}
 
-	void FGraphOperator::ExecuteFunction(IOperator* InOperator)
+	void FGraphOperator::Reset(const FGraphOperator::FResetParams& InParams)
 	{
-		FGraphOperator* Operator = static_cast<FGraphOperator*>(InOperator);
-
-		check(nullptr != Operator);
-
-		Operator->Execute();
+		FResetEntry* StackPtr = ResetStack.GetData();
+		const int32 Num = ResetStack.Num();
+		for (int32 i = 0; i < Num; i++)
+		{
+			StackPtr[i].Reset(InParams);
+		}
 	}
+
+	FGraphOperator::FExecuteEntry::FExecuteEntry(IOperator& InOperator, FExecuteFunction InFunc)
+	: Operator(&InOperator)
+	, Function(InFunc)
+	{
+		check(Function);
+	}
+	void FGraphOperator::FExecuteEntry::Execute()
+	{
+		Function(Operator);
+	}
+
+
+	FGraphOperator::FResetEntry::FResetEntry(IOperator& InOperator, FResetFunction InFunc)
+	: Operator(&InOperator)
+	, Function(InFunc)
+	{
+		check(Function);
+	}
+	void FGraphOperator::FResetEntry::Reset(const FGraphOperator::FResetParams& InParams)
+	{
+		Function(Operator, InParams);
+	}
+
 }

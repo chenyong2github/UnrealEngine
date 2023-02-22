@@ -137,6 +137,11 @@ namespace Metasound
 				return nullptr;
 			}
 
+			virtual FResetFunction GetResetFunction() override
+			{
+				return nullptr;
+			}
+
 		private:
 
 			FVertexName OutputName;
@@ -282,6 +287,11 @@ namespace Metasound
 				return nullptr;
 			}
 
+			virtual FResetFunction GetResetFunction() override
+			{
+				return nullptr;
+			}
+
 		private:
 
 			FVertexName InputName;
@@ -421,6 +431,11 @@ namespace Metasound
 				return nullptr;
 			}
 
+			virtual FResetFunction GetResetFunction() override
+			{
+				return nullptr;
+			}
+
 		private:
 
 			FVertexName OutputName;
@@ -551,6 +566,11 @@ namespace Metasound
 			}
 
 			virtual FExecuteFunction GetExecuteFunction() override
+			{
+				return nullptr;
+			}
+
+			virtual FResetFunction GetResetFunction() override
 			{
 				return nullptr;
 			}

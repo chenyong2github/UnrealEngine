@@ -41,5 +41,10 @@ namespace Metasound
 		{
 			return nullptr;
 		}
+
+		IOperator::FResetFunction FNonExecutableInputPassThroughOperator::GetResetFunction() 
+		{
+			return nullptr;
+		}
 	}
 }

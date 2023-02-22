@@ -54,6 +54,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 
+
 	protected:
 		FInt32ReadRef Seed;
 		FAudioBufferWriteRef Out;
@@ -71,6 +72,13 @@ namespace Metasound
 			{
 				return T{ InSeed };
 			}
+		}
+
+		template<typename T>
+		void ResetNoiseOperator(T& InOutGenerator)
+		{
+			InOutGenerator = MakeGenerator<T>(*Seed);
+			OldSeed = *Seed;
 		}
 
 		template<typename T>
@@ -107,6 +115,12 @@ namespace Metasound
 			, Generator{ MakeGenerator<Audio::FWhiteNoise>(*Seed) }
 		{}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			ResetNoiseOperator(Generator);
+			Out->Zero();
+		}
+
 		void Execute()
 		{
 			// Reseed if necessary.
@@ -115,8 +129,13 @@ namespace Metasound
 			// Generate a block.
 			Generate(Generator);
 		}
+
+		virtual FResetFunction GetResetFunction() override { return &FNoiseOperator_White::ResetFunction; }
+		static void ResetFunction(IOperator* InOperator, const IOperator::FResetParams& InParams) { static_cast<FNoiseOperator_White*>(InOperator)->Reset(InParams); }
+
 		static void ExecuteFunction(IOperator* InOperator) { static_cast<FNoiseOperator_White*>(InOperator)->Execute(); }
 		FExecuteFunction GetExecuteFunction() override { return &FNoiseOperator_White::ExecuteFunction; }
+
 	};
 
 	struct FNoiseOperator_Pink final : public FNoiseOperator
@@ -131,6 +150,15 @@ namespace Metasound
 
 		static void ExecuteFunction(IOperator* InOperator) { static_cast<FNoiseOperator_Pink*>(InOperator)->Execute(); }
 		FExecuteFunction GetExecuteFunction() override { return &FNoiseOperator_Pink::ExecuteFunction; }
+
+		virtual FResetFunction GetResetFunction() override { return &FNoiseOperator_Pink::ResetFunction; }
+		static void ResetFunction(IOperator* InOperator, const IOperator::FResetParams& InParams) { static_cast<FNoiseOperator_Pink*>(InOperator)->Reset(InParams); }
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			ResetNoiseOperator(Generator);
+			Out->Zero();
+		}
 
 		void Execute()
 		{

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "Internationalization/Text.h"
 #include "MetasoundBuilderInterface.h"
@@ -164,6 +163,11 @@ namespace Metasound
 		void Execute()
 		{
 			*Num = Array->Num();
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			Execute();
 		}
 
 	private:
@@ -333,6 +337,21 @@ namespace Metasound
 					UE_LOG(LogMetaSound, Warning, TEXT("Attempt to get value at invalid index [ArraySize:%d, Index:%d] in MetaSound Graph \"%s\"."), ArrayRef.Num(), IndexValue, *GraphName);
 				}
 #endif // WITH_METASOUND_DEBUG_ENVIRONMENT
+			}
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			const int32 IndexValue = *Index;
+			const ArrayType& ArrayRef = *Array;
+
+			if ((IndexValue >= 0) && (IndexValue < ArrayRef.Num()))
+			{
+				*Value = ArrayRef[IndexValue];
+			}
+			else
+			{
+				*Value = TDataTypeFactory<ElementType>::CreateAny(InParams.OperatorSettings);
 			}
 		}
 
@@ -514,6 +533,11 @@ namespace Metasound
 			}
 		}
 
+		void Reset(const IOperator::FResetParams& Inparams)
+		{
+			*Array = *InitArray;
+		}
+
 	private:
 		FOperatorSettings OperatorSettings;
 
@@ -598,17 +622,15 @@ namespace Metasound
 			FArrayDataReadReference LeftArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, METASOUND_GET_PARAM_NAME(InputLeftArray), InParams.OperatorSettings);
 			FArrayDataReadReference RightArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, METASOUND_GET_PARAM_NAME(InputRightArray), InParams.OperatorSettings);
 
-			FArrayDataWriteReference OutArray = TDataWriteReferenceFactory<ArrayType>::CreateExplicitArgs(InParams.OperatorSettings);
-
-			return MakeUnique<TArrayConcatOperator>(Trigger, LeftArray, RightArray, OutArray);
+			return MakeUnique<TArrayConcatOperator>(Trigger, LeftArray, RightArray);
 		}
 
 
-		TArrayConcatOperator(TDataReadReference<FTrigger> InTrigger, FArrayDataReadReference InLeftArray, FArrayDataReadReference InRightArray, FArrayDataWriteReference InOutArray)
+		TArrayConcatOperator(TDataReadReference<FTrigger> InTrigger, FArrayDataReadReference InLeftArray, FArrayDataReadReference InRightArray)
 		: Trigger(InTrigger)
 		, LeftArray(InLeftArray)
 		, RightArray(InRightArray)
-		, OutArray(InOutArray)
+		, OutArray(TDataWriteReference<ArrayType>::CreateNew())
 		{
 		}
 
@@ -643,6 +665,11 @@ namespace Metasound
 				*OutArray = *LeftArray;
 				OutArray->Append(*RightArray);
 			}
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			OutArray->Reset();
 		}
 
 	private:
@@ -726,13 +753,13 @@ namespace Metasound
 			TDataReadReference<int32> StartIndex = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, METASOUND_GET_PARAM_NAME(InputStartIndex), InParams.OperatorSettings);
 			TDataReadReference<int32> EndIndex = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, METASOUND_GET_PARAM_NAME(InputEndIndex), InParams.OperatorSettings);
 
-			FArrayDataWriteReference OutArray = TDataWriteReferenceFactory<ArrayType>::CreateExplicitArgs(InParams.OperatorSettings);
+			TDataWriteReference<ArrayType> OutputArray = TDataWriteReferenceFactory<ArrayType>::CreateExplicitArgs(InParams.OperatorSettings);
 
-			return MakeUnique<TArraySubsetOperator>(Trigger, InArray, StartIndex, EndIndex, OutArray);
+			return MakeUnique<TArraySubsetOperator>(Trigger, InArray, StartIndex, EndIndex, OutputArray);
 		}
 
 
-		TArraySubsetOperator(TDataReadReference<FTrigger> InTrigger, FArrayDataReadReference InInputArray, TDataReadReference<int32> InStartIndex, TDataReadReference<int32> InEndIndex, FArrayDataWriteReference InOutputArray)
+		TArraySubsetOperator(TDataReadReference<FTrigger> InTrigger, FArrayDataReadReference InInputArray, TDataReadReference<int32> InStartIndex, TDataReadReference<int32> InEndIndex, TDataWriteReference<ArrayType> InOutputArray)
 		: Trigger(InTrigger)
 		, InputArray(InInputArray)
 		, StartIndex(InStartIndex)
@@ -784,6 +811,11 @@ namespace Metasound
 					OutputArray->Append(&InputArrayRef[StartIndexValue], Num);
 				}
 			}
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			OutputArray->Reset();
 		}
 
 	private:

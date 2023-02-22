@@ -34,6 +34,11 @@ namespace Metasound
 		{
 			return nullptr;
 		}
+
+		IOperator::FResetFunction FOutputOperator::GetResetFunction()
+		{
+			return nullptr;
+		}
 	}
 }
 

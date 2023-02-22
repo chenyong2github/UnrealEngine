@@ -133,6 +133,15 @@ namespace Metasound
 					Sender->Push(*InputData);
 				}
 
+				void Reset(const IOperator::FResetParams& InParams)
+				{
+					ResetSenderAndCleanupChannel();
+					CachedSendAddress = *SendAddress;
+					Sender = CreateNewSender();
+					check(Sender.IsValid());
+				}
+
+
 			private:
 				FSendAddress GetSendAddressWithDataType(const FSendAddress& InAddress) const 
 				{

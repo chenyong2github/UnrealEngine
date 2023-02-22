@@ -170,6 +170,12 @@ namespace Metasound
 					}
 				}
 
+				void Reset(const IOperator::FResetParams& InParams)
+				{
+					*OutputData = *DefaultData;
+					bHasNotReceivedData = true;
+				}
+
 			private:
 
 				FSendAddress GetSendAddressWithDataType(const FSendAddress& InAddress) const 

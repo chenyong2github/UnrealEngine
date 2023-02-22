@@ -109,9 +109,6 @@ namespace Metasound
 #endif
 		}
 
-		FLiteral(FLiteral&& Other) = default;
-		FLiteral& operator=(FLiteral&& Other) = default;
-
 		FVariantType Value;
 
 		// builds an invalid FLiteral.

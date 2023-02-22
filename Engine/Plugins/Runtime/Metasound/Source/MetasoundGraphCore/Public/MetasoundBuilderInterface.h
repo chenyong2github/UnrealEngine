@@ -8,8 +8,9 @@
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "Templates/UniquePtr.h"
-#include "UObject/NameTypes.h"
 
+class FName;
+class FText;
 
 namespace Metasound
 {
@@ -76,6 +77,12 @@ namespace Metasound
 
 		/** Pointer to builder actively building graph. */
 		const IOperatorBuilder* Builder = nullptr;
+
+		/** Implicit conversion to FResetParams for convenience. */
+		operator IOperator::FResetParams() const
+		{
+			return IOperator::FResetParams{OperatorSettings, Environment};
+		}
 	};
 
 	/** FBuildOperatorParams holds the parameters provided to operator factories
@@ -97,6 +104,12 @@ namespace Metasound
 
 		/** Pointer to builder actively building graph. */
 		const IOperatorBuilder* Builder = nullptr;
+
+		/** Implicit conversion to FResetParams for convenience. */
+		operator IOperator::FResetParams() const
+		{
+			return IOperator::FResetParams{OperatorSettings, Environment};
+		}
 	};
 
 	/** Parameters for building an operator from a graph. 

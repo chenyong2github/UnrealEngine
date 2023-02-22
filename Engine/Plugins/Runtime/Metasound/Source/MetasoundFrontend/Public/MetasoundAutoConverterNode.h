@@ -194,6 +194,13 @@ namespace Metasound
 				}
 			}
 
+			void Reset(const IOperator::FResetParams& InParams)
+			{
+				PreviousIntValueForEnumConversion = 0;
+				bHasLoggedInvalidEnum = false;
+				Execute();
+			}
+
 			private:
 				TDataReadReference<FromDataType> FromData;
 				TDataWriteReference<ToDataType> ToData;

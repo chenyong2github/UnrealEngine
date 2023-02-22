@@ -49,6 +49,7 @@ namespace Metasound
 				virtual FDataReferenceCollection GetOutputs() const override;
 				virtual void Bind(FVertexInterfaceData& InVertexData) const;
 				virtual FExecuteFunction GetExecuteFunction() override;
+				virtual FResetFunction GetResetFunction() override;
 
 			private:
 				FVertexName VertexName;

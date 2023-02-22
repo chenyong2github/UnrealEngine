@@ -94,25 +94,23 @@ namespace Metasound
 
 	}
 
-	/** Variable nodes initialize variable values. The output of a VariableNode
-	 * is a TVariable.  */
-	template<typename DataType>
-	class TVariableNode : public FNode
+	namespace MetasoundVariableNodesPrivate
 	{
-		using FVariable = TVariable<DataType>;
-
-		class FOperator : public TExecutableOperator<FOperator>
+		template<typename DataType>
+		class TVariableOperator : public TExecutableOperator<TVariableOperator<DataType>>
 		{
-			using Super = TExecutableOperator<FOperator>;
+			using Super = TExecutableOperator<TVariableOperator<DataType>>;
+			using FVariable = TVariable<DataType>;
 
 		public:
-			FOperator(TDataWriteReference<FVariable> InVariable)
-			: Variable(InVariable)
+			TVariableOperator(const FOperatorSettings& InOperatorSettings, const FLiteral& InLiteral)
+			: Literal(InLiteral)
+			, Variable(TDataWriteReference<FVariable>::CreateNew(TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InOperatorSettings, Literal)))
 			, bCopyReferenceDataOnExecute(false)
 			{
 			}
 
-			virtual ~FOperator() = default;
+			virtual ~TVariableOperator() = default;
 
 			virtual FDataReferenceCollection GetInputs() const override
 			{
@@ -157,11 +155,26 @@ namespace Metasound
 				}
 			}
 
+			void Reset(const IOperator::FResetParams& InParams)
+			{
+				Variable->SetDelayedDataValue(TDataTypeLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, Literal));
+			}
+
 		private:
 
+			FLiteral Literal;
 			TDataWriteReference<FVariable> Variable;
 			bool bCopyReferenceDataOnExecute;
 		};
+	}
+
+
+	/** Variable nodes initialize variable values. The output of a VariableNode
+	 * is a TVariable.  */
+	template<typename DataType>
+	class TVariableNode : public FNode
+	{
+		using FVariable = TVariable<DataType>;
 
 		class FFactory : public IOperatorFactory
 		{
@@ -175,8 +188,7 @@ namespace Metasound
 
 			virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
 			{
-				TDataWriteReference<DataType> Data = TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, Literal);
-				return MakeUnique<FOperator>(TDataWriteReference<FVariable>::CreateNew(Data));
+				return MakeUnique<MetasoundVariableNodesPrivate::TVariableOperator<DataType>>(InParams.OperatorSettings, Literal);
 			}
 		private:
 			FLiteral Literal;
@@ -216,8 +228,8 @@ namespace Metasound
 			return Info;
 		}
 
-	public:
 
+	public:
 		TVariableNode(const FVertexName& InNodeName, const FGuid& InInstanceID, FLiteral&& InLiteral)
 		: FNode(InNodeName, InInstanceID, GetNodeMetadata())
 		, Interface(DeclareVertexInterface())
@@ -384,7 +396,7 @@ namespace Metasound
 	class TVariableDeferredAccessorNode : public FNodeFacade
 	{
 		using FVariable = TVariable<DataType>;
-
+	
 		class FOperator : public FNoOpOperator 
 		{
 		public:

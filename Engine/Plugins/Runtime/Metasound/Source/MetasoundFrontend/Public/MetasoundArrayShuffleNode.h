@@ -220,19 +220,7 @@ namespace Metasound
 			, TriggerOnShuffle(FTriggerWriteRef::CreateNew(InParams.OperatorSettings))
 			, OutValue(TDataWriteReferenceFactory<ElementType>::CreateAny(InParams.OperatorSettings))
 		{
-			using namespace Frontend;
-
-			// Check to see if this is a global shuffler or a local one. 
-			// Global shuffler will use a namespace to opt into it.
-			PrevSeedValue = *SeedValue;
-
-			if (InParams.Environment.Contains<uint32>(SourceInterface::Environment::SoundUniqueID))
-			{
-				// Get the environment variable for the unique ID of the sound
-				SharedStateUniqueId = InParams.Environment.GetValue<uint32>(SourceInterface::Environment::SoundUniqueID);
-			}
-
-			UpdateArraySize(InputArray->Num());
+			Reset(InParams);
 		}
 
 		virtual ~TArrayShuffleOperator() = default;
@@ -266,6 +254,25 @@ namespace Metasound
 			return Outputs;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			using namespace Frontend;
+
+			SharedStateUniqueId = INDEX_NONE;
+			if (InParams.Environment.Contains<uint32>(SourceInterface::Environment::SoundUniqueID))
+			{
+				// Get the environment variable for the unique ID of the sound
+				SharedStateUniqueId = InParams.Environment.GetValue<uint32>(SourceInterface::Environment::SoundUniqueID);
+			}
+
+			PrevSeedValue = *SeedValue;
+
+			InitializeShufflers(InputArray->Num());
+
+			TriggerOnShuffle->Reset();
+			*OutValue = TDataTypeFactory<ElementType>::CreateAny(InParams.OperatorSettings);
+		}
+
 		void Execute()
 		{
 			TriggerOnShuffle->AdvanceBlock();
@@ -279,7 +286,7 @@ namespace Metasound
 
 			if (PrevArraySize != InputArrayRef.Num())
 			{
-				UpdateArraySize(InputArrayRef.Num());
+				InitializeShufflers(InputArrayRef.Num());
 			}
  
 			// Check for a seed change
@@ -334,7 +341,7 @@ namespace Metasound
 		}
 
 	private:
-		void UpdateArraySize(int32 InSize)
+		void InitializeShufflers(int32 InSize)
 		{
 			PrevArraySize = InSize;
 

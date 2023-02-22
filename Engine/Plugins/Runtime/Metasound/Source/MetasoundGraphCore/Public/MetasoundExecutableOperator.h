@@ -2,13 +2,81 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "MetasoundOperatorInterface.h"
+
+#include <type_traits>
 
 
 namespace Metasound
 {
+	namespace MetasoundExecutableOperatorPrivate
+	{
+		// Helper template to determine whether a member function is declared
+		// for a given template class.
+		template <typename U>
+		class TIsResetMethodDeclared 
+		{
+			private:
+				template<typename T, T> 
+				struct Helper;
+
+				template<typename T>
+				static uint8 Check(Helper<void(T::*)(const IOperator::FResetParams&), &T::Reset>*);
+
+				template<typename T> static uint16 Check(...);
+
+			public:
+				static constexpr bool Value = sizeof(Check<U>(0)) == sizeof(uint8);
+		};
+
+		// Helper to determine whether an Reset(...) function exists. 
+		//
+		// Some nodes have an Execute() call without an Reset(...) call because
+		// Reset(...) was introduced after several MetaSound releases. In order
+		// allow operators to compile, we make the Intiailize(...) function optional
+		// for subclasses of TExecutableOperator. This adapter determines whether
+		// it Reset(...) exists or not.
+		//
+		// Note: This helper must be instantiated inside the functions and cannot
+		// be part of the `TExecutableOperator<OperatorType>` class definition as
+		// classes are not completely defined at the point in the compilation process
+		// when static constexpr class members are evaluated. 
+		template<typename OperatorType>
+		struct TResetFunctionAdapter
+		{
+			// Returns an IOperator::FResetFunction if the OperatorType has a
+			// Reset(...) class member function.
+			static IOperator::FResetFunction GetResetFunction() 
+			{
+				if (TIsResetMethodDeclared<OperatorType>::Value)
+				{
+					return &TResetFunctionAdapter::ResetFunction;
+				}
+				else
+				{
+					return nullptr;
+				}
+			}
+
+		private:
+			static void ResetFunction(IOperator* InOperator, const IOperator::FResetParams& InParams)
+			{
+				if constexpr (TIsResetMethodDeclared<OperatorType>::Value)
+				{
+					OperatorType* DerivedOperator = static_cast<OperatorType*>(InOperator);
+
+					check(nullptr != DerivedOperator);
+
+					DerivedOperator->Reset(InParams);
+				}
+				else
+				{
+					checkNoEntry();
+				}
+			}
+		};
+	}
+
 	// As a general rule, ExecutableDataTypes should be avoided whenever possible
 	// as they incur an undesired cost and are generally not typically necessary.
 	// This is primarily for the special case of trigger types, where state management
@@ -48,25 +116,30 @@ namespace Metasound
 	template<class DerivedOperatorType>
 	class TExecutableOperator : public IOperator
 	{
-		public:
+	public:
 
-			virtual ~TExecutableOperator() {}
+		virtual ~TExecutableOperator() {}
 
-			virtual FExecuteFunction GetExecuteFunction() override
-			{
-				return &TExecutableOperator<DerivedOperatorType>::ExecuteFunction;
-			}
+		virtual FResetFunction GetResetFunction() override
+		{
+			return MetasoundExecutableOperatorPrivate::TResetFunctionAdapter<DerivedOperatorType>::GetResetFunction();
+		}
 
-		private:
+		virtual FExecuteFunction GetExecuteFunction() override
+		{
+			return &TExecutableOperator<DerivedOperatorType>::ExecuteFunction;
+		}
 
-			static void ExecuteFunction(IOperator* InOperator)
-			{
-				DerivedOperatorType* DerivedOperator = static_cast<DerivedOperatorType*>(InOperator);
+	private:
 
-				check(nullptr != DerivedOperator);
+		static void ExecuteFunction(IOperator* InOperator)
+		{
+			DerivedOperatorType* DerivedOperator = static_cast<DerivedOperatorType*>(InOperator);
 
-				DerivedOperator->Execute();
-			}
+			check(nullptr != DerivedOperator);
+
+			DerivedOperator->Execute();
+		}
 	};
 
 	class FNoOpOperator : public IOperator
@@ -75,6 +148,11 @@ namespace Metasound
 			virtual ~FNoOpOperator() {}
 
 			FExecuteFunction GetExecuteFunction() override
+			{
+				return nullptr;
+			}
+
+			FResetFunction GetResetFunction() override
 			{
 				return nullptr;
 			}
@@ -101,12 +179,14 @@ namespace Metasound
 			using FExecuteFunction = IOperator::FExecuteFunction;
 
 			FExecuter()
-			:	ExecuteFunction(&FExecuter::NoOp)
+			:	ExecuteFunction(&FExecuter::NoOpExecute)
+			,	ResetFunction(&FExecuter::NoOpReset)
 			{
 			}
 
 			FExecuter(FOperatorPtr InOperator)
-			:	ExecuteFunction(&FExecuter::NoOp)
+			:	ExecuteFunction(&FExecuter::NoOpExecute)
+			,	ResetFunction(&FExecuter::NoOpReset)
 			{
 				SetOperator(MoveTemp(InOperator));
 			}
@@ -114,30 +194,52 @@ namespace Metasound
 			void SetOperator(FOperatorPtr InOperator)
 			{
 				Operator = MoveTemp(InOperator);
+				ExecuteFunction = nullptr;
+				ResetFunction = nullptr;
 
 				if (Operator.IsValid())
 				{
-					FExecuteFunction Func = Operator->GetExecuteFunction();
-
-					if (nullptr != Func)
+					if (FExecuteFunction Func = Operator->GetExecuteFunction())
 					{
 						ExecuteFunction = Func;
 					}
+
+					if (FResetFunction Func = Operator->GetResetFunction())
+					{
+						ResetFunction = Func;
+					}
 				}
-				else
+
+				if (!ExecuteFunction)
 				{
-					ExecuteFunction = &FExecuter::NoOp;
+					ExecuteFunction = &FExecuter::NoOpExecute;
+				}
+
+				if (!ResetFunction)
+				{
+					ResetFunction = &FExecuter::NoOpReset;
 				}
 			}
 
 			void Execute()
 			{
+				// ExecuteFunction is always non-null. If the contained operator
+				// does not provide a valid execution function, then a No-Op function
+				// is utilized. 
 				ExecuteFunction(Operator.Get());
+			}
+
+			void Reset(const IOperator::FResetParams& InParams)
+			{
+				// ResetFunction is always non-null. If the contained operator
+				// does not provide a valid initialization function, then a No-Op function
+				// is utilized. 
+				ResetFunction(Operator.Get(), InParams);
 			}
 
 			bool IsNoOp()
 			{
-				return (ExecuteFunction == &FExecuter::NoOp);
+				return (ExecuteFunction == &FExecuter::NoOpExecute) && (ResetFunction == &FExecuter::NoOpReset);
 			}
 
 			bool IsValid() const
@@ -174,12 +276,22 @@ namespace Metasound
 				return ExecuteFunction;
 			}
 
+			virtual FResetFunction GetResetFunction() override
+			{
+				return ResetFunction;
+			}
+
 		private:
 			FOperatorPtr Operator;
 
 			FExecuteFunction ExecuteFunction;
+			FResetFunction ResetFunction;
 
-			static void NoOp(IOperator*)
+			static void NoOpExecute(IOperator*)
+			{
+			}
+
+			static void NoOpReset(IOperator*, const IOperator::FResetParams&)
 			{
 			}
 	};

@@ -42,6 +42,11 @@ namespace Metasound
 			DataReference = InDataReference;
 		}
 
+		void SetDelayedDataValue(const DataType& InDataType)
+		{
+			*DelayedDataReference = InDataType;
+		}
+
 		/** Get the current data reference. */
 		FReadReference GetDataReference() const
 		{

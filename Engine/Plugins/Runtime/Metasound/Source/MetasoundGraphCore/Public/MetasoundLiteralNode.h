@@ -59,6 +59,11 @@ namespace Metasound
 			return nullptr;
 		}
 
+		virtual FResetFunction GetResetFunction() override
+		{
+			return nullptr;
+		}
+
 	private:
 		TDataValueReference<DataType> Value;
 	};
@@ -69,18 +74,19 @@ namespace Metasound
 	 * Note: this is supporting for FTrigger literals which are deprecated.
 	 */
 	template<typename DataType>
-	class TExecutableLiteralOperator : public IOperator
+	class TExecutableLiteralOperator : public TExecutableOperator<TExecutableLiteralOperator<DataType>>
 	{
 		static_assert(TExecutableDataType<DataType>::bIsExecutable, "TExecutableLiteralOperator is only suitable for executable data types");
 
 	public:
 		using FDataWriteReference = TDataWriteReference<DataType>;
 
-		TExecutableLiteralOperator(FDataWriteReference InDataReference)
+		TExecutableLiteralOperator(const FOperatorSettings& InSettings, const FLiteral& InLiteral)
 			// Executable DataTypes require a copy of the output to operate on whereas non-executable
 			// types do not. Avoid copy by assigning to reference for non-executable types.
-			: InputValue(InDataReference)
-			, OutputValue(FDataWriteReference::CreateNew(*InDataReference))
+			: Literal(InLiteral)
+			, InputValue(TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InSettings, InLiteral))
+			, OutputValue(TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InSettings, InLiteral))
 		{
 		}
 
@@ -111,17 +117,13 @@ namespace Metasound
 			TExecutableDataType<DataType>::Execute(*InputValue, *OutputValue);
 		}
 
-		static void ExecuteFunction(IOperator* InOperator)
+		void Reset(const IOperator::FResetParams& InParams)
 		{
-			static_cast<TExecutableLiteralOperator<DataType>*>(InOperator)->Execute();
-		}
-
-		virtual FExecuteFunction GetExecuteFunction() override
-		{
-			return &TExecutableLiteralOperator<DataType>::ExecuteFunction;
+			*OutputValue = *InputValue = TDataTypeLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, Literal);
 		}
 
 	private:
+		FLiteral Literal;
 		FDataWriteReference InputValue;
 		FDataWriteReference OutputValue;
 	};
@@ -250,7 +252,7 @@ namespace Metasound
 		{
 			// Create write reference by calling compatible constructor with literal.
 			TDataWriteReference<DataType> DataRef = TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, InitParam);
-			return MakeUnique<TExecutableLiteralOperator<DataType>>(DataRef);
+			return MakeUnique<TExecutableLiteralOperator<DataType>>(InParams.OperatorSettings, InitParam);
 		}
 		else
 		{

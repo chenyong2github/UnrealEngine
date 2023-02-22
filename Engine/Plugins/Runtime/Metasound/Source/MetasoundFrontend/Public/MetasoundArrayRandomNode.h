@@ -184,56 +184,9 @@ namespace Metasound
 		{
 			using namespace Frontend;
 
-#if WITH_METASOUND_DEBUG_ENVIRONMENT
-			if (InParams.Environment.Contains<FString>(SourceInterface::Environment::GraphName))
-			{
-				GraphName = *InParams.Environment.GetValue<FString>(SourceInterface::Environment::GraphName);
-			}
-#endif // WITH_METASOUND_DEBUG_ENVIRONMENT
+			SharedStateUniqueId = InParams.Node.GetInstanceID();
 
-			// Check to see if this is a global shuffler or a local one. 
-			// Global shuffler will use a namespace to opt into it.
-			PrevSeedValue = *SeedValue;
-			PrevNoRepeatOrder = FMath::Max(*NoRepeatOrder, 0);
-
-			WeightsArray = *InputWeightsArray;
-
-			const ArrayType& InputArrayRef = *InputArray;
-			PrevArraySize = InputArrayRef.Num();
-
-			if (PrevArraySize > 0)
-			{
-				if (*bEnableSharedState)
-				{
-					// Get the environment variable for the unique ID of the sound
-					SharedStateUniqueId = InParams.Node.GetInstanceID();
-					check(SharedStateUniqueId.IsValid());
-
-					bIsPreviewSound = InParams.Environment.GetValue<bool>(SourceInterface::Environment::IsPreview);
-
-					FSharedStateRandomGetManager& RGM = FSharedStateRandomGetManager::Get();
-
-					InitSharedStateArgs Args;
-					Args.SharedStateId = SharedStateUniqueId;
-					Args.Seed = PrevSeedValue;
-					Args.NumElements = PrevArraySize;
-					Args.NoRepeatOrder = PrevNoRepeatOrder;
-					Args.bIsPreviewSound = bIsPreviewSound;
-					Args.Weights = WeightsArray;
-
-					RGM.InitSharedState(Args);
-				}
-				else
-				{
-					ArrayRandomGet = MakeUnique<FArrayRandomGet>(PrevSeedValue, PrevArraySize, WeightsArray, PrevNoRepeatOrder);
-				}
-			}
-#if WITH_METASOUND_DEBUG_ENVIRONMENT
-			else
-			{
- 				UE_LOG(LogMetaSound, Verbose, TEXT("Array Random Get: Can't retrieve random elements from an empty array in graph '%s'"), *GraphName);
-			}
-#endif // WITH_METASOUND_DEBUG_ENVIRONMENT
+			Reset(InParams);
 		}
 
 		virtual ~TArrayRandomGetOperator() = default;
@@ -264,6 +217,63 @@ namespace Metasound
 			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(ShuffleOutputValue), OutValue);
 
 			return Outputs;
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			using namespace Frontend;
+#if WITH_METASOUND_DEBUG_ENVIRONMENT
+			if (InParams.Environment.Contains<FString>(SourceInterface::Environment::GraphName))
+			{
+				GraphName = *InParams.Environment.GetValue<FString>(SourceInterface::Environment::GraphName);
+			}
+#endif // WITH_METASOUND_DEBUG_ENVIRONMENT
+			bIsPreviewSound = InParams.Environment.GetValue<bool>(SourceInterface::Environment::IsPreview);
+
+			// Check to see if this is a global shuffler or a local one. 
+			// Global shuffler will use a namespace to opt into it.
+			PrevSeedValue = *SeedValue;
+			PrevNoRepeatOrder = FMath::Max(*NoRepeatOrder, 0);
+
+			WeightsArray = *InputWeightsArray;
+
+			const ArrayType& InputArrayRef = *InputArray;
+			PrevArraySize = InputArrayRef.Num();
+
+			if (PrevArraySize > 0)
+			{
+				if (*bEnableSharedState)
+				{
+					// Get the environment variable for the unique ID of the sound
+					check(SharedStateUniqueId.IsValid());
+					FSharedStateRandomGetManager& RGM = FSharedStateRandomGetManager::Get();
+
+					InitSharedStateArgs Args;
+					Args.SharedStateId = SharedStateUniqueId;
+					Args.Seed = PrevSeedValue;
+					Args.NumElements = PrevArraySize;
+					Args.NoRepeatOrder = PrevNoRepeatOrder;
+					Args.bIsPreviewSound = bIsPreviewSound;
+					Args.Weights = WeightsArray;
+
+					RGM.InitSharedState(Args);
+				}
+				else
+				{
+					ArrayRandomGet = MakeUnique<FArrayRandomGet>(PrevSeedValue, PrevArraySize, WeightsArray, PrevNoRepeatOrder);
+				}
+
+			}
+#if WITH_METASOUND_DEBUG_ENVIRONMENT
+			else
+			{
+ 				UE_LOG(LogMetaSound, Verbose, TEXT("Array Random Get: Can't retrieve random elements from an empty array in graph '%s'"), *GraphName);
+			}
+#endif // WITH_METASOUND_DEBUG_ENVIRONMENT
+
+			*OutValue = TDataTypeFactory<ElementType>::CreateAny(InParams.OperatorSettings);
+			TriggerOnNext->Reset();
+			TriggerOnReset->Reset();
 		}
 
 		void Execute()
