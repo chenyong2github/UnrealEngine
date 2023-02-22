@@ -1849,7 +1849,7 @@ TSharedPtr<FStreamableHandle> UAssetManager::PreloadPrimaryAssets(const TArray<F
 
 	for (const FPrimaryAssetId& PrimaryAssetId : AssetsToLoad)
 	{
-		if (GetPrimaryAssetLoadSet(PathsToLoad, PrimaryAssetId, LoadBundles, bLoadRecursive))
+		if (GetPrimaryAssetLoadSet(PathsToLoad, PrimaryAssetId, LoadBundles, bLoadRecursive) && DebugName.Len() < 1024)
 		{
 			if (DebugName.Len() == 0)
 			{
@@ -1862,6 +1862,11 @@ TSharedPtr<FStreamableHandle> UAssetManager::PreloadPrimaryAssets(const TArray<F
 			}
 			DebugName << PrimaryAssetId.ToString();
 		}
+	}
+	
+	if (DebugName.Len() >= 1024)
+	{
+		DebugName.ReplaceAt(DebugName.Len() - 3, 3, TEXTVIEW("..."));
 	}
 
 	ReturnHandle = LoadAssetList(PathsToLoad.Array(), MoveTemp(DelegateToCall), Priority, FString(*DebugName));
