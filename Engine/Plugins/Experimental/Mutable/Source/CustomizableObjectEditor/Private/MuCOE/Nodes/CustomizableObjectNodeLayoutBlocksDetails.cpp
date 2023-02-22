@@ -9,8 +9,11 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeLayoutBlocks.h"
 #include "MuCOE/SCustomizableObjectNodeLayoutBlocksEditor.h"
 #include "PropertyCustomizationHelpers.h"
+#include "Styling/SlateTypes.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
 
 class FString;

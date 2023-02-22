@@ -5,11 +5,13 @@
 
 #include "IDetailCustomization.h"
 
+enum class ECheckBoxState : uint8;
 namespace ESelectInfo { enum Type : int; }
 
 class FString;
 class IDetailLayoutBuilder;
-
+class STextBlock;
+class SWidget;
 
 class FCustomizableObjectNodeLayoutBlocksDetails : public IDetailCustomization
 {
