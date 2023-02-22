@@ -318,6 +318,17 @@ namespace UE::PixelStreaming
 		ExternalVideoSourceGroup->SetFPS(InFPS);
 	}
 
+	void FPixelStreamingModule::SetExternalVideoSourceCoupleFramerate(bool bShouldCoupleFPS)
+	{
+		ExternalVideoSourceGroup->SetCoupleFramerate(bShouldCoupleFPS);
+	}
+
+	void FPixelStreamingModule::SetExternalVideoSourceInput(TSharedPtr<FPixelStreamingVideoInput> InVideoInput)
+	{
+		ExternalVideoSourceGroup->SetVideoInput(InVideoInput);
+		ExternalVideoSourceGroup->Start();
+	}
+
 	rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> FPixelStreamingModule::CreateExternalVideoSource()
 	{
 		return ExternalVideoSourceGroup->CreateVideoSource([]() { return true; });

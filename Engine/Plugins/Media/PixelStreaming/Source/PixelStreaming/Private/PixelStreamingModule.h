@@ -45,6 +45,8 @@ namespace UE::PixelStreaming
 		virtual const TArray<UPixelStreamingInput*> GetInputComponents() override;
 		// Don't delete, is used externally to PS
 		virtual void SetExternalVideoSourceFPS(uint32 InFPS) override;
+		virtual void SetExternalVideoSourceCoupleFramerate(bool bShouldCoupleFPS) override;
+		virtual void SetExternalVideoSourceInput(TSharedPtr<FPixelStreamingVideoInput> InVideoInput) override;
 		virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CreateExternalVideoSource() override;
 		virtual void ReleaseExternalVideoSource(const webrtc::VideoTrackSourceInterface* InVideoSource) override;
 		virtual TUniquePtr<webrtc::VideoEncoderFactory> CreateVideoEncoderFactory() override;

@@ -146,6 +146,17 @@ public:
 	virtual void SetExternalVideoSourceFPS(uint32 InFPS) = 0;
 
 	/**
+	 * Control coupling the external video source framerate to the video input framerate
+	 * @param bShouldCoupleFPS Flag for coupling the video source and video input framerates
+	 */
+	virtual void SetExternalVideoSourceCoupleFramerate(bool bShouldCoupleFPS) = 0;
+
+	/**
+	 * Hook to set the input to the external video source. Will also call Start() on the external video source
+	 */
+	virtual void SetExternalVideoSourceInput(TSharedPtr<FPixelStreamingVideoInput> InVideoInput) = 0;
+
+	/**
 	 * Allows the creation of Video Tracks that are fed the backbuffer
 	 */
 	virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CreateExternalVideoSource() = 0;
