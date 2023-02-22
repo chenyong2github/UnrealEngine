@@ -434,7 +434,7 @@ void SMutableConstantsWidget::Construct(const FArguments& InArgs,const mu::FProg
 			.AreaTitle(this,&SMutableConstantsWidget::OnDrawStringsAreaTitle)
 			.BodyContent()
 			[
-				SNew(STileView<TSharedPtr<FMutableConstantStringElement>>)
+				SAssignNew(ConstantStringsSlate,STileView<TSharedPtr<FMutableConstantStringElement>>)
 				.OnSelectionChanged(this,&SMutableConstantsWidget::OnSelectedStringChanged)
 				.ListItemsSource(&ConstantStringElements)
 				.ItemHeight(ProxyEntryHeight)
@@ -518,7 +518,7 @@ void SMutableConstantsWidget::Construct(const FArguments& InArgs,const mu::FProg
 			.AreaTitle(this,&SMutableConstantsWidget::OnDrawMeshesAreaTitle)
 			.BodyContent()
 			[
-				SNew(STileView<TSharedPtr<FMutableConstantMeshElement>>)
+				SAssignNew(ConstantMeshesSlate,STileView<TSharedPtr<FMutableConstantMeshElement>>)
 				.OnSelectionChanged(this,&SMutableConstantsWidget::OnSelectedMeshChanged)
 				.ListItemsSource(&ConstantMeshElements)
 				.ItemHeight(ProxyEntryHeight)
@@ -542,7 +542,7 @@ void SMutableConstantsWidget::Construct(const FArguments& InArgs,const mu::FProg
 			.AreaTitle(this,&SMutableConstantsWidget::OnDrawLayoutsAreaTitle)
 			.BodyContent()
 			[
-				SNew(STileView<TSharedPtr<FMutableConstantLayoutElement>>)
+				SAssignNew(ConstantLayoutsSlate,STileView<TSharedPtr<FMutableConstantLayoutElement>>)
 				.OnSelectionChanged(this,&SMutableConstantsWidget::OnSelectedLayoutChanged)
 				.ListItemsSource(&ConstantLayoutElements)
 				.ItemHeight(ProxyEntryHeight)
@@ -566,7 +566,7 @@ void SMutableConstantsWidget::Construct(const FArguments& InArgs,const mu::FProg
 			.AreaTitle(this,&SMutableConstantsWidget::OnDrawProjectorsAreaTitle)
 			.BodyContent()
 			[
-				SNew(STileView<TSharedPtr<FMutableConstantProjectorElement>>)
+				SAssignNew(ConstantProjectorsSlate,STileView<TSharedPtr<FMutableConstantProjectorElement>>)
 				.OnSelectionChanged(this,&SMutableConstantsWidget::OnSelectedProjectorChanged)
 				.ListItemsSource(&ConstantProjectorElements)
 				.ItemHeight(ProxyEntryHeight)
@@ -590,7 +590,7 @@ void SMutableConstantsWidget::Construct(const FArguments& InArgs,const mu::FProg
 			.AreaTitle(this,&SMutableConstantsWidget::OnDrawMatricesAreaTitle)
 			.BodyContent()
 			[
-				SNew(STileView<TSharedPtr<FMutableConstantMatrixElement>>)
+				SAssignNew(ConstantMatricesSlate,STileView<TSharedPtr<FMutableConstantMatrixElement>>)
 				.OnSelectionChanged(this,&SMutableConstantsWidget::OnSelectedMatrixChanged)
 				.ListItemsSource(&ConstantMatrixElements)
 				.ItemHeight(ProxyEntryHeight)
@@ -614,7 +614,7 @@ void SMutableConstantsWidget::Construct(const FArguments& InArgs,const mu::FProg
 			.AreaTitle(this,&SMutableConstantsWidget::OnDrawShapesAreaTitle)
 			.BodyContent()
 			[
-				SNew(STileView<TSharedPtr<FMutableConstantShapeElement>>)
+				SAssignNew(ConstantShapesSlate,STileView<TSharedPtr<FMutableConstantShapeElement>>)
 				.OnSelectionChanged(this,&SMutableConstantsWidget::OnSelectedShapeChanged)
 				.ListItemsSource(&ConstantShapeElements)
 				.ItemHeight(ProxyEntryHeight)
@@ -638,7 +638,7 @@ void SMutableConstantsWidget::Construct(const FArguments& InArgs,const mu::FProg
 			.AreaTitle(this,&SMutableConstantsWidget::OnDrawCurvesAreaTitle)
 			.BodyContent()
 			[
-				SNew(STileView<TSharedPtr<FMutableConstantCurveElement>>)
+				SAssignNew(ConstantCurvesSlate,STileView<TSharedPtr<FMutableConstantCurveElement>>)
 				.OnSelectionChanged(this,&SMutableConstantsWidget::OnSelectedCurveChanged)
 				.ListItemsSource(&ConstantCurveElements)
 				.ItemHeight(ProxyEntryHeight)
@@ -662,7 +662,7 @@ void SMutableConstantsWidget::Construct(const FArguments& InArgs,const mu::FProg
 			.AreaTitle(this,&SMutableConstantsWidget::OnDrawSkeletonsAreaTitle)
 			.BodyContent()
 			[
-				SNew(STileView<TSharedPtr<FMutableConstantSkeletonElement>>)
+				SAssignNew(ConstantSkeletonsSlate,STileView<TSharedPtr<FMutableConstantSkeletonElement>>)
 				.OnSelectionChanged(this,&SMutableConstantsWidget::OnSelectedSkeletonChanged)
 				.ListItemsSource(&ConstantSkeletonElements)
 				.ItemHeight(ProxyEntryHeight)
@@ -1351,16 +1351,63 @@ void SMutableConstantsWidget::LoadConstantCurves()
 #pragma region Previewer invocation methods
 
 
+void SMutableConstantsWidget::ClearSelectedConstantItems(mu::DATATYPE ExceptionDataType /* = mu::DATATYPE::DT_NONE */) const
+{
+	if (ExceptionDataType != mu::DATATYPE::DT_MESH)
+	{
+		ConstantMeshesSlate->ClearSelection();
+	}
+	if (ExceptionDataType != mu::DATATYPE::DT_STRING)
+	{
+		ConstantStringsSlate->ClearSelection();
+	}
+	if (ExceptionDataType != mu::DATATYPE::DT_LAYOUT)
+	{
+		ConstantLayoutsSlate->ClearSelection();
+	}
+	if (ExceptionDataType != mu::DATATYPE::DT_PROJECTOR)
+	{
+		ConstantProjectorsSlate->ClearSelection();
+	}
+	if (ExceptionDataType != mu::DATATYPE::DT_MATRIX)
+	{
+		ConstantMatricesSlate->ClearSelection();
+	}
+	if (ExceptionDataType != mu::DATATYPE::DT_SHAPE)
+	{
+		ConstantShapesSlate->ClearSelection();
+	}
+	if (ExceptionDataType != mu::DATATYPE::DT_CURVE)
+	{
+		ConstantCurvesSlate->ClearSelection();
+	}
+	if (ExceptionDataType != mu::DATATYPE::DT_SKELETON)
+	{
+		ConstantSkeletonsSlate->ClearSelection();
+	}
+	if (ExceptionDataType != mu::DATATYPE::DT_IMAGE)
+	{
+		ConstantImagesListView->ClearSelection();
+	}
+
+	// todo: if you add more slates for the types update this to make sure they behave as the others
+}
+
 void SMutableConstantsWidget::OnSelectedStringChanged(
 	TSharedPtr<FMutableConstantStringElement> MutableConstantStringElement,
 	ESelectInfo::Type SelectionType) const
 {
 	if (MutableConstantStringElement)
 	{
+		static constexpr mu::DATATYPE SlateDataType = mu::DATATYPE::DT_STRING;
+
+		// Clear the selected CodeViewer row and all other constant viewer slates that are not the type provided.
+		MutableCodeViewerPtr->ClearSelectedTreeRow();
+		ClearSelectedConstantItems(SlateDataType);
+		
 		// Ask the Code viewer to present the element held on your element on the previewer window
 		MutableCodeViewerPtr->PreviewMutableString(MutableConstantStringElement->MutableString);
-
-		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(mu::DATATYPE::DT_STRING,MutableConstantStringElement->IndexOnSourceVector);
+		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(SlateDataType,MutableConstantStringElement->IndexOnSourceVector);
 	}
 }
 
@@ -1370,9 +1417,13 @@ void SMutableConstantsWidget::OnSelectedImageChanged(
 {
 	if (MutableConstantImageElement)
 	{
-		MutableCodeViewerPtr->PreviewMutableImage(MutableConstantImageElement->ImagePtr);
+		static constexpr mu::DATATYPE SlateDataType = mu::DATATYPE::DT_IMAGE;
 
-		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(mu::DATATYPE::DT_IMAGE,MutableConstantImageElement->IndexOnSourceVector);
+		MutableCodeViewerPtr->ClearSelectedTreeRow();
+		ClearSelectedConstantItems(SlateDataType);
+		
+		MutableCodeViewerPtr->PreviewMutableImage(MutableConstantImageElement->ImagePtr);
+		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(SlateDataType,MutableConstantImageElement->IndexOnSourceVector);
 	}
 }
 
@@ -1382,9 +1433,13 @@ void SMutableConstantsWidget::OnSelectedMeshChanged(
 {
 	if (MutableConstantMeshElement)
 	{
-		MutableCodeViewerPtr->PreviewMutableMesh(MutableConstantMeshElement->MeshPtr);
+		static constexpr mu::DATATYPE SlateDataType = mu::DATATYPE::DT_MESH;
+		
+		MutableCodeViewerPtr->ClearSelectedTreeRow();
+		ClearSelectedConstantItems(SlateDataType);
 
-		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(mu::DATATYPE::DT_MESH,MutableConstantMeshElement->IndexOnSourceVector);
+		MutableCodeViewerPtr->PreviewMutableMesh(MutableConstantMeshElement->MeshPtr);
+		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(SlateDataType,MutableConstantMeshElement->IndexOnSourceVector);
 	}
 }
 
@@ -1394,9 +1449,13 @@ void SMutableConstantsWidget::OnSelectedLayoutChanged(
 {
 	if (MutableConstantLayoutElement)
 	{
-		MutableCodeViewerPtr->PreviewMutableLayout(MutableConstantLayoutElement->Layout);
+		static constexpr mu::DATATYPE SlateDataType = mu::DATATYPE::DT_LAYOUT;
+		
+		MutableCodeViewerPtr->ClearSelectedTreeRow();
+		ClearSelectedConstantItems(SlateDataType);
 
-		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(mu::DATATYPE::DT_LAYOUT,MutableConstantLayoutElement->IndexOnSourceVector);
+		MutableCodeViewerPtr->PreviewMutableLayout(MutableConstantLayoutElement->Layout);
+		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(SlateDataType,MutableConstantLayoutElement->IndexOnSourceVector);
 	}
 }
 
@@ -1406,9 +1465,13 @@ void SMutableConstantsWidget::OnSelectedProjectorChanged(
 {
 	if (MutableConstantProjectorElement)
 	{
-		MutableCodeViewerPtr->PreviewMutableProjector(MutableConstantProjectorElement->Projector);
+		static constexpr mu::DATATYPE SlateDataType = mu::DATATYPE::DT_PROJECTOR;
 
-		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(mu::DATATYPE::DT_PROJECTOR,MutableConstantProjectorElement->IndexOnSourceVector);
+		MutableCodeViewerPtr->ClearSelectedTreeRow();
+		ClearSelectedConstantItems(SlateDataType);
+
+		MutableCodeViewerPtr->PreviewMutableProjector(MutableConstantProjectorElement->Projector);
+		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(SlateDataType,MutableConstantProjectorElement->IndexOnSourceVector);
 	}
 }
 
@@ -1418,9 +1481,13 @@ void SMutableConstantsWidget::OnSelectedMatrixChanged(
 {
 	if (MutableConstantMatrixElement)
 	{
-		MutableCodeViewerPtr->PreviewMutableMatrix(MutableConstantMatrixElement->Matrix);
+		static constexpr mu::DATATYPE SlateDataType = mu::DATATYPE::DT_MATRIX;
 
-		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(mu::DATATYPE::DT_MATRIX,MutableConstantMatrixElement->IndexOnSourceVector);
+		MutableCodeViewerPtr->ClearSelectedTreeRow();
+		ClearSelectedConstantItems(SlateDataType);
+
+		MutableCodeViewerPtr->PreviewMutableMatrix(MutableConstantMatrixElement->Matrix);
+		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(SlateDataType,MutableConstantMatrixElement->IndexOnSourceVector);
 	}
 }
 
@@ -1430,9 +1497,13 @@ void SMutableConstantsWidget::OnSelectedShapeChanged(
 {
 	if (MutableConstantShapeElement)
 	{
-		MutableCodeViewerPtr->PreviewMutableShape(MutableConstantShapeElement->Shape);
+		static constexpr mu::DATATYPE SlateDataType = mu::DATATYPE::DT_SHAPE;
 
-		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(mu::DATATYPE::DT_SHAPE,MutableConstantShapeElement->IndexOnSourceVector);
+		MutableCodeViewerPtr->ClearSelectedTreeRow();
+		ClearSelectedConstantItems(SlateDataType);
+
+		MutableCodeViewerPtr->PreviewMutableShape(MutableConstantShapeElement->Shape);
+		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(SlateDataType,MutableConstantShapeElement->IndexOnSourceVector);
 	}
 }
 
@@ -1442,9 +1513,13 @@ void SMutableConstantsWidget::OnSelectedCurveChanged(
 {
 	if (MutableConstantCurveElement)
 	{
-		MutableCodeViewerPtr->PreviewMutableCurve(MutableConstantCurveElement->Curve);
+		static constexpr mu::DATATYPE SlateDataType = mu::DATATYPE::DT_CURVE;
 
-		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(mu::DATATYPE::DT_CURVE,MutableConstantCurveElement->IndexOnSourceVector);
+		MutableCodeViewerPtr->ClearSelectedTreeRow();
+		ClearSelectedConstantItems(SlateDataType);
+		
+		MutableCodeViewerPtr->PreviewMutableCurve(MutableConstantCurveElement->Curve);
+		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(SlateDataType,MutableConstantCurveElement->IndexOnSourceVector);
 	}
 }
 
@@ -1454,9 +1529,13 @@ void SMutableConstantsWidget::OnSelectedSkeletonChanged(
 {
 	if (MutableConstantSkeletonElement)
 	{
-		MutableCodeViewerPtr->PreviewMutableSkeleton(MutableConstantSkeletonElement->Skeleton);
+		static constexpr mu::DATATYPE SlateDataType = mu::DATATYPE::DT_SKELETON;
 
-		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(mu::DATATYPE::DT_SKELETON,MutableConstantSkeletonElement->IndexOnSourceVector);
+		MutableCodeViewerPtr->ClearSelectedTreeRow();
+		ClearSelectedConstantItems(SlateDataType);
+
+		MutableCodeViewerPtr->PreviewMutableSkeleton(MutableConstantSkeletonElement->Skeleton);
+		MutableCodeViewerPtr->CacheAddressesRelatedWithConstantResource(SlateDataType,MutableConstantSkeletonElement->IndexOnSourceVector);
 	}
 }
 

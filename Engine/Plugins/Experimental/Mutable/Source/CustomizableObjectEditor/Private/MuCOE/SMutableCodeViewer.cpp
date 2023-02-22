@@ -409,6 +409,11 @@ FString SMutableCodeViewer::GetReferencerName() const
 	return TEXT("SMutableCodeViewer");
 }
 
+void SMutableCodeViewer::ClearSelectedTreeRow() const
+{
+	check(TreeView);
+	TreeView->ClearSelection();
+}
 
 void SMutableCodeViewer::SetCurrentModel(const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& InMutableModel)
 {
@@ -1542,6 +1547,9 @@ void SMutableCodeViewer::OnSelectionChanged(TSharedPtr<FMutableCodeTreeElement> 
 		return;
 	}
 
+	// Clear all selected items in the constant resources widget
+	ConstantsWidget->ClearSelectedConstantItems();
+	
 	// Find the duplicates for the selected tree element element and highlight them
 	if (InNode)
 	{

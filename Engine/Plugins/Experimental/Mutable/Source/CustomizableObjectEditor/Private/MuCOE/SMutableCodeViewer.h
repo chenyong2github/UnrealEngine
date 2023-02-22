@@ -64,6 +64,9 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override;
 
+	/** Clear the selected operation of the tree view.*/
+	void ClearSelectedTreeRow() const;
+	
 private:
 
 	/** The Mutable Model that we are showing. */

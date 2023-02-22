@@ -4,7 +4,9 @@
 
 #include "MuR/Image.h"
 #include "MuR/Mesh.h"
+#include "MuR/Operations.h"
 #include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/STileView.h"
 
 template <typename ItemType> class SListView;
 
@@ -117,25 +119,45 @@ public:
 	 * @param  InMutableCodeViewerPtr - Pointer to the MutableCodeViewer tasked with the previewing of the constant values
 	 */
 	void Construct(const FArguments& InArgs, const mu::FProgram*  InMutableProgramPtr ,  TSharedPtr<SMutableCodeViewer> InMutableCodeViewerPtr);
-	
+
+	/** It clears the selected element for all constant view slates (SListView and STileView) except the one that shows the data of the provided type
+	 * @param ExceptionDataType The type of data of the slate container that we want to skip when clearing the selected elements.
+	 * EX : We want to clear all selected elements but not the ones from the constant images. Provide as argument "mu::DATATYPE::DT_IMAGE"
+	 * to clear all but the selected item/s of the Image type.
+	 */
+	void ClearSelectedConstantItems(mu::DATATYPE ExceptionDataType = mu::DATATYPE::DT_NONE) const;
+
 private:
 
 	/** Mutable object containing the constants data */
 	const mu::FProgram* MutableProgramPtr = nullptr;
 
 	/** Slate capable of accessing the previewer object */
-	 TSharedPtr<SMutableCodeViewer> MutableCodeViewerPtr = nullptr;
+	TSharedPtr<SMutableCodeViewer> MutableCodeViewerPtr = nullptr;
 	
 	/**
 	 *Sets the back end for the operation of this widget. Each time this is done the ui backend gets updated
 	 * @param InProgram - Mutable program object holding all the constants data
 	 */
 	void SetProgram(const mu::FProgram* InProgram);
+
+	/*
+	 * Pointers to all slates showing the constants
+	 */
+	
+	TSharedPtr<STileView<TSharedPtr<FMutableConstantMeshElement>>> ConstantMeshesSlate;
+	TSharedPtr<STileView<TSharedPtr<FMutableConstantStringElement>>> ConstantStringsSlate;
+	TSharedPtr<STileView<TSharedPtr<FMutableConstantLayoutElement>>> ConstantLayoutsSlate;
+	TSharedPtr<STileView<TSharedPtr<FMutableConstantProjectorElement>>> ConstantProjectorsSlate;
+	TSharedPtr<STileView<TSharedPtr<FMutableConstantMatrixElement>>> ConstantMatricesSlate;
+	TSharedPtr<STileView<TSharedPtr<FMutableConstantShapeElement>>> ConstantShapesSlate;
+	TSharedPtr<STileView<TSharedPtr<FMutableConstantCurveElement>>> ConstantCurvesSlate;
+	TSharedPtr<STileView<TSharedPtr<FMutableConstantSkeletonElement>>> ConstantSkeletonsSlate;
 	
 	/*
 	* Data backend for the lists of constants
 	*/
-	
+
 	TArray<TSharedPtr<FMutableConstantImageElement>> ConstantImageElements;
 	TArray<TSharedPtr<FMutableConstantMeshElement>> ConstantMeshElements;
 	TArray<TSharedPtr<FMutableConstantStringElement>> ConstantStringElements;
@@ -166,7 +188,7 @@ private:
 	 */
 	
 	void OnSelectedStringChanged(TSharedPtr<FMutableConstantStringElement> MutableConstantStringElement, ESelectInfo::Type SelectionType) const;
-	void OnSelectedImageChanged(TSharedPtr<FMutableConstantImageElement> MutableConstantImageElement, ESelectInfo::Type SelectionType)const;
+	void OnSelectedImageChanged(TSharedPtr<FMutableConstantImageElement> MutableConstantImageElement, ESelectInfo::Type SelectionType) const;
 	void OnSelectedMeshChanged(TSharedPtr<FMutableConstantMeshElement> MutableConstantMeshElement, ESelectInfo::Type SelectionType) const;
 	void OnSelectedLayoutChanged(TSharedPtr<FMutableConstantLayoutElement> MutableConstantLayoutElement, ESelectInfo::Type SelectionType) const;
 	void OnSelectedProjectorChanged(TSharedPtr<FMutableConstantProjectorElement> MutableConstantProjectorElement, ESelectInfo::Type SelectionType) const;
