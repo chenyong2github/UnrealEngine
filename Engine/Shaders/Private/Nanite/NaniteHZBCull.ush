@@ -356,6 +356,7 @@ FFrustumCullData BoxCullFrustumOrtho(float3 Center, float3 Extent, float4x4 Loca
 		Cull.bIsVisible = Cull.bIsVisible && Cull.RectMin.z < 1.0f;
 	}
 	
+	Cull.bFrustumSideCulled = false;
 	if (!bSkipFrustumCull) // for debugging, will compile out
 	{
 		const bool bFrustumCull = any(or(Cull.RectMax.xy < -1.0f, Cull.RectMin.xy > 1.0f));
@@ -444,6 +445,7 @@ FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x
 		Cull.bIsVisible = MaxW > 0.0 && Cull.bIsVisible;
 	}
 
+	Cull.bFrustumSideCulled = false;
 	if (!bSkipFrustumCull)
 	{
 		const bool bFrustumCull = any(PlanesMin > 0.0f);

@@ -261,7 +261,7 @@ struct FNaniteTraversalClusterCullCallback
 			const float3 NodeBoxBoundsExtent = HierarchyNodeSlice.BoxBoundsExtent + LocalWPOExtent;
 
 		#if USE_GLOBAL_CLIP_PLANE
-			bVisible = GlobalClipPlaneCullBox(NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale, bSkipCullGlobalClipPlane) != EClipPlaneTestResult::AllOut;
+			bVisible = GlobalClipPlaneCullBox(NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipCullGlobalClipPlane) != EClipPlaneTestResult::AllOut;
 		#endif // USE_GLOBAL_CLIP_PLANE
 
 			BRANCH
@@ -491,7 +491,7 @@ struct FNaniteTraversalClusterCullCallback
 		{
 		#if USE_GLOBAL_CLIP_PLANE
 			{
-				EClipPlaneTestResult GlobalClipResult = GlobalClipPlaneCullBox(NaniteView, ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale, bSkipCullGlobalClipPlane);
+				EClipPlaneTestResult GlobalClipResult = GlobalClipPlaneCullBox(NaniteView, ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipCullGlobalClipPlane);
 				bVisible = GlobalClipResult != EClipPlaneTestResult::AllOut;
 				bUseHWRaster |= GlobalClipResult == EClipPlaneTestResult::Intersecting; // Let HW handle SV_ClipDistance
 			}
@@ -536,8 +536,8 @@ struct FNaniteTraversalClusterCullCallback
 #endif
 			}
 		}
-		FFrustumCullData Cull;
-		FScreenRect Rect;
+		FFrustumCullData Cull = (FFrustumCullData)0;	// Workaround for compiler warnings about potentially uninitialized variables
+		FScreenRect Rect = (FScreenRect)0;
 		BRANCH
 		if (bVisible)
 		{

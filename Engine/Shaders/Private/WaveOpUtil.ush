@@ -53,6 +53,7 @@ that's to be written to as a parameter on all platforms. Also unfortunate is tha
 #define WaveInterlockedAddScalar_( Dest, Value, OriginalValue ) \
 { \
 	uint NumToAdd = WaveActiveCountBits( true ) * Value; \
+	OriginalValue = 0; \
 	if( WaveIsFirstLane() ) \
 		InterlockedAdd( Dest, NumToAdd, OriginalValue ); \
 	OriginalValue = WaveReadLaneFirst( OriginalValue ) + WavePrefixCountBits( true ) * Value; \
@@ -69,6 +70,7 @@ that's to be written to as a parameter on all platforms. Also unfortunate is tha
 { \
 	uint LocalOffset = WavePrefixSum( Value ); \
 	uint NumToAdd = WaveReadLaneLast( LocalOffset + Value ); \
+	OriginalValue = 0; \
 	if( WaveIsFirstLane() ) \
 		InterlockedAdd( Dest, NumToAdd, OriginalValue ); \
 	OriginalValue = WaveReadLaneFirst( OriginalValue ) + LocalOffset; \
@@ -77,6 +79,7 @@ that's to be written to as a parameter on all platforms. Also unfortunate is tha
 #define WaveInterlockedAddScalarInGroups( Dest, DestGroups, GroupsOf, Value, OriginalValue ) \
 { \
 	uint NumToAdd = WaveActiveCountBits( true ) * Value; \
+	OriginalValue = 0; \
 	if( WaveIsFirstLane() ) \
 	{ \
 		InterlockedAdd( Dest, NumToAdd, OriginalValue ); \
@@ -89,6 +92,7 @@ that's to be written to as a parameter on all platforms. Also unfortunate is tha
 { \
 	uint LocalOffset = WavePrefixSum( Value ); \
 	uint NumToAdd = WaveReadLaneLast( LocalOffset + Value ); \
+	OriginalValue = 0; \
 	if( WaveIsFirstLane() ) \
 	{ \
 		InterlockedAdd( Dest, NumToAdd, OriginalValue ); \

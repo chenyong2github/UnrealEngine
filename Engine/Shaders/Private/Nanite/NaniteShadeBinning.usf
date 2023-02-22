@@ -234,7 +234,7 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 			#endif
 			}
 		#elif SHADING_BIN_SCATTER
-			uint WaveWriteOffset;
+			uint WaveWriteOffset = 0u;
 			if (WaveIsFirstLane())
 			{
 				InterlockedAdd(OutShadingBinMeta[VotedBin].x, WaveQuadCount, WaveWriteOffset);
@@ -254,7 +254,7 @@ void ShadingBinBuildCS(uint2 ThreadGlobalId : SV_DispatchThreadID, uint2 GroupId
 				InterlockedAdd(OutShadingBinMeta[VotedBin].y, WavePixelCount);
 			}
 		#elif SHADING_BIN_SCATTER
-			uint WaveWriteOffset;
+			uint WaveWriteOffset = 0u;
 			if (WaveIsFirstLane())
 			{
 				InterlockedAdd(OutShadingBinMeta[VotedBin].y, WavePixelCount, WaveWriteOffset);

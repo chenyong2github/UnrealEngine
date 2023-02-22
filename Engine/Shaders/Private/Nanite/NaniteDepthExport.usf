@@ -100,7 +100,7 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 	if (WaveActiveAnyTrue(VisibleClusterIndex != 0xFFFFFFFF)) // Tile has Nanite coverage
 	{
 		uint SceneZMask = ToScalarMemory(BitFieldExtractU32(SceneHTile[TileIndex], 4u, 0u));
-		float SceneDepthValue = DecompressDepthValue(SceneDepth, SceneZMask, PixelPos.xy, ThreadIndex, SceneDepthValue, PlatformConfig);
+		float SceneDepthValue = DecompressDepthValue(SceneDepth, SceneZMask, PixelPos.xy, ThreadIndex, 0.0f, PlatformConfig);
 		
 	#if MATERIAL_DEPTH_EXPORT
 		float MaterialDepthValue = 0.0f;

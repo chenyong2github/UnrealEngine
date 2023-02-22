@@ -344,7 +344,7 @@ void InstanceCull(
 			if (bIsVisible)
 			{
 				// Cull instances that are fully beyond the global clipping plane
-				bIsVisible = GlobalClipPlaneCullBox(NaniteView, LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale, bSkipCullGlobalClipPlane) != EClipPlaneTestResult::AllOut;
+				bIsVisible = GlobalClipPlaneCullBox(NaniteView, LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipCullGlobalClipPlane) != EClipPlaneTestResult::AllOut;
 			}
 	#endif // USE_GLOBAL_CLIP_PLANE
 
@@ -583,7 +583,7 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 		if (bVisible)
 		{
 			// Cull instances that are fully beyond the global clipping plane
-			bVisible = GlobalClipPlaneCullBox(NaniteView, LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale, bSkipCullGlobalClipPlane) != EClipPlaneTestResult::AllOut;
+			bVisible = GlobalClipPlaneCullBox(NaniteView, LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipCullGlobalClipPlane) != EClipPlaneTestResult::AllOut;
 		}
 #endif
 

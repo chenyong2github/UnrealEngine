@@ -164,7 +164,7 @@ void IncrementRasterizerBinCount(uint BinIndex, bool bSoftware, uint BatchCount)
 #elif RASTER_BIN_SCATTER
 uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware, uint BatchCount)
 {
-	uint ClusterOffset;
+	uint ClusterOffset = 0u;
 	uint Offset = (BinIndex * NANITE_RASTERIZER_ARG_COUNT);
 
 	if (!bSoftware)

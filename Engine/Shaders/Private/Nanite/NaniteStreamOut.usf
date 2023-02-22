@@ -539,8 +539,8 @@ void InitQueue(uint GroupIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
 
 		MeshDataBuffer[MeshDataOffset + 2] = 0; // reset counter back to zero so that each cluster can determine it's offset during stream out pass
 
-		uint BaseVertexOffset;		
-		uint BaseIndexOffset;
+		uint BaseVertexOffset = 0u;		
+		uint BaseIndexOffset = 0u;
 		if (AllocateVertexAndIndexRanges(NumVertices, NumIndices, BaseVertexOffset, BaseIndexOffset))
 		{
 			MeshDataBuffer[MeshDataOffset + 0] = BaseVertexOffset;
