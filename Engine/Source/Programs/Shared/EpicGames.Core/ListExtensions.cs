@@ -3,6 +3,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace EpicGames.Core
@@ -63,6 +64,17 @@ namespace EpicGames.Core
 		public static void SortBy<TElement, TField>(this List<TElement> list, Func<TElement, TField> selector, IComparer<TField> comparer)
 		{
 			list.Sort((x, y) => comparer.Compare(selector(x), selector(y)));
+		}
+
+		/// <summary>
+		/// Add all arguments to the list
+		/// </summary>
+		/// <typeparam name="TElement">List element</typeparam>
+		/// <param name="list">List to add to</param>
+		/// <param name="arguments">Arguments to add to list</param>
+		public static void AddAll<TElement>(this List<TElement> list, params TElement[] arguments)
+		{
+			list.AddRange(arguments.AsEnumerable());
 		}
 
 		/// <summary>
