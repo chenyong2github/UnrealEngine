@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Common/PagedArray.h"
+#include "Common/ProviderLock.h"
 #include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
 #include "ProfilingDebugging/MemoryTrace.h" // for EMemoryTraceHeapFlags and EMemoryTraceHeapAllocationFlags
@@ -19,23 +20,7 @@ class ILinearAllocator;
 class FMetadataProvider;
 class FSbTree;
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FAllocationsProviderLock
-{
-public:
-	void ReadAccessCheck() const;
-	void WriteAccessCheck() const;
-
-	void BeginRead();
-	void EndRead();
-
-	void BeginWrite();
-	void EndWrite();
-
-private:
-	FRWLock RWLock;
-};
+extern thread_local FProviderLock::FThreadLocalState GAllocationsProviderLockState;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -285,13 +270,12 @@ public:
 	explicit FAllocationsProvider(IAnalysisSession& InSession, FMetadataProvider& InMetadataProvider);
 	virtual ~FAllocationsProvider();
 
-	virtual void BeginEdit() const override { Lock.BeginWrite(); }
-	virtual void EndEdit() const override { Lock.EndWrite(); }
-	void EditAccessCheck() const { return Lock.WriteAccessCheck(); }
-
-	virtual void BeginRead() const override { Lock.BeginRead(); }
-	virtual void EndRead() const override { Lock.EndRead(); }
-	void ReadAccessCheck() const { return Lock.ReadAccessCheck(); }
+	virtual void BeginEdit() const override       { Lock.BeginWrite(GAllocationsProviderLockState); }
+	virtual void EndEdit() const override         { Lock.EndWrite(GAllocationsProviderLockState); }
+	virtual void EditAccessCheck() const override { Lock.WriteAccessCheck(GAllocationsProviderLockState); }
+	virtual void BeginRead() const override       { Lock.BeginRead(GAllocationsProviderLockState); }
+	virtual void EndRead() const override         { Lock.EndRead(GAllocationsProviderLockState); }
+	virtual void ReadAccessCheck() const override { Lock.ReadAccessCheck(GAllocationsProviderLockState); }
 
 	//////////////////////////////////////////////////
 	// Read operations
@@ -360,10 +344,10 @@ private:
 	HeapId FindRootHeap(HeapId Heap) const;
 
 private:
+	mutable FProviderLock Lock;
+
 	IAnalysisSession& Session;
 	FMetadataProvider& MetadataProvider;
-
-	mutable FAllocationsProviderLock Lock;
 
 	// Number of supported root heaps
 	constexpr static uint8 MaxRootHeaps = 16;

@@ -41,16 +41,46 @@ struct TRACESERVICES_API FProviderReadScopeLock
 	const IProvider& Provider;
 };
 
+/**
+ * Utility class to implement the read/write lock for a provider.
+ * Example usage:
+       extern thread_local FProviderLock::FThreadLocalState MyProviderLockState;
+ *     virtual void EditAccessCheck() const override.{ Lock.WriteAccessCheck(MyProviderLockState); }
+ *     FProviderLock Lock;
+ */
 class FProviderLock
 {
 public:
+	struct FThreadLocalState
+	{
+		FProviderLock* Lock;
+		int32 ReadLockCount;
+		int32 WriteLockCount;
+	};
+
+public:
+	void ReadAccessCheck(FThreadLocalState& State) const;
+	void WriteAccessCheck(FThreadLocalState& State) const;
+
+	void BeginRead(FThreadLocalState& State);
+	void EndRead(FThreadLocalState& State);
+
+	void BeginWrite(FThreadLocalState& State);
+	void EndWrite(FThreadLocalState& State);
+
+	UE_DEPRECATED(5.3, "Please use the FThreadLocalState overload")
 	void ReadAccessCheck(const FProviderLock* CurrentProviderLock, const int32& CurrentReadProviderLockCount, const int32& CurrentWriteProviderLockCount) const;
+	UE_DEPRECATED(5.3, "Please use the FThreadLocalState overload")
 	void WriteAccessCheck(const int32& CurrentWriteProviderLockCount) const;
 
+	UE_DEPRECATED(5.3, "Please use the FThreadLocalState overload")
 	void BeginRead(FProviderLock*& CurrentProviderLock, int32& CurrentReadProviderLockCount, const int32& WriteProviderLockCount);
+	UE_DEPRECATED(5.3, "Please use the FThreadLocalState overload")
 	void EndRead(FProviderLock*& CurrentProviderLock, int32& CurrentReadProviderLockCount);
 
+	UE_DEPRECATED(5.3, "Please use the FThreadLocalState overload")
 	void BeginWrite(FProviderLock*& CurrentProviderLock, const int32& CurrentReadProviderLockCount, int32& WriteProviderLockCount);
+	UE_DEPRECATED(5.3, "Please use the FThreadLocalState overload")
 	void EndWrite(FProviderLock*& CurrentProviderLock, int32& WriteProviderLockCount);
 
 private:

@@ -6,9 +6,8 @@
 
 namespace TraceServices
 {
-thread_local FProviderLock* GThreadCurrentCookProviderLock;
-thread_local int32 GThreadCurrentReadCookProviderLockCount;
-thread_local int32 GThreadCurrentWriteCookProviderLockCount;
+
+thread_local FProviderLock::FThreadLocalState GCookProviderLockState;
 
 const TCHAR* GUnknownPackage = TEXT("Unknown Package");
 const TCHAR* GUnknownClass = TEXT("Unknown Class");
@@ -17,46 +16,18 @@ FPackageData::FPackageData(uint64 InId)
 	: Id(InId)
 	, Name(GUnknownPackage)
 	, AssetClass(GUnknownClass)
-{}
-
-void FCookProfilerProvider::BeginEdit() const
 {
-	Lock.BeginWrite(GThreadCurrentCookProviderLock, GThreadCurrentReadCookProviderLockCount, GThreadCurrentWriteCookProviderLockCount);
-}
-
-void FCookProfilerProvider::EndEdit() const
-{
-	Lock.EndWrite(GThreadCurrentCookProviderLock, GThreadCurrentWriteCookProviderLockCount);
-}
-
-void FCookProfilerProvider::EditAccessCheck() const
-{
-	Lock.WriteAccessCheck(GThreadCurrentReadCookProviderLockCount);
-}
-
-void FCookProfilerProvider::BeginRead() const
-{
-	Lock.BeginRead(GThreadCurrentCookProviderLock, GThreadCurrentReadCookProviderLockCount, GThreadCurrentWriteCookProviderLockCount);
-}
-
-void FCookProfilerProvider::EndRead() const
-{
-	Lock.EndRead(GThreadCurrentCookProviderLock, GThreadCurrentReadCookProviderLockCount);
-}
-
-void FCookProfilerProvider::ReadAccessCheck() const
-{
-	Lock.ReadAccessCheck(GThreadCurrentCookProviderLock, GThreadCurrentReadCookProviderLockCount, GThreadCurrentWriteCookProviderLockCount);
 }
 
 FCookProfilerProvider::FCookProfilerProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 {
-	
 }
 
 void FCookProfilerProvider::EnumeratePackages(double StartTime, double EndTime, EnumeratePackagesCallback Callback) const
 {
+	ReadAccessCheck();
+
 	for (const FPackageData& Package : Packages)
 	{
 		if (Callback(Package) == false)
@@ -68,11 +39,15 @@ void FCookProfilerProvider::EnumeratePackages(double StartTime, double EndTime, 
 
 uint32 FCookProfilerProvider::GetNumPackages() const
 {
+	ReadAccessCheck();
+
 	return (uint32) Packages.Num();
 }
 
 FPackageData* FCookProfilerProvider::EditPackage(uint64 Id)
 {
+	EditAccessCheck();
+
 	uint32 Index = FindOrAddPackage(Id);
 
 	FPackageData& Package = Packages[Index];

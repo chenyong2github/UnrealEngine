@@ -12,67 +12,7 @@
 namespace TraceServices
 {
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// FMetadataProviderLock
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-thread_local FMetadataProviderLock* GThreadCurrentMetadataProviderLock;
-thread_local int32 GThreadCurrentReadMetadataProviderLockCount;
-thread_local int32 GThreadCurrentWriteMetadataProviderLockCount;
-
-void FMetadataProviderLock::ReadAccessCheck() const
-{
-	checkf(GThreadCurrentMetadataProviderLock == this && (GThreadCurrentReadMetadataProviderLockCount > 0 || GThreadCurrentWriteMetadataProviderLockCount > 0),
-		TEXT("Trying to READ from metadata provider outside of a READ scope"));
-}
-
-void FMetadataProviderLock::WriteAccessCheck() const
-{
-	checkf(GThreadCurrentMetadataProviderLock == this && GThreadCurrentWriteMetadataProviderLockCount > 0,
-		TEXT("Trying to WRITE to metadata provider outside of an EDIT/WRITE scope"));
-}
-
-void FMetadataProviderLock::BeginRead()
-{
-	check(!GThreadCurrentMetadataProviderLock || GThreadCurrentMetadataProviderLock == this);
-	checkf(GThreadCurrentWriteMetadataProviderLockCount == 0, TEXT("Trying to lock metadata provider for READ while holding EDIT/WRITE access"));
-	if (GThreadCurrentReadMetadataProviderLockCount++ == 0)
-	{
-		GThreadCurrentMetadataProviderLock = this;
-		RWLock.ReadLock();
-	}
-}
-
-void FMetadataProviderLock::EndRead()
-{
-	check(GThreadCurrentReadMetadataProviderLockCount > 0);
-	if (--GThreadCurrentReadMetadataProviderLockCount == 0)
-	{
-		RWLock.ReadUnlock();
-		GThreadCurrentMetadataProviderLock = nullptr;
-	}
-}
-
-void FMetadataProviderLock::BeginWrite()
-{
-	check(!GThreadCurrentMetadataProviderLock || GThreadCurrentMetadataProviderLock == this);
-	checkf(GThreadCurrentReadMetadataProviderLockCount == 0, TEXT("Trying to lock metadata provider for EDIT/WRITE while holding READ access"));
-	if (GThreadCurrentWriteMetadataProviderLockCount++ == 0)
-	{
-		GThreadCurrentMetadataProviderLock = this;
-		RWLock.WriteLock();
-	}
-}
-
-void FMetadataProviderLock::EndWrite()
-{
-	check(GThreadCurrentWriteMetadataProviderLockCount > 0);
-	if (--GThreadCurrentWriteMetadataProviderLockCount == 0)
-	{
-		RWLock.WriteUnlock();
-		GThreadCurrentMetadataProviderLock = nullptr;
-	}
-}
+thread_local FProviderLock::FThreadLocalState GMetadataProviderLockState;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FMetadataProvider
@@ -117,7 +57,7 @@ FMetadataProvider::~FMetadataProvider()
 
 uint16 FMetadataProvider::RegisterMetadataType(const TCHAR* InName, const FMetadataSchema& InSchema)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 
 	check(RegisteredTypes.Num() <= MaxMetadataTypeId);
 	const uint16 Type = static_cast<uint16>(RegisteredTypes.Num());
@@ -131,7 +71,7 @@ uint16 FMetadataProvider::RegisterMetadataType(const TCHAR* InName, const FMetad
 
 uint16 FMetadataProvider::GetRegisteredMetadataType(FName InName) const
 {
-	Lock.ReadAccessCheck();
+	ReadAccessCheck();
 
 	const uint16* TypePtr = RegisteredTypesMap.Find(InName);
 	return TypePtr ? *TypePtr : InvalidMetadataType;
@@ -141,7 +81,7 @@ uint16 FMetadataProvider::GetRegisteredMetadataType(FName InName) const
 
 FName FMetadataProvider::GetRegisteredMetadataName(uint16 InType) const
 {
-	Lock.ReadAccessCheck();
+	ReadAccessCheck();
 
 	const FName* Name = RegisteredTypesMap.FindKey(InType);
 	return Name ? *Name : FName();
@@ -151,7 +91,7 @@ FName FMetadataProvider::GetRegisteredMetadataName(uint16 InType) const
 
 const FMetadataSchema* FMetadataProvider::GetRegisteredMetadataSchema(uint16 InType) const
 {
-	Lock.ReadAccessCheck();
+	ReadAccessCheck();
 
 	const int32 Index = (int32)InType;
 	return Index < RegisteredTypes.Num() ? &RegisteredTypes[Index] : nullptr;
@@ -303,7 +243,7 @@ void FMetadataProvider::InternalPushSavedStack(FMetadataThread& InMetadataThread
 
 void FMetadataProvider::PushScopedMetadata(uint32 InThreadId, uint16 InType, const void* InData, uint32 InSize)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 	++EventCount;
 
 	METADATA_PROVIDER_DEBUG_LOG(InThreadId, TEXT("PushScopedMetadata(type=%u, size=%u)"), uint32(InType), InSize);
@@ -332,7 +272,7 @@ void FMetadataProvider::PushScopedMetadata(uint32 InThreadId, uint16 InType, con
 
 void FMetadataProvider::PopScopedMetadata(uint32 InThreadId, uint16 InType)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 	++EventCount;
 
 	METADATA_PROVIDER_DEBUG_LOG(InThreadId, TEXT("PopScopedMetadata(type=%u)"), uint32(InType));
@@ -360,7 +300,7 @@ void FMetadataProvider::PopScopedMetadata(uint32 InThreadId, uint16 InType)
 
 void FMetadataProvider::BeginClearStackScope(uint32 InThreadId)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 	++EventCount;
 
 	METADATA_PROVIDER_DEBUG_LOG(InThreadId, TEXT("BeginClearStackScope()"));
@@ -384,7 +324,7 @@ void FMetadataProvider::BeginClearStackScope(uint32 InThreadId)
 
 void FMetadataProvider::EndClearStackScope(uint32 InThreadId)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 	++EventCount;
 
 	METADATA_PROVIDER_DEBUG_LOG(InThreadId, TEXT("EndClearStackScope()"));
@@ -427,7 +367,7 @@ void FMetadataProvider::EndClearStackScope(uint32 InThreadId)
 
 void FMetadataProvider::SaveStack(uint32 InThreadId, uint32 InSavedStackId)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 	++EventCount;
 
 	const uint32 MetadataId = PinAndGetId(InThreadId);
@@ -438,7 +378,7 @@ void FMetadataProvider::SaveStack(uint32 InThreadId, uint32 InSavedStackId)
 
 void FMetadataProvider::BeginRestoreSavedStackScope(uint32 InThreadId, uint32 InSavedStackId)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 	++EventCount;
 
 	METADATA_PROVIDER_DEBUG_LOG(InThreadId, TEXT("BeginRestoreSavedStackScope()"));
@@ -486,7 +426,7 @@ void FMetadataProvider::BeginRestoreSavedStackScope(uint32 InThreadId, uint32 In
 
 void FMetadataProvider::EndRestoreSavedStackScope(uint32 InThreadId)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 	++EventCount;
 
 	METADATA_PROVIDER_DEBUG_LOG(InThreadId, TEXT("EndRestoreSavedStackScope()"));
@@ -527,7 +467,7 @@ void FMetadataProvider::EndRestoreSavedStackScope(uint32 InThreadId)
 
 uint32 FMetadataProvider::PinAndGetId(uint32 InThreadId)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 
 	FMetadataThread* MetadataThread = GetThread(InThreadId);
 
@@ -603,7 +543,7 @@ uint32 FMetadataProvider::PinAndGetId(uint32 InThreadId)
 
 void FMetadataProvider::OnAnalysisCompleted()
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 
 	if (MetaScopeErrors > 0)
 	{
@@ -626,7 +566,7 @@ void FMetadataProvider::OnAnalysisCompleted()
 
 uint32 FMetadataProvider::GetMetadataStackSize(uint32 InThreadId, uint32 InMetadataId) const
 {
-	Lock.ReadAccessCheck();
+	ReadAccessCheck();
 
 	const FMetadataThread* MetadataThread = GetThread(InThreadId);
 
@@ -645,7 +585,7 @@ uint32 FMetadataProvider::GetMetadataStackSize(uint32 InThreadId, uint32 InMetad
 
 bool FMetadataProvider::GetMetadata(uint32 InThreadId, uint32 InMetadataId, uint32 InStackDepth, uint16& OutType, const void*& OutData, uint32& OutSize) const
 {
-	Lock.ReadAccessCheck();
+	ReadAccessCheck();
 
 	const FMetadataThread* MetadataThread = GetThread(InThreadId);
 
@@ -686,7 +626,7 @@ bool FMetadataProvider::GetMetadata(uint32 InThreadId, uint32 InMetadataId, uint
 
 void FMetadataProvider::EnumerateMetadata(uint32 InThreadId, uint32 InMetadataId, TFunctionRef<bool(uint32 StackDepth, uint16 Type, const void* Data, uint32 Size)> Callback) const
 {
-	Lock.ReadAccessCheck();
+	ReadAccessCheck();
 
 	const FMetadataThread* MetadataThread = GetThread(InThreadId);
 

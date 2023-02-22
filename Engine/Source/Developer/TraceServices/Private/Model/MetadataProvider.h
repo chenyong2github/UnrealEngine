@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Common/PagedArray.h"
+#include "Common/ProviderLock.h"
 #include "TraceServices/Model/MetadataProvider.h"
 
 namespace TraceServices
@@ -10,6 +11,8 @@ namespace TraceServices
 
 class IAnalysisSession;
 class ILinearAllocator;
+
+extern thread_local FProviderLock::FThreadLocalState GMetadataProviderLockState;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -92,13 +95,12 @@ public:
 	explicit FMetadataProvider(IAnalysisSession& InSession);
 	virtual ~FMetadataProvider();
 
-	virtual void BeginEdit() const override { Lock.BeginWrite(); }
-	virtual void EndEdit() const override { Lock.EndWrite(); }
-	void EditAccessCheck() const { return Lock.WriteAccessCheck(); }
-
-	virtual void BeginRead() const override { Lock.BeginRead(); }
-	virtual void EndRead() const override { Lock.EndRead(); }
-	void ReadAccessCheck() const { return Lock.ReadAccessCheck(); }
+	virtual void BeginEdit() const override       { Lock.BeginWrite(GMetadataProviderLockState); }
+	virtual void EndEdit() const override         { Lock.EndWrite(GMetadataProviderLockState); }
+	virtual void EditAccessCheck() const override { Lock.WriteAccessCheck(GMetadataProviderLockState); }
+	virtual void BeginRead() const override       { Lock.BeginRead(GMetadataProviderLockState); }
+	virtual void EndRead() const override         { Lock.EndRead(GMetadataProviderLockState); }
+	virtual void ReadAccessCheck() const override { Lock.ReadAccessCheck(GMetadataProviderLockState); }
 
 	//////////////////////////////////////////////////
 	// Edit operations
@@ -143,9 +145,10 @@ private:
 	void InternalPushSavedStack(FMetadataThread& InMetadataThread, FMetadataThread& InSavedMetadataThread, uint32 InSavedMetadataId);
 
 private:
+	mutable FProviderLock Lock;
+
 	IAnalysisSession& Session;
 
-	mutable FMetadataProviderLock Lock;
 	TPagedArray<FMetadataSchema> RegisteredTypes;
 	TMap<FName, uint16> RegisteredTypesMap;
 

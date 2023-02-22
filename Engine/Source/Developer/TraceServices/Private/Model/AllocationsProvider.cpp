@@ -126,67 +126,7 @@ static bool IsAddressWatched(uint64 InAddress)
 }
 #endif // INSIGHTS_DEBUG_WATCH
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// FAllocationsProviderLock
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-thread_local FAllocationsProviderLock* GThreadCurrentAllocationsProviderLock;
-thread_local int32 GThreadCurrentReadAllocationsProviderLockCount;
-thread_local int32 GThreadCurrentWriteAllocationsProviderLockCount;
-
-void FAllocationsProviderLock::ReadAccessCheck() const
-{
-	checkf(GThreadCurrentAllocationsProviderLock == this && (GThreadCurrentReadAllocationsProviderLockCount > 0 || GThreadCurrentWriteAllocationsProviderLockCount > 0),
-		TEXT("Trying to READ from allocations provider outside of a READ scope"));
-}
-
-void FAllocationsProviderLock::WriteAccessCheck() const
-{
-	checkf(GThreadCurrentAllocationsProviderLock == this && GThreadCurrentWriteAllocationsProviderLockCount > 0,
-		TEXT("Trying to WRITE to allocations provider outside of an EDIT/WRITE scope"));
-}
-
-void FAllocationsProviderLock::BeginRead()
-{
-	check(!GThreadCurrentAllocationsProviderLock || GThreadCurrentAllocationsProviderLock == this);
-	checkf(GThreadCurrentWriteAllocationsProviderLockCount == 0, TEXT("Trying to lock allocations provider for READ while holding EDIT/WRITE access"));
-	if (GThreadCurrentReadAllocationsProviderLockCount++ == 0)
-	{
-		GThreadCurrentAllocationsProviderLock = this;
-		RWLock.ReadLock();
-	}
-}
-
-void FAllocationsProviderLock::EndRead()
-{
-	check(GThreadCurrentReadAllocationsProviderLockCount > 0);
-	if (--GThreadCurrentReadAllocationsProviderLockCount == 0)
-	{
-		RWLock.ReadUnlock();
-		GThreadCurrentAllocationsProviderLock = nullptr;
-	}
-}
-
-void FAllocationsProviderLock::BeginWrite()
-{
-	check(!GThreadCurrentAllocationsProviderLock || GThreadCurrentAllocationsProviderLock == this);
-	checkf(GThreadCurrentReadAllocationsProviderLockCount == 0, TEXT("Trying to lock allocations provider for EDIT/WRITE while holding READ access"));
-	if (GThreadCurrentWriteAllocationsProviderLockCount++ == 0)
-	{
-		GThreadCurrentAllocationsProviderLock = this;
-		RWLock.WriteLock();
-	}
-}
-
-void FAllocationsProviderLock::EndWrite()
-{
-	check(GThreadCurrentWriteAllocationsProviderLockCount > 0);
-	if (--GThreadCurrentWriteAllocationsProviderLockCount == 0)
-	{
-		RWLock.WriteUnlock();
-		GThreadCurrentAllocationsProviderLock = nullptr;
-	}
-}
+thread_local FProviderLock::FThreadLocalState GAllocationsProviderLockState;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FTagTracker
@@ -1297,7 +1237,7 @@ FAllocationsProvider::~FAllocationsProvider()
 
 void FAllocationsProvider::EditInit(double InTime, uint8 InMinAlignment)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 
 	if (bInitialized)
 	{
@@ -1322,7 +1262,7 @@ void FAllocationsProvider::EditInit(double InTime, uint8 InMinAlignment)
 
 void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Address, uint64 InSize, uint32 InAlignment, HeapId RootHeap)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 
 	if (!bInitialized)
 	{
@@ -1464,7 +1404,7 @@ void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Add
 
 void FAllocationsProvider::EditFree(double Time, uint32 CallstackId, uint64 Address, HeapId RootHeap)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 
 	if (!bInitialized)
 	{
@@ -1605,7 +1545,7 @@ void FAllocationsProvider::EditFree(double Time, uint32 CallstackId, uint64 Addr
 
 void FAllocationsProvider::EditHeapSpec(HeapId Id, HeapId ParentId, const FStringView& Name, EMemoryTraceHeapFlags Flags)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 
 	INSIGHTS_API_LOGF(TEXT("HeapSpec : Id=%u ParentId=%u Name=\"%*s\" Flags=0x%X"), -1.0, Id, ParentId, Name.Len(), Name.GetData(), uint32(Flags));
 
@@ -1663,7 +1603,7 @@ void FAllocationsProvider::AddHeapSpec(HeapId Id, HeapId ParentId, const FString
 
 void FAllocationsProvider::EditMarkAllocationAsHeap(double Time, uint32 CallstackId, uint64 Address, HeapId Heap, EMemoryTraceHeapAllocationFlags Flags)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 
 	INSIGHTS_WATCH_API_LOGF(Address, TEXT("MarkAllocAsHeap 0x%llX : Heap=%u Flags=0x%X CallstackId=%u"), Time, Address, Heap, uint32(Flags), CallstackId);
 
@@ -1736,7 +1676,7 @@ void FAllocationsProvider::EditMarkAllocationAsHeap(double Time, uint32 Callstac
 
 void FAllocationsProvider::EditUnmarkAllocationAsHeap(double Time, uint32 CallstackId, uint64 Address, HeapId Heap)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 
 	INSIGHTS_WATCH_API_LOGF(Address, TEXT("UnmarkAllocAsHeap 0x%llX : Heap=%u CallstackId=%u"), Time, Address, Heap, CallstackId);
 
@@ -2020,7 +1960,7 @@ void FAllocationsProvider::EditPopTagFromPtr(uint32 ThreadId, uint8 Tracker)
 
 void FAllocationsProvider::EditOnAnalysisCompleted(double Time)
 {
-	Lock.WriteAccessCheck();
+	EditAccessCheck();
 
 	if (!bInitialized)
 	{
