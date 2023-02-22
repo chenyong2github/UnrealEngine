@@ -47,7 +47,7 @@ bool GeometryCollectionAssetForceStripOnCook = false;
 FAutoConsoleVariableRef CVarGeometryCollectionBypassPhysicsAttributes(
 	TEXT("p.GeometryCollectionAssetForceStripOnCook"),
 	GeometryCollectionAssetForceStripOnCook,
-	TEXT("Bypass the construction of simulation properties when all bodies are simply cached. for playback."));
+	TEXT("Bypass the construction of simulation properties when all bodies are simply cached for playback."));
 
 bool bGeometryCollectionEnableForcedConvexGenerationInSerialize = true;
 FAutoConsoleVariableRef CVarGeometryCollectionEnableForcedConvexGenerationInSerialize(
@@ -90,6 +90,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, ConnectionGraphBoundsFilteringMargin(0)
 	, bUseFullPrecisionUVs(false)
 	, bStripOnCook(false)
+	, bStripRenderDataOnCook(false)
 	, EnableNanite(false)
 #if WITH_EDITORONLY_DATA
 	, CollisionType_DEPRECATED(ECollisionTypeEnum::Chaos_Volumetric)
@@ -923,7 +924,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 				RenderData = MakeUnique<FGeometryCollectionRenderData>();
 			}
 
-			RenderData->Serialize(ChaosAr, this);
+			RenderData->Serialize(ChaosAr, *this);
 		}
 	}
 
@@ -1089,7 +1090,7 @@ void UGeometryCollection::CreateRenderDataImp(bool bCopyFromDDC)
 			Chaos::FChaosArchive ChaosAr(Ar);
 
 			RenderData = MakeUnique<FGeometryCollectionRenderData>();
-			RenderData->Serialize(ChaosAr, this);
+			RenderData->Serialize(ChaosAr, *this);
 		}
 	}
 }
@@ -1244,7 +1245,7 @@ void UGeometryCollection::InitResources()
 {
 	if (RenderData)
 	{
-		RenderData->InitResources(this);
+		RenderData->InitResources(*this);
 	}
 }
 
@@ -1447,7 +1448,7 @@ void UGeometryCollection::EnsureDataIsCooked(bool bInitResources, bool bIsTransa
 		{
 			if (RenderData)
 			{
-				RenderData->InitResources(this);
+				RenderData->InitResources(*this);
 			}
 		}
 	

@@ -58,7 +58,7 @@ struct FGeometryCollectionMeshResources
 	FBoneMapVertexBuffer BoneMapVertexBuffer;
 
 	/** Initialize the render resources. */
-	void InitResources(UGeometryCollection* Owner);
+	void InitResources(UGeometryCollection const& Owner);
 	/** Release the render resources. */
 	void ReleaseResources();
 	/** Serialization. */
@@ -123,10 +123,10 @@ public:
 	}
 
 	/** Serialization. */
-	void Serialize(FArchive& Ar, UGeometryCollection* Owner);
+	void Serialize(FArchive& Ar, UGeometryCollection& Owner);
 
 	/** Initialize the render resources. */
-	void InitResources(UGeometryCollection* Owner);
+	void InitResources(UGeometryCollection const& Owner);
 
 	/** Releases the render resources. */
 	void ReleaseResources();

@@ -100,7 +100,7 @@ bool FDerivedDataGeometryCollectionRenderDataCooker::Build(TArray<uint8>& OutDat
 		Chaos::FErrorReporter ErrorReporter(GeometryCollection.GetName());
 
 		TUniquePtr<FGeometryCollectionRenderData> RenderData = FGeometryCollectionRenderData::Create(*Collection, GeometryCollection.EnableNanite, GeometryCollection.bUseFullPrecisionUVs);
-		RenderData->Serialize(ChaosAr, &GeometryCollection);
+		RenderData->Serialize(ChaosAr, GeometryCollection);
 
 		if (false && ErrorReporter.EncounteredAnyErrors())
 		{

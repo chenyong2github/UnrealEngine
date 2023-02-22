@@ -502,6 +502,19 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Rendering")
 	bool bUseFullPrecisionUVs = false;
 
+	/**
+	 * Strip unnecessary data from the Geometry Collection to keep the memory footprint as small as possible.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (DisplayName = "Strip Source Data On Cook"))
+	bool bStripOnCook;
+
+	/**
+	 * Strip unnecessary render data from the Geometry Collection to keep the memory footprint as small as possible.
+	 * This may be used if the cooked build uses an alternative render path such as ISMPools.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
+	bool bStripRenderDataOnCook;
+
 	/** list of unique static mesh / materials pairs for auto instancing*/
 	UPROPERTY(EditAnywhere, Category = "Rendering")
 	TArray<FGeometryCollectionAutoInstanceMesh> AutoInstanceMeshes;
@@ -510,11 +523,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Rendering")
 	FGeometryCollectionProxyMeshData RootProxyData;
 
-	/**
-	 * Strip unnecessary data from the Geometry Collection to keep the memory footprint as small as possible.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nanite")
-	bool bStripOnCook;
+
 
 	UFUNCTION(BlueprintCallable, Category = "Nanite")
 	void SetEnableNanite(bool bValue);

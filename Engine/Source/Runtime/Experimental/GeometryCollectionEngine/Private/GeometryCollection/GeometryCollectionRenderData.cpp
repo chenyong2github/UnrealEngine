@@ -82,9 +82,9 @@ void FBoneMapVertexBuffer::Serialize(FArchive& Ar, bool bInNeedsCPUAccess)
 }
 
 
-void FGeometryCollectionMeshResources::InitResources(UGeometryCollection* Owner)
+void FGeometryCollectionMeshResources::InitResources(UGeometryCollection const& Owner)
 {
-	FName OwnerName = Owner->GetFName();
+	FName OwnerName = Owner.GetFName();
 	IndexBuffer.SetOwnerName(OwnerName);
 	PositionVertexBuffer.SetOwnerName(OwnerName);
 	StaticMeshVertexBuffer.SetOwnerName(OwnerName);
@@ -645,9 +645,17 @@ FGeometryCollectionRenderData::~FGeometryCollectionRenderData()
 	Fence.Wait();
 }
 
-void FGeometryCollectionRenderData::Serialize(FArchive& Ar, UGeometryCollection* Owner)
+// Temporary cvar driven option to force strip render data on cook if we are also stripping other GC data.
+bool GeometryCollectionAssetForceStripRenderDataOnCook = false;
+FAutoConsoleVariableRef CVarGeometryCollectionStripRenderData(
+	TEXT("p.GeometryCollectionAssetForceStripRenderDataOnCook"),
+	GeometryCollectionAssetForceStripRenderDataOnCook,
+	TEXT("Bypass the cook of render data when other geom collection data is also being stripped."));
+
+void FGeometryCollectionRenderData::Serialize(FArchive& Ar, UGeometryCollection& Owner)
 {
-	if (Owner->bStripOnCook && Ar.IsCooking())
+	const bool bStripRenderData = Owner.bStripRenderDataOnCook || (GeometryCollectionAssetForceStripRenderDataOnCook && Owner.bStripOnCook);
+	if (bStripRenderData && Ar.IsCooking())
 	{
 		// Don't cook rendering data.
 		// This is used if we expect to use a non-native GC render path such as the ISM pool.
@@ -676,14 +684,14 @@ void FGeometryCollectionRenderData::Serialize(FArchive& Ar, UGeometryCollection*
 		if (Ar.IsSaving())
 		{
 			// Nanite data is 1:1 with each geometry group in the collection.
-			const int32 NumGeometryGroups = Owner->NumElements(FGeometryCollection::GeometryGroup);
-			if (!Owner->EnableNanite || NumGeometryGroups != NaniteResource.HierarchyRootOffsets.Num())
+			const int32 NumGeometryGroups = Owner.NumElements(FGeometryCollection::GeometryGroup);
+			if (!Owner.EnableNanite || NumGeometryGroups != NaniteResource.HierarchyRootOffsets.Num())
 			{
 				Ar.SetError();
 			}
 		}
 
-		NaniteResource.Serialize(Ar, Owner, true);
+		NaniteResource.Serialize(Ar, &Owner, true);
 	}
 	else if (Ar.IsLoading())
 	{
@@ -691,7 +699,7 @@ void FGeometryCollectionRenderData::Serialize(FArchive& Ar, UGeometryCollection*
 	}
 }
 
-void FGeometryCollectionRenderData::InitResources(UGeometryCollection* Owner)
+void FGeometryCollectionRenderData::InitResources(UGeometryCollection const& Owner)
 {
 	if (bIsInitialized)
 	{
@@ -705,7 +713,7 @@ void FGeometryCollectionRenderData::InitResources(UGeometryCollection* Owner)
 
 	if (bHasNaniteData)
 	{
-		NaniteResource.InitResources(Owner);
+		NaniteResource.InitResources(&Owner);
 	}
 
 	bIsInitialized = true;
