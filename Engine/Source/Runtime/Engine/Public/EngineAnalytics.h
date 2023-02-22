@@ -60,6 +60,8 @@ public:
 
 private:
 	static void AppendMachineStats(TArray<FAnalyticsEventAttribute>& EventAttributes);
+	static void SendMachineInfoForAccount(const FString& EpicAccountId);
+	static void SendMachineInfoForAccount(const FString& EpicAccountId, const TArray<FAnalyticsEventAttribute>& EventAttributes);
 	static void OnEpicAccountIdChanged(const FString& EpicAccountId);
 
 	static bool bIsInitialized;
