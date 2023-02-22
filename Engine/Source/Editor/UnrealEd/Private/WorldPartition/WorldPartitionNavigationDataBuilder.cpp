@@ -286,7 +286,7 @@ bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartitio
 	CallCount++;
 	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Iteration %i. GenerateNavigationData for LoadedBounds %s"), CallCount, *LoadedBounds.ToString());
 
-	UWorld* World = WorldPartition->World;
+	UWorld* World = WorldPartition->GetWorld();
 
 	// Generate navmesh
 	// Make sure navigation is added and initialized in EditorWorldPartitionBuildMode

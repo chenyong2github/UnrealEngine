@@ -40,7 +40,7 @@ SWorldPartitionEditor::~SWorldPartitionEditor()
 	{
 		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 		{
-			check(WorldPartition->World == World);			
+			check(WorldPartition->GetWorld() == World);
 			if (WorldPartition->WorldPartitionEditor)
 			{
 				check(WorldPartition->WorldPartitionEditor == this);
@@ -78,7 +78,7 @@ TSharedRef<SWidget> SWorldPartitionEditor::ConstructContentWidget()
 	{
 		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 		{
-			check(WorldPartition->World == World);
+			check(WorldPartition->GetWorld() == World);
 			EditorName = WorldPartition->GetWorldPartitionEditorName();
 			WorldPartition->WorldPartitionEditor = this;
 		}

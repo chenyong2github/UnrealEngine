@@ -327,14 +327,13 @@ public:
 	UPROPERTY()
 	TObjectPtr<UWorldPartitionRuntimeHash> RuntimeHash;
 
-	UPROPERTY(Transient)
-	TObjectPtr<UWorld> World;
-
 	/** Enables streaming for this world. */
 	UPROPERTY()
 	bool bEnableStreaming;
 
 private:
+	TObjectPtr<UWorld> World;
+
 #if WITH_EDITOR
 	bool bForceGarbageCollection;
 	bool bForceGarbageCollectionPurge;
