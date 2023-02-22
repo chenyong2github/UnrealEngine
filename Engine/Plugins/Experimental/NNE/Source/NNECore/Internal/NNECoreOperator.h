@@ -18,7 +18,6 @@ namespace UE::NNECore::Internal
 		Atan,
 		Atanh,
 		//BitShift, //Note: need integer tensors
-		//Cast,     //Note: ability to cast tensor type
 		Ceil,
 		//Clip,     //Note: need scalar tensor inputs
 		Cos,

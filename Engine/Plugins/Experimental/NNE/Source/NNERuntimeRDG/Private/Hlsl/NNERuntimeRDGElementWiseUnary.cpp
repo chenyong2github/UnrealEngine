@@ -220,7 +220,6 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		OP(Atan);
 		OP(Atanh);
 		//OP(BitShift);
-		//OP(Cast);
 		OP(Ceil);
 		//OP(Clip);
 		OP(Cos);
