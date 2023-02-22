@@ -155,6 +155,9 @@ Name(const T& Value, U ExpectedValue, const char* ValueText, const char* Expecte
 #define UE_NET_EXPECT_TRUE_MSG(V, Message) UE_NET_TEST_MSG_INTERNAL(Message); CHECK(V)
 #define UE_NET_EXPECT_FALSE_MSG(V, Message) UE_NET_TEST_MSG_INTERNAL(Message); CHECK_FALSE(V)
 
+#define UE_NET_FAIL(Message) FAIL(Message)
+#define UE_NET_WARN(Message) FAIL_CHECK(Message)
+
 #else
 
 UE_NET_COMPARE_RETURN_TESTRESULT(TCmpEqual, ==)

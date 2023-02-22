@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "Misc/AutomationTest.h"
 
 #if UE_NET_WITH_LOW_LEVEL_TESTS
@@ -117,7 +118,7 @@ public:
 
 #define UE_NET_TEST_CATCH_INTERNAL(TestSuite, TestCase, BaseClass) \
 	constexpr TCHAR TestSuite ## _ ## TestCase ## Name[] = TEXT("Net." #TestSuite "." #TestCase); \
-	TEST_CASE_METHOD((TCatchFixtureWrapper<BaseClass, TestSuite ## _ ## TestCase ## Name>), #TestSuite ## "_" ## #TestCase)
+	TEST_CASE_METHOD((TCatchFixtureWrapper<BaseClass, TestSuite ## _ ## TestCase ## Name>), PREPROCESSOR_TO_STRING(TestSuite ## _ ## TestCase))
 
 #define UE_NET_TEST_FIXTURE(TestFixture, TestCase) UE_NET_TEST_CATCH_INTERNAL(TestFixture, TestCase, TestFixture)
 #define UE_NET_TEST(TestSuite, TestCase) UE_NET_TEST_CATCH_INTERNAL(TestSuite, TestCase, UE::Net::FNetworkAutomationTestSuiteFixture)
