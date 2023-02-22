@@ -48,6 +48,14 @@ public:
 	bool HasDesiredDisplayView(const FOpenColorIODisplayView& DisplayView) const;
 	bool Validate() const;
 
+#if WITH_EDITOR
+	/** Apply the color transform in-place to the specified image. */
+	bool EditorTransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& InOutImage) const;
+
+	/** Apply the color transform from the source image to the destination image. (The destination FImageView is const but what it points at is not.) */
+	bool EditorTransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& SrcImage, const FImageView& DestImage) const;
+#endif
+
 	/** This forces to reload colorspaces and corresponding shaders if those are not loaded already. */
 	UFUNCTION(BlueprintCallable, Category = "OpenColorIO")
 	void ReloadExistingColorspaces();

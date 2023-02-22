@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 					"RHI",
 					"RenderCore",
 					"Renderer",
+					"ImageCore",
 					"Slate",
 					"SlateCore",
 					"ColorManagement"

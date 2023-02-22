@@ -79,6 +79,14 @@ public:
 	bool IsTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace) const;
 	bool IsTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection) const;
 
+#if WITH_EDITOR
+	/** Apply the color transform in-place to the specified image. */
+	bool EditorTransformImage(const FImageView& InOutImage) const;
+	
+	/** Apply the color transform from the source image to the destination image. (The destination FImageView is const but what it points at is not.) */
+	bool EditorTransformImage(const FImageView& SrcImage, const FImageView& DestImage) const;
+#endif
+
 	/**
 	 * Get the display view direction type, when applicable.
 	 *
@@ -90,7 +98,9 @@ public:
 	// For all ColorTransforms, UOpenColorIOColorTransform::CacheResourceShadersForRendering
 	static void AllColorTransformsCacheResourceShadersForRendering();
 
-	
+	// Get the context key-values.
+	const TMap<FString, FString>& GetContextKeyValues() const { return ContextKeyValues; }
+
 
 protected:
 

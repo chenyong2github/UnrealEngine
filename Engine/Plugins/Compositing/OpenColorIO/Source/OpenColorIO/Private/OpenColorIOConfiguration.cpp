@@ -160,6 +160,28 @@ bool UOpenColorIOConfiguration::Validate() const
 #endif // WITH_EDITOR
 }
 
+#if WITH_EDITOR
+bool UOpenColorIOConfiguration::EditorTransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& InOutImage) const
+{
+	if (const TObjectPtr<UOpenColorIOColorTransform>* TransformPtr = FindTransform(InSettings))
+	{
+		return (*TransformPtr)->EditorTransformImage(InOutImage);
+	}
+
+	return false;
+}
+
+bool UOpenColorIOConfiguration::EditorTransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& SrcImage, const FImageView& DestImage) const
+{
+	if (const TObjectPtr<UOpenColorIOColorTransform>* TransformPtr = FindTransform(InSettings))
+	{
+		return (*TransformPtr)->EditorTransformImage(SrcImage, DestImage);
+	}
+
+	return false;
+}
+#endif
+
 void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 {
 #if WITH_EDITOR && WITH_OCIO
