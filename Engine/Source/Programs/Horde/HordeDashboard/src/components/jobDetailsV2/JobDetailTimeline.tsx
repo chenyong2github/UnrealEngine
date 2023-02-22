@@ -583,7 +583,7 @@ class TimelineRenderer {
 
       const handleMouseMove = (event: any) => {
 
-         let mouseX = d3.pointer(event)[0];
+         let mouseX = d3.pointer(event, container)[0];
          let mouseY = d3.pointer(event)[1];
 
          const span = closestData(mouseX, mouseY);
@@ -636,8 +636,10 @@ class TimelineRenderer {
             let tipX = mouseX;
             let translateX = "0%";
 
-            if (tipX > 1500) {
-               translateX = "-180%";
+            if (tipX > 1100) {
+               translateX = "-120%";
+            } else {
+               tipX += 48;
             }
 
             tooltip
