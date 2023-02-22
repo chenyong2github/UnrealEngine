@@ -234,16 +234,6 @@ void FControlFlow::Reset()
 	UnnamedBranchCounter = 0;
 }
 
-FDelegateHandle FControlFlow::RegisterOnControlFlowCancelled(FSimpleMulticastDelegate::FDelegate Delegate)
-{
-	return OnFlowCancelledDelegate.Add(Delegate);
-}
-
-void FControlFlow::RemoveOnControlFlowCancelled(FDelegateHandle Handle)
-{
-	OnFlowCancelledDelegate.Remove(Handle);
-}
-
 void FControlFlow::CancelFlow()
 {
 	if (CurrentNode.IsValid())

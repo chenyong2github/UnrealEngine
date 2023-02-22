@@ -138,9 +138,6 @@ public:
 	FSimpleMulticastDelegate& OnFlowComplete() const { return OnFlowCompleteDelegate; }
 	FSimpleMulticastDelegate& OnFlowCancel() const { return OnFlowCancelledDelegate; }
 
-	CONTROLFLOWS_API FDelegateHandle RegisterOnControlFlowCancelled(FSimpleMulticastDelegate::FDelegate Delegate);
-	CONTROLFLOWS_API void RemoveOnControlFlowCancelled(FDelegateHandle Handle);
-
 	/** Will cancel ALL flows, both child ControlFlows and ControlFlows who owns this Flow. You've been warned. */
 	CONTROLFLOWS_API void CancelFlow();
 
