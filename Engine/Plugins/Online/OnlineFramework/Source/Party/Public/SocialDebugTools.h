@@ -28,7 +28,9 @@ public:
 	USocialManager& GetSocialManager() const;
 
 	// FExec
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out) override;
+#endif
 
 	// USocialDebugTools
 

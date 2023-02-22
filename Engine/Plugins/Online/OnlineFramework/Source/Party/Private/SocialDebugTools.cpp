@@ -44,6 +44,7 @@ void USocialDebugTools::PrintExecCommands() const
 	UE_LOG(LogParty, Log, TEXT("HELP"));
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool USocialDebugTools::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out)
 {
 	if (FParse::Command(&Cmd, TEXT("DEBUG")))
@@ -89,6 +90,7 @@ bool USocialDebugTools::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 	
 	return false;
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 void USocialDebugTools::Login(const FString& Instance, const FOnlineAccountCredentials& Credentials, const FLoginComplete& OnComplete)
 {

@@ -58,6 +58,7 @@ IVoiceChatPtr FEOSVoiceChatFactory::CreateInstanceWithPlatform(const IEOSPlatfor
 	return VoiceChat;
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool FEOSVoiceChatFactory::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	// When list is requested, the factory is responsible for returning true when all instances have reported their state.
@@ -91,5 +92,6 @@ bool FEOSVoiceChatFactory::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice
 
 	return bListRequested;
 }
+#endif // UE_ALLOW_EXEC_COMMANDS
 
 #endif // WITH_EOS_RTC
