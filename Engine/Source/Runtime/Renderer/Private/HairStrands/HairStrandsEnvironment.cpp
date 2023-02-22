@@ -356,7 +356,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	if (bHasStaticLighting) { check(LightingType != EHairLightingSourceType::Lumen); }
 
 	// Early out if there is no static lighting, no sky lighting, nor reflection probes, nor Lumen
-	if (!bSkyLight && !bDynamicSkyLight && !bHasStaticLighting && !bReflectionEnv && !bLumenActive)
+	if (!bSkyLight && !bDynamicSkyLight && !bHasStaticLighting && !bReflectionEnv && !bLumenActive && IntegrationType != EHairLightingIntegrationType::SceneColor)
 		return;
 
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
