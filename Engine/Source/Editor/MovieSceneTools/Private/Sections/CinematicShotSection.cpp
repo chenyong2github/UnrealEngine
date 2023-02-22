@@ -37,7 +37,7 @@ FCinematicShotSection::FCinematicSectionCache::FCinematicSectionCache(UMovieScen
 	if (Section)
 	{
 		UMovieSceneSequence* InnerSequence = Section->GetSequence();
-		if (InnerSequence)
+		if (InnerSequence&& InnerSequence->GetMovieScene())
 		{
 			InnerFrameRate = InnerSequence->GetMovieScene()->GetTickResolution();
 		}

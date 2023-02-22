@@ -26,7 +26,7 @@ FSubSectionPainterResult FSubSectionPainterUtil::PaintSection(TSharedPtr<const I
     }
 
     UMovieSceneSequence* InnerSequence = SectionObject.GetSequence();
-    if (InnerSequence == nullptr)
+    if (InnerSequence == nullptr || InnerSequence->GetMovieScene() == nullptr)
     {
         return FSSPR_NoInnerSequence;
     }
