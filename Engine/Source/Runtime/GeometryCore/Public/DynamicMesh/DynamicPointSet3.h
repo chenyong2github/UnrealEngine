@@ -48,10 +48,6 @@ protected:
 	/** List of vertex positions */
 	TDynamicVector<RealType> Vertices;
 
-	/** The timestamp is incremented any time a function that modifies the point set is called */
-	UE_DEPRECATED(5.1, "Timestamps for TDynamicPointSet3 were not being used and will be removed in the future")
-	int Timestamp = 0;
-
 
 	/** Base attribute set */
 	TDynamicAttributeSetBase<TDynamicPointSet3<RealType>>* BaseAttributeSet = nullptr;
@@ -63,17 +59,6 @@ protected:
 	// or DeleteVertex() will work.
 	//
 public:
-
-	// Note: We need explicit defaults because of the deprecated Timestamp member
-	// Once Timestamp is deleted, we can delete all of these except the constructor
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	TDynamicPointSet3() = default;
-	~TDynamicPointSet3() = default;
-	TDynamicPointSet3(const TDynamicPointSet3& Other) = default;
-	TDynamicPointSet3(TDynamicPointSet3&& Other) noexcept = default;
-	TDynamicPointSet3& operator=(const TDynamicPointSet3& Other) = default;
-	TDynamicPointSet3& operator=(TDynamicPointSet3&& Other) noexcept = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void SetExternallyManagedAttributes(TDynamicAttributeSetBase<TDynamicPointSet3<RealType>>* AttributeSet)
 	{
@@ -124,7 +109,6 @@ public:
 		Vertices.Clear();
 		VertexRefCounts = FRefCountVector();
 		BaseAttributeSet = nullptr;
-		IncrementDeprecatedTimestamp();
 	}
 
 
@@ -142,7 +126,6 @@ public:
 			GetBaseAttributeSet()->OnNewVertex(vid, false);
 		}
 
-		IncrementDeprecatedTimestamp();
 		return vid;
 	}
 
@@ -186,7 +169,6 @@ public:
 			GetBaseAttributeSet()->OnNewVertex(VertexID, true);
 		}
 
-		IncrementDeprecatedTimestamp();
 		return EMeshResult::Ok;
 	}
 
@@ -214,7 +196,6 @@ public:
 		Vertices[i] = vNewPos.X;
 		Vertices[i + 1] = vNewPos.Y;
 		Vertices[i + 2] = vNewPos.Z;
-		IncrementDeprecatedTimestamp();
 	}
 
 
@@ -251,15 +232,6 @@ public:
 	RealType CompactMetric() const
 	{
 		return ((RealType)VertexCount() / (RealType)MaxVertexID());
-	}
-
-	/** Timestamp is incremented any time any change is made to the point set */
-	UE_DEPRECATED(5.1, "Timestamps for TDynamicPointSet3 were not being used and will be removed in the future")
-	inline int GetTimestamp() const
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return Timestamp;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	//
@@ -321,28 +293,7 @@ public:
 			GetBaseAttributeSet()->OnRemoveVertex(VertexID);
 		}
 
-		IncrementDeprecatedTimestamp();
 		return EMeshResult::Ok;
-	}
-
-
-
-protected:
-
-	UE_DEPRECATED(5.1, "Timestamps for TDynamicPointSet3 were not being used and will be removed in the future")
-	void UpdateTimeStamp()
-	{
-		IncrementDeprecatedTimestamp();
-	}
-
-private:
-
-	// Note: this function will be removed when Timestamp is removed
-	inline void IncrementDeprecatedTimestamp()
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Timestamp++;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 };

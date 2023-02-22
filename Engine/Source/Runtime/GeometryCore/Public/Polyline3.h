@@ -24,21 +24,7 @@ protected:
 	/** The list of vertices of the polyline */
 	TArray<TVector<T>> Vertices;
 
-	/** A counter that is incremented every time the polyline vertices are modified */
-	UE_DEPRECATED(5.1, "Timestamps for TPolyline3 were not being used and will be removed in the future")
-	int Timestamp = 0;
-
 public:
-
-	// Note: We need all 5 of these explicitly defaulted just because of the deprecated Timestamp member
-	// Once Timestamp is deleted, we can delete these as well
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	~TPolyline3() = default;
-	TPolyline3(const TPolyline3& Other) = default;
-	TPolyline3(TPolyline3&& Other) noexcept = default;
-	TPolyline3& operator=(const TPolyline3& Other) = default;
-	TPolyline3& operator=(TPolyline3&& Other) noexcept = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 	TPolyline3()
@@ -61,22 +47,6 @@ public:
 		Vertices.Add(Point1);
 	}
 
-	/** @return the Timestamp for the polyline, which is updated every time the polyline is modified */
-	UE_DEPRECATED(5.1, "Timestamps for TPolyline3 were not being used and will be removed in the future")
-	int GetTimestamp() const
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return Timestamp;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	/** Explicitly increment the Timestamp */
-	UE_DEPRECATED(5.1, "Timestamps for TPolyline3 were not being used and will be removed in the future")
-	void IncrementTimestamp()
-	{
-		IncrementDeprecatedTimestamp();
-	}
-
 	/**
 	 * Get the vertex at a given index
 	 */
@@ -87,7 +57,6 @@ public:
 
 	/**
 	 * Get the vertex at a given index
-	 * @warning changing the vertex via this operator does not update Timestamp!
 	 */
 	TVector<T>& operator[](int Index)
 	{
@@ -141,7 +110,6 @@ public:
 	void Clear()
 	{
 		Vertices.Reset();
-		IncrementDeprecatedTimestamp();
 	}
 
 	/**
@@ -150,7 +118,6 @@ public:
 	void AppendVertex(const TVector<T>& Position)
 	{
 		Vertices.Add(Position);
-		IncrementDeprecatedTimestamp();
 	}
 
 	/**
@@ -159,7 +126,6 @@ public:
 	void AppendVertices(const TArray<TVector<T>>& NewVertices)
 	{
 		Vertices.Append(NewVertices);
-		IncrementDeprecatedTimestamp();
 	}
 
 	/**
@@ -174,7 +140,6 @@ public:
 		{
 			Vertices.Append( (TVector<T>)NewVertices[k] );
 		}
-		IncrementDeprecatedTimestamp();
 	}
 
 	/**
@@ -183,7 +148,6 @@ public:
 	void Set(int VertexIndex, const TVector<T>& Position)
 	{
 		Vertices[VertexIndex] = Position;
-		IncrementDeprecatedTimestamp();
 	}
 
 	/**
@@ -192,7 +156,6 @@ public:
 	void RemoveVertex(int VertexIndex)
 	{
 		Vertices.RemoveAt(VertexIndex);
-		IncrementDeprecatedTimestamp();
 	}
 
 	/**
@@ -206,7 +169,6 @@ public:
 		{
 			Vertices[k] = NewVertices[k];
 		}
-		IncrementDeprecatedTimestamp();
 	}
 
 
@@ -220,7 +182,6 @@ public:
 		{
 			Swap(Vertices[VertexIndex], Vertices[j]);
 		}
-		IncrementDeprecatedTimestamp();
 	}
 
 
@@ -469,16 +430,6 @@ public:
 			NewPolyline.Vertices[k++] = OneMinusAlpha * Cur + Alpha * Next;
 		}
 		NewPolyline.Vertices[k] = Vertices[N];
-	}
-
-private:
-
-	// Note: this function will be removed when Timestamp is removed
-	inline void IncrementDeprecatedTimestamp()
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Timestamp++;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 };
 

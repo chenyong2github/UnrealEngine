@@ -141,7 +141,7 @@ public:
     }
 
 
-    double Perimeter()
+    double Perimeter() const
     {
 		double PerimSum = Outer.Perimeter();
 		for (const TPolygon2<T> &Hole : Holes)
@@ -152,7 +152,7 @@ public:
     }
 
 
-    TAxisAlignedBox2<T> Bounds()
+    TAxisAlignedBox2<T> Bounds() const
     {
 		TAxisAlignedBox2<T> Box = Outer.Bounds();
 		for (const TPolygon2<T> Hole : Holes)

@@ -33,25 +33,11 @@ protected:
 	/** The list of vertices/corners of the polygon */
 	TArray<TVector2<T>> Vertices;
 
-	/** A counter that is incremented every time the polygon vertices are modified. */
-	UE_DEPRECATED(5.1, "Timestamps for TPolygon2 were not being used and will be removed in the future")
-	int Timestamp = 0;
-
 public:
 
 	TPolygon2()
 	{
 	}
-
-	// Note: We need all 5 of these explicitly defaulted just because of the deprecated Timestamp member
-	// Once Timestamp is deleted, we can delete these as well
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	~TPolygon2() = default;
-	TPolygon2(const TPolygon2& Other) = default;
-	TPolygon2(TPolygon2&& Other) noexcept = default;
-	TPolygon2& operator=(const TPolygon2& Other) = default;
-	TPolygon2& operator=(TPolygon2&& Other) noexcept = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Construct polygon with given list of vertices
@@ -83,15 +69,6 @@ public:
 		}
 	}
 
-	/** @return the Timestamp for the polygon, which is updated every time the polygon is modified */
-	UE_DEPRECATED(5.1, "Timestamps for TPolygon2 were not being used and will be removed in the future")
-	int GetTimestamp() const 
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return Timestamp;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
 	/**
 	 * Get the vertex at a given index
 	 */
@@ -102,7 +79,6 @@ public:
 
 	/**
 	 * Get the vertex at a given index
-	 * @warning changing the vertex via this operator does not update Timestamp!
 	 */
 	TVector2<T>& operator[](int Index)
 	{
@@ -140,7 +116,6 @@ public:
 	void AppendVertex(const TVector2<T>& Position)
 	{
 		Vertices.Add(Position);
-		IncrementDeprecatedTimestamp();
 	}
 
 	/**
@@ -149,7 +124,6 @@ public:
 	void AppendVertices(const TArray<TVector2<T>>& NewVertices)
 	{
 		Vertices.Append(NewVertices);
-		IncrementDeprecatedTimestamp();
 	}
 
 	/**
@@ -158,7 +132,6 @@ public:
 	void Set(int VertexIndex, const TVector2<T>& Position)
 	{
 		Vertices[VertexIndex] = Position;
-		IncrementDeprecatedTimestamp();
 	}
 
 	/**
@@ -167,7 +140,6 @@ public:
 	void RemoveVertex(int VertexIndex)
 	{
 		Vertices.RemoveAt(VertexIndex);
-		IncrementDeprecatedTimestamp();
 	}
 
 	/**
@@ -176,7 +148,6 @@ public:
 	void SetVertices(const TArray<TVector2<T>>& NewVertices)
 	{
 		Vertices = NewVertices;
-		IncrementDeprecatedTimestamp();
 	}
 
 
@@ -186,7 +157,6 @@ public:
 	void Reverse()
 	{
 		Algo::Reverse(Vertices);
-		IncrementDeprecatedTimestamp();
 	}
 
 
@@ -369,7 +339,7 @@ public:
 	 * @param bDegenerateIsConvex	What to return for degenerate input (less than 3 points or equivalent due to repeated points)
 	 * @return						true if polygon is convex
 	 */
-	bool IsConvex(T RadiansTolerance = TMathUtil<T>::ZeroTolerance, bool bDegenerateIsConvex = true)
+	bool IsConvex(T RadiansTolerance = TMathUtil<T>::ZeroTolerance, bool bDegenerateIsConvex = true) const
 	{
 		return CurveUtil::IsConvex2<T, TVector2<T>>(Vertices, RadiansTolerance, bDegenerateIsConvex);
 	}
@@ -694,7 +664,6 @@ public:
 		{
 			Vertices[i] += Translate;
 		}
-		IncrementDeprecatedTimestamp();
 		return *this;
 	}
 
@@ -709,7 +678,6 @@ public:
 		{
 			Vertices[i] = Scale * (Vertices[i] - Origin) + Origin;
 		}
-		IncrementDeprecatedTimestamp();
 		return *this;
 	}
 
@@ -725,7 +693,6 @@ public:
 		{
 			Vertices[i] = TransformFunc(Vertices[i]);
 		}
-		IncrementDeprecatedTimestamp();
 		return *this;
 	}
 
@@ -759,8 +726,6 @@ public:
 		{
 			Vertices[k] = NewVertices[k];
 		}
-
-		IncrementDeprecatedTimestamp();
 	}
 
 
@@ -794,8 +759,6 @@ public:
 		{
 			Vertices[k] = NewVertices[k];
 		}
-
-		IncrementDeprecatedTimestamp();
 	}
 
 
@@ -955,7 +918,6 @@ public:
 			}
 		}
 
-		IncrementDeprecatedTimestamp();
 		return;
 	}
 
@@ -1020,8 +982,6 @@ public:
 			Vertices.Add(next_cut);
 			iCur = iNext;
 		} while (iCur != 0);
-
-		IncrementDeprecatedTimestamp();
 	}
 
 
@@ -1092,15 +1052,6 @@ public:
 		return Circle;
 	}
 
-private:
-
-	// Note: this function will be removed when Timestamp is removed
-	inline void IncrementDeprecatedTimestamp()
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Timestamp++;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 };
 
 typedef TPolygon2<double> FPolygon2d;
