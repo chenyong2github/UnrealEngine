@@ -1099,16 +1099,12 @@ void FFractureEditorModeToolkit::OnExplodedViewValueChanged()
 		Actor->GetComponents(Components);
 		for (UPrimitiveComponent* PrimitiveComponent : Components)
 		{
-			AGeometryCollectionActor* GeometryCollectionActor = Cast<AGeometryCollectionActor>(Actor);
-			if(GeometryCollectionActor)
+			if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent))
 			{
-				if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent))
-				{
 
-					UpdateExplodedVectors(GeometryCollectionComponent);
+				UpdateExplodedVectors(GeometryCollectionComponent);
 
-					GeometryCollectionComponent->MarkRenderStateDirty();
-				}	
+				GeometryCollectionComponent->MarkRenderStateDirty();
 			}
 		}
 	}
