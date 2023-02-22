@@ -20,7 +20,7 @@
 #endif
 #include "WorldPartitionLevelStreamingDynamic.generated.h"
 
-UCLASS()
+UCLASS(NotPlaceable, NotBlueprintable, HideDropdown)
 class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDynamic
 {
 	GENERATED_UCLASS_BODY()
