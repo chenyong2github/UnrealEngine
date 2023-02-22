@@ -164,45 +164,6 @@ void FContextualAnimTrack::GetStartAndEndTimeForWarpSection(const FName& WarpSec
 	}
 }
 
-float FContextualAnimTrack::FindBestAnimStartTime(const FVector& LocalLocation) const
-{
-	float BestTime = 0.f;
-
-	if (AnimMaxStartTime < 0.f)
-	{
-		return BestTime;
-	}
-
-	const FVector SyncPointLocation = GetAlignmentTransformAtSyncTime().GetLocation();
-	const float PerfectDistToSyncPointSq = GetAlignmentTransformAtEntryTime().GetTranslation().SizeSquared2D();
-	const float ActualDistToSyncPointSq = FVector::DistSquared2D(LocalLocation, SyncPointLocation);
-
-	if (ActualDistToSyncPointSq < PerfectDistToSyncPointSq)
-	{
-		float BestDistance = MAX_FLT;
-		TArrayView<const FVector3f> PosKeys(AlignmentData.Tracks.AnimationTracks[0].PosKeys.GetData(), AlignmentData.Tracks.AnimationTracks[0].PosKeys.Num());
-
-		//@TODO: Very simple search for now. Replace with Distance Matching + Pose Matching
-		for (int32 Idx = 0; Idx < PosKeys.Num(); Idx++)
-		{
-			const float Time = Idx * AlignmentData.SampleInterval;
-			if (AnimMaxStartTime > 0.f && Time >= AnimMaxStartTime)
-			{
-				break;
-			}
-
-			const float DistFromCurrentFrameToSyncPointSq = FVector::DistSquared2D(SyncPointLocation, (FVector)PosKeys[Idx]);
-			if (DistFromCurrentFrameToSyncPointSq < ActualDistToSyncPointSq)
-			{
-				BestTime = Time;
-				break;
-			}
-		}
-	}
-
-	return BestTime;
-}
-
 bool FContextualAnimTrack::DoesQuerierPassSelectionCriteria(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const
 {
 	for (const UContextualAnimSelectionCriterion* Criterion : SelectionCriteria)

@@ -199,7 +199,7 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 											FVector Origin, Direction;
 											if (Cone->Mode == EContextualAnimCriterionConeMode::ToPrimary)
 											{
-												const FTransform QuerierTransform = Section->GetAlignmentTransformForRoleRelativeToOtherRole(AnimSetIdx, AnimTrack.Role, PrimaryRole, 0.f) * PrimaryTransform;
+												const FTransform QuerierTransform = SceneAsset->GetAlignmentTransformForRoleRelativeToOtherRole(AnimTrack.SectionIdx, AnimTrack.AnimSetIdx, AnimTrack.Role, PrimaryRole, 0.f) * PrimaryTransform;
 												Origin = QuerierTransform.GetLocation();
 												Direction = QuerierTransform.GetRotation().GetForwardVector().RotateAngleAxis(Cone->Offset, FVector::UpVector);
 											}
@@ -222,7 +222,7 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 								if (AnimTrack.Role != PrimaryRole && AnimTrack.Animation)
 								{
 									const float Time = 0.f;
-									const FTransform RelativeToPrimary = Section->GetAlignmentTransformForRoleRelativeToOtherRole(AnimSetIdx, AnimTrack.Role, PrimaryRole, Time);
+									const FTransform RelativeToPrimary = SceneAsset->GetAlignmentTransformForRoleRelativeToOtherRole(AnimTrack.SectionIdx, AnimTrack.AnimSetIdx, AnimTrack.Role, PrimaryRole, Time);
 									FTransform Transform = (SceneAsset->GetMeshToComponentForRole(AnimTrack.Role) * RelativeToPrimary) * PrimaryTransform;
 
 									if (ACharacter* PrimaryAsCharacter = Cast<ACharacter>(PrimaryBinding->GetActor()))

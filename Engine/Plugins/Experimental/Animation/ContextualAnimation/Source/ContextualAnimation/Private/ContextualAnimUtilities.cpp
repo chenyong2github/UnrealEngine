@@ -164,9 +164,9 @@ void UContextualAnimUtilities::DrawDebugAnimSet(const UWorld* World, const UCont
 {
 	if (World)
 	{
-		for(const FContextualAnimTrack& AnimTrack : AnimSet.Tracks)
+		for (const FContextualAnimTrack& AnimTrack : AnimSet.Tracks)
 		{
-			const FTransform Transform = (SceneAsset.GetMeshToComponentForRole(AnimTrack.Role) * AnimTrack.GetAlignmentTransformAtTime(Time)) * ToWorldTransform;
+			const FTransform Transform = (SceneAsset.GetMeshToComponentForRole(AnimTrack.Role) * SceneAsset.GetAlignmentTransform(AnimTrack, 0, Time)) * ToWorldTransform;
 
 			if (const UAnimSequenceBase* Animation = AnimTrack.Animation)
 			{
@@ -449,7 +449,7 @@ FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformForRo
 
 	if(const UContextualAnimSceneAsset* SceneAsset = Bindings.GetSceneAsset())
 	{
-		Result = SceneAsset->GetAlignmentTransformForRoleRelativeToOtherRoleInSection(Bindings.GetSectionIdx(), Bindings.GetAnimSetIdx(), Role, RelativeToRole, Time);
+		Result = SceneAsset->GetAlignmentTransformForRoleRelativeToOtherRole(Bindings.GetSectionIdx(), Bindings.GetAnimSetIdx(), Role, RelativeToRole, Time);
 	}
 
 	return Result;
@@ -461,9 +461,10 @@ FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformForRo
 
 	if (const UContextualAnimSceneAsset* SceneAsset = Bindings.GetSceneAsset())
 	{
-		if (const FContextualAnimSceneSection* Section = SceneAsset->GetSection(Bindings.GetSectionIdx()))
+		if(const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByRole(Role))
 		{
-			return Section->GetAlignmentTransformForRoleRelativeToPivot(Bindings.GetAnimSetIdx(), Role, Time) * Pivot.Transform;
+			const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(*Binding);
+			return SceneAsset->GetAlignmentTransform(AnimTrack, 0, Time);
 		}
 	}
 
@@ -505,5 +506,5 @@ FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformFromB
 	float StartTime, EndTime;
 	AnimTrack.GetStartAndEndTimeForWarpSection(Pivot.Name, StartTime, EndTime);
 
-	return AnimTrack.GetAlignmentTransformAtTime(EndTime) * Pivot.Transform;
+	return Bindings.GetSceneAsset()->GetAlignmentTransform(AnimTrack, 0, EndTime) * Pivot.Transform;
 }
