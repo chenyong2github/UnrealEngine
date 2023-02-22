@@ -1393,7 +1393,10 @@ bool SFbxSceneOptionWindow::CanImport()  const
 
 void SFbxSceneOptionWindow::CopyFbxOptionsToFbxOptions(UnFbx::FBXImportOptions *SourceOptions, UnFbx::FBXImportOptions *DestinationOptions)
 {
-	DestinationOptions = SourceOptions;
+	if (ensure(SourceOptions && DestinationOptions))
+	{
+		*DestinationOptions = *SourceOptions;
+	}
 }
 
 void SFbxSceneOptionWindow::CopyStaticMeshOptionsToFbxOptions(UnFbx::FBXImportOptions *ImportSettings, UFbxSceneImportOptionsStaticMesh* StaticMeshOptions)
