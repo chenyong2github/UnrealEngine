@@ -2078,28 +2078,6 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
-		/// Copy the field range into a buffer of exactly GetRangeSize() bytes.
-		/// </summary>
-		/// <param name="buffer"></param>
-		public void CopyRangeTo(Span<byte> buffer)
-		{
-			ReadOnlyMemory<byte> source;
-			if (TryGetRangeView(out source))
-			{
-				source.Span.CopyTo(buffer);
-			}
-			else
-			{
-				for (CbFieldIterator it = new CbFieldIterator(this); it; it.MoveNext())
-				{
-					int size = it.Current.GetSize();
-					it.Current.CopyTo(buffer);
-					buffer = buffer.Slice(size);
-				}
-			}
-		}
-
-		/// <summary>
 		/// Invoke the visitor for every attachment in the field range.
 		/// </summary>
 		/// <param name="visitor"></param>
@@ -2127,25 +2105,6 @@ namespace EpicGames.Serialization
 					}
 				}
 			}
-		}
-
-		/// <summary>
-		/// Try to get a view of every field in the range as they would be serialized.
-		///
-		/// A view is available if each field contains its type. Access the equivalent for other field
-		/// ranges through FCbFieldIterator::CloneRange or CopyRangeTo.
-		/// </summary>
-		/// <returns></returns>
-		bool TryGetRangeView(out ReadOnlyMemory<byte> outView)
-		{
-			throw new NotImplementedException();
-/*			FMemoryView View;
-			if (FieldType::TryGetView(View))
-			{
-				OutView = MakeMemoryView(View.GetData(), FieldsEnd);
-				return true;
-			}
-			return false;*/
 		}
 
 		/// <summary>
