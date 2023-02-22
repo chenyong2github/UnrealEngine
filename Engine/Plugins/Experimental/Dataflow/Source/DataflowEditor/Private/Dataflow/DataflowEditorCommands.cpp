@@ -105,7 +105,7 @@ void FDataflowEditorCommands::EvaluateNode(Dataflow::FContext& Context, Dataflow
 			const FDataflowNode* Node = InNode;
 			if (Node == nullptr)
 			{
-				if (const TSharedPtr<Dataflow::FGraph> Graph = Dataflow->GetDataflow())
+				if (const TSharedPtr<const Dataflow::FGraph> Graph = Dataflow->GetDataflow())
 				{
 					if (TSharedPtr<const FDataflowNode> GraphNode = Graph->FindBaseNode(FName(NodeName)))
 					{
@@ -147,7 +147,7 @@ void FDataflowEditorCommands::EvaluateTerminalNode(Dataflow::FContext& Context, 
 			const FDataflowNode* Node = InNode;
 			if (Node == nullptr)
 			{
-				if (const TSharedPtr<Dataflow::FGraph> Graph = Dataflow->GetDataflow())
+				if (const TSharedPtr<const Dataflow::FGraph> Graph = Dataflow->GetDataflow())
 				{
 					if (TSharedPtr<const FDataflowNode> GraphNode = Graph->FindBaseNode(FName(NodeName)))
 					{

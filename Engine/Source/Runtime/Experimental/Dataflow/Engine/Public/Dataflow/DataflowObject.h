@@ -98,7 +98,8 @@ public:
 	void Serialize(FArchive& Ar);
 
 	/** Accessors for internal geometry collection */
-	const TSharedPtr<Dataflow::FGraph, ESPMode::ThreadSafe> GetDataflow() const { return Dataflow; }
+	TSharedPtr<const Dataflow::FGraph, ESPMode::ThreadSafe> GetDataflow() const { return Dataflow; }
+	TSharedPtr<Dataflow::FGraph, ESPMode::ThreadSafe> GetDataflow() { return Dataflow; }
 
 	/**Editing the collection should only be through the edit object.*/
 	FDataflowAssetEdit EditDataflow() const {
