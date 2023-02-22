@@ -216,7 +216,7 @@ namespace mu
         //! The value stored here is the default value.
 		TArray<FParameterDesc> m_parameters;
 
-        //! Ranges for interation of the model operations.
+        //! Ranges for iteration of the model operations.
 		TArray<FRangeDesc> m_ranges;
 
         //! List of parameter lists. These are used in several places, like storing the
