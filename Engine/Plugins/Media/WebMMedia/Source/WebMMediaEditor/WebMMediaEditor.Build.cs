@@ -14,11 +14,6 @@ namespace UnrealBuildTool.Rules
 					"EditorFramework",
 					"UnrealEd",
 				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"WebMMedia/Private",
-				});
 		}
 	}
 }

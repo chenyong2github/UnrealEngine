@@ -31,13 +31,6 @@ public class ModelViewViewModelBlueprint : ModuleRules
 				"UnrealEd",
 			});
 
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"ModelViewViewModel/Private",
-			});
-
-
 		PublicDefinitions.Add("UE_MVVM_WITH_VIEWMODEL_EDITOR=0");
 	}
 }

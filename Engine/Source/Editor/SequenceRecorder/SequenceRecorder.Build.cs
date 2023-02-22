@@ -6,12 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public SequenceRecorder(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-	                "Editor/SceneOutliner/Private",
-				}
-			);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

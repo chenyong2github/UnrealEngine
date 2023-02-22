@@ -14,8 +14,6 @@ namespace UnrealBuildTool.Rules
 			IWYUSupport = IWYUSupport.KeepAsIsForNow;
 			//bUseUnity = false;
 
-			PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 				"Core"

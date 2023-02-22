@@ -17,7 +17,6 @@
 #include "MaterialShader.h"
 #include "MaterialShaderType.h"
 #include "Materials/MaterialRenderProxy.h"
-#include "GoogleARCoreAndroidHelper.h"
 #include "CommonRenderResources.h"
 #include "ARUtilitiesFunctionLibrary.h"
 #include "HAL/IConsoleManager.h"

@@ -6,11 +6,6 @@ public class GoogleARCoreRendering : ModuleRules
 {
 	public GoogleARCoreRendering(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(new string[]
-		{
-			"GoogleARCoreBase/Private",
-		});
-			
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"Core",

@@ -13,7 +13,6 @@
 #include "LevelEditorViewport.h"
 #include "FileHelpers.h"
 #include "ProjectDescriptor.h"
-#include "IContentSource.h"
 #include "GameProjectUtils.h"
 #include "SProjectDialog.h"
 
