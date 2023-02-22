@@ -4,7 +4,7 @@
 
 #include "NNEDmlOperator.h"
 #include "Misc/EnumerateRange.h"
-#include "Algo/Transform.h"
+#include "Algo/Copy.h"
 #include "Algo/ForEach.h"
 
 #include <numeric>
@@ -16,8 +16,96 @@ namespace UE::NNERuntimeRDG::Private::Dml
  * Slice
  */
 class FOperatorDmlSlice : public FOperatorDml
-{
-	
+{	
+	template<typename DataType>
+	void ComputeOffsetsSizesStrides(
+		TArrayView<const NNECore::Internal::FTensor> InputTensors,
+		DmlUtil::FSmallUIntArray& OutOffsets, 
+		DmlUtil::FSmallUIntArray& OutSizes, 
+		DmlUtil::FSmallIntArray& OutStrides)
+	{
+		TConstArrayView<DataType> Starts =  InputTensors[1].GetPreparedData<DataType>();
+		TConstArrayView<DataType> Ends = InputTensors[2].GetPreparedData<DataType>();
+		check(Starts.Num() == Ends.Num());
+
+		DmlUtil::FSmallArray<DataType> Axes;
+		DmlUtil::FSmallArray<DataType> Steps;
+
+		if(InputTensors.Num() >= 4)
+		{
+			auto NormalizeAxes = [NumDims = (DataType) InputTensors[0].GetShape().Rank()] (DataType& Axis)
+			{
+				if(Axis < 0)
+				{
+					Axis += NumDims;
+				}
+			};
+			Axes = InputTensors[3].GetPreparedData<DataType>();
+			check(Axes.Num() == Starts.Num());
+			Algo::ForEach(Axes, NormalizeAxes);
+		}
+		else
+		{
+			Axes.SetNumUninitialized(Starts.Num());
+			std::iota(Axes.begin(), Axes.end(), 0);
+		}
+
+		if(InputTensors.Num() >= 5)
+		{
+			Steps = InputTensors[4].GetPreparedData<DataType>();
+			check(Steps.Num() == Axes.Num());
+		}
+		else
+		{
+			Steps.Init((DataType)1, Axes.Num());
+		}
+
+		DmlUtil::FSmallUIntArray OutputShape;
+		Algo::Copy(InputTensors[0].GetShape().GetData(), OutputShape);
+		OutSizes = OutputShape;
+		OutOffsets.SetNumZeroed(OutputShape.Num());
+
+		OutStrides.Init(1, OutputShape.Num());
+
+		for (TConstEnumerateRef<DataType> Elem : EnumerateRange(Starts))
+		{
+			int32 Idx = Elem.GetIndex();
+			DataType Start = *Elem;
+			DataType End = Ends[Idx];
+			
+			DataType DimIndex = Axes[Idx];
+			check(DimIndex < (DataType) InputTensors[0].GetShape().Rank());
+			DataType Stride = Steps[Idx];
+			check(Stride != 0);
+
+			uint32 Dim = InputTensors[0].GetShape().GetData()[DimIndex];
+			if(Start < 0 && Start > TNumericLimits<DataType>::Min())
+			{
+				Start += (DataType) Dim;
+			}
+			if(End < 0 && Start > TNumericLimits<DataType>::Min())
+			{
+				End += (DataType) Dim;
+			}
+
+			if (Stride < 0)
+            {
+                std::swap(Start, End);
+                Start += (Start < TNumericLimits<DataType>::Max()) ? 1 : 0;
+                End += (End < TNumericLimits<DataType>::Max()) ? 1 : 0;
+            }
+
+			Start = FMath::Max(Start, 0);
+            End = FMath::Min(End, (DataType) Dim);
+            DataType Size = FMath::Max(End - Start, 0);
+			
+			DataType AbsStride = FMath::Abs(Stride);
+            OutputShape[DimIndex] = (uint32) ((Size / AbsStride) + (Size % AbsStride != 0));
+            OutOffsets[DimIndex] = (uint32) Start;
+            OutStrides[DimIndex] = (int32) Stride;
+            OutSizes[DimIndex] = (uint32) Size;
+		}
+	}
 
 public:
 
@@ -35,11 +123,21 @@ public:
 		check(InputTensors.Num() <= 5);
 		check(OutputTensors.Num() == 1);
 
+		ENNETensorDataType InputIndexDataType = ENNETensorDataType::None;
+
 		for(int Idx = 1; Idx < InputTensors.Num(); Idx++)
 		{
 			check(InputTensors[Idx].GetShape().Rank() == 1);
-			check(InputTensors[Idx].GetDataType() == ENNETensorDataType::Int32 
-			   || InputTensors[Idx].GetDataType() == ENNETensorDataType::Int64);
+			if(Idx == 1)
+			{
+				InputIndexDataType = InputTensors[Idx].GetDataType();
+				check( InputIndexDataType == ENNETensorDataType::Int32 
+			   		|| InputIndexDataType == ENNETensorDataType::Int64);
+			}
+			else
+			{
+				check(InputTensors[Idx].GetDataType() == InputIndexDataType);
+			}
 			check(InputTensors[Idx].HasPreparedData());
 			ConstantCPUInputs.Add(Idx);
 		}
@@ -59,87 +157,19 @@ public:
             UE_LOG(LogNNE, Error, TEXT("Failed to initialize Slice Output for DML inference"));
             return false;
         }
-		TConstArrayView<int32> Starts = InputTensors[1].GetPreparedData<int32>();
-		TConstArrayView<int32> Ends = InputTensors[2].GetPreparedData<int32>();
-		check(Starts.Num() == Ends.Num());
 
-		DmlUtil::FSmallIntArray Axes;
-		DmlUtil::FSmallIntArray Steps;
 
-		if(InputTensors.Num() >= 4)
-		{
-			auto NormalizeAxes = [NumDims = InputTensors[0].GetShape().Rank()] (int32& Axis)
-			{
-				if(Axis < 0)
-				{
-					Axis += NumDims;
-				}
-			};
-			Axes = InputTensors[3].GetPreparedData<int32>();
-			check(Axes.Num() == Starts.Num());
-			Algo::ForEach(Axes, NormalizeAxes);
-		}
-		else
-		{
-			Axes.SetNumUninitialized(Starts.Num());
-			std::iota(Axes.begin(), Axes.end(), 0);
-		}
-
-		if(InputTensors.Num() >= 5)
-		{
-			Steps = InputTensors[4].GetPreparedData<int32>();
-			check(Steps.Num() == Axes.Num());
-		}
-		else
-		{
-			Steps.Init(1, Axes.Num());
-		}
-
-		DmlUtil::FSmallUIntArray OutputShape, Sizes, Offsets;
-		Algo::Transform(InputTensors[0].GetShape().GetData(), OutputShape, [](int32 In) { return (uint32) In; });
-		Sizes = OutputShape;
-		Offsets.SetNumZeroed(OutputShape.Num());
-
+		DmlUtil::FSmallUIntArray Offsets, Sizes;
 		DmlUtil::FSmallIntArray Strides;
-		Strides.Init(1, OutputShape.Num());
 
-		for (TConstEnumerateRef<int32> Elem : EnumerateRange(Starts))
+		switch(InputIndexDataType)
 		{
-			int32 Idx = Elem.GetIndex();
-			int32 Start = *Elem;
-			int32 End = Ends[Idx];
-			
-			int32 DimIndex = Axes[Idx];
-			check(DimIndex < InputTensors[0].GetShape().Rank());
-			int32 Stride = Steps[Idx];
-			check(Stride != 0);
-
-			int32 Dim = InputTensors[0].GetShape().GetData()[DimIndex];
-			if(Start < 0 && Start > TNumericLimits<int32>::Min())
-			{
-				Start += Dim;
-			}
-			if(End < 0 && Start > TNumericLimits<int32>::Min())
-			{
-				End += Dim;
-			}
-
-			if (Stride < 0)
-            {
-                std::swap(Start, End);
-                Start += (Start < TNumericLimits<int32>::Max()) ? 1 : 0;
-                End += (End < TNumericLimits<int32>::Max()) ? 1 : 0;
-            }
-
-			Start = FMath::Max(Start, 0);
-            End = FMath::Min(End, Dim);
-            int32 Size = FMath::Max(End - Start, 0);
-			
-			int32 AbsStride = FMath::Abs(Stride);
-            OutputShape[DimIndex] = (uint32) ((Size / AbsStride) + (Size % AbsStride != 0));
-            Offsets[DimIndex] = (uint32) Start;
-            Strides[DimIndex] = Stride;
-            Sizes[DimIndex] = (uint32) Size;
+		case ENNETensorDataType::Int32:
+			ComputeOffsetsSizesStrides<int32>(InputTensors, Offsets, Sizes, Strides);
+			break;
+		case ENNETensorDataType::Int64:
+			ComputeOffsetsSizesStrides<int64>(InputTensors, Offsets, Sizes, Strides);
+			break;
 		}
 
 
