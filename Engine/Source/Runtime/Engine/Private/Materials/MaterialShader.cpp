@@ -32,7 +32,7 @@ static FAutoConsoleVariableRef CVarMaterialExcludeNonPipelinedShaders(
 	TEXT("r.Material.ExcludeNonPipelinedShaders"),
 	GMaterialExcludeNonPipelinedShaders,
 	TEXT("if != 0, standalone shaders that are also part of FShaderPipeline will not be compiled (default)."),
-	ECVF_ReadOnly
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<FString> CVarMaterialShaderMapDump(
