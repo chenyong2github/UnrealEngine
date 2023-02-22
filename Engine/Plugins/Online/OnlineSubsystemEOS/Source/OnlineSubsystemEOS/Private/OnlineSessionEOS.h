@@ -117,7 +117,10 @@ public:
 	}
 
 // IOnlineSession Interface
+
+	/** The BucketId for the session can be specified via adding a custom session setting with the key OSSEOS_BUCKET_ID_ATTRIBUTE_KEY. A default value will be used otherwise */
 	virtual bool CreateSession(int32 HostingPlayerNum, FName SessionName, const FOnlineSessionSettings& NewSessionSettings) override;
+	/** The BucketId for the session can be specified via adding a custom session setting with the key OSSEOS_BUCKET_ID_ATTRIBUTE_KEY. A default value will be used otherwise */
 	virtual bool CreateSession(const FUniqueNetId& HostingPlayerId, FName SessionName, const FOnlineSessionSettings& NewSessionSettings) override;
 	virtual bool StartSession(FName SessionName) override;
 	virtual bool UpdateSession(FName SessionName, FOnlineSessionSettings& UpdatedSessionSettings, bool bShouldRefreshOnlineData = true) override;
@@ -127,7 +130,9 @@ public:
 	virtual bool StartMatchmaking(const TArray< FUniqueNetIdRef >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings) override;
 	virtual bool CancelMatchmaking(int32 SearchingPlayerNum, FName SessionName) override;
 	virtual bool CancelMatchmaking(const FUniqueNetId& SearchingPlayerId, FName SessionName) override;
+	/** The BucketId to be used in the search can be specified via adding a custom search filter with the key OSSEOS_BUCKET_ID_ATTRIBUTE_KEY. A default value will be used otherwise */
 	virtual bool FindSessions(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings) override;
+	/** The BucketId to be used in the search can be specified via adding a custom search filter with the key OSSEOS_BUCKET_ID_ATTRIBUTE_KEY. A default value will be used otherwise */
 	virtual bool FindSessions(const FUniqueNetId& SearchingPlayerId, const TSharedRef<FOnlineSessionSearch>& SearchSettings) override;
 	virtual bool FindSessionById(const FUniqueNetId& SearchingUserId, const FUniqueNetId& SessionId, const FUniqueNetId& FriendId, const FOnSingleSessionResultCompleteDelegate& CompletionDelegate) override;
 	virtual bool CancelFindSessions() override;
@@ -201,7 +206,7 @@ public:
 
 	void RegisterLocalPlayers(class FNamedOnlineSession* Session);
 
-	void Init(const FString& InBucketId);
+	void Init();
 
 private:
 	// EOS Lobbies
@@ -275,6 +280,8 @@ private:
 	FOnlineSession* GetOnlineSessionFromLobbyId(const FUniqueNetIdEOSLobby& LobbyId);
 	EOS_ELobbyPermissionLevel GetLobbyPermissionLevelFromSessionSettings(const FOnlineSessionSettings& SessionSettings);
 	uint32_t GetLobbyMaxMembersFromSessionSettings(const FOnlineSessionSettings& SessionSettings);
+	static FString GetBucketId(const FOnlineSessionSettings& SessionSettings);
+	static FString GetBucketId(const FOnlineSessionSearch& SessionSettings);
 
 	// EOS Sessions
 	uint32 CreateEOSSession(int32 HostingPlayerNum, FNamedOnlineSession* Session);

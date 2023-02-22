@@ -415,17 +415,7 @@ bool FOnlineSubsystemEOS::Init()
 	UserManager = MakeShareable(new FUserManagerEOS(this));
 	UserManager->Init();
 	SessionInterfacePtr = MakeShareable(new FOnlineSessionEOS(this));
-	// Set the bucket id to use for all sessions based upon the Build Id to avoid upgrade issues
-	FString BucketIdStr = FString::FromInt(GetBuildUniqueId());
-	if (BucketIdStr.Len() > EOS_OSS_BUCKET_ID_STRING_LENGTH)
-	{
-		FString NewBucketIdStr = BucketIdStr.Left(EOS_OSS_BUCKET_ID_STRING_LENGTH);
-
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSubsystemEOS::Init] Default BucketId [%s] is too long (%d characters) and will be shortened to fit the limit (%d characters). New BucketId is [%s]"), *BucketIdStr, BucketIdStr.Len(), EOS_OSS_BUCKET_ID_STRING_LENGTH, *NewBucketIdStr);
-
-		BucketIdStr = MoveTemp(NewBucketIdStr);		
-	}
-	SessionInterfacePtr->Init(BucketIdStr);
+	SessionInterfacePtr->Init();
 	StatsInterfacePtr = MakeShareable(new FOnlineStatsEOS(this));
 	LeaderboardsInterfacePtr = MakeShareable(new FOnlineLeaderboardsEOS(this));
 	AchievementsInterfacePtr = MakeShareable(new FOnlineAchievementsEOS(this));

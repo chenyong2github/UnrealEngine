@@ -28,4 +28,6 @@ public:
 	virtual const EOS_ProductUserId GetProductUserId() const = 0;
 };
 
+#define OSSEOS_BUCKET_ID_ATTRIBUTE_KEY FName("OSSEOS_BUCKET_ID_ATTRIBUTE_KEY")
+
 #endif // WITH_EOS_SDK
