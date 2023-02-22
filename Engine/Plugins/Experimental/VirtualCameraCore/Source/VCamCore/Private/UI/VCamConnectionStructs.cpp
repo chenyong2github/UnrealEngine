@@ -35,7 +35,7 @@ bool FVCamConnection::IsConnectionValid(UVCamModifier& Modifier, FName Connectio
 {
 	const bool bImplementsAllRequiredInterfaces = Algo::AllOf(RequiredInterfaces, [&Modifier](const TSubclassOf<UInterface>& Interface)
 	{
-		return !Interface->GetClass() || Modifier.GetClass()->ImplementsInterface(Interface);
+		return !Interface.Get() || Modifier.GetClass()->ImplementsInterface(Interface);
 	});
 	if (!bImplementsAllRequiredInterfaces)
 	{
