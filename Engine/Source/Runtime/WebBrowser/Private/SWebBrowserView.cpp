@@ -452,7 +452,7 @@ void SWebBrowserView::HandleBrowserWindowDocumentStateChanged(EWebBrowserDocumen
 
 void SWebBrowserView::HandleBrowserWindowNeedsRedraw()
 {
-	if (FSlateApplication::Get().IsSlateAsleep())
+	if (FSlateApplication::IsInitialized() && FSlateApplication::Get().IsSlateAsleep())
 	{
 		// Tell slate that the widget needs to wake up for one frame to get redrawn
 		RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateLambda([this](double InCurrentTime, float InDeltaTime) { return EActiveTimerReturnType::Stop; }));

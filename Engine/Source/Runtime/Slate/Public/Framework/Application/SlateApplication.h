@@ -252,6 +252,7 @@ public:
 	 */
 	static FSlateApplication& Get()
 	{
+		check( CurrentApplication.IsValid() );
 		check( IsInGameThread() || IsInSlateThread() || IsInAsyncLoadingThread() );
 		return *CurrentApplication;
 	}
