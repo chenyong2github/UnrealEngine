@@ -1166,8 +1166,10 @@ void USoundWave::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-	// Setup the default Compression Quality, ahead of Serialization
+	// Safe to query the AudioSettings here, instead of the Constructor
+	// These defaults are then overwritten by the UPROPERTY serialization if there's non default property values.
 	CompressionQuality = GetDefault<UAudioSettings>()->GetDefaultCompressionQuality();
+	SoundAssetCompressionType = Audio::ToSoundAssetCompressionType(GetDefault<UAudioSettings>()->DefaultAudioCompressionType);
 
 	if(!IsTemplate())
 	{
