@@ -206,13 +206,18 @@ bool ReduceConstArrayToStructPass::ReduceArray(ArrayStruct& arrayStruct, Instruc
           } else {
             bool bMatchesArray = ConstIdx->GetOperand(2).words[0] == memberIdx;
             if (bMatchesArray) {
-              Operand constOperand = user->GetOperand(4);
-              const Instruction* ConstInst = context()->get_def_use_mgr()->GetDef(constOperand.words[0]);
-              if (ConstInst->opcode() != spv::Op::OpConstant) {
+			  // Can't convert because access cannot be guarenteed as const
+              if (user->NumOperands() < 5) {              
                 bInvalid = true;
               } else {
-                uint32_t ConstVal = ConstInst->GetOperand(2).words[0];
-                accessChains.push_back({ConstVal, (ConstVal * 4 * 4) + structOffset, user});
+				Operand constOperand = user->GetOperand(4);
+              	const Instruction* ConstInst = context()->get_def_use_mgr()->GetDef(constOperand.words[0]);
+              	if (ConstInst->opcode() != spv::Op::OpConstant) {
+                  bInvalid = true;
+                } else {
+                  uint32_t ConstVal = ConstInst->GetOperand(2).words[0];
+                  accessChains.push_back({ConstVal, (ConstVal * 4 * 4) + structOffset, user});
+				}
               }
 			}
           }
