@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TpsData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <Name>OpenSSL 1.1.1c, 1.1.1k, 1.1.1n</Name>
+  <Name>OpenSSL 1.1.1t</Name>
   <Location>/Engine/Source/ThirdParty/OpenSSL/</Location>
   <Function>Cryptography and network encryption protocols implementation</Function>
   <Eula>https://www.openssl.org/source/license-openssl-ssleay.txt</Eula>
