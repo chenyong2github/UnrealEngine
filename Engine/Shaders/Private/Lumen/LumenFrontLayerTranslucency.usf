@@ -70,6 +70,7 @@ void MainPS(
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 	}
 	float3 WorldNormal = MaterialParameters.WorldNormal;
+	float Roughness = GetMaterialRoughness(PixelMaterialInputs);
 
 #if TEMPLATE_USES_STRATA
 	{
@@ -94,8 +95,10 @@ void MainPS(
 			FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
 			StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, Settings, TotalCoverage, TotalTransmittancePreCoverage);
 
-			// Extract averaged normal
+			// Extract averaged normal and roughness
 			WorldNormal = 0;
+			Roughness = 0;
+			float TopLayerTotalWeight = 0.0f;
 			STRATA_UNROLL_N(STRATA_CLAMPED_BSDF_COUNT)
 			for (int BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
 			{
@@ -105,6 +108,9 @@ void MainPS(
 					FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
 					const float Weight = Luminance(CurrentBSDF.LuminanceWeightV);
 					WorldNormal += Weight * StrataBSDFContext.N;
+
+					TopLayerTotalWeight += CurrentBSDF.TopLayerDataWeight;
+					Roughness += CurrentBSDF.TopLayerDataWeight * StrataGetBSDFRoughness(CurrentBSDF);
 				}
 				#undef CurrentBSDF
 			}
@@ -113,6 +119,8 @@ void MainPS(
 			{
 				WorldNormal = normalize(WorldNormal);
 			}
+
+			Roughness = TopLayerTotalWeight > 0.0f ? Roughness / TopLayerTotalWeight : 0.0f;
 		}
 	}
 #endif // TEMPLATE_USES_STRATA
@@ -122,5 +130,7 @@ void MainPS(
 	ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, OutDepth);
 #endif
 
-	OutTarget0 = float4(EncodeNormal(WorldNormal), 1.0f);
+	// We store 1.0+roughness to make sure w is always greater that 0 where we write which then signifies we need lumen high quality reflections.
+	// The render target is floating point and we will still get enough accuracy.
+	OutTarget0 = float4(EncodeNormal(WorldNormal), 1.0f + Roughness);
 }

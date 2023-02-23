@@ -16,6 +16,10 @@
 #define THREADGROUP_SIZE 1
 #endif
 
+#ifndef FRONT_LAYER_TRANSLUCENCY
+#define FRONT_LAYER_TRANSLUCENCY 0
+#endif
+
 #define FLOAT3_11_11_10_MAX float3(65024.0f, 65024.0f, 64512.0f)
 
 RWBuffer<uint> RWReflectionResolveTileIndirectArgs;
@@ -933,13 +937,17 @@ void ReflectionTemporalReprojectionCS(
 	const float3 NewSpecular = ResolvedReflections[Coord.SvPositionFlatten].xyz;
 	const float ReflectionHitDeviceZ = ResolvedReflectionsDepth[Coord.SvPositionFlatten].x;
 
+#if FRONT_LAYER_TRANSLUCENCY
+	const float DeviceZ = FrontLayerTranslucencySceneDepth[Coord.SvPosition].x;
+#else
 	const float DeviceZ = SceneTexturesStruct.SceneDepthTexture[Coord.SvPosition].x;
+#endif
 	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
 	const float4 EncodedVelocity = VelocityTexture[Coord.SvPosition];
 
 	const float2 HistoryScreenUVFromReflectionHit_Primary = GetHistoryScreenPosition(ScreenPosition, DeviceZ, ReflectionHitDeviceZ, EncodedVelocity).xy * HistoryScreenPositionScaleBias.xy + HistoryScreenPositionScaleBias.wz;
-	float2 HistoryScreenUVFromReflectionHit_Extented = STRATA_ENABLED ? HistoryScreenUVFromReflectionHit_Primary * View.BufferSizeAndInvSize.xy * HistoryEffectiveResolution.zw : HistoryScreenUVFromReflectionHit_Primary;
+	float2 HistoryScreenUVFromReflectionHit_Extented = (STRATA_ENABLED && FRONT_LAYER_TRANSLUCENCY == 0) ? HistoryScreenUVFromReflectionHit_Primary * View.BufferSizeAndInvSize.xy * HistoryEffectiveResolution.zw : HistoryScreenUVFromReflectionHit_Primary;
 
 	const float3 HistoryScreenPosition = GetHistoryScreenPosition(ScreenPosition, DeviceZ, DeviceZ, EncodedVelocity);
 	float2 HistoryScreenUV_Primary = HistoryScreenPosition.xy * HistoryScreenPositionScaleBias.xy + HistoryScreenPositionScaleBias.wz;
@@ -949,15 +957,20 @@ void ReflectionTemporalReprojectionCS(
 
 	const Bilinear BilinearFilterAtHistoryScreenUV = GetBilinearFilter(HistoryScreenUV_Primary, View.BufferSizeAndInvSize.xy);
 	const float2 HistoryDepthGatherUV_Primary = (BilinearFilterAtHistoryScreenUV.Origin + 1.0f) * View.BufferSizeAndInvSize.zw;
-	float2 HistoryGatherUV_Extended = STRATA_ENABLED ? (BilinearFilterAtHistoryScreenUV.Origin + 1.0f) * HistoryEffectiveResolution.zw : HistoryDepthGatherUV_Primary;
-
-	const float4 HistoryDepthDeviceZ = DepthHistory.GatherRed(GlobalPointClampedSampler, HistoryDepthGatherUV_Primary).wzxy;
-	const float4 HistorySceneDepth = float4(ConvertFromDeviceZ(HistoryDepthDeviceZ.x), ConvertFromDeviceZ(HistoryDepthDeviceZ.y), ConvertFromDeviceZ(HistoryDepthDeviceZ.z), ConvertFromDeviceZ(HistoryDepthDeviceZ.w));
+	float2 HistoryGatherUV_Extended = (STRATA_ENABLED && FRONT_LAYER_TRANSLUCENCY == 0) ? (BilinearFilterAtHistoryScreenUV.Origin + 1.0f) * HistoryEffectiveResolution.zw : HistoryDepthGatherUV_Primary;
 
 	const FLumenMaterialData Material = ReadMaterialData(Coord, MaxRoughnessToTrace);
 	const float Noise = InterleavedGradientNoise(ReflectionScreenCoord.xy, SCREEN_TEMPORAL_INDEX);
 	float DisocclusionDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise);
 	const float PrevSceneDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
+
+#if FRONT_LAYER_TRANSLUCENCY == 0
+	const float4 HistoryDepthDeviceZ = DepthHistory.GatherRed(GlobalPointClampedSampler, HistoryDepthGatherUV_Primary).wzxy;
+	const float4 HistorySceneDepth = float4(ConvertFromDeviceZ(HistoryDepthDeviceZ.x), ConvertFromDeviceZ(HistoryDepthDeviceZ.y), ConvertFromDeviceZ(HistoryDepthDeviceZ.z), ConvertFromDeviceZ(HistoryDepthDeviceZ.w));
+#else
+	// DepthHistoryRT is not copied for translucency reflections, so we ignore disoclusion for now.
+	const float4 HistorySceneDepth = PrevSceneDepth.xxxx;
+#endif
 
 #define EXPAND_HISTORY_DISTANCE_THRESHOLD_FOR_JITTER 1
 #if EXPAND_HISTORY_DISTANCE_THRESHOLD_FOR_JITTER
@@ -976,7 +989,7 @@ void ReflectionTemporalReprojectionCS(
 	const float4 FinalWeights = GetBilinearCustomWeights(BilinearFilterAtHistoryScreenUV, OcclusionWeights);
 
 	FGatherUV HistoryGather_Extended = GetGatherUV(BilinearFilterAtHistoryScreenUV, HistoryEffectiveResolution.zw);
-#if STRATA_ENABLED
+#if (STRATA_ENABLED && FRONT_LAYER_TRANSLUCENCY == 0)
 	if (bIsOverflow)
 	{
 		HistoryGatherUV_Extended    = GetPrevUV(HistoryGatherUV_Extended,    Coord.TileBSDFIndex);
@@ -1054,7 +1067,7 @@ void ReflectionTemporalReprojectionCS(
 	NewNumFramesAccumulated = bHistoryWasOnscreen ? NewNumFramesAccumulated : 0;
 
 	float Alpha = 1.0f / (1.0f + NewNumFramesAccumulated);
-#if STRATA_ENABLED
+#if (STRATA_ENABLED && FRONT_LAYER_TRANSLUCENCY == 0)
 	if (bIsStrataTileHistoryValid == 0 && Coord.TileBSDFIndex > 0) { Alpha = 1.0f; }
 #endif
 	float3 OutReflections = lerp(HistorySpecularIndirect, NewSpecular, Alpha);

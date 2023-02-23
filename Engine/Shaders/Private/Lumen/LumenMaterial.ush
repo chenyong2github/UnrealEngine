@@ -334,20 +334,20 @@ FLumenMaterialData InternalReadMaterialData_FrontLayerTranslucency(uint2 InPixel
 	FLumenMaterialData Out = (FLumenMaterialData)0;
 #if FRONT_LAYER_TRANSLUCENCY
 	Out.SceneDepth = ConvertFromDeviceZ(FrontLayerTranslucencySceneDepth[InPixelPos].x);
-	float4 NormalEncoded = FrontLayerTranslucencyNormal[InPixelPos];
-	Out.WorldNormal = DecodeNormal(NormalEncoded.xyz);
-	Out.Roughness = 0.0f;
+	float4 NormalRoughnessEncoded = FrontLayerTranslucencyNormal[InPixelPos];
+	Out.WorldNormal = DecodeNormal(NormalRoughnessEncoded.xyz);
+	Out.Roughness = saturate(NormalRoughnessEncoded.w - 1.0f); // We remove the 1.0f tag from encoded roughness
 	Out.Anisotropy = 0;
-	Out.TopLayerRoughness = 0.0f;
+	Out.TopLayerRoughness = Out.Roughness;
 	Out.MaterialAO = 1.0f;
-	Out.ShadingID = NormalEncoded.w > 0.0f ? SHADINGMODELID_DEFAULT_LIT : SHADINGMODELID_UNLIT;
+	Out.ShadingID = NormalRoughnessEncoded.w > 0.0f ? SHADINGMODELID_DEFAULT_LIT : SHADINGMODELID_UNLIT;
 	Out.DiffuseIndirectSampleOcclusion = 0;
 	Out.bNeedsSeparateLightAccumulation = false;
 	Out.bIsSLW = false;
 	Out.bIsHair = false;
 	Out.bHasBackfaceDiffuse = false;
 	Out.bRequiresBxDFImportanceSampling = false;
-	Out.bIsFrontLayerTranslucency = NormalEncoded.w > 0.0f;
+	Out.bIsFrontLayerTranslucency = NormalRoughnessEncoded.w > 0.0f;
 #endif
 	return Out;
 }

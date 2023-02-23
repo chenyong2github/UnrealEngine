@@ -518,10 +518,12 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenFrontLayerTranslucencyGBufferParameters, FrontLayerTranslucencyGBufferParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FFrontLayerTranslucency : SHADER_PERMUTATION_BOOL("FRONT_LAYER_TRANSLUCENCY");
 	class FBilateralFilter : SHADER_PERMUTATION_BOOL("USE_BILATERAL_FILTER");
-	using FPermutationDomain = TShaderPermutationDomain<FBilateralFilter>;
+	using FPermutationDomain = TShaderPermutationDomain<FBilateralFilter, FFrontLayerTranslucency>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -557,12 +559,16 @@ class FReflectionBilateralFilterCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenFrontLayerTranslucencyGBufferParameters, FrontLayerTranslucencyGBufferParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
+
+	class FFrontLayerTranslucency : SHADER_PERMUTATION_BOOL("FRONT_LAYER_TRANSLUCENCY");
+	using FPermutationDomain = TShaderPermutationDomain<FFrontLayerTranslucency>;
 };
 
 IMPLEMENT_GLOBAL_SHADER(FReflectionBilateralFilterCS, "/Engine/Private/Lumen/LumenReflections.usf", "ReflectionBilateralFilterCS", SF_Compute);
@@ -822,40 +828,55 @@ void UpdateHistoryReflections(
 	FRDGTextureRef ResolveVariance,
 	FRDGTextureRef FinalSpecularIndirect,
 	FRDGTextureRef AccumulatedResolveVariance,
-	ERDGPassFlags ComputePassFlags)
+	ERDGPassFlags ComputePassFlags,
+	bool bTranslucentReflection,
+	const FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 	FRDGTextureRef VelocityTexture = GetIfProduced(SceneTextures.Velocity, SystemTextures.Black);
 
-	const FIntPoint EffectiveResolution = Strata::GetStrataTextureResolution(View, SceneTextures.Config.Extent);
+	const FIntPoint EffectiveResolution = bTranslucentReflection ? SceneTextures.Config.Extent : Strata::GetStrataTextureResolution(View, SceneTextures.Config.Extent);
 
 	FRDGTextureDesc NumHistoryFramesAccumulatedDesc = FRDGTextureDesc::Create2D(EffectiveResolution, PF_G8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef NewNumHistoryFramesAccumulated = GraphBuilder.CreateTexture(NumHistoryFramesAccumulatedDesc, TEXT("Lumen.Reflections.NumHistoryFramesAccumulated"));
 
+	FReflectionTemporalState* ReflectionState = nullptr;
+	if (View.ViewState)
+	{
+		if(bTranslucentReflection)
+		{ 
+			ReflectionState = &View.ViewState->Lumen.TranslucentReflectionState;
+		}
+		else
+		{
+			ReflectionState = &View.ViewState->Lumen.ReflectionState;
+		}
+	}
+
 	if (GLumenReflectionTemporalFilter
-		&& View.ViewState
-		&& View.ViewState->Lumen.ReflectionState.SpecularIndirectHistoryRT
-		&& (!bUseBilaterialFilter || View.ViewState->Lumen.ReflectionState.ResolveVarianceHistoryRT)
+		&& ReflectionState
+		&& ReflectionState->SpecularIndirectHistoryRT
+		&& (!bUseBilaterialFilter || ReflectionState->ResolveVarianceHistoryRT)
 		&& !View.bCameraCut 
 		&& !View.bPrevTransformsReset
 		// If the scene render targets reallocate, toss the history so we don't read uninitialized data
-		&& View.ViewState->Lumen.ReflectionState.HistorySceneTexturesExtent == SceneTextures.Config.Extent
-		&& (!bUseBilaterialFilter || View.ViewState->Lumen.ReflectionState.HistorySceneTexturesExtent == SceneTextures.Config.Extent))
+		&& ReflectionState->HistorySceneTexturesExtent == SceneTextures.Config.Extent
+		&& (!bUseBilaterialFilter || ReflectionState->HistorySceneTexturesExtent == SceneTextures.Config.Extent))
 	{
 		// Sanity check
-		const FIntPoint HistoryEffectiveResolution = View.ViewState->Lumen.ReflectionState.HistoryEffectiveResolution;
-		check(View.ViewState->Lumen.ReflectionState.SpecularIndirectHistoryRT->GetDesc().Extent == HistoryEffectiveResolution);
-		check(View.ViewState->Lumen.ReflectionState.ResolveVarianceHistoryRT == nullptr || View.ViewState->Lumen.ReflectionState.ResolveVarianceHistoryRT->GetDesc().Extent == HistoryEffectiveResolution);
+		const FIntPoint HistoryEffectiveResolution = ReflectionState->HistoryEffectiveResolution;
+		check(ReflectionState->SpecularIndirectHistoryRT->GetDesc().Extent == HistoryEffectiveResolution);
+		check(ReflectionState->ResolveVarianceHistoryRT == nullptr || ReflectionState->ResolveVarianceHistoryRT->GetDesc().Extent == HistoryEffectiveResolution);
 
-		FReflectionTemporalState& ReflectionTemporalState = View.ViewState->Lumen.ReflectionState;
+		FReflectionTemporalState& ReflectionTemporalState = *ReflectionState;
 		TRefCountPtr<IPooledRenderTarget>* SpecularIndirectHistoryState = &ReflectionTemporalState.SpecularIndirectHistoryRT;
 		TRefCountPtr<IPooledRenderTarget>* NumFramesAccumulatedState = &ReflectionTemporalState.NumFramesAccumulatedRT;
 		TRefCountPtr<IPooledRenderTarget>* ResolveVarianceHistoryState = &ReflectionTemporalState.ResolveVarianceHistoryRT;
 		FIntRect* HistoryViewRect = &ReflectionTemporalState.HistoryViewRect;
 		FVector4f* HistoryScreenPositionScaleBias = &ReflectionTemporalState.HistoryScreenPositionScaleBias;
-		const bool bOverflowTileHistoryValid = Strata::IsStrataEnabled() ? View.StrataViewData.MaxBSDFCount == ReflectionTemporalState.HistoryStrataMaxBSDFCount : true;
+		const bool bOverflowTileHistoryValid = Strata::IsStrataEnabled() && !bTranslucentReflection ? View.StrataViewData.MaxBSDFCount == ReflectionTemporalState.HistoryStrataMaxBSDFCount : true;
 
 		FRDGTextureRef OldDepthHistory = View.ViewState->Lumen.DepthHistoryRT ? GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.DepthHistoryRT) : SceneTextures.Depth.Target;
 		FRDGTextureRef BSDFTileHistory = GraphBuilder.RegisterExternalTexture(ReflectionTemporalState.BSDFTileHistoryRT ? ReflectionTemporalState.BSDFTileHistoryRT : GSystemTextures.BlackDummy);
@@ -880,6 +901,10 @@ void UpdateHistoryReflections(
 			PassParameters->HistoryOverflowTileCount = ReflectionTemporalState.HistoryOverflowTileCount;
 			PassParameters->HistoryOverflowTileOffset = ReflectionTemporalState.HistoryOverflowTileOffset;
 			PassParameters->bIsStrataTileHistoryValid = bOverflowTileHistoryValid ? 1u : 0u;
+			if (FrontLayerReflectionGBuffer)
+			{
+				PassParameters->FrontLayerTranslucencyGBufferParameters = *FrontLayerReflectionGBuffer;
+			}
 
 			// Effective resolution containing the primary & overflow space (if any)
 			PassParameters->EffectiveResolution = FVector4f(EffectiveResolution.X, EffectiveResolution.Y, 1.f / EffectiveResolution.X, 1.f / EffectiveResolution.Y);
@@ -907,6 +932,7 @@ void UpdateHistoryReflections(
 
 			FReflectionTemporalReprojectionCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set< FReflectionTemporalReprojectionCS::FBilateralFilter >(bUseBilaterialFilter);
+			PermutationVector.Set< FReflectionTemporalReprojectionCS::FFrontLayerTranslucency >(bTranslucentReflection);
 			auto ComputeShader = View.ShaderMap->GetShader<FReflectionTemporalReprojectionCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(
@@ -948,7 +974,7 @@ void UpdateHistoryReflections(
 
 	if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
 	{
-		FReflectionTemporalState& ReflectionTemporalState = View.ViewState->Lumen.ReflectionState;
+		FReflectionTemporalState& ReflectionTemporalState = *ReflectionState;
 		ReflectionTemporalState.HistoryViewRect = View.ViewRect;
 		ReflectionTemporalState.HistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
 		ReflectionTemporalState.HistoryEffectiveResolution = EffectiveResolution;
@@ -966,7 +992,7 @@ void UpdateHistoryReflections(
 			GraphBuilder.QueueTextureExtraction(AccumulatedResolveVariance, &ReflectionTemporalState.ResolveVarianceHistoryRT);
 		}
 
-		if (Strata::IsStrataEnabled())
+		if (Strata::IsStrataEnabled() && !bTranslucentReflection)
 		{
 			GraphBuilder.QueueTextureExtraction(View.StrataViewData.BSDFTileTexture, &ReflectionTemporalState.BSDFTileHistoryRT);
 		}
@@ -987,7 +1013,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	const FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer,
 	ERDGPassFlags ComputePassFlags)
 {
-	const bool bDenoise = ReflectionPass == ELumenReflectionPass::Opaque;
+	const bool bDenoise = ReflectionPass == ELumenReflectionPass::Opaque || ReflectionPass == ELumenReflectionPass::FrontLayerTranslucency;
 	const bool bFrontLayer = ReflectionPass == ELumenReflectionPass::FrontLayerTranslucency;
 	const bool bSingleLayerWater = ReflectionPass == ELumenReflectionPass::SingleLayerWater;
 
@@ -1222,7 +1248,9 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 			ResolveVariance,
 			SpecularIndirect,
 			AccumulatedResolveVariance,
-			ComputePassFlags);
+			ComputePassFlags,
+			bFrontLayer,
+			FrontLayerReflectionGBuffer);
 
 		if (bUseBilaterialFilter)
 		{
@@ -1241,8 +1269,14 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 			PassParameters->ReflectionTileParameters = ReflectionTileParameters;
+			if (FrontLayerReflectionGBuffer) 
+			{
+				PassParameters->FrontLayerTranslucencyGBufferParameters = *FrontLayerReflectionGBuffer;
+			}
 
-			auto ComputeShader = View.ShaderMap->GetShader<FReflectionBilateralFilterCS>(0);
+			FReflectionBilateralFilterCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set< FReflectionBilateralFilterCS::FFrontLayerTranslucency >(bFrontLayer);
+			auto ComputeShader = View.ShaderMap->GetShader<FReflectionBilateralFilterCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,

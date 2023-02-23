@@ -265,6 +265,7 @@ public:
 
 	FScreenProbeGatherTemporalState ScreenProbeGatherState;
 	FReflectionTemporalState ReflectionState;
+	FReflectionTemporalState TranslucentReflectionState;
 	TRefCountPtr<IPooledRenderTarget> DepthHistoryRT;
 
 	// Translucency
@@ -278,6 +279,7 @@ public:
 	{
 		ScreenProbeGatherState.SafeRelease();
 		ReflectionState.SafeRelease();
+		TranslucentReflectionState.SafeRelease();
 		DepthHistoryRT.SafeRelease();
 
 		TranslucencyVolume0.SafeRelease();
@@ -298,6 +300,7 @@ public:
 
 		ScreenProbeGatherState.AddCrossGPUTransfers(SourceGPUIndex, DestGPUIndex, OutTransfers);
 		ReflectionState.AddCrossGPUTransfers(SourceGPUIndex, DestGPUIndex, OutTransfers);
+		TranslucentReflectionState.AddCrossGPUTransfers(SourceGPUIndex, DestGPUIndex, OutTransfers);
 		RadianceCacheState.AddCrossGPUTransfers(SourceGPUIndex, DestGPUIndex, OutTransfers);
 		TranslucencyVolumeRadianceCacheState.AddCrossGPUTransfers(SourceGPUIndex, DestGPUIndex, OutTransfers);
 	}
