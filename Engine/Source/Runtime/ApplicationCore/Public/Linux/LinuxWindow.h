@@ -54,22 +54,25 @@ public:
 
 	/** TODO: describe */
 	bool IsNotificationWindow() const;
-	
+
 	/** TODO: describe */
 	bool IsTopLevelWindow() const;
+
+	/** @return true if this is a modal window */
+	bool IsModalWindow() const;
 
 	/** TODO: describe */
 	bool IsDialogWindow() const;
 
 	/** TODO: describe */
 	bool IsDragAndDropWindow() const;
-	
+
 	/** TODO: describe */
 	bool IsUtilityWindow() const;
 
 	/** @return the window activation policy used when showing the window */
 	EWindowActivationPolicy GetActivationPolicy() const;
-	
+
 	/** TODO: describe */
 	bool IsFocusWhenFirstShown() const;
 

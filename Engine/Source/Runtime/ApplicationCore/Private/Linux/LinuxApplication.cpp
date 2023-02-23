@@ -1666,7 +1666,7 @@ void FLinuxApplication::RemoveNotificationWindow(SDL_HWindow HWnd)
 	for (int32 WindowIndex=0; WindowIndex < NotificationWindows.Num(); ++WindowIndex)
 	{
 		TSharedRef< FLinuxWindow > Window = NotificationWindows[ WindowIndex ];
-		
+
 		if ( Window->GetHWnd() == HWnd )
 		{
 			NotificationWindows.RemoveAt(WindowIndex);
@@ -1677,12 +1677,12 @@ void FLinuxApplication::RemoveNotificationWindow(SDL_HWindow HWnd)
 
 void FLinuxApplication::RaiseNotificationWindows(const TSharedPtr< FLinuxWindow >& ParentWindow)
 {
-	// Raise notification window only for the correct parent window.
-	// TODO Do we have to make this restriction?
+	// Raise notification windows above everything except for modal windows
 	for (int32 WindowIndex=0; WindowIndex < NotificationWindows.Num(); ++WindowIndex)
 	{
 		TSharedRef< FLinuxWindow > NotificationWindow = NotificationWindows[WindowIndex];
-		if(ParentWindow == NotificationWindow->GetParent())
+
+		if(!ParentWindow->IsModalWindow())
 		{
 			SDL_RaiseWindow(NotificationWindow->GetHWnd());
 		}

@@ -347,7 +347,7 @@ void FLinuxWindow::Initialize( FLinuxApplication* const Application, const TShar
 		they are some sort of independend but will be raised if the TopLevel Window gets focused or activated.
 	*/
 	// Make the Window modal for it's parent.
-	if (bIsUtilityWindow || bIsDialogWindow || bIsConsoleWindow || bIsDialogWindow)
+	if (bIsUtilityWindow || bIsDialogWindow || bIsConsoleWindow || bIsNotificationWindow)
 	{
 		SDL_SetWindowModalFor(HWnd, InParent->GetHWnd());
 	}
@@ -835,6 +835,11 @@ bool FLinuxWindow::IsNotificationWindow() const
 bool FLinuxWindow::IsTopLevelWindow() const
 {
 	return bIsTopLevelWindow;
+}
+
+bool FLinuxWindow::IsModalWindow() const
+{
+	return Definition->IsModalWindow;
 }
 
 bool FLinuxWindow::IsDialogWindow() const
