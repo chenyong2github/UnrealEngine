@@ -59,6 +59,9 @@ Level.cpp: Level-related functions
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/PathViews.h"
+#include "Selection.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementList.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLog.h"
@@ -935,29 +938,55 @@ void ULevel::RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransfo
 
 	FScopedSlowTask SlowTask(ActorsQueue.Num(), LOCTEXT("UnregisteringActors", "Unregistering actors..."));
 	SlowTask.MakeDialogDelayed(1.0f);
+			
+	bool bSelectionChanged = false;
 
-	for (AActor* Actor : ActorsQueue)
 	{
-		// UnregisterAllComponents can destroy child actors
-		if (!IsValid(Actor))
+		UTypedElementSelectionSet* ElementSelectionSet = (GEditor && GEditor->GetSelectedActors()) ? GEditor->GetSelectedActors()->GetElementSelectionSet() : nullptr;
+		TUniquePtr<FTypedElementList::FLegacySyncScopedBatch> LegacySyncBatch = ElementSelectionSet ? MakeUnique<FTypedElementList::FLegacySyncScopedBatch>(*ElementSelectionSet->GetElementList()) : nullptr;
+
+		const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
+			.SetAllowHidden(true)
+			.SetAllowGroups(false)
+			.SetWarnIfLocked(false)
+			.SetChildElementInclusionMethod(ETypedElementChildInclusionMethod::Recursive);
+
+		for (AActor* Actor : ActorsQueue)
 		{
-			continue;
+			// UnregisterAllComponents can destroy child actors
+			if (!IsValid(Actor))
+			{
+				continue;
+			}
+
+			if (ElementSelectionSet)
+			{
+				if (FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor, /*bAllowCreate*/false))
+				{
+					bSelectionChanged |= ElementSelectionSet->DeselectElement(ActorHandle, SelectionOptions);
+				}
+			}
+
+			Actor->UnregisterAllComponents();
+			Actor->RegisterAllActorTickFunctions(false, true);
+
+			if (TransformToRemove)
+			{
+				FLevelUtils::FApplyLevelTransformParams TransformParams(this, TransformToRemove->Inverse());
+				TransformParams.Actor = Actor;
+				TransformParams.bDoPostEditMove = true;
+				FLevelUtils::ApplyLevelTransform(TransformParams);
+			}
+
+			OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
+
+			SlowTask.EnterProgressFrame(1);
 		}
+	}
 
-		Actor->UnregisterAllComponents();
-		Actor->RegisterAllActorTickFunctions(false, true);
-
-		if (TransformToRemove)
-		{
-			FLevelUtils::FApplyLevelTransformParams TransformParams(this, TransformToRemove->Inverse());
-			TransformParams.Actor = Actor;
-			TransformParams.bDoPostEditMove = true;
-			FLevelUtils::ApplyLevelTransform(TransformParams);
-		}
-
-		OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
-
-		SlowTask.EnterProgressFrame(1);
+	if (bSelectionChanged)
+	{
+		GEditor->NoteSelectionChange();
 	}
 }
 #endif

@@ -2260,23 +2260,7 @@ void FActorBrowsingMode::UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InI
 
 	if (ActorsToUnpin.Num())
 	{
-		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
-
-		AActor* LastPinnedActor = nullptr;
-		for (const FGuid& ActorGuid : ActorsToUnpin)
-		{
-			if (FWorldPartitionHandle ActorHandle(WorldPartition, ActorGuid); ActorHandle.IsValid())
-			{
-				if (AActor* PinnedActor = ActorHandle->GetActor())
-				{
-					GEditor->SelectActor(PinnedActor, /*bInSelected=*/false, /*bNotify=*/false);
-				}
-			}
-		}
-
 		WorldPartition->UnpinActors(ActorsToUnpin);
-
-		GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify=*/true);
 	}
 }
 

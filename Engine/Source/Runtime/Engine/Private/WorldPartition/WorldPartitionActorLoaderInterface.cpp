@@ -255,13 +255,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::PostLoadedStateChanged
 
 	if (!IsRunningCommandlet())
 	{
-		if (NumUnloads)
-		{
-			GEditor->SelectNone(true, true);
-		}
-
 		GEngine->BroadcastLevelActorListChanged();
-		GEditor->NoteSelectionChange();
 
 		if (NumUnloads)
 		{
