@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Chaos/ISpatialAccelerationCollection.h"
-#include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/Box.h"
 #include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
 #include "Chaos/Collision/StatsData.h"
