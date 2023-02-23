@@ -159,7 +159,7 @@ static TArray<FString> FindOpenVDBSequenceFileNames(const FString& Filename)
 
 struct FOpenVDBPreviewData
 {
-	TArray<uint8> LoadedFile;
+	TArray64<uint8> LoadedFile;
 	TArray<FOpenVDBGridInfo> GridInfo;
 	TArray<TSharedPtr<FOpenVDBGridInfo>> GridInfoPtrs;
 	TArray<TSharedPtr<FOpenVDBGridComponentInfo>> GridComponentInfoPtrs;
@@ -570,7 +570,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 				// Load file and get info about each contained grid
 				const FString& FrameFilename = PreviewData.SequenceFilenames[FrameIdx];
-				TArray<uint8> LoadedFrameFile;
+				TArray64<uint8> LoadedFrameFile;
 				if (!FFileHelper::LoadFileToArray(LoadedFrameFile, *FrameFilename))
 				{
 					UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file could not be loaded: %s"), *FrameFilename);
@@ -669,7 +669,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 					UE_LOG(LogSparseVolumeTextureFactory, Display, TEXT("Loading OpenVDB sequence frame #%i %s."), FrameIdx, *FrameFilename);
 
 					// Load file
-					TArray<uint8> LoadedFrameFile;
+					TArray64<uint8> LoadedFrameFile;
 					if (!FFileHelper::LoadFileToArray(LoadedFrameFile, *FrameFilename))
 					{
 						UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file could not be loaded: %s"), *FrameFilename);
