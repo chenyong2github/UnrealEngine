@@ -38,6 +38,8 @@ struct PARTY_API FPartyRepData : public FOnlinePartyRepDataBase
 public:
 	FPartyRepData() {}
 	void SetOwningParty(const class USocialParty& InOwnerParty);
+	/** Mark the party data as ownerless. This will bypass any "CanEdit" checks. Useful for using this object in a test context. */
+	void MarkOwnerless();
 
 	const FPartyPlatformSessionInfo* FindSessionInfo(const FString& SessionType) const;
 	const TArray<FPartyPlatformSessionInfo>& GetPlatformSessions() const { return PlatformSessions; }
@@ -52,6 +54,7 @@ protected:
 	virtual const USocialParty* GetOwnerParty() const override;
 
 	TWeakObjectPtr<const USocialParty> OwnerParty;
+	bool bAllowOwnerless = false;
 
 	//@todo DanH Party: Isn't this redundant with the party config itself? Why bother putting it here too when the config replicates to everyone already? #suggested
 	/** The privacy settings for the party */

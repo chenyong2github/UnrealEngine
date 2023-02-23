@@ -18,9 +18,14 @@ void FPartyMemberRepData::SetOwningMember(const UPartyMember& InOwnerMember)
 	OwnerMember = &InOwnerMember;
 }
 
+void FPartyMemberRepData::MarkOwnerless()
+{
+	bAllowOwnerless = true;
+}
+
 bool FPartyMemberRepData::CanEditData() const
 {
-	return OwnerMember.IsValid() && OwnerMember->IsLocalPlayer();
+	return bAllowOwnerless || (OwnerMember.IsValid() && OwnerMember->IsLocalPlayer());
 }
 
 void FPartyMemberRepData::CompareAgainst(const FOnlinePartyRepDataBase& OldData) const

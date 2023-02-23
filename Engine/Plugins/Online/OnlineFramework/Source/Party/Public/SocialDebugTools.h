@@ -12,10 +12,12 @@ class USocialManager;
 class IOnlineSubsystem;
 class FOnlineAccountCredentials;
 class IOnlinePartyPendingJoinRequestInfo;
+struct FPartyMemberJoinInProgressRequest;
 typedef TSharedPtr<const class IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstPtr;
 typedef TSharedPtr<class FOnlinePartyData> FOnlinePartyDataPtr;
 typedef TSharedPtr<const class FOnlinePartyData> FOnlinePartyDataConstPtr;
 using FUniqueNetIdPtr = TSharedPtr<const FUniqueNetId>;
+enum class EPartyJoinDenialReason : uint8;
 
 UCLASS(Within = SocialManager, Config = Game)
 class PARTY_API USocialDebugTools : public UObject, public FExec
@@ -46,6 +48,9 @@ public:
 	DECLARE_DELEGATE_OneParam(FJoinPartyComplete, bool);
 	virtual void JoinParty(const FString& Instance, const FString& FriendName, const FJoinPartyComplete& OnComplete);
 
+	DECLARE_DELEGATE_OneParam(FJoinInProgressComplete, EPartyJoinDenialReason);
+	virtual void JoinInProgress(const FString& Instance, const FJoinInProgressComplete& OnComplete);
+
 	DECLARE_DELEGATE_OneParam(FLeavePartyComplete, bool);
 	virtual void LeaveParty(const FString& Instance, const FLeavePartyComplete& OnComplete);
 
@@ -71,6 +76,9 @@ public:
 		IOnlineSubsystem* GetOSS() const { return OnlineSub; }
 		FOnlinePartyDataPtr GetPartyMemberData() const { return PartyMemberData; }
 		FUniqueNetIdPtr GetLocalUserId() const;
+		void ModifyPartyField(const FString& FieldName, const class FVariantData& FieldValue);
+
+		bool SetJIPRequest(const FPartyMemberJoinInProgressRequest& InRequest);
 
 		FString Name;
 		IOnlineSubsystem* OnlineSub;

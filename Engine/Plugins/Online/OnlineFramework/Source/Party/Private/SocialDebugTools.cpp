@@ -2,11 +2,13 @@
 
 #include "SocialDebugTools.h"
 
-#include "OnlineSubsystemUtils.h"
 #include "Interfaces/OnlineUserInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
+#include "Misc/ScopeExit.h"
+#include "OnlineSubsystemUtils.h"
 #include "Party/PartyMember.h"
 #include "SocialManager.h"
+#include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SocialDebugTools)
 
@@ -203,6 +205,119 @@ void USocialDebugTools::Logout(const FString& Instance, const FLogoutComplete& O
 		}
 	}
 	OnComplete.ExecuteIfBound(bResult);
+}
+
+void USocialDebugTools::JoinInProgress(const FString& Instance, const FJoinInProgressComplete& OnComplete)
+{
+	// Assume an error, and trigger delegate on scope exit
+	TOptional<FJoinInProgressComplete> OnError = OnComplete;
+	ON_SCOPE_EXIT
+	{
+		// Execute error 
+		if (OnError)
+		{
+			// Error reason doesn't matter, but we're very unlikely to receive this from the JIP target
+			OnError->ExecuteIfBound(EPartyJoinDenialReason::OssUnavailable);
+		}
+	};
+
+	FInstanceContext& Context = GetContext(Instance);
+	IOnlineSubsystem* OnlineSub = Context.GetOSS();
+	if (!OnlineSub)
+	{
+		return;
+	}
+	FUniqueNetIdPtr LocalUserId = Context.GetLocalUserId();
+	if (!LocalUserId)
+	{
+		return;
+	}
+
+	// Find the party we're in
+	IOnlinePartyPtr PartySystem = OnlineSub->GetPartyInterface();
+	if (!PartySystem)
+	{
+		return;
+	}
+	FOnlinePartyConstPtr Party = PartySystem->GetParty(*LocalUserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
+	if (!Party)
+	{
+		return;
+	}
+
+	// JIP on the party leader
+	FUniqueNetIdPtr JipTargetId = Party->LeaderId;
+
+	if (!JipTargetId.IsValid())
+	{
+		return;
+	}
+
+	FPartyMemberJoinInProgressRequest Request;
+	Request.Target = JipTargetId;
+	Request.Time = FDateTime::UtcNow().ToUnixTimestamp();
+
+	if (Context.SetJIPRequest(Request))
+	{
+		OnError.Reset(); // No longer assuming an error
+		
+		// Wait for player to respond 
+		TSharedRef<FDelegateHandle> DelegateHandleRef = MakeShared<FDelegateHandle>();
+		TSharedRef<FTimerHandle> TimerHandleRef = MakeShared<FTimerHandle>();
+		
+		auto CleanupJipRequest = [this, Instance, PartySystem = PartySystem.ToWeakPtr(), OnComplete, DelegateHandleRef, TimerHandleRef](EPartyJoinDenialReason Result)
+		{
+			// Clear our JIP request
+			FInstanceContext& LocalContext = GetContext(Instance);
+			LocalContext.SetJIPRequest(FPartyMemberJoinInProgressRequest());
+
+			OnComplete.ExecuteIfBound(Result);
+
+			// Copy lambda captures as they will be deleted through the unbinds here
+			TSharedRef<FDelegateHandle> DelegateHandleCopy = DelegateHandleRef;
+			TSharedRef<FTimerHandle> TimerHandleCopy = TimerHandleRef;
+			IOnlinePartyPtr StrongPartySystem = PartySystem.Pin();
+			UWorld* World = GetWorld();
+			if (StrongPartySystem)
+			{
+				StrongPartySystem->ClearOnPartyMemberDataReceivedDelegate_Handle(*DelegateHandleCopy);
+			}
+			if (World)
+			{
+				World->GetTimerManager().ClearTimer(*TimerHandleCopy);
+			}
+		};
+
+		auto OnPartyMemberDataReceivedLambda = [this, LocalUserId, JipTargetId, Request, CleanupJipRequest](const FUniqueNetId& InLocalUserId, const FOnlinePartyId& InPartyId, const FUniqueNetId& InMemberId, const FName& InNamespace, const FOnlinePartyData& InPartyMemberData)
+		{
+			if (InMemberId == *JipTargetId)
+			{
+				FPartyMemberRepData ReceivedPartyMemberRepData;
+				if (FVariantDataConverter::VariantMapToUStruct(InPartyMemberData.GetKeyValAttrs(), FPartyMemberRepData::StaticStruct(), &ReceivedPartyMemberRepData, 0, CPF_Transient | CPF_RepSkip))
+				{
+					for (const FPartyMemberJoinInProgressResponse& Response : ReceivedPartyMemberRepData.GetJoinInProgressDataResponses())
+					{
+						if (Response.RequestTime != Request.Time ||
+							Response.Requester != LocalUserId)
+						{
+							// Response was not for us.
+							continue;
+						}
+
+						CleanupJipRequest(static_cast<EPartyJoinDenialReason>(Response.DenialReason));
+						return;
+					}
+				}
+			}
+		};
+
+		*DelegateHandleRef = PartySystem->AddOnPartyMemberDataReceivedDelegate_Handle(FOnPartyMemberDataReceivedDelegate::CreateWeakLambda(this, OnPartyMemberDataReceivedLambda));
+		// wait 60 seconds for a response
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().SetTimer(*TimerHandleRef, FTimerDelegate::CreateWeakLambda(this, CleanupJipRequest, static_cast<EPartyJoinDenialReason>(EPartyJoinDenialReason::OssUnavailable)), 60, false);
+		}
+	}
 }
 
 void USocialDebugTools::JoinParty(const FString& Instance, const FString& FriendName, const FJoinPartyComplete& OnComplete)
@@ -583,6 +698,17 @@ bool USocialDebugTools::RunCommand(const TCHAR* Cmd, const TArray<FString>& Targ
 		}
 		return true;
 	}
+	else if (FParse::Command(&Cmd, TEXT("JIP")))
+	{
+		for (const FString& TargetInstance : TargetInstances)
+		{
+			JoinInProgress(TargetInstance, FJoinInProgressComplete::CreateLambda([this, TargetInstance](EPartyJoinDenialReason Result)
+			{
+				UE_LOG(LogParty, Display, TEXT("JIP OSS context[%s] %s"), *TargetInstance, ToString(Result));
+			}));
+		}
+		return true;
+	}
 	else if (FParse::Command(&Cmd, TEXT("LEAVEPARTY")))
 	{
 		for (const FString& TargetInstance : TargetInstances)
@@ -696,6 +822,61 @@ FUniqueNetIdPtr USocialDebugTools::FInstanceContext::GetLocalUserId() const
 		}
 	}
 	return LocalUserId;
+}
+
+void USocialDebugTools::FInstanceContext::ModifyPartyField(const FString& FieldName, const FVariantData& FieldValue)
+{
+	if (!OnlineSub)
+	{
+		return;
+	}
+	IOnlinePartyPtr PartySystem = OnlineSub->GetPartyInterface();
+	if (!PartySystem)
+	{
+		return;
+	}
+	FUniqueNetIdPtr LocalUserId = GetLocalUserId();
+	if (!LocalUserId)
+	{
+		return;
+	}
+	TSharedPtr<const FOnlineParty> Party = PartySystem->GetParty(*LocalUserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
+	if (!Party)
+	{
+		return;
+	}
+
+	// Get current party data and update the JIP field
+	if (!PartyMemberData)
+	{
+		if (FOnlinePartyDataConstPtr ExistingPartyMemberData = PartySystem->GetPartyMemberData(*LocalUserId, *Party->PartyId, *LocalUserId, DefaultPartyDataNamespace))
+		{
+			PartyMemberData = MakeShared<FOnlinePartyData>(*ExistingPartyMemberData);
+		}
+	}
+	if (!PartyMemberData)
+	{
+		PartyMemberData = MakeShared<FOnlinePartyData>();
+	}
+	PartyMemberData->SetAttribute(FieldName, FieldValue);
+	PartySystem->UpdatePartyMemberData(*LocalUserId, *Party->PartyId, DefaultPartyDataNamespace , *PartyMemberData);
+}
+
+bool USocialDebugTools::FInstanceContext::SetJIPRequest(const FPartyMemberJoinInProgressRequest& InRequest)
+{
+	FPartyMemberRepData PartyMemberRepData;
+	PartyMemberRepData.MarkOwnerless();
+	PartyMemberRepData.SetJoinInProgressDataRequest(InRequest);
+
+	FOnlinePartyData OnlinePartyData;
+	const FString JipFieldName(TEXT("JoinInProgressData"));
+	if (FVariantDataConverter::UStructToVariantMap(FPartyMemberRepData::StaticStruct(), &PartyMemberRepData, OnlinePartyData.GetKeyValAttrs(), 0, CPF_Transient | CPF_RepSkip) &&
+		ensure(OnlinePartyData.GetKeyValAttrs().Contains(JipFieldName)))
+	{
+		ModifyPartyField(JipFieldName, OnlinePartyData.GetKeyValAttrs().FindChecked(JipFieldName));
+		return true;
+	}
+	return false;
 }
 
 void USocialDebugTools::HandleFriendInviteReceived(const FUniqueNetId& LocalUserId, const FUniqueNetId& FriendId)

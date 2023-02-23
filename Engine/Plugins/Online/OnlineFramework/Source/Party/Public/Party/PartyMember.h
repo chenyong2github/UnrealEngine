@@ -123,6 +123,8 @@ struct PARTY_API FPartyMemberRepData : public FOnlinePartyRepDataBase
 public:
 	FPartyMemberRepData() {}
 	void SetOwningMember(const class UPartyMember& InOwnerMember);
+	/** Mark the party data as ownerless. This will bypass any "CanEdit" checks. Useful for using this object in a test context. */
+	void MarkOwnerless();
 
 protected:
 	virtual bool CanEditData() const override;
@@ -132,6 +134,7 @@ protected:
 
 private:
 	TWeakObjectPtr<const UPartyMember> OwnerMember;
+	bool bAllowOwnerless = false;
 
 	/** Platform data fields for party replication */
 	UPROPERTY()

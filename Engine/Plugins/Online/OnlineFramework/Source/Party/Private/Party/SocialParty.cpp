@@ -67,7 +67,7 @@ void FPartyRepData::ClearPlatformSessionInfo(const FString& SessionType)
 
 bool FPartyRepData::CanEditData() const
 {
-	return OwnerParty.IsValid() && OwnerParty->IsLocalPlayerPartyLeader();
+	return bAllowOwnerless || (OwnerParty.IsValid() && OwnerParty->IsLocalPlayerPartyLeader());
 }
 
 void FPartyRepData::CompareAgainst(const FOnlinePartyRepDataBase& OldData) const
@@ -1606,7 +1606,7 @@ void USocialParty::RejectAllPendingJoinRequests()
 	{
 		PendingApprovals.Dequeue(PendingApproval);
 		const FUniqueNetId& PrimaryJoiningUserId = *PendingApproval.Members[0].MemberId.GetUniqueNetId();
-		UE_LOG(LogParty, Log, TEXT("[%s] Responding to approval request for %s with denied"), *PartyId.ToString(), *PrimaryJoiningUserId.ToDebugString());
+		UE_LOG(LogParty, Log, TEXT("[%s] Responding to approval request for %s with %s"), *PartyId.ToString(), *PrimaryJoiningUserId.ToDebugString(), ToString(EPartyJoinDenialReason::Busy));
 		if (PendingApproval.bIsJIPApproval)
 		{
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
