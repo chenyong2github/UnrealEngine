@@ -749,7 +749,7 @@ namespace Horde.Build
 			DirectoryReference dashboardDir = DirectoryReference.Combine(Program.AppDir, "DashboardApp");
 			if (DirectoryReference.Exists(dashboardDir)) 
 			{
-				services.AddSpaStaticFiles(config => {config.RootPath = "DashboardApp";});
+				services.AddSpaStaticFiles(config => { config.RootPath = "DashboardApp"; });
 			}
 
 			ConfigureMongoDbClient();
