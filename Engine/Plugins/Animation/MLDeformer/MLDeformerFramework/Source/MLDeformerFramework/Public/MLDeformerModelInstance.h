@@ -13,6 +13,10 @@ class UMLDeformerModel;
 class USkeletalMeshComponent;
 class UMLDeformerComponent;
 
+#if STATS
+DECLARE_STATS_GROUP(TEXT("MLDeformer"), STATGROUP_MLDeformer, STATCAT_Advanced);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("ML Deformer Inference"), STAT_MLDeformerInference, STATGROUP_MLDeformer, );
+#endif
 /**
  * An instance of the ML Deformer model.
  * The ML Deformer model contains shared data, while this instance contains data unique to the actor it is being applied to.

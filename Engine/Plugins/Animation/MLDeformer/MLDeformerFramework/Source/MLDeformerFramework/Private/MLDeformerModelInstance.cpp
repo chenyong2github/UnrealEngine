@@ -16,6 +16,10 @@
 
 CSV_DEFINE_CATEGORY_MODULE(MLDEFORMERFRAMEWORK_API, MLDeformer, false);
 
+#if STATS
+DEFINE_STAT(STAT_MLDeformerInference);
+#endif
+
 void UMLDeformerModelInstance::BeginDestroy()
 {
 	Release();

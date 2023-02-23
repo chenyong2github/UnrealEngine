@@ -223,7 +223,7 @@ void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 	#if WITH_EDITOR
 		TickPerfCounter.BeginSample();
 	#endif
-
+	SCOPE_CYCLE_COUNTER(STAT_MLDeformerInference);
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	if (TickType != ELevelTick::LEVELTICK_PauseTick)
 	{
