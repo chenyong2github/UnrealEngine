@@ -1118,7 +1118,11 @@ void ReflectionBilateralFilterCS(
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoordForReflections(ScreenCoord, bIsOverflow);
 
 	float2 ScreenUV = (Coord.SvPosition + 0.5f) * View.BufferSizeAndInvSize.zw;
+#if FRONT_LAYER_TRANSLUCENCY
+	float SceneDepth = Texture2DSampleLevel(FrontLayerTranslucencySceneDepth, GlobalBilinearClampedSampler, ScreenUV, 0).r;
+#else
 	float SceneDepth = CalcSceneDepth(ScreenUV);
+#endif
 
 	float3 OutReflections = 0;
 
