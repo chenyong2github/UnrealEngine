@@ -137,9 +137,13 @@ const TCHAR* DelegatePropertyTools::ImportDelegateFromText( FScriptDelegate& Del
 	{
 		++Buffer;
 	}
-	for( i=0; *Buffer && *Buffer != TCHAR('.') && *Buffer != TCHAR(')') && *Buffer != TCHAR(','); Buffer++ )
+	for( i=0; *Buffer && *Buffer != TCHAR('.') && *Buffer != TCHAR(')') && *Buffer != TCHAR(',') && i < NAME_SIZE; Buffer++ )
 	{
 		ObjName[i++] = *Buffer;
+	}
+	if (i == NAME_SIZE)
+	{
+		return nullptr;
 	}
 	ObjName[i] = TCHAR('\0');
 	UClass* Cls = nullptr;
@@ -157,9 +161,13 @@ const TCHAR* DelegatePropertyTools::ImportDelegateFromText( FScriptDelegate& Del
 	if (*Buffer == TCHAR('.'))
 	{
 		Buffer++;
-		for( i=0; *Buffer && *Buffer != TCHAR(')') && *Buffer != TCHAR(','); Buffer++ )
+		for( i=0; *Buffer && *Buffer != TCHAR(')') && *Buffer != TCHAR(',') && i < NAME_SIZE; Buffer++ )
 		{
 			FuncName[i++] = *Buffer;
+		}
+		if (i == NAME_SIZE)
+		{
+			return nullptr;
 		}
 		FuncName[i] = TEXT('\0');
 	}
