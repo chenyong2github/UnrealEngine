@@ -10,10 +10,5 @@ public class PakFile : ModuleRules
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("CoreUObject");
 		PublicDependencyModuleNames.Add("RSA");
-
-		if (Target.Type != TargetType.Program)
-		{
-			PublicDependencyModuleNames.Add("StreamingFileSystem");
-		}
 	}
 }

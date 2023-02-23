@@ -8,10 +8,6 @@
 class IInstallBundleSource;
 class IAnalyticsProviderET;
 
-class IBuildManifest;
-
-typedef TSharedPtr< class IBuildManifest, ESPMode::ThreadSafe > IBuildManifestPtr;
-
 DECLARE_DELEGATE_TwoParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceAsyncInitInfo /*InitInfo*/);
 
 DECLARE_DELEGATE_TwoParams(FInstallBundleSourceQueryBundleInfoDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceBundleInfoQueryResult /*Result*/);
@@ -31,10 +27,6 @@ public:
 
 	// Returns a unique id for this source
 	virtual EInstallBundleSourceType GetSourceType() const = 0;
-
-	virtual const TArray<FString> GetDistributionCDNPaths() const { return TArray<FString>(); }
-
-	virtual IBuildManifestPtr GetBuildManifest() { return {}; }
 
 	// Returns the how this source should be weighted when combined with other sources
 	virtual float GetSourceWeight() const { return 1.0f; }

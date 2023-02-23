@@ -42,9 +42,6 @@
 #include "FilePackageStore.h"
 #include "Compression/OodleDataCompression.h"
 #include "IO/IoStore.h"
-#if !IS_PROGRAM
-#include "StreamingFileSystem.h"
-#endif
 
 DEFINE_LOG_CATEGORY(LogPakFile);
 
@@ -7535,12 +7532,6 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 		FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
 		IoDispatcherFileBackend = CreateIoDispatcherFileBackend();
 		IoDispatcher.Mount(IoDispatcherFileBackend.ToSharedRef());
-
-#if !IS_PROGRAM && PLATFORM_USE_STREAMING_FILE_CACHE
-		IoDispatcherSFSBackend = IStreamingFileSystem::CreateStreamingFileSystem();
-		IoDispatcher.Mount(IoDispatcherSFSBackend.ToSharedRef());
-#endif
-
 		PackageStoreBackend = MakeShared<FFilePackageStoreBackend>();
 		FPackageStore::Get().Mount(PackageStoreBackend.ToSharedRef());
 
