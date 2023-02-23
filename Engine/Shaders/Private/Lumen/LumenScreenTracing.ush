@@ -320,11 +320,12 @@ void SampleSceneColorAtHit(float3 HitTranslatedWorldPosition, float3 HitGeometry
 			float HitSceneDepth = ConvertFromDeviceZ(HitDeviceZ);
 			float RayHitSceneDepth = HitClipPosition.w;
 
-			FLumenMaterialData LumenMaterial = ReadMaterialDataOpaque(HitScreenUV * View.BufferSizeAndInvSize.xy, HitScreenUV);
+			float3 PixelToCameraDirection = normalize(View.TranslatedWorldCameraOrigin - HitTranslatedWorldPosition);
 
 			// Discard screen points which are either too far or face the other direction
+			// Also discard screen points at steep angle or facing backwards
 			if (abs(RayHitSceneDepth - HitSceneDepth) < RelativeDepthThickness * max(HitSceneDepth, .00001f)
-				&& dot(LumenMaterial.WorldNormal, HitGeometryWorldNormal) >= SampleSceneColorNormalTreshold)
+				&& dot(PixelToCameraDirection, HitGeometryWorldNormal) >= SampleSceneColorNormalTreshold)
 			{
 				float3 HitHistoryScreenPosition = GetPrevScreenPosition(HitScreenPosition, HitScreenUV, HitDeviceZ);
 

@@ -88,7 +88,7 @@ int32 GLumenReflectionsSampleSceneColorAtHit = 1;
 FAutoConsoleVariableRef CVarLumenReflectionsSampleSceneColorAtHit(
 	TEXT("r.Lumen.Reflections.SampleSceneColorAtHit"),
 	GLumenReflectionsSampleSceneColorAtHit,
-	TEXT("Whether to sample SceneColor on reflection ray hits (both SWRT and HWRT).  Useful for hiding areas where Screen Traces gave up when they went behind a foreground object."),
+	TEXT("Whether to sample SceneColor on reflection ray hits (both SWRT and HWRT). Useful for hiding areas where Screen Traces gave up when they went behind a foreground object. 0 - Disable. 1 - Enable only when screen space traces are enabled. 2 - Always enable."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -671,7 +671,7 @@ void TraceReflections(
 	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
 	const bool bScreenTraces = GLumenReflectionScreenTraces != 0 && View.Family->EngineShowFlags.LumenScreenTraces;
-	const bool bSampleSceneColorAtHit = GLumenReflectionsSampleSceneColorAtHit != 0 && bScreenTraces;
+	const bool bSampleSceneColorAtHit = (GLumenReflectionsSampleSceneColorAtHit != 0 && bScreenTraces) || GLumenReflectionsSampleSceneColorAtHit == 2;
 
 	if (bScreenTraces)
 	{

@@ -1010,7 +1010,8 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 	extern int32 GLumenSceneRecaptureLumenSceneEveryFrame;
 
 	if (Lumen::IsRadiosityEnabled(ViewFamily) 
-		&& LumenSceneData.bFinalLightingAtlasContentsValid)
+		&& LumenSceneData.bFinalLightingAtlasContentsValid
+		&& CardUpdateContext.MaxUpdateTiles > 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Radiosity");
 

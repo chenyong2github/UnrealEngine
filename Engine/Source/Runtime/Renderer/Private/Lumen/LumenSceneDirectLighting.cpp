@@ -1655,7 +1655,7 @@ void FDeferredShadingSceneRenderer::BeginGatherLumenLights(FLumenDirectLightingT
 		bAnyLumenActive |= ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 	}
 
-	if (!bAnyLumenActive || !GLumenDirectLighting)
+	if (!bAnyLumenActive || !GLumenDirectLighting || CardUpdateContext.MaxUpdateTiles <= 0)
 	{
 		return;
 	}
