@@ -6,7 +6,7 @@
 
 #include "DataLayerInstanceWithAsset.generated.h"
 
-UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, AutoCollapseCategories = ("Data Layer|Advanced"), AutoExpandCategories = ("Data Layer|Editor", "Data Layer|Advanced|Runtime"))
+UCLASS(Config = Engine, PerObjectConfig, AutoCollapseCategories = ("Data Layer|Advanced"), AutoExpandCategories = ("Data Layer|Editor", "Data Layer|Advanced|Runtime"))
 class ENGINE_API UDataLayerInstanceWithAsset : public UDataLayerInstance
 {
 	GENERATED_UCLASS_BODY()

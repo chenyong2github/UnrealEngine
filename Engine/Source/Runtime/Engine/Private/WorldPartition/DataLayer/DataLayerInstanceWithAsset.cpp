@@ -24,7 +24,7 @@ FName UDataLayerInstanceWithAsset::MakeName(const UDataLayerAsset* DeprecatedDat
 
 void UDataLayerInstanceWithAsset::OnCreated(const UDataLayerAsset* Asset)
 {
-	check(!GetOuterAWorldDataLayers()->HasDeprecatedDataLayers() || IsRunningCommandlet());
+	check(!GetOuterWorldDataLayers()->HasDeprecatedDataLayers() || IsRunningCommandlet());
 
 	Modify(/*bAlwaysMarkDirty*/false);
 
@@ -40,7 +40,7 @@ bool UDataLayerInstanceWithAsset::IsReadOnly() const
 	{
 		return true;
 	}
-	return GetOuterAWorldDataLayers()->IsSubWorldDataLayers();
+	return GetOuterWorldDataLayers()->IsSubWorldDataLayers();
 }
 
 bool UDataLayerInstanceWithAsset::IsLocked() const
@@ -120,7 +120,7 @@ void UDataLayerInstanceWithAsset::PostEditChangeProperty(FPropertyChangedEvent& 
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDataLayerInstanceWithAsset, DataLayerAsset))
 	{
-		GetOuterAWorldDataLayers()->ResolveActorDescContainers();
+		GetOuterWorldDataLayers()->ResolveActorDescContainers();
 	}
 }
 
@@ -135,7 +135,7 @@ void UDataLayerInstanceWithAsset::PostEditUndo()
 	Super::PostEditUndo();
 	if (CachedDataLayerAsset != DataLayerAsset)
 	{
-		GetOuterAWorldDataLayers()->ResolveActorDescContainers();
+		GetOuterWorldDataLayers()->ResolveActorDescContainers();
 	}
 	CachedDataLayerAsset = nullptr;
 }
