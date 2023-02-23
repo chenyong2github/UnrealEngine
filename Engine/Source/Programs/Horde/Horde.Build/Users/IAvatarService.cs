@@ -16,5 +16,14 @@ namespace Horde.Build.Users
 		/// <returns></returns>
 		Task<IAvatar?> GetAvatarAsync(IUser user);
 	}
+
+	/// <summary>
+	/// Default implementation of <see cref="IAvatarService"/>
+	/// </summary>
+	public class NullAvatarService : IAvatarService
+	{
+		/// <inheritdoc/>
+		public Task<IAvatar?> GetAvatarAsync(IUser user) => Task.FromResult<IAvatar?>(null);
+	}
 }
 

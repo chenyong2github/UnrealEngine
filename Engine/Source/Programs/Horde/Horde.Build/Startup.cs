@@ -447,6 +447,10 @@ namespace Horde.Build
 				services.AddSingleton<IAvatarService, SlackNotificationSink>(sp => sp.GetRequiredService<SlackNotificationSink>());
 				services.AddSingleton<INotificationSink, SlackNotificationSink>(sp => sp.GetRequiredService<SlackNotificationSink>());
 			}
+			else
+			{
+				services.AddSingleton<IAvatarService, NullAvatarService>();
+			}
 
 			services.AddSingleton<DeviceService>();						
 			services.AddSingleton<NoticeService>();

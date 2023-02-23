@@ -22,6 +22,11 @@ namespace Horde.Build.Users
 		public static UserId Empty { get; } = new UserId(ObjectId.Empty);
 
 		/// <summary>
+		/// Special user id for an anonymous administrator
+		/// </summary>
+		public static UserId Anonymous { get; } = UserId.Parse("63f7d3525119b9aa4c0f035a");
+
+		/// <summary>
 		/// Creates a new <see cref="UserId"/>
 		/// </summary>
 		public static UserId GenerateNewId() => new UserId(ObjectId.GenerateNewId());

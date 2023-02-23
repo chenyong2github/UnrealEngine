@@ -35,16 +35,14 @@ namespace Horde.Build.Authentication
 		{
 			List<Claim> claims = new List<Claim>();
 			claims.Add(new Claim(ClaimTypes.Name, AuthenticationScheme));
+			claims.Add(new Claim(HordeClaimTypes.UserId, UserId.Anonymous.ToString()));
 
 			if (Options.AdminClaimType != null && Options.AdminClaimValue != null)
 			{
 				claims.Add(new Claim(Options.AdminClaimType, Options.AdminClaimValue));
 			}
 
-			ServerSettings currentSettings = _settings.CurrentValue;
-
 			ClaimsIdentity identity = new ClaimsIdentity(claims, Scheme.Name);
-			identity.AddClaim(new Claim(currentSettings.AdminClaimType, currentSettings.AdminClaimValue));
 
 			ClaimsPrincipal principal = new ClaimsPrincipal(identity);
 			AuthenticationTicket ticket = new AuthenticationTicket(principal, Scheme.Name);
