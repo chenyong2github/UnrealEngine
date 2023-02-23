@@ -7,7 +7,6 @@
 
 #include "IDisplayCluster.h"
 #include "IDisplayClusterCallbacks.h"
-#include "DisplayClusterViewportManagerViewExtension.h"
 #include "Render/IDisplayClusterRenderManager.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
@@ -110,12 +109,6 @@ void FDisplayClusterViewportManagerProxy::Initialize(FDisplayClusterViewportMana
 	ViewportManagerViewExtension = InViewportManager.ViewportManagerViewExtension;
 }
 
-void FDisplayClusterViewportManagerProxy::SetViewportManagerViewExtension(
-	const TSharedPtr<FDisplayClusterViewportManagerViewExtension>& InExtension)
-{
-	ViewportManagerViewExtension = InExtension;
-}
-
 void FDisplayClusterViewportManagerProxy::DeleteResource_RenderThread(FDisplayClusterViewportResource* InDeletedResourcePtr)
 {
 	if (InDeletedResourcePtr)
@@ -163,25 +156,18 @@ void FDisplayClusterViewportManagerProxy::DeleteViewport_RenderThread(const TSha
 	const int32 ViewportProxyIndex = ViewportProxies.Find(InViewportProxy);
 	if (ViewportProxyIndex != INDEX_NONE)
 	{
-		if (ViewportManagerViewExtension.IsValid())
-		{
-			ViewportManagerViewExtension->DeleteViewportProxy(ViewportProxies[ViewportProxyIndex]);
-		}
 		ViewportProxies.RemoveAt(ViewportProxyIndex);
 	}
 
 	const int32 ClusterViewportProxyIndex = ClusterNodeViewportProxies.Find(InViewportProxy);
 	if (ClusterViewportProxyIndex != INDEX_NONE)
 	{
-		if (ViewportManagerViewExtension.IsValid())
-		{
-			ViewportManagerViewExtension->DeleteViewportProxy(ClusterNodeViewportProxies[ClusterViewportProxyIndex]);
-		}
 		ClusterNodeViewportProxies.RemoveAt(ClusterViewportProxyIndex);
 	}
 }
 
-void FDisplayClusterViewportManagerProxy::ImplUpdateRenderFrameSettings(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings)
+void FDisplayClusterViewportManagerProxy::ImplUpdateRenderFrameSettings(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings,
+	const TSharedPtr<FDisplayClusterViewportManagerViewExtension, ESPMode::ThreadSafe>& InViewportManagerViewExtension)
 {
 	check(IsInGameThread());
 
@@ -189,9 +175,10 @@ void FDisplayClusterViewportManagerProxy::ImplUpdateRenderFrameSettings(const FD
 
 	// Send frame settings to renderthread
 	ENQUEUE_RENDER_COMMAND(DisplayClusterUpdateRenderFrameSettings)(
-		[ViewportManagerProxy = SharedThis(this), Settings](FRHICommandListImmediate& RHICmdList)
+		[ViewportManagerProxy = SharedThis(this), Settings, InViewportManagerViewExtension](FRHICommandListImmediate& RHICmdList)
 	{
 		ViewportManagerProxy->RenderFrameSettings = *Settings;
+		ViewportManagerProxy->ViewportManagerViewExtension = InViewportManagerViewExtension;
 		delete Settings;
 
 		// After updated settings we need update cluster node viewports

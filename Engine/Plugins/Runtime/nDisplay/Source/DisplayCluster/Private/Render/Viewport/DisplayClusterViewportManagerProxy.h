@@ -13,6 +13,7 @@
 class FDisplayClusterRenderTargetManager;
 class FDisplayClusterViewportPostProcessManager;
 class FDisplayClusterViewportManager;
+class FDisplayClusterViewportManagerViewExtension;
 class FDisplayClusterViewportResource;
 class FDisplayClusterViewportLightCardManagerProxy;
 class IDisplayClusterProjectionPolicy;
@@ -75,9 +76,6 @@ public:
 	/** Initialize ViewportManagerProxy from ViewportManager. */
 	void Initialize(FDisplayClusterViewportManager& InViewportManager);
 
-	/** Set the viewport manager view extension pointer. */
-	void SetViewportManagerViewExtension(const TSharedPtr<class FDisplayClusterViewportManagerViewExtension>& InExtension);
-
 	/** Get LightCardManager proxy object. */
 	TSharedPtr<FDisplayClusterViewportLightCardManagerProxy, ESPMode::ThreadSafe> GetLightCardManagerProxy_RenderThread() const
 	{ return LightCardManagerProxy; }
@@ -97,7 +95,8 @@ public:
 	FDisplayClusterViewportProxy* ImplFindViewport_RenderThread(const int32 StereoViewIndex, uint32* OutContextNum = nullptr) const;
 
 	/** Copy RenderFrameSettings from game to render thread. */
-	void ImplUpdateRenderFrameSettings(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings);
+	void ImplUpdateRenderFrameSettings(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings,
+		const TSharedPtr<FDisplayClusterViewportManagerViewExtension, ESPMode::ThreadSafe>& InViewportManagerViewExtension);
 
 	/** Copy Viewports data to Proxies from game to render thread. */
 	void ImplUpdateViewports(const TArray<FDisplayClusterViewport*>& InViewports);

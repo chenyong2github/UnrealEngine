@@ -645,7 +645,7 @@ void FDisplayClusterViewportManager::FinalizeNewFrame()
 	}
 
 	// Send render frame settings to rendering thread
-	ViewportManagerProxy->ImplUpdateRenderFrameSettings(GetRenderFrameSettings());
+	ViewportManagerProxy->ImplUpdateRenderFrameSettings(GetRenderFrameSettings(), ViewportManagerViewExtension);
 
 	// Send updated viewports data to render thread proxy
 	ViewportManagerProxy->ImplUpdateViewports(ClusterNodeViewports);

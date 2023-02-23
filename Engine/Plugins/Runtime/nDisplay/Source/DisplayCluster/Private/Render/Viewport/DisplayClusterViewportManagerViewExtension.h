@@ -52,9 +52,6 @@ public:
 	 * @return - Screen pass texture
 	 */
 	static FScreenPassTexture ReturnUntouchedSceneColorForPostProcessing(const FPostProcessMaterialInputs& InOutInputs);
-
-	/** Remove an internally managed viewport proxy */
-	void DeleteViewportProxy(const TSharedPtr<FDisplayClusterViewportProxy>& InProxy);
 private:
 	/** nDisplay VE Callback [subscribed to Renderer:ResolvedSceneColorCallbacks].
 	 *
