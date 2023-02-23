@@ -323,9 +323,19 @@ bool FActiveGameplayCueContainer::HasCue(const FGameplayTag& Tag) const
 	return false;
 }
 
-bool FActiveGameplayCueContainer::NetDeltaSerialize(FNetDeltaSerializeInfo & DeltaParms)
+bool FActiveGameplayCueContainer::ShouldReplicate() const
 {
 	if (bMinimalReplication && (Owner && Owner->ReplicationMode == EGameplayEffectReplicationMode::Full))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool FActiveGameplayCueContainer::NetDeltaSerialize(FNetDeltaSerializeInfo & DeltaParms)
+{
+	if (!ShouldReplicate())
 	{
 		return false;
 	}

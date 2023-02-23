@@ -1662,6 +1662,15 @@ struct GAMEPLAYABILITIES_API FActiveGameplayEffectsContainer : public FFastArray
 
 	void CheckDuration(FActiveGameplayEffectHandle Handle);
 
+	/** Returns which ELifetimeCondition can be used for this instance to replicate to relevant connections. This can be used to change the condition if the property is set to use COND_Dynamic in an object's GetLifetimeReplicatedProps implementation. */
+	ELifetimeCondition GetReplicationCondition() const;
+
+	/** Set whether the container is using COND_Dynamic and setting the proper condition at runtime. */
+	void SetIsUsingReplicationCondition(bool bInIsUsingReplicationCondition) { bIsUsingReplicationCondition = bInIsUsingReplicationCondition; }
+
+	/** Return whether the container is using COND_Dynamic and setting the proper condition at runtime. */
+	bool IsUsingReplicationCondition() const { return bIsUsingReplicationCondition; }
+
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms);
 
 	void Uninitialize();
@@ -1876,6 +1885,8 @@ private:
 
 	FActiveGameplayEffect*	PendingGameplayEffectHead;	// Head of pending GE linked list
 	FActiveGameplayEffect** PendingGameplayEffectNext;	// Points to the where to store the next pending GE (starts pointing at head, as more are added, points further down the list).
+
+	uint8 bIsUsingReplicationCondition : 1;
 
 	/**
 	 * DO NOT USE DIRECTLY

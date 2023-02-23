@@ -1955,6 +1955,7 @@ FActiveGameplayEffectsContainer::FActiveGameplayEffectsContainer()
 	, ScopedLockCount(0)
 	, PendingRemoves(0)
 	, PendingGameplayEffectHead(nullptr)
+	, bIsUsingReplicationCondition(false)
 {
 	PendingGameplayEffectNext = &PendingGameplayEffectHead;
 	SetDeltaSerializationEnabled(true);
@@ -4024,10 +4025,47 @@ bool FActiveGameplayEffectsContainer::HasApplicationImmunityToSpec(const FGamepl
 	return false;
 }
 
+ELifetimeCondition FActiveGameplayEffectsContainer::GetReplicationCondition() const
+{
+	if (Owner)
+	{
+		const EGameplayEffectReplicationMode ReplicationMode = Owner->ReplicationMode;
+		switch (ReplicationMode)
+		{
+			case EGameplayEffectReplicationMode::Minimal:
+			{
+				return COND_Never;
+			}
+
+			case EGameplayEffectReplicationMode::Mixed:
+			{
+				if (IsNetAuthority())
+				{
+					return COND_OwnerOnly;
+				}
+				else
+				{
+					return COND_ReplayOrOwner;
+				}
+			}
+
+			case EGameplayEffectReplicationMode::Full:
+			default:
+			{
+				return COND_None;
+			}
+		}
+	}
+
+	// If there's no owner we assume full replication is required.
+	return COND_None;
+}
+
 bool FActiveGameplayEffectsContainer::NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 {
-	// these tests are only necessary when sending
-	if (DeltaParms.Writer != nullptr && Owner != nullptr)
+	// NOTE: Changes to this testing needs to be reflected in GetReplicatedCondition(), which is what is used if the container has a dynamic lifetime condition, COND_Dynamic, set.
+	// These tests are only needed when sending and the instance isn't using the COND_Dynamic lifetime condition, in which case NetDeltaSerialize wouldn't be called unless it should replicate.
+	if (!IsUsingReplicationCondition() && DeltaParms.Writer != nullptr && Owner != nullptr)
 	{
 		EGameplayEffectReplicationMode ReplicationMode = Owner->ReplicationMode;
 		if (ReplicationMode == EGameplayEffectReplicationMode::Minimal)

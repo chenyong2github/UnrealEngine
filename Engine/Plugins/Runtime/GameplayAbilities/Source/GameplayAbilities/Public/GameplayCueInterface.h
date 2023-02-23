@@ -151,6 +151,9 @@ struct GAMEPLAYABILITIES_API FActiveGameplayCueContainer : public FFastArraySeri
 	/** Does explicit check for gameplay cue tag */
 	bool HasCue(const FGameplayTag& Tag) const;
 
+	/** Returns true if the instance should be replicated. If false the property is allowed to be disabled for replication. */
+	bool ShouldReplicate() const;
+
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo & DeltaParms);
 
 	// Will broadcast the OnRemove event for all currently active cues

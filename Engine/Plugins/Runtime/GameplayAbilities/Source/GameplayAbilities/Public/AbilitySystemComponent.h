@@ -1614,6 +1614,11 @@ public:
 	virtual void BeginPlay() override;
 
 protected:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const override;
+
+	void UpdateActiveGameplayEffectsReplicationCondition();
+	void UpdateMinimalReplicationGameplayCuesCondition();
 
 	/**
 	 *	The abilities we can activate. 

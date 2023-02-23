@@ -17,6 +17,7 @@
 #include "GameplayEffectCustomApplicationRequirement.h"
 #include "TimerManager.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "HAL/IConsoleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitySystemComponent)
 
@@ -34,6 +35,9 @@ DECLARE_CYCLE_STAT(TEXT("AbilitySystemComp ExecuteGameplayEffect"), STAT_Ability
 
 /** Enable to log out all render state create, destroy and updatetransform events */
 #define LOG_RENDER_STATE 0
+
+static bool bUseReplicationConditionForActiveGameplayEffects = true;
+static FAutoConsoleVariableRef CVarUseReplicationConditionForActiveGameplayEffects(TEXT("AbilitySystem.UseReplicationConditionForActiveGameplayEffects"), bUseReplicationConditionForActiveGameplayEffects, TEXT("Whether to be able to determine the replication condition for AbilitySystemComponent::ActiveGameplayEffects at runtime. Removes the need for executing custom logic in FActiveGameplayEffects::NetDeltaSerialize. Default is true."));
 
 UAbilitySystemComponent::UAbilitySystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -202,11 +206,15 @@ void UAbilitySystemComponent::OnRegister()
 	}
 
 	ActiveGameplayEffects.RegisterWithOwner(this);
+	ActiveGameplayEffects.SetIsUsingReplicationCondition(bUseReplicationConditionForActiveGameplayEffects);
 	ActivatableAbilities.RegisterWithOwner(this);
 	ActiveGameplayCues.bMinimalReplication = false;
 	ActiveGameplayCues.SetOwner(this);	
 	MinimalReplicationGameplayCues.bMinimalReplication = true;
 	MinimalReplicationGameplayCues.SetOwner(this);
+
+	UpdateActiveGameplayEffectsReplicationCondition();
+	UpdateMinimalReplicationGameplayCuesCondition();
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// This field is not replicated (MinimalReplicationTags has a custom serializer),
@@ -266,6 +274,7 @@ void UAbilitySystemComponent::CacheIsNetSimulated()
 {
 	bCachedIsNetSimulated = IsNetSimulating();
 	ActiveGameplayEffects.OwnerIsNetAuthority = IsOwnerActorAuthoritative();
+	UpdateActiveGameplayEffectsReplicationCondition();
 }
 
 const FActiveGameplayEffect* UAbilitySystemComponent::GetActiveGameplayEffect(const FActiveGameplayEffectHandle Handle) const
@@ -1609,8 +1618,11 @@ void UAbilitySystemComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProper
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
 
-	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, SpawnedAttributes, Params);
+	Params.Condition = (bUseReplicationConditionForActiveGameplayEffects ? COND_Dynamic : COND_None);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, ActiveGameplayEffects, Params);
+
+	Params.Condition = COND_None;
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, SpawnedAttributes, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, ActiveGameplayCues, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, RepAnimMontageInfo, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, OwnerActor, Params);
@@ -1633,6 +1645,28 @@ void UAbilitySystemComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProper
 	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, MinimalReplicationTags, Params);
 
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+}
+
+void UAbilitySystemComponent::GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const
+{
+	if (ActiveGameplayEffects.IsUsingReplicationCondition())
+	{
+		DOREPDYNAMICCONDITION_INITCONDITION_FAST(ThisClass, ActiveGameplayEffects, ActiveGameplayEffects.GetReplicationCondition());
+	}
+	DOREPCUSTOMCONDITION_ACTIVE_FAST(ThisClass, MinimalReplicationGameplayCues, MinimalReplicationGameplayCues.ShouldReplicate());
+}
+
+void UAbilitySystemComponent::UpdateActiveGameplayEffectsReplicationCondition()
+{
+	if (ActiveGameplayEffects.IsUsingReplicationCondition())
+	{
+		DOREPDYNAMICCONDITION_SETCONDITION_FAST(ThisClass, ActiveGameplayEffects, ActiveGameplayEffects.GetReplicationCondition());
+	}
+}
+
+void UAbilitySystemComponent::UpdateMinimalReplicationGameplayCuesCondition()
+{
+	DOREPCUSTOMCONDITION_SETACTIVE_FAST(ThisClass, MinimalReplicationGameplayCues, MinimalReplicationGameplayCues.ShouldReplicate());
 }
 
 void UAbilitySystemComponent::ForceReplication()
@@ -1722,6 +1756,11 @@ bool UAbilitySystemComponent::HasAuthorityOrPredictionKey(const FGameplayAbility
 void UAbilitySystemComponent::SetReplicationMode(EGameplayEffectReplicationMode NewReplicationMode)
 {
 	ReplicationMode = NewReplicationMode;
+
+	// The changing of replication mode can affect replication conditions for ActiveGameplayEffects and MinimalReplicationGameplayCues.
+	// It's ok to call these before the component is replicated, GetReplicatedCustomConditionState will make sure the conditions are up-to-date.
+	UpdateActiveGameplayEffectsReplicationCondition();
+	UpdateMinimalReplicationGameplayCuesCondition();
 }
 
 IAbilitySystemReplicationProxyInterface* UAbilitySystemComponent::GetReplicationInterface()
