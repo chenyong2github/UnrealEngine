@@ -57,6 +57,8 @@ public:
 private:
 
 	TWeakPtr<class SNotificationItem> NotificationPtr;
+
+	static bool bAssetGuidelinesEnabled;
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
@@ -66,6 +68,9 @@ public:
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 	/** End UObject interface */
+
+	static void EnableAssetGuidelines(bool isEnabled) { bAssetGuidelinesEnabled = isEnabled; }
+	static bool AreAssetGuidelinesEnabled() { return bAssetGuidelinesEnabled; }
 
 private:
 	void EnableMissingGuidelines(TArray<FString> IncorrectPlugins, TArray<FIniStringValue> IncorrectProjectSettings);

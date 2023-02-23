@@ -35,6 +35,10 @@
 
 #define LOCTEXT_NAMESPACE "AssetGuideine"
 
+DEFINE_LOG_CATEGORY_STATIC(LogAssetGuideline, Warning, All);
+
+bool UAssetGuideline::bAssetGuidelinesEnabled = true;
+
 bool UAssetGuideline::IsPostLoadThreadSafe() const
 {
 	return true;
@@ -124,6 +128,12 @@ void UAssetGuideline::PostLoad()
 			FText NeedProjectSettings = LOCTEXT("NeedProjectSettings", "Missing Project Settings!");
 			FText NeedBothGuidelines = LOCTEXT("NeedBothGuidelines", "Missing Plugins & Project Settings!");
 			TitleText = !NeededPlugins.IsEmpty() && !NeededProjectSettings.IsEmpty() ? NeedBothGuidelines : !NeededPlugins.IsEmpty() ? NeedPlugins : NeedProjectSettings;
+		}
+
+		if (!bAssetGuidelinesEnabled)
+		{
+			UE_LOG(LogAssetGuideline, Warning, TEXT("%s %s"), *TitleText.ToString(), *SubText.ToString());
+			return;
 		}
 
 		auto WarningHyperLink = [](bool NeedPluginLink, bool NeedProjectSettingLink)
