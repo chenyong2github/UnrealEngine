@@ -971,6 +971,13 @@ void UPCGComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	}
 #endif
 
+	// Bookkeeping local components that might be deleted by the user.
+	// Making sure that the corresponding partition actor doesn't keep a dangling references
+	if (APCGPartitionActor* PAOwner = Cast<APCGPartitionActor>(GetOwner()))
+	{
+		PAOwner->RemoveLocalComponent(this);
+	}
+
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 

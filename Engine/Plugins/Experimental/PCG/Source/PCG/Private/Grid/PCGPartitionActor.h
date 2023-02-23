@@ -59,6 +59,9 @@ public:
 	bool RemoveGraphInstance(UPCGComponent* OriginalComponent);
 	void CleanupDeadGraphInstances(bool bRemoveNonNullOnly = false);
 
+	// When a local component is destroyed. It calls this function. We make sure we don't keep mappings that are dead.
+	void RemoveLocalComponent(UPCGComponent* LocalComponent);
+
 #if WITH_EDITOR
 	/** To be called after the creation of a new actor to copy the GridSize property (Editor only) into the PCGGridSize property */
 	void PostCreation();

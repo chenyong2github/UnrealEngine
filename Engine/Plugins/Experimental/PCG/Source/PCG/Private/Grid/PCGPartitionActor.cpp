@@ -59,6 +59,13 @@ void APCGPartitionActor::PostLoad()
 	}
 #endif
 
+	// Safe guard if we ever load a local that was deleted but not removed (like if the user deleted themselves the component)
+	// We can have multiple nullptr entries (if multiple components were removed), hence the while.
+	while (LocalToOriginal.Contains(nullptr))
+	{
+		LocalToOriginal.Remove(nullptr);
+	}
+
 	// Make sure that we don't track objects that do not exist anymore
 	CleanupDeadGraphInstances(/*bRemoveNullOnly=*/true);
 
@@ -374,6 +381,19 @@ bool APCGPartitionActor::RemoveGraphInstance(UPCGComponent* OriginalComponent)
 	LocalComponent->DestroyComponent();
 
 	return OriginalToLocal.IsEmpty();
+}
+
+void APCGPartitionActor::RemoveLocalComponent(UPCGComponent* LocalComponent)
+{
+	if (!LocalComponent)
+	{
+		return;
+	}
+
+	UPCGComponent* OriginalComponent = GetOriginalComponent(LocalComponent);
+
+	LocalToOriginal.Remove(LocalComponent);
+	OriginalToLocal.Remove(OriginalComponent);
 }
 
 #if WITH_EDITOR
