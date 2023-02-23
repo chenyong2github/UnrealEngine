@@ -29,6 +29,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "PakFileUtilities.h"
 #include "Policies/PrettyJsonPrintPolicy.h"
@@ -2519,6 +2520,11 @@ void FAssetRegistryGenerator::AddPackageAndDependenciesToChunk(FChunkPackageSet&
 			}
 		}
 	}
+}
+
+FString FAssetRegistryGenerator::GetTempPackagingDirectoryForPlatform(const FString& Platform) const
+{
+	return FPaths::ProjectSavedDir() / TEXT("TmpPackaging") / Platform;
 }
 
 void FAssetRegistryGenerator::FixupPackageDependenciesForChunks(FSandboxPlatformFile& InSandboxFile)
