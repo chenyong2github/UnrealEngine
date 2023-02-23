@@ -33,7 +33,7 @@ void SNiagaraGraphNodeConvert::SetDefaultTitleAreaWidget(TSharedRef<SOverlay> De
 		.OnCheckStateChanged(this, &SNiagaraGraphNodeConvert::ToggleShowWiring)
 		.IsChecked(this, &SNiagaraGraphNodeConvert::GetToggleButtonChecked)
 		.Cursor(EMouseCursor::Default)
-		.ToolTipText(LOCTEXT("ToggleShaderCode_Tooltip", "Toggle visibility of shader code."))
+		.ToolTipText(LOCTEXT("ToggleConvertNode_Tooltip", "Toggle visibility of convert node wiring."))
 		.Style(FAppStyle::Get(), "Graph.Node.AdvancedView")
 		[
 			SNew(SHorizontalBox)
@@ -130,6 +130,22 @@ void SNiagaraGraphNodeConvert::UpdateGraphNode()
 		ConvertNodeViewModel = MakeShareable(new FNiagaraConvertNodeViewModel(*ConvertNode));
 	}
 	SNiagaraGraphNode::UpdateGraphNode();
+	
+	if (ConvertNode && ConvertNode->IsLocalConstantValue())
+	{
+		// hide input pins when the node is just displaying a constant value
+		for (TSharedRef<SGraphPin> InPin : InputPins)
+		{
+			InPin->SetPinColorModifier(ConvertNode->IsWiringShown() ? FLinearColor::White : FLinearColor::Transparent);
+		}
+	}
+
+	// set visibility of add pins
+	if (InputPins.Num() > 0 && OutputPins.Num() > 0)
+	{
+		InputPins.Last()->SetVisibility(ConvertNode->IsWiringShown() ? EVisibility::Visible : EVisibility::Collapsed);
+		OutputPins.Last()->SetVisibility(ConvertNode->IsWiringShown() ? EVisibility::Visible : EVisibility::Collapsed);
+	}
 }
 
 void SNiagaraGraphNodeConvert::AddPin(const TSharedRef<SGraphPin>& PinToAdd)

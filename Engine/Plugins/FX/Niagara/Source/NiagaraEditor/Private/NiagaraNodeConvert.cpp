@@ -127,6 +127,17 @@ UNiagaraNodeConvert::UNiagaraNodeConvert() : UNiagaraNodeWithDynamicPins(), bIsW
 
 }
 
+void UNiagaraNodeConvert::PostLoad()
+{
+	Super::PostLoad();
+
+	if (IsLocalConstantValue())
+	{
+		// collapse convert nodes with simple constant values on load
+		SetWiringShown(false);
+	}
+}
+
 void UNiagaraNodeConvert::AllocateDefaultPins()
 {
 	CreateAddPin(EGPD_Input);
@@ -628,6 +639,7 @@ void UNiagaraNodeConvert::AutowireNewNode(UEdGraphPin* FromPin)
 				}
 			}
 		}
+		SetWiringShown(false);
 	}
 	else
 	{
@@ -842,6 +854,27 @@ bool UNiagaraNodeConvert::IsWiringShown() const
 void UNiagaraNodeConvert::SetWiringShown(bool bInShown)
 {
 	bIsWiringShown = bInShown;
+	VisualsChangedDelegate.Broadcast(this);
+}
+
+bool UNiagaraNodeConvert::IsLocalConstantValue() const
+{
+	FPinCollectorArray Outputs;
+	FPinCollectorArray Inputs;
+	GetOutputPins(Outputs);
+	GetInputPins(Inputs);
+	if (Outputs.Num() == 2 && IsAddPin(Outputs.Last()) && Inputs.Num() >= 2 && IsAddPin(Inputs.Last()))
+	{
+		for (UEdGraphPin* InPin : Inputs)
+		{
+			if (InPin->LinkedTo.Num() != 0)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+	return false;
 }
 
 void UNiagaraNodeConvert::RemoveExpandedRecord(const FNiagaraConvertPinRecord& InRecord)

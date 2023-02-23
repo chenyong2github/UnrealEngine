@@ -97,6 +97,10 @@ public:
 
 	UNiagaraNodeConvert();
 
+	//~ Begin UObject interface
+	virtual void PostLoad() override;
+	//~ End UObject interface
+
 	//~ UEdGraphNode interface
 	virtual void AllocateDefaultPins() override;
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
@@ -136,11 +140,13 @@ public:
 	void AddExpandedRecord(const FNiagaraConvertPinRecord& InRecord);
 	/** Is this socket expanded?*/
 	bool HasExpandedRecord(const FNiagaraConvertPinRecord& InRecord);
+
+	/** Returns true if the node has a constant value input and a single output */
+	bool IsLocalConstantValue() const;
+	
 private:
 	//~ EdGraphNode interface
 	virtual void OnPinRemoved(UEdGraphPin* Pin) override;
-
-private:
 
 	//A swizzle string set externally to instruct the autowiring code.
 	UPROPERTY()
