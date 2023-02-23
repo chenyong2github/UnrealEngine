@@ -29,27 +29,6 @@ public:
 };
 
 
-
-/**
-* Properties controlling how changes are baked out to static meshes on tool accept
-*/
-UCLASS()
-class MESHMODELINGTOOLSEXP_API UAcceptOutputProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-
-	/** If true, meshes cut into multiple pieces will be saved as separate assets on 'accept'. */
-	UPROPERTY(EditAnywhere, Category = ToolOutputOptions)
-	bool bExportSeparatedPiecesAsNewMeshAssets = true;
-};
-
-
-
-
-
-
 /**
  * Standard properties of the plane cut operation
  */
@@ -67,8 +46,12 @@ public:
 	bool bKeepBothHalves = false;
 
 	/** If keeping both halves, separate the two pieces by this amount */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bKeepBothHalves == true", UIMin = "0", ClampMin = "0", Delta = 0.5, LinearDeltaSensitivity = 1))
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bKeepBothHalves", UIMin = "0", ClampMin = "0", Delta = 0.5, LinearDeltaSensitivity = 1))
 	float SpacingBetweenHalves = 0;
+
+	/** If true, meshes cut into multiple pieces will be saved as separate assets on 'accept'. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bKeepBothHalves"))
+	bool bExportSeparatedPiecesAsNewMeshAssets = true;
 
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowPreview = true;
@@ -150,9 +133,6 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UPlaneCutToolProperties> BasicProperties;
-
-	UPROPERTY()
-	TObjectPtr<UAcceptOutputProperties> AcceptProperties;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UMeshOpPreviewWithBackgroundCompute>> Previews;

@@ -107,10 +107,6 @@ void UPlaneCutTool::Setup()
 	BasicProperties->RestoreProperties(this);
 	AddToolPropertySource(BasicProperties);
 
-	AcceptProperties = NewObject<UAcceptOutputProperties>(this, TEXT("Tool Accept Output Settings"));
-	AcceptProperties->RestoreProperties(this);
-	AddToolPropertySource(AcceptProperties);
-
 	ToolPropertyObjects.Add(this);
 
 	// initialize the PreviewMesh+BackgroundCompute object
@@ -248,7 +244,6 @@ void UPlaneCutTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	PlaneMechanic->Shutdown();
 	BasicProperties->SaveProperties(this);
-	AcceptProperties->SaveProperties(this);
 
 	// Restore (unhide) the source meshes
 	for (int Idx = 0; Idx < Targets.Num(); Idx++)
@@ -453,7 +448,7 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 			continue;
 		}
 
-		if (AcceptProperties->bExportSeparatedPiecesAsNewMeshAssets)
+		if (BasicProperties->bExportSeparatedPiecesAsNewMeshAssets)
 		{
 			TDynamicMeshScalarTriangleAttribute<int>* SubMeshIDs =
 				static_cast<TDynamicMeshScalarTriangleAttribute<int>*>(UseMesh->Attributes()->GetAttachedAttribute(

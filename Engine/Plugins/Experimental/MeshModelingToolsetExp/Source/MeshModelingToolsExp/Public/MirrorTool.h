@@ -15,6 +15,9 @@
 
 #include "MirrorTool.generated.h"
 
+class UCreateMeshObjectTypeProperties;
+class UOnAcceptHandleSourcesProperties;
+
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UMirrorToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
@@ -26,11 +29,11 @@ public:
 UENUM()
 enum class EMirrorSaveMode : uint8
 {
-	/**  Save the results in place of the original assets. */
-	UpdateAssets = 0,
+	/**  Save the results in place of the original input objects. */
+	InputObjects = 0,
 
-	/** Save the results as new assets. */
-	CreateNewAssets = 1,
+	/** Save the results as new objects. */
+	NewObjects = 1,
 };
 
 UENUM()
@@ -43,19 +46,6 @@ enum class EMirrorOperationMode : uint8
 	MirrorExisting = 1,
 };
 
-UENUM()
-enum class EMirrorCtrlClickBehavior : uint8
-{
-	/** Move the mirror plane to clicked location without adjusting its normal. */
-	Reposition = 0,
-
-	/** Move the mirror plane and adjust its normal according to click location. */
-	RepositionAndReorient = 1,
-};
-
-/**
- * 
- */
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UMirrorToolProperties : public UInteractiveToolPropertySet
 {
@@ -90,22 +80,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (
 		EditCondition = "bWeldVerticesOnMirrorPlane && OperationMode == EMirrorOperationMode::MirrorAndAppend", EditConditionHides))
 	bool bAllowBowtieVertexCreation = false;
-
-	/** What Ctrl + clicking does to the mirror plane. */
-	UPROPERTY(EditAnywhere, Category = RepositionOptions)
-	EMirrorCtrlClickBehavior CtrlClickBehavior = EMirrorCtrlClickBehavior::Reposition;
-
-	/** If true the "Preset Mirror Directions" buttons only change the plane orientation, not location. */
-	UPROPERTY(EditAnywhere, Category = RepositionOptions, AdvancedDisplay)
-	bool bButtonsOnlyChangeOrientation = false;
 	
 	/** Whether to show the preview. */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowPreview = true;
 
 	/** How to save the result. */
-	UPROPERTY(EditAnywhere, Category = ToolOutputOptions)
-	EMirrorSaveMode SaveMode = EMirrorSaveMode::UpdateAssets;
+	UPROPERTY(EditAnywhere, Category = OutputOptions)
+	EMirrorSaveMode WriteTo = EMirrorSaveMode::InputObjects;
 };
 
 
@@ -154,6 +136,10 @@ public:
 	/** Move the mirror plane to center of bounding box without changing its normal. */
 	UFUNCTION(CallInEditor, Category = RepositionPlane)
 	void ShiftToCenter() { PostAction(EMirrorToolAction::ShiftToCenter); }
+
+	/** If true the "Preset Mirror Directions" buttons only change the plane orientation, not location. */
+	UPROPERTY(EditAnywhere, Category = PresetMirrorDirections)
+	bool bButtonsOnlyChangeOrientation = false;
 
 	/** Move the mirror plane and adjust its normal to mirror entire selection leftward. */
 	UFUNCTION(CallInEditor, Category = PresetMirrorDirections, meta = (DisplayPriority = 1))
@@ -211,6 +197,12 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UMirrorToolProperties> Settings = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UOnAcceptHandleSourcesProperties> HandleSourcesProperties = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UMirrorToolActionPropertySet> ToolActions = nullptr;
