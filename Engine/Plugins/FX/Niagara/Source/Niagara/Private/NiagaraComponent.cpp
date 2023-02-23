@@ -2506,7 +2506,7 @@ void UNiagaraComponent::SetVariableActor(FName InVariableName, AActor* InValue)
 
 void UNiagaraComponent::SetNiagaraVariableActor(const FString& InVariableName, AActor* InValue)
 {
-	SetNiagaraVariableObject(InVariableName, InValue);
+	SetVariableObject(FName(*InVariableName), InValue);
 }
 
 void UNiagaraComponent::SetVariableObject(FName InVariableName, UObject* InValue)
