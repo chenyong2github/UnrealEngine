@@ -95,8 +95,8 @@ static void DoDrawRectangleFlagOverride(EDrawRectangleFlags& Flags)
 namespace UE::Renderer::PostProcess
 {
 	void SetDrawRectangleParameters(
-		FRHICommandList& RHICmdList,
-		const TShaderRef<FShader>& VertexShader,
+		FRHIBatchedShaderParameters& BatchedParameters,
+		const FShader* VertexShader,
 		float X,
 		float Y,
 		float SizeX,
@@ -119,13 +119,13 @@ namespace UE::Renderer::PostProcess
 			1.0f / TargetSize.X, 1.0f / TargetSize.Y,
 			1.0f / TextureSize.X, 1.0f / TextureSize.Y);
 
-		SetUniformBufferParameterImmediate(RHICmdList, VertexShader.GetVertexShader(), VertexShader->GetUniformBufferParameter<FDrawRectangleParameters>(), Parameters);
+		SetUniformBufferParameterImmediate(BatchedParameters, VertexShader->GetUniformBufferParameter<FDrawRectangleParameters>(), Parameters);
 	}
 
-	void SetDrawRectangleParameters(FRHICommandList& RHICmdList, const TShaderRef<FShader>& VertexShader, const FIntPoint& ViewSize)
+	void SetDrawRectangleParameters(FRHIBatchedShaderParameters& BatchedParameters, const FShader* VertexShader, const FIntPoint& ViewSize)
 	{
 		SetDrawRectangleParameters(
-			RHICmdList,
+			BatchedParameters,
 			VertexShader,
 			0.0f, 0.0f,
 			ViewSize.X, ViewSize.Y,
@@ -136,9 +136,9 @@ namespace UE::Renderer::PostProcess
 		);
 	}
 
-	void SetDrawRectangleParameters(FRHICommandList& RHICmdList, const TShaderRef<FShader>& VertexShader, const FSceneView& View)
+	void SetDrawRectangleParameters(FRHIBatchedShaderParameters& BatchedParameters, const FShader* VertexShader, const FSceneView& View)
 	{
-		SetDrawRectangleParameters(RHICmdList, VertexShader, View.UnconstrainedViewRect.Size());
+		SetDrawRectangleParameters(BatchedParameters, VertexShader, View.UnconstrainedViewRect.Size());
 	}
 }
 
@@ -168,7 +168,11 @@ inline void InternalDrawRectangle(
 		Flags = EDRF_Default;
 	}
 
-	UE::Renderer::PostProcess::SetDrawRectangleParameters(RHICmdList, VertexShader, X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize);
+	{
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+		UE::Renderer::PostProcess::SetDrawRectangleParameters(BatchedParameters, VertexShader.GetShader(), X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize);
+		RHICmdList.SetBatchedShaderParameters(VertexShader.GetVertexShader(), BatchedParameters);
+	}
 
 	if(Flags == EDRF_UseTesselatedIndexBuffer)
 	{
@@ -283,11 +287,15 @@ void DrawHmdMesh(
 	const TShaderRef<FShader>& VertexShader
 	)
 {
-	UE::Renderer::PostProcess::SetDrawRectangleParameters(
-		RHICmdList, VertexShader,
-		X, Y, SizeX, SizeY, U, V, SizeU, SizeV,
-		TargetSize, TextureSize
-	);
+	{
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+		UE::Renderer::PostProcess::SetDrawRectangleParameters(
+			BatchedParameters, VertexShader.GetShader(),
+			X, Y, SizeX, SizeY, U, V, SizeU, SizeV,
+			TargetSize, TextureSize
+		);
+		RHICmdList.SetBatchedShaderParameters(VertexShader.GetVertexShader(), BatchedParameters);
+	}
 
 	if (GEngine->XRSystem->GetHMDDevice())
 	{

@@ -15,8 +15,8 @@ template<typename ShaderType> using TShaderRef = TShaderRefBase<ShaderType, FSha
 namespace UE::Renderer::PostProcess
 {
 	RENDERER_API void SetDrawRectangleParameters(
-		FRHICommandList& RHICmdList,
-		const TShaderRef<FShader>& VertexShader,
+		FRHIBatchedShaderParameters& BatchedParameters,
+		const FShader* VertexShader,
 		float X,
 		float Y,
 		float SizeX,
@@ -28,8 +28,8 @@ namespace UE::Renderer::PostProcess
 		FIntPoint TargetSize,
 		FIntPoint TextureSize);
 
-	RENDERER_API void SetDrawRectangleParameters(FRHICommandList& RHICmdList, const TShaderRef<FShader>& VertexShader, const FIntPoint& ViewSize);
-	RENDERER_API void SetDrawRectangleParameters(FRHICommandList& RHICmdList, const TShaderRef<FShader>& VertexShader, const FSceneView& View);
+	RENDERER_API void SetDrawRectangleParameters(FRHIBatchedShaderParameters& BatchedParameters, const FShader* VertexShader, const FIntPoint& ViewSize);
+	RENDERER_API void SetDrawRectangleParameters(FRHIBatchedShaderParameters& BatchedParameters, const FShader* VertexShader, const FSceneView& View);
 
 	/**
 	 * Draws a quad with the given vertex positions and UVs in denormalized pixel/texel coordinates.

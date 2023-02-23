@@ -170,10 +170,10 @@ public:
 		: TPostProcessMaterialShader<bIsMobileRenderer>(Initializer)
 	{}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView View)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View)
 	{
-		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
-		TPostProcessMaterialShader<bIsMobileRenderer>::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
+		UE::Renderer::PostProcess::SetDrawRectangleParameters(BatchedParameters, this, View);
+		TPostProcessMaterialShader<bIsMobileRenderer>::SetViewParameters(BatchedParameters, View, View.ViewUniformBuffer);
 	}
 };
 
@@ -201,11 +201,10 @@ public:
 		: TPostProcessMaterialShader<bIsMobileRenderer>(Initializer)
 	{}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
 	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-		TPostProcessMaterialShader<bIsMobileRenderer>::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		TPostProcessMaterialShader<bIsMobileRenderer>::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+		TPostProcessMaterialShader<bIsMobileRenderer>::SetViewParameters(BatchedParameters, View, View.ViewUniformBuffer);
+		TPostProcessMaterialShader<bIsMobileRenderer>::SetParameters(BatchedParameters, MaterialProxy, Material, View);
 	}
 };
 
@@ -394,23 +393,21 @@ void FAppleARKitVideoOverlay::RenderVideoOverlayWithMaterial(FRHICommandListImme
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-	UE::Renderer::PostProcess::SetDrawRectangleParameters(RHICmdList, VertexShader, InView);
-
 	if (bIsMobileRenderer)
 	{
 		TShaderRef<FARKitCameraOverlayMobileVS> VertexShaderPtr(static_cast<FARKitCameraOverlayMobileVS*>(VertexShader.GetShader()), *MaterialShaderMap);
 		TShaderRef<FARKitCameraOverlayMobilePS> PixelShaderPtr(static_cast<FARKitCameraOverlayMobilePS*>(PixelShader.GetShader()), *MaterialShaderMap);
 
-		VertexShaderPtr->SetParameters(RHICmdList, InView);
-		PixelShaderPtr->SetParameters(RHICmdList, InView, MaterialProxy, CameraMaterial);
+		SetShaderParametersLegacyVS(RHICmdList, VertexShaderPtr, InView);
+		SetShaderParametersLegacyPS(RHICmdList, PixelShaderPtr, InView, MaterialProxy, CameraMaterial);
 	}
 	else
 	{
 		TShaderRef<FARKitCameraOverlayVS> VertexShaderPtr(static_cast<FARKitCameraOverlayVS*>(VertexShader.GetShader()), *MaterialShaderMap);
 		TShaderRef<FARKitCameraOverlayPS> PixelShaderPtr(static_cast<FARKitCameraOverlayPS*>(PixelShader.GetShader()), *MaterialShaderMap);
 
-		VertexShaderPtr->SetParameters(RHICmdList, InView);
-		PixelShaderPtr->SetParameters(RHICmdList, InView, MaterialProxy, CameraMaterial);
+		SetShaderParametersLegacyVS(RHICmdList, VertexShaderPtr, InView);
+		SetShaderParametersLegacyPS(RHICmdList, PixelShaderPtr, InView, MaterialProxy, CameraMaterial);
 	}
 	
 	if (OverlayVertexBufferRHI && IndexBufferRHI)
