@@ -630,36 +630,36 @@ struct FLightParticlePayload
 struct FBeam2TypeDataPayload
 {
 	/** The source of this beam											*/
-	FVector3f		SourcePoint;
+	FVector		SourcePoint;
 	/** The source tangent of this beam									*/
-	FVector3f		SourceTangent;
+	FVector		SourceTangent;
 	/** The stength of the source tangent of this beam					*/
 	float		SourceStrength;
 
 	/** The target of this beam											*/
-	FVector3f		TargetPoint;
+	FVector		TargetPoint;
 	/** The target tangent of this beam									*/
-	FVector3f		TargetTangent;
+	FVector		TargetTangent;
 	/** The stength of the Target tangent of this beam					*/
 	float		TargetStrength;
 
 	/** Target lock, extreme max, Number of noise points				*/
-	int32			Lock_Max_NumNoisePoints;
+	int32		Lock_Max_NumNoisePoints;
 
 	/** Number of segments to render (steps)							*/
-	int32			InterpolationSteps;
+	int32		InterpolationSteps;
 
 	/** Direction to step in											*/
-	FVector3f		Direction;
+	FVector		Direction;
 	/** StepSize (for each segment to be rendered)						*/
-	float		StepSize;
+	double		StepSize;
 	/** Number of segments to render (steps)							*/
-	int32			Steps;
+	int32		Steps;
 	/** The 'extra' amount to travel (partial segment)					*/
 	float		TravelRatio;
 
 	/** The number of triangles to render for this beam					*/
-	int32			TriangleCount;
+	int32		TriangleCount;
 
 	/**
 	 *	Type and indexing flags
@@ -699,12 +699,12 @@ struct FBeamParticleModifierPayloadData
 	uint32	bScaleTangent:1;
 	uint32	bModifyStrength:1;
 	uint32	bScaleStrength:1;
-	FVector3f		Position;
-	FVector3f		Tangent;
-	float		Strength;
+	FVector	Position;
+	FVector	Tangent;
+	float	Strength;
 
 	// Helper functions
-	FORCEINLINE void UpdatePosition(FVector3f& Value)
+	FORCEINLINE void UpdatePosition(FVector& Value)
 	{
 		if (bModifyPosition == true)
 		{
@@ -719,16 +719,16 @@ struct FBeamParticleModifierPayloadData
 		}
 	}
 
-	FORCEINLINE void UpdateTangent(FVector3f& Value, bool bAbsolute)
+	FORCEINLINE void UpdateTangent(FVector& Value, bool bAbsolute)
 	{
 		if (bModifyTangent == true)
 		{
-			FVector3f ModTangent;
+			FVector ModTangent;
 			if (bAbsolute == false)
 			{
 				// Transform the modified tangent so it is relative to the real tangent
-				const FQuat RotQuat = FQuat::FindBetweenNormals(FVector(1.0f, 0.0f, 0.0f), FVector(Value));
-				ModTangent = FVector3f(RotQuat.RotateVector(FVector(Tangent)));
+				const FQuat RotQuat = FQuat::FindBetweenNormals(FVector(1.0f, 0.0f, 0.0f), Value);
+				ModTangent = RotQuat.RotateVector(Tangent);
 			}
 			else
 			{
