@@ -263,17 +263,17 @@ INLINE_ATTR FNaniteMaterialFlags UnpackNaniteMaterialFlags(UINT_TYPE Packed)
 	return MaterialFlags;
 }
 
-bool IsNaniteMaterialVertexProgrammable(FNaniteMaterialFlags MaterialFlags)
+INLINE_ATTR bool IsNaniteMaterialVertexProgrammable(FNaniteMaterialFlags MaterialFlags)
 {
 	return MaterialFlags.bWorldPositionOffset;
 }
 
-bool IsNaniteMaterialPixelProgrammable(FNaniteMaterialFlags MaterialFlags)
+INLINE_ATTR bool IsNaniteMaterialPixelProgrammable(FNaniteMaterialFlags MaterialFlags)
 {
 	return MaterialFlags.bPixelDepthOffset || MaterialFlags.bPixelDiscard;
 }
 
-bool IsNaniteMaterialProgrammable(FNaniteMaterialFlags MaterialFlags)
+INLINE_ATTR bool IsNaniteMaterialProgrammable(FNaniteMaterialFlags MaterialFlags)
 {
 	return IsNaniteMaterialVertexProgrammable(MaterialFlags) || IsNaniteMaterialPixelProgrammable(MaterialFlags);
 }
