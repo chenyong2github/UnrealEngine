@@ -760,7 +760,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 				HairOcclusionShadingParameters,
 				LightParameters,
 				HairTransmissionParameters,
-				0.f/*SubsurfaceSamplingMeanFreePath/*,
+				0.f/*SubsurfaceSamplingMeanFreePath*/,
 				RequestedSamplePerPixel);
 		}
 		#endif
