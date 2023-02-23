@@ -28,7 +28,8 @@ namespace UnrealBuildTool.Rules
 				"DetailCustomizations",
 				"ComponentVisualizers",
 				"Projects",
-				"EditorSubsystem"
+				"EditorSubsystem",
+				"StructUtils"
 			}
 			);
 

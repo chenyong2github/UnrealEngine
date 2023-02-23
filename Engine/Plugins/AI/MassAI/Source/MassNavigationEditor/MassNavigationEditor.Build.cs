@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 				"MassNavigation",
 				"MassZoneGraphNavigation",
 				"ZoneGraph",
+				"StructUtils"
 			}
 			);
 
