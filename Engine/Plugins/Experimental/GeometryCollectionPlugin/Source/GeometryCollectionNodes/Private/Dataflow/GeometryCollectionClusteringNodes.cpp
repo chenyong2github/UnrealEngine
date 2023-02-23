@@ -60,6 +60,7 @@ void FAutoClusterDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 			float InClusterFraction = GetValue<float>(Context, &ClusterFraction);
 			float InSiteSize = GetValue<float>(Context, &SiteSize);
 			bool InAutoCluster = AutoCluster;
+			bool InEnforceSiteParameters = EnforceSiteParameters;
 			bool InAvoidIsolated = AvoidIsolated;
 
 			TArray<int32> SelectedBones;
@@ -72,7 +73,8 @@ void FAutoClusterDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 				InClusterFraction,
 				InSiteSize,
 				InAutoCluster,
-				InAvoidIsolated);
+				InAvoidIsolated, 
+				InEnforceSiteParameters);
 
 			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
 		}

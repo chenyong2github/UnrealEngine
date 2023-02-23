@@ -436,7 +436,8 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 	const float SiteCountFraction,
 	const float SiteSize,
 	const bool bEnforceConnectivity,
-	const bool bAvoidIsolated)
+	const bool bAvoidIsolated,
+	const bool bEnforceSiteParameters)
 {
 	FFractureEngineBoneSelection Selection(GeometryCollection, BoneIndices);
 
@@ -444,7 +445,7 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 
 	for (const int32 ClusterIndex : Selection.GetSelectedBones())
 	{
-		AutoCluster(GeometryCollection, ClusterIndex, ClusterSizeMethod, SiteCount, SiteCountFraction, SiteSize, bEnforceConnectivity, bAvoidIsolated);
+		AutoCluster(GeometryCollection, ClusterIndex, ClusterSizeMethod, SiteCount, SiteCountFraction, SiteSize, bEnforceConnectivity, bAvoidIsolated, bEnforceSiteParameters);
 	}
 }
 
@@ -455,50 +456,67 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 	const float SiteCountFraction,
 	const float SiteSize,
 	const bool bEnforceConnectivity,
-	const bool bAvoidIsolated)
+	const bool bAvoidIsolated,
+	const bool bEnforceSiteParameters)
 {
 	FVoronoiPartitioner VoronoiPartition(&GeometryCollection, ClusterIndex);
 	int32 NumChildren = GeometryCollection.Children[ClusterIndex].Num();
 
-	int32 SiteCountToUse = 1;
+	int32 DesiredSiteCountToUse = 1;
 	if (ClusterSizeMethod == EFractureEngineClusterSizeMethod::ByNumber)
 	{
-		SiteCountToUse = SiteCount;
+		DesiredSiteCountToUse = SiteCount;
 	}
 	else if (ClusterSizeMethod == EFractureEngineClusterSizeMethod::ByFractionOfInput)
 	{
-		SiteCountToUse = FMath::Max(2, NumChildren * SiteCountFraction);
+		DesiredSiteCountToUse = FMath::Max(2, NumChildren * SiteCountFraction);
 	}
 	else if (ClusterSizeMethod == EFractureEngineClusterSizeMethod::BySize)
 	{
 		float TotalVolume = GeometryCollection.GetBoundingBox().GetBox().GetVolume();
 		float DesiredVolume = FMath::Pow(SiteSize, 3);
-		SiteCountToUse = FMath::Max(1, TotalVolume / DesiredVolume);
+		DesiredSiteCountToUse = FMath::Max(1, TotalVolume / DesiredVolume);
 	}
 
-	VoronoiPartition.KMeansPartition(SiteCountToUse);
-	if (VoronoiPartition.GetPartitionCount() == 0)
+	int32 SiteCountToUse = DesiredSiteCountToUse;
+	int32 PreviousPartitionCount = TNumericLimits<int32>::Max();
+	bool bIterate = false;
+	do
 	{
-		return;
-	}
+		VoronoiPartition.KMeansPartition(SiteCountToUse);
+		if (VoronoiPartition.GetPartitionCount() == 0)
+		{
+			return;
+		}
 
-	bool bNeedProximity = bEnforceConnectivity || bAvoidIsolated;
-	if (bNeedProximity)
-	{
-		FGeometryCollectionProximityUtility ProximityUtility(&GeometryCollection);
-		ProximityUtility.UpdateProximity();
-	}
+		bool bNeedProximity = bEnforceConnectivity || bAvoidIsolated;
+		if (bNeedProximity)
+		{
+			FGeometryCollectionProximityUtility ProximityUtility(&GeometryCollection);
+			ProximityUtility.UpdateProximity();
+		}
 
-	if (bEnforceConnectivity)
-	{
-		VoronoiPartition.SplitDisconnectedPartitions(&GeometryCollection);
-	}
+		if (bEnforceConnectivity)
+		{
+			VoronoiPartition.SplitDisconnectedPartitions(&GeometryCollection);
+		}
 
-	if (bAvoidIsolated)
-	{
-		// attempt to remove isolated via merging (may not succeed, as it only merges if there is a cluster in proximity)
-		VoronoiPartition.MergeSingleElementPartitions(&GeometryCollection);
-	}
+		if (bAvoidIsolated)
+		{
+			// attempt to remove isolated via merging (may not succeed, as it only merges if there is a cluster in proximity)
+			VoronoiPartition.MergeSingleElementPartitions(&GeometryCollection);
+		}
+		const int32 IsolatedPartitionToIgnore = bAvoidIsolated ? VoronoiPartition.GetIsolatedPartitionCount() : 0;
+		const int32 PartitionCount = VoronoiPartition.GetNonEmptyPartitionCount() - IsolatedPartitionToIgnore;
+		bIterate = bEnforceSiteParameters				 // Is the feature enabled?
+			&& (PartitionCount > DesiredSiteCountToUse)  // Have we reached the desired outcome
+			&& (SiteCountToUse > 1)						 // Is SiteCount large enough ?
+			&& (PartitionCount < PreviousPartitionCount);// Are we progressing ?
+		if(bIterate)
+		{
+			SiteCountToUse--;
+		}
+	} while (bIterate);
 
 	int32 NonEmptyPartitionCount = VoronoiPartition.GetNonEmptyPartitionCount();
 	bool bHasEmptyClusters = NonEmptyPartitionCount > 0;
@@ -537,6 +555,5 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 	FGeometryCollectionClusteringUtility::RecursivelyUpdateChildBoneNames(ClusterIndex, GeometryCollection.Children, GeometryCollection.BoneName);
 	FGeometryCollectionClusteringUtility::ValidateResults(&GeometryCollection);
 }
-
 
 

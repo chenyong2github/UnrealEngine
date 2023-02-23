@@ -29,6 +29,11 @@ public:
 		return PartitionSize.Num() - Algo::Count(PartitionSize, 0);
 	}
 
+	int32 GetIsolatedPartitionCount() const
+	{
+		return Algo::Count(PartitionSize, 1);
+	}
+
 	/** return the GeometryCollection TranformIndices within the partition. */
 	TArray<int32> GetPartition(int32 PartitionIndex) const;
 
@@ -79,7 +84,8 @@ public:
 		const float SiteCountFraction,
 		const float SiteSize,
 		const bool bEnforceConnectivity,
-		const bool bAvoidIsolated);
+		const bool bAvoidIsolated,
+		const bool bEnforceSiteParameters);
 
 	static void AutoCluster(FGeometryCollection& GeometryCollection,
 		const int32 ClusterIndex,
@@ -88,7 +94,8 @@ public:
 		const float SiteCountFraction,
 		const float SiteSize,
 		const bool bEnforceConnectivity,
-		const bool bAvoidIsolated);
+		const bool bAvoidIsolated,
+		const bool bEnforceSiteParameters);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

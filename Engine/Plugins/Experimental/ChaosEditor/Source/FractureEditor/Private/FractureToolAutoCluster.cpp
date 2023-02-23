@@ -134,7 +134,8 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 						AutoClusterSettings->SiteCountFraction,
 						AutoClusterSettings->SiteSize,
 						AutoClusterSettings->bEnforceConnectivity,
-						AutoClusterSettings->bAvoidIsolated);
+						AutoClusterSettings->bAvoidIsolated,
+						AutoClusterSettings->bEnforceSiteParameters);
 				}
 
 				Context.GenerateGuids(StartTransformCount);
