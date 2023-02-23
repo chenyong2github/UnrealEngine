@@ -11,6 +11,7 @@
 #include "VT/VirtualTexture.h"
 #include "VT/VirtualTextureBuilder.h"
 #include "VT/VirtualTextureScalability.h"
+#include "SceneUtils.h"
 
 #define LOCTEXT_NAMESPACE "VirtualTexture"
 
@@ -59,13 +60,15 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 
 		const ERuntimeVirtualTextureMaterialType MaterialType = VirtualTexture->GetMaterialType();
 		const bool bClearTextures = VirtualTexture->GetClearTextures();
+		FSceneInterface* SceneInterface = InComponent->GetScene();
+		const EShadingPath ShadingPath = SceneInterface ? SceneInterface->GetShadingPath() : EShadingPath::Deferred;
 
 		// The producer object created here will be passed into the virtual texture system which will take ownership.
-		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(ProducerDesc, ProducerId, MaterialType, bClearTextures, InComponent->GetScene(), Transform, Bounds);
-
+		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(ProducerDesc, ProducerId, MaterialType, bClearTextures, SceneInterface, Transform, Bounds);
+		
 		// Create a producer for the streaming low mips. 
 		// This is bound with the main producer so that one allocated VT can use both runtime or streaming producers dependent on mip level.
-		if (InComponent->IsStreamingLowMips())
+		if (InComponent->IsStreamingLowMips(ShadingPath))
 		{
 			if (CVarVTStreamingMips.GetValueOnAnyThread() == 0)
 			{
@@ -79,7 +82,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 				});
 #endif
 			}
-			else if (InComponent->IsStreamingTextureInvalid())
+			else if (InComponent->IsStreamingTextureInvalid(ShadingPath))
 			{
 #if !UE_BUILD_SHIPPING
 				// Notify that streaming texture is invalid since this can cause performance regression.
@@ -94,7 +97,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 			}
 			else
 			{
-				UVirtualTexture2D* StreamingTexture = InComponent->GetStreamingTexture()->Texture;
+				UVirtualTexture2D* StreamingTexture = InComponent->GetStreamingTexture()->GetVirtualTexture(ShadingPath);
 
 				FVTProducerDescription StreamingProducerDesc;
 				IVirtualTexture* StreamingProducer = RuntimeVirtualTexture::CreateStreamingTextureProducer(StreamingTexture, ProducerDesc, StreamingProducerDesc);

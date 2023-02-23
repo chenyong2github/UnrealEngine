@@ -11,6 +11,7 @@
 class URuntimeVirtualTexture;
 class UTexture2D;
 class UVirtualTextureBuilder;
+enum class EShadingPath;
 
 /** Component used to place a URuntimeVirtualTexture in the world. */
 UCLASS(Blueprintable, ClassGroup = Rendering, HideCategories = (Activation, Collision, Cooking, Mobility, LOD, Object, Physics, Rendering))
@@ -120,7 +121,7 @@ public:
 	int32 NumStreamingMips() const { return FMath::Clamp(StreamLowMips, 0, 12); }
 
 	/** Get if we want to use any streaming low mips on this component. */
-	bool IsStreamingLowMips() const;
+	bool IsStreamingLowMips(EShadingPath ShadingPath) const;
 
 	/** Public getter for debug streaming mips flag. */
 	bool IsBuildDebugStreamingMips() { return bBuildDebugStreamingMips; }
@@ -129,13 +130,15 @@ public:
 	TEnumAsByte<ETextureLossyCompressionAmount> GetLossyCompressionAmount() const { return LossyCompressionAmount; }
 
 	/** Returns true if there are StreamingTexure contents but they are not valid for use. */
-	bool IsStreamingTextureInvalid() const;
+	bool IsStreamingTextureInvalid(EShadingPath ShadingPath) const;
 
 #if WITH_EDITOR
+	/** Returns true if there are StreamingTexure contents but they are not valid for use, taking into account all rendering modes */
+	bool IsStreamingTextureInvalid() const;
 	/** Set a new asset to hold the low mip streaming texture. This should only be called directly before setting data to the new asset. */
 	void SetStreamingTexture(UVirtualTextureBuilder* InTexture) { StreamingTexture = InTexture; }
 	/** Initialize the low mip streaming texture with the passed in size and data. */
-	void InitializeStreamingTexture(uint32 InSizeX, uint32 InSizeY, uint8* InData);
+	void InitializeStreamingTexture(EShadingPath ShadingPath, uint32 InSizeX, uint32 InSizeY, uint8* InData);
 #endif
 
 #if WITH_EDITOR

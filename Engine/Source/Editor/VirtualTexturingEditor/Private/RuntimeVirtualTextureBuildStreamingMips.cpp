@@ -13,6 +13,7 @@
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureRender.h"
 #include "VT/VirtualTextureBuilder.h"
+#include "SceneUtils.h"
 
 namespace
 {
@@ -123,6 +124,12 @@ namespace RuntimeVirtualTexture
 {
 	bool HasStreamedMips(URuntimeVirtualTextureComponent* InComponent)
 	{
+		EShadingPath ShadingPath = (InComponent && InComponent->GetScene()) ? InComponent->GetScene()->GetShadingPath() : EShadingPath::Deferred;
+		return HasStreamedMips(ShadingPath, InComponent);
+	}
+
+	bool HasStreamedMips(EShadingPath ShadingPath, URuntimeVirtualTextureComponent* InComponent)
+	{
 		if (InComponent == nullptr)
 		{
 			return false;
@@ -138,12 +145,23 @@ namespace RuntimeVirtualTexture
 			return false;
 		}
 
+		if (ShadingPath == EShadingPath::Mobile && !InComponent->GetStreamingTexture()->bSeparateTextureForMobile)
+		{
+			return false;
+		}
+
 		return true;
 	}
-
+	
 	bool BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent, ERuntimeVirtualTextureDebugType DebugType)
 	{
-		if (!HasStreamedMips(InComponent))
+		EShadingPath ShadingPath = (InComponent && InComponent->GetScene()) ? InComponent->GetScene()->GetShadingPath() : EShadingPath::Deferred;
+		return BuildStreamedMips(ShadingPath, InComponent, DebugType);
+	}
+
+	bool BuildStreamedMips(EShadingPath ShadingPath, URuntimeVirtualTextureComponent* InComponent, ERuntimeVirtualTextureDebugType DebugType)
+	{
+		if (!HasStreamedMips(ShadingPath, InComponent))
 		{
 			return true;
 		}
@@ -304,7 +322,7 @@ namespace RuntimeVirtualTexture
 		// Place final pixel data into the runtime virtual texture
 		Task.EnterProgressFrame(TaskWorkBuildBulkData);
 
-		InComponent->InitializeStreamingTexture(ImageSizeX, ImageSizeY, (uint8*)FinalPixels.GetData());
+		InComponent->InitializeStreamingTexture(ShadingPath, ImageSizeX, ImageSizeY, (uint8*)FinalPixels.GetData());
 
 		return true;
 	}
