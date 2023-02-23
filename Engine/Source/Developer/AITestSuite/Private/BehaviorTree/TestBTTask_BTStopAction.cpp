@@ -70,7 +70,10 @@ void DoBTStopAction(UBehaviorTreeComponent& OwnerComp, const EBTTestStopAction S
 		OwnerComp.Cleanup();
 		break;
 	case EBTTestStopAction::RestartTree:
-		OwnerComp.RestartTree();
+		OwnerComp.RestartTree(EBTRestartMode::SkipReAddedNodes);
+		break;
+	case EBTTestStopAction::FullRestartTree:
+		OwnerComp.RestartTree(EBTRestartMode::ForceRestartAllNodes);
 		break;
 	case EBTTestStopAction::StartTree:
 		UBehaviorTree* NewBTAsset = NewObject<UBehaviorTree>(GetTransientPackage(), NAME_None, RF_NoFlags, OwnerComp.GetRootTree());

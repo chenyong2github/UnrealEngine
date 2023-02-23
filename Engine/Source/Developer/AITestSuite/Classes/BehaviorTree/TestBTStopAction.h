@@ -12,6 +12,7 @@ enum class EBTTestStopAction : uint8
 	UnInitialize,
 	Cleanup,
 	RestartTree,
+	FullRestartTree,
 	StartTree,
 };
 

@@ -3845,4 +3845,103 @@ struct FAITest_BTCleanupDuringTaskServiceCeaseRelevant : public FAITest_SimpleBT
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringTaskServiceCeaseRelevant, "System.AI.Behavior Trees.Cleanup: during task service cease relevant")
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// Restart tests
+//////////////////////////////////////////////////////////////////////////////////////////////////
+struct FAITest_BTRestartDuringTaskExecute : public FAITest_SimpleBT
+{
+	FAITest_BTRestartDuringTaskExecute()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			RestartTaskTaskExecute,
+			ServiceActivate2,
+			ServiceDeactivate2,
+			ServiceTick2,
+			Task2Execute
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+			{
+				FBTBuilder::WithServiceLog(Comp1Node, ServiceActivate2, ServiceDeactivate2, ServiceTick2, /*TickBoolKeyName*/NAME_None, /*bCallOnTickSearch*/false, /*BecomeRelevantBoolKeyName*/TEXT("Bool1"));
+
+				// RestartTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, RestartTaskTaskExecute, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringExecute, EBTTestStopAction::RestartTree);
+			}
+			FBTBuilder::AddTask(CompNode, Task2Execute, EBTNodeResult::Succeeded);
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(ServiceActivate2/*5*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(ServiceTick2/*7*/);
+		ExpectedResult.Add(RestartTaskTaskExecute/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(ServiceTick2/*7*/);
+		ExpectedResult.Add(ServiceDeactivate2/*6*/);
+		ExpectedResult.Add(Task2Execute/*8*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTRestartDuringTaskExecute, "System.AI.Behavior Trees.Restart: during task execute")
+
+struct FAITest_BTFullRestartDuringTaskExecute : public FAITest_SimpleBT
+{
+	FAITest_BTFullRestartDuringTaskExecute()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			RestartTaskTaskExecute,
+			ServiceActivate2,
+			ServiceDeactivate2,
+			ServiceTick2,
+			Task2Execute
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+			{
+				FBTBuilder::WithServiceLog(Comp1Node, ServiceActivate2, ServiceDeactivate2, ServiceTick2, /*TickBoolKeyName*/NAME_None, /*bCallOnTickSearch*/false, /*BecomeRelevantBoolKeyName*/TEXT("Bool1"));
+
+				// RestartTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, RestartTaskTaskExecute, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringExecute, EBTTestStopAction::FullRestartTree);
+			}
+			FBTBuilder::AddTask(CompNode, Task2Execute, EBTNodeResult::Succeeded);
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(ServiceActivate2/*5*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(ServiceTick2/*7*/);
+		ExpectedResult.Add(RestartTaskTaskExecute/*4*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(ServiceDeactivate2/*6*/);
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(Task2Execute/*8*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTFullRestartDuringTaskExecute, "System.AI.Behavior Trees.Restart: full during task execute")
 #undef LOCTEXT_NAMESPACE

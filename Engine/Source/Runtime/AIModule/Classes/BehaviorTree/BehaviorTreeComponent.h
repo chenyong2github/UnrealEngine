@@ -140,7 +140,7 @@ public:
 	void StopTree(EBTStopMode::Type StopMode = EBTStopMode::Safe);
 
 	/** restarts execution from root */
-	void RestartTree();
+	void RestartTree(EBTRestartMode RestartMode = EBTRestartMode::SkipReAddedNodes);
 
 	/** request execution change */
 	void RequestExecution(const UBTCompositeNode* RequestedOn, const int32 InstanceIdx, 

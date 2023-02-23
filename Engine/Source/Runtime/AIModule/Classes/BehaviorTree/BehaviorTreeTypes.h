@@ -104,6 +104,12 @@ namespace EBTStopMode
 	};
 }
 
+enum class EBTRestartMode : uint8
+{
+	SkipReAddedNodes,
+	ForceRestartAllNodes,
+};
+
 namespace EBTMemoryInit
 {
 	enum Type

@@ -418,7 +418,7 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 	bWaitingForLatentAborts = false;
 }
 
-void UBehaviorTreeComponent::RestartTree()
+void UBehaviorTreeComponent::RestartTree(EBTRestartMode RestartMode /*= EBTRestartMode::SkipReAddedNodes*/)
 {
 	UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("%s"), ANSI_TO_TCHAR(__FUNCTION__));
 	
@@ -440,8 +440,25 @@ void UBehaviorTreeComponent::RestartTree()
 	}
 	else if (InstanceStack.Num())
 	{
-		FBehaviorTreeInstance& TopInstance = InstanceStack[0];
-		RequestExecution(TopInstance.RootNode, 0, TopInstance.RootNode, -1, EBTNodeResult::Aborted);
+		switch(RestartMode)
+		{
+			case EBTRestartMode::SkipReAddedNodes:
+			{
+				FBehaviorTreeInstance& TopInstance = InstanceStack[0];
+				RequestExecution(TopInstance.RootNode, 0, TopInstance.RootNode, -1, EBTNodeResult::Aborted);
+				break;
+			}
+			case EBTRestartMode::ForceRestartAllNodes:
+			{
+				StopTree(EBTStopMode::Safe);
+
+				TreeStartInfo.Asset = GetRootTree();
+				TreeStartInfo.ExecuteMode = bLoopExecution ? EBTExecutionMode::Looped : EBTExecutionMode::SingleRun;
+				TreeStartInfo.bPendingInitialize = true;
+				ProcessPendingInitialize();
+				break;
+			}
+		}
 	}
 }
 
