@@ -3200,7 +3200,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 							RasterResults.VisibilityResults,
 							*Scene,
 							View,
-							{ PackedView },
+							*Nanite::FPackedViewArray::Create(GraphBuilder, PackedView),
 							SharedContext,
 							CullingContext,
 							RasterContext,

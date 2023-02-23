@@ -1290,17 +1290,17 @@ struct FDynamicShadowsTaskData
 	}
 };
 
-TConstArrayView<FProjectedShadowInfo*> FSceneRenderer::GetProjectedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData)
+TConstArrayView<FProjectedShadowInfo*> GetProjectedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData)
 {
 	if (TaskData)
 	{
-		TaskData->WaitForCreateDynamicShadowsTask();
+		check(!TaskData->TaskEvent);
 		return TaskData->ShadowArrays.ProjectedDistanceFieldShadows;
 	}
 	return TConstArrayView<FProjectedShadowInfo*>();
 }
 
-bool FSceneRenderer::HasRayTracedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData)
+bool HasRayTracedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData)
 {
 	if (TaskData)
 	{
@@ -4964,6 +4964,7 @@ void FSceneRenderer::FinishGatherShadowPrimitives(FDynamicShadowsTaskData* TaskD
 	if (TaskData->TaskEvent)
 	{
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskData->TaskEvent, ENamedThreads::GetRenderThread_Local());
+		TaskData->TaskEvent = nullptr;
 	}
 
 	if (!TaskData->bMultithreadedCreateAndFilterShadows)
@@ -6203,6 +6204,13 @@ void FSceneRenderer::FinishInitDynamicShadows(FRDGBuilder& GraphBuilder, FDynami
 	check(TaskData);
 
 	FinishGatherShadowPrimitives(TaskData);
+
+	if (!SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.IsEmpty())
+	{
+		const float ShadowsLODScaleFactor = FShadowSceneRenderer::ComputeNaniteShadowsLODScaleFactor();
+
+		SortedShadowsForShadowDepthPass.VirtualShadowMapViews = VirtualShadowMapArray.CreateVirtualShadowMapNaniteViews(GraphBuilder, Views, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, ShadowsLODScaleFactor);
+	}
 
 	if (ShadowSceneRenderer)
 	{

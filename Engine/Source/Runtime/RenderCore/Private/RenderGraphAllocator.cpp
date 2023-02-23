@@ -18,15 +18,15 @@ FRDGAllocator::~FRDGAllocator()
 
 void FRDGAllocator::FContext::ReleaseAll()
 {
-	for (int32 Index = TrackedAllocs.Num() - 1; Index >= 0; --Index)
+	for (int32 Index = Objects.Num() - 1; Index >= 0; --Index)
 	{
 #if RDG_USE_MALLOC
-		delete TrackedAllocs[Index];
+		delete Objects[Index];
 #else
-		TrackedAllocs[Index]->~FTrackedAlloc();
+		Objects[Index]->~FObject();
 #endif
 	}
-	TrackedAllocs.Reset();
+	Objects.Reset();
 
 #if RDG_USE_MALLOC
 	for (void* RawAlloc : RawAllocs)

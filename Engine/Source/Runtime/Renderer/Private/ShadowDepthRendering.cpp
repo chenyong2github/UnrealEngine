@@ -1366,8 +1366,8 @@ static void RenderShadowDepthAtlasNanite(
 	const bool bUseHZB = (CVarNaniteShadowsUseHZB.GetValueOnRenderThread() != 0);
 	TArray<TRefCountPtr<IPooledRenderTarget>>&	PrevAtlasHZBs = Scene.PrevAtlasHZBs;
 
-	TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
-	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> ShadowsToEmit;
+	auto& ShadowsToEmit = *GraphBuilder.AllocObject<TArray<FProjectedShadowInfo*, SceneRenderingAllocator>>();
+
 	for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
 	{
 		FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
@@ -1382,36 +1382,51 @@ static void RenderShadowDepthAtlasNanite(
 			continue;
 		}
 
-		Nanite::FPackedViewParams Initializer;
-		Initializer.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices();
-		Initializer.ViewRect = ProjectedShadowInfo->GetOuterViewRect();
-		Initializer.RasterContextSize = AtlasSize;
-		Initializer.LODScaleFactor = FShadowSceneRenderer::ComputeNaniteShadowsLODScaleFactor();
-		Initializer.PrevViewMatrices = Initializer.ViewMatrices;
-		Initializer.HZBTestViewRect = ProjectedShadowInfo->GetInnerViewRect();
-		Initializer.MaxPixelsPerEdgeMultipler = 1.0f;
-		
-		// Orthographic shadow projections want depth clamping rather than clipping
-		Initializer.Flags = ProjectedShadowInfo->ShouldClampToNearPlane() ? 0u : NANITE_VIEW_FLAG_NEAR_CLIP;
-
-		FLightSceneInfo& LightSceneInfo = ProjectedShadowInfo->GetLightSceneInfo();
-		
-		FPersistentShadowStateKey ShadowKey;
-		ShadowKey.AtlasIndex = AtlasIndex;
-		ShadowKey.ProjectionId = ProjectedShadowInfo->ProjectionIndex;
-		ShadowKey.SubjectPrimitiveComponentIndex = ProjectedShadowInfo->SubjectPrimitiveComponentIndex;
-
-		FPersistentShadowState* PrevShadowState = LightSceneInfo.PrevPersistentShadows.Find(ShadowKey);
-
-		UpdatePackedViewParamsFromPrevShadowState(Initializer, PrevShadowState);
-		UpdateCurrentFrameHZB(LightSceneInfo, ShadowKey, ProjectedShadowInfo, nullptr);
-
-		PackedViews.Add(Nanite::CreatePackedView(Initializer));
 		ShadowsToEmit.Add(ProjectedShadowInfo);
 	}
 
-	if (PackedViews.Num() > 0)
+	if (ShadowsToEmit.Num() > 0)
 	{
+		const int32 MaxNumMips = 1;
+
+		Nanite::FPackedViewArray* PackedViews = Nanite::FPackedViewArray::CreateWithSetupTask(
+			GraphBuilder,
+			ShadowsToEmit.Num(),
+			MaxNumMips,
+			[&ShadowsToEmit, AtlasSize, AtlasIndex] (Nanite::FPackedViewArray::ArrayType& PackedViews)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(CreateShadowDepthAtlasNanitePackedViews);
+
+			for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowsToEmit)
+			{
+				Nanite::FPackedViewParams Initializer;
+				Initializer.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices();
+				Initializer.ViewRect = ProjectedShadowInfo->GetOuterViewRect();
+				Initializer.RasterContextSize = AtlasSize;
+				Initializer.LODScaleFactor = FShadowSceneRenderer::ComputeNaniteShadowsLODScaleFactor();
+				Initializer.PrevViewMatrices = Initializer.ViewMatrices;
+				Initializer.HZBTestViewRect = ProjectedShadowInfo->GetInnerViewRect();
+				Initializer.MaxPixelsPerEdgeMultipler = 1.0f;
+
+				// Orthographic shadow projections want depth clamping rather than clipping
+				Initializer.Flags = ProjectedShadowInfo->ShouldClampToNearPlane() ? 0u : NANITE_VIEW_FLAG_NEAR_CLIP;
+
+				FLightSceneInfo& LightSceneInfo = ProjectedShadowInfo->GetLightSceneInfo();
+
+				FPersistentShadowStateKey ShadowKey;
+				ShadowKey.AtlasIndex = AtlasIndex;
+				ShadowKey.ProjectionId = ProjectedShadowInfo->ProjectionIndex;
+				ShadowKey.SubjectPrimitiveComponentIndex = ProjectedShadowInfo->SubjectPrimitiveComponentIndex;
+
+				FPersistentShadowState* PrevShadowState = LightSceneInfo.PrevPersistentShadows.Find(ShadowKey);
+
+				UpdatePackedViewParamsFromPrevShadowState(Initializer, PrevShadowState);
+				UpdateCurrentFrameHZB(LightSceneInfo, ShadowKey, ProjectedShadowInfo, nullptr);
+
+				PackedViews.Add(Nanite::CreatePackedView(Initializer));
+			}
+		});
+
 		RDG_EVENT_SCOPE(GraphBuilder, "Nanite Shadows");
 
 		Nanite::FSharedContext SharedContext{};
@@ -1440,7 +1455,6 @@ static void RenderShadowDepthAtlasNanite(
 			bExtractStats = Nanite::IsStatFilterActive(AtlasFilterName);
 		}
 
-		if (PackedViews.Num() > 0)
 		{
 			FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
 
@@ -1450,7 +1464,7 @@ static void RenderShadowDepthAtlasNanite(
 				VisibilityResults,
 				Scene,
 				SceneView,
-				PackedViews,
+				*PackedViews,
 				SharedContext,
 				CullingContext,
 				RasterContext,
@@ -1763,7 +1777,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
 
 					// Setup packed view
-					TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
+					Nanite::FPackedViewArray* PackedViews;
+
 					{
 						Nanite::FPackedViewParams Params;
 						Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(CubemapFaceIndex);
@@ -1779,7 +1794,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 						UpdatePackedViewParamsFromPrevShadowState(Params, PrevShadowState);
 
-						PackedViews.Add(Nanite::CreatePackedView(Params));
+						PackedViews = Nanite::FPackedViewArray::Create(GraphBuilder, Nanite::CreatePackedView(Params));
 					}
 
 					FString CubeFaceFilterName;
@@ -1797,7 +1812,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						VisibilityResults,
 						*Scene,
 						SceneView,
-						PackedViews,
+						*PackedViews,
 						SharedContext,
 						CullingContext,
 						RasterContext,

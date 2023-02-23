@@ -1949,6 +1949,8 @@ struct FSortedShadowMaps
 
 	TArray<FSortedShadowMapAtlas,SceneRenderingAllocator> CompleteShadowMapAtlases;
 
+	Nanite::FPackedViewArray* VirtualShadowMapViews = nullptr;
+
 	void Release();
 
 	int64 ComputeMemorySize() const
@@ -2299,9 +2301,6 @@ protected:
 	void FinishInitDynamicShadows(FRDGBuilder& GraphBuilder, FDynamicShadowsTaskData* TaskData, FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
 	FDynamicShadowsTaskData* InitDynamicShadows(FRDGBuilder& GraphBuilder, FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
 
-	static bool HasRayTracedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData);
-	static TConstArrayView<FProjectedShadowInfo*> GetProjectedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData);
-
 	void CreateDynamicShadows(FDynamicShadowsTaskData& TaskData);
 	void FilterDynamicShadows(FDynamicShadowsTaskData& TaskData);
 	friend struct FGatherShadowPrimitivesPrepareTask;
@@ -2617,7 +2616,17 @@ protected:
 	/** Build visibility lists on CSM receivers and non-csm receivers. */
 	void BuildCSMVisibilityState(FLightSceneInfo* LightSceneInfo);
 
-	void InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesConfig& SceneTexturesConfig, FInstanceCullingManager& InstanceCullingManager, FVirtualTextureUpdater* VirtualTextureUpdater);
+	struct FInitViewTaskDatas
+	{
+		FDynamicShadowsTaskData* DynamicShadows = nullptr;
+	};
+
+	void InitViews(
+		FRDGBuilder& GraphBuilder,
+		FSceneTexturesConfig& SceneTexturesConfig,
+		FInstanceCullingManager& InstanceCullingManager,
+		FVirtualTextureUpdater* VirtualTextureUpdater,
+		FInitViewTaskDatas& TaskDatas);
 
 	void RenderPrePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 	void RenderMaskedPrePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
@@ -2794,6 +2803,15 @@ private:
 };
 
 extern FFastVramConfig GFastVRamConfig;
+
+/**
+ * Returns whether any shadows in the scene have ray traced shadows enabled. This can be called any time
+ * after launching the shadow initialization tasks. It will sync the shadow creation task.
+ */
+extern bool HasRayTracedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData);
+
+/** Returns the array of shadows with distance fields. Call only after finishing shadow initialization. */
+extern TConstArrayView<FProjectedShadowInfo*> GetProjectedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData);
 
 extern bool UseCachedMeshDrawCommands();
 extern bool UseCachedMeshDrawCommands_AnyThread();

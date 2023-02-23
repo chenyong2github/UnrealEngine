@@ -2494,6 +2494,19 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 	return CullingResult;
 }
 
+static void AccumulateRenderViewCount(const FProjectedShadowInfo* ProjectedShadowInfo, uint32& NumPrimaryViews, uint32& MaxMipLevels)
+{
+	if (ProjectedShadowInfo->VirtualShadowMapClipmap)
+	{
+		NumPrimaryViews += ProjectedShadowInfo->VirtualShadowMapClipmap->GetLevelCount();
+		MaxMipLevels = FMath::Max(MaxMipLevels, 1u);
+	}
+	else
+	{
+		NumPrimaryViews += ProjectedShadowInfo->bOnePassPointLightShadow ? 6u : 1u;
+		MaxMipLevels = FMath::Max(MaxMipLevels, FVirtualShadowMap::MaxMipLevels);
+	}
+}
 
 static void AddRasterPass(
 	FRDGBuilder& GraphBuilder, 
@@ -2536,7 +2549,55 @@ static void AddRasterPass(
 		});
 }
 
-void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, float ShadowsLODScaleFactor, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster, const FNaniteVisibilityResults &VisibilityResults)
+Nanite::FPackedViewArray* FVirtualShadowMapArray::CreateVirtualShadowMapNaniteViews(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, TConstArrayView<FProjectedShadowInfo*> Shadows, float ShadowsLODScaleFactor)
+{
+	uint32 NumPrimaryViews = 0;
+	uint32 MaxNumMips = 0;
+
+	for (FProjectedShadowInfo* Shadow : Shadows)
+	{
+		if (Shadow->bShouldRenderVSM)
+		{
+			AccumulateRenderViewCount(Shadow, NumPrimaryViews, MaxNumMips);
+		}
+	}
+
+	if (NumPrimaryViews == 0)
+	{
+		return nullptr;
+	}
+
+	const bool bVSMUseHZB = UseHzbOcclusion();
+	const bool bHasPrevHZBPhysical = bVSMUseHZB && CacheManager->PrevBuffers.HZBPhysical.IsValid();
+
+	return Nanite::FPackedViewArray::CreateWithSetupTask(
+		GraphBuilder,
+		NumPrimaryViews,
+		MaxNumMips,
+		[this, Views, Shadows, bVSMUseHZB, bHasPrevHZBPhysical, ShadowsLODScaleFactor] (Nanite::FPackedViewArray::ArrayType& VirtualShadowViews)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(AddNaniteRenderViews);
+
+		for (FProjectedShadowInfo* Shadow : Shadows)
+		{
+			if (Shadow->bShouldRenderVSM)
+			{
+				AddRenderViews(
+					Shadow,
+					Views,
+					ShadowsLODScaleFactor,
+					bHasPrevHZBPhysical,
+					bVSMUseHZB,
+					Shadow->ShouldClampToNearPlane(),
+					VirtualShadowViews);
+			}
+		}
+
+		CreateMipViews(VirtualShadowViews);
+	});
+}
+
+void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster, const FNaniteVisibilityResults &VisibilityResults)
 {
 	bool bCsvLogEnabled = false;
 #if CSV_PROFILER
@@ -2545,9 +2606,6 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualShadowMapArray::RenderVirtualShadowMapsNanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Nanite)");
-
-	const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualShadowMapShadows = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapShadows;
-	TArray<TSharedPtr<FVirtualShadowMapClipmap>, SceneRenderingAllocator>& VirtualShadowMapClipmaps = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps;
 
 	// TODO: Separate out the decision about nanite using HZB and stuff like HZB culling invalidations?
 	const bool bVSMUseHZB = UseHzbOcclusion();
@@ -2580,33 +2638,9 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 
 	static FString VirtualFilterName = TEXT("VirtualShadowMaps");
 
-	TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
-
+	if (Nanite::FPackedViewArray* VirtualShadowViews = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapViews)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(AddRenderViews);
-
-		for (FProjectedShadowInfo* ProjectedShadowInfo : VirtualShadowMapShadows)
-		{
-			if (ProjectedShadowInfo->bShouldRenderVSM)
-			{
-				AddRenderViews(
-					ProjectedShadowInfo,
-					SceneRenderer.Views,
-					ShadowsLODScaleFactor,
-					PrevHZBPhysical.IsValid(),
-					bVSMUseHZB,
-					ProjectedShadowInfo->ShouldClampToNearPlane(),
-					VirtualShadowViews);
-			}
-		}
-	}
-
-	if (VirtualShadowViews.Num() > 0)
-	{
-		int32 NumPrimaryViews = VirtualShadowViews.Num();
-		CreateMipViews(VirtualShadowViews);
-
-		SET_DWORD_STAT(STAT_VSMNaniteViewsPrimary, NumPrimaryViews);
+		SET_DWORD_STAT(STAT_VSMNaniteViewsPrimary, VirtualShadowViews->NumPrimaryViews);
 
 		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bUpdateStreaming = bUpdateNaniteStreaming;
@@ -2636,8 +2670,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 			VisibilityResults,
 			Scene,
 			SceneView,
-			VirtualShadowViews,
-			NumPrimaryViews,
+			*VirtualShadowViews,
 			SharedContext,
 			CullingContext,
 			RasterContext,
@@ -2703,7 +2736,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	UnBatchedVSMCullingBatchInfo.Reserve(VirtualSmMeshCommandPasses.Num());
 	BatchedVirtualSmMeshCommandPasses.Reserve(VirtualSmMeshCommandPasses.Num());
 	UnBatchedVirtualSmMeshCommandPasses.Reserve(VirtualSmMeshCommandPasses.Num());
-	TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
+
+	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> ShadowsToAddRenderViews;
 
 	TArray<uint32, SceneRenderingAllocator> PrimitiveRevealedMask;
 
@@ -2745,6 +2779,10 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 		return FLargeWorldRenderPosition(MinOrigin);
 	};
 
+	uint32 MaxNumMips = 0;
+	uint32 TotalPrimaryViews = 0;
+	uint32 TotalViews = 0;
+
 	FInstanceCullingMergedContext InstanceCullingMergedContext(GPUScene.GetFeatureLevel());
 	// We don't use the registered culling views (this redundancy should probably be addressed at some point), set the number to disable index range checking
 	InstanceCullingMergedContext.NumCullingViews = -1;
@@ -2761,7 +2799,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 		ProjectedShadowInfo->BeginRenderView(GraphBuilder, &Scene);
 
 		FVSMCullingBatchInfo VSMCullingBatchInfo;
-		VSMCullingBatchInfo.FirstPrimaryView = uint32(VirtualShadowViews.Num());
+		VSMCullingBatchInfo.FirstPrimaryView = TotalPrimaryViews;
 		VSMCullingBatchInfo.NumPrimaryViews = 0U;
 
 		VSMCullingBatchInfo.PrimitiveRevealedOffset = uint32(PrimitiveRevealedMask.Num());
@@ -2790,7 +2828,12 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 
 			if (InstanceCullingContext->HasCullingCommands())
 			{
-				VSMCullingBatchInfo.NumPrimaryViews = AddRenderViews(ProjectedShadowInfo, Views, 1.0f, HZBTexture != nullptr, false, ProjectedShadowInfo->ShouldClampToNearPlane(), VirtualShadowViews);
+				uint32 NumPrimaryViews = 0;
+				AccumulateRenderViewCount(ProjectedShadowInfo, NumPrimaryViews, MaxNumMips);
+
+				VSMCullingBatchInfo.NumPrimaryViews = NumPrimaryViews;
+				TotalPrimaryViews += NumPrimaryViews;
+				ShadowsToAddRenderViews.Add(ProjectedShadowInfo);
 
 				if (CVarDoNonNaniteBatching.GetValueOnRenderThread() != 0)
 				{
@@ -2815,10 +2858,29 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 			}
 		}
 	}
+
+	FRDGBuffer* VirtualShadowViewsRDG = nullptr;
+
+	if (!ShadowsToAddRenderViews.IsEmpty())
+	{
+		Nanite::FPackedViewArray* ViewArray = Nanite::FPackedViewArray::CreateWithSetupTask(
+			GraphBuilder,
+			TotalPrimaryViews,
+			MaxNumMips,
+			[this, Views, ShadowsToAddRenderViews = MoveTemp(ShadowsToAddRenderViews), bHasHZBTexture = HZBTexture != nullptr] (Nanite::FPackedViewArray::ArrayType& OutShadowViews)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(AddNonNaniteRenderViews);
+			for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowsToAddRenderViews)
+			{
+				AddRenderViews(ProjectedShadowInfo, Views, 1.0f, bHasHZBTexture, false, ProjectedShadowInfo->ShouldClampToNearPlane(), OutShadowViews);
+			}
+			CreateMipViews(OutShadowViews);
+		});
+
+		VirtualShadowViewsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VirtualShadowViews"), [ViewArray]() -> const typename Nanite::FPackedViewArray::ArrayType& { return ViewArray->GetViews(); });
+	}
+
 	CSV_CUSTOM_STAT(VSM, NonNanitePreCullInstanceCount, TotalPreCullInstanceCount, ECsvCustomStatOp::Set);
-	uint32 TotalPrimaryViews = uint32(VirtualShadowViews.Num());
-	CreateMipViews(VirtualShadowViews);
-	FRDGBufferRef VirtualShadowViewsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VirtualShadowViews"), VirtualShadowViews);
 
 	// Helper function to create raster pass UB - only really need two of these ever
 	const FSceneTextures* SceneTextures = &GetViewFamilyInfo(Views).GetSceneTextures();

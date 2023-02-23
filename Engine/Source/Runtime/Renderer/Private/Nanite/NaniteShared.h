@@ -83,6 +83,51 @@ struct FPackedView
 	static FMatrix44f CalcTranslatedWorldToSubpixelClip(const FMatrix44f& TranslatedWorldToClip, const FIntRect& ViewRect);
 };
 
+class FPackedViewArray
+{
+public:
+	using ArrayType = TArray<FPackedView, SceneRenderingAllocator>;
+	using TaskLambdaType = TFunction<void(ArrayType&)>;
+
+	/** Creates a packed view array for a single element. */
+	static FPackedViewArray* Create(FRDGBuilder& GraphBuilder, const FPackedView& View);
+
+	/** Creates a packed view array by launching an RDG setup task. */
+	static FPackedViewArray* CreateWithSetupTask(FRDGBuilder& GraphBuilder, uint32 NumPrimaryViews, uint32 MaxNumMips, TaskLambdaType&& TaskLambda, bool bExecuteInTask = true);
+
+	/** Returns the view array, and will sync the setup task if one exists. */
+	const ArrayType& GetViews() const
+	{
+		SetupTask.Wait();
+		check(Views.Num() == NumViews);
+		return Views;
+	}
+
+	// Number of total primary views (i.e. not including mip views).
+	const uint32 NumPrimaryViews;
+
+	// Number of total views including mip views.
+	const uint32 NumViews;
+
+	// Maximum number of mips across all views.
+	const uint32 MaxNumMips;
+
+private:
+	FPackedViewArray(uint32 InNumPrimaryViews, uint32 InMaxNumMips)
+		: NumPrimaryViews(InNumPrimaryViews)
+		, NumViews(InNumPrimaryViews * InMaxNumMips)
+		, MaxNumMips(InMaxNumMips)
+	{}
+
+	// Packed views containing all expanded mips.
+	ArrayType Views;
+
+	// The task that is generating the Views data array, if any.
+	mutable UE::Tasks::FTask SetupTask;
+
+	RDG_FRIEND_ALLOCATOR_FRIEND(FPackedViewArray);
+};
+
 struct FPackedViewParams
 {
 	FViewMatrices ViewMatrices;

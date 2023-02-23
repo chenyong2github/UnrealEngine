@@ -2728,7 +2728,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 	if (bAnyLumenActive)
 	{
 		FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
-		TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender = LumenCardRenderer.CardPagesToRender;
+		const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender = LumenCardRenderer.CardPagesToRender;
 
 		QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenScene);
 		RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, UpdateLumenSceneBuffers);
@@ -2875,7 +2875,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				// Compute some stats about non Nanite meshes which are captured
 				#if RDG_EVENTS != RDG_EVENTS_NONE
 				{
-					for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+					for (const FCardPageRenderData& CardPageRenderData : CardPagesToRender)
 					{
 						if (CardPageRenderData.NumMeshDrawCommands > 0)
 						{
@@ -2923,7 +2923,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 
 				InstanceCullingResult.GetDrawParameters(CommonPassParameters->InstanceCullingDrawParams);
 
-				for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+				for (const FCardPageRenderData& CardPageRenderData : CardPagesToRender)
 				{
 					RDG_EVENT_SCOPE(GraphBuilder, "MeshCardCapture Pages:%u Draws:%u Instances:%u Tris:%u", NumPages, NumDraws, NumInstances, NumTris);
 
@@ -2980,7 +2980,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 
 			bool bAnyNaniteMeshes = false;
 
-			for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+			for (const FCardPageRenderData& CardPageRenderData : CardPagesToRender)
 			{
 				if (CardPageRenderData.NaniteCommandInfos.Num() > 0 && CardPageRenderData.NaniteInstanceIds.Num() > 0)
 				{
@@ -3037,10 +3037,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				uint32 NextCardIndex = 0;
 				while(NextCardIndex < NumCardPagesToRender)
 				{
-					TArray<Nanite::FPackedView, SceneRenderingAllocator> NaniteViews;
+					TArray<int32, SceneRenderingAllocator> CardPagesToCreatePackedView;
 					TArray<Nanite::FInstanceDraw, SceneRenderingAllocator> NaniteInstanceDraws;
 
-					while(NextCardIndex < NumCardPagesToRender && NaniteViews.Num() < NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
+					while(NextCardIndex < NumCardPagesToRender && CardPagesToCreatePackedView.Num() < NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
 					{
 						const FCardPageRenderData& CardPageRenderData = CardPagesToRender[NextCardIndex];
 
@@ -3048,18 +3048,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 						{
 							for(uint32 InstanceID : CardPageRenderData.NaniteInstanceIds)
 							{
-								NaniteInstanceDraws.Add(Nanite::FInstanceDraw { InstanceID, (uint32)NaniteViews.Num() });
+								NaniteInstanceDraws.Add(Nanite::FInstanceDraw { InstanceID, (uint32)CardPagesToCreatePackedView.Num() });
 							}
 
-							Nanite::FPackedViewParams Params;
-							Params.ViewMatrices = CardPageRenderData.ViewMatrices;
-							Params.PrevViewMatrices = CardPageRenderData.ViewMatrices;
-							Params.ViewRect = CardPageRenderData.CardCaptureAtlasRect;
-							Params.RasterContextSize = DepthStencilAtlasSize;
-							Params.LODScaleFactor = CardPageRenderData.NaniteLODScaleFactor;
-							Params.MaxPixelsPerEdgeMultipler = 1.0f;
-
-							NaniteViews.Add(Nanite::CreatePackedView(Params));
+							CardPagesToCreatePackedView.Add(NextCardIndex);
 						}
 
 						NextCardIndex++;
@@ -3069,13 +3061,40 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 					{
 						RDG_EVENT_SCOPE(GraphBuilder, "Nanite::RasterizeLumenCards");
 
+						const uint32 NumPrimaryViews = CardPagesToCreatePackedView.Num();
+						const uint32 MaxNumMips = 1;
+
+						Nanite::FPackedViewArray* NaniteViews = Nanite::FPackedViewArray::CreateWithSetupTask(
+							GraphBuilder,
+							NumPrimaryViews,
+							MaxNumMips,
+							[CardPagesToCreatePackedView = MoveTemp(CardPagesToCreatePackedView), &CardPagesToRender, NumCardPagesToRender, DepthStencilAtlasSize] (Nanite::FPackedViewArray::ArrayType& OutViews)
+						{
+							TRACE_CPUPROFILER_EVENT_SCOPE(CreateLumenPackedViews);
+		
+							for (int32 NextCardIndex = 0; NextCardIndex < CardPagesToCreatePackedView.Num(); ++NextCardIndex)
+							{
+								const FCardPageRenderData& CardPageRenderData = CardPagesToRender[NextCardIndex];
+
+								Nanite::FPackedViewParams Params;
+								Params.ViewMatrices = CardPageRenderData.ViewMatrices;
+								Params.PrevViewMatrices = CardPageRenderData.ViewMatrices;
+								Params.ViewRect = CardPageRenderData.CardCaptureAtlasRect;
+								Params.RasterContextSize = DepthStencilAtlasSize;
+								Params.LODScaleFactor = CardPageRenderData.NaniteLODScaleFactor;
+								Params.MaxPixelsPerEdgeMultipler = 1.0f;
+
+								OutViews.Add(Nanite::CreatePackedView(Params));
+							}
+						});
+
 						Nanite::CullRasterize(
 							GraphBuilder,
 							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 							VisibilityResults,
 							*Scene,
 							*SharedView,
-							NaniteViews,
+							*NaniteViews,
 							SharedContext,
 							CullingContext,
 							RasterContext,
@@ -3087,7 +3106,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				extern float GLumenDistantSceneMinInstanceBoundsRadius;
 
 				// Render entire scene for distant cards
-				for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+				for (const FCardPageRenderData& CardPageRenderData : CardPagesToRender)
 				{
 					if (CardPageRenderData.bDistantScene)
 					{
@@ -3106,7 +3125,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 							VisibilityResults,
 							*Scene,
 							*SharedView,
-							{ PackedView },
+							*Nanite::FPackedViewArray::Create(GraphBuilder, PackedView),
 							SharedContext,
 							CullingContext,
 							RasterContext);

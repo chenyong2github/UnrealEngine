@@ -2169,114 +2169,126 @@ void DrawLumenMeshCapturePass(
 			FExclusiveDepthStencil::DepthWrite_StencilRead
 		);
 
-		int32 NumMaterialQuads = 0;
-		TArray<FLumenMeshCaptureMaterialPass, FRDGArrayAllocator> MaterialPasses;
-		MaterialPasses.Reserve(CardPagesToRender.Num());
-
-		// Build list of unique materials
+		struct FMaterialPassBuildContext
 		{
-			FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo = ExtractRenderTargetsInfo(PassParameters->RenderTargets);
+			int32 NumMaterialQuads = 0;
+			TArray<FLumenMeshCaptureMaterialPass, SceneRenderingAllocator> MaterialPasses;
+			TArray<uint32, SceneRenderingAllocator> ViewIndices;
+			TArray<FVector4f, SceneRenderingAllocator> ViewRectScaleOffsets;
+			TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
+		};
 
-			Experimental::TRobinHoodHashSet<FLumenMeshCaptureMaterialPassIndex> MaterialPassSet;
+		FMaterialPassBuildContext& BuildContext = *GraphBuilder.AllocObject<FMaterialPassBuildContext>();
 
-			for (int32 CardPageIndex = 0; CardPageIndex < CardPagesToRender.Num(); ++CardPageIndex)
+		GraphBuilder.AddSetupTask([&BuildContext, CardPagesToRender, PassParameters, &Scene, ViewportSize]
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(BuildLumenMeshCaptureMaterialPasses);
+
+			BuildContext.MaterialPasses.Reserve(CardPagesToRender.Num());
+			BuildContext.ViewRectScaleOffsets.Reserve(CardPagesToRender.Num());
+			BuildContext.PackedViews.Reserve(CardPagesToRender.Num());
+
+			// Build list of unique materials
 			{
-				const FCardPageRenderData& CardPageRenderData = CardPagesToRender[CardPageIndex];
+				FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo = ExtractRenderTargetsInfo(PassParameters->RenderTargets);
 
-				for (const FNaniteCommandInfo& CommandInfo : CardPageRenderData.NaniteCommandInfos)
+				Experimental::TRobinHoodHashSet<FLumenMeshCaptureMaterialPassIndex> MaterialPassSet;
+
+				for (int32 CardPageIndex = 0; CardPageIndex < CardPagesToRender.Num(); ++CardPageIndex)
 				{
-					const FLumenMeshCaptureMaterialPassIndex& PassIndex = *MaterialPassSet.FindOrAdd(FLumenMeshCaptureMaterialPassIndex(MaterialPasses.Num(), CommandInfo.GetStateBucketId()));
+					const FCardPageRenderData& CardPageRenderData = CardPagesToRender[CardPageIndex];
 
-					if (PassIndex.Index >= MaterialPasses.Num())
+					for (const FNaniteCommandInfo& CommandInfo : CardPageRenderData.NaniteCommandInfos)
 					{
-						const FNaniteMaterialCommands& LumenMaterialCommands = Scene.NaniteMaterials[ENaniteMeshPass::LumenCardCapture];
-						FNaniteMaterialCommands::FCommandId CommandId(CommandInfo.GetStateBucketId());
-						const FMeshDrawCommand& MeshDrawCommand = LumenMaterialCommands.GetCommand(CommandId);
+						const FLumenMeshCaptureMaterialPassIndex& PassIndex = *MaterialPassSet.FindOrAdd(FLumenMeshCaptureMaterialPassIndex(BuildContext.MaterialPasses.Num(), CommandInfo.GetStateBucketId()));
 
-						FLumenMeshCaptureMaterialPass MaterialPass;
-						MaterialPass.SortKey = MeshDrawCommand.GetPipelineStateSortingKey(GraphBuilder.RHICmdList, RenderTargetsInfo);
-						MaterialPass.CommandStateBucketId = CommandInfo.GetStateBucketId();
-						MaterialPass.ViewIndexBufferOffset = 0;
-						MaterialPasses.Add(MaterialPass);
+						if (PassIndex.Index >= BuildContext.MaterialPasses.Num())
+						{
+							const FNaniteMaterialCommands& LumenMaterialCommands = Scene.NaniteMaterials[ENaniteMeshPass::LumenCardCapture];
+							FNaniteMaterialCommands::FCommandId CommandId(CommandInfo.GetStateBucketId());
+							const FMeshDrawCommand& MeshDrawCommand = LumenMaterialCommands.GetCommand(CommandId);
+
+							FLumenMeshCaptureMaterialPass MaterialPass;
+							MaterialPass.SortKey = MeshDrawCommand.GetPipelineStateSortingKey(RenderTargetsInfo);
+							MaterialPass.CommandStateBucketId = CommandInfo.GetStateBucketId();
+							MaterialPass.ViewIndexBufferOffset = 0;
+							BuildContext.MaterialPasses.Add(MaterialPass);
+						}
+
+						BuildContext.MaterialPasses[PassIndex.Index].ViewIndices.Add(CardPageIndex);
+						++BuildContext.NumMaterialQuads;
 					}
+				}
+				ensure(BuildContext.MaterialPasses.Num() > 0);
+			}
 
-					MaterialPasses[PassIndex.Index].ViewIndices.Add(CardPageIndex);
-					++NumMaterialQuads;
+			if (BuildContext.MaterialPasses.Num() > 0)
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(Sort);
+				BuildContext.MaterialPasses.Sort();
+			}
+
+			BuildContext.ViewIndices.Reserve(BuildContext.NumMaterialQuads);
+
+			for (FLumenMeshCaptureMaterialPass& MaterialPass : BuildContext.MaterialPasses)
+			{
+				MaterialPass.ViewIndexBufferOffset = BuildContext.ViewIndices.Num();
+
+				for (int32 ViewIndex : MaterialPass.ViewIndices)
+				{
+					BuildContext.ViewIndices.Add(ViewIndex);
 				}
 			}
-			ensure(MaterialPasses.Num() > 0);
-		}
+			ensure(BuildContext.ViewIndices.Num() > 0);
 
-		if (MaterialPasses.Num() > 0)
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(Sort);
-			MaterialPasses.Sort();
-		}
+			const FVector2f ViewportSizeF = FVector2f(float(ViewportSize.X), float(ViewportSize.Y));
 
-		TArray<uint32, SceneRenderingAllocator> ViewIndices;
-		ViewIndices.Reserve(NumMaterialQuads);
-
-		for (FLumenMeshCaptureMaterialPass& MaterialPass : MaterialPasses)
-		{
-			MaterialPass.ViewIndexBufferOffset = ViewIndices.Num();
-
-			for (int32 ViewIndex : MaterialPass.ViewIndices)
+			for (const FCardPageRenderData& CardPageRenderData : CardPagesToRender)
 			{
-				ViewIndices.Add(ViewIndex);
+				const FVector2f CardViewportSize = FVector2f(float(CardPageRenderData.CardCaptureAtlasRect.Width()), float(CardPageRenderData.CardCaptureAtlasRect.Height()));
+				const FVector2f RectOffset = FVector2f(float(CardPageRenderData.CardCaptureAtlasRect.Min.X), float(CardPageRenderData.CardCaptureAtlasRect.Min.Y)) / ViewportSizeF;
+				const FVector2f RectScale = CardViewportSize / ViewportSizeF;
+
+				BuildContext.ViewRectScaleOffsets.Add(FVector4f(RectScale, RectOffset));
+
+				Nanite::FPackedViewParams Params;
+				Params.ViewMatrices = CardPageRenderData.ViewMatrices;
+				Params.PrevViewMatrices = CardPageRenderData.ViewMatrices;
+				Params.ViewRect = CardPageRenderData.CardCaptureAtlasRect;
+				Params.RasterContextSize = ViewportSize;
+				Params.LODScaleFactor = 0.0f;
+				Params.MaxPixelsPerEdgeMultipler = 1.0f;
+
+				BuildContext.PackedViews.Add(Nanite::CreatePackedView(Params));
 			}
-		}
-		ensure(ViewIndices.Num() > 0);
+		});
 
-		FRDGBufferRef ViewIndexBuffer = CreateStructuredBuffer(
-			GraphBuilder, 
+		FRDGBuffer* ViewIndexBuffer = CreateStructuredBuffer(
+			GraphBuilder,
 			TEXT("Nanite.ViewIndices"),
-			ViewIndices.GetTypeSize(),
-			FMath::RoundUpToPowerOfTwo(ViewIndices.Num()),
-			ViewIndices.GetData(),
-			ViewIndices.Num() * ViewIndices.GetTypeSize());
+			BuildContext.ViewIndices.GetTypeSize(),
+			[&ViewIndices = BuildContext.ViewIndices] { return FMath::RoundUpToPowerOfTwo(ViewIndices.Num()); },
+			[&ViewIndices = BuildContext.ViewIndices] { return ViewIndices.GetData(); },
+			[&ViewIndices = BuildContext.ViewIndices] { return ViewIndices.Num() * ViewIndices.GetTypeSize(); }
+		);
 
-		TArray<FVector4f, SceneRenderingAllocator> ViewRectScaleOffsets;
-		ViewRectScaleOffsets.Reserve(CardPagesToRender.Num());
-
-		TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
-		PackedViews.Reserve(CardPagesToRender.Num());
-
-		const FVector2f ViewportSizeF = FVector2f(float(ViewportSize.X), float(ViewportSize.Y));
-
-		for (const FCardPageRenderData& CardPageRenderData : CardPagesToRender)
-		{
-			const FVector2f CardViewportSize = FVector2f(float(CardPageRenderData.CardCaptureAtlasRect.Width()), float(CardPageRenderData.CardCaptureAtlasRect.Height()));
-			const FVector2f RectOffset = FVector2f(float(CardPageRenderData.CardCaptureAtlasRect.Min.X), float(CardPageRenderData.CardCaptureAtlasRect.Min.Y)) / ViewportSizeF;
-			const FVector2f RectScale = CardViewportSize / ViewportSizeF;
-
-			ViewRectScaleOffsets.Add(FVector4f(RectScale, RectOffset));
-
-			Nanite::FPackedViewParams Params;
-			Params.ViewMatrices = CardPageRenderData.ViewMatrices;
-			Params.PrevViewMatrices = CardPageRenderData.ViewMatrices;
-			Params.ViewRect = CardPageRenderData.CardCaptureAtlasRect;
-			Params.RasterContextSize = ViewportSize;
-			Params.LODScaleFactor = 0.0f;
-			Params.MaxPixelsPerEdgeMultipler = 1.0f;
-
-			PackedViews.Add(Nanite::CreatePackedView(Params));
-		}
-
-		FRDGBufferRef ViewRectScaleOffsetBuffer = CreateStructuredBuffer(
+		FRDGBuffer* ViewRectScaleOffsetBuffer = CreateStructuredBuffer(
 			GraphBuilder,
 			TEXT("Nanite.ViewRectScaleOffset"),
-			ViewRectScaleOffsets.GetTypeSize(),
-			FMath::RoundUpToPowerOfTwo(ViewRectScaleOffsets.Num()),
-			ViewRectScaleOffsets.GetData(),
-			ViewRectScaleOffsets.Num() * ViewRectScaleOffsets.GetTypeSize());
+			BuildContext.ViewRectScaleOffsets.GetTypeSize(),
+			[&ViewRectScaleOffsets = BuildContext.ViewRectScaleOffsets] { return FMath::RoundUpToPowerOfTwo(ViewRectScaleOffsets.Num()); },
+			[&ViewRectScaleOffsets = BuildContext.ViewRectScaleOffsets] { return ViewRectScaleOffsets.GetData(); },
+			[&ViewRectScaleOffsets = BuildContext.ViewRectScaleOffsets] { return ViewRectScaleOffsets.Num() * ViewRectScaleOffsets.GetTypeSize(); }
+		);
 
-		FRDGBufferRef PackedViewBuffer = CreateStructuredBuffer(
+		FRDGBuffer* PackedViewBuffer = CreateStructuredBuffer(
 			GraphBuilder,
 			TEXT("Nanite.PackedViews"),
-			PackedViews.GetTypeSize(),
-			FMath::RoundUpToPowerOfTwo(PackedViews.Num()),
-			PackedViews.GetData(),
-			PackedViews.Num() * PackedViews.GetTypeSize());
+			BuildContext.PackedViews.GetTypeSize(),
+			[&PackedViews = BuildContext.PackedViews] { return FMath::RoundUpToPowerOfTwo(PackedViews.Num()); },
+			[&PackedViews = BuildContext.PackedViews] { return PackedViews.GetData(); },
+			[&PackedViews = BuildContext.PackedViews] { return PackedViews.Num() * PackedViews.GetTypeSize(); }
+		);
 
 		{
 			FNaniteUniformParameters* UniformParameters		= GraphBuilder.AllocParameters<FNaniteUniformParameters>();
@@ -2324,16 +2336,15 @@ void DrawLumenMeshCapturePass(
 
 		TShaderMapRef<FNaniteMultiViewMaterialVS> NaniteVertexShader(SharedView->ShaderMap);
 
-		const int32 NumMaterialPasses = MaterialPasses.Num();
-
 		GraphBuilder.AddPass
 		(
-			RDG_EVENT_NAME("Lumen Emit GBuffer %d materials %d quads", NumMaterialPasses, NumMaterialQuads),
+			RDG_EVENT_NAME("Lumen Emit GBuffer"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[PassParameters, &Scene, MaterialPasses = MoveTemp(MaterialPasses), NaniteVertexShader](FRHICommandList& RHICmdList)
+			[PassParameters, &Scene, &MaterialPasses = BuildContext.MaterialPasses, &NumMaterialQuads = BuildContext.NumMaterialQuads, NaniteVertexShader](FRHICommandList& RHICmdList)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(LumenEmitGBuffer);
+				SCOPED_DRAW_EVENTF(RHICmdList, LumenEmitGBuffer, TEXT("%d materials %d quads"), MaterialPasses.Num(), NumMaterialQuads);
 
 				FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 				FMeshDrawCommandStateCache StateCache;

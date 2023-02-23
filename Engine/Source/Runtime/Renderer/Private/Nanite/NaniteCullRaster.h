@@ -191,7 +191,7 @@ void CullRasterize(
 	const FNaniteVisibilityResults& VisibilityResults,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
-	const TArray<FPackedView, SceneRenderingAllocator>& Views,
+	const FPackedViewArray& Views,
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
@@ -210,14 +210,13 @@ void CullRasterize(
 	const FNaniteVisibilityResults& VisibilityResults,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
-	const TArray<FPackedView, SceneRenderingAllocator>& Views,
-	uint32 NumPrimaryViews,	// Number of non-mip views
+	const FPackedViewArray& Views,
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
-	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws = nullptr,
+	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws,
 	// VirtualShadowMapArray is the supplier of virtual to physical translation, probably could abstract this a bit better,
-	FVirtualShadowMapArray* VirtualShadowMapArray = nullptr,
+	FVirtualShadowMapArray* VirtualShadowMapArray,
 	bool bExtractStats = false
 );
 

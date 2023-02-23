@@ -340,7 +340,7 @@ bool FSceneRenderer::RenderCustomDepthPass(
 					PrimaryNaniteRasterResults[ViewIndex].VisibilityResults,
 					*Scene,
 					View,
-					{ PrimaryNaniteViews[ViewIndex] },
+					*Nanite::FPackedViewArray::Create(GraphBuilder, PrimaryNaniteViews[ViewIndex]),
 					SharedContext,
 					CullingContext,
 					RasterContext,

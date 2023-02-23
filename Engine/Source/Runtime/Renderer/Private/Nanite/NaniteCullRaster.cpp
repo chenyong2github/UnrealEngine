@@ -2199,8 +2199,7 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FCullingParameters& CullingParameters,
-	const TArray<FPackedView, SceneRenderingAllocator>& Views,
-	const uint32 NumPrimaryViews,
+	const FPackedViewArray& ViewArray,
 	const FSharedContext& SharedContext,
 	const FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
@@ -2216,7 +2215,7 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 
 	checkf(GRHIPersistentThreadGroupCount > 0, TEXT("GRHIPersistentThreadGroupCount must be configured correctly in the RHI."));
 
-	const bool bMultiView = Views.Num() > 1 || VirtualShadowMapArray != nullptr;
+	const bool bMultiView = ViewArray.NumViews > 1 || VirtualShadowMapArray != nullptr;
 
 	FRDGBufferRef Dummy = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, 8);
 
@@ -2565,7 +2564,7 @@ FBinningData AddPass_Rasterize(
 	FRDGBuilder& GraphBuilder,
 	FNaniteRasterPipelines& RasterPipelines,
 	const FNaniteVisibilityResults& VisibilityResults,
-	const TArray<FPackedView, SceneRenderingAllocator>& Views,
+	const FPackedViewArray& ViewArray,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
 	const FSharedContext& SharedContext,
@@ -3528,8 +3527,7 @@ static void CullRasterizeMultiPass(
 	const FNaniteVisibilityResults& VisibilityResults,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
-	const TArray<FPackedView, SceneRenderingAllocator>& Views,
-	uint32 NumPrimaryViews,
+	const FPackedViewArray& ViewArray,
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
@@ -3542,14 +3540,17 @@ static void CullRasterizeMultiPass(
 
 	check(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 
+	// This will sync the setup task.
+	TConstArrayView<FPackedView> Views = ViewArray.GetViews();
+
 	uint32 NextPrimaryViewIndex = 0;
-	while (NextPrimaryViewIndex < NumPrimaryViews)
+	while (NextPrimaryViewIndex < ViewArray.NumPrimaryViews)
 	{
 		// Fit as many views as possible into the next range
 		int32 RangeStartPrimaryView = NextPrimaryViewIndex;
 		int32 RangeNumViews = 0;
 		int32 RangeMaxMip = 0;
-		while (NextPrimaryViewIndex < NumPrimaryViews)
+		while (NextPrimaryViewIndex < ViewArray.NumPrimaryViews)
 		{
 			const Nanite::FPackedView& PrimaryView = Views[NextPrimaryViewIndex];
 			const int32 NumMips = PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z;
@@ -3565,20 +3566,31 @@ static void CullRasterizeMultiPass(
 		}
 
 		// Construct new view range
-		int32 RangeNumPrimaryViews = NextPrimaryViewIndex - RangeStartPrimaryView;
-		TArray<FPackedView, SceneRenderingAllocator> RangeViews;
-		RangeViews.SetNum(RangeNumViews);
+		const uint32 RangeNumPrimaryViews = NextPrimaryViewIndex - RangeStartPrimaryView;
 
-		for (int32 ViewIndex = 0; ViewIndex < RangeNumPrimaryViews; ++ViewIndex)
+		// Just execute it inline as it shouldn't take very long.
+		const bool bExecuteInTask = false;
+
+		FPackedViewArray* RangeViews = FPackedViewArray::CreateWithSetupTask(
+			GraphBuilder,
+			RangeNumPrimaryViews,
+			RangeMaxMip,
+			[NumPrimaryViews = ViewArray.NumPrimaryViews, Views, RangeNumViews, RangeNumPrimaryViews, RangeStartPrimaryView] (FPackedViewArray::ArrayType& RangeViews)
 		{
-			const Nanite::FPackedView& PrimaryView = Views[RangeStartPrimaryView + ViewIndex];
-			const int32 NumMips = PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z;
+			RangeViews.SetNum(RangeNumViews);
 
-			for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+			for (uint32 ViewIndex = 0; ViewIndex < RangeNumPrimaryViews; ++ViewIndex)
 			{
-				RangeViews[MipIndex * RangeNumPrimaryViews + ViewIndex] = Views[MipIndex * NumPrimaryViews + (RangeStartPrimaryView + ViewIndex)];
+				const Nanite::FPackedView& PrimaryView = Views[RangeStartPrimaryView + ViewIndex];
+				const int32 NumMips = PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z;
+
+				for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+				{
+					RangeViews[MipIndex * RangeNumPrimaryViews + ViewIndex] = Views[MipIndex * NumPrimaryViews + (RangeStartPrimaryView + ViewIndex)];
+				}
 			}
-		}
+
+		}, bExecuteInTask);
 
 		CullRasterize(
 			GraphBuilder,
@@ -3586,8 +3598,7 @@ static void CullRasterizeMultiPass(
 			VisibilityResults,
 			Scene,
 			SceneView,
-			RangeViews,
-			RangeNumPrimaryViews,
+			*RangeViews,
 			SharedContext,
 			CullingContext,
 			RasterContext,
@@ -3604,8 +3615,7 @@ void CullRasterize(
 	const FNaniteVisibilityResults& VisibilityResults,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
-	const TArray<FPackedView, SceneRenderingAllocator>& Views,
-	uint32 NumPrimaryViews,	// Number of non-mip views
+	const FPackedViewArray& ViewArray,
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
@@ -3618,7 +3628,7 @@ void CullRasterize(
 	LLM_SCOPE_BYTAG(Nanite);
 	
 	// Split rasterization into multiple passes if there are too many views. Only possible for depth-only rendering.
-	if (Views.Num() > NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
+	if (ViewArray.NumViews > NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
 	{
 		check(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 		CullRasterizeMultiPass(
@@ -3627,8 +3637,7 @@ void CullRasterize(
 			VisibilityResults,
 			Scene,
 			SceneView,
-			Views,
-			NumPrimaryViews,
+			ViewArray,
 			SharedContext,
 			CullingContext,
 			RasterContext,
@@ -3647,11 +3656,19 @@ void CullRasterize(
 	check(CullingContext.DrawPassIndex == 0 || CullingContext.Configuration.bSupportsMultiplePasses);
 
 	//check(Views.Num() == 1 || !CullingContext.PrevHZB);	// HZB not supported with multi-view, yet
-	ensure(Views.Num() > 0 && Views.Num() <= NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS);
+	ensure(ViewArray.NumViews > 0 && ViewArray.NumViews <= NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS);
 
 	{
-		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(Views.Num());
-		CullingContext.ViewsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Nanite.Views"), Views.GetTypeSize(), ViewsBufferElements, Views.GetData(), Views.Num() * Views.GetTypeSize());
+		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(ViewArray.NumViews);
+		CullingContext.ViewsBuffer = CreateStructuredBuffer
+		(
+			GraphBuilder,
+			TEXT("Nanite.Views"),
+			sizeof(FPackedView),
+			[ViewsBufferElements] { return ViewsBufferElements; },
+			[&ViewArray] { return ViewArray.GetViews().GetData(); },
+			[&ViewArray] { return ViewArray.GetViews().Num() * sizeof(FPackedView); }
+		);
 	}
 
 	if (OptionalInstanceDraws)
@@ -3706,8 +3723,8 @@ void CullRasterize(
 		const bool bDisocclusionHack = GNaniteDisocclusionHack && !VirtualShadowMapArray;
 
 		CullingParameters.InViews						= GraphBuilder.CreateSRV(CullingContext.ViewsBuffer);
-		CullingParameters.NumViews						= Views.Num();
-		CullingParameters.NumPrimaryViews				= NumPrimaryViews;
+		CullingParameters.NumViews						= ViewArray.NumViews;
+		CullingParameters.NumPrimaryViews				= ViewArray.NumPrimaryViews;
 		CullingParameters.DisocclusionLodScaleFactor	= bDisocclusionHack ? 0.01f : 1.0f;	// TODO: Get rid of this hack
 		CullingParameters.HZBTexture					= RegisterExternalTextureWithFallback(GraphBuilder, CullingContext.PrevHZB, GSystemTextures.BlackDummy);
 		CullingParameters.HZBSize						= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2f(0.0f);
@@ -3757,9 +3774,9 @@ void CullRasterize(
 	if (VirtualShadowMapArray != nullptr)
 	{
 		// Compact the views to remove needless (empty) mip views - need to do on GPU as that is where we know what mips have pages.
-		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(Views.Num());
+		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(ViewArray.NumViews);
 		FRDGBufferRef CompactedViews = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedView), ViewsBufferElements), TEXT("Shadow.Virtual.CompactedViews"));
-		FRDGBufferRef CompactedViewInfo = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FCompactedViewInfo), Views.Num()), TEXT("Shadow.Virtual.CompactedViewInfo"));
+		FRDGBufferRef CompactedViewInfo = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FCompactedViewInfo), ViewArray.NumViews), TEXT("Shadow.Virtual.CompactedViewInfo"));
 		
 		// Just a pair of atomic counters, zeroed by a clear UAV pass.
 		FRDGBufferRef CompactedViewsAllocation = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 2), TEXT("Shadow.Virtual.CompactedViewsAllocation"));
@@ -3786,7 +3803,7 @@ void CullRasterize(
 				RDG_EVENT_NAME("CompactViewsVSM"),
 				ComputeShader,
 				PassParameters,
-				FComputeShaderUtils::GetGroupCount(NumPrimaryViews, 64)
+				FComputeShaderUtils::GetGroupCount(ViewArray.NumPrimaryViews, 64)
 			);
 		}
 
@@ -3873,8 +3890,7 @@ void CullRasterize(
 			GraphBuilder,
 			Scene,
 			CullingParameters,
-			Views,
-			NumPrimaryViews,
+			ViewArray,
 			SharedContext,
 			CullingContext,
 			RasterContext,
@@ -3890,7 +3906,7 @@ void CullRasterize(
 			GraphBuilder,
 			RasterPipelines,
 			VisibilityResults,
-			Views,
+			ViewArray,
 			Scene,
 			SceneView,
 			SharedContext,
@@ -3941,10 +3957,12 @@ void CullRasterize(
 			FRDGTextureRef OutFurthestHZBTexture;
 
 			FIntRect ViewRect(0, 0, RasterContext.TextureSize.X, RasterContext.TextureSize.Y);
-			if (Views.Num() == 1)
+			if (ViewArray.NumViews == 1)
 			{
+				const FPackedView& PrimaryView = ViewArray.GetViews()[0];
+
 				//TODO: This is a hack. Using full texture can lead to 'far' borders on left/bottom. How else can we ensure good culling perf for main view.
-				ViewRect = FIntRect(Views[0].ViewRect.X, Views[0].ViewRect.Y, Views[0].ViewRect.Z, Views[0].ViewRect.W);
+				ViewRect = FIntRect(PrimaryView.ViewRect.X, PrimaryView.ViewRect.Y, PrimaryView.ViewRect.Z, PrimaryView.ViewRect.W);
 			}
 			
 			BuildHZBFurthest(
@@ -3967,8 +3985,7 @@ void CullRasterize(
 			GraphBuilder,
 			Scene,
 			CullingParameters,
-			Views,
-			NumPrimaryViews,
+			ViewArray,
 			SharedContext,
 			CullingContext,
 			RasterContext,
@@ -3985,7 +4002,7 @@ void CullRasterize(
 			GraphBuilder,
 			RasterPipelines,
 			VisibilityResults,
-			Views,
+			ViewArray,
 			Scene,
 			SceneView,
 			SharedContext,
@@ -4037,7 +4054,7 @@ void CullRasterize(
 	const FNaniteVisibilityResults& VisibilityResults,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
-	const TArray<FPackedView, SceneRenderingAllocator>& Views,
+	const FPackedViewArray& ViewArray,
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
@@ -4051,8 +4068,7 @@ void CullRasterize(
 		VisibilityResults,
 		Scene,
 		SceneView,
-		Views,
-		Views.Num(),
+		ViewArray,
 		SharedContext,
 		CullingContext,
 		RasterContext,

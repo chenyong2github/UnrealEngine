@@ -165,6 +165,28 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 
 }
 
+FPackedViewArray* FPackedViewArray::Create(FRDGBuilder& GraphBuilder, const FPackedView& View)
+{
+	FPackedViewArray* ViewArray = GraphBuilder.AllocObject<FPackedViewArray>(1, 1);
+	ViewArray->Views.Add(View);
+	return ViewArray;
+}
+
+FPackedViewArray* FPackedViewArray::CreateWithSetupTask(FRDGBuilder& GraphBuilder, uint32 NumPrimaryViews, uint32 MaxNumMips, TaskLambdaType&& TaskLambda, bool bExecuteInTask)
+{
+	FPackedViewArray* ViewArray = GraphBuilder.AllocObject<FPackedViewArray>(NumPrimaryViews, MaxNumMips);
+
+	ViewArray->SetupTask = GraphBuilder.AddSetupTask([ViewArray, TaskLambda = MoveTemp(TaskLambda)]
+	{
+		ViewArray->Views.Reserve(ViewArray->NumViews);
+		TaskLambda(ViewArray->Views);
+		checkf(ViewArray->Views.Num() == ViewArray->NumViews, TEXT("Expected View array to have %d elements, but it only has %d"), ViewArray->Views.Num(), ViewArray->NumViews);
+
+	}, bExecuteInTask);
+
+	return ViewArray;
+}
+
 FPackedView CreatePackedViewFromViewInfo
 (
 	const FViewInfo& View,

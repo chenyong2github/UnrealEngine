@@ -20,6 +20,25 @@
 class RENDERCORE_API FRDGAllocator final
 {
 public:
+	class FObject
+	{
+	public:
+		virtual ~FObject() = default;
+	};
+
+	template <typename T>
+	class TObject final : FObject
+	{
+		friend class FRDGAllocator;
+	private:
+		template <typename... TArgs>
+		FORCEINLINE TObject(TArgs&&... Args)
+			: Alloc(Forward<TArgs&&>(Args)...)
+		{}
+
+		T Alloc;
+	};
+
 	static FRDGAllocator& Get();
 	~FRDGAllocator();
 
@@ -48,13 +67,13 @@ public:
 	{
 		FContext& LocalContext = GetContext();
 	#if RDG_USE_MALLOC
-		TTrackedAlloc<T>* TrackedAlloc = new TTrackedAlloc<T>(Forward<TArgs&&>(Args)...);
+		TObject<T>* Object = new TObject<T>(Forward<TArgs&&>(Args)...);
 	#else
-		TTrackedAlloc<T>* TrackedAlloc = new(LocalContext.MemStack) TTrackedAlloc<T>(Forward<TArgs&&>(Args)...);
+		TObject<T>* Object = new(LocalContext.MemStack) TObject<T>(Forward<TArgs&&>(Args)...);
 	#endif
-		check(TrackedAlloc);
-		LocalContext.TrackedAllocs.Add(TrackedAlloc);
-		return &TrackedAlloc->Alloc;
+		check(Object);
+		LocalContext.Objects.Add(Object);
+		return &Object->Alloc;
 	}
 
 	/** Allocates a C++ object with no destructor tracking (dangerous!). */
@@ -84,22 +103,6 @@ private:
 
 	void ReleaseAll();
 
-	struct FTrackedAlloc
-	{
-		virtual ~FTrackedAlloc() = default;
-	};
-
-	template <typename T>
-	struct TTrackedAlloc final : FTrackedAlloc
-	{
-		template <typename... TArgs>
-		FORCEINLINE TTrackedAlloc(TArgs&&... Args)
-			: Alloc(Forward<TArgs&&>(Args)...)
-		{}
-
-		T Alloc;
-	};
-
 	struct FContext
 	{
 #if RDG_USE_MALLOC
@@ -107,7 +110,7 @@ private:
 #else
 		FMemStackBase MemStack;
 #endif
-		TArray<FTrackedAlloc*> TrackedAllocs;
+		TArray<FObject*> Objects;
 
 		void ReleaseAll();
 	};
@@ -125,6 +128,8 @@ private:
 	friend class TRDGArrayAllocator;
 	friend class FRDGAllocatorScope;
 };
+
+#define RDG_FRIEND_ALLOCATOR_FRIEND(Type) friend class FRDGAllocator::TObject<Type>
 
 /** Base class for RDG builder which scopes the allocations and releases them in the destructor. */
 class RENDERCORE_API FRDGAllocatorScope

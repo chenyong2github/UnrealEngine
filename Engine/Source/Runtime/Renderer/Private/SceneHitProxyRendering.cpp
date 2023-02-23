@@ -584,8 +584,10 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(GetSceneUniforms(), Scene->GPUScene.IsEnabled(), GraphBuilder);
 
+	FInitViewTaskDatas InitViewTaskDatas;
+
 	// Find the visible primitives.
-	InitViews(GraphBuilder, SceneTexturesConfig, InstanceCullingManager, nullptr);
+	InitViews(GraphBuilder, SceneTexturesConfig, InstanceCullingManager, nullptr, InitViewTaskDatas);
 
 	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
 
@@ -738,7 +740,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 				VisibilityResults,
 				*Scene,
 				View,
-				{ PackedView },
+				*Nanite::FPackedViewArray::Create(GraphBuilder, PackedView),
 				SharedContext,
 				CullingContext,
 				RasterContext

@@ -435,7 +435,12 @@ void FMobileSceneRenderer::SetupMobileBasePassAfterShadowInit(FExclusiveDepthSte
  * Initialize scene's views.
  * Check visibility, sort translucent items, etc.
  */
-void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesConfig& SceneTexturesConfig, FInstanceCullingManager& InstanceCullingManager, FVirtualTextureUpdater* VirtualTextureUpdater)
+void FMobileSceneRenderer::InitViews(
+	FRDGBuilder& GraphBuilder,
+	FSceneTexturesConfig& SceneTexturesConfig,
+	FInstanceCullingManager& InstanceCullingManager,
+	FVirtualTextureUpdater* VirtualTextureUpdater,
+	FInitViewTaskDatas& TaskDatas)
 {
 	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 	
@@ -656,13 +661,11 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		}
 	}
 
-	FDynamicShadowsTaskData* DynamicShadowsTaskData = nullptr;
-
 	const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
 	if (bDynamicShadows)
 	{
 		// Setup dynamic shadows.
-		DynamicShadowsTaskData = InitDynamicShadows(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
+		TaskDatas.DynamicShadows = InitDynamicShadows(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
 	}
 	else
 	{
@@ -680,7 +683,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 
 	if (bRequiresDistanceField)
 	{
-		PrepareDistanceFieldScene(GraphBuilder, DynamicShadowsTaskData, ExternalAccessQueue);
+		PrepareDistanceFieldScene(GraphBuilder, TaskDatas.DynamicShadows, ExternalAccessQueue);
 	}
 
 	ExternalAccessQueue.Submit(GraphBuilder);
@@ -911,10 +914,12 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// TODO: This doesn't take into account the potential for split screen views with separate shadow caches
 	VirtualShadowMapArray.Initialize(GraphBuilder, Scene->GetVirtualShadowMapCache(Views[0]), UseVirtualShadowMaps(ShaderPlatform, FeatureLevel), Views[0].bIsSceneCapture);
 
+	FInitViewTaskDatas InitViewTaskDatas;
+
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_InitViews));
 
 	// Find the visible primitives and prepare targets and buffers for rendering
-	InitViews(GraphBuilder, SceneTexturesConfig, InstanceCullingManager, VirtualTextureUpdater.Get());
+	InitViews(GraphBuilder, SceneTexturesConfig, InstanceCullingManager, VirtualTextureUpdater.Get(), InitViewTaskDatas);
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_AfterInitViews));
 
