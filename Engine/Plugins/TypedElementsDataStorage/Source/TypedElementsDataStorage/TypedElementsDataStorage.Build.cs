@@ -26,6 +26,7 @@ public class TypedElementsDataStorage : ModuleRules
 					"TypedElementFramework",
 					"EditorSubsystem",
 					"UnrealEd",
+					"StructUtils"
 				});
 
 			PrivateDependencyModuleNames.AddRange(new string[] {});
