@@ -431,7 +431,7 @@ namespace Metasound
 					InStartTimeInSeconds);
 			}
 		}
-		CurrentFrameIndex = InStartTimeInSeconds * GetSampleRate();
+		CurrentFrameIndex = FMath::Clamp(static_cast<int32>(InStartTimeInSeconds * GetSampleRate()), 0, GetNumFramesInWave());
 
 		// Get codec ptr by reading the header info from the decoder input.
 		ICodecRegistry::FCodecPtr Codec = ICodecRegistry::Get().FindCodecByParsingInput(DecoderInput.Get());
