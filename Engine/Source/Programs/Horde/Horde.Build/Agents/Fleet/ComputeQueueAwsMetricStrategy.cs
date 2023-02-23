@@ -43,6 +43,16 @@ namespace Horde.Build.Agents.Fleet
 		}
 	}
 
+	static class ComputeServiceExtensions
+	{
+		public static Task<int> GetNumQueuedTasksForPoolAsync(this ComputeService computeService, ClusterId clusterId, IPool pool)
+		{
+			// Will need to reimplement this functionality in ComputeService if we want to use this strategy, but conditions on tasks
+			// may reference properties that are specific to an agent rather than a pool...
+			throw new NotImplementedException();
+		}
+	}
+
 	/// <summary>
 	/// A no-op strategy that reports size of compute task queue for a given pool as AWS CloudWatch metrics
 	/// A metric that later can be used as a source for AWS-controlled auto-scaling policies. 
@@ -50,7 +60,7 @@ namespace Horde.Build.Agents.Fleet
 	public class ComputeQueueAwsMetricStrategy : IPoolSizeStrategy
 	{
 		private readonly IAmazonCloudWatch _cloudWatch;
-		private readonly IComputeService _computeService;
+		private readonly ComputeService _computeService;
 		private readonly ComputeQueueAwsMetricSettings _settings;
 		private readonly ILogger<ComputeQueueAwsMetricStrategy> _logger;
 
@@ -61,7 +71,7 @@ namespace Horde.Build.Agents.Fleet
 		/// <param name="computeService"></param>
 		/// <param name="settings"></param>
 		/// <param name="logger"></param>
-		public ComputeQueueAwsMetricStrategy(IAmazonCloudWatch cloudWatch, IComputeService computeService,
+		public ComputeQueueAwsMetricStrategy(IAmazonCloudWatch cloudWatch, ComputeService computeService,
 			ComputeQueueAwsMetricSettings settings, ILogger<ComputeQueueAwsMetricStrategy> logger)
 		{
 			_cloudWatch = cloudWatch;
