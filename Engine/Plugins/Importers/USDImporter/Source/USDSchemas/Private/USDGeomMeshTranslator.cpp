@@ -1009,10 +1009,17 @@ namespace UsdGeomMeshTranslatorImpl
 				RenderContextToken = UnrealToUsd::ConvertToken(*Context->RenderContext.ToString()).Get();
 			}
 
+			pxr::TfToken MaterialPurposeToken = pxr::UsdShadeTokens->allPurpose;
+			if (!Context->MaterialPurpose.IsNone())
+			{
+				MaterialPurposeToken = UnrealToUsd::ConvertToken(*Context->MaterialPurpose.ToString()).Get();
+			}
+
 			UsdToUnreal::FUsdMeshConversionOptions Options;
 			Options.PurposesToLoad = Context->PurposesToLoad;
 			Options.bMergeIdenticalMaterialSlots = Context->bMergeIdenticalMaterialSlots;
 			Options.RenderContext = RenderContextToken;
+			Options.MaterialPurpose = MaterialPurposeToken;
 
 			// Create and configure a new USDTrack to be added to the GeometryCache
 			UGeometryCacheTrackUsd* UsdTrack = NewObject< UGeometryCacheTrackUsd >(GeometryCache);
@@ -1398,10 +1405,17 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 				RenderContextToken = UnrealToUsd::ConvertToken(*Context->RenderContext.ToString()).Get();
 			}
 
+			pxr::TfToken MaterialPurposeToken = pxr::UsdShadeTokens->allPurpose;
+			if (!Context->MaterialPurpose.IsNone())
+			{
+				MaterialPurposeToken = UnrealToUsd::ConvertToken(*Context->MaterialPurpose.ToString()).Get();
+			}
+
 			UsdToUnreal::FUsdMeshConversionOptions Options;
 			Options.TimeCode = Context->Time;
 			Options.PurposesToLoad = Context->PurposesToLoad;
 			Options.RenderContext = RenderContextToken;
+			Options.MaterialPurpose = MaterialPurposeToken;
 			Options.MaterialToPrimvarToUVIndex = MaterialToPrimvarToUVIndex;
 			Options.bMergeIdenticalMaterialSlots = Context->bMergeIdenticalMaterialSlots;
 			Options.AdditionalTransform = AdditionalTransform;
@@ -1463,10 +1477,17 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 				RenderContextToken = UnrealToUsd::ConvertToken(*Context->RenderContext.ToString()).Get();
 			}
 
+			pxr::TfToken MaterialPurposeToken = pxr::UsdShadeTokens->allPurpose;
+			if (!Context->MaterialPurpose.IsNone())
+			{
+				MaterialPurposeToken = UnrealToUsd::ConvertToken(*Context->MaterialPurpose.ToString()).Get();
+			}
+
 			UsdToUnreal::FUsdMeshConversionOptions Options;
 			Options.TimeCode = UsdUtils::GetEarliestTimeCode();
 			Options.PurposesToLoad = Context->PurposesToLoad;
 			Options.RenderContext = RenderContextToken;
+			Options.MaterialPurpose = MaterialPurposeToken;
 			Options.MaterialToPrimvarToUVIndex = MaterialToPrimvarToUVIndex;
 			Options.bMergeIdenticalMaterialSlots = Context->bMergeIdenticalMaterialSlots;
 

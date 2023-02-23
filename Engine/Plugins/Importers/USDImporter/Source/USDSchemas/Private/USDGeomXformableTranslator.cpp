@@ -235,6 +235,12 @@ void FUsdGeomXformableCreateAssetsTaskChain::SetupTasks()
 				RenderContextToken = UnrealToUsd::ConvertToken( *Context->RenderContext.ToString() ).Get();
 			}
 
+			pxr::TfToken MaterialPurposeToken = pxr::UsdShadeTokens->allPurpose;
+			if (!Context->MaterialPurpose.IsNone())
+			{
+				MaterialPurposeToken = UnrealToUsd::ConvertToken(*Context->MaterialPurpose.ToString()).Get();
+			}
+
 			// We're going to put Prim's transform and visibility on the component, so we don't need to bake it into the combined mesh
 			const bool bSkipRootPrimTransformAndVis = true;
 
@@ -242,6 +248,7 @@ void FUsdGeomXformableCreateAssetsTaskChain::SetupTasks()
 			Options.TimeCode = Context->Time;
 			Options.PurposesToLoad = Context->PurposesToLoad;
 			Options.RenderContext = RenderContextToken;
+			Options.MaterialPurpose = MaterialPurposeToken;
 			Options.MaterialToPrimvarToUVIndex = MaterialToPrimvarToUVIndex;
 			Options.bMergeIdenticalMaterialSlots = Context->bMergeIdenticalMaterialSlots;
 
