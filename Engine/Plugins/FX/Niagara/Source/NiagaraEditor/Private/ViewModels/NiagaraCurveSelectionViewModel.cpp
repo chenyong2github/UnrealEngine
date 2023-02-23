@@ -509,18 +509,16 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 		}
 	}
 
-	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
-	TArray<const UEdGraphPin*> InputPins;
-	TSet<const UEdGraphPin*> HiddenPins;
-	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(FunctionCallNode, InputPins, HiddenPins, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
-	for (const UEdGraphPin* InputPin : InputPins)
+	TArray<FNiagaraVariable> InputVariables;
+	TSet<FNiagaraVariable> HiddenVariables;
+	FNiagaraStackGraphUtilities::GetStackFunctionInputs(FunctionCallNode, InputVariables, HiddenVariables, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+	for (FNiagaraVariable InputVariable : InputVariables)
 	{
-		if (HiddenPins.Contains(InputPin))
+		if (HiddenVariables.Contains(InputVariable))
 		{
 			continue;
 		}
 
-		FNiagaraVariable InputVariable = NiagaraSchema->PinToNiagaraVariable(InputPin);
 		if (InputVariable.IsValid() && InputVariable.GetType().IsDataInterface() && InputVariable.GetType().GetClass()->IsChildOf(UNiagaraDataInterfaceCurveBase::StaticClass()))
 		{
 			UNiagaraDataInterfaceCurveBase* DataInterfaceToDisplay = nullptr;

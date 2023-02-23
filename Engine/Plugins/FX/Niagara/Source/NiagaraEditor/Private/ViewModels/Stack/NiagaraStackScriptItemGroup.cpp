@@ -359,11 +359,11 @@ private:
 
 		UNiagaraNodeAssignment* NewAssignmentModule = FNiagaraStackGraphUtilities::AddParameterModuleToStack(Vars, *OutputNode, TargetIndex,DefaultVals );
 		
-		TArray<const UEdGraphPin*> InputPins;
-		FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*NewAssignmentModule, InputPins, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::AllInputs);
-		if (InputPins.Num() == 1)
+		TArray<FNiagaraVariable> InputVariables;
+		FNiagaraStackGraphUtilities::GetStackFunctionInputs(*NewAssignmentModule, InputVariables, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::AllInputs);
+		if (InputVariables.Num() == 1)
 		{
-			FString FunctionInputEditorDataKey = FNiagaraStackGraphUtilities::GenerateStackFunctionInputEditorDataKey(*NewAssignmentModule, InputPins[0]->PinName);
+			FString FunctionInputEditorDataKey = FNiagaraStackGraphUtilities::GenerateStackFunctionInputEditorDataKey(*NewAssignmentModule, InputVariables[0].GetName());
 			if (bRenameParameterOnAdd)
 			{
 				StackEditorData.SetStackEntryIsRenamePending(FunctionInputEditorDataKey, true);

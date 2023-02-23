@@ -1386,7 +1386,7 @@ void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, const
 	if (FunctionScript)
 	{
 		// Automatically remove old inputs so it does not show a bunch of warnings to the user
-		TMap<FName, FEdGraphPinType> FunctionInputNames;
+		TMap<FName, FNiagaraTypeDefinition> FunctionInputNames;
 		FPinCollectorArray OverridePins;
 		UNiagaraNodeParameterMapSet* OverrideNode = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(*this);
 		if (OverrideNode != nullptr)
@@ -1394,11 +1394,11 @@ void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, const
 			OverrideNode->Modify();
 			OverrideNode->GetInputPins(OverridePins);
 			
-			TArray<const UEdGraphPin*> ModuleInputPins;
-			FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*this, ModuleInputPins, UpgradeContext.ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
-			for (const UEdGraphPin* InputPin : ModuleInputPins)
+			TArray<FNiagaraVariable> ModuleInputVariables;
+			FNiagaraStackGraphUtilities::GetStackFunctionInputs(*this, ModuleInputVariables, UpgradeContext.ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+			for (const FNiagaraVariable& InputVariable : ModuleInputVariables)
 			{
-				FunctionInputNames.Add(FNiagaraParameterHandle(InputPin->PinName).GetName(), InputPin->PinType);
+				FunctionInputNames.Add(FNiagaraParameterHandle(InputVariable.GetName()).GetName(), InputVariable.GetType());
 			}
 		}
 		for (UEdGraphPin* OverridePin : OverridePins)
@@ -1408,14 +1408,15 @@ void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, const
 				continue;
 			}
 			FName InputName = FNiagaraParameterHandle(OverridePin->PinName).GetName();
-			FEdGraphPinType* PinType = FunctionInputNames.Find(InputName);
-			if (PinType && *PinType != OverridePin->PinType)
+			FNiagaraTypeDefinition* InputType = FunctionInputNames.Find(InputName);
+			FNiagaraTypeDefinition OverridePinType = UEdGraphSchema_Niagara::PinTypeToTypeDefinition(OverridePin->PinType);
+			if (InputType != nullptr && *InputType != OverridePinType)
 			{
 				// looks like the type of the module input changed - we'll change the override pin type as well
 				OverridePin->Modify();
-				OverridePin->PinType = *PinType;
+				OverridePin->PinType = UEdGraphSchema_Niagara::TypeDefinitionToPinType(*InputType);
 			}
-			else if (PinType == nullptr)
+			else if (InputType == nullptr)
 			{
 				// the input doesn't exist any more, delete the override pin
 				TArray<TWeakObjectPtr<UNiagaraDataInterface>> RemovedDataObjects;

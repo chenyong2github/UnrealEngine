@@ -94,19 +94,17 @@ bool FNiagaraStackFunctionInputBinder::TryBindInternal(
 	}
 	FunctionCallNode = InFunctionCallNode;
 
-	TArray<const UEdGraphPin*> InputPins;
-	TSet<const UEdGraphPin*> HiddenInputPins;
-	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, InputPins, HiddenInputPins, InConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+	TArray<FNiagaraVariable> InputVariables;
+	TSet<FNiagaraVariable> HiddenInputVariables;
+	FNiagaraStackGraphUtilities::GetStackFunctionInputs(*FunctionCallNode, InputVariables, HiddenInputVariables, InConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 	bool bInputFound = false;
-	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-	for (const UEdGraphPin* InputPin : InputPins)
+	for (const FNiagaraVariable& InputVariable : InputVariables)
 	{
-		if (HiddenInputPins.Contains(InputPin))
+		if (HiddenInputVariables.Contains(InputVariable))
 		{
 			continue;
 		}
 
-		FNiagaraVariable InputVariable = Schema->PinToNiagaraVariable(InputPin);
 		if(InputMatchesCallback.Execute(InputVariable))
 		{
 			InputName = InputVariable.GetName();

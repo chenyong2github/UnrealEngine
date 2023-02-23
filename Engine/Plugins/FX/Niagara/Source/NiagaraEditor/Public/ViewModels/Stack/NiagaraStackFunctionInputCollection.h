@@ -43,8 +43,7 @@ protected:
 
 	struct FInputData
 	{
-		const UEdGraphPin* Pin;
-		FNiagaraTypeDefinition Type;
+		FNiagaraVariable InputVariable;
 		int32 SortKey;
 		TOptional<FText> DisplayName;
 		FText Category;
@@ -57,12 +56,11 @@ protected:
 		
 		TArray<FInputData*> Children;
 		bool bIsChild = false;
-
 	};
 
 	struct FNiagaraParentData
 	{
-		const UEdGraphPin* ParentPin;
+		FNiagaraVariable ParentVariable;
 		TArray<int32> ChildIndices;
 	};
 
@@ -83,7 +81,7 @@ protected:
 	
 	void ApplyAllFunctionInputsToChildren(FFunctionCallNodesState& State, const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues, bool bShouldApplySummaryFilter);
 
-	void RefreshIssues(UNiagaraNodeFunctionCall* InputFunctionCallNode, const TArray<FName>& DuplicateInputNames, const TArray<FName>& ValidAliasedInputNames, const TArray<const UEdGraphPin*>& PinsWithInvalidTypes, const TMap<FName, UEdGraphPin*>& StaticSwitchInputs, TArray<FStackIssue>& NewIssues);
+	void RefreshIssues(UNiagaraNodeFunctionCall* InputFunctionCallNode, const TArray<FName>& DuplicateInputNames, const TArray<FName>& ValidAliasedInputNames, const TArray<FNiagaraVariable>& InputsWithInvalidTypes, const TMap<FName, UEdGraphPin*>& StaticSwitchInputs, TArray<FStackIssue>& NewIssues);
 
 	void OnFunctionInputsChanged();
 

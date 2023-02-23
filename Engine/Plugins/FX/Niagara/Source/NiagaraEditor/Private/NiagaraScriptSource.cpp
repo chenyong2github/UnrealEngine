@@ -340,7 +340,7 @@ bool UNiagaraScriptSource::AddModuleIfMissing(FString ModulePath, ENiagaraScript
 	return false;
 }
 
-void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNodeFunctionCall* FunctionCallNode, TConstArrayView<const UEdGraphPin*> ModuleInputPins, TConstArrayView<FNiagaraVariable> ModulePinVariables, FNiagaraParameterStore& RapidIterationParameters, const TArray<FNiagaraVariable>& OldRapidIterationVariables, const FVersionedNiagaraEmitter& VersionedEmitter, ENiagaraScriptUsage ScriptUsage) const
+void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNodeFunctionCall* FunctionCallNode, TConstArrayView<FNiagaraVariable> ModuleInputVariables, FNiagaraParameterStore& RapidIterationParameters, const TArray<FNiagaraVariable>& OldRapidIterationVariables, const FVersionedNiagaraEmitter& VersionedEmitter, ENiagaraScriptUsage ScriptUsage) const
 {
 	// the rapid iteration parameters and the function input pins use different variable naming schemes, so most of this is just used to convert one name to the other 
 	UNiagaraGraph* Graph = FunctionCallNode->GetCalledGraph();
@@ -351,7 +351,7 @@ void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNodeFunctionCall* Func
 	TArray<FString, TInlineAllocator<16>> ModulePinConstantName;
 	TArray<int32, TInlineAllocator<16>> ModulePinNameSpaceEnd;
 
-	const int32 ModuleInputPinCount = ModuleInputPins.Num();
+	const int32 ModuleInputPinCount = ModuleInputVariables.Num();
 	ModulePinMetaData.Reserve(ModuleInputPinCount);
 	ModulePinAliasedName.Reserve(ModuleInputPinCount);
 	ModulePinConstantName.Reserve(ModuleInputPinCount);
@@ -361,11 +361,10 @@ void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNodeFunctionCall* Func
 
 	for (int32 ModuleInputPinIt = 0; ModuleInputPinIt < ModuleInputPinCount; ++ModuleInputPinIt)
 	{
-		const UEdGraphPin* ModuleInputPin = ModuleInputPins[ModuleInputPinIt];
-		const FNiagaraVariable& InputVar = ModulePinVariables[ModuleInputPinIt];
+		const FNiagaraVariable& ModuleInputVariable = ModuleInputVariables[ModuleInputPinIt];
 
-		ModulePinMetaData.Add(Graph->GetMetaData(InputVar));
-		FNiagaraParameterHandle AliasedFunctionInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(ModuleInputPin->PinName, FunctionName);
+		ModulePinMetaData.Add(Graph->GetMetaData(ModuleInputVariable));
+		FNiagaraParameterHandle AliasedFunctionInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(ModuleInputVariable.GetName(), FunctionName);
 		const FName& AliasedName = ModulePinAliasedName.Add_GetRef(AliasedFunctionInputHandle.GetParameterHandleString());
 		const FString& ConstantName = ModulePinConstantName.Add_GetRef(FNiagaraUtilities::CreateRapidIterationConstantName(AliasedName, *UniqueEmitterName, ScriptUsage));
 
@@ -379,7 +378,7 @@ void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNodeFunctionCall* Func
 		{
 			for (int32 ModuleInputPinIt = 0; ModuleInputPinIt < ModuleInputPinCount; ++ModuleInputPinIt)
 			{
-				const FNiagaraVariable& InputVar = ModulePinVariables[ModuleInputPinIt];
+				const FNiagaraVariable& InputVar = ModuleInputVariables[ModuleInputPinIt];
 				const FStringView ConstantName(ModulePinConstantName[ModuleInputPinIt]);
 				const int32 NameSpaceEnd = ModulePinNameSpaceEnd[ModuleInputPinIt];
 
@@ -434,7 +433,7 @@ void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNodeFunctionCall* Func
 	}
 }
 
-void UNiagaraScriptSource::InitializeNewParameters(UNiagaraNodeFunctionCall* FunctionCallNode, TConstArrayView<const UEdGraphPin*> FunctionInputPins, TConstArrayView<FNiagaraVariable> PinVariables, FNiagaraParameterStore& RapidIterationParameters, const FVersionedNiagaraEmitter& VersionedEmitter, ENiagaraScriptUsage ScriptUsage, TSet<FName>& ValidRapidIterationParameterNames) const
+void UNiagaraScriptSource::InitializeNewParameters(UNiagaraNodeFunctionCall* FunctionCallNode, TConstArrayView<FNiagaraVariable> ModuleInputVariables, FNiagaraParameterStore& RapidIterationParameters, const FVersionedNiagaraEmitter& VersionedEmitter, ENiagaraScriptUsage ScriptUsage, TSet<FName>& ValidRapidIterationParameterNames) const
 {
 	const FString UniqueEmitterName = VersionedEmitter.Emitter ? VersionedEmitter.Emitter->GetUniqueEmitterName() : FString();
 	UNiagaraGraph* Graph = FunctionCallNode->GetCalledGraph();
@@ -445,7 +444,7 @@ void UNiagaraScriptSource::InitializeNewParameters(UNiagaraNodeFunctionCall* Fun
 	TArray<FNiagaraParameterHandle, TInlineAllocator<16>> AliasHandles;
 	TArray<FNiagaraVariable, TInlineAllocator<16>> Parameters;
 
-	const int32 FunctionInputPinCount = FunctionInputPins.Num();
+	const int32 FunctionInputPinCount = ModuleInputVariables.Num();
 	PinNames.Reserve(FunctionInputPinCount);
 	DefaultPins.Reserve(FunctionInputPinCount);
 	AliasHandles.Reserve(FunctionInputPinCount);
@@ -455,26 +454,25 @@ void UNiagaraScriptSource::InitializeNewParameters(UNiagaraNodeFunctionCall* Fun
 
 	for (int32 FunctionInputPinIt = 0; FunctionInputPinIt < FunctionInputPinCount; ++FunctionInputPinIt)
 	{
-		const UEdGraphPin* FunctionInputPin = FunctionInputPins[FunctionInputPinIt];
-		const FNiagaraTypeDefinition& InputType = PinVariables[FunctionInputPinIt].GetType();
-		if (InputType.IsValid() == false)
+		const FNiagaraVariable& ModuleInputVariable = ModuleInputVariables[FunctionInputPinIt];
+		if (ModuleInputVariable.GetType().IsValid() == false)
 		{
 			UE_LOG(LogNiagaraEditor, Error, TEXT("Invalid input type found while attempting initialize new rapid iteration parameters. Function Node: %s %s Input Name: %s"),
-				*FunctionCallNode->GetPathName(), *FunctionCallNode->GetFunctionName(), *FunctionInputPin->GetName());
+				*FunctionCallNode->GetPathName(), *FunctionCallNode->GetFunctionName(), *ModuleInputVariable.GetName().ToString());
 			continue;
 		}
 
-		if (FNiagaraStackGraphUtilities::IsRapidIterationType(InputType))
+		if (FNiagaraStackGraphUtilities::IsRapidIterationType(ModuleInputVariable.GetType()))
 		{
-			FNiagaraParameterHandle AliasedFunctionInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(FunctionInputPin->PinName, FunctionNodeName);
-			FNiagaraVariable RapidIterationParameter = FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, ScriptUsage, AliasedFunctionInputHandle.GetParameterHandleString(), InputType);
+			FNiagaraParameterHandle AliasedFunctionInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(ModuleInputVariable.GetName(), FunctionNodeName);
+			FNiagaraVariable RapidIterationParameter = FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, ScriptUsage, AliasedFunctionInputHandle.GetParameterHandleString(), ModuleInputVariable.GetType());
 			ValidRapidIterationParameterNames.Add(RapidIterationParameter.GetName());
 			int32 ParameterIndex = RapidIterationParameters.IndexOf(RapidIterationParameter);
 
 			// Only set a value for the parameter if it's not already set.
 			if (ParameterIndex == INDEX_NONE)
 			{
-				PinNames.Add(FunctionInputPin->PinName);
+				PinNames.Add(ModuleInputVariable.GetName());
 				AliasHandles.Add(AliasedFunctionInputHandle);
 				Parameters.Add(RapidIterationParameter);
 			}
@@ -540,7 +538,6 @@ void UNiagaraScriptSource::CleanUpOldAndInitializeNewRapidIterationParameters(co
 		{
 			TArray<UNiagaraNode*> Nodes;
 			NodeGraph->BuildTraversal(Nodes, OutputNode);
-			const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 
 			for(UNiagaraNode* Node : Nodes)
 			{
@@ -554,25 +551,16 @@ void UNiagaraScriptSource::CleanUpOldAndInitializeNewRapidIterationParameters(co
 				UNiagaraGraph* Graph = FunctionCallNode->GetCalledGraph();
 				const UEdGraphSchema_Niagara* NiagaraSchema = Graph->GetNiagaraSchema();
 
-				TArray<const UEdGraphPin*> ModuleInputPins;
+				TArray<FNiagaraVariable> ModuleInputVariables;
 				FCompileConstantResolver ConstantResolver(Emitter, ScriptUsage);
 
-				GetStackFunctionInputPins(*FunctionCallNode, ModuleInputPins, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+				GetStackFunctionInputs(*FunctionCallNode, ModuleInputVariables, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 
 				// if we found any module input pins, then we can continue with fixing up and initializing them
-				if (!ModuleInputPins.IsEmpty())
+				if (!ModuleInputVariables.IsEmpty())
 				{
-					TArray<FNiagaraVariable> ModuleInputPinVariables;
-					ModuleInputPinVariables.Reserve(ModuleInputPins.Num());
-					for (const UEdGraphPin* InputPin : ModuleInputPins)
-					{
-						// PinToNiagaraVariable can be costly (when in sufficient numbers) so do this work once for
-						// both FixupRenamedParameters & InitializeNewParameters
-						ModuleInputPinVariables.Add(NiagaraSchema->PinToNiagaraVariable(InputPin));
-					}
-
-					FixupRenamedParameters(FunctionCallNode, ModuleInputPins, ModuleInputPinVariables, RapidIterationParameters, OldRapidIterationVariables, Emitter, ScriptUsage);
-					InitializeNewParameters(FunctionCallNode, ModuleInputPins, ModuleInputPinVariables, RapidIterationParameters, Emitter, OutputNode->GetUsage(), ValidRapidIterationParameterNames);
+					FixupRenamedParameters(FunctionCallNode, ModuleInputVariables, RapidIterationParameters, OldRapidIterationVariables, Emitter, ScriptUsage);
+					InitializeNewParameters(FunctionCallNode, ModuleInputVariables, RapidIterationParameters, Emitter, OutputNode->GetUsage(), ValidRapidIterationParameterNames);
 				}
 			}
 		}

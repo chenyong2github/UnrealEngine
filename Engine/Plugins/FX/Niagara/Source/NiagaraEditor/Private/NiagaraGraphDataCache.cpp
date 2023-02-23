@@ -2,6 +2,7 @@
 
 #include "NiagaraGraphDataCache.h"
 
+#include "EdGraphSchema_Niagara.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeAssignment.h"
 
@@ -26,11 +27,11 @@ FNiagaraGraphDataCache::FNiagaraGraphDataCache()
 {
 }
 
-void FNiagaraGraphDataCache::GetStackFunctionInputPinsInternal(
+void FNiagaraGraphDataCache::GetStackFunctionInputsInternal(
 	const UNiagaraNodeFunctionCall& FunctionCallNode,
 	const UNiagaraGraph* CalledGraph,
 	TConstArrayView<FNiagaraVariable> StaticVars,
-	TArray<const UEdGraphPin*>& OutInputPins,
+	TArray<FNiagaraVariable>& OutInputVariables,
 	FCompileConstantResolver ConstantResolver,
 	FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options,
 	bool bIgnoreDisabled,
@@ -38,16 +39,22 @@ void FNiagaraGraphDataCache::GetStackFunctionInputPinsInternal(
 {
 	// we don't currently support hashing the internal details of the translator within FStackFunctionInputPinKey so in the case
 	// we've been supplied a translator we'll just fall back to not using the cache
+	TArray<const UEdGraphPin*> InputPins;
 	if (const FHlslNiagaraTranslator* Translator = ConstantResolver.GetTranslator())
 	{
 		FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache(
 			FunctionCallNode,
 			StaticVars,
-			OutInputPins,
+			InputPins,
 			ConstantResolver,
 			Options,
 			bIgnoreDisabled,
 			bFilterForCompilation);
+
+		for (const UEdGraphPin* InputPin : InputPins)
+		{
+			OutInputVariables.Add(UEdGraphSchema_Niagara::PinToNiagaraVariable(InputPin));
+		}
 
 		return;
 	}
@@ -59,36 +66,40 @@ void FNiagaraGraphDataCache::GetStackFunctionInputPinsInternal(
 	}
 
 	FStackFunctionInputPinKey CacheKey(FunctionCallNode, CalledGraph, StaticVars, ConstantResolver, Options, bIgnoreDisabled, bFilterForCompilation);
-	
+
 	bool bFoundInCache = false;
 	if(bUseCache)
 	{
 		if (const FStackFunctionInputPinValue* CachedValue = StackFunctionInputPinCache.FindAndTouch(CacheKey))
 		{
 			bFoundInCache = true;
-			OutInputPins = CachedValue->InputPins;
+			OutInputVariables = CachedValue->InputVariables;
 		}
 	}
 
 	if(bUseCache == false || bFoundInCache == false)
 	{
-		FStackFunctionInputPinValue NewValue;
 		FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache(
 			FunctionCallNode,
 			StaticVars,
-			NewValue.InputPins,
+			InputPins,
 			ConstantResolver,
 			Options,
 			bIgnoreDisabled,
 			bFilterForCompilation);
 
-		OutInputPins = NewValue.InputPins;
+		for(const UEdGraphPin* InputPin : InputPins)
+		{
+			OutInputVariables.Add(UEdGraphSchema_Niagara::PinToNiagaraVariable(InputPin));
+		}
 
 		if(bUseCache)
 		{
+			FStackFunctionInputPinValue NewValue;
+			NewValue.InputVariables = OutInputVariables;
 			StackFunctionInputPinCache.Add(CacheKey, NewValue);
 		}
-	}	
+	}
 
 	if (GNiagaraGraphDataCacheValidation)
 	{
@@ -102,43 +113,41 @@ void FNiagaraGraphDataCache::GetStackFunctionInputPinsInternal(
 			bIgnoreDisabled,
 			bFilterForCompilation);
 
-		if (!ensureMsgf(ValidationPins == OutInputPins, TEXT("FNiagaraGraphDataCache failed to accurately collect StackFunctionInputPins for Function {0}"), *FunctionCallNode.GetPathName()))
+		TArray<FNiagaraVariable> ValidationVariables;
+		for (const UEdGraphPin* ValidationPin : ValidationPins)
 		{
-			OutInputPins = ValidationPins;
+			ValidationVariables.Add(UEdGraphSchema_Niagara::PinToNiagaraVariable(ValidationPin));
+		}
+
+		if (!ensureMsgf(ValidationVariables == OutInputVariables, TEXT("FNiagaraGraphDataCache failed to accurately collect StackFunctionInputPins for Function {0}"), *FunctionCallNode.GetPathName()))
+		{
+			OutInputVariables = ValidationVariables;
 		}
 	}
 }
 
-void FNiagaraGraphDataCache::GetStackFunctionInputPins(const UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<const UEdGraphPin*>& OutInputPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled)
+void FNiagaraGraphDataCache::GetStackFunctionInputs(const UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<FNiagaraVariable>& OutInputVariables, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled)
 {
 	if (const UNiagaraGraph* CalledGraph = FunctionCallNode.GetCalledGraph())
 	{
-		GetStackFunctionInputPinsInternal(FunctionCallNode, CalledGraph, StaticVars, OutInputPins, ConstantResolver, Options, bIgnoreDisabled, false /*bFilterForCompilation*/);
+		GetStackFunctionInputsInternal(FunctionCallNode, CalledGraph, StaticVars, OutInputVariables, ConstantResolver, Options, bIgnoreDisabled, false /*bFilterForCompilation*/);
 	}
 }
 
-void FNiagaraGraphDataCache::GetStackFunctionInputPins(const UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<const UEdGraphPin*>& OutInputPins, TSet<const UEdGraphPin*>& OutHiddenPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled)
+void FNiagaraGraphDataCache::GetStackFunctionInputs(const UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<FNiagaraVariable>& OutInputVariables, TSet<FNiagaraVariable>& OutHiddenVariables, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled)
 {
 	if (const UNiagaraGraph* CalledGraph = FunctionCallNode.GetCalledGraph())
 	{
-		TArray<const UEdGraphPin*> FilteredPins;
+		TArray<FNiagaraVariable> FilteredVariables;
 
-		GetStackFunctionInputPinsInternal(FunctionCallNode, CalledGraph, StaticVars, OutInputPins, ConstantResolver, Options, bIgnoreDisabled, false /*bFilterForCompilation*/);
-		GetStackFunctionInputPinsInternal(FunctionCallNode, CalledGraph, StaticVars, FilteredPins, ConstantResolver, Options, bIgnoreDisabled, true /*bFilterForCompilation*/);
+		GetStackFunctionInputsInternal(FunctionCallNode, CalledGraph, StaticVars, OutInputVariables, ConstantResolver, Options, bIgnoreDisabled, false /*bFilterForCompilation*/);
+		GetStackFunctionInputsInternal(FunctionCallNode, CalledGraph, StaticVars, FilteredVariables, ConstantResolver, Options, bIgnoreDisabled, true /*bFilterForCompilation*/);
 
-		// generate hidden pins
-		auto PinsMatch = [](const UEdGraphPin* Lhs, const UEdGraphPin* Rhs) -> bool
+		for (const FNiagaraVariable& InputVariable : OutInputVariables)
 		{
-			return Lhs->GetFName() == Rhs->GetFName()
-				&& Lhs->PinType.PinCategory == Rhs->PinType.PinCategory
-				&& Lhs->PinType.PinSubCategoryObject == Rhs->PinType.PinSubCategoryObject;
-		};
-
-		for (const UEdGraphPin* InputPin : OutInputPins)
-		{
-			if (!FilteredPins.ContainsByPredicate([&](const UEdGraphPin* CompilationPin) { return PinsMatch(InputPin, CompilationPin); }))
+			if (FilteredVariables.Contains(InputVariable) == false)
 			{
-				OutHiddenPins.Add(InputPin);
+				OutHiddenVariables.Add(InputVariable);
 			}
 		}
 	}

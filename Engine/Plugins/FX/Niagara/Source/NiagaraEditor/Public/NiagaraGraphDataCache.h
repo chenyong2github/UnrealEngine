@@ -19,15 +19,15 @@ class FNiagaraGraphDataCache
 public:
 	FNiagaraGraphDataCache();
 
-	void GetStackFunctionInputPins(const UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<const UEdGraphPin*>& OutInputPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled);
-	void GetStackFunctionInputPins(const UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<const UEdGraphPin*>& OutInputPins, TSet<const UEdGraphPin*>& OutHiddenPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled);
+	void GetStackFunctionInputs(const UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<FNiagaraVariable>& OutInputVariables, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled);
+	void GetStackFunctionInputs(const UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<FNiagaraVariable>& OutInputVariables, TSet<FNiagaraVariable>& OutHiddenVariables, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled);
 
 private:
-	void GetStackFunctionInputPinsInternal(
+	void GetStackFunctionInputsInternal(
 		const UNiagaraNodeFunctionCall& FunctionCallNode,
 		const UNiagaraGraph* CalledGraph,
 		TConstArrayView<FNiagaraVariable> StaticVars,
-		TArray<const UEdGraphPin*>& OutInputPins,
+		TArray<FNiagaraVariable>& OutInputVariables,
 		FCompileConstantResolver ConstantResolver,
 		FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options,
 		bool bIgnoreDisabled,
@@ -62,7 +62,7 @@ private:
 
 	struct FStackFunctionInputPinValue
 	{
-		TArray<const UEdGraphPin*> InputPins;
+		TArray<FNiagaraVariable> InputVariables;
 	};
 
 	// cache holding a finite number (specific value pulled from a cvar) of results to previous calls

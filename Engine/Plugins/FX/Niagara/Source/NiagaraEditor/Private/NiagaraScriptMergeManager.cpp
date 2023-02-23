@@ -252,21 +252,16 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const FVers
 	// can be ignored since they're not actually overrides.  This is usually not an issue due to the PreparateRapidIterationParameters call in the emitter
 	// editor, but modifications to modules can cause inconsistency here in the emitter.
 	TArray<FNiagaraVariable> RapidIterationInputDefaultValues;
-	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 	if (InFunctionCallNode.FunctionScript != nullptr)
 	{
 		FCompileConstantResolver Resolver(InOwningEmitter, ENiagaraScriptUsage::Function);
-		TArray<const UEdGraphPin*> FunctionInputPins;
-		GetStackFunctionInputPins(*FunctionCallNode, FunctionInputPins, Resolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, false);
-		
-		TArray<FNiagaraVariable> FunctionInputVariables;
 		TArray<FName> FunctionInputVariableNames;
-		for (const UEdGraphPin* FunctionInputPin : FunctionInputPins)
+		TArray<FNiagaraVariable> FunctionInputVariables;
+		GetStackFunctionInputs(*FunctionCallNode, FunctionInputVariables, Resolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, false);
+		for (const FNiagaraVariable& FunctionInputVariable : FunctionInputVariables)
 		{
-			FNiagaraVariable FunctionInputVariable = NiagaraSchema->PinToNiagaraVariable(FunctionInputPin);
 			if (FunctionInputVariable.IsValid() && FNiagaraStackGraphUtilities::IsRapidIterationType(FunctionInputVariable.GetType()))
 			{
-				FunctionInputVariables.Add(FunctionInputVariable);
 				FunctionInputVariableNames.Add(FunctionInputVariable.GetName());
 			}
 		}
@@ -282,7 +277,7 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const FVers
 			if (FunctionInputDefaultPin != nullptr)
 			{
 				// Try to get the default value from the default pin.
-				FNiagaraVariable FunctionInputDefaultVariable = NiagaraSchema->PinToNiagaraVariable(FunctionInputDefaultPin);
+				FNiagaraVariable FunctionInputDefaultVariable = UEdGraphSchema_Niagara::PinToNiagaraVariable(FunctionInputDefaultPin);
 				if (FunctionInputDefaultVariable.GetData() != nullptr)
 				{
 					FunctionInputVariable.SetData(FunctionInputDefaultVariable.GetData());
