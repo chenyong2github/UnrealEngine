@@ -138,7 +138,7 @@ bool FDesktopPlatformLinux::RegisterEngineInstallation(const FString &RootDir, F
 
 		// If this is an installed build, use that Guid instead of generating a new one
 		FString InstallationIdPath = FString(RootDir / "Engine" / "Build" / "InstalledBuild.txt");
-		FArchive* File = IFileManager::Get().CreateFileReader(*InstallationIdPath, FILEREAD_NoFail);
+		FArchive* File = IFileManager::Get().CreateFileReader(*InstallationIdPath, FILEREAD_Silent);
 		if(File)
 		{
 			FFileHelper::LoadFileToString(OutIdentifier, *File);
