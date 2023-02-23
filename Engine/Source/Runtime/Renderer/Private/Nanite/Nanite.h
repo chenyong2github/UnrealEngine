@@ -16,7 +16,7 @@ namespace Nanite
 
 struct FShadeBinning;
 
-void ExtractRasterStats(
+void ExtractRasterDebug(
 	FRDGBuilder& GraphBuilder,
 	const FSharedContext& SharedContext,
 	const FCullingContext& CullingContext,
@@ -25,7 +25,7 @@ void ExtractRasterStats(
 	bool bVirtualTextureTarget
 );
 
-void ExtractShadingStats(
+void ExtractShadingDebug(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGBufferRef MaterialIndirectArgs,

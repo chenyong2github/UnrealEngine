@@ -23,6 +23,8 @@ Texture2D<float>		MaterialZDecoded;
 Texture2D<uint4>		MaterialZLayout;
 Texture2D<uint>			ShadingMask;
 
+StructuredBuffer<uint4>	ShadingBinMeta;
+
 ByteAddressBuffer		MaterialSlotTable;
 ByteAddressBuffer		MaterialDepthTable;
 ByteAddressBuffer		MaterialHitProxyTable;
@@ -272,6 +274,20 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		{
 			const uint MaterialDepthId = GetMaterialDepthId(UnpackedMask.ShadingBin, MaterialDepthTable);
 			Result = IntToColor(MaterialDepthId);
+
+		#if 0
+			// For testing
+			const uint PackedFlags = ShadingBinMeta[UnpackedMask.ShadingBin].w;
+			FNaniteMaterialFlags MaterialFlags = UnpackNaniteMaterialFlags(PackedFlags);
+			if (MaterialFlags.bPixelDiscard)
+			{
+				Result = float3(0.0f, 0.8f, 0.0f);
+			}
+			else
+			{
+				Result = float3(0.0f, 0.0f, 0.8f);
+			}
+		#endif
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MIN || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MAX || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_DELTA)// || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MASK)
 		{

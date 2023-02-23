@@ -133,6 +133,7 @@ class FNaniteVisualizeCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FUintVector4>, ShadingBinMeta)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, DbgBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, DbgBuffer32)
@@ -666,6 +667,8 @@ void AddVisualizationPasses(
 
 				Visualization.ModeOutput = GraphBuilder.CreateTexture(VisualizationOutputDesc, TEXT("Nanite.Visualization"));
 
+				FRDGBufferRef ShadingBinMeta = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetShadingBinMetaBufferRef());
+
 				FNaniteVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteVisualizeCS::FParameters>();
 
 				PassParameters->View = View.ViewUniformBuffer;
@@ -697,6 +700,7 @@ void AddVisualizationPasses(
 				// For now, bind a valid SRV
 				PassParameters->MaterialHitProxyTable = MaterialCommands.GetMaterialSlotSRV();
 			#endif
+				PassParameters->ShadingBinMeta = GraphBuilder.CreateSRV(ShadingBinMeta, PF_R32G32B32A32_UINT);
 				PassParameters->DebugOutput = GraphBuilder.CreateUAV(Visualization.ModeOutput);
 
 				auto ComputeShader = View.ShaderMap->GetShader<FNaniteVisualizeCS>();

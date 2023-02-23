@@ -229,6 +229,7 @@ void FGlobalResources::ReleaseRHI()
 		MainAndPostNodesAndClusterBatchesBuffer.Buffer.SafeRelease();
 
 		StatsBuffer.SafeRelease();
+		ShadingBinMetaBuffer.SafeRelease();
 
 #if !UE_BUILD_SHIPPING
 		delete FeedbackManager;

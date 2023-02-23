@@ -272,7 +272,7 @@ void MicropolyRasterize(
 	if (bHasRasterBin)
 	{
 		RasterBin = FetchSWRasterizerBin(VisibleIndex);
-		checkSlow(UnpackMaterialFlags(RasterBin.w).bPixelProgrammable == NANITE_VERT_REUSE_BATCH);
+		checkSlow(UnpackNaniteMaterialFlags(RasterBin.w).bPixelProgrammable == NANITE_VERT_REUSE_BATCH);
 		VisibleIndex = RasterBin.x;
 	}
 
@@ -780,7 +780,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	if (bHasRasterBin)
 	{
 		RasterBin = FetchHWRasterizerBin(VisibleIndex);
-		checkSlow(UnpackMaterialFlags(RasterBin.w).bVertexProgrammable == NANITE_VERT_REUSE_BATCH);
+		checkSlow(UnpackNaniteMaterialFlags(RasterBin.w).bVertexProgrammable == NANITE_VERT_REUSE_BATCH);
 		VisibleIndex = RasterBin.x;
 	}
 
@@ -1024,7 +1024,7 @@ void HWRasterizeMS(
 	if (bHasRasterBin)
 	{
 		RasterBin = FetchHWRasterizerBin(VisibleIndex);
-		checkSlow(UnpackMaterialFlags(RasterBin.w).bVertexProgrammable == NANITE_VERT_REUSE_BATCH);
+		checkSlow(UnpackNaniteMaterialFlags(RasterBin.w).bVertexProgrammable == NANITE_VERT_REUSE_BATCH);
 		VisibleIndex = RasterBin.x;
 	}
 

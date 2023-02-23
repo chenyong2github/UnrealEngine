@@ -542,43 +542,6 @@ uint3 DecodeTriangleIndices(FCluster Cluster, uint TriIndex, bool bSwapI1I2)
 	return Indices;
 }
 
-struct FNaniteMaterialFlags
-{
-	bool bWorldPositionOffset;
-	bool bPixelDepthOffset;
-	bool bPixelDiscard;
-	bool bDynamicTessellation;
-	bool bVertexProgrammable;
-	bool bPixelProgrammable;
-};
-
-FNaniteMaterialFlags UnpackMaterialFlags(uint Packed)
-{
-	FNaniteMaterialFlags MaterialFlags;
-	MaterialFlags.bWorldPositionOffset	= (Packed & NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET) != 0u;
-	MaterialFlags.bPixelDepthOffset		= (Packed & NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET) != 0u;
-	MaterialFlags.bPixelDiscard			= (Packed & NANITE_MATERIAL_FLAG_PIXEL_DISCARD) != 0u;
-	MaterialFlags.bDynamicTessellation	= (Packed & NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION) != 0u;
-	MaterialFlags.bVertexProgrammable	= (Packed & NANITE_MATERIAL_VERTEX_PROGRAMMABLE_FLAGS) != 0u;
-	MaterialFlags.bPixelProgrammable	= (Packed & NANITE_MATERIAL_PIXEL_PROGRAMMABLE_FLAGS) != 0u;
-	return MaterialFlags;
-}
-
-bool IsMaterialVertexProgrammable(FNaniteMaterialFlags MaterialFlags)
-{
-	return MaterialFlags.bWorldPositionOffset;
-}
-
-bool IsMaterialPixelProgrammable(FNaniteMaterialFlags MaterialFlags)
-{
-	return MaterialFlags.bPixelDepthOffset || MaterialFlags.bPixelDiscard;
-}
-
-bool IsMaterialProgrammable(FNaniteMaterialFlags MaterialFlags)
-{
-	return IsMaterialVertexProgrammable(MaterialFlags) || IsMaterialPixelProgrammable(MaterialFlags);
-}
-
 struct FShadingMask
 {
 	bool bIsNanitePixel;

@@ -913,31 +913,14 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualTargetParameters, VirtualShadowMap)
 END_SHADER_PARAMETER_STRUCT()
 
-static uint32 GetMaterialBitFlags(const FMaterial& RasterMaterial, bool bMaterialUsesWorldPositionOffset, bool bMaterialUsesPixelDepthOffset, bool bForceDisableWPO)
+static uint32 PackMaterialBitFlags(const FMaterial& RasterMaterial, bool bMaterialUsesWorldPositionOffset, bool bMaterialUsesPixelDepthOffset, bool bForceDisableWPO)
 {
-	uint32 MaterialBitFlags = 0x00000000u;
-
-	if (!bForceDisableWPO && bMaterialUsesWorldPositionOffset)
-	{
-		MaterialBitFlags |= NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET;
-	}
-
-	if (bMaterialUsesPixelDepthOffset)
-	{
-		MaterialBitFlags |= NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET;
-	}
-
-	if (RasterMaterial.IsMasked())
-	{
-		MaterialBitFlags |= NANITE_MATERIAL_FLAG_PIXEL_DISCARD;
-	}
-
-	if (false)
-	{
-		MaterialBitFlags |= NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION;
-	}
-
-	return MaterialBitFlags;
+	FNaniteMaterialFlags Flags = {0};
+	Flags.bPixelDiscard = RasterMaterial.IsMasked();
+	Flags.bPixelDepthOffset = bMaterialUsesPixelDepthOffset;
+	Flags.bWorldPositionOffset = !bForceDisableWPO && bMaterialUsesWorldPositionOffset;
+	Flags.bDynamicTessellation = false; // TODO: 
+	return PackNaniteMaterialBitFlags(Flags);
 }
 
 class FMicropolyRasterizeCS : public FNaniteMaterialShader
@@ -1592,7 +1575,7 @@ void CollectRasterPSOInitializersForPipeline(
 	}
 	else
 	{
-		const uint32 MaterialBitFlags = GetMaterialBitFlags(RasterMaterial, RasterMaterial.MaterialUsesWorldPositionOffset_GameThread(), RasterMaterial.MaterialUsesPixelDepthOffset_GameThread(), bForceDisableWPO);
+		const uint32 MaterialBitFlags = PackMaterialBitFlags(RasterMaterial, RasterMaterial.MaterialUsesWorldPositionOffset_GameThread(), RasterMaterial.MaterialUsesPixelDepthOffset_GameThread(), bForceDisableWPO);
 		const bool bVertexProgrammable = FNaniteMaterialShader::IsVertexProgrammable(MaterialBitFlags);
 		const bool bPixelProgrammable = FNaniteMaterialShader::IsPixelProgrammable(MaterialBitFlags);
 
@@ -2826,7 +2809,7 @@ FBinningData AddPass_Rasterize(
 #endif
 				{
 					const FMaterial& RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(FeatureLevel);
-					MaterialBitFlags = GetMaterialBitFlags(RasterMaterial, RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread(), RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread(), RasterEntry.bForceDisableWPO);
+					MaterialBitFlags = PackMaterialBitFlags(RasterMaterial, RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread(), RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread(), RasterEntry.bForceDisableWPO);
 
 #if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
 					RasterMaterialCache.MaterialBitFlags = MaterialBitFlags;
@@ -4033,7 +4016,7 @@ void CullRasterize(
 	if (bExtractStats)
 	{
 		const bool bVirtualTextureTarget = VirtualShadowMapArray != nullptr;
-		ExtractRasterStats(
+		ExtractRasterDebug(
 			GraphBuilder,
 			SharedContext,
 			CullingContext,

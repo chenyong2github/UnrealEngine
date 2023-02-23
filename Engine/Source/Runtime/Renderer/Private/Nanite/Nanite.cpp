@@ -8,6 +8,7 @@
 #include "ShaderPrintParameters.h"
 #include "ShadowRendering.h"
 #include "Rendering/NaniteStreamingManager.h"
+#include "NaniteVisualizationData.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 
 #define NUM_PRINT_STATS_PASSES 4
@@ -440,7 +441,7 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 	bNaniteListStatFilters = false;
 }
 
-void ExtractRasterStats(
+void ExtractRasterDebug(
 	FRDGBuilder& GraphBuilder,
 	const FSharedContext& SharedContext,
 	const FCullingContext& CullingContext,
@@ -560,7 +561,7 @@ void ExtractRasterStats(
 	}
 }
 
-void ExtractShadingStats(
+void ExtractShadingDebug(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGBufferRef MaterialIndirectArgs,
@@ -569,6 +570,22 @@ void ExtractShadingStats(
 )
 {
 	LLM_SCOPE_BYTAG(Nanite);
+
+	const FNaniteVisualizationData& VisualizationData = GetNaniteVisualizationData();
+	if (VisualizationData.IsActive())
+	{
+		FRDGBufferRef ShadingBinMeta = nullptr;
+		if (ShadeBinning.ShadingBinMeta)
+		{
+			ShadingBinMeta = ShadeBinning.ShadingBinMeta;
+		}
+		else
+		{
+			ShadingBinMeta = GSystemTextures.GetDefaultStructuredBuffer<FUint32Vector4>(GraphBuilder);
+		}
+
+		Nanite::GGlobalResources.GetShadingBinMetaBufferRef() = GraphBuilder.ConvertToExternalBuffer(ShadeBinning.ShadingBinMeta);
+	}
 
 	if (GNaniteShowStats != 0 && Nanite::GGlobalResources.GetStatsBufferRef())
 	{

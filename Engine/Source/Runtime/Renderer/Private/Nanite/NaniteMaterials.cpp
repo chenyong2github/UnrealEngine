@@ -1257,7 +1257,7 @@ void DispatchBasePass(
 		);
 	}
 
-	ExtractShadingStats(GraphBuilder, View, nullptr, Binning, ShadingBinCount);
+	ExtractShadingDebug(GraphBuilder, View, nullptr, Binning, ShadingBinCount);
 }
 
 void DrawBasePass(
@@ -1565,7 +1565,7 @@ void DrawBasePass(
 		}
 	}
 
-	ExtractShadingStats(GraphBuilder, View, MaterialIndirectArgs, Binning, HighestMaterialSlot);
+	ExtractShadingDebug(GraphBuilder, View, MaterialIndirectArgs, Binning, HighestMaterialSlot);
 }
 
 void EmitDepthTargets(
@@ -2939,6 +2939,18 @@ void FNaniteShadingPipelines::Unregister(const FNaniteShadingBin& InShadingBin)
 namespace Nanite
 {
 
+using FMetaBufferArray = TArray<FUintVector4, SceneRenderingAllocator>;
+
+inline uint32 PackMaterialBitFlags(const FMaterial& Material)
+{
+	FNaniteMaterialFlags Flags = {0};
+	Flags.bPixelDiscard = Material.IsMasked();
+	Flags.bPixelDepthOffset = Material.MaterialUsesPixelDepthOffset_RenderThread();
+	Flags.bWorldPositionOffset = Material.MaterialUsesWorldPositionOffset_RenderThread();
+	Flags.bDynamicTessellation = false; // TODO: 
+	return PackNaniteMaterialBitFlags(Flags);
+}
+
 FShadeBinning ShadeBinning(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
@@ -2958,11 +2970,23 @@ FShadeBinning ShadeBinning(
 	const FSceneTexturesConfig& Config = View.GetSceneTexturesConfig();
 	const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
 
-	const uint32 ShadingBinCount = uint32(Scene.NaniteShadingCommands[ENaniteMeshPass::BasePass].Num());
-	if (ShadingBinCount == 0u)
+	const TArray<TPimplPtr<FNaniteShadingCommand>>& ShadingCommands = Scene.NaniteShadingCommands[ENaniteMeshPass::BasePass];
+	const uint32 ShadingCommandCount = uint32(ShadingCommands.Num());
+
+	if (ShadingCommandCount == 0u)
 	{
 		return Binning;
 	}
+
+	// TODO: Optimize this (either tightly compact shading bins / defrag, or cache the max during add to scene)
+	uint32 MaxShadingBin = 0;
+	for (const TPimplPtr<FNaniteShadingCommand>& ShadingCommand : ShadingCommands)
+	{
+		MaxShadingBin = FMath::Max<uint32>(MaxShadingBin, uint32(ShadingCommand->ShadingBin));
+	}
+
+	const uint32 ShadingBinCount = MaxShadingBin + 1u;
+	const uint32 ShadingBinCountPow2 = FMath::RoundUpToPowerOfTwo(ShadingBinCount);
 
 	const bool bGatherStats = GNaniteShowStats != 0;
 	const bool bQuadBinning = GNaniteQuadBinning != 0;
@@ -2977,8 +3001,28 @@ FShadeBinning ShadeBinning(
 	const FIntVector  QuadDispatchDim = FComputeShaderUtils::GetGroupCount(FIntPoint(QuadWidth, QuadHeight), FIntPoint(8u, 8u));
 	const FIntVector   BinDispatchDim = FComputeShaderUtils::GetGroupCount(ShadingBinCount, 64u);
 
-	Binning.ShadingBinMeta   = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FUint32Vector4), FMath::RoundUpToPowerOfTwo(ShadingBinCount)), TEXT("Nanite.ShadingBinMeta"));
-	Binning.ShadingBinArgs   = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(0xFFFFu * 4u /* XYZ and Padding */), TEXT("Nanite.ShadingBinArgs"));
+	FMetaBufferArray MetaBufferData;
+	MetaBufferData.SetNumZeroed(ShadingBinCount);
+
+	for (const TPimplPtr<FNaniteShadingCommand>& ShadingCommand : ShadingCommands)
+	{
+		if (const FMaterial* Material = ShadingCommand->Material)
+		{
+			FUintVector4& MetaEntry = MetaBufferData[ShadingCommand->ShadingBin];
+			MetaEntry.W = PackMaterialBitFlags(*Material);
+		}
+	}
+
+	Binning.ShadingBinMeta = CreateStructuredBuffer(
+		GraphBuilder,
+		TEXT("Nanite.ShadingBinMeta"),
+		sizeof(FUintVector4),
+		ShadingBinCountPow2,
+		MetaBufferData.GetData(),
+		sizeof(FUintVector4) * MetaBufferData.Num()
+	);
+
+	Binning.ShadingBinArgs   = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(ShadingBinCountPow2 * 4u /* XYZ and Padding */), TEXT("Nanite.ShadingBinArgs"));
 	Binning.ShadingBinData   = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), PixelCount), TEXT("Nanite.ShadingBinData"));
 	Binning.ShadingBinStats  = bGatherStats ? GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FUint32Vector4), 1u), TEXT("Nanite.ShadingBinStats")) : nullptr;
 
@@ -2987,7 +3031,6 @@ FShadeBinning ShadeBinning(
 	FRDGBufferUAVRef ShadingBinDataUAV = GraphBuilder.CreateUAV(Binning.ShadingBinData);
 	FRDGBufferUAVRef ShadingBinStatsUAV = bGatherStats ? GraphBuilder.CreateUAV(Binning.ShadingBinStats) : nullptr;
 
-	AddClearUAVPass(GraphBuilder, ShadingBinMetaUAV, 0);
 	if (bGatherStats)
 	{
 		AddClearUAVPass(GraphBuilder, ShadingBinStatsUAV, 0);

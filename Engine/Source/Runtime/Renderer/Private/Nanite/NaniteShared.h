@@ -176,7 +176,7 @@ public:
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
 
-	void	Update(FRDGBuilder& GraphBuilder); // Called once per frame before any Nanite rendering has occurred.
+	void Update(FRDGBuilder& GraphBuilder); // Called once per frame before any Nanite rendering has occurred.
 
 	static uint32 GetMaxCandidateClusters();
 	static uint32 GetMaxClusterBatches();
@@ -189,6 +189,7 @@ public:
 	FNodesAndClusterBatchesBuffer& GetMainAndPostNodesAndClusterBatchesBuffer() { return MainAndPostNodesAndClusterBatchesBuffer; };
 
 	TRefCountPtr<FRDGPooledBuffer>& GetStatsBufferRef() { return StatsBuffer; }
+	TRefCountPtr<FRDGPooledBuffer>& GetShadingBinMetaBufferRef() { return ShadingBinMetaBuffer; }
 
 #if !UE_BUILD_SHIPPING
 	FFeedbackManager* GetFeedbackManager() { return FeedbackManager; }
@@ -201,6 +202,9 @@ private:
 
 	// Used for statistics
 	TRefCountPtr<FRDGPooledBuffer> StatsBuffer;
+
+	// Used for visualizations
+	TRefCountPtr<FRDGPooledBuffer> ShadingBinMetaBuffer;
 
 #if !UE_BUILD_SHIPPING
 	FFeedbackManager* FeedbackManager = nullptr;

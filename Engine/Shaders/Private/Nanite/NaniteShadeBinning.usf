@@ -34,7 +34,7 @@ SamplerState ShadingMaskSampler;
 // .x = Quad count shaded by bin
 // .y = Pixel count shaded by bin
 // .z = Quad coord range start
-// .w = Reserved
+// .w = Material bit flags
 RWStructuredBuffer<uint4> OutShadingBinMeta;
 
 #if SHADING_BIN_RESERVE
@@ -45,6 +45,11 @@ RWBuffer<uint> OutShadingBinArgs;
 #if SHADING_BIN_SCATTER
 RWStructuredBuffer<uint> OutShadingBinData;
 #endif
+
+FNaniteMaterialFlags GetShadingBinMaterialFlags(uint BinIndex)
+{
+	return UnpackNaniteMaterialFlags(OutShadingBinMeta[BinIndex].w);
+}
 
 #if SHADING_BIN_COUNT || SHADING_BIN_SCATTER
 

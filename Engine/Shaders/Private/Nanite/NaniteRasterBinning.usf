@@ -28,7 +28,7 @@ RWStructuredBuffer<uint4> OutRasterizerBinHeaders;
 
 FNaniteMaterialFlags GetRasterizerBinMaterialFlags(uint BinIndex)
 {
-	return UnpackMaterialFlags(OutRasterizerBinHeaders[BinIndex].w);
+	return UnpackNaniteMaterialFlags(OutRasterizerBinHeaders[BinIndex].w);
 }
 
 uint2 GetRasterizerBinCount(uint BinIndex)

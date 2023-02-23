@@ -233,10 +233,77 @@
 #if defined(__cplusplus)
 #define UINT_TYPE unsigned int
 #define  INT_TYPE int
+#define INLINE_ATTR inline
 #else
 #define UINT_TYPE uint
 #define  INT_TYPE int
+#define INLINE_ATTR 
 #endif
+
+struct FNaniteMaterialFlags
+{
+	bool bWorldPositionOffset;
+	bool bPixelDepthOffset;
+	bool bPixelDiscard;
+	bool bDynamicTessellation;
+
+	bool bVertexProgrammable;
+	bool bPixelProgrammable;
+};
+
+INLINE_ATTR FNaniteMaterialFlags UnpackNaniteMaterialFlags(UINT_TYPE Packed)
+{
+	FNaniteMaterialFlags MaterialFlags;
+	MaterialFlags.bWorldPositionOffset = (Packed & NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET) != 0u;
+	MaterialFlags.bPixelDepthOffset = (Packed & NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET) != 0u;
+	MaterialFlags.bPixelDiscard = (Packed & NANITE_MATERIAL_FLAG_PIXEL_DISCARD) != 0u;
+	MaterialFlags.bDynamicTessellation = (Packed & NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION) != 0u;
+	MaterialFlags.bVertexProgrammable = (Packed & NANITE_MATERIAL_VERTEX_PROGRAMMABLE_FLAGS) != 0u;
+	MaterialFlags.bPixelProgrammable = (Packed & NANITE_MATERIAL_PIXEL_PROGRAMMABLE_FLAGS) != 0u;
+	return MaterialFlags;
+}
+
+bool IsNaniteMaterialVertexProgrammable(FNaniteMaterialFlags MaterialFlags)
+{
+	return MaterialFlags.bWorldPositionOffset;
+}
+
+bool IsNaniteMaterialPixelProgrammable(FNaniteMaterialFlags MaterialFlags)
+{
+	return MaterialFlags.bPixelDepthOffset || MaterialFlags.bPixelDiscard;
+}
+
+bool IsNaniteMaterialProgrammable(FNaniteMaterialFlags MaterialFlags)
+{
+	return IsNaniteMaterialVertexProgrammable(MaterialFlags) || IsNaniteMaterialPixelProgrammable(MaterialFlags);
+}
+
+INLINE_ATTR UINT_TYPE PackNaniteMaterialBitFlags(FNaniteMaterialFlags Flags)
+{
+	uint32 MaterialBitFlags = 0x00000000u;
+
+	if (Flags.bPixelDiscard)
+	{
+		MaterialBitFlags |= NANITE_MATERIAL_FLAG_PIXEL_DISCARD;
+	}
+
+	if (Flags.bPixelDepthOffset)
+	{
+		MaterialBitFlags |= NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET;
+	}
+
+	if (Flags.bWorldPositionOffset)
+	{
+		MaterialBitFlags |= NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET;
+	}
+
+	if (Flags.bDynamicTessellation)
+	{
+		MaterialBitFlags |= NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION;
+	}
+
+	return MaterialBitFlags;
+}
 
 struct FNaniteStats
 {
@@ -293,3 +360,4 @@ struct FNanitePickingFeedback
 
 #undef  INT_TYPE
 #undef UINT_TYPE
+#undef INLINE_ATTR
