@@ -527,7 +527,7 @@ struct FMeshMergingSettings
 	uint8 bMergeMeshSockets : 1;
 
 	/** Whether to merge source materials into one flat material, ONLY available when LOD Selection Type is set to LowestDetailLOD */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialSettings, meta=(EditCondition="LODSelectionType == EMeshLODSelectionType::LowestDetailLOD"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialSettings, meta=(EditCondition="LODSelectionType == EMeshLODSelectionType::LowestDetailLOD || LODSelectionType == EMeshLODSelectionType::SpecificLOD"))
 	uint8 bMergeMaterials:1;
 
 	/** Whether or not vertex data such as vertex colours should be baked into the resulting mesh */
