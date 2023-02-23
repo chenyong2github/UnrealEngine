@@ -837,21 +837,21 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 
 			FLODInstanceBatch& LODInstanceBatch = InstancesBatches.FindOrAdd(Key);
 
+			FTransform ComponentTransformWS = SMC->GetComponentTransform();
+
 			// If we have an ISMC, ensure we include all its instances
 			if (UInstancedStaticMeshComponent* InstancedSMC = Cast<UInstancedStaticMeshComponent>(SMC))
 			{
-				FTransform ActorTransformWS = InstancedSMC->GetOwner()->GetActorTransform();
-
 				LODInstanceBatch.Transforms.Reserve(LODInstanceBatch.Transforms.Num() + InstancedSMC->GetInstanceCount());
 				for (const FInstancedStaticMeshInstanceData& InstanceData : InstancedSMC->PerInstanceSMData)
 				{
-					FTransform InstanceTransformWS = FTransform(InstanceData.Transform) * ActorTransformWS;
+					FTransform InstanceTransformWS = FTransform(InstanceData.Transform) * ComponentTransformWS;
 					LODInstanceBatch.Transforms.Add(InstanceTransformWS);
 				}
 			}
 			else
 			{
-				LODInstanceBatch.Transforms.Add(SMC->GetOwner()->GetActorTransform());
+				LODInstanceBatch.Transforms.Add(ComponentTransformWS);
 				LODInstanceBatch.CustomPrimitiveData.Add(SMC->GetCustomPrimitiveData());
 			}
 
