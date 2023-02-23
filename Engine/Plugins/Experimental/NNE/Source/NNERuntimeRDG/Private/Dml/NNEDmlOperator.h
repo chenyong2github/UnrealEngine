@@ -30,6 +30,12 @@ static constexpr uint32_t NcdhwDimensionCount = 5;
 static constexpr uint32_t NcdhwSpatialDimensionCount = 3;
 static constexpr uint32_t NonspatialDimensionCount = 2; // The batch and channel dimensions of NCW, NCHW, NCDHW....
 
+template<typename T>
+inline TArrayView<T> MakeEmptyArrayView()
+{
+	return MakeArrayView(static_cast<T*>(nullptr), 0);
+}
+
 //
 //
 //

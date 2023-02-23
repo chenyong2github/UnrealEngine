@@ -1130,7 +1130,8 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 			RHICmdList.EnqueueLambda(
 				[this](FRHICommandListImmediate& RHICmdList)
 				{
-					TArray<CD3DX12_RESOURCE_BARRIER, TInlineAllocator<MaxNumInputs + MaxNumOutputs>>	Barriers;
+					TArray<CD3DX12_RESOURCE_BARRIER, TInlineAllocator<MaxNumInputs + MaxNumOutputs>>	PreBarriers;
+					TArray<CD3DX12_RESOURCE_BARRIER, TInlineAllocator<MaxNumOutputs * 2>>				PostBarriers;
 
 					for (FRHIBuffer* Buffer : InputBuffers)
 					{
@@ -1142,12 +1143,36 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 						ID3D12Resource* Resource = DynamicRHI->RHIGetResource(Buffer);
 
 						//Note: We should not assume COPY_DEST state
-						Barriers.Emplace(
+						PreBarriers.Emplace(
 							CD3DX12_RESOURCE_BARRIER::Transition(
 								Resource,
 								D3D12_RESOURCE_STATE_COPY_DEST,
 								D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
 						);
+					}
+
+					for (FRHIBuffer* Buffer : OutputBuffers)
+					{
+						ID3D12Resource* Resource = DynamicRHI->RHIGetResource(Buffer);
+
+						if ((Buffer->GetUsage() & EBufferUsageFlags::SourceCopy) == EBufferUsageFlags::SourceCopy)
+						{
+							PreBarriers.Emplace(
+								CD3DX12_RESOURCE_BARRIER::Transition(
+									Resource,
+									D3D12_RESOURCE_STATE_COMMON,
+									D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+							);
+
+							PostBarriers.Emplace(
+								CD3DX12_RESOURCE_BARRIER::Transition(
+									Resource,
+									D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+									D3D12_RESOURCE_STATE_COPY_SOURCE)
+							);
+						}
+
+						PostBarriers.Add(CD3DX12_RESOURCE_BARRIER::UAV(Resource));
 					}
 
 					//Note: We should use this instead of NNE_USE_D3D12_RESOURCES
@@ -1159,8 +1184,9 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 
 					D3DCmdList = DynamicRHI->RHIGetGraphicsCommandList(DevCtx->DeviceIndex);
 					D3DCmdList->SetDescriptorHeaps(1, &DescHeap);
-					D3DCmdList->ResourceBarrier(Barriers.Num(), Barriers.GetData());
+					D3DCmdList->ResourceBarrier(PreBarriers.Num(), PreBarriers.GetData());
 					DevCtx->CmdRec->RecordDispatch(D3DCmdList, CompiledOp, BindingTable->Get());
+					D3DCmdList->ResourceBarrier(PostBarriers.Num(), PostBarriers.GetData());
 
 					DynamicRHI->RHIFinishExternalComputeWork(DevCtx->DeviceIndex, D3DCmdList);
 				}

@@ -329,6 +329,15 @@
 			]
 		},
 		{
+			"category": "Gather",
+			"runtimes": [	
+				{ "name": "NNERuntimeRDGHlsl", "skip": true }
+			],
+			"targets": [
+				{ "target": "Gather" }
+			]
+		},
+		{
 			"category": "GRU",
 			"runtimes": [
 				{ "name": "NNERuntimeRDGHlsl", "skip": true }
@@ -700,6 +709,12 @@
 			"name": "PadOp.Pad00_10_12_34_Rank4",
 			"datasets": [
 				{ "inputs":  [ { "shape": [ 1,32,224,128 ] } ], "outputs": [ { "shape": [ 1,33,227,135 ] } ] }
+			]
+		},
+		{
+			"name": "Gather",
+			"datasets": [
+				{ "inputs":  [ { "shape": [ 2, 3, 4 ] },  { "shape": [ 1 ], "source": [ "1" ], "type": "int32" } ], "outputs": [ { "shape": [ 1, 3, 4 ]} ] }
 			]
 		},
 		{
