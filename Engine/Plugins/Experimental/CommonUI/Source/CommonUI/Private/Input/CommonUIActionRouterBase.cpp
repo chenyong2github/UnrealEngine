@@ -680,7 +680,7 @@ void UCommonUIActionRouterBase::HandleRootNodeDeactivated(TWeakPtr<FActivatableT
 	}
 
 	// In the case that all root nodes are not activated we need to re-establish input for the highest paint layer node in action domain nodes.
-	if (!bActivatedRootNodeExists)
+	if (!bActivatedRootNodeExists && bIsActivatableTreeEnabled)
 	{
 		RefreshActionDomainLeafNodeConfig();
 	}
