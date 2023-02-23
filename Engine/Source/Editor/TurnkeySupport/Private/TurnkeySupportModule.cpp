@@ -2407,7 +2407,7 @@ void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDevi
 		{
 			FScopeLock Lock(&GTurnkeySection);
 
-			if (ExitCode == 0 || ExitCode == 10)
+			if (!IsEngineExitRequested() && (ExitCode == 0 || ExitCode == 10))
 			{
 				TArray<FString> Contents;
 				if (FFileHelper::LoadFileToStringArray(Contents, *ReportFilename))
