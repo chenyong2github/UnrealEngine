@@ -148,7 +148,12 @@ bool FCborReader::ReadNext(FCborContext& OutContext)
 			else
 			{
 				OutContext.Length = ReadUIntValue(OutContext, *Stream);
-				int32 StringLength = IntCastChecked<int32>(OutContext.Length);
+				if (OutContext.Length > (uint64)(MAX_int32 - 1))
+				{
+					OutContext.Header = SetError(ECborCode::ErrorStringLength);
+					return false;
+				}
+				int32 StringLength = (int32)OutContext.Length;
 				OutContext.RawTextValue.SetNumUninitialized(StringLength + 1); // Length doesn't count the null terminating character
 				Stream->Serialize(OutContext.RawTextValue.GetData(), OutContext.Length);
 				OutContext.RawTextValue[StringLength] = '\0';

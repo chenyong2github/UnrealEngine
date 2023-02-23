@@ -53,6 +53,7 @@ enum class ECborCode : uint8
 	ErrorNoHalfFloat	= 0x5D,		// no half float support		(ByteString | 29)
 	ErrorContext		= 0x5E,		// reader/writer context error	(ByteString | 30)
 	ErrorStringNesting	= 0x7D,		// infinite string wrong type	(TextString | 29)
+	ErrorStringLength	= 0x7E,		// invalid string length		(TextString | 30)
 };
 ENUM_CLASS_FLAGS(ECborCode);
 
