@@ -614,6 +614,8 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 void UOpenColorIOConfiguration::LoadConfiguration()
 {
 #if WITH_EDITOR && WITH_OCIO
+	NativeConfig->Set(nullptr);
+
 	if (!ConfigurationFile.FilePath.IsEmpty())
 	{
 #if !PLATFORM_EXCEPTIONS_DISABLED
@@ -654,8 +656,6 @@ void UOpenColorIOConfiguration::LoadConfiguration()
 				}
 				else
 				{
-					NativeConfig->Set(nullptr);
-
 					UE_LOG(LogOpenColorIO, Error, TEXT("Could not load OCIO configuration file %s. Verify that the path is good or that the file is valid."), *ConfigurationFile.FilePath);
 				}
 			}
