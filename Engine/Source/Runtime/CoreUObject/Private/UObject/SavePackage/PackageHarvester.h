@@ -81,6 +81,7 @@ public:
 	void HarvestDependency(UObject* InObj, bool bIsNative);
 
 	bool CurrentExportHasDependency(UObject* InObj) const;
+	TMap<UObject*, TSet<FProperty*>> ReleaseTransientPropertyOverrides();
 
 	// FArchiveUObject implementation
 	virtual FString GetArchiveName() const override;

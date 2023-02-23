@@ -389,9 +389,22 @@ FArchive& FLinkerSave::operator<<( FName& InName )
 FArchive& FLinkerSave::operator<<( UObject*& Obj )
 {
 	FPackageIndex Save;
+
 	if (Obj)
 	{
-		Save = MapObject(Obj);
+		bool bKeepObject = true;
+		if (TransientPropertyOverrides && !TransientPropertyOverrides->IsEmpty())
+		{
+			const TSet<FProperty*>* Props = TransientPropertyOverrides->Find(CurrentlySavingExportObject);
+			if (Props && Props->Contains(this->GetSerializedProperty()))
+			{
+				bKeepObject = false;
+			}
+		}
+		if (bKeepObject)
+		{
+			Save = MapObject(Obj);
+		}
 	}
 	return *this << Save;
 }

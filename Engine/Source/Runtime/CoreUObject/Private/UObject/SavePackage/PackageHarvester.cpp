@@ -628,6 +628,11 @@ void FPackageHarvester::ResolveOverrides()
 	}
 }
 
+TMap<UObject*, TSet<FProperty*>> FPackageHarvester::ReleaseTransientPropertyOverrides()
+{
+	return MoveTemp(TransientPropertyOverrides);
+}
+
 void FPackageHarvester::HarvestDependency(UObject* InObj, bool bIsNative)
 {
 	// if we aren't currently processing an export or the referenced object is a package, do not harvest the dependency

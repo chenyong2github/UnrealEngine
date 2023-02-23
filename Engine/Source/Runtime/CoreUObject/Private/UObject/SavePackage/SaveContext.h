@@ -1031,6 +1031,16 @@ public:
 		return SavedAssets;
 	}
 
+	const TMap<UObject*, TSet<FProperty*>>& GetTransientPropertyOverrides()
+	{
+		return TransientPropertyOverrides;
+	}
+
+	void SetTransientPropertyOverrides(TMap<UObject*, TSet<FProperty*>>&& InTransientPropertyOverrides)
+	{
+		TransientPropertyOverrides = MoveTemp(InTransientPropertyOverrides);
+	}
+
 public:
 	ESavePackageResult Result;
 
@@ -1101,6 +1111,8 @@ private:
 	// Set of AssetDatas created for the Assets saved into the package
 	TArray<FAssetData> SavedAssets;
 
+	// Overrided properties for each export that should be treated as transient, and nulled out when serializing
+	TMap<UObject*, TSet<FProperty*>> TransientPropertyOverrides;
 };
 
 const TCHAR* LexToString(FSaveContext::ESaveableStatus Status);

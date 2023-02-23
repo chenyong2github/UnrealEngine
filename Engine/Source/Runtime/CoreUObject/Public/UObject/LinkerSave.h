@@ -5,6 +5,7 @@
 #include "Compression/CompressedBuffer.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
@@ -57,6 +58,7 @@ public:
 	FArchive* Saver;
 
 	FPackageIndex CurrentlySavingExport;
+	UObject* CurrentlySavingExportObject = nullptr;
 	TArray<FPackageIndex> DepListForErrorChecking;
 
 	/** Index array - location of the resource for a UObject is stored in the ObjectIndices array using the UObject's Index */
@@ -172,6 +174,12 @@ public:
 	 * This sets it on itself, the summary, the actual Saver Archive if any and set the proper associated flag on the LinkerRoot
 	 */
 	virtual void SetFilterEditorOnly(bool bInFilterEditorOnly) override;
+
+	/** Sets the map of overrided properties for each export that should be treated as transient, and nulled out when serializing */
+	void SetTransientPropertyOverrides(const TMap<UObject*, TSet<FProperty*>>& InTransientPropertyOverrides)
+	{
+		TransientPropertyOverrides = &InTransientPropertyOverrides;
+	}
 
 	/** Set target platform memory map alignment. A negative value disables memory mapped bulk data. */
 	void SetMemoryMapAlignment(int64 InAlignment)
@@ -304,6 +312,7 @@ private:
 	FFileRegionMemoryWriter OptionalBulkDataAr;
 	/** Memory mapped bulk data archive. */
 	FFileRegionMemoryWriter MemoryMappedBulkDataAr;
+	const TMap<UObject*, TSet<FProperty*>>* TransientPropertyOverrides = nullptr;
 	/** Alignment for memory mapped data .*/ 
 	int64 MemoryMappingAlignment = -1;
 	/** Whether file regions are enabled. */

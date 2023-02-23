@@ -420,6 +420,7 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 		Harvester.UsingCustomVersion(FEditorObjectVersion::GUID);
 	}
 	SaveContext.SetCustomVersions(Harvester.GetCustomVersions());
+	SaveContext.SetTransientPropertyOverrides(Harvester.ReleaseTransientPropertyOverrides());
 
 	return ReturnSuccessOrCancel();
 }
@@ -936,6 +937,7 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 		{
 			SaveContext.GetLinker()->SetOutputDevice(SaveContext.GetError());
 		}
+		SaveContext.GetLinker()->SetTransientPropertyOverrides(SaveContext.GetTransientPropertyOverrides());
 		SaveContext.GetLinker()->bUpdatingLoadedPath = SaveContext.IsUpdatingLoadedPath();
 		SaveContext.GetLinker()->bProceduralSave = SaveContext.IsProceduralSave();
 
@@ -1953,6 +1955,7 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 
 		Export.SerialOffset = ExportsArchive.Tell();
 		Linker.CurrentlySavingExport = FPackageIndex::FromExport(ExportIndex);
+		Linker.CurrentlySavingExportObject = Export.Object;
 
 		FExportProxyArchive Ar(ExportsArchive);
 		TGuardValue<FArchive*> GuardSaver(Linker.Saver, &Ar);
@@ -1976,6 +1979,7 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 		}
 
 		Linker.CurrentlySavingExport = FPackageIndex();
+		Linker.CurrentlySavingExportObject = nullptr;
 		Export.SerialSize = ExportsArchive.Tell() - Export.SerialOffset;
 	}
 
@@ -2009,6 +2013,7 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 			// Save the object data.
 			Export.SerialOffset = Linker->Tell();
 			Linker->CurrentlySavingExport = FPackageIndex::FromExport(i);
+			Linker->CurrentlySavingExportObject = Export.Object;
 
 			FString ObjectName = Export.Object->GetPathName(SaveContext.GetPackage());
 			FStructuredArchive::FSlot ExportSlot = ExportsRecord.EnterField(*ObjectName);
@@ -2062,6 +2067,7 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 #endif
 			}
 			Linker->CurrentlySavingExport = FPackageIndex();
+			Linker->CurrentlySavingExportObject = nullptr;
 			Export.SerialSize = Linker->Tell() - Export.SerialOffset;
 		}
 	}
