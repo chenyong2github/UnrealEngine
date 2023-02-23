@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HLODBuilderMeshMerge.h"
+#include "WorldPartition/HLOD/Builders/HLODBuilderMeshMerge.h"
 
 #include "Algo/ForEach.h"
 #include "Engine/Engine.h"

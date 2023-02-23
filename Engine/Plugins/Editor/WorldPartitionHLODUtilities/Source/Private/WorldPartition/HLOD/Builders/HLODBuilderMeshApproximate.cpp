@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HLODBuilderMeshApproximate.h"
+#include "WorldPartition/HLOD/Builders/HLODBuilderMeshApproximate.h"
 
 #include "Algo/ForEach.h"
 #include "Components/StaticMeshComponent.h"

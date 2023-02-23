@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "WorldPartitionHLODUtilities.h"
+#include "WorldPartition/HLOD/Utilities/WorldPartitionHLODUtilities.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionStreamingGeneration.h"
 
@@ -21,10 +21,10 @@
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/ContentBundle/ContentBundleActivationScope.h"
 
-#include "HLODBuilderInstancing.h"
-#include "HLODBuilderMeshMerge.h"
-#include "HLODBuilderMeshSimplify.h"
-#include "HLODBuilderMeshApproximate.h"
+#include "WorldPartition/HLOD/Builders/HLODBuilderInstancing.h"
+#include "WorldPartition/HLOD/Builders/HLODBuilderMeshMerge.h"
+#include "WorldPartition/HLOD/Builders/HLODBuilderMeshSimplify.h"
+#include "WorldPartition/HLOD/Builders/HLODBuilderMeshApproximate.h"
 
 #include "Engine/Level.h"
 #include "Engine/StaticMesh.h"

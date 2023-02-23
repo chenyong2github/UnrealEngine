@@ -2,7 +2,8 @@
 
 #include "WorldPartitionHLODUtilitiesModule.h"
 #include "Modules/ModuleManager.h"
-#include "WorldPartitionHLODUtilities.h"
+
+#include "WorldPartition/HLOD/Utilities/WorldPartitionHLODUtilities.h"
 
 IMPLEMENT_MODULE(FWorldPartitionHLODUtilitiesModule, WorldPartitionHLODUtilities);
 

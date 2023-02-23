@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HLODBuilderInstancing.h"
+#include "WorldPartition/HLOD/Builders/HLODBuilderInstancing.h"
 #include "Serialization/ArchiveCrc32.h"
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
