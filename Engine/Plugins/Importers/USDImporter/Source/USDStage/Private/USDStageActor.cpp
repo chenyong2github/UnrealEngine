@@ -740,7 +740,7 @@ AUsdStageActor::AUsdStageActor()
 		UsdListener.GetOnObjectsChanged().AddUObject(this, &AUsdStageActor::OnUsdObjectsChanged);
 
 		UsdListener.GetOnLayersChanged().AddLambda(
-			[&](const TArray< FString >& ChangeVec)
+			[&, this](const TArray< FString >& ChangedLayerIdentifiers)
 			{
 				if (!IsListeningToUsdNotices())
 				{
@@ -753,11 +753,30 @@ AUsdStageActor::AUsdStageActor()
 					SuppressTransaction.Emplace(GUndo, nullptr);
 				}
 
+				const UE::FUsdStage& Stage = GetUsdStage();
+				if (!Stage)
+				{
+					return;
+				}
+
+				TSet<FString> UsedLayerIdentifiers;
+				TArray<UE::FSdfLayer> UsedLayers = Stage.GetUsedLayers();
+				UsedLayerIdentifiers.Reserve(UsedLayers.Num());
+				for (const UE::FSdfLayer& UsedLayer : UsedLayers)
+				{
+					UsedLayerIdentifiers.Add(UsedLayer.GetIdentifier());
+				}
+
 				// Check to see if any layer reloaded. If so, rebuild all of our animations as a single layer changing
 				// might propagate timecodes through all level sequences
-				for (const FString& ChangeVecItem : ChangeVec)
+				for (const FString& ChangedLayerIdentifier : ChangedLayerIdentifiers)
 				{
-					UE_LOG(LogUsd, Verbose, TEXT("Reloading animations because layer '%s' was added/removed/reloaded"), *ChangeVecItem);
+					if (!UsedLayerIdentifiers.Contains(ChangedLayerIdentifier))
+					{
+						continue;
+					}
+
+					UE_LOG(LogUsd, Verbose, TEXT("Reloading animations because layer '%s' was added/removed/reloaded"), *ChangedLayerIdentifier);
 					ReloadAnimations();
 
 					// Make sure our PrimsToAnimate and the LevelSequenceHelper are kept in sync, because we'll use PrimsToAnimate to
@@ -859,7 +878,7 @@ void AUsdStageActor::IsolateLayer( const UE::FSdfLayer& Layer )
 		TArray<UE::FSdfLayer> CurrentLayerStack = FreshCurrentStage.GetLayerStack();
 		if (!CurrentLayerStack.Contains(Layer))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Failed to isolate layer '%s' as it is not part of the currently opened USD Stage's local layer stack"),
+			UE_LOG(LogUsd, Warning, TEXT("Failed to isolate layer '%s' as it is not part of the currently opened USD Stage's local layer stack"),
 				*Layer.GetIdentifier(),
 				*UsdStage.GetRootLayer().GetIdentifier()
 			);
@@ -1196,6 +1215,8 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 
 USDSTAGE_API void AUsdStageActor::Reset()
 {
+	Modify();
+
 	Super::Reset();
 
 	UnloadUsdStage();

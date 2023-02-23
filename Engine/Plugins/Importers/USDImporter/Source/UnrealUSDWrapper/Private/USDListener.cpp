@@ -388,7 +388,7 @@ void FUsdListenerImpl::HandleLayersChangedNotice( const pxr::SdfNotice::LayersDi
 				const pxr::SdfChangeList::Entry::_Flags& Flags = Change.second.flags;
 				if (Flags.didReloadContent)
 				{
-					LayersNames.Add( ANSI_TO_TCHAR( Change.first.GetString().c_str() ) );
+					LayersNames.Add(ANSI_TO_TCHAR(ChangeVecItem.first->GetIdentifier().c_str()));
 				}
 			}
 		}
