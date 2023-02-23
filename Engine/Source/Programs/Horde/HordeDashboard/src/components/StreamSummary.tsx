@@ -481,7 +481,7 @@ const HealthPanelIssues: React.FC<{ desktopAlerts?: boolean }> = observer(({ des
             summary = summary.slice(0, 100) + "...";
          }
 
-         return <Stack horizontal disableShrink={true}>{<IssueStatusIconV2 issue={issue} streamId={handler.streamId} />}<Text variant={textSize}>{`Issue ${issue.id} - ${summary}`}</Text></Stack>;
+         return <Stack horizontal disableShrink={true}>{<IssueStatusIconV2 issue={issue} />}<Text variant={textSize}>{`Issue ${issue.id} - ${summary}`}</Text></Stack>;
       }
 
       if (column.name === "Quarantine") {

@@ -66,7 +66,7 @@ export const LabelStatusIcon: React.FC<{ label: JobLabel, style?: CSSProperties 
    return <StatusIcon iconName={icon.icon} style={{ ...style, color: icon.color }} />;
 }
 
-export const IssueStatusIcon: React.FC<{ issue: GetIssueResponse, streamId?: string, style?: CSSProperties }> = ({ issue, streamId, style }) => {
+export const IssueStatusIcon: React.FC<{ issue: GetIssueResponse, style?: CSSProperties }> = ({ issue, style }) => {
 
    const colors = dashboard.getStatusColors();
 
@@ -78,6 +78,7 @@ export const IssueStatusIcon: React.FC<{ issue: GetIssueResponse, streamId?: str
    let icon = "Square";//issue.severity === IssueSeverity.Warning ? "Warning" : "FAWindowCloseSolid";
    style.color = issue.severity === IssueSeverity.Warning ? colors.get(StatusColor.Warnings) : colors.get(StatusColor.Failure);
 
+   /*
    if (streamId) {
       const affectedStream = issue.affectedStreams.find(s => s.streamId === streamId);
       if (affectedStream) {
@@ -96,11 +97,12 @@ export const IssueStatusIcon: React.FC<{ issue: GetIssueResponse, streamId?: str
          }
       }
    }
+   */
 
    return <StatusIcon iconName={icon} style={style} />
 }
 
-export const IssueStatusIconV2: React.FC<{ issue: FindIssueResponse, streamId?: string, style?: CSSProperties }> = ({ issue, streamId, style }) => {
+export const IssueStatusIconV2: React.FC<{ issue: FindIssueResponse, style?: CSSProperties }> = ({ issue, style }) => {
 
    const colors = dashboard.getStatusColors();
 
@@ -111,10 +113,6 @@ export const IssueStatusIconV2: React.FC<{ issue: FindIssueResponse, streamId?: 
 
    let icon = "Square";//issue.severity === IssueSeverity.Warning ? "Warning" : "FAWindowCloseSolid";
    style.color = issue.severity === IssueSeverity.Warning ? colors.get(StatusColor.Warnings) : colors.get(StatusColor.Failure);
-
-   if (issue.streamSeverity) {      
-      style.color = issue.streamSeverity === IssueSeverity.Warning ? colors.get(StatusColor.Warnings) : colors.get(StatusColor.Failure);
-   }
 
    return <StatusIcon iconName={icon} style={style} />
 }
