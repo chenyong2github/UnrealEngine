@@ -279,21 +279,18 @@ namespace Horde.Build.Issues.External
 					JsonElement component = jiraComponents[j];
 
 					// skip archived components
-					if (component.TryGetProperty("archived", out JsonElement archived))
+					if (component.TryGetProperty("archived", out JsonElement archived) && archived.GetBoolean())
 					{
-						if (archived.GetBoolean())
-						{
-							continue;
-						}
-
-						if (component.TryGetStringProperty("id", out string? id))
-						{
-							if (component.TryGetStringProperty("name", out string? name))
-							{
-								jiraProject.Components[id] = name;
-							}
-						}
+						continue;
 					}
+
+					if (component.TryGetStringProperty("id", out string? id))
+					{
+						if (component.TryGetStringProperty("name", out string? name))
+						{
+							jiraProject.Components[id] = name;
+						}
+					}					
 				}
 
 				_cachedJiraProjects[projectKey] = jiraProject;
