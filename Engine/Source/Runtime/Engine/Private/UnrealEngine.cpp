@@ -13387,12 +13387,12 @@ UNetDriver* UEngine::FindNamedNetDriver(const UPendingNetGame* InPendingNetGame,
 namespace UE::Private
 {
 	/**
-	 * Look for a config setting telling if this new NetDriver should be enabled with Iris or not
+	 * Look for a config setting telling if this new NetDriver can use Iris or not
 	 * To enable iris for a netdriver you need to add the proper configuration in Engine.ini like so:
 	 *		[/Script/Engine.Engine]
-	 *		+IrisNetDriverConfigs=(NetDriverName="MyNetDriver",bEnableIris=true)
-	 *		+IrisNetDriverConfigs=(NetDriverDefinition="MyNetDriverDef",bEnableIris=false)
-	 *		+IrisNetDriverConfigs=(NetDriverWildcardName="SecondaryNetDriver*",bEnableIris=true);
+	 *		+IrisNetDriverConfigs=(NetDriverName="MyNetDriver",bCanUseIris=true)
+	 *		+IrisNetDriverConfigs=(NetDriverDefinition="MyNetDriverDef",bCanUseIris=false)
+	 *		+IrisNetDriverConfigs=(NetDriverWildcardName="SecondaryNetDriver*",bCanUseIris=true);
 	 *
 	 * Priority order for the IrisNetDriverConfigs are:
 	 *		1. NetDriverName exact match
@@ -13440,7 +13440,7 @@ namespace UE::Private
 		}
 
 		// Only use Iris if the module is loaded (this happens automatically if the Iris plugin is enabled)
-		if (IrisConfig && IrisConfig->bEnableIris)
+		if (IrisConfig && IrisConfig->bCanUseIris)
 		{
 			if (!ensureMsgf(FModuleManager::Get().IsModuleLoaded("IrisCore"), TEXT("%s is not using Iris because the IrisCore module isn't loaded. Check whether the Iris plugin is enabled."), *InNetDriverName.ToString()))
 			{
@@ -13448,7 +13448,7 @@ namespace UE::Private
 			}
 		}
 
-		return IrisConfig ? IrisConfig->bEnableIris : false;
+		return IrisConfig ? IrisConfig->bCanUseIris : false;
 #else
 		return false;
 #endif //UE_WITH_IRIS

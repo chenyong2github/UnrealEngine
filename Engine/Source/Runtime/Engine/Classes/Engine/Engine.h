@@ -275,10 +275,10 @@ struct FIrisNetDriverConfig
 	FString NetDriverWildcardName;
 
 	/**
-	 * Configurable property that decides if the NetDriver will use the Iris replication system or not
+	 * Configurable property that decides if the NetDriver will use the Iris replication system or not if Iris is enabled
 	 */
 	UPROPERTY()
-	bool bEnableIris = false;
+	bool bCanUseIris = false;
 };
 
 
