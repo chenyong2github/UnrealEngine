@@ -873,8 +873,6 @@ void SDetailsView::PreSetObject(int32 InNewNumObjects)
 		DestroyColorPicker();
 	}
 
-	ClearKeyboardFocusIfWithin(AsShared());
-
 	// Save existing expanded items first
 	for(TSharedPtr<FComplexPropertyNode>& RootNode : RootPropertyNodes)
 	{
