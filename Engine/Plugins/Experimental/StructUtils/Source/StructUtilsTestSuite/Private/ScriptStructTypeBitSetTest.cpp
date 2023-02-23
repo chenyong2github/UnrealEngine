@@ -17,7 +17,7 @@ struct FTestStructBaseBitSetStructTracker
 {
 	static FStructTracker StructTracker;
 };
-FStructTracker FTestStructBaseBitSetStructTracker::StructTracker;
+FStructTracker FTestStructBaseBitSetStructTracker::StructTracker([](){return FTestStructSimpleBase::StaticStruct();});
 
 struct FTestStructBitSet : public TStructTypeBitSet<FTestStructSimple, FTestStructBaseBitSetStructTracker>
 {

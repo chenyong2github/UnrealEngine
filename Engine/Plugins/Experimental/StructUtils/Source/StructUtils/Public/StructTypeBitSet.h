@@ -2,8 +2,158 @@
 
 #pragma once
 
+#include "Containers/BitArray.h"
 #include "StructUtilsTypes.h"
 #include "InstancedStruct.h"
+
+
+class FArchive;
+
+namespace FStructTypeBitSet
+{
+struct FBitSetContainer : TBitArray<>
+{
+	FBitSetContainer() = default;
+	FBitSetContainer(const TBitArray<>& Source) : TBitArray<>(Source)
+	{}
+
+	FBitSetContainer& operator=(const TBitArray<>& Other)
+	{
+		*((TBitArray<>*)this) = Other;
+		return *this;
+	}
+
+	void SetAll(const bool bValue, const int32 Count)
+	{
+		Init(bValue, Count);
+	}
+
+	FORCEINLINE bool HasAll(const TBitArray<>& Other) const
+	{
+		FConstWordIterator ThisIterator(*this);
+		FConstWordIterator OtherIterator(Other);
+
+		while (ThisIterator || OtherIterator)
+		{
+			const uint32 A = ThisIterator ? ThisIterator.GetWord() : 0;
+			const uint32 B = OtherIterator ? OtherIterator.GetWord() : 0;
+			if ((A & B) != B)
+			{
+				return false;
+			}
+
+			++ThisIterator;
+			++OtherIterator;
+		}
+
+		return true;
+	}
+
+	FORCEINLINE bool HasAny(const TBitArray<>& Other) const
+	{
+		FConstWordIterator ThisIterator(*this);
+		FConstWordIterator OtherIterator(Other);
+
+		while (ThisIterator || OtherIterator)
+		{
+			const uint32 A = ThisIterator ? ThisIterator.GetWord() : 0;
+			const uint32 B = OtherIterator ? OtherIterator.GetWord() : 0;
+			if ((A & B) != 0)
+			{
+				return true;
+			}
+
+			++ThisIterator;
+			++OtherIterator;
+		}
+
+		return false;
+	}
+
+	FORCEINLINE bool IsEmpty() const
+	{
+		FConstWordIterator Iterator(*this);
+
+		while (Iterator && Iterator.GetWord() == 0)
+		{
+			++Iterator;
+		}
+
+		return !Iterator;
+	}
+
+	FORCEINLINE void operator-=(const TBitArray<>& Other)
+	{
+		FWordIterator ThisIterator(*this);
+		FConstWordIterator OtherIterator(Other);
+
+		while (ThisIterator && OtherIterator)
+		{
+			ThisIterator.SetWord(ThisIterator.GetWord() & ~OtherIterator.GetWord());
+
+			++ThisIterator;
+			++OtherIterator;
+		}
+	}
+
+	FORCEINLINE friend uint32 GetTypeHash(const FBitSetContainer& Instance)
+	{
+		FConstWordIterator Iterator(Instance);
+		uint32 Hash = 0;
+		uint32 TrailingZeroHash = 0;
+		while (Iterator)
+		{
+			const uint32 Word = Iterator.GetWord();
+			if (Word)
+			{
+				Hash = HashCombine(TrailingZeroHash ? TrailingZeroHash : Hash, Word);
+				TrailingZeroHash = 0;
+			}
+			else // potentially a trailing 0-word
+			{
+				TrailingZeroHash = HashCombine(TrailingZeroHash ? TrailingZeroHash : Hash, Word);
+			}
+			++Iterator;
+		}
+		return Hash;
+	}
+
+	void AddAtIndex(const int32 Index)
+	{
+		PadToNum(Index + 1, false);
+		SetBitNoCheck(Index, true);
+	}
+
+	void RemoveAtIndex(const int32 Index)
+	{
+		check(Index >= 0);
+		if (Index < Num())
+		{
+			SetBitNoCheck(Index, false);
+		}
+		// else, it's already not present
+	}
+
+	bool Contains(const int32 Index) const
+	{
+		check(Index >= 0);
+		return (Index < Num()) && (*this)[Index];
+	}
+
+protected:
+	/**
+	 * duplication of TBitArray::SetBitNoCheck needed since it's private but it's the performant way of setting bits
+	 * when we know the index is valid.
+	 * @todo ask Core team about exposing that
+	 */
+	void SetBitNoCheck(const int32 Index, const bool Value)
+	{
+		uint32& Word = GetData()[Index / NumBitsPerDWORD];
+		const uint32 BitOffset = (Index % NumBitsPerDWORD);
+		Word = (Word & ~(1 << BitOffset)) | (((uint32)Value) << BitOffset);
+	}
+};
+} // namespace FStructTypeBitSet
 
 
 /**
@@ -28,34 +178,20 @@
  *	DEFINE_TYPEBITSET(FMyFooBarBitSet);
  * 
  */
-struct FStructTracker
+struct STRUCTUTILS_API FStructTracker
 {
-	int32 FindOrAddStructTypeIndex(const UStruct& InStructType)
-	{
-		// Get existing index...
-		const uint32 Hash = PointerHash(&InStructType);
-		FSetElementId ElementId = StructTypeToIndexSet.FindIdByHash(Hash, Hash);
+	using FBaseStructGetter = TFunction<UStruct*()>;
 
-		if (!ElementId.IsValidId())
-		{
-			// .. or create new one
-			ElementId = StructTypeToIndexSet.AddByHash(Hash, Hash);
-			checkSlow(ElementId.IsValidId());
+	/** 
+	 * The input parameter is a function that fetches the UStruct representing the base class for all the stored structs.
+	 * We're unable to get the UStruct parameter directly since FStructTracker instances are being created during
+	 * module loading (via DEFINE_TYPEBITSET macro) and the ::StaticStruct call fail at that point for types defined
+	 * in the same module.
+	 */
+	explicit FStructTracker(const FBaseStructGetter& InBaseStructGetter);
+	~FStructTracker();
 
-			checkSlow(StructTypesList.Num() == ElementId.AsInteger());
-			StructTypesList.Add(&InStructType);
-		}
-		const int32 Index = ElementId.AsInteger();
-
-#if WITH_STRUCTUTILS_DEBUG
-		if (Index == DebugStructTypeNamesList.Num())
-		{
-			DebugStructTypeNamesList.Add(InStructType.GetFName());
-			ensure(StructTypeToIndexSet.Num() == DebugStructTypeNamesList.Num());
-		}
-#endif // WITH_STRUCTUTILS_DEBUG
-		return Index;
-	}
+	int32 FindOrAddStructTypeIndex(const UStruct& InStructType);
 
 	const UStruct* GetStructType(const int32 StructTypeIndex) const
 	{
@@ -63,6 +199,8 @@ struct FStructTracker
 	}
 
 	int32 Num() const {	return StructTypeToIndexSet.Num(); }
+
+	void Serialize(FArchive& Ar, FStructTypeBitSet::FBitSetContainer& StructTypesBitArray);
 
 #if WITH_STRUCTUTILS_DEBUG
 	/**
@@ -90,158 +228,16 @@ struct FStructTracker
 
 	TSet<uint32> StructTypeToIndexSet;
 	TArray<TWeakObjectPtr<const UStruct>, TInlineAllocator<64>> StructTypesList;
+	uint32 SerializationHash = 0;
+	const FBaseStructGetter BaseStructGetter;
 };
+
 
 template<typename TBaseStruct, typename TStructTrackerWrapper, typename TUStructType = UScriptStruct>
 struct TStructTypeBitSet
 {
 	using FStructTrackerWrapper = TStructTrackerWrapper;
 
-private:
-	struct FBitArrayExt : TBitArray<>
-	{
-		FBitArrayExt() = default;
-		FBitArrayExt(const TBitArray<>& Source) : TBitArray<>(Source)
-		{}
-
-		FBitArrayExt& operator=(const TBitArray<>& Other)
-		{
-			*((TBitArray<>*)this) = Other;
-			return *this;
-		}
-
-		void SetAll(const bool bValue)
-		{
-			Init(bValue, TStructTrackerWrapper::StructTracker.Num());
-		}
-
-		FORCEINLINE bool HasAll(const TBitArray<>& Other) const
-		{
-			FConstWordIterator ThisIterator(*this);
-			FConstWordIterator OtherIterator(Other);
-
-			while (ThisIterator || OtherIterator)
-			{
-				const uint32 A = ThisIterator ? ThisIterator.GetWord() : 0;
-				const uint32 B = OtherIterator ? OtherIterator.GetWord() : 0;
-				if ((A & B) != B)
-				{
-					return false;
-				}
-
-				++ThisIterator;
-				++OtherIterator;
-			}
-
-			return true;
-		}
-
-		FORCEINLINE bool HasAny(const TBitArray<>& Other) const
-		{
-			FConstWordIterator ThisIterator(*this);
-			FConstWordIterator OtherIterator(Other);
-
-			while (ThisIterator || OtherIterator)
-			{
-				const uint32 A = ThisIterator ? ThisIterator.GetWord() : 0;
-				const uint32 B = OtherIterator ? OtherIterator.GetWord() : 0;
-				if ((A & B) != 0)
-				{
-					return true;
-				}
-
-				++ThisIterator;
-				++OtherIterator;
-			}
-
-			return false;
-		}
-
-		FORCEINLINE bool IsEmpty() const
-		{
-			FConstWordIterator Iterator(*this);
-
-			while (Iterator && Iterator.GetWord() == 0)
-			{
-				++Iterator;
-			}
-
-			return !Iterator;
-		}
-
-		FORCEINLINE void operator-=(const TBitArray<>& Other)
-		{
-			FWordIterator ThisIterator(*this);
-			FConstWordIterator OtherIterator(Other);
-
-			while (ThisIterator && OtherIterator)
-			{
-				ThisIterator.SetWord(ThisIterator.GetWord() & ~OtherIterator.GetWord());
-
-				++ThisIterator;
-				++OtherIterator;
-			}
-		}
-
-		FORCEINLINE friend uint32 GetTypeHash(const FBitArrayExt& Instance)
-		{
-			FConstWordIterator Iterator(Instance);
-			uint32 Hash = 0;
-			uint32 TrailingZeroHash = 0;
-			while (Iterator)
-			{
-				const uint32 Word = Iterator.GetWord();
-				if (Word)
-				{
-					Hash = HashCombine(TrailingZeroHash ? TrailingZeroHash : Hash, Word);
-					TrailingZeroHash = 0;
-				}
-				else // potentially a trailing 0-word
-				{
-					TrailingZeroHash = HashCombine(TrailingZeroHash ? TrailingZeroHash : Hash, Word);
-				}
-				++Iterator;
-			}
-			return Hash;
-		}
-
-		void AddAtIndex(const int32 Index)
-		{
-			PadToNum(Index + 1, false);
-			SetBitNoCheck(Index, true);
-		}
-
-		void RemoveAtIndex(const int32 Index)
-		{
-			check(Index >= 0);
-			if (Index < Num())
-			{
-				SetBitNoCheck(Index, false);
-			}
-			// else, it's already not present
-		}
-
-		bool Contains(const int32 Index) const
-		{
-			check(Index >= 0);
-			return (Index < Num()) && (*this)[Index];
-		}
-
-	protected:
-		/**
-		 * duplication of TBitArray::SetBitNoCheck needed since it's private but it's the performant way of setting bits
-		 * when we know the index is valid.
-		 * @todo ask Core team about exposing that
-		 */
-		void SetBitNoCheck(const int32 Index, const bool Value)
-		{
-			uint32& Word = GetData()[Index / NumBitsPerDWORD];
-			const uint32 BitOffset = (Index % NumBitsPerDWORD);
-			Word = (Word & ~(1 << BitOffset)) | (((uint32)Value) << BitOffset);
-		}
-	};
-
-public:
 	TStructTypeBitSet() = default;
 
 	explicit TStructTypeBitSet(const TUStructType& StructType)
@@ -288,7 +284,7 @@ public:
 	struct FIndexIterator
 	{
 	public:
-		explicit FIndexIterator(const FBitArrayExt& BitArray, const bool bInValueToCheck = true)
+		explicit FIndexIterator(const FStructTypeBitSet::FBitSetContainer& BitArray, const bool bInValueToCheck = true)
 			: It(BitArray), bValueToCheck(bInValueToCheck)
 		{
 			if (It && It.GetValue() != bInValueToCheck)
@@ -410,7 +406,7 @@ public:
 
 	void SetAll(const bool bValue = true)
 	{
-		StructTypesBitArray.SetAll(bValue);
+		StructTypesBitArray.SetAll(bValue, TStructTrackerWrapper::StructTracker.Num());
 	}
 
 	void Add(const TUStructType& InStructType)
@@ -642,8 +638,19 @@ public:
 		return HashCombine(StoredTypeHash, BitArrayHash);
 	}
 
+	void Serialize(FArchive& Ar)
+	{
+		TStructTrackerWrapper::StructTracker.Serialize(Ar, StructTypesBitArray);
+	}
+
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, TStructTypeBitSet& Instance)
+	{
+		Instance.Serialize(Ar);
+		return Ar;
+	}
+
 private:
-	FBitArrayExt StructTypesBitArray;
+	FStructTypeBitSet::FBitSetContainer StructTypesBitArray;
 };
 
 /** 
@@ -652,12 +659,13 @@ private:
  * way we could come up with to solve it. Thankfully the user doesn't need to even know about this class's existence
  * as long as they are using the macros below.
  */
-#define _DECLARE_TYPEBITSET_IMPL(EXPORTED_API, ContainerTypeName, BaseType, BaseUStructType) struct ContainerTypeName##StructTracker \
+#define _DECLARE_TYPEBITSET_IMPL(EXPORTED_API, ContainerTypeName, BaseType, BaseUStructType) struct ContainerTypeName##StructTrackerWrapper \
 	{ \
+		using FBaseStructType = BaseType; \
 		EXPORTED_API static FStructTracker StructTracker; \
 	}; \
-	template struct EXPORTED_API TStructTypeBitSet<BaseType, ContainerTypeName##StructTracker, BaseUStructType>; \
-	using ContainerTypeName = TStructTypeBitSet<BaseType, ContainerTypeName##StructTracker, BaseUStructType>
+	template struct EXPORTED_API TStructTypeBitSet<BaseType, ContainerTypeName##StructTrackerWrapper, BaseUStructType>; \
+	using ContainerTypeName = TStructTypeBitSet<BaseType, ContainerTypeName##StructTrackerWrapper, BaseUStructType>
 
 #define DECLARE_STRUCTTYPEBITSET_EXPORTED(EXPORTED_API, ContainerTypeName, BaseStructType) _DECLARE_TYPEBITSET_IMPL(EXPORTED_API, ContainerTypeName, BaseStructType, UScriptStruct)
 #define DECLARE_STRUCTTYPEBITSET(ContainerTypeName, BaseStructType) _DECLARE_TYPEBITSET_IMPL(, ContainerTypeName, BaseStructType, UScriptStruct)
@@ -665,4 +673,4 @@ private:
 #define DECLARE_CLASSTYPEBITSET(ContainerTypeName, BaseStructType) _DECLARE_TYPEBITSET_IMPL(, ContainerTypeName, BaseStructType, UClass)
 
 #define DEFINE_TYPEBITSET(ContainerTypeName) \
-	FStructTracker ContainerTypeName##StructTracker::StructTracker;
+	FStructTracker ContainerTypeName##StructTrackerWrapper::StructTracker([](){ return UE::StructUtils::GetAsUStruct<ContainerTypeName##StructTrackerWrapper::FBaseStructType>();});
