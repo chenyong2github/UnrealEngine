@@ -134,16 +134,6 @@ public:
 
 	//~ Both of these should be private, IMO, but we'll leave them public for now for back compat
 	//~ in case anyone was using SerializeCustomDeltaProperty already.
-
-	UE_DEPRECATED(5.0, "No longer used.")
-	bool SendCustomDeltaProperty(
-		UObject* InObject,
-		FProperty* Property,
-		uint32 ArrayIndex,
-		FNetBitWriter& OutBunch,
-		TSharedPtr<INetDeltaBaseState>& NewFullState,
-		TSharedPtr<INetDeltaBaseState> & OldState);
-
 	bool SendCustomDeltaProperty(
 		UObject* InObject,
 		uint16 CustomDeltaProperty,
@@ -171,10 +161,6 @@ public:
 
 	void PostSendBunch(FPacketIdRange& PacketRange, uint8 bReliable);
 
-	/** Updates the custom delta state for a replay delta checkpoint */
-	UE_DEPRECATED(4.27, "No longer used")
-	void UpdateCheckpoint() {}
-	
 	bool ReceivedBunch(
 		FNetBitReader& Bunch,
 		const FReplicationFlags& RepFlags,
