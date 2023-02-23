@@ -25,55 +25,12 @@
 #include "MetasoundSendNode.h"
 #include "MetasoundTransmissionRegistration.h"
 #include "MetasoundVariableNodes.h"
+#include "MetasoundParameterPackFixedArray.h"
 
 #include <type_traits>
 
 namespace Metasound
 {
-	template<typename ElementType, int32 NumInlineElements>
-	class TParamPackFixedArray
-	{
-	public:
-		TParamPackFixedArray(const TArray<ElementType>& Other)
-		{
-			*this = Other;
-		}
-
-		TParamPackFixedArray<ElementType, NumInlineElements>& operator=(const TArray<ElementType>& Other)
-		{
-			int32 NumToCopy = FMath::Min(Other.Num(), NumInlineElements);
-			for (int32 i = 0; i < NumToCopy; ++i)
-			{
-				GetData()[i] = Other[i];
-			}
-			NumValidElements = NumToCopy;
-			return *this;
-		}
-
-		void CopyToArray(TArray<ElementType>& Dest) const
-		{
-			Dest.Empty();
-			for (int32 i = 0; i < NumValidElements; ++i)
-			{
-				Dest.Add(GetData()[i]);
-			}
-		}
-
-		FORCEINLINE const ElementType* GetData() const
-		{
-			return (ElementType*)InlineData;
-		}
-
-		FORCEINLINE ElementType* GetData()
-		{
-			return (ElementType*)InlineData;
-		}
-
-	private:
-		int32 NumValidElements = 0;
-		TTypeCompatibleBytes<ElementType> InlineData[NumInlineElements];
-	};
-
 	namespace MetasoundDataTypeRegistrationPrivate
 	{
 		template<typename DataType>
@@ -468,9 +425,15 @@ namespace Metasound
 						{
 							this->RawAssignmentFunction = [](const void* Src, void* Dest)
 								{
+									//***********************************************************************************************************
+									// sanity check to be sure memory layout is the same regardless of number of elements in the fixed array...
+									using FSmallFixedArray = TParamPackFixedArray<typename TDataType::ElementType, 1>;
+									using FLargeFixedArray = TParamPackFixedArray<typename TDataType::ElementType, 200>;
+									static_assert(offsetof(FSmallFixedArray,InlineData) > offsetof(FSmallFixedArray, NumValidElements));
+									static_assert(offsetof(FSmallFixedArray,InlineData) == offsetof(FLargeFixedArray,InlineData));
+									//***********************************************************************************************************
 									TDataType& DestinationArray = *(reinterpret_cast<TDataType*>(Dest));
-									const TParamPackFixedArray<typename TDataType::ElementType, 1>& SourceArray = 
-										*(reinterpret_cast<const TParamPackFixedArray<typename TDataType::ElementType, 1>*>(Src));
+									const FSmallFixedArray& SourceArray = *(reinterpret_cast<const FSmallFixedArray*>(Src));
 									SourceArray.CopyToArray(DestinationArray);
 								};
 						}
