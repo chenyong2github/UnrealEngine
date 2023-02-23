@@ -311,7 +311,7 @@ void FPBDRigidsEvolutionGBF::BuildDisabledParticles(const int32 Island, TArray<T
 	}
 
 	// Turn off if not moving
-	SleepedIslands[Island] = GetIslandManager().SleepInactive(Island, PhysicsMaterials, SolverPhysicsMaterials);
+	SleepedIslands[Island] = GetIslandManager().SleepInactive(Island, PhysicsMaterials, PerParticlePhysicsMaterials, SolverPhysicsMaterials);
 }
 
 void FPBDRigidsEvolutionGBF::UpdateCollisionSolverType()

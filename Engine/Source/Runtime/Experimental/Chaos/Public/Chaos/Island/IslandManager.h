@@ -209,7 +209,11 @@ public:
 	  * @param SolverPhysicsMaterials Solver materials that could be used to find the sleeping thresholds
 	  * @return return true if the island is going to sleep
 	  */
-	bool SleepInactive(const int32 IslandIndex, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes, const THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials);
+	bool SleepInactive(
+		const int32 IslandIndex, 
+		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials, 
+		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials,
+		const THandleArray<FChaosPhysicsMaterial>& SimMaterials);
 
 	/**
 	 * Get the set of islands that the particle belongs to. Will be 0-1 island for dynamics and could be any number for non-dynamics.

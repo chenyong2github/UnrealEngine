@@ -47,18 +47,19 @@ namespace Chaos
 			return Type;
 		}
 
-		FShapeInstanceProxy* AsShapeInstanceProxy();
-		const FShapeInstanceProxy* AsShapeInstanceProxy() const;
-
-		FShapeInstance* AsShapeInstance();
-		const FShapeInstance* AsShapeInstance() const;
+		// Call a function on the concrete type
+		template<typename TLambda> decltype(auto) DownCast(const TLambda& Lambda);
+		template<typename TLambda> decltype(auto) DownCast(const TLambda& Lambda) const;
 
 		Private::FShapeInstanceExtended* AsShapeInstanceExtended();
 		const Private::FShapeInstanceExtended* AsShapeInstanceExtended() const;
 
-		// Call a function on the concrete type
-		template<typename TLambda> decltype(auto) DownCast(const TLambda& Lambda);
-		template<typename TLambda> decltype(auto) DownCast(const TLambda& Lambda) const;
+	public:
+		// Downcasts exposed until we deprecate and remove FPerShapeData
+		FShapeInstanceProxy* AsShapeInstanceProxy();
+		const FShapeInstanceProxy* AsShapeInstanceProxy() const;
+		FShapeInstance* AsShapeInstance();
+		const FShapeInstance* AsShapeInstance() const;
 
 	public:
 		static constexpr bool AlwaysSerializable = true;
@@ -109,6 +110,9 @@ namespace Chaos
 
 		void UpdateLeafWorldTransform(FGeometryParticleHandle* Particle);
 
+		int32 NumMaterials() const;
+		const FMaterialHandle& GetMaterial(const int32 Index) const;
+
 		const TArray<FMaterialHandle>& GetMaterials() const;
 		void SetMaterial(FMaterialHandle InMaterial);
 		void SetMaterials(const TArray<FMaterialHandle>& InMaterials);
@@ -158,6 +162,7 @@ namespace Chaos
 	protected:
 		FPerShapeData(const EPerShapeDataType InType, int32 InShapeIdx)
 			: Type(InType)
+			, bIsSingleMaterial(false)
 			, ShapeIdx(InShapeIdx)
 			, Geometry()
 			, WorldSpaceInflatedShapeBounds(FAABB3(FVec3(0), FVec3(0)))
@@ -166,6 +171,7 @@ namespace Chaos
 
 		FPerShapeData(const EPerShapeDataType InType, int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry)
 			: Type(InType)
+			, bIsSingleMaterial(false)
 			, ShapeIdx(InShapeIdx)
 			, Geometry(InGeometry)
 			, WorldSpaceInflatedShapeBounds(FAABB3(FVec3(0), FVec3(0)))
@@ -174,13 +180,17 @@ namespace Chaos
 
 		FPerShapeData(const EPerShapeDataType InType, const FPerShapeData& Other)
 			: Type(InType)
+			, bIsSingleMaterial(Other.bIsSingleMaterial)
 			, ShapeIdx(Other.ShapeIdx)
 			, Geometry(Other.Geometry)
 			, WorldSpaceInflatedShapeBounds(Other.WorldSpaceInflatedShapeBounds)
 		{
 		}
 
+		virtual void SerializeMaterials(FChaosArchive& Ar) = 0;
+
 		EPerShapeDataType Type;
+		uint8 bIsSingleMaterial : 1;	// For use by FShapeInstance (here because the space is available for free)
 		int32 ShapeIdx;
 		TSerializablePtr<FImplicitObject> Geometry;
 		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
@@ -256,6 +266,9 @@ namespace Chaos
 		// If not cahced, is constructed from arguments.
 		FRigidTransform3 GetLeafWorldTransform(const FGeometryParticleHandle* Particle) const;
 		void UpdateLeafWorldTransform(FGeometryParticleHandle* Particle);
+
+		int32 NumMaterials() const { return Materials.Read(). Materials.Num(); }
+		const FMaterialHandle& GetMaterial(const int32 Index) const { return Materials.Read().Materials[Index]; }
 
 		const TArray<FMaterialHandle>& GetMaterials() const { return Materials.Read().Materials; }
 		const TArray<FMaterialMaskHandle>& GetMaterialMasks() const { return Materials.Read().MaterialMasks; }
@@ -427,6 +440,9 @@ namespace Chaos
 		{
 		}
 
+		virtual void SerializeMaterials(FChaosArchive& Ar) override final;
+
+
 		IPhysicsProxyBase* Proxy;
 		FShapeDirtyFlags DirtyFlags;
 
@@ -458,7 +474,10 @@ namespace Chaos
 	 *
 	 * NOTE: keep size to a minimum. There can be millions of these in s scene.
 	 *
-	 * @todo(chaos) : reduce the cost of MaterialData for shapes with one materialand no masks etc.
+	 * NOTE: this version has reduced-memory material storage compared to FShapeInstanceProxy, 
+	 * but increased cost when switching from a single-material to a multi-material shape
+	 * (though this should not be happening much if at all).
+	 * 
 	 */
 	class CHAOS_API FShapeInstance : public FPerShapeData
 	{
@@ -468,6 +487,14 @@ namespace Chaos
 		static TUniquePtr<FShapeInstance> Make(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry);
 		static void UpdateGeometry(TUniquePtr<FShapeInstance>& InOutShapePtr, TSerializablePtr<FImplicitObject> InGeometry);
 		static FShapeInstance* SerializationFactory(FChaosArchive& Ar, FShapeInstance*);
+
+		virtual ~FShapeInstance()
+		{
+			if (!bIsSingleMaterial && (Material.MaterialData != nullptr))
+			{
+				delete Material.MaterialData;
+			}
+		}
 
 		void UpdateShapeBounds(const FRigidTransform3& WorldTM, const FVec3& BoundsExpansion = FVec3(0));
 
@@ -494,16 +521,42 @@ namespace Chaos
 		FRigidTransform3 GetLeafWorldTransform(const FGeometryParticleHandle* Particle) const;
 		void UpdateLeafWorldTransform(FGeometryParticleHandle* Particle);
 
-		const TArray<FMaterialHandle>& GetMaterials() const { return Materials.Materials; }
-		const TArray<FMaterialMaskHandle>& GetMaterialMasks() const { return Materials.MaterialMasks; }
-		const TArray<uint32>& GetMaterialMaskMaps() const { return Materials.MaterialMaskMaps; }
-		const TArray<FMaterialHandle>& GetMaterialMaskMapMaterials() const { return Materials.MaterialMaskMapMaterials; }
+		int32 NumMaterials() const
+		{
+			if (bIsSingleMaterial)
+			{
+				return Material.MaterialHandle.IsValid() ? 1 : 0;
+			}
+			else
+			{
+				return (Material.MaterialData != nullptr) ? Material.MaterialData->Materials.Num() : 0;
+			}
+		}
 
-		void SetMaterial(FMaterialHandle InMaterial) { Materials.Materials.Reset(1); Materials.Materials.Add(InMaterial); }
-		void SetMaterials(const TArray<FMaterialHandle>& InMaterials) { Materials.Materials = InMaterials; }
-		void SetMaterialMasks(const TArray<FMaterialMaskHandle>& InMaterialMasks) { Materials.MaterialMasks = InMaterialMasks; }
-		void SetMaterialMaskMaps(const TArray<uint32>& InMaterialMaskMaps) { Materials.MaterialMaskMaps = InMaterialMaskMaps; }
-		void SetMaterialMaskMapMaterials(const TArray<FMaterialHandle>& InMaterialMaskMapMaterials) { Materials.MaterialMaskMapMaterials = InMaterialMaskMapMaterials; }
+		const FMaterialHandle& GetMaterial(const int32 Index) const
+		{
+			if (bIsSingleMaterial)
+			{
+				check(Index == 0);
+				check(Material.MaterialHandle.IsValid());
+				return Material.MaterialHandle;
+			}
+			else
+			{
+				return GetMaterialDataImpl().Materials[Index];
+			}
+		}
+
+		const TArray<FMaterialHandle>& GetMaterials() const { return GetMaterialDataImpl().Materials; }
+		const TArray<FMaterialMaskHandle>& GetMaterialMasks() const { return GetMaterialDataImpl().MaterialMasks; }
+		const TArray<uint32>& GetMaterialMaskMaps() const { return GetMaterialDataImpl().MaterialMaskMaps; }
+		const TArray<FMaterialHandle>& GetMaterialMaskMapMaterials() const { return GetMaterialDataImpl().MaterialMaskMapMaterials; }
+
+		void SetMaterial(FMaterialHandle InMaterial) { SetMaterialImpl(InMaterial); }
+		void SetMaterials(const TArray<FMaterialHandle>& InMaterials) { GetMaterialDataImpl().Materials = InMaterials; }
+		void SetMaterialMasks(const TArray<FMaterialMaskHandle>& InMaterialMasks) { GetMaterialDataImpl().MaterialMasks = InMaterialMasks; }
+		void SetMaterialMaskMaps(const TArray<uint32>& InMaterialMaskMaps) { GetMaterialDataImpl().MaterialMaskMaps = InMaterialMaskMaps; }
+		void SetMaterialMaskMapMaterials(const TArray<FMaterialHandle>& InMaterialMaskMapMaterials) { GetMaterialDataImpl().MaterialMaskMapMaterials = InMaterialMaskMapMaterials; }
 
 		bool GetQueryEnabled() const { return CollisionData.bQueryCollision; }
 		void SetQueryEnabled(const bool bEnable) { CollisionData.bQueryCollision = bEnable; }
@@ -520,8 +573,8 @@ namespace Chaos
 		const FCollisionData& GetCollisionData() const { return CollisionData; }
 		void SetCollisionData(const FCollisionData& Data) { CollisionData = Data; }
 
-		const FMaterialData& GetMaterialData() const { return Materials; }
-		void SetMaterialData(const FMaterialData& Data) { Materials = Data; }
+		const FMaterialData& GetMaterialData() const { return GetMaterialDataImpl(); }
+		void SetMaterialData(const FMaterialData& Data) { SetMaterialDataImpl(Data); }
 
 		// @todo(chaos): remove when FPerShapeData is removed
 		const FShapeDirtyFlags GetDirtyFlags() const { check(false); return FShapeDirtyFlags(); }
@@ -529,49 +582,137 @@ namespace Chaos
 		void SetProxy(IPhysicsProxyBase* InProxy) { check(false); }
 
 		template <typename Lambda> void ModifySimData(const Lambda& LambdaFunc) { LambdaFunc(CollisionData.SimData); }
-		template <typename Lambda> void ModifyMaterials(const Lambda& LambdaFunc) { LambdaFunc(Materials.Materials); }
-		template <typename Lambda> void ModifyMaterialMasks(const Lambda& LambdaFunc) { LambdaFunc(Materials.MaterialMasks); }
-		template <typename Lambda> void ModifyMaterialMaskMaps(const Lambda& LambdaFunc) { LambdaFunc(Materials.MaterialMaskMaps); }
-		template <typename Lambda> void ModifyMaterialMaskMapMaterials(const Lambda& LambdaFunc) { LambdaFunc(Materials.MaterialMaskMapMaterials); }
+		template <typename Lambda> void ModifyMaterials(const Lambda& LambdaFunc) { LambdaFunc(GetMaterialDataImpl().Materials); }
+		template <typename Lambda> void ModifyMaterialMasks(const Lambda& LambdaFunc) { LambdaFunc(GetMaterialDataImpl().MaterialMasks); }
+		template <typename Lambda> void ModifyMaterialMaskMaps(const Lambda& LambdaFunc) { LambdaFunc(GetMaterialDataImpl().MaterialMaskMaps); }
+		template <typename Lambda> void ModifyMaterialMaskMapMaterials(const Lambda& LambdaFunc) { LambdaFunc(GetMaterialDataImpl().MaterialMaskMapMaterials); }
 
 	protected:
 		explicit FShapeInstance(int32 InShapeIdx)
 			: FPerShapeData(EPerShapeDataType::Sim, InShapeIdx)
 			, CollisionData()
-			, Materials()
 		{
+			bIsSingleMaterial = true;
 		}
 
 		FShapeInstance(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry)
 			: FPerShapeData(EPerShapeDataType::Sim, InShapeIdx, InGeometry)
 			, CollisionData()
-			, Materials()
 		{
+			bIsSingleMaterial = true;
 		}
 
 		explicit FShapeInstance(FShapeInstance&& Other)
 			: FPerShapeData(EPerShapeDataType::Sim, Other)
 			, CollisionData(MoveTemp(Other.CollisionData))
-			, Materials(MoveTemp(Other.Materials))
 		{
+			if (bIsSingleMaterial)
+			{
+				Material.MaterialHandle = Other.Material.MaterialHandle;
+			}
+			else
+			{
+				Material.MaterialData = Other.Material.MaterialData;
+				Other.Material.MaterialData = nullptr;
+			}
 		}
 
 		FShapeInstance(const EPerShapeDataType InType, int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry)
 			: FPerShapeData(InType, InShapeIdx, InGeometry)
 			, CollisionData()
-			, Materials()
 		{
+			bIsSingleMaterial = true;
 		}
 
 		FShapeInstance(const EPerShapeDataType InType, FShapeInstance&& Other)
 			: FPerShapeData(InType, Other)
 			, CollisionData(MoveTemp(Other.CollisionData))
-			, Materials(MoveTemp(Other.Materials))
 		{
+			if (bIsSingleMaterial)
+			{
+				Material.MaterialHandle = Other.Material.MaterialHandle;
+			}
+			else
+			{
+				Material.MaterialData = Other.Material.MaterialData;
+				Other.Material.MaterialData = nullptr;
+			}
 		}
 
+		FMaterialData& GetMaterialDataImpl()
+		{
+			if (bIsSingleMaterial)
+			{
+				const FMaterialHandle ExistingMaterial = Material.MaterialHandle;
+
+				Material.MaterialData = new FMaterialData();
+				bIsSingleMaterial = false;
+
+				if (ExistingMaterial.IsValid())
+				{
+					// Ideally we do not get here if we have been setup as a single-material shape.
+					// However the API combination of SetMaterial() and GetMaterialData() requires
+					// we be able to upgrade from a single material to multi-material shape.
+					// We should try to remove this if possible.
+					UE_LOG(LogChaos, Warning, TEXT("Perf/memory warning: request for Material Array on single-material ShapeInstance"));
+
+					Material.MaterialData->Materials.Add(ExistingMaterial);
+				}
+			}
+			return *Material.MaterialData;
+		}
+
+		const FMaterialData& GetMaterialDataImpl() const
+		{
+			return const_cast<FShapeInstance*>(this)->GetMaterialDataImpl();
+		}
+
+		void SetMaterialImpl(const FMaterialHandle& InMaterial)
+		{
+			if (!bIsSingleMaterial)
+			{
+				// Destroy existing MaterialData if present
+				if (Material.MaterialData != nullptr)
+				{
+					delete Material.MaterialData;
+				}
+				bIsSingleMaterial = true;
+			}
+
+			Material.MaterialHandle = InMaterial;
+		}
+
+		void SetMaterialDataImpl(const FMaterialData& Data)
+		{ 
+			// If we have only one material and no masks, we can use the single material handle
+			if ((Data.Materials.Num() <= 1) && Data.MaterialMasks.IsEmpty() && Data.MaterialMaskMaps.IsEmpty() && Data.MaterialMaskMapMaterials.IsEmpty())
+			{
+				const FMaterialHandle MaterialHandle = (Data.Materials.Num() > 0) ? Data.Materials[0] : FMaterialHandle();
+				SetMaterialImpl(MaterialHandle);
+			}
+			else
+			{
+				// This could probably be a Move except it would change the SetMaterialData API
+				// As it stands this will duplicate (and eventually discard) the material and mask arrays
+				// although this is probably not called on an already-initialized material data very often
+				GetMaterialDataImpl() = Data;
+			}
+		}
+
+		virtual void SerializeMaterials(FChaosArchive& Ar) override final;
+
+		union FMaterialUnion
+		{
+			FMaterialUnion() : MaterialHandle() {}		// Default to single-shape mode
+			~FMaterialUnion() {}						// Destruction handled by FShapeInstance
+
+			FMaterialHandle MaterialHandle;				// Set if we have only 1 material, no masks etc
+			FMaterialData* MaterialData;				// Set if we have multiple materials or any masks
+		};
+
 		FCollisionData CollisionData;
-		FMaterialData Materials;
+		mutable FMaterialUnion Material;
+
 	};
 
 	namespace Private
@@ -622,8 +763,9 @@ namespace Chaos
 			{
 			}
 
-			FVec3 WorldPosition;
+			// NOTE: FRotation is 16-byte aligned so it goes first
 			FRotation3 WorldRotation;
+			FVec3 WorldPosition;
 		};
 	}
 
@@ -797,6 +939,16 @@ namespace Chaos
 	inline void FPerShapeData::UpdateLeafWorldTransform(FGeometryParticleHandle* Particle)
 	{
 		DownCast([Particle](auto& ShapeInstance) { ShapeInstance.UpdateLeafWorldTransform(Particle); });
+	}
+
+	inline int32 FPerShapeData::NumMaterials() const
+	{
+		return DownCast([](const auto& ShapeInstance) { return ShapeInstance.NumMaterials(); });
+	}
+
+	inline const FMaterialHandle& FPerShapeData::GetMaterial(const int32 Index) const
+	{
+		return DownCast([Index](const auto& ShapeInstance) -> const auto& { return ShapeInstance.GetMaterial(Index); });
 	}
 
 	inline const TArray<FMaterialHandle>& FPerShapeData::GetMaterials() const

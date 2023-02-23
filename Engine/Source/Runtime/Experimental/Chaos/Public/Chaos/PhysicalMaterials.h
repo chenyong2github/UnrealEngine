@@ -27,6 +27,8 @@ namespace Chaos
 
 		bool IsValid() const { return Get() != nullptr; }
 
+		void Reset() { InnerHandle = FChaosMaterialHandle(); }
+
 		friend bool operator ==(const FMaterialHandle& A, const FMaterialHandle& B) { return A.InnerHandle == B.InnerHandle; }
 
 		friend FArchive& operator <<(FArchive& Ar, FMaterialHandle& Value) { Ar << Value.InnerHandle; return Ar; }

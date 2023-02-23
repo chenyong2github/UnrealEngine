@@ -32,26 +32,24 @@ namespace Chaos
 	 */
 	FMaterialHandle ResolveMaterial(const FPerShapeData* InShape, const FPBDCollisionConstraint& InConstraint)
 	{
-		if(InShape)
-		{
-			const TArray<FMaterialHandle>& MaterialArray = InShape->GetMaterials();
+		// @todo(chaos): this does not handle PerParticleMaterials so may return the wrong value when that is used
 
+		if (InShape && (InShape->NumMaterials() > 0))
+		{
 			// Simple case, one material. All primitives (Box, convex, sphere etc.) should only have one material.
 			// Heightfield and Trimesh can have one or more and will require data from the contacts to resolve.
-			if(MaterialArray.Num() == 1)
+			if (InShape->NumMaterials() == 1)
 			{
-				return MaterialArray[0];
+				return InShape->GetMaterial(0);
 			}
-			else
+			else if (InConstraint.NumManifoldPoints() > 0)
 			{
-				// Check the manifold points, return the first valid material based on the face that the contact hit.
-				for(const FManifoldPoint& Point : InConstraint.GetManifoldPoints())
+				// We only support one material per manifold (just use the first manifold point)
+				const int32 ShapeFaceIndex = InConstraint.GetManifoldPoint(0).ContactPoint.FaceIndex;
+				const int32 ShapeMaterialIndex = InShape->GetGeometry()->GetMaterialIndex(ShapeFaceIndex);
+				if (ShapeMaterialIndex < InShape->NumMaterials())
 				{
-					const int32 PotentialMaterialIndex = InShape->GetGeometry()->GetMaterialIndex(Point.ContactPoint.FaceIndex);
-					if(MaterialArray.IsValidIndex(PotentialMaterialIndex))
-					{
-						return MaterialArray[PotentialMaterialIndex];
-					}
+					return InShape->GetMaterial(ShapeMaterialIndex);
 				}
 			}
 		}

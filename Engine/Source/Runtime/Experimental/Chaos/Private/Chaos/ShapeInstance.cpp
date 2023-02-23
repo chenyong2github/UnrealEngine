@@ -243,8 +243,9 @@ namespace Chaos
 		DownCast([&Ar](auto& ShapeInstance)
 			{
 				Ar << ShapeInstance.CollisionData;
-				Ar << ShapeInstance.Materials;
 			});
+
+		SerializeMaterials(Ar);
 
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
 		{
@@ -270,10 +271,40 @@ namespace Chaos
 		return Ar.IsLoading() ? new FShapeInstanceProxy(0) : nullptr;
 	}
 
+	void FShapeInstanceProxy::SerializeMaterials(FChaosArchive& Ar)
+	{
+		Ar << Materials;
+	}
+
 	FShapeInstance* FShapeInstance::SerializationFactory(FChaosArchive& Ar, FShapeInstance*)
 	{
 		//todo: need to rework serialization for shapes, for now just give them all shape idx 0
 		return Ar.IsLoading() ? new FShapeInstance(0) : nullptr;
+	}
+
+	void FShapeInstance::SerializeMaterials(FChaosArchive& Ar)
+	{
+		// NOTE: FShapeInstanceProxy and FShapeInstance used to be serialized as FPerShapeData
+		// so we must ensure what we serialize here is binary compatible with FShapeInstanceProxy::SerializeMaterials
+		if (Ar.IsLoading())
+		{
+			FMaterialData Data;
+			Ar << Data;
+			SetMaterialData(Data);
+		}
+		else
+		{
+			if (bIsSingleMaterial)
+			{
+				FMaterialData Data;
+				Data.Materials.Add(Material.MaterialHandle);
+				Ar << Data;
+			}
+			else
+			{
+				Ar << GetMaterialDataImpl();
+			}
+		}
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////

@@ -2,11 +2,12 @@
 #include "Chaos/Island/IslandManager.h"
 #include "Chaos/Island/SolverIsland.h"
 #include "Chaos/Island/IslandGraph.h"
-#include "Chaos/ParticleHandle.h"
 #include "Chaos/ConstraintHandle.h"
+#include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDConstraintContainer.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsSOAs.h"
+#include "Chaos/PhysicsMaterialUtilities.h"
 #include "ChaosLog.h"
 
 #include "Framework/Threading.h"
@@ -73,24 +74,6 @@ bool IsStationaryParticle(const FGeometryParticleHandle* ParticleHandle)
 	}
 }
 
-/** Check if a particle is dynamic or sleeping */
-inline const FChaosPhysicsMaterial* GetPhysicsMaterial(const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& ParticleMaterialAttributes,
-														    const THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, FPBDRigidParticleHandle* RigidParticleHandle)
-{
-	const FChaosPhysicsMaterial* PhysicsMaterial = RigidParticleHandle->AuxilaryValue(ParticleMaterialAttributes).Get();
-	if (!PhysicsMaterial && RigidParticleHandle->ShapesArray().Num())
-	{
-		if (FPerShapeData* PerShapeData = RigidParticleHandle->ShapesArray()[0].Get())
-		{
-			if (PerShapeData->GetMaterials().Num())
-			{
-				PhysicsMaterial = SolverPhysicsMaterials.Get(PerShapeData->GetMaterials()[0].InnerHandle);
-			}
-		}
-	}
-	return PhysicsMaterial;
-}
-
 /** Check if an island is sleeping or not given a linear/angular velocities and sleeping thresholds */
 inline bool IsIslandSleeping(const FReal MaxLinearSpeed2, const FReal MaxAngularSpeed2,
 								  const FReal LinearSleepingThreshold, const FReal AngularSleepingThreshold,
@@ -118,10 +101,16 @@ inline bool IsIslandSleeping(const FReal MaxLinearSpeed2, const FReal MaxAngular
 }
 	
 /** Compute sleeping thresholds given a solver island  */
-inline bool ComputeSleepingThresholds(FPBDIsland* Island,
-	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes,
-	const THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, FReal& LinearSleepingThreshold,
-	FReal& AngularSleepingThreshold, FReal& MaxLinearSpeed2, FReal& MaxAngularSpeed2, int32& SleepCounterThreshold)
+inline bool ComputeSleepingThresholds(
+	FPBDIsland* Island,
+	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials,
+	const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials,
+	const THandleArray<FChaosPhysicsMaterial>& SimMaterials,
+	FReal& LinearSleepingThreshold, 
+	FReal& AngularSleepingThreshold, 
+	FReal& MaxLinearSpeed2, 
+	FReal& MaxAngularSpeed2, 
+	int32& SleepCounterThreshold)
 {
 	LinearSleepingThreshold = FLT_MAX;  
 	AngularSleepingThreshold = FLT_MAX; 
@@ -154,7 +143,7 @@ inline bool ComputeSleepingThresholds(FPBDIsland* Island,
 					MaxLinearSpeed2 = FMath::Max(PBDRigid->VSmooth().SizeSquared(), MaxLinearSpeed2);
 					MaxAngularSpeed2 = FMath::Max(PBDRigid->WSmooth().SizeSquared(), MaxAngularSpeed2);
 
-					const FChaosPhysicsMaterial* PhysicsMaterial = GetPhysicsMaterial(PerParticleMaterialAttributes, SolverPhysicsMaterials, PBDRigid);
+					const FChaosPhysicsMaterial* PhysicsMaterial = Private::GetFirstPhysicsMaterial(PBDRigid, PhysicsMaterials, PerParticlePhysicsMaterials, &SimMaterials);
 
 					const FReal LocalSleepingLinearThreshold = PhysicsMaterial ? PhysicsMaterial->SleepingLinearThreshold :
 										ChaosSolverCollisionDefaultLinearSleepThresholdCVar;
@@ -771,8 +760,9 @@ void FPBDIslandManager::ValidateIslands() const
 }
 
 bool FPBDIslandManager::SleepInactive(const int32 IslandIndex,
-	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes,
-	const THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials)
+	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials,
+	const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials,
+	const THandleArray<FChaosPhysicsMaterial>& SimMaterials)
 {
 	// Only the persistent islands could start sleeping
 	const int32 GraphIndex = GetGraphIndex(IslandIndex);
@@ -786,8 +776,8 @@ bool FPBDIslandManager::SleepInactive(const int32 IslandIndex,
 	int32 SleepCounterThreshold = 0, NumDynamicParticles = 0;
 
 	// Compute of the linear/angular velocities + thresholds to make islands sleeping 
-	if (ComputeSleepingThresholds(Islands[GraphIndex].Get(), PerParticleMaterialAttributes,
-		SolverPhysicsMaterials, LinearSleepingThreshold, AngularSleepingThreshold,
+	if (ComputeSleepingThresholds(Islands[GraphIndex].Get(), PhysicsMaterials, PerParticlePhysicsMaterials,
+		SimMaterials, LinearSleepingThreshold, AngularSleepingThreshold,
 		MaxLinearSpeed2, MaxAngularSpeed2, SleepCounterThreshold))
 	{
 		int32 SleepCounter = Islands[GraphIndex]->GetSleepCounter();

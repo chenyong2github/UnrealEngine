@@ -639,7 +639,8 @@ namespace ChaosTest {
 	void HelpTickConstraints(FPBDRigidsSOAs& SOAs, const TArray<TPBDRigidParticleHandle<FReal, 3>*>& Particles,
 		Private::FPBDIslandManager& Graph, TMockGraphConstraints<0> Constraints,
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials,
-		const THandleArray<FChaosPhysicsMaterial>& PhysicalMaterials)
+		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials,
+		const THandleArray<FChaosPhysicsMaterial>& SimMaterials)
 	{
 		SOAs.ClearTransientDirty();
 
@@ -650,7 +651,7 @@ namespace ChaosTest {
 		Graph.UpdateIslands(SOAs);
 		for (int32 IslandIndex = 0; IslandIndex < Graph.NumIslands(); ++IslandIndex)
 		{
-			const bool bSleeped = Graph.SleepInactive(IslandIndex,PhysicsMaterials,PhysicalMaterials);
+			const bool bSleeped = Graph.SleepInactive(IslandIndex, PhysicsMaterials, PerParticlePhysicsMaterials, SimMaterials);
 
 			if(bSleeped)
 			{
@@ -702,8 +703,10 @@ namespace ChaosTest {
 			FPBDRigidsSOAs SOAs(UniqueIndices);
 			TArray<TPBDRigidParticleHandle<FReal, 3>*> Particles = SOAs.CreateDynamicParticles(NumParticles);
 			TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
+			TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> PerParticlePhysicsMaterials;
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
- 			SOAs.GetParticleHandles().AddArray(&PhysicsMaterials);
+			SOAs.GetParticleHandles().AddArray(&PhysicsMaterials);
+			SOAs.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
 			for (int32 Idx = 0; Idx < NumParticles; ++Idx)
 			{
@@ -749,7 +752,7 @@ namespace ChaosTest {
 					Particles[ParticleIndex]->ResetSmoothedVelocities();
 				}
 
-				HelpTickConstraints(SOAs,Particles,Graph,Constraints,PhysicsMaterials,PhysicalMaterials);
+				HelpTickConstraints(SOAs,Particles,Graph,Constraints,PhysicsMaterials,PerParticlePhysicsMaterials,PhysicalMaterials);
 			
 				// Particles 0-2 are always awake
 				EXPECT_FALSE(Particles[0]->Sleeping());
@@ -795,8 +798,10 @@ namespace ChaosTest {
 			FPBDRigidsSOAs SOAs(UniqueIndices);
 			TArray<TPBDRigidParticleHandle<FReal, 3>*> Particles = SOAs.CreateDynamicParticles(NumParticles);
 			TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
+			TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> PerParticlePhysicsMaterials;
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
  			SOAs.GetParticleHandles().AddArray(&PhysicsMaterials);
+			SOAs.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
 			for (int32 Idx = 0; Idx < NumParticles; ++Idx)
 			{
@@ -853,8 +858,8 @@ namespace ChaosTest {
 					}
 				}
 
-				HelpTickConstraints(SOAs,Particles,Graph,Constraints,PhysicsMaterials,PhysicalMaterials);
-			
+				HelpTickConstraints(SOAs, Particles, Graph, Constraints, PhysicsMaterials, PerParticlePhysicsMaterials, PhysicalMaterials);
+
 				// Particles 0-2 are always awake
 				EXPECT_FALSE(Particles[0]->Sleeping());
 				EXPECT_FALSE(Particles[1]->Sleeping());
@@ -902,8 +907,10 @@ namespace ChaosTest {
 			FPBDRigidsSOAs SOAs(UniqueIndices);
 			TArray<TPBDRigidParticleHandle<FReal,3>*> Particles = SOAs.CreateDynamicParticles(NumParticles);
 			TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
+			TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> PerParticlePhysicsMaterials;
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			SOAs.GetParticleHandles().AddArray(&PhysicsMaterials);
+			SOAs.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
 			for(int32 Idx = 0; Idx < NumParticles; ++Idx)
 			{
@@ -968,7 +975,7 @@ namespace ChaosTest {
 					}
 				}
 
-				HelpTickConstraints(SOAs,Particles,Graph,Constraints,PhysicsMaterials,PhysicalMaterials);
+				HelpTickConstraints(SOAs, Particles, Graph, Constraints, PhysicsMaterials, PerParticlePhysicsMaterials, PhysicalMaterials);
 
 				// Particle 2 is always awake
 				EXPECT_FALSE(Particles[2]->Sleeping());

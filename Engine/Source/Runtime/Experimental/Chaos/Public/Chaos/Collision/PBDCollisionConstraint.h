@@ -27,10 +27,11 @@ namespace Chaos
 	class FParticlePairMidPhase;
 	class FPBDCollisionConstraint;
 	class FPBDCollisionConstraints;
+	class FPerShapeData;
+	class FShapeInstance;
 	class FSingleShapePairCollisionDetector;
 	class FSolverBody;
 	class FSolverBodyContainer;
-	class FPerShapeData;
 
 	UE_DEPRECATED(4.27, "Use FPBDCollisionConstraint instead")
 	typedef FPBDCollisionConstraint FRigidBodyPointContactConstraint;
@@ -44,7 +45,8 @@ namespace Chaos
 	{
 	public:
 		FPBDCollisionConstraintMaterial()
-			: MaterialDynamicFriction(0)
+			: FaceIndex(INDEX_NONE)
+			, MaterialDynamicFriction(0)
 			, MaterialStaticFriction(0)
 			, MaterialRestitution(0)
 			, DynamicFriction(0)
@@ -58,7 +60,11 @@ namespace Chaos
 		{
 		}
 
+		// The face index that the material was extracted from
+		int32 FaceIndex;
+
 		// Material properties pulled from the materials of the two shapes involved in the contact
+		// @todo(chaos): we can remove these now and just recollect the material data when a modifier was applied
 		FRealSingle MaterialDynamicFriction;
 		FRealSingle MaterialStaticFriction;
 		FRealSingle MaterialRestitution;
@@ -282,9 +288,9 @@ namespace Chaos
 		const FImplicitObject* GetImplicit1() const { return Implicit[1]; }
 		const FImplicitObject* GetImplicit(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Implicit[ParticleIndex]; }
 
-		const FPerShapeData* GetShape0() const { return Shape[0]; }
-		const FPerShapeData* GetShape1() const { return Shape[1]; }
-		const FPerShapeData* GetShape(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Shape[ParticleIndex]; }
+		const FShapeInstance* GetShape0() const { return Shape[0]; }
+		const FShapeInstance* GetShape1() const { return Shape[1]; }
+		const FShapeInstance* GetShape(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Shape[ParticleIndex]; }
 
 		const FBVHParticles* GetCollisionParticles0() const { return Simplicial[0]; }
 		const FBVHParticles* GetCollisionParticles1() const { return Simplicial[1]; }
@@ -509,6 +515,18 @@ namespace Chaos
 					}
 				}
 			}
+
+			// If we have a new face we may need to change the material
+			// @todo(chaos): support per-manifold point materials?
+			if (NumManifoldPoints() > 0)
+			{
+				if (ManifoldPoints[0].ContactPoint.FaceIndex != Material.FaceIndex)
+				{
+					Material.FaceIndex = ManifoldPoints[0].ContactPoint.FaceIndex;
+					Flags.bMaterialSet = false;
+				}
+			}
+
 		}
 
 		void UpdateManifoldContacts();
@@ -768,7 +786,7 @@ namespace Chaos
 		
 		FGeometryParticleHandle* Particle[2];
 		const FImplicitObject* Implicit[2];
-		const FPerShapeData* Shape[2];
+		const FShapeInstance* Shape[2];
 		const FBVHParticles* Simplicial[2];
 
 	public:

@@ -2,10 +2,10 @@
 
 #include "Chaos/PBDCollisionConstraints.h"
 
+#include "Chaos/CastingUtilities.h"
 #include "Chaos/ChaosPerfTest.h"
 #include "Chaos/ContactModification.h"
 #include "Chaos/MidPhaseModification.h"
-#include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CCDModification.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Collision/CollisionPruning.h"
@@ -17,14 +17,13 @@
 #include "Chaos/Evolution/ABTestingConstraintContainerSolver.h"
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/Island/IslandManager.h"
-#include "Chaos/SpatialAccelerationCollection.h"
+#include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/PBDRigidsSOAs.h"
-#include "Chaos/CastingUtilities.h"
+#include "Chaos/PhysicsMaterialUtilities.h"
+#include "Chaos/SpatialAccelerationCollection.h"
 #include "ChaosLog.h"
 #include "ChaosStats.h"
 #include "ProfilingDebugging/ScopedTimers.h"
-#include "Algo/Sort.h"
-#include "Algo/StableSort.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -406,56 +405,19 @@ namespace Chaos
 		return ConstraintAllocator.GetConstConstraints();
 	}
 
-	const FChaosPhysicsMaterial* GetPhysicsMaterial(const TGeometryParticleHandle<FReal, 3>* Particle, const FImplicitObject* Geom, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials, const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials, const THandleArray<FChaosPhysicsMaterial>* const SimMaterials)
-	{
-		// Use the per-particle material if it exists
-		const FChaosPhysicsMaterial* UniquePhysicsMaterial = Particle->AuxilaryValue(PerParticlePhysicsMaterials).Get();
-		if (UniquePhysicsMaterial != nullptr)
-		{
-			return UniquePhysicsMaterial;
-		}
-		const FChaosPhysicsMaterial* PhysicsMaterial = Particle->AuxilaryValue(PhysicsMaterials).Get();
-		if (PhysicsMaterial != nullptr)
-		{
-			return PhysicsMaterial;
-		}
-
-		// If no particle material, see if the shape has one
-		// @todo(chaos): handle materials for meshes etc
-		for (const TUniquePtr<FPerShapeData>& ShapeData : Particle->ShapesArray())
-		{
-			const FImplicitObject* OuterShapeGeom = ShapeData->GetGeometry().Get();
-			const FImplicitObject* InnerShapeGeom = Utilities::ImplicitChildHelper(OuterShapeGeom);
-			if (Geom == OuterShapeGeom || Geom == InnerShapeGeom)
-			{
-				if (ShapeData->GetMaterials().Num() > 0)
-				{
-					if(SimMaterials)
-					{
-						return SimMaterials->Get(ShapeData->GetMaterials()[0].InnerHandle);
-					}
-					else
-					{
-						UE_LOG(LogChaos, Warning, TEXT("Attempted to resolve a material for a constraint but we do not have a sim material container."));
-					}
-				}
-				else
-				{
-					// This shape doesn't have a material assigned
-					return nullptr;
-				}
-			}
-		}
-
-		// The geometry used for this particle does not belong to the particle.
-		// This can happen in the case of fracture.
-		return nullptr;
-	}
-
 	void FPBDCollisionConstraints::UpdateConstraintMaterialProperties(FPBDCollisionConstraint& Constraint)
 	{
-		const FChaosPhysicsMaterial* PhysicsMaterial0 = GetPhysicsMaterial(Constraint.Particle[0], Constraint.Implicit[0], MPhysicsMaterials, MPerParticlePhysicsMaterials, SimMaterials);
-		const FChaosPhysicsMaterial* PhysicsMaterial1 = GetPhysicsMaterial(Constraint.Particle[1], Constraint.Implicit[1], MPhysicsMaterials, MPerParticlePhysicsMaterials, SimMaterials);
+		// We only support one material shared by all manifold points for now, even when our 
+		// 4 manifold points are on different triangles of a mesh for example
+		int32 ShapeFaceIndex = INDEX_NONE;
+		if (Constraint.NumManifoldPoints() > 0)
+		{
+			ShapeFaceIndex = Constraint.GetManifoldPoint(0).ContactPoint.FaceIndex;
+		}
+
+		// This is a bit dodgy - we pass the FaceIndex to both material requests, knowing that at most one of the shapes will use it
+		const FChaosPhysicsMaterial* PhysicsMaterial0 = Private::GetPhysicsMaterial(Constraint.Particle[0], Constraint.GetShape0(), ShapeFaceIndex, MPhysicsMaterials, MPerParticlePhysicsMaterials, SimMaterials);
+		const FChaosPhysicsMaterial* PhysicsMaterial1 = Private::GetPhysicsMaterial(Constraint.Particle[1], Constraint.GetShape1(), ShapeFaceIndex, MPhysicsMaterials, MPerParticlePhysicsMaterials, SimMaterials);
 
 		FReal MaterialRestitution = 0;
 		FReal MaterialRestitutionThreshold = 0;

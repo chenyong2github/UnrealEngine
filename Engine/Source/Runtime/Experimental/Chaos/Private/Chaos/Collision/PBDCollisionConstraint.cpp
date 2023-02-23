@@ -127,8 +127,8 @@ namespace Chaos
 		OutConstraint.Particle[1] = Particle1;
 		OutConstraint.Implicit[0] = Implicit0;
 		OutConstraint.Implicit[1] = Implicit1;
-		OutConstraint.Shape[0] = Shape0;
-		OutConstraint.Shape[1] = Shape1;
+		OutConstraint.Shape[0] = (Shape0 != nullptr) ? Shape0->AsShapeInstance() : nullptr;
+		OutConstraint.Shape[1] = (Shape1 != nullptr) ? Shape1->AsShapeInstance() : nullptr;
 		OutConstraint.Simplicial[0] = Simplicial0;
 		OutConstraint.Simplicial[1] = Simplicial1;
 
@@ -216,7 +216,7 @@ namespace Chaos
 		: ImplicitTransform{ FRigidTransform3(), FRigidTransform3() }
 		, Particle{ Particle0, Particle1 }
 		, Implicit{ Implicit0, Implicit1 }
-		, Shape{ Shape0, Shape1 }
+		, Shape{ nullptr, nullptr }
 		, Simplicial{ Simplicial0, Simplicial1 }
 		, AccumulatedImpulse(0)
 		, ContainerCookie()
@@ -240,6 +240,18 @@ namespace Chaos
 		, CCDEnablePenetration(0)
 		, CCDTargetPenetration(0)
 	{
+		// These downcasts should never fail if the input shape is not null
+		// @todo(chaos): remove when FPerShapeData is deprecated
+		check((Shape0 == nullptr) || (Shape0->AsShapeInstance() != nullptr));
+		check((Shape1 == nullptr) || (Shape1->AsShapeInstance() != nullptr));
+		if (Shape0 != nullptr)
+		{
+			Shape[0] = Shape0->AsShapeInstance();
+		}
+		if (Shape1 != nullptr)
+		{
+			Shape[1] = Shape1->AsShapeInstance();
+		}
 	}
 
 	FPBDCollisionConstraint::~FPBDCollisionConstraint()
