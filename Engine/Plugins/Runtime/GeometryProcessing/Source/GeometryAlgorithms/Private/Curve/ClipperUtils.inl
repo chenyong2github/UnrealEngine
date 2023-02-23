@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #if USING_CODE_ANALYSIS
 #include "Curve/ClipperUtils.h"
@@ -117,51 +117,33 @@ namespace UE::Geometry::Private
 		return Polygon;
 	}
 
+
 	template <typename InputType, typename RealType>
-	void ConvertPolyTreeToPolygon(const Clipper2Lib::PolyPath<InputType>* InPaths, UE::Geometry::TGeneralPolygon2<RealType>& OutPolygon, const TVector2<RealType>& InMin, const RealType& InRange)
+	void ConvertPolyTreeToPolygons(const Clipper2Lib::PolyPath<InputType>* InPaths, TArray<UE::Geometry::TGeneralPolygon2<RealType>>& OutPolygons, const TVector2<RealType>& InMin, const RealType& InRange, int ParentPolygonIdx)
 	{
+		if (OutPolygons.IsEmpty())
+		{
+			ParentPolygonIdx = -1;
+		}
+
 		const Clipper2Lib::Path<InputType>& InputPolygon = InPaths->Polygon();
 		TPolygon2<RealType> OutputPolygon = ConvertPathToPolygon<InputType, RealType>(InputPolygon, InMin, InRange);
 
 		if(OutputPolygon.VertexCount() > 0)
 		{
-			checkf(InPaths->IsHole(), TEXT("ConvertPolyTreeToPolygon should only be used for hole polygons."));
-			// Skip containment/orientation tests as it's already performed by Clipper
-			OutPolygon.AddHole(OutputPolygon, false, false);
-		}
-
-		for(const Clipper2Lib::PolyPath<InputType>* const Child : *InPaths)
-		{
-			ConvertPolyTreeToPolygon<InputType, RealType>(Child, OutPolygon, InMin, InRange);
-		}
-	}
-
-	template <typename InputType, typename RealType>
-	void ConvertPolyTreeToPolygons(const Clipper2Lib::PolyPath<InputType>* InPaths, TArray<UE::Geometry::TGeneralPolygon2<RealType>>& OutPolygons, const TVector2<RealType>& InMin, const RealType& InRange)
-	{
-		const Clipper2Lib::Path<InputType>& InputPolygon = InPaths->Polygon();
-		TPolygon2<RealType> OutputPolygon = ConvertPathToPolygon<InputType, RealType>(InputPolygon, InMin, InRange);
-
-		if(OutputPolygon.VertexCount() > 0)
-		{
-			checkf(!InPaths->IsHole(), TEXT("ConvertPolyTreeToPolygons should only be used for outer polygons."));
-			OutPolygons.Emplace_GetRef().SetOuter(OutputPolygon);
-		}
-
-		int32 PolygonIdx = OutPolygons.Num() - 1;
-		if(PolygonIdx >= 0)
-		{
-			for(const Clipper2Lib::PolyPath<InputType>* const ChildPath : *InPaths)
+			if (InPaths->IsHole() && ensure(OutPolygons.IsValidIndex(ParentPolygonIdx)))
 			{
-				ConvertPolyTreeToPolygon<InputType, RealType>(ChildPath, OutPolygons[PolygonIdx], InMin, InRange);
+				OutPolygons[ParentPolygonIdx].AddHole(OutputPolygon, false, false);
+			}
+			else
+			{
+				ParentPolygonIdx = OutPolygons.Emplace(OutputPolygon);
 			}
 		}
-		else
+
+		for(const Clipper2Lib::PolyPath<InputType>* const ChildPath : *InPaths)
 		{
-			for(const Clipper2Lib::PolyPath<InputType>* const ChildPath : *InPaths)
-			{
-				ConvertPolyTreeToPolygons<InputType, RealType>(ChildPath, OutPolygons, InMin, InRange);
-			}			
+			ConvertPolyTreeToPolygons<InputType, RealType>(ChildPath, OutPolygons, InMin, InRange, ParentPolygonIdx);
 		}
 	}
 }
