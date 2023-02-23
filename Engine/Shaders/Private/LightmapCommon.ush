@@ -75,7 +75,7 @@ half4 SampleLightmapVT(VTPageTableResult LightmapVTPageTableResult, uint LayerIn
 }
 #endif // LIGHTMAP_VT_ENABLED
 
-void GetLightMapColorLQ( VTPageTableResult LightmapVTPageTableResult, LightmapUVType LightmapUV0, LightmapUVType LightmapUV1, uint LightmapDataIndex, half3 WorldNormal, bool bEvaluateBackface, out half3 OutDiffuseLighting, out half3 OutSubsurfaceLighting, out half OutIndirectIrradiance)
+void GetLightMapColorLQ( VTPageTableResult LightmapVTPageTableResult, LightmapUVType LightmapUV0, LightmapUVType LightmapUV1, uint LightmapDataIndex, half3 WorldNormal, bool bEvaluateBackface, out half3 OutDiffuseLighting, out half3 OutSubsurfaceLighting)
 {
 	OutSubsurfaceLighting = 0;
 
@@ -127,7 +127,6 @@ void GetLightMapColorLQ( VTPageTableResult LightmapVTPageTableResult, LightmapUV
 	half3 Color = LogRGB * (Luma / max(0.00001f, LogL));	// 1 smax, 1 rcp, 1 smul, 1 vmul
 
 	OutDiffuseLighting = Color;
-	OutIndirectIrradiance = Luma;
 }
 
 void GetLightMapColorHQ( VTPageTableResult LightmapVTPageTableResult, LightmapUVType LightmapUV0, LightmapUVType LightmapUV1, uint LightmapDataIndex, half3 WorldNormal, float2 SvPositionXY, bool bEvaluateBackface, out half3 OutDiffuseLighting, out half3 OutSubsurfaceLighting )
