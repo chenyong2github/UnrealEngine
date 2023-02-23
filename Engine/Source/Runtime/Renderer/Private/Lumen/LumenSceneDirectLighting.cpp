@@ -1466,7 +1466,7 @@ void CullDirectLightingTiles(
 	RDG_EVENT_SCOPE(GraphBuilder, "CullTiles %d lights", GatheredLights.Num());
 	const FGlobalShaderMap* GlobalShaderMap = Views[0].ShaderMap;
 
-	const uint32 MaxLightTiles = CardUpdateContext.MaxUpdateTiles;;
+	const uint32 MaxLightTiles = CardUpdateContext.MaxUpdateTiles;
 	const uint32 NumLightsRoundedUp = FMath::RoundUpToPowerOfTwo(FMath::Max(GatheredLights.Num(), 1)) * Views.Num();
 	const uint32 MaxLightsPerTile = FMath::RoundUpToPowerOfTwo(FMath::Clamp(CVarLumenDirectLightingMaxLightsPerTile.GetValueOnRenderThread(), 1, 32));
 	const uint32 MaxCulledCardTiles = MaxLightsPerTile * MaxLightTiles;
@@ -1655,7 +1655,7 @@ void FDeferredShadingSceneRenderer::BeginGatherLumenLights(FLumenDirectLightingT
 		bAnyLumenActive |= ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 	}
 
-	if (!bAnyLumenActive || !GLumenDirectLighting || CardUpdateContext.MaxUpdateTiles <= 0)
+	if (!bAnyLumenActive || !GLumenDirectLighting)
 	{
 		return;
 	}
@@ -1764,7 +1764,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	if (GLumenDirectLighting)
+	if (GLumenDirectLighting && CardUpdateContext.MaxUpdateTiles > 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "DirectLighting");
 		QUICK_SCOPE_CYCLE_COUNTER(RenderDirectLightingForLumenScene);
