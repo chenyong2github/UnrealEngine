@@ -32,7 +32,8 @@ public class TypedElementsDataStorageUI : ModuleRules
 				new string[]
 				{
 					"MassActors",
-					"MassEntity"
+					"MassEntity",
+					"StructUtils"
 				});
 
 			DynamicallyLoadedModuleNames.AddRange(new string[] {});
