@@ -199,6 +199,36 @@ class GAMEPLAYTAGS_API UBlueprintGameplayTagLibrary : public UBlueprintFunctionL
 	static FGameplayTagQuery MakeGameplayTagQuery(FGameplayTagQuery TagQuery);
 
 	/**
+	 * Creates a literal FGameplayTagQuery with a prepopulated AnyTagsMatch expression
+	 *
+	 * @param	InTags	value to set the FGameplayTagQuery expression
+	 *
+	 * @return	The literal FGameplayTagQuery
+	 */
+	UFUNCTION(BlueprintPure, Category = "GameplayTags", meta = (BlueprintThreadSafe))
+	static FGameplayTagQuery MakeGameplayTagQuery_MatchAnyTags(const FGameplayTagContainer& InTags);
+
+	/**
+	 * Creates a literal FGameplayTagQuery with a prepopulated AllTagsMatch expression
+	 *
+	* @param	InTags	value to set the FGameplayTagQuery expression
+	 *
+	 * @return	The literal FGameplayTagQuery
+	 */
+	UFUNCTION(BlueprintPure, Category = "GameplayTags", meta = (BlueprintThreadSafe))
+	static FGameplayTagQuery MakeGameplayTagQuery_MatchAllTags(const FGameplayTagContainer& InTags);
+
+	/**
+	 * Creates a literal FGameplayTagQuery with a prepopulated NoTagsMatch expression
+	 *
+	* @param	InTags	value to set the FGameplayTagQuery expression
+	 *
+	 * @return	The literal FGameplayTagQuery
+	 */
+	UFUNCTION(BlueprintPure, Category = "GameplayTags", meta = (BlueprintThreadSafe))
+	static FGameplayTagQuery MakeGameplayTagQuery_MatchNoTags(const FGameplayTagContainer& InTags);
+	
+	/**
 	 * Check Gameplay tags in the interface has all of the specified tags in the tag container (expands to include parents of asset tags)
 	 *
 	 * @param TagContainerInterface		An Interface to a tag container

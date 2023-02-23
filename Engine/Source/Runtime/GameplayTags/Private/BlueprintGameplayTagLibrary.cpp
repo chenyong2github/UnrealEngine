@@ -178,6 +178,21 @@ FGameplayTagQuery UBlueprintGameplayTagLibrary::MakeGameplayTagQuery(FGameplayTa
 	return TagQuery;
 }
 
+FGameplayTagQuery UBlueprintGameplayTagLibrary::MakeGameplayTagQuery_MatchAnyTags(const FGameplayTagContainer& InTags)
+{
+	return FGameplayTagQuery::MakeQuery_MatchAnyTags(InTags);
+}
+
+FGameplayTagQuery UBlueprintGameplayTagLibrary::MakeGameplayTagQuery_MatchAllTags(const FGameplayTagContainer& InTags)
+{
+	return FGameplayTagQuery::MakeQuery_MatchAllTags(InTags);
+}
+
+FGameplayTagQuery UBlueprintGameplayTagLibrary::MakeGameplayTagQuery_MatchNoTags(const FGameplayTagContainer& InTags)
+{
+	return FGameplayTagQuery::MakeQuery_MatchNoTags(InTags);
+}
+
 bool UBlueprintGameplayTagLibrary::HasAllMatchingGameplayTags(TScriptInterface<IGameplayTagAssetInterface> TagContainerInterface, const FGameplayTagContainer& OtherContainer)
 {
 	if (TagContainerInterface.GetInterface() == NULL)
