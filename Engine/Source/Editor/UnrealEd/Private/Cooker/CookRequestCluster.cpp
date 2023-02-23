@@ -574,7 +574,7 @@ FRequestCluster::FGraphSearch::FGraphSearch(FRequestCluster& InCluster)
 	{
 		TUniquePtr<FVertexData>& VertexData = Vertices.Emplace_GetRef();
 		FindOrAddVertex(PackageData->GetPackageName(), PackageData, true /* bInitialRequest */,
-			FInstigator(EInstigator::Unspecified, GInstigatorRequestCluster), VertexData);
+			false /* bHardDependency */, FInstigator(EInstigator::Unspecified, GInstigatorRequestCluster), VertexData);
 		check(VertexData); // Initial requests should always yield a valid new vertex
 	}
 	AddVertices(MoveTemp(Vertices));
@@ -698,21 +698,25 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 	{
 		FName PackageName = PackageData->GetPackageName();
 
-		// TODO EditorOnly References: We only fetch Game dependencies, because the cooker explicitly loads all of
+		// TODO EditorOnly References: When bCanSkipEditorReferencedPackagesWhenCooking is active,
+		// we only fetch Game dependencies, because the cooker explicitly loads all of
 		// the dependencies that we report. And if we explicitly load an EditorOnly dependency, that causes
 		// StaticLoadObjectInternal to SetLoadedByEditorPropertiesOnly(false), which then treats the editor-only package
 		// as needed in-game.
-		EDependencyQuery DependencyQuery = EDependencyQuery::Game;
+		EDependencyQuery DependencyQuery = Cluster.COTFS.bCanSkipEditorReferencedPackagesWhenCooking ?
+			EDependencyQuery::Game : EDependencyQuery::NoRequirements;
 
 		Cluster.AssetRegistry.GetDependencies(PackageName, HardDependencies, EDependencyCategory::Package,
 			DependencyQuery | EDependencyQuery::Hard);
-		// We always skip assetregistry soft dependencies if the cook commandline is set to skip soft references.
-		// We also need to skip them if the project has problems with editor-only robustness and has turned
-		// ExploreDependencies off
-		if (Cluster.bAllowSoftDependencies)
+		// Skip soft dependencies if the cook commandline is set to skip soft references or if the vertex is uncookable.
+		if (VertexData.bExploreSoftDependencies)
 		{
+			EDependencyQuery SoftDependencyQuery = DependencyQuery | EDependencyQuery::Soft
+				// Don't explore editor-only soft dependencies; the cooker should not try to load those
+				| EDependencyQuery::Game;
+
 			Cluster.AssetRegistry.GetDependencies(PackageName, SoftDependencies, EDependencyCategory::Package,
-				DependencyQuery | EDependencyQuery::Soft);
+				SoftDependencyQuery);
 
 			// Even if we're following soft references in general, we need to check with the SoftObjectPath registry
 			// for any startup packages that marked their softobjectpaths as excluded, and not follow those
@@ -724,6 +728,8 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 						return SkippedPackages.Contains(SoftDependency);
 					});
 			}
+
+			SoftDependencies.Append(GetLocalizationReferences(PackageName, Cluster.COTFS));
 		}
 
 		bool bFoundCachedTargetDomain = false;
@@ -750,7 +756,7 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 					UE::SavePackageUtilities::EDLCookInfoAddIterativelySkippedPackage(PackageName);
 				}
 				HardDependencies.Append(PlatformAttachments.BuildDependencies);
-				if (Cluster.bAllowSoftDependencies)
+				if (VertexData.bExploreSoftDependencies)
 				{
 					SoftDependencies.Append(PlatformAttachments.RuntimeOnlyDependencies);
 				}
@@ -806,7 +812,8 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 					TUniquePtr<FVertexData> NewVertexData;
 					EInstigator InstigatorType = bHardDependency ? EInstigator::HardDependency : EInstigator::SoftDependency;
 					FPackageData* DependencyPackageData = FindOrAddVertex(Dependency, nullptr,
-						false /* bInitialRequest */, FInstigator(InstigatorType, PackageName), NewVertexData);
+						false /* bInitialRequest */, bHardDependency, FInstigator(InstigatorType, PackageName),
+						NewVertexData);
 					if (NewVertexData)
 					{
 						NewVertices.Add(MoveTemp(NewVertexData));
@@ -824,12 +831,7 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 		}
 	}
 
-	for (const ITargetPlatform* TargetPlatform : Cluster.Platforms)
-	{
-		FPackageData::FPlatformData& PlatformData = PackageData->FindOrAddPlatformData(TargetPlatform);
-		PlatformData.SetExplored(true);
-		PlatformData.SetCookable(VertexData.bCookable);
-	}
+	MarkExplored(*PackageData, VertexData.bCookable);
 	bool bAlreadyCooked = PackageData->AreAllRequestedPlatformsCooked(true /* bAllowFailedCooks */);
 
 	if (VertexData.bCookable && !bAlreadyCooked)
@@ -840,6 +842,16 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 	{
 		ESuppressCookReason SuppressCookReason = VertexData.bCookable ? ESuppressCookReason::AlreadyCooked : VertexData.SuppressCookReason;
 		Cluster.RequestsToDemote.Emplace(PackageData, SuppressCookReason);
+	}
+}
+
+void FRequestCluster::FGraphSearch::MarkExplored(FPackageData& PackageData, bool bCookable)
+{
+	for (const ITargetPlatform* TargetPlatform : Cluster.Platforms)
+	{
+		FPackageData::FPlatformData& PlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
+		PlatformData.SetExplored(true);
+		PlatformData.SetCookable(bCookable);
 	}
 }
 
@@ -856,6 +868,7 @@ FRequestCluster::FVertexData::FVertexData(ESkipDependenciesType, FPackageData& I
 	bInitialRequest = true;
 	bCookable = Cluster.IsRequestCookable(PackageData->GetPackageName(), PackageData, SuppressCookReason);
 	bExploreDependencies = false;
+	bExploreSoftDependencies = false;
 }
 
 void FRequestCluster::FVertexData::Reset()
@@ -869,6 +882,7 @@ void FRequestCluster::FVertexData::Reset()
 	bInitialRequest = false;
 	bCookable = false;
 	bExploreDependencies = false;
+	bExploreSoftDependencies = false;
 	SuppressCookReason = ESuppressCookReason::InvalidSuppressCookReason;
 }
 
@@ -891,7 +905,7 @@ void FRequestCluster::FGraphSearch::FreeVertex(TUniquePtr<FVertexData>&& Vertex)
 }
 
 FPackageData* FRequestCluster::FGraphSearch::FindOrAddVertex(FName PackageName, FPackageData* PackageData,
-	bool bInitialRequest, const FInstigator& InInstigator, TUniquePtr<FVertexData>& OutNewVertex)
+	bool bInitialRequest, bool bHardDependency, const FInstigator& InInstigator, TUniquePtr<FVertexData>& OutNewVertex)
 {
 	// Only called from Process thread
 	OutNewVertex.Reset();
@@ -906,11 +920,23 @@ FPackageData* FRequestCluster::FGraphSearch::FindOrAddVertex(FName PackageName, 
 	bool bCookable = Cluster.IsRequestCookable(PackageName, PackageData, SuppressCookReason);
 	if (!bInitialRequest)
 	{
-		if (!bCookable)
+		if (!PackageData)
 		{
 			return nullptr;
 		}
-		check(PackageData); // IsRequestCookable ensures PackageData if it returns true
+		// Uncookable packages that are hard referenced by requested packages need to be explored even though they will not
+		// be cooked, because both they and any hard references they in turn have will be loaded when the original referencer
+		// is loaded and we need to precache those loads for performance and avoid marking them as discovered packages.
+		// This exploration unfortunately causes the inclusion in the cook of any cookable hard references of the uncookable
+		// package; those references are not needed but we end up including them because we do not track that they are referenced
+		// only by uncookable packages. (ONLY_EDITORONLY_TODO: Exclude these packages from the cook.)
+		// We can at least avoid cooking their soft references, since those do not automatically get loaded.
+		if (!bHardDependency && !bCookable)
+		{
+			// Mark this uncookable SoftDependency package as "explored" (a noop) and as uncookable.
+			MarkExplored(*PackageData, bCookable);
+			return nullptr;
+		}
 		if (!Cluster.TryTakeOwnership(*PackageData, false /* bUrgent */, FCompletionCallback(), InInstigator))
 		{
 			return nullptr;
@@ -925,7 +951,8 @@ FPackageData* FRequestCluster::FGraphSearch::FindOrAddVertex(FName PackageName, 
 	OutNewVertex->bInitialRequest = bInitialRequest;
 	OutNewVertex->bCookable = bCookable;
 	OutNewVertex->SuppressCookReason = SuppressCookReason;
-	OutNewVertex->bExploreDependencies = bCookable;
+	OutNewVertex->bExploreDependencies = true;
+	OutNewVertex->bExploreSoftDependencies = Cluster.bAllowSoftDependencies && bCookable;
 
 	return PackageData;
 }
@@ -1178,6 +1205,19 @@ bool FRequestCluster::IsRequestCookable(FName PackageName, FPackageData*& InOutP
 
 	OutReason = ESuppressCookReason::InvalidSuppressCookReason;
 	return true;
+}
+
+TConstArrayView<FName> FRequestCluster::GetLocalizationReferences(FName PackageName, UCookOnTheFlyServer& InCOTFS)
+{
+	if (!FPackageName::IsLocalizedPackage(WriteToString<256>(PackageName)))
+	{
+		TArray<FName>* Result = InCOTFS.CookByTheBookOptions->SourceToLocalizedPackageVariants.Find(PackageName);
+		if (Result)
+		{
+			return TConstArrayView<FName>(*Result);
+		}
+	}
+	return TConstArrayView<FName>();
 }
 
 } // namespace UE::Cook

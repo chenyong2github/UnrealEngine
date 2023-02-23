@@ -18,6 +18,7 @@
 #include "UObject/PackageResourceManager.h"
 #include "UObject/PackageResourceIoDispatcherBackend.h"
 #include "UObject/PackageTrailer.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectHash.h"
 #include "Misc/PackageName.h"
 #include "Blueprint/BlueprintSupport.h"
@@ -4379,6 +4380,11 @@ void FLinkerLoad::Preload( UObject* Object )
 
 #if WITH_EDITOR && WITH_TEXT_ARCHIVE_SUPPORT
 					bool bClassSupportsTextFormat = UClass::IsSafeToSerializeToStructuredArchives(Object->GetClass());
+#endif
+#if WITH_EDITOR
+					FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, 
+						Object->IsEditorOnly() ? ESoftObjectPathCollectType::EditorOnlyCollect : ESoftObjectPathCollectType::AlwaysCollect,
+						ESoftObjectPathSerializeType::AlwaysSerialize);
 #endif
 
 					if (Object->HasAnyFlags(RF_ClassDefaultObject))

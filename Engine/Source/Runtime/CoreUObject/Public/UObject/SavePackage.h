@@ -316,6 +316,7 @@ namespace UE::SavePackageUtilities
 	COREUOBJECT_API void EDLCookInfoAddIterativelySkippedPackage(FName LongPackageName);
 	COREUOBJECT_API void EDLCookInfoMoveToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData);
 	COREUOBJECT_API bool EDLCookInfoAppendFromCompactBinary(FCbFieldView Field);
+	COREUOBJECT_API bool CanSkipEditorReferencedPackagesWhenCooking();
 
 
 #if WITH_EDITOR

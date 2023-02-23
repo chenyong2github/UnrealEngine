@@ -1687,11 +1687,21 @@ FScopedSavingFlag::~FScopedSavingFlag()
 }
 
 FCanSkipEditorReferencedPackagesWhenCooking::FCanSkipEditorReferencedPackagesWhenCooking()
-	: bCanSkipEditorReferencedPackagesWhenCooking(true)
+	: bCanSkipEditorReferencedPackagesWhenCooking(UE::SavePackageUtilities::CanSkipEditorReferencedPackagesWhenCooking())
 {
-	GConfig->GetBool(TEXT("Core.System"), TEXT("CanSkipEditorReferencedPackagesWhenCooking"), bCanSkipEditorReferencedPackagesWhenCooking, GEngineIni);
 }
 
+namespace UE::SavePackageUtilities
+{
+
+bool CanSkipEditorReferencedPackagesWhenCooking()
+{
+	bool bResult = true;
+	GConfig->GetBool(TEXT("Core.System"), TEXT("CanSkipEditorReferencedPackagesWhenCooking"), bResult, GEngineIni);
+	return bResult;
+}
+
+}
 
 namespace SavePackageUtilities
 {

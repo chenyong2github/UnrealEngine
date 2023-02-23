@@ -88,6 +88,7 @@ public:
 		bool bRequestsAreUrgent, TRingBuffer<FRequestCluster>& OutClusters);
 	static void AddClusters(UCookOnTheFlyServer& COTFS, FPackageDataSet& UnclusteredRequests,
 		TRingBuffer<FRequestCluster>& OutClusters, FRequestQueue& QueueForReadyRequests);
+	static TConstArrayView<FName> GetLocalizationReferences(FName PackageName, UCookOnTheFlyServer& InCOTFS);
 
 private:
 	struct FGraphSearch;
@@ -130,19 +131,21 @@ private:
 		UE::Cook::FPackageData* PackageData;
 		/** Number of asynchronous results from PackageWriter still being waited on. */
 		std::atomic<uint32> PendingPlatforms;
+		/** The reason it is not cookable if !bCookable, or ESuppressCookReason::InvalidSuppressCookReason if bCookable. */
+		ESuppressCookReason SuppressCookReason;
 		/**
 		 * Written/Read when VertexData is allocated for a package name.
 		 * It is Set to false if the packagename should not be part of the graph search.
 		 */
-		bool bValid;
+		bool bValid : 1;
 		/** True if the package is from the Cluster's initial requests. Initial requests are always visited. */
-		bool bInitialRequest;
+		bool bInitialRequest : 1;
 		/** True if the package is cookable. Non-cookable packages are demoted back to idle. */
-		bool bCookable;
-		/** True if dependencies should be explored, based on other properties of the VertexData. */
-		bool bExploreDependencies;
-		/** The reason it is not cookable if !bCookable, or ESuppressCookReason::InvalidSuppressCookReason if bCookable. */
-		ESuppressCookReason SuppressCookReason;
+		bool bCookable : 1;
+		/** True if any dependencies should be explored. */
+		bool bExploreDependencies : 1;
+		/** True if soft dependencies should be explored. */
+		bool bExploreSoftDependencies : 1;
 	};
 
 	/**
@@ -228,7 +231,7 @@ private:
 		 * If not, construct a new vertex to be async processed and visited.
 		 */
 		FPackageData* FindOrAddVertex(FName PackageName, FPackageData* PackageData, bool bInitialRequest,
-			const FInstigator& InInstigator, TUniquePtr<FVertexData>& OutNewVertex);
+			bool bHardDependency, const FInstigator& InInstigator, TUniquePtr<FVertexData>& OutNewVertex);
 		/** Allocate memory for a new vertex; returned vertex is not yet constructed. */
 		TUniquePtr<FVertexData> AllocateVertex();
 		/** Free an allocated vertex. */ 
@@ -252,6 +255,9 @@ private:
 		friend struct FQueryVertexBatch;
 		friend struct FHasPendingVerticesScope;
 		
+		// Functions callable only from the Process thread
+		void MarkExplored(FPackageData& PackageData, bool bCookable);
+
 		// Functions that must be called only within the Lock
 		/** Allocate memory for a new batch; returned batch is not yet constructed. */
 		TUniquePtr<FQueryVertexBatch> AllocateBatch();

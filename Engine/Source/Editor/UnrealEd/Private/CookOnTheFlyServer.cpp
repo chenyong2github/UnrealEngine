@@ -6140,6 +6140,10 @@ void UCookOnTheFlyServer::SetInitializeConfigSettings(UE::Cook::FInitializeConfi
 			}
 		}
 	}
+
+	// The rest of this function parses config settings that are reparsed on every CookDirector and CookWorker rather than
+	// being replicated from CookDirector to CookWorker
+	bCanSkipEditorReferencedPackagesWhenCooking = UE::SavePackageUtilities::CanSkipEditorReferencedPackagesWhenCooking();
 }
 
 bool UCookOnTheFlyServer::TryInitializeCookWorker()

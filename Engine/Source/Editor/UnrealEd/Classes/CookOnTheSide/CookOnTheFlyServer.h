@@ -1380,6 +1380,8 @@ private:
 	bool bZenStore = false;
 	/** Multithreaded synchronization of Pollables, accessible only inside PollablesLock. */
 	bool bPollablesInTick = false;
+	/** Config value that specifies whether the Skip-Only-Editor-Only feature is enabled. */
+	bool bCanSkipEditorReferencedPackagesWhenCooking = false;
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
 	double SaveBusyStartTimeSeconds = MAX_flt;
