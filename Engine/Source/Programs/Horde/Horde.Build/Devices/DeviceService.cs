@@ -216,7 +216,7 @@ namespace Horde.Build.Devices
 
 				try
 				{
-					_logger.LogInformation("Expiring reservations");
+					_logger.LogDebug("Expiring reservations");
 					await _devices.ExpireReservationsAsync();
 				}
 				catch (Exception ex)
@@ -228,7 +228,7 @@ namespace Horde.Build.Devices
 				try
 				{
 
-					_logger.LogInformation("Sending shared device notifications");
+					_logger.LogDebug("Sending shared device notifications");
 					List<(UserId, IDevice)>? expireNotifications = await _devices.ExpireNotificatonsAsync(_settings.CurrentValue.SharedDeviceCheckoutDays);
 					if (expireNotifications != null && expireNotifications.Count > 0)
 					{
@@ -238,7 +238,7 @@ namespace Horde.Build.Devices
 						}
 					}
 
-					_logger.LogInformation("Expiring shared device checkouts");
+					_logger.LogDebug("Expiring shared device checkouts");
 					List<(UserId, IDevice)>? expireCheckouts = await _devices.ExpireCheckedOutAsync(_settings.CurrentValue.SharedDeviceCheckoutDays);
 					if (expireCheckouts != null && expireCheckouts.Count > 0)
 					{

@@ -250,7 +250,7 @@ namespace Horde.Build.Configuration
 			if (initialData.Length > 0)
 			{
 				snapshot = DeserializeSnapshot(initialData);
-				_logger.LogInformation("Initial snapshot for update: {@Info}", GetSnapshotInfo(initialData.Span, snapshot));
+				_logger.LogDebug("Initial snapshot for update: {@Info}", GetSnapshotInfo(initialData.Span, snapshot));
 			}
 
 			// Update the snapshot until we're asked to stop
@@ -427,9 +427,7 @@ namespace Horde.Build.Configuration
 		async Task WriteSnapshotAsync(ConfigSnapshot snapshot)
 		{
 			ReadOnlyMemory<byte> data = SerializeSnapshot(snapshot);
-
 			IoHash hash = IoHash.Compute(data.Span);
-			_logger.LogInformation("Publishing new config snapshot (hash: {Hash}, server: {Server}, size: {Size})", hash.ToString(), Program.Version.ToString(), data.Length);
 
 			await _redisService.GetDatabase().StringSetAsync(_snapshotKey, data);
 			await _redisService.PublishAsync(_updateChannel, RedisValue.EmptyString);
