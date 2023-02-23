@@ -4058,9 +4058,13 @@ void FRecastTileGenerator::MarkDynamicAreas(dtTileCacheLayer& Layer)
 
 	if (Modifiers.Num())
 	{
-		if (AdditionalCachedData.bUseSortFunction && AdditionalCachedData.ActorOwner && Modifiers.Num() > 1)
+		if (AdditionalCachedData.bUseSortFunction && Modifiers.Num() > 1)
 		{
-			AdditionalCachedData.ActorOwner->SortAreasForGenerator(Modifiers);
+			FGCScopeGuard GCScopeGuard;
+			if (const ARecastNavMesh* ActorOwner = AdditionalCachedData.ActorOwner.Get())
+			{
+				ActorOwner->SortAreasForGenerator(Modifiers);
+			}
 		}
 
 		// 1: if navmesh is using low areas, apply only low area replacements

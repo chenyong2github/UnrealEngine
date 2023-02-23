@@ -1496,7 +1496,7 @@ struct FRecastNavMeshCachedData
 	ARecastNavMesh::FNavPolyFlags FlagsPerArea[RECAST_MAX_AREAS];
 	ARecastNavMesh::FNavPolyFlags FlagsPerOffMeshLinkArea[RECAST_MAX_AREAS];
 	TMap<const UClass*, int32> AreaClassToIdMap;
-	const ARecastNavMesh* ActorOwner;
+	TWeakObjectPtr<const ARecastNavMesh> ActorOwner;
 	uint32 bUseSortFunction : 1;
 
 	static FRecastNavMeshCachedData Construct(const ARecastNavMesh* RecastNavMeshActor);
