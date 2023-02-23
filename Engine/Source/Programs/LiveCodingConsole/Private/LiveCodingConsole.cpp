@@ -398,6 +398,11 @@ private:
 				ModuleToModuleFiles.FindOrAdd(Pair.Key).Libraries.Add(Library);
 			}
 		}
+
+		// Force the next patch time to include any CPP files modified this time around.  This avoids the issue 
+		// where a patch might be generated for a file twice instead of just once.
+		NextPatchStartTime = FDateTime::UtcNow();
+
 		return ELiveCodingCompileResult::Success;
 	}
 

@@ -963,45 +963,27 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 		: LiveModule::UpdateType::NO_CLIENT_COMMUNICATION;
 
 	// BEGIN EPIC MOD
+	// For Epic, don't even bother calling update if we have nothing that has been reported as modified/new.
+	// This prevents the automatic change detection code from running which has issues with unity file changes.
 	static const types::vector<std::wstring> emptyLibFiles;
-	// END EPIC MOD
-
-	// has the user given us at least one modified or new .obj file for at least one of the modules?
-	const bool hasAtLeastOneOptionalObj = (m_liveModuleToModifiedOrNewObjFiles.size() != 0u);
 	for (size_t i = 0u; i < count; ++i)
 	{
 		LiveModule* liveModule = m_liveModules[i];
 
-		LiveModule::ErrorType::Enum moduleUpdateError = LiveModule::ErrorType::SUCCESS;
-		if (hasAtLeastOneOptionalObj)
+		// try to find the list of modified or new .objs for this module
+		const auto objFilesIt = m_liveModuleToModifiedOrNewObjFiles.find(liveModule->GetModuleName());
+		if (objFilesIt == m_liveModuleToModifiedOrNewObjFiles.end() || objFilesIt->second.empty())
 		{
-			// try to find the list of modified or new .objs for this module
-			const auto objFilesIt = m_liveModuleToModifiedOrNewObjFiles.find(liveModule->GetModuleName());
-			if (objFilesIt == m_liveModuleToModifiedOrNewObjFiles.end())
-			{
-				// no .objs for this module, ignore
-				continue;
-			}
-			else
-			{
-				// BEGIN EPIC MOD
-				const auto libFilesIt = m_liveModuleToAdditionalLibraries.find(liveModule->GetModuleName());
-				const types::vector<std::wstring>& libFiles = libFilesIt != m_liveModuleToAdditionalLibraries.end() ? libFilesIt->second : emptyLibFiles;
+			// no .objs for this module, ignore
+			continue;
+		}
 
-				// build a patch with the given list of .objs for this module
-				const types::vector<symbols::ModifiedObjFile>& objFiles = objFilesIt->second;
-				moduleUpdateError = liveModule->Update(&fileCache, m_directoryCache, updateType, objFiles, libFiles);
-				// END EPIC MOD
-			}
-		}
-		else
-		{
-			// no optional .objs were given, update all live modules regularly
-			types::vector<symbols::ModifiedObjFile> emptyObjs;
-			// BEGIN EPIC MOD
-			moduleUpdateError = liveModule->Update(&fileCache, m_directoryCache, updateType, emptyObjs, emptyLibFiles);
-			// END EPIC MOD
-		}
+		const auto libFilesIt = m_liveModuleToAdditionalLibraries.find(liveModule->GetModuleName());
+		const types::vector<std::wstring>& libFiles = libFilesIt != m_liveModuleToAdditionalLibraries.end() ? libFilesIt->second : emptyLibFiles;
+
+		// build a patch with the given list of .objs for this module
+		const types::vector<symbols::ModifiedObjFile>& objFiles = objFilesIt->second;
+		LiveModule::ErrorType::Enum moduleUpdateError = liveModule->Update(&fileCache, m_directoryCache, updateType, objFiles, libFiles);
 
 		// only accept new error conditions for this module if there haven't been any updates until now.
 		// this ensures that error conditions are kept and can be shown when updating several modules at once.
@@ -1010,6 +992,7 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 			updateError = moduleUpdateError;
 		}
 	}
+	// END EPIC MOD
 
 	// restart directory notifications for next compilation
 	m_directoryCache->RestartNotifications();
