@@ -170,21 +170,11 @@ namespace EpicGames.Horde.Logs
 		/// <param name="lineOffsets">Offsets of each line within the text</param>
 		public static void UpdateLineOffsets(ReadOnlySpan<byte> data, int start, List<int> lineOffsets)
 		{
-			if (start < data.Length)
+			for (int idx = start; idx < data.Length; idx++)
 			{
-				// Make sure the data ends with a newline
-				if (data[data.Length - 1] != '\n')
+				if (data[idx] == '\n')
 				{
-					throw new InvalidDataException("Chunk data must end with a newline");
-				}
-
-				// Calculate the new number of newlines
-				for (int idx = start; idx < data.Length; idx++)
-				{
-					if (data[idx] == '\n')
-					{
-						lineOffsets.Add(idx + 1);
-					}
+					lineOffsets.Add(idx + 1);
 				}
 			}
 		}

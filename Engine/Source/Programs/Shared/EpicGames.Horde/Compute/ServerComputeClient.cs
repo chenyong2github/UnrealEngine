@@ -115,12 +115,33 @@ namespace EpicGames.Horde.Compute
 		}
 
 		readonly object _lockObject = new object();
+		readonly HttpClient? _defaultHttpClient;
 		readonly Func<HttpClient> _createHttpClient;
 		readonly CancellationTokenSource _cancellationSource = new CancellationTokenSource();
 		readonly Dictionary<ReadOnlyMemory<byte>, RequestInfo> _requests = new Dictionary<ReadOnlyMemory<byte>, RequestInfo>(MemoryComparer.Instance);
 		TcpListener? _listener;
 		Task _listenTask = Task.CompletedTask;
 		readonly ILogger _logger;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="serverUri">Uri of the server to connect to</param>
+		/// <param name="logger">Logger for diagnostic messages</param>
+		public ServerComputeClient(Uri serverUri, ILogger logger)
+		{
+#pragma warning disable CA2000 // Dispose objects before losing scope
+			// This is disposed via HttpClient
+			SocketsHttpHandler handler = new SocketsHttpHandler();
+			handler.PooledConnectionLifetime = TimeSpan.FromMinutes(2.0);
+
+			_defaultHttpClient = new HttpClient(handler, true);
+			_defaultHttpClient.BaseAddress = serverUri;
+#pragma warning restore CA2000 // Dispose objects before losing scope
+
+			_createHttpClient = GetDefaultHttpClient;
+			_logger = logger;
+		}
 
 		/// <summary>
 		/// Constructor
@@ -133,11 +154,18 @@ namespace EpicGames.Horde.Compute
 			_logger = logger;
 		}
 
+		/// <summary>
+		/// Gets the default http client
+		/// </summary>
+		/// <returns></returns>
+		HttpClient GetDefaultHttpClient() => _defaultHttpClient!;
+
 		/// <inheritdoc/>
 		public async ValueTask DisposeAsync()
 		{
 			await StopAsync();
 			_cancellationSource.Dispose();
+			_defaultHttpClient?.Dispose();
 		}
 
 		/// <inheritdoc/>

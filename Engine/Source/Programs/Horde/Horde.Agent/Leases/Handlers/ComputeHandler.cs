@@ -7,7 +7,6 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using Amazon.EC2;
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Compute.Cpp;
@@ -17,7 +16,7 @@ using EpicGames.Horde.Storage.Backends;
 using EpicGames.Horde.Storage.Nodes;
 using Horde.Agent.Services;
 using HordeCommon.Rpc.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Leases.Handlers
@@ -27,13 +26,15 @@ namespace Horde.Agent.Leases.Handlers
 	/// </summary>
 	class ComputeHandler : LeaseHandler<ComputeTask>
 	{
+		readonly IMemoryCache _memoryCache;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeHandler(ILogger<ComputeHandler> logger)
+		public ComputeHandler(IMemoryCache memoryCache, ILogger<ComputeHandler> logger)
 		{
+			_memoryCache = memoryCache;
 			_logger = logger;
 		}
 
@@ -99,7 +100,7 @@ namespace Horde.Agent.Leases.Handlers
 			DirectoryReference sandboxDir = DirectoryReference.Combine(Program.DataDir, "Sandbox");
 
 			using ComputeStorageClient store = new ComputeStorageClient(channel);
-			TreeReader reader = new TreeReader(store, null, _logger);
+			TreeReader reader = new TreeReader(store, _memoryCache, _logger);
 
 			CppComputeNode node = await reader.ReadNodeAsync<CppComputeNode>(locator, cancellationToken);
 			DirectoryNode directoryNode = await node.Sandbox.ExpandAsync(reader, cancellationToken);

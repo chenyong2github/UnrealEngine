@@ -203,6 +203,8 @@ namespace Horde.Agent
 
 			services.AddSingleton<IStorageClientFactory, StorageClientFactory>();
 
+			services.AddMemoryCache();
+
 			// Allow commands to augment the service collection for their own DI service providers
 			services.AddSingleton<DefaultServices>(x => new DefaultServices(config, services));
 

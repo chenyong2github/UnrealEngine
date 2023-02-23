@@ -60,9 +60,9 @@ namespace Horde.Agent.Commands
 		/// <inheritdoc/>
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			await using IComputeClient channel = CreateClient();
+			await using IComputeClient client = CreateClient();
 
-			IComputeRequest<bool> request = await channel.AddRequestAsync<bool>(default, null, HandleRequestAsync);
+			IComputeRequest<bool> request = await client.AddRequestAsync<bool>(default, null, HandleRequestAsync);
 			bool result = await request.Result;
 
 			return result? 0 : 1;
