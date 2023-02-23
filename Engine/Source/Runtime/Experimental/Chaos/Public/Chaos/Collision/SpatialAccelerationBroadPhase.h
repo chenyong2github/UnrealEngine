@@ -287,7 +287,7 @@ namespace Chaos
 		}
 
 		/**
-		 * Generate all overlapping pairs and spawn a misphase object to handle collisions for each of them
+		 * Generate all overlapping pairs and spawn a midphase object to handle collisions for each of them
 		 */
 		void ProduceOverlaps(
 			FReal Dt, 

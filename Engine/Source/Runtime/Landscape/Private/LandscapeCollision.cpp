@@ -312,7 +312,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				FActorCreationParams Params;
 				Params.InitialTM = LandscapeComponentTransform;
 				Params.InitialTM.SetScale3D(FVector(0));
-				Params.bQueryOnly = true;
+				Params.bQueryOnly = false;
 				Params.bStatic = true;
 				Params.Scene = GetWorld()->GetPhysicsScene();
 				FPhysicsActorHandle PhysHandle;
@@ -1435,7 +1435,7 @@ struct FMeshCollisionInitHelper
 		FActorCreationParams Params;
 		Params.InitialTM = ComponentToWorld;
 		Params.InitialTM.SetScale3D(FVector::OneVector);
-		Params.bQueryOnly = true;
+		Params.bQueryOnly = false;
 		Params.bStatic = true;
 		Params.Scene = PhysScene;
 

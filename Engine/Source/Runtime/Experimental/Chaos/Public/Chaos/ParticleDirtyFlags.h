@@ -595,6 +595,7 @@ struct FCollisionData
 	}
 
 	bool HasCollisionData() const { return bSimCollision || bQueryCollision; }
+	bool HasQueryOnlyData() const { return !bSimCollision && bQueryCollision; }
 
 	void Serialize(FChaosArchive& Ar)
 	{

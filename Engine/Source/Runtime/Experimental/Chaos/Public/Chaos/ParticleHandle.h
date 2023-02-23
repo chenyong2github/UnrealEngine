@@ -73,21 +73,11 @@ void GeometryParticleDefaultConstruct(FConcrete& Concrete, const FGeometryPartic
 	Concrete.SetEnabledDuringResim(true);
 }
 
-
-extern CHAOS_API int32 AccelerationStructureSplitStaticAndDynamic;
 template <typename T, int d, typename FConcrete>
 void KinematicGeometryParticleDefaultConstruct(FConcrete& Concrete, const FKinematicGeometryParticleParameters& Params)
 {
 	Concrete.SetV(TVector<T, d>(0));
-	Concrete.SetW(TVector<T, d>(0));
-	if (AccelerationStructureSplitStaticAndDynamic == 1)
-	{
-		Concrete.SetSpatialIdx(FSpatialAccelerationIdx{ 0,1 });
-	}
-	else
-	{
-		Concrete.SetSpatialIdx(FSpatialAccelerationIdx{ 0,0 });
-	}
+	Concrete.SetW(TVector<T, d>(0));	
 }
 template <typename T, int d, typename FConcrete>
 void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const FPBDRigidParticleParameters& Params)

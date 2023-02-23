@@ -57,6 +57,10 @@
 #define GC_PHYSICSPROXY_CHECK_FOR_NAN(Vec)
 #endif
 
+namespace Chaos{
+	extern int32 AccelerationStructureSplitStaticAndDynamic;
+	extern int32 AccelerationStructureIsolateQueryOnlyObjects;
+}
 
 float CollisionParticlesPerObjectFractionDefault = 1.0f;
 FAutoConsoleVariableRef CVarCollisionParticlesPerObjectFractionDefault(

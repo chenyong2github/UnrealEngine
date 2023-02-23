@@ -29,6 +29,12 @@ FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhy
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Chaos/CastingUtilities.h"
 
+namespace Chaos
+{
+	extern CHAOS_API int32 AccelerationStructureSplitStaticAndDynamic;
+	extern CHAOS_API int32 AccelerationStructureIsolateQueryOnlyObjects;
+}
+
 bool bEnableChaosJointConstraints = true;
 FAutoConsoleVariableRef CVarEnableChaosJointConstraints(TEXT("p.ChaosSolverEnableJointConstraints"), bEnableChaosJointConstraints, TEXT("Enable Joint Constraints defined within the Physics Asset Editor"));
 
@@ -1760,6 +1766,47 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 		}
 		//Particle.Reset(Rigid.Release());
 		Particle = MoveTemp(Rigid);
+	}
+
+	// Set the particle acceleration structure spatial index here
+	{
+		FSpatialAccelerationIdx SpatialIndex{0, ESpatialAccelerationCollectionBucketInnerIdx::Default };
+		if (AccelerationStructureSplitStaticAndDynamic == 1)
+		{
+			if (AccelerationStructureIsolateQueryOnlyObjects == 1)
+			{
+				if (InParams.bStatic && InParams.bQueryOnly)
+				{
+					SpatialIndex = FSpatialAccelerationIdx{0, ESpatialAccelerationCollectionBucketInnerIdx::DefaultQueryOnly};
+				}
+				else if (!InParams.bStatic && InParams.bQueryOnly)
+				{
+					SpatialIndex = FSpatialAccelerationIdx{ 0, ESpatialAccelerationCollectionBucketInnerIdx::DynamicQueryOnly};
+				}
+				else if (!InParams.bStatic && !InParams.bQueryOnly)
+				{
+					SpatialIndex = FSpatialAccelerationIdx{ 0, ESpatialAccelerationCollectionBucketInnerIdx::Dynamic };
+				}
+			}
+			else
+			{
+				if (!InParams.bStatic)
+				{
+					SpatialIndex = FSpatialAccelerationIdx{ 0, ESpatialAccelerationCollectionBucketInnerIdx::Dynamic };
+				}				
+			}
+		}
+		else
+		{
+			if (AccelerationStructureIsolateQueryOnlyObjects == 1)
+			{
+				if (InParams.bQueryOnly)
+				{
+					SpatialIndex = FSpatialAccelerationIdx{ 0, ESpatialAccelerationCollectionBucketInnerIdx::DefaultQueryOnly };
+				}
+			}		
+		}
+		Particle->SetSpatialIdx(SpatialIndex);
 	}
 
 	Handle = Chaos::FSingleParticlePhysicsProxy::Create(MoveTemp(Particle));

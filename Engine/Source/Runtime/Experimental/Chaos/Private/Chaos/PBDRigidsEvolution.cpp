@@ -29,6 +29,9 @@ namespace Chaos
 	CHAOS_API int32 FixBadAccelerationStructureRemoval = 1;
 	FAutoConsoleVariableRef CVarFixBadAccelerationStructureRemoval(TEXT("p.FixBadAccelerationStructureRemoval"), FixBadAccelerationStructureRemoval, TEXT(""));
 
+	CHAOS_API int32 AccelerationStructureIsolateQueryOnlyObjects = 0;
+	FAutoConsoleVariableRef CVarAccelerationStructureIsolateQueryOnlyObjects(TEXT("p.Chaos.AccelerationStructureIsolateQueryOnlyObjects"), AccelerationStructureIsolateQueryOnlyObjects, TEXT("Set to 1: QueryOnly Objects will not be moved to acceleration structures on the Physics Thread"));
+
 	CHAOS_API int32 AccelerationStructureSplitStaticAndDynamic = 1;
 	FAutoConsoleVariableRef CVarAccelerationStructureSplitStaticAndDynamic(TEXT("p.Chaos.AccelerationStructureSplitStaticDynamic"), AccelerationStructureSplitStaticAndDynamic, TEXT("Set to 1: Sort Dynamic and Static bodies into seperate acceleration structures, any other value will disable the feature"));
 
@@ -69,7 +72,7 @@ namespace Chaos
 
 		static bool IsDynamicTree(FSpatialAccelerationIdx SpatialAccelerationIdx)
 		{
-			return AccelerationStructureUseDynamicTree && SpatialAccelerationIdx.InnerIdx == 1;
+			return AccelerationStructureUseDynamicTree && (SpatialAccelerationIdx.InnerIdx == ESpatialAccelerationCollectionBucketInnerIdx::Dynamic || SpatialAccelerationIdx.InnerIdx == ESpatialAccelerationCollectionBucketInnerIdx::DynamicQueryOnly);
 		}
 
 		TUniquePtr<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>> CreateEmptyCollection() override
@@ -82,11 +85,24 @@ namespace Chaos
 			for (uint16 BucketIdx = 0; BucketIdx < NumBuckets; ++BucketIdx)
 			{
 				// For static bodies
-				Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx, true, false), BucketIdx, 0);
+				Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx, true, false, false), BucketIdx, ESpatialAccelerationCollectionBucketInnerIdx::Default);
+
+				// Always create this if QueryOnlyObjects are isolated to ensure all consecutive indices are created (within buckets)
+				if (AccelerationStructureSplitStaticAndDynamic == 1 || AccelerationStructureIsolateQueryOnlyObjects == 1) 
+				{
+					// Non static bodies
+					Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx, true, IsDynamicTree(FSpatialAccelerationIdx{BucketIdx, ESpatialAccelerationCollectionBucketInnerIdx::Dynamic }), true), BucketIdx, ESpatialAccelerationCollectionBucketInnerIdx::Dynamic);
+				}
+			}
+
+			if (AccelerationStructureIsolateQueryOnlyObjects && NumBuckets == 1)
+			{
+				constexpr uint16 BucketIdx = 0;
+				Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx, true, false, false), BucketIdx, ESpatialAccelerationCollectionBucketInnerIdx::DefaultQueryOnly);
 				if (AccelerationStructureSplitStaticAndDynamic == 1)
 				{
 					// Non static bodies
-					Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx, true, IsDynamicTree(FSpatialAccelerationIdx{BucketIdx, 1})), BucketIdx, 1);
+					Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx, true, IsDynamicTree(FSpatialAccelerationIdx{ BucketIdx,  ESpatialAccelerationCollectionBucketInnerIdx::DynamicQueryOnly }), false), BucketIdx, ESpatialAccelerationCollectionBucketInnerIdx::DynamicQueryOnly);
 				}
 			}
 
@@ -135,7 +151,7 @@ namespace Chaos
 			}
 		}
 
-		virtual TUniquePtr<ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<FSpatialAccelerationCache>& Particles, uint16 BucketIdx, bool ForceFullBuild, bool bDynamicTree) override
+		virtual TUniquePtr<ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<FSpatialAccelerationCache>& Particles, uint16 BucketIdx, bool ForceFullBuild, bool bDynamicTree, bool bBuildOverlapCache) override
 		{
 			// TODO: Unduplicate switch statement here with IsBucketTimeSliced and refactor so that bucket index mapping is better.
 			switch (BucketIdx)
@@ -150,9 +166,9 @@ namespace Chaos
 				{
 					if (bDynamicTree)
 					{
-						return MakeUnique<AABBDynamicTreeType>(Particles, BroadPhaseConfig.MaxChildrenInLeaf, BroadPhaseConfig.MaxTreeDepth, BroadPhaseConfig.MaxPayloadSize, ForceFullBuild ? 0 : BroadPhaseConfig.IterationsPerTimeSlice, true);
+						return MakeUnique<AABBDynamicTreeType>(Particles, BroadPhaseConfig.MaxChildrenInLeaf, BroadPhaseConfig.MaxTreeDepth, BroadPhaseConfig.MaxPayloadSize, ForceFullBuild ? 0 : BroadPhaseConfig.IterationsPerTimeSlice, true, bBuildOverlapCache);
 					}
-					return MakeUnique<AABBTreeType>(Particles, BroadPhaseConfig.MaxChildrenInLeaf, BroadPhaseConfig.MaxTreeDepth, BroadPhaseConfig.MaxPayloadSize, ForceFullBuild ? 0 : BroadPhaseConfig.IterationsPerTimeSlice, false, AccelerationStructureUseDirtyTreeInsteadOfGrid == 1);
+					return MakeUnique<AABBTreeType>(Particles, BroadPhaseConfig.MaxChildrenInLeaf, BroadPhaseConfig.MaxTreeDepth, BroadPhaseConfig.MaxPayloadSize, ForceFullBuild ? 0 : BroadPhaseConfig.IterationsPerTimeSlice, false, AccelerationStructureUseDirtyTreeInsteadOfGrid == 1, bBuildOverlapCache);
 				}
 				else if (BroadPhaseConfig.BroadphaseType == FBroadPhaseConfig::TreeOfGridAndGrid || BroadPhaseConfig.BroadphaseType == FBroadPhaseConfig::TreeOfGrid)
 				{
@@ -435,7 +451,7 @@ namespace Chaos
 
 				auto ParticleView = MakeConstParticleView(MoveTemp(ViewsPerBucket[SpatialAccIdx.Bucket][SpatialAccIdx.InnerIdx]));
 				// Create and run the first slice here
-				auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView, SpatialAccIdx.Bucket, IsForceFullBuild, false);
+				auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView, SpatialAccIdx.Bucket, IsForceFullBuild, false, false);
 				{
 					NewStruct->ClearShouldRebuild();  // Mark as pristine
 				}
@@ -473,7 +489,7 @@ namespace Chaos
 					SCOPE_CYCLE_COUNTER(STAT_CreateNonSlicedStructures);
 
 					auto ParticleView = MakeConstParticleView(MoveTemp(ViewsPerBucket[SpatialAccIdx.Bucket][SpatialAccIdx.InnerIdx]));
-					auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView,SpatialAccIdx.Bucket,IsForceFullBuild, false);
+					auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView,SpatialAccIdx.Bucket,IsForceFullBuild, false, false);
 
 					ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* AccelerationSUBStructureCopy = GetSubStructureCopy(SpatialAccIdx);
 					if (AccelerationSUBStructureCopy)
@@ -768,7 +784,7 @@ namespace Chaos
 			{
 				FlushInternalAccelerationQueue();
 
-				if (GAccelerationStructureCacheOverlappingLeaves)
+				if (GAccelerationStructureCacheOverlappingLeaves  && AccelerationStructureUseDynamicTree)
 				{
 					// Caching of the overlapping leaves
 					InternalAcceleration->CacheOverlappingLeaves();

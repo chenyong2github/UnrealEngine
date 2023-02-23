@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Chaos/ISpatialAccelerationCollection.h"
+#include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/Box.h"
 #include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
 #include "Chaos/Collision/StatsData.h"
@@ -11,6 +12,15 @@
 
 namespace Chaos
 {
+
+// Bucket inner indices define for specific use cases		
+enum ESpatialAccelerationCollectionBucketInnerIdx
+{
+	Default = 0, // If acceleration structures are not split up by body type, they end up in this bucket, otherwise static bodies will go here
+	Dynamic = 1, // For dynamic bodies if they use a separate acceleration structure
+	DefaultQueryOnly = 2, // Query only bodies if they are separated
+	DynamicQueryOnly = 3 // Dynamic Query only bodies if they are separated
+};
 
 template <typename T>
 void FreeObjHelper(T*& RawPtr)
@@ -354,17 +364,15 @@ struct TSpatialAccelerationCollectionHelper
 };
 
 template <typename SpatialAccelerationCollection>
-typename TEnableIf<std::is_same_v<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>, void>::Type PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, Private::FCollisionConstraintAllocator* Allocator, const FCollisionDetectorSettings& Settings, IResimCacheBase* ResimCache)
+typename std::enable_if_t<std::is_same_v<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>, void> PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, Private::FCollisionConstraintAllocator* Allocator, const FCollisionDetectorSettings& Settings, IResimCacheBase* ResimCache)
 {
 	BroadPhase.ProduceOverlaps(Dt, Accel, Allocator, Settings, ResimCache);
 }
 
 template <typename SpatialAccelerationCollection>
-typename TEnableIf<!std::is_same_v<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>, void>::Type PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, Private::FCollisionConstraintAllocator* Allocator, const FCollisionDetectorSettings& Settings, IResimCacheBase* ResimCache)
+typename std::enable_if_t<!std::is_same_v<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>, void> PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, Private::FCollisionConstraintAllocator* Allocator, const FCollisionDetectorSettings& Settings, IResimCacheBase* ResimCache)
 {
 }
-
-
 
 template <typename ... TSpatialAccelerationTypes>
 class CHAOS_API TSpatialAccelerationCollection : public
@@ -376,7 +384,7 @@ public:
 	using FirstAccelerationType = typename std::tuple_element<0, std::tuple< TSpatialAccelerationTypes...>>::type;
 	using TPayloadType = typename FirstAccelerationType::PayloadType;
 	using T = typename FirstAccelerationType::TType;
-	static constexpr int d = FirstAccelerationType::D;
+	static constexpr int d = FirstAccelerationType::D;	
 
 	TSpatialAccelerationCollection()
 	{
@@ -513,9 +521,27 @@ public:
 	}
 
 	template <typename SQVisitor>
-	void Overlap(const TAABB<T, 3>& QueryBounds, SQVisitor& Visitor) const
+	typename std::enable_if_t<!std::is_same_v<SQVisitor, typename Private::FSimOverlapVisitor>, void> Overlap(const TAABB<T, 3>& QueryBounds, SQVisitor& Visitor) const
 	{
 		TSpatialAccelerationCollectionHelper<0, NumTypes, decltype(Types), TPayloadType, T, d>::OverlapFast(Types, QueryBounds, Visitor);
+	}
+
+	template <typename SQVisitor>
+	typename std::enable_if_t<std::is_same_v<SQVisitor, typename Private::FSimOverlapVisitor>, void> Overlap(const TAABB<T, 3>& QueryBounds, SQVisitor& Visitor) const
+	{		
+		const TSpatialCollectionBucket<TSpatialAccelerationBucketEntry<TPayloadType, T, d>>& Bucket = Buckets[0];
+		{
+			int BucketInnerIdx = 0;
+			for (const TSpatialAccelerationBucketEntry<TPayloadType, T, d>& BucketEntry : Bucket.Objects)
+			{
+				if (BucketInnerIdx != ESpatialAccelerationCollectionBucketInnerIdx::DefaultQueryOnly && BucketInnerIdx != ESpatialAccelerationCollectionBucketInnerIdx::DynamicQueryOnly)
+				{
+					auto AccelStructure = static_cast<Chaos::TAABBTree<TPayloadType, Chaos::TAABBTreeLeafArray<Chaos::FAccelerationStructureHandle, true, T>, true, T>*>(BucketEntry.Acceleration.Get());
+					AccelStructure->OverlapFast(QueryBounds, Visitor);
+				}
+				BucketInnerIdx++;
+			}
+		}
 	}
 
 	TArray<TPayloadBoundsElement<TPayloadType, T>> GlobalObjects() const

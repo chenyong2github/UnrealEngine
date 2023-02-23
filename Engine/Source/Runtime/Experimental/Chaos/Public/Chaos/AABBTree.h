@@ -749,6 +749,7 @@ public:
 		, MaxPayloadBounds(DefaultMaxPayloadBounds)
 		, MaxNumToProcess(DefaultMaxNumToProcess)
 		, bShouldRebuild(true)
+		, bBuildOverlapCache(true)
 	{
 		GetCVars();
 	}
@@ -816,7 +817,7 @@ public:
 	}
 
 	template <typename TParticles>
-	TAABBTree(const TParticles& Particles, int32 InMaxChildrenInLeaf = DefaultMaxChildrenInLeaf, int32 InMaxTreeDepth = DefaultMaxTreeDepth, T InMaxPayloadBounds = DefaultMaxPayloadBounds, int32 InMaxNumToProcess = DefaultMaxNumToProcess, bool bInDynamicTree = false, bool bInUseDirtyTree = false)
+	TAABBTree(const TParticles& Particles, int32 InMaxChildrenInLeaf = DefaultMaxChildrenInLeaf, int32 InMaxTreeDepth = DefaultMaxTreeDepth, T InMaxPayloadBounds = DefaultMaxPayloadBounds, int32 InMaxNumToProcess = DefaultMaxNumToProcess, bool bInDynamicTree = false, bool bInUseDirtyTree = false, bool bInBuildOverlapCache = true)
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
 		, bDynamicTree(bInDynamicTree)
 		, MaxChildrenInLeaf(InMaxChildrenInLeaf)
@@ -824,6 +825,7 @@ public:
 		, MaxPayloadBounds(InMaxPayloadBounds)
 		, MaxNumToProcess(InMaxNumToProcess)
 		, bShouldRebuild(true)
+		, bBuildOverlapCache(bInBuildOverlapCache)
 	{
 		if (bInUseDirtyTree)
 		{
@@ -834,7 +836,7 @@ public:
 	}
 
 	template <typename ParticleView>
-	void Reinitialize(const ParticleView& Particles, int32 InMaxChildrenInLeaf = DefaultMaxChildrenInLeaf, int32 InMaxTreeDepth = DefaultMaxTreeDepth, T InMaxPayloadBounds = DefaultMaxPayloadBounds, int32 InMaxNumToProcess = DefaultMaxNumToProcess, bool bInDynamicTree = false)
+	void Reinitialize(const ParticleView& Particles, int32 InMaxChildrenInLeaf = DefaultMaxChildrenInLeaf, int32 InMaxTreeDepth = DefaultMaxTreeDepth, T InMaxPayloadBounds = DefaultMaxPayloadBounds, int32 InMaxNumToProcess = DefaultMaxNumToProcess, bool bInDynamicTree = false, bool bInbBuildOverlapCache = true)
 	{
 		bDynamicTree = bInDynamicTree;
 		MaxChildrenInLeaf = InMaxChildrenInLeaf;
@@ -842,6 +844,7 @@ public:
 		MaxPayloadBounds = InMaxPayloadBounds;
 		MaxNumToProcess = InMaxNumToProcess;
 		bShouldRebuild = true;
+		bBuildOverlapCache = bInbBuildOverlapCache;
 		GenerateTree(Particles);
 	}
 
@@ -2098,6 +2101,7 @@ public:
 		if (Ar.IsLoading())
 		{
 			bDynamicTree = false;
+			bBuildOverlapCache = true;
 			RootNode = INDEX_NONE;
 			FirstFreeInternalNode = INDEX_NONE;
 			FirstFreeLeafNode = INDEX_NONE;
@@ -2335,6 +2339,11 @@ public:
 	/** Cache for each leaves all the overlapping leaves*/
 	virtual void CacheOverlappingLeaves() override
 	{
+		if (!bBuildOverlapCache)
+		{
+			return;
+		}
+
 		// Dev settings to switch easily algorithms
 		// Will switch to cvars if the leaf version could be faster 
 		const bool bCachingRoot = true;
@@ -3427,6 +3436,7 @@ private:
 		, MaxNumToProcess(Other.MaxNumToProcess)
 		, NumProcessedThisSlice(Other.NumProcessedThisSlice)
 		, bShouldRebuild(Other.bShouldRebuild)
+		, bBuildOverlapCache(Other.bBuildOverlapCache)
 		, OverlappingLeaves(Other.OverlappingLeaves)
 		, OverlappingOffsets(Other.OverlappingOffsets)
 		, OverlappingPairs(Other.OverlappingPairs)
@@ -3486,6 +3496,7 @@ private:
 			MaxNumToProcess = Rhs.MaxNumToProcess;
 			NumProcessedThisSlice = Rhs.NumProcessedThisSlice;
 			bShouldRebuild = Rhs.bShouldRebuild;
+			bBuildOverlapCache = Rhs.bBuildOverlapCache;
 			if (Rhs.DirtyElementTree)
 			{
 				check(DirtyElementTree); // We should have allocated this already
@@ -3541,6 +3552,7 @@ private:
 
 	bool bShouldRebuild;  // Contract: this can only ever be cleared by calling the ClearShouldRebuild method
 
+	bool bBuildOverlapCache;
 	/** Flat array of overlapping leaves.  */
 	TArray<int32> OverlappingLeaves;
 

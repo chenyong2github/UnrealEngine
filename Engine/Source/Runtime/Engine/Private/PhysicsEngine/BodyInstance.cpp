@@ -1177,7 +1177,7 @@ void FInitBodiesHelperBase::CreateActor_AssumesLocked(FBodyInstance* Instance, c
 	ActorParams.DebugName = Instance->CharDebugName.IsValid() ? Instance->CharDebugName->GetData() : nullptr;
 #endif
 	ActorParams.bEnableGravity = Instance->bEnableGravity;
-	ActorParams.bQueryOnly = bDisableSim;
+	ActorParams.bQueryOnly = CollisionType == ECollisionEnabled::QueryOnly;
 	ActorParams.Scene = PhysScene;
 
 	if (IsStatic())
