@@ -61,7 +61,7 @@ void FContentBundle::DoInjectContent()
 {
 	if (ExternalStreamingObject != nullptr)
 	{
-		if (GetInjectedWorld()->GetWorldPartition()->RuntimeHash->InjectExternalStreamingObject(ExternalStreamingObject))
+		if (GetInjectedWorld()->GetWorldPartition()->InjectExternalStreamingObject(ExternalStreamingObject))
 		{
 			UE_LOG(LogContentBundle, Log, TEXT("%s Streaming Object Injected."), *ContentBundle::Log::MakeDebugInfoString(*this));
 			SetStatus(EContentBundleStatus::ContentInjected);
@@ -85,7 +85,7 @@ void FContentBundle::DoRemoveContent()
 {
 	if (ExternalStreamingObject != nullptr)
 	{
-		if (GetInjectedWorld()->GetWorldPartition()->RuntimeHash->RemoveExternalStreamingObject(ExternalStreamingObject))
+		if (GetInjectedWorld()->GetWorldPartition()->RemoveExternalStreamingObject(ExternalStreamingObject))
 		{
 			ContentBundlesEpoch++;
 		}

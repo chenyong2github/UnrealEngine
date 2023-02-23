@@ -13,6 +13,7 @@ class FSceneViewFamily;
 class FHLODResourcesResidencySceneViewExtension;
 class UWorldPartition;
 class UWorldPartitionRuntimeCell;
+class URuntimeHashExternalStreamingObjectBase;
 class UWorld;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionHLODActorRegisteredEvent, AWorldPartitionHLOD* /* InHLODActor */);
@@ -56,6 +57,9 @@ public:
 
 	FWorldPartitionHLODActorRegisteredEvent& OnHLODActorRegisteredEvent() { return HLODActorRegisteredEvent; }
 	FWorldPartitionHLODActorUnregisteredEvent& OnHLODActorUnregisteredEvent() { return HLODActorUnregisteredEvent; }
+
+	void OnExternalStreamingObjectInjected(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject);
+	void OnExternalStreamingObjectRemoved(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject);
 
 	void SetHLODAlwaysLoadedCullDistance(int32 InCullDistance);
 

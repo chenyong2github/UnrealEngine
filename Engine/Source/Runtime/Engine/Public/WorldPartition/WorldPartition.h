@@ -30,6 +30,7 @@ class UActorDescContainer;
 class UWorldPartitionEditorHash;
 class UWorldPartitionRuntimeCell;
 class UWorldPartitionRuntimeHash;
+class URuntimeHashExternalStreamingObjectBase;
 class UWorldPartitionStreamingPolicy;
 class IWorldPartitionCell;
 class UDataLayerManager;
@@ -270,6 +271,9 @@ public:
 	bool IsStreamingCompleted(const TArray<FWorldPartitionStreamingSource>* InStreamingSources) const;
 	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
 	bool GetIntersectingCells(const TArray<FWorldPartitionStreamingQuerySource>& InSources, TArray<const IWorldPartitionCell*>& OutCells) const;
+
+	bool InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject);
+	bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject);
 
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
 

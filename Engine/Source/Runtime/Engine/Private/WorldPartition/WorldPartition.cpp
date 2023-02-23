@@ -1431,6 +1431,28 @@ void UWorldPartition::UpdateStreamingState()
 	}
 }
 
+bool UWorldPartition::InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject)
+{
+	bool bInjected = RuntimeHash->InjectExternalStreamingObject(ExternalStreamingObject);
+	if (bInjected)
+	{
+		GetWorld()->GetSubsystem<UHLODSubsystem>()->OnExternalStreamingObjectInjected(ExternalStreamingObject);
+	}
+
+	return bInjected;
+}
+
+bool UWorldPartition::RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject)
+{
+	bool bRemoved = RuntimeHash->RemoveExternalStreamingObject(ExternalStreamingObject);
+	if (bRemoved)
+	{
+		GetWorld()->GetSubsystem<UHLODSubsystem>()->OnExternalStreamingObjectRemoved(ExternalStreamingObject);
+	}
+
+	return bRemoved;
+}
+
 bool UWorldPartition::GetIntersectingCells(const TArray<FWorldPartitionStreamingQuerySource>& InSources, TArray<const IWorldPartitionCell*>& OutCells) const
 {
 	if (StreamingPolicy)

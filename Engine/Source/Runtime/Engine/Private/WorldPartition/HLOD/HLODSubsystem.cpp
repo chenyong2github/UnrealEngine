@@ -262,6 +262,8 @@ void UHLODSubsystem::OnWorldPartitionInitialized(UWorldPartition* InWorldPartiti
 		{
 			InWorldPartition->RuntimeHash->ForEachStreamingCells([&WorldPartitionHLODRuntimeData](const UWorldPartitionRuntimeCell* Cell)
 			{
+				UE_LOG(LogHLODSubsystem, Verbose, TEXT("Registering cell %s - %s"), *Cell->GetGuid().ToString(), *Cell->GetDebugName());
+
 				WorldPartitionHLODRuntimeData.CellsData.Emplace(Cell->GetGuid());
 				return true;
 			});
@@ -274,7 +276,47 @@ void UHLODSubsystem::OnWorldPartitionUninitialized(UWorldPartition* InWorldParti
 	if (InWorldPartition && InWorldPartition->IsStreamingEnabled())
 	{
 		check(WorldPartitionsHLODRuntimeData.Contains(InWorldPartition));
+
+#if !NO_LOGGING
+		FWorldPartitionHLODRuntimeData& WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.FindChecked(InWorldPartition);
+		InWorldPartition->RuntimeHash->ForEachStreamingCells([&WorldPartitionHLODRuntimeData](const UWorldPartitionRuntimeCell* Cell)
+		{
+			UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering cell %s - %s"), *Cell->GetGuid().ToString(), *Cell->GetDebugName());
+			return true;
+		});
+#endif
+
 		WorldPartitionsHLODRuntimeData.Remove(InWorldPartition);
+	}
+}
+
+void UHLODSubsystem::OnExternalStreamingObjectInjected(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject)
+{
+	UWorldPartition* OwnerPartition = ExternalStreamingObject->GetOuterWorld()->GetWorldPartition();
+	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(OwnerPartition);
+	if (WorldPartitionHLODRuntimeData)
+	{
+		ExternalStreamingObject->ForEachStreamingCells([WorldPartitionHLODRuntimeData](const UWorldPartitionRuntimeCell& Cell)
+		{
+			UE_LOG(LogHLODSubsystem, Verbose, TEXT("Registering external cell %s - %s"), *Cell.GetGuid().ToString(), *Cell.GetDebugName());
+			WorldPartitionHLODRuntimeData->CellsData.Emplace(Cell.GetGuid());
+			return true;
+		});
+	}
+}
+
+void UHLODSubsystem::OnExternalStreamingObjectRemoved(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject)
+{
+	UWorldPartition* OwnerPartition = ExternalStreamingObject->GetOuterWorld()->GetWorldPartition();
+	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(OwnerPartition);
+	if (WorldPartitionHLODRuntimeData)
+	{
+		ExternalStreamingObject->ForEachStreamingCells([WorldPartitionHLODRuntimeData](const UWorldPartitionRuntimeCell& Cell)
+		{
+			UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering external cell %s - %s"), *Cell.GetGuid().ToString(), *Cell.GetDebugName());
+			WorldPartitionHLODRuntimeData->CellsData.Remove(Cell.GetGuid());
+			return true;
+		});
 	}
 }
 
@@ -330,15 +372,14 @@ void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD
 	
 	if (FCellData* CellData = GetCellData(InWorldPartitionHLOD))
 	{
-#if WITH_EDITOR
-		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Registering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *InWorldPartitionHLOD->GetSourceCellGuid().ToString());
-#endif
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Registering HLOD %s for cell %s"), *InWorldPartitionHLOD->GetActorNameOrLabel(), *InWorldPartitionHLOD->GetSourceCellGuid().ToString());
+
 		CellData->LoadedHLODs.Add(InWorldPartitionHLOD);
 		InWorldPartitionHLOD->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled && !CellData->bIsCellVisible);
 	}
 	else
 	{
-		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Found HLOD referencing nonexistent cell '%s'"), *InWorldPartitionHLOD->GetSourceCellGuid().ToString());
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Found HLOD %s referencing nonexistent cell '%s'"), *InWorldPartitionHLOD->GetActorNameOrLabel(), *InWorldPartitionHLOD->GetSourceCellGuid().ToString());
 		InWorldPartitionHLOD->SetVisibility(false);
 	}
 
@@ -352,9 +393,7 @@ void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHL
 
 	if (FCellData* CellData = GetCellData(InWorldPartitionHLOD))
 	{
-#if WITH_EDITOR
-		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *InWorldPartitionHLOD->GetSourceCellGuid().ToString());
-#endif
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering HLOD %s for cell %s"), *InWorldPartitionHLOD->GetActorNameOrLabel(), *InWorldPartitionHLOD->GetSourceCellGuid().ToString());
 
 		int32 NumRemoved = CellData->LoadedHLODs.Remove(InWorldPartitionHLOD);
 		check(NumRemoved == 1);
@@ -369,16 +408,15 @@ void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 	{
 		CellData->bIsCellVisible = true;
 
-#if WITH_EDITOR
-		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell shown - %s - hiding %d HLOD actors"), *InCell->GetName(), CellData->LoadedHLODs.Num());
-#endif
-
-		for (AWorldPartitionHLOD* HLODActor : CellData->LoadedHLODs)
+		if (!CellData->LoadedHLODs.IsEmpty())
 		{
-#if WITH_EDITOR
-			UE_LOG(LogHLODSubsystem, Verbose, TEXT("\t\t%s - %s"), *HLODActor->GetActorLabel(), *HLODActor->GetActorGuid().ToString());
-#endif
-			HLODActor->SetVisibility(false);
+			UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell shown - %s - hiding %d HLOD actors"), *InCell->GetGuid().ToString(), CellData->LoadedHLODs.Num());
+
+			for (AWorldPartitionHLOD* HLODActor : CellData->LoadedHLODs)
+			{
+				UE_LOG(LogHLODSubsystem, Verbose, TEXT("\t\t* %s"), *HLODActor->GetActorNameOrLabel());
+				HLODActor->SetVisibility(false);
+			}
 		}
 	}
 }
@@ -389,17 +427,16 @@ void UHLODSubsystem::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 	{
 		CellData->bIsCellVisible = false;
 
-#if WITH_EDITOR
-		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell hidden - %s - showing %d HLOD actors"), *InCell->GetName(), CellData->LoadedHLODs.Num());
-#endif
-
-		for (AWorldPartitionHLOD* HLODActor : CellData->LoadedHLODs)
+		if (!CellData->LoadedHLODs.IsEmpty())
 		{
-#if WITH_EDITOR
-			UE_LOG(LogHLODSubsystem, Verbose, TEXT("\t\t%s - %s"), *HLODActor->GetActorLabel(), *HLODActor->GetActorGuid().ToString());
-#endif
-			HLODActor->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled);
-			HLODActorsToWarmup.Remove(HLODActor);
+			UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell hidden - %s - showing %d HLOD actors"), *InCell->GetGuid().ToString(), CellData->LoadedHLODs.Num());
+
+			for (AWorldPartitionHLOD* HLODActor : CellData->LoadedHLODs)
+			{
+				UE_LOG(LogHLODSubsystem, Verbose, TEXT("\t\t* %s"), *HLODActor->GetActorNameOrLabel());
+				HLODActor->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled);
+				HLODActorsToWarmup.Remove(HLODActor);
+			}
 		}
 	}
 }
