@@ -187,6 +187,12 @@ namespace Horde.Build.Users
 		/// <inheritdoc/>
 		public async Task<IUser?> GetUserAsync(UserId id)
 		{
+			if (id == UserId.Anonymous)
+			{
+				// Anonymous user is handled as a special case so we can debug with local anonymous login against a production DB in read-only mode.
+				return new UserDocument(id, "Anonymous", "anonymous", null);
+			}
+
 			IUser? user = await _users.Find(x => x.Id == id).FirstOrDefaultAsync();
 			using (ICacheEntry entry = _userCache.CreateEntry(id))
 			{
