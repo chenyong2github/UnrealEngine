@@ -4430,7 +4430,6 @@ private:
 		{
 			checkSlow(Count >= 0);
 			checkSlow(Index >= 0); 
-			checkSlow(Index < Num());
 			checkSlow(Index + Count <= Num());
 			if (Count > 0)
 			{
