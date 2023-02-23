@@ -483,7 +483,6 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 		const bool bHiResSurface = VisualizeHiResSurface != 0 ? true : false;
 
 		FRayTracedLightingContext Context = CreateRayTracedLightingContext(
-			TLAS,
 			RayCone,
 			TraceCoord,
 			LinearCoord,
@@ -504,9 +503,9 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 		Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
-		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
 #else
-		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, HitLightingMode);
+		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, HitLightingMode);
 
 		#define DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS 0
 		#if DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS && DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE

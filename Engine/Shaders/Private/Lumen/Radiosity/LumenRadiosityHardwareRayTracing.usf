@@ -101,7 +101,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenRadiosityHardwareRayTracing)
 
 				const uint LinearCoord = CoordInCardTile.y * CARD_TILE_SIZE + CoordInCardTile.x;
 				const uint OriginalCullingMode = 0;
-				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, CoordInCardTile, LinearCoord, OriginalCullingMode, MaxTranslucentSkipCount, MaxTraversalIterations);
+				FRayTracedLightingContext Context = CreateRayTracedLightingContext(RayCone, CoordInCardTile, LinearCoord, OriginalCullingMode, MaxTranslucentSkipCount, MaxTraversalIterations);
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 				Context.HitGroupData = HitGroupData;
@@ -116,7 +116,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenRadiosityHardwareRayTracing)
 				if (Ray.TMax > Ray.TMin)
 				{
 					Context.CullingMode = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-					RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+					RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
 				}
 
 				// Second trace - remaining ray with backface culling enabled to reduce leaking when starting from a point inside the mesh
@@ -126,11 +126,11 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenRadiosityHardwareRayTracing)
 					Ray.TMax = MaxTraceDistance;
 					
 					Context.CullingMode = OriginalCullingMode;
-					RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+					RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
 				}
 #else
 				Ray.TMax = MaxTraceDistance;
-				FRayTracedLightingResult RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+				FRayTracedLightingResult RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
 #endif
 
 				if (RayResult.TraceHitDistance < MinTraceDistanceToSampleSurface)

@@ -93,7 +93,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenTranslucencyVolumeHardwareRayTracing)
 			const uint LinearCoord = GridCoordinate.y * TranslucencyGIGridSize.x + GridCoordinate.x;
 			const uint CullingMode = 0;
 			int TranslucentSkipCountMax = 0;
-			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, GridCoordinate.xy, LinearCoord, CullingMode, TranslucentSkipCountMax, MaxTraversalIterations);
+			FRayTracedLightingContext Context = CreateRayTracedLightingContext(RayCone, GridCoordinate.xy, LinearCoord, CullingMode, TranslucentSkipCountMax, MaxTraversalIterations);
 
 			#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
 				{
@@ -101,11 +101,11 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenTranslucencyVolumeHardwareRayTracing)
 					Context.HitGroupData = HitGroupData;
 					Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
 #endif
-					TraceLightingResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+					TraceLightingResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
 				}
 			#else
 				{
-					TraceLightingResult = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE);
+					TraceLightingResult = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, DIM_LIGHTING_MODE);
 				}
 			#endif
 

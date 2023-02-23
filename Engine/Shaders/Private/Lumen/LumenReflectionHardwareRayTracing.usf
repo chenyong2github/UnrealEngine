@@ -143,7 +143,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 		const bool bHiResSurface = UseHighResSurface ? 1 : 0;
 		const uint CullingMode = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ReflectionTracingCoord.Coord, LinearCoord, CullingMode, MaxTranslucentSkipCount, MaxTraversalIterations, bHiResSurface);
+		FRayTracedLightingContext Context = CreateRayTracedLightingContext(RayCone, ReflectionTracingCoord.Coord, LinearCoord, CullingMode, MaxTranslucentSkipCount, MaxTraversalIterations, bHiResSurface);
 		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
 		Context.bUseBookmark = true;
@@ -161,7 +161,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 			EVALUATE_MATERIAL_AND_DIRECT_LIGHTING :
 			NearFieldLightingMode;
 
-		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, LightingMode, TraceData.Bookmark);
+		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, LightingMode, TraceData.Bookmark);
 
 		#define DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS 0
 		#if DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS
@@ -180,7 +180,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
-		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
 
 #endif // DIM_LIGHTING_MODE
 

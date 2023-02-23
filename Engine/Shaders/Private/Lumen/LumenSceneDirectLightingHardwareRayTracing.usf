@@ -164,7 +164,6 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 					FRayCone RayCone = (FRayCone)0;
 					uint CullingMode = RAY_FLAG_CULL_FRONT_FACING_TRIANGLES;
 					FRayTracedLightingContext Context = CreateRayTracedLightingContext(
-						TLAS,
 						RayCone,
 						CoordInCardTile,
 						CoordInCardTile.x, // dummy coordinate
@@ -189,7 +188,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						Context.FarFieldReferencePos = FarFieldReferencePos;
 						Context.FarFieldMaxTraceDistance = FarFieldTMax;
 						
-						FRayTracedLightingResult RayResult = TraceSurfaceCacheFarFieldRay(Ray, Context);
+						FRayTracedLightingResult RayResult = TraceSurfaceCacheFarFieldRay(TLAS, Ray, Context);
 						bRayOccluded = IsRayOccluded(RayResult);
 
 						Context.bSkipClosestHitShader = false;
@@ -210,7 +209,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						ProjectedRay.TMax = 2.0f * SearchRadius;
 						Context.CullingMode = RAY_FLAG_CULL_FRONT_FACING_TRIANGLES;
 
-						FLumenMinimalRayResult SearchResult = TraceLumenMinimalRay(ProjectedRay, Context);
+						FLumenMinimalRayResult SearchResult = TraceLumenMinimalRay(TLAS, ProjectedRay, Context);
 
 						if (IsRayOccluded(SearchResult))
 						{
@@ -226,7 +225,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						Context.TranslucentSkipCountMax = MaxTranslucentSkipCount;
 						Context.bSkipClosestHitShader = false;
 
-						FRayTracedLightingResult RayResult = TraceSurfaceCacheRay(Ray, Context);
+						FRayTracedLightingResult RayResult = TraceSurfaceCacheRay(TLAS, Ray, Context);
 						bRayOccluded = IsRayOccluded(RayResult);
 					}
 
