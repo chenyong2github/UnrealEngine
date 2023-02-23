@@ -1086,10 +1086,10 @@ public:
 
 	TOptional<FVector3d> GetCompilerTag(const FNiagaraVariableBase& InVar, const FNiagaraParameterStore* FallbackParameterStore) const
 	{
-		TOptional<FVector3f> Optional(*GetCompilerTag<FVector3f>(InVar, FallbackParameterStore));
+		TOptional<FVector3f> Optional = GetCompilerTag<FVector3f>(InVar, FallbackParameterStore);
 		if (Optional.IsSet())
 		{
-			return TOptional<FVector3d>((FVector3d)Optional.GetValue());
+			return TOptional(FVector3d(Optional.GetValue()));
 		}
 		return TOptional<FVector3d>();
 	}
