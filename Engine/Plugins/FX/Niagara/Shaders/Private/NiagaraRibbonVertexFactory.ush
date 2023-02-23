@@ -24,8 +24,8 @@
 #define SLICEVERTEXDATA_TEXTUREV_OFFSET 4
 #define SLICEVERTEXDATA_STRIDE 5
 
-#define INDIRECTDRAWARGS_INTERPCOUNT_OFFSET 10
-#define INDIRECTDRAWARGS_ONEOVERINTERPCOUNT_OFFSET 11
+#define INDEX_GEN_NUM_SUB_SEGMENTS_OFFSET			15		// Duplicated in NiagaraRibbonCommon.ush
+#define INDEX_GEN_ONE_OVER_NUM_SUB_SEGMENTS_OFFSET	16		// Duplicated in NiagaraRibbonCommon.ush
 
 uint UnpackParticleId(uint InterpIdx)
 {
@@ -291,7 +291,7 @@ uint GetInterpCount()
 	BRANCH
 	if (NiagaraRibbonVFLooseParameters.IndirectDrawOutputOffset != -1)
 	{
-		return NiagaraRibbonVFLooseParameters.IndirectDrawOutput[NiagaraRibbonVFLooseParameters.IndirectDrawOutputOffset + INDIRECTDRAWARGS_INTERPCOUNT_OFFSET];
+		return NiagaraRibbonVFLooseParameters.IndirectDrawOutput[NiagaraRibbonVFLooseParameters.IndirectDrawOutputOffset + INDEX_GEN_NUM_SUB_SEGMENTS_OFFSET];
 	}
 	else
 	{
@@ -304,7 +304,7 @@ float GetOneOverInterpCount()
 	BRANCH
 	if (NiagaraRibbonVFLooseParameters.IndirectDrawOutputOffset != -1)
 	{
-		return asfloat(NiagaraRibbonVFLooseParameters.IndirectDrawOutput[NiagaraRibbonVFLooseParameters.IndirectDrawOutputOffset + INDIRECTDRAWARGS_ONEOVERINTERPCOUNT_OFFSET]);
+		return asfloat(NiagaraRibbonVFLooseParameters.IndirectDrawOutput[NiagaraRibbonVFLooseParameters.IndirectDrawOutputOffset + INDEX_GEN_ONE_OVER_NUM_SUB_SEGMENTS_OFFSET]);
 	}
 	else
 	{

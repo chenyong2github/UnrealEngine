@@ -43,14 +43,20 @@ void InitializeIndices(uint3 DispatchThreadId : SV_DispatchThreadID)
 		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_EXECUTE_INDIRECT_OFFSET + 0] = 0;
 		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_EXECUTE_INDIRECT_OFFSET + 1] = 0;
 		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_EXECUTE_INDIRECT_OFFSET + 2] = 0;
-		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_TESSELLATION_FACTOR_OFFSET] = 0;
 			
-		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 0] = 0;
-		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 1] = 0;
-		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 2] = 0;
-		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 3] = 0;
-		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 4] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_DRAW_INDIRECT_OFFSET + 0] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_DRAW_INDIRECT_OFFSET + 1] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_DRAW_INDIRECT_OFFSET + 2] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_DRAW_INDIRECT_OFFSET + 3] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_DRAW_INDIRECT_OFFSET + 4] = 0;
 	
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_STEREO_DRAW_INDIRECT_OFFSET + 0] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_STEREO_DRAW_INDIRECT_OFFSET + 1] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_STEREO_DRAW_INDIRECT_OFFSET + 2] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_STEREO_DRAW_INDIRECT_OFFSET + 3] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_STEREO_DRAW_INDIRECT_OFFSET + 4] = 0;
+	
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_TESSELLATION_FACTOR_OFFSET] = 0;
 		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_NUM_SEGMENTS_OFFSET] = 0;
 		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_NUM_SUB_SEGMENTS_OFFSET] = 0;
 		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_ONE_OVER_NUM_SUB_SEGMENTS_OFFSET] = asuint(0.0f);
@@ -135,24 +141,23 @@ void InitializeIndices(uint3 DispatchThreadId : SV_DispatchThreadID)
 	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_EXECUTE_INDIRECT_OFFSET + 0] = NumThreadGroups;
 	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_EXECUTE_INDIRECT_OFFSET + 1] = 1;
 	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_EXECUTE_INDIRECT_OFFSET + 2] = 1;
-	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_TESSELLATION_FACTOR_OFFSET] = SegmentTessellation;
 
-			
-	// Index Count
-	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 0] = SegmentCount * SegmentTessellation * TrianglesPerSegment * 3;
-	// Num Instances
-	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 1] = 1;
-	// First Index Offset
-	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 2] = 0;
-	// First Vertex Offset
-	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 3] = 0;
-	// First Instance Offset
-	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 4] = 0;
-	
-	// SegmentCount
+	// DrawIndirect Params: IndexCount, NumInstances, FirstIndexOffset, FirstVertexOffset, FirstInstanceOffset
+	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_DRAW_INDIRECT_OFFSET + 0] = SegmentCount * SegmentTessellation * TrianglesPerSegment * 3;
+	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_DRAW_INDIRECT_OFFSET + 1] = 1;
+	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_DRAW_INDIRECT_OFFSET + 2] = 0;
+	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_DRAW_INDIRECT_OFFSET + 3] = 0;
+	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_DRAW_INDIRECT_OFFSET + 4] = 0;
+
+	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_STEREO_DRAW_INDIRECT_OFFSET + 0] = SegmentCount * SegmentTessellation * TrianglesPerSegment * 3;
+	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_STEREO_DRAW_INDIRECT_OFFSET + 1] = 2;
+	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_STEREO_DRAW_INDIRECT_OFFSET + 2] = 0;
+	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_STEREO_DRAW_INDIRECT_OFFSET + 3] = 0;
+	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_STEREO_DRAW_INDIRECT_OFFSET + 4] = 0;
+
+	// Misc data for generation
+	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_TESSELLATION_FACTOR_OFFSET] = SegmentTessellation;
 	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_NUM_SEGMENTS_OFFSET] = SegmentCount;
-	// SubSegmentCount
 	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_NUM_SUB_SEGMENTS_OFFSET] = SegmentTessellation;
-	// 1/SubSegmentCount
 	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_ONE_OVER_NUM_SUB_SEGMENTS_OFFSET] = asuint(OneOverSubSegmentTessellation);
 }

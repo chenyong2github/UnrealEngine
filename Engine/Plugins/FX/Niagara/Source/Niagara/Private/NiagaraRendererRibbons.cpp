@@ -228,30 +228,22 @@ struct FNiagaraRibbonCommandBufferLayout
 	float TessCurrentFrame_AverageWidth;
 };
 
-
+// This data must match INDEX_GEN_INDIRECT_ARGS_STRIDE in NiagaraRibbonCommon.ush
+// Be careful if we ever allocate more than 1 of these as ExecuteIndirect arguments have boundary restrictions on some platforms
 struct FNiagaraRibbonIndirectDrawBufferLayout
 {
-	static constexpr int32 NumElements = 12;
-	static constexpr int32 GenerateIndicesCommandOffset = 0;
-	static constexpr int32 IndirectDrawCommandIndex = 4;
-	static constexpr int32 IndirectDrawCommandByteOffset = IndirectDrawCommandIndex * sizeof(uint32);
-
-	// This is passed from InitializeIndices to GenerateIndices
-	uint32 IndexGenIndirectArgsXDim;
-	uint32 IndexGenIndirectArgsYDim;
-	uint32 IndexGenIndirectArgsZDim;
-	uint32 TessellationFactor;
-
-	// This is the indirect draw args and then resulting information for the vertex shader	
-	uint32 IndexCount;
-	uint32 NumInstances;
-	uint32 FirstIndexOffset;
-	uint32 FirstVertexOffset;
-	uint32 FirstInstanceOffset;
+	FRHIDispatchIndirectParametersNoPadding	IndexGenIndirectArgs;			//  0 - 3 uints
+	FRHIDrawIndexedIndirectParameters		DrawIndirectParameters;			//  3 - 5 uints
+	FRHIDrawIndexedIndirectParameters		StereoDrawIndirectParameters;	//  8 - 5 uints
 	
-	uint32 NumSegments;
-	uint32 NumSubSegments;
-	float OneOverSubSegmentCount;	
+	uint32	TessellationFactor;												// 13 - 1 uint
+	uint32	NumSegments;													// 14 - 1 uint
+	uint32	NumSubSegments;													// 15 - 1 uint
+	float	OneOverSubSegmentCount;											// 16 - 1 uint
+
+	static constexpr int32 DrawIndirectParametersByteOffset			= 3 * sizeof(uint32);
+	static constexpr int32 StereoDrawIndirectParametersByteOffset	= 8 * sizeof(uint32);
+	static constexpr int32 NumElements								= 17;
 };
 
 struct FNiagaraRibbonIndexBuffer final : FIndexBuffer
@@ -336,9 +328,6 @@ struct FNiagaraRibbonRenderingFrameViewResources
 	FNiagaraRibbonIndexBuffer		IndexBuffer;
 	FRWBuffer						IndirectDrawBuffer;
 	FNiagaraIndexGenerationInput	IndexGenerationSettings;
-
-	int32 IndirectDrawBufferStartOffset = FNiagaraRibbonIndirectDrawBufferLayout::IndirectDrawCommandIndex;
-	int32 IndirectDrawBufferStartByteOffset = FNiagaraRibbonIndirectDrawBufferLayout::IndirectDrawCommandByteOffset;
 
 	~FNiagaraRibbonRenderingFrameViewResources()
 	{
@@ -2072,7 +2061,7 @@ inline void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(c
 	{
 		MeshElement.NumPrimitives = 0;
 		MeshElement.IndirectArgsBuffer = RenderingViewResources->IndirectDrawBuffer.Buffer;
-		MeshElement.IndirectArgsOffset = RenderingViewResources->IndirectDrawBufferStartByteOffset;
+		MeshElement.IndirectArgsOffset = View->IsInstancedStereoPass() ? FNiagaraRibbonIndirectDrawBufferLayout::StereoDrawIndirectParametersByteOffset : FNiagaraRibbonIndirectDrawBufferLayout::DrawIndirectParametersByteOffset;
 	}
 	else
 	{
