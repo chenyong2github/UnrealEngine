@@ -67,8 +67,8 @@ class PCG_API UPCGComponent : public UActorComponent
 
 	GENERATED_BODY()
 
-	friend class UPCGSubsystem;
 	friend class UPCGManagedActors;
+	friend class UPCGSubsystem;
 
 public:
 	/** ~Begin UObject interface */
@@ -233,6 +233,9 @@ public:
 	void DisableInspection();
 	void StoreInspectionData(const UPCGNode* InNode, const FPCGDataCollection& InInspectionData);
 	const FPCGDataCollection* GetInspectionData(const UPCGNode* InNode) const;
+
+	/** Used by the tracking system to know if the component need to track actors. Not enabled for now, tracking is still done on the component.*/
+	bool ShouldTrackActors() const { return false; }
 #endif
 
 	/** Utility function (mostly for tests) to properly set the value of bIsComponentPartitioned.
@@ -253,6 +256,7 @@ public:
 	UPCGSubsystem* GetSubsystem() const;
 
 	FBox GetGridBounds() const;
+	FBox GetLastGeneratedBounds() const { return LastGeneratedBounds; }
 
 	/** Builds the PCG data from a given actor and its PCG component, and places it in a data collection with appropriate tags */
 	static FPCGDataCollection CreateActorPCGDataCollection(AActor* Actor, const UPCGComponent* Component, const TFunction<bool(EPCGDataType)>& InDataFilter, bool bParseActor = true);

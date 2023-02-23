@@ -641,7 +641,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 						if (bForceCallGenerate || (bOnLoadCallGenerate && PCGComponent->GenerationTrigger == EPCGComponentGenerationTrigger::GenerateOnLoad))
 						{
-							if (Subsystem && PCGComponent->IsPartitioned())
+							if (Subsystem)
 							{
 								Subsystem->RegisterOrUpdatePCGComponent(PCGComponent);
 							}

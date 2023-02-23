@@ -81,16 +81,9 @@ void UPCGComponent::SetIsPartitioned(bool bIsNowPartitioned)
 			CleanupLocalImmediate(/*bRemoveComponents=*/true);
 		}
 
-		if (bIsNowPartitioned)
-		{
-			bIsComponentPartitioned = bIsNowPartitioned;
-			Subsystem->RegisterOrUpdatePCGComponent(this, bDoActorMapping);
-		}
-		else
-		{
-			Subsystem->UnregisterPCGComponent(this);
-			bIsComponentPartitioned = bIsNowPartitioned;
-		}
+		// Update the component on the subsystem
+		bIsComponentPartitioned = bIsNowPartitioned;
+		Subsystem->RegisterOrUpdatePCGComponent(this, bDoActorMapping);
 	}
 	else
 	{
@@ -907,8 +900,8 @@ void UPCGComponent::BeginPlay()
 	}
 #endif
 
-	// First if it is partitioned, register itself to the PCGSubsystem, to map the component to all its corresponding PartitionActors
-	if (IsPartitioned() && GetSubsystem())
+	// Register itself to the PCGSubsystem, to map the component to all its corresponding PartitionActors if it is partition among other things.
+	if (GetSubsystem())
 	{
 		GetSubsystem()->RegisterOrUpdatePCGComponent(this);
 	}
@@ -1132,7 +1125,7 @@ void UPCGComponent::OnRegister()
 	// We can't register to the subsystem in OnRegister if we are at runtime because
 	// the landscape can be not loaded yet.
 	// It will be done in BeginPlay at runtime.
-	if (!PCGHelpers::IsRuntimeOrPIE() && IsPartitioned() && GetSubsystem())
+	if (!PCGHelpers::IsRuntimeOrPIE() && GetSubsystem())
 	{
 		if (UWorld* World = GetWorld())
 		{
@@ -1880,14 +1873,7 @@ void UPCGComponent::OnRefresh()
 
 	if (Subsystem)
 	{
-		if (IsPartitioned())
-		{
-			Subsystem->RegisterOrUpdatePCGComponent(this, /*bDoActorMapping=*/ bWasGenerated);
-		}
-		else
-		{
-			Subsystem->UnregisterPCGComponent(this);
-		}
+		Subsystem->RegisterOrUpdatePCGComponent(this, /*bDoActorMapping=*/ bWasGenerated);
 	}
 
 	// Following a change in some properties or in some spatial information related to this component,
@@ -2802,11 +2788,13 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 		// Re-set the graph to reconnect callbacks correctly
 		PCGComponent->GraphInstance->SetGraph(PCGComponent->GraphInstance->Graph);
 
-		// Also remap if we are partitioned
+		bool bDoActorMapping = PCGComponent->bGenerated || PCGHelpers::IsRuntimeOrPIE();
+
+		// Also remap
 		UPCGSubsystem* Subsystem = PCGComponent->GetSubsystem();
-		if (Subsystem && PCGComponent->IsPartitioned() && SourceComponent)
+		if (Subsystem && SourceComponent)
 		{
-			Subsystem->RemapPCGComponent(SourceComponent, PCGComponent);
+			Subsystem->RemapPCGComponent(SourceComponent, PCGComponent, bDoActorMapping);
 		}
 
 #if WITH_EDITOR

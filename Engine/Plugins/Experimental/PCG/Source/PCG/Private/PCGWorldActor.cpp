@@ -137,7 +137,7 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 
 	// And finally, refresh all components that are partitioned (registered to the PCGSubsystem)
 	// to let them recreate the needed PCG Partition Actors.
-	for (UPCGComponent* PCGComponent : PCGSubsystem->GetAllRegisteredComponents())
+	for (UPCGComponent* PCGComponent : PCGSubsystem->GetAllRegisteredPartitionedComponents())
 	{
 		check(PCGComponent);
 		PCGComponent->DirtyGenerated();

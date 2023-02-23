@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Math/GenericOctree.h"
 #include "Subsystems/WorldSubsystem.h"
 
 #include "PCGCommon.h"
+#include "PCGActorAndComponentMapping.h"
 #include "Grid/PCGComponentOctree.h"
 
 #include "PCGSubsystem.generated.h"
@@ -37,6 +37,8 @@ class PCG_API UPCGSubsystem : public UTickableWorldSubsystem
 	GENERATED_BODY()
 
 public:
+	friend UPCGActorAndComponentMapping;
+
 	UPCGSubsystem();
 
 	//~ Begin USubsystem Interface.
@@ -107,21 +109,21 @@ public:
 	bool GetOutputData(FPCGTaskId InTaskId, FPCGDataCollection& OutData);
 
 	/** Register a new PCG Component or update it, will be added to the octree if it doesn't exists yet. Returns true if it was added/updated. Thread safe */
-	bool RegisterOrUpdatePCGComponent(UPCGComponent* InComponent, bool bDoActorMapping = true);
+	bool RegisterOrUpdatePCGComponent(UPCGComponent* InComponent, bool bDoActorMapping = true) { return ActorAndComponentMapping.RegisterOrUpdatePCGComponent(InComponent, bDoActorMapping); }
 
 	/** In case of BP Actors, we need to remap the old component destroyed by the construction script to the new one. Returns true if re-mapping succeeded. */
-	bool RemapPCGComponent(const UPCGComponent* OldComponent, UPCGComponent* NewComponent);
+	bool RemapPCGComponent(const UPCGComponent* OldComponent, UPCGComponent* NewComponent, bool bDoActorMapping) { return ActorAndComponentMapping.RemapPCGComponent(OldComponent, NewComponent, bDoActorMapping); }
 
 	/** Unregister a PCG Component, will be removed from the octree. Can force it, if we have a delayed unregister. Thread safe */
-	void UnregisterPCGComponent(UPCGComponent* InComponent, bool bForce = false);
+	void UnregisterPCGComponent(UPCGComponent* InComponent, bool bForce = false) { ActorAndComponentMapping.UnregisterPCGComponent(InComponent, bForce); }
 
 	/** Register a new Partition actor, will be added to a map and will query all intersecting volume to bind to them if asked. Thread safe */
-	void RegisterPartitionActor(APCGPartitionActor* InActor, bool bDoComponentMapping = true);
+	void RegisterPartitionActor(APCGPartitionActor* InActor, bool bDoComponentMapping = true) { ActorAndComponentMapping.RegisterPartitionActor(InActor, bDoComponentMapping); }
 
 	/** Unregister a Partition actor, will be removed from the map and remove itself to all intersecting volumes. Thread safe */
-	void UnregisterPartitionActor(APCGPartitionActor* InActor);
+	void UnregisterPartitionActor(APCGPartitionActor* InActor) { ActorAndComponentMapping.UnregisterPartitionActor(InActor); }
 
-	TSet<TObjectPtr<UPCGComponent>> GetAllRegisteredComponents() const;
+	TSet<TObjectPtr<UPCGComponent>> GetAllRegisteredPartitionedComponents() const { return ActorAndComponentMapping.GetAllRegisteredPartitionedComponents(); }
 
 	/** Flushes the graph cache completely, use only for debugging */
 	void FlushCache();
@@ -157,7 +159,7 @@ public:
 	void ClearPCGLink(UPCGComponent* InComponent, const FBox& InBounds, AActor* InNewActor);
 
 	/** If the partition grid size change, call this to empty the Partition actors map */
-	void ResetPartitionActorsMap();
+	void ResetPartitionActorsMap() { ActorAndComponentMapping.ResetPartitionActorsMap(); }
 
 	/** Builds the landscape data cache */
 	void BuildLandscapeCache(bool bQuiet = false);
@@ -180,48 +182,18 @@ private:
 	};
 
 	FPCGTaskId ProcessGraph(UPCGComponent* Component, const FBox& InPreviousBounds, const FBox& InNewBounds, EOperation InOperation, bool bSave);
+	void CreatePartitionActorsWithinBounds(const FBox& InBounds);
 #endif // WITH_EDITOR
-	
-private:
-	/* Call the InFunc function to all local component registered to the original component. Return the list of all the tasks scheduled. Thread safe*/
-	TArray<FPCGTaskId> DispatchToRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const;
-
-	/* Call the InFunc function to all local component from the set of partition actors. Return the list of all the tasks scheduled. */
-	TArray<FPCGTaskId> DispatchToLocalComponents(UPCGComponent* OriginalComponent, const TSet<TObjectPtr<APCGPartitionActor>>& PartitionActors, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const;
-
-	/** Iterate other all the components which bounds intersect the box in param and call a callback. Thread safe */
-	void ForAllIntersectingComponents(const FBoxCenterAndExtent& InBounds, TFunction<void(UPCGComponent*)> InFunc) const;
-
-	/** Iterate other all the int coordinates given a box and call a callback. Thread safe */
-	void ForAllIntersectingPartitionActors(const FBox& InBounds, TFunction<void(APCGPartitionActor*)> InFunc) const;
-
-	/** Update the current mapping between a PCG component and its PCG Partition actors */
-	void UpdateMappingPCGComponentPartitionActor(UPCGComponent* InComponent);
-
-	/** Delete the current mapping between a PCG component and its PCG Partition actors */
-	void DeleteMappingPCGComponentPartitionActor(UPCGComponent* InComponent);
 	
 private:
 	APCGWorldActor* PCGWorldActor = nullptr;
 	FPCGGraphExecutor* GraphExecutor = nullptr;
 	bool bHasTickedOnce = false;
+	UPCGActorAndComponentMapping ActorAndComponentMapping;
 
 #if WITH_EDITOR
 	FCriticalSection PCGWorldActorLock;
 #endif
-
-	FPCGComponentOctree PCGComponentOctree;
-	TMap<TObjectPtr<UPCGComponent>, FPCGComponentOctreeIDSharedRef> ComponentToIdMap;
-	mutable FRWLock PCGVolumeOctreeLock;
-
-	TMap<FIntVector, TObjectPtr<APCGPartitionActor>> PartitionActorsMap;
-	mutable FRWLock PartitionActorsMapLock;
-
-	TMap<TObjectPtr<const UPCGComponent>, TSet<TObjectPtr<APCGPartitionActor>>> ComponentToPartitionActorsMap;
-	mutable FRWLock ComponentToPartitionActorsMapLock;
-
-	TSet<TObjectPtr<UPCGComponent>> DelayedComponentToUnregister;
-	mutable FCriticalSection DelayedComponentToUnregisterLock;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

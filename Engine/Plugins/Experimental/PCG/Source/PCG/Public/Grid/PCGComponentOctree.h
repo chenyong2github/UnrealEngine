@@ -3,8 +3,10 @@
 #pragma once
 
 #include "Math/BoxSphereBounds.h"
-#include "Math/GenericOctreePublic.h"
+#include "Math/GenericOctree.h"
 #include "UObject/ObjectPtr.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SharedPointerFwd.h"
 
 template <typename ElementType, typename OctreeSemantics> class TOctree2;
 
@@ -15,7 +17,7 @@ struct PCG_API FPCGComponentOctreeID : public TSharedFromThis<FPCGComponentOctre
 	FOctreeElementId2 Id;
 };
 
-typedef TSharedRef<struct FPCGComponentOctreeID, ESPMode::ThreadSafe> FPCGComponentOctreeIDSharedRef;
+using FPCGComponentOctreeIDSharedRef = TSharedRef<struct FPCGComponentOctreeID, ESPMode::ThreadSafe>;
 
 struct PCG_API FPCGComponentRef
 {
@@ -57,7 +59,38 @@ struct PCG_API FPCGComponentRefSemantics
 	}
 };
 
-typedef TOctree2<FPCGComponentRef, FPCGComponentRefSemantics> FPCGComponentOctree;
+using FPCGComponentOctree = TOctree2<FPCGComponentRef, FPCGComponentRefSemantics> ;
+using FPCGComponentToIdMap = TMap<TObjectPtr<UPCGComponent>, FPCGComponentOctreeIDSharedRef>;
+
+class FPCGComponentOctreeAndMap
+{
+public:
+	FPCGComponentOctreeAndMap() = default;
+	FPCGComponentOctreeAndMap(const FVector& InOrigin, FVector::FReal InExtent);
+
+	void Reset(const FVector& InOrigin, FVector::FReal InExtent);
+
+	TSet<TObjectPtr<UPCGComponent>> GetAllComponents() const;
+
+	template<typename IterateBoundsFunc>
+	inline void FindElementsWithBoundsTest(const FBoxCenterAndExtent& BoxBounds, const IterateBoundsFunc& Func) const
+	{
+		FReadScopeLock ReadLock(Lock);
+		return Octree.FindElementsWithBoundsTest(BoxBounds, Func);
+	}
+
+	bool Contains(const UPCGComponent* InComponent) const;
+	FBox GetBounds(const UPCGComponent* InComponent) const;
+
+	void AddOrUpdateComponent(UPCGComponent* InComponent, FBox& OutBounds, bool& bOutComponentHasChanged, bool& bOutComponentWasAdded);
+	bool RemapComponent(const UPCGComponent* InOldComponent, UPCGComponent* InNewComponent, bool& bOutBoundsHasChanged);
+	bool RemoveComponent(UPCGComponent* InComponent);
+
+private:
+	FPCGComponentOctree Octree;
+	FPCGComponentToIdMap ComponentToIdMap;
+	mutable FRWLock Lock;
+};
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Math/GenericOctree.h"
