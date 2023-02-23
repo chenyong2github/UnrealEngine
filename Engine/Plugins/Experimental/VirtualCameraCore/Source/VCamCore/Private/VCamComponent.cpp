@@ -203,8 +203,7 @@ bool UVCamComponent::CanUpdate() const
 	const bool bIsSupportedWorld = World && (World->WorldType & ValidWorldTypes) != EWorldType::None;
 
 	// Modifiers requires a cine camera component
-	const USceneComponent* ParentComponent = GetAttachParent();
-	const bool bHasValidComponent = ParentComponent->IsA<UCineCameraComponent>();
+	const bool bHasValidComponent = GetTargetCamera() != nullptr;
 	
 	return bShouldUpdate && bIsSupportedWorld && bHasValidComponent;
 
@@ -624,13 +623,6 @@ void UVCamComponent::Update()
 			return;
 		}
 	}
-	
-	UCineCameraComponent* CameraComponent = GetTargetCamera();
-	if (!CameraComponent)
-	{
-		UE_LOG(LogVCamComponent, Error, TEXT("Parent component wasn't valid for Update"));
-		return;
-	}
 
 	EnsureInitialized();
 #if WITH_EDITOR
@@ -647,7 +639,7 @@ void UVCamComponent::Update()
 		
 		FLiveLinkCameraBlueprintData InitialLiveLinkData;
 		GetLiveLinkDataForCurrentFrame(InitialLiveLinkData);
-		CopyLiveLinkDataToCamera(InitialLiveLinkData, CameraComponent);
+		CopyLiveLinkDataToCamera(InitialLiveLinkData, GetTargetCamera());
 
 		TickModifierStack(DeltaTime);
 		SendCameraDataViaMultiUser();
@@ -657,6 +649,8 @@ void UVCamComponent::Update()
 	{
 		TickOutputProviders(DeltaTime);
 	}
+	
+	TickSubsystems(DeltaTime);
 }
 
 void UVCamComponent::SetEnabled(bool bNewEnabled)
@@ -1237,11 +1231,19 @@ void UVCamComponent::TickOutputProviders(float DeltaTime)
 	}
 }
 
+void UVCamComponent::TickSubsystems(float DeltaTime)
+{
+	const TSubclassOf<UVCamSubsystem> SubsystemClass = UVCamSubsystem::StaticClass();
+	for (UVCamSubsystem* Subsystem : SubsystemCollection.GetSubsystemArray(SubsystemClass))
+	{
+		Subsystem->OnUpdate(DeltaTime);
+	}
+}
+
 void UVCamComponent::CopyLiveLinkDataToCamera(const FLiveLinkCameraBlueprintData& LiveLinkData, UCineCameraComponent* CameraComponent)
 {
 	const FLiveLinkCameraStaticData& StaticData = LiveLinkData.StaticData;
 	const FLiveLinkCameraFrameData& FrameData = LiveLinkData.FrameData;
-
 
 	if (CameraComponent)
 	{

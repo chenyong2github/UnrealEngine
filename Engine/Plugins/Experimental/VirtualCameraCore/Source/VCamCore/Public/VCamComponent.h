@@ -472,6 +472,7 @@ private:
 	
 	void TickModifierStack(float DeltaTime);
 	void TickOutputProviders(float DeltaTime);
+	void TickSubsystems(float DeltaTime);
 	
 	static void CopyLiveLinkDataToCamera(const FLiveLinkCameraBlueprintData& LiveLinkData, UCineCameraComponent* CameraComponent);
 

@@ -16,4 +16,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	UVCamComponent* GetVCamComponent() const;
+
+	/** Called by UVCamComponent::Update (its equivalent of Tick). */
+	virtual void OnUpdate(float DeltaTime) {}
 };

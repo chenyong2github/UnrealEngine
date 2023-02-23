@@ -6,7 +6,6 @@
 
 #include "EnhancedInputSubsystemInterface.h"
 #include "VCamSubsystem.h"
-#include "Tickable.h"
 
 #include "InputVCamSubsystem.generated.h"
 
@@ -25,7 +24,7 @@ class UVCamPlayerInput;
  * Essentially maps input devices to UVCamComponents, similar like APlayerController does for gameplay code.
  */
 UCLASS()
-class VCAMCORE_API UInputVCamSubsystem : public UVCamSubsystem, public IEnhancedInputSubsystemInterface, public FTickableGameObject
+class VCAMCORE_API UInputVCamSubsystem : public UVCamSubsystem, public IEnhancedInputSubsystemInterface
 {
 	GENERATED_BODY()
 public:
@@ -34,7 +33,11 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	//~ End USubsystem Interface
-	
+
+	//~ Begin USubsystem Interface
+	virtual void OnUpdate(float DeltaTime) override;
+	//~ End USubsystem Interface
+
 	/** Inputs a key on this subsystem's player input which can then be processed as normal during Tick. */
 	bool InputKey(const FInputKeyParams& Params);
 
@@ -48,15 +51,6 @@ public:
 
 	const FVCamInputDeviceConfig& GetInputSettings() const;
 	void SetInputSettings(const FVCamInputDeviceConfig& Input);
-	
-	//~ Begin FTickableGameObject interface
-	virtual UWorld* GetTickableGameObjectWorld() const override;
-	virtual bool IsTickableInEditor() const { return true; }
-	virtual ETickableTickType GetTickableTickType() const override;
-	virtual bool IsAllowedToTick() const override;
-	virtual void Tick(float DeltaTime) override;
-	TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UInputVCamSubsystem, STATGROUP_Tickables); }
-	//~ End FTickableGameObject interface
 
 	//~ Begin IEnhancedInputSubsystemInterface Interface
 	virtual UEnhancedPlayerInput* GetPlayerInput() const override;

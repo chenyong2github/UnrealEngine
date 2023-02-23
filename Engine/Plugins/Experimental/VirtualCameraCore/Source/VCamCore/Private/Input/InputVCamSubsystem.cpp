@@ -4,6 +4,7 @@
 
 #include "Input/VCamPlayerInput.h"
 #include "LogVCamCore.h"
+#include "VCamComponent.h"
 #include "VCamInputProcessor.h"
 
 #include "Components/InputComponent.h"
@@ -85,9 +86,41 @@ void UInputVCamSubsystem::Deinitialize()
 #endif
 }
 
+void UInputVCamSubsystem::OnUpdate(float DeltaTime)
+{
+	if (!ensure(PlayerInput))
+	{
+		return;
+	}
+
+	FModifyContextOptions Options;
+	Options.bForceImmediately = true;
+	RequestRebuildControlMappings(Options);
+
+	TArray<UInputComponent*> InputStack;
+	for (auto It = CurrentInputStack.CreateIterator(); It; ++It)
+	{
+		if (UInputComponent* InputComponent = It->Get())
+		{
+			InputStack.Push(InputComponent);
+		}
+		else
+		{
+			It.RemoveCurrent();
+		}
+	}
+	
+	PlayerInput->Tick(DeltaTime);
+	PlayerInput->ProcessInputStack(InputStack, DeltaTime, false);
+}
+
 bool UInputVCamSubsystem::InputKey(const FInputKeyParams& Params)
 {
-	return PlayerInput->InputKey(Params);
+	// UVCamComponent::Update causes UInputVCamSubsystem::OnUpdate to be called.
+	// If CanUpdate tells us that won't be called, no input should be enqueued.
+	// If it was, then the next time an Update occurs, there would be an "explosion" of processed, accumulated, outdated inputs.
+	return GetVCamComponent()->CanUpdate()
+		&& PlayerInput->InputKey(Params);
 }
 
 void UInputVCamSubsystem::PushInputComponent(UInputComponent* InInputComponent)
@@ -156,49 +189,6 @@ void UInputVCamSubsystem::SetInputSettings(const FVCamInputDeviceConfig& Input)
 	InputPreprocessor->SetInputConsumptionRule(
 		bShouldConsumeGamepad ? UE::VCamCore::Private::EInputConsumptionRule::ConsumeOnlyGamepadIfUsed : UE::VCamCore::Private::EInputConsumptionRule::DoNotConsume
 		);
-}
-
-UWorld* UInputVCamSubsystem::GetTickableGameObjectWorld() const
-{
-	return GetTypedOuter<UWorld>();
-}
-
-ETickableTickType UInputVCamSubsystem::GetTickableTickType() const
-{
-	return IsTemplate() ? ETickableTickType::Never : ETickableTickType::Conditional;
-}
-
-bool UInputVCamSubsystem::IsAllowedToTick() const
-{
-	return PlayerInput != nullptr;
-}
-
-void UInputVCamSubsystem::Tick(float DeltaTime)
-{
-	if (!ensure(PlayerInput))
-	{
-		return;
-	}
-
-	FModifyContextOptions Options;
-	Options.bForceImmediately = true;
-	RequestRebuildControlMappings(Options);
-
-	TArray<UInputComponent*> InputStack;
-	for (auto It = CurrentInputStack.CreateIterator(); It; ++It)
-	{
-		if (UInputComponent* InputComponent = It->Get())
-		{
-			InputStack.Push(InputComponent);
-		}
-		else
-		{
-			It.RemoveCurrent();
-		}
-	}
-	
-	PlayerInput->Tick(DeltaTime);
-	PlayerInput->ProcessInputStack(InputStack, DeltaTime, false);
 }
 
 UEnhancedPlayerInput* UInputVCamSubsystem::GetPlayerInput() const
