@@ -3,13 +3,16 @@
 #include "VCamCoreEditorModule.h"
 
 #include "AssetToolsModule.h"
-#include "Customizations/ConnectionTargetSettingsTypeCustomization.h"
 #include "Customizations/OutputProvider/ConnectionRemapCustomization_StateSwitcher.h"
 #include "Customizations/OutputProvider/ConnectionRemapCustomization_VCamWidget.h"
 #include "Customizations/OutputProvider/OutputProviderLayoutCustomization.h"
 #include "Customizations/OutputProvider/OutputProviderTypeCustomization.h"
 #include "Customizations/StateSwitcher/VCamStateSwitcherWidgetCustomization.h"
 #include "Customizations/StateSwitcher/WidgetConnectionConfigTypeCustomization.h"
+#include "Customizations/TargetSettings/ConnectionTargetSettingsTypeCustomization.h"
+#include "Customizations/TargetSettings/InsideVCamConnectionContextFinder.h"
+#include "Customizations/TargetSettings/ListOfContextFinders.h"
+#include "Customizations/TargetSettings/StateSwitcherContextFinder.h"
 #include "Customizations/VCamBaseActorCustomization.h"
 #include "Customizations/VCamInputProfileCustomization.h"
 #include "Customizations/VCamViewportLockerTypeCustomization.h"
@@ -136,7 +139,18 @@ namespace UE::VCamCoreEditor::Private
 		);
 		PropertyModule.RegisterCustomPropertyTypeLayout(
 			FVCamConnectionTargetSettings::StaticStruct()->GetFName(),
-			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FConnectionTargetSettingsTypeCustomization::MakeInstance)
+			FOnGetPropertyTypeCustomizationInstance::CreateLambda([]()
+			{
+				using namespace ConnectionTargetContextFinding;
+				TArray<TSharedRef<IContextFinderForConnectionTargetSettings>> ContextFinders
+				{
+					MakeShared<FInsideVCamConnectionContextFinder>(),
+					MakeShared<FStateSwitcherContextFinder>()
+				};
+				return FConnectionTargetSettingsTypeCustomization::MakeInstance(
+					MakeShared<FListOfContextFinders>(MoveTemp(ContextFinders))
+					);
+			})
 		);
 		PropertyModule.RegisterCustomPropertyTypeLayout(
 			FWidgetConnectionConfig::StaticStruct()->GetFName(), 

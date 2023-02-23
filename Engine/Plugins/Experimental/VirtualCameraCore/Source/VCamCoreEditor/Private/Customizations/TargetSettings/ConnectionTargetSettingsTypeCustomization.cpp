@@ -2,6 +2,7 @@
 
 #include "ConnectionTargetSettingsTypeCustomization.h"
 
+#include "IContextFinderForConnectionTargetSettings.h"
 #include "VCamComponent.h"
 #include "UI/VCamConnectionStructs.h"
 #include "Util/ConnectionUtils.h"
@@ -21,18 +22,22 @@
 
 namespace UE::VCamCoreEditor::Private
 {
-	static TArray<FName> SortNamesAlphabeticallyAndPrependNone(TArray<FName>&& Names)
+	static TArray<FName>& SortNamesAlphabeticallyAndPrependNone(TArray<FName>& Names)
 	{
-		TArray<FName> Result = MoveTemp(Names);
-		Result.Sort([](const FName& Left, const FName& Right){ return Left.LexicalLess(Right); });
-		Result.Insert(NAME_None, 0);
-		return Result;
+		Names.Sort([](const FName& Left, const FName& Right){ return Left.LexicalLess(Right); });
+		// None should always be first
+		Names.Insert(NAME_None, 0);
+		return Names;
 	}
 	
-	TSharedRef<IPropertyTypeCustomization> FConnectionTargetSettingsTypeCustomization::MakeInstance()
+	TSharedRef<IPropertyTypeCustomization> FConnectionTargetSettingsTypeCustomization::MakeInstance(TSharedRef<ConnectionTargetContextFinding::IContextFinderForConnectionTargetSettings> ContextFinder)
 	{
-		return MakeShared<FConnectionTargetSettingsTypeCustomization>();
+		return MakeShared<FConnectionTargetSettingsTypeCustomization>(MoveTemp(ContextFinder));
 	}
+	
+	FConnectionTargetSettingsTypeCustomization::FConnectionTargetSettingsTypeCustomization(TSharedRef<ConnectionTargetContextFinding::IContextFinderForConnectionTargetSettings> ContextFinder)
+		: ContextFinder(MoveTemp(ContextFinder))
+	{}
 
 	void FConnectionTargetSettingsTypeCustomization::CustomizeHeader(
 		TSharedRef<IPropertyHandle> PropertyHandle,
@@ -74,23 +79,19 @@ namespace UE::VCamCoreEditor::Private
 				TargetConnectionPointProperty = ChildProperty;
 			}
 		}
-		
-		AddScopeRow(ChildBuilder, CustomizationUtils);
-		
-		const TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
-		const FStructProperty* ParentStruct = CastField<FStructProperty>(ParentHandle->GetProperty());
-		const bool bIsValidHandle = ParentHandle
-			&& ParentStruct
-			&& ParentStruct->Struct == FVCamConnection::StaticStruct();
-		const TSharedPtr<IPropertyHandle> OptionalVCamConnectionParentStructHandle = bIsValidHandle
-			? ParentHandle
-			: nullptr;
-		
-		IDetailPropertyRow& ModifierRow = ChildBuilder.AddProperty(TargetModifierNameProperty.ToSharedRef());
-		CustomizeModifier(TargetModifierNameProperty.ToSharedRef(), ModifierRow, OptionalVCamConnectionParentStructHandle);
 
+		// 1. Tell user where we're pulling data from
+		AddScopeRow(ChildBuilder, CustomizationUtils);
+
+		const TSharedRef<IPropertyUtilities> Utils = CustomizationUtils.GetPropertyUtilities().ToSharedRef();
+
+		// 2. Choose modifier
+		IDetailPropertyRow& ModifierRow = ChildBuilder.AddProperty(TargetModifierNameProperty.ToSharedRef());
+		CustomizeModifier(TargetModifierNameProperty.ToSharedRef(), ModifierRow, PropertyHandle, Utils);
+
+		// 3. Choose connection point on modifier
 		IDetailPropertyRow& TargetConnectionRow = ChildBuilder.AddProperty(TargetModifierNameProperty.ToSharedRef());
-		CustomizeConnectionPoint(TargetModifierNameProperty.ToSharedRef(), TargetConnectionPointProperty.ToSharedRef(), TargetConnectionRow, OptionalVCamConnectionParentStructHandle);
+		CustomizeConnectionPoint(TargetModifierNameProperty.ToSharedRef(), TargetConnectionPointProperty.ToSharedRef(), TargetConnectionRow, PropertyHandle, Utils);
 	}
 
 	void FConnectionTargetSettingsTypeCustomization::AddScopeRow(IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
@@ -130,11 +131,12 @@ namespace UE::VCamCoreEditor::Private
 	void FConnectionTargetSettingsTypeCustomization::CustomizeModifier(
 		TSharedRef<IPropertyHandle> ModifierHandle,
 		IDetailPropertyRow& Row,
-		TSharedPtr<IPropertyHandle> OptionalVCamConnectionParentStructHandle // Can be null
+		TSharedRef<IPropertyHandle> ConnectionTargetSettingsStructHandle,
+		TSharedRef<IPropertyUtilities> PropertyUtils
 		) const
 	{
 		CustomizeNameProperty(ModifierHandle, Row,
-			TAttribute<TArray<FName>>::CreateLambda([OptionalVCamConnectionParentStructHandle]() -> TArray<FName>
+			TAttribute<TArray<FName>>::CreateLambda([ConnectionTargetSettingsStructHandle, PropertyUtils, ContextFinder = ContextFinder]() -> TArray<FName>
 			{
 				UVCamComponent* DataSource = GetUserFocusedConnectionPointSource().Component.Get();
 				if (!DataSource)
@@ -142,18 +144,18 @@ namespace UE::VCamCoreEditor::Private
 					return {};
 				}
 
-				// If the property is within a FVCamConnection, narrow down the list of suggested modifiers
-				void* ValueData = nullptr;
-				if (OptionalVCamConnectionParentStructHandle
-					&& OptionalVCamConnectionParentStructHandle->IsValidHandle()
-					&& OptionalVCamConnectionParentStructHandle->GetValueData(ValueData) == FPropertyAccess::Success
-					&& ValueData)
+				// If the property is within some special struct from which we can retrieve a FVCamConnection, narrow down the list of suggested modifiers
+				TArray<FName> Result;
+				auto ProcessIfContextFound = [&Result, DataSource](const FVCamConnection& Connection)
 				{
-					const FVCamConnection* ConnectionData = static_cast<FVCamConnection*>(ValueData);
-					return SortNamesAlphabeticallyAndPrependNone(VCamCore::ConnectionUtils::FindCompatibleModifierNames(*ConnectionData, *DataSource));
-				}
-				
-				return SortNamesAlphabeticallyAndPrependNone(DataSource->GetAllModifierNames());
+					Result = VCamCore::ConnectionUtils::FindCompatibleModifierNames(Connection, *DataSource);
+				};
+				auto ProcessIfNoContext = [&Result, DataSource]()
+				{
+					Result = DataSource->GetAllModifierNames();
+				};
+				ContextFinder->FindAndProcessContext(ConnectionTargetSettingsStructHandle, PropertyUtils.Get(), ProcessIfContextFound, ProcessIfNoContext);
+				return SortNamesAlphabeticallyAndPrependNone(Result);
 			}),
 			TAttribute<bool>::CreateLambda([](){ return GetUserFocusedConnectionPointSource().ComponentSource != EComponentSource::None; })
 			);
@@ -163,11 +165,12 @@ namespace UE::VCamCoreEditor::Private
 		TSharedRef<IPropertyHandle> ModifierHandle,
 		TSharedRef<IPropertyHandle> ConnectionPointHandle,
 		IDetailPropertyRow& Row,
-		TSharedPtr<IPropertyHandle> OptionalVCamConnectionParentStructHandle // Can be null
+		TSharedRef<IPropertyHandle> ConnectionTargetSettingsStructHandle,
+		TSharedRef<IPropertyUtilities> PropertyUtils
 		) const
 	{
 		CustomizeNameProperty(ConnectionPointHandle, Row,
-			TAttribute<TArray<FName>>::CreateLambda([ModifierHandle, OptionalVCamConnectionParentStructHandle]() -> TArray<FName>
+			TAttribute<TArray<FName>>::CreateLambda([ModifierHandle, ConnectionTargetSettingsStructHandle, PropertyUtils, ContextFinder = ContextFinder]() -> TArray<FName>
 			{
 				FName ModifierName;
 				if (ModifierHandle->GetValue(ModifierName) != FPropertyAccess::Success)
@@ -187,20 +190,18 @@ namespace UE::VCamCoreEditor::Private
 					return {};
 				}
 
-				// If the property is within a FVCamConnection, narrow down the list of suggested modifiers
-				void* ValueData = nullptr;
-				if (OptionalVCamConnectionParentStructHandle
-					&& OptionalVCamConnectionParentStructHandle->IsValidHandle()
-					&& OptionalVCamConnectionParentStructHandle->GetValueData(ValueData) == FPropertyAccess::Success
-					&& ValueData)
+				// If the property is within some special struct from which we can retrieve a FVCamConnection, narrow down the list of suggested connection points
+				TArray<FName> Result;
+				auto ProcessIfContextFound = [&Result, Modifier](const FVCamConnection& Connection)
 				{
-					const FVCamConnection* ConnectionData = static_cast<FVCamConnection*>(ValueData);
-					return SortNamesAlphabeticallyAndPrependNone(VCamCore::ConnectionUtils::FindCompatibleConnectionPoints(*ConnectionData, *Modifier));
-				}
-
-				TArray<FName> ConnectionPoints;
-				Modifier->ConnectionPoints.GenerateKeyArray(ConnectionPoints);
-				return SortNamesAlphabeticallyAndPrependNone(MoveTemp(ConnectionPoints));
+					Result = VCamCore::ConnectionUtils::FindCompatibleConnectionPoints(Connection, *Modifier);
+				};
+				auto ProcessIfNoContext = [&Result, Modifier]()
+				{
+					Modifier->ConnectionPoints.GenerateKeyArray(Result);
+				};
+				ContextFinder->FindAndProcessContext(ConnectionTargetSettingsStructHandle, PropertyUtils.Get(), ProcessIfContextFound,ProcessIfNoContext);
+				return SortNamesAlphabeticallyAndPrependNone(Result);
 			}),
 			TAttribute<bool>::CreateLambda([ModifierHandle]()
 			{
