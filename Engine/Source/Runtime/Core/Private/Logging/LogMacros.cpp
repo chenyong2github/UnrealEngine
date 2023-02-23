@@ -49,7 +49,7 @@ void FMsg::LogfImpl(const ANSICHAR* File, int32 Line, const FLogCategoryName& Ca
 #endif
 }
 
-void FMsg::Logf_InternalImpl(const ANSICHAR* File, int32 Line, const FLogCategoryName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Fmt, ...)
+void FMsg::LogV(const ANSICHAR* File, int32 Line, const FLogCategoryName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Fmt, va_list Args)
 {
 #if !NO_LOGGING
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMsgLogf);
@@ -57,30 +57,37 @@ void FMsg::Logf_InternalImpl(const ANSICHAR* File, int32 Line, const FLogCategor
 
 	if (LIKELY(Verbosity != ELogVerbosity::Fatal))
 	{
-		// SetColour is routed to GWarn just like the other verbosities and handled in the
-		// device that does the actual printing.
-		FOutputDevice* LogOverride = nullptr;
+		TStringBuilder<512> Buffer;
+		Buffer.AppendV(Fmt, Args);
+		const TCHAR* Message = *Buffer;
+		FOutputDevice* OutputDevice = nullptr;
 		switch (Verbosity)
 		{
 		case ELogVerbosity::Error:
 		case ELogVerbosity::Warning:
 		case ELogVerbosity::Display:
 		case ELogVerbosity::SetColor:
-			LogOverride = GWarn;
+			OutputDevice = GWarn;
 			break;
 		default:
 			break;
 		}
-		GROWABLE_LOGF(LogOverride	? LogOverride->Log(Category, Verbosity, Buffer)
-									: GLog->RedirectLog(Category, Verbosity, Buffer))
+		(OutputDevice ? OutputDevice : GLog)->Serialize(Message, Verbosity, Category);
 	}
 	else
 	{
-		va_list Args;
-		va_start(Args, Fmt);
 		StaticFailDebugV(TEXT("Fatal error:"), "", File, Line, /*bIsEnsure*/ false, PLATFORM_RETURN_ADDRESS(), Fmt, Args);
-		va_end(Args);
 	}
+#endif
+}
+
+void FMsg::Logf_InternalImpl(const ANSICHAR* File, int32 Line, const FLogCategoryName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Fmt, ...)
+{
+#if !NO_LOGGING
+	va_list Args;
+	va_start(Args, Fmt);
+	LogV(File, Line, Category, Verbosity, Fmt, Args);
+	va_end(Args);
 #endif
 }
 

@@ -236,7 +236,7 @@ void LanczosCG(
 	set(x, c);
 	scale(x, p);
 	AXPY(v, -alpha, q);
-	T residual;
+	T residual{};
 	TArray<TV> y; y.SetNum(x.Num());
 	for (int it = 1; it < max_it; it++) 
 	{

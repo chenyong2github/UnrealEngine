@@ -22,6 +22,16 @@
 #include "Serialization/CompactBinaryValue.h"
 #include "Serialization/VarInt.h"
 
+void StaticFailDebugV(
+	const TCHAR* Error,
+	const ANSICHAR* Expression,
+	const ANSICHAR* File,
+	int32 Line,
+	bool bIsEnsure,
+	void* ProgramCounter,
+	const TCHAR* DescriptionFormat,
+	va_list DescriptionArgs);
+
 namespace UE::Logging::Private
 {
 
@@ -726,7 +736,7 @@ FORCENOINLINE static FLogTemplate& CreateLogTemplate(const StaticLogRecordType& 
 template <typename StaticLogRecordType>
 inline static FLogTemplate& EnsureLogTemplate(const StaticLogRecordType& Log, const FLogField* Fields, const int32 FieldCount)
 {
-	if (FLogTemplate* Template = Log.DynamicData.Template.load(std::memory_order_acquire))
+	if (FLogTemplate* Template = Log.DynamicData.Template.load(std::memory_order_acquire); LIKELY(Template))
 	{
 		return *Template;
 	}
@@ -760,15 +770,19 @@ inline static void DispatchLogRecord(const StaticLogRecordType& Log, const FLogR
 	}
 #endif
 
+	FOutputDevice* OutputDevice = nullptr;
 	switch (Log.Verbosity)
 	{
 	case ELogVerbosity::Error:
 	case ELogVerbosity::Warning:
 	case ELogVerbosity::Display:
-		return GWarn->SerializeRecord(Record);
+	case ELogVerbosity::SetColor:
+		OutputDevice = GWarn;
+		break;
 	default:
-		return GLog->SerializeRecord(Record);
+		break;
 	}
+	(OutputDevice ? OutputDevice : GLog)->SerializeRecord(Record);
 }
 
 void LogWithFieldArray(const FStaticLogRecord& Log, const FLogField* Fields, const int32 FieldCount)
@@ -794,6 +808,145 @@ void LogWithFieldArray(const FStaticLocalizedLogRecord& Log, const FLogField* Fi
 void LogWithNoFields(const FStaticLocalizedLogRecord& Log)
 {
 	LogWithFieldArray(Log, nullptr, 0);
+}
+
+} // UE::Logging::Private
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace UE::Logging::Private
+{
+
+static constexpr const TCHAR* const GStaticBasicLogFormat = TEXT("{Message}");
+
+class FStaticBasicLogTemplateManager
+{
+public:
+	~FStaticBasicLogTemplateManager()
+	{
+		if (FLogTemplate* LocalTemplate = Template.exchange(nullptr))
+		{
+			FLogTemplate::Destroy(LocalTemplate);
+		}
+	}
+
+	inline FLogTemplate& EnsureTemplate()
+	{
+		if (FLogTemplate* LocalTemplate = Template.load(std::memory_order_acquire); LIKELY(LocalTemplate))
+		{
+			return *LocalTemplate;
+		}
+		return CreateTemplate();
+	}
+
+private:
+	FORCENOINLINE FLogTemplate& CreateTemplate()
+	{
+		FLogTemplate* NewTemplate = FLogTemplate::Create(GStaticBasicLogFormat);
+		if (FLogTemplate* ExistingTemplate = nullptr;
+			UNLIKELY(!Template.compare_exchange_strong(ExistingTemplate, NewTemplate, std::memory_order_release, std::memory_order_acquire)))
+		{
+			FLogTemplate::Destroy(NewTemplate);
+			return *ExistingTemplate;
+		}
+		return *NewTemplate;
+	}
+
+	std::atomic<FLogTemplate*> Template = nullptr;
+};
+
+static FStaticBasicLogTemplateManager GStaticBasicLogTemplateManager;
+
+FORCENOINLINE static void OutputBasicLogMessageSpec(const FLogCategoryBase& Category, const FStaticBasicLogRecord& Log)
+{
+#if LOGTRACE_ENABLED
+	FLogTrace::OutputLogMessageSpec(&Log, &Category, Log.Verbosity, Log.File, Log.Line, TEXT("%s"));
+#endif
+	Log.DynamicData.bInitialized.store(true, std::memory_order_release);
+}
+
+inline static void EnsureBasicLogMessageSpec(const FLogCategoryBase& Category, const FStaticBasicLogRecord& Log)
+{
+	if (!Log.DynamicData.bInitialized.load(std::memory_order_acquire))
+	{
+		OutputBasicLogMessageSpec(Category, Log);
+	}
+}
+
+// Serializing the log to compact binary happens in its own function because that allows stack
+// space for the writer to be returned before calling into the output devices.
+FORCENOINLINE static FCbObject SerializeBasicLogMessage(const FStaticBasicLogRecord& Log, va_list Args)
+{
+	TStringBuilder<512> Message;
+	Message.AppendV(Log.Format, Args);
+
+#if LOGTRACE_ENABLED
+	FLogTrace::OutputLogMessageSimple(&Log, TEXT("%s"), *Message);
+#endif
+
+	TCbWriter<512> Writer;
+	Writer.BeginObject();
+	Writer.AddString(ANSITEXTVIEW("Message"), Message);
+	Writer.EndObject();
+	return Writer.Save().AsObject();
+}
+
+void BasicLog(const FLogCategoryBase& Category, const FStaticBasicLogRecord* Log, ...)
+{
+#if !NO_LOGGING
+	EnsureBasicLogMessageSpec(Category, *Log);
+
+#if 0 // Enable to use structured logging for these logs. Experimental.
+	va_list Args;
+	va_start(Args, Log);
+	FCbObject Fields = SerializeBasicLogMessage(*Log, Args);
+	va_end(Args);
+
+	FLogRecord Record;
+	Record.SetFormat(GStaticBasicLogFormat);
+	Record.SetTemplate(&GStaticBasicLogTemplateManager.EnsureTemplate());
+	Record.SetFields(MoveTemp(Fields));
+	Record.SetFile(Log->File);
+	Record.SetLine(Log->Line);
+	Record.SetCategory(Category.GetCategoryName());
+	Record.SetVerbosity(Log->Verbosity);
+	Record.SetTime(FLogTime::Now());
+
+	FOutputDevice* OutputDevice = nullptr;
+	switch (Log->Verbosity)
+	{
+	case ELogVerbosity::Error:
+	case ELogVerbosity::Warning:
+	case ELogVerbosity::Display:
+	case ELogVerbosity::SetColor:
+		OutputDevice = GWarn;
+		break;
+	default:
+		break;
+	}
+	(OutputDevice ? OutputDevice : GLog)->SerializeRecord(Record);
+#else
+	va_list Args;
+	va_start(Args, Log);
+	FMsg::LogV(Log->File, Log->Line, Category.GetCategoryName(), Log->Verbosity, Log->Format, Args);
+	va_end(Args);
+#endif
+#endif
+}
+
+void BasicFatalLog(const FLogCategoryBase& Category, const FStaticBasicLogRecord* Log, ...)
+{
+#if !NO_LOGGING
+	va_list Args;
+	va_start(Args, Log);
+	StaticFailDebugV(TEXT("Fatal error:"), "", Log->File, Log->Line, /*bIsEnsure*/ false, PLATFORM_RETURN_ADDRESS(), Log->Format, Args);
+	va_end(Args);
+	va_start(Args, Log);
+	FDebug::AssertFailedV("", Log->File, Log->Line, Log->Format, Args);
+	va_end(Args);
+	UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE();
+	FDebug::ProcessFatalError(PLATFORM_RETURN_ADDRESS());
+#endif
 }
 
 } // UE::Logging::Private
