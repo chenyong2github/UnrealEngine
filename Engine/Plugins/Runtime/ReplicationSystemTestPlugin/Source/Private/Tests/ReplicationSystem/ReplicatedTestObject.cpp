@@ -448,6 +448,11 @@ UTestReplicatedIrisObjectWithNoReplicatedMembers::UTestReplicatedIrisObjectWithN
 {
 }
 
+void UTestReplicatedIrisObjectWithNoReplicatedMembers::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
+{
+	Fragments.SetIsFragmentlessNetObject(true);
+}
+
 void UReplicatedSubObjectOrderObject::GetLifetimeReplicatedProps(TArray< class FLifetimeProperty >& OutLifetimeProps) const
 {
 	DOREPLIFETIME(UReplicatedSubObjectOrderObject, IntA);

@@ -420,6 +420,8 @@ class UTestReplicatedIrisObjectWithNoReplicatedMembers : public UReplicatedTestO
 
 public:
 	UTestReplicatedIrisObjectWithNoReplicatedMembers();
+
+	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 };
 
 /**

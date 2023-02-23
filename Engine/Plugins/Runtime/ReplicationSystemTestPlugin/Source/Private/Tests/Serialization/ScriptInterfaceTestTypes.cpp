@@ -20,3 +20,13 @@ void UTestObjectReferencingScriptInterface::GetLifetimeReplicatedProps(TArray<FL
 
 	DOREPLIFETIME(ThisClass, InterfaceObject);
 }
+
+void UTestScriptInterfaceReplicatedObject::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
+{
+	Fragments.SetIsFragmentlessNetObject(true);
+}
+
+void UTestScriptInterfaceReplicatedObjectWithDefaultSubobject::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
+{
+	Fragments.SetIsFragmentlessNetObject(true);
+}

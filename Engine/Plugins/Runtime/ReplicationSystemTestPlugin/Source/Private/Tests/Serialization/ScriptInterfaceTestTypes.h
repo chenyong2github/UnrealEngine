@@ -42,6 +42,8 @@ class UTestScriptInterfaceReplicatedObject : public UReplicatedTestObject, publi
 public:
 	// IIrisTestInterface
 	virtual bool IsInterfaceFunctionOverridden() const { return true; }
+
+	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 };
 
 UCLASS()
@@ -51,6 +53,8 @@ class UTestScriptInterfaceReplicatedObjectWithDefaultSubobject : public UReplica
 
 public:
 	UTestScriptInterfaceReplicatedObjectWithDefaultSubobject(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 
 public:
 	TObjectPtr<UObject> DefaultSubobjectWithInterface;
