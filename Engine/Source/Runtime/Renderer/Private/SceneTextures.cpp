@@ -767,6 +767,28 @@ void QueueSceneTextureExtractions(FRDGBuilder& GraphBuilder, const FSceneTexture
 	return GSceneTextureExtracts.QueueExtractions(GraphBuilder, SceneTextures);
 }
 
+FRDGTextureRef GetSceneTexture(const FSceneTextures& SceneTextures, ESceneTexture InSceneTexture)
+{
+	switch (InSceneTexture)
+	{
+	case ESceneTexture::Color:          return SceneTextures.Color.Resolve;
+	case ESceneTexture::Depth:          return SceneTextures.Depth.Resolve;
+	case ESceneTexture::SmallDepth:     return SceneTextures.SmallDepth;
+	case ESceneTexture::Velocity:       return SceneTextures.Velocity;
+	case ESceneTexture::GBufferA:       return SceneTextures.GBufferA;
+	case ESceneTexture::GBufferB:       return SceneTextures.GBufferB;
+	case ESceneTexture::GBufferC:       return SceneTextures.GBufferC;
+	case ESceneTexture::GBufferD:       return SceneTextures.GBufferD;
+	case ESceneTexture::GBufferE:       return SceneTextures.GBufferE;
+	case ESceneTexture::GBufferF:       return SceneTextures.GBufferF;
+	case ESceneTexture::SSAO:           return SceneTextures.ScreenSpaceAO;
+	case ESceneTexture::CustomDepth:	return SceneTextures.CustomDepth.Depth;
+	default:
+		checkNoEntry();
+		return nullptr;
+	}
+}
+
 void SetupSceneTextureUniformParameters(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures* SceneTextures,

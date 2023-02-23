@@ -8,13 +8,13 @@
 #include "Module/TextureShareLog.h"
 #include "Misc/TextureShareStrings.h"
 
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
 #include "RHI.h"
 #include "RHICommandList.h"
 #include "RHIResources.h"
+#include "SceneRenderTargetParameters.h"
 #include "SceneView.h"
-#include "SceneTextures.h"
-
-#include "PostProcess/SceneRenderTargets.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 namespace TextureShareSceneViewExtensionHelpers
@@ -133,24 +133,26 @@ void FTextureShareSceneViewExtension::GetSceneViewData_RenderThread(const FTextu
 
 void FTextureShareSceneViewExtension::ShareSceneViewColors_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, const FTextureShareSceneView& InView)
 {
-	const auto AddShareTexturePass = [&](const TCHAR* InTextureName, const FRDGTextureRef& InTextureRef)
+	const auto AddShareTexturePass = [&](const TCHAR* InTextureName, ESceneTexture InSceneTexture)
 	{
+		const FRDGTextureRef InTextureRef = GetSceneTexture(SceneTextures, InSceneTexture);
+
 		// Send resource
 		ObjectProxy->ShareResource_RenderThread(GraphBuilder, FTextureShareCoreResourceDesc(InTextureName, InView.ViewInfo.ViewDesc, ETextureShareTextureOp::Read),
 			InTextureRef, InView.GPUIndex, &InView.UnconstrainedViewRect);
 	};
 
-	AddShareTexturePass(TextureShareStrings::SceneTextures::SceneColor, SceneTextures.Color.Resolve);
+	AddShareTexturePass(TextureShareStrings::SceneTextures::SceneColor, ESceneTexture::Color);
 
-	AddShareTexturePass(TextureShareStrings::SceneTextures::SceneDepth, SceneTextures.Depth.Resolve);
-	AddShareTexturePass(TextureShareStrings::SceneTextures::SmallDepthZ, SceneTextures.SmallDepth);
+	AddShareTexturePass(TextureShareStrings::SceneTextures::SceneDepth, ESceneTexture::Depth);
+	AddShareTexturePass(TextureShareStrings::SceneTextures::SmallDepthZ, ESceneTexture::SmallDepth);
 
-	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferA, SceneTextures.GBufferA);
-	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferB, SceneTextures.GBufferB);
-	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferC, SceneTextures.GBufferC);
-	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferD, SceneTextures.GBufferD);
-	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferE, SceneTextures.GBufferE);
-	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferF, SceneTextures.GBufferF);
+	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferA, ESceneTexture::GBufferA);
+	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferB, ESceneTexture::GBufferB);
+	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferC, ESceneTexture::GBufferC);
+	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferD, ESceneTexture::GBufferD);
+	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferE, ESceneTexture::GBufferE);
+	AddShareTexturePass(TextureShareStrings::SceneTextures::GBufferF, ESceneTexture::GBufferF);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

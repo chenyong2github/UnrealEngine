@@ -11,6 +11,24 @@
 class FRDGBuilder;
 struct FSceneTextures;
 
+enum class ESceneTexture
+{
+	Color,
+	Depth,
+	SmallDepth,
+	Velocity,
+	GBufferA,
+	GBufferB,
+	GBufferC,
+	GBufferD,
+	GBufferE,
+	GBufferF,
+	SSAO,
+	CustomDepth,
+};
+
+RENDERER_API FRDGTextureRef GetSceneTexture(const FSceneTextures& SceneTextures, ESceneTexture InSceneTexture);
+
 enum class ESceneTextureSetupMode : uint32
 {
 	None			= 0,
