@@ -596,7 +596,7 @@ void FNormalizeToRangeDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 
 		if (IRangeMin > InRangeMax)
 		{
-			Swap(InRangeMax, InRangeMax);
+			Swap(IRangeMin, InRangeMax);
 		}
 		Result = (InFloat - IRangeMin) / (InRangeMax - IRangeMin);
 
