@@ -202,6 +202,11 @@ void FVulkanShaderResourceView::UpdateView()
 		else if (SourceBuffer->IsDynamic() && (BufferIndex != SourceBuffer->GetDynamicIndex()))
 		{
 			BufferIndex = SourceBuffer->GetDynamicIndex();
+			if (BufferIndex >= (uint32)BufferViews.Num())
+			{
+				BufferViews.AddZeroed(BufferIndex - BufferViews.Num() + 1);
+			}
+
 			FreeBindlessHandle();
 		}
 

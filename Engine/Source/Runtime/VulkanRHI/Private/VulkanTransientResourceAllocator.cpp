@@ -133,7 +133,7 @@ FRHITransientBuffer* FVulkanTransientResourceAllocator::CreateBuffer(const FRHIB
 
 	const bool bZeroSize = (InCreateInfo.Size == 0);
 	const uint32 Alignment = FMemoryManager::CalculateBufferAlignment(*Device, InCreateInfo.Usage, bZeroSize);
-	uint64 Size = Align(InCreateInfo.Size, Alignment) * FVulkanResourceMultiBuffer::GetNumBuffersFromUsage(InCreateInfo.Usage);
+	uint64 Size = Align(InCreateInfo.Size, Alignment);
 
 	return CreateBufferInternal(InCreateInfo, InDebugName, InPassIndex, Size, Alignment,
 		[&](const FRHITransientHeap::FResourceInitializer& Initializer)

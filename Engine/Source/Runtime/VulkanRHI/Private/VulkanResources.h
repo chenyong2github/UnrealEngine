@@ -910,55 +910,55 @@ public:
 
 	inline const VulkanRHI::FVulkanAllocation& GetCurrentAllocation() const
 	{
-		return Current.Alloc;
+		return BufferAllocs[CurrentBufferIndex].Alloc;
 	}
 
 	inline VkBuffer GetHandle() const
 	{
-		return Current.Handle;
+		return (VkBuffer)GetCurrentAllocation().VulkanHandle;
 	}
 
 	inline bool IsDynamic() const
 	{
-		return NumBuffers > 1;
+		return EnumHasAnyFlags(GetUsage(), BUF_Dynamic);
 	}
 
 	inline int32 GetDynamicIndex() const
 	{
-		return DynamicBufferIndex;
+		return CurrentBufferIndex;
 	}
 
 	inline bool IsVolatile() const
 	{
-		return NumBuffers == 0;
+		return EnumHasAnyFlags(GetUsage(), BUF_Volatile);
 	}
 
 	inline uint32 GetVolatileLockCounter() const
 	{
 		check(IsVolatile());
-		return VolatileLockInfo.LockCounter;
+		return LockCounter;
 	}
 	inline uint32 GetVolatileLockSize() const
 	{
 		check(IsVolatile());
-		return VolatileLockInfo.Size;
+		return GetCurrentAllocation().Size;
 	}
 
 	inline int32 GetNumBuffers() const
 	{
-		return NumBuffers;
+		return BufferAllocs.Num();
 	}
 
 	// Offset used for Binding a VkBuffer
 	inline uint32 GetOffset() const
 	{
-		return Current.Offset;
+		return GetCurrentAllocation().Offset;
 	}
 
 	// Remaining size from the current offset
 	inline uint64 GetCurrentSize() const
 	{
-		return Current.Alloc.Size - (Current.Offset - Current.Alloc.Offset);
+		return GetCurrentAllocation().Size;
 	}
 
 	inline VkBufferUsageFlags GetBufferUsageFlags() const
@@ -998,40 +998,39 @@ public:
 
 	static VkBufferUsageFlags UEToVKBufferUsageFlags(FVulkanDevice* InDevice, EBufferUsageFlags InUEUsage, bool bZeroSize);
 
-	static inline int32 GetNumBuffersFromUsage(EBufferUsageFlags InUEUsage)
-	{
-		const bool bDynamic = EnumHasAnyFlags(InUEUsage, BUF_Dynamic);
-		return bDynamic ? NUM_BUFFERS : 1;
-	}
-
 protected:
+
+	void AdvanceBufferIndex();
+	void UpdateBufferAllocStates(FVulkanCommandListContext& Context);
+
 	void Unlock(FRHICommandListBase* RHICmdList, FVulkanCommandListContext* Context);
 
-
 	VkBufferUsageFlags BufferUsageFlags;
-	uint8 NumBuffers;
-	uint8 DynamicBufferIndex;
+
 	enum class ELockStatus : uint8
 	{
 		Unlocked,
 		Locked,
 		PersistentMapping,
-	} LockStatus;
+	} LockStatus = ELockStatus::Unlocked;
 
-	enum
-	{
-		NUM_BUFFERS = 3,
-	};
-
-	VulkanRHI::FVulkanAllocation Buffers[NUM_BUFFERS];
-	struct
+	struct FBufferAlloc
 	{
 		VulkanRHI::FVulkanAllocation Alloc;
-		VkBuffer Handle = VK_NULL_HANDLE;
-		uint64 Offset = 0;
-		uint64 Size = 0;
-	} Current;
-	VulkanRHI::FTempFrameAllocationBuffer::FTempAllocInfo VolatileLockInfo;
+		void* HostPtr = nullptr;
+		class FVulkanGPUFence* Fence = nullptr;
+
+		enum class EAllocStatus : uint8
+		{
+			Available,	// The allocation is ready to be used
+			InUse,		// CurrentBufferIndex should point to this allocation
+			NeedsFence,	// The allocation was just released and needs a fence to make sure previous commands are done with it
+			Pending,	// Fence was written, we are waiting on it to know that the alloc can be used again
+		} AllocStatus = EAllocStatus::Available;
+	};
+	TArray<FBufferAlloc, TInlineAllocator<3>> BufferAllocs;
+	int32 CurrentBufferIndex = -1;
+	uint32 LockCounter = 0;
 
 	static void InternalUnlock(FVulkanCommandListContext& Context, VulkanRHI::FPendingBufferLock& PendingLock, FVulkanResourceMultiBuffer* MultiBuffer, int32 InDynamicBufferIndex);
 
