@@ -2203,15 +2203,21 @@ CORE_API void VectorMatrixMultiply(FMatrix44f* Result, const FMatrix44f* Matrix1
 CORE_API void VectorMatrixMultiply(FMatrix44d* Result, const FMatrix44d* Matrix1, const FMatrix44d* Matrix2);
 
 /**
- * Calculate the inverse of an FMatrix.
+ * Calculate the inverse of an FMatrix44.  Src == Dst is allowed
  *
- * @param DstMatrix		FMatrix pointer to where the result should be stored
- * @param SrcMatrix		FMatrix pointer to the Matrix to be inversed
+ * @param DstMatrix		FMatrix44 pointer to where the result should be stored
+ * @param SrcMatrix		FMatrix44 pointer to the Matrix to be inversed
+ * @return bool			returns false if matrix is not invertable and stores identity 
+ *
  */
-CORE_API void VectorMatrixInverse(FMatrix44f* DstMatrix, const FMatrix44f* SrcMatrix);
-CORE_API void VectorMatrixInverse(FMatrix44d* DstMatrix, const FMatrix44d* SrcMatrix);
-
-
+FORCEINLINE bool VectorMatrixInverse(FMatrix44d* DstMatrix, const FMatrix44d* SrcMatrix)
+{
+	return FMath::MatrixInverse(DstMatrix,SrcMatrix);
+}
+FORCEINLINE bool VectorMatrixInverse(FMatrix44f* DstMatrix, const FMatrix44f* SrcMatrix)
+{
+	return FMath::MatrixInverse(DstMatrix,SrcMatrix);
+}
 
 /**
  * Calculate Homogeneous transform.

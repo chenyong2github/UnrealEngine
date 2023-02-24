@@ -201,10 +201,10 @@ public:
 	/** @return the determinant of rotation 3x3 matrix */
 	inline T RotDeterminant() const;
 
-	/** Fast path, doesn't check for nil matrices in final release builds */
+	/** Get the inverse of this matrix.  Will ensure on nil matrices in non-final builds.  Not faster than Inverse. */
 	inline TMatrix<T> InverseFast() const;
 
-	/** Fast path, and handles nil matrices. */
+	/** Get the inverse of this matrix.  Will silently change nil/nan matrices to identity. */
 	inline TMatrix<T> Inverse() const;
 
 	inline TMatrix<T> TransposeAdjoint() const;
@@ -558,8 +558,7 @@ struct TLookAtMatrix : public TLookFromMatrix<T>
 	explicit TLookAtMatrix(const TLookAtMatrix<FArg>& From) : TLookFromMatrix<T>(From) {}
 };
 
-
-} // namespace UE::Core
+} // namespace UE::Math
 } // namespace UE
 
 UE_DECLARE_LWC_TYPE(Matrix, 44);
@@ -586,8 +585,9 @@ template<> CORE_API FQuat4d FMatrix44d::ToQuat() const;
 
 
 // very high quality 4x4 matrix inverse
+// @todo: this is redundant with FMatrix44d::Inverse and should be removed ; seems to be unused
 template<typename FArg, TEMPLATE_REQUIRES(std::is_floating_point<FArg>::value)>
-static inline void Inverse4x4( double* dst, const FArg* src )
+static inline bool Inverse4x4( double* dst, const FArg* src )
 {
 	const double s0  = (double)(src[ 0]); const double s1  = (double)(src[ 1]); const double s2  = (double)(src[ 2]); const double s3  = (double)(src[ 3]);
 	const double s4  = (double)(src[ 4]); const double s5  = (double)(src[ 5]); const double s6  = (double)(src[ 6]); const double s7  = (double)(src[ 7]);
@@ -613,14 +613,18 @@ static inline void Inverse4x4( double* dst, const FArg* src )
 	inv[15] =  s0 * s5  * s10 - s0 * s6  * s9  - s4 * s1 * s10 + s4 * s2 * s9  + s8  * s1 * s6  - s8  * s2 * s5;
 
 	double det = s0 * inv[0] + s1 * inv[4] + s2 * inv[8] + s3 * inv[12];
-	if( det != 0.0 )
+	if( det == 0.0 || !FMath::IsFinite(det) )
 	{
-		det = 1.0 / det;
+		memcpy(dst,&FMatrix44d::Identity,sizeof(FMatrix44d));
+		return false;
 	}
+
+	det = 1.0 / det;
 	for( int i = 0; i < 16; i++ )
 	{
 		dst[i] = inv[i] * det;
 	}
+	return true;
 }
 
 #include "Math/Matrix.inl" // IWYU pragma: export

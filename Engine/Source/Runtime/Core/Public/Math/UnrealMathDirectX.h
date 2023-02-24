@@ -593,12 +593,26 @@ FORCEINLINE void VectorMatrixMultiply( FMatrix* Result, const FMatrix* Matrix1, 
  * @param DstMatrix		FMatrix pointer to where the result should be stored
  * @param SrcMatrix		FMatrix pointer to the Matrix to be inversed
  */
-FORCEINLINE void VectorMatrixInverse( FMatrix* DstMatrix, const FMatrix* SrcMatrix )
+FORCEINLINE bool VectorMatrixInverse( FMatrix* DstMatrix, const FMatrix* SrcMatrix )
 {
 	using namespace DirectX;
 	XMMATRIX XMSrcMatrix = XMLoadFloat4x4A((const XMFLOAT4X4A*)(SrcMatrix));
-	XMMATRIX XMDstMatrix = XMMatrixInverse( nullptr, XMSrcMatrix );
+	XMVECTOR XMDeterminant;
+	XMMATRIX XMDstMatrix = XMMatrixInverse( &XMDeterminant, XMSrcMatrix );
+	
+	//XMMatrixInverse Returns the matrix inverse of M. If there is no inverse (that is, if the determinant is 0), 
+	//	then XMMatrixInverse returns an infinite matrix.
+
+	float Determinant;
+	XMStoreFloat(&Determinant,XMDeterminant);
+	if ( Determinant == 0.f || !FMath::IsFinite(Determinant) )
+	{
+		*DstMatrix = FMatrix44d::Identity;
+		return false;
+	}
+	
 	XMStoreFloat4x4A( (XMFLOAT4X4A*)(DstMatrix), XMDstMatrix);
+	return true;
 }
 
 /**

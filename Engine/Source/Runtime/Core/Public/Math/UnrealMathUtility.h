@@ -2488,6 +2488,20 @@ public:
 		}
 		return WeightedMovingAverage(CurrentSample, PreviousSample, Weight);
 	}
+	
+	/**
+	 * Calculate the inverse of an FMatrix44.  Src == Dst is allowed
+	 *
+	 * @param DstMatrix		FMatrix44 pointer to where the result should be stored
+	 * @param SrcMatrix		FMatrix44 pointer to the Matrix to be inversed
+	 * @return bool			returns false if matrix is not invertable and stores identity 
+	 *
+	 * Do not call this directly, use VectorMatrixInverse or Matrix::Inverse
+	 * this is the fallback scalar implementation used by VectorMatrixInverse
+	 */
+	UE_NODISCARD static CORE_API bool MatrixInverse(FMatrix44f* DstMatrix, const FMatrix44f* SrcMatrix);
+	UE_NODISCARD static CORE_API bool MatrixInverse(FMatrix44d* DstMatrix, const FMatrix44d* SrcMatrix);
+
 };
 
 // LWC Conversion helpers

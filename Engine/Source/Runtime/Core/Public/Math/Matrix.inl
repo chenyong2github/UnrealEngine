@@ -287,69 +287,54 @@ inline T TMatrix<T>::RotDeterminant() const
 		M[2][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1]);
 }
 
-// Inverse.
-/** Fast path, doesn't check for nil matrices in final release builds */
+// InverseFast.
+// Unlike Inverse, this may ensure if used on nil/nan matrix in non-final builds
+//   should not be used on matrices that may be nil/nan
+// note: not actually faster than Inverse
 template<typename T>
 inline TMatrix<T> TMatrix<T>::InverseFast() const
 {
 	// If we're in non final release, then make sure we're not creating NaNs
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// Check for zero scale matrix to invert
+	// @todo : remove this axis length check
 	if (GetScaledAxis(EAxis::X).IsNearlyZero(UE_SMALL_NUMBER) &&
 		GetScaledAxis(EAxis::Y).IsNearlyZero(UE_SMALL_NUMBER) &&
 		GetScaledAxis(EAxis::Z).IsNearlyZero(UE_SMALL_NUMBER))
 	{
 		ErrorEnsure(TEXT("TMatrix<T>::InverseFast(), trying to invert a NIL matrix, this results in NaNs! Use Inverse() instead."));
 	}
-	else
-	{
-		const T	Det = Determinant();
-
-		if (Det == 0.0f || !FMath::IsFinite(Det))
-		{
-			ErrorEnsure(TEXT("TMatrix<T>::InverseFast(), trying to invert a non-invertible matrix, this results in NaNs! Use Inverse() instead."));
-		}
-	}
 #endif
+
 	TMatrix<T> Result;
-	VectorMatrixInverse(&Result, this);
-	Result.DiagnosticCheckNaN();
+	if ( ! VectorMatrixInverse(&Result, this) )
+	{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		ErrorEnsure(TEXT("TMatrix<T>::InverseFast(), trying to invert a non-invertible matrix, this results in NaNs! Use Inverse() instead."));
+#endif
+	}
+	Result.DiagnosticCheckNaN(); // <- pointless, VectorMatrixInverse ensures output is valid
 	return Result;
 }
 
-// Inverse.
+// Inverse.   zero & NaN matrices are silently changed to identity
 template<typename T>
 inline TMatrix<T> TMatrix<T>::Inverse() const
 {
-	TMatrix<T> Result;
-
 	// Check for zero scale matrix to invert
+	// @todo : remove this axis length check
 	if (GetScaledAxis(EAxis::X).IsNearlyZero(UE_SMALL_NUMBER) &&
 		GetScaledAxis(EAxis::Y).IsNearlyZero(UE_SMALL_NUMBER) &&
 		GetScaledAxis(EAxis::Z).IsNearlyZero(UE_SMALL_NUMBER))
 	{
 		// just set to zero - avoids unsafe inverse of zero and duplicates what QNANs were resulting in before (scaling away all children)
-		Result = Identity;
+		return Identity;
 	}
-	else
-	{
-		const T	Det = Determinant();
-
-		// Under fp:fast this comparison can (and has been) getting inverted such that NaNs
-		// get an Identity matrix out. Under fp:precise any NaNs (correctly) get treated as != 0 
-		// and carry through to the inverse and crash, when this function is supposed to handle 
-		// that (vs InverseFast which expects well-formed matrices)
-		if (FMath::IsFinite(Det) == false || Det == 0.0f)
-		{
-			Result = Identity;
-		}
-		else
-		{
-			VectorMatrixInverse(&Result, this);
-		}
-	}
-
-	Result.DiagnosticCheckNaN();
+	
+	TMatrix<T> Result;
+	// VectorMatrixInverse will return false and fill identity for non-invertible matrices
+	VectorMatrixInverse(&Result, this);
+	Result.DiagnosticCheckNaN(); // <- pointless, VectorMatrixInverse ensures output is valid
 	return Result;
 }
 
