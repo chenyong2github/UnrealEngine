@@ -3,13 +3,15 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "HAL/UnrealMemory.h"
-#include "Templates/TypeCompatibleBytes.h"
+#include "Containers/ContainerHelpers.h"
 #include "HAL/PlatformMath.h"
-#include "Templates/MemoryOps.h"
+#include "HAL/UnrealMemory.h"
 #include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/IsPolymorphic.h"
+#include "Templates/MemoryOps.h"
+#include "Templates/TypeCompatibleBytes.h"
+#include <type_traits>
 
 // This option disables array slack for initial allocations, e.g where TArray::SetNum 
 // is called. This tends to save a lot of memory with almost no measured performance cost.
@@ -330,6 +332,12 @@ public:
 	typedef ForElementType<FScriptContainerElement> ForAnyElementType;
 };
 
+namespace UE::Core::Private
+{
+	[[noreturn]] CORE_API void OnInvalidAlignedHeapAllocatorNum(int32 NewNum, SIZE_T NumBytesPerElement);
+	[[noreturn]] CORE_API void OnInvalidSizedHeapAllocatorNum(int32 IndexSize, int64 NewNum, SIZE_T NumBytesPerElement);
+}
+
 /** The indirect allocation policy always allocates the elements indirectly. */
 template<uint32 Alignment = DEFAULT_ALIGNMENT>
 class TAlignedHeapAllocator
@@ -390,7 +398,14 @@ public:
 			// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
 			if (Data || NumElements)
 			{
-				//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
+				static_assert(sizeof(int32) <= sizeof(SIZE_T), "SIZE_T is expected to be larger than int32");
+
+				// Check for under/overflow
+				if (UNLIKELY(NumElements < 0 || NumBytesPerElement < 1 || NumBytesPerElement > (SIZE_T)MAX_int32))
+				{
+					UE::Core::Private::OnInvalidAlignedHeapAllocatorNum(NumElements, NumBytesPerElement);
+				}
+
 				Data = (FScriptContainerElement*)FMemory::Realloc( Data, NumElements*NumBytesPerElement, Alignment );
 			}
 		}
@@ -473,6 +488,10 @@ class TSizedHeapAllocator
 public:
 	using SizeType = typename TBitsToSizeType<IndexSize>::Type;
 
+private:
+	using USizeType = std::make_unsigned_t<SizeType>;
+
+public:
 	enum { NeedsElementType = true };
 	enum { RequireRangeCheck = true };
 
@@ -533,21 +552,45 @@ public:
 		{
 			return Data;
 		}
-		FORCEINLINE void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement)
+		void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement)
 		{
 			// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
 			if (Data || NumElements)
 			{
-				//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
+				static_assert(sizeof(SizeType) <= sizeof(SIZE_T), "SIZE_T is expected to handle all possible sizes");
+
+				// Check for under/overflow
+				bool bInvalidResize = NumElements < 0 || NumBytesPerElement < 1 || NumBytesPerElement > (SIZE_T)MAX_int32;
+				if constexpr (sizeof(SizeType) == sizeof(SIZE_T))
+				{
+					bInvalidResize = bInvalidResize || (SIZE_T)(USizeType)NumElements > (SIZE_T)TNumericLimits<SizeType>::Max() / NumBytesPerElement;
+				}
+				if (UNLIKELY(bInvalidResize))
+				{
+					UE::Core::Private::OnInvalidSizedHeapAllocatorNum(IndexSize, NumElements, NumBytesPerElement);
+				}
+
 				Data = (FScriptContainerElement*)BaseMallocType::Realloc( Data, NumElements*NumBytesPerElement );
 			}
 		}
-		FORCEINLINE void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement, uint32 AlignmentOfElement)
+		void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement, uint32 AlignmentOfElement)
 		{
 			// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
 			if (Data || NumElements)
 			{
-				//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
+				static_assert(sizeof(SizeType) <= sizeof(SIZE_T), "SIZE_T is expected to handle all possible sizes");
+
+				// Check for under/overflow
+				bool bInvalidResize = NumElements < 0 || NumBytesPerElement < 1 || NumBytesPerElement > (SIZE_T)MAX_int32;
+				if constexpr (sizeof(SizeType) == sizeof(SIZE_T))
+				{
+					bInvalidResize = bInvalidResize || ((SIZE_T)(USizeType)NumElements > (SIZE_T)TNumericLimits<SizeType>::Max() / NumBytesPerElement);
+				}
+				if (UNLIKELY(bInvalidResize))
+				{
+					UE::Core::Private::OnInvalidSizedHeapAllocatorNum(IndexSize, NumElements, NumBytesPerElement);
+				}
+
 				Data = (FScriptContainerElement*)BaseMallocType::Realloc( Data, NumElements*NumBytesPerElement, AlignmentOfElement );
 			}
 		}
@@ -614,6 +657,12 @@ public:
 		}
 	};
 };
+
+// Define the ResizeAllocation functions with the regular allocator as exported to avoid bloat
+extern template CORE_API FORCENOINLINE void TSizedHeapAllocator<32, FMemory>::ForAnyElementType::ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement);
+extern template CORE_API FORCENOINLINE void TSizedHeapAllocator<32, FMemory>::ForAnyElementType::ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement, uint32 AlignmentOfElement);
+extern template CORE_API FORCENOINLINE void TSizedHeapAllocator<64, FMemory>::ForAnyElementType::ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement);
+extern template CORE_API FORCENOINLINE void TSizedHeapAllocator<64, FMemory>::ForAnyElementType::ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement, uint32 AlignmentOfElement);
 
 template <uint8 IndexSize>
 struct TAllocatorTraits<TSizedHeapAllocator<IndexSize>> : TAllocatorTraitsBase<TSizedHeapAllocator<IndexSize>>
@@ -979,7 +1028,7 @@ public:
 		void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements,SIZE_T NumBytesPerElement)
 		{
 			// Ensure the requested allocation will fit in the inline data area.
-			check(NumElements <= NumInlineElements);
+			check(NumElements >= 0 && NumElements <= NumInlineElements);
 		}
 
 		FORCEINLINE SizeType CalculateSlackReserve(SizeType NumElements, SIZE_T NumBytesPerElement) const

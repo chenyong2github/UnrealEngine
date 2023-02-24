@@ -10,6 +10,11 @@
 #include "Misc/AssertionMacros.h"
 #include "Containers/ContainerAllocationPolicies.h"
 
+namespace UE::Core::Private
+{
+	[[noreturn]] CORE_API void OnInvalidAnsiAllocatorNum(int32 NewNum, SIZE_T NumBytesPerElement);
+}
+
 /** Allocator that allocates memory using standard library functions. */
 class CORE_API FAnsiAllocator
 {
@@ -22,7 +27,7 @@ public:
 	typedef FAnsiAllocator ElementAllocator;
 	typedef FAnsiAllocator BitArrayAllocator;
 
-	class CORE_API ForAnyElementType
+	class ForAnyElementType
 	{
 	public:
 		/** Default constructor. */
@@ -62,21 +67,7 @@ public:
 		{
 			return Data;
 		}
-		void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement)
-		{
-			// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
-			if (NumElements)
-			{
-				//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
-				void* NewRealloc = ::realloc(Data, NumElements*NumBytesPerElement);
-				Data = (FScriptContainerElement*)NewRealloc;
-			}
-			else
-			{
-				::free(Data);
-				Data = nullptr;
-			}
-		}
+		CORE_API void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement);
 		SizeType CalculateSlackReserve(SizeType NumElements, SIZE_T NumBytesPerElement) const
 		{
 			return DefaultCalculateSlackReserve(NumElements, NumBytesPerElement, false);

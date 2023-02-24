@@ -414,3 +414,9 @@ bool FMemStackBase::ContainsPointer(const void* Pointer) const
 
 	return false;
 }
+
+FORCENOINLINE void UE::Core::Private::OnInvalidMemStackAllocatorNum(int32 NewNum, SIZE_T NumBytesPerElement)
+{
+	UE_LOG(LogCore, Fatal, TEXT("Trying to resize TMemStackAllocator to an invalid size of %d with element size %" SIZE_T_FMT), NewNum, NumBytesPerElement);
+	for (;;);
+}

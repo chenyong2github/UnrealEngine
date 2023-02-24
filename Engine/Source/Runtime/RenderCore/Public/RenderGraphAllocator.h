@@ -153,6 +153,11 @@ private:
 	TUniqueFunction<void()> AsyncDeleteFunction;
 };
 
+namespace UE::RenderCore::Private
+{
+	[[noreturn]] RENDERCORE_API void OnInvalidRDGAllocatorNum(int32 NewNum, SIZE_T NumBytesPerElement);
+}
+
 /** A container allocator that allocates from a global RDG allocator instance. */
 template<uint32 Alignment = DEFAULT_ALIGNMENT>
 class TRDGArrayAllocator
@@ -187,6 +192,14 @@ public:
 			void* OldData = Data;
 			if (NumElements)
 			{
+				static_assert(sizeof(int32) <= sizeof(SIZE_T), "SIZE_T is expected to be larger than int32");
+
+				// Check for under/overflow
+				if (UNLIKELY(NumElements < 0 || NumBytesPerElement < 1 || NumBytesPerElement > (SIZE_T)MAX_int32))
+				{
+					UE::RenderCore::Private::OnInvalidRDGAllocatorNum(NumElements, NumBytesPerElement);
+				}
+
 				// Allocate memory from the allocator.
 				const int32 AllocSize = (int32)(NumElements * NumBytesPerElement);
 				const int32 AllocAlignment = FMath::Max(Alignment, (uint32)alignof(ElementType));

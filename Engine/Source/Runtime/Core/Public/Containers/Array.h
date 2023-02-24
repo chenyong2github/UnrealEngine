@@ -336,7 +336,7 @@ namespace UE4Array_Private
 
 namespace UE::Core::Private
 {
-	CORE_API void OnInvalidArrayNum(unsigned long long NewNum);
+	[[noreturn]] CORE_API void OnInvalidArrayNum(unsigned long long NewNum);
 }
 
 

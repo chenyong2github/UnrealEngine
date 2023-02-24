@@ -10,8 +10,10 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Map.h"
 #include "Containers/Set.h"
+#include "Math/NumericLimits.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/Tuple.h"
+#include <type_traits>
 
 #define LLM_PAGE_SIZE (16*1024)
 
@@ -882,6 +884,11 @@ private:
 	}
 };
 
+namespace UE::Core::Private
+{
+	[[noreturn]] CORE_API void OnInvalidLLMAllocatorNum(int32 IndexSize, int64 NewNum, SIZE_T NumBytesPerElement);
+}
+
 /**
  * An allocator usable in Core containers. It is based on TSizedHeapAllocator, but instead of allocating from FMemory it allocates from FLLMAllocator.
  * Because FLLMAllocator::Free requires the Size, this allocator also has a Size field that TSizedHeapAllocator does not.
@@ -892,6 +899,10 @@ class TSizedLLMAllocator
 public:
 	using SizeType = typename TBitsToSizeType<IndexSize>::Type;
 
+private:
+	using USizeType = std::make_unsigned_t<SizeType>;
+
+public:
 	enum { NeedsElementType = false };
 	enum { RequireRangeCheck = true };
 
@@ -960,6 +971,19 @@ public:
 			// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
 			if (Data || NumElements)
 			{
+				static_assert(sizeof(SizeType) <= sizeof(SIZE_T), "SIZE_T is expected to handle all possible sizes");
+
+				// Check for under/overflow
+				bool bInvalidResize = NumElements < 0 || NumBytesPerElement < 1 || NumBytesPerElement > (SIZE_T)MAX_int32;
+				if constexpr (sizeof(SizeType) == sizeof(SIZE_T))
+				{
+					bInvalidResize = bInvalidResize || (SIZE_T)(USizeType)NumElements > (SIZE_T)TNumericLimits<SizeType>::Max() / NumBytesPerElement;
+				}
+				if (UNLIKELY(bInvalidResize))
+				{
+					UE::Core::Private::OnInvalidLLMAllocatorNum(IndexSize, NumElements, NumBytesPerElement);
+				}
+
 				//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
 				size_t NewSize = NumElements * NumBytesPerElement;
 				Data = UE::LLMPrivate::FLLMAllocator::Get()->Realloc(Data, Size, NewSize);
@@ -1019,6 +1043,10 @@ public:
 		}
 	};
 };
+
+// Define the ResizeAllocation functions with the regular allocators as exported to avoid bloat
+extern template CORE_API FORCENOINLINE void TSizedLLMAllocator<32>::ForAnyElementType::ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement);
+extern template CORE_API FORCENOINLINE void TSizedLLMAllocator<64>::ForAnyElementType::ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement);
 
 // The standard container-specific allocators based on TSizedLLMAllocator; these are copied from ContainerAllocationPolicies.h
 using FDefaultLLMAllocator = TSizedLLMAllocator<32>;

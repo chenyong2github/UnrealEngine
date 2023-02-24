@@ -517,6 +517,11 @@ struct ENGINE_API FUECompressedAnimData : public ICompressedAnimData, public FCo
 	virtual bool IsValid() const override { return CompressedByteStream.Num() > 0 || (TranslationCompressionFormat == ACF_Identity && RotationCompressionFormat == ACF_Identity && ScaleCompressionFormat == ACF_Identity); }
 };
 
+namespace UE::Animation::Private
+{
+	[[noreturn]] ENGINE_API void OnInvalidMaybeMappedAllocatorNum(int32 NewNum, SIZE_T NumBytesPerElement);
+}
+
 template<uint32 Alignment = DEFAULT_ALIGNMENT>
 class TMaybeMappedAllocator
 {
@@ -587,6 +592,14 @@ public:
 			}
 			else if (Data || NumElements)
 			{
+				static_assert(sizeof(int32) <= sizeof(SIZE_T), "SIZE_T is expected to be larger than int32");
+
+				// Check for under/overflow
+				if (UNLIKELY(NumElements < 0 || NumBytesPerElement < 1 || NumBytesPerElement > (SIZE_T)MAX_int32))
+				{
+				    UE::Animation::Private::OnInvalidMaybeMappedAllocatorNum(NumElements, NumBytesPerElement);
+				}
+
 				// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
 				//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
 				Data = (FScriptContainerElement*)FMemory::Realloc(Data, NumElements*NumBytesPerElement, Alignment);
@@ -687,6 +700,9 @@ public:
 		}
 	};
 };
+
+// Define the ResizeAllocation function with the regular alignment as exported to avoid bloat
+extern template ENGINE_API FORCENOINLINE void TMaybeMappedAllocator<DEFAULT_ALIGNMENT>::ForAnyElementType::ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement);
 
 template<typename T, uint32 Alignment = DEFAULT_ALIGNMENT>
 class TMaybeMappedArray : public TArray<T, TMaybeMappedAllocator<Alignment>>

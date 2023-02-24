@@ -260,7 +260,7 @@ public:
 
 namespace UE::Core::Private
 {
-	CORE_API void OnInvalidSetNum(unsigned long long NewNum);
+	[[noreturn]] CORE_API void OnInvalidSetNum(unsigned long long NewNum);
 }
 
 /**

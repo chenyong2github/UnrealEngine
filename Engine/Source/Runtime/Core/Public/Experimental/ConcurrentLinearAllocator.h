@@ -553,6 +553,11 @@ public:
 	}
 };
 
+namespace UE::Core::Private
+{
+	[[noreturn]] CORE_API void OnInvalidConcurrentLinearArrayAllocatorNum(int32 NewNum, SIZE_T NumBytesPerElement);
+}
+
 template<typename BlockAllocationTag>
 class TConcurrentLinearArrayAllocator
 {
@@ -597,6 +602,14 @@ public:
 		}
 		void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement)
 		{
+			static_assert(sizeof(int32) <= sizeof(SIZE_T), "SIZE_T is expected to be larger than int32");
+
+			// Check for under/overflow
+			if (UNLIKELY(NumElements < 0 || NumBytesPerElement < 1 || NumBytesPerElement > (SIZE_T)MAX_int32))
+			{
+				UE::Core::Private::OnInvalidConcurrentLinearArrayAllocatorNum(NumElements, NumBytesPerElement);
+			}
+
 			Data = (ElementType*)TConcurrentLinearAllocator<BlockAllocationTag>::Realloc(Data, NumElements * NumBytesPerElement, alignof(ElementType));
 		}
 		SizeType CalculateSlackReserve(SizeType NumElements, SIZE_T NumBytesPerElement) const

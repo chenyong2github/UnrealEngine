@@ -738,7 +738,7 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 	checkf(AnimSequence, TEXT("Invalid animation sequence while trying to fetch to-compress animation data"));
 	USkeleton* Skeleton = AnimSequence->GetSkeleton();
 	checkf(Skeleton, TEXT("Invalid Skeleton while trying to fetch to-compress animation data, %s"), *Skeleton->GetPathName());
-	
+
 	FAnimationUtils::BuildSkeletonMetaData(Skeleton, BoneData);
 
 	const FFrameRate DefaultSamplingFrameRate = AnimSequence->GetSamplingFrameRate();
@@ -783,7 +783,7 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 		UE::Anim::Compression::SanitizeRawAnimSequenceTrack(Track);
 		TrackToSkeletonMapTable.Add(AnimTrack.BoneTreeIndex);
 		OriginalTrackNames.Add(AnimTrack.Name);
-    } 
+	}
 
 	// Apply any key reduction if possible
 	if (RawAnimationData.Num())
@@ -817,7 +817,7 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 		TArray<FTrackToSkeletonMap> TempTrackToSkeletonMapTable;
 		TempTrackToSkeletonMapTable.Reserve(OriginalTrackNames.Num());
 		TempRawAnimationData.Reserve(OriginalTrackNames.Num());
-		FinalTrackNames.Reserve(ResampledTrackData.Num());
+	FinalTrackNames.Reserve(ResampledTrackData.Num());	
 		TempAdditiveBaseAnimationData.Reserve(AdditiveBaseAnimationData.Num() ? AdditiveBaseAnimationData.Num() : 0);
 
 		// Include root bone track
@@ -831,17 +831,17 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 
 		const int32 NumTracks = RawAnimationData.Num();
 		for (int32 TrackIndex = 1; TrackIndex < NumTracks; ++TrackIndex)
-		{
-			const FRawAnimSequenceTrack& Track = RawAnimationData[TrackIndex];
-			// Try find correct bone index
-			const int32 BoneIndex = RefSkeleton.FindBoneIndex(OriginalTrackNames[TrackIndex]);
+	{
+		const FRawAnimSequenceTrack& Track = RawAnimationData[TrackIndex];
+		// Try find correct bone index
+		const int32 BoneIndex = RefSkeleton.FindBoneIndex(OriginalTrackNames[TrackIndex]);
 
 			const bool bValidBoneIndex = BoneIndex != INDEX_NONE;
 			const bool bValidAdditiveTrack = !IsRawTrackZeroAdditive(Track);
 
 			// Only include track if it contains valid (additive) data and its name corresponds to a bone on the skeleton
 			if ((!bIsAdditiveAnimation || bValidAdditiveTrack) && bValidBoneIndex)
-			{
+		{
 				FinalTrackNames.Add(OriginalTrackNames[TrackIndex]);
 				TempTrackToSkeletonMapTable.Add(TrackToSkeletonMapTable[TrackIndex]);
 				TempRawAnimationData.Add(RawAnimationData[TrackIndex]);
@@ -850,7 +850,7 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 				{
 					TempAdditiveBaseAnimationData.Add(AdditiveBaseAnimationData[TrackIndex]);
 				}
-			}
+		}
 		}
 
 		// Swap out maintained track data
@@ -858,9 +858,9 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 		Swap(TrackToSkeletonMapTable, TempTrackToSkeletonMapTable);
 
 		if (AdditiveBaseAnimationData.Num())
-		{
+        {
 			Swap(AdditiveBaseAnimationData, TempAdditiveBaseAnimationData);
-		}
+        }
 	}
 
 	// Find or add curve names on skeleton
@@ -1496,58 +1496,58 @@ void DecompressPose(FCompactPose& OutPose, const FCompressedAnimSequence& Compre
 }
 
 FArchive& operator<<(FArchive& Ar, FCompressedOffsetData& D)
-{
+	{
 	Ar << D.OffsetData << D.StripSize;
 	return Ar;
 }
 
 FArchive& operator<<(FArchive& Ar, FAnimationErrorStats& ErrorStats)
-{
+		{
 	Ar << ErrorStats.AverageError;
 	Ar << ErrorStats.MaxError;
 	Ar << ErrorStats.MaxErrorTime;
 	Ar << ErrorStats.MaxErrorBone;
 	return Ar;
-}
+						}
 
 #if WITH_EDITORONLY_DATA
 UE::Anim::Compression::FAnimDDCKeyArgs::FAnimDDCKeyArgs(const UAnimSequenceBase& AnimSequence)
 	: AnimSequence(AnimSequence)
 	, TargetPlatform(nullptr)
-{
-}
+						{
+	}
 
 UE::Anim::Compression::FAnimDDCKeyArgs::FAnimDDCKeyArgs(const UAnimSequenceBase& AnimSequence, const ITargetPlatform* TargetPlatform)
 	: AnimSequence(AnimSequence)
 	, TargetPlatform(TargetPlatform)
-{
-}
+	{
+			}
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 template <typename ArrayType>
 void UpdateSHAWithArray(FSHA1& Sha, const TArray<ArrayType>& Array)
-{
+		{
 	Sha.Update((uint8*)Array.GetData(), Array.Num() * Array.GetTypeSize());
-}
+	}
 
 void UpdateSHAWithRawTrack(FSHA1& Sha, const FRawAnimSequenceTrack& RawTrack)
-{
+	{
 	UpdateSHAWithArray(Sha, RawTrack.PosKeys);
 	UpdateSHAWithArray(Sha, RawTrack.RotKeys);
 	UpdateSHAWithArray(Sha, RawTrack.ScaleKeys);
-}
+	}
 
 template<class DataType>
 void UpdateWithData(FSHA1& Sha, const DataType& Data)
-{
+	{
 	Sha.Update((uint8*)(&Data), sizeof(DataType));
-}
+	}
 
 void UpdateSHAWithCurves(FSHA1& Sha, const FRawCurveTracks& InRawCurveData) 
-{
-	auto UpdateWithFloatCurve = [&Sha](const FRichCurve& Curve)
 	{
+	auto UpdateWithFloatCurve = [&Sha](const FRichCurve& Curve)
+		{
 		UpdateWithData(Sha, Curve.DefaultValue);
 		UpdateSHAWithArray(Sha, Curve.GetConstRefOfKeys());
 		UpdateWithData(Sha, Curve.PreInfinityExtrap);
@@ -1555,7 +1555,7 @@ void UpdateSHAWithCurves(FSHA1& Sha, const FRawCurveTracks& InRawCurveData)
 	};
 
 	for (const FFloatCurve& Curve : InRawCurveData.FloatCurves)
-	{
+			{
 		UpdateWithData(Sha, Curve.Name.UID);
 		UpdateWithFloatCurve(Curve.FloatCurve);
 	}
@@ -1571,19 +1571,19 @@ void UpdateSHAWithCurves(FSHA1& Sha, const FRawCurveTracks& InRawCurveData)
 				UpdateWithFloatCurve(VectorCurve.FloatCurves[ChannelIndex]);
 			}
 		};
-		
+
 		UpdateWithComponent(Curve.TranslationCurve);
 		UpdateWithComponent(Curve.RotationCurve);
 		UpdateWithComponent(Curve.ScaleCurve);
+		}
 	}
-}
 
 FGuid GenerateGuidFromRawAnimData(const TArray<FRawAnimSequenceTrack>& RawAnimationData, const FRawCurveTracks& RawCurveData)
-{
+	{
 	FSHA1 Sha;
 
 	for (const FRawAnimSequenceTrack& Track : RawAnimationData)
-	{
+		{
 		UpdateSHAWithRawTrack(Sha, Track);
 	}
 
@@ -1600,3 +1600,10 @@ FGuid GenerateGuidFromRawAnimData(const TArray<FRawAnimSequenceTrack>& RawAnimat
 #endif // WITH_EDITOR
 
 
+FORCENOINLINE void UE::Animation::Private::OnInvalidMaybeMappedAllocatorNum(int32 NewNum, SIZE_T NumBytesPerElement)
+{
+	UE_LOG(LogAnimation, Fatal, TEXT("Trying to resize TMaybeMappedAllocator to an invalid size of %d with element size %" SIZE_T_FMT), NewNum, NumBytesPerElement);
+	for (;;);
+}
+
+template void TMaybeMappedAllocator<DEFAULT_ALIGNMENT>::ForAnyElementType::ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement);

@@ -9,6 +9,15 @@
 
 IMPLEMENT_ABSTRACT_TYPE_LAYOUT(FResourceArrayInterface);
 
+namespace UE::Core::Private
+{
+	[[noreturn]] FORCENOINLINE void OnInvalidMemoryImageAllocatorNum(int32 NewNum, SIZE_T NumBytesPerElement)
+	{
+		UE_LOG(LogCore, Fatal, TEXT("Trying to resize TMemoryImageAllocator to an invalid size of %d with element size %" SIZE_T_FMT), NewNum, NumBytesPerElement);
+		for (;;);
+	}
+}
+
 FMemoryImageAllocatorBase::~FMemoryImageAllocatorBase()
 {
 	if (!Data.IsFrozen())
@@ -42,11 +51,22 @@ void FMemoryImageAllocatorBase::ResizeAllocation(int32 PreviousNumElements, int3
 	// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
 	if (Data.IsFrozen())
 	{
-		// Can't grow a frozen array
-		check(NumElements <= PreviousNumElements);
+		// Can't grow a frozen array or shrink below zero
+		if (UNLIKELY((uint32)NumElements > (uint32)PreviousNumElements))
+		{
+			UE::Core::Private::OnInvalidMemoryImageAllocatorNum(NumElements, NumBytesPerElement);
+		}
 	}
 	else if (LocalData || NumElements > 0)
 	{
+		static_assert(sizeof(int32) <= sizeof(SIZE_T), "SIZE_T is expected to be larger than int32");
+
+		// Check for under/overflow
+		if (UNLIKELY(NumElements < 0 || NumBytesPerElement < 1 || NumBytesPerElement > (SIZE_T)MAX_int32))
+		{
+			UE::Core::Private::OnInvalidMemoryImageAllocatorNum(NumElements, NumBytesPerElement);
+		}
+
 		Data = (FScriptContainerElement*)FMemory::Realloc(LocalData, NumElements*NumBytesPerElement, Alignment);
 	}
 }

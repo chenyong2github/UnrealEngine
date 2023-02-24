@@ -356,6 +356,10 @@ inline void* operator new[](size_t Size, std::align_val_t Align, FMemStackBase& 
 	return Result;
 }
 
+namespace UE::Core::Private
+{
+	[[noreturn]] CORE_API void OnInvalidMemStackAllocatorNum(int32 NewNum, SIZE_T NumBytesPerElement);
+}
 
 /** A container allocator that allocates from a mem-stack. */
 template<uint32 Alignment = DEFAULT_ALIGNMENT>
@@ -402,6 +406,14 @@ public:
 			void* OldData = Data;
 			if( NumElements )
 			{
+				static_assert(sizeof(int32) <= sizeof(SIZE_T), "SIZE_T is expected to be larger than int32");
+
+				// Check for under/overflow
+				if (UNLIKELY(NumElements < 0 || NumBytesPerElement < 1 || NumBytesPerElement > (SIZE_T)MAX_int32))
+				{
+					UE::Core::Private::OnInvalidMemStackAllocatorNum(NumElements, NumBytesPerElement);
+				}
+
 				// Allocate memory from the stack.
 				Data = (ElementType*)FMemStack::Get().PushBytes(
 					(int32)(NumElements * NumBytesPerElement),

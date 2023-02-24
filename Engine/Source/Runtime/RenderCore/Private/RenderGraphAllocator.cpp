@@ -2,6 +2,7 @@
 
 #include "RenderGraphAllocator.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "RenderCore.h"
 #include "RenderGraphPrivate.h"
 
 FRDGAllocator& FRDGAllocator::Get()
@@ -64,4 +65,10 @@ FRDGAllocatorScope::~FRDGAllocatorScope()
 	{
 		Allocator.ReleaseAll();
 	}
+}
+
+FORCENOINLINE void UE::RenderCore::Private::OnInvalidRDGAllocatorNum(int32 NewNum, SIZE_T NumBytesPerElement)
+{
+	UE_LOG(LogRendererCore, Fatal, TEXT("Trying to resize TRDGArrayAllocator to an invalid size of %d with element size %" SIZE_T_FMT), NewNum, NumBytesPerElement);
+	for (;;);
 }
