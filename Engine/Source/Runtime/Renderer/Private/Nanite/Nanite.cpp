@@ -584,7 +584,7 @@ void ExtractShadingDebug(
 			ShadingBinMeta = GSystemTextures.GetDefaultStructuredBuffer<FUint32Vector4>(GraphBuilder);
 		}
 
-		Nanite::GGlobalResources.GetShadingBinMetaBufferRef() = GraphBuilder.ConvertToExternalBuffer(ShadeBinning.ShadingBinMeta);
+		Nanite::GGlobalResources.GetShadingBinMetaBufferRef() = GraphBuilder.ConvertToExternalBuffer(ShadingBinMeta);
 	}
 
 	if (GNaniteShowStats != 0 && Nanite::GGlobalResources.GetStatsBufferRef())
