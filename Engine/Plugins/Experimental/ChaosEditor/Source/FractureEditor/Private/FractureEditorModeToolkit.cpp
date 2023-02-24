@@ -1478,6 +1478,15 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 		StatisticsView->SetStatistics(Stats);
 	}
 
+	// update view rest collection
+	UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
+	FractureSettings->RestCollection = nullptr;
+	for (UGeometryCollectionComponent* Component : InNewComponents)
+	{
+		FractureSettings->RestCollection = Component->GetRestCollection();
+		break;
+	}
+
 	if (ActiveTool != nullptr)
 	{
 		ActiveTool->SelectedBonesChanged();

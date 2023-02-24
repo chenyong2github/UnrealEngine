@@ -3,8 +3,11 @@
 #pragma once
 
 #include "UObject/Object.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "FractureSettings.generated.h"
+
+class UGeometryCollection;
 
 /** Settings specifically related to viewing fractured meshes **/
 UCLASS()
@@ -26,5 +29,8 @@ public:
 	/** When active, only show selected bones */
 	UPROPERTY(EditAnywhere, Category = ViewSettings, meta = (DisplayName = "Hide Unselected"))
 	bool bHideUnselected;
+
+	UPROPERTY(VisibleAnywhere, Category = ViewSettings)
+	TWeakObjectPtr<const UGeometryCollection> RestCollection = nullptr;
 
 };
