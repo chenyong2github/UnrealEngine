@@ -116,6 +116,8 @@ FORCEINLINE To* Cast(From* Src)
 		}
 		else
 		{
+			static_assert(std::is_base_of_v<UObject, From>, "Attempting to use Cast<> on a type that is not a UObject or an Interface");
+			
 			if (((const UObject*)Src)->IsA<To>())
 			{
 				return (To*)Src;
