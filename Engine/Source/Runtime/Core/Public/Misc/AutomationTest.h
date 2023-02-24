@@ -1512,6 +1512,15 @@ public:
 	{
 		return bSuppressLogs;
 	}
+	
+	/**
+	 * Should the log category be captured and surfaced as part of the test.
+	 * If true will then go through the SuppressLogWarnings and SuppressLogErrors checks for if this should be suppressed further or not
+	 * Recommend overriding with a virtual function that contains a static TSet to check for the categories you want.
+	 * 
+	 * @return true to allow a log category through.
+	 */
+	virtual bool ShouldCaptureLogCategory(const class FName& Category) const { return true; }
 
 	/**
 	 * If returns true then logging with a level of Error will not be recorded in test results

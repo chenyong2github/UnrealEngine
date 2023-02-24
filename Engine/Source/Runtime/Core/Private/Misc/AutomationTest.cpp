@@ -159,7 +159,8 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 	{
 		FScopeLock Lock(&ActionCS);
 		bool CaptureLog = !LocalCurTest->SuppressLogs()
-			&& (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Display);
+			&& (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Display)
+			&& LocalCurTest->ShouldCaptureLogCategory(Category);
 
 		if (CaptureLog)
 		{
