@@ -1299,8 +1299,17 @@ namespace UnrealBuildTool
 				PostBuildSyncAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 				PostBuildSyncAction.PrerequisiteItems.Add(Executable);
 				PostBuildSyncAction.PrerequisiteItems.UnionWith(OutputFiles);
-				PostBuildSyncAction.ProducedItems.Add(FileItem.GetItemByFileReference(GetStagedExecutablePath(Executable.Location, Target.Name)));
-				PostBuildSyncAction.DeleteItems.UnionWith(PostBuildSyncAction.ProducedItems);
+				if (bUseModernXcode)
+				{
+					// @todo: do we need one per Target for IOS? Client? I dont think so for Modern
+					FileReference PlistFile = FileReference.Combine(GetActualProjectDirectory(ProjectFile), "Build/IOS/UBTGenerated/Info.Template.plist");
+					PostBuildSyncAction.ProducedItems.Add(FileItem.GetItemByFileReference(PlistFile));
+				}
+				else
+				{
+					PostBuildSyncAction.ProducedItems.Add(FileItem.GetItemByFileReference(GetStagedExecutablePath(Executable.Location, Target.Name)));
+					PostBuildSyncAction.DeleteItems.UnionWith(PostBuildSyncAction.ProducedItems);
+				}
 				PostBuildSyncAction.StatusDescription = "Executing PostBuildSync";
 				PostBuildSyncAction.bCanExecuteRemotely = false;
 

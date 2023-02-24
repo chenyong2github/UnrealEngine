@@ -457,6 +457,8 @@ namespace UnrealBuildTool
 				Text = new StringBuilder(result);
 			}
 
+			Text = Text.Replace("[PROJECT_NAME]", "$(UE_PROJECT_NAME)");
+
 			File.WriteAllText(PlistFile.FullName, Text.ToString());
 		}
 
@@ -490,7 +492,7 @@ namespace UnrealBuildTool
 				if (bUseModernXcode)
 				{
 					// @todo: do we need one per Target for IOS? Client? I dont think so for Modern
-					FinalPlistFile = new FileReference($"{ProjectDirectory}/Build/IOS/UBTGenerated/Info.plist");
+					FinalPlistFile = new FileReference($"{ProjectDirectory}/Build/IOS/UBTGenerated/Info.Template.plist");
 				}
 				else
 				{
@@ -1088,14 +1090,6 @@ namespace UnrealBuildTool
 
 		public bool PrepForUATPackageOrDeploy(UnrealTargetConfiguration Config, FileReference? ProjectFile, string InProjectName, string InProjectDirectory, FileReference Executable, string InEngineDir, bool bForDistribution, string CookFlavor, bool bIsDataDeploy, bool bCreateStubIPA, List<string> UPLScripts, string? BundleID, bool bBuildAsFramework)
 		{
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.IOS);
-			bool bUseModernXcode;
-			if (Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode) && bUseModernXcode)
-			{
-				Logger.LogInformation("Modern Xcode doens't need to Deploy");
-				// none of this is needed with modern xcode
-				return false;
-			}
 
 			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac)
 			{
@@ -1120,6 +1114,26 @@ namespace UnrealBuildTool
 			string BuildDirectory = InProjectDirectory + "/Build/" + SubDir;
 			string BuildDirectory_NFL = InProjectDirectory + "/Restricted/NotForLicensees/Build/" + SubDir;
 			string IntermediateDirectory = (bIsUnrealGame ? InEngineDir : InProjectDirectory) + "/Intermediate/" + SubDir;
+
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.IOS);
+			bool bUseModernXcode;
+			if (Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode) && bUseModernXcode)
+			{
+				Logger.LogInformation("Generating plist (only step needed when deploying with Modern Xcode)");
+				GeneratePList(ProjectFile, Config, InProjectDirectory, bIsUnrealGame, GameExeName, false, InProjectName, InEngineDir, AppDirectory, UPLScripts, BundleID, bBuildAsFramework);
+
+				//// for now, copy the executable into the .app
+				//if (File.Exists(AppDirectory + "/" + GameName))
+				//{
+				//	FileInfo GameFileInfo = new FileInfo(AppDirectory + "/" + GameName);
+				//	GameFileInfo.Attributes = GameFileInfo.Attributes & ~FileAttributes.ReadOnly;
+				//}
+				//// copy the GameName binary
+				//File.Copy(BinaryPath + "/" + GameExeName, AppDirectory + "/" + GameName, true);
+
+				// none of this is needed with modern xcode
+				return false;
+			}
 
 			DirectoryReference.CreateDirectory(BinaryPath);
 			Directory.CreateDirectory(PayloadDirectory);

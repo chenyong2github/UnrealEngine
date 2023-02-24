@@ -769,11 +769,30 @@ public class IOSPlatform : ApplePlatform
 
 		var TargetConfiguration = SC.StageTargetConfigurations[0];
 
+		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Params.RawProjectPath.Directory!, UnrealTargetPlatform.IOS);
+		bool bUseModernXcode;
+		Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
+
 		string MobileProvision;
 		string SigningCertificate;
 		string TeamUUID;
 		bool bAutomaticSigning;
-		GetProvisioningData(Params.RawProjectPath, Params.Distribution, out MobileProvision, out SigningCertificate, out TeamUUID, out bAutomaticSigning);
+		if (bUseModernXcode)
+		{
+			Ini.TryGetValue("XcodeConfiguration", "bUseModernCodeSigning", out bAutomaticSigning);
+			Ini.TryGetValue("XcodeConfiguration", "ModernSigningTeam", out TeamUUID);
+			//			Ini.TryGetValue("XcodeConfiguration", "ModernSigningPrefix", out SigningPrefix);
+			if (!bAutomaticSigning)
+			{
+				throw new AutomationException("Currently only Modern (automatic) codesigning is supported with Modern xcode");
+			}
+			SigningCertificate = null;
+			MobileProvision = null;
+		}
+		else
+		{
+			GetProvisioningData(Params.RawProjectPath, Params.Distribution, out MobileProvision, out SigningCertificate, out TeamUUID, out bAutomaticSigning);
+		}
 
 		//@TODO: We should be able to use this code on both platforms, when the following issues are sorted:
 		//   - Raw executable is unsigned & unstripped (need to investigate adding stripping to IPP)
@@ -1014,8 +1033,13 @@ public class IOSPlatform : ApplePlatform
 
 				// now generate the ipa
 				PackageIPA(Params, ProjectGameExeFilename, SC);
+
+				// generate a .app that can be run directly on an Apple Silicon Mac (the Mac needs to be in the mobileprovision, just like an IOS device)
+				// @todo IOSOnMac
+				// CreateIOSOnMacApp(ProjectGameExeFilename, Params, SC);
 			}
 		}
+
 
 		PrintRunTime();
 	}
@@ -1308,6 +1332,26 @@ public class IOSPlatform : ApplePlatform
 			Zip.Save(IPAName);
 		}
 	}
+
+	// Generate a .app that can be run directly on an Apple Silicon Mac (the Mac needs to be in the mobileprovision, just like an IOS device)
+	private void CreateIOSOnMacApp(string ProjectGameExeFilename, ProjectParams Params, DeploymentContext SC)
+	{
+		// make a version that can run on the Mac directly
+		string ExeName = Params.IsCodeBasedProject ? SC.StageExecutables[0] : Path.GetFileNameWithoutExtension(ProjectGameExeFilename);
+		string GameName = ExeName.Split("-".ToCharArray())[0];
+		string SourceApp = Path.Combine(Path.GetDirectoryName(ProjectGameExeFilename), "Payload", $"{GameName}.app");
+		string DestOuterApp = Path.Combine(Path.GetDirectoryName(ProjectGameExeFilename), "IOSOnMac", $"{GameName}.app");
+		string DestSymlink = Path.Combine(DestOuterApp, "WrappedBundle");
+		string DestInnerApp = Path.Combine(DestOuterApp, "Wrapper", $"{GameName}.app");
+
+		LogInformation($"Creating IOSOnMac app {DestOuterApp}");
+
+		DeleteDirectory_NoExceptions(DestOuterApp);
+		CopyDirectory_NoExceptions(SourceApp, DestInnerApp);
+		// the link uses path relative to the symlink itself
+		File.CreateSymbolicLink(DestSymlink, $"Wrapper/{GameName}.app");
+	}
+
 
 	public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)
 	{
