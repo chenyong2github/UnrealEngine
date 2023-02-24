@@ -70,4 +70,11 @@ enum class ETrailerFailedReason : uint8
  */
 ETrailerFailedReason FindTrailerFailedReason(const FPackagePath& PackagePath);
 
+/** 
+ * Parse the given path and expand any environment variables found with the format
+ * $(EnvVarName). If the variable cannot be found the function will return false 
+ * and OutExpandedPath will be reset.
+ */
+bool ExpandEnvironmentVariables(FStringView InputPath, FStringBuilderBase& OutExpandedPath);
+
 } // namespace UE::Virtualization::Utils
