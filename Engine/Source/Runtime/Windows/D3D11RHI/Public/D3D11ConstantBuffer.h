@@ -12,7 +12,7 @@
 class FD3D11DynamicRHI;
 
 /** Size of the default constant buffer. */
-#define MAX_GLOBAL_CONSTANT_BUFFER_SIZE		4096
+#define MAX_GLOBAL_CONSTANT_BUFFER_BYTE_SIZE		(16*4096)
 
 // !!! These offsets must match the cbuffer register definitions in Common.usf !!!
 enum ED3D11ShaderOffsetBuffer
