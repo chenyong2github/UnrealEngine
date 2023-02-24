@@ -990,18 +990,37 @@ bool FSourceControlBackend::FindSubmissionWorkingDir(const FString& ConfigEntry)
 	// During submission each payload path will be 90 characters in length which will then be appended to
 	// the SubmissionWorkingDir
 
-	SubmissionRootDir = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-VirtualizationWorkingDir"));
-
-	if (!SubmissionRootDir.IsEmpty())
+	FString WorkingDirFromIniFile;
+	if (FParse::Value(*ConfigEntry, TEXT("WorkingDir="), WorkingDirFromIniFile) && !WorkingDirFromIniFile.IsEmpty())
 	{
-		FPaths::NormalizeDirectoryName(SubmissionRootDir);
-		UE_LOG(LogVirtualization, Log, TEXT("[%s] Found Environment Variable: UE-VirtualizationWorkingDir"), *GetDebugName());	
+		TStringBuilder<512> ExpandedPath;
+		if (Utils::ExpandEnvironmentVariables(WorkingDirFromIniFile, ExpandedPath))
+		{
+			SubmissionRootDir = ExpandedPath;
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("[%s] Failed to correctly expand 'WorkingDir=%s'"), *GetDebugName(), *WorkingDirFromIniFile);
+		}
 	}
-	else
+	
+	if (SubmissionRootDir.IsEmpty())
+	{
+		SubmissionRootDir = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-VirtualizationWorkingDir"));
+		if (!SubmissionRootDir.IsEmpty())
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("[%s] Found Environment Variable: UE-VirtualizationWorkingDir"), *GetDebugName());
+		}
+	}
+
+	if (SubmissionRootDir.IsEmpty())
 	{
 
 		bool bSubmitFromTempDir = false;
-		FParse::Bool(*ConfigEntry, TEXT("SubmitFromTempDir="), bSubmitFromTempDir);
+		if (FParse::Bool(*ConfigEntry, TEXT("SubmitFromTempDir="), bSubmitFromTempDir))
+		{
+			UE_LOG(LogVirtualization, Warning, TEXT("[%s] Found legacy ini file setting 'SubmitFromTempDir' use '-WorkingDir=$(Temp)/UnrealEngine/VASubmission' instead!"), *GetDebugName());
+		}
 
 		TStringBuilder<260> PathBuilder;
 		if (bSubmitFromTempDir)
@@ -1015,6 +1034,8 @@ bool FSourceControlBackend::FindSubmissionWorkingDir(const FString& ConfigEntry)
 
 		SubmissionRootDir = PathBuilder;
 	}
+
+	FPaths::NormalizeDirectoryName(SubmissionRootDir);
 
 	if (IFileManager::Get().DirectoryExists(*SubmissionRootDir) || IFileManager::Get().MakeDirectory(*SubmissionRootDir))
 	{

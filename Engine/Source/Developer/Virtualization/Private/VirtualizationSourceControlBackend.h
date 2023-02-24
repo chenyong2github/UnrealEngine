@@ -21,8 +21,8 @@ class FSemaphore;
  * backend, found in Utils::PayloadIdToPath.
  *
  * Ini file setup:
- * 'Name'=(Type=P4SourceControl, DepotRoot="//XXX/", UsePartitionedClient=X, SubmitFromTempDir=X)
- * Where 'Name' is the backend name in the hierarchy and 'XXX' is the path in the source control
+ * 'Name'=(Type=P4SourceControl, DepotRoot="//ABC/")
+ * Where 'Name' is the backend name in the hierarchy and 'ABC' is the path in the source control
  * depot where the payload files are being stored.
  * 
  * Optional Values:
@@ -34,9 +34,10 @@ class FSemaphore;
  *								from will be created as a partitioned workspace which is less overhead
  *								on the source control server. If your server does not support this then
  *								use false. [Default=True]
- * SubmitFromTempDir [bool]:	When set to true, payloads will be submitted from the temp directory of
- *								the current machine and when false the files will be submitted from the
- *								Save directory of the current project. [Default=false]
+ * WorkingDir [string]:			Sets the temp location on disk where payloads are submitted from. The path can
+ *								contain config file expansions (see ConfigCacheIni.cpp ::MatchExpansions) and
+ *								environment variables with the format $(EnvVarName).
+ *								[Default="%GAMESAVEDDIR%/VASubmission"]
  * RetryCount [int32]:			How many times we should try to download a payload before giving up with
  *								an error. Useful when the connection is unreliable but does not experience 
  *								frequent persistent outages. [Default=2]
