@@ -49,8 +49,6 @@ namespace UE::Geometry::Private
 		TArrayView<const FGeneralPolygon2d> ClipPolygons,
 		TArray<FGeneralPolygon2d>& ResultOut)
 	{
-		ResultOut.Reset();
-
 		TAxisAlignedBox2<RealType> InputBounds;
 		for (const FGeneralPolygon2d& Polygon : SubjPolygons)
 		{
@@ -78,6 +76,7 @@ namespace UE::Geometry::Private
 
 		if (bExecuteResult)
 		{
+			ResultOut.Reset();
 			ConvertPolyTreeToPolygons<IntegralType, RealType>(&ResultTree, ResultOut, InputBounds.Min, InputRange);
 		}
 
@@ -95,8 +94,9 @@ bool PolygonsUnion(TArrayView<const FGeneralPolygon2d> Polygons, TArray<FGeneral
 	// always put everything in the 'subject' array for unions
 	bool bResult = Private::ClipArrays<double>(Clipper2Lib::ClipType::Union, Polygons, TArrayView<const FGeneralPolygon2d>(), ResultOut);
 	// optionally fall back to copying the input polygons on failure
-	if (bCopyInputOnFailure && !bResult)
+	if (bCopyInputOnFailure && !bResult && ResultOut.GetData() != Polygons.GetData())
 	{
+		ResultOut.Reset(Polygons.Num());
 		ResultOut.Append(Polygons);
 	}
 	return bResult;

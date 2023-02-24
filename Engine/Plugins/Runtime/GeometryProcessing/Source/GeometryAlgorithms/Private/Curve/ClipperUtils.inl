@@ -86,15 +86,20 @@ namespace UE::Geometry::Private
 	}
 
 	template <typename RealType, typename OutputType>
+	void AddGeneralizedPolygonToPaths(Clipper2Lib::Paths<OutputType>& OutPaths, const UE::Geometry::TGeneralPolygon2<RealType>& InPolygon, const TVector2<RealType>& InMin, const RealType& InRange)
+	{
+		OutPaths.reserve(OutPaths.size() + 1 + InPolygon.GetHoles().Num());
+		OutPaths.push_back(ConvertPolygonToPath<RealType, OutputType>(InPolygon.GetOuter(), InMin, InRange));
+		for(const TPolygon2<RealType>& HolePath : InPolygon.GetHoles())
+		{
+			OutPaths.push_back(ConvertPolygonToPath<RealType, OutputType>(HolePath, InMin, InRange));
+		}
+	}
+	template <typename RealType, typename OutputType>
 	Clipper2Lib::Paths<OutputType> ConvertGeneralizedPolygonToPath(const UE::Geometry::TGeneralPolygon2<RealType>& InPolygon, const TVector2<RealType>& InMin, const RealType& InRange)
 	{
 		Clipper2Lib::Paths<OutputType> Paths;
-		Paths.reserve(1 + InPolygon.GetHoles().Num());
-		Paths.push_back(ConvertPolygonToPath<RealType, OutputType>(InPolygon.GetOuter(), InMin, InRange));
-		for(const TPolygon2<RealType>& HolePath : InPolygon.GetHoles())
-		{
-			Paths.push_back(ConvertPolygonToPath<RealType, OutputType>(HolePath, InMin, InRange));
-		}
+		AddGeneralizedPolygonToPaths(Paths, InPolygon, InMin, InRange);
 		return Paths;
 	}
 

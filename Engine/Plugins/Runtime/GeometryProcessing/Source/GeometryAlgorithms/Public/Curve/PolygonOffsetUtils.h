@@ -45,4 +45,41 @@ namespace UE::Geometry
 
 	typedef TOffsetPolygon2<TArrayView<TVector2<float>>, float> FOffsetPolygon2f;
 	typedef TOffsetPolygon2<TArrayView<TVector2<double>>, double> FOffsetPolygon2d;
+
+
+	// Offset an array of general polygons.
+	// Note: Input polygons should not overlap; to process overlapping polygons, call PolygonsUnion first.
+	// @param Offset		The amount to offset the polygons.
+	// @param Polygons		The polygons to offset
+	// @param ResultOut		On success, will be filled with the resulting polygons. Note: It is ok to pass the same array as both the input and output.
+	// @param bCopyInputOnFailure Whether to copy the input polygons to the result on failure.
+	// @param MiterLimit	If JoinType is Miter, this limits how far each miter join can extend
+	// @param JoinType		How to join/extend corners between two edges
+	// @param EndType		Should generally be Polygon. Otherwise, input is interpreted as a path, and offset is a 'thickening' applied to each side.
+	GEOMETRYALGORITHMS_API bool PolygonsOffset(
+		double Offset,
+		TArrayView<const FGeneralPolygon2d> Polygons, TArray<FGeneralPolygon2d>& ResultOut,
+		bool bCopyInputOnFailure,
+		double MiterLimit,
+		EPolygonOffsetJoinType JoinType = EPolygonOffsetJoinType::Square,
+		EPolygonOffsetEndType EndType = EPolygonOffsetEndType::Polygon);
+
+	// Perform two offsets of the input polygons, intended to support "opening" or "closing" operations
+	// Note: Input polygons should not overlap; to process overlapping polygons, call PolygonsUnion first.
+	// @param FirstOffset	The initial amount to offset the polygons.
+	// @param SecondOffset	The second amount to offset the polygons.
+	// @param Polygons		The polygons to offset
+	// @param ResultOut		On success, will be filled with the resulting polygons. Note: It is ok to pass the same array as both the input and output.
+	// @param bCopyInputOnFailure Whether to copy the input polygons to the result on failure.
+	// @param MiterLimit	If JoinType is Miter, this limits how far each miter join can extend
+	// @param JoinType		How to join/extend corners between two edges
+	// @param EndType		Should generally be Polygon. Otherwise, input is interpreted as a path, and offset is a 'thickening' applied to each side.
+	GEOMETRYALGORITHMS_API bool PolygonsOffsets(
+		double FirstOffset,
+		double SecondOffset,
+		TArrayView<const FGeneralPolygon2d> Polygons, TArray<FGeneralPolygon2d>& ResultOut,
+		bool bCopyInputOnFailure,
+		double MiterLimit,
+		EPolygonOffsetJoinType JoinType = EPolygonOffsetJoinType::Square,
+		EPolygonOffsetEndType EndType = EPolygonOffsetEndType::Polygon);
 }
