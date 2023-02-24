@@ -30,9 +30,6 @@
 
 #include "PostProcess/DrawRectangle.h"
 
-//#include "PostProcess/PostProcessMaterial.h"
-//#include "PostProcess/SceneFilterRendering.h"
-
 #define CAMERA_MESSAGE_ADDRESS TEXT("/ARCamera")
 
 TAutoConsoleVariable<int32> CVarJPEGQuality(
