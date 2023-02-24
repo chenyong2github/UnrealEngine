@@ -356,14 +356,14 @@ FORCENOINLINE UE_DEBUG_SECTION void LogWithFields(typename TFieldArgType<FieldAr
 template <const auto& Log, typename LogCategoryType, ELogVerbosity::Type Verbosity, typename... FieldArgTypes>
 inline void LogIfActive(FieldArgTypes&&... FieldArgs)
 {
-	static_assert(Verbosity != ELogVerbosity::Fatal, "Fatal verbosity is not supported by this API at this time.");
+	static_assert((Verbosity & ELogVerbosity::VerbosityMask) != ELogVerbosity::Fatal, "Fatal verbosity is not supported by this API at this time.");
 	static_assert((Verbosity & ELogVerbosity::VerbosityMask) < ELogVerbosity::NumVerbosity && Verbosity > 0, "Verbosity must be constant and in range.");
 
 	if constexpr (
 		(Verbosity & ELogVerbosity::VerbosityMask) <= ELogVerbosity::COMPILED_IN_MINIMUM_VERBOSITY &&
 		(Verbosity & ELogVerbosity::VerbosityMask) <= LogCategoryType::CompileTimeVerbosity)
 	{
-		if (Verbosity == ELogVerbosity::Fatal || !Log.Category.IsSuppressed(Verbosity))
+		if ((Verbosity & ELogVerbosity::VerbosityMask) == ELogVerbosity::Fatal || !Log.Category.IsSuppressed(Verbosity))
 		{
 			if constexpr (sizeof...(FieldArgTypes) == 0)
 			{
@@ -376,7 +376,7 @@ inline void LogIfActive(FieldArgTypes&&... FieldArgs)
 		}
 	}
 
-	if constexpr (Verbosity == ELogVerbosity::Fatal)
+	if constexpr ((Verbosity & ELogVerbosity::VerbosityMask) == ELogVerbosity::Fatal)
 	{
 		UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE();
 		FDebug::ProcessFatalError(PLATFORM_RETURN_ADDRESS());

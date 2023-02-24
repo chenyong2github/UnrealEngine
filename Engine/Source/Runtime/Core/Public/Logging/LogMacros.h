@@ -150,7 +150,7 @@ CORE_API void BasicFatalLog(const FLogCategoryBase& Category, const FStaticBasic
 	// This will only log Fatal errors
 	#define UE_LOG(CategoryName, Verbosity, Format, ...) \
 	{ \
-		if constexpr (ELogVerbosity::Verbosity == ELogVerbosity::Fatal) \
+		if constexpr ((ELogVerbosity::Verbosity & ELogVerbosity::VerbosityMask) == ELogVerbosity::Fatal) \
 		{ \
 			LowLevelFatalError(Format, ##__VA_ARGS__); \
 			CA_ASSUME(false); \
@@ -158,7 +158,7 @@ CORE_API void BasicFatalLog(const FLogCategoryBase& Category, const FStaticBasic
 	}
 	#define UE_LOG_REF(CategoryRef, Verbosity, Format, ...) \
 	{ \
-		if constexpr (ELogVerbosity::Verbosity == ELogVerbosity::Fatal) \
+		if constexpr ((ELogVerbosity::Verbosity & ELogVerbosity::VerbosityMask) == ELogVerbosity::Fatal) \
 		{ \
 			LowLevelFatalError(Format, ##__VA_ARGS__); \
 			CA_ASSUME(false); \
@@ -166,7 +166,7 @@ CORE_API void BasicFatalLog(const FLogCategoryBase& Category, const FStaticBasic
 	}
 	#define UE_LOG_CLINKAGE(CategoryName, Verbosity, Format, ...) \
 	{ \
-		if constexpr (ELogVerbosity::Verbosity == ELogVerbosity::Fatal) \
+		if constexpr ((ELogVerbosity::Verbosity & ELogVerbosity::VerbosityMask) == ELogVerbosity::Fatal) \
 		{ \
 			LowLevelFatalError(Format, ##__VA_ARGS__); \
 			CA_ASSUME(false); \
@@ -176,7 +176,7 @@ CORE_API void BasicFatalLog(const FLogCategoryBase& Category, const FStaticBasic
 	// Conditional logging (fatal errors only).
 	#define UE_CLOG(Condition, CategoryName, Verbosity, Format, ...) \
 	{ \
-		if constexpr (ELogVerbosity::Verbosity == ELogVerbosity::Fatal) \
+		if constexpr ((ELogVerbosity::Verbosity & ELogVerbosity::VerbosityMask) == ELogVerbosity::Fatal) \
 		{ \
 			if (Condition) \
 			{ \
@@ -303,7 +303,7 @@ CORE_API void BasicFatalLog(const FLogCategoryBase& Category, const FStaticBasic
 		static ::UE::Logging::Private::FStaticBasicLogDynamicData LOG_Dynamic; \
 		static constexpr ::UE::Logging::Private::FStaticBasicLogRecord LOG_Static(Format, __FILE__, __LINE__, ::ELogVerbosity::Verbosity, LOG_Dynamic); \
 		static_assert((::ELogVerbosity::Verbosity & ::ELogVerbosity::VerbosityMask) < ::ELogVerbosity::NumVerbosity && ::ELogVerbosity::Verbosity > 0, "Verbosity must be constant and in range."); \
-		if constexpr (::ELogVerbosity::Verbosity == ::ELogVerbosity::Fatal) \
+		if constexpr ((::ELogVerbosity::Verbosity & ELogVerbosity::VerbosityMask) == ::ELogVerbosity::Fatal) \
 		{ \
 			Condition \
 			{ \
