@@ -148,7 +148,7 @@ void FCreateGeometryCollectionFromSourcesDataflowNode::Evaluate(Dataflow::FConte
 
 		// todo(chaos) if the source is a geometry collection this will not work properly 
 		FGeometryCollectionAutoInstanceMesh InstancedMesh;
-		InstancedMesh.StaticMesh = Source.SourceGeometryObject;
+		InstancedMesh.Mesh = Cast<UStaticMesh>(Source.SourceGeometryObject.TryLoad());
 		InstancedMesh.Materials = Source.SourceMaterial;
 		const int32 InstancedMeshIndex = OutInstancedMeshes.AddUnique(InstancedMesh);
 

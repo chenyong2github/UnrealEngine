@@ -1069,6 +1069,7 @@ protected:
 	TObjectPtr<AGeometryCollectionISMPoolActor> AssignedISMPool = nullptr;
 	int32 ISMPoolMeshGroupIndex = INDEX_NONE;
 	TArray<int32> ISMPoolRootProxyMeshIds;
+	TArray<int32> ISMPoolAutoInstancesMeshIds;
 
 	/** Populate the dynamic particle data for the render thread. */
 	FGeometryCollectionDynamicData* InitDynamicData(bool bInitialization);
@@ -1257,6 +1258,8 @@ private:
 	void LoadCollisionProfiles();
 
 	void OnPostPhysicsSync();
+
+	void AddAutoInstancesToISMPool();
 
 	/** The clusters we need to replicate */
 	TUniquePtr<TSet<Chaos::FPBDRigidClusteredParticleHandle*>> ClustersToRep;

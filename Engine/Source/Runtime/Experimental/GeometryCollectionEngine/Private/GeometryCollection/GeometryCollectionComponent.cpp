@@ -129,6 +129,9 @@ FAutoConsoleVariableRef CVarChaosGCInitConstantDataParallelForBatchSize(TEXT("p.
 int32 MaxGeometryCollectionAsyncPhysicsTickIdleTimeMs = 30;
 FAutoConsoleVariableRef CVarMaxGeometryCollectionAsyncPhysicsTickIdleTimeMs(TEXT("p.Chaos.GC.MaxGeometryCollectionAsyncPhysicsTickIdleTimeMs"), MaxGeometryCollectionAsyncPhysicsTickIdleTimeMs, TEXT("Amount of time in milliseconds before the async tick turns off when it is otherwise not doing anything."));
 
+bool bChaos_GC_DeferAddingAutoInstancesToISMPool = true;
+FAutoConsoleVariableRef CVarDeferAddingAutoInstancesToISMPool(TEXT("p.Chaos.GC.DeferAddingAutoInstancesToISMPool"), bChaos_GC_DeferAddingAutoInstancesToISMPool, TEXT("When enabled, auto instances will be added to the ISM pool after the GC is broken"));
+
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
 extern FGeometryCollectionDynamicDataPool GDynamicDataPool;
@@ -4251,59 +4254,6 @@ void UGeometryCollectionComponent::RegisterToISMPool()
 			if (RestCollection)
 			{
 				ISMPoolMeshGroupIndex = ISMPoolComp->CreateMeshGroup();
-				if (bChaos_GC_UseISMPoolForNonFracturedParts)
-				{
-					if (RestCollection->GetGeometryCollection())
-					{
-						// if we use ISM pool for the hierarchy we must hide the component for rendering 
-						bCanRenderComponent = false;
-
-						// fisrt count the instance per mesh 
-						TArray<int32> InstanceCounts;
-						InstanceCounts.AddZeroed(RestCollection->AutoInstanceMeshes.Num());
-
-						const TManagedArray<TSet<int32>>& Children = RestCollection->GetGeometryCollection()->Children;
-
-						const GeometryCollection::Facades::FCollectionInstancedMeshFacade InstancedMeshFacade(*RestCollection->GetGeometryCollection());
-						if (InstancedMeshFacade.IsValid())
-						{
-							for (int32 TransformIndex = 0; TransformIndex < InstancedMeshFacade.GetNumIndices(); TransformIndex++)
-							{
-								const int32 AutoInstanceMeshIndex = InstancedMeshFacade.GetIndex(TransformIndex);
-								if (Children[TransformIndex].Num() == 0)
-								{
-									InstanceCounts[AutoInstanceMeshIndex]++;
-								}
-							}
-						}
-
-						// now register each mesh 
-						for (int32 MeshIndex = 0; MeshIndex < RestCollection->AutoInstanceMeshes.Num(); MeshIndex++)
-						{
-							const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh = RestCollection->AutoInstanceMeshes[MeshIndex];
-							if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(AutoInstanceMesh.StaticMesh.TryLoad()))
-							{
-								bool bMaterialOverride = false;
-								for (int32 MatIndex = 0; MatIndex < AutoInstanceMesh.Materials.Num(); MatIndex++)
-								{
-									const UMaterialInterface* OriginalMaterial = StaticMesh->GetMaterial(MatIndex);
-									if (OriginalMaterial != AutoInstanceMesh.Materials[MatIndex])
-									{
-										bMaterialOverride = true;
-										break;
-									}
-								}
-								FGeometryCollectionStaticMeshInstance StaticMeshInstance;
-								StaticMeshInstance.StaticMesh = StaticMesh;
-								if (bMaterialOverride)
-								{
-									StaticMeshInstance.MaterialsOverrides = AutoInstanceMesh.Materials;
-								}
-								ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, InstanceCounts[MeshIndex], bChaos_GC_UseHierarchicalISMForLeafMeshes);
-							}
-						}
-					}
-				}
 
 				// root proxy if available 
 				// TODO : if ISM pool is not available : uses a standard static mesh component
@@ -4318,6 +4268,18 @@ void UGeometryCollectionComponent::RegisterToISMPool()
 						FGeometryCollectionStaticMeshInstance StaticMeshInstance;
 						StaticMeshInstance.StaticMesh = Mesh;
 						ISMPoolRootProxyMeshIds.Add(ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, 1, bChaos_GC_UseHierarchicalISMForProxyMesh));
+					}
+				}
+
+				if (bChaos_GC_UseISMPoolForNonFracturedParts)
+				{
+					// if we use ISM pool for the hierarchy we must hide the component for rendering 
+					bCanRenderComponent = false;
+
+					const bool bHasRootProxyMesh = !ISMPoolRootProxyMeshIds.IsEmpty();
+					if (!(bChaos_GC_DeferAddingAutoInstancesToISMPool && bHasRootProxyMesh))
+					{
+						AddAutoInstancesToISMPool();
 					}
 				}
 			}
@@ -4340,6 +4302,68 @@ void UGeometryCollectionComponent::UnregisterFromISMPool()
 			ISMPoolRootProxyMeshIds.Empty();
 		}
 		SetVisibility(true);
+	}
+}
+
+void UGeometryCollectionComponent::AddAutoInstancesToISMPool()
+{
+	if (ISMPoolAutoInstancesMeshIds.Num() > 0)
+	{
+		return;
+	}
+
+	if (UGeometryCollectionISMPoolComponent* ISMPoolComp = AssignedISMPool->GetISMPoolComp())
+	{
+		if (bChaos_GC_UseISMPoolForNonFracturedParts)
+		{
+			if (RestCollection->GetGeometryCollection())
+			{
+				// first count the instance per mesh 
+				TArray<int32> InstanceCounts;
+				InstanceCounts.AddZeroed(RestCollection->AutoInstanceMeshes.Num());
+
+				const TManagedArray<TSet<int32>>& Children = RestCollection->GetGeometryCollection()->Children;
+
+				const GeometryCollection::Facades::FCollectionInstancedMeshFacade InstancedMeshFacade(*RestCollection->GetGeometryCollection());
+				if (InstancedMeshFacade.IsValid())
+				{
+					for (int32 TransformIndex = 0; TransformIndex < InstancedMeshFacade.GetNumIndices(); TransformIndex++)
+					{
+						const int32 AutoInstanceMeshIndex = InstancedMeshFacade.GetIndex(TransformIndex);
+						if (Children[TransformIndex].Num() == 0)
+						{
+							InstanceCounts[AutoInstanceMeshIndex]++;
+						}
+					}
+				}
+
+				// now register each mesh 
+				for (int32 MeshIndex = 0; MeshIndex < RestCollection->AutoInstanceMeshes.Num(); MeshIndex++)
+				{
+					const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh = RestCollection->AutoInstanceMeshes[MeshIndex];
+					if (const UStaticMesh* StaticMesh = AutoInstanceMesh.Mesh)
+					{
+						bool bMaterialOverride = false;
+						for (int32 MatIndex = 0; MatIndex < AutoInstanceMesh.Materials.Num(); MatIndex++)
+						{
+							const UMaterialInterface* OriginalMaterial = StaticMesh->GetMaterial(MatIndex);
+							if (OriginalMaterial != AutoInstanceMesh.Materials[MatIndex])
+							{
+								bMaterialOverride = true;
+								break;
+							}
+						}
+						FGeometryCollectionStaticMeshInstance StaticMeshInstance;
+						StaticMeshInstance.StaticMesh = const_cast<UStaticMesh*>(StaticMesh);
+						if (bMaterialOverride)
+						{
+							StaticMeshInstance.MaterialsOverrides = AutoInstanceMesh.Materials;
+						}
+						ISMPoolAutoInstancesMeshIds.Add(ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, InstanceCounts[MeshIndex], bChaos_GC_UseHierarchicalISMForLeafMeshes));
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -4390,6 +4414,8 @@ void UGeometryCollectionComponent::RefreshISMPoolInstances()
 							}
 							else if (bChaos_GC_UseISMPoolForNonFracturedParts)
 							{
+								AddAutoInstancesToISMPool();
+
 								// make sure this mesh is invisible 
 								// todo : should be event based instead of doing it every frame
 								if (bHasRootProxyMesh && GlobalMatrices.IsValidIndex(RootIndex))
@@ -4414,7 +4440,7 @@ void UGeometryCollectionComponent::RefreshISMPoolInstances()
 											InstanceTransforms.Add(FTransform(GlobalMatrices[TransformIndex]) * ComponentTransform);
 										}
 									}
-									ISMPoolComp->BatchUpdateInstancesTransforms(ISMPoolMeshGroupIndex, MeshIndex, 0, InstanceTransforms, bWorlSpace, bMarkRenderStateDirty, bTeleport);
+									ISMPoolComp->BatchUpdateInstancesTransforms(ISMPoolMeshGroupIndex, ISMPoolAutoInstancesMeshIds[MeshIndex], 0, InstanceTransforms, bWorlSpace, bMarkRenderStateDirty, bTeleport);
 								}
 							}
 						}

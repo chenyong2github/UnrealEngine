@@ -1298,7 +1298,7 @@ void UGeometryCollection::RemoveExemplars(const TArray<int32>& SortedRemovalIndi
 
 bool FGeometryCollectionAutoInstanceMesh::operator ==(const FGeometryCollectionAutoInstanceMesh& Other) const
 {
-	return (StaticMesh == Other.StaticMesh) && (Materials == Other.Materials);
+	return (Mesh == Other.Mesh) && (Materials == Other.Materials);
 }
 
 /** find or add a auto instance mesh and return its index */
@@ -1313,10 +1313,10 @@ int32 UGeometryCollection::FindOrAddAutoInstanceMesh(const FGeometryCollectionAu
 	return AutoInstanceMeshes.AddUnique(AutoInstanecMesh);
 }
 
-int32 UGeometryCollection::FindOrAddAutoInstanceMesh(const UStaticMesh& StaticMesh, const TArray<UMaterialInterface*>& MeshMaterials)
+int32 UGeometryCollection::FindOrAddAutoInstanceMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& MeshMaterials)
 {
 	FGeometryCollectionAutoInstanceMesh NewMesh;
-	NewMesh.StaticMesh = FSoftObjectPath(&StaticMesh);
+	NewMesh.Mesh = StaticMesh;
 	NewMesh.Materials = MeshMaterials;
 	return AutoInstanceMeshes.AddUnique(NewMesh);
 }
@@ -1475,6 +1475,19 @@ void UGeometryCollection::PostLoad()
 			RootProxyData.ProxyMeshes.Add(TObjectPtr<UStaticMesh>(ProxyMesh));
 		}
 		RootProxy_DEPRECATED = nullptr;
+	}
+
+	for (int32 MeshIndex = 0; MeshIndex < AutoInstanceMeshes.Num(); MeshIndex++)
+	{
+		FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh = AutoInstanceMeshes[MeshIndex];
+		if (!AutoInstanceMesh.StaticMesh_DEPRECATED.IsNull())
+		{
+			if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(AutoInstanceMesh.StaticMesh_DEPRECATED.TryLoad()))
+			{
+				AutoInstanceMesh.Mesh = TObjectPtr<UStaticMesh>(StaticMesh);
+			}
+			AutoInstanceMesh.StaticMesh_DEPRECATED = nullptr;
+		}
 	}
 #endif
 }

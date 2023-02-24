@@ -39,7 +39,7 @@ public:
 	 * @param GeometryCollectionObject geometry collection to add to 
 	 * @param FromTransformIndex transform index to start from 
 	 * @param StaticMesh  static mesh to add reference to 
-	 * @param Materials materials correcponding to the static mesh instance to get the index from 
+	 * @param Materials materials corresponding to the static mesh instance to get the index from 
 	 */
 	static void AppendAutoInstanceMeshIndices(UGeometryCollection* GeometryCollectionObject, int32 FromTransformIndex, const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials);
 
@@ -169,7 +169,7 @@ public:
 
 	/**
 	*  Appends a GeometryCollectionSource to a GeometryCollection
-	*  @param GeometryCollectionSource : geometry collectiun source object ( from UGeometryCollection collection asset ) 
+	*  @param GeometryCollectionSource : geometry collection source object ( from UGeometryCollection collection asset ) 
 	*  @param GeometryCollectionInOut : GeometryCollection to append to 
 	*  @param MaterialsInOut  : array of materials to append to
 	*/

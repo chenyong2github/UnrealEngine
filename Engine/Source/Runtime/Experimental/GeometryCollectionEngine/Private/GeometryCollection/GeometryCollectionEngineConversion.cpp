@@ -486,7 +486,7 @@ void FGeometryCollectionEngineConversion::AppendAutoInstanceMeshIndices(UGeometr
 			// create the schema if necessary
 			InstancedMeshFacade.DefineSchema();
 	
-			const int32 AutoInstanceMeshIndex = GeometryCollectionObject->FindOrAddAutoInstanceMesh(*StaticMesh, Materials);
+			const int32 AutoInstanceMeshIndex = GeometryCollectionObject->FindOrAddAutoInstanceMesh(StaticMesh, Materials);
 			for (int32 TransformIndex = FromTransformIndex; TransformIndex < NewNumOfTransforms; TransformIndex++)
 			{
 				InstancedMeshFacade.SetIndex(TransformIndex, AutoInstanceMeshIndex);
