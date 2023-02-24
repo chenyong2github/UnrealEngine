@@ -436,7 +436,7 @@ class FDerivedDataCache final
 			TRACE_CPUPROFILER_EVENT_SCOPE(DDC_DoWork);
 
 			const int64 NumBeforeDDC = Data.Num();
-			bool bGetResult;
+			bool bGetResult = false;
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(DDC_Get);
 
