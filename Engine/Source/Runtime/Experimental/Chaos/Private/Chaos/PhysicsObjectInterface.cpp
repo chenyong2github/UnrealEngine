@@ -174,6 +174,48 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
+	TArray<TThreadParticle<Id>*> FReadPhysicsObjectInterface<Id>::GetAllParticles(TArrayView<FPhysicsObjectHandle> InObjects)
+	{
+		TArray<TThreadParticle<Id>*> Particles;
+		Particles.Reserve(InObjects.Num());
+
+		for (const FPhysicsObjectHandle& Handle : InObjects)
+		{
+			if (TThreadParticle<Id>* Particle = Handle->GetParticle<Id>())
+			{
+				Particles.Add(Particle);
+			}
+		}
+
+		return Particles;
+	}
+
+	template<EThreadContext Id>
+	TArray<TThreadRigidParticle<Id>*> FReadPhysicsObjectInterface<Id>::GetAllRigidParticles(TArrayView<FPhysicsObjectHandle> InObjects)
+	{
+		TArray<TThreadRigidParticle<Id>*> Particles;
+		Particles.Reserve(InObjects.Num());
+
+		for (const FPhysicsObjectHandle& Handle : InObjects)
+		{
+			if (!Handle)
+			{
+				continue;
+			}
+
+			if (TThreadParticle<Id>* Particle = Handle->GetParticle<Id>())
+			{
+				if (TThreadRigidParticle<Id>* RigidParticle = Particle->CastToRigidParticle())
+				{
+					Particles.Add(RigidParticle);
+				}
+			}
+		}
+
+		return Particles;
+	}
+
+	template<EThreadContext Id>
 	TArray<FPerShapeData*> FReadPhysicsObjectInterface<Id>::GetAllShapes(TArrayView<FPhysicsObjectHandle> InObjects)
 	{
 		TArray<FPerShapeData*> AllShapes;
