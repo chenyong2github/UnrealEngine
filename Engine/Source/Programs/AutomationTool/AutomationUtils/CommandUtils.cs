@@ -657,11 +657,11 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="OldName">Old name</param>
 		/// <param name="NewName">new name</param>
-		public static void RenameDirectory(string OldName, string NewName, bool bQuiet = false)
+		public static void RenameDirectory(string OldName, string NewName, bool bQuiet = false, bool bRetry = true)
 		{
 			var OldNormalized = ConvertSeparators(PathSeparator.Default, OldName);
 			var NewNormalized = ConvertSeparators(PathSeparator.Default, NewName);
-			InternalUtils.SafeRenameDirectory(OldNormalized, NewNormalized, bQuiet);
+			InternalUtils.SafeRenameDirectory(OldNormalized, NewNormalized, bQuiet, bRetry, /*bThrow*/true);
 		}
 
 		/// <summary>
@@ -670,18 +670,11 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="OldName">Old name</param>
 		/// <param name="NewName">new name</param>
-		public static bool RenameDirectory_NoExceptions(string OldName, string NewName)
+		public static bool RenameDirectory_NoExceptions(string OldName, string NewName, bool bQuiet = false, bool bRetry = true)
 		{
-			try
-			{
-				RenameDirectory(OldName, NewName);
-			}
-			catch (Exception)
-			{
-				LogWarning("Failed to rename/move file '{0}' to '{1}'", OldName, NewName);
-				return false;
-			}
-			return true;
+			var OldNormalized = ConvertSeparators(PathSeparator.Default, OldName);
+			var NewNormalized = ConvertSeparators(PathSeparator.Default, NewName);
+			return InternalUtils.SafeRenameDirectory(OldNormalized, NewNormalized, bQuiet, bRetry, /*bThrow*/false);
 		}
 
 		/// <summary>

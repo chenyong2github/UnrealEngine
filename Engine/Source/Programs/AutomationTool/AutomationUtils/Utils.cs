@@ -266,7 +266,7 @@ namespace AutomationTool
 		/// <param name="NewName"></param>
 		/// <param name="bQuiet"></param>
 		/// <returns>True if the directory was moved, false otehrwise</returns>
-		public static bool SafeRenameDirectory(string OldName, string NewName, bool bQuiet = false)
+		public static bool SafeRenameDirectory(string OldName, string NewName, bool bQuiet = false, bool bRetry = true, bool bThrow = false)
 		{
 			if (!bQuiet)
 			{
@@ -287,13 +287,27 @@ namespace AutomationTool
 				{
 					if (Directory.Exists(OldName) == true || Directory.Exists(NewName) == false)
 					{
-						Log.TraceWarning("Failed to rename {0} to {1}", OldName, NewName);
-						Log.TraceWarning(LogUtils.FormatException(Ex));
+						if (!bQuiet)
+						{
+							Log.TraceWarning("Failed to rename {0} to {1}", OldName, NewName);
+							Log.TraceWarning(LogUtils.FormatException(Ex));
+						}
 						Result = false;
+					}
+
+					++Attempts;
+					if (Attempts == MaxAttempts)
+					{
+						if (bThrow)
+						{
+							throw;
+						}
+
+						break;
 					}
 				}
 			}
-			while (Result == false && ++Attempts < MaxAttempts);
+			while (Result == false && bRetry);
 
 			return Result;
 		}
