@@ -183,7 +183,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 				{
 					TSharedRef<FDebuggerDatabaseRowData>& Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
 
-					const float Time = Database->GetAssetTime(PoseEntry.DbPoseIdx, Database->Schema->GetSamplingInterval());
+					const float Time = Database->GetAssetTime(PoseEntry.DbPoseIdx);
 
 					Row->PoseIdx = PoseEntry.DbPoseIdx;
 					Row->SourceDatabase = Database;

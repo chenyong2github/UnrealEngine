@@ -74,13 +74,8 @@ static FSamplingParam WrapOrClampSamplingParam(bool bCanWrap, float SamplingPara
 
 //////////////////////////////////////////////////////////////////////////
 // FAssetIndexer
-void FAssetIndexer::Reset()
-{
-	Output = FOutput();
-	Stats = FStats();
-}
-
-void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext, const FBoneContainer& InBoneContainer)
+FAssetIndexer::FAssetIndexer(const FAssetIndexingContext& InIndexingContext, const FBoneContainer& InBoneContainer, const FPoseSearchIndexAsset& InSearchIndexAsset)
+: SearchIndexAsset(InSearchIndexAsset)
 {
 	check(InIndexingContext.Schema);
 	check(InIndexingContext.Schema->IsValid());
@@ -89,14 +84,15 @@ void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext, const F
 	BoneContainer = InBoneContainer;
 	IndexingContext = InIndexingContext;
 
-	Reset();
+	FirstIndexedSample = FMath::FloorToInt(IndexingContext.RequestedSamplingRange.Min * IndexingContext.Schema->SampleRate);
+	// @todo: parhaps we should use FMath::CeilToInt to avoid sampling over teh length of the aniamtion
+	LastIndexedSample = FMath::Max(0, FMath::CeilToInt(IndexingContext.RequestedSamplingRange.Max * IndexingContext.Schema->SampleRate));
+}
 
-	Output.FirstIndexedSample = FMath::FloorToInt(IndexingContext.RequestedSamplingRange.Min * IndexingContext.Schema->SampleRate);
-	Output.LastIndexedSample = FMath::Max(0, FMath::CeilToInt(IndexingContext.RequestedSamplingRange.Max * IndexingContext.Schema->SampleRate));
-	Output.NumIndexedPoses = Output.LastIndexedSample - Output.FirstIndexedSample + 1;
-
-	Output.FeatureVectorTable = TArrayView<float>();
-	Output.PoseMetadata = TArrayView<FPoseSearchPoseMetadata>();
+void FAssetIndexer::AssignWorkingData(TArrayView<float> InOutFeatureVectorTable, TArrayView<FPoseSearchPoseMetadata> InOutPoseMetadata)
+{
+	FeatureVectorTable = InOutFeatureVectorTable;
+	PoseMetadata = InOutPoseMetadata;
 }
 
 void FAssetIndexer::Process(int32 AssetIdx)
@@ -106,22 +102,56 @@ void FAssetIndexer::Process(int32 AssetIdx)
 
 	FMemMark Mark(FMemStack::Get());
 
+	// Generate pose metadata
+	const float SequenceLength = IndexingContext.AssetSampler->GetPlayLength();
+	for (int32 SampleIdx = GetBeginSampleIdx(); SampleIdx != GetEndSampleIdx(); ++SampleIdx)
+	{
+		const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), SequenceLength);
+		float CostAddend = IndexingContext.Schema->BaseCostBias;
+		float ContinuingPoseCostAddend = IndexingContext.Schema->ContinuingPoseCostBias;
+		EPoseSearchPoseFlags Flags = EPoseSearchPoseFlags::None;
+
+		TArray<UAnimNotifyState_PoseSearchBase*> NotifyStates;
+		IndexingContext.AssetSampler->ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
+		for (const UAnimNotifyState_PoseSearchBase* PoseSearchNotify : NotifyStates)
+		{
+			if (PoseSearchNotify->GetClass()->IsChildOf<UAnimNotifyState_PoseSearchBlockTransition>())
+			{
+				EnumAddFlags(Flags, EPoseSearchPoseFlags::BlockTransition);
+			}
+			else if (const UAnimNotifyState_PoseSearchModifyCost* ModifyCostNotify = Cast<const UAnimNotifyState_PoseSearchModifyCost>(PoseSearchNotify))
+			{
+				CostAddend = ModifyCostNotify->CostAddend;
+			}
+			else if (const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias* ContinuingPoseCostBias = Cast<const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias>(PoseSearchNotify))
+			{
+				ContinuingPoseCostAddend = ContinuingPoseCostBias->CostAddend;
+			}
+		}
+
+		if (IndexingContext.AssetSampler->IsLoopable())
+		{
+			CostAddend += IndexingContext.Schema->LoopingCostBias;
+		}
+
+		const int32 VectorIdx = GetVectorIdx(SampleIdx);
+		FPoseSearchPoseMetadata& Metadata = PoseMetadata[VectorIdx];
+		Metadata.Flags = Flags;
+		Metadata.CostAddend = CostAddend;
+		Metadata.ContinuingPoseCostAddend = ContinuingPoseCostAddend;
+		Metadata.AssetIndex = AssetIdx;
+	}
+
+	// Generate pose features data
 	if (IndexingContext.Schema->SchemaCardinality > 0)
 	{
-		// Index each channel
 		for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : IndexingContext.Schema->Channels)
 		{
 			if (ChannelPtr)
 			{
-				ChannelPtr->IndexAsset(*this, Output.FeatureVectorTable);
+				ChannelPtr->IndexAsset(*this);
 			}
 		}
-	}
-
-	// Generate pose metadata
-	for (int32 SampleIdx = GetBeginSampleIdx(); SampleIdx != GetEndSampleIdx(); ++SampleIdx)
-	{
-		Output.PoseMetadata[GetVectorIdx(SampleIdx)] = GetMetadata(SampleIdx, AssetIdx);
 	}
 
 	// Computing stats
@@ -243,46 +273,6 @@ FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const
 FTransform FAssetIndexer::MirrorTransform(const FTransform& Transform) const
 {
 	return IndexingContext.bMirrored ? IndexingContext.SamplingContext->MirrorTransform(Transform) : Transform;
-}
-
-FPoseSearchPoseMetadata FAssetIndexer::GetMetadata(int32 SampleIdx, int32 AssetIdx) const
-{
-	const float SequenceLength = IndexingContext.AssetSampler->GetPlayLength();
-	const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), SequenceLength);
-
-	FPoseSearchPoseMetadata Metadata;
-	Metadata.CostAddend = IndexingContext.Schema->BaseCostBias;
-	Metadata.ContinuingPoseCostAddend = IndexingContext.Schema->ContinuingPoseCostBias;
-
-	TArray<UAnimNotifyState_PoseSearchBase*> NotifyStates;
-	IndexingContext.AssetSampler->ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
-	for (const UAnimNotifyState_PoseSearchBase* PoseSearchNotify : NotifyStates)
-	{
-		if (PoseSearchNotify->GetClass()->IsChildOf<UAnimNotifyState_PoseSearchBlockTransition>())
-		{
-			EnumAddFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition);
-		}
-		else if (PoseSearchNotify->GetClass()->IsChildOf<UAnimNotifyState_PoseSearchModifyCost>())
-		{
-			const UAnimNotifyState_PoseSearchModifyCost* ModifyCostNotify =
-				Cast<const UAnimNotifyState_PoseSearchModifyCost>(PoseSearchNotify);
-			Metadata.CostAddend = ModifyCostNotify->CostAddend;
-		}
-		else if (PoseSearchNotify->GetClass()->IsChildOf<UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias>())
-		{
-			const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias* ContinuingPoseCostBias =
-				Cast<const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias>(PoseSearchNotify);
-			Metadata.ContinuingPoseCostAddend = ContinuingPoseCostBias->CostAddend;
-		}
-	}
-
-	if (IndexingContext.AssetSampler->IsLoopable())
-	{
-		Metadata.CostAddend += IndexingContext.Schema->LoopingCostBias;
-	}
-
-	Metadata.AssetIndex = AssetIdx;
-	return Metadata;
 }
 
 FAssetIndexer::CachedEntry& FAssetIndexer::GetEntry(float SampleTime)
@@ -420,7 +410,7 @@ FQuat FAssetIndexer::GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, 
 		return GetComponentSpaceTransform(SampleTime, bUnused, SchemaSampleBoneIdx).GetRotation();
 	}
 
-	const FTransform RootBoneTransform = GetTransform(OriginTime, bUnused);
+	const FTransform RootBoneTransform = GetTransform(OriginTime, bUnused, RootSchemaBoneIdx);
 	FTransform BoneTransform = GetTransform(SampleTime, bUnused, SchemaSampleBoneIdx);
 	BoneTransform.SetToRelativeTransform(RootBoneTransform);
 	return BoneTransform.GetRotation();
@@ -452,7 +442,7 @@ FVector FAssetIndexer::GetSamplePositionInternal(float SampleTime, float OriginT
 	}
 
 	bool Unused;
-	const FTransform RootBoneTransform = GetTransform(OriginTime, Unused);
+	const FTransform RootBoneTransform = GetTransform(OriginTime, Unused, RootSchemaBoneIdx);
 	const FTransform SampleBoneTransform = GetTransform(SampleTime, bClamped, SchemaSampleBoneIdx);
 	if (IndexingContext.Schema->IsRootBone(SchemaOriginBoneIdx))
 	{
@@ -468,13 +458,13 @@ FVector FAssetIndexer::GetSamplePositionInternal(float SampleTime, float OriginT
 
 FVector FAssetIndexer::GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseCharacterSpaceVelocities)
 {
-	const float OriginSampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), IndexingContext.AssetSampler->GetPlayLength());
-	const float SubsampleTime = OriginSampleTime + SampleTimeOffset;
+	const float OriginTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), IndexingContext.AssetSampler->GetPlayLength());
+	const float SampleTime = OriginTime + SampleTimeOffset;
 	const float FiniteDelta = IndexingContext.SamplingContext->FiniteDelta;
 
 	bool bClampedPast, bClampedPresent;
-	const FVector BonePositionPast = GetSamplePositionInternal(SubsampleTime - FiniteDelta, bUseCharacterSpaceVelocities ? OriginSampleTime - FiniteDelta : OriginSampleTime, bClampedPast, SchemaSampleBoneIdx, SchemaOriginBoneIdx);
-	const FVector BonePositionPresent = GetSamplePositionInternal(SubsampleTime, OriginSampleTime, bClampedPresent, SchemaSampleBoneIdx, SchemaOriginBoneIdx);
+	const FVector BonePositionPast = GetSamplePositionInternal(SampleTime - FiniteDelta, bUseCharacterSpaceVelocities ? OriginTime - FiniteDelta : OriginTime, bClampedPast, SchemaSampleBoneIdx, SchemaOriginBoneIdx);
+	const FVector BonePositionPresent = GetSamplePositionInternal(SampleTime, OriginTime, bClampedPresent, SchemaSampleBoneIdx, SchemaOriginBoneIdx);
 
 	FVector LinearVelocity;
 	if (!bClampedPast)
@@ -484,7 +474,7 @@ FVector FAssetIndexer::GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx
 	else
 	{
 		bool Unused;
-		const FVector BonePositionFuture = GetSamplePositionInternal(SubsampleTime + FiniteDelta, bUseCharacterSpaceVelocities ? OriginSampleTime + FiniteDelta : OriginSampleTime, Unused, SchemaSampleBoneIdx, SchemaOriginBoneIdx);
+		const FVector BonePositionFuture = GetSamplePositionInternal(SampleTime + FiniteDelta, bUseCharacterSpaceVelocities ? OriginTime + FiniteDelta : OriginTime, Unused, SchemaSampleBoneIdx, SchemaOriginBoneIdx);
 		LinearVelocity = (BonePositionFuture - BonePositionPresent) / FiniteDelta;
 	}
 	return LinearVelocity;
@@ -495,7 +485,7 @@ int32 FAssetIndexer::GetVectorIdx(int32 SampleIdx) const
 	return SampleIdx - GetBeginSampleIdx();
 }
 
-TArrayView<float> FAssetIndexer::GetPoseVector(int32 SampleIdx, TArrayView<float> FeatureVectorTable) const
+TArrayView<float> FAssetIndexer::GetPoseVector(int32 SampleIdx) const
 {
 	check(IndexingContext.Schema);
 	return MakeArrayView(&FeatureVectorTable[GetVectorIdx(SampleIdx) * IndexingContext.Schema->SchemaCardinality], IndexingContext.Schema->SchemaCardinality);

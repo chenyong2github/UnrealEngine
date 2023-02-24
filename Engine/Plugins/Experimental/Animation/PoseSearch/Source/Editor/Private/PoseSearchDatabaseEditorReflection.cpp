@@ -117,8 +117,8 @@ void UPoseSearchDatabaseStatistics::Initialize(const UPoseSearchDatabase* PoseSe
 		AnimationSequences = PoseSearchDatabase->AnimationAssets.Num();
 			
 		const int32 SampleRate = FMath::Max(1, PoseSearchDatabase->Schema->SampleRate);
-		TotalAnimationPosesInFrames = SearchIndex.NumPoses;
-		TotalAnimationPosesInTime = FText::Format(TimeFormat, static_cast<double>(SearchIndex.NumPoses) / SampleRate);
+		TotalAnimationPosesInFrames = SearchIndex.GetNumPoses();
+		TotalAnimationPosesInTime = FText::Format(TimeFormat, static_cast<double>(TotalAnimationPosesInFrames) / SampleRate);
 			
 		{
 			uint32 NumOfSearchablePoses = 0;

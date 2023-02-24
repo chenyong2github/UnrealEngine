@@ -9,6 +9,7 @@
 #include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
+struct FPoseSearchIndexAsset;
 struct FPoseSearchPoseMetadata;
 
 namespace UE::PoseSearch
@@ -32,16 +33,6 @@ struct FAssetIndexingContext
 class POSESEARCH_API FAssetIndexer
 {
 public:
-	struct FOutput
-	{
-		int32 FirstIndexedSample = 0;
-		int32 LastIndexedSample = 0;
-		int32 NumIndexedPoses = 0;
-
-		TArrayView<float> FeatureVectorTable;
-		TArrayView<FPoseSearchPoseMetadata> PoseMetadata;
-	};
-
 	struct FStats
 	{
 		int32 NumAccumulatedSamples = 0;
@@ -51,21 +42,20 @@ public:
 		float MaxAcceleration = 0.f;
 	};
 
-	void Reset();
-	void Init(const FAssetIndexingContext& IndexingContext, const FBoneContainer& InBoneContainer);
+	FAssetIndexer(const FAssetIndexingContext& IndexingContext, const FBoneContainer& InBoneContainer, const FPoseSearchIndexAsset& InSearchIndexAsset);
+	void AssignWorkingData(TArrayView<float> InOutFeatureVectorTable, TArrayView<FPoseSearchPoseMetadata> InOutPoseMetadata);
 	void Process(int32 AssetIdx);
-	const FOutput& GetOutput() const { return Output; }
-	FOutput& EditOutput() { return Output; }
 	const FStats& GetStats() const { return Stats; }
 
 	FQuat GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx);
 	FVector GetSamplePosition(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx);
 	FVector GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseCharacterSpaceVelocities = true);
 
-	int32 GetBeginSampleIdx() const { return Output.FirstIndexedSample; }
-	int32 GetEndSampleIdx() const { return Output.LastIndexedSample + 1; }
+	int32 GetBeginSampleIdx() const { return FirstIndexedSample; }
+	int32 GetEndSampleIdx() const { return LastIndexedSample + 1; }
+	int32 GetNumIndexedPoses() const { return GetEndSampleIdx() - GetBeginSampleIdx(); }
 	
-	TArrayView<float> GetPoseVector(int32 SampleIdx, TArrayView<float> FeatureVectorTable) const;
+	TArrayView<float> GetPoseVector(int32 SampleIdx) const;
 	const UPoseSearchSchema* GetSchema() const;
 
 private:
@@ -92,7 +82,6 @@ private:
 	};
 
 	FSampleInfo GetSampleInfo(float SampleTime) const;
-	FPoseSearchPoseMetadata GetMetadata(int32 SampleIdx, int32 AssetIdx) const;
 	FTransform MirrorTransform(const FTransform& Transform) const;
 	CachedEntry& GetEntry(float SampleTime);
 	FTransform CalculateComponentSpaceTransform(CachedEntry& Entry, int8 SchemaBoneIdx);
@@ -101,7 +90,14 @@ private:
 	FBoneContainer BoneContainer;
 	FAssetIndexingContext IndexingContext;
 	TMap<float, CachedEntry> CachedEntries;
-	FOutput Output;
+	const FPoseSearchIndexAsset& SearchIndexAsset;
+	
+	int32 FirstIndexedSample = 0;
+	int32 LastIndexedSample = 0;
+
+	TArrayView<float> FeatureVectorTable;
+	TArrayView<FPoseSearchPoseMetadata> PoseMetadata;
+
 	FStats Stats;
 };
 

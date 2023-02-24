@@ -6,7 +6,7 @@
 namespace UE::PoseSearch
 {
 
-static inline float CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt)
+float CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt)
 {
 	check(A.Num() == B.Num() && A.Num() == WeightsSqrt.Num());
 
@@ -89,8 +89,7 @@ const FPoseSearchIndexAsset* FPoseSearchIndexBase::GetAssetForPoseSafe(int32 Pos
 
 bool FPoseSearchIndexBase::IsEmpty() const
 {
-	const bool bEmpty = Assets.Num() == 0 || NumPoses == 0;
-	return bEmpty;
+	return Assets.IsEmpty() || PoseMetadata.IsEmpty();
 }
 
 void FPoseSearchIndexBase::Reset()
@@ -100,7 +99,6 @@ void FPoseSearchIndexBase::Reset()
 
 FArchive& operator<<(FArchive& Ar, FPoseSearchIndexBase& Index)
 {
-	Ar << Index.NumPoses;
 	Ar << Index.Values;
 	Ar << Index.PoseMetadata;
 	Ar << Index.OverallFlags;
@@ -144,18 +142,16 @@ void FPoseSearchIndex::Reset()
 TConstArrayView<float> FPoseSearchIndex::GetPoseValues(int32 PoseIdx) const
 {
 	const int32 SchemaCardinality = WeightsSqrt.Num();
-	check(PoseIdx >= 0 && PoseIdx < NumPoses&& SchemaCardinality > 0);
+	check(PoseIdx >= 0 && PoseIdx < GetNumPoses() && SchemaCardinality > 0);
 	const int32 ValueOffset = PoseIdx * SchemaCardinality;
 	return MakeArrayView(&Values[ValueOffset], SchemaCardinality);
 }
 
 TConstArrayView<float> FPoseSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
 {
-	if (PoseIdx >= 0 && PoseIdx < NumPoses)
+	if (PoseIdx >= 0 && PoseIdx < GetNumPoses())
 	{
-		const int32 SchemaCardinality = WeightsSqrt.Num();
-		const int32 ValueOffset = PoseIdx * SchemaCardinality;
-		return MakeArrayView(&Values[ValueOffset], SchemaCardinality);
+		return GetPoseValues(PoseIdx);
 	}
 	return TConstArrayView<float>();
 }

@@ -28,13 +28,13 @@ void UPoseSearchFeatureChannel_GroupBase::FillWeights(TArray<float>& Weights) co
 	}
 }
 
-void UPoseSearchFeatureChannel_GroupBase::IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const
+void UPoseSearchFeatureChannel_GroupBase::IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const
 {
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
 		{
-			SubChannel->IndexAsset(Indexer, FeatureVectorTable);
+			SubChannel->IndexAsset(Indexer);
 		}
 	}
 }

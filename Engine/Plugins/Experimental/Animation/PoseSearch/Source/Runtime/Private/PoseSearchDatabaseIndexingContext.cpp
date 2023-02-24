@@ -35,7 +35,6 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	}
 
 	// Prepare samplers for all animation assets.
-	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	for (const FInstancedStruct& DatabaseAssetStruct : Database.AnimationAssets)
 	{
 		auto AddSequenceBaseSampler = [&](const UAnimSequenceBase* Sequence)
@@ -122,7 +121,6 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	}
 
 	// prepare indexers
-	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	Indexers.Reserve(SearchIndexBase.Assets.Num());
 
 	int32 TotalPoses = 0;
@@ -172,12 +170,9 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 			checkNoEntry();
 		}
 
-		FAssetIndexer& Indexer = Indexers.AddDefaulted_GetRef();
-		Indexer.Init(IndexerContext, BoneContainer);
-
-		const FAssetIndexer::FOutput& Output = Indexer.GetOutput();
-		SearchIndexAsset.NumPoses = Output.NumIndexedPoses;
-		TotalPoses += Output.NumIndexedPoses;
+		const int32 NewIndexerIdx = Indexers.Emplace(IndexerContext, BoneContainer, SearchIndexAsset);
+		SearchIndexAsset.NumPoses = Indexers[NewIndexerIdx].GetNumIndexedPoses();
+		TotalPoses += SearchIndexAsset.NumPoses;
 	}
 
 	// allocating Values and PoseMetadata
@@ -191,10 +186,11 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	TotalPoses = 0;
 	for (int32 AssetIdx = 0; AssetIdx != SearchIndexBase.Assets.Num(); ++AssetIdx)
 	{
-		FAssetIndexer::FOutput& Output = Indexers[AssetIdx].EditOutput();
-		Output.FeatureVectorTable = MakeArrayView(SearchIndexBase.Values.GetData() + Schema->SchemaCardinality * TotalPoses, Schema->SchemaCardinality * Output.NumIndexedPoses);
-		Output.PoseMetadata = MakeArrayView(SearchIndexBase.PoseMetadata.GetData() + TotalPoses, Output.NumIndexedPoses);
-		TotalPoses += Output.NumIndexedPoses;
+		const int32 NumIndexedPoses = Indexers[AssetIdx].GetNumIndexedPoses();
+		Indexers[AssetIdx].AssignWorkingData(
+			MakeArrayView(SearchIndexBase.Values.GetData() + Schema->SchemaCardinality * TotalPoses, Schema->SchemaCardinality * NumIndexedPoses),
+			MakeArrayView(SearchIndexBase.PoseMetadata.GetData() + TotalPoses, NumIndexedPoses));
+		TotalPoses += NumIndexedPoses;
 	}
 
 	if (Owner.IsCanceled())
@@ -203,7 +199,6 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	}
 
 	// Index asset data
-	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	ParallelFor(Indexers.Num(), [this](int32 AssetIdx) { Indexers[AssetIdx].Process(AssetIdx); }, ParallelForFlags);
 
 	if (Owner.IsCanceled())
@@ -212,7 +207,6 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	}
 
 	// Joining Metadata.Flags into OverallFlags
-	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	SearchIndexBase.OverallFlags = EPoseSearchPoseFlags::None;
 	for (const FPoseSearchPoseMetadata& Metadata : SearchIndexBase.PoseMetadata)
 	{
@@ -220,7 +214,6 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	}
 
 	// Joining Stats
-	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	int32 NumAccumulatedSamples = 0;
 	SearchIndexBase.Stats = FPoseSearchStats();
 	for (int32 AssetIdx = 0; AssetIdx != SearchIndexBase.Assets.Num(); ++AssetIdx)
@@ -241,12 +234,8 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 		SearchIndexBase.Stats.AverageAcceleration *= Denom;
 	}
 
-	SearchIndexBase.NumPoses = TotalPoses;
-
 	// Calculate Min Cost Addend
-	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	SearchIndexBase.MinCostAddend = 0.f;
-
 	if (!SearchIndexBase.PoseMetadata.IsEmpty())
 	{
 		SearchIndexBase.MinCostAddend = MAX_FLT;

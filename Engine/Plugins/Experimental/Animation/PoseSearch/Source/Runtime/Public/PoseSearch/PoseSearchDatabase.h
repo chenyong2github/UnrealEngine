@@ -279,7 +279,7 @@ public:
 	const bool IsSourceAssetLooping(const FPoseSearchIndexAsset& SearchIndexAsset) const;
 	const FString GetSourceAssetName(const FPoseSearchIndexAsset& SearchIndexAsset) const;
 	int32 GetNumberOfPrincipalComponents() const;
-	float GetAssetTime(int32 PoseIdx, float SamplingInterval) const;
+	float GetAssetTime(int32 PoseIdx) const;
 
 	// Begin UObject
 	virtual void PostLoad() override;

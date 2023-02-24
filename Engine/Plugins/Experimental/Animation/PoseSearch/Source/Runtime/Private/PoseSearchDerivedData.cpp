@@ -147,7 +147,7 @@ private:
 		int32 TotalNumPoses = 0;
 		for (int32 EntryIdx = 0; EntryIdx < EntriesNum; ++EntryIdx)
 		{
-			TotalNumPoses += SearchIndexBases[Entries[EntryIdx].SchemaIndex].NumPoses;
+			TotalNumPoses += SearchIndexBases[Entries[EntryIdx].SchemaIndex].GetNumPoses();
 		}
 
 		int32 AccumulatedNumPoses = 0;
@@ -162,7 +162,7 @@ private:
 			const UPoseSearchSchema* Schema = Schemas[DataSetIdx];
 			const FPoseSearchIndexBase& SearchIndex = SearchIndexBases[DataSetIdx];
 
-			const int32 NumPoses = SearchIndex.NumPoses;
+			const int32 NumPoses = SearchIndex.GetNumPoses();
 
 			// Map input buffer with NumPoses as rows and NumDimensions	as cols
 			RowMajorMatrixMapConst PoseMatrixSourceMap(SearchIndex.Values.GetData(), NumPoses, Schema->SchemaCardinality);
@@ -212,7 +212,7 @@ public:
 		RowMajorVectorMap MeanDeviationsMap(MeanDeviations.GetData(), 1, NumDimensions);
 
 		const EPoseSearchDataPreprocessor DataPreprocessor = ThisSchema->DataPreprocessor;
-		if (SearchIndexBases[ThisSchemaIndex].NumPoses > 0 && (DataPreprocessor == EPoseSearchDataPreprocessor::Normalize || DataPreprocessor == EPoseSearchDataPreprocessor::NormalizeOnlyByDeviation))
+		if (SearchIndexBases[ThisSchemaIndex].GetNumPoses() > 0 && (DataPreprocessor == EPoseSearchDataPreprocessor::Normalize || DataPreprocessor == EPoseSearchDataPreprocessor::NormalizeOnlyByDeviation))
 		{
 			FEntriesGroup EntriesGroup;
 
@@ -450,7 +450,7 @@ static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UP
 static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, int32 NumDimensions, uint32 NumberOfPrincipalComponents, EPoseSearchMode PoseSearchMode)
 {
 	// binding SearchIndex.Values and SearchIndex.PCAValues Eigen row major matrix maps
-	const int32 NumPoses = SearchIndex.NumPoses;
+	const int32 NumPoses = SearchIndex.GetNumPoses();
 
 	SearchIndex.PCAExplainedVariance = 0.f;
 
@@ -548,7 +548,7 @@ static void PreprocessSearchIndexKDTree(FPoseSearchIndex& SearchIndex, int32 Num
 	SearchIndex.KDTree.Reset();
 	if (PoseSearchMode != EPoseSearchMode::BruteForce && NumDimensions > 0)
 	{
-		const int32 NumPoses = SearchIndex.NumPoses;
+		const int32 NumPoses = SearchIndex.GetNumPoses();
 		SearchIndex.KDTree.Construct(NumPoses, NumberOfPrincipalComponents, SearchIndex.PCAValues.GetData(), KDTreeMaxLeafSize);
 
 		if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate)

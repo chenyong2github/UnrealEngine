@@ -9,6 +9,7 @@
 namespace UE::PoseSearch
 {
 
+float CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt);
 POSESEARCH_API void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt, TArrayView<float> Result);
 
 enum class EPoseComparisonFlags : int32
@@ -32,7 +33,7 @@ enum class EPoseSearchBooleanRequest : uint8
 };
 
 UENUM()
-enum class EPoseSearchPoseFlags : uint32
+enum class EPoseSearchPoseFlags : uint8
 {
 	None = 0,
 
@@ -60,9 +61,11 @@ struct POSESEARCH_API FPoseSearchPoseMetadata
 	UPROPERTY(meta = (NeverInHash))
 	float ContinuingPoseCostAddend = 0.0f;
 
-	// @todo: consider int16
+	// @todo: consider uint16
 	UPROPERTY(meta = (NeverInHash))
 	int32 AssetIndex = INDEX_NONE;
+
+	bool IsInitialized() const { return AssetIndex != INDEX_NONE; }
 
 	friend FArchive& operator<<(FArchive& Ar, FPoseSearchPoseMetadata& Metadata);
 };
@@ -79,14 +82,18 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 	FPoseSearchIndexAsset() {}
 
 	FPoseSearchIndexAsset(
-		int32 InSourceAssetIdx, 
+		int32 InSourceAssetIdx,
 		bool bInMirrored, 
 		const FFloatInterval& InSamplingInterval,
 		FVector InBlendParameters = FVector::Zero())
 		: SourceAssetIdx(InSourceAssetIdx)
 		, bMirrored(bInMirrored)
 		, BlendParameters(InBlendParameters)
-		, SamplingInterval(InSamplingInterval) {}
+		, SamplingInterval(InSamplingInterval)
+		, FirstPoseIdx(INDEX_NONE)
+		, NumPoses(INDEX_NONE)
+	{
+	}
 
 	// Index of the source asset in search index's container (i.e. UPoseSearchDatabase)
 	UPROPERTY(meta = (NeverInHash))
@@ -105,7 +112,7 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 	int32 FirstPoseIdx = INDEX_NONE;
 
 	UPROPERTY(meta = (NeverInHash))
-	int32 NumPoses = 0;
+	int32 NumPoses = INDEX_NONE;
 
 	bool IsPoseInRange(int32 PoseIdx) const { return (PoseIdx >= FirstPoseIdx) && (PoseIdx < FirstPoseIdx + NumPoses); }
 	friend FArchive& operator<<(FArchive& Ar, FPoseSearchIndexAsset& IndexAsset);
@@ -140,9 +147,6 @@ struct POSESEARCH_API FPoseSearchIndexBase
 	GENERATED_BODY()
 
 	UPROPERTY(meta = (NeverInHash))
-	int32 NumPoses = 0;
-
-	UPROPERTY(meta = (NeverInHash))
 	TArray<float> Values;
 	
 	UPROPERTY(meta = (NeverInHash))
@@ -162,7 +166,8 @@ struct POSESEARCH_API FPoseSearchIndexBase
 	UPROPERTY(meta = (NeverInHash))
 	FPoseSearchStats Stats;
 
-	bool IsValidPoseIndex(int32 PoseIdx) const { return PoseIdx < NumPoses; }
+	int32 GetNumPoses() const { return PoseMetadata.Num(); }
+	bool IsValidPoseIndex(int32 PoseIdx) const { return PoseIdx < GetNumPoses(); }
 	bool IsEmpty() const;
 
 	const FPoseSearchIndexAsset& GetAssetForPose(int32 PoseIdx) const;
