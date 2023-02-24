@@ -280,7 +280,7 @@ INLINE_ATTR bool IsNaniteMaterialProgrammable(FNaniteMaterialFlags MaterialFlags
 
 INLINE_ATTR UINT_TYPE PackNaniteMaterialBitFlags(FNaniteMaterialFlags Flags)
 {
-	uint32 MaterialBitFlags = 0x00000000u;
+	UINT_TYPE MaterialBitFlags = 0x00000000u;
 
 	if (Flags.bPixelDiscard)
 	{
