@@ -361,7 +361,14 @@ TSharedRef<SWidget> CreateKeyEditor(
 	return SNullWidget::NullWidget;
 }
 
-TUniquePtr<FCurveModel> CreateCurveEditorModel(const TMovieSceneChannelHandle<FMovieSceneConstraintChannel>& Channel, UMovieSceneSection* OwningSection, TSharedRef<ISequencer> InSequencer)
+TUniquePtr<FCurveModel> CreateCurveEditorModel(const TMovieSceneChannelHandle<FMovieSceneConstraintChannel>& ChannelHandle, UMovieSceneSection* OwningSection, TSharedRef<ISequencer> InSequencer)
 {
-	return MakeUnique<FConstraintChannelCurveModel>(Channel, OwningSection, InSequencer);
+	if (FMovieSceneConstraintChannel* Channel = ChannelHandle.Get())
+	{
+		if (Channel->GetNumKeys() > 0)
+		{
+			return MakeUnique<FConstraintChannelCurveModel>(ChannelHandle, OwningSection, InSequencer);
+		}
+	}
+	return nullptr;
 }
