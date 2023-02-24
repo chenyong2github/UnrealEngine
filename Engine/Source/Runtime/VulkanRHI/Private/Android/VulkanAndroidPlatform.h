@@ -71,6 +71,9 @@ public:
 	static bool SupportsBCTextureFormats() { return false; }
 	static bool SupportsASTCTextureFormats() { return true; }
 	static bool SupportsETC2TextureFormats() { return true; }
+	// GLES does not support R16Unorm, so all Android has to fallback to R16F instead
+	static bool SupportsR16UnormTextureFormat() { return false; }
+	
 	static bool SupportsQuerySurfaceProperties() { return false; }
 
 	static void SetupFeatureLevels()

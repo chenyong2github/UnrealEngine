@@ -77,6 +77,7 @@ namespace AndroidTexFormat
 	const static FName NameG8(TEXT("G8"));
 	const static FName NameRGBA16F(TEXT("RGBA16F"));
 	const static FName NameR16F(TEXT("R16F"));
+	const static FName NameG16(TEXT("G16"));
 
 	//A1RGB555 is mapped to RGB555A1, because OpenGL GL_RGB5_A1 only supports alpha on the lowest bit
 	const static FName NameA1RGB555(TEXT("A1RGB555"));
@@ -84,7 +85,8 @@ namespace AndroidTexFormat
 
 	const static FName GenericRemap[][2] =
 	{
-		{ NameA1RGB555,		NameRGB555A1				},
+		{ NameA1RGB555,		NameRGB555A1			},
+		{ NameG16,			NameR16F				}, // GLES does not support R16Unorm, fallback all Android to R16F
 	};
 	
 	static const FName NameASTC_RGB_HDR(TEXT("ASTC_RGB_HDR"));

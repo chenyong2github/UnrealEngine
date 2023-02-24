@@ -47,6 +47,7 @@ public:
 	static bool SupportsBCTextureFormats() { return true; }
 	static bool SupportsASTCTextureFormats() { return false; }
 	static bool SupportsETC2TextureFormats() { return false; }
+	static bool SupportsR16UnormTextureFormat() { return true; }
 
 	// most platforms can query the surface for the present mode, and size, etc
 	static bool SupportsQuerySurfaceProperties() { return true; }
