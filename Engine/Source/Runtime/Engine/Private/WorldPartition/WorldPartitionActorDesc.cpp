@@ -76,7 +76,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 		if (UWorldPartition* WorldPartition = FWorldPartitionHelpers::GetWorldPartition(InActor))
 		{
 			LocalDataLayerAssetPaths.Reserve(InActor->GetDataLayerAssets().Num());
-			for (const TObjectPtr<const UDataLayerAsset>& DataLayerAsset : InActor->GetDataLayerAssets())
+			for (const UDataLayerAsset* DataLayerAsset : InActor->GetDataLayerAssets())
 			{
 				if (DataLayerAsset)
 				{
