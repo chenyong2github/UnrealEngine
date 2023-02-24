@@ -18,6 +18,7 @@
 #include "Modules/ModuleInterface.h"
 #include "RHIBreadcrumbs.h"
 #include "RHIResources.h"
+#include "RHIShaderParameters.h"
 
 class FRHIDepthRenderTargetView;
 class FRHIRenderTargetView;
@@ -305,6 +306,18 @@ public:
 	virtual void RHISetShaderUniformBuffer(FRHIComputeShader* ComputeShader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) = 0;
 
 	virtual void RHISetShaderParameters(FRHIComputeShader* ComputeShader, TConstArrayView<uint8> InParametersData, TConstArrayView<FRHIShaderParameter> InParameters, TConstArrayView<FRHIShaderParameterResource> InResourceParameters, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters) = 0;
+
+	void RHISetBatchedShaderParameters(FRHIComputeShader* InShader, FRHIBatchedShaderParameters& InBatchedParameters)
+	{
+		RHISetShaderParameters(
+			InShader,
+			InBatchedParameters.ParametersData,
+			InBatchedParameters.Parameters,
+			InBatchedParameters.ResourceParameters,
+			InBatchedParameters.BindlessParameters);
+
+		InBatchedParameters.Reset();
+	}
 
 	virtual void RHISetShaderParameter(FRHIComputeShader* ComputeShader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) = 0;
 
@@ -637,6 +650,7 @@ public:
 	using IRHIComputeContext::RHISetShaderResourceViewParameter;
 	using IRHIComputeContext::RHISetShaderUniformBuffer;
 	using IRHIComputeContext::RHISetShaderParameters;
+	using IRHIComputeContext::RHISetBatchedShaderParameters;
 	using IRHIComputeContext::RHISetShaderParameter;
 
 	/** Set the shader resource view of a surface. */
@@ -664,6 +678,18 @@ public:
 	virtual void RHISetShaderUniformBuffer(FRHIGraphicsShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) = 0;
 
 	virtual void RHISetShaderParameters(FRHIGraphicsShader* Shader, TConstArrayView<uint8> InParametersData, TConstArrayView<FRHIShaderParameter> InParameters, TConstArrayView<FRHIShaderParameterResource> InResourceParameters, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters) = 0;
+
+	void RHISetBatchedShaderParameters(FRHIGraphicsShader* InShader, FRHIBatchedShaderParameters& InBatchedParameters)
+	{
+		RHISetShaderParameters(
+			InShader,
+			InBatchedParameters.ParametersData,
+			InBatchedParameters.Parameters,
+			InBatchedParameters.ResourceParameters,
+			InBatchedParameters.BindlessParameters);
+
+		InBatchedParameters.Reset();
+	}
 
 	virtual void RHISetShaderParameter(FRHIGraphicsShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) = 0;
 

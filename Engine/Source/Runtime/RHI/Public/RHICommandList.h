@@ -29,6 +29,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "RHIBreadcrumbs.h"
+#include "RHIShaderParameters.h"
 #include "RHITextureReference.h"
 #include "Trace/Trace.h"
 
@@ -479,157 +480,6 @@ public:
 	~FRHICommandListScopedPipelineGuard();
 };
 
-struct FRHIBatchedShaderParameters
-{
-	TArray<uint8> ParametersData;
-	TArray<FRHIShaderParameter> Parameters;
-	TArray<FRHIShaderParameterResource> ResourceParameters;
-	TArray<FRHIShaderParameterResource> BindlessParameters;
-
-	inline bool HasParameters() const
-	{
-		return (Parameters.Num() + ResourceParameters.Num() + BindlessParameters.Num()) > 0;
-	}
-
-	void Reset()
-	{
-		ParametersData.Reset();
-		Parameters.Reset();
-		ResourceParameters.Reset();
-		BindlessParameters.Reset();
-	}
-
-	FORCEINLINE_DEBUGGABLE void SetShaderParameter(uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue)
-	{
-		const int32 DestDataOffset = ParametersData.Num();
-		ParametersData.Append((const uint8*)NewValue, NumBytes);
-		Parameters.Emplace((uint16)BufferIndex, (uint16)BaseIndex, (uint16)DestDataOffset, (uint16)NumBytes);
-	}
-
-	FORCEINLINE_DEBUGGABLE void SetShaderUniformBuffer(uint32 Index, FRHIUniformBuffer* UniformBuffer)
-	{
-		ResourceParameters.Emplace(UniformBuffer, (uint16)Index);
-	}
-
-	FORCEINLINE_DEBUGGABLE void SetShaderTexture(uint32 Index, FRHITexture* Texture)
-	{
-		ResourceParameters.Emplace(Texture, (uint16)Index);
-	}
-	FORCEINLINE_DEBUGGABLE void SetShaderResourceViewParameter(uint32 Index, FRHIShaderResourceView* SRV)
-	{
-		ResourceParameters.Emplace(SRV, (uint16)Index);
-	}
-	FORCEINLINE_DEBUGGABLE void SetShaderSampler(uint32 Index, FRHISamplerState* State)
-	{
-		ResourceParameters.Emplace(State, (uint16)Index);
-	}
-	FORCEINLINE_DEBUGGABLE void SetUAVParameter(uint32 Index, FRHIUnorderedAccessView* UAV)
-	{
-		ResourceParameters.Emplace(UAV, (uint16)Index);
-	}
-
-	FORCEINLINE_DEBUGGABLE void SetBindlessTexture(uint32 Index, FRHITexture* Texture)
-	{
-		BindlessParameters.Emplace(Texture, (uint16)Index);
-	}
-	FORCEINLINE_DEBUGGABLE void SetBindlessResourceView(uint32 Index, FRHIShaderResourceView* SRV)
-	{
-		BindlessParameters.Emplace(SRV, (uint16)Index);
-	}
-	FORCEINLINE_DEBUGGABLE void SetBindlessSampler(uint32 Index, FRHISamplerState* State)
-	{
-		BindlessParameters.Emplace(State, (uint16)Index);
-	}
-	FORCEINLINE_DEBUGGABLE void SetBindlessUAV(uint32 Index, FRHIUnorderedAccessView* UAV)
-	{
-		BindlessParameters.Emplace(UAV, (uint16)Index);
-	}
-};
-
-class FRHIParameterBatcher
-{
-protected:
-	FRHIShader* AllBatchedShaders[SF_NumStandardFrequencies]{};
-	FRHIBatchedShaderParameters AllBatchedShaderParameters[SF_NumStandardFrequencies];
-	bool bEnabled = false;
-
-	FRHIGraphicsShader* GetBatchedGraphicsShader(int32 Index) { return static_cast<FRHIGraphicsShader*>(AllBatchedShaders[Index]); }
-	FRHIComputeShader*  GetBatchedComputeShader()             { return static_cast<FRHIComputeShader*>(AllBatchedShaders[SF_Compute]);   }
-
-	FORCEINLINE_DEBUGGABLE FRHIBatchedShaderParameters& GetBatchedShaderParameters(FRHIShader* InShader)
-	{
-		checkSlow(InShader);
-		const EShaderFrequency Frequency = InShader->GetFrequency();
-		checkSlow(Frequency < SF_NumStandardFrequencies);
-		check(AllBatchedShaders[Frequency] == InShader);
-		return AllBatchedShaderParameters[Frequency];
-	}
-
-public:
-	RHI_API FRHIParameterBatcher();
-	RHI_API FRHIParameterBatcher(const FBoundShaderStateInput& InBoundShaderStateInput, FRHIComputeShader* InBoundComputeShaderRHI);
-	RHI_API FRHIParameterBatcher(FRHIParameterBatcher&&);
-	RHI_API ~FRHIParameterBatcher();
-
-	FORCEINLINE bool IsEnabled() const { return bEnabled; }
-
-	RHI_API void OnBoundShaderChanged(class FRHICommandList& InCommandList, const FBoundShaderStateInput& InBoundShaderStateInput);
-	RHI_API void OnBoundShaderChanged(class FRHIComputeCommandList& InCommandList, FRHIComputeShader* InBoundComputeShaderRHI);
-
-	RHI_API void PreDispatch(class FRHIComputeCommandList& InCommandList);
-	RHI_API void PreDraw(class FRHICommandList& InCommandList);
-
-	RHI_API void FlushAllParameters(class FRHIComputeCommandList& InCommandList);
-	RHI_API void FlushAllParameters(class FRHICommandList& InCommandList);
-
-	RHI_API void FlushPendingParameters(class FRHIComputeCommandList& InCommandList, FRHIComputeShader* InShader);
-	RHI_API void FlushPendingParameters(class FRHICommandList& InCommandList, FRHIGraphicsShader* InShader);
-
-	FORCEINLINE_DEBUGGABLE void SetShaderParameter(FRHIShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue)
-	{
-		GetBatchedShaderParameters(Shader).SetShaderParameter(BufferIndex, BaseIndex, NumBytes, NewValue);
-	}
-
-	FORCEINLINE_DEBUGGABLE void SetShaderTexture(FRHIShader* Shader, uint32 Index, FRHITexture* Texture)
-	{
-		GetBatchedShaderParameters(Shader).SetShaderTexture(Index, Texture);
-	}
-	FORCEINLINE_DEBUGGABLE void SetShaderResourceViewParameter(FRHIShader* Shader, uint32 Index, FRHIShaderResourceView* SRV)
-	{
-		GetBatchedShaderParameters(Shader).SetShaderResourceViewParameter(Index, SRV);
-	}
-	FORCEINLINE_DEBUGGABLE void SetShaderSampler(FRHIShader* Shader, uint32 Index, FRHISamplerState* State)
-	{
-		GetBatchedShaderParameters(Shader).SetShaderSampler(Index, State);
-	}
-	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FRHIShader* Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV)
-	{
-		GetBatchedShaderParameters(Shader).SetUAVParameter(UAVIndex, UAV);
-	}
-
-	FORCEINLINE_DEBUGGABLE void SetBindlessTexture(FRHIShader* Shader, uint32 Index, FRHITexture* Texture)
-	{
-		GetBatchedShaderParameters(Shader).SetBindlessTexture(Index, Texture);
-	}
-	FORCEINLINE_DEBUGGABLE void SetBindlessResourceView(FRHIShader* Shader, uint32 Index, FRHIShaderResourceView* SRV)
-	{
-		GetBatchedShaderParameters(Shader).SetBindlessResourceView(Index, SRV);
-	}
-	FORCEINLINE_DEBUGGABLE void SetBindlessSampler(FRHIShader* Shader, uint32 Index, FRHISamplerState* State)
-	{
-		GetBatchedShaderParameters(Shader).SetBindlessSampler(Index, State);
-	}
-	FORCEINLINE_DEBUGGABLE void SetBindlessUAV(FRHIShader* Shader, uint32 Index, FRHIUnorderedAccessView* UAV)
-	{
-		GetBatchedShaderParameters(Shader).SetBindlessUAV(Index, UAV);
-	}
-
-	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FRHIShader* Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV, uint32 InitialCount)
-	{
-		checkNoEntry(); // @todo: support append/consume buffers
-	}
-};
-
 class RHI_API FRHICommandListBase : public FNoncopyable
 {
 public:
@@ -877,7 +727,10 @@ public:
 
 	inline FRHIBatchedShaderParameters& GetScratchShaderParameters()
 	{
-		ScratchShaderParameters.Reset();
+		if (!ensureMsgf(!ScratchShaderParameters.HasParameters(), TEXT("Scratch shader parameters left without committed parameters")))
+		{
+			ScratchShaderParameters.Reset();
+		}
 		return ScratchShaderParameters;
 	}
 
@@ -2404,7 +2257,7 @@ public:
 		);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetBatchedShaderParameters(FRHIComputeShader* InShader, const FRHIBatchedShaderParameters& InBatchedParameters)
+	FORCEINLINE_DEBUGGABLE void SetBatchedShaderParameters(FRHIComputeShader* InShader, FRHIBatchedShaderParameters& InBatchedParameters)
 	{
 		if (InBatchedParameters.HasParameters())
 		{
@@ -2416,10 +2269,12 @@ public:
 				InBatchedParameters.BindlessParameters,
 				true /* bSubmitBatchedParameters */
 			);
+
+			InBatchedParameters.Reset();
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetShaderParametersFromInternalBatched(FRHIComputeShader* InShader, const FRHIBatchedShaderParameters& InBatchedParameters)
+	FORCEINLINE_DEBUGGABLE void SetShaderParametersFromInternalBatched(FRHIComputeShader* InShader, FRHIBatchedShaderParameters& InBatchedParameters)
 	{
 		if (InBatchedParameters.HasParameters())
 		{
@@ -2431,6 +2286,8 @@ public:
 				InBatchedParameters.BindlessParameters,
 				false /* bSubmitBatchedParameters */
 			);
+
+			InBatchedParameters.Reset();
 		}
 	}
 
@@ -3201,7 +3058,7 @@ public:
 
 	using FRHIComputeCommandList::SetBatchedShaderParameters;
 
-	FORCEINLINE_DEBUGGABLE void SetBatchedShaderParameters(FRHIGraphicsShader* InShader, const FRHIBatchedShaderParameters& InBatchedParameters)
+	FORCEINLINE_DEBUGGABLE void SetBatchedShaderParameters(FRHIGraphicsShader* InShader, FRHIBatchedShaderParameters& InBatchedParameters)
 	{
 		if (InBatchedParameters.HasParameters())
 		{
@@ -3213,12 +3070,14 @@ public:
 				InBatchedParameters.BindlessParameters,
 				true /* bSubmitBatchedParameters */
 			);
+
+			InBatchedParameters.Reset();
 		}
 	}
 
 	using FRHIComputeCommandList::SetShaderParametersFromInternalBatched;
 
-	FORCEINLINE_DEBUGGABLE void SetShaderParametersFromInternalBatched(FRHIGraphicsShader* InShader, const FRHIBatchedShaderParameters& InBatchedParameters)
+	FORCEINLINE_DEBUGGABLE void SetShaderParametersFromInternalBatched(FRHIGraphicsShader* InShader, FRHIBatchedShaderParameters& InBatchedParameters)
 	{
 		if (InBatchedParameters.HasParameters())
 		{
@@ -3230,6 +3089,8 @@ public:
 				InBatchedParameters.BindlessParameters,
 				false /* bSubmitBatchedParameters */
 			);
+
+			InBatchedParameters.Reset();
 		}
 	}
 
