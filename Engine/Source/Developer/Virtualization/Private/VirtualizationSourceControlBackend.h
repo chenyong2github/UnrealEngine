@@ -55,6 +55,11 @@ class FSemaphore;
  * SuppressNotifications[bool]:	When true the system will not display a pop up notification when a 
  *								connection error occurs, allowing the user to stay unaware of the error
  *								unless it actually causes some sort of problem. [Default=false]
+ * IgnoreFile [string]:			Sets the name of the p4 ignore file to use. When submitting payloads we 
+ *								create a custom p4 ignore file to override any ignore settings for a project
+ *								which allows us to submit from the saved directory which is normally prevented
+ *								by the default ignore file. This value can be set to what ever is used by
+ *								your perforce environment. [Default=".p4ignore.txt"]
  * 
  * Environment Variables:
  * UE-VirtualizationWorkingDir [string]:	This can be set to a valid directory path that the backend
@@ -122,6 +127,9 @@ private:
 
 	/** The root directory from which payloads are submitted. */
 	FString SubmissionRootDir;
+
+	/** The name to use for the p4 ignore file */
+	FString IgnoreFileName = TEXT(".p4ignore.txt");
 
 	/** Should we try to make the temp client partitioned or not? */
 	bool bUsePartitionedClient = true;

@@ -180,15 +180,13 @@ private:
 };
 
 /** Utility function to create a directory to submit payloads from. */
-[[nodiscard]] static bool TryCreateSubmissionSessionDirectory(FStringView SessionDirectoryPath)
+[[nodiscard]] static bool TryCreateSubmissionSessionDirectory(FStringView SessionDirectoryPath, FStringView IgnoreFileName)
 {
 	// Write out an ignore file to the submission directory (will create the directory if needed)
 	{
 		TStringBuilder<260> IgnoreFilePath;
 
-		// TODO: We should find if P4IGNORE is actually set and if so extract the filename to use.
-		// This will require extending the source control module
-		FPathViews::Append(IgnoreFilePath, SessionDirectoryPath, TEXT(".p4ignore.txt"));
+		FPathViews::Append(IgnoreFilePath, SessionDirectoryPath, IgnoreFileName);
 
 		// A very basic .p4ignore file that should make sure that we are only submitting valid .upayload files.
 		// 
@@ -597,7 +595,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 	TStringBuilder<260> SessionDirectory;
 	FPathViews::Append(SessionDirectory, SubmissionRootDir, SessionGuid);
 
-	if (!TryCreateSubmissionSessionDirectory(SessionDirectory))
+	if (!TryCreateSubmissionSessionDirectory(SessionDirectory, IgnoreFileName))
 	{
 		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to created directory '%s' to submit payloads from"), *GetDebugName(), SessionDirectory.ToString());
 		return false;
@@ -966,6 +964,14 @@ bool FSourceControlBackend::TryApplySettingsFromConfigFiles(const FString& Confi
 		{
 			UE_LOG(LogVirtualization, Log, TEXT("[%s] Connection pop up warnings will be shown"), *GetDebugName());
 		}
+	}
+
+	{
+		// TODO: We should just extract this from the perforce environment but that requires extending
+		// the source control api.
+		// Letting the backend define the ignore filename to use is a quicker work around
+		FParse::Value(*ConfigEntry, TEXT("IgnoreFile="), IgnoreFileName);
+		UE_LOG(LogVirtualization, Log, TEXT("[%s] Using '%s' as the p4 ignore file name"), *GetDebugName(), *IgnoreFileName);
 	}
 
 	if (!FindSubmissionWorkingDir(ConfigEntry))
