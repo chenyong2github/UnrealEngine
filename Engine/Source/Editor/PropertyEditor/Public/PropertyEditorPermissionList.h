@@ -26,7 +26,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FPermissionListUpdated, TSoftObjectPtr<UStr
  * Note that because class C manually defines a PermissionList, it does not inherit the AllowListAllProperties rule from class B, while
  * class D does not define a PermissionList, so it does inherit the rule, causing all of class D's properties to also get added to the AllowList.
  */
-enum class EPropertyEditorPermissionListRules : uint8
+enum class EPropertyPermissionListRules : uint8
 {
 	// If no PermissionList is manually defined for this Struct, AllowList all properties from this Struct and its subclasses
 	AllowListAllProperties,
@@ -37,23 +37,17 @@ enum class EPropertyEditorPermissionListRules : uint8
 	UseExistingPermissionList
 };
 
-struct FPropertyEditorPermissionListEntry
+struct FPropertyPermissionListEntry
 {
     FNamePermissionList PermissionList;
-    EPropertyEditorPermissionListRules Rules = EPropertyEditorPermissionListRules::UseExistingPermissionList;
+	EPropertyPermissionListRules Rules = EPropertyPermissionListRules::UseExistingPermissionList;
 };
 
-class PROPERTYEDITOR_API FPropertyEditorPermissionList
+class PROPERTYEDITOR_API FPropertyPermissionList
 {
 public:
-	static FPropertyEditorPermissionList& Get()
-	{
-		static FPropertyEditorPermissionList PermissionList;
-		return PermissionList;
-	}
-
 	/** Add a set of rules for a specific base UStruct to determine which properties are visible in all details panels */
-	void AddPermissionList(TSoftObjectPtr<UStruct> Struct, const FNamePermissionList& PermissionList, EPropertyEditorPermissionListRules Rules = EPropertyEditorPermissionListRules::UseExistingPermissionList);
+	void AddPermissionList(TSoftObjectPtr<UStruct> Struct, const FNamePermissionList& PermissionList, EPropertyPermissionListRules Rules = EPropertyPermissionListRules::UseExistingPermissionList);
 	/** Remove a set of rules for a specific base UStruct to determine which properties are visible in all details panels */
 	void RemovePermissionList(TSoftObjectPtr<UStruct> Struct);
 	/** Remove all rules */
@@ -80,17 +74,19 @@ public:
 	FSimpleMulticastDelegate PermissionListEnabledDelegate;
 
 	/** Controls whether DoesPropertyPassFilter always returns true or performs property-based filtering. */
-	bool IsEnabled() const { return bEnablePropertyEditorPermissionList; }
-	/** Turn on or off the property editor PermissionList. DoesPropertyPassFilter will always return true if disabled. */
-	void SetEnabled(bool bEnable);
+	bool IsEnabled() const { return bEnablePermissionList; }
+	/** 
+	 * Turn on or off the property PermissionList. DoesPropertyPassFilter will always return true if disabled.
+	 * Optionally the change can be announced through a broadcast, which is typically recommended, but may not be needed
+	 * if the permission list is only temporary enabled, e.g. during saving.
+	 */
+	void SetEnabled(bool bEnable, bool bAnnounce = true);
 
-	/** Whether the Details View should show special menu entries to add/remove items in the PermissionList */
-	bool ShouldShowMenuEntries() const { return bShouldShowMenuEntries;}
-	/** Turn on or off menu entries to modify the PermissionList from a Details View */
-	void SetShouldShowMenuEntries(bool bShow) { bShouldShowMenuEntries = bShow; }
+	/** Checks if the provided struct has any entries in the allow, deny and deny all lists and returns true in that case. */
+	bool HasFiltering(const UStruct* ObjectStruct) const;
 
 	/**
-	 * Checks if a property passes the PermissionList/DenyList filtering specified by PropertyEditorPermissionLists
+	 * Checks if a property passes the PermissionList/DenyList filtering specified by PropertyPermissionLists
 	 * This should be relatively fast as it maintains a flattened cache of all inherited PermissionLists for every UStruct (which is generated lazily).
 	 */
 	bool DoesPropertyPassFilter(const UStruct* ObjectStruct, FName PropertyName) const;
@@ -101,34 +97,68 @@ public:
 	bool IsSpecificPropertyDenyListed(const UStruct* ObjectStruct, FName PropertyName) const;
 
 	/** Gets a read-only copy of the original, un-flattened PermissionList. */
-	const TMap<TSoftObjectPtr<UStruct>, FPropertyEditorPermissionListEntry>& GetRawPermissionList() const { return RawPropertyEditorPermissionList; }
+	const TMap<TSoftObjectPtr<UStruct>, FPropertyPermissionListEntry>& GetRawPermissionList() const { return RawPropertyPermissionList; }
 
-	/** Clear CachedPropertyEditorPermissionList to cause the PermissionListed property list to be regenerated next time it's queried */
+	/** Clear CachedPropertyPermissionList to cause the PermissionListed property list to be regenerated next time it's queried */
 	void ClearCache();
 
 	/** If true, PermissionListUpdatedDelegate will not broadcast when modifying the permission lists */
 	bool bSuppressUpdateDelegate = false;
 
-private:
-	FPropertyEditorPermissionList();
-	~FPropertyEditorPermissionList();
+protected:
+	FPropertyPermissionList();
+	~FPropertyPermissionList();
 
+private:
 	void RegisterOnBlueprintCompiled();
 
 	void ClearCacheAndBroadcast(TSoftObjectPtr<UStruct> ObjectStruct = nullptr, FName OwnerName = NAME_None);
 	
 	/** Whether DoesPropertyPassFilter should perform its PermissionList check or always return true */
-	bool bEnablePropertyEditorPermissionList = false;
-	/** Whether SDetailSingleItemRow should add menu items to add/remove properties to/from the PermissionList */
-	bool bShouldShowMenuEntries = false;
+	bool bEnablePermissionList = false;
 	
-	/** Stores assigned PermissionLists from AddPermissionList(), which are later flattened and stored in CachedPropertyEditorPermissionList. */
-	TMap<TSoftObjectPtr<UStruct>, FPropertyEditorPermissionListEntry> RawPropertyEditorPermissionList;
+	/** Stores assigned PermissionLists from AddPermissionList(), which are later flattened and stored in CachedPropertyPermissionList. */
+	TMap<TSoftObjectPtr<UStruct>, FPropertyPermissionListEntry> RawPropertyPermissionList;
 
 	/** Lazily-constructed combined cache of both the flattened class PermissionList and struct PermissionList */
-	mutable TMap<TWeakObjectPtr<const UStruct>, FNamePermissionList> CachedPropertyEditorPermissionList;
+	mutable TMap<TWeakObjectPtr<const UStruct>, FNamePermissionList> CachedPropertyPermissionList;
 
 	/** Get or create the cached PermissionList for a specific UStruct */
 	const FNamePermissionList& GetCachedPermissionListForStruct(const UStruct* Struct) const;
 	const FNamePermissionList& GetCachedPermissionListForStructHelper(const UStruct* Struct, bool& bInOutShouldAllowListAllProperties) const;
+};
+
+class PROPERTYEDITOR_API FPropertyEditorPermissionList : public FPropertyPermissionList
+{
+public:
+	static FPropertyEditorPermissionList& Get()
+	{
+		static FPropertyEditorPermissionList PermissionList;
+		return PermissionList;
+	}
+
+	/** Whether the Details View should show special menu entries to add/remove items in the PermissionList */
+	bool ShouldShowMenuEntries() const { return bShouldShowMenuEntries; }
+	/** Turn on or off menu entries to modify the PermissionList from a Details View */
+	void SetShouldShowMenuEntries(bool bShow) { bShouldShowMenuEntries = bShow; }
+
+private:
+	FPropertyEditorPermissionList() = default;
+	~FPropertyEditorPermissionList() = default;
+
+	/** Whether SDetailSingleItemRow should add menu items to add/remove properties to/from the PermissionList */
+	bool bShouldShowMenuEntries = false;
+};
+
+class PROPERTYEDITOR_API FHiddenPropertyPermissionList : public FPropertyPermissionList
+{
+public:
+	static FHiddenPropertyPermissionList& Get()
+	{
+		static FHiddenPropertyPermissionList PermissionList;
+		return PermissionList;
+	}
+private:
+	FHiddenPropertyPermissionList() = default;
+	~FHiddenPropertyPermissionList() = default;
 };
