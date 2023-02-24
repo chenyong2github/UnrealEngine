@@ -29,7 +29,7 @@ namespace EBeaconState
 /**
  * Base class for beacon communication (Unreal Networking, but outside normal gameplay traffic)
  */
-UCLASS(transient, config=Engine, notplaceable)
+UCLASS(MinimalApi, transient, config=Engine, notplaceable)
 class AOnlineBeacon : public AActor, public FNetworkNotify
 {
 	GENERATED_UCLASS_BODY()
