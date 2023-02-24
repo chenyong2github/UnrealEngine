@@ -104,13 +104,6 @@ void SCustomizableInstanceProperties::Construct(const FArguments& InArgs)
 			}
 		}
 
-		FText SearchBoxText = FText::GetEmpty();
-
-		if (SB_Properties.IsValid())
-		{
-			SearchBoxText = SB_Properties->GetText();
-		}
-
 		this->ChildSlot
 		[
 			SNew(SVerticalBox)
@@ -312,9 +305,9 @@ void SCustomizableInstanceProperties::Construct(const FArguments& InArgs)
 
 				.Padding(2.0f)
 				[
-					SAssignNew(SB_Properties, SSearchBox)
+					SNew(SSearchBox)
 					.HintText(LOCTEXT("SearchHint", "Search Properties"))
-					.InitialText(SearchBoxText)
+					.InitialText(CustomInstance->ParametersSearchFilter)
 					.OnTextChanged(this, &SCustomizableInstanceProperties::OnFilterTextChanged)
 				]
 			]
@@ -528,7 +521,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 		|| (ParamName.EndsWith(FMultilayerProjector::OPACITY_PARAMETER_POSTFIX) && CustomInstance->IsParamMultidimensional(ParamIndexInObject))
 		|| (ParamName.EndsWith(FMultilayerProjector::POSE_PARAMETER_POSTFIX));
 	
-	FString Name = SB_Properties->GetText().ToString();
+	const FString Name = CustomInstance->ParametersSearchFilter.ToString();
 
 	//If SearchBox text is not empty
 	if (!Name.IsEmpty())
@@ -1677,6 +1670,7 @@ void SCustomizableInstanceProperties::OnTextureParameterComboBoxSelectionChanged
 
 void SCustomizableInstanceProperties::OnFilterTextChanged(const FText & InFilterText)
 {
+	CustomInstance->ParametersSearchFilter = InFilterText;
 	ResetParamBox();
 }
 

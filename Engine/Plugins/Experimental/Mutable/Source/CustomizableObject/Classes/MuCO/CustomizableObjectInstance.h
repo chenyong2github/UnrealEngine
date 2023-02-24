@@ -677,8 +677,13 @@ private:
 	/** Textures used in the Texture Parameters. */
 	UPROPERTY(EditAnywhere, Category = TextureParameter)
 	TArray<TObjectPtr<UTexture2D>> TextureParameterDeclarations;
+
+public:
+	/** Preview Instance Properties search box filter. Saved here to avoid losing the text during UI refreshes. */
+	FText ParametersSearchFilter;
 #endif
-	
+
+private:	
 	// Deprecated properties
 	
 	UPROPERTY()
