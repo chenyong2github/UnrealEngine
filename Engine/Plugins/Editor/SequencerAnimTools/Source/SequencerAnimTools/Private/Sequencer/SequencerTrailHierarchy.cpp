@@ -276,7 +276,12 @@ void FSequencerTrailHierarchy::UpdateControlRig(const TArray<FFrameNumber> &Fram
 				}
 				for (FTrailControlTransforms& TrailControlTransform : TrailControlTransforms)
 				{
-					if (bUseEditedTimes == false)
+					if (!TrailControlTransform.Trail)
+					{
+						continue;
+					}
+
+					if (bUseEditedTimes == false && TrailControlTransform.Trail->GetTrajectoryTransforms())
 					{
 						TrailControlTransform.Trail->GetTrajectoryTransforms()->SetTransforms(TrailControlTransform.Transforms, ControlRigParentWorldTransforms);
 					}
