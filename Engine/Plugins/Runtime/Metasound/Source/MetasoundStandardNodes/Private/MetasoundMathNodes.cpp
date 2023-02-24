@@ -1290,6 +1290,9 @@ namespace Metasound
 
 		static void Calculate(TMathOpMultiply& InInstanceData, const FAudioBufferReadRef& InPrimaryOperand, const TArray<FFloatReadRef>& InAdditionalOperands, FAudioBufferWriteRef& OutResult)
 		{
+			constexpr float MaxGain = TNumericLimits<float>::Max() / 1024.f;
+			constexpr float MinGain = -MaxGain;
+
 			if (!InInstanceData.bInit)
 			{
 				InInstanceData.bInit = true;
@@ -1297,7 +1300,7 @@ namespace Metasound
 
 				for (int32 i = 0; i < InAdditionalOperands.Num(); ++i)
 				{
-					InInstanceData.LastGain *= *InAdditionalOperands[i];
+					InInstanceData.LastGain *= FMath::Clamp(*InAdditionalOperands[i], MinGain, MaxGain);
 				}
 			}
 
@@ -1306,19 +1309,11 @@ namespace Metasound
 			float NewGain = 1.0f;
 			for (int32 i = 0; i < InAdditionalOperands.Num(); ++i)
 			{
-				const int32 SIMDRemainder = OutResult->Num() % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER;
-				const int32 SIMDCount = OutResult->Num() - SIMDRemainder;
+				const float Gain = FMath::Clamp(*InAdditionalOperands[i], MinGain, MaxGain);
 
-				TArrayView<float> OutResultView(OutResult->GetData(), SIMDCount);
+				Audio::ArrayFade(*OutResult, InInstanceData.LastGain, Gain);
 
-				Audio::ArrayFade(OutResultView, InInstanceData.LastGain, *InAdditionalOperands[i]);
-
-				for (int32 j = SIMDCount; j < OutResult->Num(); ++j)
-				{
-					OutResult->GetData()[j] *= *InAdditionalOperands[j];
-				}
-
-				NewGain *= *InAdditionalOperands[i];
+				NewGain *= Gain;
 			}
 
 			InInstanceData.LastGain = NewGain;

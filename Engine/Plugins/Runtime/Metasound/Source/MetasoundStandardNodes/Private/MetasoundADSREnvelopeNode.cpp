@@ -220,7 +220,7 @@ namespace Metasound
 				// We are in attack
 				if (AttackSamplesLeft > 0)
 				{
-					EndAttackFrame = FMath::Min(StartFrame + AttackSamplesLeft, EndFrame);
+					EndAttackFrame = FMath::Max(1, FMath::Min(StartFrame + AttackSamplesLeft, EndFrame));
 					for (int32 i = StartFrame; i < EndAttackFrame; ++i)
 					{
 						float AttackFraction = (float)++(InState.CurrentSampleIndex) / InState.AttackSampleCount;
@@ -562,10 +562,10 @@ namespace Metasound
 			, DecayCurveFactor(InArgs.DecayCurveFactor)
 			, ReleaseCurveFactor(InArgs.ReleaseCurveFactor)
 			, bHardReset(InArgs.bInHardReset)
-			, OnDecayTrigger(TDataWriteReferenceFactory<FTrigger>::CreateAny(InArgs.OperatorSettings))
-			, OnSustainTrigger(TDataWriteReferenceFactory<FTrigger>::CreateAny(InArgs.OperatorSettings))
-			, OnDone(TDataWriteReferenceFactory<FTrigger>::CreateAny(InArgs.OperatorSettings))
-			, OutputEnvelope(TDataWriteReferenceFactory<ValueType>::CreateAny(InArgs.OperatorSettings))
+			, OnDecayTrigger(TDataWriteReferenceFactory<FTrigger>::CreateExplicitArgs(InArgs.OperatorSettings))
+			, OnSustainTrigger(TDataWriteReferenceFactory<FTrigger>::CreateExplicitArgs(InArgs.OperatorSettings))
+			, OnDone(TDataWriteReferenceFactory<FTrigger>::CreateExplicitArgs(InArgs.OperatorSettings))
+			, OutputEnvelope(TDataWriteReferenceFactory<ValueType>::CreateExplicitArgs(InArgs.OperatorSettings))
 		{
 			NumFramesPerBlock = InArgs.OperatorSettings.GetNumFramesPerBlock();
 

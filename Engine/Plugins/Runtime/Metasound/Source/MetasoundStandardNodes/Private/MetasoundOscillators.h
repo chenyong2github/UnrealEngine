@@ -501,10 +501,6 @@ namespace Metasound
 		// Triangle.
 		struct FTriangleGenerator
 		{
-			float TriangleSign = -1.0f;
-			float PrevPhase = -1.0f;
-			float DPW_z1 = 0.0f;
-
 			FORCEINLINE float operator()(float InPhase, float InPhaseDelta, const FGeneratorArgs& InArgs)
 			{
 				constexpr float OneOverFastAsinHalfPi = 1.f / 1.5707963050f;
