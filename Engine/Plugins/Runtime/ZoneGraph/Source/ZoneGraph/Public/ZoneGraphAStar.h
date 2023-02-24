@@ -53,7 +53,7 @@ struct ZONEGRAPH_API FZoneGraphAStarNode : public FGraphAStarDefaultNode<FZoneGr
 };
 
 /** Context for FGraphAStar::FindPath() */
-struct ZONEGRAPH_API FZoneGraphPathFilter
+struct FZoneGraphPathFilter
 {
 	// @todo: rename FZoneGraphPathfindContext?
 

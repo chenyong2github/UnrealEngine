@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 template<typename NumericType>
-struct PROPERTYEDITOR_API TNumericPropertyParams
+struct TNumericPropertyParams
 {
 public:
 	DECLARE_DELEGATE_RetVal_OneParam(FString, FMetaDataGetter, FName);

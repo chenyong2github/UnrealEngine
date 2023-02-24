@@ -49,13 +49,13 @@ namespace Dataflow
 	//
 	//
 	//
-	class DATAFLOWENGINE_API FRenderingFactory
+	class FRenderingFactory
 	{
 		typedef TFunction<void(GeometryCollection::Facades::FRenderingFacade& RenderData, const FGraphRenderingState& State)> FOutputRenderingFunction;
 
 		// All Maps indexed by TypeName
 		TMap<FName, FOutputRenderingFunction > RenderMap;		// [TypeName] -> NewNodeFunction
-		static FRenderingFactory* Instance;
+		DATAFLOWENGINE_API static FRenderingFactory* Instance;
 		FRenderingFactory() {}
 
 	public:
@@ -84,7 +84,7 @@ namespace Dataflow
 			}
 		}
 
-		void RenderNodeOutput(GeometryCollection::Facades::FRenderingFacade& RenderData, const FGraphRenderingState& State);
+		DATAFLOWENGINE_API void RenderNodeOutput(GeometryCollection::Facades::FRenderingFacade& RenderData, const FGraphRenderingState& State);
 
 		bool Contains(FName InType) const { return RenderMap.Contains(InType); }
 

@@ -31,12 +31,12 @@ struct FUObjectSerializeContext;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogUObjectThreadContext, Log, All);
 
-class COREUOBJECT_API FUObjectThreadContext : public TThreadSingleton<FUObjectThreadContext>
+class FUObjectThreadContext : public TThreadSingleton<FUObjectThreadContext>
 {
 	friend TThreadSingleton<FUObjectThreadContext>;
 
-	FUObjectThreadContext();
-	virtual ~FUObjectThreadContext();
+	COREUOBJECT_API FUObjectThreadContext();
+	COREUOBJECT_API virtual ~FUObjectThreadContext();
 
 	/** Stack of currently used FObjectInitializers for this thread */
 	TArray<FObjectInitializer*> InitializerStack;

@@ -221,7 +221,7 @@ struct RIGVM_API FRigVMRuntimeSettings
  * indicate execution order.
  */
 USTRUCT(BlueprintType, meta=(DisplayName="Execute Context"))
-struct RIGVM_API FRigVMExecuteContext
+struct FRigVMExecuteContext
 {
 	GENERATED_BODY()
 
@@ -307,11 +307,11 @@ struct RIGVM_API FRigVMExecuteContext
 	/** The world this VM is running in */
 	const UWorld* GetWorld() const { return World; }
 
-	void SetOwningComponent(const USceneComponent* InOwningComponent);
+	RIGVM_API void SetOwningComponent(const USceneComponent* InOwningComponent);
 
-	void SetOwningActor(const AActor* InActor);
+	RIGVM_API void SetOwningActor(const AActor* InActor);
 
-	void SetWorld(const UWorld* InWorld);
+	RIGVM_API void SetWorld(const UWorld* InWorld);
 
 	void SetToWorldSpaceTransform(const FTransform& InToWorldSpaceTransform) { ToWorldSpaceTransform = InToWorldSpaceTransform; }
 
@@ -398,7 +398,7 @@ struct RIGVM_API FRigVMExecuteContext
 	/**
 	 * Serialize this type from another
 	 */
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	RIGVM_API bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 protected:
 

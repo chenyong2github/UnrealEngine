@@ -30,25 +30,25 @@ namespace EBeaconState
  * Base class for beacon communication (Unreal Networking, but outside normal gameplay traffic)
  */
 UCLASS(transient, config=Engine, notplaceable)
-class ONLINESUBSYSTEMUTILS_API AOnlineBeacon : public AActor, public FNetworkNotify
+class AOnlineBeacon : public AActor, public FNetworkNotify
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin AActor Interface
-	virtual void OnActorChannelOpen(FInBunch& InBunch, UNetConnection* Connection) override;
-	virtual bool IsRelevancyOwnerFor(const AActor* ReplicatedActor, const AActor* ActorOwner, const AActor* ConnectionActor) const override;
-	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;
+	ONLINESUBSYSTEMUTILS_API virtual void OnActorChannelOpen(FInBunch& InBunch, UNetConnection* Connection) override;
+	ONLINESUBSYSTEMUTILS_API virtual bool IsRelevancyOwnerFor(const AActor* ReplicatedActor, const AActor* ActorOwner, const AActor* ConnectionActor) const override;
+	ONLINESUBSYSTEMUTILS_API virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;
 	virtual const AActor* GetNetOwner() const override { return nullptr; }
 	virtual UNetConnection* GetNetConnection() const override { return nullptr; }
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
+	ONLINESUBSYSTEMUTILS_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
 	//~ End AActor Interface
 
 	//~ Begin FNetworkNotify Interface
-	virtual EAcceptConnection::Type NotifyAcceptingConnection() override;
-	virtual void NotifyAcceptedConnection(UNetConnection* Connection) override;
-	virtual bool NotifyAcceptingChannel(UChannel* Channel) override;
-	virtual void NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch) override;
+	ONLINESUBSYSTEMUTILS_API virtual EAcceptConnection::Type NotifyAcceptingConnection() override;
+	ONLINESUBSYSTEMUTILS_API virtual void NotifyAcceptedConnection(UNetConnection* Connection) override;
+	ONLINESUBSYSTEMUTILS_API virtual bool NotifyAcceptingChannel(UChannel* Channel) override;
+	ONLINESUBSYSTEMUTILS_API virtual void NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch) override;
 	//~ End FNetworkNotify Interface
 	
     /**
@@ -66,7 +66,7 @@ class ONLINESUBSYSTEMUTILS_API AOnlineBeacon : public AActor, public FNetworkNot
 	 * @param	FailureType	the type of error
 	 * @param	ErrorString	additional string detailing the error
 	 */
-	virtual void HandleNetworkFailure(UWorld* World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
+	ONLINESUBSYSTEMUTILS_API virtual void HandleNetworkFailure(UWorld* World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
 
 	/**
 	 * Set Beacon state 
@@ -92,11 +92,11 @@ class ONLINESUBSYSTEMUTILS_API AOnlineBeacon : public AActor, public FNetworkNot
 	}
 
 	/** Beacon cleanup and net driver destruction */
-	virtual void DestroyBeacon();
+	ONLINESUBSYSTEMUTILS_API virtual void DestroyBeacon();
 
 protected:
 
-	void CleanupNetDriver();
+	ONLINESUBSYSTEMUTILS_API void CleanupNetDriver();
 
 	/** Time beacon will wait to establish a connection with the beacon host */
 	UPROPERTY(Config)
@@ -118,13 +118,13 @@ protected:
 	FName NetDriverDefinitionName;
 
 	/** Common initialization for all beacon types */
-	virtual bool InitBase();
+	ONLINESUBSYSTEMUTILS_API virtual bool InitBase();
 
 	/** Notification that failure needs to be handled */
-	virtual void OnFailure();
+	ONLINESUBSYSTEMUTILS_API virtual void OnFailure();
 
 	/** overridden to return that player controllers are capable of RPCs */
-	virtual bool HasNetOwner() const override;
+	ONLINESUBSYSTEMUTILS_API virtual bool HasNetOwner() const override;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

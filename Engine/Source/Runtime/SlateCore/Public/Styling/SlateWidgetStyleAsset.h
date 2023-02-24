@@ -13,8 +13,8 @@ class Error;
 /**
  * Just a wrapper for the struct with real data in it.
  */
-UCLASS(hidecategories=Object)
-class SLATECORE_API USlateWidgetStyleAsset : public UObject
+UCLASS(MinimalApi, hidecategories=Object)
+class USlateWidgetStyleAsset : public UObject
 {
 	GENERATED_BODY()
 		  

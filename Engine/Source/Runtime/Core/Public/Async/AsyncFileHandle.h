@@ -20,7 +20,7 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Async File Requests"), STAT_Asyn
 class IAsyncReadRequest;
 typedef TFunction<void(bool bWasCancelled, IAsyncReadRequest*)> FAsyncFileCallBack;
 
-class CORE_API IAsyncReadRequest
+class IAsyncReadRequest
 {
 protected:
 	union

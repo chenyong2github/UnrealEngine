@@ -1045,9 +1045,9 @@ public:
 		int32 CurrentItem;
 	};
 
-	struct AIMODULE_API FItemIterator : public FConstItemIterator
+	struct FItemIterator : public FConstItemIterator
 	{
-		FItemIterator(const UEnvQueryTest* QueryTest, FEnvQueryInstance& QueryInstance, int32 StartingItemIndex = INDEX_NONE);
+		AIMODULE_API FItemIterator(const UEnvQueryTest* QueryTest, FEnvQueryInstance& QueryInstance, int32 StartingItemIndex = INDEX_NONE);
 
 		~FItemIterator()
 		{
@@ -1212,8 +1212,8 @@ public:
 			bForced = false;
 		}
 
-		void HandleFailedTestResult();
-		void StoreTestResult();
+		AIMODULE_API void HandleFailedTestResult();
+		AIMODULE_API void StoreTestResult();
 
 		FORCEINLINE void SetScoreInternal(float Score)
 		{

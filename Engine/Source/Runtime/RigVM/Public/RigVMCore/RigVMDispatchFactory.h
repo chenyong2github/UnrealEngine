@@ -42,7 +42,7 @@ struct RIGVM_API FRigVMDispatchContext
  * A factory to generate a template and its dispatch functions
  */
 USTRUCT()
-struct RIGVM_API FRigVMDispatchFactory
+struct FRigVMDispatchFactory
 {
 	GENERATED_BODY()
 
@@ -56,7 +56,7 @@ public:
 	virtual ~FRigVMDispatchFactory() {}
 
 	// returns the name of the factory template
-	FName GetFactoryName() const;
+	RIGVM_API FName GetFactoryName() const;
 
 	// returns the struct for this dispatch factory
 	UScriptStruct* GetScriptStruct() const { return FactoryScriptStruct; };
@@ -67,13 +67,13 @@ public:
 	virtual FString GetNodeTitle(const FRigVMTemplateTypeMap& InTypes) const { return GetScriptStruct()->GetDisplayNameText().ToString(); }
 
 	// returns the color of the node for a given type set.
-	virtual FLinearColor GetNodeColor() const;
+	RIGVM_API virtual FLinearColor GetNodeColor() const;
 
 	// returns the tooltip for the node
-	virtual FText GetNodeTooltip(const FRigVMTemplateTypeMap& InTypes) const;
+	RIGVM_API virtual FText GetNodeTooltip(const FRigVMTemplateTypeMap& InTypes) const;
 
 	// returns the default value for an argument
-	virtual FString GetArgumentDefaultValue(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const;
+	RIGVM_API virtual FString GetArgumentDefaultValue(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const;
 
 	// returns the tooltip for an argument
 	virtual FText GetArgumentTooltip(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const { return FText(); }
@@ -85,13 +85,13 @@ public:
 	virtual TArray<FName> GetAggregateOutputArguments() const { return TArray<FName>(); }
 
 	// returns the next name to be used for an aggregate pin
-	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const;
+	RIGVM_API virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const;
 
 	// Returns the display name text for an argument 
-	virtual FName GetDisplayNameForArgument(const FName& InArgumentName) const;
+	RIGVM_API virtual FName GetDisplayNameForArgument(const FName& InArgumentName) const;
 
 	// Returns meta data on the property of the permutations 
-	virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const;
+	RIGVM_API virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const;
 
 	// Returns true if the factory provides metadata for a given argument
 	bool HasArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
@@ -100,26 +100,26 @@ public:
 	}
 
 	// Returns the category this factory is under
-	virtual FString GetCategory() const;
+	RIGVM_API virtual FString GetCategory() const;
 
 	// Returns the keywords used for looking up this factory
-	virtual FString GetKeywords() const;
+	RIGVM_API virtual FString GetKeywords() const;
 
 	// Returns true if the argument is lazy
-	bool IsLazyInputArgument(const FName& InArgumentName) const;
+	RIGVM_API bool IsLazyInputArgument(const FName& InArgumentName) const;
 
 #endif
 
 	// Returns the name to use for the branch info / argument based on the operand index.
 	// operand index count may be different than the number of arguments, since fixed size array
 	// arguments get unrolled.
-	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const;
+	RIGVM_API virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const;
 
 	// returns true if the dispatch is a control flow dispatch
 	bool IsControlFlowDispatch(const FRigVMDispatchContext& InContext) const { return !GetControlFlowBlocks(InContext).IsEmpty(); }
 
 	// returns the control flow blocks of this dispatch
-	const TArray<FName>& GetControlFlowBlocks(const FRigVMDispatchContext& InContext) const;
+	RIGVM_API const TArray<FName>& GetControlFlowBlocks(const FRigVMDispatchContext& InContext) const;
 
 	// returns true if a given control flow block needs to be sliced
 	virtual const bool IsControlFlowBlockSliced(const FName& InBlockName) const { return false; }
@@ -128,7 +128,7 @@ public:
 	virtual UScriptStruct* GetExecuteContextStruct() const { return FRigVMExecuteContext::StaticStruct(); }
 
 	// Returns truf if this factory supports a given executecontext struct
-	bool SupportsExecuteContextStruct(const UScriptStruct* InExecuteContextStruct) const;
+	RIGVM_API bool SupportsExecuteContextStruct(const UScriptStruct* InExecuteContextStruct) const;
 
 	// registered needed types during registration of the factory
 	virtual void RegisterDependencyTypes() const {}
@@ -137,7 +137,7 @@ public:
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const { return TArray<FRigVMTemplateArgument>(); }
 
 	// returns the execute arguments of the template
-	TArray<FRigVMExecuteArgument> GetExecuteArguments(const FRigVMDispatchContext& InContext) const;
+	RIGVM_API TArray<FRigVMExecuteArgument> GetExecuteArguments(const FRigVMDispatchContext& InContext) const;
 
 	// returns the delegate to react to new types being added to an argument.
 	// this happens if types are being loaded later after this factory has already been deployed
@@ -147,13 +147,13 @@ public:
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo(const FRigVMTemplateTypeMap& InTypes, const FRigVMDispatchContext& InContext) const { return FRigVMStructUpgradeInfo(); }
 
 	// returns the dispatch function for a given type set
-	FRigVMFunctionPtr GetDispatchFunction(const FRigVMTemplateTypeMap& InTypes) const;
+	RIGVM_API FRigVMFunctionPtr GetDispatchFunction(const FRigVMTemplateTypeMap& InTypes) const;
 
 	// builds and returns the template
-	const FRigVMTemplate* GetTemplate() const;
+	RIGVM_API const FRigVMTemplate* GetTemplate() const;
 
 	// returns the name of the permutation for a given set of types
-	FString GetPermutationName(const FRigVMTemplateTypeMap& InTypes) const;
+	RIGVM_API FString GetPermutationName(const FRigVMTemplateTypeMap& InTypes) const;
 
 	// returns true if the dispatch uses the same function ptr for all permutations
 	virtual bool IsSingleton() const { return false; } 
@@ -161,13 +161,13 @@ public:
 protected:
 
 	// returns the name of the permutation for a given set of types
-	FString GetPermutationNameImpl(const FRigVMTemplateTypeMap& InTypes) const;
+	RIGVM_API FString GetPermutationNameImpl(const FRigVMTemplateTypeMap& InTypes) const;
 
 	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const { return nullptr; }
 
 	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const { return TArray<FRigVMExecuteArgument>(); }
 
-	static bool CopyProperty(
+	RIGVM_API static bool CopyProperty(
 		const FProperty* InTargetProperty,
 		uint8* InTargetPtr,
 		const FProperty* InSourceProperty,
@@ -212,10 +212,10 @@ protected:
 	}
 #endif
 
-	virtual const TArray<FName>& GetControlFlowBlocks_Impl(const FRigVMDispatchContext& InContext) const;
+	RIGVM_API virtual const TArray<FName>& GetControlFlowBlocks_Impl(const FRigVMDispatchContext& InContext) const;
 
-	static const FString DispatchPrefix;
-	static const FString TrueString;
+	RIGVM_API static const FString DispatchPrefix;
+	RIGVM_API static const FString TrueString;
 
 	UScriptStruct* FactoryScriptStruct;
 	mutable const FRigVMTemplate* CachedTemplate;

@@ -1936,10 +1936,10 @@ ENUM_CLASS_FLAGS(EGetByNameFlags)
 //
 // Reflection data for an enumeration.
 //
-class COREUOBJECT_API UEnum : public UField
+class UEnum : public UField
 {
-	DECLARE_CASTED_CLASS_INTRINSIC_NO_CTOR(UEnum, UField, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UEnum, NO_API)
-	UEnum(const FObjectInitializer& ObjectInitialzer);
+	DECLARE_CASTED_CLASS_INTRINSIC_NO_CTOR(UEnum, UField, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UEnum, COREUOBJECT_API)
+	COREUOBJECT_API UEnum(const FObjectInitializer& ObjectInitialzer);
 
 public:
 	/** How this enum is declared in C++, affects the internal naming of enum values */
@@ -1979,31 +1979,31 @@ public:
 	}
 
 	/** Gets enum name by index in Names array. Returns NAME_None if Index is not valid. */
-	FName GetNameByIndex(int32 Index) const;
+	COREUOBJECT_API FName GetNameByIndex(int32 Index) const;
 
 	/** Gets index of name in enum, returns INDEX_NONE and optionally errors when name is not found. This is faster than ByNameString if the FName is exact, but will fall back if needed */
-	int32 GetIndexByName(FName InName, EGetByNameFlags Flags = EGetByNameFlags::None) const;
+	COREUOBJECT_API int32 GetIndexByName(FName InName, EGetByNameFlags Flags = EGetByNameFlags::None) const;
 
 	/** Gets enum name by value. Returns NAME_None if value is not found. */
-	FName GetNameByValue(int64 InValue) const;
+	COREUOBJECT_API FName GetNameByValue(int64 InValue) const;
 
 	/** Gets enum value by name, returns INDEX_NONE and optionally errors when name is not found. This is faster than ByNameString if the FName is exact, but will fall back if needed */
-	int64 GetValueByName(FName InName, EGetByNameFlags Flags = EGetByNameFlags::None) const;
+	COREUOBJECT_API int64 GetValueByName(FName InName, EGetByNameFlags Flags = EGetByNameFlags::None) const;
 
 	/** Returns the short name at the enum index, returns empty string if invalid */
-	FString GetNameStringByIndex(int32 InIndex) const;
+	COREUOBJECT_API FString GetNameStringByIndex(int32 InIndex) const;
 
 	/** Gets index of name in enum, returns INDEX_NONE and optionally errors when name is not found. Handles full or short names. */
-	int32 GetIndexByNameString(const FString& SearchString, EGetByNameFlags Flags = EGetByNameFlags::None) const;
+	COREUOBJECT_API int32 GetIndexByNameString(const FString& SearchString, EGetByNameFlags Flags = EGetByNameFlags::None) const;
 
 	/** Returns the short name matching the enum Value, returns empty string if invalid */
-	FString GetNameStringByValue(int64 InValue) const;
+	COREUOBJECT_API FString GetNameStringByValue(int64 InValue) const;
 
 	/** Looks for a name with a given value and returns true and writes the name to Out if one was found */
-	bool FindNameStringByValue(FString& Out, int64 InValue) const;
+	COREUOBJECT_API bool FindNameStringByValue(FString& Out, int64 InValue) const;
 
 	/** Gets enum value by name, returns INDEX_NONE and optionally errors when name is not found. Handles full or short names */
-	int64 GetValueByNameString(const FString& SearchString, EGetByNameFlags Flags = EGetByNameFlags::None) const;
+	COREUOBJECT_API int64 GetValueByNameString(const FString& SearchString, EGetByNameFlags Flags = EGetByNameFlags::None) const;
 
 	/**
 	 * Finds the localized display name or native display name as a fallback.
@@ -2013,13 +2013,13 @@ public:
 	 *
 	 * @return The display name for this object, or an empty text if Index is invalid
 	 */
-	virtual FText GetDisplayNameTextByIndex(int32 InIndex) const;
+	COREUOBJECT_API virtual FText GetDisplayNameTextByIndex(int32 InIndex) const;
 
 	/** Version of GetDisplayNameTextByIndex that takes a value instead */
-	FText GetDisplayNameTextByValue(int64 InValue) const;
+	COREUOBJECT_API FText GetDisplayNameTextByValue(int64 InValue) const;
 
 	/** Looks for a display name with a given value and returns true and writes the name to Out if one was found */
-	bool FindDisplayNameTextByValue(FText& Out, int64 InValue) const;
+	COREUOBJECT_API bool FindDisplayNameTextByValue(FText& Out, int64 InValue) const;
 
 	/**
 	 * Returns the unlocalized logical name originally assigned to the enum at creation.
@@ -2030,22 +2030,22 @@ public:
 	 *
 	 * @return The author-specified name, or an empty string if Index is invalid
 	 */
-	virtual FString GetAuthoredNameStringByIndex(int32 InIndex) const;
+	COREUOBJECT_API virtual FString GetAuthoredNameStringByIndex(int32 InIndex) const;
 
 	/** Version of GetAuthoredNameByIndex that takes a value instead */
-	FString GetAuthoredNameStringByValue(int64 InValue) const;
+	COREUOBJECT_API FString GetAuthoredNameStringByValue(int64 InValue) const;
 
 	/** Looks for a display name with a given value and returns true and writes the unlocalized logical name to Out if one was found */
-	bool FindAuthoredNameStringByValue(FString& Out, int64 InValue) const;
+	COREUOBJECT_API bool FindAuthoredNameStringByValue(FString& Out, int64 InValue) const;
 
 	/** Gets max value of Enum. Defaults to zero if there are no entries. */
-	int64 GetMaxEnumValue() const;
+	COREUOBJECT_API int64 GetMaxEnumValue() const;
 
 	/** Checks if enum has entry with given value. Includes autogenerated _MAX entry. */
-	bool IsValidEnumValue(int64 InValue) const;
+	COREUOBJECT_API bool IsValidEnumValue(int64 InValue) const;
 
 	/** Checks if enum has entry with given name. Includes autogenerated _MAX entry. */
-	bool IsValidEnumName(FName InName) const;
+	COREUOBJECT_API bool IsValidEnumName(FName InName) const;
 
 	/** Removes the Names in this enum from the primary AllEnumNames list */
 	UE_DEPRECATED(5.1, "RemoveNamesFromMasterList is deprecated, please use RemoveNamesFromPrimaryList instead.")
@@ -2055,10 +2055,10 @@ public:
 	}
 
 	/** Removes the Names in this enum from the primary AllEnumNames list */
-	void RemoveNamesFromPrimaryList();
+	COREUOBJECT_API void RemoveNamesFromPrimaryList();
 
 	/** Try to update an out-of-date enum index after an enum changes at runtime */
-	virtual int64 ResolveEnumerator(FArchive& Ar, int64 EnumeratorIndex) const;
+	COREUOBJECT_API virtual int64 ResolveEnumerator(FArchive& Ar, int64 EnumeratorIndex) const;
 
 	/** Associate a function for looking up Enum display names by index, only intended for use by generated code */
 	void SetEnumDisplayNameFn(FEnumDisplayNameFn InEnumDisplayNameFn)
@@ -2103,7 +2103,7 @@ public:
 	 * @param InEnumName Enum name.
 	 * @return Full enum name.
 	 */
-	virtual FString GenerateFullEnumName(const TCHAR* InEnumName) const;
+	COREUOBJECT_API virtual FString GenerateFullEnumName(const TCHAR* InEnumName) const;
 
 	/**
 	 * Searches the list of all enum value names for the specified name
@@ -2113,7 +2113,7 @@ public:
 	 * @param OutFoundEnum Optional address of a variable where the resulting UEnum object should be stored
 	 * @return The value the specified name represents if found, otherwise INDEX_NONE
 	 */
-	static int64 LookupEnumName(FName PackageName, FName TestName, EFindFirstObjectOptions Options = EFindFirstObjectOptions::None, UEnum** OutFoundEnum = nullptr);
+	COREUOBJECT_API static int64 LookupEnumName(FName PackageName, FName TestName, EFindFirstObjectOptions Options = EFindFirstObjectOptions::None, UEnum** OutFoundEnum = nullptr);
 
 	/** searches the list of all enum value names for the specified name
 	 * @return the value the specified name represents if found, otherwise INDEX_NONE
@@ -2132,7 +2132,7 @@ public:
 	 * @param OutFoundEnum Optional address of a variable where the resulting UEnum object should be stored
 	 * @return The value the specified name represents if found, otherwise INDEX_NONE
 	 */
-	static int64 LookupEnumNameSlow(FName PackageName, const TCHAR* InTestShortName, EFindFirstObjectOptions Options = EFindFirstObjectOptions::None, UEnum** OutFoundEnum = nullptr);
+	COREUOBJECT_API static int64 LookupEnumNameSlow(FName PackageName, const TCHAR* InTestShortName, EFindFirstObjectOptions Options = EFindFirstObjectOptions::None, UEnum** OutFoundEnum = nullptr);
 
 	/** searches the list of all enum value names for the specified name
 	 * @return the value the specified name represents if found, otherwise INDEX_NONE
@@ -2147,14 +2147,14 @@ public:
 	 * @param Str	pointer to string to parse; if we successfully find an enum, this pointer is advanced past the name found
 	 * @return index of the value the parsed enum name matches, or INDEX_NONE if no matches
 	 */
-	static int64 ParseEnum(const TCHAR*& Str);
+	COREUOBJECT_API static int64 ParseEnum(const TCHAR*& Str);
 
 	/**
 	 * Tests if the enum contains a MAX value
 	 *
 	 * @return	true if the enum contains a MAX enum, false otherwise.
 	 */
-	bool ContainsExistingMax() const;
+	COREUOBJECT_API bool ContainsExistingMax() const;
 
 	/**
 	 * Sets the array of enums.
@@ -2164,7 +2164,7 @@ public:
 	 * @param bAddMaxKeyIfMissing Should a default Max item be added.
 	 * @return	true unless the MAX enum already exists and isn't the last enum.
 	 */
-	virtual bool SetEnums(TArray<TPair<FName, int64>>& InNames, ECppForm InCppForm, EEnumFlags InFlags = EEnumFlags::None, bool bAddMaxKeyIfMissing = true);
+	COREUOBJECT_API virtual bool SetEnums(TArray<TPair<FName, int64>>& InNames, ECppForm InCppForm, EEnumFlags InFlags = EEnumFlags::None, bool bAddMaxKeyIfMissing = true);
 
 	/**
 	 * @return	 The number of enum names.
@@ -2180,7 +2180,7 @@ public:
 	 * @return	the longest common prefix between all items in the enum.  If a common prefix
 	 *			cannot be found, returns the full name of the enum.
 	 */
-	FString GenerateEnumPrefix() const;
+	COREUOBJECT_API FString GenerateEnumPrefix() const;
 
 #if WITH_EDITOR
 	/**
@@ -2190,7 +2190,7 @@ public:
 	 *
 	 * @return The tooltip for this object.
 	 */
-	FText GetToolTipTextByIndex(int32 NameIndex) const;
+	COREUOBJECT_API FText GetToolTipTextByIndex(int32 NameIndex) const;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -2202,7 +2202,7 @@ public:
 	 *
 	 * @return true if the specified key exists in the list of metadata for this enum, even if the value of that key is empty
 	 */
-	bool HasMetaData( const TCHAR* Key, int32 NameIndex=INDEX_NONE ) const;
+	COREUOBJECT_API bool HasMetaData( const TCHAR* Key, int32 NameIndex=INDEX_NONE ) const;
 
 	/**
 	 * Return the metadata value associated with the specified key.
@@ -2213,7 +2213,7 @@ public:
 	 *
 	 * @return	the value for the key specified, or an empty string if the key wasn't found or had no value.
 	 */
-	FString GetMetaData( const TCHAR* Key, int32 NameIndex=INDEX_NONE, bool bAllowRemap=true ) const;
+	COREUOBJECT_API FString GetMetaData( const TCHAR* Key, int32 NameIndex=INDEX_NONE, bool bAllowRemap=true ) const;
 
 	/**
 	 * Set the metadata value associated with the specified key.
@@ -2223,7 +2223,7 @@ public:
 	 * @param	InValue		Value of the metadata for the key
 	 *
 	 */
-	void SetMetaData( const TCHAR* Key, const TCHAR* InValue, int32 NameIndex=INDEX_NONE) const;
+	COREUOBJECT_API void SetMetaData( const TCHAR* Key, const TCHAR* InValue, int32 NameIndex=INDEX_NONE) const;
 	
 	/**
 	 * Remove given key meta data
@@ -2232,7 +2232,7 @@ public:
 	 * @param	NameIndex	if specified, will search the metadata linked for that enum value; otherwise, searches the metadata for the enum itself
 	 *
 	 */
-	void RemoveMetaData( const TCHAR* Key, int32 NameIndex=INDEX_NONE ) const;
+	COREUOBJECT_API void RemoveMetaData( const TCHAR* Key, int32 NameIndex=INDEX_NONE ) const;
 #endif // WITH_EDITORONLY_DATA
 	
 	/**
@@ -2368,8 +2368,8 @@ public:
 	}
 
 	// UObject interface.
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void BeginDestroy() override;
+	COREUOBJECT_API virtual void Serialize(FArchive& Ar) override;
+	COREUOBJECT_API virtual void BeginDestroy() override;
 	// End of UObject interface.
 
 protected:
@@ -2402,7 +2402,7 @@ protected:
 	}
 
 	/** adds the Names in this enum to the primary AllEnumNames list */
-	void AddNamesToPrimaryList();
+	COREUOBJECT_API void AddNamesToPrimaryList();
 
 private:
 

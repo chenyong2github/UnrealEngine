@@ -5,7 +5,7 @@
 
 namespace Chaos
 {
-class CHAOS_API FErrorReporter
+class FErrorReporter
 {
 public:
 	FErrorReporter(FString ErrorPrefix = "")

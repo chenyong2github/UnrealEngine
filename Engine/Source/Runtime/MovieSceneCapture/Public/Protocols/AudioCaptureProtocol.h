@@ -27,13 +27,13 @@ class MOVIESCENECAPTURE_API UNullAudioCaptureProtocol : public UMovieSceneAudioC
 * If the sequence evaluation hitches the audio will become desynchronized due to their being more time passed 
 * in real time (platform time) than in the sequence itself.
 */
-UCLASS(meta = (DisplayName = "Master Audio Submix", CommandLineID = "MasterAudioSubmix"))
-class MOVIESCENECAPTURE_API UMasterAudioSubmixCaptureProtocol : public UMovieSceneAudioCaptureProtocolBase
+UCLASS(MinimalApi, meta = (DisplayName = "Master Audio Submix", CommandLineID = "MasterAudioSubmix"))
+class UMasterAudioSubmixCaptureProtocol : public UMovieSceneAudioCaptureProtocolBase
 {
 public:
 	GENERATED_BODY()
 
-		UMasterAudioSubmixCaptureProtocol(const FObjectInitializer& Init)
+	UMasterAudioSubmixCaptureProtocol(const FObjectInitializer& Init)
 		: UMovieSceneAudioCaptureProtocolBase(Init)
 		, TotalGameRecordingTime(0.0)
 		, TotalPlatformRecordingTime(0.0)

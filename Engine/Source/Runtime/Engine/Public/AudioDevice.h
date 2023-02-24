@@ -436,19 +436,19 @@ struct FAudioDeviceRenderInfo
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioDevicePreRender, const FAudioDeviceRenderInfo&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioDevicePostRender, const FAudioDeviceRenderInfo&);
 
-class ENGINE_API FAudioDevice : public FExec
+class FAudioDevice : public FExec
 {
 public:
 
 	//Begin FExec Interface
 #if UE_ALLOW_EXEC_COMMANDS
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar = *GLog) override;
+	ENGINE_API virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar = *GLog) override;
 #endif
 	//End FExec Interface
 
 #if !UE_BUILD_SHIPPING
-	UAudioComponent* GetTestComponent(UWorld* InWorld);
-	void StopTestComponent();
+	ENGINE_API UAudioComponent* GetTestComponent(UWorld* InWorld);
+	ENGINE_API void StopTestComponent();
 
 private:
 	/**
@@ -522,7 +522,7 @@ public:
 	/**
 	 * Constructor
 	 */
-	FAudioDevice();
+	ENGINE_API FAudioDevice();
 
 	virtual ~FAudioDevice();
 
@@ -532,37 +532,37 @@ public:
 	}
 
 	/** Returns the quality settings used by the default audio settings. */
-	static const FAudioQualitySettings& GetQualityLevelSettings();
+	ENGINE_API static const FAudioQualitySettings& GetQualityLevelSettings();
 
 	/**
 	 * Basic initialization of the platform agnostic layer of the audio system
 	 */
-	bool Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 BufferSizeOverride = INDEX_NONE, int32 NumBuffersOverride = INDEX_NONE);
+	ENGINE_API bool Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 BufferSizeOverride = INDEX_NONE, int32 NumBuffersOverride = INDEX_NONE);
 
 	/**
 	 * Called after FAudioDevice creation and init
 	 */
-	void OnDeviceCreated(Audio::FDeviceId InDeviceID);
+	ENGINE_API void OnDeviceCreated(Audio::FDeviceId InDeviceID);
 
 	/**
 	 * Called before FAudioDevice teardown
 	 */
-	void OnDeviceDestroyed(Audio::FDeviceId InDeviceID);
+	ENGINE_API void OnDeviceDestroyed(Audio::FDeviceId InDeviceID);
 
 	/**
 	 * Tears down the audio device
 	 */
-	void Teardown();
+	ENGINE_API void Teardown();
 
 	/**
 	 * De-initialization step that occurs after device destroyed broadcast, but before removal from the device manager
 	 */
-	void Deinitialize();
+	ENGINE_API void Deinitialize();
 
 	/**
 	 * The audio system's main "Tick" function
 	 */
-	void Update(bool bGameTicking);
+	ENGINE_API void Update(bool bGameTicking);
 
 	/** Update called on game thread. */
 	virtual void UpdateGameThread() {}
@@ -572,27 +572,27 @@ public:
 	 *
 	 * @param bGameTicking Whether the game is still ticking at the time of suspend
 	 */
-	void Suspend(bool bGameTicking);
+	ENGINE_API void Suspend(bool bGameTicking);
 
 	/**
 	 * Counts the bytes for the structures used in this class
 	 */
-	virtual void CountBytes(FArchive& Ar);
+	ENGINE_API virtual void CountBytes(FArchive& Ar);
 
 	/**
 	 * Track references to UObjects
 	 */
-	void AddReferencedObjects(FReferenceCollector& Collector);
+	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
 
 	/**
 	 * Iterate over the active AudioComponents for wave instances that could be playing.
 	 *
 	 * @return Index of first wave instance that can have a source attached
 	 */
-	int32 GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveInstances, const ESortedActiveWaveGetType::Type GetType);
+	ENGINE_API int32 GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveInstances, const ESortedActiveWaveGetType::Type GetType);
 
 	/** Update the active sound playback time. This is done here to do after all audio is updated. */
-	void UpdateActiveSoundPlaybackTime(bool bIsTimeTicking);
+	ENGINE_API void UpdateActiveSoundPlaybackTime(bool bIsTimeTicking);
 
 	/** Optional fadeout and fade in of audio to avoid clicks when closing or opening/reusing audio device. */
 	virtual void FadeOut() {}
@@ -601,12 +601,12 @@ public:
 	/**
 	 * Stop all the audio components and sources attached to the world. nullptr world means all components.
 	 */
-	void Flush(UWorld* WorldToFlush, bool bClearActivatedReverb = true);
+	ENGINE_API void Flush(UWorld* WorldToFlush, bool bClearActivatedReverb = true);
 
 	/*
 	* Derived classes can override this method to do their own cleanup. Called at the end of FAudioDevice::Flush()
 	*/
-	virtual void FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb);
+	ENGINE_API virtual void FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb);
 
 	/**
 	 * Allows audio rendering command queue to flush during audio device flush.
@@ -614,7 +614,7 @@ public:
 	 */
 	virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) {}
 
-	void OnPreGarbageCollect();
+	ENGINE_API void OnPreGarbageCollect();
 
 	/**
 	 * Stop any playing sounds that are using a particular SoundWave
@@ -622,16 +622,16 @@ public:
 	 * @param SoundWave					Resource to stop any sounds that are using it
 	 * @param[out] StoppedComponents	List of Audio Components that were stopped
 	 */
-	void StopSoundsUsingResource(USoundWave* SoundWave, TArray<UAudioComponent*>* StoppedComponents = nullptr);
+	ENGINE_API void StopSoundsUsingResource(USoundWave* SoundWave, TArray<UAudioComponent*>* StoppedComponents = nullptr);
 
-	static bool LegacyReverbDisabled();
+	ENGINE_API static bool LegacyReverbDisabled();
 
 #if WITH_EDITOR
 	/** Deals with anything audio related that should happen when PIE starts */
-	void OnBeginPIE(const bool bIsSimulating);
+	ENGINE_API void OnBeginPIE(const bool bIsSimulating);
 
 	/** Deals with anything audio related that should happen when PIE ends */
-	void OnEndPIE(const bool bIsSimulating);
+	ENGINE_API void OnEndPIE(const bool bIsSimulating);
 #endif
 
 	/**
@@ -642,55 +642,55 @@ public:
 	 * @param	bTrackMemory	If true, the audio mem stats will be updated
 	 * @param   bForceFullDecompression If true, the sound wave will be fully decompressed regardless of size.
 	 */
-	virtual void Precache(USoundWave* SoundWave, bool bSynchronous = false, bool bTrackMemory = true, bool bForceFullDecompression = false);
+	ENGINE_API virtual void Precache(USoundWave* SoundWave, bool bSynchronous = false, bool bTrackMemory = true, bool bForceFullDecompression = false);
 
-	float GetCompressionDurationThreshold(const FSoundGroup &SoundGroup);
+	ENGINE_API float GetCompressionDurationThreshold(const FSoundGroup &SoundGroup);
 
 	/**
 	 * Returns true if a sound wave should be decompressed.
 	 */
-	bool ShouldUseRealtimeDecompression(bool bForceFullDecompression, const FSoundGroup &SoundGroup, USoundWave* SoundWave, float CompressedDurationThreshold) const;
+	ENGINE_API bool ShouldUseRealtimeDecompression(bool bForceFullDecompression, const FSoundGroup &SoundGroup, USoundWave* SoundWave, float CompressedDurationThreshold) const;
 
 	/**
 	 * Precaches all existing sounds. Called when audio setup is complete
 	 */
-	void PrecacheStartupSounds();
+	ENGINE_API void PrecacheStartupSounds();
 
 	/**
 	 * Sets the maximum number of channels dynamically. Can't raise the cap over the initial value but can lower it
 	 */
-	void SetMaxChannels(int32 InMaxChannels);
+	ENGINE_API void SetMaxChannels(int32 InMaxChannels);
 
 	/**
 	 * Sets the maximum number of channels dynamically by scaled percentage.
 	 */
-	void SetMaxChannelsScaled(float InScaledChannelCount);
+	ENGINE_API void SetMaxChannelsScaled(float InScaledChannelCount);
 
 	/** Returns the max channels used by the audio device. */
-	int32 GetMaxChannels() const;
+	ENGINE_API int32 GetMaxChannels() const;
 
 	/** Returns the maximum sources used by the audio device set on initialization,
 	  * including the number of stopping voices reserved. */
-	int32 GetMaxSources() const;
+	ENGINE_API int32 GetMaxSources() const;
 
 	/**
 	 * Returns global pitch range
 	 */
-	TRange<float> GetGlobalPitchRange() const;
+	ENGINE_API TRange<float> GetGlobalPitchRange() const;
 
 	/**
 	* Stops any sound sources which are using the given buffer.
 	*
 	* @param	FSoundBuffer	Buffer to check against
 	*/
-	void StopSourcesUsingBuffer(FSoundBuffer * SoundBuffer);
+	ENGINE_API void StopSourcesUsingBuffer(FSoundBuffer * SoundBuffer);
 
 	/**
 	 * Stops all game sounds (and possibly UI) sounds
 	 *
 	 * @param bShouldStopUISounds If true, this function will stop UI sounds as well
 	 */
-	virtual void StopAllSounds(bool bShouldStopUISounds = false);
+	ENGINE_API virtual void StopAllSounds(bool bShouldStopUISounds = false);
 
 	/**
 	 * Sets the details about the listener
@@ -699,21 +699,21 @@ public:
 	 * @param   ListenerTransform   The listener's world transform
 	 * @param   DeltaSeconds		The amount of time over which velocity should be calculated.  If 0, then velocity will not be calculated.
 	 */
-	void SetListener(UWorld* World, int32 InListenerIndex, const FTransform& ListenerTransform, float InDeltaSeconds);
+	ENGINE_API void SetListener(UWorld* World, int32 InListenerIndex, const FTransform& ListenerTransform, float InDeltaSeconds);
 
 	/** Sets an override for the listener to do attenuation calculations. */
 	UE_DEPRECATED(4.25, "Use SetListenerAttenuationOverride that passes a ListenerIndex instead")
 	void SetListenerAttenuationOverride(const FVector AttenuationPosition) { SetListenerAttenuationOverride(0, AttenuationPosition); }
 
 	/** Sets an override position for the specified listener to do attenuation calculations. */
-	void SetListenerAttenuationOverride(int32 ListenerIndex, const FVector AttenuationPosition);
+	ENGINE_API void SetListenerAttenuationOverride(int32 ListenerIndex, const FVector AttenuationPosition);
 
 	/** Removes a listener attenuation override. */
 	UE_DEPRECATED(4.25, "Use ClearListenerAttenuationOverride that passes a ListenerIndex instead")
 	void ClearListenerAttenuationOverride() { ClearListenerAttenuationOverride(0); }
 
 	/** Removes a listener attenuation override for the specified listener. */
-	void ClearListenerAttenuationOverride(int32 ListenerIndex);
+	ENGINE_API void ClearListenerAttenuationOverride(int32 ListenerIndex);
 
 	const TArray<FListener>& GetListeners() const { check(IsInAudioThread()); return Listeners; }
 
@@ -762,7 +762,7 @@ public:
 	 * @param   Params				The parameter block of properties to create the component based on
 	 * @return	The created audio component if the function successfully created one or a nullptr if not successful. Note: if audio is disabled or if there were no hardware audio devices available, this will return nullptr.
 	 */
-	static UAudioComponent* CreateComponent(USoundBase* Sound, const FCreateComponentParams& Params = FCreateComponentParams());
+	ENGINE_API static UAudioComponent* CreateComponent(USoundBase* Sound, const FCreateComponentParams& Params = FCreateComponentParams());
 
 	/**
 	 * Plays a sound at the given location without creating an audio component.
@@ -777,40 +777,40 @@ public:
 	 * @param	USoundConcurrency	The sound's sound concurrency settings to use (optional). Will use the USoundBase's USoundConcurrency if not specified.
 	 * @param	Params				An optional list of audio component params to immediately apply to a sound.
 	 */
-	void PlaySoundAtLocation(USoundBase* Sound, UWorld* World, float VolumeMultiplier, float PitchMultiplier, float StartTime, const FVector& Location, const FRotator& Rotation, USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, const TArray<FAudioParameter>* Params = nullptr, const AActor* OwningActor = nullptr);
+	ENGINE_API void PlaySoundAtLocation(USoundBase* Sound, UWorld* World, float VolumeMultiplier, float PitchMultiplier, float StartTime, const FVector& Location, const FRotator& Rotation, USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, const TArray<FAudioParameter>* Params = nullptr, const AActor* OwningActor = nullptr);
 
 	/**
 	 * Adds an active sound to the audio device
 	 */
-	void AddNewActiveSound(const FActiveSound& ActiveSound, const TArray<FAudioParameter>* InDefaultParams = nullptr);
+	ENGINE_API void AddNewActiveSound(const FActiveSound& ActiveSound, const TArray<FAudioParameter>* InDefaultParams = nullptr);
 
 	/**
 	 * Adds an active sound to the audio device
 	 */
-	void AddNewActiveSound(const FActiveSound& ActiveSound, TArray<FAudioParameter>&& InDefaultParams);
+	ENGINE_API void AddNewActiveSound(const FActiveSound& ActiveSound, TArray<FAudioParameter>&& InDefaultParams);
 
 	/**
 	 * Attempts to retrigger a provided loop
 	 */
-	void RetriggerVirtualLoop(FAudioVirtualLoop& VirtualLoop);
+	ENGINE_API void RetriggerVirtualLoop(FAudioVirtualLoop& VirtualLoop);
 
 	/**
 	 * Removes the active sound for the specified audio component
 	 */
-	void StopActiveSound(uint64 AudioComponentID);
+	ENGINE_API void StopActiveSound(uint64 AudioComponentID);
 
 	/**
 	* (Deprecated in favor of AddSoundToStop). Stops the active sound
 	*/
-	void StopActiveSound(FActiveSound* ActiveSound);
+	ENGINE_API void StopActiveSound(FActiveSound* ActiveSound);
 
 	/**
 	* Pauses the active sound for the specified audio component
 	*/
-	void PauseActiveSound(uint64 AudioComponentID, const bool bInIsPaused);
+	ENGINE_API void PauseActiveSound(uint64 AudioComponentID, const bool bInIsPaused);
 
 	/** Notify that a pending async occlusion trace finished on the active sound. */
-	void NotifyActiveSoundOcclusionTraceDone(FActiveSound* ActiveSound, bool bIsOccluded);
+	ENGINE_API void NotifyActiveSoundOcclusionTraceDone(FActiveSound* ActiveSound, bool bIsOccluded);
 
 	/**
 	* Finds the active sound for the specified audio component ID.
@@ -818,28 +818,28 @@ public:
 	* multiple ActiveSound instances at once.  Use 'SendCommandToActiveSounds' instead.
 	*/
 	UE_DEPRECATED(5.0, "This call cannot be called from the GameThread & AudioComponents can now execute multiple ActiveSound instances at once.  Use 'SendCommandToActiveSounds' instead.")
-	FActiveSound* FindActiveSound(uint64 AudioComponentID);
+	ENGINE_API FActiveSound* FindActiveSound(uint64 AudioComponentID);
 
 	/**
 	 * Whether a given Audio Component ID should be allowed to have multiple
 	 * associated Active Sounds
 	 */
-	bool CanHaveMultipleActiveSounds(uint64 AudioComponentID) const;
+	ENGINE_API bool CanHaveMultipleActiveSounds(uint64 AudioComponentID) const;
 
 	/**
 	 * Set whether a given Audio Component ID should be allowed to have multiple
 	 * associated Active Sounds
 	 */
-	void SetCanHaveMultipleActiveSounds(uint64 AudioComponentID, bool InCanHaveMultipleActiveSounds);
+	ENGINE_API void SetCanHaveMultipleActiveSounds(uint64 AudioComponentID, bool InCanHaveMultipleActiveSounds);
 
 	/**
 	 * Removes an active sound from the active sounds array
 	 */
-	void RemoveActiveSound(FActiveSound* ActiveSound);
+	ENGINE_API void RemoveActiveSound(FActiveSound* ActiveSound);
 
-	void AddAudioVolumeProxy(const FAudioVolumeProxy& Proxy);
-	void RemoveAudioVolumeProxy(uint32 AudioVolumeID);
-	void UpdateAudioVolumeProxy(const FAudioVolumeProxy& Proxy);
+	ENGINE_API void AddAudioVolumeProxy(const FAudioVolumeProxy& Proxy);
+	ENGINE_API void RemoveAudioVolumeProxy(uint32 AudioVolumeID);
+	ENGINE_API void UpdateAudioVolumeProxy(const FAudioVolumeProxy& Proxy);
 
 	struct FAudioVolumeSettings
 	{
@@ -852,18 +852,18 @@ public:
 		bool bChanged = false;
 	};
 
-	void GetAudioVolumeSettings(const uint32 WorldID, const FVector& Location, FAudioVolumeSettings& OutSettings) const;
-	void ResetAudioVolumeProxyChangedState();
+	ENGINE_API void GetAudioVolumeSettings(const uint32 WorldID, const FVector& Location, FAudioVolumeSettings& OutSettings) const;
+	ENGINE_API void ResetAudioVolumeProxyChangedState();
 
 	/**
 	 * Gathers data about interior volumes affecting the active sound (called on audio thread)
 	 */
-	void GatherInteriorData(FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) const;
+	ENGINE_API void GatherInteriorData(FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) const;
 
 	/**
 	 * Applies interior settings from affecting volumes to the active sound (called on audio thread)
 	 */
-	void ApplyInteriorSettings(FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) const;
+	ENGINE_API void ApplyInteriorSettings(FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) const;
 
 	/**
 	 * Notifies subsystems an active sound is about to be deleted (called on audio thread) - Deprecated, see NotifyPendingDeleteInternal
@@ -876,46 +876,46 @@ protected:
 	/**
 	 * Notifies subsystems an active sound has been added (called on audio thread)
 	 */
-	void NotifyAddActiveSound(FActiveSound& ActiveSound) const;
+	ENGINE_API void NotifyAddActiveSound(FActiveSound& ActiveSound) const;
 
 	/**
 	 * Notifies subsystems an active sound is about to be deleted (called on audio thread)
 	 */
-	void NotifyPendingDeleteInternal(FActiveSound& ActiveSound) const;
+	ENGINE_API void NotifyPendingDeleteInternal(FActiveSound& ActiveSound) const;
 
 public:
 
 	/**
 	 * Gets the default reverb and interior settings for the provided world.  Returns true if settings with WorldID were located
 	 */
-	bool GetDefaultAudioSettings(uint32 WorldID, FReverbSettings& OutReverbSettings, FInteriorSettings& OutInteriorSettings) const;
+	ENGINE_API bool GetDefaultAudioSettings(uint32 WorldID, FReverbSettings& OutReverbSettings, FInteriorSettings& OutInteriorSettings) const;
 
 	/**
 	 * Sets the default reverb and interior settings for the provided world
 	 */
-	void SetDefaultAudioSettings(UWorld* World, const FReverbSettings& DefaultReverbSettings, const FInteriorSettings& DefaultInteriorSettings);
+	ENGINE_API void SetDefaultAudioSettings(UWorld* World, const FReverbSettings& DefaultReverbSettings, const FInteriorSettings& DefaultInteriorSettings);
 
 	/**
 	 * Gets the current audio debug state
 	 */
 	EDebugState GetMixDebugState() const { return((EDebugState)DebugState); }
 
-	void SetMixDebugState(EDebugState DebugState);
+	ENGINE_API void SetMixDebugState(EDebugState DebugState);
 
 	/**
 	 * Set up the sound class hierarchy
 	 */
-	void InitSoundClasses();
+	ENGINE_API void InitSoundClasses();
 
 protected:
 	/**
 	 * Set up the initial sound sources
 	 * Allows us to initialize sound source early on, allowing for render callback hookups for iOS Audio.
 	 */
-	void InitSoundSources();
+	ENGINE_API void InitSoundSources();
 
 	/** Create our subsystem collection root object and initialize subsystems */
-	void InitializeSubsystemCollection();
+	ENGINE_API void InitializeSubsystemCollection();
 
 	// Handle for our device created delegate
 	FDelegateHandle DeviceCreatedHandle;
@@ -938,12 +938,12 @@ public:
 	 * @param	SoundClassName	name of sound class to retrieve
 	 * @return	sound class properties if it exists
 	 */
-	void RegisterSoundClass(USoundClass* InSoundClass);
+	ENGINE_API void RegisterSoundClass(USoundClass* InSoundClass);
 
 	/**
 	* Unregisters a sound class
 	*/
-	void UnregisterSoundClass(USoundClass* SoundClass);
+	ENGINE_API void UnregisterSoundClass(USoundClass* SoundClass);
 
 	/* Initialized audio buses marked as default that are to be enabled for the duration of the application. */
 	virtual void InitDefaultAudioBuses() {}
@@ -964,15 +964,15 @@ public:
 	 * Registers the submix buffer listener with the given submix.
 	 * A nullptr for SoundSubmix will register the listener with the master submix.
 	*/
-	virtual void RegisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* SoundSubmix = nullptr);
+	ENGINE_API virtual void RegisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* SoundSubmix = nullptr);
 
 	/**
 	 * Unregisters the submix buffer listener with the given submix.
 	 * A nullptr for SoundSubmix will unregister the listener with the master submix.
 	*/
-	virtual void UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* SoundSubmix = nullptr);
+	ENGINE_API virtual void UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* SoundSubmix = nullptr);
 
-	virtual Audio::FPatchOutputStrongPtr AddPatchForSubmix(uint32 InObjectId, float InPatchGain);
+	ENGINE_API virtual Audio::FPatchOutputStrongPtr AddPatchForSubmix(uint32 InObjectId, float InPatchGain);
 
 	virtual void StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic)
 	{
@@ -988,10 +988,10 @@ public:
 	}
 
 	UE_DEPRECATED(5.2, "AddPatchForAudioBus is deprecated.  Use AddPatchOutputForAudioBus.")
-	virtual Audio::FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain = 1.0f);
+	ENGINE_API virtual Audio::FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain = 1.0f);
 
 	UE_DEPRECATED(5.2, "AddPatchForAudioBus_GameThread is deprecated.  Use AddPatchOutputForAudioBus.")
-	virtual Audio::FPatchOutputStrongPtr AddPatchForAudioBus_GameThread(uint32 InAudioBusId, float InPatchGain = 1.0f);
+	ENGINE_API virtual Audio::FPatchOutputStrongPtr AddPatchForAudioBus_GameThread(uint32 InAudioBusId, float InPatchGain = 1.0f);
 
 	UE_DEPRECATED(5.2, "This overload of AddPatchInputForAudioBus is deprecated.  Use the overload that takes the number of frames and channels as parameters.")
 	virtual void AddPatchInputForAudioBus(const Audio::FPatchInput& InPatchInput, uint32 InAudioBusId, float InPatchGain = 1.0f)
@@ -1003,9 +1003,9 @@ public:
 	{
 	}
 
-	virtual Audio::FPatchInput AddPatchInputForAudioBus(uint32 InAudioBusId, int32 InFrames, int32 InChannels, float InGain = 1.f);
+	ENGINE_API virtual Audio::FPatchInput AddPatchInputForAudioBus(uint32 InAudioBusId, int32 InFrames, int32 InChannels, float InGain = 1.f);
 
-	virtual Audio::FPatchOutputStrongPtr AddPatchOutputForAudioBus(uint32 InAudioBusId, int32 InFrames, int32 InChannels, float InGain = 1.f);
+	ENGINE_API virtual Audio::FPatchOutputStrongPtr AddPatchOutputForAudioBus(uint32 InAudioBusId, int32 InFrames, int32 InChannels, float InGain = 1.f);
 
 	virtual void InitSoundEffectPresets() {}
 
@@ -1015,53 +1015,53 @@ public:
 	* @param	SoundClassName	name of sound class to retrieve
 	* @return	sound class properties if it exists
 	*/
-	FSoundClassProperties* GetSoundClassCurrentProperties(USoundClass* InSoundClass);
+	ENGINE_API FSoundClassProperties* GetSoundClassCurrentProperties(USoundClass* InSoundClass);
 
 	/** 
 	* Returns the parameters which are dynamic from the given sound class. 
 	*/
-	FSoundClassDynamicProperties* GetSoundClassDynamicProperties(USoundClass* InSoundClass);
+	ENGINE_API FSoundClassDynamicProperties* GetSoundClassDynamicProperties(USoundClass* InSoundClass);
 
 	/**
 	* Checks to see if a coordinate is within a distance of any listener
 	*/
-	bool LocationIsAudible(const FVector& Location, const float MaxDistance) const;
+	ENGINE_API bool LocationIsAudible(const FVector& Location, const float MaxDistance) const;
 
 	/**
 	* Checks to see if a coordinate is within a distance of the given listener
 	*/
 	UE_DEPRECATED(4.25, "Use LocationIsAudible that passes a ListenerIndex to check against a specific Listener")
-	bool LocationIsAudible(const FVector& Location, const FTransform& ListenerTransform, const float MaxDistance) const;
+	ENGINE_API bool LocationIsAudible(const FVector& Location, const FTransform& ListenerTransform, const float MaxDistance) const;
 
 	/**
 	* Checks to see if a coordinate is within a distance of a specific listener
 	*/
-	bool LocationIsAudible(const FVector& Location, int32 ListenerIndex, const float MaxDistance) const;
+	ENGINE_API bool LocationIsAudible(const FVector& Location, int32 ListenerIndex, const float MaxDistance) const;
 
 	/**
 	* Returns the distance to the nearest listener from the given location
 	*/
-	float GetDistanceToNearestListener(const FVector& Location) const;
+	ENGINE_API float GetDistanceToNearestListener(const FVector& Location) const;
 
 	UE_DEPRECATED(4.25, "Use GetDistanceSquaredToListener to check against a specific Listener")
-	float GetSquaredDistanceToListener(const FVector& Location, const FTransform& ListenerTransform) const;
+	ENGINE_API float GetSquaredDistanceToListener(const FVector& Location, const FTransform& ListenerTransform) const;
 
 	/**
 	* Sets OutSqDistance to the distance from location to the appropriate listener representation, depending on calling thread.
 	* Returns true if listener position is valid, false if not (in which case, OutSqDistance is undefined).
 	*/
-	bool GetDistanceSquaredToListener(const FVector& Location, int32 ListenerIndex, float& OutSqDistance) const;
+	ENGINE_API bool GetDistanceSquaredToListener(const FVector& Location, int32 ListenerIndex, float& OutSqDistance) const;
 
 	/**
 	* Sets OutSqDistance to the distance from location the closest listener, depending on calling thread.
 	* Returns true if listener position is valid, false if not (in which case, OutSqDistance is undefined).
 	*/
-	bool GetDistanceSquaredToNearestListener(const FVector& Location, float& OutSqDistance) const;
+	ENGINE_API bool GetDistanceSquaredToNearestListener(const FVector& Location, float& OutSqDistance) const;
 		
 	/**
 	* Returns the global maximum distance used in the audio engine.
 	*/
-	static float GetMaxWorldDistance();
+	ENGINE_API static float GetMaxWorldDistance();
 
 	/**
 	* Returns a position from the appropriate listener representation, depending on calling thread.
@@ -1071,41 +1071,41 @@ public:
 	* @param	bAllowOverride	if true we will use the attenuation override for position, if set
 	* @return	true if successful
 	*/
-	bool GetListenerPosition(int32 ListenerIndex, FVector& OutPosition, bool bAllowOverride) const;
+	ENGINE_API bool GetListenerPosition(int32 ListenerIndex, FVector& OutPosition, bool bAllowOverride) const;
 
 	/**
 	* Returns the transform of the appropriate listener representation, depending on calling thread
 	*/
-	bool GetListenerTransform(int32 ListenerIndex, FTransform& OutTransform) const;
+	ENGINE_API bool GetListenerTransform(int32 ListenerIndex, FTransform& OutTransform) const;
 
 	/**
 	 * Returns the WorldID of the appropriate listener representation, depending on calling thread
 	 */
-	bool GetListenerWorldID(int32 ListenerIndex, uint32& OutWorldID) const;
+	ENGINE_API bool GetListenerWorldID(int32 ListenerIndex, uint32& OutWorldID) const;
 
 	/**
 	 * Sets the Sound Mix that should be active by default
 	 */
-	void SetDefaultBaseSoundMix(USoundMix* SoundMix);
+	ENGINE_API void SetDefaultBaseSoundMix(USoundMix* SoundMix);
 
 	/**
 	 * Removes a sound mix - called when SoundMix is unloaded
 	 */
-	void RemoveSoundMix(USoundMix* SoundMix);
+	ENGINE_API void RemoveSoundMix(USoundMix* SoundMix);
 
 	/**
 	 * Resets all interpolating values to defaults.
 	 */
-	void ResetInterpolation();
+	ENGINE_API void ResetInterpolation();
 
 	/** Enables or Disables the radio effect. */
-	void EnableRadioEffect(bool bEnable = false);
+	ENGINE_API void EnableRadioEffect(bool bEnable = false);
 
 	friend class FAudioEffectsManager;
 	/**
 	 * Sets a new sound mix and applies it to all appropriate sound classes
 	 */
-	void SetBaseSoundMix(USoundMix* SoundMix);
+	ENGINE_API void SetBaseSoundMix(USoundMix* SoundMix);
 
 	/**
 	 * Push a SoundMix onto the Audio Device's list.
@@ -1113,17 +1113,17 @@ public:
 	 * @param SoundMix The SoundMix to push.
 	 * @param bIsPassive Whether this is a passive push from a playing sound.
 	 */
-	void PushSoundMixModifier(USoundMix* SoundMix, bool bIsPassive = false, bool bIsRetrigger = false);
+	ENGINE_API void PushSoundMixModifier(USoundMix* SoundMix, bool bIsPassive = false, bool bIsRetrigger = false);
 
 	/**
 	 * Sets a sound class override in the given sound mix.
 	 */
-	void SetSoundMixClassOverride(USoundMix* InSoundMix, USoundClass* InSoundClass, float Volume, float Pitch, float FadeInTime, bool bApplyToChildren);
+	ENGINE_API void SetSoundMixClassOverride(USoundMix* InSoundMix, USoundClass* InSoundClass, float Volume, float Pitch, float FadeInTime, bool bApplyToChildren);
 
 	/**
 	* Clears a sound class override in the given sound mix.
 	*/
-	void ClearSoundMixClassOverride(USoundMix* InSoundMix, USoundClass* InSoundClass, float FadeOutTime);
+	ENGINE_API void ClearSoundMixClassOverride(USoundMix* InSoundMix, USoundClass* InSoundClass, float FadeOutTime);
 
 	/**
 	 * Pop a SoundMix from the Audio Device's list.
@@ -1131,19 +1131,19 @@ public:
 	 * @param SoundMix The SoundMix to pop.
 	 * @param bIsPassive Whether this is a passive pop from a sound finishing.
 	 */
-	void PopSoundMixModifier(USoundMix* SoundMix, bool bIsPassive = false);
+	ENGINE_API void PopSoundMixModifier(USoundMix* SoundMix, bool bIsPassive = false);
 
 	/**
 	 * Clear the effect of one SoundMix completely.
 	 *
 	 * @param SoundMix The SoundMix to clear.
 	 */
-	void ClearSoundMixModifier(USoundMix* SoundMix);
+	ENGINE_API void ClearSoundMixModifier(USoundMix* SoundMix);
 
 	/**
 	 * Clear the effect of all SoundMix modifiers.
 	 */
-	void ClearSoundMixModifiers();
+	ENGINE_API void ClearSoundMixModifiers();
 
 	/** Activates a Reverb Effect without the need for a volume
 	 * @param ReverbEffect Reverb Effect to use
@@ -1152,14 +1152,14 @@ public:
 	 * @param Volume Volume level of Reverb Effect
 	 * @param FadeTime Time before Reverb Effect is fully active
 	 */
-	void ActivateReverbEffect(UReverbEffect* ReverbEffect, FName TagName, float Priority, float Volume, float FadeTime);
+	ENGINE_API void ActivateReverbEffect(UReverbEffect* ReverbEffect, FName TagName, float Priority, float Volume, float FadeTime);
 
 	/**
 	 * Deactivates a Reverb Effect not applied by a volume
 	 *
 	 * @param TagName Tag associated with Reverb Effect to remove
 	 */
-	void DeactivateReverbEffect(FName TagName);
+	ENGINE_API void DeactivateReverbEffect(FName TagName);
 
 	UE_DEPRECATED(5.2, "GetRuntimeFormat is now deprecated. Please call SoundWave::GetRuntimeFormat() instead")
 	virtual FName GetRuntimeFormat(const USoundWave* SoundWave) const = 0;
@@ -1201,7 +1201,7 @@ public:
 	}
 
 	/** When the set of Audio volumes have changed invalidate the cached values of active sounds */
-	void InvalidateCachedInteriorVolumes() const;
+	ENGINE_API void InvalidateCachedInteriorVolumes() const;
 
 	/** Suspend any context related objects */
 	virtual void SuspendContext() {}
@@ -1213,7 +1213,7 @@ public:
 	virtual bool IsExernalBackgroundSoundActive() { return false; }
 
 	/** Whether or not HRTF spatialization is enabled for all. */
-	bool IsHRTFEnabledForAll() const;
+	ENGINE_API bool IsHRTFEnabledForAll() const;
 
 	void SetHRTFEnabledForAll(bool InbHRTFEnabledForAll)
 	{
@@ -1232,7 +1232,7 @@ public:
 	}
 
 	/** Whether or not HRTF is disabled. */
-	bool IsHRTFDisabled() const;
+	ENGINE_API bool IsHRTFDisabled() const;
 
 	void SetHRTFDisabled(bool InIsHRTFDisabled)
 	{
@@ -1260,23 +1260,23 @@ public:
 	}
 
 	/** Registers a third party listener-observer to this audio device. */
-	void RegisterPluginListener(const TAudioPluginListenerPtr PluginListener);
+	ENGINE_API void RegisterPluginListener(const TAudioPluginListenerPtr PluginListener);
 
 	/** Unregisters a third party listener-observer to this audio device. */
-	void UnregisterPluginListener(const TAudioPluginListenerPtr PluginListener);
+	ENGINE_API void UnregisterPluginListener(const TAudioPluginListenerPtr PluginListener);
 
-	bool IsAudioDeviceMuted() const;
+	ENGINE_API bool IsAudioDeviceMuted() const;
 
-	void SetDeviceMuted(bool bMuted);
+	ENGINE_API void SetDeviceMuted(bool bMuted);
 
 	/** Returns the azimuth angle of the sound relative to the sound's nearest listener. Used for 3d audio calculations. */
-	void GetAzimuth(const FAttenuationListenerData& OutListenerData, float& OutAzimuth, float& AbsoluteAzimuth) const;
+	ENGINE_API void GetAzimuth(const FAttenuationListenerData& OutListenerData, float& OutAzimuth, float& AbsoluteAzimuth) const;
 
 	/** Returns the focus factor of a sound based on its position and listener data. */
-	float GetFocusFactor(const float Azimuth, const FSoundAttenuationSettings& AttenuationSettings) const;
+	ENGINE_API float GetFocusFactor(const float Azimuth, const FSoundAttenuationSettings& AttenuationSettings) const;
 
 	/** Gets the max distance and focus factor of a sound. */
-	void GetMaxDistanceAndFocusFactor(USoundBase* Sound, const UWorld* World, const FVector& Location, const FSoundAttenuationSettings* AttenuationSettingsToApply, float& OutMaxDistance, float& OutFocusFactor);
+	ENGINE_API void GetMaxDistanceAndFocusFactor(USoundBase* Sound, const UWorld* World, const FVector& Location, const FSoundAttenuationSettings* AttenuationSettingsToApply, float& OutMaxDistance, float& OutFocusFactor);
 
 	/**
 	* Checks if the given sound would be audible.
@@ -1289,17 +1289,17 @@ public:
 	*
 	* @return Returns true if the sound is audible, false otherwise.
 	*/
-	bool SoundIsAudible(USoundBase* Sound, const UWorld* World, const FVector& Location, const FSoundAttenuationSettings* AttenuationSettingsToApply, float MaxDistance, float FocusFactor) const;
+	ENGINE_API bool SoundIsAudible(USoundBase* Sound, const UWorld* World, const FVector& Location, const FSoundAttenuationSettings* AttenuationSettingsToApply, float MaxDistance, float FocusFactor) const;
 
 	/** Returns the index of the listener closest to the given sound transform */
-	static int32 FindClosestListenerIndex(const FTransform& SoundTransform, const TArray<FListener>& InListeners);
+	ENGINE_API static int32 FindClosestListenerIndex(const FTransform& SoundTransform, const TArray<FListener>& InListeners);
 
 	/** Returns the index of the listener closest to the given sound transform */
-	int32 FindClosestListenerIndex(const FTransform& SoundTransform) const;
-	int32 FindClosestListenerIndex(const FVector& Position, float& OutSqDistance, bool AllowAttenuationOverrides) const;
+	ENGINE_API int32 FindClosestListenerIndex(const FTransform& SoundTransform) const;
+	ENGINE_API int32 FindClosestListenerIndex(const FVector& Position, float& OutSqDistance, bool AllowAttenuationOverrides) const;
 
 	/** Disables ActiveSound from responding to calls from its associated AudioComponent. */
-	void UnlinkActiveSoundFromComponent(const FActiveSound& InActiveSound);
+	ENGINE_API void UnlinkActiveSoundFromComponent(const FActiveSound& InActiveSound);
 
 	/** Return the audio stream time */
 	virtual double GetAudioTime() const
@@ -1313,13 +1313,13 @@ public:
 	}
 
 	/** Returns the main audio device of the engine */
-	static FAudioDeviceHandle GetMainAudioDevice();
+	ENGINE_API static FAudioDeviceHandle GetMainAudioDevice();
 
 	/** Returns the audio device manager */
-	static FAudioDeviceManager* GetAudioDeviceManager();
+	ENGINE_API static FAudioDeviceManager* GetAudioDeviceManager();
 
 	/** Low pass filter OneOverQ value */
-	float GetLowPassFilterResonance() const;
+	ENGINE_API float GetLowPassFilterResonance() const;
 
 	/** Returns the number of active sound sources */
 	virtual int32 GetNumActiveSources() const { return 0; }
@@ -1343,10 +1343,10 @@ public:
 	}
 
 	/** Set and initialize the current Spatialization plugin (by name) */
-	bool SetCurrentSpatializationPlugin(FName PluginName);
+	ENGINE_API bool SetCurrentSpatializationPlugin(FName PluginName);
 
 	/** Get the current list of available spatialization plugins */
-	TArray<FName> GetAvailableSpatializationPluginNames() const;
+	ENGINE_API TArray<FName> GetAvailableSpatializationPluginNames() const;
 
 	/** Return the spatialization plugin interface. */
 	TAudioSpatializationPtr GetSpatializationPluginInterface()
@@ -1356,9 +1356,9 @@ public:
 
 	/** Return the spatialization plugin interface info (requested by name). */
 	struct FAudioSpatializationInterfaceInfo;
-	FAudioSpatializationInterfaceInfo GetCurrentSpatializationPluginInterfaceInfo();
+	ENGINE_API FAudioSpatializationInterfaceInfo GetCurrentSpatializationPluginInterfaceInfo();
 
-	bool SpatializationPluginInterfacesAvailable();
+	ENGINE_API bool SpatializationPluginInterfacesAvailable();
 
 	/** Whether or not there's a modulation plugin enabled. */
 	bool IsModulationPluginEnabled() const
@@ -1372,7 +1372,7 @@ public:
 		return bOcclusionInterfaceEnabled;
 	}
 
-	static bool IsOcclusionPluginLoaded();
+	ENGINE_API static bool IsOcclusionPluginLoaded();
 
 	/** Whether or not there's a reverb plugin enabled. */
 	bool IsReverbPluginEnabled() const
@@ -1380,14 +1380,14 @@ public:
 		return bReverbInterfaceEnabled;
 	}
 
-	static bool IsReverbPluginLoaded();
+	ENGINE_API static bool IsReverbPluginLoaded();
 
 	bool IsSourceDataOverridePluginEnabled() const
 	{
 		return bSourceDataOverrideInterfaceEnabled;
 	}
 
-	static bool IsSourceDataOverridePluginLoaded();
+	ENGINE_API static bool IsSourceDataOverridePluginLoaded();
 
 	/** Returns if this is the multi-platform audio mixer. */
 	bool IsAudioMixerEnabled() const
@@ -1408,7 +1408,7 @@ public:
 	}
 
 	/** Performs an operation on all active sounds requested to execute by an audio component */
-	void SendCommandToActiveSounds(uint64 InAudioComponentID, TUniqueFunction<void(FActiveSound&)> InFunc, const TStatId InStatId = TStatId());
+	ENGINE_API void SendCommandToActiveSounds(uint64 InAudioComponentID, TUniqueFunction<void(FActiveSound&)> InFunc, const TStatId InStatId = TStatId());
 
 	virtual bool IsNonRealtime() const
 	{
@@ -1519,14 +1519,14 @@ public:
 	}
 
 	/** Adds an envelope follower delegate to the submix for this audio device. */
-	virtual void AddEnvelopeFollowerDelegate(USoundSubmix* InSubmix, const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP);
+	ENGINE_API virtual void AddEnvelopeFollowerDelegate(USoundSubmix* InSubmix, const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP);
 
-	virtual void StartSpectrumAnalysis(USoundSubmix* InSubmix, const FSoundSpectrumAnalyzerSettings& InSettings);
-	virtual void StopSpectrumAnalysis(USoundSubmix* InSubmix);
-	virtual void GetMagnitudesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes);
-	virtual void GetPhasesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutPhases);
-	virtual void AddSpectralAnalysisDelegate(USoundSubmix* InSubmix, const FSoundSpectrumAnalyzerDelegateSettings& InDelegateSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
-	virtual void RemoveSpectralAnalysisDelegate(USoundSubmix* InSubmix, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
+	ENGINE_API virtual void StartSpectrumAnalysis(USoundSubmix* InSubmix, const FSoundSpectrumAnalyzerSettings& InSettings);
+	ENGINE_API virtual void StopSpectrumAnalysis(USoundSubmix* InSubmix);
+	ENGINE_API virtual void GetMagnitudesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes);
+	ENGINE_API virtual void GetPhasesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutPhases);
+	ENGINE_API virtual void AddSpectralAnalysisDelegate(USoundSubmix* InSubmix, const FSoundSpectrumAnalyzerDelegateSettings& InDelegateSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
+	ENGINE_API virtual void RemoveSpectralAnalysisDelegate(USoundSubmix* InSubmix, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
 
 
 protected:
@@ -1535,27 +1535,27 @@ protected:
 	/**
 	 * Handle pausing/unpausing of sources when entering or leaving pause mode, or global pause (like device suspend)
 	 */
-	void HandlePause(bool bGameTicking, bool bGlobalPause = false);
+	ENGINE_API void HandlePause(bool bGameTicking, bool bGlobalPause = false);
 
 	/**
 	 * Stop sources that need to be stopped, and touch the ones that need to be kept alive
 	 * Stop sounds that are too low in priority to be played
 	 */
-	void StopSources(TArray<FWaveInstance*>& WaveInstances, int32 FirstActiveIndex);
+	ENGINE_API void StopSources(TArray<FWaveInstance*>& WaveInstances, int32 FirstActiveIndex);
 
 	/**
 	 * Start and/or update any sources that have a high enough priority to play
 	 */
-	void StartSources(TArray<FWaveInstance*>& WaveInstances, int32 FirstActiveIndex, bool bGameTicking);
+	ENGINE_API void StartSources(TArray<FWaveInstance*>& WaveInstances, int32 FirstActiveIndex, bool bGameTicking);
 
 	/**
 	 * This is overridden in Audio::FMixerDevice to propogate listener information to the audio thread.
 	 */
 	virtual void OnListenerUpdated(const TArray<FListener>& InListeners) {};
 
-	void NotifyAudioDevicePreRender(const FAudioDeviceRenderInfo& InInfo);
+	ENGINE_API void NotifyAudioDevicePreRender(const FAudioDeviceRenderInfo& InInfo);
 
-	void NotifyAudioDevicePostRender(const FAudioDeviceRenderInfo& InInfo);
+	ENGINE_API void NotifyAudioDevicePostRender(const FAudioDeviceRenderInfo& InInfo);
 
 private:
 
@@ -1712,18 +1712,18 @@ public:
 	/**
 	 * Platform dependent call to init effect data on a sound source
 	 */
-	void* InitEffect(FSoundSource* Source);
+	ENGINE_API void* InitEffect(FSoundSource* Source);
 
 	/**
 	 * Platform dependent call to update the sound output with new parameters
 	 * The audio system's main "Tick" function
 	 */
-	void* UpdateEffect(FSoundSource* Source);
+	ENGINE_API void* UpdateEffect(FSoundSource* Source);
 
 	/**
 	 * Platform dependent call to destroy any effect related data
 	 */
-	void DestroyEffect(FSoundSource* Source);
+	ENGINE_API void DestroyEffect(FSoundSource* Source);
 
 	/**
 	 * Return the pointer to the sound effects handler
@@ -1765,13 +1765,13 @@ public:
 		DefaultBaseSoundMix = InDefaultBaseSoundMix;
 	}
 
-	FDelegateHandle AddPreRenderDelegate(const FOnAudioDevicePreRender::FDelegate& InDelegate);
+	ENGINE_API FDelegateHandle AddPreRenderDelegate(const FOnAudioDevicePreRender::FDelegate& InDelegate);
 
-	bool RemovePreRenderDelegate(const FDelegateHandle& InHandle);
+	ENGINE_API bool RemovePreRenderDelegate(const FDelegateHandle& InHandle);
 
-	FDelegateHandle AddPostRenderDelegate(const FOnAudioDevicePostRender::FDelegate& InDelegate);
+	ENGINE_API FDelegateHandle AddPostRenderDelegate(const FOnAudioDevicePostRender::FDelegate& InDelegate);
 
-	bool RemovePostRenderDelegate(const FDelegateHandle& InHandle);
+	ENGINE_API bool RemovePostRenderDelegate(const FDelegateHandle& InHandle);
 
 private:
 	/**
@@ -1815,7 +1815,7 @@ public:
 	}
 
 	/** Creates a new platform specific sound source */
-	virtual FAudioEffectsManager* CreateEffectsManager();
+	ENGINE_API virtual FAudioEffectsManager* CreateEffectsManager();
 
 	/** Creates a new platform specific sound source */
 	virtual FSoundSource* CreateSoundSource() = 0;
@@ -1824,12 +1824,12 @@ public:
 	 * Marks a sound to be stopped.  Returns true if added to stop,
 	 * false if already pending stop.
 	 */
-	void AddSoundToStop(FActiveSound* SoundToStop);
+	ENGINE_API void AddSoundToStop(FActiveSound* SoundToStop);
 
 	/**
 	 * Whether the provided ActiveSound is currently pending to stop
 	 */
-	bool IsPendingStop(FActiveSound* ActiveSound);
+	ENGINE_API bool IsPendingStop(FActiveSound* ActiveSound);
 
 	/**
 	* Gets the direction of the given position vector transformed relative to listener.
@@ -1837,29 +1837,29 @@ public:
 	* @param OutDistance			Optional output of distance from position to listener
 	* @return The input position relative to the listener.
 	*/
-	FVector GetListenerTransformedDirection(const FVector& Position, float* OutDistance);
+	ENGINE_API FVector GetListenerTransformedDirection(const FVector& Position, float* OutDistance);
 
 	/** Returns the current audio device update delta time. */
-	float GetDeviceDeltaTime() const;
+	ENGINE_API float GetDeviceDeltaTime() const;
 
 	/** Returns the game's delta time */
-	float GetGameDeltaTime() const;
+	ENGINE_API float GetGameDeltaTime() const;
 
 	/** Whether device is using listener attenuation override or not. */
 	UE_DEPRECATED(4.25, "Use ParseAttenuation that passes a ListenerIndex instead")
 	bool IsUsingListenerAttenuationOverride() const { return IsUsingListenerAttenuationOverride(0); }
 
 	/** Returns if the specific listener is using an attenuation override position. */
-	bool IsUsingListenerAttenuationOverride(int32 ListenerIndex) const;
+	ENGINE_API bool IsUsingListenerAttenuationOverride(int32 ListenerIndex) const;
 
 	/** Returns the listener attenuation override */
 	UE_DEPRECATED(4.25, "Use ParseAttenuation that passes a ListenerIndex instead")
 	const FVector& GetListenerAttenuationOverride() const { return GetListenerAttenuationOverride(0); }
 
 	/** Returns the listener attenuation override for the specified listener */
-	const FVector& GetListenerAttenuationOverride(int32 ListenerIndex) const;
+	ENGINE_API const FVector& GetListenerAttenuationOverride(int32 ListenerIndex) const;
 
-	void UpdateVirtualLoops(bool bForceUpdate);
+	ENGINE_API void UpdateVirtualLoops(bool bForceUpdate);
 
 	/** Sets the update delta time for the audio frame */
 	virtual void UpdateDeviceDeltaTime()
@@ -1886,12 +1886,12 @@ private:
 public:
 
 	/** Query if the editor is in VR Preview for the current play world. Returns false for non-editor builds */
-	static bool CanUseVRAudioDevice();
+	ENGINE_API static bool CanUseVRAudioDevice();
 
 	/** Returns the audio clock of the audio device. Not supported on all platforms. */
 	double GetAudioClock() const { return AudioClock; }
 
-	void AddVirtualLoop(const FAudioVirtualLoop& InVirtualLoop);
+	ENGINE_API void AddVirtualLoop(const FAudioVirtualLoop& InVirtualLoop);
 
 	bool AreStartupSoundsPreCached() const { return bStartupSoundsPreCached; }
 
@@ -1899,33 +1899,33 @@ public:
 	float GetTransientMasterVolume() const { check(IsInAudioThread()); return TransientPrimaryVolume; }
 
 	UE_DEPRECATED(5.1, "SetTransientMasterVolume has been deprecated. Please use SetTransientPrimaryVolume instead.")
-	void SetTransientMasterVolume(float TransientPrimaryVolume);
+	ENGINE_API void SetTransientMasterVolume(float TransientPrimaryVolume);
 
 	UE_DEPRECATED(5.1, "GetMasterVolume has been deprecated. Please use GetPrimaryVolume instead.")
 	float GetMasterVolume() const { return PrimaryVolume; }
 
 	float GetTransientPrimaryVolume() const { check(IsInAudioThread()); return TransientPrimaryVolume; }
-	void SetTransientPrimaryVolume(float TransientPrimaryVolume);
+	ENGINE_API void SetTransientPrimaryVolume(float TransientPrimaryVolume);
 
 	/** Returns the volume that combines transient master volume and the FApp::GetVolumeMultiplier() value */
 	float GetPrimaryVolume() const { return PrimaryVolume; }
 
-	FSoundSource* GetSoundSource(FWaveInstance* WaveInstance) const;
+	ENGINE_API FSoundSource* GetSoundSource(FWaveInstance* WaveInstance) const;
 
-	const FGlobalFocusSettings& GetGlobalFocusSettings() const;
-	void SetGlobalFocusSettings(const FGlobalFocusSettings& NewFocusSettings);
+	ENGINE_API const FGlobalFocusSettings& GetGlobalFocusSettings() const;
+	ENGINE_API void SetGlobalFocusSettings(const FGlobalFocusSettings& NewFocusSettings);
 
 	const FDynamicParameter& GetGlobalPitchScale() const { check(IsInAudioThread()); return GlobalPitchScale; }
-	void SetGlobalPitchModulation(float PitchScale, float TimeSec);
-	float ClampPitch(float InPitchScale) const;
+	ENGINE_API void SetGlobalPitchModulation(float PitchScale, float TimeSec);
+	ENGINE_API float ClampPitch(float InPitchScale) const;
 
 	/** Overrides the attenuation scale used on a sound class. */
 	void SetSoundClassDistanceScale(USoundClass* InSoundClass, float DistanceScale, float TimeSec);
 
 	float GetPlatformAudioHeadroom() const { check(IsInAudioThread()); return PlatformAudioHeadroom; }
-	void SetPlatformAudioHeadroom(float PlatformHeadRoom);
+	ENGINE_API void SetPlatformAudioHeadroom(float PlatformHeadRoom);
 
-	const TMap<FName, FActivatedReverb>& GetActiveReverb() const;
+	ENGINE_API const TMap<FName, FActivatedReverb>& GetActiveReverb() const;
 
 	UE_DEPRECATED(4.13, "Direct access of SoundClasses is no longer allowed. Instead you should use the SoundMixClassOverride system")
 	const TMap<USoundClass*, FSoundClassProperties>& GetSoundClassPropertyMap() const
@@ -1937,7 +1937,7 @@ public:
 	/** Whether play when silent is enabled for all sounds associated with this audio device*/
 	bool PlayWhenSilentEnabled() const { return bAllowPlayWhenSilent; }
 
-	bool IsMainAudioDevice() const;
+	ENGINE_API bool IsMainAudioDevice() const;
 
 	/** Set whether or not we force the use of attenuation for non-game worlds (as by default we only care about game worlds) */
 	void SetUseAttenuationForNonGameWorlds(bool bInUseAttenuationForNonGameWorlds)
@@ -1945,14 +1945,14 @@ public:
 		bUseAttenuationForNonGameWorlds = bInUseAttenuationForNonGameWorlds;
 	}
 
-	const TArray<FWaveInstance*>& GetActiveWaveInstances() const;
+	ENGINE_API const TArray<FWaveInstance*>& GetActiveWaveInstances() const;
 
 	/** Returns the default reverb send level used for sources which have reverb applied but no attenuation settings. */
 	float GetDefaultReverbSendLevel() const { return DefaultReverbSendLevel; }
 
-	const TMap<FWaveInstance*, FSoundSource*>& GetWaveInstanceSourceMap() const;
+	ENGINE_API const TMap<FWaveInstance*, FSoundSource*>& GetWaveInstanceSourceMap() const;
 
-	FName GetAudioStateProperty(const FName& PropertyName) const;
+	ENGINE_API FName GetAudioStateProperty(const FName& PropertyName) const;
 	void SetAudioStateProperty(const FName& PropertyName, const FName& PropertyValue);
 
 	/** Get a Subsystem of specified type */

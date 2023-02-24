@@ -366,7 +366,7 @@ public:
 
 	FPersistentStorageManager();
 
-	void CORE_API Initialize()
+	void Initialize()
 	{
 		if (bInitialized)
 		{
@@ -655,7 +655,7 @@ private:
 };
 
 // Only write handle 
-class CORE_API FManagedStorageFileWriteHandle : public IFileHandle
+class FManagedStorageFileWriteHandle : public IFileHandle
 {
 private:
 	static bool IsReady()

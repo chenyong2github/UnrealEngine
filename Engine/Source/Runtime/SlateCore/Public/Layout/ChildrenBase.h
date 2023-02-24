@@ -24,7 +24,7 @@ class FSlotBase;
  * FChildren is intended to be returned by the GetChildren() method.
  */
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-class SLATECORE_API FChildren
+class FChildren
 {
 public:
 	FChildren(SWidget* InOwner)

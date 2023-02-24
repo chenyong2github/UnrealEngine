@@ -1994,7 +1994,7 @@ public:
 /**
  * Platform file wrapper to be able to use pak files.
  **/
-class PAKFILE_API FPakPlatformFile : public IPlatformFile
+class FPakPlatformFile : public IPlatformFile
 {
 	struct FPakListEntry
 	{
@@ -2098,7 +2098,7 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	 * @param BufferSize Sizeof of the buffer.
 	 * @return true if the operation was successfull, false otherwise.
 	 */
-	bool BufferedCopyFile(IFileHandle& Dest, IFileHandle& Source, const int64 FileSize, uint8* Buffer, const int64 BufferSize) const;
+	PAKFILE_API bool BufferedCopyFile(IFileHandle& Dest, IFileHandle& Source, const int64 FileSize, uint8* Buffer, const int64 BufferSize) const;
 
 	/**
 	 * Creates file handle to read from Pak file.
@@ -2108,29 +2108,29 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	 * @param FileEntry File entry to create the handle for.
 	 * @return Pointer to the new handle.
 	 */
-	IFileHandle* CreatePakFileHandle(const TCHAR* Filename, const TRefCountPtr<FPakFile>& PakFile, const FPakEntry* FileEntry);
+	PAKFILE_API IFileHandle* CreatePakFileHandle(const TCHAR* Filename, const TRefCountPtr<FPakFile>& PakFile, const FPakEntry* FileEntry);
 
 	/**
 	* Hardcode default load ordering of game main pak -> game content -> engine content -> saved dir
 	* would be better to make this config but not even the config system is initialized here so we can't do that
 	*/
-	static int32 GetPakOrderFromPakFilePath(const FString& PakFilePath);
+	PAKFILE_API static int32 GetPakOrderFromPakFilePath(const FString& PakFilePath);
 
 	/**
 	 * Handler for device delegate to prompt us to load a new pak.	 
 	 */
-	IPakFile* HandleMountPakDelegate(const FString& PakFilePath, int32 PakOrder);
+	PAKFILE_API IPakFile* HandleMountPakDelegate(const FString& PakFilePath, int32 PakOrder);
 
 	/**
 	 * Handler for device delegate to prompt us to load a new pak.
 	 */
 	UE_DEPRECATED(4.26, "Use HandleMountPakDelegate instead")
-	bool HandleOnMountPakDelegate(const FString& PakFilePath, int32 PakOrder, IPlatformFile::FDirectoryVisitor* Visitor);
+	PAKFILE_API bool HandleOnMountPakDelegate(const FString& PakFilePath, int32 PakOrder, IPlatformFile::FDirectoryVisitor* Visitor);
 
 	/**
 	 * Handler for device delegate to prompt us to unload a pak.
 	 */
-	bool HandleUnmountPakDelegate(const FString& PakFilePath);
+	PAKFILE_API bool HandleUnmountPakDelegate(const FString& PakFilePath);
 
 	/**
 	 * Finds all pak files in the given directory.
@@ -2138,14 +2138,14 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	 * @param Directory Directory to (recursively) look for pak files in
 	 * @param OutPakFiles List of pak files
 	 */
-	static void FindPakFilesInDirectory(IPlatformFile* LowLevelFile, const TCHAR* Directory, const FString& WildCard, TArray<FString>& OutPakFiles);
+	PAKFILE_API static void FindPakFilesInDirectory(IPlatformFile* LowLevelFile, const TCHAR* Directory, const FString& WildCard, TArray<FString>& OutPakFiles);
 
 	/**
 	 * Finds all pak files in the known pak folders
 	 *
 	 * @param OutPakFiles List of all found pak files
 	 */
-	static void FindAllPakFiles(IPlatformFile* LowLevelFile, const TArray<FString>& PakFolders, const FString& WildCard, TArray<FString>& OutPakFiles);
+	PAKFILE_API static void FindAllPakFiles(IPlatformFile* LowLevelFile, const TArray<FString>& PakFolders, const FString& WildCard, TArray<FString>& OutPakFiles);
 
 	/**
 	 * When security is enabled, determine if this filename can be looked for in the lower level file system
@@ -2153,7 +2153,7 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	 * @param InFilename			Filename to check
 	 * @param bAllowDirectories		Consider directories as valid filepaths?
 	 */
-	bool IsNonPakFilenameAllowed(const FString& InFilename);
+	PAKFILE_API bool IsNonPakFilenameAllowed(const FString& InFilename);
 
 	/**
 	 * Registers a new AES key with the given guid. Triggers the mounting of any pak files that we encountered that use that key
@@ -2161,7 +2161,7 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	 * @param InEncryptionKeyGuid	Guid for this encryption key
 	 * @param InKey					Encryption key
 	 */
-	void RegisterEncryptionKey(const FGuid& InEncryptionKeyGuid, const FAES::FAESKey& InKey);
+	PAKFILE_API void RegisterEncryptionKey(const FGuid& InEncryptionKeyGuid, const FAES::FAESKey& InKey);
 
 	/**
 	 * Checks with any current chunk installation system if the given pak file is installed
@@ -2169,7 +2169,7 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	 * @param InFilename  the pak filename to check
 	 * @return whether the pak file is installed
 	 */
-	static bool IsPakFileInstalled(const FString& InFilename);
+	PAKFILE_API static bool IsPakFileInstalled(const FString& InFilename);
 
 public:
 
@@ -2190,22 +2190,22 @@ public:
 	/**
 	 * Get the wild card pattern used to identify paks to load on startup
 	 */
-	static const TCHAR* GetMountStartupPaksWildCard();
+	PAKFILE_API static const TCHAR* GetMountStartupPaksWildCard();
 
 	/**
 	 * Overrides the wildcard used for searching paks. Call before initialization
 	 */
-	static void SetMountStartupPaksWildCard(const FString& WildCard);
+	PAKFILE_API static void SetMountStartupPaksWildCard(const FString& WildCard);
 
 	/**
 	* Determine location information for a given pakchunk index. Will be DoesNotExist if the pak file wasn't detected, NotAvailable if it exists but hasn't been mounted due to a missing encryption key, or LocalFast if it exists and has been mounted
 	*/
-	EChunkLocation::Type GetPakChunkLocation(int32 InPakchunkIndex) const;
+	PAKFILE_API EChunkLocation::Type GetPakChunkLocation(int32 InPakchunkIndex) const;
 
 	/**
 	* Returns true if any of the mounted or pending pak files are chunks (filenames starting pakchunkN)
 	*/
-	bool AnyChunksAvailable() const;
+	PAKFILE_API bool AnyChunksAvailable() const;
 
 	/**
 	* Get a list of all pak files which have been successfully mounted
@@ -2223,47 +2223,47 @@ public:
 	/**
 	 * Checks if pak files exist in any of the known pak file locations.
 	 */
-	static bool CheckIfPakFilesExist(IPlatformFile* LowLevelFile, const TArray<FString>& PakFolders);
+	PAKFILE_API static bool CheckIfPakFilesExist(IPlatformFile* LowLevelFile, const TArray<FString>& PakFolders);
 
 	/**
 	 * Gets all pak file locations.
 	 */
-	static void GetPakFolders(const TCHAR* CmdLine, TArray<FString>& OutPakFolders);
+	PAKFILE_API static void GetPakFolders(const TCHAR* CmdLine, TArray<FString>& OutPakFolders);
 
 	/**
 	* Helper function for accessing pak encryption key
 	*/
-	static void GetPakEncryptionKey(FAES::FAESKey& OutKey, const FGuid& InEncryptionKeyGuid);
+	PAKFILE_API static void GetPakEncryptionKey(FAES::FAESKey& OutKey, const FGuid& InEncryptionKeyGuid);
 
 	/**
 	* Load a pak signature file. Validates the contents by comparing a SHA hash of the chunk table against and encrypted version that
 	* is stored within the file. Returns nullptr if the data is missing or fails the signature check. This function also calls
 	* the generic pak signature failure delegates if anything is wrong.
 	*/
-	static TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe> GetPakSignatureFile(const TCHAR* InFilename);
+	PAKFILE_API static TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe> GetPakSignatureFile(const TCHAR* InFilename);
 
 	/**
 	 * Remove the intenrally cached pointer to the signature file for the specified pak
 	 */
-	static void RemoveCachedPakSignaturesFile(const TCHAR* InFilename);
+	PAKFILE_API static void RemoveCachedPakSignaturesFile(const TCHAR* InFilename);
 
 	/**
 	 * Constructor.
 	 * 
 	 * @param InLowerLevel Wrapper platform file.
 	 */
-	FPakPlatformFile();
+	PAKFILE_API FPakPlatformFile();
 
 	/**
 	 * Destructor.
 	 */
-	virtual ~FPakPlatformFile();
+	PAKFILE_API virtual ~FPakPlatformFile();
 
-	virtual bool ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
-	virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CommandLineParam) override;
-	virtual void InitializeNewAsyncIO() override;
+	PAKFILE_API virtual bool ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
+	PAKFILE_API virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CommandLineParam) override;
+	PAKFILE_API virtual void InitializeNewAsyncIO() override;
 
-	void OptimizeMemoryUsageForMountedPaks();
+	PAKFILE_API void OptimizeMemoryUsageForMountedPaks();
 
 	virtual IPlatformFile* GetLowerLevel() override
 	{
@@ -2279,7 +2279,7 @@ public:
 		return FPakPlatformFile::GetTypeName();
 	}
 
-	void Tick() override;
+	PAKFILE_API void Tick() override;
 
 	/**
 	 * Mounts a pak file at the specified path.
@@ -2287,22 +2287,22 @@ public:
 	 * @param InPakFilename Pak filename.
 	 * @param InPath Path to mount the pak at.
 	 */
-	bool Mount(const TCHAR* InPakFilename, uint32 PakOrder, const TCHAR* InPath = NULL, bool bLoadIndex = true);
+	PAKFILE_API bool Mount(const TCHAR* InPakFilename, uint32 PakOrder, const TCHAR* InPath = NULL, bool bLoadIndex = true);
 
-	bool Unmount(const TCHAR* InPakFilename);
+	PAKFILE_API bool Unmount(const TCHAR* InPakFilename);
 
-	int32 MountAllPakFiles(const TArray<FString>& PakFolders);
-	int32 MountAllPakFiles(const TArray<FString>& PakFolders, const FString& WildCard);
+	PAKFILE_API int32 MountAllPakFiles(const TArray<FString>& PakFolders);
+	PAKFILE_API int32 MountAllPakFiles(const TArray<FString>& PakFolders, const FString& WildCard);
 
 	/**
 	 * Re-creates all the pak readers
 	 */
-	bool ReloadPakReaders();
+	PAKFILE_API bool ReloadPakReaders();
 
 	/**
 	 * Make unique in memory pak files from a list of named files
 	 */
-	virtual void MakeUniquePakFilesForTheseFiles(const TArray<TArray<FString>>& InFiles);
+	PAKFILE_API virtual void MakeUniquePakFilesForTheseFiles(const TArray<TArray<FString>>& InFiles);
 
 
 	/** Overload needed for deprecation; remove this when removing the version with a FPakFile** OutPakFile */
@@ -2631,7 +2631,7 @@ public:
 		return LowerLevel->IsSymlink(Filename);
 	}
 
-	virtual IFileHandle* OpenRead(const TCHAR* Filename, bool bAllowWrite = false) override;
+	PAKFILE_API virtual IFileHandle* OpenRead(const TCHAR* Filename, bool bAllowWrite = false) override;
 
 	virtual IFileHandle* OpenWrite(const TCHAR* Filename, bool bAppend = false, bool bAllowRead = false) override
 	{
@@ -3016,10 +3016,10 @@ public:
 		return LowerLevel->CreateDirectoryTree(Directory);
 	}
 
-	virtual bool CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None) override;
+	PAKFILE_API virtual bool CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None) override;
 
-	virtual IAsyncReadFileHandle* OpenAsyncRead(const TCHAR* Filename) override;
-	virtual void SetAsyncMinimumPriority(EAsyncIOPriorityAndFlags Priority) override;
+	PAKFILE_API virtual IAsyncReadFileHandle* OpenAsyncRead(const TCHAR* Filename) override;
+	PAKFILE_API virtual void SetAsyncMinimumPriority(EAsyncIOPriorityAndFlags Priority) override;
 
 	virtual IMappedFileHandle* OpenMapped(const TCHAR* Filename) override;
 	/**
@@ -3065,10 +3065,10 @@ public:
 	//~ End IPlatformFile Interface
 
 	// Access static delegate for loose file security
-	static FFilenameSecurityDelegate& GetFilenameSecurityDelegate();
+	PAKFILE_API static FFilenameSecurityDelegate& GetFilenameSecurityDelegate();
 
 	// Access static delegate for custom encryption
-	static FPakCustomEncryptionDelegate& GetPakCustomEncryptionDelegate();
+	PAKFILE_API static FPakCustomEncryptionDelegate& GetPakCustomEncryptionDelegate();
 
 	struct FPakSigningFailureHandlerData
 	{
@@ -3089,56 +3089,56 @@ public:
 	};
 
 	// Access static delegate for handling a Pak signature check failure
-	static FPakSigningFailureHandlerData& GetPakSigningFailureHandlerData();
+	PAKFILE_API static FPakSigningFailureHandlerData& GetPakSigningFailureHandlerData();
 	
 	// Broadcast a signature check failure through any registered delegates in a thread safe way
-	static void BroadcastPakChunkSignatureCheckFailure(const FPakChunkSignatureCheckFailedData& InData);
+	PAKFILE_API static void BroadcastPakChunkSignatureCheckFailure(const FPakChunkSignatureCheckFailedData& InData);
 
 	// Broadcast a principal signature table failure through any registered delegates in a thread safe way
-	static void BroadcastPakPrincipalSignatureTableCheckFailure(const FString& InFilename);
+	PAKFILE_API static void BroadcastPakPrincipalSignatureTableCheckFailure(const FString& InFilename);
 
 	UE_DEPRECATED("5.1", "Use BroadcastPakPrincipalSignatureTableCheckFailure instead")
-	static void BroadcastPakMasterSignatureTableCheckFailure(const FString& InFilename);
+	PAKFILE_API static void BroadcastPakMasterSignatureTableCheckFailure(const FString& InFilename);
 
 	// Access static delegate for setting PakIndex settings.
-	static FPakSetIndexSettings& GetPakSetIndexSettingsDelegate();
+	PAKFILE_API static FPakSetIndexSettings& GetPakSetIndexSettingsDelegate();
 
 	/* Get a list of RelativePathFromMount for every file in the given Pak that lives in any of the given chunks.  Only searches the Pruned DirectoryIndex */
-	void GetPrunedFilenamesInChunk(const FString& InPakFilename, const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList);
+	PAKFILE_API void GetPrunedFilenamesInChunk(const FString& InPakFilename, const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList);
 
 	/** Gets a list of FullPaths (includes Mount directory) for every File in the given Pak's Pruned DirectoryIndex */
-	void GetPrunedFilenamesInPakFile(const FString& InPakFilename, TArray<FString>& OutFileList);
+	PAKFILE_API void GetPrunedFilenamesInPakFile(const FString& InPakFilename, TArray<FString>& OutFileList);
 
 	/** Returns the RelativePathFromMount Filename for every file found in the given Iostore Container */
-	static void GetFilenamesFromIostoreContainer(const FString& InContainerName, TArray<FString>& OutFileList);
+	PAKFILE_API static void GetFilenamesFromIostoreContainer(const FString& InContainerName, TArray<FString>& OutFileList);
 
 	/** Returns the RelativePathFromMount Filename for every Filename found in the Iostore Container that relates to the provided block indexes */
-	static void GetFilenamesFromIostoreByBlockIndex(const FString& InContainerName, const TArray<int32>& InBlockIndex, TArray<FString>& OutFileList);
-	
-	/** Iterates Iostore Container while Predicate returns true */
-	static void ForeachPackageInIostoreWhile(TFunctionRef<bool(FName)> Predicate);
+	PAKFILE_API static void GetFilenamesFromIostoreByBlockIndex(const FString& InContainerName, const TArray<int32>& InBlockIndex, TArray<FString>& OutFileList);
 
-	void ReleaseOldReaders();
+	/** Iterates Iostore Container while Predicate returns true */
+	PAKFILE_API static void ForeachPackageInIostoreWhile(TFunctionRef<bool(FName)> Predicate);
+
+	PAKFILE_API void ReleaseOldReaders();
 
 	// BEGIN Console commands
 #if !UE_BUILD_SHIPPING
-	void HandlePakListCommand(const TCHAR* Cmd, FOutputDevice& Ar);
-	void HandleMountCommand(const TCHAR* Cmd, FOutputDevice& Ar);
-	void HandleUnmountCommand(const TCHAR* Cmd, FOutputDevice& Ar);
-	void HandlePakCorruptCommand(const TCHAR* Cmd, FOutputDevice& Ar);
-	void HandleReloadPakReadersCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	PAKFILE_API void HandlePakListCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	PAKFILE_API void HandleMountCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	PAKFILE_API void HandleUnmountCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	PAKFILE_API void HandlePakCorruptCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	PAKFILE_API void HandleReloadPakReadersCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 #endif
 	// END Console commands
 	
 #if PAK_TRACKER
-	static TMap<FString, int32> GPakSizeMap;
-	static void TrackPak(const TCHAR* Filename, const FPakEntry* PakEntry);
+	PAKFILE_API static TMap<FString, int32> GPakSizeMap;
+	PAKFILE_API static void TrackPak(const TCHAR* Filename, const FPakEntry* PakEntry);
 	static TMap<FString, int32>& GetPakMap() { return GPakSizeMap; }
 #endif
 
 	// Internal cache of pak signature files
-	static TMap<FName, TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe>> PakSignatureFileCache;
-	static FCriticalSection PakSignatureFileCacheLock;
+	PAKFILE_API static TMap<FName, TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe>> PakSignatureFileCache;
+	PAKFILE_API static FCriticalSection PakSignatureFileCacheLock;
 };
 
 /**

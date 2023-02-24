@@ -617,7 +617,7 @@ protected:
 /**
  * Class for maintaining state of receiving a stream of stat messages
  */
-struct CORE_API FStatsReadStream
+struct FStatsReadStream
 {
 public:
 	/** Stats stream header. */

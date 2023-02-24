@@ -16,7 +16,8 @@ public class AudioMixerPlatformAudioLink: ModuleRules
 				"Engine",
 				"AudioMixer",
 				"AudioMixerCore",
-				"AudioLinkEngine"
+				"AudioLinkEngine",
+				"SignalProcessing",
 		});
 					
 		if (Target.bCompileAgainstEngine) 

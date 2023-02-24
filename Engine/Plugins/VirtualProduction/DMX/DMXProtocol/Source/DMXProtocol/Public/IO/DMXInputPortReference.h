@@ -12,7 +12,7 @@
 
 /** Reference of an input port */
 USTRUCT(BlueprintType)
-struct DMXPROTOCOL_API FDMXInputPortReference
+struct FDMXInputPortReference
 {
 	GENERATED_BODY()
 

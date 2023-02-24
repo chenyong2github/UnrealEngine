@@ -38,7 +38,7 @@ namespace Dataflow
 	//
 	//
 	//
-	class DATAFLOWCORE_API FNodeFactory
+	class FNodeFactory
 	{
 		typedef TFunction<TUniquePtr<FDataflowNode> (const FNewNodeParameters&)> FNewNodeFunction;
 
@@ -47,7 +47,7 @@ namespace Dataflow
 		TMap<FName, FFactoryParameters > ParametersMap;	// [TypeName] -> Parameters
 		TMap<FName, FName > DisplayMap;					// [DisplayName] -> TypeName
 
-		static FNodeFactory* Instance;
+		DATAFLOWCORE_API static FNodeFactory* Instance;
 		FNodeFactory() {}
 
 	public:
@@ -120,7 +120,7 @@ namespace Dataflow
 			return FFactoryParameters();
 		}
 
-		TSharedPtr<FDataflowNode> NewNodeFromRegisteredType(FGraph& Graph, const FNewNodeParameters& Param);
+		DATAFLOWCORE_API TSharedPtr<FDataflowNode> NewNodeFromRegisteredType(FGraph& Graph, const FNewNodeParameters& Param);
 
 		template<class T> TSharedPtr<T> NewNode(FGraph& Graph, const FNewNodeParameters& Param)
 		{

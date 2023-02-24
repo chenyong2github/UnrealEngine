@@ -20,7 +20,7 @@ namespace Metasound
 	 * arguments via an implicit conversion operator which exposes the underlying FAlignedFloatBuffer container.
 	 *
 	 */
-	class METASOUNDFRONTEND_API FAudioBuffer
+	class FAudioBuffer
 	{
 		public:
 			/** Create an FAudioBuffer with a specific number of samples.
