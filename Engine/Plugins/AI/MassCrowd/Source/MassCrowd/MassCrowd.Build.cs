@@ -36,6 +36,8 @@ namespace UnrealBuildTool.Rules
 					"ZoneGraphDebug"
 				}
 			);
+
+			SetupIrisSupport(Target);
 		}
 	}
 }
