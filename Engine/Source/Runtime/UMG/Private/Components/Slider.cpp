@@ -175,10 +175,15 @@ float USlider::GetNormalizedValue() const
 
 void USlider::SetValue(float InValue)
 {
-	Value = InValue;
-	if ( MySlider.IsValid() )
+	if (MySlider.IsValid())
 	{
 		MySlider->SetValue(InValue);
+	}
+
+	if (Value != InValue)
+	{
+		Value = InValue;
+		HandleOnValueChanged(InValue);
 	}
 }
 

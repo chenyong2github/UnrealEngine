@@ -512,7 +512,6 @@ float SSlider::GetNormalizedValue() const
 
 void SSlider::SetValue(TAttribute<float> InValueAttribute)
 {
-	CommitValue(FMath::Clamp(InValueAttribute.Get(), MinValue, MaxValue));
 	ValueSlateAttribute.Assign(*this, MoveTemp(InValueAttribute));
 }
 
