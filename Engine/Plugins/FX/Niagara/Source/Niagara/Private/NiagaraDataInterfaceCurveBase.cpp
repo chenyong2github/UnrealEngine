@@ -207,8 +207,10 @@ void UNiagaraDataInterfaceCurveBase::Serialize(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 		HasEditorData = !Ar.IsFilterEditorOnly();
 		// Sometimes curves are out of date which needs to be tracked down
-		// Temporarily we will make sure they are up to date in editor builds
-		if (HasEditorData && GetClass() != UNiagaraDataInterfaceCurveBase::StaticClass())
+		// Temporarily we will make sure they are up to date in editor builds,
+		// but not for cooked editor packages since they're already up to date,
+		// and the curve data is not valid at this point.
+		if (HasEditorData && Ar.IsLoadingFromCookedPackage() == false && GetClass() != UNiagaraDataInterfaceCurveBase::StaticClass())
 		{
 			UpdateLUT(true);
 		}
