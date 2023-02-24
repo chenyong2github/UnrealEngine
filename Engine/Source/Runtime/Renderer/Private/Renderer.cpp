@@ -77,6 +77,8 @@ void FRendererModule::StartupModule()
 
 	// Needs to run on startup, after static init. Ideally at some point replaced with static accessor similar to GGetDitherFadedInUniformBuffer().
 	GIdentityPrimitiveUniformBuffer.InitContents();
+	GDistanceCullFadedInUniformBuffer.InitContents();
+	GDitherFadedInUniformBuffer.InitContents();
 }
 
 void FRendererModule::ShutdownModule()

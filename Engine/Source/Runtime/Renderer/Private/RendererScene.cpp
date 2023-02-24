@@ -143,28 +143,11 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDistanceCullFadeUniformShaderParameter
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDitherUniformShaderParameters, "PrimitiveDither");
 
-/** Global primitive distance cull fading uniform buffer containing fully faded in. */
-FRHIUniformBuffer* GGetDistanceCullFadedInUniformBuffer()
-{
-	FDistanceCullFadeUniformShaderParameters Parameters;
-	Parameters.FadeTimeScaleBias.X = 0.0f;
-	Parameters.FadeTimeScaleBias.Y = 1.0f;
-	static TUniformBufferRef<FDistanceCullFadeUniformShaderParameters> ResourceRef = 
-		TUniformBufferRef<FDistanceCullFadeUniformShaderParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
+/** Global primitive uniform buffer resource containing distance cull faded in */
+TGlobalResource< FGlobalDistanceCullFadeUniformBuffer > GDistanceCullFadedInUniformBuffer;
 
-	return ResourceRef.GetReference();
-}
-
-/** Global primitive dither uniform buffer containing fully faded in. */
-FRHIUniformBuffer* GGetDitherFadedInUniformBuffer()
-{
-	FDitherUniformShaderParameters Parameters;
-	Parameters.LODFactor = 0.0f;
-	static TUniformBufferRef<FDitherUniformShaderParameters> ResourceRef =
-		TUniformBufferRef<FDitherUniformShaderParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-
-	return ResourceRef.GetReference();
-}
+/** Global primitive uniform buffer resource containing dither faded in */
+TGlobalResource< FGlobalDitherUniformBuffer > GDitherFadedInUniformBuffer;
 
 static FThreadSafeCounter FSceneViewState_UniqueID;
 

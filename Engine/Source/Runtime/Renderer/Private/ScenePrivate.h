@@ -369,11 +369,40 @@ public:
 	}
 };
 
-/** Global primitive distance cull fading uniform buffer containing fully faded in. */
-FRHIUniformBuffer* GGetDistanceCullFadedInUniformBuffer();
+/**
+ * Distance cull fading uniform buffer containing fully faded in.
+ */
+class FGlobalDistanceCullFadeUniformBuffer : public TUniformBuffer< FDistanceCullFadeUniformShaderParameters >
+{
+public:
+	void InitContents()
+	{
+		FDistanceCullFadeUniformShaderParameters Parameters;
+		Parameters.FadeTimeScaleBias.X = 0.0f;
+		Parameters.FadeTimeScaleBias.Y = 1.0f;
+		SetContents(Parameters);
+	}
+};
 
-/** Global primitive dither uniform buffer containing fully faded in. */
-FRHIUniformBuffer* GGetDitherFadedInUniformBuffer();
+/** Global primitive uniform buffer resource containing faded in */
+extern TGlobalResource< FGlobalDistanceCullFadeUniformBuffer > GDistanceCullFadedInUniformBuffer;
+
+/**
+ * Dither uniform buffer containing fully faded in.
+ */
+class FGlobalDitherUniformBuffer : public TUniformBuffer< FDitherUniformShaderParameters >
+{
+public:
+	void InitContents()
+	{
+		FDitherUniformShaderParameters Parameters;
+		Parameters.LODFactor = 0.0f;
+		SetContents(Parameters);
+	}
+};
+
+/** Global primitive uniform buffer resource containing faded in */
+extern TGlobalResource< FGlobalDitherUniformBuffer > GDitherFadedInUniformBuffer;
 
 /**
  * Stores fading state for a single primitive in a single view
