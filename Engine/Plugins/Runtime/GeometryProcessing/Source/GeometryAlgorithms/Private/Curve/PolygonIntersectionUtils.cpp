@@ -40,7 +40,83 @@ namespace UE::Geometry::Private
 
 		return bExecuteResult;
 	}
+
+	// Clip polygons in the subject array by the polygons in the clip array
+	template <typename RealType>
+	static bool ClipArrays(
+		const Clipper2Lib::ClipType& InClipType,
+		TArrayView<const FGeneralPolygon2d> SubjPolygons,
+		TArrayView<const FGeneralPolygon2d> ClipPolygons,
+		TArray<FGeneralPolygon2d>& ResultOut)
+	{
+		ResultOut.Reset();
+
+		TAxisAlignedBox2<RealType> InputBounds;
+		for (const FGeneralPolygon2d& Polygon : SubjPolygons)
+		{
+			InputBounds.Contain(Polygon.GetOuter().Bounds());
+		}
+		for (const FGeneralPolygon2d& Polygon : ClipPolygons)
+		{
+			InputBounds.Contain(Polygon.GetOuter().Bounds());
+		}
+		RealType InputRange = (InputBounds.Extents() * 2).GetMax();
+
+		Clipper2Lib::Clipper64 Clipper;
+		for (const FGeneralPolygon2d& Polygon : SubjPolygons)
+		{
+			Clipper.AddSubject(ConvertGeneralizedPolygonToPath<RealType, IntegralType>(Polygon, InputBounds.Min, InputRange));
+		}
+		for (const FGeneralPolygon2d& Polygon : ClipPolygons)
+		{
+			Clipper.AddClip(ConvertGeneralizedPolygonToPath<RealType, IntegralType>(Polygon, InputBounds.Min, InputRange));
+		}
+
+		Clipper2Lib::PolyTree<IntegralType> ResultTree;
+		Clipper2Lib::Paths64 ResultOpenPaths;
+		const bool bExecuteResult = Clipper.Execute(InClipType, Clipper2Lib::FillRule::NonZero, ResultTree, ResultOpenPaths);
+
+		if (bExecuteResult)
+		{
+			ConvertPolyTreeToPolygons<IntegralType, RealType>(&ResultTree, ResultOut, InputBounds.Min, InputRange);
+		}
+
+		return bExecuteResult;
+	}
 };
+
+
+// Array-based operations
+
+namespace UE::Geometry
+{
+bool PolygonsUnion(TArrayView<const FGeneralPolygon2d> Polygons, TArray<FGeneralPolygon2d>& ResultOut, bool bCopyInputOnFailure)
+{
+	// always put everything in the 'subject' array for unions
+	bool bResult = Private::ClipArrays<double>(Clipper2Lib::ClipType::Union, Polygons, TArrayView<const FGeneralPolygon2d>(), ResultOut);
+	// optionally fall back to copying the input polygons on failure
+	if (bCopyInputOnFailure && !bResult)
+	{
+		ResultOut.Append(Polygons);
+	}
+	return bResult;
+}
+bool PolygonsDifference(TArrayView<const FGeneralPolygon2d> SubjPolygons, TArrayView<const FGeneralPolygon2d> ClipPolygons, TArray<FGeneralPolygon2d>& ResultOut)
+{
+	return Private::ClipArrays<double>(Clipper2Lib::ClipType::Difference, SubjPolygons, ClipPolygons, ResultOut);
+}
+bool PolygonsIntersection(TArrayView<const FGeneralPolygon2d> SubjPolygons, TArrayView<const FGeneralPolygon2d> ClipPolygons, TArray<FGeneralPolygon2d>& ResultOut)
+{
+	return Private::ClipArrays<double>(Clipper2Lib::ClipType::Intersection, SubjPolygons, ClipPolygons, ResultOut);
+}
+bool PolygonsExclusiveOr(TArrayView<const FGeneralPolygon2d> SubjPolygons, TArrayView<const FGeneralPolygon2d> ClipPolygons, TArray<FGeneralPolygon2d>& ResultOut)
+{
+	return Private::ClipArrays<double>(Clipper2Lib::ClipType::Xor, SubjPolygons, ClipPolygons, ResultOut);
+}
+} // namespace UE::Geometry
+
+
+// Two-polygon operations
 
 template <EPolygonBooleanOp OperationType, typename GeometryType, typename RealType>
 TBooleanPolygon2Polygon2<OperationType, GeometryType, RealType>::TBooleanPolygon2Polygon2(

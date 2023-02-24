@@ -67,4 +67,19 @@ namespace UE::Geometry
 
 	typedef TExclusiveOrPolygon2Polygon2<TGeneralPolygon2<float>, float> FExclusiveOrGeneralPolygon2GeneralPolygon2f;
 	typedef TExclusiveOrPolygon2Polygon2<TGeneralPolygon2<double>, double> FExclusiveOrGeneralPolygon2GeneralPolygon2d;
+
+	// Array-based interfaces to support cases where we have different numbers of polygons to operate on
+	
+	/// Populate ResultOut with the union of the input Polygons
+	/// @param bCopyInputOnFailure		If true, copy the input Polygons to ResultOut if the union is not successfully computed. Otherwise, ResultOut is left empty on failure.
+	GEOMETRYALGORITHMS_API bool PolygonsUnion(TArrayView<const FGeneralPolygon2d> Polygons, TArray<FGeneralPolygon2d>& ResultOut, bool bCopyInputOnFailure);
+
+	/// Populate ResultOut with the difference of PosPolygons minus NegPolygons
+	GEOMETRYALGORITHMS_API bool PolygonsDifference(TArrayView<const FGeneralPolygon2d> PosPolygons, TArrayView<const FGeneralPolygon2d> NegPolygons, TArray<FGeneralPolygon2d>& ResultOut);
+
+	/// Populate ResultOut with the intersection of SubjPolygons with ClipPolygons
+	GEOMETRYALGORITHMS_API bool PolygonsIntersection(TArrayView<const FGeneralPolygon2d> SubjPolygons, TArrayView<const FGeneralPolygon2d> ClipPolygons, TArray<FGeneralPolygon2d>& ResultOut);
+
+	/// Populate ResultOut with the 'exclusive or' of SubjPolygons with ClipPolygons
+	GEOMETRYALGORITHMS_API bool PolygonsExclusiveOr(TArrayView<const FGeneralPolygon2d> SubjPolygons, TArrayView<const FGeneralPolygon2d> ClipPolygons, TArray<FGeneralPolygon2d>& ResultOut);
 }
