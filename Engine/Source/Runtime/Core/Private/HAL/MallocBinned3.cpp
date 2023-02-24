@@ -1091,8 +1091,8 @@ void* FMallocBinned3::MallocExternal(SIZE_T Size, uint32 Alignment)
 	FPlatformMemory::FPlatformVirtualMemoryBlock Block = FPlatformMemory::FPlatformVirtualMemoryBlock::AllocateVirtual(AlignedSize, Alignment);
 	Block.Commit(0, AlignedSize);
 	void* Result = Block.GetVirtualPointer();
-#endif
 	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, Result, AlignedSize));
+#endif
 
 #if BINNED3_TIME_LARGE_BLOCKS
 	double Add = FPlatformTime::Seconds() - StartTime;
