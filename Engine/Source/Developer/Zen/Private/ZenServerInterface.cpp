@@ -134,8 +134,10 @@ ZenServerState::ZenServerState()
 	}
 #endif
 
+#if PLATFORM_WINDOWS || PLATFORM_UNIX || PLATFORM_MAC
 	m_hMapFile = hMap;
 	m_Data = reinterpret_cast<const ZenServerEntry*>(pBuf);
+#endif
 }
 
 ZenServerState::~ZenServerState()

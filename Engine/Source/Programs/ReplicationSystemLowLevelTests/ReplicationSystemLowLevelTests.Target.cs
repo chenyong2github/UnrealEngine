@@ -10,6 +10,9 @@ public class ReplicationSystemLowLevelTestsTarget : TestTargetRules
 		bCompileAgainstEngine = true;
 		bUsesSlate = false;
 
+		bUsePlatformFileStub = true;
+		bMockEngineDefaults = true;
+
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		// Network config

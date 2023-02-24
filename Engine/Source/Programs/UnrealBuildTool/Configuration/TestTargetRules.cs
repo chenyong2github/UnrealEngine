@@ -86,9 +86,8 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// If set to true, it will not compile against engine even if "Engine" is in the dependency graph.
-		/// Note: Currently set to true because it requires cooked Engine assets.
 		/// </summary>
-		public static bool bNeverCompileAgainstEngine = true;
+		public static bool bNeverCompileAgainstEngine = false;
 
 		/// <summary>
 		/// Test target override for bCompileAgainstEditor.
@@ -106,7 +105,39 @@ namespace UnrealBuildTool
 		public static bool bNeverCompileAgainstEditor = false;
 
 		/// <summary>
-		/// Constructor for TestTargetRules as own target.
+		/// Whether to stub the platform file.
+		/// </summary>
+		public bool bUsePlatformFileStub
+		{ 
+			get { return bUsePlatformFileStubPrivate; }
+			set
+			{
+				bUsePlatformFileStubPrivate = value;
+				GlobalDefinitions.Remove("UE_LLT_USE_PLATFORM_FILE_STUB=0");
+				GlobalDefinitions.Remove("UE_LLT_USE_PLATFORM_FILE_STUB=1");
+				GlobalDefinitions.Add($"UE_LLT_USE_PLATFORM_FILE_STUB={Convert.ToInt32(bUsePlatformFileStubPrivate)}");
+			}
+		}
+		private bool bUsePlatformFileStubPrivate = false;
+
+		/// <summary>
+		/// Whether to mock engine default instances for materials, AI controller etc.
+		/// </summary>
+		public bool bMockEngineDefaults
+		{
+			get { return bMockEngineDefaultsPrivate; }
+			set
+			{
+				bMockEngineDefaultsPrivate = value;
+				GlobalDefinitions.Remove("UE_LLT_WITH_MOCK_ENGINE_DEFAULTS=0");
+				GlobalDefinitions.Remove("UE_LLT_WITH_MOCK_ENGINE_DEFAULTS=1");
+				GlobalDefinitions.Add($"UE_LLT_WITH_MOCK_ENGINE_DEFAULTS={Convert.ToInt32(bMockEngineDefaultsPrivate)}");
+			}
+		}
+		private bool bMockEngineDefaultsPrivate = false;
+
+		/// <summary>
+		/// Constructor that explicit targets can inherit from.
 		/// </summary>
 		/// <param name="Target"></param>
 		public TestTargetRules(TargetInfo Target) : base(Target)
@@ -119,6 +150,10 @@ namespace UnrealBuildTool
 			{
 				bBuildInSolutionByDefault = true;
 				SolutionDirectory = "Programs/LowLevelTests";
+
+				// Default to true for explicit targets to reduce compilation times.
+				// Selective module compilation will automatically detect if Engine is required based on Engine include files in tests.
+				bNeverCompileAgainstEngine = true;
 			}
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -263,6 +298,10 @@ namespace UnrealBuildTool
 
 			GlobalDefinitions.Add("STATS=0");
 			GlobalDefinitions.Add("TEST_FOR_VALID_FILE_SYSTEM_MEMORY=0");
+			
+			// LLT Globals
+			GlobalDefinitions.Add("UE_LLT_USE_PLATFORM_FILE_STUB=0");
+			GlobalDefinitions.Add("UE_LLT_WITH_MOCK_ENGINE_DEFAULTS=0");
 
 			// Platform specific setup
 			if (Target.Platform == UnrealTargetPlatform.Android)

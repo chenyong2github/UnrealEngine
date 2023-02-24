@@ -4,7 +4,12 @@
 #include "TestCommon/CoreUtilities.h"
 #include "TestCommon/CoreUObjectUtilities.h"
 #include "TestCommon/EngineUtilities.h"
+
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/DelayedAutoRegister.h"
+
+static IPlatformFile* DefaultPlatformFile;
 
 void InitAllThreadPoolsEditorEx(bool MultiThreaded)
 {
@@ -23,8 +28,32 @@ void InitStats()
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StatSystemReady);
 }
 
+void UsePlatformFileStubIfRequired()
+{
+#if WITH_ENGINE && UE_LLT_USE_PLATFORM_FILE_STUB
+	if (IPlatformFile* WrapperFile = FPlatformFileManager::Get().GetPlatformFile(TEXT("PlatformFileStub")))
+	{
+		IPlatformFile* CurrentPlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
+		WrapperFile->Initialize(CurrentPlatformFile, TEXT(""));
+		FPlatformFileManager::Get().SetPlatformFile(*WrapperFile);
+	}
+#endif // WITH_ENGINE && UE_LLT_USE_PLATFORM_FILE_STUB
+}
+
+void SaveDefaultPlatformFile()
+{
+	DefaultPlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
+}
+
+void UseDefaultPlatformFile()
+{
+	FPlatformFileManager::Get().SetPlatformFile(*DefaultPlatformFile);
+}
+
 void InitAll(bool bAllowLogging, bool bMultithreaded)
 {
+	SaveDefaultPlatformFile();
+	UsePlatformFileStubIfRequired();
 	InitAllThreadPools(bMultithreaded);
 #if WITH_ENGINE
 	InitAsyncQueues();

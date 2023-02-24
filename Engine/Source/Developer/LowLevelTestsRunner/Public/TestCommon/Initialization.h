@@ -4,6 +4,10 @@
 
 #include "CoreMinimal.h"
 
+void SaveDefaultPlatformFile();
+void UsePlatformFileStubIfRequired();
+void UseDefaultPlatformFile();
+
 void InitAllThreadPoolsEditorEx(bool MultiThreaded);
 
 void InitOutputDevicesEx();
