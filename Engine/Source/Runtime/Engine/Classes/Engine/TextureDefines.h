@@ -499,6 +499,20 @@ static FORCEINLINE bool IsUncompressed(TextureCompressionSettings CompressionSet
 		);
 }
 
+static FORCEINLINE bool ShouldUseGreyScaleEditorVisualization(TextureCompressionSettings CompressionSettings)
+{
+	// these formats should do R -> RGB red to gray replication in Editor viz
+	return (CompressionSettings == TC_Grayscale ||
+			CompressionSettings == TC_Alpha ||
+			CompressionSettings == TC_Displacementmap ||
+			CompressionSettings == TC_DistanceFieldFont );
+
+	// ?? maybe these too ??
+	//		CompressionSettings == TC_HalfFloat ||
+	//		CompressionSettings == TC_SingleFloat
+}
+
+
 } // TextureDefines
 } // UE
 

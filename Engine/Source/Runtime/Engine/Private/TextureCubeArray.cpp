@@ -170,9 +170,8 @@ public:
 			AM_Clamp
 		);
 		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
-
-		// Set the greyscale format flag appropriately.
-		bGreyScaleFormat = ( Owner->CompressionSettings == TC_Grayscale || Owner->CompressionSettings == TC_Alpha );
+		
+		bGreyScaleFormat = UE::TextureDefines::ShouldUseGreyScaleEditorVisualization( Owner->CompressionSettings );
 	}
 
 	virtual void ReleaseRHI() override
