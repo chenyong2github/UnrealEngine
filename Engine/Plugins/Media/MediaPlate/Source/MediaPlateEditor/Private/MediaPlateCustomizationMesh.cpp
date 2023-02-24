@@ -107,6 +107,9 @@ void FMediaPlateCustomizationMesh::SetMesh(UStaticMeshComponent* StaticMeshCompo
 {
 	if (StaticMeshComponent != nullptr)
 	{
+		FProperty* StaticMeshProperty = FindFieldChecked<FProperty>(UStaticMeshComponent::StaticClass(), "StaticMesh");
+		StaticMeshComponent->PreEditChange(StaticMeshProperty);
+
 		// Get existing mesh.
 		TObjectPtr<UStaticMesh> OldMesh = StaticMeshComponent->GetStaticMesh();
 		if (OldMesh != nullptr)
@@ -130,7 +133,6 @@ void FMediaPlateCustomizationMesh::SetMesh(UStaticMeshComponent* StaticMeshCompo
 		StaticMeshComponent->SetRelativeScale3D(FVector::OneVector);
 
 		// Call PostEditChangeProperty so it updates properly.
-		FProperty* StaticMeshProperty = FindFieldChecked<FProperty>(UStaticMeshComponent::StaticClass(), "StaticMesh");
 		FPropertyChangedEvent PropertyEvent(StaticMeshProperty);
 		StaticMeshComponent->PostEditChangeProperty(PropertyEvent);
 

@@ -18,6 +18,7 @@
 #include "MediaPlaylist.h"
 #include "MediaSource.h"
 #include "PropertyCustomizationHelpers.h"
+#include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
@@ -757,6 +758,8 @@ void FMediaPlateCustomization::SetMeshMode(EMediaTextureVisibleMipsTiles InMode)
 {
 	if (MeshMode != InMode)
 	{
+		const FScopedTransaction Transaction(LOCTEXT("SetMeshMode", "Media Plate Mesh Changed"));
+
 		MeshMode = InMode;
 		for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
 		{
@@ -1030,6 +1033,8 @@ FString FMediaPlateCustomization::GetStaticMeshPath() const
 
 void FMediaPlateCustomization::OnStaticMeshChanged(const FAssetData& AssetData)
 {
+	const FScopedTransaction Transaction(LOCTEXT("OnStaticMeshChanged", "Media Plate Custom Mesh Changed"));
+
 	// Update the static mesh.
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(AssetData.GetAsset());
 	for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
