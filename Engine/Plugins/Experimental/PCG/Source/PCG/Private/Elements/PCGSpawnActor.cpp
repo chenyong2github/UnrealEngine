@@ -294,7 +294,7 @@ void UPCGSpawnActorSettings::RefreshTemplateActor()
 			Options.bNotifyObjectReplacement = true;
 			UEngine::CopyPropertiesForUnrelatedObjects(TemplateActor, NewTemplateActor, Options);
 
-			TemplateActor->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+			TemplateActor->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 		}
 
 		TemplateActor = NewTemplateActor;
