@@ -878,6 +878,9 @@ public:
 	/** Print detailed stats from the cook. */
 	void PrintDetailedCookStats();
 
+	/** Is the local CookOnTheFlyServer cooking a DLC plugin rather than a Project+Engine+EmbeddedPlugins? */
+	bool IsCookingDLC() const;
+
 protected:
 	// FExec interface used in the editor
 	virtual bool Exec_Editor(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
@@ -1221,9 +1224,6 @@ private:
 
 	/* Create the delete-old-cooked-directory helper.*/
 	FAsyncIODelete& GetAsyncIODelete();
-
-	/** Is the local CookOnTheFlyServer cooking a DLC plugin rather than a Project+Engine+EmbeddedPlugins? */
-	bool IsCookingDLC() const;
 
 	/** Is the local CookOnTheFlyServer cooking a Project+Engine+EmbeddedPlugin Patch based on a previous Release? */
 	bool IsCookingAgainstFixedBase() const;

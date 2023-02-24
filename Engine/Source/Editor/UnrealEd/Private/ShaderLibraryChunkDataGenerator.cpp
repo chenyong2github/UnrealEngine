@@ -21,6 +21,13 @@ FShaderLibraryChunkDataGenerator::FShaderLibraryChunkDataGenerator(UCookOnTheFly
 	FConfigFile PlatformIniFile;
 	FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Engine"), true, *PlatformNameUsedForIni);
 	PlatformIniFile.GetBool(TEXT("DevOptions.Shaders"), TEXT("bDoNotChunkShaderLib"), bOptedOut);
+
+	// Disable chunking for DLC - this causes problems as the main game can be optionally (for faster iteration) cooked with -fastcook. Fastcook disables chunking,
+	// so the game has no idea about ChunkIDs and cannot find DLC's chunked libs. If DLC lib is monolithic, both monolithic and chunked games will try to open it.
+	if (COTFS.IsCookingDLC())
+	{
+		bOptedOut = true;
+	}
 }
 
 void FShaderLibraryChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunkId, const TSet<FName>& InPackagesInChunk,

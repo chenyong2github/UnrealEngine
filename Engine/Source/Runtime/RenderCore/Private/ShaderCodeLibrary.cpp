@@ -2463,15 +2463,20 @@ public:
 					Library = new FNamedShaderLibrary(Name, ShaderPlatform, Directory);
 				}
 			}
+			check(Library);
 			// note, that since we're out of NamedLibrariesMutex locks now, other threads may arrive at the same point and acquire the same Library pointer
 			// (or create yet another new named library). In the latter case, the duplicate library will be deleted later, since we will re-check (under a lock)
 			// the presence of the same name in NamedLibrariesStack.  In the former case (two threads sharing the same Library pointer), we rely on FNamedShaderLibrary::OpenShaderCode
 			// implementation being thread-safe (which it is).
 
+			// more info for better logging
+			bool bOpenedAsMonolithic = false;
+
 			// if we're able to open the library by name, it's not chunked
 			if (Library->OpenShaderCode(Directory, Name))
 			{
 				bResult = true;
+				bOpenedAsMonolithic = true;
 
 				// Attempt to open the shared-cooked override code library if there is one.
 				// This is probably not ideal, but it should get shared-cooks working.
@@ -2489,7 +2494,6 @@ public:
 				}
 				NewComponentIDs = Library->PresentChunks.Difference(PrevComponentSet);
 				bResult = !NewComponentIDs.IsEmpty();
-				UE_LOG(LogShaderLibrary, Display, TEXT("Logical shader library '%s' component count %d, new components: %d"), *Name, Library->GetNumComponents(), NewComponentIDs.Num());
 
 #if UE_SHADERLIB_SUPPORT_CHUNK_DISCOVERY
 				if (!bResult)
@@ -2546,7 +2550,14 @@ public:
 					TUniquePtr<FNamedShaderLibrary>* LibraryPtr = NamedLibrariesStack.Find(Name);
 					if (LibraryPtr == nullptr)
 					{
-						UE_LOG(LogShaderLibrary, Display, TEXT("Logical shader library '%s' has been created, components %d"), *Name, Library->GetNumComponents());
+						if (bOpenedAsMonolithic)
+						{
+							UE_LOG(LogShaderLibrary, Display, TEXT("Logical shader library '%s' has been created as a monolithic library"), *Name, Library->GetNumComponents());
+						}
+						else
+						{
+							UE_LOG(LogShaderLibrary, Display, TEXT("Logical shader library '%s' has been created, components %d"), *Name, Library->GetNumComponents());
+						}
 						NamedLibrariesStack.Emplace(Name, Library);
 					}
 					else 
@@ -2555,6 +2566,10 @@ public:
 						delete Library;
 						Library = nullptr;
 					}
+				}
+				else
+				{
+					UE_LOG(LogShaderLibrary, Display, TEXT("Discovered new %d components for logical shader library '%s' (total number of components is now %d)"), NewComponentIDs.Num(), *Name, Library->GetNumComponents());
 				}
 
 				// Inform the pipeline cache that the state of loaded libraries has changed (unless we had to delete the duplicate)
@@ -2565,6 +2580,21 @@ public:
 					{
 						FShaderPipelineCache::ShaderLibraryStateChanged(FShaderPipelineCache::OpenedComponent, ShaderPlatform, Name, ComponentID);
 					}
+				}
+			}
+			else
+			{
+				if (bAddNewNamedLibrary)
+				{
+					UE_LOG(LogShaderLibrary, Display, TEXT("Tried to open shader library '%s', but could not find it neither as a monolithic library nor as a chunked one."), *Name);
+
+					check(Library->GetNumComponents() == 0);
+					delete Library;
+					Library = nullptr;
+				}
+				else
+				{
+					UE_LOG(LogShaderLibrary, Display, TEXT("Tried to open again shader library '%s', but could not find new components for it (existing components: %d)."), *Name, Library->GetNumComponents());
 				}
 			}
 		}
