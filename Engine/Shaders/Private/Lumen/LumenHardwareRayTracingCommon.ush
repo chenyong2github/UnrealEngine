@@ -504,7 +504,7 @@ float3 GetApproxFullyRoughDiffuseColor(inout FPackedMaterialClosestHitPayload Pa
 	{
 		const float3 V = -Ray.Direction;
 
-		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(true /*bForceFullyRough*/, true /*bRoughDiffuseEnabled*/, 0 /*PeelLayersAboveDepth*/);
+		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(true /*bForceFullyRough*/, true /*bRoughDiffuseEnabled*/, 0 /*PeelLayersAboveDepth*/, false/*bRoughnessTracking*/);
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(0, 0, 0);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(PackedPayload.StrataData, StrataAddressing, PackedPayload.StrataData);
 

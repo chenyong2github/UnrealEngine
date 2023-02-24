@@ -1495,7 +1495,7 @@ void ScreenProbeIntegrateCS(
 				}
 
 				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
-				const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
+				const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth, Strata.bRoughnessTracking);
 			#else
 				// For clear coat materials, screen probes are always providing the bottom layer reflections
 				Material.WorldNormal = GetClearCoatBottomNormal(Material.GBufferData, Material.WorldNormal);

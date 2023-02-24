@@ -220,7 +220,7 @@ FStrataDeferredLighting StrataIndirectLighting(
 	in float4 InputSpecularLighting)
 {
 	FStrataDeferredLighting Out = GetInitialisedStrataDeferredLighting();
-	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
+	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth, Strata.bRoughnessTracking);
 
 	const uint2 Tile0Coord = PixelPos >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
 	const uint2 LocalTileCoord = PixelPos - Tile0Coord * STRATA_TILE_SIZE;

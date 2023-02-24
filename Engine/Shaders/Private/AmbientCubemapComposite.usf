@@ -97,7 +97,7 @@ void MainPS(
 		float SSRReductionFactor = 1.0f;
 		float3 SSRTopLayerEnvBRDF = 0.0f;
 
-		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
+		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth, Strata.bRoughnessTracking);
 
 		FStrataDeferredLighting StrataLighting = StrataEnvironmentLighting(
 			SvPosition,

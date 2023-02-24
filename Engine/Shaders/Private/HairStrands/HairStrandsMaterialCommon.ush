@@ -226,7 +226,7 @@ FEvaluateOutput Evaluate(
 			// Update tree (coverage/transmittance/luminace weights)
 			FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
 			const float3 V = MaterialParameters.CameraVector;
-			const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, false /*bRoughDiffuse*/, -1 /*PeelLayersAboveDepth*/);
+			const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, false /*bRoughDiffuse*/, -1 /*PeelLayersAboveDepth*/, false/*bRoughnessTracking*/);
 			StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataPixelHeader.StrataTree, V, Settings);
 			FStrataBSDF HairBSDF = StrataPixelHeader.StrataTree.BSDFs[0];
 

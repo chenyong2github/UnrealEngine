@@ -82,8 +82,12 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 #endif
 
 	float CurrentBSDFCoverage = CurrentBSDF.Coverage;
-	const float Roughness = StrataGetBSDFRoughness(CurrentBSDF);
+	float Roughness = StrataGetBSDFRoughness(CurrentBSDF);
 	float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
+
+#if USE_DEVELOPMENT_SHADERS
+	Roughness = Settings.bRoughnessTracking ? Roughness : 0.0;
+#endif
 
 	// Distortion and translucency passes accumnulate pass calls for colored transmittance, coverage and TopDownRefractionLobeStat to be setup correctly.
 #if STRATA_COMPLEXPATH || MATERIALBLENDING_ANY_TRANSLUCENT

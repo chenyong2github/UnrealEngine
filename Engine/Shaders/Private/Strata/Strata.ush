@@ -3525,17 +3525,19 @@ struct FStrataIntegrationSettings
 {
 	bool bForceFullyRough;
 	bool bRoughDiffuseEnabled;
+	bool bRoughnessTracking;
 
 	// Embbeded debug settings
 	int  SliceStoringDebugStrataTreeData;
 	int  PeelLayersAboveDepth;
 };
 
-FStrataIntegrationSettings InitStrataIntegrationSettings(bool bForceFullyRough, bool bRoughDiffuseEnabled, int PeelLayersAboveDepth)
+FStrataIntegrationSettings InitStrataIntegrationSettings(bool bForceFullyRough, bool bRoughDiffuseEnabled, int PeelLayersAboveDepth, bool bRoughnessTracking)
 {
 	FStrataIntegrationSettings Out;
 	Out.bForceFullyRough = bForceFullyRough;
 	Out.bRoughDiffuseEnabled = bRoughDiffuseEnabled;
+	Out.bRoughnessTracking = bRoughnessTracking;
 
 	Out.PeelLayersAboveDepth = PeelLayersAboveDepth;
 	Out.SliceStoringDebugStrataTreeData = -1;
@@ -3544,7 +3546,7 @@ FStrataIntegrationSettings InitStrataIntegrationSettings(bool bForceFullyRough, 
 
 FStrataIntegrationSettings InitStrataIntegrationSettings()
 {
-	return InitStrataIntegrationSettings(false, true, -1);
+	return InitStrataIntegrationSettings(false, true, -1, false);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

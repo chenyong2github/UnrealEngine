@@ -41,7 +41,7 @@ FStrataDeferredLighting StrataDeferredLighting(
 {
 	FStrataDeferredLighting StrataLighting = GetInitialisedStrataDeferredLighting();
 #if STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
-	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
+	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth, Strata.bRoughnessTracking);
 #else
 	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
 #endif

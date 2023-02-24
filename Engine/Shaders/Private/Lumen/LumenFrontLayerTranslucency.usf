@@ -90,7 +90,7 @@ void MainPS(
 		FStrataTree StrataTree = StrataPixelHeader.StrataTree;
 		if (StrataTree.BSDFCount > 0)
 		{
-			const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, true /*bRoughDiffuseEnabled*/, 0 /*PeelLayersAboveDepth*/);
+			const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, true /*bRoughDiffuseEnabled*/, 0 /*PeelLayersAboveDepth*/, false/*bRoughnessTracking*/);
 			float3 TotalTransmittancePreCoverage = 0;
 			FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
 			StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, Settings, TotalCoverage, TotalTransmittancePreCoverage);

@@ -1514,7 +1514,7 @@ void FPixelShaderInOut_MainPS(
 	float3 WorldNormal = 0;
 	float3 EmissiveLuminance = 0;
 
-	FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(true /*bForceFullyRough*/, false /*StrataStruct.bRoughDiffuse*/, StrataStruct.PeelLayersAboveDepth);
+	FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(true /*bForceFullyRough*/, false /*StrataStruct.bRoughDiffuse*/, StrataStruct.PeelLayersAboveDepth, StrataStruct.bRoughnessTracking);
 
 	const float3 SurfaceWorldNormal = MaterialParameters.TangentToWorld[2].xyz;
 	StrataMaterialExportOut(
@@ -1613,7 +1613,7 @@ void FPixelShaderInOut_MainPS(
 		FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;
 		FStrataTopLayerData TopLayerData = (FStrataTopLayerData)0;
 		FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
-		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, StrataStruct.bRoughDiffuse, StrataStruct.PeelLayersAboveDepth);
+		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, StrataStruct.bRoughDiffuse, StrataStruct.PeelLayersAboveDepth, StrataStruct.bRoughnessTracking);
 
 	#if STRATA_ADVANCED_DEBUG_ENABLED
 		Settings.SliceStoringDebugStrataTreeData = all(uint2(float2(View.CursorPosition) * View.ViewResolutionFraction) == PixelPos) ? StrataStruct.SliceStoringDebugStrataTreeDataWithoutMRT : Settings.SliceStoringDebugStrataTreeData;
@@ -1697,7 +1697,7 @@ void FPixelShaderInOut_MainPS(
 		const bool bForceFullyRough = View.RenderingReflectionCaptureMask > 0;
 		#endif
 
-		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(bForceFullyRough, StrataStruct.bRoughDiffuse, StrataStruct.PeelLayersAboveDepth);
+		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(bForceFullyRough, StrataStruct.bRoughDiffuse, StrataStruct.PeelLayersAboveDepth, StrataStruct.bRoughnessTracking);
 
 		float3 Throughput = 1.0f;
 		Color = StrataForwardLighting(

@@ -624,7 +624,7 @@ void Main(
 		#else
 		const bool bForceFullyRough = View.RenderingReflectionCaptureMask > 0; // Can mobile capture reflection probe? Is this needed for mobile?
 		#endif
-		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(bForceFullyRough, StrataStruct.bRoughDiffuse, StrataStruct.PeelLayersAboveDepth);
+		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(bForceFullyRough, StrataStruct.bRoughDiffuse, StrataStruct.PeelLayersAboveDepth, Strata.bRoughnessTracking);
 
 
 		// TODO: needed? Remove?
