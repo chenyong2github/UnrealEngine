@@ -27,7 +27,6 @@
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "EngineDefines.h"
 #include "Math/MathFwd.h"
-#include "PhysxUserData.h"
 
 #include "GeometryCollectionComponent.generated.h"
 
@@ -1174,7 +1173,7 @@ private:
 
 	FCollisionFilterData InitialSimFilter;
 	FCollisionFilterData InitialQueryFilter;
-	FPhysxUserData PhysicsUserData;
+	FChaosUserData PhysicsUserData;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)

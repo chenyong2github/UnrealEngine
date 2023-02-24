@@ -2565,7 +2565,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 		const bool bValidCollection = DynamicCollection && DynamicCollection->Transform.Num() > 0;
 		if (bValidWorld && bValidCollection)
 		{
-			FPhysxUserData::Set<UPrimitiveComponent>(&PhysicsUserData, this);
+			FChaosUserData::Set<UPrimitiveComponent>(&PhysicsUserData, this);
 
 			// If the Component is set to Dynamic, we look to the RestCollection for initial dynamic state override per transform.
 			TManagedArray<int32> & DynamicState = DynamicCollection->DynamicState;
@@ -3184,11 +3184,14 @@ FScopedColorEdit::FScopedColorEdit(UGeometryCollectionComponent* InComponent, bo
 {
 	if (RandomColors.Num() == 0)
 	{
-		FMath::RandInit(2019);
+		// predictable colors based on the component
+		FRandomStream Random(GetTypeHash(InComponent));
 		for (int i = 0; i < 100; i++)
 		{
-			const FColor Color(FMath::Rand() % 100 + 5, FMath::Rand() % 100 + 5, FMath::Rand() % 100 + 5, 255);
-			RandomColors.Push(FLinearColor(Color));
+			const uint8 R = static_cast<uint8>(Random.FRandRange(5, 105));
+			const uint8 G = static_cast<uint8>(Random.FRandRange(5, 105));
+			const uint8 B = static_cast<uint8>(Random.FRandRange(5, 105));
+			RandomColors.Push(FLinearColor(FColor(R, G, B, 255)));
 		}
 	}
 }

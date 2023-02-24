@@ -46,6 +46,11 @@ void FGeometryCollectionRemoveOnBreakDynamicFacade::SetAttributeValues(const Geo
 
 		BreakTimerAttribute.Fill(DisabledBreakTimer);
 
+		// make sure we generate random value consistently between client and server 
+		// we can use the length of the transform group for that
+		const int32 RandomSeed = Children.Num();
+		FRandomStream Random(RandomSeed);
+
 		TManagedArray<float>& PostBreakDuration = PostBreakDurationAttribute.Modify();
 		for (int32 Idx = 0; Idx < PostBreakDuration.Num(); ++Idx)
 		{
@@ -53,7 +58,7 @@ void FGeometryCollectionRemoveOnBreakDynamicFacade::SetAttributeValues(const Geo
 			const FVector2f PostBreakTimer = RemoveOnBreakData.GetBreakTimer();
 			const float MinBreakTime = FMath::Max(0.0f, PostBreakTimer.X);
 			const float MaxBreakTime = FMath::Max(MinBreakTime, PostBreakTimer.Y);
-			PostBreakDuration[Idx] = RemoveOnBreakData.IsEnabled() ? FMath::RandRange(MinBreakTime, MaxBreakTime) : DisabledPostBreakDuration;
+			PostBreakDuration[Idx] = RemoveOnBreakData.IsEnabled() ? Random.FRandRange(MinBreakTime, MaxBreakTime) : DisabledPostBreakDuration;
 		}
 
 		TManagedArray<float>& BreakRemovalDuration = BreakRemovalDurationAttribute.Modify();
@@ -65,7 +70,7 @@ void FGeometryCollectionRemoveOnBreakDynamicFacade::SetAttributeValues(const Geo
 			const float MaxRemovalTime = FMath::Max(MinRemovalTime, RemovalTimer.Y);
 			const bool bIsCluster = (Children[Idx].Num() > 0);
 			const bool bUseClusterCrumbling = (bIsCluster && RemoveOnBreakData.GetClusterCrumbling());
-			BreakRemovalDuration[Idx] = bUseClusterCrumbling ? CrumblingRemovalTimer : FMath::RandRange(MinRemovalTime, MaxRemovalTime);
+			BreakRemovalDuration[Idx] = bUseClusterCrumbling ? CrumblingRemovalTimer : Random.FRandRange(MinRemovalTime, MaxRemovalTime);
 		}
 	}
 }
