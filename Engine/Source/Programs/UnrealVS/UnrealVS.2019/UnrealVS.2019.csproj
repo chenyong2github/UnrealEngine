@@ -203,7 +203,7 @@
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="'$(VSToolsPath)' != ''" />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v11.0\VSSDK\Microsoft.VsSDK.targets" Condition="false" />
   <PropertyGroup>
-    <PostBuildEvent>copy "$(TargetDir)$(TargetName).vsix" "$(ProjectDir)..\..\..\..\Extras\UnrealVS\VS2019\$(TargetName).vsix" /Y</PostBuildEvent>
+    <PostBuildEvent>xcopy /F /Y "$(TargetDir)$(TargetName).vsix" "$(ProjectDir)..\..\..\..\Extras\UnrealVS\VS2019\$(TargetName).vsix"</PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
     <PreBuildEvent>

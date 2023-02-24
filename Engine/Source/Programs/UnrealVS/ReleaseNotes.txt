@@ -1,3 +1,6 @@
+1.84.1
+* P4 Commands now are more aggressive about finding your working directory
+
 1.83
 * Open for Edit now also Adds if the file is not already added
 * added Revert command

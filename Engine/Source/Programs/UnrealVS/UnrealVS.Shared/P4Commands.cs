@@ -913,20 +913,26 @@ namespace UnrealVS
 			bool bSuccess = false;
 
 			string[] lines = CaptureP4Output.Split('\n');
-			foreach(string Line in lines)
+			foreach (string Line in lines)
 			{
-				System.Text.RegularExpressions.Match Match = Regex.Match(Line, @"^P4CONFIG\s*=.*'([^']+)'\s*\)$");
+				string TrimLine = Line.Trim();
+
+				// Match this in https://regex101.com/ to debug it. Basically it's words=anything(anything'path-to-config-file'anything).
+				System.Text.RegularExpressions.Match Match = Regex.Match(TrimLine, @"^\w+=.*\(.*'(.*)'.*\)$");
 				if (Match.Success)
 				{
 					WorkingDirectory = Path.GetDirectoryName(Match.Groups[1].Value);
-					bSuccess = true;
-					break;
+					if (Directory.Exists(WorkingDirectory))
+					{
+						bSuccess = true;
+						break;
+					}
 				}
 			}
 
 			if (!bSuccess)
 			{
-				P4OutputPane.OutputStringThreadSafe($"attempt to pull P4CONFIG info failed{Environment.NewLine}");
+				P4OutputPane.OutputStringThreadSafe($"Attempt to pull the P4WorkingDirectory from 'p4 set' failed.  Have you run 'RunUAT P4WriteConfig' in your root directory?{Environment.NewLine}");
 			}
 
 			return WorkingDirectory;
