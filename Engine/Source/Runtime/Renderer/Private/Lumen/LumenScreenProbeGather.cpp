@@ -537,7 +537,7 @@ namespace LumenScreenProbeGatherRadianceCache
 		Parameters.RadianceProbeClipmapResolution = GetClipmapGridResolution();
 		Parameters.ProbeAtlasResolutionInProbes = FIntPoint(GRadianceCacheProbeAtlasResolutionInProbes, GRadianceCacheProbeAtlasResolutionInProbes);
 		Parameters.NumRadianceProbeClipmaps = GetNumClipmaps();
-		Parameters.RadianceProbeResolution = GetProbeResolution();
+		Parameters.RadianceProbeResolution = FMath::Max(GetProbeResolution(), LumenRadianceCache::MinRadianceProbeResolution);
 		Parameters.FinalProbeResolution = GetFinalProbeResolution();
 		Parameters.FinalRadianceAtlasMaxMip = GRadianceCacheNumMipmaps - 1;
 		const float LightingUpdateSpeed = FMath::Clamp(View.FinalPostProcessSettings.LumenFinalGatherLightingUpdateSpeed, .5f, 4.0f);

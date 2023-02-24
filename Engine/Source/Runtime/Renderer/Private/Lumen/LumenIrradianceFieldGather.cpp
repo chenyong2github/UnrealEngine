@@ -139,7 +139,7 @@ namespace LumenIrradianceFieldGather
 		Parameters.RadianceProbeClipmapResolution = FMath::Clamp(GLumenIrradianceFieldGridResolution, 1, 256);
 		Parameters.ProbeAtlasResolutionInProbes = FIntPoint(GLumenIrradianceFieldProbeAtlasResolutionInProbes, GLumenIrradianceFieldProbeAtlasResolutionInProbes);
 		Parameters.NumRadianceProbeClipmaps = FMath::Clamp(GLumenIrradianceFieldNumClipmaps, 1, LumenRadianceCache::MaxClipmaps);
-		Parameters.RadianceProbeResolution = GLumenIrradianceFieldProbeResolution;
+		Parameters.RadianceProbeResolution = FMath::Max(GLumenIrradianceFieldProbeResolution, LumenRadianceCache::MinRadianceProbeResolution);
 		Parameters.FinalProbeResolution = GLumenIrradianceFieldProbeResolution + 2 * (1 << (GLumenIrradianceFieldNumMipmaps - 1));
 		Parameters.FinalRadianceAtlasMaxMip = GLumenIrradianceFieldNumMipmaps - 1;
 		Parameters.CalculateIrradiance = 1;

@@ -14,6 +14,8 @@ namespace LumenRadianceCache
 	// Must match RadianceCacheCommon.ush
 	static constexpr int32 MaxClipmaps = 6;
 
+	static constexpr int32 MinRadianceProbeResolution = 8;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FRadianceCacheInputs, )
 		SHADER_PARAMETER(float, ReprojectionRadiusScale)
 		SHADER_PARAMETER(float, ClipmapWorldExtent)

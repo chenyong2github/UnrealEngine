@@ -294,7 +294,7 @@ namespace LumenTranslucencyVolumeRadianceCache
 		Parameters.RadianceProbeClipmapResolution = GetClipmapGridResolution();
 		Parameters.ProbeAtlasResolutionInProbes = FIntPoint(GTranslucencyVolumeRadianceCacheProbeAtlasResolutionInProbes, GTranslucencyVolumeRadianceCacheProbeAtlasResolutionInProbes);
 		Parameters.NumRadianceProbeClipmaps = GetNumClipmaps(LumenTranslucencyVolume::GetEndDistanceFromCamera(View));
-		Parameters.RadianceProbeResolution = GetProbeResolution();
+		Parameters.RadianceProbeResolution = FMath::Max(GetProbeResolution(), LumenRadianceCache::MinRadianceProbeResolution);
 		Parameters.FinalProbeResolution = GetFinalProbeResolution();
 		Parameters.FinalRadianceAtlasMaxMip = GetNumMipmaps() - 1;
 		const float TraceBudgetScale = View.Family->bCurrentlyBeingEdited ? 10.0f : 1.0f;
