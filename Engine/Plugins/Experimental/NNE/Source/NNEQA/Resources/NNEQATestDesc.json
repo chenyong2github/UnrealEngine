@@ -760,6 +760,7 @@
 				{ 
 					"inputs": [ { "shape": [ 2, 2, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 3 ] } ], 
 					"runtimes": [
+						{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "Not supported" },
 						{ "name": "NNERuntimeORTDml", "skip": true, "comment": "Not supported" } 
 					]
 				},

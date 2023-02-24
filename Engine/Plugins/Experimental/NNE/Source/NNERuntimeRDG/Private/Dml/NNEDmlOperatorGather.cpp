@@ -41,7 +41,7 @@ public:
 		const NNECore::FTensorShape& InputShape = InputTensor.GetShape();
 		const NNECore::FTensorShape& IndicesShape = IndicesTensor.GetShape();
 
-		if (InputShape.Rank() != IndicesShape.Rank())
+		if (IndicesShape.Rank() > InputShape.Rank())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Indices tensor rank must match input tensor rank"));
 			return false;
