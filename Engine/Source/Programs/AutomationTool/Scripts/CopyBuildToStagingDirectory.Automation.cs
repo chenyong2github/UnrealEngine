@@ -2378,10 +2378,10 @@ namespace AutomationScripts
 
 			List<PakFileRules> PakRulesList = GetPakFileRules(Params, SC);
 
-			List<string> FilesToRemove = new List<string>();
+			ConcurrentBag<string> FilesToRemove = new ConcurrentBag<string>();
 
 			// Apply the pak file rules, this can remove things but will not override the pak file name
-			foreach (var StagingFile in UnrealPakResponseFile)
+			Parallel.ForEach(UnrealPakResponseFile, StagingFile =>
 			{
 				bool bExcludeFromPaks = false;
 				ApplyPakFileRules(PakRulesList, StagingFile, null, null, out bExcludeFromPaks);
@@ -2390,9 +2390,9 @@ namespace AutomationScripts
 				{
 					FilesToRemove.Add(StagingFile.Key);
 				}
-			}
+			});
 
-			foreach (var FileToRemove in FilesToRemove)
+			foreach (var FileToRemove in FilesToRemove.ToArray())
 			{
 				UnrealPakResponseFile.Remove(FileToRemove);
 			}
