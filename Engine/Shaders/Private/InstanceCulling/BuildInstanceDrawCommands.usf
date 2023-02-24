@@ -125,7 +125,7 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 #else
 	InstanceAuxData4.xy = PackLocalBoundsCenter(InstanceData.LocalBoundsCenter);
 	InstanceAuxData4.zw = PackLocalBoundsExtent(InstanceData.LocalBoundsExtent);
-	InstanceAuxData1 = 0; // TODO: pack something useful here 
+	InstanceAuxData1 = InstanceData.RandomID;
 #endif // ALLOW_STATIC_LIGHTING
 
 	// 24 bits for Primitive flags + 8 bits for Instance flags
@@ -141,7 +141,11 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 	
 	InstanceTransform1.w = asfloat(PackedPrimitiveFlags); 
 	InstanceTransform2.w = InstanceAuxData1; 
-	InstanceTransform3.w = InstanceData.RandomID;
+
+	uint CustomDataCount;
+	LoadInstanceRelativeIdAndCustomDataCount(InstanceId, InstanceSceneDataSOAStride, InstanceData.RelativeId, CustomDataCount);
+	FInstancePayloadDataOffsets Offsets = GetInstancePayloadDataOffsets(InstanceData.PrimitiveId, InstanceData.Flags, InstanceData.RelativeId);
+	InstanceTransform3.w = asfloat((CustomDataCount & ((1 << INSTANCE_CUSTOM_DATA_COUNT_NUM_BITS) - 1)) | (Offsets.CustomData << INSTANCE_CUSTOM_DATA_COUNT_NUM_BITS));
 		
 	InstanceIdsBufferOutMobile[Offset*5 + 0] = InstanceOriginAndId;
 	InstanceIdsBufferOutMobile[Offset*5 + 1] = InstanceTransform1;

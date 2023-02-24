@@ -1178,10 +1178,6 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 
 	InstanceData.Flags = InstanceFlags;
 	InstanceData.PrimitiveId = asuint(InstanceOrigin.w);
-	
-#if USES_PER_INSTANCE_RANDOM || USE_DITHERED_LOD_TRANSITION
-	InstanceData.RandomID = InstanceTransform3.w;
-#endif
 
 	ComputeInstanceDerivedData(InstanceData, TilePosition, LocalToRelativeWorld);
 
@@ -1215,6 +1211,15 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	float3 ObjectRelativeWorldPosition = mul(float4(Intermediates.InstanceData.LocalBoundsCenter.xyz, 0.0f), LocalToRelativeWorld).xyz;
 	Intermediates.Primitive.ObjectWorldPosition = MakeLWCVector3(TilePosition, ObjectRelativeWorldPosition);
 	Intermediates.Primitive.ObjectRadius = length(Intermediates.InstanceData.LocalBoundsExtent * Intermediates.InstanceData.NonUniformScale.xyz);
+#if USES_PER_INSTANCE_RANDOM || USE_DITHERED_LOD_TRANSITION
+	Intermediates.InstanceData.RandomID = InstanceTransform2.w;
+#endif
+#endif
+
+#if ENABLE_PER_INSTANCE_CUSTOM_DATA
+	uint PackedCustomDataCountAndOffset = asuint(InstanceTransform3.w);
+	Intermediates.InstanceData.CustomDataCount = uint(PackedCustomDataCountAndOffset & ((1 << INSTANCE_CUSTOM_DATA_COUNT_NUM_BITS) - 1));
+	Intermediates.InstanceData.CustomDataOffset = uint(PackedCustomDataCountAndOffset >> INSTANCE_CUSTOM_DATA_COUNT_NUM_BITS);
 #endif
 	
 	return Intermediates; 
