@@ -145,13 +145,13 @@ UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UCon
 	UContextualAnimSceneInstance* NewInstance = Class ? NewObject<UContextualAnimSceneInstance>(this, Class) : NewObject<UContextualAnimSceneInstance>(this);
 	NewInstance->SceneAsset = &SceneAsset;
 
-	if (Params.Pivots.IsEmpty())
+	if (Params.WarpPoints.IsEmpty())
 	{
-		Bindings.CalculateAnimSetPivots(NewInstance->GetMutablePivots());
+		Bindings.CalculateWarpPoints(NewInstance->GetMutableWarpPoints());
 	}
 	else
 	{
-		NewInstance->SetPivots(Params.Pivots);
+		NewInstance->SetWarpPoints(Params.WarpPoints);
 	}
 
 	NewInstance->Bindings = MoveTemp(Bindings);
@@ -203,13 +203,13 @@ UContextualAnimSceneInstance* UContextualAnimManager::TryStartScene(const UConte
 		UContextualAnimSceneInstance* NewInstance = Class ? NewObject<UContextualAnimSceneInstance>(this, Class) : NewObject<UContextualAnimSceneInstance>(this);
 		NewInstance->SceneAsset = &SceneAsset;
 
-		if (Params.Pivots.IsEmpty())
+		if (Params.WarpPoints.IsEmpty())
 		{
-			Bindings.CalculateAnimSetPivots(NewInstance->GetMutablePivots());
+			Bindings.CalculateWarpPoints(NewInstance->GetMutableWarpPoints());
 		}
 		else
 		{
-			NewInstance->SetPivots(Params.Pivots);
+			NewInstance->SetWarpPoints(Params.WarpPoints);
 		}
 
 		NewInstance->Bindings = MoveTemp(Bindings);

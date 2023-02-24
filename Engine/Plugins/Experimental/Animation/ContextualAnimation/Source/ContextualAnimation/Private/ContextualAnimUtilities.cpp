@@ -407,9 +407,9 @@ const FContextualAnimSceneBinding& UContextualAnimUtilities::BP_SceneBindings_Ge
 	return FContextualAnimSceneBinding::InvalidBinding;
 }
 
-void UContextualAnimUtilities::BP_SceneBindings_CalculateAnimSetPivots(const FContextualAnimSceneBindings& Bindings, TArray<FContextualAnimSetPivot>& OutPivots)
+void UContextualAnimUtilities::BP_SceneBindings_CalculateWarpPoints(const FContextualAnimSceneBindings& Bindings, TArray<FContextualAnimWarpPoint>& OutWarpPoints)
 {
-	Bindings.CalculateAnimSetPivots(OutPivots);
+	Bindings.CalculateWarpPoints(OutWarpPoints);
 }
 
 void UContextualAnimUtilities::BP_SceneBindings_AddOrUpdateWarpTargetsForBindings(const FContextualAnimSceneBindings& Bindings)
@@ -420,23 +420,26 @@ void UContextualAnimUtilities::BP_SceneBindings_AddOrUpdateWarpTargetsForBinding
 		return;
 	}
 
-	const UContextualAnimSceneAsset* SceneAsset = Bindings.GetSceneAsset();
-	const int32 SectionIdx = Bindings.GetSectionIdx();
-	for (const FContextualAnimSetPivotDefinition& PivotDef : SceneAsset->GetAnimSetPivotDefinitionsInSection(SectionIdx))
+	if (const FContextualAnimSceneSection* Section = Bindings.GetSceneAsset()->GetSection(Bindings.GetSectionIdx()))
 	{
-		FContextualAnimSetPivot ScenePivot;
-		if (Bindings.CalculateAnimSetPivot(PivotDef, ScenePivot))
+		if (Section->GetWarpPointDefinitions().Num() > 0)
 		{
-			for (const FContextualAnimSceneBinding& Binding : Bindings)
+			for (const FContextualAnimWarpPointDefinition& WarpPointDef : Section->GetWarpPointDefinitions())
 			{
-				if (UMotionWarpingComponent* MotionWarpComp = Binding.GetActor()->FindComponentByClass<UMotionWarpingComponent>())
+				FContextualAnimWarpPoint WarpPoint;
+				if (Bindings.CalculateWarpPoint(WarpPointDef, WarpPoint))
 				{
-					//@TODO: Cache this
-					const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(Binding);
-					const float Time = AnimTrack.GetSyncTimeForWarpSection(PivotDef.Name);
-					const FTransform TransformRelativeToScenePivot = Bindings.GetAlignmentTransformFromBinding(Binding, PivotDef.Name, Time);
-					const FTransform WarpTarget = (TransformRelativeToScenePivot * ScenePivot.Transform);
-					MotionWarpComp->AddOrUpdateWarpTargetFromTransform(PivotDef.Name, WarpTarget);
+					for (const FContextualAnimSceneBinding& Binding : Bindings)
+					{
+						if (UMotionWarpingComponent* MotionWarpComp = Binding.GetActor()->FindComponentByClass<UMotionWarpingComponent>())
+						{
+							const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(Binding);
+							const float Time = AnimTrack.GetSyncTimeForWarpSection(WarpPointDef.WarpTargetName);
+							const FTransform TransformRelativeToWarpPoint = Bindings.GetAlignmentTransformFromBinding(Binding, WarpPointDef.WarpTargetName, Time);
+							const FTransform WarpTargetTransform = TransformRelativeToWarpPoint * WarpPoint.Transform;
+							MotionWarpComp->AddOrUpdateWarpTargetFromTransform(WarpPoint.Name, WarpTargetTransform);
+						}
+					}
 				}
 			}
 		}
@@ -455,7 +458,7 @@ FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformForRo
 	return Result;
 }
 
-FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformForRoleRelativeToPivot(const FContextualAnimSceneBindings& Bindings, FName Role, const FContextualAnimSetPivot& Pivot, float Time)
+FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformForRoleRelativeToWarpPoint(const FContextualAnimSceneBindings& Bindings, FName Role, const FContextualAnimWarpPoint& WarpPoint, float Time)
 {
 	FTransform Result = FTransform::Identity;
 
@@ -464,7 +467,7 @@ FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformForRo
 		if(const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByRole(Role))
 		{
 			const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(*Binding);
-			return SceneAsset->GetAlignmentTransform(AnimTrack, 0, Time);
+			return SceneAsset->GetAlignmentTransform(AnimTrack, WarpPoint.Name, Time);
 		}
 	}
 
@@ -493,7 +496,7 @@ FName UContextualAnimUtilities::BP_SceneBinding_GetRoleFromBinding(const FContex
 	return Bindings.GetAnimTrackFromBinding(Binding).Role;
 }
 
-FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformFromBinding(const FContextualAnimSceneBindings& Bindings, const FContextualAnimSceneBinding& Binding, const FContextualAnimSetPivot& Pivot)
+FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformFromBinding(const FContextualAnimSceneBindings& Bindings, const FContextualAnimSceneBinding& Binding, const FContextualAnimWarpPoint& WarpPoint)
 {
 	if (!Bindings.IsValid())
 	{
@@ -504,7 +507,7 @@ FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformFromB
 	const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(Binding);
 
 	float StartTime, EndTime;
-	AnimTrack.GetStartAndEndTimeForWarpSection(Pivot.Name, StartTime, EndTime);
+	AnimTrack.GetStartAndEndTimeForWarpSection(WarpPoint.Name, StartTime, EndTime);
 
-	return Bindings.GetSceneAsset()->GetAlignmentTransform(AnimTrack, 0, EndTime) * Pivot.Transform;
+	return Bindings.GetSceneAsset()->GetAlignmentTransform(AnimTrack, WarpPoint.Name, EndTime) * WarpPoint.Transform;
 }

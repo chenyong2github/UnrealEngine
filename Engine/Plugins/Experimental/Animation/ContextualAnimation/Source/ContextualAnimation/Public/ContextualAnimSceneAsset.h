@@ -6,7 +6,6 @@
 #include "ContextualAnimTypes.h"
 #include "ContextualAnimSceneAsset.generated.h"
 
-class UContextualAnimScenePivotProvider;
 class UContextualAnimSceneInstance;
 class UContextualAnimSceneAsset;
 
@@ -44,29 +43,15 @@ struct CONTEXTUALANIMATION_API FContextualAnimSet
 	UPROPERTY(EditAnywhere, Category = "Defaults")
 	TArray<FContextualAnimTrack> Tracks;
 
-	/** Scene pivots for this set. Generated off line based on the AnimSetPivotDefinitions for the section this Set belongs to */
+	/** Map of WarpTargetNames and Transforms for this set. Generated off line based on warp points defined in the asset */
 	UPROPERTY(EditAnywhere, Category = "Defaults")
-	TArray<FTransform> ScenePivots;
+	TMap<FName, FTransform> WarpPoints;
 
 	/** Used by the selection mechanism to 'break the tie' when multiple Sets can be selected */
 	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (ClampMin = "0", UIMin = "0", ClampMax = "1", UIMax = "1"))
 	float RandomWeight = 1.f;
 
 	int32 GetNumMandatoryRoles() const;
-};
-
-USTRUCT(BlueprintType)
-struct CONTEXTUALANIMATION_API FContextualAnimWarpPointData
-{
-	GENERATED_BODY()
-
-	/** Name of the socket in the primary actor acting as warping point (reference point for alignment) */
-	UPROPERTY(EditAnywhere, Category = "Defaults")
-	FName SocketName = NAME_None;
-
-	/** Name of the warp target in the warping window this warp point is for */
-	UPROPERTY(EditAnywhere, Category = "Defaults")
-	FName WarpTargetName = NAME_None;
 };
 
 /** Named container with one or more ContextualAnimSet */
@@ -90,7 +75,7 @@ public:
 	const FContextualAnimTrack* FindFirstAnimTrackForRoleThatPassesSelectionCriteria(const FName& Role, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const;
 
 	FORCEINLINE FName GetName() const { return Name; }
-	FORCEINLINE const TArray<FContextualAnimSetPivotDefinition>& GetAnimSetPivotDefinitions() const { return AnimSetPivotDefinitions; }
+	FORCEINLINE const TArray<FContextualAnimWarpPointDefinition>& GetWarpPointDefinitions() const { return WarpPointDefinitions; }
 	FORCEINLINE int32 GetNumAnimSets() const { return AnimSets.Num(); }
 
 protected:
@@ -104,8 +89,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Defaults")
 	TMap<FName, FContextualAnimIKTargetDefContainer> RoleToIKTargetDefsMap;
 
-	UPROPERTY(EditAnywhere, Category = "Defaults")
-	TArray<FContextualAnimSetPivotDefinition> AnimSetPivotDefinitions;
+	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (TitleProperty = "WarpTargetName"))
+	TArray<FContextualAnimWarpPointDefinition> WarpPointDefinitions;
 
 	void GenerateAlignmentTracks(UContextualAnimSceneAsset& SceneAsset);
 	void GenerateIKTargetTracks(UContextualAnimSceneAsset& SceneAsset);
@@ -215,8 +200,6 @@ public:
 	FORCEINLINE const TSubclassOf<UContextualAnimSceneInstance>& GetSceneInstanceClass() const { return SceneInstanceClass; }
 	FORCEINLINE int32 GetSampleRate() const { return SampleRate; }
 	FORCEINLINE float GetRadius() const { return Radius; }
-	FORCEINLINE const TArray<FContextualAnimWarpPointData>& GetWarpPoints() const { return WarpPoints; }
-	FORCEINLINE const FTransform* GetWarpPointTransform(FName SocketName) const { return WarpPointTransformCache.Find(SocketName); }
 	FORCEINLINE bool ShouldPrecomputeAlignmentTracks() const { return bPrecomputeAlignmentTracks; }
 
 	bool HasValidData() const { return RolesAsset != nullptr && Sections.Num() > 0 && Sections[0].AnimSets.Num() > 0; }
@@ -252,17 +235,15 @@ public:
 
 	FTransform GetIKTargetTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, const FName& TrackName, float Time) const;
 
-	FTransform GetAlignmentTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, int32 TrackIdx, float Time) const;
-	FTransform GetAlignmentTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, const FName& TrackName, float Time) const;
-	FTransform GetAlignmentTransform(const FContextualAnimTrack& AnimTrack, int32 TrackIdx, float Time) const;
-	FTransform GetAlignmentTransform(const FContextualAnimTrack& AnimTrack, const FName& TrackName, float Time) const;
+	FTransform GetAlignmentTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, int32 WarpPointIdx, float Time) const;
+	FTransform GetAlignmentTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, const FName& WarpPointName, float Time) const;
+	FTransform GetAlignmentTransform(const FContextualAnimTrack& AnimTrack, int32 WarpPointIdx, float Time) const;
+	FTransform GetAlignmentTransform(const FContextualAnimTrack& AnimTrack, const FName& WarpPointName, float Time) const;
 	FTransform GetAlignmentTransformForRoleRelativeToOtherRole(int32 SectionIdx, int32 AnimSetIdx, FName Role, FName OtherRole, float Time) const;
 
 	const FContextualAnimTrack* FindAnimTrackForRoleWithClosestEntryLocation(int32 SectionIdx, const FName& Role, const FContextualAnimSceneBindingContext& Primary, const FVector& TestLocation) const;
 
 	const FContextualAnimTrack* FindAnimTrackByAnimation(const UAnimSequenceBase* Animation) const;
-
-	const TArray<FContextualAnimSetPivotDefinition>& GetAnimSetPivotDefinitionsInSection(int32 SectionIdx) const;
 
 	const FContextualAnimIKTargetDefContainer& GetIKTargetDefsForRoleInSection(int32 SectionIdx, const FName& Role) const;
 
@@ -283,8 +264,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset", meta = (DisplayName = "Find AnimSet Index By Animation"))
 	int32 BP_FindAnimSetIndexByAnimation(int32 SectionIdx, const UAnimSequenceBase* Animation) const;
 
-	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset", meta = (DisplayName = "Get Alignment Transform For Role Relative To Pivot"))
-	FTransform BP_GetAlignmentTransformForRoleRelativeToPivot(int32 SectionIdx, int32 AnimSetIdx, FName Role, float Time) const;
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset", meta = (DisplayName = "Get Alignment Transform For Role Relative To WarpPoint"))
+	FTransform BP_GetAlignmentTransformForRoleRelativeToWarpPoint(int32 SectionIdx, int32 AnimSetIdx, FName Role, float Time) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset", meta = (DisplayName = "Get IK Target Transform For Role At Time"))
 	FTransform BP_GetIKTargetTransformForRoleAtTime(int32 SectionIdx, int32 AnimSetIdx, FName Role, FName TrackName, float Time) const;
@@ -307,21 +288,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Settings", meta = (TitleProperty = "Role"))
 	TArray<FContextualAnimActorPreviewData> OverridePreviewData;
-
-	/**
-	 * List of warp points defined with sockets by the the primary actor.
-	 * When this list is non empty the system uses these sockets as warp points.
-	 * Commonly used when re-using the same animations to interact with objects with different proportions
-	*/
-	UPROPERTY(EditAnywhere, Category = "Warping", meta = (TitleProperty = "WarpTargetName"))
-	TArray<FContextualAnimWarpPointData> WarpPoints;
-
-	/** 
-	 * Transforms of the sockets used as warp points in actor space. Updated in the editor via 'Update Warp Points button' 
-	 * We are caching this transforms here at least for now so we don't have to include a reference to the primary actor 
-	 */
-	UPROPERTY()
-	TMap<FName, FTransform> WarpPointTransformCache;
 
 	UPROPERTY(EditAnywhere, Category = "Defaults")
 	TArray<FContextualAnimSceneSection> Sections;

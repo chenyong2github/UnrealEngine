@@ -160,11 +160,11 @@ UGameplayTask_PlayContextualAnim* UGameplayTask_PlayContextualAnim::PlayContextu
 	SceneParams.RoleToActorMap.Add(InteractableObjectRole, InteractableObject);
 	SceneParams.SectionIdx = SectionIdx;
 
-	TArray<FContextualAnimSetPivot> Pivots;
+	TArray<FContextualAnimWarpPoint> WarpPoints;
 	FContextualAnimSceneBindings Bindings;
 	if (CreateBindings(*SceneAsset, SceneParams, Bindings))
 	{
-		Bindings.CalculateAnimSetPivots(Pivots);
+		Bindings.CalculateWarpPoints(WarpPoints);
 	}
 	else
 	{
@@ -181,10 +181,10 @@ UGameplayTask_PlayContextualAnim* UGameplayTask_PlayContextualAnim::PlayContextu
 	Task->SceneAsset = SceneAsset;
 	Task->SectionIdx = SectionIdx;
 	Task->AnimSetIdx = Bindings.GetAnimSetIdx();
-	Task->Pivots.Reserve(Pivots.Num());
-	for (const FContextualAnimSetPivot& Pivot : Pivots)
+	Task->Pivots.Reserve(WarpPoints.Num());
+	for (const FContextualAnimWarpPoint& WarpPoint : WarpPoints)
 	{
-		Task->Pivots.Add(Pivot.Transform);
+		Task->Pivots.Add(WarpPoint.Transform);
 	}
 
 	Task->AddClaimedResource<UAIResource_Movement>();
@@ -263,7 +263,7 @@ void UGameplayTask_PlayContextualAnim::TransitionToSection()
 			PrevSection != nullptr ? *PrevSection->GetName().ToString() : *LexToString(SceneInstance->GetBindings().GetSectionIdx()),
 			NextSection != nullptr ? *NextSection->GetName().ToString() : *LexToString(SceneParams.SectionIdx));
 
-		bSuccess = SceneInstance->ForceTransitionToSection(SceneParams.SectionIdx, SceneParams.AnimSetIdx, SceneParams.Pivots);
+		bSuccess = SceneInstance->ForceTransitionToSection(SceneParams.SectionIdx, SceneParams.AnimSetIdx, SceneParams.WarpPoints);
 		UE_CVLOG_UELOG(!bSuccess, GetGameplayTasksComponent(), LogGameplayTasks, Error, TEXT("Unable to transition to specified section"));
 	}
 
@@ -365,16 +365,17 @@ void UGameplayTask_PlayContextualAnim::SharedInitAndApply()
 	// Rebuild pivots from asset and replicated transforms
 	if (Pivots.Num())
 	{
-		const TArray<FContextualAnimSetPivotDefinition>& PivotDefinitions = SceneAsset->GetAnimSetPivotDefinitionsInSection(SectionIdx);
-		if (ensureMsgf(Pivots.Num() == PivotDefinitions.Num(), TEXT("Number of provided pivots is expected to match number of pivot definitions")))
+		const FContextualAnimSceneSection* Section = SceneAsset->GetSection(SectionIdx);
+		const TArray<FContextualAnimWarpPointDefinition>& WarpPointDefs = Section ? Section->GetWarpPointDefinitions() : TArray<FContextualAnimWarpPointDefinition>();
+		if (ensureMsgf(Pivots.Num() == WarpPointDefs.Num(), TEXT("Number of provided pivots is expected to match number of pivot definitions")))
 		{
-			TArray<FContextualAnimSetPivot> AnimSetPivots;
-			AnimSetPivots.Reserve(Pivots.Num());
-			for (int32 Index = 0; Index < PivotDefinitions.Num(); Index++)
+			TArray<FContextualAnimWarpPoint> WarpPoints;
+			WarpPoints.Reserve(Pivots.Num());
+			for (int32 Index = 0; Index < WarpPointDefs.Num(); Index++)
 			{
-				AnimSetPivots.Emplace(PivotDefinitions[Index].Name, Pivots[Index]);
+				WarpPoints.Emplace(WarpPointDefs[Index].WarpTargetName, Pivots[Index]);
 			}
-			SceneParams.Pivots = AnimSetPivots;
+			SceneParams.WarpPoints = WarpPoints;
 		}
 	}
 

@@ -706,9 +706,12 @@ void FContextualAnimViewModel::StopSimulateMode()
 	{
 		if (UMotionWarpingComponent* MotionWarpComp = Binding.GetActor()->FindComponentByClass<UMotionWarpingComponent>())
 		{
-			for (const FContextualAnimSetPivotDefinition& Def : SceneAsset->GetAnimSetPivotDefinitionsInSection(SceneBindings.GetSectionIdx()))
+			const FContextualAnimSceneSection* Section = SceneAsset->GetSection(SceneBindings.GetSectionIdx());
+			check(Section);
+
+			for (const FContextualAnimWarpPointDefinition& WarpPointDef : Section->GetWarpPointDefinitions())
 			{
-				MotionWarpComp->RemoveWarpTarget(Def.Name);
+				MotionWarpComp->RemoveWarpTarget(WarpPointDef.WarpTargetName);
 			}
 		}
 	}
@@ -780,37 +783,6 @@ void FContextualAnimViewModel::UpdatePreviewActorTransform(const FContextualAnim
 		else
 		{
 			Transform = SceneBindings.GetAnimTrackFromBinding(Binding).GetRootTransformAtTime(Time);
-		}
-
-		// If custom warp point is defined by the primary actor, offset actors in the preview scene using the warp point as reference		
-		if (GetSceneAsset()->GetWarpPoints().Num() > 0)
-		{
-			// In this case everyone is positioned relative to the warp point defined by the primary actor
-			const FContextualAnimSceneBinding* PrimaryBinding = SceneBindings.GetPrimaryBinding();
-			if (PrimaryBinding && PrimaryBinding->GetActor() != Binding.GetActor())
-			{
-				// @TODO: For now we are always using the first warp point but we may want to let the user specify which warp point should be used for this with another option in the preview category.
-				const FContextualAnimWarpPointData& WarpPointData = GetSceneAsset()->GetWarpPoints()[0];
-
-				// Get original warp point cached in the SceneAsset
-				if (const FTransform* WarpPointTransform = GetSceneAsset()->GetWarpPointTransform(WarpPointData.SocketName))
-				{
-					// Put original warp point in world space
-					const FTransform OriginalWarpPointTransform = *WarpPointTransform * PrimaryBinding->GetTransform();
-
-					// Now pull the warp point transform from the actual actor. This transform could be different if interacting with actors with different proportions
-					FTransform FinalWarpPointTransform = OriginalWarpPointTransform;
-					if (UMeshComponent* Component = UContextualAnimUtilities::TryGetMeshComponentWithSocket(PrimaryBinding->GetActor(), WarpPointData.SocketName))
-					{
-						const FTransform SocketTransform = Component->GetSocketTransform(WarpPointData.SocketName, ERelativeTransformSpace::RTS_Actor);
-						FinalWarpPointTransform = SocketTransform * PrimaryBinding->GetTransform();
-					}
-
-					// Get offset between the actual warp point and the default one and apply it to the transform extracted from the animation
-					const FTransform Offset = FinalWarpPointTransform * OriginalWarpPointTransform.Inverse();
-					Transform = (Transform * Offset) * PrimaryBinding->GetTransform();
-				}
-			}
 		}
 
 		// Special case for Character
@@ -1265,16 +1237,68 @@ void FContextualAnimViewModel::DiscardChangeToActorTransformInScene()
 
 void FContextualAnimViewModel::CacheWarpPoints()
 {
-	SceneAsset->WarpPointTransformCache.Reset();
-
-	for (const FContextualAnimWarpPointData& WarpPointData : SceneAsset->WarpPoints)
+	for(FContextualAnimSceneSection& Section : SceneAsset->Sections)
 	{
-		if (const FContextualAnimSceneBinding* Primary = SceneBindings.GetPrimaryBinding())
+		for (FContextualAnimSet& AnimSet : Section.AnimSets)
 		{
-			if (UMeshComponent* MeshComp = UContextualAnimUtilities::TryGetMeshComponentWithSocket(Primary->GetActor(), WarpPointData.SocketName))
+			AnimSet.WarpPoints.Reset();
+
+			for (const FContextualAnimWarpPointDefinition& WarpPointDef : Section.WarpPointDefinitions)
 			{
-				const FTransform WarpPointTransform = MeshComp->GetSocketTransform(WarpPointData.SocketName, ERelativeTransformSpace::RTS_Actor);
-				SceneAsset->WarpPointTransformCache.Add(WarpPointData.SocketName, WarpPointTransform);
+				if (WarpPointDef.Mode == EContextualAnimWarpPointDefinitionMode::PrimaryActor)
+				{
+					const FName PrimaryRole = SceneAsset->GetPrimaryRole();
+					const FContextualAnimTrack* AnimTrack = AnimSet.Tracks.FindByPredicate([PrimaryRole](const FContextualAnimTrack& AnimTrack) { return AnimTrack.Role == PrimaryRole; });
+					if (AnimTrack)
+					{
+						const FTransform RootTransform = AnimTrack->Animation ? UContextualAnimUtilities::ExtractRootTransformFromAnimation(AnimTrack->Animation, 0.f) : FTransform::Identity;
+						const FTransform WarpPointTransform = (SceneAsset->GetMeshToComponentForRole(AnimTrack->Role).Inverse() * (RootTransform * AnimTrack->MeshToScene));
+						AnimSet.WarpPoints.Add(WarpPointDef.WarpTargetName, WarpPointTransform);
+					}
+				}
+				else if (WarpPointDef.Mode == EContextualAnimWarpPointDefinitionMode::Socket)
+				{
+					if (const FContextualAnimSceneBinding* Primary = SceneBindings.GetPrimaryBinding())
+					{
+						if (UMeshComponent* MeshComp = UContextualAnimUtilities::TryGetMeshComponentWithSocket(Primary->GetActor(), WarpPointDef.SocketName))
+						{
+							const FTransform WarpPointTransform = MeshComp->GetSocketTransform(WarpPointDef.SocketName, ERelativeTransformSpace::RTS_Actor);
+							AnimSet.WarpPoints.Add(WarpPointDef.WarpTargetName, WarpPointTransform);
+						}
+					}
+				}
+				else if (WarpPointDef.Mode == EContextualAnimWarpPointDefinitionMode::Custom)
+				{
+					const FContextualAnimWarpPointCustomParams& Params = WarpPointDef.Params;
+
+					FTransform WarpPointTransform = FTransform::Identity;
+					FContextualAnimTrack* AnimTrack = AnimSet.Tracks.FindByPredicate([&Params](const FContextualAnimTrack& AnimTrack) { return AnimTrack.Role == Params.Origin; });
+					if (AnimTrack)
+					{
+						if (Params.bAlongClosestDistance)
+						{
+							FContextualAnimTrack* OtherAnimTrack = AnimSet.Tracks.FindByPredicate([&Params](const FContextualAnimTrack& AnimTrack) { return AnimTrack.Role == Params.OtherRole; });
+							if (OtherAnimTrack)
+							{
+								FTransform T1 = AnimTrack->Animation ? UContextualAnimUtilities::ExtractRootTransformFromAnimation(AnimTrack->Animation, 0.f) : FTransform::Identity;
+								T1 = (SceneAsset->GetMeshToComponentForRole(AnimTrack->Role).Inverse() * (T1 * AnimTrack->MeshToScene));
+
+								FTransform T2 = OtherAnimTrack->Animation ? UContextualAnimUtilities::ExtractRootTransformFromAnimation(OtherAnimTrack->Animation, 0.f) : FTransform::Identity;
+								T2 = (SceneAsset->GetMeshToComponentForRole(OtherAnimTrack->Role).Inverse() * (T2 * OtherAnimTrack->MeshToScene));
+
+								WarpPointTransform.SetLocation(FMath::Lerp<FVector>(T1.GetLocation(), T2.GetLocation(), Params.Weight));
+								WarpPointTransform.SetRotation((T2.GetLocation() - T1.GetLocation()).GetSafeNormal2D().ToOrientationQuat());
+							}
+						}
+						else
+						{
+							const FTransform RootTransform = AnimTrack->Animation ? UContextualAnimUtilities::ExtractRootTransformFromAnimation(AnimTrack->Animation, 0.f) : FTransform::Identity;
+							WarpPointTransform = (SceneAsset->GetMeshToComponentForRole(AnimTrack->Role).Inverse() * (RootTransform * AnimTrack->MeshToScene));
+						}
+					}
+
+					AnimSet.WarpPoints.Add(WarpPointDef.WarpTargetName, WarpPointTransform);
+				}
 			}
 		}
 	}

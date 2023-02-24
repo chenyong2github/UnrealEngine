@@ -113,22 +113,22 @@ float UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 	}
 
 	UMotionWarpingComponent* MotionWarpComp = Actor->FindComponentByClass<UMotionWarpingComponent>();
-	for (int32 PivotIndex = 0; PivotIndex < AlignmentSectionToScenePivotList.Num(); PivotIndex++)
+	for (int32 PivotIndex = 0; PivotIndex < WarpPoints.Num(); PivotIndex++)
 	{
-		const FContextualAnimSetPivot& Pivot = AlignmentSectionToScenePivotList[PivotIndex];
-		const float Time = Bindings.GetAnimTrackFromBinding(Binding).GetSyncTimeForWarpSection(Pivot.Name);
+		const FContextualAnimWarpPoint& WarpPoint = WarpPoints[PivotIndex];
+		const float Time = Bindings.GetAnimTrackFromBinding(Binding).GetSyncTimeForWarpSection(WarpPoint.Name);
 
 		if (MotionWarpComp)
 		{
-			const FTransform TransformRelativeToScenePivot = Bindings.GetAlignmentTransformFromBinding(Binding, Pivot.Name, Time);
-			const FTransform WarpTarget = TransformRelativeToScenePivot * Pivot.Transform;
-			MotionWarpComp->AddOrUpdateWarpTargetFromTransform(Pivot.Name, WarpTarget);
+			const FTransform TransformRelativeToScenePivot = Bindings.GetAlignmentTransformFromBinding(Binding, WarpPoint.Name, Time);
+			const FTransform WarpTarget = TransformRelativeToScenePivot * WarpPoint.Transform;
+			MotionWarpComp->AddOrUpdateWarpTargetFromTransform(WarpPoint.Name, WarpTarget);
 		}
 		else if (PivotIndex == 0)
 		{
 			// In case motion warping is not available, we use the first alignment section at time T=0 to teleport the actor
-			const FTransform TransformRelativeToScenePivot = Bindings.GetAlignmentTransformFromBinding(Binding, Pivot.Name, 0.f);
-			const FTransform ActorTransform = TransformRelativeToScenePivot * Pivot.Transform;
+			const FTransform TransformRelativeToScenePivot = Bindings.GetAlignmentTransformFromBinding(Binding, WarpPoint.Name, 0.f);
+			const FTransform ActorTransform = TransformRelativeToScenePivot * WarpPoint.Transform;
 			Actor->TeleportTo(ActorTransform.GetLocation(), ActorTransform.GetRotation().Rotator(), /*bIsATest*/false, /*bNoCheck*/true);
 		}
 	}
@@ -219,7 +219,7 @@ bool UContextualAnimSceneInstance::IsDonePlaying() const
 	return RemainingDuration == MAX_flt;
 }
 
-bool UContextualAnimSceneInstance::ForceTransitionToSection(const int32 SectionIdx, const int32 AnimSetIdx, const TArray<FContextualAnimSetPivot>& Pivots)
+bool UContextualAnimSceneInstance::ForceTransitionToSection(const int32 SectionIdx, const int32 AnimSetIdx, const TArray<FContextualAnimWarpPoint>& InWarpPoints)
 {
 	if (!IsValid(SceneAsset))
 	{
@@ -254,7 +254,7 @@ bool UContextualAnimSceneInstance::ForceTransitionToSection(const int32 SectionI
 		return false;
 	}
 
-	SetPivots(Pivots);
+	SetWarpPoints(InWarpPoints);
 	
 	RemainingDuration = 0.f;
 	for (FContextualAnimSceneBinding& Binding : Bindings)

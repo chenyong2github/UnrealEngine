@@ -36,29 +36,6 @@ void FContextualAnimSceneAssetDetailCustom::CustomizeDetails(IDetailLayoutBuilde
 	IDetailCategoryBuilder& SettingsCategory = DetailBuilder.EditCategory(TEXT("Settings"));
 	SettingsCategory.SetSortOrder(0);
 
-	IDetailCategoryBuilder& WarpingCategory = DetailBuilder.EditCategory(TEXT("Warping"));
-	WarpingCategory.SetSortOrder(1);
-
-	// Add a custom button to extract the warp points from the primary actor and cache them in the SceneAsset.
-	// @TODO: This is probably temp to get the feature in. It may be better to just add a reference to the original actor in the asset. Workflow will be much better that way. 
-	WarpingCategory.AddCustomRow(FText::GetEmpty())
-		.ValueContent()
-		.VAlign(VAlign_Center)
-		.MaxDesiredWidth(250)
-		[
-			SNew(SButton).Text(LOCTEXT("UpdateWarpPointsLabel", "Update Warp Points"))
-			.OnClicked_Lambda([ViewModel]()
-				{
-					const FText DialogMsg = LOCTEXT("RefreshWarpPointsDialog", "Warp Points should be updated while previewing the scene with the meshes the animations where originally authored for. Are you sure you want to continue?");
-					if (FMessageDialog::Open(EAppMsgType::YesNo, DialogMsg) == EAppReturnType::Yes)
-					{
-						ViewModel->CacheWarpPoints();
-					}
-
-					return FReply::Handled();
-				})
-		];
-
 	IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(TEXT("Defaults"));
 	Category.SetCategoryVisibility(false);
 
@@ -78,7 +55,26 @@ void FContextualAnimSceneAssetDetailCustom::CustomizeDetails(IDetailLayoutBuilde
 		// Show editable properties in the custom category
 		CurrentSectionCategory.AddProperty(SectionPropertyHandle->GetChildHandle(FName(TEXT("Name"))).ToSharedRef());
 		CurrentSectionCategory.AddProperty(SectionPropertyHandle->GetChildHandle(FName(TEXT("RoleToIKTargetDefsMap"))).ToSharedRef());
-		CurrentSectionCategory.AddProperty(SectionPropertyHandle->GetChildHandle(FName(TEXT("AnimSetPivotDefinitions"))).ToSharedRef());
+		CurrentSectionCategory.AddProperty(SectionPropertyHandle->GetChildHandle(FName(TEXT("WarpPointDefinitions"))).ToSharedRef());
+
+		// Add button to generate warp points for the scene
+		CurrentSectionCategory.AddCustomRow(FText::GetEmpty())
+			.ValueContent()
+			.VAlign(VAlign_Center)
+			.MaxDesiredWidth(250)
+			[
+				SNew(SButton).Text(LOCTEXT("UpdateWarpPointsLabel", "Update Warp Points"))
+				.OnClicked_Lambda([ViewModel]()
+					{
+						const FText DialogMsg = LOCTEXT("RefreshWarpPointsDialog", "Warp Points should be updated while previewing the scene with the meshes the animations where originally authored for. Are you sure you want to continue?");
+						if (FMessageDialog::Open(EAppMsgType::YesNo, DialogMsg) == EAppReturnType::Yes)
+						{
+							ViewModel->CacheWarpPoints();
+						}
+
+						return FReply::Handled();
+					})
+			];
 
 		// Add button to remove the entire section
 		CurrentSectionCategory.AddCustomRow(FText::GetEmpty())

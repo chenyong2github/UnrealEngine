@@ -84,7 +84,7 @@ public:
 	 * @note The method assumes that selection criteria were applied through bindings creation before calling.
 	 * @return True if scene was able to transition all bindings to the new section, false otherwise.
 	 */
-	bool ForceTransitionToSection(const int32 SectionIdx, const int32 AnimSetIdx, const TArray<FContextualAnimSetPivot>& Pivots);
+	bool ForceTransitionToSection(const int32 SectionIdx, const int32 AnimSetIdx, const TArray<FContextualAnimWarpPoint>& InWarpPoints);
 		
 	/** Force all the actors to leave the scene */
 	void Stop();
@@ -116,8 +116,8 @@ protected:
 
 	float TransitionTo(FContextualAnimSceneBinding& Binding, const FContextualAnimTrack& AnimTrack);
 
-	TArray<FContextualAnimSetPivot>& GetMutablePivots() { return AlignmentSectionToScenePivotList; }
-	void SetPivots(const TArray<FContextualAnimSetPivot>& Pivots) { AlignmentSectionToScenePivotList = Pivots; }
+	TArray<FContextualAnimWarpPoint>& GetMutableWarpPoints() { return WarpPoints; }
+	void SetWarpPoints(const TArray<FContextualAnimWarpPoint>& InWarpPoints) { WarpPoints = InWarpPoints; }
 
 	/** Helper function to set ignore collision between the supplied actor and all the other actors in this scene */
 	void SetIgnoreCollisionWithOtherActors(AActor* Actor, bool bValue) const;
@@ -140,7 +140,7 @@ private:
 	UPROPERTY()
 	FContextualAnimSceneBindings Bindings;
 
-	TArray<FContextualAnimSetPivot> AlignmentSectionToScenePivotList;
+	TArray<FContextualAnimWarpPoint> WarpPoints;
 
 	/**
 	 * Remaining scene section duration initially computed based on the longest animation duration from all actors that joined the scene.

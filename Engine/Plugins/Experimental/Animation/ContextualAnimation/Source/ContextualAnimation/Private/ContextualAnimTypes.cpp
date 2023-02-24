@@ -624,39 +624,74 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 	return TryCreateBindings(SceneAsset, SectionIdx, Params, OutBindings);
 }
 
-void FContextualAnimSceneBindings::CalculateAnimSetPivots(TArray<FContextualAnimSetPivot>& OutScenePivots) const
+void FContextualAnimSceneBindings::CalculateWarpPoints(TArray<FContextualAnimWarpPoint>& OutWarpPoints) const
 {
 	if (IsValid())
 	{
-		for (const FContextualAnimSetPivotDefinition& Def : SceneAsset->GetAnimSetPivotDefinitionsInSection(SectionIdx))
+		if (const FContextualAnimSceneSection* Section = GetSceneAsset()->GetSection(GetSectionIdx()))
 		{
-			FContextualAnimSetPivot& ScenePivotRuntime = OutScenePivots.AddDefaulted_GetRef();
-			CalculateAnimSetPivot(Def, ScenePivotRuntime);
+			for (const FContextualAnimWarpPointDefinition& Def : Section->GetWarpPointDefinitions())
+			{
+				FContextualAnimWarpPoint& WarpPoint = OutWarpPoints.AddDefaulted_GetRef();
+				CalculateWarpPoint(Def, WarpPoint);
+			}
 		}
 	}
 }
 
-bool FContextualAnimSceneBindings::CalculateAnimSetPivot(const FContextualAnimSetPivotDefinition& AnimSetPivotDef, FContextualAnimSetPivot& OutScenePivot) const
+bool FContextualAnimSceneBindings::CalculateWarpPoint(const FContextualAnimWarpPointDefinition& WarpPointDef, FContextualAnimWarpPoint& OutWarpPoint) const
 {
-	if (const FContextualAnimSceneBinding* Binding = FindBindingByRole(AnimSetPivotDef.Origin))
-	{
-		OutScenePivot.Name = AnimSetPivotDef.Name;
-		if (AnimSetPivotDef.bAlongClosestDistance)
-		{
-			if (const FContextualAnimSceneBinding* OtherBinding = FindBindingByRole(AnimSetPivotDef.OtherRole))
-			{
-				const FTransform T1 = Binding->GetTransform();
-				const FTransform T2 = OtherBinding->GetTransform();
+	check(IsValid());
 
-				OutScenePivot.Transform.SetLocation(FMath::Lerp<FVector>(T1.GetLocation(), T2.GetLocation(), AnimSetPivotDef.Weight));
-				OutScenePivot.Transform.SetRotation((T2.GetLocation() - T1.GetLocation()).GetSafeNormal2D().ToOrientationQuat());
+	if (WarpPointDef.Mode == EContextualAnimWarpPointDefinitionMode::PrimaryActor)
+	{
+		if(const FContextualAnimSceneBinding* PrimaryBinding = GetPrimaryBinding())
+		{
+			OutWarpPoint.Name = WarpPointDef.WarpTargetName;
+			OutWarpPoint.Transform = PrimaryBinding->GetTransform();
+			return true;
+		}
+	}
+	else if (WarpPointDef.Mode == EContextualAnimWarpPointDefinitionMode::Socket)
+	{
+		if (const FContextualAnimSceneBinding* PrimaryBinding = GetPrimaryBinding())
+		{
+			if (UMeshComponent* Component = UContextualAnimUtilities::TryGetMeshComponentWithSocket(PrimaryBinding->GetActor(), WarpPointDef.SocketName))
+			{
+				const FTransform SocketTransform = Component->GetSocketTransform(WarpPointDef.SocketName, ERelativeTransformSpace::RTS_Actor);
+				FTransform WarpPointTransform = SocketTransform * PrimaryBinding->GetTransform();
+				WarpPointTransform.SetScale3D(FVector(1.f));
+
+				OutWarpPoint.Name = WarpPointDef.WarpTargetName;
+				OutWarpPoint.Transform = WarpPointTransform;
 				return true;
 			}
 		}
-		else
+	}
+	else if (WarpPointDef.Mode == EContextualAnimWarpPointDefinitionMode::Custom)
+	{
+		const FContextualAnimWarpPointCustomParams& Params = WarpPointDef.Params;
+
+		if (const FContextualAnimSceneBinding* Binding = FindBindingByRole(Params.Origin))
 		{
-			OutScenePivot.Transform = Binding->GetTransform();
-			return true;
+			OutWarpPoint.Name = WarpPointDef.WarpTargetName;
+			if (Params.bAlongClosestDistance)
+			{
+				if (const FContextualAnimSceneBinding* OtherBinding = FindBindingByRole(Params.OtherRole))
+				{
+					const FTransform T1 = Binding->GetTransform();
+					const FTransform T2 = OtherBinding->GetTransform();
+
+					OutWarpPoint.Transform.SetLocation(FMath::Lerp<FVector>(T1.GetLocation(), T2.GetLocation(), Params.Weight));
+					OutWarpPoint.Transform.SetRotation((T2.GetLocation() - T1.GetLocation()).GetSafeNormal2D().ToOrientationQuat());
+					return true;
+				}
+			}
+			else
+			{
+				OutWarpPoint.Transform = Binding->GetTransform();
+				return true;
+			}
 		}
 	}
 

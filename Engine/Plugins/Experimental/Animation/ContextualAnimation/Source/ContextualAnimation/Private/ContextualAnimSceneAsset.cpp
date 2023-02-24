@@ -76,49 +76,6 @@ const FContextualAnimSet* FContextualAnimSceneSection::GetAnimSet(int32 AnimSetI
 
 void FContextualAnimSceneSection::GenerateAlignmentTracks(UContextualAnimSceneAsset& SceneAsset)
 {
-	// Necessary for FCompactPose that uses a FAnimStackAllocator (TMemStackAllocator) which allocates from FMemStack.
-	// When allocating memory from FMemStack we need to explicitly use FMemMark to ensure items are freed when the scope exits. 
-	// UWorld::Tick adds a FMemMark to catch any allocation inside the game tick 
-	// but any allocation from outside the game tick (like here when generating the alignment tracks off-line) must explicitly add a mark to avoid a leak 
-	FMemMark Mark(FMemStack::Get());
-
-	for (FContextualAnimSet& AnimSet : AnimSets)
-	{
-		AnimSet.ScenePivots.Reset();
-
-		// Generate pivot for each alignment section
-		for (const FContextualAnimSetPivotDefinition& Def : AnimSetPivotDefinitions)
-		{
-			FTransform ScenePivot = FTransform::Identity;
-			FContextualAnimTrack* AnimTrack = AnimSet.Tracks.FindByPredicate([&Def](const FContextualAnimTrack& AnimTrack) { return AnimTrack.Role == Def.Origin; });
-			if (AnimTrack)
-			{
-				if (Def.bAlongClosestDistance)
-				{
-					FContextualAnimTrack* OtherAnimTrack = AnimSet.Tracks.FindByPredicate([&Def](const FContextualAnimTrack& AnimTrack) { return AnimTrack.Role == Def.OtherRole; });
-					if (OtherAnimTrack)
-					{
-						FTransform T1 = AnimTrack->Animation ? UContextualAnimUtilities::ExtractRootTransformFromAnimation(AnimTrack->Animation, 0.f) : FTransform::Identity;
-						T1 = (SceneAsset.GetMeshToComponentForRole(AnimTrack->Role).Inverse() * (T1 * AnimTrack->MeshToScene));
-
-						FTransform T2 = OtherAnimTrack->Animation ? UContextualAnimUtilities::ExtractRootTransformFromAnimation(OtherAnimTrack->Animation, 0.f) : FTransform::Identity;
-						T2 = (SceneAsset.GetMeshToComponentForRole(OtherAnimTrack->Role).Inverse() * (T2 * OtherAnimTrack->MeshToScene));
-
-						ScenePivot.SetLocation(FMath::Lerp<FVector>(T1.GetLocation(), T2.GetLocation(), Def.Weight));
-						ScenePivot.SetRotation((T2.GetLocation() - T1.GetLocation()).GetSafeNormal2D().ToOrientationQuat());
-					}
-				}
-				else
-				{
-					const FTransform RootTransform = AnimTrack->Animation ? UContextualAnimUtilities::ExtractRootTransformFromAnimation(AnimTrack->Animation, 0.f) : FTransform::Identity;
-					ScenePivot = (SceneAsset.GetMeshToComponentForRole(AnimTrack->Role).Inverse() * (RootTransform * AnimTrack->MeshToScene));
-				}
-			}
-
-			AnimSet.ScenePivots.Add(ScenePivot);
-		}
-	}
-
 	if(!SceneAsset.ShouldPrecomputeAlignmentTracks())
 	{
 		for (FContextualAnimSet& AnimSet : AnimSets)
@@ -132,9 +89,15 @@ void FContextualAnimSceneSection::GenerateAlignmentTracks(UContextualAnimSceneAs
 		return;
 	}
 
+	// Necessary for FCompactPose that uses a FAnimStackAllocator (TMemStackAllocator) which allocates from FMemStack.
+	// When allocating memory from FMemStack we need to explicitly use FMemMark to ensure items are freed when the scope exits. 
+	// UWorld::Tick adds a FMemMark to catch any allocation inside the game tick 
+	// but any allocation from outside the game tick (like here when generating the alignment tracks off-line) must explicitly add a mark to avoid a leak 
+	FMemMark Mark(FMemStack::Get());
+
 	for (FContextualAnimSet& AnimSet : AnimSets)
 	{
-		// Generate alignment tracks relative to scene pivot
+		// Generate alignment tracks relative to warp points
 		for (FContextualAnimTrack& AnimTrack : AnimSet.Tracks)
 		{
 			UE_LOG(LogContextualAnim, Log, TEXT("Generating AlignmentTracks Tracks. Animation: %s"), *GetNameSafe(AnimTrack.Animation));
@@ -143,11 +106,11 @@ void FContextualAnimSceneSection::GenerateAlignmentTracks(UContextualAnimSceneAs
 			const float SampleInterval = 1.f / SceneAsset.GetSampleRate();
 
 			// Initialize tracks for each alignment section
-			const int32 TotalTracks = AnimSetPivotDefinitions.Num();
+			const int32 TotalTracks = WarpPointDefinitions.Num();
 			AnimTrack.AlignmentData.Initialize(TotalTracks, SampleInterval);
 			for (int32 Idx = 0; Idx < TotalTracks; Idx++)
 			{
-				AnimTrack.AlignmentData.Tracks.TrackNames.Add(AnimSetPivotDefinitions[Idx].Name);
+				AnimTrack.AlignmentData.Tracks.TrackNames.Add(WarpPointDefinitions[Idx].WarpTargetName);
 				AnimTrack.AlignmentData.Tracks.AnimationTracks.AddZeroed();
 			}
 
@@ -167,11 +130,11 @@ void FContextualAnimSceneSection::GenerateAlignmentTracks(UContextualAnimSceneAs
 					{
 						FRawAnimSequenceTrack& AlignmentTrack = AnimTrack.AlignmentData.Tracks.AnimationTracks[Idx];
 
-						const FTransform ScenePivotTransform = AnimSets[AnimTrack.AnimSetIdx].ScenePivots[Idx];
-						const FTransform RootRelativeToScenePivot = RootTransform.GetRelativeTransform(ScenePivotTransform);
+						const FTransform* WarpPointTransform = AnimSet.WarpPoints.Find(WarpPointDefinitions[Idx].WarpTargetName);
+						const FTransform RootRelativeToWarpPoint = WarpPointTransform ? RootTransform.GetRelativeTransform(*WarpPointTransform) : RootTransform;
 
-						AlignmentTrack.PosKeys.Add(FVector3f(RootRelativeToScenePivot.GetLocation()));
-						AlignmentTrack.RotKeys.Add(FQuat4f(RootRelativeToScenePivot.GetRotation()));
+						AlignmentTrack.PosKeys.Add(FVector3f(RootRelativeToWarpPoint.GetLocation()));
+						AlignmentTrack.RotKeys.Add(FQuat4f(RootRelativeToWarpPoint.GetRotation()));
 					}
 				}
 			}
@@ -183,11 +146,11 @@ void FContextualAnimSceneSection::GenerateAlignmentTracks(UContextualAnimSceneAs
 				{
 					FRawAnimSequenceTrack& SceneTrack = AnimTrack.AlignmentData.Tracks.AnimationTracks[Idx];
 
-					const FTransform ScenePivotTransform = AnimSets[AnimTrack.AnimSetIdx].ScenePivots[Idx];
-					const FTransform RootRelativeToScenePivot = RootTransform.GetRelativeTransform(ScenePivotTransform);
+					const FTransform* WarpPointTransform = AnimSet.WarpPoints.Find(WarpPointDefinitions[Idx].WarpTargetName);
+					const FTransform RootRelativeToWarpPoint = WarpPointTransform ? RootTransform.GetRelativeTransform(*WarpPointTransform) : RootTransform;
 
-					SceneTrack.PosKeys.Add(FVector3f(RootRelativeToScenePivot.GetLocation()));
-					SceneTrack.RotKeys.Add(FQuat4f(RootRelativeToScenePivot.GetRotation()));
+					SceneTrack.PosKeys.Add(FVector3f(RootRelativeToWarpPoint.GetLocation()));
+					SceneTrack.RotKeys.Add(FQuat4f(RootRelativeToWarpPoint.GetRotation()));
 				}
 			}
 		}
@@ -695,12 +658,6 @@ const FContextualAnimIKTargetDefContainer& UContextualAnimSceneAsset::GetIKTarge
 	return Sections.IsValidIndex(SectionIdx) ? Sections[SectionIdx].GetIKTargetDefsForRole(Role) : FContextualAnimIKTargetDefContainer::EmptyContainer;
 }
 
-const TArray<FContextualAnimSetPivotDefinition>& UContextualAnimSceneAsset::GetAnimSetPivotDefinitionsInSection(int32 SectionIdx) const
-{
-	static TArray<FContextualAnimSetPivotDefinition> EmptyDefs;
-	return Sections.IsValidIndex(SectionIdx) ? Sections[SectionIdx].GetAnimSetPivotDefinitions() : EmptyDefs;
-}
-
 FTransform UContextualAnimSceneAsset::GetIKTargetTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, const FName& TrackName, float Time) const
 {
 	if (const FContextualAnimTrack* AnimTrack = GetAnimTrack(SectionIdx, AnimSetIdx, AnimTrackIdx))
@@ -711,57 +668,72 @@ FTransform UContextualAnimSceneAsset::GetIKTargetTransform(int32 SectionIdx, int
 	return FTransform::Identity;
 }
 
-FTransform UContextualAnimSceneAsset::GetAlignmentTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, int32 TrackIdx, float Time) const
+FTransform UContextualAnimSceneAsset::GetAlignmentTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, int32 WarpPointIdx, float Time) const
 {
 	if (const FContextualAnimTrack* AnimTrack = GetAnimTrack(SectionIdx, AnimSetIdx, AnimTrackIdx))
 	{
-		return GetAlignmentTransform(*AnimTrack, TrackIdx, Time);
+		return GetAlignmentTransform(*AnimTrack, WarpPointIdx, Time);
 	}
 
 	return FTransform::Identity;
 }
 
-FTransform UContextualAnimSceneAsset::GetAlignmentTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, const FName& TrackName, float Time) const
+FTransform UContextualAnimSceneAsset::GetAlignmentTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, const FName& WarpPointName, float Time) const
 {
 	if (const FContextualAnimTrack* AnimTrack = GetAnimTrack(SectionIdx, AnimSetIdx, AnimTrackIdx))
 	{
-		return GetAlignmentTransform(*AnimTrack, TrackName, Time);
+		return GetAlignmentTransform(*AnimTrack, WarpPointName, Time);
 	}
 
 	return FTransform::Identity;
 }
 
-FTransform UContextualAnimSceneAsset::GetAlignmentTransform(const FContextualAnimTrack& AnimTrack, int32 TrackIdx, float Time) const
+FTransform UContextualAnimSceneAsset::GetAlignmentTransform(const FContextualAnimTrack& AnimTrack, int32 WarpPointIdx, float Time) const
 {
+	// If we are using precomputed alignment tracks, extract alignment transform from there. Otherwise, calculate them on the fly
+
 	if (ShouldPrecomputeAlignmentTracks() && AnimTrack.AlignmentData.Tracks.GetNum() > 0)
 	{
-		return AnimTrack.AlignmentData.ExtractTransformAtTime(TrackIdx, Time);
+		return AnimTrack.AlignmentData.ExtractTransformAtTime(WarpPointIdx, Time);
 	}
 
-	const FTransform MeshToComponentInverse = GetMeshToComponentForRole(AnimTrack.Role).Inverse();
+	const FContextualAnimSceneSection* Section = GetSection(AnimTrack.SectionIdx);
+	check(Section);
 
-	const FContextualAnimSet* AnimSet = GetAnimSet(AnimTrack.SectionIdx, AnimTrack.AnimSetIdx);
-	check(AnimSet);
-
-	FTransform ScenePivotTransform = AnimSet->ScenePivots[TrackIdx];
-
-	if (AnimTrack.Animation)
+	if (Section->GetWarpPointDefinitions().IsValidIndex(WarpPointIdx))
 	{
-		const FTransform RootTransform = MeshToComponentInverse * (UContextualAnimUtilities::ExtractRootTransformFromAnimation(AnimTrack.Animation, Time) * AnimTrack.MeshToScene);
-		return RootTransform.GetRelativeTransform(ScenePivotTransform);
+		const FContextualAnimSet* AnimSet = GetAnimSet(AnimTrack.SectionIdx, AnimTrack.AnimSetIdx);
+		check(AnimSet);
+
+		const FName WarpTargetName = Section->GetWarpPointDefinitions()[WarpPointIdx].WarpTargetName;
+		if (const FTransform* WarpPointTransformPtr = AnimSet->WarpPoints.Find(WarpTargetName))
+		{
+			const FTransform MeshToComponentInverse = GetMeshToComponentForRole(AnimTrack.Role).Inverse();
+
+			if (AnimTrack.Animation)
+			{
+				const FTransform RootTransform = MeshToComponentInverse * (UContextualAnimUtilities::ExtractRootTransformFromAnimation(AnimTrack.Animation, Time) * AnimTrack.MeshToScene);
+				return RootTransform.GetRelativeTransform(*WarpPointTransformPtr);
+			}
+			else
+			{
+				const FTransform RootTransform = MeshToComponentInverse * AnimTrack.MeshToScene;
+				return RootTransform.GetRelativeTransform(*WarpPointTransformPtr);
+			}
+		}
 	}
-	else
-	{
-		const FTransform RootTransform = MeshToComponentInverse * AnimTrack.MeshToScene;
-		return RootTransform.GetRelativeTransform(ScenePivotTransform);
-	}
+
+	return FTransform::Identity;
 }
 
-FTransform UContextualAnimSceneAsset::GetAlignmentTransform(const FContextualAnimTrack& AnimTrack, const FName& TrackName, float Time) const
+FTransform UContextualAnimSceneAsset::GetAlignmentTransform(const FContextualAnimTrack& AnimTrack, const FName& WarpPointName, float Time) const
 {
-	for (int32 Idx = 0; Idx < Sections[AnimTrack.SectionIdx].AnimSetPivotDefinitions.Num(); Idx++)
+	const FContextualAnimSceneSection* Section = GetSection(AnimTrack.SectionIdx);
+	check(Section);
+
+	for (int32 Idx = 0; Idx < Section->GetWarpPointDefinitions().Num(); Idx++)
 	{
-		if (Sections[AnimTrack.SectionIdx].AnimSetPivotDefinitions[Idx].Name == TrackName)
+		if (Section->GetWarpPointDefinitions()[Idx].WarpTargetName == WarpPointName)
 		{
 			return GetAlignmentTransform(AnimTrack, Idx, Time);
 		}
@@ -776,9 +748,9 @@ FTransform UContextualAnimSceneAsset::GetAlignmentTransformForRoleRelativeToOthe
 	{
 		if (const FContextualAnimTrack* OtherAnimTrack = GetAnimTrack(SectionIdx, AnimSetIdx, OtherRole))
 		{
-			const FTransform FromRoleRelativeToScenePivot = GetAlignmentTransform(SectionIdx, AnimSetIdx, AnimTrack->AnimTrackIdx, 0, Time);//GetAlignmentTransformForRoleRelativeToPivot(AnimSetIdx, Role, Time);
-			const FTransform ToRoleRelativeToScenePivot = GetAlignmentTransform(SectionIdx, AnimSetIdx, OtherAnimTrack->AnimTrackIdx, 0, Time); //GetAlignmentTransformForRoleRelativeToPivot(AnimSetIdx, OtherRole, Time);
-			return FromRoleRelativeToScenePivot.GetRelativeTransform(ToRoleRelativeToScenePivot);
+			const FTransform FromRoleRelativeToWarpPoint = GetAlignmentTransform(SectionIdx, AnimSetIdx, AnimTrack->AnimTrackIdx, 0, Time);
+			const FTransform ToRoleRelativeToWarpPoint = GetAlignmentTransform(SectionIdx, AnimSetIdx, OtherAnimTrack->AnimTrackIdx, 0, Time);
+			return FromRoleRelativeToWarpPoint.GetRelativeTransform(ToRoleRelativeToWarpPoint);
 		}
 	}
 	
@@ -837,9 +809,9 @@ static FContextualAnimPoint GetContextualAnimPoint(const UContextualAnimSceneAss
 		const float Delta = (SecondaryAnimTrack.GetRootTransformAtTime(T2).GetTranslation() - SecondaryAnimTrack.GetRootTransformAtTime(T1).GetTranslation()).Size();
 		const float Speed = Delta / Interval;
 
-		const FTransform SecondaryRelativeToPivot = SceneAsset.GetAlignmentTransform(SecondaryAnimTrack.SectionIdx, SecondaryAnimTrack.AnimSetIdx, SecondaryAnimTrack.AnimTrackIdx, 0, T1);
-		const FTransform PrimaryRelativeToPivot = SceneAsset.GetAlignmentTransform(PrimaryAnimTrack.SectionIdx, PrimaryAnimTrack.AnimSetIdx, PrimaryAnimTrack.AnimTrackIdx, 0, T1);
-		const FTransform FinalTransform = SecondaryRelativeToPivot.GetRelativeTransform(PrimaryRelativeToPivot) * PrimaryContext.GetTransform();
+		const FTransform SecondaryRelativeToWarpPoint = SceneAsset.GetAlignmentTransform(SecondaryAnimTrack.SectionIdx, SecondaryAnimTrack.AnimSetIdx, SecondaryAnimTrack.AnimTrackIdx, 0, T1);
+		const FTransform PrimaryRelativeToWarpPoint = SceneAsset.GetAlignmentTransform(PrimaryAnimTrack.SectionIdx, PrimaryAnimTrack.AnimSetIdx, PrimaryAnimTrack.AnimTrackIdx, 0, T1);
+		const FTransform FinalTransform = SecondaryRelativeToWarpPoint.GetRelativeTransform(PrimaryRelativeToWarpPoint) * PrimaryContext.GetTransform();
 
 		return FContextualAnimPoint(SecondaryAnimTrack.Role, FinalTransform, Speed, SecondaryAnimTrack.SectionIdx, SecondaryAnimTrack.AnimSetIdx, SecondaryAnimTrack.AnimTrackIdx);
 	}
@@ -917,7 +889,7 @@ UAnimSequenceBase* UContextualAnimSceneAsset::BP_FindAnimationForRole(int32 Sect
 	return AnimTrack ? AnimTrack->Animation : nullptr;
 }
 
-FTransform UContextualAnimSceneAsset::BP_GetAlignmentTransformForRoleRelativeToPivot(int32 SectionIdx, int32 AnimSetIdx, FName Role, float Time) const
+FTransform UContextualAnimSceneAsset::BP_GetAlignmentTransformForRoleRelativeToWarpPoint(int32 SectionIdx, int32 AnimSetIdx, FName Role, float Time) const
 {
 	if (const FContextualAnimTrack* AnimTrack = GetAnimTrack(SectionIdx, AnimSetIdx, Role))
 	{

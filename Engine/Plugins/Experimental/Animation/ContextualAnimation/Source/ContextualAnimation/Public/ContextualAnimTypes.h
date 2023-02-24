@@ -224,17 +224,37 @@ struct FContextualAnimRoleDefinition
 	static const FContextualAnimRoleDefinition InvalidRoleDefinition;
 };
 
-// FContextualAnimSetPivotDefinition
+// EContextualAnimWarpPointDefinitionMode
 ///////////////////////////////////////////////////////////////////////
 
-/** Rules used to compute the pivot for a AnimSet */
+/** Different modes for defining warp points */
+UENUM(BlueprintType)
+enum class EContextualAnimWarpPointDefinitionMode : uint8
+{
+	/** 
+	 * Warp point will be at the location/rotation of the primary actor. 
+	 * Commonly used when interacting with static objects 
+	*/
+	PrimaryActor,
+
+	/** 
+	 * Warp point will be at the location/rotation of a socket on the primary actor. 
+	 * Commonly used when re-using the same interaction animations to interact with objects with different proportions 
+	*/
+	Socket,
+
+	/**
+	 * Warp point will be calculated based on a set of rules.
+	 * Commonly used when we want actors to align at some point between them
+	*/
+	Custom
+};
+
+/** Parameters used to calculate a warp point when using 'Custom' mode */
 USTRUCT(BlueprintType)
-struct FContextualAnimSetPivotDefinition
+struct FContextualAnimWarpPointCustomParams
 {
 	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FName Name = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (GetOptions = "GetRoles"))
 	FName Origin = NAME_None;
@@ -249,17 +269,42 @@ struct FContextualAnimSetPivotDefinition
 	float Weight = 0.f;
 };
 
-// FContextualAnimSetPivot
-///////////////////////////////////////////////////////////////////////
-
-/** Pivot for a AnimSet */
+/**
+ * Contain the params necessary to calculate a warp point for the scene. 
+ * A warp point is a transform in the scene that can be used as reference to calculate alignment between actors
+*/
 USTRUCT(BlueprintType)
-struct FContextualAnimSetPivot
+struct CONTEXTUALANIMATION_API FContextualAnimWarpPointDefinition
 {
 	GENERATED_BODY()
 
-	FContextualAnimSetPivot() = default;
-	FContextualAnimSetPivot(const FName InName, const FTransform& InTransform) : Name(InName), Transform(InTransform) {}
+	/** Name of the warp target in the warping window this warp point is for */
+	UPROPERTY(EditAnywhere, Category = "Defaults")
+	FName WarpTargetName = NAME_None;
+
+	/** Method used to calculate this warp point */
+	UPROPERTY(EditAnywhere, Category = "Defaults")
+	EContextualAnimWarpPointDefinitionMode Mode = EContextualAnimWarpPointDefinitionMode::PrimaryActor;
+
+	/** Name of the socket in the primary actor acting as warping point. Only relevant when Mode is Socket */
+	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (EditCondition = "Mode==EContextualAnimWarpPointDefinitionMode::Socket", EditConditionHides))
+	FName SocketName = NAME_None;
+
+	/** Set of rules used to calculate the warp point. Only relevant when Mode is Custom */
+	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (EditCondition = "Mode==EContextualAnimWarpPointDefinitionMode::Custom", EditConditionHides, FullyExpand = "true"))
+	FContextualAnimWarpPointCustomParams Params;
+};
+
+// FContextualAnimWarpPoint
+///////////////////////////////////////////////////////////////////////
+
+USTRUCT(BlueprintType)
+struct FContextualAnimWarpPoint
+{
+	GENERATED_BODY()
+
+	FContextualAnimWarpPoint() = default;
+	FContextualAnimWarpPoint(const FName InName, const FTransform& InTransform) : Name(InName), Transform(InTransform) {}
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	FName Name = NAME_None;
@@ -405,8 +450,8 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 
 	bool BindActorToRole(AActor& ActorRef, FName Role);
 
-	void CalculateAnimSetPivots(TArray<FContextualAnimSetPivot>& OutScenePivots) const;
-	bool CalculateAnimSetPivot(const FContextualAnimSetPivotDefinition& AnimSetPivotDef, FContextualAnimSetPivot& OutScenePivot) const;
+	void CalculateWarpPoints(TArray<FContextualAnimWarpPoint>& OutWarpPoints) const;
+	bool CalculateWarpPoint(const FContextualAnimWarpPointDefinition& WarpPointDef, FContextualAnimWarpPoint& OutWarpPoint) const;
 
 	const FContextualAnimTrack& GetAnimTrackFromBinding(const FContextualAnimSceneBinding& Binding) const;
 	const FName& GetRoleFromBinding(const FContextualAnimSceneBinding& Binding) const;
@@ -448,6 +493,8 @@ private:
 	TArray<FContextualAnimSceneBinding> Data;
 };
 
+// DEPRECATED: Kept around only to do not break existing content. It will go away in the future.
+
 USTRUCT(BlueprintType)
 struct CONTEXTUALANIMATION_API FContextualAnimStartSceneParams
 {
@@ -467,17 +514,17 @@ struct CONTEXTUALANIMATION_API FContextualAnimStartSceneParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	int32 AnimSetIdx = INDEX_NONE;
 
-	/** Precomputed pivots that could be provided when starting a scene.
-	 * When not provided, the pivots will be automatically computed using local context information.
+	/** Precomputed warp points that could be provided when starting a scene.
+	 * When not provided, the warp points will be automatically computed using local context information.
 	 */
-	TArray<FContextualAnimSetPivot> Pivots;
+	TArray<FContextualAnimWarpPoint> WarpPoints;
 
 	void Reset()
 	{
 		RoleToActorMap.Reset();
 		SectionIdx = INDEX_NONE;
 		AnimSetIdx = INDEX_NONE;
-		Pivots.Reset();
+		WarpPoints.Reset();
 	}
 };
 

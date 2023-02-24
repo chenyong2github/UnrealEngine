@@ -63,11 +63,11 @@ UGameplayTask_MoveToContextualAnim* UGameplayTask_MoveToContextualAnim::EnterCon
 
 	// When a starting section is specified we need to precompute the pivots so they are ready
 	// to start the scene on all clients. Otherwise they will be computed for transitions (late start or transitions to next sections).
-	TArray<FContextualAnimSetPivot> Pivots;
+	TArray<FContextualAnimWarpPoint> WarpPoints;
 	FContextualAnimSceneBindings Bindings;
 	if (UGameplayTask_PlayContextualAnim::CreateBindings(*SceneAsset, SceneParams, Bindings))
 	{
-		Bindings.CalculateAnimSetPivots(Pivots);
+		Bindings.CalculateWarpPoints(WarpPoints);
 		SceneParams.AnimSetIdx = Bindings.GetAnimSetIdx();
 	}
 	else
