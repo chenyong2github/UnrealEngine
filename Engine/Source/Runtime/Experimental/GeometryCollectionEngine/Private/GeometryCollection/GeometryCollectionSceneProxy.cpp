@@ -1129,7 +1129,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 			{
 				FGeometryNaniteData& Instance = GeometryNaniteData[GeometryIndex];
 				Instance.HierarchyOffset = GeometryCollection->GetNaniteHierarchyOffset(GeometryIndex);
-				SetInstanceLocalBounds(GeometryIndex, FRenderBounds(), false);
+				Instance.LocalBounds = BoundingBoxes[TransformIndex];
 			}
 		}
 	}
