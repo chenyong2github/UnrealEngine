@@ -290,27 +290,41 @@ void UChaosClothComponent::OnPreEndOfFrameSync()
 
 FBoxSphereBounds UChaosClothComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	const IConsoleVariable* const CVarCacheLocalSpaceBounds = IConsoleManager::Get().FindConsoleVariable(TEXT("a.CacheLocalSpaceBounds"));
-	const bool bCacheLocalSpaceBounds = CVarCacheLocalSpaceBounds ? CVarCacheLocalSpaceBounds->GetBool() : true;
+	FBoxSphereBounds NewBounds(ForceInitToZero);
 
-	const FTransform CachedBoundsTransform = bCacheLocalSpaceBounds ? FTransform::Identity : LocalToWorld;
-
-	FBoxSphereBounds NewBounds;
-	if (ClothSimulationProxy)
+	// Use cached local bounds if possible
+	if (bCachedWorldSpaceBoundsUpToDate || bCachedLocalBoundsUpToDate)
 	{
-		NewBounds = ClothSimulationProxy->CalculateBounds_AnyThread().TransformBy(CachedBoundsTransform);
+		NewBounds = bCachedLocalBoundsUpToDate ?
+			CachedWorldOrLocalSpaceBounds.TransformBy(LocalToWorld) :
+			CachedWorldOrLocalSpaceBounds.TransformBy(CachedWorldToLocalTransform * LocalToWorld.ToMatrixWithScale());
 	}
-
-	CachedWorldOrLocalSpaceBounds = NewBounds;
-	bCachedLocalBoundsUpToDate = bCacheLocalSpaceBounds;
-	bCachedWorldSpaceBoundsUpToDate = !bCacheLocalSpaceBounds;
-
-	if (bCacheLocalSpaceBounds)
+	else  // Calculate new bounds
 	{
-		CachedWorldToLocalTransform.SetIdentity();
-		return NewBounds.TransformBy(LocalToWorld);
+		const IConsoleVariable* const CVarCacheLocalSpaceBounds = IConsoleManager::Get().FindConsoleVariable(TEXT("a.CacheLocalSpaceBounds"));
+		const bool bCacheLocalSpaceBounds = CVarCacheLocalSpaceBounds ? (CVarCacheLocalSpaceBounds->GetInt() != 0) : true;
+
+		const FTransform CachedBoundsTransform = bCacheLocalSpaceBounds ? FTransform::Identity : LocalToWorld;
+
+		if (ClothSimulationProxy)
+		{
+			NewBounds = ClothSimulationProxy->CalculateBounds_AnyThread().TransformBy(CachedBoundsTransform);
+		}
+
+		CachedWorldOrLocalSpaceBounds = NewBounds;
+		bCachedLocalBoundsUpToDate = bCacheLocalSpaceBounds;
+		bCachedWorldSpaceBoundsUpToDate = !bCacheLocalSpaceBounds;
+
+		if (bCacheLocalSpaceBounds)
+		{
+			CachedWorldToLocalTransform.SetIdentity();
+			NewBounds = NewBounds.TransformBy(LocalToWorld);
+		}
+		else
+		{
+			CachedWorldToLocalTransform = LocalToWorld.ToInverseMatrixWithScale();
+		}
 	}
-	CachedWorldToLocalTransform = LocalToWorld.ToInverseMatrixWithScale();
 	return NewBounds;
 }
 

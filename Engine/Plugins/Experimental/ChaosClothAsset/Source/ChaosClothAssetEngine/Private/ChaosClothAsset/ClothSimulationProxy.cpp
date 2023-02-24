@@ -96,7 +96,13 @@ namespace UE::Chaos::ClothAsset
 
 		// Need a valid context to initialize the mesh
 		constexpr bool bIsInitialization = true;
-		ClothSimulationContext.Fill(ClothComponent, 0.f, MaxDeltaTime, bIsInitialization);
+		constexpr Softs::FSolverReal NoAdvanceDt = 0.f;
+		ClothSimulationContext.Fill(ClothComponent, NoAdvanceDt, MaxDeltaTime, bIsInitialization);
+
+		// Setup startup transforms
+		constexpr bool bNeedsReset = true;
+		Solver->SetLocalSpaceLocation((FVec3)ClothSimulationContext.ComponentTransform.GetLocation(), bNeedsReset);
+		Solver->SetLocalSpaceRotation((FQuat)ClothSimulationContext.ComponentTransform.GetRotation());
 
 		// Create mesh simulation thread object
 		const UChaosClothAsset* const ClothAsset = ClothComponent.GetClothAsset();
@@ -142,6 +148,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// Create solver config simulation thread object
 		const int32 SolverConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>(ClothComponent.GetPropertyCollection()));  // TODO: Use a separate solver config for outfits
 		Solver->SetConfig(Configs[SolverConfigIndex].Get());
+
+		// Set start pose (update the context, then the solver without advancing the simulation)
+		ClothSimulationContext.Fill(ClothComponent, NoAdvanceDt, MaxDeltaTime);
+		Solver->Update((Softs::FSolverReal)ClothSimulationContext.DeltaTime);
 	}
 
 	FClothSimulationProxy::~FClothSimulationProxy()
