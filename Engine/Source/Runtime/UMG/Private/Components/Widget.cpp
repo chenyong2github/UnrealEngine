@@ -1069,6 +1069,7 @@ TSharedRef<SWidget> UWidget::CreateDesignerOutline(TSharedRef<SWidget> Content) 
 		.VAlign(VAlign_Fill)
 		[
 			SNew(SBorder)
+			.DesiredSizeScale(FVector2D(0.0f, 0.0f))
 			.Visibility(HasAnyDesignerFlags(EWidgetDesignFlags::ShowOutline) ? EVisibility::HitTestInvisible : EVisibility::Collapsed)
 			.BorderImage(FUMGStyle::Get().GetBrush("MarchingAnts"))
 		];
