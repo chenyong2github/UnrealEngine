@@ -31,6 +31,7 @@ void UTestObjectReferences_TestClassWithReferences::GetLifetimeReplicatedProps(T
 	DOREPLIFETIME(UTestObjectReferences_TestClassWithReferences, StructWithRef_CArray);
 	DOREPLIFETIME(UTestObjectReferences_TestClassWithReferences, StructWithRef_TArray);
 	DOREPLIFETIME(UTestObjectReferences_TestClassWithReferences, TestStructWithNestedRefTArray_TArray);
+	DOREPLIFETIME(UTestObjectReferences_TestClassWithReferences, TestStructWithNestedRefCArray_CArray);
 	DOREPLIFETIME(UTestObjectReferences_TestClassWithReferences, Ref_FastArray);
 	DOREPLIFETIME(UTestObjectReferences_TestClassWithReferences, Ref_NativeFastArray);
 }

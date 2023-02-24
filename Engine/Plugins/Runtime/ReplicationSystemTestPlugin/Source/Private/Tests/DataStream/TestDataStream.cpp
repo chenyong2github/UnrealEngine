@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Logging/LogScopedVerbosityOverride.h"
 #include "NetworkAutomationTest.h"
 #include "NetworkAutomationTestMacros.h"
 #include "MockDataStream.h"
+#include "Iris/Core/IrisLog.h"
 #include "Iris/DataStream/DataStreamManager.h"
 #include "Iris/DataStream/DataStreamDefinitions.h"
 #include "Iris/DataStream/DataStreamManager.h"
@@ -72,6 +74,9 @@ UE_NET_TEST_FIXTURE(FTestDataStream, CannotCreateSameDataStreamTwice)
 	AddMockDataStreamDefinition(bAddValidDefinition);
 
 	DataStreamManager->CreateStream("Mock");
+	
+	// Suppress Iris internal warning, since we're intentionally creating duplicate streams.
+	LOG_SCOPE_VERBOSITY_OVERRIDE(LogIris, ELogVerbosity::Fatal);
 	ECreateDataStreamResult Result = DataStreamManager->CreateStream("Mock");
 	UE_NET_ASSERT_EQ(unsigned(Result), unsigned(ECreateDataStreamResult::Error_Duplicate));
 }
@@ -79,7 +84,12 @@ UE_NET_TEST_FIXTURE(FTestDataStream, CannotCreateSameDataStreamTwice)
 UE_NET_TEST_FIXTURE(FTestDataStream, CannotCreateInvalidDataStream)
 {
 	constexpr bool bAddValidDefinition = false;
-	AddMockDataStreamDefinition(bAddValidDefinition);
+
+	// Suppress Iris internal error, since we're intentionally creating an invalid stream.
+	{
+		LOG_SCOPE_VERBOSITY_OVERRIDE(LogIris, ELogVerbosity::Fatal);
+		AddMockDataStreamDefinition(bAddValidDefinition);
+	}
 
 	ECreateDataStreamResult Result = DataStreamManager->CreateStream("Mock");
 	UE_NET_ASSERT_EQ(unsigned(Result), unsigned(ECreateDataStreamResult::Error_InvalidDefinition));

@@ -1182,79 +1182,127 @@ UE_NET_TEST_FIXTURE(FTestReplicationStateDescriptorBuilderFixture, UTestReplicat
 // Function definitions
 void UTestReplicationStateDescriptor_TestClass::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
 {
+	DOREPLIFETIME(ThisClass, Int8);
+	DOREPLIFETIME(ThisClass, Int16);
+	DOREPLIFETIME(ThisClass, Int32);
+	DOREPLIFETIME(ThisClass, Int64);
+	DOREPLIFETIME(ThisClass, bBitFieldBoolA);
+	DOREPLIFETIME(ThisClass, bBitFieldBoolB);
+	DOREPLIFETIME(ThisClass, bNativeBool);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithNonReplicatedData::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
 {
+	DOREPLIFETIME(ThisClass, Int8);
+	DOREPLIFETIME(ThisClass, Int16);
+	DOREPLIFETIME(ThisClass, Int32);
+	DOREPLIFETIME(ThisClass, Int64);
+	DOREPLIFETIME(ThisClass, bBitFieldBoolA);
+	DOREPLIFETIME(ThisClass, bBitFieldBoolB);
+	DOREPLIFETIME(ThisClass, bNativeBool);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithInheritance::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
 {
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ThisClass, UInt8);
+	DOREPLIFETIME(ThisClass, UInt16);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithReplicatedStruct::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
 {
+	DOREPLIFETIME(ThisClass, ReplicatedStruct);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithTArray::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
 {
+	DOREPLIFETIME(ThisClass, ArrayWithStruct);
+	DOREPLIFETIME(ThisClass, ArrayWithPrimitiveType);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithStructWithTArray::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
 {
+	DOREPLIFETIME(ThisClass, StructWithTArray);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithCArray::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, ArrayOfStruct);
+	DOREPLIFETIME(ThisClass, ArrayWithPrimitiveType);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithStructWithCArray::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, StructWithCArray);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithEnums::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, Int8Enum);
+	DOREPLIFETIME(ThisClass, Int16Enum);
+	DOREPLIFETIME(ThisClass, Int32Enum);
+	DOREPLIFETIME(ThisClass, Int64Enum);
+	DOREPLIFETIME(ThisClass, EnumAsByteEnum);
+	DOREPLIFETIME(ThisClass, Uint8Enum);
+	DOREPLIFETIME(ThisClass, Uint16Enum);
+	DOREPLIFETIME(ThisClass, Uint32Enum);
+	DOREPLIFETIME(ThisClass, Uint64Enum);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithRoleAndRemoteRole::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, Role);
+	DOREPLIFETIME(ThisClass, RemoteRole);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithManyRoles::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, Role);
+	DOREPLIFETIME(ThisClass, OtherRole);
+	DOREPLIFETIME(ThisClass, YetAnotherRole);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithRPCs::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, Int);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithRef::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, ObjectRef);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithRefInStruct::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, StructWithRef);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithRefInStructWithNestedCArray::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, StructWithRef);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithRefInStructWithNestedTArray::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, StructWithRef);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithRefInCArray::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, ObjectRef);
 }
 void UTestReplicationStateDescriptor_TestClassWithRefInTArray::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, ObjectRefInArray);
 }
 void UTestReplicationStateDescriptor_TestClassWithRefInStructCArray::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, StructWithRef);
 }
 void UTestReplicationStateDescriptor_TestClassWithRefInStructTArray::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const
 {
+	DOREPLIFETIME(ThisClass, StructWithRef);
 }
 
 void UTestReplicationStateDescriptor_TestClassWithRPCs::UnreliableRPCOnServerWithPrimitiveArgs_Implementation(bool bBool, int InInt)

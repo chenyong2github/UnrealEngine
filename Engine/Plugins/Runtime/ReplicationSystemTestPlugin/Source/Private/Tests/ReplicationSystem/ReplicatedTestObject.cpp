@@ -425,6 +425,11 @@ void UTestReplicatedIrisObject::RegisterReplicationFragments(UE::Net::FFragmentR
 
 void UTestReplicatedIrisObjectWithObjectReference::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
 {
+	DOREPLIFETIME(ThisClass, IntA);
+	DOREPLIFETIME(ThisClass, IntB);
+	DOREPLIFETIME(ThisClass, IntC);
+	DOREPLIFETIME(ThisClass, RawObjectPtrRef);
+	DOREPLIFETIME(ThisClass, WeakObjectPtrObjectRef);
 }
 
 UTestReplicatedIrisObjectWithObjectReference::UTestReplicatedIrisObjectWithObjectReference()

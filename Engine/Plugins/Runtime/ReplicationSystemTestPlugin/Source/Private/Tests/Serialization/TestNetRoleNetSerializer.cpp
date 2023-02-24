@@ -10,10 +10,14 @@
 #include "Iris/Serialization/NetSerializationContext.h"
 #include "Engine/EngineTypes.h"
 #include "EnumTestTypes.h"
+#include "Net/UnrealNetwork.h"
 #include "UObject/StrongObjectPtr.h"
 
 void UClassWithNetRoleSwapping::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
 {
+	DOREPLIFETIME(ThisClass, Role);
+	DOREPLIFETIME(ThisClass, JustSomeReplicatedPropertyInBetween);
+	DOREPLIFETIME(ThisClass, RemoteRole);
 }
 
 namespace UE::Net::Private

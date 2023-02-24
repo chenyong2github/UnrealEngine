@@ -16,6 +16,9 @@
 
 void UTestPropertyReplicationState_TestClass::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
 {
+	DOREPLIFETIME(ThisClass, IntA);
+	DOREPLIFETIME(ThisClass, IntB);
+	DOREPLIFETIME(ThisClass, IntC);
 }
 
 void UTestPropertyReplicationState_TestClassWithRepNotify::OnRep_IntA(int32 OldInt)
@@ -28,16 +31,17 @@ void UTestPropertyReplicationState_TestClassWithRepNotify::OnRep_IntB(int32 OldI
 
 void UTestPropertyReplicationState_TestClassWithRepNotify::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
 {
-	DOREPLIFETIME_CONDITION_NOTIFY(UTestPropertyReplicationState_TestClassWithRepNotify, IntA, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UTestPropertyReplicationState_TestClassWithRepNotify, IntB, COND_None, REPNOTIFY_OnChanged);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, IntA, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, IntB, COND_None, REPNOTIFY_OnChanged);
 }
 
 void UTestPropertyReplicationState_TestClassWithInitAndCArrays::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
-	DOREPLIFETIME_CONDITION(UTestPropertyReplicationState_TestClassWithInitAndCArrays, InitArrayOfFullyReplicatedStruct, COND_InitialOnly);
-	DOREPLIFETIME_CONDITION(UTestPropertyReplicationState_TestClassWithInitAndCArrays, InitArrayOfNotFullyReplicatedStruct, COND_InitialOnly);
-	DOREPLIFETIME_CONDITION(UTestPropertyReplicationState_TestClassWithInitAndCArrays, ArrayOfFullyReplicatedStruct, COND_None);
-	DOREPLIFETIME_CONDITION(UTestPropertyReplicationState_TestClassWithInitAndCArrays, ArrayOfNotFullyReplicatedStruct, COND_None);
+	DOREPLIFETIME_CONDITION(ThisClass, InitArrayOfFullyReplicatedStruct, COND_InitialOnly);
+	DOREPLIFETIME_CONDITION(ThisClass, InitArrayOfNotFullyReplicatedStruct, COND_InitialOnly);
+	DOREPLIFETIME_CONDITION(ThisClass, ArrayOfFullyReplicatedStruct, COND_None);
+	DOREPLIFETIME_CONDITION(ThisClass, ArrayOfNotFullyReplicatedStruct, COND_None);
+	DOREPLIFETIME(ThisClass, StructWithArrayOfNotFullyReplicatedStruct);
 }
 
 namespace UE::Net::Private

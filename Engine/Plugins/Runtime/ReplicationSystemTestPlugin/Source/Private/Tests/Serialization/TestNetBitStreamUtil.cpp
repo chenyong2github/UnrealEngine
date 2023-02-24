@@ -3,9 +3,11 @@
 #include "NetworkAutomationTest.h"
 #include "NetworkAutomationTestMacros.h"
 #include "Containers/StringConv.h"
+#include "CoreGlobals.h"
 #include "Iris/Serialization/NetBitStreamReader.h"
 #include "Iris/Serialization/NetBitStreamWriter.h"
 #include "Iris/Serialization/NetBitStreamUtil.h"
+#include "Logging/LogScopedVerbosityOverride.h"
 
 namespace UE::Net::Private
 {
@@ -92,7 +94,13 @@ UE_NET_TEST_FIXTURE(FNetBitStreamUtilTest, TestTooLongStringWritesEmptyString)
 	TArray<uint8> VeryLargeBuffer;
 	VeryLargeBuffer.SetNumUninitialized(Align(VeryLongStringLength + 1024, 4));
 	Writer.InitBytes(VeryLargeBuffer.GetData(), VeryLargeBuffer.Num());
-	WriteString(&Writer, VeryLongString);
+	
+	// Suppress Iris internal error, since we're intentionally causing one.
+	{
+		LOG_SCOPE_VERBOSITY_OVERRIDE(LogSerialization, ELogVerbosity::Fatal);
+		WriteString(&Writer, VeryLongString);
+	}
+
 	Writer.CommitWrites();
 	UE_NET_ASSERT_FALSE(Writer.IsOverflown());
 	UE_NET_ASSERT_GT(Writer.GetPosBits(), 0U);
