@@ -482,7 +482,7 @@ public:
 							if (SedimentDiff > 0)
 							{
 								SedimentData[Center] -= SedimentDiff;
-								HeightData[Center] = FMath::Clamp<uint16>(HeightData[Center] + SedimentDiff, 0, 65535);
+								HeightData[Center] = FMath::Clamp<uint16>(HeightData[Center] + SedimentDiff, 0, LandscapeDataAccess::MaxValue);
 							}
 						}
 					}

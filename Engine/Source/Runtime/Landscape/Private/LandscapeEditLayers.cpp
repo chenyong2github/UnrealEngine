@@ -3271,7 +3271,7 @@ void ALandscape::PrintLayersDebugHeightData(const FString& InContext, const TArr
 
 			if (DisplayHeightAsDelta)
 			{
-				HeightDelta = HeightDelta >= 32768 ? HeightDelta - 32768 : HeightDelta;
+				HeightDelta = HeightDelta >= LandscapeDataAccess::MidValue ? HeightDelta - LandscapeDataAccess::MidValue : HeightDelta;
 			}
 
 			if (X > 0 && MipSize > 0 && X % MipSize == 0)

@@ -154,9 +154,7 @@ LANDSCAPE_API FVector FLandscapeComponentDataInterface::GetWorldVertex(int32 Loc
 LANDSCAPE_API void FLandscapeComponentDataInterface::GetWorldTangentVectors(int32 LocalX, int32 LocalY, FVector& WorldTangentX, FVector& WorldTangentY, FVector& WorldTangentZ) const
 {
 	FColor* Data = GetHeightData(LocalX, LocalY);
-	WorldTangentZ.X = 2.f * (float)Data->B / 255.f - 1.f;
-	WorldTangentZ.Y = 2.f * (float)Data->A / 255.f - 1.f;
-	WorldTangentZ.Z = FMath::Sqrt(1.f - (FMath::Square(WorldTangentZ.X) + FMath::Square(WorldTangentZ.Y)));
+	WorldTangentZ = LandscapeDataAccess::UnpackNormal(*Data);
 	WorldTangentX = FVector(-WorldTangentZ.Z, 0.f, WorldTangentZ.X);
 	WorldTangentY = FVector(0.f, WorldTangentZ.Z, -WorldTangentZ.Y);
 
@@ -168,19 +166,16 @@ LANDSCAPE_API void FLandscapeComponentDataInterface::GetWorldTangentVectors(int3
 LANDSCAPE_API void FLandscapeComponentDataInterface::GetWorldPositionTangents(int32 LocalX, int32 LocalY, FVector& WorldPos, FVector& WorldTangentX, FVector& WorldTangentY, FVector& WorldTangentZ) const
 {
 	FColor* Data = GetHeightData(LocalX, LocalY);
-
-	WorldTangentZ.X = 2.f * (float)Data->B / 255.f - 1.f;
-	WorldTangentZ.Y = 2.f * (float)Data->A / 255.f - 1.f;
-	WorldTangentZ.Z = FMath::Sqrt(1.f - (FMath::Square(WorldTangentZ.X) + FMath::Square(WorldTangentZ.Y)));
+	WorldTangentZ = LandscapeDataAccess::UnpackNormal(*Data);
 	WorldTangentX = FVector(WorldTangentZ.Z, 0.f, -WorldTangentZ.X);
 	WorldTangentY = WorldTangentZ ^ WorldTangentX;
 
-	uint16 Height = (Data->R << 8) + Data->G;
+	float Height = LandscapeDataAccess::UnpackHeight(*Data);
 
 	const float ScaleFactor = (float)Component->ComponentSizeQuads / (float)(ComponentSizeVerts - 1);
 	float XOffset, YOffset;
 	GetXYOffset(LocalX, LocalY, XOffset, YOffset);
-	WorldPos = Component->GetComponentTransform().TransformPosition(FVector(LocalX * ScaleFactor + XOffset, LocalY * ScaleFactor + YOffset, LandscapeDataAccess::GetLocalHeight(Height)));
+	WorldPos = Component->GetComponentTransform().TransformPosition(FVector(LocalX * ScaleFactor + XOffset, LocalY * ScaleFactor + YOffset, Height));
 	WorldTangentX = Component->GetComponentTransform().TransformVectorNoScale(WorldTangentX);
 	WorldTangentY = Component->GetComponentTransform().TransformVectorNoScale(WorldTangentY);
 	WorldTangentZ = Component->GetComponentTransform().TransformVectorNoScale(WorldTangentZ);

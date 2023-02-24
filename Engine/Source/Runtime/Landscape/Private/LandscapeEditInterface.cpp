@@ -294,10 +294,10 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 		{
 			for (int32 X = 0; X < NumVertsX - 1; X++)
 			{
-				FVector Vert00 = FVector(XYOffsets[(X + 0) + NumVertsX*(Y + 0)].X, XYOffsets[(X + 0) + NumVertsX*(Y + 0)].Y, ((float)InData[(X + 0) + InStride*(Y + 0)] - 32768.0f) * LANDSCAPE_ZSCALE) * DrawScale;
-				FVector Vert01 = FVector(XYOffsets[(X + 0) + NumVertsX*(Y + 0)].X, XYOffsets[(X + 0) + NumVertsX*(Y + 0)].Y + 1.0f, ((float)InData[(X + 0) + InStride*(Y + 1)] - 32768.0f) * LANDSCAPE_ZSCALE) * DrawScale;
-				FVector Vert10 = FVector(XYOffsets[(X + 0) + NumVertsX*(Y + 0)].X + 1.0f, XYOffsets[(X + 0) + NumVertsX*(Y + 0)].Y, ((float)InData[(X + 1) + InStride*(Y + 0)] - 32768.0f) * LANDSCAPE_ZSCALE) * DrawScale;
-				FVector Vert11 = FVector(XYOffsets[(X + 0) + NumVertsX*(Y + 0)].X + 1.0f, XYOffsets[(X + 0) + NumVertsX*(Y + 0)].Y + 1.0f, ((float)InData[(X + 1) + InStride*(Y + 1)] - 32768.0f) * LANDSCAPE_ZSCALE) * DrawScale;
+				FVector Vert00 = FVector(XYOffsets[(X + 0) + NumVertsX*(Y + 0)].X + 0.0f, XYOffsets[(X + 0) + NumVertsX*(Y + 0)].Y + 0.0f, LandscapeDataAccess::GetLocalHeight(InData[(X + 0) + InStride*(Y + 0)])) * DrawScale;
+				FVector Vert01 = FVector(XYOffsets[(X + 0) + NumVertsX*(Y + 0)].X + 0.0f, XYOffsets[(X + 0) + NumVertsX*(Y + 0)].Y + 1.0f, LandscapeDataAccess::GetLocalHeight(InData[(X + 0) + InStride*(Y + 1)])) * DrawScale;
+				FVector Vert10 = FVector(XYOffsets[(X + 0) + NumVertsX*(Y + 0)].X + 1.0f, XYOffsets[(X + 0) + NumVertsX*(Y + 0)].Y + 0.0f, LandscapeDataAccess::GetLocalHeight(InData[(X + 1) + InStride*(Y + 0)])) * DrawScale;
+				FVector Vert11 = FVector(XYOffsets[(X + 0) + NumVertsX*(Y + 0)].X + 1.0f, XYOffsets[(X + 0) + NumVertsX*(Y + 0)].Y + 1.0f, LandscapeDataAccess::GetLocalHeight(InData[(X + 1) + InStride*(Y + 1)])) * DrawScale;
 
 				FVector FaceNormal1 = ((Vert00 - Vert10) ^ (Vert10 - Vert11)).GetSafeNormal();
 				FVector FaceNormal2 = ((Vert11 - Vert01) ^ (Vert01 - Vert00)).GetSafeNormal();
@@ -560,10 +560,10 @@ void FLandscapeEditDataInterface::RecalculateNormals()
 		{
 			for( int32 X=0;X<Stride-1;X++ )
 			{
-				FVector Vert00 = FVector(XYOffsets[(X+0) + Stride*(Y+0)].X,			XYOffsets[(X+0) + Stride*(Y+0)].Y,		((float)HeightData[(X+0) + Stride*(Y+0)] - 32768.0f)*LANDSCAPE_ZSCALE) * DrawScale;
-				FVector Vert01 = FVector(XYOffsets[(X+0) + Stride*(Y+0)].X,			XYOffsets[(X+0) + Stride*(Y+0)].Y+1.0f, ((float)HeightData[(X+0) + Stride*(Y+1)] - 32768.0f)*LANDSCAPE_ZSCALE) * DrawScale;
-				FVector Vert10 = FVector(XYOffsets[(X+0) + Stride*(Y+0)].X+1.0f,	XYOffsets[(X+0) + Stride*(Y+0)].Y,		((float)HeightData[(X+1) + Stride*(Y+0)] - 32768.0f)*LANDSCAPE_ZSCALE) * DrawScale;
-				FVector Vert11 = FVector(XYOffsets[(X+0) + Stride*(Y+0)].X+1.0f,	XYOffsets[(X+0) + Stride*(Y+0)].Y+1.0f,	((float)HeightData[(X+1) + Stride*(Y+1)] - 32768.0f)*LANDSCAPE_ZSCALE) * DrawScale;
+				FVector Vert00 = FVector(XYOffsets[(X + 0) + Stride * (Y + 0)].X + 0.0f, XYOffsets[(X + 0) + Stride * (Y + 0)].Y + 0.0f, LandscapeDataAccess::GetLocalHeight(HeightData[(X + 0) + Stride * (Y + 0)])) * DrawScale;
+				FVector Vert01 = FVector(XYOffsets[(X + 0) + Stride * (Y + 0)].X + 0.0f, XYOffsets[(X + 0) + Stride * (Y + 0)].Y + 1.0f, LandscapeDataAccess::GetLocalHeight(HeightData[(X + 0) + Stride * (Y + 1)])) * DrawScale;
+				FVector Vert10 = FVector(XYOffsets[(X + 0) + Stride * (Y + 0)].X + 1.0f, XYOffsets[(X + 0) + Stride * (Y + 0)].Y + 0.0f, LandscapeDataAccess::GetLocalHeight(HeightData[(X + 1) + Stride * (Y + 0)])) * DrawScale;
+				FVector Vert11 = FVector(XYOffsets[(X + 0) + Stride * (Y + 0)].X + 1.0f, XYOffsets[(X + 0) + Stride * (Y + 0)].Y + 1.0f, LandscapeDataAccess::GetLocalHeight(HeightData[(X + 1) + Stride * (Y + 1)])) * DrawScale;
 
 				FVector FaceNormal1 = ((Vert00-Vert10) ^ (Vert10-Vert11)).GetSafeNormal();
 				FVector FaceNormal2 = ((Vert11-Vert01) ^ (Vert01-Vert00)).GetSafeNormal(); 

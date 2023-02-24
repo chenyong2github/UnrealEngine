@@ -985,7 +985,7 @@ LANDSCAPE_API void ALandscapeGizmoActiveActor::Import( int32 VertsX, int32 Verts
 		{
 			FGizmoSelectData Data;
 			Data.Ratio = 1.f;
-			Data.HeightData = (float)HeightData[X + Y*VertsX] / 65535.f; //GetNormalizedHeight(HeightData[X + Y*VertsX]);
+			Data.HeightData = (float)HeightData[X + Y*VertsX] / LandscapeDataAccess::MaxValue; //GetNormalizedHeight(HeightData[X + Y*VertsX]);
 			for (int32 i = 0; i < ImportLayerInfos.Num(); ++i)
 			{
 				Data.WeightDataMap.Add( ImportLayerInfos[i], LayerDataPointers[i][X + Y*VertsX] );
@@ -1061,7 +1061,7 @@ void ALandscapeGizmoActiveActor::Export(int32 Index, TArray<FString>& Filenames)
 						int32 Idx = (X-MinX) + Y *(1+MaxX-MinX);
 						if (!bExportOneTarget || Index == -1)
 						{
-							pHeightData[Idx] = FMath::Clamp<uint16>(Data->HeightData * 65535.f, 0, 65535);
+							pHeightData[Idx] = FMath::Clamp<uint16>(Data->HeightData * LandscapeDataAccess::MaxValue, 0, LandscapeDataAccess::MaxValue);
 						}
 
 						for( int32 i=1;i<Filenames.Num();i++ )

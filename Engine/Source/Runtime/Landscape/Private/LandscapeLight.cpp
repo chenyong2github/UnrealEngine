@@ -600,10 +600,7 @@ void FLandscapeStaticLightingMesh::GetStaticLightingVertex(int32 VertexIndex, FS
 	const int32 LocalY = Y - ExpandQuadsY;
 
 	const FColor* Data = &HeightData[X + Y * NumVertices];
-
-	OutVertex.WorldTangentZ.X = 2.0f / 255.f * (float)Data->B - 1.0f;
-	OutVertex.WorldTangentZ.Y = 2.0f / 255.f * (float)Data->A - 1.0f;
-	OutVertex.WorldTangentZ.Z = FMath::Sqrt(1.0f - (FMath::Square(OutVertex.WorldTangentZ.X) + FMath::Square(OutVertex.WorldTangentZ.Y)));
+	OutVertex.WorldTangentZ = LandscapeDataAccess::UnpackNormal(*Data);
 	OutVertex.WorldTangentX = FVector4(OutVertex.WorldTangentZ.Z, 0.0f, -OutVertex.WorldTangentZ.X);
 	OutVertex.WorldTangentY = OutVertex.WorldTangentZ ^ OutVertex.WorldTangentX;
 
@@ -612,8 +609,8 @@ void FLandscapeStaticLightingMesh::GetStaticLightingVertex(int32 VertexIndex, FS
 	OutVertex.WorldTangentY = LocalToWorld.TransformVectorNoScale(OutVertex.WorldTangentY);
 	OutVertex.WorldTangentZ = LocalToWorld.TransformVectorNoScale(OutVertex.WorldTangentZ);
 
-	const uint16 Height = (Data->R << 8) + Data->G;
-	OutVertex.WorldPosition = LocalToWorld.TransformPosition(FVector(LocalX, LocalY, LandscapeDataAccess::GetLocalHeight(Height)));
+	const float Height = LandscapeDataAccess::UnpackHeight(*Data);
+	OutVertex.WorldPosition = LocalToWorld.TransformPosition(FVector(LocalX, LocalY, Height));
 
 	OutVertex.TextureCoordinates[0] = FVector2D((float)X / NumVertices, (float)Y / NumVertices); 
 	OutVertex.TextureCoordinates[LANDSCAPE_LIGHTMAP_UV_INDEX].X = X * UVFactor;

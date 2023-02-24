@@ -87,7 +87,7 @@ protected:
 
 			uint16& DestAlphaValue = (*HeightAlphaBlendData)[DataIndex];
 			float InterpAlphaValue = DestAlphaValue * (1.f - Alpha);
-			DestAlphaValue = (uint16)FMath::Clamp<float>(InterpAlphaValue, 0.f, 65535.f);
+			DestAlphaValue = (uint16)FMath::Clamp<float>(InterpAlphaValue, 0.f, static_cast<float>(LandscapeDataAccess::MaxValue));
 
 			if (HeightFlagsData)
 			{

@@ -28,7 +28,7 @@ namespace LandscapeDataAccess
 	// 2nd significant bit - Triangle flip, not implemented yet
 	FORCEINLINE float GetLocalHeight(uint16 Height)
 	{
-		return ((float)Height - MidValue) * LANDSCAPE_ZSCALE;
+		return (static_cast<float>(Height) - MidValue) * LANDSCAPE_ZSCALE;
 	}
 
 	FORCEINLINE uint16 GetTexHeight(float Height)
@@ -42,6 +42,21 @@ namespace LandscapeDataAccess
 		Color.R = Height >> 8;
 		Color.G = Height & 255;
 		return MoveTemp(Color);
+	}
+
+	FORCEINLINE float UnpackHeight(const FColor& InHeightmapSample)
+	{
+		uint16 Height = (InHeightmapSample.R << 8) + InHeightmapSample.G;
+		return GetLocalHeight(Height);
+	}
+
+	FORCEINLINE FVector UnpackNormal(const FColor& InHeightmapSample)
+	{
+		FVector Normal;
+		Normal.X = 2.f * static_cast<float>(InHeightmapSample.B) / 255.f - 1.f;
+		Normal.Y = 2.f * static_cast<float>(InHeightmapSample.A) / 255.f - 1.f;
+		Normal.Z = FMath::Sqrt(FMath::Max(1.0f - (FMath::Square(Normal.X) + FMath::Square(Normal.Y)), 0.0f));
+		return Normal;
 	}
 };
 
@@ -283,9 +298,7 @@ struct FLandscapeComponentDataInterface
 		// Note: these are still pre-scaled, just not rotated
 
 		FColor* Data = GetHeightData( LocalX, LocalY );
-		LocalTangentZ.X = 2.f * (float)Data->B / 255.f - 1.f;
-		LocalTangentZ.Y = 2.f * (float)Data->A / 255.f - 1.f;
-		LocalTangentZ.Z = FMath::Sqrt(1.f - (FMath::Square(LocalTangentZ.X)+FMath::Square(LocalTangentZ.Y)));
+		LocalTangentZ = LandscapeDataAccess::UnpackNormal(*Data);
 		LocalTangentX = FVector(-LocalTangentZ.Z, 0.f, LocalTangentZ.X);
 		LocalTangentY = FVector(0.f, LocalTangentZ.Z, -LocalTangentZ.Y);
 	}

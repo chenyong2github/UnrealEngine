@@ -737,7 +737,7 @@ struct FXYOffsetmapAccessor
 				FVector* Value = Data.Find(FIntPoint(X, Y));
 				if (Value)
 				{
-					Value->Z = ((float)NewHeights.FindRef(FIntPoint(X, Y)) - 32768.0f) * LANDSCAPE_ZSCALE;
+					Value->Z = LandscapeDataAccess::GetLocalHeight(static_cast<float>(NewHeights.FindRef(FIntPoint(X, Y))));
 				}
 			}
 		}
@@ -756,7 +756,7 @@ struct FXYOffsetmapAccessor
 				FVector* Value = Data.Find(FIntPoint(X, Y));
 				if (Value)
 				{
-					Value->Z = ((float)NewHeights.FindRef(FIntPoint(X, Y)) - 32768.0f) * LANDSCAPE_ZSCALE;
+					Value->Z = LandscapeDataAccess::GetLocalHeight(static_cast<float>(NewHeights.FindRef(FIntPoint(X, Y))));
 				}
 			}
 		}
@@ -777,7 +777,7 @@ struct FXYOffsetmapAccessor
 			{
 				for (int32 X = X1; X <= X2; ++X)
 				{
-					NewHeights[X - X1 + (Y - Y1) * (X2 - X1 + 1)] = FMath::Clamp<uint16>(Data[(X - X1 + (Y - Y1) * (X2 - X1 + 1))].Z * LANDSCAPE_INV_ZSCALE + 32768.0f, 0, 65535);
+					NewHeights[X - X1 + (Y - Y1) * (X2 - X1 + 1)] = LandscapeDataAccess::GetTexHeight(Data[(X - X1 + (Y - Y1) * (X2 - X1 + 1))].Z);
 				}
 			}
 						
@@ -1330,7 +1330,7 @@ struct FHeightmapToolTarget
 
 	static FMatrix ToWorldMatrix(ULandscapeInfo* LandscapeInfo)
 	{
-		FMatrix Result = FTranslationMatrix(FVector(0, 0, -32768.0f));
+		FMatrix Result = FTranslationMatrix(FVector(0, 0, -LandscapeDataAccess::MidValue));
 		Result *= FScaleMatrix(FVector(1.0f, 1.0f, LANDSCAPE_ZSCALE) * LandscapeInfo->DrawScale);
 		return Result;
 	}
@@ -1338,7 +1338,7 @@ struct FHeightmapToolTarget
 	static FMatrix FromWorldMatrix(ULandscapeInfo* LandscapeInfo)
 	{
 		FMatrix Result = FScaleMatrix(FVector(1.0f, 1.0f, LANDSCAPE_INV_ZSCALE) / (LandscapeInfo->DrawScale));
-		Result *= FTranslationMatrix(FVector(0, 0, 32768.0f));
+		Result *= FTranslationMatrix(FVector(0, 0, LandscapeDataAccess::MidValue));
 		return Result;
 	}
 };

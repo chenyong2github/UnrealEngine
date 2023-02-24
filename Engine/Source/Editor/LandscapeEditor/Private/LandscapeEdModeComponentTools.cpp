@@ -2146,8 +2146,8 @@ public:
 						const int32 ImportX = FMath::Clamp<int32>(X - OffsetX, 0, ImportSizeX - 1);
 						const int32 ImportY0 = FMath::Clamp<int32>(Y0 - OffsetY, 0, ImportSizeY - 1);
 						const int32 ImportY1 = FMath::Clamp<int32>(Y1 - OffsetY, 0, ImportSizeY - 1);
-						const float Z0 = (static_cast<float>(ImportHeights[ImportX + ImportY0 * ImportSizeX]) - 32768.0f) * LANDSCAPE_ZSCALE;
-						const float Z1 = (static_cast<float>(ImportHeights[ImportX + ImportY1 * ImportSizeX]) - 32768.0f) * LANDSCAPE_ZSCALE;
+						const float Z0 = LandscapeDataAccess::GetLocalHeight(ImportHeights[ImportX + ImportY0 * ImportSizeX]);
+						const float Z1 = LandscapeDataAccess::GetLocalHeight(ImportHeights[ImportX + ImportY1 * ImportSizeX]);
 						return LineCoords{FVector(X, Y0, Z0), FVector(X, Y1, Z1)};
 					};
 
@@ -2160,8 +2160,8 @@ public:
 						const int32 ImportY = FMath::Clamp<int32>(Y - OffsetY, 0, ImportSizeY - 1);
 						const int32 ImportX0 = FMath::Clamp<int32>(X0 - OffsetX, 0, ImportSizeX - 1);
 						const int32 ImportX1 = FMath::Clamp<int32>(X1 - OffsetX, 0, ImportSizeX - 1);
-						const float Z0 = (static_cast<float>(ImportHeights[ImportX0 + ImportY * ImportSizeX]) - 32768.0f) * LANDSCAPE_ZSCALE;
-						const float Z1 = (static_cast<float>(ImportHeights[ImportX1 + ImportY * ImportSizeX]) - 32768.0f) * LANDSCAPE_ZSCALE;
+						const float Z0 = LandscapeDataAccess::GetLocalHeight(ImportHeights[ImportX0 + ImportY * ImportSizeX]);
+						const float Z1 = LandscapeDataAccess::GetLocalHeight(ImportHeights[ImportX1 + ImportY * ImportSizeX]);
 						return LineCoords{FVector(X0, Y, Z0), FVector(X1, Y, Z1)};
 					};
 
