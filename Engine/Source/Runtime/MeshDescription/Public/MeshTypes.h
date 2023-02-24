@@ -290,3 +290,27 @@ struct FPolygonID : public FElementID
 	MESHDESCRIPTION_API static const FPolygonID Invalid;	// @todo mesheditor script: Can we expose these to BP nicely?	Do we even need to?
 };
 
+USTRUCT( BlueprintType )
+struct FBoneID : public FElementID
+{
+	GENERATED_BODY()
+
+	FBoneID()
+	{
+	}
+
+	FBoneID( const FElementID InitElementID )
+		: FElementID( InitElementID.GetValue() )
+	{
+	}
+
+	FBoneID( const int32 InitIDValue )
+		: FElementID( InitIDValue )
+	{
+	}
+
+	FORCEINLINE friend uint32 GetTypeHash( const FBoneID& Other )
+	{
+		return GetTypeHash( Other.IDValue );
+	}
+};
