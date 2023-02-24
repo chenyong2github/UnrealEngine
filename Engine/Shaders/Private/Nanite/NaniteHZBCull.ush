@@ -367,18 +367,18 @@ FFrustumCullData BoxCullFrustumOrtho(float3 Center, float3 Extent, float4x4 Loca
 	return Cull;
 }
 
-FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bSkipFrustumCull)
+FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, float4x4 ViewToClip, bool bSkipFrustumCull)
 {
     FFrustumCullData Cull;
 
     float4  DX = (2.0f * Extent.x) * mul(LocalToWorld[0], WorldToClip);
     float4  DY = (2.0f * Extent.y) * mul(LocalToWorld[1], WorldToClip);
 
-	float   MinW = 1.0f;
-	float	MaxW = -1.0f;
+	float   MinW = +INFINITE_FLOAT;
+	float	MaxW = -INFINITE_FLOAT;
     float4  PlanesMin = 1.0f;
 
-	Cull.RectMin = float3(1, 1, 1);
+	Cull.RectMin = float3(+1, +1, +1);
 	Cull.RectMax = float3(-1, -1, -1);
 
 	// To discourage the compiler from overlapping the entire calculation, which uses an excessive number of VGPRs, the evaluation is split into 4 isolated passes with two corners per pass.
@@ -388,10 +388,10 @@ FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x
         MinW            = min3(MinW, PC0.w, PC1.w); \
         MaxW            = max3(MaxW, PC0.w, PC1.w); \
         PlanesMin       = min3(PlanesMin, float4(PC0.xy, -PC0.xy) - PC0.w, float4(PC1.xy, -PC1.xy) - PC1.w); \
-        float3 PS0      = PC0.xyz / PC0.w; \
-        float3 PS1      = PC1.xyz / PC1.w; \
-        Cull.RectMin    = min3(Cull.RectMin, PS0, PS1); \
-        Cull.RectMax    = max3(Cull.RectMax, PS0, PS1);
+        float2 PS0      = PC0.xy / PC0.w; \
+        float2 PS1      = PC1.xy / PC1.w; \
+        Cull.RectMin.xy = min3(Cull.RectMin.xy, PS0, PS1); \
+        Cull.RectMax.xy = max3(Cull.RectMax.xy, PS0, PS1);
 
     float4 PC000, PC100;
 	PLATFORM_SPECIFIC_ISOLATE
@@ -428,21 +428,31 @@ FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x
 
     #undef EVAL_POINTS
 
-	Cull.bCrossesFarPlane = Cull.RectMin.z < 0;
-	Cull.bIsVisible = Cull.RectMax.z > 0; // Far clip
+	float MinTest = ViewToClip[3][2] - MinW * ViewToClip[2][2];
+	float MaxTest = ViewToClip[3][2] - MaxW * ViewToClip[2][2];
+	
+	// Near is z=1
+	bool bInFrontNearPlane = MinW <= MinTest;
+	bool bBehindNearPlane  = MaxW >  MaxTest;
+
+	// Far is z=0
+	bool bInFrontFarPlane = 0 <  MinTest;
+	bool bBehindFarPlane  = 0 >= MaxTest;
+	
+	Cull.bCrossesNearPlane	= bInFrontNearPlane;
+	Cull.bCrossesFarPlane	= bBehindFarPlane;
+	Cull.bIsVisible			= bBehindNearPlane && bInFrontFarPlane;
 
 	// Near clip
-	if (MinW <= 0.0f && MaxW > 0.0f)
+	if (bInFrontNearPlane && bBehindNearPlane)
 	{
-		Cull.bCrossesNearPlane = true;
-		Cull.bIsVisible = true;
 		Cull.RectMin = float3(-1, -1, -1);
-		Cull.RectMax = float3( 1, 1, 1);
+		Cull.RectMax = float3(+1, +1, +1);
 	}
 	else
 	{
-		Cull.bCrossesNearPlane = MinW <= 0.0;
-		Cull.bIsVisible = MaxW > 0.0 && Cull.bIsVisible;
+		Cull.RectMin.z = ViewToClip[3][2] / MaxW + ViewToClip[2][2];
+		Cull.RectMax.z = ViewToClip[3][2] / MinW + ViewToClip[2][2];
 	}
 
 	Cull.bFrustumSideCulled = false;
@@ -457,7 +467,7 @@ FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x
 }
 
 // Splitting the transform in two generates much better code on DXC when WorldToClip is scalar.
-FFrustumCullData BoxCullFrustum( float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bIsOrtho, bool bNearClip, bool bSkipFrustumCull )
+FFrustumCullData BoxCullFrustum( float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, float4x4 ViewToClip, bool bIsOrtho, bool bNearClip, bool bSkipFrustumCull )
 {
 	// NOTE: We assume here that if near clipping is disabled the projection is orthographic, as disabling near clipping is
 	// a feature for directional light shadows, and disabling near clipping for a perspective projection doesn't make much sense.
@@ -470,13 +480,13 @@ FFrustumCullData BoxCullFrustum( float3 Center, float3 Extent, float4x4 LocalToW
 	}
 	else
 	{
-		return BoxCullFrustumPerspective( Center, Extent, LocalToWorld, WorldToClip, bSkipFrustumCull );
+		return BoxCullFrustumPerspective( Center, Extent, LocalToWorld, WorldToClip, ViewToClip, bSkipFrustumCull );
 	}
 }
 
-FFrustumCullData BoxCullFrustum(float3 Center, float3 Extent, float4x4 LocalToClip, bool bIsOrtho, bool bNearClip, bool bSkipFrustumCull)
+FFrustumCullData BoxCullFrustum(float3 Center, float3 Extent, float4x4 LocalToClip, float4x4 ViewToClip, bool bIsOrtho, bool bNearClip, bool bSkipFrustumCull)
 {
-	return BoxCullFrustum(Center, Extent, float4x4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1), LocalToClip, bIsOrtho, bNearClip, bSkipFrustumCull);
+	return BoxCullFrustum(Center, Extent, float4x4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1), LocalToClip, ViewToClip, bIsOrtho, bNearClip, bSkipFrustumCull);
 }
 
 float2 ProjectSphere( float x, float z, float r, float ResultScale )

@@ -288,11 +288,11 @@ void DistributeWork( FTask Task, uint GroupIndex, uint NumWorkItems )
 		uint FirstWorkItem = select( QueueIndex > 0, WaveReadLaneAt( WorkAccum, QueueIndex - 1 ), 0 );
 		uint LocalItemIndex = WorkHead + LaneIndex - FirstWorkItem;
 
-		FTask LocalTask = Task.CreateLocalTask( SourceIndex );
+		FTask ChildTask = Task.CreateChild( SourceIndex );
 
 		if( WorkHead + LaneIndex < WorkTail )
 		{
-			LocalTask.Run( LocalItemIndex );
+			ChildTask.RunChild( LocalItemIndex );
 		}
 
 		// Did 1 wave of work
@@ -311,10 +311,47 @@ struct FWorkQueueState
 	int		TaskCount;		// Can temporarily be conservatively higher
 };
 
+struct FOutputQueue
+{
+	RWByteAddressBuffer						DataBuffer;
+	RWStructuredBuffer< FWorkQueueState >	StateBuffer;	// Ideally this was GDS but we don't have that API control.
+
+	uint	StateIndex;
+	uint	Size;
+
+	uint Add()
+	{
+		uint WriteOffset;
+		WaveInterlockedAddScalar_( StateBuffer[ StateIndex ].WriteOffset, 1, WriteOffset );
+		return WriteOffset;
+	}
+};
+
+struct FInputQueue
+{
+	ByteAddressBuffer						DataBuffer;
+	RWStructuredBuffer< FWorkQueueState >	StateBuffer;	// Ideally this was GDS but we don't have that API control.
+
+	uint	StateIndex;
+	uint	Size;
+
+	uint Remove()
+	{
+		uint ReadOffset;
+		WaveInterlockedAddScalar_( StateBuffer[ StateIndex ].ReadOffset, 1, ReadOffset );
+		return ReadOffset;
+	}
+
+	uint Num()
+	{
+		return StateBuffer[ StateIndex ].WriteOffset;
+	}
+};
+
 struct FGlobalWorkQueue
 {
-	RWCoherentByteAddressBuffer						DataBuffer;
-	RWCoherentStructuredBuffer( FWorkQueueState )	StateBuffer;	// Ideally this was GDS but we don't have that API control.
+	RWCoherentByteAddressBuffer				DataBuffer;
+	RWStructuredBuffer< FWorkQueueState >	StateBuffer;	// Ideally this was GDS but we don't have that API control.
 
 	uint	StateIndex;
 	uint	Size;
@@ -332,11 +369,11 @@ struct FGlobalWorkQueue
 		return WaveReadLaneFirst( WriteOffset ) + WavePrefixCountBits( true );
 	}
 
-	uint Remove( uint Num = 1 )
+	uint Remove()
 	{
-		uint WriteOffset = 0;
-		InterlockedAdd( StateBuffer[ StateIndex ].ReadOffset, Num, WriteOffset );
-		return WriteOffset;
+		uint ReadOffset;
+		WaveInterlockedAddScalar_( StateBuffer[ StateIndex ].ReadOffset, 1, ReadOffset );
+		return ReadOffset;
 	}
 
 	// Only call after current task has completely finished adding work!
@@ -347,7 +384,10 @@ struct FGlobalWorkQueue
 
 	bool IsEmpty()
 	{
-		return StateBuffer[ StateIndex ].TaskCount == 0;
+		uint Count = 0;
+		if( WaveIsFirstLane() )
+			InterlockedAdd( StateBuffer[ StateIndex ].TaskCount, 0, Count );
+		return WaveReadLaneFirst( Count ) == 0;
 	}
 };
 
@@ -366,16 +406,10 @@ void GlobalTaskLoop( FGlobalWorkQueue GlobalWorkQueue )
 	{
 		if( WaveActiveAllTrue( bTaskComplete ) )
 		{
-			if( LaneIndex == 0 )
-			{
-				TaskReadOffset = GlobalWorkQueue.Remove( LaneCount );
-			}
-			TaskReadOffset = WaveReadLaneFirst( TaskReadOffset );
-			if( TaskReadOffset >= GlobalWorkQueue.Size )
+			TaskReadOffset = GlobalWorkQueue.Remove();
+			bTaskComplete = TaskReadOffset >= GlobalWorkQueue.Size;
+			if( WaveActiveAllTrue( bTaskComplete ) )
 				break;
-
-			TaskReadOffset += LaneIndex;
-			bTaskComplete = false;
 		}
 
 		FTask Task;
@@ -401,7 +435,10 @@ void GlobalTaskLoop( FGlobalWorkQueue GlobalWorkQueue )
 			if( GlobalWorkQueue.IsEmpty() )
 				break;
 			else
+			{
+				DeviceMemoryBarrier();
 				ShaderYield();
+			}
 		}
 	}
 }
@@ -420,16 +457,10 @@ void GlobalTaskLoopVariable( FGlobalWorkQueue GlobalWorkQueue )
 	{
 		if( WaveActiveAllTrue( bTaskComplete ) )
 		{
-			if( LaneIndex == 0 )
-			{
-				TaskReadOffset = GlobalWorkQueue.Remove( LaneCount );
-			}
-			TaskReadOffset = WaveReadLaneFirst( TaskReadOffset );
-			if( TaskReadOffset >= GlobalWorkQueue.Size )
+			TaskReadOffset = GlobalWorkQueue.Remove();
+			bTaskComplete = TaskReadOffset >= GlobalWorkQueue.Size;
+			if( WaveActiveAllTrue( bTaskComplete ) )
 				break;
-
-			TaskReadOffset += LaneIndex;
-			bTaskComplete = false;
 		}
 
 		FTask Task;
@@ -441,19 +472,16 @@ void GlobalTaskLoopVariable( FGlobalWorkQueue GlobalWorkQueue )
 		
 		if( WaveActiveAnyTrue( bTaskReady ) )
 		{
-			uint NumWorkItems = 0;
+			uint NumChildren = 0;
 			if( bTaskReady )
 			{
-				NumWorkItems = Task.GetNumItems();
+				NumChildren = Task.Run();
 			}
 
-			DistributeWork( Task, LaneIndex, NumWorkItems );
+			DistributeWork( Task, LaneIndex, NumChildren );
 
 			if( bTaskReady )
 			{
-				// TODO this could be at if( bIsBoundary ) at end of DistributeWork loop if latency is important.
-				GlobalWorkQueue.ReleaseTask();
-
 				// Clear processed element so we leave the buffer cleared for next pass.
 				Task.Clear( GlobalWorkQueue, TaskReadOffset );
 				bTaskComplete = true;
@@ -464,134 +492,12 @@ void GlobalTaskLoopVariable( FGlobalWorkQueue GlobalWorkQueue )
 			if( GlobalWorkQueue.IsEmpty() )
 				break;
 			else
+			{
+				DeviceMemoryBarrier();
 				ShaderYield();
+			}
 		}
 	}
 }
 
-
-
-
-/*struct FNodeCullTask
-{
-	uint	VisibleClusterIndex;
-	uint	PatchIndex;
-	float3	Barycentrics[3];
-
-	bool Load( FGlobalWorkQueue WorkQueue, uint Offset )
-	{
-		checkSlow( Offset < WorkQueue.Size );
-		uint4 RawData = WorkQueue.DataBuffer.Load4( Offset * 16 );
-		if( RawData.x != ~0u &&
-			RawData.y != ~0u &&
-			RawData.z != ~0u &&
-			RawData.w != ~0u )
-		{
-			VisibleClusterIndex = RawData.x >> 7;
-			PatchIndex = RawData.x & 0x7F;
-
-			const float BarycentricMax = 65534.0;
-
-			for( int i = 0; i < 3; i++ )
-			{
-				Barycentrics[i].x = RawData[ i + 1 ] & 0xffff;
-				Barycentrics[i].y = RawData[ i + 1 ] >> 16;
-				Barycentrics[i].z = BarycentricMax - Barycentrics[i].x - Barycentrics[i].y;
-				Barycentrics[i]  /= BarycentricMax;
-			}
-
-			return true;
-		}
-
-		return false;
-	}
-
-	bool Store( FGlobalWorkQueue WorkQueue, uint Offset )
-	{
-		uint4 RawData;
-		RawData.x = ( VisibleClusterIndex << 7 ) | PatchIndex;
-		
-		Barycentrics[i] = round( Barycentrics[i] * BarycentricMax );
-		
-		UNROLL
-		for( int i = 0; i < 3; i++ )
-		{
-			const uint e0 = i;
-			const uint e1 = (1 << e0) & 3;
-			const uint e2 = (1 << e1) & 3;
-
-			// Am I on this edge?
-			if( Barycentrics[i][ e2 ] == 0 )
-			{
-				// Snap toward min barycentric means snapping mirrors. Adjacent patches will thus match.
-				if( Barycentrics[i][ e0 ] > Barycentrics[i][ e1 ] )
-					Barycentrics[i][ e0 ] = BarycentricMax - Barycentrics[i][ e1 ];
-				else
-					Barycentrics[i][ e1 ] = BarycentricMax - Barycentrics[i][ e0 ];
-			}
-
-			RawData[ i + 1 ]  = Barycentrics[i].x;
-			RawData[ i + 1 ] |= Barycentrics[i].y << 16;
-		}
-
-		checkSlow(
-			RawData.x != ~0u &&
-			RawData.y != ~0u &&
-			RawData.z != ~0u &&
-			RawData.w != ~0u );
-
-		WorkQueue.DataBuffer.Store4( Offset * 16, RawData );
-	}
-
-	void Clear( FGlobalWorkQueue WorkQueue, uint Offset )
-	{
-		WorkQueue.DataBuffer.Store4( Offset * 16, ~0u );
-	}
-
-	void Run( FGlobalWorkQueue WorkQueue )
-	{
-		bool bVisible = true;
-		bool bWasOccluded = false;
-		// TODO Cull
-
-		bool bIsCandidate = bVisible && !HierarchyNodeSlice.bLeaf;
-
-		if( bIsCandidate )
-		{
-			uint WriteOffset = WorkQueue.Add();
-
-			DeviceMemoryBarrier();
-
-			// GPU might not be filled, so latency is important here. Kick new jobs as soon as possible.
-
-			if( WriteOffset < WorkQueue.Size )
-			{
-				FNodeCullTask Task = this;
-				Task.Flags		|= NANITE_CULLING_FLAG_TEST_LOD;
-				Task.NodeIndex	= HierarchyNodeSlice.ChildStartReference;
-
-				Task.Store( WorkQueue, WriteOffset );
-
-				DeviceMemoryBarrier();
-			}
-		}
-
-		//WorkQueue.ReleaseTask();
-
-	#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		if( bWasOccluded )
-		{
-			uint WriteOffset = OccludedWorkQueue.Add();
-
-			if( WriteOffset < WorkQueue.Size )
-			{
-				FNodeCullTask Task = this;
-				Task.Flags &= ~NANITE_CULLING_FLAG_TEST_LOD;
-
-				Task.Store( OccludedWorkQueue, WriteOffset );
-			}
-		}
-	#endif
-	}
-};*/
 #endif

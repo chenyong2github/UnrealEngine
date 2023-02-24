@@ -458,7 +458,7 @@ public:
 
 class FMaterialRenderProxy;
 
-#define NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE 1
+#define NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE !NANITE_TESSELLATION
 
 class FHWRasterizePS;
 class FHWRasterizeVS;
@@ -566,6 +566,7 @@ struct FNaniteRasterMaterialCacheKey
 			uint16 bHasVirtualShadowMap  : 1;
 			uint16 bIsDepthOnly          : 1;
 			uint16 bIsTwoSided           : 1;
+			uint16 bPatches              : 1;
 		};
 
 		uint16 Packed = 0;

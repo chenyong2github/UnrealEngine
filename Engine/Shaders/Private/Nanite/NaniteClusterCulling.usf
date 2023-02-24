@@ -283,7 +283,7 @@ struct FNaniteTraversalClusterCullCallback
 			BRANCH
 			if (bVisible)
 			{
-				FFrustumCullData Cull = BoxCullFrustum(NodeBoxBoundsCenter, NodeBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipCullFrustum );
+				FFrustumCullData Cull = BoxCullFrustum(NodeBoxBoundsCenter, NodeBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, bSkipCullFrustum );
 				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 				bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
@@ -541,7 +541,7 @@ struct FNaniteTraversalClusterCullCallback
 		BRANCH
 		if (bVisible)
 		{
-			Cull = BoxCullFrustum(ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
+			Cull = BoxCullFrustum(ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
 			Rect = GetScreenRect(NaniteView.ViewRect, Cull, 4);
 
 			bVisible = Cull.bIsVisible && (Rect.bOverlapsPixelCenter || Cull.bCrossesNearPlane);	// Rect from box isn't valid if crossing near plane

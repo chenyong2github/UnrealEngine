@@ -1,0 +1,323 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../SceneData.ush"
+#include "NaniteAttributeDecode.ush"
+#include "NaniteTessellation.ush"
+#include "NaniteHZBCull.ush"
+
+#if NANITE_TESSELLATION
+
+//uint RegularMaterialRasterSlotCount;
+//ByteAddressBuffer MaterialSlotTable;
+
+struct FSplitTask
+{
+	uint4		Encoded;
+	uint		TessellationPattern;
+	bool		bRoot;
+
+	void		Init( uint VisibleClusterIndex, uint TriIndex );
+
+	bool		Load( FGlobalWorkQueue WorkQueue, uint Offset );
+	void		Store( FGlobalWorkQueue WorkQueue, uint Offset );
+	void		Clear( FGlobalWorkQueue WorkQueue, uint Offset );
+	
+	uint		Run();
+
+	FSplitTask	CreateChild( uint ParentLaneIndex );
+	void		RunChild( uint LocalItemIndex );
+};
+
+void FSplitTask::Init( uint VisibleClusterIndex, uint TriIndex )
+{
+	Encoded.x = ( VisibleClusterIndex << 7 ) | TriIndex;
+	Encoded.y = BarycentricMax;
+	Encoded.z = BarycentricMax << 16;
+	Encoded.w = 0;
+}
+
+bool FSplitTask::Load( FGlobalWorkQueue WorkQueue, uint Offset )
+{
+	checkSlow( Offset < WorkQueue.Size );
+	Encoded = WorkQueue.DataBuffer.Load4( Offset * 16 );
+
+	return
+		Encoded.x != ~0u &&
+		Encoded.y != ~0u &&
+		Encoded.z != ~0u &&
+		Encoded.w != ~0u;
+}
+
+void FSplitTask::Store( FGlobalWorkQueue WorkQueue, uint Offset )
+{
+	checkSlow(
+		Encoded.x != ~0u &&
+		Encoded.y != ~0u &&
+		Encoded.z != ~0u &&
+		Encoded.w != ~0u );
+
+	WorkQueue.DataBuffer.Store4( Offset * 16, Encoded );
+}
+
+void FSplitTask::Clear( FGlobalWorkQueue WorkQueue, uint Offset )
+{
+	// TODO this could be at if( bIsBoundary ) at end of DistributeWork loop if latency is important.
+	WorkQueue.ReleaseTask();
+	WorkQueue.DataBuffer.Store4( Offset * 16, ~0u );
+}
+
+uint FSplitTask::Run()
+{
+	FSplitPatch Patch;
+	Patch.Decode( Encoded );
+
+	FVisibleCluster VisibleCluster = GetVisibleCluster( Patch.VisibleClusterIndex, VIRTUAL_TEXTURE_TARGET );
+	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
+	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
+	
+	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData( NaniteView, InstanceData );
+
+	FCluster Cluster = GetCluster( VisibleCluster.PageIndex, VisibleCluster.ClusterIndex );
+
+	uint3 VertIndexes = DecodeTriangleIndices( Cluster, Patch.TriIndex );
+	float3 Verts[3] = 
+	{
+		DecodePosition( VertIndexes.x, Cluster ),
+		DecodePosition( VertIndexes.y, Cluster ),
+		DecodePosition( VertIndexes.z, Cluster ),
+	};
+
+	FNaniteRawAttributeData RawAttributeData[3];
+	GetRawAttributeData3( RawAttributeData, Cluster, VertIndexes, 0 );
+
+	const float DisplacementBase = 0.8;
+	const float DisplacementScale = 5.0;
+
+	float DisplacementMin = ( 0 - DisplacementBase ) * DisplacementScale;
+	float DisplacementMax = ( 1 - DisplacementBase ) * DisplacementScale;
+
+	float3 BoundsMin = +INFINITE_FLOAT;
+	float3 BoundsMax = -INFINITE_FLOAT;
+
+	float3 AvgNormal = 0;
+	float3 PointView[3];
+	float3 NormalLocal[3];
+	for( int i = 0; i < 3; i++ )
+	{
+		float3 PointLocal = 
+			Verts[0] * Patch.Barycentrics[i].x +
+			Verts[1] * Patch.Barycentrics[i].y +
+			Verts[2] * Patch.Barycentrics[i].z;
+
+		BoundsMin = min( BoundsMin, PointLocal );
+		BoundsMax = max( BoundsMax, PointLocal );
+
+		float3 PointTranslatedWorld = mul( float4( PointLocal, 1 ), InstanceDynamicData.LocalToTranslatedWorld ).xyz;
+		PointView[i] = mul( float4( PointTranslatedWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
+
+		NormalLocal[i] = 
+			RawAttributeData[0].TangentZ * Patch.Barycentrics[i].x +
+			RawAttributeData[1].TangentZ * Patch.Barycentrics[i].y +
+			RawAttributeData[2].TangentZ * Patch.Barycentrics[i].z;
+		NormalLocal[i] = normalize( NormalLocal[i] );
+
+		AvgNormal += NormalLocal[i];
+	}
+	AvgNormal = normalize( AvgNormal );
+
+	float ConeCos = min3(
+		dot( AvgNormal, NormalLocal[0] ),
+		dot( AvgNormal, NormalLocal[1] ),
+		dot( AvgNormal, NormalLocal[2] ) );
+
+#if 0
+	// Back face cull
+	float3x3 M = { PointView[0], PointView[1], PointView[2] };
+	bool bVisible = determinant( M ) > 0;
+	if( !bVisible )
+		return 0;
+#endif
+
+#if 1
+
+#if 0
+	float3 A = ConeCos * AvgNormal;
+	float3 B = sqrt( 1 - Pow2( ConeCos ) ) * sqrt( 1 - Pow2( AvgNormal ) );	
+
+	float3 ConeMax = select( +AvgNormal >= ConeCos, 1, max( +A - B, +A + B ) );
+	float3 ConeMin = select( -AvgNormal >= ConeCos, 1, max( -A - B, -A + B ) );
+	//float3 ConeMax = max( cos( acos( +AvgNormal ) + acos( ConeCos ) ), cos( acos( +AvgNormal ) - acos( ConeCos ) ) );
+	//float3 ConeMin = max( cos( acos( -AvgNormal ) + acos( ConeCos ) ), cos( acos( -AvgNormal ) - acos( ConeCos ) ) );
+	//ConeMax = select( +AvgNormal >= ConeCos, 1, ConeMax );
+	//ConeMin = select( -AvgNormal >= ConeCos, 1, ConeMin );
+
+	BoundsMax += max( DisplacementMax * ConeMax, -DisplacementMin * ConeMin );
+	BoundsMin -= max( DisplacementMax * ConeMin, -DisplacementMin * ConeMax );
+#else
+	// A (-/+) B == cos( acos(AvgNormal) (+/-) acos(ConeCos) )
+	float3 A = ConeCos * abs( AvgNormal );
+	float3 B = sqrt( ( 1 - Pow2( ConeCos ) ) * ( 1 - Pow2( AvgNormal ) ) );
+
+	float3 CapMin = A - B;
+	float3 CapMax = A + B;
+	
+	CapMax = select( abs( AvgNormal ) >= ConeCos, 1.0, CapMax );
+
+	float3 DisplaceMin3 = ( DisplacementMin > 0 ? CapMin : CapMax ) * DisplacementMin;
+	float3 DisplaceMax3 = ( DisplacementMax > 0 ? CapMax : CapMin ) * DisplacementMax;
+
+	BoundsMin += select( AvgNormal >= 0, DisplaceMin3, -DisplaceMax3 );
+	BoundsMax += select( AvgNormal >= 0, DisplaceMax3, -DisplaceMin3 );
+#endif
+
+	float3 BoundsCenter = 0.5 * ( BoundsMax + BoundsMin );
+	float3 BoundsExtent = 0.5 * ( BoundsMax - BoundsMin );
+
+	const bool bIsOrtho = IsOrthoProjection( NaniteView.ViewToClip );
+	const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0;
+
+	FFrustumCullData Cull = BoxCullFrustum( BoundsCenter, BoundsExtent, InstanceDynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, false );
+
+	if( !Cull.bIsVisible )
+		return 0;
+#else
+	int NumInFrontOfNearPlane = 0;
+
+	bool2 SignMin = true;
+	bool2 SignMax = true;
+
+	// Screen rect from bounds
+	float3 RectMin = float3( 1, 1, 1 );
+	float3 RectMax = float3( -1, -1, -1 );
+	for( int i = 0; i < 3; i++ )
+	{
+		float4 PointClip = mul( float4( PointView[i], 1 ), NaniteView.ViewToClip );
+		float3 PointScreen = PointClip.xyz / PointClip.w;
+
+		RectMin = min( RectMin, PointScreen );
+		RectMax = max( RectMax, PointScreen );
+
+		SignMin &= PointClip.w - PointClip.xy < 0;
+		SignMax &= PointClip.w + PointClip.xy < 0;
+
+		NumInFrontOfNearPlane += PointClip.w < NaniteView.NearPlane;
+	}
+	
+	bool bCrossesFarPlane = RectMin.z < 0;
+	bool bIsVisible       = RectMax.z > 0;
+
+	bool bCrossesNearPlane	= NumInFrontOfNearPlane != 0;
+	bIsVisible			= NumInFrontOfNearPlane != 8 && bIsVisible;
+
+	bool bFrustumCull = any( SignMin | SignMax );
+	bIsVisible = bIsVisible && !bFrustumCull;
+
+
+	if( !bIsVisible )
+		return 0;
+#endif
+
+
+	float3 TessFactors = GetTessFactors( NaniteView, PointView );
+
+	uint NumVerts = 0;
+	uint NumTris = 0;
+	
+	bool bWasOccluded = false;
+	if( bWasOccluded )
+	{
+		/*uint WriteOffset = OccludedPatches.Add();
+		if( WriteOffset < OccludedPatches.Size )
+		{
+			Store( OccludedPatches, WriteOffset );
+		}*/
+	}
+	else if( all( TessFactors <= TessellationTable_Size ) )
+	{
+		if( Cull.bCrossesNearPlane )
+			return 0;
+
+		uint WriteOffset;
+		WaveInterlockedAddScalar_( RWVisiblePatchesArgs[3], 1, WriteOffset );
+		if( WriteOffset < VisiblePatchesSize )
+		{
+			RWVisiblePatches.Store4( WriteOffset * 16, Encoded );
+
+		#if 0
+			uint RasterizerBin = GetMaterialRasterBin( Cluster, InstanceData.PrimitiveId, Patch.TriIndex, RegularMaterialRasterBinCount, false, MaterialSlotTable );
+
+			// Scalarize atomics
+			while( true )
+			{
+				const uint UniformBinIndex = WaveReadLaneFirst( RasterizerBin );
+				if( UniformBinIndex == RasterizerBin )
+				{
+					WaveInterlockedAddScalar( OutRasterizerBinHeaders[ UniformBinIndex ].x, 1 );
+					break;
+				}
+			}
+		#endif
+		}
+	}
+	else
+	{
+		TessellationPattern = GetTessellationTablePattern( GetSplitFactors( TessFactors ), Encoded.yzw, NumVerts, NumTris );
+	}
+
+	return NumTris;
+}
+
+FSplitTask FSplitTask::CreateChild( uint ParentLaneIndex )
+{
+	FSplitTask ChildTask;//= this;
+	ChildTask.Encoded				= WaveReadLaneAt( Encoded, ParentLaneIndex );
+	ChildTask.TessellationPattern	= WaveReadLaneAt( TessellationPattern, ParentLaneIndex );
+	ChildTask.bRoot = bRoot;
+
+	return ChildTask;
+}
+
+void FSplitTask::RunChild( uint LocalItemIndex )
+{
+	FTessellatedPatch TessellatedPatch = GetTessellatedPatch( TessellationPattern );
+
+	FSplitPatch Patch;
+	Patch.Decode( Encoded );
+		
+	uint3 VertIndexes = TessellatedPatch.GetIndexes( LocalItemIndex );
+
+	for( int i = 0; i < 3; i++ )
+	{
+		float3 Barycentrics = TessellatedPatch.GetVert( VertIndexes[i] );
+
+		Barycentrics = 
+			Patch.Barycentrics[0] * Barycentrics.x +
+			Patch.Barycentrics[1] * Barycentrics.y +
+			Patch.Barycentrics[2] * Barycentrics.z;
+		
+		Encoded[ i + 1 ] = EncodeBarycentrics( Barycentrics );
+	}
+
+	uint WriteOffset = SplitWorkQueue.Add();
+	DeviceMemoryBarrier();
+
+	// GPU might not be filled, so latency is important here. Kick new jobs as soon as possible.
+
+	if( WriteOffset < SplitWorkQueue.Size )
+	{
+		Store( SplitWorkQueue, WriteOffset );
+		DeviceMemoryBarrier();
+	}
+
+	//WorkQueue.ReleaseTask();
+}
+
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void PatchSplit() 
+{
+	GlobalTaskLoopVariable< FSplitTask >( SplitWorkQueue );
+}
+
+#endif

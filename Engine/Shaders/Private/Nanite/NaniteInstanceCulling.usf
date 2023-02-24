@@ -352,7 +352,7 @@ void InstanceCull(
 			BRANCH
 			if( bIsVisible )
 			{
-				Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
+				Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
 				bIsVisible = Cull.bIsVisible;
 			}
 #endif
@@ -376,7 +376,7 @@ void InstanceCull(
 			BRANCH
 			if( bIsVisible )
 			{
-				Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
+				Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
 
 				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipCullHZB, /*bClampToPageLevel*/false, bIsVisible, bWasOccluded);
@@ -544,7 +544,7 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 	const float3 LocalBoundsExtent = InstanceData.LocalBoundsExtent;
 
 	FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-	FFrustumCullData Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
+	FFrustumCullData Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
 
 	for (uint MipViewInfoIndex = 0; MipViewInfoIndex < ViewInfo.NumValidViews; ++MipViewInfoIndex)
 	{
@@ -591,7 +591,7 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 		if( bViewHZB && bVisible )
 		{
 			const bool bPrevIsOrtho = IsOrthoProjection(NaniteView.PrevViewToClip);
-			FFrustumCullData PrevCull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, MipView.PrevTranslatedWorldToClip, bPrevIsOrtho, bNearClip, bSkipCullFrustum);
+			FFrustumCullData PrevCull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, MipView.PrevTranslatedWorldToClip, MipView.ViewToClip, bPrevIsOrtho, bNearClip, bSkipCullFrustum);
 
 			BRANCH
 			if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane && !bSkipCullHZB)

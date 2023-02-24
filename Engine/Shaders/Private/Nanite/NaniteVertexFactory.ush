@@ -623,7 +623,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 
 		if (bCalcTriIndices)
 		{
-			TriIndices = DecodeTriangleIndices(Cluster, TriIndex, false);
+			TriIndices = DecodeTriangleIndices(Cluster, TriIndex);
 		}
 
 		const float3 PointLocalNoWPO[3] = 
@@ -648,7 +648,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 			const float2 Subpixel = SvPosition.xy * NANITE_SUBPIXEL_SAMPLES;
 			Barycentrics = CalculateTriangleBarycentrics(Subpixel, Tri.Verts[0].PointSubpixelClip, Tri.Verts[1].PointSubpixelClip, Tri.Verts[2].PointSubpixelClip);
 
-#if 0// Displacement mapping
+#if NANITE_TESSELLATION
 			float4x4 TranslatedWorldToLocal = LWCMultiplyTranslation( LWCNegate( NaniteView.PreViewTranslation ), InstanceData.WorldToLocal );
 			float4 PixelTranslatedWorld = mul( SvPosition, NaniteView.SVPositionToTranslatedWorld );
 			float4 PixelLocal = mul( PixelTranslatedWorld, TranslatedWorldToLocal );
@@ -739,7 +739,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 	FCluster Cluster = GetCluster(PageIndex, ClusterIndex);
 
-	const uint3 TriIndices = DecodeTriangleIndices(Cluster, TriIndex, false);
+	const uint3 TriIndices = DecodeTriangleIndices(Cluster, TriIndex);
 
 	const float3 PointLocalNoWPO[3] =
 	{

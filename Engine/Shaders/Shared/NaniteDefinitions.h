@@ -7,6 +7,8 @@
 #define NANITE_SUBPIXEL_MASK								(NANITE_SUBPIXEL_SAMPLES - 1)
 #define NANITE_SUBPIXEL_DILATE								0	// To correct for mismatch with HW rasterizer
 
+#define NANITE_TESSELLATION									0
+
 #define NANITE_LATE_VSM_PAGE_TRANSLATION					1
 #define NANITE_VSM_PAGE_TABLE_CACHE_DIM						8
 

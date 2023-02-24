@@ -64,7 +64,8 @@ RWBuffer<uint> OutRasterizerBinArgsSWHW;
 uint AllocateRasterizerBinRange(uint ClusterCount)
 {
 	uint RangeStart;
-	InterlockedAdd(OutRangeAllocator[0], ClusterCount, RangeStart);
+	//InterlockedAdd(OutRangeAllocator[0], ClusterCount, RangeStart);
+	WaveInterlockedAdd_(OutRangeAllocator[0], ClusterCount, RangeStart);
 	return RangeStart;
 }
 
@@ -199,6 +200,8 @@ uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware, uint BatchCount
 void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart, uint RangeEnd, uint BatchCount, uint BatchInfoOffset, FCluster Cluster, bool bBatchInfoInlined, bool bSoftware)
 {
 	const FNaniteMaterialFlags BinMaterialFlags = GetRasterizerBinMaterialFlags(RasterizerBin);
+	bSoftware = bSoftware || BinMaterialFlags.bDynamicTessellation;
+
 	const bool bUseBatch = bSoftware ? BinMaterialFlags.bPixelProgrammable : (bUsePrimOrMeshShader && BinMaterialFlags.bVertexProgrammable);
 	BatchCount = CondMask(bUseBatch, BatchCount, 1u);
 #if RASTER_BIN_COUNT
@@ -219,9 +222,89 @@ void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart,
 #endif
 }
 
+template< typename T, typename FFunction >
+void ScalarizeForEachMatching( T Value, FFunction Function )
+{
+	bool bDone = false;
+	while( WaveActiveAnyTrue( !bDone ) )
+	{
+		if( !bDone )
+		{
+			T UniformValue = WaveReadLaneFirst( Value );
+			if( UniformValue == Value )
+			{
+				Function( UniformValue );
+				bDone = true;
+			}
+		}
+	}
+}
+
+ByteAddressBuffer	VisiblePatches;
+Buffer< uint >		VisiblePatchesArgs;
+RWBuffer< uint >	RWVisiblePatchesArgs;
+
+[numthreads(1, 1, 1)]
+void InitVisiblePatchesArgs() 
+{
+	const uint NumVisiblePatches = RWVisiblePatchesArgs[3];
+
+	RWVisiblePatchesArgs[0] = ( NumVisiblePatches + 63u ) / 64u;
+	RWVisiblePatchesArgs[1] = 1;
+	RWVisiblePatchesArgs[2] = 1;
+}
+
 [numthreads(64, 1, 1)]
 void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupThreadIndex : SV_GroupIndex)
 {
+#if PATCHES
+	const uint VisibleIndex = RelativeClusterIndex;
+	const uint NumVisiblePatches = VisiblePatchesArgs[3];
+	
+	if( VisibleIndex < NumVisiblePatches )
+	{
+		uint PatchEncoded = VisiblePatches.Load( VisibleIndex * 16 );
+
+		uint VisibleClusterIndex	= PatchEncoded.x >> 7;
+		uint TriIndex				= PatchEncoded.x & 0x7F;
+
+		FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleClusterIndex, VIRTUAL_TEXTURE_TARGET );
+		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
+		FCluster Cluster = GetCluster( VisibleCluster.PageIndex, VisibleCluster.ClusterIndex );
+
+		uint RasterizerBin = GetMaterialRasterBin( Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterBinCount, false, MaterialSlotTable );
+		uint IndexInBin = 0;
+
+		// Scalarize atomics
+		bool bDone = false;
+		while( WaveActiveAnyTrue( !bDone ) )
+		{
+			if( !bDone )
+			{
+				const uint UniformBinIndex = WaveReadLaneFirst( RasterizerBin );
+				if( UniformBinIndex == RasterizerBin )
+				{
+				#if RASTER_BIN_COUNT
+					WaveInterlockedAddScalar( OutRasterizerBinHeaders[ UniformBinIndex ].x, 1 );
+				#elif RASTER_BIN_SCATTER
+					WaveInterlockedAddScalar_( OutRasterizerBinArgsSWHW[ UniformBinIndex * NANITE_RASTERIZER_ARG_COUNT + 3 ], 1, IndexInBin );
+				#endif
+					bDone = true;
+				}
+			}
+		}
+
+	#if RASTER_BIN_SCATTER
+		// TODO Do this during RasterBinReserve.
+		OutRasterizerBinArgsSWHW[ RasterizerBin * NANITE_RASTERIZER_ARG_COUNT ] = ( OutRasterizerBinHeaders[ RasterizerBin ].x + 31 ) / 32;
+
+		const uint BinMapping = GetRasterizerBinOffset( RasterizerBin ) + IndexInBin;
+
+		OutRasterizerBinData[ BinMapping ].x = VisibleIndex;
+		OutRasterizerBinData[ BinMapping ].y = 0;
+	#endif
+	}
+#else
 	const uint SWClusterCount = InClusterCountSWHW[0].x;
 	const uint HWClusterCount = InClusterCountSWHW[0].y;
 
@@ -324,7 +407,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 
 			// The 0th material range is always non-zero length
 			{
-				ExportRasterizerBin(RasterizerBin0, RelativeClusterIndex, 0u, RasterizerLen0, BatchCount0, BatchInfoOffset0, Cluster, true, bSoftware);
+				ExportRasterizerBin(RasterizerBin0, VisibleClusterIndex, 0u, RasterizerLen0, BatchCount0, BatchInfoOffset0, Cluster, true, bSoftware);
 			}
 
 			BRANCH
@@ -332,7 +415,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 			{
 				const uint Range1Start = RasterizerLen0;
 				const uint Range1End   = Range1Start + RasterizerLen1;
-				ExportRasterizerBin(RasterizerBin1, RelativeClusterIndex, Range1Start, Range1End, BatchCount1, BatchInfoOffset1, Cluster, true, bSoftware);
+				ExportRasterizerBin(RasterizerBin1, VisibleClusterIndex, Range1Start, Range1End, BatchCount1, BatchInfoOffset1, Cluster, true, bSoftware);
 			}
 
 			BRANCH
@@ -340,7 +423,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 			{
 				const uint Range2Start = (RasterizerLen0 + RasterizerLen1);
 				const uint Range2End   = Range2Start + RasterizerLen2;
-				ExportRasterizerBin(RasterizerBin2, RelativeClusterIndex, Range2Start, Range2End, BatchCount2, BatchInfoOffset2, Cluster, true, bSoftware);
+				ExportRasterizerBin(RasterizerBin2, VisibleClusterIndex, Range2Start, Range2End, BatchCount2, BatchInfoOffset2, Cluster, true, bSoftware);
 			}
 		}
 		else
@@ -397,6 +480,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 			ExportRasterizerBin(CurrentRangeBin, RelativeClusterIndex, CurrentRangeStart, CurrentRangeEnd, CurrentBatchCount, CurrentBatchInfoOffset, Cluster, false, bSoftware);
 		}
 	}
+#endif
 }
 
 #endif

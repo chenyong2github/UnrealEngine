@@ -290,7 +290,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 			const uint2 TargetViewSize = uint2(NaniteView.ViewSizeAndInvSize.xy);
 
 			float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
-			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, false);
+			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, false);
 
 			// Compute estimated footprint in the VSM base level - note that we don't use the actual footprint because it changes under rotation and also with edge clipping which makes it unstable when used for culling.
 			float PixelEstRadius = CalcClipSpaceRadiusEstimate(bIsOrtho, InstanceData, LocalToTranslatedWorld, NaniteView.ViewToClip) * float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
