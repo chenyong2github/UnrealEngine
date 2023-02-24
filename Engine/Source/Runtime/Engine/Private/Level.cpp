@@ -59,9 +59,6 @@ Level.cpp: Level-related functions
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/PathViews.h"
-#include "Selection.h"
-#include "Elements/Framework/EngineElementsLibrary.h"
-#include "Elements/Framework/TypedElementList.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLog.h"
@@ -195,6 +192,13 @@ FPendingAutoReceiveInputActor::~FPendingAutoReceiveInputActor() = default;
 /*-----------------------------------------------------------------------------
 ULevel implementation.
 -----------------------------------------------------------------------------*/
+
+#if WITH_EDITOR
+ULevel::FLoadedActorAddedToLevelPreEvent ULevel::OnLoadedActorAddedToLevelPreEvent;
+ULevel::FLoadedActorAddedToLevelPostEvent ULevel::OnLoadedActorAddedToLevelPostEvent;
+ULevel::FLoadedActorRemovedFromLevelPreEvent ULevel::OnLoadedActorRemovedFromLevelPreEvent;
+ULevel::FLoadedActorRemovedFromLevelPostEvent ULevel::OnLoadedActorRemovedFromLevelPostEvent;
+#endif
 
 /** Called when a level package has been dirtied. */
 FSimpleMulticastDelegate ULevel::LevelDirtiedEvent;
@@ -827,6 +831,8 @@ void ULevel::AddLoadedActors(const TArray<AActor*>& ActorList, const FTransform*
 	FScopedSlowTask SlowTask(ActorsQueue.Num() * 3, LOCTEXT("RegisteringActors", "Registering actors..."));
 	SlowTask.MakeDialogDelayed(1.0f);
 
+	OnLoadedActorAddedToLevelPreEvent.Broadcast(this);
+
 	// Register all components
 	for (AActor* Actor : ActorsQueue)
 	{
@@ -893,6 +899,8 @@ void ULevel::AddLoadedActors(const TArray<AActor*>& ActorList, const FTransform*
 
 		SlowTask.EnterProgressFrame(1);
 	}
+
+	OnLoadedActorAddedToLevelPostEvent.Broadcast(this);
 }
 
 void ULevel::RemoveLoadedActor(AActor* Actor, const FTransform* TransformToRemove)
@@ -939,55 +947,33 @@ void ULevel::RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransfo
 	FScopedSlowTask SlowTask(ActorsQueue.Num(), LOCTEXT("UnregisteringActors", "Unregistering actors..."));
 	SlowTask.MakeDialogDelayed(1.0f);
 			
-	bool bSelectionChanged = false;
+	OnLoadedActorRemovedFromLevelPreEvent.Broadcast(this);
 
+	for (AActor* Actor : ActorsQueue)
 	{
-		UTypedElementSelectionSet* ElementSelectionSet = (GEditor && GEditor->GetSelectedActors()) ? GEditor->GetSelectedActors()->GetElementSelectionSet() : nullptr;
-		TUniquePtr<FTypedElementList::FLegacySyncScopedBatch> LegacySyncBatch = ElementSelectionSet ? MakeUnique<FTypedElementList::FLegacySyncScopedBatch>(*ElementSelectionSet->GetElementList()) : nullptr;
-
-		const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
-			.SetAllowHidden(true)
-			.SetAllowGroups(false)
-			.SetWarnIfLocked(false)
-			.SetChildElementInclusionMethod(ETypedElementChildInclusionMethod::Recursive);
-
-		for (AActor* Actor : ActorsQueue)
+		// UnregisterAllComponents can destroy child actors
+		if (!IsValid(Actor))
 		{
-			// UnregisterAllComponents can destroy child actors
-			if (!IsValid(Actor))
-			{
-				continue;
-			}
-
-			if (ElementSelectionSet)
-			{
-				if (FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor, /*bAllowCreate*/false))
-				{
-					bSelectionChanged |= ElementSelectionSet->DeselectElement(ActorHandle, SelectionOptions);
-				}
-			}
-
-			Actor->UnregisterAllComponents();
-			Actor->RegisterAllActorTickFunctions(false, true);
-
-			if (TransformToRemove)
-			{
-				FLevelUtils::FApplyLevelTransformParams TransformParams(this, TransformToRemove->Inverse());
-				TransformParams.Actor = Actor;
-				TransformParams.bDoPostEditMove = true;
-				FLevelUtils::ApplyLevelTransform(TransformParams);
-			}
-
-			OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
-
-			SlowTask.EnterProgressFrame(1);
+			continue;
 		}
+
+		Actor->UnregisterAllComponents();
+		Actor->RegisterAllActorTickFunctions(false, true);
+
+		if (TransformToRemove)
+		{
+			FLevelUtils::FApplyLevelTransformParams TransformParams(this, TransformToRemove->Inverse());
+			TransformParams.Actor = Actor;
+			TransformParams.bDoPostEditMove = true;
+			FLevelUtils::ApplyLevelTransform(TransformParams);
+		}
+
+		OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
+
+		SlowTask.EnterProgressFrame(1);
 	}
 
-	if (bSelectionChanged)
-	{
-		GEditor->NoteSelectionChange();
-	}
+	OnLoadedActorRemovedFromLevelPostEvent.Broadcast(this);
 }
 #endif
 

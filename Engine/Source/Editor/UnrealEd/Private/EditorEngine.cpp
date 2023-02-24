@@ -144,6 +144,8 @@
 #include "Editor/ActorPositioning.h"
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementList.h"
 #include "Elements/Actor/ActorElementEditorViewportInteractionCustomization.h"
 #include "Elements/Component/ComponentElementEditorViewportInteractionCustomization.h"
 
@@ -277,6 +279,77 @@ static USelection* GActorSelection = nullptr;
 static USelection* GComponentSelection = nullptr;
 static USelection* GObjectSelection = nullptr;
 
+class FLevelEvents
+{
+public:
+	FLevelEvents()
+		: bSelectionChanged(false)
+		, ElementSelectionSet(nullptr)
+	{
+		ULevel::OnLoadedActorRemovedFromLevelPreEvent.AddRaw(this, &FLevelEvents::OnLoadedActorRemovedToLevelPreEvent);
+		ULevel::OnLoadedActorRemovedFromLevelPostEvent.AddRaw(this, &FLevelEvents::OnLoadedActorRemovedToLevelPostEvent);
+	}
+
+	~FLevelEvents()
+	{
+		ULevel::OnLoadedActorRemovedFromLevelPreEvent.RemoveAll(this);
+		ULevel::OnLoadedActorRemovedFromLevelPostEvent.RemoveAll(this);
+	}
+
+private:
+	void OnLoadedActorRemovedToLevelPreEvent(ULevel* InLevel)
+	{
+		check(!bSelectionChanged);
+		check(!ElementSelectionSet);
+		check(!LegacySyncBatch);
+
+		ElementSelectionSet = (GEditor && GEditor->GetSelectedActors()) ? GEditor->GetSelectedActors()->GetElementSelectionSet() : nullptr;
+		LegacySyncBatch = ElementSelectionSet ? MakeUnique<FTypedElementList::FLegacySyncScopedBatch>(*ElementSelectionSet->GetElementList()) : nullptr;
+
+		InLevel->OnLoadedActorRemovedFromLevelEvent.AddRaw(this, &FLevelEvents::OnLoadedActorRemoved);
+	}
+
+	void OnLoadedActorRemoved(AActor& InActor)
+	{
+		if (ElementSelectionSet)
+		{
+			if (FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(&InActor, /*bAllowCreate*/false))
+			{
+				static const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
+					.SetAllowHidden(true)
+					.SetAllowGroups(false)
+					.SetWarnIfLocked(false)
+					.SetChildElementInclusionMethod(ETypedElementChildInclusionMethod::Recursive);
+
+				bSelectionChanged |= ElementSelectionSet->DeselectElement(ActorHandle, SelectionOptions);
+			}
+		}
+	}
+
+	void OnLoadedActorRemovedToLevelPostEvent(ULevel* InLevel)
+	{
+		if (ElementSelectionSet)
+		{
+			if (bSelectionChanged)
+			{
+				GEditor->NoteSelectionChange();
+				bSelectionChanged = false;
+			}
+
+			LegacySyncBatch.Reset();
+			ElementSelectionSet = nullptr;
+		}
+
+		InLevel->OnLoadedActorRemovedFromLevelEvent.RemoveAll(this);
+	}
+
+	bool bSelectionChanged;
+	UTypedElementSelectionSet* ElementSelectionSet;
+	TUniquePtr<FTypedElementList::FLegacySyncScopedBatch> LegacySyncBatch;
+};
+
+static FLevelEvents* GLevelEvents = nullptr;
+
 void InitSelectionSets()
 {
 	// Note: The actor and component typed element selection set is set and owned by the level editor, so it is deliberately left null here
@@ -304,6 +377,8 @@ void InitSelectionSets()
 	{
 		return GObjectSelection->IsSelected(InObject);
 	};
+
+	GLevelEvents = new FLevelEvents;
 }
 
 void DestroySelectionSets()
@@ -323,6 +398,8 @@ void DestroySelectionSets()
 				ObjectSelectionSet->ClearSelection(FTypedElementSelectionOptions());
 			}
 		}
+
+		delete GLevelEvents;
 	}
 
 	GIsActorSelectedInEditor = nullptr;
@@ -332,6 +409,7 @@ void DestroySelectionSets()
 	GActorSelection = nullptr;
 	GComponentSelection = nullptr;
 	GObjectSelection = nullptr;
+	GLevelEvents = nullptr;
 }
 
 } // namespace PrivateEditorSelection

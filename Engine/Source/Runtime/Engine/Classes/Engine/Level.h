@@ -948,13 +948,29 @@ public:
 	ENGINE_API void RemoveLoadedActor(AActor* Actor, const FTransform* TransformToRemove = nullptr);
 	ENGINE_API void RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransform* TransformToRemove = nullptr);
 
+	/** Called when dynamically loaded actors are being added to this level */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FLoadedActorAddedToLevelPreEvent, ULevel*);
+	static ENGINE_API FLoadedActorAddedToLevelPreEvent OnLoadedActorAddedToLevelPreEvent;
+
 	/** Called when dynamically loaded actor is added to this level */
 	DECLARE_EVENT_OneParam(ULevel, FLoadedActorAddedToLevelEvent, AActor&);
 	FLoadedActorAddedToLevelEvent OnLoadedActorAddedToLevelEvent;
 
+	/** Called when dynamically loaded actors were added to this level */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FLoadedActorAddedToLevelPostEvent, ULevel*);
+	static ENGINE_API FLoadedActorAddedToLevelPostEvent OnLoadedActorAddedToLevelPostEvent;
+
+	/** Called when dynamically loaded actors are being removed from this level */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FLoadedActorRemovedFromLevelPreEvent, ULevel*);
+	static ENGINE_API FLoadedActorRemovedFromLevelPreEvent OnLoadedActorRemovedFromLevelPreEvent;
+
 	/** Called when dynamically loaded actor is removed from this level */
 	DECLARE_EVENT_OneParam(ULevel, FLoadedActorRemovedFromLevelEvent, AActor&);
 	FLoadedActorRemovedFromLevelEvent OnLoadedActorRemovedFromLevelEvent;
+
+	/** Called when dynamically loaded actors were removed from this level */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FLoadedActorRemovedFromLevelPostEvent, ULevel*);
+	static ENGINE_API FLoadedActorRemovedFromLevelPostEvent OnLoadedActorRemovedFromLevelPostEvent;
 #endif
 
 	/* Called when level is loaded. */
