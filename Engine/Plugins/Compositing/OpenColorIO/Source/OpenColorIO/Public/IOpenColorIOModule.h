@@ -9,6 +9,7 @@
 
 
 class FOpenColorIODisplayManager;
+class FOpenColorIONativeInterchangeConfiguration;
 
 /**
  * Interface for the OpenColorIO module.
@@ -43,4 +44,9 @@ public:
 	 * Returns the collections of ocio display look currently in play
 	 */
 	virtual FOpenColorIODisplayManager& GetDisplayManager() = 0;
+
+	/**
+	 * Internal only: Returns a minimal dynamically-created native config for conversions between interchange and working color spaces.
+	 */
+	virtual FOpenColorIONativeInterchangeConfiguration* GetNativeInterchangeConfig_Internal() = 0;
 };

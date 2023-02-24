@@ -625,7 +625,7 @@ void UOpenColorIOConfiguration::LoadConfiguration()
 			FString ConfigurationFilePath = ConfigurationFile.FilePath;
 			if (ConfigurationFilePath.StartsWith(TEXT("ocio://")))
 			{
-				NativeConfig->Set(OCIO_NAMESPACE::Config::CreateFromFile(StringCast<ANSICHAR>(*ConfigurationFilePath).Get()), WorkingColorSpaceName);
+				NativeConfig->Set(OCIO_NAMESPACE::Config::CreateFromFile(StringCast<ANSICHAR>(*ConfigurationFilePath).Get()));
 				UE_LOG(LogOpenColorIO, Verbose, TEXT("Loaded built-in OCIO configuration file %s"), *ConfigurationFilePath);
 			}
 			else
@@ -650,7 +650,7 @@ void UOpenColorIOConfiguration::LoadConfiguration()
 				if (NewConfig)
 				{
 					UE_LOG(LogOpenColorIO, Verbose, TEXT("Loaded OCIO configuration file %s"), *FullPath);
-					NativeConfig->Set(NewConfig, WorkingColorSpaceName);
+					NativeConfig->Set(NewConfig);
 					
 					StartDirectoryWatch(FullPath);
 				}

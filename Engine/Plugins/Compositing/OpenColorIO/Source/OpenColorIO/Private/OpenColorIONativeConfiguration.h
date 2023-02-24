@@ -2,54 +2,41 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 #if WITH_EDITOR && WITH_OCIO
 #include "OpenColorIO/OpenColorIO.h"
 #endif
 
+// Note: Currently can't delay load OCIO_NAMESPACE::ROLE_INTERCHANGE_SCENE so we define it here
+static constexpr ANSICHAR OpenColorIOInterchangeName[] = "aces_interchange";
+
 class FOpenColorIONativeConfiguration {
 public:
-
 #if WITH_EDITOR && WITH_OCIO
-	OCIO_NAMESPACE::ConstConfigRcPtr Get() const
-	{
-		return Config;
-	}
+	/* Native config object getter. */
+	OCIO_NAMESPACE::ConstConfigRcPtr Get() const;
 
-	void Set(OCIO_NAMESPACE::ConstConfigRcPtr InConfig, FStringView InDefaultWorkingColorSpaceName = FStringView())
-	{
-		using namespace OCIO_NAMESPACE;
-
-		if (InConfig == nullptr)
-		{
-			Config.reset();
-		}
-		else
-		{	
-			ConstColorSpaceRcPtr InterchangeCS = InConfig->getColorSpace(InConfig->getCanonicalName("aces_interchange"/*OCIO_NAMESPACE::ROLE_INTERCHANGE_SCENE*/));
-
-			// When the aces interchange color space is present, we add the working color space as an additional option.
-			if (InterchangeCS != nullptr && InConfig->getColorSpace(StringCast<ANSICHAR>(InDefaultWorkingColorSpaceName.GetData()).Get()) == nullptr)
-			{
-				ColorSpaceRcPtr WorkingCS = InterchangeCS->createEditableCopy();
-				WorkingCS->setName(StringCast<ANSICHAR>(InDefaultWorkingColorSpaceName.GetData()).Get());
-				WorkingCS->setFamily("UE");
-				WorkingCS->clearAliases();
-
-				ConfigRcPtr ConfigCopy = InConfig->createEditableCopy();
-				ConfigCopy->addColorSpace(WorkingCS);
-
-				Config = ConfigCopy;
-			}
-			else
-			{
-				Config = InConfig;
-			}
-		}
-	}
-#endif
+	/* Native config object setter. */
+	void Set(OCIO_NAMESPACE::ConstConfigRcPtr InConfig);
 
 private:
-#if WITH_EDITORONLY_DATA && WITH_OCIO
+	/* Loaded native config object. */
 	OCIO_NAMESPACE::ConstConfigRcPtr Config;
 #endif //WITH_EDITORONLY_DATA
+};
+
+
+class FOpenColorIONativeInterchangeConfiguration {
+public:
+#if WITH_EDITOR && WITH_OCIO
+	FOpenColorIONativeInterchangeConfiguration();
+
+	/* Native config object getter. */
+	OCIO_NAMESPACE::ConstConfigRcPtr Get() const;
+
+private:
+	/** Minimal config used for CPU-side conversions between the working color space and the interchange one. */
+	OCIO_NAMESPACE::ConfigRcPtr Config;
+#endif
 };

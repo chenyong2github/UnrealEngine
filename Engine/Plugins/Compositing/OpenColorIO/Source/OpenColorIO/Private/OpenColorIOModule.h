@@ -13,6 +13,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogOpenColorIO, Log, All);
 
 
 class FOpenColorIODisplayManager;
+class FOpenColorIONativeInterchangeConfiguration;
 
 /**
  * Implements the OpenColorIO module.
@@ -31,10 +32,13 @@ public:
 
 	//~ Begin IOpenColorIOModule
 	virtual FOpenColorIODisplayManager& GetDisplayManager() override;
+	virtual FOpenColorIONativeInterchangeConfiguration* GetNativeInterchangeConfig_Internal() override;
 	//~ End IOpenColorIOModule
 
 private:
 
+	bool bInitializedLib = false;
 	TUniquePtr<FOpenColorIODisplayManager> DisplayManager;
+	TUniquePtr<FOpenColorIONativeInterchangeConfiguration> NativeInterchangeConfig;
 };
 

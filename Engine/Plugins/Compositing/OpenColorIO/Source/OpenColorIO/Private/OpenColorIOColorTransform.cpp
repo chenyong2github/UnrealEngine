@@ -612,25 +612,52 @@ bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, 
 #if WITH_EDITOR
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& InOutImage) const
 {
-	// TODO: Handle extra conversions needed if working color space is the source or destination
-
 #if WITH_OCIO
+	using namespace OCIO_NAMESPACE;
+
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	try
 #endif
 	{
-		OCIO_NAMESPACE::ConstProcessorRcPtr TransformProcessor = GetTransformProcessor(this);
-		if (TransformProcessor)
+		ConstProcessorRcPtr Processor = GetTransformProcessor(this);
+		if (Processor && ConfigurationOwner)
 		{
-			TUniquePtr<OCIO_NAMESPACE::PackedImageDesc> ImageDesc = GetImageDesc(InOutImage);
+			TUniquePtr<PackedImageDesc> ImageDesc = GetImageDesc(InOutImage);
 			if (ImageDesc)
 			{
-				OCIO_NAMESPACE::ConstCPUProcessorRcPtr Processor = TransformProcessor->getOptimizedCPUProcessor(
-					ImageDesc->getBitDepth(),
-					ImageDesc->getBitDepth(),
-					OCIO_NAMESPACE::OptimizationFlags::OPTIMIZATION_DEFAULT
-				);
-				Processor->apply(*ImageDesc);
+				ConstConfigRcPtr InterchangeConfig = IOpenColorIOModule::Get().GetNativeInterchangeConfig_Internal()->Get();
+				ConstConfigRcPtr Config = ConfigurationOwner->GetNativeConfig_Internal()->Get();
+				BitDepth BitDepth = ImageDesc->getBitDepth();
+
+				// Conditionally apply a conversion from the working color space to interchange space
+				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Source)
+				{
+					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
+						InterchangeConfig,
+						StringCast<ANSICHAR>(UOpenColorIOConfiguration::WorkingColorSpaceName).Get(),
+						Config,
+						Config->getCanonicalName(OpenColorIOInterchangeName));
+
+					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(BitDepth, BitDepth, OPTIMIZATION_DEFAULT);
+					InterchangeCPUProcessor->apply(*ImageDesc);
+				}
+
+				// Apply the main color transformation
+				ConstCPUProcessorRcPtr CPUProcessor = Processor->getOptimizedCPUProcessor(BitDepth, BitDepth, OPTIMIZATION_DEFAULT);
+				CPUProcessor->apply(*ImageDesc);
+
+				// Conditionally apply a conversion from the interchange space to the working color space
+				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Destination)
+				{
+					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
+						Config,
+						Config->getCanonicalName(OpenColorIOInterchangeName),
+						InterchangeConfig,
+						StringCast<ANSICHAR>(UOpenColorIOConfiguration::WorkingColorSpaceName).Get());
+
+					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(BitDepth, BitDepth, OPTIMIZATION_DEFAULT);
+					InterchangeCPUProcessor->apply(*ImageDesc);
+				}
 				
 				return true;
 			}
@@ -649,26 +676,55 @@ bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& InOutIma
 
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& SrcImage, const FImageView& DestImage) const
 {
-	// TODO: Handle extra conversions needed if working color space is the source or destination
-
 #if WITH_OCIO
+	using namespace OCIO_NAMESPACE;
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	try
 #endif
 	{
-		OCIO_NAMESPACE::ConstProcessorRcPtr TransformProcessor = GetTransformProcessor(this);
-		if (TransformProcessor)
+		ConstProcessorRcPtr Processor = GetTransformProcessor(this);
+		if (Processor && ConfigurationOwner)
 		{
-			TUniquePtr<OCIO_NAMESPACE::PackedImageDesc> SrcImageDesc = GetImageDesc(SrcImage);
-			TUniquePtr<OCIO_NAMESPACE::PackedImageDesc> DestImageDesc = GetImageDesc(DestImage);
+			TUniquePtr<PackedImageDesc> SrcImageDesc = GetImageDesc(SrcImage);
+			TUniquePtr<PackedImageDesc> DestImageDesc = GetImageDesc(DestImage);
 			if (SrcImageDesc && DestImageDesc)
 			{
-				OCIO_NAMESPACE::ConstCPUProcessorRcPtr Processor = TransformProcessor->getOptimizedCPUProcessor(
-					SrcImageDesc->getBitDepth(),
-					DestImageDesc->getBitDepth(),
-					OCIO_NAMESPACE::OptimizationFlags::OPTIMIZATION_DEFAULT
-				);
-				TransformProcessor->getDefaultCPUProcessor()->apply(*SrcImageDesc, *DestImageDesc);
+				ConstConfigRcPtr	InterchangeConfig = IOpenColorIOModule::Get().GetNativeInterchangeConfig_Internal()->Get();
+				ConstConfigRcPtr	Config = ConfigurationOwner->GetNativeConfig_Internal()->Get();
+
+				BitDepth SrcBitDepth = SrcImageDesc->getBitDepth();
+				BitDepth DestBitDepth = DestImageDesc->getBitDepth();
+
+				// Conditionally apply a conversion from the working color space to interchange space
+				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Source)
+				{
+					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
+						InterchangeConfig,
+						StringCast<ANSICHAR>(UOpenColorIOConfiguration::WorkingColorSpaceName).Get(),
+						Config,
+						Config->getCanonicalName(OpenColorIOInterchangeName));
+
+					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(SrcBitDepth, SrcBitDepth, OPTIMIZATION_DEFAULT);
+					InterchangeCPUProcessor->apply(*SrcImageDesc);
+				}
+
+
+				// Apply the main color transformation
+				ConstCPUProcessorRcPtr CPUProcessor = Processor->getOptimizedCPUProcessor(SrcBitDepth, DestBitDepth, OPTIMIZATION_DEFAULT);
+				CPUProcessor->apply(*SrcImageDesc, *DestImageDesc);
+
+				// Conditionally apply a conversion from the interchange space to the working color space
+				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Destination)
+				{
+					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
+						Config,
+						Config->getCanonicalName(OpenColorIOInterchangeName),
+						InterchangeConfig,
+						StringCast<ANSICHAR>(UOpenColorIOConfiguration::WorkingColorSpaceName).Get());
+
+					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(DestBitDepth, DestBitDepth, OPTIMIZATION_DEFAULT);
+					InterchangeCPUProcessor->apply(*DestImageDesc);
+				}
 
 				return true;
 			}
