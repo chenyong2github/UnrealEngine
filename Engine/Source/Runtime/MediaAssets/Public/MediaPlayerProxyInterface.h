@@ -6,6 +6,7 @@
 
 #include "MediaPlayerProxyInterface.generated.h"
 
+class UMediaPlayer;
 class UMediaSource;
 class UMediaTexture;
 struct FMediaSourceCacheSettings;
@@ -67,6 +68,18 @@ public:
 	 * Release a media texture that was retrieved from ProxyGetMediaTexture.
 	 */
 	virtual void ProxyReleaseMediaTexture(int32 LayerIndex, int32 TextureIndex) = 0;
+
+	/**
+	 * Sets the aspect ratio of the proxy based on what the media player is playing.
+	 * 
+	 * This should be called every frame until it returns true.
+	 * It might take a few frames to discover what the aspect ratio is.
+	 * Also some proxies might not support aspect ratios,
+	 * so they will also return true so you do not call this endlessly.
+	 *
+	 * @return True if you no longer need to call this.
+	 */
+	virtual bool ProxySetAspectRatio(UMediaPlayer* InMediaPlayer) = 0;
 
 	/**
 	 * Set the blend value for a texture that was retrieved from ProxyGetMediaTexture.

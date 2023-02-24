@@ -14,7 +14,8 @@
  *****************************************************************************/
 
 FMovieSceneMediaData::FMovieSceneMediaData()
-	: bOverrideMediaPlayer(false)
+	: bIsAspectRatioSet(false)
+	, bOverrideMediaPlayer(false)
 	, MediaPlayer(nullptr)
 	, ProxyTextureIndex(0)
 	, SeekOnOpenTime(FTimespan::MinValue())

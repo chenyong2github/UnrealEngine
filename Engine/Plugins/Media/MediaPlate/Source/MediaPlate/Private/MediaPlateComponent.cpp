@@ -481,8 +481,7 @@ void UMediaPlateComponent::TryActivateAspectRatioAuto()
 	if (MediaPlayer != nullptr)
 	{
 		// Are we using automatic aspect ratio?
-		if ((bIsAspectRatioAuto) &&
-			(VisibleMipsTilesCalculations == EMediaTextureVisibleMipsTiles::Plane))
+		if (IsAspectRatioAutoAllowed())
 		{
 			// Start the clock sink so we can tick.
 			IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
@@ -498,6 +497,11 @@ void UMediaPlateComponent::TryActivateAspectRatioAuto()
 	}
 }
 
+bool UMediaPlateComponent::IsAspectRatioAutoAllowed()
+{
+	return ((bIsAspectRatioAuto) &&
+		(VisibleMipsTilesCalculations == EMediaTextureVisibleMipsTiles::Plane));
+}
 
 float UMediaPlateComponent::GetAspectRatio()
 {
@@ -584,22 +588,10 @@ void UMediaPlateComponent::SetNumberOfTextures(int32 NumTextures)
 
 void UMediaPlateComponent::TickOutput()
 {
-	if (MediaPlayer != nullptr)
+	if (ProxySetAspectRatio(MediaPlayer))
 	{
-		// Is the player ready?
-		if ((MediaPlayer->IsClosed() == false) && (MediaPlayer->IsPreparing() == false))
-		{
-			FIntPoint VideoDim = MediaPlayer->GetVideoTrackDimensions(INDEX_NONE, INDEX_NONE);
-			if (VideoDim.Y != 0)
-			{ 
-				// Set aspect ratio.
-				float AspectRatio = (float)VideoDim.X / (float)VideoDim.Y;
-				SetAspectRatio(AspectRatio);
-					
-				// No need to tick anymore.
-				StopClockSink();
-			}
-		}
+		// No need to tick anymore.
+		StopClockSink();
 	}
 }
 
@@ -692,6 +684,34 @@ void UMediaPlateComponent::ProxyReleaseMediaTexture(int32 LayerIndex, int32 Text
 
 		UpdateTextureLayers();
 	}
+}
+
+bool UMediaPlateComponent::ProxySetAspectRatio(UMediaPlayer* InMediaPlayer)
+{
+	bool bIsDone = false;
+
+	if (IsAspectRatioAutoAllowed())
+	{
+		// Is the player ready?
+		if ((InMediaPlayer != nullptr) && (InMediaPlayer->IsClosed() == false) &&
+			(InMediaPlayer->IsPreparing() == false))
+		{
+			FIntPoint VideoDim = InMediaPlayer->GetVideoTrackDimensions(INDEX_NONE, INDEX_NONE);
+			if (VideoDim.Y != 0)
+			{
+				// Set aspect ratio.
+				float AspectRatio = (float)VideoDim.X / (float)VideoDim.Y;
+				SetAspectRatio(AspectRatio);
+				bIsDone = true;
+			}
+		}
+	}
+	else
+	{
+		bIsDone = true;
+	}
+
+	return bIsDone;
 }
 
 void UMediaPlateComponent::ProxySetTextureBlend(int32 LayerIndex, int32 TextureIndex, float Blend)

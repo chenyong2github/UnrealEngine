@@ -148,6 +148,14 @@ struct FMediaSectionExecutionToken
 				{
 					return;
 				}
+
+				if (SectionData.bIsAspectRatioSet == false)
+				{
+					if (PlayerProxyInterface->ProxySetAspectRatio(MediaPlayer))
+					{
+						SectionData.bIsAspectRatioSet = true;
+					}
+				}
 			}
 		}
 

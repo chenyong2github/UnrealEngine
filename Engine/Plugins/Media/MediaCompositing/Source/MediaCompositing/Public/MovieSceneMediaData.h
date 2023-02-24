@@ -68,6 +68,11 @@ public:
 	 */
 	void TearDown();
 
+	/**
+	 * Stores if the aspect ratio has been set yet.
+	 */
+	bool bIsAspectRatioSet;
+
 private:
 	/**
 	 * Does the work needed so we can use our proxy media texture.

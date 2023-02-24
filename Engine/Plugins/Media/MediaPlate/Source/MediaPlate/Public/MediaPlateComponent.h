@@ -257,6 +257,7 @@ public:
 	virtual UMediaSource* ProxyGetMediaSourceFromIndex(int32 Index) const override;
 	virtual UMediaTexture* ProxyGetMediaTexture(int32 LayerIndex, int32 TextureIndex) override;
 	virtual void ProxyReleaseMediaTexture(int32 LayerIndex, int32 TextureIndex) override;
+	virtual bool ProxySetAspectRatio(UMediaPlayer* InMediaPlayer) override;
 	virtual void ProxySetTextureBlend(int32 LayerIndex, int32 TextureIndex, float Blend) override;
 
 private:
@@ -383,6 +384,11 @@ private:
 	 * according to the media.
 	 */
 	void TryActivateAspectRatioAuto();
+
+	/**
+	 * Returns true if auto aspect ratio is enabled and our mesh supports this (e.g. planar).
+	 */
+	bool IsAspectRatioAutoAllowed();
 
 	/**
 	 * Stops the clock sink so we no longer tick.
