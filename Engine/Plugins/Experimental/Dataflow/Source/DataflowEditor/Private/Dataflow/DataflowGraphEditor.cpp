@@ -13,6 +13,7 @@
 #include "Dataflow/DataflowSelectionNodes.h"
 #include "Dataflow/DataflowSchema.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "ScopedTransaction.h"
 #include "IStructureDetailsView.h"
 
 #define LOCTEXT_NAMESPACE "DataflowGraphEditor"
