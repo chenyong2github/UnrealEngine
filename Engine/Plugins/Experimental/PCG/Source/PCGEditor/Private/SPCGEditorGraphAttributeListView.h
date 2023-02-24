@@ -16,6 +16,7 @@ class UPCGEditorGraphNodeBase;
 class UPCGMetadata;
 class UPCGParamData;
 struct FPCGPoint;
+enum class EPCGMetadataTypes : uint8;
 
 class SComboButton;
 class SHeaderRow;
@@ -102,7 +103,7 @@ private:
 	void AddPointDataColumns();
 	void RemovePointDataColumns();
 
-	void AddMetadataColumn(const FName& InColumnId, const FName& InMetadataId, const int8 InValueIndex = INDEX_NONE, const TCHAR* PostFix = nullptr);
+	void AddMetadataColumn(const FName& InColumnId, const FName& InMetadataId, EPCGMetadataTypes InMetadataType, const int8 InValueIndex = INDEX_NONE, const TCHAR* PostFix = nullptr);
 	void RemoveMetadataColumns();
 
 	/** Pointer back to the PCG editor that owns us */
