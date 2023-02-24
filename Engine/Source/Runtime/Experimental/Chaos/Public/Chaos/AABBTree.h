@@ -1569,7 +1569,7 @@ public:
 		}
 		else
 		{
-			Leaves[LeafIdx].RemoveElement(Payload); // Just to check if the element was in there to begin with
+			//Leaves[LeafIdx].RemoveElement(Payload); // Just to check if the element was in there to begin with
 		}
 
 		int32 ParentNodeIdx = Nodes[LeafNodeIdx].ParentNode;
