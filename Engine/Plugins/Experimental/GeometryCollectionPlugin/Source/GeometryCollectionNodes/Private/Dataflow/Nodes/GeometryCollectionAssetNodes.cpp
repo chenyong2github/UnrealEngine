@@ -3,6 +3,7 @@
 #include "Dataflow/Nodes/GeometryCollectionAssetNodes.h"
 #include "Dataflow/DataflowCore.h"
 
+#include "Engine/StaticMesh.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionEngineConversion.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
