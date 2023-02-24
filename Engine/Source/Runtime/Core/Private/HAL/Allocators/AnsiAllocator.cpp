@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HAL/Allocators/AnsiAllocator.h"
+#include "CoreGlobals.h"
 
 FORCENOINLINE void UE::Core::Private::OnInvalidAnsiAllocatorNum(int32 NewNum, SIZE_T NumBytesPerElement)
 {

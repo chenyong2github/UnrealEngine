@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LowLevelMemoryUtils.h"
+#include "CoreGlobals.h"
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 
