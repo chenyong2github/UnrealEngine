@@ -173,6 +173,9 @@ class UMaterialParameterCollection : public UObject
 		return *UniformBufferStruct;
 	}
 
+	/** Create an instance for this collection in every world. */
+	ENGINE_API void SetupWorldParameterCollectionInstances();
+
 private:
 	virtual ENGINE_API void FinishDestroy() override;
 	virtual ENGINE_API bool IsReadyForFinishDestroy() override;

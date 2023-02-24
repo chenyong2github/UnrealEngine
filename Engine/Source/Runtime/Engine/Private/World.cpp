@@ -1895,6 +1895,8 @@ void UWorld::InitWorld(const InitializationValues IVS)
 		AvoidanceManager = NewObject<UAvoidanceManager>(this, GEngine->AvoidanceManagerClass);
 	}
 
+	SetupParameterCollectionInstances();
+
 	if (PersistentLevel->GetOuter() != this)
 	{
 		// Move persistent level into world so the world object won't get garbage collected in the multi- level
