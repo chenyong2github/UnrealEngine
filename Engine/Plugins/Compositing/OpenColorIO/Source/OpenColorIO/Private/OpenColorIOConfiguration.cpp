@@ -685,5 +685,105 @@ void UOpenColorIOConfiguration::OnToastCallback(bool bInReloadColorspaces)
 	}
 }
 
-#undef LOCTEXT_NAMESPACE
+#if WITH_EDITOR
+FOpenColorIOEditorConfigurationInspector::FOpenColorIOEditorConfigurationInspector(const UOpenColorIOConfiguration& InConfiguration)
+	: NativeConfig(*InConfiguration.GetNativeConfig_Internal()) // Private implementation pointer is always present and can be safely dereferenced
+{
+}
 
+int32 FOpenColorIOEditorConfigurationInspector::GetNumColorSpaces() const
+{
+#if WITH_OCIO
+	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
+	{
+		return Config->getNumColorSpaces(OCIO_NAMESPACE::SEARCH_REFERENCE_SPACE_ALL, OCIO_NAMESPACE::COLORSPACE_ACTIVE);
+	}
+#endif
+
+	return 0;
+}
+
+FString FOpenColorIOEditorConfigurationInspector::GetColorSpaceName(int32 Index) const
+{
+#if WITH_OCIO
+	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
+	{
+		const char* ColorSpaceName = Config->getColorSpaceNameByIndex(OCIO_NAMESPACE::SEARCH_REFERENCE_SPACE_ALL, OCIO_NAMESPACE::COLORSPACE_ACTIVE, Index);
+
+		return StringCast<TCHAR>(ColorSpaceName).Get();
+	}
+#endif
+
+	return {};
+}
+
+FString FOpenColorIOEditorConfigurationInspector::GetColorSpaceFamilyName(const TCHAR* InColorSpaceName) const
+{
+#if WITH_OCIO
+	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
+	{
+		OCIO_NAMESPACE::ConstColorSpaceRcPtr ColorSpace = Config->getColorSpace(StringCast<ANSICHAR>(InColorSpaceName).Get());
+		if (ColorSpace != nullptr)
+		{
+			return StringCast<TCHAR>(ColorSpace->getFamily()).Get();
+		}
+	}
+#endif
+
+	return {};
+}
+
+int32 FOpenColorIOEditorConfigurationInspector::GetNumDisplays() const
+{
+#if WITH_OCIO
+	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
+	{
+		return Config->getNumDisplays();
+	}
+#endif
+
+	return 0;
+}
+
+FString FOpenColorIOEditorConfigurationInspector::GetDisplayName(int32 Index) const
+{
+#if WITH_OCIO
+	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
+	{
+		const char* DisplayName = Config->getDisplay(Index);
+
+		return StringCast<TCHAR>(DisplayName).Get();
+	}
+#endif
+	
+	return {};
+}
+
+int32 FOpenColorIOEditorConfigurationInspector::GetNumViews(const TCHAR* InDisplayName) const
+{
+#if WITH_OCIO
+	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
+	{
+		return Config->getNumViews(StringCast<ANSICHAR>(InDisplayName).Get());
+	}
+#endif
+
+	return 0;
+}
+
+FString FOpenColorIOEditorConfigurationInspector::GetViewName(const TCHAR* InDisplayName, int32 Index) const
+{
+#if WITH_OCIO
+	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
+	{
+		const char* ViewName = Config->getView(StringCast<ANSICHAR>(InDisplayName).Get(), Index);
+
+		return StringCast<TCHAR>(ViewName).Get();
+	}
+#endif
+	
+	return {};
+}
+#endif //WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE

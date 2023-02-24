@@ -141,3 +141,36 @@ private:
 	/** Private implementation of the native OpenColorIO config object. */
 	TPimplPtr<FOpenColorIONativeConfiguration> NativeConfig;
 };
+
+
+#if WITH_EDITOR
+/**
+ * Editor-only class to access native configuration names of color spaces, displays and views for menus.
+ */
+class FOpenColorIOEditorConfigurationInspector {
+public:
+
+	OPENCOLORIO_API FOpenColorIOEditorConfigurationInspector(const UOpenColorIOConfiguration& InConfiguration);
+
+	/** Get the number of color spaces in the configuration. */
+	OPENCOLORIO_API int32 GetNumColorSpaces() const;
+	/** Get a color space name at an index. */
+	OPENCOLORIO_API FString GetColorSpaceName(int32 Index) const;
+	/** Get the family name for a color space. */
+	OPENCOLORIO_API FString GetColorSpaceFamilyName(const TCHAR* InColorSpaceName) const;
+
+	/** Get the number of displays in the configuration. */
+	OPENCOLORIO_API int32 GetNumDisplays() const;
+	/** Get a display name at an index. */
+	OPENCOLORIO_API FString GetDisplayName(int32 Index) const;
+
+	/** Get the number of views for a display. */
+	OPENCOLORIO_API int32 GetNumViews(const TCHAR* InDisplayName) const;
+	/** Get a view name for its display and index. */
+	OPENCOLORIO_API FString GetViewName(const TCHAR* InDisplayName, int32 Index) const;
+
+private:
+	/** Reference to the native OCIO config. */
+	const FOpenColorIONativeConfiguration& NativeConfig;
+};
+#endif //WITH_EDITOR
