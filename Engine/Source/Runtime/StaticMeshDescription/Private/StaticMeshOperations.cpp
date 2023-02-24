@@ -2547,6 +2547,11 @@ void FStaticMeshOperations::FlipPolygons(FMeshDescription& MeshDescription)
 
 void FStaticMeshOperations::ApplyTransform(FMeshDescription& MeshDescription, const FTransform& Transform)
 {
+	ApplyTransform(MeshDescription, Transform.ToMatrixWithScale());
+}
+
+void FStaticMeshOperations::ApplyTransform(FMeshDescription& MeshDescription, const FMatrix& Transform)
+{
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshOperations::ApplyTransform)
 
 	TVertexAttributesRef<FVector3f> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
@@ -2556,14 +2561,13 @@ void FStaticMeshOperations::ApplyTransform(FMeshDescription& MeshDescription, co
 
 	for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
 	{
-		VertexPositions[VertexID] = FVector3f(Transform.TransformPosition(FVector3d(VertexPositions[VertexID])));
+		VertexPositions[VertexID] = FVector4f(Transform.TransformPosition(FVector3d(VertexPositions[VertexID])));
 	}
 
-	FMatrix Matrix = Transform.ToMatrixWithScale();
-	FMatrix AdjointT = Matrix.TransposeAdjoint();
+	FMatrix AdjointT = Transform.TransposeAdjoint();
 	AdjointT.RemoveScaling();
 
-	const bool bIsMirrored = Transform.GetDeterminant() < 0.f;
+	const bool bIsMirrored = Transform.Determinant() < 0.f;
 	const float MulBy = bIsMirrored ? -1.f : 1.f;
 
 	for (const FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())

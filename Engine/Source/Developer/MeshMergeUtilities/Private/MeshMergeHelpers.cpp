@@ -202,8 +202,8 @@ void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InI
 	FMeshDescription CombinedMeshDescription;
 	FStaticMeshAttributes(CombinedMeshDescription).Register();
 
-	FTransform ComponentTransform = InInstancedStaticMeshComponent->GetComponentTransform();
-	FTransform ComponentTransformInv = ComponentTransform.Inverse();
+	FMatrix ComponentToWorld = InInstancedStaticMeshComponent->GetComponentTransform().ToMatrixWithScale();
+	FMatrix WorldToComponent = ComponentToWorld.Inverse();
 
 	// Reserve memory upfront
 	int32 NumInstances = InInstancedStaticMeshComponent->GetInstanceCount();
@@ -220,10 +220,10 @@ void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InI
 	}
 
 	FMeshDescription InstanceMeshDescription;
-	for(const FInstancedStaticMeshInstanceData& InstanceData : InInstancedStaticMeshComponent->PerInstanceSMData)
+	for (const FInstancedStaticMeshInstanceData& InstanceData : InInstancedStaticMeshComponent->PerInstanceSMData)
 	{
 		InstanceMeshDescription = InOutMeshDescription;
-		FStaticMeshOperations::ApplyTransform(InstanceMeshDescription, ComponentTransformInv * FTransform(InstanceData.Transform) * ComponentTransform);
+		FStaticMeshOperations::ApplyTransform(InstanceMeshDescription, WorldToComponent * InstanceData.Transform * ComponentToWorld);
 		FStaticMeshOperations::AppendMeshDescription(InstanceMeshDescription, CombinedMeshDescription, AppendSettings);
 	}
 
