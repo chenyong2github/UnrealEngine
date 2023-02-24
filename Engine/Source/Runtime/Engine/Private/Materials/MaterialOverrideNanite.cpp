@@ -68,6 +68,7 @@ bool FMaterialOverrideNanite::Serialize(FArchive& Ar)
 	{
 		// Use editor-only serialization scope for override material.
 		// This prevents the cook from automatically seeing it, so that we can avoid cooking it on non-nanite platforms.
+		// Editor-only mode means the reference is still collected for debugging and most importantly for container/chunk assignment via the asset manager.
 		FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, ESoftObjectPathCollectType::EditorOnlyCollect,
 			ESoftObjectPathSerializeType::AlwaysSerialize);
 		// HACK: Soft object ptr model doesn't handle object being renamed which happens in some HLOD generation scenarios where we duplicate MIDs.
