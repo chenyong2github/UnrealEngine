@@ -903,19 +903,19 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreateVFUniformBuffer(const
 					break;
 				case ENiagaraMeshVFLayout::Type::DynamicParam0:
 					FMemory::Memcpy(&Params.DefaultDynamicMaterialParameter0, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
-					Params.MaterialParamValidMask |= 0x1;
+					Params.MaterialParamValidMask |= 0x000f;
 					break;
 				case ENiagaraMeshVFLayout::Type::DynamicParam1:
 					FMemory::Memcpy(&Params.DefaultDynamicMaterialParameter1, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
-					Params.MaterialParamValidMask |= 0x2;
+					Params.MaterialParamValidMask |= 0x00f0;
 					break;
 				case ENiagaraMeshVFLayout::Type::DynamicParam2:
 					FMemory::Memcpy(&Params.DefaultDynamicMaterialParameter2, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
-					Params.MaterialParamValidMask |= 0x4;
+					Params.MaterialParamValidMask |= 0x0f00;
 					break;
 				case ENiagaraMeshVFLayout::Type::DynamicParam3:
 					FMemory::Memcpy(&Params.DefaultDynamicMaterialParameter3, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
-					Params.MaterialParamValidMask |= 0x8;
+					Params.MaterialParamValidMask |= 0xf000;
 					break;
 				case ENiagaraMeshVFLayout::Type::CustomSorting:
 					// unsupported for now...

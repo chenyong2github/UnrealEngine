@@ -1058,6 +1058,25 @@ public:
 	NIAGARA_API bool IsScriptCompilationPending(bool bGPUScript) const;
 	NIAGARA_API bool DidScriptCompilationSucceed(bool bGPUScript) const;
 
+#if WITH_EDITORONLY_DATA
+	template<typename T>
+	TOptional<T> GetStaticVariableValue(const FNiagaraVariableBase& InVar) const
+	{
+		for (const FNiagaraVariable& StaticVariable : CachedScriptVM.StaticVariablesWritten)
+		{
+			if (static_cast<const FNiagaraVariableBase&>(StaticVariable) == InVar)
+			{
+				if (StaticVariable.IsDataAllocated())
+				{
+					return TOptional<T>(StaticVariable.GetValue<T>());
+				}
+			}
+		}
+
+		return TOptional<T>();
+	}
+#endif
+
 	template<typename T>
 	TOptional<T> GetCompilerTag(const FNiagaraVariableBase& InVar, const FNiagaraParameterStore* FallbackParameterStore = nullptr) const
 	{

@@ -547,6 +547,34 @@ void UNiagaraRendererProperties::UpdateMaterialParametersMIC(const FNiagaraRende
 	}
 }
 
+int32 UNiagaraRendererProperties::GetDynamicParameterChannelMask(const FVersionedNiagaraEmitterData* EmitterData, FName BindingName, int32 DefaultChannelMask) const
+{
+	if (EmitterData == nullptr)
+	{
+		return DefaultChannelMask;
+	}
+
+	TOptional<int32> ChannelMask;
+	EmitterData->ForEachScript(
+		[&ChannelMask, &BindingName](const UNiagaraScript* NiagaraScript)
+		{
+			const FNiagaraVMExecutableData& VMExecData = NiagaraScript->GetVMExecutableData();
+
+			FNameBuilder NameBuilder;
+			BindingName.ToString(NameBuilder);
+			NameBuilder.Append(TEXT("ChannelMask"));
+
+			const FNiagaraVariableBase ChannelMaskVariable(FNiagaraTypeDefinition::GetIntDef().ToStaticDef(), FName(NameBuilder));
+			TOptional<int32> ChannelMaskValue = NiagaraScript->GetStaticVariableValue<int32>(ChannelMaskVariable);
+			if (ChannelMaskValue.IsSet())
+			{
+				ChannelMask = ChannelMask.Get(0) | ChannelMaskValue.GetValue();
+			}
+		}
+	);
+	return ChannelMask.Get(DefaultChannelMask);
+}
+
 FNiagaraVariable UNiagaraRendererProperties::GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const
 {
 	if (Binding->GetParamMapBindableVariable().IsValid())

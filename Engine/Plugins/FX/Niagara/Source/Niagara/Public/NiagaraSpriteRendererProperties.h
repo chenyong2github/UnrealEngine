@@ -392,11 +392,13 @@ public:
 	void CacheDerivedData();
 #endif
 
+	UPROPERTY()
+	uint32 MaterialParamValidMask = 0;
+
 	const TArray<FVector2f>& GetCutoutData() const { return DerivedData.BoundingGeometry; }
 
 	FNiagaraRendererLayout RendererLayoutWithCustomSort;
 	FNiagaraRendererLayout RendererLayoutWithoutCustomSort;
-	uint32 MaterialParamValidMask = 0;
 
 protected:
 	void InitBindings();

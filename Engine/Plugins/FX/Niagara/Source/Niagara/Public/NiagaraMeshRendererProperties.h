@@ -449,7 +449,9 @@ public:
 	uint32 NumFlipbookFrames;
 #endif
 
+	UPROPERTY()
 	uint32 MaterialParamValidMask = 0;
+
 	FNiagaraRendererLayout RendererLayoutWithCustomSorting;
 	FNiagaraRendererLayout RendererLayoutWithoutCustomSorting;
 

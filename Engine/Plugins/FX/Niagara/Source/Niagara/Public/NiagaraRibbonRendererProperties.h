@@ -462,6 +462,8 @@ public:
 	UPROPERTY(Transient)
 	FNiagaraVariableAttributeBinding PrevRibbonTwistBinding;
 
+	UPROPERTY()
+	uint32 MaterialParamValidMask = 0;
 
 	bool								bSortKeyDataSetAccessorIsAge = false;
 	FNiagaraDataSetAccessor<float>		SortKeyDataSetAccessor;
@@ -483,7 +485,6 @@ public:
 	
 	FNiagaraDataSetAccessor<float>		RibbonLinkOrderDataSetAccessor;
 
-	uint32 MaterialParamValidMask = 0;
 	FNiagaraRendererLayout RendererLayout;
 
 protected:

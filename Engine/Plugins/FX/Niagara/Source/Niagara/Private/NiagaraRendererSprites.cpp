@@ -707,19 +707,19 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreateViewUniformBuffer(
 					break;
 				case ENiagaraSpriteVFLayout::Type::MaterialParam0:
 					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter0, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
-					PerViewUniformParameters.MaterialParamValidMask |= 0x1;
+					PerViewUniformParameters.MaterialParamValidMask |= 0x000f;
 					break;
 				case ENiagaraSpriteVFLayout::Type::MaterialParam1:
 					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter1, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
-					PerViewUniformParameters.MaterialParamValidMask |= 0x2;
+					PerViewUniformParameters.MaterialParamValidMask |= 0x00f0;
 					break;
 				case ENiagaraSpriteVFLayout::Type::MaterialParam2:
 					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter2, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
-					PerViewUniformParameters.MaterialParamValidMask |= 0x4;
+					PerViewUniformParameters.MaterialParamValidMask |= 0x0f00;
 					break;
 				case ENiagaraSpriteVFLayout::Type::MaterialParam3:
 					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter3, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
-					PerViewUniformParameters.MaterialParamValidMask |= 0x8;
+					PerViewUniformParameters.MaterialParamValidMask |= 0xf000;
 					break;
 				case ENiagaraSpriteVFLayout::Type::CameraOffset:
 					FMemory::Memcpy(&PerViewUniformParameters.DefaultCamOffset, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(float));
