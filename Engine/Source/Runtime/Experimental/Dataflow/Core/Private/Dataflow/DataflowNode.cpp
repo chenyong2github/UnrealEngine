@@ -252,6 +252,34 @@ void FDataflowNode::RegisterInputConnection(const void* InProperty)
 	}
 }
 
+void FDataflowNode::UnregisterInputConnection(const void* InProperty)
+{
+	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
+	{
+		if (const UStruct* const Struct = ScriptOnStruct->GetStruct())
+		{
+			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			{
+				const FProperty* const Property = *PropertyIt;
+				const int32 Offset = Property->GetOffset_ForInternal();
+				const size_t RealAddress = (size_t)this + (size_t)Offset;
+				if (RealAddress == (size_t)InProperty)
+				{
+					if (FDataflowInput* const* const Input = Inputs.Find(Offset))
+					{
+						Inputs.Remove(Offset);
+						delete *Input;
+
+						// Invalidate graph as this input might have had connections
+						Invalidate();
+					}
+					break;
+				}
+			}
+		}
+	}
+}
+
 void FDataflowNode::RegisterOutputConnection(const void* InProperty, const void* Passthrough)
 {
 	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))

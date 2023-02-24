@@ -94,6 +94,81 @@ void UDataflowEdNode::AllocateDefaultPins()
 #endif // WITH_EDITOR && !UE_BUILD_SHIPPING
 }
 
+void UDataflowEdNode::AddOptionPin()
+{
+#if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (DataflowGraph && DataflowNodeGuid.IsValid())
+	{
+		// Modify();  // TODO: How do we modify a DataflowNode
+
+		if (const TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
+		{
+			const Dataflow::FPin Pin = DataflowNode->AddPin();
+			switch (Pin.Direction)
+			{
+			case Dataflow::FPin::EDirection::INPUT:
+				CreatePin(EEdGraphPinDirection::EGPD_Input, Pin.Type, Pin.Name);
+				ReconstructNode();
+				break;
+			case Dataflow::FPin::EDirection::OUTPUT:
+				CreatePin(EEdGraphPinDirection::EGPD_Output, Pin.Type, Pin.Name);
+				ReconstructNode();
+				break;
+			default:
+				break;  // Add pin isn't implemented on this node
+			}
+		}
+
+		// Refresh the current graph, so the pins can be updated
+		if (UEdGraph* const ParentGraph = GetGraph())
+		{
+			ParentGraph->NotifyGraphChanged();
+		}
+	}
+#endif // WITH_EDITOR && !UE_BUILD_SHIPPING
+}
+
+void UDataflowEdNode::RemoveOptionPin()
+{
+#if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (DataflowGraph && DataflowNodeGuid.IsValid())
+	{
+		// Modify();  // TODO: How do we modify a DataflowNode
+
+		if (const TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
+		{
+			const Dataflow::FPin Pin = DataflowNode->RemovePin();
+			switch (Pin.Direction)
+			{
+			case Dataflow::FPin::EDirection::INPUT:
+				if (UEdGraphPin* const EdPin = FindPin(Pin.Name, EEdGraphPinDirection::EGPD_Input))
+				{
+					EdPin->BreakAllPinLinks();
+					RemovePin(EdPin);
+					ReconstructNode();
+				}
+				break;
+			case Dataflow::FPin::EDirection::OUTPUT:
+				if (UEdGraphPin* const EdPin = FindPin(Pin.Name, EEdGraphPinDirection::EGPD_Output))
+				{
+					EdPin->BreakAllPinLinks();
+					RemovePin(EdPin);
+					ReconstructNode();
+				}
+				break;
+			default:
+				break;  // Add pin isn't implemented on this node
+			}
+		}
+
+		// Refresh the current graph, so the pins can be updated
+		if (UEdGraph* const ParentGraph = GetGraph())
+		{
+			ParentGraph->NotifyGraphChanged();
+		}
+	}
+#endif // WITH_EDITOR && !UE_BUILD_SHIPPING
+}
 
 FText UDataflowEdNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {

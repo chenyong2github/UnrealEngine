@@ -43,6 +43,8 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleObjectSelection;
 	TSharedPtr<FUICommandInfo> ToggleFaceSelection;
 	TSharedPtr<FUICommandInfo> ToggleVertexSelection;
+	TSharedPtr< FUICommandInfo > AddOptionPin;
+	TSharedPtr< FUICommandInfo > RemoveOptionPin;
 
 	TMap< FName, TSharedPtr<FUICommandInfo> > CreateNodesMap;
 };

@@ -85,7 +85,17 @@ void SDataflowGraphEditor::Construct(const FArguments& InArgs, UObject* InAssetO
 			);
 			GraphEditorCommands->MapAction(
 				FDataflowEditorCommands::Get().ToggleEnabledState,
-				FExecuteAction::CreateRaw(this, &SDataflowGraphEditor::ToggleEnabledState)
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::ToggleEnabledState)
+			);
+			GraphEditorCommands->MapAction(
+				FDataflowEditorCommands::Get().AddOptionPin,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::OnAddOptionPin),
+				FCanExecuteAction::CreateSP(this, &SDataflowGraphEditor::CanAddOptionPin)
+			);
+			GraphEditorCommands->MapAction(
+				FDataflowEditorCommands::Get().RemoveOptionPin,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::OnRemoveOptionPin),
+				FCanExecuteAction::CreateSP(this, &SDataflowGraphEditor::CanRemoveOptionPin)
 			);
 		}
 	}
@@ -334,6 +344,132 @@ void SDataflowGraphEditor::DistributeVertically()
 void SDataflowGraphEditor::ToggleEnabledState()
 {
 	FDataflowEditorCommands::ToggleEnabledState(DataflowAsset.Get());
+}
+
+void SDataflowGraphEditor::OnAddOptionPin()
+{
+	UDataflow* const Graph = DataflowAsset.Get();
+	FDataflowAssetEdit Edit = Graph->EditDataflow();
+	if (Dataflow::FGraph* const DataflowGraph = Edit.GetGraph())
+	{
+		const FGraphPanelSelectionSet& SelectedNodes = GetSelectedNodes();
+
+		// Iterate over all nodes, and add the pin
+		for (FGraphPanelSelectionSet::TConstIterator It(SelectedNodes); It; ++It)
+		{
+			UDataflowEdNode* const EdNode = CastChecked<UDataflowEdNode>(*It);
+
+			if (const TSharedPtr<FDataflowNode> Node = DataflowGraph->FindBaseNode(EdNode->DataflowNodeGuid))
+			{
+				if (Node->CanAddPin())
+				{
+					const FScopedTransaction Transaction(LOCTEXT("AddOptionPin", "Add Option Pin"));
+					EdNode->Modify();
+
+					EdNode->AddOptionPin();
+
+					const UDataflowSchema* const Schema = CastChecked<UDataflowSchema>(Graph->GetSchema());
+					Schema->ReconstructNode(*EdNode);
+				}
+			}
+		}
+	}
+}
+
+bool SDataflowGraphEditor::CanAddOptionPin() const
+{
+	bool bCanAddOptionPin = false;
+
+	const UDataflow* const Graph = DataflowAsset.Get();
+	if (const Dataflow::FGraph* const DataflowGraph = Graph->GetDataflow().Get())
+	{
+		const FGraphPanelSelectionSet& SelectedNodes = GetSelectedNodes();
+
+		// Iterate over all nodes, and add the pin
+		for (FGraphPanelSelectionSet::TConstIterator It(SelectedNodes); It; ++It)
+		{
+			const UDataflowEdNode* const EdNode = CastChecked<UDataflowEdNode>(*It);
+
+			if (const TSharedPtr<const FDataflowNode> Node = DataflowGraph->FindBaseNode(EdNode->DataflowNodeGuid))
+			{
+				bCanAddOptionPin = Node->CanAddPin();
+			}
+			else
+			{
+				bCanAddOptionPin = false;
+			}
+
+			if (!bCanAddOptionPin)
+			{
+				break;  // One bad node is good enough to return false
+			}
+		}
+	}
+
+	return bCanAddOptionPin;
+}
+
+void SDataflowGraphEditor::OnRemoveOptionPin()
+{
+	UDataflow* const Graph = DataflowAsset.Get();
+	FDataflowAssetEdit Edit = Graph->EditDataflow();
+	if (Dataflow::FGraph* const DataflowGraph = Edit.GetGraph())
+	{
+		const FGraphPanelSelectionSet& SelectedNodes = GetSelectedNodes();
+
+		// Iterate over all nodes, and remove a pin
+		for (FGraphPanelSelectionSet::TConstIterator It(SelectedNodes); It; ++It)
+		{
+			UDataflowEdNode* const EdNode = CastChecked<UDataflowEdNode>(*It);
+
+			if (const TSharedPtr<FDataflowNode> Node = DataflowGraph->FindBaseNode(EdNode->DataflowNodeGuid))
+			{
+				if (Node->CanRemovePin())
+				{
+					const FScopedTransaction Transaction(LOCTEXT("RemoveOptionPin", "Remove Option Pin"));
+					EdNode->Modify();
+
+					EdNode->RemoveOptionPin();
+
+					const UDataflowSchema* const Schema = CastChecked<UDataflowSchema>(Graph->GetSchema());
+					Schema->ReconstructNode(*EdNode);
+				}
+			}
+		}
+	}
+}
+
+bool SDataflowGraphEditor::CanRemoveOptionPin() const
+{
+	bool bCanRemoveOptionPin = false;
+
+	const UDataflow* const Graph = DataflowAsset.Get();
+	if (const Dataflow::FGraph* const DataflowGraph = Graph->GetDataflow().Get())
+	{
+		const FGraphPanelSelectionSet& SelectedNodes = GetSelectedNodes();
+
+		// Iterate over all nodes, and add the pin
+		for (FGraphPanelSelectionSet::TConstIterator It(SelectedNodes); It; ++It)
+		{
+			const UDataflowEdNode* const EdNode = CastChecked<UDataflowEdNode>(*It);
+
+			if (const TSharedPtr<const FDataflowNode> Node = DataflowGraph->FindBaseNode(EdNode->DataflowNodeGuid))
+			{
+				bCanRemoveOptionPin = Node->CanRemovePin();
+			}
+			else
+			{
+				bCanRemoveOptionPin = false;
+			}
+
+			if (!bCanRemoveOptionPin)
+			{
+				break;  // One bad node is good enough to return false
+			}
+		}
+	}
+
+	return bCanRemoveOptionPin;
 }
 
 #undef LOCTEXT_NAMESPACE

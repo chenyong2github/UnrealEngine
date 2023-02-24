@@ -63,6 +63,11 @@ public:
 	TSharedPtr<FDataflowNode> GetDataflowNode();
 	TSharedPtr<const FDataflowNode> GetDataflowNode() const;
 
+	/** Add a new option pin if the underlying Dataflow node AddPin member is overriden. */
+	void AddOptionPin();
+	/** Remove an option pin if the underlying Dataflow node RemovePin member is overriden. */
+	void RemoveOptionPin();
+
 	//
 	// Node Rendering
 	//

@@ -86,6 +86,14 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	TArray<Dataflow::FPin> GetPins() const;
 
+	/** Override this function to add the AddOptionPin functionality to the node's context menu. */
+	virtual Dataflow::FPin AddPin() { return { Dataflow::FPin::EDirection::NONE, NAME_None, NAME_None }; }
+	/** Override this function to add the AddOptionPin functionality to the node's context menu. */
+	virtual bool CanAddPin() const { return false; }
+	/** Override this function to add the RemoveOPtionPin functionality to the node's context menu. */
+	virtual Dataflow::FPin RemovePin() { return { Dataflow::FPin::EDirection::NONE, NAME_None, NAME_None }; }
+	/** Override this function to add the RemoveOPtionPin functionality to the node's context menu. */
+	virtual bool CanRemovePin() const { return false; }
 
 	virtual void AddInput(FDataflowInput* InPtr);
 	TArray< FDataflowInput* > GetInputs() const;
@@ -128,6 +136,8 @@ struct DATAFLOWCORE_API FDataflowNode
 	/** Register the Input and Outputs after the creation in the factory */
 	void RegisterInputConnection(const void* Property);
 	void RegisterOutputConnection(const void* Property, const void* Passthrough = nullptr);
+	/** Unregister the input connection if one exists matching this property, and then invalidate the graph. */
+	void UnregisterInputConnection(const void* Property);
 
 	//
 	// Evaluation

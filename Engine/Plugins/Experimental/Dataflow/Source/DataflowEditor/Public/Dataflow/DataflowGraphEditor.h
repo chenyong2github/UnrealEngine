@@ -117,6 +117,16 @@ public:
 	SGraphEditor* GetGraphEditor() { return (SGraphEditor*)this; }
 
 private:
+	/** Add an additional option pin to all selected Dataflow nodes for those that overrides the AddPin function. */
+	void OnAddOptionPin();
+	/** Return whether all currently selected Dataflow nodes can execute the AddPin function. */
+	bool CanAddOptionPin() const;
+
+	/** Remove an option pin from all selected Dataflow nodes for those that overrides the RemovePin function. */
+	void OnRemoveOptionPin();
+	/** Return whether all currently selected Dataflow nodes can execute the RemovePin function. */
+	bool CanRemoveOptionPin() const;
+
 	FDataflowEditorCommands::FOnDragDropEventCallback OnDragDropEventCallback;
 	FDataflowEditorCommands::FGraphEvaluationCallback EvaluateGraphCallback;
 

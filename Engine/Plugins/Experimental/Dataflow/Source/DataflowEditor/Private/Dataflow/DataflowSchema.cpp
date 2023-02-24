@@ -38,6 +38,8 @@ void UDataflowSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphN
 				Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
 				Section.AddMenuEntry(FDataflowEditorCommands::Get().ToggleEnabledState, FText::FromString("Toggle Enabled State"));
 				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+				Section.AddMenuEntry(FDataflowEditorCommands::Get().AddOptionPin);
+				Section.AddMenuEntry(FDataflowEditorCommands::Get().RemoveOptionPin);
 				Section.AddMenuEntry(FDataflowEditorCommands::Get().EvaluateNode);
 			}
 		}
