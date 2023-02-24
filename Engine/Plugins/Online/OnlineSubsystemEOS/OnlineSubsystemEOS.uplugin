@@ -19,6 +19,7 @@
 			"PlatformAllowList": [
 				"Win64",
 				"Mac",
+				"Linux",
 				"Android"
 			]
 		},
@@ -29,6 +30,7 @@
 			"PlatformAllowList": [
 				"Win64",
 				"Mac",
+				"Linux",
 				"Android"
 			]
 		}
