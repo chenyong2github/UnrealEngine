@@ -524,7 +524,7 @@ public:
 	 */
 	ENGINE_API FAudioDevice();
 
-	virtual ~FAudioDevice();
+	ENGINE_API virtual ~FAudioDevice() = default;
 
 	/** Returns an array of available audio devices names for the platform */
 	virtual void GetAudioDeviceList(TArray<FString>& OutAudioDeviceNames) const
