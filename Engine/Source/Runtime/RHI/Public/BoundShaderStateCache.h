@@ -164,7 +164,7 @@ private:
  * Handles removal from the bound shader state cache on destruction.
  * RHIs that use cached bound shader states should create one for each bound shader state.
  */
-class RHI_API FCachedBoundShaderStateLink
+class FCachedBoundShaderStateLink
 {
 public:
 
@@ -175,7 +175,7 @@ public:
 	FRHIBoundShaderState* BoundShaderState;
 
 	/** Adds the bound shader state to the cache. */
-	FCachedBoundShaderStateLink(
+	RHI_API FCachedBoundShaderStateLink(
 		FRHIVertexDeclaration* VertexDeclaration,
 		FRHIVertexShader* VertexShader,
 		FRHIPixelShader* PixelShader,
@@ -184,7 +184,7 @@ public:
 		);
 
 	/** Adds the bound shader state to the cache. */
-	FCachedBoundShaderStateLink(
+	RHI_API FCachedBoundShaderStateLink(
 		FRHIVertexDeclaration* VertexDeclaration,
 		FRHIVertexShader* VertexShader,
 		FRHIPixelShader* PixelShader,
@@ -194,7 +194,7 @@ public:
 	);
 
 	/** Adds the bound shader state to the cache. */
-	FCachedBoundShaderStateLink(
+	RHI_API FCachedBoundShaderStateLink(
 		FRHIMeshShader* MeshShader,
 		FRHIAmplificationShader* AmplificationShader,
 		FRHIPixelShader* PixelShader,
@@ -203,7 +203,7 @@ public:
 	);
 
 	/** Destructor.  Removes the bound shader state from the cache. */
-	~FCachedBoundShaderStateLink();
+	RHI_API ~FCachedBoundShaderStateLink();
 
 	/**
 	 * Get the RHI shader for the given frequency.
@@ -240,7 +240,7 @@ extern RHI_API FCachedBoundShaderStateLink* GetCachedBoundShaderState(
 
 extern RHI_API void EmptyCachedBoundShaderStates();
 
-class RHI_API FCachedBoundShaderStateLink_Threadsafe : public FCachedBoundShaderStateLink
+class FCachedBoundShaderStateLink_Threadsafe : public FCachedBoundShaderStateLink
 {
 public:
 	/** Adds the bound shader state to the cache. */
@@ -277,8 +277,8 @@ public:
 	{
 	}
 
-	void AddToCache();
-	void RemoveFromCache();
+	RHI_API void AddToCache();
+	RHI_API void RemoveFromCache();
 };
 
 /**

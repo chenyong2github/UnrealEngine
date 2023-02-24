@@ -47,18 +47,18 @@ struct TRHIBreadcrumbState
 
 using FRHIBreadcrumbState = TRHIBreadcrumbState<>;
 
-class RHI_API FRHIBreadcrumbStack
+class FRHIBreadcrumbStack
 {
 public:
-	void Reset();
+	RHI_API void Reset();
 
-	FRHIBreadcrumb* PushBreadcrumb(FMemStackBase& Allocator, const TCHAR* InText, int32 InLen = 0);
+	RHI_API FRHIBreadcrumb* PushBreadcrumb(FMemStackBase& Allocator, const TCHAR* InText, int32 InLen = 0);
 
-	FRHIBreadcrumb* PushBreadcrumbPrintf(FMemStackBase& Allocator, const TCHAR* InFormat, ...);
+	RHI_API FRHIBreadcrumb* PushBreadcrumbPrintf(FMemStackBase& Allocator, const TCHAR* InFormat, ...);
 
-	FRHIBreadcrumb* PopBreadcrumb();
+	RHI_API FRHIBreadcrumb* PopBreadcrumb();
 
-	FRHIBreadcrumb* PopFirstUnsubmittedBreadcrumb();
+	RHI_API FRHIBreadcrumb* PopFirstUnsubmittedBreadcrumb();
 
 	template <typename AllocatorType>
 	void ExportBreadcrumbState(TRHIBreadcrumbState<AllocatorType>& State) const
@@ -93,14 +93,14 @@ public:
 		}
 	}
 
-	void DeepCopy(FMemStackBase& Allocator, const FRHIBreadcrumbStack& Parent);
+	RHI_API void DeepCopy(FMemStackBase& Allocator, const FRHIBreadcrumbStack& Parent);
 
-	void ValidateEmpty() const;
+	RHI_API void ValidateEmpty() const;
 
-	void DebugLog() const;
+	RHI_API void DebugLog() const;
 
 #if WITH_ADDITIONAL_CRASH_CONTEXTS
-	static void WriteRenderBreadcrumbs(struct FCrashContextExtendedWriter& Writer, const FRHIBreadcrumb** BreadcrumbStack, uint32 BreadcrumbStackIndex, const TCHAR* ThreadName);
+	RHI_API static void WriteRenderBreadcrumbs(struct FCrashContextExtendedWriter& Writer, const FRHIBreadcrumb** BreadcrumbStack, uint32 BreadcrumbStackIndex, const TCHAR* ThreadName);
 #endif
 
 private:

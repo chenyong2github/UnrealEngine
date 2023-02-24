@@ -382,7 +382,7 @@ namespace RHIValidation
 	public:
 	};
 
-	class RHI_API FTextureResource
+	class FTextureResource
 	{
 	private:
 		// Don't use inheritance here. Because FRHITextureReferences exist, we have to
@@ -391,13 +391,13 @@ namespace RHIValidation
 
 	public:
 		FTextureResource() = default;
-		FTextureResource(FRHITextureCreateDesc const& CreateDesc);
+		RHI_API FTextureResource(FRHITextureCreateDesc const& CreateDesc);
 
 		virtual ~FTextureResource() {}
 
 		virtual FResource* GetTrackerResource() { return &PRIVATE_TrackerResource; }
 
-		void InitBarrierTracking(FRHITextureCreateDesc const& CreateDesc);
+		RHI_API void InitBarrierTracking(FRHITextureCreateDesc const& CreateDesc);
 
 		inline bool IsBarrierTrackingInitialized() const
 		{
@@ -406,10 +406,10 @@ namespace RHIValidation
 			return const_cast<FTextureResource*>(this)->GetTrackerResource()->IsBarrierTrackingInitialized();
 		}
 
-		void InitBarrierTracking(int32 InNumMips, int32 InNumArraySlices, EPixelFormat PixelFormat, ETextureCreateFlags Flags, ERHIAccess InResourceState, const TCHAR* InDebugName);
+		RHI_API void InitBarrierTracking(int32 InNumMips, int32 InNumArraySlices, EPixelFormat PixelFormat, ETextureCreateFlags Flags, ERHIAccess InResourceState, const TCHAR* InDebugName);
 
-		FResourceIdentity GetViewIdentity(uint32 InMipIndex, uint32 InNumMips, uint32 InArraySlice, uint32 InNumArraySlices, uint32 InPlaneIndex, uint32 InNumPlanes);
-		FResourceIdentity GetTransitionIdentity(const FRHITransitionInfo& Info);
+		RHI_API FResourceIdentity GetViewIdentity(uint32 InMipIndex, uint32 InNumMips, uint32 InArraySlice, uint32 InNumArraySlices, uint32 InPlaneIndex, uint32 InNumPlanes);
+		RHI_API FResourceIdentity GetTransitionIdentity(const FRHITransitionInfo& Info);
 
 		inline FResourceIdentity GetWholeResourceIdentity()
 		{

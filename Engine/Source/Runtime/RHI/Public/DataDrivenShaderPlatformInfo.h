@@ -14,7 +14,7 @@ extern RHI_API const FName LANGUAGE_Vulkan;
 extern RHI_API const FName LANGUAGE_Sony;
 extern RHI_API const FName LANGUAGE_Nintendo;
 
-class RHI_API FGenericDataDrivenShaderPlatformInfo
+class FGenericDataDrivenShaderPlatformInfo
 {
 	FName Name;
 	FName Language;
@@ -127,13 +127,13 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 		SetDefaultValues();
 	}
 
-	void SetDefaultValues();
+	RHI_API void SetDefaultValues();
 
 public:
-	static void Initialize();
-	static void UpdatePreviewPlatforms();
-	static void ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info);
-	static const EShaderPlatform GetShaderPlatformFromName(const FName ShaderPlatformName);
+	RHI_API static void Initialize();
+	RHI_API static void UpdatePreviewPlatforms();
+	RHI_API static void ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info);
+	RHI_API static const EShaderPlatform GetShaderPlatformFromName(const FName ShaderPlatformName);
 
 	static FORCEINLINE_DEBUGGABLE const FName GetName(const FStaticShaderPlatform Platform)
 	{
@@ -750,16 +750,16 @@ public:
 	}
 
 #if WITH_EDITOR
-	static FText GetFriendlyName(const FStaticShaderPlatform Platform);
+	RHI_API static FText GetFriendlyName(const FStaticShaderPlatform Platform);
 #endif
 
 private:
-	static FGenericDataDrivenShaderPlatformInfo Infos[SP_NumPlatforms];
+	RHI_API static FGenericDataDrivenShaderPlatformInfo Infos[SP_NumPlatforms];
 
 public:
 
 #if WITH_EDITOR
-	static TMap < FString, TFunction<bool(const FStaticShaderPlatform Platform)>> PropertyToShaderPlatformFunctionMap;
+	RHI_API static TMap < FString, TFunction<bool(const FStaticShaderPlatform Platform)>> PropertyToShaderPlatformFunctionMap;
 #endif
 
 	static bool IsValid(const FStaticShaderPlatform Platform)

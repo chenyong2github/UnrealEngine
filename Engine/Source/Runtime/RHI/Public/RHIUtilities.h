@@ -527,17 +527,17 @@ inline uint32 ComputeAnisotropyRT(int32 InitializerMaxAnisotropy)
 #define ENABLE_TRANSITION_DUMP 1
 #endif
 
-class RHI_API FDumpTransitionsHelper
+class FDumpTransitionsHelper
 {
 public:
-	static void DumpResourceTransition(const FName& ResourceName, const ERHIAccess TransitionType);
+	RHI_API static void DumpResourceTransition(const FName& ResourceName, const ERHIAccess TransitionType);
 	
 private:
-	static void DumpTransitionForResourceHandler();
+	RHI_API static void DumpTransitionForResourceHandler();
 
-	static TAutoConsoleVariable<FString> CVarDumpTransitionsForResource;
-	static FAutoConsoleVariableSink CVarDumpTransitionsForResourceSink;
-	static FName DumpTransitionForResource;
+	RHI_API static TAutoConsoleVariable<FString> CVarDumpTransitionsForResource;
+	RHI_API static FAutoConsoleVariableSink CVarDumpTransitionsForResourceSink;
+	RHI_API static FName DumpTransitionForResource;
 };
 
 #if ENABLE_TRANSITION_DUMP

@@ -17,7 +17,7 @@
  * FRHIGPUMemoryReadback: Represents a memory readback request scheduled with CopyToStagingBuffer
  * Wraps a staging buffer with a FRHIGPUFence for synchronization.
  */
-class RHI_API FRHIGPUMemoryReadback
+class FRHIGPUMemoryReadback
 {
 public:
 
@@ -87,16 +87,16 @@ protected:
 };
 
 /** Buffer readback implementation. */
-class RHI_API FRHIGPUBufferReadback final : public FRHIGPUMemoryReadback
+class FRHIGPUBufferReadback final : public FRHIGPUMemoryReadback
 {
 public:
 
-	FRHIGPUBufferReadback(FName RequestName);
+	RHI_API FRHIGPUBufferReadback(FName RequestName);
 	 
-	void EnqueueCopy(FRHICommandList& RHICmdList, FRHIBuffer* SourceBuffer, uint32 NumBytes = 0) override;
-	void* Lock(uint32 NumBytes) override;
-	void Unlock() override;
-	uint64 GetGPUSizeBytes() const;
+	RHI_API void EnqueueCopy(FRHICommandList& RHICmdList, FRHIBuffer* SourceBuffer, uint32 NumBytes = 0) override;
+	RHI_API void* Lock(uint32 NumBytes) override;
+	RHI_API void Unlock() override;
+	RHI_API uint64 GetGPUSizeBytes() const;
 
 private:
 
@@ -110,26 +110,26 @@ private:
 
 
 /** Texture readback implementation. */
-class RHI_API FRHIGPUTextureReadback final : public FRHIGPUMemoryReadback
+class FRHIGPUTextureReadback final : public FRHIGPUMemoryReadback
 {
 public:
-	FRHIGPUTextureReadback(FName RequestName);
+	RHI_API FRHIGPUTextureReadback(FName RequestName);
 
 	UE_DEPRECATED(5.1, "EnqueueCopyRDG is deprecated. Use EnqueueCopy instead.")
-	void EnqueueCopyRDG(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect = FResolveRect());
+	RHI_API void EnqueueCopyRDG(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect = FResolveRect());
 
-	void EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect = FResolveRect()) override;
-
-	UE_DEPRECATED(5.0, "Use FRHIGPUTextureReadback::Lock( int32& OutRowPitchInPixels) instead.")
-	void* Lock(uint32 NumBytes) override;
-
-	void* Lock(int32& OutRowPitchInPixels, int32* OutBufferHeight = nullptr);
-	void Unlock() override;
+	RHI_API void EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect = FResolveRect()) override;
 
 	UE_DEPRECATED(5.0, "Use FRHIGPUTextureReadback::Lock( int32& OutRowPitchInPixels) instead.")
-	void LockTexture(FRHICommandListImmediate& RHICmdList, void*& OutBufferPtr, int32& OutRowPitchInPixels);
+	RHI_API void* Lock(uint32 NumBytes) override;
 
-	uint64 GetGPUSizeBytes() const;
+	RHI_API void* Lock(int32& OutRowPitchInPixels, int32* OutBufferHeight = nullptr);
+	RHI_API void Unlock() override;
+
+	UE_DEPRECATED(5.0, "Use FRHIGPUTextureReadback::Lock( int32& OutRowPitchInPixels) instead.")
+	RHI_API void LockTexture(FRHICommandListImmediate& RHICmdList, void*& OutBufferPtr, int32& OutRowPitchInPixels);
+
+	RHI_API uint64 GetGPUSizeBytes() const;
 
 #if WITH_MGPU
 	FTextureRHIRef DestinationStagingTextures[MAX_NUM_GPUS];

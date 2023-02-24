@@ -17,21 +17,21 @@ class FRHITexture;
 /**
 * FTextureProfiler class. This manages recording and reporting texture allocations in the RHI
 */
-class RHI_API FTextureProfiler
+class FTextureProfiler
 {
 	static FTextureProfiler* Instance;
 public:
 	// Singleton interface
-	static FTextureProfiler* Get();
+	RHI_API static FTextureProfiler* Get();
 
-	void Init();
+	RHI_API void Init();
 
-	void DumpTextures(bool RenderTargets, bool CombineTextureNames, bool AsCSV, FOutputDevice& OutputDevice);
+	RHI_API void DumpTextures(bool RenderTargets, bool CombineTextureNames, bool AsCSV, FOutputDevice& OutputDevice);
 
-	void AddTextureAllocation(FRHITexture* UniqueTexturePtr, size_t Size, uint32 Alignment, size_t AllocationWaste);
-	void UpdateTextureAllocation(FRHITexture* UniqueTexturePtr, size_t Size, uint32 Alignment, size_t AllocationWaste);
-	void RemoveTextureAllocation(FRHITexture* UniqueTexturePtr);
-	void UpdateTextureName(FRHITexture* UniqueTexturePtr);
+	RHI_API void AddTextureAllocation(FRHITexture* UniqueTexturePtr, size_t Size, uint32 Alignment, size_t AllocationWaste);
+	RHI_API void UpdateTextureAllocation(FRHITexture* UniqueTexturePtr, size_t Size, uint32 Alignment, size_t AllocationWaste);
+	RHI_API void RemoveTextureAllocation(FRHITexture* UniqueTexturePtr);
+	RHI_API void UpdateTextureName(FRHITexture* UniqueTexturePtr);
 
 private:
 
@@ -39,10 +39,10 @@ private:
 	FTextureProfiler(const FTextureProfiler&) = delete;
 	FTextureProfiler(FTextureProfiler&&) = delete;
 
-	void Update();
+	RHI_API void Update();
 
 	// Should only be used by FTextureDetails
-	const char* GetTextureNameString(FName TextureName);
+	RHI_API const char* GetTextureNameString(FName TextureName);
 
 	FCriticalSection TextureMapCS;
 
@@ -50,19 +50,19 @@ private:
 	{
 	public:
 		FTextureDetails() = default;
-		FTextureDetails(FRHITexture* Texture, size_t InSize, uint32 InAlign, size_t InAllocationWaste);
-		~FTextureDetails();
+		RHI_API FTextureDetails(FRHITexture* Texture, size_t InSize, uint32 InAlign, size_t InAllocationWaste);
+		RHI_API ~FTextureDetails();
 		
-		void SetName(FName InTextureName);
+		RHI_API void SetName(FName InTextureName);
 
-		void ResetPeakSize();
-		void SetValues(const FTextureDetails& Values);
+		RHI_API void ResetPeakSize();
+		RHI_API void SetValues(const FTextureDetails& Values);
 		FName GetTextureName() const { return TextureName; }
 		const char* GetTextureNameString() const { check(TextureNameString != nullptr);  return TextureNameString; }
 
-		FTextureDetails& operator+=(const FTextureDetails& Other);
-		FTextureDetails& operator-=(const FTextureDetails& Other);
-		FTextureDetails& operator=(const FTextureDetails& Other) = default;
+		RHI_API FTextureDetails& operator+=(const FTextureDetails& Other);
+		RHI_API FTextureDetails& operator-=(const FTextureDetails& Other);
+		RHI_API FTextureDetails& operator=(const FTextureDetails& Other) = default;
 
 		size_t Size = 0;
 		size_t PeakSize = 0;

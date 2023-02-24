@@ -873,13 +873,13 @@ public:
 	FRHIRayHitGroupShader() : FRHIRayTracingShader(SF_RayHitGroup) {}
 };
 
-class RHI_API FRHIComputeShader : public FRHIShader
+class FRHIComputeShader : public FRHIShader
 {
 public:
 	FRHIComputeShader() : FRHIShader(RRT_ComputeShader, SF_Compute), Stats(nullptr) {}
 	
 	inline void SetStats(struct FPipelineStateStats* Ptr) { Stats = Ptr; }
-	void UpdateStats();
+	RHI_API void UpdateStats();
 	
 private:
 	struct FPipelineStateStats* Stats;
@@ -1388,13 +1388,14 @@ private:
 // Textures
 //
 
-class RHI_API FLastRenderTimeContainer
+class FLastRenderTimeContainer
 {
 public:
 	FLastRenderTimeContainer() : LastRenderTime(-FLT_MAX) {}
 
 	double GetLastRenderTime() const { return LastRenderTime; }
-	FORCEINLINE_DEBUGGABLE void SetLastRenderTime(double InLastRenderTime) 
+
+	void SetLastRenderTime(double InLastRenderTime) 
 	{ 
 		// avoid dirty caches from redundant writes
 		if (LastRenderTime != InLastRenderTime)
@@ -1410,7 +1411,7 @@ private:
 
 
 /** Descriptor used to create a texture resource */
-struct RHI_API FRHITextureDesc
+struct FRHITextureDesc
 {
 	FRHITextureDesc()
 		: NumSamples(1)
@@ -1589,14 +1590,15 @@ struct RHI_API FRHITextureDesc
 	 * @param FirstMipIndex - the index of the most detailed mip to consider in the memory size calculation. Must be < NumMips and <= LastMipIndex.
 	 * @param LastMipIndex  - the index of the least detailed mip to consider in the memory size calculation. Must be < NumMips and >= FirstMipIndex.
 	 */
-	uint64 CalcMemorySizeEstimate(uint32 FirstMipIndex, uint32 LastMipIndex) const;
+	RHI_API uint64 CalcMemorySizeEstimate(uint32 FirstMipIndex, uint32 LastMipIndex) const;
+
 	uint64 CalcMemorySizeEstimate(uint32 FirstMipIndex = 0) const
 	{
 		return CalcMemorySizeEstimate(FirstMipIndex, NumMips - 1);
 	}
 
 private:
-	static bool Validate(const FRHITextureDesc& Desc, const TCHAR* Name, bool bFatal);
+	RHI_API static bool Validate(const FRHITextureDesc& Desc, const TCHAR* Name, bool bFatal);
 };
 
 // @todo deprecate
@@ -1757,14 +1759,14 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 	FResourceBulkDataInterface* BulkData = nullptr;
 };
 
-class RHI_API FRHITexture : public FRHIViewableResource
+class FRHITexture : public FRHIViewableResource
 #if ENABLE_RHI_VALIDATION
 	, public RHIValidation::FTextureResource
 #endif
 {
 protected:
 	/** Initialization constructor. Should only be called by platform RHI implementations. */
-	FRHITexture(const FRHITextureCreateDesc& InDesc);
+	RHI_API FRHITexture(const FRHITextureCreateDesc& InDesc);
 
 public:
 	/**
@@ -1913,7 +1915,7 @@ public:
 		return LastRenderTime.GetLastRenderTime();
 	}
 
-	void SetName(const FName& InName);
+	RHI_API void SetName(const FName& InName);
 
 	///
 	/// Deprecated functions
@@ -1986,7 +1988,7 @@ private:
 // Misc
 //
 
-class RHI_API FRHITimestampCalibrationQuery : public FRHIResource
+class FRHITimestampCalibrationQuery : public FRHIResource
 {
 public:
 	FRHITimestampCalibrationQuery() : FRHIResource(RRT_TimestampCalibrationQuery) {}
@@ -2001,7 +2003,7 @@ public:
 * The default implementation always returns false for Poll until the next frame from the frame the fence was inserted
 * because not all APIs have a GPU/CPU sync object, we need to fake it.
 */
-class RHI_API FRHIGPUFence : public FRHIResource
+class FRHIGPUFence : public FRHIResource
 {
 public:
 	FRHIGPUFence(FName InName) : FRHIResource(RRT_GPUFence), FenceName(InName) {}
@@ -2029,17 +2031,17 @@ protected:
 };
 
 // Generic implementation of FRHIGPUFence
-class RHI_API FGenericRHIGPUFence : public FRHIGPUFence
+class FGenericRHIGPUFence : public FRHIGPUFence
 {
 public:
-	FGenericRHIGPUFence(FName InName);
+	RHI_API FGenericRHIGPUFence(FName InName);
 
-	virtual void Clear() final override;
+	RHI_API virtual void Clear() final override;
 
 	/** @discussion RHI implementations must be thread-safe and must correctly handle being called before RHIInsertFence if an RHI thread is active. */
-	virtual bool Poll() const final override;
+	RHI_API virtual bool Poll() const final override;
 
-	void WriteInternal();
+	RHI_API void WriteInternal();
 
 private:
 	uint32 InsertedFrameNumber;
@@ -2052,7 +2054,8 @@ public:
 };
 
 class FRHIRenderQueryPool;
-class RHI_API FRHIPooledRenderQuery
+
+class FRHIPooledRenderQuery
 {
 	TRefCountPtr<FRHIRenderQuery> Query;
 	FRHIRenderQueryPool* QueryPool = nullptr;
@@ -2080,7 +2083,7 @@ public:
 	void ReleaseQuery();
 };
 
-class RHI_API FRHIRenderQueryPool : public FRHIResource
+class FRHIRenderQueryPool : public FRHIResource
 {
 public:
 	FRHIRenderQueryPool() : FRHIResource(RRT_RenderQueryPool) {}
@@ -2257,21 +2260,21 @@ public:
  * It is not comparable or convertible to other name types to encourage its use only for debugging and avoid using more storage than necessary
  * for the primary use cases of FName (names of objects, assets etc which are widely used and therefor deduped in the name table).
  */
-class RHI_API FDebugName
+class FDebugName
 {
 	DECLARE_INLINE_TYPE_LAYOUT(FDebugName, NonVirtual);
 
 public:
-	FDebugName();
-	FDebugName(FName InName);
-	FDebugName(FName InName, int32 InNumber);
-	FDebugName(FMemoryImageName InName, int32 InNumber);
+	RHI_API FDebugName();
+	RHI_API FDebugName(FName InName);
+	RHI_API FDebugName(FName InName, int32 InNumber);
+	RHI_API FDebugName(FMemoryImageName InName, int32 InNumber);
 
-	FDebugName& operator=(FName Other);
+	RHI_API FDebugName& operator=(FName Other);
 
-	FString ToString() const;
+	RHI_API FString ToString() const;
 	bool IsNone() const { return Name.IsNone() && Number == NAME_NO_NUMBER_INTERNAL; }
-	void AppendString(FStringBuilderBase& Builder) const;
+	RHI_API void AppendString(FStringBuilderBase& Builder) const;
 
 private:
 	LAYOUT_FIELD(FMemoryImageName, Name);
@@ -2583,7 +2586,7 @@ public:
 /* Generic staging buffer class used by FRHIGPUMemoryReadback
 * RHI specific staging buffers derive from this
 */
-class RHI_API FRHIStagingBuffer : public FRHIResource
+class FRHIStagingBuffer : public FRHIResource
 {
 public:
 	FRHIStagingBuffer()
@@ -2603,7 +2606,7 @@ protected:
 	bool bIsLocked;
 };
 
-class RHI_API FGenericRHIStagingBuffer : public FRHIStagingBuffer
+class FGenericRHIStagingBuffer : public FRHIStagingBuffer
 {
 public:
 	FGenericRHIStagingBuffer()
@@ -2612,8 +2615,8 @@ public:
 
 	~FGenericRHIStagingBuffer() {}
 
-	virtual void* Lock(uint32 Offset, uint32 NumBytes) final override;
-	virtual void Unlock() final override;
+	RHI_API virtual void* Lock(uint32 Offset, uint32 NumBytes) final override;
+	RHI_API virtual void Unlock() final override;
 	virtual uint64 GetGPUSizeBytes() const final override { return ShadowBuffer.IsValid() ? ShadowBuffer->GetSize() : 0; }
 
 	FBufferRHIRef ShadowBuffer;
@@ -4020,7 +4023,7 @@ enum ERHITextureSRVOverrideSRGBType : uint8
 	SRGBO_ForceDisable,
 };
 
-struct RHI_API FRHITextureSRVCreateInfo
+struct FRHITextureSRVCreateInfo
 {
 	explicit FRHITextureSRVCreateInfo(uint8 InMipLevel = 0u, uint8 InNumMipLevels = 1u, EPixelFormat InFormat = PF_Unknown)
 		: Format(InFormat)
@@ -4093,7 +4096,7 @@ struct RHI_API FRHITextureSRVCreateInfo
 	}
 
 protected:
-	static bool Validate(const FRHITextureDesc& TextureDesc, const FRHITextureSRVCreateInfo& TextureSRVDesc, const TCHAR* TextureName, bool bFatal);
+	RHI_API static bool Validate(const FRHITextureDesc& TextureDesc, const FRHITextureSRVCreateInfo& TextureSRVDesc, const TCHAR* TextureName, bool bFatal);
 };
 
 struct FRHITextureUAVCreateInfo
@@ -4242,18 +4245,18 @@ struct FRHIBufferUAVCreateInfo
 	bool bSupportsAppendBuffer = false;
 };
 
-class RHI_API FRHITextureViewCache
+class FRHITextureViewCache
 {
 public:
 	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIUnorderedAccessView* GetOrCreateUAV(FRHITexture* Texture, const FRHITextureUAVCreateInfo& CreateInfo);
+	RHI_API FRHIUnorderedAccessView* GetOrCreateUAV(FRHITexture* Texture, const FRHITextureUAVCreateInfo& CreateInfo);
 
 	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIShaderResourceView* GetOrCreateSRV(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo);
+	RHI_API FRHIShaderResourceView* GetOrCreateSRV(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo);
 
 	// Sets the debug name of the RHI view resources.
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	void SetDebugName(const TCHAR* DebugName);
+	RHI_API void SetDebugName(const TCHAR* DebugName);
 #else
 	void SetDebugName(const TCHAR* DebugName) {}
 #endif
@@ -4263,18 +4266,18 @@ private:
 	TArray<TPair<FRHITextureSRVCreateInfo, FShaderResourceViewRHIRef>, TInlineAllocator<1>> SRVs;
 };
 
-class RHI_API FRHIBufferViewCache
+class FRHIBufferViewCache
 {
 public:
 	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIUnorderedAccessView* GetOrCreateUAV(FRHIBuffer* Buffer, const FRHIBufferUAVCreateInfo& CreateInfo);
+	RHI_API FRHIUnorderedAccessView* GetOrCreateUAV(FRHIBuffer* Buffer, const FRHIBufferUAVCreateInfo& CreateInfo);
 
 	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIShaderResourceView* GetOrCreateSRV(FRHIBuffer* Buffer, const FRHIBufferSRVCreateInfo& CreateInfo);
+	RHI_API FRHIShaderResourceView* GetOrCreateSRV(FRHIBuffer* Buffer, const FRHIBufferSRVCreateInfo& CreateInfo);
 
 	// Sets the debug name of the RHI view resources.
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	void SetDebugName(const TCHAR* DebugName);
+	RHI_API void SetDebugName(const TCHAR* DebugName);
 #else
 	void SetDebugName(const TCHAR* DebugName) {}
 #endif

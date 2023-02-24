@@ -235,7 +235,7 @@ private:
 	ERHITransientResourceType ResourceType;
 };
 
-class RHI_API FRHITransientTexture final : public FRHITransientResource
+class FRHITransientTexture final : public FRHITransientResource
 {
 public:
 	FRHITransientTexture(
@@ -251,7 +251,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//! Internal Allocator API
-	void Acquire(const TCHAR* InName, uint32 InAcquirePassIndex, uint64 InInitCycle) override;
+	RHI_API void Acquire(const TCHAR* InName, uint32 InAcquirePassIndex, uint64 InInitCycle) override;
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 	// Returns the underlying RHI texture.
@@ -273,7 +273,7 @@ public:
 	FRHITextureViewCache ViewCache;
 };
 
-class RHI_API FRHITransientBuffer final : public FRHITransientResource
+class FRHITransientBuffer final : public FRHITransientResource
 {
 public:
 	FRHITransientBuffer(
@@ -289,7 +289,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//! Internal Allocator API
-	void Acquire(const TCHAR* InName, uint32 InAcquirePassIndex, uint64 InInitCycle) override;
+	RHI_API void Acquire(const TCHAR* InName, uint32 InAcquirePassIndex, uint64 InInitCycle) override;
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 	// Returns the underlying RHI buffer.

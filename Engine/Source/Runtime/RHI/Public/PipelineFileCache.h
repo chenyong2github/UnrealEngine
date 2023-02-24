@@ -317,7 +317,7 @@ struct FPSOUsageData
 	uint16 EngineFlags;
 };
 
-class RHI_API FPipelineFileCacheManager
+class FPipelineFileCacheManager
 {
     friend class FPipelineCacheFile;
 public:
@@ -336,40 +336,40 @@ public:
 
 public:
 	
-	static void Initialize(uint32 GameVersion);
-	static void Shutdown();
+	RHI_API static void Initialize(uint32 GameVersion);
+	RHI_API static void Shutdown();
 	
-	static bool LoadPipelineFileCacheInto(FString const& Path, TSet<FPipelineCacheFileFormatPSO>& PSOs);
-	static bool SavePipelineFileCacheFrom(uint32 GameVersion, EShaderPlatform Platform, FString const& Path, const TSet<FPipelineCacheFileFormatPSO>& PSOs);
-	static bool MergePipelineFileCaches(FString const& PathA, FString const& PathB, FPipelineFileCacheManager::PSOOrder Order, FString const& OutputPath);
+	RHI_API static bool LoadPipelineFileCacheInto(FString const& Path, TSet<FPipelineCacheFileFormatPSO>& PSOs);
+	RHI_API static bool SavePipelineFileCacheFrom(uint32 GameVersion, EShaderPlatform Platform, FString const& Path, const TSet<FPipelineCacheFileFormatPSO>& PSOs);
+	RHI_API static bool MergePipelineFileCaches(FString const& PathA, FString const& PathB, FPipelineFileCacheManager::PSOOrder Order, FString const& OutputPath);
 																				
 	/* Open the pipeline file cache for the specfied name and platform. If successful, the GUID of the game file will be returned in OutGameFileGuid */
-	static bool OpenPipelineFileCache(const FString& Key, const FString& CacheName, EShaderPlatform Platform, FGuid& OutGameFileGuid);
+	RHI_API static bool OpenPipelineFileCache(const FString& Key, const FString& CacheName, EShaderPlatform Platform, FGuid& OutGameFileGuid);
 
 	/* Open the user pipeline file cache for the specified name and platform. The user cache is always created even if the file was not present when opened.
 	* Name is the name used when opening the file, the key value for the user cache is held within UserCacheName.
 	* returns true if the file was opened.
 	*/
-	static bool OpenUserPipelineFileCache(const FString& Key, const FString& CacheName, EShaderPlatform Platform, FGuid& OutGameFileGuid);
+	RHI_API static bool OpenUserPipelineFileCache(const FString& Key, const FString& CacheName, EShaderPlatform Platform, FGuid& OutGameFileGuid);
 
-	static bool SavePipelineFileCache(SaveMode Mode);
+	RHI_API static bool SavePipelineFileCache(SaveMode Mode);
 
-	static void CloseUserPipelineFileCache();
+	RHI_API static void CloseUserPipelineFileCache();
 
-	static void CacheGraphicsPSO(uint32 RunTimeHash, FGraphicsPipelineStateInitializer const& Initializer);
-	static void CacheComputePSO(uint32 RunTimeHash, FRHIComputeShader const* Initializer);
-	static void CacheRayTracingPSO(const FRayTracingPipelineStateInitializer& Initializer, ERayTracingPipelineCacheFlags Flags);
+	RHI_API static void CacheGraphicsPSO(uint32 RunTimeHash, FGraphicsPipelineStateInitializer const& Initializer);
+	RHI_API static void CacheComputePSO(uint32 RunTimeHash, FRHIComputeShader const* Initializer);
+	RHI_API static void CacheRayTracingPSO(const FRayTracingPipelineStateInitializer& Initializer, ERayTracingPipelineCacheFlags Flags);
 
 	// true if the named PSOFC is currently open.
-	static bool HasPipelineFileCache(const FString& PSOCacheKey);
+	RHI_API static bool HasPipelineFileCache(const FString& PSOCacheKey);
 
-	static FPipelineStateStats* RegisterPSOStats(uint32 RunTimeHash);
+	RHI_API static FPipelineStateStats* RegisterPSOStats(uint32 RunTimeHash);
 	
 	/*
 	 * This PSO has failed compile and is invalid - this cache should not return this invalid PSO from subsequent calls for PreCompile requests.
 	 * Note: Not implementated for Compute that has no flag to say it came from this cache - don't want to consume failures that didn't propagate from this cache.
 	 */
-	static void RegisterPSOCompileFailure(uint32 RunTimeHash, FGraphicsPipelineStateInitializer const& Initializer);
+	RHI_API static void RegisterPSOCompileFailure(uint32 RunTimeHash, FGraphicsPipelineStateInitializer const& Initializer);
 	
 	/**
 	 * Event signature for being notified that a new PSO has been logged
@@ -379,20 +379,20 @@ public:
 	/**
 	 * Gets the event delegate to register for pipeline state logging events.
 	 */
-	static FPipelineStateLoggedEvent& OnPipelineStateLogged();
+	RHI_API static FPipelineStateLoggedEvent& OnPipelineStateLogged();
 	
-	static void GetOrderedPSOHashes(const FString& PSOCacheKey, TArray<FPipelineCachePSOHeader>& PSOHashes, PSOOrder Order, int64 MinBindCount, TSet<uint32> const& AlreadyCompiledHashes);
-	static void FetchPSODescriptors(const FString& PSOCacheKey, TDoubleLinkedList<FPipelineCacheFileFormatPSORead*>& LoadedBatch);
+	RHI_API static void GetOrderedPSOHashes(const FString& PSOCacheKey, TArray<FPipelineCachePSOHeader>& PSOHashes, PSOOrder Order, int64 MinBindCount, TSet<uint32> const& AlreadyCompiledHashes);
+	RHI_API static void FetchPSODescriptors(const FString& PSOCacheKey, TDoubleLinkedList<FPipelineCacheFileFormatPSORead*>& LoadedBatch);
 
-	static int32 GetTotalPSOCount(const FString& PSOCacheKey);
+	RHI_API static int32 GetTotalPSOCount(const FString& PSOCacheKey);
 
-	static uint32 NumPSOsLogged();
+	RHI_API static uint32 NumPSOsLogged();
 	
-	static bool IsPipelineFileCacheEnabled();
-	static bool LogPSOtoFileCache();
-    static bool ReportNewPSOs();
+	RHI_API static bool IsPipelineFileCacheEnabled();
+	RHI_API static bool LogPSOtoFileCache();
+	RHI_API static bool ReportNewPSOs();
 	/* Report additional data about new PSOs to the log. */
-	static bool LogPSODetails();
+	RHI_API static bool LogPSODetails();
 	
 	/**
 	 * Define the Current Game Usage Mask and a comparison function to compare this mask against the recorded mask in each PSO
@@ -400,10 +400,10 @@ public:
 	 * @param InComparisonFnPtr Pointer to the comparsion function - see above FPSOMaskComparisonFn definition for details
 	 * @returns the old mask
 	 */
-	static uint64 SetGameUsageMaskWithComparison(uint64 GameUsageMask, FPSOMaskComparisonFn InComparisonFnPtr);
+	RHI_API static uint64 SetGameUsageMaskWithComparison(uint64 GameUsageMask, FPSOMaskComparisonFn InComparisonFnPtr);
 	static uint64 GetGameUsageMask()	{ return GameUsageMask;}
 	
-	static void PreCompileComplete();
+	RHI_API static void PreCompileComplete();
 private:
 	
 	static void RegisterPSOUsageDataUpdateForNextSave(FPSOUsageData& UsageData);
@@ -439,6 +439,6 @@ private:
 	static PSOOrder RequestedOrder;
 	static bool FileCacheEnabled;
 	static FPipelineStateLoggedEvent PSOLoggedEvent;
-	static uint64 GameUsageMask;
+	RHI_API static uint64 GameUsageMask;
 	static FPSOMaskComparisonFn MaskComparisonFn;
 };
