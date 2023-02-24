@@ -2778,6 +2778,22 @@ void UMaterial::Serialize(FArchive& Ar)
 			BlendMode = BLEND_Translucent;
 		}
 	}
+
+	if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::NaniteForceMaterialUsage)
+	{
+		bool bForceNaniteUsage = false;
+		if (Ar.IsSaving() && Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector())
+		{
+			static auto NaniteForceEnableMeshesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.ForceEnableMeshes"));
+			static bool bForceNaniteUsageValue = (NaniteForceEnableMeshesCVar && NaniteForceEnableMeshesCVar->GetValueOnAnyThread() != 0);
+			bForceNaniteUsage = bForceNaniteUsageValue;
+		}
+		Ar << bForceNaniteUsage;
+		if (Ar.IsLoading() && bForceNaniteUsage)
+		{
+			bUsedWithNanite = true;
+		}
+	}
 	
 #if WITH_EDITOR
 	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RemoveDecalBlendMode)

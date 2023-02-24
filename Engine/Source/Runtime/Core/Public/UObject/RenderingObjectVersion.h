@@ -127,7 +127,11 @@ struct CORE_API FRenderingObjectVersion
 		// Add a new virtual texture to support virtual texture light map on mobile
 		VirtualTexturedLightmapsV3,
 
+		// Added fallback target modes including auto to Nanite builder
 		NaniteFallbackTarget,
+
+		// Added support to force Nanite material usage if Nanite mesh builders are also forced.
+		NaniteForceMaterialUsage,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
