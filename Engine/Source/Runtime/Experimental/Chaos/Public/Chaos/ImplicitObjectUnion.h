@@ -147,6 +147,8 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 
 	const TArray<TUniquePtr<FImplicitObject>>& GetObjects() const { return MObjects; }
 
+	TArray<TUniquePtr<FImplicitObject>>& GetObjects() { return MObjects; }
+
 	virtual uint32 GetTypeHash() const override
 	{
 		uint32 Result = 0;
