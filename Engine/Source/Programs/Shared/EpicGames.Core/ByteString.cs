@@ -16,7 +16,7 @@ namespace EpicGames.Core
 	[JsonSchemaString]
 	[JsonConverter(typeof(ByteStringJsonConverter))]
 	[TypeConverter(typeof(ByteStringTypeConverter))]
-	struct ByteString : IEquatable<ByteString>, IComparable<ByteString>
+	public struct ByteString : IEquatable<ByteString>, IComparable<ByteString>
 	{
 		/// <summary>
 		/// Underlying data for this string

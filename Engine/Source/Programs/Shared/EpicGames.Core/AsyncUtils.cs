@@ -34,6 +34,21 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Waits for a task to complete, ignoring any cancellation exceptions
+		/// </summary>
+		/// <param name="task">Task to wait for</param>
+		public static async Task IgnoreCanceledExceptionsAsync(this Task task)
+		{
+			try
+			{
+				await task.ConfigureAwait(false);
+			}
+			catch (OperationCanceledException)
+			{
+			}
+		}
+
+		/// <summary>
 		/// Returns a task that will be abandoned if a cancellation token is activated. This differs from the normal cancellation pattern in that the task will run to completion, but waiting for it can be cancelled.
 		/// </summary>
 		/// <param name="task">Task to wait for</param>

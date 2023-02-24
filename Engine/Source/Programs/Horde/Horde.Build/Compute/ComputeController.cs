@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Net;
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
-using Google.Protobuf;
 using Horde.Build.Acls;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
@@ -16,6 +15,8 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Compute
 {
+	using ByteString = Google.Protobuf.ByteString;
+
 	/// <summary>
 	/// Request a machine to execute compute requests
 	/// </summary>

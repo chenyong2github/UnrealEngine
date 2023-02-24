@@ -390,6 +390,7 @@ namespace Horde.Build
 			services.AddSingleton<AclService>();
 			services.AddSingleton<AgentService>();			
 			services.AddSingleton<AgentSoftwareService>();
+			services.AddSingleton<TunnelService>();
 			services.AddSingleton<ConsistencyService>();
 			services.AddSingleton<RequestTrackerService>();
 			services.AddSingleton<CredentialService>();

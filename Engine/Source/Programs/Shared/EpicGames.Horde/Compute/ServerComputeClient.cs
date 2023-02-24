@@ -18,7 +18,10 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public sealed class ServerComputeClient : IComputeClient
 	{
-		const int NonceLength = 64;
+		/// <summary>
+		/// Length of the nonce sent as part of handshaking between initiator and remote
+		/// </summary>
+		public const int NonceLength = 64;
 
 		class AddComputeTaskRequest
 		{

@@ -20,6 +20,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Utility
 {
+	using ByteString = Google.Protobuf.ByteString;
 	using JsonObject = System.Text.Json.Nodes.JsonObject;
 
 	/// <summary>

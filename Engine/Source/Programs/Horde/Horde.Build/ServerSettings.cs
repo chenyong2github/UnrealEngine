@@ -282,6 +282,16 @@ namespace Horde.Build
 		public int Http2Port { get; set; }
 
 		/// <summary>
+		/// Port for listening to compute tunnel initiator requests
+		/// </summary>
+		public int ComputeInitiatorPort { get; set; }
+
+		/// <summary>
+		/// Port for compute remotes to connect to
+		/// </summary>
+		public int ComputeRemotePort { get; set; }
+
+		/// <summary>
 		/// MongoDB connection string
 		/// </summary>
 		public string? DatabaseConnectionString { get; set; }

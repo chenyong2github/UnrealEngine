@@ -7,7 +7,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Horde.Agent.Services;
@@ -23,6 +22,8 @@ using OpenTracing.Util;
 
 namespace Horde.Agent.Leases
 {
+	using ByteString = Google.Protobuf.ByteString;
+
 	/// <summary>
 	/// Outcome from a session
 	/// </summary>
