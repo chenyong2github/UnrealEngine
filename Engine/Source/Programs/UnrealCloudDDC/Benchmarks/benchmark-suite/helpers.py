@@ -8,6 +8,7 @@ import random
 import requests
 from blake3 import blake3
 import varint
+import scipy
 
 logger = logging.getLogger("helpers")
 
@@ -43,6 +44,51 @@ def generate_blob(args, seed, file_length):
 
     return write_payload(args, content)
 
+# generates a file with random content were the size follows distributions from how large the cache of a game can be
+def generate_game_asset(args, seed):
+    def random_game_asset_size():
+        value = random.random()
+        if (value < 0.25): # 25% chance
+            return 130
+        if (value < 0.31): # 6% chance
+            return 386
+        if (value < 0.34): # 3% chance
+            return 5136  
+        if (value < 0.37): # 3% chance
+            return 65608
+        if (value < 0.41): # 4% chance
+            return 350 # approximation for medium set
+            
+        if (value > 0.999): # 0.1 chance
+            # our precision on really large assets is missing so making sure we have some of those
+            # approximating a avg of the large assets
+            return 84_186_659
+
+        if (value > 0.99): # 1% chance
+            # really large values have a special log distribution
+            s_large = 1.1272032578046247,
+            loc_large = 233474.20499173328,
+            scale_large = 292597.08600436774
+            return int(scipy.stats.lognorm(s=s_large, loc=loc_large, scale=scale_large).rvs(size=1, random_state=seed)[0])
+        
+        # follow lognormal distribution for the rest    
+        s = 1.7898978392258396,
+        loc = 489.70804173566125,
+        scale = 13112.784274036905
+
+        return int(scipy.stats.lognorm(s=s, loc=loc, scale=scale).rvs(size=1, random_state=seed)[0])
+
+    random.seed(seed)
+    
+    file_length = random_game_asset_size()
+    # generate a byte array of file_length,
+    # hash it to determine its identifier and then write it to disk
+
+    # randbytes is python 3.9 only, so we steal the implementation of randbytes and use that below to be compatible with older versions of Python
+    #content = random.randbytes(file_length)
+    content = random.getrandbits(file_length * 8).to_bytes(file_length, 'little')
+
+    return write_payload(args, content)
 
 def generate_uecb_singlefield(args, fieldName, attachments):
     # object with a single field
@@ -113,8 +159,10 @@ def run_test(args, test_name, duration_seconds=5, rate_per_second=None):
     results_file = os.path.join(args['reports_dir'], test_name)
 
     run_vegeta(["attack",
+                f"-name={test_name}",
                 f"-duration={duration_seconds}s" if duration_seconds is not None else '',
                 f"-rate={rate_per_second}/s" if rate_per_second is not None else '',
+                "-max-body=0", # do not capture the response body as it becomes very large
                 "-workers=64", # bump the number of workers and thus the number of connections we start with
                 f"-targets={test_file}",
                 f"-output={results_file}"])

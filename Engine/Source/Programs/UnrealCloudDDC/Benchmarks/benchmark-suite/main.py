@@ -53,6 +53,8 @@ def main():
         description="UnrealCloudDDC Benchmarker - Tool for benchmarking UnrealCloudDDC")
     parser.add_argument('--seed', action="store_true",
                         help='Set to generate test data')
+    parser.add_argument('--seed-remote', action="store_true",
+                        help='Set to generate test data')
     parser.add_argument('--list', action="store_true", help='List known tests')
     # host.docker.internal is the ip of the hostmachine for docker
     parser.add_argument(
@@ -83,7 +85,8 @@ def main():
         'payloads_dir': os.path.join(".", "payloads"),
         'reports_dir': os.path.join(".", "reports"),
         'headers': [] if args.header is None else args.header,
-        'namespace': args.namespace
+        'namespace': args.namespace,
+        'seed-remote': args.seed_remote
     }
 
     for name in ['tests_dir', 'payloads_dir', 'reports_dir']:
