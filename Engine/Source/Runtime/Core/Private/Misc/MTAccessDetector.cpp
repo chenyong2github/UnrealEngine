@@ -403,17 +403,14 @@ bool FRWRecursiveAccessDetectorTest::RunTest(const FString& Parameters)
 	{	// destroying detector from inside access scope
 		auto* AD = new FMRSWRecursiveAccessDetector; //-V774: "The 'AD' pointer was used after the memory was released." - no, it wasn't because of the `if`
 
-		AD->AcquireReadAccess();
-
 		FMRSWRecursiveAccessDetector::FDestructionSentinel DestructionSentinel{ FMRSWRecursiveAccessDetector::EAccessType::Reader };
-		FMRSWRecursiveAccessDetector::FDestructionSentinel* PrevDestructionSentinel = AD->SetDestructionSentinel(&DestructionSentinel);
+		AD->AcquireReadAccess(DestructionSentinel);
 
 		delete AD;
 
 		if (!DestructionSentinel.bDestroyed)
 		{
-			AD->SetDestructionSentinel(PrevDestructionSentinel);  //-V774
-			AD->ReleaseReadAccess();  //-V774
+			AD->ReleaseReadAccess(DestructionSentinel);  //-V774
 		}
 	}
 
