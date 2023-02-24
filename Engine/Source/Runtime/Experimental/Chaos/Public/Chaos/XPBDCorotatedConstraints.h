@@ -316,8 +316,6 @@ namespace Chaos::Softs
 					}
 				}
 			}
-
-
 		}
 
 		TVec4<TVector<T, 3>> GetPolarGradient(const PMatrix<T, 3, 3>& Fe, const PMatrix<T, 3, 3>& Re, const PMatrix<T, 3, 3>& DmInvT, const T C1) const
@@ -507,6 +505,8 @@ namespace Chaos::Softs
 			PMatrix<T, 3, 3> Re((T)0.), Se((T)0.);
 
 			Chaos::PolarDecomposition(Fe, Re, Se);
+
+			Re *= FGenericPlatformMath::Pow(AlphaJArray[ElementIndex], (T)1. / (T)3.);
 
 			T C1 = (T)0.;
 			for (int i = 0; i < 3; i++)
