@@ -18,8 +18,6 @@
 #include "RHIStaticStates.h"
 
 #include "RenderingThread.h"
-#include "RendererPrivate.h"
-
 #include "RenderResource.h"
 #include "CommonRenderResources.h"
 #include "PixelShaderUtils.h"
