@@ -3562,12 +3562,6 @@ public:
 		ForEachComponent_Internal<UActorComponent>(UActorComponent::StaticClass(), bIncludeFromChildActors, InFunc);
 	}
 
-	UE_DEPRECATED(4.24, "Use one of the GetComponents implementations as appropriate")
-	TArray<UActorComponent*> GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const
-	{
-		return K2_GetComponentsByClass(ComponentClass);
-	}
-
 	/**
 	 * Get all components derived from specified ComponentClass and fill in the OutComponents array with the result.
 	 * It's recommended to use TArrays with a TInlineAllocator to potentially avoid memory allocation costs.
@@ -3578,12 +3572,12 @@ public:
 	 *
 	 * @param ComponentClass            The component class to find all components of a class derived from
 	 * @param bIncludeFromChildActors   If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
-	 */
-	template<class AllocatorType>
-	void GetComponents(TSubclassOf<UActorComponent> ComponentClass, TArray<UActorComponent*, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
+	*/
+	template<class AllocatorType, class ComponentType>
+	void GetComponents(TSubclassOf<UActorComponent> ComponentClass, TArray<ComponentType*, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
 	{
 		OutComponents.Reset();
-		ForEachComponent_Internal<UActorComponent>(ComponentClass, bIncludeFromChildActors, [&](UActorComponent* InComp)
+		ForEachComponent_Internal<ComponentType>(ComponentClass, bIncludeFromChildActors, [&](ComponentType* InComp)
 		{
 			OutComponents.Add(InComp);
 		});

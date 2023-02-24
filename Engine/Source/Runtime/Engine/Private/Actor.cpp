@@ -976,6 +976,24 @@ void AActor::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)
 
 	ResetOwnedComponents();
 
+	// If a constructor changed the component hierarchy of a serialized actor, it's possible to end up with a circular
+	// attachment in the hierarchy. Fix that using the archetype as a guideline.
+	if (GetAttachParentActor() == this)
+	{
+		// detected circular attachment. Fixup using archetype
+		const USceneComponent* ArchetypeRoot = CastChecked<AActor>(GetArchetype())->GetRootComponent();
+		TInlineComponentArray<USceneComponent*> Applicants;
+		GetComponents(ArchetypeRoot->GetClass(), Applicants);
+		for (USceneComponent* Applicant : Applicants)
+		{
+			if (Applicant->GetFName() == ArchetypeRoot->GetFName())
+			{
+				SetRootComponent(Applicant);
+				break;
+			}
+		}
+	}
+
 	// Redirect the root component away from a Blueprint-added instance if the native ctor now constructs a default subobject as the root.
 	if (RootComponent && !RootComponent->HasAnyFlags(RF_DefaultSubObject))
 	{
