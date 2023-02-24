@@ -362,3 +362,76 @@ void SampleSceneColorAtHit(float3 HitTranslatedWorldPosition, float3 HitGeometry
 		}
 	}
 }
+
+float DistantScreenTraceSlopeCompareTolerance;
+float DistantScreenTraceMaxTraceDistance;
+Texture2D DistantScreenTraceFurthestHZBTexture;
+
+void DistantScreenTrace(
+	float2 NoiseCoord,
+	float3 TranslatedRayOrigin,
+	float3 RayDirection,
+	float TraceDistance,
+	float SceneDepth,
+	inout bool bHit,
+	inout float3 TraceRadiance)
+{
+	uint NumSteps = 16;
+	float StartMipLevel = 0.0f;
+	float RayRoughness = 0.0f;
+	float Noise = InterleavedGradientNoise(NoiseCoord, View.StateFrameIndexMod8);
+	float StepOffset = Noise - .5f;
+
+	FSSRTCastingSettings CastSettings = CreateDefaultCastSettings();
+
+	float Level;
+	float3 HitUVz;
+	bool bRayWasClipped;
+
+	FSSRTRay Ray = InitScreenSpaceRayFromWorldSpace(
+		TranslatedRayOrigin, RayDirection,
+		/* WorldTMax = */ TraceDistance,
+		/* SceneDepth = */ SceneDepth,
+		/* SlopeCompareToleranceScale */ DistantScreenTraceSlopeCompareTolerance,
+		/* bExtendRayToScreenBorder = */ false,
+		/* out */ bRayWasClipped);
+
+	bool bUncertain;
+	float3 DebugOutput;
+
+	CastScreenSpaceRay(
+		DistantScreenTraceFurthestHZBTexture, GlobalPointClampedSampler,
+		StartMipLevel,
+		CastSettings,
+		Ray, RayRoughness, NumSteps, StepOffset,
+		HZBUvFactorAndInvFactor, false,
+		/* out */ DebugOutput,
+		/* out */ HitUVz,
+		/* out */ Level,
+		/* out */ bHit,
+		/* out */ bUncertain);
+
+	if (bHit)
+	{
+		float2 HitScreenUV = HitUVz.xy;
+		float2 HitScreenPosition = (HitUVz.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+		float HitDeviceZ = HitUVz.z;
+
+		float3 HitHistoryScreenPosition = GetPrevScreenPosition(HitScreenPosition, HitScreenUV, HitDeviceZ);
+
+		float Vignette = min(ComputeHitVignetteFromScreenPos(HitScreenPosition), ComputeHitVignetteFromScreenPos(HitHistoryScreenPosition.xy));
+
+		// Skip reporting a hit if near the edge of the screen
+		if (Vignette < Noise)
+		{
+			bHit = false;
+		}
+
+		if (bHit)
+		{
+			float2 HitHistoryScreenUV = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
+			HitHistoryScreenUV = clamp(HitHistoryScreenUV, PrevSceneColorBilinearUVMin, PrevSceneColorBilinearUVMax);
+			TraceRadiance = SampleScreenColor(PrevSceneColorTexture, GlobalPointClampedSampler, HitHistoryScreenUV).xyz * (PrevSceneColorPreExposureCorrection * View.OneOverPreExposure);
+		}
+	}
+}

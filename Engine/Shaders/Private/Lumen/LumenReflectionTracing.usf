@@ -619,6 +619,29 @@ void TraceVoxels(
 	}
 #endif
 
+#if DISTANT_SCREEN_TRACES
+	if (!bHit)
+	{
+		float3 TranslatedDistantRayOrigin = TranslatedWorldPosition;
+		float MaxTraceDistanceForDistantScreenTrace = DistantScreenTraceMaxTraceDistance;
+
+		// Start the distant linear screen traces where we have no fallback for HZB screen traces
+		ClipRayToStartOutsideGlobalSDF(TranslatedDistantRayOrigin, RayData.Direction, MaxTraceDistanceForDistantScreenTrace);
+
+		if (MaxTraceDistanceForDistantScreenTrace > 0)
+		{
+			DistantScreenTrace(
+				ReflectionTracingCoord.Coord + 0.5f,
+				TranslatedDistantRayOrigin,
+				RayData.Direction,
+				MaxTraceDistanceForDistantScreenTrace,
+				SceneDepth,
+				bHit,
+				TraceResult.Lighting);
+		}
+	}
+#endif
+
 	if (!bHit)
 	{
 #if RADIANCE_CACHE
