@@ -380,6 +380,8 @@ void FActorHierarchy::CreateComponentItems(const AActor* Actor, TArray<FSceneOut
 
 void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FActorHierarchy::CreateWorldChildren);
+
 	check(World);
 
 	if (Mode->ShouldShowFolders() && bShowingEmptyFolders)
@@ -473,6 +475,8 @@ void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTr
 
 void FActorHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FActorHierarchy::CreateItems);
+
 	if (RepresentingWorld.IsValid())
 	{
 		UWorld* RepresentingWorldPtr = RepresentingWorld.Get();

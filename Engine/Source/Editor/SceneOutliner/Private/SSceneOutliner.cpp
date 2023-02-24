@@ -640,6 +640,8 @@ void SSceneOutliner::RefreshSelection()
 
 void SSceneOutliner::Populate()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SSceneOutliner::Populate);
+
 	// Block events while we clear out the list
  	TGuardValue<bool> ReentrantGuard(bIsReentrant, true);
 
@@ -801,6 +803,8 @@ void SSceneOutliner::AddPendingItemAndChildren(FSceneOutlinerTreeItemPtr Item)
 
 void SSceneOutliner::RepopulateEntireTree()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SSceneOutliner::RepopulateEntireTree);
+
 	EmptyTreeItems();
 
 	// Rebuild the hierarchy
@@ -2198,6 +2202,8 @@ FReply SSceneOutliner::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& 
 
 void SSceneOutliner::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {	
+	TRACE_CPUPROFILER_EVENT_SCOPE(SSceneOutliner::Tick);
+
 	for (auto& Pair : Columns)
 	{
 		Pair.Value->Tick(InCurrentTime, InDeltaTime);
