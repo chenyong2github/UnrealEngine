@@ -216,6 +216,12 @@ FString GetDebugNameFromArchive(FArchive& Ar)
 
 bool FBulkMetaData::FromSerialized(FArchive& Ar, int64 ElementSize, FBulkMetaData& OutMetaData, int64& OutDuplicateOffset)
 {
+	if (Ar.IsError())
+	{
+		OutMetaData = FBulkMetaData();
+		return false;
+	}
+
 	FBulkMetaResource Resource;
 	Ar << Resource;
 
