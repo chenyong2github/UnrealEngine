@@ -11,11 +11,6 @@ UWorldPartitionRuntimeCellData::UWorldPartitionRuntimeCellData(const FObjectInit
 	, ContentBounds(ForceInit)
 {}
 
-bool UWorldPartitionRuntimeCellData::ShouldResetStreamingSourceInfo() const
-{
-	return CachedSourceInfoEpoch != StreamingSourceCacheEpoch;
-}
-
 void UWorldPartitionRuntimeCellData::ResetStreamingSourceInfo() const
 {
 	check(ShouldResetStreamingSourceInfo());

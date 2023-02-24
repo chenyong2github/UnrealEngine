@@ -15,7 +15,8 @@ class ENGINE_API UWorldPartitionRuntimeCellData : public UObject
 
 	virtual ~UWorldPartitionRuntimeCellData() {}
 
-	bool ShouldResetStreamingSourceInfo() const;
+	inline bool ShouldResetStreamingSourceInfo() const { return CachedSourceInfoEpoch != StreamingSourceCacheEpoch; }
+
 	virtual void ResetStreamingSourceInfo() const;
 	virtual void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const;
 	virtual void MergeStreamingSourceInfo() const;
@@ -28,7 +29,7 @@ class ENGINE_API UWorldPartitionRuntimeCellData : public UObject
 	virtual FString GetDebugName() const { return GetName(); }
 
 	static int32 StreamingSourceCacheEpoch;
-	static void DirtyStreamingSourceCacheEpoch() { ++StreamingSourceCacheEpoch; }
+	static inline void DirtyStreamingSourceCacheEpoch() { ++StreamingSourceCacheEpoch; }
 
 	// Source Priority
 	mutable uint8 CachedMinSourcePriority;

@@ -290,13 +290,13 @@ protected:
 
 public:
 	//~Begin UWorldPartitionRuntimeCellData Proxy
-	bool ShouldResetStreamingSourceInfo() const { return RuntimeCellData->ShouldResetStreamingSourceInfo(); }
-	void ResetStreamingSourceInfo() const { RuntimeCellData->ResetStreamingSourceInfo(); }
-	void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const { RuntimeCellData->AppendStreamingSourceInfo(Source, SourceShape); }
-	void MergeStreamingSourceInfo() const { RuntimeCellData->MergeStreamingSourceInfo(); }
+	inline bool ShouldResetStreamingSourceInfo() const { return RuntimeCellData->ShouldResetStreamingSourceInfo(); }
+	inline void ResetStreamingSourceInfo() const { RuntimeCellData->ResetStreamingSourceInfo(); }
+	inline void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const { RuntimeCellData->AppendStreamingSourceInfo(Source, SourceShape); }
+	inline void MergeStreamingSourceInfo() const { RuntimeCellData->MergeStreamingSourceInfo(); }
 	int32 SortCompare(const UWorldPartitionRuntimeCell* Other, bool bCanUseSortingCache = true) const;
-	const FBox& GetContentBounds() const { return RuntimeCellData->GetContentBounds(); }
-	FBox GetCellBounds() const { return RuntimeCellData->GetCellBounds(); }
+	inline const FBox& GetContentBounds() const { return RuntimeCellData->GetContentBounds(); }
+	inline FBox GetCellBounds() const { return RuntimeCellData->GetCellBounds(); }
 	virtual bool IsDebugShown() const;
 	//~End UWorldPartitionRuntimeCellData Proxy
 
