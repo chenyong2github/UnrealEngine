@@ -266,6 +266,17 @@ class FAllocationsProvider : public IAllocationsProvider
 private:
 	static constexpr double DefaultTimelineSampleGranularity = 0.0001; // 0.1ms
 
+	// Number of supported root heaps
+	static constexpr uint32 MaxRootHeaps = 16;
+
+	struct FRootHeap
+	{
+		FHeapSpec* HeapSpec = nullptr;
+		FLiveAllocCollection* LiveAllocs = nullptr;
+		FSbTree* SbTree = nullptr;
+		uint32 EventIndex = 0;
+	};
+
 public:
 	explicit FAllocationsProvider(IAnalysisSession& InSession, FMetadataProvider& InMetadataProvider);
 	virtual ~FAllocationsProvider();
@@ -282,8 +293,16 @@ public:
 
 	virtual bool IsInitialized() const override { ReadAccessCheck(); return bInitialized; }
 
-	virtual int32 GetTimelineNumPoints() const override { ReadAccessCheck(); return static_cast<int32>(Timeline.Num()); }
+	virtual void EnumerateTags(TFunctionRef<void(const TCHAR*, const TCHAR*, TagIdType, TagIdType)> Callback) const override;
+
+	virtual const TCHAR* GetTagName(TagIdType Tag) const override { ReadAccessCheck(); return TagTracker.GetTagString(Tag); }
+	virtual const TCHAR* GetTagFullPath(TagIdType Tag) const override { ReadAccessCheck(); return TagTracker.GetTagFullPath(Tag); }
+	bool HasTagFromPtrScope(uint32 ThreadId, uint8 Tracker) const { ReadAccessCheck(); return TagTracker.HasTagFromPtrScope(ThreadId, Tracker); }
+
 	virtual void EnumerateRootHeaps(TFunctionRef<void(HeapId Id, const FHeapSpec&)> Callback) const override;
+	virtual void EnumerateHeaps(TFunctionRef<void(HeapId Id, const FHeapSpec&)> Callback) const override;
+
+	virtual int32 GetTimelineNumPoints() const override { ReadAccessCheck(); return static_cast<int32>(Timeline.Num()); }
 	virtual void GetTimelineIndexRange(double StartTime, double EndTime, int32& StartIndex, int32& EndIndex) const override;
 	virtual void EnumerateMinTotalAllocatedMemoryTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint64 Value)> Callback) const override;
 	virtual void EnumerateMaxTotalAllocatedMemoryTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint64 Value)> Callback) const override;
@@ -291,20 +310,15 @@ public:
 	virtual void EnumerateMaxLiveAllocationsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const override;
 	virtual void EnumerateAllocEventsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const override;
 	virtual void EnumerateFreeEventsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const override;
-	virtual void EnumerateTags(TFunctionRef<void(const TCHAR*, const TCHAR*, TagIdType, TagIdType)> Callback) const override;
 
 	virtual FQueryHandle StartQuery(const FQueryParams& Params) const override;
 	virtual void CancelQuery(FQueryHandle Query) const override;
 	virtual const FQueryStatus PollQuery(FQueryHandle Query) const override;
 
-	const FSbTree* GetSbTreeUnchecked(HeapId Heap) const { ReadAccessCheck(); return SbTree[Heap]; }
+	const FSbTree* GetSbTreeUnchecked(HeapId Heap) const { ReadAccessCheck(); return RootHeaps[Heap]->SbTree; }
 
 	void EnumerateLiveAllocs(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const;
 	uint32 GetNumLiveAllocs() const;
-
-	virtual const TCHAR* GetTagName(TagIdType Tag) const override { ReadAccessCheck(); return TagTracker.GetTagString(Tag); }
-	virtual const TCHAR* GetTagFullPath(TagIdType Tag) const override { ReadAccessCheck(); return TagTracker.GetTagFullPath(Tag); }
-	bool HasTagFromPtrScope(uint32 ThreadId, uint8 Tracker) const { ReadAccessCheck(); return TagTracker.HasTagFromPtrScope(ThreadId, Tracker); }
 
 	void DebugPrint() const;
 
@@ -341,16 +355,37 @@ private:
 	void UpdateHistogramByEventDistance(uint32 EventDistance);
 	void AdvanceTimelines(double Time);
 	void AddHeapSpec(HeapId Id, HeapId ParentId, const FStringView& Name, EMemoryTraceHeapFlags Flags);
-	HeapId FindRootHeap(HeapId Heap) const;
+
+	bool IsValidHeap(HeapId HeapId) const
+	{
+		return HeapId < (uint32)HeapSpecs.Num() && HeapSpecs[HeapId] != nullptr;
+	}
+
+	FHeapSpec& GetHeapSpecUnchecked(HeapId Id) const
+	{
+		return *HeapSpecs[Id];
+	}
+
+	FHeapSpec& GetOrCreateHeapSpec(HeapId Id);
+
+	bool IsValidRootHeap(HeapId RootHeapId) const
+	{
+		return RootHeapId < MaxRootHeaps && RootHeaps[RootHeapId] != nullptr;
+	}
+
+	FRootHeap& GetRootHeapUnchecked(HeapId RootHeapId) const
+	{
+		return *RootHeaps[RootHeapId];
+	}
+
+	FRootHeap& FindParentRootHeapUnchecked(HeapId HeapId) const;
+	void CreateRootHeap(HeapId Id);
 
 private:
 	mutable FProviderLock Lock;
 
 	IAnalysisSession& Session;
 	FMetadataProvider& MetadataProvider;
-
-	// Number of supported root heaps
-	constexpr static uint8 MaxRootHeaps = 16;
 
 	double InitTime = 0;
 	uint8 MinAlignment = 0;
@@ -364,11 +399,8 @@ private:
 	FTagTracker TagTracker;
 	uint8 CurrentTracker = 0;
 
-	TArray<FHeapSpec> HeapSpecs;
-
-	uint32 EventIndex[MaxRootHeaps] = { 0 };
-	FSbTree* SbTree[MaxRootHeaps] = { nullptr };
-	FLiveAllocCollection* LiveAllocs[MaxRootHeaps] = { nullptr };
+	TArray<FHeapSpec*> HeapSpecs;
+	FRootHeap* RootHeaps[MaxRootHeaps] = { nullptr };
 
 	uint64 AllocCount = 0;
 	uint64 FreeCount = 0;
