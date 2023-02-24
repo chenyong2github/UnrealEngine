@@ -632,6 +632,7 @@ void TraceVoxels(
 		{
 			DistantScreenTrace(
 				ReflectionTracingCoord.Coord + 0.5f,
+				HZBUvFactorAndInvFactor,
 				TranslatedDistantRayOrigin,
 				RayData.Direction,
 				MaxTraceDistanceForDistantScreenTrace,

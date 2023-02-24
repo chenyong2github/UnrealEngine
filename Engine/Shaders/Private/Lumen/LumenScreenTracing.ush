@@ -369,6 +369,7 @@ Texture2D DistantScreenTraceFurthestHZBTexture;
 
 void DistantScreenTrace(
 	float2 NoiseCoord,
+	float4 HZBUvFactorAndInvFactor,
 	float3 TranslatedRayOrigin,
 	float3 RayDirection,
 	float TraceDistance,
