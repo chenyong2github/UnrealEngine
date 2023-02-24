@@ -223,8 +223,6 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 
 		// Merge points into a single point
 		OutPoint = SourcePoint;
-		// Assign metadata key and copy values
-		UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, PointData->Metadata, SourcePoint);
 
 		// Apply projection result. Some of the params are already used inside ProjectPoint, so we are just applying the remaining bits that ProjectPoint() did not have access to.
 		// TODO this would be cleaner if there was a ProjectPoint that took an FPCGPoint

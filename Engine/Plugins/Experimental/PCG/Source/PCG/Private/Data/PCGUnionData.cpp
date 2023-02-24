@@ -351,11 +351,7 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 			check(PointData && PointData->Metadata);
 
 			OutPoint = Point;
-			if (PointData->Metadata->GetParent() == Data[DataIndex]->Metadata)
-			{
-				UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, PointData->Metadata, Point);
-			}
-			else
+			if (PointData->Metadata->GetParent() != Data[DataIndex]->Metadata)
 			{
 				UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, PointData->Metadata);
 				// Since we can't inherit from the parent point, we'll set the values directly here
