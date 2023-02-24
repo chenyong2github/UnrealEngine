@@ -525,16 +525,16 @@ private:
 	double TimesLocalWorkersWereIdle = 0;
 
 	/** Number of jobs assigned to workers, no matter if they completed or not - used to average pending time. */
-	double JobsAssigned = 0;
+	int64 JobsAssigned = 0;
+
+	/** Total number jobs completed. */
+	int64 JobsCompleted = 0;
 
 	/** Amount of time a job had to spent in pending queue (i.e. waiting to be assigned to a worker). */
 	double AccumulatedPendingTime = 0;
 
 	/** Max amount of time any single job was pending (waiting to be assigned to a worker). */
 	double MaxPendingTime = 0;
-
-	/** Total number jobs completed. */
-	double JobsCompleted = 0;
 
 	/** Amount of time job spent being processed by the worker. */
 	double AccumulatedJobExecutionTime = 0;
