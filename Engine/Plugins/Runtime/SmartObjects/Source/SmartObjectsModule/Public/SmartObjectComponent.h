@@ -14,6 +14,7 @@ struct FSmartObjectRuntime;
 struct FSmartObjectComponentInstanceData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSmartObjectComponentEventSignature, const FSmartObjectEventData&, EventData, const AActor*, Interactor);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FSmartObjectComponentEventNativeSignature, const FSmartObjectEventData& EventData, const AActor* Interactor);
 
 enum class ESmartObjectRegistrationType : uint8
 {
@@ -48,6 +49,8 @@ public:
 	void OnRuntimeInstanceBound(FSmartObjectRuntime& RuntimeInstance);
 	void OnRuntimeInstanceUnbound(FSmartObjectRuntime& RuntimeInstance);
 
+	FSmartObjectComponentEventNativeSignature& GetOnSmartObjectEventNative() { return OnSmartObjectEventNative; }
+
 #if WITH_EDITORONLY_DATA
 	static FOnSmartObjectChanged& GetOnSmartObjectChanged() { return OnSmartObjectChanged; }
 #endif // WITH_EDITORONLY_DATA
@@ -60,6 +63,9 @@ protected:
 	
 	UPROPERTY(BlueprintAssignable, Category = SmartObject, meta=(DisplayName = "OnSmartObjectEvent"))
 	FSmartObjectComponentEventSignature OnSmartObjectEvent;
+
+	/** Native version of OnSmartObjectEvent. */
+	FSmartObjectComponentEventNativeSignature OnSmartObjectEventNative;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = SmartObject, meta=(DisplayName = "OnSmartObjectEventReceived"))
 	void ReceiveOnEvent(const FSmartObjectEventData& EventData, const AActor* Interactor);

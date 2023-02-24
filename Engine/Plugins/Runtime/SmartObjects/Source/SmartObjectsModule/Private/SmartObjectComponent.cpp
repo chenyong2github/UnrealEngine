@@ -248,4 +248,5 @@ void USmartObjectComponent::OnRuntimeEventReceived(const FSmartObjectEventData& 
 
 	ReceiveOnEvent(Event, Interactor);
 	OnSmartObjectEvent.Broadcast(Event, Interactor);
+	OnSmartObjectEventNative.Broadcast(Event, Interactor);
 }
