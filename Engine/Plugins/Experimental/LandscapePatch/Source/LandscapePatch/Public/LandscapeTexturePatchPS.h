@@ -30,9 +30,9 @@ namespace UE::Landscape
 /**
  * Shader that applies a texture-based height patch to a landscape heightmap.
  */
-class LANDSCAPEPATCH_API FApplyLandscapeTextureHeightPatchPS : public FGlobalShader
+class FApplyLandscapeTextureHeightPatchPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FApplyLandscapeTextureHeightPatchPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FApplyLandscapeTextureHeightPatchPS, LANDSCAPEPATCH_API);
 	SHADER_USE_PARAMETER_STRUCT(FApplyLandscapeTextureHeightPatchPS, FGlobalShader);
 
 public:
@@ -96,11 +96,12 @@ public:
 		SHADER_PARAMETER(uint32, InFlags)
 
 		RENDER_TARGET_BINDING_SLOTS() // Holds our output
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters, const FIntRect& DestinationBounds);
+
+	LANDSCAPEPATCH_API static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters, const FIntRect& DestinationBounds);
 };
 
 ENUM_CLASS_FLAGS(FApplyLandscapeTextureHeightPatchPS::EFlags);
@@ -108,9 +109,9 @@ ENUM_CLASS_FLAGS(FApplyLandscapeTextureHeightPatchPS::EFlags);
 /**
  * Simple shader that just offsets each height value in a height patch by a constant.
  */
-class LANDSCAPEPATCH_API FOffsetHeightmapPS : public FGlobalShader
+class FOffsetHeightmapPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FOffsetHeightmapPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FOffsetHeightmapPS, LANDSCAPEPATCH_API);
 	SHADER_USE_PARAMETER_STRUCT(FOffsetHeightmapPS, FGlobalShader);
 
 public:
@@ -119,11 +120,12 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InHeightmap)
 		SHADER_PARAMETER(float, InHeightOffset)
 		RENDER_TARGET_BINDING_SLOTS() // Holds our output
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters);
+
+	LANDSCAPEPATCH_API static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters);
 };
 
 /**
@@ -132,9 +134,9 @@ public:
  * This is not perfectly reversible (in case of clamping and due to rounding), but it lets us store the
  * texture in the way that it would be applied to the landscape (usually).
  */
-class LANDSCAPEPATCH_API FConvertToNativeLandscapePatchPS : public FGlobalShader
+class FConvertToNativeLandscapePatchPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FConvertToNativeLandscapePatchPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FConvertToNativeLandscapePatchPS, LANDSCAPEPATCH_API);
 	SHADER_USE_PARAMETER_STRUCT(FConvertToNativeLandscapePatchPS, FGlobalShader);
 
 public:
@@ -145,11 +147,12 @@ public:
 		SHADER_PARAMETER(float, InHeightScale)
 		SHADER_PARAMETER(float, InHeightOffset)
 		RENDER_TARGET_BINDING_SLOTS() // Holds our output
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FRDGTextureRef SourceTexture,
+
+	LANDSCAPEPATCH_API static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FRDGTextureRef SourceTexture,
 		FRDGTextureRef DestinationTexture, const FLandscapeHeightPatchConvertToNativeParams& Params);
 };
 
@@ -157,9 +160,9 @@ public:
  * Shader that undoes the conversion done by FConvertToNativeLandscapePatchPS (to the extent possible, since
  * rounding/clamping makes it not perfectly recoverable).
  */
-class LANDSCAPEPATCH_API FConvertBackFromNativeLandscapePatchPS : public FGlobalShader
+class FConvertBackFromNativeLandscapePatchPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FConvertBackFromNativeLandscapePatchPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FConvertBackFromNativeLandscapePatchPS, LANDSCAPEPATCH_API);
 	SHADER_USE_PARAMETER_STRUCT(FConvertBackFromNativeLandscapePatchPS, FGlobalShader);
 
 public:
@@ -170,17 +173,18 @@ public:
 		SHADER_PARAMETER(float, InHeightScale)
 		SHADER_PARAMETER(float, InHeightOffset)
 		RENDER_TARGET_BINDING_SLOTS() // Holds our output
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FRDGTextureRef SourceTexture,
+
+	LANDSCAPEPATCH_API static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FRDGTextureRef SourceTexture,
 		FRDGTextureRef DestinationTexture, const FLandscapeHeightPatchConvertToNativeParams& Params);
 };
 
-class LANDSCAPEPATCH_API FApplyLandscapeTextureWeightPatchPS : public FGlobalShader
+class FApplyLandscapeTextureWeightPatchPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FApplyLandscapeTextureWeightPatchPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FApplyLandscapeTextureWeightPatchPS, LANDSCAPEPATCH_API);
 	SHADER_USE_PARAMETER_STRUCT(FApplyLandscapeTextureWeightPatchPS, FGlobalShader);
 
 public:
@@ -234,18 +238,19 @@ public:
 		SHADER_PARAMETER(uint32, InFlags)
 
 		RENDER_TARGET_BINDING_SLOTS() // Holds our output
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters, const FIntRect& DestinationBounds);
+
+	LANDSCAPEPATCH_API static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters, const FIntRect& DestinationBounds);
 };
 
 ENUM_CLASS_FLAGS(FApplyLandscapeTextureWeightPatchPS::EFlags);
 
-class LANDSCAPEPATCH_API FReinitializeLandscapePatchPS : public FGlobalShader
+class FReinitializeLandscapePatchPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FReinitializeLandscapePatchPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FReinitializeLandscapePatchPS, LANDSCAPEPATCH_API);
 	SHADER_USE_PARAMETER_STRUCT(FReinitializeLandscapePatchPS, FGlobalShader);
 
 public:
@@ -256,11 +261,12 @@ public:
 		SHADER_PARAMETER(FMatrix44f, InPatchToSource)
 
 		RENDER_TARGET_BINDING_SLOTS() // Holds our output
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters);
+
+	LANDSCAPEPATCH_API static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters);
 };
 
 /**
@@ -268,9 +274,9 @@ public:
  */
 //~ Theoretically CopyToResolveTarget or AddCopyToResolveTargetPass should work, but I was unable to make them
 //~ work without lots of complaints from the renderer.
-class LANDSCAPEPATCH_API FSimpleTextureCopyPS : public FGlobalShader
+class FSimpleTextureCopyPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FSimpleTextureCopyPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSimpleTextureCopyPS, LANDSCAPEPATCH_API);
 	SHADER_USE_PARAMETER_STRUCT(FSimpleTextureCopyPS, FGlobalShader);
 
 public:
@@ -280,11 +286,12 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, InSourceSampler)
 		SHADER_PARAMETER(FVector2f, InDestinationResolution)
 		RENDER_TARGET_BINDING_SLOTS() // Holds our output
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FRDGTextureRef SourceTexture, FRDGTextureRef DestinationTexture);
+
+	LANDSCAPEPATCH_API static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FRDGTextureRef SourceTexture, FRDGTextureRef DestinationTexture);
 };
 
 }//end UE::Landscape

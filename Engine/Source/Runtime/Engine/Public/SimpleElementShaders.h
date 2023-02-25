@@ -20,20 +20,20 @@ struct FRelativeViewMatrices;
 /**
  * A vertex shader for rendering a texture on a simple element.
  */
-class ENGINE_API FSimpleElementVS : public FGlobalShader
+class FSimpleElementVS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FSimpleElementVS,Global);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FSimpleElementVS, ENGINE_API);
 public:
 	FSimpleElementVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	FSimpleElementVS() {}
 
-	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FMatrix& WorldToClipMatrix);
-	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FRelativeViewMatrices& Matrices);
+	ENGINE_API void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FMatrix& WorldToClipMatrix);
+	ENGINE_API void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FRelativeViewMatrices& Matrices);
 
 	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
-	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& WorldToClipMatrix);
+	ENGINE_API void SetParameters(FRHICommandList& RHICmdList, const FMatrix& WorldToClipMatrix);
 	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
-	void SetParameters(FRHICommandList& RHICmdList, const FRelativeViewMatrices& Matrices);
+	ENGINE_API void SetParameters(FRHICommandList& RHICmdList, const FRelativeViewMatrices& Matrices);
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 

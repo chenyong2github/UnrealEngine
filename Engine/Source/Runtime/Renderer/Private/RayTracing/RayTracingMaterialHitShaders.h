@@ -121,9 +121,9 @@ private:
 	);
 };
 
-class RENDERER_API FHiddenMaterialHitGroup : public FGlobalShader
+class FHiddenMaterialHitGroup : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FHiddenMaterialHitGroup)
+	DECLARE_EXPORTED_GLOBAL_SHADER(FHiddenMaterialHitGroup, RENDERER_API)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FHiddenMaterialHitGroup, FGlobalShader)
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -139,9 +139,9 @@ class RENDERER_API FHiddenMaterialHitGroup : public FGlobalShader
 	using FParameters = FEmptyShaderParameters;
 };
 
-class RENDERER_API FOpaqueShadowHitGroup : public FGlobalShader
+class FOpaqueShadowHitGroup : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FOpaqueShadowHitGroup)
+	DECLARE_EXPORTED_GLOBAL_SHADER(FOpaqueShadowHitGroup, RENDERER_API)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FOpaqueShadowHitGroup, FGlobalShader)
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -157,9 +157,9 @@ class RENDERER_API FOpaqueShadowHitGroup : public FGlobalShader
 	using FParameters = FEmptyShaderParameters;
 };
 
-class RENDERER_API FDefaultCallableShader : public FGlobalShader
+class FDefaultCallableShader : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FDefaultCallableShader)
+	DECLARE_EXPORTED_GLOBAL_SHADER(FDefaultCallableShader, RENDERER_API)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FDefaultCallableShader, FGlobalShader)
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)

@@ -10,14 +10,12 @@
 #include "RenderGraphUtils.h"
 #include "ShaderParameterUtils.h"
 
-
-
-class NEURALNETWORKINFERENCESHADERS_API FCopyCS : public FGlobalShader
+class FCopyCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FCopyCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FCopyCS, NEURALNETWORKINFERENCESHADERS_API);
 	SHADER_USE_PARAMETER_STRUCT(FCopyCS, FGlobalShader)
 
-	static const uint32 THREADGROUP_SIZE_X;
+	NEURALNETWORKINFERENCESHADERS_API static const uint32 THREADGROUP_SIZE_X;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 

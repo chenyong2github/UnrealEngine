@@ -24,9 +24,9 @@ extern NIAGARAVERTEXFACTORIES_API int32 GNiagaraGPUCullingCPUToGPUThreshold;
 /**
  * Compute shader used to generate particle sort keys.
  */
-class NIAGARAVERTEXFACTORIES_API FNiagaraSortKeyGenCS : public FGlobalShader
+class FNiagaraSortKeyGenCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraSortKeyGenCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraSortKeyGenCS, NIAGARAVERTEXFACTORIES_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraSortKeyGenCS, FGlobalShader);
 
 public:
@@ -79,5 +79,5 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
-	static bool UseWaveOps(EShaderPlatform ShaderPlatform);
+	NIAGARAVERTEXFACTORIES_API static bool UseWaveOps(EShaderPlatform ShaderPlatform);
 };

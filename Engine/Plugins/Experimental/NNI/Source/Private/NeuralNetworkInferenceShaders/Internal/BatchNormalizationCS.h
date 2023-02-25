@@ -10,18 +10,16 @@
 #include "RenderGraphUtils.h"
 #include "ShaderParameterUtils.h"
 
-
-
-class NEURALNETWORKINFERENCESHADERS_API FBatchNormalizationCS : public FGlobalShader
+class FBatchNormalizationCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FBatchNormalizationCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FBatchNormalizationCS, NEURALNETWORKINFERENCESHADERS_API);
 	SHADER_USE_PARAMETER_STRUCT(FBatchNormalizationCS, FGlobalShader)
 
 	class FBatchNormalizationMode : SHADER_PERMUTATION_ENUM_CLASS("BATCH_NORMALIZATION_MODE", EBatchNormalizationMode);
 	class FIsInlined : SHADER_PERMUTATION_BOOL("IS_INLINED");
 	using FPermutationDomain = TShaderPermutationDomain<FBatchNormalizationMode, FIsInlined>;
 
-	static const uint32 THREADGROUP_SIZE_X;
+	NEURALNETWORKINFERENCESHADERS_API static const uint32 THREADGROUP_SIZE_X;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 

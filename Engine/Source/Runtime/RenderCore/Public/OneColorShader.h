@@ -75,27 +75,27 @@ private:
 /**
  * Pixel shader for rendering a single, constant color.
  */
-class RENDERCORE_API FOneColorPS : public FGlobalShader
+class FOneColorPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FOneColorPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FOneColorPS, RENDERCORE_API);
 public:
 	SHADER_USE_PARAMETER_STRUCT(FOneColorPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, RENDERCORE_API)
 		SHADER_PARAMETER_ARRAY(FLinearColor, DrawColorMRT, [MaxSimultaneousRenderTargets])
 		RENDER_TARGET_BINDING_SLOTS()
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 	void FillParameters(FParameters& Parameters, const FLinearColor* Colors, int32 NumColors);
-	static void SetColors(FRHICommandList& RHICmdList, const TShaderMapRef<FOneColorPS>& Shader, const FLinearColor* Colors, int32 NumColors);
+	RENDERCORE_API static void SetColors(FRHICommandList& RHICmdList, const TShaderMapRef<FOneColorPS>& Shader, const FLinearColor* Colors, int32 NumColors);
 };
 
 /**
  * Pixel shader for rendering a single, constant color to MRTs.
  */
-class RENDERCORE_API TOneColorPixelShaderMRT : public FOneColorPS
+class TOneColorPixelShaderMRT : public FOneColorPS
 {
-	DECLARE_GLOBAL_SHADER(TOneColorPixelShaderMRT);
+	DECLARE_EXPORTED_GLOBAL_SHADER(TOneColorPixelShaderMRT, RENDERCORE_API);
 public:
 	class TOneColorPixelShader128bitRT : SHADER_PERMUTATION_BOOL("b128BITRENDERTARGET");
 	class TOneColorPixelShaderNumOutputs : SHADER_PERMUTATION_RANGE_INT("NUM_OUTPUTS", 1, 8);
@@ -106,15 +106,15 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-	static void SetColors(FRHICommandList& RHICmdList, const TShaderMapRef<TOneColorPixelShaderMRT>& Shader, const FLinearColor* Colors, int32 NumColors);
+	RENDERCORE_API static void SetColors(FRHICommandList& RHICmdList, const TShaderMapRef<TOneColorPixelShaderMRT>& Shader, const FLinearColor* Colors, int32 NumColors);
 };
 
 /**
  * Compute shader for writing values
  */
-class RENDERCORE_API FFillTextureCS : public FGlobalShader
+class FFillTextureCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FFillTextureCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FFillTextureCS, RENDERCORE_API);
 public:
 	FFillTextureCS();
 	FFillTextureCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
@@ -128,9 +128,9 @@ public:
 	LAYOUT_FIELD(FShaderResourceParameter, FillTexture);
 };
 
-class RENDERCORE_API FLongGPUTaskPS : public FGlobalShader
+class FLongGPUTaskPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FLongGPUTaskPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FLongGPUTaskPS, RENDERCORE_API);
 public:
 	FLongGPUTaskPS();
 	FLongGPUTaskPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);

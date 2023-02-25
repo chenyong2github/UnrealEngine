@@ -106,14 +106,10 @@ extern RENDERCORE_API TGlobalResource<FScreenRectangleIndexBuffer> GScreenRectan
 
 /** Vertex shader to draw a screen quad that works on all platforms. Does not have any shader parameters.
  * The pixel shader should just use SV_Position. */
-class RENDERCORE_API FScreenVertexShaderVS : public FGlobalShader
+class FScreenVertexShaderVS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FScreenVertexShaderVS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FScreenVertexShaderVS, RENDERCORE_API);
 	SHADER_USE_PARAMETER_STRUCT(FScreenVertexShaderVS, FGlobalShader);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) {
-		return true;
-	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 	END_SHADER_PARAMETER_STRUCT()
@@ -139,15 +135,10 @@ class RENDERCORE_API FInstancedScreenVertexShaderVS : public FScreenVertexShader
 };
 
 /** Pixel shader to copy pixels from src to dst performing a format change that works on all platforms. */
-class RENDERCORE_API FCopyRectPS : public FGlobalShader
+class FCopyRectPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FCopyRectPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FCopyRectPS, RENDERCORE_API);
 	SHADER_USE_PARAMETER_STRUCT(FCopyRectPS, FGlobalShader);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{
-		return true;
-	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)

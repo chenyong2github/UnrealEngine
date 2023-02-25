@@ -44,9 +44,9 @@ struct FVolumeBounds
 };
 
 /** Vertex shader used to write to a range of slices of a 3d volume texture. */
-class ENGINE_API FWriteToSliceVS : public FGlobalShader
+class FWriteToSliceVS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FWriteToSliceVS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FWriteToSliceVS, ENGINE_API);
 public:
 	FWriteToSliceVS();
 	FWriteToSliceVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
@@ -81,9 +81,9 @@ private:
 };
 
 /** Geometry shader used to write to a range of slices of a 3d volume texture. */
-class ENGINE_API FWriteToSliceGS : public FGlobalShader
+class FWriteToSliceGS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FWriteToSliceGS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FWriteToSliceGS, ENGINE_API);
 public:
 	FWriteToSliceGS();
 	FWriteToSliceGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);

@@ -17,7 +17,7 @@ namespace UE::RivermaxShaders
 	/**
 	 * Compute shader to convert 2110 YUV8 to RGBA
 	 */
-	class RIVERMAXRENDERING_API FYUV8Bit422ToRGBACS : public FGlobalShader
+	class FYUV8Bit422ToRGBACS : public FGlobalShader
 	{
 	public:
 
@@ -27,7 +27,7 @@ namespace UE::RivermaxShaders
 			uint32 DWord0;
 		};
 
-		DECLARE_GLOBAL_SHADER(FYUV8Bit422ToRGBACS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FYUV8Bit422ToRGBACS, RIVERMAXRENDERING_API);
 		SHADER_USE_PARAMETER_STRUCT(FYUV8Bit422ToRGBACS, FGlobalShader);
 
 		class FSRGBToLinear : SHADER_PERMUTATION_BOOL("DO_SRGB_TO_LINEAR");
@@ -39,7 +39,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
 			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
-			END_SHADER_PARAMETER_STRUCT()
+		END_SHADER_PARAMETER_STRUCT()
 
 	public:
 
@@ -50,13 +50,13 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FYUV8Bit422ToRGBACS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef YUVBuffer, FRDGTextureRef OutputTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, int32 BufferElementsPerRow, int32 BufferLineCount);
+		RIVERMAXRENDERING_API FYUV8Bit422ToRGBACS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef YUVBuffer, FRDGTextureRef OutputTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, int32 BufferElementsPerRow, int32 BufferLineCount);
 	};
 
 	/**
 	 * Compute shader to convert RGB to YUV422 8 bits
 	 */
-	class RIVERMAXRENDERING_API FRGBToYUV8Bit422CS : public FGlobalShader
+	class FRGBToYUV8Bit422CS : public FGlobalShader
 	{
 	public:
 		//Structure definition to match StructuredBuffer in RivermaxShaders.usf
@@ -65,7 +65,7 @@ namespace UE::RivermaxShaders
 			uint32 DWord0;
 		};
 
-		DECLARE_GLOBAL_SHADER(FRGBToYUV8Bit422CS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FRGBToYUV8Bit422CS, RIVERMAXRENDERING_API);
 
 		SHADER_USE_PARAMETER_STRUCT(FRGBToYUV8Bit422CS, FGlobalShader);
 
@@ -78,7 +78,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER(uint32, InputTexturePixelsPerThread)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FYUV8Bit422Buffer>, OutYUV4228bitBuffer)
-			END_SHADER_PARAMETER_STRUCT()
+		END_SHADER_PARAMETER_STRUCT()
 
 	public:
 
@@ -89,13 +89,13 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGBToYUV8Bit422CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGBufferRef OutputBuffer);
+		RIVERMAXRENDERING_API FRGBToYUV8Bit422CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGBufferRef OutputBuffer);
 	};
 
 	/**
 	 * Compute shader to convert packed 8 bits RGB to RGBA 8bits
 	 */
-	class RIVERMAXRENDERING_API FYUV10Bit422ToRGBACS : public FGlobalShader
+	class FYUV10Bit422ToRGBACS : public FGlobalShader
 	{
 	public:
 
@@ -109,7 +109,7 @@ namespace UE::RivermaxShaders
 			uint32 DWord4;
 		};
 
-		DECLARE_GLOBAL_SHADER(FYUV10Bit422ToRGBACS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FYUV10Bit422ToRGBACS, RIVERMAXRENDERING_API);
 		SHADER_USE_PARAMETER_STRUCT(FYUV10Bit422ToRGBACS, FGlobalShader);
 
 		class FSRGBToLinear : SHADER_PERMUTATION_BOOL("DO_SRGB_TO_LINEAR");
@@ -132,7 +132,7 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FYUV10Bit422ToRGBACS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef YUVBuffer, FRDGTextureRef OutputTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, int32 BufferElementsPerRow, int32 BufferLineCount);
+		RIVERMAXRENDERING_API FYUV10Bit422ToRGBACS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef YUVBuffer, FRDGTextureRef OutputTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, int32 BufferElementsPerRow, int32 BufferLineCount);
 	};
 
 	/**
@@ -140,7 +140,7 @@ namespace UE::RivermaxShaders
 	 *
 	 * This shader expects a single texture in PF_A2B10G10R10 format.
 	 */
-	class RIVERMAXRENDERING_API FRGBToYUV10Bit422LittleEndianCS : public FGlobalShader
+	class FRGBToYUV10Bit422LittleEndianCS : public FGlobalShader
 	{
 	public:
 		//Structure definition to match StructuredBuffer in RivermaxShaders.usf
@@ -153,7 +153,7 @@ namespace UE::RivermaxShaders
 			uint32 DWord4;
 		};
 
-		DECLARE_GLOBAL_SHADER(FRGBToYUV10Bit422LittleEndianCS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FRGBToYUV10Bit422LittleEndianCS, RIVERMAXRENDERING_API);
 
 		SHADER_USE_PARAMETER_STRUCT(FRGBToYUV10Bit422LittleEndianCS, FGlobalShader);
 
@@ -177,13 +177,13 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGBToYUV10Bit422LittleEndianCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGBufferRef OutputBuffer);
+		RIVERMAXRENDERING_API FRGBToYUV10Bit422LittleEndianCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGBufferRef OutputBuffer);
 	};
 
 	/**
 	 * Compute shader to convert packed 8 bits RGB to RGBA 8bits
 	 */
-	class RIVERMAXRENDERING_API FRGB8BitToRGBA8CS : public FGlobalShader
+	class FRGB8BitToRGBA8CS : public FGlobalShader
 	{
 	public:
 
@@ -196,7 +196,7 @@ namespace UE::RivermaxShaders
 			uint32 DWord2;
 		};
 
-		DECLARE_GLOBAL_SHADER(FRGB8BitToRGBA8CS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FRGB8BitToRGBA8CS, RIVERMAXRENDERING_API);
 		SHADER_USE_PARAMETER_STRUCT(FRGB8BitToRGBA8CS, FGlobalShader);
 
 		class FSRGBToLinear : SHADER_PERMUTATION_BOOL("DO_SRGB_TO_LINEAR");
@@ -218,13 +218,13 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGB8BitToRGBA8CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount);
+		RIVERMAXRENDERING_API FRGB8BitToRGBA8CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount);
 	};
 
 	/**
 	 * Compute shader to convert RGBA to packed 8 bits RGB
 	 */
-	class RIVERMAXRENDERING_API FRGBToRGB8BitCS : public FGlobalShader
+	class FRGBToRGB8BitCS : public FGlobalShader
 	{
 	public:
 		
@@ -237,7 +237,7 @@ namespace UE::RivermaxShaders
 			uint32 DWord2;
 		};
 
-		DECLARE_GLOBAL_SHADER(FRGBToRGB8BitCS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FRGBToRGB8BitCS, RIVERMAXRENDERING_API);
 
 		SHADER_USE_PARAMETER_STRUCT(FRGBToRGB8BitCS, FGlobalShader);
 
@@ -263,13 +263,13 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGBToRGB8BitCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, FRDGBufferRef OutputBuffer);
+		RIVERMAXRENDERING_API FRGBToRGB8BitCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, FRDGBufferRef OutputBuffer);
 	};
 
 	/**
 	 * Compute shader to convert RGBA to packed 10 bits RGB
 	 */
-	class RIVERMAXRENDERING_API FRGBToRGB10BitCS : public FGlobalShader
+	class FRGBToRGB10BitCS : public FGlobalShader
 	{
 	public:
 
@@ -281,7 +281,7 @@ namespace UE::RivermaxShaders
 			uint32 DWords[15];
 		};
 
-		DECLARE_GLOBAL_SHADER(FRGBToRGB10BitCS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FRGBToRGB10BitCS, RIVERMAXRENDERING_API);
 
 		SHADER_USE_PARAMETER_STRUCT(FRGBToRGB10BitCS, FGlobalShader);
 
@@ -296,7 +296,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER(uint32, InputTexturePixelsPerThread)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRGB10BitBuffer>, OutRGB10Buffer)
-			END_SHADER_PARAMETER_STRUCT()
+		END_SHADER_PARAMETER_STRUCT()
 
 	public:
 
@@ -307,13 +307,13 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGBToRGB10BitCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, FRDGBufferRef OutputBuffer);
+		RIVERMAXRENDERING_API FRGBToRGB10BitCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, FRDGBufferRef OutputBuffer);
 	};
 
 	/**
 	 * Compute shader to convert packed 10 bits RGB to RGBA
 	 */
-	class RIVERMAXRENDERING_API FRGB10BitToRGBA10CS : public FGlobalShader
+	class FRGB10BitToRGBA10CS : public FGlobalShader
 	{
 	public:
 
@@ -325,7 +325,7 @@ namespace UE::RivermaxShaders
 			uint32 DWords[15];
 		};
 
-		DECLARE_GLOBAL_SHADER(FRGB10BitToRGBA10CS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FRGB10BitToRGBA10CS, RIVERMAXRENDERING_API);
 		SHADER_USE_PARAMETER_STRUCT(FRGB10BitToRGBA10CS, FGlobalShader);
 
 		class FSRGBToLinear : SHADER_PERMUTATION_BOOL("DO_SRGB_TO_LINEAR");
@@ -336,7 +336,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
 			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
-			END_SHADER_PARAMETER_STRUCT()
+		END_SHADER_PARAMETER_STRUCT()
 
 	public:
 
@@ -347,13 +347,13 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGB10BitToRGBA10CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount);
+		RIVERMAXRENDERING_API FRGB10BitToRGBA10CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount);
 	};
 
 	/**
 	 * Compute shader to convert RGBA to packed 12 bits RGB
 	 */
-	class RIVERMAXRENDERING_API FRGBToRGB12BitCS : public FGlobalShader
+	class FRGBToRGB12BitCS : public FGlobalShader
 	{
 	public:
 
@@ -365,7 +365,7 @@ namespace UE::RivermaxShaders
 			uint32 DWords[9];
 		};
 
-		DECLARE_GLOBAL_SHADER(FRGBToRGB12BitCS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FRGBToRGB12BitCS, RIVERMAXRENDERING_API);
 
 		SHADER_USE_PARAMETER_STRUCT(FRGBToRGB12BitCS, FGlobalShader);
 
@@ -380,7 +380,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER(uint32, InputTexturePixelsPerThread)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRGB12BitBuffer>, OutRGB12Buffer)
-			END_SHADER_PARAMETER_STRUCT()
+		END_SHADER_PARAMETER_STRUCT()
 
 	public:
 
@@ -391,13 +391,13 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGBToRGB12BitCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, FRDGBufferRef OutputBuffer);
+		RIVERMAXRENDERING_API FRGBToRGB12BitCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, FRDGBufferRef OutputBuffer);
 	};
 
 	/**
 	 * Compute shader to convert packed 12 bits RGB to RGBA
 	 */
-	class RIVERMAXRENDERING_API FRGB12BitToRGBA12CS : public FGlobalShader
+	class FRGB12BitToRGBA12CS : public FGlobalShader
 	{
 	public:
 
@@ -409,7 +409,7 @@ namespace UE::RivermaxShaders
 			uint32 DWords[9];
 		};
 
-		DECLARE_GLOBAL_SHADER(FRGB12BitToRGBA12CS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FRGB12BitToRGBA12CS, RIVERMAXRENDERING_API);
 		SHADER_USE_PARAMETER_STRUCT(FRGB12BitToRGBA12CS, FGlobalShader);
 
 		class FSRGBToLinear : SHADER_PERMUTATION_BOOL("DO_SRGB_TO_LINEAR");
@@ -420,7 +420,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
 			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
-			END_SHADER_PARAMETER_STRUCT()
+		END_SHADER_PARAMETER_STRUCT()
 
 	public:
 
@@ -431,17 +431,17 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGB12BitToRGBA12CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount);
+		RIVERMAXRENDERING_API FRGB12BitToRGBA12CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount);
 	};
 
 	/**
 	 * Compute shader to convert RGBA to Float16 RGB
 	 */
-	class RIVERMAXRENDERING_API FRGBToRGB16fCS : public FGlobalShader
+	class FRGBToRGB16fCS : public FGlobalShader
 	{
 	public:
 
-		DECLARE_GLOBAL_SHADER(FRGBToRGB16fCS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FRGBToRGB16fCS, RIVERMAXRENDERING_API);
 
 		SHADER_USE_PARAMETER_STRUCT(FRGBToRGB16fCS, FGlobalShader);
 
@@ -474,13 +474,13 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGBToRGB16fCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, FRDGBufferRef OutputBuffer);
+		RIVERMAXRENDERING_API FRGBToRGB16fCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, FRDGBufferRef OutputBuffer);
 	};
 
 	/**
 	 * Compute shader to convert 16 bits float RGB to RGBA
 	 */
-	class RIVERMAXRENDERING_API FRGB16fBitToRGBA16fCS : public FGlobalShader
+	class FRGB16fBitToRGBA16fCS : public FGlobalShader
 	{
 	public:
 
@@ -491,7 +491,7 @@ namespace UE::RivermaxShaders
 			uint32 DWords[3];
 		};
 
-		DECLARE_GLOBAL_SHADER(FRGB16fBitToRGBA16fCS);
+		DECLARE_EXPORTED_GLOBAL_SHADER(FRGB16fBitToRGBA16fCS, RIVERMAXRENDERING_API);
 		SHADER_USE_PARAMETER_STRUCT(FRGB16fBitToRGBA16fCS, FGlobalShader);
 
 		class FSRGBToLinear : SHADER_PERMUTATION_BOOL("DO_SRGB_TO_LINEAR");
@@ -502,7 +502,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
 			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
-			END_SHADER_PARAMETER_STRUCT()
+		END_SHADER_PARAMETER_STRUCT()
 
 	public:
 
@@ -513,7 +513,7 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGB16fBitToRGBA16fCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount);
+		RIVERMAXRENDERING_API FRGB16fBitToRGBA16fCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount);
 	};
 }
 

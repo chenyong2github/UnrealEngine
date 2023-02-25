@@ -63,9 +63,9 @@ struct FNiagaraDrawIndirectArgGenTaskInfo
  * Compute shader used to generate GPU emitter draw indirect args.
  * It also resets unused instance count entries.
  */
-class NIAGARAVERTEXFACTORIES_API FNiagaraDrawIndirectArgsGenCS : public FGlobalShader
+class FNiagaraDrawIndirectArgsGenCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraDrawIndirectArgsGenCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraDrawIndirectArgsGenCS, NIAGARAVERTEXFACTORIES_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraDrawIndirectArgsGenCS, FGlobalShader);
 
 public:
@@ -88,9 +88,9 @@ public:
 /**
  * Compute shader used to reset unused instance count entries. Used if the platform doesn't support RW texture buffers
  */
-class NIAGARAVERTEXFACTORIES_API FNiagaraDrawIndirectResetCountsCS : public FGlobalShader
+class FNiagaraDrawIndirectResetCountsCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraDrawIndirectResetCountsCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraDrawIndirectResetCountsCS, NIAGARAVERTEXFACTORIES_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraDrawIndirectResetCountsCS, FGlobalShader);
 
 public:

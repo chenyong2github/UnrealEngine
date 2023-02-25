@@ -82,9 +82,6 @@ struct FNiagaraRibbonComputeCommon
 	static constexpr uint32 IndexGenOptimalLoopVertexLimit = 32;
 };
 
-
-
-
 BEGIN_SHADER_PARAMETER_STRUCT(FRibbonOrderSortParameters, NIAGARASHADER_API)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FRibbonComputeUniformParameters, Common)
 	SHADER_PARAMETER_SRV(Buffer<uint32>, SortedIndices)
@@ -96,9 +93,9 @@ END_SHADER_PARAMETER_STRUCT()
 /**
 * Compute shader used to generate particle sort keys.
 */
-class NIAGARASHADER_API FNiagaraRibbonSortPhase1CS : public FGlobalShader
+class FNiagaraRibbonSortPhase1CS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraRibbonSortPhase1CS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraRibbonSortPhase1CS, NIAGARASHADER_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraRibbonSortPhase1CS, FGlobalShader);
 
 	static constexpr uint32 BubbleSortGroupWidth = 32;
@@ -112,9 +109,9 @@ class NIAGARASHADER_API FNiagaraRibbonSortPhase1CS : public FGlobalShader
 /**
 * Compute shader used to generate particle sort keys.
 */
-class NIAGARASHADER_API FNiagaraRibbonSortPhase2CS : public FGlobalShader
+class FNiagaraRibbonSortPhase2CS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraRibbonSortPhase2CS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraRibbonSortPhase2CS, NIAGARASHADER_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraRibbonSortPhase2CS, FGlobalShader);
 
 	static constexpr uint32 ThreadGroupSize = 64;
@@ -124,7 +121,6 @@ class NIAGARASHADER_API FNiagaraRibbonSortPhase2CS : public FGlobalShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
-
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraRibbonVertexReductionParameters, NIAGARASHADER_API)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FRibbonComputeUniformParameters, Common)
@@ -141,9 +137,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraRibbonVertexReductionParameters, NIAGARASH
 	SHADER_PARAMETER(int, PrefixScanStride)
 END_SHADER_PARAMETER_STRUCT()
 
-class NIAGARASHADER_API FNiagaraRibbonVertexReductionInitializationCS : public FGlobalShader
+class FNiagaraRibbonVertexReductionInitializationCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraRibbonVertexReductionInitializationCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraRibbonVertexReductionInitializationCS, NIAGARASHADER_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraRibbonVertexReductionInitializationCS, FGlobalShader);
 	
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation, FRibbonHasTwist>;
@@ -152,9 +148,9 @@ class NIAGARASHADER_API FNiagaraRibbonVertexReductionInitializationCS : public F
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
 
-class NIAGARASHADER_API FNiagaraRibbonVertexReductionPropagateCS : public FGlobalShader
+class FNiagaraRibbonVertexReductionPropagateCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraRibbonVertexReductionPropagateCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraRibbonVertexReductionPropagateCS, NIAGARASHADER_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraRibbonVertexReductionPropagateCS, FGlobalShader);
 	
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation, FRibbonHasTwist>;
@@ -176,9 +172,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraRibbonVertexReductionFinalizationParameter
 	SHADER_PARAMETER(int, FinalizationThreadBlockSize)
 END_SHADER_PARAMETER_STRUCT()
 
-class NIAGARASHADER_API FNiagaraRibbonVertexReductionFinalizeCS : public FGlobalShader
+class FNiagaraRibbonVertexReductionFinalizeCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraRibbonVertexReductionFinalizeCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraRibbonVertexReductionFinalizeCS, NIAGARASHADER_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraRibbonVertexReductionFinalizeCS, FGlobalShader);
 	
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation, FRibbonHasTwist>;
@@ -210,9 +206,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraRibbonVertexFinalizationParameters, NIAGAR
 	SHADER_PARAMETER(int32, TotalNumRibbons)
 END_SHADER_PARAMETER_STRUCT()
 
-class NIAGARASHADER_API FNiagaraRibbonUVParamCalculationCS : public FGlobalShader
+class FNiagaraRibbonUVParamCalculationCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraRibbonUVParamCalculationCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraRibbonUVParamCalculationCS, NIAGARASHADER_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraRibbonUVParamCalculationCS, FGlobalShader);
 	
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation>;
@@ -249,11 +245,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraRibbonInitializeIndices, NIAGARASHADER_API
 	SHADER_PARAMETER(float, GNiagaraRibbonTessellationMinDisplacementError)
 END_SHADER_PARAMETER_STRUCT()
 
-class NIAGARASHADER_API FNiagaraRibbonCreateIndexBufferParamsCS : public FGlobalShader
+class FNiagaraRibbonCreateIndexBufferParamsCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraRibbonCreateIndexBufferParamsCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraRibbonCreateIndexBufferParamsCS, NIAGARASHADER_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraRibbonCreateIndexBufferParamsCS, FGlobalShader);
-
 	
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation>;
 	using FParameters = FNiagaraRibbonInitializeIndices;
@@ -290,11 +285,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraRibbonGenerateIndices, NIAGARASHADER_API)
 	SHADER_PARAMETER(uint32, SubSegmentBitMask)
 END_SHADER_PARAMETER_STRUCT()
 
-class NIAGARASHADER_API FNiagaraRibbonCreateIndexBufferCS : public FGlobalShader
+class FNiagaraRibbonCreateIndexBufferCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraRibbonCreateIndexBufferCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraRibbonCreateIndexBufferCS, NIAGARASHADER_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraRibbonCreateIndexBufferCS, FGlobalShader);
-
 	
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonHasHighSliceComplexity>;;
 	using FParameters = FNiagaraRibbonGenerateIndices;

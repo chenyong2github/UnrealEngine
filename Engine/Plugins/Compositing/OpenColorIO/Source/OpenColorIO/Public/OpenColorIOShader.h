@@ -70,10 +70,10 @@ namespace OpenColorIOShader
 	static constexpr uint32 MaximumTextureSlots = 8;
 }
 
-class OPENCOLORIO_API FOpenColorIOPixelShader : public FGlobalShader
+class FOpenColorIOPixelShader : public FGlobalShader
 {
 public:
-	DECLARE_SHADER_TYPE(FOpenColorIOPixelShader, OpenColorIO);
+	DECLARE_EXPORTED_SHADER_TYPE(FOpenColorIOPixelShader, OpenColorIO, OPENCOLORIO_API);
 	SHADER_USE_PARAMETER_STRUCT(FOpenColorIOPixelShader, FGlobalShader);
 
 	using FParameters = FOpenColorIOPixelShaderParameters;

@@ -10,18 +10,16 @@
 #include "RenderGraphUtils.h"
 #include "ShaderParameterUtils.h"
 
-
-
-class NEURALNETWORKINFERENCESHADERS_API FGemmCS : public FGlobalShader
+class FGemmCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FGemmCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FGemmCS, NEURALNETWORKINFERENCESHADERS_API);
 	SHADER_USE_PARAMETER_STRUCT(FGemmCS, FGlobalShader)
 
 	class FGemmMode : SHADER_PERMUTATION_ENUM_CLASS("GEMM_MODE", EGemmMode);
 	using FPermutationDomain = TShaderPermutationDomain<FGemmMode>;
 
-	static const uint32 THREADGROUP_SIZE_X;
-	static const uint32 THREADGROUP_SIZE_Y;
+	NEURALNETWORKINFERENCESHADERS_API static const uint32 THREADGROUP_SIZE_X;
+	NEURALNETWORKINFERENCESHADERS_API static const uint32 THREADGROUP_SIZE_Y;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 

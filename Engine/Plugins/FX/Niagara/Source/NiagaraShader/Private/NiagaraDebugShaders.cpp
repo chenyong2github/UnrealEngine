@@ -41,7 +41,7 @@ static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_OccludedLineColorScale
 
 //////////////////////////////////////////////////////////////////////////
 
-class NIAGARASHADER_API FNiagaraVisualizeTexturePS : public FGlobalShader
+class FNiagaraVisualizeTexturePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNiagaraVisualizeTexturePS);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraVisualizeTexturePS, FGlobalShader);
@@ -81,7 +81,7 @@ IMPLEMENT_GLOBAL_SHADER(FNiagaraVisualizeTexturePS, "/Plugin/FX/Niagara/Private/
 
 //////////////////////////////////////////////////////////////////////////
 
-class NIAGARASHADER_API FNiagaraClearUAVCS : public FGlobalShader
+class FNiagaraClearUAVCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNiagaraClearUAVCS);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraClearUAVCS, FGlobalShader);
@@ -106,7 +106,7 @@ IMPLEMENT_GLOBAL_SHADER(FNiagaraClearUAVCS, "/Plugin/FX/Niagara/Private/NiagaraD
 
 //////////////////////////////////////////////////////////////////////////
 
-class NIAGARASHADER_API FNiagaraDebugDrawLineVS : public FGlobalShader
+class FNiagaraDebugDrawLineVS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNiagaraDebugDrawLineVS);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraDebugDrawLineVS, FGlobalShader);
@@ -128,7 +128,7 @@ class NIAGARASHADER_API FNiagaraDebugDrawLineVS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-class NIAGARASHADER_API FNiagaraDebugDrawLinePS : public FGlobalShader
+class FNiagaraDebugDrawLinePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNiagaraDebugDrawLinePS);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraDebugDrawLinePS, FGlobalShader);

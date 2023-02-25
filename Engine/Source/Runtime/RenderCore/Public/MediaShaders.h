@@ -578,11 +578,10 @@ END_SHADER_PARAMETER_STRUCT()
 /**
  * Pixel shader to convert RGB 8 bits to UYVY 8 bits
  */
-	class RENDERCORE_API FRGB8toUYVY8ConvertPS : public FGlobalShader
+class FRGB8toUYVY8ConvertPS : public FGlobalShader
 {
 public:
-
-	DECLARE_GLOBAL_SHADER(FRGB8toUYVY8ConvertPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FRGB8toUYVY8ConvertPS, RENDERCORE_API);
 
 	SHADER_USE_PARAMETER_STRUCT(FRGB8toUYVY8ConvertPS, FGlobalShader);
 
@@ -592,24 +591,18 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	UE_DEPRECATED(5.1, "SetParameters has been deprecated while moving to a RDG based pipeline. Please use AllocateAndSetParameters instead.")
-	void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb)
-	{
-	}
-
 	/** Allocates and setup shader parameter in the incoming graph builder */
-	FRGB8toUYVY8ConvertPS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGTextureRef OutputTexture);
+	RENDERCORE_API FRGB8toUYVY8ConvertPS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGTextureRef OutputTexture);
 };
 
 
 /**
  * Pixel shader to convert RGB 10 bits to YUV v210
  */
-class RENDERCORE_API FRGB10toYUVv210ConvertPS : public FGlobalShader
+class FRGB10toYUVv210ConvertPS : public FGlobalShader
 {
 public:
-
-	DECLARE_GLOBAL_SHADER(FRGB10toYUVv210ConvertPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FRGB10toYUVv210ConvertPS, RENDERCORE_API);
 
 	SHADER_USE_PARAMETER_STRUCT(FRGB10toYUVv210ConvertPS, FGlobalShader);
 
@@ -620,13 +613,8 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	UE_DEPRECATED(5.1, "SetParameters has been deprecated while moving to a RDG based pipeline. Please use AllocateAndSetParameters instead.")
-	void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb)
-	{
-	}
-
 	/** Allocates and setup shader parameter in the incoming graph builder */
-	FRGB10toYUVv210ConvertPS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGTextureRef OutputTexture);
+	RENDERCORE_API FRGB10toYUVv210ConvertPS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool bDoLinearToSrgb, FRDGTextureRef OutputTexture);
 };
 
 /**
@@ -634,11 +622,10 @@ public:
  *
  * General conversion shader that is only used to swizzle shaders that do not require any color conversion. RGB to BGR, RGB10A2 to RGBA8 etc
  */
-class RENDERCORE_API FModifyAlphaSwizzleRgbaPS	: public FGlobalShader
+class FModifyAlphaSwizzleRgbaPS	: public FGlobalShader
 {
 public:
-
-	DECLARE_GLOBAL_SHADER(FModifyAlphaSwizzleRgbaPS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FModifyAlphaSwizzleRgbaPS, RENDERCORE_API);
 
 	SHADER_USE_PARAMETER_STRUCT(FModifyAlphaSwizzleRgbaPS, FGlobalShader);
 
@@ -652,13 +639,8 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	UE_DEPRECATED(5.1, "SetParameters has been deprecated while moving to a RDG based pipeline. Please use AllocateAndSetParameters instead.")
-	void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture)
-	{
-	}
-
 	/** Allocates and setup shader parameter in the incoming graph builder */
-	FModifyAlphaSwizzleRgbaPS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, FRDGTextureRef OutputTexture);
+	RENDERCORE_API FModifyAlphaSwizzleRgbaPS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, FRDGTextureRef OutputTexture);
 };
 
 

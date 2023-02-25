@@ -10,19 +10,17 @@
 #include "RenderGraphUtils.h"
 #include "ShaderParameterUtils.h"
 
-
-
-class NEURALNETWORKINFERENCESHADERS_API FConvBaseCS : public FGlobalShader
+class FConvBaseCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FConvBaseCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FConvBaseCS, NEURALNETWORKINFERENCESHADERS_API);
 	SHADER_USE_PARAMETER_STRUCT(FConvBaseCS, FGlobalShader)
 
 	class FHasBias : SHADER_PERMUTATION_BOOL("HAS_BIAS");
 	class FConvMode : SHADER_PERMUTATION_ENUM_CLASS("CONV_MODE", EConvMode);
 	using FPermutationDomain = TShaderPermutationDomain<FHasBias, FConvMode>;
 
-	static const uint32 THREADGROUP_SIZE_X;
-	static const uint32 MAX_NUMBER_DIMENSIONS;
+	NEURALNETWORKINFERENCESHADERS_API static const uint32 THREADGROUP_SIZE_X;
+	NEURALNETWORKINFERENCESHADERS_API static const uint32 MAX_NUMBER_DIMENSIONS;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 

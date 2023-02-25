@@ -14,9 +14,9 @@ NiagaraGPURayTracingTransformsShader.h: Niagara shader to generate the ray traci
 /**
  * Compute shader used to pass GPU instances transforms to the ray tracing TLAS.
  */
-class NIAGARAVERTEXFACTORIES_API FNiagaraGPURayTracingTransformsCS : public FGlobalShader
+class FNiagaraGPURayTracingTransformsCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraGPURayTracingTransformsCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraGPURayTracingTransformsCS, NIAGARAVERTEXFACTORIES_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraGPURayTracingTransformsCS, FGlobalShader);
 
 	static constexpr uint32 ThreadGroupSize = 64;

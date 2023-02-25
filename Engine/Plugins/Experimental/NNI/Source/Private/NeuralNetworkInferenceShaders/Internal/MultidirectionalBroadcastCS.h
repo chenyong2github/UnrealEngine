@@ -10,15 +10,13 @@
 #include "RenderGraphUtils.h"
 #include "ShaderParameterUtils.h"
 
-
-
-class NEURALNETWORKINFERENCESHADERS_API FMultidirectionalBroadcastCS : public FGlobalShader
+class FMultidirectionalBroadcastCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FMultidirectionalBroadcastCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FMultidirectionalBroadcastCS, NEURALNETWORKINFERENCESHADERS_API);
 	SHADER_USE_PARAMETER_STRUCT(FMultidirectionalBroadcastCS, FGlobalShader)
 
-	static const uint32 THREADGROUP_SIZE_X;
-	static const uint32 MAX_NUMBER_DIMENSIONS;
+	NEURALNETWORKINFERENCESHADERS_API static const uint32 THREADGROUP_SIZE_X;
+	NEURALNETWORKINFERENCESHADERS_API static const uint32 MAX_NUMBER_DIMENSIONS;
 
 	class FShaderType : SHADER_PERMUTATION_ENUM_CLASS("SHADER_FUNCTION", EMultidirectionalBroadcastOperator);
 	class FInlinedMode : SHADER_PERMUTATION_ENUM_CLASS("INLINED_MODE", EMultidirectionalBroadcastInlinedMode);

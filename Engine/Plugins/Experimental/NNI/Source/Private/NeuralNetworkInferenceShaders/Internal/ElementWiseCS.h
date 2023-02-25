@@ -10,14 +10,12 @@
 #include "RenderGraphUtils.h"
 #include "ShaderParameterUtils.h"
 
-
-
-class NEURALNETWORKINFERENCESHADERS_API FElementWiseCS : public FGlobalShader
+class FElementWiseCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FElementWiseCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FElementWiseCS, NEURALNETWORKINFERENCESHADERS_API);
 	SHADER_USE_PARAMETER_STRUCT(FElementWiseCS, FGlobalShader)
 
-	static const uint32 THREADGROUP_SIZE_X;
+	NEURALNETWORKINFERENCESHADERS_API static const uint32 THREADGROUP_SIZE_X;
 
 	class FShaderType : SHADER_PERMUTATION_ENUM_CLASS("SHADER_FUNCTION", EElementWiseOperator);
 	class FIsInlined : SHADER_PERMUTATION_BOOL("IS_INLINED");

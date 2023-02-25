@@ -228,7 +228,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCopyTextureParameters, )
 	RDG_TEXTURE_ACCESS(Output, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
-class RENDERCORE_API FDrawTexturePS : public FGlobalShader
+class FDrawTexturePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FDrawTexturePS);
 	SHADER_USE_PARAMETER_STRUCT(FDrawTexturePS, FGlobalShader);
