@@ -1258,19 +1258,6 @@ public:
 
 		return false;
 	}
-
-private:
-
-	int32 GetSolverSyncTimestamp_External() const
-	{
-		if (FPhysicsSolverBase* SolverBase = GetSolverBase())
-		{
-			return SolverBase->GetMarshallingManager().GetExternalTimestamp_External();
-		}
-
-		return INDEX_NONE;
-	}
-
 };
 
 static_assert(sizeof(FRigidBodyHandle_External) == sizeof(FSingleParticlePhysicsProxy), "Derived types only used to constrain API, all data lives in base class ");

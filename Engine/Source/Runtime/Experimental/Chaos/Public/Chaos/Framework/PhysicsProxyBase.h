@@ -17,6 +17,7 @@ enum class EPhysicsProxyType : uint32
 	SuspensionConstraintType = 9,
 	CharacterGroundConstraintType = 10,
 	SingleParticleProxy,
+	ClusterUnionProxy,
 	Count
 };
 
@@ -58,6 +59,15 @@ struct CHAOS_API FGeometryCollectionProxyTimestamp: public FProxyTimestampBase
 	// ( including kinematic targeting )
 };
 
+struct CHAOS_API FClusterUnionProxyTimestamp : public FProxyTimestampBase
+{
+	TTimestampProperty<Chaos::FVec3> OverWriteX;
+	TTimestampProperty<Chaos::FRotation3> OverWriteR;
+	TTimestampProperty<Chaos::FVec3> OverWriteV;
+	TTimestampProperty<Chaos::FVec3> OverWriteW;
+	TTimestampProperty<bool> OverWriteAnchored;
+	TTimestampProperty<TArray<FTransform>> OverWriteChildToParent;
+};
 
 class CHAOS_API IPhysicsProxyBase
 {
@@ -110,6 +120,9 @@ public:
 
 	int32 GetIgnoreDataOnStep_Internal() const { return IgnoreDataOnStep_Internal; }
 
+	IPhysicsProxyBase* GetParentProxy() const { return ParentProxy; }
+	void SetParentProxy(IPhysicsProxyBase* InProxy) { ParentProxy = InProxy; }
+
 protected:
 	// Ensures that derived classes can successfully call this destructor
 	// but no one can delete using a IPhysicsProxyBase*
@@ -128,11 +141,14 @@ protected:
 private:
 	int32 DirtyIdx;
 	TSharedPtr<FProxyTimestampBase,ESPMode::ThreadSafe> SyncTimestamp;
+	IPhysicsProxyBase* ParentProxy = nullptr;
 protected:
 	/** Proxy type */
 	EPhysicsProxyType Type;
 	int32 InitializedOnStep = INDEX_NONE;
 	int32 IgnoreDataOnStep_Internal = INDEX_NONE;
+
+	int32 GetSolverSyncTimestamp_External() const;
 };
 
 struct PhysicsProxyWrapper
