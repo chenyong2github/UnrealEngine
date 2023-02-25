@@ -1620,6 +1620,21 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	// When in PIE if we are in immersive we do not tick the editor world unless there is a visible editor viewport.
 	bool bShouldTickEditorWorld = true;
 
+	// Conditionally disable all viewport rendering when the editor is in the background.
+	// This aims to improve GPU performance of other applications when the editor is not actively used.
+	{
+		const bool bShouldDisableRendering = !FApp::HasFocus() && GetDefault<UEditorPerformanceSettings>()->bDisableRealtimeViewportsWhenNotForeground;
+		const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_BackgroundProcess", "Background Process");
+		for (FEditorViewportClient* const ViewportClient : AllViewportClients)
+		{
+			ViewportClient->RemoveRealtimeOverride(SystemDisplayName, false /*bCheckMissingOverride*/);
+			if (bShouldDisableRendering)
+			{
+				ViewportClient->AddRealtimeOverride(false /*bShouldBeRealtime*/, SystemDisplayName);
+			}
+		}
+	}
+
 	//@todo Multiple Worlds: Do we need to consider what world we are in here?
 
 	// Find which viewport has audio focus, i.e. gets to set the listener location
