@@ -132,6 +132,9 @@ public:
 	virtual bool ContainsTag(FName TagName) const override;
 	virtual void InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName = FString(), UE::AssetRegistry::ESerializationTarget Target = UE::AssetRegistry::ESerializationTarget::ForGame) const override;
 
+	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FFilesBlockedEvent, FFilesBlockedEvent);
+	virtual FFilesBlockedEvent& OnFilesBlocked() override;
+
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FPathAddedEvent, FPathAddedEvent);
 	virtual FPathAddedEvent& OnPathAdded() override;
 
@@ -283,6 +286,9 @@ private:
 	/** If true, the asset registry will inject missing tags from UMetaData for cooked assets only in GetAssetRegistryTags */
 	bool bAddMetaDataTagsToOnGetExtraObjectTags = true;
 #endif
+
+	/** The delegate to execute when one or more files have been blocked from the registry */
+	FFilesBlockedEvent FilesBlockedEvent;
 
 	/** The delegate to execute when an asset path is added to the registry */
 	FPathAddedEvent PathAddedEvent;

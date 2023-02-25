@@ -93,11 +93,13 @@ public:
 		TMultiMap<FName, FPackageDependencyData> Dependencies;
 		TRingBuffer<FString> CookedPackageNamesWithoutAssetData;
 		TRingBuffer<FName> VerseFiles;
+		TArray<FString> BlockedFiles;
 
 		SIZE_T GetAllocatedSize() const
 		{
 			return Assets.GetAllocatedSize() + Paths.GetAllocatedSize() + Dependencies.GetAllocatedSize() +
-				CookedPackageNamesWithoutAssetData.GetAllocatedSize() + VerseFiles.GetAllocatedSize();
+				CookedPackageNamesWithoutAssetData.GetAllocatedSize() + VerseFiles.GetAllocatedSize() +
+				BlockedFiles.GetAllocatedSize();
 		}
 		void Shrink()
 		{
@@ -106,6 +108,7 @@ public:
 			Dependencies.Shrink();
 			CookedPackageNamesWithoutAssetData.Trim();
 			VerseFiles.Trim();
+			BlockedFiles.Shrink();
 		}
 	};
 	struct FResultContext
@@ -386,6 +389,8 @@ private:
 	TArray<FString> CookedPackageNamesWithoutAssetDataResults;
 	/** File paths (in UE LongPackagePath notation) of the Verse source code gathered from the searched files. */
 	TArray<FName> VerseResults;
+	/** File paths (in regular filesystem notation) of blocked packages from the searched files. */
+	TArray<FString> BlockedResults;
 
 	/** All the search times since the last call to GetAndTrimSearchResults. */
 	TArray<double> SearchTimes;

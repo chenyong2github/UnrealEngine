@@ -4003,6 +4003,13 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 		VerseFilesGathered(TickStartTime, BackgroundResults.VerseFiles);
 	}
 
+	// Store blocked files to be reported
+	if (BackgroundResults.BlockedFiles.Num())
+	{
+		EventContext.BlockedFiles.Append(MoveTemp(BackgroundResults.BlockedFiles));
+		BackgroundResults.BlockedFiles.Reset();
+	}
+
 	// Load Calculated Dependencies when the gather from disk is complete; the full gather is not complete until after this is done
 	int32 NumGatherFromDiskPending = GetNumGatherFromDiskPending();
 #if WITH_EDITOR
@@ -6893,6 +6900,7 @@ void FEventContext::Clear()
 	PathEvents.Empty();
 	AssetEvents.Empty();
 	RequiredLoads.Empty();
+	BlockedFiles.Empty();
 }
 
 bool FEventContext::IsEmpty() const
@@ -6901,7 +6909,8 @@ bool FEventContext::IsEmpty() const
 		!ProgressUpdateData.IsSet() &&
 		PathEvents.Num() == 0 &&
 		AssetEvents.Num() == 0 &&
-		RequiredLoads.Num() == 0;
+		RequiredLoads.Num() == 0 &&
+		BlockedFiles.Num() == 0;
 }
 
 void FEventContext::Append(FEventContext&& Other)
@@ -6918,6 +6927,7 @@ void FEventContext::Append(FEventContext&& Other)
 	PathEvents.Append(MoveTemp(Other.PathEvents));
 	AssetEvents.Append(MoveTemp(Other.AssetEvents));
 	RequiredLoads.Append(MoveTemp(Other.RequiredLoads));
+	BlockedFiles.Append(MoveTemp(Other.BlockedFiles));
 }
 
 }
@@ -7012,8 +7022,18 @@ void UAssetRegistryImpl::Broadcast(UE::AssetRegistry::Impl::FEventContext& Event
 		}
 		EventContext.RequiredLoads.Empty();
 	}
+	if (EventContext.BlockedFiles.Num())
+	{
+		FilesBlockedEvent.Broadcast(EventContext.BlockedFiles);
+		EventContext.BlockedFiles.Empty();
+	}
 }
 
+
+UAssetRegistryImpl::FFilesBlockedEvent& UAssetRegistryImpl::OnFilesBlocked()
+{
+	return FilesBlockedEvent;
+}
 
 UAssetRegistryImpl::FPathAddedEvent& UAssetRegistryImpl::OnPathAdded()
 {

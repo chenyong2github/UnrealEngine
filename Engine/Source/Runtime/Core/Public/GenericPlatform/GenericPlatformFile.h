@@ -8,6 +8,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
@@ -330,6 +331,29 @@ public:
 
 	/** Return true if the file is a symbolic link */
 	virtual ESymlinkResult IsSymlink(const TCHAR* Filename) { return ESymlinkResult::Unimplemented; }
+
+	/**
+	 * Determine if the file has been downloaded from a web browser, based on platform-specific metadata.
+	 *
+	 * @param Filename The file to check if it has a mark of the web.
+	 * @param OutSourceURL An optional pointer to return a source url if available.
+	 *
+	 * @return true if the file has a mark of the web, false otherwise.
+	 * @remark Only works for files on disk and currently only implemented for Windows.
+	 */
+	virtual bool HasMarkOfTheWeb(FStringView Filename, FString* OutSourceURL = nullptr) { return false; }
+
+	/**
+	 * Attempt to change the platform-specific metadata that indicates if the file has been downloaded from a web browser.
+	 *
+	 * @param Filename The file to change it's mark of the web status.
+	 * @param bNewStatus New mark of the web status for the file.
+	 * @param InSourceURL An optional pointer to a source url that will be applied if new status true.
+	 *
+	 * @return true if the file's mark of the web status was successful changed, false otherwise.
+	 * @remark Only works for files on disk and currently only implemented for Windows.
+	 */
+	virtual bool SetMarkOfTheWeb(FStringView Filename, bool bNewStatus, const FString* InSourceURL = nullptr) { return false; }
 
 	/** Attempt to open a file for reading.
 	 *

@@ -482,6 +482,7 @@ struct FEventContext
 	TArray<TPair<FString, EEvent>> PathEvents;
 	TArray<TPair<FAssetData, EEvent>> AssetEvents;
 	TArray<FString> RequiredLoads;
+	TArray<FString> BlockedFiles;
 	bool bFileLoadedEventBroadcast = false;
 
 	/** Remove all stored events */

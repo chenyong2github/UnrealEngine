@@ -85,16 +85,18 @@ struct FDiscoveredPathData
 	FDateTime PackageTimestamp;
 	/** The type of file that was found */
 	EGatherableFileType Type = EGatherableFileType::Invalid;
+	/** Whether the file should just be reported as blocked and not further data gathered */
+	bool bBlocked = false;
 
 	FDiscoveredPathData() = default;
 	FDiscoveredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath,
-		const FDateTime& InPackageTimestamp, EGatherableFileType InType);
+		const FDateTime& InPackageTimestamp, EGatherableFileType InType, bool bInBlocked);
 	FDiscoveredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath,
-		EGatherableFileType InType);
+		EGatherableFileType InType, bool bInBlocked);
 	void Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath,
-		const FDateTime& InPackageTimestamp, EGatherableFileType InType);
+		const FDateTime& InPackageTimestamp, EGatherableFileType InType, bool bInBlocked);
 	void Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath,
-		EGatherableFileType InType);
+		EGatherableFileType InType, bool bInBlocked);
 
 	/** Return the total amount of heap memory used by the gatherer (including not-yet-claimed search results). */
 	SIZE_T GetAllocatedSize() const;
@@ -111,14 +113,16 @@ struct FGatheredPathData
 	FDateTime PackageTimestamp;
 	/** The type of file that was found */
 	EGatherableFileType Type = EGatherableFileType::Invalid;
+	/** Whether the file should just be reported as blocked and not further data gathered */
+	bool bBlocked = false;
 
 	FGatheredPathData() = default;
 	FGatheredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp,
-		EGatherableFileType InType);
+		EGatherableFileType InType, bool bInBlocked);
 	explicit FGatheredPathData(const FDiscoveredPathData& DiscoveredData);
 	explicit FGatheredPathData(FDiscoveredPathData&& DiscoveredData);
 	void Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp,
-		EGatherableFileType InType);
+		EGatherableFileType InType, bool bInBlocked);
 	void Assign(const FDiscoveredPathData& DiscoveredData);
 
 	/**

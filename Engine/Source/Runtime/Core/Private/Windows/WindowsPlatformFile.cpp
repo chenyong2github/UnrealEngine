@@ -49,6 +49,9 @@ static FAutoConsoleCommand TriggerFailedMicrosoftReadCmd(
 	namespace FileConstants
 	{
 		uint32 WIN_INVALID_SET_FILE_POINTER = INVALID_SET_FILE_POINTER;
+
+		/** Special suffix to access Alternate Data Stream "Zone.Identifier" for NTFS files */
+		constexpr FStringView ZoneIdentifierStreamSuffix(TEXTVIEW(":Zone.Identifier"));
 	}
 #include "Windows/HideWindowsPlatformTypes.h"
 
@@ -978,6 +981,12 @@ class CORE_API FWindowsPlatformFile : public IPhysicalPlatformFile
 			NormalizeWindowsPath(*this, /* bIsFilename */ true);
 		}
 
+		explicit FNormalizedFilename(FStringView Filename)
+		{
+			Append(Filename);
+			NormalizeWindowsPath(*this, /* bIsFilename */ true);
+		}
+
 		explicit FNormalizedFilename(FStringView Dir, FStringView Filename)
 		{
 			Append(Dir);
@@ -1178,6 +1187,57 @@ public:
 			return ESymlinkResult::Symlink;
 		}
 		return ESymlinkResult::NonSymlink;
+	}
+
+	virtual bool HasMarkOfTheWeb(FStringView Filename, FString* OutSourceURL = nullptr) override
+	{
+		FNormalizedFilename StreamPath(Filename);
+		StreamPath.Append(FileConstants::ZoneIdentifierStreamSuffix);
+
+		const uint32 ZoneId = GetPrivateProfileIntW(TEXT("ZoneTransfer"), TEXT("ZoneId"), -1 /* URLZONE_INVALID */, *StreamPath);
+		if (ZoneId != 2 /* URLZONE_TRUSTED */ && ZoneId != 3 /* URLZONE_INTERNET */ && ZoneId != 4 /* URLZONE_UNTRUSTED */)
+		{
+			return false;
+		}
+
+		if (OutSourceURL != nullptr)
+		{
+			// Can't use FConfigFile to parse ini because it treats double slashes in the url (e.g. HostUrl=http://...) as the beginning of a comment.
+			TCHAR HostUrl[2048]; // @todo: remove hardcoded url length limit by using a simple standalone ini parser
+			const int32 HostUrlLen = static_cast<int32>(GetPrivateProfileStringW(TEXT("ZoneTransfer"), TEXT("HostUrl"), nullptr, HostUrl, static_cast<DWORD>(GetNum(HostUrl)), *StreamPath));
+			if (0 < HostUrlLen && HostUrlLen <= GetNum(HostUrl))
+			{
+				*OutSourceURL = FString(HostUrlLen, HostUrl);
+			}
+		}
+
+		return true;
+	}
+
+	virtual bool SetMarkOfTheWeb(FStringView Filename, bool bNewStatus, const FString* InSourceURL = nullptr) override
+	{
+		FNormalizedFilename StreamPath(Filename);
+		StreamPath.Append(FileConstants::ZoneIdentifierStreamSuffix);
+
+		if (!bNewStatus)
+		{
+			return !!DeleteFileW(*StreamPath) || GetLastError() == ERROR_FILE_NOT_FOUND;
+		}
+
+		if (!WritePrivateProfileStringW(TEXT("ZoneTransfer"), TEXT("ZoneId"), TEXT("3") /* URLZONE_INTERNET */, *StreamPath))
+		{
+			return false;
+		}
+
+		if (InSourceURL != nullptr)
+		{
+			if (!WritePrivateProfileStringW(TEXT("ZoneTransfer"), TEXT("HostUrl"), **InSourceURL, *StreamPath))
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 #define USE_WINDOWS_ASYNC_IMPL 0
