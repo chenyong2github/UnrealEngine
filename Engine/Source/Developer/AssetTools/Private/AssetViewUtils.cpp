@@ -58,6 +58,12 @@ namespace AssetViewUtils
 	/** Callback used when a folder is moved or renamed */
 	static FOnFolderPathChanged OnFolderPathChangedDelegate;
 
+	/** Callback used when a sync starts */
+	static FOnSyncStart FOnSyncStartDelegate;
+
+	/** Callback used when a sync finishes */
+	static FOnSyncFinish FOnSyncFinishDelegate;
+
 	/** Keep a map of all the paths that have custom colors, so updating the color in one location updates them all */
 	static TMap< FString, FLinearColor > PathColors;
 
@@ -1721,6 +1727,9 @@ bool AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& Packag
 {
 	if (PackageNames.Num() > 0)
 	{
+		// Broadcast sync starting...
+		AssetViewUtils::OnSyncStart().Broadcast();
+
 		TArray<FString> PackageNamesToSync = PackageNames;
 
 		// Warn about any packages that are being synced without also getting the newest version of their dependencies...
@@ -1792,6 +1801,9 @@ bool AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& Packag
 		// Re-cache the SCC state...
 		SCCProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), PackageFilenames);
 
+		// Broadcast sync finished...
+		AssetViewUtils::OnSyncFinish().Broadcast(SyncResult == ECommandResult::Succeeded, &PackageFilenames);
+
 		// Return result...
 		return (SyncResult == ECommandResult::Succeeded);
 	}
@@ -1824,6 +1836,9 @@ static bool SyncPathsFromSourceControl(const TArray<FString>& Paths, bool bCheck
 
 	if (PathsOnDisk.Num() > 0)
 	{
+		// Broadcast sync starting...
+		AssetViewUtils::OnSyncStart().Broadcast();
+
 		ISourceControlProvider& SCCProvider = ISourceControlModule::Get().GetProvider();
 
 		// Get all the assets about to be synced in those path(s) on disk...
@@ -1979,6 +1994,9 @@ static bool SyncPathsFromSourceControl(const TArray<FString>& Paths, bool bCheck
 		// Re-cache the SCC state...
 		SCCProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), AffectedFiles.Num() > 0 ? AffectedFiles : PathsOnDisk);
 
+		// Broadcast sync finished...
+		AssetViewUtils::OnSyncFinish().Broadcast(SyncResult == ECommandResult::Succeeded, AffectedFiles.Num() > 0 ? &AffectedFiles : nullptr);
+
 		// Return result...
 		return (SyncResult == ECommandResult::Succeeded);
 	}
@@ -2018,6 +2036,16 @@ AssetViewUtils::FOnAlwaysShowPath& AssetViewUtils::OnAlwaysShowPath()
 AssetViewUtils::FOnFolderPathChanged& AssetViewUtils::OnFolderPathChanged()
 {
 	return OnFolderPathChangedDelegate;
+}
+
+AssetViewUtils::FOnSyncStart& AssetViewUtils::OnSyncStart()
+{
+	return FOnSyncStartDelegate;
+}
+
+AssetViewUtils::FOnSyncFinish& AssetViewUtils::OnSyncFinish()
+{
+	return FOnSyncFinishDelegate;
 }
 
 #undef LOCTEXT_NAMESPACE

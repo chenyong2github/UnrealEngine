@@ -232,4 +232,16 @@ namespace AssetViewUtils
 	using FMovedContentFolder = TTuple<FString /*OldPath*/, FString /*NewPath*/>;
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnFolderPathChanged, TArrayView<const FMovedContentFolder> /*ChangedPaths*/);
 	ASSETTOOLS_API FOnFolderPathChanged& OnFolderPathChanged();
+
+	/** Called when a sync from AssetViewUtils starts */
+	DECLARE_MULTICAST_DELEGATE(FOnSyncStart);
+	ASSETTOOLS_API FOnSyncStart& OnSyncStart();
+
+	/** 
+	 * Called when a sync from AssetViewUtils finishes
+	 * If Files is non-nullptr, those are the files affected by the sync.
+	 * If Files is nullptr, assume any file might have been changed by the sync.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSyncFinish, bool /*bSucceeded*/, const TArray<FString>* /*Files*/);
+	ASSETTOOLS_API FOnSyncFinish& OnSyncFinish();
 }
