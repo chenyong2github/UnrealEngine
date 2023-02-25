@@ -90,7 +90,7 @@ bool UWidgetBlueprintFactory::ConfigureProperties()
 			Options.ExtraPickerCommonClasses.Add(UUserWidget::StaticClass());
 		}
 
-		Filter->DisallowedClassFlags = CLASS_Deprecated | CLASS_Abstract | CLASS_NewerVersionExists | CLASS_Hidden | CLASS_HideDropDown;
+		Filter->DisallowedClassFlags = CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_Hidden | CLASS_HideDropDown;
 		Filter->AllowedChildrenOfClasses.Add(UUserWidget::StaticClass());
 
 		const FText TitleText = LOCTEXT("CreateWidgetBlueprint", "Pick Parent Class for New Widget Blueprint");
