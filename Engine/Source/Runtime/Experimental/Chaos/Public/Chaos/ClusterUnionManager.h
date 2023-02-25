@@ -5,7 +5,6 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
-#include "Containers/Set.h"
 
 namespace Chaos
 {
@@ -33,7 +32,7 @@ namespace Chaos
 		TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> SharedGeometry;
 
 		// All the particles that belong to this cluster.
-		TSet<FPBDRigidParticleHandle*> ChildParticles;
+		TArray<FPBDRigidParticleHandle*> ChildParticles;
 
 		// An explicit index set by the user if any.
 		FClusterUnionExplicitIndex ExplicitIndex;
@@ -53,7 +52,10 @@ namespace Chaos
 		FClusterUnionManager(FRigidClustering& InClustering, FPBDRigidsEvolutionGBF& InEvolution);
 
 		// Creates a new cluster union with an automatically assigned cluster union index.
-		FClusterUnionIndex CreateNewClusterUnion(const FClusterCreationParameters& Parameters, FClusterUnionExplicitIndex ExplicitIndex = INDEX_NONE);
+		FClusterUnionIndex CreateNewClusterUnion(const FClusterCreationParameters& Parameters, FClusterUnionExplicitIndex ExplicitIndex = INDEX_NONE, const FUniqueIdx* UniqueIndex = nullptr);
+
+		// Destroy a given cluster union.
+		void DestroyClusterUnion(FClusterUnionIndex Index);
 
 		// Add a new operation to the queue.
 		void AddPendingExplicitIndexOperation(FClusterUnionExplicitIndex Index, EClusterUnionOperation Op, const TArray<FPBDRigidParticleHandle*>& Particles);
@@ -113,7 +115,6 @@ namespace Chaos
 
 		// Actually performs the change specified in the FClusterUnionOperationData structure.
 		void HandleAddOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, bool bReleaseClustersFirst);
-
 	};
 
 }

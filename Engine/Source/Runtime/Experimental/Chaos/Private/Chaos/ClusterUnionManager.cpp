@@ -17,7 +17,7 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::CreateNewClusterUnion"), STAT_CreateNewClusterUnion, STATGROUP_Chaos);
-	FClusterUnionIndex FClusterUnionManager::CreateNewClusterUnion(const FClusterCreationParameters& Parameters, FClusterUnionExplicitIndex ExplicitIndex)
+	FClusterUnionIndex FClusterUnionManager::CreateNewClusterUnion(const FClusterCreationParameters& Parameters, FClusterUnionExplicitIndex ExplicitIndex, const FUniqueIdx* UniqueIndex)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CreateNewClusterUnion);
 		FClusterUnionIndex NewIndex = ClaimNextUnionIndex();
@@ -26,15 +26,31 @@ namespace Chaos
 		FClusterUnion NewUnion;
 		NewUnion.ExplicitIndex = ExplicitIndex;
 		NewUnion.SharedGeometry = ForceRecreateClusterUnionSharedGeometry(NewUnion);
-		NewUnion.InternalCluster = MClustering.CreateClusterParticle(-NewIndex, {}, Parameters, NewUnion.SharedGeometry);
+		NewUnion.InternalCluster = MClustering.CreateClusterParticle(-NewIndex, {}, Parameters, NewUnion.SharedGeometry, nullptr, UniqueIndex);
 		NewUnion.Parameters = Parameters;
 		if (ensure(NewUnion.InternalCluster != nullptr))
 		{
 			NewUnion.InternalCluster->SetInternalCluster(true);
+
+			// No bounds for now since we don't have particles. When/if we do get particles later, updating the
+			// geometry should switch this flag back on.
+			NewUnion.InternalCluster->SetHasBounds(false);
 		}
 
 		ClusterUnions.Add(NewIndex, NewUnion);
 		return NewIndex;
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::DestroyClusterUnion"), STAT_DestroyClusterUnion, STATGROUP_Chaos);
+	void FClusterUnionManager::DestroyClusterUnion(FClusterUnionIndex Index)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_DestroyClusterUnion);
+
+		if (FClusterUnion* ClusterUnion = FindClusterUnion(Index))
+		{
+			ClusterUnion->ChildParticles.Empty();
+			MClustering.DestroyClusterParticle(ClusterUnion->InternalCluster);
+		}
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::ForceRecreateClusterUnionSharedGeometry"), STAT_ForceRecreateClusterUnionSharedGeometry, STATGROUP_Chaos);
@@ -165,6 +181,12 @@ namespace Chaos
 		);
 		MClustering.SetGenerateClusterBreaking(false);
 
+		// If a physics proxy was set already on the cluster we want to make sure that doesn't change.
+		// This is needed to eventually be able to introduce a new physics proxy that gets attached to the
+		// cluster union particle so that it can communicate with the game thread.
+		IPhysicsProxyBase* OldProxy = Cluster->InternalCluster->PhysicsProxy();
+		EPhysicsProxyType OldProxyType = OldProxy ? OldProxy->GetType() : EPhysicsProxyType::NoneType;
+
 		// If we're a new cluster, we need to determine whether to start the cluster in a sleeping or dynamic state.
 		// Only stay sleeping if all the particles we add are also sleeping.
 		const bool bIsNewCluster = Cluster->ChildParticles.IsEmpty();
@@ -187,14 +209,21 @@ namespace Chaos
 
 			bIsSleeping &= Handle->ObjectState() == EObjectStateType::Sleeping;
 
-			if (FPBDRigidClusteredParticleHandle* ClusterHandle = Handle->CastToClustered(); ClusterHandle && bReleaseClustersFirst)
+			if (FPBDRigidClusteredParticleHandle* ClusterHandle = Handle->CastToClustered())
 			{
-				TSet<FPBDRigidParticleHandle*> Children = MClustering.ReleaseClusterParticles(ClusterHandle, true);
-				FinalParticlesToAdd.Append(Children.Array());
-
-				for (FPBDRigidParticleHandle* Child : Children)
+				if (bReleaseClustersFirst)
 				{
-					ChildToParentMap.Add(Child, ClusterHandle);
+					TSet<FPBDRigidParticleHandle*> Children = MClustering.ReleaseClusterParticles(ClusterHandle, true);
+					FinalParticlesToAdd.Append(Children.Array());
+
+					for (FPBDRigidParticleHandle* Child : Children)
+					{
+						ChildToParentMap.Add(Child, ClusterHandle);
+					}
+				}
+				else
+				{
+					FinalParticlesToAdd.Add(Handle);
 				}
 
 				bIsAnchored |= ClusterHandle->IsAnchored();
@@ -212,12 +241,21 @@ namespace Chaos
 
 		Cluster->ChildParticles.Append(FinalParticlesToAdd);
 
-		// If a physics proxy was set already on the cluster we want to make sure that doesn't change.
-		// This is needed to eventually be able to introduce a new physics proxy that gets attached to the
-		// cluster union particle so that it can communicate with the game thread.
-		IPhysicsProxyBase* OldProxy = Cluster->InternalCluster->PhysicsProxy();
-
 		MClustering.AddParticlesToCluster(Cluster->InternalCluster, FinalParticlesToAdd, ChildToParentMap);
+
+		// For all the particles that have been added to the cluster we need to set their parent proxy to the
+		// cluster's proxy if it exists. We need the proxy type check because for non-cluster union proxy backed unions,
+		// the cluster union's proxy will be the proxy of the most recently added particle.
+		if (OldProxy && OldProxyType == EPhysicsProxyType::ClusterUnionProxy)
+		{
+			for (FPBDRigidParticleHandle* Particle : FinalParticlesToAdd)
+			{
+				if (Particle && Particle->PhysicsProxy())
+				{
+					Particle->PhysicsProxy()->SetParentProxy(OldProxy);
+				}
+			}
+		}
 
 		// Update cluster properties.
 		FMatrix33 ClusterInertia(0);
