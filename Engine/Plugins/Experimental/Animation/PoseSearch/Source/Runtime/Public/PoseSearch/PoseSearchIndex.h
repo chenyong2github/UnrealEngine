@@ -82,14 +82,16 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 	FPoseSearchIndexAsset() {}
 
 	FPoseSearchIndexAsset(
-		int32 InSourceAssetIdx,
+		int32 InSourceAssetIdx, 
 		bool bInMirrored, 
 		const FFloatInterval& InSamplingInterval,
+		int32 InPermutationIdx,
 		FVector InBlendParameters = FVector::Zero())
 		: SourceAssetIdx(InSourceAssetIdx)
 		, bMirrored(bInMirrored)
-		, BlendParameters(InBlendParameters)
 		, SamplingInterval(InSamplingInterval)
+		, PermutationIdx(InPermutationIdx)
+		, BlendParameters(InBlendParameters)
 		, FirstPoseIdx(INDEX_NONE)
 		, NumPoses(INDEX_NONE)
 	{
@@ -103,10 +105,13 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 	bool bMirrored = false;
 
 	UPROPERTY(meta = (NeverInHash))
-	FVector BlendParameters = FVector::Zero();
+	FFloatInterval SamplingInterval;
 
 	UPROPERTY(meta = (NeverInHash))
-	FFloatInterval SamplingInterval;
+	int32 PermutationIdx = INDEX_NONE;
+
+	UPROPERTY(meta = (NeverInHash))
+	FVector BlendParameters = FVector::Zero();
 
 	UPROPERTY(meta = (NeverInHash))
 	int32 FirstPoseIdx = INDEX_NONE;
@@ -115,6 +120,8 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 	int32 NumPoses = INDEX_NONE;
 
 	bool IsPoseInRange(int32 PoseIdx) const { return (PoseIdx >= FirstPoseIdx) && (PoseIdx < FirstPoseIdx + NumPoses); }
+	bool IsInitialized() const { return SourceAssetIdx != INDEX_NONE && PermutationIdx != INDEX_NONE && FirstPoseIdx != INDEX_NONE && NumPoses != INDEX_NONE; }
+
 	friend FArchive& operator<<(FArchive& Ar, FPoseSearchIndexAsset& IndexAsset);
 };
 

@@ -58,6 +58,10 @@ public:
 	TArrayView<float> GetPoseVector(int32 SampleIdx) const;
 	const UPoseSearchSchema* GetSchema() const;
 
+	void SetPermutationTimeOffsets(float InPermutationSampleTimeOffset, float InPermutationOriginTimeOffset);
+	void ResetPermutationTimeOffsets();
+	float CalculatePermutationTimeOffset() const;
+	
 private:
 	int32 GetVectorIdx(int32 SampleIdx) const;
 	FTransform GetTransform(float SampleTime, bool& bClamped, int8 SchemaBoneIdx = RootSchemaBoneIdx);
@@ -94,6 +98,10 @@ private:
 	
 	int32 FirstIndexedSample = 0;
 	int32 LastIndexedSample = 0;
+
+	// time offsets controlled by sampling data permutations
+	float PermutationSampleTimeOffset = 0.f;
+	float PermutationOriginTimeOffset = 0.f;
 
 	TArrayView<float> FeatureVectorTable;
 	TArrayView<FPoseSearchPoseMetadata> PoseMetadata;

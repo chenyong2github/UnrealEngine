@@ -85,7 +85,7 @@ FAssetIndexer::FAssetIndexer(const FAssetIndexingContext& InIndexingContext, con
 	IndexingContext = InIndexingContext;
 
 	FirstIndexedSample = FMath::FloorToInt(IndexingContext.RequestedSamplingRange.Min * IndexingContext.Schema->SampleRate);
-	// @todo: parhaps we should use FMath::CeilToInt to avoid sampling over teh length of the aniamtion
+	// @todo: parhaps we should use FMath::CeilToInt to avoid sampling over teh length of the aniamation
 	LastIndexedSample = FMath::Max(0, FMath::CeilToInt(IndexingContext.RequestedSamplingRange.Max * IndexingContext.Schema->SampleRate));
 }
 
@@ -391,8 +391,9 @@ FTransform FAssetIndexer::CalculateComponentSpaceTransform(FAssetIndexer::Cached
 
 FQuat FAssetIndexer::GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx)
 {
-	const float OriginTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), IndexingContext.AssetSampler->GetPlayLength());
-	const float SampleTime = OriginTime + SampleTimeOffset;
+	const float Time = SampleIdx * IndexingContext.Schema->GetSamplingInterval();
+	const float SampleTime = Time + SampleTimeOffset + PermutationSampleTimeOffset;
+	const float OriginTime = Time + PermutationOriginTimeOffset;
 
 	// @todo: add support for SchemaSampleBoneIdx
 	if (!IndexingContext.Schema->IsRootBone(SchemaOriginBoneIdx))
@@ -418,9 +419,10 @@ FQuat FAssetIndexer::GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, 
 
 FVector FAssetIndexer::GetSamplePosition(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx)
 {
-	const float OriginTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), IndexingContext.AssetSampler->GetPlayLength());
-	const float SampleTime = OriginTime + SampleTimeOffset;
-
+	const float Time = SampleIdx * IndexingContext.Schema->GetSamplingInterval();
+	const float SampleTime = Time + SampleTimeOffset + PermutationSampleTimeOffset;
+	const float OriginTime = Time + PermutationOriginTimeOffset;
+	
 	bool bUnused;
 	return GetSamplePositionInternal(SampleTime, OriginTime, bUnused, SchemaSampleBoneIdx, SchemaOriginBoneIdx);
 }
@@ -458,8 +460,9 @@ FVector FAssetIndexer::GetSamplePositionInternal(float SampleTime, float OriginT
 
 FVector FAssetIndexer::GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseCharacterSpaceVelocities)
 {
-	const float OriginTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), IndexingContext.AssetSampler->GetPlayLength());
-	const float SampleTime = OriginTime + SampleTimeOffset;
+	const float Time = SampleIdx * IndexingContext.Schema->GetSamplingInterval();
+	const float SampleTime = Time + SampleTimeOffset + PermutationSampleTimeOffset;
+	const float OriginTime = Time + PermutationOriginTimeOffset;
 	const float FiniteDelta = IndexingContext.SamplingContext->FiniteDelta;
 
 	bool bClampedPast, bClampedPresent;
@@ -495,6 +498,28 @@ const UPoseSearchSchema* FAssetIndexer::GetSchema() const
 {
 	check(IndexingContext.Schema);
 	return IndexingContext.Schema;
+}
+
+void FAssetIndexer::SetPermutationTimeOffsets(float InPermutationSampleTimeOffset, float InPermutationOriginTimeOffset)
+{
+	// right now we disallow having nested channel controlling time offsets
+	check(PermutationSampleTimeOffset == 0.f && PermutationOriginTimeOffset == 0.f);
+	PermutationSampleTimeOffset = InPermutationSampleTimeOffset;
+	PermutationOriginTimeOffset = InPermutationOriginTimeOffset;
+}
+
+void FAssetIndexer::ResetPermutationTimeOffsets()
+{
+	PermutationSampleTimeOffset = 0.f;
+	PermutationOriginTimeOffset = 0.f;
+}
+
+float FAssetIndexer::CalculatePermutationTimeOffset() const
+{
+	const UPoseSearchSchema* Schema = GetSchema();
+	check(Schema->PermutationsSampleRate > 0 && SearchIndexAsset.IsInitialized());
+	const float PermutationTimeOffset = Schema->PermutationsTimeOffset + SearchIndexAsset.PermutationIdx / float(Schema->PermutationsSampleRate);
+	return PermutationTimeOffset;
 }
 
 } // namespace UE::PoseSearch

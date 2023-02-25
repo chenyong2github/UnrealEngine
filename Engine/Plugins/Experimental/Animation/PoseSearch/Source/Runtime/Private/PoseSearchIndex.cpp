@@ -48,8 +48,9 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndexAsset& IndexAsset)
 {
 	Ar << IndexAsset.SourceAssetIdx;
 	Ar << IndexAsset.bMirrored;
-	Ar << IndexAsset.BlendParameters;
 	Ar << IndexAsset.SamplingInterval;
+	Ar << IndexAsset.PermutationIdx;
+	Ar << IndexAsset.BlendParameters;
 	Ar << IndexAsset.FirstPoseIdx;
 	Ar << IndexAsset.NumPoses;
 	return Ar;

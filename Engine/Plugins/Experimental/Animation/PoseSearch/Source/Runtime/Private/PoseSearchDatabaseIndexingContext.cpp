@@ -24,9 +24,6 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	FBoneContainer BoneContainer;
 	BoneContainer.InitializeTo(Schema->BoneIndicesWithParents, FCurveEvaluationOption(false), *Schema->Skeleton);
 
-	TMap<const UAnimationAsset*, int32> SamplerMap;
-	TMap<TPair<const UBlendSpace*, FVector>, int32> BlendSpaceSamplerMap;
-
 	SamplingContext.Init(Schema->MirrorDataTable, BoneContainer);
 
 	if (Owner.IsCanceled())
@@ -35,6 +32,8 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	}
 
 	// Prepare samplers for all animation assets.
+	TMap<const UAnimationAsset*, int32> SamplerMap;
+	TMap<TPair<const UBlendSpace*, FVector>, int32> BlendSpaceSamplerMap;
 	for (const FInstancedStruct& DatabaseAssetStruct : Database.AnimationAssets)
 	{
 		auto AddSequenceBaseSampler = [&](const UAnimSequenceBase* Sequence)

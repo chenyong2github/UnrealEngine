@@ -70,7 +70,7 @@ public:
 #endif // ENABLE_DRAW_DEBUG
 
 #if WITH_EDITOR
-	virtual FString GetLabel() const;
+	virtual FString GetLabel() const override;
 #endif
 
 	float GetEstimatedSpeedRatio(TConstArrayView<float> QueryVector, TConstArrayView<float> PoseVector) const;

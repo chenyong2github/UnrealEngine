@@ -287,57 +287,6 @@ void UPoseSearchFeatureChannel_Phase::Finalize(UPoseSearchSchema* Schema)
 	SchemaBoneIdx = Schema->AddBoneReference(Bone);
 }
 
-#if WITH_EDITOR
-void UPoseSearchFeatureChannel_Phase::FillWeights(TArray<float>& Weights) const
-{
-	for (int32 i = 0; i < ChannelCardinality; ++i)
-	{
-		Weights[ChannelDataOffset + i] = Weight;
-	}
-}
-
-void UPoseSearchFeatureChannel_Phase::IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const
-{
-	using namespace UE::PoseSearch;
-
-	// @todo: do we really need to use double(s) in all this math?
-	// @todo: expose them via UI
-	static float BoneSamplingCentralDifferencesTime = 0.2f; // seconds
-	static float SmoothingWindowTime = 0.3f; // seconds
-
-
-	const UPoseSearchSchema* Schema = Indexer.GetSchema();
-	const float FiniteDelta = Schema->GetSamplingInterval();
-	
-	TArray<FVector2D> Phases;
-	TArray<float> Signal;
-	TArray<float> SmoothedSignal;
-	TArray<LocalMinMax> LocalMinMax;
-	TArray<FVector> BonePositions;
-	
-	CollectBonePositions(BonePositions, Indexer, SchemaBoneIdx);
-
-	// @todo: have different way of calculating signals, for example: height of the bone transform, acceleration, etc?
-	const int32 BoneSamplingCentralDifferencesOffset = FMath::Max(FMath::CeilToInt(BoneSamplingCentralDifferencesTime / FiniteDelta), 1);
-	CalculateSignal(BonePositions, Signal, BoneSamplingCentralDifferencesOffset);
-
-	const int32 SmoothingWindowOffset = FMath::Max(FMath::CeilToInt(SmoothingWindowTime / FiniteDelta), 1);
-	SmoothSignal(Signal, SmoothedSignal, SmoothingWindowOffset);
-
-	FindLocalMinMax(SmoothedSignal, LocalMinMax);
-	ValidateLocalMinMax(LocalMinMax);
-
-	ExtrapolateLocalMinMaxBoundaries(LocalMinMax, SmoothedSignal);
-	ValidateLocalMinMax(LocalMinMax);
-	CalculatePhasesFromLocalMinMax(LocalMinMax, Phases, SmoothedSignal.Num());
-
-	for (int32 SampleIdx = Indexer.GetBeginSampleIdx(); SampleIdx != Indexer.GetEndSampleIdx(); ++SampleIdx)
-	{
-		FFeatureVectorHelper::EncodeVector2D(Indexer.GetPoseVector(SampleIdx), ChannelDataOffset, Phases[SampleIdx - Indexer.GetBeginSampleIdx()]);
-	}
-}
-#endif // WITH_EDITOR
-
 void UPoseSearchFeatureChannel_Phase::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
@@ -390,6 +339,55 @@ void UPoseSearchFeatureChannel_Phase::DebugDraw(const UE::PoseSearch::FDebugDraw
 #endif // ENABLE_DRAW_DEBUG
 
 #if WITH_EDITOR
+void UPoseSearchFeatureChannel_Phase::FillWeights(TArray<float>& Weights) const
+{
+	for (int32 i = 0; i < ChannelCardinality; ++i)
+	{
+		Weights[ChannelDataOffset + i] = Weight;
+	}
+}
+
+void UPoseSearchFeatureChannel_Phase::IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const
+{
+	using namespace UE::PoseSearch;
+
+	// @todo: do we really need to use double(s) in all this math?
+	// @todo: expose them via UI
+	static float BoneSamplingCentralDifferencesTime = 0.2f; // seconds
+	static float SmoothingWindowTime = 0.3f; // seconds
+
+
+	const UPoseSearchSchema* Schema = Indexer.GetSchema();
+	const float FiniteDelta = Schema->GetSamplingInterval();
+
+	TArray<FVector2D> Phases;
+	TArray<float> Signal;
+	TArray<float> SmoothedSignal;
+	TArray<LocalMinMax> LocalMinMax;
+	TArray<FVector> BonePositions;
+
+	CollectBonePositions(BonePositions, Indexer, SchemaBoneIdx);
+
+	// @todo: have different way of calculating signals, for example: height of the bone transform, acceleration, etc?
+	const int32 BoneSamplingCentralDifferencesOffset = FMath::Max(FMath::CeilToInt(BoneSamplingCentralDifferencesTime / FiniteDelta), 1);
+	CalculateSignal(BonePositions, Signal, BoneSamplingCentralDifferencesOffset);
+
+	const int32 SmoothingWindowOffset = FMath::Max(FMath::CeilToInt(SmoothingWindowTime / FiniteDelta), 1);
+	SmoothSignal(Signal, SmoothedSignal, SmoothingWindowOffset);
+
+	FindLocalMinMax(SmoothedSignal, LocalMinMax);
+	ValidateLocalMinMax(LocalMinMax);
+
+	ExtrapolateLocalMinMaxBoundaries(LocalMinMax, SmoothedSignal);
+	ValidateLocalMinMax(LocalMinMax);
+	CalculatePhasesFromLocalMinMax(LocalMinMax, Phases, SmoothedSignal.Num());
+
+	for (int32 SampleIdx = Indexer.GetBeginSampleIdx(); SampleIdx != Indexer.GetEndSampleIdx(); ++SampleIdx)
+	{
+		FFeatureVectorHelper::EncodeVector2D(Indexer.GetPoseVector(SampleIdx), ChannelDataOffset, Phases[SampleIdx - Indexer.GetBeginSampleIdx()]);
+	}
+}
+
 FString UPoseSearchFeatureChannel_Phase::GetLabel() const
 {
 	TStringBuilder<256> Label;

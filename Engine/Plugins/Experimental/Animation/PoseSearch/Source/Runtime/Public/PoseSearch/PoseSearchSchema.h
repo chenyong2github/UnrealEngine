@@ -93,6 +93,19 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bias")
 	float LoopingCostBias = 0.f;
 
+	// how many times the animation assets of the database using this schema will be indexed
+	UPROPERTY(EditAnywhere, meta = (ClampMin = "1"), Category = "Permutations")
+	int32 NumberOfPermutations = 1;
+
+	// delta time between every permutation indexing
+	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "240"), Category = "Permutations")
+	int32 PermutationsSampleRate = 30;
+
+	// starting offset of the "PermutationTime" from the "SamplingTime" of the first permutation.
+	// subsequent permutations will have PermutationTime = SamplingTime + PermutationsTimeOffset + PermutationIndex / PermutationsSampleRate
+	UPROPERTY(EditAnywhere, Category = "Permutations")
+	float PermutationsTimeOffset = 0.f;
+
 	UPROPERTY(EditAnywhere, Category = "Debug", meta = (ExcludeFromHash))
 	TArray<FPoseSearchSchemaColorPreset> ColorPresets;
 	

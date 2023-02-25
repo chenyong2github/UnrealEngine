@@ -18,27 +18,6 @@ void UPoseSearchFeatureChannel_Position::Finalize(UPoseSearchSchema* Schema)
 	SchemaOriginBoneIdx = Schema->AddBoneReference(OriginBone);
 }
 
-#if WITH_EDITOR
-void UPoseSearchFeatureChannel_Position::FillWeights(TArray<float>& Weights) const
-{
-	for (int32 i = 0; i < ChannelCardinality; ++i)
-	{
-		Weights[ChannelDataOffset + i] = Weight;
-	}
-}
-
-void UPoseSearchFeatureChannel_Position::IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const
-{
-	using namespace UE::PoseSearch;
-
-	for (int32 SampleIdx = Indexer.GetBeginSampleIdx(); SampleIdx != Indexer.GetEndSampleIdx(); ++SampleIdx)
-	{
-		const FVector BonePosition = Indexer.GetSamplePosition(SampleTimeOffset, SampleIdx, SchemaBoneIdx, SchemaOriginBoneIdx);
-		FFeatureVectorHelper::EncodeVector(Indexer.GetPoseVector(SampleIdx), ChannelDataOffset, BonePosition, ComponentStripping);
-	}
-}
-#endif // WITH_EDITOR
-
 void UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
@@ -124,6 +103,25 @@ void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugD
 #endif // ENABLE_DRAW_DEBUG
 
 #if WITH_EDITOR
+void UPoseSearchFeatureChannel_Position::FillWeights(TArray<float>& Weights) const
+{
+	for (int32 i = 0; i < ChannelCardinality; ++i)
+	{
+		Weights[ChannelDataOffset + i] = Weight;
+	}
+}
+
+void UPoseSearchFeatureChannel_Position::IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const
+{
+	using namespace UE::PoseSearch;
+
+	for (int32 SampleIdx = Indexer.GetBeginSampleIdx(); SampleIdx != Indexer.GetEndSampleIdx(); ++SampleIdx)
+	{
+		const FVector BonePosition = Indexer.GetSamplePosition(SampleTimeOffset, SampleIdx, SchemaBoneIdx, SchemaOriginBoneIdx);
+		FFeatureVectorHelper::EncodeVector(Indexer.GetPoseVector(SampleIdx), ChannelDataOffset, BonePosition, ComponentStripping);
+	}
+}
+
 FString UPoseSearchFeatureChannel_Position::GetLabel() const
 {
 	TStringBuilder<256> Label;

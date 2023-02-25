@@ -18,31 +18,6 @@ void UPoseSearchFeatureChannel_Velocity::Finalize(UPoseSearchSchema* Schema)
 	SchemaBoneIdx = Schema->AddBoneReference(Bone);
 }
 
-#if WITH_EDITOR
-void UPoseSearchFeatureChannel_Velocity::FillWeights(TArray<float>& Weights) const
-{
-	for (int32 i = 0; i < ChannelCardinality; ++i)
-	{
-		Weights[ChannelDataOffset + i] = Weight;
-	}
-}
-
-void UPoseSearchFeatureChannel_Velocity::IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const
-{
-	using namespace UE::PoseSearch;
-
-	for (int32 SampleIdx = Indexer.GetBeginSampleIdx(); SampleIdx != Indexer.GetEndSampleIdx(); ++SampleIdx)
-	{
-		FVector LinearVelocity = Indexer.GetSampleVelocity(SampleTimeOffset, SampleIdx, SchemaBoneIdx, RootSchemaBoneIdx, bUseCharacterSpaceVelocities);
-		if (bNormalize)
-		{
-			LinearVelocity = LinearVelocity.GetClampedToMaxSize(1.f);
-		}
-		FFeatureVectorHelper::EncodeVector(Indexer.GetPoseVector(SampleIdx), ChannelDataOffset, LinearVelocity, ComponentStripping);
-	}
-}
-#endif // WITH_EDITOR
-
 void UPoseSearchFeatureChannel_Velocity::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
@@ -101,6 +76,29 @@ void UPoseSearchFeatureChannel_Velocity::DebugDraw(const UE::PoseSearch::FDebugD
 #endif // ENABLE_DRAW_DEBUG
 
 #if WITH_EDITOR
+void UPoseSearchFeatureChannel_Velocity::FillWeights(TArray<float>& Weights) const
+{
+	for (int32 i = 0; i < ChannelCardinality; ++i)
+	{
+		Weights[ChannelDataOffset + i] = Weight;
+	}
+}
+
+void UPoseSearchFeatureChannel_Velocity::IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const
+{
+	using namespace UE::PoseSearch;
+
+	for (int32 SampleIdx = Indexer.GetBeginSampleIdx(); SampleIdx != Indexer.GetEndSampleIdx(); ++SampleIdx)
+	{
+		FVector LinearVelocity = Indexer.GetSampleVelocity(SampleTimeOffset, SampleIdx, SchemaBoneIdx, RootSchemaBoneIdx, bUseCharacterSpaceVelocities);
+		if (bNormalize)
+		{
+			LinearVelocity = LinearVelocity.GetClampedToMaxSize(1.f);
+		}
+		FFeatureVectorHelper::EncodeVector(Indexer.GetPoseVector(SampleIdx), ChannelDataOffset, LinearVelocity, ComponentStripping);
+	}
+}
+
 FString UPoseSearchFeatureChannel_Velocity::GetLabel() const
 {
 	TStringBuilder<256> Label;

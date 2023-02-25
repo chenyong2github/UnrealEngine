@@ -322,14 +322,17 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, UPoseSearch
 				FindValidSequenceIntervals(DatabaseSequence->Sequence, DatabaseSequence->SamplingRange, DatabaseSequence->IsLooping(), Database->ExcludeFromDatabaseParameters, ValidRanges);
 				for (const FFloatRange& Range : ValidRanges)
 				{
-					if (bAddUnmirrored)
+					for (int32 PermutationIdx = 0; PermutationIdx < Database->Schema->NumberOfPermutations; ++PermutationIdx)
 					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
-					}
+						if (bAddUnmirrored)
+						{
+							SearchIndex.Assets.Emplace(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
+						}
 
-					if (bAddMirrored)
-					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+						if (bAddMirrored)
+						{
+							SearchIndex.Assets.Emplace(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
+						}
 					}
 				}
 			}
@@ -339,14 +342,17 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, UPoseSearch
 				FindValidSequenceIntervals(DatabaseAnimComposite->AnimComposite, DatabaseAnimComposite->SamplingRange, DatabaseAnimComposite->IsLooping(), Database->ExcludeFromDatabaseParameters, ValidRanges);
 				for (const FFloatRange& Range : ValidRanges)
 				{
-					if (bAddUnmirrored)
+					for (int32 PermutationIdx = 0; PermutationIdx < Database->Schema->NumberOfPermutations; ++PermutationIdx)
 					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
-					}
+						if (bAddUnmirrored)
+						{
+							SearchIndex.Assets.Emplace(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
+						}
 
-					if (bAddMirrored)
-					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+						if (bAddMirrored)
+						{
+							SearchIndex.Assets.Emplace(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
+						}
 					}
 				}
 			}
@@ -366,16 +372,19 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, UPoseSearch
 						int32 TriangulationIndex = 0;
 						DatabaseBlendSpace->BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true);
 
-						float PlayLength = DatabaseBlendSpace->BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+						const float PlayLength = DatabaseBlendSpace->BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
 
-						if (bAddUnmirrored)
+						for (int32 PermutationIdx = 0; PermutationIdx < Database->Schema->NumberOfPermutations; ++PermutationIdx)
 						{
-							SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, false, FFloatInterval(0.0f, PlayLength), BlendParameters));
-						}
+							if (bAddUnmirrored)
+							{
+								SearchIndex.Assets.Emplace(AnimationAssetIndex, false, FFloatInterval(0.0f, PlayLength), PermutationIdx, BlendParameters);
+							}
 
-						if (bAddMirrored)
-						{
-							SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, true, FFloatInterval(0.0f, PlayLength), BlendParameters));
+							if (bAddMirrored)
+							{
+								SearchIndex.Assets.Emplace(AnimationAssetIndex, true, FFloatInterval(0.0f, PlayLength), PermutationIdx, BlendParameters);
+							}
 						}
 					}
 				}
@@ -386,14 +395,17 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, UPoseSearch
 				FindValidSequenceIntervals(DatabaseAnimMontage->AnimMontage, DatabaseAnimMontage->SamplingRange, DatabaseAnimMontage->IsLooping(), Database->ExcludeFromDatabaseParameters, ValidRanges);
 				for (const FFloatRange& Range : ValidRanges)
 				{
-					if (bAddUnmirrored)
+					for (int32 PermutationIdx = 0; PermutationIdx < Database->Schema->NumberOfPermutations; ++PermutationIdx)
 					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
-					}
+						if (bAddUnmirrored)
+						{
+							SearchIndex.Assets.Emplace(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
+						}
 
-					if (bAddMirrored)
-					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+						if (bAddMirrored)
+						{
+							SearchIndex.Assets.Emplace(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
+						}
 					}
 				}
 			}

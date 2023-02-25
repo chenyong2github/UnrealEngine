@@ -41,7 +41,7 @@ class POSESEARCH_API UPoseSearchFeatureChannel_Group : public UPoseSearchFeature
 	virtual TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() const override { return SubChannels; }
 
 #if WITH_EDITOR
-	virtual FString GetLabel() const;
+	virtual FString GetLabel() const override;
 #endif
 
 public:
