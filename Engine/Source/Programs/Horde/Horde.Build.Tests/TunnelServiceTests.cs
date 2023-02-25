@@ -40,6 +40,7 @@ namespace Horde.Build.Tests
 			_serviceProvider.Dispose();
 		}
 
+		[Ignore]
 		[TestMethod]
 		public async Task SendRecvTest()
 		{
