@@ -37,4 +37,5 @@ private:
 
 	TSet<FString> LinkedPackageNames;
 	TSet<FString> LinkedPackageFolders;
+	TSet<FString> AddedPackageNames;
 };

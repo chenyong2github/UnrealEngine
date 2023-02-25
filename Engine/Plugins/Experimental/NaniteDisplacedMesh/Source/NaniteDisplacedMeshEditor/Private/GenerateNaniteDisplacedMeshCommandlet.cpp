@@ -143,7 +143,6 @@ int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Find existing meshes (with prefix %s) in %d folder(s):\n\t%s"), LinkedDisplacedMeshAssetNamePrefix, LinkedPackageFolders.Num(), *FString::Join(LinkedPackageFolders, TEXT("\n\t")));
 
 		const TSet<FString> ExistingPackageNames  = GetPackagesInFolders(LinkedPackageFolders, LinkedDisplacedMeshAssetNamePrefix);
-		const TSet<FString> AddedPackageNames = LinkedPackageNames.Difference(ExistingPackageNames);
 		const TSet<FString> UnusedPackageNames = ExistingPackageNames.Difference(LinkedPackageNames);
 
 		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
@@ -159,8 +158,12 @@ int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 
 		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
 
+
+		TArray<FString> AddedPackageNamesAsArray = AddedPackageNames.Array();
 		if (AddedPackageNames.Num() > 0)
 		{
+			// Might be redundant, but not sure if we can rely on the auto check out on save
+			SourceControlHelper.AddToSourceControl(AddedPackageNamesAsArray);
 			UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Found %d added mesh(es):\n\t%s"), AddedPackageNames.Num(), *FString::Join(AddedPackageNames, TEXT("\n\t")));
 		}
 		else
@@ -208,7 +211,7 @@ int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 		{
 			UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Use submit description: %s"), *SubmitWithDescription);
 
-			TArray<FString> SubmitFilenames = SourceControlHelpers::PackageFilenames(AddedPackageNames.Array());
+			TArray<FString> SubmitFilenames = SourceControlHelpers::PackageFilenames(AddedPackageNamesAsArray);
 			SubmitFilenames.Append(DeletedFilenames);
 
 			if (SubmitFilenames.Num() > 0)
@@ -249,8 +252,8 @@ UNaniteDisplacedMesh* UGenerateNaniteDisplacedMeshCommandlet::OnLinkDisplacedMes
 	FNaniteDisplacedMeshEditorModule& Module = FNaniteDisplacedMeshEditorModule::GetModule();
 	Module.OnLinkDisplacedMeshOverride.Unbind();
 
-	// This will force the saving of a new asset as persistent and mark it for add in source control (if enabled)
-	UNaniteDisplacedMesh* NaniteDisplacedMesh = LinkDisplacedMeshAsset(nullptr, Parameters, Folder, ELinkDisplacedMeshAssetSetting::LinkAgainstPersistentAsset);
+	bool bCreatedNewAsset = false;
+	UNaniteDisplacedMesh* NaniteDisplacedMesh = LinkDisplacedMeshAsset(nullptr, Parameters, Folder, ELinkDisplacedMeshAssetSetting::LinkAgainstPersistentAsset, &bCreatedNewAsset);
 	if (NaniteDisplacedMesh != nullptr)
 	{
 		const FString PackageName = NaniteDisplacedMesh->GetPackage()->GetPathName();
@@ -258,6 +261,11 @@ UNaniteDisplacedMesh* UGenerateNaniteDisplacedMeshCommandlet::OnLinkDisplacedMes
 
 		LinkedPackageNames.Add(PackageName);
 		LinkedPackageFolders.Add(Folder);
+
+		if (bCreatedNewAsset)
+		{
+			AddedPackageNames.Add(PackageName);
+		}
 	}
 
 	Module.OnLinkDisplacedMeshOverride.BindUObject(this, &UGenerateNaniteDisplacedMeshCommandlet::OnLinkDisplacedMesh);

@@ -63,9 +63,14 @@ UObject* UNaniteDisplacedMeshFactory::FactoryCreateNew(UClass* Class, UObject* I
 	return NewNaniteDisplacedMesh;
 }
 
-UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDisplacedMesh, const FNaniteDisplacedMeshParams& InParameters, const FString& DisplacedMeshFolder, ELinkDisplacedMeshAssetSetting LinkDisplacedMeshAssetSetting)
+UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDisplacedMesh, const FNaniteDisplacedMeshParams& InParameters, const FString& DisplacedMeshFolder, ELinkDisplacedMeshAssetSetting LinkDisplacedMeshAssetSetting, bool* bOutCreatedNewMesh)
 {
 	checkf(GEditor, TEXT("There is no need to run that code if we don't have the editor"));
+
+	if (bOutCreatedNewMesh)
+	{
+		*bOutCreatedNewMesh = false;
+	}
 
 	if (!InParameters.IsDisplacementRequired())
 	{
@@ -212,6 +217,12 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 		TempNaniteDisplacedMesh->bIsEditable = false;
 		TempNaniteDisplacedMesh->Parameters = InParameters;
 		TempNaniteDisplacedMesh->PostEditChange();
+
+		if (bOutCreatedNewMesh)
+		{
+			*bOutCreatedNewMesh = true;
+		}
+
 		return TempNaniteDisplacedMesh;
 	}
 	else if (bCanLinkAgainstNewAsset)
@@ -228,6 +239,11 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 
 			if (UEditorLoadingAndSavingUtils::SavePackages({ NewDisplacedMesh->GetPackage() }, /*bOnlyDirty=*/ false))
 			{
+				if (bOutCreatedNewMesh)
+				{
+					*bOutCreatedNewMesh = true;
+				}
+
 				NewDisplacedMesh->PostEditChange();
 				return NewDisplacedMesh;
 			}

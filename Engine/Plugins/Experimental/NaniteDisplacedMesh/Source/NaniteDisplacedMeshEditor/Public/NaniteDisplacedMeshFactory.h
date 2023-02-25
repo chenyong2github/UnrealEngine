@@ -35,7 +35,8 @@ NANITEDISPLACEDMESHEDITOR_API UNaniteDisplacedMesh* LinkDisplacedMeshAsset(
 	UNaniteDisplacedMesh* ExistingDisplacedMesh,
 	const FNaniteDisplacedMeshParams& InParameters,
 	const FString& DisplacedMeshFolder,
-	ELinkDisplacedMeshAssetSetting LinkDisplacedMeshAssetSetting = ELinkDisplacedMeshAssetSetting::LinkAgainstPersistentAsset
+	ELinkDisplacedMeshAssetSetting LinkDisplacedMeshAssetSetting = ELinkDisplacedMeshAssetSetting::LinkAgainstPersistentAsset,
+	bool* bOutCreatedNewMesh = nullptr
 );
 
 extern NANITEDISPLACEDMESHEDITOR_API const TCHAR* LinkedDisplacedMeshAssetNamePrefix;
