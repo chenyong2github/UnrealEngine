@@ -739,6 +739,226 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Validate a UEBuildModule's include paths before it's processed
+		/// </summary>
+		/// <param name="Module">The UEBuildModule that needs to be validated</param>
+		/// <param name="Target">Options for the target being built</param>
+		/// <param name="AllModules">Other modules to validate against, if needed</param>
+		public virtual void ValidateModuleIncludePaths(UEBuildModule Module, ReadOnlyTargetRules Target, IEnumerable<UEBuildModule> AllModules)
+		{
+			if (Module.Rules.ModuleIncludePathWarningLevel <= WarningLevel.Off
+				&& Module.Rules.ModuleIncludePrivateWarningLevel <= WarningLevel.Off
+				&& Module.Rules.ModuleIncludeSubdirectoryWarningLevel <= WarningLevel.Off)
+			{
+				return;
+			}
+
+			void LoggerFunc(string? message, params object?[] args)
+			{
+				if (Module.Rules.ModuleIncludePathWarningLevel == WarningLevel.Warning)
+				{
+					Logger.LogWarning($"Warning: {message}", args);
+				}
+				else if (Module.Rules.ModuleIncludePathWarningLevel == WarningLevel.Error)
+				{
+					Logger.LogError($"Error: {message}", args);
+				}
+			}
+
+			void LoggerFuncPrivate(string? message, params object?[] args)
+			{
+				if (Module.Rules.ModuleIncludePrivateWarningLevel == WarningLevel.Warning)
+				{
+					Logger.LogWarning($"Warning: {message}", args);
+				}
+				else if (Module.Rules.ModuleIncludePrivateWarningLevel == WarningLevel.Error)
+				{
+					Logger.LogError($"Error: {message}", args);
+				}
+			}
+
+			void LoggerFuncSubDir(string? message, params object?[] args)
+			{
+				if (Module.Rules.ModuleIncludeSubdirectoryWarningLevel == WarningLevel.Warning)
+				{
+					Logger.LogWarning($"Warning: {message}", args);
+				}
+				else if (Module.Rules.ModuleIncludeSubdirectoryWarningLevel == WarningLevel.Error)
+				{
+					Logger.LogError($"Error: {message}", args);
+				}
+			}
+
+			IOrderedEnumerable<DirectoryReference> PublicIncludePaths = Module.Rules.PublicIncludePaths.Select(x => DirectoryReference.FromString(x)!).OrderBy(x => x.FullName);
+			IOrderedEnumerable<DirectoryReference> PrivateIncludePaths = Module.Rules.PrivateIncludePaths.Select(x => DirectoryReference.FromString(x)!).OrderBy(x => x.FullName);
+			IOrderedEnumerable<DirectoryReference> InternalncludePaths = Module.Rules.InternalncludePaths.Select(x => DirectoryReference.FromString(x)!).OrderBy(x => x.FullName);
+			IOrderedEnumerable<DirectoryReference> PublicSystemIncludePaths = Module.Rules.PublicSystemIncludePaths.Select(x => DirectoryReference.FromString(x)!).OrderBy(x => x.FullName);
+			IOrderedEnumerable<UEBuildModule> OtherModules = AllModules.Where(x => x != Module).OrderBy(x => x.Name);
+
+			if (Module is UEBuildModuleExternal)
+			{
+				foreach (DirectoryReference Path in PublicIncludePaths)
+				{
+					LoggerFunc("External module '{Name}' is adding '{Path}' to PublicIncludePaths. This path should be added to PublicSystemIncludePaths.", Module.Name, Path.MakeRelativeTo(Module.ModuleDirectory));
+				}
+
+				foreach (DirectoryReference Path in PublicSystemIncludePaths.Where(x => !x.IsUnderDirectory(Module.ModuleDirectory)))
+				{
+					var OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
+					if (OtherModule is UEBuildModuleExternal)
+					{
+						LoggerFunc("External module '{Name}' is adding '{Path}' from external module '{OtherModule}' to PublicSystemIncludePaths. Did you intend to add a public reference?", Module.Name, Path, OtherModule.Name);
+					}
+					else if (OtherModule is UEBuildModuleCPP)
+					{
+						LoggerFunc("External module '{Name}' is adding '{Path}' from module '{OtherModule}' to PublicSystemIncludePaths. This is not allowed.", Module.Name, Path, OtherModule.Name);
+					}
+				}
+
+				foreach (DirectoryReference Path in PrivateIncludePaths)
+				{
+					LoggerFunc("External module '{Name}' is adding '{Path}' to PrivateIncludePaths. This path is unused.", Module.Name, Path);
+				}
+
+				foreach (DirectoryReference Path in InternalncludePaths)
+				{
+					LoggerFunc("External module '{Name}' is adding '{Path}' to InternalncludePaths. This path is unused.", Module.Name, Path);
+				}
+			}
+			else if (Module is UEBuildModuleCPP)
+			{
+				foreach (DirectoryReference Path in PublicIncludePaths)
+				{
+					if (Path.IsUnderDirectory(Module.ModuleDirectory))
+					{
+						if (Path == Module.ModuleDirectory)
+						{
+							LoggerFunc("Module '{Name}' is adding root directory to PublicIncludePaths. This is not allowed.", Module.Name);
+						}
+						else if (Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Private"))
+							|| Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Internal")))
+						{
+							LoggerFuncPrivate("Module '{Name}' is adding subdirectory '{Path}' to PublicIncludePaths. This is not allowed.", Module.Name, Path.MakeRelativeTo(Module.ModuleDirectory));
+						}
+						else if (Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Public"))
+							|| Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Classes")))
+						{
+							LoggerFuncSubDir("Module '{Name}' is adding subdirectory '{Path}' to PublicIncludePaths. This is not necessary.", Module.Name, Path.MakeRelativeTo(Module.ModuleDirectory));
+						}
+					}
+
+					var OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
+					if (OtherModule is UEBuildModuleExternal)
+					{
+						LoggerFunc("Module '{Name}' is adding '{Path}' from external module '{OtherModule}' to PublicIncludePaths. Did you intend to add a public reference?.", Module.Name, Path, OtherModule.Name);
+					}
+					else if (OtherModule is UEBuildModuleCPP)
+					{
+						if (Path == OtherModule.ModuleDirectory)
+						{
+							LoggerFuncPrivate("Module '{Name}' is adding root directory from '{OtherModule}' to PublicIncludePaths. This is not allowed.", Module.Name, OtherModule.Name);
+						}
+						else if (Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Private"))
+							| Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Internal")))
+						{
+							LoggerFuncPrivate("Module '{Name}' is adding '{Path}' from module '{OtherModule}' to PublicIncludePaths. This is not allowed.", Module.Name, Path, OtherModule.Name);
+						}
+						else if (Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Public"))
+							|| Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Classes")))
+						{
+							LoggerFunc("Module '{Name}' is adding '{Path}' from module '{OtherModule}' to PublicIncludePaths. Did you intend to add a public reference?.", Module.Name, Path, OtherModule.Name);
+						}
+					}
+				}
+
+				foreach (DirectoryReference Path in PrivateIncludePaths)
+				{
+					if (Path.IsUnderDirectory(Module.ModuleDirectory))
+					{
+						if (Path == Module.ModuleDirectory)
+						{
+							LoggerFunc("Module '{Name}' is adding root directory to PrivateIncludePaths. This is not recommended.", Module.Name);
+						}
+						else if (Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Private"))
+							|| Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Internal"))
+							|| Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Public"))
+							|| Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Classes")))
+						{
+							LoggerFuncSubDir("Module '{Name}' is adding subdirectory '{Path}' to PrivateIncludePaths. This is not necessary.", Module.Name, Path.MakeRelativeTo(Module.ModuleDirectory));
+						}
+					}
+
+					var OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
+					if (OtherModule is UEBuildModuleExternal)
+					{
+						LoggerFunc("Module '{Name}' is adding '{Path}' from external module '{OtherModule}' to PrivateIncludePaths. Did you intend to add a private reference?.", Module.Name, Path, OtherModule.Name);
+					}
+					else if (OtherModule is UEBuildModuleCPP)
+					{
+						if (Path == OtherModule.ModuleDirectory)
+						{
+							LoggerFuncPrivate("Module '{Name}' is adding root directory from '{OtherModule}' to PrivateIncludePaths. This is not allowed.", Module.Name, OtherModule.Name);
+						}
+						else if (Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Private"))
+							| Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Internal")))
+						{
+							LoggerFuncPrivate("Module '{Name}' is adding '{Path}' from module '{OtherModule}' to PrivateIncludePaths. This is not allowed.", Module.Name, Path, OtherModule.Name);
+						}
+						else if (Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Public"))
+							|| Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Classes")))
+						{
+							LoggerFunc("Module '{Name}' is adding '{Path}' from module '{OtherModule}' to PrivateIncludePaths. Did you intend to add a private reference?.", Module.Name, Path, OtherModule.Name);
+						}
+					}
+				}
+
+				foreach (DirectoryReference Path in InternalncludePaths)
+				{
+					if (Path.IsUnderDirectory(Module.ModuleDirectory))
+					{
+						if (Path == Module.ModuleDirectory)
+						{
+							LoggerFunc("Module '{Name}' is adding root directory to InternalncludePaths. This is not allowed.", Module.Name);
+						}
+						else if (Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Private"))
+						|| Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Internal")))
+						{
+							LoggerFunc("Module '{Name}' is adding subdirectory '{Path}' to InternalncludePaths. This is not allowed.", Module.Name, Path.MakeRelativeTo(Module.ModuleDirectory));
+						}
+						else if (Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Public"))
+							|| Path.IsUnderDirectory(DirectoryReference.Combine(Module.ModuleDirectory, "Classes")))
+						{
+							LoggerFuncSubDir("Module '{Name}' is adding subdirectory '{Path}' to InternalncludePaths. This is not necessary.", Module.Name, Path.MakeRelativeTo(Module.ModuleDirectory));
+						}
+					}
+
+					var OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
+					if (OtherModule is UEBuildModuleExternal)
+					{
+						LoggerFunc("Module '{Name}' is adding '{Path}' from external module '{OtherModule}' to InternalncludePaths. Did you intend to add a public reference?.", Module.Name, Path, OtherModule.Name);
+					}
+					else if (OtherModule is UEBuildModuleCPP)
+					{
+						if (Path == OtherModule.ModuleDirectory)
+						{
+							LoggerFunc("Module '{Name}' is adding root directory from '{OtherModule}' to InternalncludePaths. This is not allowed.", Module.Name, OtherModule.Name);
+						}
+						else if (Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Private"))
+							| Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Internal")))
+						{
+							LoggerFunc("Module '{Name}' is adding '{Path}' from module '{OtherModule}' to InternalncludePaths. This is not allowed.", Module.Name, Path, OtherModule.Name);
+						}
+						else if (Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Public"))
+							|| Path.IsUnderDirectory(DirectoryReference.Combine(OtherModule.ModuleDirectory, "Classes")))
+						{
+							LoggerFunc("Module '{Name}' is adding '{Path}' from module '{OtherModule}' to InternalncludePaths. Did you intend to add a public reference?.", Module.Name, Path, OtherModule.Name);
+						}
+					}
+				}
+			}
+		}
+
+		/// <summary>
 		/// Return whether the given platform requires a monolithic build
 		/// </summary>
 		/// <param name="InPlatform">The platform of interest</param>

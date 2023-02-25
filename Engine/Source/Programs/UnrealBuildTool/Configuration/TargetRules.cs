@@ -1533,6 +1533,27 @@ namespace UnrealBuildTool
 		public bool bUndefinedIdentifierErrors = true;
 
 		/// <summary>
+		/// How to treat general module include path validation messages
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		[CommandLine("-ModuleIncludePathWarningLevel=")]
+		public WarningLevel ModuleIncludePathWarningLevel = WarningLevel.Off;
+
+		/// <summary>
+		/// How to treat private module include path validation messages, where a module is adding an include path that exposes private headers
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		[CommandLine("-ModuleIncludePrivateWarningLevel=")]
+		public WarningLevel ModuleIncludePrivateWarningLevel = WarningLevel.Off;
+
+		/// <summary>
+		/// How to treat unnecessary module sub-directory include path validation messages
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		[CommandLine("-ModuleIncludeSubdirectoryWarningLevel=")]
+		public WarningLevel ModuleIncludeSubdirectoryWarningLevel = WarningLevel.Off;
+
+		/// <summary>
 		/// Forces frame pointers to be retained this is usually required when you want reliable callstacks e.g. mallocframeprofiler
 		/// </summary>
 		public bool bRetainFramePointers
@@ -3373,6 +3394,21 @@ namespace UnrealBuildTool
 		public bool bUndefinedIdentifierErrors
 		{
 			get { return Inner.bUndefinedIdentifierErrors; }
+		}
+
+		public WarningLevel ModuleIncludePathWarningLevel
+		{
+			get { return Inner.ModuleIncludePathWarningLevel; }
+		}
+
+		public WarningLevel ModuleIncludePrivateWarningLevel
+		{
+			get { return Inner.ModuleIncludePrivateWarningLevel; }
+		}
+
+		public WarningLevel ModuleIncludeSubdirectoryWarningLevel
+		{
+			get { return Inner.ModuleIncludeSubdirectoryWarningLevel; }
 		}
 
 		public bool bWarningsAsErrors

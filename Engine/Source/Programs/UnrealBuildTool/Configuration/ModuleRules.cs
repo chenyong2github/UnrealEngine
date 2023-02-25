@@ -819,6 +819,42 @@ namespace UnrealBuildTool
 		public bool bEnableUndefinedIdentifierWarnings = true;
 
 		/// <summary>
+		/// How to treat general module include path validation messages
+		/// </summary>
+		public WarningLevel ModuleIncludePathWarningLevel
+		{
+			get { return (ModuleIncludePathWarningLevelPrivate == WarningLevel.Default) ? Target.ModuleIncludePathWarningLevel : ModuleIncludePathWarningLevelPrivate; }
+			set { ModuleIncludePathWarningLevelPrivate = value; }
+		}
+
+		/// <inheritdoc cref="ModuleIncludePathWarningLevel"/>
+		private WarningLevel ModuleIncludePathWarningLevelPrivate;
+
+		/// <summary>
+		/// How to treat private module include path validation messages, where a module is adding an include path that exposes private headers
+		/// </summary>
+		public WarningLevel ModuleIncludePrivateWarningLevel
+		{
+			get { return (ModuleIncludePrivateWarningLevelPrivate == WarningLevel.Default) ? Target.ModuleIncludePrivateWarningLevel : ModuleIncludePrivateWarningLevelPrivate; }
+			set { ModuleIncludePrivateWarningLevelPrivate = value; }
+		}
+
+		/// <inheritdoc cref="ModuleIncludePrivateWarningLevel"/>
+		private WarningLevel ModuleIncludePrivateWarningLevelPrivate;
+
+		/// <summary>
+		/// How to treat unnecessary module sub-directory include path validation messages
+		/// </summary>
+		public WarningLevel ModuleIncludeSubdirectoryWarningLevel
+		{
+			get { return (ModuleIncludeSubdirectoryWarningLevelPrivate == WarningLevel.Default) ? Target.ModuleIncludeSubdirectoryWarningLevel : ModuleIncludeSubdirectoryWarningLevelPrivate; }
+			set { ModuleIncludeSubdirectoryWarningLevelPrivate = value; }
+		}
+
+		/// <inheritdoc cref="ModuleIncludeSubdirectoryWarningLevel"/>
+		private WarningLevel ModuleIncludeSubdirectoryWarningLevelPrivate;
+
+		/// <summary>
 		/// Disable all static analysis - clang, msvc, pvs-studio.
 		/// </summary>
 		public bool bDisableStaticAnalysis = false;

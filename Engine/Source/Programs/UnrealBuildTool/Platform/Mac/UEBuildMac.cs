@@ -348,7 +348,9 @@ namespace UnrealBuildTool
 
 		static HashSet<FileReference> ValidatedLibs = new();
 		public override void ValidateModule(UEBuildModule Module, ReadOnlyTargetRules Target)
-		{ 
+		{
+			base.ValidateModule(Module, Target);
+
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac && !Target.MacPlatform.bSkipClangValidation)
 			{
 				ApplePlatformSDK SDK = (ApplePlatformSDK?)GetSDK() ?? new ApplePlatformSDK(Logger);

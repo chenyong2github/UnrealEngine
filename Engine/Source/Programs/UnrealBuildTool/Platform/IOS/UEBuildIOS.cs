@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -854,7 +854,9 @@ namespace UnrealBuildTool
 		}
 
 		public override void ValidateModule(UEBuildModule Module, ReadOnlyTargetRules Target)
-		{ 
+		{
+			base.ValidateModule(Module, Target);
+
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac && !Target.IOSPlatform.bSkipClangValidation)
 			{
 				IOSPlatformSDK SDK = (IOSPlatformSDK?)GetSDK() ?? new IOSPlatformSDK(Logger);
