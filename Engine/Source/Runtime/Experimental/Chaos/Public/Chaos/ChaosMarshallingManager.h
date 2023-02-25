@@ -92,7 +92,7 @@ public:
 		
 	}
 
-
+	// Forcefully removes the proxy from being dirty.
 	void Remove(IPhysicsProxyBase* Base)
 	{
 		const int32 Idx = Base->GetDirtyIdx();
@@ -116,6 +116,24 @@ public:
 			}
 
 			Base->ResetDirtyIdx();
+		}
+	}
+
+	// Only does the removal if no shapes are dirty.
+	void RemoveIfNoShapesAreDirty(IPhysicsProxyBase* Base)
+	{
+		const int32 Idx = Base->GetDirtyIdx();
+		if (Idx != INDEX_NONE)
+		{
+			FDirtyProxiesBucket& Bucket = DirtyProxyBuckets[(uint32)Base->GetType()];
+			if (Bucket.ProxiesData.IsValidIndex(Idx))
+			{
+				FDirtyProxy& ProxyData = Bucket.ProxiesData[Idx];
+				if (ProxyData.ShapeDataIndices.IsEmpty())
+				{
+					Remove(Base);
+				}
+			}
 		}
 	}
 

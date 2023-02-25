@@ -48,7 +48,7 @@ public:
 		{
 			if (FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
 			{
-				PhysicsSolverBase->RemoveDirtyProxy(Proxy);
+				PhysicsSolverBase->RemoveDirtyProxyIfNoShapesAreDirty(Proxy);
 			}
 		}
 	}
