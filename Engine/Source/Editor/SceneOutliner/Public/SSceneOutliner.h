@@ -758,6 +758,9 @@ private:
 	/** Maps pre-existing children during paste or duplicate */
 	TMap<FFolder, TArray<FSceneOutlinerTreeItemID>> CachePasteFolderExistingChildrenMap;
 
+	/** Cache which columns are hidden to know what changed */
+	TSet<FName> CacheHiddenColumns;
+
 private:
 	bool GetCommonRootObjectFromSelection(FFolder::FRootObject& OutCommonRootObject) const;
 
@@ -886,6 +889,9 @@ private:
 	uint8 bDisableIntermediateSorting : 1;
 
 	uint8 bNeedsColumRefresh : 1;
+
+	/** True if the outliner should cache changes to column visibility into the config */
+	uint8 bShouldCacheColumnVisibility : 1;
 
 	/** Reentrancy guard */
 	bool bIsReentrant;

@@ -67,6 +67,7 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	bFullRefresh = true;
 	bNeedsRefresh = true;
 	bNeedsColumRefresh = true;
+	bShouldCacheColumnVisibility = true;
 	bIsReentrant = false;
 	bSortDirty = true;
 	bSelectionDirty = true;
@@ -125,6 +126,8 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 			.OnHiddenColumnsListChanged(this, &SSceneOutliner::HandleHiddenColumnsChanged);
 
 	SetupColumns(*HeaderRowWidget);
+
+	CacheHiddenColumns = TSet(HeaderRowWidget->GetHiddenColumnIds());
 
 	ChildSlot
 	[
@@ -343,7 +346,12 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 
 void SSceneOutliner::HandleHiddenColumnsChanged()
 {
-	const TArray<FName> HiddenColumns = HeaderRowWidget->GetHiddenColumnIds();
+	if (!bShouldCacheColumnVisibility)
+	{
+		return;
+	}
+	
+	TSet<FName> HiddenColumns = TSet(HeaderRowWidget->GetHiddenColumnIds());
 	FSceneOutlinerConfig* OutlinerConfig = GetMutableConfig();
 
 	if (OutlinerConfig != nullptr)
@@ -351,23 +359,16 @@ void SSceneOutliner::HandleHiddenColumnsChanged()
 		TMap<FName, bool> ColumnVisibilities = OutlinerConfig->ColumnVisibilities;
 
 		bool bAnyColumnVisibilityChanged = false;
-		
+	
 		for (const TPair<FName, TSharedPtr<ISceneOutlinerColumn>>& Pair : Columns)
 		{
-			const bool bIsColumnVisible = HiddenColumns.Find(Pair.Key) == INDEX_NONE;
+			const bool bWasColumnVisible = CacheHiddenColumns.Find(Pair.Key) != nullptr;
+			const bool bIsColumnVisible = HiddenColumns.Find(Pair.Key) != nullptr;
 
-			// If this column already has a visibility saved in the config, only update if it changed
-			if (bool* ExistingColumnVisibility = ColumnVisibilities.Find(Pair.Key))
+			// Only update column visibility if it changed
+			if (bWasColumnVisible != bIsColumnVisible)
 			{
-				if(*ExistingColumnVisibility != bIsColumnVisible)
-				{
-					*ExistingColumnVisibility = bIsColumnVisible;
-					bAnyColumnVisibilityChanged = true;
-				}
-			}
-			else
-			{
-				ColumnVisibilities.Add(Pair.Key, bIsColumnVisible);
+				ColumnVisibilities.FindOrAdd(Pair.Key) = bIsColumnVisible;
 				bAnyColumnVisibilityChanged = true;
 			}
 		}
@@ -375,10 +376,12 @@ void SSceneOutliner::HandleHiddenColumnsChanged()
 		// Only call SaveConfig if something actually changed
 		if(bAnyColumnVisibilityChanged)
 		{
-			OutlinerConfig->ColumnVisibilities = ColumnVisibilities;
-			SaveConfig();
-		}
+		OutlinerConfig->ColumnVisibilities = ColumnVisibilities;
+		SaveConfig();
 	}
+}
+	
+	CacheHiddenColumns = MoveTemp(HiddenColumns);
 }
 
 void SSceneOutliner::GetSortedColumnIDs(TArray<FName>& OutColumnIDs) const
@@ -438,6 +441,10 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 		ColumnVisibilities = OutlinerConfig->ColumnVisibilities;
 	}
 
+	// Avoid caching column visibilities while building the columns
+	bool const bPreviousShouldCacheColumnVisibility = bShouldCacheColumnVisibility;
+	bShouldCacheColumnVisibility = false;
+	
 	for (const FName& ID : SortedIDs)
 	{
 		bool bIsVisible = true;
@@ -516,6 +523,7 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 	}
 	Columns.Shrink();
 	bNeedsColumRefresh = false;
+	bShouldCacheColumnVisibility = bPreviousShouldCacheColumnVisibility;
 }
 
 void SSceneOutliner::RefreshColumns()
