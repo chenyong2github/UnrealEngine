@@ -235,6 +235,7 @@ void FEntityLedger::CleanupLinkerEntities(const TSet<FMovieSceneEntityID>& Linke
 
 void FEntityLedger::TagGarbage(UMovieSceneEntitySystemLinker* Linker)
 {
+	FComponentTypeID NeedsLink = FBuiltInComponentTypes::Get()->Tags.NeedsLink;
 	FComponentTypeID NeedsUnlink = FBuiltInComponentTypes::Get()->Tags.NeedsUnlink;
 
 	for (auto It = ImportedEntities.CreateIterator(); It; ++It)
@@ -243,6 +244,7 @@ void FEntityLedger::TagGarbage(UMovieSceneEntitySystemLinker* Linker)
 		{
 			if (It.Value().EntityID)
 			{
+				Linker->EntityManager.RemoveComponent(It.Value().EntityID, NeedsLink, EEntityRecursion::Full);
 				Linker->EntityManager.AddComponent(It.Value().EntityID, NeedsUnlink, EEntityRecursion::Full);
 			}
 			It.RemoveCurrent();

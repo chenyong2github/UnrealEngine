@@ -304,6 +304,7 @@ void UMovieSceneEntitySystemLinker::TagInvalidBoundObjects()
 
 	for (FMovieSceneEntityID Entity : ExpiredBoundObjects)
 	{
+		EntityManager.RemoveComponent(Entity, BuiltInComponents->Tags.NeedsLink, EEntityRecursion::Full);
 		EntityManager.AddComponent(Entity, BuiltInComponents->Tags.NeedsUnlink, EEntityRecursion::Full);
 	}
 }
