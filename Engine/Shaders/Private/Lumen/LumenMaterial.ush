@@ -391,13 +391,12 @@ FLumenMaterialData ReadMaterialData(uint2 InPixelPos)
 #endif
 }
 
-// Read material data version which will always read opaque data and skip FRONT_LAYER_TRANSLUCENCY
-FLumenMaterialData ReadMaterialDataOpaque(uint2 InPixelPos, float2 InBufferUV)
+FLumenMaterialData ReadMaterialDataFromSceneTextures(uint2 InPixelPos, float2 InBufferUV)
 {
 #if STRATA_ENABLED
 	return InternalReadMaterialData_Strata(InPixelPos);
 #else
-	return InternalReadMaterialData_GBuffer(InBufferUV);
+	return InternalReadMaterialData_GBuffer(GetGBufferDataFromSceneTextures(InBufferUV));
 #endif
 }
 

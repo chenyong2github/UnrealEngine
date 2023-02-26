@@ -309,9 +309,8 @@ void ScreenProbeTraceScreenTexturesCS(
 
 					if (bHit && SkipFoliageHits > 0)
 					{
-						int ShadingModel = GetGBufferDataFromSceneTextures(HitScreenUV).ShadingModelID;
-						
-						if (ShadingModel == SHADINGMODELID_SUBSURFACE || ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE)
+						FLumenMaterialData LumenMaterial = ReadMaterialDataFromSceneTextures(HitScreenUV * View.BufferSizeAndInvSize.xy, HitScreenUV);
+						if (LumenMaterial.bHasBackfaceDiffuse)
 						{
 							bHit = false;
 						}
