@@ -3088,8 +3088,8 @@ bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< FUnique
 		if (bRegisterEOS && EOSIds.Num() > 0)
 		{
 			EOS_Sessions_RegisterPlayersOptions Options = { };
-			Options.ApiVersion = 2;
-			UE_EOS_CHECK_API_MISMATCH(EOS_SESSIONS_REGISTERPLAYERS_API_LATEST, 2);
+			Options.ApiVersion = 3;
+			UE_EOS_CHECK_API_MISMATCH(EOS_SESSIONS_REGISTERPLAYERS_API_LATEST, 3);
 			Options.PlayersToRegister = EOSIds.GetData();
 			Options.PlayersToRegisterCount = EOSIds.Num();
 			const FTCHARToUTF8 Utf8SessionName(*SessionName.ToString());

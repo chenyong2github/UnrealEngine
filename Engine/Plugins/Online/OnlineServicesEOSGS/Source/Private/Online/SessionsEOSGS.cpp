@@ -1510,8 +1510,8 @@ TFuture<TOnlineResult<FAddSessionMember>> FSessionsEOSGS::AddSessionMemberImpl(c
 				if (!ResolvedAccountIds.IsEmpty())
 				{
 					EOS_Sessions_RegisterPlayersOptions Options = { };
-					Options.ApiVersion = 2;
-					UE_EOS_CHECK_API_MISMATCH(EOS_SESSIONS_REGISTERPLAYERS_API_LATEST, 2);
+					Options.ApiVersion = 3;
+					UE_EOS_CHECK_API_MISMATCH(EOS_SESSIONS_REGISTERPLAYERS_API_LATEST, 3);
 
 					Options.PlayersToRegisterCount = 1;
 
