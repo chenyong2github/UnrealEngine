@@ -19,7 +19,6 @@ public class PoseSearchEditor : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"PoseSearch",
-				"GameplayTags",
 				"StructUtils",
 				
 				// Trace-related dependencies

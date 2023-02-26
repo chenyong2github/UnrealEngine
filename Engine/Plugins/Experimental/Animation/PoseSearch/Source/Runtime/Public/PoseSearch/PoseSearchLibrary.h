@@ -20,7 +20,6 @@ namespace UE::PoseSearch
 } // namespace UE::PoseSearch
 
 struct FAnimationUpdateContext;
-struct FGameplayTagContainer;
 struct FTrajectorySampleRange;
 class UPoseSearchSearchableAsset;
 
@@ -140,7 +139,6 @@ public:
 	*
 	* @param Context						Input animation update context providing access to the proxy and delta time
 	* @param Searchable						Input collection of animations for motion matching
-	* @param ActiveTagsContainer			Input gameplay tag container
 	* @param Trajectory						Input motion trajectory samples for pose search queries
 	* @param Settings						Input motion matching algorithm configuration settings
 	* @param InOutMotionMatchingState		Input/Output encapsulated motion matching algorithm and state
@@ -149,7 +147,6 @@ public:
 	static void UpdateMotionMatchingState(
 		const FAnimationUpdateContext& Context,
 		const UPoseSearchSearchableAsset* Searchable,
-		const FGameplayTagContainer* ActiveTagsContainer,
 		const FTrajectorySampleRange& Trajectory,
 		const FMotionMatchingSettings& Settings,
 		FMotionMatchingState& InOutMotionMatchingState,
@@ -160,7 +157,6 @@ public:
 	*
 	* @param AnimInstance					Input animation instance
 	* @param Searchable						Input searchable asset
-	* @param ActiveTagsContainer			Input gameplay tag container
 	* @param Trajectory						Input motion trajectory samples for pose search queries
 	* @param PoseHistoryName				Input tag of the associated PoseSearchHistoryCollector node in the anim graph
 	* @param SelectedAnimation				Output selected animation from the searchable asset
@@ -174,7 +170,6 @@ public:
 	static void MotionMatch(
 		const UAnimInstance* AnimInstance,
 		const UPoseSearchSearchableAsset* Searchable,
-		const FGameplayTagContainer ActiveTagsContainer,
 		const FTrajectorySampleRange Trajectory,
 		const FName PoseHistoryName,
 		UAnimationAsset*& SelectedAnimation,

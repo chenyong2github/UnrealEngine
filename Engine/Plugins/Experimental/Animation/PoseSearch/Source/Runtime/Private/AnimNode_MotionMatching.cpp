@@ -111,7 +111,6 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	UPoseSearchLibrary::UpdateMotionMatchingState(
 		Context,
 		Searchable,
-		&ActiveTagsContainer,
 		Trajectory,
 		Settings,
 		MotionMatchingState,

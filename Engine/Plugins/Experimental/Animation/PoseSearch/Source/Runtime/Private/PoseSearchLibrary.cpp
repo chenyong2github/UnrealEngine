@@ -299,7 +299,6 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 void UPoseSearchLibrary::UpdateMotionMatchingState(
 	const FAnimationUpdateContext& Context,
 	const UPoseSearchSearchableAsset* Searchable,
-	const FGameplayTagContainer* ActiveTagsContainer,
 	const FTrajectorySampleRange& Trajectory,
 	const FMotionMatchingSettings& Settings,
 	FMotionMatchingState& InOutMotionMatchingState,
@@ -328,7 +327,6 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 
 	// Build the search context
 	FSearchContext SearchContext;
-	SearchContext.ActiveTagsContainer = ActiveTagsContainer;
 	SearchContext.Trajectory = &Trajectory;
 	SearchContext.bForceInterrupt = bForceInterrupt;
 	SearchContext.bCanAdvance = InOutMotionMatchingState.CanAdvance(DeltaTime);
@@ -395,7 +393,6 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 void UPoseSearchLibrary::MotionMatch(
 	const UAnimInstance* AnimInstance,
 	const UPoseSearchSearchableAsset* Searchable,
-	const FGameplayTagContainer ActiveTagsContainer,
 	const FTrajectorySampleRange Trajectory,
 	const FName PoseHistoryName,
 	UAnimationAsset*& SelectedAnimation,
@@ -417,7 +414,6 @@ void UPoseSearchLibrary::MotionMatch(
 	{
 		// Build the search context
 		FSearchContext SearchContext;
-		SearchContext.ActiveTagsContainer = &ActiveTagsContainer;
 		SearchContext.Trajectory = &Trajectory;
 
 		if (AnimInstance)

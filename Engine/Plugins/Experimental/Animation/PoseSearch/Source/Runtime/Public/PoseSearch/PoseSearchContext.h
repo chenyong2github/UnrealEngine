@@ -7,7 +7,6 @@
 #include "PoseSearch/PoseSearchIndex.h"
 #include "PoseSearch/PoseSearchResult.h"
 
-struct FGameplayTagContainer;
 struct FTrajectorySampleRange;
 class UPoseSearchDatabase;
 class UPoseSearchSchema;
@@ -155,7 +154,6 @@ struct POSESEARCH_API FSearchContext
 	const FPoseHistory* History = nullptr;
 	const FTrajectorySampleRange* Trajectory = nullptr;
 	FSearchResult CurrentResult;
-	const FGameplayTagContainer* ActiveTagsContainer = nullptr;
 	float PoseJumpThresholdTime = 0.f;
 	bool bForceInterrupt = false;
 	// can the continuing pose advance? (if not we skip evaluating it)
