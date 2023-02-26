@@ -1026,8 +1026,21 @@ bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InAc
 	}
 
 	// Dump state log
-	const TCHAR* StateLogSuffix = bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : TEXT("Manual")));
-	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(StateLogSuffix);
+	TStringBuilder<256> StateLogSuffix;
+	StateLogSuffix += bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : TEXT("Manual")));
+	StateLogSuffix += TEXT("_");
+	FString ContainerPackageName = InActorDescContainer->ContainerPackageName.ToString();
+	StateLogSuffix += FPackageName::GetShortName(ContainerPackageName);
+	if (!ContainerPackageName.StartsWith(TEXT("/Game/")))
+	{
+		TArray<FString> SplitContainerPath;
+		if (ContainerPackageName.ParseIntoArray(SplitContainerPath, TEXT("/")))
+		{
+			StateLogSuffix += TEXT("_");
+			StateLogSuffix += SplitContainerPath[0];
+		}
+	}
+	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(*StateLogSuffix);
 	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
 
 	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
