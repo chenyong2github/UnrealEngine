@@ -49,6 +49,22 @@ public:
 	// Whether to only show the proximity graph connections for selected bones
 	UPROPERTY(EditAnywhere, Category = Visualization, meta = (EditCondition = "bShowProximity"))
 	bool bOnlyShowForSelected = false;
+
+	// Line thickness for connections
+	UPROPERTY(EditAnywhere, Category = Visualization, meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float LineThickness = 0.5;
+
+	// Line color for connections
+	UPROPERTY(EditAnywhere, Category = Visualization)
+	FColor LineColor = FColor::Yellow;
+
+	// Point size for centers
+	UPROPERTY(EditAnywhere, Category = Visualization, meta = (ClampMin = "0.0", ClampMax = "20.0"))
+	float CenterSize = 8.f;
+
+	// Point color for centers
+	UPROPERTY(EditAnywhere, Category = Visualization)
+	FColor CenterColor = FColor::Blue;
 };
 
 

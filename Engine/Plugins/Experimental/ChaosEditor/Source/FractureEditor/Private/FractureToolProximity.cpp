@@ -183,7 +183,13 @@ void UFractureToolProximity::Render(const FSceneView* View, FViewport* Viewport,
 			{
 				FVector P1 = WorldTransform.TransformPosition(Vis.GeoCenters[Edge.A] + GetExplodedOffset(Edge.A));
 				FVector P2 = WorldTransform.TransformPosition(Vis.GeoCenters[Edge.B] + GetExplodedOffset(Edge.B));
-				PDI->DrawLine(P1, P2, FLinearColor::Green, SDPG_Foreground, 0.0f, 0.001f);
+				PDI->DrawLine(P1, P2, ProximitySettings->LineColor, SDPG_Foreground, ProximitySettings->LineThickness, 0.001f);
+			}
+
+			for (int32 CenterIndex = 0; CenterIndex < Vis.GeoCenters.Num(); CenterIndex++)
+			{
+				FVector P = WorldTransform.TransformPosition(Vis.GeoCenters[CenterIndex] + GetExplodedOffset(CenterIndex));
+				PDI->DrawPoint(P, ProximitySettings->CenterColor, ProximitySettings->CenterSize, SDPG_Foreground);
 			}
 		}
 	}
