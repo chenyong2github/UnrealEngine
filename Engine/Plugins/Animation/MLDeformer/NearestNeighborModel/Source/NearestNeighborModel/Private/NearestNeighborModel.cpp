@@ -8,6 +8,7 @@
 #include "MLDeformerComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "GeometryCache.h"
+#include "Interfaces/IPluginManager.h"
 #include "Misc/FileHelper.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/ExternalMorphSet.h"
@@ -27,6 +28,11 @@ namespace UE::NearestNeighborModel
 	class NEARESTNEIGHBORMODEL_API FNearestNeighborModelModule
 		: public IModuleInterface
 	{
+		void StartupModule()
+		{
+			FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("NearestNeighborModel"))->GetBaseDir(), TEXT("Shaders"));
+			AddShaderSourceDirectoryMapping(TEXT("/Plugin/MLDeformer/NearestNeighborModel"), PluginShaderDir);
+		}
 	};
 }
 IMPLEMENT_MODULE(UE::NearestNeighborModel::FNearestNeighborModelModule, NearestNeighborModel)
