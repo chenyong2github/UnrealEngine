@@ -5503,7 +5503,7 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 		RHICmdList.SetBlendFactor(FLinearColor::White);
 		RHICmdList.SetShaderTexture(ResolvePixelShader, TextureIndex, SourceTextureRHI);
 
-		ResolveVertexShader->SetParameters(RHICmdList, ResolveRect, ResolveRect, DepthExtent.X, DepthExtent.Y);
+		SetShaderParametersLegacyVS(RHICmdList, ResolveVertexShader, ResolveRect, ResolveRect, DepthExtent.X, DepthExtent.Y);
 
 		RHICmdList.SetStreamSource(0, nullptr, 0);
 		RHICmdList.DrawPrimitive(0, 2, bArrayResolve ? 2 : 1);

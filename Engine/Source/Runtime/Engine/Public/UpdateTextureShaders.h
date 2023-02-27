@@ -30,6 +30,29 @@ public:
 		DestTexture.Bind(Initializer.ParameterMap, TEXT("TDestTexture"), SPF_Mandatory);
 	}
 
+	static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/UpdateTextureShaders.usf"); }
+	static const TCHAR* GetFunctionName() { return TEXT("TUpdateTexture2DSubresourceCS"); }
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FUpdateTextureRegion2D& UpdateRegionInBlocks, uint32 SrcElementPitch)
+	{
+		const uint32 DstPosSize[4] =
+		{
+			UpdateRegionInBlocks.DestX,
+			UpdateRegionInBlocks.DestY,
+			UpdateRegionInBlocks.Width,
+			UpdateRegionInBlocks.Height
+		};
+		FIntVector SrcPosPitch(UpdateRegionInBlocks.SrcX, UpdateRegionInBlocks.SrcY, SrcElementPitch);
+
+		SetShaderValue(BatchedParameters, DestPosSizeParameter, DstPosSize);
+		SetShaderValue(BatchedParameters, SrcPosPitchParameter, SrcPosPitch);
+	}
+
 	LAYOUT_FIELD(FShaderParameter, SrcPosPitchParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, SrcBuffer);
 	LAYOUT_FIELD(FShaderParameter, DestPosSizeParameter);
@@ -52,10 +75,6 @@ public:
 		: FUpdateTexture2DSubresourceCS(Initializer)
 	{}
 
-	static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/UpdateTextureShaders.usf"); }
-	
-	static const TCHAR* GetFunctionName() { return TEXT("TUpdateTexture2DSubresourceCS"); }
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		const TCHAR* Type = nullptr;
@@ -66,11 +85,6 @@ public:
 		case EUpdateTextureValueType::Int32: OutEnvironment.SetDefine(TEXT("COMPONENT_TYPE"), TEXT("int4")); break;
 		case EUpdateTextureValueType::Uint32: OutEnvironment.SetDefine(TEXT("COMPONENT_TYPE"), TEXT("uint4")); break;
 		}
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 };
 

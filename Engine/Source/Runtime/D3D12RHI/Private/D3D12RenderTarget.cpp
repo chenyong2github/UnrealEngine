@@ -257,8 +257,8 @@ void FD3D12CommandContext::ResolveTextureUsingShader(
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 			RHICmdList.SetBlendFactor(FLinearColor::White);
 
-			ResolveVertexShader->SetParameters(RHICmdList, SourceRect, DestRect, ResolveTargetDesc.Width, ResolveTargetDesc.Height);
-			ResolvePixelShader->SetParameters(RHICmdList, PixelShaderParameter);
+			SetShaderParametersLegacyVS(RHICmdList, ResolveVertexShader, SourceRect, DestRect, ResolveTargetDesc.Width, ResolveTargetDesc.Height);
+			SetShaderParametersLegacyPS(RHICmdList, ResolvePixelShader, PixelShaderParameter);
 
 			const uint32 TextureIndex = ResolvePixelShader->UnresolvedSurface.GetBaseIndex();
 

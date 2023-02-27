@@ -75,14 +75,14 @@ public:
 	}
 	FOculusAlphaInverseShader() {}
 
-	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* Texture)
 	{
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, Texture);
+		SetTextureParameter(BatchedParameters, InTexture, InTextureSampler, Texture);
 	}
 
-	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
 	{
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
+		SetTextureParameter(BatchedParameters, InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
 	}
 
 private:
@@ -110,16 +110,16 @@ public:
 	}
 	FOculusCubemapPS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, int FaceIndex)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* Texture, int FaceIndex)
 	{
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, Texture);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), InFaceIndexParameter, FaceIndex);
+		SetTextureParameter(BatchedParameters, InTexture, InTextureSampler, Texture);
+		SetShaderValue(BatchedParameters, InFaceIndexParameter, FaceIndex);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI, int FaceIndex)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI, int FaceIndex)
 	{
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), InFaceIndexParameter, FaceIndex);
+		SetTextureParameter(BatchedParameters, InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
+		SetShaderValue(BatchedParameters, InFaceIndexParameter, FaceIndex);
 	}
 
 private:

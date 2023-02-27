@@ -152,8 +152,8 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 		RHICmdList.SetBlendFactor(FLinearColor::White);
 
-		ResolveVertexShader->SetParameters(RHICmdList, SourceRect, DestRect, ResolveTargetDesc.Width, ResolveTargetDesc.Height);
-		ResolvePixelShader->SetParameters(RHICmdList, PixelShaderParameter);
+		SetShaderParametersLegacyVS(RHICmdList, ResolveVertexShader, SourceRect, DestRect, ResolveTargetDesc.Width, ResolveTargetDesc.Height);
+		SetShaderParametersLegacyPS(RHICmdList, ResolvePixelShader, PixelShaderParameter);
 
 		// Set the source texture.
 		const uint32 TextureIndex = ResolvePixelShader->UnresolvedSurface.GetBaseIndex();

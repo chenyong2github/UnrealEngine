@@ -141,15 +141,17 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 		}
 
 		// Set shader uniforms
-		VertexShader->SetParameters(
+		SetShaderParametersLegacyVS(
 			RHICmdList,
+			VertexShader,
 			QuadSize,
 			Layer.UVRect,
 			RenderParams.RenderMatrices[static_cast<int>(Layer.PositionType)],
 			LayerMatrix);
 
-		PixelShader->SetParameters(
+		SetShaderParametersLegacyPS(
 			RHICmdList,
+			PixelShader,
 			TStaticSamplerState<SF_Trilinear>::GetRHI(),
 			Layer.Texture,
 			bIsOpaque);

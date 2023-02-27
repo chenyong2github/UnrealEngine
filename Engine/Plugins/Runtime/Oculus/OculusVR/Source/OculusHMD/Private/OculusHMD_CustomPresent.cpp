@@ -502,8 +502,9 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 				TShaderMapRef<FOculusCubemapPS> PixelShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
 				FRHISamplerState* SamplerState = DstRect.Size() == SrcRect.Size() ? TStaticSamplerState<SF_Point>::GetRHI() : TStaticSamplerState<SF_Bilinear>::GetRHI();
-				PixelShader->SetParameters(RHICmdList, SamplerState, SrcTextureRHI, FaceIndex);
+				SetShaderParametersLegacyPS(RHICmdList, PixelShader, SamplerState, SrcTextureRHI, FaceIndex);
 
 				RHICmdList.SetViewport(DstRect.Min.X, DstRect.Min.Y, 0.0f, DstRect.Max.X, DstRect.Max.Y, 1.0f);
 

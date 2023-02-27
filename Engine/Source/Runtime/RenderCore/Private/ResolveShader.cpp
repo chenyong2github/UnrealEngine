@@ -31,6 +31,10 @@ void FResolveDepthPS::ModifyCompilationEnvironment(const FGlobalShaderPermutatio
 	FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 }
 
+void FResolveDepthPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FParameter)
+{
+}
+
 void FResolveDepthPS::SetParameters(FRHICommandList& RHICmdList, FParameter)
 {
 }
@@ -183,9 +187,16 @@ bool FResolveSingleSamplePS::ShouldCompilePermutation(const FGlobalShaderPermuta
 	return FDataDrivenShaderPlatformInfo::GetIsLanguageD3D(Parameters.Platform);
 }
 
+void FResolveSingleSamplePS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, uint32 SingleSampleIndexValue)
+{
+	SetShaderValue(BatchedParameters, SingleSampleIndex, SingleSampleIndexValue);
+}
+
 void FResolveSingleSamplePS::SetParameters(FRHICommandList& RHICmdList, uint32 SingleSampleIndexValue)
 {
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),SingleSampleIndex,SingleSampleIndexValue);
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, SingleSampleIndexValue);
+	RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundPixelShader(), BatchedParameters);
 }
 
 // FResolveVS
@@ -203,7 +214,7 @@ bool FResolveVS::ShouldCompilePermutation(const FGlobalShaderPermutationParamete
 	return true;
 }
 
-void FResolveVS::SetParameters(FRHICommandList& RHICmdList, const FResolveRect& SrcBounds, const FResolveRect& DstBounds, uint32 DstSurfaceWidth, uint32 DstSurfaceHeight)
+void FResolveVS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FResolveRect& SrcBounds, const FResolveRect& DstBounds, uint32 DstSurfaceWidth, uint32 DstSurfaceHeight)
 {
 	// Generate the vertices used to copy from the source surface to the destination surface.
 	const float MinU = (float)SrcBounds.X1;
@@ -215,8 +226,15 @@ void FResolveVS::SetParameters(FRHICommandList& RHICmdList, const FResolveRect& 
 	const float MaxX = -1.f + DstBounds.X2 / ((float)DstSurfaceWidth * 0.5f);
 	const float MaxY = +1.f - DstBounds.Y2 / ((float)DstSurfaceHeight * 0.5f);
 
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), PositionMinMax, FVector4f(MinX, MinY, MaxX, MaxY));
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), UVMinMax, FVector4f(MinU, MinV, MaxU, MaxV));
+	SetShaderValue(BatchedParameters, PositionMinMax, FVector4f(MinX, MinY, MaxX, MaxY));
+	SetShaderValue(BatchedParameters, UVMinMax, FVector4f(MinU, MinV, MaxU, MaxV));
+}
+
+void FResolveVS::SetParameters(FRHICommandList& RHICmdList, const FResolveRect& SrcBounds, const FResolveRect& DstBounds, uint32 DstSurfaceWidth, uint32 DstSurfaceHeight)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, SrcBounds, DstBounds, DstSurfaceWidth, DstSurfaceHeight);
+	RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundVertexShader(), BatchedParameters);
 }
 
 // FResolveArrayVS
@@ -241,11 +259,6 @@ void FResolveArrayVS::ModifyCompilationEnvironment(const FGlobalShaderPermutatio
 {
 	FResolveVS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_TEXTUREARRAY"), 1);
-}
-
-void FResolveArrayVS::SetParameters(FRHICommandList& RHICmdList, const FResolveRect& SrcBounds, const FResolveRect& DstBounds, uint32 DstSurfaceWidth, uint32 DstSurfaceHeight)
-{
-	return FResolveVS::SetParameters(RHICmdList, SrcBounds, DstBounds, DstSurfaceWidth, DstSurfaceHeight);
 }
 
 void CreateResolveShaders()
