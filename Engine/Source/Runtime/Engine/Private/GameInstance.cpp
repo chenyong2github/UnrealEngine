@@ -1290,9 +1290,9 @@ bool UGameInstance::EnableListenServer(bool bEnable, int32 PortOverride /*= 0*/)
 
 	ENetMode ExistingMode = World->GetNetMode();
 
-	if (ExistingMode == NM_Client || ExistingMode == NM_DedicatedServer)
+	if (ExistingMode == NM_Client)
 	{
-		// Clients and dedicated servers cannot change to listen!
+		// Clients cannot change to listen!
 		return false;
 	}
 
@@ -1306,7 +1306,7 @@ bool UGameInstance::EnableListenServer(bool bEnable, int32 PortOverride /*= 0*/)
 		}
 		WorldContext->LastURL.AddOption(TEXT("Listen"));
 
-		if (ExistingMode == NM_Standalone)
+		if (!World->GetNetDriver())
 		{
 			// This actually opens the port
 			FURL ListenURL = WorldContext->LastURL;
@@ -1320,13 +1320,19 @@ bool UGameInstance::EnableListenServer(bool bEnable, int32 PortOverride /*= 0*/)
 	}
 	else
 	{
+		if (ExistingMode == NM_DedicatedServer)
+		{
+			UE_LOG(LogGameSession, Warning, TEXT("EnableListenServer: Dedicated servers always listen for connections"));
+			return false;
+		}
+
 		WorldContext->LastURL.RemoveOption(TEXT("Listen"));
 		WorldContext->LastURL.Port = FURL::UrlConfig.DefaultPort;
 
 		if (ExistingMode == NM_ListenServer)
 		{
 			// What to do in this case is very game-specific
-			UE_LOG(LogGameSession, Warning, TEXT("Disabling a listen server with active connections does not disconnect existing players by default"));
+			UE_LOG(LogGameSession, Warning, TEXT("EnableListenServer: Disabling a listen server with active connections does not disconnect existing players by default"));
 		}
 
 		return true;

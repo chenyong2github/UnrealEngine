@@ -2465,6 +2465,14 @@ void UEditorEngine::PostCreatePIEWorld(UWorld *NewPIEWorld)
 	// make sure we can clean up this world!
 	NewPIEWorld->ClearFlags(RF_Standalone);
 
+	// Force the new world to use a dedicated server net mode if needed
+	// The other types will correctly derive it from the URL as it changes during play
+	FWorldContext* const Context = GetWorldContextFromWorld(NewPIEWorld);
+	if (Context && Context->RunAsDedicated)
+	{
+		NewPIEWorld->SetPlayInEditorInitialNetMode(NM_DedicatedServer);
+	}
+	
 	// Init the PIE world
 	NewPIEWorld->InitWorld();
 	UE_LOG(LogPlayLevel, Log, TEXT("PIE: World Init took: (%fs)"),  float(FPlatformTime::Seconds() - WorldInitStart));

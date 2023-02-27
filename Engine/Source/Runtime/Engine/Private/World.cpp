@@ -8093,11 +8093,11 @@ ENetMode UWorld::InternalGetNetMode() const
 
 	ENetMode URLNetMode = AttemptDeriveFromURL();
 #if WITH_EDITOR
-	if (WorldType == EWorldType::PIE && URLNetMode == NM_Standalone && !AreActorsInitialized())
+	if (WorldType == EWorldType::PIE && (URLNetMode == NM_Standalone || PlayInEditorNetMode == NM_DedicatedServer))
 	{
-		// If we're too early in startup and it defaults to Standalone, use the mode we were created with
-		// Once the world has been initialized the URL will be correct so we will use that
-		// This is required for dedicated server worlds so it is correct for InitWorld
+		// If we're early in startup before the net driver exists and there is no URL override
+		// or this is a dedicated server, use the mode we were first created with
+		// This is required for dedicated server/listen worlds so it is correct for InitWorld
 		return PlayInEditorNetMode;
 	}
 #endif
