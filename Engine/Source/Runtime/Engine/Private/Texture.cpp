@@ -40,6 +40,7 @@
 #include "DerivedDataBuildVersion.h"
 #include "GuardedInt.h"
 #include "TextureCompiler.h"
+#include "TextureBuildUtilities.h"
 #include "Misc/ScopeRWLock.h"
 #endif
 
@@ -3160,23 +3161,25 @@ static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITarget
 					
 			if ( TextureFormat )
 			{
-			FString FormatPrefix = TextureFormat->GetAlternateTextureFormatPrefix();
-			check( ! FormatPrefix.IsEmpty() );
+				FString FormatPrefix = TextureFormat->GetAlternateTextureFormatPrefix();
+				check( ! FormatPrefix.IsEmpty() );
 			
-			FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
+				FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
 
-			TArray<FName> SupportedFormats;
-			TextureFormat->GetSupportedFormats(SupportedFormats);
+				// check that prefixed name is one we support
+				// only apply prefix if it is in list
+				TArray<FName> SupportedFormats;
+				TextureFormat->GetSupportedFormats(SupportedFormats);
 
-			if (SupportedFormats.Contains(NewFormatName))
-			{
-				return NewFormatName;
+				if (SupportedFormats.Contains(NewFormatName))
+				{
+					return NewFormatName;
+				}
 			}
-		}
-		else
-		{
-			UE_CALL_ONCE( [&](){
-					UE_LOG(LogTexture, Warning, TEXT("AlternateTextureCompression specified, Module found, but no TextureFormat : %s."), *TextureCompressionFormat);
+			else
+			{
+				UE_CALL_ONCE( [&](){
+						UE_LOG(LogTexture, Warning, TEXT("AlternateTextureCompression specified, Module found, but no TextureFormat : %s."), *TextureCompressionFormat);
 				} );
 			}
 		}
@@ -3192,11 +3195,12 @@ static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITarget
 	return TextureFormatName;
 }
 
+// this should not be called directly; it is called from TargetPlatform GetTextureFormats
+//	entry point API is GetPlatformTextureFormatNamesWithPrefix
 FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, int32 LayerIndex, 
 	bool bSupportCompressedVolumeTexture, int32 Unused_BlockSize, bool bSupportFilteredFloat32Textures )
 {
 	FName TextureFormatName = NAME_None;
-	bool bOodleTextureSdkVersionIsNone = true;
 
 	/**
 	 * IF you add a format to this function don't forget to update GetAllDefaultTextureFormats 
@@ -3273,7 +3277,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 			SizeX = SizeY = FMath::Max(1 << FMath::FloorLog2(SizeX / 2), 32);
 		}
 
-		//we need to really have the actual top mip size of output platformdata
+		//@todo Oodle: we need to really have the actual top mip size of output platformdata
 		//	(hence the LODBias check below)
 		// trying to reproduce here exactly what TextureCompressor + serialization will do = brittle
 
@@ -3505,13 +3509,77 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		}
 	}
 
-	bOodleTextureSdkVersionIsNone = Texture->OodleTextureSdkVersion.IsNone();
 #endif //WITH_EDITOR
 
-	FName Result = ConditionalGetPrefixedFormat(TextureFormatName, TargetPlatform, bOodleTextureSdkVersionIsNone);
+	//FName Result = ConditionalGetPrefixedFormat(TextureFormatName, TargetPlatform, bOodleTextureSdkVersionIsNone);
+	// changed : now NOT prefixed here, so that targetplatform remaps receive format without prefix
+	//	will be done by GetPlatformTextureFormatNamesWithPrefix, after target platform remaps
 
-	return Result;
+	return TextureFormatName;
 }
+
+#if WITH_EDITOR
+// this is the entry point API to get the texture format name
+void UTexture::GetPlatformTextureFormatNamesWithPrefix(const class ITargetPlatform* TargetPlatform,TArray< TArray<FName> >& OutFormats) const
+{
+	check( OutFormats.Num() == 0 );
+
+	// does GetDefaultTextureFormatNamePerLayer then per-platform remaps , then (optionally) adds platform prefix
+	//   (platform prefix implies tiling)
+	TargetPlatform->GetTextureFormats(this,OutFormats);
+
+	// almost always == 1, except for Android_Multi, which makes an array of layer formats per variant
+	check( OutFormats.Num() >= 1 );
+	
+	// now do optional Oodle prefix after platform remaps :
+
+	bool bOodleTextureSdkVersionIsNone = OodleTextureSdkVersion.IsNone();
+
+	for( TArray<FName> & LayerFormats : OutFormats )
+	{
+		// conditional prefix only applies the prefix if the prefixed format is supported.
+		//	eg. AutoDXT becomes OODLE_AutoDXT but ETC and RGBA8 do not change.
+		// The Oodle prefixing & support test should always be last, and no more format remapping should be done after that point.
+
+		for (int32 LayerIndex = 0; LayerIndex < LayerFormats.Num(); ++LayerIndex)
+		{
+			FName StartName = LayerFormats[LayerIndex];
+	
+			// can NOT just split name using underscore to get the Platform prefix and Format suffix
+			//	because format names have underscores in them (ASTC_ and ETC2_)
+
+			FName WithoutPlatformPrefixName = UE::TextureBuildUtilities::TextureFormatRemovePlatformPrefixFromName(StartName);
+			FString WithoutPlatformPrefix = WithoutPlatformPrefixName.ToString();
+			checkSlow( StartName.ToString().Find( WithoutPlatformPrefix ) != INDEX_NONE );
+
+			FName ModifiedName = ConditionalGetPrefixedFormat(WithoutPlatformPrefixName, TargetPlatform, bOodleTextureSdkVersionIsNone);
+			if ( WithoutPlatformPrefixName != ModifiedName )
+			{
+				// Got Oodle prefix, now put platform prefix back on :
+			
+				FString StartNameString = StartName.ToString();
+				if ( WithoutPlatformPrefix.Len() < StartNameString.Len() )
+				{
+					FString PlatformPrefix = StartNameString.Left( StartNameString.Len() - WithoutPlatformPrefix.Len() );
+					check( PlatformPrefix + WithoutPlatformPrefix == StartName );
+
+					LayerFormats[LayerIndex] = FName( PlatformPrefix + ModifiedName.ToString() );
+					// should now be like PLATFORM_PREFIX_FORMAT
+				}
+				else
+				{
+					LayerFormats[LayerIndex] = ModifiedName;
+					// should now be like PREFIX_FORMAT
+				}
+			}
+		}
+	}
+
+	// result should be :
+	//	PLATFORM_PREFIX_FORMAT
+	//  (platform and prefix both optional)
+}
+#endif
 
 void GetDefaultTextureFormatNamePerLayer(TArray<FName>& OutFormatNames, const class ITargetPlatform* TargetPlatform, const class UTexture* Texture, 
 	bool bSupportCompressedVolumeTexture, int32 Unused_BlockSize, bool bSupportFilteredFloat32Textures )

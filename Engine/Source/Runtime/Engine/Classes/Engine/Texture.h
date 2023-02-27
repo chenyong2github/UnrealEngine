@@ -1613,6 +1613,13 @@ public:
 	*  You should do this any time the texture is modified, such as on reimport, since the bits are changing anyway.
 	*/
 	ENGINE_API virtual void UpdateOodleTextureSdkVersionToLatest(void);
+	
+	/** Get TextureFormatName with platform remaps and conditional prefix
+	 *   this is the entry point API for getting the final texture format name
+	 *  OutFormats will be resized to the number of sub-flavors of the platform (typically just 1)
+	 *  OutFormats[i] gets an array of format names, one per layer
+	 */
+	ENGINE_API void GetPlatformTextureFormatNamesWithPrefix(const class ITargetPlatform* TargetPlatform,TArray< TArray<FName> >& OutFormats) const;
 #endif // WITH_EDITOR
 
 	ENGINE_API EGammaSpace GetGammaSpace() const

@@ -586,6 +586,9 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 	TextureFormatNames.Reserve(NumLayers);
 
 	// optionaly compress landscape weightmaps for a mobile rendering
+	// @todo Oodle: this should not be here
+	//	should be in GetDefaultTextureFormatNamePerLayer
+	//	so that 4x4 checks can be applied correctly, etc.
 	static const auto CompressLandscapeWeightMapsVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.CompressLandscapeWeightMaps"));
 	static const bool bCompressLandscapeWeightMaps = (CompressLandscapeWeightMapsVar && CompressLandscapeWeightMapsVar->GetValueOnAnyThread() != 0);
 	if (Texture->LODGroup == TEXTUREGROUP_Terrain_Weightmap && bCompressLandscapeWeightMaps)

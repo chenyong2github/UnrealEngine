@@ -490,11 +490,16 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<
 
 	for (FName& TextureFormatName : LayerFormats)
 	{
+		// @todo Oodle: this should not be here
+		//	should be in GetDefaultTextureFormatNamePerLayer
+		//	so that 4x4 checks can be applied correctly, etc.
 		if (Texture->LODGroup == TEXTUREGROUP_Terrain_Weightmap && bCompressLandscapeWeightMaps)
 		{
 			TextureFormatName = AndroidTexFormat::NameAutoDXT;
 		}
 		
+		// @todo : IsA then CastChecked ?  Just Cast<> ?
+		//	also use ETextureClass instead
 		if (Texture->IsA(UTextureCube::StaticClass()))
 		{
 			const UTextureCube* Cube = CastChecked<UTextureCube>(Texture);

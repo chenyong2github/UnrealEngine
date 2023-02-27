@@ -622,6 +622,11 @@ private:
 	ECubeFace CurrentTargetFace;
 };
 
+/**
+ * Do not call these (GetDefaultTextureFormatName) directly, use GetPlatformTextureFormatNamesWithPrefix instead
+ * this should only be called by TargetPlatform::GetTextureFormats()
+ */
+
 /** Gets the name of a format for the given LayerIndex */
 ENGINE_API FName GetDefaultTextureFormatName( const class ITargetPlatform* TargetPlatform, const class UTexture* Texture, int32 LayerIndex, bool bSupportCompressedVolumeTexture, int32 Unused_BlockSize, bool bSupportFilteredFloat32Textures);
 

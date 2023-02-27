@@ -5,6 +5,7 @@
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
+//#include "EngineLogs.h" // can't use from SCW
 
 
 namespace UE
@@ -32,7 +33,7 @@ TEXTUREBUILDUTILITIES_API bool TextureFormatIsHdr(FName const& InName)
 	return false;
 }
 
-TEXTUREBUILDUTILITIES_API const FName TextureFormatRemovePrefixFromName(FName const& InName, FName& OutPrefix)
+TEXTUREBUILDUTILITIES_API const FName TextureFormatRemovePlatformPrefixFromName(FName const& InName)
 {
 	FString NameString = InName.ToString();
 
@@ -45,6 +46,13 @@ TEXTUREBUILDUTILITIES_API const FName TextureFormatRemovePrefixFromName(FName co
 	// Then we detect a non-platform prefix (such as codec name)
 	// and split the result into  explicit FORMAT and PREFIX parts.
 
+	// fast(ish) early out if there are no underscores in InName :
+	int32 UnderscoreIndexIgnored = INDEX_NONE;
+	if ( ! NameString.FindChar(TCHAR('_'), UnderscoreIndexIgnored))
+	{
+		return InName;
+	}
+
 	for (FName PlatformName : FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames(EPlatformInfoType::AllPlatformInfos))
 	{
 		FString PlatformTextureFormatPrefix = PlatformName.ToString();
@@ -52,25 +60,57 @@ TEXTUREBUILDUTILITIES_API const FName TextureFormatRemovePrefixFromName(FName co
 		if (NameString.StartsWith(PlatformTextureFormatPrefix, ESearchCase::IgnoreCase))
 		{
 			// Remove platform prefix and proceed with non-platform prefix detection.
-			NameString = NameString.RightChop(PlatformTextureFormatPrefix.Len());
-			break;
+			FString PlatformRemoved = NameString.RightChop(PlatformTextureFormatPrefix.Len());
+			return FName( PlatformRemoved );
 		}
 	}
+	
+	return InName;
+}
+	
+TEXTUREBUILDUTILITIES_API const FName TextureFormatRemovePrefixFromName(FName const& InNameWithPlatform, FName& OutPrefix)
+{
+	// first remove platform prefix :
+	FName NameWithoutPlatform = TextureFormatRemovePlatformPrefixFromName( InNameWithPlatform );
+	FString NameString = NameWithoutPlatform.ToString();
 
+	// then see if there's another underscore separated prefix :
 	int32 UnderscoreIndex = INDEX_NONE;
-	if (NameString.FindChar(TCHAR('_'), UnderscoreIndex))
+	if ( ! NameString.FindChar(TCHAR('_'), UnderscoreIndex))
 	{
-		// Non-platform prefix, we want to keep these
-		OutPrefix = *NameString.Left(UnderscoreIndex + 1);
-		return *NameString.RightChop(UnderscoreIndex + 1);
+		return FName( NameString );
 	}
 
-	return *NameString;
+	// texture format names can have underscores in them (eg. ETC2_RG11)
+	//	so need to differentiate between that and a conditional prefix :
+
+	// found an underscore; is it a composite texture name, or an "Alternate" prefix?
+	FString Prefix = NameString.Left(UnderscoreIndex + 1);
+	if ( Prefix == "OODLE_" || Prefix == "TFO_" )
+	{
+		// Alternate prefix
+		OutPrefix = FName( Prefix );
+		return FName( NameString.RightChop(UnderscoreIndex + 1) );
+	}
+	else if ( Prefix == "ASTC_" || Prefix == "ETC2_" )
+	{
+		// composite format, don't split
+		return NameWithoutPlatform;
+	}
+	else
+	{
+		// prefix not recognized
+		// LogTexture doesn't exist in SCW
+		UE_LOG(LogCore,Warning,TEXT("Texture Format Prefix not recognized: %s [%s]"),*Prefix,*InNameWithPlatform.ToString());
+		
+		return NameWithoutPlatform;
+	}
 }
 
 
 TEXTUREBUILDUTILITIES_API ERawImageFormat::Type GetVirtualTextureBuildIntermediateFormat(const FTextureBuildSettings& BuildSettings)
 {
+	// Platform prefix should have already been removed, also remove any Oodle prefix:
 	const FName TextureFormatName = TextureFormatRemovePrefixFromName(BuildSettings.TextureFormatName);
 
 	// note: using RGBA16F when the Source is HDR but the output is not HDR is not needed

@@ -1118,8 +1118,11 @@ static void GetBuildSettingsForRunningPlatform(
 		GetTextureBuildSettings(Texture, *LODSettings, *TargetPlatform, InEncodeSpeed, SourceBuildSettings, &SourceMetadata);
 
 		TArray< TArray<FName> > PlatformFormats;
-		TargetPlatform->GetTextureFormats(&Texture, PlatformFormats);
-		check(PlatformFormats.Num() > 0);
+		Texture.GetPlatformTextureFormatNamesWithPrefix(TargetPlatform,PlatformFormats);
+
+		// this code only uses PlatformFormats[0] , so it would be wrong for Android_Multi
+		//	but it's only used for the platform running the Editor
+		check(PlatformFormats.Num() == 1);
 
 		const int32 NumLayers = Texture.Source.GetNumLayers();
 		check(PlatformFormats[0].Num() == NumLayers);
@@ -1158,7 +1161,10 @@ static void GetBuildSettingsPerFormat(
 	const int32 NumLayers = Texture.Source.GetNumLayers();
 
 	TArray< TArray<FName> > PlatformFormats;
-	TargetPlatform->GetTextureFormats(&Texture, PlatformFormats);
+	Texture.GetPlatformTextureFormatNamesWithPrefix(TargetPlatform,PlatformFormats);
+
+	// almost always == 1, except for Android_Multi, which makes an array of layer formats per variant
+	check( PlatformFormats.Num() >= 1 );
 
 	OutBuildSettingsPerFormat.Reserve(PlatformFormats.Num());
 	if (OutResultMetadataPerFormat)
@@ -1185,21 +1191,9 @@ static void GetBuildSettingsPerFormat(
 
 			if (OutSettings.bVirtualStreamable)
 			{
-				// Virtual textures always strip the child format prefix prior to actual encode since
-				// VTs never tile. We do this here so that we can end up with the same DDC keys and
-				// avoid re-encoding the same texture N times under different keys.
-				// This is the same code used at the end of FVirtualTextureDataBuilder::BuildSourcePixels
-				FName TextureFormatPrefix;
-				FName TextureFormatName = UE::TextureBuildUtilities::TextureFormatRemovePrefixFromName(OutSettings.TextureFormatName, TextureFormatPrefix);
-
-				if (TextureFormatPrefix.IsNone())
-				{
-					OutSettings.TextureFormatName = TextureFormatName;
-				}
-				else
-				{
-					OutSettings.TextureFormatName = *(TextureFormatPrefix.ToString() + TextureFormatName.ToString());
-				}
+				// Virtual textures always strip the child format prefix prior to actual encode since VTs never tile.
+				// must match VirtualTextureDataBuilder.cpp
+				OutSettings.TextureFormatName = UE::TextureBuildUtilities::TextureFormatRemovePlatformPrefixFromName(OutSettings.TextureFormatName);
 			}
 
 			FTexturePlatformData::FTextureEncodeResultMetadata* OutResultMetadata = nullptr;
