@@ -41,7 +41,7 @@ namespace FriendAcceptFailureReason
 DECLARE_DELEGATE_OneParam(FUserDependentAction, USocialUser&);
 
 /** Represents the full suite of social functionality available to a given LocalPlayer */
-UCLASS(Within = SocialManager)
+UCLASS(Within = SocialManager, Config = Game)
 class PARTY_API USocialToolkit : public UObject, public FExec
 {
 	GENERATED_BODY()
@@ -308,6 +308,9 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<USocialUser>> AllUsers;
 	TMap<FUniqueNetIdRepl, TWeakObjectPtr<USocialUser>> UsersBySubsystemIds;
+
+	UPROPERTY(config)
+	bool bRemoveInvalidatedUserFromMaps = true;
 
 	UPROPERTY()
 	TWeakObjectPtr<ULocalPlayer> LocalPlayerOwner = nullptr;

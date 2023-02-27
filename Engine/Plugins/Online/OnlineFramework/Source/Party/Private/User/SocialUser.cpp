@@ -1286,7 +1286,7 @@ void USocialUser::EstablishOssInfo(const TSharedRef<FOnlineBlockedPlayer>& InBlo
 
 	if (InBlockedPlayerInfo != SubsystemInfo.BlockedPlayerInfo)
 	{
-		UE_CLOG(!SubsystemInfo.BlockedPlayerInfo.IsValid(), LogParty, Warning, TEXT("SocialUser [%s] is establishing new blocked player info on [%s], but the existing info is still valid."),
+		UE_CLOG(SubsystemInfo.BlockedPlayerInfo.IsValid(), LogParty, Warning, TEXT("SocialUser [%s] is establishing new blocked player info on [%s], but the existing info is still valid."),
 			*ToDebugString(), ToString(SubsystemType));
 
 		SubsystemInfo.BlockedPlayerInfo = InBlockedPlayerInfo;
@@ -1300,7 +1300,7 @@ void USocialUser::EstablishOssInfo(const TSharedRef<FOnlineRecentPlayer>& InRece
 
 	if (InRecentPlayerInfo != SubsystemInfo.RecentPlayerInfo)
 	{
-		UE_CLOG(!SubsystemInfo.RecentPlayerInfo.IsValid(), LogParty, Warning, TEXT("SocialUser [%s] is establishing new recent player info on [%s], but the existing info is still valid."),
+		UE_CLOG(SubsystemInfo.RecentPlayerInfo.IsValid(), LogParty, Warning, TEXT("SocialUser [%s] is establishing new recent player info on [%s], but the existing info is still valid."),
 			*ToDebugString(), ToString(SubsystemType));
 
 		SubsystemInfo.RecentPlayerInfo = InRecentPlayerInfo;

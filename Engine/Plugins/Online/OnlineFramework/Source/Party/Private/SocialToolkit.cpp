@@ -494,7 +494,7 @@ void USocialToolkit::NotifySubsystemIdEstablished(USocialUser& SocialUser, ESoci
 	}
 	else
 	{
-		FString LogString = FString::Printf(TEXT("SubsystemId [%s] for user [%s] is already in the UsersBySubsystemId map.\n"), *SubsystemId.ToDebugString(), *SocialUser.GetName());
+		FString LogString = FString::Printf(TEXT("SubsystemId [%s] for user [%s] is already in the UsersBySubsystemIds map.\n"), *SubsystemId.ToDebugString(), *SocialUser.GetName());
 
 		LogString += TEXT("Currently in the map:\n");
 		for (const auto& IdUserPair : UsersBySubsystemIds)
@@ -1175,6 +1175,18 @@ void USocialToolkit::HandleGameDestroyed(const FName SessionName, bool bWasSucce
 void USocialToolkit::HandleUserInvalidated(USocialUser& InvalidUser)
 {
 	AllUsers.Remove(&InvalidUser);
+	// Remove user from id maps
+	if (bRemoveInvalidatedUserFromMaps)
+	{
+		for (const ESocialSubsystem& SocialSubsystemType : InvalidUser.GetRelevantSubsystems())
+		{
+			FUniqueNetIdRepl SubsystemUserId = InvalidUser.GetUserId(SocialSubsystemType);
+			if (SubsystemUserId.IsValid())
+			{
+				UsersBySubsystemIds.Remove(SubsystemUserId);
+			}
+		}
+	}
 	OnSocialUserInvalidated().Broadcast(InvalidUser);
 }
 
