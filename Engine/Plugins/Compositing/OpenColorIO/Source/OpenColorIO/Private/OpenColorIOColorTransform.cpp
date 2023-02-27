@@ -198,11 +198,6 @@ void UOpenColorIOColorTransform::ProcessSerializedShaderMaps(UOpenColorIOColorTr
 	}
 }
 
-void UOpenColorIOColorTransform::GetOpenColorIOLUTKeyGuid(const FString& InProcessorIdentifier, FGuid& OutLutGuid)
-{
-	GetOpenColorIOLUTKeyGuid(InProcessorIdentifier, FName(), OutLutGuid);
-}
-
 void UOpenColorIOColorTransform::GetOpenColorIOLUTKeyGuid(const FString& InProcessorIdentifier, const FName& InName, FGuid& OutLutGuid)
 {
 #if WITH_EDITOR
@@ -577,18 +572,6 @@ bool UOpenColorIOColorTransform::AreRenderResourcesReady() const
 	return true;
 }
 
-bool UOpenColorIOColorTransform::GetShaderAndLUTResouces(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)
-{
-	TSortedMap<int32, FTextureResource*> OutTextureResources;
-	bool bResult = GetRenderResources(InFeatureLevel, OutShaderResource, OutTextureResources);
-
-	if (OutTextureResources.Contains(0))
-	{
-		OutLUT3dResource = OutTextureResources[0];
-	}
-	return bResult;
-}
-
 bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace) const
 {
 	if (!bIsDisplayViewType)
@@ -956,16 +939,6 @@ TObjectPtr<UTexture> UOpenColorIOColorTransform::CreateTexture3DLUT(const FStrin
 #endif
 
 	return OutTexture;
-}
-
-void UOpenColorIOColorTransform::Update3dLutTexture(const FString& InLutIdentifier, const float* InSourceData)
-{
-#if WITH_EDITOR && WITH_OCIO
-	Textures.Empty();
-
-	TObjectPtr<UTexture> Texture = CreateTexture3DLUT(InLutIdentifier, FName(), OpenColorIOShader::Lut3dEdgeLength, TextureFilter::TF_Bilinear, InSourceData);
-	Textures.Add(0, MoveTemp(Texture));
-#endif
 }
 
 TObjectPtr<UTexture> UOpenColorIOColorTransform::CreateTexture1DLUT(const FString& InProcessorIdentifier, const FName& InName, uint32 InTextureWidth, uint32 InTextureHeight, TextureFilter InFilter, bool bRedChannelOnly, const float* InSourceData)

@@ -81,24 +81,6 @@ bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeat
 	return false;
 }
 
-bool UOpenColorIOConfiguration::GetShaderAndLUTResources(ERHIFeatureLevel::Type InFeatureLevel, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)
-{
-	TSortedMap<int32, FTextureResource*> TextureResources;
-	FOpenColorIOColorConversionSettings Settings;
-	Settings.SourceColorSpace.ColorSpaceName = InSourceColorSpace;
-	Settings.DestinationColorSpace.ColorSpaceName = InDestinationColorSpace;
-	if (GetRenderResources(InFeatureLevel, Settings, OutShaderResource, TextureResources))
-	{
-		if (TextureResources.Contains(0))
-		{
-			OutLUT3dResource = TextureResources[0];
-			return true;
-		}
-	}
-
-	return false;
-}
-
 bool UOpenColorIOConfiguration::HasTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace)
 {
 	TObjectPtr<UOpenColorIOColorTransform>* TransformData = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransformData)
