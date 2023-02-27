@@ -1799,6 +1799,7 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 	OutEnvironment.SetDefine(TEXT("MATERIAL_USES_ANISOTROPY"), bUsesAnisotropy && FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(InPlatform));
 
 	OutEnvironment.SetDefine(TEXT("MATERIAL_DECAL_READ_MASK"), MaterialCompilationOutput.UsedDBufferTextures);
+	OutEnvironment.SetDefine(TEXT("MATERIAL_PATH_TRACING_BUFFER_READ"), MaterialCompilationOutput.UsedPathTracingBufferTextures);
 
 	// Count the number of VTStacks (each stack will allocate a feedback slot)
 	OutEnvironment.SetDefine(TEXT("NUM_VIRTUALTEXTURE_SAMPLES"), VTStacks.Num());
@@ -7047,6 +7048,29 @@ int32 FHLSLMaterialTranslator::DBufferTextureLookup(int32 ViewportUV, uint32 DBu
 	AddEstimatedTextureSample();
 
 	return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionDBufferTextureLookup(Parameters, %s, %d)"), *CoerceParameter(BufferUV, MCT_Float2), (int)DBufferTextureIndex);
+}
+
+int32 FHLSLMaterialTranslator::PathTracingBufferTextureLookup(int32 ViewportUV, uint32 PathTracingBufferTextureIndex)
+{
+	if (Material->GetMaterialDomain() != MD_PostProcess)
+	{
+		Errorf(TEXT("Path tracing buffer textures are only available on post process material."));
+	}
+
+	int32 BufferUV = INDEX_NONE;
+	if (ViewportUV != INDEX_NONE)
+	{
+		BufferUV = ViewportUV;
+	}
+	else
+	{
+		BufferUV = AddInlinedCodeChunk(MCT_Float2, TEXT("GetDefaultPathTracingBufferTextureUV(Parameters, 0)"));
+	}
+
+	MaterialCompilationOutput.SetIsPathTracingBufferTextureUsed(PathTracingBufferTextureIndex);
+	AddEstimatedTextureSample();
+
+	return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionPathTracingBufferTextureLookup(Parameters, %s, %d)"), *CoerceParameter(BufferUV, MCT_Float2), (int)PathTracingBufferTextureIndex);
 }
 
 int32 FHLSLMaterialTranslator::Switch(int32 SwitchValueInput, int32 DefaultInput, TArray<int32>& CompiledInputs)

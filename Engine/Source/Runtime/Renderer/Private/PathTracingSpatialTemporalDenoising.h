@@ -39,6 +39,9 @@ struct FPathTracingSpatialTemporalDenoisingContext
 	// Debug information
 	FRDGTexture*	MotionVector = nullptr;
 	FRDGTexture*	WarpedSource = nullptr;
+
+	// Utility texture
+	FRDGTexture* VarianceTexture = nullptr;
 };
 
 
@@ -60,7 +63,6 @@ void PathTracingSpatialTemporalDenoising(FRDGBuilder& GraphBuilder,
 	int DenoiserMode,
 	FRDGTexture*& SpatialTemporalDenoisedTexture,
 	FPathTracingSpatialTemporalDenoisingContext& SpatialTemporalDenoisingContext);
-
 
 struct FVisualizePathTracingDenoisingInputs
 {

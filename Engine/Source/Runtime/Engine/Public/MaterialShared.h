@@ -666,6 +666,7 @@ class FMaterialCompilationOutput
 public:
 	FMaterialCompilationOutput() :
 		UsedSceneTextures(0),
+		UsedPathTracingBufferTextures(0),
 #if WITH_EDITOR
 		EstimatedNumTextureSamplesVS(0),
 		EstimatedNumTextureSamplesPS(0),
@@ -696,6 +697,8 @@ public:
 	ENGINE_API void SetIsSceneTextureUsed(ESceneTextureId TexId) { UsedSceneTextures |= (1 << TexId); }
 
 	ENGINE_API void SetIsDBufferTextureUsed(int32 TextureIndex) { UsedDBufferTextures |= (1 << TextureIndex); }
+
+	ENGINE_API void SetIsPathTracingBufferTextureUsed(int32 TexId) { UsedPathTracingBufferTextures |= (1 << TexId); }
 
 	/** Indicates whether the material uses scene color. */
 	ENGINE_API bool RequiresSceneColorCopy() const { return IsSceneTextureUsed(PPI_SceneColor); }
@@ -734,6 +737,9 @@ public:
 
 	/** Bitfield of the ESceneTextures used */
 	LAYOUT_FIELD(uint32, UsedSceneTextures);
+
+	/** Bitfield of the EPathTracingBufferTextureId used */
+	LAYOUT_FIELD(uint8, UsedPathTracingBufferTextures);
 
 	/** Number of times SampleTexture is called, excludes custom nodes. */
 	LAYOUT_FIELD_EDITORONLY(uint16, EstimatedNumTextureSamplesVS);
@@ -1370,6 +1376,7 @@ public:
 	uint32 GetNumVirtualTextureStacks() const { return GetContent()->MaterialCompilationOutput.UniformExpressionSet.VTStacks.Num(); }
 	uint8 GetRuntimeVirtualTextureOutputAttributeMask() const { return GetContent()->MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask; }
 	bool UsesSceneTexture(uint32 TexId) const { return (GetContent()->MaterialCompilationOutput.UsedSceneTextures & (1ull << TexId)) != 0; }
+	bool UsesPathTracingBufferTexture(uint32 TexId) const { return (GetContent()->MaterialCompilationOutput.UsedPathTracingBufferTextures & (1ull << TexId)) != 0;}
 
 	bool IsValidForRendering(bool bFailOnInvalid = false) const
 	{

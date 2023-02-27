@@ -8,6 +8,7 @@
 struct FSceneWithoutWaterTextures;
 
 const uint32 kPostProcessMaterialInputCountMax = 5;
+const uint32 kPathTracingPostProcessMaterialInputCountMax = 5;
 
 /** Named post process material slots. Inputs are aliased and have different semantics
  *  based on the post process material blend point, which is documented with the input.
@@ -31,6 +32,15 @@ enum class EPostProcessMaterialInput : uint32
 	Velocity = 4
 };
 
+enum class EPathTracingPostProcessMaterialInput : uint32
+{
+	Radiance = 0,
+	DenoisedRadiance = 1,
+	Albedo = 2,
+	Normal = 3,
+	Variance = 4
+};
+
 struct FPostProcessMaterialInputs
 {
 	inline void SetInput(EPostProcessMaterialInput Input, FScreenPassTexture Texture)
@@ -41,6 +51,16 @@ struct FPostProcessMaterialInputs
 	inline FScreenPassTexture GetInput(EPostProcessMaterialInput Input) const
 	{
 		return Textures[(uint32)Input];
+	}
+
+	inline void SetPathTracingInput(EPathTracingPostProcessMaterialInput Input, FScreenPassTexture Texture)
+	{
+		PathTracingTextures[(uint32)Input] = Texture;
+	}
+
+	inline FScreenPassTexture GetPathTracingInput(EPathTracingPostProcessMaterialInput Input) const
+	{
+		return PathTracingTextures[(uint32)Input];
 	}
 
 	inline void Validate() const
@@ -74,6 +94,11 @@ struct FPostProcessMaterialInputs
 	 *  the previous post process and is required. All other inputs are optional.
 	 */
 	TStaticArray<FScreenPassTexture, kPostProcessMaterialInputCountMax> Textures;
+
+	/**
+	*	Array of input textures bound to the material from path tracing. All inputs are optional
+	*/
+	TStaticArray<FScreenPassTexture, kPathTracingPostProcessMaterialInputCountMax> PathTracingTextures;
 
 	/** The output texture format to use if a new texture is created. Uses the input format if left unknown. */
 	EPixelFormat OutputFormat = PF_Unknown;

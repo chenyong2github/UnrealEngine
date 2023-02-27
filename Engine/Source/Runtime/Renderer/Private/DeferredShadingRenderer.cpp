@@ -4122,6 +4122,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		VirtualTextureFeedbackEnd(GraphBuilder);
 	}
 
+	FPathTracingResources PathTracingResources;
+
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
@@ -4133,7 +4135,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			for (const FViewInfo& View : Views)
 			{
-				RenderPathTracing(GraphBuilder, View, SceneTextures.UniformBuffer, SceneTextures.Color.Target);
+				RenderPathTracing(GraphBuilder, View, SceneTextures.UniformBuffer, SceneTextures.Color.Target, PathTracingResources);
 			}
 		}
 		else if (ViewFamily.EngineShowFlags.RayTracingDebug)
@@ -4252,6 +4254,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		PostProcessingInputs.ExposureIlluminance = ExposureIlluminance;
 		PostProcessingInputs.SceneTextures = SceneTextures.UniformBuffer;
 		PostProcessingInputs.bSeparateCustomStencil = SceneTextures.CustomDepth.bSeparateStencilBuffer;
+		PostProcessingInputs.PathTracingResources = PathTracingResources;
 
 		GraphBuilder.FlushSetupQueue();
 

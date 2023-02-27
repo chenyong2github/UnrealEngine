@@ -20,6 +20,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPostProcessMaterialParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PostProcessOutput)
 	SHADER_PARAMETER_STRUCT_ARRAY(FScreenPassTextureInput, PostProcessInput, [kPostProcessMaterialInputCountMax])
+	SHADER_PARAMETER_STRUCT_ARRAY(FScreenPassTextureInput, PathTracingPostProcessInput, [kPathTracingPostProcessMaterialInputCountMax])
 	SHADER_PARAMETER_SAMPLER(SamplerState, PostProcessInput_BilinearSampler)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
 	SHADER_PARAMETER(uint32, bMetalMSAAHDRDecode)
@@ -63,6 +64,7 @@ struct FHighResolutionScreenshotMaskInputs
 };
 
 bool IsHighResolutionScreenshotMaskEnabled(const FViewInfo& View);
+bool IsPathTracingVarianceTextureRequiredInPostProcessMaterial(const FViewInfo& View);
 
 FScreenPassTexture AddHighResolutionScreenshotMaskPass(
 	FRDGBuilder& GraphBuilder,

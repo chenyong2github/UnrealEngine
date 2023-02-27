@@ -593,6 +593,19 @@ FScreenPassTexture AddPostProcessMaterialPass(
 		PostProcessMaterialParameters->PostProcessInput[InputIndex] = GetScreenPassTextureInput(Input, PointClampSampler);
 	}
 
+	// Path tracing buffer textures
+	for (uint32 InputIndex = 0; InputIndex < kPathTracingPostProcessMaterialInputCountMax; ++InputIndex)
+	{
+		FScreenPassTexture Input = Inputs.GetPathTracingInput((EPathTracingPostProcessMaterialInput)InputIndex);
+
+		if (!Input.Texture || !MaterialShaderMap->UsesPathTracingBufferTexture(InputIndex))
+		{
+			Input = BlackDummy;
+		}
+
+		PostProcessMaterialParameters->PathTracingPostProcessInput[InputIndex] = GetScreenPassTextureInput(Input, PointClampSampler);
+	}
+
 	PostProcessMaterialParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 	// SceneDepthWithoutWater
@@ -724,7 +737,7 @@ static FPostProcessMaterialNode* IteratePostProcessMaterialNodes(const FFinalPos
 	{
 		FPostProcessMaterialNode* DataPtr = Dest.BlendableManager.IterateBlendables<FPostProcessMaterialNode>(Iterator);
 
-		if (!DataPtr || DataPtr->GetLocation() == Location)
+		if (!DataPtr || DataPtr->GetLocation() == Location || Location == EBlendableLocation::BL_MAX)
 		{
 			return DataPtr;
 		}
@@ -748,9 +761,9 @@ FPostProcessMaterialChain GetPostProcessMaterialChain(const FViewInfo& View, EBl
 		UMaterialInterface* VisMaterial = GetBufferVisualizationData().GetMaterial(View.CurrentBufferVisualizationMode);
 		UMaterial* Material = VisMaterial ? VisMaterial->GetMaterial() : nullptr;
 
-		if (Material && Material->BlendableLocation == Location)
+		if (Material && (Material->BlendableLocation == Location || Location == EBlendableLocation::BL_MAX))
 		{
-			Nodes.Add(FPostProcessMaterialNode(Material, Location, Material->BlendablePriority, Material->bIsBlendable));
+			Nodes.Add(FPostProcessMaterialNode(Material, Material->BlendableLocation, Material->BlendablePriority, Material->bIsBlendable));
 		}
 	}
 
@@ -813,6 +826,55 @@ extern void AddDumpToColorArrayPass(FRDGBuilder& GraphBuilder, FScreenPassTextur
 bool IsHighResolutionScreenshotMaskEnabled(const FViewInfo& View)
 {
 	return View.Family->EngineShowFlags.HighResScreenshotMask || View.FinalPostProcessSettings.HighResScreenshotCaptureRegionMaterial;
+}
+
+bool IsPathTracingVarianceTextureRequiredInPostProcessMaterial(const FViewInfo& View)
+{
+	// query the post process material to check if any variance texture has been used
+	bool bIsPathTracingVarianceTextureRequired = false;
+
+	auto CheckIfPathTracingVarianceTextureIsRequried = [&](const UMaterialInterface* MaterialInterface) {
+		// Get the RenderProxy of the material.
+		const FMaterialRenderProxy* MaterialProxy = MaterialInterface->GetRenderProxy();
+		check(MaterialProxy);
+
+		// Get the Shadermap for the view's feature level
+		const FMaterial* Material = MaterialProxy->GetMaterialNoFallback(View.FeatureLevel);
+		if (Material && Material->GetMaterialDomain() == MD_PostProcess)
+		{
+			const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+			check(MaterialShaderMap);
+			if (MaterialShaderMap->UsesPathTracingBufferTexture(static_cast<uint32>(EPathTracingPostProcessMaterialInput::Variance)))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	};
+
+	FPostProcessMaterialChain PostProcessMaterialChain = GetPostProcessMaterialChain(View, EBlendableLocation::BL_MAX);
+	for (const UMaterialInterface* MaterialInterface : PostProcessMaterialChain)
+	{
+		if (CheckIfPathTracingVarianceTextureIsRequried(MaterialInterface))
+		{
+			bIsPathTracingVarianceTextureRequired = true;
+			break;
+		}
+	}
+
+	// Check buffer visualization pipes
+	const FFinalPostProcessSettings& PostProcessSettings = View.FinalPostProcessSettings;
+	for (const UMaterialInterface* MaterialInterface : PostProcessSettings.BufferVisualizationOverviewMaterials)
+	{
+		if (CheckIfPathTracingVarianceTextureIsRequried(MaterialInterface))
+		{
+			bIsPathTracingVarianceTextureRequired = true;
+			break;
+		}
+	}
+
+	return bIsPathTracingVarianceTextureRequired;
 }
 
 FScreenPassTexture AddHighResolutionScreenshotMaskPass(

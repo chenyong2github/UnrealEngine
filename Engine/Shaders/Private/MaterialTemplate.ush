@@ -2586,6 +2586,39 @@ float4 MaterialExpressionDBufferTextureLookup(FMaterialPixelParameters Parameter
 	return float4(0, 0, 0, 1);
 }
 
+
+MaterialFloat2 GetDefaultPathTracingBufferTextureUV(FMaterialPixelParameters Parameters, const uint PathTracingBufferTextureIndex)
+{
+	float2 ViewportUV = GetViewportUV(Parameters);
+#if POST_PROCESS_MATERIAL && SHADING_PATH_DEFERRED && MATERIAL_PATH_TRACING_BUFFER_READ
+	
+	switch (PathTracingBufferTextureIndex)
+	{
+	case 0: return ViewportUV * PathTracingPostProcessInput_0_UVViewportSize + PathTracingPostProcessInput_0_UVViewportMin;
+	case 1: return ViewportUV * PathTracingPostProcessInput_1_UVViewportSize + PathTracingPostProcessInput_1_UVViewportMin;
+	case 2: return ViewportUV * PathTracingPostProcessInput_2_UVViewportSize + PathTracingPostProcessInput_2_UVViewportMin;
+	case 3: return ViewportUV * PathTracingPostProcessInput_3_UVViewportSize + PathTracingPostProcessInput_3_UVViewportMin;
+	case 4: return ViewportUV * PathTracingPostProcessInput_4_UVViewportSize + PathTracingPostProcessInput_4_UVViewportMin;
+	}
+#endif
+	return ViewportUV;
+}
+
+float4 MaterialExpressionPathTracingBufferTextureLookup(FMaterialPixelParameters Parameters, float2 BufferUV, int PathTracingBufferTextureIndex)
+{
+#if POST_PROCESS_MATERIAL && SHADING_PATH_DEFERRED && MATERIAL_PATH_TRACING_BUFFER_READ
+	switch (PathTracingBufferTextureIndex)
+	{
+	case 0:	return Texture2DSample(PathTracingPostProcessInput_0_Texture, PathTracingPostProcessInput_0_Sampler, BufferUV);
+	case 1:	return Texture2DSample(PathTracingPostProcessInput_1_Texture, PathTracingPostProcessInput_1_Sampler, BufferUV);
+	case 2:	return Texture2DSample(PathTracingPostProcessInput_2_Texture, PathTracingPostProcessInput_2_Sampler, BufferUV);
+	case 3:	return Texture2DSample(PathTracingPostProcessInput_3_Texture, PathTracingPostProcessInput_3_Sampler, BufferUV);
+	case 4:	return Texture2DSample(PathTracingPostProcessInput_4_Texture, PathTracingPostProcessInput_4_Sampler, BufferUV);
+	}
+#endif
+	return float4(1, 0, 0, 1);
+}
+
 // DERIV_BASE_VALUE() is a disgusting macro to manage backwards compatibility while changing the generated materials. The existing nodes are not "aware"
 // of partial derivatives, and will use sprintf() to put the same line in both CalcPixelMaterialInputs() and CalcPixelMaterialInputsAnalyticDerivatives().
 // If we have a line like this in CalcPixelMaterialInputs():

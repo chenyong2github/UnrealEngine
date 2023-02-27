@@ -313,6 +313,15 @@ TAutoConsoleVariable<int32> CVarPathTracingCameraMediumTracking(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingOutputPostProcessResources(
+	TEXT("r.PathTracing.OutputPostProcessResources"),
+	1,
+	TEXT("Output the pathtracing resources to the postprocess passes\n")
+	TEXT("0: off\n")
+	TEXT("1: on (Buffers including, raw/denoised radiance, albedo, normal, and variance)\n"),
+	ECVF_RenderThreadSafe
+);
+
 BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(float, BlendFactor)
 	SHADER_PARAMETER(uint32, Iteration)
@@ -2032,7 +2041,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	FRDGTextureRef SceneColorOutputTexture)
+	FRDGTextureRef SceneColorOutputTexture,
+	FPathTracingResources& PathTracingResources)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "Path Tracing");
 
@@ -2682,6 +2692,9 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		FRDGBuffer* CurrentVarianceBufer = nullptr;
 		{
 			DenoisingContext.RadianceTexture = RadianceTexture;
+			DenoisingContext.AlbedoTexture = AlbedoTexture;
+			DenoisingContext.NormalTexture = NormalTexture;
+
 			if (PathTracingState->VarianceBuffer)
 			{
 				DenoisingContext.VarianceBuffer = GraphBuilder.RegisterExternalBuffer(PathTracingState->VarianceBuffer, TEXT("PathTracing.VarianceBuffer"));
@@ -2695,8 +2708,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		// 2. Denoising pass
 		if (NeedsDenoise || EnablePathTracingDenoiserRealtimeDebug)
 		{
-			DenoisingContext.AlbedoTexture = AlbedoTexture;
-			DenoisingContext.NormalTexture = NormalTexture;
 			DenoisingContext.RadianceTexture = RadianceTexture;
 			DenoisingContext.FrameIndex = PathTracingState->FrameIndex;
 			DenoisingContext.VarianceBuffer = CurrentVarianceBufer;
@@ -2784,6 +2795,17 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		PixelShader,
 		DisplayParameters
 	);
+
+	// Setup the path tracing resources to be used by post process pass.
+	if (CVarPathTracingOutputPostProcessResources.GetValueOnRenderThread() != 0)
+	{
+		PathTracingResources.bPostProcessEnabled = true;
+		PathTracingResources.DenoisedRadiance = DenoisedRadianceTexture ? DenoisedRadianceTexture : RadianceTexture;
+		PathTracingResources.Radiance = RadianceTexture;
+		PathTracingResources.Albedo = AlbedoTexture;
+		PathTracingResources.Normal = NormalTexture;
+		PathTracingResources.Variance = DenoisingContext.VarianceTexture;
+	}
 
 	// Add a visualization path for denoising
 	if (NeedsDenoise || EnablePathTracingDenoiserRealtimeDebug)

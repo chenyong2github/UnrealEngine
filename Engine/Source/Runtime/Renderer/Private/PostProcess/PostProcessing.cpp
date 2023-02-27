@@ -401,6 +401,19 @@ void AddPostProcessingPasses(
 		PostProcessMaterialInputs.SetInput(EPostProcessMaterialInput::SceneColor, InSceneColor);
 
 		FIntRect ViewRect{ 0, 0, 1, 1 };
+
+		if (Inputs.PathTracingResources.bPostProcessEnabled)
+		{
+			const FPathTracingResources& PathTracingResources = Inputs.PathTracingResources;
+
+			ViewRect = InSceneColor.ViewRect;
+			PostProcessMaterialInputs.SetPathTracingInput(EPathTracingPostProcessMaterialInput::Radiance, FScreenPassTexture(PathTracingResources.Radiance, ViewRect));
+			PostProcessMaterialInputs.SetPathTracingInput(EPathTracingPostProcessMaterialInput::DenoisedRadiance, FScreenPassTexture(PathTracingResources.DenoisedRadiance, ViewRect));
+			PostProcessMaterialInputs.SetPathTracingInput(EPathTracingPostProcessMaterialInput::Albedo, FScreenPassTexture(PathTracingResources.Albedo, ViewRect));
+			PostProcessMaterialInputs.SetPathTracingInput(EPathTracingPostProcessMaterialInput::Normal, FScreenPassTexture(PathTracingResources.Normal, ViewRect));
+			PostProcessMaterialInputs.SetPathTracingInput(EPathTracingPostProcessMaterialInput::Variance, FScreenPassTexture(PathTracingResources.Variance, ViewRect));
+		}
+		
 		if (PostDOFTranslucencyResources.IsValid())
 		{
 			ViewRect = PostDOFTranslucencyResources.ViewRect;
@@ -1278,6 +1291,7 @@ void AddPostProcessingPasses(
 		PassInputs.bOverview = bVisualizeGBufferOverview;
 		PassInputs.bDumpToFile = bVisualizeGBufferDumpToFile;
 		PassInputs.bOutputInHDR = bOutputInHDR;
+		PassInputs.PathTracingResources = &Inputs.PathTracingResources;
 
 		SceneColor = AddVisualizeGBufferOverviewPass(GraphBuilder, View, PassInputs);
 	}

@@ -25,6 +25,19 @@ RENDERER_API FRHIRayTracingShader* GetPathTracingDefaultMissShader(const FGlobal
 RENDERER_API FRHIRayTracingShader* GetPathTracingDefaultOpaqueHitShader(const FGlobalShaderMap* ShaderMap);
 RENDERER_API FRHIRayTracingShader* GetPathTracingDefaultHiddenHitShader(const FGlobalShaderMap* ShaderMap);
 
+class FRDGTexture;
+
+struct FPathTracingResources
+{
+	FRDGTexture* DenoisedRadiance = nullptr;
+	FRDGTexture* Radiance = nullptr;
+	FRDGTexture* Albedo = nullptr;
+	FRDGTexture* Normal = nullptr;
+	FRDGTexture* Variance = nullptr;
+	
+	bool bPostProcessEnabled = false;
+};
+
 namespace PathTracing
 {
 	bool UsesDecals(const FSceneViewFamily& ViewFamily);

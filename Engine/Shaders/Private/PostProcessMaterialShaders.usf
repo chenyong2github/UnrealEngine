@@ -56,6 +56,26 @@ SamplerState PostProcessInput_BilinearSampler;
 	#define PostProcessInput_4_SharedSampler PostProcessInput_4_Sampler
 #endif
 
+#if MATERIAL_PATH_TRACING_BUFFER_READ
+SCREEN_PASS_TEXTURE_VIEWPORT(PathTracingPostProcessInput_0)
+SCREEN_PASS_TEXTURE_VIEWPORT(PathTracingPostProcessInput_1)
+SCREEN_PASS_TEXTURE_VIEWPORT(PathTracingPostProcessInput_2)
+SCREEN_PASS_TEXTURE_VIEWPORT(PathTracingPostProcessInput_3)
+SCREEN_PASS_TEXTURE_VIEWPORT(PathTracingPostProcessInput_4)
+
+Texture2D PathTracingPostProcessInput_0_Texture;
+Texture2D PathTracingPostProcessInput_1_Texture;
+Texture2D PathTracingPostProcessInput_2_Texture;
+Texture2D PathTracingPostProcessInput_3_Texture;
+Texture2D PathTracingPostProcessInput_4_Texture;
+
+SamplerState PathTracingPostProcessInput_0_Sampler;
+SamplerState PathTracingPostProcessInput_1_Sampler;
+SamplerState PathTracingPostProcessInput_2_Sampler;
+SamplerState PathTracingPostProcessInput_3_Sampler;
+SamplerState PathTracingPostProcessInput_4_Sampler;
+#endif
+
 #define EYE_ADAPTATION_LOOSE_PARAMETERS 1
 
 #include "/Engine/Generated/Material.ush"

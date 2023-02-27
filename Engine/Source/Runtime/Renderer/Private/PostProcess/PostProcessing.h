@@ -5,6 +5,7 @@
 #include "RenderGraphFwd.h"
 #include "RHIFwd.h"
 #include "TranslucentRendering.h"
+#include "PathTracing.h"
 
 enum class EReflectionsMethod;
 
@@ -37,6 +38,8 @@ struct FPostProcessingInputs
 	FRDGTextureRef CustomDepthTexture = nullptr;
 	FRDGTextureRef ExposureIlluminance = nullptr;
 	FTranslucencyViewResourcesMap TranslucencyViewResourcesMap;
+	FPathTracingResources PathTracingResources;
+
 	bool bSeparateCustomStencil = false;
 
 	void Validate() const

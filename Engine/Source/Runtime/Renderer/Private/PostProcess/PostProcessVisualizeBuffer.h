@@ -38,6 +38,9 @@ struct FVisualizeGBufferOverviewInputs
 	/** The uniform buffer containing all scene textures. */
 	FSceneTextureShaderParameters SceneTextures;
 
+	/** The path tracing intermediate textures. */
+	const struct FPathTracingResources* PathTracingResources = nullptr;
+
 	// Dump targets to files on disk.
 	bool bDumpToFile = false;
 

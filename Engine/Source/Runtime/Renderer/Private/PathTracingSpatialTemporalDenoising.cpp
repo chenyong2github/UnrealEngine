@@ -21,6 +21,7 @@ PathTracingMotionVectorFunction* GPathTracingMotionVectorFunc = nullptr;
 #include "RayTracingTypes.h"
 #include "RenderGraphDefinitions.h"
 #include "RendererPrivate.h"
+#include "PostProcess/PostProcessMaterial.h"
 #include <limits>
 
 DEFINE_LOG_CATEGORY_STATIC(LogPathTracingDenoising, Log, All);
@@ -66,6 +67,22 @@ namespace {
 		TEXT("0: World space (default)\n")
 		TEXT("1: Camera space. Some denoisers require camera space normal\n"),
 		ECVF_RenderThreadSafe
+	);
+
+	TAutoConsoleVariable<int32> CVarPathTracingDenoiserPrepassVarianceType(
+		TEXT("r.PathTracing.Denoiser.Prepass.VarianceType"),
+		1,
+		TEXT("Select the per-pixel variance type:")
+		TEXT("0: Multiple channel (RGB) variance for radiance")
+		TEXT("1: Combined single channel variance for radiance, albedo and normal"),
+		ECVF_RenderThreadSafe
+	);
+
+	TAutoConsoleVariable<int32> CVarPathTracingDenoiserPrepassOutputVarianceTexture(
+		TEXT("r.PathTracing.Denoiser.Prepass.OutputVarianceTexture"),
+		1,
+		TEXT("0: Variance is used only in the denoiser")
+		TEXT("1: Output to the postprocess material, usually used by MRQ")
 	);
 
 	TAutoConsoleVariable<int32> CVarPathTracingSpatialDenoiser(
@@ -517,6 +534,18 @@ static bool ShouldEnableSubpixelOffset(uint32 MipLevel)
 		CVarPathTracingTemporalDenoiserEnableSubPixelOffset.GetValueOnAnyThread() != 0;
 
 	return bShouldEnableSubpixelOffset;
+}
+
+static bool ShouldPrepassOutputVarianceTexture(const FViewInfo& View)
+{
+	static const auto CVarOutputPostProcessResources = 
+		IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PathTracing.OutputPostProcessResources"));
+	const bool bOutputPostProcessResources = CVarOutputPostProcessResources ?
+		(CVarOutputPostProcessResources->GetValueOnRenderThread() != 0) : false;
+
+	return CVarPathTracingDenoiserPrepassOutputVarianceTexture.GetValueOnRenderThread() != 0 &&
+		bOutputPostProcessResources && 
+		IsPathTracingVarianceTextureRequiredInPostProcessMaterial(View);
 }
 
 static constexpr uint32 kMipDiffDelta = 2;
@@ -1635,13 +1664,41 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, AlbedoTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FPixelMaterialLightingFingerprint>, RWVarianceMap)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, TargetViewport)
 		SHADER_PARAMETER(int, Iteration)
 	END_SHADER_PARAMETER_STRUCT()
 	
+	enum class EVarianceType : uint32
+	{
+		RadianceMultiChannel = 0,
+		RadianceAlbedoNormalSingleChannel,
+		MAX
+	};
+
 	class FPrepassPhase : SHADER_PERMUTATION_BOOL("PREPASS_PHASE");	// 0: initialize, 1: update
-	using FPermutationDomain = TShaderPermutationDomain<FPrepassPhase>;
+	class FVarianceType : SHADER_PERMUTATION_ENUM_CLASS("VARIANCE_TYPE", EVarianceType);
+	using FPermutationDomain = TShaderPermutationDomain<FPrepassPhase,FVarianceType>;
+
+	static EVarianceType GetVarianceType()
+	{
+		return static_cast<FTemporalPrepassCS::EVarianceType>(
+			FMath::Clamp(CVarPathTracingDenoiserPrepassVarianceType.GetValueOnRenderThread(),
+				0,
+				static_cast<int32>(EVarianceType::MAX) - 1));
+	}
+
+	static const TCHAR* GetEventName(EVarianceType VarianceType)
+	{
+		static const TCHAR* const kEventName[] = {
+			TEXT("Radiance"),
+			TEXT("Rad,Albedo,Norm")
+		};
+		static_assert(UE_ARRAY_COUNT(kEventName) == int32(EVarianceType::MAX), "Fix me");
+		return kEventName[int32(VarianceType)];
+	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -1656,11 +1713,40 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FTemporalPrepassCS, "/Engine/Private/PathTracing/PathTracingSpatialTemporalDenoising.usf", "TemporalPrepassCS", SF_Compute);
 
+class FPrepassGenerateTextureCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FPrepassGenerateTextureCS);
+	SHADER_USE_PARAMETER_STRUCT(FPrepassGenerateTextureCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPixelMaterialLightingFingerprint>, VarianceMap)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutputTexture)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, TargetViewport)
+	END_SHADER_PARAMETER_STRUCT()
+
+	class FVarianceType : SHADER_PERMUTATION_ENUM_CLASS("VARIANCE_TYPE", FTemporalPrepassCS::EVarianceType);
+	using FPermutationDomain = TShaderPermutationDomain<FVarianceType>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompilePathTracingDenoiserShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FShaderPermutationParameters&, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("PREPASS_GENERATE_TEXTURE"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FPrepassGenerateTextureCS, "/Engine/Private/PathTracing/PathTracingSpatialTemporalDenoising.usf", "PrepassGenerateTextureCS", SF_Compute);
+
 void PathTracingSpatialTemporalDenoisingPrePass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 	int IterationNumber,
 	FPathTracingSpatialTemporalDenoisingContext& SpatialTemporalDenoisingContext)
 {
-	bool bShouldGenerateVarianceMap = ShouldGenerateVarianceMap();
+	bool bShouldPrepassOutputVarianceTexture = ShouldPrepassOutputVarianceTexture(View);
+	bool bShouldGenerateVarianceMap = ShouldGenerateVarianceMap() || bShouldPrepassOutputVarianceTexture;
 	if (bShouldGenerateVarianceMap)
 	{
 		bool bUpdateVarianceMap = (IterationNumber > 0);
@@ -1678,6 +1764,8 @@ void PathTracingSpatialTemporalDenoisingPrePass(FRDGBuilder& GraphBuilder, const
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
 			{
 				PassParameters->InputTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SpatialTemporalDenoisingContext.RadianceTexture));
+				PassParameters->AlbedoTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SpatialTemporalDenoisingContext.AlbedoTexture));
+				PassParameters->NormalTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SpatialTemporalDenoisingContext.NormalTexture));
 				PassParameters->RWVarianceMap = GraphBuilder.CreateUAV(SpatialTemporalDenoisingContext.VarianceBuffer, EPixelFormat::PF_R32_FLOAT);
 				PassParameters->TargetViewport = TargetViewportParameters;
 				PassParameters->Iteration = IterationNumber;
@@ -1685,11 +1773,49 @@ void PathTracingSpatialTemporalDenoisingPrePass(FRDGBuilder& GraphBuilder, const
 
 			SHADER::FPermutationDomain ComputeShaderPermutationVector;
 			ComputeShaderPermutationVector.Set<SHADER::FPrepassPhase>(bUpdateVarianceMap);
+			ComputeShaderPermutationVector.Set<SHADER::FVarianceType>(SHADER::GetVarianceType());
 
 			TShaderMapRef<SHADER> ComputeShader(View.ShaderMap, ComputeShaderPermutationVector);
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("PathTracing::Denoising::Prepass %dx%d",
+				RDG_EVENT_NAME("PathTracing::Denoising::Prepass(%s %dx%d)",
+					SHADER::GetEventName(SHADER::GetVarianceType()),
+					TargetViewport.Extent.X,
+					TargetViewport.Extent.Y),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(TargetViewport.Extent, 8));
+		}
+
+		if (bShouldPrepassOutputVarianceTexture)
+		{
+			const FRDGTextureDesc TextureDescriptor = FRDGTextureDesc::Create2D(
+				TargetViewport.Extent,
+				PF_A32B32G32R32F,
+				FClearValueBinding(),
+				TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV | GetExtraTextureCreateFlagsForDenoiser());
+
+			if (!SpatialTemporalDenoisingContext.VarianceTexture)
+			{
+				SpatialTemporalDenoisingContext.VarianceTexture = GraphBuilder.CreateTexture(TextureDescriptor, TEXT("PathTracing.VarianceTexture"));
+			}
+
+			typedef FPrepassGenerateTextureCS SHADER;
+			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
+			{
+				PassParameters->OutputTexture = GraphBuilder.CreateUAV(SpatialTemporalDenoisingContext.VarianceTexture);
+				PassParameters->VarianceMap	  = GraphBuilder.CreateSRV(SpatialTemporalDenoisingContext.VarianceBuffer, EPixelFormat::PF_R32_FLOAT);
+				PassParameters->TargetViewport = TargetViewportParameters;
+			}
+
+			SHADER::FPermutationDomain ComputeShaderPermutationVector;
+			ComputeShaderPermutationVector.Set<SHADER::FVarianceType>(FTemporalPrepassCS::GetVarianceType());
+
+			TShaderMapRef<SHADER> ComputeShader(View.ShaderMap, ComputeShaderPermutationVector);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("PathTracing::Denoising::Prepass::Texture(Var[%s] %dx%d)",
+					FTemporalPrepassCS::GetEventName(FTemporalPrepassCS::GetVarianceType()),
 					TargetViewport.Extent.X,
 					TargetViewport.Extent.Y),
 				ComputeShader,
