@@ -1448,10 +1448,6 @@ void HWRasterizePS(VSOut In
 	#elif BARYCENTRIC_MODE_EXPORT
 		Barycentrics.UVW = float3(In.BarycentricsUV, 1.0f - In.BarycentricsUV.x - In.BarycentricsUV.y);
 	#endif
-	#if USE_ANALYTIC_DERIVATIVES
-		Barycentrics.UVW_dx = ddx(Barycentrics.UVW);
-		Barycentrics.UVW_dy = ddy(Barycentrics.UVW);
-	#endif
 		
 		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, false, VertIndexes, bCalcVertIndexes, Interpolants, SvPosition);
 		FPixelMaterialInputs PixelMaterialInputs;
