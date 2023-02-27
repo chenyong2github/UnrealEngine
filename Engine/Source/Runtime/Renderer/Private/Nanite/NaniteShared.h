@@ -329,6 +329,7 @@ public:
 		// Force shader model 6.0+
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
+		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 	}
 };
 
