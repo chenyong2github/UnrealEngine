@@ -41,7 +41,8 @@ public:
 	virtual bool CanRenamePinFromContextMenu(const UEdGraphPin* Pin) const override { return false; }
 
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override;
-
+	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override;
+	
 	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_LOCAL_MODULE_STR; }
 
 	bool GetIsPinEditNamespaceModifierPending(const UEdGraphPin* Pin);
