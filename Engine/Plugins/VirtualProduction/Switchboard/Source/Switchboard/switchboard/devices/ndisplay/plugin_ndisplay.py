@@ -430,6 +430,7 @@ class DevicenDisplay(DeviceUnreal):
                 'LogDisplayClusterRenderSync',
                 'LogDisplayClusterViewport',
                 'LogDisplayClusterMedia',
+                'LogDisplayClusterStageMonitoringDWM',
                 'LogLiveLink',
                 'LogRemoteControl',
             ],
