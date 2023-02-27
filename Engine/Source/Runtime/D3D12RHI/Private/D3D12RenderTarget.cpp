@@ -1576,6 +1576,11 @@ void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect
 	}
 
 	TempTexture2D->GetResource()->Unmap(0, nullptr);
+
+#if UE_MEMORY_TRACE_ENABLED
+	// Free the temporary texture after read back finishes. This matches the MemoryTrace_Alloc call in Adapter->CreateBuffer() above.
+	MemoryTrace_Free(TempTexture2D->GetGPUVirtualAddress(), EMemoryTraceRootHeap::VideoMemory);
+#endif
 }
 
 void FD3D12DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI, FIntRect InRect, FIntPoint ZMinMax, TArray<FFloat16Color>& OutData)

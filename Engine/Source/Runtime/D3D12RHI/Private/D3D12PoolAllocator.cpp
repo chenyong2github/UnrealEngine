@@ -154,6 +154,7 @@ void FD3D12MemoryPool::Destroy()
 	{
 #if UE_MEMORY_TRACE_ENABLED
 		MemoryTrace_UnmarkAllocAsHeap(BackingResource->GetGPUVirtualAddress(), TraceHeapId);
+		MemoryTrace_Free(BackingResource->GetGPUVirtualAddress(), EMemoryTraceRootHeap::VideoMemory);
 #endif
 		ensure(BackingResource->GetRefCount() == 1 || GNumExplicitGPUsForRendering > 1);
 		BackingResource = nullptr;
