@@ -31,6 +31,9 @@ public:
 		FName			Name;
 		XrAction		Handle;
 
+		// Legacy Input
+		XrTime			NextRepeatTime;
+
 		// Enhanced Input
 		TObjectPtr<const UInputAction> Object;
 		TMultiMap<TPair<XrPath, XrPath>, TObjectPtr<UInputTrigger>> Triggers;
@@ -158,6 +161,10 @@ public:
 		* Buffer for current delta time to get an accurate approximation of how long to play haptics for
 		*/
 		float CurrentDeltaTime = 0.0f;
+
+		/** Repeat key delays */
+		const XrTime InitialButtonRepeatDelay = 2e8;
+		const XrTime ButtonRepeatDelay = 1e8;
 
 		bool BuildActions(XrSession Session);
 		void SyncActions(XrSession Session);

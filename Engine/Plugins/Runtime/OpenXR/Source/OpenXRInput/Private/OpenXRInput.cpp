@@ -851,11 +851,19 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 						MessageHandler->OnControllerButtonReleased(Action.Name, DeviceMapper.GetPrimaryPlatformUser(), DeviceMapper.GetDefaultInputDevice(), /*IsRepeat =*/false);
 					}
 
+					Action.NextRepeatTime = State.lastChangeTime + InitialButtonRepeatDelay;
+
 					FXRTimedInputActionDelegate* const Delegate = OpenXRInputNamespace::GetTimedInputActionDelegate(Action.Name);
 					if (Delegate)
 					{
 						Delegate->Execute(State.currentState ? 1.0 : 0.0f, ToFTimespan(State.lastChangeTime));
 					}
+				}
+				else if (State.currentState && OpenXRHMD->GetDisplayTime() >= Action.NextRepeatTime)
+				{
+					// TODO: We should retrieve the current time rather than the display time
+					MessageHandler->OnControllerButtonPressed(Action.Name, DeviceMapper.GetPrimaryPlatformUser(), DeviceMapper.GetDefaultInputDevice(), /*IsRepeat =*/true);
+					Action.NextRepeatTime = OpenXRHMD->GetDisplayTime() + ButtonRepeatDelay;
 				}
 			}
 			break;
