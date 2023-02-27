@@ -1,17 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTypes.h"
-#include "Misc/AutomationTest.h"
+#if WITH_TESTS
 
+#include "CoreTypes.h"
 #include "Math/Range.h"
 #include "Math/RangeSet.h"
 #include "Misc/Timespan.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
+#include "Tests/TestHarnessAdapter.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRangeSetTest, "System.Core.Math.RangeSet", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::SmokeFilter)
-
-bool FRangeSetTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FRangeSetTest, "System::Core::Math::RangeSet", "[EditorContext][ClientContext][SmokeFilter]")
 {
 	{
 		TRangeSet<int32> RangeSet;
@@ -20,16 +18,10 @@ bool FRangeSetTest::RunTest(const FString& Parameters)
 		RangeSet.Add(TRange<int32>::Inclusive(3, 4));
 
 		int32 Value = RangeSet.GetMinBoundValue();
-		if (Value != 0)
-		{
-			return false;
-		}
+		REQUIRE(Value == 0);
 		
 		Value = RangeSet.GetMaxBoundValue();
-		if (Value != 4)
-		{
-			return false;
-		}
+		REQUIRE(Value == 4);
 	}
 
 	{
@@ -39,19 +31,11 @@ bool FRangeSetTest::RunTest(const FString& Parameters)
 		RangeSet.Add(TRange<FTimespan>::Inclusive(FTimespan(3), FTimespan(4)));
 
 		FTimespan Value = RangeSet.GetMinBoundValue();
-		if (Value != FTimespan::Zero())
-		{
-			return false;
-		}
+		REQUIRE(Value == FTimespan::Zero());
 
 		Value = RangeSet.GetMaxBoundValue();
-		if (Value != FTimespan(4))
-		{
-			return false;
-		}
+		REQUIRE(Value == FTimespan(4));
 	}
-
-	return true;
 }
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+#endif //WITH_TESTS

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_TESTS
+
 #include "CoreTypes.h"
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
@@ -17,13 +19,12 @@
 #include "Math/Quat.h"
 #include "Math/QuatRotationTranslationMatrix.h"
 #include "Math/Color.h"
-#include "Misc/AutomationTest.h"
 #include "Async/ParallelFor.h"
 #include "Misc/ScopeLock.h"
 #include <limits>
 #include <cmath>
 
-#if WITH_DEV_AUTOMATION_TESTS
+#include "Tests/TestHarnessAdapter.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealMathTest, Log, All);
 
@@ -58,10 +59,10 @@ FORCENOINLINE void ResetPassing()
  *
  * @return true if equal
  */
-FORCENOINLINE bool TestVectorsEqualBitwise( const VectorRegister4Float& Vec0, const VectorRegister4Float& Vec1)
+FORCENOINLINE bool TestVectorsEqualBitwise(const VectorRegister4Float& Vec0, const VectorRegister4Float& Vec1)
 {
-	VectorStoreAligned( Vec0, GScratch + 0 );
-	VectorStoreAligned( Vec1, GScratch + 4 );
+	VectorStoreAligned(Vec0, GScratch + 0);
+	VectorStoreAligned(Vec1, GScratch + 4);
 	GSum = 0.0f;
 
 	const bool Passed = (memcmp(GScratch + 0, GScratch + 4, sizeof(float) * 4) == 0);
@@ -94,12 +95,12 @@ FORCENOINLINE bool TestVectorsEqualBitwise(const VectorRegister4Double& Vec0, co
  */
 FORCENOINLINE bool TestVectorsEqual(const VectorRegister4Float& Vec0, const VectorRegister4Float& Vec1, float Tolerance = 0.0f)
 {
-	VectorStoreAligned( Vec0, GScratch + 0 );
-	VectorStoreAligned( Vec1, GScratch + 4 );
+	VectorStoreAligned(Vec0, GScratch + 0);
+	VectorStoreAligned(Vec1, GScratch + 4);
 	GSum = 0.f;
-	for ( int32 Component = 0; Component < 4; Component++ ) 
+	for (int32 Component = 0; Component < 4; Component++)
 	{
-		float Diff = GScratch[ Component + 0 ] - GScratch[ Component + 4 ];
+		float Diff = GScratch[Component + 0] - GScratch[Component + 4];
 		GSum += FMath::Abs(Diff);
 	}
 	CheckPassing(GSum <= Tolerance);
@@ -169,12 +170,12 @@ FORCENOINLINE bool TestVectorsEqual_ComponentWiseError(const VectorRegister4Doub
  */
 FORCENOINLINE bool TestVectorsEqual3(const VectorRegister4Float& Vec0, const VectorRegister4Float& Vec1, float Tolerance = 0.0f)
 {
-	VectorStoreAligned( Vec0, GScratch + 0 );
-	VectorStoreAligned( Vec1, GScratch + 4 );
+	VectorStoreAligned(Vec0, GScratch + 0);
+	VectorStoreAligned(Vec1, GScratch + 4);
 	GSum = 0.f;
-	for ( int32 Component = 0; Component < 3; Component++ ) 
+	for (int32 Component = 0; Component < 3; Component++)
 	{
-		GSum += FMath::Abs<float>( GScratch[ Component + 0 ] - GScratch[ Component + 4 ] );
+		GSum += FMath::Abs<float>(GScratch[Component + 0] - GScratch[Component + 4]);
 	}
 	CheckPassing(GSum <= Tolerance);
 	return GSum <= Tolerance;
@@ -202,7 +203,7 @@ FORCENOINLINE bool TestVectorsEqual3(const VectorRegister4Double& Vec0, const Ve
  *
  * @return true if equal(ish)
  */
-FORCENOINLINE bool TestFVector3Equal( const FVector3f& Vec0, const FVector3f& Vec1, float Tolerance = 0.0f)
+FORCENOINLINE bool TestFVector3Equal(const FVector3f& Vec0, const FVector3f& Vec1, float Tolerance = 0.0f)
 {
 	GScratch[0] = Vec0.X;
 	GScratch[1] = Vec0.Y;
@@ -214,9 +215,9 @@ FORCENOINLINE bool TestFVector3Equal( const FVector3f& Vec0, const FVector3f& Ve
 	GScratch[7] = 0.0f;
 	GSum = 0.f;
 
-	for ( int32 Component = 0; Component < 3; Component++ ) 
+	for (int32 Component = 0; Component < 3; Component++)
 	{
-		GSum += FMath::Abs<float>( GScratch[ Component + 0 ] - GScratch[ Component + 4 ] );
+		GSum += FMath::Abs<float>(GScratch[Component + 0] - GScratch[Component + 4]);
 	}
 	CheckPassing(GSum <= Tolerance);
 	return GSum <= Tolerance;
@@ -231,25 +232,25 @@ FORCENOINLINE bool TestFVector3Equal( const FVector3f& Vec0, const FVector3f& Ve
  *
  * @return true if equal(ish)
  */
- FORCENOINLINE bool TestFVector3Equal(const FVector3d& Vec0, const FVector3d& Vec1, double Tolerance = 0.0l)
- {
- 	GScratchDouble[0] = Vec0.X;
- 	GScratchDouble[1] = Vec0.Y;
- 	GScratchDouble[2] = Vec0.Z;
- 	GScratchDouble[3] = 0.0f;
- 	GScratchDouble[4] = Vec1.X;
- 	GScratchDouble[5] = Vec1.Y;
- 	GScratchDouble[6] = Vec1.Z;
- 	GScratchDouble[7] = 0.0f;
- 	GSumDouble = 0.f;
- 
- 	for (int32 Component = 0; Component < 3; Component++)
- 	{
- 		GSumDouble += FMath::Abs<double>(GScratchDouble[Component + 0] - GScratchDouble[Component + 4]);
- 	}
- 	CheckPassing(GSumDouble <= Tolerance);
- 	return GSumDouble <= Tolerance;
- }
+FORCENOINLINE bool TestFVector3Equal(const FVector3d& Vec0, const FVector3d& Vec1, double Tolerance = 0.0l)
+{
+	GScratchDouble[0] = Vec0.X;
+	GScratchDouble[1] = Vec0.Y;
+	GScratchDouble[2] = Vec0.Z;
+	GScratchDouble[3] = 0.0f;
+	GScratchDouble[4] = Vec1.X;
+	GScratchDouble[5] = Vec1.Y;
+	GScratchDouble[6] = Vec1.Z;
+	GScratchDouble[7] = 0.0f;
+	GSumDouble = 0.f;
+
+	for (int32 Component = 0; Component < 3; Component++)
+	{
+		GSumDouble += FMath::Abs<double>(GScratchDouble[Component + 0] - GScratchDouble[Component + 4]);
+	}
+	CheckPassing(GSumDouble <= Tolerance);
+	return GSumDouble <= Tolerance;
+}
 
 FORCENOINLINE bool TestQuatsEqual(const FQuat4f& Q0, const FQuat4f& Q1, float Tolerance)
 {
@@ -328,7 +329,7 @@ FORCENOINLINE bool TestQuatNormalized(const FQuat4f& Q0, float Tolerance)
 	GScratch[5] = 0.0f;
 	GScratch[6] = 0.0f;
 	GScratch[7] = 0.0f;
-	GSum = FMath::Sqrt(Q0.X*Q0.X + Q0.Y*Q0.Y + Q0.Z*Q0.Z + Q0.W*Q0.W);
+	GSum = FMath::Sqrt(Q0.X * Q0.X + Q0.Y * Q0.Y + Q0.Z * Q0.Z + Q0.W * Q0.W);
 
 	const bool bNormalized = FMath::IsNearlyEqual(GSum, 1.0f, Tolerance);
 	CheckPassing(bNormalized);
@@ -344,12 +345,12 @@ FORCENOINLINE bool TestQuatNormalized(const FQuat4f& Q0, float Tolerance)
  *
  * @return true if equal(ish)
  */
-FORCENOINLINE bool TestMatricesEqual( const FMatrix44f &Mat0, const FMatrix44f &Mat1, float Tolerance = 0.0f)
+FORCENOINLINE bool TestMatricesEqual(const FMatrix44f& Mat0, const FMatrix44f& Mat1, float Tolerance = 0.0f)
 {
-	for (int32 Row = 0; Row < 4; ++Row ) 
+	for (int32 Row = 0; Row < 4; ++Row)
 	{
 		GSum = 0.f;
-		for ( int32 Column = 0; Column < 4; ++Column ) 
+		for (int32 Column = 0; Column < 4; ++Column)
 		{
 			float Diff = Mat0.M[Row][Column] - Mat1.M[Row][Column];
 			GSum += FMath::Abs(Diff);
@@ -391,11 +392,11 @@ FORCENOINLINE bool TestMatricesEqual(const FMatrix44d& Mat0, const FMatrix44d& M
  * @param Matrix2	Pointer to the second matrix
  */
 template<typename FReal>
-void TestVectorMatrixMultiply(UE::Math::TMatrix<FReal>* Result, const UE::Math::TMatrix<FReal>* Matrix1, const UE::Math::TMatrix<FReal>* Matrix2 )
+void TestVectorMatrixMultiply(UE::Math::TMatrix<FReal>* Result, const UE::Math::TMatrix<FReal>* Matrix1, const UE::Math::TMatrix<FReal>* Matrix2)
 {
 	typedef FReal Float4x4[4][4];
-	const Float4x4& A = *((const Float4x4*) Matrix1);
-	const Float4x4& B = *((const Float4x4*) Matrix2);
+	const Float4x4& A = *((const Float4x4*)Matrix1);
+	const Float4x4& B = *((const Float4x4*)Matrix2);
 	Float4x4 Temp;
 	Temp[0][0] = A[0][0] * B[0][0] + A[0][1] * B[1][0] + A[0][2] * B[2][0] + A[0][3] * B[3][0];
 	Temp[0][1] = A[0][0] * B[0][1] + A[0][1] * B[1][1] + A[0][2] * B[2][1] + A[0][3] * B[3][1];
@@ -416,7 +417,7 @@ void TestVectorMatrixMultiply(UE::Math::TMatrix<FReal>* Result, const UE::Math::
 	Temp[3][1] = A[3][0] * B[0][1] + A[3][1] * B[1][1] + A[3][2] * B[2][1] + A[3][3] * B[3][1];
 	Temp[3][2] = A[3][0] * B[0][2] + A[3][1] * B[1][2] + A[3][2] * B[2][2] + A[3][3] * B[3][2];
 	Temp[3][3] = A[3][0] * B[0][3] + A[3][1] * B[1][3] + A[3][2] * B[2][3] + A[3][3] * B[3][3];
-	memcpy( Result, &Temp, 16*sizeof(FReal) );
+	memcpy(Result, &Temp, 16 * sizeof(FReal));
 }
 
 
@@ -430,104 +431,104 @@ template<typename FReal>
 void TestVectorMatrixInverse(UE::Math::TMatrix<FReal>* DstMatrix, const UE::Math::TMatrix<FReal>* SrcMatrix)
 {
 	typedef FReal Float4x4[4][4];
-	const Float4x4& M = *((const Float4x4*) SrcMatrix);
+	const Float4x4& M = *((const Float4x4*)SrcMatrix);
 	Float4x4 Result;
 	FReal Det[4];
 	Float4x4 Tmp;
 
-	Tmp[0][0]	= M[2][2] * M[3][3] - M[2][3] * M[3][2];
-	Tmp[0][1]	= M[1][2] * M[3][3] - M[1][3] * M[3][2];
-	Tmp[0][2]	= M[1][2] * M[2][3] - M[1][3] * M[2][2];
+	Tmp[0][0] = M[2][2] * M[3][3] - M[2][3] * M[3][2];
+	Tmp[0][1] = M[1][2] * M[3][3] - M[1][3] * M[3][2];
+	Tmp[0][2] = M[1][2] * M[2][3] - M[1][3] * M[2][2];
 
-	Tmp[1][0]	= M[2][2] * M[3][3] - M[2][3] * M[3][2];
-	Tmp[1][1]	= M[0][2] * M[3][3] - M[0][3] * M[3][2];
-	Tmp[1][2]	= M[0][2] * M[2][3] - M[0][3] * M[2][2];
+	Tmp[1][0] = M[2][2] * M[3][3] - M[2][3] * M[3][2];
+	Tmp[1][1] = M[0][2] * M[3][3] - M[0][3] * M[3][2];
+	Tmp[1][2] = M[0][2] * M[2][3] - M[0][3] * M[2][2];
 
-	Tmp[2][0]	= M[1][2] * M[3][3] - M[1][3] * M[3][2];
-	Tmp[2][1]	= M[0][2] * M[3][3] - M[0][3] * M[3][2];
-	Tmp[2][2]	= M[0][2] * M[1][3] - M[0][3] * M[1][2];
+	Tmp[2][0] = M[1][2] * M[3][3] - M[1][3] * M[3][2];
+	Tmp[2][1] = M[0][2] * M[3][3] - M[0][3] * M[3][2];
+	Tmp[2][2] = M[0][2] * M[1][3] - M[0][3] * M[1][2];
 
-	Tmp[3][0]	= M[1][2] * M[2][3] - M[1][3] * M[2][2];
-	Tmp[3][1]	= M[0][2] * M[2][3] - M[0][3] * M[2][2];
-	Tmp[3][2]	= M[0][2] * M[1][3] - M[0][3] * M[1][2];
+	Tmp[3][0] = M[1][2] * M[2][3] - M[1][3] * M[2][2];
+	Tmp[3][1] = M[0][2] * M[2][3] - M[0][3] * M[2][2];
+	Tmp[3][2] = M[0][2] * M[1][3] - M[0][3] * M[1][2];
 
-	Det[0]		= M[1][1]*Tmp[0][0] - M[2][1]*Tmp[0][1] + M[3][1]*Tmp[0][2];
-	Det[1]		= M[0][1]*Tmp[1][0] - M[2][1]*Tmp[1][1] + M[3][1]*Tmp[1][2];
-	Det[2]		= M[0][1]*Tmp[2][0] - M[1][1]*Tmp[2][1] + M[3][1]*Tmp[2][2];
-	Det[3]		= M[0][1]*Tmp[3][0] - M[1][1]*Tmp[3][1] + M[2][1]*Tmp[3][2];
+	Det[0] = M[1][1] * Tmp[0][0] - M[2][1] * Tmp[0][1] + M[3][1] * Tmp[0][2];
+	Det[1] = M[0][1] * Tmp[1][0] - M[2][1] * Tmp[1][1] + M[3][1] * Tmp[1][2];
+	Det[2] = M[0][1] * Tmp[2][0] - M[1][1] * Tmp[2][1] + M[3][1] * Tmp[2][2];
+	Det[3] = M[0][1] * Tmp[3][0] - M[1][1] * Tmp[3][1] + M[2][1] * Tmp[3][2];
 
-	FReal Determinant = M[0][0]*Det[0] - M[1][0]*Det[1] + M[2][0]*Det[2] - M[3][0]*Det[3];
+	FReal Determinant = M[0][0] * Det[0] - M[1][0] * Det[1] + M[2][0] * Det[2] - M[3][0] * Det[3];
 	const FReal	RDet = 1.0f / Determinant;
 
-	Result[0][0] =  RDet * Det[0];
+	Result[0][0] = RDet * Det[0];
 	Result[0][1] = -RDet * Det[1];
-	Result[0][2] =  RDet * Det[2];
+	Result[0][2] = RDet * Det[2];
 	Result[0][3] = -RDet * Det[3];
-	Result[1][0] = -RDet * (M[1][0]*Tmp[0][0] - M[2][0]*Tmp[0][1] + M[3][0]*Tmp[0][2]);
-	Result[1][1] =  RDet * (M[0][0]*Tmp[1][0] - M[2][0]*Tmp[1][1] + M[3][0]*Tmp[1][2]);
-	Result[1][2] = -RDet * (M[0][0]*Tmp[2][0] - M[1][0]*Tmp[2][1] + M[3][0]*Tmp[2][2]);
-	Result[1][3] =  RDet * (M[0][0]*Tmp[3][0] - M[1][0]*Tmp[3][1] + M[2][0]*Tmp[3][2]);
-	Result[2][0] =  RDet * (
-					M[1][0] * (M[2][1] * M[3][3] - M[2][3] * M[3][1]) -
-					M[2][0] * (M[1][1] * M[3][3] - M[1][3] * M[3][1]) +
-					M[3][0] * (M[1][1] * M[2][3] - M[1][3] * M[2][1])
-				);
+	Result[1][0] = -RDet * (M[1][0] * Tmp[0][0] - M[2][0] * Tmp[0][1] + M[3][0] * Tmp[0][2]);
+	Result[1][1] = RDet * (M[0][0] * Tmp[1][0] - M[2][0] * Tmp[1][1] + M[3][0] * Tmp[1][2]);
+	Result[1][2] = -RDet * (M[0][0] * Tmp[2][0] - M[1][0] * Tmp[2][1] + M[3][0] * Tmp[2][2]);
+	Result[1][3] = RDet * (M[0][0] * Tmp[3][0] - M[1][0] * Tmp[3][1] + M[2][0] * Tmp[3][2]);
+	Result[2][0] = RDet * (
+		M[1][0] * (M[2][1] * M[3][3] - M[2][3] * M[3][1]) -
+		M[2][0] * (M[1][1] * M[3][3] - M[1][3] * M[3][1]) +
+		M[3][0] * (M[1][1] * M[2][3] - M[1][3] * M[2][1])
+		);
 	Result[2][1] = -RDet * (
-					M[0][0] * (M[2][1] * M[3][3] - M[2][3] * M[3][1]) -
-					M[2][0] * (M[0][1] * M[3][3] - M[0][3] * M[3][1]) +
-					M[3][0] * (M[0][1] * M[2][3] - M[0][3] * M[2][1])
-				);
-	Result[2][2] =  RDet * (
-					M[0][0] * (M[1][1] * M[3][3] - M[1][3] * M[3][1]) -
-					M[1][0] * (M[0][1] * M[3][3] - M[0][3] * M[3][1]) +
-					M[3][0] * (M[0][1] * M[1][3] - M[0][3] * M[1][1])
-				);
+		M[0][0] * (M[2][1] * M[3][3] - M[2][3] * M[3][1]) -
+		M[2][0] * (M[0][1] * M[3][3] - M[0][3] * M[3][1]) +
+		M[3][0] * (M[0][1] * M[2][3] - M[0][3] * M[2][1])
+		);
+	Result[2][2] = RDet * (
+		M[0][0] * (M[1][1] * M[3][3] - M[1][3] * M[3][1]) -
+		M[1][0] * (M[0][1] * M[3][3] - M[0][3] * M[3][1]) +
+		M[3][0] * (M[0][1] * M[1][3] - M[0][3] * M[1][1])
+		);
 	Result[2][3] = -RDet * (
-					M[0][0] * (M[1][1] * M[2][3] - M[1][3] * M[2][1]) -
-					M[1][0] * (M[0][1] * M[2][3] - M[0][3] * M[2][1]) +
-					M[2][0] * (M[0][1] * M[1][3] - M[0][3] * M[1][1])
-				);
+		M[0][0] * (M[1][1] * M[2][3] - M[1][3] * M[2][1]) -
+		M[1][0] * (M[0][1] * M[2][3] - M[0][3] * M[2][1]) +
+		M[2][0] * (M[0][1] * M[1][3] - M[0][3] * M[1][1])
+		);
 	Result[3][0] = -RDet * (
-					M[1][0] * (M[2][1] * M[3][2] - M[2][2] * M[3][1]) -
-					M[2][0] * (M[1][1] * M[3][2] - M[1][2] * M[3][1]) +
-					M[3][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1])
-				);
-	Result[3][1] =  RDet * (
-					M[0][0] * (M[2][1] * M[3][2] - M[2][2] * M[3][1]) -
-					M[2][0] * (M[0][1] * M[3][2] - M[0][2] * M[3][1]) +
-					M[3][0] * (M[0][1] * M[2][2] - M[0][2] * M[2][1])
-				);
+		M[1][0] * (M[2][1] * M[3][2] - M[2][2] * M[3][1]) -
+		M[2][0] * (M[1][1] * M[3][2] - M[1][2] * M[3][1]) +
+		M[3][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1])
+		);
+	Result[3][1] = RDet * (
+		M[0][0] * (M[2][1] * M[3][2] - M[2][2] * M[3][1]) -
+		M[2][0] * (M[0][1] * M[3][2] - M[0][2] * M[3][1]) +
+		M[3][0] * (M[0][1] * M[2][2] - M[0][2] * M[2][1])
+		);
 	Result[3][2] = -RDet * (
-					M[0][0] * (M[1][1] * M[3][2] - M[1][2] * M[3][1]) -
-					M[1][0] * (M[0][1] * M[3][2] - M[0][2] * M[3][1]) +
-					M[3][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
-				);
-	Result[3][3] =  RDet * (
-				M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) -
-				M[1][0] * (M[0][1] * M[2][2] - M[0][2] * M[2][1]) +
-				M[2][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
-			);
+		M[0][0] * (M[1][1] * M[3][2] - M[1][2] * M[3][1]) -
+		M[1][0] * (M[0][1] * M[3][2] - M[0][2] * M[3][1]) +
+		M[3][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
+		);
+	Result[3][3] = RDet * (
+		M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) -
+		M[1][0] * (M[0][1] * M[2][2] - M[0][2] * M[2][1]) +
+		M[2][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
+		);
 
-	memcpy( DstMatrix, &Result, 16*sizeof(FReal) );
+	memcpy(DstMatrix, &Result, 16 * sizeof(FReal));
 }
 
 
 /**
  * Calculate Homogeneous transform.
  *
- * @param VecP			VectorRegister4Float 
+ * @param VecP			VectorRegister4Float
  * @param MatrixM		FMatrix44f pointer to the Matrix to apply transform
  * @return VectorRegister4Float = VecP*MatrixM
  */
-VectorRegister4Float TestVectorTransformVector(const VectorRegister4Float&  VecP,  const FMatrix44f* MatrixM )
+VectorRegister4Float TestVectorTransformVector(const VectorRegister4Float& VecP, const FMatrix44f* MatrixM)
 {
 	typedef float Float4x4[4][4];
-	union U { 
-		VectorRegister4Float v; float f[4]; 
+	union U {
+		VectorRegister4Float v; float f[4];
 		FORCEINLINE U() : v() {}
 	} Tmp, Result;
 	Tmp.v = VecP;
-	const Float4x4& M = *((const Float4x4*)MatrixM);	
+	const Float4x4& M = *((const Float4x4*)MatrixM);
 
 	Result.f[0] = Tmp.f[0] * M[0][0] + Tmp.f[1] * M[1][0] + Tmp.f[2] * M[2][0] + Tmp.f[3] * M[3][0];
 	Result.f[1] = Tmp.f[0] * M[0][1] + Tmp.f[1] * M[1][1] + Tmp.f[2] * M[2][1] + Tmp.f[3] * M[3][1];
@@ -557,27 +558,27 @@ VectorRegister4Double TestVectorTransformVector(const VectorRegister4Double& Vec
 
 /**
 * Get Rotation as a quaternion.
-* @param Rotator FRotator3f 
+* @param Rotator FRotator3f
 * @return Rotation as a quaternion.
 */
-MATHTEST_INLINE FQuat4f TestRotatorToQuaternion( const FRotator3f& Rotator)
+MATHTEST_INLINE FQuat4f TestRotatorToQuaternion(const FRotator3f& Rotator)
 {
 	const float Pitch = FMath::Fmod(Rotator.Pitch, 360.f);
 	const float Yaw = FMath::Fmod(Rotator.Yaw, 360.f);
 	const float Roll = FMath::Fmod(Rotator.Roll, 360.f);
 
-	const float CR = FMath::Cos(FMath::DegreesToRadians(Roll  * 0.5f));
+	const float CR = FMath::Cos(FMath::DegreesToRadians(Roll * 0.5f));
 	const float CP = FMath::Cos(FMath::DegreesToRadians(Pitch * 0.5f));
-	const float CY = FMath::Cos(FMath::DegreesToRadians(Yaw   * 0.5f));
-	const float SR = FMath::Sin(FMath::DegreesToRadians(Roll  * 0.5f));
+	const float CY = FMath::Cos(FMath::DegreesToRadians(Yaw * 0.5f));
+	const float SR = FMath::Sin(FMath::DegreesToRadians(Roll * 0.5f));
 	const float SP = FMath::Sin(FMath::DegreesToRadians(Pitch * 0.5f));
-	const float SY = FMath::Sin(FMath::DegreesToRadians(Yaw   * 0.5f));
+	const float SY = FMath::Sin(FMath::DegreesToRadians(Yaw * 0.5f));
 
 	FQuat4f RotationQuat;
-	RotationQuat.W = CR*CP*CY + SR*SP*SY;
-	RotationQuat.X = CR*SP*SY - SR*CP*CY;
-	RotationQuat.Y = -CR*SP*CY - SR*CP*SY;
-	RotationQuat.Z = CR*CP*SY - SR*SP*CY;
+	RotationQuat.W = CR * CP * CY + SR * SP * SY;
+	RotationQuat.X = CR * SP * SY - SR * CP * CY;
+	RotationQuat.Y = -CR * SP * CY - SR * CP * SY;
+	RotationQuat.Z = CR * CP * SY - SR * SP * CY;
 	return RotationQuat;
 }
 
@@ -609,7 +610,7 @@ MATHTEST_INLINE FVector3f TestQuaternionRotateVectorScalar(const FQuat4f& Quat, 
 	FVector3f vOut = (2.f * Quat.W) * (qv ^ Vector);
 	vOut += ((Quat.W * Quat.W) - (qv | qv)) * Vector;
 	vOut += (2.f * (qv | Vector)) * qv;
-	
+
 	return vOut;
 }
 
@@ -625,7 +626,7 @@ MATHTEST_INLINE FVector3f TestQuaternionMultiplyVector(const FQuat4f& Quat, cons
 	return FVector3f(VR.X, VR.Y, VR.Z);
 }
 
-MATHTEST_INLINE FVector3f TestQuaternionRotateVectorRegister(const FQuat4f& Quat, const FVector3f &V)
+MATHTEST_INLINE FVector3f TestQuaternionRotateVectorRegister(const FQuat4f& Quat, const FVector3f& V)
 {
 	const VectorRegister4Float Rotation = *((const VectorRegister4Float*)(&Quat));
 	const VectorRegister4Float InputVectorW0 = VectorLoadFloat3_W0(&V);
@@ -645,18 +646,18 @@ MATHTEST_INLINE FVector3f TestQuaternionRotateVectorRegister(const FQuat4f& Quat
 * @param Quat2	Pointer to the second quaternion (must not be the destination)
 */
 template<typename FloatType>
-void TestVectorQuaternionMultiply( UE::Math::TQuat<FloatType>* Result, const UE::Math::TQuat<FloatType>* Quat1, const UE::Math::TQuat<FloatType>* Quat2)
+void TestVectorQuaternionMultiply(UE::Math::TQuat<FloatType>* Result, const UE::Math::TQuat<FloatType>* Quat1, const UE::Math::TQuat<FloatType>* Quat2)
 {
 	typedef FloatType Float4[4];
-	const Float4& A = *((const Float4*) Quat1);
-	const Float4& B = *((const Float4*) Quat2);
-	Float4 & R = *((Float4*) Result);
+	const Float4& A = *((const Float4*)Quat1);
+	const Float4& B = *((const Float4*)Quat2);
+	Float4& R = *((Float4*)Result);
 
 	// store intermediate results in temporaries
-	const FloatType TX = A[3]*B[0] + A[0]*B[3] + A[1]*B[2] - A[2]*B[1];
-	const FloatType TY = A[3]*B[1] - A[0]*B[2] + A[1]*B[3] + A[2]*B[0];
-	const FloatType TZ = A[3]*B[2] + A[0]*B[1] - A[1]*B[0] + A[2]*B[3];
-	const FloatType TW = A[3]*B[3] - A[0]*B[0] - A[1]*B[1] - A[2]*B[2];
+	const FloatType TX = A[3] * B[0] + A[0] * B[3] + A[1] * B[2] - A[2] * B[1];
+	const FloatType TY = A[3] * B[1] - A[0] * B[2] + A[1] * B[3] + A[2] * B[0];
+	const FloatType TZ = A[3] * B[2] + A[0] * B[1] - A[1] * B[0] + A[2] * B[3];
+	const FloatType TW = A[3] * B[3] - A[0] * B[0] - A[1] * B[1] - A[2] * B[2];
 
 	// copy intermediate result to R
 	R[0] = TX;
@@ -675,12 +676,12 @@ FORCENOINLINE FRotator3f TestQuaternionToRotator(const FQuat4f& Quat)
 	const float Z = Quat.Z;
 	const float W = Quat.W;
 
-	const float SingularityTest = Z*X-W*Y;
-	const float YawY = 2.f*(W*Z+X*Y);
-	const float YawX = (1.f-2.f*(FMath::Square(Y) + FMath::Square(Z)));
+	const float SingularityTest = Z * X - W * Y;
+	const float YawY = 2.f * (W * Z + X * Y);
+	const float YawX = (1.f - 2.f * (FMath::Square(Y) + FMath::Square(Z)));
 	const float SINGULARITY_THRESHOLD = 0.4999995f;
 
-	static const float RAD_TO_DEG = (180.f)/UE_PI;
+	static const float RAD_TO_DEG = (180.f) / UE_PI;
 	FRotator3f RotatorFromQuat;
 
 	// Note: using stock C functions for some trig functions since this is the "reference" implementation
@@ -699,9 +700,9 @@ FORCENOINLINE FRotator3f TestQuaternionToRotator(const FQuat4f& Quat)
 	}
 	else
 	{
-		RotatorFromQuat.Pitch = FMath::Asin(2.f*(SingularityTest)) * RAD_TO_DEG;
+		RotatorFromQuat.Pitch = FMath::Asin(2.f * (SingularityTest)) * RAD_TO_DEG;
 		RotatorFromQuat.Yaw = atan2f(YawY, YawX) * RAD_TO_DEG;
-		RotatorFromQuat.Roll = atan2f(-2.f*(W*X+Y*Z), (1.f-2.f*(FMath::Square(X) + FMath::Square(Y)))) * RAD_TO_DEG;
+		RotatorFromQuat.Roll = atan2f(-2.f * (W * X + Y * Z), (1.f - 2.f * (FMath::Square(X) + FMath::Square(Y)))) * RAD_TO_DEG;
 	}
 
 	RotatorFromQuat.Pitch = FRotator3f::NormalizeAxis(RotatorFromQuat.Pitch);
@@ -790,7 +791,7 @@ bool TestRotatorEqual2(const FRotator3f& A, const FRotator3f& B, const float Tol
 bool TestRotatorEqual3(const FRotator3f& A, const FRotator3f& B, const float Tolerance)
 {
 	// Logically equivalent to tests above. Also tests IsNearlyZero().
-	return (A-B).IsNearlyZero(Tolerance);
+	return (A - B).IsNearlyZero(Tolerance);
 }
 
 // Report an error if bComparison is not equal to bExpected.
@@ -885,18 +886,18 @@ MATHTEST_INLINE void TestReferenceSinCos(VectorRegisterType& S, VectorRegisterTy
 	VectorStore(VAngles, FloatAngles);
 
 	S = MakeVectorRegister(
-			FMath::Sin(FloatAngles[0]),
-			FMath::Sin(FloatAngles[1]),
-			FMath::Sin(FloatAngles[2]),
-			FMath::Sin(FloatAngles[3])
-			);
+		FMath::Sin(FloatAngles[0]),
+		FMath::Sin(FloatAngles[1]),
+		FMath::Sin(FloatAngles[2]),
+		FMath::Sin(FloatAngles[3])
+	);
 
 	C = MakeVectorRegister(
-			FMath::Cos(FloatAngles[0]),
-			FMath::Cos(FloatAngles[1]),
-			FMath::Cos(FloatAngles[2]),
-			FMath::Cos(FloatAngles[3])
-			);
+		FMath::Cos(FloatAngles[0]),
+		FMath::Cos(FloatAngles[1]),
+		FMath::Cos(FloatAngles[2]),
+		FMath::Cos(FloatAngles[3])
+	);
 }
 
 template<typename FloatType, typename VectorRegisterType>
@@ -922,7 +923,7 @@ MATHTEST_INLINE void TestVectorSinCos(VectorRegisterType& S, VectorRegisterType&
 }
 
 // Generic way to test functions taking a single FloatType param and returning a FloatType value, and comparing to a vectorized version of the same function.
-template<typename FloatType, typename VectorRegisterType, FloatType (*Func)(FloatType), VectorRegisterType (*VectorFunc)(const VectorRegisterType&)>
+template<typename FloatType, typename VectorRegisterType, FloatType(*Func)(FloatType), VectorRegisterType(*VectorFunc)(const VectorRegisterType&)>
 FORCENOINLINE bool TestVectorFunction1Param(VectorRegisterType& ReferenceResult, VectorRegisterType& VectorResult, const VectorRegisterType& VParams, FloatType ErrorTolerance)
 {
 	// Load params
@@ -936,7 +937,7 @@ FORCENOINLINE bool TestVectorFunction1Param(VectorRegisterType& ReferenceResult,
 	Results[2] = Func(FloatParams[2]);
 	Results[3] = Func(FloatParams[3]);
 	ReferenceResult = VectorLoad(Results);
-	
+
 	// Vector function
 	VectorResult = VectorFunc(VParams);
 
@@ -1101,7 +1102,7 @@ FORCENOINLINE void TestVectorSwizzle()
 	SwizzleTest(V0, 1, 2, 3, 0); // Rotate << 1
 	SwizzleTest(V0, 2, 3, 0, 1); // Rotate << 2
 	SwizzleTest(V0, 3, 0, 1, 2); // Rotate << 3
-	
+
 	// Lane swaps
 	SwizzleTest(V0, 0, 1, 2, 3); // lane 0, lane 1
 	SwizzleTest(V0, 2, 3, 0, 1); // lane 1, lane 0
@@ -1187,7 +1188,7 @@ FORCENOINLINE void TestVectorShuffle()
 	// This is not an exhaustive list because it would be 4*4*4*4 = 256 entries, but it tries to test a lot of common permutations.
 	// Unfortunately it can't be done in a loop because it uses a #define and compile-time constants for the VectorShuffle() 'function'.
 	// Many of these were selected to also stress the specializations in certain implementations.
-	
+
 	ShuffleTest(V0, V1, 0, 1, 2, 3); // Identity
 
 	ShuffleTest(V0, V1, 0, 0, 0, 0); // Replicate 0
@@ -1369,16 +1370,16 @@ FORCENOINLINE void TestVectorTrigFunctions()
 	// ATan2
 	{
 		const VectorRegisterType ArrayY[] = {
-			MakeVectorRegister( 0.0f, -0.1f,  0.2f, -0.3f),
-			MakeVectorRegister( 0.4f,  0.5f, -0.6f,  0.7f),
-			MakeVectorRegister( 1.0f, -2.1f,  3.2f, -4.3f),
+			MakeVectorRegister(0.0f, -0.1f,  0.2f, -0.3f),
+			MakeVectorRegister(0.4f,  0.5f, -0.6f,  0.7f),
+			MakeVectorRegister(1.0f, -2.1f,  3.2f, -4.3f),
 			MakeVectorRegister(-5.4f,  6.5f, -7.6f,  8.7f),
 		};
 		const VectorRegisterType ArrayX[] = {
 			MakeVectorRegister(-5.4f, -6.5f, -7.6f, -8.7f),
-			MakeVectorRegister( 1.0f, -2.1f,  3.2f,  4.3f),			
-			MakeVectorRegister( 0.4f, -0.5f, -0.6f,  0.7f),
-			MakeVectorRegister( 0.0f,  0.1f,  0.2f,  0.3f),
+			MakeVectorRegister(1.0f, -2.1f,  3.2f,  4.3f),
+			MakeVectorRegister(0.4f, -0.5f, -0.6f,  0.7f),
+			MakeVectorRegister(0.0f,  0.1f,  0.2f,  0.3f),
 		};
 		static_assert(UE_ARRAY_COUNT(ArrayY) == UE_ARRAY_COUNT(ArrayX));
 
@@ -1408,7 +1409,7 @@ FORCENOINLINE void TestVectorExpLogFunctions()
 			MakeVectorRegister(1.4f, 1.5f, 2.0f, 2.7f),
 			MakeVectorRegister(5.1f, 6.8f, 7.7f, 8.0f),
 		};
-		
+
 
 		VectorRegisterType ReferenceResult, VectorResult;
 		for (VectorRegisterType const& Sign : Signs)
@@ -1440,9 +1441,6 @@ FORCENOINLINE void TestVectorExpLogFunctions()
 		}
 	}
 }
-
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVectorRegisterAbstractionTest, "System.Core.Math.Vector Register Abstraction Test", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 
 
 bool RunDoubleVectorTest()
@@ -1811,7 +1809,7 @@ bool RunDoubleVectorTest()
 	LogTest<double>(TEXT("VectorMax"), TestVectorsEqual(V0, V1));
 
 	V0 = MakeVectorRegisterDouble(-2.0f, 3.0f, -4.0f, 5.0f);
-	V1 = MakeVectorRegisterDouble( 4.0f, 4.0f,  6.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(4.0f, 4.0f, 6.0f, 8.0f);
 	V2 = MakeVectorRegisterDouble(-8.0f, 5.0f, -1.0f, 1.0f);
 	V2 = VectorClamp(V2, V0, V1);
 	V3 = MakeVectorRegisterDouble(-2.0f, 4.0f, -1.0f, 5.0f);
@@ -2128,34 +2126,34 @@ bool RunDoubleVectorTest()
 		Rotator0 = FRotator3d(30.0f, -45.0f, 90.0f);
 		Q0 = FQuat4d(Rotator0);
 		Q1 = TestRotatorToQuaternion(Rotator0);
-		LogTest<double>( TEXT("TestRotatorToQuaternion"), TestQuatsEqual(Q0, Q1, 1e-6));
+		LogTest<double>(TEXT("TestRotatorToQuaternion"), TestQuatsEqual(Q0, Q1, 1e-6));
 
 		using namespace UE::Math;
 
 		FVector3d FV0, FV1;
 		FV0 = Rotator0.Vector();
-		FV1 = TRotationMatrix<double>( Rotator0 ).GetScaledAxis( EAxis::X );
-		LogTest<double>( TEXT("Test0 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6));
-		
-		FV0 = TRotationMatrix<double>( Rotator0 ).GetScaledAxis( EAxis::X );
-		FV1 = TQuatRotationMatrix<double>( FQuat4d(Q0.X, Q0.Y, Q0.Z, Q0.W) ).GetScaledAxis( EAxis::X );
-		LogTest<double>( TEXT("Test0 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5));
+		FV1 = TRotationMatrix<double>(Rotator0).GetScaledAxis(EAxis::X);
+		LogTest<double>(TEXT("Test0 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6));
 
-		Rotator0 = FRotator3d(45.0f,  60.0f, 120.0f);
+		FV0 = TRotationMatrix<double>(Rotator0).GetScaledAxis(EAxis::X);
+		FV1 = TQuatRotationMatrix<double>(FQuat4d(Q0.X, Q0.Y, Q0.Z, Q0.W)).GetScaledAxis(EAxis::X);
+		LogTest<double>(TEXT("Test0 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5));
+
+		Rotator0 = FRotator3d(45.0f, 60.0f, 120.0f);
 		Q0 = FQuat4d(Rotator0);
 		Q1 = TestRotatorToQuaternion(Rotator0);
-		LogTest<double>( TEXT("TestRotatorToQuaternion"), TestQuatsEqual(Q0, Q1, 1e-6f));
+		LogTest<double>(TEXT("TestRotatorToQuaternion"), TestQuatsEqual(Q0, Q1, 1e-6f));
 
 		FV0 = Rotator0.Vector();
-		FV1 = TRotationMatrix<double>( Rotator0 ).GetScaledAxis( EAxis::X );
-		LogTest<double>( TEXT("Test1 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6));
+		FV1 = TRotationMatrix<double>(Rotator0).GetScaledAxis(EAxis::X);
+		LogTest<double>(TEXT("Test1 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6));
 
-		FV0 = TRotationMatrix<double>( Rotator0 ).GetScaledAxis( EAxis::X );
-		FV1 = TQuatRotationMatrix<double>(FQuat4d(Q0.X, Q0.Y, Q0.Z, Q0.W) ).GetScaledAxis( EAxis::X );
+		FV0 = TRotationMatrix<double>(Rotator0).GetScaledAxis(EAxis::X);
+		FV1 = TQuatRotationMatrix<double>(FQuat4d(Q0.X, Q0.Y, Q0.Z, Q0.W)).GetScaledAxis(EAxis::X);
 		LogTest<double>(TEXT("Test1 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5));
 
-		FV0 = TRotationMatrix<double>( FRotator3d::ZeroRotator ).GetScaledAxis(EAxis::X);
-		FV1 = TQuatRotationMatrix<double>(FQuat4d::Identity ).GetScaledAxis(EAxis::X);
+		FV0 = TRotationMatrix<double>(FRotator3d::ZeroRotator).GetScaledAxis(EAxis::X);
+		FV1 = TQuatRotationMatrix<double>(FQuat4d::Identity).GetScaledAxis(EAxis::X);
 		LogTest<double>(TEXT("Test2 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-6));
 	}
 
@@ -2167,9 +2165,9 @@ bool RunDoubleVectorTest()
 	LogTest<double>(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(MakeVectorRegisterDouble(0.0, 0.0, 0.0, NaN)));
 	LogTest<double>(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(GlobalVectorConstants::DoubleInfinity()));
 	LogTest<double>(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(MakeVectorRegisterDouble((uint64)0xFFF0000000000000ULL, (uint64)0xFFF0000000000000ULL,
-																										   (uint64)0xFFF0000000000000ULL, (uint64)0xFFF0000000000000ULL))); // negative infinity
+		(uint64)0xFFF0000000000000ULL, (uint64)0xFFF0000000000000ULL))); // negative infinity
 	LogTest<double>(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(GlobalVectorConstants::DoubleAllMask()));
-	
+
 	// Not Nan/Inf
 	LogTest<double>(TEXT("VectorContainsNaNOrInfinite false"), !VectorContainsNaNOrInfinite(GlobalVectorConstants::DoubleZero));
 	LogTest<double>(TEXT("VectorContainsNaNOrInfinite false"), !VectorContainsNaNOrInfinite(GlobalVectorConstants::DoubleOne));
@@ -2232,10 +2230,10 @@ bool RunDoubleVectorTest()
 /**
  * Run a suite of vector operations to validate vector intrinsics are working on the platform
  */
-bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FVectorRegisterAbstractionTest, "System::Core::Math::Vector Register Abstraction Test", "[ApplicationContextMask][SmokeFilter]")
 {
 	float F1 = 1.f;
-	uint32 U1 = *(uint32 *)&F1;
+	uint32 U1 = *(uint32*)&F1;
 	VectorRegister4Float V0, V1, V2, V3;
 	VectorRegister4Int VI0, VI1;
 	float Float0, Float1, Float2, Float3;
@@ -2253,86 +2251,86 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 	ResetPassing();
 
-	V0 = MakeVectorRegister( U1, U1, U1, U1);
-	V1 = MakeVectorRegister( F1, F1, F1, F1 );
-	LogTest<float>( TEXT("MakeVectorRegister"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(U1, U1, U1, U1);
+	V1 = MakeVectorRegister(F1, F1, F1, F1);
+	LogTest<float>(TEXT("MakeVectorRegister"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 0.f, 0.f, 0.f, 0.f );
+	V0 = MakeVectorRegister(0.f, 0.f, 0.f, 0.f);
 	V1 = VectorZero();
-	LogTest<float>( TEXT("VectorZero"), TestVectorsEqual( V0, V1 ) );
+	LogTest<float>(TEXT("VectorZero"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 1.f, 1.f, 1.f, 1.f );
+	V0 = MakeVectorRegister(1.f, 1.f, 1.f, 1.f);
 	V1 = VectorOne();
-	LogTest<float>( TEXT("VectorOne"), TestVectorsEqual( V0, V1 ) );
+	LogTest<float>(TEXT("VectorOne"), TestVectorsEqual(V0, V1));
 
-	SetScratch( 1.0f, 2.0f, -0.25f, -0.5f, 5.f );
-	V0 = MakeVectorRegister( 1.0f, 2.0f, -0.25f, -0.5f );
-	V1 = VectorLoad( GScratch );
-	LogTest<float>( TEXT("VectorLoad"), TestVectorsEqual( V0, V1 ) );
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegister(1.0f, 2.0f, -0.25f, -0.5f);
+	V1 = VectorLoad(GScratch);
+	LogTest<float>(TEXT("VectorLoad"), TestVectorsEqual(V0, V1));
 
-	SetScratch( 1.0f, 2.0f, -0.25f, -0.5f, 5.f );
-	V0 = MakeVectorRegister( 1.0f, 2.0f, -0.25f, -0.5f );
-	V1 = VectorLoad( GScratch );
-	LogTest<float>( TEXT("VectorLoad"), TestVectorsEqual( V0, V1 ) );
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegister(1.0f, 2.0f, -0.25f, -0.5f);
+	V1 = VectorLoad(GScratch);
+	LogTest<float>(TEXT("VectorLoad"), TestVectorsEqual(V0, V1));
 
-	SetScratch( 1.0f, 2.0f, -0.25f, -0.5f, 5.f );
-	V0 = MakeVectorRegister( 1.0f, 2.0f, -0.25f, -0.5f );
-	V1 = VectorLoadAligned( GScratch );
-	LogTest<float>( TEXT("VectorLoadAligned"), TestVectorsEqual( V0, V1 ) );
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegister(1.0f, 2.0f, -0.25f, -0.5f);
+	V1 = VectorLoadAligned(GScratch);
+	LogTest<float>(TEXT("VectorLoadAligned"), TestVectorsEqual(V0, V1));
 
-	SetScratch( 1.0f, 2.0f, -0.25f, -0.5f, 5.f );
-	V0 = VectorLoad( GScratch + 1 );
-	V1 = VectorLoadFloat3( GScratch + 1 );
-	LogTest<float>( TEXT("VectorLoadFloat3"), TestVectorsEqual3( V0, V1 ) );
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = VectorLoad(GScratch + 1);
+	V1 = VectorLoadFloat3(GScratch + 1);
+	LogTest<float>(TEXT("VectorLoadFloat3"), TestVectorsEqual3(V0, V1));
 
-	SetScratch( 1.0f, 2.0f, -0.25f, -0.5f, 5.f );
-	V0 = MakeVectorRegister( 1.0f, 2.0f, -0.25f, 0.0f );
-	V1 = VectorLoadFloat3_W0( GScratch );
-	LogTest<float>( TEXT("VectorLoadFloat3_W0"), TestVectorsEqual( V0, V1 ) );
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegister(1.0f, 2.0f, -0.25f, 0.0f);
+	V1 = VectorLoadFloat3_W0(GScratch);
+	LogTest<float>(TEXT("VectorLoadFloat3_W0"), TestVectorsEqual(V0, V1));
 
-	SetScratch( 1.0f, 2.0f, -0.25f, -0.5f, 5.f );
-	V0 = MakeVectorRegister( 1.0f, 2.0f, -0.25f, 1.0f );
-	V1 = VectorLoadFloat3_W1( GScratch );
-	LogTest<float>( TEXT("VectorLoadFloat3_W1"), TestVectorsEqual( V0, V1 ) );
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegister(1.0f, 2.0f, -0.25f, 1.0f);
+	V1 = VectorLoadFloat3_W1(GScratch);
+	LogTest<float>(TEXT("VectorLoadFloat3_W1"), TestVectorsEqual(V0, V1));
 
-	SetScratch( 1.0f, 2.0f, -0.25f, -0.5f, 5.f );
-	V0 = MakeVectorRegister( -0.5f, -0.5f, -0.5f, -0.5f );
-	V1 = VectorLoadFloat1( GScratch + 3 );
-	LogTest<float>( TEXT("VectorLoadFloat1"), TestVectorsEqual( V0, V1 ) );
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegister(-0.5f, -0.5f, -0.5f, -0.5f);
+	V1 = VectorLoadFloat1(GScratch + 3);
+	LogTest<float>(TEXT("VectorLoadFloat1"), TestVectorsEqual(V0, V1));
 
-	SetScratch( 1.0f, 2.0f, -0.25f, -0.5f, 5.f );
-	V0 = VectorSetFloat3( GScratch[1], GScratch[2], GScratch[3] );
-	V1 = VectorLoadFloat3( GScratch + 1 );
-	LogTest<float>( TEXT("VectorSetFloat3"), TestVectorsEqual3( V0, V1 ) );
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = VectorSetFloat3(GScratch[1], GScratch[2], GScratch[3]);
+	V1 = VectorLoadFloat3(GScratch + 1);
+	LogTest<float>(TEXT("VectorSetFloat3"), TestVectorsEqual3(V0, V1));
 
-	SetScratch( 1.0f, 2.0f, -0.25f, -0.5f, 5.f );
-	V0 = VectorSet( GScratch[1], GScratch[2], GScratch[3], GScratch[4] );
-	V1 = VectorLoad( GScratch + 1 );
-	LogTest<float>( TEXT("VectorSet"), TestVectorsEqual( V0, V1 ) );
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = VectorSet(GScratch[1], GScratch[2], GScratch[3], GScratch[4]);
+	V1 = VectorLoad(GScratch + 1);
+	LogTest<float>(TEXT("VectorSet"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 1.0f, 2.0f, -0.25f, 1.0f );
-	VectorStoreAligned( V0, GScratch + 8 );
-	V1 = VectorLoad( GScratch + 8 );
-	LogTest<float>( TEXT("VectorStoreAligned"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(1.0f, 2.0f, -0.25f, 1.0f);
+	VectorStoreAligned(V0, GScratch + 8);
+	V1 = VectorLoad(GScratch + 8);
+	LogTest<float>(TEXT("VectorStoreAligned"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 1.0f, 2.0f, -0.55f, 1.0f );
-	VectorStore( V0, GScratch + 7 );
-	V1 = VectorLoad( GScratch + 7 );
-	LogTest<float>( TEXT("VectorStore"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(1.0f, 2.0f, -0.55f, 1.0f);
+	VectorStore(V0, GScratch + 7);
+	V1 = VectorLoad(GScratch + 7);
+	LogTest<float>(TEXT("VectorStore"), TestVectorsEqual(V0, V1));
 
-	SetScratch( 1.0f, 2.0f, -0.25f, -0.5f, 5.f );
-	V0 = MakeVectorRegister( 5.0f, 3.0f, 1.0f, -1.0f );
-	VectorStoreFloat3( V0, GScratch );
-	V1 = VectorLoad( GScratch );
-	V0 = MakeVectorRegister( 5.0f, 3.0f, 1.0f, -0.5f );
-	LogTest<float>( TEXT("VectorStoreFloat3"), TestVectorsEqual( V0, V1 ) );
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegister(5.0f, 3.0f, 1.0f, -1.0f);
+	VectorStoreFloat3(V0, GScratch);
+	V1 = VectorLoad(GScratch);
+	V0 = MakeVectorRegister(5.0f, 3.0f, 1.0f, -0.5f);
+	LogTest<float>(TEXT("VectorStoreFloat3"), TestVectorsEqual(V0, V1));
 
-	SetScratch( 1.0f, 2.0f, -0.25f, -0.5f, 5.f );
-	V0 = MakeVectorRegister( 5.0f, 3.0f, 1.0f, -1.0f );
-	VectorStoreFloat1( V0, GScratch + 1 );
-	V1 = VectorLoad( GScratch );
-	V0 = MakeVectorRegister( 1.0f, 5.0f, -0.25f, -0.5f );
-	LogTest<float>( TEXT("VectorStoreFloat1"), TestVectorsEqual( V0, V1 ) );
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegister(5.0f, 3.0f, 1.0f, -1.0f);
+	VectorStoreFloat1(V0, GScratch + 1);
+	V1 = VectorLoad(GScratch);
+	V0 = MakeVectorRegister(1.0f, 5.0f, -0.25f, -0.5f);
+	LogTest<float>(TEXT("VectorStoreFloat1"), TestVectorsEqual(V0, V1));
 
 	// Replicate
 	TestVectorReplicate<float, VectorRegister4Float>();
@@ -2360,27 +2358,27 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	VI0 = MakeVectorRegisterInt(2, -8, 18, -32);
 	LogTest<int32>(TEXT("VectorIntMultiply"), TestVectorsEqualBitwise(VectorCastIntToFloat(VI0), VectorCastIntToFloat(VI1)));
 
-	V0 = MakeVectorRegister( 1.0f, -2.0f, 3.0f, -4.0f );
-	V1 = VectorAbs( V0 );
-	V0 = MakeVectorRegister( 1.0f, 2.0f, 3.0f, 4.0f );
-	LogTest<float>( TEXT("VectorAbs"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(1.0f, -2.0f, 3.0f, -4.0f);
+	V1 = VectorAbs(V0);
+	V0 = MakeVectorRegister(1.0f, 2.0f, 3.0f, 4.0f);
+	LogTest<float>(TEXT("VectorAbs"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 1.0f, -2.0f, 3.0f, -4.0f );
-	V1 = VectorNegate( V0 );
-	V0 = MakeVectorRegister( -1.0f, 2.0f, -3.0f, 4.0f );
-	LogTest<float>( TEXT("VectorNegate"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(1.0f, -2.0f, 3.0f, -4.0f);
+	V1 = VectorNegate(V0);
+	V0 = MakeVectorRegister(-1.0f, 2.0f, -3.0f, 4.0f);
+	LogTest<float>(TEXT("VectorNegate"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 1.0f, 2.0f, 3.0f, 4.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	V1 = VectorAdd( V0, V1 );
-	V0 = MakeVectorRegister( 3.0f, 6.0f, 9.0f, 12.0f );
-	LogTest<float>( TEXT("VectorAdd"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(1.0f, 2.0f, 3.0f, 4.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = VectorAdd(V0, V1);
+	V0 = MakeVectorRegister(3.0f, 6.0f, 9.0f, 12.0f);
+	LogTest<float>(TEXT("VectorAdd"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	V1 = MakeVectorRegister( 1.0f, 2.0f, 3.0f, 4.0f );
-	V1 = VectorSubtract( V0, V1 );
-	V0 = MakeVectorRegister( 1.0f, 2.0f, 3.0f, 4.0f );
-	LogTest<float>( TEXT("VectorSubtract"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegister(1.0f, 2.0f, 3.0f, 4.0f);
+	V1 = VectorSubtract(V0, V1);
+	V0 = MakeVectorRegister(1.0f, 2.0f, 3.0f, 4.0f);
+	LogTest<float>(TEXT("VectorSubtract"), TestVectorsEqual(V0, V1));
 
 	// Note: Older versions of MSVC had codegen issues with optimization on that caused this to fail. If this passes in Debug builds but not optimized builds, try updating your MSVC compiler.
 	V0 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
@@ -2434,38 +2432,38 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V0 = MakeVectorRegister(153.0f, 153.0f, 153.0f, 153.0f);
 	LogTest<float>(TEXT("VectorDot4"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 1.0f, 0.0f, 0.0f, 8.0f );
-	V1 = MakeVectorRegister( 0.0f, 2.0f, 0.0f, 4.0f );
-	V1 = VectorCross( V0, V1 );
-	V0 = MakeVectorRegister( 0.f, 0.0f, 2.0f, 0.0f );
-	LogTest<float>( TEXT("VectorCross"), TestVectorsEqual( V0, V1 ) );
-
-	V0 = MakeVectorRegister( 2.0f, 3.0f, 4.0f, 8.0f );
-	V1 = MakeVectorRegister( 5.0f, 6.0f, 7.0f, 4.0f );
+	V0 = MakeVectorRegister(1.0f, 0.0f, 0.0f, 8.0f);
+	V1 = MakeVectorRegister(0.0f, 2.0f, 0.0f, 4.0f);
 	V1 = VectorCross(V0, V1);
-	V0 = MakeVectorRegister( -3.0f, 6.0f, -3.0f, 0.0f );
-	LogTest<float>(TEXT("VectorCross"), TestVectorsEqual( V0, V1 ));
+	V0 = MakeVectorRegister(0.f, 0.0f, 2.0f, 0.0f);
+	LogTest<float>(TEXT("VectorCross"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	V1 = MakeVectorRegister( 4.0f, 3.0f, 2.0f, 1.0f );
-	V1 = VectorPow( V0, V1 );
-	V0 = MakeVectorRegister( 16.0f, 64.0f, 36.0f, 8.0f );
-	LogTest<float>( TEXT("VectorPow"), TestVectorsEqual( V0, V1, 0.001f ) );
+	V0 = MakeVectorRegister(2.0f, 3.0f, 4.0f, 8.0f);
+	V1 = MakeVectorRegister(5.0f, 6.0f, 7.0f, 4.0f);
+	V1 = VectorCross(V0, V1);
+	V0 = MakeVectorRegister(-3.0f, 6.0f, -3.0f, 0.0f);
+	LogTest<float>(TEXT("VectorCross"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 2.0f, -2.0f, 2.0f, -2.0f );
-	V1 = VectorReciprocalLenEstimate( V0 );
-	V0 = MakeVectorRegister( 0.25f, 0.25f, 0.25f, 0.25f );
-	LogTest<float>( TEXT("VectorReciprocalLenEstimate"), TestVectorsEqual( V0, V1, 0.004f ) );
+	V0 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegister(4.0f, 3.0f, 2.0f, 1.0f);
+	V1 = VectorPow(V0, V1);
+	V0 = MakeVectorRegister(16.0f, 64.0f, 36.0f, 8.0f);
+	LogTest<float>(TEXT("VectorPow"), TestVectorsEqual(V0, V1, 0.001f));
+
+	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
+	V1 = VectorReciprocalLenEstimate(V0);
+	V0 = MakeVectorRegister(0.25f, 0.25f, 0.25f, 0.25f);
+	LogTest<float>(TEXT("VectorReciprocalLenEstimate"), TestVectorsEqual(V0, V1, 0.004f));
 
 	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
 	V1 = VectorReciprocalLen(V0);
 	V0 = MakeVectorRegister(0.25f, 0.25f, 0.25f, 0.25f);
 	LogTest<float>(TEXT("VectorReciprocalLenAccurate"), TestVectorsEqual(V0, V1, 0.0001f));
 
-	V0 = MakeVectorRegister( 2.0f, -2.0f, 2.0f, -2.0f );
-	V1 = VectorNormalizeEstimate( V0 );
-	V0 = MakeVectorRegister( 0.5f, -0.5f, 0.5f, -0.5f );
-	LogTest<float>( TEXT("VectorNormalizeEstimate"), TestVectorsEqual( V0, V1, 0.004f ) );
+	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
+	V1 = VectorNormalizeEstimate(V0);
+	V0 = MakeVectorRegister(0.5f, -0.5f, 0.5f, -0.5f);
+	LogTest<float>(TEXT("VectorNormalizeEstimate"), TestVectorsEqual(V0, V1, 0.004f));
 
 	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
 	V1 = VectorNormalize(V0);
@@ -2487,30 +2485,30 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V0 = MakeVectorRegister(0.5f, -0.5f, 0.5f, -0.5f);
 	LogTest<float>(TEXT("TestVectorNormalize_InvSqrtEst"), TestVectorsEqual(V0, V1, 1e-6f));
 
-	V0 = MakeVectorRegister( 2.0f, -2.0f, 2.0f, -2.0f );
-	V1 = VectorSet_W0( V0 );
-	V0 = MakeVectorRegister( 2.0f, -2.0f, 2.0f, 0.0f );
-	LogTest<float>( TEXT("VectorSet_W0"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
+	V1 = VectorSet_W0(V0);
+	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, 0.0f);
+	LogTest<float>(TEXT("VectorSet_W0"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 2.0f, -2.0f, 2.0f, -2.0f );
-	V1 = VectorSet_W1( V0 );
-	V0 = MakeVectorRegister( 2.0f, -2.0f, 2.0f, 1.0f );
-	LogTest<float>( TEXT("VectorSet_W1"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
+	V1 = VectorSet_W1(V0);
+	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, 1.0f);
+	LogTest<float>(TEXT("VectorSet_W1"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	V1 = MakeVectorRegister( 4.0f, 3.0f, 2.0f, 1.0f );
-	V1 = VectorMin( V0, V1 );
-	V0 = MakeVectorRegister( 2.0f, 3.0f, 2.0f, 1.0f );
-	LogTest<float>( TEXT("VectorMin"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegister(4.0f, 3.0f, 2.0f, 1.0f);
+	V1 = VectorMin(V0, V1);
+	V0 = MakeVectorRegister(2.0f, 3.0f, 2.0f, 1.0f);
+	LogTest<float>(TEXT("VectorMin"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	V1 = MakeVectorRegister( 4.0f, 3.0f, 2.0f, 1.0f );
-	V1 = VectorMax( V0, V1 );
-	V0 = MakeVectorRegister( 4.0f, 4.0f, 6.0f, 8.0f );
-	LogTest<float>( TEXT("VectorMax"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegister(4.0f, 3.0f, 2.0f, 1.0f);
+	V1 = VectorMax(V0, V1);
+	V0 = MakeVectorRegister(4.0f, 4.0f, 6.0f, 8.0f);
+	LogTest<float>(TEXT("VectorMax"), TestVectorsEqual(V0, V1));
 
 	V0 = MakeVectorRegister(-2.0f, 3.0f, -4.0f, 5.0f);
-	V1 = MakeVectorRegister( 4.0f, 4.0f,  6.0f, 8.0f);
+	V1 = MakeVectorRegister(4.0f, 4.0f, 6.0f, 8.0f);
 	V2 = MakeVectorRegister(-8.0f, 5.0f, -1.0f, 1.0f);
 	V2 = VectorClamp(V2, V0, V1);
 	V3 = MakeVectorRegister(-2.0f, 4.0f, -1.0f, 5.0f);
@@ -2531,59 +2529,59 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	// LoadByte4
 
 	uint8 Bytes[4] = { 25, 75, 125, 200 };
-	V0 = VectorLoadByte4( Bytes );
-	V1 = MakeVectorRegister( 25.f, 75.f, 125.f, 200.f );
-	LogTest<float>( TEXT("VectorLoadByte4"), TestVectorsEqual( V0, V1 ) );
+	V0 = VectorLoadByte4(Bytes);
+	V1 = MakeVectorRegister(25.f, 75.f, 125.f, 200.f);
+	LogTest<float>(TEXT("VectorLoadByte4"), TestVectorsEqual(V0, V1));
 
-	V0 = VectorLoadByte4Reverse( Bytes );
-	V1 = MakeVectorRegister( 25.f, 75.f, 125.f, 200.f );
-	V1 = VectorSwizzle( V1, 3, 2, 1, 0 );
-	LogTest<float>( TEXT("VectorLoadByte4Reverse"), TestVectorsEqual( V0, V1 ) );
+	V0 = VectorLoadByte4Reverse(Bytes);
+	V1 = MakeVectorRegister(25.f, 75.f, 125.f, 200.f);
+	V1 = VectorSwizzle(V1, 3, 2, 1, 0);
+	LogTest<float>(TEXT("VectorLoadByte4Reverse"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegister( 4.0f, 3.0f, 2.0f, 1.0f );
-	VectorStoreByte4( V0, Bytes );
-	V1 = VectorLoadByte4( Bytes );
-	LogTest<float>( TEXT("VectorStoreByte4"), TestVectorsEqual( V0, V1 ) );
+	V0 = MakeVectorRegister(4.0f, 3.0f, 2.0f, 1.0f);
+	VectorStoreByte4(V0, Bytes);
+	V1 = VectorLoadByte4(Bytes);
+	LogTest<float>(TEXT("VectorStoreByte4"), TestVectorsEqual(V0, V1));
 
 	// Vector Any/All comparisons
-	V0 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	V1 = MakeVectorRegister( 4.0f, 3.0f, 2.0f, 1.0f );
-	bool bIsVAGT_TRUE = VectorAnyGreaterThan( V0, V1 ) != 0;
-	LogTest<float>( TEXT("VectorAnyGreaterThan-true"), bIsVAGT_TRUE );
+	V0 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegister(4.0f, 3.0f, 2.0f, 1.0f);
+	bool bIsVAGT_TRUE = VectorAnyGreaterThan(V0, V1) != 0;
+	LogTest<float>(TEXT("VectorAnyGreaterThan-true"), bIsVAGT_TRUE);
 
 	V0 = MakeVectorRegister(0.0f, -0.0f, 1.0f, 0.8f);
 	V1 = MakeVectorRegister(0.0f, 0.0f, 0.0f, 1.0f);
 	bIsVAGT_TRUE = VectorAnyGreaterThan(V0, V1) != 0;
 	LogTest<float>(TEXT("VectorAnyGreaterThan-true"), bIsVAGT_TRUE);
 
-	V0 = MakeVectorRegister( 1.0f, 3.0f, 2.0f, 1.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	bool bIsVAGT_FALSE = VectorAnyGreaterThan( V0, V1 ) == 0;
-	LogTest<float>( TEXT("VectorAnyGreaterThan-false"), bIsVAGT_FALSE );
+	V0 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 1.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	bool bIsVAGT_FALSE = VectorAnyGreaterThan(V0, V1) == 0;
+	LogTest<float>(TEXT("VectorAnyGreaterThan-false"), bIsVAGT_FALSE);
 
-	V0 = MakeVectorRegister( 1.0f, 3.0f, 2.0f, 1.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	LogTest<float>( TEXT("VectorAnyLesserThan-true"), VectorAnyLesserThan( V0, V1 ) != 0 );
+	V0 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 1.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	LogTest<float>(TEXT("VectorAnyLesserThan-true"), VectorAnyLesserThan(V0, V1) != 0);
 
-	V0 = MakeVectorRegister( 3.0f, 5.0f, 7.0f, 9.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	LogTest<float>( TEXT("VectorAnyLesserThan-false"), VectorAnyLesserThan( V0, V1 ) == 0 );
+	V0 = MakeVectorRegister(3.0f, 5.0f, 7.0f, 9.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	LogTest<float>(TEXT("VectorAnyLesserThan-false"), VectorAnyLesserThan(V0, V1) == 0);
 
-	V0 = MakeVectorRegister( 3.0f, 5.0f, 7.0f, 9.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	LogTest<float>( TEXT("VectorAllGreaterThan-true"), VectorAllGreaterThan( V0, V1 ) != 0 );
+	V0 = MakeVectorRegister(3.0f, 5.0f, 7.0f, 9.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	LogTest<float>(TEXT("VectorAllGreaterThan-true"), VectorAllGreaterThan(V0, V1) != 0);
 
-	V0 = MakeVectorRegister( 3.0f, 1.0f, 7.0f, 9.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	LogTest<float>( TEXT("VectorAllGreaterThan-false"), VectorAllGreaterThan( V0, V1 ) == 0 );
+	V0 = MakeVectorRegister(3.0f, 1.0f, 7.0f, 9.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	LogTest<float>(TEXT("VectorAllGreaterThan-false"), VectorAllGreaterThan(V0, V1) == 0);
 
-	V0 = MakeVectorRegister( 1.0f, 3.0f, 2.0f, 1.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	LogTest<float>( TEXT("VectorAllLesserThan-true"), VectorAllLesserThan( V0, V1 ) != 0 );
+	V0 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 1.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	LogTest<float>(TEXT("VectorAllLesserThan-true"), VectorAllLesserThan(V0, V1) != 0);
 
-	V0 = MakeVectorRegister( 3.0f, 3.0f, 2.0f, 1.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	LogTest<float>( TEXT("VectorAllLesserThan-false"), VectorAllLesserThan( V0, V1 ) == 0 );
+	V0 = MakeVectorRegister(3.0f, 3.0f, 2.0f, 1.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	LogTest<float>(TEXT("VectorAllLesserThan-false"), VectorAllLesserThan(V0, V1) == 0);
 
 	// Vector component comparisons
 
@@ -2684,61 +2682,61 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	LogTest<float>(TEXT("VectorSelect"), TestVectorsEqual(V2, V3));
 
 	// Vector bitwise operations
-	V0 = MakeVectorRegister( 1.0f, 3.0f, 0.0f, 0.0f );
-	V1 = MakeVectorRegister( 0.0f, 0.0f, 2.0f, 1.0f );
-	V2 = VectorBitwiseOr( V0, V1 );
-	V3 = MakeVectorRegister( 1.0f, 3.0f, 2.0f, 1.0f );
-	LogTest<float>( TEXT("VectorBitwiseOr-Float1"), TestVectorsEqual( V2, V3 ) );
+	V0 = MakeVectorRegister(1.0f, 3.0f, 0.0f, 0.0f);
+	V1 = MakeVectorRegister(0.0f, 0.0f, 2.0f, 1.0f);
+	V2 = VectorBitwiseOr(V0, V1);
+	V3 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 1.0f);
+	LogTest<float>(TEXT("VectorBitwiseOr-Float1"), TestVectorsEqual(V2, V3));
 
-	V0 = MakeVectorRegister( 1.0f, 3.0f, 24.0f, 36.0f );
-	V1 = MakeVectorRegister( (uint32)(0x80000000U), (uint32)(0x80000000U), (uint32)(0x80000000U), (uint32)(0x80000000U) );
-	V2 = VectorBitwiseOr( V0, V1 );
-	V3 = MakeVectorRegister( -1.0f, -3.0f, -24.0f, -36.0f );
-	LogTest<float>( TEXT("VectorBitwiseOr-Float2"), TestVectorsEqual( V2, V3 ) );
+	V0 = MakeVectorRegister(1.0f, 3.0f, 24.0f, 36.0f);
+	V1 = MakeVectorRegister((uint32)(0x80000000U), (uint32)(0x80000000U), (uint32)(0x80000000U), (uint32)(0x80000000U));
+	V2 = VectorBitwiseOr(V0, V1);
+	V3 = MakeVectorRegister(-1.0f, -3.0f, -24.0f, -36.0f);
+	LogTest<float>(TEXT("VectorBitwiseOr-Float2"), TestVectorsEqual(V2, V3));
 
-	V0 = MakeVectorRegister( -1.0f, -3.0f, -24.0f, 36.0f );
-	V1 = MakeVectorRegister( (uint32)(0xFFFFFFFFU), (uint32)(0x7FFFFFFFU), (uint32)(0x7FFFFFFFU), (uint32)(0xFFFFFFFFU) );
-	V2 = VectorBitwiseAnd( V0, V1 );
-	V3 = MakeVectorRegister( -1.0f, 3.0f, 24.0f, 36.0f );
-	LogTest<float>( TEXT("VectorBitwiseAnd-Float"), TestVectorsEqual( V2, V3 ) );
+	V0 = MakeVectorRegister(-1.0f, -3.0f, -24.0f, 36.0f);
+	V1 = MakeVectorRegister((uint32)(0xFFFFFFFFU), (uint32)(0x7FFFFFFFU), (uint32)(0x7FFFFFFFU), (uint32)(0xFFFFFFFFU));
+	V2 = VectorBitwiseAnd(V0, V1);
+	V3 = MakeVectorRegister(-1.0f, 3.0f, 24.0f, 36.0f);
+	LogTest<float>(TEXT("VectorBitwiseAnd-Float"), TestVectorsEqual(V2, V3));
 
-	V0 = MakeVectorRegister( -1.0f, -3.0f, -24.0f, 36.0f );
-	V1 = MakeVectorRegister( (uint32)(0x80000000U), (uint32)(0x00000000U), (uint32)(0x80000000U), (uint32)(0x80000000U) );
-	V2 = VectorBitwiseXor( V0, V1 );
-	V3 = MakeVectorRegister( 1.0f, -3.0f, 24.0f, -36.0f );
-	LogTest<float>( TEXT("VectorBitwiseXor-Float"), TestVectorsEqual( V2, V3 ) );
+	V0 = MakeVectorRegister(-1.0f, -3.0f, -24.0f, 36.0f);
+	V1 = MakeVectorRegister((uint32)(0x80000000U), (uint32)(0x00000000U), (uint32)(0x80000000U), (uint32)(0x80000000U));
+	V2 = VectorBitwiseXor(V0, V1);
+	V3 = MakeVectorRegister(1.0f, -3.0f, 24.0f, -36.0f);
+	LogTest<float>(TEXT("VectorBitwiseXor-Float"), TestVectorsEqual(V2, V3));
 
-	V0 = MakeVectorRegister( -1.0f, -3.0f, -24.0f, 36.0f );
-	V1 = MakeVectorRegister( 5.0f, 35.0f, 23.0f, 48.0f );
-	V2 = VectorMergeVecXYZ_VecW( V0, V1 );
-	V3 = MakeVectorRegister( -1.0f, -3.0f, -24.0f, 48.0f );
-	LogTest<float>( TEXT("VectorMergeXYZ_VecW-1"), TestVectorsEqual( V2, V3 ) );
+	V0 = MakeVectorRegister(-1.0f, -3.0f, -24.0f, 36.0f);
+	V1 = MakeVectorRegister(5.0f, 35.0f, 23.0f, 48.0f);
+	V2 = VectorMergeVecXYZ_VecW(V0, V1);
+	V3 = MakeVectorRegister(-1.0f, -3.0f, -24.0f, 48.0f);
+	LogTest<float>(TEXT("VectorMergeXYZ_VecW-1"), TestVectorsEqual(V2, V3));
 
-	V0 = MakeVectorRegister( -1.0f, -3.0f, -24.0f, 36.0f );
-	V1 = MakeVectorRegister( 5.0f, 35.0f, 23.0f, 48.0f );
-	V2 = VectorMergeVecXYZ_VecW( V1, V0 );
-	V3 = MakeVectorRegister( 5.0f, 35.0f, 23.0f, 36.0f );
-	LogTest<float>( TEXT("VectorMergeXYZ_VecW-2"), TestVectorsEqual( V2, V3 ) );
+	V0 = MakeVectorRegister(-1.0f, -3.0f, -24.0f, 36.0f);
+	V1 = MakeVectorRegister(5.0f, 35.0f, 23.0f, 48.0f);
+	V2 = VectorMergeVecXYZ_VecW(V1, V0);
+	V3 = MakeVectorRegister(5.0f, 35.0f, 23.0f, 36.0f);
+	LogTest<float>(TEXT("VectorMergeXYZ_VecW-2"), TestVectorsEqual(V2, V3));
 
-	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
-	V1 = VectorReciprocalEstimate( V0 );
+	V0 = MakeVectorRegister(1.0f, 1.0e6f, 1.3e-8f, 35.0f);
+	V1 = VectorReciprocalEstimate(V0);
 	V3 = VectorMultiply(V1, V0);
-	LogTest<float>( TEXT("VectorReciprocalEstimate"), TestVectorsEqual( VectorOne(), V3, 0.008f ) );
+	LogTest<float>(TEXT("VectorReciprocalEstimate"), TestVectorsEqual(VectorOne(), V3, 0.008f));
 
-	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
-	V1 = VectorReciprocal( V0 );
+	V0 = MakeVectorRegister(1.0f, 1.0e6f, 1.3e-8f, 35.0f);
+	V1 = VectorReciprocal(V0);
 	V3 = VectorMultiply(V1, V0);
-	LogTest<float>( TEXT("VectorReciprocalAccurate"), TestVectorsEqual( VectorOne(), V3, 1e-7f) );
+	LogTest<float>(TEXT("VectorReciprocalAccurate"), TestVectorsEqual(VectorOne(), V3, 1e-7f));
 
-	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
-	V1 = VectorReciprocalSqrtEstimate( V0 );
+	V0 = MakeVectorRegister(1.0f, 1.0e6f, 1.3e-8f, 35.0f);
+	V1 = VectorReciprocalSqrtEstimate(V0);
 	V3 = VectorMultiply(VectorMultiply(V1, V1), V0);
-	LogTest<float>( TEXT("VectorReciprocalSqrtEstimate"), TestVectorsEqual( VectorOne(), V3, 0.007f ) );
+	LogTest<float>(TEXT("VectorReciprocalSqrtEstimate"), TestVectorsEqual(VectorOne(), V3, 0.007f));
 
-	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
-	V1 = VectorReciprocalSqrt( V0 );
+	V0 = MakeVectorRegister(1.0f, 1.0e6f, 1.3e-8f, 35.0f);
+	V1 = VectorReciprocalSqrt(V0);
 	V3 = VectorMultiply(VectorMultiply(V1, V1), V0);
-	LogTest<float>( TEXT("VectorReciprocalSqrtAccurate"), TestVectorsEqual( VectorOne(), V3, 1e-6f ) );
+	LogTest<float>(TEXT("VectorReciprocalSqrtAccurate"), TestVectorsEqual(VectorOne(), V3, 1e-6f));
 
 	SetScratch(1.0f, 2.0f, 3.0f, 4.0f);
 	V0 = VectorLoadTwoPairsFloat(GScratch + 0, GScratch + 1);
@@ -2753,17 +2751,17 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	LogTest<float>(TEXT("VectorDeinterleave"), TestVectorsEqual(V2, V0) && TestVectorsEqual(V3, V1));
 
 	// VectorMod
-	V0 = MakeVectorRegister(0.0f, 3.2f, 2.8f,  1.5f);
-	V1 = MakeVectorRegister(2.0f, 1.2f, 2.0f,  3.0f);
+	V0 = MakeVectorRegister(0.0f, 3.2f, 2.8f, 1.5f);
+	V1 = MakeVectorRegister(2.0f, 1.2f, 2.0f, 3.0f);
 	V2 = TestReferenceMod(V0, V1);
 	V3 = VectorMod(V0, V1);
-	LogTest<float>( TEXT("VectorMod positive"), TestVectorsEqual(V2, V3));
+	LogTest<float>(TEXT("VectorMod positive"), TestVectorsEqual(V2, V3));
 
-	V0 = MakeVectorRegister(-2.0f,  3.2f, -2.8f,  -1.5f);
-	V1 = MakeVectorRegister(-1.5f, -1.2f,  2.0f,   3.0f);
+	V0 = MakeVectorRegister(-2.0f, 3.2f, -2.8f, -1.5f);
+	V1 = MakeVectorRegister(-1.5f, -1.2f, 2.0f, 3.0f);
 	V2 = TestReferenceMod(V0, V1);
 	V3 = VectorMod(V0, V1);
-	LogTest<float>( TEXT("VectorMod negative"), TestVectorsEqual(V2, V3));
+	LogTest<float>(TEXT("VectorMod negative"), TestVectorsEqual(V2, V3));
 
 	V0 = MakeVectorRegister(89.9f, 180.0f, -256.0f, -270.1f);
 	V1 = MakeVectorRegister(360.0f, 0.1f, 360.0f, 180.0f);
@@ -2866,51 +2864,51 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	// Matrix multiplications and transformations
 	{
 		FMatrix44f	M0, M1, M2, M3;
-		FVector3f Eye, LookAt, Up;	
+		FVector3f Eye, LookAt, Up;
 		// Create Look at Matrix
-		Eye    = FVector3f(1024.0f, -512.0f, -2048.0f);
-		LookAt = FVector3f(0.0f,		  0.0f,     0.0f);
-		Up     = FVector3f(0.0f,       1.0f,    0.0f);
-		M0	= FLookAtMatrix44f(Eye, LookAt, Up);		
+		Eye = FVector3f(1024.0f, -512.0f, -2048.0f);
+		LookAt = FVector3f(0.0f, 0.0f, 0.0f);
+		Up = FVector3f(0.0f, 1.0f, 0.0f);
+		M0 = FLookAtMatrix44f(Eye, LookAt, Up);
 
 		// Create GL ortho projection matrix
 		const float Width = 1920.0f;
 		const float Height = 1080.0f;
 		const float Left = 0.0f;
-		const float Right = Left+Width;
+		const float Right = Left + Width;
 		const float Top = 0.0f;
-		const float Bottom = Top+Height;
+		const float Bottom = Top + Height;
 		const float ZNear = -100.0f;
 		const float ZFar = 100.0f;
 
-		M1 = FMatrix44f(FPlane4f(2.0f/(Right-Left),	0,							0,					0 ),
-			FPlane4f(0,							2.0f/(Top-Bottom),			0,					0 ),
-			FPlane4f(0,							0,							1/(ZNear-ZFar),		0 ),
-			FPlane4f((Left+Right)/(Left-Right),	(Top+Bottom)/(Bottom-Top),	ZNear/(ZNear-ZFar), 1 ) );
+		M1 = FMatrix44f(FPlane4f(2.0f / (Right - Left), 0, 0, 0),
+			FPlane4f(0, 2.0f / (Top - Bottom), 0, 0),
+			FPlane4f(0, 0, 1 / (ZNear - ZFar), 0),
+			FPlane4f((Left + Right) / (Left - Right), (Top + Bottom) / (Bottom - Top), ZNear / (ZNear - ZFar), 1));
 
-		VectorMatrixMultiply( &M2, &M0, &M1 );
-		TestVectorMatrixMultiply( &M3, &M0, &M1 );
-		LogTest<float>( TEXT("VectorMatrixMultiply"), TestMatricesEqual( M2, M3, 0.000001f ) );
+		VectorMatrixMultiply(&M2, &M0, &M1);
+		TestVectorMatrixMultiply(&M3, &M0, &M1);
+		LogTest<float>(TEXT("VectorMatrixMultiply"), TestMatricesEqual(M2, M3, 0.000001f));
 
-		VectorMatrixInverse( &M2, &M1 );
-		TestVectorMatrixInverse( &M3, &M1 );
-		LogTest<float>( TEXT("VectorMatrixInverse"), TestMatricesEqual( M2, M3, 0.000001f) );
+		VectorMatrixInverse(&M2, &M1);
+		TestVectorMatrixInverse(&M3, &M1);
+		LogTest<float>(TEXT("VectorMatrixInverse"), TestMatricesEqual(M2, M3, 0.000001f));
 
-	// 	FTransform Transform;
-	// 	Transform.SetFromMatrix(M1);
-	// 	FTransform InvTransform = Transform.Inverse();
-	// 	FTransform InvTransform2 = FTransform(Transform.ToMatrixWithScale().Inverse());
-	// 	LogTest<float>( TEXT("FTransform Inverse"), InvTransform.Equals(InvTransform2, 1e-3f ) );
+		// 	FTransform Transform;
+		// 	Transform.SetFromMatrix(M1);
+		// 	FTransform InvTransform = Transform.Inverse();
+		// 	FTransform InvTransform2 = FTransform(Transform.ToMatrixWithScale().Inverse());
+		// 	LogTest<float>( TEXT("FTransform Inverse"), InvTransform.Equals(InvTransform2, 1e-3f ) );
 
-		V0 = MakeVectorRegister( 100.0f, -100.0f, 200.0f, 1.0f );
+		V0 = MakeVectorRegister(100.0f, -100.0f, 200.0f, 1.0f);
 		V1 = VectorTransformVector(V0, &M0);
 		V2 = TestVectorTransformVector(V0, &M0);
-		LogTest<float>( TEXT("VectorTransformVector"), TestVectorsEqual( V1, V2, 1e-8f ) );
+		LogTest<float>(TEXT("VectorTransformVector"), TestVectorsEqual(V1, V2, 1e-8f));
 
-		V0 = MakeVectorRegister( 32768.0f,131072.0f, -8096.0f, 1.0f );
+		V0 = MakeVectorRegister(32768.0f, 131072.0f, -8096.0f, 1.0f);
 		V1 = VectorTransformVector(V0, &M1);
 		V2 = TestVectorTransformVector(V0, &M1);
-		LogTest<float>( TEXT("VectorTransformVector"), TestVectorsEqual( V1, V2, 1e-8f ) );
+		LogTest<float>(TEXT("VectorTransformVector"), TestVectorsEqual(V1, V2, 1e-8f));
 	}
 
 	// NaN / Inf tests
@@ -2978,7 +2976,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			{360.0f,				360.0f - UE_KINDA_SMALL_NUMBER},
 			{1080.0f,				360.0f - UE_KINDA_SMALL_NUMBER},
 			{719.0f,				360.0f - UE_KINDA_SMALL_NUMBER},
-			
+
 
 			// We define this to be zero and not NaN.
 			// Disabled since we don't want to trigger an ensure, but left here for testing that logic.
@@ -3093,7 +3091,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 				{
 					UE_LOG(LogUnrealMathTest, Log, TEXT("FMath::Fmod(%.12f, %.12f)=%.12f <-> fmod(%.12f, %.12f)=%.12f: FAILED"), X, Y, Ours, X, Y, Theirs);
 					CheckPassing(false);
-				}				
+				}
 			}
 		}
 	}
@@ -3172,14 +3170,14 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		bool B;
 		float F2 = 0, F3 = 0;
 		double D1 = 0, D2 = 0, D3 = 0;
-		
+
 		// Check for ambiguity for bool predicates handling multiple float arguments and
 		// where there are overloads with different numbers of arguments or with default values.
 		B = FMath::IsNearlyEqual(F1, F2, F3);
 		B = FMath::IsNearlyEqual(F1, F2);
 		B = FMath::IsNearlyEqual(D1, D2, D3);
 		B = FMath::IsNearlyEqual(D1, D2);
-		
+
 		B = FMath::IsNearlyEqual(F1, D2);
 		B = FMath::IsNearlyEqual(D1, F2);
 
@@ -3210,9 +3208,9 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		D = FMath::Max(F1, D1);
 		D = FMath::Min(D1, F1);
 
-		CheckPassing(FMath::Clamp( 1, 0, 2) == 1);
+		CheckPassing(FMath::Clamp(1, 0, 2) == 1);
 		CheckPassing(FMath::Clamp(-1, 0, 2) == 0);
-		CheckPassing(FMath::Clamp( 3, 0, 2) == 2);
+		CheckPassing(FMath::Clamp(3, 0, 2) == 2);
 
 		U1 = 0; U2 = 2;
 		CheckPassing(FMath::Clamp<int32>(-1, U1, U2) == 0);
@@ -3303,7 +3301,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		Big1 = UE::LWC::FloatToIntCastChecked<int64>(float(TNumericLimits<int32>::Lowest()));
 		Big1 = UE::LWC::FloatToIntCastChecked<int64>(float(TNumericLimits<int64>::Max() - (int64)549755813888)); // 2^63 - 1 - 2^39
 		Big1 = UE::LWC::FloatToIntCastChecked<int64>(float(TNumericLimits<int64>::Lowest()));
-		
+
 		// double->int32
 		I = UE::LWC::FloatToIntCastChecked<int32>(double(TNumericLimits<int32>::Max()));
 		I = UE::LWC::FloatToIntCastChecked<int32>(double(TNumericLimits<int32>::Lowest()));
@@ -3405,7 +3403,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	// Rotator->Quat->Rotator
 	{
 		const float Nudge = UE_KINDA_SMALL_NUMBER * 0.25f;
-		const FRotator3f RotArray[] ={
+		const FRotator3f RotArray[] = {
 			FRotator3f(0.0f, 0.0f, 0.0f),
 			FRotator3f(30.0f, 30.0f, 30.0f),
 			FRotator3f(30.0f, -45.0f, 90.0f),
@@ -3463,15 +3461,15 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 	// Quat Lerp/Slerp
 	{
-		const FRotator3f Rotator0 = FRotator3f( 300.0f, -45.0f,  0.0f);
-		const FRotator3f Rotator1 = FRotator3f(  10.0f, 270.0f, 30.0f);
+		const FRotator3f Rotator0 = FRotator3f(300.0f, -45.0f, 0.0f);
+		const FRotator3f Rotator1 = FRotator3f(10.0f, 270.0f, 30.0f);
 		const float FloatAlpha = 0.25f;
 		const double DoubleAlpha = 0.25;
-		
+
 		// Quat<float>
 		Q0 = FQuat4f(Rotator0);
 		Q1 = FQuat4f(Rotator1);
-		
+
 		// float alpha
 		Q2 = FMath::Lerp(Q0, Q1, FloatAlpha);
 		Q3 = FQuat4f::Slerp(Q0, Q1, FloatAlpha);
@@ -3480,7 +3478,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		Q2 = FMath::Lerp<FQuat4f>(Q0, Q1, FloatAlpha);
 		Q3 = FQuat4f::Slerp(Q0, Q1, FloatAlpha);
 		LogTest<float>(TEXT("TestQuatLerp"), TestQuatsEqual(Q2, Q3, 1e-6f));
-		
+
 		// double alpha
 		Q2 = FMath::Lerp(Q0, Q1, DoubleAlpha);
 		Q3 = FQuat4f::Slerp(Q0, Q1, (float)DoubleAlpha);
@@ -3494,7 +3492,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		FQuat4d QD0, QD1, QD2, QD3;
 		QD0 = FQuat4d(FRotator3d(Rotator0));
 		QD1 = FQuat4d(FRotator3d(Rotator1));
-		
+
 		// double alpha
 		QD2 = FMath::Lerp(QD0, QD1, DoubleAlpha);
 		QD3 = FQuat4d::Slerp(QD0, QD1, DoubleAlpha);
@@ -3503,7 +3501,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		QD2 = FMath::Lerp<FQuat4d>(QD0, QD1, DoubleAlpha);
 		QD3 = FQuat4d::Slerp(QD0, QD1, DoubleAlpha);
 		LogTest<double>(TEXT("TestQuatLerp"), TestQuatsEqual(QD2, QD3, 1e-6f));
-		
+
 		// float alpha
 		QD2 = FMath::Lerp(QD0, QD1, FloatAlpha);
 		QD3 = FQuat4d::Slerp(QD0, QD1, FloatAlpha);
@@ -3520,34 +3518,34 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		Rotator0 = FRotator3f(30.0f, -45.0f, 90.0f);
 		Q0 = FQuat4f(Rotator0);
 		Q1 = TestRotatorToQuaternion(Rotator0);
-		LogTest<float>( TEXT("TestRotatorToQuaternion"), TestQuatsEqual(Q0, Q1, 1e-6f));
+		LogTest<float>(TEXT("TestRotatorToQuaternion"), TestQuatsEqual(Q0, Q1, 1e-6f));
 
 		using namespace UE::Math;
 
 		FVector3f FV0, FV1;
 		FV0 = Rotator0.Vector();
-		FV1 = TRotationMatrix<float>( Rotator0 ).GetScaledAxis( EAxis::X );
-		LogTest<float>( TEXT("Test0 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6f));
-		
-		FV0 = TRotationMatrix<float>( Rotator0 ).GetScaledAxis( EAxis::X );
-		FV1 = TQuatRotationMatrix<float>( FQuat4f(Q0.X, Q0.Y, Q0.Z, Q0.W) ).GetScaledAxis( EAxis::X );
-		LogTest<float>( TEXT("Test0 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5f));
+		FV1 = TRotationMatrix<float>(Rotator0).GetScaledAxis(EAxis::X);
+		LogTest<float>(TEXT("Test0 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6f));
 
-		Rotator0 = FRotator3f(45.0f,  60.0f, 120.0f);
+		FV0 = TRotationMatrix<float>(Rotator0).GetScaledAxis(EAxis::X);
+		FV1 = TQuatRotationMatrix<float>(FQuat4f(Q0.X, Q0.Y, Q0.Z, Q0.W)).GetScaledAxis(EAxis::X);
+		LogTest<float>(TEXT("Test0 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5f));
+
+		Rotator0 = FRotator3f(45.0f, 60.0f, 120.0f);
 		Q0 = FQuat4f(Rotator0);
 		Q1 = TestRotatorToQuaternion(Rotator0);
-		LogTest<float>( TEXT("TestRotatorToQuaternion"), TestQuatsEqual(Q0, Q1, 1e-6f));
+		LogTest<float>(TEXT("TestRotatorToQuaternion"), TestQuatsEqual(Q0, Q1, 1e-6f));
 
 		FV0 = Rotator0.Vector();
-		FV1 = TRotationMatrix<float>( Rotator0 ).GetScaledAxis( EAxis::X );
-		LogTest<float>( TEXT("Test1 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6f));
+		FV1 = TRotationMatrix<float>(Rotator0).GetScaledAxis(EAxis::X);
+		LogTest<float>(TEXT("Test1 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6f));
 
-		FV0 = TRotationMatrix<float>( Rotator0 ).GetScaledAxis( EAxis::X );
-		FV1 = TQuatRotationMatrix<float>(FQuat4f(Q0.X, Q0.Y, Q0.Z, Q0.W) ).GetScaledAxis( EAxis::X );
+		FV0 = TRotationMatrix<float>(Rotator0).GetScaledAxis(EAxis::X);
+		FV1 = TQuatRotationMatrix<float>(FQuat4f(Q0.X, Q0.Y, Q0.Z, Q0.W)).GetScaledAxis(EAxis::X);
 		LogTest<float>(TEXT("Test1 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5f));
 
-		FV0 = TRotationMatrix<float>( FRotator3f::ZeroRotator ).GetScaledAxis(EAxis::X);
-		FV1 = TQuatRotationMatrix<float>(FQuat4f::Identity ).GetScaledAxis(EAxis::X);
+		FV0 = TRotationMatrix<float>(FRotator3f::ZeroRotator).GetScaledAxis(EAxis::X);
+		FV1 = TQuatRotationMatrix<float>(FQuat4f::Identity).GetScaledAxis(EAxis::X);
 		LogTest<float>(TEXT("Test2 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-6f));
 	}
 
@@ -3580,7 +3578,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		const float Tolerance = 1e-4f;
 
 		// Test Macro. Tests FQuat4f::RotateVector(_Vec) against _Func(_Vec)
-		#define TEST_QUAT_ROTATE(_QIndex, _VIndex, _Quat, _Vec, _Func, _Tolerance) \
+#define TEST_QUAT_ROTATE(_QIndex, _VIndex, _Quat, _Vec, _Func, _Tolerance) \
 		{ \
 			const FString _TestName = FString::Printf(TEXT("Test Quat%d: Vec%d: %s"), _QIndex, _VIndex, TEXT(#_Func)); \
 			LogTest<float>( *_TestName, TestFVector3Equal(_Quat.RotateVector(_Vec), _Func(_Quat, _Vec), _Tolerance) ); \
@@ -3602,9 +3600,9 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 		// FindBetween
 		{
-			for (FVector3f const& A: TestVectors)
+			for (FVector3f const& A : TestVectors)
 			{
-				for (FVector3f const &B : TestVectors)
+				for (FVector3f const& B : TestVectors)
 				{
 					const FVector3f ANorm = A.GetSafeNormal();
 					const FVector3f BNorm = B.GetSafeNormal();
@@ -3635,7 +3633,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 		// FVector3f::ToOrientationRotator(), FVector3f::ToOrientationQuat()
 		{
-			for (FVector3f const& V: TestVectors)
+			for (FVector3f const& V : TestVectors)
 			{
 				const FVector3f VNormal = V.GetSafeNormal();
 
@@ -3704,20 +3702,16 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	{
 		UE_LOG(LogUnrealMathTest, Fatal, TEXT("VectorIntrinsics <double> Failed."));
 	}
-
-	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInterpolationFunctionTests, "System.Core.Math.Interpolation Function Test", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FInterpolationFunctionTests::RunTest(const FString&)
+TEST_CASE_NAMED(FInterpolationFunctionTests, "System::Core::Math::Interpolation Function Test", "[ApplicationContextMask][SmokeFilter]")
 {
 	// The purpose of this test is to verify that various combinations of the easing functions are actually equivalent.
 	// It currently only tests the InOut versions over different ranges, because the initial implementation was bad.
 	// Further improvements (optimizations, new easing functions) to the easing functions should be accompanied by
 	// expansions to this test suite.
-
 	typedef float(*EasingFunc)(float Percent);
-	auto RunInOutTest = [](const TArray< TPair<EasingFunc, FString> >& Functions, FAutomationTestBase* TestContext)
+	auto RunInOutTest = [](const TArray< TPair<EasingFunc, FString> >& Functions)
 	{
 		for (int32 I = 0; I < 100; ++I)
 		{
@@ -3732,17 +3726,11 @@ bool FInterpolationFunctionTests::RunTest(const FString&)
 			int32 K = 0;
 			for (int32 J = 1; J < Functions.Num(); ++J)
 			{
-				if (!FMath::IsNearlyEqual(Values[K], Values[J], 0.0001f))
+				for (int32 L = 0; L < Values.Num(); ++L)
 				{
-					TestContext->AddError(FString::Printf( TEXT("Easing Function tests failed at index %d!"), I ) );
-
-					for (int32 L = 0; L < Values.Num(); ++L)
-					{
-						TestContext->AddInfo(FString::Printf(TEXT("%s: %f"), *(Functions[L].Value), Values[L]));
-					}
-					// don't record further failures, it would likely create a tremendous amount of spam
-					return;
+					INFO(FString::Printf(TEXT("%s: %f"), *(Functions[L].Value), Values[L]));
 				}
+				REQUIRE_MESSAGE(FString::Printf(TEXT("Easing Function tests failed at index %d!"), I), FMath::IsNearlyEqual(Values[K], Values[J], 0.0001f));
 			}
 		}
 	};
@@ -3759,40 +3747,38 @@ bool FInterpolationFunctionTests::RunTest(const FString&)
 	{
 		// Test InterpExpoInOut:
 		INTERP_WITH_RANGE(.9f, 1.2f, InterpExpoInOut, A)
-		INTERP_WITH_RANGE(0.f, 1.f, InterpExpoInOut, B)
-		INTERP_WITH_RANGE(-8.6f;, 2.3f, InterpExpoInOut, C)
-		TArray< TPair< EasingFunc, FString > > FunctionsToTest;
+			INTERP_WITH_RANGE(0.f, 1.f, InterpExpoInOut, B)
+			INTERP_WITH_RANGE(-8.6f; , 2.3f, InterpExpoInOut, C)
+			TArray< TPair< EasingFunc, FString > > FunctionsToTest;
 		FunctionsToTest.Emplace(InterpExpoInOutA, TEXT("InterpExpoInOutA"));
 		FunctionsToTest.Emplace(InterpExpoInOutB, TEXT("InterpExpoInOutB"));
 		FunctionsToTest.Emplace(InterpExpoInOutC, TEXT("InterpExpoInOutC"));
-		RunInOutTest(FunctionsToTest, this);
+		RunInOutTest(FunctionsToTest);
 	}
 
 	{
 		// Test InterpCircularInOut:
 		INTERP_WITH_RANGE(5.f, 9.32f, InterpCircularInOut, A)
-		INTERP_WITH_RANGE(0.f, 1.f, InterpCircularInOut, B)
-		INTERP_WITH_RANGE(-8.1f;, -.75f, InterpCircularInOut, C)
-		TArray< TPair< EasingFunc, FString > > FunctionsToTest;
+			INTERP_WITH_RANGE(0.f, 1.f, InterpCircularInOut, B)
+			INTERP_WITH_RANGE(-8.1f; , -.75f, InterpCircularInOut, C)
+			TArray< TPair< EasingFunc, FString > > FunctionsToTest;
 		FunctionsToTest.Emplace(InterpCircularInOutA, TEXT("InterpCircularInOutA"));
 		FunctionsToTest.Emplace(InterpCircularInOutB, TEXT("InterpCircularInOutB"));
 		FunctionsToTest.Emplace(InterpCircularInOutC, TEXT("InterpCircularInOutC"));
-		RunInOutTest(FunctionsToTest, this);
+		RunInOutTest(FunctionsToTest);
 	}
 
 	{
 		// Test InterpSinInOut:
 		INTERP_WITH_RANGE(10.f, 11.2f, InterpSinInOut, A)
-		INTERP_WITH_RANGE(0.f, 1.f, InterpSinInOut, B)
-		INTERP_WITH_RANGE(-5.6f;, -4.3f, InterpSinInOut, C)
-		TArray< TPair< EasingFunc, FString > > FunctionsToTest;
+			INTERP_WITH_RANGE(0.f, 1.f, InterpSinInOut, B)
+			INTERP_WITH_RANGE(-5.6f; , -4.3f, InterpSinInOut, C)
+			TArray< TPair< EasingFunc, FString > > FunctionsToTest;
 		FunctionsToTest.Emplace(InterpSinInOutA, TEXT("InterpSinInOutA"));
 		FunctionsToTest.Emplace(InterpSinInOutB, TEXT("InterpSinInOutB"));
 		FunctionsToTest.Emplace(InterpSinInOutC, TEXT("InterpSinInOutC"));
-		RunInOutTest(FunctionsToTest, this);
+		RunInOutTest(FunctionsToTest);
 	}
-
-	return true;
 }
 
 class FMathVectorTestParameter
@@ -3841,10 +3827,9 @@ public:
 	{
 		// Compare the result of the vector implementation with the equivalent scalar implementation.
 		if (bTestScalar)
-			RoundTests.TestEqual(What, FMathVectorTestParameter(VectorRounder(VectorSet1(Actual))), FMathVectorTestParameter(ScalarRounder(Actual)));
-
+			CHECK_MESSAGE(What, FMathVectorTestParameter(VectorRounder(VectorSet1(Actual))) == FMathVectorTestParameter(ScalarRounder(Actual)));
 		// Compare the result of the vector implementation with the given expected value.
-		RoundTests.TestEqual(What, FMathVectorTestParameter(VectorRounder(VectorSet1(Actual))), FMathVectorTestParameter(Expected));
+		CHECK_MESSAGE(What, FMathVectorTestParameter(VectorRounder(VectorSet1(Actual))) == FMathVectorTestParameter(Expected));
 		return true;
 	}
 
@@ -3857,327 +3842,344 @@ FORCEINLINE VectorRegister4Int VectorRoundToIntHalfToEvenTest(const VectorRegist
 	return VectorRoundToIntHalfToEven(Vec);
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMathVectorRoundToIntHalfToEvenTests, "System.Core.Math.RoundToIntHalfToEven Vector", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FMathVectorRoundToIntHalfToEvenTests::RunTest(const FString& Parameters)
-{
-	const bool bSkipScalar = false;
-
-	struct FMathVectorRoundToIntHalfToEvenTestsRoundToInt
+class FMathVectorRoundToIntHalfToEvenTestsClass {
+public:
+	bool MathVectorRoundToIntHalfToEvenTest()
 	{
-		static int RoundToInt(float F)
+		const bool bSkipScalar = false;
+
+		struct FMathVectorRoundToIntHalfToEvenTestsRoundToInt
 		{
-			return int(FMath::RoundHalfToEven(F));
+			static int RoundToInt(float F)
+			{
+				return int(FMath::RoundHalfToEven(F));
+			}
+		};
+		TTestEqualAfterVectorRounding<FMathVectorRoundToIntHalfToEvenTestsClass, &VectorRoundToIntHalfToEvenTest, &FMathVectorRoundToIntHalfToEvenTestsRoundToInt::RoundToInt> TestEqualAfterVectorRounding(*this);
+
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-Zero"), 0.0f, 0);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-One"), 1.0f, 1);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-LessHalf"), 1.4f, 1);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegGreaterHalf"), -1.4f, -1);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-LessNearHalf"), 1.4999999f, 1);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegGreaterNearHalf"), -1.4999999f, -1);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-Half"), 1.5f, 2);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegHalf"), -1.5f, -2);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-GreaterNearHalf"), 1.5000001f, 2);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegLesserNearHalf"), -1.5000001f, -2);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-GreaterThanHalf"), 1.6f, 2);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegLesserThanHalf"), -1.6f, -2);
+
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-TwoToOneBitPrecision"), 4194303.25f, 4194303);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-TwoToOneBitPrecision"), 4194303.5f, 4194304);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-TwoToOneBitPrecision"), 4194303.75f, 4194304);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-TwoToOneBitPrecision"), 4194304.0f, 4194304);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-TwoToOneBitPrecision"), 4194304.5f, 4194304);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegTwoToOneBitPrecision"), -4194303.25f, -4194303);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegTwoToOneBitPrecision"), -4194303.5f, -4194304);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegTwoToOneBitPrecision"), -4194303.75f, -4194304);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegTwoToOneBitPrecision"), -4194304.0f, -4194304);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegTwoToOneBitPrecision"), -4194304.5f, -4194304);
+
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388607.0f, 8388607);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388607.5f, 8388608);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388608.0f, 8388608);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388608.5f, 8388608);
+		//TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388609.0f, 8388609, bSkipScalar); // FMath::RoundHalfToEven incorrectly rounds 8388609.0f to 8388610.0f, so skip it.
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388609.5f, 8388610);
+
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388607.0f, -8388607);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388607.5f, -8388608);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388608.0f, -8388608);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388608.5f, -8388608);
+		//TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388609.0f, -8388609, bSkipScalar); // FMath::RoundHalfToEven incorrectly rounds -8388609.0f to -8388610.0f, so skip it.
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388609.5f, -8388610);
+
+		//TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777215.0f, 16777215, bSkipScalar); // FMath::RoundHalfToEven incorrectly rounds 16777215.0f to 16777216.0f, so skip it.
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777215.5f, 16777216);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777216.0f, 16777216);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777216.5f, 16777216);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777217.0f, 16777216);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777217.5f, 16777218);
+		//TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777215.0f, -16777215, bSkipScalar); // FMath::RoundHalfToEven incorrectly rounds -16777215.0f to -16777216.0f, so skip it.
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777215.5f, -16777216);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777216.0f, -16777216);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777216.5f, -16777216);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777217.0f, -16777216);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777217.5f, -16777218);
+
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-FloatMax"), FLT_MAX, INT32_MIN);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-FloatMax"), -FLT_MAX, INT32_MIN);
+
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-FloatMin"), FLT_MIN, 0);
+		TestEqualAfterVectorRounding(TEXT("VectorRound32-FloatMin"), -FLT_MIN, 0);
+		return true;
+	}
+};
+
+TEST_CASE_NAMED(FMathVectorRoundToIntHalfToEvenTests, "System::Core::Math::RoundToIntHalfToEven Vector", "[ApplicationContextMask][SmokeFilter]")
+{
+	FMathVectorRoundToIntHalfToEvenTestsClass Instance;
+	Instance.MathVectorRoundToIntHalfToEvenTest();
+}
+
+TEST_CASE_NAMED(FMathRoundHalfToZeroTests, "System::Core::Math::Round HalfToZero", "[ApplicationContextMask][SmokeFilter]")
+{
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-Zero"), FMath::RoundHalfToZero(0.0f) == 0.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-One"), FMath::RoundHalfToZero(1.0f) == 1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-LessHalf"), FMath::RoundHalfToZero(1.4f) == 1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegGreaterHalf"), FMath::RoundHalfToZero(-1.4f) == -1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-LessNearHalf"), FMath::RoundHalfToZero(1.4999999f) == 1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegGreaterNearHalf"), FMath::RoundHalfToZero(-1.4999999f) == -1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-Half"), FMath::RoundHalfToZero(1.5f) == 1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegHalf"), FMath::RoundHalfToZero(-1.5f) == -1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-GreaterNearHalf"), FMath::RoundHalfToZero(1.5000001f) == 2.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegLesserNearHalf"), FMath::RoundHalfToZero(-1.5000001f) == -2.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-GreaterThanHalf"), FMath::RoundHalfToZero(1.6f) == 2.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegLesserThanHalf"), FMath::RoundHalfToZero(-1.6f) == -2.0f);
+
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-TwoToOneBitPrecision"), FMath::RoundHalfToZero(4194303.25f) == 4194303.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-TwoToOneBitPrecision"), FMath::RoundHalfToZero(4194303.5f) == 4194303.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-TwoToOneBitPrecision"), FMath::RoundHalfToZero(4194303.75f) == 4194304.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-TwoToOneBitPrecision"), FMath::RoundHalfToZero(4194304.0f) == 4194304.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-TwoToOneBitPrecision"), FMath::RoundHalfToZero(4194304.5f) == 4194304.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-4194303.25f) == -4194303.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-4194303.5f) == -4194303.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-4194303.75f) == -4194304.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-4194304.0f) == -4194304.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-4194304.5f) == -4194304.0f);
+
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-OneToZeroBitPrecision"), FMath::RoundHalfToZero(8388607.0f) == 8388607.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-OneToZeroBitPrecision"), FMath::RoundHalfToZero(8388607.5f) == 8388607.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-OneToZeroBitPrecision"), FMath::RoundHalfToZero(8388608.0f) == 8388608.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-8388607.0f) == -8388607.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-8388607.5f) == -8388607.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-8388608.0f) == -8388608.0f);
+
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-ZeroBitPrecision"), FMath::RoundHalfToZero(16777215.0f) == 16777215.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero32-NegZeroBitPrecision"), FMath::RoundHalfToZero(-16777215.0f) == -16777215.0f);
+
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-Zero"), FMath::RoundHalfToZero(0.0) == 0.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-One"), FMath::RoundHalfToZero(1.0) == 1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-LessHalf"), FMath::RoundHalfToZero(1.4) == 1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegGreaterHalf"), FMath::RoundHalfToZero(-1.4) == -1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-LessNearHalf"), FMath::RoundHalfToZero(1.4999999999999997) == 1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegGreaterNearHalf"), FMath::RoundHalfToZero(-1.4999999999999997) == -1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-Half"), FMath::RoundHalfToZero(1.5) == 1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegHalf"), FMath::RoundHalfToZero(-1.5) == -1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-GreaterNearHalf"), FMath::RoundHalfToZero(1.5000000000000002) == 2.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegLesserNearHalf"), FMath::RoundHalfToZero(-1.5000000000000002) == -2.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-GreaterThanHalf"), FMath::RoundHalfToZero(1.6) == 2.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegLesserThanHalf"), FMath::RoundHalfToZero(-1.6) == -2.0);
+
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-TwoToOneBitPrecision"), FMath::RoundHalfToZero(2251799813685247.25) == 2251799813685247.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-TwoToOneBitPrecision"), FMath::RoundHalfToZero(2251799813685247.5) == 2251799813685247.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-TwoToOneBitPrecision"), FMath::RoundHalfToZero(2251799813685247.75) == 2251799813685248.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-TwoToOneBitPrecision"), FMath::RoundHalfToZero(2251799813685248.0) == 2251799813685248.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-TwoToOneBitPrecision"), FMath::RoundHalfToZero(2251799813685248.5) == 2251799813685248.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-2251799813685247.25) == -2251799813685247.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-2251799813685247.5) == -2251799813685247.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-2251799813685247.75) == -2251799813685248.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-2251799813685248.0) == -2251799813685248.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-2251799813685248.5) == -2251799813685248.0);
+
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-OneToZeroBitPrecision"), FMath::RoundHalfToZero(4503599627370495.0) == 4503599627370495.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-OneToZeroBitPrecision"), FMath::RoundHalfToZero(4503599627370495.5) == 4503599627370495.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-OneToZeroBitPrecision"), FMath::RoundHalfToZero(4503599627370496.0) == 4503599627370496.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-4503599627370495.0) == -4503599627370495.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-4503599627370495.5) == -4503599627370495.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-4503599627370496.0) == -4503599627370496.0);
+
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-ZeroBitPrecision"), FMath::RoundHalfToZero(9007199254740991.0) == 9007199254740991.0);
+	CHECK_MESSAGE(TEXT("RoundHalfToZero64-NegZeroBitPrecision"), FMath::RoundHalfToZero(-9007199254740991.0) == -9007199254740991.0);
+}
+
+TEST_CASE_NAMED(FMathRoundHalfFromZeroTests, "System::Core::Math::Round HalfFromZero", "[ApplicationContextMask][SmokeFilter]")
+{
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-Zero"), FMath::RoundHalfFromZero(0.0f) == 0.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-One"), FMath::RoundHalfFromZero(1.0f) == 1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-LessHalf"), FMath::RoundHalfFromZero(1.4f) == 1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegGreaterHalf"), FMath::RoundHalfFromZero(-1.4f) == -1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-LessNearHalf"), FMath::RoundHalfFromZero(1.4999999f) == 1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegGreaterNearHalf"), FMath::RoundHalfFromZero(-1.4999999f) == -1.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-Half"), FMath::RoundHalfFromZero(1.5f) == 2.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegHalf"), FMath::RoundHalfFromZero(-1.5f) == -2.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-LessGreaterNearHalf"), FMath::RoundHalfFromZero(1.5000001f) == 2.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegLesserNearHalf"), FMath::RoundHalfFromZero(-1.5000001f) == -2.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-GreaterThanHalf"), FMath::RoundHalfFromZero(1.6f) == 2.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegLesserThanHalf"), FMath::RoundHalfFromZero(-1.6f) == -2.0f);
+
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(4194303.25f) == 4194303.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(4194303.5f) == 4194304.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(4194303.75f) == 4194304.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(4194304.0f) == 4194304.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(4194304.5f) == 4194305.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-4194303.25f) == -4194303.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-4194303.5f) == -4194304.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-4194303.75f) == -4194304.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-4194304.0f) == -4194304.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-4194304.5f) == -4194305.0f);
+
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(8388607.0f) == 8388607.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(8388607.5f) == 8388608.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(8388608.0f) == 8388608.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-8388607.0f) == -8388607.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-8388607.5f) == -8388608.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-8388608.0f) == -8388608.0f);
+
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-ZeroBitPrecision"), FMath::RoundHalfToZero(16777215.0f) == 16777215.0f);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero32-NegZeroBitPrecision"), FMath::RoundHalfToZero(-16777215.0f) == -16777215.0f);
+
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-Zero"), FMath::RoundHalfFromZero(0.0) == 0.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-One"), FMath::RoundHalfFromZero(1.0) == 1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-LessHalf"), FMath::RoundHalfFromZero(1.4) == 1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegGreaterHalf"), FMath::RoundHalfFromZero(-1.4) == -1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-LessNearHalf"), FMath::RoundHalfFromZero(1.4999999999999997) == 1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegGreaterNearHalf"), FMath::RoundHalfFromZero(-1.4999999999999997) == -1.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-Half"), FMath::RoundHalfFromZero(1.5) == 2.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegHalf"), FMath::RoundHalfFromZero(-1.5) == -2.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-LessGreaterNearHalf"), FMath::RoundHalfFromZero(1.5000000000000002) == 2.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegLesserNearHalf"), FMath::RoundHalfFromZero(-1.5000000000000002) == -2.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-GreaterThanHalf"), FMath::RoundHalfFromZero(1.6) == 2.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegLesserThanHalf"), FMath::RoundHalfFromZero(-1.6) == -2.0);
+
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(2251799813685247.25) == 2251799813685247.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(2251799813685247.5) == 2251799813685248.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(2251799813685247.75) == 2251799813685248.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(2251799813685248.0) == 2251799813685248.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(2251799813685248.5) == 2251799813685249.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-2251799813685247.25) == -2251799813685247.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-2251799813685247.5) == -2251799813685248.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-2251799813685247.75) == -2251799813685248.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-2251799813685248.0) == -2251799813685248.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-2251799813685248.5) == -2251799813685249.0);
+
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(4503599627370495.0) == 4503599627370495.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(4503599627370495.5) == 4503599627370496.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(4503599627370496.0) == 4503599627370496.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-4503599627370495.0) == -4503599627370495.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-4503599627370495.5) == -4503599627370496.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-4503599627370496.0) == -4503599627370496.0);
+
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-ZeroBitPrecision"), FMath::RoundHalfToZero(9007199254740991.0) == 9007199254740991.0);
+	CHECK_MESSAGE(TEXT("RoundHalfFromZero64-NegZeroBitPrecision"), FMath::RoundHalfToZero(-9007199254740991.0) == -9007199254740991.0);
+}
+
+class FIsNearlyEqualByULPTestClass {
+public:
+	bool CheckMessage(const FString& What, bool Value)
+	{
+		CHECK_MESSAGE(*What, Value);
+		return Value;
+	}
+
+	bool CheckFalseMessage(const FString& What, bool Value)
+	{
+		CHECK_FALSE_MESSAGE(*What, Value);
+		return !Value;
+	}
+
+	bool IsNearlyEqualByULPTest() {
+		static const float FloatNan = std::numeric_limits<float>::quiet_NaN();
+		static const double DoubleNan = std::numeric_limits<double>::quiet_NaN();
+
+		static const float FloatInf = std::numeric_limits<float>::infinity();
+		static const double DoubleInf = std::numeric_limits<double>::infinity();
+
+		float FloatTrueMin;
+		double DoubleTrueMin;
+
+		// Construct our own true minimum float constants (aka std::numeric_limits<float>::denorm_min), 
+		// to ensure we don't get caught by any application or system-wide flush-to-zero or 
+		// denormals-are-zero settings.
+		{
+			uint32 FloatTrueMinInt = 0x00000001U;
+			uint64 DoubleTrueMinInt = 0x0000000000000001ULL;
+
+			::memcpy(&FloatTrueMin, &FloatTrueMinInt, sizeof(FloatTrueMinInt));
+			::memcpy(&DoubleTrueMin, &DoubleTrueMinInt, sizeof(DoubleTrueMinInt));
 		}
-	};
-	TTestEqualAfterVectorRounding<FMathVectorRoundToIntHalfToEvenTests, &VectorRoundToIntHalfToEvenTest, &FMathVectorRoundToIntHalfToEvenTestsRoundToInt::RoundToInt> TestEqualAfterVectorRounding(*this);
-
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-Zero"), 0.0f, 0);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-One"), 1.0f, 1);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-LessHalf"), 1.4f, 1);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegGreaterHalf"), -1.4f, -1);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-LessNearHalf"), 1.4999999f, 1);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegGreaterNearHalf"), -1.4999999f, -1);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-Half"), 1.5f, 2);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegHalf"), -1.5f, -2);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-GreaterNearHalf"), 1.5000001f, 2);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegLesserNearHalf"), -1.5000001f, -2);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-GreaterThanHalf"), 1.6f, 2);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegLesserThanHalf"), -1.6f, -2);
-
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-TwoToOneBitPrecision"), 4194303.25f, 4194303);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-TwoToOneBitPrecision"), 4194303.5f, 4194304);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-TwoToOneBitPrecision"), 4194303.75f, 4194304);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-TwoToOneBitPrecision"), 4194304.0f, 4194304);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-TwoToOneBitPrecision"), 4194304.5f, 4194304);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegTwoToOneBitPrecision"), -4194303.25f, -4194303);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegTwoToOneBitPrecision"), -4194303.5f, -4194304);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegTwoToOneBitPrecision"), -4194303.75f, -4194304);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegTwoToOneBitPrecision"), -4194304.0f, -4194304);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegTwoToOneBitPrecision"), -4194304.5f, -4194304);
-
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388607.0f, 8388607);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388607.5f, 8388608);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388608.0f, 8388608);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388608.5f, 8388608);
-	//TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388609.0f, 8388609, bSkipScalar); // FMath::RoundHalfToEven incorrectly rounds 8388609.0f to 8388610.0f, so skip it.
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-OneToZeroBitPrecision"), 8388609.5f, 8388610);
-
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388607.0f, -8388607);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388607.5f, -8388608);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388608.0f, -8388608);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388608.5f, -8388608);
-	//TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388609.0f, -8388609, bSkipScalar); // FMath::RoundHalfToEven incorrectly rounds -8388609.0f to -8388610.0f, so skip it.
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegOneToZeroBitPrecision"), -8388609.5f, -8388610);
-
-	//TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777215.0f, 16777215, bSkipScalar); // FMath::RoundHalfToEven incorrectly rounds 16777215.0f to 16777216.0f, so skip it.
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777215.5f, 16777216);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777216.0f, 16777216);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777216.5f, 16777216);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777217.0f, 16777216);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-ZeroBitPrecision"), 16777217.5f, 16777218);
-	//TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777215.0f, -16777215, bSkipScalar); // FMath::RoundHalfToEven incorrectly rounds -16777215.0f to -16777216.0f, so skip it.
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777215.5f, -16777216);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777216.0f, -16777216);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777216.5f, -16777216);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777217.0f, -16777216);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-NegZeroBitPrecision"), -16777217.5f, -16777218);
-
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-FloatMax"), FLT_MAX, INT32_MIN);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-FloatMax"), -FLT_MAX, INT32_MIN);
-
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-FloatMin"), FLT_MIN, 0);
-	TestEqualAfterVectorRounding(TEXT("VectorRound32-FloatMin"), -FLT_MIN, 0);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMathRoundHalfToZeroTests, "System.Core.Math.Round HalfToZero", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FMathRoundHalfToZeroTests::RunTest(const FString& Parameters)
-{
-	TestEqual(TEXT("RoundHalfToZero32-Zero"), FMath::RoundHalfToZero(0.0f), 0.0f);
-	TestEqual(TEXT("RoundHalfToZero32-One"), FMath::RoundHalfToZero(1.0f), 1.0f);
-	TestEqual(TEXT("RoundHalfToZero32-LessHalf"), FMath::RoundHalfToZero(1.4f), 1.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegGreaterHalf"), FMath::RoundHalfToZero(-1.4f), -1.0f);
-	TestEqual(TEXT("RoundHalfToZero32-LessNearHalf"), FMath::RoundHalfToZero(1.4999999f), 1.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegGreaterNearHalf"), FMath::RoundHalfToZero(-1.4999999f), -1.0f);
-	TestEqual(TEXT("RoundHalfToZero32-Half"), FMath::RoundHalfToZero(1.5f), 1.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegHalf"), FMath::RoundHalfToZero(-1.5f), -1.0f);
-	TestEqual(TEXT("RoundHalfToZero32-GreaterNearHalf"), FMath::RoundHalfToZero(1.5000001f), 2.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegLesserNearHalf"), FMath::RoundHalfToZero(-1.5000001f), -2.0f);
-	TestEqual(TEXT("RoundHalfToZero32-GreaterThanHalf"), FMath::RoundHalfToZero(1.6f), 2.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegLesserThanHalf"), FMath::RoundHalfToZero(-1.6f), -2.0f);
-
-	TestEqual(TEXT("RoundHalfToZero32-TwoToOneBitPrecision"), FMath::RoundHalfToZero(4194303.25f), 4194303.0f);
-	TestEqual(TEXT("RoundHalfToZero32-TwoToOneBitPrecision"), FMath::RoundHalfToZero(4194303.5f), 4194303.0f);
-	TestEqual(TEXT("RoundHalfToZero32-TwoToOneBitPrecision"), FMath::RoundHalfToZero(4194303.75f), 4194304.0f);
-	TestEqual(TEXT("RoundHalfToZero32-TwoToOneBitPrecision"), FMath::RoundHalfToZero(4194304.0f), 4194304.0f);
-	TestEqual(TEXT("RoundHalfToZero32-TwoToOneBitPrecision"), FMath::RoundHalfToZero(4194304.5f), 4194304.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-4194303.25f), -4194303.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-4194303.5f), -4194303.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-4194303.75f), -4194304.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-4194304.0f), -4194304.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-4194304.5f), -4194304.0f);
-
-	TestEqual(TEXT("RoundHalfToZero32-OneToZeroBitPrecision"), FMath::RoundHalfToZero(8388607.0f), 8388607.0f);
-	TestEqual(TEXT("RoundHalfToZero32-OneToZeroBitPrecision"), FMath::RoundHalfToZero(8388607.5f), 8388607.0f);
-	TestEqual(TEXT("RoundHalfToZero32-OneToZeroBitPrecision"), FMath::RoundHalfToZero(8388608.0f), 8388608.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-8388607.0f), -8388607.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-8388607.5f), -8388607.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-8388608.0f), -8388608.0f);
-
-	TestEqual(TEXT("RoundHalfToZero32-ZeroBitPrecision"), FMath::RoundHalfToZero(16777215.0f), 16777215.0f);
-	TestEqual(TEXT("RoundHalfToZero32-NegZeroBitPrecision"), FMath::RoundHalfToZero(-16777215.0f), -16777215.0f);
-
-	TestEqual(TEXT("RoundHalfToZero64-Zero"), FMath::RoundHalfToZero(0.0), 0.0);
-	TestEqual(TEXT("RoundHalfToZero64-One"), FMath::RoundHalfToZero(1.0), 1.0);
-	TestEqual(TEXT("RoundHalfToZero64-LessHalf"), FMath::RoundHalfToZero(1.4), 1.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegGreaterHalf"), FMath::RoundHalfToZero(-1.4), -1.0);
-	TestEqual(TEXT("RoundHalfToZero64-LessNearHalf"), FMath::RoundHalfToZero(1.4999999999999997), 1.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegGreaterNearHalf"), FMath::RoundHalfToZero(-1.4999999999999997), -1.0);
-	TestEqual(TEXT("RoundHalfToZero64-Half"), FMath::RoundHalfToZero(1.5), 1.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegHalf"), FMath::RoundHalfToZero(-1.5), -1.0);
-	TestEqual(TEXT("RoundHalfToZero64-GreaterNearHalf"), FMath::RoundHalfToZero(1.5000000000000002), 2.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegLesserNearHalf"), FMath::RoundHalfToZero(-1.5000000000000002), -2.0);
-	TestEqual(TEXT("RoundHalfToZero64-GreaterThanHalf"), FMath::RoundHalfToZero(1.6), 2.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegLesserThanHalf"), FMath::RoundHalfToZero(-1.6), -2.0);
-	
-	TestEqual(TEXT("RoundHalfToZero64-TwoToOneBitPrecision"), FMath::RoundHalfToZero(2251799813685247.25), 2251799813685247.0);
-	TestEqual(TEXT("RoundHalfToZero64-TwoToOneBitPrecision"), FMath::RoundHalfToZero(2251799813685247.5), 2251799813685247.0);
-	TestEqual(TEXT("RoundHalfToZero64-TwoToOneBitPrecision"), FMath::RoundHalfToZero(2251799813685247.75), 2251799813685248.0);
-	TestEqual(TEXT("RoundHalfToZero64-TwoToOneBitPrecision"), FMath::RoundHalfToZero(2251799813685248.0), 2251799813685248.0);
-	TestEqual(TEXT("RoundHalfToZero64-TwoToOneBitPrecision"), FMath::RoundHalfToZero(2251799813685248.5), 2251799813685248.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-2251799813685247.25), -2251799813685247.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-2251799813685247.5), -2251799813685247.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-2251799813685247.75), -2251799813685248.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-2251799813685248.0), -2251799813685248.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfToZero(-2251799813685248.5), -2251799813685248.0);
-
-	TestEqual(TEXT("RoundHalfToZero64-OneToZeroBitPrecision"), FMath::RoundHalfToZero(4503599627370495.0), 4503599627370495.0);
-	TestEqual(TEXT("RoundHalfToZero64-OneToZeroBitPrecision"), FMath::RoundHalfToZero(4503599627370495.5), 4503599627370495.0);
-	TestEqual(TEXT("RoundHalfToZero64-OneToZeroBitPrecision"), FMath::RoundHalfToZero(4503599627370496.0), 4503599627370496.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-4503599627370495.0), -4503599627370495.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-4503599627370495.5), -4503599627370495.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfToZero(-4503599627370496.0), -4503599627370496.0);
-
-	TestEqual(TEXT("RoundHalfToZero64-ZeroBitPrecision"), FMath::RoundHalfToZero(9007199254740991.0), 9007199254740991.0);
-	TestEqual(TEXT("RoundHalfToZero64-NegZeroBitPrecision"), FMath::RoundHalfToZero(-9007199254740991.0), -9007199254740991.0);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMathRoundHalfFromZeroTests, "System.Core.Math.Round HalfFromZero", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FMathRoundHalfFromZeroTests::RunTest(const FString& Parameters)
-{
-	TestEqual(TEXT("RoundHalfFromZero32-Zero"), FMath::RoundHalfFromZero(0.0f), 0.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-One"), FMath::RoundHalfFromZero(1.0f), 1.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-LessHalf"), FMath::RoundHalfFromZero(1.4f), 1.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegGreaterHalf"), FMath::RoundHalfFromZero(-1.4f), -1.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-LessNearHalf"), FMath::RoundHalfFromZero(1.4999999f), 1.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegGreaterNearHalf"), FMath::RoundHalfFromZero(-1.4999999f), -1.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-Half"), FMath::RoundHalfFromZero(1.5f), 2.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegHalf"), FMath::RoundHalfFromZero(-1.5f), -2.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-LessGreaterNearHalf"), FMath::RoundHalfFromZero(1.5000001f), 2.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegLesserNearHalf"), FMath::RoundHalfFromZero(-1.5000001f), -2.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-GreaterThanHalf"), FMath::RoundHalfFromZero(1.6f), 2.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegLesserThanHalf"), FMath::RoundHalfFromZero(-1.6f), -2.0f);
-
-	TestEqual(TEXT("RoundHalfFromZero32-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(4194303.25f), 4194303.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(4194303.5f), 4194304.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(4194303.75f), 4194304.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(4194304.0f), 4194304.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(4194304.5f), 4194305.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-4194303.25f), -4194303.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-4194303.5f), -4194304.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-4194303.75f), -4194304.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-4194304.0f), -4194304.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-4194304.5f), -4194305.0f);
-
-	TestEqual(TEXT("RoundHalfFromZero32-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(8388607.0f), 8388607.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(8388607.5f), 8388608.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(8388608.0f), 8388608.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-8388607.0f), -8388607.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-8388607.5f), -8388608.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-8388608.0f), -8388608.0f);
-
-	TestEqual(TEXT("RoundHalfFromZero32-ZeroBitPrecision"), FMath::RoundHalfToZero(16777215.0f), 16777215.0f);
-	TestEqual(TEXT("RoundHalfFromZero32-NegZeroBitPrecision"), FMath::RoundHalfToZero(-16777215.0f), -16777215.0f);
-
-	TestEqual(TEXT("RoundHalfFromZero64-Zero"), FMath::RoundHalfFromZero(0.0), 0.0);
-	TestEqual(TEXT("RoundHalfFromZero64-One"), FMath::RoundHalfFromZero(1.0), 1.0);
-	TestEqual(TEXT("RoundHalfFromZero64-LessHalf"), FMath::RoundHalfFromZero(1.4), 1.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegGreaterHalf"), FMath::RoundHalfFromZero(-1.4), -1.0);
-	TestEqual(TEXT("RoundHalfFromZero64-LessNearHalf"), FMath::RoundHalfFromZero(1.4999999999999997), 1.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegGreaterNearHalf"), FMath::RoundHalfFromZero(-1.4999999999999997), -1.0);
-	TestEqual(TEXT("RoundHalfFromZero64-Half"), FMath::RoundHalfFromZero(1.5), 2.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegHalf"), FMath::RoundHalfFromZero(-1.5), -2.0);
-	TestEqual(TEXT("RoundHalfFromZero64-LessGreaterNearHalf"), FMath::RoundHalfFromZero(1.5000000000000002), 2.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegLesserNearHalf"), FMath::RoundHalfFromZero(-1.5000000000000002), -2.0);
-	TestEqual(TEXT("RoundHalfFromZero64-GreaterThanHalf"), FMath::RoundHalfFromZero(1.6), 2.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegLesserThanHalf"), FMath::RoundHalfFromZero(-1.6), -2.0);
-
-	TestEqual(TEXT("RoundHalfFromZero64-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(2251799813685247.25), 2251799813685247.0);
-	TestEqual(TEXT("RoundHalfFromZero64-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(2251799813685247.5), 2251799813685248.0);
-	TestEqual(TEXT("RoundHalfFromZero64-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(2251799813685247.75), 2251799813685248.0);
-	TestEqual(TEXT("RoundHalfFromZero64-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(2251799813685248.0), 2251799813685248.0);
-	TestEqual(TEXT("RoundHalfFromZero64-TwoToOneBitPrecision"), FMath::RoundHalfFromZero(2251799813685248.5), 2251799813685249.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-2251799813685247.25), -2251799813685247.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-2251799813685247.5), -2251799813685248.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-2251799813685247.75), -2251799813685248.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-2251799813685248.0), -2251799813685248.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegTwoToOneBitPrecision"), FMath::RoundHalfFromZero(-2251799813685248.5), -2251799813685249.0);
-
-	TestEqual(TEXT("RoundHalfFromZero64-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(4503599627370495.0), 4503599627370495.0);
-	TestEqual(TEXT("RoundHalfFromZero64-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(4503599627370495.5), 4503599627370496.0);
-	TestEqual(TEXT("RoundHalfFromZero64-OneToZeroBitPrecision"), FMath::RoundHalfFromZero(4503599627370496.0), 4503599627370496.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-4503599627370495.0), -4503599627370495.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-4503599627370495.5), -4503599627370496.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegOneToZeroBitPrecision"), FMath::RoundHalfFromZero(-4503599627370496.0), -4503599627370496.0);
-
-	TestEqual(TEXT("RoundHalfFromZero64-ZeroBitPrecision"), FMath::RoundHalfToZero(9007199254740991.0), 9007199254740991.0);
-	TestEqual(TEXT("RoundHalfFromZero64-NegZeroBitPrecision"), FMath::RoundHalfToZero(-9007199254740991.0), -9007199254740991.0);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FIsNearlyEqualByULPTest, "System.Core.Math.IsNearlyEqualByULP", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FIsNearlyEqualByULPTest::RunTest(const FString& Parameters)
-{
-	static const float FloatNan = std::numeric_limits<float>::quiet_NaN();
-	static const double DoubleNan = std::numeric_limits<double>::quiet_NaN();
-
-	static const float FloatInf = std::numeric_limits<float>::infinity();
-	static const double DoubleInf = std::numeric_limits<double>::infinity();
-
-	float FloatTrueMin;
-	double DoubleTrueMin;
-
-	// Construct our own true minimum float constants (aka std::numeric_limits<float>::denorm_min), 
-	// to ensure we don't get caught by any application or system-wide flush-to-zero or 
-	// denormals-are-zero settings.
-	{
-		uint32 FloatTrueMinInt = 0x00000001U;
-		uint64 DoubleTrueMinInt = 0x0000000000000001ULL;
-
-		::memcpy(&FloatTrueMin, &FloatTrueMinInt, sizeof(FloatTrueMinInt));
-		::memcpy(&DoubleTrueMin, &DoubleTrueMinInt, sizeof(DoubleTrueMinInt));
-	}
 
 
-	static struct TestItem
-	{
-		const FString &Name;
-		bool Predicate;
-		struct 
+		static struct TestItem
 		{
-			float A;
-			float B;
-		} F;
-		struct
+			const FString& Name;
+			bool Predicate;
+			struct
+			{
+				float A;
+				float B;
+			} F;
+			struct
+			{
+				double A;
+				double B;
+			} D;
+
+			int ULP = 4;
+		} TestItems[] = {
+			{"ZeroEqual",		true, {0.0f, 0.0f}, {0.0, 0.0}},
+			{"OneEqual",		true, {1.0f, 1.0f}, {1.0, 1.0}},
+			{"MinusOneEqual",	true, {-1.0f, -1.0f}, {-1.0, -1.0}},
+			{"PlusMinusOneNotEqual", false, {-1.0f, 1.0f}, {-1.0, 1.0}},
+
+			{"NanEqualFail",	false, {FloatNan, FloatNan}, {DoubleNan, DoubleNan}},
+
+			// FLT_EPSILON is the smallest quantity that can be added to 1.0 and still be considered a distinct number
+			{"OneULPDistUp",	true, {1.0f, 1.0f + FLT_EPSILON}, {1.0, 1.0 + DBL_EPSILON}, 1},
+
+			// Going below one, we need to halve the epsilon, since the exponent has been lowered by one and hence the 
+			// numerical density doubles between 0.5 and 1.0.
+			{"OneULPDistDown",	true, {1.0f, 1.0f - (FLT_EPSILON / 2.0f)}, {1.0, 1.0 - (DBL_EPSILON / 2.0)}, 1},
+
+			// Make sure the ULP distance is computed correctly for double epsilon.
+			{"TwoULPDist",		true, {1.0f, 1.0f + 2 * FLT_EPSILON}, {1.0, 1.0 + 2 * DBL_EPSILON}, 2},
+			{"TwoULPDistFail",	false, {1.0f, 1.0f + 2 * FLT_EPSILON}, {1.0, 1.0 + 2 * DBL_EPSILON}, 1},
+
+			// Check if the same test works for higher exponents on both sides.
+			{"ONeULPDistEight",	true, {8.0f, 8.0f + 8.0f * FLT_EPSILON}, {8.0, 8.0 + 8.0 * DBL_EPSILON}, 1},
+			{"ONeULPDistFailEight",	false, {8.0f, 8.0f + 16.0f * FLT_EPSILON}, {8.0, 8.0 + 16.0 * DBL_EPSILON}, 1},
+
+			// Test for values around the zero point.
+			{"AroundZero",		true, {-FloatTrueMin, FloatTrueMin}, {-DoubleTrueMin, DoubleTrueMin}, 2},
+			{"AroundZeroFail",	false, {-FloatTrueMin, FloatTrueMin}, {-DoubleTrueMin, DoubleTrueMin}, 1},
+
+			// Test for values close to zero and zero.
+			{"PosNextToZero",	true, {0, FloatTrueMin}, {0, DoubleTrueMin}, 1},
+			{"NegNextToZero",	true, {-FloatTrueMin, 0}, {-DoubleTrueMin, 0}, 1},
+
+			// Should fail, even for maximum ULP distance.
+			{"InfAndMaxFail",	false, {FLT_MAX, FloatInf}, {DBL_MAX, DoubleInf}, INT32_MAX},
+			{"InfAndNegInfFail", false, {-FloatInf, FloatInf}, {-DoubleInf, DoubleInf}, INT32_MAX},
+
+			// Two infinities of the same sign should compare the same, regardless of ULP.
+			{"InfAndInf",		true, {FloatInf, FloatInf}, {DoubleInf, DoubleInf}, 0},
+
+		};
+
+		bool(FIsNearlyEqualByULPTestClass::*FuncTrue)(const FString&, bool) = &FIsNearlyEqualByULPTestClass::CheckMessage;
+		bool(FIsNearlyEqualByULPTestClass::*FuncFalse)(const FString&, bool) = &FIsNearlyEqualByULPTestClass::CheckFalseMessage;
+
+		for (const TestItem& Item : TestItems)
 		{
-			double A;
-			double B;
-		} D;
+			auto Func = Item.Predicate ? FuncTrue : FuncFalse;
 
-		int ULP = 4;
-	} TestItems[] = {
-		{"ZeroEqual",		true, {0.0f, 0.0f}, {0.0, 0.0}},
-		{"OneEqual",		true, {1.0f, 1.0f}, {1.0, 1.0}},
-		{"MinusOneEqual",	true, {-1.0f, -1.0f}, {-1.0, -1.0}},
-		{"PlusMinusOneNotEqual", false, {-1.0f, 1.0f}, {-1.0, 1.0}},
-
-		{"NanEqualFail",	false, {FloatNan, FloatNan}, {DoubleNan, DoubleNan}},
-
-		// FLT_EPSILON is the smallest quantity that can be added to 1.0 and still be considered a distinct number
-		{"OneULPDistUp",	true, {1.0f, 1.0f + FLT_EPSILON}, {1.0, 1.0 + DBL_EPSILON}, 1},
-
-		// Going below one, we need to halve the epsilon, since the exponent has been lowered by one and hence the 
-		// numerical density doubles between 0.5 and 1.0.
-		{"OneULPDistDown",	true, {1.0f, 1.0f - (FLT_EPSILON / 2.0f)}, {1.0, 1.0 - (DBL_EPSILON / 2.0)}, 1},
-
-		// Make sure the ULP distance is computed correctly for double epsilon.
-		{"TwoULPDist",		true, {1.0f, 1.0f + 2 * FLT_EPSILON}, {1.0, 1.0 + 2 * DBL_EPSILON}, 2},
-		{"TwoULPDistFail",	false, {1.0f, 1.0f + 2 * FLT_EPSILON}, {1.0, 1.0 + 2 * DBL_EPSILON}, 1},
-
-		// Check if the same test works for higher exponents on both sides.
-		{"ONeULPDistEight",	true, {8.0f, 8.0f + 8.0f * FLT_EPSILON}, {8.0, 8.0 + 8.0 * DBL_EPSILON}, 1},
-		{"ONeULPDistFailEight",	false, {8.0f, 8.0f + 16.0f * FLT_EPSILON}, {8.0, 8.0 + 16.0 * DBL_EPSILON}, 1},
-
-		// Test for values around the zero point.
-		{"AroundZero",		true, {-FloatTrueMin, FloatTrueMin}, {-DoubleTrueMin, DoubleTrueMin}, 2},
-		{"AroundZeroFail",	false, {-FloatTrueMin, FloatTrueMin}, {-DoubleTrueMin, DoubleTrueMin}, 1},
-
-		// Test for values close to zero and zero.
-		{"PosNextToZero",	true, {0, FloatTrueMin}, {0, DoubleTrueMin}, 1},
-		{"NegNextToZero",	true, {-FloatTrueMin, 0}, {-DoubleTrueMin, 0}, 1},
-
-		// Should fail, even for maximum ULP distance.
-		{"InfAndMaxFail",	false, {FLT_MAX, FloatInf}, {DBL_MAX, DoubleInf}, INT32_MAX},
-		{"InfAndNegInfFail", false, {-FloatInf, FloatInf}, {-DoubleInf, DoubleInf}, INT32_MAX},
-
-		// Two infinities of the same sign should compare the same, regardless of ULP.
-		{"InfAndInf",		true, {FloatInf, FloatInf}, {DoubleInf, DoubleInf}, 0},
-
-	};
-
-	bool(FAutomationTestBase::*FuncTrue)(const FString &, bool) = &FAutomationTestBase::TestTrue;
-	bool(FAutomationTestBase::*FuncFalse)(const FString &, bool) = &FAutomationTestBase::TestFalse;
-
-	for (const TestItem& Item : TestItems)
-	{
-		auto Func = Item.Predicate ? FuncTrue : FuncFalse;
-
-		(this->*Func)(Item.Name + "-Float", FMath::IsNearlyEqualByULP(Item.F.A, Item.F.B, Item.ULP));
-		(this->*Func)(Item.Name + "-Double", FMath::IsNearlyEqualByULP(Item.D.A, Item.D.B, Item.ULP));
+			(this->*Func)(Item.Name + "-Float", FMath::IsNearlyEqualByULP(Item.F.A, Item.F.B, Item.ULP));
+			(this->*Func)(Item.Name + "-Double", FMath::IsNearlyEqualByULP(Item.D.A, Item.D.B, Item.ULP));
+		}
+		return true;
 	}
-
-	return true;
+};
+TEST_CASE_NAMED(FIsNearlyEqualByULPTest, "System::Core::Math::IsNearlyEqualByULP", "[ApplicationContextMask][SmokeFilter]")
+{
+	FIsNearlyEqualByULPTestClass Instance;
+	Instance.IsNearlyEqualByULPTest();
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMathTruncationTests, "System.Core.Math.TruncationFunctions", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
-bool FMathTruncationTests::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FMathTruncationTests, "System::Core::Math::TruncationFunctions", "[ApplicationContextMask][EngineFilter]")
 {
 	// Float: 1-bit Sign, 8-bit exponent, 23-bit mantissa, implicit 1
-	float FloatTestCases[][5] {
+	float FloatTestCases[][5]{
 		//Value				Trunc				Ceil				Floor				Round		
 		{-1.5f,				-1.0f,				-1.0f,				-2.0f,				-1.0f,				}, // We do not use round half to even, we always round .5 up (towards +inf)
 		{-1.0f,				-1.0f,				-1.0f,				-1.0f,				-1.0f,				},
@@ -4216,7 +4218,7 @@ bool FMathTruncationTests::RunTest(const FString& Parameters)
 	static_assert(UE_ARRAY_COUNT(FloatTestCases) == UE_ARRAY_COUNT(IntTestCases), "IntTestCases use the value from FloatTestCases and must be the same length");
 
 	TCHAR TestNameBuffer[128];
-	auto SubTestName = [&TestNameBuffer] (const TCHAR* FunctionName, double Input) {
+	auto SubTestName = [&TestNameBuffer](const TCHAR* FunctionName, double Input) {
 		FCString::Snprintf(TestNameBuffer, UE_ARRAY_COUNT(TestNameBuffer), TEXT("%s(%lf)"), FunctionName, Input);
 		return TestNameBuffer;
 	};
@@ -4226,18 +4228,18 @@ bool FMathTruncationTests::RunTest(const FString& Parameters)
 		float* FloatValues = FloatTestCases[TestCaseIndex];
 		float Input = FloatValues[0];
 
-		TestEqual(SubTestName(TEXT("TruncToFloat"), Input), FMath::TruncToFloat(Input), FloatValues[1]);
-		TestEqual(SubTestName(TEXT("CeilToFloat"), Input), FMath::CeilToFloat(Input), FloatValues[2]);
-		TestEqual(SubTestName(TEXT("FloorToFloat"), Input), FMath::FloorToFloat(Input), FloatValues[3]);
-		TestEqual(SubTestName(TEXT("RoundToFloat"), Input), FMath::RoundToFloat(Input), FloatValues[4]);
+		CHECK_MESSAGE(SubTestName(TEXT("TruncToFloat"), Input), FMath::TruncToFloat(Input) == FloatValues[1]);
+		CHECK_MESSAGE(SubTestName(TEXT("CeilToFloat"), Input), FMath::CeilToFloat(Input) == FloatValues[2]);
+		CHECK_MESSAGE(SubTestName(TEXT("FloorToFloat"), Input), FMath::FloorToFloat(Input) == FloatValues[3]);
+		CHECK_MESSAGE(SubTestName(TEXT("RoundToFloat"), Input), FMath::RoundToFloat(Input) == FloatValues[4]);
 
 		int* IntValues = IntTestCases[TestCaseIndex];
 		if ((float)MIN_int32 <= Input && Input <= (float)MAX_int32)
 		{
-			TestEqual(SubTestName(TEXT("TruncToInt"), Input), FMath::TruncToInt(Input), IntValues[0]);
-			TestEqual(SubTestName(TEXT("CeilToInt"), Input), FMath::CeilToInt(Input), IntValues[1]);
-			TestEqual(SubTestName(TEXT("FloorToInt"), Input), FMath::FloorToInt(Input), IntValues[2]);
-			TestEqual(SubTestName(TEXT("RoundToInt"), Input), FMath::RoundToInt(Input), IntValues[3]);
+			CHECK_MESSAGE(SubTestName(TEXT("TruncToInt"), Input), FMath::TruncToInt(Input) == IntValues[0]);
+			CHECK_MESSAGE(SubTestName(TEXT("CeilToInt"), Input), FMath::CeilToInt(Input) == IntValues[1]);
+			CHECK_MESSAGE(SubTestName(TEXT("FloorToInt"), Input), FMath::FloorToInt(Input) == IntValues[2]);
+			CHECK_MESSAGE(SubTestName(TEXT("RoundToInt"), Input), FMath::RoundToInt(Input) == IntValues[3]);
 		}
 	}
 
@@ -4270,10 +4272,10 @@ bool FMathTruncationTests::RunTest(const FString& Parameters)
 		double* DoubleValues = DoubleTestCases[TestCaseIndex];
 		double Input = DoubleValues[0];
 
-		TestEqual(SubTestName(TEXT("TruncToDouble"), Input), FMath::TruncToDouble(Input), DoubleValues[1]);
-		TestEqual(SubTestName(TEXT("CeilToDouble"), Input), FMath::CeilToDouble(Input), DoubleValues[2]);
-		TestEqual(SubTestName(TEXT("FloorToDouble"), Input), FMath::FloorToDouble(Input), DoubleValues[3]);
-		TestEqual(SubTestName(TEXT("RoundToDouble"), Input), FMath::RoundToDouble(Input), DoubleValues[4]);
+		CHECK_MESSAGE(SubTestName(TEXT("TruncToDouble"), Input), FMath::TruncToDouble(Input) == DoubleValues[1]);
+		CHECK_MESSAGE(SubTestName(TEXT("CeilToDouble"), Input), FMath::CeilToDouble(Input) == DoubleValues[2]);
+		CHECK_MESSAGE(SubTestName(TEXT("FloorToDouble"), Input), FMath::FloorToDouble(Input) == DoubleValues[3]);
+		CHECK_MESSAGE(SubTestName(TEXT("RoundToDouble"), Input), FMath::RoundToDouble(Input) == DoubleValues[4]);
 	}
 
 #define MATH_TRUNCATION_SPEED_TEST
@@ -4285,7 +4287,7 @@ bool FMathTruncationTests::RunTest(const FString& Parameters)
 	{
 		double StartTime = FPlatformTime::Seconds();
 		const float StartInput = 0.6f;
-		const float NumTrials = 10.f*1000.f*1000.f;
+		const float NumTrials = 10.f * 1000.f * 1000.f;
 		const float MicroSecondsPerSecond = 1000 * 1000.f;
 		for (float Input = StartInput; Input < NumTrials; Input += 1.0f)
 		{
@@ -4301,7 +4303,7 @@ bool FMathTruncationTests::RunTest(const FString& Parameters)
 		EndTime = FPlatformTime::Seconds();
 		double GenericDuration = EndTime - StartTime;
 
-		UE_LOG(LogInit, Log, TEXT("%s: FMath time: %lfus, Generic: %lfus"), SubFunctionName, FMathDuration*MicroSecondsPerSecond / NumTrials, GenericDuration*MicroSecondsPerSecond / NumTrials);
+		UE_LOG(LogInit, Log, TEXT("%s: FMath time: %lfus, Generic: %lfus"), SubFunctionName, FMathDuration * MicroSecondsPerSecond / NumTrials, GenericDuration * MicroSecondsPerSecond / NumTrials);
 	};
 
 	TimeIt(TEXT("TruncToInt"), [](float Input) { return (float)FMath::TruncToInt(Input); }, [](float Input) { return (float)FGenericPlatformMath::TruncToInt(Input); });
@@ -4319,65 +4321,59 @@ bool FMathTruncationTests::RunTest(const FString& Parameters)
 	TimeIt(TEXT("FloorToDouble"), [](float Input) { return (float)FMath::FloorToDouble((double)Input); }, [](float Input) { return (float)FGenericPlatformMath::FloorToDouble((double)Input); });
 	TimeIt(TEXT("RoundToDouble"), [](float Input) { return (float)FMath::RoundToDouble((double)Input); }, [](float Input) { return (float)FGenericPlatformMath::RoundToDouble((double)Input); });
 #endif
-
-	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMathIntegerTests, "System.Core.Math.IntegerFunctions", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FMathIntegerTests::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FMathIntegerTests, "System::Core::Math::IntegerFunctions", "[ApplicationContextMask][SmokeFilter]")
 {
 	// Test CountLeadingZeros8
-	TestEqual(TEXT("CountLeadingZeros8(0)"), FMath::CountLeadingZeros8(0), 8);
-	TestEqual(TEXT("CountLeadingZeros8(1)"), FMath::CountLeadingZeros8(1), 7);
-	TestEqual(TEXT("CountLeadingZeros8(2)"), FMath::CountLeadingZeros8(2), 6);
-	TestEqual(TEXT("CountLeadingZeros8(0x7f)"), FMath::CountLeadingZeros8(0x7f), 1);
-	TestEqual(TEXT("CountLeadingZeros8(0x80)"), FMath::CountLeadingZeros8(0x80), 0);
-	TestEqual(TEXT("CountLeadingZeros8(0xff)"), FMath::CountLeadingZeros8(0xff), 0);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros8(0)"), FMath::CountLeadingZeros8(0) == 8);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros8(1)"), FMath::CountLeadingZeros8(1) == 7);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros8(2)"), FMath::CountLeadingZeros8(2) == 6);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros8(0x7f)"), FMath::CountLeadingZeros8(0x7f) == 1);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros8(0x80)"), FMath::CountLeadingZeros8(0x80) == 0);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros8(0xff)"), FMath::CountLeadingZeros8(0xff) == 0);
 
 	// Test CountLeadingZeros
-	TestEqual(TEXT("CountLeadingZeros(0)"), FMath::CountLeadingZeros(0), 32);
-	TestEqual(TEXT("CountLeadingZeros(1)"), FMath::CountLeadingZeros(1), 31);
-	TestEqual(TEXT("CountLeadingZeros(2)"), FMath::CountLeadingZeros(2), 30);
-	TestEqual(TEXT("CountLeadingZeros(0x7fffffff)"), FMath::CountLeadingZeros(0x7fffffff), 1);
-	TestEqual(TEXT("CountLeadingZeros(0x80000000)"), FMath::CountLeadingZeros(0x80000000), 0);
-	TestEqual(TEXT("CountLeadingZeros(0xffffffff)"), FMath::CountLeadingZeros(0xffffffff), 0);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros(0)"), FMath::CountLeadingZeros(0) == 32);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros(1)"), FMath::CountLeadingZeros(1) == 31);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros(2)"), FMath::CountLeadingZeros(2) == 30);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros(0x7fffffff)"), FMath::CountLeadingZeros(0x7fffffff) == 1);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros(0x80000000)"), FMath::CountLeadingZeros(0x80000000) == 0);
+	CHECK_MESSAGE(TEXT("CountLeadingZeros(0xffffffff)"), FMath::CountLeadingZeros(0xffffffff) == 0);
 
 	// Test CountLeadingZeros64
-	TestEqual(TEXT("CountLeadingZeros64(0)"), FMath::CountLeadingZeros64(0), uint64(64));
-	TestEqual(TEXT("CountLeadingZeros64(1)"), FMath::CountLeadingZeros64(1), uint64(63));
-	TestEqual(TEXT("CountLeadingZeros64(2)"), FMath::CountLeadingZeros64(2), uint64(62));
-	TestEqual(TEXT("CountLeadingZeros64(0x7fffffff'ffffffff)"), FMath::CountLeadingZeros64(0x7fffffff'ffffffff), uint64(1));
-	TestEqual(TEXT("CountLeadingZeros64(0x80000000'00000000)"), FMath::CountLeadingZeros64(0x80000000'00000000), uint64(0));
-	TestEqual(TEXT("CountLeadingZeros64(0xffffffff'ffffffff)"), FMath::CountLeadingZeros64(0xffffffff'ffffffff), uint64(0));
+	CHECK_MESSAGE(TEXT("CountLeadingZeros64(0)"), FMath::CountLeadingZeros64(0) == uint64(64));
+	CHECK_MESSAGE(TEXT("CountLeadingZeros64(1)"), FMath::CountLeadingZeros64(1) == uint64(63));
+	CHECK_MESSAGE(TEXT("CountLeadingZeros64(2)"), FMath::CountLeadingZeros64(2) == uint64(62));
+	CHECK_MESSAGE(TEXT("CountLeadingZeros64(0x7fffffff'ffffffff)"), FMath::CountLeadingZeros64(0x7fffffff'ffffffff) == uint64(1));
+	CHECK_MESSAGE(TEXT("CountLeadingZeros64(0x80000000'00000000)"), FMath::CountLeadingZeros64(0x80000000'00000000) == uint64(0));
+	CHECK_MESSAGE(TEXT("CountLeadingZeros64(0xffffffff'ffffffff)"), FMath::CountLeadingZeros64(0xffffffff'ffffffff) == uint64(0));
 
 	// Test FloorLog2
-	TestEqual(TEXT("FloorLog2(0)"), FMath::FloorLog2(0), 0);
-	TestEqual(TEXT("FloorLog2(1)"), FMath::FloorLog2(1), 0);
-	TestEqual(TEXT("FloorLog2(2)"), FMath::FloorLog2(2), 1);
-	TestEqual(TEXT("FloorLog2(3)"), FMath::FloorLog2(3), 1);
-	TestEqual(TEXT("FloorLog2(4)"), FMath::FloorLog2(4), 2);
-	TestEqual(TEXT("FloorLog2(0x7fffffff)"), FMath::FloorLog2(0x7fffffff), 30);
-	TestEqual(TEXT("FloorLog2(0x80000000)"), FMath::FloorLog2(0x80000000), 31);
-	TestEqual(TEXT("FloorLog2(0xffffffff)"), FMath::FloorLog2(0xffffffff), 31);
+	CHECK_MESSAGE(TEXT("FloorLog2(0)"), FMath::FloorLog2(0) == 0);
+	CHECK_MESSAGE(TEXT("FloorLog2(1)"), FMath::FloorLog2(1) == 0);
+	CHECK_MESSAGE(TEXT("FloorLog2(2)"), FMath::FloorLog2(2) == 1);
+	CHECK_MESSAGE(TEXT("FloorLog2(3)"), FMath::FloorLog2(3) == 1);
+	CHECK_MESSAGE(TEXT("FloorLog2(4)"), FMath::FloorLog2(4) == 2);
+	CHECK_MESSAGE(TEXT("FloorLog2(0x7fffffff)"), FMath::FloorLog2(0x7fffffff) == 30);
+	CHECK_MESSAGE(TEXT("FloorLog2(0x80000000)"), FMath::FloorLog2(0x80000000) == 31);
+	CHECK_MESSAGE(TEXT("FloorLog2(0xffffffff)"), FMath::FloorLog2(0xffffffff) == 31);
 
 	// Test FloorLog2_64
-	TestEqual(TEXT("FloorLog2_64(0)"), FMath::FloorLog2_64(0), uint64(0));
-	TestEqual(TEXT("FloorLog2_64(1)"), FMath::FloorLog2_64(1), uint64(0));
-	TestEqual(TEXT("FloorLog2_64(2)"), FMath::FloorLog2_64(2), uint64(1));
-	TestEqual(TEXT("FloorLog2_64(3)"), FMath::FloorLog2_64(3), uint64(1));
-	TestEqual(TEXT("FloorLog2_64(4)"), FMath::FloorLog2_64(4), uint64(2));
-	TestEqual(TEXT("FloorLog2_64(0x7fffffff)"), FMath::FloorLog2_64(0x7fffffff), uint64(30));
-	TestEqual(TEXT("FloorLog2_64(0x80000000)"), FMath::FloorLog2_64(0x80000000), uint64(31));
-	TestEqual(TEXT("FloorLog2_64(0xffffffff)"), FMath::FloorLog2_64(0xffffffff), uint64(31));
-	TestEqual(TEXT("FloorLog2_64(0x7fffffff'ffffffff)"), FMath::FloorLog2_64(0x7fffffff'ffffffff), uint64(62));
-	TestEqual(TEXT("FloorLog2_64(0x80000000'00000000)"), FMath::FloorLog2_64(0x80000000'00000000), uint64(63));
-	TestEqual(TEXT("FloorLog2_64(0xffffffff'ffffffff)"), FMath::FloorLog2_64(0xffffffff'ffffffff), uint64(63));
-
-	return true;
+	CHECK_MESSAGE(TEXT("FloorLog2_64(0)"), FMath::FloorLog2_64(0) == uint64(0));
+	CHECK_MESSAGE(TEXT("FloorLog2_64(1)"), FMath::FloorLog2_64(1) == uint64(0));
+	CHECK_MESSAGE(TEXT("FloorLog2_64(2)"), FMath::FloorLog2_64(2) == uint64(1));
+	CHECK_MESSAGE(TEXT("FloorLog2_64(3)"), FMath::FloorLog2_64(3) == uint64(1));
+	CHECK_MESSAGE(TEXT("FloorLog2_64(4)"), FMath::FloorLog2_64(4) == uint64(2));
+	CHECK_MESSAGE(TEXT("FloorLog2_64(0x7fffffff)"), FMath::FloorLog2_64(0x7fffffff) == uint64(30));
+	CHECK_MESSAGE(TEXT("FloorLog2_64(0x80000000)"), FMath::FloorLog2_64(0x80000000) == uint64(31));
+	CHECK_MESSAGE(TEXT("FloorLog2_64(0xffffffff)"), FMath::FloorLog2_64(0xffffffff) == uint64(31));
+	CHECK_MESSAGE(TEXT("FloorLog2_64(0x7fffffff'ffffffff)"), FMath::FloorLog2_64(0x7fffffff'ffffffff) == uint64(62));
+	CHECK_MESSAGE(TEXT("FloorLog2_64(0x80000000'00000000)"), FMath::FloorLog2_64(0x80000000'00000000) == uint64(63));
+	CHECK_MESSAGE(TEXT("FloorLog2_64(0xffffffff'ffffffff)"), FMath::FloorLog2_64(0xffffffff'ffffffff) == uint64(63));
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNanInfVerificationTest, "System.Core.Math.NaNandInfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FNanInfVerificationTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FNanInfVerificationTest, "System::Core::Math::NaNandInfTest", "[ApplicationContextMask][SmokeFilter]")
 {
 	static float FloatNan = FMath::Sqrt(-1.0f);
 	static double DoubleNan = double(FloatNan);
@@ -4394,63 +4390,57 @@ bool FNanInfVerificationTest::RunTest(const FString& Parameters)
 	static double DoubleMax = std::numeric_limits<double>::max();
 	static float FloatMax = std::numeric_limits<float>::max();
 
-	TestTrue(TEXT("HasQuietNaNFloat"), std::numeric_limits<float>::has_quiet_NaN);
-	TestTrue(TEXT("HasQuietNaNDouble"), std::numeric_limits<double>::has_quiet_NaN);
-	TestTrue(TEXT("HasInfinityFloat"), std::numeric_limits<float>::has_infinity);
-	TestTrue(TEXT("HasInfinityDouble"), std::numeric_limits<double>::has_infinity);
+	CHECK_MESSAGE(TEXT("HasQuietNaNFloat"), std::numeric_limits<float>::has_quiet_NaN);
+	CHECK_MESSAGE(TEXT("HasQuietNaNDouble"), std::numeric_limits<double>::has_quiet_NaN);
+	CHECK_MESSAGE(TEXT("HasInfinityFloat"), std::numeric_limits<float>::has_infinity);
+	CHECK_MESSAGE(TEXT("HasInfinityDouble"), std::numeric_limits<double>::has_infinity);
 
-	TestTrue(TEXT("SqrtNegOneIsNanFloat"), std::isnan(FloatNan));
-	TestTrue(TEXT("SqrtNegOneIsNanDouble"), std::isnan(DoubleNan));
-	TestTrue(TEXT("OneOverZeroIsInfFloat"), !std::isfinite(FloatInf) && !std::isnan(FloatInf));
-	TestTrue(TEXT("OneOverZeroIsInfDouble"), !std::isfinite(DoubleInf) && !std::isnan(DoubleInf));
+	CHECK_MESSAGE(TEXT("SqrtNegOneIsNanFloat"), std::isnan(FloatNan));
+	CHECK_MESSAGE(TEXT("SqrtNegOneIsNanDouble"), std::isnan(DoubleNan));
+	CHECK_MESSAGE(TEXT("OneOverZeroIsInfFloat"), !std::isfinite(FloatInf) && !std::isnan(FloatInf));
+	CHECK_MESSAGE(TEXT("OneOverZeroIsInfDouble"), !std::isfinite(DoubleInf) && !std::isnan(DoubleInf));
 
-	TestTrue(TEXT("UE4IsNanTrueFloat"), FPlatformMath::IsNaN(FloatNan));
-	TestTrue(TEXT("UE4IsNanFalseFloat"), !FPlatformMath::IsNaN(0.0f));
-	TestTrue(TEXT("UE4IsNanTrueDouble"), FPlatformMath::IsNaN(DoubleNan));
-	TestTrue(TEXT("UE4IsNanFalseDouble"), !FPlatformMath::IsNaN(0.0));
+	CHECK_MESSAGE(TEXT("UE4IsNanTrueFloat"), FPlatformMath::IsNaN(FloatNan));
+	CHECK_MESSAGE(TEXT("UE4IsNanFalseFloat"), !FPlatformMath::IsNaN(0.0f));
+	CHECK_MESSAGE(TEXT("UE4IsNanTrueDouble"), FPlatformMath::IsNaN(DoubleNan));
+	CHECK_MESSAGE(TEXT("UE4IsNanFalseDouble"), !FPlatformMath::IsNaN(0.0));
 
-	TestTrue(TEXT("UE4IsFiniteTrueFloat"), FPlatformMath::IsFinite(0.0f) && !FPlatformMath::IsNaN(0.0f));
-	TestTrue(TEXT("UE4IsFiniteFalseFloat"), !FPlatformMath::IsFinite(FloatInf) && !FPlatformMath::IsNaN(FloatInf));
-	TestTrue(TEXT("UE4IsFiniteTrueDouble"), FPlatformMath::IsFinite(0.0) && !FPlatformMath::IsNaN(0.0));
-	TestTrue(TEXT("UE4IsFiniteFalseDouble"), !FPlatformMath::IsFinite(DoubleInf) && !FPlatformMath::IsNaN(DoubleInf));
+	CHECK_MESSAGE(TEXT("UE4IsFiniteTrueFloat"), FPlatformMath::IsFinite(0.0f) && !FPlatformMath::IsNaN(0.0f));
+	CHECK_MESSAGE(TEXT("UE4IsFiniteFalseFloat"), !FPlatformMath::IsFinite(FloatInf) && !FPlatformMath::IsNaN(FloatInf));
+	CHECK_MESSAGE(TEXT("UE4IsFiniteTrueDouble"), FPlatformMath::IsFinite(0.0) && !FPlatformMath::IsNaN(0.0));
+	CHECK_MESSAGE(TEXT("UE4IsFiniteFalseDouble"), !FPlatformMath::IsFinite(DoubleInf) && !FPlatformMath::IsNaN(DoubleInf));
 
-	TestTrue(TEXT("UE4IsNanStdFloat"), FPlatformMath::IsNaN(FloatStdNan));
-	TestTrue(TEXT("UE4IsNanStdDouble"), FPlatformMath::IsNaN(DoubleStdNan));
+	CHECK_MESSAGE(TEXT("UE4IsNanStdFloat"), FPlatformMath::IsNaN(FloatStdNan));
+	CHECK_MESSAGE(TEXT("UE4IsNanStdDouble"), FPlatformMath::IsNaN(DoubleStdNan));
 
-	TestTrue(TEXT("UE4IsFiniteStdFloat"), !FPlatformMath::IsFinite(FloatStdInf) && !FPlatformMath::IsNaN(FloatStdInf));
-	TestTrue(TEXT("UE4IsFiniteStdDouble"), !FPlatformMath::IsFinite(DoubleStdInf) && !FPlatformMath::IsNaN(DoubleStdInf));
+	CHECK_MESSAGE(TEXT("UE4IsFiniteStdFloat"), !FPlatformMath::IsFinite(FloatStdInf) && !FPlatformMath::IsNaN(FloatStdInf));
+	CHECK_MESSAGE(TEXT("UE4IsFiniteStdDouble"), !FPlatformMath::IsFinite(DoubleStdInf) && !FPlatformMath::IsNaN(DoubleStdInf));
 
 	// test for Mac/Linux regression where IsFinite did not have a double equivalent so would downcast to a float and return INF.
-	TestTrue(TEXT("UE4IsFiniteDoubleMax"), FPlatformMath::IsFinite(DoubleMax) && !FPlatformMath::IsNaN(DoubleMax));
-	TestTrue(TEXT("UE4IsFiniteFloatMax"), FPlatformMath::IsFinite(FloatMax) && !FPlatformMath::IsNaN(FloatMax));
-
-	return true;
+	CHECK_MESSAGE(TEXT("UE4IsFiniteDoubleMax"), FPlatformMath::IsFinite(DoubleMax) && !FPlatformMath::IsNaN(DoubleMax));
+	CHECK_MESSAGE(TEXT("UE4IsFiniteFloatMax"), FPlatformMath::IsFinite(FloatMax) && !FPlatformMath::IsNaN(FloatMax));
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBitCastTest, "System.Core.Math.Bitcast", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FBitCastTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FBitCastTest, "System::Core::Math::Bitcast", "[ApplicationContextMask][SmokeFilter]")
 {
-	TestTrue(TEXT("CastFloatToInt32_0"),  FPlatformMath::AsUInt( 0.0f) == 0x00000000U);
-	TestTrue(TEXT("CastFloatToInt32_P1"), FPlatformMath::AsUInt(+1.0f) == 0x3f800000U);
-	TestTrue(TEXT("CastFloatToInt32_N1"), FPlatformMath::AsUInt(-1.0f) == 0xbf800000U);
+	CHECK_MESSAGE(TEXT("CastFloatToInt32_0"), FPlatformMath::AsUInt(0.0f) == 0x00000000U);
+	CHECK_MESSAGE(TEXT("CastFloatToInt32_P1"), FPlatformMath::AsUInt(+1.0f) == 0x3f800000U);
+	CHECK_MESSAGE(TEXT("CastFloatToInt32_N1"), FPlatformMath::AsUInt(-1.0f) == 0xbf800000U);
 
-	TestTrue(TEXT("CastFloatToInt64_0"),  FPlatformMath::AsUInt( 0.0) == 0x0000000000000000ULL);
-	TestTrue(TEXT("CastFloatToInt64_P1"), FPlatformMath::AsUInt(+1.0) == 0x3ff0000000000000ULL);
-	TestTrue(TEXT("CastFloatToInt64_N1"), FPlatformMath::AsUInt(-1.0) == 0xbff0000000000000ULL);
+	CHECK_MESSAGE(TEXT("CastFloatToInt64_0"), FPlatformMath::AsUInt(0.0) == 0x0000000000000000ULL);
+	CHECK_MESSAGE(TEXT("CastFloatToInt64_P1"), FPlatformMath::AsUInt(+1.0) == 0x3ff0000000000000ULL);
+	CHECK_MESSAGE(TEXT("CastFloatToInt64_N1"), FPlatformMath::AsUInt(-1.0) == 0xbff0000000000000ULL);
 
-	TestTrue(TEXT("CastIntToFloat32_0"),  FPlatformMath::AsFloat(static_cast<uint32>(0x00000000U)) == 0.0f);
-	TestTrue(TEXT("CastIntToFloat32_P1"), FPlatformMath::AsFloat(static_cast<uint32>(0x3f800000U)) == +1.0f);
-	TestTrue(TEXT("CastIntToFloat32_N1"), FPlatformMath::AsFloat(static_cast<uint32>(0xbf800000U)) == -1.0f);
+	CHECK_MESSAGE(TEXT("CastIntToFloat32_0"), FPlatformMath::AsFloat(static_cast<uint32>(0x00000000U)) == 0.0f);
+	CHECK_MESSAGE(TEXT("CastIntToFloat32_P1"), FPlatformMath::AsFloat(static_cast<uint32>(0x3f800000U)) == +1.0f);
+	CHECK_MESSAGE(TEXT("CastIntToFloat32_N1"), FPlatformMath::AsFloat(static_cast<uint32>(0xbf800000U)) == -1.0f);
 
-	TestTrue(TEXT("CastIntToFloat64_0"),  FPlatformMath::AsFloat(static_cast<uint64>(0x0000000000000000ULL)) == 0.0);
-	TestTrue(TEXT("CastIntToFloat64_P1"), FPlatformMath::AsFloat(static_cast<uint64>(0x3ff0000000000000ULL)) == +1.0);
-	TestTrue(TEXT("CastIntToFloat64_N1"), FPlatformMath::AsFloat(static_cast<uint64>(0xbff0000000000000ULL)) == -1.0);
-
-	return true;
+	CHECK_MESSAGE(TEXT("CastIntToFloat64_0"), FPlatformMath::AsFloat(static_cast<uint64>(0x0000000000000000ULL)) == 0.0);
+	CHECK_MESSAGE(TEXT("CastIntToFloat64_P1"), FPlatformMath::AsFloat(static_cast<uint64>(0x3ff0000000000000ULL)) == +1.0);
+	CHECK_MESSAGE(TEXT("CastIntToFloat64_N1"), FPlatformMath::AsFloat(static_cast<uint64>(0xbff0000000000000ULL)) == -1.0);
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMathWrapTest, "System.Core.Math.Wrap", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FMathWrapTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FMathWrapTest, "System::Core::Math::Wrap", "[ApplicationContextMask][SmokeFilter]")
 {
 	for (int Val = -5; Val != 5; ++Val)
 	{
@@ -4460,7 +4450,7 @@ bool FMathWrapTest::RunTest(const FString& Parameters)
 			{
 				int Wrap = FMath::Wrap(Val, Min, Min);
 
-				TestTrue(TEXT("Wrapped value should be in the empty range"), Wrap == Min);
+				CHECK_MESSAGE(TEXT("Wrapped value should be in the empty range"), Wrap == Min);
 			}
 
 			for (int Size = 1; Size != 5; ++Size)
@@ -4468,56 +4458,60 @@ bool FMathWrapTest::RunTest(const FString& Parameters)
 				int Max = Min + Size;
 				int Wrap = FMath::Wrap(Val, Min, Max);
 
-				TestTrue(TEXT("Wrapped value should be in the non-empty range"), Wrap >= Min && Wrap <= Max);
-				TestTrue(FString::Printf(TEXT("Wrapped value should be at a distance which is an exact multiple of the range size: (Val: %d, Min: %d, Max: %d, Wrap: %d, Mod: %d)"), Val, Min, Max, Wrap, (Wrap - Val) % Size), (Wrap - Val) % Size == 0);
+				CHECK_MESSAGE(TEXT("Wrapped value should be in the non-empty range"), Wrap >= Min && Wrap <= Max);
+				CHECK_MESSAGE(FString::Printf(TEXT("Wrapped value should be at a distance which is an exact multiple of the range size: (Val: %d, Min: %d, Max: %d, Wrap: %d, Mod: %d)"), Val, Min, Max, Wrap, (Wrap - Val) % Size), (Wrap - Val) % Size == 0);
 
 				if (Val < Min)
 				{
-					TestNotEqual(TEXT("Wrapping a value from below a non-empty range should never give the max"), Wrap, Max);
+					CHECK_FALSE_MESSAGE(TEXT("Wrapping a value from below a non-empty range should never give the max"), Wrap == Max);
 				}
 				else if (Val > Max)
 				{
-					TestNotEqual(TEXT("Wrapping a value from above a non-empty range should never give the min"), Wrap, Min);
+					CHECK_FALSE_MESSAGE(TEXT("Wrapping a value from above a non-empty range should never give the min"), Wrap == Min);
 				}
 			}
 		}
 	}
-
-	return true;
 }
+class FInitVectorTestClass {
+public:
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInitVectorTest, "System.Core.Math.InitVector", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FInitVectorTest::RunTest(const FString& Parameters)
-{
+	bool InitVectorTest(){
 	auto TestInitFromCompactString = [this](const FString& InTestName, const FVector& InExpected)
 	{
 		FVector Actual(13.37f, 13.37f, 13.37f);
 		const bool bIsInitialized = Actual.InitFromCompactString(InExpected.ToCompactString());
 
-		TestTrue(*(InTestName + " return value"), bIsInitialized);
-		TestEqual(*InTestName, Actual, InExpected, UE_KINDA_SMALL_NUMBER);
+		CHECK_MESSAGE(*(InTestName + " return value"), bIsInitialized);
+		CHECK_MESSAGE(*InTestName, InExpected.Equals(Actual, UE_KINDA_SMALL_NUMBER)); //
 	};
 
 	TestInitFromCompactString(TEXT("InitFromCompactString Simple"), FVector(1.2f, 2.3f, 3.4f));
 	TestInitFromCompactString(TEXT("InitFromCompactString Zero"), FVector(0, 0, 0));
 	TestInitFromCompactString(TEXT("InitFromCompactString Int"), FVector(1, 2, 3));
-	
+
 	TestInitFromCompactString(TEXT("InitFromCompactString X == 0"), FVector(0, 2, 3));
 	TestInitFromCompactString(TEXT("InitFromCompactString Y == 0"), FVector(1.3f, 0, 3.7f));
 	TestInitFromCompactString(TEXT("InitFromCompactString Z == 0"), FVector(1.2f, 2.5f, 0));
-	
+
 	TestInitFromCompactString(TEXT("InitFromCompactString X < 0"), FVector(-433.2f, 6.5f, 0));
 	TestInitFromCompactString(TEXT("InitFromCompactString Y < 0"), FVector(43.2f, -6.5f, 98));
 	TestInitFromCompactString(TEXT("InitFromCompactString Z < 0"), FVector(33.8f, 0, -76));
-	
+
 	TestInitFromCompactString(TEXT("InitFromCompactString X == 0 && Y == 0"), FVector(0, 0, 32.8f));
 	TestInitFromCompactString(TEXT("InitFromCompactString X == 0 && Z == 0"), FVector(0, 61.3f, 0));
 	TestInitFromCompactString(TEXT("InitFromCompactString Y == 0 && Z == 0"), FVector(65.3f, 0, 0));
 
-	TestFalse(TEXT("InitFromCompactString BadString1"), FVector().InitFromCompactString(TEXT("W(0)")));
-	TestFalse(TEXT("InitFromCompactString BadString2"), FVector().InitFromCompactString(TEXT("V(XYZ)")));
-	
+	CHECK_FALSE_MESSAGE(TEXT("InitFromCompactString BadString1"), FVector().InitFromCompactString(TEXT("W(0)")));
+	CHECK_FALSE_MESSAGE(TEXT("InitFromCompactString BadString2"), FVector().InitFromCompactString(TEXT("V(XYZ)")));
 	return true;
+	}
+};
+
+TEST_CASE_NAMED(FInitVectorTest, "System::Core::Math::InitVector", "[ApplicationContextMask][SmokeFilter]")
+{
+	FInitVectorTestClass Instance;
+	Instance.InitVectorTest();
 }
 
 // On GCC and Clang, setting -ffast-math or enabling some other unsafe floating point
@@ -4536,102 +4530,109 @@ static constexpr bool GColorConversionsTestInfNaNs = false;
 static constexpr bool GColorConversionsTestInfNaNs = true;
 #endif
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FColorConversionTest, "System.Core.Math.ColorConversion", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
-bool FColorConversionTest::RunTest(const FString& Parameters)
-{
-	// Round-trip conversion tests check that converting from uint8 color formats
+class FColorConversionTestClass {
+public:
+
+	bool ColorConversionTest() {
+		// Round-trip conversion tests check that converting from uint8 color formats
 	// to float and back gives the original value. We not only want to guarantee
 	// this on its own, it also gives us useful coverage of the [0,1] value range.
 
 	// Test that sRGB<->Linear conversions round-trip
-	for (int Index = 0; Index < 256; ++Index)
-	{
-		// Make the inputs in R,G,B not the same in cases channels get swapped or similar
-		// Alpha channel is already special because it gets treated differently
-		FColor OriginalColor((uint8)Index, (uint8)(Index ^ 1), (uint8)(Index ^ 123), (uint8)Index);
-
-		FLinearColor SRGBToLinear = FLinearColor::FromSRGBColor(OriginalColor);
-		FColor SRGBConvertedBack = SRGBToLinear.ToFColorSRGB();
-		TestEqual(FString::Printf(TEXT("sRGB to linear to sRGB round-trip: %d"), Index), OriginalColor, SRGBConvertedBack);
-
-		FLinearColor UNORMToLinear = OriginalColor.ReinterpretAsLinear();
-		FColor UNORMConvertedBack = UNORMToLinear.QuantizeRound();
-		TestEqual(FString::Printf(TEXT("UNORM to linear to UNORM round-trip: %d"), Index), OriginalColor, UNORMConvertedBack);
-	}
-
-	// Test values near breakpoints/bucket boundaries to make sure they end up
-	// on the intended side. Since we are interested in the boundaries between
-	// values, this loop only goes to 255.
-	auto ReferenceSRGBToLinear = [](float InValue) -> float
-	{
-		if (InValue < 0.04045f)
+		for (int Index = 0; Index < 256; ++Index)
 		{
-			return InValue / 12.92f;
+			// Make the inputs in R,G,B not the same in cases channels get swapped or similar
+			// Alpha channel is already special because it gets treated differently
+			FColor OriginalColor((uint8)Index, (uint8)(Index ^ 1), (uint8)(Index ^ 123), (uint8)Index);
+
+			FLinearColor SRGBToLinear = FLinearColor::FromSRGBColor(OriginalColor);
+			FColor SRGBConvertedBack = SRGBToLinear.ToFColorSRGB();
+			CHECK_MESSAGE(FString::Printf(TEXT("sRGB to linear to sRGB round-trip: %d"), Index), OriginalColor == SRGBConvertedBack);
+
+			FLinearColor UNORMToLinear = OriginalColor.ReinterpretAsLinear();
+			FColor UNORMConvertedBack = UNORMToLinear.QuantizeRound();
+			CHECK_MESSAGE(FString::Printf(TEXT("UNORM to linear to UNORM round-trip: %d"), Index), OriginalColor == UNORMConvertedBack);
 		}
-		else
+
+		// Test values near breakpoints/bucket boundaries to make sure they end up
+		// on the intended side. Since we are interested in the boundaries between
+		// values, this loop only goes to 255.
+		auto ReferenceSRGBToLinear = [](float InValue) -> float
 		{
-			return (float)FMath::Pow((InValue + 0.055) / 1.055, 2.4); // Compute in doubles
+			if (InValue < 0.04045f)
+			{
+				return InValue / 12.92f;
+			}
+			else
+			{
+				return (float)FMath::Pow((InValue + 0.055) / 1.055, 2.4); // Compute in doubles
+			}
+		};
+
+		for (int Index = 0; Index < 255; ++Index)
+		{
+			float BucketMidpoint = float(Index) + 0.5f;
+
+			// Worst-case error in the integer [0,255] sRGB scale is guaranteed to be below
+			// 0.544403 by the conversion we use. (The minimum reachable is 0.5, because
+			// we're quantizing to integers). That means that as long as we stay about
+			// 0.045f units away from a breakpoint, we should always get the exact value.
+			const float DistanceToMidpoint = 0.045f;
+
+			float BelowBoundaryUNORM = (BucketMidpoint - DistanceToMidpoint) / 255.f;
+			float BelowBoundarySRGB = ReferenceSRGBToLinear(BelowBoundaryUNORM);
+			uint8 IndexU8 = (uint8)Index;
+			FColor BelowExpected(IndexU8, IndexU8, IndexU8, IndexU8);
+			FColor BelowConverted = FLinearColor(BelowBoundarySRGB, BelowBoundarySRGB, BelowBoundarySRGB, BelowBoundaryUNORM).ToFColorSRGB();
+			CHECK_MESSAGE(FString::Printf(TEXT("sRGB Boundary below: %d"), Index), BelowConverted == BelowExpected);
+
+			float AboveBoundaryUNORM = (BucketMidpoint + DistanceToMidpoint) / 255.f;
+			float AboveBoundarySRGB = ReferenceSRGBToLinear(AboveBoundaryUNORM);
+			uint8 IndexPlus1U8 = (uint8)(Index + 1);
+			FColor AboveExpected(IndexPlus1U8, IndexPlus1U8, IndexPlus1U8, IndexPlus1U8);
+			FColor AboveConverted = FLinearColor(AboveBoundarySRGB, AboveBoundarySRGB, AboveBoundarySRGB, AboveBoundaryUNORM).ToFColorSRGB();
+			CHECK_MESSAGE(FString::Printf(TEXT("sRGB Boundary above: %d"), Index), AboveConverted == AboveExpected);
 		}
-	};
-	
-	for (int Index = 0; Index < 255; ++Index)
-	{
-		float BucketMidpoint = float(Index) + 0.5f;
 
-		// Worst-case error in the integer [0,255] sRGB scale is guaranteed to be below
-		// 0.544403 by the conversion we use. (The minimum reachable is 0.5, because
-		// we're quantizing to integers). That means that as long as we stay about
-		// 0.045f units away from a breakpoint, we should always get the exact value.
-		const float DistanceToMidpoint = 0.045f;
+		// Between the two tests above, we have good coverage of what happens inside [0,1];
+		// for values outside, we expect the sRGB and UNORM paths to give the same results.
+		// Just test a few values in interesting parts of the range.
+		const float NaN = FPlatformMath::AsFloat((uint32)0x7fc00000u);
+		const float PosInf = FPlatformMath::AsFloat((uint32)0x7f800000u);
+		const float PosSubnormal = FPlatformMath::AsFloat((uint32)0x20000u);
+		const float MediumLarge = 10.f; // Outside the range, but not hugely so
+		const float VeryLarge = 1e+7f; // Far outside the range
 
-		float BelowBoundaryUNORM = (BucketMidpoint - DistanceToMidpoint) / 255.f;
-		float BelowBoundarySRGB = ReferenceSRGBToLinear(BelowBoundaryUNORM);
-		uint8 IndexU8 = (uint8)Index;
-		FColor BelowExpected(IndexU8, IndexU8, IndexU8, IndexU8);
-		FColor BelowConverted = FLinearColor(BelowBoundarySRGB, BelowBoundarySRGB, BelowBoundarySRGB, BelowBoundaryUNORM).ToFColorSRGB();
-		TestEqual(FString::Printf(TEXT("sRGB Boundary below: %d"), Index), BelowConverted, BelowExpected);
+		auto TestExtremalValue = [this](const TCHAR* InTestName, const float InValue, uint8 InExpected)
+		{
+			FLinearColor LinColor(InValue, InValue, InValue, InValue);
+			FColor ConvertedColor = LinColor.ToFColorSRGB();
+			FColor ExpectedColor(InExpected, InExpected, InExpected, InExpected);
 
-		float AboveBoundaryUNORM = (BucketMidpoint + DistanceToMidpoint) / 255.f;
-		float AboveBoundarySRGB = ReferenceSRGBToLinear(AboveBoundaryUNORM);
-		uint8 IndexPlus1U8 = (uint8)(Index + 1);
-		FColor AboveExpected(IndexPlus1U8, IndexPlus1U8, IndexPlus1U8, IndexPlus1U8);
-		FColor AboveConverted = FLinearColor(AboveBoundarySRGB, AboveBoundarySRGB, AboveBoundarySRGB, AboveBoundaryUNORM).ToFColorSRGB();
-		TestEqual(FString::Printf(TEXT("sRGB Boundary above: %d"), Index), AboveConverted, AboveExpected);
+			CHECK_MESSAGE(InTestName, ConvertedColor == ExpectedColor);
+		};
+
+		if (GColorConversionsTestInfNaNs)
+		{
+			TestExtremalValue(TEXT("Extremal NaN"), NaN, 0);
+			TestExtremalValue(TEXT("Extremal -Inf"), -PosInf, 0);
+			TestExtremalValue(TEXT("Extremal +Inf"), PosInf, 255);
+		}
+
+		TestExtremalValue(TEXT("Extremal -MediumLarge"), -MediumLarge, 0);
+		TestExtremalValue(TEXT("Extremal 0"), 0.0f, 0);
+		TestExtremalValue(TEXT("Extremal +subnorm"), PosSubnormal, 0);
+		TestExtremalValue(TEXT("Extremal 1"), 1.0f, 255);
+		TestExtremalValue(TEXT("Extremal Mediumlarge"), MediumLarge, 255);
+		TestExtremalValue(TEXT("Extremal VeryLarge"), VeryLarge, 255);
+		return true;
 	}
+};
 
-	// Between the two tests above, we have good coverage of what happens inside [0,1];
-	// for values outside, we expect the sRGB and UNORM paths to give the same results.
-	// Just test a few values in interesting parts of the range.
-	const float NaN = FPlatformMath::AsFloat((uint32)0x7fc00000u);
-	const float PosInf = FPlatformMath::AsFloat((uint32)0x7f800000u);
-	const float PosSubnormal = FPlatformMath::AsFloat((uint32)0x20000u);
-	const float MediumLarge = 10.f; // Outside the range, but not hugely so
-	const float VeryLarge = 1e+7f; // Far outside the range
-
-	auto TestExtremalValue = [this](const TCHAR* InTestName, const float InValue, uint8 InExpected)
-	{
-		FLinearColor LinColor(InValue, InValue, InValue, InValue);
-		FColor ConvertedColor = LinColor.ToFColorSRGB();
-		FColor ExpectedColor(InExpected, InExpected, InExpected, InExpected);
-
-		TestEqual(InTestName, ConvertedColor, ExpectedColor);
-	};
-
-	if (GColorConversionsTestInfNaNs)
-	{
-		TestExtremalValue(TEXT("Extremal NaN"), NaN, 0);
-		TestExtremalValue(TEXT("Extremal -Inf"), -PosInf, 0);
-		TestExtremalValue(TEXT("Extremal +Inf"), PosInf, 255);
-	}
-
-	TestExtremalValue(TEXT("Extremal -MediumLarge"), -MediumLarge, 0);
-	TestExtremalValue(TEXT("Extremal 0"), 0.0f, 0);
-	TestExtremalValue(TEXT("Extremal +subnorm"), PosSubnormal, 0);
-	TestExtremalValue(TEXT("Extremal 1"), 1.0f, 255);
-	TestExtremalValue(TEXT("Extremal Mediumlarge"), MediumLarge, 255);
-	TestExtremalValue(TEXT("Extremal VeryLarge"), VeryLarge, 255);
-
-	return true;
+TEST_CASE_NAMED(FColorConversionTest, "System::Core::Math::ColorConversion", "[ApplicationContextMask][EngineFilter]")
+{
+	FColorConversionTestClass Instance;
+	Instance.ColorConversionTest();
 }
 
 // This is repeating the reference (scalar) linear->sRGB conversion from Color.cpp, 
@@ -4643,59 +4644,58 @@ bool FColorConversionTest::RunTest(const FString& Parameters)
 // as possible.
 namespace UnrealMathTestInternal {
 
-typedef union
-{
-	uint32 u;
-	float f;
-} stbir__FP32;
+	typedef union
+	{
+		uint32 u;
+		float f;
+	} stbir__FP32;
 
-static const uint32 stb_fp32_to_srgb8_tab4[104] = {
-	0x0073000d, 0x007a000d, 0x0080000d, 0x0087000d, 0x008d000d, 0x0094000d, 0x009a000d, 0x00a1000d,
-	0x00a7001a, 0x00b4001a, 0x00c1001a, 0x00ce001a, 0x00da001a, 0x00e7001a, 0x00f4001a, 0x0101001a,
-	0x010e0033, 0x01280033, 0x01410033, 0x015b0033, 0x01750033, 0x018f0033, 0x01a80033, 0x01c20033,
-	0x01dc0067, 0x020f0067, 0x02430067, 0x02760067, 0x02aa0067, 0x02dd0067, 0x03110067, 0x03440067,
-	0x037800ce, 0x03df00ce, 0x044600ce, 0x04ad00ce, 0x051400ce, 0x057b00c5, 0x05dd00bc, 0x063b00b5,
-	0x06970158, 0x07420142, 0x07e30130, 0x087b0120, 0x090b0112, 0x09940106, 0x0a1700fc, 0x0a9500f2,
-	0x0b0f01cb, 0x0bf401ae, 0x0ccb0195, 0x0d950180, 0x0e56016e, 0x0f0d015e, 0x0fbc0150, 0x10630143,
-	0x11070264, 0x1238023e, 0x1357021d, 0x14660201, 0x156601e9, 0x165a01d3, 0x174401c0, 0x182401af,
-	0x18fe0331, 0x1a9602fe, 0x1c1502d2, 0x1d7e02ad, 0x1ed4028d, 0x201a0270, 0x21520256, 0x227d0240,
-	0x239f0443, 0x25c003fe, 0x27bf03c4, 0x29a10392, 0x2b6a0367, 0x2d1d0341, 0x2ebe031f, 0x304d0300,
-	0x31d105b0, 0x34a80555, 0x37520507, 0x39d504c5, 0x3c37048b, 0x3e7c0458, 0x40a8042a, 0x42bd0401,
-	0x44c20798, 0x488e071e, 0x4c1c06b6, 0x4f76065d, 0x52a50610, 0x55ac05cc, 0x5892058f, 0x5b590559,
-	0x5e0c0a23, 0x631c0980, 0x67db08f6, 0x6c55087f, 0x70940818, 0x74a007bd, 0x787d076c, 0x7c330723,
-};
+	static const uint32 stb_fp32_to_srgb8_tab4[104] = {
+		0x0073000d, 0x007a000d, 0x0080000d, 0x0087000d, 0x008d000d, 0x0094000d, 0x009a000d, 0x00a1000d,
+		0x00a7001a, 0x00b4001a, 0x00c1001a, 0x00ce001a, 0x00da001a, 0x00e7001a, 0x00f4001a, 0x0101001a,
+		0x010e0033, 0x01280033, 0x01410033, 0x015b0033, 0x01750033, 0x018f0033, 0x01a80033, 0x01c20033,
+		0x01dc0067, 0x020f0067, 0x02430067, 0x02760067, 0x02aa0067, 0x02dd0067, 0x03110067, 0x03440067,
+		0x037800ce, 0x03df00ce, 0x044600ce, 0x04ad00ce, 0x051400ce, 0x057b00c5, 0x05dd00bc, 0x063b00b5,
+		0x06970158, 0x07420142, 0x07e30130, 0x087b0120, 0x090b0112, 0x09940106, 0x0a1700fc, 0x0a9500f2,
+		0x0b0f01cb, 0x0bf401ae, 0x0ccb0195, 0x0d950180, 0x0e56016e, 0x0f0d015e, 0x0fbc0150, 0x10630143,
+		0x11070264, 0x1238023e, 0x1357021d, 0x14660201, 0x156601e9, 0x165a01d3, 0x174401c0, 0x182401af,
+		0x18fe0331, 0x1a9602fe, 0x1c1502d2, 0x1d7e02ad, 0x1ed4028d, 0x201a0270, 0x21520256, 0x227d0240,
+		0x239f0443, 0x25c003fe, 0x27bf03c4, 0x29a10392, 0x2b6a0367, 0x2d1d0341, 0x2ebe031f, 0x304d0300,
+		0x31d105b0, 0x34a80555, 0x37520507, 0x39d504c5, 0x3c37048b, 0x3e7c0458, 0x40a8042a, 0x42bd0401,
+		0x44c20798, 0x488e071e, 0x4c1c06b6, 0x4f76065d, 0x52a50610, 0x55ac05cc, 0x5892058f, 0x5b590559,
+		0x5e0c0a23, 0x631c0980, 0x67db08f6, 0x6c55087f, 0x70940818, 0x74a007bd, 0x787d076c, 0x7c330723,
+	};
 
-static uint8 stbir__linear_to_srgb_uchar_fast(float in)
-{
-	static const stbir__FP32 almostone = { 0x3f7fffff }; // 1-eps
-	static const stbir__FP32 minval = { (127 - 13) << 23 };
-	uint32 tab, bias, scale, t;
-	stbir__FP32 f;
+	static uint8 stbir__linear_to_srgb_uchar_fast(float in)
+	{
+		static const stbir__FP32 almostone = { 0x3f7fffff }; // 1-eps
+		static const stbir__FP32 minval = { (127 - 13) << 23 };
+		uint32 tab, bias, scale, t;
+		stbir__FP32 f;
 
-	// Clamp to [2^(-13), 1-eps]; these two values map to 0 and 1, respectively.
-	// The tests are carefully written so that NaNs map to 0, same as in the reference
-	// implementation.
-	if (!(in > minval.f)) // written this way to catch NaNs
-		in = minval.f;
-	if (in > almostone.f)
-		in = almostone.f;
+		// Clamp to [2^(-13), 1-eps]; these two values map to 0 and 1, respectively.
+		// The tests are carefully written so that NaNs map to 0, same as in the reference
+		// implementation.
+		if (!(in > minval.f)) // written this way to catch NaNs
+			in = minval.f;
+		if (in > almostone.f)
+			in = almostone.f;
 
-	// Do the table lookup and unpack bias, scale
-	f.f = in;
+		// Do the table lookup and unpack bias, scale
+		f.f = in;
 
-	tab = stb_fp32_to_srgb8_tab4[(f.u - minval.u) >> 20];
-	bias = (tab >> 16) << 9;
-	scale = tab & 0xffff;
+		tab = stb_fp32_to_srgb8_tab4[(f.u - minval.u) >> 20];
+		bias = (tab >> 16) << 9;
+		scale = tab & 0xffff;
 
-	// Grab next-highest mantissa bits and perform linear interpolation
-	t = (f.u >> 12) & 0xff;
-	return (uint8)((bias + scale * t) >> 16);
+		// Grab next-highest mantissa bits and perform linear interpolation
+		t = (f.u >> 12) & 0xff;
+		return (uint8)((bias + scale * t) >> 16);
+	}
+
 }
 
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FColorConversionHeavyTest, "System.Core.Math.ColorConversionHeavy", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
-bool FColorConversionHeavyTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FColorConversionHeavyTest, "System::Core::Math::ColorConversionHeavy", "[EAutomationTestFlags][EngineFilter]")
 {
 	// WARNING: This test runs for a good while (at time of writing, ~90s when using
 	// a single core, proportionately less on many-core machines) with no user
@@ -4780,32 +4780,31 @@ bool FColorConversionHeavyTest::RunTest(const FString& Parameters)
 				}
 			}
 
-			// Check status and update count
-			bool Failed = false;
-			int32 Completed = 0;
+	// Check status and update count
+	bool Failed = false;
+	int32 Completed = 0;
 
-			// Scope lock access to just grabbing the few values, not the log too
-			{
-				FScopeLock LockHolder(&Shared.Lock);
-				Failed = Shared.Failed;
-				Completed = ++Shared.CompletionCounter;
-			}
+	// Scope lock access to just grabbing the few values, not the log too
+	{
+		FScopeLock LockHolder(&Shared.Lock);
+		Failed = Shared.Failed;
+		Completed = ++Shared.CompletionCounter;
+	}
 
-			// If another instance failed, stop
-			if (Failed)
-				return;
+	// If another instance failed, stop
+	if (Failed)
+		return;
 
-			UE_LOG(LogUnrealMathTest, Log, TEXT("Conversion heavy sRGB %d/%d buckets completed (%.2f%%)"), Completed, BucketCount, double(Completed) * 100.0 / double(BucketCount));
+	UE_LOG(LogUnrealMathTest, Log, TEXT("Conversion heavy sRGB %d/%d buckets completed (%.2f%%)"), Completed, BucketCount, double(Completed) * 100.0 / double(BucketCount));
 		}
 	);
 
 	if (Shared.Failed)
 	{
-		TestEqual(FString::Printf(TEXT("Conversion heavy sRGB CurrentBits=0x%08x"), Shared.FailedValue), Shared.FailedConverted, Shared.FailedExpected);
-		return false;
+		CHECK_MESSAGE(FString::Printf(TEXT("Conversion heavy sRGB CurrentBits=0x%08x"), Shared.FailedValue), Shared.FailedConverted == Shared.FailedExpected);
+		REQUIRE(false);
 	}
-
-	return true;
+	
 }
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+#endif //WITH_TESTS
