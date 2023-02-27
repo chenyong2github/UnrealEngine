@@ -67,6 +67,7 @@ namespace UnrealGameSync
 				{
 					Application.EnableVisualStyles();
 					Application.SetCompatibleTextRenderingDefault(false);
+					Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 				}
 
 				using (EventWaitHandle activateEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "ActivateUnrealGameSync"))
