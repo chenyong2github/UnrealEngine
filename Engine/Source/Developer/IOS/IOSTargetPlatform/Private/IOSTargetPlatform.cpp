@@ -19,6 +19,7 @@
 #include "Windows/WindowsHWrapper.h"
 #endif
 #if WITH_ENGINE
+#include "Engine/Texture.h"
 #include "Sound/SoundWave.h"
 #include "TextureResource.h"
 #include "AudioCompressionSettings.h"

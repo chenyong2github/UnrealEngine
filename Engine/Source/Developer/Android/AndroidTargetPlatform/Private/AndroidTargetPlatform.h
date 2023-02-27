@@ -22,7 +22,7 @@
 #include "AndroidTargetDevice.h"
 
 #if WITH_ENGINE
-#include "Engine/TextureCube.h"
+#include "Engine/Texture.h"
 #include "Internationalization/Text.h"
 #include "StaticMeshResources.h"
 #endif // WITH_ENGINE
