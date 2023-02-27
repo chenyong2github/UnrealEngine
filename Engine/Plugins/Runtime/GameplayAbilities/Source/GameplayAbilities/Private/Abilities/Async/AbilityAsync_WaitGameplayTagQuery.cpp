@@ -94,7 +94,7 @@ void UAbilityAsync_WaitGameplayTagQuery::EvaluateTagQuery()
 		return;
 	}
 
-	const bool bMatchesQuery = !TargetTags.IsEmpty() && TagQuery.Matches(TargetTags);
+	const bool bMatchesQuery = TagQuery.Matches(TargetTags);
 	const bool bStateChanged = bMatchesQuery != bQueryState;
 	bQueryState = bMatchesQuery;
 
