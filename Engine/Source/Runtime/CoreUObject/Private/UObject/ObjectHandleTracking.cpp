@@ -17,12 +17,12 @@ namespace UE::CoreUObject
 				return Callbacks;
 			}
 
-			void OnHandleRead(UObject* Object)
+			void OnHandleRead(const UObject* const* Object, uint32 Count)
 			{
 				FReadScopeLock _(HandleLock);
 				for (auto&& Pair : ReadHandleCallbacks)
 				{
-					Pair.Value(Object);
+					Pair.Value(Object, Count);
 				}
 			}
 
@@ -148,9 +148,9 @@ namespace UE::CoreUObject
 			FRWLock HandleLock;
 		};
 
-		void OnHandleRead(UObject* Object)
+		void OnHandleRead(const UObject* const* Object, uint32 Count)
 		{
-			ObjectHandleCallbacks::Get().OnHandleRead(Object);
+			ObjectHandleCallbacks::Get().OnHandleRead(Object, Count);
 		}
 
 		void OnClassReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UClass* Class)
