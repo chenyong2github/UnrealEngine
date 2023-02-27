@@ -354,6 +354,11 @@ namespace UE { namespace TasksTests
 			Outer.Wait();
 		}
 
+		{ // check that `Prerequisites()` support containers
+			Prerequisites(TArray<FTask>{});
+			Prerequisites(TArrayView<FTask>{});
+		}
+
 #if TASKGRAPH_NEW_FRONTEND
 		{	// a basic test for a named thread task
 			FTask GTTask = Launch
