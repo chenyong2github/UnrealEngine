@@ -89,6 +89,8 @@ public:
 
 	virtual void UpdateSolverSettings(UIKRigSolver* InSettings) override;
 	virtual void RemoveGoal(const FName& GoalName) override;
+
+	virtual FName GetRootBone() const override { return RootName; };
 	
 #if WITH_EDITOR
 	virtual FText GetNiceName() const override;
