@@ -46,17 +46,6 @@ struct FNCPool
 	UPROPERTY(transient)
 	TArray<FNCPoolElement> FreeElements;
 
-#if ENABLE_NC_POOL_DEBUGGING
-	//Array of currently in flight components that will auto release.
-	TArray<TWeakObjectPtr<UNiagaraComponent>> InUseComponents_Auto;
-
-	//Array of currently in flight components that need manual release.
-	TArray<TWeakObjectPtr<UNiagaraComponent>> InUseComponents_Manual;
-
-	/** Keeping track of max in flight systems to help inform any future pre-population we do. */
-	int32 MaxUsed = 0;
-#endif
-
 public:
 
 	void Cleanup();
@@ -111,4 +100,15 @@ public:
 
 	/** Dumps the current state of the pool to the log. */
 	void Dump();
+
+#if ENABLE_NC_POOL_DEBUGGING
+	//Array of currently in flight components that will auto release.
+	TArray<TWeakObjectPtr<UNiagaraComponent>> InUseComponents_Auto;
+
+	//Array of currently in flight components that need manual release.
+	TArray<TWeakObjectPtr<UNiagaraComponent>> InUseComponents_Manual;
+
+	/** Keeping track of max in flight systems to help inform any future pre-population we do. */
+	int32 MaxUsed = 0;
+#endif
 };
