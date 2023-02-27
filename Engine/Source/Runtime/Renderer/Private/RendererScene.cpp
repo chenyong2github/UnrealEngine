@@ -5327,7 +5327,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 	SCOPE_CYCLE_COUNTER(STAT_UpdateScenePrimitiveRenderThreadTime);
 
 	check(IsInRenderingThread());
-
+	FSceneRenderer::WaitForCleanUpTasks(GraphBuilder.RHICmdList);
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
 	RDG_EVENT_SCOPE(GraphBuilder, "UpdateAllPrimitiveSceneInfos");
