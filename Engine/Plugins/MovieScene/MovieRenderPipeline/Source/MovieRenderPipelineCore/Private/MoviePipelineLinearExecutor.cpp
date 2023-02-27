@@ -111,7 +111,7 @@ FText UMoviePipelineLinearExecutorBase::GetWindowTitle()
 	float CompletionPercentage = 0.f;
 	if (ActiveMoviePipeline)
 	{
-		CompletionPercentage = UMoviePipelineBlueprintLibrary::GetCompletionPercentage(ActiveMoviePipeline) * 100.f;
+		CompletionPercentage = UMoviePipelineBlueprintLibrary::GetCompletionPercentage(Cast<UMoviePipeline>(ActiveMoviePipeline)) * 100.f;
 	}
 
 	FText TitleFormatString = LOCTEXT("MoviePreviewWindowTitleFormat", "Movie Pipeline Render (Preview) [Job {CurrentCount}/{TotalCount} Total] Current Job: {PercentComplete}% Completed.");

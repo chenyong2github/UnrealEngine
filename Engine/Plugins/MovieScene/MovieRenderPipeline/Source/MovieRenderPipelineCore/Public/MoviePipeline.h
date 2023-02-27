@@ -10,6 +10,7 @@
 #endif
 #include "MovieSceneTimeController.h"
 #include "Async/Future.h"
+#include "MoviePipelineBase.h"
 #include "MoviePipeline.generated.h"
 
 // Forward Declares
@@ -34,12 +35,11 @@ class UTexture;
 typedef TTuple<TFuture<bool>, MoviePipeline::FMoviePipelineOutputFutureData> FMoviePipelineOutputFuture;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FMoviePipelineFinishedNative, UMoviePipeline*, bool);
-DECLARE_MULTICAST_DELEGATE_OneParam(FMoviePipelineWorkFinishedNative, FMoviePipelineOutputData);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMoviePipelineFinished, UMoviePipeline*, MoviePipeline, bool, bFatalError);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMoviePipelineWorkFinished, FMoviePipelineOutputData, Results);
 
 UCLASS(Blueprintable)
-class MOVIERENDERPIPELINECORE_API UMoviePipeline : public UObject
+class MOVIERENDERPIPELINECORE_API UMoviePipeline : public UMoviePipelineBase
 {
 	GENERATED_BODY()
 	
@@ -53,38 +53,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void Initialize(UMoviePipelineExecutorJob* InJob);
 
-
-	/**
-	* Request the movie pipeline to shut down at the next available time. The pipeline will attempt to abandon
-	* the current frame (such as if there are more temporal samples pending) but may be forced into finishing if
-	* there are spatial samples already submitted to the GPU. The shutdown flow will be run to ensure already
-	* completed work is written to disk. This is a non-blocking operation, use Shutdown() instead if you need to
-	* block until it is fully shut down.
-	*
-	* @param bError - Whether this is a request for early shut down due to an error
-	* 
-	* This function is thread safe.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void RequestShutdown(bool bIsError=false);
-	
-	/** 
-	* Abandons any future work on this Movie Pipeline and runs through the shutdown flow to ensure already
-	* completed work is written to disk. This is a blocking-operation and will not return until all outstanding
-	* work has been completed.
-	*
-	* @param bError - Whether this is an early shut down due to an error
-	*
-	* This function should only be called from the game thread.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void Shutdown(bool bError=false);
-
-	/**
-	* Has RequestShutdown() been called?
-	*/
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	bool IsShutdownRequested() const { return bShutdownRequested; }
+	// UMoviePipelineBase Interface
+	virtual void RequestShutdownImpl(bool bIsError) override;
+	virtual void ShutdownImpl(bool bError ) override;
+	virtual bool IsShutdownRequestedImpl() const override { return bShutdownRequested; }
+	// ~UMoviePipelineBase Interface
 
 	/**
 	* Returns the time this movie pipeline was initialized at.
@@ -115,18 +88,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Movie Render Pipeline")
 	FMoviePipelineFinished OnMoviePipelineFinishedDelegate;
 
-	/**
-	* Called when we have completely finished this pipeline. This means that all frames have been rendered,
-	* all files written to disk, and any post-finalize exports have finished. This Pipeline will call
-	* Shutdown() on itself before calling this delegate to ensure we've unregistered from all delegates
-	* and are no longer trying to do anything (even if we still exist).
-	*
-	* The params struct in the return will have metadata about files written to disk for each shot.
-	*/
-	FMoviePipelineWorkFinishedNative& OnMoviePipelineWorkFinished()
-	{
-		return OnMoviePipelineWorkFinishedDelegateNative;
-	}
+
 	
 	/**
 	* Called when we have completely finished this pipeline. This means that all frames have been rendered,
@@ -139,16 +101,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Movie Render Pipeline")
 	FMoviePipelineWorkFinished OnMoviePipelineWorkFinishedDelegate;
 
-	/**
-	* Only called if `IsFlushDiskWritesPerShot()` is set!
-	* Called after each shot is finished and files have been flushed to disk. The returned data in
-	* the params struct will have only the per-shot metadata for the just finished shot. Use
-	* OnMoviePipelineFinished() if you need all ot the metadata.
-	*/
-	FMoviePipelineWorkFinishedNative& OnMoviePipelineShotWorkFinished()
-	{
-		return OnMoviePipelineShotWorkFinishedDelegateNative;
-	}
+
 
 	/**
 	* Only called if `IsFlushDiskWritesPerShot()` is set!
@@ -454,11 +407,6 @@ private:
 
 	/** Deprecated. */
 	FMoviePipelineFinishedNative OnMoviePipelineFinishedDelegateNative;
-	/** Called when we have completely finished. This object will call Shutdown before this and stop ticking. */
-	FMoviePipelineWorkFinishedNative OnMoviePipelineWorkFinishedDelegateNative;
-
-	/** Called when each shot has finished work if IsFlushDiskWritesPerShot() is set. */
-	FMoviePipelineWorkFinishedNative OnMoviePipelineShotWorkFinishedDelegateNative;
 
 	/**
 	 * We have to apply camera motion vectors manually. So we keep the current and previous frame's camera view and rotation.

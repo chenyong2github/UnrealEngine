@@ -12,6 +12,7 @@
 #include "Misc/PackageName.h"
 #include "Engine/GameEngine.h"
 #include "MoviePipelineUtils.h"
+#include "Graph/MovieGraphPipeline.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineInProcessExecutor)
 
@@ -124,8 +125,18 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 		MoviePipelineClass = UMoviePipeline::StaticClass();
 	}
 
-	ActiveMoviePipeline = NewObject<UMoviePipeline>(NewWorld, MoviePipelineClass);
-	ActiveMoviePipeline->SetViewportInitArgs(ViewportInitArgs);
+	// Temporary
+	if (CurrentJob->GetGraphConfig())
+	{
+		MoviePipelineClass = UMovieGraphPipeline::StaticClass();
+	}
+
+	ActiveMoviePipeline = NewObject<UMoviePipelineBase>(NewWorld, MoviePipelineClass);
+	UMoviePipeline* PipelineAsLegacy = Cast<UMoviePipeline>(ActiveMoviePipeline);
+	if (PipelineAsLegacy)
+	{
+		PipelineAsLegacy->SetViewportInitArgs(ViewportInitArgs);
+	}
 
 	// We allow users to set a multi-frame delay before we actually run the Initialization function and start thinking.
 	// This solves cases where there are engine systems that need to finish loading before we do anything.
@@ -144,7 +155,14 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 	if (ExecutorSettings->InitialDelayFrameCount == 0)
 	{
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Zero Initial Delay, initializing..."));
-		ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+		if (PipelineAsLegacy)
+		{
+			PipelineAsLegacy->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+		}
+		else if (UMovieGraphPipeline* PipelineAsGraph = Cast<UMovieGraphPipeline>(ActiveMoviePipeline))
+		{
+			// PipelineAsGraph->Initialize(Queue->GetJobs()[CurrentPipelineIndex], FMovieGraphInitConfig());
+		}
 		RemainingInitializationFrames = -1;
 	}
 	else
@@ -160,7 +178,15 @@ void UMoviePipelineInProcessExecutor::OnTick()
 		if (RemainingInitializationFrames == 0)
 		{
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Delay finished, initializing..."));
-			ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+			UMoviePipeline* PipelineAsLegacy = Cast<UMoviePipeline>(ActiveMoviePipeline);
+			if (PipelineAsLegacy)
+			{
+				PipelineAsLegacy->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
+			}
+			else if (UMovieGraphPipeline* PipelineAsGraph = Cast<UMovieGraphPipeline>(ActiveMoviePipeline))
+			{
+				// PipelineAsGraph->Initialize(Queue->GetJobs()[CurrentPipelineIndex], FMovieGraphInitConfig());
+			}
 		}
 
 		RemainingInitializationFrames--;
@@ -188,8 +214,6 @@ void UMoviePipelineInProcessExecutor::OnApplicationQuit()
 void UMoviePipelineInProcessExecutor::OnMoviePipelineFinished(FMoviePipelineOutputData InOutputData)
 {
 	FCoreDelegates::OnBeginFrame.RemoveAll(this);
-	UMoviePipeline* MoviePipeline = ActiveMoviePipeline;
-	
 	OnIndividualJobFinishedDelegateNative.Broadcast(InOutputData);
 
 	if (ActiveMoviePipeline)

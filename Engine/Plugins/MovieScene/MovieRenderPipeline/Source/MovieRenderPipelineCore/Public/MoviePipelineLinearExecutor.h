@@ -5,7 +5,7 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipelineLinearExecutor.generated.h"
 
-class UMoviePipeline;
+class UMoviePipelineBase;
 class UMoviePipelineQueue;
 
 /**
@@ -53,7 +53,7 @@ protected:
 
 	/** A Movie Pipeline that has been spawned and is running (if any) */
 	UPROPERTY(Transient)
-	TObjectPtr<UMoviePipeline> ActiveMoviePipeline;
+	TObjectPtr<UMoviePipelineBase> ActiveMoviePipeline;
 
 	/** Which Pipeline Config are we currently working on. */
 	int32 CurrentPipelineIndex;

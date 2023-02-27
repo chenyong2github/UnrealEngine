@@ -369,7 +369,7 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 }
 
 
-void UMoviePipeline::RequestShutdown(bool bIsError)
+void UMoviePipeline::RequestShutdownImpl(bool bIsError)
 {
 	// It's possible for a previous call to RequestionShutdown to have set an error before this call that may not
 	// We don't want to unset a previously set error state
@@ -394,7 +394,7 @@ void UMoviePipeline::RequestShutdown(bool bIsError)
 	}
 }
 
-void UMoviePipeline::Shutdown(bool bIsError)
+void UMoviePipeline::ShutdownImpl(bool bIsError)
 {
 	check(IsInGameThread());
 
