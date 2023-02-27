@@ -598,7 +598,6 @@ bool UDataLayerToAssetCommandlet::CreateDataLayerInstances(TStrongObjectPtr<UDat
 {
 	UE_SCOPED_TIMER(TEXT("Creating Data Layer Instances"), LogDataLayerToAssetCommandlet, Display);
 
-	uint32 ErrorCount = 0;
 	AWorldDataLayers* WorldDataLayers = MainWorld->GetWorldDataLayers();
 	for (const TWeakObjectPtr<UDataLayerConversionInfo>& ConvertingInfo : CommandletContext->GetConvertingDataLayerConversionInfo())
 	{
@@ -614,12 +613,11 @@ bool UDataLayerToAssetCommandlet::CreateDataLayerInstances(TStrongObjectPtr<UDat
 		WorldDataLayers->DeprecatedDataLayerNameToDataLayerInstance.Add(ConvertingInfo->DataLayerToConvert->GetDataLayerFName(), ConvertingInfo->DataLayerInstance);
 	}
 
-	if (ErrorCount == 0)
+	uint32 ErrorCount = 0;
+
+	if (!RebuildDataLayerHierarchies(CommandletContext))
 	{
-		if (!RebuildDataLayerHierarchies(CommandletContext))
-		{
-			ErrorCount++;
-		}
+		ErrorCount++;
 	}
 
 	return ErrorCount == 0;

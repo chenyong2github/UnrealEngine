@@ -4024,19 +4024,19 @@ APlayerState* APlayerController::GetSplitscreenPlayerByIndex(int32 PlayerIndex) 
 					}
 					else
 					{
-						UE_LOG(LogPlayerController, Log, TEXT("(%s) APlayerController::%s:%s: %s IS NOT THE PRIMARY CONNECTION AND HAS NO CHILD CONNECTIONS!"), *GetFName().ToString(), *GetStateName().ToString(), Player);
+						UE_LOG(LogPlayerController, Log, TEXT("(%s) APlayerController::%s:GetSplitscreenPlayerByIndex: %s IS NOT THE PRIMARY CONNECTION AND HAS NO CHILD CONNECTIONS!"), *GetName(), *GetStateName().ToString(), *Player->GetName());
 					}
 				}
 			}
 			else
 			{
-				UE_LOG(LogPlayerController, Log, TEXT("(%s) APlayerController::%s:%s: %s IS NOT A ULocalPlayer* AND NOT A RemoteConnection! (No valid UPlayer* reference)"), *GetFName().ToString(), *GetStateName().ToString(), Player);
+				UE_LOG(LogPlayerController, Log, TEXT("(%s) APlayerController::%s:GetSplitscreenPlayerByIndex: %s IS NOT A ULocalPlayer* AND NOT A RemoteConnection! (No valid UPlayer* reference)"), *GetName(), *GetStateName().ToString(), *Player->GetName());
 			}
 		}
 	}
 	else
 	{
-		UE_LOG(LogPlayerController, Log, TEXT("(%s) APlayerController::%s:%s: %s"), *GetFName().ToString(), *GetStateName().ToString(),  "NULL value for Player!");
+		UE_LOG(LogPlayerController, Log, TEXT("(%s) APlayerController::%s:GetSplitscreenPlayerByIndex: %s"), *GetName(), *GetStateName().ToString(), TEXT("NULL value for Player!"));
 	}
 
 	return Result;
@@ -4070,12 +4070,12 @@ int32 APlayerController::GetSplitscreenPlayerCount() const
 			}
 			else
 			{
-				UE_LOG(LogPlayerController, Log, TEXT("(%s) APlayerController::%s:%s NOT A ULocalPlayer* AND NOT A RemoteConnection!"), *GetFName().ToString(), *GetStateName().ToString());
+				UE_LOG(LogPlayerController, Log, TEXT("(%s) APlayerController::%s:GetSplitscreenPlayerCount NOT A ULocalPlayer* AND NOT A RemoteConnection!"), *GetName(), *GetStateName().ToString());
 			}
 		}
 		else
 		{
-			UE_LOG(LogPlayerController, Log, TEXT("(%s) APlayerController::%s:%s called without a valid UPlayer* value!"), *GetFName().ToString(), *GetStateName().ToString());
+			UE_LOG(LogPlayerController, Log, TEXT("(%s) APlayerController::%s:GetSplitscreenPlayerCount called without a valid UPlayer* value!"), *GetName(), *GetStateName().ToString());
 		}
 	}
 

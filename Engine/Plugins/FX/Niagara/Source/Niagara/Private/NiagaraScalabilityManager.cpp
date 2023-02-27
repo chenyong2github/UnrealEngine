@@ -217,8 +217,8 @@ bool FNiagaraScalabilityManager::EvaluateCullState(FNiagaraWorldManager* WorldMa
 		UNiagaraSystem* System = Component->GetAsset();
 		if (System == nullptr)
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("Niagara System has been destroyed with components still registered to the scalability manager. Unregistering this component.\nComponent: 0x%P - %s\nEffectType: 0x%P - %s"),
-				Component, *Component->GetName(), EffectType, *EffectType->GetName());
+			UE_LOG(LogNiagara, Warning, TEXT("Niagara System has been destroyed with components still registered to the scalability manager. Unregistering this component.\nComponent: 0x%p - %s\nEffectType: 0x%p - %s"),
+				Component, *Component->GetName(), EffectType.Get(), *EffectType->GetName());
 			Unregister(Component);
 			return false;
 		}

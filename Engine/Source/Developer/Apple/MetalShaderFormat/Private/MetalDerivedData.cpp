@@ -1423,7 +1423,6 @@ bool DoCompileMetalShader(
 			}
 			GLog->Flush();
 		}
+		return false;
 	}
-
-	return Result != 0;
 }

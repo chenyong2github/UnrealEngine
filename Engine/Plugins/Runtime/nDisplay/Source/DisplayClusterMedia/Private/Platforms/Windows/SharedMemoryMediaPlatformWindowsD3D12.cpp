@@ -135,7 +135,7 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::CreateSharedCrossGpuTextu
 	{
 		UE_LOG(LogDisplayClusterMedia, Error, TEXT(
 			"D3D12Device->CreateCommittedResource failed when creating a cross GPU texture:\n"
-			"0x%X - %s. Texture was %dx%d, EPixelFormat %d and DXGI type %d"),
+			"0x%lX - %s. Texture was %dx%d, EPixelFormat %d and DXGI type %d"),
 			HResult, *GetD3D12ComErrorDescription(HResult), Width, Height, Format, DxgiFormat);
 
 		return nullptr;
@@ -191,7 +191,7 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 
 	if (FAILED(HResult))
 	{
-		UE_LOG(LogDisplayClusterMedia, Error, TEXT("D3D12Device->OpenSharedHandleByName(%s) failed: 0x%X - %s"),
+		UE_LOG(LogDisplayClusterMedia, Error, TEXT("D3D12Device->OpenSharedHandleByName(%s) failed: 0x%lX - %s"),
 			*SharedGpuTextureName, HResult, *GetD3D12ComErrorDescription(HResult));
 
 		return nullptr;
@@ -199,13 +199,13 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 
 	HResult = D3D12Device->OpenSharedHandle(NamedSharedGpuTextureHandle, IID_PPV_ARGS(&SharedCrossGpuTexture));
 
+	UE_CLOG(FAILED(HResult), LogDisplayClusterMedia, Error, TEXT("D3D12Device->OpenSharedHandle(0x%p) failed: 0x%lX - %s"),
+		NamedSharedGpuTextureHandle, HResult, *GetD3D12ComErrorDescription(HResult));
+
 	::CloseHandle(NamedSharedGpuTextureHandle);
 
 	if (FAILED(HResult))
 	{
-		UE_LOG(LogDisplayClusterMedia, Error, TEXT("D3D12Device->OpenSharedHandle(0x%X) failed: 0x%X - %s"),
-			NamedSharedGpuTextureHandle, HResult, *GetD3D12ComErrorDescription(HResult));
-
 		return nullptr;
 	}
 

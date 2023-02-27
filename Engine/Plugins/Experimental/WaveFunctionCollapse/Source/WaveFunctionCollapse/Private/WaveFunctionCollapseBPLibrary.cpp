@@ -525,7 +525,7 @@ bool UWaveFunctionCollapseBPLibrary::GetPositionToOptionMapFromActor(AActor* Act
 	// Check if Model is valid
 	if (!Actor)
 	{
-		UE_LOG(LogWFC, Display, TEXT("%s is an invalid Actor"), *Actor->GetFName().ToString());
+		UE_LOG(LogWFC, Display, TEXT("GetPositionToOptionMapFromActor called with a null Actor"));
 		return false;
 	}
 
