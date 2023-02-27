@@ -8,8 +8,12 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Horde.Build.Server;
+using System.Collections.Generic;
+using System.Linq;
+using Horde.Build.Agents;
 
-namespace Horde.Build.Server
+namespace Horde.Build.Dashboard
 {
 	/// <summary>	
 	/// Dashboard authorization challenge controller	
@@ -28,13 +32,17 @@ namespace Horde.Build.Server
 		/// </summary>
 		private readonly ServerSettings _settings;
 
+		private readonly IDashboardPreviewCollection _previewCollection;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="previewCollection" />
 		/// <param name="serverSettings">Server settings</param>
-		public DashboardController(IOptionsMonitor<ServerSettings> serverSettings)
+		public DashboardController(IDashboardPreviewCollection previewCollection, IOptionsMonitor<ServerSettings> serverSettings)
 		{
 			_authenticationScheme = AccountController.GetAuthScheme(serverSettings.CurrentValue.AuthMethod);
+			_previewCollection = previewCollection;
 			_settings = serverSettings.CurrentValue;
 		}
 
@@ -128,6 +136,63 @@ namespace Horde.Build.Server
 			dashboardConfigResponse.HelpSlackChannel = _settings.HelpSlackChannel;
 
 			return dashboardConfigResponse;
+		}
+
+		/// <summary>
+		/// Create a new dashboard preview items
+		/// </summary>
+		/// <returns>Config information needed by the dashboard</returns>
+		[HttpPost]
+		[Authorize]
+		[Route("/api/v1/dashboard/preview")]
+		public async Task<ActionResult<GetDashboardPreviewResponse>> CreateDashbordPreview([FromBody] CreateDashboardPreviewRequest request)
+		{
+			IDashboardPreview preview = await _previewCollection.AddPreviewAsync(request.Summary);
+
+			if (!String.IsNullOrEmpty(request.ExampleLink) || !String.IsNullOrEmpty(request.DiscussionLink) || !String.IsNullOrEmpty(request.TrackingLink))
+			{
+				IDashboardPreview? updated = await _previewCollection.UpdatePreviewAsync(preview.Id, null, null, null, request.ExampleLink, request.DiscussionLink, request.TrackingLink);
+				if (updated == null) 
+				{
+					return NotFound(preview.Id);
+				}
+
+				return new GetDashboardPreviewResponse(updated);
+			}
+
+			return new GetDashboardPreviewResponse(preview);
+		}
+
+		/// <summary>
+		/// Create a new dashboard preview items
+		/// </summary>
+		/// <returns>Config information needed by the dashboard</returns>
+		[HttpPut]
+		[Authorize]
+		[Route("/api/v1/dashboard/preview")]
+		public async Task<ActionResult<GetDashboardPreviewResponse>> UpdateDashbordPreview([FromBody] UpdateDashboardPreviewRequest request)
+		{
+			IDashboardPreview? preview = await _previewCollection.UpdatePreviewAsync(request.Id, request.Summary, request.DeployedCL, request.Open, request.ExampleLink, request.DiscussionLink, request.TrackingLink);
+			
+			if (preview == null)
+			{
+				return NotFound(request.Id);
+			}			
+
+			return new GetDashboardPreviewResponse(preview);
+		}
+
+		/// <summary>
+		/// Query all the dashboard preview items
+		/// </summary>
+		/// <returns>Config information needed by the dashboard</returns>
+		[HttpGet]
+		[Authorize]
+		[Route("/api/v1/dashboard/previews")]
+		public async Task<ActionResult<List<GetDashboardPreviewResponse>>> GetDashbordPreviews([FromQuery] bool open = true)
+		{			
+			List <IDashboardPreview> previews = await _previewCollection.FindPreviewsAsync(open);			
+			return previews.Select(p => new GetDashboardPreviewResponse(p)).ToList();
 		}
 	}
 }

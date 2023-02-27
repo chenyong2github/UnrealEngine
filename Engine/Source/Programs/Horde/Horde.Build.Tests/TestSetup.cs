@@ -64,6 +64,7 @@ using Horde.Build.Devices;
 using Moq;
 using Horde.Build.Telemetry;
 using Horde.Build.Artifacts;
+using Horde.Build.Dashboard;
 
 namespace Horde.Build.Tests
 {
@@ -93,6 +94,7 @@ namespace Horde.Build.Tests
 		public ITestDataCollection TestDataCollection => ServiceProvider.GetRequiredService<ITestDataCollection>();
 		public IUserCollection UserCollection => ServiceProvider.GetRequiredService<IUserCollection>();
 		public IDeviceCollection DeviceCollection => ServiceProvider.GetRequiredService<IDeviceCollection>();
+		public IDashboardPreviewCollection DashboardPreviewCollection => ServiceProvider.GetRequiredService<IDashboardPreviewCollection>();
 
 		public AclService AclService => ServiceProvider.GetRequiredService<AclService>();
 		public FleetService FleetService => ServiceProvider.GetRequiredService<FleetService>();
@@ -129,6 +131,7 @@ namespace Horde.Build.Tests
 		public PoolsController PoolsController => GetPoolsController();
 		public LeasesController LeasesController => GetLeasesController();
 		public DevicesController DevicesController => GetDevicesController();
+		public DashboardController DashboardController => GetDashboardController();
 		public TestDataController TestDataController => GetTestDataController();
 
 		public ConfigService ConfigService => ServiceProvider.GetRequiredService<ConfigService>();
@@ -222,6 +225,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<IUgsMetadataCollection, UgsMetadataCollection>();
 			services.AddSingleton<IUserCollection, UserCollectionV1>();
 			services.AddSingleton<IDeviceCollection, DeviceCollection>();
+			services.AddSingleton<IDashboardPreviewCollection, DashboardPreviewCollection>();
 
 			services.AddSingleton<ToolCollection>();
 
@@ -299,6 +303,13 @@ namespace Horde.Build.Tests
 			DevicesController devicesCtrl = new DevicesController(UserCollection, DeviceService, GlobalConfigSnapshot, logger);
 			devicesCtrl.ControllerContext = GetControllerContext();
 			return devicesCtrl;
+		}
+
+		private DashboardController GetDashboardController()
+		{
+			DashboardController dashboardCtrl = new DashboardController(DashboardPreviewCollection, ServerSettingsMon);
+			dashboardCtrl.ControllerContext = GetControllerContext();
+			return dashboardCtrl;
 		}
 
 		private TestDataController GetTestDataController()

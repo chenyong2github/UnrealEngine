@@ -32,6 +32,7 @@ using Horde.Build.Agents.Sessions;
 using Horde.Build.Agents.Software;
 using Horde.Build.Agents.Telemetry;
 using Horde.Build.Configuration;
+using Horde.Build.Dashboard;
 using Horde.Build.Devices;
 using Horde.Build.Issues;
 using Horde.Build.Issues.External;
@@ -360,6 +361,7 @@ namespace Horde.Build
 			services.AddSingleton<IUserCollection, UserCollectionV2>();
 			services.AddSingleton<IDeviceCollection, DeviceCollection>();
 			services.AddSingleton<INoticeCollection, NoticeCollection>();
+			services.AddSingleton<IDashboardPreviewCollection, DashboardPreviewCollection>();
 
 			services.AddSingleton<ToolCollection>();
 
