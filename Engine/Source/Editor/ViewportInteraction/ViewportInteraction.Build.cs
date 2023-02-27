@@ -8,8 +8,6 @@ namespace UnrealBuildTool.Rules
     {
         public ViewportInteraction(ReadOnlyTargetRules Target) : base(Target)
         {
-			PrivateIncludePaths.Add(ModuleDirectory);
-
             PublicDependencyModuleNames.AddRange(
                 new string[] {
                     "Core",

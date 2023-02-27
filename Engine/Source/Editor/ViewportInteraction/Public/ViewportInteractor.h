@@ -8,7 +8,7 @@
 #include "InputCoreTypes.h"
 #include "Engine/EngineTypes.h"
 #include "ViewportInteractionTypes.h"
-#include "Editor/ViewportInteraction/ViewportInteractorData.h"
+#include "ViewportInteractorData.h"
 #include "ViewportInteractionUtils.h"
 #include "ViewportInteractor.generated.h"
 
