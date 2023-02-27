@@ -955,7 +955,7 @@ void FLowLevelMemTracker::TickInternal()
 
 	int64 StaticOverhead = sizeof(FLowLevelMemTracker);
 	MemoryUsageCurrentOverhead = StaticOverhead + Allocator.GetTotal();
-	PlatformTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::PlatformOverhead), MemoryUsageCurrentOverhead, true);
+	PlatformTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::PlatformOverhead), MemoryUsageCurrentOverhead, !FPlatformMemory::TracksLLMAllocations());
 
 	// Compare memory the platform thinks we have allocated to what we have tracked, including the program memory
 	FPlatformMemoryStats PlatformStats = FPlatformMemory::GetStats();
@@ -980,7 +980,7 @@ void FLowLevelMemTracker::TickInternal()
 	int64 TrackedTotal = DefaultTracker.GetTrackedTotal();
 	// remove the MemoryUsageCurrentOverhead from the "Total" for the default LLM as it's not something anyone needs
 	// to investigate when finding what to reduce the platform LLM will have the info 
-	int64 DefaultProcessMemory = PlatformProcessMemory - MemoryUsageCurrentOverhead;
+	int64 DefaultProcessMemory = PlatformProcessMemory - (!FPlatformMemory::TracksLLMAllocations() ? MemoryUsageCurrentOverhead : 0);
 	int64 DefaultUntracked = FMath::Max<int64>(0, DefaultProcessMemory - TrackedTotal);
 	DefaultTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::Total), DefaultProcessMemory, false);
 	DefaultTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::Untracked), DefaultUntracked, false);

@@ -775,6 +775,15 @@ public:
 	static void UpdateCustomLLMTags() { };
 
 	/**
+	 * Indicates whether LLM allocations are already accounted for with tracking and in GetStats.
+	 * Returns true if LLM allocations come from a memory pool separate from the main engine's memory or
+	 * are already tagged with tracking by the platform memory system.
+	 * Returns false if LLM uses the regular memory shared with the engine and allocations are not tracked.
+	 * @see GetLLMAllocFunctions
+	 */
+	static bool TracksLLMAllocations() { return false; }
+
+	/**
 	* Returns true if Protecting the parent processes pages has been enabled
 	* Only supported on platforms that support forking
 	*/
