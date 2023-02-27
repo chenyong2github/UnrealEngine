@@ -658,7 +658,7 @@ void UTextureCube::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 
 bool UTextureCube::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const
 {
-	// TC_EncodedReflectionCapture is used only for EncodedCapture for Mobile and is hidden for the user.
+	// TC_EncodedReflectionCapture is no longer used and could be deleted
 	if (CompressionSettings == TC_EncodedReflectionCapture)
 	{
 		const static FName EncodedHDR(TEXT("EncodedHDR"));

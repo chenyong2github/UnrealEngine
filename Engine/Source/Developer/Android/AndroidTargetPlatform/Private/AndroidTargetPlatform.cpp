@@ -502,6 +502,7 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<
 		{
 			FTextureFormatSettings FormatSettings;
 			Texture->GetDefaultFormatSettings(FormatSettings);
+			// TC_EncodedReflectionCapture is no longer used and could be deleted
 			if (FormatSettings.CompressionSettings == TC_EncodedReflectionCapture && !FormatSettings.CompressionNone)
 			{
 				TextureFormatName = FName(TEXT("ETC2_RGBA"));

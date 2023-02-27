@@ -325,6 +325,7 @@ enum ETextureSourceFormat : int
 };
 
 // This needs to be mirrored in EditorFactories.cpp.
+// TC_EncodedReflectionCapture is no longer used and could be deleted
 UENUM()
 enum TextureCompressionSettings : int
 {
@@ -342,7 +343,7 @@ enum TextureCompressionSettings : int
 	TC_BC7						UMETA(DisplayName = "BC7 (DX11, optional A)"),
 	TC_HalfFloat				UMETA(DisplayName = "Half Float (R16F)"),
 	TC_LQ				        UMETA(Hidden, DisplayName = "Low Quality (BGR565/BGR555A1)", ToolTip = "BGR565/BGR555A1, fallback to DXT1/DXT5 on Mac platform"),
-	TC_EncodedReflectionCapture	UMETA(Hidden),
+	TC_EncodedReflectionCapture	UMETA(Hidden), 
 	TC_SingleFloat				UMETA(DisplayName = "Single Float (R32F)"),
 	TC_HDR_F32					UMETA(DisplayName = "HDR High Precision (RGBA32F)"),
 	TC_MAX,
