@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "CoreMinimal.h"
+#include "AssetRegistry/AssetData.h"
 #include "AnimAssetFindReplace.generated.h"
 
 class SAnimAssetFindReplace;
