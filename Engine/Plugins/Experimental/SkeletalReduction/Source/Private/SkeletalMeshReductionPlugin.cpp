@@ -2121,7 +2121,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 			RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 		}
 
-		FBoneContainer RequiredBones(RequiredBoneIndexArray, false, SkeletalMesh);
+		FBoneContainer RequiredBones(RequiredBoneIndexArray, UE::Anim::ECurveFilterMode::DisallowAll, SkeletalMesh);
 		RequiredBones.SetUseRAWData(true);
 
 		FCompactPose Pose;

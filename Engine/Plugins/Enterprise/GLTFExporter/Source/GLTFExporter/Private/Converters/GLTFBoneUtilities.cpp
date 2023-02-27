@@ -57,7 +57,7 @@ void FGLTFBoneUtilities::GetBoneTransformsByFrame(const UAnimSequence* AnimSeque
 	FMemMark Mark(FMemStack::Get());
 
 	FBoneContainer BoneContainer;
-	BoneContainer.InitializeTo(BoneIndices, FCurveEvaluationOption(true), *AnimSequence->GetSkeleton());
+	BoneContainer.InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(UE::Anim::ECurveFilterMode::DisallowAll), *AnimSequence->GetSkeleton());
 
 	const int32 FrameCount = FrameTimestamps.Num();
 	OutBoneTransformsByFrame.AddDefaulted(FrameCount);

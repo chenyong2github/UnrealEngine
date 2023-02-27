@@ -1001,7 +1001,7 @@ bool FSkeletalAnimationTrackEditor::CreatePoseAsset(const TArray<UObject*> NewAs
 			UPoseAsset* NewPoseAsset = Cast<UPoseAsset>(NewAsset);
 			if (NewPoseAsset)
 			{
-				NewPoseAsset->AddOrUpdatePoseWithUniqueName(SkeletalMeshComponent);
+				NewPoseAsset->AddPoseWithUniqueName(SkeletalMeshComponent);
 				bResult = true;
 			}
 		}

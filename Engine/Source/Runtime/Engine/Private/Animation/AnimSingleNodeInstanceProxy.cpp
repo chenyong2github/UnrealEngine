@@ -61,17 +61,10 @@ const UMirrorDataTable* FAnimSingleNodeInstanceProxy::GetMirrorDataTable()
 void FAnimSingleNodeInstanceProxy::PropagatePreviewCurve(FPoseContext& Output) 
 {
 	USkeleton* MySkeleton = GetSkeleton();
+
 	for (auto Iter = PreviewCurveOverride.CreateConstIterator(); Iter; ++Iter)
 	{
-		const FName& Name = Iter.Key();
-		const float Value = Iter.Value();
-
-		FSmartName PreviewCurveName;
-
-		if (MySkeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, Name, PreviewCurveName))
-		{
-			Output.Curve.Set(PreviewCurveName.UID, Value);
-		}
+		Output.Curve.Set(Iter.Key(), Iter.Value());
 	}
 }
 #endif // WITH_EDITORONLY_DATA
@@ -476,7 +469,7 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 		{
 			if (PoseAsset->GetSkeleton() != nullptr)
 			{
-				const TArray<FSmartName>& PoseNames = PoseAsset->GetPoseNames();
+				const TArray<FName>& PoseNames = PoseAsset->GetPoseFNames();
 
 				int32 TotalPoses = PoseNames.Num();
 				FAnimExtractContext ExtractContext;
@@ -484,12 +477,9 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 
 				for (int32 PoseIndex = 0; PoseIndex <PoseNames.Num(); ++PoseIndex)
 				{
-					const FSmartName& PoseName = PoseNames[PoseIndex];
-					if (PoseName.UID != SmartName::MaxUID)
-					{
-						ExtractContext.PoseCurves[PoseIndex].PoseIndex = PoseIndex;
-						ExtractContext.PoseCurves[PoseIndex].Value = Output.Curve.Get(PoseName.UID);
-					}
+					const FName& PoseName = PoseNames[PoseIndex];
+					ExtractContext.PoseCurves[PoseIndex].PoseIndex = PoseIndex;
+					ExtractContext.PoseCurves[PoseIndex].Value = Output.Curve.Get(PoseName);
 				}
 
 				if (PoseAsset->IsValidAdditive())

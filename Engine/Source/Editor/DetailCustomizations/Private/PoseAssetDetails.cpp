@@ -179,8 +179,8 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	// add ref pose
 	BasePoseComboList.Add(MakeShareable(new FString(REFERENCE_BASE_POSE_NAME)));
 
-	TArray<FSmartName> PoseNames = PoseAsset->GetPoseNames();
-	FSmartName BasePoseName;
+	TArray<FName> PoseNames = PoseAsset->GetPoseFNames();
+	FName BasePoseName;
 
 	if (PoseNames.IsValidIndex(CachedBasePoseIndex))
 	{
@@ -195,7 +195,7 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		// go through profile and see if it has mine
 		for (const auto& PoseName : PoseNames)
 		{
-			BasePoseComboList.Add(MakeShareable(new FString(PoseName.DisplayName.ToString())));
+			BasePoseComboList.Add(MakeShareable(new FString(PoseName.ToString())));
 
 			if (PoseName == BasePoseName)
 			{
@@ -386,7 +386,7 @@ void FPoseAssetDetails::RefreshBasePoseChanged()
 			CachedBasePoseIndex = -1;
 		}
 
-		TArray<FSmartName> PoseNames = PoseAsset->GetPoseNames();
+		TArray<FName> PoseNames = PoseAsset->GetPoseFNames();
 		// add ref pose
 		BasePoseComboList.Add(MakeShareable(new FString(REFERENCE_BASE_POSE_NAME)));
 
@@ -395,7 +395,7 @@ void FPoseAssetDetails::RefreshBasePoseChanged()
 			// go through profile and see if it has mine
 			for (const auto& PoseName : PoseNames)
 			{
-				BasePoseComboList.Add(MakeShareable(new FString(PoseName.DisplayName.ToString())));
+				BasePoseComboList.Add(MakeShareable(new FString(PoseName.ToString())));
 			}
 		}
 

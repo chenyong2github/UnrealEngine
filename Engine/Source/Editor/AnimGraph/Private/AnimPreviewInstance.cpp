@@ -292,7 +292,7 @@ void FAnimPreviewInstanceProxy::RefreshCurveBoneControllers(UAnimationAsset* Ass
 			}
 
 			// add bone modifier
-			FName BoneName = Curve.Name.DisplayName;
+			FName BoneName = Curve.GetName();
 			if (BoneName != NAME_None && MySkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName) != INDEX_NONE)
 			{
 				ModifyBone(BoneName, true);

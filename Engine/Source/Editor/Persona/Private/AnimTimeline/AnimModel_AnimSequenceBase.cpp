@@ -257,7 +257,7 @@ void FAnimModel_AnimSequenceBase::RefreshCurveTracks()
 			TransformCurveTrack->SetExpanded(false);
 			AdditiveRoot->AddChild(TransformCurveTrack);
 
-			FText TransformName = FAnimTimelineTrack_TransformCurve::GetTransformCurveName(AsShared(), TransformCurve.Name);
+			FText TransformName = FText::FromName(TransformCurve.GetName());
 			FLinearColor TransformColor = TransformCurve.GetColor();
 			FLinearColor XColor = FLinearColor::Red;
 			FLinearColor YColor = FLinearColor::Green;
@@ -268,33 +268,33 @@ void FAnimModel_AnimSequenceBase::RefreshCurveTracks()
 			
 			FText VectorFormat = LOCTEXT("TransformVectorFormat", "{0}.{1}");
 			FText TranslationName = LOCTEXT("TransformTranslationTrackName", "Translation");
-			TSharedRef<FAnimTimelineTrack_VectorCurve> TranslationCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(&TransformCurve.TranslationCurve, TransformCurve.Name, 0, ERawCurveTrackTypes::RCT_Transform, TranslationName, FText::Format(VectorFormat, TransformName, TranslationName), TransformColor, SharedThis(this));
+			TSharedRef<FAnimTimelineTrack_VectorCurve> TranslationCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(&TransformCurve.TranslationCurve, TransformCurve.GetName(), 0, ERawCurveTrackTypes::RCT_Transform, TranslationName, FText::Format(VectorFormat, TransformName, TranslationName), TransformColor, SharedThis(this));
 			TranslationCurveTrack->SetExpanded(false);
 			TransformCurveTrack->AddChild(TranslationCurveTrack);			
 
 			FText ComponentFormat = LOCTEXT("TransformComponentFormat", "{0}.{1}.{2}");
-			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.TranslationCurve.FloatCurves[0], TransformCurve.Name, 0, ERawCurveTrackTypes::RCT_Transform, XName, FText::Format(ComponentFormat, TransformName, TranslationName, XName), XColor, XColor, SharedThis(this)));
-			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.TranslationCurve.FloatCurves[1], TransformCurve.Name, 1, ERawCurveTrackTypes::RCT_Transform, YName, FText::Format(ComponentFormat, TransformName, TranslationName, YName), YColor, YColor, SharedThis(this)));
-			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.TranslationCurve.FloatCurves[2], TransformCurve.Name, 2, ERawCurveTrackTypes::RCT_Transform, ZName, FText::Format(ComponentFormat, TransformName, TranslationName, ZName), ZColor, ZColor, SharedThis(this)));
+			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.TranslationCurve.FloatCurves[0], TransformCurve.GetName(), 0, ERawCurveTrackTypes::RCT_Transform, XName, FText::Format(ComponentFormat, TransformName, TranslationName, XName), XColor, XColor, SharedThis(this)));
+			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.TranslationCurve.FloatCurves[1], TransformCurve.GetName(), 1, ERawCurveTrackTypes::RCT_Transform, YName, FText::Format(ComponentFormat, TransformName, TranslationName, YName), YColor, YColor, SharedThis(this)));
+			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.TranslationCurve.FloatCurves[2], TransformCurve.GetName(), 2, ERawCurveTrackTypes::RCT_Transform, ZName, FText::Format(ComponentFormat, TransformName, TranslationName, ZName), ZColor, ZColor, SharedThis(this)));
 
 			FText RollName = LOCTEXT("RotationRollTrackName", "Roll");
 			FText PitchName = LOCTEXT("RotationPitchTrackName", "Pitch");
 			FText YawName = LOCTEXT("RotationYawTrackName", "Yaw");
 			FText RotationName = LOCTEXT("TransformRotationTrackName", "Rotation");
-			TSharedRef<FAnimTimelineTrack_VectorCurve> RotationCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(&TransformCurve.RotationCurve, TransformCurve.Name, 3, ERawCurveTrackTypes::RCT_Transform, RotationName, FText::Format(VectorFormat, TransformName, RotationName), TransformColor, SharedThis(this));
+			TSharedRef<FAnimTimelineTrack_VectorCurve> RotationCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(&TransformCurve.RotationCurve, TransformCurve.GetName(), 3, ERawCurveTrackTypes::RCT_Transform, RotationName, FText::Format(VectorFormat, TransformName, RotationName), TransformColor, SharedThis(this));
 			RotationCurveTrack->SetExpanded(false);
 			TransformCurveTrack->AddChild(RotationCurveTrack);
-			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.RotationCurve.FloatCurves[0], TransformCurve.Name, 3, ERawCurveTrackTypes::RCT_Transform, RollName, FText::Format(ComponentFormat, TransformName, RotationName, RollName), XColor, XColor, SharedThis(this)));
-			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.RotationCurve.FloatCurves[1], TransformCurve.Name, 4, ERawCurveTrackTypes::RCT_Transform, PitchName, FText::Format(ComponentFormat, TransformName, RotationName, PitchName), YColor, YColor, SharedThis(this)));
-			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.RotationCurve.FloatCurves[2], TransformCurve.Name, 5, ERawCurveTrackTypes::RCT_Transform, YawName, FText::Format(ComponentFormat, TransformName, RotationName, YawName), ZColor, ZColor, SharedThis(this)));
+			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.RotationCurve.FloatCurves[0], TransformCurve.GetName(), 3, ERawCurveTrackTypes::RCT_Transform, RollName, FText::Format(ComponentFormat, TransformName, RotationName, RollName), XColor, XColor, SharedThis(this)));
+			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.RotationCurve.FloatCurves[1], TransformCurve.GetName(), 4, ERawCurveTrackTypes::RCT_Transform, PitchName, FText::Format(ComponentFormat, TransformName, RotationName, PitchName), YColor, YColor, SharedThis(this)));
+			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.RotationCurve.FloatCurves[2], TransformCurve.GetName(), 5, ERawCurveTrackTypes::RCT_Transform, YawName, FText::Format(ComponentFormat, TransformName, RotationName, YawName), ZColor, ZColor, SharedThis(this)));
 
 			FText ScaleName = LOCTEXT("TransformScaleTrackName", "Scale");
-			TSharedRef<FAnimTimelineTrack_VectorCurve> ScaleCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(&TransformCurve.ScaleCurve, TransformCurve.Name, 6, ERawCurveTrackTypes::RCT_Transform, ScaleName, FText::Format(VectorFormat, TransformName, ScaleName), TransformColor, SharedThis(this));
+			TSharedRef<FAnimTimelineTrack_VectorCurve> ScaleCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(&TransformCurve.ScaleCurve, TransformCurve.GetName(), 6, ERawCurveTrackTypes::RCT_Transform, ScaleName, FText::Format(VectorFormat, TransformName, ScaleName), TransformColor, SharedThis(this));
 			ScaleCurveTrack->SetExpanded(false);
 			TransformCurveTrack->AddChild(ScaleCurveTrack);
-			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[0], TransformCurve.Name, 6, ERawCurveTrackTypes::RCT_Transform, XName, FText::Format(ComponentFormat, TransformName, ScaleName, XName), XColor, XColor, SharedThis(this)));
-			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[1], TransformCurve.Name, 7, ERawCurveTrackTypes::RCT_Transform, YName, FText::Format(ComponentFormat, TransformName, ScaleName, YName), YColor, YColor, SharedThis(this)));
-			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[2], TransformCurve.Name, 8, ERawCurveTrackTypes::RCT_Transform, ZName, FText::Format(ComponentFormat, TransformName, ScaleName, ZName), ZColor, ZColor, SharedThis(this)));
+			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[0], TransformCurve.GetName(), 6, ERawCurveTrackTypes::RCT_Transform, XName, FText::Format(ComponentFormat, TransformName, ScaleName, XName), XColor, XColor, SharedThis(this)));
+			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[1], TransformCurve.GetName(), 7, ERawCurveTrackTypes::RCT_Transform, YName, FText::Format(ComponentFormat, TransformName, ScaleName, YName), YColor, YColor, SharedThis(this)));
+			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[2], TransformCurve.GetName(), 8, ERawCurveTrackTypes::RCT_Transform, ZName, FText::Format(ComponentFormat, TransformName, ScaleName, ZName), ZColor, ZColor, SharedThis(this)));
 		}		
 	}
 }
@@ -393,7 +393,7 @@ void FAnimModel_AnimSequenceBase::EditSelectedCurves()
 				{
 					FText FullName = CurveTrack->GetFullCurveName(CurveIndex);
 					FLinearColor Color = CurveTrack->GetCurveColor(CurveIndex);
-					FSmartName Name;
+					FName Name;
 					ERawCurveTrackTypes Type;
 					int32 EditCurveIndex;
 					CurveTrack->GetCurveEditInfo(CurveIndex, Name, Type, EditCurveIndex);
@@ -443,37 +443,26 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 		if(SelectedTrack->IsA<FAnimTimelineTrack_FloatCurve>())
 		{
 			TSharedRef<FAnimTimelineTrack_FloatCurve> FloatCurveTrack = StaticCastSharedRef<FAnimTimelineTrack_FloatCurve>(SelectedTrack);
-
-			FSmartName CurveName = FloatCurveTrack->GetName();
+			FName CurveName = FloatCurveTrack->GetFName();
+			
 			const FAnimationCurveIdentifier FloatCurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
 			if (AnimSequenceBase->GetDataModel()->FindCurve(FloatCurveId))
 			{
-				FSmartName TrackName;
-				if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveName.UID, TrackName))
-				{
-					Controller.RemoveCurve(FloatCurveId);
-					bDeletedCurve = true;
-				}
+				Controller.RemoveCurve(FloatCurveId);
+				bDeletedCurve = true;
 			}
 		}
 		else if(SelectedTrack->IsA<FAnimTimelineTrack_TransformCurve>())
 		{
 			TSharedRef<FAnimTimelineTrack_TransformCurve> TransformCurveTrack = StaticCastSharedRef<FAnimTimelineTrack_TransformCurve>(SelectedTrack);
-
-			const FTransformCurve& TransformCurve = TransformCurveTrack->GetTransformCurve();
-			FSmartName CurveName = TransformCurveTrack->GetName();
+			FName CurveName = TransformCurveTrack->GetFName();
 
 			const FAnimationCurveIdentifier TransformCurveId(CurveName, ERawCurveTrackTypes::RCT_Transform);
-
 			if (AnimSequenceBase->GetDataModel()->FindTransformCurve(TransformCurveId))
 			{
-				FSmartName CurveToDelete;
-				if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimTrackCurveMappingName, CurveName.UID, CurveToDelete))
-				{
-					Controller.RemoveCurve(TransformCurveId);
-					bDeletedCurve = true;
-				}
-			}	
+				Controller.RemoveCurve(TransformCurveId);
+				bDeletedCurve = true;
+			}
 		}
 		else if (SelectedTrack->IsA<FAnimTimelineTrack_CompoundCurve>())
 		{
@@ -481,17 +470,13 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 			TSharedRef<FAnimTimelineTrack_CompoundCurve> CurveTrack = StaticCastSharedRef<FAnimTimelineTrack_CompoundCurve>(SelectedTrack);
 
 			// Find all editable curves in this track
-			for (const FSmartName CurveName : CurveTrack->GetCurveNames())
+			for (const FName TrackCurveName : CurveTrack->GetCurveNames())
 			{
-				const FAnimationCurveIdentifier CurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
+				const FAnimationCurveIdentifier CurveId(TrackCurveName, ERawCurveTrackTypes::RCT_Float);
 				if (AnimSequenceBase->GetDataModel()->FindCurve(CurveId))
 				{
-					FSmartName TrackName;
-					if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveName.UID, TrackName))
-					{
-						Controller.RemoveCurve(CurveId);
-						bDeletedCurve = true;
-					}
+					Controller.RemoveCurve(CurveId);
+					bDeletedCurve = true;
 				}
 			}
 		}
@@ -519,12 +504,12 @@ void FAnimModel_AnimSequenceBase::CopySelectedCurveNamesToClipboard()
 		if(SelectedTrack->IsA<FAnimTimelineTrack_FloatCurve>())
 		{
 			TSharedRef<FAnimTimelineTrack_FloatCurve> FloatCurveTrack = StaticCastSharedRef<FAnimTimelineTrack_FloatCurve>(SelectedTrack);
-			TrackNames.Add(FloatCurveTrack->GetName().DisplayName.ToString());
+			TrackNames.Add(FloatCurveTrack->GetFName().ToString());
 		}
 		else if(SelectedTrack->IsA<FAnimTimelineTrack_TransformCurve>())
 		{
 			TSharedRef<FAnimTimelineTrack_TransformCurve> TransformCurveTrack = StaticCastSharedRef<FAnimTimelineTrack_TransformCurve>(SelectedTrack);
-			TrackNames.Add(TransformCurveTrack->GetName().DisplayName.ToString());
+			TrackNames.Add(TransformCurveTrack->GetFName().ToString());
 		}
 
 	}

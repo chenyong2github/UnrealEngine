@@ -23,16 +23,22 @@ class UEditorAnimCurveBoneLinks: public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
-	
+
+	UE_DEPRECATED(5.3, "Please use Initialize that takes a FName")
 	virtual void Initialize(const TWeakPtr<class IEditableSkeleton> InEditableSkeleton, const FSmartName& InCurveName, FOnAnimCurveBonesChange OnChangeIn);
 
+	virtual void Initialize(UAnimCurveMetaData* InAnimCurveMetaData, const FName& InCurveName, FOnAnimCurveBonesChange OnChangeIn);
+
+	UE_DEPRECATED(5.3, "This member is no longer used.")
 	TWeakPtr<class IEditableSkeleton> EditableSkeleton;
+
+	TWeakObjectPtr<UAnimCurveMetaData> AnimCurveMetaData;
 	FOnAnimCurveBonesChange OnChange;
 
-	UPROPERTY(VisibleAnywhere, Category = CurveName)
-	FSmartName CurveName;
+	UPROPERTY(VisibleAnywhere, Category = Curve)
+	FName CurveName;
 
-	UPROPERTY(EditAnywhere, Category = Bones)
+	UPROPERTY(EditAnywhere, Category = Curve)
 	TArray<FBoneReference> ConnectedBones;
 
 	/** Max (Lowest) LOD to evaluate to curve. 
@@ -40,11 +46,14 @@ public:
 	 *  For example, if you have 3 LODs (0, 1, 2), and if you want this to work until LOD 1, type 1.  
 	 *  Then the curve will be evaluated until LOD1, but not for LOD 2
 	 *  Default value is 255 */
-	UPROPERTY(EditAnywhere, Category = LOD)
+	UPROPERTY(EditAnywhere, Category = Curve)
 	uint8 MaxLOD;
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	// refresh current Connected Bones data 
+	UE_DEPRECATED(5.3, "Please use Refresh that takes a FName")
 	UNREALED_API void Refresh(const FSmartName& InCurveName, const TArray<FBoneReference>& CurrentLinks, uint8 InMaxLOD);
+
+	// refresh current Connected Bones data 
+	UNREALED_API void Refresh(const FName& InCurveName, const TArray<FBoneReference>& CurrentLinks, uint8 InMaxLOD);
 };

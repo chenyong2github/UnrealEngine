@@ -24,6 +24,11 @@
 
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Animation/AnimationDecompression.h"
+#include "BoneContainer.h"
+
+#if WITH_EDITOR
+#include "ReferenceSkeleton.h"
+#endif
 
 #include "AnimCompressionTypes.generated.h"
 
@@ -731,6 +736,36 @@ struct TIsContiguousContainer<TMaybeMappedArray<T, Alignment>>
 	static constexpr bool Value = TIsContiguousContainer<TArray<T, TMaybeMappedAllocator<Alignment>>>::Value;
 };
 
+USTRUCT()
+struct FAnimCompressedCurveIndexedName
+{
+	GENERATED_BODY()
+
+	FAnimCompressedCurveIndexedName() = default;
+	
+	bool operator<(const FAnimCompressedCurveIndexedName& InOther) const
+	{
+		return InOther.CurveName.FastLess(CurveName);
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FAnimCompressedCurveIndexedName& Item)
+	{
+		Ar << Item.CurveName;
+		if(Ar.IsCountingMemory())
+		{
+			Ar << Item.CurveIndex;
+		}
+		return Ar;
+	}
+	
+	// Name of the curve, used for sorting
+	UPROPERTY()
+	FName CurveName = NAME_None;
+
+	// Index into the compressed buffer
+	int32 CurveIndex = INDEX_NONE;
+};
+
 struct ENGINE_API FCompressedAnimSequence
 {
 public:
@@ -742,11 +777,11 @@ public:
 	 */
 	TArray<struct FTrackToSkeletonMap> CompressedTrackToSkeletonMapTable;
 
-	/**
-	 * Much like track indices above, we need to be able to remap curve names. The FName inside FSmartName
-	 * is serialized and the UID is generated at runtime. Stored in the DDC.
-	 */
+	UE_DEPRECATED(5.3, "Please use IndexedCurveNames.")
 	TArray<struct FSmartName> CompressedCurveNames;
+
+	/** Curve names for each compressed curve track, indices sorted by FName */
+	TArray<FAnimCompressedCurveIndexedName> IndexedCurveNames;
 
 	/**
 	 * ByteStream for compressed animation data.
@@ -788,6 +823,8 @@ public:
 
 	void SerializeCompressedData(FArchive& Ar, bool bDDCData, UObject* DataOwner, USkeleton* Skeleton, UAnimBoneCompressionSettings* BoneCompressionSettings, UAnimCurveCompressionSettings* CurveCompressionSettings, bool bCanUseBulkData=true);
 
+	void RebuildCurveIndexTable();
+	
 	int32 GetSkeletonIndexFromTrackIndex(const int32 TrackIndex) const
 	{
 		return CompressedTrackToSkeletonMapTable[TrackIndex].BoneTreeIndex;

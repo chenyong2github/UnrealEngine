@@ -8,6 +8,7 @@ UFbxAnimSequenceImportData::UFbxAnimSequenceImportData(const FObjectInitializer&
 	, bImportMeshesInBoneHierarchy(true)
 	, bImportCustomAttribute(true)
 	, bImportBoneTracks(true)
+	, bAddCurveMetadataToSkeleton(true)
 	, bRemoveRedundantKeys(true)
 	, bDoNotImportCurveWithZero(true)
 {
@@ -93,6 +94,7 @@ void UFbxAnimSequenceImportData::CopyAnimationValues(const UFbxAnimSequenceImpor
 	bPreserveLocalTransform = Other->bPreserveLocalTransform;
 	bRemoveRedundantKeys = Other->bRemoveRedundantKeys;
 	bSetMaterialDriveParameterOnCustomAttribute = Other->bSetMaterialDriveParameterOnCustomAttribute;
+	bAddCurveMetadataToSkeleton = Other->bAddCurveMetadataToSkeleton;
 	bUseDefaultSampleRate = Other->bUseDefaultSampleRate;
 	CustomSampleRate = Other->CustomSampleRate;
 	FrameImportRange = Other->FrameImportRange;

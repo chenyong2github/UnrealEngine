@@ -152,6 +152,7 @@ namespace UE::Interchange::Private
 		, const FString& CurveName
 		, const int32 CurveFlags
 		, const bool bDoNotImportCurveWithZero
+		, const bool bAddCurveMetadataToSkeleton
 		, const bool bMorphTargetCurve
 		, const bool bMaterialCurve
 		, const bool bShouldTransact)
@@ -183,22 +184,10 @@ namespace UE::Interchange::Private
 				return false;
 			}
 		}
+		
 		FName Name = *CurveName;
-		USkeleton* Skeleton = TargetSequence->GetSkeleton();
-		const FSmartNameMapping* NameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-
-		// Add or retrieve curve
-		if (!NameMapping->Exists(Name))
-		{
-			// mark skeleton dirty
-			Skeleton->Modify();
-		}
-
-		FSmartName NewName;
-		Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, Name, NewName);
-
-		FAnimationCurveIdentifier FloatCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
-
+		FAnimationCurveIdentifier FloatCurveId(Name, ERawCurveTrackTypes::RCT_Float);
+		
 		IAnimationDataModel* DataModel = TargetSequence->GetDataModel();
 		IAnimationDataController& Controller = TargetSequence->GetController();
 
@@ -218,8 +207,6 @@ namespace UE::Interchange::Private
 		// Should be valid at this point
 		ensure(TargetCurve);
 
-		Controller.UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float, bShouldTransact);
-
 		//MorphTarget curves are shift to 0 second
 		const float CurveStartTime = CurvePayload.Curves[0].GetFirstKey().Time;
 		if (CurveStartTime > UE_SMALL_NUMBER)
@@ -231,31 +218,35 @@ namespace UE::Interchange::Private
 
 		if (bMaterialCurve || bMorphTargetCurve)
 		{
-			Skeleton->AccumulateCurveMetaData(*CurveName, bMaterialCurve, bMorphTargetCurve);
+			if(bAddCurveMetadataToSkeleton)
+			{
+				USkeleton* Skeleton = TargetSequence->GetSkeleton();
+				Skeleton->AccumulateCurveMetaData(Name, bMaterialCurve, bMorphTargetCurve);
+			}
 		}
 		return true;
 	}
 
-	bool CreateMorphTargetCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero, bool bShouldTransact)
+	bool CreateMorphTargetCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero, bool bAddCurveMetadataToSkeleton, bool bShouldTransact)
 	{
 		constexpr bool bIsMorphTargetCurve = true;
 		constexpr bool bIsMaterialCurve = false;
-		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bIsMorphTargetCurve, bIsMaterialCurve, bShouldTransact);
+		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bAddCurveMetadataToSkeleton, bIsMorphTargetCurve, bIsMaterialCurve, bShouldTransact);
 	}
 
-	bool CreateMaterialCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero, bool bShouldTransact)
+	bool CreateMaterialCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero, bool bAddCurveMetadataToSkeleton, bool bShouldTransact)
 	{
 		constexpr bool bIsMorphTargetCurve = false;
 		constexpr bool bIsMaterialCurve = true;
-		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bIsMorphTargetCurve, bIsMaterialCurve, bShouldTransact);
+		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bAddCurveMetadataToSkeleton, bIsMorphTargetCurve, bIsMaterialCurve, bShouldTransact);
 	}
 
-	bool CreateAttributeCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero, bool bShouldTransact)
+	bool CreateAttributeCurve(UAnimSequence* TargetSequence, FAnimationCurvePayloadData& CurvePayload, const FString& CurveName, int32 CurveFlags, bool bDoNotImportCurveWithZero, bool bAddCurveMetadataToSkeleton, bool bShouldTransact)
 	{
 		//This curve don't animate morph target or material parameter.
 		constexpr bool bIsMorphTargetCurve = false;
 		constexpr bool bIsMaterialCurve = false;
-		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bIsMorphTargetCurve, bIsMaterialCurve, bShouldTransact);
+		return InternalCreateCurve(TargetSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bAddCurveMetadataToSkeleton, bIsMorphTargetCurve, bIsMaterialCurve, bShouldTransact);
 	}
 
 	void RetrieveAnimationPayloads(UAnimSequence* AnimSequence
@@ -449,21 +440,21 @@ namespace UE::Interchange::Private
 		AnimSequenceFactoryNode->GetCustomDeleteExistingNonCurveCustomAttributes(bDeleteExistingNonCurveCustomAttributes);
 		if (bDeleteExistingMorphTargetCurves || bDeleteExistingCustomAttributeCurves)
 		{
-			TArray<FSmartName> CurveSmartNamesToRemove;
+			TArray<FName> CurveNamesToRemove;
 			for (const FFloatCurve& Curve : AnimSequence->GetDataModel()->GetFloatCurves())
 			{
-				const FCurveMetaData* MetaData = Skeleton->GetCurveMetaData(Curve.Name);
+				const FCurveMetaData* MetaData = Skeleton->GetCurveMetaData(Curve.GetName());
 				if (MetaData)
 				{
 					bool bDeleteCurve = MetaData->Type.bMorphtarget ? bDeleteExistingMorphTargetCurves : bDeleteExistingCustomAttributeCurves;
 					if (bDeleteCurve)
 					{
-						CurveSmartNamesToRemove.Add(Curve.Name);
+						CurveNamesToRemove.Add(Curve.GetName());
 					}
 				}
 			}
 
-			for (const FSmartName& CurveName : CurveSmartNamesToRemove)
+			for (const FName& CurveName : CurveNamesToRemove)
 			{
 				const FAnimationCurveIdentifier CurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
 				Controller.RemoveCurve(CurveId, bShouldTransact);
@@ -488,11 +479,11 @@ namespace UE::Interchange::Private
 
 			for (const FFloatCurve& FloatCurve : CurveData.FloatCurves)
 			{
-				const FCurveMetaData* MetaData = Skeleton->GetCurveMetaData(FloatCurve.Name);
+				const FCurveMetaData* MetaData = Skeleton->GetCurveMetaData(FloatCurve.GetName());
 
 				if (MetaData && !MetaData->Type.bMorphtarget)
 				{
-					OutCurvesNotFound.Add(FloatCurve.Name.DisplayName.ToString());
+					OutCurvesNotFound.Add(FloatCurve.GetName().ToString());
 				}
 			}
 
@@ -502,6 +493,8 @@ namespace UE::Interchange::Private
 			AnimSequenceFactoryNode->GetAnimatedMaterialCurveSuffixes(MaterialSuffixes);
 			bool bDoNotImportCurveWithZero = false;
 			AnimSequenceFactoryNode->GetCustomDoNotImportCurveWithZero(bDoNotImportCurveWithZero);
+			bool bAddCurveMetadataToSkeleton = false;
+			AnimSequenceFactoryNode->GetCustomAddCurveMetadataToSkeleton(bAddCurveMetadataToSkeleton);
 			bool bRemoveCurveRedundantKeys = false;
 			AnimSequenceFactoryNode->GetCustomRemoveCurveRedundantKeys(bRemoveCurveRedundantKeys);
 
@@ -577,7 +570,7 @@ namespace UE::Interchange::Private
 						}
 					}
 					constexpr int32 CurveFlags = 0;
-					CreateMorphTargetCurve(AnimSequence, CurvePayload, AnimationCurveMorphTargetNodeNames.FindChecked(CurveNameAndPayload.Key), CurveFlags, bDoNotImportCurveWithZero, bShouldTransact);
+					CreateMorphTargetCurve(AnimSequence, CurvePayload, AnimationCurveMorphTargetNodeNames.FindChecked(CurveNameAndPayload.Key), CurveFlags, bDoNotImportCurveWithZero, bAddCurveMetadataToSkeleton, bShouldTransact);
 				}
 			}
 
@@ -650,11 +643,11 @@ namespace UE::Interchange::Private
 						constexpr int32 CurveFlags = 0;
 						if (bMaterialDriveParameterOnCustomAttribute || IsCurveHookToMaterial(CurveName))
 						{
-							CreateMaterialCurve(AnimSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bShouldTransact);
+							CreateMaterialCurve(AnimSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bAddCurveMetadataToSkeleton, bShouldTransact);
 						}
 						else
 						{
-							CreateAttributeCurve(AnimSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bShouldTransact);
+							CreateAttributeCurve(AnimSequence, CurvePayload, CurveName, CurveFlags, bDoNotImportCurveWithZero, bAddCurveMetadataToSkeleton, bShouldTransact);
 						}
 					}
 				}
@@ -749,10 +742,10 @@ namespace UE::Interchange::Private
 			// Store float curve tracks which use to exist on the animation
 			for (const FFloatCurve& Curve : AnimSequence->GetDataModel()->GetFloatCurves())
 			{
-				const FCurveMetaData* MetaData = Skeleton->GetCurveMetaData(Curve.Name);
+				const FCurveMetaData* MetaData = Skeleton->GetCurveMetaData(Curve.GetName());
 				if (MetaData && !MetaData->Type.bMorphtarget)
 				{
-					OutCurvesNotFound.Add(Curve.Name.DisplayName.ToString());
+					OutCurvesNotFound.Add(Curve.GetName().ToString());
 				}
 			}
 		}

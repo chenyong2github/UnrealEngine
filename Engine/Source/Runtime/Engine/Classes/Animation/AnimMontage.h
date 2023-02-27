@@ -82,7 +82,7 @@ public:
  * contains slot name, and animation data 
  */
 USTRUCT()
-struct FSlotAnimationTrack
+struct ENGINE_API FSlotAnimationTrack
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -92,7 +92,7 @@ struct FSlotAnimationTrack
 	UPROPERTY(EditAnywhere, Category=Slot)
 	FAnimTrack AnimTrack;
 
-	ENGINE_API FSlotAnimationTrack();
+	FSlotAnimationTrack();
 };
 
 /** 

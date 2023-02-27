@@ -323,139 +323,6 @@ void UAnimSequencerController::SetFrameRate(FFrameRate FrameRate, bool bShouldTr
 	}
 }
 
-void UAnimSequencerController::UpdateCurveNamesFromSkeleton(const USkeleton* Skeleton, ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact /*= true*/)
-{
-	ValidateModel();
-
-	if (Skeleton)
-	{
-		if (IsSupportedCurveType(SupportedCurveType))
-		{
-			FBracket Bracket = ConditionalBracket(LOCTEXT("ValidateRawCurves", "Validating Animation Curve Names"), bShouldTransact);
-			switch (SupportedCurveType)
-			{
-			case ERawCurveTrackTypes::RCT_Float:
-				{
-					const FSmartNameMapping* NameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-					for (FFloatCurve& FloatCurve : Model->LegacyCurveData.FloatCurves)
-					{
-						FSmartName NewSmartName = FloatCurve.Name;
-						NameMapping->GetName(FloatCurve.Name.UID, NewSmartName.DisplayName);
-						if (NewSmartName != FloatCurve.Name)
-						{
-							const FAnimationCurveIdentifier CurrentId(FloatCurve.Name, SupportedCurveType);
-							const FAnimationCurveIdentifier NewId(NewSmartName, SupportedCurveType);
-							RenameCurve(CurrentId, NewId, bShouldTransact);
-						}
-					}
-					break;
-				}
-			case ERawCurveTrackTypes::RCT_Transform:
-				{
-					const FSmartNameMapping* NameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimTrackCurveMappingName);
-					for (FTransformCurve& TransformCurve : Model->LegacyCurveData.TransformCurves)
-					{
-						FSmartName NewSmartName = TransformCurve.Name;
-						NameMapping->GetName(TransformCurve.Name.UID, NewSmartName.DisplayName);
-						if (NewSmartName != TransformCurve.Name)
-						{
-							const FAnimationCurveIdentifier CurrentId(TransformCurve.Name, SupportedCurveType);
-							const FAnimationCurveIdentifier NewId(NewSmartName, SupportedCurveType);
-							RenameCurve(CurrentId, NewId, bShouldTransact);
-						}
-					}
-					break;
-				}
-			default:
-				{
-					checkf(false, TEXT("Unsupported curve type"));
-					break;
-				}
-			}
-		}
-		else
-		{
-			const FString CurveTypeAsString = GetCurveTypeValueName(SupportedCurveType);
-			ReportWarningf(LOCTEXT("InvalidCurveTypeWarning", "Invalid curve type provided: {0} ({1})"), FText::FromString(CurveTypeAsString), FText::AsNumber(static_cast<int32>(SupportedCurveType)));
-		}
-	}
-	else
-	{
-		ReportError(LOCTEXT("InvalidSkeletonError", "Invalid USkeleton supplied"));
-	}
-}
-
-void UAnimSequencerController::FindOrAddCurveNamesOnSkeleton(USkeleton* Skeleton, ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact)
-{
-	ValidateModel();
-	
-	if (Skeleton)
-	{
-		if (IsSupportedCurveType(SupportedCurveType))
-		{
-			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
-			FBracket Bracket = ConditionalBracket(LOCTEXT("FindOrAddRawCurveNames", "Updating Skeleton with Animation Curve Names"), bShouldTransact);
-			switch (SupportedCurveType)
-			{
-			case ERawCurveTrackTypes::RCT_Float:
-				{
-					for (TPair<FAnimationCurveIdentifier, FAnimationCurveMetaData>& IdentifierPair : Model->CurveIdentifierToMetaData)
-					{
-						if (IdentifierPair.Key.CurveType == ERawCurveTrackTypes::RCT_Float)
-						{
-							const FSmartName CurrentSmartName = IdentifierPair.Key.InternalName;
-							FSmartName NewSmartName = CurrentSmartName;
-							Skeleton->VerifySmartName(USkeleton::AnimCurveMappingName, NewSmartName);
-							if (NewSmartName != CurrentSmartName)
-							{
-								ensure(CurrentSmartName.DisplayName == NewSmartName.DisplayName);
-								IdentifierPair.Key.InternalName = NewSmartName;
-
-								// Update float curve name itself as well
-								if (FFloatCurve* FloatCurve = Model->FindMutableFloatCurveById(FAnimationCurveIdentifier(CurrentSmartName, ERawCurveTrackTypes::RCT_Float)))
-								{
-									FloatCurve->Name = NewSmartName;
-								}
-							}
-						}
-					}
-					
-					break;
-				}
-			case ERawCurveTrackTypes::RCT_Transform:
-				{
-					for (FTransformCurve& TransformCurve : Model->LegacyCurveData.TransformCurves)
-					{
-						FSmartName NewSmartName = TransformCurve.Name;
-						Skeleton->VerifySmartName(USkeleton::AnimTrackCurveMappingName, NewSmartName);
-						if (NewSmartName != TransformCurve.Name)
-						{
-							const FAnimationCurveIdentifier CurrentId(TransformCurve.Name, SupportedCurveType);
-							const FAnimationCurveIdentifier NewId(NewSmartName, SupportedCurveType);
-							RenameCurve(CurrentId, NewId, bShouldTransact);
-						}
-					}
-					break;
-				}
-			default:
-				{
-					checkf(false, TEXT("Unsupported curve type"));
-					break;
-				}
-			}
-		}
-		else
-		{
-			const FString CurveTypeAsString = GetCurveTypeValueName(SupportedCurveType);
-			ReportWarningf(LOCTEXT("InvalidCurveTypeWarning", "Invalid curve type provided: {0} ({1})"), FText::FromString(CurveTypeAsString), FText::AsNumber(static_cast<int32>(SupportedCurveType)));
-		}
-	}
-	else
-	{
-		ReportError(LOCTEXT("InvalidSkeletonError", "Invalid USkeleton supplied"));
-	}
-}
-
 bool UAnimSequencerController::RemoveBoneTracksMissingFromSkeleton(const USkeleton* Skeleton, bool bShouldTransact /*= true*/)
 {
 	if (!ModelInterface->GetAnimationSequence())
@@ -595,8 +462,8 @@ void UAnimSequencerController::ResetModel(bool bShouldTransact /*= true*/)
 bool UAnimSequencerController::AddCurve(const FAnimationCurveIdentifier& CurveId, int32 CurveFlags /*= EAnimAssetCurveFlags::AACF_Editable*/, bool bShouldTransact /*= true*/)
 {
 	ValidateModel();
-	if (CurveId.InternalName.IsValid() || IgnoreSkeletonValidation())
-	{		
+	if (CurveId.IsValid())
+	{
 		if (IsSupportedCurveType(CurveId.CurveType))
 		{
 			if (!Model->FindCurve(CurveId))
@@ -607,7 +474,7 @@ bool UAnimSequencerController::AddCurve(const FAnimationCurveIdentifier& CurveId
 				FCurveAddedPayload Payload;
 				Payload.Identifier = CurveId;
 				
-				auto AddNewCurve = [this, CurveId, CurveName = CurveId.InternalName, CurveFlags](auto& CurveTypeArray)
+				auto AddNewCurve = [this, CurveId, CurveName = CurveId.CurveName, CurveFlags](auto& CurveTypeArray)
 				{
 					CurveTypeArray.Add({ CurveName, CurveFlags});					
 					Model->CurveIdentifierToMetaData.FindOrAdd(CurveId).Flags = CurveFlags;
@@ -620,7 +487,7 @@ bool UAnimSequencerController::AddCurve(const FAnimationCurveIdentifier& CurveId
 					break;
 				case ERawCurveTrackTypes::RCT_Float:
 					AddNewCurve(Model->LegacyCurveData.FloatCurves);
-					if(!AddCurveControl(CurveId.InternalName.DisplayName))
+					if(!AddCurveControl(CurveId.CurveName))
 					{
 						ReportError(LOCTEXT("FailedtoAddCurveControl", "Failed to add curve control"));
 					}
@@ -640,7 +507,7 @@ bool UAnimSequencerController::AddCurve(const FAnimationCurveIdentifier& CurveId
 			else
 			{
 				const FString CurveTypeAsString = GetCurveTypeValueName(CurveId.CurveType);
-				ReportWarningf(LOCTEXT("ExistingCurveNameWarning", "Curve with name {0} and type {1} ({2}) already exists"), FText::FromName(CurveId.InternalName.DisplayName), FText::FromString(CurveTypeAsString), FText::AsNumber(static_cast<int32>(CurveId.CurveType)));
+				ReportWarningf(LOCTEXT("ExistingCurveNameWarning", "Curve with name {0} and type {1} ({2}) already exists"), FText::FromName(CurveId.CurveName), FText::FromString(CurveTypeAsString), FText::AsNumber(static_cast<int32>(CurveId.CurveType)));
 			}			
 		}
 		else 
@@ -652,7 +519,7 @@ bool UAnimSequencerController::AddCurve(const FAnimationCurveIdentifier& CurveId
 	else
 	{
 		const FString CurveTypeAsString = GetCurveTypeValueName(CurveId.CurveType);
-		ReportWarningf(LOCTEXT("InvalidCurveIdentifierWarning", "Invalid curve identifier provided: name: {0}, UID: {1} type: {2}"), FText::FromName(CurveId.InternalName.DisplayName), FText::AsNumber(CurveId.InternalName.UID), FText::FromString(CurveTypeAsString));
+		ReportWarningf(LOCTEXT("InvalidCurveIdentifierWarning", "Invalid curve identifier provided: name: {0}, type: {1}"), FText::FromName(CurveId.CurveName), FText::FromString(CurveTypeAsString));
 	}
 
 	return false;
@@ -664,7 +531,7 @@ bool UAnimSequencerController::DuplicateCurve(const FAnimationCurveIdentifier& C
 
 	ERawCurveTrackTypes SupportedCurveType = CopyCurveId.CurveType;
 
-	if (CopyCurveId.InternalName.IsValid() && NewCurveId.InternalName.IsValid())
+	if (CopyCurveId.IsValid() && NewCurveId.IsValid())
 	{
 		if (IsSupportedCurveType(SupportedCurveType))
 		{
@@ -677,7 +544,7 @@ bool UAnimSequencerController::DuplicateCurve(const FAnimationCurveIdentifier& C
 						IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 						FTransaction Transaction = ConditionalTransaction(LOCTEXT("CopyRawCurve", "Duplicating Animation Curve"), bShouldTransact);
 
-						auto DuplicateCurve = [NewCurveId, NewCurveName = NewCurveId.InternalName, this](auto& LegacyCurveDataArray, const auto& SourceCurve)
+						auto DuplicateCurve = [NewCurveId, NewCurveName = NewCurveId.CurveName, this](auto& LegacyCurveDataArray, const auto& SourceCurve)
 						{
 							auto& DuplicatedCurve = LegacyCurveDataArray.Add_GetRef( { NewCurveName, SourceCurve.GetCurveTypeFlags() });
 							DuplicatedCurve.CopyCurve(SourceCurve);
@@ -694,7 +561,7 @@ bool UAnimSequencerController::DuplicateCurve(const FAnimationCurveIdentifier& C
 							{
 								DuplicateCurve(Model->LegacyCurveData.FloatCurves, Model->GetFloatCurve(CopyCurveId));
 															
-								if(!DuplicateCurveControl(CopyCurveId.InternalName.DisplayName, NewCurveId.InternalName.DisplayName))
+								if(!DuplicateCurveControl(CopyCurveId.CurveName, NewCurveId.CurveName))
 								{
 									ReportError(LOCTEXT("FailedToDuplicateCurveControl", "Failed to duplicate curve control"));
 								}
@@ -718,13 +585,13 @@ bool UAnimSequencerController::DuplicateCurve(const FAnimationCurveIdentifier& C
 					else
 					{
 						const FString CurveTypeAsString = GetCurveTypeValueName(NewCurveId.CurveType);
-						ReportWarningf(LOCTEXT("ExistingCurveNameWarning", "Curve with name {0} and type {1} ({2}) already exists"), FText::FromName(NewCurveId.InternalName.DisplayName), FText::FromString(CurveTypeAsString), FText::AsNumber(static_cast<int32>(NewCurveId.CurveType)));
+						ReportWarningf(LOCTEXT("ExistingCurveNameWarning", "Curve with name {0} and type {1} ({2}) already exists"), FText::FromName(NewCurveId.CurveName), FText::FromString(CurveTypeAsString), FText::AsNumber(static_cast<int32>(NewCurveId.CurveType)));
 					}
 				}
 				else
 				{
 					const FString CurveTypeAsString = GetCurveTypeValueName(CopyCurveId.CurveType);
-					ReportWarningf(LOCTEXT("CurveNameToDuplicateNotFoundWarning", "Could not find curve with name {0} and type {1} ({2}) for duplication"), FText::FromName(NewCurveId.InternalName.DisplayName), FText::FromString(CurveTypeAsString), FText::AsNumber(static_cast<int32>(NewCurveId.CurveType)));
+					ReportWarningf(LOCTEXT("CurveNameToDuplicateNotFoundWarning", "Could not find curve with name {0} and type {1} ({2}) for duplication"), FText::FromName(NewCurveId.CurveName), FText::FromString(CurveTypeAsString), FText::AsNumber(static_cast<int32>(NewCurveId.CurveType)));
 				}
 			}
 		}
@@ -733,6 +600,10 @@ bool UAnimSequencerController::DuplicateCurve(const FAnimationCurveIdentifier& C
 			const FString CurveTypeAsString = GetCurveTypeValueName(SupportedCurveType);
 			ReportWarningf(LOCTEXT("InvalidCurveTypeWarning", "Invalid curve type provided: {0} ({1})"), FText::FromString(CurveTypeAsString), FText::AsNumber(static_cast<int32>(SupportedCurveType)));
 		}
+	}
+	else
+	{
+		ReportWarning(LOCTEXT("InvalidCurveIdentifierWarning", "Invalid curve identifier provided"));
 	}
 
 	return false;
@@ -743,7 +614,7 @@ bool UAnimSequencerController::RemoveCurve(const FAnimationCurveIdentifier& Curv
 	ValidateModel();
 	const ERawCurveTrackTypes SupportedCurveType = CurveId.CurveType;
 
-	if (CurveId.InternalName.IsValid())
+	if (CurveId.IsValid())
 	{
 		if (IsSupportedCurveType(CurveId.CurveType))
 		{
@@ -758,7 +629,7 @@ bool UAnimSequencerController::RemoveCurve(const FAnimationCurveIdentifier& Curv
 					{
 						const FTransformCurve& TransformCurve = Model->GetTransformCurve(CurveId);
 						ConditionalAction<UE::Anim::FAddTransformCurveAction>(bShouldTransact,  CurveId, TransformCurve.GetCurveTypeFlags(), TransformCurve);
-						Model->LegacyCurveData.TransformCurves.RemoveAll([Name = TransformCurve.Name](const FTransformCurve& ToRemoveCurve) { return ToRemoveCurve.Name == Name; });
+						Model->LegacyCurveData.TransformCurves.RemoveAll([Name = TransformCurve.GetName()](const FTransformCurve& ToRemoveCurve) { return ToRemoveCurve.GetName() == Name; });
 						Model->CurveIdentifierToMetaData.Remove(CurveId);
 						break;
 					}
@@ -766,10 +637,10 @@ bool UAnimSequencerController::RemoveCurve(const FAnimationCurveIdentifier& Curv
 					{
 						const FFloatCurve& FloatCurve = Model->GetFloatCurve(CurveId);
 						ConditionalAction<UE::Anim::FAddFloatCurveAction>(bShouldTransact,  CurveId, FloatCurve.GetCurveTypeFlags(), FloatCurve.FloatCurve.GetConstRefOfKeys(), FloatCurve.Color);
-						Model->LegacyCurveData.FloatCurves.RemoveAll([Name = FloatCurve.Name](const FFloatCurve& ToRemoveCurve) { return ToRemoveCurve.Name == Name; });
+						Model->LegacyCurveData.FloatCurves.RemoveAll([Name = FloatCurve.GetName()](const FFloatCurve& ToRemoveCurve) { return ToRemoveCurve.GetName() == Name; });
 						Model->CurveIdentifierToMetaData.Remove(CurveId);
 
-						if(!RemoveCurveControl(CurveId.InternalName.DisplayName))
+						if(!RemoveCurveControl(CurveId.CurveName))
 						{
 							ReportError(LOCTEXT("FailedtoRemoveCurveControl", "Failed to remove curve control"));
 						}
@@ -791,7 +662,7 @@ bool UAnimSequencerController::RemoveCurve(const FAnimationCurveIdentifier& Curv
 			else
 			{
 				const FString CurveTypeAsString = GetCurveTypeValueName(SupportedCurveType);
-				ReportWarningf(LOCTEXT("UnableToFindCurveForRemovalWarning", "Unable to find curve: {0} of type {1}"), FText::FromName(CurveId.InternalName.DisplayName), FText::FromString(CurveTypeAsString));
+				ReportWarningf(LOCTEXT("UnableToFindCurveForRemovalWarning", "Unable to find curve: {0} of type {1}"), FText::FromName(CurveId.CurveName), FText::FromString(CurveTypeAsString));
 			}
 		}
 		else
@@ -800,7 +671,11 @@ bool UAnimSequencerController::RemoveCurve(const FAnimationCurveIdentifier& Curv
 			ReportWarningf(LOCTEXT("InvalidCurveTypeWarning", "Invalid curve type provided: {0} ({1})"), FText::FromString(CurveTypeAsString), FText::AsNumber(static_cast<int32>(CurveId.CurveType)));
 		}
 	}
-
+	else
+	{
+		const FString CurveTypeAsString = GetCurveTypeValueName(CurveId.CurveType);
+		ReportWarningf(LOCTEXT("InvalidCurveIdentifierWarning", "Invalid curve identifier provided: name: {0}, type: {1}"), FText::FromName(CurveId.CurveName), FText::FromString(CurveTypeAsString));
+	}
 	return false;
 }
 
@@ -816,7 +691,7 @@ void UAnimSequencerController::RemoveAllCurvesOfType(ERawCurveTrackTypes Support
 		TArray<FTransformCurve> TransformCurves = Model->LegacyCurveData.TransformCurves;
 		for (const FTransformCurve& Curve : TransformCurves)
 		{
-			const FAnimationCurveIdentifier CurveId(Curve.Name, ERawCurveTrackTypes::RCT_Transform);
+			const FAnimationCurveIdentifier CurveId(Curve.GetName(), ERawCurveTrackTypes::RCT_Transform);
 			RemoveCurve(CurveId, bShouldTransact);
 			Model->CurveIdentifierToMetaData.Remove(CurveId);
 		}
@@ -827,7 +702,7 @@ void UAnimSequencerController::RemoveAllCurvesOfType(ERawCurveTrackTypes Support
 		TArray<FFloatCurve> FloatCurves = Model->LegacyCurveData.FloatCurves;
 		for (const FFloatCurve& Curve : FloatCurves)
 		{
-			const FAnimationCurveIdentifier CurveId(Curve.Name, ERawCurveTrackTypes::RCT_Float);
+			const FAnimationCurveIdentifier CurveId(Curve.GetName(), ERawCurveTrackTypes::RCT_Float);
 			RemoveCurve(CurveId, bShouldTransact);
 			Model->CurveIdentifierToMetaData.Remove(CurveId);
 		}
@@ -881,7 +756,7 @@ bool UAnimSequencerController::SetCurveFlag(const FAnimationCurveIdentifier& Cur
 	else
 	{
 		const FString CurveTypeAsString = GetCurveTypeValueName(SupportedCurveType);
-		ReportWarningf(LOCTEXT("UnableToFindCurveWarning", "Unable to find curve: {0} of type {1}"), FText::FromName(CurveId.InternalName.DisplayName), FText::FromString(CurveTypeAsString));
+		ReportWarningf(LOCTEXT("UnableToFindCurveWarning", "Unable to find curve: {0} of type {1}"), FText::FromName(CurveId.CurveName), FText::FromString(CurveTypeAsString));
 	}
 
 	return false;
@@ -927,7 +802,7 @@ bool UAnimSequencerController::SetCurveFlags(const FAnimationCurveIdentifier& Cu
 	else
 	{
 		const FString CurveTypeAsString = GetCurveTypeValueName(SupportedCurveType);
-		ReportWarningf(LOCTEXT("UnableToFindCurveForRemovalWarning", "Unable to find curve: {0} of type {1}"), FText::FromName(CurveId.InternalName.DisplayName), FText::FromString(CurveTypeAsString));
+		ReportWarningf(LOCTEXT("UnableToFindCurveForRemovalWarning", "Unable to find curve: {0} of type {1}"), FText::FromName(CurveId.CurveName), FText::FromString(CurveTypeAsString));
 	}
 
 	return false;
@@ -1003,7 +878,7 @@ bool UAnimSequencerController::SetTransformCurveKeys(const FAnimationCurveIdenti
 		}
 		else
 		{
-			ReportWarningf(LOCTEXT("UnableToFindTransformCurveWarning", "Unable to find transform curve: {0}"), FText::FromName(CurveId.InternalName.DisplayName));
+			ReportWarningf(LOCTEXT("UnableToFindTransformCurveWarning", "Unable to find transform curve: {0}"), FText::FromName(CurveId.CurveName));
 		}
 	}
 	else
@@ -1065,7 +940,7 @@ bool UAnimSequencerController::SetTransformCurveKey(const FAnimationCurveIdentif
 	}
 	else
 	{
-		ReportWarningf(LOCTEXT("UnableToFindTransformCurveWarning", "Unable to find transform curve: {0}"), FText::FromName(CurveId.InternalName.DisplayName));
+		ReportWarningf(LOCTEXT("UnableToFindTransformCurveWarning", "Unable to find transform curve: {0}"), FText::FromName(CurveId.CurveName));
 	}
 
 	return false;
@@ -1077,7 +952,7 @@ bool UAnimSequencerController::RemoveTransformCurveKey(const FAnimationCurveIden
 
 	if (Model->FindMutableTransformCurveById(CurveId) != nullptr)
 	{
-		const FString BaseCurveName = CurveId.InternalName.DisplayName.ToString();
+		const FString BaseCurveName = CurveId.CurveName.ToString();
 		const TArray<FString> SubCurveNames = { TEXT( "Translation"), TEXT( "Rotation"), TEXT( "Scale") };
 		const TArray<FString> ChannelCurveNames = { TEXT("X"), TEXT("Y"), TEXT("Z") };
 
@@ -1100,7 +975,7 @@ bool UAnimSequencerController::RemoveTransformCurveKey(const FAnimationCurveIden
 	}
 	else
 	{
-		ReportWarningf(LOCTEXT("UnableToFindTransformCurveWarning", "Unable to find transform curve: {0}"), FText::FromName(CurveId.InternalName.DisplayName));
+		ReportWarningf(LOCTEXT("UnableToFindTransformCurveWarning", "Unable to find transform curve: {0}"), FText::FromName(CurveId.CurveName));
 	}
 
 	return false;
@@ -1122,20 +997,20 @@ bool UAnimSequencerController::RenameCurve(const FAnimationCurveIdentifier& Curv
 					FTransaction Transaction = ConditionalTransaction(LOCTEXT("RenameCurve", "Renaming Curve"), bShouldTransact);
 
 					FCurveRenamedPayload Payload;
-					Payload.Identifier = FAnimationCurveIdentifier(Curve->Name, CurveToRenameId.CurveType);
+					Payload.Identifier = FAnimationCurveIdentifier(Curve->GetName(), CurveToRenameId.CurveType);
 
-					Curve->Name = NewCurveId.InternalName;
+					Curve->SetName(NewCurveId.CurveName);
 					Payload.NewIdentifier = NewCurveId;
 
 					const FAnimationCurveMetaData CurveMetaData = Model->CurveIdentifierToMetaData.FindChecked(CurveToRenameId);
 					Model->CurveIdentifierToMetaData.Remove(CurveToRenameId);
 					Model->CurveIdentifierToMetaData.Add(NewCurveId, CurveMetaData);
 
-					const bool bControlNeedsRenaming = CurveToRenameId.InternalName.DisplayName != NewCurveId.InternalName.DisplayName;
+					const bool bControlNeedsRenaming = CurveToRenameId.CurveName != NewCurveId.CurveName;
 
-					if(CurveToRenameId.CurveType == ERawCurveTrackTypes::RCT_Float && (bControlNeedsRenaming && !RenameCurveControl(CurveToRenameId.InternalName.DisplayName, NewCurveId.InternalName.DisplayName)))
+					if(CurveToRenameId.CurveType == ERawCurveTrackTypes::RCT_Float && (bControlNeedsRenaming && !RenameCurveControl(CurveToRenameId.CurveName, NewCurveId.CurveName)))
 					{
-						ReportErrorf(LOCTEXT("FailedToRenameCurveControl", "Failed to rename RigCurve with name {0}"), FText::FromName(CurveToRenameId.InternalName.DisplayName));
+						ReportErrorf(LOCTEXT("FailedToRenameCurveControl", "Failed to rename RigCurve with name {0}"), FText::FromName(CurveToRenameId.CurveName));
 					}
 
 					ConditionalAction<UE::Anim::FRenameCurveAction>(bShouldTransact,  NewCurveId, CurveToRenameId);
@@ -1147,25 +1022,25 @@ bool UAnimSequencerController::RenameCurve(const FAnimationCurveIdentifier& Curv
 				else
 				{
 					const FString CurveTypeAsString = GetCurveTypeValueName(CurveToRenameId.CurveType);
-					ReportWarningf(LOCTEXT("UnableToFindCurveWarning", "Unable to find curve: {0} of type {1}"), FText::FromName(CurveToRenameId.InternalName.DisplayName), FText::FromString(CurveTypeAsString));
+					ReportWarningf(LOCTEXT("UnableToFindCurveWarning", "Unable to find curve: {0} of type {1}"), FText::FromName(CurveToRenameId.CurveName), FText::FromString(CurveTypeAsString));
 				}
 			}
 			else
 			{
 				const FString CurrentCurveTypeAsString = GetCurveTypeValueName(CurveToRenameId.CurveType);
 				const FString NewCurveTypeAsString = GetCurveTypeValueName(NewCurveId.CurveType);
-				ReportWarningf(LOCTEXT("MismatchOfCurveTypesWarning", "Different curve types provided between current and new curve names: {0} ({1}) and {2} ({3})"), FText::FromName(CurveToRenameId.InternalName.DisplayName), FText::FromString(CurrentCurveTypeAsString),
-					FText::FromName(NewCurveId.InternalName.DisplayName), FText::FromString(NewCurveTypeAsString));
+				ReportWarningf(LOCTEXT("MismatchOfCurveTypesWarning", "Different curve types provided between current and new curve names: {0} ({1}) and {2} ({3})"), FText::FromName(CurveToRenameId.CurveName), FText::FromString(CurrentCurveTypeAsString),
+					FText::FromName(NewCurveId.CurveName), FText::FromString(NewCurveTypeAsString));
 			}
 		}
 		else
 		{
-			ReportWarningf(LOCTEXT("MatchingCurveNamesWarning", "Provided curve names are the same: {0}"), FText::FromName(CurveToRenameId.InternalName.DisplayName));
+			ReportWarningf(LOCTEXT("MatchingCurveNamesWarning", "Provided curve names are the same: {0}"), FText::FromName(CurveToRenameId.CurveName));
 		}		
 	}
 	else
 	{
-		ReportWarningf(LOCTEXT("InvalidCurveIdentiferProvidedWarning", "Invalid new curve identifier provided: {2} ({3})"), FText::FromName(NewCurveId.InternalName.DisplayName), FText::AsNumber(NewCurveId.InternalName.UID));
+		ReportWarningf(LOCTEXT("InvalidCurveIdentiferProvidedWarning", "Invalid new curve identifier provided: {0}"), FText::FromName(NewCurveId.CurveName));
 	}
 
 	return false;
@@ -1197,7 +1072,7 @@ bool UAnimSequencerController::SetCurveColor(const FAnimationCurveIdentifier& Cu
 			else
 			{
 				const FString CurveTypeAsString = GetCurveTypeValueName(CurveId.CurveType);
-				ReportWarningf(LOCTEXT("UnableToFindCurveWarning", "Unable to find curve: {0} of type {1}"), FText::FromName(CurveId.InternalName.DisplayName), FText::FromString(CurveTypeAsString));
+				ReportWarningf(LOCTEXT("UnableToFindCurveWarning", "Unable to find curve: {0} of type {1}"), FText::FromName(CurveId.CurveName), FText::FromString(CurveTypeAsString));
 			}
 		}
 		else
@@ -1207,7 +1082,7 @@ bool UAnimSequencerController::SetCurveColor(const FAnimationCurveIdentifier& Cu
 	}
 	else
 	{
-		ReportWarningf(LOCTEXT("InvalidCurveIdentifier", "Invalid Curve Identifier : {0} ({1})"), FText::FromName(CurveId.InternalName.DisplayName), FText::AsNumber(CurveId.InternalName.UID));
+		ReportWarningf(LOCTEXT("InvalidCurveIdentifier", "Invalid Curve Identifier : {0}"), FText::FromName(CurveId.CurveName));
 	}	
 
 	return false;
@@ -1234,7 +1109,7 @@ bool UAnimSequencerController::ScaleCurve(const FAnimationCurveIdentifier& Curve
 			
 			ConditionalAction<UE::Anim::FScaleCurveAction>(bShouldTransact,  CurveId, Origin, 1.0f / Factor, SupportedCurveType);
 
-			if (!SetCurveControlKeys(CurveId.InternalName.DisplayName, Curve->FloatCurve.GetConstRefOfKeys()))
+			if (!SetCurveControlKeys(CurveId.CurveName, Curve->FloatCurve.GetConstRefOfKeys()))
 			{
 				ReportError(LOCTEXT("FailedToScaleControlCurve", "Failed to scale curve control"));
 			}
@@ -1245,7 +1120,7 @@ bool UAnimSequencerController::ScaleCurve(const FAnimationCurveIdentifier& Curve
 		}
 		else
 		{
-			ReportWarningf(LOCTEXT("UnableToFindFloatCurveWarning", "Unable to find float curve: {0}"), FText::FromName(CurveId.InternalName.DisplayName));
+			ReportWarningf(LOCTEXT("UnableToFindFloatCurveWarning", "Unable to find float curve: {0}"), FText::FromName(CurveId.CurveName));
 		}
 	}
 	else
@@ -1267,7 +1142,7 @@ bool UAnimSequencerController::SetCurveKey(const FAnimationCurveIdentifier& Curv
 
 		auto SetControlCurve = [this, CurveId, Key]()
 		{
-			if(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float && !SetCurveControlKey(CurveId.InternalName.DisplayName, Key))
+			if(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float && !SetCurveControlKey(CurveId.CurveName, Key))
 			{
 				ReportError(LOCTEXT("FailedtoSetCurveControlKey", "Failed to set curve control key"));
 			}	
@@ -1307,7 +1182,7 @@ bool UAnimSequencerController::SetCurveKey(const FAnimationCurveIdentifier& Curv
 	}
 	else
 	{
-		ReportErrorf(LOCTEXT("RichCurveNotFoundError", "Unable to find rich curve: curve name {0}"), FText::FromName(CurveId.InternalName.DisplayName));
+		ReportErrorf(LOCTEXT("RichCurveNotFoundError", "Unable to find rich curve: curve name {0}"), FText::FromName(CurveId.CurveName));
 	}
 
 	return false;
@@ -1335,7 +1210,7 @@ bool UAnimSequencerController::RemoveCurveKey(const FAnimationCurveIdentifier& C
 
 			RichCurve->DeleteKey(Handle);
 			
-			if(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float && !RemoveCurveControlKey(CurveId.InternalName.DisplayName, Time))
+			if(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float && !RemoveCurveControlKey(CurveId.CurveName, Time))
 			{
 				ReportError(LOCTEXT("FailedtoRemoveCurveControlKeys", "Failed to remove curve control key"));
 			}
@@ -1346,12 +1221,12 @@ bool UAnimSequencerController::RemoveCurveKey(const FAnimationCurveIdentifier& C
 		}
 		else
 		{
-			ReportErrorf(LOCTEXT("RichCurveKeyNotFoundError", "Unable to find rich curve key: curve name {0}, time {1}"), FText::FromName(CurveId.InternalName.DisplayName), FText::AsNumber(Time));
+			ReportErrorf(LOCTEXT("RichCurveKeyNotFoundError", "Unable to find rich curve key: curve name {0}, time {1}"), FText::FromName(CurveId.CurveName), FText::AsNumber(Time));
 		}
 	}
 	else
 	{
-		ReportErrorf(LOCTEXT("RichCurveNotFoundError", "Unable to find rich curve: curve name {0}"), FText::FromName(CurveId.InternalName.DisplayName));
+		ReportErrorf(LOCTEXT("RichCurveNotFoundError", "Unable to find rich curve: curve name {0}"), FText::FromName(CurveId.CurveName));
 	}
 
 	return false;
@@ -1377,12 +1252,12 @@ bool UAnimSequencerController::SetCurveKeys(const FAnimationCurveIdentifier& Cur
 		}
 		else
 		{
-			ReportErrorf(LOCTEXT("RichCurveNotFoundError", "Unable to find rich curve: curve name {0}"), FText::FromName(CurveId.InternalName.DisplayName));
+			ReportErrorf(LOCTEXT("RichCurveNotFoundError", "Unable to find rich curve: curve name {0}"), FText::FromName(CurveId.CurveName));
 		}
 
 		if(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float)
 		{
-			if (SetCurveControlKeys(CurveId.InternalName.DisplayName, CurveKeys))
+			if (SetCurveControlKeys(CurveId.CurveName, CurveKeys))
 			{
 				bKeysSet = true;
 			}
@@ -1403,7 +1278,7 @@ bool UAnimSequencerController::SetCurveKeys(const FAnimationCurveIdentifier& Cur
 	}
 	// else
 	// {
-	// 	ReportErrorf(LOCTEXT("CurveNotFoundError", "Unable to find curve: curve name {0}"), FText::FromName(CurveId.InternalName.DisplayName));
+	// 	ReportErrorf(LOCTEXT("CurveNotFoundError", "Unable to find curve: curve name {0}"), FText::FromName(CurveId.CurveName));
 	// }	
 
 	return false;
@@ -1432,7 +1307,7 @@ bool UAnimSequencerController::SetCurveAttributes(const FAnimationCurveIdentifie
 				const URigHierarchy* Hierarchy = FKRig->GetHierarchy();
 				if (Hierarchy ||  IgnoreSkeletonValidation())
 				{
-					const FRigElementKey CurveKey(URigHierarchy::GetSanitizedName(CurveId.InternalName.DisplayName.ToString()), ERigElementType::Curve);
+					const FRigElementKey CurveKey(URigHierarchy::GetSanitizedName(CurveId.CurveName.ToString()), ERigElementType::Curve);
 					const FRigElementKey CurveControlKey(UFKControlRig::GetControlName(CurveKey.Name, ERigElementType::Curve), ERigElementType::Control);
 
 					const bool bContainsCurve = Hierarchy ? Hierarchy->Contains(CurveKey) : IgnoreSkeletonValidation();
@@ -1868,7 +1743,7 @@ void UAnimSequencerController::ResizeCurves(float NewLength, bool bInserted, flo
 	{
 		FFloatCurve ResizedCurve = Curve;
 		ResizedCurve.Resize(NewLength, bInserted, T0, T1);
-		SetCurveKeys(FAnimationCurveIdentifier(Curve.Name, ERawCurveTrackTypes::RCT_Float), ResizedCurve.FloatCurve.GetConstRefOfKeys(), bShouldTransact);
+		SetCurveKeys(FAnimationCurveIdentifier(Curve.GetName(), ERawCurveTrackTypes::RCT_Float), ResizedCurve.FloatCurve.GetConstRefOfKeys(), bShouldTransact);
 	}
 
 	for (FTransformCurve& Curve : Model->LegacyCurveData.TransformCurves)
@@ -1881,7 +1756,7 @@ void UAnimSequencerController::ResizeCurves(float NewLength, bool bInserted, flo
 			for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
 			{
 				const EVectorCurveChannel Axis = static_cast<EVectorCurveChannel>(ChannelIndex);
-				FAnimationCurveIdentifier TargetCurveIdentifier = FAnimationCurveIdentifier(Curve.Name, ERawCurveTrackTypes::RCT_Transform);
+				FAnimationCurveIdentifier TargetCurveIdentifier = FAnimationCurveIdentifier(Curve.GetName(), ERawCurveTrackTypes::RCT_Transform);
 				UAnimationCurveIdentifierExtensions::GetTransformChildCurveIdentifier(TargetCurveIdentifier, Channel, Axis);
 				
 				FRichCurve& ChannelCurve = SubCurve.FloatCurves[ChannelIndex];
@@ -2301,7 +2176,7 @@ void UAnimSequencerController::RemoveUnusedControlsAndCurves() const
 				{
 					if(!FloatCurves.ContainsByPredicate([CurveElement](const FFloatCurve& FloatCurve)
 					{
-						return FloatCurve.Name.DisplayName == CurveElement->GetName();
+						return FloatCurve.GetName() == CurveElement->GetName();
 					}))
 					{						
 						ElementsToRemove.Add(CurveElement->GetKey());
@@ -2323,10 +2198,6 @@ void UAnimSequencerController::UpdateWithSkeleton(USkeleton* TargetSkeleton, boo
 {
 	OpenBracket(LOCTEXT("SettingNewskeleton", "Updating Skeleton for Animation Data Model"));
 	{
-		// Update the curve names with the new skeleton
-		FindOrAddCurveNamesOnSkeleton(TargetSkeleton, ERawCurveTrackTypes::RCT_Float, bShouldTransact);	
-		FindOrAddCurveNamesOnSkeleton(TargetSkeleton, ERawCurveTrackTypes::RCT_Transform, bShouldTransact);
-
 		// (re-)generate the rig hierarchy
 		Model->InitializeFKControlRig(CastChecked<UFKControlRig>(Model->GetControlRig()), TargetSkeleton);
 		
@@ -2407,7 +2278,7 @@ void UAnimSequencerController::PopulateWithExistingModel(TScriptInterface<IAnima
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_PopulateCurves);
 				for (const FFloatCurve& Curve : InModel->GetCurveData().FloatCurves)
 				{
-					const FAnimationCurveIdentifier CurveId = Skeleton ? UAnimationCurveIdentifierExtensions::FindCurveIdentifier(Skeleton, Curve.Name.DisplayName, ERawCurveTrackTypes::RCT_Float) : FAnimationCurveIdentifier(Curve.Name, ERawCurveTrackTypes::RCT_Float);
+					const FAnimationCurveIdentifier CurveId = Skeleton ? UAnimationCurveIdentifierExtensions::FindCurveIdentifier(Skeleton, Curve.GetName(), ERawCurveTrackTypes::RCT_Float) : FAnimationCurveIdentifier(Curve.GetName(), ERawCurveTrackTypes::RCT_Float);
 					if (CurveId.IsValid() || IgnoreSkeletonValidation())
 					{
 						AddCurve(CurveId, Curve.GetCurveTypeFlags(), false);
@@ -2421,7 +2292,7 @@ void UAnimSequencerController::PopulateWithExistingModel(TScriptInterface<IAnima
 				
 				for (const FTransformCurve& TransformCurve : InModel->GetCurveData().TransformCurves)
 				{
-					const FAnimationCurveIdentifier CurveId = Skeleton ? UAnimationCurveIdentifierExtensions::FindCurveIdentifier(Skeleton, TransformCurve.Name.DisplayName, ERawCurveTrackTypes::RCT_Transform) : FAnimationCurveIdentifier(TransformCurve.Name, ERawCurveTrackTypes::RCT_Transform);
+					const FAnimationCurveIdentifier CurveId = Skeleton ? UAnimationCurveIdentifierExtensions::FindCurveIdentifier(Skeleton, TransformCurve.GetName(), ERawCurveTrackTypes::RCT_Transform) : FAnimationCurveIdentifier(TransformCurve.GetName(), ERawCurveTrackTypes::RCT_Transform);
 					if (CurveId.IsValid() || IgnoreSkeletonValidation())
 					{
 						AddCurve(CurveId, TransformCurve.GetCurveTypeFlags());
@@ -2442,7 +2313,7 @@ void UAnimSequencerController::PopulateWithExistingModel(TScriptInterface<IAnima
 					}
 					else
 					{
-						ReportWarningf(LOCTEXT("InvalidCurveIdentifierFoundWarning", "Invalid transform curve identifier found: name: {0}, UID: {1} type: {2}"), FText::FromName(CurveId.InternalName.DisplayName), FText::AsNumber(CurveId.InternalName.UID));
+						ReportWarningf(LOCTEXT("InvalidCurveIdentifierFoundWarning", "Invalid transform curve identifier found: name: {0}, type: {1}"), FText::FromName(CurveId.CurveName), FText::AsNumber(static_cast<int32>(CurveId.CurveType)));
 					}
 				}
 			}

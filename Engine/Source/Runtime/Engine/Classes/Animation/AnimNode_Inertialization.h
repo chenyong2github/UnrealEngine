@@ -67,6 +67,8 @@ enum class EInertializationSpace : uint8
 struct ENGINE_API FInertializationCurve
 {
 	FBlendedHeapCurve BlendedCurve;
+
+	UE_DEPRECATED(5.3, "CurveUIDToArrayIndexLUT is no longer used.")
 	TArray<uint16> CurveUIDToArrayIndexLUT;
 
 	FInertializationCurve() = default;
@@ -84,31 +86,19 @@ struct ENGINE_API FInertializationCurve
 	FInertializationCurve& operator=(const FInertializationCurve& Other)
 	{
 		BlendedCurve.CopyFrom(Other.BlendedCurve);
-		BlendedCurve.UIDToArrayIndexLUT = &CurveUIDToArrayIndexLUT;
-		CurveUIDToArrayIndexLUT = Other.CurveUIDToArrayIndexLUT;
 		return *this;
 	}
 
 	FInertializationCurve& operator=(FInertializationCurve&& Other)
 	{
 		BlendedCurve.MoveFrom(Other.BlendedCurve);
-		BlendedCurve.UIDToArrayIndexLUT = &CurveUIDToArrayIndexLUT;
-		CurveUIDToArrayIndexLUT = MoveTemp(Other.CurveUIDToArrayIndexLUT);
 		return *this;
 	}
 
 	template <typename OtherAllocator>
-	void InitFrom(const FBaseBlendedCurve<OtherAllocator>& Other)
+	void InitFrom(const TBaseBlendedCurve<OtherAllocator>& Other)
 	{
-		CurveUIDToArrayIndexLUT.Reset();
-
 		BlendedCurve.CopyFrom(Other);
-		BlendedCurve.UIDToArrayIndexLUT = &CurveUIDToArrayIndexLUT;
-
-		if (Other.UIDToArrayIndexLUT)
-		{
-			CurveUIDToArrayIndexLUT = *Other.UIDToArrayIndexLUT;
-		}
 	}
 };
 
@@ -246,22 +236,17 @@ struct FInertializationBoneDiff
 	}
 };
 
-USTRUCT()
-struct FInertializationCurveDiff
+struct FInertializationCurveDiffElement : public UE::Anim::FCurveElement
 {
-	GENERATED_BODY();
+	UE_DEPRECATED(5.3, "Please use Value instead.")
+	static float Delta;
+	float Derivative = 0.0f;
 
-	float Delta;
-	float Derivative;
-
-	FInertializationCurveDiff()
-		: Delta(0.0f)
-		, Derivative(0.0f)
-	{}
+	FInertializationCurveDiffElement() = default;
 
 	void Clear()
 	{
-		Delta = 0.0f;
+		Value = 0.0f;
 		Derivative = 0.0f;
 	}
 };
@@ -291,9 +276,9 @@ struct FInertializationPoseDiff
 	// AttachParentName					the current frame's attach parent name (for checking if the attachment has changed)
 	// Prev1							the previous frame's pose
 	// Prev2							the pose from two frames before
-	// FilteredCurvesUIDs				list of curves we don't want to inertialize
+	// CurveFilter						filter for curves we don't want to inertialize
 	//
-	void InitFrom(const FCompactPose& Pose, const FBlendedCurve& Curves, const FTransform& ComponentTransform, const FName& AttachParentName, const FInertializationPose& Prev1, const FInertializationPose& Prev2, const TSet<SmartName::UID_Type>& FilteredCurvesUIDs);
+	void InitFrom(const FCompactPose& Pose, const FBlendedCurve& Curves, const FTransform& ComponentTransform, const FName& AttachParentName, const FInertializationPose& Prev1, const FInertializationPose& Prev2, const UE::Anim::FCurveFilter& CurveFilter);
 
 	// Apply this difference to a pose, decaying over time as InertializationElapsedTime approaches InertializationDuration
 	//
@@ -319,8 +304,8 @@ private:
 	// Bone differences indexed by skeleton bone index
 	TArray<FInertializationBoneDiff> BoneDiffs;
 
-	// Curve differences indexed by CurveID
-	TArray<FInertializationCurveDiff> CurveDiffs;
+	// Curve differences
+	TBaseBlendedCurve<FDefaultAllocator, FInertializationCurveDiffElement> CurveDiffs;
 
 	// Inertialization space (local vs world for situations where we wish to correct a world-space discontinuity such as an abrupt orientation change)
 	EInertializationSpace InertializationSpace;
@@ -389,9 +374,6 @@ protected:
 
 private:
 
-	// Set of UIDs for valid curves in FilteredCurves
-	TSet<SmartName::UID_Type> CachedFilteredCurvesUIDs;
-
 	// Snapshots of the actor pose from past frames
 	TArray<FInertializationPose> PoseSnapshots;
 
@@ -424,6 +406,9 @@ private:
 	// Inertialization pose differences
 	FInertializationPoseDiff InertializationPoseDiff;
 
+	// Cached curve filter built from FilteredCurves
+	UE::Anim::FCurveFilter CurveFilter;
+	
 	// Reset inertialization timing and state
 	void Deactivate();
 };

@@ -8,47 +8,75 @@
 #include "UObject/AnimObjectVersion.h"
 #include "Math/RandomStream.h"
 #include "Animation/AnimSequenceBase.h"
+#include "Animation/Skeleton.h"
+#include "BoneContainer.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
+#include "Animation/AnimCurveUtils.h"
 
 DECLARE_CYCLE_STAT(TEXT("EvalRawCurveData"), STAT_EvalRawCurveData, STATGROUP_Anim);
+
+namespace UE::Anim
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	TArray<float> FBaseBlendedCurve_DEPRECATED::CurveWeights;
+	TBitArray<> FBaseBlendedCurve_DEPRECATED::ValidCurveWeights;
+	TArray<uint16> const* FBaseBlendedCurve_DEPRECATED::UIDToArrayIndexLUT;
+	uint16 FBaseBlendedCurve_DEPRECATED::NumValidCurveCount;
+	bool FBaseBlendedCurve_DEPRECATED::bInitialized;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
 
 /////////////////////////////////////////////////////
 // FFloatCurve
 
-void FAnimCurveBase::PostSerialize(FArchive& Ar)
+void FAnimCurveBase::PostSerializeFixup(FArchive& Ar)
 {
-	SmartName::UID_Type CurveUid = SmartName::MaxUID;
+#if WITH_EDITORONLY_DATA
+	if (Ar.CustomVer(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::SmartNameRefactor)
+	{
+		if (Ar.UEVer() >= VER_UE4_SKELETON_ADD_SMARTNAMES)
+		{
+			SmartName::UID_Type CurveUid = SmartName::MaxUID;
+			Ar << CurveUid;
+			Name_DEPRECATED.UID = CurveUid;
+		}
+	}
+#endif
+}
+
+bool FAnimCurveBase::Serialize(FArchive& Ar)
+{
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
+	// Return false to defer to regular serialization 
+	return false;
+}
+
+void FAnimCurveBase::PostSerialize(const FArchive& Ar)
+{
+#if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading())
 	{
 		if (Ar.CustomVer(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::SmartNameRefactor)
 		{
-			if (Ar.UEVer() >= VER_UE4_SKELETON_ADD_SMARTNAMES)
-			{
-				Ar << CurveUid;
-
-				Name.UID = CurveUid;
-
-#if WITH_EDITORONLY_DATA
-				Name.DisplayName = LastObservedName_DEPRECATED;
-#endif
-			}
-#if WITH_EDITORONLY_DATA
-			else
-			{
-				Name.DisplayName = LastObservedName_DEPRECATED;
-			}
-#endif
+			Name_DEPRECATED.DisplayName = LastObservedName_DEPRECATED;
 		}
-
-#if WITH_EDITORONLY_DATA
+		
 		if(Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::AnimSequenceCurveColors)
 		{
+			// Need to set the curve name before we generate a new color
+			CurveName = Name_DEPRECATED.DisplayName;
 			Color = MakeColor();
 		}
-#endif
+
+		if(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimationRemoveSmartNames)
+		{
+			CurveName = Name_DEPRECATED.DisplayName;
+		}
 	}
+#endif
 }
 
 void FAnimCurveBase::SetCurveTypeFlag(EAnimAssetCurveFlags InFlag, bool bValue)
@@ -89,7 +117,7 @@ int32 FAnimCurveBase::GetCurveTypeFlags() const
 FLinearColor FAnimCurveBase::MakeColor()
 {
 	// Create a color based on the hash of the name
-	FRandomStream Stream(GetTypeHash(Name.DisplayName));
+	FRandomStream Stream(GetTypeHash(CurveName));
 	const uint8 Hue = (uint8)(Stream.FRand() * 255.0f);
 	return FLinearColor::MakeFromHSV8(Hue, 196, 196);
 }
@@ -364,42 +392,19 @@ FVectorCurve* FTransformCurve::GetVectorCurveByIndex(int32 Index)
 
 bool FCachedFloatCurve::IsValid(const UAnimSequenceBase* InAnimSequence) const
 {
-	return ((CurveName != NAME_None) && InAnimSequence->HasCurveData(GetAnimCurveUID(InAnimSequence)));
+	return ((CurveName != NAME_None) && InAnimSequence->HasCurveData(CurveName));
 }
 
 float FCachedFloatCurve::GetValueAtPosition(const UAnimSequenceBase* InAnimSequence, const float& InPosition) const
 {
-	return InAnimSequence->EvaluateCurveData(GetAnimCurveUID(InAnimSequence), InPosition);
-}
-
-SkeletonAnimCurveUID FCachedFloatCurve::GetAnimCurveUID(const UAnimSequenceBase* InAnimSequence) const
-{
-	if (CurveName != CachedCurveName && InAnimSequence)
-	{
-		if (const USkeleton* Skeleton = InAnimSequence->GetSkeleton())
-		{
-			const FSmartNameMapping* CurveNameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-			if (CurveNameMapping)
-			{
-				CachedUID = CurveNameMapping->FindUID(CurveName);
-				CachedCurveName = CurveName;
-			}
-		}
-	}
-
-	return CachedUID;
+	return InAnimSequence->EvaluateCurveData(CurveName, InPosition);
 }
 
 const FFloatCurve* FCachedFloatCurve::GetFloatCurve(const UAnimSequenceBase* InAnimSequence) const
 {
 	if (InAnimSequence)
 	{
-		SkeletonAnimCurveUID DistanceCurveUID = GetAnimCurveUID(InAnimSequence);
-		if (DistanceCurveUID != SmartName::MaxUID)
-		{
-			const FAnimationCurveIdentifier CurveId(DistanceCurveUID, ERawCurveTrackTypes::RCT_Float);
-			return (const FFloatCurve*)(InAnimSequence->GetCurveData().GetCurveData(DistanceCurveUID));
-		}
+		return static_cast<const FFloatCurve*>(InAnimSequence->GetCurveData().GetCurveData(CurveName));
 	}
 
 	return nullptr;
@@ -411,19 +416,19 @@ const FFloatCurve* FCachedFloatCurve::GetFloatCurve(const UAnimSequenceBase* InA
 void FRawCurveTracks::EvaluateCurveData( FBlendedCurve& Curves, float CurrentTime ) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_EvalRawCurveData);
-	if (Curves.NumValidCurveCount > 0)
+	
+	auto GetNameFromIndex = [this](int32 InCurveIndex)
 	{
-		// evaluate the curve data at the CurrentTime and add to Instance
-		for (auto CurveIter = FloatCurves.CreateConstIterator(); CurveIter; ++CurveIter)
-		{
-			const FFloatCurve& Curve = *CurveIter;
-			if (Curves.IsEnabled(Curve.Name.UID))
-			{
-				float Value = Curve.Evaluate(CurrentTime);
-				Curves.Set(Curve.Name.UID, Value);
-			}
-		}
-	}
+		return FloatCurves[InCurveIndex].GetName();
+	};
+
+	auto GetValueFromIndex = [this, CurrentTime](int32 InCurveIndex)
+	{
+		return FloatCurves[InCurveIndex].Evaluate(CurrentTime);
+	};
+	
+	// evaluate the curve data at the CurrentTime and add to Instance
+	UE::Anim::FCurveUtils::BuildUnsorted(Curves, FloatCurves.Num(), GetNameFromIndex, GetValueFromIndex, Curves.GetFilter());
 }
 
 #if WITH_EDITOR
@@ -446,7 +451,7 @@ void FRawCurveTracks::EvaluateTransformCurveData(USkeleton * Skeleton, TMap<FNam
 		}
 
 		// Add or retrieve curve
-		FName CurveName = Curve.Name.DisplayName;
+		FName CurveName = Curve.GetName();
 		
 		// note we're not checking Curve.GetCurveTypeFlags() yet
 		FTransform & Value = OutCurves.FindOrAdd(CurveName);
@@ -454,39 +459,40 @@ void FRawCurveTracks::EvaluateTransformCurveData(USkeleton * Skeleton, TMap<FNam
 	}
 }
 #endif
-FAnimCurveBase * FRawCurveTracks::GetCurveData(SkeletonAnimCurveUID Uid, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/)
+
+const FAnimCurveBase * FRawCurveTracks::GetCurveData(FName Name, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/) const
 {
 	switch (SupportedCurveType)
 	{
 #if WITH_EDITOR
 	case ERawCurveTrackTypes::RCT_Vector:
-		return GetCurveDataImpl<FVectorCurve>(VectorCurves, Uid);
+		return GetCurveDataImpl<FVectorCurve>(VectorCurves, Name);
 	case ERawCurveTrackTypes::RCT_Transform:
-		return GetCurveDataImpl<FTransformCurve>(TransformCurves, Uid);
+		return GetCurveDataImpl<FTransformCurve>(TransformCurves, Name);
 #endif // WITH_EDITOR
 	case ERawCurveTrackTypes::RCT_Float:
 	default:
-		return GetCurveDataImpl<FFloatCurve>(FloatCurves, Uid);
+		return GetCurveDataImpl<FFloatCurve>(FloatCurves, Name);
 	}
 }
 
-const FAnimCurveBase * FRawCurveTracks::GetCurveData(SkeletonAnimCurveUID Uid, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/) const
+FAnimCurveBase * FRawCurveTracks::GetCurveData(FName Name, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/)
 {
 	switch (SupportedCurveType)
 	{
 #if WITH_EDITOR
 	case ERawCurveTrackTypes::RCT_Vector:
-		return GetCurveDataImpl<FVectorCurve>(VectorCurves, Uid);
+		return GetCurveDataImpl<FVectorCurve>(VectorCurves, Name);
 	case ERawCurveTrackTypes::RCT_Transform:
-		return GetCurveDataImpl<FTransformCurve>(TransformCurves, Uid);
+		return GetCurveDataImpl<FTransformCurve>(TransformCurves, Name);
 #endif // WITH_EDITOR
 	case ERawCurveTrackTypes::RCT_Float:
 	default:
-		return GetCurveDataImpl<FFloatCurve>(FloatCurves, Uid);
+		return GetCurveDataImpl<FFloatCurve>(FloatCurves, Name);
 	}
 }
 
-bool FRawCurveTracks::DeleteCurveData(const FSmartName& CurveToDelete, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/)
+bool FRawCurveTracks::DeleteCurveData(const FName& CurveToDelete, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/)
 {
 	switch(SupportedCurveType)
 	{
@@ -522,13 +528,13 @@ void FRawCurveTracks::DeleteAllCurveData(ERawCurveTrackTypes SupportedCurveType 
 }
 
 #if WITH_EDITOR
-void FRawCurveTracks::AddFloatCurveKey(const FSmartName& NewCurve, int32 CurveFlags, float Time, float Value)
+void FRawCurveTracks::AddFloatCurveKey(const FName& NewCurve, int32 CurveFlags, float Time, float Value)
 {
-	FFloatCurve* FloatCurve = GetCurveDataImpl<FFloatCurve>(FloatCurves, NewCurve.UID);
+	FFloatCurve* FloatCurve = GetCurveDataImpl<FFloatCurve>(FloatCurves, NewCurve);
 	if (FloatCurve == nullptr)
 	{
 		AddCurveData(NewCurve, CurveFlags, ERawCurveTrackTypes::RCT_Float);
-		FloatCurve = GetCurveDataImpl<FFloatCurve>(FloatCurves, NewCurve.UID);
+		FloatCurve = GetCurveDataImpl<FFloatCurve>(FloatCurves, NewCurve);
 	}
 
 	if (FloatCurve->GetCurveTypeFlags() != CurveFlags)
@@ -549,7 +555,7 @@ void FRawCurveTracks::RemoveRedundantKeys(float Tolerance /*= UE_SMALL_NUMBER*/,
 }
 #endif
 
-bool FRawCurveTracks::AddCurveData(const FSmartName& NewCurve, int32 CurveFlags /*= ACF_DefaultCurve*/, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/)
+bool FRawCurveTracks::AddCurveData(const FName& NewCurve, int32 CurveFlags /*= ACF_DefaultCurve*/, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/)
 {
 	switch(SupportedCurveType)
 	{
@@ -585,12 +591,12 @@ void FRawCurveTracks::Resize(float TotalLength, bool bInsert/* whether insert or
 #endif
 }
 
-void FRawCurveTracks::PostSerialize(FArchive& Ar)
+void FRawCurveTracks::PostSerializeFixup(FArchive& Ar)
 {
 	// @TODO: If we're about to serialize vector curve, add here
 	for(FFloatCurve& Curve : FloatCurves)
 	{
-		Curve.PostSerialize(Ar);
+		Curve.PostSerializeFixup(Ar);
 	}
 #if WITH_EDITORONLY_DATA
 	if( !Ar.IsCooking() )
@@ -599,33 +605,14 @@ void FRawCurveTracks::PostSerialize(FArchive& Ar)
 		{
 			for( FTransformCurve& Curve : TransformCurves )
 			{
-				Curve.PostSerialize( Ar );
+				Curve.PostSerializeFixup( Ar );
 			}
-
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
 }
 
-void FRawCurveTracks::RefreshName(const FSmartNameMapping* NameMapping, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/)
-{
-	switch(SupportedCurveType)
-	{
-#if WITH_EDITOR
-	case ERawCurveTrackTypes::RCT_Vector:
-		UpdateLastObservedNamesImpl<FVectorCurve>(VectorCurves, NameMapping);
-		break;
-	case ERawCurveTrackTypes::RCT_Transform:
-		UpdateLastObservedNamesImpl<FTransformCurve>(TransformCurves, NameMapping);
-		break;
-#endif // WITH_EDITOR
-	case ERawCurveTrackTypes::RCT_Float:
-	default:
-		UpdateLastObservedNamesImpl<FFloatCurve>(FloatCurves, NameMapping);
-	}
-}
-
-bool FRawCurveTracks::DuplicateCurveData(const FSmartName& CurveToCopy, const FSmartName& NewCurve, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/)
+bool FRawCurveTracks::DuplicateCurveData(const FName& CurveToCopy, const FName& NewCurve, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/)
 {
 	switch(SupportedCurveType)
 	{
@@ -652,39 +639,39 @@ bool FRawCurveTracks::DuplicateCurveData(const FSmartName& CurveToCopy, const FS
 // but this has to be refactored once we'd like to move onto serialize
 ///////////////////////////////////
 template <typename DataType>
-DataType * FRawCurveTracks::GetCurveDataImpl(TArray<DataType> & Curves, SkeletonAnimCurveUID Uid)
+DataType * FRawCurveTracks::GetCurveDataImpl(TArray<DataType> & Curves, FName Name)
 {
-	for(DataType& Curve : Curves)
+	for (DataType& Curve : Curves)
 	{
-		if(Curve.Name.UID == Uid)
+		if (Curve.GetName() == Name)
 		{
 			return &Curve;
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 template <typename DataType>
-const DataType * FRawCurveTracks::GetCurveDataImpl(const TArray<DataType> & Curves, SkeletonAnimCurveUID Uid) const
+const DataType * FRawCurveTracks::GetCurveDataImpl(const TArray<DataType> & Curves, FName Name) const
 {
 	for (const DataType& Curve : Curves)
 	{
-		if (Curve.Name.UID == Uid)
+		if (Curve.GetName() == Name)
 		{
 			return &Curve;
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 template <typename DataType>
-bool FRawCurveTracks::DeleteCurveDataImpl(TArray<DataType> & Curves, const FSmartName& CurveToDelete)
+bool FRawCurveTracks::DeleteCurveDataImpl(TArray<DataType> & Curves, const FName& CurveToDelete)
 {
 	for(int32 Idx = 0; Idx < Curves.Num(); ++Idx)
 	{
-		if(Curves[Idx].Name.UID == CurveToDelete.UID)
+		if(Curves[Idx].GetName() == CurveToDelete)
 		{
 			Curves.RemoveAt(Idx);
 			return true;
@@ -695,9 +682,9 @@ bool FRawCurveTracks::DeleteCurveDataImpl(TArray<DataType> & Curves, const FSmar
 }
 
 template <typename DataType>
-bool FRawCurveTracks::AddCurveDataImpl(TArray<DataType> & Curves, const FSmartName& NewCurve, int32 CurveFlags)
+bool FRawCurveTracks::AddCurveDataImpl(TArray<DataType> & Curves, const FName& NewCurve, int32 CurveFlags)
 {
-	if(GetCurveDataImpl<DataType>(Curves, NewCurve.UID) == NULL)
+	if(GetCurveDataImpl<DataType>(Curves, NewCurve) == NULL)
 	{
 		Curves.Add(DataType(NewCurve, CurveFlags));
 		return true;
@@ -706,22 +693,10 @@ bool FRawCurveTracks::AddCurveDataImpl(TArray<DataType> & Curves, const FSmartNa
 }
 
 template <typename DataType>
-void FRawCurveTracks::UpdateLastObservedNamesImpl(TArray<DataType> & Curves, const FSmartNameMapping* NameMapping)
+bool FRawCurveTracks::DuplicateCurveDataImpl(TArray<DataType> & Curves, const FName& CurveToCopy, const FName& NewCurve)
 {
-	if(NameMapping)
-	{
-		for(DataType& Curve : Curves)
-		{
-			NameMapping->GetName(Curve.Name.UID, Curve.Name.DisplayName);
-		}
-	}
-}
-
-template <typename DataType>
-bool FRawCurveTracks::DuplicateCurveDataImpl(TArray<DataType> & Curves, const FSmartName& CurveToCopy, const FSmartName& NewCurve)
-{
-	DataType* ExistingCurve = GetCurveDataImpl<DataType>(Curves, CurveToCopy.UID);
-	if(ExistingCurve && GetCurveDataImpl<DataType>(Curves, NewCurve.UID) == NULL)
+	DataType* ExistingCurve = GetCurveDataImpl<DataType>(Curves, CurveToCopy);
+	if(ExistingCurve && GetCurveDataImpl<DataType>(Curves, NewCurve) == NULL)
 	{
 		// Add the curve to the track and set its data to the existing curve
 		Curves.Add(DataType(NewCurve, ExistingCurve->GetCurveTypeFlags()));
@@ -740,19 +715,12 @@ FArchive& operator<<(FArchive& Ar, FRawCurveTracks& D)
 	return Ar;
 }
 
-///////////////////////////////////////////////////////////////////////
-// FAnimCurveParam
-
-void FAnimCurveParam::Initialize(USkeleton* Skeleton)
+void FBlendedCurve::InitFrom(const FBoneContainer& InBoneContainer)
 {
-	// Initialize for curve UID
-	if (Name != NAME_None)
-	{
-		UID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, Name);
-	}
-	else
-	{
-		// invalidate current UID
-		UID = SmartName::MaxUID;
-	}
+	TBaseBlendedCurve<FAnimStackAllocator>::SetFilter(&InBoneContainer.GetCurveFilter());
+}
+
+void FBlendedHeapCurve::InitFrom(const FBoneContainer& InBoneContainer)
+{
+	TBaseBlendedCurve<FDefaultAllocator>::SetFilter(&InBoneContainer.GetCurveFilter()); 
 }

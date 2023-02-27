@@ -593,7 +593,7 @@ void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 			{
 				if (!PoseWatch.PoseWatchPoseElement->GetIsEnabled())
 				{
-					TRACE_ANIM_POSE_WATCH(*this, PoseWatch.NodeID, TArray<FTransform>(), TArray<uint16>(), FTransform::Identity, false);
+					TRACE_ANIM_POSE_WATCH(*this, PoseWatch.PoseWatchPoseElement, PoseWatch.NodeID, TArray<FTransform>(), FBlendedHeapCurve(), TArray<uint16>(), FTransform::Identity, false);
 				}
 			}
 		}
@@ -1116,7 +1116,7 @@ void FAnimInstanceProxy::RecalcRequiredBones(USkeletalMeshComponent* Component, 
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	RequiredBones.InitializeTo(Component->RequiredBones, FCurveEvaluationOption(Component->GetAllowedAnimCurveEvaluate(), &Component->GetDisallowedAnimCurvesEvaluation(), Component->GetPredictedLODLevel()), *Asset);
+	RequiredBones.InitializeTo(Component->RequiredBones, Component->GetCurveFilterSettings(), *Asset);
 
 	// If there is a ref pose override, we want to replace ref pose in RequiredBones
 	// Update ref pose in required bones structure (either set it, or clear it, depending on if one is set on the Component)
@@ -1132,11 +1132,21 @@ void FAnimInstanceProxy::RecalcRequiredBones(USkeletalMeshComponent* Component, 
 	bBoneCachesInvalidated = true;
 }
 
+void FAnimInstanceProxy::RecalcRequiredCurves(const UE::Anim::FCurveFilterSettings& CurveFilterSettings)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	RequiredBones.CacheRequiredAnimCurves(CurveFilterSettings);
+	bBoneCachesInvalidated = true;
+}
+
 void FAnimInstanceProxy::RecalcRequiredCurves(const FCurveEvaluationOption& CurveEvalOption)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	RequiredBones.CacheRequiredAnimCurveUids(CurveEvalOption);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bBoneCachesInvalidated = true;
 }
 
@@ -3261,6 +3271,11 @@ void FAnimInstanceProxy::RecordNodeAttribute(const FAnimInstanceProxy& InSourceP
 
 void FAnimInstanceProxy::RegisterWatchedPose(const FCompactPose& Pose, int32 LinkID)
 {
+	RegisterWatchedPose(Pose, FBlendedCurve(), LinkID);
+}
+
+void FAnimInstanceProxy::RegisterWatchedPose(const FCompactPose& Pose, const FBlendedCurve& InCurve, int32 LinkID)
+{
 	if (bIsBeingDebugged)
 	{
 		FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData();
@@ -3309,9 +3324,10 @@ void FAnimInstanceProxy::RegisterWatchedPose(const FCompactPose& Pose, int32 Lin
 						}
 
 						PoseWatch.SetPose(TmpRequiredBones, BoneTransforms);
+						PoseWatch.SetCurves(InCurve);
 						PoseWatch.SetWorldTransform(SkelMeshComponent->GetComponentTransform());
 
-						TRACE_ANIM_POSE_WATCH(*this, PoseWatch.NodeID, PoseWatch.GetBoneTransforms(), PoseWatch.GetRequiredBones(), PoseWatch.GetWorldTransform(), true);
+						TRACE_ANIM_POSE_WATCH(*this, PoseWatch.PoseWatchPoseElement, PoseWatch.NodeID, PoseWatch.GetBoneTransforms(), PoseWatch.GetCurves(), PoseWatch.GetRequiredBones(), PoseWatch.GetWorldTransform(), PoseWatch.PoseWatchPoseElement->GetIsVisible());
 						break;
 					}
 				}
@@ -3321,6 +3337,11 @@ void FAnimInstanceProxy::RegisterWatchedPose(const FCompactPose& Pose, int32 Lin
 }
 
 void FAnimInstanceProxy::RegisterWatchedPose(const FCSPose<FCompactPose>& Pose, int32 LinkID)
+{
+	RegisterWatchedPose(Pose, FBlendedCurve(), LinkID);
+}
+
+void FAnimInstanceProxy::RegisterWatchedPose(const FCSPose<FCompactPose>& Pose, const FBlendedCurve& InCurve, int32 LinkID)
 {
 	if (bIsBeingDebugged)
 	{
@@ -3341,9 +3362,10 @@ void FAnimInstanceProxy::RegisterWatchedPose(const FCSPose<FCompactPose>& Pose, 
 						const TArray<FTransform, FAnimStackAllocator>& BoneTransforms = TempPose.GetBones();
 						const TArray<FBoneIndexType>& TmpRequiredBones = TempPose.GetBoneContainer().GetBoneIndicesArray();
 						PoseWatch.SetPose(TmpRequiredBones, BoneTransforms);
+						PoseWatch.SetCurves(InCurve);
 						PoseWatch.SetWorldTransform(SkelMeshComponent->GetComponentTransform());
 
-						TRACE_ANIM_POSE_WATCH(*this, PoseWatch.NodeID, PoseWatch.GetBoneTransforms(), PoseWatch.GetRequiredBones(), PoseWatch.GetWorldTransform(), true);
+						TRACE_ANIM_POSE_WATCH(*this, PoseWatch.PoseWatchPoseElement, PoseWatch.NodeID, PoseWatch.GetBoneTransforms(), PoseWatch.GetCurves(), PoseWatch.GetRequiredBones(), PoseWatch.GetWorldTransform(), PoseWatch.PoseWatchPoseElement->GetIsVisible());
 						break;
 					}
 				}
@@ -3407,50 +3429,25 @@ void FAnimInstanceProxy::UpdateCurvesToEvaluationContext(const FAnimationEvaluat
 
 	ResetAnimationCurves();
 
-	if(InContext.Curve.UIDToArrayIndexLUT != nullptr && InContext.Curve.UIDToArrayIndexLUT->Num() > 0)
+	InContext.Curve.ForEachElement([this](const UE::Anim::FCurveElement& InCurveElement)
 	{
-		const TArray<uint16>& UIDToArrayIndexLookupTable = RequiredBones.GetUIDToArrayLookupTable();
-		const FSmartNameMapping* Mapping = RequiredBones.GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-		
-		check(UIDToArrayIndexLookupTable.Num() == InContext.Curve.UIDToArrayIndexLUT->Num());
+		AnimationCurves[(uint8)EAnimCurveType::AttributeCurve].Add(InCurveElement.Name, InCurveElement.Value);
+	});
 
-		for (int32 CurveUID = 0; CurveUID < UIDToArrayIndexLookupTable.Num(); ++CurveUID)
+	UE::Anim::FNamedValueArrayUtils::Intersection(InContext.Curve, RequiredBones.GetCurveFlags(), 
+		[this](const UE::Anim::FCurveElement& InCurveElement, const UE::Anim::FCurveElementFlags& InCurveFlagsElement)
 		{
-			uint16 ArrayIndex = UIDToArrayIndexLookupTable[CurveUID];
-		
-			if (ArrayIndex != MAX_uint16 && 
-				ensureAlwaysMsgf(InContext.Curve.CurveWeights.IsValidIndex(ArrayIndex), TEXT("%s Animation Instance contains out of bound UIDList."), *AnimInstanceObject->GetClass()->GetName()) &&
-				InContext.Curve.ValidCurveWeights[ArrayIndex])
+			if(EnumHasAnyFlags(InCurveFlagsElement.Flags | InCurveElement.Flags, UE::Anim::ECurveElementFlags::MorphTarget))
 			{
-				FName CurveName;
-				if (Mapping->GetName(CurveUID, CurveName))
-				{
-#if !WITH_EDITOR
-					const FCurveMetaData* CurveMetaData = &Mapping->GetCurveMetaData(CurveUID);
-#else
-					if (const FCurveMetaData* CurveMetaData = Mapping->GetCurveMetaData(CurveName))
-#endif
-					{
-						const FAnimCurveType& CurveType = CurveMetaData->Type;
-						const float CurveWeight = InContext.Curve.CurveWeights[ArrayIndex];
-					
-						AnimationCurves[(uint8)EAnimCurveType::AttributeCurve].Add(CurveName, CurveWeight);
-
-						if(CurveType.bMorphtarget)
-						{
-							AnimationCurves[(uint8)EAnimCurveType::MorphTargetCurve].Add(CurveName, CurveWeight);
-						}
-
-						if(CurveType.bMaterial)
-						{
-							MaterialParametersToClear.Remove(CurveName);
-							AnimationCurves[(uint8)EAnimCurveType::MaterialCurve].Add(CurveName, CurveWeight);
-						}
-					}	
-				}
+				AnimationCurves[(uint8)EAnimCurveType::MorphTargetCurve].Add(InCurveElement.Name, InCurveElement.Value);
 			}
-		}
-	}
+
+			if(EnumHasAnyFlags(InCurveFlagsElement.Flags | InCurveElement.Flags, UE::Anim::ECurveElementFlags::Material))
+			{
+				MaterialParametersToClear.Remove(InCurveElement.Name);
+				AnimationCurves[(uint8)EAnimCurveType::MaterialCurve].Add(InCurveElement.Name, InCurveElement.Value);
+			}
+		});
 }
 
 void FAnimInstanceProxy::UpdateCurvesPostEvaluation(USkeletalMeshComponent* SkelMeshComp)
@@ -3488,7 +3485,7 @@ bool FAnimInstanceProxy::HasActiveCurves() const
 	return false;
 }
 
-void FAnimInstanceProxy::AddCurveValue(const FSmartNameMapping& Mapping, const FName& CurveName, float Value)
+void FAnimInstanceProxy::AddCurveValue(const FName& CurveName, float Value, bool bMorphtarget, bool bMaterial)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -3506,35 +3503,31 @@ void FAnimInstanceProxy::AddCurveValue(const FSmartNameMapping& Mapping, const F
 		AnimationCurves[(uint8)EAnimCurveType::AttributeCurve].Add(CurveName, Value);
 	}
 
-	const FCurveMetaData* CurveMetaData = Mapping.GetCurveMetaData(CurveName);
-	if (CurveMetaData)
+	if (bMorphtarget)
 	{
-		if (CurveMetaData->Type.bMorphtarget)
+		CurveValPtr = AnimationCurves[(uint8)EAnimCurveType::MorphTargetCurve].Find(CurveName);
+		if (CurveValPtr)
 		{
-			CurveValPtr = AnimationCurves[(uint8)EAnimCurveType::MorphTargetCurve].Find(CurveName);
-			if (CurveValPtr)
-			{
-				// sum up, in the future we might normalize, but for now this just sums up
-				// this won't work well if all of them have full weight - i.e. additive 
-				*CurveValPtr = Value;
-			}
-			else
-			{
-				AnimationCurves[(uint8)EAnimCurveType::MorphTargetCurve].Add(CurveName, Value);
-			}
+			// sum up, in the future we might normalize, but for now this just sums up
+			// this won't work well if all of them have full weight - i.e. additive 
+			*CurveValPtr = Value;
 		}
-		if (CurveMetaData->Type.bMaterial)
+		else
 		{
-			MaterialParametersToClear.RemoveSwap(CurveName);
-			CurveValPtr = AnimationCurves[(uint8)EAnimCurveType::MaterialCurve].Find(CurveName);
-			if (CurveValPtr)
-			{
-				*CurveValPtr = Value;
-			}
-			else
-			{
-				AnimationCurves[(uint8)EAnimCurveType::MaterialCurve].Add(CurveName, Value);
-			}
+			AnimationCurves[(uint8)EAnimCurveType::MorphTargetCurve].Add(CurveName, Value);
+		}
+	}
+	if (bMaterial)
+	{
+		MaterialParametersToClear.RemoveSwap(CurveName);
+		CurveValPtr = AnimationCurves[(uint8)EAnimCurveType::MaterialCurve].Find(CurveName);
+		if (CurveValPtr)
+		{
+			*CurveValPtr = Value;
+		}
+		else
+		{
+			AnimationCurves[(uint8)EAnimCurveType::MaterialCurve].Add(CurveName, Value);
 		}
 	}
 }

@@ -42,31 +42,14 @@ void FAnimNode_PoseDriver::RebuildPoseList(const FBoneContainer& InBoneContainer
 	const USkeleton* Skeleton = InPoseAsset->GetSkeleton();
 	if (Skeleton)
 	{
-		const TArray<FSmartName>& PoseNames = InPoseAsset->GetPoseNames();
+		const TArray<FName>& PoseNames = InPoseAsset->GetPoseFNames();
 		for (FPoseDriverTarget& PoseTarget : PoseTargets)
 		{
-			if (DriveOutput == EPoseDriverOutput::DriveCurves)
-			{
-				PoseTarget.DrivenUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, PoseTarget.DrivenName);
-			}
-			else
-			{
-				PoseTarget.DrivenUID = SmartName::MaxUID;
-			}
-
 			const int32 PoseIndex = InPoseAsset->GetPoseIndexByName(PoseTarget.DrivenName);
 			if (PoseIndex != INDEX_NONE)
 			{
-				TArray<uint16> const& LUTIndex = InBoneContainer.GetUIDToArrayLookupTable();
-				if (LUTIndex.IsValidIndex(PoseNames[PoseIndex].UID) && LUTIndex[PoseNames[PoseIndex].UID] != MAX_uint16)
-				{
-					// we keep pose index as that is the fastest way to search when extracting pose asset
-					PoseTarget.PoseCurveIndex = PoseExtractContext.PoseCurves.Add(FPoseCurve(PoseIndex, PoseNames[PoseIndex].UID, 0.f));
-				}
-				else
-				{
-					PoseTarget.PoseCurveIndex = INDEX_NONE;
-				}
+				// we keep pose index as that is the fastest way to search when extracting pose asset
+				PoseTarget.PoseCurveIndex = PoseExtractContext.PoseCurves.Add(FPoseCurve(PoseIndex, PoseNames[PoseIndex], 0.f));
 			}
 			else
 			{
@@ -453,9 +436,9 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 				for (const FRBFOutputWeight& Weight : OutputWeights)
 				{
 					FPoseDriverTarget& PoseTarget = PoseTargets[Weight.TargetIndex];
-					if (PoseTarget.DrivenUID != SmartName::MaxUID)
+					if (PoseTarget.DrivenName != NAME_None)
 					{
-						Output.Curve.Set(PoseTarget.DrivenUID, Weight.TargetWeight);
+						Output.Curve.Set(PoseTarget.DrivenName, Weight.TargetWeight);
 					}
 				}
 

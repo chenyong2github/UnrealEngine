@@ -8,6 +8,7 @@
 #include "Animation/SmartName.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "Animation/AnimCurveTypes.h"
 
 
 /** Constructs curve name from nameToSplit using formatString of form x<obj>y<attr>z **/
@@ -35,7 +36,10 @@ void FDNAIndexMapping::MapControlCurves(const IBehaviorReader* DNABehavior, cons
 	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
 
 	const uint32 ControlCount = DNABehavior->GetRawControlCount();
-	ControlAttributesMapDNAIndicesToUEUIDs.Reset(ControlCount);
+
+	ControlAttributeCurves.Empty();
+	ControlAttributeCurves.Reserve(ControlCount);
+
 	for (uint32_t ControlIndex = 0; ControlIndex < ControlCount; ++ControlIndex)
 	{
 		const FString DNAControlName = DNABehavior->GetRawControlName(ControlIndex);
@@ -44,12 +48,7 @@ void FDNAIndexMapping::MapControlCurves(const IBehaviorReader* DNABehavior, cons
 		{
 			return;
 		}
-		const FName ControlFName(*AnimatedControlName);
-		FSmartName ControlCurveName;
-		const bool IsControlFound = Skeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, ControlFName, ControlCurveName);
-		// SmartName::UID_Type is uint32; we use int32 to allow for NONE value
-		const int32 UID = (IsControlFound ? static_cast<int32>(ControlCurveName.UID) : INDEX_NONE);
-		ControlAttributesMapDNAIndicesToUEUIDs.Add(UID);
+		ControlAttributeCurves.Add(*AnimatedControlName, ControlIndex);
 	}
 }
 
@@ -77,16 +76,15 @@ void FDNAIndexMapping::MapMorphTargets(const IBehaviorReader* DNABehavior, const
 	const TMap<FName, int32>& MorphTargetIndexMap = SkeletalMesh->GetMorphTargetIndexMap();
 	const TArray<UMorphTarget*>& MorphTargets = SkeletalMesh->GetMorphTargets();
 
-	BlendShapeIndicesPerLOD.Reset(LODCount);
-	BlendShapeIndicesPerLOD.AddDefaulted(LODCount);
-	MorphTargetIndicesPerLOD.Reset(LODCount);
-	MorphTargetIndicesPerLOD.AddDefaulted(LODCount);
+	MorphTargetCurvesPerLOD.Reset(LODCount);
+	MorphTargetCurvesPerLOD.AddDefaulted(LODCount);
 
 	for (uint16 LODIndex = 0; LODIndex < LODCount; ++LODIndex)
 	{
 		TArrayView<const uint16> MappingIndicesForLOD = DNABehavior->GetMeshBlendShapeChannelMappingIndicesForLOD(LODIndex);
-		MorphTargetIndicesPerLOD[LODIndex].Values.Reserve(MappingIndicesForLOD.Num());
-		BlendShapeIndicesPerLOD[LODIndex].Values.Reserve(MappingIndicesForLOD.Num());
+
+		MorphTargetCurvesPerLOD[LODIndex].Reserve(MappingIndicesForLOD.Num());
+
 		for (uint16 MappingIndex : MappingIndicesForLOD)
 		{
 			const FMeshBlendShapeChannelMapping Mapping = DNABehavior->GetMeshBlendShapeChannelMapping(MappingIndex);
@@ -95,14 +93,11 @@ void FDNAIndexMapping::MapMorphTargets(const IBehaviorReader* DNABehavior, const
 			const FString MorphTargetStr = MeshName + TEXT("__") + BlendShapeName;
 			const FName MorphTargetName(*MorphTargetStr);
 			const int32* MorphTargetIndex = MorphTargetIndexMap.Find(MorphTargetName);
-			int32 UID = INDEX_NONE;
 			if ((MorphTargetIndex != nullptr) && (*MorphTargetIndex != INDEX_NONE))
 			{
 				const UMorphTarget* MorphTarget = MorphTargets[*MorphTargetIndex];
-				UID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, MorphTarget->GetFName());
+				MorphTargetCurvesPerLOD[LODIndex].Add(MorphTarget->GetFName(), Mapping.BlendShapeChannelIndex);
 			}
-			BlendShapeIndicesPerLOD[LODIndex].Values.Add(Mapping.BlendShapeChannelIndex);
-			MorphTargetIndicesPerLOD[LODIndex].Values.Add(UID);
 		}
 	}
 }
@@ -113,16 +108,15 @@ void FDNAIndexMapping::MapMaskMultipliers(const IBehaviorReader* DNABehavior, co
 
 	const uint16 LODCount = DNABehavior->GetLODCount();
 
-	AnimatedMapIndicesPerLOD.Reset();
-	AnimatedMapIndicesPerLOD.AddDefaulted(LODCount);
-	MaskMultiplierIndicesPerLOD.Reset();
-	MaskMultiplierIndicesPerLOD.AddDefaulted(LODCount);
+	MaskMultiplierCurvesPerLOD.Reset();
+	MaskMultiplierCurvesPerLOD.AddDefaulted(LODCount);
 
 	for (uint16 LODIndex = 0; LODIndex < LODCount; ++LODIndex)
 	{
 		TArrayView<const uint16> IndicesPerLOD = DNABehavior->GetAnimatedMapIndicesForLOD(LODIndex);
-		AnimatedMapIndicesPerLOD[LODIndex].Values.Reserve(IndicesPerLOD.Num());
-		MaskMultiplierIndicesPerLOD[LODIndex].Values.Reserve(IndicesPerLOD.Num());
+
+		MaskMultiplierCurvesPerLOD[LODIndex].Reserve(IndicesPerLOD.Num());
+
 		for (uint16 AnimMapIndex : IndicesPerLOD)
 		{
 			const FString AnimatedMapName = DNABehavior->GetAnimatedMapName(AnimMapIndex);
@@ -131,12 +125,8 @@ void FDNAIndexMapping::MapMaskMultipliers(const IBehaviorReader* DNABehavior, co
 			{
 				return;
 			}
-			const FName MaskMultiplierName(*MaskMultiplierNameStr);
-			FSmartName CurveName;
-			const bool IsControlFound = Skeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, MaskMultiplierName, CurveName);
-			const int32 UID = (IsControlFound ? CurveName.UID : INDEX_NONE);
-			AnimatedMapIndicesPerLOD[LODIndex].Values.Add(AnimMapIndex);
-			MaskMultiplierIndicesPerLOD[LODIndex].Values.Add(UID);
+
+			MaskMultiplierCurvesPerLOD[LODIndex].Add(*MaskMultiplierNameStr, AnimMapIndex);
 		}
 	}
 }

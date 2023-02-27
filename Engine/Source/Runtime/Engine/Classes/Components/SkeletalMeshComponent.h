@@ -814,10 +814,18 @@ public:
 
 private:
 
+	/** Whether the FilteredAnimCurves list is an allow or deny list */
+	UPROPERTY(transient)
+	bool bFilteredAnimCurvesIsAllowList = false;
+
+	/** Cache curve metadata from mesh and this will be used to identify if it needs to be updated */
+	UPROPERTY(transient)
+	uint16 CachedMeshCurveMetaDataVersion;
+	
 	/** You can choose to disable certain curves if you prefer. 
 	 * This is transient curves that will be ignored by animation system if you choose this */
 	UPROPERTY(transient)
-	TArray<FName> DisallowedAnimCurves;
+	TArray<FName> FilteredAnimCurves;
 
 public:
 
@@ -1284,8 +1292,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
 	void SetAllowedAnimCurvesEvaluation(const TArray<FName>& List, bool bAllow);
 
-	const TArray<FName>& GetDisallowedAnimCurvesEvaluation() const { return DisallowedAnimCurves; }
+	UE_DEPRECATED(5.3, "Please use GetCurveFilterSettings")
+	const TArray<FName>& GetDisallowedAnimCurvesEvaluation() const { return FilteredAnimCurves; }
 
+	/**
+	 * Get the curve settings that will be used for anim evaluation.
+	 * @param InLODOverride		Override the LOD that curves will be calculated for if not INDEX_NONE
+	 * @return the curve settings used for evaluation
+	 */
+	UE::Anim::FCurveFilterSettings GetCurveFilterSettings(int32 InLODOverride = INDEX_NONE) const;
+	
 	/** We detach the Component once we are done playing it.
 	 *
 	 * @param	ParticleSystemComponent that finished
@@ -1524,11 +1540,6 @@ private:
 	 * if same curve is found
 	 **/
 	TMap<FName, float>	MorphTargetCurves;
-
-	/** 
-	 * Temporary storage for Curve UIDList of evaluating Animation 
-	 */
-	TArray<uint16> CachedCurveUIDList;
 
 public:
 	const TMap<FName, float>& GetMorphTargetCurves() const { return MorphTargetCurves;  }

@@ -59,8 +59,6 @@ private:
 
 	// target mesh 
 	TWeakObjectPtr<USkeletalMesh>			CurrentlyUsedTargetMesh;
-	
-	TMap<FName, SmartName::UID_Type> CurveNameToUIDMap;
 
 	TOptional<CurveExpression::Evaluator::FEngine> ExpressionEngine;
 	TMap<FName, CurveExpression::Evaluator::FExpressionObject> CachedExpressions;

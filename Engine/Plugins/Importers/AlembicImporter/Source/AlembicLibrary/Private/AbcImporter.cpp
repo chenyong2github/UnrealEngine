@@ -792,7 +792,6 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 
 		SkeletalMesh->MarkPackageDirty();
 
-		Controller.UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float);
 		Controller.NotifyPopulated();
 
 		Controller.CloseBracket();
@@ -826,10 +825,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 
 void FAbcImporter::SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveName, UAnimSequence* Sequence, const TArray<float> &CurveValues, const TArray<float>& TimeValues, IAnimationDataController& Controller)
 {
-	FSmartName NewName;
-	Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, ConstCurveName, NewName);
-
-	FAnimationCurveIdentifier CurveId(NewName, ERawCurveTrackTypes::RCT_Float);
+	FAnimationCurveIdentifier CurveId(ConstCurveName, ERawCurveTrackTypes::RCT_Float);
 	Controller.AddCurve(CurveId);
 
 	const FFloatCurve* NewCurve = Sequence->GetDataModel()->FindFloatCurve(CurveId);

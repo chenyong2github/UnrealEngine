@@ -18,6 +18,7 @@
 #include "Animation/SkeletonRemapping.h"
 #include "Animation/SkeletonRemappingRegistry.h"
 #include "Animation/AttributesRuntime.h"
+#include "Animation/AnimCurveUtils.h"
 
 #define LOCTEXT_NAMESPACE "AnimSequenceHelpers"
 
@@ -53,18 +54,21 @@ void EvaluateFloatCurvesFromModel(const IAnimationDataModel* Model, FBlendedCurv
 {
 	check(Model);
 
-	if (OutCurves.NumValidCurveCount > 0)
+	// Evaluate into a temporary curve, then filter by enabled curves
+	const TArray<FFloatCurve>& ModelCurves = Model->GetFloatCurves();
+	const int32 NumCurves = ModelCurves.Num();
+
+	auto GetNameFromIndex = [&ModelCurves](int32 InCurveIndex)
 	{
-		// evaluate the curve data at the Time and add to Instance
-		for (const FFloatCurve& Curve : Model->GetFloatCurves())
-		{
-			if (OutCurves.IsEnabled(Curve.Name.UID))
-			{
-				float Value = Curve.Evaluate(Time);
-				OutCurves.Set(Curve.Name.UID, Value);
-			}
-		}
-	}
+		return ModelCurves[InCurveIndex].GetName();
+	};
+
+	auto GetValueFromIndex = [&ModelCurves, Time](int32 InCurveIndex)
+	{
+		return ModelCurves[InCurveIndex].Evaluate(Time);
+	};
+
+	UE::Anim::FCurveUtils::BuildUnsorted(OutCurves, NumCurves, GetNameFromIndex, GetValueFromIndex, OutCurves.GetFilter());
 }
 
 void EvaluateTransformCurvesFromModel(const IAnimationDataModel* Model, TMap<FName, FTransform>& OutCurves, double Time, float BlendWeight)
@@ -80,10 +84,8 @@ void EvaluateTransformCurvesFromModel(const IAnimationDataModel* Model, TMap<FNa
 			}
 
 			// Add or retrieve curve
-			const FName& CurveName = Curve.Name.DisplayName;
-
 			// note we're not checking Curve.GetCurveTypeFlags() yet
-			FTransform& Value = OutCurves.FindOrAdd(CurveName);
+			FTransform& Value = OutCurves.FindOrAdd(Curve.GetName());
 			Value = Curve.Evaluate(Time, BlendWeight);
 		}
 	}
@@ -104,7 +106,7 @@ void GetBoneTransformFromModel(const IAnimationDataModel* Model, FTransform& Out
 
 	for (const FTransformCurve& AdditiveTransformCurve : Model->GetTransformCurves())
 	{
-		if (AdditiveTransformCurve.Name.DisplayName == TrackNames[TrackIndex])
+		if (AdditiveTransformCurve.GetName() == TrackNames[TrackIndex])
 		{
 			const float TimeInterval = Model->GetFrameRate().AsSeconds(KeyIndex);
 			const FTransform AdditiveTransform = AdditiveTransformCurve.Evaluate(TimeInterval, 1.f);
@@ -122,13 +124,14 @@ void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Ske
 	// Populate float curve data
 	for (const FFloatCurve& FloatCurve : CurveData.FloatCurves)
 	{
-		const FAnimationCurveIdentifier CurveId = UAnimationCurveIdentifierExtensions::FindCurveIdentifier(Skeleton, FloatCurve.Name.DisplayName, ERawCurveTrackTypes::RCT_Float);
+		const FAnimationCurveIdentifier CurveId = UAnimationCurveIdentifierExtensions::FindCurveIdentifier(Skeleton, FloatCurve.GetName(), ERawCurveTrackTypes::RCT_Float);
 		if (CurveId.IsValid())
 		{
 			Controller.AddCurve(CurveId, FloatCurve.GetCurveTypeFlags());
 			FCurveAttributes Attributes;
 			Attributes.SetPreExtrapolation(FloatCurve.FloatCurve.PreInfinityExtrap);
 			Attributes.SetPostExtrapolation(FloatCurve.FloatCurve.PostInfinityExtrap);					
+			Controller.SetCurveColor(CurveId, FloatCurve.GetColor());
 			Controller.SetCurveAttributes(CurveId, Attributes);
 			Controller.SetCurveColor(CurveId, FloatCurve.GetColor());
 			Controller.SetCurveKeys(CurveId, FloatCurve.FloatCurve.GetConstRefOfKeys());
@@ -138,7 +141,7 @@ void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Ske
 	// Populate transform curve data
 	for (const FTransformCurve& TransformCurve : CurveData.TransformCurves)
 	{
-		const FAnimationCurveIdentifier CurveId = UAnimationCurveIdentifierExtensions::FindCurveIdentifier(Skeleton, TransformCurve.Name.DisplayName, ERawCurveTrackTypes::RCT_Transform);
+		const FAnimationCurveIdentifier CurveId = UAnimationCurveIdentifierExtensions::FindCurveIdentifier(Skeleton, TransformCurve.GetName(), ERawCurveTrackTypes::RCT_Transform);
 		if (CurveId.IsValid())
 		{
 			Controller.AddCurve(CurveId, TransformCurve.GetCurveTypeFlags());

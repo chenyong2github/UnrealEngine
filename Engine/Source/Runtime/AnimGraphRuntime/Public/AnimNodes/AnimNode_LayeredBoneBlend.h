@@ -99,7 +99,9 @@ protected:
 	// this array changes based on required bones
 	TArray<FPerBoneBlendWeight> DesiredBoneBlendWeights;
 	TArray<FPerBoneBlendWeight> CurrentBoneBlendWeights;
-	TArray<uint8> CurvePoseSourceIndices;
+
+	// Per-curve source pose index
+	TBaseBlendedCurve<FDefaultAllocator, UE::Anim::FCurveElementIndexed> CurvePoseSourceIndices;
 
 	// Serial number of the required bones container
 	uint16 RequiredBonesSerialNumber;

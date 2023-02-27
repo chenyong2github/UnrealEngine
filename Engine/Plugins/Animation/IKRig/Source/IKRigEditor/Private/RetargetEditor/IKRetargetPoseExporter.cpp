@@ -143,10 +143,9 @@ void FIKRetargetPoseExporter::OnRetargetPoseSelected(const FAssetData& SelectedA
 	}
 
 	// store pose names in list used by combobox
-	const TArray<FSmartName> AllPoseNames = PoseAsset->GetPoseNames();
-	for (const FSmartName& PoseName : AllPoseNames)
+	for (const FName& PoseName : PoseAsset->GetPoseFNames())
 	{
-		PosesInSelectedAsset.Add(MakeShared<FName>(PoseName.DisplayName));
+		PosesInSelectedAsset.Add(MakeShared<FName>(PoseName));
 	}
 
 	// set the selected pose to the first pose in the asset (or null if empty)
@@ -626,33 +625,20 @@ void FIKRetargetPoseExporter::HandleExportPoseAsset()
 
 	// fill new pose asset with current pose
 	NewPoseAsset->SetSkeleton(const_cast<USkeleton*>(Mesh->GetSkeleton()));
-	FSmartName NewPoseName;
-	bool bSuccess = NewPoseAsset->AddOrUpdatePoseWithUniqueName(MeshComponent, &NewPoseName);
+	const FName NewPoseName = NewPoseAsset->AddPoseWithUniqueName(MeshComponent);
 
-	if (bSuccess)
-	{
-		// mark asset dirty 
-		FAssetRegistryModule::AssetCreated(NewPoseAsset);
-		NewPoseAsset->MarkPackageDirty();
+	// mark asset dirty 
+	FAssetRegistryModule::AssetCreated(NewPoseAsset);
+	NewPoseAsset->MarkPackageDirty();
+
+	// show in content browser
+	TArray<UObject*> ObjectsToSync;
+	ObjectsToSync.Add(NewPoseAsset);
+	GEditor->SyncBrowserToObjects(ObjectsToSync);
 	
-		// show in content browser
-		TArray<UObject*> ObjectsToSync;
-		ObjectsToSync.Add(NewPoseAsset);
-		GEditor->SyncBrowserToObjects(ObjectsToSync);
-		
-		// notify user of newly created asset
-		const FText Message = FText::Format(LOCTEXT("IKRigExportPoseSuccess", "Exported Pose Asset: {0} with pose, '{1}'."), FText::FromString(AssetName), FText::FromName(NewPoseName.DisplayName));
-		NotifyUser(Message, SNotificationItem::CS_Success);
-	}
-	else
-	{
-		// remove the empty asset
-		NewPoseAsset->ConditionalBeginDestroy();
-		
-		// notify user that asset failed to export
-		const FText Message = FText::Format(LOCTEXT("IKRigExportPoseFailedAfter", "Failed to exported pose asset, {0}."), FText::FromString(AssetName));
-		NotifyUser(Message, SNotificationItem::CS_Fail);
-	}
+	// notify user of newly created asset
+	const FText Message = FText::Format(LOCTEXT("IKRigExportPoseSuccess", "Exported Pose Asset: {0} with pose, '{1}'."), FText::FromString(AssetName), FText::FromName(NewPoseName));
+	NotifyUser(Message, SNotificationItem::CS_Success);
 }
 
 void FIKRetargetPoseExporter::NotifyUser(const FText& Message, SNotificationItem::ECompletionState NotificationType)

@@ -200,6 +200,7 @@ struct FBXImportOptions
 	bool	bDeleteExistingNonCurveCustomAttributes;
 	bool	bImportBoneTracks;
 	bool	bSetMaterialDriveParameterOnCustomAttribute;
+	bool	bAddCurveMetadataToSkeleton;
 	bool	bRemoveRedundantKeys;
 	bool	bDoNotImportCurveWithZero;
 	bool	bResetToFbxOnMaterialConflict;

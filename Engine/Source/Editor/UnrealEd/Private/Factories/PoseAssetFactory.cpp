@@ -228,22 +228,10 @@ UObject* UPoseAssetFactory::FactoryCreateNew(UClass* Class, UObject* InParent, F
 		TargetSkeleton = SourceAnimation->GetSkeleton();
 
 		UPoseAsset* PoseAsset = NewObject<UPoseAsset>(InParent, Class, Name, Flags);
-		TArray<FSmartName> InputPoseNames;
-		if (PoseNames.Num() > 0)
+		TArray<FName> InputPoseNames;
+		for (int32 Index = 0; Index < PoseNames.Num(); ++Index)
 		{
-			for (int32 Index = 0; Index < PoseNames.Num(); ++Index)
-			{
-				FName PoseName = FName(*PoseNames[Index]);
-				FSmartName NewName;
-				if (TargetSkeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, PoseName, NewName) == false)
-				{
-					// if failed, add it
-					TargetSkeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, PoseName, NewName);
-				}
-
-				// we want same names in multiple places
-				InputPoseNames.AddUnique(NewName);
-			}
+			InputPoseNames.AddUnique(FName(*PoseNames[Index]));
 		}
 
 		PoseAsset->CreatePoseFromAnimation( SourceAnimation, &InputPoseNames);
@@ -251,7 +239,7 @@ UObject* UPoseAssetFactory::FactoryCreateNew(UClass* Class, UObject* InParent, F
 		return PoseAsset;
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 void UPoseAssetFactory::OnWindowUserActionDelegate(bool bCreate, UAnimSequence* InSequence, const TArray<FString>& InPoseNames)

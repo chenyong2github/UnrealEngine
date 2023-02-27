@@ -167,49 +167,39 @@ namespace UE::NeuralMorphModel
 		// Handle curves.
 		if (bIncludeCurves && SkeletalMesh)
 		{
-			const FSmartNameMapping* SmartNameMapping = Skeleton ? Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName) : nullptr;
-			if (SmartNameMapping) // When there are curves.
-			{
-				const TArray<FNeuralMorphCurveGroup>& ModelCurveGroups = NeuralMorphModel->GetCurveGroups();
-				const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
-				for (int32 CurveGroupIndex = 0; CurveGroupIndex < ModelCurveGroups.Num(); ++CurveGroupIndex)
-				{				
-					const FNeuralMorphCurveGroup& CurveGroup = ModelCurveGroups[CurveGroupIndex];
-					if (CurveGroup.CurveNames.IsEmpty())
+			const TArray<FNeuralMorphCurveGroup>& ModelCurveGroups = NeuralMorphModel->GetCurveGroups();
+			const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
+			for (int32 CurveGroupIndex = 0; CurveGroupIndex < ModelCurveGroups.Num(); ++CurveGroupIndex)
+			{				
+				const FNeuralMorphCurveGroup& CurveGroup = ModelCurveGroups[CurveGroupIndex];
+				if (CurveGroup.CurveNames.IsEmpty())
+				{
+					continue;
+				}
+
+				NeuralInputInfo->GetCurveGroups().AddDefaulted();
+				FNeuralMorphCurveGroup& NewGroup = NeuralInputInfo->GetCurveGroups().Last();
+
+				const int32 NumCurvesInGroup = CurveGroup.CurveNames.Num();
+				NewGroup.CurveNames.AddDefaulted(NumCurvesInGroup);
+				for (int32 Index = 0; Index < NumCurvesInGroup; ++Index)
+				{
+					const FMLDeformerCurveReference& CurveRef = CurveGroup.CurveNames[Index];
+					if (!CurveRef.CurveName.IsValid() || CurveRef.CurveName.IsNone())
 					{
+						UE_LOG(LogNeuralMorphModel, Warning, TEXT("Invalid or 'None' curve detected inside curve group %d, please fix this."), CurveGroupIndex);
 						continue;
 					}
 
-					NeuralInputInfo->GetCurveGroups().AddDefaulted();
-					FNeuralMorphCurveGroup& NewGroup = NeuralInputInfo->GetCurveGroups().Last();
-
-					const int32 NumCurvesInGroup = CurveGroup.CurveNames.Num();
-					NewGroup.CurveNames.AddDefaulted(NumCurvesInGroup);
-					for (int32 Index = 0; Index < NumCurvesInGroup; ++Index)
+					if (!InputInfo->GetCurveNames().Contains(CurveRef.CurveName))
 					{
-						const FMLDeformerCurveReference& CurveRef = CurveGroup.CurveNames[Index];
-						if (!CurveRef.CurveName.IsValid() || CurveRef.CurveName.IsNone())
-						{
-							UE_LOG(LogNeuralMorphModel, Warning, TEXT("Invalid or 'None' curve detected inside curve group %d, please fix this."), CurveGroupIndex);
-							continue;
-						}
-
-						if (!SmartNameMapping->Exists(CurveRef.CurveName))
-						{
-							UE_LOG(LogNeuralMorphModel, Warning, TEXT("Curve '%s' inside curve group %d doesn't exist, please fix this."), *CurveRef.CurveName.ToString(), CurveGroupIndex);
-							continue;
-						}
-
-						if (!InputInfo->GetCurveNames().Contains(CurveRef.CurveName))
-						{
-							UE_LOG(LogNeuralMorphModel, Warning, TEXT("Curve '%s' inside curve group %d isn't included in the curve list that are input to the model."), *CurveRef.CurveName.ToString(), CurveGroupIndex);
-							continue;
-						}
-
-						NewGroup.CurveNames[Index] = CurveRef.CurveName;
+						UE_LOG(LogNeuralMorphModel, Warning, TEXT("Curve '%s' inside curve group %d isn't included in the curve list that are input to the model."), *CurveRef.CurveName.ToString(), CurveGroupIndex);
+						continue;
 					}
+
+					NewGroup.CurveNames[Index] = CurveRef.CurveName;
 				}
-			} // if SmartNameMapping
+			}
 		}
 	}
 

@@ -488,8 +488,9 @@ public:
 	* @param	SupportedCurveType	Curve type for which the names should be updated
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
-	UFUNCTION(BlueprintCallable, Category = CurveData)
-	virtual void UpdateCurveNamesFromSkeleton(const USkeleton* Skeleton, ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact = true) = 0;
+	UE_DEPRECATED(5.3, "This function is no longer used.")
+	UFUNCTION(BlueprintCallable, Category = CurveData, meta=(DeprecatedFunction, DeprecationMessage="This function is no longer used."))
+	virtual void UpdateCurveNamesFromSkeleton(const USkeleton* Skeleton, ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact = true) {}
 
 	/**
 	* Updates the curve names with the provided skeleton, if a display name is not found it will be added thus modifying the skeleton. Broadcasts a EAnimDataModelNotifyType::CurveRenamed for each curve name for which the UID was different or if it was added as a new smart-name, wrapped within BracketOpened/BracketClosed notifies.
@@ -498,8 +499,9 @@ public:
 	* @param	SupportedCurveType	Curve type for which the names should be updated
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
-	UFUNCTION(BlueprintCallable, Category = CurveData)
-	virtual void FindOrAddCurveNamesOnSkeleton(USkeleton* Skeleton, ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact = true) = 0;
+	UE_DEPRECATED(5.3, "This function is no longer used.")
+	UFUNCTION(BlueprintCallable, Category = CurveData, meta=(DeprecatedFunction, DeprecationMessage="This function is no longer used."))
+	virtual void FindOrAddCurveNamesOnSkeleton(USkeleton* Skeleton, ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact = true) {}
 
 	/**
 	* Removes any bone track for which the name was not found in the provided skeleton. Broadcasts a EAnimDataModelNotifyType::TrackRemoved for each track which was not found in the skeleton, wrapped within BracketOpened/BracketClosed notifies.

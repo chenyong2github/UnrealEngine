@@ -133,7 +133,7 @@ void UAnimationBlueprintLibrary::GetAnimationCurveNames(const UAnimSequence* Ani
 	{
 		auto GetCurveName = [](const auto& Curve) -> FName
 		{
-			return Curve.Name.DisplayName;
+			return Curve.GetName();
 		};
 
 		switch (CurveType)
@@ -1195,8 +1195,7 @@ void UAnimationBlueprintLibrary::AddCurve(UAnimSequence* AnimationSequence, FNam
 		if (bValidMetaData && bValidTransformCurveData )
 		{
 			// Add or retrieve the smartname
-			const FName Names[(int32)ESmartNameContainerType::SNCT_MAX] = { USkeleton::AnimCurveMappingName, USkeleton::AnimTrackCurveMappingName };
-			const bool bCurveAdded = AddCurveInternal(AnimationSequence, CurveName, Names[(int32)CurveContainer], CurveFlags, CurveType);
+			const bool bCurveAdded = AddCurveInternal(AnimationSequence, CurveName, CurveFlags, CurveType);
 
 			if (!bCurveAdded)
 			{
@@ -1227,10 +1226,10 @@ void UAnimationBlueprintLibrary::RemoveCurve(UAnimSequence* AnimationSequence, F
 {
 	if (AnimationSequence)
 	{
-		const FName ContainerName = RetrieveContainerNameForCurve(AnimationSequence, CurveName);
-		if (ContainerName != NAME_None)
+		const ERawCurveTrackTypes CurveType = RetrieveCurveTypeForCurve(AnimationSequence, CurveName);
+		if (CurveType != ERawCurveTrackTypes::RCT_MAX)
 		{
-			const bool bCurveRemoved = RemoveCurveInternal(AnimationSequence, CurveName, ContainerName, bRemoveNameFromSkeleton);
+			const bool bCurveRemoved = RemoveCurveInternal(AnimationSequence, CurveName, CurveType);
 		}
 		else
 		{
@@ -1375,27 +1374,27 @@ void UAnimationBlueprintLibrary::AddVectorCurveKeys(UAnimSequence* AnimationSequ
 	}
 }
 
-static void SetControllerCurveKeys(IAnimationDataController& Controller, FSmartName SmartName, const TArray<float>& Times, const TArray<float>& Values)
+static void SetControllerCurveKeys(IAnimationDataController& Controller, FName Name, const TArray<float>& Times, const TArray<float>& Values)
 {
 	const int32 NumKeys = Values.Num();
-	const FAnimationCurveIdentifier CurveId(SmartName, ERawCurveTrackTypes::RCT_Float);
+	const FAnimationCurveIdentifier CurveId(Name, ERawCurveTrackTypes::RCT_Float);
 	for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 	{
 		Controller.SetCurveKey(CurveId, { Times[KeyIndex], Values[KeyIndex] });
 	}
 }
 
-static void SetControllerCurveKeys(IAnimationDataController& Controller, FSmartName SmartName, const TArray<float>& Times, const TArray<FTransform>& Values)
+static void SetControllerCurveKeys(IAnimationDataController& Controller, FName Name, const TArray<float>& Times, const TArray<FTransform>& Values)
 {
 	const int32 NumKeys = Values.Num();
-	const FAnimationCurveIdentifier CurveId(SmartName, ERawCurveTrackTypes::RCT_Transform);
+	const FAnimationCurveIdentifier CurveId(Name, ERawCurveTrackTypes::RCT_Transform);
 	for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 	{
 		Controller.SetTransformCurveKey(CurveId, Times[KeyIndex], Values[KeyIndex]);
 	}
 }
 	
-static void SetControllerCurveKeys(IAnimationDataController& Controller, FSmartName CurveId, const TArray<float>& Times, const TArray<FVector>& Values)
+static void SetControllerCurveKeys(IAnimationDataController& Controller, FName Name, const TArray<float>& Times, const TArray<FVector>& Values)
 {
 	ensure(false);
 }
@@ -1405,31 +1404,20 @@ void UAnimationBlueprintLibrary::AddCurveKeysInternal(UAnimSequence* AnimationSe
 {
 	checkf(Times.Num() == KeyData.Num(), TEXT("Not enough key data supplied"));
 
-	const FName ContainerName = RetrieveContainerNameForCurve(AnimationSequence, CurveName);
-
-	if (ContainerName != NAME_None)
+	// Retrieve the curve by name
+	const FAnimationCurveIdentifier CurveId(CurveName, CurveType);
+	const CurveClass* Curve = static_cast<const CurveClass*>(AnimationSequence->GetDataModel()->FindCurve(CurveId));
+	if (Curve)
 	{
-		// Retrieve smart name for curve
-		const FSmartName CurveSmartName = RetrieveSmartNameForCurve(AnimationSequence, CurveName, ContainerName);
-
-		// Retrieve the curve by name
-		const FAnimationCurveIdentifier CurveId(CurveSmartName, CurveType);
-		const CurveClass* Curve = static_cast<const CurveClass*>(AnimationSequence->GetDataModel()->FindCurve(CurveId));
-		if (Curve)
-		{
-			IAnimationDataController& Controller = AnimationSequence->GetController();
-			SetControllerCurveKeys(Controller, CurveSmartName, Times, KeyData);
-		}
+		IAnimationDataController& Controller = AnimationSequence->GetController();
+		SetControllerCurveKeys(Controller, CurveName, Times, KeyData);
 	}
 }
 
-bool UAnimationBlueprintLibrary::AddCurveInternal(UAnimSequence* AnimationSequence, FName CurveName, FName ContainerName, int32 CurveFlags, ERawCurveTrackTypes SupportedCurveType)
+bool UAnimationBlueprintLibrary::AddCurveInternal(UAnimSequence* AnimationSequence, FName CurveName, int32 CurveFlags, ERawCurveTrackTypes SupportedCurveType)
 {
 	// Add or retrieve the smart name
-	FSmartName SmartCurveName;
-	AnimationSequence->GetSkeleton()->AddSmartNameAndModify(ContainerName, CurveName, SmartCurveName);	
-
-	FAnimationCurveIdentifier CurveId(SmartCurveName, SupportedCurveType);
+	FAnimationCurveIdentifier CurveId(CurveName, SupportedCurveType);
 
 	bool bCurveAdded = false;
 
@@ -1448,54 +1436,15 @@ bool UAnimationBlueprintLibrary::AddCurveInternal(UAnimSequence* AnimationSequen
 	return bCurveAdded;
 }
 
-bool UAnimationBlueprintLibrary::RemoveCurveInternal(UAnimSequence* AnimationSequence, FName CurveName, FName ContainerName, bool bRemoveNameFromSkeleton)
+bool UAnimationBlueprintLibrary::RemoveCurveInternal(UAnimSequence* AnimationSequence, FName CurveName, ERawCurveTrackTypes SupportedCurveType)
 {
 	checkf(AnimationSequence != nullptr, TEXT("Invalid Animation Sequence ptr"));
 	bool bRemoved = false;
-	SmartName::UID_Type UID = AnimationSequence->GetSkeleton()->GetUIDByName(ContainerName, CurveName);
-	if (UID != SmartName::MaxUID)
-	{
-		FSmartName SmartCurveName;
-		USkeleton* Skeleton = AnimationSequence->GetSkeleton();
-		checkf(Skeleton != nullptr, TEXT("Invalid Skeleton ptr"));
-		if (Skeleton->GetSmartNameByUID(ContainerName, UID, SmartCurveName))
-		{
-			IAnimationDataController& Controller = AnimationSequence->GetController();
+	
+	IAnimationDataController& Controller = AnimationSequence->GetController();
 
-			const FAnimationCurveIdentifier CurveId(SmartCurveName, ContainerName == USkeleton::AnimTrackCurveMappingName ? ERawCurveTrackTypes::RCT_Transform : ERawCurveTrackTypes::RCT_Float);
-			bRemoved = Controller.RemoveCurve(CurveId);
-
-			if (bRemoveNameFromSkeleton)
-			{
-				// Ensure we are eligible to do this
-				bool bValidToRemove = true;
-
-				if (ContainerName == USkeleton::AnimTrackCurveMappingName)
-				{
-					// Make sure we do not remove bone names
-					bValidToRemove = DoesBoneCurveNameExistInternal(Skeleton, CurveName);
-				}
-
-				if (bValidToRemove)
-				{
-					Skeleton->RemoveSmartnameAndModify(ContainerName, UID);
-				}
-				else
-				{
-					UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Cannot remove Curve Name %s from Skeleton %s"), *CurveName.ToString(), *AnimationSequence->GetSkeleton()->GetName());
-				}
-			}
-		}
-		else
-		{
-			UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Could not retrieve Smart Name for Curve Name %s from Skeleton %s"), *CurveName.ToString(), *AnimationSequence->GetSkeleton()->GetName());
-		}
-	}
-	else
-	{
-		// Name does not exist on skeleton
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Could find for Curve Name %s in Skeleton %s"), *CurveName.ToString(), *AnimationSequence->GetSkeleton()->GetName());
-	}
+	const FAnimationCurveIdentifier CurveId(CurveName, SupportedCurveType);
+	bRemoved = Controller.RemoveCurve(CurveId);
 
 	return bRemoved;
 }
@@ -1525,12 +1474,6 @@ bool UAnimationBlueprintLibrary::DoesBoneNameExistInternal(USkeleton* Skeleton, 
 {
 	checkf(Skeleton != nullptr, TEXT("Invalid Skeleton ptr"));
 	return Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneName) != INDEX_NONE;
-}
-
-bool UAnimationBlueprintLibrary::DoesBoneCurveNameExistInternal(USkeleton* Skeleton, FName BoneName)
-{
-	checkf(Skeleton != nullptr, TEXT("Invalid Skeleton ptr"));
-	return Skeleton->GetUIDByName(USkeleton::AnimTrackCurveMappingName, BoneName) != SmartName::MaxUID;
 }
 
 void UAnimationBlueprintLibrary::GetFloatKeys(UAnimSequence* AnimationSequence, FName CurveName, TArray<float>& Times, TArray<float>& Values)
@@ -1569,33 +1512,19 @@ void UAnimationBlueprintLibrary::GetTransformationKeys(UAnimSequence* AnimationS
 	}
 }
 
-void UAnimationBlueprintLibrary::CopyAnimationCurveNamesToSkeleton(USkeleton* OldSkeleton, USkeleton* NewSkeleton, UAnimSequenceBase* SequenceBase, ERawCurveTrackTypes CurveType)
-{
-	IAnimationDataController& Controller = SequenceBase->GetController();
-	Controller.UpdateCurveNamesFromSkeleton(OldSkeleton, CurveType);
-	Controller.FindOrAddCurveNamesOnSkeleton(NewSkeleton, CurveType);	
-}
-
 template <typename DataType, typename CurveClass, ERawCurveTrackTypes CurveType>
 void UAnimationBlueprintLibrary::GetCurveKeysInternal(UAnimSequence* AnimationSequence, FName CurveName, TArray<float>& Times, TArray<DataType>& KeyData)
 {
 	checkf(AnimationSequence != nullptr, TEXT("Invalid Animation Sequence ptr"));
-	const FName ContainerName = RetrieveContainerNameForCurve(AnimationSequence, CurveName);
+	
+	// Retrieve the curve by name
+	const FAnimationCurveIdentifier CurveId(CurveName, CurveType);
+	const CurveClass* Curve = static_cast<const CurveClass*>(AnimationSequence->GetDataModel()->FindCurve(CurveId));
 
-	if (ContainerName != NAME_None)
+	if (Curve)
 	{
-		// Retrieve smart name for curve
-		const FSmartName CurveSmartName = RetrieveSmartNameForCurve(AnimationSequence, CurveName, ContainerName);
-
-		// Retrieve the curve by name
-		const FAnimationCurveIdentifier CurveId(CurveSmartName, CurveType);
-		const CurveClass* Curve = static_cast<const CurveClass*>(AnimationSequence->GetDataModel()->FindCurve(CurveId));
-
-		if (Curve)
-		{
-			Curve->GetKeys(Times, KeyData);
-			checkf(Times.Num() == KeyData.Num(), TEXT("Invalid key data retrieved from curve"));
-		}
+		Curve->GetKeys(Times, KeyData);
+		checkf(Times.Num() == KeyData.Num(), TEXT("Invalid key data retrieved from curve"));
 	}
 }
 
@@ -1605,20 +1534,9 @@ bool UAnimationBlueprintLibrary::DoesCurveExist(UAnimSequence* AnimationSequence
 
 	if (AnimationSequence)
 	{
-		FSmartName SmartName;
-		if (RetrieveSmartNameForCurve(AnimationSequence, CurveName, USkeleton::AnimTrackCurveMappingName, SmartName))
-		{
-			FAnimationCurveIdentifier CurveId(SmartName, CurveType);
-			const FAnimCurveBase* Curve = AnimationSequence->GetDataModel()->FindCurve(CurveId);
-			bExistingCurve = Curve != nullptr;
-		}
-
-		if (RetrieveSmartNameForCurve(AnimationSequence, CurveName, USkeleton::AnimCurveMappingName, SmartName))
-		{
-			FAnimationCurveIdentifier CurveId(SmartName, CurveType);
-			const FAnimCurveBase* Curve = AnimationSequence->GetDataModel()->FindCurve(CurveId);
-			bExistingCurve |= Curve != nullptr;
-		}
+		FAnimationCurveIdentifier CurveId(CurveName, CurveType);
+		const FAnimCurveBase* Curve = AnimationSequence->GetDataModel()->FindCurve(CurveId);
+		bExistingCurve = Curve != nullptr;
 	}
 	else
 	{
@@ -1628,42 +1546,19 @@ bool UAnimationBlueprintLibrary::DoesCurveExist(UAnimSequence* AnimationSequence
 	return bExistingCurve;
 }
 
-bool UAnimationBlueprintLibrary::DoesSmartNameExist(UAnimSequence* AnimationSequence, FName Name)
+ERawCurveTrackTypes UAnimationBlueprintLibrary::RetrieveCurveTypeForCurve(const UAnimSequence* AnimationSequence, FName CurveName)
 {
-	checkf(AnimationSequence != nullptr, TEXT("Invalid Animation Sequence ptr"));
-	FSmartName SmartName;
-	return AnimationSequence->GetSkeleton()->GetSmartNameByName(USkeleton::AnimTrackCurveMappingName, Name, SmartName) ||
-		AnimationSequence->GetSkeleton()->GetSmartNameByName(USkeleton::AnimCurveMappingName, Name, SmartName);
-}
-
-bool UAnimationBlueprintLibrary::RetrieveSmartNameForCurve(const UAnimSequence* AnimationSequence, FName CurveName, FName ContainerName, FSmartName& SmartName)
-{
-	checkf(AnimationSequence != nullptr, TEXT("Invalid Animation Sequence ptr"));
-	return AnimationSequence->GetSkeleton()->GetSmartNameByName(ContainerName, CurveName, SmartName);
-}
-
-FSmartName UAnimationBlueprintLibrary::RetrieveSmartNameForCurve(const UAnimSequence* AnimationSequence, FName CurveName, FName ContainerName)
-{
-	checkf(AnimationSequence != nullptr, TEXT("Invalid Animation Sequence ptr"));
-	FSmartName SmartCurveName;
-	AnimationSequence->GetSkeleton()->GetSmartNameByName(ContainerName, CurveName, SmartCurveName);
-	return SmartCurveName;
-}
-
-FName UAnimationBlueprintLibrary::RetrieveContainerNameForCurve(const UAnimSequence* AnimationSequence, FName CurveName)
-{
-	checkf(AnimationSequence != nullptr, TEXT("Invalid Animation Sequence ptr"));
-	const FName Names[(int32)ESmartNameContainerType::SNCT_MAX] = { USkeleton::AnimCurveMappingName, USkeleton::AnimTrackCurveMappingName };
-	for (int32 Index = 0; Index < (int32)ESmartNameContainerType::SNCT_MAX; ++Index)
+	if(AnimationSequence->GetDataModel()->FindCurve(FAnimationCurveIdentifier(CurveName, ERawCurveTrackTypes::RCT_Float)))
 	{
-		const FSmartNameMapping* CurveMapping = AnimationSequence->GetSkeleton()->GetSmartNameContainer(Names[Index]);
-		if (CurveMapping && CurveMapping->Exists(CurveName))
-		{
-			return Names[Index];
-		}
+		return ERawCurveTrackTypes::RCT_Float;
+	}
+	
+	if(AnimationSequence->GetDataModel()->FindCurve(FAnimationCurveIdentifier(CurveName, ERawCurveTrackTypes::RCT_Transform)))
+	{
+		return ERawCurveTrackTypes::RCT_Transform;
 	}
 
-	return NAME_None;
+	return ERawCurveTrackTypes::RCT_MAX;
 }
 
 void UAnimationBlueprintLibrary::AddMetaData(UAnimationAsset* AnimationAsset, TSubclassOf<UAnimMetaData> MetaDataClass, UAnimMetaData*& MetaDataInstance)

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_RetargetPoseFromMesh.h"
+
+#include "Animation/AnimCurveUtils.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -131,14 +133,7 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 	// copy curves over
 	if (bCopyCurves)
 	{
-		for (const TPair<FName, float>& SourceCurve : SourceCurveValues)
-		{
-			if (const SmartName::UID_Type* UID = CurveNameToUIDMap.Find(SourceCurve.Key))
-			{
-				// set source value to output curve
-				Output.Curve.Set(*UID, SourceCurve.Value);
-			}
-		}
+		Output.Curve.CopyFrom(SourceCurves);
 	}
 }
 
@@ -163,13 +158,18 @@ void FAnimNode_RetargetPoseFromMesh::PreUpdate(const UAnimInstance* InAnimInstan
 
 		if(bCopyCurves)
 		{
-			SourceCurveValues.Reset();
 			if (const UAnimInstance* SourceAnimInstance = SourceMeshComponent->GetAnimInstance())
 			{
-				// attribute curve contains all list	
-				SourceCurveValues.Append(SourceAnimInstance->GetAnimationCurveList(EAnimCurveType::AttributeCurve));
+				// Potential optimization/tradeoff: If we stored the curve results on the mesh component in non-editor scenarios, this would be
+				// much faster (but take more memory). As it is, we need to translate the map stored on the anim instance.
+				const TMap<FName, float>& AnimCurveList = SourceAnimInstance->GetAnimationCurveList(EAnimCurveType::AttributeCurve);
+				UE::Anim::FCurveUtils::BuildUnsorted(SourceCurves, AnimCurveList);
 			}
-
+			else
+			{
+				SourceCurves.Empty();
+			}
+			
 			UpdateSpeedValuesFromCurves();
 		}
 	}
@@ -194,12 +194,12 @@ void FAnimNode_RetargetPoseFromMesh::UpdateSpeedValuesFromCurves()
 		}
 
 		// value will be negative if the curve was not found (retargeter ignores negative speeds)
-		float CurveValue = -1.0f;
-		if (SourceCurveValues.Contains(CurveName))
+		bool bCurveValid = false;
+		float CurveValue = SourceCurves.Get(CurveName, bCurveValid, -1.0f);
+		if (bCurveValid)
 		{
-			CurveValue = SourceCurveValues[CurveName];
+			SpeedValuesFromCurves.Add(CurveName, CurveValue);
 		}
-		SpeedValuesFromCurves.Add(CurveName, CurveValue);
 	}
 }
 
@@ -263,27 +263,6 @@ bool FAnimNode_RetargetPoseFromMesh::EnsureProcessorIsInitialized(const TObjectP
 		// initialize retarget processor with source and target skeletal meshes
 		// (asset is passed in as outer UObject for new UIKRigProcessor) 
 		Processor->Initialize(SourceMesh,	TargetMesh,IKRetargeterAsset);
-
-		// create a map of curve names to IDs that are present on the target skeleton
-		if (bCopyCurves)
-		{
-			const FSmartNameMapping* SourceContainer = SourceSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-			const FSmartNameMapping* TargetContainer = TargetSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-
-			TArray<FName> SourceCurveNames;
-			SourceContainer->FillNameArray(SourceCurveNames);
-			CurveNameToUIDMap.Reset();
-			for (int32 Index = 0; Index < SourceCurveNames.Num(); ++Index)
-			{
-				SmartName::UID_Type UID = TargetContainer->FindUID(SourceCurveNames[Index]);
-				if (UID != SmartName::MaxUID)
-				{
-					// has a valid UID, add to the list
-					SmartName::UID_Type& Value = CurveNameToUIDMap.Add(SourceCurveNames[Index]);
-					Value = UID;
-				}
-			}
-		}
 	}
 
 	return Processor->IsInitialized();

@@ -45,7 +45,7 @@ bool FControlRigAnimInstanceProxy::Evaluate(FPoseContext& Output)
 		Output.Pose[ModifiedBone] = CompactPose[ModifiedBone];
 	}
 
-	for (TPair<SmartName::UID_Type, float> Pair : StoredCurves)
+	for (const TPair<FName, float>& Pair : StoredCurves)
 	{
 		Output.Curve.Set(Pair.Key, Pair.Value);
 	}

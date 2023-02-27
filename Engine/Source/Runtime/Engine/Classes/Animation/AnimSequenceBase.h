@@ -93,6 +93,11 @@ public:
 	/** Remove all notifies */
 	void RemoveNotifies();
 
+#if WITH_EDITOR
+	/** Renames all named notifies with InOldName to InNewName */
+	void RenameNotifies(FName InOldName, FName InNewName);
+#endif
+	
 	/** 
 	 * Retrieves AnimNotifies given a StartTime and a DeltaTime.
 	 * Time will be advanced and support looping if bAllowLooping is true.
@@ -134,10 +139,18 @@ public:
 
 	/** Evaluate curve data to Instance at the time of CurrentTime **/
 	virtual void EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData = false) const;
-	virtual float EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData = false) const;
 
+	UE_DEPRECATED(5.3, "Please use EvaluateCurveData that takes a FName.")
+	virtual float EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData = false) const { return 0.0f; }
+	
+	virtual float EvaluateCurveData(FName CurveName, float CurrentTime, bool bForceUseRawData = false) const;
+	
 	virtual const FRawCurveTracks& GetCurveData() const;
-	virtual bool HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData = false) const;
+	
+	UE_DEPRECATED(5.3, "Please use HasCurveData that takes a FName.")
+	virtual bool HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData = false) const { return false; }
+	
+	virtual bool HasCurveData(FName CurveName, bool bForceUseRawData = false) const;
 
 	/** Return Number of Keys **/
 	UE_DEPRECATED(4.19, "Use GetNumberOfSampledKeys instead")
@@ -181,14 +194,11 @@ public:
 	virtual void RefreshCacheData();
 
 	//~ Begin UAnimationAsset Interface
-#if WITH_EDITOR
-	virtual void RemapTracksToNewSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces) override;
-#endif
 	virtual void TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQueue& NotifyQueue, FAnimAssetTickContext& Context) const override;
-
+	//~ End UAnimationAsset Interface
+	
 	void TickByMarkerAsFollower(FMarkerTickRecord &Instance, FMarkerTickContext &MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping, const UMirrorDataTable* MirrorTable = nullptr) const;
 	void TickByMarkerAsLeader(FMarkerTickRecord& Instance, FMarkerTickContext& MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping, const UMirrorDataTable* MirrorTable = nullptr) const;
-	//~ End UAnimationAsset Interface
 
 	/**
 	* Get Bone Transform of the Time given, relative to Parent for all RequiredBones

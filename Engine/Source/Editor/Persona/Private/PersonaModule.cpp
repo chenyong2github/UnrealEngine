@@ -92,6 +92,7 @@
 #include "SAnimationBlendSpaceGridWidget.h"
 #include "SAnimSequenceCurveEditor.h"
 #include "AnimSequenceTimelineCommands.h"
+#include "SAnimCurvePicker.h"
 #include "SAnimMontageSectionsPanel.h"
 #include "Animation/AnimSequenceHelpers.h"
 #include "SkeletalMeshReferenceSectionDetails.h"
@@ -100,6 +101,7 @@
 #include "ContentBrowserMenuContexts.h"
 #include "SAssetView.h"
 #include "ToolMenus.h"
+#include "SAnimAssetFindReplace.h"
 
 IMPLEMENT_MODULE( FPersonaModule, Persona );
 
@@ -287,6 +289,11 @@ TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateCurveViewerTabFactor
 	return MakeShareable(new FAnimCurveViewerTabSummoner(InHostingApp, InEditableSkeleton, InPreviewScene, InOnObjectsSelected));
 }
 
+TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateCurveMetadataEditorTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, UObject* InMetadataHost, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, FOnObjectsSelected InOnObjectsSelected) const
+{
+	return MakeShared<FAnimCurveMetadataEditorTabSummoner>(InHostingApp, InMetadataHost, InPreviewScene, InOnObjectsSelected);
+}
+
 TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateRetargetSourcesTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, FSimpleMulticastDelegate& InOnPostUndo) const
 {
 	return MakeShareable(new FRetargetSourcesTabSummoner(InHostingApp, InEditableSkeleton, InPreviewScene, InOnPostUndo));
@@ -366,6 +373,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateAnimMontageSectionsTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<IPersonaToolkit>& InPersonaToolkit, FSimpleMulticastDelegate& InOnSectionsChanged) const
 {
 	return MakeShareable(new FAnimMontageSectionsSummoner(InHostingApp, InPersonaToolkit, InOnSectionsChanged));
+}
+
+TSharedRef<FWorkflowTabFactory> FPersonaModule::CreateAnimAssetFindReplaceTabFactory(const TSharedRef<FWorkflowCentricApplication>& InHostingApp, const FAnimAssetFindReplaceConfig& InConfig) const
+{
+	return MakeShared<FAnimAssetFindReplaceSummoner>(InHostingApp, InConfig);
 }
 
 TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSharedRef<IAnimationEditor>& InHostingApp, UObject* InAnimAsset, const FAnimDocumentArgs& InArgs, FString& OutDocumentLink)
@@ -511,121 +523,117 @@ void PopulateWithAssets(const FTopLevelAssetPath& ClassName, FName SkeletonMembe
 	AssetRegistryModule.Get().GetAssets(Filter, OutAssets);
 }
 
-void FPersonaModule::TestSkeletonCurveNamesForUse(const TSharedRef<IEditableSkeleton>& InEditableSkeleton) const
+void FPersonaModule::TestSkeletonCurveMetaDataForUse(const TSharedRef<IEditableSkeleton>& InEditableSkeleton) const
 {
 	const USkeleton& Skeleton = InEditableSkeleton->GetSkeleton();
+	const FString SkeletonString = FAssetData(&Skeleton).GetExportTextName();
 
-	if (const FSmartNameMapping* Mapping = Skeleton.GetSmartNameContainer(USkeleton::AnimCurveMappingName))
+	TArray<FAssetData> SkeletalMeshes;
+	PopulateWithAssets(USkeletalMesh::StaticClass()->GetClassPathName(), USkeletalMesh::GetSkeletonMemberName(), SkeletonString, SkeletalMeshes);
+	TArray<FAssetData> Animations;
+	PopulateWithAssets(UAnimSequence::StaticClass()->GetClassPathName(), USkeletalMesh::GetSkeletonMemberName(), SkeletonString, Animations);
+
+	FText TimeTakenMessage = FText::Format(LOCTEXT("TimeTakenWarning", "In order to verify curve usage all Skeletal Meshes and Animations that use this skeleton will be loaded, this may take some time.\n\nProceed?\n\nNumber of Meshes: {0}\nNumber of Animations: {1}"), FText::AsNumber(SkeletalMeshes.Num()), FText::AsNumber(Animations.Num()));
+
+	if (FMessageDialog::Open(EAppMsgType::YesNo, TimeTakenMessage) == EAppReturnType::Yes)
 	{
-		const FString SkeletonString = FAssetData(&Skeleton).GetExportTextName();
-
-		TArray<FAssetData> SkeletalMeshes;
-		PopulateWithAssets(USkeletalMesh::StaticClass()->GetClassPathName(), USkeletalMesh::GetSkeletonMemberName(), SkeletonString, SkeletalMeshes);
-		TArray<FAssetData> Animations;
-		PopulateWithAssets(UAnimSequence::StaticClass()->GetClassPathName(), USkeletalMesh::GetSkeletonMemberName(), SkeletonString, Animations);
-
-		FText TimeTakenMessage = FText::Format(LOCTEXT("TimeTakenWarning", "In order to verify curve usage all Skeletal Meshes and Animations that use this skeleton will be loaded, this may take some time.\n\nProceed?\n\nNumber of Meshes: {0}\nNumber of Animations: {1}"), FText::AsNumber(SkeletalMeshes.Num()), FText::AsNumber(Animations.Num()));
-
-		if (FMessageDialog::Open(EAppMsgType::YesNo, TimeTakenMessage) == EAppReturnType::Yes)
+		const FText LoadingStatusUpdate = FText::Format(LOCTEXT("VerifyCurves_LoadingAllAnimations", "Loading all animations for skeleton '{0}'"), FText::FromString(Skeleton.GetName()));
 		{
-			const FText LoadingStatusUpdate = FText::Format(LOCTEXT("VerifyCurves_LoadingAllAnimations", "Loading all animations for skeleton '{0}'"), FText::FromString(Skeleton.GetName()));
-			{
-				FScopedSlowTask LoadingAnimSlowTask(static_cast<float>(Animations.Num()), LoadingStatusUpdate);
-				LoadingAnimSlowTask.MakeDialog();
+			FScopedSlowTask LoadingAnimSlowTask(static_cast<float>(Animations.Num()), LoadingStatusUpdate);
+			LoadingAnimSlowTask.MakeDialog();
 
-				// Loop through all animations to load then, this makes sure smart names are all up to date
-				for (const FAssetData& Anim : Animations)
-				{
-					LoadingAnimSlowTask.EnterProgressFrame();
-					UAnimSequence* Seq = Cast<UAnimSequence>(Anim.GetAsset());
-				}
+			// Loop through all animations to load then, this makes sure smart names are all up to date
+			for (const FAssetData& Anim : Animations)
+			{
+				LoadingAnimSlowTask.EnterProgressFrame();
+				UAnimSequence* Seq = Cast<UAnimSequence>(Anim.GetAsset());
 			}
+		}
 
-			// Grab all curve names for this skeleton
-			TArray<FName> UnusedNames;
-			Mapping->FillNameArray(UnusedNames);
+		// Grab all curve names for this skeleton
+		TArray<FName> UnusedNames;
+		Skeleton.GetCurveMetaDataNames(UnusedNames);
 
-			const FText ProcessingStatusUpdate = FText::Format(LOCTEXT("VerifyCurves_ProcessingCurveUsage", "Looking at curve useage for each skeletal mesh of skeleton '{0}'"), FText::FromString(Skeleton.GetName()));
+		const FText ProcessingStatusUpdate = FText::Format(LOCTEXT("VerifyCurves_ProcessingCurveUsage", "Looking at curve useage for each skeletal mesh of skeleton '{0}'"), FText::FromString(Skeleton.GetName()));
+		{
+			FScopedSlowTask LoadingSkelMeshSlowTask(static_cast<float>(SkeletalMeshes.Num()), ProcessingStatusUpdate);
+			LoadingSkelMeshSlowTask.MakeDialog();
+
+			for (int32 MeshIdx = 0; MeshIdx < SkeletalMeshes.Num(); ++MeshIdx)
 			{
-				FScopedSlowTask LoadingSkelMeshSlowTask(static_cast<float>(SkeletalMeshes.Num()), ProcessingStatusUpdate);
-				LoadingSkelMeshSlowTask.MakeDialog();
+				LoadingSkelMeshSlowTask.EnterProgressFrame();
 
-				for (int32 MeshIdx = 0; MeshIdx < SkeletalMeshes.Num(); ++MeshIdx)
+				const USkeletalMesh* Mesh = Cast<USkeletalMesh>(SkeletalMeshes[MeshIdx].GetAsset());
+
+				// Filter morph targets from curves
+				const TArray<UMorphTarget*>& MorphTargets = Mesh->GetMorphTargets();
+				for (int32 I = 0; I < MorphTargets.Num(); ++I)
 				{
-					LoadingSkelMeshSlowTask.EnterProgressFrame();
+					const int32 CurveIndex = UnusedNames.RemoveSingleSwap(MorphTargets[I]->GetFName(), false);
+				}
 
-					const USkeletalMesh* Mesh = Cast<USkeletalMesh>(SkeletalMeshes[MeshIdx].GetAsset());
-
-					// Filter morph targets from curves
-					const TArray<UMorphTarget*>& MorphTargets = Mesh->GetMorphTargets();
-					for (int32 I = 0; I < MorphTargets.Num(); ++I)
+				// Filter material params from curves
+				for (const FSkeletalMaterial& Mat : Mesh->GetMaterials())
+				{
+					if (UnusedNames.Num() == 0)
 					{
-						const int32 CurveIndex = UnusedNames.RemoveSingleSwap(MorphTargets[I]->GetFName(), false);
+						break; // Done
 					}
 
-					// Filter material params from curves
-					for (const FSkeletalMaterial& Mat : Mesh->GetMaterials())
+					UMaterial* Material = (Mat.MaterialInterface != nullptr) ? Mat.MaterialInterface->GetMaterial() : nullptr;
+					if (Material)
 					{
-						if (UnusedNames.Num() == 0)
+						TArray<FMaterialParameterInfo> OutParameterInfo;
+						TArray<FGuid> OutParameterIds;
+
+						// Retrieve all scalar parameter names from the material
+						Mat.MaterialInterface->GetAllScalarParameterInfo(OutParameterInfo, OutParameterIds);
+
+						for (FMaterialParameterInfo SPInfo : OutParameterInfo)
 						{
-							break; // Done
-						}
-
-						UMaterial* Material = (Mat.MaterialInterface != nullptr) ? Mat.MaterialInterface->GetMaterial() : nullptr;
-						if (Material)
-						{
-							TArray<FMaterialParameterInfo> OutParameterInfo;
-							TArray<FGuid> OutParameterIds;
-
-							// Retrieve all scalar parameter names from the material
-							Mat.MaterialInterface->GetAllScalarParameterInfo(OutParameterInfo, OutParameterIds);
-
-							for (FMaterialParameterInfo SPInfo : OutParameterInfo)
-							{
-								UnusedNames.RemoveSingleSwap(SPInfo.Name);
-							}
+							UnusedNames.RemoveSingleSwap(SPInfo.Name);
 						}
 					}
 				}
 			}
+		}
 
-			FMessageLog CurveOutput("Persona");
-			CurveOutput.NewPage(LOCTEXT("PersonaMessageLogName", "Persona"));
+		FMessageLog CurveOutput("Persona");
+		CurveOutput.NewPage(LOCTEXT("PersonaMessageLogName", "Persona"));
 
-			bool bFoundIssue = false;
+		bool bFoundIssue = false;
 
-			const FText ProcessingAnimStatusUpdate = FText::Format(LOCTEXT("FindUnusedCurves_ProcessingSkeletalMeshes", "Finding animations that reference unused curves on skeleton '{0}'"), FText::FromString(Skeleton.GetName()));
+		const FText ProcessingAnimStatusUpdate = FText::Format(LOCTEXT("FindUnusedCurves_ProcessingSkeletalMeshes", "Finding animations that reference unused curves on skeleton '{0}'"), FText::FromString(Skeleton.GetName()));
+		{
+			FScopedSlowTask ProcessingAnimationsSlowTask(static_cast<float>(Animations.Num()), ProcessingAnimStatusUpdate);
+			ProcessingAnimationsSlowTask.MakeDialog();
+
+			for (const FAssetData& Anim : Animations)
 			{
-				FScopedSlowTask ProcessingAnimationsSlowTask(static_cast<float>(Animations.Num()), ProcessingAnimStatusUpdate);
-				ProcessingAnimationsSlowTask.MakeDialog();
+				ProcessingAnimationsSlowTask.EnterProgressFrame();
+				UAnimSequence* Seq = Cast<UAnimSequence>(Anim.GetAsset());
 
-				for (const FAssetData& Anim : Animations)
+				TSharedPtr<FTokenizedMessage> Message;
+				for (const FFloatCurve& Curve : Seq->GetDataModel()->GetCurveData().FloatCurves)
 				{
-					ProcessingAnimationsSlowTask.EnterProgressFrame();
-					UAnimSequence* Seq = Cast<UAnimSequence>(Anim.GetAsset());
-
-					TSharedPtr<FTokenizedMessage> Message;
-					for (const FFloatCurve& Curve : Seq->GetDataModel()->GetCurveData().FloatCurves)
+					if (UnusedNames.Contains(Curve.GetName()))
 					{
-						if (UnusedNames.Contains(Curve.Name.DisplayName))
+						bFoundIssue = true;
+						if (!Message.IsValid())
 						{
-							bFoundIssue = true;
-							if (!Message.IsValid())
-							{
-								Message = CurveOutput.Warning();
-								Message->AddToken(FAssetNameToken::Create(Anim.GetObjectPathString(), FText::FromName(Anim.AssetName)));
-								Message->AddToken(FTextToken::Create(LOCTEXT("VerifyCurves_FoundAnimationsWithUnusedReferences", "References the following curves that are not used for either morph targets or material parameters and so may be unneeded")));
-							}
-							CurveOutput.Info(FText::FromName(Curve.Name.DisplayName));
+							Message = CurveOutput.Warning();
+							Message->AddToken(FAssetNameToken::Create(Anim.GetObjectPathString(), FText::FromName(Anim.AssetName)));
+							Message->AddToken(FTextToken::Create(LOCTEXT("VerifyCurves_FoundAnimationsWithUnusedReferences", "References the following curves that are not used for either morph targets or material parameters and so may be unneeded")));
 						}
+						CurveOutput.Info(FText::FromName(Curve.GetName()));
 					}
 				}
 			}
+		}
 
-			if (bFoundIssue)
-			{
-				CurveOutput.Notify();
-			}
+		if (bFoundIssue)
+		{
+			CurveOutput.Notify();
 		}
 	}
 }
@@ -1098,6 +1106,20 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 	}
 }
 
+TSharedRef<SWidget> FPersonaModule::CreateCurvePicker(TSharedRef<IEditableSkeleton> InEditableSkeleton, FOnCurvePicked InOnCurvePicked, FIsCurveNameMarkedForExclusion InIsCurveNameMarkedForExclusion)
+{
+	return SNew(SAnimCurvePicker, &InEditableSkeleton->GetSkeleton())
+		.OnCurvePicked(InOnCurvePicked)
+		.IsCurveNameMarkedForExclusion(InIsCurveNameMarkedForExclusion);
+}
+
+TSharedRef<SWidget> FPersonaModule::CreateCurvePicker(const USkeleton* InSkeleton, FOnCurvePicked InOnCurvePicked, FIsCurveNameMarkedForExclusion InIsCurveNameMarkedForExclusion)
+{
+	return SNew(SAnimCurvePicker, InSkeleton)
+		.OnCurvePicked(InOnCurvePicked)
+		.IsCurveNameMarkedForExclusion(InIsCurveNameMarkedForExclusion);
+}
+
 void FPersonaModule::AddCommonMenuExtensions(UToolMenu* InToolMenu, const FCommonToolMenuExtensionArgs& InArgs)
 {
 	UPersonaToolMenuContext* PersonaToolMenuContext = InToolMenu->FindContext<UPersonaToolMenuContext>();
@@ -1460,36 +1482,17 @@ void FPersonaModule::InsertCurrentPoseToAsset(const FAssetData& NewPoseAssetData
 		UDebugSkelMeshComponent* PreviewMeshComponent = PersonaToolkit->GetPreviewMeshComponent();
 		if (PreviewMeshComponent)
 		{
-			FSmartName NewPoseName;
-
-			bool bSuccess = PoseAsset->AddOrUpdatePoseWithUniqueName(PreviewMeshComponent, &NewPoseName);
-
-			if (bSuccess)
+			FName NewPoseName = PoseAsset->AddPoseWithUniqueName(PreviewMeshComponent);
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("PoseAsset"), FText::FromString(PoseAsset->GetName()));
+			Args.Add(TEXT("PoseName"), FText::FromName(NewPoseName));
+			FNotificationInfo Info(FText::Format(LOCTEXT("InsertPoseSucceeded", "The current pose has inserted to {PoseAsset} with {PoseName}"), Args));
+			Info.ExpireDuration = 7.0f;
+			Info.bUseLargeFont = false;
+			TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+			if (Notification.IsValid())
 			{
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("PoseAsset"), FText::FromString(PoseAsset->GetName()));
-				Args.Add(TEXT("PoseName"), FText::FromName(NewPoseName.DisplayName));
-				FNotificationInfo Info(FText::Format(LOCTEXT("InsertPoseSucceeded", "The current pose has inserted to {PoseAsset} with {PoseName}"), Args));
-				Info.ExpireDuration = 7.0f;
-				Info.bUseLargeFont = false;
-				TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
-				if (Notification.IsValid())
-				{
-					Notification->SetCompletionState(SNotificationItem::CS_Success);
-				}
-			}
-			else
-			{
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("PoseAsset"), FText::FromString(PoseAsset->GetName()));
-				FNotificationInfo Info(FText::Format(LOCTEXT("InsertPoseFailed", "Inserting pose to asset {PoseAsset} has failed"), Args));
-				Info.ExpireDuration = 7.0f;
-				Info.bUseLargeFont = false;
-				TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
-				if (Notification.IsValid())
-				{
-					Notification->SetCompletionState(SNotificationItem::CS_Fail);
-				}
+				Notification->SetCompletionState(SNotificationItem::CS_Success);
 			}
 		}
 	}
@@ -1571,7 +1574,7 @@ bool FPersonaModule::CreatePoseAsset(const TArray<UObject*> NewAssets, const EPo
 				switch (Option)
 				{
 				case EPoseSourceOption::CurrentPose:
-					NewPoseAsset->AddOrUpdatePoseWithUniqueName(PreviewComponent);
+					NewPoseAsset->AddPoseWithUniqueName(PreviewComponent);
 					bResult = true;
 					break;
 				case EPoseSourceOption::CurrentAnimation_AnimData:

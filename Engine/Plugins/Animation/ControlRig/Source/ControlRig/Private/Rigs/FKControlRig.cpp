@@ -298,7 +298,7 @@ void UFKControlRig::Initialize(bool bInitRigUnits /*= true*/)
 	else if (USkeleton* Skeleton = Cast<USkeleton>(GetObjectBinding()->GetBoundObject()))
 	{
 		const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
-		CreateRigElements(RefSkeleton, (Skeleton) ? Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName) : nullptr);
+		CreateRigElements(RefSkeleton, Skeleton);
 	}
 }
 
@@ -340,7 +340,7 @@ void UFKControlRig::SetControlActive(const TArray<FFKBoneCheckInfo>& BoneChecks)
 	}
 }
 
-void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping)
+void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const USkeleton* InSkeleton)
 {
 	PostInitInstanceIfRequired();
 
@@ -356,23 +356,18 @@ void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkele
             {
             	for (int32 Index = 0; Index < InitializationOptions.CurveNames.Num(); ++Index)
             	{
-            		if(InSmartNameMapping && InSmartNameMapping->FindUID(InitializationOptions.CurveNames[Index]) != SmartName::MaxUID)
-            		{
-            			Controller->AddCurve(InitializationOptions.CurveNames[Index], 0.f, false);
-            		}
+            		Controller->AddCurve(InitializationOptions.CurveNames[Index], 0.f, false);
             	}
             }
 			// add all curves found on the skeleton
-            else if (InSmartNameMapping && InitializationOptions.bImportCurves)
+            else if (InSkeleton && InitializationOptions.bImportCurves)
             {
-            	TArray<FName> NameArray;
-            	InSmartNameMapping->FillNameArray(NameArray);
-            	for (int32 Index = 0; Index < NameArray.Num(); ++Index)
-            	{
-            		Controller->AddCurve(NameArray[Index], 0.f, false);
-            	}
+            	InSkeleton->ForEachCurveMetaData([Controller](const FName& InCurveName, const FCurveMetaData& InMetaData)
+				{
+					Controller->AddCurve(InCurveName, 0.f, false);
+				});
             }
-		}		
+		}
 
 		// add control for all bone hierarchy 
 		if (InitializationOptions.bGenerateBoneControls)
@@ -498,7 +493,7 @@ void UFKControlRig::CreateRigElements(const USkeletalMesh* InReferenceMesh)
 	if (InReferenceMesh)
 	{
 		const USkeleton* Skeleton = InReferenceMesh->GetSkeleton();
-		CreateRigElements(InReferenceMesh->GetRefSkeleton(), (Skeleton) ? Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName) : nullptr);
+		CreateRigElements(InReferenceMesh->GetRefSkeleton(), Skeleton);
 	}
 }
 

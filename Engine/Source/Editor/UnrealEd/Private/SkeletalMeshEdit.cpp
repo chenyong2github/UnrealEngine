@@ -1368,20 +1368,8 @@ bool UnFbx::FFbxImporter::ImportCurveToAnimSequence(class UAnimSequence * Target
 	if (TargetSequence && FbxCurve)
 	{
 		FName Name = *CurveName;
-		USkeleton* Skeleton = TargetSequence->GetSkeleton();
-		const FSmartNameMapping* NameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 
-		// Add or retrieve curve
-		if (!NameMapping->Exists(Name))
-		{
-			// mark skeleton dirty
-			Skeleton->Modify();
-		}
-
-		FSmartName NewName;
-		Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, Name, NewName);
-
-		FAnimationCurveIdentifier FloatCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
+		FAnimationCurveIdentifier FloatCurveId(Name, ERawCurveTrackTypes::RCT_Float);
 
 		const bool bShouldTransact = bReimport;
 		IAnimationDataModel* DataModel = TargetSequence->GetDataModel();
@@ -1402,8 +1390,6 @@ bool UnFbx::FFbxImporter::ImportCurveToAnimSequence(class UAnimSequence * Target
 		
 		// Should be valid at this point
 		ensure(TargetCurve);
-
-		Controller.UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float, bShouldTransact);
 
 		FRichCurve RichCurve;
 		constexpr bool bNegative = false;
@@ -1433,21 +1419,8 @@ bool UnFbx::FFbxImporter::ImportRichCurvesToAnimSequence(UAnimSequence* TargetSe
 		for (int32 CurveIndex = 0; CurveIndex < CurveNames.Num(); ++CurveIndex)
 		{
 			FName Name = *CurveNames[CurveIndex];
-			USkeleton* Skeleton = TargetSequence->GetSkeleton();
-			const FSmartNameMapping* NameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-
-			// Add or retrieve curve
-			if (!NameMapping->Exists(Name))
-			{
-				// mark skeleton dirty
-				Skeleton->Modify();
-			}
-
-			FSmartName NewName;
-			Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, Name, NewName);
-
-			FAnimationCurveIdentifier FloatCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
-
+			
+			FAnimationCurveIdentifier FloatCurveId(Name, ERawCurveTrackTypes::RCT_Float);
 			const IAnimationDataModel* DataModel = TargetSequence->GetDataModel();
 			IAnimationDataController& Controller = TargetSequence->GetController();
 
@@ -1467,8 +1440,6 @@ bool UnFbx::FFbxImporter::ImportRichCurvesToAnimSequence(UAnimSequence* TargetSe
 		
 			// Should be valid at this point
 			ensure(TargetCurve);
-
-			Controller.UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float, bShouldTransact);
 
 			// Set actual keys on curve within the model
 			Controller.SetCurveKeys(FloatCurveId, RichCurves[CurveIndex].GetConstRefOfKeys(), bShouldTransact);
@@ -1786,7 +1757,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 		{
 			for (const FFloatCurve& Curve : DestSeq->GetDataModel()->GetFloatCurves())
 			{
-				const FAnimationCurveIdentifier CurveId(Curve.Name, ERawCurveTrackTypes::RCT_Float);
+				const FAnimationCurveIdentifier CurveId(Curve.GetName(), ERawCurveTrackTypes::RCT_Float);
 				Controller.ScaleCurve(CurveId, 0.f, ScaleFactor, bShouldTransact);
 			}
 		}
@@ -1797,21 +1768,21 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 
 	if (ImportOptions->bDeleteExistingMorphTargetCurves || ImportOptions->bDeleteExistingCustomAttributeCurves)
 	{
-		TArray<FSmartName> CurveSmartNamesToRemove;
+		TArray<FName> CurveNamesToRemove;
 		for (const FFloatCurve& Curve : DestSeq->GetDataModel()->GetFloatCurves())
 		{
-			const FCurveMetaData* MetaData = MySkeleton->GetCurveMetaData(Curve.Name);
+			const FCurveMetaData* MetaData = MySkeleton->GetCurveMetaData(Curve.GetName());
 			if (MetaData)
 			{
 				bool bDeleteCurve = MetaData->Type.bMorphtarget ? ImportOptions->bDeleteExistingMorphTargetCurves : ImportOptions->bDeleteExistingCustomAttributeCurves;
 				if (bDeleteCurve)
 				{
-					CurveSmartNamesToRemove.Add(Curve.Name);
+					CurveNamesToRemove.Add(Curve.GetName());
 				}
 			}
 		}
 
-		for (auto CurveName : CurveSmartNamesToRemove)
+		for (auto CurveName : CurveNamesToRemove)
 		{
 			const FAnimationCurveIdentifier CurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
 			Controller.RemoveCurve(CurveId, bShouldTransact);
@@ -1852,15 +1823,15 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 	}
 	else
 	{
-	  // Store float curve tracks which use to exist on the animation
-	  for (const FFloatCurve& Curve : DestSeq->GetDataModel()->GetFloatCurves())
-	  {
-		  const FCurveMetaData* MetaData = MySkeleton->GetCurveMetaData(Curve.Name);
-		  if (MetaData && !MetaData->Type.bMorphtarget)
-		  {
-			  CurvesNotFound.Add(Curve.Name.DisplayName.ToString());
-		  }
-	  }
+		// Store float curve tracks which use to exist on the animation
+		for (const FFloatCurve& Curve : DestSeq->GetDataModel()->GetFloatCurves())
+		{
+			const FCurveMetaData* MetaData = MySkeleton->GetCurveMetaData(Curve.GetName());
+			if (MetaData && !MetaData->Type.bMorphtarget)
+			{
+				CurvesNotFound.Add(Curve.GetName().ToString());
+			}
+		}
 	}
 
 	if (bReimportWarnings && CurvesNotFound.Num())
@@ -1983,8 +1954,11 @@ void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimI
 									if (ImportCurveToAnimSequence(AnimImportSettings.DestSeq, *ChannelName, Curve, 0, AnimImportSettings.AnimTimeSpan, bReimport, 0.01f /** for some reason blend shape values are coming as 100 scaled **/))
 									{
 										OutKeyCount = FMath::Max(OutKeyCount, Curve->KeyGetCount());
-										// this one doesn't reset Material curve to false, it just accumulate if true. 
-										MySkeleton->AccumulateCurveMetaData(*ChannelName, false, true);
+										if(ImportOptions->bAddCurveMetadataToSkeleton)
+										{
+											// this one doesn't reset Material curve to false, it just accumulate if true. 
+											MySkeleton->AccumulateCurveMetaData(*ChannelName, false, true);
+										}
 									}
 								}
 								else
@@ -2044,12 +2018,15 @@ void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimI
 									if (ImportRichCurvesToAnimSequence(AnimImportSettings.DestSeq, CurveNames, Results, 0, bReimport))
 									{
 										OutKeyCount = FMath::Max(OutKeyCount, Curve->KeyGetCount());
-										for (const FString& CurveName : CurveNames)
+										if(ImportOptions->bAddCurveMetadataToSkeleton)
 										{
-											// this one doesn't reset Material curve to false, it just accumulate if true. 
-											MySkeleton->AccumulateCurveMetaData(*CurveName, false, true);
-										}	
-									}	
+											for (const FString& CurveName : CurveNames)
+											{
+												// this one doesn't reset Material curve to false, it just accumulate if true. 
+												MySkeleton->AccumulateCurveMetaData(*CurveName, false, true);
+											}
+										}
+									}
 								}
 							}
 						}
@@ -2086,11 +2063,11 @@ void UnFbx::FFbxImporter::ImportAnimationCustomAttribute(FAnimCurveImportSetting
 
 	for (const FFloatCurve& FloatCurve : CurveData.FloatCurves)
 	{
-		const FCurveMetaData* MetaData = MySkeleton->GetCurveMetaData(FloatCurve.Name);
+		const FCurveMetaData* MetaData = MySkeleton->GetCurveMetaData(FloatCurve.GetName());
 
 		if (MetaData && !MetaData->Type.bMorphtarget)
 		{
-			OutCurvesNotFound.Add(FloatCurve.Name.DisplayName.ToString());
+			OutCurvesNotFound.Add(FloatCurve.GetName().ToString());
 		}
 	}
 
@@ -2115,24 +2092,29 @@ void UnFbx::FFbxImporter::ImportAnimationCustomAttribute(FAnimCurveImportSetting
 				int32 CurveFlags = AACF_DefaultCurve;
 				if (ImportCurveToAnimSequence(DestSeq, InCurveName, InCurve, CurveFlags, AnimImportSettings.AnimTimeSpan, bReimport))
 				{
-					USkeleton* SeqSkeleton = DestSeq->GetSkeleton();
 					OutKeyCount = FMath::Max(OutKeyCount, InCurve->KeyGetCount());
-					// first let them override material curve if required
-					if (ImportOptions->bSetMaterialDriveParameterOnCustomAttribute)
+
+					if(ImportOptions->bAddCurveMetadataToSkeleton)
 					{
-						// now mark this curve as material curve
-						SeqSkeleton->AccumulateCurveMetaData(FName(*InCurveName), true, false);
-					}
-					else
-					{
-						// if not material set by default, apply naming convention for material
-						for (const auto& Suffix : ImportOptions->MaterialCurveSuffixes)
+						USkeleton* SeqSkeleton = DestSeq->GetSkeleton();
+
+						// first let them override material curve if required
+						if (ImportOptions->bSetMaterialDriveParameterOnCustomAttribute)
 						{
-							int32 TotalSuffix = Suffix.Len();
-							if (InCurveName.Right(TotalSuffix) == Suffix)
+							// now mark this curve as material curve
+							SeqSkeleton->AccumulateCurveMetaData(FName(*InCurveName), true, false);
+						}
+						else
+						{
+							// if not material set by default, apply naming convention for material
+							for (const auto& Suffix : ImportOptions->MaterialCurveSuffixes)
 							{
-								SeqSkeleton->AccumulateCurveMetaData(FName(*InCurveName), true, false);
-								break;
+								int32 TotalSuffix = Suffix.Len();
+								if (InCurveName.Right(TotalSuffix) == Suffix)
+								{
+									SeqSkeleton->AccumulateCurveMetaData(FName(*InCurveName), true, false);
+									break;
+								}
 							}
 						}
 					}

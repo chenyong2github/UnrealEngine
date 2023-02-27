@@ -103,6 +103,7 @@ const FName AnimationEditorTabs::AssetDetailsTab(TEXT("AnimAssetPropertiesTab"))
 const FName AnimationEditorTabs::CurveNamesTab(TEXT("AnimCurveViewerTab"));
 const FName AnimationEditorTabs::SlotNamesTab(TEXT("SkeletonSlotNames"));
 const FName AnimationEditorTabs::AnimMontageSectionsTab(TEXT("AnimMontageSections"));
+const FName AnimationEditorTabs::FindReplaceTab(TEXT("FindReplaceTab"));
 
 DEFINE_LOG_CATEGORY(LogAnimationEditor);
 
@@ -572,7 +573,7 @@ void FAnimationEditor::EditCurves(UAnimSequenceBase* InAnimSequence, const TArra
 
 	for(const FCurveEditInfo& CurveInfo : InCurveInfo)
 	{
-		CurveEditor.Pin()->AddCurve(CurveInfo.CurveDisplayName, CurveInfo.CurveColor, CurveInfo.Name, CurveInfo.Type, CurveInfo.CurveIndex, CurveInfo.OnCurveModified);
+		CurveEditor.Pin()->AddCurve(CurveInfo.CurveDisplayName, CurveInfo.CurveColor, CurveInfo.CurveName, CurveInfo.Type, CurveInfo.CurveIndex, CurveInfo.OnCurveModified);
 	}
 
 	CurveEditor.Pin()->ZoomToFit();
@@ -584,7 +585,7 @@ void FAnimationEditor::StopEditingCurves(const TArray<FCurveEditInfo>& InCurveIn
 	{
 		for(const FCurveEditInfo& CurveInfo : InCurveInfo)
 		{
-			CurveEditor.Pin()->RemoveCurve(CurveInfo.Name, CurveInfo.Type, CurveInfo.CurveIndex);
+			CurveEditor.Pin()->RemoveCurve(CurveInfo.CurveName, CurveInfo.Type, CurveInfo.CurveIndex);
 		}
 	}
 }
@@ -793,7 +794,7 @@ void FAnimationEditor::CopyCurveToSoundWave(const FAssetData& SoundWaveAssetData
 	// iterate over curves in anim data
 	for (const FFloatCurve& FloatCurve : Sequence->GetDataModel()->GetFloatCurves())
 	{
-		FRichCurve* Curve = FindOrAddCurve(CurveTable, FloatCurve.Name.DisplayName);
+		FRichCurve* Curve = FindOrAddCurve(CurveTable, FloatCurve.GetName());
 		*Curve = FloatCurve.FloatCurve; // copy data
 	}
 

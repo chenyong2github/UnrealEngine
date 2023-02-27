@@ -46,16 +46,7 @@ TArray<FName> UPoseCorrectivesAsset::GetCurveNames() const
 	if (TargetMesh)
 	{
 		const USkeleton* Skeleton = TargetMesh->GetSkeleton();
-		const FSmartNameMapping* CurveMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-
-		CurveMapping->Iterate([&CurveNamesList](const FSmartNameMappingIterator& Iterator)
-			{
-				FName CurveName;
-				if (Iterator.GetName(CurveName))
-				{
-					CurveNamesList.Add(CurveName);
-				}
-			});
+		Skeleton->GetCurveMetaDataNames(CurveNamesList);
 	}
 
 	return CurveNamesList;
@@ -121,7 +112,6 @@ void UPoseCorrectivesAsset::AddCorrective(USkeletalMeshComponent* SourceMeshComp
 
 	const FBlendedHeapCurve& SourceMeshCurves = SourceMeshComponent->GetAnimationCurves();
 	const FBlendedHeapCurve& TargetMeshCurves = TargetMeshComponent->GetAnimationCurves();
-	const FSmartNameMapping* Mapping = TargetMesh->GetSkeleton()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 
 	TArray<FName> CurveNames = GetCurveNames();
 	PoseCorrective.CurveData.Reset();
@@ -131,14 +121,10 @@ void UPoseCorrectivesAsset::AddCorrective(USkeletalMeshComponent* SourceMeshComp
 
 	for (int32 CurveIndex = 0; CurveIndex < CurveNames.Num(); ++CurveIndex)
 	{
-		const SmartName::UID_Type CurveUID = Mapping->FindUID(CurveNames[CurveIndex]);
-		if (CurveUID != SmartName::MaxUID)
-		{
-			const float SourceCurveValue = SourceMeshCurves.Get(CurveUID);
-			const float TargetCurveValue = TargetMeshCurves.Get(CurveUID);
-			PoseCorrective.CurveData[CurveIndex] = SourceCurveValue;
-			PoseCorrective.CorrectiveCurvesDelta[CurveIndex] = TargetCurveValue - SourceCurveValue;
-		}
+		const float SourceCurveValue = SourceMeshCurves.Get(CurveNames[CurveIndex]);
+		const float TargetCurveValue = TargetMeshCurves.Get(CurveNames[CurveIndex]);
+		PoseCorrective.CurveData[CurveIndex] = SourceCurveValue;
+		PoseCorrective.CorrectiveCurvesDelta[CurveIndex] = TargetCurveValue - SourceCurveValue;
 	}
 
 	PoseCorrectives.Add(CorrectiveName, PoseCorrective);

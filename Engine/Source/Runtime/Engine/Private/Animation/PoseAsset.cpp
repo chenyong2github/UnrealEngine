@@ -20,6 +20,11 @@
 #include "UObject/UnrealType.h"
 #include "SkeletonRemappingRegistry.h"
 #include "Animation/SkeletonRemapping.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Animation/AnimCurveUtils.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PoseAsset)
 
@@ -31,10 +36,35 @@
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool FPoseDataContainer::Serialize(FArchive& Ar)
+{
+#if WITH_EDITORONLY_DATA
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+#endif
+
+	return false;
+}
+
+void FPoseDataContainer::PostSerialize(const FArchive& Ar)
+{
+#if WITH_EDITORONLY_DATA
+	if(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimationRemoveSmartNames)
+	{
+		for(const FSmartName& PoseName : PoseNames_DEPRECATED)
+		{
+			PoseFNames.Add(PoseName.DisplayName);
+		}
+	}
+#endif
+
+	RebuildCurveIndexTable();
+}
+
 void FPoseDataContainer::Reset()
 {
 	// clear everything
-	PoseNames.Reset();
+	PoseFNames.Reset();
+	SortedPoseIndices.Reset();
 	Poses.Reset();
 	Tracks.Reset();
 	TrackBoneIndices.Reset();
@@ -48,12 +78,17 @@ void FPoseDataContainer::GetPoseCurve(const FPoseData* PoseData, FBlendedCurve& 
 		const TArray<float>& CurveValues = PoseData->CurveData;
 		checkSlow(CurveValues.Num() == Curves.Num());
 
-		// extract curve - not optimized, can use optimization
-		for (int32 CurveIndex = 0; CurveIndex < Curves.Num(); ++CurveIndex)
+		auto GetNameFromIndex = [this](int32 InCurveIndex)
 		{
-			const FAnimCurveBase& Curve = Curves[CurveIndex];
-			OutCurve.Set(Curve.Name.UID, CurveValues[CurveIndex]);
-		}
+			return PoseFNames[SortedPoseIndices[InCurveIndex]];
+		};
+
+		auto GetValueFromIndex = [this, &CurveValues](int32 InCurveIndex)
+		{
+			return CurveValues[SortedPoseIndices[InCurveIndex]];
+		};
+
+		UE::Anim::FCurveUtils::BuildSorted(OutCurve, CurveValues.Num(), GetNameFromIndex, GetValueFromIndex, OutCurve.GetFilter());
 	}
 }
 
@@ -64,20 +99,23 @@ void FPoseDataContainer::BlendPoseCurve(const FPoseData* PoseData, FBlendedCurve
 		const TArray<float>& CurveValues = PoseData->CurveData;
 		checkSlow(CurveValues.Num() == Curves.Num());
 
-		for (int32 CurveIndex = 0; CurveIndex < Curves.Num(); ++CurveIndex)
-		{
-			const FAnimCurveBase& Curve = Curves[CurveIndex];
+		FBlendedCurve Curve;
+		Curve.SetFilter(InOutCurve.GetFilter());
 
-			InOutCurve.Set(Curve.Name.UID, CurveValues[CurveIndex] * Weight + InOutCurve.Get(Curve.Name.UID));
-		}
+		GetPoseCurve(PoseData, InOutCurve);
+
+		UE::Anim::FNamedValueArrayUtils::Union(InOutCurve, Curve,
+			[Weight](UE::Anim::FCurveElement& InOutElement, const UE::Anim::FCurveElement& InElement, UE::Anim::ENamedValueUnionFlags InFlags)
+			{
+				InOutElement.Value = InElement.Value * Weight + InOutElement.Value;
+				InOutElement.Flags |= InElement.Flags;
+			});
 	}
 }
 
-
-
-FPoseData* FPoseDataContainer::FindPoseData(FSmartName PoseName)
+FPoseData* FPoseDataContainer::FindPoseData(FName PoseName)
 {
-	int32 PoseIndex = PoseNames.Find(PoseName);
+	int32 PoseIndex = PoseFNames.Find(PoseName);
 	if (PoseIndex != INDEX_NONE)
 	{
 		return &Poses[PoseIndex];
@@ -86,12 +124,12 @@ FPoseData* FPoseDataContainer::FindPoseData(FSmartName PoseName)
 	return nullptr;
 }
 
-FPoseData* FPoseDataContainer::FindOrAddPoseData(FSmartName PoseName)
+FPoseData* FPoseDataContainer::FindOrAddPoseData(FName PoseName)
 {
-	int32 PoseIndex = PoseNames.Find(PoseName);
+	int32 PoseIndex = PoseFNames.Find(PoseName);
 	if (PoseIndex == INDEX_NONE)
 	{
-		PoseIndex = PoseNames.Add(PoseName);
+		PoseIndex = PoseFNames.Add(PoseName);
 		check(PoseIndex == Poses.AddZeroed(1));
 	}
 
@@ -121,10 +159,10 @@ FTransform FPoseDataContainer::GetDefaultTransform(int32 SkeletonIndex, const TA
 
 
 #if WITH_EDITOR
-void FPoseDataContainer::AddOrUpdatePose(const FSmartName& InPoseName, const TArray<FTransform>& InLocalSpacePose, const TArray<float>& InCurveData)
+void FPoseDataContainer::AddOrUpdatePose(const FName& InPoseName, const TArray<FTransform>& InLocalSpacePose, const TArray<float>& InCurveData)
 {
-	// make sure the transform is correct size
-	if (ensureAlways(InLocalSpacePose.Num() == Tracks.Num()))
+	// make sure the transforms and curves are the correct size
+	if (ensureAlways(InLocalSpacePose.Num() == Tracks.Num()) && ensureAlways(InCurveData.Num() == Curves.Num()))
 	{
 		// find or add pose data
 		FPoseData* PoseDataPtr = FindOrAddPoseData(InPoseName);
@@ -190,21 +228,21 @@ bool FPoseDataContainer::FillUpSkeletonPose(FPoseData* PoseData, const USkeleton
 	return false;
 }
 
-void FPoseDataContainer::RenamePose(FSmartName OldPoseName, FSmartName NewPoseName)
+void FPoseDataContainer::RenamePose(FName OldPoseName, FName NewPoseName)
 {
-	int32 PoseIndex = PoseNames.Find(OldPoseName);
+	int32 PoseIndex = PoseFNames.Find(OldPoseName);
 	if (PoseIndex != INDEX_NONE)
 	{
-		PoseNames[PoseIndex] = NewPoseName;
+		PoseFNames[PoseIndex] = NewPoseName;
 	}
 }
 
-int32 FPoseDataContainer::DeletePose(FSmartName PoseName)
+int32 FPoseDataContainer::DeletePose(FName PoseName)
 {
-	int32 PoseIndex = PoseNames.Find(PoseName);
+	int32 PoseIndex = PoseFNames.Find(PoseName);
 	if (PoseIndex != INDEX_NONE)
 	{
-		PoseNames.RemoveAt(PoseIndex);
+		PoseFNames.RemoveAt(PoseIndex);
 		Poses.RemoveAt(PoseIndex);
 		return PoseIndex;
 	}
@@ -212,11 +250,11 @@ int32 FPoseDataContainer::DeletePose(FSmartName PoseName)
 	return INDEX_NONE;
 }
 
-bool FPoseDataContainer::DeleteCurve(FSmartName CurveName)
+bool FPoseDataContainer::DeleteCurve(FName CurveName)
 {
 	for (int32 CurveIndex = 0; CurveIndex < Curves.Num(); ++CurveIndex)
 	{
-		if (Curves[CurveIndex].Name == CurveName)
+		if (Curves[CurveIndex].GetName() == CurveName)
 		{
 			Curves.RemoveAt(CurveIndex);
 
@@ -345,6 +383,21 @@ void FPoseDataContainer::ConvertToAdditivePose(const TArray<FTransform>& InBaseP
 	}
 }
 #endif // WITH_EDITOR
+
+void FPoseDataContainer::RebuildCurveIndexTable()
+{
+	// Recreate sorted curve index table
+	SortedPoseIndices.SetNumUninitialized(PoseFNames.Num());
+	for(int32 NameIndex = 0; NameIndex < SortedPoseIndices.Num(); ++NameIndex)
+	{
+		SortedPoseIndices[NameIndex] = NameIndex;
+	}
+
+	SortedPoseIndices.Sort([&PoseFNames = PoseFNames](int32 LHS, int32 RHS)
+	{
+		return PoseFNames[LHS].FastLess(PoseFNames[RHS]);
+	});
+}
 /////////////////////////////////////////////////////
 // UPoseAsset
 /////////////////////////////////////////////////////
@@ -481,23 +534,19 @@ void UPoseAsset::GetAnimationCurveOnly(TArray<FName>& InCurveNames, TArray<float
 		// we iterate through to see if we have that corresponding pose
 		for (int32 CurveIndex = 0; CurveIndex < InCurveNames.Num(); ++CurveIndex)
 		{
-			FSmartName PoseSmartName;
-			if (MySkeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, InCurveNames[CurveIndex], PoseSmartName))
+			int32 PoseIndex = PoseContainer.PoseFNames.Find(InCurveNames[CurveIndex]);
+			if (ensure(PoseIndex != INDEX_NONE))
 			{
-				int32 PoseIndex = PoseContainer.PoseNames.Find(PoseSmartName);
-				if (ensure(PoseIndex != INDEX_NONE))
-				{
-					const FPoseData& PoseData = PoseContainer.Poses[PoseIndex];
-					const float Value = InCurveValues[CurveIndex];
+				const FPoseData& PoseData = PoseContainer.Poses[PoseIndex];
+				const float Value = InCurveValues[CurveIndex];
 
-					// we only add to the list if it's not additive Or if it's additive, we don't want to add base pose index
-					// and has weight
-					if ((!bAdditivePose || PoseIndex != BasePoseIndex) && FAnimationRuntime::HasWeight(Value))
-					{
-						TotalWeight += Value;												
-						PoseWeights[PoseIndex] = Value;
-						WeightedPoseIndices.Add(PoseIndex);
-					}
+				// we only add to the list if it's not additive Or if it's additive, we don't want to add base pose index
+				// and has weight
+				if ((!bAdditivePose || PoseIndex != BasePoseIndex) && FAnimationRuntime::HasWeight(Value))
+				{
+					TotalWeight += Value;												
+					PoseWeights[PoseIndex] = Value;
+					WeightedPoseIndices.Add(PoseIndex);
 				}
 			}
 		}
@@ -505,17 +554,8 @@ void UPoseAsset::GetAnimationCurveOnly(TArray<FName>& InCurveNames, TArray<float
 		const int32 TotalNumberOfValidPoses = WeightedPoseIndices.Num();
 		if (TotalNumberOfValidPoses > 0)
 		{
-			// collect curves
-			TArray<uint16> CurveUIDList;
-			CurveUIDList.AddUninitialized(PoseContainer.Curves.Num());
-			for (int32 CurveIndex = 0; CurveIndex < PoseContainer.Curves.Num(); ++CurveIndex)
-			{
-				CurveUIDList[CurveIndex] = PoseContainer.Curves[CurveIndex].Name.UID;
-			}
-
 			// blend curves
 			FBlendedCurve BlendedCurve;
-			BlendedCurve.InitFrom(&CurveUIDList);
 
 			//if full pose, we'll have to normalize by weight
 			if (bNormalizeWeight && TotalWeight > 1.f)
@@ -542,19 +582,12 @@ void UPoseAsset::GetAnimationCurveOnly(TArray<FName>& InCurveNames, TArray<float
 
 			OutCurveNames.Reset();
 			OutCurveValues.Reset();
-			for (int32 Idx = 0; Idx < CurveUIDList.Num(); ++Idx)
+
+			BlendedCurve.ForEachElement([&OutCurveNames, &OutCurveValues](const UE::Anim::FCurveElement& InElement)
 			{
-				USkeleton::AnimCurveUID UID = Idx;
-				if (BlendedCurve.IsEnabled(UID))
-				{
-					FSmartName CurveName;
-					if (MySkeleton->GetSmartNameByUID(USkeleton::AnimCurveMappingName, UID, CurveName))
-					{
-						OutCurveNames.Add(CurveName.DisplayName);
-						OutCurveValues.Add(BlendedCurve.Get(UID));
-					}
-				}
-			}
+				OutCurveNames.Add(InElement.Name);
+				OutCurveValues.Add(InElement.Value);
+			});
 		}
 	}
 }
@@ -849,16 +882,16 @@ bool UPoseAsset::GetAnimationPose(struct FAnimationPoseData& OutAnimationPoseDat
 
 bool UPoseAsset::IsPostLoadThreadSafe() const
 {
-	return false;	// PostLoad is not thread safe because of the call to VerifySmartName() that can mutate a shared map in the skeleton.
+	return WITH_EDITORONLY_DATA == 0;	// Not thread safe in editor as the skeleton can be modified on version upgrade
 }
 
 void UPoseAsset::PostLoad()
 {
 	Super::PostLoad();
 
-// moved to PostLoad because Skeleton is not completely loaded when we do this in Serialize
-// and we need Skeleton
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
+	// moved to PostLoad because Skeleton is not completely loaded when we do this in Serialize
+	// and we need Skeleton
 	if (GetLinkerCustomVersion(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::PoseAssetSupportPerBoneMask && GetLinkerCustomVersion(FAnimPhysObjectVersion::GUID) >= FAnimPhysObjectVersion::SaveEditorOnlyFullPoseForPoseAsset)
 	{
 		// fix curve names
@@ -932,19 +965,11 @@ void UPoseAsset::PostLoad()
 			}
 		}	
 	}	
-#endif // WITH_EDITOR
 
 	// fix curve names
 	USkeleton* MySkeleton = GetSkeleton();
 	if (MySkeleton)
 	{
-		MySkeleton->VerifySmartNames(USkeleton::AnimCurveMappingName, PoseContainer.PoseNames);
-
-		for (FAnimCurveBase& Curve : PoseContainer.Curves)
-		{
-			MySkeleton->VerifySmartName(USkeleton::AnimCurveMappingName, Curve.Name);
-		}
-
 		// double loop but this check only should happen once per asset
 		// this should continue to add if skeleton hasn't been saved either 
 		if (GetLinkerCustomVersion(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::MoveCurveTypesToSkeleton 
@@ -959,20 +984,19 @@ void UPoseAsset::PostLoad()
 				// only add this if that has to 
 				if (bMorphtargetSet || bMaterialSet)
 				{
-					MySkeleton->AccumulateCurveMetaData(Curve.Name.DisplayName, bMaterialSet, bMorphtargetSet);
+					MySkeleton->AccumulateCurveMetaData(Curve.GetName(), bMaterialSet, bMorphtargetSet);
 				}
 			}
 		}
 	}
 
 	// I have to fix pose names
-#if WITH_EDITOR
 	if(RemoveInvalidTracks())
 	{
 		PostProcessData();
 	}
 	else
-#endif // WITH_EDITOR
+#endif // WITH_EDITORONLY_DATA
 	{
 		UpdateTrackBoneIndices();
 	}
@@ -1014,19 +1038,22 @@ void UPoseAsset::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	OutTags.Add(FAssetRegistryTag("Poses", FString::FromInt(GetNumPoses()), FAssetRegistryTag::TT_Numerical));
 #if WITH_EDITOR
 	TArray<FName> Names;
-	Names.Reserve(PoseContainer.PoseNames.Num() + PoseContainer.Curves.Num());
+	Names.Reserve(PoseContainer.PoseFNames.Num() + PoseContainer.Curves.Num());
 
-	for (const FSmartName& SmartName : PoseContainer.PoseNames)
+	for (const FName& PoseName : PoseContainer.PoseFNames)
 	{
-		Names.Add(SmartName.DisplayName);
+		Names.Add(PoseName);
 	}
 
 	for (const FAnimCurveBase& Curve : PoseContainer.Curves)
 	{
-		Names.AddUnique(Curve.Name.DisplayName);
+		Names.AddUnique(Curve.GetName());
 	}
-
-	FString PoseNameList;
+	
+	// Add curve IDs to a tag list, or a delimiter if we have no curves.
+	// The delimiter is necessary so we can distinguish between data with no curves and old data, as the asset registry
+	// strips tags that have empty values 
+	FString PoseNameList = USkeleton::CurveTagDelimiter;
 	for(const FName& Name : Names)
 	{
 		PoseNameList += FString::Printf(TEXT("%s%s"), *Name.ToString(), *USkeleton::CurveTagDelimiter);
@@ -1050,29 +1077,38 @@ int32 UPoseAsset::GetNumTracks() const
 	return PoseContainer.Tracks.Num();
 }
 
+const TArray<FName>& UPoseAsset::GetPoseFNames() const
+{
+	return PoseContainer.PoseFNames;
+}
 
 const TArray<FSmartName> UPoseAsset::GetPoseNames() const
 {
-	return PoseContainer.PoseNames;
+	return TArray<FSmartName>();
 }
 
-const TArray<FName>	UPoseAsset::GetTrackNames() const
+const TArray<FName>& UPoseAsset::GetTrackNames() const
 {
 	return PoseContainer.Tracks;
 }
 
 const TArray<FSmartName> UPoseAsset::GetCurveNames() const
 {
-	TArray<FSmartName> CurveNames;
+	return TArray<FSmartName>();
+}
+
+const TArray<FName> UPoseAsset::GetCurveFNames() const
+{
+	TArray<FName> CurveNames;
 	for (int32 CurveIndex = 0; CurveIndex < PoseContainer.Curves.Num(); ++CurveIndex)
 	{
-		CurveNames.Add(PoseContainer.Curves[CurveIndex].Name);
+		CurveNames.Add(PoseContainer.Curves[CurveIndex].GetName());
 	}
 
 	return CurveNames;
 }
 
-const TArray<FAnimCurveBase> UPoseAsset::GetCurveData() const
+const TArray<FAnimCurveBase>& UPoseAsset::GetCurveData() const
 {
 	return PoseContainer.Curves;
 }
@@ -1122,9 +1158,9 @@ const int32 UPoseAsset::GetTrackIndexByName(const FName& InTrackName) const
 
 bool UPoseAsset::ContainsPose(const FName& InPoseName) const
 {
-	for (const FSmartName& PoseName : PoseContainer.PoseNames)
+	for (const FName& PoseName : PoseContainer.PoseFNames)
 	{
-		if (PoseName.DisplayName == InPoseName)
+		if (PoseName == InPoseName)
 		{
 			return true;
 		}
@@ -1136,7 +1172,7 @@ bool UPoseAsset::ContainsPose(const FName& InPoseName) const
 #if WITH_EDITOR
 void UPoseAsset::RenamePose(const FName& OriginalPoseName, const FName& NewPoseName)
 {
-	ModifyPoseName(OriginalPoseName, NewPoseName, nullptr);
+	ModifyPoseName(OriginalPoseName, NewPoseName);
 }
 
 void UPoseAsset::GetPoseNames(TArray<FName>& PoseNames) const
@@ -1170,26 +1206,19 @@ void UPoseAsset::BreakAnimationSequenceGUIDComparison()
 	SourceAnimationRawDataGUID.Invalidate();
 }
 
-bool UPoseAsset::AddOrUpdatePoseWithUniqueName(const USkeletalMeshComponent* MeshComponent, FSmartName* OutPoseName /*= nullptr*/)
+FName UPoseAsset::AddPoseWithUniqueName(const USkeletalMeshComponent* MeshComponent)
 {
-	bool bSavedAdditivePose = bAdditivePose;
-
-	FSmartName NewPoseName = GetUniquePoseSmartName(GetSkeleton());
+	const FName NewPoseName = GetUniquePoseName(this);
 	AddOrUpdatePose(NewPoseName, MeshComponent);
-
-	if (OutPoseName)
-	{
-		*OutPoseName = NewPoseName;
-	}
 
 	PostProcessData();
 
 	OnPoseListChanged.Broadcast();
 
-	return true;
+	return NewPoseName;
 }
 
-void UPoseAsset::AddReferencePose(const FSmartName& PoseName, const FReferenceSkeleton& RefSkeleton)
+void UPoseAsset::AddReferencePose(const FName& PoseName, const FReferenceSkeleton& RefSkeleton)
 {
 	TArray<FTransform> BoneTransforms;
 	TArray<FName> TrackNames;
@@ -1208,7 +1237,7 @@ void UPoseAsset::AddReferencePose(const FSmartName& PoseName, const FReferenceSk
 	PostProcessData();
 }
 
-void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, const USkeletalMeshComponent* MeshComponent, bool bUpdateCurves)
+void UPoseAsset::AddOrUpdatePose(const FName& PoseName, const USkeletalMeshComponent* MeshComponent, bool bUpdateCurves)
 {
 	const USkeleton* MySkeleton = GetSkeleton();
 	if (MySkeleton && MeshComponent && MeshComponent->GetSkeletalMeshAsset())
@@ -1231,27 +1260,17 @@ void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, const USkeletalMesh
 				BoneTransform[BoneIndex] = BoneTransform[BoneIndex].GetRelativeTransform(BoneTransform[ParentIndex]);
 			}
 		}
-
-		const USkeleton* MeshSkeleton = MeshComponent->GetSkeletalMeshAsset()->GetSkeleton();
-		const FSmartNameMapping* Mapping = MeshSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 		
 		TArray<float> NewCurveValues;
 		NewCurveValues.AddZeroed(PoseContainer.Curves.Num());
 
-		if(Mapping)
+		const FBlendedHeapCurve& MeshCurves = MeshComponent->GetAnimationCurves();
+
+		for (int32 NewCurveIndex = 0; NewCurveIndex < NewCurveValues.Num(); ++NewCurveIndex)
 		{
-			const FBlendedHeapCurve& MeshCurves = MeshComponent->GetAnimationCurves();
- 
-			for (int32 NewCurveIndex = 0; NewCurveIndex < NewCurveValues.Num(); ++NewCurveIndex)
-			{
-				const FAnimCurveBase& Curve = PoseContainer.Curves[NewCurveIndex];
-				const SmartName::UID_Type CurveUID = Mapping->FindUID(Curve.Name.DisplayName);
-				if (CurveUID != SmartName::MaxUID)
-				{
-					const float MeshCurveValue = MeshCurves.Get(CurveUID);
-					NewCurveValues[NewCurveIndex] = MeshCurveValue;
-				}
-			}
+			const FAnimCurveBase& Curve = PoseContainer.Curves[NewCurveIndex];
+			const float MeshCurveValue = MeshCurves.Get(Curve.GetName());
+			NewCurveValues[NewCurveIndex] = MeshCurveValue;
 		}
 		
 		BreakAnimationSequenceGUIDComparison();
@@ -1263,7 +1282,7 @@ void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, const USkeletalMesh
 	}
 }
 
-void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, const TArray<FName>& TrackNames, const TArray<FTransform>& LocalTransform, const TArray<float>& CurveValues)
+void UPoseAsset::AddOrUpdatePose(const FName& PoseName, const TArray<FName>& TrackNames, const TArray<FTransform>& LocalTransform, const TArray<float>& CurveValues)
 {
 	const USkeleton* MySkeleton = GetSkeleton();
 	if (MySkeleton)
@@ -1376,32 +1395,50 @@ void UPoseAsset::Reinitialize()
 
 void UPoseAsset::RenameSmartName(const FName& InOriginalName, const FName& InNewName)
 {
-	for (FSmartName SmartName : PoseContainer.PoseNames)
+	RenamePoseOrCurveName(InOriginalName, InNewName);
+}
+
+void UPoseAsset::RenamePoseOrCurveName(const FName& InOriginalName, const FName& InNewName)
+{
+	if(PoseContainer.PoseFNames.Contains(InNewName) || PoseContainer.Curves.ContainsByPredicate([InNewName](const FAnimCurveBase& InCurve){ return InCurve.GetName() == InNewName; }))
 	{
-		if (SmartName.DisplayName == InOriginalName)
+		// Cant rename on top of something we already have - this will create duplicates
+		return;
+	}
+
+	for (FName Name : PoseContainer.PoseFNames)
+	{
+		if (Name == InOriginalName)
 		{
-			SmartName.DisplayName = InNewName;
+			Name = InNewName;
 			break;
 		}
 	}
 
 	for (FAnimCurveBase& Curve : PoseContainer.Curves)
 	{
-		if (Curve.Name.DisplayName == InOriginalName)
+		if (Curve.GetName() == InOriginalName)
 		{
-			Curve.Name.DisplayName = InNewName;
+			Curve.SetName(InNewName);
 			break;
 		}
 	}
+
+	PoseContainer.RebuildCurveIndexTable();
 }
 
 void UPoseAsset::RemoveSmartNames(const TArray<FName>& InNamesToRemove)
+{
+	RemovePoseOrCurveNames(InNamesToRemove);
+}
+
+void UPoseAsset::RemovePoseOrCurveNames(const TArray<FName>& InNamesToRemove)
 {
 	DeletePoses(InNamesToRemove);
 	DeleteCurves(InNamesToRemove);
 }
 
-void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, const TArray<FSmartName>* InPoseNames/*== nullptr*/)
+void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, const TArray<FName>* InPoseNames/*== nullptr*/)
 {
 	if (AnimSequence)
 	{
@@ -1442,34 +1479,28 @@ void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, cons
 				const int32 NumTracks = TrackNames.Num();
 				NewPose.Reset(NumTracks);
 				NewPose.AddUninitialized(NumTracks);
-
-				// @Todo fill up curve data
-				TArray<float> CurveData;
+				
 				float IntervalBetweenKeys = (NumPoses > 1)? AnimSequence->GetPlayLength() / (NumPoses -1 ) : 0.f;
 
 				// add curves - only float curves
 				const FAnimationCurveData& AnimationCurveData = DataModel->GetCurveData();
-
 				const int32 TotalFloatCurveCount = AnimationCurveData.FloatCurves.Num();
-				
-				// have to construct own UIDList;
-				// copy default UIDLIst
-				TArray<SmartName::UID_Type> UIDList;
 
 				if (TotalFloatCurveCount > 0)
 				{
 					for (const FFloatCurve& Curve : AnimationCurveData.FloatCurves)
 					{
-						PoseContainer.Curves.Add(FAnimCurveBase(Curve.Name, Curve.GetCurveTypeFlags()));
-						UIDList.Add(Curve.Name.UID);
+						PoseContainer.Curves.Add(FAnimCurveBase(Curve.GetName(), Curve.GetCurveTypeFlags()));
 					}
 				}
 
-				CurveData.AddZeroed(UIDList.Num());
 				// add to skeleton UID, so that it knows the curve data
 				for (int32 PoseIndex = 0; PoseIndex < NumPoses; ++PoseIndex)
 				{
-					FSmartName NewPoseName = (InPoseNames && InPoseNames->IsValidIndex(PoseIndex))? (*InPoseNames)[PoseIndex] : GetUniquePoseSmartName(TargetSkeleton);
+					TArray<float> CurveData;
+					CurveData.Reserve(TotalFloatCurveCount);
+					
+					FName NewPoseName = (InPoseNames && InPoseNames->IsValidIndex(PoseIndex))? (*InPoseNames)[PoseIndex] : GetUniquePoseName(this);
 					// now get rawanimationdata, and each key is converted to new pose
 					for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 					{
@@ -1482,15 +1513,12 @@ void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, cons
 						// have to do iterate over time
 						// support curve
 						FBlendedCurve SourceCurve;
-						SourceCurve.InitFrom(&TargetSkeleton->GetDefaultCurveUIDList());
 						AnimSequence->EvaluateCurveData(SourceCurve, PoseIndex*IntervalBetweenKeys, true);
-
-						// copy back to CurveData
-						for (int32 CurveIndex = 0; CurveIndex < CurveData.Num(); ++CurveIndex)
+						
+						SourceCurve.ForEachElement([&CurveData](const UE::Anim::FCurveElement& InElement)
 						{
-							CurveData[CurveIndex] = SourceCurve.Get(UIDList[CurveIndex]);
-						}
-
+							CurveData.Add(InElement.Value);
+						});
 						check(CurveData.Num() == PoseContainer.Curves.Num());
 					}
 				
@@ -1513,7 +1541,7 @@ void UPoseAsset::UpdatePoseFromAnimation(class UAnimSequence* AnimSequence)
 		// when you update pose, right now, it just only keeps pose names
 		// in the future we might want to make it more flexible
 		// back up old pose names
-		const TArray<FSmartName> OldPoseNames = PoseContainer.PoseNames;
+		const TArray<FName> OldPoseNames = PoseContainer.PoseFNames;
 		const bool bOldAdditive = bAdditivePose;
 		int32 OldBasePoseIndex = BasePoseIndex;
 		CreatePoseFromAnimation(AnimSequence, &OldPoseNames);
@@ -1531,36 +1559,23 @@ void UPoseAsset::UpdatePoseFromAnimation(class UAnimSequence* AnimSequence)
 			ConvertToAdditivePose(OldBasePoseIndex);
 		}
 
+		PoseContainer.RebuildCurveIndexTable();
+
 		OnPoseListChanged.Broadcast();
 	}
 }
 
-bool UPoseAsset::ModifyPoseName(FName OldPoseName, FName NewPoseName, const SmartName::UID_Type* NewUID)
+bool UPoseAsset::ModifyPoseName(FName OldPoseName, FName NewPoseName)
 {
-	USkeleton* MySkeleton = GetSkeleton();
-
 	if (ContainsPose(NewPoseName))
 	{
 		// already exists, return 
 		return false;
 	}
 
-	FSmartName OldPoseSmartName;
-	ensureAlways(MySkeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, OldPoseName, OldPoseSmartName));
-
-	if (FPoseData* PoseData = PoseContainer.FindPoseData(OldPoseSmartName))
+	if (FPoseData* PoseData = PoseContainer.FindPoseData(OldPoseName))
 	{
-		FSmartName NewPoseSmartName;
-		if (NewUID)
-		{
-			MySkeleton->GetSmartNameByUID(USkeleton::AnimCurveMappingName, *NewUID, NewPoseSmartName);
-		}
-		else
-		{
-			MySkeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, NewPoseName, NewPoseSmartName);
-		}
-
-		PoseContainer.RenamePose(OldPoseSmartName, NewPoseSmartName);
+		PoseContainer.RenamePose(OldPoseName, NewPoseName);
 		OnPoseListChanged.Broadcast();
 
 		return true;
@@ -1573,27 +1588,21 @@ int32 UPoseAsset::DeletePoses(TArray<FName> PoseNamesToDelete)
 {
 	int32 ItemsDeleted = 0;
 
-	USkeleton* MySkeleton = GetSkeleton();
-
 	for (const FName& PoseName : PoseNamesToDelete)
 	{
-		FSmartName PoseSmartName;
-		if (MySkeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, PoseName, PoseSmartName))
+		int32 PoseIndexDeleted = PoseContainer.DeletePose(PoseName);
+		if (PoseIndexDeleted != INDEX_NONE)
 		{
-			int32 PoseIndexDeleted = PoseContainer.DeletePose(PoseSmartName);
-			if (PoseIndexDeleted != INDEX_NONE)
+			++ItemsDeleted;
+			// if base pose index is same as pose index deleted
+			if (BasePoseIndex == PoseIndexDeleted)
 			{
-				++ItemsDeleted;
-				// if base pose index is same as pose index deleted
-				if (BasePoseIndex == PoseIndexDeleted)
-				{
-					BasePoseIndex = INDEX_NONE;
-				}
-				// if base pose index is after this, we reduce the number
-				else if (BasePoseIndex > PoseIndexDeleted)
-				{
-					--BasePoseIndex;
-				}
+				BasePoseIndex = INDEX_NONE;
+			}
+			// if base pose index is after this, we reduce the number
+			else if (BasePoseIndex > PoseIndexDeleted)
+			{
+				--BasePoseIndex;
 			}
 		}
 	}
@@ -1613,14 +1622,10 @@ int32 UPoseAsset::DeleteCurves(TArray<FName> CurveNamesToDelete)
 {
 	int32 ItemsDeleted = 0;
 
-	USkeleton* MySkeleton = GetSkeleton();
-
 	for (const FName& CurveName : CurveNamesToDelete)
 	{
-		FSmartName CurveSmartName;
-		if (MySkeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, CurveName, CurveSmartName))
+		if(PoseContainer.DeleteCurve(CurveName))
 		{
-			PoseContainer.DeleteCurve(CurveSmartName);
 			++ItemsDeleted;
 		}
 	}
@@ -1705,9 +1710,9 @@ bool UPoseAsset::ConvertSpace(bool bNewAdditivePose, int32 NewBasePoseIndex)
 
 const int32 UPoseAsset::GetPoseIndexByName(const FName& InBasePoseName) const
 {
-	for (int32 PoseIndex = 0; PoseIndex < PoseContainer.PoseNames.Num(); ++PoseIndex)
+	for (int32 PoseIndex = 0; PoseIndex < PoseContainer.PoseFNames.Num(); ++PoseIndex)
 	{
-		if (PoseContainer.PoseNames[PoseIndex].DisplayName == InBasePoseName)
+		if (PoseContainer.PoseFNames[PoseIndex] == InBasePoseName)
 		{
 			return PoseIndex;
 		}
@@ -1721,7 +1726,7 @@ const int32 UPoseAsset::GetCurveIndexByName(const FName& InCurveName) const
 	for (int32 TestIdx = 0; TestIdx < PoseContainer.Curves.Num(); TestIdx++)
 	{
 		const FAnimCurveBase& Curve = PoseContainer.Curves[TestIdx];
-		if (Curve.Name.DisplayName == InCurveName)
+		if (Curve.GetName() == InCurveName)
 		{
 			return TestIdx;
 		}
@@ -1837,47 +1842,32 @@ void FPoseDataContainer::DeleteTrack(int32 TrackIndex)
 #if WITH_EDITOR
 FName UPoseAsset::GetUniquePoseName(const USkeleton* Skeleton)
 {
-	FName NewName = NAME_None;
-	if (Skeleton)
-	{
-		int32 NameIndex = 0;
-		SmartName::UID_Type NewUID;
-		do
-		{
-			NewName = FName(*FString::Printf(TEXT("Pose_%d"), NameIndex++));
-			NewUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, NewName);
-		} while (NewUID != SmartName::MaxUID);
-	}
-
-	return NewName;
+	return NAME_None;
 }
 
 FSmartName UPoseAsset::GetUniquePoseSmartName(USkeleton* Skeleton)
 {
-	const FName NewName = GetUniquePoseName(Skeleton);
-	FSmartName NewPoseName;
-	if (NewName != NAME_None)
-	{
-		Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, NewName, NewPoseName);
-	}
+	return FSmartName();
+}
 
-	return NewPoseName;
+FName UPoseAsset::GetUniquePoseName(UPoseAsset* PoseAsset)
+{
+	check(PoseAsset);
+	int32 NameIndex = 0;
+	FName NewName;
+
+	do
+	{
+		NewName = FName(*FString::Printf(TEXT("Pose_%d"), NameIndex++));
+	}
+	while(PoseAsset->ContainsPose(NewName));
+	
+	return NewName;
 }
 
 void UPoseAsset::RemapTracksToNewSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces)
 {
 	Super::RemapTracksToNewSkeleton(NewSkeleton, bConvertSpaces);
-
-	// after remap, should verify if the names are still valid in this skeleton
-	if (NewSkeleton)
-	{
-		NewSkeleton->VerifySmartNames(USkeleton::AnimCurveMappingName, PoseContainer.PoseNames);
-
-		for (FAnimCurveBase& Curve : PoseContainer.Curves)
-		{
-			NewSkeleton->VerifySmartName(USkeleton::AnimCurveMappingName, Curve.Name);
-		}
-	}
 
 	PostProcessData();
 }

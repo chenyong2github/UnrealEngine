@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "BoneIndices.h"
 #include "Engine/AssetUserData.h"
+#include "Animation/AnimCurveTypes.h"
 
 #include "DNAIndexMapping.generated.h"
 
@@ -20,16 +21,16 @@ struct FDNAIndexMapping
 	{
 		TArray<T> Values;
 	};
+	
+	using FCachedIndexedCurve = TBaseBlendedCurve<FDefaultAllocator, UE::Anim::FCurveElementIndexed>; 
 
 	FGuid SkeletonGuid;
-	// For maps, we use int32 instead of SmartName::UID_Ttype directly to allow storing INDEX_NONE for missing elements
-	// if value is valid, it is cast to SmartName::UID_Type
-	TArray<int32> ControlAttributesMapDNAIndicesToUEUIDs;
+
+	// all the control attributes that we will need to extract, alongside their control index
+	FCachedIndexedCurve ControlAttributeCurves;
 	TArray<FMeshPoseBoneIndex> JointsMapDNAIndicesToMeshPoseBoneIndices;
-	TArray<TArrayWrapper<int32>> BlendShapeIndicesPerLOD;
-	TArray<TArrayWrapper<int32>> MorphTargetIndicesPerLOD;
-	TArray<TArrayWrapper<int32>> AnimatedMapIndicesPerLOD;
-	TArray<TArrayWrapper<int32>> MaskMultiplierIndicesPerLOD;
+	TArray<FCachedIndexedCurve> MorphTargetCurvesPerLOD;
+	TArray<FCachedIndexedCurve> MaskMultiplierCurvesPerLOD;
 
 	void MapControlCurves(const IBehaviorReader* DNABehavior, const USkeleton* Skeleton);
 	void MapJoints(const IBehaviorReader* DNABehavior, const USkeletalMeshComponent* SkeletalMeshComponent);

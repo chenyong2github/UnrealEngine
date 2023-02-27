@@ -822,6 +822,7 @@ void UAnimInstance::ParallelEvaluateAnimation(bool bForceRefPose, const USkeleta
 			
 		// Run the anim blueprint
 		Proxy.EvaluateAnimation(EvaluationContext);
+
 		// Move the curves
 		OutEvaluationData.OutCurve.CopyFrom(EvaluationContext.Curve);
 		OutEvaluationData.OutPose.CopyBonesFrom(EvaluationContext.Pose);
@@ -1304,9 +1305,16 @@ void UAnimInstance::RecalcRequiredBones()
 	}
 }
 
+void UAnimInstance::RecalcRequiredCurves(const UE::Anim::FCurveFilterSettings& InCurveFilterSettings)
+{
+	GetProxyOnGameThread<FAnimInstanceProxy>().RecalcRequiredCurves(InCurveFilterSettings);
+}
+
 void UAnimInstance::RecalcRequiredCurves(const FCurveEvaluationOption& CurveEvalOption)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	GetProxyOnGameThread<FAnimInstanceProxy>().RecalcRequiredCurves(CurveEvalOption);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 USkeletalMeshComponent* UAnimInstance::GetSkelMeshComponent() const
@@ -1364,30 +1372,9 @@ void UAnimInstance::PostInitProperties()
 	}
 }
 
-void UAnimInstance::AddCurveValue(const FName& CurveName, float Value)
+void UAnimInstance::AddCurveValue(const FName& CurveName, float Value, bool bMorphtarget, bool bMaterial)
 {
-	const FSmartNameMapping* Mapping = CurrentSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-	if(Mapping)
-	{
-		AddCurveValue(*Mapping, CurveName, Value);
-	}
-}
-
-void UAnimInstance::AddCurveValue(const FSmartNameMapping& Mapping, const FName& CurveName, float Value)
-{
-	GetProxyOnAnyThread<FAnimInstanceProxy>().AddCurveValue(Mapping, CurveName, Value);
-}
-
-void UAnimInstance::AddCurveValue(const SmartName::UID_Type Uid, float Value)
-{
-	FName CurrentCurveName;
-	// Grab the smartname mapping from our current skeleton and resolve the curve name. We cannot cache
-	// the smart name mapping as the skeleton can change at any time.
-	if(const FSmartNameMapping* NameMapping = CurrentSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName))
-	{
-		NameMapping->GetName(Uid, CurrentCurveName);
-	}
-	AddCurveValue(CurrentCurveName, Value);
+	GetProxyOnAnyThread<FAnimInstanceProxy>().AddCurveValue(CurveName, Value, bMorphtarget, bMaterial);
 }
 
 void UAnimInstance::UpdateCurvesToComponents(USkeletalMeshComponent* Component /*= nullptr*/)
@@ -1752,17 +1739,7 @@ void UAnimInstance::GetActiveCurveNames(EAnimCurveType CurveType, TArray<FName>&
 
 void UAnimInstance::GetAllCurveNames(TArray<FName>& OutNames) const
 {
-	USkeletalMeshComponent* SkelMeshComp = GetOwningComponent();
-	if (SkelMeshComp && SkelMeshComp->GetSkeletalMeshAsset() && SkelMeshComp->GetSkeletalMeshAsset()->GetSkeleton())
-	{
-		const USkeleton* CurSkeleton = SkelMeshComp->GetSkeletalMeshAsset()->GetSkeleton();
-
-		const FSmartNameMapping* Mapping = CurSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-		if (Mapping)
-		{
-			Mapping->FillNameArray(OutNames);
-		}
-	}
+	GetActiveCurveNames(EAnimCurveType::AttributeCurve, OutNames);
 }
 
 void UAnimInstance::SetRootMotionMode(TEnumAsByte<ERootMotionMode::Type> Value)

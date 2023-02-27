@@ -35,10 +35,11 @@ namespace SkeletonEditorTabs
 	extern const FName ViewportTab;
 	extern const FName AssetBrowserTab;
 	extern const FName AnimNotifiesTab;
-	extern const FName CurveNamesTab;
+	extern const FName CurveMetadataTab;
 	extern const FName AdvancedPreviewTab;
 	extern const FName RetargetManagerTab;
 	extern const FName SlotNamesTab;
+	extern const FName FindReplaceTab;
 }
 
 class FSkeletonEditor : public ISkeletonEditor, public FEditorUndoClient, public FTickableEditorObject
@@ -109,7 +110,7 @@ private:
 
 	void RemoveUnusedBones();
 
-	void TestSkeletonCurveNamesForUse() const;
+	void TestSkeletonCurveMetaDataForUse() const;
 
 	void UpdateSkeletonRefPose();
 

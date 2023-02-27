@@ -142,25 +142,14 @@ struct FSkeletonRemapping
 		return QQ.Get<0>() * SourceRotation * QQ.Get<0>().Inverse();
 	}
 
-	/**
-	 * Get the curve mapping array, which maps from the source curve UID to the target curve UID.
-	 * You can access this array like this:
-	 * 
-	 * \code{.cpp}
-	 * const SmartName::UID_Type TargetCurveUID = GetSourceToTargetCurveMapping()[SourceCurveUID];
-	 * \endcode
-	 */
-	const TArray<SmartName::UID_Type>& GetSourceToTargetCurveMapping() const { return SourceToTargetCurveMapping; }
+	UE_DEPRECATED(5.3, "This function is no longer used")
+	const TArray<SmartName::UID_Type>& GetSourceToTargetCurveMapping() const;
 
 	/** Refreshes the mapping. Empties mapping arrays and regenerates them against the stored skeletons. */
 	void RegenerateMapping();
 	
-	/**
-	 * Generates the mapping table for the curves, based on curve names.
-	 * Basically this will look at the curve names in the smart name table on the source, and tries to find matching ones in the table of 
-	 * the target skeleton. It then maps the UID's.
-	 */
-	void GenerateCurveMapping();
+	UE_DEPRECATED(5.3, "This function is no longer used")
+	void GenerateCurveMapping() {}
 
 	/** Check to see if a reference pose retarget is required between the source & target hierarchies */
 	bool RequiresReferencePoseRetarget() const
@@ -187,9 +176,6 @@ private:
 
 	// Table of source skeleton bone indexes (indexed by target skeleton bone index)
 	TArray<int32> TargetToSourceBoneIndexes;
-	
-	// Maps curve UIDs between source and target (indexed by source curve UID).
-	TArray<SmartName::UID_Type> SourceToTargetCurveMapping;
 
 	// Table of precalculated constants for retargeting from source to target (indexed by target skeleton bone index)
 	TArray<TTuple<FQuat, FQuat>> RetargetingTable;

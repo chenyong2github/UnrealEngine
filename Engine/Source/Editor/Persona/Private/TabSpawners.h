@@ -160,6 +160,31 @@ private:
 	FOnObjectsSelected OnObjectsSelected;
 };
 
+/////////////////////////////////////////////////////
+// FAnimCurveViewerTabSummoner
+
+struct FAnimCurveMetadataEditorTabSummoner : public FWorkflowTabFactory
+{
+public:
+	FAnimCurveMetadataEditorTabSummoner(TSharedPtr<class FAssetEditorToolkit> InHostingApp, UObject* InMetadataHost, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, FOnObjectsSelected InOnObjectsSelected);
+
+	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
+
+	virtual TSharedPtr<SToolTip> CreateTabToolTipWidget(const FWorkflowTabSpawnInfo& Info) const override
+	{
+		return  IDocumentation::Get()->CreateToolTip(LOCTEXT("AnimCurveMetadataEditorTooltip", "The Anim Curve Metadata Editor tab lets you add, remove, rename and edit curve metadata."), NULL, TEXT("Shared/Editors/Persona"), TEXT("AnimCurveMetadataEditor_Window"));
+	}
+
+	virtual FText GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const
+	{
+		return LOCTEXT("AnimCurveTabView_ToolTip", "Shows the animation curve debugger. This shows the state of animation curves.");
+	}
+
+private:
+	TWeakObjectPtr<UObject> MetadataHost;
+	TWeakPtr<class IPersonaPreviewScene> PreviewScene;
+	FOnObjectsSelected OnObjectsSelected;
+};
 
 /////////////////////////////////////////////////////
 // FAnimationAssetBrowserSummoner

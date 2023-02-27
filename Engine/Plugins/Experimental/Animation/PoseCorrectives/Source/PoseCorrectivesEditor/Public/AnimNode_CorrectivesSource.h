@@ -26,5 +26,5 @@ struct FAnimNode_CorrectivesSource : public FAnimNode_Base
 private:
 
 	TArray<FCompactPoseBoneIndex> BoneCompactIndices;
-	TArray<SmartName::UID_Type> CurveUIDs;
+	
 };

@@ -79,7 +79,8 @@ const FName SkeletalMeshEditorTabs::AdvancedPreviewTab(TEXT("AdvancedPreviewTab"
 const FName SkeletalMeshEditorTabs::MorphTargetsTab("MorphTargetsTab");
 const FName SkeletalMeshEditorTabs::AnimationMappingTab("AnimationMappingWindow");
 const FName SkeletalMeshEditorTabs::ToolboxDetailsTab("ToolBoxDetailsTab");
-
+const FName SkeletalMeshEditorTabs::CurveMetadataTab(TEXT("AnimCurveMetadataEditorTab"));
+const FName SkeletalMeshEditorTabs::FindReplaceTab("FindReplaceTab");
 
 DEFINE_LOG_CATEGORY(LogSkeletalMeshEditor);
 

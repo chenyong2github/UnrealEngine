@@ -676,18 +676,10 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 			{
 				CR->GetHierarchy()->ForEach<FRigCurveElement>([Skeleton, &CurvesToMap](FRigCurveElement* CurveElement) -> bool
                 {
-                    const FSmartNameMapping* CurveNameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-					if (CurveNameMapping)
-					{
-						FSmartName SmartName;
-						if (CurveNameMapping->FindSmartName(CurveElement->GetName(), SmartName))
-						{
-							FControlRigComponentMappedCurve CurveToMap;
-							CurveToMap.Source = CurveElement->GetName();
-							CurveToMap.Target = CurveElement->GetName();
-							CurvesToMap.Add(CurveToMap);
-						}
-					}
+					FControlRigComponentMappedCurve CurveToMap;
+					CurveToMap.Source = CurveElement->GetName();
+					CurveToMap.Target = CurveElement->GetName();
+					CurvesToMap.Add(CurveToMap);
 					return true;
 				});
 			}
@@ -1357,19 +1349,7 @@ void UControlRigComponent::ValidateMappingData()
 					{
 						if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 						{
-							if (MappedElement.ElementType == ERigElementType::Curve)
-							{
-								const FSmartNameMapping* CurveNameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-								if (CurveNameMapping)
-								{
-									FSmartName SmartName;
-									if (CurveNameMapping->FindSmartName(MappedElement.TransformName, SmartName))
-									{
-										MappedElement.SubIndex = (int32)SmartName.UID;
-									}
-								}
-							}
-							else
+							if (MappedElement.ElementType != ERigElementType::Curve)
 							{
 								MappedElement.SubIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(MappedElement.TransformName);
 							}
@@ -1618,7 +1598,7 @@ void UControlRigComponent::TransferOutputs()
 
 					if (Proxy)
 					{
-						Proxy->StoredCurves.FindOrAdd((SmartName::UID_Type)MappedElement.SubIndex) = ControlRig->GetHierarchy()->GetCurveValue(MappedElement.ElementIndex);
+						Proxy->StoredCurves.FindOrAdd(MappedElement.TransformName) = ControlRig->GetHierarchy()->GetCurveValue(MappedElement.ElementIndex);
 					}
 				}
 			}

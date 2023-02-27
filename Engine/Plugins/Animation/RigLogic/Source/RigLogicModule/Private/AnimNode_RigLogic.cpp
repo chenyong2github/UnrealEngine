@@ -147,16 +147,16 @@ void FAnimNode_RigLogic::UpdateControlCurves(const FPoseContext& InputContext, c
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_AnimNode_RigLogic_UpdateControlCurves);
 
-	const int32 RawControlCount = RigInstance->GetRawControlCount();
-	for (int32 ControlIndex = 0; ControlIndex < RawControlCount; ++ControlIndex)
-	{
-		const int32 ControlCurveUID = DNAIndexMapping->ControlAttributesMapDNAIndicesToUEUIDs[ControlIndex];
-		if (ControlCurveUID != INDEX_NONE)
+	// Combine control attribute curve with input curve to get indexed curve to apply to rig
+	// Curve elements that dont have a control mapping will have INDEX_NONE as their index
+	UE::Anim::FNamedValueArrayUtils::Union(InputContext.Curve, DNAIndexMapping->ControlAttributeCurves,
+		[this](const UE::Anim::FCurveElement& InCurveElement, const UE::Anim::FCurveElementIndexed& InControlAttributeCurveElement, UE::Anim::ENamedValueUnionFlags InFlags)
 		{
-			const float Value = InputContext.Curve.Get(static_cast<SmartName::UID_Type>(ControlCurveUID));
-			RigInstance->SetRawControl(ControlIndex, Value);
-		}
-	}
+			if(InControlAttributeCurveElement.Index != INDEX_NONE)
+ 			{
+ 				RigInstance->SetRawControl(InControlAttributeCurveElement.Index, InCurveElement.Value);
+ 			}
+		});
 }
 
 void FAnimNode_RigLogic::CalculateRigLogic(FRigLogic* RigLogic)
@@ -196,21 +196,15 @@ void FAnimNode_RigLogic::UpdateBlendShapeCurves(const FDNAIndexMapping* DNAIndex
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_AnimNode_RigLogic_UpdateBlendShapeCurves);
-
+	
 	const uint16 LOD = RigInstance->GetLOD();
-	const TArray<int32>& BlendShapeIndices = DNAIndexMapping->BlendShapeIndicesPerLOD[LOD].Values;
-	const TArray<int32>& MorphTargetIndices = DNAIndexMapping->MorphTargetIndicesPerLOD[LOD].Values;
-	check(BlendShapeIndices.Num() == MorphTargetIndices.Num());
-	for (uint32 MappingIndex = 0; MappingIndex < static_cast<uint32>(BlendShapeIndices.Num()); ++MappingIndex)
+	const FDNAIndexMapping::FCachedIndexedCurve& MorphTargetCurve = DNAIndexMapping->MorphTargetCurvesPerLOD[LOD];
+	UE::Anim::FNamedValueArrayUtils::Union(OutputContext.Curve, MorphTargetCurve, [&BlendShapeValues](UE::Anim::FCurveElement& InOutResult, const UE::Anim::FCurveElementIndexed& InSource, UE::Anim::ENamedValueUnionFlags InFlags)
 	{
-		const int32 BlendShapeIndex = BlendShapeIndices[MappingIndex];
-		const int32 MorphTargetCurveUID = MorphTargetIndices[MappingIndex];
-		if (MorphTargetCurveUID != INDEX_NONE)
-		{
-			const float Value = BlendShapeValues[BlendShapeIndex];
-			OutputContext.Curve.Set(static_cast<SmartName::UID_Type>(MorphTargetCurveUID), Value);
-		}
-	}
+		check(BlendShapeValues.IsValidIndex(InSource.Index));
+		InOutResult.Value = BlendShapeValues[InSource.Index];
+		InOutResult.Flags |= UE::Anim::ECurveElementFlags::MorphTarget;
+	});
 }
 
 void FAnimNode_RigLogic::UpdateAnimMapCurves(const FDNAIndexMapping* DNAIndexMapping, TArrayView<const float> AnimMapOutputs, FPoseContext& OutputContext)
@@ -219,18 +213,12 @@ void FAnimNode_RigLogic::UpdateAnimMapCurves(const FDNAIndexMapping* DNAIndexMap
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_AnimNode_RigLogic_UpdateAnimMapCurves);
 
 	const uint16 LOD = RigInstance->GetLOD();
-	const TArray<int32>& AnimatedMapIndices = DNAIndexMapping->AnimatedMapIndicesPerLOD[LOD].Values;
-	const TArray<int32>& MaskMultiplierIndices = DNAIndexMapping->MaskMultiplierIndicesPerLOD[LOD].Values;
-	check(AnimatedMapIndices.Num() == MaskMultiplierIndices.Num());
-	for (uint32 MappingIndex = 0; MappingIndex < static_cast<uint32>(AnimatedMapIndices.Num()); ++MappingIndex)
+	const FDNAIndexMapping::FCachedIndexedCurve& MaskMultiplierCurve = DNAIndexMapping->MaskMultiplierCurvesPerLOD[LOD];
+	UE::Anim::FNamedValueArrayUtils::Union(OutputContext.Curve, MaskMultiplierCurve, [&AnimMapOutputs](UE::Anim::FCurveElement& InOutResult, const UE::Anim::FCurveElementIndexed& InSource, UE::Anim::ENamedValueUnionFlags InFlags)
 	{
-		const int32 AnimatedMapIndex = AnimatedMapIndices[MappingIndex];
-		const int32 MaskMultiplierUID = MaskMultiplierIndices[MappingIndex];
-		if (MaskMultiplierUID != INDEX_NONE)
-		{
-			const float Value = AnimMapOutputs[AnimatedMapIndex];
-			OutputContext.Curve.Set(static_cast<SmartName::UID_Type>(MaskMultiplierUID), Value);
-		}
-	}
+		check(AnimMapOutputs.IsValidIndex(InSource.Index));
+		InOutResult.Value = AnimMapOutputs[InSource.Index];
+		InOutResult.Flags |= UE::Anim::ECurveElementFlags::Material;
+	});
 }
 

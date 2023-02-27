@@ -72,10 +72,8 @@ private:
 
 	// mapping from required bones to actual bones within the target skeleton
 	TArray< TPair<int32, int32> > RequiredToTargetBoneMapping;
-	// mapping of Skeleton curve names to the UID (for copying curves from the source mesh component)
-	TMap<FName, SmartName::UID_Type> CurveNameToUIDMap;
 	// cached curves, copied on the game thread
-	TMap<FName, float> SourceCurveValues;
+	FBlendedHeapCurve SourceCurves;
 
 	/** update map of curve values containing speeds used for IK planting */
 	void UpdateSpeedValuesFromCurves();

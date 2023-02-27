@@ -28,6 +28,7 @@
 #include "Engine/PreviewMeshCollection.h"
 #include "PoseWatchManagerPublicTypes.h"
 #include "PoseWatchManagerDefaultMode.h"
+#include "SAnimCurveMetadataEditor.h"
 
 #define LOCTEXT_NAMESPACE "PersonaModes"
 
@@ -37,6 +38,7 @@
 // Tab constants
 const FName FPersonaTabs::MorphTargetsID("MorphTargetsTab");
 const FName FPersonaTabs::AnimCurveViewID("AnimCurveViewerTab");
+const FName FPersonaTabs::AnimCurveMetadataEditorID("AnimCurveMetadataEditorTab");
 const FName FPersonaTabs::SkeletonTreeViewID("SkeletonTreeView");		//@TODO: Name
 // Skeleton Pose manager
 const FName FPersonaTabs::RetargetManagerID("RetargetManager");
@@ -71,6 +73,8 @@ const FName FPersonaTabs::PoseWatchManagerID("PoseWatchManager");
 const FName FPersonaTabs::AdvancedPreviewSceneSettingsID("AdvancedPreviewTab");
 
 const FName FPersonaTabs::DetailsID("DetailsTab");
+
+const FName FPersonaTabs::FindReplaceID("FindReplaceTab");
 
 /////////////////////////////////////////////////////
 // FPersonaMode
@@ -166,20 +170,45 @@ FAnimCurveViewerTabSummoner::FAnimCurveViewerTabSummoner(TSharedPtr<class FAsset
 	, PreviewScene(InPreviewScene)
 	, OnObjectsSelected(InOnObjectsSelected)
 {
-	TabLabel = LOCTEXT("AnimCurveViewTabTitle", "Anim Curves");
-	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.Tabs.AnimCurvePreviewer");
+	TabLabel = LOCTEXT("AnimCurveViewerTabTitle", "Curve Debugger");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.Tabs.AnimCurveDebugger");
 
 	EnableTabPadding();
 	bIsSingleton = true;
 
-	ViewMenuDescription = LOCTEXT("AnimCurveTabView", "Animation Curves");
-	ViewMenuTooltip = LOCTEXT("AnimCurveTabView_ToolTip", "Shows the animation curve viewer");
+	ViewMenuDescription = LOCTEXT("AnimCurveTabView", "Curve Debugger");
+	ViewMenuTooltip = LOCTEXT("AnimCurveTabView_ToolTip", "Shows the animation curve debugger. This shows the state of animation curves.");
 }
 
 TSharedRef<SWidget> FAnimCurveViewerTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
 	return SNew(SAnimCurveViewer, EditableSkeleton.Pin().ToSharedRef(), PreviewScene.Pin().ToSharedRef(), OnObjectsSelected);
 }
+
+/////////////////////////////////////////////////////
+// FAnimCurveViewerTabSummoner
+
+FAnimCurveMetadataEditorTabSummoner::FAnimCurveMetadataEditorTabSummoner(TSharedPtr<class FAssetEditorToolkit> InHostingApp, UObject* InMetadataHost, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, FOnObjectsSelected InOnObjectsSelected)
+	: FWorkflowTabFactory(FPersonaTabs::AnimCurveMetadataEditorID, InHostingApp)
+	, MetadataHost(InMetadataHost)
+	, PreviewScene(InPreviewScene)
+	, OnObjectsSelected(InOnObjectsSelected)
+{
+	TabLabel = LOCTEXT("AnimCurveMetadataEditorTabTitle", "Curves");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.Tabs.AnimCurveMetadataEditor");
+
+	EnableTabPadding();
+	bIsSingleton = true;
+
+	ViewMenuDescription = LOCTEXT("AnimCurveMetadataEditorTab", "Animation Curves");
+	ViewMenuTooltip = LOCTEXT("AnimCurveMetadataEditorTab_ToolTip", "Shows the animation curve editor. This lets you add, remove, rename and edit curve metadata.");
+}
+
+TSharedRef<SWidget> FAnimCurveMetadataEditorTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
+{
+	return SNew(SAnimCurveMetadataEditor, MetadataHost.Get(), PreviewScene.Pin().ToSharedRef(), OnObjectsSelected);
+}
+
 
 /////////////////////////////////////////////////////
 // FAnimationAssetBrowserSummoner

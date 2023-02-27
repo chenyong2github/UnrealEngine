@@ -133,7 +133,7 @@ void UContextualAnimUtilities::DrawPose(const UAnimSequenceBase* Animation, floa
 		RequiredBoneIndexArray.Add(Idx);
 	}
 
-	FBoneContainer BoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *Animation->GetSkeleton());
+	FBoneContainer BoneContainer(RequiredBoneIndexArray, UE::Anim::FCurveFilterSettings(UE::Anim::ECurveFilterMode::DisallowAll), *Animation->GetSkeleton());
 	FCSPose<FCompactPose> ComponentSpacePose;
 	UContextualAnimUtilities::ExtractComponentSpacePose(Animation, BoneContainer, Time, true, ComponentSpacePose);
 

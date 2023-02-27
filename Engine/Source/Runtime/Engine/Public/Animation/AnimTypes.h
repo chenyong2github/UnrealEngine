@@ -426,7 +426,7 @@ public:
 	/** Returns true is this AnimNotify is a BranchingPoint */
 	ENGINE_API bool IsBranchingPoint() const;
 
-	/** Returns true if this is blueprint derived notifies **/
+	/** Returns true if this is blueprint or native class-based notify (i.e. not a named notify) */
 	bool IsBlueprintNotify() const
 	{
 		return Notify != nullptr || NotifyStateClass != nullptr;

@@ -103,7 +103,7 @@ struct ANIMGRAPHRUNTIME_API FPoseDriverTarget
 	UPROPERTY(EditAnywhere, Category = PoseDriver)
 	FName DrivenName;
 
-	/** Cached curve UID, if DriveOutput is set to DriveCurves */
+	UE_DEPRECATED(5.3, "DrivenUID is no longer used")
 	USkeleton::AnimCurveUID DrivenUID = SmartName::MaxUID;
 
 	/** Pose buffer index */
@@ -113,6 +113,12 @@ struct ANIMGRAPHRUNTIME_API FPoseDriverTarget
 	UPROPERTY(EditAnywhere, Category = PoseDriver)
 	bool bIsHidden;
 
+	// removing deprecation for default copy operator/constructor to avoid deprecation warnings
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FPoseDriverTarget(const FPoseDriverTarget&) = default;
+	FPoseDriverTarget& operator=(const FPoseDriverTarget&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	FPoseDriverTarget()
 		: TargetRotation(ForceInitToZero)
 		, TargetScale(1.f)
@@ -120,7 +126,6 @@ struct ANIMGRAPHRUNTIME_API FPoseDriverTarget
 		, FunctionType(ERBFFunctionType::DefaultFunction)
 		, bApplyCustomCurve(false)
 		, DrivenName(NAME_None)
-		, DrivenUID(SmartName::MaxUID)
 		, PoseCurveIndex(INDEX_NONE)
 		, bIsHidden(false)
 	{}

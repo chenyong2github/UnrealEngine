@@ -259,7 +259,6 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 
 	if (GetExportOptions()->bExportMorphTargets && SkelMesh->GetSkeleton()) //The skeleton can be null if this is a destructible mesh.
 	{
-		const FSmartNameMapping* SmartNameMapping = SkelMesh->GetSkeleton()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 		TMap<FName, FbxAnimCurve*> BlendShapeCurvesMap;
 
 		if (SkelMesh->GetMorphTargets().Num())
@@ -315,7 +314,8 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 
 					BlendShapeChannel->AddTargetShape(Shape);
 					FName MorphTargetName = MorphTarget->GetFName();
-					if (AnimSeq && SmartNameMapping && SmartNameMapping->GetCurveMetaData(MorphTargetName) && SmartNameMapping->GetCurveMetaData(MorphTargetName)->Type.bMorphtarget)
+					const FCurveMetaData* CurveMetaData = SkelMesh->GetSkeleton()->GetCurveMetaData(MorphTargetName);
+					if (AnimSeq && CurveMetaData && CurveMetaData->Type.bMorphtarget)
 					{
 						FbxAnimCurve* AnimCurve = Mesh->GetShapeChannel(DeformerIndex, BlendShape->GetBlendShapeChannelCount() - 1, AnimLayer, true);
 						BlendShapeCurvesMap.Add(MorphTargetName, AnimCurve);

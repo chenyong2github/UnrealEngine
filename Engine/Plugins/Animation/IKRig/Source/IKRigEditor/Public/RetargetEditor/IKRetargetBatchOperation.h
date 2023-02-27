@@ -9,6 +9,9 @@
 
 class UIKRetargeter;
 struct FScopedSlowTask;
+class USkeletalMesh;
+class UAnimationAsset;
+class UAnimBlueprint;
 
 //** Data needed to run a batch "duplicate and retarget" operation on a set of animation assets */
 struct FIKRetargetBatchOperationContext

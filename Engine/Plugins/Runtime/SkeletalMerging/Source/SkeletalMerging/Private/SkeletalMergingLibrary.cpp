@@ -222,15 +222,10 @@ USkeleton* USkeletalMergingLibrary::MergeSkeletons(const FSkeletonMergeParams& P
 
 		if (Params.bMergeCurveNames)
 		{
-			if (const FSmartNameMapping* CurveMappingPtr = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName))
+			Skeleton->ForEachCurveMetaData([&UniqueCurveNames](FName InCurveName, const FCurveMetaData& InCurveMetaData)
 			{
-				TArray<FName> CurveNames;
-				CurveMappingPtr->FillNameArray(CurveNames);
-				for (const FName& CurveName : CurveNames)
-				{
-					UniqueCurveNames.FindOrAdd(CurveName) = CurveMappingPtr->GetCurveMetaData(CurveName);
-				}
-			}
+				UniqueCurveNames.FindOrAdd(InCurveName, &InCurveMetaData);
+			});
 		}
 
 		if (Params.bMergeAnimSlotGroups)
@@ -333,14 +328,6 @@ void USkeletalMergingLibrary::AddVirtualBones(USkeleton* InSkeleton, const TArra
 
 void USkeletalMergingLibrary::AddCurveNames(USkeleton* InSkeleton, const TMap<FName, const FCurveMetaData*>& InCurves)
 {
-	TArray<FSmartName> CurveSmartNames;
-
-	Algo::Transform(InCurves, CurveSmartNames, [](const TPair<FName, const FCurveMetaData*>& CurveMetaDataPair)
-	{
-		return FSmartName(CurveMetaDataPair.Key, INDEX_NONE);
-	});
-	InSkeleton->VerifySmartNames(USkeleton::AnimCurveMappingName, CurveSmartNames);
-		
 	for(const TPair<FName, const FCurveMetaData*>& CurveMetaDataPair : InCurves)
 	{
 		if (CurveMetaDataPair.Value)

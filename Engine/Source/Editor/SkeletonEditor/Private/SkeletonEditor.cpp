@@ -38,10 +38,11 @@ const FName SkeletonEditorTabs::SkeletonTreeTab(TEXT("SkeletonTreeView"));
 const FName SkeletonEditorTabs::ViewportTab(TEXT("Viewport"));
 const FName SkeletonEditorTabs::AssetBrowserTab(TEXT("SequenceBrowser"));
 const FName SkeletonEditorTabs::AnimNotifiesTab(TEXT("SkeletonAnimNotifies"));
-const FName SkeletonEditorTabs::CurveNamesTab(TEXT("AnimCurveViewerTab"));
+const FName SkeletonEditorTabs::CurveMetadataTab(TEXT("AnimCurveMetadataEditorTab"));
 const FName SkeletonEditorTabs::AdvancedPreviewTab(TEXT("AdvancedPreviewTab"));
 const FName SkeletonEditorTabs::RetargetManagerTab(TEXT("RetargetManager"));
 const FName SkeletonEditorTabs::SlotNamesTab("SkeletonSlotNames");
+const FName SkeletonEditorTabs::FindReplaceTab("FindReplaceTab");
 
 DEFINE_LOG_CATEGORY(LogSkeletonEditor);
 
@@ -169,8 +170,8 @@ void FSkeletonEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FSkeletonEditor::RemoveUnusedBones),
 		FCanExecuteAction::CreateSP(this, &FSkeletonEditor::CanRemoveBones));
 
-	ToolkitCommands->MapAction(FSkeletonEditorCommands::Get().TestSkeletonCurveNamesForUse,
-		FExecuteAction::CreateSP(this, &FSkeletonEditor::TestSkeletonCurveNamesForUse));
+	ToolkitCommands->MapAction(FSkeletonEditorCommands::Get().TestSkeletonCurveMetaDataForUse,
+		FExecuteAction::CreateSP(this, &FSkeletonEditor::TestSkeletonCurveMetaDataForUse));
 
 	ToolkitCommands->MapAction(FSkeletonEditorCommands::Get().UpdateSkeletonRefPose,
 		FExecuteAction::CreateSP(this, &FSkeletonEditor::UpdateSkeletonRefPose));
@@ -281,7 +282,7 @@ void FSkeletonEditor::ExtendMenu()
 			{
 				MenuBuilder.AddMenuEntry(FSkeletonEditorCommands::Get().RemoveUnusedBones);
 				MenuBuilder.AddMenuEntry(FSkeletonEditorCommands::Get().UpdateSkeletonRefPose);
-				MenuBuilder.AddMenuEntry(FSkeletonEditorCommands::Get().TestSkeletonCurveNamesForUse);
+				MenuBuilder.AddMenuEntry(FSkeletonEditorCommands::Get().TestSkeletonCurveMetaDataForUse);
 			}
 			MenuBuilder.EndSection();
 		}
@@ -362,10 +363,10 @@ void FSkeletonEditor::RemoveUnusedBones()
 	GetSkeletonTree()->GetEditableSkeleton()->RemoveUnusedBones();
 }
 
-void FSkeletonEditor::TestSkeletonCurveNamesForUse() const
+void FSkeletonEditor::TestSkeletonCurveMetaDataForUse() const
 {
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-	PersonaModule.TestSkeletonCurveNamesForUse(GetSkeletonTree()->GetEditableSkeleton());
+	PersonaModule.TestSkeletonCurveMetaDataForUse(GetSkeletonTree()->GetEditableSkeleton());
 }
 
 void FSkeletonEditor::UpdateSkeletonRefPose()

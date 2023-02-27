@@ -1262,11 +1262,8 @@ void FAnimNode_FootPlacement::InitializeBoneReferences(const FBoneContainer& Req
 		LegData.InputPose.FootToGround = FTransform(FKFootTransformCS.GetRotation().UnrotateVector(FootAlignmentOffsetCS));
 #endif 
 
-		const USkeleton* Skeleton = RequiredBones.GetSkeletonAsset();
-		check(Skeleton);
-		// Grab UIDs of filtered curves to avoid lookup later
-		LegData.SpeedCurveUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, LegDef.SpeedCurveName);
-		LegData.DisableLockCurveUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, LegDef.DisableLockCurveName);
+		LegData.SpeedCurveName = LegDef.SpeedCurveName;
+		LegData.DisableLockCurveName = LegDef.DisableLockCurveName;
 	}
 
 	PelvisBone.Initialize(RequiredBones);
@@ -1352,11 +1349,11 @@ void FAnimNode_FootPlacement::GatherLegDataFromInputs(
 		// If the curve is not found in the stream, assume we're unplanted.
 		const float DefaultSpeedCurveValue = PlantSettings.SpeedThreshold;
 		LegData.InputPose.Speed =
-			Context.CSPContext.Curve.Get(LegData.SpeedCurveUID, bValidSpeedCurve, DefaultSpeedCurveValue);
+			Context.CSPContext.Curve.Get(LegData.SpeedCurveName, bValidSpeedCurve, DefaultSpeedCurveValue);
 	}
 
 	// Grab the lock curve's alpha. If the curve isn't set, then LockAlpha is full weight.
-	LegData.InputPose.LockAlpha = 1.0f - Context.CSPContext.Curve.Get(LegData.DisableLockCurveUID);
+	LegData.InputPose.LockAlpha = 1.0f - Context.CSPContext.Curve.Get(LegData.DisableLockCurveName);
 
 	LegData.InputPose.DistanceToPlant = CalcTargetPlantPlaneDistance(Context, LegData.InputPose);
 	const float FKAlignmentAlpha = GetAlignmentAlpha(Context, LegData.InputPose);

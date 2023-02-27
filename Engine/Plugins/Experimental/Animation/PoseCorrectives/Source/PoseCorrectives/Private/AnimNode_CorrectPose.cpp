@@ -39,19 +39,12 @@ void FAnimNode_CorrectPose::CacheBones_AnyThread(const FAnimationCacheBonesConte
 	USkeleton* Skeleton = Context.AnimInstanceProxy->GetSkeleton();
 
 	BoneCompactIndices.Reset();
-	CurveUIDs.Reset();
-	
+
 	for (const FName& BoneName : PoseCorrectivesAsset->GetBoneNames())
 	{
 		FBoneReference BoneRef(BoneName);
 		BoneRef.Initialize(BoneContainer);		
 		BoneCompactIndices.Push(BoneRef.GetCompactPoseIndex(BoneContainer));
-	}	
-
-	for (const FName& CurveName : PoseCorrectivesAsset->GetCurveNames())
-	{
-		SmartName::UID_Type CurveUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, CurveName);
-		CurveUIDs.Push(CurveUID);
 	}
 }
 
@@ -124,9 +117,9 @@ void FAnimNode_CorrectPose::Evaluate_AnyThread(FPoseContext& Output)
 		}
 	}
 
-	for (const SmartName::UID_Type& DriverCurveUID : CurveUIDs)
+	for (const FName& DriverCurveName : PoseCorrectivesAsset->GetCurveNames())
 	{
-		RBFInput.AddFromScalar(SourceData.Curve.Get(DriverCurveUID));
+		RBFInput.AddFromScalar(SourceData.Curve.Get(DriverCurveName));
 	}
 
 	// Update Targets
@@ -146,9 +139,9 @@ void FAnimNode_CorrectPose::Evaluate_AnyThread(FPoseContext& Output)
 		}
 	}
 
-	for (const SmartName::UID_Type& CurveUID : CurveUIDs)
+	for (const FName& DriverCurveName : PoseCorrectivesAsset->GetCurveNames())
 	{
-		CorrectiveCurveValues.Push(Output.Curve.Get(CurveUID));
+		CorrectiveCurveValues.Push(Output.Curve.Get(DriverCurveName));
 	}
 
 	const TArray<FPoseCorrective>& Correctives = PoseCorrectivesAsset->GetCorrectives();
@@ -166,9 +159,8 @@ void FAnimNode_CorrectPose::Evaluate_AnyThread(FPoseContext& Output)
 		}
 	}
 
-	for (int32 CurveIndex = 0; CurveIndex < CurveUIDs.Num(); CurveIndex++)
+	for (int32 CurveIndex = 0; CurveIndex < PoseCorrectivesAsset->GetCurveNames().Num(); ++CurveIndex)
 	{
-		const SmartName::UID_Type& CurveUID = CurveUIDs[CurveIndex];
-		Output.Curve.Set(CurveUID, CorrectiveCurveValues[CurveIndex]);
+		Output.Curve.Set(PoseCorrectivesAsset->GetCurveNames()[CurveIndex], CorrectiveCurveValues[CurveIndex]);
 	}
 }

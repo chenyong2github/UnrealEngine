@@ -20,7 +20,9 @@ class FAnimTimelineTrack_Curve : public FAnimTimelineTrack, public FSelfRegister
 
 public:
 	FAnimTimelineTrack_Curve(const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel);
+	UE_DEPRECATED(5.3, "Please use the constructor that takes a FName.")
 	FAnimTimelineTrack_Curve(const FRichCurve* InCurve, const FSmartName& InName, int32 InCurveIndex, ERawCurveTrackTypes InType, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel);
+	FAnimTimelineTrack_Curve(const FRichCurve* InCurve, const FName& InName, int32 InCurveIndex, ERawCurveTrackTypes InType, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel);
 	FAnimTimelineTrack_Curve(const TArray<const FRichCurve*>& InCurves, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel);
 
 	/** FAnimTimelineTrack interface */
@@ -48,7 +50,10 @@ public:
 	virtual FText GetFullCurveName(int32 InCurveIndex) const { return FullCurveName; }
 
 	/** Get the information needed to reference this curve for editing */
-	virtual void GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const;
+	virtual void GetCurveEditInfo(int32 InCurveIndex, FName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const;
+
+	UE_DEPRECATED(5.3, "Please use GetCurveEditInfo that takes a FName.")
+	virtual void GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const {}
 
 	/** Delegate handing curve changing externally */
 	void HandleCurveChanged();
@@ -98,7 +103,7 @@ protected:
 	FText FullCurveName;
 
 	/** The name of the outer curve */
-	FSmartName OuterCurveName;
+	FName OuterCurveName;
 
 	/** The index into the outer curve */
 	int32 OuterCurveIndex;

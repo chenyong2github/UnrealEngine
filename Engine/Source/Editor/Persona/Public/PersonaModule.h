@@ -28,6 +28,7 @@ class IAnimSequenceCurveEditor;
 class IAnimationEditor;
 class IDetailLayoutBuilder;
 class FPreviewSceneDescriptionCustomization;
+struct FAnimAssetFindReplaceConfig;
 
 extern const FName PersonaAppName;
 
@@ -299,6 +300,9 @@ public:
 	/** Create a skeleton curve viewer tab factory */
 	virtual TSharedRef<FWorkflowTabFactory> CreateCurveViewerTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene, FOnObjectsSelected InOnObjectsSelected) const;
 
+	/** Create a skeleton curve metadata editor tab factory */
+	virtual TSharedRef<FWorkflowTabFactory> CreateCurveMetadataEditorTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, UObject* InMetadataHost, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene, FOnObjectsSelected InOnObjectsSelected) const;
+
 	/** Create a retarget sources tab factory */
 	virtual TSharedRef<FWorkflowTabFactory> CreateRetargetSourcesTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, FSimpleMulticastDelegate& InOnPostUndo) const;
 
@@ -342,6 +346,9 @@ public:
 	/** Create a tab factory for editing montage sections */
 	virtual TSharedRef<FWorkflowTabFactory> CreateAnimMontageSectionsTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<IPersonaToolkit>& InPersonaToolkit, FSimpleMulticastDelegate& InOnSectionsChanged) const;
 
+	/** Create a tab factory for finding and replacing in anim data */
+	virtual TSharedRef<FWorkflowTabFactory> CreateAnimAssetFindReplaceTabFactory(const TSharedRef<FWorkflowCentricApplication>& InHostingApp, const FAnimAssetFindReplaceConfig& InConfig) const;
+	
 	/** Create a widget that acts as a document for an animation asset */
 	virtual TSharedRef<SWidget> CreateEditorWidgetForAnimDocument(const TSharedRef<IAnimationEditor>& InHostingApp, UObject* InAnimAsset, const FAnimDocumentArgs& InArgs, FString& OutDocumentLink);
 
@@ -358,8 +365,11 @@ public:
 	/** Import a new asset using the supplied skeleton */
 	virtual void ImportNewAsset(USkeleton* InSkeleton, EFBXImportType DefaultImportType);
 
-	/** Check all animations & skeletal meshes for curve usage */
-	virtual void TestSkeletonCurveNamesForUse(const TSharedRef<IEditableSkeleton>& InEditableSkeleton) const;
+	UE_DEPRECATED(5.3, "Please use TestSkeletonCurveMetaDataForUse")
+	virtual void TestSkeletonCurveNamesForUse(const TSharedRef<IEditableSkeleton>& InEditableSkeleton) const { TestSkeletonCurveMetaDataForUse(InEditableSkeleton); }
+
+	/** Check all animations & skeletal meshes for curve metadata usage */
+	virtual void TestSkeletonCurveMetaDataForUse(const TSharedRef<IEditableSkeleton>& InEditableSkeleton) const;
 
 	/** Apply Compression to list of animations and optionally asks to pick an overrides to the bone compression settings */
 	virtual void ApplyCompression(TArray<TWeakObjectPtr<class UAnimSequence>>& AnimSequences, bool bPickBoneSettingsOverride);
@@ -437,6 +447,12 @@ public:
 	/** Register common tabs */
 	virtual FOnRegisterTabs& OnRegisterTabs() { return OnRegisterTabsDelegate; }
 
+	/** Create a widget that can choose a curve name. Derives available names from the asset registry list of assets that use the specified skeleton. */
+	virtual TSharedRef<SWidget> CreateCurvePicker(const USkeleton* InSkeleton, FOnCurvePicked InOnCurvePicked, FIsCurveNameMarkedForExclusion InIsCurveNameMarkedForExclusion = FIsCurveNameMarkedForExclusion());
+
+	UE_DEPRECATED(5.3, "Please use CreateCurvePicker that takes a const USkeleton*")
+	virtual TSharedRef<SWidget> CreateCurvePicker(TSharedRef<IEditableSkeleton> InEditableSkeleton, FOnCurvePicked InOnCurvePicked, FIsCurveNameMarkedForExclusion InIsCurveNameMarkedForExclusion = FIsCurveNameMarkedForExclusion());
+	
 private:
 	/** When a new anim notify blueprint is created, this will handle post creation work such as adding non-event default nodes */
 	void HandleNewAnimNotifyBlueprintCreated(UBlueprint* InBlueprint);

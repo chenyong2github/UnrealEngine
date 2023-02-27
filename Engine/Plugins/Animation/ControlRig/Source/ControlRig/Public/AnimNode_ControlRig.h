@@ -5,6 +5,7 @@
 #include "ControlRig.h"
 #include "Animation/InputScaleBias.h"
 #include "AnimNode_ControlRigBase.h"
+#include "Animation/AnimBulkCurves.h"
 #include "AnimNode_ControlRig.generated.h"
 
 class UNodeMappingContainer;
@@ -98,6 +99,26 @@ private:
 	 */
 	UPROPERTY(EditAnywhere, Category = Performance, meta = (DisplayName = "LOD Threshold"))
 	int32 LODThreshold;
+
+private:
+	struct FControlRigCurveMapping
+	{
+		FControlRigCurveMapping() = default;
+		
+		FControlRigCurveMapping(FName InSourceName, FName InTargetName)
+			: Name(InTargetName)
+			, SourceName(InSourceName)
+		{}
+
+		FName Name = NAME_None;
+		FName SourceName = NAME_None;
+	};
+
+	using FCurveMappings = UE::Anim::TNamedValueArray<FDefaultAllocator, FControlRigCurveMapping>;
+
+	// Bulk curves for I/O
+	FCurveMappings InputCurveMappings;
+	FCurveMappings OutputCurveMappings;
 
 protected:
 	virtual UClass* GetTargetClass() const override { return *ControlRigClass; }

@@ -610,7 +610,14 @@ void FBoneReferenceCustomization::SetEditableSkeleton(TSharedRef<IPropertyHandle
 			// this is editor object that only exists for editor
 			if (UEditorAnimCurveBoneLinks* AnimCurveObj = Cast<UEditorAnimCurveBoneLinks>(InObject))
 			{
-				EditableSkeleton = AnimCurveObj->EditableSkeleton.Pin();
+				if(USkeleton* Skeleton = Cast<USkeleton>(AnimCurveObj->AnimCurveMetaData->GetOuter()))
+				{
+					TargetSkeleton = Skeleton;
+				}
+				else if(USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(AnimCurveObj->AnimCurveMetaData->GetOuter()))
+				{
+					TargetSkeleton = SkeletalMesh->GetSkeleton();
+				}
 				break;
 			}
 

@@ -28,10 +28,10 @@
 ANIMTIMELINE_IMPLEMENT_TRACK(FAnimTimelineTrack_FloatCurve);
 
 FAnimTimelineTrack_FloatCurve::FAnimTimelineTrack_FloatCurve(const FFloatCurve* InCurve, const TSharedRef<FAnimModel>& InModel)
-	: FAnimTimelineTrack_Curve(&InCurve->FloatCurve, InCurve->Name, 0, ERawCurveTrackTypes::RCT_Float, FText::FromName(InCurve->Name.DisplayName), FText::FromName(InCurve->Name.DisplayName), InCurve->GetColor(), InCurve->GetColor(), InModel)
+	: FAnimTimelineTrack_Curve(&InCurve->FloatCurve, InCurve->GetName(), 0, ERawCurveTrackTypes::RCT_Float, FText::FromName(InCurve->GetName()), FText::FromName(InCurve->GetName()), InCurve->GetColor(), InCurve->GetColor(), InModel)
 	, FloatCurve(InCurve)
-	, CurveName(InCurve->Name)
-	, CurveId(FAnimationCurveIdentifier(InCurve->Name, ERawCurveTrackTypes::RCT_Float))
+	, CurveName(InCurve->GetName())
+	, CurveId(FAnimationCurveIdentifier(InCurve->GetName(), ERawCurveTrackTypes::RCT_Float))
 {
 	SetHeight(32.0f);
 }
@@ -175,94 +175,64 @@ void FAnimTimelineTrack_FloatCurve::RemoveCurve()
 {
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 
-	if(AnimSequenceBase->GetDataModel()->FindFloatCurve(FAnimationCurveIdentifier(FloatCurve->Name, ERawCurveTrackTypes::RCT_Float)))
+	if(AnimSequenceBase->GetDataModel()->FindFloatCurve(FAnimationCurveIdentifier(FloatCurve->GetName(), ERawCurveTrackTypes::RCT_Float)))
 	{
-		FSmartName TrackName;
-		if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimCurveMappingName, FloatCurve->Name.UID, TrackName))
-		{
-			// Stop editing this curve in the external editor window
-			IAnimationEditor::FCurveEditInfo EditInfo(CurveName, ERawCurveTrackTypes::RCT_Float, 0);
-			
-			AnimSequenceBase->Modify(true);
+		// Stop editing this curve in the external editor window
+		IAnimationEditor::FCurveEditInfo EditInfo(CurveName, ERawCurveTrackTypes::RCT_Float, 0);
 
-			IAnimationDataController& Controller = AnimSequenceBase->GetController();
-			Controller.RemoveCurve(CurveId);
+		AnimSequenceBase->Modify(true);
 
-			AnimSequenceBase->PostEditChange();
-		}
+		IAnimationDataController& Controller = AnimSequenceBase->GetController();
+		Controller.RemoveCurve(CurveId);
+
+		AnimSequenceBase->PostEditChange();
 	}
 }
 
 void FAnimTimelineTrack_FloatCurve::OnCommitCurveName(const FText& InText, ETextCommit::Type CommitInfo)
 {
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
-
-	if (USkeleton* Skeleton = AnimSequenceBase->GetSkeleton())
+	
+	// only do this if the name isn't same
+	FText CurrentCurveName = GetLabel();
+	if (!CurrentCurveName.EqualToCaseIgnored(InText))
 	{
-		// only do this if the name isn't same
-		FText CurrentCurveName = GetLabel();
-		if (!CurrentCurveName.EqualToCaseIgnored(InText))
+		// Check that the name doesn't already exist
+		const FName RequestedName = FName(*InText.ToString());
+		
+		const TArray<FFloatCurve>& FloatCurves = AnimSequenceBase->GetDataModel()->GetFloatCurves();
+		if (!FloatCurves.ContainsByPredicate([RequestedName](const FFloatCurve& Curve)
 		{
-			// Check that the name doesn't already exist
-			const FName RequestedName = FName(*InText.ToString());
+			return Curve.GetName() == RequestedName;
+		}))
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("InvalidName"), FText::FromName(RequestedName));
+			FNotificationInfo Info(FText::Format(LOCTEXT("AnimCurveRenamedInUse", "The name \"{InvalidName}\" is already used."), Args));
 
-			const FSmartNameMapping* NameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+			Info.bUseLargeFont = false;
+			Info.ExpireDuration = 5.0f;
 
-			FSmartName NewSmartName;
-			if (NameMapping->FindSmartName(RequestedName, NewSmartName))
+			TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+			if (Notification.IsValid())
 			{
-				// Already in use in this sequence, and if it's not my UID
-				const TArray<FFloatCurve>& FloatCurves = AnimSequenceBase->GetDataModel()->GetFloatCurves();
-				if (NewSmartName.UID != FloatCurve->Name.UID && !FloatCurves.ContainsByPredicate([NewSmartName](FFloatCurve& Curve)
-				{
-					return Curve.Name == NewSmartName;
-				}))
-				{
-					FFormatNamedArguments Args;
-					Args.Add(TEXT("InvalidName"), FText::FromName(RequestedName));
-					FNotificationInfo Info(FText::Format(LOCTEXT("AnimCurveRenamedInUse", "The name \"{InvalidName}\" is already used."), Args));
-
-					Info.bUseLargeFont = false;
-					Info.ExpireDuration = 5.0f;
-
-					TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
-					if (Notification.IsValid())
-					{
-						Notification->SetCompletionState(SNotificationItem::CS_Fail);
-					}
-					return;
-				}
+				Notification->SetCompletionState(SNotificationItem::CS_Fail);
 			}
-			else
-			{
-				if(!Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, RequestedName, NewSmartName))
-				{
-					FNotificationInfo Info(LOCTEXT("AnimCurveRenamedError", "Failed to rename curve smart name, check the log for errors."));
-
-					Info.bUseLargeFont = false;
-					Info.ExpireDuration = 5.0f;
-
-					TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
-					if (Notification.IsValid())
-					{
-						Notification->SetCompletionState(SNotificationItem::CS_Fail);
-					}
-					return;
-				}
-			}
-
-			IAnimationDataController& Controller = AnimSequenceBase->GetController();
-			IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CurveEditor_RenameCurve", "Renaming Curve"));
-          
-			FAnimationCurveIdentifier NewCurveId(NewSmartName, ERawCurveTrackTypes::RCT_Float);
-			Controller.RenameCurve(CurveId, NewCurveId);
+			return;
 		}
+	
+
+		IAnimationDataController& Controller = AnimSequenceBase->GetController();
+		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CurveEditor_RenameCurve", "Renaming Curve"));
+      
+		FAnimationCurveIdentifier NewCurveId(RequestedName, ERawCurveTrackTypes::RCT_Float);
+		Controller.RenameCurve(CurveId, NewCurveId);
 	}
 }
 
 FText FAnimTimelineTrack_FloatCurve::GetLabel() const
 {
-	return FAnimTimelineTrack_FloatCurve::GetFloatCurveName(GetModel(), CurveName);
+	return FText::FromName(FloatCurve->GetName());
 }
 
 void FAnimTimelineTrack_FloatCurve::Copy(UAnimTimelineClipboardContent* InOutClipboard) const
@@ -272,13 +242,12 @@ void FAnimTimelineTrack_FloatCurve::Copy(UAnimTimelineClipboardContent* InOutCli
 	UFloatCurveCopyObject * CopyableCurve = UAnimCurveBaseCopyObject::Create<UFloatCurveCopyObject>();
 
 	// Copy raw curve data
-	CopyableCurve->Curve.Name = FloatCurve->Name;
+	CopyableCurve->Curve.SetName(FloatCurve->GetName());
 	CopyableCurve->Curve.SetCurveTypeFlags(FloatCurve->GetCurveTypeFlags());
 	CopyableCurve->Curve.CopyCurve(*FloatCurve);
 
 	// Copy curve identifier data
-	CopyableCurve->DisplayName = CurveName.DisplayName;
-	CopyableCurve->UID = CurveName.UID;
+	CopyableCurve->CurveName = CurveName;
 	CopyableCurve->CurveType = ERawCurveTrackTypes::RCT_Float;
 	CopyableCurve->Channel = CurveId.Channel;
 	CopyableCurve->Axis = CurveId.Axis;
@@ -287,21 +256,6 @@ void FAnimTimelineTrack_FloatCurve::Copy(UAnimTimelineClipboardContent* InOutCli
 	CopyableCurve->OriginName = GetModel()->GetAnimSequenceBase()->GetFName();
 	
 	InOutClipboard->Curves.Add(CopyableCurve);
-}
-
-FText FAnimTimelineTrack_FloatCurve::GetFloatCurveName(const TSharedRef<FAnimModel>& InModel, const FSmartName& InSmartName)
-{
-	const FSmartNameMapping* NameMapping = InModel->GetAnimSequenceBase()->GetSkeleton()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-	if(NameMapping)
-	{
-		FName CurveName;
-		if(NameMapping->GetName(InSmartName.UID, CurveName))
-		{
-			return FText::FromName(CurveName);
-		}
-	}
-
-	return FText::FromName(InSmartName.DisplayName);
 }
 
 bool FAnimTimelineTrack_FloatCurve::CanEditCurve(int32 InCurveIndex) const
@@ -391,7 +345,7 @@ FLinearColor FAnimTimelineTrack_FloatCurve::GetCurveColor(int32 InCurveIndex) co
 	return FloatCurve->Color; 
 }
 
-void FAnimTimelineTrack_FloatCurve::GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const
+void FAnimTimelineTrack_FloatCurve::GetCurveEditInfo(int32 InCurveIndex, FName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const
 {
 	OutName = CurveName;
 	OutType = ERawCurveTrackTypes::RCT_Float;

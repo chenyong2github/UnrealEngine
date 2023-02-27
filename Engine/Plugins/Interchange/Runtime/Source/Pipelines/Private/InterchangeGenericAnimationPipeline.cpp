@@ -450,6 +450,7 @@ void UInterchangeGenericAnimationPipeline::ExecutePipeline(UInterchangeBaseNodeC
 		}
 
 		AnimSequenceFactoryNode->SetCustomImportAttributeCurves(bImportCustomAttribute);
+		AnimSequenceFactoryNode->SetCustomAddCurveMetadataToSkeleton(bAddCurveMetadataToSkeleton);
 		AnimSequenceFactoryNode->SetCustomDoNotImportCurveWithZero(bDoNotImportCurveWithZero);
 		AnimSequenceFactoryNode->SetCustomRemoveCurveRedundantKeys(bRemoveCurveRedundantKeys);
 		AnimSequenceFactoryNode->SetCustomDeleteExistingMorphTargetCurves(bDeleteExistingMorphTargetCurves);

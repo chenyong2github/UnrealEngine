@@ -15,6 +15,7 @@
 #include "PersonaModule.h"
 #include "Types/SlateEnums.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
+#include "AnimAssetFindReplace.h"
 
 FAnimationEditorMode::FAnimationEditorMode(TSharedRef<FWorkflowCentricApplication> InHostingApp, TSharedRef<ISkeletonTree> InSkeletonTree)
 	: FApplicationMode(AnimationEditorModes::AnimationEditorMode)
@@ -44,8 +45,9 @@ FAnimationEditorMode::FAnimationEditorMode(TSharedRef<FWorkflowCentricApplicatio
 	TabFactories.RegisterFactory(PersonaModule.CreateSkeletonSlotNamesTabFactory(InHostingApp, InSkeletonTree->GetEditableSkeleton(), FOnObjectSelected::CreateSP(&AnimationEditor.Get(), &FAnimationEditor::HandleObjectSelected)));
 	TabFactories.RegisterFactory(PersonaModule.CreateAnimNotifiesTabFactory(InHostingApp, InSkeletonTree->GetEditableSkeleton(), OnObjectsSelected));
 	TabFactories.RegisterFactory(PersonaModule.CreateAnimMontageSectionsTabFactory(InHostingApp, AnimationEditor->GetPersonaToolkit(), AnimationEditor->OnSectionsChanged));
+	TabFactories.RegisterFactory(PersonaModule.CreateAnimAssetFindReplaceTabFactory(InHostingApp, FAnimAssetFindReplaceConfig()));
 
-	TabLayout = FTabManager::NewLayout("Standalone_AnimationEditor_Layout_v1.4")
+	TabLayout = FTabManager::NewLayout("Standalone_AnimationEditor_Layout_v1.5")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -87,6 +89,7 @@ FAnimationEditorMode::FAnimationEditorMode(TSharedRef<FWorkflowCentricApplicatio
 						->SetHideTabWell(true)
 						->AddTab(AnimationEditorTabs::DocumentTab, ETabState::ClosedTab)
 						->AddTab(AnimationEditorTabs::CurveEditorTab, ETabState::ClosedTab)
+						->AddTab(AnimationEditorTabs::FindReplaceTab, ETabState::ClosedTab)
 						->SetForegroundTab(AnimationEditorTabs::DocumentTab)
 					)
 				)

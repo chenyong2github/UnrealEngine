@@ -44,9 +44,16 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_ModifyCurve : public FAnimNode_Base
 	UPROPERTY(meta = (BlueprintCompilerGeneratedDefaults))
 	TArray<FName> CurveNames;
 
+	UE_DEPRECATED(5.3, "LastCurveValues is no longer used.")
 	TArray<float> LastCurveValues;
+
+	UE_DEPRECATED(5.3, "LastCurveMapValues is no longer used.")
 	TMap<FName, float> LastCurveMapValues;
+
+	UE_DEPRECATED(5.3, "bInitializeLastValuesMap is no longer used.")
 	bool bInitializeLastValuesMap;
+
+	FBlendedHeapCurve LastCurve;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ModifyCurve, meta = (PinShownByDefault))
 	float Alpha;
@@ -55,6 +62,10 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_ModifyCurve : public FAnimNode_Base
 	EModifyCurveApplyMode ApplyMode;
 
 	FAnimNode_ModifyCurve();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FAnimNode_ModifyCurve(const FAnimNode_ModifyCurve&) = default;
+	FAnimNode_ModifyCurve& operator=(const FAnimNode_ModifyCurve&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
@@ -72,6 +83,6 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_ModifyCurve : public FAnimNode_Base
 #endif // WITH_EDITOR
 
 private:
-	void ProcessCurveOperation(const EModifyCurveApplyMode& InApplyMode, FPoseContext& Output, const SmartName::UID_Type& NameUID, float CurrentValue, float NewValue);
-	void ProcessCurveWMAOperation(FPoseContext& Output, const SmartName::UID_Type& NameUID, float CurrentValue, float NewValue, float& InOutLastValue);
+	float ProcessCurveOperation(float CurrentValue, float NewValue) const;
+	float ProcessCurveWMAOperation(float CurrentValue, float LastValue) const;
 };

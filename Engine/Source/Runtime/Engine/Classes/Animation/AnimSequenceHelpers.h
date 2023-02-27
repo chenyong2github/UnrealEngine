@@ -19,6 +19,7 @@ struct FBoneAnimationTrack;
 struct FRawAnimSequenceTrack;
 struct FAnimationPoseData;
 class IAnimationDataController;
+struct FVirtualBoneCompactPoseData;
 
 enum class EAnimInterpolationType : uint8;
 

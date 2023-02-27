@@ -2,6 +2,7 @@
 
 #include "AnimNodes/AnimNode_PoseBlendNode.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimCurveUtils.h"
 #include "Animation/AnimInstanceProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_PoseBlendNode)
@@ -19,6 +20,13 @@ void FAnimNode_PoseBlendNode::Initialize_AnyThread(const FAnimationInitializeCon
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_PoseHandler::Initialize_AnyThread(Context);
+
+	BulkCurves.Empty();
+	for (int32 PoseIdx = 0; PoseIdx < PoseExtractContext.PoseCurves.Num(); ++PoseIdx)
+	{
+		FPoseCurve& PoseCurve = PoseExtractContext.PoseCurves[PoseIdx];
+		BulkCurves.Add(PoseCurve.Name, BulkCurves.Num());
+	}
 
 	SourcePose.Initialize(Context);
 }
@@ -50,18 +58,14 @@ void FAnimNode_PoseBlendNode::Evaluate_AnyThread(FPoseContext& Output)
 	if (CachedPoseAsset && PoseExtractContext.PoseCurves.Num() > 0 && CachedPoseAsset->GetSkeleton() != nullptr)
 	{
 		FPoseContext CurrentPose(Output);
-		// only give pose curve, we don't set any more curve here
-		for (int32 PoseIdx = 0; PoseIdx < PoseExtractContext.PoseCurves.Num(); ++PoseIdx)
+
+		// Remap incoming curve
+		UE::Anim::FCurveUtils::BulkGet(SourceData.Curve, BulkCurves, [this](const UE::Anim::FNamedIndexElement& InBulkElement, float InValue)
 		{
-			FPoseCurve& PoseCurve = PoseExtractContext.PoseCurves[PoseIdx];
-			// Get value of input curve
-			float InputValue = SourceData.Curve.Get(PoseCurve.UID);
 			// Remap using chosen BlendOption
-			float RemappedValue = FAlphaBlend::AlphaToBlendOption(InputValue, BlendOption, CustomCurve);
-
-			PoseCurve.Value = RemappedValue;
-		}
-
+			const float RemappedValue = FAlphaBlend::AlphaToBlendOption(InValue, BlendOption, CustomCurve);
+			PoseExtractContext.PoseCurves[InBulkElement.Index].Value = RemappedValue;
+		});
 
 		FAnimationPoseData CurrentAnimationPoseData(CurrentPose);
 		if (CachedPoseAsset->GetAnimationPose(CurrentAnimationPoseData, PoseExtractContext))

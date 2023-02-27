@@ -867,29 +867,24 @@ TArray<FRigElementKey> URigHierarchyController::ImportCurves(USkeleton* InSkelet
 		return Keys;
 	}
 
-	const FSmartNameMapping* SmartNameMapping = InSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-
-	TArray<FName> NameArray;
-	SmartNameMapping->FillNameArray(NameArray);
-
-	for (int32 Index = 0; Index < NameArray.Num(); ++Index)
+	InSkeleton->ForEachCurveMetaData([this, InNameSpace, &Keys, bSetupUndo](const FName& InCurveName, const FCurveMetaData& InMetaData)
 	{
-		FName Name = NameArray[Index];
+		FName Name = InCurveName;
 		if (!InNameSpace.IsNone())
 		{
-			Name = *FString::Printf(TEXT("%s::%s"), *InNameSpace.ToString(), *Name.ToString());
+			Name = *FString::Printf(TEXT("%s::%s"), *InNameSpace.ToString(), *InCurveName.ToString());
 		}
 
 		const FRigElementKey ExpectedKey(Name, ERigElementType::Curve);
 		if(Hierarchy->Contains(ExpectedKey))
 		{
 			Keys.Add(ExpectedKey);
-			continue;
+			return;
 		}
 		
 		const FRigElementKey CurveKey = AddCurve(Name, 0.f, bSetupUndo);
 		Keys.Add(FRigElementKey(Name, ERigElementType::Curve));
-	}
+	});
 
 	if(bSelectCurves)
 	{

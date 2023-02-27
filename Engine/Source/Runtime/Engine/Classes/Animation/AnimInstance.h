@@ -51,6 +51,7 @@ struct FAnimNode_LinkedAnimLayer;
 struct FNodeDebugData;
 enum class ETransitionRequestQueueMode : uint8;
 enum class ETransitionRequestOverwriteMode : uint8;
+class UAnimMontage;
 
 typedef TArray<FTransform> FTransformArrayA2;
 
@@ -58,6 +59,7 @@ namespace UE::Anim
 {
 	struct FHeapAttributeContainer;
 	using FSlotInertializationRequest = TPair<float, const UBlendProfile*>;
+	struct FCurveFilterSettings;
 }	// namespace UE::Anim
 
 struct FParallelEvaluationData
@@ -1103,7 +1105,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation|Curves", meta=(BlueprintThreadSafe))
 	void GetActiveCurveNames(EAnimCurveType CurveType, TArray<FName>& OutNames) const;
 
-	/* This returns all curve names */
+	/* This returns all curve names. This is the same as calling GetActiveCurveNames with CurveType == AttributeCurve */
 	UFUNCTION(BlueprintPure, Category = "Animation|Curves", meta=(BlueprintThreadSafe))
 	void GetAllCurveNames(TArray<FName>& OutNames) const;
 
@@ -1403,6 +1405,9 @@ public:
 	/**
 	* Recalculate Required Curves based on Required Bones [RequiredBones]
 	*/
+	void RecalcRequiredCurves(const UE::Anim::FCurveFilterSettings& CurveFilterSettings);
+	
+	UE_DEPRECATED(5.3, "Please use RecalcRequiredCurves that takes a FCurveFilterSettings.")
 	void RecalcRequiredCurves(const FCurveEvaluationOption& CurveEvalOption);
 
 	// @todo document
@@ -1422,19 +1427,19 @@ public:
 	/** Triggers end on active notify states and clears the array */
 	void EndNotifyStates();
 
-	/** Add curve float data using a curve Uid, the name of the curve will be resolved from the skeleton **/
-	void AddCurveValue(const SmartName::UID_Type Uid, float Value);
+	UE_DEPRECATED(5.3, "Please use AddCurveValue that takes a CurveName")
+	void AddCurveValue(const SmartName::UID_Type Uid, float Value) {}
 
-	/** Add curve float data using a curve Uid, the name of the curve will be resolved from the skeleton. This uses an already-resolved proxy and mapping table for efficency **/
-	void AddCurveValue(const FSmartNameMapping& Mapping, const FName& CurveName, float Value);
+	UE_DEPRECATED(5.3, "Please use AddCurveValue that takes a CurveName")
+	void AddCurveValue(const FSmartNameMapping& Mapping, const FName& CurveName, float Value) {}
 
 	/** Given a machine index, record a state machine weight for this frame */
 	void RecordMachineWeight(const int32 InMachineClassIndex, const float InMachineWeight);
+	
 	/** 
-	 * Add curve float data, using a curve name. External values should all be added using
-	 * The curve UID to the public version of this method
+	 * Add curve float data, using a curve name.
 	 */
-	void AddCurveValue(const FName& CurveName, float Value);
+	void AddCurveValue(const FName& CurveName, float Value, bool bMorphtarget = false, bool bMaterial = false);
 
 	/** Given a machine and state index, record a state weight for this frame */
 	void RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight, const float InElapsedTime);

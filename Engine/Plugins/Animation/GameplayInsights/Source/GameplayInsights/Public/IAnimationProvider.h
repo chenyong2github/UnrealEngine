@@ -38,14 +38,19 @@ struct FSkeletalMeshPoseMessage
 
 struct FPoseWatchMessage
 {
+	FTransform WorldTransform;
+	FColor Color = FColor::Black;
 	double RecordingTime = 0.0;
+	uint64 ComponentId = 0;
 	uint64 AnimInstanceId = 0;
 	uint64 PoseWatchId = 0;
 	uint64 BoneTransformsStartIndex = 0;
-	uint16 NumBoneTransforms = 0;
-	FTransform WorldTransform;
+	uint64 CurveStartIndex = 0;
 	uint64 RequiredBonesStartIndex = 0;
+	uint32 NameId = 0;
+	uint16 NumBoneTransforms = 0;
 	uint16 NumRequiredBones = 0;
+	uint16 NumCurves = 0;
 	bool bIsEnabled = false;
 };
 
@@ -291,6 +296,7 @@ public:
 	virtual void EnumerateSkeletalMeshCurveIds(uint64 InObjectId, TFunctionRef<void(uint32)> Callback) const = 0;
 	virtual void GetPoseWatchData(const FPoseWatchMessage& InMessage, TArray<FTransform>& BoneTransforms, TArray<uint16>& RequiredBones) const = 0;
 	virtual void EnumerateSkeletalMeshCurves(const FSkeletalMeshPoseMessage& InMessage, TFunctionRef<void(const FSkeletalMeshNamedCurve&)> Callback) const = 0;
+	virtual void EnumeratePoseWatchCurves(const FPoseWatchMessage& InMessage, TFunctionRef<void(const FSkeletalMeshNamedCurve&)> Callback) const = 0;
 	virtual bool ReadTickRecordTimeline(uint64 InObjectId, TFunctionRef<void(const TickRecordTimeline&)> Callback) const = 0;
 	virtual void EnumerateTickRecordIds(uint64 InObjectId, TFunctionRef<void(uint64, int32)> Callback) const = 0;
 	virtual void EnumerateAnimGraphTimelines(TFunctionRef<void(uint64 ObjectId, const AnimGraphTimeline&)> Callback) const =0;

@@ -597,10 +597,10 @@ void FCustomizableObjectInstanceEditor::SetPoseAsset(class UPoseAsset* PoseAsset
 			UAnimSingleNodeInstance* SingleNodeInstance = Cast<UAnimSingleNodeInstance>(PreviewSkeletalMeshComponent->GetAnimInstance());
 			if (SingleNodeInstance)
 			{
-				TArray<FSmartName> ArrayPoseSmartNames = PoseAsset->GetPoseNames();
+				const TArray<FName>& ArrayPoseSmartNames = PoseAsset->GetPoseFNames();
 				for (int32 i = 0; i < ArrayPoseSmartNames.Num(); ++i)
 				{
-					SingleNodeInstance->SetPreviewCurveOverride(ArrayPoseSmartNames[i].DisplayName, 1.0f, false);
+					SingleNodeInstance->SetPreviewCurveOverride(ArrayPoseSmartNames[i], 1.0f, false);
 				}
 			}
 		}

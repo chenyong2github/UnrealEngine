@@ -623,8 +623,7 @@ void UAnimGraphNode_ControlRig::GetAvailableMapping(const FName& PathName, TArra
 	OutArray.Reset();
 	if (TargetSkeleton)
 	{
-		const FSmartNameMapping* CurveMapping = TargetSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-		CurveMapping->FillNameArray(OutArray);
+		TargetSkeleton->GetCurveMetaDataNames(OutArray);
 		
 		// also add all controls
 		if(const UClass* ControlRigClass = GetTargetClass())

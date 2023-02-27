@@ -4,6 +4,7 @@
 #include "Animation/AnimCompressionTypes.h"
 #include "HAL/IConsoleManager.h"
 #include "AnimationCompression.h"
+#include "Animation/AnimCurveUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCurveCompressionCodec_CompressedRichCurve)
 
@@ -88,7 +89,7 @@ bool UAnimCurveCompressionCodec_CompressedRichCurve::Compress(const FCompressibl
 				if (!FMath::IsNearlyZero(AbsDelta, MaxCurveError + UE_KINDA_SMALL_NUMBER))
 				{
 					// Delta larger than tolerated error value
-					UE_LOG(LogAnimationCompression, Warning, TEXT("Curve %s: delta too large %f, between %f and %f, at %f"), *Curve.Name.DisplayName.ToString(), AbsDelta, RawValue, CompressedValue, EvalTime);
+					UE_LOG(LogAnimationCompression, Warning, TEXT("Curve %s: delta too large %f, between %f and %f, at %f"), *Curve.GetName().ToString(), AbsDelta, RawValue, CompressedValue, EvalTime);
 				}
 			}
 		}
@@ -126,35 +127,44 @@ void UAnimCurveCompressionCodec_CompressedRichCurve::PopulateDDCKey(FArchive& Ar
 
 void UAnimCurveCompressionCodec_CompressedRichCurve::DecompressCurves(const FCompressedAnimSequence& AnimSeq, FBlendedCurve& Curves, float CurrentTime) const
 {
+	const TArray<FAnimCompressedCurveIndexedName>& IndexedCurveNames = AnimSeq.IndexedCurveNames;
+	const int32 NumCurves = IndexedCurveNames.Num();
+
+	if (NumCurves == 0)
+	{
+		return;
+	}
+
 	const uint8* Buffer = AnimSeq.CompressedCurveByteStream.GetData();
 	const FCurveDesc* CurveDescriptions = (const FCurveDesc*)(Buffer);
 
-	const TArray<FSmartName>& CompressedCurveNames = AnimSeq.CompressedCurveNames;
-	const int32 NumCurves = CompressedCurveNames.Num();
-	for (int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
+	auto GetNameFromIndex = [&IndexedCurveNames](int32 InCurveIndex)
 	{
-		const FSmartName& CurveName = CompressedCurveNames[CurveIndex];
-		if (Curves.IsEnabled(CurveName.UID))
-		{
-			const FCurveDesc& Curve = CurveDescriptions[CurveIndex];
-			const uint8* CompressedKeys = Buffer + Curve.KeyDataOffset;
-			const float Value = FCompressedRichCurve::StaticEval(Curve.CompressionFormat, Curve.KeyTimeCompressionFormat, Curve.PreInfinityExtrap, Curve.PostInfinityExtrap, Curve.ConstantValueNumKeys, CompressedKeys, CurrentTime);
-			Curves.Set(CurveName.UID, Value);
-		}
-	}
+		return IndexedCurveNames[IndexedCurveNames[InCurveIndex].CurveIndex].CurveName;
+	};
+
+	auto GetValueFromIndex = [&CurveDescriptions, &IndexedCurveNames, Buffer, CurrentTime](int32 InCurveIndex)
+	{
+		const FCurveDesc& Curve = CurveDescriptions[IndexedCurveNames[InCurveIndex].CurveIndex];
+		const uint8* CompressedKeys = Buffer + Curve.KeyDataOffset;
+		const float Value = FCompressedRichCurve::StaticEval(Curve.CompressionFormat, Curve.KeyTimeCompressionFormat, Curve.PreInfinityExtrap, Curve.PostInfinityExtrap, Curve.ConstantValueNumKeys, CompressedKeys, CurrentTime);
+		return Value;
+	};
+	
+	UE::Anim::FCurveUtils::BuildSorted(Curves, NumCurves, GetNameFromIndex, GetValueFromIndex, Curves.GetFilter());
 }
 
-float UAnimCurveCompressionCodec_CompressedRichCurve::DecompressCurve(const FCompressedAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, float CurrentTime) const
+float UAnimCurveCompressionCodec_CompressedRichCurve::DecompressCurve(const FCompressedAnimSequence& AnimSeq, FName InCurveName, float CurrentTime) const
 {
 	const uint8* Buffer = AnimSeq.CompressedCurveByteStream.GetData();
 	const FCurveDesc* CurveDescriptions = (const FCurveDesc*)(Buffer);
-
-	const TArray<FSmartName>& CompressedCurveNames = AnimSeq.CompressedCurveNames;
-	const int32 NumCurves = CompressedCurveNames.Num();
+	
+	const TArray<FAnimCompressedCurveIndexedName>& IndexedCurveNames = AnimSeq.IndexedCurveNames;
+	const int32 NumCurves = IndexedCurveNames.Num();
 	for (int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 	{
-		const FSmartName& CurveName = CompressedCurveNames[CurveIndex];
-		if (CurveName.UID == CurveUID)
+		const FName& CurveName = IndexedCurveNames[CurveIndex].CurveName;
+		if (CurveName == InCurveName)
 		{
 			const FCurveDesc& Curve = CurveDescriptions[CurveIndex];
 			const uint8* CompressedKeys = Buffer + Curve.KeyDataOffset;

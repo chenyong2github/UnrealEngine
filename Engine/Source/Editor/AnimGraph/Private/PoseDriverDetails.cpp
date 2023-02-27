@@ -1250,17 +1250,13 @@ void FPoseDriverDetails::UpdateDrivenNameOptions()
 			USkeleton* Skeleton = PoseDriver->GetAnimBlueprint()->TargetSkeleton;
 			if (Skeleton)
 			{
-				const FSmartNameMapping* Mapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-				if (Mapping)
-				{
-					TArray<FName> NameArray;
-					Mapping->FillNameArray(NameArray);
-					NameArray.Sort(FNameLexicalLess());
+				TArray<FName> NameArray;
+				Skeleton->GetCurveMetaDataNames(NameArray);
+				NameArray.Sort(FNameLexicalLess());
 
-					for (FName CurveName : NameArray)
-					{
-						DrivenNameOptions.Add(MakeShareable(new FString(CurveName.ToString())));
-					}
+				for (const FName& CurveName : NameArray)
+				{
+					DrivenNameOptions.Add(MakeShareable(new FString(CurveName.ToString())));
 				}
 			}
 		}
@@ -1269,10 +1265,9 @@ void FPoseDriverDetails::UpdateDrivenNameOptions()
 		{
 			if (PoseDriver->Node.PoseAsset)
 			{
-				const TArray<FSmartName> PoseNames = PoseDriver->Node.PoseAsset->GetPoseNames();
-				for (const FSmartName& SmartName : PoseNames)
+				for (const FName& Name : PoseDriver->Node.PoseAsset->GetPoseFNames())
 				{
-					DrivenNameOptions.Add(MakeShareable(new FString(SmartName.DisplayName.ToString())));
+					DrivenNameOptions.Add(MakeShareable(new FString(Name.ToString())));
 				}
 			}
 		}

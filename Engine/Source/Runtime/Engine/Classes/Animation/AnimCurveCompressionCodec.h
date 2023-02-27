@@ -75,5 +75,8 @@ class ENGINE_API UAnimCurveCompressionCodec : public UObject
 	 * Note: Codecs should _NOT_ rely on any member properties during decompression. Decompression
 	 * behavior should entirely be driven by code and the compressed data.
 	 */
-	virtual float DecompressCurve(const FCompressedAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, float CurrentTime) const PURE_VIRTUAL(UAnimCurveCompressionCodec::DecompressCurve, return 0.0f;);
+	virtual float DecompressCurve(const FCompressedAnimSequence& AnimSeq, FName CurveName, float CurrentTime) const PURE_VIRTUAL(UAnimCurveCompressionCodec::DecompressCurve, return 0.0f;);
+	
+	UE_DEPRECATED(5.3, "Please use DecompressCurve that takes an FName.")
+    virtual float DecompressCurve(const FCompressedAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, float CurrentTime) const { return 0.0f; }
 };

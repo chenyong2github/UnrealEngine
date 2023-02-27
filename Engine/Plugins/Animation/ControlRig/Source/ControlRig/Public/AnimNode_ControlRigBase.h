@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Animation/AnimBulkCurves.h"
 #include "Animation/AnimNode_CustomProperty.h"
 #include "AnimNode_ControlRigBase.generated.h"
 
@@ -122,19 +123,21 @@ protected:
 	TArray<TPair<uint16, uint16>> ControlRigBoneInputMappingByIndex;
 	TArray<TPair<uint16, uint16>> ControlRigBoneOutputMappingByIndex;
 
-	/** Complete mapping from skeleton to curve index */
-	TArray<TPair<uint16, uint16>> ControlRigCurveMappingByIndex;
+	/** Complete mapping from skeleton to curve name */
+	TArray<TPair<uint16, FName>> ControlRigCurveMappingByIndex;
 
 	/** Rig Hierarchy bone name to required array index mapping */
 	TMap<FName, uint16> ControlRigBoneInputMappingByName;
 	TMap<FName, uint16> ControlRigBoneOutputMappingByName;
 
-	/** Rig Curve name to Curve LUI mapping */
-	TMap<FName, uint16> ControlRigCurveMappingByName;
-
-	TMap<FName, uint16> InputToCurveMappingUIDs;
+	/** Rig Curve name to Curve mapping */
+	TMap<FName, FName> ControlRigCurveMappingByName;
+	
 	TMap<FName, int32> InputToControlIndex;
 
+	// Cached bulk curves for I/O
+	UE::Anim::FBulkCurves CachedBulkCurves;
+	
 	/** Node Mapping Container */
 	UPROPERTY(transient)
 	TWeakObjectPtr<UNodeMappingContainer> NodeMappingContainer;

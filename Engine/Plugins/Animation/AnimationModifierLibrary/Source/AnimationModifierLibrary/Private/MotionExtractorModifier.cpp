@@ -65,7 +65,7 @@ void UMotionExtractorModifier::OnApply_Implementation(UAnimSequence* Animation)
 	RequiredBones.Add(BoneIndex);
 	Skeleton->GetReferenceSkeleton().EnsureParentsExistAndSort(RequiredBones);
 
-	FBoneContainer BoneContainer(RequiredBones, false, *Skeleton);
+	FBoneContainer BoneContainer(RequiredBones, UE::Anim::ECurveFilterMode::DisallowAll, *Skeleton);
 	const FCompactPoseBoneIndex CompactPoseBoneIndex = BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneIndex));
 
 	FTransform FirstFrameBoneTransform = UMotionExtractorUtilityLibrary::ExtractBoneTransform(Animation, BoneContainer, CompactPoseBoneIndex, 0.f, bComponentSpace);

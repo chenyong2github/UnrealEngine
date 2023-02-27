@@ -265,11 +265,11 @@ public:
 			.HeightOverride(300.0f)
 			.WidthOverride(200.0f)
 			[
-				SNew(SAnimCurvePicker, EditableSkeleton.ToSharedRef())
-				.OnCurveNamePicked_Lambda([this](const FSmartName& InCurveSmartName)
+				SNew(SAnimCurvePicker, &EditableSkeleton->GetSkeleton())
+				.OnCurvePicked_Lambda([this](const FName& InCurveName)
 				{
 					FSlateApplication::Get().DismissAllMenus();
-					CurveString = InCurveSmartName.DisplayName.ToString();
+					CurveString = InCurveName.ToString();
 					OnChanged().Broadcast();
 				})
 			];

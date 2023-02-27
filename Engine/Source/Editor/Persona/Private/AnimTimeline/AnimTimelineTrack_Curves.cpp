@@ -6,6 +6,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "AnimSequenceTimelineCommands.h"
+#include "IEditableSkeleton.h"
 #include "SAnimCurvePicker.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Animation/AnimSequenceBase.h"
@@ -153,9 +154,9 @@ void FAnimTimelineTrack_Curves::FillMetadataEntryMenu(FMenuBuilder& Builder)
 
 	// Add existing curve to timeline using curve picker
 	{
-		const TSharedRef<SWidget> CurvePickerWidget = SNew(SAnimCurvePicker, GetModel()->GetEditableSkeleton())
-		.OnCurveNamePicked(this, &FAnimTimelineTrack_Curves::OnMetadataCurveNamePicked)
-		.IsCurveMarkedForExclusion(this, &FAnimTimelineTrack_Curves::IsCurveMarkedForExclusion);
+		const TSharedRef<SWidget> CurvePickerWidget = SNew(SAnimCurvePicker, &GetModel()->GetEditableSkeleton()->GetSkeleton())
+		.OnCurvePicked(this, &FAnimTimelineTrack_Curves::OnMetadataCurveNamePicked)
+		.IsCurveNameMarkedForExclusion(this, &FAnimTimelineTrack_Curves::IsCurveMarkedForExclusion);
 		Builder.AddWidget(CurvePickerWidget, FText::GetEmpty(), true);
 	}
 	
@@ -177,9 +178,9 @@ void FAnimTimelineTrack_Curves::FillVariableCurveMenu(FMenuBuilder& Builder)
 
 	// Add existing curve to timeline using curve picker
 	{
-		const TSharedRef<SWidget> CurvePickerWidget = SNew(SAnimCurvePicker, GetModel()->GetEditableSkeleton())
-		.OnCurveNamePicked(this, &FAnimTimelineTrack_Curves::OnVariableCurveNamePicked)
-		.IsCurveMarkedForExclusion(this, &FAnimTimelineTrack_Curves::IsCurveMarkedForExclusion);
+		const TSharedRef<SWidget> CurvePickerWidget = SNew(SAnimCurvePicker, &GetModel()->GetEditableSkeleton()->GetSkeleton())
+		.OnCurvePicked(this, &FAnimTimelineTrack_Curves::OnVariableCurveNamePicked)
+		.IsCurveNameMarkedForExclusion(this, &FAnimTimelineTrack_Curves::IsCurveMarkedForExclusion);
 		
 		Builder.AddWidget(CurvePickerWidget, FText::GetEmpty(), true);
 	}
@@ -187,18 +188,16 @@ void FAnimTimelineTrack_Curves::FillVariableCurveMenu(FMenuBuilder& Builder)
 	Builder.EndSection();
 }
 
-void FAnimTimelineTrack_Curves::AddMetadataEntry(USkeleton::AnimCurveUID Uid)
+void FAnimTimelineTrack_Curves::AddMetadataEntry(const FName& InCurveName)
 {
-	FSmartName NewName;
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
-	ensureAlways(AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimCurveMappingName, Uid, NewName));
 
 	IAnimationDataController& Controller = AnimSequenceBase->GetController();
 	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("AddCurveMetadata", "Add Curve Metadata"));
 
-	const FAnimationCurveIdentifier MetadataCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
+	const FAnimationCurveIdentifier MetadataCurveId(InCurveName, ERawCurveTrackTypes::RCT_Float);
 	Controller.AddCurve(MetadataCurveId, AACF_Metadata);
-	Controller.SetCurveKeys(MetadataCurveId, { FRichCurveKey(0.f, 1.f) });	
+	Controller.SetCurveKeys(MetadataCurveId, { FRichCurveKey(0.f, 1.f) });
 }
 
 void FAnimTimelineTrack_Curves::CreateNewMetadataEntryClicked()
@@ -228,12 +227,7 @@ void FAnimTimelineTrack_Curves::CreateNewMetadataEntry(const FText& CommittedTex
 		USkeleton* Skeleton = AnimSequenceBase->GetSkeleton();
 		if(Skeleton && !CommittedText.IsEmpty())
 		{
-			FSmartName CurveName;
-
-			if(Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, FName(*CommittedText.ToString()), CurveName))
-			{
-				AddMetadataEntry(CurveName.UID);
-			}
+			AddMetadataEntry(FName(*CommittedText.ToString()));
 		}
 	}
 }
@@ -264,32 +258,23 @@ void FAnimTimelineTrack_Curves::CreateTrack(const FText& ComittedText, ETextComm
 		if(Skeleton && !ComittedText.IsEmpty())
 		{
 			const FScopedTransaction Transaction(LOCTEXT("AnimCurve_AddTrack", "Add New Curve"));
-			FSmartName NewTrackName;
 
-			Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, FName(*ComittedText.ToString()), NewTrackName);
-			if ( NewTrackName.IsValid() )
-			{
-				AddVariableCurve(NewTrackName.UID);
-			}
+			AddVariableCurve(FName(*ComittedText.ToString()));
 		}
 
 		FSlateApplication::Get().DismissAllMenus();
 	}
 }
 
-void FAnimTimelineTrack_Curves::AddVariableCurve(USkeleton::AnimCurveUID CurveUid)
+void FAnimTimelineTrack_Curves::AddVariableCurve(const FName& InCurveName)
 {
 	FScopedTransaction Transaction(LOCTEXT("AddCurve", "Add Curve"));
 
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 	AnimSequenceBase->Modify();
-	
-	USkeleton* Skeleton = AnimSequenceBase->GetSkeleton();
-	FSmartName NewName;
-	ensureAlways(Skeleton->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveUid, NewName));
 
 	IAnimationDataController& Controller = AnimSequenceBase->GetController();
-	const FAnimationCurveIdentifier FloatCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
+	const FAnimationCurveIdentifier FloatCurveId(InCurveName, ERawCurveTrackTypes::RCT_Float);
 	Controller.AddCurve(FloatCurveId);
 }
 
@@ -303,28 +288,28 @@ bool FAnimTimelineTrack_Curves::IsShowCurvePointsEnabled() const
 	return GetDefault<UPersonaOptions>()->bTimelineDisplayCurveKeys;
 }
 
-void FAnimTimelineTrack_Curves::OnMetadataCurveNamePicked(const FSmartName& InCurveSmartName)
+void FAnimTimelineTrack_Curves::OnMetadataCurveNamePicked(const FName& InCurveName)
 {
 	FSlateApplication::Get().DismissAllMenus();
 
-	if (InCurveSmartName.IsValid())
+	if(InCurveName != NAME_None)
 	{
-		AddMetadataEntry(InCurveSmartName.UID);
+		AddMetadataEntry(InCurveName);
 	}
 }
 
-void FAnimTimelineTrack_Curves::OnVariableCurveNamePicked(const FSmartName& InCurveSmartName)
+void FAnimTimelineTrack_Curves::OnVariableCurveNamePicked(const FName& InCurveName)
 {
 	FSlateApplication::Get().DismissAllMenus();
-
-	if (InCurveSmartName.IsValid())
+	
+	if(InCurveName != NAME_None)
 	{
-		AddVariableCurve(InCurveSmartName.UID);
+		AddMetadataEntry(InCurveName);
 	}
 }
 
-bool FAnimTimelineTrack_Curves::IsCurveMarkedForExclusion(const FSmartName& InCurveSmartName)
+bool FAnimTimelineTrack_Curves::IsCurveMarkedForExclusion(const FName& InCurveName)
 {
-	return GetModel()->GetAnimSequenceBase()->GetDataModel()->FindFloatCurve(FAnimationCurveIdentifier(InCurveSmartName, ERawCurveTrackTypes::RCT_Float)) != nullptr;
+	return GetModel()->GetAnimSequenceBase()->GetDataModel()->FindFloatCurve(FAnimationCurveIdentifier(InCurveName, ERawCurveTrackTypes::RCT_Float)) != nullptr;
 }
 #undef LOCTEXT_NAMESPACE

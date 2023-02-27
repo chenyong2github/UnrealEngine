@@ -337,6 +337,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Explicit override of Groom's hair width
 		GroomAssetWidthOverride,
 
+		// Smart names removed from animation systems
+		AnimationRemoveSmartNames,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

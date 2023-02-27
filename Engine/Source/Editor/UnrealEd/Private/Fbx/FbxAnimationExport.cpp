@@ -92,34 +92,24 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq, const U
 	}
 
 	//Prepare root anim curves data to be exported
-	TArray<FName> AnimCurveNames;
 	TMap<FName, FbxAnimCurve*> CustomCurveMap;
 	if (BoneNodes.Num() > 0)
 	{
-		const FSmartNameMapping* AnimCurveMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-		
-		if (AnimCurveMapping)
+		const UFbxExportOption* ExportOptions = GetExportOptions();
+		const bool bExportMorphTargetCurvesInMesh = ExportOptions && ExportOptions->bExportPreviewMesh && ExportOptions->bExportMorphTargets;
+
+		Skeleton->ForEachCurveMetaData([&CustomCurveMap, &BoneNodes, InAnimLayer, bExportMorphTargetCurvesInMesh](const FName& InCurveName, const FCurveMetaData& InMetaData)
 		{
-			AnimCurveMapping->FillNameArray(AnimCurveNames);
-
-			const UFbxExportOption* ExportOptions = GetExportOptions();
-			const bool bExportMorphTargetCurvesInMesh = ExportOptions && ExportOptions->bExportPreviewMesh && ExportOptions->bExportMorphTargets;
-
-			for (auto AnimCurveName : AnimCurveNames)
+			//Only export the custom curve if it is not used in a MorphTarget that will be exported latter on.
+			if(!(bExportMorphTargetCurvesInMesh && InMetaData.Type.bMorphtarget))
 			{
-				const FCurveMetaData* CurveMetaData = AnimCurveMapping->GetCurveMetaData(AnimCurveName);
-
-				//Only export the custom curve if it is not used in a MorphTarget that will be exported latter on.
-				if(!(bExportMorphTargetCurvesInMesh && CurveMetaData && CurveMetaData->Type.bMorphtarget))
-				{
-					FbxProperty AnimCurveFbxProp = FbxProperty::Create(BoneNodes[0], FbxDoubleDT, TCHAR_TO_ANSI(*AnimCurveName.ToString()));
-					AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eAnimatable, true);
-					AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
-					FbxAnimCurve* AnimFbxCurve = AnimCurveFbxProp.GetCurve(InAnimLayer, true);
-					CustomCurveMap.Add(AnimCurveName, AnimFbxCurve);
-				}
+				FbxProperty AnimCurveFbxProp = FbxProperty::Create(BoneNodes[0], FbxDoubleDT, TCHAR_TO_ANSI(*InCurveName.ToString()));
+				AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eAnimatable, true);
+				AnimCurveFbxProp.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+				FbxAnimCurve* AnimFbxCurve = AnimCurveFbxProp.GetCurve(InAnimLayer, true);
+				CustomCurveMap.Add(InCurveName, AnimFbxCurve);
 			}
-		}
+		});
 	}
 
 	ExportCustomAnimCurvesToFbx(CustomCurveMap, AnimSeq, StartFrameTime, EndFrameTime, FrameRateScale, StartTime);
@@ -304,25 +294,11 @@ void FFbxExporter::ExportCustomAnimCurvesToFbx(const TMap<FName, FbxAnimCurve*>&
 {
 	// stack allocator for extracting curve
 	FMemMark Mark(FMemStack::Get());
-	const USkeleton* Skeleton = AnimSeq->GetSkeleton();
-	const FSmartNameMapping* SmartNameMapping = Skeleton ? Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName) : nullptr;
 
-	if (!Skeleton || !SmartNameMapping || !SetupAnimStack(AnimSeq))
+	if (!SetupAnimStack(AnimSeq))
 	{
 		//Something is wrong.
 		return;
-	}
-
-	TArray<SmartName::UID_Type> AnimCurveUIDs;
-	{
-		//We need to recreate the UIDs array manually so that we keep the empty entries otherwise the BlendedCurve won't have the correct mapping.
-		TArray<FName> UID_ToNameArray;
-		SmartNameMapping->FillUIDToNameArray(UID_ToNameArray);
-		AnimCurveUIDs.Reserve(UID_ToNameArray.Num());
-		for (int32 NameIndex = 0; NameIndex < UID_ToNameArray.Num(); ++NameIndex)
-		{
-			AnimCurveUIDs.Add(NameIndex);
-		}
 	}
 
 	for (auto CustomCurve : CustomCurves)
@@ -332,21 +308,14 @@ void FFbxExporter::ExportCustomAnimCurvesToFbx(const TMap<FName, FbxAnimCurve*>&
 	
 	auto ExportLambda = [&](float AnimTime, FbxTime ExportTime, bool bLastKey) {
 		FBlendedCurve BlendedCurve;
-		BlendedCurve.InitFrom(&AnimCurveUIDs);
 		AnimSeq->EvaluateCurveData(BlendedCurve, AnimTime, true);
-		if (BlendedCurve.IsValid())
+		
+		//Loop over the custom curves and add the actual keys
+		for (auto CustomCurve : CustomCurves)
 		{
-			//Loop over the custom curves and add the actual keys
-			for (auto CustomCurve : CustomCurves)
-			{
-				SmartName::UID_Type NameUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, CustomCurve.Key);
-				if (NameUID != SmartName::MaxUID)
-				{
-					float CurveValueAtTime = BlendedCurve.Get(NameUID) * ValueScale;
-					int32 KeyIndex = CustomCurve.Value->KeyAdd(ExportTime);
-					CustomCurve.Value->KeySetValue(KeyIndex, CurveValueAtTime);
-				}
-			}
+			float CurveValueAtTime = BlendedCurve.Get(CustomCurve.Key) * ValueScale;
+			int32 KeyIndex = CustomCurve.Value->KeyAdd(ExportTime);
+			CustomCurve.Value->KeySetValue(KeyIndex, CurveValueAtTime);
 		}
 	};
 

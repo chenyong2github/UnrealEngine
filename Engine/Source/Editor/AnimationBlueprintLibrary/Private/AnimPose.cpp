@@ -168,23 +168,11 @@ void FAnimPose::SetPose(const FAnimationPoseData& PoseData)
 		GenerateWorldSpaceTransforms();
 
 		const FBlendedCurve& Curve = PoseData.GetCurve();
-		for (TConstSetBitIterator It(Curve.ValidCurveWeights); It; ++It)
+		Curve.ForEachElement([&CurveNames = CurveNames, &CurveValues = CurveValues](const UE::Anim::FCurveElement& InElement)
 		{
-			const int32 EntryIndex = It.GetIndex();
-			const uint16 CurveNameUID = (*Curve.UIDToArrayIndexLUT).IsValidIndex(EntryIndex) ? (*Curve.UIDToArrayIndexLUT)[EntryIndex] : INDEX_NONE;
-
-			FSmartName CurveSmartName;
-			const USkeleton* Skeleton = ContextBoneContainer.GetSkeletonAsset();
-			if(Skeleton->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveNameUID, CurveSmartName))
-			{
-				CurveNames.Add(CurveSmartName.DisplayName);
-				CurveValues.Add(Curve.CurveWeights[EntryIndex]);
-			}
-			else
-			{
-				ensureMsgf(false, TEXT("Unable to find SmartName for Curve with UID %i from Skeleton %s"), CurveNameUID, *Skeleton->GetPathName());
-			}
-		}
+			CurveNames.Add(InElement.Name);
+			CurveValues.Add(InElement.Value);
+		});
 	}
 	else
 	{
@@ -497,7 +485,7 @@ void UAnimPoseExtensions::GetReferencePose(USkeleton* Skeleton, FAnimPose& OutPo
 		}
 
 		FBoneContainer RequiredBones;
-		RequiredBones.InitializeTo(RequiredBoneIndexArray, FCurveEvaluationOption(false), *Skeleton);
+		RequiredBones.InitializeTo(RequiredBoneIndexArray, UE::Anim::FCurveFilterSettings(UE::Anim::ECurveFilterMode::DisallowAll), *Skeleton);
 
 		OutPose.Init(RequiredBones);
 		OutPose.SetToRefPose();
@@ -571,7 +559,7 @@ void UAnimPoseExtensions::GetAnimPoseAtTimeIntervals(const UAnimSequenceBase* An
 		}
 
 		FBoneContainer RequiredBones;
-		RequiredBones.InitializeTo(RequiredBoneIndexArray, FCurveEvaluationOption(EvaluationOptions.bEvaluateCurves), *AssetToUse);
+		RequiredBones.InitializeTo(RequiredBoneIndexArray, UE::Anim::FCurveFilterSettings(EvaluationOptions.bEvaluateCurves ? UE::Anim::ECurveFilterMode::None : UE::Anim::ECurveFilterMode::DisallowAll), *AssetToUse);
 		
 		RequiredBones.SetUseRAWData(EvaluationOptions.EvaluationType == EAnimDataEvalType::Raw);
 		RequiredBones.SetUseSourceData(EvaluationOptions.EvaluationType == EAnimDataEvalType::Source);

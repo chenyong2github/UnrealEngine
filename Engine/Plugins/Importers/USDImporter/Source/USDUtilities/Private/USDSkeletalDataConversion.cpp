@@ -426,21 +426,12 @@ namespace SkelDataConversionImpl
 		{
 			return;
 		}
-
-		const FSmartNameMapping* NameMapping = Skeleton->GetSmartNameContainer( USkeleton::AnimCurveMappingName );
-		if ( !NameMapping )
-		{
-			return;
-		}
-
-		FSmartName NewName;
-		Skeleton->AddSmartNameAndModify( USkeleton::AnimCurveMappingName, CurveName, NewName );
-
+		
 		const bool bShouldTransact = false;
 		const IAnimationDataModel* DataModel = Sequence->GetDataModel();
 		IAnimationDataController& Controller = Sequence->GetController();
 
-		FAnimationCurveIdentifier CurveId(NewName, ERawCurveTrackTypes::RCT_Float);
+		FAnimationCurveIdentifier CurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
 		const FFloatCurve* Curve = DataModel->FindFloatCurve(CurveId);
 		if ( !Curve )
 		{
@@ -461,9 +452,7 @@ namespace SkelDataConversionImpl
 
 			Controller.SetCurveFlags( CurveId, Curve->GetCurveTypeFlags() | AACF_DefaultCurve, bShouldTransact );
 		}
-
-		Controller.UpdateCurveNamesFromSkeleton( Skeleton, ERawCurveTrackTypes::RCT_Float, bShouldTransact );
-
+		
 		if ( Curve )
 		{
 			Controller.SetCurveKeys( CurveId, SourceData.GetConstRefOfKeys(), bShouldTransact );
@@ -2015,13 +2004,6 @@ bool UsdToUnreal::ConvertSkelAnim(
 		return false;
 	}
 
-	// In a regular import workflow this NameMapping will exist and be populated with the blend shape names we imported, if any
-	const FSmartNameMapping* NameMapping = Skeleton->GetSmartNameContainer( USkeleton::AnimCurveMappingName );
-	if ( !NameMapping )
-	{
-		return false;
-	}
-
 	TUsdStore<std::vector<double>> UsdJointTransformTimeSamples;
 	AnimQuery.Get().GetJointTransformTimeSamples( &( UsdJointTransformTimeSamples.Get() ) );
 	int32 NumJointTransformSamples = UsdJointTransformTimeSamples.Get().size();
@@ -3206,87 +3188,37 @@ bool UnrealToUsd::ConvertAnimSequence( UAnimSequence* AnimSequence, pxr::UsdPrim
 		pxr::VtArray< pxr::TfToken > BlendShapeNames;
 		pxr::VtArray< float > BlendShapeWeights;
 
-		const FSmartNameMapping* AnimCurveMapping = AnimSkeleton->GetSmartNameContainer( USkeleton::AnimCurveMappingName );
+		// We need to make sure we have at least one mark on the memstack allocator because FBlendedCurve
+		// will allocate using one and will assert if there aren't any marks yet
+		FMemMark Mark( FMemStack::Get() );
 
-		if ( AnimCurveMapping )
+		// Blend shape weights
+		for ( int32 TimeCode = 0; TimeCode < NumTimeCodes; ++TimeCode )
 		{
-			TArray< FName > AnimCurveNames;
-			AnimCurveMapping->FillNameArray( AnimCurveNames );
+			const float AnimTime = TimeCode / TimeCodesPerSecond;
 
-			TArray< SmartName::UID_Type > AnimCurveUIDs;
+			FBlendedCurve BlendedCurve;
+			const bool bForceUseRawData = true;
+			AnimSequence->EvaluateCurveData( BlendedCurve, AnimTime, bForceUseRawData );
+
+			BlendShapeNames.clear();
+			BlendShapeNames.reserve( BlendedCurve.Num() );
+			BlendShapeWeights.clear();
+			BlendShapeWeights.reserve( BlendedCurve.Num() );
+
+			BlendedCurve.ForEachElement([&BlendShapeWeights, &BlendShapeNames](const UE::Anim::FCurveElement& InElement)
 			{
-				TArray< FName > UID_ToNameArray;
-				AnimCurveMapping->FillUIDToNameArray( UID_ToNameArray );
-				AnimCurveUIDs.Reserve( UID_ToNameArray.Num() );
-				for ( int32 NameIndex = 0; NameIndex < UID_ToNameArray.Num(); ++NameIndex )
+				if (EnumHasAnyFlags(InElement.Flags, UE::Anim::ECurveElementFlags::MorphTarget))
 				{
-					AnimCurveUIDs.Add( NameIndex );
+					BlendShapeNames.push_back( UnrealToUsd::ConvertToken( *InElement.Name.ToString() ).Get() );
+					BlendShapeWeights.push_back( InElement.Value );
 				}
-			}
+			});
 
-			// Blend shape names
-			for ( const FName& AnimCurveName : AnimCurveNames )
+			if(BlendShapeWeights.size() > 0 && BlendShapeNames.size() > 0)
 			{
-				const FCurveMetaData* CurveMetaData = AnimCurveMapping->GetCurveMetaData( AnimCurveName );
-
-				if ( CurveMetaData && CurveMetaData->Type.bMorphtarget )
-				{
-					BlendShapeNames.push_back( UnrealToUsd::ConvertToken( *AnimCurveName.ToString() ).Get() );
-				}
-			}
-
-			// We need to make sure we have at least one mark on the memstack allocator because FBlendedCurve
-			// will allocate using one and will assert if there aren't any marks yet
-			FMemMark Mark( FMemStack::Get() );
-
-			// Blend shape weights
-			for ( int32 TimeCode = 0; TimeCode < NumTimeCodes; ++TimeCode )
-			{
-				BlendShapeWeights.clear();
-				BlendShapeWeights.reserve( AnimCurveNames.Num() );
-
-				const float AnimTime = TimeCode / TimeCodesPerSecond;
-
-				FBlendedCurve BlendedCurve;
-				BlendedCurve.InitFrom( &AnimCurveUIDs );
-				const bool bForceUseRawData = true;
-				AnimSequence->EvaluateCurveData( BlendedCurve, AnimTime, bForceUseRawData );
-
-				if ( BlendedCurve.IsValid() )
-				{
-					for ( const FName& AnimCurveName : AnimCurveNames )
-					{
-						const FCurveMetaData* CurveMetaData = AnimCurveMapping->GetCurveMetaData( AnimCurveName );
-
-						if ( CurveMetaData && CurveMetaData->Type.bMorphtarget )
-						{
-							SmartName::UID_Type NameUID = AnimSkeleton->GetUIDByName( USkeleton::AnimCurveMappingName, AnimCurveName );
-							if ( NameUID != SmartName::MaxUID )
-							{
-								BlendShapeWeights.push_back( BlendedCurve.Get( NameUID ) );
-							}
-						}
-					}
-				};
-
+				UsdSkelAnim.CreateBlendShapesAttr().Set( BlendShapeNames, pxr::UsdTimeCode( TimeCode ) );
 				UsdSkelAnim.CreateBlendShapeWeightsAttr().Set( BlendShapeWeights, pxr::UsdTimeCode( TimeCode ) );
-			}
-		}
-
-		if ( !BlendShapeNames.empty() )
-		{
-			UsdSkelAnim.CreateBlendShapesAttr().Set( BlendShapeNames );
-		}
-		else
-		{
-			if ( pxr::UsdAttribute BlendShapesAttr = UsdSkelAnim.GetBlendShapesAttr() )
-			{
-				BlendShapesAttr.Clear();
-			}
-
-			if ( pxr::UsdAttribute BlendShapeWeightsAttr = UsdSkelAnim.GetBlendShapeWeightsAttr() )
-			{
-				BlendShapeWeightsAttr.Clear();
 			}
 		}
 	}

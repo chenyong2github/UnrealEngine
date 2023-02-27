@@ -25,18 +25,26 @@ public:
 	virtual void RequestRename() override;
 	virtual void AddCurveTrackButton(TSharedPtr<SHorizontalBox> InnerHorizontalBox) override;
 	virtual FLinearColor GetCurveColor(int32 InCurveIndex) const override;
-	virtual void GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const override;
+	virtual void GetCurveEditInfo(int32 InCurveIndex, FName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const override;
 	virtual bool SupportsCopy() const override { return true; }
 	virtual void Copy(UAnimTimelineClipboardContent* InOutClipboard) const override;
 	
 	/** Access the curve we are editing */
 	const FFloatCurve* GetFloatCurve() { return FloatCurve; }
 
-	/** Helper function used to get a smart name for a curve */
-	static FText GetFloatCurveName(const TSharedRef<FAnimModel>& InModel, const FSmartName& InSmartName);
+	UE_DEPRECATED(5.3, "This function is longer used")
+	static FText GetFloatCurveName(const TSharedRef<FAnimModel>& InModel, const FSmartName& InSmartName) { return FText::GetEmpty(); }
 
 	/** Get this curves name */
-	FSmartName GetName() const { return CurveName; }
+	FName GetFName() const { return CurveName; }
+	
+	UE_DEPRECATED(5.3, "Please use GetFName instead.")
+	FSmartName GetName() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return FSmartName(CurveName, 0);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 private:
 	void ConvertCurveToMetaData();
@@ -49,7 +57,7 @@ private:
 	const FFloatCurve* FloatCurve;
 
 	/** The curve name and identifier */
-	FSmartName CurveName;
+	FName CurveName;
 	FAnimationCurveIdentifier CurveId;
 
 	/** Label we can edit */

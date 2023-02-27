@@ -30,7 +30,7 @@ FText UAnimGraphNode_TwistCorrectiveNode::GetNodeTitle(ENodeTitleType::Type Titl
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("BaseBone"), FText::FromName(Node.BaseFrame.Bone.BoneName));
 		Args.Add(TEXT("TwistBone"), FText::FromName(Node.TwistFrame.Bone.BoneName));
-		Args.Add(TEXT("CurveName"), FText::FromName(Node.Curve.Name));
+		Args.Add(TEXT("CurveName"), FText::FromName(Node.CurveName));
 
 		FormattedText = FText::Format(LOCTEXT("AnimGraphNode_TwistCorrectiveNode_Title", "Twist {CurveName} = {BaseBone}:{TwistBone} "), Args);
 		return FormattedText;
@@ -44,7 +44,7 @@ FText UAnimGraphNode_TwistCorrectiveNode::GetControllerDescription() const
 
 void UAnimGraphNode_TwistCorrectiveNode::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
 {
-	if (Node.Curve.Name == NAME_None)
+	if (Node.CurveName == NAME_None)
 	{
 		MessageLog.Warning(TEXT("@@ has missing Curve Name."), this);
 	}

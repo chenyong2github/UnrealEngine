@@ -22,6 +22,7 @@
 #include "Animation/AnimationSettings.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "UObject/UObjectThreadContext.h"
+#include "Animation/AnimCurveTypes.h"
 
 #include "Runtime/MovieScene/Private/Channels/MovieSceneCurveChannelImpl.h"
 
@@ -72,7 +73,7 @@ void UAnimationSequencerDataModel::RemoveOutOfDateControls() const
 					Hierarchy->ForEach<FRigCurveElement>([this, &ElementKeysToRemove](const FRigCurveElement* CurveElement) -> bool
 					{
 						const FName TargetCurveName = CurveElement->GetName();
-						if(!LegacyCurveData.FloatCurves.ContainsByPredicate([TargetCurveName](const FFloatCurve& Curve) { return Curve.Name.DisplayName == TargetCurveName; }))
+						if(!LegacyCurveData.FloatCurves.ContainsByPredicate([TargetCurveName](const FFloatCurve& Curve) { return Curve.GetName() == TargetCurveName; }))
 						{
 							ElementKeysToRemove.Add(CurveElement->GetKey());	
 						}
@@ -367,7 +368,7 @@ const FFloatCurve* UAnimationSequencerDataModel::FindFloatCurve(const FAnimation
 	ensure(CurveIdentifier.CurveType == ERawCurveTrackTypes::RCT_Float);
 	for (const FFloatCurve& FloatCurve : GetCurveData().FloatCurves)
 	{
-		if (FloatCurve.Name == CurveIdentifier.InternalName || (FloatCurve.Name.UID == CurveIdentifier.InternalName.UID && FloatCurve.Name.UID != SmartName::MaxUID))
+		if (FloatCurve.GetName() == CurveIdentifier.CurveName)
 		{
 			return &FloatCurve;
 		}
@@ -381,7 +382,7 @@ const FTransformCurve* UAnimationSequencerDataModel::FindTransformCurve(const FA
 	ensure(CurveIdentifier.CurveType == ERawCurveTrackTypes::RCT_Transform);
     for (const FTransformCurve& TransformCurve : GetCurveData().TransformCurves)
     {
-    	if (TransformCurve.Name == CurveIdentifier.InternalName || TransformCurve.Name.UID == CurveIdentifier.InternalName.UID)
+    	if (TransformCurve.GetName() == CurveIdentifier.CurveName)
     	{
     		return &TransformCurve;
     	}
@@ -650,7 +651,7 @@ FGuid UAnimationSequencerDataModel::GenerateGuid() const
 
 		for (const FTransformCurve& Curve : GetTransformCurves())
 		{
-			UpdateWithData(Curve.Name.UID);
+			UpdateWithData(Curve.GetName());
 
 			auto UpdateWithComponent = [&UpdateWithFloatCurve](const FVectorCurve& VectorCurve)
 			{
@@ -823,69 +824,65 @@ void UAnimationSequencerDataModel::GenerateLegacyCurveData()
 			{
 				if (const UControlRig* ControlRig = Section->GetControlRig())
 				{
-					if (USkeleton* Skeleton = GetSkeleton())
+					if(URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
 					{
-						if(URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+						const FString SequencerSuffix(TEXT("_Sequencer"));
+						const TArray<FScalarParameterNameAndCurve>& ScalarCurves = Section->GetScalarParameterNamesAndCurves();				
+						if (RetainFloatCurves)
 						{
-							const FString SequencerSuffix(TEXT("_Sequencer"));
-							const TArray<FScalarParameterNameAndCurve>& ScalarCurves = Section->GetScalarParameterNamesAndCurves();				
-							if (RetainFloatCurves)
+							LegacyCurveData.FloatCurves.RemoveAll([SequencerSuffix](const FFloatCurve& FloatCurve)
 							{
-								LegacyCurveData.FloatCurves.RemoveAll([SequencerSuffix](const FFloatCurve& FloatCurve)
-								{
-									return FloatCurve.Name.DisplayName.ToString().EndsWith(SequencerSuffix);
-								});
-							}
-							else
-							{
-								LegacyCurveData.FloatCurves.Empty();
-							}				
-
-							Hierarchy->ForEach<FRigCurveElement>([Hierarchy,Skeleton, this, ScalarCurves, FrameRate = GetFrameRate(), SequencerSuffix](const FRigCurveElement* CurveElement) -> bool
-							{
-								const FRigElementKey ControlKey(UFKControlRig::GetControlName(CurveElement->GetName(), ERigElementType::Curve), ERigElementType::Control);
-								if (const FRigControlElement* Element = Hierarchy->Find<FRigControlElement>(ControlKey))
-								{
-									FFloatCurve& FloatCurve = LegacyCurveData.FloatCurves.AddDefaulted_GetRef();
-									if (RetainFloatCurves)
-									{
-										FloatCurve.Name.DisplayName = FName(*(CurveElement->GetName().ToString() + TEXT("_Sequencer")));
-									}
-									else
-									{
-										FloatCurve.Name.DisplayName = CurveElement->GetName();	
-									}						
-								
-									Skeleton->VerifySmartName(USkeleton::AnimCurveMappingName, FloatCurve.Name);
-									FloatCurve.Color = Element->Settings.ShapeColor;
-									
-									const FAnimationCurveIdentifier CurveId(FloatCurve.Name, ERawCurveTrackTypes::RCT_Float);
-									if (!RetainFloatCurves || !FloatCurve.Name.DisplayName.ToString().Contains(SequencerSuffix))
-									{
-										if (CurveIdentifierToMetaData.Contains(CurveId))
-										{
-											const FAnimationCurveMetaData& CurveMetaData = CurveIdentifierToMetaData.FindChecked(CurveId);
-											FloatCurve.SetCurveTypeFlags(CurveMetaData.Flags);
-											FloatCurve.Color = CurveMetaData.Color;
-										}
-									}							
-
-									if (const FScalarParameterNameAndCurve* ScalarCurve = ScalarCurves.FindByPredicate([Element](FScalarParameterNameAndCurve Curve)
-									{
-										return Curve.ParameterName == Element->GetName();
-									}))
-									{							
-										AnimSequencerHelpers::ConvertFloatChannelToRichCurve(ScalarCurve->ParameterCurve, FloatCurve.FloatCurve, FrameRate);
-									}
-								}
-								return true;
-							});	
+								return FloatCurve.GetName().ToString().EndsWith(SequencerSuffix);
+							});
 						}
 						else
-						{						
-							IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("UnableToFindRigHierarchy", "Unable to retrieve RigHierarchy for ControlRig ({0})"), FText::FromString(ControlRig->GetPathName()));	      
-						}
-					}								
+						{
+							LegacyCurveData.FloatCurves.Empty();
+						}				
+
+						Hierarchy->ForEach<FRigCurveElement>([Hierarchy, this, ScalarCurves, FrameRate = GetFrameRate(), SequencerSuffix](const FRigCurveElement* CurveElement) -> bool
+						{
+							const FRigElementKey ControlKey(UFKControlRig::GetControlName(CurveElement->GetName(), ERigElementType::Curve), ERigElementType::Control);
+							if (const FRigControlElement* Element = Hierarchy->Find<FRigControlElement>(ControlKey))
+							{
+								FFloatCurve& FloatCurve = LegacyCurveData.FloatCurves.AddDefaulted_GetRef();
+								if (RetainFloatCurves)
+								{
+									FloatCurve.SetName(FName(*(CurveElement->GetName().ToString() + TEXT("_Sequencer"))));
+								}
+								else
+								{
+									FloatCurve.SetName(CurveElement->GetName());
+								}						
+
+								FloatCurve.Color = Element->Settings.ShapeColor;
+								
+								const FAnimationCurveIdentifier CurveId(FloatCurve.GetName(), ERawCurveTrackTypes::RCT_Float);
+								if (!RetainFloatCurves || !FloatCurve.GetName().ToString().Contains(SequencerSuffix))
+								{
+									if (CurveIdentifierToMetaData.Contains(CurveId))
+									{
+										const FAnimationCurveMetaData& CurveMetaData = CurveIdentifierToMetaData.FindChecked(CurveId);
+										FloatCurve.SetCurveTypeFlags(CurveMetaData.Flags);
+										FloatCurve.Color = CurveMetaData.Color;
+									}
+								}							
+
+								if (const FScalarParameterNameAndCurve* ScalarCurve = ScalarCurves.FindByPredicate([Element](FScalarParameterNameAndCurve Curve)
+								{
+									return Curve.ParameterName == Element->GetName();
+								}))
+								{							
+									AnimSequencerHelpers::ConvertFloatChannelToRichCurve(ScalarCurve->ParameterCurve, FloatCurve.FloatCurve, FrameRate);
+								}
+							}
+							return true;
+						});	
+					}
+					else
+					{						
+						IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("UnableToFindRigHierarchy", "Unable to retrieve RigHierarchy for ControlRig ({0})"), FText::FromString(ControlRig->GetPathName()));	      
+					}
 				}
 			}
 		}
@@ -980,7 +977,7 @@ void UAnimationSequencerDataModel::ValidateLegacyAgainstControlRigData() const
 		// Validate curve data against controls
 		for (const FFloatCurve& FloatCurve : LegacyCurveData.FloatCurves)
 		{
-			const FName CurveName = FloatCurve.Name.DisplayName;					
+			const FName CurveName = FloatCurve.GetName();					
 			const FRigElementKey CurveKey(CurveName, ERigElementType::Curve);
 			const FRigCurveElement* CurveElement = Hierarchy->Find<FRigCurveElement>(CurveKey);
 			if (!CurveElement)
@@ -1131,8 +1128,10 @@ void UAnimationSequencerDataModel::GeneratePoseData(UControlRig* ControlRig, FAn
 			RigPose.ResetToRefPose();
 			const FBoneContainer& RequiredBones = RigPose.GetBoneContainer();
 			FBlendedCurve& Curve = InOutPoseData.GetCurve();
+			Curve.Empty();
+
 			UE::Anim::Retargeting::FRetargetingScope RetargetingScope(GetSkeleton(), RigPose, EvaluationContext);
-			
+
 			// Populate bone/curve elements to Pose/Curve indices
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_GetMappings);
@@ -1159,27 +1158,13 @@ void UAnimationSequencerDataModel::GeneratePoseData(UControlRig* ControlRig, FAn
 					return true;
 				});
 
-				if (Curve.IsValid())
+				RigHierarchy->ForEach<FRigCurveElement>([this, &RigHierarchy, &Curve](const FRigCurveElement* CurveElement) -> bool
 				{
-					// Called during compression that can occur while GC is in progress, marking weakptrs as unreachable temporarily
-					const FSmartNameMapping* SmartNameMapping = RequiredBones.GetSkeletonAsset(true)->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-					RigHierarchy->ForEach<FRigCurveElement>([this, &RigHierarchy, &Curve, SmartNameMapping](const FRigCurveElement* CurveElement) -> bool
-					{
-						const FName& CurveName = CurveElement->GetName();
-						const SmartName::UID_Type CurveIndex = SmartNameMapping->FindUID(CurveName);
-						if (CurveIndex != INDEX_NONE)
-						{
-							if (Curve.IsEnabled(CurveIndex))
-							{
-								Curve.Set(CurveIndex, RigHierarchy->GetCurveValue(CurveElement->GetKey()));
-							}
-							
-						}
-						return true;
-					});
-				}
-
-			}			
+					const FName& CurveName = CurveElement->GetName();
+					Curve.Add(CurveName, RigHierarchy->GetCurveValue(CurveElement->GetKey()));
+					return true;
+				});
+			}
 
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_NormalizeRotations);
@@ -1198,7 +1183,7 @@ void UAnimationSequencerDataModel::GeneratePoseData(UControlRig* ControlRig, FAn
 					}
 			
 					// Add or retrieve curve
-					const FName& CurveName = TransformCurve.Name.DisplayName;
+					const FName& CurveName = TransformCurve.GetName();
 					// note we're not checking Curve.GetCurveTypeFlags() yet
 					FTransform Value = TransformCurve.Evaluate(EvaluationContext.SampleFrameRate.AsSeconds(EvaluationContext.SampleTime), 1.f);
 
@@ -1444,7 +1429,7 @@ FTransformCurve* UAnimationSequencerDataModel::FindMutableTransformCurveById(con
 {
 	for (FTransformCurve& TransformCurve : LegacyCurveData.TransformCurves)
 	{
-		if (TransformCurve.Name.UID == CurveIdentifier.InternalName.UID)
+		if (TransformCurve.GetName() == CurveIdentifier.CurveName)
 		{
 			return &TransformCurve;
 		}
@@ -1457,7 +1442,7 @@ FFloatCurve* UAnimationSequencerDataModel::FindMutableFloatCurveById(const FAnim
 {
 	for (FFloatCurve& FloatCurve : LegacyCurveData.FloatCurves)
 	{
-		if (FloatCurve.Name.UID == CurveIdentifier.InternalName.UID)
+		if (FloatCurve.GetName() == CurveIdentifier.CurveName)
 		{
 			return &FloatCurve;
 		}

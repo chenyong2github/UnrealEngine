@@ -415,8 +415,15 @@ public:
 	virtual int32 GetNumberOfSampledKeys() const override;
 	virtual FFrameRate GetSamplingFrameRate() const override { return PlatformTargetFrameRate.Default; }
 	virtual void EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData = false) const override;
-	virtual float EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData = false) const override;
-	virtual bool HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData) const override;
+
+	UE_DEPRECATED(5.3, "Please use EvaluateCurveData that takes an FName.")
+	virtual float EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData = false) const override { return 0.0f; }
+	virtual float EvaluateCurveData(FName CurveName, float CurrentTime, bool bForceUseRawData = false) const override;
+
+	UE_DEPRECATED(5.3, "Please use HasCurveData that takes an FName.")
+	virtual bool HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData) const override { return false; }
+	virtual bool HasCurveData(FName CurveName, bool bForceUseRawData) const override;
+
 	//~ End UAnimSequenceBase Interface
 
 	// Extract Root Motion transform from the animation
@@ -452,11 +459,18 @@ public:
 	void GetBonePose(struct FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bForceUseRawData = false) const;
 
 	const TArray<FTrackToSkeletonMap>& GetCompressedTrackToSkeletonMapTable() const { return CompressedData.CompressedTrackToSkeletonMapTable; }
-	const TArray<struct FSmartName>& GetCompressedCurveNames() const { return CompressedData.CompressedCurveNames; }
+
+	UE_DEPRECATED(5.3, "Please use GetCompressedCurveIndexedNames")
+	const TArray<struct FSmartName>& GetCompressedCurveNames() const;
+
+	const TArray<FAnimCompressedCurveIndexedName>& GetCompressedCurveIndexedNames() const { return CompressedData.IndexedCurveNames; }
 
 #if WITH_EDITORONLY_DATA
 protected:
-	void UpdateCompressedCurveName(SmartName::UID_Type CurveUID, const struct FSmartName& NewCurveName);
+	void UpdateCompressedCurveName(const FName& OldCurveName, const FName& NewCurveName);
+	
+	UE_DEPRECATED(5.3, "Please use UpdateCompressedCurveName that takes FNames.")
+	void UpdateCompressedCurveName(SmartName::UID_Type CurveUID, const struct FSmartName& NewCurveName) {}
 private:
 	void UpdateRetargetSourceAsset();
 

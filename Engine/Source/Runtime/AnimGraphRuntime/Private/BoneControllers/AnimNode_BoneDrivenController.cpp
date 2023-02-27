@@ -201,17 +201,12 @@ void FAnimNode_BoneDrivenController::EvaluateComponentSpaceInternal(FComponentSp
 	const FTransform& SourceRefPoseBoneTransform = BoneContainer.GetRefPoseArray()[SourceBone.BoneIndex];
 	const FTransform SourceCurrentBoneTransform = Context.Pose.GetLocalSpaceTransform(SourceBone.GetCompactPoseIndex(BoneContainer));
 
-	const double FinalDriverValue = ExtractSourceValue(SourceCurrentBoneTransform, SourceRefPoseBoneTransform);
-
 	if (DestinationMode == EDrivenDestinationMode::MorphTarget || DestinationMode == EDrivenDestinationMode::MaterialParameter)
 	{
+		const double FinalDriverValue = ExtractSourceValue(SourceCurrentBoneTransform, SourceRefPoseBoneTransform);
+		
 		//	Morph target and Material parameter curves
-		USkeleton* Skeleton = Context.AnimInstanceProxy->GetSkeleton();
-		USkeleton::AnimCurveUID NameUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, ParameterName);
-		if (NameUID != SmartName::MaxUID)
-		{
-			Context.Curve.Set(NameUID, static_cast<float>(FinalDriverValue));
-		}
+		Context.Curve.Set(ParameterName, static_cast<float>(FinalDriverValue));
 	}
 }
 

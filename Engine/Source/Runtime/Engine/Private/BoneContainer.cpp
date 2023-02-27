@@ -9,51 +9,9 @@
 #include "Animation/SkeletonRemappingRegistry.h"
 #include "Animation/SkeletonRemapping.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(BoneContainer)
-
 LLM_DEFINE_TAG(BoneContainer);
 
 DEFINE_LOG_CATEGORY(LogSkeletalControl);
-
-//////////////////////////////////////////////////////////////////////////
-// FSkeletonRemappingCurve
-
-FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, FBoneContainer& InBoneContainer, const FSkeletonRemapping* InSkeletonRemapping)
-	: Curve(InCurve)
-	, BoneContainer(InBoneContainer)
-	, bIsRemapping(true)
-{
-	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
-	const FCachedSkeletonCurveMapping& CurveMapping = InBoneContainer.GetOrCreateCachedCurveMapping(InSkeletonRemapping);
-	Curve.UIDToArrayIndexLUT = &CurveMapping.UIDToArrayIndices;
-}
-
-FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, FBoneContainer& InBoneContainer, const USkeleton* SourceSkeleton)
-	: Curve(InCurve)
-	, BoneContainer(InBoneContainer)
-{
-	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
-	const FSkeletonRemapping& SkeletonRemapping = UE::Anim::FSkeletonRemappingRegistry::Get().GetRemapping(SourceSkeleton, BoneContainer.GetSkeletonAsset());
-	if (SkeletonRemapping.IsValid()) // No remapping is required, just continue as we normally would.
-	{
-		const FCachedSkeletonCurveMapping& CurveMapping = BoneContainer.GetOrCreateCachedCurveMapping(&SkeletonRemapping);
-		Curve.UIDToArrayIndexLUT = &CurveMapping.UIDToArrayIndices;
-		bIsRemapping = true;
-	}
-	else
-	{
-		bIsRemapping = false;
-	}
-}
-
-FSkeletonRemappingCurve::~FSkeletonRemappingCurve()
-{
-	if (bIsRemapping)
-	{
-		Curve.UIDToArrayIndexLUT = &BoneContainer.GetUIDToArrayLookupTableBackup();
-	}
-}
-
 
 //////////////////////////////////////////////////////////////////////////
 // FBoneContainer
@@ -63,7 +21,6 @@ FBoneContainer::FBoneContainer()
 , AssetSkeletalMesh(nullptr)
 , AssetSkeleton(nullptr)
 , RefSkeleton(nullptr)
-, UIDToArrayIndexLUTValidCount(0)
 , SerialNumber(0)
 #if DO_CHECK
 , CalculatedForLOD(INDEX_NONE)
@@ -85,7 +42,6 @@ FBoneContainer::FBoneContainer(const TArray<FBoneIndexType>& InRequiredBoneIndex
 , AssetSkeletalMesh(nullptr)
 , AssetSkeleton(nullptr)
 , RefSkeleton(nullptr)
-, UIDToArrayIndexLUTValidCount(0)
 , SerialNumber(0)
 #if DO_CHECK
 , CalculatedForLOD(INDEX_NONE)
@@ -95,16 +51,42 @@ FBoneContainer::FBoneContainer(const TArray<FBoneIndexType>& InRequiredBoneIndex
 , bUseSourceData(false)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
-	Initialize(CurveEvalOption);
+
+	const UE::Anim::FCurveFilterSettings CurveFilterSettings(CurveEvalOption.bAllowCurveEvaluation ? UE::Anim::ECurveFilterMode::None : UE::Anim::ECurveFilterMode::DisallowAll, CurveEvalOption.DisallowedList, CurveEvalOption.LODIndex);
+	Initialize(CurveFilterSettings);
+}
+
+FBoneContainer::FBoneContainer(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const UE::Anim::FCurveFilterSettings& InCurveFilterSettings, UObject& InAsset)
+	: BoneIndicesArray(InRequiredBoneIndexArray)
+	, Asset(&InAsset)
+	, AssetSkeletalMesh(nullptr)
+	, AssetSkeleton(nullptr)
+	, RefSkeleton(nullptr)
+	, SerialNumber(0)
+#if DO_CHECK
+	, CalculatedForLOD(INDEX_NONE)
+#endif
+	, bDisableRetargeting(false)
+	, bUseRAWData(false)
+	, bUseSourceData(false)
+{
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
+	Initialize(InCurveFilterSettings);
 }
 
 void FBoneContainer::InitializeTo(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const FCurveEvaluationOption& CurveEvalOption, UObject& InAsset)
+{
+	const UE::Anim::FCurveFilterSettings CurveFilterSettings(CurveEvalOption.bAllowCurveEvaluation ? UE::Anim::ECurveFilterMode::None : UE::Anim::ECurveFilterMode::DisallowAll, CurveEvalOption.DisallowedList, CurveEvalOption.LODIndex);
+	InitializeTo(InRequiredBoneIndexArray, CurveFilterSettings, InAsset);
+}
+
+void FBoneContainer::InitializeTo(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const UE::Anim::FCurveFilterSettings& CurveFilterSettings, UObject& InAsset)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	BoneIndicesArray = InRequiredBoneIndexArray;
 	Asset = &InAsset;
 
-	Initialize(CurveEvalOption);
+	Initialize(CurveFilterSettings);
 }
 
 struct FBoneContainerScratchArea : public TThreadSingleton<FBoneContainerScratchArea>
@@ -112,7 +94,7 @@ struct FBoneContainerScratchArea : public TThreadSingleton<FBoneContainerScratch
 	TArray<int32> MeshIndexToCompactPoseIndex;
 };
 
-void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
+void FBoneContainer::Initialize(const UE::Anim::FCurveFilterSettings& InCurveFilterSettings)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	RefSkeleton = nullptr;
@@ -128,7 +110,7 @@ void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 	USkeleton* AssetSkeletonObj = nullptr;
 
 #if DO_CHECK
-	CalculatedForLOD = CurveEvalOption.LODIndex;
+	CalculatedForLOD = InCurveFilterSettings.LODIndex;
 #endif
 	
 	if (AssetSkeletalMeshObj)
@@ -242,8 +224,8 @@ void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 			VirtualBoneCompactPoseData.Add(FVirtualBoneCompactPoseData(FCompactPoseBoneIndex(VBInd), FCompactPoseBoneIndex(SourceInd), FCompactPoseBoneIndex(TargetInd)));
 		}
 	}
-	// cache required curve UID list according to new bone sets
-	CacheRequiredAnimCurveUids(CurveEvalOption);
+	// cache required curves list according to new bone sets
+	CacheRequiredAnimCurves(InCurveFilterSettings);
 
 	// Reset retargeting cached data look up table.
 	RetargetSourceCachedDataLUT.Reset();
@@ -251,114 +233,126 @@ void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 	RegenerateSerialNumber();
 }
 
-void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& CurveEvalOption)
+void FBoneContainer::CacheRequiredAnimCurves(const UE::Anim::FCurveFilterSettings& InCurveFilterSettings)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 
-	// Clear the skeleton remapping backup LUT.
-	// We will initialize this only when needed, using a lazy approach.
-	UIDToArrayIndexLUTBackup.Reset();
+	CurveFilter.Empty();
+	CurveFilter.SetFilterMode(InCurveFilterSettings.FilterMode);
 
-	if (AssetSkeleton.IsValid())
+	CurveFlags.Empty();
+
+	if (USkeleton* Skeleton = AssetSkeleton.Get())
 	{
-		// this is placeholder. In the future, this will change to work with linked joint of curve meta data
-		// anim curve name Uids; For now it adds all of them
-		const FSmartNameMapping* Mapping = AssetSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-		if (Mapping != nullptr)
+		// Copy filter curves.
+		TArray<FName, TInlineAllocator<32>> FilterCurves;
+		if(InCurveFilterSettings.FilterCurves)
 		{
-			UIDToArrayIndexLUT.Reset();
-			UIDToArrayIndexLUTValidCount = 0;
-			
-			const SmartName::UID_Type MaxUID = Mapping->GetMaxUID();
-
-			if (MaxUID == SmartName::MaxUID)
+			FilterCurves = *InCurveFilterSettings.FilterCurves;
+		}
+		
+		if (InCurveFilterSettings.FilterMode != UE::Anim::ECurveFilterMode::DisallowAll)
+		{
+			// Apply curve metadata, LOD and linked bones filtering
+			Skeleton->ForEachCurveMetaData([this, &InCurveFilterSettings, &FilterCurves](const FName& InCurveName, const FCurveMetaData& InMetaData)
 			{
-				// No smart names, nothing to do
-				return;
-			}
-			
-			//Init UID LUT to everything unused
-			UIDToArrayIndexLUT.AddUninitialized(MaxUID+1);
-			for (SmartName::UID_Type& Item : UIDToArrayIndexLUT)
-			{
-				Item = SmartName::MaxUID;
-			}
-
-			// if the linked joints don't exists in RequiredBones, remove itself
-			int32 NumAvailableUIDs = 0;
-			Mapping->Iterate([this, &CurveEvalOption, &NumAvailableUIDs](const FSmartNameMappingIterator& Iterator)
-			{
-				FName CurveName;
-				if (Iterator.GetName(CurveName))
+				bool bBeingUsed = true;
+				UE::Anim::ECurveElementFlags Flags = UE::Anim::ECurveElementFlags::None;
+				UE::Anim::ECurveFilterFlags FilterFlags = UE::Anim::ECurveFilterFlags::None;
+				if(InMetaData.Type.bMaterial)
 				{
-					bool bBeingUsed = true;
-					if (!CurveEvalOption.bAllowCurveEvaluation)
+					Flags |= UE::Anim::ECurveElementFlags::Material;
+				}
+
+				if(InMetaData.Type.bMorphtarget)
+				{
+					Flags |= UE::Anim::ECurveElementFlags::MorphTarget;
+				}
+
+				const int32 Index = FilterCurves.IndexOfByKey(InCurveName);
+				if(Index != INDEX_NONE)
+				{
+					FilterFlags |= UE::Anim::ECurveFilterFlags::Filtered;
+					FilterCurves.RemoveAtSwap(Index, 1, false);
+				}
+				
+				if (InMetaData.MaxLOD < InCurveFilterSettings.LODIndex)
+				{
+					bBeingUsed = false;
+				}
+				else if (InMetaData.LinkedBones.Num() > 0)
+				{
+					bBeingUsed = false;
+					for (const FBoneReference& LinkedBoneReference : InMetaData.LinkedBones)
 					{
-						bBeingUsed = false;
-					}
-					else
-					{
-						// CurveNameIndex shouyld match to UID
-						if (CurveName == NAME_None)
+						// when you enter first time, sometimes it does not have all info yet
+						if (LinkedBoneReference.BoneIndex != INDEX_NONE && LinkedBoneReference.BoneName != NAME_None)
 						{
-							bBeingUsed = false;
-						}
-						else if (CurveEvalOption.DisallowedList && CurveEvalOption.DisallowedList->Contains(CurveName))
-						{
-							//remove the UID
-							bBeingUsed = false;
-						}
-						else
-						{
-							const FCurveMetaData* CurveMetaData = Iterator.GetCurveMetaData();
-							if (CurveMetaData)
+							// this linked bone always use skeleton index
+							ensure(LinkedBoneReference.bUseSkeletonIndex);
+							// we want to make sure all the joints are removed from RequiredBones before removing this curve
+							if (GetCompactPoseIndexFromSkeletonIndex(LinkedBoneReference.BoneIndex) != INDEX_NONE)
 							{
-								if (CurveMetaData->MaxLOD < CurveEvalOption.LODIndex)
-								{
-									bBeingUsed = false;
-								}
-								else if (CurveMetaData->LinkedBones.Num() > 0)
-								{
-									bBeingUsed = false;
-									for (int32 LinkedBoneIndex = 0; LinkedBoneIndex < CurveMetaData->LinkedBones.Num(); ++LinkedBoneIndex)
-									{
-										const FBoneReference& BoneReference = CurveMetaData->LinkedBones[LinkedBoneIndex];
-										// when you enter first time, sometimes it does not have all info yet
-										if (BoneReference.BoneIndex != INDEX_NONE && BoneReference.BoneName != NAME_None)
-										{
-											// this linked bone alkways use skeleton index
-											ensure(BoneReference.bUseSkeletonIndex);
-											// we want to make sure all the joints are removed from RequiredBones before removing this UID
-											if (GetCompactPoseIndexFromSkeletonIndex(BoneReference.BoneIndex) != INDEX_NONE)
-											{
-												// still has some joint that matters, do not remove
-												bBeingUsed = true;
-												break;
-											}
-										}
-									}
-								}
+								// still has some joint that matters, do not remove
+								bBeingUsed = true;
+								break;
 							}
 						}
 					}
-
-					if (bBeingUsed)
-					{
-						UIDToArrayIndexLUT[Iterator.GetIndex()] = NumAvailableUIDs++;
-					}
 				}
-				UIDToArrayIndexLUTValidCount = NumAvailableUIDs;
+
+				if (!bBeingUsed)
+				{
+					FilterFlags |= UE::Anim::ECurveFilterFlags::Disallowed;
+				}
+
+				if (FilterFlags != UE::Anim::ECurveFilterFlags::None)
+				{
+					// Add curve with any relevant flags to filter
+					CurveFilter.Add(InCurveName, FilterFlags);
+				}
+
+				if(Flags != UE::Anim::ECurveElementFlags::None)
+				{
+					// Add curve with any relevant flags to bulk flags
+					CurveFlags.Add(InCurveName, Flags);
+				}
 			});
+
+			// Now add any filtered curves we didnt find in metadata
+			CurveFilter.AppendNames(FilterCurves);
 		}
 	}
-	else
-	{
-		UIDToArrayIndexLUT.Reset();
-		UIDToArrayIndexLUTValidCount = 0;
-	}
 
-	// Make sure we regenerate our cached curve mappings next time they are requested.
-	MarkAllCachedCurveMappingsDirty();
+	if (USkeletalMesh* SkeletalMesh = AssetSkeletalMesh.Get())
+	{
+		// Override any metadata with the skeletal mesh
+		if(const UAnimCurveMetaData* MetaDataUserData = SkeletalMesh->GetAssetUserData<UAnimCurveMetaData>())
+		{
+			UE::Anim::FBulkCurveFlags MeshCurveFlags;
+
+			// Apply morph target flags to any morph curves
+			MetaDataUserData->ForEachCurveMetaData([&MeshCurveFlags](FName InCurveName, const FCurveMetaData& InCurveMetaData)
+			{
+				UE::Anim::ECurveElementFlags Flags = UE::Anim::ECurveElementFlags::None;
+				if(InCurveMetaData.Type.bMaterial)
+				{
+					Flags |= UE::Anim::ECurveElementFlags::Material;
+				}
+				if(InCurveMetaData.Type.bMorphtarget)
+				{
+					Flags |= UE::Anim::ECurveElementFlags::MorphTarget;
+				}
+
+				if(Flags != UE::Anim::ECurveElementFlags::None)
+				{
+					MeshCurveFlags.Add(InCurveName, Flags);
+				}
+			});
+
+			UE::Anim::FNamedValueArrayUtils::Union(CurveFlags, MeshCurveFlags);
+		}
+	}
 
 	RegenerateSerialNumber();
 }
@@ -373,66 +367,6 @@ void FBoneContainer::RegenerateSerialNumber()
 	{
 		SerialNumber++;
 	}
-}
-
-void FBoneContainer::MarkAllCachedCurveMappingsDirty()
-{
-	for (auto& CurveMapping : CachedCurveMappingTable)
-	{
-		CurveMapping.Value.bIsDirty = true;
-	}
-}
-
-const FCachedSkeletonCurveMapping& FBoneContainer::GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping)
-{
-	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
-	
-	check(SkeletonRemapping);
-
-	const USkeleton* SourceSkeleton = SkeletonRemapping->GetSourceSkeleton().Get();
-	check(SourceSkeleton);
-
-	// Make a backup, used for skeleton remapping of curves.
-	if (UIDToArrayIndexLUTBackup.IsEmpty())
-	{
-		UIDToArrayIndexLUTBackup = UIDToArrayIndexLUT;
-	}
-
-	// Check if we already have some cached data for this skeleton.
-	FCachedSkeletonCurveMapping* CachedData = CachedCurveMappingTable.Find(SourceSkeleton);
-	if (CachedData)
-	{
-		// Only return the object when we don't need to update its mapping.
-		if (!CachedData->bIsDirty)
-		{
-			return *CachedData;
-		}
-	}
-	else
-	{
-		CachedData = &CachedCurveMappingTable.Add(const_cast<USkeleton*>(SourceSkeleton));
-	}
-
-	UE_LOG(LogAnimation, Verbose, TEXT("Generating mapping for %s to %s"), 
-		*FAssetData(SkeletonRemapping->GetSourceSkeleton().Get()).AssetName.ToString(),
-		*FAssetData(SkeletonRemapping->GetTargetSkeleton().Get()).AssetName.ToString());
-
-	CachedData->UIDToArrayIndices = SkeletonRemapping->GetSourceToTargetCurveMapping();
-
-	// Now remap the UIDs to our local curve indexes.
-	const int32 NumMappings = CachedData->UIDToArrayIndices.Num();
-	for (int32 MappingIndex = 0; MappingIndex < NumMappings; ++MappingIndex)
-	{
-		const SmartName::UID_Type CurrentUID = CachedData->UIDToArrayIndices[MappingIndex];
-		if (CurrentUID != MAX_uint16)
-		{
-			const int32 CurveIndex = UIDToArrayIndexLUT.Find(CurrentUID);
-			CachedData->UIDToArrayIndices[MappingIndex] = (CurveIndex != INDEX_NONE) ? static_cast<SmartName::UID_Type>(CurveIndex) : MAX_uint16;
-		}
-	}
-
-	CachedData->bIsDirty = false;
-	return *CachedData;
 }
 
 const FRetargetSourceCachedData& FBoneContainer::GetRetargetSourceCachedData(const FName& InRetargetSourceName) const
@@ -598,59 +532,25 @@ void FBoneContainer::RemapFromSkeleton(USkeleton const & SourceSkeleton)
 	PoseToSkeletonBoneIndexArray = SkeletonToPoseBoneIndexArray;
 }
 
-
-/////////////////////////////////////////////////////
-// FBoneReference
-
-bool FBoneReference::Initialize(const FBoneContainer& RequiredBones)
+TArray<uint16> const& FBoneContainer::GetUIDToArrayLookupTable() const
 {
-#if WITH_EDITOR
-	BoneName = *BoneName.ToString().TrimStartAndEnd();
-#endif
-	BoneIndex = RequiredBones.GetPoseBoneIndexForBoneName(BoneName);
-
-	bUseSkeletonIndex = false;
-	// If bone name is not found, look into the leader skeleton to see if it's found there.
-	// SkeletalMeshes can exclude bones from the leader skeleton, and that's OK.
-	// If it's not found in the leader skeleton, the bone does not exist at all! so we should report it as a warning.
-	if (BoneIndex == INDEX_NONE && BoneName != NAME_None)
-	{
-		if (USkeleton* SkeletonAsset = RequiredBones.GetSkeletonAsset())
-		{
-			if (SkeletonAsset->GetReferenceSkeleton().FindBoneIndex(BoneName) == INDEX_NONE)
-			{
-				UE_LOG(LogAnimation, Warning, TEXT("FBoneReference::Initialize BoneIndex for Bone '%s' does not exist in Skeleton '%s'"),
-					*BoneName.ToString(), *GetNameSafe(SkeletonAsset));
-			}
-		}
-	}
-
-	CachedCompactPoseIndex = RequiredBones.MakeCompactPoseIndex(GetMeshPoseIndex(RequiredBones));
-
-	return (BoneIndex != INDEX_NONE);
+	static TArray<uint16> Dummy;
+	return Dummy;
 }
 
-bool FBoneReference::Initialize(const USkeleton* Skeleton)
+int32 FBoneContainer::GetUIDToArrayIndexLookupTableValidCount() const
 {
-	if (Skeleton && (BoneName != NAME_None))
-	{
-#if WITH_EDITOR
-		BoneName = *BoneName.ToString().TrimStartAndEnd();
-#endif
-		BoneIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
-		bUseSkeletonIndex = true;
-	}
-	else
-	{
-		BoneIndex = INDEX_NONE;
-	}
-
-	CachedCompactPoseIndex = FCompactPoseBoneIndex(INDEX_NONE);
-
-	return (BoneIndex != INDEX_NONE);
+	return 0;
 }
 
-bool FBoneReference::IsValidToEvaluate(const FBoneContainer& RequiredBones) const
+TArray<FAnimCurveType> const& FBoneContainer::GetUIDToCurveTypeLookupTable() const
 {
-	return (BoneIndex != INDEX_NONE && RequiredBones.Contains(BoneIndex));
+	static TArray<FAnimCurveType> Dummy;
+	return Dummy;
+}
+
+TArray<SmartName::UID_Type> const& FBoneContainer::GetUIDToArrayLookupTableBackup() const
+{
+	static TArray<SmartName::UID_Type> Dummy;
+	return Dummy;
 }

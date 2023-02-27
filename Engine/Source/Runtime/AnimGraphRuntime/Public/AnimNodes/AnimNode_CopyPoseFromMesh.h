@@ -65,14 +65,13 @@ private:
 	TWeakObjectPtr<USkeletalMesh>			CurrentlyUsedTargetMesh;
 	// cache of target space bases to source space bases
 	TMap<int32, int32> BoneMapToSource;
-	TMap<FName, SmartName::UID_Type> CurveNameToUIDMap;
 	TMap<int32, int32> SourceBoneToTarget;
 
 	// Cached transforms, copied on the game thread
 	TArray<FTransform> SourceMeshTransformArray;
 
 	// Cached curves, copied on the game thread
-	TMap<FName, float> SourceCurveList;
+	FBlendedHeapCurve SourceCurves;
 
 	// Cached attributes, copied on the game thread
 	UE::Anim::FMeshAttributeContainer SourceCustomAttributes;

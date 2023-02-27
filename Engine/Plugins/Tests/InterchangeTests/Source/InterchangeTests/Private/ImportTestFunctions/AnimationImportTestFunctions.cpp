@@ -12,18 +12,16 @@ namespace UE::Private::AnimationImportTestFunction
 	static bool GetImportedCustomCurveKey(UAnimSequence* AnimSequence, const FString& CurveName, const int32 KeyIndex, FRichCurveKey& OutCurveKey, FInterchangeTestFunctionResult& Result)
 	{
 		const FFloatCurve* FloatCurve = nullptr;
-		FSmartName OutSmartName;
-		if (AnimSequence->GetSkeleton()->GetSmartNameByName(USkeleton::AnimCurveMappingName, *CurveName, OutSmartName))
+
+		for (const FFloatCurve& Curve : AnimSequence->GetCurveData().FloatCurves)
 		{
-			for (const FFloatCurve& Curve : AnimSequence->GetCurveData().FloatCurves)
+			if (Curve.GetName() == FName(*CurveName))
 			{
-				if (Curve.Name.DisplayName == FName(*CurveName))
-				{
-					FloatCurve = &Curve;
-					break;
-				}
+				FloatCurve = &Curve;
+				break;
 			}
 		}
+
 		if (FloatCurve == nullptr)
 		{
 			Result.AddError(FString::Printf(TEXT("No custom curve named %s was imported"), *CurveName));
@@ -168,4 +166,3 @@ FInterchangeTestFunctionResult UAnimationImportTestFunctions::CheckCurveKeyLeave
 	}
 	return Result;
 }
-

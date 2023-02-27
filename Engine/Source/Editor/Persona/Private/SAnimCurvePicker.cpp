@@ -15,6 +15,8 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SMenuOwner.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Engine/SkeletalMesh.h"
 
 #define LOCTEXT_NAMESPACE "SAnimCurvePicker"
 
@@ -22,17 +24,18 @@ SAnimCurvePicker::~SAnimCurvePicker()
 {
 }
 
-void SAnimCurvePicker::Construct(const FArguments& InArgs, const TSharedRef<IEditableSkeleton>& InEditableSkeleton)
+void SAnimCurvePicker::Construct(const FArguments& InArgs, const USkeleton* InSkeleton)
 {
-	OnCurveNamePicked = InArgs._OnCurveNamePicked;
-	IsCurveMarkedForExclusion = InArgs._IsCurveMarkedForExclusion;
-	EditableSkeleton = InEditableSkeleton;
+	OnCurvePicked = InArgs._OnCurvePicked;
+	IsCurveNameMarkedForExclusion = InArgs._IsCurveNameMarkedForExclusion;
+	Skeleton = InSkeleton;
+	bShowOtherSkeletonCurves = false;
 
 	SAssignNew(SearchBox, SSearchBox)
 	.HintText(LOCTEXT("SearchBoxHint", "Search"))
 	.OnTextChanged(this, &SAnimCurvePicker::HandleFilterTextChanged);
 
-	SAssignNew(NameListView, SListView<TSharedPtr<FSmartName>>)
+	SAssignNew(NameListView, SListView<TSharedPtr<FName>>)
 	.SelectionMode(ESelectionMode::Single)
 	.ListItemsSource(&CurveNames)
 	.OnSelectionChanged(this, &SAnimCurvePicker::HandleSelectionChanged)
@@ -41,14 +44,16 @@ void SAnimCurvePicker::Construct(const FArguments& InArgs, const TSharedRef<IEdi
 	const float HorizontalPadding = 8.0f;
 	const float VerticalPadding = 2.0f;
 	const float WeightOverride = 300.0f;
-	
+
+	TSharedPtr<SVerticalBox> VerticalBox;
+
 	ChildSlot
 	[
 		SNew(SMenuOwner)
 		[
-			SNew(SListViewSelectorDropdownMenu<TSharedPtr<FSmartName>>, SearchBox, NameListView)
+			SNew(SListViewSelectorDropdownMenu<TSharedPtr<FName>>, SearchBox, NameListView)
 			[
-				SNew(SVerticalBox)
+				SAssignNew(VerticalBox, SVerticalBox)
 				+SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(HorizontalPadding, VerticalPadding)
@@ -57,7 +62,6 @@ void SAnimCurvePicker::Construct(const FArguments& InArgs, const TSharedRef<IEdi
 				]
 				+SVerticalBox::Slot()
 				.FillHeight(1.0f)
-				.VAlign(VAlign_Fill)
 				.Padding(HorizontalPadding, VerticalPadding)
 				[
 					SNew(SBox)
@@ -75,7 +79,7 @@ void SAnimCurvePicker::Construct(const FArguments& InArgs, const TSharedRef<IEdi
 						[
 							SNew(SScrollBox)
 							.Orientation(EOrientation::Orient_Vertical)
-							+ SScrollBox::Slot()
+							+SScrollBox::Slot()
 							.HAlign(HAlign_Fill)
 							.VAlign(VAlign_Fill)
 							[
@@ -88,10 +92,35 @@ void SAnimCurvePicker::Construct(const FArguments& InArgs, const TSharedRef<IEdi
 		]
 	];
 
+	if(Skeleton.IsValid())
+	{
+		VerticalBox->AddSlot()
+			.AutoHeight()
+			.Padding(HorizontalPadding, VerticalPadding)
+			[
+				SNew(SCheckBox)
+				.ToolTipText(LOCTEXT("ShowOtherSkeletonsTooltip", "Whether to show all curves or just the curves from the current skeleton"))
+				.IsChecked_Lambda([this]()
+				{
+					return bShowOtherSkeletonCurves ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				})
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState InState)
+				{
+					bShowOtherSkeletonCurves = (InState == ECheckBoxState::Checked);
+					RefreshListItems();
+				})
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ShowOtherSkeletons", "Show curves from other skeletons"))
+				]
+			];
+	}
+	
 	RefreshListItems();
 }
 
-void SAnimCurvePicker::HandleSelectionChanged(TSharedPtr<FSmartName> InItem, ESelectInfo::Type InSelectionType)
+void SAnimCurvePicker::HandleSelectionChanged(TSharedPtr<FName> InItem, ESelectInfo::Type InSelectionType)
 {
 	// When the user is navigating, do not act upon the selection change
 	if (InSelectionType == ESelectInfo::OnNavigation)
@@ -101,21 +130,21 @@ void SAnimCurvePicker::HandleSelectionChanged(TSharedPtr<FSmartName> InItem, ESe
 	
 	if (InItem.IsValid())
 	{
-		OnCurveNamePicked.ExecuteIfBound(*InItem);
+		OnCurvePicked.ExecuteIfBound(*InItem);
 	}
 }
 
-TSharedRef<ITableRow> SAnimCurvePicker::HandleGenerateRow(TSharedPtr<FSmartName> InItem, const TSharedRef<STableViewBase>& InOwnerTable)
+TSharedRef<ITableRow> SAnimCurvePicker::HandleGenerateRow(TSharedPtr<FName> InItem, const TSharedRef<STableViewBase>& InOwnerTable)
 {
 	return 
-		SNew(STableRow<TSharedPtr<FSmartName>>, InOwnerTable)
+		SNew(STableRow<TSharedPtr<FName>>, InOwnerTable)
 		.Padding(FMargin(8.0f, 0.0f))
 		[
 			SNew(SBox)
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(FText::FromName(InItem->DisplayName))
+				.Text(FText::FromName(*InItem))
 				.HighlightText_Lambda([this]() { return FText::FromString(FilterText); })
 			]
 		];
@@ -123,26 +152,32 @@ TSharedRef<ITableRow> SAnimCurvePicker::HandleGenerateRow(TSharedPtr<FSmartName>
 
 void SAnimCurvePicker::RefreshListItems()
 {
-	// Ensure valid skeleton exists
-	const TSharedPtr<IEditableSkeleton> CurrentEditableSkeleton = EditableSkeleton.Pin();
-	check(CurrentEditableSkeleton);
-	const USkeleton & CurrentSkeleton = CurrentEditableSkeleton->GetSkeleton();
+	const USkeleton* CurrentSkeleton = Skeleton.Get();
+	FString CurrentSkeletonName;
+	if(CurrentSkeleton)
+	{
+		CurrentSkeletonName = FAssetData(CurrentSkeleton).GetExportTextName();
+	}
 
-	// Get name container for all the curves stored by the skeleton
-	const FSmartNameMapping* CurveNameMapping = CurrentSkeleton.GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-	CurveNameMapping->FillUidArray(CurveSmartNameUids);
-	
 	CurveNames.Reset();
 	UniqueCurveNames.Reset();
 
 	{
-		// We use the asset registry to query all assets with the supplied skeleton, and accumulate their curve names
+		// First check skeleton metadata
+		if(CurrentSkeleton)
+		{
+			CurrentSkeleton->ForEachCurveMetaData([this](FName InCurveName, const FCurveMetaData& InMetaData)
+			{
+				UniqueCurveNames.Add(InCurveName);
+			});
+		}
+
+		// We use the asset registry to query all assets (optionally with the supplied skeleton) and accumulate their curve names
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 
 		FARFilter Filter;
 		Filter.bRecursiveClasses = true;
-		Filter.ClassPaths.Add(UAnimationAsset::StaticClass()->GetClassPathName());
-		Filter.TagsAndValues.Add(TEXT("Skeleton"), FAssetData(&CurrentSkeleton).GetExportTextName());
+		Filter.ClassPaths.Append({ UAnimationAsset::StaticClass()->GetClassPathName(), USkeletalMesh::StaticClass()->GetClassPathName(), USkeleton::StaticClass()->GetClassPathName() } );
 
 		TArray<FAssetData> FoundAssetData;
 		AssetRegistryModule.Get().GetAssets(Filter, FoundAssetData);
@@ -150,41 +185,43 @@ void SAnimCurvePicker::RefreshListItems()
 		// Build set of unique curve smart names
 		for (FAssetData& AssetData : FoundAssetData)
 		{
-			const FString TagValue = AssetData.GetTagValueRef<FString>(USkeleton::CurveNameTag);
-			if (!TagValue.IsEmpty())
+			if(!bShowOtherSkeletonCurves && AssetData.GetClass() != USkeleton::StaticClass())
 			{
-				// parse notifies
-				if (TagValue.ParseIntoArray(CurveNamesQueriedFromAssetRegistry, *USkeleton::CurveTagDelimiter, true) > 0)
+				if(!CurrentSkeletonName.IsEmpty())
 				{
-					for (const FString& CurveNameString : CurveNamesQueriedFromAssetRegistry)
+					// Check skeleton tag
+					const FString SkeletonName = AssetData.GetTagValueRef<FString>(USkeleton::StaticClass()->GetFName());
+					if(SkeletonName != CurrentSkeletonName)
 					{
-						FName CurveName = FName(*CurveNameString);
-						FSmartName InCurveSmartName = {CurveName, CurveNameMapping->FindUID(CurveName)};
-						
-						if (IsCurveMarkedForExclusion.IsBound() && IsCurveMarkedForExclusion.Execute(InCurveSmartName))
-						{
-							continue;
-						}
-						
-						UniqueCurveNames.Add(InCurveSmartName);
+						continue;
 					}
 				}
 			}
-		}
-	}
-	
-	// Add unique curves that were not found using asset registry
-	for (SmartName::UID_Type Id : CurveSmartNameUids)
-	{
-		FName OutCurveName;
-		if (CurveNameMapping->GetName(Id, OutCurveName))
-		{
-			FSmartName InCurveSmartName(OutCurveName, Id);
-
-			if (IsCurveMarkedForExclusion.IsBound() && IsCurveMarkedForExclusion.Execute(InCurveSmartName))
-				continue;
 			
-			UniqueCurveNames.Add(InCurveSmartName);
+			const FString TagValue = AssetData.GetTagValueRef<FString>(USkeleton::CurveNameTag);
+			if (!TagValue.IsEmpty())
+			{
+				TArray<FString> AssetCurveNames;
+				if (TagValue.ParseIntoArray(AssetCurveNames, *USkeleton::CurveTagDelimiter, true) > 0)
+				{
+					for (const FString& CurveNameString : AssetCurveNames)
+					{
+						FName CurveName = FName(*CurveNameString);
+
+						if(CurveName == NAME_None)
+						{
+							continue;
+						}
+
+						if (IsCurveNameMarkedForExclusion.IsBound() && IsCurveNameMarkedForExclusion.Execute(CurveName))
+						{
+							continue;
+						}
+
+						UniqueCurveNames.Add(CurveName);
+					}
+				}
+			}
 		}
 	}
 
@@ -196,24 +233,24 @@ void SAnimCurvePicker::FilterAvailableCurves()
 	CurveNames.Reset();
 	
 	// Exact filtering
-	for (const FSmartName& UniqueCurveName : UniqueCurveNames)
+	for (const FName& UniqueCurveName : UniqueCurveNames)
 	{
-		if (FilterText.IsEmpty() || UniqueCurveName.DisplayName.ToString().Contains(FilterText))
+		if (FilterText.IsEmpty() || UniqueCurveName.ToString().Contains(FilterText))
 		{
-			CurveNames.Add(MakeShared<FSmartName>(UniqueCurveName));
+			CurveNames.Add(MakeShared<FName>(UniqueCurveName));
 		}
 	}
 
 	// Alphabetical sorting
 	{
-		struct FSmartNameSortItemSortOp
+		struct FNameSortItemSortOp
 		{
-			FORCEINLINE bool operator()( const TSharedPtr<FSmartName>& A, const TSharedPtr<FSmartName>& B ) const
+			FORCEINLINE bool operator()( const TSharedPtr<FName>& A, const TSharedPtr<FName>& B ) const
 			{
-				return (A->DisplayName.Compare(B->DisplayName) < 0);
+				return (A->ToString().Compare(B->ToString()) < 0);
 			}
 		};
-		CurveNames.Sort(FSmartNameSortItemSortOp());
+		CurveNames.Sort(FNameSortItemSortOp());
 	}
 
 	// Rebuild list view

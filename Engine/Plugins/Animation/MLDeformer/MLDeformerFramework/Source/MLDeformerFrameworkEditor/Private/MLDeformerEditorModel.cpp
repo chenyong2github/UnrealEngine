@@ -1050,29 +1050,18 @@ namespace UE::MLDeformer
 		if (bIncludeCurves && SkeletalMesh)
 		{
 			// Anim curves.
-			const FSmartNameMapping* SmartNameMapping = Skeleton ? Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName) : nullptr;
-			if (SmartNameMapping) // When there are curves.
+			// Include all curves when no list was provided.
+			if (Model->GetCurveIncludeList().IsEmpty())
 			{
-				// Include all curves when no list was provided.
-				if (Model->GetCurveIncludeList().IsEmpty())
+				Skeleton->GetCurveMetaDataNames(CurveNames);
+			}
+			else // A list of curve names was provided.
+			{
+				for (const FMLDeformerCurveReference& CurveReference : Model->GetCurveIncludeList())
 				{
-					SmartNameMapping->FillNameArray(CurveNames);
-				}
-				else // A list of curve names was provided.
-				{
-					for (const FMLDeformerCurveReference& CurveReference : Model->GetCurveIncludeList())
+					if (CurveReference.CurveName.IsValid())
 					{
-						if (CurveReference.CurveName.IsValid())
-						{
-							const FName CurveName = CurveReference.CurveName;
-							if (!SmartNameMapping->Exists(CurveName))
-							{
-								UE_LOG(LogMLDeformer, Warning, TEXT("Curve '%s' doesn't exist, ignoring it."), *CurveName.ToString());
-								continue;
-							}
-
-							CurveNames.Add(CurveName);
-						}
+						CurveNames.Add(CurveReference.CurveName);
 					}
 				}
 			}
@@ -1206,35 +1195,31 @@ namespace UE::MLDeformer
 
 		// Iterate over all curves that are both in the skeleton and the animation.
 		TArray<FName> AnimatedCurveList;
-		const FSmartNameMapping* Mapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-		if (Mapping)
+		TArray<FName> SkeletonCurveNames;
+		Skeleton->GetCurveMetaDataNames(SkeletonCurveNames);
+		for (const FName& SkeletonCurveName : SkeletonCurveNames)
 		{
-			TArray<FName> SkeletonCurveNames;
-			Mapping->FillNameArray(SkeletonCurveNames);
-			for (const FName& SkeletonCurveName : SkeletonCurveNames)
+			const TArray<FFloatCurve>& AnimCurves = DataModel->GetFloatCurves();
+			for (const FFloatCurve& AnimCurve : AnimCurves)
 			{
-				const TArray<FFloatCurve>& AnimCurves = DataModel->GetFloatCurves();
-				for (const FFloatCurve& AnimCurve : AnimCurves)
+				if (AnimCurve.GetName() == SkeletonCurveName)
 				{
-					if (AnimCurve.Name.IsValid() && AnimCurve.Name.DisplayName == SkeletonCurveName)
+					TArray<float> TimeValues;
+					TArray<float> KeyValues;
+					AnimCurve.GetKeys(TimeValues, KeyValues);
+					if (KeyValues.Num() > 0)
 					{
-						TArray<float> TimeValues;
-						TArray<float> KeyValues;
-						AnimCurve.GetKeys(TimeValues, KeyValues);
-						if (KeyValues.Num() > 0)
+						const float FirstKeyValue = KeyValues[0];
+						for (float CurKeyValue : KeyValues)
 						{
-							const float FirstKeyValue = KeyValues[0];					
-							for (float CurKeyValue : KeyValues)
+							if (CurKeyValue != FirstKeyValue)
 							{
-								if (CurKeyValue != FirstKeyValue)
-								{
-									AnimatedCurveList.Add(SkeletonCurveName);
-									break;
-								}
+								AnimatedCurveList.Add(SkeletonCurveName);
+								break;
 							}
 						}
-						break;
 					}
+					break;
 				}
 			}
 		}
@@ -1877,13 +1862,7 @@ namespace UE::MLDeformer
 			const USkeleton* Skeleton = SkelMesh->GetSkeleton();
 			if (Skeleton)
 			{
-				const FSmartNameMapping* Mapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-				if (Mapping)
-				{
-					TArray<FName> SkeletonCurveNames;
-					Mapping->FillNameArray(SkeletonCurveNames);
-					return SkeletonCurveNames.Num();
-				}
+				return Skeleton->GetNumCurveMetaData();
 			}
 		}
 

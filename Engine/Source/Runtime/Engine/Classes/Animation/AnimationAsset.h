@@ -33,6 +33,10 @@ class UPoseAsset;
 class UMirrorDataTable;
 class USkeletalMesh;
 struct FAnimationUpdateContext;
+namespace SmartName
+{
+typedef uint16 UID_Type;
+}
 
 namespace UE { namespace Anim {
 class IAnimNotifyEventContextDataInterface;
@@ -218,15 +222,15 @@ struct FBlendFilter
 /*
  * Pose Curve container for extraction
  * This is used by pose anim node
- * Saves UID/PoseIndex/Value of the curve
+ * Saves Name/PoseIndex/Value of the curve
  */
 struct FPoseCurve
 {
+	UE_DEPRECATED(5.3, "UID is no longer used.")
+	static SmartName::UID_Type	UID;
 
-	// alignment is weird, but 4 here
-	// UID of the curve. Used to get curve value
-	// and also can be used to verify 
-	SmartName::UID_Type	UID;
+	// The name of the curve
+	FName				Name;
 	// PoseIndex of pose asset it's dealing with
 	// used to extract pose value fast
 	int32				PoseIndex;
@@ -234,13 +238,20 @@ struct FPoseCurve
 	float				Value;
 
 	FPoseCurve()
-		: UID(SmartName::MaxUID)
+		: Name(NAME_None)
 		, PoseIndex(INDEX_NONE)
 		, Value(0.f)
 	{}
 
+	FPoseCurve(int32 InPoseIndex, FName InName, float InValue)
+		: Name(InName)
+		, PoseIndex(InPoseIndex)
+		, Value(InValue)
+	{}
+
+	UE_DEPRECATED(5.3, "Please use the constructor that takes an FName.")
 	FPoseCurve(int32 InPoseIndex, SmartName::UID_Type	InUID, float  InValue )
-		: UID(InUID)
+		: Name(NAME_None)
 		, PoseIndex(InPoseIndex)
 		, Value(InValue)
 	{}

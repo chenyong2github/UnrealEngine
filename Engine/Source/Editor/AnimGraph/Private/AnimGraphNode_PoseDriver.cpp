@@ -304,11 +304,11 @@ void UAnimGraphNode_PoseDriver::CopyTargetsFromPoseAsset()
 		Node.PoseTargets.Empty();
 
 		// For each pose we create a target
-		const TArray<FSmartName> PoseNames = PoseAsset->GetPoseNames();
+		const TArray<FName>& PoseNames = PoseAsset->GetPoseFNames();
 		for (int32 PoseIdx = 0; PoseIdx < PoseAsset->GetNumPoses(); PoseIdx++)
 		{
 			FPoseDriverTarget PoseTarget;
-			PoseTarget.DrivenName = PoseNames[PoseIdx].DisplayName;
+			PoseTarget.DrivenName = PoseNames[PoseIdx];
 
 			// Create entry for each bone
 			for (const FBoneReference& SourceBoneRef : Node.SourceBones)

@@ -21,12 +21,12 @@ private:
 	TSharedRef<SWidget> BuildCurvesSubMenu();
 	void FillMetadataEntryMenu(FMenuBuilder& Builder);
 	void FillVariableCurveMenu(FMenuBuilder& Builder);
-	void AddMetadataEntry(USkeleton::AnimCurveUID Uid);
+	void AddMetadataEntry(const FName& InCurveName);
 	void CreateNewMetadataEntryClicked();
 	void CreateNewMetadataEntry(const FText& CommittedText, ETextCommit::Type CommitType);
 	void CreateNewCurveClicked();
 	void CreateTrack(const FText& ComittedText, ETextCommit::Type CommitInfo);
-	void AddVariableCurve(USkeleton::AnimCurveUID CurveUid);
+	void AddVariableCurve(const FName& InCurveName);
 	void DeleteAllCurves();
 
 	/** Handlers for showing curve points */
@@ -34,9 +34,9 @@ private:
 	bool IsShowCurvePointsEnabled() const;
 
 	/** Curve Picker Callbacks */
-	void OnMetadataCurveNamePicked(const FSmartName & InCurveSmartName);
-	void OnVariableCurveNamePicked(const FSmartName & InCurveSmartName);
-	bool IsCurveMarkedForExclusion(const FSmartName & InCurveSmartName);
+	void OnMetadataCurveNamePicked(const FName& InCurveName);
+	void OnVariableCurveNamePicked(const FName& InCurveName);
+	bool IsCurveMarkedForExclusion(const FName& InCurveName);
 	
 private:
 	TSharedPtr<SWidget>	OutlinerWidget;

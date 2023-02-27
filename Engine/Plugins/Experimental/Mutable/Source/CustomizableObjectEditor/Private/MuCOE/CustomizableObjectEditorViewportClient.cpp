@@ -2051,10 +2051,10 @@ void FCustomizableObjectEditorViewportClient::SetAnimation(UAnimationAsset* Anim
 				UAnimSingleNodeInstance* SingleNodeInstance = Cast<UAnimSingleNodeInstance>(SkeletalMeshComponent->GetAnimInstance());
 				if (SingleNodeInstance)
 				{
-					TArray<FSmartName> ArrayPoseSmartNames = PoseAsset->GetPoseNames();
-					for (int32 i = 0; i < ArrayPoseSmartNames.Num(); ++i)
+					TArray<FName> ArrayPoseNames = PoseAsset->GetPoseFNames();
+					for (int32 i = 0; i < ArrayPoseNames.Num(); ++i)
 					{
-						SingleNodeInstance->SetPreviewCurveOverride(ArrayPoseSmartNames[i].DisplayName, 1.0f, false);
+						SingleNodeInstance->SetPreviewCurveOverride(ArrayPoseNames[i], 1.0f, false);
 					}
 				}
 			}

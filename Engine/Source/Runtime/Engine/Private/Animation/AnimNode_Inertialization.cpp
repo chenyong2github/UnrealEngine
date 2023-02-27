@@ -8,6 +8,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Logging/TokenizedMessage.h"
+#include "Animation/AnimCurveUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_Inertialization)
 
@@ -26,6 +27,9 @@ TAutoConsoleVariable<int32> CVarAnimInertializationIgnoreDeficit(TEXT("a.AnimNod
 
 static constexpr int32 INERTIALIZATION_MAX_POSE_SNAPSHOTS = 2;
 static constexpr float INERTIALIZATION_TIME_EPSILON = 1.0e-7f;
+
+// DEPRECATED: Used for backwards compatibility
+float FInertializationCurveDiffElement::Delta = 0.0f;
 
 namespace UE { namespace Anim {
 
@@ -133,19 +137,6 @@ void FAnimNode_Inertialization::Initialize_AnyThread(const FAnimationInitializeC
 	Deactivate();
 
 	InertializationPoseDiff.Reset();
-	CachedFilteredCurvesUIDs.Reset();
-
-	const USkeleton* Skeleton = Context.AnimInstanceProxy->GetSkeleton();
-	check(Skeleton);
-	for (const FName& CurveName : FilteredCurves)
-	{
-		SmartName::UID_Type NameUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, CurveName);
-		if (NameUID != SmartName::MaxUID)
-		{
-			// Grab UIDs of filtered curves to avoid lookup later
-			CachedFilteredCurvesUIDs.Add(NameUID);
-		}
-	}
 }
 
 
@@ -409,10 +400,6 @@ void FAnimNode_Inertialization::Evaluate_AnyThread(FPoseContext& Output)
 		for (int32 i = 0; i < INERTIALIZATION_MAX_POSE_SNAPSHOTS - 1; ++i)
 		{
 			Swap(PoseSnapshots[i], PoseSnapshots[i+1]);
-
-			// Verify the swap operation used move assignment to properly fix up curve LUT pointers
-			checkSlow(PoseSnapshots[i].Curves.BlendedCurve.UIDToArrayIndexLUT == &PoseSnapshots[i].Curves.CurveUIDToArrayIndexLUT);
-			checkSlow(PoseSnapshots[i+1].Curves.BlendedCurve.UIDToArrayIndexLUT == &PoseSnapshots[i+1].Curves.CurveUIDToArrayIndexLUT);
 		}
 
 		// Overwrite the (now irrelevant) pose in the last slot with the new post snapshot
@@ -489,7 +476,15 @@ void FAnimNode_Inertialization::StartInertialization(FPoseContext& Context, FIne
 		}
 	}
 
-	OutPoseDiff.InitFrom(Context.Pose, Context.Curve, Context.AnimInstanceProxy->GetComponentTransform(), AttachParentName, PreviousPose1, PreviousPose2, CachedFilteredCurvesUIDs);
+	// Initialize curve filter if required 
+	if(FilteredCurves.Num() != CurveFilter.Num())
+	{
+		CurveFilter.Empty();
+		CurveFilter.SetFilterMode(UE::Anim::ECurveFilterMode::DisallowFiltered);
+		CurveFilter.AppendNames(FilteredCurves);
+	}
+	
+	OutPoseDiff.InitFrom(Context.Pose, Context.Curve, Context.AnimInstanceProxy->GetComponentTransform(), AttachParentName, PreviousPose1, PreviousPose2, CurveFilter);
 }
 
 
@@ -544,7 +539,7 @@ void FInertializationPose::InitFrom(const FCompactPose& Pose, const FBlendedCurv
 // Prev2		the pose and curves from two frames before
 // DeltaTime	the time elapsed between Prev1 and Pose
 //
-void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlendedCurve& Curves, const FTransform& ComponentTransform, const FName& AttachParentName, const FInertializationPose& Prev1, const FInertializationPose& Prev2, const TSet<SmartName::UID_Type>& FilteredCurvesUIDs)
+void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlendedCurve& Curves, const FTransform& ComponentTransform, const FName& AttachParentName, const FInertializationPose& Prev1, const FInertializationPose& Prev2, const UE::Anim::FCurveFilter& CurveFilter)
 {
 	const FBoneContainer& BoneContainer = Pose.GetBoneContainer();
 
@@ -713,40 +708,31 @@ void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlended
 	}
 
 	// Compute the curve differences
-	const int32 CurveNum = Curves.IsValid() ? Curves.UIDToArrayIndexLUT->Num() : 0;
-	CurveDiffs.Empty(CurveNum);
-	CurveDiffs.AddZeroed(CurveNum);
-	for (int32 CurveUID = 0; CurveUID != CurveNum; ++CurveUID)
+	// First copy in current values
+	CurveDiffs.CopyFrom(Curves);
+
+	// Apply filtering to diffs to remove anything we dont want to inertialize
+	if(CurveFilter.Num() > 0)
 	{
-		const int32 CurrIdx = Curves.GetArrayIndexByUID(CurveUID);
-		const int32 Prev1Idx = Prev1.Curves.BlendedCurve.GetArrayIndexByUID(CurveUID);
-		if (CurrIdx == INDEX_NONE || Prev1Idx == INDEX_NONE)
-		{
-			// CurveDiff is zeroed
-			continue;
-		}
-
-		// Check if the curve is in our filter set. Leave CurveDiff zeroed if it is.
-		if (FilteredCurvesUIDs.Contains((SmartName::UID_Type)CurveUID))
-		{
-			continue;
-		}
-
-		const float CurrWeight = Curves.CurveWeights[CurrIdx];
-		const float Prev1Weight = Prev1.Curves.BlendedCurve.CurveWeights[Prev1Idx];
-		FInertializationCurveDiff& CurveDiff = CurveDiffs[CurveUID];
-
-		// Note we intentionally ignore FBlendedCurve::ValidCurveWeights. We want to ease in/out when only one
-		// curve is valid, and we'll compute a zero delta and derivative when both are invalid.
-		CurveDiff.Delta = Prev1Weight - CurrWeight;
-
-		const int32 Prev2Idx = Prev2.Curves.BlendedCurve.GetArrayIndexByUID(CurveUID);
-		if (Prev2Idx != INDEX_NONE && Prev1.DeltaTime > UE_KINDA_SMALL_NUMBER)
-		{
-			const float Prev2Weight = Prev2.Curves.BlendedCurve.CurveWeights[Prev2Idx];
-			CurveDiff.Derivative = (Prev1Weight - Prev2Weight) / Prev1.DeltaTime;
-		}
+		UE::Anim::FCurveUtils::Filter(CurveDiffs, CurveFilter);
 	}
+
+	// Compute differences & derivatives
+	UE::Anim::FNamedValueArrayUtils::Union(CurveDiffs, Prev1.Curves.BlendedCurve, Prev2.Curves.BlendedCurve,
+		[DeltaTime = Prev1.DeltaTime](FInertializationCurveDiffElement& OutResultElement, const UE::Anim::FCurveElement& InElement0, const UE::Anim::FCurveElement& InElement1, UE::Anim::ENamedValueUnionFlags InFlags)
+		{
+			const float CurrWeight = OutResultElement.Value;
+			const float Prev1Weight = InElement0.Value;
+
+			// Store delta in curve value
+			OutResultElement.Value = Prev1Weight - CurrWeight;
+
+			if(DeltaTime > UE_KINDA_SMALL_NUMBER)
+			{
+				const float Prev2Weight = InElement1.Value;
+				OutResultElement.Derivative = (Prev1Weight - Prev2Weight) / DeltaTime;
+			}
+		});
 }
 
 
@@ -786,27 +772,12 @@ void FInertializationPoseDiff::ApplyTo(FCompactPose& Pose, FBlendedCurve& Curves
 	Pose.NormalizeRotations();
 
 	// Apply curve differences
-	if (Curves.IsValid())
-	{
-		// Note Curves.Elements is indexed indirectly via lookup table while CurveDiffs is indexed directly by curve ID
-		const int32 CurveNum = FMath::Min(Curves.UIDToArrayIndexLUT->Num(), CurveDiffs.Num());
-		for (int32 CurveUID = 0; CurveUID != CurveNum; ++CurveUID)
+	UE::Anim::FNamedValueArrayUtils::Union(Curves, CurveDiffs,
+		[&InertializationElapsedTime, &InertializationDuration](UE::Anim::FCurveElement& OutResultElement, const FInertializationCurveDiffElement& InParamElement, UE::Anim::ENamedValueUnionFlags InFlags)
 		{
-			const int32 CurrIdx = Curves.GetArrayIndexByUID(CurveUID);
-			if (CurrIdx == INDEX_NONE)
-			{
-				continue;
-			}
-
-			const FInertializationCurveDiff& CurveDiff = CurveDiffs[CurveUID];
-			const float C = CalcInertialFloat(CurveDiff.Delta, CurveDiff.Derivative, InertializationElapsedTime, InertializationDuration);
-			if (C != 0.0f)
-			{
-				Curves.CurveWeights[CurrIdx] += C;
-				Curves.ValidCurveWeights[CurrIdx] = true;
-			}
-		}
-	}
+			OutResultElement.Value = CalcInertialFloat(InParamElement.Value, InParamElement.Derivative, InertializationElapsedTime, InertializationDuration);
+			OutResultElement.Flags |= InParamElement.Flags;
+		});
 }
 
 

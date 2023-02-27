@@ -2944,17 +2944,7 @@ void UAnimMontage::BakeTimeStretchCurve()
 	const FFloatCurve* TimeStretchFloatCurve = nullptr;
 	if (ShouldDataModelBeValid())
 	{		
-		if (const USkeleton* MySkeleton = GetSkeleton())
-		{
-			if (const FSmartNameMapping* CurveNameMapping = MySkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName))
-			{
-				const USkeleton::AnimCurveUID CurveUID = CurveNameMapping->FindUID(TimeStretchCurveName);
-				if (CurveUID != SmartName::MaxUID)
-				{
-					TimeStretchFloatCurve = GetDataModel()->FindFloatCurve(FAnimationCurveIdentifier(CurveUID, ERawCurveTrackTypes::RCT_Float));
-				}
-			}
-		}
+		TimeStretchFloatCurve = GetDataModel()->FindFloatCurve(FAnimationCurveIdentifier(TimeStretchCurveName, ERawCurveTrackTypes::RCT_Float));
 	}
 
 	if (TimeStretchFloatCurve == nullptr)

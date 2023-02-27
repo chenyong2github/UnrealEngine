@@ -23,7 +23,10 @@ private:
 	bool bUseCompressedData;
 public:
 
-	FAnimCurveBufferAccess(const UAnimSequenceBase* InSequence, USkeleton::AnimCurveUID InUID);
+	UE_DEPRECATED(5.3, "Please use the constructor that takes a FName")
+	FAnimCurveBufferAccess(const UAnimSequenceBase* InSequence, SmartName::UID_Type InUID);
+
+	FAnimCurveBufferAccess(const UAnimSequenceBase* InSequence, FName InName);
 
 	bool IsValid() const
 	{
@@ -49,9 +52,11 @@ class ENGINE_API UAnimCurveCompressionCodec_UniformIndexable : public UAnimCurve
 	virtual bool Compress(const FCompressibleAnimData& AnimSeq, FAnimCurveCompressionResult& OutResult) override;
 	virtual void PopulateDDCKey(FArchive& Ar) override;
 #endif
-
+	
 	virtual void DecompressCurves(const FCompressedAnimSequence& AnimSeq, FBlendedCurve& Curves, float CurrentTime) const override;
-	virtual float DecompressCurve(const FCompressedAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, float CurrentTime) const override;
+	virtual float DecompressCurve(const FCompressedAnimSequence& AnimSeq, FName CurveName, float CurrentTime) const override;
 
-	bool GetCurveBufferAndSamples(const FCompressedAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, const float*& OutCurveBuffer, int32& OutSamples, float& OutSampleRate);
+	UE_DEPRECATED(5.3, "Please use GetCurveBufferAndSamples that takes a curve's FName")
+	bool GetCurveBufferAndSamples(const FCompressedAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, const float*& OutCurveBuffer, int32& OutSamples, float& OutSampleRate) { return false; }
+	bool GetCurveBufferAndSamples(const FCompressedAnimSequence& AnimSeq, FName CurveName, const float*& OutCurveBuffer, int32& OutSamples, float& OutSampleRate);
 };

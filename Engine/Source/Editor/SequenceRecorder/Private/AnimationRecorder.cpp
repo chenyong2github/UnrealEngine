@@ -268,8 +268,7 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 
 	RecordedCurves.Reset();
 	RecordedTimes.Empty();
-	UIDToArrayIndexLUT = nullptr;
-
+	
 	USkeleton* AnimSkeleton = AnimationObject->GetSkeleton();
 	// add all frames
 	for (int32 BoneIndex=0; BoneIndex <PreviousSpacesBases.Num(); ++BoneIndex)
@@ -388,101 +387,88 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 		// @todo figure out why removing redundant keys is inconsistent
 
 		// add to real curve data 
-		if (RecordedCurves.Num() == NumKeys && UIDToArrayIndexLUT)
+		if (RecordedCurves.Num() == NumKeys)
 		{
-			StartTime = FPlatformTime::Seconds();
-			USkeleton* SkeletonObj = AnimationObject->GetSkeleton();
-			for (int32 CurveUID = 0; CurveUID < UIDToArrayIndexLUT->Num(); ++CurveUID)
+			// Accumulate active curve names over recording duration
+			TSet<FName> AllCurveNames;
+			for(FBlendedHeapCurve& Curve : RecordedCurves)
 			{
-				const int32 CurveIndex = (*UIDToArrayIndexLUT)[CurveUID];
-
-				if (CurveIndex != MAX_uint16)
+				Curve.ForEachElement([this, &AllCurveNames](const UE::Anim::FCurveElement& InElement)
 				{
 					// Skip curves which type is disabled in the recorder settings
-					if (const FCurveMetaData* CurveMetaData = SkeletonObj->GetCurveMetaData(CurveUID))
+					const bool bMorphTarget = EnumHasAnyFlags(InElement.Flags, UE::Anim::ECurveElementFlags::MorphTarget);
+					const bool bMaterial = EnumHasAnyFlags(InElement.Flags, UE::Anim::ECurveElementFlags::Material);
+					const bool bShouldSkipName = ShouldSkipName(InElement.Name);
+					const bool bAttributeCurve = !bMorphTarget && !bMaterial;
+					const bool bSkipCurve = (bMorphTarget && !bRecordMorphTargets) ||
+											(bAttributeCurve && !bRecordAttributeCurves) ||
+											(bMaterial && !bRecordMaterialCurves) ||
+											bShouldSkipName;
+
+					if(!bSkipCurve)
 					{
-						const bool bMorphTarget = CurveMetaData->Type.bMorphtarget;
-						const bool bMaterialCurve = CurveMetaData->Type.bMaterial;
-						const bool bAttributeCurve = !bMorphTarget && !bMaterialCurve;
-						
-						const FSmartNameMapping* Mapping = SkeletonObj->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-						FSmartName SmartName;
-
-						bool bShouldSkipName = false;
-						if (Mapping && Mapping->FindSmartNameByUID(CurveUID, SmartName))
-						{
-							bShouldSkipName = ShouldSkipName(SmartName.DisplayName);
-						}
-
-						const bool bSkipCurve = (bMorphTarget && !bRecordMorphTargets) ||
-												(bAttributeCurve && !bRecordAttributeCurves) ||
-												(bMaterialCurve && !bRecordMaterialCurves) ||
-												bShouldSkipName;
-
-						if (bSkipCurve)
-						{
-							UE_LOG(LogAnimation, Log, TEXT("Animation Recorder skipping curve: %s"), *SmartName.DisplayName.ToString());
-							continue;
-						}
+						AllCurveNames.Add(InElement.Name);
 					}
+				});
+			}
 
-					const FFloatCurve* FloatCurveData = nullptr;
+			StartTime = FPlatformTime::Seconds();
+			USkeleton* SkeletonObj = AnimationObject->GetSkeleton();
+			for (FName CurveName : AllCurveNames)
+			{
+				const FFloatCurve* FloatCurveData = nullptr;
 
-					TArray<float> TimesToRecord;
-					TArray<float> ValuesToRecord;
-					TimesToRecord.SetNum(NumKeys);
-					ValuesToRecord.SetNum(NumKeys);
+				TArray<float> TimesToRecord;
+				TArray<float> ValuesToRecord;
+				TimesToRecord.SetNum(NumKeys);
+				ValuesToRecord.SetNum(NumKeys);
 
-					bool bSeenThisCurve = false;
-					int32 WriteIndex = 0;
-					for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
+				bool bSeenThisCurve = false;
+				int32 WriteIndex = 0;
+				for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
+				{
+					const float TimeToRecord = RecordingRate.AsSeconds(KeyIndex);
+					bool bIsCurveValid = false;
+					float CurCurveValue = RecordedCurves[KeyIndex].Get(CurveName, bIsCurveValid);
+					if(bIsCurveValid)
 					{
-						const float TimeToRecord = RecordingRate.AsSeconds(KeyIndex);
-						if(RecordedCurves[KeyIndex].ValidCurveWeights[CurveIndex])
+						if (!bSeenThisCurve)
 						{
-							float CurCurveValue = RecordedCurves[KeyIndex].CurveWeights[CurveIndex];
-							if (!bSeenThisCurve)
-							{
-								bSeenThisCurve = true;
+							bSeenThisCurve = true;
 
-								// add one and save the cache
-								FSmartName CurveName;
-								if (SkeletonObj->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveUID, CurveName))
-								{
-									// give default curve flag for recording 
-									const FAnimationCurveIdentifier CurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
-									Controller.AddCurve(CurveId, AACF_DefaultCurve);
-									FloatCurveData = AnimationObject->GetDataModel()->FindFloatCurve(CurveId);
-								}
-							}
-
-							if (FloatCurveData)
-							{
-								TimesToRecord[WriteIndex] = TimeToRecord;
-								ValuesToRecord[WriteIndex] = CurCurveValue;
-
-								++WriteIndex;
-							}
-						}
-					}
-
-					// Fill all the curve data at once
-					if (FloatCurveData)
-					{
-						TArray<FRichCurveKey> Keys;
-						for (int32 Index = 0; Index < WriteIndex; ++Index)
-						{
-							FRichCurveKey Key(TimesToRecord[Index], ValuesToRecord[Index]);
-							Key.InterpMode = InterpMode;
-							Key.TangentMode = TangentMode;
-							Keys.Add(Key);
+							// add one and save the cache
+							// give default curve flag for recording 
+							const FAnimationCurveIdentifier CurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
+							Controller.AddCurve(CurveId, AACF_DefaultCurve);
+							FloatCurveData = AnimationObject->GetDataModel()->FindFloatCurve(CurveId);
 						}
 
-						const FAnimationCurveIdentifier CurveId(FloatCurveData->Name, ERawCurveTrackTypes::RCT_Float);
-						Controller.SetCurveKeys(CurveId, Keys);
+						if (FloatCurveData)
+						{
+							TimesToRecord[WriteIndex] = TimeToRecord;
+							ValuesToRecord[WriteIndex] = CurCurveValue;
+
+							++WriteIndex;
+						}
 					}
 				}
-			}	
+
+				// Fill all the curve data at once
+				if (FloatCurveData)
+				{
+					TArray<FRichCurveKey> Keys;
+					for (int32 Index = 0; Index < WriteIndex; ++Index)
+					{
+						FRichCurveKey Key(TimesToRecord[Index], ValuesToRecord[Index]);
+						Key.InterpMode = InterpMode;
+						Key.TangentMode = TangentMode;
+						Keys.Add(Key);
+					}
+
+					const FAnimationCurveIdentifier CurveId(FloatCurveData->GetName(), ERawCurveTrackTypes::RCT_Float);
+					Controller.SetCurveKeys(CurveId, Keys);
+				}
+			}
 
 			ElapsedTime = FPlatformTime::Seconds() - StartTime;
 			UE_LOG(LogAnimation, Log, TEXT("Animation Recorder set keys in %0.02f seconds"), ElapsedTime);
@@ -809,16 +795,7 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 			BlendedComponentToWorld.Blend(PreviousComponentToWorld, Component->GetComponentTransform(), BlendAlpha);
 
 			FBlendedHeapCurve BlendedCurve;
-			if (AnimCurves.CurveWeights.Num() > 0 && PreviousAnimCurves.CurveWeights.Num() == AnimCurves.CurveWeights.Num() && PreviousAnimCurves.IsValid() && AnimCurves.IsValid())
-			{
-				BlendedCurve.Lerp(PreviousAnimCurves, AnimCurves, BlendAlpha);
-			}
-			else
-			{
-				// just override with AnimCurves for this frames, because UID list has changed
-				// which means new curves are added in run-time
-				BlendedCurve = AnimCurves;
-			}
+			BlendedCurve.Lerp(PreviousAnimCurves, AnimCurves, BlendAlpha);
 
 			if (!Record(Component, BlendedComponentToWorld, BlendedSpaceBases, BlendedCurve, FramesRecorded + 1))
 			{
@@ -965,21 +942,9 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 		}
 		// each RecordedCurves contains all elements
 		const bool bRecordCurves = bRecordMorphTargets || bRecordAttributeCurves || bRecordMaterialCurves; 
-		if (bRecordCurves && AnimationCurves.CurveWeights.Num() > 0)
+		if (bRecordCurves)
 		{
-			RecordedCurves.Emplace(AnimationCurves.CurveWeights, AnimationCurves.ValidCurveWeights);
-			if (UIDToArrayIndexLUT == nullptr)
-			{
-				UIDToArrayIndexLUT = AnimationCurves.UIDToArrayIndexLUT;
-			}
-			else
-			{
-				ensureAlways(UIDToArrayIndexLUT->Num() == AnimationCurves.UIDToArrayIndexLUT->Num());
-				if (UIDToArrayIndexLUT != AnimationCurves.UIDToArrayIndexLUT)
-				{
-					UIDToArrayIndexLUT = AnimationCurves.UIDToArrayIndexLUT;
-				}
-			}
+			RecordedCurves.Emplace(AnimationCurves);
 		}
 
 		LastFrame = FrameToAdd;

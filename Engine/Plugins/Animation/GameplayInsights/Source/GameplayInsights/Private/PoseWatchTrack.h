@@ -8,6 +8,7 @@
 #include "RewindDebuggerTrack.h"
 #include "Textures/SlateIcon.h"
 #include "SSegmentedTimelineView.h"
+#include "AnimCurvesTrack.h"
 
 class UPoseWatchPoseElement;
 class UAnimBlueprintGeneratedClass;
@@ -15,26 +16,27 @@ class UAnimBlueprintGeneratedClass;
 namespace RewindDebugger
 {
 
+// Sub Track for a single curve in a pose watch
+class FPoseWatchCurveTrack : public FAnimCurveTrack
+{
+public:
+	FPoseWatchCurveTrack(uint64 InObjectId, uint32 InCurveId, uint64 InPoseWatchTrackId);
+
+	uint64 GetPoseWatchTrackId() const { return PostWatchTrackId; }
+
+private:
+	virtual void UpdateCurvePointsInternal() override;
+	virtual TSharedPtr<SWidget> GetDetailsViewInternal() override;
+	virtual FName GetNameInternal() const override { return "PoseWatchAnimationCurve"; }
+	
+	uint64 PostWatchTrackId;
+};
+
 class FPoseWatchTrack : public FRewindDebuggerTrack
 {
 public:
-	struct FPoseWatchTrackId
-	{
-		uint64 NameId;
-
-		bool operator == (const FPoseWatchTrackId& Other) const
-		{
-			return NameId == Other.NameId;
-		}
-
-		bool operator <(const FPoseWatchTrack::FPoseWatchTrackId& Other) const
-		{
-			return NameId < Other.NameId; 
-		}		
-	};
-
-	FPoseWatchTrack(uint64 InObjectId, const FPoseWatchTrackId& TrackId);
-	const FPoseWatchTrackId& GetPoseWatchTrackId() const { return PostWatchTrackId; }
+	FPoseWatchTrack(uint64 InObjectId, const uint64 TrackId, FColor InColor, uint32 InNameId);
+	uint64 GetPoseWatchTrackId() const { return PoseWatchTrackId; }
 
 private:
 	virtual bool UpdateInternal() override;
@@ -43,16 +45,20 @@ private:
 	virtual FSlateIcon GetIconInternal() override { return Icon; }
 	virtual FText GetDisplayNameInternal() const override;
 	virtual uint64 GetObjectIdInternal() const override { return ObjectId; }
-	
+	virtual void IterateSubTracksInternal(TFunction<void(TSharedPtr<FRewindDebuggerTrack> SubTrack)> IteratorFunction) override;
+		
 	TSharedPtr<SSegmentedTimelineView::FSegmentData> GetSegmentData() const;
 	
 	uint64 ObjectId;
-	FPoseWatchTrackId PostWatchTrackId;
+	uint64 PoseWatchTrackId;
 	FSlateIcon Icon;
 	FText TrackName;
+	FColor Color;
+	uint32 NameId;
 
-	const UPoseWatchPoseElement* PoseWatchOwner;
 	TSharedPtr<SSegmentedTimelineView::FSegmentData> EnabledSegments;
+
+	TArray<TSharedPtr<FPoseWatchCurveTrack>> Children;
 };
 
 
@@ -73,8 +79,6 @@ private:
 
 	FSlateIcon Icon;
 	uint64 ObjectId;
-
-	class UAnimBlueprintGeneratedClass* AnimBPGenClass;
 
 	TArray<TSharedPtr<FPoseWatchTrack>> Children;
 };

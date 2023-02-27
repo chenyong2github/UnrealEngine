@@ -81,18 +81,14 @@ void USkinWeightsBindingTool::Setup()
 		ReferenceSkeleton = SkeletalMesh->GetRefSkeleton();
 		
 		// Initialize the bone browser
-		const FCurveEvaluationOption CurveEvalOption(
-				SkeletalMeshComponent->GetAllowedAnimCurveEvaluate(),
-				&SkeletalMeshComponent->GetDisallowedAnimCurvesEvaluation(),
-				0 /* Always use the highest LOD */
-				);
+		const UE::Anim::FCurveFilterSettings CurveFilterSettings = SkeletalMeshComponent->GetCurveFilterSettings(0 /* Always use the highest LOD */);
 		TArray<FBoneIndexType> AllBones;
 		AllBones.Reserve(ReferenceSkeleton.GetRawBoneNum());
 		for (int32 BoneIndex = 0; BoneIndex < ReferenceSkeleton.GetRawBoneNum(); BoneIndex++)
 		{
 			AllBones.Add(static_cast<FBoneIndexType>(BoneIndex));
 		}
-		BoneContainer.InitializeTo(AllBones, CurveEvalOption, *SkeletalMesh);
+		BoneContainer.InitializeTo(AllBones, CurveFilterSettings, *SkeletalMesh);
 
 		Properties->SkeletalMesh = SkeletalMesh;
 		Properties->CurrentBone.Initialize(BoneContainer);

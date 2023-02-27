@@ -186,8 +186,6 @@ void FSkeletonRemapping::GenerateMapping()
 			RetargetingTable[TargetBoneIndex] = MakeTuple(FQuat::Identity, FQuat::Identity);
 		}
 	}
-
-	GenerateCurveMapping();
 }
 
 void FSkeletonRemapping::ComposeWith(const FSkeletonRemapping& OtherSkeletonRemapping)
@@ -243,55 +241,8 @@ void FSkeletonRemapping::ComposeWith(const FSkeletonRemapping& OtherSkeletonRema
 	}
 }
 
-void FSkeletonRemapping::GenerateCurveMapping()
+const TArray<SmartName::UID_Type>& FSkeletonRemapping::GetSourceToTargetCurveMapping() const
 {
-	const USkeleton* Source = GetSourceSkeleton().Get();
-	const USkeleton* Target = GetTargetSkeleton().Get();
-	check(Source && Target);
-
-	// Get the curve mappings.
-	const FSmartNameMapping* SourceMapping = Source->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-	const FSmartNameMapping* TargetMapping = Target->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-	if (!SourceMapping) // Source has no curves, so there is nothing to add.
-	{
-		return;
-	}
-
-	// Check whether we have curves or not in both source and target.
-	bool bHasSourceCurves = false;
-	bool bHasTargetCurves = false;
-	if (TargetMapping)
-	{
-		bHasTargetCurves = (TargetMapping->GetMaxUID() != SmartName::MaxUID);
-		bHasSourceCurves = (SourceMapping->GetMaxUID() != SmartName::MaxUID);
-	}
-
-	// Init the mapping table.
-	const SmartName::UID_Type NumItems = SourceMapping->GetMaxUID() + 1;
-	if (bHasSourceCurves)
-	{
-		SourceToTargetCurveMapping.Init(MAX_uint16, NumItems);
-	}
-
-	// If we have no source or target curves (while having valid smart name mappings), there is nothing to do.
-	if (!bHasTargetCurves && !bHasSourceCurves)
-	{
-		return;
-	}
-
-	// For every source curve, try to find the curve with the same name in the target.
-	for (SmartName::UID_Type Index = 0; Index < NumItems; ++Index)
-	{
-		FName CurveName;
-		SourceMapping->GetName(Index, CurveName);
-
-		// Make sure the curve name is valid and we can actually find a curve with the same name in the target.
-		FSmartName TargetSmartName;
-		if (!CurveName.IsValid() || !TargetMapping->FindSmartName(CurveName, TargetSmartName))
-		{
-			continue;
-		}
-
-		SourceToTargetCurveMapping[Index] = TargetSmartName.UID;
-	}
+	static TArray<SmartName::UID_Type> Dummy;
+	return Dummy;
 }

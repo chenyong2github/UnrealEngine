@@ -30,9 +30,6 @@ public:
 
 	// Refresh any existing mappings that the supplied skeleton is used with
 	void RefreshMappings(USkeleton* InSkeleton);
-	
-	// Refresh any existing curve mappings that the supplied skeleton is used with
-	void RefreshCurveMappings(USkeleton* InSkeleton);
 
 private:
 	friend FSkeletonRemappingRegistryPrivate;

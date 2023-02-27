@@ -2953,7 +2953,7 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 
 bool USkeletalMesh::IsPostLoadThreadSafe() const
 {
-	return false;	// PostLoad is not thread safe because of the call to InitMorphTargets, which can call VerifySmartName() that can mutate a shared map in the skeleton.
+	return false;	// PostLoad is not thread safe
 }
 
 void USkeletalMesh::BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Context)
@@ -3505,6 +3505,15 @@ void USkeletalMesh::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) con
 	// The tag must be added unconditionally, because some code calls this function on the CDO to find out what
 	// tags are available.
 	OutTags.Add(FAssetRegistryTag("MaxBoneInfluences", MaxBoneInfluencesString, FAssetRegistryTag::TT_Numerical));
+
+	// Allow asset user data to output tags
+	for(UAssetUserData* AssetUserDataItem : AssetUserData)
+	{
+		if(AssetUserDataItem)
+		{
+			AssetUserDataItem->GetAssetRegistryTags(OutTags);
+		}
+	}
 #endif // WITH_EDITORONLY_DATA
 	
 	Super::GetAssetRegistryTags(OutTags);
@@ -3656,17 +3665,8 @@ void USkeletalMesh::InitMorphTargets()
 		{
 			GetMorphTargetIndexMap().Add(ShapeName, Index);
 
-			// register as morphtarget curves
-			if (GetSkeleton())
-			{
-				FSmartName CurveName;
-				CurveName.DisplayName = ShapeName;
-				
-				// verify will make sure it adds to the curve if not found
-				// the reason of using this is to make sure it works in editor/non-editor
-				GetSkeleton()->VerifySmartName(USkeleton::AnimCurveMappingName, CurveName);
-				GetSkeleton()->AccumulateCurveMetaData(ShapeName, false, true);
-			}
+			// Note: we dont register as morph target curves here as curves metadata can now be
+			// specified on this mesh, which can now opt out of the morph flag being set
 		}
 	}
 }

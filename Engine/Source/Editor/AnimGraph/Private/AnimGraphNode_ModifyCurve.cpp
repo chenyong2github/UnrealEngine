@@ -7,9 +7,12 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "AnimationGraphSchema.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "PersonaModule.h"
 #include "Framework/Commands/UIAction.h"
 #include "ToolMenus.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Widgets/Input/STextEntryPopup.h"
 
 #define LOCTEXT_NAMESPACE "ModifyCurve"
 
@@ -33,38 +36,49 @@ FText UAnimGraphNode_ModifyCurve::GetNodeTitle(ENodeTitleType::Type TitleType) c
 	return LOCTEXT("AnimGraphNode_ModifyCurve_Title", "Modify Curve");
 }
 
-
-TArray<FName> UAnimGraphNode_ModifyCurve::GetCurvesToAdd() const
-{
-	TArray<FName> CurvesToAdd;
-
-	if(HasValidBlueprint() && GetAnimBlueprint()->TargetSkeleton)
-	{
-		const FSmartNameMapping* Mapping = GetAnimBlueprint()->TargetSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-		if (Mapping)
-		{
-			Mapping->FillNameArray(CurvesToAdd);
-
-			for (FName ExistingCurveName : Node.CurveNames)
-			{
-				CurvesToAdd.RemoveSingleSwap(ExistingCurveName, false);
-			}
-
-			CurvesToAdd.Sort(FNameLexicalLess());
-		}
-	}
-
-	return CurvesToAdd;
-}
-
 void UAnimGraphNode_ModifyCurve::GetAddCurveMenuActions(FMenuBuilder& MenuBuilder) const
 {
-	TArray<FName> CurvesToAdd = GetCurvesToAdd();
-	for (FName CurveName : CurvesToAdd)
-	{
-		FUIAction Action = FUIAction(FExecuteAction::CreateUObject(const_cast<UAnimGraphNode_ModifyCurve*>(this), &UAnimGraphNode_ModifyCurve::AddCurvePin, CurveName));
-		MenuBuilder.AddMenuEntry(FText::FromName(CurveName), FText::GetEmpty(), FSlateIcon(), Action);
-	}
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("NewCurveLabel", "New Curve..."),
+		LOCTEXT("NewCurveToolTip", "Adds a new curve to modify"),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([this]()
+		{
+			FSlateApplication::Get().DismissAllMenus();
+
+			TSharedRef<STextEntryPopup> TextEntry =
+				SNew(STextEntryPopup)
+				.Label(LOCTEXT("NewCurveLabel", "New Curve Name"))
+				.OnTextCommitted_Lambda([this](FText InText, ETextCommit::Type InCommitType)
+				{
+					FSlateApplication::Get().DismissAllMenus();
+					const_cast<UAnimGraphNode_ModifyCurve*>(this)->AddCurvePin(*InText.ToString());
+				});
+
+			FSlateApplication& SlateApp = FSlateApplication::Get();
+			SlateApp.PushMenu(
+				SlateApp.GetInteractiveTopLevelWindows()[0],
+				FWidgetPath(),
+				TextEntry,
+				SlateApp.GetCursorPos(),
+				FPopupTransitionEffect::TypeInPopup
+				);
+		}))
+	);
+
+	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
+	TSharedRef<SWidget> CurvePicker = PersonaModule.CreateCurvePicker(GetAnimBlueprint()->TargetSkeleton,
+		FOnCurvePicked::CreateLambda([this](const FName& InName)
+		{
+			FSlateApplication::Get().DismissAllMenus();
+			const_cast<UAnimGraphNode_ModifyCurve*>(this)->AddCurvePin(InName);
+		}),
+		FIsCurveNameMarkedForExclusion::CreateLambda([this](const FName& InName)
+		{
+			return Node.CurveNames.Contains(InName);
+		}));
+
+	MenuBuilder.AddWidget(CurvePicker, FText::GetEmpty(), true, false);
 }
 
 void UAnimGraphNode_ModifyCurve::GetRemoveCurveMenuActions(FMenuBuilder& MenuBuilder) const
@@ -75,7 +89,6 @@ void UAnimGraphNode_ModifyCurve::GetRemoveCurveMenuActions(FMenuBuilder& MenuBui
 		MenuBuilder.AddMenuEntry(FText::FromName(CurveName), FText::GetEmpty(), FSlateIcon(), Action);
 	}
 }
-
 
 void UAnimGraphNode_ModifyCurve::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
@@ -104,16 +117,12 @@ void UAnimGraphNode_ModifyCurve::GetNodeContextMenuActions(UToolMenu* Menu, UGra
 				}
 			}
 		}
-
-		// If we have more curves to add, create submenu to offer them
-		if (GetCurvesToAdd().Num() > 0)
-		{
-			Section.AddSubMenu(
-				"AddCurvePin",
-				LOCTEXT("AddCurvePin", "Add Curve Pin"),
-				LOCTEXT("AddCurvePinTooltip", "Add a new pin to drive a curve"),
-				FNewMenuDelegate::CreateUObject(this, &UAnimGraphNode_ModifyCurve::GetAddCurveMenuActions));
-		}
+		
+		Section.AddSubMenu(
+			"AddCurvePin",
+			LOCTEXT("AddCurvePin", "Add Curve Pin"),
+			LOCTEXT("AddCurvePinTooltip", "Add a new pin to drive a curve"),
+			FNewMenuDelegate::CreateUObject(this, &UAnimGraphNode_ModifyCurve::GetAddCurveMenuActions));
 
 		// If we have curves to remove, create submenu to offer them
 		if (Node.CurveNames.Num() > 0)

@@ -1727,27 +1727,22 @@ void USkeletalMeshComponent::RecalcRequiredCurves()
 		return;
 	}
 
-	if (GetSkeletalMeshAsset()->GetSkeleton())
-	{
-		CachedCurveUIDList = GetSkeletalMeshAsset()->GetSkeleton()->GetDefaultCurveUIDList();
-	}
-
-	const FCurveEvaluationOption CurveEvalOption(bAllowAnimCurveEvaluation, &DisallowedAnimCurves, GetPredictedLODLevel());
+	UE::Anim::FCurveFilterSettings CurveFilterSettings = GetCurveFilterSettings();
 
 	// make sure animation requiredcurve to mark as dirty
 	if (AnimScriptInstance)
 	{
-		AnimScriptInstance->RecalcRequiredCurves(CurveEvalOption);
+		AnimScriptInstance->RecalcRequiredCurves(CurveFilterSettings);
 	}
 
 	for(UAnimInstance* LinkedInstance : LinkedInstances)
 	{
-		LinkedInstance->RecalcRequiredCurves(CurveEvalOption);
+		LinkedInstance->RecalcRequiredCurves(CurveFilterSettings);
 	}
 
 	if(PostProcessAnimInstance)
 	{
-		PostProcessAnimInstance->RecalcRequiredCurves(CurveEvalOption);
+		PostProcessAnimInstance->RecalcRequiredCurves(CurveFilterSettings);
 	}
 
 	MarkRequiredCurveUpToDate();
@@ -1966,15 +1961,44 @@ void USkeletalMeshComponent::RecalcRequiredBones(int32 LODIndex)
 
 void USkeletalMeshComponent::MarkRequiredCurveUpToDate()
 {
-	if (GetSkeletalMeshAsset() && GetSkeletalMeshAsset()->GetSkeleton())
+	if(USkeletalMesh* Mesh = GetSkeletalMeshAsset())
 	{
-		CachedAnimCurveUidVersion = GetSkeletalMeshAsset()->GetSkeleton()->GetAnimCurveUidVersion();
+		if(USkeleton* Skeleton = Mesh->GetSkeleton())
+		{
+			CachedAnimCurveUidVersion = GetSkeletalMeshAsset()->GetSkeleton()->GetAnimCurveUidVersion();
+		}
+
+		if(UAnimCurveMetaData* AnimCurveMetaData = Mesh->GetAssetUserData<UAnimCurveMetaData>())
+		{
+			CachedMeshCurveMetaDataVersion = AnimCurveMetaData->GetVersionNumber();
+		}
+		else
+		{
+			CachedMeshCurveMetaDataVersion = 0;
+		}
 	}
 }
 
 bool USkeletalMeshComponent::AreRequiredCurvesUpToDate() const
 {
-	return (!GetSkeletalMeshAsset() || !GetSkeletalMeshAsset()->GetSkeleton() || CachedAnimCurveUidVersion == GetSkeletalMeshAsset()->GetSkeleton()->GetAnimCurveUidVersion());
+	if(USkeletalMesh* Mesh = GetSkeletalMeshAsset())
+	{
+		uint16 MeshVersion = 0;
+		if(UAnimCurveMetaData* AnimCurveMetaData = Mesh->GetAssetUserData<UAnimCurveMetaData>())
+		{
+			MeshVersion = AnimCurveMetaData->GetVersionNumber();
+		}
+
+		uint16 SkeletonVersion = 0;
+		if(USkeleton* Skeleton = Mesh->GetSkeleton())
+		{
+			SkeletonVersion = Skeleton->GetAnimCurveUidVersion();
+		}
+
+		return CachedAnimCurveUidVersion == SkeletonVersion && CachedMeshCurveMetaDataVersion == MeshVersion;
+	}
+
+	return true;
 }
 
 void USkeletalMeshComponent::EvaluateAnimation(const USkeletalMesh* InSkeletalMesh, UAnimInstance* InAnimInstance, FVector& OutRootBoneTranslation, FBlendedHeapCurve& OutCurve, FCompactPose& OutPose, UE::Anim::FHeapAttributeContainer& OutAttributes) const
@@ -1993,10 +2017,6 @@ void USkeletalMeshComponent::EvaluateAnimation(const USkeletalMesh* InSkeletalMe
 	{
 		FParallelEvaluationData EvaluationData = { OutCurve, OutPose, OutAttributes };
 		InAnimInstance->ParallelEvaluateAnimation(bForceRefpose, InSkeletalMesh, EvaluationData);
-	}
-	else
-	{
-		OutCurve.InitFrom(&CachedCurveUIDList);
 	}
 }
 
@@ -2349,16 +2369,7 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	TArray<uint16> const* CurrentAnimCurveUIDFinder = (AnimScriptInstance) ? &AnimScriptInstance->GetRequiredBones().GetUIDToArrayLookupTable() : 
-		((ShouldEvaluatePostProcessInstance() && PostProcessAnimInstance) ? &PostProcessAnimInstance->GetRequiredBones().GetUIDToArrayLookupTable() : nullptr);
-	const bool bAnimInstanceHasCurveUIDList = CurrentAnimCurveUIDFinder != nullptr;
-
-	const int32 CurrentCurveCount = (CurrentAnimCurveUIDFinder) ? FBlendedCurve::GetValidElementCount(CurrentAnimCurveUIDFinder) : 0;
-
-	const bool bInvalidCachedCurve = bDoEvaluationRateOptimization && 
-									 bAnimInstanceHasCurveUIDList &&
-									(CachedCurve.UIDToArrayIndexLUT != CurrentAnimCurveUIDFinder || CachedCurve.Num() != CurrentCurveCount);
-
+	const bool bInvalidCachedCurve = bDoEvaluationRateOptimization && CachedCurve.Num() != AnimCurves.Num();
 
 	const bool bInvalidCachedAttributes = bDoEvaluationRateOptimization && CachedAttributes != CustomAttributes;
 
@@ -2366,7 +2377,7 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 
 	const bool bShouldInterpolateSkippedFrames = (bExternalTickRateControlled && bExternalInterpolate) || (bCachedShouldUseUpdateRateOptimizations && AnimUpdateRateParams->ShouldInterpolateSkippedFrames());
 
-	const bool bShouldDoInterpolation = TickFunction != nullptr && bDoEvaluationRateOptimization && !bInvalidCachedBones && bShouldInterpolateSkippedFrames && bAnimInstanceHasCurveUIDList;
+	const bool bShouldDoInterpolation = TickFunction != nullptr && bDoEvaluationRateOptimization && !bInvalidCachedBones && bShouldInterpolateSkippedFrames;
 
 	const bool bShouldDoParallelInterpolation = bShouldDoInterpolation && CVarUseParallelAnimationInterpolation.GetValueOnGameThread() == 1;
 
@@ -2389,22 +2400,12 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 	AnimEvaluationContext.AnimInstance = AnimScriptInstance;
 	AnimEvaluationContext.PostProcessAnimInstance = (ShouldEvaluatePostProcessInstance())? ToRawPtr(PostProcessAnimInstance): nullptr;
 
-	if (CurrentAnimCurveUIDFinder)
-	{
-		if (AnimCurves.UIDToArrayIndexLUT != CurrentAnimCurveUIDFinder || AnimCurves.Num() != CurrentCurveCount)
-		{
-			AnimCurves.InitFrom(CurrentAnimCurveUIDFinder);
-		}
-	}
-	else
-	{
-		AnimCurves.Empty();
-	}
+	AnimCurves.Empty();
 
 	AnimEvaluationContext.bDoEvaluation = bShouldDoEvaluation;
 	AnimEvaluationContext.bDoInterpolation = bShouldDoInterpolation;
 	AnimEvaluationContext.bDuplicateToCacheBones = bInvalidCachedBones || (bDoEvaluationRateOptimization && AnimEvaluationContext.bDoEvaluation && !AnimEvaluationContext.bDoInterpolation);
-	AnimEvaluationContext.bDuplicateToCacheCurve = bInvalidCachedCurve || (bDoEvaluationRateOptimization && AnimEvaluationContext.bDoEvaluation && !AnimEvaluationContext.bDoInterpolation && CurrentAnimCurveUIDFinder != nullptr);
+	AnimEvaluationContext.bDuplicateToCacheCurve = bInvalidCachedCurve || (bDoEvaluationRateOptimization && AnimEvaluationContext.bDoEvaluation && !AnimEvaluationContext.bDoInterpolation);
 
 	AnimEvaluationContext.bDuplicateToCachedAttributes = bInvalidCachedAttributes || (bDoEvaluationRateOptimization && AnimEvaluationContext.bDoEvaluation && !AnimEvaluationContext.bDoInterpolation);
 
@@ -2476,10 +2477,8 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 					LocalEditableSpaceBases.Reset();
 					LocalEditableSpaceBases.Append(CachedComponentSpaceTransforms);
 				}
-				if (CachedCurve.IsValid())
-				{
-					AnimCurves.CopyFrom(CachedCurve);
-				}
+
+				AnimCurves.CopyFrom(CachedCurve);
 
 				if (CachedAttributes.ContainsData())
 				{
@@ -2648,12 +2647,9 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 	{
 		if (EvaluationContext.bDuplicateToCacheCurve)
 		{
-			ensureAlwaysMsgf(AnimCurves.IsValid(), TEXT("Animation Curve is invalid (%s). TotalCount(%d) "),
-				*GetPathNameSafe(GetSkeletalMeshAsset()), AnimCurves.NumValidCurveCount);
 			CachedCurve.CopyFrom(AnimCurves);
 		}
-
-	
+		
 		if (EvaluationContext.bDuplicateToCachedAttributes)
 		{
 			CachedAttributes.CopyFrom(CustomAttributes);
@@ -4049,8 +4045,6 @@ void USkeletalMeshComponent::ParallelDuplicateAndInterpolate(FAnimationEvaluatio
 	{
 		if (InAnimEvaluationContext.bDuplicateToCacheCurve)
 		{
-			ensureAlwaysMsgf(InAnimEvaluationContext.Curve.IsValid(), TEXT("Animation Curve is invalid (%s). TotalCount(%d) "),
-				*GetPathNameSafe(GetSkeletalMeshAsset()), InAnimEvaluationContext.Curve.NumValidCurveCount);
 			InAnimEvaluationContext.CachedCurve.CopyFrom(InAnimEvaluationContext.Curve);
 		}
 
@@ -4502,26 +4496,16 @@ void USkeletalMeshComponent::SetAllowAnimCurveEvaluation(bool bInAllow)
 
 void USkeletalMeshComponent::AllowAnimCurveEvaluation(FName NameOfCurve, bool bAllow)
 {
-	// if allow is same as disallowed curve, which means it mismatches
-	if (bAllow == DisallowedAnimCurves.Contains(NameOfCurve))
+	if (bAllow == bFilteredAnimCurvesIsAllowList)
 	{
-		if (bAllow)
-		{
-			DisallowedAnimCurves.Remove(NameOfCurve);
-			CachedAnimCurveUidVersion = 0;
-		}
-		else
-		{
-			DisallowedAnimCurves.Add(NameOfCurve);
-			CachedAnimCurveUidVersion = 0;
-
-		}
+		FilteredAnimCurves.Add(NameOfCurve);
+		CachedAnimCurveUidVersion = 0;
 	}
 }
 
 void USkeletalMeshComponent::ResetAllowedAnimCurveEvaluation()
 {
-	DisallowedAnimCurves.Reset();
+	FilteredAnimCurves.Reset();
 	CachedAnimCurveUidVersion = 0;
 }
 
@@ -4529,41 +4513,40 @@ void USkeletalMeshComponent::SetAllowedAnimCurvesEvaluation(const TArray<FName>&
 {
 	// Reset already clears the version - CachedAnimCurveUidVersion = 0;
 	ResetAllowedAnimCurveEvaluation();
-	if (bAllow)
+	FilteredAnimCurves.Append(List);
+	bFilteredAnimCurvesIsAllowList = bAllow;
+}
+
+UE::Anim::FCurveFilterSettings USkeletalMeshComponent::GetCurveFilterSettings(int32 InLODOverride) const
+{
+	UE::Anim::FCurveFilterSettings CurveFilterSettings;
+	if(bAllowAnimCurveEvaluation)
 	{
-		struct FFilterDisallowedList
+		if(FilteredAnimCurves.Num() > 0)
 		{
-			FFilterDisallowedList(const TArray<FName>& InAllowedList) : AllowedList(InAllowedList) {}
-
-			FORCEINLINE bool operator()(const FName& Name) const
-			{
-				return AllowedList.Contains(Name);
-			}
-			const TArray<FName>& AllowedList;
-		};
-
-		if (GetSkeletalMeshAsset())
+			CurveFilterSettings.FilterMode = bFilteredAnimCurvesIsAllowList ? UE::Anim::ECurveFilterMode::AllowOnlyFiltered : UE::Anim::ECurveFilterMode::DisallowFiltered;
+			CurveFilterSettings.FilterCurves = &FilteredAnimCurves;
+		}
+		else
 		{
-			USkeleton* Skeleton = GetSkeletalMeshAsset()->GetSkeleton();
-			if (Skeleton)
-			{
-				const FSmartNameMapping* Mapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-				if (Mapping != nullptr)
-				{
-					TArray<FName> CurveNames;
-					Mapping->FillNameArray(CurveNames);
-
-					DisallowedAnimCurves = CurveNames;
-					DisallowedAnimCurves.RemoveAllSwap(FFilterDisallowedList(List));
-				}
-			}
-
+			CurveFilterSettings.FilterMode = UE::Anim::ECurveFilterMode::None;
 		}
 	}
 	else
 	{
-		DisallowedAnimCurves = List;
+		CurveFilterSettings.FilterMode = UE::Anim::ECurveFilterMode::DisallowAll;
 	}
+
+	if(InLODOverride != INDEX_NONE)
+	{
+		CurveFilterSettings.LODIndex = InLODOverride;
+	}
+	else
+	{
+		CurveFilterSettings.LODIndex = GetPredictedLODLevel();
+	}
+
+	return CurveFilterSettings;
 }
 
 const TArray<FTransform>& USkeletalMeshComponent::GetCachedComponentSpaceTransforms() const

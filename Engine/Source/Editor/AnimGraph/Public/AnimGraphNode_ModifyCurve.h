@@ -45,6 +45,4 @@ private:
 	void GetAddCurveMenuActions(FMenuBuilder& MenuBuilder) const;
 	/** Create submenu with options for curves to remove */
 	void GetRemoveCurveMenuActions(FMenuBuilder& MenuBuilder) const;
-	/** Returns list of curves we have not added yet */
-	TArray<FName> GetCurvesToAdd() const;
 };

@@ -32,7 +32,7 @@ class ENGINE_API UAnimCurveCompressionCodec_UniformlySampled : public UAnimCurve
 	virtual bool Compress(const FCompressibleAnimData& AnimSeq, FAnimCurveCompressionResult& OutResult) override;
 	virtual void PopulateDDCKey(FArchive& Ar) override;
 #endif
-
+	
 	virtual void DecompressCurves(const FCompressedAnimSequence& AnimSeq, FBlendedCurve& Curves, float CurrentTime) const override;
-	virtual float DecompressCurve(const FCompressedAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, float CurrentTime) const override;
+	virtual float DecompressCurve(const FCompressedAnimSequence& AnimSeq, FName CurveName, float CurrentTime) const override;
 };

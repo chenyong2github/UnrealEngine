@@ -27,19 +27,8 @@ public:
 
 	// Store information for FAnimationCurveIdentifier.
 
-	/** We declare individual properties of FSmartName since only FSmartName.DisplayName is serializable (has UPROPERTY macro)
-	 *  and FSmartName.UID is not.
-	 */
-	
-	// SmartName Start
-	
 	UPROPERTY()
-	FName DisplayName;
-
-	UPROPERTY()
-	uint16	UID;	// We can't use SmartName::UID_Type typedef since the SmartName struct is not properly prefixed.
-	
-	// SmartName End
+	FName CurveName;
 	
 	UPROPERTY()
 	ERawCurveTrackTypes CurveType;

@@ -467,14 +467,13 @@ TOptional<FTransform>  UMovieSceneSkeletalAnimationTrack::GetRootMotion(FFrameTi
 				FMemMark Mark(FMemStack::Get());
 				FCompactPose OutPose;
 				TArray<FBoneIndexType> RequiredBoneIndexArray;
-				const FCurveEvaluationOption CurveEvalOption;
 				RequiredBoneIndexArray.AddUninitialized(ValidAnimSequence->GetSkeleton()->GetReferenceSkeleton().GetNum());
 				for (int32 BoneIndex = 0; BoneIndex < RequiredBoneIndexArray.Num(); ++BoneIndex)
 				{
 					RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 				}
 
-				FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveEvalOption, *ValidAnimSequence->GetSkeleton());
+				FBoneContainer BoneContainer(RequiredBoneIndexArray, UE::Anim::FCurveFilterSettings(UE::Anim::ECurveFilterMode::None), *ValidAnimSequence->GetSkeleton());
 				OutPose.ResetToRefPose(BoneContainer);
 				FBlendedCurve OutCurve;
 				OutCurve.InitFrom(BoneContainer);
@@ -574,14 +573,13 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 							FMemMark Mark(FMemStack::Get());
 							FCompactPose OutPose;
 							TArray<FBoneIndexType> RequiredBoneIndexArray;
-							const FCurveEvaluationOption CurveEvalOption;
 							RequiredBoneIndexArray.AddUninitialized(PrevAnimSequence->GetSkeleton()->GetReferenceSkeleton().GetNum());
 							for (int32 BoneIndex = 0; BoneIndex < RequiredBoneIndexArray.Num(); ++BoneIndex)
 							{
 								RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 							}
 
-							FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveEvalOption, *PrevAnimSequence->GetSkeleton());
+							FBoneContainer BoneContainer(RequiredBoneIndexArray, UE::Anim::FCurveFilterSettings(UE::Anim::ECurveFilterMode::None), *PrevAnimSequence->GetSkeleton());
 							OutPose.ResetToRefPose(BoneContainer);
 							FBlendedCurve OutCurve;
 							OutCurve.InitFrom(BoneContainer);
@@ -651,14 +649,14 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 		if (ValidAnimSequence)
 		{
 			TArray<FBoneIndexType> RequiredBoneIndexArray;
-			const FCurveEvaluationOption CurveEvalOption;
+			const UE::Anim::FCurveFilterSettings CurveFilterSettings;
 			RequiredBoneIndexArray.AddUninitialized(ValidAnimSequence->GetSkeleton()->GetReferenceSkeleton().GetNum());
 			for (int32 BoneIndex = 0; BoneIndex < RequiredBoneIndexArray.Num(); ++BoneIndex)
 			{
 				RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 			}
 
-			FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveEvalOption, *ValidAnimSequence->GetSkeleton());
+			FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveFilterSettings, *ValidAnimSequence->GetSkeleton());
 			OutPose.ResetToRefPose(BoneContainer);
 			FBlendedCurve OutCurve;
 			OutCurve.InitFrom(BoneContainer);
@@ -741,14 +739,14 @@ static FTransform GetTransformForBoneRelativeToIndex(UAnimSequence* AnimSequence
 	FMemMark Mark(FMemStack::Get());
 	FCompactPose OutPose;
 	TArray<FBoneIndexType> RequiredBoneIndexArray;
-	const FCurveEvaluationOption CurveEvalOption;
+	const UE::Anim::FCurveFilterSettings CurveFilterSettings;
 	RequiredBoneIndexArray.AddUninitialized(AnimSequence->GetSkeleton()->GetReferenceSkeleton().GetNum());
 	for (int32 BoneIndex = 0; BoneIndex < RequiredBoneIndexArray.Num(); ++BoneIndex)
 	{
 		RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 	}
 
-	FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveEvalOption, *AnimSequence->GetSkeleton());
+	FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveFilterSettings, *AnimSequence->GetSkeleton());
 	OutPose.ResetToRefPose(BoneContainer);
 	FBlendedCurve OutCurve;
 	OutCurve.InitFrom(BoneContainer);

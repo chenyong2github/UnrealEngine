@@ -197,7 +197,7 @@ FString FAddCurveAction::ToStringInternal() const
 	const FString FloatLabel(TEXT("float"));
 	const FString TransformLabel(TEXT("transform"));
 
-	return FText::Format(LOCTEXT("AddCurveAction_Description", "Adding {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("AddCurveAction_Description", "Adding {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 TUniquePtr<FChange> FRemoveCurveAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
@@ -225,7 +225,7 @@ FString FRemoveCurveAction::ToStringInternal() const
 	const FString FloatLabel(TEXT("float"));
 	const FString TransformLabel(TEXT("transform"));
 
-	return FText::Format(LOCTEXT("RemoveCurveAction_Description", "Removing {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("RemoveCurveAction_Description", "Removing {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 TUniquePtr<FChange> FSetCurveFlagsAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
@@ -245,7 +245,7 @@ FString FSetCurveFlagsAction::ToStringInternal() const
 {
 	const FString FloatLabel(TEXT("float"));
 	const FString TransformLabel(TEXT("transform"));
-	return FText::Format(LOCTEXT("SetCurveFlagsAction_Description", "Setting flags for {0} curve '{1}'."), FText::FromString(CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("SetCurveFlagsAction_Description", "Setting flags for {0} curve '{1}'."), FText::FromString(CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 TUniquePtr<FChange> FRenameCurveAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
@@ -258,7 +258,7 @@ FString FRenameCurveAction::ToStringInternal() const
 {
 	const FString FloatLabel(TEXT("float"));
 	const FString TransformLabel(TEXT("transform"));
-	return FText::Format(LOCTEXT("RenameCurveAction_Description", "Renaming {0} curve '{1}' to '{2}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName), FText::FromName(NewCurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("RenameCurveAction_Description", "Renaming {0} curve '{1}' to '{2}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.CurveName), FText::FromName(NewCurveId.CurveName)).ToString();
 }
 
 FScaleCurveAction::FScaleCurveAction(const FAnimationCurveIdentifier& InCurveId, float InOrigin, float InFactor, ERawCurveTrackTypes InCurveType) : CurveId(InCurveId), CurveType(InCurveType), Origin(InOrigin), Factor(InFactor)
@@ -282,7 +282,7 @@ FString FScaleCurveAction::ToStringInternal() const
 	const FString FloatLabel(TEXT("float"));
 	const FString TransformLabel(TEXT("transform"));
 
-	return FText::Format(LOCTEXT("ScaleCurveAction_Description", "Scaling {0} curve '{1}'."), FText::FromString(CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("ScaleCurveAction_Description", "Scaling {0} curve '{1}'."), FText::FromString(CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 TUniquePtr<FChange> FAddFloatCurveAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
@@ -300,7 +300,7 @@ TUniquePtr<FChange> FAddFloatCurveAction::ExecuteInternal(IAnimationDataModel* M
 
 FString FAddFloatCurveAction::ToStringInternal() const
 {
-	return FText::Format(LOCTEXT("AddFloatCurveAction_Format", "Adding float curve '{0}'."), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("AddFloatCurveAction_Format", "Adding float curve '{0}'."), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 FAddTransformCurveAction::FAddTransformCurveAction(const FAnimationCurveIdentifier& InCurveId, int32 InFlags, const FTransformCurve& InTransformCurve) : CurveId(InCurveId), Flags(InFlags)
@@ -341,7 +341,7 @@ TUniquePtr<FChange> FAddTransformCurveAction::ExecuteInternal(IAnimationDataMode
 
 FString FAddTransformCurveAction::ToStringInternal() const
 {
-	return FText::Format(LOCTEXT("AddTransformCurveAction_Description", "Adding transform curve '{0}'."), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("AddTransformCurveAction_Description", "Adding transform curve '{0}'."), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 TUniquePtr<FChange> FAddRichCurveKeyAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
@@ -356,7 +356,7 @@ FString FAddRichCurveKeyAction::ToStringInternal() const
 	const FString FloatLabel(TEXT("float"));
 	const FString TransformLabel(TEXT("transform"));
 
-	return FText::Format(LOCTEXT("AddNamedRichCurveKeyAction_Description", "Adding key to {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("AddNamedRichCurveKeyAction_Description", "Adding key to {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 TUniquePtr<FChange> FSetRichCurveKeyAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
@@ -377,7 +377,7 @@ FString FSetRichCurveKeyAction::ToStringInternal() const
 	const FString FloatLabel(TEXT("float"));
 	const FString TransformLabel(TEXT("transform"));
 
-	return FText::Format(LOCTEXT("SetNamedRichCurveKeyAction_Description", "Setting key for {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("SetNamedRichCurveKeyAction_Description", "Setting key for {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 TUniquePtr<FChange> FRemoveRichCurveKeyAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
@@ -398,7 +398,7 @@ FString FRemoveRichCurveKeyAction::ToStringInternal() const
 	const FString FloatLabel(TEXT("float"));
 	const FString TransformLabel(TEXT("transform"));
 
-	return FText::Format(LOCTEXT("RemoveNamedRichCurveKeyAction_Description", "Removing key from {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("RemoveNamedRichCurveKeyAction_Description", "Removing key from {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 TUniquePtr<FChange> FSetRichCurveKeysAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
@@ -417,7 +417,7 @@ FString FSetRichCurveKeysAction::ToStringInternal() const
 	const FString FloatLabel(TEXT("float"));
 	const FString TransformLabel(TEXT("transform"));
 
-	return FText::Format(LOCTEXT("SetNamedRichCurveKeysAction_Description", "Replacing keys for {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("SetNamedRichCurveKeysAction_Description", "Replacing keys for {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 TUniquePtr<FChange> FSetRichCurveAttributesAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
@@ -437,7 +437,7 @@ TUniquePtr<FChange> FSetRichCurveAttributesAction::ExecuteInternal(IAnimationDat
 
 FString FSetRichCurveAttributesAction::ToStringInternal() const
 {
-	return FText::Format(LOCTEXT("SetCurveAttributesAction_Description", "Setting curve attributes '{0}'."), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("SetCurveAttributesAction_Description", "Setting curve attributes '{0}'."), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 TUniquePtr<FChange> FSetCurveColorAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
@@ -452,7 +452,7 @@ TUniquePtr<FChange> FSetCurveColorAction::ExecuteInternal(IAnimationDataModel* M
 
 FString FSetCurveColorAction::ToStringInternal() const
 {
-	return FText::Format(LOCTEXT("SetCurveColorAction_Description", "Setting curve color '{0}'."), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("SetCurveColorAction_Description", "Setting curve color '{0}'."), FText::FromName(CurveId.CurveName)).ToString();
 }
 
 FAddAtributeAction::FAddAtributeAction(const FAnimatedBoneAttribute& InAttribute) : AttributeId(InAttribute.Identifier)

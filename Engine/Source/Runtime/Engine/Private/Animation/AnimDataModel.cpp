@@ -36,7 +36,7 @@ void UAnimDataModel::PostLoad()
 		{
 			FloatCurve.FloatCurve.AutoSetTangents();
 			FCurvePayload Payload;
-			Payload.Identifier = FAnimationCurveIdentifier(FloatCurve.Name.UID, ERawCurveTrackTypes::RCT_Float);
+			Payload.Identifier = FAnimationCurveIdentifier(FloatCurve.GetName(), ERawCurveTrackTypes::RCT_Float);
 			GetNotifier().Notify(EAnimDataModelNotifyType::CurveChanged, Payload);
 		}
 		GetNotifier().Notify(EAnimDataModelNotifyType::BracketClosed);
@@ -356,7 +356,7 @@ const FFloatCurve* UAnimDataModel::FindFloatCurve(const FAnimationCurveIdentifie
 	ensure(CurveIdentifier.CurveType == ERawCurveTrackTypes::RCT_Float);
 	for (const FFloatCurve& FloatCurve : CurveData.FloatCurves)
 	{
-		if (FloatCurve.Name == CurveIdentifier.InternalName || FloatCurve.Name.UID == CurveIdentifier.InternalName.UID)
+		if (FloatCurve.GetName() == CurveIdentifier.CurveName)
 		{
 			return &FloatCurve;
 		}
@@ -370,7 +370,7 @@ const FTransformCurve* UAnimDataModel::FindTransformCurve(const FAnimationCurveI
 	ensure(CurveIdentifier.CurveType == ERawCurveTrackTypes::RCT_Transform);
 	for (const FTransformCurve& TransformCurve : CurveData.TransformCurves)
 	{
-		if (TransformCurve.Name == CurveIdentifier.InternalName || TransformCurve.Name.UID == CurveIdentifier.InternalName.UID)
+		if (TransformCurve.GetName() == CurveIdentifier.CurveName)
 		{
 			return &TransformCurve;
 		}
@@ -519,6 +519,11 @@ FGuid UAnimDataModel::GenerateGuid() const
 		Sha.Update((uint8*)(&Data), sizeof(Data));
 	};
 
+	auto UpdateWithString = [&](const FString& Data)
+	{
+		Sha.UpdateWithString(*Data, Data.Len());
+	};
+	
 	for (const FBoneAnimationTrack& Track : BoneAnimationTracks)
 	{
 		UpdateSHAWithArray(Track.InternalTrackData.PosKeys);
@@ -536,14 +541,14 @@ FGuid UAnimDataModel::GenerateGuid() const
 
 	for (const FFloatCurve& Curve : CurveData.FloatCurves)
 	{
-		const FString CurveName = Curve.Name.DisplayName.ToString();
+		const FString CurveName = Curve.GetName().ToString();
 		UpdateSHAWithArray(CurveName.GetCharArray()),
 		UpdateWithFloatCurve(Curve.FloatCurve);
 	}
 
     for (const FTransformCurve& Curve : CurveData.TransformCurves)
     {
-    	UpdateWithData(Curve.Name.UID);
+    	UpdateWithString(Curve.GetName().ToString());
 
     	auto UpdateWithComponent = [&UpdateWithFloatCurve](const FVectorCurve& VectorCurve)
     	{
@@ -763,19 +768,7 @@ void UAnimDataModel::Evaluate(FAnimationPoseData& InOutPoseData, const UE::Anim:
 	}
 
 	// Evaluate animation float curve data
-	FBlendedCurve& Curves = InOutPoseData.GetCurve();
-	if (Curves.NumValidCurveCount > 0)
-	{
-		// evaluate the curve data at the CurrentTime and add to Instance
-		for (const FFloatCurve& Curve : CurveData.FloatCurves)
-		{
-			if (Curves.IsEnabled(Curve.Name.UID))
-			{
-				float Value = Curve.Evaluate(Time);
-				Curves.Set(Curve.Name.UID, Value);
-			}
-		}
-	}
+	UE::Anim::EvaluateFloatCurvesFromModel(this, InOutPoseData.GetCurve(), Time);
 
 	const double TimePerFrame = FrameRate.AsInterval();
 	TMap<FName, const FTransformCurve*> ActiveCurves;
@@ -790,11 +783,8 @@ void UAnimDataModel::Evaluate(FAnimationPoseData& InOutPoseData, const UE::Anim:
 				continue;
 			}
 
-			// Add or retrieve curve
-			const FName& CurveName = Curve.Name.DisplayName;
-
 			// note we're not checking Curve.GetCurveTypeFlags() yet
-			ActiveCurves.FindOrAdd(CurveName, &Curve);
+			ActiveCurves.FindOrAdd(Curve.GetName(), &Curve);
 		}
 	}
 
@@ -906,7 +896,7 @@ FTransformCurve* UAnimDataModel::FindMutableTransformCurveById(const FAnimationC
 {
 	for (FTransformCurve& TransformCurve : CurveData.TransformCurves)
 	{
-		if (TransformCurve.Name.UID == CurveIdentifier.InternalName.UID)
+		if (TransformCurve.GetName() == CurveIdentifier.CurveName)
 		{
 			return &TransformCurve;
 		}
@@ -919,7 +909,7 @@ FFloatCurve* UAnimDataModel::FindMutableFloatCurveById(const FAnimationCurveIden
 {
 	for (FFloatCurve& FloatCurve : CurveData.FloatCurves)
 	{
-		if (FloatCurve.Name.UID == CurveIdentifier.InternalName.UID)
+		if (FloatCurve.GetName() == CurveIdentifier.CurveName)
 		{
 			return &FloatCurve;
 		}

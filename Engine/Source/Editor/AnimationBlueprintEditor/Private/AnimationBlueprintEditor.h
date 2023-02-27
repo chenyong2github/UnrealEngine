@@ -83,6 +83,7 @@ namespace AnimationBlueprintEditorTabs
 	extern const FName SlotNamesTab;
 	extern const FName CurveNamesTab;
 	extern const FName PoseWatchTab;
+	extern const FName FindReplaceTab;
 };
 
 /**

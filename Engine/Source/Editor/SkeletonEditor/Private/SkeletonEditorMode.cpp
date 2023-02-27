@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletonEditorMode.h"
+
+#include "AnimAssetFindReplace.h"
 #include "Modules/ModuleManager.h"
 #include "PersonaModule.h"
 #include "SkeletonEditor.h"
 #include "ISkeletonTree.h"
 #include "ISkeletonEditorModule.h"
 #include "IPersonaToolkit.h"
+#include "AnimAssetFindReplace.h"
 
 FSkeletonEditorMode::FSkeletonEditorMode(TSharedRef<FWorkflowCentricApplication> InHostingApp, TSharedRef<ISkeletonTree> InSkeletonTree)
 	: FApplicationMode(SkeletonEditorModes::SkeletonEditorMode)
@@ -31,12 +34,13 @@ FSkeletonEditorMode::FSkeletonEditorMode(TSharedRef<FWorkflowCentricApplication>
 	TabFactories.RegisterFactory(PersonaModule.CreateAnimNotifiesTabFactory(InHostingApp, InSkeletonTree->GetEditableSkeleton(),  OnObjectsSelected));
 	TabFactories.RegisterFactory(PersonaModule.CreateAdvancedPreviewSceneTabFactory(InHostingApp, SkeletonEditor->GetPersonaToolkit()->GetPreviewScene()));
 	TabFactories.RegisterFactory(PersonaModule.CreateRetargetSourcesTabFactory(InHostingApp, InSkeletonTree->GetEditableSkeleton(), SkeletonEditor->GetPersonaToolkit()->GetPreviewScene(), SkeletonEditor->OnPostUndo));
-	TabFactories.RegisterFactory(PersonaModule.CreateCurveViewerTabFactory(InHostingApp, InSkeletonTree->GetEditableSkeleton(), SkeletonEditor->GetPersonaToolkit()->GetPreviewScene(), OnObjectsSelected));
+	TabFactories.RegisterFactory(PersonaModule.CreateCurveMetadataEditorTabFactory(InHostingApp, SkeletonEditor->HandleGetAsset(), SkeletonEditor->GetPersonaToolkit()->GetPreviewScene(), OnObjectsSelected));
 	TabFactories.RegisterFactory(PersonaModule.CreateSkeletonSlotNamesTabFactory(InHostingApp, InSkeletonTree->GetEditableSkeleton(), OnObjectSelected));
 	TabFactories.RegisterFactory(PersonaModule.CreateAssetDetailsTabFactory(InHostingApp, FOnGetAsset::CreateSP(&SkeletonEditor.Get(), &FSkeletonEditor::HandleGetAsset), FOnDetailsCreated()));
 	TabFactories.RegisterFactory(PersonaModule.CreateAnimationAssetBrowserTabFactory(InHostingApp, SkeletonEditor->GetPersonaToolkit(), FOnOpenNewAsset::CreateSP(&SkeletonEditor.Get(), &FSkeletonEditor::HandleOpenNewAsset), FOnAnimationSequenceBrowserCreated::CreateSP(&SkeletonEditor.Get(), &FSkeletonEditor::HandleAnimationSequenceBrowserCreated), true));
+	TabFactories.RegisterFactory(PersonaModule.CreateAnimAssetFindReplaceTabFactory(InHostingApp, FAnimAssetFindReplaceConfig()));
 
-	TabLayout = FTabManager::NewLayout("Standalone_SkeletonEditor_Layout_v1.3")
+	TabLayout = FTabManager::NewLayout("Standalone_SkeletonEditor_Layout_v1.4")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -56,10 +60,23 @@ FSkeletonEditorMode::FSkeletonEditorMode(TSharedRef<FWorkflowCentricApplication>
 				)
 				->Split
 				(
-					FTabManager::NewStack()
+					FTabManager::NewSplitter()
 					->SetSizeCoefficient(0.6f)
-					->SetHideTabWell(true)
-					->AddTab(SkeletonEditorTabs::ViewportTab, ETabState::OpenedTab)
+					->SetOrientation(Orient_Vertical)
+					->Split
+					(	
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.5f)
+						->SetHideTabWell(true)
+						->AddTab(SkeletonEditorTabs::ViewportTab, ETabState::OpenedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.5f)
+						->SetHideTabWell(false)
+						->AddTab(SkeletonEditorTabs::FindReplaceTab, ETabState::ClosedTab)
+					)
 				)
 				->Split
 				(
@@ -82,7 +99,7 @@ FSkeletonEditorMode::FSkeletonEditorMode(TSharedRef<FWorkflowCentricApplication>
 						->SetHideTabWell(false)
 						->AddTab(SkeletonEditorTabs::AnimNotifiesTab, ETabState::OpenedTab)
 						->AddTab(SkeletonEditorTabs::AssetBrowserTab, ETabState::OpenedTab)
-						->AddTab(SkeletonEditorTabs::CurveNamesTab, ETabState::OpenedTab)
+						->AddTab(SkeletonEditorTabs::CurveMetadataTab, ETabState::OpenedTab)
 						->AddTab(SkeletonEditorTabs::SlotNamesTab, ETabState::ClosedTab)
 					)
 				)

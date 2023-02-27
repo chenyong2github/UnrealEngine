@@ -99,22 +99,6 @@ const FSkeletonRemapping& FSkeletonRemappingRegistry::GetRemapping(const USkelet
 	}
 }
 
-void FSkeletonRemappingRegistry::RefreshCurveMappings(USkeleton* InSkeleton)
-{
-	TArray<TSharedPtr<FSkeletonRemapping>> ExistingMappings;
-	{
-		FRWScopeLock ReadLock(MappingsLock, SLT_ReadOnly);
-		PerSkeletonMappings.MultiFind(InSkeleton, ExistingMappings);
-	}
-	{
-		FRWScopeLock WriteLock(MappingsLock, SLT_Write);
-		for(const TSharedPtr<FSkeletonRemapping>& ExistingMapping : ExistingMappings)
-		{
-			ExistingMapping->GenerateCurveMapping();
-		}
-	}
-}
-
 void FSkeletonRemappingRegistry::RefreshMappings(USkeleton* InSkeleton)
 {
 	TArray<TSharedPtr<FSkeletonRemapping>> ExistingMappings;

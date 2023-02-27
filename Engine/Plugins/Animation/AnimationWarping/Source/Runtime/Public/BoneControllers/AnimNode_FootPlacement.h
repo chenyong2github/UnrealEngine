@@ -38,8 +38,13 @@ namespace UE::Anim::FootPlacement
 		} Bones;
 
 		// Curves
+		UE_DEPRECATED(5.3, "SpeedCurveUID is no longer used, use SpeedCurveName instead.")
 		SmartName::UID_Type SpeedCurveUID = SmartName::MaxUID;
+		UE_DEPRECATED(5.3, "DisableLockCurveUID is no longer used, use DisableLockCurveName instead.")
 		SmartName::UID_Type DisableLockCurveUID = SmartName::MaxUID;
+
+		FName SpeedCurveName = NAME_None;
+		FName DisableLockCurveName = NAME_None;
 
 		// Helper struct to store values coming directly, or trivial to calculate from just the input pose.
 		struct FInputPoseData

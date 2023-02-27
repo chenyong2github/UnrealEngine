@@ -36,6 +36,7 @@ enum class EPackageReloadPhase : uint8;
 class USkeleton;
 typedef SmartName::UID_Type SkeletonAnimCurveUID;
 class USkeleton;
+struct FSkeletonRemapping;
 
 // Delegate used to control global skeleton compatibility
 DECLARE_DELEGATE_RetVal(bool, FAreAllSkeletonsCompatible);
@@ -370,23 +371,75 @@ public:
 	/** Serializable retarget sources for this skeleton **/
 	TMap< FName, FReferencePose > AnimRetargetSources;
 
-	// Typedefs for greater smartname UID readability, add one for each smartname category 
-	typedef SkeletonAnimCurveUID AnimCurveUID;
+	// DEPRECATED - no longer used
+	typedef SmartName::UID_Type AnimCurveUID;
 
-	// Names for smartname mappings, if you're adding a new category of smartnames add a new name here
+	UE_DEPRECATED(5.3, "AnimCurveMappingName is no longer used.")
 	static ENGINE_API const FName AnimCurveMappingName;
 
-	// Names for smartname mappings, if you're adding a new category of smartnames add a new name here
+	UE_DEPRECATED(5.3, "AnimTrackCurveMappingName is no longer used.")
 	static ENGINE_API const FName AnimTrackCurveMappingName;
 
-	// these return container of curve meta data, if you modify this container, 
-	// you'll have to call REfreshCAchedAnimationCurveData to apply
-	ENGINE_API FCurveMetaData* GetCurveMetaData(const FName& CurveName);
-	ENGINE_API const FCurveMetaData* GetCurveMetaData(const FName& CurveName) const;
+	ENGINE_API FCurveMetaData* GetCurveMetaData(FName CurveName);
+	ENGINE_API const FCurveMetaData* GetCurveMetaData(FName CurveName) const;
+
+	UE_DEPRECATED(5.3, "Please use GetCurveMetaData with an FName.")
 	ENGINE_API const FCurveMetaData* GetCurveMetaData(const SmartName::UID_Type CurveUID) const;
+
+	UE_DEPRECATED(5.3, "Please use GetCurveMetaData with an FName.")
 	ENGINE_API FCurveMetaData* GetCurveMetaData(const FSmartName& CurveName);
+	
+	UE_DEPRECATED(5.3, "Please use GetCurveMetaData with an FName.")
 	ENGINE_API const FCurveMetaData* GetCurveMetaData(const FSmartName& CurveName) const;
-	// this is called when you know both flags - called by post serialize
+
+	/**
+	 * Iterate over all curve metadata entries, calling InFunction on each
+	 * @param	InFunction	The function to call
+	 **/
+	ENGINE_API void ForEachCurveMetaData(TFunctionRef<void(FName, const FCurveMetaData&)> InFunction) const;
+	
+	/** @return the number of curve metadata entries **/
+	ENGINE_API int32 GetNumCurveMetaData() const;
+
+	/**
+	 * Adds a curve metadata entry with the specified name
+	 * @param	InCurveName			The name of the curve to find
+	 * @return true if an entry was added, false if an entry already existed
+	 */
+	ENGINE_API bool AddCurveMetaData(FName CurveName);
+
+	/**
+	 * Get an array of all curve metadata names
+	 * @param	OutNames		The array to receive the metadata names 
+	 */
+	ENGINE_API void GetCurveMetaDataNames(TArray<FName>& OutNames) const;
+
+#if WITH_EDITOR
+	/**
+	 * Renames a curve metadata entry. Metadata is preserved, but assigned to a different curve name.
+	 * @param OldName	The name of an existing curve entry
+	 * @param NewName	The name to change the entry to
+	 * @return			true if the rename was successful (the old name was found and the new name didnt collide with an
+	 *					existing entry)
+	 */	
+	ENGINE_API bool RenameCurveMetaData(FName OldName, FName NewName);
+
+	/**
+	 * Removes a curve metadata entry for the specified name.
+	 * @param CurveName	The name of the curve to remove the metadata for
+	 * @return true if the entry was successfully removed (i.e. it existed)
+	 */
+	ENGINE_API bool RemoveCurveMetaData(FName CurveName);
+
+	/**
+	 * Removes a group of curve metadata entries for the specified names.
+	 * @param CurveNames	The names of the curves to remove the metadata for
+	 * @return true if any of the entries were successfully removed (i.e. something changed)
+	 */
+	ENGINE_API bool RemoveCurveMetaData(TArrayView<FName> CurveNames);
+#endif
+
+	// this is called when you know both flags - called by post serialize and import
 	ENGINE_API void AccumulateCurveMetaData(FName CurveName, bool bMaterialSet, bool bMorphtargetSet);
 
 	ENGINE_API bool AddNewVirtualBone(const FName SourceBoneName, const FName TargetBoneName);
@@ -400,8 +453,10 @@ public:
 	void HandleVirtualBoneChanges();
 
 	// return version of AnimCurveUidVersion
-	uint16 GetAnimCurveUidVersion() const { return AnimCurveUidVersion;  }
-	const TArray<uint16>& GetDefaultCurveUIDList() const { return DefaultCurveUIDList; }
+	uint16 GetAnimCurveUidVersion() const;
+
+	UE_DEPRECATED(5.3, "This function is no longer used")
+	const TArray<uint16>& GetDefaultCurveUIDList() const;
 
 	ENGINE_API const TArray<TSoftObjectPtr<USkeleton>>& GetCompatibleSkeletons() const { return CompatibleSkeletons; }
 
@@ -420,26 +475,23 @@ public:
 #endif
 
 protected:
-	// Container for smart name mappings
+	// DEPRECATED - moved to CurveMetaData
 	UPROPERTY()
-	FSmartNameContainer SmartNames;
+	FSmartNameContainer SmartNames_DEPRECATED;
 
 	// Cached ptr to the persistent AnimCurveMapping
-	FSmartNameMapping* AnimCurveMapping;
+	UE_DEPRECATED(5.3, "AnimCurveMapping is no longer used")
+	static FSmartNameMapping* AnimCurveMapping;
 
-	// this is default curve uid list used like ref pose, as default value
-	// don't use this unless you want all curves from the skeleton
-	// FBoneContainer contains only list that is used by current LOD
-	TArray<uint16> DefaultCurveUIDList;
+	UE_DEPRECATED(5.3, "DefaultCurveUIDList is no longer used")
+	static TArray<uint16> DefaultCurveUIDList;
 
 	//Cached marker sync marker names (stripped for non editor)
 	TArray<FName> ExistingMarkerNames;
 
 private:
-	/** Increase the AnimCurveUidVersion so that instances can get the latest information */
-	void IncreaseAnimCurveUidVersion();
-	/** Current  Anim Curve Uid Version. Increase whenever it has to be recalculated */
-	uint16 AnimCurveUidVersion;
+	// Refresh skeleton metadata (updates bone indices for linked bone references)
+	void RefreshSkeletonMetaData();
 
 public:
 	//////////////////////////////////////////////////////////////////////////
@@ -492,41 +544,38 @@ public:
 	ENGINE_API void RemoveSlotGroup(const FName& InSlotName);
 	ENGINE_API void RenameSlotName(const FName& OldName, const FName& NewName);
 
-	////////////////////////////////////////////////////////////////////////////
-	// Smart Name Interfaces
-	////////////////////////////////////////////////////////////////////////////
-	// Adds a new name to the smart name container and modifies the skeleton so it can be saved
-	// return bool - Whether a name was added (false if already present)
 #if WITH_EDITOR
-	ENGINE_API bool AddSmartNameAndModify(FName ContainerName, FName NewDisplayName, FSmartName& NewName);
+	UE_DEPRECATED(5.3, "Please use AddCurveMetaData.")
+	ENGINE_API bool AddSmartNameAndModify(FName ContainerName, FName NewDisplayName, FSmartName& NewName) { return false; }
 
-	// Renames a smartname in the specified container and modifies the skeleton
-	// return bool - Whether the rename was sucessful
-	ENGINE_API bool RenameSmartnameAndModify(FName ContainerName, SmartName::UID_Type Uid, FName NewName);
+	UE_DEPRECATED(5.3, "Please use RenameCurveMetaData.")
+	ENGINE_API bool RenameSmartnameAndModify(FName ContainerName, SmartName::UID_Type Uid, FName NewName) { return false; }
+	
+	UE_DEPRECATED(5.3, "Please use RemoveCurveMetaData.")
+	ENGINE_API void RemoveSmartnameAndModify(FName ContainerName, SmartName::UID_Type Uid) {}
 
-	// Removes a smartname from the specified container and modifies the skeleton
-	ENGINE_API void RemoveSmartnameAndModify(FName ContainerName, SmartName::UID_Type Uid);
-
-	// Removes smartnames from the specified container and modifies the skeleton
-	ENGINE_API void RemoveSmartnamesAndModify(FName ContainerName, const TArray<FName>& Names);
+	UE_DEPRECATED(5.3, "Please use RemoveCurveMetaData.")
+	ENGINE_API void RemoveSmartnamesAndModify(FName ContainerName, const TArray<FName>& Names) {}
 #endif// WITH_EDITOR
 
-	// quick wrapper function for Find UID by name, if not found, it will return SmartName::MaxUID
-	ENGINE_API SmartName::UID_Type GetUIDByName(const FName& ContainerName, const FName& Name) const;
-	ENGINE_API bool GetSmartNameByUID(const FName& ContainerName, SmartName::UID_Type UID, FSmartName& OutSmartName) const;
-	ENGINE_API bool GetSmartNameByName(const FName& ContainerName, const FName& InName, FSmartName& OutSmartName) const;
+	UE_DEPRECATED(5.3, "This function is no longer used")
+	ENGINE_API SmartName::UID_Type GetUIDByName(const FName& ContainerName, const FName& Name) const { return 0; }
 
-	// Get or add a smartname container with the given name
-	ENGINE_API const FSmartNameMapping* GetSmartNameContainer(const FName& ContainerName) const;
+	UE_DEPRECATED(5.3, "This function is no longer used")
+	ENGINE_API bool GetSmartNameByUID(const FName& ContainerName, SmartName::UID_Type UID, FSmartName& OutSmartName) const { return false; }
+	
+	UE_DEPRECATED(5.3, "This function is no longer used")
+	ENGINE_API bool GetSmartNameByName(const FName& ContainerName, const FName& InName, FSmartName& OutSmartName) const { return false; }
 
-	// make sure the smart name has valid UID and so on
-	ENGINE_API void VerifySmartName(const FName&  ContainerName, FSmartName& InOutSmartName);
-	ENGINE_API void VerifySmartNames(const FName&  ContainerName, TArray<FSmartName>& InOutSmartNames);
-private:
-	// Get or add a smartname container with the given name
-	FSmartNameMapping* GetOrAddSmartNameContainer(const FName& ContainerName);
-	bool VerifySmartNameInternal(const FName&  ContainerName, FSmartName& InOutSmartName);
-	bool FillSmartNameByDisplayName(FSmartNameMapping* Mapping, const FName& DisplayName, FSmartName& OutSmartName);
+	UE_DEPRECATED(5.3, "This function is no longer used")
+	ENGINE_API const FSmartNameMapping* GetSmartNameContainer(const FName& ContainerName) const { return nullptr; }
+
+	UE_DEPRECATED(5.3, "This function is no longer used")
+	ENGINE_API void VerifySmartName(const FName&  ContainerName, FSmartName& InOutSmartName) {}
+	
+	UE_DEPRECATED(5.3, "This function is no longer used")
+	ENGINE_API void VerifySmartNames(const FName&  ContainerName, TArray<FSmartName>& InOutSmartNames) {}
+
 #if WITH_EDITORONLY_DATA
 private:
 	/** The default skeletal mesh to use when previewing this skeleton */
@@ -630,6 +679,12 @@ public:
 	// Adds a new anim notify to the cached AnimationNotifies array.
 	ENGINE_API void AddNewAnimationNotify(FName NewAnimNotifyName);
 
+	// Removes an anim notify from the cached AnimationNotifies array.
+	ENGINE_API void RemoveAnimationNotify(FName AnimNotifyName);
+
+	// Renames an anim notify
+	ENGINE_API void RenameAnimationNotify(FName OldAnimNotifyName, FName NewAnimNotifyName);
+
 	ENGINE_API USkeletalMesh* GetAssetPreviewMesh(UObject* InAsset);
 
 	/** Find the first compatible mesh for this skeleton */
@@ -694,8 +749,10 @@ public:
 
 	UE_DEPRECATED(5.2, "Compatibility is now an editor-only concern. Please use IsCompatibleForEditor.")
 	ENGINE_API bool IsCompatibleSkeletonByAssetString(const FString& SkeletonAssetString) const;
-	
+
 	DECLARE_EVENT(USkeleton, FSmartNamesChangedEvent);
+
+	UE_DEPRECATED(5.3, "This member is no longer used. Delegate registration for skeleton metadata can be handled via UAnimCurveMetaData.")
 	FSmartNamesChangedEvent OnSmartNamesChangedEvent;
 
 #if WITH_EDITORONLY_DATA
@@ -705,18 +762,12 @@ public:
 	 */
 	ENGINE_API static FAreAllSkeletonsCompatible AreAllSkeletonsCompatibleDelegate;
 #endif
+
 public:
 	UFUNCTION(BlueprintCallable, Category=Skeleton)
 	ENGINE_API void AddCompatibleSkeleton(const USkeleton* SourceSkeleton);
 	ENGINE_API void RemoveCompatibleSkeleton(const USkeleton* SourceSkeleton);
 
-	/**
-	 * Handle smart name changes.
-	 * This will internally trigger skeleton remappings to be regenerated where needed, for example when editing curves in the animation editor.
-	 **/
-	void HandleSmartNamesChangedEvent();
-
-public:
 	/** 
 	 * Indexing naming convention
 	 * 

@@ -18,11 +18,7 @@ ULiveLinkRetargetAsset::ULiveLinkRetargetAsset(const FObjectInitializer& ObjectI
 
 void ULiveLinkRetargetAsset::ApplyCurveValue(const USkeleton* Skeleton, const FName CurveName, const float CurveValue, FBlendedCurve& OutCurve) const
 {
-	SmartName::UID_Type UID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, CurveName);
-	if (UID != SmartName::MaxUID)
-	{
-		OutCurve.Set(UID, CurveValue);
-	}
+	OutCurve.Set(CurveName, CurveValue);
 }
 
 void ULiveLinkRetargetAsset::BuildCurveData(const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, const FCompactPose& InPose, FBlendedCurve& OutCurve) const

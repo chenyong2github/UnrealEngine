@@ -282,19 +282,6 @@ void UIKRetargetBatchOperation::ConvertAnimation(
 	// get names of the curves the retargeter is looking for
 	TArray<FName> SpeedCurveNames;
 	Context.IKRetargetAsset->GetSpeedCurveNames(SpeedCurveNames);
-	// get all curve names in the source skeleton
-	const FSmartNameMapping* SourceContainer = Context.SourceMesh->GetSkeleton()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-	TArray<FName> SourceCurveNames;
-	SourceContainer->FillNameArray(SourceCurveNames);
-	// get list of all the source curve IDs that hold speed values the retargeter is looking for
-	TMap<FName, SmartName::UID_Type> SourceSpeedCurveIDs;
-	for (int32 CurveIndex = 0; CurveIndex < SourceCurveNames.Num(); ++CurveIndex)
-	{
-		if (SpeedCurveNames.Contains(SourceCurveNames[CurveIndex]))
-		{
-			SourceSpeedCurveIDs.Add(SourceCurveNames[CurveIndex],SourceContainer->FindUID(SourceCurveNames[CurveIndex]));
-		}
-	}
 	
 	// for each pair of source / target animation sequences
 	for (TPair<UAnimationAsset*, UAnimationAsset*>& Pair : DuplicatedAnimAssets)
@@ -363,9 +350,9 @@ void UIKRetargetBatchOperation::ConvertAnimation(
 			
 			// get the curve values from the source sequence (for speed-based IK planting)
 			TMap<FName, float> SpeedCurveValues;
-			for (TPair<FName, SmartName::UID_Type> CurveNameAndID : SourceSpeedCurveIDs)
+			for (const FName& SpeedCurveName : SpeedCurveNames)
 			{
-				SpeedCurveValues.Add(CurveNameAndID.Key, SourceSequence->EvaluateCurveData(CurveNameAndID.Value, TimeAtCurrentFrame));
+				SpeedCurveValues.Add(SpeedCurveName, SourceSequence->EvaluateCurveData(SpeedCurveName, TimeAtCurrentFrame));
 			}
 
 			// run the retargeter

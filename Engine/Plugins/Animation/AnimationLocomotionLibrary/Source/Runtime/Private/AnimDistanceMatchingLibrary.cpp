@@ -14,9 +14,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogAnimDistanceMatchingLibrary, Verbose, All);
 
 namespace UE::Anim::DistanceMatchingUtility
 {
-	static float GetDistanceRange(const UAnimSequenceBase* InAnimSequence, USkeleton::AnimCurveUID CurveUID)
+	static float GetDistanceRange(const UAnimSequenceBase* InAnimSequence, FName CurveName)
 	{
-		FAnimCurveBufferAccess BufferCurveAccess(InAnimSequence, CurveUID);
+		FAnimCurveBufferAccess BufferCurveAccess(InAnimSequence, CurveName);
 		if (BufferCurveAccess.IsValid())
 		{
 			const int32 NumSamples = BufferCurveAccess.GetNumSamples();
@@ -28,23 +28,9 @@ namespace UE::Anim::DistanceMatchingUtility
 		return 0.f;
 	}
 
-	static USkeleton::AnimCurveUID GetCurveUID(const UAnimSequenceBase* InAnimSequence, FName CurveName)
-	{
-		if (const USkeleton* Skeleton = InAnimSequence->GetSkeleton())
-		{
-			const FSmartNameMapping* CurveNameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-			if (CurveNameMapping)
-			{
-				return CurveNameMapping->FindUID(CurveName);
-			}
-		}
-
-		return SmartName::MaxUID;
-	}
-
-	static float GetAnimPositionFromDistance(const UAnimSequenceBase* InAnimSequence, const float& InDistance, USkeleton::AnimCurveUID CurveUID)
+	static float GetAnimPositionFromDistance(const UAnimSequenceBase* InAnimSequence, const float& InDistance, FName InCurveName)
 	{	
-		FAnimCurveBufferAccess BufferCurveAccess(InAnimSequence, CurveUID);
+		FAnimCurveBufferAccess BufferCurveAccess(InAnimSequence, InCurveName);
 		if (BufferCurveAccess.IsValid())
 		{
 			const int32 NumKeys = BufferCurveAccess.GetNumSamples();
@@ -93,13 +79,13 @@ namespace UE::Anim::DistanceMatchingUtility
 	/**
 	* Advance from the current time to a new time in the animation that will result in the desired distance traveled by the authored root motion.
 	*/
-	static float GetTimeAfterDistanceTraveled(const UAnimSequenceBase* AnimSequence, float CurrentTime, float DistanceTraveled, USkeleton::AnimCurveUID CurveUID, const bool bAllowLooping)
+	static float GetTimeAfterDistanceTraveled(const UAnimSequenceBase* AnimSequence, float CurrentTime, float DistanceTraveled, FName CurveName, const bool bAllowLooping)
 	{
 		float NewTime = CurrentTime;
 		if (AnimSequence != nullptr)
 		{
 			// Avoid infinite loops if the animation doesn't cover any distance.
-			if (!FMath::IsNearlyZero(UE::Anim::DistanceMatchingUtility::GetDistanceRange(AnimSequence, CurveUID)))
+			if (!FMath::IsNearlyZero(UE::Anim::DistanceMatchingUtility::GetDistanceRange(AnimSequence, CurveName)))
 			{
 				float AccumulatedDistance = 0.f;
 
@@ -114,8 +100,8 @@ namespace UE::Anim::DistanceMatchingUtility
 				// Traverse the distance curve, accumulating animated distance until the desired distance is reached.
 				while ((AccumulatedDistance < DistanceTraveled) && (bAllowLooping || (NewTime + StepTime < SequenceLength)))
 				{
-					const float CurrentDistance = AnimSequence->EvaluateCurveData(CurveUID, NewTime);
-					const float DistanceAfterStep = AnimSequence->EvaluateCurveData(CurveUID, NewTime + StepTime);
+					const float CurrentDistance = AnimSequence->EvaluateCurveData(CurveName, NewTime);
+					const float DistanceAfterStep = AnimSequence->EvaluateCurveData(CurveName, NewTime + StepTime);
 					const float AnimationDistanceThisStep = DistanceAfterStep - CurrentDistance;
 
 					if (!FMath::IsNearlyZero(AnimationDistanceThisStep))
@@ -181,8 +167,7 @@ FSequenceEvaluatorReference UAnimDistanceMatchingLibrary::AdvanceTimeByDistanceM
 						const float CurrentAssetLength = InSequenceEvaluator.GetCurrentAssetLength();
 						const bool bAllowLooping = InSequenceEvaluator.GetShouldLoop();
 
-						const USkeleton::AnimCurveUID CurveUID = UE::Anim::DistanceMatchingUtility::GetCurveUID(AnimSequence, DistanceCurveName);
-						float TimeAfterDistanceTraveled = UE::Anim::DistanceMatchingUtility::GetTimeAfterDistanceTraveled(AnimSequence, CurrentTime, DistanceTraveled, CurveUID, bAllowLooping);
+						float TimeAfterDistanceTraveled = UE::Anim::DistanceMatchingUtility::GetTimeAfterDistanceTraveled(AnimSequence, CurrentTime, DistanceTraveled, DistanceCurveName, bAllowLooping);
 
 						// Calculate the effective playrate that would result from advancing the animation by the distance traveled.
 						// Account for the animation looping.
@@ -231,19 +216,11 @@ FSequenceEvaluatorReference UAnimDistanceMatchingLibrary::DistanceMatchToTarget(
 		{
 			if (const UAnimSequenceBase* AnimSequence = Cast<UAnimSequence>(InSequenceEvaluator.GetSequence()))
 			{
-				const USkeleton::AnimCurveUID CurveUID = UE::Anim::DistanceMatchingUtility::GetCurveUID(AnimSequence, DistanceCurveName);
-				if (AnimSequence->HasCurveData(CurveUID))
+				// By convention, distance curves store the distance to a target as a negative value.
+				const float NewTime = UE::Anim::DistanceMatchingUtility::GetAnimPositionFromDistance(AnimSequence, -DistanceToTarget, DistanceCurveName);
+				if (!InSequenceEvaluator.SetExplicitTime(NewTime))
 				{
-					// By convention, distance curves store the distance to a target as a negative value.
-					const float NewTime = UE::Anim::DistanceMatchingUtility::GetAnimPositionFromDistance(AnimSequence, -DistanceToTarget, CurveUID);
-					if (!InSequenceEvaluator.SetExplicitTime(NewTime))
-					{
-						UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("Could not set explicit time on sequence evaluator, value is not dynamic. Set it as Always Dynamic."));
-					}
-				}
-				else
-				{
-					UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("DistanceMatchToTarget called with invalid DistanceCurveName or animation (%s) is missing a distance curve."), *GetNameSafe(AnimSequence));
+					UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("Could not set explicit time on sequence evaluator, value is not dynamic. Set it as Always Dynamic."));
 				}
 			}
 			else

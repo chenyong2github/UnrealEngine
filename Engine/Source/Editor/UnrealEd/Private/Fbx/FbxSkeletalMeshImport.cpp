@@ -4440,6 +4440,37 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 		BaseImportData.MorphTargets.Add(ShapeImportData);
 		check(BaseImportData.MorphTargetNames.Num() == BaseImportData.MorphTargets.Num() && BaseImportData.MorphTargetNames.Num() == BaseImportData.MorphTargetModifiedPoints.Num());
 
+		// Ensure that we have curve metadata for this morph target (either skeleton or mesh)
+		FName CurveName = *ShapeName;
+		if(ImportOptions->bAddCurveMetadataToSkeleton)
+		{
+			if(USkeleton* Skeleton = BaseSkelMesh->GetSkeleton())
+			{
+				Skeleton->AddCurveMetaData(CurveName);
+
+				// Ensure we have a morph flag set
+				FCurveMetaData* CurveMetaData = Skeleton->GetCurveMetaData(CurveName);
+				check(CurveMetaData);
+				CurveMetaData->Type.bMorphtarget = true;
+			}
+		}
+		else
+		{
+			UAnimCurveMetaData* AnimCurveMetaData = BaseSkelMesh->GetAssetUserData<UAnimCurveMetaData>();
+			if(AnimCurveMetaData == nullptr)
+			{
+				AnimCurveMetaData = NewObject<UAnimCurveMetaData>(BaseSkelMesh, NAME_None, RF_Transactional);
+				BaseSkelMesh->AddAssetUserData(AnimCurveMetaData);
+			}
+
+			AnimCurveMetaData->AddCurveMetaData(CurveName);
+
+			// Ensure we have a morph flag set
+			FCurveMetaData* CurveMetaData = AnimCurveMetaData->GetCurveMetaData(CurveName);
+			check(CurveMetaData);
+			CurveMetaData->Type.bMorphtarget = true;
+		}
+
 		if (ImportOptions->bIsImportCancelable && ImportMorphTargetSlowTask.ShouldCancel())
 		{
 			bImportOperationCanceled = true;

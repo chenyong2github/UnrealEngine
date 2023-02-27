@@ -96,12 +96,7 @@ public:
 			}
 
 			const FString& CurveName = ExpectedResult.ExpectedPresetsDataString[0];
-			const FFloatCurve* FloatCurve = nullptr;
-			FSmartName OutSmartName;
-			if (AnimSequence->GetSkeleton()->GetSmartNameByName(USkeleton::AnimCurveMappingName, *CurveName, OutSmartName))
-			{
-				FloatCurve = static_cast<const FFloatCurve*>(AnimSequence->GetCurveData().GetCurveData(OutSmartName.UID, ERawCurveTrackTypes::RCT_Float));
-			}
+			const FFloatCurve* FloatCurve = static_cast<const FFloatCurve*>(AnimSequence->GetCurveData().GetCurveData(FName(*CurveName), ERawCurveTrackTypes::RCT_Float));
 			if (FloatCurve == nullptr)
 			{
 				ExecutionInfo.AddError(FString::Printf(TEXT("%s no custom curve named %s was imported"),

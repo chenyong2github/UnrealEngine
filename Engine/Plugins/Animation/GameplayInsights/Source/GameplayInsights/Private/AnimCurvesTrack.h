@@ -15,8 +15,7 @@ class FAnimCurveTrack : public FRewindDebuggerTrack
 {
 public:
 	FAnimCurveTrack(uint64 InObjectId, uint32 InCurveId);
-
-
+	
 	uint32 GetCurveId() { return CurveId; };
 
 private:
@@ -27,9 +26,10 @@ private:
 	virtual FName GetNameInternal() const override { return "AnimationCurve"; }
 	virtual FText GetDisplayNameInternal() const override { return CurveName; }
 	virtual uint64 GetObjectIdInternal() const override { return ObjectId; }
-
+	virtual void UpdateCurvePointsInternal();
+	
 	TSharedPtr<SCurveTimelineView::FTimelineCurveData> GetCurveData() const;
-
+protected:
 	uint32 CurveId;
 
 	FSlateIcon Icon;

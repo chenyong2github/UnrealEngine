@@ -102,7 +102,7 @@ void UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(UPoseAs
 		}
 
 		FBoneContainer BoneContainer;
-		BoneContainer.InitializeTo(RequiredBones, FCurveEvaluationOption(SkeletalMeshComponent->GetAllowedAnimCurveEvaluate()), *PoseSkeleton);
+		BoneContainer.InitializeTo(RequiredBones, SkeletalMeshComponent->GetCurveFilterSettings(), *PoseSkeleton);
 
 		// Needs a FMemMark declared before in the stack context so that the memory allocated by the FCompactPose is freed correctly
 		FCompactPose OutPose;
@@ -115,18 +115,15 @@ void UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(UPoseAs
 		OutPose = OutAnimData.GetPose();
 		OutCurve = OutAnimData.GetCurve();
 
-		FBlendedHeapCurve AnimCurves = SkeletalMeshComponent->AnimCurves;
-		OutCurve.CurveWeights = AnimCurves.CurveWeights;
-		OutCurve.bInitialized = AnimCurves.bInitialized;
-		OutCurve.UIDToArrayIndexLUT = AnimCurves.UIDToArrayIndexLUT;
+		OutCurve.CopyFrom(SkeletalMeshComponent->AnimCurves);
 
 		// Assuming one single pose, with a weigth set to 1.0
 		FAnimExtractContext ExtractionContext;
 		ExtractionContext.bExtractRootMotion = false;
 		ExtractionContext.CurrentTime = 0.0f;
 		
-		const TArray<FSmartName>& PoseNames = PoseAsset->GetPoseNames();
-		ExtractionContext.PoseCurves.Add(FPoseCurve(0, PoseNames[0].UID, 1.0f));
+		const TArray<FName>& PoseNames = PoseAsset->GetPoseFNames();
+		ExtractionContext.PoseCurves.Add(FPoseCurve(0, PoseNames[0], 1.0f));
 		FAnimationPoseData SecondOutAnimData(OutPose, OutCurve, OutAttributes);
 		PoseAsset->GetAnimationPose(SecondOutAnimData, ExtractionContext);
 		OutPose = OutAnimData.GetPose();

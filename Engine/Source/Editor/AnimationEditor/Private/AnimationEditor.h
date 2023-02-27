@@ -57,6 +57,7 @@ namespace AnimationEditorTabs
 	extern const FName CurveNamesTab;
 	extern const FName SlotNamesTab;
 	extern const FName AnimMontageSectionsTab;
+	extern const FName FindReplaceTab;
 }
 
 class FAnimationEditor : public IAnimationEditor, public FGCObject, public FTickableEditorObject

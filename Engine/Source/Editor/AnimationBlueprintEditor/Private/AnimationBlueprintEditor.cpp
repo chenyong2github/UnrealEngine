@@ -160,6 +160,7 @@ namespace AnimationBlueprintEditorTabs
 	const FName SlotNamesTab(TEXT("SkeletonSlotNames"));
 	const FName CurveNamesTab(TEXT("AnimCurveViewerTab"));
 	const FName PoseWatchTab(TEXT("PoseWatchManager"));
+	const FName FindReplaceTab(TEXT("FindReplaceTab"));
 };
 
 /////////////////////////////////////////////////////

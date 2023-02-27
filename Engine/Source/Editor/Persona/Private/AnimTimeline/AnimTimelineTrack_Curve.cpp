@@ -166,6 +166,19 @@ FAnimTimelineTrack_Curve::FAnimTimelineTrack_Curve(const FRichCurve* InCurve, co
 	, Color(InColor)
 	, BackgroundColor(InBackgroundColor)
 	, FullCurveName(InFullCurveName)
+	, OuterCurveName(InName.DisplayName)
+	, OuterCurveIndex(InCurveIndex)
+	, OuterType(InType)
+{
+	Curves.Add(InCurve);
+	SetHeight(32.0f);
+}
+
+FAnimTimelineTrack_Curve::FAnimTimelineTrack_Curve(const FRichCurve* InCurve, const FName& InName, int32 InCurveIndex, ERawCurveTrackTypes InType, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel)
+	: FAnimTimelineTrack(InCurveName, InCurveName, InModel)
+	, Color(InColor)
+	, BackgroundColor(InBackgroundColor)
+	, FullCurveName(InFullCurveName)
 	, OuterCurveName(InName)
 	, OuterCurveIndex(InCurveIndex)
 	, OuterType(InType)
@@ -197,13 +210,13 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curve::GenerateContainerWidgetForTimeline
 	{
 		const FRichCurve* Curve = Curves[CurveIndex];
 
-		FSmartName Name;
+		FName Name;
 		ERawCurveTrackTypes Type;
 		int32 EditIndex;
 		GetCurveEditInfo(CurveIndex, Name, Type, EditIndex);
 
 		TUniquePtr<FRichCurveEditorModelNamed> NewCurveModel = MakeUnique<FRichCurveEditorModelNamed>(Name, Type, EditIndex, GetModel()->GetAnimSequenceBase());
-		NewCurveModel->SetColor(GetCurveColor(CurveIndex));
+		NewCurveModel->SetColor(GetCurveColor(CurveIndex), false);
 		NewCurveModel->SetIsKeyDrawEnabled(MakeAttributeLambda([](){ return GetDefault<UPersonaOptions>()->bTimelineDisplayCurveKeys; }));
 		CurveEditor->AddCurve(MoveTemp(NewCurveModel));
 	}
@@ -362,13 +375,12 @@ void FAnimTimelineTrack_Curve::Copy(UAnimTimelineClipboardContent* InOutClipboar
 		const FRichCurve* InCurve = Curves[0];
 
 		// Copy raw curve data
-		CopyableCurve->Curve.Name = { FName(FullCurveName.ToString()), SmartName::MaxUID };
+		CopyableCurve->Curve.SetName(FName(FullCurveName.ToString()));
 		CopyableCurve->Curve.FloatCurve = *InCurve;
 		CopyableCurve->Curve.SetCurveTypeFlags(AACF_Editable);
 
 		// Copy curve identifier data
-		CopyableCurve->DisplayName = CopyableCurve->Curve.Name.DisplayName;
-		CopyableCurve->UID = CopyableCurve->Curve.Name.UID;
+		CopyableCurve->CurveName = CopyableCurve->Curve.GetName();
 		CopyableCurve->CurveType = ERawCurveTrackTypes::RCT_Float;
 
 		// Origin data
@@ -426,7 +438,7 @@ void FAnimTimelineTrack_Curve::HendleEditCurve()
 	TArray<IAnimationEditor::FCurveEditInfo> EditCurveInfo;
 	for(int32 CurveIndex = 0; CurveIndex < Curves.Num(); ++CurveIndex)
 	{
-		FSmartName Name;
+		FName Name;
 		ERawCurveTrackTypes Type;
 		int32 EditCurveIndex;
 		GetCurveEditInfo(CurveIndex, Name, Type, EditCurveIndex);
@@ -436,7 +448,7 @@ void FAnimTimelineTrack_Curve::HendleEditCurve()
 	StaticCastSharedRef<FAnimModel_AnimSequenceBase>(GetModel())->OnEditCurves.ExecuteIfBound(GetModel()->GetAnimSequenceBase(), EditCurveInfo, nullptr);
 }
 
-void FAnimTimelineTrack_Curve::GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const
+void FAnimTimelineTrack_Curve::GetCurveEditInfo(int32 InCurveIndex, FName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const
 {
 	OutName = OuterCurveName;
 	OutType = OuterType;

@@ -160,22 +160,7 @@ private:
 
 	bool ShouldSkipName(const FName& InName) const;
 
-	// recording curve data 
-	struct FBlendedCurve
-	{
-		template<typename Allocator>
-		FBlendedCurve(TArray<float, Allocator> CW, TBitArray<Allocator> VCW)
-		{
-			CurveWeights = CW;
-			ValidCurveWeights = VCW;
-		}
-
-		TArray<float> CurveWeights;
-		TBitArray<> ValidCurveWeights;
-	};
-
-	TArray<FBlendedCurve> RecordedCurves;
-	TArray<uint16> const * UIDToArrayIndexLUT;
+	TArray<FBlendedHeapCurve> RecordedCurves;
 	TArray<FRawAnimSequenceTrack> RawTracks;
 };
 

@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #if WITH_EDITOR
-
 
 #include "PoseWatchTrack.h"
 #include "SCurveTimelineView.h"
@@ -16,40 +14,78 @@
 #include "Engine/PoseWatchRenderData.h"
 #include "Engine/PoseWatch.h"
 #include "ObjectTrace.h"
+#include "SPoseWatchCurvesView.h"
 
 #define LOCTEXT_NAMESPACE "PoseWatchesTrack"
 
 namespace RewindDebugger
 {
 
-FPoseWatchTrack::FPoseWatchTrack(uint64 InObjectId, const FPoseWatchTrack::FPoseWatchTrackId& InPoseWatchTrackId)
-	: ObjectId(InObjectId)
+FPoseWatchCurveTrack::FPoseWatchCurveTrack(uint64 InObjectId, uint32 InCurveId, uint64 InPoseWatchTrackId)
+	: FAnimCurveTrack(InObjectId, InCurveId)
 	, PostWatchTrackId(InPoseWatchTrackId)
-	, PoseWatchOwner(nullptr)
 {
-	EnabledSegments = MakeShared<SSegmentedTimelineView::FSegmentData>();
-	Icon = UPoseWatchPoseElement::StaticGetIcon();
+}
 
-#if OBJECT_TRACE_ENABLED
-	if (UObject* ObjectInstance = FObjectTrace::GetObjectFromId(ObjectId))
+void FPoseWatchCurveTrack::UpdateCurvePointsInternal()
+{
+	IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
+	const TraceServices::IAnalysisSession* AnalysisSession = RewindDebugger->GetAnalysisSession();
+	const FAnimationProvider* AnimationProvider = AnalysisSession->ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
+
+	// convert time range to from rewind debugger times to profiler times
+	TRange<double> TraceTimeRange = RewindDebugger->GetCurrentTraceRange();
+	double StartTime = TraceTimeRange.GetLowerBoundValue();
+	double EndTime = TraceTimeRange.GetUpperBoundValue();
+	
+	auto& CurvePoints = CurveData->Points;
+	CurvePoints.SetNum(0,false);
+
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+
+	AnimationProvider->ReadPoseWatchTimeline(ObjectId, [this, StartTime, EndTime, AnimationProvider, &CurvePoints](const FAnimationProvider::PoseWatchTimeline& InPoseWatchTimeline)
 	{
-		if (UAnimInstance* AnimInstance = Cast<UAnimInstance>(ObjectInstance))
+		InPoseWatchTimeline.EnumerateEvents(StartTime, EndTime, [this, StartTime, EndTime, AnimationProvider, &CurvePoints](double InStartTime, double InEndTime, uint32 InDepth, const FPoseWatchMessage& InMessage)
 		{
-			if (UAnimBlueprintGeneratedClass* InstanceClass = Cast<UAnimBlueprintGeneratedClass>(AnimInstance->GetClass()))
+			if (InMessage.PoseWatchId == PostWatchTrackId)
 			{
-				FAnimBlueprintDebugData& DebugData = InstanceClass->GetAnimBlueprintDebugData();
-				for (const FAnimNodePoseWatch& PoseWatch : DebugData.AnimNodePoseWatch)
+				if (InEndTime > StartTime && InStartTime < EndTime)
 				{
-					if (PoseWatch.NodeID == PostWatchTrackId.NameId)
+					if(InMessage.bIsEnabled)
 					{
-						PoseWatchOwner = PoseWatch.PoseWatchPoseElement;
-						break;
+						double Time = InMessage.RecordingTime;
+						AnimationProvider->EnumeratePoseWatchCurves(InMessage, [this, Time, &CurvePoints](const FSkeletalMeshNamedCurve& InCurve)
+						{
+							if (InCurve.Id == CurveId)
+							{
+								CurvePoints.Add({Time,InCurve.Value});
+							}
+						});
 					}
 				}
 			}
-		}
-	}
-#endif
+			return TraceServices::EEventEnumerate::Continue;
+		});
+	});
+}
+
+TSharedPtr<SWidget> FPoseWatchCurveTrack::GetDetailsViewInternal()
+{
+	IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
+	TSharedPtr<SPoseWatchCurvesView> PoseWatchCurvesView = SNew(SPoseWatchCurvesView, ObjectId, RewindDebugger->CurrentTraceTime(), *RewindDebugger->GetAnalysisSession())
+				.CurrentTime_Lambda([RewindDebugger]{ return RewindDebugger->CurrentTraceTime(); });
+	PoseWatchCurvesView->SetPoseWatchCurveFilter(PostWatchTrackId, CurveId);
+	return PoseWatchCurvesView;
+}
+
+FPoseWatchTrack::FPoseWatchTrack(uint64 InObjectId, uint64 InPoseWatchTrackId, FColor InColor, uint32 InNameId)
+	: ObjectId(InObjectId)
+	, PoseWatchTrackId(InPoseWatchTrackId)
+	, Color(InColor)
+	, NameId(InNameId)
+{
+	EnabledSegments = MakeShared<SSegmentedTimelineView::FSegmentData>();
+	Icon = UPoseWatchPoseElement::StaticGetIcon();
 }
 
 FText FPoseWatchTrack::GetDisplayNameInternal() const
@@ -74,6 +110,8 @@ bool FPoseWatchTrack::UpdateInternal()
 	const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 	const FAnimationProvider* AnimationProvider = AnalysisSession->ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 
+	bool bChanged = false;
+
 	if(GameplayProvider && AnimationProvider && EnabledSegments.IsValid())
 	{
 		EnabledSegments->Segments.SetNum(0, false);
@@ -93,17 +131,27 @@ bool FPoseWatchTrack::UpdateInternal()
 
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
 
-		AnimationProvider->ReadPoseWatchTimeline(ObjectId, [this, StartTime, EndTime, &RecordingTimes](const FAnimationProvider::PoseWatchTimeline& InPoseWatchTimeline)
+		TArray<uint64> UniqueCurveIds;
+
+		AnimationProvider->ReadPoseWatchTimeline(ObjectId, [this, StartTime, EndTime, &RecordingTimes, &UniqueCurveIds, AnimationProvider](const FAnimationProvider::PoseWatchTimeline& InPoseWatchTimeline)
 		{
-			InPoseWatchTimeline.EnumerateEvents(StartTime, EndTime, [this, StartTime, EndTime, &RecordingTimes](double InStartTime, double InEndTime, uint32 InDepth, const FPoseWatchMessage& InMessage)
+			InPoseWatchTimeline.EnumerateEvents(StartTime, EndTime, [this, StartTime, EndTime, &RecordingTimes, &UniqueCurveIds, AnimationProvider](double InStartTime, double InEndTime, uint32 InDepth, const FPoseWatchMessage& InMessage)
 			{
-				if (InMessage.PoseWatchId == PostWatchTrackId.NameId)
+				if (InMessage.PoseWatchId == PoseWatchTrackId)
 				{
+					Color = InMessage.Color;
+					NameId = InMessage.NameId;
+
 					FPoseWatchEnabledTime EnabledTime;
 					EnabledTime.RecordingTime = InMessage.RecordingTime;
 					EnabledTime.bIsEnabled = InMessage.bIsEnabled;
 
 					RecordingTimes.Add(EnabledTime);
+
+					AnimationProvider->EnumeratePoseWatchCurves(InMessage, [this, &UniqueCurveIds](const FSkeletalMeshNamedCurve& InCurve)
+					{
+						UniqueCurveIds.AddUnique(InCurve.Id);
+					});
 				}
 				return TraceServices::EEventEnumerate::Continue;
 			});
@@ -139,13 +187,32 @@ bool FPoseWatchTrack::UpdateInternal()
 				EnabledSegments->Segments.Add(TRange<double>(RangeStart, RecordingTimes.Last().RecordingTime));
 			}
 		}
+
+		UniqueCurveIds.StableSort();
+		const int32 TrackCount = UniqueCurveIds.Num();
+
+		if (Children.Num() != TrackCount)
+		{
+			bChanged = true;
+		}
+
+		Children.SetNum(UniqueCurveIds.Num());
+		for(int i = 0; i < TrackCount; i++)
+		{
+			if (!Children[i].IsValid() || !(Children[i].Get()->GetCurveId() == UniqueCurveIds[i]))
+			{
+				Children[i] = MakeShared<FPoseWatchCurveTrack>(ObjectId, UniqueCurveIds[i], PoseWatchTrackId);
+				bChanged = true;
+			}
+
+			bChanged = bChanged || Children[i]->Update();
+		}
 	}
 
-	bool bChanged = false;
-	if (PoseWatchOwner && PoseWatchOwner->GetParent())
+	if(const TCHAR* FoundName = AnimationProvider->GetName(NameId))
 	{
-		bChanged = !TrackName.EqualTo(PoseWatchOwner->GetParent()->GetLabel());
-		TrackName = PoseWatchOwner->GetParent()->GetLabel();
+		bChanged = bChanged || TrackName.ToString().Compare(FoundName) != 0;
+		TrackName = FText::FromString(FoundName);
 	}
 
 	return bChanged;
@@ -153,7 +220,7 @@ bool FPoseWatchTrack::UpdateInternal()
 
 TSharedPtr<SWidget> FPoseWatchTrack::GetTimelineViewInternal()
 {
-	const auto GetPoseWatchColorLambda = [this]() -> FLinearColor { return PoseWatchOwner ? FLinearColor(PoseWatchOwner->GetColor()) : FLinearColor::White; };
+	const auto GetPoseWatchColorLambda = [this]() -> FLinearColor { return FLinearColor(Color); };
 
 	const auto TimelineView = SNew(SSegmentedTimelineView)
 		.FillColor_Lambda(GetPoseWatchColorLambda)
@@ -161,6 +228,14 @@ TSharedPtr<SWidget> FPoseWatchTrack::GetTimelineViewInternal()
 		.SegmentData_Raw(this, &FPoseWatchTrack::GetSegmentData);
 
 	return TimelineView;
+}
+
+void FPoseWatchTrack::IterateSubTracksInternal(TFunction<void(TSharedPtr<FRewindDebuggerTrack> SubTrack)> IteratorFunction)
+{
+	for(TSharedPtr<FPoseWatchCurveTrack>& Track : Children)
+	{
+		IteratorFunction(Track);
+	}
 }
 
 FName FPoseWatchesTrackCreator::GetTargetTypeNameInternal() const
@@ -185,21 +260,7 @@ FPoseWatchesTrack::FPoseWatchesTrack(uint64 InObjectId)
 	: ObjectId(InObjectId)
 {
 	Icon = UPoseWatchPoseElement::StaticGetIcon();
-
-#if OBJECT_TRACE_ENABLED
-	if (UObject* ObjectInstance = FObjectTrace::GetObjectFromId(ObjectId))
-	{
-		if (UAnimInstance* AnimInstance = Cast<UAnimInstance>(ObjectInstance))
-		{
-			if (UAnimBlueprintGeneratedClass* InstanceClass = Cast<UAnimBlueprintGeneratedClass>(AnimInstance->GetClass()))
-			{
-				AnimBPGenClass = InstanceClass;
-			}
-		}
-	}
-#endif
 }
-
 
 bool FPoseWatchesTrack::UpdateInternal()
 {
@@ -217,42 +278,48 @@ bool FPoseWatchesTrack::UpdateInternal()
 	
 	if(GameplayProvider && AnimationProvider)
 	{
-		TArray<FPoseWatchTrack::FPoseWatchTrackId> UniqueTrackIds;
+		struct FUniquePoseWatch
+		{
+			uint64 PoseWatchId;
+			FColor Color;
+			uint32 NameId;
+
+			bool operator==(const FUniquePoseWatch& InOther) const
+			{
+				return PoseWatchId == InOther.PoseWatchId;
+			}
+
+			bool operator<(const FUniquePoseWatch& InOther) const
+			{
+				return PoseWatchId < InOther.PoseWatchId;
+			}
+		};
 		
+		TArray<FUniquePoseWatch> UniquePoseWatches;
+
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
 
-		AnimationProvider->ReadPoseWatchTimeline(ObjectId, [this, StartTime, EndTime, &UniqueTrackIds](const FAnimationProvider::PoseWatchTimeline& InPoseWatchTimeline)
+		AnimationProvider->ReadPoseWatchTimeline(ObjectId, [this, StartTime, EndTime, &UniquePoseWatches](const FAnimationProvider::PoseWatchTimeline& InPoseWatchTimeline)
 		{
-			InPoseWatchTimeline.EnumerateEvents(StartTime, EndTime, [this, &UniqueTrackIds](double InStartTime, double InEndTime, uint32 InDepth, const FPoseWatchMessage& InMessage)
+			InPoseWatchTimeline.EnumerateEvents(StartTime, EndTime, [this, &UniquePoseWatches](double InStartTime, double InEndTime, uint32 InDepth, const FPoseWatchMessage& InMessage)
 			{
-				// Only add the pose watch track if the pose watch still exists to attach to
-				if (AnimBPGenClass)
-				{
-					for (const FAnimNodePoseWatch& PoseWatch : AnimBPGenClass->GetAnimBlueprintDebugData().AnimNodePoseWatch)
-					{
-						if (PoseWatch.NodeID == InMessage.PoseWatchId)
-						{
-							UniqueTrackIds.AddUnique({ InMessage.PoseWatchId });
-							break;
-						}
-					}
-				}
+				UniquePoseWatches.AddUnique({ InMessage.PoseWatchId, FColor(InMessage.Color), InMessage.NameId });
 				return TraceServices::EEventEnumerate::Continue;
 			});
 		});
 		
-		UniqueTrackIds.StableSort();
-		const int32 TrackCount = UniqueTrackIds.Num();
+		UniquePoseWatches.StableSort();
+		const int32 TrackCount = UniquePoseWatches.Num();
 
 		if (Children.Num() != TrackCount)
 			bChanged = true;
 
-		Children.SetNum(UniqueTrackIds.Num());
+		Children.SetNum(UniquePoseWatches.Num());
 		for(int i = 0; i < TrackCount; i++)
 		{
-			if (!Children[i].IsValid() || !(Children[i].Get()->GetPoseWatchTrackId() == UniqueTrackIds[i]))
+			if (!Children[i].IsValid() || !(Children[i].Get()->GetPoseWatchTrackId() == UniquePoseWatches[i].PoseWatchId))
 			{
-				Children[i] = MakeShared<FPoseWatchTrack>(ObjectId, UniqueTrackIds[i]);
+				Children[i] = MakeShared<FPoseWatchTrack>(ObjectId, UniquePoseWatches[i].PoseWatchId, UniquePoseWatches[i].Color, UniquePoseWatches[i].NameId);
 				bChanged = true;
 			}
 

@@ -28,11 +28,18 @@
 #include "UObject/AnimObjectVersion.h"
 #include "EngineUtils.h"
 #include "SkeletonRemappingRegistry.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Skeleton)
 
 #define LOCTEXT_NAMESPACE "Skeleton"
 #define ROOT_BONE_PARENT	INDEX_NONE
+
+// DEPRECATED - legacy support
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+TArray<uint16> USkeleton::DefaultCurveUIDList;
+FSmartNameMapping* USkeleton::AnimCurveMapping = nullptr;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 const FName USkeleton::AnimNotifyTag = FName(TEXT("AnimNotifyList"));
@@ -302,9 +309,6 @@ bool USkeleton::IsCompatibleSkeletonByAssetData(const FAssetData& AssetData, con
 USkeleton::USkeleton(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// Make sure we have somewhere for curve names.
-	AnimCurveMapping = SmartNames.AddContainer(AnimCurveMappingName);
-	AnimCurveUidVersion = 0;
 	CachedSoftObjectPtr = TSoftObjectPtr<USkeleton>(this);
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
@@ -324,8 +328,6 @@ void USkeleton::BeginDestroy()
 	{
 		FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
 	}
-
-	OnSmartNamesChangedEvent.Clear();
 }
 
 void USkeleton::PostInitProperties()
@@ -342,7 +344,7 @@ void USkeleton::PostInitProperties()
 
 bool USkeleton::IsPostLoadThreadSafe() const
 {
-	return true;
+	return WITH_EDITORONLY_DATA == 0;
 }
 
 void USkeleton::PostLoad()
@@ -350,44 +352,41 @@ void USkeleton::PostLoad()
 	Super::PostLoad();
 	LLM_SCOPE(ELLMTag::Animation);
 
+#if WITH_EDITORONLY_DATA
 	if( GetLinker() && (GetLinker()->UEVer() < VER_UE4_REFERENCE_SKELETON_REFACTOR) )
 	{
 		// Convert RefLocalPoses & BoneTree to FReferenceSkeleton
 		ConvertToFReferenceSkeleton();
 	}
+#endif
 
 	// catch any case if guid isn't valid
 	check(Guid.IsValid());
 
-	SmartNames.PostLoad();
-	
-	// Cache smart name uids for animation curve names
-	IncreaseAnimCurveUidVersion();
-
 	// refresh linked bone indices
-	FSmartNameMapping* CurveMappingTable = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
-	if (CurveMappingTable)
-	{
-		CurveMappingTable->InitializeCurveMetaData(this);
-	}
-	
-	// Listen to smart name changes so we can regenerate our skeleton mappings.
-	if (!OnSmartNamesChangedEvent.IsBoundToObject(this))
-	{
-		OnSmartNamesChangedEvent.AddUObject(this, &USkeleton::HandleSmartNamesChangedEvent);
-	}
-	
+	RefreshSkeletonMetaData();
+
 	// Cleanup CompatibleSkeletons for convenience. This basically removes any soft object pointers that has an invalid soft object name.
 	CompatibleSkeletons = CompatibleSkeletons.FilterByPredicate([](const TSoftObjectPtr<USkeleton>& Skeleton)
 	{
 		return Skeleton.ToSoftObjectPath().IsValid();
 	});
-}
 
-// Regenerate all required skeleton remappings whenever curves change.
-void USkeleton::HandleSmartNamesChangedEvent()
-{
-	UE::Anim::FSkeletonRemappingRegistry::Get().RefreshCurveMappings(this);
+#if WITH_EDITORONLY_DATA
+	if(GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimationRemoveSmartNames)
+	{
+		// Move curve metadata over to asset user data
+		UAnimCurveMetaData* AnimCurveMetaData = NewObject<UAnimCurveMetaData>(this, NAME_None, RF_Transactional);
+		for(const TPair<FName, FSmartNameMapping>& NameMappingPair : SmartNames_DEPRECATED.NameMappings)
+		{
+			for(const TPair<FName, FCurveMetaData>& NameMetaDataPair : NameMappingPair.Value.CurveMetaDataMap)
+			{
+				AnimCurveMetaData->CurveMetaData.Add(NameMetaDataPair.Key, NameMetaDataPair.Value);
+			}
+		}
+		AddAssetUserData(AnimCurveMetaData);
+	}
+#endif
 }
 
 void USkeleton::PostDuplicate(bool bDuplicateForPIE)
@@ -404,6 +403,7 @@ void USkeleton::PostDuplicate(bool bDuplicateForPIE)
 void USkeleton::Serialize( FArchive& Ar )
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("USkeleton::Serialize"), STAT_Skeleton_Serialize, STATGROUP_LoadTime );
 
@@ -468,9 +468,9 @@ void USkeleton::Serialize( FArchive& Ar )
 	// If we should be using smartnames, serialize the mappings
 	if(Ar.UEVer() >= VER_UE4_SKELETON_ADD_SMARTNAMES)
 	{
-		SmartNames.Serialize(Ar, IsTemplate());
-
-		AnimCurveMapping = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		SmartNames_DEPRECATED.Serialize(Ar, IsTemplate());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	// Build look up table between Slot nodes and their Group.
@@ -1239,6 +1239,29 @@ void USkeleton::AddNewAnimationNotify(FName NewAnimNotifyName)
 	}
 }
 
+void USkeleton::RemoveAnimationNotify(FName AnimNotifyName)
+{
+	if (AnimNotifyName != NAME_None)
+	{
+		AnimationNotifies.Remove(AnimNotifyName);
+	}
+}
+
+void USkeleton::RenameAnimationNotify(FName OldAnimNotifyName, FName NewAnimNotifyName)
+{
+	if(!AnimationNotifies.Contains(NewAnimNotifyName))
+	{
+		for(FName& NotifyName : AnimationNotifies)
+		{
+			if(NotifyName == OldAnimNotifyName)
+			{
+				NotifyName = NewAnimNotifyName;
+				break;
+			}
+		}
+	}
+}
+
 USkeletalMesh* USkeleton::FindCompatibleMesh() const
 {
 	FARFilter Filter;
@@ -1381,12 +1404,7 @@ void USkeleton::HandleSkeletonHierarchyChange()
 	RefreshAllRetargetSources();
 #endif
 
-	// refresh curve meta data that contains joint info
-	FSmartNameMapping* CurveMappingTable = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
-	if (CurveMappingTable)
-	{
-		CurveMappingTable->InitializeCurveMetaData(this);
-	}
+	RefreshSkeletonMetaData();
 
 	// Remove entries from Blend Profiles for bones that no longer exists
 	for (UBlendProfile* Profile : BlendProfiles)
@@ -1578,206 +1596,61 @@ void USkeleton::RenameSlotName(const FName& OldName, const FName& NewName)
 	SetSlotGroupName(NewName, GroupName);
 }
 
-#if WITH_EDITOR
-
-bool USkeleton::AddSmartNameAndModify(FName ContainerName, FName NewDisplayName, FSmartName& OutNewName)
+bool USkeleton::AddCurveMetaData(FName CurveName)
 {
-	if (NewDisplayName != NAME_None)
+	if(UAnimCurveMetaData* AnimCurveMetaData = GetAssetUserData<UAnimCurveMetaData>())
 	{
-		OutNewName.DisplayName = NewDisplayName;
-		const bool bAdded = VerifySmartNameInternal(ContainerName, OutNewName);
-
-		if (bAdded)
-		{
-			IncreaseAnimCurveUidVersion();
-		}
-
-		return bAdded;
+		return AnimCurveMetaData->AddCurveMetaData(CurveName);
 	}
-
 	return false;
 }
 
-bool USkeleton::RenameSmartnameAndModify(FName ContainerName, SmartName::UID_Type Uid, FName NewName)
+#if WITH_EDITOR
+
+bool USkeleton::RenameCurveMetaData(FName OldName, FName NewName)
 {
-	bool Successful = false;
-	if (NewName != NAME_None)
+	if(UAnimCurveMetaData* AnimCurveMetaData = GetAssetUserData<UAnimCurveMetaData>())
 	{
-		FSmartNameMapping* RequestedMapping = SmartNames.GetContainerInternal(ContainerName);
-		if (RequestedMapping)
-		{
-			FName CurrentName;
-			RequestedMapping->GetName(Uid, CurrentName);
-			if (CurrentName != NewName)
-			{
-				Modify();
-				Successful = RequestedMapping->Rename(Uid, NewName);
-				IncreaseAnimCurveUidVersion();
-			}
-		}
+		return AnimCurveMetaData->RenameCurveMetaData(OldName, NewName);
 	}
-	return Successful;
+	return false;
 }
 
-void USkeleton::RemoveSmartnameAndModify(FName ContainerName, SmartName::UID_Type Uid)
+bool USkeleton::RemoveCurveMetaData(FName CurveName)
 {
-	FSmartNameMapping* RequestedMapping = SmartNames.GetContainerInternal(ContainerName);
-	if (RequestedMapping)
+	if(UAnimCurveMetaData* AnimCurveMetaData = GetAssetUserData<UAnimCurveMetaData>())
 	{
-		Modify();
-		if (RequestedMapping->Remove(Uid))
-		{
-			IncreaseAnimCurveUidVersion();
-		}
+		return AnimCurveMetaData->RemoveCurveMetaData(CurveName);
 	}
+	return false;
 }
 
-void USkeleton::RemoveSmartnamesAndModify(FName ContainerName, const TArray<FName>& Names)
+bool USkeleton::RemoveCurveMetaData(TArrayView<FName> CurveNames)
 {
-	FSmartNameMapping* RequestedMapping = SmartNames.GetContainerInternal(ContainerName);
-	if (RequestedMapping)
+	if(UAnimCurveMetaData* AnimCurveMetaData = GetAssetUserData<UAnimCurveMetaData>())
 	{
-		bool bModified = false;
-		for (const FName& CurveName : Names)
-		{
-			if (RequestedMapping->Exists(CurveName))
-			{
-				if (!bModified)
-				{
-					Modify();
-				}
-				RequestedMapping->Remove(CurveName);
-				bModified = true;
-			}
-		}
-
-		if (bModified)
-		{
-			IncreaseAnimCurveUidVersion();
-		}
+		return AnimCurveMetaData->RemoveCurveMetaData(CurveNames);
 	}
+	return false;
 }
+
 #endif // WITH_EDITOR
 
-bool USkeleton::GetSmartNameByUID(const FName& ContainerName, SmartName::UID_Type UID, FSmartName& OutSmartName) const
+uint16 USkeleton::GetAnimCurveUidVersion() const
 {
-	const FSmartNameMapping* RequestedMapping = SmartNames.GetContainerInternal(ContainerName);
-	if (RequestedMapping)
+	if(UAnimCurveMetaData* AnimCurveMetaData = const_cast<USkeleton*>(this)->GetAssetUserData<UAnimCurveMetaData>())
 	{
-		return (RequestedMapping->FindSmartNameByUID(UID, OutSmartName));
+		return AnimCurveMetaData->GetVersionNumber();
 	}
-
-	return false;
+	return 0;
 }
 
-bool USkeleton::GetSmartNameByName(const FName& ContainerName, const FName& InName, FSmartName& OutSmartName) const
+void USkeleton::GetCurveMetaDataNames(TArray<FName>& OutNames) const
 {
-	const FSmartNameMapping* RequestedMapping = SmartNames.GetContainerInternal(ContainerName);
-	if (RequestedMapping)
+	if(const UAnimCurveMetaData* AnimCurveMetaData = const_cast<USkeleton*>(this)->GetAssetUserData<UAnimCurveMetaData>())
 	{
-		return (RequestedMapping->FindSmartName(InName, OutSmartName));
+		return AnimCurveMetaData->GetCurveMetaDataNames(OutNames);
 	}
-
-	return false;
-}
-
-SmartName::UID_Type USkeleton::GetUIDByName(const FName& ContainerName, const FName& Name) const
-{
-	const FSmartNameMapping* RequestedMapping = SmartNames.GetContainerInternal(ContainerName);
-	if (RequestedMapping)
-	{
-		return RequestedMapping->FindUID(Name);
-	}
-
-	return SmartName::MaxUID;
-}
-
-// this does very simple thing.
-// @todo: this for now prioritize FName because that is main issue right now
-// @todo: @fixme: this has to be fixed when we have GUID
-void USkeleton::VerifySmartName(const FName& ContainerName, FSmartName& InOutSmartName)
-{
-	if (VerifySmartNameInternal(ContainerName, InOutSmartName) && ContainerName == USkeleton::AnimCurveMappingName)
-	{
-		IncreaseAnimCurveUidVersion();
-	}
-}
-
-
-bool USkeleton::FillSmartNameByDisplayName(FSmartNameMapping* Mapping, const FName& DisplayName, FSmartName& OutSmartName)
-{
-	FSmartName SkeletonName;
-	if (Mapping->FindSmartName(DisplayName, SkeletonName))
-	{
-		OutSmartName.DisplayName = DisplayName;
-
-		// if not editor, we assume name is always correct
-		OutSmartName.UID = SkeletonName.UID;
-		return true;
-	}
-
-	return false;
-}
-
-bool USkeleton::VerifySmartNameInternal(const FName&  ContainerName, FSmartName& InOutSmartName)
-{
-	FSmartNameMapping* Mapping = GetOrAddSmartNameContainer(ContainerName);
-	if (Mapping != nullptr)
-	{
-		if (!Mapping->FindSmartName(InOutSmartName.DisplayName, InOutSmartName))
-		{
-#if WITH_EDITOR
-			if (IsInGameThread())
-			{
-				Modify();
-			}
-#endif
-			InOutSmartName = Mapping->AddName(InOutSmartName.DisplayName);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void USkeleton::VerifySmartNames(const FName&  ContainerName, TArray<FSmartName>& InOutSmartNames)
-{
-	bool bRefreshCache = false;
-
-	for(auto& SmartName: InOutSmartNames)
-	{
-		VerifySmartNameInternal(ContainerName, SmartName);
-	}
-
-	if (ContainerName == USkeleton::AnimCurveMappingName)
-	{
-		IncreaseAnimCurveUidVersion();
-	}
-}
-
-FSmartNameMapping* USkeleton::GetOrAddSmartNameContainer(const FName& ContainerName)
-{
-	FSmartNameMapping* Mapping = SmartNames.GetContainerInternal(ContainerName);
-	if (Mapping == nullptr)
-	{
-#if WITH_EDITOR
-		if (IsInGameThread())
-		{
-			Modify();
-		}
-#endif
-		IncreaseAnimCurveUidVersion();
-		SmartNames.AddContainer(ContainerName);
-		AnimCurveMapping = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
-		Mapping = SmartNames.GetContainerInternal(ContainerName);		
-	}
-
-	return Mapping;
-}
-
-const FSmartNameMapping* USkeleton::GetSmartNameContainer(const FName& ContainerName) const
-{
-	return SmartNames.GetContainer(ContainerName);
 }
 
 void USkeleton::RegenerateGuid()
@@ -1792,113 +1665,83 @@ void USkeleton::RegenerateVirtualBoneGuid()
 	check(VirtualBoneGuid.IsValid());
 }
 
-void USkeleton::IncreaseAnimCurveUidVersion()
+FCurveMetaData* USkeleton::GetCurveMetaData(FName CurveName)
 {
-	// this will be checked by skeletalmeshcomponent and if it's same, it won't care. If it's different, it will rebuild UID list
-	++AnimCurveUidVersion;
-
-	// update default uid list
-	const FSmartNameMapping* Mapping = AnimCurveMapping;
-	if (ensureAlways(Mapping))
+	if(UAnimCurveMetaData* AnimCurveMetaData = GetAssetUserData<UAnimCurveMetaData>())
 	{
-		DefaultCurveUIDList.Reset();
-		// this should exactly work with what current index is
-		Mapping->FillUidArray(DefaultCurveUIDList);
+		return AnimCurveMetaData->GetCurveMetaData(CurveName);
 	}
-}
-
-FCurveMetaData* USkeleton::GetCurveMetaData(const FName& CurveName)
-{
-	FSmartNameMapping* Mapping = AnimCurveMapping;
-	if (ensureAlways(Mapping))
-	{
-		return Mapping->GetCurveMetaData(CurveName);
-	}
-
 	return nullptr;
 }
 
-const FCurveMetaData* USkeleton::GetCurveMetaData(const FName& CurveName) const
+const FCurveMetaData* USkeleton::GetCurveMetaData(FName CurveName) const
 {
-	const FSmartNameMapping* Mapping = AnimCurveMapping;
-	if (ensureAlways(Mapping))
+	if(const UAnimCurveMetaData* AnimCurveMetaData = const_cast<USkeleton*>(this)->GetAssetUserData<UAnimCurveMetaData>())
 	{
-		return Mapping->GetCurveMetaData(CurveName);
+		return AnimCurveMetaData->GetCurveMetaData(CurveName);
 	}
-
 	return nullptr;
+}
+
+void USkeleton::ForEachCurveMetaData(TFunctionRef<void(FName, const FCurveMetaData&)> InFunction) const
+{
+	if(const UAnimCurveMetaData* AnimCurveMetaData = const_cast<USkeleton*>(this)->GetAssetUserData<UAnimCurveMetaData>())
+	{
+		AnimCurveMetaData->ForEachCurveMetaData(InFunction);
+	}
+}
+
+int32 USkeleton::GetNumCurveMetaData() const
+{
+	if(const UAnimCurveMetaData* AnimCurveMetaData = const_cast<USkeleton*>(this)->GetAssetUserData<UAnimCurveMetaData>())
+	{
+		return AnimCurveMetaData->GetNumCurveMetaData();
+	}
+	return 0;
 }
 
 const FCurveMetaData* USkeleton::GetCurveMetaData(const SmartName::UID_Type CurveUID) const
 {
-	const FSmartNameMapping* Mapping = AnimCurveMapping;
-	if (ensureAlways(Mapping))
-	{
-#if WITH_EDITOR
-		FSmartName SmartName;
-		if (Mapping->FindSmartNameByUID(CurveUID, SmartName))
-		{
-			return Mapping->GetCurveMetaData(SmartName.DisplayName);
-		}
-#else
-		return &Mapping->GetCurveMetaData(CurveUID);
-#endif
-	}
-
 	return nullptr;
 }
 
 FCurveMetaData* USkeleton::GetCurveMetaData(const FSmartName& CurveName)
 {
-	FSmartNameMapping* Mapping = AnimCurveMapping;
-	if (ensureAlways(Mapping))
-	{
-		// the name might have changed, make sure it's up-to-date
-		FName DisplayName;
-		Mapping->GetName(CurveName.UID, DisplayName);
-		return Mapping->GetCurveMetaData(DisplayName);
-	}
-
-	return nullptr;
+	return GetCurveMetaData(CurveName.DisplayName);
 }
 
 const FCurveMetaData* USkeleton::GetCurveMetaData(const FSmartName& CurveName) const
 {
-	const FSmartNameMapping* Mapping = AnimCurveMapping;
-	if (ensureAlways(Mapping))
-	{
-		// the name might have changed, make sure it's up-to-date
-		FName DisplayName;
-		Mapping->GetName(CurveName.UID, DisplayName);
-		return Mapping->GetCurveMetaData(DisplayName);
-	}
-
-	return nullptr;
+	return GetCurveMetaData(CurveName.DisplayName);
 }
 
-// this is called when you know both flags - called by post serialize
 void USkeleton::AccumulateCurveMetaData(FName CurveName, bool bMaterialSet, bool bMorphtargetSet)
 {
 	if (bMaterialSet || bMorphtargetSet)
 	{
-		const FSmartNameMapping* Mapping = AnimCurveMapping;
-		if (ensureAlways(Mapping))
+		// Add user data if not already added
+		UAnimCurveMetaData* AnimCurveMetaData = GetAssetUserData<UAnimCurveMetaData>();
+		if(AnimCurveMetaData == nullptr)
 		{
-			// if we don't have name, add one
-			if (Mapping->Exists(CurveName))
-			{
-				FCurveMetaData* CurveMetaData = GetCurveMetaData(CurveName);
-				bool bOldMaterial = CurveMetaData->Type.bMaterial;
-				bool bOldMorphtarget = CurveMetaData->Type.bMorphtarget;
-				// we don't want to undo previous flags, if it was true, we just alolw more to it. 
-				CurveMetaData->Type.bMaterial |= bMaterialSet;
-				CurveMetaData->Type.bMorphtarget |= bMorphtargetSet;
+			AnimCurveMetaData = NewObject<UAnimCurveMetaData>(this, NAME_None, RF_Transactional);
+			AddAssetUserData(AnimCurveMetaData);
+		}
 
-				if (IsInGameThread() && (bOldMaterial != CurveMetaData->Type.bMaterial
-					|| bOldMorphtarget != CurveMetaData->Type.bMorphtarget))
-				{
-					MarkPackageDirty();
-				}
+		// Add curve if not already present
+		AddCurveMetaData(CurveName);
+
+		if(FCurveMetaData* FoundCurveMetaData = GetCurveMetaData(CurveName))
+		{
+			bool bOldMaterial = FoundCurveMetaData->Type.bMaterial;
+			bool bOldMorphtarget = FoundCurveMetaData->Type.bMorphtarget;
+			// we don't want to undo previous flags, if it was true, we just allow more to it. 
+			FoundCurveMetaData->Type.bMaterial |= bMaterialSet;
+			FoundCurveMetaData->Type.bMorphtarget |= bMorphtargetSet;
+
+			if (bOldMaterial != FoundCurveMetaData->Type.bMaterial 
+				|| bOldMorphtarget != FoundCurveMetaData->Type.bMorphtarget)
+			{
+				MarkPackageDirty();
 			}
 		}
 	}
@@ -2051,11 +1894,7 @@ void USkeleton::HandleVirtualBoneChanges()
 	}
 
 	// refresh curve meta data that contains joint info
-	FSmartNameMapping* CurveMappingTable = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);
-	if (CurveMappingTable)
-	{
-		CurveMappingTable->InitializeCurveMetaData(this);
-	}
+	RefreshSkeletonMetaData();
 
 	for (TObjectIterator<USkinnedMeshComponent> It; It; ++It)
 	{
@@ -2250,6 +2089,12 @@ void USkeleton::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	}
 
 	OutTags.Add(FAssetRegistryTag(USkeleton::CompatibleSkeletonsNameTag, CompatibleSkeletonsBuilder.ToString(), FAssetRegistryTag::TT_Hidden));
+
+	// Allow asset user data to output tags
+	for(UAssetUserData* AssetUserDataItem : AssetUserData)
+	{
+		AssetUserDataItem->GetAssetRegistryTags(OutTags);
+	}
 }
 
 #endif //WITH_EDITOR
@@ -2360,6 +2205,14 @@ void USkeleton::HandlePackageReloaded(const EPackageReloadPhase InPackageReloadP
 				NewObject->HandleVirtualBoneChanges(); // Reloading Skeletons can invalidate virtual bones so refresh
 			}
 		}
+	}
+}
+
+void USkeleton::RefreshSkeletonMetaData()
+{
+	if(UAnimCurveMetaData* AnimCurveMetaData = GetAssetUserData<UAnimCurveMetaData>())
+	{
+		AnimCurveMetaData->RefreshBoneIndices(this);
 	}
 }
 

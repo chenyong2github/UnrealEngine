@@ -142,6 +142,19 @@ void FAnimationProvider::EnumerateSkeletalMeshCurves(const FSkeletalMeshPoseMess
 	}
 }
 
+void FAnimationProvider::EnumeratePoseWatchCurves(const FPoseWatchMessage& InMessage, TFunctionRef<void(const FSkeletalMeshNamedCurve&)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	uint64 StartCurveIndex = InMessage.CurveStartIndex;
+	uint64 EndCurveIndex = InMessage.CurveStartIndex + InMessage.NumCurves;
+
+	for(uint64 CurveIndex = StartCurveIndex; CurveIndex < EndCurveIndex; ++CurveIndex)
+	{
+		Callback(SkeletalMeshCurves[CurveIndex]);
+	}
+}
+
 void FAnimationProvider::EnumerateTickRecordIds(uint64 InObjectId, TFunctionRef<void(uint64, int32)> Callback) const
 {
 	Session.ReadAccessCheck();
@@ -1315,11 +1328,11 @@ void FAnimationProvider::AppendPoseWatch(uint64 InAnimInstanceId, double InTime,
 	bHasAnyData = true;
 
 	TSharedPtr<TraceServices::TPointTimeline<FPoseWatchMessage>> Timeline;
-	uint32* IndexPtr = ObjectIdToPoseWatchTimelines.Find(InAnimInstanceId);
-	if (IndexPtr != nullptr)
+	uint32* PoseWatchIndexPtr = ObjectIdToPoseWatchTimelines.Find(InAnimInstanceId);
+	if (PoseWatchIndexPtr != nullptr)
 	{
-		check(PoseWatchTimelines.IsValidIndex(*IndexPtr));
-		Timeline = PoseWatchTimelines[*IndexPtr];
+		check(PoseWatchTimelines.IsValidIndex(*PoseWatchIndexPtr));
+		Timeline = PoseWatchTimelines[*PoseWatchIndexPtr];
 	}
 	else
 	{
@@ -1333,13 +1346,16 @@ void FAnimationProvider::AppendPoseWatch(uint64 InAnimInstanceId, double InTime,
 
 	FPoseWatchMessage Message;
 	Message.RecordingTime = InRecordingTime;
+	Message.ComponentId = 0;
 	Message.AnimInstanceId = InAnimInstanceId;
 	Message.PoseWatchId = PoseWatchId;
 	Message.BoneTransformsStartIndex = SkeletalMeshPoseTransforms.Num();
+	Message.CurveStartIndex = SkeletalMeshCurves.Num();
 	Message.NumBoneTransforms = BoneTransformsRaw.Num() / (sizeof(FTransform) / sizeof(float));
 	Message.WorldTransform = WorldTransform;
 	Message.RequiredBonesStartIndex = PoseWatchRequiredBones.Num();
 	Message.NumRequiredBones = RequiredBones.Num();
+	Message.NumCurves = 0;
 	Message.bIsEnabled = bIsEnabled;
 
 	Timeline->AppendEvent(InTime, Message);
@@ -1364,6 +1380,98 @@ void FAnimationProvider::AppendPoseWatch(uint64 InAnimInstanceId, double InTime,
 		}
 	}
 
+	// Dump RequiredBones into PoseWatchRequiredBones
+	for (const uint16 RequiredBone : RequiredBones)
+	{
+		PoseWatchRequiredBones.PushBack() = RequiredBone;
+	}
+
+	Session.UpdateDurationSeconds(InTime);
+}
+
+void FAnimationProvider::AppendPoseWatch(uint64 InComponentId, uint64 InAnimInstanceId, double InTime, double InRecordingTime, uint64 PoseWatchId, uint32 NameId, FColor Color, const TArrayView<const float>& BoneTransformsRaw, const TArrayView<const uint32>& CurveIds, const TArrayView<const float>& CurveValues, const TArrayView<const uint16>& RequiredBones, const TArrayView<const float>& WorldTransformRaw, const bool bIsEnabled)
+{
+	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
+
+	TSharedPtr<TraceServices::TPointTimeline<FPoseWatchMessage>> Timeline;
+	uint32* PoseWatchIndexPtr = ObjectIdToPoseWatchTimelines.Find(InAnimInstanceId);
+	if (PoseWatchIndexPtr != nullptr)
+	{
+		check(PoseWatchTimelines.IsValidIndex(*PoseWatchIndexPtr));
+		Timeline = PoseWatchTimelines[*PoseWatchIndexPtr];
+	}
+	else
+	{
+		Timeline = MakeShared<TraceServices::TPointTimeline<FPoseWatchMessage>>(Session.GetLinearAllocator());
+		ObjectIdToPoseWatchTimelines.Add(InAnimInstanceId, PoseWatchTimelines.Num());
+		PoseWatchTimelines.Add(Timeline.ToSharedRef());
+	}
+
+	TSharedPtr<FSkeletalMeshTimelineStorage> TimelineStorage;
+	uint32* SkeletalMeshIndexPtr = ObjectIdToSkeletalMeshPoseTimelines.Find(InComponentId);
+	if(SkeletalMeshIndexPtr != nullptr)
+	{
+		TimelineStorage = SkeletalMeshPoseTimelineStorage[*SkeletalMeshIndexPtr];
+	}
+	else
+	{
+		TimelineStorage = MakeShared<FSkeletalMeshTimelineStorage>();
+		TimelineStorage->Timeline = MakeShared<TraceServices::TIntervalTimeline<FSkeletalMeshPoseMessage>>(Session.GetLinearAllocator());
+		ObjectIdToSkeletalMeshPoseTimelines.Add(InComponentId, SkeletalMeshPoseTimelineStorage.Num());
+		SkeletalMeshPoseTimelineStorage.Add(TimelineStorage.ToSharedRef());
+	}
+	
+	const int32 NumCurves = CurveIds.Num();
+
+	FTransform WorldTransform;
+	FMemory::Memcpy(&WorldTransform, &WorldTransformRaw[0], sizeof(FTransform));
+
+	FPoseWatchMessage Message;
+	Message.RecordingTime = InRecordingTime;
+	Message.ComponentId = InComponentId;
+	Message.AnimInstanceId = InAnimInstanceId;
+	Message.PoseWatchId = PoseWatchId;
+	Message.NameId = NameId;
+	Message.Color = Color;
+	Message.BoneTransformsStartIndex = SkeletalMeshPoseTransforms.Num();
+	Message.CurveStartIndex = SkeletalMeshCurves.Num();
+	Message.NumBoneTransforms = BoneTransformsRaw.Num() / (sizeof(FTransform) / sizeof(float));
+	Message.WorldTransform = WorldTransform;
+	Message.RequiredBonesStartIndex = PoseWatchRequiredBones.Num();
+	Message.NumRequiredBones = RequiredBones.Num();
+	Message.NumCurves = NumCurves;
+	Message.bIsEnabled = bIsEnabled;
+
+	Timeline->AppendEvent(InTime, Message);
+
+	const int CaptureTransformSize = sizeof(FTransform) / sizeof(float); // TODO
+	const int LocalTransformSize = sizeof(FTransform) / sizeof(float);
+	const int PoseTransformCount = BoneTransformsRaw.Num() / CaptureTransformSize;
+
+	// Dump PoseBoneTransformsRaw into SkeletalMeshPoseTransforms
+	if (CaptureTransformSize == LocalTransformSize)
+	{
+		for (int i = 0; i < PoseTransformCount; i++)
+		{
+			FMemory::Memcpy(&SkeletalMeshPoseTransforms.PushBack(), &BoneTransformsRaw[CaptureTransformSize * i], sizeof(FTransform));
+		}
+	}
+	else
+	{
+		for (int i = 0; i < PoseTransformCount; i++)
+		{
+			SkeletalMeshPoseTransforms.PushBack() = ConvertTransform(CaptureTransformSize, &BoneTransformsRaw[CaptureTransformSize * i]);
+		}
+	}
+
+	for(int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
+	{
+		SkeletalMeshCurves.PushBack() = { CurveIds[CurveIndex], CurveValues[CurveIndex] };
+		TimelineStorage->AllCurveIds.Add(CurveIds[CurveIndex]);
+	}
+	
 	// Dump RequiredBones into PoseWatchRequiredBones
 	for (const uint16 RequiredBone : RequiredBones)
 	{

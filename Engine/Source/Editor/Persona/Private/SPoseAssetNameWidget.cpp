@@ -40,14 +40,10 @@ void SPoseAssetNameWidget::RefreshBasePoseChanged()
 	{
 		BasePoseComboList.Reset();
 		// add pose names
-		TArray<FSmartName> PoseNames = PoseAsset->GetPoseNames();
-		if (PoseNames.Num() > 0)
+		// go through profile and see if it has mine
+		for (const FName& PoseName : PoseAsset->GetPoseFNames())
 		{
-			// go through profile and see if it has mine
-			for (const FSmartName& PoseName : PoseNames)
-			{
-				BasePoseComboList.Add(MakeShareable(new FString(PoseName.DisplayName.ToString())));
-			}
+			BasePoseComboList.Add(MakeShareable(new FString(PoseName.ToString())));
 		}
 	}
 

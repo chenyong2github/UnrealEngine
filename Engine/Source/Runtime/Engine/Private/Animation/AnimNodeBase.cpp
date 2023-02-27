@@ -412,7 +412,7 @@ void FPoseLink::Evaluate(FPoseContext& Output)
 					}
 				}
 			}
-			if(Output.Curve.NumValid() > 0)
+			if(Output.Curve.Num() > 0)
 			{
 				Output.AnimInstanceProxy->RecordNodeAttribute(*Output.AnimInstanceProxy, SourceID, LinkID, UE::Anim::FAttributes::Curves);
 			}
@@ -424,7 +424,7 @@ void FPoseLink::Evaluate(FPoseContext& Output)
 #endif
 
 #if WITH_EDITOR
-		Output.AnimInstanceProxy->RegisterWatchedPose(Output.Pose, LinkID);
+		Output.AnimInstanceProxy->RegisterWatchedPose(Output.Pose, Output.Curve, LinkID);
 #endif
 	}
 	else
@@ -484,7 +484,7 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 					}
 				}
 			}
-			if(Output.Curve.NumValid() > 0)
+			if(Output.Curve.Num() > 0)
 			{
 				Output.AnimInstanceProxy->RecordNodeAttribute(*Output.AnimInstanceProxy, SourceID, LinkID, UE::Anim::FAttributes::Curves);
 			}
@@ -492,7 +492,7 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 #endif
 
 #if WITH_EDITOR
-		Output.AnimInstanceProxy->RegisterWatchedPose(Output.Pose, LinkID);
+		Output.AnimInstanceProxy->RegisterWatchedPose(Output.Pose, Output.Curve, LinkID);
 #endif
 	}
 	else

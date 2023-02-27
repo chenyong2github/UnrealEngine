@@ -98,11 +98,7 @@ void FPoseSearchAnimPlayer::StorePoseContext(const FPoseContext& PoseContext)
 		StoredPose.CopyBonesFrom(PoseContext.Pose);
 	}
 
-	if (PoseContext.Curve.IsValid())
-	{
-		StoredCurve.CopyFrom(PoseContext.Curve);
-	}
-
+	StoredCurve.CopyFrom(PoseContext.Curve);
 	StoredAttributes.CopyFrom(PoseContext.CustomAttributes);
 }
 
@@ -118,12 +114,8 @@ void FPoseSearchAnimPlayer::RestorePoseContext(FPoseContext& PoseContext) const
 	{
 		PoseContext.Pose.ResetToRefPose();
 	}
-
-	if (StoredCurve.IsValid())
-	{
-		PoseContext.Curve.CopyFrom(StoredCurve);
-	}
-
+	
+	PoseContext.Curve.CopyFrom(StoredCurve);
 	PoseContext.CustomAttributes.CopyFrom(StoredAttributes);
 }
 

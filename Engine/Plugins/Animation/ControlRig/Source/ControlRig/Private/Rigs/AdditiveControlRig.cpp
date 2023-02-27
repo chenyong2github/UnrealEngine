@@ -99,7 +99,7 @@ void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 	Execute_Internal(FRigUnit_PrepareForExecution::EventName);
 }
 
-void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping)
+void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const USkeleton* InSkeleton)
 {
 	PostInitInstanceIfRequired();
 	
@@ -108,14 +108,12 @@ void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenc
 	{
 		Controller->ImportBones(InReferenceSkeleton, NAME_None, false, false, true, false);
 
-		if (InSmartNameMapping)
+		if (InSkeleton)
 		{
-			TArray<FName> NameArray;
-			InSmartNameMapping->FillNameArray(NameArray);
-			for (int32 Index = 0; Index < NameArray.Num(); ++Index)
+			InSkeleton->ForEachCurveMetaData([Controller](const FName& InCurveName, const FCurveMetaData& InMetaData)
 			{
-				 Controller->AddCurve(NameArray[Index], 0.f, false);
-			}
+				Controller->AddCurve(InCurveName, 0.f, false);
+			});
 		}
 
 		// add control for all bone hierarchy
@@ -156,7 +154,7 @@ void UAdditiveControlRig::CreateRigElements(const USkeletalMesh* InReferenceMesh
 	if (InReferenceMesh)
 	{
 		const USkeleton* Skeleton = InReferenceMesh->GetSkeleton();
-		CreateRigElements(InReferenceMesh->GetRefSkeleton(), (Skeleton) ? Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName) : nullptr);
+		CreateRigElements(InReferenceMesh->GetRefSkeleton(), Skeleton);
 	}
 }
 

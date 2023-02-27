@@ -14,6 +14,7 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Trace/Trace.inl"
 #include "UObject/UObjectAnnotation.h"
+#include "Engine/PoseWatch.h"
 
 UE_TRACE_CHANNEL_DEFINE(AnimationChannel);
 
@@ -232,13 +233,18 @@ UE_TRACE_EVENT_BEGIN(Animation, Sync)
 	UE_TRACE_EVENT_FIELD(uint32, GroupNameId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Animation, PoseWatch)
+UE_TRACE_EVENT_BEGIN(Animation, PoseWatch2)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(double, RecordingTime)
+	UE_TRACE_EVENT_FIELD(uint64, ComponentId)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
 	UE_TRACE_EVENT_FIELD(uint64, PoseWatchId)
+	UE_TRACE_EVENT_FIELD(uint32, NameId)
+	UE_TRACE_EVENT_FIELD(uint32, Color)
 	UE_TRACE_EVENT_FIELD(float[], WorldTransform)
 	UE_TRACE_EVENT_FIELD(float[], BoneTransforms)
+	UE_TRACE_EVENT_FIELD(float[], CurveValues)
+	UE_TRACE_EVENT_FIELD(uint32[], CurveIds)
 	UE_TRACE_EVENT_FIELD(uint16[], RequiredBones)
 	UE_TRACE_EVENT_FIELD(bool, bIsEnabled)
 UE_TRACE_EVENT_END()
@@ -1177,7 +1183,7 @@ void FAnimTrace::OutputSync(const FAnimInstanceProxy& InSourceProxy, int32 InSou
 		<< Sync.GroupNameId(GroupNameId);
 }
 
-void FAnimTrace::OutputPoseWatch(const FAnimInstanceProxy& InSourceProxy, int32 InPoseWatchId, const TArray<FTransform>& BoneTransforms, const TArray<FBoneIndexType>& RequiredBones, const FTransform& WorldTransform, const bool bIsEnabled)
+void FAnimTrace::OutputPoseWatch(const FAnimInstanceProxy& InSourceProxy, UPoseWatchPoseElement* InPoseWatchElement, int32 InPoseWatchId, const TArray<FTransform>& BoneTransforms, const FBlendedHeapCurve& InCurves, const TArray<FBoneIndexType>& RequiredBones, const FTransform& WorldTransform, const bool bIsEnabled)
 {
 	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
 	if (!bChannelEnabled)
@@ -1191,18 +1197,45 @@ void FAnimTrace::OutputPoseWatch(const FAnimInstanceProxy& InSourceProxy, int32 
 	}
 
 	const UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(InSourceProxy.GetAnimInstanceObject());
+	const USkeletalMeshComponent* Component = CastChecked<USkeletalMeshComponent>(AnimInstance->GetSkelMeshComponent());
 
-	TRACE_OBJECT(InSourceProxy.GetAnimInstanceObject());
+	TRACE_OBJECT(Component);
+	TRACE_OBJECT(AnimInstance);
 
-	UE_TRACE_LOG(Animation, PoseWatch, AnimationChannel)
-		<< PoseWatch.Cycle(FPlatformTime::Cycles64())
-		<< PoseWatch.RecordingTime(FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()))
-		<< PoseWatch.AnimInstanceId(FObjectTrace::GetObjectId(InSourceProxy.GetAnimInstanceObject()))
-		<< PoseWatch.PoseWatchId(InPoseWatchId)
-		<< PoseWatch.WorldTransform(reinterpret_cast<const float*>(&WorldTransform), sizeof(FTransform) / sizeof(float))
-		<< PoseWatch.BoneTransforms(reinterpret_cast<const float*>(BoneTransforms.GetData()), BoneTransforms.Num() * (sizeof(FTransform) / sizeof(float)))
-		<< PoseWatch.RequiredBones(RequiredBones.GetData(), RequiredBones.Num())
-		<< PoseWatch.bIsEnabled(bIsEnabled);
+	TArray<float>& CurveValues = FAnimTraceScratchBuffers::Get().CurveValues;
+	CurveValues.Reset();
+	CurveValues.SetNumUninitialized(InCurves.Num());
+	TArray<uint32>& CurveIds = FAnimTraceScratchBuffers::Get().CurveIds;
+	CurveIds.Reset();
+	CurveIds.SetNumUninitialized(InCurves.Num());
+
+	if(InCurves.Num() > 0)
+	{
+		int32 CurveIndex = 0;
+		InCurves.ForEachElement([&CurveValues, &CurveIds, &CurveIndex](const UE::Anim::FCurveElement& InCurveElement)
+		{
+			CurveIds[CurveIndex] = OutputName(InCurveElement.Name);
+			CurveValues[CurveIndex] = InCurveElement.Value;
+			CurveIndex++;
+		});
+	}
+	
+	UE_TRACE_LOG(Animation, PoseWatch2, AnimationChannel)
+		<< PoseWatch2.Cycle(FPlatformTime::Cycles64())
+		<< PoseWatch2.RecordingTime(FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()))
+		<< PoseWatch2.ComponentId(FObjectTrace::GetObjectId(Component))
+		<< PoseWatch2.AnimInstanceId(FObjectTrace::GetObjectId(InSourceProxy.GetAnimInstanceObject()))
+		<< PoseWatch2.PoseWatchId(InPoseWatchId)
+#if WITH_EDITOR
+		<< PoseWatch2.NameId(OutputName(*InPoseWatchElement->GetParent()->GetLabel().ToString()))
+		<< PoseWatch2.Color(InPoseWatchElement->GetColor().DWColor())
+#endif
+		<< PoseWatch2.WorldTransform(reinterpret_cast<const float*>(&WorldTransform), sizeof(FTransform) / sizeof(float))
+		<< PoseWatch2.BoneTransforms(reinterpret_cast<const float*>(BoneTransforms.GetData()), BoneTransforms.Num() * (sizeof(FTransform) / sizeof(float)))
+		<< PoseWatch2.CurveValues(CurveValues.GetData(), CurveValues.Num())
+		<< PoseWatch2.CurveIds(CurveIds.GetData(), CurveIds.Num())
+		<< PoseWatch2.RequiredBones(RequiredBones.GetData(), RequiredBones.Num())
+		<< PoseWatch2.bIsEnabled(bIsEnabled);
 }
 
 #endif

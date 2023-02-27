@@ -11,6 +11,7 @@
 #include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
 #include "Algo/Transform.h"
+#include "Animation/AnimCurveUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_ControlRigBase)
 
@@ -76,6 +77,13 @@ void FAnimNode_ControlRigBase::Initialize_AnyThread(const FAnimationInitializeCo
 		ControlRig->RequestInit();
 		bControlRigRequiresInitialization = true;
 		LastBonesSerialNumberForCacheBones = 0;
+
+		// Cache curves
+		CachedBulkCurves.Empty();
+		for(FRigCurveElement* CurveElement : ControlRig->GetHierarchy()->GetCurves())
+		{
+			CachedBulkCurves.AddIndexed(CurveElement->GetName());
+		}
 	}
 	else
 	{
@@ -238,45 +246,13 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 
 	if (InputSettings.bUpdateCurves && bTransferInputCurves)
 	{
-		if(!ControlRigCurveMappingByIndex.IsEmpty())
+		// TODO: Do we need to 'unset' old values manually here? The previous code could do this because it knows the
+		// global set of curves, but we dont know that any more
+		UE::Anim::FCurveUtils::BulkGet(InOutput.Curve, CachedBulkCurves, [ControlRig](const UE::Anim::FNamedIndexElement& InBulkElement, float InValue)
 		{
-			for (const TPair<uint16, uint16>& Pair : ControlRigCurveMappingByIndex)
-			{
-				const uint16 ControlRigIndex = Pair.Key;
-				const uint16 SkeletonIndex = Pair.Value;
-
-				bool bIsValid;
-				const float Value = InOutput.Curve.Get(SkeletonIndex, bIsValid);
-				if (bIsValid)
-				{
-					ControlRig->GetHierarchy()->SetCurveValueByIndex(ControlRigIndex, Value);
-				}
-				else
-				{
-					ControlRig->GetHierarchy()->UnsetCurveValueByIndex(ControlRigIndex);
-				}
-			}
-		}
-		else
-		{
-			for (auto Iter = ControlRigCurveMappingByName.CreateConstIterator(); Iter; ++Iter)
-			{
-				const FName& Name = Iter.Key();
-				const uint16 SkeletonIndex = Iter.Value();
-				const FRigElementKey Key(Name, ERigElementType::Curve);
-
-				bool bIsValid;
-				const float Value = InOutput.Curve.Get(SkeletonIndex, bIsValid);
-				if (bIsValid)
-				{
-					ControlRig->GetHierarchy()->SetCurveValue(Key, Value);
-				}
-				else
-				{
-					ControlRig->GetHierarchy()->UnsetCurveValue(Key);
-				}
-			}
-		}
+			const FRigElementKey Key(InBulkElement.Name, ERigElementType::Curve);
+			ControlRig->GetHierarchy()->SetCurveValue(Key, InValue);
+		});
 	}
 
 #if WITH_EDITOR
@@ -388,49 +364,11 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 
 	if (OutputSettings.bUpdateCurves)
 	{
-		if(!ControlRigCurveMappingByIndex.IsEmpty())
+		UE::Anim::FCurveUtils::BulkSet(InOutput.Curve, CachedBulkCurves, [ControlRig](const UE::Anim::FNamedIndexElement& InBulkElement)
 		{
-			for (const TPair<uint16, uint16>& Pair : ControlRigCurveMappingByIndex)
-			{
-				const uint16 ControlRigIndex = Pair.Key;
-				const uint16 SkeletonIndex = Pair.Value;
-
-				if (ControlRig->GetHierarchy()->IsCurveValueSetByIndex(ControlRigIndex))
-				{
-					InOutput.Curve.Set(SkeletonIndex, ControlRig->GetHierarchy()->GetCurveValueByIndex(ControlRigIndex));
-				}
-				else
-				{
-					const int32 WeightIndex = InOutput.Curve.GetArrayIndexByUID(SkeletonIndex);
-					if (WeightIndex != INDEX_NONE)
-					{
-						InOutput.Curve.ValidCurveWeights[WeightIndex] = false;
-					}
-				}
-			}
-		}
-		else
-		{
-			for (auto Iter = ControlRigCurveMappingByName.CreateConstIterator(); Iter; ++Iter)
-			{
-				const FName& Name = Iter.Key();
-				const uint16 Index = Iter.Value();
-				const FRigElementKey Key(Name, ERigElementType::Curve);
-
-				if (ControlRig->GetHierarchy()->IsCurveValueSet(Key))
-				{
-					InOutput.Curve.Set(Index, ControlRig->GetHierarchy()->GetCurveValue(Key));
-				}
-				else
-				{
-					const int32 WeightIndex = InOutput.Curve.GetArrayIndexByUID(Index);
-					if (WeightIndex != INDEX_NONE)
-					{
-						InOutput.Curve.ValidCurveWeights[WeightIndex] = false;
-					}
-				}
-			}
-		}
+			FRigCurveElement* CurveElement = ControlRig->GetHierarchy()->GetCurves()[InBulkElement.Index];
+			return ControlRig->GetHierarchy()->GetCurveValue(CurveElement);
+		});
 	}
 
 #if WITH_EDITOR
@@ -717,28 +655,6 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 					}
 				}
 			}
-			
-			// we just support curves by name only
-			{
-				const USkeleton* Skeleton = RequiredBones.GetSkeletonAsset();
-				if (IsValid(Skeleton))
-				{
-					const FSmartNameMapping* CurveMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-					URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
-					CurveMapping->Iterate([Hierarchy, this](const FSmartNameMappingIterator& Iterator)
-					{
-						// see if the curve name exists in the control rig
-						FName CurveName;
-						if (Iterator.GetName(CurveName))
-						{
-							if (Hierarchy->GetIndex(FRigElementKey(CurveName, ERigElementType::Curve)) != INDEX_NONE)
-							{
-								ControlRigCurveMappingByName.Add(CurveName, Iterator.GetIndex());
-							}
-						}
-					});
-				}
-			}
 
 			// check if we can switch the bones to an index based mapping.
 			// we can only do that if there is no node mapping container set.
@@ -778,32 +694,6 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 						IndexBasedMapping.Reset();
 					}
 				}
-			}
-
-			bool bIsCurveMappingByIndex = true;
-			
-			// check if we can switch the curves to a index based mapping as well
-			for (auto Iter = ControlRigCurveMappingByName.CreateConstIterator(); Iter; ++Iter)
-			{
-				const uint16 SkeletonIndex = Iter.Value();
-				const int32 ControlRigIndex = ControlRig->GetHierarchy()->GetIndex(FRigElementKey(Iter.Key(), ERigElementType::Curve));
-				if(ControlRigIndex != INDEX_NONE)
-				{
-					ControlRigCurveMappingByIndex.Add(TPair<uint16, uint16>((uint16)ControlRigIndex, SkeletonIndex));
-				}
-				else
-				{
-					bIsCurveMappingByIndex = false;
-				}
-			}
-
-			if(bIsCurveMappingByIndex)
-			{
-				ControlRigCurveMappingByName.Reset();
-			}
-			else
-			{
-				ControlRigCurveMappingByIndex.Reset();
 			}
 		}
 

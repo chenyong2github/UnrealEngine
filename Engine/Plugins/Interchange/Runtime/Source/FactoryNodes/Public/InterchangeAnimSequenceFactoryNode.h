@@ -158,6 +158,22 @@ public:
 	bool SetCustomDoNotImportCurveWithZero(const bool& AttributeValue);
 
 	/**
+	 * Get the custom attribute AddCurveMetadataToSkeleton, return false if the attribute is not set.
+	 * 
+	 * Note - If value is true, do not import if it doesn't have any value other than zero. This is to avoid dirtying the skeleton on import.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
+	bool GetCustomAddCurveMetadataToSkeleton(bool& AttributeValue) const;
+
+	/**
+	 * Set the custom attribute AddCurveMetadataToSkeleton. Return false if the attribute cannot be set.
+	 * 
+	 * Note - If value is true, do not import if it doesn't have any value other than zero. This is to avoid dirtying the skeleton on import.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
+	bool SetCustomAddCurveMetadataToSkeleton(const bool& AttributeValue);
+	
+	/**
 	 * Get the custom attribute RemoveCurveRedundantKeys, return false if the attribute is not set.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
@@ -423,6 +439,7 @@ private:
 
 	const UE::Interchange::FAttributeKey Macro_CustomImportAttributeCurvesKey = UE::Interchange::FAttributeKey(TEXT("ImportAttributeCurves"));
 	const UE::Interchange::FAttributeKey Macro_CustomDoNotImportCurveWithZeroKey = UE::Interchange::FAttributeKey(TEXT("DoNotImportCurveWithZero"));
+	const UE::Interchange::FAttributeKey Macro_CustomAddCurveMetadataToSkeletonKey = UE::Interchange::FAttributeKey(TEXT("AddCurveMetadataToSkeleton"));
 	const UE::Interchange::FAttributeKey Macro_CustomRemoveCurveRedundantKeysKey = UE::Interchange::FAttributeKey(TEXT("RemoveCurveRedundantKeys"));
 	const UE::Interchange::FAttributeKey Macro_CustomMaterialDriveParameterOnCustomAttributeKey = UE::Interchange::FAttributeKey(TEXT("MaterialDriveParameterOnCustomAttribute"));
 	const UE::Interchange::FAttributeKey Macro_CustomDeleteExistingMorphTargetCurvesKey = UE::Interchange::FAttributeKey(TEXT("DeleteExistingMorphTargetCurves"));

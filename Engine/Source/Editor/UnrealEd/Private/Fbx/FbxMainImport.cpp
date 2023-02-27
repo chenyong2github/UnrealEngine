@@ -501,6 +501,7 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 		InOutImportOptions.bDeleteExistingNonCurveCustomAttributes = ImportUI->AnimSequenceImportData->bDeleteExistingNonCurveCustomAttributes;
 		InOutImportOptions.bImportBoneTracks			= ImportUI->AnimSequenceImportData->bImportBoneTracks;
 		InOutImportOptions.bSetMaterialDriveParameterOnCustomAttribute = ImportUI->AnimSequenceImportData->bSetMaterialDriveParameterOnCustomAttribute;
+		InOutImportOptions.bAddCurveMetadataToSkeleton	= ImportUI->AnimSequenceImportData->bAddCurveMetadataToSkeleton;
 		InOutImportOptions.MaterialCurveSuffixes		= ImportUI->AnimSequenceImportData->MaterialCurveSuffixes;
 	}
 }

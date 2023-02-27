@@ -373,13 +373,8 @@ void USkinWeightsPaintTool::Setup()
 
 	// initialize the bone browser
 	// TODO replace this and synchronize selection & rendering with skeletal mesh editor
-	FCurveEvaluationOption CurveEvalOption(
-			Component->GetAllowedAnimCurveEvaluate(),
-			&Component->GetDisallowedAnimCurvesEvaluation(),
-			0 /* Always use the highest LOD */
-			);
 	USkeletalMesh& SkeletalMesh = *Component->GetSkeletalMeshAsset();
-	BoneContainer.InitializeTo(Component->RequiredBones, CurveEvalOption, SkeletalMesh);
+	BoneContainer.InitializeTo(Component->RequiredBones, Component->GetCurveFilterSettings(0)/* Always use the highest LOD */, SkeletalMesh);
 	// Update the skeleton drawing information from the original bind pose
 	MaxDrawRadius = Component->Bounds.SphereRadius * 0.0025f;
 	UpdateBonePositionInfos(MaxDrawRadius);

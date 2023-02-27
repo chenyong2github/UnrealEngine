@@ -197,9 +197,14 @@ public:
 		return ActualAnimClass ? Cast<UAnimBlueprint>(ActualAnimClass->ClassGeneratedBy) : nullptr;
 	}
 
-	// Record pose for node of ID LinkID if it is currently being watched
+	UE_DEPRECATED(5.3, "Please use RegisterWatchedPose that takes a pose and a curve")
 	void RegisterWatchedPose(const FCompactPose& Pose, int32 LinkID);
+	UE_DEPRECATED(5.3, "Please use RegisterWatchedPose that takes a pose and a curve")
 	void RegisterWatchedPose(const FCSPose<FCompactPose>& Pose, int32 LinkID);
+
+	// Record pose for node of ID LinkID if it is currently being watched
+	void RegisterWatchedPose(const FCompactPose& Pose, const FBlendedCurve& InCurve, int32 LinkID);
+	void RegisterWatchedPose(const FCSPose<FCompactPose>& Pose, const FBlendedCurve& InCurve, int32 LinkID);
 #endif
 
 	UE_DEPRECATED(5.0, "Function renamed to FlipBufferWriteIndex as this no longer deals with sync groups.")
@@ -748,10 +753,13 @@ protected:
 	/** 
 	 * Recalculate required curve list for animation - if you call RecalcRequiredBones, this should already happen
 	 */
-	void RecalcRequiredCurves(const FCurveEvaluationOption& CurveEvalOption);
+	void RecalcRequiredCurves(const UE::Anim::FCurveFilterSettings& CurveFilterSettings);
 
-	/** Update the material parameters of the supplied component from this instance */
-	void UpdateCurvesToComponents(USkeletalMeshComponent* Component);
+	UE_DEPRECATED(5.3, "Please use RecalcRequiredCurves that takes a FCurveEvaluationOption.")
+	void RecalcRequiredCurves(const FCurveEvaluationOption& CurveEvalOption);
+	
+	UE_DEPRECATED(5.3, "This function is no longer used.")
+	void UpdateCurvesToComponents(USkeletalMeshComponent* Component) {}
 
 	/** Get Currently active montage evaluation state.
 		Note that there might be multiple Active at the same time. This will only return the first active one it finds. **/
@@ -935,9 +943,13 @@ protected:
 	/** Check whether we have any active curves */
 	bool HasActiveCurves() const;
 
-	/** Add a curve value */
-	void AddCurveValue(const FSmartNameMapping& Mapping, const FName& CurveName, float Value);
+	
+	UE_DEPRECATED(5.3, "Please use AddCurveValue that does not take a FSmartNameMapping.")
+	void AddCurveValue(const FSmartNameMapping& Mapping, const FName& CurveName, float Value) { AddCurveValue(CurveName, Value); }
 
+	/** Add a curve value */
+	void AddCurveValue(const FName& CurveName, float Value, bool bMorphtarget = false, bool bMaterial = false);
+	
 	/** Custom proxy Init/Cache/Update/Evaluate functions */
 	static void InitializeInputProxy(FAnimInstanceProxy* InputProxy, UAnimInstance* InAnimInstance);
 	static void GatherInputProxyDebugData(FAnimInstanceProxy* InputProxy, FNodeDebugData& DebugData);

@@ -132,7 +132,7 @@ void URootMotionModifier_AdjustmentBlendWarp::PrecomputeWarpedTracks()
 	}
 
 	// Init BoneContainer
-	FBoneContainer RequiredBones(RequiredBoneIndexArray, FCurveEvaluationOption(false), *BoneContainer.GetAsset());
+	FBoneContainer RequiredBones(RequiredBoneIndexArray, UE::Anim::FCurveFilterSettings(UE::Anim::ECurveFilterMode::DisallowAll), *BoneContainer.GetAsset());
 
 	// Extract pose
 	FCSPose<FCompactPose> CSPose;

@@ -6,6 +6,8 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Editor.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Animation/AnimSequence.h"
 
 SAssetSearchBoxForBones::SAssetSearchBoxForBones()
 {
@@ -156,13 +158,30 @@ TArray<FAssetSearchBoxSuggestion> SAssetSearchBoxForCurves::GetCurveSearchSugges
 	TArray<FAssetSearchBoxSuggestion> PossibleSuggestions;
 	if (USkeleton* Skel = Skeleton.Get())
 	{
-		if (const FSmartNameMapping* Mapping = Skel->GetSmartNameContainer(USkeleton::AnimCurveMappingName))
+		// We use the asset registry to query all assets with the supplied skeleton, and accumulate their curve names
+		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+
+		FARFilter Filter;
+		Filter.bRecursiveClasses = true;
+		Filter.ClassPaths.Add(UAnimSequence::StaticClass()->GetClassPathName());
+		Filter.TagsAndValues.Add(TEXT("Skeleton"), FAssetData(Skel).GetExportTextName());
+
+		TArray<FAssetData> Assets;
+		AssetRegistryModule.Get().GetAssets(Filter, Assets);
+		
+		for(const FAssetData& AssetData : Assets)
 		{
-			TArray<FName> Names; 
-			Mapping->FillNameArray(Names);
-			for (const FName& Name : Names)
+			const FString TagValue = AssetData.GetTagValueRef<FString>(USkeleton::CurveNameTag);
+			if (!TagValue.IsEmpty())
 			{
-				PossibleSuggestions.Add(FAssetSearchBoxSuggestion::MakeSimpleSuggestion(Name.ToString()));
+				TArray<FString> ParsedCurveNames;
+				if(TagValue.ParseIntoArray(ParsedCurveNames, *USkeleton::CurveTagDelimiter, true))
+				{
+					for (const FString& CurveString : ParsedCurveNames)
+					{
+						PossibleSuggestions.Add(FAssetSearchBoxSuggestion::MakeSimpleSuggestion(CurveString));
+					}
+				}
 			}
 		}
 	}

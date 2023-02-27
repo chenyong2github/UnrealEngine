@@ -911,19 +911,12 @@ void UAnimSequence::PostLoad()
 
 	if (USkeleton* CurrentSkeleton = GetSkeleton())
 	{
-	#if WITH_EDITOR
-    		for (const FAnimSyncMarker& SyncMarker : AuthoredSyncMarkers)
-    		{
-    			CurrentSkeleton->RegisterMarkerName(SyncMarker.MarkerName);
-    		}
-    #endif
-    
-    #if !WITH_EDITOR
-		for (FSmartName& CurveName : CompressedData.CompressedCurveNames)
+#if WITH_EDITOR
+		for (const FAnimSyncMarker& SyncMarker : AuthoredSyncMarkers)
 		{
-			CurrentSkeleton->VerifySmartName(USkeleton::AnimCurveMappingName, CurveName);
+			CurrentSkeleton->RegisterMarkerName(SyncMarker.MarkerName);
 		}
-    #endif
+#endif
 	}
 }
 
@@ -1151,20 +1144,16 @@ void UAnimSequence::GetBoneTransform(FTransform& OutAtom, FSkeletonPoseBoneIndex
 		ValidateModel();
 		const FName BoneName = GetSkeleton()->GetReferenceSkeleton().GetBoneName(BoneIndex.GetInt());
 		OutAtom = DataModelInterface->EvaluateBoneTrackTransform(BoneName, DataModelInterface->GetFrameRate().AsFrameTime(Time), Interpolation);
-		if (const USkeleton* CurrentSkeleton = GetSkeleton())
+
+		const FAnimationCurveIdentifier TransformCurveId(BoneName, ERawCurveTrackTypes::RCT_Transform);
+		if (const FTransformCurve* TransformCurvePtr = DataModelInterface->FindTransformCurve(TransformCurveId))
 		{
-			FSmartName CurveSmartName;
-			CurrentSkeleton->GetSmartNameByName(USkeleton::AnimTrackCurveMappingName, BoneName, CurveSmartName);
-			const FAnimationCurveIdentifier TransformCurveId(CurveSmartName, ERawCurveTrackTypes::RCT_Transform);
-			if (const FTransformCurve* TransformCurvePtr = DataModelInterface->FindTransformCurve(TransformCurveId))
-			{
-				const FTransform AdditiveTransform = TransformCurvePtr->Evaluate(Time, 1.f);
-				const FTransform LocalTransform = OutAtom;
-				OutAtom.SetRotation(LocalTransform.GetRotation() * AdditiveTransform.GetRotation());
-				OutAtom.SetTranslation(LocalTransform.TransformPosition(AdditiveTransform.GetTranslation()));
-				OutAtom.SetScale3D(LocalTransform.GetScale3D() * AdditiveTransform.GetScale3D());	
-			}
-		}	
+			const FTransform AdditiveTransform = TransformCurvePtr->Evaluate(Time, 1.f);
+			const FTransform LocalTransform = OutAtom;
+			OutAtom.SetRotation(LocalTransform.GetRotation() * AdditiveTransform.GetRotation());
+			OutAtom.SetTranslation(LocalTransform.TransformPosition(AdditiveTransform.GetTranslation()));
+			OutAtom.SetScale3D(LocalTransform.GetScale3D() * AdditiveTransform.GetScale3D());	
+		}
 #endif
 	}
 }
@@ -1188,20 +1177,15 @@ void UAnimSequence::GetBoneTransform(FTransform& OutAtom, FSkeletonPoseBoneIndex
 		const FName BoneName = GetSkeleton()->GetReferenceSkeleton().GetBoneName(BoneIndex.GetInt());
 		OutAtom = DataModelInterface->EvaluateBoneTrackTransform(BoneName, DataModelInterface->GetFrameRate().AsFrameTime(DecompContext.GetEvaluationTime()), Interpolation);
 
-		if (const USkeleton* CurrentSkeleton = GetSkeleton())
+		const FAnimationCurveIdentifier TransformCurveId(BoneName, ERawCurveTrackTypes::RCT_Transform);
+		if (const FTransformCurve* TransformCurvePtr = DataModelInterface->FindTransformCurve(TransformCurveId))
 		{
-			FSmartName CurveSmartName;
-			CurrentSkeleton->GetSmartNameByName(USkeleton::AnimTrackCurveMappingName, BoneName, CurveSmartName);		
-			const FAnimationCurveIdentifier TransformCurveId(CurveSmartName, ERawCurveTrackTypes::RCT_Transform);
-			if (const FTransformCurve* TransformCurvePtr = DataModelInterface->FindTransformCurve(TransformCurveId))
-			{
-				const FTransform AdditiveTransform = TransformCurvePtr->Evaluate(DecompContext.GetEvaluationTime(), 1.f);
-				const FTransform LocalTransform = OutAtom;
-				OutAtom.SetRotation(LocalTransform.GetRotation() * AdditiveTransform.GetRotation());
-				OutAtom.SetTranslation(LocalTransform.TransformPosition(AdditiveTransform.GetTranslation()));
-				OutAtom.SetScale3D(LocalTransform.GetScale3D() * AdditiveTransform.GetScale3D());	
-			}
-		}	
+			const FTransform AdditiveTransform = TransformCurvePtr->Evaluate(DecompContext.GetEvaluationTime(), 1.f);
+			const FTransform LocalTransform = OutAtom;
+			OutAtom.SetRotation(LocalTransform.GetRotation() * AdditiveTransform.GetRotation());
+			OutAtom.SetTranslation(LocalTransform.TransformPosition(AdditiveTransform.GetTranslation()));
+			OutAtom.SetScale3D(LocalTransform.GetScale3D() * AdditiveTransform.GetScale3D());	
+		}
 #endif
 	}
 }
@@ -1546,11 +1530,8 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 	if (bUseRawDataForPoseExtraction)
 	{
 		{
-			FSkeletonRemappingCurve RemappedCurve(OutAnimationPoseData.GetCurve(), RequiredBones, GetSkeleton());
-			FAnimationPoseData RemappedPoseData(OutAnimationPoseData.GetPose(), RemappedCurve.GetCurve(), OutAnimationPoseData.GetAttributes());
-
 			const UE::Anim::DataModel::FEvaluationContext EvaluationContext(ExtractionContext.CurrentTime, DataModelInterface->GetFrameRate(), GetRetargetTransformsSourceName(), GetRetargetTransforms(), Interpolation);
-			DataModelInterface->Evaluate(RemappedPoseData, EvaluationContext);
+			DataModelInterface->Evaluate(OutAnimationPoseData, EvaluationContext);
 		}
 
 		if ((ExtractionContext.bExtractRootMotion && RootMotionReset.bEnableRootMotion) || RootMotionReset.bForceRootLock)
@@ -1572,19 +1553,23 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 
 	// (Always) evaluate compressed curve data
 	{
-		// Scoped so that the RemappedCurve destructs and isn't kept alive longer than needed.
-		FSkeletonRemappingCurve RemappedCurve(OutAnimationPoseData.GetCurve(), RequiredBones, GetSkeleton());
 #if WITH_EDITOR
 		// When evaluating from raw animation data, UE::Anim::BuildPoseFromModel will populate the curve data
 		if (!bUseRawDataForPoseExtraction)
 #endif // WITH_EDITOR
 		{
-			EvaluateCurveData(RemappedCurve.GetCurve(), ExtractionContext.CurrentTime, bUseRawDataForPoseExtraction);
+			EvaluateCurveData(OutAnimationPoseData.GetCurve(), ExtractionContext.CurrentTime, bUseRawDataForPoseExtraction);
 		}
 	}
 
 	// Evaluate animation attributes (no compressed format yet)
 	EvaluateAttributes(OutAnimationPoseData, ExtractionContext, false);
+}
+
+const TArray<FSmartName>& UAnimSequence::GetCompressedCurveNames() const
+{
+	static TArray<FSmartName> Dummy;
+	return Dummy;
 }
 
 void UAnimSequence::GetBonePose_Additive(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
@@ -1740,17 +1725,19 @@ bool UAnimSequence::CanEvaluateRawAnimationData() const
 	return false;
 }
 
-#if WITH_EDITOR
-void UAnimSequence::UpdateCompressedCurveName(SmartName::UID_Type CurveUID, const struct FSmartName& NewCurveName)
+#if WITH_EDITORONLY_DATA
+void UAnimSequence::UpdateCompressedCurveName(const FName& OldCurveName, const FName& NewCurveName)
 {
-	for (FSmartName& CurveName : CompressedData.CompressedCurveNames)
+	for (FAnimCompressedCurveIndexedName& IndexedCurveName : CompressedData.IndexedCurveNames)
 	{
-		if (CurveName.UID == CurveUID)
+		if (IndexedCurveName.CurveName == OldCurveName)
 		{
-			CurveName = NewCurveName;
+			IndexedCurveName.CurveName = NewCurveName;
 			break;
 		}
 	}
+
+	CompressedData.RebuildCurveIndexTable();
 }
 #endif // WITH_EDITOR
 
@@ -3158,14 +3145,11 @@ void UAnimSequence::AddKeyToSequence(float Time, const FName& BoneName, const FT
 	FName CurveName = BoneName;
 	USkeleton * CurrentSkeleton = GetSkeleton();
 	check (CurrentSkeleton);
-
-	FSmartName NewCurveName;
-	CurrentSkeleton->AddSmartNameAndModify(USkeleton::AnimTrackCurveMappingName, CurveName, NewCurveName);
-
+	
 	ValidateModel();
 
 	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("AddKeyToSequence_Bracket", "Adding key to sequence"));
-	FAnimationCurveIdentifier TransformCurveId(NewCurveName, ERawCurveTrackTypes::RCT_Transform);
+	FAnimationCurveIdentifier TransformCurveId(CurveName, ERawCurveTrackTypes::RCT_Transform);
 	Controller->AddCurve(TransformCurveId, AACF_DriveTrack | AACF_Editable);
 
 	const FTransformCurve* TransformCurve = DataModelInterface->FindTransformCurve(TransformCurveId);
@@ -3325,12 +3309,7 @@ int32 UAnimSequence::GetNumberOfSampledKeys() const
 void UAnimSequence::EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_AnimSeq_EvalCurveData);
-
-	if (OutCurve.NumValidCurveCount == 0)
-	{
-		return;
-	}
-
+	
 	const bool bEvaluateRawData =
 	    PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	    bUseRawDataOnly
@@ -3340,19 +3319,7 @@ void UAnimSequence::EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime
 	if (CanEvaluateRawAnimationData() && bEvaluateRawData)
 	{
 #if WITH_EDITOR
-		// Evaluate float curves from the AnimationData Model
-		if (OutCurve.NumValidCurveCount > 0)
-		{
-			for (auto CurveIter = DataModelInterface->GetFloatCurves().CreateConstIterator(); CurveIter; ++CurveIter)
-			{
-				const FFloatCurve& Curve = *CurveIter;
-				if (OutCurve.IsEnabled(Curve.Name.UID))
-				{
-					const float Value = Curve.Evaluate(CurrentTime);
-					OutCurve.Set(Curve.Name.UID, Value);
-				}
-			}
-		}
+		UE::Anim::EvaluateFloatCurvesFromModel(DataModelInterface.GetInterface(), OutCurve, CurrentTime);
 #else
 		Super::EvaluateCurveData(OutCurve, CurrentTime, bForceUseRawData);
 #endif
@@ -3364,9 +3331,9 @@ void UAnimSequence::EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime
 	}
 }
 
-float UAnimSequence::EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData) const
+float UAnimSequence::EvaluateCurveData(FName CurveName, float CurrentTime, bool bForceUseRawData) const
 {
-	SCOPE_CYCLE_COUNTER(STAT_AnimSeq_EvalCurveData);
+	QUICK_SCOPE_CYCLE_COUNTER(EvaluateCurveDataByName);
 
 	const bool bEvaluateRawData =
 	 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3376,17 +3343,17 @@ float UAnimSequence::EvaluateCurveData(SmartName::UID_Type CurveUID, float Curre
 	check(!bForceUseRawData || CanEvaluateRawAnimationData());
 	if (CanEvaluateRawAnimationData() && bEvaluateRawData)
 	{
-		return Super::EvaluateCurveData(CurveUID, CurrentTime, bForceUseRawData);
+		return Super::EvaluateCurveData(CurveName, CurrentTime, bForceUseRawData);
 	}
 	else if(IsCurveCompressedDataValid() && CompressedData.CurveCompressionCodec)
 	{
-		return CompressedData.CurveCompressionCodec->DecompressCurve(CompressedData, CurveUID, CurrentTime);
+		return CompressedData.CurveCompressionCodec->DecompressCurve(CompressedData, CurveName, CurrentTime);
 	}
 
 	return 0.f;
 }
 
-bool UAnimSequence::HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData) const
+bool UAnimSequence::HasCurveData(FName CurveName, bool bForceUseRawData) const
 {
 	const bool bEvaluateRawData =
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3396,17 +3363,19 @@ bool UAnimSequence::HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRaw
 	check(!bForceUseRawData || CanEvaluateRawAnimationData());
 	if (CanEvaluateRawAnimationData() && bEvaluateRawData)
 	{
-		return Super::HasCurveData(CurveUID, bForceUseRawData);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return Super::HasCurveData(CurveName, bForceUseRawData);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else if(IsCurveCompressedDataValid() && CompressedData.CurveCompressionCodec)
 	{
-	for (const FSmartName& CurveName : CompressedData.CompressedCurveNames)
-	{
-		if (CurveName.UID == CurveUID)
+		for (const FAnimCompressedCurveIndexedName& IndexedCurveName : CompressedData.IndexedCurveNames)
 		{
-			return true;
+			if (IndexedCurveName.CurveName == CurveName)
+			{
+				return true;
+			}
 		}
-	}
 	}
 
 	return false;
@@ -3843,7 +3812,7 @@ void UAnimSequence::SynchronousAnimatedBoneAttributesCompression()
 				RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 			}
 
-			RequiredBones.InitializeTo(RequiredBoneIndexArray, FCurveEvaluationOption(true), *InSkeleton);
+			RequiredBones.InitializeTo(RequiredBoneIndexArray, UE::Anim::FCurveFilterSettings(UE::Anim::ECurveFilterMode::None), *InSkeleton);
 		}
 	};
 	
@@ -4897,14 +4866,7 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 		case EAnimDataModelNotifyType::CurveRenamed:
 		{
 			const FCurveRenamedPayload& TypedPayload = Payload.GetPayload<FCurveRenamedPayload>();
-			UpdateCompressedCurveName(TypedPayload.Identifier.InternalName.UID, TypedPayload.NewIdentifier.InternalName);
-			if (TypedPayload.Identifier.InternalName.DisplayName == TypedPayload.NewIdentifier.InternalName.DisplayName
-				&& TypedPayload.Identifier.InternalName.UID == SmartName::MaxUID && TypedPayload.NewIdentifier.InternalName.UID != SmartName::MaxUID)
-			{
-				// We are renaming a Curve with a FSmartName::Invalid UID, this means it was just loaded and we are retrieving
-				// its actual UID from its DisplayName. This should *not* mark the package dirty.
-				bShouldMarkPackageDirty = false;
-			}
+			UpdateCompressedCurveName(TypedPayload.Identifier.CurveName, TypedPayload.NewIdentifier.CurveName);
 			break;
 		}
 		default:

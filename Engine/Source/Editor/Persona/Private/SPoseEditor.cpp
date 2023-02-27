@@ -303,7 +303,7 @@ void SPoseViewer::Construct(const FArguments& InArgs, const TSharedRef<IPersonaT
 	EditableSkeletonPtr = InEditableSkeleton;
 	PoseAssetPtr = InArgs._PoseAsset;
 	
-	NewPoseName = UPoseAsset::GetUniquePoseName(&(EditableSkeletonPtr.Pin()->GetSkeleton()));
+	NewPoseName = UPoseAsset::GetUniquePoseName(PoseAssetPtr.Get());
 
 	InPreviewScene->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &SPoseViewer::OnPreviewMeshChanged));
 
@@ -798,14 +798,13 @@ void SPoseViewer::CreatePoseList(const FString& SearchText)
 	{
 		UPoseAsset* PoseAsset = PoseAssetPtr.Get();
 
-		TArray<FSmartName> PoseNames = PoseAsset->GetPoseNames();
+		TArray<FName> PoseNames = PoseAsset->GetPoseFNames();
 		if (PoseNames.Num() > 0)
 		{
 			bool bDoFiltering = !SearchText.IsEmpty();
 
-			for (const FSmartName& PoseSmartName : PoseNames)
+			for (const FName& PoseName : PoseNames)
 			{
-				FName PoseName = PoseSmartName.DisplayName;
 				if (bDoFiltering && !PoseName.ToString().Contains(SearchText))
 				{
 					continue; // Skip items that don't match our filter
@@ -834,16 +833,10 @@ void SPoseViewer::CreateCurveList(const FString& SearchText)
 	{
 		UPoseAsset* PoseAsset = PoseAssetPtr.Get();
 
-		TArray<FSmartName> CurveNames = PoseAsset->GetCurveNames();
-		if (CurveNames.Num() > 0)
+		for (const FName& CurveName : PoseAsset->GetCurveFNames())
 		{
-			for (const FSmartName& CurveSmartName : CurveNames)
-			{
-				FName CurveName = CurveSmartName.DisplayName;
-
-				const TSharedRef<FDisplayedCurveInfo> Info = FDisplayedCurveInfo::Make(CurveName);
-				CurveList.Add(Info);
-			}
+			const TSharedRef<FDisplayedCurveInfo> Info = FDisplayedCurveInfo::Make(CurveName);
+			CurveList.Add(Info);
 		}
 	}
 
@@ -933,14 +926,7 @@ UAnimInstance* SPoseViewer::GetAnimInstance() const
 
 bool SPoseViewer::ModifyName(FName OldName, FName NewName, bool bSilence)
 {
-	FScopedTransaction Transaction(LOCTEXT("RenamePoses", "Rename Pose"));
-	PoseAssetPtr.Get()->Modify();
-
-	// get smart name
-	const USkeleton& Skeleton = EditableSkeletonPtr.Pin()->GetSkeleton();
-	const SmartName::UID_Type ExistingUID = Skeleton.GetUIDByName(USkeleton::AnimCurveMappingName, NewName);
-	// verify if this name exists in smart naming
-	if (ExistingUID != SmartName::MaxUID)
+	if(PoseAssetPtr.Get()->ContainsPose(NewName))
 	{
 		// warn users
 		// if so, verify if this name is still okay
@@ -953,20 +939,15 @@ bool SPoseViewer::ModifyName(FName OldName, FName NewName, bool bSilence)
 				return false;
 			}
 		}
-
-		// I think this might have to be delegate of the top window
-		if (PoseAssetPtr.Get()->ModifyPoseName(OldName, NewName, &ExistingUID) == false)
-		{
-			return false;
-		}
 	}
-	else
+
+	FScopedTransaction Transaction(LOCTEXT("RenamePoses", "Rename Pose"));
+	PoseAssetPtr.Get()->Modify();
+	
+	// I think this might have to be delegate of the top window
+	if (PoseAssetPtr.Get()->ModifyPoseName(OldName, NewName) == false)
 	{
-		// I think this might have to be delegate of the top window
-		if (PoseAssetPtr.Get()->ModifyPoseName(OldName, NewName, nullptr) == false)
-		{
-			return false;
-		}
+		return false;
 	}
 
 	// now refresh pose data
@@ -1001,28 +982,23 @@ void SPoseViewer::UpdateSelectedPoseWithCurrent()
 		UDebugSkelMeshComponent* PreviewComponent = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
 		const USkeleton* Skeleton = PoseAsset->GetSkeleton();
 		if (PreviewComponent && Skeleton)
-        {
-		    const FName PoseName = SelectedRows[0]->Name;
-		    FSmartName PoseCurveSmartName;
-		    // Ensure the PoseName exists as a curve on the skeleton
-		    if(Skeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, PoseName, PoseCurveSmartName))
-		    {
-			    FScopedTransaction Transaction(LOCTEXT("UpdatePose", "Update Pose from Viewport"));
-			    PoseAsset->Modify();			
-			    PoseAsset->AddOrUpdatePose(PoseCurveSmartName, PreviewComponent, false);
+		{
+			const FName PoseName = SelectedRows[0]->Name;
 
-		    	// Reset bone modifiers in case the user has created a pose using them - resetting them to the 'base' pose
-			    if(UAnimPreviewInstance* PreviewInstance = Cast<UAnimPreviewInstance>(PreviewComponent->GetAnimInstance()))
-			    {
-				    PreviewInstance->ResetModifiedBone();
-			    }
-		    	
-			    // Reinitialize animation preview
-			    RestartAnimations(Skeleton);
-			    RestartPreviewComponent();
-		    }		
-        }
+			FScopedTransaction Transaction(LOCTEXT("UpdatePose", "Update Pose from Viewport"));
+			PoseAsset->Modify();			
+			PoseAsset->AddOrUpdatePose(PoseName, PreviewComponent, false);
 
+			// Reset bone modifiers in case the user has created a pose using them - resetting them to the 'base' pose
+			if(UAnimPreviewInstance* PreviewInstance = Cast<UAnimPreviewInstance>(PreviewComponent->GetAnimInstance()))
+			{
+				PreviewInstance->ResetModifiedBone();
+			}
+
+			// Reinitialize animation preview
+			RestartAnimations(Skeleton);
+			RestartPreviewComponent();
+		}
 	}
 }
 
@@ -1034,18 +1010,10 @@ void SPoseViewer::AddPoseWithCurrent()
 		USkeleton* Skeleton = PoseAsset->GetSkeleton();
 		if (PreviewComponent && Skeleton)
 		{
-			FSmartName PoseCurveSmartName;
-			PoseCurveSmartName.DisplayName = NewPoseName;
-			
-			Skeleton->VerifySmartName(USkeleton::AnimCurveMappingName, PoseCurveSmartName);
-			if (PoseCurveSmartName.IsValid())
-			{
-				PoseAsset->AddOrUpdatePose(PoseCurveSmartName, PreviewComponent);
-				NewPoseName = UPoseAsset::GetUniquePoseName(&(EditableSkeletonPtr.Pin()->GetSkeleton()));
-			}
+			PoseAsset->AddOrUpdatePose(NewPoseName, PreviewComponent);
+			NewPoseName = UPoseAsset::GetUniquePoseName(PoseAsset);
 		}
 	}
-
 }
 
 void SPoseViewer::AddPoseWithReference()
@@ -1056,15 +1024,8 @@ void SPoseViewer::AddPoseWithReference()
 		USkeleton* Skeleton = PoseAsset->GetSkeleton();
 		if (PreviewComponent && Skeleton)
 		{
-			FSmartName PoseCurveSmartName;
-			PoseCurveSmartName.DisplayName = NewPoseName;
-			
-			Skeleton->VerifySmartName(USkeleton::AnimCurveMappingName, PoseCurveSmartName);
-			if (PoseCurveSmartName.IsValid())
-			{
-				PoseAsset->AddReferencePose(PoseCurveSmartName, PreviewComponent->GetReferenceSkeleton());
-				NewPoseName = UPoseAsset::GetUniquePoseName(&(EditableSkeletonPtr.Pin()->GetSkeleton()));
-			}
+			PoseAsset->AddReferencePose(NewPoseName, PreviewComponent->GetReferenceSkeleton());
+			NewPoseName = UPoseAsset::GetUniquePoseName(PoseAsset);
 		}
 	}	
 }

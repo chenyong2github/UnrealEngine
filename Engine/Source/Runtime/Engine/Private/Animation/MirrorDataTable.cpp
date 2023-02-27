@@ -60,46 +60,21 @@ UMirrorDataTable::UMirrorDataTable(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	OnDataTableChanged().AddUObject(this, &UMirrorDataTable::FillMirrorArrays);
 #endif 
-
 }
 
 void UMirrorDataTable::PostLoad()
 {
 	Super::PostLoad();
-	if (Skeleton)
-	{
-		Skeleton->ConditionalPostLoad();
-		Skeleton->OnSmartNamesChangedEvent.AddUObject(this, &UMirrorDataTable::FillMirrorArrays);
-	}
+
 	FillMirrorArrays(); 
 }
 
 #if WITH_EDITOR
 
-void UMirrorDataTable::PreEditChange(FProperty* PropertyThatWillChange)
-{
-	Super::PreEditChange(PropertyThatWillChange);
-
-	if (PropertyThatWillChange && PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_STRING_CHECKED(UMirrorDataTable, Skeleton))
-	{
-		if (Skeleton)
-		{
-			Skeleton->OnSmartNamesChangedEvent.RemoveAll(this);
-		}
-	}
-}
-
 void UMirrorDataTable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	FillMirrorArrays(); 
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMirrorDataTable, Skeleton))
-	{
-		if (Skeleton)
-		{
-			Skeleton->OnSmartNamesChangedEvent.AddUObject(this, &UMirrorDataTable::FillMirrorArrays);
-		}
-	}
 }
 
 #endif // WITH_EDITOR
@@ -253,7 +228,7 @@ void UMirrorDataTable::FindReplaceMirroredNames()
 			AddMirrorRow(Notify, MirroredName, EMirrorRowType::AnimationNotify);
 		}
 	}
-
+	
 	for (const FName& SyncMarker : Skeleton->GetExistingMarkerNames())
 	{
 		FName MirroredName = FindReplace(SyncMarker);
@@ -263,26 +238,16 @@ void UMirrorDataTable::FindReplaceMirroredNames()
 		}
 	}
 
-	const FSmartNameMapping* CurveSmartNames = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-	if (CurveSmartNames)
-	{
-		const SmartName::UID_Type NumItems = CurveSmartNames->GetMaxUID() + 1;
-		TSet<FName> CurveNames; 
-		// For every source curve, try to find the curve with the same name in the target.
-		for (SmartName::UID_Type Index = 0; Index < NumItems; ++Index)
-		{
-			FName CurveName;
-			CurveSmartNames->GetName(Index, CurveName);
-			CurveNames.Add(CurveName);
-		}
+	TArray<FName> CurveNames;
+	Skeleton->GetCurveMetaDataNames(CurveNames);
 
-		for (const FName& CurveName : CurveNames)
+	// For every source curve, try to find the curve with the same name in the target.
+	for (const FName& CurveName : CurveNames)
+	{
+		FName MirroredName = FindReplace(CurveName);
+		if (!MirroredName.IsNone() && CurveNames.Contains(MirroredName))
 		{
-			FName MirroredName = FindReplace(CurveName);
-			if (!MirroredName.IsNone() && CurveNames.Contains(MirroredName))
-			{
-				AddMirrorRow(CurveName, MirroredName, EMirrorRowType::Curve);
-			}
+			AddMirrorRow(CurveName, MirroredName, EMirrorRowType::Curve);
 		}
 	}
 
@@ -393,19 +358,16 @@ void UMirrorDataTable::FillMirrorArrays()
 {
 	SyncToMirrorSyncMap.Empty();
 	AnimNotifyToMirrorAnimNotifyMap.Empty();
+	CurveToMirrorCurveMap.Empty();
 	if (!Skeleton)
 	{
 		BoneToMirrorBoneIndex.Empty();
-		CurveMirrorSourceUIDArray.Empty(); 
-		CurveMirrorTargetUIDArray.Empty(); 
 		return; 
 	}
 
 	FillMirrorBoneIndexes(Skeleton, BoneToMirrorBoneIndex);
-
-	TMap<FName, FName> CurveToMirrorCurveMap;
 	
-	ForeachRow<FMirrorTableRow>(TEXT("UMirrorDataTable::FillMirrorArrays"), [this, &CurveToMirrorCurveMap](const FName& Key, const FMirrorTableRow& Value) mutable
+	ForeachRow<FMirrorTableRow>(TEXT("UMirrorDataTable::FillMirrorArrays"), [this](const FName& Key, const FMirrorTableRow& Value) mutable
 		{
 			switch (Value.MirrorEntryType)
 			{
@@ -429,38 +391,6 @@ void UMirrorDataTable::FillMirrorArrays()
 			}
 		}
 	);
-
-	// Ensure post load prepares the smart names
-	Skeleton->ConditionalPostLoad();
-
-	//ensure that pairs always appear beside each other in the arrays
-	TSet<SmartName::UID_Type> AddedSourceUIDs; 
-	const FSmartNameMapping* CurveSmartNames = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-
-	if (CurveSmartNames)
-	{
-		CurveMirrorSourceUIDArray.Reset(CurveToMirrorCurveMap.Num());
-		CurveMirrorTargetUIDArray.Reset(CurveToMirrorCurveMap.Num());
-		for (auto& Elem : CurveToMirrorCurveMap)
-		{
-			SmartName::UID_Type SourceCurveUID = CurveSmartNames->FindUID(Elem.Key);
-			SmartName::UID_Type TargetCurveUID = CurveSmartNames->FindUID(Elem.Value);
-			if (SourceCurveUID != INDEX_NONE && TargetCurveUID != INDEX_NONE && !AddedSourceUIDs.Contains(SourceCurveUID))
-			{
-				CurveMirrorSourceUIDArray.Add(SourceCurveUID);
-				AddedSourceUIDs.Add(SourceCurveUID); 
-				CurveMirrorTargetUIDArray.Add(TargetCurveUID);
-				if (CurveToMirrorCurveMap.Contains(Elem.Value) && CurveSmartNames->FindUID(CurveToMirrorCurveMap[Elem.Value]) == SourceCurveUID)
-				{
-					CurveMirrorSourceUIDArray.Add(TargetCurveUID);
-					AddedSourceUIDs.Add(TargetCurveUID);
-					CurveMirrorTargetUIDArray.Add(SourceCurveUID);
-				}
-			}
-		}
-		CurveMirrorSourceUIDArray.Shrink(); 
-		CurveMirrorTargetUIDArray.Shrink();
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

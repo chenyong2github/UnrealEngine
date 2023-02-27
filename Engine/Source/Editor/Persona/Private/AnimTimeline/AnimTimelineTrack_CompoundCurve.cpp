@@ -38,7 +38,7 @@ FAnimTimelineTrack_CompoundCurve::FAnimTimelineTrack_CompoundCurve(TArray<const 
 	, Curves(MoveTemp(InCurves))
 {
 	OuterCurveIndex = 0;
-	Algo::Transform(Curves, CurveNames, [](const FFloatCurve* Curve) { return Curve->Name; });
+	Algo::Transform(Curves, CurveNames, [](const FFloatCurve* Curve) { return Curve->GetName(); });
 }
 
 /** FAnimTimelineTrack_Curve interface */
@@ -49,7 +49,7 @@ FLinearColor FAnimTimelineTrack_CompoundCurve::GetCurveColor(int32 InCurveIndex)
 
 FText FAnimTimelineTrack_CompoundCurve::GetFullCurveName(int32 InCurveIndex) const
 {
-	return FText::FromName(Curves[InCurveIndex]->Name.DisplayName);
+	return FText::FromName(Curves[InCurveIndex]->GetName());
 }
 
 bool FAnimTimelineTrack_CompoundCurve::CanEditCurve(int32 InCurveIndex) const
@@ -57,9 +57,9 @@ bool FAnimTimelineTrack_CompoundCurve::CanEditCurve(int32 InCurveIndex) const
 	return true;
 }
 
-void FAnimTimelineTrack_CompoundCurve::GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const
+void FAnimTimelineTrack_CompoundCurve::GetCurveEditInfo(int32 InCurveIndex, FName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const
 {
-	OutName = Curves[InCurveIndex]->Name;
+	OutName = Curves[InCurveIndex]->GetName();
 	OutType = ERawCurveTrackTypes::RCT_Float;
 	OutCurveIndex = 0;
 }
@@ -162,7 +162,7 @@ struct FAnimTimelineTrack_CompoundCurve::FCurveGroup
 		FCurveGroup RootGroup;
 		for (const FFloatCurve& FloatCurve : FloatCurves)
 		{
-			FString CurveNameStr = FloatCurve.Name.DisplayName.ToString();
+			FString CurveNameStr = FloatCurve.GetName().ToString();
 			FStringView CurveName = CurveNameStr;
 
 			// We need c++ 20 std::split_view here

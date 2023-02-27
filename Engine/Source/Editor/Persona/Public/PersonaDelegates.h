@@ -70,3 +70,9 @@ DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnExtendBlendSpaceSampleT
 
 // Called to let the blendspace editor UI set the preview position of an external blendspace node
 DECLARE_DELEGATE_OneParam(FOnSetBlendSpacePreviewPosition, FVector /*InBlendSample*/);
+
+// Called by the curve picker to indicate that a curve was chosen by the user
+DECLARE_DELEGATE_OneParam(FOnCurvePicked, const FName& /*PickedName*/);
+
+// Called by the curve picker to filter out curve names that are displayed to the user
+DECLARE_DELEGATE_RetVal_OneParam(bool, FIsCurveNameMarkedForExclusion, const FName& /*CurveName*/);

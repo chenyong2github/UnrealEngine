@@ -60,19 +60,16 @@ void FAnimNode_PoseHandler::CacheBones_AnyThread(const FAnimationCacheBonesConte
 void FAnimNode_PoseHandler::RebuildPoseList(const FBoneContainer& InBoneContainer, const UPoseAsset* InPoseAsset)
 {
 	PoseExtractContext.PoseCurves.Reset();
-	const TArray<FSmartName>& PoseNames = InPoseAsset->GetPoseNames();
+	const TArray<FName>& PoseNames = InPoseAsset->GetPoseFNames();
 	const int32 TotalPoseNum = PoseNames.Num();
 	if (TotalPoseNum > 0)
 	{
-		TArray<uint16> const& LUTIndex = InBoneContainer.GetUIDToArrayLookupTable();
 		for (int32 PoseIndex = 0; PoseIndex < PoseNames.Num(); ++PoseIndex)
 		{
-			const FSmartName& PoseName = PoseNames[PoseIndex];
-			if (LUTIndex.IsValidIndex(PoseName.UID) && LUTIndex[PoseName.UID] != MAX_uint16)
-			{
-				// we keep pose index as that is the fastest way to search when extracting pose asset
-				PoseExtractContext.PoseCurves.Add(FPoseCurve(PoseIndex, PoseName.UID, 0.f));
-			}
+			const FName& PoseName = PoseNames[PoseIndex];
+
+			// we keep pose index as that is the fastest way to search when extracting pose asset
+			PoseExtractContext.PoseCurves.Add(FPoseCurve(PoseIndex, PoseName, 0.f));
 		}
 	}
 }

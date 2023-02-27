@@ -252,7 +252,7 @@ void FContextualAnimSceneSection::GenerateIKTargetTracks(UContextualAnimSceneAss
 				{
 					// Complete bones chain and create bone container to extract pose from my animation
 					Animation->GetSkeleton()->GetReferenceSkeleton().EnsureParentsExistAndSort(RequiredBoneIndexArray);
-					FBoneContainer BoneContainer = FBoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *Animation->GetSkeleton());
+					FBoneContainer BoneContainer = FBoneContainer(RequiredBoneIndexArray, UE::Anim::FCurveFilterSettings(UE::Anim::ECurveFilterMode::DisallowAll), *Animation->GetSkeleton());
 
 					// Initialize track container
 					AnimTrack.IKTargetData.Initialize(TotalTracks, SampleInterval);
@@ -296,7 +296,7 @@ void FContextualAnimSceneSection::GenerateIKTargetTracks(UContextualAnimSceneAss
 								{
 									// Complete bones chain and create bone container to extract pose form the target animation
 									OtherAnimation->GetSkeleton()->GetReferenceSkeleton().EnsureParentsExistAndSort(OtherRequiredBoneIndexArray);
-									OtherBoneContainer = FBoneContainer(OtherRequiredBoneIndexArray, FCurveEvaluationOption(false), *OtherAnimation->GetSkeleton());
+									OtherBoneContainer = FBoneContainer(OtherRequiredBoneIndexArray, UE::Anim::FCurveFilterSettings(UE::Anim::ECurveFilterMode::DisallowAll), *OtherAnimation->GetSkeleton());
 
 									// Extract pose from target animation
 									ExtractPoseIgnoringForceRootLock(OtherAnimation, OtherBoneContainer, Time, false, OtherComponentSpacePose);

@@ -42,7 +42,9 @@ FSmartName FSmartNameMapping::AddName(FName Name)
 	// Make sure we didn't reach the UID limit
 	check(CurveNameList.Num() < (SmartName::MaxUID-1));
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FSmartName NewSmartName(Name, CurveNameList.Add(Name));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	CurveMetaDataMap.Add(Name);
 #if !WITH_EDITOR
 	CurveMetaDataList.AddDefaulted();
@@ -311,7 +313,9 @@ SmartName::UID_Type FSmartNameMapping::FindUID(const FName& Name) const
 
 FArchive& operator<<(FArchive& Ar, FSmartNameMapping& Elem)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Elem.Serialize(Ar);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return Ar;
 }
@@ -319,10 +323,13 @@ FArchive& operator<<(FArchive& Ar, FSmartNameMapping& Elem)
 bool FSmartNameMapping::FindSmartName(FName Name, FSmartName& OutName) const
 {
 	FReadScopeLock Lock(SmartNameRWLock);
+	
 	SmartName::UID_Type ExistingUID = FindUID_NoLock(Name);
 	if (ExistingUID != SmartName::MaxUID)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		OutName = FSmartName(Name, ExistingUID);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	}
 

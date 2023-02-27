@@ -45,6 +45,8 @@ namespace SkeletalMeshEditorTabs
 	extern const FName MeshDetailsTab;
 	extern const FName AnimationMappingTab;
 	extern const FName ToolboxDetailsTab;
+	extern const FName CurveMetadataTab;
+	extern const FName FindReplaceTab;
 }
 
 class FSkeletalMeshEditor : public ISkeletalMeshEditor, public FGCObject, public FEditorUndoClient, public FTickableEditorObject
@@ -115,14 +117,14 @@ public:
 
 	UObject* HandleGetAsset();
 
+	void HandleObjectsSelected(const TArray<UObject*>& InObjects);
+
 	// Returns the currently hosted toolkit. Can be invalid if no toolkit is being hosted.
 	TSharedPtr<IToolkit> GetHostedToolkit() const { return HostedToolkit; }
 
 private:
-	void HandleObjectsSelected(const TArray<UObject*>& InObjects);
-
 	void HandleObjectSelected(UObject* InObject);
-
+	
 	void HandleSelectionChanged(const TArrayView<TSharedPtr<ISkeletonTreeItem>>& InSelectedItems, ESelectInfo::Type InSelectInfo);
 
 	void HandleReimportMesh(int32 SourceFileIndex = INDEX_NONE);
@@ -133,9 +135,6 @@ private:
 	void HandleReimportAllMeshWithNewFile(int32 SourceFileIndex = INDEX_NONE);
 
 	void HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBuilder& DetailBuilder);
-
-	/** Callback for toggling UV drawing in the viewport */
-	void ToggleMeshSectionSelection();
 
 	/** Callback for checking whether the UV drawing is switched on. */
 	bool IsMeshSectionSelectionChecked() const;

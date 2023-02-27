@@ -20,7 +20,7 @@ public:
 	virtual FLinearColor GetCurveColor(int32 InCurveIndex) const override;
 	virtual FText GetFullCurveName(int32 InCurveIndex) const override;
 	virtual bool CanEditCurve(int32 InCurveIndex) const override;
-	virtual void GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const override;
+	virtual void GetCurveEditInfo(int32 InCurveIndex, FName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const override;
 	/** End FAnimTimelineTrack_Curve interface */
 
 	static constexpr auto DefaultDelimiters = TEXT("._/\\|");
@@ -30,10 +30,10 @@ public:
 	//! \param[in] InModel FAnimModel to display the track
 	static void AddGroupedCurveTracks(TArrayView<const FFloatCurve> FloatCurves, FAnimTimelineTrack& ParentTrack, const TSharedRef<FAnimModel>& InModel, FStringView Delimiters = DefaultDelimiters);
 
-	const TArray<FSmartName>& GetCurveNames() const { return CurveNames; }
+	const TArray<FName>& GetCurveNames() const { return CurveNames; }
 private:
 	TArray<const FFloatCurve*> Curves;
-	TArray<FSmartName> CurveNames; // Curve smart names used when removing curves (in case the FFloatCurve was removed)
+	TArray<FName> CurveNames; // Curve names used when removing curves (in case the FFloatCurve was removed)
 
 	static TArray<const FRichCurve*> ToRichCurves(TArrayView<FFloatCurve const* const> InCurves);
 	struct FCurveGroup;

@@ -41,7 +41,6 @@ private:
 	TObjectPtr<UPoseCorrectivesProcessor> PoseCorrectivesProcessor = nullptr;
 	
 	TArray<FCompactPoseBoneIndex> BoneCompactIndices;
-	TArray<SmartName::UID_Type> CurveUIDs;
 
 	TArray<FCorrectivesRBFTarget> RBFTargets;
 	FCorrectivesRBFEntry RBFInput;

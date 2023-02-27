@@ -9,6 +9,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "BoneIndices.h"
+#include "Animation/AnimCurveTypes.h"
 
 struct FReferenceSkeleton;
 
@@ -24,6 +25,8 @@ public:
 	int32 NodeID;
 
 	bool IsValid() const;
+
+	void SetCurves(const FBlendedCurve& InCurves);
 
 	template<class TAllocator>
 	bool SetPose(const TArray<FBoneIndexType>& InRequiredBones, const TArray<FTransform, TAllocator>& InBoneTransforms)
@@ -45,6 +48,8 @@ public:
 
 	const TArray<FTransform>& GetBoneTransforms() const;
 
+	const FBlendedHeapCurve& GetCurves() const;
+	
 	const FTransform& GetWorldTransform() const;
 
 	FLinearColor GetBoneColor() const;
@@ -59,7 +64,8 @@ private:
 	FTransform WorldTransform;
 	TArray<FBoneIndexType> RequiredBones;
 	TArray<FTransform> BoneTransforms;
-
+	FBlendedHeapCurve Curves;
+	
 	// Mirrored properties updated on CopyPoseWatchData
 	FLinearColor BoneColor;
 	FVector ViewportOffset;

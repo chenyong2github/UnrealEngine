@@ -19,10 +19,10 @@
 ANIMTIMELINE_IMPLEMENT_TRACK(FAnimTimelineTrack_TransformCurve);
 
 FAnimTimelineTrack_TransformCurve::FAnimTimelineTrack_TransformCurve(const FTransformCurve* InCurve, const TSharedRef<FAnimModel>& InModel)
-	: FAnimTimelineTrack_Curve(FAnimTimelineTrack_TransformCurve::GetTransformCurveName(InModel, InCurve->Name), FAnimTimelineTrack_TransformCurve::GetTransformCurveName(InModel, InCurve->Name), InCurve->GetColor(), InCurve->GetColor(), InModel)
+	: FAnimTimelineTrack_Curve(FText::FromName(InCurve->GetName()), FText::FromName(InCurve->GetName()), InCurve->GetColor(), InCurve->GetColor(), InModel)
 	, TransformCurve(InCurve)
-	, CurveName(InCurve->Name)
-	, CurveId(InCurve->Name, ERawCurveTrackTypes::RCT_Transform)
+	, CurveName(InCurve->GetName())
+	, CurveId(InCurve->GetName(), ERawCurveTrackTypes::RCT_Transform)
 {
 	Curves.Add(&InCurve->TranslationCurve.FloatCurves[0]);
 	Curves.Add(&InCurve->TranslationCurve.FloatCurves[1]);
@@ -74,13 +74,12 @@ void FAnimTimelineTrack_TransformCurve::Copy(UAnimTimelineClipboardContent* InOu
 	UTransformCurveCopyObject * CopyableCurve = UAnimCurveBaseCopyObject::Create<UTransformCurveCopyObject>();
 
 	// Copy raw curve data
-	CopyableCurve->Curve.Name = TransformCurve->Name;
+	CopyableCurve->Curve.SetName(TransformCurve->GetName());
 	CopyableCurve->Curve.SetCurveTypeFlags(TransformCurve->GetCurveTypeFlags());
 	CopyableCurve->Curve.CopyCurve(*TransformCurve);
 
 	// Copy curve identifier data
-	CopyableCurve->DisplayName = CurveName.DisplayName;
-	CopyableCurve->UID = CurveName.UID;
+	CopyableCurve->CurveName = CurveName;
 	CopyableCurve->CurveType = ERawCurveTrackTypes::RCT_Transform;
 	CopyableCurve->Channel = CurveId.Channel;
 	CopyableCurve->Axis = CurveId.Axis;
@@ -89,21 +88,6 @@ void FAnimTimelineTrack_TransformCurve::Copy(UAnimTimelineClipboardContent* InOu
 	CopyableCurve->OriginName = GetModel()->GetAnimSequenceBase()->GetFName();
 	
 	InOutClipboard->Curves.Add(CopyableCurve);
-}
-
-FText FAnimTimelineTrack_TransformCurve::GetTransformCurveName(const TSharedRef<FAnimModel>& InModel, const FSmartName& InSmartName)
-{
-	const FSmartNameMapping* NameMapping = InModel->GetAnimSequenceBase()->GetSkeleton()->GetSmartNameContainer(USkeleton::AnimTrackCurveMappingName);
-	if(NameMapping)
-	{
-		FName CurveName;
-		if(NameMapping->GetName(InSmartName.UID, CurveName))
-		{
-			return FText::FromName(CurveName);
-		}
-	}
-
-	return FText::FromName(InSmartName.DisplayName);
 }
 
 TSharedRef<SWidget> FAnimTimelineTrack_TransformCurve::BuildCurveTrackMenu()
@@ -149,16 +133,13 @@ void FAnimTimelineTrack_TransformCurve::DeleteTrack()
 	if(AnimSequenceBase->GetDataModel()->FindTransformCurve(CurveId))
 	{
 		const FScopedTransaction Transaction(LOCTEXT("AnimCurve_DeleteTrack", "Delete Curve"));
-		FSmartName CurveToDelete;
-		if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimTrackCurveMappingName, TransformCurve->Name.UID, CurveToDelete))
-		{
-			IAnimationDataController& Controller = AnimSequenceBase->GetController();
-			Controller.RemoveCurve(CurveId);
 
-			if (GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance != nullptr)
-			{
-				GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance->RefreshCurveBoneControllers();
-			}
+		IAnimationDataController& Controller = AnimSequenceBase->GetController();
+		Controller.RemoveCurve(CurveId);
+
+		if (GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance != nullptr)
+		{
+			GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance->RefreshCurveBoneControllers();
 		}
 	}
 }
@@ -184,9 +165,9 @@ void FAnimTimelineTrack_TransformCurve::ToggleEnabled()
 	}
 }
 
-void FAnimTimelineTrack_TransformCurve::GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const
+void FAnimTimelineTrack_TransformCurve::GetCurveEditInfo(int32 InCurveIndex, FName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const
 {
-	OutName = TransformCurve->Name;
+	OutName = TransformCurve->GetName();
 	OutType = ERawCurveTrackTypes::RCT_Transform;
 	OutCurveIndex = InCurveIndex;
 }

@@ -7,6 +7,7 @@
 #include "Animation/ExposedValueHandler.h"
 #include "CurveExpressionModule.h"
 #include "Engine/SkeletalMesh.h"
+#include "Animation/AnimCurveTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RemapCurvesFromMesh)
 
@@ -63,12 +64,6 @@ void FAnimNode_RemapCurvesFromMesh::VerifyExpressions(
 
 	for (const TPair<FName, FString>& ExpressionPair: CurveExpressions)
 	{
-		if (!CurveNameToUIDMap.Contains(ExpressionPair.Key))
-		{
-			ReportAndLog(FString::Printf(TEXT("Target curve '%s' does not exist."), *ExpressionPair.Key.ToString()));
-			bFoundError = true;
-		}
-
 		TOptional<FParseError> Error = VerificationEngine.Verify(ExpressionPair.Value);
 		if (Error.IsSet())
 		{
@@ -108,15 +103,12 @@ void FAnimNode_RemapCurvesFromMesh::Update_AnyThread(
 		CachedExpressions.Reset();
 		for (const TPair<FName, FString>& ExpressionPair: CurveExpressions)
 		{
-			if (CurveNameToUIDMap.Contains(ExpressionPair.Key))
-			{
-				using namespace CurveExpression::Evaluator;
+			using namespace CurveExpression::Evaluator;
 
-				TVariant<FExpressionObject, FParseError> Result = ExpressionEngine->Parse(ExpressionPair.Value);
-				if (const FExpressionObject* Expression = Result.TryGet<FExpressionObject>())
-				{
-					CachedExpressions.Add(ExpressionPair.Key, *Expression);
-				}
+			TVariant<FExpressionObject, FParseError> Result = ExpressionEngine->Parse(ExpressionPair.Value);
+			if (const FExpressionObject* Expression = Result.TryGet<FExpressionObject>())
+			{
+				CachedExpressions.Add(ExpressionPair.Key, *Expression);
 			}
 		}
 	}			
@@ -140,27 +132,30 @@ void FAnimNode_RemapCurvesFromMesh::Evaluate_AnyThread(
 	{
 		if (bExpressionsImmutable)
 		{
-			for (const TTuple<FName, CurveExpression::Evaluator::FExpressionObject>& ExpressionItem: CachedExpressions)
+			FBlendedCurve Curve;
+			Curve.Reserve(CachedExpressions.Num());
+			for (const TTuple<FName, CurveExpression::Evaluator::FExpressionObject>& ExpressionItem : CachedExpressions)
 			{
-				if (const SmartName::UID_Type* UID = CurveNameToUIDMap.Find(ExpressionItem.Key))
-				{
-					Output.Curve.Set(*UID, ExpressionEngine->Execute(ExpressionItem.Value));
-				}
+				Curve.Add(ExpressionItem.Key, ExpressionEngine->Execute(ExpressionItem.Value)); 
 			}
+
+			Output.Curve.Combine(Curve);
 		}
 		else
 		{
-			for (const TTuple<FName, FString>& ExpressionItem: CurveExpressions)
+			FBlendedCurve Curve;
+			Curve.Reserve(CurveExpressions.Num());
+
+			for (const TTuple<FName, FString>& ExpressionItem : CurveExpressions)
 			{
-				if (const SmartName::UID_Type* UID = CurveNameToUIDMap.Find(ExpressionItem.Key))
+				TOptional<float> Result = ExpressionEngine->Evaluate(ExpressionItem.Value);
+				if (Result.IsSet())
 				{
-					TOptional<float> Result = ExpressionEngine->Evaluate(ExpressionItem.Value);
-					if (Result.IsSet())
-					{
-						Output.Curve.Set(*UID, *Result);
-					}
+					Curve.Add(ExpressionItem.Key, *Result);
 				}
 			}
+
+			Output.Curve.Combine(Curve);
 		}
 	}
 }
@@ -227,7 +222,6 @@ void FAnimNode_RemapCurvesFromMesh::ReinitializeMeshComponent(
 	CurrentlyUsedTargetMesh.Reset();
 	
 	ExpressionEngine.Reset();
-	CurveNameToUIDMap.Reset();
 	CachedExpressions.Reset();
 
 	if (InTargetMeshComponent && IsValid(InNewSkeletalMeshComponent) && InNewSkeletalMeshComponent->GetSkeletalMeshAsset())
@@ -247,36 +241,13 @@ void FAnimNode_RemapCurvesFromMesh::ReinitializeMeshComponent(
 			const USkeleton* SourceSkeleton = SourceSkelMesh->GetSkeleton();
 			if (ensureMsgf(SourceSkeleton, TEXT("Invalid null source skeleton : %s"), *GetNameSafe(TargetSkelMesh)))
 			{
-				const FSmartNameMapping* SourceContainer = SourceSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-
-				SourceContainer->Iterate([&SourceCurves](const FSmartNameMappingIterator& Iterator)
+				// TODO: is this good enough for future use? ExpressionEngine appears to have been built on the assumption that curves are always pre-defined.
+				SourceSkeleton->ForEachCurveMetaData([&SourceCurves](FName InCurveName, const FCurveMetaData& InCurveMetaData)
 				{
-					if (FName CurveName; Iterator.GetName(CurveName))
-					{
-						SourceCurves.Add(CurveName, 0.0f);
-					}
+					SourceCurves.Add(InCurveName, 0.0f);
 				});
 
 				ExpressionEngine.Emplace(MoveTemp(SourceCurves));
-			}
-
-			// Grab the target curves and build the Name -> UID mapping so that we can call
-			// FBlendCurve::Set in Evalute_AnyThread 
-			const USkeleton* TargetSkeleton = TargetSkelMesh->GetSkeleton();
-
-			if (ensureMsgf(TargetSkeleton, TEXT("Invalid null target skeleton : %s"), *GetNameSafe(TargetSkelMesh)))
-			{
-				const FSmartNameMapping* TargetContainer = TargetSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-
-				// CurveExpressions isn't filled in here, since we haven't evaluated BP downstream.
-				// So instead, we just take a full copy of the smart mapping.
-				TargetContainer->Iterate([this](const FSmartNameMappingIterator& Iterator)
-				{
-					if (FName CurveName; Iterator.GetName(CurveName))
-					{
-						CurveNameToUIDMap.Add(CurveName, Iterator.GetIndex());
-					}
-				});
 			}
 		}
 	}

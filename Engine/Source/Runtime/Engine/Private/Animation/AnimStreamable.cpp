@@ -430,14 +430,6 @@ void UAnimStreamable::PostLoad()
 	}
 #else
 	IStreamingManager::Get().GetAnimationStreamingManager().AddStreamingAnim(this); // This will be handled by RequestCompressedData in editor builds
-
-	if (USkeleton* CurrentSkeleton = GetSkeleton())
-	{
-		for (FSmartName& CurveName : GetRunningPlatformData().Chunks[0].CompressedAnimSequence->CompressedCurveNames)
-		{
-			CurrentSkeleton->VerifySmartName(USkeleton::AnimCurveMappingName, CurveName);
-		}
-	}
 #endif
 }
 

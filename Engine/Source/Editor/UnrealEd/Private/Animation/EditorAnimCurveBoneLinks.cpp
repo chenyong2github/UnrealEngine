@@ -16,7 +16,15 @@ UEditorAnimCurveBoneLinks::UEditorAnimCurveBoneLinks(const FObjectInitializer& O
 
 void UEditorAnimCurveBoneLinks::Initialize(const TWeakPtr<class IEditableSkeleton> InEditableSkeleton, const FSmartName& InCurveName, FOnAnimCurveBonesChange OnChangeIn)
 {
-	EditableSkeleton = InEditableSkeleton;
+	AnimCurveMetaData = nullptr;
+	CurveName = InCurveName.DisplayName;
+	OnChange = OnChangeIn;
+	SetFlags(RF_Transactional);
+}
+
+void UEditorAnimCurveBoneLinks::Initialize(UAnimCurveMetaData* InAnimCurveMetaData, const FName& InCurveName, FOnAnimCurveBonesChange OnChangeIn)
+{
+	AnimCurveMetaData = InAnimCurveMetaData;
 	CurveName = InCurveName;
 	OnChange = OnChangeIn;
 	SetFlags(RF_Transactional);
@@ -24,7 +32,18 @@ void UEditorAnimCurveBoneLinks::Initialize(const TWeakPtr<class IEditableSkeleto
 
 void UEditorAnimCurveBoneLinks::Refresh(const FSmartName& InCurveName, const TArray<FBoneReference>& CurrentLinks, uint8 InMaxLOD)
 {
-	if (EditableSkeleton.IsValid())
+	if (AnimCurveMetaData.IsValid())
+	{
+		// double check the name
+		CurveName = InCurveName.DisplayName;
+		ConnectedBones = CurrentLinks;
+		MaxLOD = InMaxLOD;
+	}
+}
+
+void UEditorAnimCurveBoneLinks::Refresh(const FName& InCurveName, const TArray<FBoneReference>& CurrentLinks, uint8 InMaxLOD)
+{
+	if (AnimCurveMetaData.IsValid())
 	{
 		// double check the name
 		CurveName = InCurveName;

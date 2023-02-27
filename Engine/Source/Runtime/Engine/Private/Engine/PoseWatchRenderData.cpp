@@ -18,6 +18,11 @@ FAnimNodePoseWatch::FAnimNodePoseWatch()
 	ViewportOffset = FVector::ZeroVector;
 }
 
+void FAnimNodePoseWatch::SetCurves(const FBlendedCurve& InCurves)
+{
+	Curves.CopyFrom(InCurves);
+}
+
 void FAnimNodePoseWatch::SetWorldTransform(const FTransform& InWorldTransform)
 {
 	WorldTransform = InWorldTransform;
@@ -62,6 +67,11 @@ const TArray<FBoneIndexType>& FAnimNodePoseWatch::GetRequiredBones() const
 const TArray<FTransform>& FAnimNodePoseWatch::GetBoneTransforms() const
 {
 	return BoneTransforms;
+}
+
+const FBlendedHeapCurve& FAnimNodePoseWatch::GetCurves() const
+{
+	return Curves;
 }
 
 const FTransform& FAnimNodePoseWatch::GetWorldTransform() const

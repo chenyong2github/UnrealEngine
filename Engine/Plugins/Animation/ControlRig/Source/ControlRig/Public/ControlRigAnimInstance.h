@@ -30,7 +30,7 @@ public:
 	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
 
 	TMap<int32, FTransform> StoredTransforms;
-	TMap<SmartName::UID_Type, float> StoredCurves;
+	TMap<FName, float> StoredCurves;
 };
 
 UCLASS(transient, NotBlueprintable)

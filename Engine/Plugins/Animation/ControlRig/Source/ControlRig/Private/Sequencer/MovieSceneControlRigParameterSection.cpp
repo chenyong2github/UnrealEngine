@@ -2981,7 +2981,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 		for (const FFloatCurve& Curve : CurveData.FloatCurves)
 		{
 			const float Val = Curve.FloatCurve.Eval(SequenceSecond);
-			SourceHierarchy->SetCurveValue(FRigElementKey(Curve.Name.DisplayName, ERigElementType::Curve), Val);
+			SourceHierarchy->SetCurveValue(FRigElementKey(Curve.GetName(), ERigElementType::Curve), Val);
 		}
 
 		// retrieve the pose using the services that persona and sequencer rely on

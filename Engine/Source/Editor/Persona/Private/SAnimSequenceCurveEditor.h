@@ -23,8 +23,11 @@ class FTabManager;
 class FRichCurveEditorModelNamed : public FRichCurveEditorModel
 {
 public:
+	UE_DEPRECATED(5.3, "Please use the constructor that takes a FName.")
 	FRichCurveEditorModelNamed(const FSmartName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex, UAnimSequenceBase* InAnimSequence, FCurveEditorTreeItemID InTreeId = FCurveEditorTreeItemID());
 
+	FRichCurveEditorModelNamed(const FName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex, UAnimSequenceBase* InAnimSequence, FCurveEditorTreeItemID InTreeId = FCurveEditorTreeItemID());
+	
 	virtual ~FRichCurveEditorModelNamed();
 
 	virtual bool IsValid() const override;
@@ -39,7 +42,9 @@ public:
 	void OnModelHasChanged(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& Payload);
 	void UpdateCachedCurve();
 
+	UE_DEPRECATED(5.3, "Please use CurveName.")
 	FSmartName Name;
+	FName CurveName;
 	TWeakObjectPtr<UAnimSequenceBase> AnimSequence;
 	int32 CurveIndex;
 	ERawCurveTrackTypes Type;
@@ -69,8 +74,8 @@ class SAnimSequenceCurveEditor : public IAnimSequenceCurveEditor
 
 	/** IAnimSequenceCurveEditor interface */
 	virtual void ResetCurves() override;
-	virtual void AddCurve(const FText& InCurveDisplayName, const FLinearColor& InCurveColor, const FSmartName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex, FSimpleDelegate InOnCurveModified) override;
-	virtual void RemoveCurve(const FSmartName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex) override;
+	virtual void AddCurve(const FText& InCurveDisplayName, const FLinearColor& InCurveColor, const FName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex, FSimpleDelegate InOnCurveModified) override;
+	virtual void RemoveCurve(const FName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex) override;
 	virtual void ZoomToFit() override;
 	
 	void OnModelHasChanged(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& Payload);

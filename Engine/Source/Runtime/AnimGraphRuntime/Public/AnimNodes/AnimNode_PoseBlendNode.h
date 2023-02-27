@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "AnimNodes/AnimNode_PoseHandler.h"
 #include "AlphaBlend.h"
+#include "Animation/AnimBulkCurves.h"
 #include "AnimNode_PoseBlendNode.generated.h"
 
 // Evaluates a point in an anim sequence, using a specific time input rather than advancing time internally.
@@ -26,6 +27,10 @@ public:
 	/** If you're using Custom BlendOption, you can specify curve */
 	UPROPERTY(EditAnywhere, Category = "Blend")
 	TObjectPtr<UCurveFloat> CustomCurve;
+
+private:
+	// Cached curves to extract
+	UE::Anim::TNamedValueArray<FDefaultAllocator, UE::Anim::FNamedIndexElement> BulkCurves;
 
 public:	
 	FAnimNode_PoseBlendNode();

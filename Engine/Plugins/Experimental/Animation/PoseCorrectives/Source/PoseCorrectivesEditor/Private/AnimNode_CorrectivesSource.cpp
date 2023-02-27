@@ -4,6 +4,7 @@
 
 #include "Animation/AnimInstanceProxy.h"
 #include "PoseCorrectivesAsset.h"
+#include "Animation/AnimCurveUtils.h"
 
 
 void FAnimNode_CorrectivesSource::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
@@ -16,22 +17,14 @@ void FAnimNode_CorrectivesSource::CacheBones_AnyThread(const FAnimationCacheBone
 	}
 
 	const FBoneContainer& BoneContainer = Context.AnimInstanceProxy->GetRequiredBones();
-	USkeleton* Skeleton = Context.AnimInstanceProxy->GetSkeleton();
 
 	BoneCompactIndices.Reset();
-	CurveUIDs.Reset();
-	
+
 	for (const FName& BoneName : PoseCorrectivesAsset->GetBoneNames())
 	{
 		FBoneReference BoneRef(BoneName);
-		BoneRef.Initialize(BoneContainer);		
+		BoneRef.Initialize(BoneContainer);
 		BoneCompactIndices.Push(BoneRef.GetCompactPoseIndex(BoneContainer));
-	}	
-
-	for (const FName& CurveName : PoseCorrectivesAsset->GetCurveNames())
-	{
-		SmartName::UID_Type CurveUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, CurveName);
-		CurveUIDs.Push(CurveUID);
 	}
 }
 
@@ -58,12 +51,22 @@ void FAnimNode_CorrectivesSource::Evaluate_AnyThread(FPoseContext& Output)
 			}
 		}
 
-		for (int32 CurveIndex = 0; CurveIndex < CurveUIDs.Num(); ++CurveIndex)
+		FBlendedCurve Curve;
+		auto GetNameFromIndex = [PoseCorrectivesAsset = PoseCorrectivesAsset](int32 InCurveIndex)
 		{
-			float CurveValue = PoseCorrective->CurveData[CurveIndex];
+			return PoseCorrectivesAsset->GetCurveNames()[InCurveIndex];
+		};
+		
+		auto GetValueFromIndex = [PoseCorrective, bUseSourcePose = bUseSourcePose](int32 InCurveIndex)
+		{
+			float CurveValue = PoseCorrective->CurveData[InCurveIndex];
 			if (!bUseSourcePose)
-				CurveValue += PoseCorrective->CorrectiveCurvesDelta[CurveIndex];
-			Output.Curve.Set(CurveUIDs[CurveIndex], CurveValue);
-		}
+				CurveValue += PoseCorrective->CorrectiveCurvesDelta[InCurveIndex];
+			return CurveValue;
+		};
+
+		UE::Anim::FCurveUtils::BuildUnsorted(Curve, PoseCorrectivesAsset->GetCurveNames().Num(), GetNameFromIndex, GetValueFromIndex);
+
+		Output.Curve.Override(Curve);
 	}
 }

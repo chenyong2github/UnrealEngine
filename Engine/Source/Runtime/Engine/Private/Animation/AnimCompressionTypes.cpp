@@ -129,7 +129,7 @@ public:
 			RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 		}
 
-		RequiredBones.InitializeTo(RequiredBoneIndexArray, FCurveEvaluationOption(true), *InSkeleton);
+		RequiredBones.InitializeTo(RequiredBoneIndexArray, UE::Anim::FCurveFilterSettings(UE::Anim::ECurveFilterMode::None), *InSkeleton);
 	}
 
 };
@@ -142,11 +142,11 @@ static void CopyTransformToRawAnimationData(const FTransform& BoneTransform, FRa
 	Track.ScaleKeys[Frame] = FVector3f(BoneTransform.GetScale3D());
 }
 
-static FFloatCurve* GetFloatCurve(TArray<FFloatCurve>& FloatCurves, const USkeleton::AnimCurveUID& CurveUID)
+static FFloatCurve* GetFloatCurve(TArray<FFloatCurve>& FloatCurves, const FName& CurveName)
 {
 	for (FFloatCurve& Curve : FloatCurves)
 	{
-		if (Curve.Name.UID == CurveUID)
+		if (Curve.GetName() == CurveName)
 		{
 			return &Curve;
 		}
@@ -155,10 +155,9 @@ static FFloatCurve* GetFloatCurve(TArray<FFloatCurve>& FloatCurves, const USkele
 	return nullptr;
 }
 
-static FFloatCurve* FindOrAddCurve(TArray<FFloatCurve>& FloatCurves, const FSmartName& CurveName)
+static FFloatCurve* FindOrAddCurve(TArray<FFloatCurve>& FloatCurves, const FName& CurveName)
 {
-	FFloatCurve* ReturnCurve = GetFloatCurve(FloatCurves, CurveName.UID);
-
+	FFloatCurve* ReturnCurve = GetFloatCurve(FloatCurves, CurveName);
 	if (ReturnCurve == nullptr)
 	{
 		FFloatCurve& NewCurve = FloatCurves.Add_GetRef(FFloatCurve(CurveName, 0));
@@ -166,7 +165,6 @@ static FFloatCurve* FindOrAddCurve(TArray<FFloatCurve>& FloatCurves, const FSmar
 	}
 
 	return ReturnCurve;
-	
 }
 
 static bool IsNewKeyDifferent(const FRichCurveKey& LastKey, float NewValue)
@@ -272,53 +270,45 @@ void FCompressibleAnimData::BakeOutAdditiveIntoRawData(const FFrameRate& SampleR
 			}
 
 			//Write out curve data for this frame
-			for (int32 CurveIndex = 0; CurveIndex < Curve.UIDToArrayIndexLUT->Num(); ++CurveIndex)
+			Curve.ForEachElement([this, &FloatCurves, KeyIndex, PreviousKeyTime, CurrentKeyTime, CurrentFrameTime, &SampleRate](const UE::Anim::FCurveElement& InElement)
 			{
-				USkeleton::AnimCurveUID CurveUID = (USkeleton::AnimCurveUID) CurveIndex;
-				int32 ArrayIndex = Curve.GetArrayIndexByUID(CurveUID);
-				if (ArrayIndex != INDEX_NONE)
+				const float CurveWeight = InElement.Value;
+				FFloatCurve* RawCurve = GetFloatCurve(FloatCurves, InElement.Name);
+				if (!RawCurve && !FMath::IsNearlyZero(CurveWeight)) //Only make a new curve if we are going to give it data
 				{
-					float CurveWeight = Curve.CurveWeights[ArrayIndex];
-					FFloatCurve* RawCurve = GetFloatCurve(FloatCurves, CurveUID);
-					if (!RawCurve && !FMath::IsNearlyZero(CurveWeight)) //Only make a new curve if we are going to give it data
+					// curve flags don't matter much for compressed curves
+					RawCurve = FindOrAddCurve(FloatCurves, InElement.Name);
+				}
+
+				if (RawCurve)
+				{
+					const bool bHasKeys = RawCurve->FloatCurve.GetNumKeys() > 0;
+					if (!bHasKeys)
 					{
-						FSmartName NewCurveName;
-						// if we don't have name, there is something wrong here. 
-						ensureAlways(Skeleton->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveUID, NewCurveName));
-						// curve flags don't matter much for compressed curves
-						RawCurve = FindOrAddCurve(FloatCurves, NewCurveName);
+						//Add pre key of 0
+						if (KeyIndex > 0)
+						{
+							RawCurve->UpdateOrAddKey(0.f, PreviousKeyTime);
+						}
 					}
 
-					if (RawCurve)
+					if (!bHasKeys || IsNewKeyDifferent(RawCurve->FloatCurve.GetLastKey(), CurveWeight))
 					{
-						const bool bHasKeys = RawCurve->FloatCurve.GetNumKeys() > 0;
-						if (!bHasKeys)
+						RawCurve->UpdateOrAddKey(CurveWeight, CurrentKeyTime);
+						TArray<FRichCurveKey>& CurveKeys = RawCurve->FloatCurve.Keys;
+						if (CurveKeys.Num() > 1)
 						{
-							//Add pre key of 0
-							if (KeyIndex > 0)
+							FRichCurveKey& PrevKey = CurveKeys.Last(1);
+							// Round to frame here as it would have been added at a specific frame boundary (though float->double conversion might mean the value is off)
+							const FFrameTime PrevKeyTime = SampleRate.AsFrameTime(PrevKey.Time).RoundToFrame();
+							if (PrevKeyTime < CurrentFrameTime - 1) // Did we skip a frame, if so need to make previous key const
 							{
-								RawCurve->UpdateOrAddKey(0.f, PreviousKeyTime);
-							}
-						}
-
-						if (!bHasKeys || IsNewKeyDifferent(RawCurve->FloatCurve.GetLastKey(), CurveWeight))
-						{
-							RawCurve->UpdateOrAddKey(CurveWeight, CurrentKeyTime);
-							TArray<FRichCurveKey>& CurveKeys = RawCurve->FloatCurve.Keys;
-							if (CurveKeys.Num() > 1)
-							{
-								FRichCurveKey& PrevKey = CurveKeys.Last(1);
-								// Round to frame here as it would have been added at a specific frame boundary (though float->double conversion might mean the value is off)
-								const FFrameTime PrevKeyTime = SampleRate.AsFrameTime(PrevKey.Time).RoundToFrame();
-								if (PrevKeyTime < CurrentFrameTime - 1) // Did we skip a frame, if so need to make previous key const
-								{
-									PrevKey.InterpMode = RCIM_Constant;
-								}
+								PrevKey.InterpMode = RCIM_Constant;
 							}
 						}
 					}
 				}
-			}
+			});
 		}
 	}
 }
@@ -650,7 +640,7 @@ void FCompressibleAnimData::WriteCompressionDataToJSON(TArrayView<FName> Origina
 				{
 					Writer->WriteObjectStart();
 					{
-						Writer->WriteValue(TEXT("curve_name"), FloatCurve.Name.DisplayName.ToString());
+						Writer->WriteValue(TEXT("curve_name"), FloatCurve.GetName().ToString());
 						Writer->WriteValue(TEXT("number_of_keys"), FloatCurve.FloatCurve.GetNumKeys());
 							
 						if(FloatCurve.FloatCurve.GetConstRefOfKeys().Num())
@@ -785,6 +775,13 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 		OriginalTrackNames.Add(AnimTrack.Name);
 	}
 
+	// Pre-sort raw float curves. While FName indices are not stable over serialization, ordering is *close* if names come from the same source.
+	// Sorting increases the chances of linearizing the decompression later
+	RawFloatCurves.Sort([](const FFloatCurve& InLHS, const FFloatCurve& InRHS)
+	{
+		return InLHS.GetName().FastLess(InRHS.GetName());
+	});
+	
 	// Apply any key reduction if possible
 	if (RawAnimationData.Num())
 	{ 
@@ -863,13 +860,6 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
         }
 	}
 
-	// Find or add curve names on skeleton
-	const FSmartNameMapping* Mapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-	for (FFloatCurve& Curve : RawFloatCurves)
-	{
-		Skeleton->VerifySmartName(USkeleton::AnimCurveMappingName, Curve.Name);
-	}
-	   
 	if (bShouldPerformStripping)
 	{
 		const int32 NumTracks = RawAnimationData.Num();
@@ -956,13 +946,15 @@ void FCompressibleAnimData::Update(FCompressedAnimSequence& InOutCompressedData)
 	InOutCompressedData.CompressedRawDataSize = GetApproxRawSize();
 
 	const int32 NumCurves = RawFloatCurves.Num();
-	InOutCompressedData.CompressedCurveNames.Reset(NumCurves);
-	InOutCompressedData.CompressedCurveNames.AddUninitialized(NumCurves);
+	InOutCompressedData.IndexedCurveNames.Reset(NumCurves);
+	InOutCompressedData.IndexedCurveNames.AddUninitialized(NumCurves);
 	for (int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 	{
 		const FFloatCurve& Curve = RawFloatCurves[CurveIndex];
-		InOutCompressedData.CompressedCurveNames[CurveIndex] = Curve.Name;
+		InOutCompressedData.IndexedCurveNames[CurveIndex].CurveName = Curve.GetName();
 	}
+
+	InOutCompressedData.RebuildCurveIndexTable();
 }
 
 #endif // WITH_EDITOR
@@ -1202,7 +1194,7 @@ void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCDat
 {
 	Ar << CompressedRawDataSize;
 	Ar << CompressedTrackToSkeletonMapTable;
-	Ar << CompressedCurveNames;
+	Ar << IndexedCurveNames;
 
 	// Serialize the compressed byte stream from the archive to the buffer.
 	int32 NumBytes = CompressedByteStream.Num();
@@ -1304,6 +1296,8 @@ void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCDat
 				BoneCompressionCodec->ByteSwapIn(*CompressedDataStructure, CompressedByteStream, MemoryReader);
 			}
 		}
+
+		RebuildCurveIndexTable();
 	}
 	else if (Ar.IsSaving() || Ar.IsCountingMemory())
 	{
@@ -1421,20 +1415,41 @@ void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCDat
 		{
 			//Temp DDC debug
 			//DebugData.Display();
-			// Refresh the compressed curve names since the IDs might have changed since
-			for (FSmartName& CurveName : CompressedCurveNames)
-			{
-				Skeleton->VerifySmartName(USkeleton::AnimCurveMappingName, CurveName);
-			}
 		}
 	}
 #endif
 }
 
+void FCompressedAnimSequence::RebuildCurveIndexTable()
+{
+	FMemMark Mark(FMemStack::Get());
+
+	TArray<int32, TMemStackAllocator<>> IndexArray;
+	IndexArray.SetNumUninitialized(IndexedCurveNames.Num());
+	
+	// Create linear indices
+	for(int32 NameIndex = 0; NameIndex < IndexArray.Num(); ++NameIndex)
+	{
+		IndexArray[NameIndex] = NameIndex;
+	}
+
+	// Sort by FName
+	IndexArray.Sort([&IndexedCurveNames = IndexedCurveNames](int32 LHS, int32 RHS)
+	{
+		return IndexedCurveNames[LHS].CurveName.FastLess(IndexedCurveNames[RHS].CurveName);
+	});
+
+	// Index curves
+	for(int32 NameIndex = 0; NameIndex < IndexedCurveNames.Num(); ++NameIndex)
+	{
+		IndexedCurveNames[NameIndex].CurveIndex = IndexArray[NameIndex];
+	}
+}
+
 SIZE_T FCompressedAnimSequence::GetMemorySize() const
 {
 	return	  CompressedTrackToSkeletonMapTable.GetAllocatedSize()
-			+ CompressedCurveNames.GetAllocatedSize()
+			+ IndexedCurveNames.GetAllocatedSize()
 			+ CompressedCurveByteStream.GetAllocatedSize()
 			+ CompressedDataStructure->GetApproxCompressedSize()
 			+ sizeof(FCompressedAnimSequence);
@@ -1443,7 +1458,7 @@ SIZE_T FCompressedAnimSequence::GetMemorySize() const
 void FCompressedAnimSequence::Reset()
 {
 	CompressedTrackToSkeletonMapTable.Empty();
-	CompressedCurveNames.Empty();
+	IndexedCurveNames.Empty();
 	ClearCompressedBoneData();
 	ClearCompressedCurveData();
 	CompressedRawDataSize = 0;
@@ -1556,13 +1571,13 @@ void UpdateSHAWithCurves(FSHA1& Sha, const FRawCurveTracks& InRawCurveData)
 
 	for (const FFloatCurve& Curve : InRawCurveData.FloatCurves)
 			{
-		UpdateWithData(Sha, Curve.Name.UID);
+		UpdateWithData(Sha, Curve.GetName());
 		UpdateWithFloatCurve(Curve.FloatCurve);
 	}
 
 	for (const FTransformCurve& Curve : InRawCurveData.TransformCurves)
 	{
-		UpdateWithData(Sha, Curve.Name.UID);
+		UpdateWithData(Sha, Curve.GetName());
 
 		auto UpdateWithComponent = [&Sha, &UpdateWithFloatCurve](const FVectorCurve& VectorCurve)
 		{

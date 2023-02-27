@@ -78,17 +78,13 @@ namespace UE::MLDeformer
 		// Get the curve names.
 		if (Skeleton)
 		{
-			const FSmartNameMapping* Mapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-			if (Mapping)
-			{
-				TArray<FName> SkeletonCurveNames;
-				Mapping->FillNameArray(SkeletonCurveNames);
+			TArray<FName> SkeletonCurveNames;
+			Skeleton->GetCurveMetaDataNames(SkeletonCurveNames);
 
-				UniqueCurveNames.Reserve(SkeletonCurveNames.Num());
-				for (const FName& CurveName : SkeletonCurveNames)
-				{
-					UniqueCurveNames.Add(CurveName.ToString());
-				}
+			UniqueCurveNames.Reserve(SkeletonCurveNames.Num());
+			for (const FName& CurveName : SkeletonCurveNames)
+			{
+				UniqueCurveNames.Add(CurveName.ToString());
 			}
 		}
 

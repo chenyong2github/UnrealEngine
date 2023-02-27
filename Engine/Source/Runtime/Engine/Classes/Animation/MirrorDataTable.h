@@ -108,12 +108,7 @@ public:
 	ENGINE_API virtual void PostLoad() override;
 
 #if WITH_EDITOR
-
-	ENGINE_API virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
-
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-
-
 #endif // WITH_EDITOR
 
 	/**
@@ -194,13 +189,16 @@ public:
 
 	// Index of the mirror bone for a given bone index in the reference skeleton, or INDEX_NONE if the bone is not mirrored
 	TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> BoneToMirrorBoneIndex;
-
-	// Array with entries the source UIDs of curves that should be mirrored. 
+	
+	UE_DEPRECATED(5.3, "UID-based mirroring has been remove, please use CurveToMirrorCurveMap.")
 	TArray<SmartName::UID_Type> CurveMirrorSourceUIDArray;
-
-	// Array with the target UIDs of curves that should be mirrored. 
+	
+	UE_DEPRECATED(5.3, "UID-based mirroring has been remove, please use CurveToMirrorCurveMap.")
 	TArray<SmartName::UID_Type> CurveMirrorTargetUIDArray;
 
+	// Map from animation curve to mirrored animation curve
+	TMap<FName, FName> CurveToMirrorCurveMap;
+	
 	// Map from animation notify to mirrored animation notify
 	TMap<FName, FName> AnimNotifyToMirrorAnimNotifyMap;
 	
