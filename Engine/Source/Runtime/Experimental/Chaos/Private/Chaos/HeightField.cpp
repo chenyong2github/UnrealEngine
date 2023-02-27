@@ -873,7 +873,8 @@ namespace Chaos
 
 	bool Chaos::FHeightField::IsHole(int32 InIndex) const
 	{
-		return GetMaterialIndex(InIndex) == TNumericLimits<uint8>::Max();
+		const bool bHasMaterials = GeomData.MaterialIndices.Num() > 0;
+		return bHasMaterials && GetMaterialIndex(InIndex) == TNumericLimits<uint8>::Max();
 	}
 
 	bool Chaos::FHeightField::IsHole(int32 InCellX, int32 InCellY) const
