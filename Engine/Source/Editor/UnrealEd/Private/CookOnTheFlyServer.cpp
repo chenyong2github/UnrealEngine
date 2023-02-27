@@ -144,6 +144,7 @@
 #define LOCTEXT_NAMESPACE "Cooker"
 
 DEFINE_LOG_CATEGORY(LogCook);
+FName LogCookName(TEXT("LogCook"));
 LLM_DEFINE_TAG(Cooker);
 LLM_DEFINE_TAG(Cooker_SavePackage);
 

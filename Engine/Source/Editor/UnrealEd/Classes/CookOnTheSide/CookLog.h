@@ -5,3 +5,4 @@
 #include "Logging/LogMacros.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogCook, Log, All);
+extern FName LogCookName;

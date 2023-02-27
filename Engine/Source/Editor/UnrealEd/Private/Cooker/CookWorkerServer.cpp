@@ -13,6 +13,8 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Math/NumericLimits.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Parse.h"
 #include "Misc/ScopeLock.h"
 #include "PackageResultsMessage.h"
 #include "PackageTracker.h"
@@ -52,6 +54,55 @@ void FCookWorkerServer::DetachFromRemoteProcess()
 	bTerminateImmediately = false;
 	SendBuffer.Reset();
 	ReceiveBuffer.Reset();
+
+	if (bNeedCrashDiagnostics)
+	{
+		SendCrashDiagnostics();
+		bNeedCrashDiagnostics = false;
+	}
+}
+
+void FCookWorkerServer::SendCrashDiagnostics()
+{
+	FString LogFileName = Director.GetWorkerLogFileName(ProfileId);
+	UE_LOG(LogCook, Display, TEXT("CookWorker %d log messages written after communication loss:"), ProfileId);
+	FString LogText;
+	if (!FFileHelper::LoadFileToString(LogText, *LogFileName))
+	{
+		UE_LOG(LogCook, Warning, TEXT("No log file found for CookWorker %d."), ProfileId);
+	}
+	else
+	{
+		FString LastSentHeartbeat = FString::Printf(TEXT("CookWorkerHeartbeat: %d"), LastReceivedHeartbeatNumber);
+		int32 StartIndex = INDEX_NONE;
+		for (FStringView MarkerText : { FStringView(LastSentHeartbeat),
+			TEXTVIEW("CookWorkerHeartbeat: "), TEXTVIEW("Connection to CookDirector successful") })
+		{
+			StartIndex = UE::String::FindLast(LogText, MarkerText);
+			if (StartIndex >= 0)
+			{
+				break;
+			}
+		}
+		const TCHAR* StartText = *LogText;
+		FString Line;
+		if (StartIndex != INDEX_NONE)
+		{
+			// Skip the MarkerLine
+			StartText = *LogText + StartIndex;
+			FParse::Line(&StartText, Line);
+			if (*StartText == '\0')
+			{
+				// If there was no line after the MarkerLine, write out the MarkerLine
+				StartText = *LogText + StartIndex;
+			}
+		}
+
+		while (FParse::Line(&StartText, Line))
+		{
+			UE_LOG(LogCook, Display, TEXT("[CookWorker %d]: %s"), ProfileId, *Line);
+		}
+	}
 }
 
 void FCookWorkerServer::ShutdownRemoteProcess()
@@ -362,8 +413,9 @@ void FCookWorkerServer::LaunchProcess()
 	else
 	{
 		// GetLastError information was logged by CreateProc
-		UE_LOG(LogCook, Error, TEXT("CookWorkerServer %d failed to create CookWorker process. Assigned packages will be returned to the director."),
+		UE_LOG(LogCook, Error, TEXT("CookWorkerCrash: %d failed to create CookWorker process. Assigned packages will be returned to the director."),
 			ProfileId);
+		bNeedCrashDiagnostics = true;
 		SendToState(EConnectStatus::LostConnection);
 	}
 }
@@ -380,8 +432,9 @@ void FCookWorkerServer::TickWaitForConnect()
 	{
 		if (!FPlatformProcess::IsProcRunning(CookWorkerHandle))
 		{
-			UE_LOG(LogCook, Error, TEXT("CookWorkerServer %d process terminated before connecting. Assigned packages will be returned to the director."),
+			UE_LOG(LogCook, Error, TEXT("CookWorkerCrash: %d process terminated before connecting. Assigned packages will be returned to the director."),
 				ProfileId);
+			bNeedCrashDiagnostics = true;
 			SendToState(EConnectStatus::LostConnection);
 			return;
 		}
@@ -390,9 +443,10 @@ void FCookWorkerServer::TickWaitForConnect()
 
 	if (CurrentTime - ConnectStartTimeSeconds > WaitForConnectTimeout && !IsCookIgnoreTimeouts())
 	{
-		UE_LOG(LogCook, Error, TEXT("CookWorkerServer %d process failed to connect within %.0f seconds. Assigned packages will be returned to the director."),
+		UE_LOG(LogCook, Error, TEXT("CookWorkerCrash: %d process failed to connect within %.0f seconds. Assigned packages will be returned to the director."),
 			ProfileId, WaitForConnectTimeout);
 		ShutdownRemoteProcess();
+		bNeedCrashDiagnostics = true;
 		SendToState(EConnectStatus::LostConnection);
 		return;
 	}
@@ -434,8 +488,9 @@ void FCookWorkerServer::PumpSendMessages()
 	UE::CompactBinaryTCP::EConnectionStatus Status = UE::CompactBinaryTCP::TryFlushBuffer(Socket, SendBuffer);
 	if (Status == UE::CompactBinaryTCP::Failed)
 	{
-		UE_LOG(LogCook, Error, TEXT("CookWorkerServer %d failed to write to socket, we will shutdown the remote process. Assigned packages will be returned to the director."),
+		UE_LOG(LogCook, Error, TEXT("CookWorker Crash: %d failed to write to socket, we will shutdown the remote process. Assigned packages will be returned to the director."),
 			ProfileId);
+		bNeedCrashDiagnostics = true;
 		SendToState(EConnectStatus::WaitForDisconnect);
 		bTerminateImmediately = true;
 	}
@@ -470,8 +525,9 @@ void FCookWorkerServer::PumpReceiveMessages()
 	EConnectionStatus SocketStatus = TryReadPacket(Socket, ReceiveBuffer, Messages);
 	if (SocketStatus != EConnectionStatus::Okay && SocketStatus != EConnectionStatus::Incomplete)
 	{
-		UE_LOG(LogCook, Warning, TEXT("CookWorkerServer %d failed to read from socket, we will shutdown the remote process. Assigned packages will be returned to the director."),
+		UE_LOG(LogCook, Error, TEXT("CookWorkerCrash: %d failed to read from socket, we will shutdown the remote process. Assigned packages will be returned to the director."),
 			ProfileId);
+		bNeedCrashDiagnostics = true;
 		SendToState(EConnectStatus::WaitForDisconnect);
 		bTerminateImmediately = true;
 		return;
@@ -499,9 +555,10 @@ void FCookWorkerServer::HandleReceiveMessagesInternal()
 		{
 			UE::CompactBinaryTCP::FMarshalledMessage Message = ReceiveMessages.PopFrontValue();
 			UE_CLOG(ConnectStatus != EConnectStatus::PumpingCookComplete && ConnectStatus != EConnectStatus::WaitForDisconnect,
-				LogCook, Error, TEXT("CookWorkerServer %d remote process shut down unexpectedly. Assigned packages will be returned to the director."),
+				LogCook, Error, TEXT("CookWorkerCrash: %d remote process shut down unexpectedly. Assigned packages will be returned to the director."),
 				ProfileId);
 
+			bNeedCrashDiagnostics = true;
 			SendMessageInLock(FAbortWorkerMessage(FAbortWorkerMessage::AbortAcknowledge));
 			SendToState(EConnectStatus::WaitForDisconnect);
 			ReceiveMessages.Reset();
@@ -1025,6 +1082,11 @@ void FLogMessagesMessageHandler::ServerReceiveMessage(FMPCollectorServerMessageC
 
 	for (FReplicatedLogData& LogData : Messages)
 	{
+		if (LogData.Category == LogCookName && LogData.Message.Contains(TEXT("CookWorkerHeatbeat:")))
+		{
+			// Do not spam heartbeat messages into the CookDirector log
+			continue;
+		}
 		GLog->CategorizedLogf(LogData.Category, LogData.Verbosity, TEXT("[CookWorker %d]: %s"),
 			Context.GetProfileId(), *LogData.Message);
 	}

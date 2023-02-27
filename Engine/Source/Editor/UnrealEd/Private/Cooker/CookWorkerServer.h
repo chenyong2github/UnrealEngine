@@ -156,6 +156,8 @@ private:
 	void SendToState(EConnectStatus TargetStatus);
 	/** Close the connection and connection resources to the remote process. Does not kill the process. */
 	void DetachFromRemoteProcess();
+	/** Report from the log of the crashed CookWorker. */
+	void SendCrashDiagnostics();
 	/** Kill the Client process (non-graceful termination), and close the connection resources. */
 	void ShutdownRemoteProcess();
 	/** The main implementation of HandleReceiveMessages, only callable from inside the lock. */
@@ -190,6 +192,7 @@ private:
 	FWorkerId WorkerId = FWorkerId::Invalid();
 	EConnectStatus ConnectStatus = EConnectStatus::Uninitialized;
 	bool bTerminateImmediately = false;
+	bool bNeedCrashDiagnostics = false;
 };
 
 /** Information about a PackageData the director sends to cookworkers. */

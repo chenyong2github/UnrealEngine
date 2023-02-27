@@ -10,6 +10,7 @@
 #include "CookWorkerServer.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CoreGlobals.h"
+#include "GenericPlatform/GenericPlatformOutputDevices.h"
 #include "LoadBalanceCookBurden.h"
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformTime.h"
@@ -17,6 +18,7 @@
 #include "Math/NumericLimits.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/PathViews.h"
 #include "PackageTracker.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
@@ -1198,6 +1200,14 @@ void FCookDirector::TickWorkerShutdowns(ECookDirectorThread TickThread)
 	CompletedWorkers.Empty();
 }
 
+FString FCookDirector::GetWorkerLogFileName(int32 ProfileId)
+{
+	FString DirectorLogFileName = FGenericPlatformOutputDevices::GetAbsoluteLogFilename();
+	FStringView BaseFileName = FPathViews::GetBaseFilenameWithPath(DirectorLogFileName);
+	FStringView Extension = FPathViews::GetExtension(DirectorLogFileName, true /* bIncludeDot */);
+	return FString::Printf(TEXT("%.*s_Worker%d%*s"), BaseFileName.Len(), BaseFileName.GetData(), ProfileId, Extension.Len(), Extension.GetData());
+}
+
 FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId)
 {
 	FString CommandLine = FCommandLine::Get();
@@ -1219,7 +1229,8 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId)
 				Token.StartsWith(TEXT("-ShowCookWorker")) ||
 				Token.StartsWith(TEXT("-CoreLimit")) ||
 				Token.StartsWith(TEXT("-PhysicalCoreLimit")) ||
-				Token.StartsWith(TEXT("-CookProcessCount="))
+				Token.StartsWith(TEXT("-CookProcessCount=")) ||
+				Token.StartsWith(TEXT("-abslog="))
 				)
 			{
 				return;
@@ -1244,6 +1255,7 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId)
 	Tokens.Add(FString::Printf(TEXT("-CookDirectorHost=%s"), *WorkerConnectAuthority));
 	Tokens.Add(FString::Printf(TEXT("-MultiprocessId=%d"), WorkerId.GetRemoteIndex() + 1));
 	Tokens.Add(FString::Printf(TEXT("-CookProfileId=%d"), ProfileId));
+	Tokens.Add(FString::Printf(TEXT("-abslog=%s"), *GetWorkerLogFileName(ProfileId)));
 	if (CoreLimit > 0)
 	{
 		Tokens.Add(FString::Printf(TEXT("-PhysicalCoreLimit=%d"), CoreLimit));

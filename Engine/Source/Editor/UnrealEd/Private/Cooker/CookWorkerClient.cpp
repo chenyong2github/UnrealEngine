@@ -827,6 +827,7 @@ void FCookWorkerClient::HandleHeartbeatMessage(FMPCollectorClientMessageContext&
 		return;
 	}
 
+	UE_LOG(LogCook, Display, TEXT("CookWorkerHeartbeat: %d"), Message.HeartbeatNumber);
 	SendMessage(FHeartbeatMessage(Message.HeartbeatNumber));
 }
 
