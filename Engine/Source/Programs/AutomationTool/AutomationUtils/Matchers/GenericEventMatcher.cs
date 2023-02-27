@@ -18,7 +18,7 @@ namespace AutomationUtils.Matchers
 			@"^\s*(FATAL|fatal error):");
 
 		static readonly Regex s_warningErrorPattern = new Regex(
-			@"(?<!\w)(?i)(WARNING|ERROR) ?(\([^)]+\)|\[[^\]]+\])?: ");
+			@"(?<!\w)(?i)(WARNING|ERROR) ?(\([^)]+\)|\[[^\]]+\])?:(?: |$)");
 
 		static readonly Regex s_errorPattern = new Regex(
 			@"[Ee]rror [A-Z]\d+\s:");

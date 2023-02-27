@@ -108,6 +108,21 @@ class SyncProject : SyncProjectBase
 {
 	public override ExitCode Execute()
 	{
+		if (!ParseParam("Deprecated"))
+		{
+			LogError("**************************************************************************");
+			LogError("The SyncProject command has been deprecated, and will be removed in an");
+			LogError("upcoming UnrealEngine release.");
+			LogError("");
+			LogError("Similar functionality is available through the UnrealGameSync command-line");
+			LogError("tool, which is supported on Windows, Mac and Linux.");
+			LogError("");
+			LogError("To ignore this warning and continue to using SyncProject anyway, add the");
+			LogError("-Deprecated argument to the command line.");
+			LogError("**************************************************************************");
+			return ExitCode.Error_Unknown;
+		}
+
 		LogInformation("************************* SyncProject");
 
 		// These are files that should always be synced because tools update them
