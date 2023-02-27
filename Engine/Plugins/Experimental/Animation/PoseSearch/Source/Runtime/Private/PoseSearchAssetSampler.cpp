@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_EDITOR
-
 #include "PoseSearch/PoseSearchAssetSampler.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimMontage.h"
@@ -79,36 +77,6 @@ static FTransform ExtrapolateRootMotion(
 
 	ExtrapolatedRootMotion = RemainingExtrapolatedRootMotion * ExtrapolatedRootMotion;
 	return ExtrapolatedRootMotion;
-}
-
-//////////////////////////////////////////////////////////////////////////
-// FAssetSamplingContext
-void FAssetSamplingContext::Init(const UMirrorDataTable* InMirrorDataTable, const FBoneContainer& BoneContainer)
-{
-	MirrorDataTable = InMirrorDataTable;
-
-	if (InMirrorDataTable)
-	{
-		InMirrorDataTable->FillCompactPoseAndComponentRefRotations(BoneContainer, CompactPoseMirrorBones, ComponentSpaceRefRotations);
-	}
-	else
-	{
-		CompactPoseMirrorBones.Reset();
-		ComponentSpaceRefRotations.Reset();
-	}
-}
-
-FTransform FAssetSamplingContext::MirrorTransform(const FTransform& InTransform) const
-{
-	const EAxis::Type MirrorAxis = MirrorDataTable->MirrorAxis;
-	FVector T = InTransform.GetTranslation();
-	T = FAnimationRuntime::MirrorVector(T, MirrorAxis);
-	const FQuat ReferenceRotation = ComponentSpaceRefRotations[FCompactPoseBoneIndex(0)];
-	FQuat Q = InTransform.GetRotation();
-	Q = FAnimationRuntime::MirrorQuat(Q, MirrorAxis);
-	Q *= FAnimationRuntime::MirrorQuat(ReferenceRotation, MirrorAxis).Inverse() * ReferenceRotation;
-	FTransform Result = FTransform(Q, T, InTransform.GetScale3D());
-	return Result;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -733,5 +701,3 @@ const UAnimationAsset* FAnimMontageSampler::GetAsset() const
 }
 
 } // namespace UE::PoseSearch
-
-#endif // WITH_EDITOR

@@ -36,6 +36,9 @@ public:
 	virtual void IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const override;
 	virtual FString GetLabel() const override;
 #endif
+
+private:
+	void GetPermutationTimeOffsets(float DesiredPermutationTimeOffset, float& OutPermutationSampleTimeOffset, float& OutPermutationOriginTimeOffset) const;
 };
 
 

@@ -141,37 +141,48 @@ FQuat FSearchContext::GetSampleRotation(float SampleTimeOffset, const UPoseSearc
 	// @todo: add support for SchemaSampleBoneIdx
 	if (SchemaOriginBoneIdx != RootSchemaBoneIdx)
 	{
-		UE_LOG(LogPoseSearch,
-			Error,
-			TEXT("FSearchContext::GetSampleRotation: support for non root origin bones not implemented (bone: '%s', schema: '%s'"),
-			*Schema->BoneReferences[SchemaOriginBoneIdx].BoneName.ToString(),
-			*GetNameSafe(Schema));
+		UE_LOG(LogPoseSearch, Error, TEXT("FSearchContext::GetSampleRotation: support for non root origin bones not implemented (bone: '%s', schema: '%s'"),
+			*Schema->BoneReferences[SchemaOriginBoneIdx].BoneName.ToString(), *GetNameSafe(Schema));
 	}
 
-	return GetComponentSpaceTransform(SampleTimeOffset, Schema, SchemaSampleBoneIdx).GetRotation();
+	const float SampleTime = SampleTimeOffset + PermutationSampleTimeOffset;
+	const float OriginTime = PermutationOriginTimeOffset;
+
+	// @todo: add support for OriginTime != 0 (like in GetSamplePosition and GetSampleVelocity)
+	if (OriginTime != 0.f)
+	{
+		UE_LOG(LogPoseSearch, Error, TEXT("FSearchContext::GetSampleRotation: support for OriginTime != 0 not implemented (bone: '%s', schema: '%s'"),
+			SchemaOriginBoneIdx >= 0 ? *Schema->BoneReferences[SchemaOriginBoneIdx].BoneName.ToString() : TEXT("RootBone"), *GetNameSafe(Schema));
+	}
+
+	return GetComponentSpaceTransform(SampleTime, Schema, SchemaSampleBoneIdx).GetRotation();
 }
 
 FVector FSearchContext::GetSamplePosition(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseHistoryRoot)
 {
-	return GetSamplePositionInternal(SampleTimeOffset, 0.f, Schema, SchemaSampleBoneIdx, SchemaOriginBoneIdx, bUseHistoryRoot);
+	const float SampleTime = SampleTimeOffset + PermutationSampleTimeOffset;
+	const float OriginTime = PermutationOriginTimeOffset;
+	return GetSamplePositionInternal(SampleTime, OriginTime, Schema, SchemaSampleBoneIdx, SchemaOriginBoneIdx, bUseHistoryRoot);
 }
 
 FVector FSearchContext::GetSampleVelocity(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseCharacterSpaceVelocities, bool bUseHistoryRoot)
 {
-	const float HistorySampleInterval = History ? History->GetSampleTimeInterval() : 1 / 60.0f;
-	check(HistorySampleInterval > UE_KINDA_SMALL_NUMBER);
+	const float SampleTime = SampleTimeOffset + PermutationSampleTimeOffset;
+	const float OriginTime = PermutationOriginTimeOffset;
+	const float FiniteDelta = History ? History->GetSampleTimeInterval() : 1 / 60.0f;
+	check(FiniteDelta > UE_KINDA_SMALL_NUMBER);
 
 	// calculating the Position in component space for the bone indexed by SchemaSampleBoneIdx
-	const FVector CurrentTranslation = GetSamplePositionInternal(SampleTimeOffset, 0.f, Schema, SchemaSampleBoneIdx, SchemaOriginBoneIdx, bUseHistoryRoot);
-	const FVector PreviousTranslation = GetSamplePositionInternal(SampleTimeOffset - HistorySampleInterval, bUseCharacterSpaceVelocities ? -HistorySampleInterval : 0.f, Schema, SchemaSampleBoneIdx, SchemaOriginBoneIdx, bUseHistoryRoot);
+	const FVector PreviousTranslation = GetSamplePositionInternal(SampleTime - FiniteDelta, bUseCharacterSpaceVelocities ? OriginTime - FiniteDelta : OriginTime, Schema, SchemaSampleBoneIdx, SchemaOriginBoneIdx, bUseHistoryRoot);
+	const FVector CurrentTranslation = GetSamplePositionInternal(SampleTime, OriginTime, Schema, SchemaSampleBoneIdx, SchemaOriginBoneIdx, bUseHistoryRoot);
 
-	const FVector LinearVelocity = (CurrentTranslation - PreviousTranslation) / HistorySampleInterval;
+	const FVector LinearVelocity = (CurrentTranslation - PreviousTranslation) / FiniteDelta;
 	return LinearVelocity;
 }
 
 FTransform FSearchContext::GetTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool bUseHistoryRoot)
 {
-	// collecting the RootTransform from the FPoseHistory
+	// collecting the RootTransform from the IPoseHistory
 	FTransform RootTransform = FTransform::Identity;
 	if (bUseHistoryRoot)
 	{
@@ -207,7 +218,7 @@ FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, const UP
 			return CachedTransform->Transform;
 		}
 	
-		// collecting the local bone transforms from the FPoseHistory
+		// collecting the local bone transforms from the IPoseHistory
 		check(History);
 		FTransform BoneComponentSpaceTransform;
 		if (!History->GetComponentSpaceTransformAtTime(SampleTime, BoneIndexType, BoneComponentSpaceTransform))
@@ -252,6 +263,20 @@ FVector FSearchContext::GetSamplePositionInternal(float SampleTime, float Origin
 	const FTransform OriginBoneTransform = GetTransform(OriginTime, Schema, SchemaOriginBoneIdx, bUseHistoryRoot);
 	const FVector DeltaBoneTranslation = SampleBoneTransform.GetTranslation() - OriginBoneTransform.GetTranslation();
 	return RootBoneTransform.InverseTransformVector(DeltaBoneTranslation);
+}
+
+void FSearchContext::SetPermutationTimeOffsets(float InPermutationSampleTimeOffset, float InPermutationOriginTimeOffset)
+{
+	// right now we disallow having nested channel controlling time offsets
+	check(PermutationSampleTimeOffset == 0.f && PermutationOriginTimeOffset == 0.f);
+	PermutationSampleTimeOffset = InPermutationSampleTimeOffset;
+	PermutationOriginTimeOffset = InPermutationOriginTimeOffset;
+}
+
+void FSearchContext::ResetPermutationTimeOffsets()
+{
+	PermutationSampleTimeOffset = 0.f;
+	PermutationOriginTimeOffset = 0.f;
 }
 
 void FSearchContext::ClearCachedEntries()

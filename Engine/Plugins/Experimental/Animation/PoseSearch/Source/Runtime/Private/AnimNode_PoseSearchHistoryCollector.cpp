@@ -19,19 +19,19 @@ namespace UE::PoseSearch::Private
 class FPoseHistoryProvider : public IPoseHistoryProvider
 {
 public:
-	FPoseHistoryProvider(const FPoseHistory& InPoseHistory)
+	FPoseHistoryProvider(const IPoseHistory& InPoseHistory)
 		: PoseHistory(InPoseHistory)
 	{
 	}
 
 	// IPoseHistoryProvider interface
-	virtual const FPoseHistory& GetPoseHistory() const override
+	virtual const IPoseHistory& GetPoseHistory() const override
 	{
 		return PoseHistory;
 	}
 
 private:
-	const FPoseHistory& PoseHistory;
+	const IPoseHistory& PoseHistory;
 };
 
 } // namespace UE::PoseSearch::Private
@@ -70,12 +70,6 @@ void FAnimNode_PoseSearchHistoryCollector_Base::CacheBones_AnyThread(const FAnim
 	}
 
 	PoseHistory.Init(PoseCount, PoseDuration, RequiredBones);
-}
-
-void FAnimNode_PoseSearchHistoryCollector_Base::Update_AnyThread(const FAnimationUpdateContext& Context)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread);
-	Super::Update_AnyThread(Context);
 }
 
 bool FAnimNode_PoseSearchHistoryCollector_Base::HasPreUpdate() const

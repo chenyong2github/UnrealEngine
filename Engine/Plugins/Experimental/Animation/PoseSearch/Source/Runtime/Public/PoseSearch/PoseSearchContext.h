@@ -14,8 +14,8 @@ class UPoseSearchSchema;
 namespace UE::PoseSearch
 {
 
-struct FPoseHistory;
 struct FPoseIndicesHistory;
+struct IPoseHistory;
 
 enum class EDebugDrawFlags : uint32
 {
@@ -151,14 +151,13 @@ POSESEARCH_API void DrawFeatureVector(FDebugDrawParams& DrawParams, int32 PoseId
 struct POSESEARCH_API FSearchContext
 {
 	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
-	const FPoseHistory* History = nullptr;
+	const IPoseHistory* History = nullptr;
 	const FTrajectorySampleRange* Trajectory = nullptr;
 	FSearchResult CurrentResult;
 	float PoseJumpThresholdTime = 0.f;
 	bool bForceInterrupt = false;
 	// can the continuing pose advance? (if not we skip evaluating it)
 	bool bCanAdvance = true;
-	float DesiredPermutationTimeOffset = 0.f;
 
 	FQuat GetSampleRotation(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false);
 	FVector GetSamplePosition(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false);
@@ -179,6 +178,11 @@ struct POSESEARCH_API FSearchContext
 	TConstArrayView<float> GetCurrentResultPoseVector() const;
 	TConstArrayView<float> GetCurrentResultNextPoseVector() const;
 
+	void SetPermutationTimeOffsets(float InPermutationSampleTimeOffset, float InPermutationOriginTimeOffset);
+	void ResetPermutationTimeOffsets();
+	
+	float DesiredPermutationTimeOffset = 0.f;
+
 	const FPoseIndicesHistory* PoseIndicesHistory = nullptr;
 
 private:
@@ -191,6 +195,10 @@ private:
 	TArray<FPoseSearchFeatureVectorBuilder, TInlineAllocator<8>> CachedQueries;
 
 	float CurrentBestTotalCost = MAX_flt;
+	
+	// time offsets controlled by sampling data permutations
+	float PermutationSampleTimeOffset = 0.f;
+	float PermutationOriginTimeOffset = 0.f;
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 

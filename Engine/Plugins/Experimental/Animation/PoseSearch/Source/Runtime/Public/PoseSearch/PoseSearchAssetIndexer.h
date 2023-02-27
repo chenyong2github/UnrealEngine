@@ -30,7 +30,7 @@ struct FAssetIndexingContext
 	FFloatInterval RequestedSamplingRange = FFloatInterval(0.0f, 0.0f);
 };
 
-class POSESEARCH_API FAssetIndexer
+class FAssetIndexer
 {
 public:
 	struct FStats

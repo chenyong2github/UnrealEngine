@@ -23,8 +23,6 @@ struct POSESEARCH_API FPoseSearchExtrapolationParameters
 	float SampleTime = 0.05f;
 };
 
-#if WITH_EDITOR
-
 struct FAnimationPoseData;
 struct FAnimExtractContext;
 class UAnimationAsset;
@@ -35,25 +33,6 @@ class UMirrorDataTable;
 
 namespace UE::PoseSearch
 {
-
-struct POSESEARCH_API FAssetSamplingContext
-{
-	// Time delta used for computing pose derivatives
-	static constexpr float FiniteDelta = 1 / 60.0f;
-
-	// Mirror data table pointer copied from Schema for convenience
-	TObjectPtr<const UMirrorDataTable> MirrorDataTable;
-
-	// Compact pose format of Mirror Bone Map
-	TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex> CompactPoseMirrorBones;
-
-	// Pre-calculated component space rotations of reference pose, which allows mirror to work with any joint orientation
-	// Only initialized and used when a mirroring table is specified
-	TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex> ComponentSpaceRefRotations;
-
-	void Init(const UMirrorDataTable* InMirrorDataTable, const FBoneContainer& BoneContainer);
-	FTransform MirrorTransform(const FTransform& Transform) const;
-};
 
 /**
  * Helper interface for sampling data from animation assets
@@ -153,7 +132,7 @@ struct POSESEARCH_API FAnimMontageSampler : public FAssetSamplerBase
 	struct FInput
 	{
 		// @todo: add support for SlotName / multiple SlotAnimTracks
-		TWeakObjectPtr<UAnimMontage> AnimMontage;
+		TWeakObjectPtr<const UAnimMontage> AnimMontage;
 		FPoseSearchExtrapolationParameters ExtrapolationParameters;
 	} Input;
 
@@ -177,4 +156,3 @@ private:
 
 } // namespace UE::PoseSearch
 
-#endif // WITH_EDITOR

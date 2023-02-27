@@ -7,6 +7,7 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
+#include "Animation/MirrorDataTable.h"
 #include "DerivedDataRequestOwner.h"
 #include "InstancedStruct.h"
 #include "PoseSearch/PoseSearchDatabase.h"
@@ -16,6 +17,38 @@
 namespace UE::PoseSearch
 {
 
+//////////////////////////////////////////////////////////////////////////
+// FAssetSamplingContext
+void FAssetSamplingContext::Init(const UMirrorDataTable* InMirrorDataTable, const FBoneContainer& BoneContainer)
+{
+	MirrorDataTable = InMirrorDataTable;
+
+	if (InMirrorDataTable)
+	{
+		InMirrorDataTable->FillCompactPoseAndComponentRefRotations(BoneContainer, CompactPoseMirrorBones, ComponentSpaceRefRotations);
+	}
+	else
+	{
+		CompactPoseMirrorBones.Reset();
+		ComponentSpaceRefRotations.Reset();
+	}
+}
+
+FTransform FAssetSamplingContext::MirrorTransform(const FTransform& InTransform) const
+{
+	const EAxis::Type MirrorAxis = MirrorDataTable->MirrorAxis;
+	FVector T = InTransform.GetTranslation();
+	T = FAnimationRuntime::MirrorVector(T, MirrorAxis);
+	const FQuat ReferenceRotation = ComponentSpaceRefRotations[FCompactPoseBoneIndex(0)];
+	FQuat Q = InTransform.GetRotation();
+	Q = FAnimationRuntime::MirrorQuat(Q, MirrorAxis);
+	Q *= FAnimationRuntime::MirrorQuat(ReferenceRotation, MirrorAxis).Inverse() * ReferenceRotation;
+	FTransform Result = FTransform(Q, T, InTransform.GetScale3D());
+	return Result;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FDatabaseIndexingContext
 bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBase, const UPoseSearchDatabase& Database, UE::DerivedData::FRequestOwner& Owner)
 {
 	const UPoseSearchSchema* Schema = Database.Schema;

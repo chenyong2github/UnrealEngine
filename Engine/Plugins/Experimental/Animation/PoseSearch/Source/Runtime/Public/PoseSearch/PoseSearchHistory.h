@@ -14,37 +14,75 @@ namespace UE::PoseSearch
 {
 
 struct FSearchResult;
+typedef uint16 FComponentSpaceTransformIndex;
+typedef TPair<FBoneIndexType, FComponentSpaceTransformIndex> FBoneToTransformPair;
+typedef TMap<FBoneIndexType, FComponentSpaceTransformIndex> FBoneToTransformMap;
 
-struct POSESEARCH_API FPoseHistory
+struct POSESEARCH_API IPoseHistory
+{
+	virtual ~IPoseHistory() {}
+	virtual float GetSampleTimeInterval() const = 0;
+	virtual bool GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate = true) const = 0;
+	virtual void GetRootTransformAtTime(float Time, FTransform& OutRootTransform, bool bExtrapolate = true) const = 0;
+};
+
+struct FPoseHistoryEntry
+{
+	FTransform RootTransform;
+	TArray<FTransform> ComponentSpaceTransforms;
+	float Time = 0.f;
+
+	void Update(float InTime, FCSPose<FCompactPose>& ComponentSpacePose, const FTransform& ComponentTransform, const FBoneToTransformMap& BoneToTransformMap);
+};
+
+typedef TRingBuffer<FPoseHistoryEntry> FPoseHistoryEntries;
+typedef TArray<FPoseHistoryEntry> FPoseHistoryFutureEntries;
+
+struct FPoseHistory : public IPoseHistory
 {
 	void Init(int32 InNumPoses, float InTimeHorizon, const TArray<FBoneIndexType>& RequiredBones);
-	void Update(float SecondsElapsed, FCSPose<FCompactPose>& ComponentSpacePose, FTransform ComponentTransform);
-	float GetSampleTimeInterval() const;
+	void Update(float SecondsElapsed, FCSPose<FCompactPose>& ComponentSpacePose, const FTransform& ComponentTransform);
 	float GetTimeHorizon() const { return TimeHorizon; }
-	bool GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate = true) const;
-	void GetRootTransformAtTime(float Time, FTransform& OutRootTransform, bool bExtrapolate = true) const;
+	void DebugDraw(const UWorld* World, const USkeleton* Skeleton) const;
+	const FBoneToTransformMap& GetBoneToTransformMap() const { return BoneToTransformMap; }
+	const FPoseHistoryEntries& GetEntries() const { return Entries; }
+
+	// IPoseHistory interface
+	virtual float GetSampleTimeInterval() const override;
+	virtual bool GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate = true) const override;
+	virtual void GetRootTransformAtTime(float Time, FTransform& OutRootTransform, bool bExtrapolate = true) const override;
+	// End of IPoseHistory interface
+
+private:
+	FBoneToTransformMap BoneToTransformMap;
+	FPoseHistoryEntries Entries;
+	float TimeHorizon = 0.f;
+};
+
+struct FExtendedPoseHistory : public IPoseHistory
+{
+	void Init(const FPoseHistory* InPoseHistory);
+
+	// IPoseHistory interface
+	virtual float GetSampleTimeInterval() const override;
+	virtual bool GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate = true) const override;
+	virtual void GetRootTransformAtTime(float Time, FTransform& OutRootTransform, bool bExtrapolate = true) const override;
+	// End of IPoseHistory interface
+
+	void ResetFuturePoses();
+	void AddFuturePose(float SecondsInTheFuture, FCSPose<FCompactPose>& ComponentSpacePose, const FTransform& ComponentTransform);
 	void DebugDraw(const UWorld* World, const USkeleton* Skeleton) const;
 
 private:
-
-	struct FEntry
-	{
-		FTransform RootTransform;
-		TArray<FTransform> ComponentSpaceTransforms;
-		float Time = 0.f;
-	};
-
-	typedef uint16 FComponentSpaceTransformIndex;
-	TMap<FBoneIndexType, FComponentSpaceTransformIndex> BoneToTransformMap;
-	TRingBuffer<FEntry> Entries;
-	float TimeHorizon = 0.f;
+	const FPoseHistory* PoseHistory = nullptr;
+	FPoseHistoryFutureEntries FutureEntries;
 };
 
 class IPoseHistoryProvider : public UE::Anim::IGraphMessage
 {
 	DECLARE_ANIMGRAPH_MESSAGE(IPoseHistoryProvider);
 public:
-	virtual const FPoseHistory& GetPoseHistory() const = 0;
+	virtual const IPoseHistory& GetPoseHistory() const = 0;
 };
 
 struct FHistoricalPoseIndex

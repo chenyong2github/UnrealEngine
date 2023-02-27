@@ -2,10 +2,40 @@
 
 #include "PoseSearchFeatureChannel_PermutationType.h"
 #include "PoseSearch/PoseSearchAssetIndexer.h"
+#include "PoseSearch/PoseSearchContext.h"
+
+void UPoseSearchFeatureChannel_PermutationType::GetPermutationTimeOffsets(float DesiredPermutationTimeOffset, float &OutPermutationSampleTimeOffset, float& OutPermutationOriginTimeOffset) const
+{
+	switch (PermutationType)
+	{
+	case EPermutationType::UseOriginTime:
+		OutPermutationSampleTimeOffset = 0.f;
+		OutPermutationOriginTimeOffset = 0.f;
+		break;
+	case EPermutationType::UsePermutationTime:
+		OutPermutationSampleTimeOffset = DesiredPermutationTimeOffset;
+		OutPermutationOriginTimeOffset = DesiredPermutationTimeOffset;
+		break;
+	case EPermutationType::UseOriginToPermutationTime:
+		OutPermutationSampleTimeOffset = DesiredPermutationTimeOffset;
+		OutPermutationOriginTimeOffset = 0.f;
+		break;
+	default:
+		OutPermutationSampleTimeOffset = 0.f;
+		OutPermutationOriginTimeOffset = 0.f;
+		break;
+	}
+}
 
 void UPoseSearchFeatureChannel_PermutationType::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
+	float PermutationSampleTimeOffset = 0.f;
+	float PermutationOriginTimeOffset = 0.f;
+	GetPermutationTimeOffsets(SearchContext.DesiredPermutationTimeOffset, PermutationSampleTimeOffset, PermutationOriginTimeOffset);
+
+	SearchContext.SetPermutationTimeOffsets(PermutationSampleTimeOffset, PermutationOriginTimeOffset);
 	Super::BuildQuery(SearchContext, InOutQuery);
+	SearchContext.ResetPermutationTimeOffsets();
 }
 
 #if WITH_EDITOR
@@ -13,21 +43,7 @@ void UPoseSearchFeatureChannel_PermutationType::IndexAsset(UE::PoseSearch::FAsse
 {
 	float PermutationSampleTimeOffset = 0.f;
 	float PermutationOriginTimeOffset = 0.f;
-	switch (PermutationType)
-	{
-	case EPermutationType::UseOriginTime:
-		PermutationSampleTimeOffset = 0.f;
-		PermutationOriginTimeOffset = 0.f;
-		break;
-	case EPermutationType::UsePermutationTime:
-		PermutationSampleTimeOffset = Indexer.CalculatePermutationTimeOffset();
-		PermutationOriginTimeOffset = PermutationSampleTimeOffset;
-		break;
-	case EPermutationType::UseOriginToPermutationTime:
-		PermutationSampleTimeOffset = Indexer.CalculatePermutationTimeOffset();
-		PermutationOriginTimeOffset = 0.f;
-		break;
-	}
+	GetPermutationTimeOffsets(Indexer.CalculatePermutationTimeOffset(), PermutationSampleTimeOffset, PermutationOriginTimeOffset);
 
 	Indexer.SetPermutationTimeOffsets(PermutationSampleTimeOffset, PermutationOriginTimeOffset);
 	Super::IndexAsset(Indexer);

@@ -11,6 +11,7 @@
 #include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "PoseSearch/PoseSearchIndex.h"
 #include "PoseSearch/PoseSearchSchema.h"
+#include "PoseSearchDatabaseIndexingContext.h"
 
 namespace UE::PoseSearch
 {
