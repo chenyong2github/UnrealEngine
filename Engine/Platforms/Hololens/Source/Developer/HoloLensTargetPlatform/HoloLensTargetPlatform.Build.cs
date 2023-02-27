@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
-using System.IO;
 using UnrealBuildTool;
 
 public class HoloLensTargetPlatform : ModuleRules
@@ -21,10 +21,11 @@ public class HoloLensTargetPlatform : ModuleRules
             }
         );
 
-		// directly include the location of the HoloLensPlatformProperties.h files so that we don't instantiate the Core_HoloLens module for host platform
-		PrivateIncludePaths.Add(Path.Combine(EngineDirectory, "Platforms/HoloLens/Source/Runtime/Core/Public"));
-
-		PrivateIncludePathModuleNames.Add("Settings");
+		PrivateIncludePathModuleNames.AddAll(
+			"Settings",
+			// Needed for HoloLensPlatformProperties.h
+			"Core_HoloLens"
+		);
 
         int Win10Build = 0;
         Version ver = null;

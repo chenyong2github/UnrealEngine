@@ -6,18 +6,20 @@ namespace UnrealBuildTool.Rules
 	{
 		public Core_HoloLens(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PublicIncludePaths.Add("../Platforms/HoloLens/Source/Runtime/Core/Public");
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				"zlib");
+			// This module needs to be referenced from a TargetPlatform module, so don't leak our platform info out
+			if (Target.Platform == UnrealTargetPlatform.HoloLens)
+			{
+				AddEngineThirdPartyPrivateStaticDependencies(Target,
+					"zlib");
 
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				"IntelTBB",
-				"XInput"
-				);
+				AddEngineThirdPartyPrivateStaticDependencies(Target,
+					"IntelTBB",
+					"XInput"
+					);
 
-			PublicDefinitions.Add("WITH_VS_PERF_PROFILER=0");
-			PublicDefinitions.Add("IS_RUNNING_GAMETHREAD_ON_EXTERNAL_THREAD=1");
-
+				PublicDefinitions.Add("WITH_VS_PERF_PROFILER=0");
+				PublicDefinitions.Add("IS_RUNNING_GAMETHREAD_ON_EXTERNAL_THREAD=1");
+			}
 		}
 	}
 }
