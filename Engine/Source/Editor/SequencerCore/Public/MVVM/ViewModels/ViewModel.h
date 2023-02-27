@@ -286,6 +286,11 @@ private:
 	         looking at). Such models are safe to move due to children being linked lists
 	 */
 	int32 ActiveIterationCount;
+
+	/**
+	 * Flag to track whether this view model needs to be constructed
+	 */
+	uint8 bNeedsConstruction : 1;
 };
 
 } // namespace Sequencer

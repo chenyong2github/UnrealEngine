@@ -174,6 +174,9 @@ FScopedViewModelListHead::FScopedViewModelListHead(const TSharedPtr<FViewModel>&
 
 FScopedViewModelListHead::~FScopedViewModelListHead()
 {
+	// Destroy everything in this list
+	GetChildren().Empty();
+
 	FViewModelListHead* ThisList = &ListHead;
 	FViewModelListHead** Ptr = &Model->FirstChildListHead;
 	while (*Ptr)

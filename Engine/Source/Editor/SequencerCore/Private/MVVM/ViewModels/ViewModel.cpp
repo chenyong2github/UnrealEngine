@@ -17,6 +17,7 @@ namespace Sequencer
 FViewModel::FViewModel()
 	: FirstChildListHead(nullptr)
 	, ActiveIterationCount(0)
+	, bNeedsConstruction(1)
 {
 }
 
@@ -27,7 +28,7 @@ FViewModel::~FViewModel()
 
 bool FViewModel::IsConstructed() const
 {
-	return SharedData != nullptr;
+	return SharedData != nullptr && bNeedsConstruction == false;
 }
 
 void FViewModel::RegisterChildList(FViewModelListHead* InChildren)
@@ -159,34 +160,49 @@ void FViewModel::SetSharedData(TSharedPtr<FSharedViewModelData> InSharedData)
 		return;
 	}
 
-	SharedData = InSharedData;
-
 	if (InSharedData)
 	{
+		bNeedsConstruction = true;
+		SharedData = InSharedData;
+
+		for (const FViewModelPtr& Child : GetDescendants())
+		{
+			Child->bNeedsConstruction = true;
+			Child->SharedData = InSharedData;
+		}
+
 		OnConstruct();
+		bNeedsConstruction = false;
+
+		for (const FViewModelPtr& Child : GetDescendants())
+		{
+			if (Child->bNeedsConstruction)
+			{
+				// This is safe to call because we're inside a parent-first iterator.
+				// Any children that are added inside here will get implicitly
+				// included by the iterator, but they may have already been constructed
+				Child->OnConstruct();
+				Child->bNeedsConstruction = false;
+			}
+		}
 	}
 	else
 	{
-		OnDestruct();
-	}
+		SharedData = nullptr;
 
-	for (const FViewModelPtr& Child : GetDescendants())
-	{
-		// This is safe to call because we're inside a parent-first iterator.
-		// Any children that are added inside here will get implicitly
-		// included by the iterator, but they may have already been constructed
-		if (Child->SharedData != InSharedData)
+		for (const FViewModelPtr& Child : GetDescendants())
 		{
-			Child->SharedData = InSharedData;
+			Child->SharedData = nullptr;
+		}
 
-			if (InSharedData)
-			{
-				Child->OnConstruct();
-			}
-			else
-			{
-				Child->OnDestruct();
-			}
+		OnDestruct();
+
+		for (const FViewModelPtr& Child : GetDescendants())
+		{
+			// This is safe to call because we're inside a parent-first iterator.
+			// Any children that are removed inside here will get implicitly
+			// excluded by the iterator
+			Child->OnDestruct();
 		}
 	}
 }
