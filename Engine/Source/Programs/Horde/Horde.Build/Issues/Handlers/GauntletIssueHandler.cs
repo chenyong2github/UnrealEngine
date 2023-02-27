@@ -20,6 +20,11 @@ namespace Horde.Build.Issues.Handlers
 	class GauntletIssueHandler : IssueHandler
 	{
 		/// <summary>
+		/// Prefix for framework keys
+		/// </summary>
+		const string FrameworkPrefix = "framework";
+
+		/// <summary>
 		/// Prefix for test keys
 		/// </summary>
 		const string TestPrefix = "test";
@@ -54,6 +59,7 @@ namespace Horde.Build.Issues.Handlers
 		///  Known Gauntlet events
 		/// </summary>
 		static readonly Dictionary<EventId, string> s_knownGauntletEvents = new Dictionary<EventId, string> {
+			{ KnownLogEvents.Gauntlet, FrameworkPrefix},
 			{ KnownLogEvents.Gauntlet_TestEvent, TestPrefix},
 			{ KnownLogEvents.Gauntlet_DeviceEvent, DevicePrefix},
 			{ KnownLogEvents.Gauntlet_UnrealEngineTestEvent, TestPrefix},
