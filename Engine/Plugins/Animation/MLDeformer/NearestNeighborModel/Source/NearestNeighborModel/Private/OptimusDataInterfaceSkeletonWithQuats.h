@@ -4,6 +4,7 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
+#include "RenderGraphFwd.h"
 
 #include "OptimusDataInterfaceSkeletonWithQuats.generated.h"
 

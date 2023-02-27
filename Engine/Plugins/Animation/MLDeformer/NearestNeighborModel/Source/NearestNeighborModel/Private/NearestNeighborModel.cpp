@@ -14,6 +14,7 @@
 #include "Components/ExternalMorphSet.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/MorphTargetVertexInfoBuffers.h"
+#include "ShaderCore.h"
 #include "UObject/UObjectGlobals.h"
 #include "NeuralNetwork.h"
 
