@@ -99,7 +99,7 @@ void FRigidBody::UpdateTransformAndMassFromBones()
 	Rotation = InitialRotation = Bone->Rotation;
 	BoneLocalPosition = Bone->Rotation.Inverse() * (Bone->Position - Centroid);
 
-	ChildLocalPositions.Reserve(Bone->Children.Num());
+	ChildLocalPositions.Empty(Bone->Children.Num());
 	for (const FBone* Child : Bone->Children)
 	{
 		FVector ChildLocalPos = Rotation.Inverse() * (Child->Position - Centroid);
