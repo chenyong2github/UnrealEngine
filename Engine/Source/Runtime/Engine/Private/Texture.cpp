@@ -3531,6 +3531,8 @@ void UTexture::GetPlatformTextureFormatNamesWithPrefix(const class ITargetPlatfo
 	// almost always == 1, except for Android_Multi, which makes an array of layer formats per variant
 	check( OutFormats.Num() >= 1 );
 	
+	// note : FinalizeVirtualTextureLayerFormat can do another set of remaps later; consider moving that here
+
 	// now do optional Oodle prefix after platform remaps :
 
 	bool bOodleTextureSdkVersionIsNone = OodleTextureSdkVersion.IsNone();

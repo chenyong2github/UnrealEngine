@@ -78,7 +78,7 @@ TEXTUREBUILDUTILITIES_API const FName TextureFormatRemovePrefixFromName(FName co
 	int32 UnderscoreIndex = INDEX_NONE;
 	if ( ! NameString.FindChar(TCHAR('_'), UnderscoreIndex))
 	{
-		return FName( NameString );
+		return NameWithoutPlatform;
 	}
 
 	// texture format names can have underscores in them (eg. ETC2_RG11)

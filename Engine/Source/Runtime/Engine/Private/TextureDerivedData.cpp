@@ -643,9 +643,27 @@ static void FinalizeBuildSettingsForLayer(
 		OutSettings.bReplicateRed = true;
 	}
 
-	if (OutSettings.bVirtualStreamable)
+	// this is called once per Texture with OutSettings.TextureFormatName == None
+	//	and then called again (per Layer) with OutSettings.TextureFormatName filled out
+
+	if (OutSettings.bVirtualStreamable && ! OutSettings.TextureFormatName.IsNone())
 	{
-		OutSettings.TextureFormatName = TargetPlatform->FinalizeVirtualTextureLayerFormat(OutSettings.TextureFormatName);
+		// note : FinalizeVirtualTextureLayerFormat is run outside of the normal TextureFormatName set up ; fix?
+		//	should be done inside GetPlatformTextureFormatNamesWithPrefix
+		//	this is only used by Android & iOS
+		//  the reason to do it here is we now have bVirtualStreamable, which is not available at the earlier call
+		
+		// FinalizeVirtualTextureLayerFormat assumes (incorrectly) that it gets non-prefixed names, so remove them :
+
+		// VT does not tile so should never have a platform prefix, but could have an Oodle prefix
+		checkSlow( OutSettings.TextureFormatName == UE::TextureBuildUtilities::TextureFormatRemovePlatformPrefixFromName(OutSettings.TextureFormatName) );
+		
+		FName NameWithoutPrefix = UE::TextureBuildUtilities::TextureFormatRemovePrefixFromName(OutSettings.TextureFormatName);
+		FName ModifiedName = TargetPlatform->FinalizeVirtualTextureLayerFormat(NameWithoutPrefix);
+		if ( NameWithoutPrefix != ModifiedName )
+		{
+			OutSettings.TextureFormatName = ModifiedName;
+		}
 	}
 
 	// Now that we know the texture format, we can make decisions based on it.
