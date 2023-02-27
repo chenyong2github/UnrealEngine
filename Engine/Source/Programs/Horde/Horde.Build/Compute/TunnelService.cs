@@ -61,7 +61,7 @@ namespace Horde.Build.Compute
 		/// <inheritdoc/>
 		public Task StartAsync(CancellationToken cancellationToken)
 		{
-			Start(IPAddress.IPv6Any);
+			Start(IPAddress.Any);
 			return Task.CompletedTask;
 		}
 
