@@ -19,7 +19,6 @@
 #include "Windows/WindowsHWrapper.h"
 #endif
 #if WITH_ENGINE
-#include "Engine/TextureCube.h"
 #include "Sound/SoundWave.h"
 #include "TextureResource.h"
 #include "AudioCompressionSettings.h"
@@ -635,17 +634,13 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 
 	for (FName& TextureFormatName : OutFormats.Last())
 	{
-		if (Texture->IsA(UTextureCube::StaticClass()))
+		if (Texture->GetTextureClass() == ETextureClass::Cube) 
 		{
-			const UTextureCube* Cube = CastChecked<UTextureCube>(Texture);
-			if (Cube != nullptr)
+			FTextureFormatSettings FormatSettings;
+			Texture->GetDefaultFormatSettings(FormatSettings);
+			if (FormatSettings.CompressionSettings == TC_EncodedReflectionCapture && !FormatSettings.CompressionNone)
 			{
-				FTextureFormatSettings FormatSettings;
-				Cube->GetDefaultFormatSettings(FormatSettings);
-				if (FormatSettings.CompressionSettings == TC_EncodedReflectionCapture && !FormatSettings.CompressionNone)
-				{
-					TextureFormatName = FName(TEXT("ETC2_RGBA"));
-				}
+				TextureFormatName = FName(TEXT("ETC2_RGBA"));
 			}
 		}
 	}
