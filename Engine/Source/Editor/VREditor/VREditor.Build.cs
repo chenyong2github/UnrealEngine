@@ -12,8 +12,6 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			PublicIncludePaths.Add(ModuleDirectory);
-
             PrivateDependencyModuleNames.AddRange(
                 new string[] {
                     "AppFramework",
