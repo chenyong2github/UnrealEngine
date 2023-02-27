@@ -1738,6 +1738,7 @@ UObject* UAssetToolsImpl::CreateAssetWithDialog(const FString& AssetName, const 
 		SaveAssetDialogConfig.DefaultPath = PackagePath;
 		SaveAssetDialogConfig.DefaultAssetName = AssetName;
 		SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
+		SaveAssetDialogConfig.AssetClassNames.Add(Factory->GetSupportedClass()->StaticClass()->GetClassPathName());
 
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 		FString SaveObjectPath = ContentBrowserModule.Get().CreateModalSaveAssetDialog(SaveAssetDialogConfig);
