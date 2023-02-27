@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class OnlineSubsystem : ModuleRules
@@ -7,6 +8,9 @@ public class OnlineSubsystem : ModuleRules
 	public OnlineSubsystem(ReadOnlyTargetRules Target) : base(Target)
     {
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+
+		// Required for Test cpp files in OnlineSubsystemMcp
+		PublicIncludePaths.Add(Path.Join(ModuleDirectory, "Test"));
 		
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
@@ -16,8 +20,6 @@ public class OnlineSubsystem : ModuleRules
 				"SignalProcessing"
 			}
 		);
-
-		PublicIncludePaths.Add(ModuleDirectory);
 
         PublicDefinitions.Add("ONLINESUBSYSTEM_PACKAGE=1");
 		PublicDefinitions.Add("DEBUG_LAN_BEACON=0");

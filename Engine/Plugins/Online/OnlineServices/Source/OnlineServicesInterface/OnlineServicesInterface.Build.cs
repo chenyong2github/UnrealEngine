@@ -15,8 +15,6 @@ public class OnlineServicesInterface : ModuleRules
 			}
 		);
 
-		PublicIncludePaths.Add(ModuleDirectory);
-
 		// OnlineService cannot depend on Engine!
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 
