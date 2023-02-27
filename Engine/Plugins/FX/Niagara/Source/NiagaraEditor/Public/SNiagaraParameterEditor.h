@@ -4,6 +4,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "UObject/StructOnScope.h"
+#include "Widgets/Input/NumericUnitTypeInterface.inl"
 
 /** Base class for inline parameter editors. These editors are expected to maintain an internal value which
 	is populated from a parameter struct. */
@@ -77,6 +78,16 @@ protected:
 	/** Executes the OnValueChanged delegate. */
 	void ExecuteOnValueChanged();
 
+	template<typename NumericType>
+	static TSharedPtr<TNumericUnitTypeInterface<NumericType>> GetTypeInterface(EUnit TypeUnit)
+	{
+		if (FUnitConversion::Settings().ShouldDisplayUnits())
+		{
+			return MakeShareable(new TNumericUnitTypeInterface<NumericType>(TypeUnit));
+		}
+		return MakeShareable(new TNumericUnitTypeInterface<NumericType>(EUnit::Unspecified));
+	}
+
 protected:
 	static const float DefaultInputSize;
 
@@ -110,3 +121,4 @@ private:
 	/** Sets the desired horizontal alignment of this parameter editor for it's parent container. */
 	EVerticalAlignment VerticalAlignment;
 };
+

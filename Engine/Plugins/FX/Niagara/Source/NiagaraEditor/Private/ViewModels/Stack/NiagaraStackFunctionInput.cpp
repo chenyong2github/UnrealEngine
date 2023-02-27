@@ -232,6 +232,11 @@ const FNiagaraTypeDefinition& UNiagaraStackFunctionInput::GetInputType() const
 	return InputType;
 }
 
+EUnit UNiagaraStackFunctionInput::GetInputDisplayUnit() const
+{
+	return InputMetaData.IsSet() ? InputMetaData->DisplayUnit : EUnit::Unspecified;
+}
+
 FText UNiagaraStackFunctionInput::GetTooltipText() const
 {
 	FText Description = InputMetaData.IsSet() ? InputMetaData->Description : FText::GetEmpty();

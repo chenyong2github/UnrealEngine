@@ -14,7 +14,6 @@
 #include "Settings/EditorStyleSettings.h"
 #include "Styling/StarshipCoreStyle.h"
 #include "Styling/StyleColors.h"
-#include "Styling/ToolBarStyle.h"
 
 TSharedPtr<FNiagaraEditorStyle> FNiagaraEditorStyle::NiagaraEditorStyle = nullptr;
 
@@ -375,7 +374,7 @@ void FNiagaraEditorStyle::InitSelectedEmitter()
 void FNiagaraEditorStyle::InitToolbarIcons()
 {
 	Set("NiagaraEditor.Refresh", new CORE_IMAGE_BRUSH_SVG("Starship/Common/Update", Icon20x20));
-	Set("NiagaraEditor.ApplyScratchPadChanges", new IMAGE_BRUSH_SVG("Icons/Commands/ApplyScratch", Icon40x40));		
+	Set("NiagaraEditor.ApplyScratchPadChanges", new IMAGE_BRUSH_SVG("Icons/Commands/ApplyScratch", Icon40x40));
 	Set("NiagaraEditor.OverviewNode.IsolatedColor", FLinearColor::Yellow);
 	Set("NiagaraEditor.OverviewNode.NotIsolatedColor", FLinearColor::Transparent);
 }
@@ -388,6 +387,13 @@ void FNiagaraEditorStyle::InitIcons()
 	Set("NiagaraEditor.Module.AddPin", new IMAGE_BRUSH("Icons/PlusSymbol_12x", Icon12x12, FLinearColor::Gray));
 	Set("NiagaraEditor.Module.RemovePin", new IMAGE_BRUSH("Icons/MinusSymbol_12x", Icon12x12, FLinearColor::Gray));
 	Set("NiagaraEditor.Message.CustomNote", new IMAGE_BRUSH("Icons/icon_custom_note_16x", Icon16x16));
+	Set("NiagaraEditor.Module.DynamicInput", new IMAGE_BRUSH_SVG("Icons/DynamicInput", Icon16x16));
+	Set("NiagaraEditor.Module.TypeIconPill", new IMAGE_BRUSH_SVG("Icons/TypeIconPill", FVector2D(5.0f, 16.0f)));
+	
+	FSlateBrush* SlateBrush = new FSlateBrush();
+	*SlateBrush = FAppStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox").BackgroundImageNormal;
+	SlateBrush->TintColor = FLinearColor(0.01f, 0.01f, 0.01f);
+	Set("NiagaraEditor.Module.InputTypeBorder", SlateBrush);
 }
 
 void FNiagaraEditorStyle::InitOverview()

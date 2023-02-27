@@ -91,6 +91,9 @@ public:
 	/** Gets the type of this input. */
 	const FNiagaraTypeDefinition& GetInputType() const;
 
+	/** Gets the unit of this input. */
+	EUnit GetInputDisplayUnit() const;
+
 	//~ UNiagaraStackEntry interface
 	virtual FText GetDisplayName() const override;
 	virtual FText GetTooltipText() const override;

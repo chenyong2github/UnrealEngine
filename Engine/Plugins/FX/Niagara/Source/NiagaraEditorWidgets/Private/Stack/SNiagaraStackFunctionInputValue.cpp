@@ -18,10 +18,8 @@
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "NiagaraNodeAssignment.h"
-#include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraParameterCollection.h"
-#include "NiagaraScriptVariable.h"
 #include "NiagaraScriptVariable.h"
 #include "NiagaraSettings.h"
 #include "NiagaraSystem.h"
@@ -70,7 +68,6 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 	SyntaxHighlighter = FNiagaraHLSLSyntaxHighlighter::Create();
 
 	TSharedPtr<SHorizontalBox> ChildrenBox;
-	
 	ChildSlot
 	[
 		SAssignNew(ChildrenBox, SHorizontalBox)
@@ -104,16 +101,64 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 				.Padding(0, 0, 3, 0)
 				[
 					// Value Icon
-					SNew(SBox)
-					.WidthOverride(TextIconSize)
-					.VAlign(VAlign_Center)
+					SNew(SHorizontalBox)
 					.Visibility(this, &SNiagaraStackFunctionInputValue::GetInputIconVisibility)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
 					[
-						SNew(STextBlock)
-						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-						.Text(this, &SNiagaraStackFunctionInputValue::GetInputIconText)
-						.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetInputIconToolTip)
-						.ColorAndOpacity(this, &SNiagaraStackFunctionInputValue::GetInputIconColor)
+						// icons without type info (e.g. data interfaces)
+						SNew(SBox)
+						.WidthOverride(TextIconSize)
+						.VAlign(VAlign_Center)
+						.Visibility_Lambda([this]()
+						{
+							return (FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Dynamic || FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Linked) ? EVisibility::Collapsed : EVisibility::Visible;
+						})
+						[
+							SNew(STextBlock)
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
+							.Text(this, &SNiagaraStackFunctionInputValue::GetInputIconText)
+							.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetInputIconToolTip)
+							.ColorAndOpacity(this, &SNiagaraStackFunctionInputValue::GetInputIconColor)
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						// icons type info pill
+						SNew(SBorder)
+						.BorderImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Module.InputTypeBorder"))
+						.BorderBackgroundColor(FLinearColor::White)
+						.Padding(FMargin(2, 2, 2, 2))
+						[
+							SNew(SHorizontalBox)
+							.Visibility_Lambda([this]()
+							{
+								return (FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Dynamic || FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Linked) ? EVisibility::Visible : EVisibility::Collapsed;
+							})
+							+ SHorizontalBox::Slot()
+							.VAlign(VAlign_Center)
+							.HAlign(HAlign_Center)
+							.AutoWidth()
+							[
+								SNew(SImage)
+								.Visibility_Lambda([this](){ return (FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Dynamic || FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Linked) ? EVisibility::Visible : EVisibility::Collapsed; })
+								.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetInputIconToolTip)
+								.ColorAndOpacity_Lambda([this]() { return UEdGraphSchema_Niagara::GetTypeColor(FunctionInput->GetInputType()); })
+								.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Module.TypeIconPill"))
+							]
+							+ SHorizontalBox::Slot()
+							.VAlign(VAlign_Center)
+							.HAlign(HAlign_Center)
+							.AutoWidth()
+							[
+								SNew(SImage)
+								.Visibility_Lambda([this](){ return FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Dynamic ? EVisibility::Visible : EVisibility::Collapsed; })
+								.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetInputIconToolTip)
+								.ColorAndOpacity(FLinearColor::White)
+								.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Module.DynamicInput"))
+							]
+						]
 					]
 				]
 				+ SHorizontalBox::Slot()
@@ -477,7 +522,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructLocalValueStructWi
 		TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(FunctionInput->GetInputType());
 		if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanCreateParameterEditor())
 		{
-			TSharedPtr<SNiagaraParameterEditor> ParameterEditor = TypeEditorUtilities->CreateParameterEditor(FunctionInput->GetInputType());
+			TSharedPtr<SNiagaraParameterEditor> ParameterEditor = TypeEditorUtilities->CreateParameterEditor(FunctionInput->GetInputType(), FunctionInput->GetInputDisplayUnit());
 			ParameterEditor->UpdateInternalValueFromStruct(DisplayedLocalValueStruct.ToSharedRef());
 			ParameterEditor->SetOnBeginValueChange(SNiagaraParameterEditor::FOnValueChange::CreateSP(
 				this, &SNiagaraStackFunctionInputValue::ParameterBeginValueChange));
@@ -599,6 +644,12 @@ FText SNiagaraStackFunctionInputValue::GetDataValueText() const
 	}
 }
 
+UEnum* GetDisplayUnitEnum()
+{
+	static UEnum* UnitEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/CoreUObject.EUnit"));
+	return UnitEnum;
+}
+
 FText SNiagaraStackFunctionInputValue::GetDynamicValueText() const
 {
 	if (UNiagaraNodeFunctionCall* NodeFunctionCall = FunctionInput->GetDynamicInputNode())
@@ -612,12 +663,16 @@ FText SNiagaraStackFunctionInputValue::GetDynamicValueText() const
 			}
 		}
 		FString FunctionName = NodeFunctionCall->FunctionScript ? NodeFunctionCall->FunctionScript->GetName() : NodeFunctionCall->Signature.Name.ToString();
-		return FText::FromString(FName::NameToDisplayString(FunctionName, false));
+		FText DisplayString = FText::FromString(FName::NameToDisplayString(FunctionName, false));
+		EUnit DisplayUnit = FunctionInput->GetInputDisplayUnit();
+		if (DisplayUnit != EUnit::Unspecified)
+		{
+			UEnum* Enum = GetDisplayUnitEnum();
+			return FText::Format(FText::FromString("{0} ({1})"), DisplayString, FText::FromString(Enum->GetNameStringByValue(static_cast<int64>(DisplayUnit))));
+		}
+		return DisplayString;
 	}
-	else
-	{
-		return LOCTEXT("InvalidDynamicDisplayName", "(Invalid)");
-	}
+	return LOCTEXT("InvalidDynamicDisplayName", "(Invalid)");
 }
 
 FText SNiagaraStackFunctionInputValue::GetDefaultFunctionText() const

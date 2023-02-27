@@ -11,6 +11,8 @@
 #include "Engine/Texture2D.h"
 #endif
 #include "NiagaraCore.h"
+#include "Math/UnitConversion.h"
+#include "Math/UnitConversion.inl"
 
 #include "NiagaraTypes.generated.h"
 
@@ -686,6 +688,10 @@ struct NIAGARA_API FNiagaraVariableMetaData
 
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))
 	FText CategoryName;
+	
+	/** The unit to display next to input fields for this parameter - note that this is only a visual indicator and does not change any of the calculations. */
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))
+	EUnit DisplayUnit = EUnit::Unspecified;
 
 	/** Declares that this input is advanced and should only be visible if expanded inputs have been expanded. */
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))

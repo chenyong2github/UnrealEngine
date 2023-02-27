@@ -76,7 +76,7 @@ void FNiagaraEditorEnumTypeUtilities::UpdateVariableWithDefaultValue(FNiagaraVar
 	Variable.SetValue<FNiagaraInt32>(EnumIntValue);
 }
 
-TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorEnumTypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType) const
+TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorEnumTypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit) const
 {
 	return SNew(SNiagaraEnumParameterEditor, ParameterType.GetEnum());
 }

@@ -15,16 +15,11 @@ public:
 		SLATE_ARGUMENT(int32, ComponentCount)
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs)
+	void Construct(const FArguments& InArgs, EUnit DisplayUnit)
 	{
 		SNiagaraParameterEditor::Construct(SNiagaraParameterEditor::FArguments()
 			.MinimumDesiredWidth(DefaultInputSize * InArgs._ComponentCount)
 			.MaximumDesiredWidth(DefaultInputSize * InArgs._ComponentCount));
-
-		ComponentLabels.Add(NSLOCTEXT("VectorParameterEditor", "XLabel", "X"));
-		ComponentLabels.Add(NSLOCTEXT("VectorParameterEditor", "YLabel", "Y"));
-		ComponentLabels.Add(NSLOCTEXT("VectorParameterEditor", "ZLabel", "Z"));
-		ComponentLabels.Add(NSLOCTEXT("VectorParameterEditor", "WLabel", "W"));
 
 		TSharedRef<SHorizontalBox> ComponentBox = SNew(SHorizontalBox);
 		for (int32 ComponentIndex = 0; ComponentIndex < InArgs._ComponentCount; ++ComponentIndex)
@@ -32,7 +27,7 @@ public:
 			ComponentBox->AddSlot()
 			.Padding(ComponentIndex == 0 ? 0 : 3, 0, 0, 0)
 			[
-				ConstructComponentWidget(ComponentIndex)
+				ConstructComponentWidget(ComponentIndex, DisplayUnit)
 			];
 		}
 
@@ -50,8 +45,17 @@ protected:
 	virtual void SetValue(int32 Index, float Value) = 0;
 
 private:
-	TSharedRef<SWidget> ConstructComponentWidget(int32 Index)
+	TSharedRef<SWidget> ConstructComponentWidget(int32 Index, EUnit DisplayUnit)
 	{
+		const static TArray Colors = {
+			&SNumericEntryBox<int32>::RedLabelBackgroundColor,
+			&SNumericEntryBox<int32>::GreenLabelBackgroundColor,
+			&SNumericEntryBox<int32>::BlueLabelBackgroundColor,
+			&FLinearColor::White
+		};
+		
+		TSharedRef<SWidget>  LabelWidget = SNumericEntryBox<float>::BuildNarrowColorLabel(*Colors[Index]);
+		
 		return SNew(SNumericEntryBox<float>)
 		.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
 		.MinValue(TOptional<float>())
@@ -64,13 +68,13 @@ private:
 		.OnValueCommitted(this, &SNiagaraVectorParameterEditorBase::ValueCommitted, Index)
 		.OnBeginSliderMovement(this, &SNiagaraVectorParameterEditorBase::BeginSliderMovement)
 		.OnEndSliderMovement(this, &SNiagaraVectorParameterEditorBase::EndSliderMovement)
+		.TypeInterface(GetTypeInterface<float>(DisplayUnit))
 		.AllowSpin(true)
-		.LabelVAlign(EVerticalAlignment::VAlign_Center)
+		.LabelPadding( FMargin(3) )
+		.LabelLocation( SNumericEntryBox<float>::ELabelLocation::Inside )
 		.Label()
 		[
-			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-			.Text(ComponentLabels[Index])
+			LabelWidget
 		];
 	}
 
@@ -102,9 +106,6 @@ private:
 			ValueChanged(Value, Index);
 		}
 	}
-
-private:
-	TArray<FText> ComponentLabels;
 };
 
 
@@ -114,11 +115,11 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraVector2ParameterEditor) { }
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs)
+	void Construct(const FArguments& InArgs, EUnit DisplayUnit)
 	{
 		SNiagaraVectorParameterEditorBase::Construct(
 			SNiagaraVectorParameterEditorBase::FArguments()
-			.ComponentCount(2));
+			.ComponentCount(2), DisplayUnit);
 	}
 
 	virtual void UpdateInternalValueFromStruct(TSharedRef<FStructOnScope> Struct) override
@@ -148,9 +149,9 @@ private:
 	FVector2f VectorValue;
 };
 
-TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorVector2TypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType) const
+TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorVector2TypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit) const
 {
-	return SNew(SNiagaraVector2ParameterEditor);
+	return SNew(SNiagaraVector2ParameterEditor, DisplayUnit);
 }
 
 bool FNiagaraEditorVector2TypeUtilities::CanHandlePinDefaults() const
@@ -192,11 +193,11 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraVector3ParameterEditor) { }
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs)
+	void Construct(const FArguments& InArgs, EUnit DisplayUnit)
 	{
 		SNiagaraVectorParameterEditorBase::Construct(
 			SNiagaraVectorParameterEditorBase::FArguments()
-			.ComponentCount(3));
+			.ComponentCount(3), DisplayUnit);
 	}
 
 	virtual void UpdateInternalValueFromStruct(TSharedRef<FStructOnScope> Struct) override
@@ -226,9 +227,9 @@ private:
 	FVector3f VectorValue;
 };
 
-TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorVector3TypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType) const
+TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorVector3TypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit) const
 {
-	return SNew(SNiagaraVector3ParameterEditor);
+	return SNew(SNiagaraVector3ParameterEditor, DisplayUnit);
 }
 
 bool FNiagaraEditorVector3TypeUtilities::CanHandlePinDefaults() const
@@ -274,11 +275,11 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraVector4ParameterEditor) { }
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs)
+	void Construct(const FArguments& InArgs, EUnit DisplayUnit)
 	{
 		SNiagaraVectorParameterEditorBase::Construct(
 			SNiagaraVectorParameterEditorBase::FArguments()
-			.ComponentCount(4));
+			.ComponentCount(4), DisplayUnit);
 	}
 
 	virtual void UpdateInternalValueFromStruct(TSharedRef<FStructOnScope> Struct) override
@@ -308,9 +309,9 @@ private:
 	FVector4f VectorValue;
 };
 
-TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorVector4TypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType) const
+TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorVector4TypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit) const
 {
-	return SNew(SNiagaraVector4ParameterEditor);
+	return SNew(SNiagaraVector4ParameterEditor, DisplayUnit);
 }
 
 bool FNiagaraEditorVector4TypeUtilities::CanHandlePinDefaults() const
@@ -356,11 +357,11 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraQuatParameterEditor) { }
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs)
+	void Construct(const FArguments& InArgs, EUnit DisplayUnit)
 	{
 		SNiagaraVectorParameterEditorBase::Construct(
 			SNiagaraVectorParameterEditorBase::FArguments()
-			.ComponentCount(4));
+			.ComponentCount(4), DisplayUnit);
 	}
 
 	virtual void UpdateInternalValueFromStruct(TSharedRef<FStructOnScope> Struct) override
@@ -419,9 +420,9 @@ private:
 	FQuat4f VectorValue;
 };
 
-TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorQuatTypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType) const
+TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorQuatTypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit) const
 {
-	return SNew(SNiagaraQuatParameterEditor);
+	return SNew(SNiagaraQuatParameterEditor, DisplayUnit);
 }
 
 bool FNiagaraEditorQuatTypeUtilities::CanHandlePinDefaults() const

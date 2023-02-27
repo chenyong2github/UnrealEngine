@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraFloatTypeEditorUtilities.h"
+
+#include "GraphEditorSettings.h"
 #include "SNiagaraParameterEditor.h"
 #include "NiagaraTypes.h"
 #include "NiagaraEditorStyle.h"
-
-#include "Widgets/Input/SSpinBox.h"
+#include "Math/UnitConversion.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 
 class SNiagaraFloatParameterEditor : public SNiagaraParameterEditor
 {
@@ -13,26 +15,34 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraFloatParameterEditor) { }
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs)
+	void Construct(const FArguments& InArgs, EUnit DisplayUnit)
 	{
 		SNiagaraParameterEditor::Construct(SNiagaraParameterEditor::FArguments()
 			.MinimumDesiredWidth(DefaultInputSize)
 			.MaximumDesiredWidth(DefaultInputSize));
 
+		const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
 		ChildSlot
 		[
-			SNew(SSpinBox<float>)
+			SNew(SNumericEntryBox<float>)
 			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
 			.MinValue(TOptional<float>())
 			.MaxValue(TOptional<float>())
 			.MaxSliderValue(TOptional<float>())
 			.MinSliderValue(TOptional<float>())
-			.Delta(0.0f)
 			.Value(this, &SNiagaraFloatParameterEditor::GetValue)
 			.OnValueChanged(this, &SNiagaraFloatParameterEditor::ValueChanged)
 			.OnValueCommitted(this, &SNiagaraFloatParameterEditor::ValueCommitted)
 			.OnBeginSliderMovement(this, &SNiagaraFloatParameterEditor::BeginSliderMovement)
 			.OnEndSliderMovement(this, &SNiagaraFloatParameterEditor::EndSliderMovement)
+			.TypeInterface(GetTypeInterface<float>(DisplayUnit))
+			.AllowSpin(true)
+			.LabelPadding(FMargin(3) )
+			.LabelLocation(SNumericEntryBox<float>::ELabelLocation::Inside)
+			.Label()
+			[
+				SNumericEntryBox<int32>::BuildNarrowColorLabel(Settings->FloatPinTypeColor)
+			]
 		];
 	}
 
@@ -61,7 +71,7 @@ private:
 		ExecuteOnEndValueChange();
 	}
 
-	float GetValue() const
+	TOptional<float> GetValue() const
 	{
 		return FloatValue;
 	}
@@ -81,12 +91,12 @@ private:
 	}
 
 private:
-	float FloatValue;
+	float FloatValue = 0;
 };
 
-TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorFloatTypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType) const
+TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorFloatTypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit) const
 {
-	return SNew(SNiagaraFloatParameterEditor);
+	return SNew(SNiagaraFloatParameterEditor, DisplayUnit);
 }
 
 bool FNiagaraEditorFloatTypeUtilities::CanHandlePinDefaults() const
