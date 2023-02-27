@@ -56,7 +56,16 @@
 #define LOCTEXT_NAMESPACE "FractureToolGenerators"
 
 
+namespace
+{
+	FString GetActiveContentBrowserFolderPath()
+	{
+		IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+		const FContentBrowserItemPath CurrentPath = ContentBrowser.GetCurrentPath();
+		return CurrentPath.HasInternalPath() ? CurrentPath.GetInternalPathString() : FString();
+	}
 
+}
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -496,6 +505,79 @@ void UFractureToolGenerateAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> In
 	// Note: Transaction for undo history is created after the user completes the UI dialog; see OnGenerateAssetPathChosen()
 }
 
+FString UFractureToolGenerateAsset::GetDefaultAssetPath(const TArray<AActor*>& Actors) const
+{
+	FString UseAssetPath;
+
+	const UFractureModeSettings* Settings = GetDefault<UFractureModeSettings>();
+	bool bFailedToFindContentBrowser = false, bFailedToFindLastUsedFolder = false;
+	if (Settings->NewAssetLocation == EFractureModeNewAssetLocation::ContentBrowserFolder)
+	{
+		FString ActiveContentFolder = GetActiveContentBrowserFolderPath();
+		if (ActiveContentFolder.IsEmpty())
+		{
+			bFailedToFindContentBrowser = true;
+		}
+		else
+		{
+			UseAssetPath = ActiveContentFolder;
+		}
+	}
+	if (bFailedToFindContentBrowser || Settings->NewAssetLocation == EFractureModeNewAssetLocation::LastUsedFolder)
+	{
+		if (AssetPath.IsEmpty())
+		{
+			bFailedToFindLastUsedFolder = true;
+		}
+		else
+		{
+			UseAssetPath = AssetPath;
+		}
+	}
+	if (bFailedToFindLastUsedFolder || Settings->NewAssetLocation == EFractureModeNewAssetLocation::SourceAssetFolder)
+	{
+		for (const AActor* Actor : Actors)
+		{
+			// Find the asset folder of any selected static mesh
+			TArray<UStaticMeshComponent*> StaticMeshComponents;
+			Actor->GetComponents(StaticMeshComponents, true);
+			const UStaticMesh* FoundMeshAsset = nullptr;
+			for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
+			{
+				FoundMeshAsset = StaticMeshComponent ? StaticMeshComponent->GetStaticMesh() : nullptr;
+				if (FoundMeshAsset)
+				{
+					break;
+				}
+			}
+			if (FoundMeshAsset)
+			{
+				UseAssetPath = FoundMeshAsset->GetPathName();
+				break;
+			}
+			// Find the asset folder of any selected geometry collection
+			TArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
+			Actor->GetComponents(GeometryCollectionComponents, true);
+			const UGeometryCollection* FoundRestAsset = nullptr;
+			for (UGeometryCollectionComponent* GCComp : GeometryCollectionComponents)
+			{
+				FoundRestAsset = GCComp ? GCComp->GetRestCollection() : nullptr;
+				if (FoundRestAsset)
+				{
+					break;
+				}
+			}
+			if (FoundRestAsset)
+			{
+				UseAssetPath = FoundRestAsset->GetPathName();
+				break;
+			}
+		}
+	}
+	return UseAssetPath;
+}
+
+
 void UFractureToolGenerateAsset::OpenGenerateAssetDialog(TArray<AActor*>& Actors)
 {
 	TSharedPtr<SWindow> PickAssetPathWindow;
@@ -504,6 +586,8 @@ void UFractureToolGenerateAsset::OpenGenerateAssetDialog(TArray<AActor*>& Actors
 		.Title(LOCTEXT("SelectPath", "Select Path"))
 		.ToolTipText(LOCTEXT("SelectPathTooltip", "Select the asset path for your new Geometry Collection"))
 		.ClientSize(FVector2D(500, 500));
+
+	AssetPath = GetDefaultAssetPath(Actors);
 
 	// NOTE - the parent window has to completely exist before this one does so the parent gets set properly.
 	// This is why we do not just put this in the Contents()[ ... ] of the Window above.

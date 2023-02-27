@@ -35,6 +35,7 @@
 #include "Internationalization/Text.h"
 
 #include "FractureTool.h"
+#include "FractureModeSettings.h"
 
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollection.h"
@@ -47,6 +48,7 @@
 #include "FractureEditorStyle.h"
 #include "ScopedTransaction.h"
 #include "Modules/ModuleManager.h"
+#include "ISettingsModule.h"
 
 #include "PlanarCut.h"
 #include "FractureToolAutoCluster.h" 
@@ -68,6 +70,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "PropertyHandle.h"
+#include "Widgets/Input/STextComboBox.h"
 
 #include "LevelEditor.h"
 
@@ -199,7 +202,50 @@ FFractureEditorModeToolkit::~FFractureEditorModeToolkit()
 		auto& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		LevelEditorModule.OnMapChanged().RemoveAll(this);
 	}
+	UFractureModeSettings* Settings = GetMutableDefault<UFractureModeSettings>();
+	Settings->OnModified.Remove(ProjectSettingsModifiedHandle);
 }
+
+void FFractureEditorModeToolkit::UpdateAssetLocationMode(TSharedPtr<FString> NewString)
+{
+	UFractureModeSettings* Settings = GetMutableDefault<UFractureModeSettings>();
+	EFractureModeNewAssetLocation NewAssetLocation = EFractureModeNewAssetLocation::SourceAssetFolder;
+	if (NewString == AssetLocationModes[0])
+	{
+		NewAssetLocation = EFractureModeNewAssetLocation::SourceAssetFolder;
+	}
+	else if (NewString == AssetLocationModes[1])
+	{
+		NewAssetLocation = EFractureModeNewAssetLocation::LastUsedFolder;
+	}
+	else if (NewString == AssetLocationModes[2])
+	{
+		NewAssetLocation = EFractureModeNewAssetLocation::ContentBrowserFolder;
+	}
+
+	Settings->NewAssetLocation = NewAssetLocation;
+	Settings->SaveConfig();
+}
+
+void FFractureEditorModeToolkit::UpdateAssetPanelFromSettings()
+{
+	const UFractureModeSettings* Settings = GetDefault<UFractureModeSettings>();
+
+	switch (Settings->NewAssetLocation)
+	{
+	case EFractureModeNewAssetLocation::ContentBrowserFolder:
+		AssetLocationMode->SetSelectedItem(AssetLocationModes[2]);
+		break;
+	case EFractureModeNewAssetLocation::LastUsedFolder:
+		AssetLocationMode->SetSelectedItem(AssetLocationModes[1]);
+		break;
+	case EFractureModeNewAssetLocation::SourceAssetFolder:
+	default:
+		AssetLocationMode->SetSelectedItem(AssetLocationModes[0]);
+		break;
+	}
+}
+
 
 void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
 {
@@ -246,13 +292,78 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	EditModule.RegisterCustomClassLayout("OutlinerSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FOutlinerSettingsCustomization::MakeInstance, this));
 	OutlinerDetailsView->SetObject(GetMutableDefault<UOutlinerSettings>());
 
+	AssetLocationModes.Reset();
+	AssetLocationModes.Add(MakeShared<FString>(TEXT("Source Asset Folder")));
+	AssetLocationModes.Add(MakeShared<FString>(TEXT("Last Used Folder")));
+	AssetLocationModes.Add(MakeShared<FString>(TEXT("Content Browser Folder")));
+	AssetLocationMode = SNew(STextComboBox)
+		.OptionsSource(&AssetLocationModes)
+		.OnSelectionChanged_Lambda([&](TSharedPtr<FString> String, ESelectInfo::Type) { UpdateAssetLocationMode(String); });
+
+	const TSharedPtr<SVerticalBox> Content = SNew(SVerticalBox)
+		+ SVerticalBox::Slot().HAlign(HAlign_Fill)
+		[
+			SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().Padding(0).HAlign(HAlign_Left).VAlign(VAlign_Center).FillWidth(2.f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("AssetLocationLabel", "New Asset Location"))
+				]
+				+ SHorizontalBox::Slot().Padding(0).FillWidth(4.0f)
+				[
+					AssetLocationMode->AsShared()
+				]
+		];
+
+	TSharedPtr<SExpandableArea> AssetConfigPanel = SNew(SExpandableArea)
+		.HeaderPadding(FMargin(0.f))
+		.Padding(FMargin(8.f))
+		.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryTop"))
+		.AreaTitleFont(FAppStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
+		.BodyContent()
+		[
+			Content->AsShared()
+		]
+		.HeaderContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().HAlign(HAlign_Left).VAlign(VAlign_Center).FillWidth(2.f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("FractureSettingsPanelHeader", "Fracture Mode Quick Settings"))
+			]
+
+			+ SHorizontalBox::Slot().HAlign(HAlign_Right).VAlign(VAlign_Center).AutoWidth()
+			[
+				SNew(SComboButton)
+				.HasDownArrow(false)
+				.MenuPlacement(EMenuPlacement::MenuPlacement_MenuRight)
+				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+				.OnGetMenuContent(FOnGetContent::CreateLambda([this]()
+				{
+					return MakeMenu_FractureModeConfigSettings();
+				}))
+				.ContentPadding(FMargin(3.0f, 1.0f))
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.Image(FFractureEditorStyle::Get().GetBrush("FractureEditor.DefaultSettings"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+
+		];
+
+	const TSharedPtr<SVerticalBox> ToolkitWidgetVBox = SNew(SVerticalBox);
+
 	float Padding = 4.0f;
 	FMargin MorePadding = FMargin(10.0f, 2.0f);
-	SAssignNew(ToolkitWidget, SBox)
-	[
-		SNew(SVerticalBox)
-
-		+SVerticalBox::Slot()
+	SAssignNew(ToolkitWidget, SBorder).HAlign(HAlign_Fill)
+		.Padding(4)
+		[
+			ToolkitWidgetVBox->AsShared()
+		];
+	ToolkitWidgetVBox->AddSlot().HAlign(HAlign_Fill).FillHeight(1.f)
 		[
 
 			SNew(SSplitter)
@@ -304,18 +415,85 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 					]
 				]
 			]
-		]
-	];
+		];
+	ToolkitWidgetVBox->AddSlot().AutoHeight().HAlign(HAlign_Fill).VAlign(VAlign_Bottom).Padding(0)
+		[
+			AssetConfigPanel->AsShared()
+		];
 
 
+	// register callback
+	UFractureModeSettings* FractureModeSettings = GetMutableDefault<UFractureModeSettings>();
+	ProjectSettingsModifiedHandle = FractureModeSettings->OnModified.AddLambda([this](UObject*, FProperty*) { OnProjectSettingsModified(); });
 
-
+	// initialize combos
+	UpdateAssetPanelFromSettings();
 
 	// Bind Chaos Commands;
 	BindCommands();
 
 	FModeToolkit::Init(InitToolkitHost, InOwningMode);
 
+}
+
+void FFractureEditorModeToolkit::OnProjectSettingsModified()
+{
+	UpdateAssetPanelFromSettings();
+}
+
+namespace
+{
+
+	void MakeFractureQuickSettings(FMenuBuilder& MenuBuilder)
+	{
+		const FUIAction OpenFractureModeProjectSettings(
+			FExecuteAction::CreateLambda([]
+				{
+					if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+					{
+						SettingsModule->ShowViewer("Project", "Plugins", "FractureMode");
+					}
+				}), FCanExecuteAction(), FIsActionChecked());
+		MenuBuilder.AddMenuEntry(LOCTEXT("FractureModeProjectSettings", "Project Settings"),
+			LOCTEXT("FractureModeProjectSettings_Tooltip", "Jump to the Project Settings for Fracture Mode. Project Settings are Project-specific."),
+			FSlateIcon(), OpenFractureModeProjectSettings, NAME_None, EUserInterfaceActionType::Button);
+
+		const FUIAction OpenFractureModeEditorSettings(
+			FExecuteAction::CreateLambda([]
+				{
+					if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+					{
+						SettingsModule->ShowViewer("Editor", "Plugins", "FractureEditor");
+					}
+				}), FCanExecuteAction(), FIsActionChecked());
+		MenuBuilder.AddMenuEntry(LOCTEXT("FractureModeEditorSettings", "Editor Settings"),
+			LOCTEXT("FractureModeEditorSettings_Tooltip", "Jump to the Editor Settings for Fracture Mode. Editor Settings apply across all Projects."),
+			FSlateIcon(), OpenFractureModeEditorSettings, NAME_None, EUserInterfaceActionType::Button);
+	}
+}
+
+TSharedRef<SWidget> FFractureEditorModeToolkit::MakeMenu_FractureModeConfigSettings()
+{
+	FMenuBuilder MenuBuilder(true, TSharedPtr<FUICommandList>());
+
+	MenuBuilder.BeginSection("Section_Settings", LOCTEXT("Section_Settings", "Quick Settings"));
+	constexpr bool bQuickSettingsInSubMenu = false;
+	if (!bQuickSettingsInSubMenu)
+	{
+		MakeFractureQuickSettings(MenuBuilder);
+	}
+	else
+	{
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("QuickSettingsSubMenu", "Jump To Settings"), LOCTEXT("QuickSettingsSubMenu_ToolTip", "Jump to sections of the Settings dialogs relevant to Fracture Mode"),
+			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder) {
+				MakeFractureQuickSettings(SubMenuBuilder);
+				}));
+	}
+	MenuBuilder.EndSection();
+
+	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
+	return MenuWidget;
 }
 
 void FFractureEditorModeToolkit::RequestModeUITabs()
@@ -345,9 +523,27 @@ void FFractureEditorModeToolkit::RequestModeUITabs()
 	}
 }
 
+TSharedPtr<SWidget> FFractureEditorModeToolkit::GetInlineContent() const
+{
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.FillHeight(1.0f)
+		.VAlign(VAlign_Fill)
+		[
+			ToolkitWidget.ToSharedRef()
+		];
+}
+
 void FFractureEditorModeToolkit::InvokeUI()
 {
 	FModeToolkit::InvokeUI();
+
+	// (Note this logic is from ModelingToolsEditorModeToolkit.cpp, as the modeling tools had the same issue)
+	// FModeToolkit::UpdatePrimaryModePanel() wrapped our GetInlineContent() output in a SScrollBar widget,
+	// however this doesn't make sense as we want to dock panels to the "top" and "bottom" of our mode panel area,
+	// and the details panel in the middle has it's own scrollbar already. The SScrollBar is hardcoded as the content
+	// of FModeToolkit::InlineContentHolder so we can just replace it here
+	InlineContentHolder->SetContent(GetInlineContent().ToSharedRef());
 
 	if (TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin())
 	{

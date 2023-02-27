@@ -12,6 +12,20 @@
 
 class FGeometryCollection;
 
+// Control the default asset folder presented when using the "New" tool to create a Geometry Collection in Fracture Mode
+UENUM()
+enum class EFractureModeNewAssetLocation
+{
+	/** Default to creating rest collections in the same folder as the source asset. */
+	SourceAssetFolder,
+
+	/** Default to creating rest collections in the last folder selected this session. If no folder was selected yet, use the Source Asset Folder. */
+	LastUsedFolder,
+
+	/** Default to creating reset collections in the currently-visible Asset Browser folder if available, otherwise use the Last Used Folder. */
+	ContentBrowserFolder
+};
+
 /**
  * Settings for the Fracture Editor Mode.
  */
@@ -32,6 +46,10 @@ public:
 	virtual FText GetSectionDescription() const override { return NSLOCTEXT("FractureModeSettings", "FractureModeSettingsDescription", "Configure the Fracture Editor Mode plugin"); }
 
 public:
+
+	/** The default asset folder presented when using the "New" tool to create a Geometry Collection in Fracture Mode */
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Asset Location")
+	EFractureModeNewAssetLocation NewAssetLocation = EFractureModeNewAssetLocation::SourceAssetFolder;
 
 	/** Default fraction of geometry volume by which a cluster's convex hull volume can exceed the actual geometry volume before instead using the hulls of the children.  0 means the convex volume cannot exceed the geometry volume; 1 means the convex volume is allowed to be 100% larger (2x) the geometry volume. */
 	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults", meta = (ClampMin = "0", DisplayName = "Allow Larger Hull Fraction"))

@@ -45,6 +45,7 @@ public class FractureEditor : ModuleRules
 				"ToolWidgets",
 				"DeveloperSettings",
 				"FractureEngine",
+				"ContentBrowserData",
 				"GeometryFramework"
 
 				// ... add private dependencies that you statically link with here ...	

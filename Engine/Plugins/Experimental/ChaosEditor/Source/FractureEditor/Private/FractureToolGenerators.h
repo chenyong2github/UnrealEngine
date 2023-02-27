@@ -36,6 +36,8 @@ private:
 	static ULevel* GetSelectedLevel();
 	static AActor* AddActor(ULevel* InLevel, UClass* Class);
 
+	FString GetDefaultAssetPath(const TArray<AActor*>& Actors) const;
+
 private:
 	TWeakPtr<FFractureEditorModeToolkit> Toolkit;
 
