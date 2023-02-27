@@ -33,6 +33,29 @@ const TCHAR* LexToString(EReleaseSaveReason Reason)
 	}
 }
 
+const TCHAR* LexToString(ESuppressCookReason Reason)
+{
+	switch (Reason)
+	{
+	case ESuppressCookReason::InvalidSuppressCookReason: return TEXT("InvalidSuppressCookReason");
+	case ESuppressCookReason::AlreadyCooked: return TEXT("AlreadyCooked");
+	case ESuppressCookReason::NeverCook: return TEXT("NeverCook");
+	case ESuppressCookReason::DoesNotExistInWorkspaceDomain: return TEXT("DoesNotExistInWorkspaceDomain");
+	case ESuppressCookReason::ScriptPackage: return TEXT("ScriptPackage");
+	case ESuppressCookReason::NotInCurrentPlugin: return TEXT("NotInCurrentPlugin");
+	case ESuppressCookReason::Redirected: return TEXT("Redirected");
+	case ESuppressCookReason::OrphanedGenerated: return TEXT("OrphanedGenerated");
+	case ESuppressCookReason::LoadError: return TEXT("LoadError");
+	case ESuppressCookReason::SaveError: return TEXT("SaveError");
+	case ESuppressCookReason::OnlyEditorOnly: return TEXT("OnlyEditorOnly");
+	case ESuppressCookReason::CookCanceled: return TEXT("CookCanceled");
+	case ESuppressCookReason::MultiprocessAssignmentError: return TEXT("MultiprocessAssignmentError");
+	case ESuppressCookReason::RetractedByCookDirector: return TEXT("RetractedByCookDirector");
+	default: return TEXT("InvalidSuppressCookReason");
+	}
+}
+
+
 FCookerTimer::FCookerTimer(float InTimeSlice)
 	: StartTime(FPlatformTime::Seconds()), TimeSlice(InTimeSlice)
 {

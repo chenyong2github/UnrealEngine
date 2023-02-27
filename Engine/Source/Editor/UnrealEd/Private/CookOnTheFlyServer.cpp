@@ -2482,9 +2482,26 @@ void UCookOnTheFlyServer::NotifyRemovedFromWorker(UE::Cook::FPackageData& Packag
 
 void UCookOnTheFlyServer::DemoteToIdle(UE::Cook::FPackageData& PackageData, UE::Cook::ESendFlags SendFlags, UE::Cook::ESuppressCookReason Reason)
 {
+	using namespace UE::Cook;
+
 	if (PackageData.IsInProgress())
 	{
 		WorkerRequests->ReportDemoteToIdle(PackageData, Reason);
+		if (GCookProgressDisplay & ((int32)ECookProgressDisplayMode::Instigators | (int32)ECookProgressDisplayMode::PackageNames))
+		{
+			WriteToString<256> PackageNameStr(PackageData.GetPackageName());
+
+			// ExternalActors: Do not send a message for every NeverCook external Actor package; too much spam
+			if (!(Reason == ESuppressCookReason::NeverCook &&
+				PackageNameStr.ToView().Contains(ULevel::GetExternalActorsFolderName())))
+			{
+				UE_CLOG((GCookProgressDisplay & (int32)ECookProgressDisplayMode::Instigators), LogCook, Display,
+					TEXT("Cooking %s, Instigator: { %s } -> Skipped %s"), *PackageNameStr,
+					*(PackageData.GetInstigator().ToString()), LexToString(Reason));
+				UE_CLOG(GCookProgressDisplay & (int32)ECookProgressDisplayMode::PackageNames, LogCook, Display,
+					TEXT("Cooking %s -> Skipped %s"), *PackageNameStr, LexToString(Reason));
+			}
+		}
 	}
 	PackageData.SendToState(UE::Cook::EPackageState::Idle, SendFlags);
 }
