@@ -2945,18 +2945,33 @@ void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<const FVe
 			}
 			else if (ShaderType->GetTypeForDynamicCast() == FShaderType::EShaderTypeForDynamicCast::Material)
 			{
-				ShaderType->AsMaterialShaderType()->BeginCompileShader(
-					EShaderCompileJobPriority::ForceLocal,
-					GetGameThreadCompilingShaderMapId(),
-					0,
-					this,
-					GameThreadShaderMap->GetShaderMapId(),
-					GameThreadPendingCompilerEnvironment,
-					Platform,
-					GameThreadShaderMap->GetPermutationFlags(),
-					CompileJobs,
-					nullptr,
-					nullptr);
+				const EShaderPermutationFlags ShaderPermutation = GameThreadShaderMap->GetPermutationFlags();
+
+				const uint32 CompilingShaderMapId = GetGameThreadCompilingShaderMapId();
+				const FMaterialShaderMapId& ShaderMapId = GameThreadShaderMap->GetShaderMapId();
+				const FMaterialShaderType* MaterialShaderType = ShaderType->GetMaterialShaderType();
+
+				for (int32 PermutationId = 0; PermutationId < ShaderType->GetPermutationCount(); ++PermutationId)
+				{
+					const bool bShaderShouldCompile = MaterialShaderType->ShouldCompilePermutation(Platform, this, PermutationId, ShaderPermutation);
+					if (!bShaderShouldCompile)
+					{
+						continue;
+					}
+
+					MaterialShaderType->BeginCompileShader(
+						EShaderCompileJobPriority::ForceLocal,
+						CompilingShaderMapId,
+						PermutationId,
+						this,
+						ShaderMapId,
+						GameThreadPendingCompilerEnvironment,
+						Platform,
+						ShaderPermutation,
+						CompileJobs,
+						nullptr,
+						nullptr);
+				}
 			}
 			else if (ShaderType->GetTypeForDynamicCast() == FShaderType::EShaderTypeForDynamicCast::MeshMaterial)
 			{
@@ -3331,7 +3346,7 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 							ShaderStageNamesToCompile.Add(ShaderType->GetName());
 						}
 
-						GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, GetFeatureLevel(), GetQualityLevel(), MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile);
+						GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, GetFeatureLevel(), GetQualityLevel(), MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile, kUniqueShaderPermutationId);
 					}
 				}
 				else
@@ -3410,7 +3425,7 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 							TArray<FString> ShaderStageNamesToCompile;
 							ShaderStageNamesToCompile.Add(ShaderType->GetName());
 
-							GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, GetFeatureLevel(), GetQualityLevel(), MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile);
+							GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, GetFeatureLevel(), GetQualityLevel(), MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile, PermutationId);
 						}
 					}
 					else
@@ -3425,32 +3440,32 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 								if (InVertexFactoryType)
 								{
 									ShaderType->AsMeshMaterialShaderType()->BeginCompileShader(
-										EShaderCompileJobPriority::ForceLocal, 
-										CompilingShaderMapId, 
-										PermutationId, 
-										ShaderPlatform, 
-										PermutationFlags, 
+										EShaderCompileJobPriority::ForceLocal,
+										CompilingShaderMapId,
+										PermutationId,
+										ShaderPlatform,
+										PermutationFlags,
 										this,
 										ShaderMap->GetShaderMapId(),
-										RenderingThreadPendingCompilerEnvironment, 
-										InVertexFactoryType, 
-										CompileJobs, 
-										nullptr, 
+										RenderingThreadPendingCompilerEnvironment,
+										InVertexFactoryType,
+										CompileJobs,
+										nullptr,
 										nullptr);
 								}
 								else
 								{
 									ShaderType->AsMaterialShaderType()->BeginCompileShader(
-										EShaderCompileJobPriority::ForceLocal, 
-										CompilingShaderMapId, 
-										PermutationId, 
+										EShaderCompileJobPriority::ForceLocal,
+										CompilingShaderMapId,
+										PermutationId,
 										this,
 										ShaderMap->GetShaderMapId(),
-										RenderingThreadPendingCompilerEnvironment, 
-										ShaderPlatform, 
-										PermutationFlags, 
-										CompileJobs, 
-										nullptr, 
+										RenderingThreadPendingCompilerEnvironment,
+										ShaderPlatform,
+										PermutationFlags,
+										CompileJobs,
+										nullptr,
 										nullptr);
 								}
 							}

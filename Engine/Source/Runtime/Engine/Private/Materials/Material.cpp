@@ -2395,16 +2395,25 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialSh
 	FMaterial::DeferredDeleteArray(ResourcesToFree);
 }
 
-void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, const ITargetPlatform* TargetPlatform)
+void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, const ITargetPlatform* TargetPlatform, bool bBlocking)
 {
 	TArray<FMaterialResource*> NewResourcesToCache;	// only new resources need to have CacheShaders() called on them, whereas OutCachedMaterialResources may already contain resources for another shader platform
 	GetNewResources(ShaderPlatform, NewResourcesToCache);
 
 #if WITH_EDITOR
-	// For cooking, we can call the begin function and it will be completed as part of the polling mechanism.
-	BeginCacheShadersForResources(ShaderPlatform, NewResourcesToCache, EMaterialShaderPrecompileMode::Background, TargetPlatform);
-#else
-	CacheShadersForResources(ShaderPlatform, NewResourcesToCache, EMaterialShaderPrecompileMode::Background, TargetPlatform);
+	// The editor needs to block if the caching call comes from cook on the fly, where the polling mechanisms are not active.
+	// This is important so that the jobs finish and the CacheShadersCompletion() callback is triggered via FinishCacheShaders()!
+	if (bBlocking)
+#endif
+	{
+		CacheShadersForResources(ShaderPlatform, NewResourcesToCache, EMaterialShaderPrecompileMode::Background, TargetPlatform);
+	}
+#if WITH_EDITOR
+	else
+	{
+		// For cooking, we can call the begin function and it will be completed as part of the polling mechanism.
+		BeginCacheShadersForResources(ShaderPlatform, NewResourcesToCache, EMaterialShaderPrecompileMode::Background, TargetPlatform);
+	}
 #endif
 
 	OutCachedMaterialResources.Append(NewResourcesToCache);
@@ -4224,12 +4233,12 @@ void UMaterial::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPl
 
 	TArray<FMaterialResource*> *CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
 
-	if ( CachedMaterialResourcesForPlatform == NULL )
+	if (CachedMaterialResourcesForPlatform == nullptr)
 	{
 		CachedMaterialResourcesForCooking.Add( TargetPlatform );
 		CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
 
-		check( CachedMaterialResourcesForPlatform != NULL );
+		check(CachedMaterialResourcesForPlatform != nullptr);
 
 		if (DesiredShaderFormats.Num())
 		{
@@ -4252,7 +4261,7 @@ bool UMaterial::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetP
 	LLM_SCOPE(ELLMTag::Materials);
 	const TArray<FMaterialResource*>* CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
 
-	if ( CachedMaterialResourcesForPlatform != NULL ) // this should always succeed if begincacheforcookedcplatformdata is called first
+	if (CachedMaterialResourcesForPlatform != nullptr) // this should always succeed if BeginCacheForCookedPlatformData is called first
 	{
 		for ( const auto& MaterialResource : *CachedMaterialResourcesForPlatform )
 		{
@@ -5328,12 +5337,12 @@ void UMaterial::CompileMaterialsForRemoteRecompile(
 		if (MaterialInstance && MaterialInstance->bHasStaticPermutationResource)
 		{
 			TArray<FMaterialResource*>& ResourceArray = CompilingResources.Add(Material->GetPathName(), TArray<FMaterialResource*>());
-			MaterialInstance->CacheResourceShadersForCooking(ShaderPlatform, ResourceArray, EMaterialShaderPrecompileMode::Default, TargetPlatform);
+			MaterialInstance->CacheResourceShadersForCooking(ShaderPlatform, ResourceArray, EMaterialShaderPrecompileMode::Default, TargetPlatform, true /* Blocking */);
 		}
 		else if (BaseMaterial)
 		{
 			TArray<FMaterialResource*>& ResourceArray = CompilingResources.Add(Material->GetPathName(), TArray<FMaterialResource*>());
-			BaseMaterial->CacheResourceShadersForCooking(ShaderPlatform, ResourceArray, TargetPlatform);
+			BaseMaterial->CacheResourceShadersForCooking(ShaderPlatform, ResourceArray, TargetPlatform, true /* Blocking */);
 		}
 	}
 

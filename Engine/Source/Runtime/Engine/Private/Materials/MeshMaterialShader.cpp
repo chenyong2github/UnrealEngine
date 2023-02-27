@@ -49,7 +49,7 @@ static void PrepareMeshMaterialShaderCompileJob(EShaderPlatform Platform,
 	check(VertexFactoryType);
 	VertexFactoryType->ModifyCompilationEnvironment(FVertexFactoryShaderPermutationParameters(Platform, MaterialParameters, VertexFactoryType, ShaderType, PermutationFlags), ShaderEnvironment);
 
-	Material->SetupExtaCompilationSettings(Platform, NewJob->Input.ExtraSettings);
+	Material->SetupExtraCompilationSettings(Platform, NewJob->Input.ExtraSettings);
 
 	//update material shader stats
 	UpdateMaterialShaderCompilingStats(Material);

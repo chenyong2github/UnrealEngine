@@ -2290,7 +2290,13 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 	FMaterial::DeferredDeleteArray(ResourcesToFree);
 }
 
-void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform)
+void UMaterialInstance::CacheResourceShadersForCooking(
+	EShaderPlatform ShaderPlatform,
+	TArray<FMaterialResource*>& OutCachedMaterialResources,
+	EMaterialShaderPrecompileMode PrecompileMode,
+	const ITargetPlatform* TargetPlatform,
+	bool bBlocking
+)
 {
 	if (bHasStaticPermutationResource)
 	{
@@ -2332,12 +2338,21 @@ void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPla
 			NewResourcesToCache.Add(NewResource);
 		}
 
-#if WITH_EDITOR
-		// For cooking, we can call the begin function and it will be completed as part of the polling mechanism.
-		BeginCacheShadersForResources(ShaderPlatform, NewResourcesToCache, PrecompileMode, TargetPlatform);
-#else
-		CacheShadersForResources(ShaderPlatform, NewResourcesToCache, PrecompileMode, TargetPlatform);
-#endif
+	#if WITH_EDITOR
+		// The editor needs to block if the caching call comes from cook on the fly, where the polling mechanisms are not active.
+		// This is important so that the jobs finish and the CacheShadersCompletion() callback is triggered via FinishCacheShaders()!
+		if (bBlocking)
+	#endif
+		{
+			CacheShadersForResources(ShaderPlatform, NewResourcesToCache, PrecompileMode, TargetPlatform);
+		}
+	#if WITH_EDITOR
+		else
+		{
+			// For cooking, we can call the begin function and it will be completed as part of the polling mechanism.
+			BeginCacheShadersForResources(ShaderPlatform, NewResourcesToCache, PrecompileMode, TargetPlatform);
+		}
+	#endif
 
 		OutCachedMaterialResources.Append(NewResourcesToCache);
 	}

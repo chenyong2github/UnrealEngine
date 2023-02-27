@@ -1145,10 +1145,15 @@ void FMaterialShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& Sha
 	{
 		for (int32 ShaderTypeIndex = 0; ShaderTypeIndex < ShaderTypes.Num(); ShaderTypeIndex++)
 		{
+			FShaderType* ShaderType = ShaderTypes[ShaderTypeIndex];
 			FShaderTypeDependency Dependency;
-			Dependency.ShaderTypeName = ShaderTypes[ShaderTypeIndex]->GetHashedName();
-			Dependency.SourceHash = ShaderTypes[ShaderTypeIndex]->GetSourceHash(ShaderPlatform);
-			ShaderTypeDependencies.Add(Dependency);
+			Dependency.ShaderTypeName = ShaderType->GetHashedName();
+			Dependency.SourceHash = ShaderType->GetSourceHash(ShaderPlatform);
+			for (int32 Id = 0; Id < ShaderType->GetPermutationCount(); ++Id)
+			{
+				Dependency.PermutationId = Id;
+				ShaderTypeDependencies.Add(Dependency);
+			}
 		}
 
 		for (int32 VFTypeIndex = 0; VFTypeIndex < VFTypes.Num(); VFTypeIndex++)
@@ -1192,7 +1197,7 @@ static void PrepareMaterialShaderCompileJob(EShaderPlatform Platform,
 	//update material shader stats
 	UpdateMaterialShaderCompilingStats(Material);
 
-	Material->SetupExtaCompilationSettings(Platform, NewJob->Input.ExtraSettings);
+	Material->SetupExtraCompilationSettings(Platform, NewJob->Input.ExtraSettings);
 
 	// Allow the shader type to modify the compile environment.
 	ShaderType->SetupCompileEnvironment(Platform, Material, Key.PermutationId, PermutationFlags, ShaderEnvironment);

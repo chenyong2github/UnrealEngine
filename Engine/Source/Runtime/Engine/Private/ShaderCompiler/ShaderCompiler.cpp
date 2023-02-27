@@ -8102,6 +8102,7 @@ FArchive& operator<<(FArchive& Ar, FODSCRequestPayload& Payload)
 	Ar << Payload.VertexFactoryName;
 	Ar << Payload.PipelineName;
 	Ar << Payload.ShaderTypeNames;
+	Ar << Payload.PermutationId;
 	Ar << Payload.RequestHash;
 
 	if (Ar.IsLoading())

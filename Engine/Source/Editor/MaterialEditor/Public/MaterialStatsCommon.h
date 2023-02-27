@@ -30,7 +30,7 @@ public:
 	virtual bool RequiresSynchronousCompilation() const override { return false; }
 
 	/** this will enable shader source extraction and pass paths to (eventual) offline shader compilers */
-	virtual void SetupExtaCompilationSettings(const EShaderPlatform Platform, FExtraShaderCompilerSettings& Settings) const override;
+	virtual void SetupExtraCompilationSettings(const EShaderPlatform Platform, FExtraShaderCompilerSettings& Settings) const override;
 };
 
 /** enumeration used to group shader platforms */

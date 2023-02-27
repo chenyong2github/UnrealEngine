@@ -4,8 +4,26 @@
 #include "ODSCLog.h"
 #include "HAL/FileManager.h"
 
-FODSCRequestPayload::FODSCRequestPayload(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQualityLevel, const FString& InMaterialName, const FString& InVertexFactoryName, const FString& InPipelineName, const TArray<FString>& InShaderTypeNames, const FString& InRequestHash)
-	: ShaderPlatform(InShaderPlatform), FeatureLevel(InFeatureLevel), QualityLevel(InQualityLevel), MaterialName(InMaterialName), VertexFactoryName(InVertexFactoryName), PipelineName(InPipelineName), ShaderTypeNames(std::move(InShaderTypeNames)), RequestHash(InRequestHash)
+FODSCRequestPayload::FODSCRequestPayload(
+	EShaderPlatform InShaderPlatform,
+	ERHIFeatureLevel::Type InFeatureLevel,
+	EMaterialQualityLevel::Type InQualityLevel,
+	const FString& InMaterialName,
+	const FString& InVertexFactoryName,
+	const FString& InPipelineName,
+	const TArray<FString>& InShaderTypeNames,
+	int32 InPermutationId,
+	const FString& InRequestHash
+)
+: ShaderPlatform(InShaderPlatform)
+, FeatureLevel(InFeatureLevel)
+, QualityLevel(InQualityLevel)
+, MaterialName(InMaterialName)
+, VertexFactoryName(InVertexFactoryName)
+, PipelineName(InPipelineName)
+, ShaderTypeNames(std::move(InShaderTypeNames))
+, PermutationId(InPermutationId)
+, RequestHash(InRequestHash)
 {
 
 }
@@ -120,8 +138,21 @@ void FODSCThread::AddRequest(const TArray<FString>& MaterialsToCompile, const FS
 	PendingMaterialThreadedRequests.Enqueue(new FODSCMessageHandler(MaterialsToCompile, ShaderTypesToLoad, ShaderPlatform, FeatureLevel, QualityLevel, RecompileCommandType));
 }
 
-void FODSCThread::AddShaderPipelineRequest(EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames)
+void FODSCThread::AddShaderPipelineRequest(
+	EShaderPlatform ShaderPlatform,
+	ERHIFeatureLevel::Type FeatureLevel,
+	EMaterialQualityLevel::Type QualityLevel,
+	const FString& MaterialName,
+	const FString& VertexFactoryName,
+	const FString& PipelineName,
+	const TArray<FString>& ShaderTypeNames,
+	int32 PermutationId
+)
 {
+	// TODO: Requests for individual permutations come in here, but a single coalesced payload is submitted to the server since 
+	// we compile all material shader permutations encountered for the moment. Consider batching up requested permutations and 
+	// have the server skip compiling those not in the list. Ensure that DDC key and shader map assumptions are correct!
+
 	FString RequestString = (MaterialName + VertexFactoryName + PipelineName);
 	for (const auto& ShaderTypeName : ShaderTypeNames)
 	{
@@ -132,7 +163,7 @@ void FODSCThread::AddShaderPipelineRequest(EShaderPlatform ShaderPlatform, ERHIF
 	FScopeLock Lock(&RequestHashCriticalSection);
 	if (!RequestHashes.Contains(RequestHash))
 	{
-		PendingMeshMaterialThreadedRequests.Enqueue(FODSCRequestPayload(ShaderPlatform, FeatureLevel, QualityLevel, MaterialName, VertexFactoryName, PipelineName, ShaderTypeNames, RequestHash));
+		PendingMeshMaterialThreadedRequests.Enqueue(FODSCRequestPayload(ShaderPlatform, FeatureLevel, QualityLevel, MaterialName, VertexFactoryName, PipelineName, ShaderTypeNames, PermutationId, RequestHash));
 		RequestHashes.Add(RequestHash);
 	}
 }

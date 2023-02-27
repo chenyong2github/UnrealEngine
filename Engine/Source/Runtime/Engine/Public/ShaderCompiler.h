@@ -1058,11 +1058,24 @@ struct FODSCRequestPayload
 	/** An array of shader type names for each stage in the Pipeline. */
 	TArray<FString> ShaderTypeNames;
 
+	/** The permutation ID to compile. */
+	int32 PermutationId;
+
 	/** A hash of the above information to uniquely identify a Request. */
 	FString RequestHash;
 
 	ENGINE_API FODSCRequestPayload() {};
-	ENGINE_API FODSCRequestPayload(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQualityLevel, const FString& InMaterialName, const FString& InVertexFactoryName, const FString& InPipelineName, const TArray<FString>& InShaderTypeNames, const FString& InRequestHash);
+	ENGINE_API FODSCRequestPayload(
+		EShaderPlatform InShaderPlatform,
+		ERHIFeatureLevel::Type InFeatureLevel,
+		EMaterialQualityLevel::Type InQualityLevel,
+		const FString& InMaterialName,
+		const FString& InVertexFactoryName,
+		const FString& InPipelineName,
+		const TArray<FString>& InShaderTypeNames,
+		int32 InPermutationId,
+		const FString& InRequestHash
+	);
 
 	/**
 	* Serializes FODSCRequestPayload value from or into this archive.

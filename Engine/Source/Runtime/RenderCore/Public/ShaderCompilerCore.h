@@ -229,8 +229,8 @@ struct FShaderCompilerInput
 	const FShaderParametersMetadata* RootParametersStructure = nullptr;
 
 
-	// Additional compilation settings that can be filled by FMaterial::SetupExtaCompilationSettings
-	// FMaterial::SetupExtaCompilationSettings is usually called by each (*)MaterialShaderType::BeginCompileShader() function
+	// Additional compilation settings that can be filled by FMaterial::SetupExtraCompilationSettings
+	// FMaterial::SetupExtraCompilationSettings is usually called by each (*)MaterialShaderType::BeginCompileShader() function
 	FExtraShaderCompilerSettings ExtraSettings;
 
 	/** Oodle-specific compression algorithm - used if CompressionFormat is set to NAME_Oodle. */

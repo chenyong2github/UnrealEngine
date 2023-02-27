@@ -2190,7 +2190,7 @@ public:
 	ENGINE_API bool WritesEveryPixel(bool bShadowPass = false) const;
 
 	/** call during shader compilation jobs setup to fill additional settings that may be required by classes who inherit from this */
-	virtual void SetupExtaCompilationSettings(const EShaderPlatform Platform, FExtraShaderCompilerSettings& Settings) const
+	virtual void SetupExtraCompilationSettings(const EShaderPlatform Platform, FExtraShaderCompilerSettings& Settings) const
 	{}
 
 	void DumpDebugInfo(FOutputDevice& OutputDevice);

@@ -14,7 +14,7 @@
 /***********************************************************************************************************************/
 /*begin FMaterialResourceStats functions*/
 
-void FMaterialResourceStats::SetupExtaCompilationSettings(const EShaderPlatform Platform, FExtraShaderCompilerSettings& Settings) const
+void FMaterialResourceStats::SetupExtraCompilationSettings(const EShaderPlatform Platform, FExtraShaderCompilerSettings& Settings) const
 {
 	Settings.bExtractShaderSource = true;
 	Settings.OfflineCompilerPath = FMaterialStatsUtils::GetPlatformOfflineCompilerPath(Platform);

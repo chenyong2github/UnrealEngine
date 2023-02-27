@@ -849,7 +849,13 @@ public:
 	 * The results will be applied to this FMaterial in the renderer when they are finished compiling.
 	 * Note: This modifies material variables used for rendering and is assumed to be called within a FMaterialUpdateContext!
 	 */
-	void CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default, const ITargetPlatform* TargetPlatform = nullptr);
+	void CacheResourceShadersForCooking(
+		EShaderPlatform ShaderPlatform,
+		TArray<FMaterialResource*>& OutCachedMaterialResources,
+		EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default,
+		const ITargetPlatform* TargetPlatform = nullptr,
+		bool bBlocking = false
+	);
 
 	/** 
 	 * Gathers actively used shader maps from all material resources used by this material instance
