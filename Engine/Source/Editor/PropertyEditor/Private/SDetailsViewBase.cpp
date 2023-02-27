@@ -26,7 +26,7 @@
 #include "ScopedTransaction.h"
 #include "SDetailNameArea.h"
 #include "SDetailsView.h"
-#include "PropertyEditorPermissionList.h"
+#include "PropertyPermissionList.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 
 SDetailsViewBase::SDetailsViewBase() :

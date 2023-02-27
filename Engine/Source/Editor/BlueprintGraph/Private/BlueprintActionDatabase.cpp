@@ -85,7 +85,7 @@
 #include "Misc/NamePermissionList.h"
 #include "Modules/ModuleManager.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "PropertyEditorPermissionList.h"
+#include "PropertyPermissionList.h"
 #include "Templates/Casts.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/SubclassOf.h"

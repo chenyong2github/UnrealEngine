@@ -8,7 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMDeveloperProjectSettings.h"
-#include "PropertyEditorPermissionList.h"
+#include "PropertyPermissionList.h"
 #include "MVVMFunctionGraphHelper.h"
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMBindingName.h"

@@ -6,7 +6,7 @@
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "PropertyEditorPermissionList.h"
+#include "PropertyPermissionList.h"
 #include "IPropertyChangeListener.h"
 #include "MovieSceneSequence.h"
 #include "ScopedTransaction.h"

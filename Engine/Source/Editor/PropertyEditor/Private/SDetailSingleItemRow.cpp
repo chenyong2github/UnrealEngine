@@ -25,7 +25,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "PropertyEditorPermissionList.h"
+#include "PropertyPermissionList.h"
 
 namespace DetailWidgetConstants
 {

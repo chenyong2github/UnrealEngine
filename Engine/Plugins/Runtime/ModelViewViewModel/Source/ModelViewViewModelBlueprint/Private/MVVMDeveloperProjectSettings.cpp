@@ -5,7 +5,7 @@
 
 #include "BlueprintEditorSettings.h"
 #include "MVVMBlueprintViewModelContext.h"
-#include "PropertyEditorPermissionList.h"
+#include "PropertyPermissionList.h"
 #include "Types/MVVMExecutionMode.h"
 
 #define LOCTEXT_NAMESPACE "MVVMDeveloperProjectSettings"
