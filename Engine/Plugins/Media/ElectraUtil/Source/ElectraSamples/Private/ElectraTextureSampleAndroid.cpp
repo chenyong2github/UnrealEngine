@@ -479,7 +479,8 @@ bool FElectraTextureSample::Convert(FTexture2DRHIRef& InDstTexture, const FConve
 		// Make a source texture so we can convert from it...
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("FMediaTextureResource"), SampleDim, VideoDecoderOutputAndroid->GetFormat())
-			.SetFlags(TexCreate_Dynamic);
+			.SetFlags(TexCreate_Dynamic)
+			.SetInitialState(ERHIAccess::SRVMask);
 		InputTexture = RHICreateTexture(Desc);
 		if (!InputTexture.IsValid())
 		{

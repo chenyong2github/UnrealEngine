@@ -303,7 +303,7 @@ void FAndroidCameraPlayer::SetGuid(const FGuid& Guid)
 // ==============================================================
 // Used by TickFetch
 
-static void DoUpdateExternalCameraSampleExecute(TWeakPtr<FJavaAndroidCameraPlayer, ESPMode::ThreadSafe> JavaCameraPlayerPtr, FGuid PlayerGuid)
+static void ConditionalInitializeVideoTexture_RenderThread(TWeakPtr<FJavaAndroidCameraPlayer, ESPMode::ThreadSafe> JavaCameraPlayerPtr, FGuid PlayerGuid)
 {
 	auto PinnedJavaCameraPlayer = JavaCameraPlayerPtr.Pin();
 
@@ -317,7 +317,8 @@ static void DoUpdateExternalCameraSampleExecute(TWeakPtr<FJavaAndroidCameraPlaye
 	{
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("VideoTexture"), 1, 1, PF_R8G8B8A8)
-			.SetFlags(ETextureCreateFlags::External);
+			.SetFlags(ETextureCreateFlags::External)
+			.SetInitialState(ERHIAccess::SRVMask);
 
 		VideoTexture = RHICreateTexture(Desc);
 		PinnedJavaCameraPlayer->SetVideoTexture(VideoTexture);
@@ -333,6 +334,22 @@ static void DoUpdateExternalCameraSampleExecute(TWeakPtr<FJavaAndroidCameraPlaye
 #if ANDROIDCAMERAPLAYER_USE_NATIVELOGGING
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Fetch RT: Created VideoTexture: %d - %s"), *reinterpret_cast<int32*>(VideoTexture->GetNativeResource()), *PlayerGuid.ToString());
 #endif
+	}
+}
+
+static void DoUpdateExternalCameraSampleExecute(TWeakPtr<FJavaAndroidCameraPlayer, ESPMode::ThreadSafe> JavaCameraPlayerPtr, FGuid PlayerGuid)
+{
+	auto PinnedJavaCameraPlayer = JavaCameraPlayerPtr.Pin();
+
+	if (!PinnedJavaCameraPlayer.IsValid())
+	{
+		return;
+	}
+
+	FTextureRHIRef VideoTexture = PinnedJavaCameraPlayer->GetVideoTexture();
+	if (VideoTexture == nullptr)
+	{
+		return;
 	}
 
 	int32 TextureId = *reinterpret_cast<int32*>(VideoTexture->GetNativeResource());
@@ -368,6 +385,14 @@ struct FRHICommandUpdateExternalCameraSample final : public FRHICommand<FRHIComm
 		DoUpdateExternalCameraSampleExecute(JavaCameraPlayerPtr, PlayerGuid);
 	}
 };
+
+static void ConditionalInitializeVideoSample_RenderThread(TSharedRef<FAndroidCameraTextureSample, ESPMode::ThreadSafe> VideoSample)
+{
+	if (VideoSample->GetTexture() == nullptr || VideoSample->GetTexture()->GetSizeXY() != VideoSample->GetOutputDim())
+	{
+		VideoSample->InitializeTexture(FTimespan::Zero());
+	}
+}
 
 static void DoUpdateTextureCameraSampleExecute(TWeakPtr<FJavaAndroidCameraPlayer, ESPMode::ThreadSafe> JavaCameraPlayerPtr, TWeakPtr<FMediaSamples, ESPMode::ThreadSafe> SamplesPtr,
 	TSharedRef<FAndroidCameraTextureSample, ESPMode::ThreadSafe> VideoSample, FTimespan SampleTime)
@@ -592,6 +617,7 @@ void FAndroidCameraPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 		ENQUEUE_RENDER_COMMAND(AndroidCameraPlayerWriteVideoSample)(
 			[Params](FRHICommandListImmediate& RHICmdList)
 			{
+				ConditionalInitializeVideoTexture_RenderThread(Params.JavaCameraPlayerPtr, Params.PlayerGuid);
 				if (IsRunningRHIInSeparateThread())
 				{
 					new (RHICmdList.AllocCommand<FRHICommandUpdateExternalCameraSample>()) FRHICommandUpdateExternalCameraSample(Params.JavaCameraPlayerPtr, Params.PlayerGuid);
@@ -661,6 +687,7 @@ void FAndroidCameraPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 		ENQUEUE_RENDER_COMMAND(AndroidCameraPlayerWriteVideoSample)(
 			[Params](FRHICommandListImmediate& RHICmdList)
 			{
+				ConditionalInitializeVideoSample_RenderThread(Params.VideoSample);
 				if (IsRunningRHIInSeparateThread())
 				{
 					new (RHICmdList.AllocCommand<FRHICommandUpdateTextureCameraSample>()) FRHICommandUpdateTextureCameraSample(Params.JavaCameraPlayerPtr, Params.SamplesPtr, Params.VideoSample, Params.SampleTime);

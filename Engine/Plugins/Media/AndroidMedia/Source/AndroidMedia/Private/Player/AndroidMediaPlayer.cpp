@@ -463,7 +463,7 @@ void FAndroidMediaPlayer::SetGuid(const FGuid& Guid)
 // ==============================================================
 // Used by TickFetch
 
-static void DoUpdateExternalMediaSampleExecute(TWeakPtr<FJavaAndroidMediaPlayer, ESPMode::ThreadSafe> JavaMediaPlayerPtr, FGuid PlayerGuid)
+static void ConditionalInitializeVideoTexture_RenderThread(TWeakPtr<FJavaAndroidMediaPlayer, ESPMode::ThreadSafe> JavaMediaPlayerPtr, FGuid PlayerGuid)
 {
 	auto PinnedJavaMediaPlayer = JavaMediaPlayerPtr.Pin();
 
@@ -477,7 +477,8 @@ static void DoUpdateExternalMediaSampleExecute(TWeakPtr<FJavaAndroidMediaPlayer,
 	{
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("VideoTexture"), 1, 1, PF_R8G8B8A8)
-			.SetFlags(ETextureCreateFlags::External);
+			.SetFlags(ETextureCreateFlags::External)
+			.SetInitialState(ERHIAccess::SRVMask);
 
 		VideoTexture = RHICreateTexture(Desc);
 		PinnedJavaMediaPlayer->SetVideoTexture(VideoTexture);
@@ -493,6 +494,22 @@ static void DoUpdateExternalMediaSampleExecute(TWeakPtr<FJavaAndroidMediaPlayer,
 #if ANDROIDMEDIAPLAYER_USE_NATIVELOGGING
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Fetch RT: Created VideoTexture: %d - %s"), *reinterpret_cast<int32*>(VideoTexture->GetNativeResource()), *PlayerGuid.ToString());
 #endif
+	}
+}
+
+static void DoUpdateExternalMediaSampleExecute(TWeakPtr<FJavaAndroidMediaPlayer, ESPMode::ThreadSafe> JavaMediaPlayerPtr, FGuid PlayerGuid)
+{
+	auto PinnedJavaMediaPlayer = JavaMediaPlayerPtr.Pin();
+
+	if (!PinnedJavaMediaPlayer.IsValid())
+	{
+		return;
+	}
+
+	FTextureRHIRef VideoTexture = PinnedJavaMediaPlayer->GetVideoTexture();
+	if (VideoTexture == nullptr)
+	{
+		return;
 	}
 
 	int32 TextureId = *reinterpret_cast<int32*>(VideoTexture->GetNativeResource());
@@ -534,6 +551,14 @@ struct FRHICommandUpdateExternalMediaSample final : public FRHICommand<FRHIComma
 		DoUpdateExternalMediaSampleExecute(JavaMediaPlayerPtr, PlayerGuid);
 	}
 };
+
+static void ConditionalInitializeVideoSample_RenderThread(TSharedRef<FAndroidMediaTextureSample, ESPMode::ThreadSafe> VideoSample)
+{
+	if (VideoSample->GetTexture() == nullptr || VideoSample->GetTexture()->GetSizeXY() != VideoSample->GetOutputDim())
+	{
+		VideoSample->InitializeTexture(FTimespan::Zero());
+	}
+}
 
 static void DoUpdateTextureMediaSampleExecute(TWeakPtr<FJavaAndroidMediaPlayer, ESPMode::ThreadSafe> JavaMediaPlayerPtr, TWeakPtr<FMediaSamples, ESPMode::ThreadSafe> SamplesPtr,
 	TSharedRef<FAndroidMediaTextureSample, ESPMode::ThreadSafe> VideoSample)
@@ -748,6 +773,7 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 		ENQUEUE_RENDER_COMMAND(AndroidMediaPlayerWriteVideoSample)(
 			[Params](FRHICommandListImmediate& RHICmdList)
 			{
+				ConditionalInitializeVideoTexture_RenderThread(Params.JavaMediaPlayerPtr, Params.PlayerGuid);
 				if (IsRunningRHIInSeparateThread())
 				{
 					new (RHICmdList.AllocCommand<FRHICommandUpdateExternalMediaSample>()) FRHICommandUpdateExternalMediaSample(Params.JavaMediaPlayerPtr, Params.PlayerGuid);
@@ -811,6 +837,7 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 		ENQUEUE_RENDER_COMMAND(AndroidMediaPlayerWriteVideoSample)(
 			[Params](FRHICommandListImmediate& RHICmdList)
 			{
+				ConditionalInitializeVideoSample_RenderThread(Params.VideoSample);
 				if (IsRunningRHIInSeparateThread())
 				{
 					new (RHICmdList.AllocCommand<FRHICommandUpdateTextureMediaSample>()) FRHICommandUpdateTextureMediaSample(Params.JavaMediaPlayerPtr, Params.SamplesPtr, Params.VideoSample);
