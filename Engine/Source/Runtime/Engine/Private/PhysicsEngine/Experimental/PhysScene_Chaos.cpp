@@ -11,13 +11,14 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 #include "PhysicsReplication.h"
+#include "PhysicsEngine/ClusterUnionComponent.h"
 #include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/PhysicsCollisionHandler.h"
 #include "PhysicsEngine/PhysicsObjectExternalInterface.h"
 
 #include "ChaosSolversModule.h"
 
-
+#include "PhysicsProxy/ClusterUnionPhysicsProxy.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
 #include "EventsData.h"
@@ -551,6 +552,14 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FGeometryCollec
 	Solver->RegisterObject(InObject);
 }
 
+void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, Chaos::FClusterUnionPhysicsProxy* InObject)
+{
+	AddToComponentMaps(Component, InObject);
+
+	Chaos::FPhysicsSolver* Solver = GetSolver();
+	Solver->RegisterObject(InObject);
+}
+
 template<typename ObjectType>
 void RemovePhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, FChaosSolversModule* InModule)
 {
@@ -647,6 +656,18 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 	}
 
 	if(Solver)
+	{
+		Solver->UnregisterObject(InObject);
+	}
+
+	RemoveFromComponentMaps(InObject);
+}
+
+void FPhysScene_Chaos::RemoveObject(Chaos::FClusterUnionPhysicsProxy* InObject)
+{
+	Chaos::FPhysicsSolver* Solver = InObject->GetSolver<Chaos::FPhysicsSolver>();
+
+	if (Solver)
 	{
 		Solver->UnregisterObject(InObject);
 	}
@@ -1798,55 +1819,58 @@ void FPhysScene_Chaos::KillVisualDebugger()
 void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 {
 	using namespace Chaos;
-	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
-	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
-	FPhysicsCommand::ExecuteWrite(this, [this, &Solver, &PendingTransforms](FPhysScene* PhysScene)
+	struct FDispatcher
 	{
-		auto RigidLambda = [&PhysScene, &PendingTransforms](Chaos::FSingleParticlePhysicsProxy* Proxy)
+		FPhysScene_Chaos* Outer;
+		FPhysScene* PhysScene;
+		Chaos::FPhysicsSolverBase* Solver;
+		TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
+
+		void operator()(FSingleParticlePhysicsProxy* Proxy)
 		{
 			FPBDRigidParticle* DirtyParticle = Proxy->GetRigidParticleUnsafe();
 
-			if(FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(DirtyParticle->UserData()))
+			if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(DirtyParticle->UserData()))
 			{
-				if(BodyInstance->OwnerComponent.IsValid())
+				if (BodyInstance->OwnerComponent.IsValid())
 				{
 					if (Chaos::SyncKinematicOnGameThread == 0 && BodyInstance->IsInstanceSimulatingPhysics() == false)
 					{
 						return;
 					}
 					UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
-					if(OwnerComponent != nullptr)
+					if (OwnerComponent != nullptr)
 					{
 						bool bPendingMove = false;
-							FRigidTransform3 NewTransform(DirtyParticle->X(),DirtyParticle->R());
+						FRigidTransform3 NewTransform(DirtyParticle->X(), DirtyParticle->R());
 
-							if(!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
+						if (!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
+						{
+							if (BodyInstance->InstanceBodyIndex == INDEX_NONE)
 							{
-								if (BodyInstance->InstanceBodyIndex == INDEX_NONE)
-								{
 
 								bPendingMove = true;
 								const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
 								const FQuat NewRotation = NewTransform.GetRotation();
-								PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,MoveBy,NewRotation,Proxy->GetWakeEvent()));
+								PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, MoveBy, NewRotation, Proxy->GetWakeEvent()));
 
 							}
 
-								PhysScene->UpdateActorInAccelerationStructure(BodyInstance->ActorHandle);
+							PhysScene->UpdateActorInAccelerationStructure(BodyInstance->ActorHandle);
 						}
 
-						if(Proxy->GetWakeEvent() != Chaos::EWakeEventEntry::None && !bPendingMove)
+						if (Proxy->GetWakeEvent() != Chaos::EWakeEventEntry::None && !bPendingMove)
 						{
-							PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,Proxy->GetWakeEvent()));
+							PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, Proxy->GetWakeEvent()));
 						}
 						Proxy->ClearEvents();
 					}
 				}
 			}
-		};
+		}
 
-		auto ConstraintLambda = [&PendingTransforms](FJointConstraintPhysicsProxy* Proxy)
+		void operator()(FJointConstraintPhysicsProxy* Proxy)
 		{
 			Chaos::FJointConstraint* Constraint = Proxy->GetConstraint();
 
@@ -1871,10 +1895,9 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 
 				Constraint->GetOutputData().bDriveTargetChanged = false;
 			}
+		}
 
-		};
-
-		auto GeometryCollectionLambda = [this](FGeometryCollectionPhysicsProxy* Proxy)
+		void operator()(FGeometryCollectionPhysicsProxy* Proxy)
 		{
 			// Don't pass in anything here so we don't end up locking anything because we can assume the scene is already locked.
 			FLockedWritePhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockWrite({});
@@ -1898,15 +1921,50 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 					return !ShouldGCParticleBeInAccelerationStructure(Handle);
 				}
 			);
-			Interface->AddToSpatialAcceleration(ActiveHandles, GetSpacialAcceleration());
-			Interface->RemoveFromSpatialAcceleration(DisabledHandles, GetSpacialAcceleration());
-		};
 
-		Solver->PullPhysicsStateForEachDirtyProxy_External(RigidLambda, ConstraintLambda, GeometryCollectionLambda);
+			Interface->AddToSpatialAcceleration(ActiveHandles, Outer->GetSpacialAcceleration());
+			Interface->RemoveFromSpatialAcceleration(DisabledHandles, Outer->GetSpacialAcceleration());
+		}
 
+		void operator()(FClusterUnionPhysicsProxy* Proxy)
+		{
+			FLockedWritePhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockWrite({});
+			Chaos::FPhysicsObjectHandle Handle = Proxy->GetPhysicsObjectHandle();
+
+			// Cluster unions should always have their owner be the cluster union component.
+			FClusterUnionPhysicsProxy::FExternalParticle* DirtyParticle = Proxy->GetParticle_External();
+			if (UClusterUnionComponent* ParentComponent = Cast<UClusterUnionComponent>(FChaosUserData::Get<UPrimitiveComponent>(DirtyParticle->UserData())))
+			{
+				const FRigidTransform3 NewTransform(DirtyParticle->X(), DirtyParticle->R());
+
+				if (!NewTransform.EqualsNoScale(ParentComponent->GetComponentTransform()))
+				{
+					const FVector MoveBy = NewTransform.GetLocation() - ParentComponent->GetComponentTransform().GetLocation();
+					PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(ParentComponent, MoveBy, NewTransform.GetRotation(), DirtyParticle->GetWakeEvent()));
+
+					// Any changes in the linear/angular velocity of the particle is meaningless if the X/R doesn't change too.
+					ParentComponent->SyncVelocitiesFromPhysics(DirtyParticle->V(), DirtyParticle->W());
+
+					Interface->AddToSpatialAcceleration({ &Handle, 1 }, Outer->GetSpacialAcceleration());
+				}
+
+				ParentComponent->SyncIsAnchoredFromPhysics(Proxy->IsAnchored_External());
+				ParentComponent->SyncChildToParentFromProxy();
+				DirtyParticle->ClearEvents();
+			}
+		}
+	};
+
+	FDispatcher Dispatcher;
+	FPhysicsCommand::ExecuteWrite(this, [this, Solver, &Dispatcher](FPhysScene* PhysScene)
+	{
+		Dispatcher.Outer = this;
+		Dispatcher.PhysScene = PhysScene;
+		Dispatcher.Solver = Solver;
+		Solver->PullPhysicsStateForEachDirtyProxy_External(Dispatcher);
 	});
 
-	for (const FPhysScenePendingComponentTransform_Chaos& ComponentTransform : PendingTransforms)
+	for (const FPhysScenePendingComponentTransform_Chaos& ComponentTransform : Dispatcher.PendingTransforms)
 	{
 		if (ComponentTransform.OwningComp != nullptr)
 		{

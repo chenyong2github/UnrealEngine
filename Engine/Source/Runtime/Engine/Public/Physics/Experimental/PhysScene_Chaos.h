@@ -45,6 +45,7 @@ struct FConstraintInstanceBase;
 namespace Chaos
 {
 	class FPhysicsProxy;
+	class FClusterUnionPhysicsProxy;
 
 	struct FCollisionEventData;
 
@@ -129,6 +130,7 @@ public:
 	void AddObject(UPrimitiveComponent* Component, FStaticMeshPhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, Chaos::FSingleParticlePhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, FGeometryCollectionPhysicsProxy* InObject);
+	void AddObject(UPrimitiveComponent* Component, Chaos::FClusterUnionPhysicsProxy* InObject);
 	
 	void AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject);
 	void RemoveFromComponentMaps(IPhysicsProxyBase* InObject);
@@ -141,6 +143,7 @@ public:
 	void RemoveObject(FStaticMeshPhysicsProxy* InObject);
 	void RemoveObject(Chaos::FSingleParticlePhysicsProxy* InObject);
 	void RemoveObject(FGeometryCollectionPhysicsProxy* InObject);
+	void RemoveObject(Chaos::FClusterUnionPhysicsProxy* InObject);
 
 	FPhysicsReplication* GetPhysicsReplication();
 	void SetPhysicsReplication(FPhysicsReplication* InPhysicsReplication);

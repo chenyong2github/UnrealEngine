@@ -5,6 +5,7 @@
 #include "Containers/Set.h"
 #include "Framework/Threading.h"
 
+#include "PhysicsProxy/ClusterUnionPhysicsProxy.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 
@@ -44,10 +45,6 @@ namespace Chaos
 		FPhysicsObjectHandle GetRootObject()
 		{
 			EPhysicsProxyType ProxyType = Proxy->GetType();
-			if (ProxyType == EPhysicsProxyType::SingleParticleProxy)
-			{
-				return this;
-			}
 
 			TThreadParticle<Id>* Particle = GetParticle<Id>();
 			FPhysicsObjectHandle CurrentObject = this;
@@ -71,10 +68,31 @@ namespace Chaos
 			{
 				FGeometryCollectionPhysicsProxy* GeometryCollectionProxy = static_cast<FGeometryCollectionPhysicsProxy*>(Proxy);
 				FGeometryDynamicCollection& Collection = GetGeometryCollectionDynamicCollection<Id>(*GeometryCollectionProxy);
+
 				if (int32 Index = Collection.Parent[BodyIndex]; Index != INDEX_NONE)
 				{
 					return GeometryCollectionProxy->GetPhysicsObjectByIndex(Index);
 				}
+
+				// Yes this is an explicit fall through. Once we get to the root particle on the geometry collection we need to check
+				// if it's in a cluster union same with all the other proxies.
+				[[fallthrough]];
+			}
+			case EPhysicsProxyType::ClusterUnionProxy:
+			case EPhysicsProxyType::SingleParticleProxy:
+			{
+				// At this point, we need to be able to check if we're part of a cluster union.
+				// However, note that we're after more than just the parent particle, we're after
+				// the parent physics object handle which lives on the proxy. Hence why physics proxies
+				// need to keep track of their parent proxy. We do, however, make the assumption that the
+				// only possible valid parent proxy is a cluster union proxy though; hence being able to directly
+				// retrieve the physics object handle.
+				if (IPhysicsProxyBase* ParentProxy = Proxy->GetParentProxy(); ParentProxy && ParentProxy->GetType() == EPhysicsProxyType::ClusterUnionProxy)
+				{
+					FClusterUnionPhysicsProxy* ParentClusterProxy = static_cast<FClusterUnionPhysicsProxy*>(ParentProxy);
+					return ParentClusterProxy->GetPhysicsObjectHandle();
+				}
+				break;
 			}
 			default:
 				break;
@@ -103,6 +121,8 @@ namespace Chaos
 				{
 					switch (ProxyType)
 					{
+					case EPhysicsProxyType::ClusterUnionProxy:
+						return static_cast<FClusterUnionPhysicsProxy*>(Proxy)->GetParticle_External();
 					case EPhysicsProxyType::GeometryCollectionType:
 						return static_cast<FGeometryCollectionPhysicsProxy*>(Proxy)->GetParticleByIndex_External(BodyIndex);
 					case EPhysicsProxyType::SingleParticleProxy:
@@ -115,6 +135,8 @@ namespace Chaos
 				{
 					switch (ProxyType)
 					{
+					case EPhysicsProxyType::ClusterUnionProxy:
+						return static_cast<FClusterUnionPhysicsProxy*>(Proxy)->GetParticle_Internal();
 					case EPhysicsProxyType::GeometryCollectionType:
 						return static_cast<FGeometryCollectionPhysicsProxy*>(Proxy)->GetParticleByIndex_Internal(BodyIndex);
 					case EPhysicsProxyType::SingleParticleProxy:
@@ -151,6 +173,18 @@ namespace Chaos
 			{
 				FGeometryDynamicCollection& Collection = GetGeometryCollectionDynamicCollection<Id>(*static_cast<FGeometryCollectionPhysicsProxy*>(Proxy));
 				return !Collection.Children[BodyIndex].IsEmpty();
+			}
+			case EPhysicsProxyType::ClusterUnionProxy:
+			{
+				FClusterUnionPhysicsProxy* ClusterProxy = static_cast<FClusterUnionPhysicsProxy*>(Proxy);
+				if constexpr (Id == EThreadContext::External)
+				{
+					return ClusterProxy->HasChildren_External();
+				}
+				else
+				{
+					return ClusterProxy->HasChildren_Internal();
+				}
 			}
 			default:
 				break;

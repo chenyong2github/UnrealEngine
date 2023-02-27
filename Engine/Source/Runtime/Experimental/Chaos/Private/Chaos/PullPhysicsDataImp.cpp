@@ -9,6 +9,7 @@ void FPullPhysicsData::Reset()
 {
 	DirtyRigids.Reset();
 	DirtyGeometryCollections.Reset();
+	DirtyClusterUnions.Reset();
 	DirtyJointConstraints.Reset();
 }
 

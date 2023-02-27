@@ -501,12 +501,16 @@ namespace Chaos
 			bPaused_External = bShouldPause;
 		}
 
-		/** Used to update external thread data structures. RigidFunc allows per dirty rigid code to execute. Include PhysicsSolverBaseImpl.h to call this function*/
+		/** Used to update external thread data structures. Include PhysicsSolverBaseImpl.h to call this function*/
+		template<typename TDispatcher>
+		void PullPhysicsStateForEachDirtyProxy_External(TDispatcher& Dispatcher);
+
 		template <typename RigidLambda, typename ConstraintLambda, typename GeometryCollectionLambda>
+		UE_DEPRECATED(5.3, "Use PullPhysicsStateForEachDirtyProxy_External with the TDispatcher template parameter instead.")
 		void PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc, const ConstraintLambda& ConstraintFunc, const GeometryCollectionLambda& GeometryCollectionFunc);
 
 		template <typename RigidLambda, typename ConstraintLambda>
-		UE_DEPRECATED(5.4, "Use PullPhysicsStateForEachDirtyProxy_External with the additional GeometryCollectionLambda parameter instead.")
+		UE_DEPRECATED(5.3, "Use PullPhysicsStateForEachDirtyProxy_External with the TDispatcher template parameter instead.")
 		void PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc, const ConstraintLambda& ConstraintFunc);
 
 		bool IsUsingAsyncResults() const

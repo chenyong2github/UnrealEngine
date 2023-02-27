@@ -57,6 +57,7 @@ namespace Chaos
 	class FCharacterGroundConstraintProxy;
 	class FSingleParticleProxy;
 	class FGeometryParticleBuffer;
+	class FClusterUnionPhysicsProxy;
 
 	CHAOS_API extern int32 RewindCaptureNumFrames;
 
@@ -130,6 +131,9 @@ namespace Chaos
 
 		void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
 		void UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+
+		void RegisterObject(FClusterUnionPhysicsProxy* Proxy);
+		void UnregisterObject(FClusterUnionPhysicsProxy* Proxy);
 
 		void RegisterObject(Chaos::FJointConstraint* GTConstraint);
 		void UnregisterObject(Chaos::FJointConstraint* GTConstraint);
@@ -354,6 +358,7 @@ namespace Chaos
 		TSharedPtr<FCriticalSection> MCurrentLock;
 		TSparseArray< FSingleParticlePhysicsProxy* > SingleParticlePhysicsProxies_PT;
 		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies_Internal; // PT
+		TArray< FClusterUnionPhysicsProxy* > ClusterUnionPhysicsProxies_Internal; // PT
 		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies_Internal; // PT
 		TArray< FCharacterGroundConstraintProxy* > CharacterGroundConstraintProxies_Internal;
 
@@ -382,6 +387,7 @@ namespace Chaos
 
 		TArray<FPendingDestroyInfo> PendingDestroyPhysicsProxy;
 		TArray<FGeometryCollectionPhysicsProxy*> PendingDestroyGeometryCollectionPhysicsProxy;
+		TArray<FClusterUnionPhysicsProxy*> PendingDestroyClusterUnionProxy;
 
 
 		void ProcessSinglePushedData_Internal(FPushPhysicsData& PushData);

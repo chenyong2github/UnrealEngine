@@ -251,6 +251,11 @@ void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData)
 
 			Dirty.Proxy->ResetDirtyIdx();	//dirty idx is only used temporarily
 		}
+		else if (Dirty.Proxy->GetType() == EPhysicsProxyType::ClusterUnionProxy)
+		{
+			DirtyProxiesDataBuffer.Add(Dirty.Proxy);
+			Dirty.Proxy->ResetDirtyIdx();
+		}
 	});
 
 	//make sure inputs are available to every sub-step

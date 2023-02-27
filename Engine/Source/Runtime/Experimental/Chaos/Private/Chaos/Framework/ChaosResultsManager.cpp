@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/Framework/ChaosResultsManager.h"
+#include "PhysicsProxy/ClusterUnionPhysicsProxy.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Chaos/ChaosMarshallingManager.h"
@@ -68,6 +69,7 @@ namespace Chaos
 	{
 		ResetInterpolations<FSingleParticlePhysicsProxy>(RigidInterpolations);
 		ResetInterpolations<FGeometryCollectionPhysicsProxy>(GeometryCollectionInterpolations);
+		ResetInterpolations<FClusterUnionPhysicsProxy>(ClusterUnionInterpolations);
 
 		//purposely leave Prev and Next alone as we use those for rebuild
 	}
@@ -124,8 +126,8 @@ namespace Chaos
 		const int32 Timestamp = PullData.SolverTimestamp;
 
 		SetPrevNextDataHelperTyped<Mode>(PullData.DirtyRigids, Results.RigidInterpolations);
-
 		SetPrevNextDataHelperTyped<Mode>(PullData.DirtyGeometryCollections, Results.GeometryCollectionInterpolations);
+		SetPrevNextDataHelperTyped<Mode>(PullData.DirtyClusterUnions, Results.ClusterUnionInterpolations);
 
 		// update resim target for rigids
 		for (const FDirtyRigidParticleData& Data : PullData.DirtyRigids)

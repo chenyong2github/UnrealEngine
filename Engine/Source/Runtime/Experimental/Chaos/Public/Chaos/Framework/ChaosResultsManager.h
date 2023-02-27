@@ -21,6 +21,12 @@ namespace Chaos
 		FDirtyGeometryCollectionData Prev;
 		FDirtyGeometryCollectionData Next;
 	};
+
+	struct CHAOS_API FChaosClusterUnionInterpolationData
+	{
+		FDirtyClusterUnionData Prev;
+		FDirtyClusterUnionData Next;
+	};
 	
 	struct CHAOS_API FChaosInterpolationResults
 	{
@@ -34,6 +40,7 @@ namespace Chaos
 		FChaosInterpolationResults(FChaosInterpolationResults&& Other)
 			: RigidInterpolations(MoveTemp(Other.RigidInterpolations))
 			, GeometryCollectionInterpolations(MoveTemp(Other.GeometryCollectionInterpolations))
+			, ClusterUnionInterpolations(MoveTemp(Other.ClusterUnionInterpolations))
 			, Prev(Other.Prev)
 			, Next(Other.Next)
 			, Alpha(Other.Alpha)
@@ -46,6 +53,7 @@ namespace Chaos
 		
 		TArray<FChaosRigidInterpolationData> RigidInterpolations;
 		TArray<FChaosGeometryCollectionInterpolationData> GeometryCollectionInterpolations;
+		TArray<FChaosClusterUnionInterpolationData> ClusterUnionInterpolations;
 		FPullPhysicsData* Prev;
 		FPullPhysicsData* Next;
 		FRealSingle Alpha;

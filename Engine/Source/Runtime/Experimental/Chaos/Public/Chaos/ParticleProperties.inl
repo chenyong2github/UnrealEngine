@@ -30,4 +30,9 @@ CHAOS_PROPERTY(CharacterGroundConstraintDynamicData, FCharacterGroundConstraintD
 CHAOS_PROPERTY(CharacterParticleProxy, FParticleProxyProperty, EPhysicsProxyType::CharacterGroundConstraintType)
 CHAOS_PROPERTY(GroundParticleProxy, FParticleProxyProperty, EPhysicsProxyType::CharacterGroundConstraintType)
 
+CHAOS_PROPERTY(ClusterXR, FParticlePositionRotation, EPhysicsProxyType::ClusterUnionProxy)
+CHAOS_PROPERTY(ClusterVelocities, FParticleVelocities, EPhysicsProxyType::ClusterUnionProxy)
+CHAOS_PROPERTY(ClusterIsAnchored, bool, EPhysicsProxyType::ClusterUnionProxy)
+CHAOS_PROPERTY(ClusterChildToParent, TArray<FTransform>, EPhysicsProxyType::ClusterUnionProxy)
+
 #undef CHAOS_PROPERTY

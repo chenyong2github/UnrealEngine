@@ -15,6 +15,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/ScopeLock.h"
 #include "PhysicsProxy/CharacterGroundConstraintProxy.h"
+#include "PhysicsProxy/ClusterUnionPhysicsProxy.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
@@ -669,10 +670,45 @@ namespace Chaos
 			{
 				GeometryCollectionPhysicsProxies_Internal.RemoveSingle(InProxy);
 				InProxy->SyncBeforeDestroy();
-				InProxy->OnRemoveFromSolver(this);
 				InProxy->ResetDirtyIdx();
 				PendingDestroyGeometryCollectionPhysicsProxy.Add(InProxy);
 			});
+	}
+
+	void FPBDRigidsSolver::RegisterObject(FClusterUnionPhysicsProxy* Proxy)
+	{
+		if (!Proxy)
+		{
+			return;
+		}
+
+		if (FPBDRigidParticle* Particle = Proxy->GetParticle_External())
+		{
+			Particle->SetUniqueIdx(GetEvolution()->GenerateUniqueIdx());
+		}
+		Proxy->SetSolver(this);
+		AddDirtyProxy(Proxy);
+	}
+
+	void FPBDRigidsSolver::UnregisterObject(FClusterUnionPhysicsProxy* Proxy)
+	{
+		if (!Proxy)
+		{
+			return;
+		}
+
+		Proxy->MarkDeleted();
+		RemoveDirtyProxy(Proxy);
+
+		EnqueueCommandImmediate(
+			[Proxy, this]()
+			{
+				ClusterUnionPhysicsProxies_Internal.RemoveSingle(Proxy);
+				Proxy->SyncBeforeDestroy();
+				Proxy->ResetDirtyIdx();
+				PendingDestroyClusterUnionProxy.Add(Proxy);
+			}
+		);
 	}
 
 	void FPBDRigidsSolver::RegisterObject(Chaos::FJointConstraint* GTConstraint)
@@ -860,6 +896,23 @@ namespace Chaos
 
 	void FPBDRigidsSolver::DestroyPendingProxies_Internal()
 	{
+		MarshallingManager.GetCurrentPullData_Internal()->DirtyClusterUnions.Reset();
+		for (FClusterUnionPhysicsProxy* Proxy : PendingDestroyClusterUnionProxy)
+		{
+			if (!Proxy)
+			{
+				continue;
+			}
+
+			if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution())
+			{
+				// Remove the cluster union this proxy manages which will in turn also the destroy the necessary particles.
+				Evolution->GetRigidClustering().GetClusterUnionManager().DestroyClusterUnion(Proxy->GetClusterUnionIndex());
+			}
+			delete Proxy;
+		}
+		PendingDestroyClusterUnionProxy.Reset();
+
 		// If we have any callback objects watching for particle deregistrations,
 		// send an array of proxies that are about to be deleted.
 		if (UnregistrationWatchers.Num() > 0)
@@ -900,7 +953,10 @@ namespace Chaos
 		bool bResetCollisionConstraints=false;
 		for (auto Proxy : PendingDestroyGeometryCollectionPhysicsProxy)
 		{
-			//ensure(Proxy->GetHandle_LowLevel() == nullptr);	//should have already cleared this out
+			// Removing the geometry collection from the solver a bit delayed. This lets the cluster union do its cleanup first before
+			// the geometry collection if they're all being destroyed at the same time.
+			Proxy->OnRemoveFromSolver(this);
+
 			MarshallingManager.GetCurrentPullData_Internal()->DirtyGeometryCollections.Reset();
 			bResetCollisionConstraints = true;
 			delete Proxy;
@@ -1060,6 +1116,15 @@ namespace Chaos
 				Proxy->PushStateOnGameThread(this);
 				break;
 			}
+			case EPhysicsProxyType::ClusterUnionProxy:
+			{
+				FClusterUnionPhysicsProxy* Proxy = static_cast<FClusterUnionPhysicsProxy*>(Dirty.Proxy);
+				FClusterUnionPhysicsProxy::FExternalParticle* Particle = Proxy->GetParticle_External();
+				Proxy->SyncRemoteData(*Manager, DataIdx, Dirty.PropertyData);
+				Proxy->ClearAccumulatedData();
+				Proxy->ResetDirtyIdx();
+				break;
+			}
 			case EPhysicsProxyType::JointConstraintType:
 			{
 				auto Proxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
@@ -1209,7 +1274,7 @@ namespace Chaos
 		};
 
 		//need to create new particle handles
-		DirtyProxiesData->ForEachProxy([this,&ProcessProxyPT](int32 DataIdx,FDirtyProxy& Dirty)
+		DirtyProxiesData->ForEachProxy([this, &ProcessProxyPT, Manager](int32 DataIdx,FDirtyProxy& Dirty)
 		{
 			if(Dirty.Proxy->GetIgnoreDataOnStep_Internal() != CurrentFrame)
 			{
@@ -1243,6 +1308,18 @@ namespace Chaos
 						Proxy->PushToPhysicsState();
 						// Currently no push needed for geometry collections and they handle the particle creation internally
 						// #TODO This skips the rewind data push so GC will not be rewindable until resolved.
+						Dirty.Proxy->ResetDirtyIdx();
+						break;
+					}
+					case EPhysicsProxyType::ClusterUnionProxy:
+					{
+						FClusterUnionPhysicsProxy* Proxy = static_cast<FClusterUnionPhysicsProxy*>(Dirty.Proxy);
+						if (!Proxy->IsInitializedOnPhysicsThread())
+						{
+							Proxy->Initialize_Internal(this, GetParticles());
+							ClusterUnionPhysicsProxies_Internal.Add(Proxy);
+						}
+						Proxy->PushToPhysicsState(*Manager, DataIdx, Dirty);
 						Dirty.Proxy->ResetDirtyIdx();
 						break;
 					}
@@ -1497,19 +1574,26 @@ namespace Chaos
 	void FPBDRigidsSolver::BufferPhysicsResults()
 	{
 		//ensure(IsInPhysicsThread());
+
 		TArray<FGeometryCollectionPhysicsProxy*> ActiveGC;
 		ActiveGC.Reserve(GeometryCollectionPhysicsProxies_Internal.Num());
 
 		FPullPhysicsData* PullData = MarshallingManager.GetCurrentPullData_Internal();
 
 		TParticleView<FPBDRigidParticles>& DirtyParticles = GetParticles().GetDirtyParticlesView();
+
+		TArray<FSingleParticlePhysicsProxy*> ActiveRigid;
+		ActiveRigid.Reserve(SingleParticlePhysicsProxies_PT.Num());
+
+		TArray<FClusterUnionPhysicsProxy*> ActiveClusterUnions;
+		ActiveClusterUnions.Reserve(ClusterUnionPhysicsProxies_Internal.Num());
+
 		const bool bIsResim = GetEvolution()->IsResimming();
 
 		//todo: should be able to go wide just add defaulted etc...
 		{
 			ensure(PullData->DirtyRigids.Num() == 0);	//we only fill this once per frame
 			int32 BufferIdx = 0;
-			PullData->DirtyRigids.Reserve(DirtyParticles.Num());
 
 			for (Chaos::TPBDRigidParticleHandleImp<FReal, 3, false>& DirtyParticle : DirtyParticles)
 			{
@@ -1521,8 +1605,7 @@ namespace Chaos
 						{
 							if(!bIsResim || DirtyParticle.SyncState() == ESyncState::HardDesync)
 							{
-								PullData->DirtyRigids.AddDefaulted();
-								((FSingleParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults(PullData->DirtyRigids.Last());
+								ActiveRigid.AddUnique((FSingleParticlePhysicsProxy*)Proxy);
 							}
 							break;
 						}
@@ -1538,10 +1621,31 @@ namespace Chaos
 							{
 								if (ClusterParticle->InternalCluster())
 								{
+									if (Proxy->GetType() == EPhysicsProxyType::ClusterUnionProxy)
+									{
+										ActiveClusterUnions.AddUnique((FClusterUnionPhysicsProxy*)(Proxy));
+									}
+
 									const TSet<IPhysicsProxyBase*> Proxies = ClusterParticle->PhysicsProxies();
 									for (IPhysicsProxyBase* ClusterProxy : Proxies)
 									{
-										ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(ClusterProxy));
+										if (!ClusterProxy)
+										{
+											continue;
+										}
+
+										switch (ClusterProxy->GetType())
+										{
+										case EPhysicsProxyType::SingleParticleProxy:
+											ActiveRigid.AddUnique((FSingleParticlePhysicsProxy*)ClusterProxy);
+											break;
+										case EPhysicsProxyType::GeometryCollectionType:
+											ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(ClusterProxy));
+											break;
+										default:
+											ensure(false);
+											break;
+										}
 									}
 								}
 								else
@@ -1558,6 +1662,18 @@ namespace Chaos
 		}
 
 		{
+			//we only fill this once per frame
+			ensure(PullData->DirtyRigids.Num() == 0);
+			PullData->DirtyRigids.Reserve(ActiveRigid.Num());
+
+			for (int32 Idx = 0; Idx < ActiveRigid.Num(); ++Idx)
+			{
+				PullData->DirtyRigids.AddDefaulted();
+				ActiveRigid[Idx]->BufferPhysicsResults(PullData->DirtyRigids.Last());
+			}
+		}
+
+		{
 			ensure(PullData->DirtyGeometryCollections.Num() == 0);	//we only fill this once per frame
 			PullData->DirtyGeometryCollections.Reserve(ActiveGC.Num());
 
@@ -1565,6 +1681,17 @@ namespace Chaos
 			{
 				PullData->DirtyGeometryCollections.AddDefaulted();
 				ActiveGC[Idx]->BufferPhysicsResults_Internal(this, PullData->DirtyGeometryCollections.Last());
+			}
+		}
+
+		{
+			ensure(PullData->DirtyClusterUnions.IsEmpty());
+			PullData->DirtyClusterUnions.Reserve(ActiveClusterUnions.Num());
+
+			for (int32 Idx = 0; Idx < ActiveClusterUnions.Num(); ++Idx)
+			{
+				PullData->DirtyClusterUnions.AddDefaulted();
+				ActiveClusterUnions[Idx]->BufferPhysicsResults_Internal(PullData->DirtyClusterUnions.Last());
 			}
 		}
 
@@ -1610,7 +1737,8 @@ namespace Chaos
 	// however.
 	void FPBDRigidsSolver::UpdateGameThreadStructures()
 	{
-		PullPhysicsStateForEachDirtyProxy_External([](auto){}, [](auto) {}, [](auto) {});
+		struct FDispatcher {} Dispatcher;
+		PullPhysicsStateForEachDirtyProxy_External(Dispatcher);
 	}
 
 	int32 FPBDRigidsSolver::NumJointConstraints() const

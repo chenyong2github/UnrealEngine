@@ -13,6 +13,7 @@
 namespace Chaos
 {
 
+class FClusterUnionPhysicsProxy;
 class FCharacterGroundConstraintProxy;
 class FJointConstraintPhysicsProxy;
 
@@ -62,6 +63,16 @@ struct FDirtyGeometryCollectionData : public TBasePullData<FGeometryCollectionPh
 	FGeometryCollectionResults Results;
 };
 
+struct FDirtyClusterUnionData : public TBasePullData<FClusterUnionPhysicsProxy, FClusterUnionProxyTimestamp>
+{
+	FVec3 X;
+	FQuat R;
+	FVec3 V;
+	FVec3 W;
+	bool bIsAnchored = false;
+	TArray<FTransform> ChildToParent;
+};
+
 struct FJointConstraintOutputData {
 	bool bIsBreaking = false;
 	bool bIsBroken = false;
@@ -89,6 +100,7 @@ class FPullPhysicsData
 public:
 	TArray<FDirtyRigidParticleData> DirtyRigids;
 	TArray<FDirtyGeometryCollectionData> DirtyGeometryCollections;
+	TArray<FDirtyClusterUnionData> DirtyClusterUnions;
 	TArray<FDirtyJointConstraintData> DirtyJointConstraints;
 	TArray<FDirtyCharacterGroundConstraintData> DirtyCharacterGroundConstraints;
 

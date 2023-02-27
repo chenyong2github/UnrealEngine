@@ -9,16 +9,41 @@
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/PullPhysicsDataImp.h"
 #include "PhysicsProxy/CharacterGroundConstraintProxy.h"
+#include "PhysicsProxy/ClusterUnionPhysicsProxy.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsProxy/JointConstraintProxy.h"
 #include "Chaos/Framework/ChaosResultsManager.h"
 
+#include <type_traits>
+
 namespace Chaos
 {
-	// Pulls physics state for each dirty particle and allows caller to do additional work if needed
-	template <typename RigidLambda, typename ConstraintLambda, typename GeometryCollectionLambda>
-	void FPhysicsSolverBase::PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc, const ConstraintLambda& ConstraintFunc, const GeometryCollectionLambda& GeometryCollectionFunc)
+	namespace Private
+	{
+		// This lets us add support for performing per-proxy operations in PullPhysicsStateForEachDirtyProxy_External
+		// without the need to keep adding function parameters to keep taking in lambdas. We assume that the incoming
+		// user-specified TDispatcher has various operator() overridden to take in a specific proxy pointer. We require
+		// the TPullPhysicsStateDispatchHelper then to wrap the TDispatcher so that we can check if the incoming TDispatcher
+		// has a override for the proxy we want to pass to it. If it does not, we do nothing. This lets us maintain backward
+		// compatability as we keep adding in new proxy types while not requiring any additional computation at runtime since
+		// this dispatch is all done at compile time.
+		template<typename TDispatcher>
+		struct TPullPhysicsStateDispatchHelper
+		{
+			template<typename TProxy>
+			static void Apply(TDispatcher& Dispatcher, TProxy* Proxy)
+			{
+				if constexpr (std::is_invocable_v<TDispatcher, TProxy*>)
+				{
+					Dispatcher(Proxy);
+				}
+			}
+		};
+	}
+
+	template<typename TDispatcher>
+	void FPhysicsSolverBase::PullPhysicsStateForEachDirtyProxy_External(TDispatcher& Dispatcher)
 	{
 		using namespace Chaos;
 
@@ -48,7 +73,7 @@ namespace Chaos
 					{
 						if (Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha))
 						{
-							RigidFunc(Proxy);
+							Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
 						}
 					}
 				}
@@ -60,7 +85,19 @@ namespace Chaos
 					{
 						if (Proxy->PullFromPhysicsState(GCInterp.Prev, SolverTimestamp, &GCInterp.Next, &Results.Alpha))
 						{
-							GeometryCollectionFunc(Proxy);
+							Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+						}
+					}
+				}
+
+				// cluster unions
+				for (const FChaosClusterUnionInterpolationData& ClusterInterp : Results.ClusterUnionInterpolations)
+				{
+					if (FClusterUnionPhysicsProxy* Proxy = ClusterInterp.Prev.GetProxy())
+					{
+						if (Proxy->PullFromPhysicsState(ClusterInterp.Prev, SolverTimestamp, &ClusterInterp.Next, &Results.Alpha))
+						{
+							Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
 						}
 					}
 				}
@@ -84,7 +121,7 @@ namespace Chaos
 				{
 					if (Proxy->PullFromPhysicsState(RigidInterp.Next, SolverTimestamp))
 					{
-						RigidFunc(Proxy);
+						Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
 					}
 				}
 			}
@@ -96,11 +133,22 @@ namespace Chaos
 				{
 					if (Proxy->PullFromPhysicsState(GCInterp.Next, SolverTimestamp))
 					{
-						GeometryCollectionFunc(Proxy);
+						Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
 					}
 				}
 			}
 
+			// cluster unions
+			for (const FChaosClusterUnionInterpolationData& ClusterInterp : Results.ClusterUnionInterpolations)
+			{
+				if (FClusterUnionPhysicsProxy* Proxy = ClusterInterp.Prev.GetProxy())
+				{
+					if (Proxy->PullFromPhysicsState(ClusterInterp.Prev, SolverTimestamp))
+					{
+						Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+					}
+				}
+			}
 		}
 
 		//no interpolation for GC or joints at the moment
@@ -122,7 +170,7 @@ namespace Chaos
 				{
 					if (Proxy->PullFromPhysicsState(DirtyData, SyncTimestamp))
 					{
-						ConstraintFunc(Proxy);
+						Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
 					}
 
 				}
@@ -143,10 +191,45 @@ namespace Chaos
 		}
 	}
 
+	// Pulls physics state for each dirty particle and allows caller to do additional work if needed
+	template <typename RigidLambda, typename ConstraintLambda, typename GeometryCollectionLambda>
+	void FPhysicsSolverBase::PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc, const ConstraintLambda& ConstraintFunc, const GeometryCollectionLambda& GeometryCollectionFunc)
+	{
+		struct FDispatcher
+		{
+			void operator()(FSingleParticlePhysicsProxy* Proxy)
+			{
+				RigidFunc(Proxy);
+			}
+
+			void operator()(FJointConstraintPhysicsProxy* Proxy)
+			{
+				ConstraintFunc(Proxy);
+			}
+
+			void operator()(FGeometryCollectionPhysicsProxy* Proxy)
+			{
+				GeometryCollectionFunc(Proxy);
+			}
+		} Dispatcher;
+		PullPhysicsStateForEachDirtyProxy_External(Dispatcher);
+	}
+
 	template <typename RigidLambda, typename ConstraintLambda>
 	void FPhysicsSolverBase::PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc, const ConstraintLambda& ConstraintFunc)
 	{
-		auto GeometryCollectionFunc = [](FGeometryCollectionPhysicsProxy* Proxy) {};
-		PullPhysicsStateForEachDirtyProxy_External(RigidFunc, ConstraintFunc, GeometryCollectionFunc);
+		struct FDispatcher
+		{
+			void operator()(FSingleParticlePhysicsProxy* Proxy)
+			{
+				RigidFunc(Proxy);
+			}
+
+			void operator()(FJointConstraintPhysicsProxy* Proxy)
+			{
+				ConstraintFunc(Proxy);
+			}
+		} Dispatcher;
+		PullPhysicsStateForEachDirtyProxy_External(Dispatcher);
 	}
 }
