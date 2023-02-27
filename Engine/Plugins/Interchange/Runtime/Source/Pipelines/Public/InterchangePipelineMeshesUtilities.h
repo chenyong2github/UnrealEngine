@@ -339,7 +339,6 @@ namespace UE::Interchange::MeshesUtilities
 						int32 TmpIndex = FPlatformString::Atoi(*SkinXXNumber);
 						if (TmpIndex >= 0)
 						{
-							bHasSuffix = true;
 							while (KeyReorder.Num() <= TmpIndex)
 							{
 								KeyReorder.AddDefaulted();
@@ -347,6 +346,7 @@ namespace UE::Interchange::MeshesUtilities
 							check(KeyReorder.IsValidIndex(TmpIndex));
 							if (KeyReorder[TmpIndex].IsEmpty())
 							{
+								bHasSuffix = true;
 								KeyReorder[TmpIndex] = MaterialName;
 								continue;
 							}
