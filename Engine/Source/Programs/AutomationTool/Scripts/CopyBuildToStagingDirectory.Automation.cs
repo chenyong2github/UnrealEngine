@@ -1433,10 +1433,10 @@ namespace AutomationScripts
 			}
 
 			// Apply all the directory mappings
-			SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.ToDictionary(x => ApplyDirectoryRemap(SC, x.Key), x => x.Value);
-			SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => ApplyDirectoryRemap(SC, x.Key), x => x.Value);
-			SC.FilesToStage.NonUFSDebugFiles = SC.FilesToStage.NonUFSDebugFiles.ToDictionary(x => ApplyDirectoryRemap(SC, x.Key), x => x.Value);
-			SC.FilesToStage.NonUFSSystemFiles = SC.FilesToStage.NonUFSSystemFiles.ToDictionary(x => ApplyDirectoryRemap(SC, x.Key), x => x.Value);
+			SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.ToDictionary(x => DeploymentContext.ApplyDirectoryRemap(SC, x.Key), x => x.Value);
+			SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => DeploymentContext.ApplyDirectoryRemap(SC, x.Key), x => x.Value);
+			SC.FilesToStage.NonUFSDebugFiles = SC.FilesToStage.NonUFSDebugFiles.ToDictionary(x => DeploymentContext.ApplyDirectoryRemap(SC, x.Key), x => x.Value);
+			SC.FilesToStage.NonUFSSystemFiles = SC.FilesToStage.NonUFSSystemFiles.ToDictionary(x => DeploymentContext.ApplyDirectoryRemap(SC, x.Key), x => x.Value);
 
 			// Create plugin manifests after the directory mappings
 			if (bCreatePluginManifest && Params.UsePak(SC.StageTargetPlatform))
@@ -1463,6 +1463,7 @@ namespace AutomationScripts
 			}
 			RestrictedFiles.RemoveWhere(RestrictedFile => SC.DirectoriesAllowList.Any(TestDirectory => RestrictedFile.Directory.IsUnderDirectory(TestDirectory)));
 			RestrictedFiles.RemoveWhere(RestrictedFile => SC.ConfigFilesAllowList.Contains(RestrictedFile));
+			RestrictedFiles.RemoveWhere(RestrictedFile => SC.ExtraFilesAllowList.Contains(RestrictedFile));
 
 			if (RestrictedFiles.Count > 0)
 			{
@@ -1809,20 +1810,6 @@ namespace AutomationScripts
 			}
 
 			return null;
-		}
-
-		public static StagedFileReference ApplyDirectoryRemap(DeploymentContext SC, StagedFileReference InputFile)
-		{
-			StagedFileReference CurrentFile = InputFile;
-			foreach (Tuple<StagedDirectoryReference, StagedDirectoryReference> RemapDirectory in SC.RemapDirectories)
-			{
-				StagedFileReference NewFile;
-				if (StagedFileReference.TryRemap(CurrentFile, RemapDirectory.Item1, RemapDirectory.Item2, out NewFile))
-				{
-					CurrentFile = NewFile;
-				}
-			}
-			return CurrentFile;
 		}
 
 		static List<string> ParseInputPaths(List<string> ConfigLines)

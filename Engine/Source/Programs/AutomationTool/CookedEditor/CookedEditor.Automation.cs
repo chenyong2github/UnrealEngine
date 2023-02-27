@@ -214,43 +214,7 @@ public class ModifyStageContext
 		SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.Where(x => !SC.FilesToStage.NonUFSFiles.ContainsKey(x.Key)).ToDictionary(x => x.Key, x => x.Value);
 	}
 	#region Private implementation
-
-	private StagedFileReference MakeRelativeStagedReference(DeploymentContext SC, FileSystemReference Ref)
-	{
-		return MakeRelativeStagedReference(SC, Ref, out _);
-	}
-
-	private StagedFileReference MakeRelativeStagedReference(DeploymentContext SC, FileSystemReference Ref, out DirectoryReference RootDir)
-	{
-		if (Ref.IsUnderDirectory(ProjectDirectory))
-		{
-			RootDir = ProjectDirectory;
-			return Project.ApplyDirectoryRemap(SC, new StagedFileReference(ProjectName + "/" + Ref.MakeRelativeTo(ProjectDirectory).Replace('\\', '/')));
-		}
-		else if (Ref.IsUnderDirectory(EngineDirectory))
-		{
-			RootDir = EngineDirectory;
-			return Project.ApplyDirectoryRemap(SC, new StagedFileReference( "Engine/" + Ref.MakeRelativeTo(EngineDirectory).Replace('\\', '/')));
-		}
-		throw new Exception();
-	}
-
-	private FileReference UnmakeRelativeStagedReference(DeploymentContext SC, StagedFileReference Ref)
-	{
-		// paths will be in the form "Engine/Foo" or "{ProjectName}/Foo" (or something that we don't handle, so assert)
-		// So, replace the Engine/ with {EngineDir} and {ProjectName}/ with {ProjectDir}, and then append Foo
-		if (Ref.Name.StartsWith("Engine/"))
-		{
-			// skip over "Engine/" which is 7 chars long
-			return FileReference.Combine(EngineDirectory, Ref.Name.Substring(7));
-		}
-		else if (Ref.Name.StartsWith(ProjectName + "/"))
-		{
-			return FileReference.Combine(ProjectDirectory, Ref.Name.Substring(ProjectName.Length + 1));
-		}
-		throw new Exception();
-	}
-
+	
 	private void RemoveReleasedFiles(DeploymentContext SC)
 	{
 		HashSet<StagedFileReference> ShippedFiles = new HashSet<StagedFileReference>();
@@ -280,10 +244,10 @@ public class ModifyStageContext
 
 		ShippedFiles.RemoveWhere(x => x.HasExtension(".ttf") && !x.Name.Contains("LastResort"));
 
-		var RemappedNonUFS = NonUFSFilesToStage.Select(x => MakeRelativeStagedReference(SC, x));
+		var RemappedNonUFS = NonUFSFilesToStage.Select(x => DeploymentContext.MakeRelativeStagedReference(SC, x));
 
-		UFSFilesToStage.RemoveAll(x => ShippedFiles.Contains(MakeRelativeStagedReference(SC, x)));
-		NonUFSFilesToStage.RemoveAll(x => ShippedFiles.Contains(MakeRelativeStagedReference(SC, x)));
+		UFSFilesToStage.RemoveAll(x => ShippedFiles.Contains(DeploymentContext.MakeRelativeStagedReference(SC, x)));
+		NonUFSFilesToStage.RemoveAll(x => ShippedFiles.Contains(DeploymentContext.MakeRelativeStagedReference(SC, x)));
 	}
 	private Dictionary<StagedFileReference, FileReference> MimicStageFiles(DeploymentContext SC, List<FileReference> SourceFiles)
 	{
@@ -292,7 +256,7 @@ public class ModifyStageContext
 		foreach (FileReference FileRef in new HashSet<FileReference>(SourceFiles))
 		{
 			DirectoryReference RootDir;
-			StagedFileReference StagedFile = MakeRelativeStagedReference(SC, FileRef, out RootDir);
+			StagedFileReference StagedFile = DeploymentContext.MakeRelativeStagedReference(SC, FileRef, out RootDir);
 
 			// add the mapping
 			Mapping.Add(StagedFile, FileRef);
@@ -309,7 +273,7 @@ public class ModifyStageContext
 			Int32 OrigNumFiles = Files.Count();
 			// remove entries where any restricted folder names are in the name remapped path (if we remap from NFL to non-NFL, then we don't remove it)
 			// If a configuration file has been explicitly allowed, do not omit it either.
-			Files = Files.Where(x => SC.ConfigFilesAllowList.Contains(x.Key) || SC.DirectoriesAllowList.Contains(x.Key.Directory) || !SC.RestrictedFolderNames.Any(y => Project.ApplyDirectoryRemap(SC, x.Key).ContainsName(y))).ToDictionary(x => x.Key, x => x.Value);
+			Files = Files.Where(x => SC.ConfigFilesAllowList.Contains(x.Key) || SC.ExtraFilesAllowList.Contains(x.Key) || SC.DirectoriesAllowList.Contains(x.Key.Directory) || !SC.RestrictedFolderNames.Any(y => DeploymentContext.ApplyDirectoryRemap(SC, x.Key).ContainsName(y))).ToDictionary(x => x.Key, x => x.Value);
 			if (OrigNumFiles != Files.Count())
 			{
 				Log.TraceInformationOnce("Some files were not staged since they have restricted folder names in the remapped path.");
@@ -324,7 +288,7 @@ public class ModifyStageContext
 	private void AddUFSFilesToList(List<FileReference> FileList, string Extension, DeploymentContext SC)
 	{
 		// look in SC and UFSFiles
-		FileList.AddRange(SC.FilesToStage.UFSFiles.Keys.Where(x => x.HasExtension(Extension)).Select(y => UnmakeRelativeStagedReference(SC, y)));
+		FileList.AddRange(SC.FilesToStage.UFSFiles.Keys.Where(x => x.HasExtension(Extension)).Select(y => DeploymentContext.UnmakeRelativeStagedReference(SC, y)));
 		FileList.AddRange(UFSFilesToStage.Where(x => x.GetExtension().Equals(Extension, StringComparison.InvariantCultureIgnoreCase)));
 	}
 
@@ -904,10 +868,14 @@ public class MakeCookedEditor : BuildCommand
 			{
 				SearchMode = SearchOption.TopDirectoryOnly;
 			}
-			// settings with a Dest are special, and have to go right to SC
-			if (Props.ContainsKey("Dest"))
+
+			bool bHasDest = Props.ContainsKey("Dest");
+			bool bHasIniSections = Props.ContainsKey("IniSections");
+
+			// settings with a Dest or IniSections are special, and have to go right to SC
+			if (bHasDest || bHasIniSections)
 			{
-				FileReference SourceFile = FileReference.Combine(BaseDirectory, SubPath);
+				FileReference SourceFile = FileReference.Combine(BaseDirectory, SubPath, FileWildcard);
 
 				// allow a blank Path to mean empty file
 				if (SubPath == "")
@@ -919,12 +887,39 @@ public class MakeCookedEditor : BuildCommand
 
 				if (SearchMode == SearchOption.AllDirectories || FileWildcard.Contains("*"))
 				{
-					throw new AutomationException($"Unable to stage directories with \"Dest\" setting for CookedEditor: '{Entry}'");
+					throw new AutomationException($"Unable to stage directories with \"Dest\" or \"IniSections\" setting for CookedEditor: '{Entry}'");
+				}
+
+				// setup Dest
+				StagedFileReference DestFile;
+				if (bHasDest)
+				{
+					DestFile = new StagedFileReference(Props["Dest"]);
+				}
+				else
+				{
+					DestFile = DeploymentContext.MakeRelativeStagedReference(SC, SourceFile);
+				}
+
+				if (bHasIniSections)
+				{
+					if (!SourceFile.HasExtension(".ini"))
+					{
+						throw new AutomationException($"Unable to stage non-ini file '{Entry}' using \"IniSections\" setting for CookedEditor: ");
+					}
+
+					FileReference IntermediateFile = FileReference.Combine(Context.ProjectDirectory, "Intermediate", "StagedIniSections", DeploymentContext.MakeRelativeStagedReference(SC, SourceFile).ToString());
+					InternalUtils.SafeCopyFile(SourceFile.ToString(), IntermediateFile.ToString(), IniSectionAllowList : Props["IniSections"].Split(',').ToList(), bSafeCreateDirectory : true);
+					SourceFile = IntermediateFile;
 				}
 
 				// now stage it to a different location as specified in the params
 				StagedFileType FileType = (FileList == Context.NonUFSFilesToStage) ? StagedFileType.NonUFS : StagedFileType.UFS;
-				SC.StageFile(FileType, SourceFile, new StagedFileReference(Props["Dest"]));
+				if (Props.ContainsKey("Force") && bool.Parse(Props["Force"]) == true)
+				{
+					SC.ExtraFilesAllowList.Add(DestFile);
+				}
+				SC.StageFile(FileType, SourceFile, DestFile);
 				continue;
 			}
 
@@ -932,7 +927,18 @@ public class MakeCookedEditor : BuildCommand
 			DirectoryReference Dir = DirectoryReference.Combine(BaseDirectory, SubPath);
 			if (DirectoryReference.Exists(Dir))
 			{
-				FileList.AddRange(DirectoryReference.EnumerateFiles(Dir, FileWildcard, SearchMode));
+				if (Props.ContainsKey("Force") && bool.Parse(Props["Force"]) == true)
+				{
+					foreach (FileReference File in DirectoryReference.EnumerateFiles(Dir, FileWildcard, SearchMode))
+					{
+						SC.ExtraFilesAllowList.Add(DeploymentContext.MakeRelativeStagedReference(SC, File));
+						FileList.Add(File);
+					}
+				}
+				else
+				{
+					FileList.AddRange(DirectoryReference.EnumerateFiles(Dir, FileWildcard, SearchMode));
+				}
 			}
 		}
 	}

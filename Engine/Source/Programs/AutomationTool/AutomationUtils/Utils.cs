@@ -361,7 +361,7 @@ namespace AutomationTool
 		// Characters that can appear at the start of
 		private static char[] IgnoredIniValuePrefixes = { '+', '-', ' ', '\t' };
 
-		private static void FilterIniFile(string SourceName, string TargetName, List<string> IniKeyDenyList, List<string> InSectionDenyList)
+		private static void FilterIniFile(string SourceName, string TargetName, List<string> IniKeyDenyList, List<string> InSectionDenyList, List<string> InSectionAllowList)
 		{
 			string[] Lines = File.ReadAllLines(SourceName);
 			StringBuilder NewLines = new StringBuilder("");
@@ -379,7 +379,7 @@ namespace AutomationTool
 				bool bFiltered = bFilteringSection;
 
 				// look for each filter on each line
-				if (!bFiltered)
+				if (!bFiltered && IniKeyDenyList != null)
 				{
 					string TrimmedLine = Line.TrimStart(IgnoredIniValuePrefixes);
 					foreach (string Filter in IniKeyDenyList)
@@ -392,12 +392,13 @@ namespace AutomationTool
 					}
 				}
 
-				if (InSectionDenyList != null)
+				if (InSectionDenyList != null || InSectionAllowList != null)
 				{
 					if (Line.StartsWith("[") && Line.EndsWith("]"))
 					{
 						string SectionName = Line.Substring(1, Line.Length - 2);
-						bFilteringSection = bFiltered = InSectionDenyList.Contains(SectionName);
+						bFilteringSection = bFiltered = ((InSectionDenyList != null && InSectionAllowList == null && InSectionDenyList.Contains(SectionName)) ||
+						                                 (InSectionAllowList != null && !InSectionAllowList.Contains(SectionName)));
 
 						if (bFilteringSection)
 						{
@@ -430,12 +431,18 @@ namespace AutomationTool
 		/// <param name="SourceName">Source name</param>
 		/// <param name="TargetName">Target name</param>
 		/// <returns>True if the operation was successful, false otherwise.</returns>
-		public static bool SafeCopyFile(string SourceName, string TargetName, bool bQuiet = false, List<string> IniKeyDenyList = null, List<string> IniSectionDenyList = null)
+		public static bool SafeCopyFile(string SourceName, string TargetName, bool bQuiet = false, List<string> IniKeyDenyList = null, List<string> IniSectionDenyList = null, List<string> IniSectionAllowList = null, bool bSafeCreateDirectory = false)
 		{
 			if (!bQuiet)
 			{
 				Log.TraceLog("SafeCopyFile {0} {1}", SourceName, TargetName);
 			}
+
+			if (bSafeCreateDirectory)
+			{
+				SafeCreateDirectory(Path.GetDirectoryName(TargetName), bQuiet);
+			}
+
 			const int MaxAttempts = 10;
 			int Attempts = 0;
 
@@ -449,9 +456,9 @@ namespace AutomationTool
 					bool bSkipSizeCheck = false;
 					// BinaryConfig.ini is a special case with binary data, but with same extension to handle all ini 
 					// file chunking/packaging/etc rules
-					if (IniKeyDenyList != null && Path.GetExtension(SourceName) == ".ini" && Path.GetFileName(SourceName) != "BinaryConfig.ini")
+					if ((IniKeyDenyList != null || IniSectionDenyList != null || IniSectionAllowList != null) && Path.GetExtension(SourceName) == ".ini" && Path.GetFileName(SourceName) != "BinaryConfig.ini")
 					{
-						FilterIniFile(SourceName, TargetName, IniKeyDenyList, IniSectionDenyList);
+						FilterIniFile(SourceName, TargetName, IniKeyDenyList, IniSectionDenyList, IniSectionAllowList);
 						// ini files may change size, don't check
 						bSkipSizeCheck = true;
 					}

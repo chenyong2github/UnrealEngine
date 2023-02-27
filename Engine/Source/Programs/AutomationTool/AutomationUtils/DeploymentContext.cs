@@ -310,6 +310,12 @@ public class DeploymentContext //: ProjectParams
 	/// </summary>
 	public HashSet<StagedFileReference> ConfigFilesDenyList = new HashSet<StagedFileReference>();
 
+	/// <summary>
+	/// Set files which are allow listed to be staged that would otherwise be excluded by RestrictedFolderNames.
+	/// This list is read from the +ExtraAllowedFiles=... array in the [Staging] section of *Game.ini files.
+	/// </summary>
+	public HashSet<StagedFileReference> ExtraFilesAllowList = new HashSet<StagedFileReference>();
+
 
 	/// <summary>
 	/// List of ini keys to strip when staging
@@ -598,8 +604,9 @@ public class DeploymentContext //: ProjectParams
 		}
 
 		// Read the list of files which are allow listed to be staged
-		ReadConfigFileList(GameConfig, "Staging", "AllowedConfigFiles", ConfigFilesAllowList);
-		ReadConfigFileList(GameConfig, "Staging", "DisallowedConfigFiles", ConfigFilesDenyList);
+		ReadAllowDenyFileList(GameConfig, "Staging", "AllowedConfigFiles", ConfigFilesAllowList);
+		ReadAllowDenyFileList(GameConfig, "Staging", "DisallowedConfigFiles", ConfigFilesDenyList);
+		ReadAllowDenyFileList(GameConfig, "Staging", "ExtraAllowedFiles", ExtraFilesAllowList);
 
 		// Grab the game ini data
 		String PackagingIniPath = "/Script/UnrealEd.ProjectPackagingSettings";
@@ -661,20 +668,20 @@ public class DeploymentContext //: ProjectParams
 	}
 
 	/// <summary>
-	/// Read a list of allowed or denied config files names from a config file
+	/// Read a list of allowed or denied files names from a config file
 	/// </summary>
 	/// <param name="Config">The config hierarchy to read from</param>
 	/// <param name="SectionName">The section name</param>
 	/// <param name="KeyName">The key name to read from</param>
-	/// <param name="ConfigFiles">Receives a list of config file paths</param>
-	private static void ReadConfigFileList(ConfigHierarchy Config, string SectionName, string KeyName, HashSet<StagedFileReference> ConfigFiles)
+	/// <param name="Files">Receives a list of file paths</param>
+	private static void ReadAllowDenyFileList(ConfigHierarchy Config, string SectionName, string KeyName, HashSet<StagedFileReference> FilesRef)
 	{
-		List<string> ConfigFileNames;
-		if(Config.GetArray(SectionName, KeyName, out ConfigFileNames))
+		List<string> FileNames;
+		if(Config.GetArray(SectionName, KeyName, out FileNames))
 		{
-			foreach(string ConfigFileName in ConfigFileNames)
+			foreach(string FileName in FileNames)
 			{
-				ConfigFiles.Add(new StagedFileReference(ConfigFileName));
+				FilesRef.Add(new StagedFileReference(FileName));
 			}
 		}
 	}
@@ -1129,5 +1136,54 @@ public class DeploymentContext //: ProjectParams
 	public string GetUFSDeployedManifestFileName(string DeviceName)
 	{
 		return string.Format("Manifest_UFSFiles_{0}{1}.txt", StageTargetPlatform.PlatformType, GetSanitizedDeviceNameSuffix(DeviceName));
+	}
+
+	public static StagedFileReference ApplyDirectoryRemap(DeploymentContext SC, StagedFileReference InputFile)
+	{
+		StagedFileReference CurrentFile = InputFile;
+		foreach (Tuple<StagedDirectoryReference, StagedDirectoryReference> RemapDirectory in SC.RemapDirectories)
+		{
+			StagedFileReference NewFile;
+			if (StagedFileReference.TryRemap(CurrentFile, RemapDirectory.Item1, RemapDirectory.Item2, out NewFile))
+			{
+				CurrentFile = NewFile;
+			}
+		}
+		return CurrentFile;
+	}
+
+	public static StagedFileReference MakeRelativeStagedReference(DeploymentContext SC, FileSystemReference Ref)
+	{
+		return MakeRelativeStagedReference(SC, Ref, out _);
+	}
+
+	public static StagedFileReference MakeRelativeStagedReference(DeploymentContext SC, FileSystemReference Ref, out DirectoryReference RootDir)
+	{
+		if (Ref.IsUnderDirectory(SC.ProjectRoot))
+		{
+			RootDir = SC.ProjectRoot;
+			return ApplyDirectoryRemap(SC, new StagedFileReference(SC.ShortProjectName + "/" + Ref.MakeRelativeTo(SC.ProjectRoot).Replace('\\', '/')));
+		}
+		else if (Ref.IsUnderDirectory(SC.EngineRoot))
+		{
+			RootDir = SC.EngineRoot;
+			return ApplyDirectoryRemap(SC, new StagedFileReference("Engine/" + Ref.MakeRelativeTo(SC.EngineRoot).Replace('\\', '/')));
+		}
+		throw new Exception();
+	}
+	public static FileReference UnmakeRelativeStagedReference(DeploymentContext SC, StagedFileReference Ref)
+	{
+		// paths will be in the form "Engine/Foo" or "{ProjectName}/Foo" (or something that we don't handle, so assert)
+		// So, replace the Engine/ with {EngineDir} and {ProjectName}/ with {ProjectDir}, and then append Foo
+		if (Ref.Name.StartsWith("Engine/"))
+		{
+			// skip over "Engine/" which is 7 chars long
+			return FileReference.Combine(SC.EngineRoot, Ref.Name.Substring(7));
+		}
+		else if (Ref.Name.StartsWith(SC.ShortProjectName + "/"))
+		{
+			return FileReference.Combine(SC.ProjectRoot, Ref.Name.Substring(SC.ShortProjectName.Length + 1));
+		}
+		throw new Exception();
 	}
 }
