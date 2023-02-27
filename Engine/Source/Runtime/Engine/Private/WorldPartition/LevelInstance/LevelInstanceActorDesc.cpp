@@ -158,7 +158,7 @@ bool FLevelInstanceActorDesc::IsContainerInstance() const
 	return ULevelInstanceSubsystem::CanUsePackage(LevelPackage);
 }
 
-bool FLevelInstanceActorDesc::GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const
+bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContainerInstance) const
 {
 	if (LevelInstanceContainer.IsValid())
 	{

@@ -14,7 +14,8 @@
 #endif
 
 FActorDesc::FActorDesc()
-	: Bounds(ForceInit)
+	: NativeClass(nullptr)
+	, Bounds(ForceInit)
 	, bIsSpatiallyLoaded(false)
 	, bActorIsEditorOnly(false)
 {}
@@ -23,6 +24,8 @@ FActorDesc::FActorDesc()
 FActorDesc::FActorDesc(const FWorldPartitionActorDesc& InActorDesc, const FTransform& InTransform)
 {
 	Guid = InActorDesc.GetGuid();
+
+	NativeClass = InActorDesc.GetActorNativeClass();
 
 	if (!InActorDesc.GetBaseClass().IsNull())
 	{
@@ -90,15 +93,12 @@ bool UWorldPartitionBlueprintLibrary::GetActorDescs(const UActorDescContainer* I
 
 	for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
 	{
-		const UActorDescContainer* SubContainer;
-		EContainerClusterMode SubClusterMode;
-		FTransform SubTransform;
-
 		if (ActorDescIt->IsContainerInstance())
 		{
-			if (ActorDescIt->GetContainerInstance(SubContainer, SubTransform, SubClusterMode))
+			FWorldPartitionActorDesc::FContainerInstance ContainerInstance;
+			if (ActorDescIt->GetContainerInstance(ContainerInstance))
 			{
-				bResult &= GetActorDescs(SubContainer, SubTransform * InTransform, OutActorDescs);
+				bResult &= GetActorDescs(ContainerInstance.Container, ContainerInstance.Transform * InTransform, OutActorDescs);
 			}
 			else
 			{
@@ -117,15 +117,13 @@ bool UWorldPartitionBlueprintLibrary::GetActorDescs(const UActorDescContainer* I
 bool UWorldPartitionBlueprintLibrary::HandleIntersectingActorDesc(const FWorldPartitionActorDesc* ActorDesc, const FBox& InBox, const FTransform& InTransform, TArray<FActorDesc>& OutActorDescs)
 {
 	bool bResult = true;
-	const UActorDescContainer* SubContainer;
-	EContainerClusterMode SubClusterMode;
-	FTransform SubTransform;
 
 	if (ActorDesc->IsContainerInstance())
 	{
-		if (ActorDesc->GetContainerInstance(SubContainer, SubTransform, SubClusterMode))
+		FWorldPartitionActorDesc::FContainerInstance ContainerInstance;
+		if (ActorDesc->GetContainerInstance(ContainerInstance))
 		{
-			bResult &= GetIntersectingActorDescs(SubContainer, InBox, SubTransform * InTransform, OutActorDescs);
+			bResult &= GetIntersectingActorDescs(ContainerInstance.Container, InBox, ContainerInstance.Transform * InTransform, OutActorDescs);
 		}
 		else
 		{

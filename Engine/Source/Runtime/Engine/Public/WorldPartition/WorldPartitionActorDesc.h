@@ -153,7 +153,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual bool IsContainerInstance() const { return false; }
 	virtual FName GetLevelPackage() const { return NAME_None; }
-	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
 	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance) const { return false; }
 
 	FGuid GetContentBundleGuid() const;

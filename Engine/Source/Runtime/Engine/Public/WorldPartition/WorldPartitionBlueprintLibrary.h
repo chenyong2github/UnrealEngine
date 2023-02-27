@@ -31,6 +31,10 @@ struct FActorDesc
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category=Actor)
 	FGuid Guid;
 
+	/** Actor first native class. */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category=Actor)
+	TObjectPtr<UClass> NativeClass;
+
 	/** Actor class, can point to a native or Blueprint class and may be redirected. */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category=Actor)
 	FSoftObjectPath Class;
