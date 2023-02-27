@@ -609,7 +609,7 @@ void FCachedRayTracingSceneData::SetupViewAndSceneUniformBufferFromSceneRenderSt
 			GPUScene.GPUSceneLightData = GraphBuilder.CreateSRV(RDGLightDataBuffer);
 		}
 
-		Scene.SceneUniforms.Set(GPUScene);
+		Scene.SceneUniforms.Set(SceneUB::GPUScene, GPUScene);
 	}
 }
 
@@ -780,7 +780,7 @@ void FCachedRayTracingSceneData::RestoreCachedBuffers(FRDGBuilder& GraphBuilder,
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RestoreCachedBuffers);
 
-	FGPUSceneResourceParameters GPUScene = RenderState.SceneUniforms.GetParameters().GPUScene;
+	FGPUSceneResourceParameters GPUScene = RenderState.SceneUniforms.Get(SceneUB::GPUScene);
 	
 	check(GPUScenePrimitiveDataBuffer.IsValid())
 	GPUScene.GPUScenePrimitiveSceneData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GPUScenePrimitiveDataBuffer));
@@ -800,8 +800,8 @@ void FCachedRayTracingSceneData::RestoreCachedBuffers(FRDGBuilder& GraphBuilder,
 
 	// Clear cached parameters so that bGPUSceneIsDirty will be true
 	// Required as the uniform buffer in SceneUniforms has only 1 frame lifetime and needs to be recreated
-	RenderState.SceneUniforms.Set({});
-	RenderState.SceneUniforms.Set(GPUScene);
+	RenderState.SceneUniforms.Set(SceneUB::GPUScene, {});
+	RenderState.SceneUniforms.Set(SceneUB::GPUScene, GPUScene);
 }
 
 FCachedRayTracingSceneData::~FCachedRayTracingSceneData()
@@ -2071,7 +2071,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 			TRACE_CPUPROFILER_EVENT_SCOPE(InstanceIdsIdentityBuffer);
 
 			TArray<uint32, SceneRenderingAllocator> InstanceIdsIdentity;
-			for (uint32 Index = 0U; Index < FMath::Max(1U, Scene->SceneUniforms.GetParameters().GPUScene.InstanceDataSOAStride); ++Index)
+			for (uint32 Index = 0U; Index < FMath::Max(1U, Scene->SceneUniforms.Get(SceneUB::GPUScene).InstanceDataSOAStride); ++Index)
 			{
 				InstanceIdsIdentity.Add(Index);
 			}

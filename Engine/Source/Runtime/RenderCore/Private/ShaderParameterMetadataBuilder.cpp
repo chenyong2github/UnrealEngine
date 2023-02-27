@@ -193,3 +193,38 @@ FShaderParametersMetadata* FShaderParametersMetadataBuilder::Build(
 
 	return ShaderParameterMetadata;
 }
+
+FShaderParametersMetadata* FShaderParametersMetadataBuilder::Build(
+	FShaderParametersMetadata::EUseCase InUseCase,
+	EUniformBufferBindingFlags InBindingFlags,
+	const TCHAR* InLayoutName,
+	const TCHAR* InStructTypeName,
+	const TCHAR* InShaderVariableName,
+	const TCHAR* InStaticSlotName,
+	const ANSICHAR* InFileName,
+	const int32 InFileLine,
+	bool bForceCompleteInitialization,
+	FRHIUniformBufferLayoutInitializer* OutLayoutInitializer,
+	uint32 InUsageFlags
+)
+{
+	const uint32 StructSize = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+	
+	FShaderParametersMetadata* ShaderParameterMetadata = new FShaderParametersMetadata(
+		InUseCase,
+		InBindingFlags,
+		InLayoutName,
+		InStructTypeName,
+		InShaderVariableName,
+		InStaticSlotName,
+		InFileName,
+		InFileLine,
+		StructSize,
+		Members,
+		bForceCompleteInitialization,
+		OutLayoutInitializer,
+		InUsageFlags
+	);
+
+	return ShaderParameterMetadata;
+}

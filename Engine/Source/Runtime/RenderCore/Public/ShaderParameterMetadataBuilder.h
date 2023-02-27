@@ -176,6 +176,20 @@ public:
 		const TCHAR* ShaderParameterName
 		);
 
+	FShaderParametersMetadata* Build(
+		FShaderParametersMetadata::EUseCase InUseCase,
+		EUniformBufferBindingFlags InBindingFlags,
+		const TCHAR* InLayoutName,
+		const TCHAR* InStructTypeName,
+		const TCHAR* InShaderVariableName,
+		const TCHAR* InStaticSlotName,
+		const ANSICHAR* InFileName,
+		const int32 InFileLine,
+		bool bForceCompleteInitialization = false,
+		FRHIUniformBufferLayoutInitializer* OutLayoutInitializer = nullptr,
+		uint32 InUsageFlags = 0
+		);
+
 private:
 	TArray<FShaderParametersMetadata::FMember> Members;
 	uint32 NextMemberOffset = 0;

@@ -26,8 +26,25 @@
 #include "RenderCore.h"
 #include "LightSceneData.h"
 #include "LightSceneProxy.h"
+#include "SystemTextures.h"
 
 #define LOG_INSTANCE_ALLOCATIONS 0
+
+static void ConstructDefault(FGPUSceneResourceParameters& GPUScene, FRDGBuilder& GraphBuilder)
+{
+	FRDGBufferRef DummyBufferVec4 = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f));
+	GPUScene.GPUSceneInstanceSceneData = GraphBuilder.CreateSRV(DummyBufferVec4);
+	GPUScene.GPUSceneInstancePayloadData = GraphBuilder.CreateSRV(DummyBufferVec4);
+	GPUScene.GPUScenePrimitiveSceneData = GraphBuilder.CreateSRV(DummyBufferVec4);
+	GPUScene.GPUSceneLightmapData = GraphBuilder.CreateSRV(DummyBufferVec4);
+	FRDGBufferRef DummyBufferLight = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FLightSceneData));
+	GPUScene.GPUSceneLightData = GraphBuilder.CreateSRV(DummyBufferLight);
+	GPUScene.InstanceDataSOAStride = 0;
+	GPUScene.GPUSceneFrameNumber = 0;
+	GPUScene.NumInstances = 0;
+	GPUScene.NumScenePrimitives = 0;
+}
+IMPLEMENT_SCENE_UB_STRUCT(FGPUSceneResourceParameters, GPUScene, ConstructDefault);
 
 int32 GGPUSceneUploadEveryFrame = 0;
 FAutoConsoleVariableRef CVarGPUSceneUploadEveryFrame(
@@ -799,7 +816,7 @@ void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSceneUniformBuffer
 	ShaderParameters.NumInstances = InstanceSceneDataAllocator.GetMaxSize();
 	ShaderParameters.GPUSceneFrameNumber = GetSceneFrameNumber();
 
-	SceneUB.Set(ShaderParameters);
+	SceneUB.Set(SceneUB::GPUScene, ShaderParameters);
 }
 
 /**
@@ -1585,7 +1602,7 @@ bool FGPUScene::FillSceneUniformBuffer(FRDGBuilder& GraphBuilder, FSceneUniformB
 	{
 		return false;
 	}
-	return SceneUB.Set(ShaderParameters);
+	return SceneUB.Set(SceneUB::GPUScene, ShaderParameters);
 }
 
 void FGPUScene::AddPrimitiveToUpdate(int32 PrimitiveId, EPrimitiveDirtyState DirtyState)

@@ -15,6 +15,8 @@ DECLARE_UNIFORM_BUFFER_STRUCT(FSceneUniformParameters, RENDERER_API)
 class ISceneRenderer
 {
 public:
+	virtual ~ISceneRenderer() = default;
+
 	virtual const FSceneUniformBuffer& GetSceneUniforms() const = 0;
 	virtual FSceneUniformBuffer& GetSceneUniforms() = 0;
 

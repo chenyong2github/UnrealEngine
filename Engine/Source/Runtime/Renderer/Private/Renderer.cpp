@@ -75,7 +75,7 @@ void FRendererModule::StartupModule()
 		});
 	}));
 
-	// Needs to run on startup, after static init. Ideally at some point replaced with static accessor similar to GGetDitherFadedInUniformBuffer().
+	// Needs to run on startup, after static init.
 	GIdentityPrimitiveUniformBuffer.InitContents();
 	GDistanceCullFadedInUniformBuffer.InitContents();
 	GDitherFadedInUniformBuffer.InitContents();
@@ -200,7 +200,7 @@ FSceneUniformBuffer* FRendererModule::CreateSinglePrimitiveSceneUniformBuffer(FR
 			ShaderParameters.NumInstances = 1;
 			ShaderParameters.NumScenePrimitives = 1;
 			
-			SceneUniforms.Set(ShaderParameters);
+			SceneUniforms.Set(SceneUB::GPUScene, ShaderParameters);
 		}
 	}
 
