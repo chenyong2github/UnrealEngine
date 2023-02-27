@@ -141,7 +141,7 @@ void UpdateTranslucentMeshSortKeys(
 	const FVector& TranslucentSortAxis,
 	const FVector& ViewOrigin,
 	const FMatrix& ViewMatrix,
-	const TArray<struct FPrimitiveBounds>& PrimitiveBounds,
+	const TScenePrimitiveArray<FPrimitiveBounds>& PrimitiveBounds,
 	ETranslucencyPass::Type TranslucencyPass, 
 	bool bInverseSorting,
 	FMeshCommandOneFrameArray& VisibleMeshCommands
@@ -320,7 +320,7 @@ static uint64 GetMobileBasePassSortKey_ByState(bool bMasked, bool bBackground, u
 */
 void UpdateMobileBasePassMeshSortKeys(
 	const FVector& ViewOrigin,
-	const TArray<struct FPrimitiveBounds>& ScenePrimitiveBounds,
+	const TScenePrimitiveArray<FPrimitiveBounds>& ScenePrimitiveBounds,
 	FMeshCommandOneFrameArray& VisibleMeshCommands
 )
 {

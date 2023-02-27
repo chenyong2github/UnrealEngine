@@ -543,7 +543,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 					UploadDistanceFieldDataBuffer.Init(GraphBuilder, NumDFObjectUploads, GDistanceFieldObjectDataStride * sizeof(FVector4f), true, TEXT("DistanceFields.DFObjectDataUploadBuffer"));
 					UploadDistanceFieldBoundsBuffer.Init(GraphBuilder, NumDFObjectUploads, GDistanceFieldObjectBoundsStride * sizeof(FVector4f), true, TEXT("DistanceFields.DFObjectBoundsUploadBuffer"));
 
-					const TArray<FPrimitiveBounds>& PrimitiveBounds = Scene->PrimitiveBounds;
+					const TScenePrimitiveArray<FPrimitiveBounds>& PrimitiveBounds = Scene->PrimitiveBounds;
 
 					FParallelUpdateRangesDFO ParallelRanges;
 

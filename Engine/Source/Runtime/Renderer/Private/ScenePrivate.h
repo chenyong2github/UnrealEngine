@@ -2704,11 +2704,11 @@ public:
 	/** Packed array of primitives in the scene. */
 	TArray<FPrimitiveSceneInfo*> Primitives;
 	/** Packed array of all transforms in the scene. */
-	TArray<FMatrix> PrimitiveTransforms;
+	TScenePrimitiveArray<FMatrix> PrimitiveTransforms;
 	/** Packed array of primitive scene proxies in the scene. */
 	TArray<FPrimitiveSceneProxy*> PrimitiveSceneProxies;
 	/** Packed array of primitive bounds. */
-	TArray<FPrimitiveBounds> PrimitiveBounds;
+	TScenePrimitiveArray<FPrimitiveBounds> PrimitiveBounds;
 	/** Packed array of primitive flags. */
 	TArray<FPrimitiveFlagsCompact> PrimitiveFlagsCompact;
 	/** Packed array of precomputed primitive visibility IDs. */
@@ -2718,7 +2718,7 @@ public:
 	/** Packed array of primitive occlusion flags. See EOcclusionFlags. */
 	TArray<uint8> PrimitiveOcclusionFlags;
 	/** Packed array of primitive occlusion bounds. */
-	TArray<FBoxSphereBounds> PrimitiveOcclusionBounds;
+	TScenePrimitiveArray<FBoxSphereBounds> PrimitiveOcclusionBounds;
 	/** Packed array of primitive components associated with the primitive. */
 	TArray<FPrimitiveComponentId> PrimitiveComponentIds;
 	/** Packed array of runtime virtual texture flags. */

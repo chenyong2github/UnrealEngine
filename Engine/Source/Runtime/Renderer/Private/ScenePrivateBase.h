@@ -48,3 +48,73 @@ public:
 		return QueryIndex;
 	}
 };
+
+/** A simple chunked array representation for scene primitives data arrays. */
+template <typename T>
+class TScenePrimitiveArray
+{
+	static const int32 NumElementsPerChunk = 1024;
+public:
+	TScenePrimitiveArray() = default;
+
+	T& Add(const T& Element)
+	{
+		return *(new (&AddUninitialized()) T(Element));
+	}
+
+	T& AddUninitialized()
+	{
+		if (NumElements % NumElementsPerChunk == 0)
+		{
+			Chunks.Emplace();
+		}
+		return Get(NumElements++);
+	}
+
+	void Remove(uint32 Count, bool bAllowShrinking)
+	{
+		check(Count <= NumElements);
+		const uint32 NumElementsNew = NumElements - Count;
+		while (NumElements != NumElementsNew)
+		{
+			Get(--NumElements).~T();
+		}
+		const uint32 NumChunksToRemove = Chunks.Num() - NumChunks(NumElementsNew);
+		Chunks.RemoveAt(Chunks.Num() - NumChunksToRemove, NumChunksToRemove, bAllowShrinking);
+	}
+
+	void Reserve(int32 Count)
+	{
+		Chunks.Reserve(NumChunks(Count));
+	}
+
+	T& Get(int32 ElementIndex)
+	{
+		const uint32 ChunkIndex        = ElementIndex / NumElementsPerChunk;
+		const uint32 ChunkElementIndex = ElementIndex % NumElementsPerChunk;
+		return Chunks[ChunkIndex][ChunkElementIndex];
+	}
+
+	const T& Get(int32 ElementIndex) const
+	{
+		const uint32 ChunkIndex        = ElementIndex / NumElementsPerChunk;
+		const uint32 ChunkElementIndex = ElementIndex % NumElementsPerChunk;
+		return Chunks[ChunkIndex][ChunkElementIndex];
+	}
+
+	FORCEINLINE T& operator[] (int32 Index) { return Get(Index); }
+	FORCEINLINE const T& operator[] (int32 Index) const { return Get(Index); }
+
+	bool IsValidIndex(int32 Index) const { return static_cast<uint32>(Index) < NumElements; }
+
+	int32 Num() const { return NumElements; }
+
+private:
+	static constexpr uint32 NumChunks(uint32 NumElements)
+	{
+		return (NumElements + NumElementsPerChunk - 1u) / NumElementsPerChunk;
+	}
+
+	TArray<TStaticArray<T, NumElementsPerChunk>> Chunks;
+	uint32 NumElements = 0;
+};

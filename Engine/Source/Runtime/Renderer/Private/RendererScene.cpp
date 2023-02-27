@@ -73,6 +73,7 @@
 #include "RenderCore.h"
 #include "IESTextureManager.h"
 #include "Materials/MaterialRenderProxy.h"
+#include "ProfilingDebugging/CountersTrace.h"
 
 #if RHI_RAYTRACING
 #include "Nanite/NaniteRayTracing.h"
@@ -142,6 +143,10 @@ DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer MotionBlurStartFrame"), ST
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDistanceCullFadeUniformShaderParameters, "PrimitiveFade");
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDitherUniformShaderParameters, "PrimitiveDither");
+
+TRACE_DECLARE_INT_COUNTER(ScenePrimitives, TEXT("Scene/Primitives"));
+TRACE_DECLARE_INT_COUNTER(ScenePrimitivesArrayMax, TEXT("Scene/PrimitiveArrayMax"));
+TRACE_DECLARE_INT_COUNTER(SceneLights, TEXT("Scene/Lights"));
 
 /** Global primitive uniform buffer resource containing distance cull faded in */
 TGlobalResource< FGlobalDistanceCullFadeUniformBuffer > GDistanceCullFadedInUniformBuffer;
@@ -1740,6 +1745,14 @@ void FScene::DumpMeshDrawCommandMemoryStats()
 
 template<typename T>
 static void TArraySwapElements(TArray<T>& Array, int i1, int i2)
+{
+	T tmp = Array[i1];
+	Array[i1] = Array[i2];
+	Array[i2] = tmp;
+}
+
+template<typename T>
+static void TArraySwapElements(TScenePrimitiveArray<T>& Array, int i1, int i2)
 {
 	T tmp = Array[i1];
 	Array[i1] = Array[i2];
@@ -5539,9 +5552,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 			int SourceIndex = Primitives.Num() - RemoveCount;
 
 			Primitives.RemoveAt(SourceIndex, RemoveCount, false);
-			PrimitiveTransforms.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveTransforms.Remove(RemoveCount, false);
 			PrimitiveSceneProxies.RemoveAt(SourceIndex, RemoveCount, false);
-			PrimitiveBounds.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveBounds.Remove(RemoveCount, false);
 			PrimitiveFlagsCompact.RemoveAt(SourceIndex, RemoveCount, false);
 			PrimitiveVisibilityIds.RemoveAt(SourceIndex, RemoveCount, false);
 			PrimitiveOctreeIndex.RemoveAt(SourceIndex, RemoveCount, false);
@@ -5549,7 +5562,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 			PrimitiveComponentIds.RemoveAt(SourceIndex, RemoveCount, false);
 			PrimitiveVirtualTextureFlags.RemoveAt(SourceIndex, RemoveCount, false);
 			PrimitiveVirtualTextureLod.RemoveAt(SourceIndex, RemoveCount, false);
-			PrimitiveOcclusionBounds.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveOcclusionBounds.Remove(RemoveCount, false);
 
 			#if WITH_EDITOR
 			PrimitivesSelected.RemoveAt(SourceIndex, RemoveCount);
@@ -6354,6 +6367,10 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 	LevelCommands.Empty();
 
 	LastUpdateFrameCounter = GFrameCounterRenderThread;
+
+	TRACE_COUNTER_SET(SceneLights, Lights.Num());
+	TRACE_COUNTER_SET(ScenePrimitives, Primitives.Num());
+	TRACE_COUNTER_SET(ScenePrimitivesArrayMax, Primitives.Max());
 
 #if DO_GUARD_SLOW
 	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : Primitives)
