@@ -2078,12 +2078,10 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif // OIT_ENABLED
 
-#if MATERIAL_IS_SKY
-	// Sky materials can result in high luminance values, e.g. the sun disk. 
-	// This is so we make sure to at least stay within the boundaries of fp10 and not cause NaN on some platforms.
+	// Sky dome, or any emissive, materials can result in high luminance values, e.g. the sun disk. 
+	// This Min here is to we make sure pre-exposed luminance remains within the boundaries of fp10 and not cause NaN on some platforms.
 	// We also half that range to also make sure we have room for other additive elements such as bloom, clouds or particle visual effects.
 	Out.MRT[0].xyz = min(Out.MRT[0].xyz, Max10BitsFloat.xxx * 0.5f);
-#endif
 
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
 #if OUTPUT_PIXEL_DEPTH_OFFSET
