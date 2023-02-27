@@ -41,6 +41,10 @@ static const FColor	JointLimitColor(FColor::Green);
 static const FColor	JointRefColor(FColor::Yellow);
 static const FColor JointLockedColor(255,128,10);
 
+
+static int SkinnedLatticeBoneWeight = -1;
+static FAutoConsoleVariableRef CVarClothVizDrawSkinnedLattice(TEXT("p.PhysDrawing.SkinnedLatticeBoneWeight"), SkinnedLatticeBoneWeight, TEXT("Draw skinned lattice bone weight. -1 = all lattice points"));
+
 /////////////////////////////////////////////////////////////////////////////////////
 // FKSphereElem
 /////////////////////////////////////////////////////////////////////////////////////
@@ -854,10 +858,64 @@ static void DrawSkinnedLevelSetLattice(class FPrimitiveDrawInterface* PDI, const
 	const Chaos::TUniformGrid<double, 3>& LatticeGrid = WeightedLevelSet->GetGrid();
 	const Chaos::TArrayND<Chaos::FVec3, 3>& DeformedPoints = WeightedLevelSet->GetDeformedPoints();
 	const Chaos::TArrayND<bool, 3>& EmptyCells = WeightedLevelSet->GetEmptyCells();
+	const Chaos::TArrayND<Chaos::FWeightedLatticeInfluenceData, 3>& BoneData = WeightedLevelSet->GetBoneData();
+	const int32 NumUsedBones = WeightedLevelSet->GetUsedBones().Num();
+	const int32 SkinnedLatticeBoneWeightLocal = SkinnedLatticeBoneWeight < NumUsedBones ? SkinnedLatticeBoneWeight : -1;
 
+	Chaos::TArrayND<float,3> SkinnedLatticeBoneWeights;
+	if (SkinnedLatticeBoneWeightLocal >= 0)
+	{
+		static float PointSize = 5.f;
+		SkinnedLatticeBoneWeights.SetCounts(LatticeGrid, true);
 
-	// TODO: downres drawing lattice when res is too high. 
-	// Does two passes to count lines and reserve help?
+		const Chaos::TVec3<int32> NodeCounts = LatticeGrid.NodeCounts();
+		for (int32 I = 0; I < NodeCounts.X; ++I)
+		{
+			for (int32 J = 0; J < NodeCounts.Y; ++J)
+			{
+				for (int32 K = 0; K < NodeCounts.Z; ++K)
+				{
+					SkinnedLatticeBoneWeights(I, J, K) = 0.f;
+					const Chaos::FWeightedLatticeInfluenceData& BoneDatum = BoneData(I, J, K);
+					for (int32 InfIdx = 0; InfIdx < BoneDatum.NumInfluences; ++InfIdx)
+					{
+						if (BoneDatum.BoneIndices[InfIdx] == SkinnedLatticeBoneWeightLocal)
+						{
+							const float Weight = BoneDatum.BoneWeights[InfIdx];
+							SkinnedLatticeBoneWeights(I, J, K) = Weight;
+							PDI->DrawPoint(LocalToWorld.TransformPosition(FVector(DeformedPoints(I, J, K))), FLinearColor(Weight, Weight, Weight), PointSize, SDPG_World);
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	auto ShouldDrawCell = [&SkinnedLatticeBoneWeights, &EmptyCells](int32 I, int32 J, int32 K)
+	{
+		if (EmptyCells(I, J, K))
+		{
+			return false;
+		}
+		if (SkinnedLatticeBoneWeights.Num() == 0)
+		{
+			return true;
+		}
+		if (SkinnedLatticeBoneWeights(I, J, K) == 0.f ||
+			SkinnedLatticeBoneWeights(I, J, K + 1) == 0.f ||
+			SkinnedLatticeBoneWeights(I, J + 1, K) == 0.f ||
+			SkinnedLatticeBoneWeights(I, J + 1, K + 1) == 0.f ||
+			SkinnedLatticeBoneWeights(I + 1, J, K) == 0.f ||
+			SkinnedLatticeBoneWeights(I + 1, J, K + 1) == 0.f ||
+			SkinnedLatticeBoneWeights(I + 1, J + 1, K) == 0.f ||
+			SkinnedLatticeBoneWeights(I + 1, J + 1, K + 1) == 0.f)
+		{
+			return false;
+		}
+		return true;
+	};
+
 	const Chaos::TVec3<int32> CellCounts = LatticeGrid.Counts();
 	for (int32 I = 0; I < CellCounts.X; ++I)
 	{
@@ -865,7 +923,7 @@ static void DrawSkinnedLevelSetLattice(class FPrimitiveDrawInterface* PDI, const
 		{
 			for (int32 K = 0; K < CellCounts.Z; ++K)
 			{
-				if (!EmptyCells(I, J, K))
+				if (ShouldDrawCell(I, J, K))
 				{
 					const FVector P000 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I, J, K)));
 					const FVector P001 = LocalToWorld.TransformPosition(FVector(DeformedPoints(I, J, K + 1)));
@@ -889,7 +947,6 @@ static void DrawSkinnedLevelSetLattice(class FPrimitiveDrawInterface* PDI, const
 					PDI->DrawLine(P100, P110, Color, SDPG_World);
 					PDI->DrawLine(P101, P111, Color, SDPG_World);
 					PDI->DrawLine(P110, P111, Color, SDPG_World);
-
 				}
 			}
 		}

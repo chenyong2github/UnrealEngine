@@ -781,7 +781,9 @@ void FWeightedLatticeImplicitObjectBuilder::NormalizeBoneWeights()
 		{
 			TotalWeight += Data.BoneWeights[InfIdx];
 		}
-		if (TotalWeight < UE_SMALL_NUMBER)
+		constexpr float MIN_TOTAL_OUTER_WEIGHT = 0.1f;
+		if(TotalWeight < UE_SMALL_NUMBER ||
+			(BuildData[Idx].WeightsAreOuter && TotalWeight < MIN_TOTAL_OUTER_WEIGHT))
 		{
 			Data.NumInfluences = 0;
 		}

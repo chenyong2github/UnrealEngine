@@ -7,6 +7,7 @@
 #include "BoneWeights.h"
 #include "Chaos/ArrayND.h"
 #include "Chaos/Levelset.h"
+#include "Chaos/Plane.h"
 #include "Chaos/UniformGrid.h"
 #include "Chaos/Math/Poisson.h"
 #include "DynamicMesh/DynamicMesh3.h"
@@ -73,6 +74,58 @@ bool FSkinnedLevelSetBuilder::InitializeSkinnedLevelset(const FPhysAssetCreatePa
 	EditorErrors.Warning(NSLOCTEXT("PhysicsAssetUtils", "LevelSetNoPositions", "Unable to create a level set for the given bone as there are no vertices associated with the bone."));
 	EditorErrors.Open();
 	return false;
+}
+
+static float CalculateTriangleWeight(const UE::Geometry::FTriangle3d& Triangle, const FVector3f& TriangleWeights, const Chaos::TVector<double, 3>& Location)
+{
+	if (TriangleWeights.X == 0.f)
+	{
+		if (TriangleWeights.Y == 0.f)
+		{
+			check(TriangleWeights.Z != 0.f);
+			return TriangleWeights.Z;
+		}
+		else if (TriangleWeights.Z == 0.f)
+		{
+			check(TriangleWeights.Y != 0.f);
+			return TriangleWeights.Y;
+		}
+		else
+		{
+			double Alpha;
+			Chaos::FindClosestPointAndAlphaOnLineSegment(Chaos::FVec3(Triangle.V[1]), Chaos::FVec3(Triangle.V[2]), Location, Alpha);
+			return (1. - Alpha) * TriangleWeights.Y + Alpha * TriangleWeights.Z;
+		}
+	}
+	else if (TriangleWeights.Y == 0.f)
+	{
+		if (TriangleWeights.Z == 0.f)
+		{
+			check(TriangleWeights.X != 0.f);
+			return TriangleWeights.X;
+		}
+		else
+		{
+			double Alpha;
+			Chaos::FindClosestPointAndAlphaOnLineSegment(Chaos::FVec3(Triangle.V[0]), Chaos::FVec3(Triangle.V[2]), Location, Alpha);
+			return (1. - Alpha) * TriangleWeights.X + Alpha * TriangleWeights.Z;
+		}
+	}
+	else if (TriangleWeights.Z == 0.f)
+	{
+		double Alpha;
+		Chaos::FindClosestPointAndAlphaOnLineSegment(Chaos::FVec3(Triangle.V[0]), Chaos::FVec3(Triangle.V[1]), Location, Alpha);
+		return (1. - Alpha) * TriangleWeights.X + Alpha * TriangleWeights.Y;
+
+	}
+	else
+	{
+		// Get Barycentric coordinates for closest point
+		UE::Geometry::TDistPoint3Triangle3<double> TriQuery(Location, Triangle);
+		TriQuery.ComputeResult();
+		return TriQuery.TriangleBaryCoords.X * TriangleWeights.X +
+			TriQuery.TriangleBaryCoords.Y * TriangleWeights.Y + TriQuery.TriangleBaryCoords.Z * TriangleWeights.Z;
+	}
 }
 
 void FSkinnedLevelSetBuilder::AddBoneInfluence(int32 PrimaryBoneIndex, const TArray<int32>& AllBonesForInfluence)
@@ -144,7 +197,7 @@ void FSkinnedLevelSetBuilder::AddBoneInfluence(int32 PrimaryBoneIndex, const TAr
 	const UE::Geometry::FDynamicMesh3 SolidMesh(&Solidify.Generate());
 	UE::Geometry::TMeshAABBTree3<UE::Geometry::FDynamicMesh3> SolidSpatial(&SolidMesh);
 	UE::Geometry::TFastWindingTree<UE::Geometry::FDynamicMesh3> SolidFastWinding(&SolidSpatial);
-	constexpr int32 OuterWeightExpandCells = 3; // Diffuse out this far outside mesh
+	constexpr int32 OuterWeightExpandCells = 4; // Diffuse out this far outside mesh
 	constexpr int32 SurfaceExpandCells = 1; // Consider points this far from the surface of the mesh to be on the surface (dirichlet boundary)
 	UE::Geometry::IMeshSpatial::FQueryOptions QueryOptions;
 	QueryOptions.MaxDistance = (double)LatticeGrid.Dx().Max() * FMath::Max(OuterWeightExpandCells, SurfaceExpandCells);// Used for initial query against solidified mesh
@@ -203,14 +256,13 @@ void FSkinnedLevelSetBuilder::AddBoneInfluence(int32 PrimaryBoneIndex, const TAr
 				// Need to find closest triangle on original mesh to get weights. No distance limit since we might be in a hole that was filled
 				// by solidify. 
 				const int32 NearestTriangle = Spatial.FindNearestTriangle(Location, NearestDistSq);
-				// Get Barycentric coordinates for closest point
+				const UE::Geometry::FIndex3i& TriangleIndices = DynamicMesh.GetTriangle(NearestTriangle);
+				const FVector3f TriangleWeights(GetWeightForIndices(BonesSet, OrigIndices[TriangleIndices.A]), GetWeightForIndices(BonesSet, OrigIndices[TriangleIndices.B]), GetWeightForIndices(BonesSet, OrigIndices[TriangleIndices.C]));
+
 				UE::Geometry::FTriangle3d Triangle;
 				DynamicMesh.GetTriVertices(NearestTriangle, Triangle.V[0], Triangle.V[1], Triangle.V[2]);
-				UE::Geometry::TDistPoint3Triangle3<double> TriQuery(Location, Triangle);
-				TriQuery.ComputeResult();
-				const UE::Geometry::FIndex3i& TriangleIndices = DynamicMesh.GetTriangle(NearestTriangle);
-				const float Weight = TriQuery.TriangleBaryCoords.X * GetWeightForIndices(BonesSet, OrigIndices[TriangleIndices.A]) +
-					TriQuery.TriangleBaryCoords.Y * GetWeightForIndices(BonesSet, OrigIndices[TriangleIndices.B]) + TriQuery.TriangleBaryCoords.Z * GetWeightForIndices(BonesSet, OrigIndices[TriangleIndices.C]);
+				const float Weight = CalculateTriangleWeight(Triangle, TriangleWeights, Location);				
+				check(Weight != 0.f);
 				ConstrainedNodes.Add(SubGrid.FlatIndex(Index, true));
 				ConstrainedWeights.Add(Weight);
 			}
@@ -225,7 +277,7 @@ void FSkinnedLevelSetBuilder::AddBoneInfluence(int32 PrimaryBoneIndex, const TAr
 	Chaos::PoissonSolve<float, double, true>(ConstrainedNodes, ConstrainedWeights, SubGrid, MaxIter, Res, Weights, bCheckResidual, MinParallelBatchSize);
 	for (int32 Idx = 0; Idx < Weights.Num(); ++Idx)
 	{
-		if (Weights[Idx] > UE_SMALL_NUMBER)
+		if (Weights[Idx] > 0)
 		{
 			Chaos::TVec3<int32> SubIndex;
 			SubGrid.FlatToMultiIndex(Idx, SubIndex, true);
@@ -272,7 +324,7 @@ float FSkinnedLevelSetBuilder::GetWeightForIndices(const TSet<int32>& BoneIndice
 		if (BoneIndices.Contains(ActualBoneIndex))
 		{
 			// Use max weight for all bones.
-			Weight = FMath::Max(Weight, (float)SoftVert.InfluenceWeights[InfluenceIndex] / UE::AnimationCore::MaxRawBoneWeightFloat);
+			Weight = FMath::Max(Weight, (float)SoftVert.InfluenceWeights[InfluenceIndex] * UE::AnimationCore::InvMaxRawBoneWeightFloat);
 		}
 	}
 
