@@ -199,7 +199,6 @@ private:
 	void SaveExternalData(UNetConnection* Connection, FArchive& Ar);
 	void LoadExternalData(FArchive& Ar, const float TimeSeconds);
 
-	bool UpdateExternalDataForObject(UNetConnection* Connection, UObject* OwningObject);
 	bool SetExternalDataForObject(UNetConnection* Connection, UObject* OwningObject, const uint8* Src, const int32 NumBits);
 
 	// Cached replay URL

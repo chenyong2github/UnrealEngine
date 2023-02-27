@@ -3374,14 +3374,6 @@ public:
 	// Start listening for connections.
 	bool Listen( FURL& InURL );
 
-	/** @return true if this level is a client */
-	UE_DEPRECATED(5.0, "Use GetNetMode or IsNetMode instead for more accurate results.")
-	bool IsClient() const;
-
-	/** @return true if this level is a server */
-	UE_DEPRECATED(5.0, "Use GetNetMode or IsNetMode instead for more accurate results")
-	bool IsServer() const;
-
 	/** @return true if the world is in the paused state */
 	bool IsPaused() const;
 

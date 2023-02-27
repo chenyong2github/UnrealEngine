@@ -543,9 +543,6 @@ public:
 	UE_DEPRECATED(5.3, "Please use FPropertyConditions::SetActiveOverride instead.")
 	virtual void SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive) = 0;
 
-	UE_DEPRECATED(5.0, "Please use UReplaySubsystem::SetExternalDataForObject instead.")
-	virtual void SetExternalData(const uint8* Src, const int32 NumBits) = 0;
-
 	/**
 	* Used when tracking memory to gather the total size of a given instance.
 	* This should include the dynamically allocated data, as well as the classes size.

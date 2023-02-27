@@ -340,9 +340,6 @@ public:
 		return CompressedPing;
 	}
 
-	UE_DEPRECATED(5.0, "Use GetPingInMilliseconds() or GetCompressedPing() instead")
-	uint8 GetPing() const { return GetCompressedPing(); }
-
 	/** Sets the value of CompressedPing without causing other side effects to this instance. */
 	void SetCompressedPing(const uint8 NewPing);
 
@@ -425,13 +422,6 @@ public:
 	/** Gets the online unique id for a player. If a player is logged in this will be consistent across all clients and servers. */
 	UFUNCTION(BlueprintCallable, Category = "PlayerState", meta = (DisplayName = "Get Unique Net Id"))
 	FUniqueNetIdRepl BP_GetUniqueId() const;
-
-	/**
-	 * Associate an online unique id with this player
-	 * @param InUniqueId the unique id associated with this player
-	 */
-	UE_DEPRECATED(5.0, "Use SetUniqueId(FUniqueNetIdRepl) instead")
-	virtual void SetUniqueId(const FUniqueNetIdPtr& InUniqueId);
 
 	/**
 	 * Associate an online unique id with this player

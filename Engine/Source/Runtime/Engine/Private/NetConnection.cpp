@@ -2851,10 +2851,6 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 				}
 				else
 				{
-					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					TotalOutOfOrderPackets++;
-					PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 					TotalOutOfOrderPacketsDuplicate++;
 					AnalyticsVars.IncreaseOutOfOrderPacketsDuplicateCount();
 					Driver->IncreaseTotalOutOfOrderPacketsDuplicate();
@@ -2878,10 +2874,6 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 		}
 		else
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			TotalOutOfOrderPackets++;
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 			TotalOutOfOrderPacketsLost++;
 			AnalyticsVars.IncreaseOutOfOrderPacketsLostCount();
 			Driver->IncreaseTotalOutOfOrderPacketsLost();

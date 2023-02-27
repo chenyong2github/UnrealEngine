@@ -28,9 +28,7 @@ public:
 	UE_DEPRECATED(5.1, "Replay arguments no longer used.")
 	FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording);
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual ~FRepChangedPropertyTracker() = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	//~ Begin IRepChangedPropertyTracker Interface.
 	/**
@@ -45,17 +43,6 @@ public:
 		*/
 	UE_DEPRECATED(5.2, "Please use FNetPropertyConditionManager::SetPropertyActiveOverride instead.")
 	virtual void SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive) override;
-
-	/**
-	 * Sets (or resets) the External Data.
-	 * External Data is primarily used for Replays, and is used to track additional non-replicated
-	 * data or state about an object.
-	 *
-	 * @param Src		Memory containing the external data.
-	 * @param NumBits	Size of the memory, in bits.
-	 */
-	UE_DEPRECATED(5.0, "Please use UReplaySubsystem::SetExternalDataForObject instead.")
-	virtual void SetExternalData(const uint8* Src, const int32 NumBits) override;
 
 	virtual void CountBytes(FArchive& Ar) const override;
 	//~ End IRepChangedPropertyTracker Interface
@@ -91,11 +78,4 @@ private:
 
 	/** Activation data for top level Properties on the given Actor / Object. */
 	FCustomPropertyConditionState ActiveState;
-
-public:
-	UE_DEPRECATED(5.0, "No longer used, see UReplaySubsystem::SetExternalDataForObject")
-	TArray<uint8> ExternalData;
-
-	UE_DEPRECATED(5.0, "No longer used, see UReplaySubsystem::SetExternalDataForObject")
-	uint32 ExternalDataNumBits;
 };

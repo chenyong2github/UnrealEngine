@@ -6464,29 +6464,6 @@ bool UWorld::Listen( FURL& InURL )
 #endif // WITH_SERVER_CODE
 }
 
-bool UWorld::IsClient() const
-{
-	return GIsClient;
-}
-
-bool UWorld::IsServer() const
-{
-	if ( NetDriver != NULL )
-	{
-		return NetDriver->IsServer();
-	}
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if ( DemoNetDriver != NULL )
-	{
-		return DemoNetDriver->IsServer();
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	return true;
-}
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UWorld::IsPlayingReplay() const
 {
 	return (DemoNetDriver && DemoNetDriver->IsPlaying());
@@ -6507,7 +6484,6 @@ bool UWorld::IsRecordingReplay() const
 		return (DemoNetDriver && DemoNetDriver->IsServer());
 	}
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UWorld::PrepareMapChange(const TArray<FName>& LevelNames)
 {

@@ -134,13 +134,6 @@ void UReplayNetConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketT
 
 		if (AActor* Actor = GetRepContextActor())
 		{
-			//@todo: do we still call this during checkpoints?
-			if (!Actor->IsPendingKillPending())
-			{
-				//@todo: unique this in tick?
-				ReplayHelper.UpdateExternalDataForObject(this, Actor);
-			}
-
 			if (!bCheckpoint && ReplayHelper.bHasDeltaCheckpoints && Driver)
 			{
 				Driver->GetNetworkObjectList().MarkDirtyForReplay(Actor);

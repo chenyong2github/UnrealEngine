@@ -505,13 +505,6 @@ FUniqueNetIdRepl APlayerState::BP_GetUniqueId() const
 	return GetUniqueId();
 }
 
-void APlayerState::SetUniqueId(const FUniqueNetIdPtr& InUniqueId)
-{
-	MARK_PROPERTY_DIRTY_FROM_NAME(APlayerState, UniqueId, this);
-	UniqueId.SetUniqueNetId(InUniqueId);
-	OnSetUniqueId();
-}
-
 void APlayerState::SetUniqueId(const FUniqueNetIdRepl& NewUniqueId)
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(APlayerState, UniqueId, this);

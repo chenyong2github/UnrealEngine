@@ -2668,21 +2668,6 @@ void FRepSerializationSharedInfo::CountBytes(FArchive& Ar) const
 	);
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-const FRepSerializedPropertyInfo* FRepSerializationSharedInfo::WriteSharedProperty(
-	const FRepLayoutCmd& Cmd,
-	const FGuid& PropertyGuid,
-	const int32 CmdIndex,
-	const uint16 Handle,
-	const FConstRepObjectDataBuffer Data,
-	const bool bWriteHandle,
-	const bool bDoChecksum)
-{
-	FRepSharedPropertyKey PropertyKey(PropertyGuid.A, PropertyGuid.B, PropertyGuid.C, (void*)Data.Data);
-	return WriteSharedProperty(Cmd, PropertyKey, CmdIndex, Handle, Data, bWriteHandle, bDoChecksum);
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 const FRepSerializedPropertyInfo* FRepSerializationSharedInfo::WriteSharedProperty(
 	const FRepLayoutCmd& Cmd,
 	const FRepSharedPropertyKey& PropertyKey,

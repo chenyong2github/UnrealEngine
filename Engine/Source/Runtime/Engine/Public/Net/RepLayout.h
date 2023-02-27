@@ -119,29 +119,6 @@ typedef TRepDataBuffer<ERepDataBufferType::ShadowBuffer> FRepShadowDataBuffer;
 typedef TConstRepDataBuffer<ERepDataBufferType::ObjectBuffer> FConstRepObjectDataBuffer;
 typedef TConstRepDataBuffer<ERepDataBufferType::ShadowBuffer> FConstRepShadowDataBuffer;
 
-/** Stores meta data about a given Replicated property. */
-class UE_DEPRECATED(5.0, "No longer used") FRepChangedParent
-{
-public:
-	FRepChangedParent():
-		Active(1),
-		OldActive(1),
-		IsConditional(0)
-	{}
-
-	/** Whether or not this property is currently Active (i.e., considered for replication). */
-	uint32 Active: 1;
-
-	/** The last updated state of Active, used to track when the Active state changes. */
-	uint32 OldActive: 1;
-
-	/**
-	 * Whether or not this property has conditions that may exclude it from replicating to a given connection.
-	 * @see FRepState::ConditionMap.
-	 */
-	uint32 IsConditional: 1;
-};
-
 /** FRepChangedPropertyTracker moved to NetCore module */
 
 class FRepLayout;
@@ -198,10 +175,6 @@ struct FRepSerializedPropertyInfo
 		PropBitLength(0)
 	{}
 
-	/** Unique identifier for this property, may include array index and depth. */
-	UE_DEPRECATED(4.27, "No longer used, please use PropertyKey instead.")
-	FGuid Guid;
-
 	/** Unique identifier for this property */
 	FRepSharedPropertyKey PropertyKey;
 
@@ -253,27 +226,6 @@ struct FRepSerializationSharedInfo
 			bIsValid = false;
 		}
 	}
-
-	/**
-	 * Creates a new SharedPropertyInfo and adds it to the SharedPropertyInfo list.
-	 *
-	 * @param Cmd				The command that represents the property we want to share.
-	 * @param PropertyGuid		A guid used to identify the property.
-	 * @param CmdIndex			Index of the property command. Only used if bDoChecksum is true.
-	 * @param Handle			Relative Handle of the property command. Only used if bWriteHandle is true.
-	 * @param Data				Pointer to the raw property memory that will be serialized.
-	 * @param bWriteHandle		Whether or not we should write Command handles into the serialized data.
-	 * @param bDoChecksum		Whether or not we should do checksums. Only used if ENABLE_PROPERTY_CHECKSUMS is enabled.
-	 */
-	UE_DEPRECATED(4.27, "Now passing a FRepSharedPropertyKey instead of FGuid")
-	const FRepSerializedPropertyInfo* WriteSharedProperty(
-		const FRepLayoutCmd& Cmd,
-		const FGuid& PropertyGuid,
-		const int32 CmdIndex,
-		const uint16 Handle,
-		const FConstRepObjectDataBuffer Data,
-		const bool bWriteHandle,
-		const bool bDoChecksum);
 
 	/**
 	 * Creates a new SharedPropertyInfo and adds it to the SharedPropertyInfo list.

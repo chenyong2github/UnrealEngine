@@ -2316,9 +2316,7 @@ bool UDemoNetDriver::ReplicatePrioritizedActor(const FActorPriority& ActorPriori
 
 		const bool bDidReplicateActor = DemoReplicateActor(Actor, Params.Connection, false);
 
-		const bool bUpdatedExternalData = ReplayHelper.UpdateExternalDataForObject(Params.Connection, Actor);
-
-		if (bDidReplicateActor || bUpdatedExternalData)
+		if (bDidReplicateActor)
 		{
 			// Choose an optimal time, we choose 70% of the actual rate to allow frequency to go up if needed
 			ActorInfo->OptimalNetUpdateDelta = FMath::Clamp(LastReplicateDelta * 0.7f, MinOptimalDelta, MaxOptimalDelta);

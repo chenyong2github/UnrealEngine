@@ -402,12 +402,11 @@ public:
 	/** Clears the actor starvation map */
 	void ResetActorsStarvedByClassTimeMap() { ActorsStarvedByClassTimeMap.Empty(); }
 
-public:
+private:
 	// Connection information.
-
-	UE_DEPRECATED(5.0, "EConnectionState State will be made private. Use GetConnectionState and SetConnectionState to access State instead.")
 	EConnectionState	State;					// State this connection is in.
 
+public:
 	ENGINE_API const EConnectionState GetConnectionState() const;
 	ENGINE_API void SetConnectionState(EConnectionState ConnectionState);
 	
@@ -1666,10 +1665,6 @@ private:
 	FNetworkGUID GetActorGUIDFromOpenBunch(FInBunch& Bunch);
 
 	/** Out of order packet tracking/correction */
-
-	/** Stat tracking for the total number of out of order packets, for this connection */
-	UE_DEPRECATED(5.0, "Use GetTotalOutOfOrderPackets instead.")
-	int32 TotalOutOfOrderPackets = 0;
 
 	/** Stat tracking for the total number of out of order packets lost */
 	int32 TotalOutOfOrderPacketsLost = 0;
