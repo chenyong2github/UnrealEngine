@@ -167,10 +167,6 @@ protected:
 		FString PlayerName;
 		// Current participants in the channel, and the current blocked/muted state
 		TMap<FString, FChannelParticipant> Participants;
-		// Is the connection enabled
-		bool bConnectionEnabled = false;
-		// Is this connection allowed to send audio? Will be false if houseparty is being used as a mic
-		bool bSendAudioEnabled = true;
 		// Did the user toggle "off" this channel
 		bool bIsNotListening = false;
 

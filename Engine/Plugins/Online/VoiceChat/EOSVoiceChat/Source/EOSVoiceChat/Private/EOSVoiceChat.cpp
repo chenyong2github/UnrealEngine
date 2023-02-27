@@ -42,7 +42,6 @@ const TCHAR* LexToString(EOS_ERTCAudioInputStatus Status)
 }
 
 FEOSVoiceChatDelegates::FOnAudioInputDeviceStatusChanged FEOSVoiceChatDelegates::OnAudioInputDeviceStatusChanged;
-FEOSVoiceChatDelegates::FOnVoiceChatChannelConnectionStateDelegate FEOSVoiceChatDelegates::OnVoiceChatChannelConnectionStateChanged;
 FEOSVoiceChatDelegates::FOnVoiceChatPlayerAddedMetadataDelegate FEOSVoiceChatDelegates::OnVoiceChatPlayerAddedMetadata;
 FEOSVoiceChatDelegates::FOnAudioStatusChanged FEOSVoiceChatDelegates::OnAudioStatusChanged;
 

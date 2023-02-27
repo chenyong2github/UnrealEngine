@@ -28,9 +28,6 @@ public:
 	/** Delegate called when the status of the audio device has changed. */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAudioInputDeviceStatusChanged, FString /*PlayerName*/, EOS_ERTCAudioInputStatus /*Status*/);
 	static FOnAudioInputDeviceStatusChanged OnAudioInputDeviceStatusChanged;
-	/** Delegate called when the "connection state" changes (happens when a sidekick device toggles it's "mode" on/off) **/
-	DECLARE_MULTICAST_DELEGATE_FourParams(FOnVoiceChatChannelConnectionStateDelegate, const FString& /*PlayerName*/, const FString& /* ChannelName */, bool /* bIsChannelEnabled */, bool /* bSendAudioEnabled */);
-	static FOnVoiceChatChannelConnectionStateDelegate OnVoiceChatChannelConnectionStateChanged;
 	/** Delegate called when ParticipantMetadata is included in the player joined event **/
 	DECLARE_MULTICAST_DELEGATE_FourParams(FOnVoiceChatPlayerAddedMetadataDelegate, const FString& /*LoginPlayerName*/, const FString& /* ChannelName */, const FString& /*PlayerName*/, const TArray<FVoiceChatMetadataItem>& /* PlayerMetadata */);
 	static FOnVoiceChatPlayerAddedMetadataDelegate OnVoiceChatPlayerAddedMetadata;
