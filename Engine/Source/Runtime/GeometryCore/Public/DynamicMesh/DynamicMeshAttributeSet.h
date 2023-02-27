@@ -57,6 +57,16 @@ class TDynamicVertexSkinWeightsAttribute;
 
 using FDynamicMeshVertexSkinWeightsAttribute = TDynamicVertexSkinWeightsAttribute<FDynamicMesh3>;
 	
+/** Bone Attributes */
+template<typename ParentType, typename AttribValueType>
+class TDynamicBoneAttributeBase;
+
+using FDynamicMeshBoneNameAttribute = TDynamicBoneAttributeBase<FDynamicMesh3, FName>;
+using FDynamicMeshBoneParentIndexAttribute = TDynamicBoneAttributeBase<FDynamicMesh3, int32>;
+using FDynamicMeshBoneColorAttribute = TDynamicBoneAttributeBase<FDynamicMesh3, FVector4f>;
+using FDynamicMeshBonePoseAttribute = TDynamicBoneAttributeBase<FDynamicMesh3, FTransform>;
+
+
 /**
  * FDynamicMeshAttributeSet manages a set of extended attributes for a FDynamicMesh3.
  * This includes UV and Normal overlays, etc.
@@ -380,7 +390,90 @@ public:
 	{
 		return SkinWeightAttributes;
 	}
+
+
+
+	//
+	// Bone Attributes
+	//
+
+	void CopyBoneAttributes(const FDynamicMeshAttributeSet& Copy);
 	
+	void EnableMatchingBoneAttributes(const FDynamicMeshAttributeSet& ToMatch, bool bClearExisting, bool bDiscardExtraAttributes);
+
+	/** @note Only compares bone names and parent indices. */
+	bool IsSameBoneAttributesAs(const FDynamicMeshAttributeSet& Other) const;
+
+	/**
+	 * The attribute is valid if either all attributes are empty or if the bone name attribute is not empty then all the other
+	 * attributes must be either empty or their size is equal to the bone name attribute size.
+	 */
+	bool CheckBoneValidity(EValidityCheckFailMode FailMode) const;
+
+	
+	/** 
+	 * Append bone attributes from another set. When appending, the bone attributes in the Other set will only be 
+	 * appended if a bone with the same name does not exist in the current bone name attribute. Hence, the 
+	 * order of the bones in this set is preserved.
+	 * 
+	 * @return true, if append was successful
+	 */
+	bool AppendBonesUnique(const FDynamicMeshAttributeSet& Other);
+
+	/** Enable all bone attributes and intialize their size to the given bone number. */
+	void EnableBones(const int InBonesNum);
+
+	/** Disable all bone attributes. */
+	void DisableBones();
+	
+	/** Get number of bones. */
+	int32 GetNumBones() const;
+
+	bool HasBones() const 
+	{ 
+		return !!BoneNameAttrib; 
+	}
+
+	FDynamicMeshBoneNameAttribute* GetBoneNames()
+	{
+		return BoneNameAttrib.Get();
+	}
+
+	const FDynamicMeshBoneNameAttribute* GetBoneNames() const
+	{
+		return BoneNameAttrib.Get();
+	}
+	
+	FDynamicMeshBoneParentIndexAttribute* GetBoneParentIndices()
+	{
+		return BoneParentIndexAttrib.Get();
+	}
+
+	const FDynamicMeshBoneParentIndexAttribute* GetBoneParentIndices() const
+	{
+		return BoneParentIndexAttrib.Get();
+	}
+
+	FDynamicMeshBonePoseAttribute* GetBonePoses()
+	{
+		return BonePoseAttrib.Get();
+	}
+
+	const FDynamicMeshBonePoseAttribute* GetBonePoses() const
+	{
+		return BonePoseAttrib.Get();
+	}
+
+	FDynamicMeshBoneColorAttribute* GetBoneColors()
+	{
+		return BoneColorAttrib.Get();
+	}
+
+	const FDynamicMeshBoneColorAttribute* GetBoneColors() const
+	{
+		return BoneColorAttrib.Get();
+	}
+
 	// Attach a new attribute (and transfer ownership of it to the attribute set)
 	void AttachAttribute(FName AttribName, FDynamicMeshAttributeBase* Attribute)
 	{
@@ -469,6 +562,12 @@ protected:
 	using SkinWeightAttributesMap = TMap<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>;
 	SkinWeightAttributesMap SkinWeightAttributes;
 
+	// Bone attributes
+	TUniquePtr<FDynamicMeshBoneNameAttribute> BoneNameAttrib;
+	TUniquePtr<FDynamicMeshBoneParentIndexAttribute> BoneParentIndexAttrib;
+	TUniquePtr<FDynamicMeshBonePoseAttribute> BonePoseAttrib;
+	TUniquePtr<FDynamicMeshBoneColorAttribute> BoneColorAttrib;
+
 	using GenericAttributesMap = TMap<FName, TUniquePtr<FDynamicMeshAttributeBase>>;
 	GenericAttributesMap GenericAttributes;
 	
@@ -511,32 +610,7 @@ protected:
 	 * @param bAllowNonmanifold Accept non-manifold topology as valid. Note that this should almost always be true for attributes; non-manifold overlays are generally valid.
 	 * @param FailMode Desired behavior if mesh is found invalid
 	 */
-	virtual bool CheckValidity(bool bAllowNonmanifold, EValidityCheckFailMode FailMode) const
-	{
-		bool bValid = FDynamicMeshAttributeSetBase::CheckValidity(bAllowNonmanifold, FailMode);
-		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers(); UVLayerIndex++)
-		{
-			bValid = GetUVLayer(UVLayerIndex)->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
-		}
-		bValid = PrimaryNormals()->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
-		if (ColorLayer)
-		{
-			bValid = ColorLayer->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
-		}
-		if (MaterialIDAttrib)
-		{
-			bValid = MaterialIDAttrib->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
-		}
-		for (int PolygroupLayerIndex = 0; PolygroupLayerIndex < NumPolygroupLayers(); PolygroupLayerIndex++)
-		{
-			bValid = GetPolygroupLayer(PolygroupLayerIndex)->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
-		}
-		for (int WeightLayerIndex = 0; WeightLayerIndex < NumWeightLayers(); WeightLayerIndex++)
-		{
-			bValid = GetWeightLayer(WeightLayerIndex)->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
-		}
-		return bValid;
-	}
+	virtual bool CheckValidity(bool bAllowNonmanifold, EValidityCheckFailMode FailMode) const;
 };
 
 
