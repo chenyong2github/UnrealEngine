@@ -577,7 +577,7 @@ bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFi
 		Info.CountBytes(CountMemAr);
 		const int64 InfoSize = sizeof(FLocalFileReplayInfo) + CountMemAr.GetNum();
 
-		UE_LOG(LogLocalFileReplay, Log, TEXT("ReadReplayInfo: IsValid: %s MemSize: %lld bytes"), *LexToString(Info.bIsValid), InfoSize);
+		UE_LOG(LogLocalFileReplay, Verbose, TEXT("ReadReplayInfo: IsValid: %s MemSize: %lld bytes"), *LexToString(Info.bIsValid), InfoSize);
 
 		return Info.bIsValid && !Archive.IsError();
 	}
