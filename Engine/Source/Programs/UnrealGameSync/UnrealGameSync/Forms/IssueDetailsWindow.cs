@@ -77,7 +77,9 @@ namespace UnrealGameSync
 			readonly object _lockObject = new object();
 			readonly SynchronizationContext _synchronizationContext;
 			Task? _workerTask;
+#pragma warning disable CA2213 // warning CA2213: 'PerforceWorkerTask' contains field '_cancellationSource' that is of IDisposable type 'CancellationTokenSource', but it is never disposed. Change the Dispose method on 'PerforceWorkerTask' to call Close or Dispose on this field.
 			readonly CancellationTokenSource _cancellationSource;
+#pragma warning restore CA2213
 			readonly AsyncEvent _refreshEvent;
 			readonly List<PerforceChangeRange> _requests = new List<PerforceChangeRange>();
 			readonly Dictionary<int, PerforceChangeDetailsWithDescribeRecord> _changeNumberToDetails = new Dictionary<int, PerforceChangeDetailsWithDescribeRecord>();
@@ -275,7 +277,9 @@ namespace UnrealGameSync
 		ChangesRecord? _contextMenuChange;
 		string? _lastOwner;
 		string? _lastDetailsText;
+#pragma warning disable CA2213 // warning CA2213: 'IssueDetailsWindow' contains field '_updateTimer' that is of IDisposable type 'Timer?', but it is never disposed. Change the Dispose method on 'IssueDetailsWindow' to call Close or Dispose on this field.
 		System.Windows.Forms.Timer? _updateTimer;
+#pragma warning restore CA2213
 		StatusElementResources _statusElementResources;
 
 		IssueDetailsWindow(IssueMonitor issueMonitor, IssueData issue, List<IssueBuildData> issueBuilds, List<IssueDiagnosticData> diagnostics, IPerforceSettings perforceSettings, TimeSpan? serverTimeOffset, IServiceProvider serviceProvider, string? currentStream)
@@ -354,6 +358,12 @@ namespace UnrealGameSync
 				_issueMonitor.Release();
 				_issueMonitor = null!;
 			}
+
+			_statusElementResources.Dispose();
+			_boldFont?.Dispose();
+			_boldFont = null;
+			_perforceWorker?.Dispose();
+			_perforceWorker = null;
 
 			base.Dispose(disposing);
 		}
@@ -859,9 +869,11 @@ namespace UnrealGameSync
 
 			foreach (IssueBuildData build in buildGroup.Builds.OrderBy(x => x.JobStepName))
 			{
+#pragma warning disable CA2000 // warning CA2000: Call System.IDisposable.Dispose on object created by 'new ToolStripMenuItem(String.Format("View Step: {0}", build.JobStepName))' before all references to it are out of scope
 				ToolStripMenuItem menuItem = new ToolStripMenuItem(String.Format("View Step: {0}", build.JobStepName));
 				menuItem.Click += (s, e) => Utility.OpenUrl(build.JobStepUrl);
 				JobContextMenu.Items.Insert(minIndex++, menuItem);
+#pragma warning restore CA2000
 			}
 
 			JobContextMenu.Show(BuildListView, point, ToolStripDropDownDirection.BelowRight);

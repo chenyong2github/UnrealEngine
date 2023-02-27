@@ -58,7 +58,9 @@ namespace UnrealGameSync
 
 	class ToolUpdateMonitor : IDisposable
 	{
+#pragma warning disable CA2213 // warning CA2213: 'ToolUpdateMonitor' contains field '_cancellationSource' that is of IDisposable type 'CancellationTokenSource', but it is never disposed. Change the Dispose method on 'ToolUpdateMonitor' to call Close or Dispose on this field.
 		readonly CancellationTokenSource _cancellationSource;
+#pragma warning restore CA2213
 		readonly SynchronizationContext _synchronizationContext;
 		Task? _workerTask;
 		readonly AsyncEvent _wakeEvent;

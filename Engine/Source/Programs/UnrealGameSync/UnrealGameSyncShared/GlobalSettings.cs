@@ -10,9 +10,9 @@ namespace UnrealGameSync
 {
 	public class FilterSettings
 	{
-		public List<Guid> IncludeCategories { get; set; } = new List<Guid>();
-		public List<Guid> ExcludeCategories { get; set; } = new List<Guid>();
-		public List<string> View { get; set; } = new List<string>();
+		public List<Guid> IncludeCategories { get; } = new List<Guid>();
+		public List<Guid> ExcludeCategories { get; } = new List<Guid>();
+		public List<string> View { get; } = new List<string>();
 		public bool? AllProjects { get; set; }
 		public bool? AllProjectsInSln { get; set; }
 

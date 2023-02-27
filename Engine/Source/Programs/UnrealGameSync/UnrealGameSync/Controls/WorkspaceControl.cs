@@ -227,9 +227,13 @@ namespace UnrealGameSync
 //		JupiterMonitor _jupiterMonitor;
 		PerforceMonitor _perforceMonitor;
 		Workspace _workspace;
+#pragma warning disable CA2213 //warning CA2213: 'WorkspaceControl' contains field '_issueMonitor' that is of IDisposable type 'IssueMonitor', but it is never disposed. Change the Dispose method on 'WorkspaceControl' to call Close or Dispose on this field.
 		IssueMonitor _issueMonitor;
+#pragma warning restore CA2213
 		EventMonitor _eventMonitor;
+#pragma warning disable CA2213 // warning CA2213: 'WorkspaceControl' contains field '_updateTimer' that is of IDisposable type 'Timer', but it is never disposed. Change the Dispose method on 'WorkspaceControl' to call Close or Dispose on this field.
 		readonly System.Windows.Forms.Timer _updateTimer;
+#pragma warning restore CA2213
 		HashSet<int> _promotedChangeNumbers = new HashSet<int>();
 		List<int> _listIndexToChangeIndex = new List<int>();
 		List<int> _sortedChangeNumbers = new List<int>();
@@ -322,6 +326,7 @@ namespace UnrealGameSync
 			_updateTimer = new System.Windows.Forms.Timer();
 			_updateTimer.Interval = 30;
 			_updateTimer.Tick += TimerCallback;
+			components!.Add(_updateTimer);
 
 			UpdateCheckedBuildConfig();
 
@@ -698,8 +703,6 @@ namespace UnrealGameSync
 			{
 				components.Dispose();
 			}
-
-			_updateTimer?.Stop();
 
 			if (_startupCallbacks != null)
 			{
@@ -3726,6 +3729,7 @@ namespace UnrealGameSync
 
 					description.AppendFormat(" ({0})", Utility.FormatDurationMinutes((int)((issue.RetrievedAt - issue.CreatedAt).TotalMinutes + 1)));
 
+#pragma warning disable CA2000 // warning CA2000: Call System.IDisposable.Dispose on object created by 'new ToolStripMenuItem(description.ToString())' before all references to it are out of scope
 					ToolStripMenuItem item = new ToolStripMenuItem(description.ToString());
 					if (issue.FixChange > 0)
 					{
@@ -3737,6 +3741,7 @@ namespace UnrealGameSync
 					}
 					item.Click += (s, e) => { BuildHealthContextMenu_Issue_Click(issue); };
 					BuildHealthContextMenu.Items.Insert(minSeparatorIdx + idx + 1, item);
+#pragma warning restore CA2000
 				}
 			}
 
@@ -4281,9 +4286,11 @@ namespace UnrealGameSync
 							execute = Utility.ExpandVariables(execute, variables);
 							arguments = Utility.ExpandVariables(arguments ?? "", variables);
 
+#pragma warning disable CA2000 // warning CA2000: Call System.IDisposable.Dispose on object created by 'new ToolStripMenuItem(label, null, new EventHandler((o, a) => SafeProcessStart(execute, arguments)))' before all references to it are out of scope
 							ToolStripMenuItem item = new ToolStripMenuItem(label, null, new EventHandler((o, a) => SafeProcessStart(execute, arguments)));
-
 							BuildListContextMenu.Items.Insert(customToolEnd, item);
+#pragma warning restore CA2000
+
 							customToolEnd++;
 						}
 					}
@@ -5319,6 +5326,7 @@ namespace UnrealGameSync
 								string menuName = step.StatusPanelLink.Substring(0, baseMenuIdx);
 								string itemName = step.StatusPanelLink.Substring(baseMenuIdx + 1).Replace("&", "&&", StringComparison.Ordinal);
 
+#pragma warning disable CA2000 // warning CA2000: Use recommended dispose pattern to ensure that object created by 'new ToolStripMenuItem(itemName)' is disposed on all paths. If possible, wrap the creation within a 'using' statement or a 'using' declaration. Otherwise, use a try-finally pattern, with a dedicated local variable declared before the try region and an unconditional Dispose invocation on non-null value in the 'finally' region, say 'x?.Dispose()'. If the object is explicitly disposed within the try region or the dispose ownership is transfered to another object or method, assign 'null' to the local variable just after such an operation to prevent double dispose in 'finally'.
 								ToolStripMenuItem newMenuItem = new ToolStripMenuItem(itemName);
 								newMenuItem.Click += new EventHandler((sender, e) => { RunCustomTool(step, userSteps); });
 
@@ -5339,6 +5347,7 @@ namespace UnrealGameSync
 									}
 									menu.Items.Add(newMenuItem);
 								}
+#pragma warning restore CA2000
 							}
 						}
 
@@ -5701,11 +5710,13 @@ namespace UnrealGameSync
 				RecentMenu.Items.RemoveAt(2);
 			}
 
+#pragma warning disable CA2000 //  warning CA2000: Call System.IDisposable.Dispose on object created by 'new ToolStripMenuItem(recentProject.ToString(), null, new EventHandler((o, e) => _owner.RequestProjectChange(this, recentProject, true)))' before all references to it are out of scope
 			foreach (UserSelectedProjectSettings recentProject in _settings.RecentProjects)
 			{
 				ToolStripMenuItem item = new ToolStripMenuItem(recentProject.ToString(), null, new EventHandler((o, e) => _owner.RequestProjectChange(this, recentProject, true)));
 				RecentMenu.Items.Insert(RecentMenu.Items.Count - 2, item);
 			}
+#pragma warning restore CA2000
 
 			RecentMenu_Separator.Visible = (_settings.RecentProjects.Count > 0);
 			RecentMenu.Show(StatusPanel, new Point(bounds.Left, bounds.Bottom), ToolStripDropDownDirection.BelowRight);

@@ -161,9 +161,6 @@ namespace UnrealGameSync
 			DirectoryReference dataFolder = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData)!, "UnrealGameSync");
 			DirectoryReference.CreateDirectory(dataFolder);
 
-			// Enable TLS 1.1 and 1.2. TLS 1.0 is now deprecated and not allowed by default in NET Core servers.
-			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
-
 			// Create a new logger
 			using (ILoggerProvider loggerProvider = Logging.CreateLoggerProvider(FileReference.Combine(dataFolder, "UnrealGameSync.log")))
 			{
@@ -322,7 +319,7 @@ namespace UnrealGameSync
 		{
 			for(int idx = 0; idx < remainingArgs.Count; idx++)
 			{
-				if(remainingArgs[idx].Equals(option, StringComparison.InvariantCultureIgnoreCase))
+				if(remainingArgs[idx].Equals(option, StringComparison.OrdinalIgnoreCase))
 				{
 					value = true;
 					remainingArgs.RemoveAt(idx);
@@ -338,7 +335,7 @@ namespace UnrealGameSync
 		{
 			for(int idx = 0; idx < remainingArgs.Count; idx++)
 			{
-				if(remainingArgs[idx].StartsWith(prefix, StringComparison.InvariantCultureIgnoreCase))
+				if(remainingArgs[idx].StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
 				{
 					value = remainingArgs[idx].Substring(prefix.Length);
 					remainingArgs.RemoveAt(idx);

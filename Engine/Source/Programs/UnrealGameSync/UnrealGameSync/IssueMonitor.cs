@@ -135,7 +135,9 @@ namespace UnrealGameSync
 		int _refCount = 1;
 		Task? _workerTask;
 		readonly ILogger _logger;
+#pragma warning disable CA2213 // warning CA2213: 'IssueMonitor' contains field '_cancellationSource' that is of IDisposable type 'CancellationTokenSource', but it is never disposed. Change the Dispose method on 'IssueMonitor' to call Close or Dispose on this field.
 		readonly CancellationTokenSource _cancellationSource;
+#pragma warning restore CA2213
 		readonly AsyncEvent _refreshEvent;
 		int _updateIntervalMs;
 		readonly List<long> _trackingIssueIds = new List<long>();

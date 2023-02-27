@@ -175,6 +175,12 @@ namespace UnrealGameSync
 				_updateTimer = null;
 			}
 
+			if (_selectionScrollTimer != null)
+			{
+				_selectionScrollTimer.Dispose();
+				_selectionScrollTimer = null;
+			}
+
 			CloseFile();
 		}
 

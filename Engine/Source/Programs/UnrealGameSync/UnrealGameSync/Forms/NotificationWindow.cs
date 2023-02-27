@@ -66,15 +66,24 @@ namespace UnrealGameSync
 
 		protected override void Dispose(bool disposing)
 		{
-			if(disposing && _logoBitmap != null)
+			if (disposing)
 			{
-				_logoBitmap.Dispose();
-				_logoBitmap = null;
+				if (_captionFont != null)
+				{
+					_captionFont.Dispose();
+					_captionFont = null;
+				}
+				if (_logoBitmap != null)
+				{
+					_logoBitmap.Dispose();
+					_logoBitmap = null;
+				}
+				if (components != null)
+				{
+					components.Dispose();
+				}
 			}
-			if(disposing && components != null)
-			{
-				components.Dispose();
-			}
+
 			base.Dispose(disposing);
 		}
 

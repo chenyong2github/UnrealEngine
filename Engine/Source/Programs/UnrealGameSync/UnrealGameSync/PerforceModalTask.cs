@@ -46,7 +46,9 @@ namespace UnrealGameSync
 			}
 			finally
 			{
+#pragma warning disable CA1508 // warning CA1508: 'connection' is always 'null'. Remove or refactor the condition(s) to avoid dead code.
 				connection?.Dispose();
+#pragma warning restore CA1508
 			}
 		}
 

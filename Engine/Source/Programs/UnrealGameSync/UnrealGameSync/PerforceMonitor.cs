@@ -39,7 +39,9 @@ namespace UnrealGameSync
 		readonly string _selectedClientFileName;
 		readonly string _selectedProjectIdentifier;
 		Task? _workerTask;
+#pragma warning disable CA2213 //  warning CA2213: 'PerforceMonitor' contains field '_cancellationSource' that is of IDisposable type 'CancellationTokenSource', but it is never disposed. Change the Dispose method on 'PerforceMonitor' to call Close or Dispose on this field.
 		readonly CancellationTokenSource _cancellationSource;
+#pragma warning restore CA2213
 		int _pendingMaxChangesValue;
 		SortedSet<ChangesRecord> _changes = new SortedSet<ChangesRecord>(new PerforceChangeSorter());
 		readonly SortedDictionary<int, PerforceChangeDetails> _changeDetails = new SortedDictionary<int,PerforceChangeDetails>();
@@ -504,7 +506,7 @@ namespace UnrealGameSync
 						// Notify the caller after a fixed period of time, in case further updates are slow to arrive
 						if (notifyTask.IsCompleted)
 						{
-							notifyTask = Task.Delay(TimeSpan.FromSeconds(5.0), cancellationSource.Token).ContinueWith(_ => _synchronizationContext.Post(_ => OnUpdateMetadata?.Invoke(), null));
+							notifyTask = Task.Delay(TimeSpan.FromSeconds(5.0), cancellationSource.Token).ContinueWith(_ => _synchronizationContext.Post(_ => OnUpdateMetadata?.Invoke(), null), cancellationSource.Token, new TaskContinuationOptions(), TaskScheduler.Default);
 						}
 					}
 				}

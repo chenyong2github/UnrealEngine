@@ -129,11 +129,13 @@ namespace UnrealGameSync
 						// Filter this list of clients
 						candidateClients = await FilterClients(clients, newSelectedFileName, defaultConnection.Settings, perforceInfo.ClientHost, logger, cancellationToken);
 
+#pragma warning disable CA1508 // False positive? "warning CA1508: 'newCandidateClients.Count == 0' is always 'true'. Remove or refactor the condition(s) to avoid dead code."
 						// If we still couldn't find any, fail.
 						if (candidateClients.Count == 0)
 						{
 							throw new UserErrorException($"Couldn't find any Perforce workspace containing {newSelectedFileName}. Check your connection settings.");
 						}
+#pragma warning restore CA1508
 					}
 
 					// Check there's only one client

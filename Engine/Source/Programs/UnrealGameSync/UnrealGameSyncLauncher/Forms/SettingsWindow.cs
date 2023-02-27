@@ -53,7 +53,7 @@ namespace UnrealGameSyncLauncher
 
 		private void ViewLogBtn_Click(object sender, EventArgs e)
 		{
-			LogWindow log = new LogWindow(_logText ?? String.Empty);
+			using LogWindow log = new LogWindow(_logText ?? String.Empty);
 			log.ShowDialog(this);
 		}
 

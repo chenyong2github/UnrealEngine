@@ -46,7 +46,7 @@ namespace UnrealGameSync
 
 			public void Stop()
 			{
-				_ = StopAsync();
+				StopAsync().Wait();
 			}
 
 			Task StopAsync()
@@ -57,7 +57,7 @@ namespace UnrealGameSync
 					_onComplete = null;
 
 					_cancellationSource.Cancel();
-					stopTask = _backgroundTask.ContinueWith(_ => _cancellationSource.Dispose(), TaskScheduler.Default);
+					stopTask = _backgroundTask;
 
 					_backgroundTask = null!;
 				}
@@ -75,6 +75,8 @@ namespace UnrealGameSync
 				base.Dispose(disposing);
 
 				Stop();
+
+				_cancellationSource.Dispose();
 			}
 
 			public async Task DoWork(CancellationToken cancellationToken)
@@ -108,7 +110,9 @@ namespace UnrealGameSync
 
 		readonly IPerforceSettings _perforceSettings;
 		int _changeNumber;
+#pragma warning disable CA2213 // warning CA2213: 'IssueFixedWindow' contains field '_worker' that is of IDisposable type 'FindChangesWorker', but it is never disposed. Change the Dispose method on 'IssueFixedWindow' to call Close or Dispose on this field.
 		readonly FindChangesWorker _worker;
+#pragma warning restore CA2213
 		readonly IServiceProvider _serviceProvider;
 	
 		public IssueFixedWindow(IPerforceSettings perforceSettings, int initialChangeNumber, IServiceProvider serviceProvider)

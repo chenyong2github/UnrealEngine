@@ -16,7 +16,9 @@ namespace UnrealGameSync
 		readonly List<string> _targetNames;
 		readonly DirectoryReference _baseDirectory;
 		readonly IReadOnlyDictionary<string, string> _variables;
+#pragma warning disable CA2213 // warning CA2213: 'BuildStepWindow' contains field '_variablesWindow' that is of IDisposable type 'VariablesWindow?', but it is never disposed. Change the Dispose method on 'BuildStepWindow' to call Close or Dispose on this field.
 		VariablesWindow? _variablesWindow;
+#pragma warning restore CA2213
 
 		public BuildStepWindow(BuildStep inTask, List<string> inTargetNames, DirectoryReference inBaseDirectory, IReadOnlyDictionary<string, string> inVariables)
 		{
@@ -264,6 +266,8 @@ namespace UnrealGameSync
 				_variablesWindow.Size = new Size(_variablesWindow.Size.Width, Size.Height);
 				_variablesWindow.FormClosed += OnClosedVariablesWindow;
 				_variablesWindow.Show(this);
+
+				components.Add(_variablesWindow);
 			}
 			else
 			{

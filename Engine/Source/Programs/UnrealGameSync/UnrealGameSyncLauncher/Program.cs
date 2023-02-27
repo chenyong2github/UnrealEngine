@@ -26,6 +26,7 @@ namespace UnrealGameSyncLauncher
 		{
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
+			Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
 			bool firstInstance;
 			using(Mutex instanceMutex = new Mutex(true, "UnrealGameSyncRunning", out firstInstance))
@@ -53,7 +54,7 @@ namespace UnrealGameSyncLauncher
 				if ((Control.ModifierKeys & Keys.Shift) != 0)
 				{
 					// Show the settings window immediately
-					SettingsWindow updateError = new SettingsWindow(null, null, serverAndPort, userName, depotPath, preview, SyncAndRunWrapper);
+					using SettingsWindow updateError = new SettingsWindow(null, null, serverAndPort, userName, depotPath, preview, SyncAndRunWrapper);
 					if(updateError.ShowDialog() == DialogResult.OK)
 					{
 						return 0;
@@ -76,7 +77,7 @@ namespace UnrealGameSyncLauncher
 						return 0;
 					}
 
-					SettingsWindow updateError = new SettingsWindow("Unable to update UnrealGameSync from Perforce. Verify that your connection settings are correct.", logger.Render(Environment.NewLine), serverAndPort, userName, depotPath, preview, SyncAndRunWrapper);
+					using SettingsWindow updateError = new SettingsWindow("Unable to update UnrealGameSync from Perforce. Verify that your connection settings are correct.", logger.Render(Environment.NewLine), serverAndPort, userName, depotPath, preview, SyncAndRunWrapper);
 					if(updateError.ShowDialog() == DialogResult.OK)
 					{
 						return 0;
@@ -104,10 +105,12 @@ namespace UnrealGameSyncLauncher
 				{
 					syncPath = baseDepotPathPrefix + (preview ? "/UnstableRelease/..." : "/Release/...");
 					changes = await perforce.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, syncPath, cancellationToken);
+#pragma warning disable CA1508 // warning CA1508: 'changes.Count == 0' is always 'true'. Remove or refactor the condition(s) to avoid dead code.
 					if (changes.Count == 0)
 					{
 						throw new UserErrorException($"Unable to find any UGS binaries under {syncPath}");
 					}
+#pragma warning restore CA1508
 				}
 
 				int requiredChangeNumber = changes[0].Number;
@@ -239,7 +242,7 @@ namespace UnrealGameSyncLauncher
 
 		static string QuoteArgument(string arg)
 		{
-			if(arg.IndexOf(' ') != -1 && !arg.StartsWith("\""))
+			if(arg.IndexOf(' ', StringComparison.Ordinal) != -1 && !arg.StartsWith("\"", StringComparison.Ordinal))
 			{
 				return String.Format("\"{0}\"", arg);
 			}

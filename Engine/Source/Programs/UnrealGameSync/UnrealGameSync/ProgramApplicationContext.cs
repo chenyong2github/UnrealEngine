@@ -44,6 +44,8 @@ namespace UnrealGameSync
 
 		Container _components = new Container();
 		NotifyIcon _notifyIcon;
+#pragma warning disable CA2213 // warning CA2213: 'ProgramApplicationContext' contains field '_notifyMenuOpenUnrealGameSync' that is of IDisposable type 'ToolStripMenuItem', but it is never disposed. Change the Dispose method on 'ProgramApplicationContext' to call Close or Dispose on this field.
+		// Disposed via _components
 		readonly ContextMenuStrip _notifyMenu;
 		readonly ToolStripMenuItem _notifyMenuOpenUnrealGameSync;
 		readonly ToolStripSeparator _notifyMenuOpenUnrealGameSyncSeparator;
@@ -51,11 +53,16 @@ namespace UnrealGameSync
 		readonly ToolStripMenuItem _notifyMenuLaunchEditor;
 		readonly ToolStripSeparator _notifyMenuExitSeparator;
 		readonly ToolStripMenuItem _notifyMenuExit;
+#pragma warning restore CA2213
 
 		CancellationTokenSource _startupCancellationSource = new CancellationTokenSource();
 		readonly Task _startupTask;
 		ModalTaskWindow? _startupWindow;
+#pragma warning disable CA2213 // warning CA2213: 'ProgramApplicationContext' contains field '_mainWindowInstance' that is of IDisposable type 'MainWindow?', but it is never disposed. Change the Dispose method on 'ProgramApplicationContext' to call Close or Dispose on this field.
 		MainWindow? _mainWindowInstance;
+#pragma warning restore CA2213
+
+		WindowsFormsSynchronizationContext? _synchronizationContext;
 
 		public ProgramApplicationContext(IPerforceSettings defaultPerforceSettings, UpdateMonitor updateMonitor, string? apiUrl, DirectoryReference dataFolder, EventWaitHandle activateEvent, bool restoreState, string? updateSpawn, string? projectFileName, bool preview, IServiceProvider serviceProvider, string? uri)
 		{
@@ -79,7 +86,8 @@ namespace UnrealGameSync
 			// back to the main thread at any time.
 			if(SynchronizationContext.Current == null)
 			{
-				SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
+				_synchronizationContext = new WindowsFormsSynchronizationContext();
+				SynchronizationContext.SetSynchronizationContext(_synchronizationContext);
 			}
 
 			// Capture the main thread's synchronization context for callbacks
@@ -269,7 +277,8 @@ namespace UnrealGameSync
 
 			// Create the main window 
 			_mainWindowInstance = new MainWindow(_updateMonitor, _apiUrl, _dataFolder, _updateSpawn ?? originalExe, _preview, startupTasks, _defaultPerforceSettings, _serviceProvider, _settings, _uri);
-			if(visible)
+			_components.Add(_mainWindowInstance);
+			if (visible)
 			{
 				_mainWindowInstance.Show();
 				if(!_restoreState)
@@ -362,6 +371,12 @@ namespace UnrealGameSync
 			{
 				_startupCancellationSource.Dispose();
 				_startupCancellationSource = null!;
+			}
+
+			if (_synchronizationContext != null)
+			{
+				_synchronizationContext.Dispose();
+				_synchronizationContext = null;
 			}
 		}
 

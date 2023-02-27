@@ -544,8 +544,10 @@ namespace UnrealGameSync
 
 				foreach(UserSelectedProjectSettings recentProject in _settings.RecentProjects)
 				{
+#pragma warning disable CA2000 // warning CA2000: Call System.IDisposable.Dispose on object created by 'new ToolStripMenuItem(recentProject.ToString(), null, new EventHandler((o, e) => TabMenu_OpenRecentProject_Click(recentProject, _tabMenuTabIdx)))' before all references to it are out of scope
 					ToolStripMenuItem item = new ToolStripMenuItem(recentProject.ToString(), null, new EventHandler((o, e) => TabMenu_OpenRecentProject_Click(recentProject, _tabMenuTabIdx)));
 					TabMenu_RecentProjects.DropDownItems.Insert(insertIdx, item);
+#pragma warning restore CA2000
 					insertIdx++;
 				}
 

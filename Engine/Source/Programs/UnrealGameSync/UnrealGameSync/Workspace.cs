@@ -103,7 +103,9 @@ namespace UnrealGameSync
 			get; private set;
 		}
 
+#pragma warning disable CA2213 // warning CA2213: 'Workspace' contains field '_prevCancellationSource' that is of IDisposable type 'CancellationTokenSource?', but it is never disposed. Change the Dispose method on 'Workspace' to call Close or Dispose on this field.
 		CancellationTokenSource? _prevCancellationSource;
+#pragma warning restore CA2213
 		Task _prevUpdateTask = Task.CompletedTask;
 
 		public void Update(WorkspaceUpdateContext context)

@@ -27,6 +27,16 @@ namespace UnrealGameSync
 			ProgramListBox.Items.AddRange(programs);
 		}
 
+		protected override void Dispose(bool disposing)
+		{
+			if (disposing)
+			{
+				_terminateEvent?.Dispose();
+				components?.Dispose();
+			}
+			base.Dispose(disposing);
+		}
+
 		private void ProgramsRunningWindow_Load(object sender, EventArgs e)
 		{
 			_terminateEvent = new ManualResetEvent(false);

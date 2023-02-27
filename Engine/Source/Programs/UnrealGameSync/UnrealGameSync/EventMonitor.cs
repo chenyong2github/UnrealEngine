@@ -210,7 +210,9 @@ namespace UnrealGameSync
 		readonly string _project;
 		readonly string _currentUserName;
 		readonly SynchronizationContext _synchronizationContext;
+#pragma warning disable CA2213 // warning CA2213: 'EventMonitor' contains field '_cancellationSource' that is of IDisposable type 'CancellationTokenSource', but it is never disposed. Change the Dispose method on 'EventMonitor' to call Close or Dispose on this field.
 		readonly CancellationTokenSource _cancellationSource;
+#pragma warning restore CA2213
 		Task? _workerTask;
 		readonly AsyncEvent _refreshEvent = new AsyncEvent();
 		readonly ConcurrentQueue<EventData> _outgoingEvents = new ConcurrentQueue<EventData>();

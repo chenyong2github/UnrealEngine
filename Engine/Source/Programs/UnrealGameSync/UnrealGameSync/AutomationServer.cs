@@ -251,7 +251,7 @@ namespace UnrealGameSync
 				{
 					try
 					{
-						TcpClient client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+						TcpClient client = await listener.AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
 						try
 						{
 							_logger.LogInformation("Accepted connection from {Remote}", client.Client.RemoteEndPoint);
