@@ -207,7 +207,7 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	static const FSlateColor SelectionColor_Pressed(Style->SelectionColor_Pressed_LinearRef);
 	static const FSlateColor HighlightColor(FUMGColor::Highlight);
 
-	Style->Set("AppIcon", new IMAGE_BRUSH("Starship/Common/UELogo", Icon24x24, FStyleColors::White));
+	Style->Set("AppIcon", new IMAGE_BRUSH_SVG("Starship/Common/UELogo", Icon24x24, FStyleColors::White));
 	Style->Set("AppIcon.Small", new IMAGE_BRUSH_SVG("Starship/Common/unreal-small", Icon24x24, FStyleColors::Foreground));
 
 	Style->Set("AppIconPadding", FMargin(4, 4, 0, 0));

@@ -283,7 +283,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("AppIcon", new IMAGE_BRUSH_SVG("Starship/Common/unreal", FVector2f(36.f, 36.f), FStyleColors::Foreground));
 		Style->Set("AppIconPadding", FMargin(11.f, 11.f, 3.f, 5.f));
 #else
-		Style->Set("AppIcon", new IMAGE_BRUSH("Starship/Common/UELogo", FVector2f(45.f, 45.f), FStyleColors::White));
+		Style->Set("AppIcon", new IMAGE_BRUSH_SVG("Starship/Common/UELogo", FVector2f(45.f, 45.f), FStyleColors::White));
 		Style->Set("AppIconPadding", FMargin(5.f, 5.f, 5.f, 5.f));
 #endif
 
