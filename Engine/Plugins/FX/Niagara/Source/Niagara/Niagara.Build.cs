@@ -13,7 +13,7 @@ public class Niagara : ModuleRules
 
 		// Enable OpenVDB under Windows
 		// @todo: we need builds for OpenVDB for platforms other than windows
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.Architecture != UnrealArch.Arm64)
 		{
 			// Specific to OpenVDB support
 			bUseRTTI = true;
