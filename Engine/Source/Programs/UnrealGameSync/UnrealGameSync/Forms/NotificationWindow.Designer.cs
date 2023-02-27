@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 namespace UnrealGameSync
 {
@@ -26,7 +26,6 @@ namespace UnrealGameSync
 			this.ClientSize = new System.Drawing.Size(383, 78);
 			this.ControlBox = false;
 			this.DoubleBuffered = true;
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
 			this.Name = "NotificationWindow";
 			this.ShowIcon = false;

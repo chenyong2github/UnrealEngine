@@ -27,15 +27,12 @@ namespace UnrealGameSync
 			_variables = inVariables;
 
 			InitializeComponent();
+			Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 
-			using(Graphics graphics = Graphics.FromHwnd(IntPtr.Zero))
-			{
-				float dpiScaleX = graphics.DpiX / 96.0f;
-
-				NormalSyncColumn.Width = (int)(104 * dpiScaleX);
-				ScheduledSyncColumn.Width = (int)(104 * dpiScaleX);
-				DescriptionColumn.Width = BuildStepList.ClientSize.Width - NormalSyncColumn.Width - ScheduledSyncColumn.Width - 10;
-			}
+			float dpiScaleX = DeviceDpi / 96.0f;
+			NormalSyncColumn.Width = (int)(104 * dpiScaleX);
+			ScheduledSyncColumn.Width = (int)(104 * dpiScaleX);
+			DescriptionColumn.Width = BuildStepList.ClientSize.Width - NormalSyncColumn.Width - ScheduledSyncColumn.Width - 10;
 
 			BuildStepList.Font = SystemFonts.IconTitleFont;
 		}

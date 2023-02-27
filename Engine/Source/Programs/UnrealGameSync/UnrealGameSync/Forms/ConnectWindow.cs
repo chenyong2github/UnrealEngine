@@ -16,6 +16,7 @@ namespace UnrealGameSync
 		private ConnectWindow(IPerforceSettings defaultPerforceSettings, string? serverAndPortOverride, string? userNameOverride, IServiceProvider serviceProvider)
 		{
 			InitializeComponent();
+			Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 
 			_defaultPerforceSettings = defaultPerforceSettings;
 			_serviceProvider = serviceProvider;

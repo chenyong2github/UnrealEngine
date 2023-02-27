@@ -20,6 +20,7 @@ namespace UnrealGameSync
 		public ProgramsRunningWindow(Func<FileReference[]> enumeratePrograms, FileReference[] programs)
 		{
 			InitializeComponent();
+			Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 
 			_programs = programs.OrderBy(x => x).ToArray();
 			_enumeratePrograms = enumeratePrograms;

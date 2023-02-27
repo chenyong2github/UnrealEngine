@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 namespace UnrealGameSync
 {
@@ -52,7 +52,6 @@ namespace UnrealGameSync
             this.DescriptionColumn,
             this.NormalSyncColumn,
             this.ScheduledSyncColumn});
-            this.BuildStepList.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.BuildStepList.FullRowSelect = true;
             this.BuildStepList.GridLines = true;
             this.BuildStepList.Location = new System.Drawing.Point(12, 11);
@@ -127,7 +126,6 @@ namespace UnrealGameSync
             // 
             this.CloseButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.CloseButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.CloseButton.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.CloseButton.Location = new System.Drawing.Point(653, 356);
             this.CloseButton.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.CloseButton.Name = "CloseButton";
@@ -173,7 +171,6 @@ namespace UnrealGameSync
             this.Controls.Add(this.EditStepButton);
             this.Controls.Add(this.NewStepButton);
             this.Controls.Add(this.BuildStepList);
-            this.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.MaximizeBox = false;

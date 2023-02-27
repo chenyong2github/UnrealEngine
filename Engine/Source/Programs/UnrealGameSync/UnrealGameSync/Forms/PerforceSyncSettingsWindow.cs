@@ -17,6 +17,7 @@ namespace UnrealGameSync
 			_logger = logger;
 
 			InitializeComponent();
+			Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 		}
 
 		private void PerforceSettingsWindow_Load(object sender, EventArgs e)

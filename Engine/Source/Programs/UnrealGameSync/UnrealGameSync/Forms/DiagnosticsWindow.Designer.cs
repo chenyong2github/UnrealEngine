@@ -106,7 +106,6 @@ namespace UnrealGameSync
             this.Controls.Add(this.DiagnosticsTextBox);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.ApplicationDataButton);
-            this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "DiagnosticsWindow";
             this.ShowInTaskbar = false;

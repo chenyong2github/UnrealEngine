@@ -184,7 +184,6 @@ namespace UnrealGameSync
 			this.Controls.Add(this.OkBtn);
 			this.Controls.Add(this.groupBox2);
 			this.Controls.Add(this.groupBox1);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F);
 			this.Icon = global::UnrealGameSync.Properties.Resources.Icon;
 			this.Name = "AutomatedSyncWindow";
 			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;

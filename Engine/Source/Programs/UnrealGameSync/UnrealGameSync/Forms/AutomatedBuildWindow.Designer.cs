@@ -309,7 +309,6 @@ namespace UnrealGameSync.Forms
 			this.Controls.Add(this.CancelBtn);
 			this.Controls.Add(this.OkBtn);
 			this.Controls.Add(this.groupBox2);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F);
 			this.Icon = global::UnrealGameSync.Properties.Resources.Icon;
 			this.MaximizeBox = false;
 			this.MinimizeBox = false;

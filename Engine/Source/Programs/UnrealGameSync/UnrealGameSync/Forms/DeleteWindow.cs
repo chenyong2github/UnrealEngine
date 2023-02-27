@@ -13,6 +13,7 @@ namespace UnrealGameSync
 		public DeleteWindow(Dictionary<string, bool> inFilesToDelete)
 		{
 			InitializeComponent();
+			Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 
 			_filesToDelete = inFilesToDelete;
 

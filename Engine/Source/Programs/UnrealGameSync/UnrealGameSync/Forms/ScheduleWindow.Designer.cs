@@ -162,7 +162,6 @@ namespace UnrealGameSync
 			this.CancelButton = this.CancelBtn;
 			this.ClientSize = new System.Drawing.Size(793, 296);
 			this.Controls.Add(this.tableLayoutPanel1);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 			this.Icon = global::UnrealGameSync.Properties.Resources.Icon;
 			this.MinimumSize = new System.Drawing.Size(720, 315);
 			this.Name = "ScheduleWindow";

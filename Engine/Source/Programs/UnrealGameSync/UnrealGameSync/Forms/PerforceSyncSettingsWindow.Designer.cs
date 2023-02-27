@@ -198,7 +198,6 @@ namespace UnrealGameSync
 			this.Controls.Add(this.CancButton);
 			this.Controls.Add(this.OkButton);
 			this.Controls.Add(this.groupBoxSyncing);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
 			this.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
 			this.Name = "PerforceSyncSettingsWindow";

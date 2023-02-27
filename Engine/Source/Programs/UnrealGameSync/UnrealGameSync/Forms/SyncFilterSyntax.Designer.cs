@@ -1,4 +1,4 @@
-﻿namespace UnrealGameSync
+namespace UnrealGameSync
 {
 	partial class SyncFilterSyntax
 	{
@@ -65,7 +65,6 @@
             | System.Windows.Forms.AnchorStyles.Right)));
 			this.textBox1.BackColor = System.Drawing.SystemColors.Window;
 			this.textBox1.BorderStyle = System.Windows.Forms.BorderStyle.None;
-			this.textBox1.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.textBox1.Location = new System.Drawing.Point(21, 16);
 			this.textBox1.Multiline = true;
 			this.textBox1.Name = "textBox1";
@@ -83,7 +82,6 @@
 			this.ClientSize = new System.Drawing.Size(731, 190);
 			this.Controls.Add(this.button1);
 			this.Controls.Add(this.panel1);
-			this.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
 			this.MaximizeBox = false;
 			this.MinimizeBox = false;

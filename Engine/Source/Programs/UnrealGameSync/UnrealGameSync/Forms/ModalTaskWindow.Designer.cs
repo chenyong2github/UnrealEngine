@@ -50,7 +50,6 @@ namespace UnrealGameSync
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
 			this.ClientSize = new System.Drawing.Size(414, 55);
 			this.Controls.Add(this.MessageLabel);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
 			this.MaximizeBox = false;
 			this.MinimizeBox = false;
@@ -61,7 +60,6 @@ namespace UnrealGameSync
 			this.Load += new System.EventHandler(this.ModalTaskWindow_Load);
 			this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.ModalTaskWindow_FormClosing);
 			this.ResumeLayout(false);
-
 		}
 
 		#endregion

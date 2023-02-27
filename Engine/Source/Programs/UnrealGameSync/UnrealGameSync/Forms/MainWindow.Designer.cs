@@ -60,7 +60,6 @@ namespace UnrealGameSync
             | System.Windows.Forms.AnchorStyles.Right)));
 			this.DefaultControl.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(250)))), ((int)(((byte)(250)))), ((int)(((byte)(250)))));
 			this.DefaultControl.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-			this.DefaultControl.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.DefaultControl.Location = new System.Drawing.Point(0, 0);
 			this.DefaultControl.Margin = new System.Windows.Forms.Padding(0);
 			this.DefaultControl.Name = "DefaultControl";
@@ -197,7 +196,6 @@ namespace UnrealGameSync
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
 			this.ClientSize = new System.Drawing.Size(1367, 808);
 			this.Controls.Add(this.tableLayoutPanel1);
-			this.Font = new System.Drawing.Font("Tahoma", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
 			this.MinimumSize = new System.Drawing.Size(800, 350);
 			this.Name = "MainWindow";

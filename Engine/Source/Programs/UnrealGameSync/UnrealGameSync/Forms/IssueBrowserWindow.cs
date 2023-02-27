@@ -42,16 +42,14 @@ namespace UnrealGameSync
 			issueMonitor.AddRef();
 
 			InitializeComponent();
+			Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 
-			using (Graphics graphics = Graphics.FromHwnd(IntPtr.Zero))
+			float dpiScaleX = DeviceDpi / 96.0f;
+			foreach (ColumnHeader? column in IssueListView.Columns)
 			{
-				float dpiScaleX = graphics.DpiX / 96.0f;
-				foreach (ColumnHeader? column in IssueListView.Columns)
+				if (column != null)
 				{
-					if (column != null)
-					{
-						column.Width = (int)(column.Width * dpiScaleX);
-					}
+					column.Width = (int)(column.Width * dpiScaleX);
 				}
 			}
 

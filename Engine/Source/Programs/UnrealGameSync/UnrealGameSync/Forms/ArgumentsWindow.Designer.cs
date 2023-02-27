@@ -149,7 +149,6 @@ namespace UnrealGameSync
 			this.Controls.Add(this.ArgumentsList);
 			this.Controls.Add(this.CancelBtn);
 			this.Controls.Add(this.OkButton);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
 			this.Name = "ArgumentsWindow";
 			this.ShowInTaskbar = false;

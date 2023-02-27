@@ -857,7 +857,6 @@ namespace UnrealGameSync
 			this.StatusPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(250)))), ((int)(((byte)(250)))), ((int)(((byte)(250)))));
 			this.StatusPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
 			this.StatusPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.StatusPanel.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 			this.StatusPanel.Location = new System.Drawing.Point(0, 0);
 			this.StatusPanel.Margin = new System.Windows.Forms.Padding(0, 0, 0, 3);
 			this.StatusPanel.Name = "StatusPanel";
@@ -1277,7 +1276,6 @@ namespace UnrealGameSync
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
 			this.BackColor = System.Drawing.SystemColors.Control;
 			this.Controls.Add(this.tableLayoutPanel2);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 			this.Margin = new System.Windows.Forms.Padding(0);
 			this.Name = "WorkspaceControl";
 			this.Size = new System.Drawing.Size(1363, 752);

@@ -126,7 +126,6 @@
 			this.Controls.Add(this.CancelBtn);
 			this.Controls.Add(this.OkBtn);
 			this.Controls.Add(this.WorkspaceListView);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.Icon = global::UnrealGameSync.Properties.Resources.Icon;
 			this.Name = "SelectWorkspaceWindow";
 			this.ShowInTaskbar = false;

@@ -293,6 +293,7 @@ namespace UnrealGameSync
 			_mainThreadSynchronizationContext = SynchronizationContext.Current!;
 
 			InitializeComponent();
+			Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 
 			Text = String.Format("Issue {0}", issue.Id);
 			_statusElementResources = new StatusElementResources(BuildListView.Font);

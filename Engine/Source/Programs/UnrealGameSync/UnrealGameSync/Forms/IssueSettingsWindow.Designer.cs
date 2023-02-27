@@ -297,7 +297,6 @@ namespace UnrealGameSync
 			this.Controls.Add(this.groupBox2);
 			this.Controls.Add(this.CancelBtn);
 			this.Controls.Add(this.OkBtn);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F);
 			this.MaximizeBox = false;
 			this.MinimizeBox = false;
 			this.Name = "IssueSettingsWindow";

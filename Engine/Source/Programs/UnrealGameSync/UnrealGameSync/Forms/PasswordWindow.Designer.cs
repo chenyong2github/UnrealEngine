@@ -89,7 +89,6 @@
 			this.Controls.Add(this.OkBtn);
 			this.Controls.Add(this.PasswordTextBox);
 			this.Controls.Add(this.PromptLabel);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
 			this.MaximizeBox = false;
 			this.MinimizeBox = false;

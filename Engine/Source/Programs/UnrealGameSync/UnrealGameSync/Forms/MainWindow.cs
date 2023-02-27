@@ -130,6 +130,7 @@ namespace UnrealGameSync
 			_logger.LogInformation("Opening Main Window for {NumProject} projects. Last Project {LastProject}", startupTasks.Count, settings.LastProject);
 
 			InitializeComponent();
+			Font = new Font("Segoe UI", 8.25F, FontStyle.Regular, GraphicsUnit.Point, ((byte)(0)));
 
 			_updateMonitor = inUpdateMonitor;
 			_mainThreadSynchronizationContext = SynchronizationContext.Current!;

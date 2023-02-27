@@ -580,7 +580,6 @@ namespace UnrealGameSync
 			this.CancelButton = this.OkBtn;
 			this.ClientSize = new System.Drawing.Size(1106, 671);
 			this.Controls.Add(this.tableLayoutPanel4);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F);
 			this.Name = "IssueDetailsWindow";
 			this.ShowIcon = false;
 			this.ShowInTaskbar = false;

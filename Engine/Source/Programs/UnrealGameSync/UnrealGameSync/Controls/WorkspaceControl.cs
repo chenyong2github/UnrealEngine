@@ -382,6 +382,7 @@ namespace UnrealGameSync
 //			_jupiterMonitor = JupiterMonitor.CreateFromConfigFile(inOidcTokenManager, jupiterLogger, openProjectInfo.LatestProjectConfigFile, SelectedProjectIdentifier);
 
 			UpdateColumnSettings(true);
+			Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
 			SyncLog.OpenFile(projectLogBaseName);
 
@@ -565,61 +566,58 @@ namespace UnrealGameSync
 					_columnWidths[idx] = BuildList.Columns[idx].Width;
 				}
 
-				using (Graphics graphics = Graphics.FromHwnd(IntPtr.Zero))
+				float dpiScaleX = DeviceDpi / 96.0f;
+
+				_minColumnWidths = Enumerable.Repeat((int)(32 * dpiScaleX), BuildList.Columns.Count).ToArray();
+				_minColumnWidths[IconColumn.Index] = (int)(50 * dpiScaleX);
+				_minColumnWidths[TypeColumn.Index] = (int)(100 * dpiScaleX);
+				_minColumnWidths[TimeColumn.Index] = (int)(75 * dpiScaleX);
+				_minColumnWidths[ChangeColumn.Index] = (int)(75 * dpiScaleX);
+				_minColumnWidths[CISColumn.Index] = (int)(200 * dpiScaleX);
+
+				_desiredColumnWidths = Enumerable.Repeat(65536, BuildList.Columns.Count).ToArray();
+				_desiredColumnWidths[IconColumn.Index] = _minColumnWidths[IconColumn.Index];
+				_desiredColumnWidths[TypeColumn.Index] = _minColumnWidths[TypeColumn.Index];
+				_desiredColumnWidths[TimeColumn.Index] = _minColumnWidths[TimeColumn.Index];
+				_desiredColumnWidths[ChangeColumn.Index] = _minColumnWidths[ChangeColumn.Index];
+				_desiredColumnWidths[AuthorColumn.Index] = (int)(120 * dpiScaleX);
+				_desiredColumnWidths[CISColumn.Index] = (int)(200 * dpiScaleX);
+				_desiredColumnWidths[StatusColumn.Index] = (int)(300 * dpiScaleX);
+
+				_columnWeights = Enumerable.Repeat(1.0f, BuildList.Columns.Count).ToArray();
+				_columnWeights[IconColumn.Index] = 3.0f;
+				_columnWeights[TypeColumn.Index] = 3.0f;
+				_columnWeights[TimeColumn.Index] = 3.0f;
+				_columnWeights[ChangeColumn.Index] = 3.0f;
+				_columnWeights[DescriptionColumn.Index] = 1.25f;
+				_columnWeights[CISColumn.Index] = 1.5f;
+
+				foreach (ColumnHeader? column in BuildList.Columns)
 				{
-					float dpiScaleX = graphics.DpiX / 96.0f;
-
-					_minColumnWidths = Enumerable.Repeat(32, BuildList.Columns.Count).ToArray();
-					_minColumnWidths[IconColumn.Index] = (int)(50 * dpiScaleX);
-					_minColumnWidths[TypeColumn.Index] = (int)(100 * dpiScaleX);
-					_minColumnWidths[TimeColumn.Index] = (int)(75 * dpiScaleX);
-					_minColumnWidths[ChangeColumn.Index] = (int)(75 * dpiScaleX);
-					_minColumnWidths[CISColumn.Index] = (int)(200 * dpiScaleX);
-
-					_desiredColumnWidths = Enumerable.Repeat(65536, BuildList.Columns.Count).ToArray();
-					_desiredColumnWidths[IconColumn.Index] = _minColumnWidths[IconColumn.Index];
-					_desiredColumnWidths[TypeColumn.Index] = _minColumnWidths[TypeColumn.Index];
-					_desiredColumnWidths[TimeColumn.Index] = _minColumnWidths[TimeColumn.Index];
-					_desiredColumnWidths[ChangeColumn.Index] = _minColumnWidths[ChangeColumn.Index];
-					_desiredColumnWidths[AuthorColumn.Index] = (int)(120 * dpiScaleX);
-					_desiredColumnWidths[CISColumn.Index] = (int)(200 * dpiScaleX);
-					_desiredColumnWidths[StatusColumn.Index] = (int)(300 * dpiScaleX);
-
-					_columnWeights = Enumerable.Repeat(1.0f, BuildList.Columns.Count).ToArray();
-					_columnWeights[IconColumn.Index] = 3.0f;
-					_columnWeights[TypeColumn.Index] = 3.0f;
-					_columnWeights[TimeColumn.Index] = 3.0f;
-					_columnWeights[ChangeColumn.Index] = 3.0f;
-					_columnWeights[DescriptionColumn.Index] = 1.25f;
-					_columnWeights[CISColumn.Index] = 1.5f;
-
-					foreach (ColumnHeader? column in BuildList.Columns)
+					if (column != null)
 					{
-						if (column != null)
+						ConfigObject? columnConfig = (ConfigObject?)column.Tag;
+						if (columnConfig != null)
 						{
-							ConfigObject? columnConfig = (ConfigObject?)column.Tag;
-							if (columnConfig != null)
-							{
-								_minColumnWidths[column.Index] = (int)(columnConfig.GetValue("MinWidth", _minColumnWidths[column.Index]) * dpiScaleX);
-								_desiredColumnWidths[column.Index] = (int)(columnConfig.GetValue("DesiredWidth", _desiredColumnWidths[column.Index]) * dpiScaleX);
-								_columnWeights[column.Index] = columnConfig.GetValue("Weight", _minColumnWidths[column.Index]);
-							}
+							_minColumnWidths[column.Index] = (int)(columnConfig.GetValue("MinWidth", _minColumnWidths[column.Index]) * dpiScaleX);
+							_desiredColumnWidths[column.Index] = (int)(columnConfig.GetValue("DesiredWidth", _desiredColumnWidths[column.Index]) * dpiScaleX);
+							_columnWeights[column.Index] = columnConfig.GetValue("Weight", _minColumnWidths[column.Index]);
 						}
 					}
+				}
 
-					ConfigFile projectConfigFile = _perforceMonitor.LatestProjectConfigFile;
-					for (int idx = 0; idx < BuildList.Columns.Count; idx++)
+				ConfigFile projectConfigFile = _perforceMonitor.LatestProjectConfigFile;
+				for (int idx = 0; idx < BuildList.Columns.Count; idx++)
+				{
+					if (!String.IsNullOrEmpty(BuildList.Columns[idx].Text))
 					{
-						if (!String.IsNullOrEmpty(BuildList.Columns[idx].Text))
+						string? stringValue;
+						if (TryGetProjectSetting(projectConfigFile, String.Format("ColumnWidth_{0}", BuildList.Columns[idx].Text), out stringValue))
 						{
-							string? stringValue;
-							if (TryGetProjectSetting(projectConfigFile, String.Format("ColumnWidth_{0}", BuildList.Columns[idx].Text), out stringValue))
+							int intValue;
+							if (Int32.TryParse(stringValue, out intValue))
 							{
-								int intValue;
-								if (Int32.TryParse(stringValue, out intValue))
-								{
-									_desiredColumnWidths[idx] = (int)(intValue * dpiScaleX);
-								}
+								_desiredColumnWidths[idx] = (int)(intValue * dpiScaleX);
 							}
 						}
 					}

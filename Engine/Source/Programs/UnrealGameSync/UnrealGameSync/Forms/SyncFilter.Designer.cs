@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 namespace UnrealGameSync
 {
@@ -196,7 +196,6 @@ namespace UnrealGameSync
 			// 
 			this.GlobalControl.BackColor = System.Drawing.SystemColors.Window;
 			this.GlobalControl.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.GlobalControl.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.GlobalControl.Location = new System.Drawing.Point(3, 3);
 			this.GlobalControl.Name = "GlobalControl";
 			this.GlobalControl.Padding = new System.Windows.Forms.Padding(6);
@@ -207,7 +206,6 @@ namespace UnrealGameSync
 			// 
 			this.WorkspaceControl.BackColor = System.Drawing.SystemColors.Window;
 			this.WorkspaceControl.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.WorkspaceControl.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.WorkspaceControl.Location = new System.Drawing.Point(3, 3);
 			this.WorkspaceControl.Name = "WorkspaceControl";
 			this.WorkspaceControl.Padding = new System.Windows.Forms.Padding(6);
@@ -222,7 +220,6 @@ namespace UnrealGameSync
 			this.CancelButton = this.CancButton;
 			this.ClientSize = new System.Drawing.Size(1080, 726);
 			this.Controls.Add(this.tableLayoutPanel1);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
 			this.Margin = new System.Windows.Forms.Padding(3, 5, 3, 5);
 			this.MaximizeBox = false;

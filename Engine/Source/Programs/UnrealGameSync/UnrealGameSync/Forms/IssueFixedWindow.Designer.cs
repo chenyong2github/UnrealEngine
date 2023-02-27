@@ -332,7 +332,6 @@ namespace UnrealGameSync
             this.Controls.Add(this.tableLayoutPanel3);
             this.Controls.Add(this.CancelBtn);
             this.Controls.Add(this.OkBtn);
-            this.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.Name = "IssueFixedWindow";
             this.ShowIcon = false;
             this.ShowInTaskbar = false;

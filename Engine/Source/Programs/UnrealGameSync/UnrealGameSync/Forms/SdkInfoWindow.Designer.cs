@@ -100,7 +100,6 @@ namespace UnrealGameSync
 			this.ClientSize = new System.Drawing.Size(600, 451);
 			this.Controls.Add(this.SdkListView);
 			this.Controls.Add(this.OkBtn);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
 			this.MaximizeBox = false;
 			this.MinimizeBox = false;

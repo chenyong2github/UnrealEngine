@@ -28,6 +28,7 @@ namespace UnrealGameSync
 		public VariablesWindow(IReadOnlyDictionary<string, string> variables)
 		{
 			InitializeComponent();
+			Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 
 			ListViewGroup currentProjectGroup = new ListViewGroup("Current Project");
 			MacrosList.Groups.Add(currentProjectGroup);
