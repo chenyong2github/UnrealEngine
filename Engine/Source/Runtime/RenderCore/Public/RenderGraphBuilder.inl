@@ -150,9 +150,9 @@ FORCEINLINE ObjectType* FRDGBuilder::AllocObject(TArgs&&... Args)
 }
 
 template <typename ObjectType>
-FORCEINLINE TArray<ObjectType, FRDGArrayAllocator>& FRDGBuilder::AllocArray()
+FORCEINLINE TArray<ObjectType, SceneRenderingAllocator>& FRDGBuilder::AllocArray()
 {
-	return *Allocator.Alloc<TArray<ObjectType, FRDGArrayAllocator>>();
+	return *Allocator.Alloc<TArray<ObjectType, SceneRenderingAllocator>>();
 }
 
 template <typename ParameterStructType>

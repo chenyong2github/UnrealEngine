@@ -149,7 +149,7 @@ public:
 
 	/** Allocates a C++ array where both the array and the data are tied to the lifetime of the graph. The array itself is safe to pass into an RDG lambda. */
 	template <typename ObjectType>
-	TArray<ObjectType, FRDGArrayAllocator>& AllocArray();
+	TArray<ObjectType, SceneRenderingAllocator>& AllocArray();
 
 	/** Allocates a parameter struct with a lifetime tied to graph execution. */
 	template <typename ParameterStructType>
