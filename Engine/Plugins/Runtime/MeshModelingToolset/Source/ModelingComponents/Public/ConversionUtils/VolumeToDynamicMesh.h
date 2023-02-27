@@ -20,6 +20,7 @@ struct FVolumeToMeshOptions
 	bool bMergeVertices = true;
 	bool bAutoRepairMesh = true;
 	bool bOptimizeMesh = true;
+	bool bGenerateNormals = true;
 };
 
 /**

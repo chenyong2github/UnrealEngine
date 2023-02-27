@@ -5,6 +5,7 @@
 #include "ConstrainedDelaunay2.h"
 #include "Polygon2.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/MeshTransforms.h"
 #include "GameFramework/Volume.h"
 #include "MeshBoundaryLoops.h"
@@ -191,6 +192,14 @@ void BrushToDynamicMesh(UModel& BrushModel, UE::Geometry::FDynamicMesh3& Mesh, c
 		}
 
 		Mesh.CompactInPlace();
+	}
+
+	if (Options.bGenerateNormals)
+	{
+		Mesh.EnableAttributes();
+		FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals();
+		FMeshNormals::InitializeOverlayTopologyFromFaceGroups(&Mesh, Normals);
+		FMeshNormals::QuickRecomputeOverlayNormals(Mesh);
 	}
 }
 

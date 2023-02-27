@@ -81,7 +81,6 @@ FDynamicMesh3 UVolumeComponentToolTarget::GetDynamicMesh()
 
 	FDynamicMesh3 DynamicMesh;
 	UE::Conversion::VolumeToDynamicMesh(Volume, DynamicMesh, GetVolumeToMeshOptions());
-	FMeshNormals::InitializeMeshToPerTriangleNormals(&DynamicMesh);
 
 	return DynamicMesh;
 }
