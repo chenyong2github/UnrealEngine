@@ -16,6 +16,7 @@ public class VirtualizationEditor : ModuleRules
 				"Engine",
 				"UnrealEd",
 				"ToolMenus",
+				"SourceControl",
 				"Slate",
 				"SlateCore",
 				"Virtualization"

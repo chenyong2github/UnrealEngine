@@ -19,6 +19,8 @@ UCLASS()
 class UVirtualizeProjectCommandlet
 	: public UCommandlet
 {
+private:
+
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UCommandlet Interface
@@ -26,4 +28,10 @@ class UVirtualizeProjectCommandlet
 	//~ End UCommandlet Interface
 
 	static int32 StaticMain(const FString& Params);
+
+	bool ParseCmdline(const FString& Params);
+
+private:
+
+	bool bAutoCheckIn = false;
 };
