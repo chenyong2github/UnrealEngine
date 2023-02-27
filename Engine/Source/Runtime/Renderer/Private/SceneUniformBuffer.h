@@ -122,7 +122,7 @@ private:
 
 	// TODO: Decouple parameter struct and actual data, so the data can be allocated dynamically (variable size)
 	// This requires some work in buffer binding/parameter macros/RHI, as these all assume the data to be inline.
-	const static size_t MaxSize = 4096;
+	static constexpr size_t MaxSize = 4096;
 	uint8_t Data[MaxSize];
 };
 

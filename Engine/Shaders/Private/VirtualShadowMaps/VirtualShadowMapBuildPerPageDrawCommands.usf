@@ -24,7 +24,6 @@ struct FVisibleInstanceCmd
 
 RWStructuredBuffer<FVisibleInstanceCmd> VisibleInstancesOut;
 RWStructuredBuffer<uint> VisibleInstanceCountBufferOut;
-uint InstanceSceneDataSOAStride;
 uint TotalPrimaryViews;
 uint VisibleInstancesBufferNum;
 
@@ -253,7 +252,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 		FDrawCommandDesc DrawCommandDesc = UnpackDrawCommandDesc(DrawCommandDescs[Payload.IndirectArgIndex]);
 
 		// Load relevant instance data
-		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, Scene.GPUScene.InstanceDataSOAStride);
 
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 		bool bMaterialInvalidates = DrawCommandDesc.bMaterialUsesWorldPositionOffset && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u;;
