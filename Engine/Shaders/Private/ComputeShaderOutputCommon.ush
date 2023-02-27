@@ -258,188 +258,10 @@ void ExportPixel(const float2 PixelPos, FPixelShaderOut ShadedPixel)
 #endif // STRATA_OPAQUE_DEFERRED
 }
 
-struct FShadingQuadSwizzle
-{
-	bool bActiveLane;
-	uint SwizzleIndex;
-};
-
-FShadingQuadSwizzle GetShadingQuad(uint QuadX, uint QuadY, uint LaneIndex, uint ShadingRate)
-{
-	FShadingQuadSwizzle ShadingQuad;
-
-	// https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_Derivatives.html
-	// https://microsoft.github.io/DirectX-Specs/d3d/VariableRateShading.html
-	
-	// D3D12_SHADING_RATE_1X1
-	ShadingQuad.bActiveLane = true;
-	ShadingQuad.SwizzleIndex = LaneIndex;
-
-	const uint QuadIndex = QuadX * QuadY * 2u;
-
-#if 1
-	const bool bTopLeft		= ((QuadIndex & 3u) == 0u);
-	const bool bTopRight	= ((QuadIndex & 3u) == 1u);
-	const bool bBottomLeft	= ((QuadIndex & 3u) == 2u);
-	const bool bBottomRight	= ((QuadIndex & 3u) == 3u);
-#else
-	// To test the QuadRead swizzles
-	const int XSigned = int(X);
-	const int YSigned = int(Y);
-	int LaneXDelta = QuadReadAcrossX(XSigned) - XSigned;
-	int LaneYDelta = QuadReadAcrossY(YSigned) - YSigned;
-	const bool bTopLeft		= (LaneXDelta > 0 && LaneYDelta > 0);
-	const bool bTopRight	= (LaneXDelta < 0 && LaneYDelta > 0);
-	const bool bBottomLeft	= (LaneXDelta > 0 && LaneYDelta < 0);
-	const bool bBottomRight	= (LaneXDelta < 0 && LaneYDelta < 0);
-#endif
-
-	if (ShadingRate == D3D12_SHADING_RATE_1X2)
-	{
-		// [A]
-		// [B]
-		ShadingQuad.bActiveLane  = (QuadIndex & 1u) == 0u;
-		ShadingQuad.SwizzleIndex = select(ShadingQuad.bActiveLane, LaneIndex, QuadReadAcrossX(LaneIndex));
-	}
-	else if (ShadingRate == D3D12_SHADING_RATE_2X1)
-	{
-		// [A][B]
-		ShadingQuad.bActiveLane  = (QuadIndex & 1u) == 0u;
-		ShadingQuad.SwizzleIndex = select(ShadingQuad.bActiveLane, LaneIndex, QuadReadAcrossY(LaneIndex));
-	}
-	else if (ShadingRate == D3D12_SHADING_RATE_2X2)
-	{
-		// [A][B]
-		// [C][D]
-		ShadingQuad.bActiveLane  = (QuadIndex & 3u) == 0u;
-		ShadingQuad.SwizzleIndex = 
-			select(
-				ShadingQuad.bActiveLane,
-				LaneIndex,
-				select(
-					bBottomRight,
-					QuadReadAcrossDiagonal(LaneIndex),
-					select(
-						bBottomLeft,
-						QuadReadAcrossY(LaneIndex),
-						QuadReadAcrossX(LaneIndex)
-					)
-				)
-			)
-		;
-	}
-	else if (ShadingRate == D3D12_SHADING_RATE_2X4) // not generated yet
-	{
-		// [A][B]
-		// [C][D]
-		// [E][F]
-		// [G][H]
-	}
-	else if (ShadingRate == D3D12_SHADING_RATE_4X2) // not generated yet
-	{
-		// [A][B][C][D]
-		// [E][F][G][H]
-	}
-	else if (ShadingRate == D3D12_SHADING_RATE_4X4) // not generated yet
-	{
-		// [A][B][C][D]
-		// [E][F][G][H]
-		// [I][J][K][L]
-		// [M][N][O][P]
-	}
-
-	return ShadingQuad;
-}
-
 #define VIS_HELPER_LANES 0
 
-[numthreads(64, 1, 1)]
-void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 GroupThreadID : SV_GroupThreadID, uint3 DispatchThreadID : SV_DispatchThreadID)
+void ProcessPixel(bool bActiveLane, uint ShadingBin, const uint2 PixelPos, uint QuadIndex, bool3 PixelCopy, uint HelperLaneCount)
 {
-	const uint ShadingBin = PassData.x;
-
-	// Just like pixel shaders, compute 2x2 CS quads from thread index so we can leverage the 4 lane cross bar.
-	// [0 1][2 3] -> [0 1][4 5]
-	// [4 5][6 7] -> [2 3][6 7]
-	//const uint SwizzleX = BitFieldInsertU32(BitFieldMaskU32(1u, 0u), ThreadIndex, BitFieldExtractU32(ThreadIndex, 3u, 2u));
-	//const uint SwizzleY = BitFieldInsertU32(BitFieldMaskU32(2u, 0u), BitFieldExtractU32(ThreadIndex, 2u, 1u), BitFieldExtractU32(ThreadIndex, 3u, 3u));
-	//const uint SampleIndex	= SwizzleX * SwizzleY * 2u;
-
-	const bool bQuadBinning = PassData.z != 0u;
-
-	uint2 PixelPos;
-	uint QuadIndex;
-	bool bActiveLane = true;
-
-#if VIS_HELPER_LANES
-	uint HelperLaneCount = 0u;
-#endif
-
-	bool3 PixelCopy = bool3(false, false, false); // H, V, D
-
-	BRANCH
-	if (bQuadBinning)
-	{
-		// New 2x2 shading quad every 4 samples
-		const uint CornerIndex = ThreadIndex & 3u;
-		QuadIndex = GroupID * 16u + (ThreadIndex >> 2u);
-
-		const bool bIsQuadTL = CornerIndex == 0u;
-		const bool bIsQuadTR = CornerIndex == 1u;
-		const bool bIsQuadBL = CornerIndex == 2u;
-		const bool bIsQuadBR = CornerIndex == 3u;
-	
-		const uint LaneTL = WaveGetLaneIndex() & ~3u;
-
-		uint PackedQuad = 0u;
-		if (bIsQuadTL)
-		{
-			const uint QuadCount = Nanite.ShadingBinMeta[ShadingBin].x;
-			if (QuadIndex < QuadCount)
-			{
-				const uint QuadStart = Nanite.ShadingBinMeta[ShadingBin].z;
-				PackedQuad = Nanite.ShadingBinData[QuadStart + QuadIndex];
-			}
-		}
-		PackedQuad = WaveReadLaneAt(PackedQuad, LaneTL);
-		FShadingQuad Quad = UnpackShadingQuad(PackedQuad);
-		if (!any(Quad.Coverage))
-		{
-			// None of the 2x2 pixels have coverage (likely an out of bounds wave).
-			return;
-		}
-
-		bActiveLane = Quad.Coverage[CornerIndex];
-
-	#if VIS_HELPER_LANES
-		HelperLaneCount = 4u;
-
-		UNROLL
-		for (uint CoverageIndex = 0; CoverageIndex < 4u; ++CoverageIndex)
-		{
-			HelperLaneCount -= Quad.Coverage[CoverageIndex] ? 1u : 0u;
-		}
-	#endif
-
-		// Determine final pixel position on the screen for shading
-		PixelPos = Quad.TopLeft + uint2(CornerIndex & 1u, (CornerIndex >> 1u) & 1u);
-	}
-	else
-	{
-		const uint PixelIndex = DispatchThreadID.x;
-		QuadIndex = PixelIndex;
-		const uint PixelCount = Nanite.ShadingBinMeta[ShadingBin].y;
-		if (PixelIndex >= PixelCount)
-		{
-			return;
-		}
-
-		const uint PixelStart = Nanite.ShadingBinMeta[ShadingBin].z;
-		FShadingPixel Pixel = UnpackShadingPixel(Nanite.ShadingBinData[PixelStart + PixelIndex]);
-		PixelPos = Pixel.PosXY;
-		PixelCopy = Pixel.Copy;
-	}
-
 	// All lanes shade (regardless of export - so ddx/ddy are valid)
 	FPixelShaderOut ShadedPixel = ShadePixel(PixelPos, QuadIndex);
 
@@ -462,6 +284,7 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 G
 #endif
 
 	// Disable helper lanes from final export
+	BRANCH
 	if (bActiveLane)
 	{
 		ExportPixel(PixelPos, ShadedPixel);
@@ -484,5 +307,98 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 G
 			ExportPixel(PixelPos + uint2(1, 1), ShadedPixel);
 		}
 	}
+}
+
+[numthreads(64, 1, 1)]
+void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 GroupThreadID : SV_GroupThreadID, uint3 DispatchThreadID : SV_DispatchThreadID)
+{
+	const uint ShadingBin = PassData.x;
+
+	// Just like pixel shaders, compute 2x2 CS quads from thread index so we can leverage the 4 lane cross bar.
+	// [0 1][2 3] -> [0 1][4 5]
+	// [4 5][6 7] -> [2 3][6 7]
+	//const uint SwizzleX = BitFieldInsertU32(BitFieldMaskU32(1u, 0u), ThreadIndex, BitFieldExtractU32(ThreadIndex, 3u, 2u));
+	//const uint SwizzleY = BitFieldInsertU32(BitFieldMaskU32(2u, 0u), BitFieldExtractU32(ThreadIndex, 2u, 1u), BitFieldExtractU32(ThreadIndex, 3u, 3u));
+	//const uint SampleIndex	= SwizzleX * SwizzleY * 2u;
+
+	const bool bQuadBinning = PassData.z != 0u;
+
+	uint HelperLaneCount = 0u;
+
+	uint CornerIndex = 0;
+	uint QuadIndex = 0;
+	bool3 PixelCopy = bool3(false, false, false);
+
+	FShadingQuad Quad;
+
+	BRANCH
+	if (bQuadBinning)
+	{
+		// New 2x2 shading quad every 4 samples
+		CornerIndex = ThreadIndex & 3u;
+		QuadIndex = GroupID * 16u + (ThreadIndex >> 2u);
+
+		const bool bIsQuadTL = CornerIndex == 0u;
+		const bool bIsQuadTR = CornerIndex == 1u;
+		const bool bIsQuadBL = CornerIndex == 2u;
+		const bool bIsQuadBR = CornerIndex == 3u;
+	
+		const uint LaneTL = WaveGetLaneIndex() & ~3u;
+
+		uint PackedQuad = 0u;
+		if (bIsQuadTL)
+		{
+			const uint QuadCount = Nanite.ShadingBinMeta[ShadingBin].x;
+			if (QuadIndex < QuadCount)
+			{
+				const uint QuadStart = Nanite.ShadingBinMeta[ShadingBin].z;
+				PackedQuad = Nanite.ShadingBinData[QuadStart + QuadIndex];
+			}
+		}
+		PackedQuad = WaveReadLaneAt(PackedQuad, LaneTL);
+		Quad = UnpackShadingQuad(PackedQuad);
+	}
+	else
+	{
+		const uint PixelIndex = DispatchThreadID.x;
+		const uint PixelCount = Nanite.ShadingBinMeta[ShadingBin].y;
+		
+		if (PixelIndex >= PixelCount)
+		{
+			Quad.Coverage = bool4(false, false, false, false);
+		}
+		else
+		{
+			Quad.Coverage = bool4(true, true, true, true);
+
+			const uint PixelStart = Nanite.ShadingBinMeta[ShadingBin].z;
+			FShadingPixel Pixel = UnpackShadingPixel(Nanite.ShadingBinData[PixelStart + PixelIndex]);
+			Quad.TopLeft = Pixel.PosXY;
+		}
+	}
+
+	if (!any(Quad.Coverage))
+	{
+		// None of the 2x2 pixels have coverage (likely an out of bounds wave).
+		return;
+	}
+
+	const bool bActiveLane = Quad.Coverage[CornerIndex];
+
+#if VIS_HELPER_LANES
+	HelperLaneCount = 4u;
+
+	UNROLL
+	for (uint CoverageIndex = 0; CoverageIndex < 4u; ++CoverageIndex)
+	{
+		HelperLaneCount -= Quad.Coverage[CoverageIndex] ? 1u : 0u;
+	}
+#endif
+
+	// Determine final pixel position on the screen for shading
+	const uint2 PixelPos = Quad.TopLeft + uint2(CornerIndex & 1u, (CornerIndex >> 1u) & 1u);
+
+	// Shade and export quad
+	ProcessPixel(bActiveLane, ShadingBin, PixelPos, QuadIndex, PixelCopy, HelperLaneCount);
 }
 
