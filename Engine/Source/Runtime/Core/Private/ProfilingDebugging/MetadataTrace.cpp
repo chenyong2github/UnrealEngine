@@ -22,7 +22,7 @@ uint32 FMetadataTrace::SaveStack()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 FMetadataRestoreScope::FMetadataRestoreScope(uint32 SavedMetadataIdentifier)
 {
-	if (SavedMetadataIdentifier)
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MetadataChannel) & (SavedMetadataIdentifier != 0))
 	{
 		ActivateScope(SavedMetadataIdentifier);
 	}
