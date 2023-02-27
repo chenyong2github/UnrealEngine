@@ -119,12 +119,21 @@ float3 AdjustShadingNormal(float3 ShadingNormal, float3 GeoNormal, float3 RayDir
 }
 
 
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_PATH_TRACING_MATERIAL) && IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
+#error "Path tracing and GPULightmass payloads are mutually exclusive. They should not be both enabled at once."
+#endif
+
 // This payload structure is what we transport between RGS/CHS/AHS programs
 struct FPackedPathTracingPayload : FMinimalPayload
 {
 	// float FMinimalPayload::HitT                       // 4  bytes
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
+	uint PackedData[7];                                  // 28 bytes (encoded data, depends on shading model and ray type)
+														 // 32 bytes total
+#else
 	uint PackedData[15];								 // 60 bytes (encoded data, depends on shading model and ray type)
 														 // 64 bytes total
+#endif
 
 	uint GetFlags() { return (PackedData[0] >> 20) & 0x1FF; }
 	void SetFlag(uint Flag) { PackedData[0] |= Flag << 20; }
@@ -167,6 +176,9 @@ struct FPackedPathTracingPayload : FMinimalPayload
 		PackedData[4] = asuint(PathRoughness);
 	}
 
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
+	// skip some unused methods in GPULM case
+#else
 	// tau: optical depth along shadow ray, this is the integral of the extinction coefficient
 	float3 GetTau()
 	{
@@ -183,10 +195,17 @@ struct FPackedPathTracingPayload : FMinimalPayload
 		PackedData[6] = asuint(Tau.y);
 		PackedData[7] = asuint(Tau.z);
 	}
+#endif
 };
+
 #if IS_PAYLOAD_ENABLED(RT_PAYLOAD_PATH_TRACING_MATERIAL)
 CHECK_RT_PAYLOAD_SIZE(FPackedPathTracingPayload)
 #endif
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
+CHECK_RT_PAYLOAD_SIZE(FPackedPathTracingPayload)
+#endif
+
+
 
 // This payload structure is the expanded version of the above which is more convenient to work with
 struct FPathTracingPayload : FMinimalPayload
@@ -194,25 +213,33 @@ struct FPathTracingPayload : FMinimalPayload
 	float3 Radiance;
 	float3 WorldGeoNormal;           // normal of the actual triangle (faceted)
 	float3 WorldNormal;              // normal output of the material (includes normal/bump)
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
+	// skip smooth normal for GPULightmass
+#else
 	float3 WorldSmoothNormal;        // smooth normal before normal/bump is applied
+#endif
 	float3 BaseColor;
+	float  BSDFOpacity;              // how much should we weigh down the bsdf by? (for glass, controls the blend between solid and glass lobes)
+	float3 TransparencyColor;        // how much do we see straight through the surface?
+	uint   ShadingModelID;
+	uint   Flags;
+	uint   PrimitiveLightingChannelMask;
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
+	float3 SubsurfaceColor;
+#else
 	float3 DiffuseColor;
 	float3 SpecularColor;
-	float3 TransparencyColor;        // how much do we see straight through the surface?
-	float  BSDFOpacity;              // how much should we weigh down the bsdf by? (for glass, controls the blend between solid and glass lobes)
 	float  Metallic;
 	float  Specular;
 	float  Roughness;
 	float  Anisotropy;
 	float  Ior;
-	uint   ShadingModelID;
-	uint   Flags;
-	uint   PrimitiveLightingChannelMask;
 	float4 CustomData0;
 	float4 CustomData1;
 	float3 WorldTangent;
 	float3 SubsurfaceColor;
 	float3 SubsurfaceRadius;
+#endif
 	float3 TranslatedWorldPos;
 
 	void SetFrontFace() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE; }
@@ -227,6 +254,13 @@ struct FPathTracingPayload : FMinimalPayload
 	void SetMaterialTwoSided() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED_MATERIAL; }
 	bool IsMaterialTwoSided() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED_MATERIAL) != 0; }
 
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
+	float3 GetSubsurfaceColor() { return SubsurfaceColor; }
+	bool IsMaterialTransmissive()
+	{
+		return ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
+	}
+#else
 	// Various ways to interpret CustomData (depending on ShadingModelID)
 	// NOTE: This is not always following the same conventions as GetMaterialCustomData0,1()
 
@@ -314,6 +348,7 @@ struct FPathTracingPayload : FMinimalPayload
 			   ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE ||
 			   ShadingModelID == SHADINGMODELID_EYE;
 	}
+#endif
 };
 
 FPackedPathTracingPayload InitPathTracingPayload(uint ScatterType, float PathRoughness)
@@ -356,6 +391,14 @@ FPackedPathTracingPayload PackPathTracingPayload(FPathTracingPayload Input)
 	Output.PackedData[0] |= (Input.Flags & 0x1FF) << 20;                      // 9 bits
 	Output.PackedData[0] |= (Input.PrimitiveLightingChannelMask & 0x7) << 29; // 3 bits
 	                                                                   // total 32 bits
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
+	Output.PackedData[1] = PayloadEncodeUnitVector(Input.WorldGeoNormal);
+	Output.PackedData[2] = PayloadEncodeUnitVector(Input.WorldNormal);
+	Output.PackedData[3] = PayloadEncodeHDRColor(Input.Radiance);
+	Output.PackedData[4] = PayloadEncodeLDRColor(Input.BaseColor);
+	Output.PackedData[5] = PayloadEncodeLDRColor(Input.TransparencyColor);
+	Output.PackedData[6] = PayloadEncodeLDRColor(Input.SubsurfaceColor);
+#else
 	Output.PackedData[1] = PayloadEncodeUnitVector(Input.WorldGeoNormal);
 	Output.PackedData[2] = PayloadEncodeUnitVector(Input.WorldSmoothNormal);
 	Output.PackedData[3] = PayloadEncodeUnitVector(Input.WorldNormal);
@@ -383,7 +426,7 @@ FPackedPathTracingPayload PackPathTracingPayload(FPathTracingPayload Input)
 
 	Output.PackedData[14] = f32tof16(Input.Ior);
 	// NOTE: 16 bits left in PackedData[14]
-
+#endif
 	return Output;
 }
 
@@ -396,7 +439,14 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, FR
 	Output.ShadingModelID = (Input.PackedData[0] >> 16) & 0xF;
 	Output.Flags = Input.GetFlags();
 	Output.PrimitiveLightingChannelMask = Input.GetPrimitiveLightingChannelMask();
-
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
+	Output.WorldGeoNormal = PayloadDecodeUnitVector(Input.PackedData[1]);
+	Output.WorldNormal = PayloadDecodeUnitVector(Input.PackedData[2]);
+	Output.Radiance = PayloadDecodeHDRColor(Input.PackedData[3]);
+	Output.BaseColor = PayloadDecodeLDRColor(Input.PackedData[4]);
+	Output.TransparencyColor = PayloadDecodeLDRColor(Input.PackedData[5]);
+	Output.SubsurfaceColor = PayloadDecodeLDRColor(Input.PackedData[6]);
+#else
 	Output.WorldGeoNormal = PayloadDecodeUnitVector(Input.PackedData[1]);
 	Output.WorldSmoothNormal = PayloadDecodeUnitVector(Input.PackedData[2]);
 	Output.WorldNormal = PayloadDecodeUnitVector(Input.PackedData[3]);
@@ -424,10 +474,9 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, FR
 
 	Output.Ior = f16tof32(Input.PackedData[14]);
 
-	Output.TranslatedWorldPos = Ray.Origin + Output.HitT * Ray.Direction;
-
 	Output.DiffuseColor = Output.BaseColor - Output.BaseColor * Output.Metallic;
 	Output.SpecularColor = ComputeF0(Output.Specular, Output.BaseColor, Output.Metallic);
-
+#endif
+	Output.TranslatedWorldPos = Ray.Origin + Output.HitT * Ray.Direction;
 	return Output;
 }

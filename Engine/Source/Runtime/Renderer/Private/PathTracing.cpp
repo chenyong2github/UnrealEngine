@@ -586,6 +586,29 @@ static bool ShouldCompilePathTracingShadersForProject(EShaderPlatform ShaderPlat
 			CVarPathTracing.GetValueOnAnyThread() != 0;
 }
 
+static bool ShouldCompileGPULightmassShadersForProject(EShaderPlatform ShaderPlatform)
+{
+#if WITH_EDITOR
+	if (!ShouldCompileRayTracingShadersForProject(ShaderPlatform))
+	{
+		return false;
+	}
+	// NOTE: cache on first use as this won't change
+	static const bool bIsGPULightmassLoaded = FModuleManager::Get().IsModuleLoaded(TEXT("GPULightmass"));
+	return bIsGPULightmassLoaded;
+#else
+	// GPULightmass is an editor only plugin, so don't compile any of its permutations otherwise
+	return false;
+#endif
+}
+
+static bool ShouldCompileGPULightmassShadersForProject(const FMeshMaterialShaderPermutationParameters& Parameters)
+{
+	return ShouldCompileGPULightmassShadersForProject(Parameters.Platform) &&
+		EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData) &&
+		Parameters.VertexFactoryType->SupportsLightmapBaking();
+}
+
 class FPathTracingSkylightPrepareCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FPathTracingSkylightPrepareCS)
@@ -665,8 +688,8 @@ class FPathTracingBuildLightGridCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		// shared with GPULightmass
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		return ShouldCompilePathTracingShadersForProject(Parameters.Platform) ||
+			   ShouldCompileGPULightmassShadersForProject(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -737,6 +760,7 @@ static FPathTracingFogParameters PrepareFogParameters(const FViewInfo& View, con
 }
 
 IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::PathTracingMaterial, 64); // TODO: Expand this when strata is enabled (use GetStrataRaytracingMaterialPayload())
+IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::GPULightmass, 32);
 
 class FPathTracingRG : public FGlobalShader
 {
@@ -849,7 +873,7 @@ class FPathTracingSwizzleScanlinesCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		return ShouldCompilePathTracingShadersForProject(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -877,7 +901,7 @@ class FPathTracingBuildAtmosphereOpticalDepthLUTCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		return ShouldCompilePathTracingShadersForProject(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -897,19 +921,27 @@ class FPathTracingBuildAtmosphereOpticalDepthLUTCS : public FGlobalShader
 IMPLEMENT_SHADER_TYPE(, FPathTracingBuildAtmosphereOpticalDepthLUTCS, TEXT("/Engine/Private/PathTracing/PathTracingBuildAtmosphereLUT.usf"), TEXT("PathTracingBuildAtmosphereOpticalDepthLUTCS"), SF_Compute);
 
 // Default miss shader (using the path tracing payload)
-class FPathTracingDefaultMS : public FGlobalShader
+template <bool IsGPULightmass>
+class TPathTracingDefaultMS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPathTracingDefaultMS, Global, );
+	DECLARE_SHADER_TYPE(TPathTracingDefaultMS, Global, );
 public:
 
-	FPathTracingDefaultMS() = default;
-	FPathTracingDefaultMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	TPathTracingDefaultMS() = default;
+	TPathTracingDefaultMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompilePathTracingShadersForProject(Parameters.Platform);
+		if (IsGPULightmass)
+		{
+			return ShouldCompileGPULightmassShadersForProject(Parameters.Platform);
+		}
+		else
+		{
+			return ShouldCompilePathTracingShadersForProject(Parameters.Platform);
+		}
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -918,14 +950,30 @@ public:
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::PathTracingMaterial;
+		if (IsGPULightmass)
+		{
+			return ERayTracingPayloadType::GPULightmass;
+		}
+		else
+		{
+			return ERayTracingPayloadType::PathTracingMaterial;
+		}
 	}
 };
-IMPLEMENT_SHADER_TYPE(, FPathTracingDefaultMS, TEXT("/Engine/Private/PathTracing/PathTracingMissShader.usf"), TEXT("PathTracingDefaultMS"), SF_RayMiss);
+
+using FPathTracingDefaultMS  = TPathTracingDefaultMS<false>;
+using FGPULightmassDefaultMS = TPathTracingDefaultMS<true>;
+IMPLEMENT_SHADER_TYPE(template<>, FPathTracingDefaultMS , TEXT("/Engine/Private/PathTracing/PathTracingMissShader.usf"), TEXT("PathTracingDefaultMS"), SF_RayMiss);
+IMPLEMENT_SHADER_TYPE(template<>, FGPULightmassDefaultMS, TEXT("/Engine/Private/PathTracing/PathTracingMissShader.usf"), TEXT("PathTracingDefaultMS"), SF_RayMiss);
 
 FRHIRayTracingShader* GetPathTracingDefaultMissShader(const FGlobalShaderMap* ShaderMap)
 {
 	return ShaderMap->GetShader<FPathTracingDefaultMS>().GetRayTracingShader();
+}
+
+FRHIRayTracingShader* GetGPULightmassDefaultMissShader(const FGlobalShaderMap* ShaderMap)
+{
+	return ShaderMap->GetShader<FGPULightmassDefaultMS>().GetRayTracingShader();
 }
 
 void FDeferredShadingSceneRenderer::SetupPathTracingDefaultMissShader(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
@@ -1141,7 +1189,7 @@ static bool NeedsAnyHitShader(const FMaterial& RESTRICT MaterialResource)
 	return NeedsAnyHitShader(MaterialResource.IsMasked(), MaterialResource.IsDitherMasked());
 }
 
-template<bool UseAnyHitShader, bool UseIntersectionShader, bool UseSimplifiedShader>
+template<bool UseAnyHitShader, bool UseIntersectionShader, bool IsGPULightmass>
 class TPathTracingMaterial : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(TPathTracingMaterial, MeshMaterial);
@@ -1164,9 +1212,9 @@ public:
 			// does the VF support ray tracing at all?
 			return false;
 		}
-		if (Parameters.MaterialParameters.MaterialDomain == MD_DeferredDecal)
+		if (Parameters.MaterialParameters.MaterialDomain != MD_Surface)
 		{
-			// decals are handled elsewhere
+			// This material is only for surfaces at the moment
 			return false;
 		}
 		if (NeedsAnyHitShader(Parameters.MaterialParameters.bIsMasked, Parameters.MaterialParameters.bIsDitherMasked) != UseAnyHitShader)
@@ -1179,20 +1227,12 @@ public:
 			// only need to compile the intersection shader permutation if the VF actually requires it
 			return false;
 		}
-		if (UseSimplifiedShader)
+		if (IsGPULightmass)
 		{
-#if WITH_EDITOR
-			// this is only used by GPULightmass
-			return EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData) &&
-				   Parameters.VertexFactoryType->SupportsLightmapBaking() &&
-				   FModuleManager::Get().IsModuleLoaded(TEXT("GPULightmass"));
-#else
-			return false;
-#endif
+			return ShouldCompileGPULightmassShadersForProject(Parameters);
 		}
 		else
 		{
-			// this is only used by the Path Tracer
 			return ShouldCompilePathTracingShadersForProject(Parameters.Platform);
 		}
 	}
@@ -1204,7 +1244,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("USE_MATERIAL_INTERSECTION_SHADER"), UseIntersectionShader ? 1 : 0);
 		OutEnvironment.SetDefine(TEXT("USE_RAYTRACED_TEXTURE_RAYCONE_LOD"), 0);
 		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1);
-		OutEnvironment.SetDefine(TEXT("SIMPLIFIED_MATERIAL_SHADER"), UseSimplifiedShader);
+		OutEnvironment.SetDefine(TEXT("SIMPLIFIED_MATERIAL_SHADER"), IsGPULightmass);
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
@@ -1232,7 +1272,14 @@ public:
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::PathTracingMaterial;
+		if (IsGPULightmass)
+		{
+			return ERayTracingPayloadType::GPULightmass;
+		}
+		else
+		{
+			return ERayTracingPayloadType::PathTracingMaterial;
+		}
 	}
 };
 
@@ -1251,60 +1298,70 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS       , TEXT
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS   , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_IS    , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS intersection=MaterialIS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS_IS, TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS intersection=MaterialIS"), SF_RayHitGroup);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS              , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS_AHS          , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS              , TEXT("/Engine/Private/PathTracing/PathTracingGPULightmassMaterialHitShader.usf"), TEXT("closesthit=GPULightmassMaterialCHS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS_AHS          , TEXT("/Engine/Private/PathTracing/PathTracingGPULightmassMaterialHitShader.usf"), TEXT("closesthit=GPULightmassMaterialCHS anyhit=GPULightmassMaterialAHS"), SF_RayHitGroup);
 
-class FPathTracingDefaultOpaqueHitGroup : public FGlobalShader
+template <bool IsGPULightmass, bool IsOpaque>
+class TPathTracingDefaultHitGroup : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FPathTracingDefaultOpaqueHitGroup)
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FPathTracingDefaultOpaqueHitGroup, FGlobalShader)
+	DECLARE_GLOBAL_SHADER(TPathTracingDefaultHitGroup)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(TPathTracingDefaultHitGroup, FGlobalShader)
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		// Technically should be if either PT or GPULM are enabled.
-		// Make a utility function for this?
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		if (IsGPULightmass)
+		{
+			return ShouldCompileGPULightmassShadersForProject(Parameters.Platform);
+		}
+		else
+		{
+			return ShouldCompilePathTracingShadersForProject(Parameters.Platform);
+		}
 	}
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::PathTracingMaterial;
+		if (IsGPULightmass)
+		{
+			return ERayTracingPayloadType::GPULightmass;
+		}
+		else
+		{
+			return ERayTracingPayloadType::PathTracingMaterial;
+		}
 	}
 
 	using FParameters = FEmptyShaderParameters;
 };
 
-class FPathTracingDefaultHiddenHitGroup : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FPathTracingDefaultHiddenHitGroup)
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FPathTracingDefaultHiddenHitGroup, FGlobalShader)
+using FPathTracingDefaultOpaqueHitGroup  = TPathTracingDefaultHitGroup<false, true >;
+using FPathTracingDefaultHiddenHitGroup  = TPathTracingDefaultHitGroup<false, false>;
+using FGPULightmassDefaultOpaqueHitGroup = TPathTracingDefaultHitGroup<true , true >;
+using FGPULightmassDefaultHiddenHitGroup = TPathTracingDefaultHitGroup<true , false>;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		// Technically should be if either PT or GPULM are enabled.
-		// Make a utility function for this?
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
-	{
-		return ERayTracingPayloadType::PathTracingMaterial;
-	}
-
-	using FParameters = FEmptyShaderParameters;
-};
-
-IMPLEMENT_SHADER_TYPE(, FPathTracingDefaultOpaqueHitGroup, TEXT("/Engine/Private/PathTracing/PathTracingDefaultHitShader.usf"), TEXT("closesthit=PathTracingDefaultOpaqueCHS"), SF_RayHitGroup);
-IMPLEMENT_SHADER_TYPE(, FPathTracingDefaultHiddenHitGroup, TEXT("/Engine/Private/PathTracing/PathTracingDefaultHitShader.usf"), TEXT("closesthit=PathTracingDefaultHiddenCHS anyhit=PathTracingDefaultHiddenAHS"), SF_RayHitGroup);
+IMPLEMENT_SHADER_TYPE(template<>, FPathTracingDefaultOpaqueHitGroup , TEXT("/Engine/Private/PathTracing/PathTracingDefaultHitShader.usf"), TEXT("closesthit=PathTracingDefaultOpaqueCHS"), SF_RayHitGroup);
+IMPLEMENT_SHADER_TYPE(template<>, FGPULightmassDefaultOpaqueHitGroup, TEXT("/Engine/Private/PathTracing/PathTracingDefaultHitShader.usf"), TEXT("closesthit=PathTracingDefaultOpaqueCHS"), SF_RayHitGroup);
+IMPLEMENT_SHADER_TYPE(template<>, FPathTracingDefaultHiddenHitGroup , TEXT("/Engine/Private/PathTracing/PathTracingDefaultHitShader.usf"), TEXT("closesthit=PathTracingDefaultHiddenCHS anyhit=PathTracingDefaultHiddenAHS"), SF_RayHitGroup);
+IMPLEMENT_SHADER_TYPE(template<>, FGPULightmassDefaultHiddenHitGroup, TEXT("/Engine/Private/PathTracing/PathTracingDefaultHitShader.usf"), TEXT("closesthit=PathTracingDefaultHiddenCHS anyhit=PathTracingDefaultHiddenAHS"), SF_RayHitGroup);
 
 FRHIRayTracingShader* GetPathTracingDefaultOpaqueHitShader(const FGlobalShaderMap* ShaderMap)
 {
 	return ShaderMap->GetShader<FPathTracingDefaultOpaqueHitGroup>().GetRayTracingShader();
 }
 
+FRHIRayTracingShader* GetGPULightmassDefaultOpaqueHitShader(const FGlobalShaderMap* ShaderMap)
+{
+	return ShaderMap->GetShader<FGPULightmassDefaultOpaqueHitGroup>().GetRayTracingShader();
+}
+
 FRHIRayTracingShader* GetPathTracingDefaultHiddenHitShader(const FGlobalShaderMap* ShaderMap)
 {
 	return ShaderMap->GetShader<FPathTracingDefaultHiddenHitGroup>().GetRayTracingShader();
+}
+
+FRHIRayTracingShader* GetGPULightmassDefaultHiddenHitShader(const FGlobalShaderMap* ShaderMap)
+{
+	return ShaderMap->GetShader<FGPULightmassDefaultHiddenHitGroup>().GetRayTracingShader();
 }
 
 bool FRayTracingMeshProcessor::ProcessPathTracing(

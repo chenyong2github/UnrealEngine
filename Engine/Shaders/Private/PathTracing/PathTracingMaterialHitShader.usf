@@ -138,8 +138,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		const float Transparency = 1 - Opacity;
 #elif MATERIALBLENDING_TRANSLUCENT
 		const float Opacity = GetMaterialOpacity(PixelMaterialInputs);
-#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || SIMPLIFIED_MATERIAL_SHADER
-		// We can get colored shadows either for thin translucent, or for GPULM which has backwards compatibility with some cpu lightmass tricks
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+		// We can only get colored shadows for thin translucent (solid translucent case happens via absorption only)
 		float3 Transparency = 1 - Opacity;
 #else
 		float Transparency = 1 - Opacity;
@@ -150,7 +150,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		if (ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
 		{
 			float3 Transmission = GetThinTranslucentMaterialOutput0(MaterialParameters);
-#if REFRACTION_USE_INDEX_OF_REFRACTION && !SIMPLIFIED_MATERIAL_SHADER
+#if REFRACTION_USE_INDEX_OF_REFRACTION
 			float Ior = GetRefractionIor(PixelMaterialInputs);
 #else
 			float Ior = 0.0;
@@ -158,10 +158,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 			float3 V = WorldRayDirection();
 			float3 N = normalize(MaterialParameters.WorldNormal);
 			float VoN = abs(dot(V, N));
-#if SIMPLIFIED_MATERIAL_SHADER
-			// simplified logic with no bending at the interface and no fresnel
-			Transparency *= pow(Transmission, 1.0 / VoN);
-#else
 			if (Opacity < 1.0)
 			{
 				float PathRoughness = PackedPayload.GetPathRoughness();
@@ -185,17 +181,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 					Transparency *= (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
 				}
 			}
-#endif
 		}
 		else
 #endif // MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-#if MATERIAL_SHADINGMODEL_DEFAULT_LIT
+#if MATERIAL_SHADINGMODEL_DEFAULT_LIT && REFRACTION_USE_INDEX_OF_REFRACTION
 		if (ShadingModelID == SHADINGMODELID_DEFAULT_LIT)
 		{
-#if SIMPLIFIED_MATERIAL_SHADER
-			// CPU Lightmass translucency behavior emulation
-			Transparency = lerp(float3(1, 1, 1), GetMaterialBaseColor(PixelMaterialInputs), Opacity);
-#elif REFRACTION_USE_INDEX_OF_REFRACTION
 			// Is refraction enabled?
 			float Ior = GetRefractionIor(PixelMaterialInputs);
 			if (Transparency > 0 && Ior > 0.0)
@@ -241,14 +232,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 				PackedPayload.SetTau(PackedPayload.GetTau() + LocalSigmaT * Distance);
 #endif // HAVE_GetAbsorptionMediumMaterialOutput0
 			}
-#endif // REFRACTION_USE_INDEX_OF_REFRACTION
 		}
-#else // MATERIAL_SHADINGMODEL_DEFAULT_LIT
+		else
+#endif // MATERIAL_SHADINGMODEL_DEFAULT_LIT
 		{
 			// base case for shadingmodel if/else
 		}
-#endif // MATERIAL_SHADINGMODEL_DEFAULT_LIT
-
 #else // MATERIALBLEINDG_*
 #error Unhandled blending mode!
 #endif
@@ -351,12 +340,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Payload.WorldGeoNormal = GeoNormalSign * GeoNormal;
 	Payload.WorldNormal = MaterialParameters.WorldNormal;
 	Payload.WorldSmoothNormal = MaterialParameters.TwoSidedSign * TransformTangentNormalToWorld(MaterialParameters.TangentToWorld, float3(0, 0, 1));
-
-
-#if !SIMPLIFIED_MATERIAL_SHADER
-	/**
-	 * Set material attributes for full materials
-	 **/
 
 	// fix dark edges in reflections from shading normals
 	Payload.WorldNormal       = AdjustShadingNormal(Payload.WorldNormal      , Payload.WorldGeoNormal, WorldRayDirection());
@@ -708,74 +691,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 
 	// adjust after everything else (because SSS profile case needs to decode the dual spec info from the unmodified roughness)
 	Payload.Roughness = AdjustMaterialRoughness(Payload.Roughness, PackedPayload.GetPathRoughness());
-
-#else // SIMPLIFIED_MATERIAL_SHADER
-
-	/**
-	 * Set material attributes for simplified materials
-	 **/
-
-#if MATERIALBLENDING_TRANSLUCENT && !MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-	 // Force opacity to 0 so it is ignored for path hits and only evaluated in AHS as a modulation to throughput
-	Payload.BSDFOpacity = 0;
-	Payload.TransparencyColor = 1;
-#else
-	Payload.BSDFOpacity = GetMaterialOpacity(PixelMaterialInputs);
-	Payload.TransparencyColor = 1 - Payload.BSDFOpacity;
-#endif
-
-	 // Anything unsupported will be forced to default lit
-#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-	if (Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
-	{
-		Payload.SetSubsurfaceColor(GetMaterialSubsurfaceData(PixelMaterialInputs).rgb);
-	}
-	else
-#endif
-#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
-	{
-		const float3 Transmission = GetThinTranslucentMaterialOutput0(MaterialParameters);
-		const float3 V = WorldRayDirection();
-		const float3 N = normalize(MaterialParameters.WorldNormal);
-		const float VoN = abs(dot(V, N));
-		// simplified logic with no bending at the interface and no fresnel
-		Payload.TransparencyColor *= pow(Transmission, 1.0 / VoN);
-	}
-	else
-#endif
-#if MATERIAL_SHADINGMODEL_UNLIT
-	if (Payload.ShadingModelID == SHADINGMODELID_UNLIT)
-	{
-	}
-	else
-#endif
-	{
-		// Redirect translucent blending mode to thin translucent
-#if MATERIALBLENDING_TRANSLUCENT
-		Payload.ShadingModelID = SHADINGMODELID_THIN_TRANSLUCENT;
-#else
-		Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
-#endif
-	}
-	Payload.Radiance = GetMaterialEmissive(PixelMaterialInputs);
-	Payload.Radiance *= Payload.BSDFOpacity; // premultiply
-#if MATERIAL_TWOSIDED
-	Payload.SetMaterialTwoSided();
-#else
-	if (MaterialParameters.TwoSidedSign < 0)
-	{
-		// when viewing the surface from "inside", don't include emission
-		Payload.Radiance = 0;
-	}
-#endif
-	Payload.BaseColor = BaseColor;
-	Payload.Specular = 0;
-	Payload.Roughness = 1;
-	Payload.Metallic = 0;
-	Payload.Ior = 0;
-
-#endif
 
 	PackedPayload = PackPathTracingPayload(Payload);
 }

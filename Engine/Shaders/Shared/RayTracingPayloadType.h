@@ -14,6 +14,7 @@
 #define RT_PAYLOAD_TYPE_VFX   					(1 << 7)	// FVFXTracePayload
 #define RT_PAYLOAD_TYPE_DECALS					(1 << 8)	// FDecalShaderPayload 
 #define RT_PAYLOAD_TYPE_SPARSE_VOXEL			(1 << 9)	// FSparseVoxelPayload
+#define RT_PAYLOAD_TYPE_GPULIGHTMASS            (1 << 10)   // FPackedPathTracingPayload
 
 #ifdef __cplusplus
 /**
@@ -39,6 +40,7 @@ enum ERayTracingPayloadType : uint // HLSL
 	VFX = RT_PAYLOAD_TYPE_VFX,
 	Decals = RT_PAYLOAD_TYPE_DECALS,
 	SparseVoxel = RT_PAYLOAD_TYPE_SPARSE_VOXEL,
+	GPULightmass = RT_PAYLOAD_TYPE_GPULIGHTMASS,
 };
 
 

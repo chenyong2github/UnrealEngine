@@ -396,15 +396,9 @@ void PathTracingKernel(
 			Payload.TranslatedWorldPos = TranslatedWorldPosition;
 			Payload.WorldNormal = ShadingNormal;
 			Payload.WorldGeoNormal = ShadingNormal;
-			Payload.WorldSmoothNormal = ShadingNormal;
 			Payload.Radiance = 0;
 			Payload.BaseColor = 1;
-			Payload.DiffuseColor = 1;
-			Payload.SpecularColor = 0;
-			Payload.Specular = 0;
-			Payload.Roughness = 1;
-			Payload.Metallic = 0;
-			Payload.Ior = 1;
+			Payload.SubsurfaceColor = 0;
 			Payload.BSDFOpacity = 1;
 			Payload.TransparencyColor = 0;
 			Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;

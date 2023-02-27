@@ -69,7 +69,7 @@ class FLightmapPathTracingRGS : public FGlobalShader
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::PathTracingMaterial;
+		return ERayTracingPayloadType::GPULightmass;
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -135,7 +135,7 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::PathTracingMaterial;
+		return ERayTracingPayloadType::GPULightmass;
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -196,7 +196,7 @@ class FStationaryLightShadowTracingRGS : public FGlobalShader
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::PathTracingMaterial;
+		return ERayTracingPayloadType::GPULightmass;
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -269,7 +269,7 @@ class FStaticShadowDepthMapTracingRGS : public FGlobalShader
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::PathTracingMaterial;
+		return ERayTracingPayloadType::GPULightmass;
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
