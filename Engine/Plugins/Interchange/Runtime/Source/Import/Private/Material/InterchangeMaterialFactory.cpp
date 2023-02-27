@@ -345,20 +345,34 @@ UObject* UInterchangeMaterialFactory::ImportAssetObject_GameThread(const FImport
 {
 	UObject* Material = nullptr;
 
+	auto CouldNotCreateMaterialLog = [this, &Arguments](const FText& Info)
+	{
+		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+		Message->SourceAssetName = Arguments.SourceData->GetFilename();
+		Message->DestinationAssetName = Arguments.AssetName;
+		Message->AssetType = GetFactoryClass();
+		Message->Text = FText::Format(LOCTEXT("MatFactory_CouldNotCreateMat", "Could not create Material asset %s. Reason: %s"), FText::FromString(Arguments.AssetName), Info);
+	};
+	
+	const FText MissMatchClassText = LOCTEXT("MatFactory_CouldNotCreateMat_MissMatchClass", "Missmatch between interchange material factory node class and factory class.");
+
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
+		CouldNotCreateMaterialLog(MissMatchClassText);
 		return nullptr;
 	}
 
 	const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.AssetNode);
 	if (MaterialFactoryNode == nullptr)
 	{
+		CouldNotCreateMaterialLog(LOCTEXT("MatFactory_CouldNotCreateMat_CannotCastFactoryNode", "Cannot cast interchange factory node to UInterchangeBaseMaterialFactoryNode."));
 		return nullptr;
 	}
 
 	const UClass* MaterialClass = MaterialFactoryNode->GetObjectClass();
 	if (!ensure(MaterialClass && MaterialClass->IsChildOf(GetFactoryClass())))
 	{
+		CouldNotCreateMaterialLog(MissMatchClassText);
 		return nullptr;
 	}
 
@@ -393,7 +407,7 @@ UObject* UInterchangeMaterialFactory::ImportAssetObject_GameThread(const FImport
 
 	if (!Material)
 	{
-		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Material asset %s"), *Arguments.AssetName);
+		CouldNotCreateMaterialLog(LOCTEXT("MatFactory_CouldNotCreateMat_MaterialCreationFail", "Material creation fail."));
 		return nullptr;
 	}
 
@@ -442,8 +456,15 @@ UObject* UInterchangeMaterialFactory::ImportAssetObject_Async(const FImportAsset
 	{
 		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
 		//The UObject should have been created by calling CreateEmptyAsset on the main thread.
-		check(IsInGameThread());
-		MaterialObject = NewObject<UObject>(Arguments.Parent, MaterialClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		if (IsInGameThread())
+		{
+			MaterialObject = NewObject<UObject>(Arguments.Parent, MaterialClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		}
+		else
+		{
+			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create Material asset [%s] outside of the game thread"), *Arguments.AssetName);
+			return nullptr;
+		}
 	}
 	else if(ExistingAsset->GetClass()->IsChildOf(MaterialClass))
 	{
@@ -1152,20 +1173,34 @@ UObject* UInterchangeMaterialFunctionFactory::ImportAssetObject_GameThread(const
 {
 	UObject* Material = nullptr;
 
+	auto CouldNotCreateMaterialLog = [this, &Arguments](const FText& Info)
+	{
+		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+		Message->SourceAssetName = Arguments.SourceData->GetFilename();
+		Message->DestinationAssetName = Arguments.AssetName;
+		Message->AssetType = GetFactoryClass();
+		Message->Text = FText::Format(LOCTEXT("MatFunc_CouldNotCreateMat", "Could not create Material asset %s. Reason: %s"), FText::FromString(Arguments.AssetName), Info);
+	};
+
+	const FText MissMatchClassText = LOCTEXT("MatFunc_CouldNotCreateMat_MissMatchClass", "Missmatch between interchange material factory node class and factory class.");
+
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
+		CouldNotCreateMaterialLog(MissMatchClassText);
 		return nullptr;
 	}
 
 	const UInterchangeMaterialFunctionFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFunctionFactoryNode>(Arguments.AssetNode);
 	if (!ensure(MaterialFactoryNode))
 	{
+		CouldNotCreateMaterialLog(LOCTEXT("MatFunc_CouldNotCreateMat_CannotCastFactoryNode", "Cannot cast interchange factory node to UInterchangeBaseMaterialFactoryNode."));
 		return nullptr;
 	}
 
 	const UClass* MaterialClass = MaterialFactoryNode->GetObjectClass();
 	if (!ensure(MaterialClass && MaterialClass->IsChildOf(GetFactoryClass())))
 	{
+		CouldNotCreateMaterialLog(MissMatchClassText);
 		return nullptr;
 	}
 
@@ -1185,7 +1220,7 @@ UObject* UInterchangeMaterialFunctionFactory::ImportAssetObject_GameThread(const
 
 	if (!Material)
 	{
-		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Material asset %s"), *Arguments.AssetName);
+		CouldNotCreateMaterialLog(LOCTEXT("MatFunc_CouldNotCreateMat_MaterialCreationFail", "Material creation fail."));
 		return nullptr;
 	}
 
@@ -1221,8 +1256,15 @@ UObject* UInterchangeMaterialFunctionFactory::ImportAssetObject_Async(const FImp
 	{
 		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
 		//The UObject should have been created by calling CreateEmptyAsset on the main thread.
-		check(IsInGameThread());
-		MaterialObject = NewObject<UObject>(Arguments.Parent, MaterialClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		if (IsInGameThread())
+		{
+			MaterialObject = NewObject<UObject>(Arguments.Parent, MaterialClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		}
+		else
+		{
+			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create Material asset [%s] outside of the game thread"), *Arguments.AssetName);
+			return nullptr;
+		}
 	}
 	else if (ExistingAsset->GetClass()->IsChildOf(MaterialClass))
 	{

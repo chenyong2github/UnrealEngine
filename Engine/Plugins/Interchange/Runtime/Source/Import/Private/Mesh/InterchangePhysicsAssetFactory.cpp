@@ -90,8 +90,15 @@ UObject* UInterchangePhysicsAssetFactory::ImportAssetObject_Async(const FImportA
 	{
 		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
 		//The UObject should have been create by calling ImportAssetObject_GameThread on the main thread.
-		check(IsInGameThread());
-		PhysicsAssetObject = NewObject<UObject>(Arguments.Parent, PhysicsAssetClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		if (IsInGameThread())
+		{
+			PhysicsAssetObject = NewObject<UObject>(Arguments.Parent, PhysicsAssetClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		}
+		else
+		{
+			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create Physics asset [%s] outside of the game thread"), *Arguments.AssetName);
+			return nullptr;
+		}
 	}
 	else if(ExistingAsset->GetClass()->IsChildOf(PhysicsAssetClass))
 	{

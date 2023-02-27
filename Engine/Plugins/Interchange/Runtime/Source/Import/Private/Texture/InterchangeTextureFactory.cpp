@@ -1464,23 +1464,32 @@ UObject* UInterchangeTextureFactory::ImportAssetObject_GameThread(const FImportA
 
 	UObject* Texture = nullptr;
 
+	auto CouldNotCreateTextureLog = [this, &Arguments](const FText& Info)
+	{
+		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+		Message->SourceAssetName = Arguments.SourceData->GetFilename();
+		Message->DestinationAssetName = Arguments.AssetName;
+		Message->AssetType = GetFactoryClass();
+		Message->Text = FText::Format(LOCTEXT("TexFact_CouldNotCreateMat", "UInterchangeTextureFactory: Could not create texture asset %s. Reason: %s"), FText::FromString(Arguments.AssetName), Info);
+	};
+
 	if (!Arguments.AssetNode)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter is null."));
+		CouldNotCreateTextureLog(LOCTEXT("TextureFactory_AssetNodeNull", "Asset node parameter is null."));
 		return nullptr;
 	}
 
 	const UClass* TextureClass = Arguments.AssetNode->GetObjectClass();
 	if (!TextureClass || !TextureClass->IsChildOf(UTexture::StaticClass()))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter class doesnt derive from UTexture."));
+		CouldNotCreateTextureLog(LOCTEXT("TextureFactory_NodeClassMissmatch", "Asset node parameter class doesnt derive from UTexture."));
 		return nullptr;
 	}
 
 	UClass* SupportedFactoryNodeClass = GetSupportedFactoryNodeClass(Arguments.AssetNode);
 	if (SupportedFactoryNodeClass == nullptr)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter is not a UInterchangeTextureFactoryNode or UInterchangeTextureCubeFactoryNode."));
+		CouldNotCreateTextureLog(LOCTEXT("TextureFactory_NodeClassWrong", "Asset node parameter is not a UInterchangeTextureFactoryNode or UInterchangeTextureCubeFactoryNode."));
 		return nullptr;
 	}
 
@@ -1488,15 +1497,15 @@ UObject* UInterchangeTextureFactory::ImportAssetObject_GameThread(const FImportA
 	FTextureNodeVariant TextureNodeVariant = GetTextureNodeVariantFromFactoryVariant(GetAsTextureFactoryNodeVariant(Arguments.AssetNode, SupportedFactoryNodeClass), Arguments.NodeContainer);
 	if (TextureNodeVariant.IsType<FEmptyVariantState>())
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset factory node (%s) do not reference a valid texture translated node.")
-				, *SupportedFactoryNodeClass->GetAuthoredName()
-			);
+		FText Info = FText::Format(LOCTEXT("TextureFactory_InvalidTextureTranslated", "Asset factory node (%s) do not reference a valid texture translated node.")
+			, FText::FromString(SupportedFactoryNodeClass->GetAuthoredName()));
+		CouldNotCreateTextureLog(Info);
 		return nullptr;
 	}
 
 	if (!HasPayloadKey(TextureNodeVariant))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Texture translated node doesnt have a payload key."));
+		CouldNotCreateTextureLog(LOCTEXT("TextureFactory_InvalidPayloadKey", "Texture translated node doesnt have a payload key."));
 		return nullptr;
 	}
 
@@ -1542,7 +1551,7 @@ UObject* UInterchangeTextureFactory::ImportAssetObject_GameThread(const FImportA
 
 	if (!Texture)
 	{
-		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create texture asset %s"), *Arguments.AssetName);
+		CouldNotCreateTextureLog(LOCTEXT("TextureFactory_TextureCreateFail", "Texture creation fail."));
 		return nullptr;
 	}
 
@@ -1556,23 +1565,32 @@ UObject* UInterchangeTextureFactory::ImportAssetObject_Async(const FImportAssetO
 
 	using namespace UE::Interchange::Private::InterchangeTextureFactory;
 
+	auto ImportTextureErrorLog = [this, &Arguments](const FText& Info)
+	{
+		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+		Message->SourceAssetName = Arguments.SourceData->GetFilename();
+		Message->DestinationAssetName = Arguments.AssetName;
+		Message->AssetType = GetFactoryClass();
+		Message->Text = Info;
+	};
+
 	if (!Arguments.AssetNode)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter is null."));
+		ImportTextureErrorLog(LOCTEXT("TextureFactory_Async_AssetNodeNull", "UInterchangeTextureFactory: Asset node parameter is null."));
 		return nullptr;
 	}
 
 	const UClass* TextureClass = Arguments.AssetNode->GetObjectClass();
 	if (!TextureClass || !TextureClass->IsChildOf(UTexture::StaticClass()))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter class doesnt derive from UTexture."));
+		ImportTextureErrorLog(LOCTEXT("TextureFactory_Async_MissMatchClass", "UInterchangeTextureFactory: Asset node parameter class doesnt derive from UTexture."));
 		return nullptr;
 	}
 
 	UClass* SupportedFactoryNodeClass = GetSupportedFactoryNodeClass(Arguments.AssetNode);
 	if (SupportedFactoryNodeClass == nullptr)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter is not a child of UInterchangeTextureFactoryNode"));
+		ImportTextureErrorLog(LOCTEXT("TextureFactory_Async_NodeWrongClass", "UInterchangeTextureFactory: Asset node parameter is not a child of UInterchangeTextureFactoryNode."));
 		return nullptr;
 	}
 
@@ -1580,16 +1598,16 @@ UObject* UInterchangeTextureFactory::ImportAssetObject_Async(const FImportAssetO
 	FTextureNodeVariant TextureNodeVariant = GetTextureNodeVariantFromFactoryVariant(TextureFactoryNodeVariant, Arguments.NodeContainer);
 	if (TextureNodeVariant.IsType<FEmptyVariantState>())
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset factory node (%s) do not reference a valid texture translated node.")
-				, *SupportedFactoryNodeClass->GetAuthoredName()
-			);
+		FText Info = FText::Format(LOCTEXT("TextureFactory_Async_InvalidTextureTranslated", "UInterchangeTextureFactory: Asset factory node (%s) do not reference a valid texture translated node.")
+			, FText::FromString(SupportedFactoryNodeClass->GetAuthoredName()));
+		ImportTextureErrorLog(Info);
 		return nullptr;
 	}
 
 	const TOptional<FString>& PayLoadKey = GetPayloadKey(TextureNodeVariant);
 	if (!PayLoadKey.IsSet())
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Texture translated node (UInterchangeTexture2DNode) doesnt have a payload key."));
+		ImportTextureErrorLog(LOCTEXT("TextureFactory_Async_InvalidPayloadKey", "UInterchangeTextureFactory: Texture translated node (UInterchangeTexture2DNode) doesnt have a payload key."));
 		return nullptr;
 	}
 
@@ -1597,7 +1615,7 @@ UObject* UInterchangeTextureFactory::ImportAssetObject_Async(const FImportAssetO
 
 	if(TexturePayload.IsType<FEmptyVariantState>())
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Invalid translator couldn't retrive a payload."));
+		ImportTextureErrorLog(LOCTEXT("TextureFactory_Async_CannotRetrievePayload", "UInterchangeTextureFactory: Invalid translator couldn't retrive a payload."));
 		return nullptr;
 	}
 
@@ -1611,8 +1629,15 @@ UObject* UInterchangeTextureFactory::ImportAssetObject_Async(const FImportAssetO
 	{
 		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
 		//The UObject should have been create by calling CreateEmptyAsset on the main thread.
-		check(IsInGameThread());
-		Texture = NewObject<UTexture>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		if (IsInGameThread())
+		{
+			Texture = NewObject<UTexture>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		}
+		else
+		{
+			ImportTextureErrorLog(LOCTEXT("TextureFactory_Async_CannotCreateAsync", "UInterchangeTextureFactory: Could not create Texture asset outside of the game thread."));
+			return nullptr;
+		}
 	}
 	else if(ExistingAsset->GetClass()->IsChildOf(TextureClass))
 	{
@@ -1623,7 +1648,7 @@ UObject* UInterchangeTextureFactory::ImportAssetObject_Async(const FImportAssetO
 
 	if (!Texture)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Could not create texture asset %s"), *Arguments.AssetName);
+		ImportTextureErrorLog(LOCTEXT("TextureFactory_Async_FailCreatingAsset", "UInterchangeTextureFactory: Could not create texture asset."));
 		return nullptr;
 	}
 

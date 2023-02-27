@@ -137,8 +137,15 @@ UObject* UInterchangeStaticMeshFactory::ImportAssetObject_Async(const FImportAss
 	{
 		// NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
 		// The UObject should have been created by calling CreateEmptyAsset on the main thread.
-		check(IsInGameThread());
-		StaticMeshObject = NewObject<UObject>(Arguments.Parent, StaticMeshClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		if (IsInGameThread())
+		{
+			StaticMeshObject = NewObject<UObject>(Arguments.Parent, StaticMeshClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		}
+		else
+		{
+			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create StaticMesh asset [%s] outside of the game thread"), *Arguments.AssetName);
+			return nullptr;
+		}
 	}
 	else if(ExistingAsset->GetClass()->IsChildOf(StaticMeshClass))
 	{

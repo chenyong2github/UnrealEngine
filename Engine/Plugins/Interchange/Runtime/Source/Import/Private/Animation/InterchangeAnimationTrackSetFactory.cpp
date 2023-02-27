@@ -670,8 +670,15 @@ UObject* UInterchangeAnimationTrackSetFactory::ImportObjectSourceData(const FImp
 	{
 		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
 		//The UObject should have been create by calling CreateEmptyAsset on the main thread.
-		check(IsInGameThread());
-		LevelSequence = NewObject<ULevelSequence>(Arguments.Parent, LevelSequenceClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		if (IsInGameThread())
+		{
+			LevelSequence = NewObject<ULevelSequence>(Arguments.Parent, LevelSequenceClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		}
+		else
+		{
+			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create LevelSequence asset [%s] outside of the game thread"), *Arguments.AssetName);
+			return nullptr;
+		}
 	}
 	else if (ExistingAsset->GetClass()->IsChildOf(LevelSequenceClass))
 	{
