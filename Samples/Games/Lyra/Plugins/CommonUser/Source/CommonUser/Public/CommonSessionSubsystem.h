@@ -16,7 +16,7 @@ struct FOnlineResultInformation;
 
 #if COMMONUSER_OSSV1
 #include "Interfaces/OnlineSessionInterface.h"
-#include "Public/OnlineSessionSettings.h"
+#include "OnlineSessionSettings.h"
 #else
 #include "Online/Lobbies.h"
 #include "Online/OnlineAsyncOpHandle.h"
