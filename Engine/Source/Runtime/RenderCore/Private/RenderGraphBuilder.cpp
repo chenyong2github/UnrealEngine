@@ -1722,6 +1722,13 @@ void FRDGBuilder::Execute()
 		CompilePassBarriersTask = LaunchCompileTask(TEXT("FRDGBuilder::CompilePassBarriers"), bParallelSetupEnabled, [this] { CompilePassBarriers(); });
 
 		BeginFlushResourcesRHI();
+
+		if (!ParallelSetupEvents.IsEmpty())
+		{
+			UE::Tasks::Wait(ParallelSetupEvents);
+			ParallelSetupEvents.Empty();
+		}
+
 		PrepareBufferUploads();
 
 		GPUScopeStacks.ReserveOps(Passes.Num());
@@ -1817,12 +1824,6 @@ void FRDGBuilder::Execute()
 				TransientResourceAllocator->Flush(RHICmdList);
 			#endif
 			}
-		}
-
-		if (!ParallelSetupEvents.IsEmpty())
-		{
-			UE::Tasks::Wait(ParallelSetupEvents);
-			ParallelSetupEvents.Empty();
 		}
 
 		// We have to wait until after view creation to launch uploads because we can't lock / unlock while creating views simultaneously.
