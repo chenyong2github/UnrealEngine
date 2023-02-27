@@ -800,6 +800,11 @@ void SStatusBar::RegisterDrawer(FWidgetDrawerConfig&& Drawer, int32 SlotIndex)
 	WidgetDrawer->RegisterDrawer(MoveTemp(Drawer), SlotIndex);
 }
 
+void SStatusBar::UnregisterDrawer(FName DrawerId)
+{
+	WidgetDrawer->UnregisterDrawer(DrawerId);
+}
+
 void SStatusBar::OpenDrawer(const FName DrawerId)
 {
 	WidgetDrawer->OpenDrawer(DrawerId);

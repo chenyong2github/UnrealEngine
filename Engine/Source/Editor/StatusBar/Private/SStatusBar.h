@@ -123,6 +123,14 @@ public:
 	void RegisterDrawer(FWidgetDrawerConfig&& Drawer, int32 SlotIndex = INDEX_NONE);
 
 	/**
+	 * Unregisters drawer with the given DrawerId.
+	 * This will dismiss the drawer immediately if its opened, and destroy the status bar widget that opens/closes the drawer
+	 *
+	 * @param DrawerId name of the registered drawer to unregister 
+	 */
+	void UnregisterDrawer(FName DrawerId);
+
+	/**
 	 * Opens a drawer
 	 * 
 	 * @param DrawerId Name of the registered drawer to open 

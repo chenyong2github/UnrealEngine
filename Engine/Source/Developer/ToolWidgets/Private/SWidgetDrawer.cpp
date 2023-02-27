@@ -577,12 +577,34 @@ void SWidgetDrawer::RegisterDrawer(FWidgetDrawerConfig&& Drawer, int32 SlotIndex
 
 	if (RegisteredDrawers.Num() > NumDrawers)
 	{
+		TSharedRef<SWidget> Content = MakeStatusBarDrawerButton(Drawer);
+
+		DrawerIdToContentWidget.Add(Drawer.UniqueId, Content);
+
 		DrawerBox->InsertSlot(SlotIndex)
 		.Padding(1.0f, 0.0f)
 		.AutoWidth()
 		[
-			MakeStatusBarDrawerButton(Drawer)
+			Content
 		];
+	}
+}
+
+void SWidgetDrawer::UnregisterDrawer(FName DrawerId)
+{
+	if (IsDrawerOpened(DrawerId))
+	{
+		CloseDrawerImmediately(DrawerId);
+	}
+
+	RegisteredDrawers.Remove(DrawerId);
+
+	TWeakPtr<SWidget> ContentWidgetWeak;
+	DrawerIdToContentWidget.RemoveAndCopyValue(DrawerId, ContentWidgetWeak);
+
+	if (TSharedPtr<SWidget> ContentWidget = ContentWidgetWeak.Pin())
+	{
+		DrawerBox->RemoveSlot(ContentWidget.ToSharedRef());
 	}
 }
 

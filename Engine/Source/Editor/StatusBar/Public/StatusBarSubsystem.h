@@ -129,6 +129,14 @@ public:
 	 */
 	void RegisterDrawer(FName StatusBarName, FWidgetDrawerConfig&& Drawer, int32 SlotIndex = INDEX_NONE);
 
+	/**
+	 * Unregisters and destroys the drawer with the given DrawerId 
+	 *
+	 * @param StatusBarName	The name of the status bar to unregister the drawer from
+	 * @param DrawerId		the unique name id of the drawer to unregister
+	 */
+	void UnregisterDrawer(FName StatusBarName, FName DrawerId);
+
 	/** 
 	 * Pushes a new status bar message
 	 *

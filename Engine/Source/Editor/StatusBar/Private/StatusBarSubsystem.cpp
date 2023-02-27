@@ -582,6 +582,14 @@ void UStatusBarSubsystem::RegisterDrawer(FName StatusBarName, FWidgetDrawerConfi
 	}
 }
 
+void UStatusBarSubsystem::UnregisterDrawer(FName StatusBarName, FName DrawerId)
+{
+	if (TSharedPtr<SStatusBar> StatusBar = GetStatusBar(StatusBarName))
+	{
+		StatusBar->UnregisterDrawer(DrawerId);
+	}
+}
+
 FStatusBarMessageHandle UStatusBarSubsystem::PushStatusBarMessage(FName StatusBarName, const TAttribute<FText>& InMessage, const TAttribute<FText>& InHintText)
 {
 	if (TSharedPtr<SStatusBar> StatusBar = GetStatusBar(StatusBarName))
