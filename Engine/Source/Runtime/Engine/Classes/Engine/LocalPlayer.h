@@ -441,7 +441,9 @@ public:
 	virtual void SetControllerId(int32 NewControllerId);
 
 	/**
-	 * Returns the physical controller ID for the player
+	 * Returns the controller ID for the player.
+	 * This is a legacy identifier corresponding to the primary physical controller used by the player.
+	 * You may want to use GetPlatformUserIndex or GetLocalPlayerIndex instead.
 	 */
 	int32 GetControllerId() const { return ControllerId; }
 
@@ -456,8 +458,15 @@ public:
 	FPlatformUserId GetPlatformUserId() const { return PlatformUserId; }
 
 	/**
-	 * Returns the logical local player index where 0 is the first player
-	 * By default, this uses index in the game instance array
+	 * Converts the platform user id to an index where 0 is the first logged in user.
+	 * This index is used for platform functions like save games, user selection, and slate input.
+	 */
+	virtual int32 GetPlatformUserIndex() const;
+
+	/**
+	 * Returns the logical local player index where 0 is the first LocalPlayer that was created.
+	 * By default, this uses index in the game instance array.
+	 * This index is used for gameplay purposes but will not be correct for platform functions.
 	 */
 	virtual int32 GetLocalPlayerIndex() const;
 

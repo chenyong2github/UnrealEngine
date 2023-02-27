@@ -21,6 +21,7 @@
 #include "SceneManagement.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Framework/Application/SlateApplication.h"
 
 #include "IXRTrackingSystem.h"
@@ -1654,7 +1655,7 @@ void ULocalPlayer::SetControllerId( int32 NewControllerId )
 		if (GEngine->IsControllerIdUsingPlatformUserId())
 		{
 			// This won't recurse back because we've already modified ControllerId
-			SetPlatformUserId(FPlatformMisc::GetPlatformUserForUserIndex(NewControllerId));
+			SetPlatformUserId(IPlatformInputDeviceMapper::Get().GetPlatformUserForUserIndex(NewControllerId));
 		}
 	}
 }
@@ -1677,14 +1678,19 @@ void ULocalPlayer::SetPlatformUserId(FPlatformUserId NewPlatformUserId)
 
 		if (GEngine->IsControllerIdUsingPlatformUserId())
 		{
-			SetControllerId(FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId));
+			SetControllerId(IPlatformInputDeviceMapper::Get().GetUserIndexForPlatformUser(PlatformUserId));
 		}
 	}
 }
 
+int32 ULocalPlayer::GetPlatformUserIndex() const
+{
+	FPlatformUserId UserId = GetPlatformUserId();
+	return IPlatformInputDeviceMapper::Get().GetUserIndexForPlatformUser(UserId);
+}
+
 int32 ULocalPlayer::GetLocalPlayerIndex() const
 {
-	// TODO: Add caching
 	return GetIndexInGameInstance();
 }
 
