@@ -88,25 +88,13 @@ namespace Audio
 	void FMixerAudioBus::MixBuffer()
 	{
 		// Mix the patch mixer's inputs into the source data
-		const int32 MaxNumSamplesToPop = PatchMixer.MaxNumberOfSamplesThatCanBePopped();
 		const int32 NumSamples = NumFrames * NumChannels;
 		const int32 NumOutputFrames = SourceManager->GetNumOutputFrames();
 
 		FAlignedFloatBuffer& MixBuffer = MixedSourceData[CurrentBufferIndex];
 		float* BusDataBufferPtr = MixBuffer.GetData();
 
-		if (MaxNumSamplesToPop < NumSamples)
-		{
-			// Zero buffer when there are no inputs connected,
-			// or one of the inputs has not pushed any audio yet.
-			FMemory::Memzero(BusDataBufferPtr, NumSamples * sizeof(float));
-		}
-		else
-		{
-			// Mix down inputs
-			int32 PopResult = PatchMixer.PopAudio(BusDataBufferPtr, NumSamples, false);
-			check(PopResult == NumSamples);
-		}
+		PatchMixer.PopAudio(BusDataBufferPtr, NumSamples, false);
 
 		for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
 		{
@@ -156,38 +144,7 @@ namespace Audio
 		}
 
 		// Send the mix to the patch splitter's outputs
-		int32 NumSamplesToPush = PatchSplitter.MaxNumberOfSamplesThatCanBePushed();
-		if (NumSamplesToPush <= 0)
-		{
-			// Early exit when there are no outputs.
-			return;
-		}
-
-		int32 SampleCacheSize = SampleCache.Num();
-		if (0 <= SampleCacheSize)
-		{
-			float* SampleCacheBufferPtr = SampleCache.GetData();
-			PatchSplitter.PushAudio(SampleCacheBufferPtr, FMath::Min(SampleCacheSize, NumSamplesToPush));
-
-			if (NumSamplesToPush < SampleCacheSize)
-			{
-				const int32 NumSamplesToCache = SampleCacheSize - NumSamplesToPush;
-				FMemory::Memmove(SampleCacheBufferPtr, &SampleCache[NumSamplesToPush], NumSamplesToCache);
-				SampleCache.SetNum(NumSamplesToCache, false);
-				SampleCache.Append(MixBuffer);
-				return;
-			}
-
-			NumSamplesToPush -= SampleCacheSize;
-			SampleCache.Reset();
-		}
-
-		PatchSplitter.PushAudio(BusDataBufferPtr, FMath::Min(NumSamples, NumSamplesToPush));
-
-		if (NumSamplesToPush < NumSamples)
-		{
-			SampleCache.Append(&MixBuffer[NumSamplesToPush], NumSamples - NumSamplesToPush);
-		}
+		PatchSplitter.PushAudio(BusDataBufferPtr, NumSamples);
 	}
 
 	void FMixerAudioBus::CopyCurrentBuffer(Audio::FAlignedFloatBuffer& InChannelMap, int32 InNumOutputChannels, FAlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const

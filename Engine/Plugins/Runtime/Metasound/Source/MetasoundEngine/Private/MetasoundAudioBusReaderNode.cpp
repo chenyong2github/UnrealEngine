@@ -16,6 +16,13 @@
 
 #define LOCTEXT_NAMESPACE "MetasoundAudioBusNode"
 
+static int32 AudioBusReaderNodePatchWaitTimeout = 3;
+FAutoConsoleVariableRef CVarAudioBusReaderNodePatchWaitTimeout(
+	TEXT("au.BusReaderPatchWaitTimeout"),
+	AudioBusReaderNodePatchWaitTimeout,
+	TEXT("The maximum amount of time the audio bus reader node will wait for its patch output to receive samples."),
+	ECVF_Default);
+
 namespace Metasound
 {
 	namespace AudioBusReaderNode
@@ -135,10 +142,6 @@ namespace Metasound
 			}
 		}
 
-		virtual ~TAudioBusReaderOperator()
-		{
-		}
-
 		virtual FDataReferenceCollection GetInputs() const override
 		{
 			using namespace AudioBusReaderNode;
@@ -172,33 +175,32 @@ namespace Metasound
 				return;
 			}
 
-			// We want to write out zeroed audio until there is enough audio queued up in the patch output to avoid any underruns due to thread timing.
-			// From testing, waiting for the first buffer for 3 times the size of a single metasound block was sufficient to avoid pops. 
-			// Once we have started popping audio off the patch output, we want to keep it popping. Unless there are CPU underruns, there should be enough
-			// runway to keep it from underruning. We employ a little bit of a wait with a time out just to decrease the chance that there will be any missed buffers.
-			// In practice, this wait should rarely, if ever, actually cause a wait in this metasound execute.
-
 			bool bPerformPop = false;
+
 			if (bFirstBlock)
 			{
-				// Tuned amount to wait for first rendered block to account for any timing issues between the audio render thread and the metasound task
-				constexpr int32 FirstBlockBufferCount = 3;
-				if (AudioBusPatchOutput->GetNumSamplesAvailable() > FirstBlockBufferCount * NumSamplesToPop)
+				// Ensure there are enough samples in the patch output to support the maximum metasound executions the mixer requires to fill its output frames before popping begins.
+				if (uint32(AudioBusPatchOutput->GetNumSamplesAvailable()) >= FMath::DivideAndRoundUp(AudioMixerOutputFrames, BlockSizeFrames) * BlockSizeFrames * AudioBusChannels)
 				{
-					bFirstBlock = false;
 					bPerformPop = true;
 
 					InterleavedBuffer.Reset();
 					InterleavedBuffer.AddUninitialized(NumSamplesToPop);
 				}
 			}
-			else if (AudioBusPatchOutput->WaitUntilNumSamplesAvailable(NumSamplesToPop, static_cast<uint32>(0.5f * BlockSizeFrames * SampleRate)))
+			else
 			{
-				bPerformPop = true;
+				// Give input patch samples some time to arrive.
+				if (AudioBusPatchOutput->WaitUntilNumSamplesAvailable(NumSamplesToPop, uint32(AudioBusReaderNodePatchWaitTimeout)))
+				{
+					bPerformPop = true;
+				}
 			}
 
 			if (bPerformPop)
 			{
+				bFirstBlock = false;
+
 				// Pop off the interleaved data from the audio bus
 				int32 SamplesPopped = AudioBusPatchOutput->PopAudio(InterleavedBuffer.GetData(), NumSamplesToPop, false);
 				if (SamplesPopped < NumSamplesToPop)

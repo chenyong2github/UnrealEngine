@@ -50,7 +50,7 @@ namespace Audio
 
 		/** Pauses the current thread until there are the given number of samples available to pop. Will return true if it succeeded, false if it timed out. */
 		bool WaitUntilNumSamplesAvailable(int32 NumSamples, uint32 TimeOutMilliseconds = MAX_uint32);
-		
+
 		/** Returns true if the input for this patch has been destroyed. */
 		bool IsInputStale() const;
 
@@ -75,12 +75,11 @@ namespace Audio
 		int32 PatchID;
 
 		// Counter that is incremented/decremented to allow FPatchInput to be copied around safely.
-		int32 NumAliveInputs;
+		std::atomic<int32> NumAliveInputs;
 
 		// Event to pause the current thread until a given number of samples has been filled
-		FEvent* SamplesFilledEvent;
-		int32 NumSamplesToWaitFor;
-		
+		std::atomic<FEvent*> SamplesPushedEvent;
+
 		static TAtomic<int32> PatchIDCounter;
 	};
 
@@ -106,7 +105,8 @@ namespace Audio
 
 		~FPatchInput();
 
-		/** pushes audio from InBuffer to the corresponding FPatchOutput.
+		/** Pushes audio from InBuffer to the corresponding FPatchOutput.
+		 *  Pushes zeros if InBuffer is nullptr.
 		 *  Returns how many samples were able to be pushed, or -1 if the output was disconnected.
 		 */
 		int32 PushAudio(const float* InBuffer, int32 NumSamples);
@@ -152,6 +152,9 @@ namespace Audio
 
 		/** This function call gets the maximum number of samples that's safe to pop, based on the thread with the least amount of samples buffered. Thread safe, but blocks for PopAudio. */
 		int32 MaxNumberOfSamplesThatCanBePopped();
+
+		/** Pauses the current thread until there are the given number of samples available to pop. Will return true if it succeeded, false if it timed out. */
+		bool WaitUntilNumSamplesAvailable(int32 NumSamples, uint32 TimeOutMilliseconds = MAX_uint32);
 
 		/** Disconnect everything currently connected to this mixer. */
 		void DisconnectAllInputs();

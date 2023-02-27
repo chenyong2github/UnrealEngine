@@ -136,10 +136,6 @@ namespace Metasound
 			}
 		}
 
-		virtual ~TAudioBusWriterOperator()
-		{
-		}
-
 		virtual FDataReferenceCollection GetInputs() const override
 		{
 			using namespace AudioBusWriterNode;
@@ -201,6 +197,16 @@ namespace Metasound
 				}
 			}
 
+			if (bFirstBlock)
+			{
+				bFirstBlock = false;
+				if (AudioMixerOutputFrames != BlockSizeFrames)
+				{
+					// Ensure there will be enough samples in the patch input to support the maximum metasound executions the mixer requires to fill its output frames after the next push.
+					AudioBusPatchInput.PushAudio(nullptr, (FMath::DivideAndRoundUp(FMath::Max(AudioMixerOutputFrames, BlockSizeFrames), FMath::Min(AudioMixerOutputFrames, BlockSizeFrames)) - 1) * BlockSizeFrames * AudioBusChannels);
+				}
+			}
+
 			// Pushes the interleaved data to the audio bus
 			int32 SamplesPushed = AudioBusPatchInput.PushAudio(InterleavedBuffer.GetData(), InterleavedBuffer.Num());
 			if (SamplesPushed < InterleavedBuffer.Num())
@@ -220,6 +226,7 @@ namespace Metasound
 		Audio::FPatchInput AudioBusPatchInput;
 		uint32 AudioBusChannels = INDEX_NONE;
 		int32 BlockSizeFrames = 0;
+		bool bFirstBlock = true;
 	};
 
 	template<uint32 NumChannels>

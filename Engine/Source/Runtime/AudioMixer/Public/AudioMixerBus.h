@@ -108,7 +108,6 @@ namespace Audio
 		// Multiple places can produce and consume from audio buses
 		Audio::FPatchMixer PatchMixer;
 		Audio::FPatchSplitter PatchSplitter;
-		FAlignedFloatBuffer SampleCache;
 
 		// Was created manually, not via source buses.
 		bool bIsAutomatic;
