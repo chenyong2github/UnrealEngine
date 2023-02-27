@@ -47,6 +47,14 @@ public class WebRTC : ModuleRules
 			string AbslthirdPartyIncludePath = Path.Combine(IncludePath, "third_party", "abseil-cpp");
 			PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
 
+			// libVPX is linked inside WebRTC so just use those headers and binaries where avaliable
+			string libvpxthirdPartyIncludePath = Path.Combine(IncludePath, "third_party", "libvpx", "source", "libvpx");
+			PublicSystemIncludePaths.Add(libvpxthirdPartyIncludePath);
+
+			// libyuv is linked inside WebRTC so just use those headers and binaries where avaliable
+			string libyuvthirdPartyIncludePath = Path.Combine(IncludePath, "third_party", "libyuv", "include");
+			PublicSystemIncludePaths.Add(libyuvthirdPartyIncludePath);
+
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				PublicDefinitions.Add("WEBRTC_WIN=1");

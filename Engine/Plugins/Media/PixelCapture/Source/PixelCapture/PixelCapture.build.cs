@@ -18,13 +18,6 @@ namespace UnrealBuildTool.Rules
 				"RHI",
 			});
 
-			
-			// NOTE: General rule is not to access the private folder of another module
-			string WebRtcIncludeDir = Path.Combine(EngineDir, "Source/ThirdParty/WebRTC/4664/Include");
-			PrivateIncludePaths.AddRange(new string[] {
-				Path.Combine(WebRtcIncludeDir, "third_party/libyuv/include"),
-			});
-
 			PrivateDependencyModuleNames.AddRange(new string[] {
 				"Core",
 				"Engine",
