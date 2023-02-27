@@ -502,6 +502,11 @@ FReply FSkeletonTreeBoneItem::HandleDrop(const FDragDropEvent& DragDropEvent)
 bool FSkeletonTreeBoneItem::IsBoneWeighted(int32 MeshBoneIndex, UDebugSkelMeshComponent* PreviewComponent)
 {
 	// MeshBoneIndex must be an index into the mesh's skeleton, *not* the source skeleton!!!
+	if (MeshBoneIndex == INDEX_NONE)
+	{
+		// If we get an invalid index, we are done here
+		return false; 
+	}
 
 	if (!PreviewComponent || !PreviewComponent->GetSkeletalMeshAsset() || !PreviewComponent->GetSkeletalMeshAsset()->GetResourceForRendering() || !PreviewComponent->GetSkeletalMeshAsset()->GetResourceForRendering()->LODRenderData.Num())
 	{
