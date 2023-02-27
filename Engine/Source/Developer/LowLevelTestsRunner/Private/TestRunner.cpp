@@ -153,6 +153,10 @@ void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
 		{
 			bAttachToDebugger = true;
 		}
+		else if (Arg == ANSITEXTVIEW("--buildmachine"))
+		{
+			GIsBuildMachine = true;
+		}
 		else
 		{
 			CatchArgs.Add(Arg.GetData());
