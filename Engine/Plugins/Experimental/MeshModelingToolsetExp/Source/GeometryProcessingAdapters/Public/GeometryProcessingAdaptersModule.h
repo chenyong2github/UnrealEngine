@@ -6,6 +6,7 @@
 #include "Modules/ModuleManager.h"
 
 #include "GeometryProcessing/ApproximateActorsImpl.h"
+#include "GeometryProcessing/CombineMeshInstancesImpl.h"
 
 class FGeometryProcessingAdaptersModule : public IModuleInterface
 {
@@ -18,4 +19,5 @@ public:
 	
 protected:
 	TSharedPtr<UE::Geometry::FApproximateActorsImpl> ApproximateActors;
+	TSharedPtr<UE::Geometry::FCombineMeshInstancesImpl> CombineMeshInstances;
 };

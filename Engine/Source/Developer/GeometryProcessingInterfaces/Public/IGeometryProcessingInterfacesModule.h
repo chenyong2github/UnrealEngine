@@ -5,6 +5,7 @@
 #include "Modules/ModuleInterface.h"
 
 class IGeometryProcessing_ApproximateActors;
+class IGeometryProcessing_CombineMeshInstances;
 
 /**
  * Abstract interface to a Module that provides functions to access
@@ -27,5 +28,10 @@ public:
 	 * @return implementation of IGeometryProcessing_ApproximateActors, if available
 	 */
 	virtual IGeometryProcessing_ApproximateActors* GetApproximateActorsImplementation() = 0;
+
+	/**
+	 * @return implementation of IGeometryProcessing_CombineMeshInstances, if available, or nullptr (result is cached internally)
+	 */
+	virtual IGeometryProcessing_CombineMeshInstances* GetCombineMeshInstancesImplementation() = 0;
 
 };

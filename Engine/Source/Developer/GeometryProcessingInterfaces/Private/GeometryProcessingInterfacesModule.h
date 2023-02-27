@@ -6,6 +6,8 @@
 
 
 class IGeometryProcessing_ApproximateActors;
+class IGeometryProcessing_CombineMeshInstances;
+
 
 /**
  * Implementation of IGeometryProcessingInterfacesModule (which extends the standard IModuleInterface)
@@ -24,6 +26,13 @@ public:
 	 */
 	virtual IGeometryProcessing_ApproximateActors* GetApproximateActorsImplementation() override;
 
+	/**
+	 * @return implementation of IGeometryProcessing_CombineMeshInstances, if available, or nullptr (result is cached internally)
+	 */
+	virtual IGeometryProcessing_CombineMeshInstances* GetCombineMeshInstancesImplementation() override;
+
+
 private:
 	IGeometryProcessing_ApproximateActors* ApproximateActors = nullptr;
+	IGeometryProcessing_CombineMeshInstances* CombineMeshInstances = nullptr;
 };

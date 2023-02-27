@@ -17,6 +17,11 @@ void FGeometryProcessingAdaptersModule::StartupModule()
 		IModularFeatures::Get().RegisterModularFeature(IGeometryProcessing_ApproximateActors::GetModularFeatureName(), ApproximateActors.Get());
 	}
 	
+	CombineMeshInstances = MakeShared<FCombineMeshInstancesImpl>();
+	if (CombineMeshInstances.IsValid())
+	{
+		IModularFeatures::Get().RegisterModularFeature(IGeometryProcessing_CombineMeshInstances::GetModularFeatureName(), CombineMeshInstances.Get());
+	}
 }
 
 void FGeometryProcessingAdaptersModule::ShutdownModule()
@@ -30,6 +35,11 @@ void FGeometryProcessingAdaptersModule::ShutdownModule()
 		ApproximateActors = nullptr;
 	}
 	
+	if ( CombineMeshInstances.IsValid() )
+	{
+		IModularFeatures::Get().UnregisterModularFeature(IGeometryProcessing_CombineMeshInstances::GetModularFeatureName(), CombineMeshInstances.Get());
+		CombineMeshInstances = nullptr;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

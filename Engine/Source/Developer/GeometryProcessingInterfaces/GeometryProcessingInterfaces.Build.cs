@@ -10,5 +10,6 @@ public class GeometryProcessingInterfaces : ModuleRules
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("CoreUObject");
 		PrivateDependencyModuleNames.Add("Engine");
-    }
+		PrivateDependencyModuleNames.Add("GeometryCore");
+	}
 }

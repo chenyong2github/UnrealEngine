@@ -1,0 +1,127 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Features/IModularFeature.h"
+#include "DynamicMesh/DynamicMesh3.h"
+
+class UPrimitiveComponent;
+class UStaticMesh;
+class UMaterialInterface;
+
+
+/**
+ * The CombineMeshInstances modular feature is used to provide a mechanism
+ * for merging a set of instances of meshes (ie mesh + transform + materials + ...)
+ * into a smaller set of meshes. Generally this involves creating simpler versions
+ * of the instances and appending them into one or a small number of combined meshes.
+ */
+class IGeometryProcessing_CombineMeshInstances : public IModularFeature
+{
+public:
+	virtual ~IGeometryProcessing_CombineMeshInstances() {}
+
+
+	enum class EMeshDetailLevel
+	{
+		Base = 0,
+		Standard = 1,
+		Small = 2,
+		Decorative = 3
+	};
+
+
+	struct FMeshInstanceGroupData
+	{
+		TArray<UMaterialInterface*> MaterialSet;
+		
+		bool bHasConstantOverrideVertexColor = false;
+		FColor OverrideVertexColor;
+	};
+
+
+	struct FBaseMeshInstance
+	{
+		EMeshDetailLevel DetailLevel = EMeshDetailLevel::Standard;
+		TArray<FTransform3d> TransformSequence;
+		int32 GroupDataIndex = -1;		// index into FInstanceSet::InstanceGroupDatas
+	};
+
+
+	struct FStaticMeshInstance : FBaseMeshInstance
+	{
+		UStaticMesh* SourceMesh = nullptr;
+		UPrimitiveComponent* SourceComponent = nullptr;
+		int32 SourceInstanceIndex = 0;
+	};
+
+
+	struct FInstanceSet
+	{
+		TArray<FStaticMeshInstance> StaticMeshInstances;
+
+		// sets of data shared across multiple instances
+		TArray<FMeshInstanceGroupData> InstanceGroupDatas;
+	};
+
+
+	struct FOptions
+	{
+		// number of requested LODs
+		int32 NumLODs = 5;
+
+		int32 NumCopiedLODs = 1;
+
+		int32 ApproximationSourceLOD = 0;
+
+		int32 NumSimplifiedLODs = 3;
+		double SimplifyBaseTolerance = 1.0;
+		double SimplifyLODLevelToleranceScale = 2.0;
+
+		// LOD level to filter out detail parts
+		int32 FilterDecorativePartsLODLevel = 2;
+	};
+
+
+	struct FOutputMesh
+	{
+		TArray<UE::Geometry::FDynamicMesh3> MeshLODs;
+		TArray<UMaterialInterface*> MaterialSet;
+	};
+
+
+	struct FResults
+	{
+		//EResultCode ResultCode = EResultCode::UnknownError;
+
+		TArray<FOutputMesh> CombinedMeshes;
+	};
+
+
+
+
+	virtual FOptions ConstructDefaultOptions()
+	{
+		check(false);		// not implemented in base class
+		return FOptions();
+	}
+
+
+	virtual void CombineMeshInstances(
+		const FInstanceSet& MeshInstances, 
+		const FOptions& Options, 
+		FResults& ResultsOut) 
+	{
+		check(false);		// not implemented in base class
+	}
+
+
+
+	// Modular feature name to register for retrieval during runtime
+	static const FName GetModularFeatureName()
+	{
+		return TEXT("GeometryProcessing_CombineMeshInstances");
+	}
+
+};
