@@ -70,6 +70,27 @@ namespace Horde.Build.Compute
 	}
 
 	/// <summary>
+	/// Gets information about the configured compute tunnel
+	/// </summary>
+	public class GetComputeTunnelResponse
+	{
+		/// <summary>
+		/// IP address of the server
+		/// </summary>
+		public string? Ip { get; set; }
+
+		/// <summary>
+		/// Listening port for the initiator
+		/// </summary>
+		public int InitiatorPort { get; set; }
+
+		/// <summary>
+		/// Listening port for the remote
+		/// </summary>
+		public int RemotePort { get; set; }
+	}
+
+	/// <summary>
 	/// Controller for the /api/v2/compute endpoint
 	/// </summary>
 	[ApiController]
@@ -130,6 +151,35 @@ namespace Horde.Build.Compute
 				_computeService.AddRequest(clusterId, requirements, computeTask);
 			}
 			return Ok();
+		}
+
+		/// <summary>
+		/// Add tasks to be executed remotely
+		/// </summary>
+		/// <param name="clusterId">Id of the compute cluster</param>
+		/// <returns></returns>
+		[HttpPost]
+		[Authorize]
+		[Route("/api/v2/compute/{clusterId}/tunnel")]
+		public ActionResult<GetComputeTunnelResponse> GetTunnelInfoAsync(ClusterId clusterId)
+		{
+			ComputeClusterConfig? clusterConfig;
+			if (!_globalConfig.Value.TryGetComputeCluster(clusterId, out clusterConfig))
+			{
+				return NotFound(clusterId);
+			}
+
+			ServerSettings settings = _globalConfig.Value.ServerSettings;
+			if (settings.ComputeInitiatorPort == 0 || settings.ComputeRemotePort == 0)
+			{
+				return NotFound("Tunnelling is not configured on the server");
+			}
+
+			GetComputeTunnelResponse response = new GetComputeTunnelResponse();
+			response.Ip = HttpContext.Connection.LocalIpAddress?.ToString();
+			response.InitiatorPort = _globalConfig.Value.ServerSettings.ComputeInitiatorPort;
+			response.RemotePort = _globalConfig.Value.ServerSettings.ComputeRemotePort;
+			return response;
 		}
 	}
 }
