@@ -509,67 +509,61 @@ bool GenerateMutableSourceGroupProjector(const UEdGraphPin* Pin, FMutableGraphGe
 					GroupProjectorTempData.PoseBoneDataArray[PoseIndex].ArrayBoneName, GroupProjectorTempData.PoseBoneDataArray[PoseIndex].ArrayTransform);
 			}
 
-			if (UEdGraphPin* ConnectedPin = FollowInputPin(ProjParamNode->GetImagePin()))
+		
+			mu::NodeScalarEnumParameterPtr EnumParameterNode = new mu::NodeScalarEnumParameter;
+			FString NodeEnumParamName = ProjParamNode->ParameterName + FMultilayerProjector::IMAGE_PARAMETER_POSTFIX;
+			EnumParameterNode->SetName(TCHAR_TO_ANSI(*(NodeEnumParamName)));
+			EnumParameterNode->SetUid(TCHAR_TO_ANSI(*(ProjectorParamUid + FString("_SI"))));
+			GenerationContext.AddParameterNameUnique(originalGroup, NodeEnumParamName);
+			EnumParameterNode->SetValueCount(ArrayOptionImage.Num());
+			EnumParameterNode->SetDefaultValueIndex(0);
+			EnumParameterNode->SetRangeCount(1);
+			EnumParameterNode->SetRange(0, NodeRangeFromScalar);
+
+			FParameterUIData ParameterUIData(NodeEnumParamName, ProjParamNode->ParamUIMetadata, EMutableParameterType::Int);
+			ParameterUIData.IntegerParameterGroupType = ECustomizableObjectGroupType::COGT_ONE;
+			ParameterUIData.ParamUIMetadata.ExtraInformation.Add(FString("UseThumbnails"));
+
+			for (int ImageIndex = 0; ImageIndex < ArrayOptionImage.Num(); ++ImageIndex)
 			{
-				GroupProjectorTempData.NodeImagePtr = GenerateMutableSourceImage(ConnectedPin, GenerationContext, 0, NodeRangeFromScalar);
+				EnumParameterNode->SetValue(ImageIndex, (float)ImageIndex, TCHAR_TO_ANSI(*ArrayOptionImage[ImageIndex].OptionName));
+
+				FMutableParamUIMetadata optionMetadata = ParameterUIData.ParamUIMetadata;
+				optionMetadata.UIThumbnail = ArrayOptionImage[ImageIndex].OptionImage;
+				ParameterUIData.ArrayIntegerParameterOption.Add(FIntegerParameterUIData(
+					ArrayOptionImage[ImageIndex].OptionName,
+					optionMetadata));
 			}
-			else
+
+			GenerationContext.ParameterUIDataMap.Add(NodeEnumParamName, ParameterUIData);
+
+			mu::NodeImageSwitchPtr SwitchNode = new mu::NodeImageSwitch;
+			SwitchNode->SetParameter(EnumParameterNode);
+			SwitchNode->SetOptionCount(ArrayOptionImage.Num());
+
+			bool bFoundUnlinkedPin = false; 
+
+			for (int SelectorIndex = 0; SelectorIndex < ArrayOptionImage.Num(); ++SelectorIndex)
 			{
-				mu::NodeScalarEnumParameterPtr EnumParameterNode = new mu::NodeScalarEnumParameter;
-				FString NodeEnumParamName = ProjParamNode->ParameterName + FMultilayerProjector::IMAGE_PARAMETER_POSTFIX;
-				EnumParameterNode->SetName(TCHAR_TO_ANSI(*(NodeEnumParamName)));
-				EnumParameterNode->SetUid(TCHAR_TO_ANSI(*(ProjectorParamUid + FString("_SI"))));
-				GenerationContext.AddParameterNameUnique(originalGroup, NodeEnumParamName);
-				EnumParameterNode->SetValueCount(ArrayOptionImage.Num());
-				EnumParameterNode->SetDefaultValueIndex(0);
-				EnumParameterNode->SetRangeCount(1);
-				EnumParameterNode->SetRange(0, NodeRangeFromScalar);
-
-				FParameterUIData ParameterUIData(NodeEnumParamName, ProjParamNode->ParamUIMetadata, EMutableParameterType::Int);
-				ParameterUIData.IntegerParameterGroupType = ECustomizableObjectGroupType::COGT_ONE;
-				ParameterUIData.ParamUIMetadata.ExtraInformation.Add(FString("UseThumbnails"));
-
-				for (int ImageIndex = 0; ImageIndex < ArrayOptionImage.Num(); ++ImageIndex)
+				if (ArrayOptionImage[SelectorIndex].OptionImage)
 				{
-					EnumParameterNode->SetValue(ImageIndex, (float)ImageIndex, TCHAR_TO_ANSI(*ArrayOptionImage[ImageIndex].OptionName));
-
-					FMutableParamUIMetadata optionMetadata = ParameterUIData.ParamUIMetadata;
-					optionMetadata.UIThumbnail = ArrayOptionImage[ImageIndex].OptionImage;
-					ParameterUIData.ArrayIntegerParameterOption.Add(FIntegerParameterUIData(
-						ArrayOptionImage[ImageIndex].OptionName,
-						optionMetadata));
+					mu::NodeImageConstantPtr ImageNode = new mu::NodeImageConstant();
+					GenerationContext.ArrayTextureUnrealToMutableTask.Add(FTextureUnrealToMutableTask(ImageNode, ArrayOptionImage[SelectorIndex].OptionImage, ProjParamNode));
+					SwitchNode->SetOption(SelectorIndex, ImageNode);
 				}
-
-				GenerationContext.ParameterUIDataMap.Add(NodeEnumParamName, ParameterUIData);
-
-				mu::NodeImageSwitchPtr SwitchNode = new mu::NodeImageSwitch;
-				SwitchNode->SetParameter(EnumParameterNode);
-				SwitchNode->SetOptionCount(ArrayOptionImage.Num());
-
-				bool bFoundUnlinkedPin = false; 
-
-				for (int SelectorIndex = 0; SelectorIndex < ArrayOptionImage.Num(); ++SelectorIndex)
+				else
 				{
-					if (ArrayOptionImage[SelectorIndex].OptionImage)
-					{
-						mu::NodeImageConstantPtr ImageNode = new mu::NodeImageConstant();
-						GenerationContext.ArrayTextureUnrealToMutableTask.Add(FTextureUnrealToMutableTask(ImageNode, ArrayOptionImage[SelectorIndex].OptionImage, ProjParamNode));
-						SwitchNode->SetOption(SelectorIndex, ImageNode);
-					}
-					else
-					{
-						bFoundUnlinkedPin = true;
-					}
+					bFoundUnlinkedPin = true;
 				}
-
-				if (bFoundUnlinkedPin)
-				{
-					FString msg = FString::Printf(TEXT("The group projection node must have a texture for all the options. Please set a texture for all the options."));
-					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), ProjParamNode);
-				}
-
-				GroupProjectorTempData.NodeImagePtr = SwitchNode;
 			}
+
+			if (bFoundUnlinkedPin)
+			{
+				FString msg = FString::Printf(TEXT("The group projection node must have a texture for all the options. Please set a texture for all the options."));
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), ProjParamNode);
+			}
+
+			GroupProjectorTempData.NodeImagePtr = SwitchNode;
 
 			GenerationContext.ProjectorGroupMap.Add(originalGroup, GroupProjectorTempData);
 		}

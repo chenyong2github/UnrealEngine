@@ -96,13 +96,15 @@ struct CUSTOMIZABLEOBJECT_API FMultilayerProjector
 	friend FMultilayerProjectorLayer;
 	friend uint32 GetTypeHash(const FMultilayerProjector& Key);
 
+	// Log texts
+	static const FString DESCRIPTOR_PARAMETERS_INVALID;
 
 	// Parameters encoding
 	static const FString NUM_LAYERS_PARAMETER_POSTFIX;
 	static const FString OPACITY_PARAMETER_POSTFIX;
 	static const FString IMAGE_PARAMETER_POSTFIX;
 	static const FString POSE_PARAMETER_POSTFIX;
-
+	
 	// Constructors
 	FMultilayerProjector() = default;
 
@@ -192,12 +194,9 @@ private:
 	 * @param Index Index which the layer has been disabled.
 	 */
 	void UpdateMappingVirtualLayerDisabled(const FName& Id, int32 Index);
-
-	/** Rise an assert if the Instance Descriptor does not contain the necessary Parameters. */
-	void CheckDescriptorParameters(const FCustomizableObjectInstanceDescriptor& Descriptor) const;
 	
 	/** Return false if the Instance does not contain the necessary Instance Parameters. */
-	static bool AreDescriptorParametersValid(const FCustomizableObjectInstanceDescriptor& Descriptor, const FName& ParamName);
+	static bool AreDescriptorParametersValid(const FCustomizableObjectInstanceDescriptor& Descriptor, const FString& ParamName);
 };
 
 

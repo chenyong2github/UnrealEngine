@@ -120,6 +120,11 @@ void UCustomizableObjectNodeGroupProjectorParameter::BackwardsCompatibleFixup()
 	{
 		ReconstructNode();		
 	}
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::GroupProjectorImagePinRemoved)
+	{
+		ReconstructNode();		
+	}
 }
 
 
@@ -128,13 +133,6 @@ void UCustomizableObjectNodeGroupProjectorParameter::AllocateDefaultPins(UCustom
 	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
 
 	CustomCreatePin(EGPD_Output, Schema->PC_GroupProjector, TEXT("Value"));	
-	ImagePin = CustomCreatePin(EGPD_Input, Schema->PC_Image, TEXT("Texture"));
-}
-
-
-UEdGraphPin& UCustomizableObjectNodeGroupProjectorParameter::GetImagePin() const
-{
-	return *ImagePin.Get();
 }
 
 

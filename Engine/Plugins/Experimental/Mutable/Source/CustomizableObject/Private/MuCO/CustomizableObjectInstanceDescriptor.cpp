@@ -2179,17 +2179,14 @@ void FCustomizableObjectInstanceDescriptor::SetRandomValues()
 
 bool FCustomizableObjectInstanceDescriptor::CreateMultiLayerProjector(const FName& ProjectorParamName)
 {
-	if (const FMultilayerProjector* Result = MultilayerProjectors.Find(ProjectorParamName))
+	if (!FMultilayerProjector::AreDescriptorParametersValid(*this, ProjectorParamName.ToString()))
 	{
-		checkCode(Result->CheckDescriptorParameters(*this));
+		ensureAlwaysMsgf(false, TEXT("%s"), *FMultilayerProjector::DESCRIPTOR_PARAMETERS_INVALID);
+		return false;
 	}
-	else
+
+	if (!MultilayerProjectors.Contains(ProjectorParamName))
 	{
-		if (!FMultilayerProjector::AreDescriptorParametersValid(*this, ProjectorParamName))
-		{
-			return false;
-		}
-		
 		const FMultilayerProjector MultilayerProjector(ProjectorParamName);
 		MultilayerProjectors.Add(ProjectorParamName, MultilayerProjector);
 	}

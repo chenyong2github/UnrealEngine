@@ -63,7 +63,9 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectCustomVersion
 		DeformSkeletonOptionsAdded,
 
 		GroupProjectorImagePin,
-		
+
+		GroupProjectorImagePinRemoved,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
