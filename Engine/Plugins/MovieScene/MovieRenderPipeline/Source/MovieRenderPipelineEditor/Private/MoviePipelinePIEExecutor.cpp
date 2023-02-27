@@ -263,7 +263,7 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 		}
 		else if (UMovieGraphPipeline* PipelineAsGraph = Cast<UMovieGraphPipeline>(ActiveMoviePipeline))
 		{
-			// PipelineAsGraph->Initialize(Queue->GetJobs()[CurrentPipelineIndex], FMovieGraphInitConfig());
+			PipelineAsGraph->Initialize(Queue->GetJobs()[CurrentPipelineIndex], FMovieGraphInitConfig());
 		}
 		RemainingInitializationFrames = -1;
 	}
