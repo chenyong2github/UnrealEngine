@@ -93,6 +93,16 @@ FPlayerKeyMapping::FPlayerKeyMapping()
 {
 }
 
+FPlayerKeyMapping::FPlayerKeyMapping(const FEnhancedActionKeyMapping& OriginalMapping, EPlayerMappableKeySlot InSlot /* = EPlayerMappableKeySlot::Unspecified */)
+	: ActionName(OriginalMapping.GetMappingName())
+	, DisplayName(OriginalMapping.GetDisplayName())
+	, Slot(InSlot)
+	, DefaultKey(OriginalMapping.Key)
+	, CurrentKey(EKeys::Invalid)
+	, HardwareDeviceId(FHardwareDeviceIdentifier::Invalid)
+{
+}
+
 // The default constructor creates an invalid mapping. Use this as a way to return references
 // to an invalid mapping for BP functions
 FPlayerKeyMapping FPlayerKeyMapping::InvalidMapping = FPlayerKeyMapping();
@@ -137,14 +147,6 @@ const FName FPlayerKeyMapping::GetActionName() const
 
 const FText& FPlayerKeyMapping::GetDisplayName() const
 {
-	// Just in case the display name is empty on this mapping, see if we can fall back to the original mapping copy's display name
-	if (DisplayName.IsEmpty())
-	{
-		if (const UPlayerMappableKeySettings* Settings = OriginalMappingCopy.GetPlayerMappableKeySettings())
-		{
-			return Settings->DisplayName;
-		}
-	}
 	return DisplayName;
 }
 
@@ -170,12 +172,35 @@ uint32 GetTypeHash(const FPlayerKeyMapping& InMapping)
 
 void FPlayerKeyMapping::ResetToDefault()
 {
-	CurrentKey = DefaultKey;
+	// Only mark as dirty during a reset to default if the mapping was set to a different key
+	// This avoids unnecessarily marking keys as dirty if you do a reset of the entire key profile
+	if (IsCustomized())
+	{
+		bIsDirty = true;
+	}
+	
+	CurrentKey = DefaultKey;	
 }
 
 void FPlayerKeyMapping::SetCurrentKey(const FKey& NewKey)
 {
 	CurrentKey = NewKey;
+	bIsDirty = true;
+}
+
+void FPlayerKeyMapping::UpdateOriginalKey(const FEnhancedActionKeyMapping& OriginalMapping)
+{
+	ensure(OriginalMapping.IsPlayerMappable() && OriginalMapping.GetMappingName() == ActionName);
+	
+	DefaultKey = OriginalMapping.Key;
+	DisplayName = OriginalMapping.GetDisplayName();
+
+	// If the mapping is the same as the default key, make sure that it is not marked as
+	// dirty so that we don't serialize it
+	if (!IsCustomized())
+	{
+		bIsDirty = false;
+	}
 }
 
 bool FPlayerKeyMapping::operator==(const FPlayerKeyMapping& Other) const
@@ -184,13 +209,18 @@ bool FPlayerKeyMapping::operator==(const FPlayerKeyMapping& Other) const
 	       ActionName			== Other.ActionName
 		&& Slot					== Other.Slot
 		&& HardwareDeviceId		== Other.HardwareDeviceId
-		&& CurrentKey		== Other.CurrentKey
-		&& OriginalMappingCopy	== Other.OriginalMappingCopy;
+		&& CurrentKey			== Other.CurrentKey
+		&& DefaultKey			== Other.DefaultKey;
 }
 
 bool FPlayerKeyMapping::operator!=(const FPlayerKeyMapping& Other) const
 {
 	return !FPlayerKeyMapping::operator==(Other);
+}
+
+const bool FPlayerKeyMapping::IsDirty() const
+{
+	return bIsDirty;
 }
 
 ///////////////////////////////////////////////////////////
@@ -438,6 +468,23 @@ namespace UE::EnhancedInput
 {
 	static const int32 GPlayerMappableSaveVersion = 1;
 
+	struct FKeyMappingSaveData
+	{
+		friend FArchive& operator<<(FArchive& Ar, FKeyMappingSaveData& Data)
+		{
+			Ar << Data.ActionName;
+			Ar << Data.CurrentKeyName;
+			Ar << Data.HardwareDeviceId;
+			Ar << Data.Slot;
+			return Ar;
+		}
+		
+		FName ActionName = NAME_None;
+		FName CurrentKeyName = NAME_None;
+		FHardwareDeviceIdentifier HardwareDeviceId = FHardwareDeviceIdentifier::Invalid;
+		EPlayerMappableKeySlot Slot = EPlayerMappableKeySlot::Unspecified;
+	};
+
 	/** Struct used to store info about the mappable profile subobjects */
 	struct FMappableKeysHeader
 	{
@@ -446,12 +493,14 @@ namespace UE::EnhancedInput
 			Ar << Header.ProfileIdentifier;
 			Ar << Header.ClassPath;
 			Ar << Header.ObjectPath;
+			Ar << Header.DirtyMappings;
 			return Ar;
 		}
 
 		FGameplayTag ProfileIdentifier;
 		FString ClassPath;
 		FString ObjectPath;
+		TArray<FKeyMappingSaveData> DirtyMappings;
 	};
 }
 
@@ -477,7 +526,33 @@ void UEnhancedInputUserSettings::Serialize(FArchive& Ar)
 		
 		for (TPair<FGameplayTag, UEnhancedPlayerMappableKeyProfile*> ProfilePair : SavedKeyProfiles)
 		{
-			Headers.Push({ ProfilePair.Key, ProfilePair.Value->GetClass()->GetPathName(), ProfilePair.Value->GetPathName(Outer) });
+			UE::EnhancedInput::FMappableKeysHeader Header =
+				{
+					/* .ProfileIdentifier = */ ProfilePair.Key,
+					/* .ClassPath = */ ProfilePair.Value->GetClass()->GetPathName(),
+					/* .ObjectPath = */ ProfilePair.Value->GetPathName(Outer),
+					/* .DirtyMappings = */ {}
+				};
+
+			// Serialize only dirty mappings here
+			for (TPair<FName, FKeyMappingRow>& MappingRow : ProfilePair.Value->PlayerMappedKeys)
+			{
+				for (FPlayerKeyMapping& Mapping : MappingRow.Value.Mappings)
+				{
+					if (Mapping.IsDirty())
+					{
+						Header.DirtyMappings.Push(
+							{
+								/* .ActionName = */ Mapping.ActionName,
+								/* .CurrentKeyName = */ Mapping.CurrentKey.GetFName(),
+								/* .HardwareDeviceId = */ Mapping.HardwareDeviceId, 
+								/* .Slot = */ Mapping.Slot
+							});
+					}
+				}
+			}
+
+			Headers.Push(Header);
 		}
 	}
 	
@@ -491,6 +566,20 @@ void UEnhancedInputUserSettings::Serialize(FArchive& Ar)
 			{
 				UEnhancedPlayerMappableKeyProfile* NewProfile = NewObject<UEnhancedPlayerMappableKeyProfile>(/* outer */ this, /* class */ FoundClass);
 				SavedKeyProfiles.Add(Header.ProfileIdentifier, NewProfile);
+
+				// Add any player saved keys to this profile!
+				for (UE::EnhancedInput::FKeyMappingSaveData& SavedKeyData : Header.DirtyMappings)
+				{
+					FKeyMappingRow& MappingRow = NewProfile->PlayerMappedKeys.FindOrAdd(SavedKeyData.ActionName);
+
+					FPlayerKeyMapping PlayerMapping = {};
+					PlayerMapping.ActionName = SavedKeyData.ActionName;
+					PlayerMapping.CurrentKey = FKey(SavedKeyData.CurrentKeyName);
+					PlayerMapping.Slot = SavedKeyData.Slot;
+					PlayerMapping.HardwareDeviceId = SavedKeyData.HardwareDeviceId;
+					
+					MappingRow.Mappings.Add(PlayerMapping);
+				}
 			}
 		}
 	}
@@ -789,9 +878,10 @@ bool UEnhancedInputUserSettings::RegisterInputMappingContext(UInputMappingContex
 		return false;
 	}
 
-	// There is no need to register an IMC if it already is
-	if( RegisteredMappingContexts.Contains(IMC))
+	// There is no need to re-register an IMC
+	if (RegisteredMappingContexts.Contains(IMC))
 	{
+		UE_LOG(LogEnhancedInput, VeryVerbose, TEXT("Mapping Context '%s' is already registered with the User Settings."), *IMC->GetFName().ToString());
 		return false;
 	}
 	
@@ -804,6 +894,11 @@ bool UEnhancedInputUserSettings::RegisterInputMappingContext(UInputMappingContex
 		ensure(false);
 		return false;
 	}
+
+	// A map that is used to store how many actions of a certain name are in this IMC
+	// this is how we can determine the slot that a new player key mapping needs
+	static TMap<FName, int32> OriginalMappingsDesiredSlot;
+	OriginalMappingsDesiredSlot.Reset();
 	
 	for (const FEnhancedActionKeyMapping& KeyMapping : IMC->GetMappings())
 	{
@@ -818,47 +913,52 @@ bool UEnhancedInputUserSettings::RegisterInputMappingContext(UInputMappingContex
 		// mapping options for a single Input Action. 
 		const FName ActionName = KeyMapping.GetMappingName();
 
-		// If a mapping row exists for this action name, then check if
-		bool bMappingIsInitalized = false;
-		if (FKeyMappingRow* ExistingMappings = CurrentProfile->PlayerMappedKeys.Find(ActionName))
+		// Iterate the number of mappings that use this action
+		int32& NumDefinedMappings = OriginalMappingsDesiredSlot.FindOrAdd(ActionName);
+
+		// Find or create a mapping row 
+		FKeyMappingRow& MappingRow = CurrentProfile->PlayerMappedKeys.FindOrAdd(ActionName);
+		
+		// By default, the slot will be determined by how many mappings this action has already.
+		// So if this is the first default mapping, then this will be EPlayerMappableKeySlot::First,
+		// if this is the second element going into this set then it will be EPlayerMappableKeySlot::Second
+		// and so on
+		const EPlayerMappableKeySlot IMCDefinedSlot =
+			(EPlayerMappableKeySlot)
+			(FMath::Min<uint8>(static_cast<uint8>(NumDefinedMappings), static_cast<uint8>(EPlayerMappableKeySlot::Max)));
+
+		// Update the number of mappings that have this action name
+		++NumDefinedMappings;
+		
+		bool bUpdatedExistingMapping = false;
+		
+		// If a key mapping exists when a mapping context is being registered, that means that it is a 
+		// customized player mapped key.
+		for (FPlayerKeyMapping& ExistingMapping : MappingRow.Mappings)
 		{
-			// Check if we actually have to initalize a new mapping or not
-			for (FPlayerKeyMapping& ExistingMapping : ExistingMappings->Mappings)
+			// We only want to update exiting mapping in the desired slot if one existed in the mapping context.
+			if (ExistingMapping.GetSlot() == IMCDefinedSlot)
 			{
-				// If the original mapping ha already been set, then we know that it's initalized already.
-				// If we don't do this, then registering an IMC will overrwrite whatever saved settings the user has made
-				if (ExistingMapping.OriginalMappingCopy == KeyMapping)
-				{
-					bMappingIsInitalized = true;
-					break;
-				}
+				// Update the fields on this mapping that the player can't change so that they
+				// get updated if the source UInputMappingContext asset has been changed
+				ExistingMapping.UpdateOriginalKey(KeyMapping);
+				bUpdatedExistingMapping = true;
 			}
+			
+			// it is possible that a player has mapped to more slots then you have specified
+			// in a mapping context asset. In that case, they won't have display names populated
+			// and their default key is correctly set to EKeys::Invalid
+			// That is why we need to move the display name to the mapping ROW, since the actions
+			// will have the same display name no matter what.
+			ExistingMapping.DisplayName = KeyMapping.GetDisplayName();
 		}
-		
-		if (!bMappingIsInitalized)
+
+		// If the mapping was not found in the existing row, then the player has not mapped anything to it.
+		// We need to create it based on the original key mapping
+		if (!bUpdatedExistingMapping)
 		{
-			FKeyMappingRow& MappingRow = CurrentProfile->PlayerMappedKeys.Add(ActionName);		
-
 			// Add a default mapping to this row
-			FPlayerKeyMapping PlayerMappingData = {};
-			PlayerMappingData.ActionName = ActionName;
-			PlayerMappingData.DefaultKey = KeyMapping.Key;
-			
-			if (UPlayerMappableKeySettings* Settings = KeyMapping.GetPlayerMappableKeySettings())
-			{
-				PlayerMappingData.DisplayName = Settings->DisplayName;
-			}
-			
-			PlayerMappingData.OriginalMappingCopy = KeyMapping;
-
-			// By default, the slot will be determined by how many mappings this action has already.
-			// So if this is the first default mapping, then this will be EPlayerMappableKeySlot::First,
-			// if this is the second element going into this set then it will be EPlayerMappableKeySlot::Second
-			// and so on
-			const uint8 DesiredSlot = FMath::Min<uint8>(static_cast<uint8>(MappingRow.Mappings.Num()), static_cast<uint8>(EPlayerMappableKeySlot::Max));
-			PlayerMappingData.Slot = (EPlayerMappableKeySlot) DesiredSlot;
-		
-			MappingRow.Mappings.Add(PlayerMappingData);
+			MappingRow.Mappings.Add({ KeyMapping, IMCDefinedSlot });	
 		}
 	}
 

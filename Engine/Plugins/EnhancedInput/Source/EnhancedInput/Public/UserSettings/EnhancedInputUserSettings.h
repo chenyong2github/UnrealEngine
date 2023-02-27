@@ -87,6 +87,8 @@ struct ENHANCEDINPUT_API FPlayerKeyMapping
 public:
 	
 	FPlayerKeyMapping();
+	
+	FPlayerKeyMapping(const FEnhancedActionKeyMapping& OriginalMapping, EPlayerMappableKeySlot InSlot = EPlayerMappableKeySlot::Unspecified);
 
 	/** A static invalid player key mapping to be used for easy comparisons in blueprint */
 	static FPlayerKeyMapping InvalidMapping;
@@ -129,40 +131,50 @@ public:
 
 	/** Sets the value of the current key to the one given */
 	void SetCurrentKey(const FKey& NewKey);
+
+	/**
+	 * Updates the metadata properties on this player mapped key based on the given
+	 * enhanced action mapping. This will populate the fields on this struct that are not editable
+	 * by the player such as the localized display name and default key.  
+	 */
+	void UpdateOriginalKey(const FEnhancedActionKeyMapping& OriginalMapping);
 	
 	ENHANCEDINPUT_API friend uint32 GetTypeHash(const FPlayerKeyMapping& InMapping);
 	bool operator==(const FPlayerKeyMapping& Other) const;
 	bool operator!=(const FPlayerKeyMapping& Other) const;
 
+	/** Returns true if this mapping has been modified since it was registered from an IMC */
+	const bool IsDirty() const;
+
 protected:
 	
 	/** The name of the action for this key */
-	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadOnly, Category="Enhanced Input|User Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
 	FName ActionName;
-
+	
 	/** Localized display name of this action */
-	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadOnly, Category="Enhanced Input|User Settings")
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
 	FText DisplayName;
 
 	/** What slot this key is mapped to */
-	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadOnly, Category="Enhanced Input|User Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
 	EPlayerMappableKeySlot Slot;
 	
+	/** True if this key mapping is dirty (i.e. has been changed by the player) */
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
+	uint8 bIsDirty : 1;
+	
 	/** The default key that this mapping was set to in its input mapping context */
-	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadOnly, Category="Enhanced Input|User Settings", meta = (AllowPrivateAccess = "True"))
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings", meta = (AllowPrivateAccess = "True"))
 	FKey DefaultKey;
 	
 	/** The key that the player has mapped this action to */
-	UPROPERTY(VisibleAnywhere, SaveGame,  BlueprintReadOnly, Category="Enhanced Input|User Settings", meta = (AllowPrivateAccess = "True"))
+	UPROPERTY(VisibleAnywhere,  BlueprintReadOnly, Category="Enhanced Input|User Settings", meta = (AllowPrivateAccess = "True"))
 	FKey CurrentKey;
 
 	/** An optional Hardware Device specifier for this mapping */
-	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadOnly, Category="Enhanced Input|User Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
 	FHardwareDeviceIdentifier HardwareDeviceId;
-
-	/** A copy of the action key mapping that this was generated from. This will only be set on mappings that were created by a Registered IMC */
-	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadOnly, Category="Enhanced Input|User Settings")
-	FEnhancedActionKeyMapping OriginalMappingCopy;
 };
 
 /**
@@ -176,7 +188,7 @@ struct ENHANCEDINPUT_API FKeyMappingRow
 {
 	GENERATED_BODY()
 
-	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadOnly, Category="Enhanced Input|User Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
 	TSet<FPlayerKeyMapping> Mappings;
 
 	/** Returns true if this row has any mappings in it */
@@ -295,8 +307,11 @@ protected:
 	UPROPERTY(BlueprintReadWrite, SaveGame, EditAnywhere, Category="Enhanced Input|User Settings")
 	FText DisplayName;
 	
-	/** A map of "Action Name" to all key mappings associated with it */
-	UPROPERTY(BlueprintReadOnly, SaveGame, EditAnywhere, Category="Enhanced Input|User Settings")
+	/**
+	 * A map of "Action Name" to all key mappings associated with it.
+	 * Note: Dirty mappings will be serialized from UEnhancedInputUserSettings::Serialize
+	 */
+	UPROPERTY(BlueprintReadOnly, Transient, EditAnywhere, Category="Enhanced Input|User Settings")
 	TMap<FName, FKeyMappingRow> PlayerMappedKeys;
 };
 
@@ -355,6 +370,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
 	virtual void ApplySettings();
 
+	/**
+	 * Synchronously save the settings to a hardcoded save game slot. This will work for simple games,
+	 * but if you need to integrate it into an advanced save system you should Serialize this object out with the rest of your save data.
+	 */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
 	virtual void SaveSettings();
 	
