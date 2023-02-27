@@ -12,6 +12,7 @@
 #include "PoseSearch/AnimNode_MotionMatching.h"
 #include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
 #include "PoseSearch/PoseSearchDatabase.h"
+#include "PoseSearch/PoseSearchDerivedData.h"
 #include "PoseSearch/PoseSearchSchema.h"
 #include "PoseSearchFeatureChannel_Trajectory.h"
 #include "Trace/PoseSearchTraceLogger.h"
@@ -350,25 +351,46 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 	{
 		InOutMotionMatchingState.ElapsedPoseSearchTime = 0.f;
 
+		// Evaluate continuing pose
+		FPoseSearchCost ContinuingPoseCost;
+		FPoseSearchFeatureVectorBuilder ContinuingPoseComposedQuery;
+		if (!SearchContext.bForceInterrupt && SearchContext.bCanAdvance && SearchContext.CurrentResult.Database.IsValid()
+#if WITH_EDITOR
+			&& FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(SearchContext.CurrentResult.Database.Get(), ERequestAsyncBuildFlag::ContinueRequest)
+#endif
+		)
+		{
+			const UPoseSearchDatabase* ContinuingPoseDatabase = SearchContext.CurrentResult.Database.Get();
+			if (ensure(ContinuingPoseDatabase->Schema))
+			{	
+				SearchContext.GetOrBuildQuery(ContinuingPoseDatabase->Schema, ContinuingPoseComposedQuery);
+				ContinuingPoseCost = ContinuingPoseDatabase->GetSearchIndex().ComparePoses(SearchContext.CurrentResult.PoseIdx, SearchContext.QueryMirrorRequest,
+					EPoseComparisonFlags::ContinuingPose, ContinuingPoseDatabase->Schema->MirrorMismatchCostBias, ContinuingPoseComposedQuery.GetValues());
+				SearchContext.UpdateCurrentBestCost(ContinuingPoseCost);
+			}
+		}
+
 		// Search the database for the nearest match to the updated query vector
 		FSearchResult SearchResult = Searchable->Search(SearchContext);
-
-		// making sure we haven't calculated ContinuingPoseCost if we !SearchContext.bCanAdvance 
-		check(SearchContext.bCanAdvance || !SearchResult.ContinuingPoseCost.IsValid());
-
-		if (SearchResult.PoseCost.GetTotalCost() < SearchResult.ContinuingPoseCost.GetTotalCost())
+		if (SearchResult.PoseCost.IsValid())
 		{
+			SearchContext.UpdateCurrentBestCost(SearchResult.PoseCost);
+		}
+
+		if (SearchResult.PoseCost.GetTotalCost() < ContinuingPoseCost.GetTotalCost())
+		{
+			SearchResult.ContinuingPoseCost = ContinuingPoseCost;
 			InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
 		}
 		else
 		{
 			// copying few properties of SearchResult into CurrentSearchResult to facilitate debug drawing
 #if WITH_EDITOR
-			InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost = SearchResult.BruteForcePoseCost;
+			InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost = ContinuingPoseCost;
 #endif
-			InOutMotionMatchingState.CurrentSearchResult.PoseCost = SearchResult.PoseCost;
-			InOutMotionMatchingState.CurrentSearchResult.ContinuingPoseCost = SearchResult.ContinuingPoseCost;
-			InOutMotionMatchingState.CurrentSearchResult.ComposedQuery = SearchResult.ComposedQuery;
+			InOutMotionMatchingState.CurrentSearchResult.PoseCost = ContinuingPoseCost;
+			InOutMotionMatchingState.CurrentSearchResult.ContinuingPoseCost = ContinuingPoseCost;
+			InOutMotionMatchingState.CurrentSearchResult.ComposedQuery = ContinuingPoseComposedQuery;
 		}
 
 		InOutMotionMatchingState.UpdateWantedPlayRate(SearchContext, Settings);

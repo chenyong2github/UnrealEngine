@@ -769,29 +769,13 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 		}
 	}
 
-	SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
-
-	TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
-
-	const bool IsCurrentResultFromThisDatabase = SearchContext.IsCurrentResultFromDatabase(this);
-
-	// evaluating the continuing pose only if it hasn't already being evaluated and the related animation can advance
-	if (!SearchContext.bForceInterrupt && IsCurrentResultFromThisDatabase && SearchContext.bCanAdvance && !Result.ContinuingPoseCost.IsValid())
-	{
-		Result.PoseIdx = SearchContext.CurrentResult.PoseIdx;
-		Result.PoseCost = SearchIndex.ComparePoses(Result.PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::ContinuingPose, Schema->MirrorMismatchCostBias, QueryValues);
-		Result.ContinuingPoseCost = Result.PoseCost;
-
-		if (GetSkipSearchIfPossible())
-		{
-			SearchContext.UpdateCurrentBestCost(Result.PoseCost);
-		}
-	}
-
 	// since any PoseCost calculated here is at least SearchIndex.MinCostAddend,
 	// there's no point in performing the search if CurrentBestTotalCost is already better than that
-	if (SearchContext.GetCurrentBestTotalCost() > SearchIndex.MinCostAddend)
+	if (!GetSkipSearchIfPossible() || SearchContext.GetCurrentBestTotalCost() > SearchIndex.MinCostAddend)
 	{
+		SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
+		TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
+
 		FNonSelectableIdx NonSelectableIdx;
 		PopulateNonSelectableIdx(NonSelectableIdx, SearchContext, this, QueryValues);
 		FKDTree::KNNResultSet ResultSet(ClampedKDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr, NonSelectableIdx);
@@ -833,16 +817,13 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 #endif
 			}
 		}
-
-		if (GetSkipSearchIfPossible() && Result.PoseCost.IsValid())
-		{
-			SearchContext.UpdateCurrentBestCost(Result.PoseCost);
-		}
 	}
 	else
 	{
 #if UE_POSE_SEARCH_TRACE_ENABLED
 		// calling just for reporting non selectable poses
+		SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
+		TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
 		FNonSelectableIdx NonSelectableIdx;
 		PopulateNonSelectableIdx(NonSelectableIdx, SearchContext, this, QueryValues);
 #endif
@@ -869,30 +850,13 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 
 	const FPoseSearchIndex& SearchIndex = GetSearchIndex();
 
-	SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
-	TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
-
-	const bool IsCurrentResultFromThisDatabase = SearchContext.IsCurrentResultFromDatabase(this);
-	if (!SearchContext.bForceInterrupt && IsCurrentResultFromThisDatabase)
-	{
-		// evaluating the continuing pose only if it hasn't already being evaluated and the related animation can advance
-		if (SearchContext.bCanAdvance && !Result.ContinuingPoseCost.IsValid())
-		{
-			Result.PoseIdx = SearchContext.CurrentResult.PoseIdx;
-			Result.PoseCost = SearchIndex.ComparePoses(Result.PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::ContinuingPose, Schema->MirrorMismatchCostBias, QueryValues);
-			Result.ContinuingPoseCost = Result.PoseCost;
-
-			if (GetSkipSearchIfPossible())
-			{
-				SearchContext.UpdateCurrentBestCost(Result.PoseCost);
-			}
-		}
-	}
-
 	// since any PoseCost calculated here is at least SearchIndex.MinCostAddend,
 	// there's no point in performing the search if CurrentBestTotalCost is already better than that
-	if (SearchContext.GetCurrentBestTotalCost() > SearchIndex.MinCostAddend)
+	if (!GetSkipSearchIfPossible() || SearchContext.GetCurrentBestTotalCost() > SearchIndex.MinCostAddend)
 	{
+		SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
+		TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
+
 		FNonSelectableIdx NonSelectableIdx;
 		PopulateNonSelectableIdx(NonSelectableIdx, SearchContext, this, QueryValues);
 		check(Algo::IsSorted(NonSelectableIdx));
@@ -921,16 +885,13 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 #endif
 			}
 		}
-
-		if (GetSkipSearchIfPossible() && Result.PoseCost.IsValid())
-		{
-			SearchContext.UpdateCurrentBestCost(Result.PoseCost);
-		}
 	}
 	else
 	{
 #if UE_POSE_SEARCH_TRACE_ENABLED
 		// calling just for reporting non selectable poses
+		SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
+		TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
 		FNonSelectableIdx NonSelectableIdx;
 		PopulateNonSelectableIdx(NonSelectableIdx, SearchContext, this, QueryValues);
 #endif
