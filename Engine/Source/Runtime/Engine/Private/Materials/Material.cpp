@@ -861,7 +861,7 @@ extern FMaterialResource* FindMaterialResource(const TArray<FMaterialResource*>&
 FMaterialResource* FindMaterialResource(TArray<FMaterialResource*>& MaterialResources, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel, bool bAllowDefaultQuality)
 {
 	FMaterialResource* DefaultResource = nullptr;
-	for (int32 ResourceIndex = 0; ResourceIndex < MaterialResources.Num(); ++ResourceIndex)
+	for (int32 ResourceIndex = 0, NumMaterialResources = MaterialResources.Num(); ResourceIndex < NumMaterialResources; ++ResourceIndex)
 	{
 		FMaterialResource* CurrentResource = MaterialResources[ResourceIndex];
 		if (CurrentResource->GetFeatureLevel() == InFeatureLevel)
