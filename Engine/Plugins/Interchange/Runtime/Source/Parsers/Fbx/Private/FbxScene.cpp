@@ -18,6 +18,7 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Nodes/InterchangeSourceNode.h"
 #include "Nodes/InterchangeUserDefinedAttribute.h"
+#include "InterchangeAnimationTrackSetNode.h"
 
 #define LOCTEXT_NAMESPACE "InterchangeFbxScene"
 
@@ -279,8 +280,6 @@ namespace UE
 						}
 					}
 				}
-				//Scene node transform can be animated, add the transform animation payload key.
-				FFbxAnimation::AddNodeTransformAnimation(SDKScene, Parser, Node, UnrealNode, PayloadContexts);
 
 				//Add all custom Attributes for the node
 				FbxProperty Property = Node->GetFirstProperty();
@@ -443,50 +442,350 @@ namespace UE
 			void FFbxScene::AddHierarchy(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts)
 			{
 				 FbxNode* RootNode = SDKScene->GetRootNode();
-				 //Create a source node where we can store any general file info
-				 {
-					 UInterchangeSourceNode* SourceNode = UInterchangeSourceNode::FindOrCreateUniqueInstance(&NodeContainer);
-					 if (!ensure(SourceNode))
-					 {
-						 UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
-						 Message->Text = LOCTEXT("NodeAllocationError", "Unable to allocate a node when importing FBX.");
-						 return;
-					 }
 
-					 //Store the fbx frame rate
-					 {
-						 double FrameRate = FbxTime::GetFrameRate(SDKScene->GetGlobalSettings().GetTimeMode());
-						 SourceNode->SetCustomSourceFrameRateNumerator(FrameRate);
-						 constexpr double Denominator = 1.0;
-						 SourceNode->SetCustomSourceFrameRateDenominator(Denominator);
-					 }
-
-					 //Store the fbx timeline
-					 {
-						 //Timeline time span
-						 FbxTimeSpan TimelineTimeSpan(FBXSDK_TIME_INFINITE, FBXSDK_TIME_MINUS_INFINITE);
-						 SDKScene->GetGlobalSettings().GetTimelineDefaultTimeSpan(TimelineTimeSpan);
-						 SourceNode->SetCustomSourceTimelineStart(TimelineTimeSpan.GetStart().GetSecondDouble());
-						 SourceNode->SetCustomSourceTimelineEnd(TimelineTimeSpan.GetStop().GetSecondDouble());
-
-						 //Animated time span
-						 FbxTimeSpan AnimatedTimeSpan(FBXSDK_TIME_INFINITE, FBXSDK_TIME_MINUS_INFINITE);
-						 int32 AnimCurveNodeCount = SDKScene->GetSrcObjectCount<FbxAnimCurveNode>();
-						 for (int32 AnimCurveNodeIndex = 0; AnimCurveNodeIndex < AnimCurveNodeCount; AnimCurveNodeIndex++)
-						 {
-							 FbxAnimCurveNode* CurAnimCruveNode = SDKScene->GetSrcObject<FbxAnimCurveNode>(AnimCurveNodeIndex);
-							 if (CurAnimCruveNode->IsAnimated(true))
-							 {
-								 FbxTimeSpan CurveTimeSpan(FBXSDK_TIME_INFINITE, FBXSDK_TIME_MINUS_INFINITE);
-								 CurAnimCruveNode->GetAnimationInterval(CurveTimeSpan);
-								 AnimatedTimeSpan.UnionAssignment(CurveTimeSpan);
-							 }
-						 }
-						 SourceNode->SetCustomAnimatedTimeStart(AnimatedTimeSpan.GetStart().GetSecondDouble());
-						 SourceNode->SetCustomAnimatedTimeEnd(AnimatedTimeSpan.GetStop().GetSecondDouble());
-					 }
-				 }
 				 AddHierarchyRecursively(nullptr, RootNode, SDKScene, NodeContainer, PayloadContexts);
+			}
+
+			void FFbxScene::AddRigidAnimation(FbxNode* Node
+				, UInterchangeSceneNode* UnrealNode
+				, UInterchangeBaseNodeContainer& NodeContainer
+				, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts)
+			{
+				FbxAnimCurveNode* TranlsationCurveNode = nullptr;
+				FbxAnimCurveNode* RotationCurveNode = nullptr;
+				FbxAnimCurveNode* ScaleCurveNode = nullptr;
+
+				FbxProperty Property = Node->GetFirstProperty();
+				while (Property.IsValid())
+				{
+					EFbxType PropertyType = Property.GetPropertyDataType().GetType();
+
+					if (FFbxAnimation::IsFbxPropertyTypeSupported(PropertyType))
+					{
+						FbxAnimCurveNode* CurveNode = Property.GetCurveNode();
+
+						//only translation/rotation/scale is supported
+						if (CurveNode && CurveNode->IsAnimated())
+						{
+							//(currently FBXSDK_CURVENODE_TRANSFORM is not supported for Curve based animations)
+
+							const char* CurveNodeName = CurveNode->GetName(); //which lets us know the component that we are animating:
+							if (std::strcmp(CurveNodeName, FBXSDK_CURVENODE_TRANSLATION) == 0)
+							{
+								TranlsationCurveNode = CurveNode;
+							}
+							else if (std::strcmp(CurveNodeName, FBXSDK_CURVENODE_ROTATION) == 0)
+							{
+								RotationCurveNode = CurveNode;
+							}
+							else if (std::strcmp(CurveNodeName, FBXSDK_CURVENODE_SCALING) == 0)
+							{
+								ScaleCurveNode = CurveNode;
+							}
+						}
+					}
+					Property = Node->GetNextProperty(Property);
+				}
+
+				//
+				constexpr int32 TranslationChannel = 0x0001 | 0x0002 | 0x0004;
+				constexpr int32 RotationChannel = 0x0008 | 0x0010 | 0x0020;
+				constexpr int32 ScaleChannel = 0x0040 | 0x0080 | 0x0100;
+
+				int32 UsedChannels = 0;
+				if (TranlsationCurveNode)
+				{
+					UsedChannels |= TranslationChannel;
+				}
+				if (RotationCurveNode)
+				{
+					UsedChannels |= RotationChannel;
+				}
+				if (ScaleCurveNode)
+				{
+					UsedChannels |= ScaleChannel;
+				}
+
+				if (UsedChannels)
+				{
+					TOptional<FString> PayloadKey;
+
+					FFbxAnimation::AddRigidTransformAnimation(Parser, Node, TranlsationCurveNode, RotationCurveNode, ScaleCurveNode, PayloadContexts, PayloadKey);
+
+					if (PayloadKey.IsSet())
+					{
+						UInterchangeTransformAnimationTrackNode* TransformAnimTrackNode = NewObject< UInterchangeTransformAnimationTrackNode >(&NodeContainer);
+
+						const FString TransformAnimTrackNodeName = FString::Printf(TEXT("%s"), *UnrealNode->GetDisplayLabel());
+						const FString TransformAnimTrackNodeUid = TEXT("\\AnimationTrack\\") + TransformAnimTrackNodeName;
+
+						TransformAnimTrackNode->InitializeNode(TransformAnimTrackNodeUid, TransformAnimTrackNodeName, EInterchangeNodeContainerType::TranslatedAsset);
+
+						TransformAnimTrackNode->SetCustomActorDependencyUid(*UnrealNode->GetUniqueID());
+
+						TransformAnimTrackNode->SetCustomAnimationPayloadKey(PayloadKey.GetValue());
+
+						TransformAnimTrackNode->SetCustomUsedChannels(UsedChannels);
+
+						NodeContainer.AddNode(TransformAnimTrackNode);
+					}
+				}
+			}
+
+			void FFbxScene::AddAnimationRecursively(FbxNode* Node
+				, FbxScene* SDKScene
+				, UInterchangeBaseNodeContainer& NodeContainer
+				, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts
+				, UInterchangeSkeletalAnimationTrackNode* SkeletalAnimationTrackNode, bool SkeletalAnimationAddedToContainer
+				, const FString& RootSceneNodeUid, const TSet<FString>& SkeletonRootNodeUids
+				, const int32& AnimationIndex)
+			{
+				FString NodeUniqueID = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(Node);
+				if (UInterchangeSceneNode* UnrealNode = const_cast<UInterchangeSceneNode*>(Cast< UInterchangeSceneNode >(NodeContainer.GetNode(NodeUniqueID))))
+				{
+					bool HasSkeletonAttribute = false;
+					int32 AttributeCount = Node->GetNodeAttributeCount();
+
+					for (int32 AttributeIndex = 0; AttributeIndex < AttributeCount && !HasSkeletonAttribute; ++AttributeIndex)
+					{
+						FbxNodeAttribute* NodeAttribute = Node->GetNodeAttributeByIndex(AttributeIndex);
+						switch (NodeAttribute->GetAttributeType())
+						{
+						case FbxNodeAttribute::eNull:
+						case FbxNodeAttribute::eSkeleton:
+							HasSkeletonAttribute = true;
+							if (SkeletonRootNodeUids.Contains(NodeUniqueID))
+							{
+								SkeletalAnimationTrackNode = NewObject< UInterchangeSkeletalAnimationTrackNode >(&NodeContainer);
+								FString TrackNodeUid = "\\SkeletalAnimation\\" + UnrealNode->GetUniqueID() + "_" + FString::FromInt(AnimationIndex);
+								FString DisplayString = "Anim_" + FString::FromInt(AnimationIndex) + "_" + UnrealNode->GetDisplayLabel();
+								SkeletalAnimationTrackNode->InitializeNode(TrackNodeUid, DisplayString, EInterchangeNodeContainerType::TranslatedAsset);
+
+								double FrameRate = FbxTime::GetFrameRate(SDKScene->GetGlobalSettings().GetTimeMode());
+								SkeletalAnimationTrackNode->SetCustomAnimationSampleRate(FrameRate);
+
+								SkeletalAnimationTrackNode->SetCustomSkeletonNodeUid(UnrealNode->GetUniqueID());
+
+								//Calculate AnimationTime:
+								FbxAnimStack* CurrentAnimationStack = (FbxAnimStack*)SDKScene->GetSrcObject<FbxAnimStack>(AnimationIndex);
+								FbxTimeSpan TimeSpan = CurrentAnimationStack->GetLocalTimeSpan();
+
+								SkeletalAnimationTrackNode->SetCustomAnimationStartTime(TimeSpan.GetStart().GetSecondDouble());
+								SkeletalAnimationTrackNode->SetCustomAnimationStopTime(TimeSpan.GetStop().GetSecondDouble());
+							}
+							break;
+						default:
+							break;
+						}
+					}
+
+					if (!HasSkeletonAttribute)
+					{
+						//in case the joint node "hierarchy finished" then the SkeletalAnimationTrackNode should be reset:
+						//as on the next occurance of a Joint node a New skeleton will start:
+						SkeletalAnimationTrackNode = nullptr;
+
+						SkeletalAnimationAddedToContainer = false;
+
+						//if No Skeleton Attribute then it potentially has a Rigid animation:
+						//AnimationIndex does not change the Skeletal Attributes nor the Properties from which we gather the Rigid Animation Data:
+						if (AnimationIndex == 0)
+						{
+							AddRigidAnimation(Node, UnrealNode, NodeContainer, PayloadContexts);
+						}
+					}
+					else if (SkeletalAnimationTrackNode)
+					{
+						//Scene node transform can be animated, add the transform animation payload key.
+						if (FFbxAnimation::AddSkeletalTransformAnimation(SDKScene, Parser, Node, UnrealNode, PayloadContexts, SkeletalAnimationTrackNode, AnimationIndex)
+							&& !SkeletalAnimationAddedToContainer)
+						{
+							SkeletalAnimationAddedToContainer = true;
+							NodeContainer.AddNode(SkeletalAnimationTrackNode);
+						}
+					}
+				}
+			
+
+				const int32 ChildCount = Node->GetChildCount();
+				for (int32 ChildIndex = 0; ChildIndex < ChildCount; ++ChildIndex)
+				{
+					FbxNode* ChildNode = Node->GetChild(ChildIndex);
+					AddAnimationRecursively(ChildNode, SDKScene, NodeContainer, PayloadContexts, SkeletalAnimationTrackNode, SkeletalAnimationAddedToContainer, RootSceneNodeUid, SkeletonRootNodeUids, AnimationIndex);
+				}
+			}
+
+			void FFbxScene::AddAnimation(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts)
+			{
+				FbxNode* RootNode = SDKScene->GetRootNode();
+				FString RootSceneNodeUniqueID = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(RootNode);
+
+				//acquire Skeletal Node Uids from Meshes (via the skeletondependencies: )
+				TSet<FString> SkeletonRootNodeUids;
+				NodeContainer.IterateNodesOfType<UInterchangeMeshNode>([&](const FString& NodeUid, UInterchangeMeshNode* MeshNode)
+					{
+						//Find the root joint for this MeshGeometry
+						FString JointNodeUid;
+						FString ParentNodeUid;
+						MeshNode->GetSkeletonDependency(0, JointNodeUid);
+						ParentNodeUid = JointNodeUid;
+						
+						while (!JointNodeUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
+						{
+							if (const UInterchangeSceneNode* Node = Cast< UInterchangeSceneNode >(NodeContainer.GetNode(ParentNodeUid)))
+							{
+								if (Node->IsSpecializedTypeContains(FSceneNodeStaticData::GetJointSpecializeTypeString()))
+								{
+									JointNodeUid = ParentNodeUid;
+									ParentNodeUid = Node->GetParentUid();
+								}
+								else
+								{
+									break;
+								}
+							}
+							else
+							{
+								break;
+							}
+						}
+
+						if (!JointNodeUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
+						{
+							SkeletonRootNodeUids.Add(JointNodeUid);
+						}
+					});
+
+				int32 NumAnimations = SDKScene->GetSrcObjectCount<FbxAnimStack>();
+
+
+				for (int32 AnimationIndex = 0; AnimationIndex < NumAnimations; AnimationIndex++)
+				{
+					AddAnimationRecursively(RootNode, SDKScene, NodeContainer, PayloadContexts, nullptr, false, RootSceneNodeUniqueID, SkeletonRootNodeUids, AnimationIndex);
+				}
+
+				TArray<FString> TransformAnimTrackNodeUids;
+				NodeContainer.IterateNodesOfType<UInterchangeTransformAnimationTrackNode>([&](const FString& NodeUid, UInterchangeTransformAnimationTrackNode* TransformAnimationTrackNode)
+					{
+						TransformAnimTrackNodeUids.Add(NodeUid);
+					});
+
+				//Only one Track Set Node per fbx file:
+				if (TransformAnimTrackNodeUids.Num() > 0)
+				{
+					UInterchangeAnimationTrackSetNode* TrackSetNode = NewObject< UInterchangeAnimationTrackSetNode >(&NodeContainer);
+
+					const FString AnimTrackSetNodeUid = TEXT("\\Animation\\") + FString(RootNode->GetName());
+					const FString AnimTrackSetNodeDisplayLabel = FString(RootNode->GetName()) + TEXT("_TrackSetNode");
+					TrackSetNode->InitializeNode(AnimTrackSetNodeUid, AnimTrackSetNodeDisplayLabel, EInterchangeNodeContainerType::TranslatedAsset);
+
+					NodeContainer.AddNode(TrackSetNode);
+
+					for (const FString& TransformAnimTrackNodeUid : TransformAnimTrackNodeUids)
+					{
+						TrackSetNode->AddCustomAnimationTrackUid(TransformAnimTrackNodeUid);
+					}
+				}
+			}
+
+			void FFbxScene::AddMorphTargetAnimations(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts, const TArray<FMorphTargetAnimationBuildingData>& MorphTargetAnimationsBuildingData)
+			{
+				//Group the Morph Target animations based on SkeletonNodeUid and AnimationIndex
+				TMap<const UInterchangeSceneNode*, TMap<int32, TArray<FMorphTargetAnimationBuildingData>>> MorphTargetAnimationsBuildingDataGrouped;
+
+				for (const FMorphTargetAnimationBuildingData& MorphTargetAnimationBuildingData : MorphTargetAnimationsBuildingData)
+				{
+					if (MorphTargetAnimationBuildingData.StartTime == MorphTargetAnimationBuildingData.StopTime)
+					{
+						//in case the interval is 0 skip the MorphTargetAnimation.
+						continue;
+					}
+					
+					FString SkeletonUid;
+					if (MorphTargetAnimationBuildingData.InterchangeMeshNode->IsSkinnedMesh())
+					{
+						//Find the root joint for this MeshGeometry
+						FString JointNodeUid;
+						FString ParentNodeUid;
+						MorphTargetAnimationBuildingData.InterchangeMeshNode->GetSkeletonDependency(0, JointNodeUid);
+						ParentNodeUid = JointNodeUid;
+
+						while (!JointNodeUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
+						{
+							if (const UInterchangeSceneNode* Node = Cast< UInterchangeSceneNode >(NodeContainer.GetNode(ParentNodeUid)))
+							{
+								if (Node->IsSpecializedTypeContains(FSceneNodeStaticData::GetJointSpecializeTypeString()))
+								{
+									JointNodeUid = ParentNodeUid;
+									ParentNodeUid = Node->GetParentUid();
+								}
+								else
+								{
+									break;
+								}
+							}
+							else
+							{
+								break;
+							}
+						}
+
+						if (!JointNodeUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
+						{
+							SkeletonUid = JointNodeUid;
+						}
+					}
+					else
+					{
+						//If it is not skinned then the only way to get this animation to show up is by mesh type forcing to Skeleton,
+						//where the root node id is going to be the Skeleton id:
+						FbxNode* RootNode = SDKScene->GetRootNode();
+						SkeletonUid = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(RootNode);
+					}
+
+					if (const UInterchangeSceneNode* SkeletonNode = Cast< UInterchangeSceneNode >(NodeContainer.GetNode(SkeletonUid)))
+					{
+						//For the given skeleton:
+						TMap<int32, TArray<FMorphTargetAnimationBuildingData>>& MorphTargetAnimationPerAnimationIndex = MorphTargetAnimationsBuildingDataGrouped.FindOrAdd(SkeletonNode);
+						//For the given skeleton and animationindex:
+						TArray<FMorphTargetAnimationBuildingData>& MorphTargetAnimations = MorphTargetAnimationPerAnimationIndex.FindOrAdd(MorphTargetAnimationBuildingData.AnimationIndex);
+						MorphTargetAnimations.Add(MorphTargetAnimationBuildingData);
+					}
+				}
+				
+				for (const TPair<const UInterchangeSceneNode*, TMap<int32, TArray<FMorphTargetAnimationBuildingData>>>& MorphTargetAnimationBuildingDataGrouped : MorphTargetAnimationsBuildingDataGrouped)
+				{
+					const UInterchangeSceneNode* SkeletonNode = MorphTargetAnimationBuildingDataGrouped.Key;
+					FString SkeletonDisplayLabel = SkeletonNode->GetDisplayLabel();
+
+					for (const TPair<int32, TArray<FMorphTargetAnimationBuildingData>>& MorphTargetAnimationsBuildingDataPerSkeleton : MorphTargetAnimationBuildingDataGrouped.Value)
+					{
+						int32 AnimationIndex = MorphTargetAnimationsBuildingDataPerSkeleton.Key;
+
+						FbxAnimStack* CurrentAnimationStack = (FbxAnimStack*)SDKScene->GetSrcObject<FbxAnimStack>(AnimationIndex);
+						FbxTimeSpan TimeSpan = CurrentAnimationStack->GetLocalTimeSpan();
+
+						UInterchangeSkeletalAnimationTrackNode* SkeletalAnimationTrackNode = NewObject< UInterchangeSkeletalAnimationTrackNode >(&NodeContainer);
+						FString TrackNodeUid = "\\MorphTargetAnimation\\" + SkeletonNode->GetUniqueID() + TEXT("\\") + FString::FromInt(AnimationIndex);
+						FString DisplayString = SkeletonNode->GetDisplayLabel() + TEXT("_MorphAnim_") + FString::FromInt(AnimationIndex);
+						SkeletalAnimationTrackNode->InitializeNode(TrackNodeUid, DisplayString, EInterchangeNodeContainerType::TranslatedAsset);
+
+						double FrameRate = FbxTime::GetFrameRate(SDKScene->GetGlobalSettings().GetTimeMode());
+						SkeletalAnimationTrackNode->SetCustomAnimationSampleRate(FrameRate);
+
+						SkeletalAnimationTrackNode->SetCustomSkeletonNodeUid(SkeletonNode->GetUniqueID());
+
+						SkeletalAnimationTrackNode->SetCustomAnimationStartTime(TimeSpan.GetStart().GetSecondDouble());
+						SkeletalAnimationTrackNode->SetCustomAnimationStopTime(TimeSpan.GetStop().GetSecondDouble());
+
+						NodeContainer.AddNode(SkeletalAnimationTrackNode);
+						
+						for (const FMorphTargetAnimationBuildingData& MorphTargetAnimationBuildingDataPerSkeletonPerAnimationIndex : MorphTargetAnimationsBuildingDataPerSkeleton.Value)
+						{
+							UE::Interchange::Private::FFbxAnimation::AddMorphTargetCurvesAnimation(SDKScene, Parser, SkeletalAnimationTrackNode, PayloadContexts, MorphTargetAnimationBuildingDataPerSkeletonPerAnimationIndex);
+						}
+					}
+				}
 			}
 		} //ns Private
 	} //ns Interchange

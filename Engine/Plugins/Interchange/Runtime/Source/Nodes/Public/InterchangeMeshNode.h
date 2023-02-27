@@ -16,7 +16,6 @@ namespace UE
 		struct INTERCHANGENODES_API FMeshNodeStaticData : public FBaseNodeStaticData
 		{
 			static const FAttributeKey& PayloadSourceKey();
-			static const FAttributeKey& PayloadAnimationCurveKey();
 			static const FAttributeKey& IsSkinnedMeshKey();
 			static const FAttributeKey& IsMorphTargetKey();
 			static const FAttributeKey& MorphTargetNameKey();
@@ -106,11 +105,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
 	virtual void SetPayLoadKey(const FString& PayloadKey);
-
-	virtual const TOptional<FString> GetAnimationCurvePayLoadKey() const;
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	virtual void SetAnimationCurvePayLoadKey(const FString& PayloadKey);
 	
 	/** Query this mesh vertices count. Return false if the attribute was not set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")

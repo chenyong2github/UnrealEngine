@@ -31,7 +31,6 @@ namespace UE
 
 /**
  * The scene node represent a transform node in the scene
- * Scene node can have animations: Use UInterchangeAnimationAPI to get\set animation datas
  * Scene node can have user defined attribute. Use UInterchangeUserDefinedAttributesAPI to get\set user define attribute data
  */
 UCLASS(BlueprintType, Experimental)

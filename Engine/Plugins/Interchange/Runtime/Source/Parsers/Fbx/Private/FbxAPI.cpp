@@ -129,6 +129,8 @@ namespace UE
 
 				FFbxScene FbxScene(*this);
 				FbxScene.AddHierarchy(SDKScene, NodeContainer, PayloadContexts);
+				FbxScene.AddAnimation(SDKScene, NodeContainer, PayloadContexts);
+				FbxScene.AddMorphTargetAnimations(SDKScene, NodeContainer, PayloadContexts, FbxMesh.GetMorphTargetAnimationsBuildingData());
 			}
 
 			bool FFbxParser::FetchPayloadData(const FString& PayloadKey, const FString& PayloadFilepath)

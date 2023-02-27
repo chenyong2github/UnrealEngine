@@ -16,7 +16,6 @@
 #include "InterchangeSkeletonFactoryNode.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
-#include "Nodes/InterchangeAnimationAPI.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Nodes/InterchangeSourceNode.h"
@@ -298,28 +297,11 @@ namespace UE::Interchange::Private
 			TMap<FString, FString> PayloadKeys;
 			AnimSequenceFactoryNode->GetSceneNodeAnimationPayloadKeys(PayloadKeys);
 
-			if (PayloadKeys.Num() == 0)
+			for (const TTuple<FString, FString>& SceneNodeUidAndPayloadKey : PayloadKeys)
 			{
-				for (const FString& NodeUid : SkeletonNodes)
+				if (const UInterchangeSceneNode* SkeletonSceneNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(SceneNodeUidAndPayloadKey.Key)))
 				{
-					if (const UInterchangeSceneNode* SkeletonSceneNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(NodeUid)))
-					{
-						FString PayloadKey;
-						if (UInterchangeAnimationAPI::GetCustomNodeTransformPayloadKey(SkeletonSceneNode, PayloadKey))
-						{
-							AnimationPayloads.Add(SkeletonSceneNode, AnimSequenceTranslatorPayloadInterface->GetAnimationBakeTransformPayloadData(PayloadKey, SampleRate, RangeStart, RangeEnd));
-						}
-					}
-				}
-			}
-			else
-			{
-				for (const TTuple<FString, FString>& SceneNodeUidAndPayloadKey : PayloadKeys)
-				{
-					if (const UInterchangeSceneNode* SkeletonSceneNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(SceneNodeUidAndPayloadKey.Key)))
-					{
-						AnimationPayloads.Add(SkeletonSceneNode, AnimSequenceTranslatorPayloadInterface->GetAnimationBakeTransformPayloadData(SceneNodeUidAndPayloadKey.Value, SampleRate, RangeStart, RangeEnd));
-					}
+					AnimationPayloads.Add(SkeletonSceneNode, AnimSequenceTranslatorPayloadInterface->GetAnimationBakeTransformPayloadData(SceneNodeUidAndPayloadKey.Value, SampleRate, RangeStart, RangeEnd));
 				}
 			}
 
@@ -518,38 +500,17 @@ namespace UE::Interchange::Private
 				TMap<FString, TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>>> AnimationCurvesPayloads;
 				TMap<FString, FString> AnimationCurveMorphTargetNodeNames;
 
-				if (MorphTargetNodeAnimationPayloads.Num() > 0)
+				for (const TPair<FString, FString>& MorphTargetNodeUidAnimationPayload : MorphTargetNodeAnimationPayloads)
 				{
-					for (const TPair<FString, FString>& MorphTargetNodeUidAnimationPayload : MorphTargetNodeAnimationPayloads)
+					FString PayloadKey = MorphTargetNodeUidAnimationPayload.Value;
+					if (PayloadKey.Len() == 0)
 					{
-						FString PayloadKey = MorphTargetNodeUidAnimationPayload.Value;
-						if (PayloadKey.Len() == 0)
-						{
-							continue;
-						}
-						if (const UInterchangeMeshNode* MorphTargetNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(MorphTargetNodeUidAnimationPayload.Key)))
-						{
-							AnimationCurvesPayloads.Add(PayloadKey, AnimSequenceTranslatorPayloadInterface->GetAnimationCurvePayloadData(PayloadKey));
-							AnimationCurveMorphTargetNodeNames.Add(PayloadKey, MorphTargetNode->GetDisplayLabel());
-						}
+						continue;
 					}
-				}
-				else
-				{
-					//Import morph target curves (FRichCurve is what anim api )
-					TArray<FString> AnimatedMorphTargetUids;
-					AnimSequenceFactoryNode->GetAnimatedMorphTargetDependencies(AnimatedMorphTargetUids);
-					for (const FString& MorphTargetUid : AnimatedMorphTargetUids)
+					if (const UInterchangeMeshNode* MorphTargetNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(MorphTargetNodeUidAnimationPayload.Key)))
 					{
-						if (const UInterchangeMeshNode* MorphTargetNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(MorphTargetUid)))
-						{
-							TOptional<FString> PayloadKey = MorphTargetNode->GetAnimationCurvePayLoadKey();
-							if (PayloadKey.IsSet())
-							{
-								AnimationCurvesPayloads.Add(PayloadKey.GetValue(), AnimSequenceTranslatorPayloadInterface->GetAnimationCurvePayloadData(PayloadKey.GetValue()));
-								AnimationCurveMorphTargetNodeNames.Add(PayloadKey.GetValue(), MorphTargetNode->GetDisplayLabel());
-							}
-						}
+						AnimationCurvesPayloads.Add(PayloadKey, AnimSequenceTranslatorPayloadInterface->GetAnimationCurvePayloadData(PayloadKey));
+						AnimationCurveMorphTargetNodeNames.Add(PayloadKey, MorphTargetNode->GetDisplayLabel());
 					}
 				}
 

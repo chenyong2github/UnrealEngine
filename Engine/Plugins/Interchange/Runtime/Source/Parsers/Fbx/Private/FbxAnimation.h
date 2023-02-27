@@ -11,14 +11,20 @@
 struct FMeshDescription;
 class UInterchangeMeshNode;
 class UInterchangeSceneNode;
+class UInterchangeSkeletalAnimationTrackNode;
 
 namespace UE::Interchange::Private
 {
+	struct FMorphTargetAnimationBuildingData;
+
+	//Skeletal/Rigged Animation
 	struct FNodeTransformFetchPayloadData
 	{
 		FbxNode* Node = nullptr;
+		FbxAnimStack* CurrentAnimStack = nullptr;
 	};
 
+	//User defined animations:
 	struct FAttributeFetchPayloadData
 	{
 		FbxNode* Node = nullptr;
@@ -30,12 +36,29 @@ namespace UE::Interchange::Private
 		FbxProperty Property;
 	};
 
+	//Rigid Animation
+	struct FAttributeNodeTransformFetchPayloadData
+	{
+		FbxNode* Node = nullptr;
+		FbxAnimCurveNode* TranlsationCurveNode = nullptr;
+		FbxAnimCurveNode* RotationCurveNode = nullptr;
+		FbxAnimCurveNode* ScaleCurveNode = nullptr;
+	};
+
 	struct FMorphTargetFetchPayloadData
 	{
-		FbxScene* SDKScene = nullptr;
-		int32 GeometryIndex = 0;
-		int32 MorphTargetIndex = 0;
-		int32 ChannelIndex = 0;
+		//We cannot just store the FbxAnimCurve
+		// becase! it is refernced from FbxMesh which gets replaced when we are triangulating it upon PayloadData acquisition
+		// for that reason we need to re-acquire it all the way from the Scene, based on GeometryIndex, MorphTargetIndex, ChannelIndex and AnimLayer.
+		// (This is happening because upon Triangulation we are passing bReplace = true, see @FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh)
+		//FbxAnimCurve* MorphTargetAnimCurve = nullptr;
+
+		FbxScene* SDKScene;
+
+		int32 GeometryIndex;
+		int32 MorphTargetIndex;
+		int32 ChannelIndex;
+		FbxAnimLayer* AnimLayer;
 	};
 
 	
@@ -50,6 +73,7 @@ namespace UE::Interchange::Private
 		
 		TOptional<FNodeTransformFetchPayloadData> NodeTransformFetchPayloadData;
 		TOptional<FAttributeFetchPayloadData> AttributeFetchPayloadData;
+		TOptional<FAttributeNodeTransformFetchPayloadData> AttributeNodeTransformFetchPayloadData;
 		TOptional<FMorphTargetFetchPayloadData> MorphTargetFetchPayloadData;
 	private:
 		bool InternalFetchCurveNodePayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath);
@@ -60,11 +84,13 @@ namespace UE::Interchange::Private
 	{
 	public:
 		/** This function add the payload key if the scene node transform is animated. */
-		static void AddNodeTransformAnimation(FbxScene* SDKScene
+		static bool AddSkeletalTransformAnimation(FbxScene* SDKScene
 			, FFbxParser& Parser
 			, FbxNode* Node
 			, UInterchangeSceneNode* UnrealNode
-			, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts);
+			, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts
+			, UInterchangeSkeletalAnimationTrackNode* SkeletalAnimationTrackNode
+			, const int32& AnimationIndex);
 
 		/** This function add the payload key for an animated node user attribute. */
 		static void AddNodeAttributeCurvesAnimation(FFbxParser& Parser
@@ -76,14 +102,20 @@ namespace UE::Interchange::Private
 			, EFbxType PropertyType
 			, TOptional<FString>& OutPayloadKey);
 
+		static void AddRigidTransformAnimation(FFbxParser& Parser
+			, FbxNode* Node
+			, FbxAnimCurveNode* TranslationCurveNode
+			, FbxAnimCurveNode* RotationCurveNode
+			, FbxAnimCurveNode* ScaleCurveNode
+			, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts
+			, TOptional<FString>& OutPayloadKey);
+
 		/** This function add the payload key for an animated curve for morph target. */
-		static void AddMorphTargetCurvesAnimation(UInterchangeMeshNode* ShapeNode
-			, FbxScene* SDKScene
-			, int32 GeometryIndex
-			, int32 MorphTargetIndex
-			, int32 ChannelIndex
-			, const FString& MorphTargetPayloadKey
-			, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts);
+		static void AddMorphTargetCurvesAnimation(FbxScene* SDKScene
+			, FFbxParser& Parser
+			, UInterchangeSkeletalAnimationTrackNode* SkeletalAnimationTrackNode
+			, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts
+			, const FMorphTargetAnimationBuildingData& MorphTargetAnimationBuildingData);
 
 		static bool IsFbxPropertyTypeSupported(EFbxType PropertyType);
 		static bool IsFbxPropertyTypeDecimal(EFbxType PropertyType);

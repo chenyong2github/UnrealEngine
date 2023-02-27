@@ -26,15 +26,19 @@ namespace UE
 				//Set the original framerate from the current fbx file
 				float FbxFramerate = FbxTime::GetFrameRate(TimeMode);
 
-				//Merge the anim stack before the conversion since the above 0 layer will not be converted
 				int32 AnimStackCount = SDKScene->GetSrcObjectCount<FbxAnimStack>();
-				//Merge the animation stack layer before converting the scene
 				for (int32 AnimStackIndex = 0; AnimStackIndex < AnimStackCount; AnimStackIndex++)
 				{
-					FbxAnimStack* CurAnimStack = SDKScene->GetSrcObject<FbxAnimStack>(AnimStackIndex);
-					if (CurAnimStack->GetMemberCount() > 1)
+					FbxAnimStack* CurrentAnimStack = SDKScene->GetSrcObject<FbxAnimStack>(AnimStackIndex);
+					int32 NumLayers = CurrentAnimStack->GetMemberCount();
+					for (int LayerIndex = 0; LayerIndex < NumLayers; LayerIndex++)
 					{
-						MergeAllLayerAnimation(SDKScene, CurAnimStack, FbxFramerate);
+						FbxAnimLayer* AnimLayer = (FbxAnimLayer*)CurrentAnimStack->GetMember(LayerIndex);
+
+						// always apply unroll filter
+						FbxAnimCurveFilterUnroll UnrollFilter;
+						UnrollFilter.Reset();
+						ApplyUnroll(SDKScene->GetRootNode(), AnimLayer, &UnrollFilter);
 					}
 				}
 
@@ -240,26 +244,6 @@ namespace UE
 				{
 					ApplyUnroll(Node->GetChild(i), Layer, UnrollFilter);
 				}
-			}
-
-			void FFbxConvert::MergeAllLayerAnimation(FbxScene* SDKScene, FbxAnimStack* AnimStack, float ResampleRate)
-			{
-				if (!ensure(SDKScene) || !ensure(AnimStack))
-				{
-					return;
-				}
-				FbxTime FramePeriod;
-				FramePeriod.SetSecondDouble(1.0 / (double)ResampleRate);
-
-				FbxTimeSpan TimeSpan = AnimStack->GetLocalTimeSpan();
-				AnimStack->BakeLayers(SDKScene->GetAnimationEvaluator(), TimeSpan.GetStart(), TimeSpan.GetStop(), FramePeriod);
-
-				// always apply unroll filter
-				FbxAnimCurveFilterUnroll UnrollFilter;
-
-				FbxAnimLayer* Layer = AnimStack->GetMember<FbxAnimLayer>(0);
-				UnrollFilter.Reset();
-				ApplyUnroll(SDKScene->GetRootNode(), Layer, &UnrollFilter);
 			}
 		}//ns Private
 	}//ns Interchange

@@ -18,6 +18,41 @@ namespace UE
 	{
 		namespace Private
 		{
+			struct FMorphTargetAnimationBuildingData
+			{
+				double StartTime;
+				double StopTime;
+				UInterchangeMeshNode* InterchangeMeshNode;
+				int32 GeometryIndex;
+				int32 AnimationIndex;
+				FbxAnimLayer* AnimLayer;
+				int32 MorphTargetIndex;
+				int32 ChannelIndex;
+				FString MorphTargetNodeUid;
+
+				FMorphTargetAnimationBuildingData(double InStartTime
+						, double InStopTime
+						, UInterchangeMeshNode* InInterchangeMeshNode
+						, int32 InGeometryIndex
+						, int32 InAnimationIndex
+						, FbxAnimLayer* InAnimLayer
+						, int32 InMorphTargetIndex
+						, int32 InChannelIndex
+						, FString InMorphTargetNodeUid)
+					: StartTime(InStartTime)
+					, StopTime(InStopTime)
+					, InterchangeMeshNode(InInterchangeMeshNode)
+					, GeometryIndex(InGeometryIndex)
+					, AnimationIndex(InAnimationIndex)
+					, AnimLayer(InAnimLayer)
+					, MorphTargetIndex(InMorphTargetIndex)
+					, ChannelIndex(InChannelIndex)
+					, MorphTargetNodeUid(InMorphTargetNodeUid)
+				{
+
+				}
+			};
+
 			class FFbxMesh;
 
 			class FMeshDescriptionImporter
@@ -115,6 +150,8 @@ namespace UE
 
 				void AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometryConverter, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts);
 				static bool GetGlobalJointBindPoseTransform(FbxScene* SDKScene, FbxNode* Joint, FbxAMatrix& GlobalBindPoseJointMatrix);
+
+				TArray<FMorphTargetAnimationBuildingData>& GetMorphTargetAnimationsBuildingData() { return MorphTargetAnimationsBuildingData; }
 			protected:
 				/** Add joint to the interchange mesh node joint dependencies. Return false if there is no valid joint (not a valid skinned mesh) */
 				bool ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, FbxMesh* Mesh, UInterchangeMeshNode* MeshNode);
@@ -122,6 +159,9 @@ namespace UE
 
 			private:
 				FFbxParser& Parser;
+
+				//In order to appropriately identify the Skeleton Node Uids we have to process the MorphTarget animations once the hierarchy is processed
+				TArray<FMorphTargetAnimationBuildingData> MorphTargetAnimationsBuildingData;
 			};
 		}//ns Private
 	}//ns Interchange

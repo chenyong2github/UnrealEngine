@@ -16,12 +16,6 @@ namespace UE
 			return AttributeKey;
 		}
 
-		const FAttributeKey& FMeshNodeStaticData::PayloadAnimationCurveKey()
-		{
-			static FAttributeKey AttributeKey(TEXT("__PayloadAnimationCurveKey__"));
-			return AttributeKey;
-		}
-
 		const FAttributeKey& FMeshNodeStaticData::IsSkinnedMeshKey()
 		{
 			static FAttributeKey AttributeKey(TEXT("__IsSkinnedMeshKey__"));
@@ -82,10 +76,6 @@ FString UInterchangeMeshNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 	if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::PayloadSourceKey())
 	{
 		return KeyDisplayName = TEXT("Payload Source Key");
-	}
-	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey())
-	{
-		return KeyDisplayName = TEXT("Payload Animation Curve Key");
 	}
 	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::IsSkinnedMeshKey())
 	{
@@ -317,36 +307,6 @@ void UInterchangeMeshNode::SetPayLoadKey(const FString& PayloadKey)
 	if (!IsAttributeStorageResultSuccess(Result))
 	{
 		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.SetPayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayloadSourceKey());
-	}
-}
-
-const TOptional<FString> UInterchangeMeshNode::GetAnimationCurvePayLoadKey() const
-{
-	if (!Attributes->ContainAttribute(UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey()))
-	{
-		return TOptional<FString>();
-	}
-	UE::Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey());
-	if (!AttributeHandle.IsValid())
-	{
-		return TOptional<FString>();
-	}
-	FString PayloadKey;
-	UE::Interchange::EAttributeStorageResult Result = AttributeHandle.Get(PayloadKey);
-	if (!IsAttributeStorageResultSuccess(Result))
-	{
-		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.GetAnimationCurvePayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey());
-		return TOptional<FString>();
-	}
-	return TOptional<FString>(PayloadKey);
-}
-
-void UInterchangeMeshNode::SetAnimationCurvePayLoadKey(const FString& PayloadKey)
-{
-	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey(), PayloadKey);
-	if (!IsAttributeStorageResultSuccess(Result))
-	{
-		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.SetAnimationCurvePayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey());
 	}
 }
 

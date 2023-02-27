@@ -1394,10 +1394,6 @@ void FFbxMesh::AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometr
 		MeshNode->SetPayLoadKey(PayLoadKey);
 
 		int32 NumAnimations = SDKScene->GetSrcObjectCount<FbxAnimStack>();
-			
-		//Anim stack should be merge so we expect to have only one stack here
-		ensure(NumAnimations <= 1);
-		FbxAnimStack* AnimStack = NumAnimations == 1 ? (FbxAnimStack*)SDKScene->GetSrcObject<FbxAnimStack>(0) : nullptr;
 
 		//Add all MorphTargets for this geometry node
 
@@ -1472,14 +1468,22 @@ void FFbxMesh::AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometr
 						}
 						MorphTargetNode->SetPayLoadKey(MorphTargetPayLoadKey);
 
-						//Add the morph target animation float curve payload to the morph target.
-						if (AnimStack)
+						for (int32 AnimationIndex = 0; AnimationIndex < NumAnimations; AnimationIndex++)
 						{
-							//If the morph target node is animated prepare a curve payload to retrieve the morph target animation
-							FbxAnimCurve* Curve = Geometry->GetShapeChannel(MorphTargetIndex, ChannelIndex, (FbxAnimLayer*)AnimStack->GetMember(0));
-							if ((Curve && Curve->KeyGetCount() > 0))
+							FbxAnimStack* AnimStack = (FbxAnimStack*)SDKScene->GetSrcObject<FbxAnimStack>(AnimationIndex);
+							if (AnimStack)
 							{
-								UE::Interchange::Private::FFbxAnimation::AddMorphTargetCurvesAnimation(MorphTargetNode, SDKScene, GeometryIndex, MorphTargetIndex, ChannelIndex, MorphTargetPayLoadKey, PayloadContexts);
+								FbxAnimLayer* AnimLayer = (FbxAnimLayer*)AnimStack->GetMember(0);
+								
+								FbxAnimCurve* Curve = Mesh->GetShapeChannel(MorphTargetIndex, ChannelIndex, AnimLayer);
+								if (Curve && Curve->KeyGetCount() > 0)
+								{
+									FbxTimeSpan TimeInterval;
+									Curve->GetTimeInterval(TimeInterval);
+
+									//In order to appropriately identify the Skeleton Node Uids we have to process the MorphTarget animations once the hierarchy is processed
+									MorphTargetAnimationsBuildingData.Add(FMorphTargetAnimationBuildingData(TimeInterval.GetStart().GetSecondDouble(), TimeInterval.GetStop().GetSecondDouble(), MeshNode, GeometryIndex, AnimationIndex, AnimLayer, MorphTargetIndex, ChannelIndex, MorphTargetUniqueID));
+								}
 							}
 						}
 					}

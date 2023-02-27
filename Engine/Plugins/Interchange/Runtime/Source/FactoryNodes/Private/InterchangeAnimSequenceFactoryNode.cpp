@@ -215,31 +215,6 @@ bool UInterchangeAnimSequenceFactoryNode::SetCustomSkeletonSoftObjectPath(const 
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(SkeletonSoftObjectPath, FSoftObjectPath)
 }
 
-int32 UInterchangeAnimSequenceFactoryNode::GetAnimatedMorphTargetDependeciesCount() const
-{
-	return AnimatedMorphTargetDependencies.GetCount();
-}
-
-void UInterchangeAnimSequenceFactoryNode::GetAnimatedMorphTargetDependencies(TArray<FString>& OutDependencies) const
-{
-	AnimatedMorphTargetDependencies.GetItems(OutDependencies);
-}
-
-void UInterchangeAnimSequenceFactoryNode::GetAnimatedMorphTargetDependency(const int32 Index, FString& OutDependency) const
-{
-	AnimatedMorphTargetDependencies.GetItem(Index, OutDependency);
-}
-
-bool UInterchangeAnimSequenceFactoryNode::SetAnimatedMorphTargetDependencyUid(const FString& DependencyUid)
-{
-	return AnimatedMorphTargetDependencies.AddItem(DependencyUid);
-}
-
-bool UInterchangeAnimSequenceFactoryNode::RemoveAnimatedMorphTargetDependencyUid(const FString& DependencyUid)
-{
-	return AnimatedMorphTargetDependencies.RemoveItem(DependencyUid);
-}
-
 
 int32 UInterchangeAnimSequenceFactoryNode::GetAnimatedAttributeCurveNamesCount() const
 {

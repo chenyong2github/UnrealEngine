@@ -210,26 +210,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
 	bool SetCustomDeleteExistingMorphTargetCurves(const bool& AttributeValue);
 
-	/** return how many animated moprh target (moprh target are translated into a mesh node and can be animated with a float curve) this anim sequence depends on. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
-	int32 GetAnimatedMorphTargetDependeciesCount() const;
-
-	/** Get all animated moprh target unique id (moprh target are translated into a mesh node and can be animated with a float curve) this anim sequence depends on. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
-	void GetAnimatedMorphTargetDependencies(TArray<FString>& OutDependencies) const;
-
-	/** Get an animated moprh target unique id (moprh target are translated into a mesh node and can be animated with a float curve) point by the specified index. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
-	void GetAnimatedMorphTargetDependency(const int32 Index, FString& OutDependency) const;
-
-	/** Add an animated moprh target unique id (moprh target are translated into a mesh node and can be animated with a float curve). */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
-	bool SetAnimatedMorphTargetDependencyUid(const FString& DependencyUid);
-
-	/** Remove one animated moprh target unique id (moprh target are translated into a mesh node and can be animated with a float curve). Return false if we cannot remove the moprh target unique id. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
-	bool RemoveAnimatedMorphTargetDependencyUid(const FString& DependencyUid);
-
 	/**
 	 * Morph target curve API End
 	 *********************************************************************************************************/

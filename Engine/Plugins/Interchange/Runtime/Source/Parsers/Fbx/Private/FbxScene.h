@@ -12,6 +12,7 @@ namespace UE::Interchange::Private
 }
 class UInterchangeBaseNodeContainer;
 class UInterchangeSceneNode;
+class UInterchangeSkeletalAnimationTrackNode;
 
 namespace UE
 {
@@ -20,6 +21,7 @@ namespace UE
 		namespace Private
 		{
 			class FFbxParser;
+			struct FMorphTargetAnimationBuildingData;
 
 			class FFbxScene
 			{
@@ -29,6 +31,8 @@ namespace UE
 				{}
 
 				void AddHierarchy(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts);
+				void AddAnimation(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts);
+				void AddMorphTargetAnimations(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts, const TArray<FMorphTargetAnimationBuildingData>& MorphTargetAnimationsBuildingData);
 				UInterchangeSceneNode* CreateTransformNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID);
 
 			protected:
@@ -41,7 +45,20 @@ namespace UE
 					, UInterchangeBaseNodeContainer& NodeContainer
 					, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts);
 
+				void AddAnimationRecursively(FbxNode* Node
+					, FbxScene* SDKScene
+					, UInterchangeBaseNodeContainer& NodeContainer
+					, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts
+					, UInterchangeSkeletalAnimationTrackNode* SkeletalAnimationTrackNode, bool SkeletalAnimationAddedToContainer
+					, const FString& RootSceneNodeUid, const TSet<FString>& SkeletonRootNodeUids
+					, const int32& AnimationIndex);
+
 			private:
+				void AddRigidAnimation(FbxNode* Node
+					, UInterchangeSceneNode* UnrealNode
+					, UInterchangeBaseNodeContainer& NodeContainer
+					, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts);
+
 				FFbxParser& Parser;
 			};
 		}//ns Private

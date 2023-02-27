@@ -77,7 +77,6 @@ namespace UE
 				 * rotation curves from the nodes property. This can become time consuming but we have no choice.
 				 */
 				static void ApplyUnroll(FbxNode* pNode, FbxAnimLayer* pLayer, FbxAnimCurveFilterUnroll* pUnrollFilter);
-				static void MergeAllLayerAnimation(FbxScene* SDKScene, FbxAnimStack* AnimStack, float ResampleRate);
 
 				/** Scene Conversion Private Implementation End */
 				//////////////////////////////////////////////////////////////////////////
