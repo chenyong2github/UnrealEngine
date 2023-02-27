@@ -10367,18 +10367,18 @@ public:
 	virtual FGuid GetMessageType() const override { return MessageType; }
 	virtual const TCHAR* GetDebugName() const override { return TEXT("FEDLMPCollector"); }
 
-	virtual void ClientTick(FMPCollectorClientTickContext& Context) override;
+	virtual void ClientTickPackage(FMPCollectorClientTickPackageContext& Context) override;
 	virtual void ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message) override;
 
 	static FGuid MessageType;
 };
 FGuid FEDLMPCollector::MessageType(TEXT("0164FD08F6884F6A82D2D00F8F70B182"));
 
-void FEDLMPCollector::ClientTick(FMPCollectorClientTickContext& Context)
+void FEDLMPCollector::ClientTickPackage(FMPCollectorClientTickPackageContext& Context)
 {
 	FCbWriter Writer;
 	bool bHasData;
-	UE::SavePackageUtilities::EDLCookInfoMoveToCompactBinaryAndClear(Writer, bHasData);
+	UE::SavePackageUtilities::EDLCookInfoMoveToCompactBinaryAndClear(Writer, bHasData, Context.GetPackageName());
 	if (bHasData)
 	{
 		Context.AddMessage(Writer.Save().AsObject());

@@ -1156,9 +1156,9 @@ void FEDLCookChecker::Reset()
 {
 	check(!GIsSavingPackage);
 
-	Nodes.Empty();
-	NodeHashToNodeID.Empty();
-	NodePrereqs.Empty();
+	Nodes.Reset();
+	NodeHashToNodeID.Reset();
+	NodePrereqs.Reset();
 	bIsActive = false;
 }
 
@@ -1623,6 +1623,13 @@ void EDLCookInfoAddIterativelySkippedPackage(FName LongPackageName)
 
 void EDLCookInfoMoveToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData)
 {
+	LLM_SCOPE_BYTAG(EDLCookChecker);
+	FEDLCookChecker::MoveToCompactBinaryAndClear(Writer, bOutHasData);
+}
+
+void EDLCookInfoMoveToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData, FName PackageName)
+{
+	// For simplicity, instead of sending only information related to the given Package, we send all data.
 	LLM_SCOPE_BYTAG(EDLCookChecker);
 	FEDLCookChecker::MoveToCompactBinaryAndClear(Writer, bOutHasData);
 }
