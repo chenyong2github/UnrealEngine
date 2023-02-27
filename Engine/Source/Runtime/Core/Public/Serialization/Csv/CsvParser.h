@@ -16,7 +16,8 @@ struct FCsvParser
 	 *	Takes a copy because the parser tramples over the file to create null-terminated cell strings
 	 *	Avoid a copy by passing overship of the source string with MoveTemp()
 	 */
-	CORE_API FCsvParser(FString InSourceString);
+	CORE_API FCsvParser(FString&& InSourceString);
+	CORE_API FCsvParser(const FString& InSourceString);
 
 	/**
 	 *	Const access to the parsed rows
@@ -28,11 +29,13 @@ struct FCsvParser
 		return Rows;
 	}
 
-private:
 	/** Non copyable - has pointers to itself */
-	FCsvParser(const FCsvParser&);
-	FCsvParser& operator=(const FCsvParser&);
+	FCsvParser(FCsvParser&&) = delete;
+	FCsvParser(const FCsvParser&) = delete;
+	FCsvParser& operator=(FCsvParser&&) = delete;
+	FCsvParser& operator=(const FCsvParser&) = delete;
 
+private:
 	/** Internal enum to control parsing progress */
 	enum struct EParseResult { EndOfCell, EndOfRow, EndOfString };
 
