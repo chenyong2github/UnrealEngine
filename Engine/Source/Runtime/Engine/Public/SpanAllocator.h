@@ -22,13 +22,13 @@ public:
 	// Allocate a range.  Returns allocated StartOffset.
 	inline int32 Allocate(int32 Num = 1)
 	{
-		// Auto consolidate if free has been called
-		if (!PendingFreeSpans.IsEmpty())
+		int32 FoundIndex = SearchFreeList(Num, FirstNonEmptySpan);
+
+		if (FoundIndex == INDEX_NONE && !PendingFreeSpans.IsEmpty())
 		{
 			Consolidate();
+			FoundIndex = SearchFreeList(Num, FirstNonEmptySpan);
 		}
-
-		const int32 FoundIndex = SearchFreeList(Num, FirstNonEmptySpan);
 
 		// Use an existing free span if one is found
 		if (FoundIndex != INDEX_NONE)
