@@ -5,6 +5,18 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGEdge)
 
+UPCGEdge::UPCGEdge(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SetFlags(RF_Transactional);
+}
+
+void UPCGEdge::PostLoad()
+{
+	Super::PostLoad();
+	SetFlags(RF_Transactional);
+}
+
 bool UPCGEdge::IsValid() const
 {
 	return InputPin.Get() && OutputPin.Get();

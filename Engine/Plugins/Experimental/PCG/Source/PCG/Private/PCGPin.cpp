@@ -85,7 +85,8 @@ bool UPCGPin::AddEdgeTo(UPCGPin* OtherPin)
 
 	UPCGEdge* NewEdge = Edges.Add_GetRef(NewObject<UPCGEdge>(this));
 	OtherPin->Edges.Add(NewEdge);
-
+	
+	NewEdge->Modify();
 	NewEdge->InputPin = bThisPinIsUpstream ? this : OtherPin;
 	NewEdge->OutputPin = bThisPinIsUpstream ? OtherPin : this;
 

@@ -12,8 +12,13 @@ UCLASS(ClassGroup = (Procedural))
 class PCG_API UPCGEdge : public UObject
 {
 	GENERATED_BODY()
-
 public:
+	UPCGEdge(const FObjectInitializer& ObjectInitializer);
+
+	// ~Begin UObject interface
+	virtual void PostLoad() override;
+	// ~End UObject interface
+
 	UPROPERTY()
 	FName InboundLabel_DEPRECATED = NAME_None;
 
