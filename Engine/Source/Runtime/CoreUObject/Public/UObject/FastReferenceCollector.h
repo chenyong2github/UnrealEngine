@@ -32,19 +32,12 @@ enum class EGCOptions : uint32
 	Parallel = 1 << 0,					// Use all task workers to collect references, must be started on main thread
 	AutogenerateTokenStream = 1 << 1,	// Lazily generate token streams for new UClasses
 	WithClusters = 1 << 2,				// Use clusters, see FUObjectCluster
-	ProcessWeakReferences UE_DEPRECATED(5.2, "Weak reference collection deprecated to reduce complexity. Use FArchive instead with ArIsObjectReferenceCollector and ArIsModifyingWeakAndStrongReferences")
-					= 1 << 3,			// Collect both weak and strong references instead of just strong
-	WithPendingKill = 1 << 4,			// Internal flag used by reachability analysis
+	WithPendingKill = 1 << 3,			// Internal flag used by reachability analysis
 };
 ENUM_CLASS_FLAGS(EGCOptions);
 
 inline constexpr bool IsParallel(EGCOptions Options) { return !!(Options & EGCOptions::Parallel); }
 inline constexpr bool IsPendingKill(EGCOptions Options) { return !!(Options & EGCOptions::WithPendingKill); }
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-inline constexpr bool ShouldProcessWeakReferences(EGCOptions Options) { return !!(Options & EGCOptions::ProcessWeakReferences); }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-using EFastReferenceCollectorOptions UE_DEPRECATED(5.2, "Use EGCOptions instead") = EGCOptions;
 
 /** Helper to give GC internals friend access to certain core classes */
 struct FGCInternals
@@ -323,10 +316,9 @@ enum class ETokenlessId
 struct FTokenId
 {
 public:
-	FORCEINLINE FTokenId(ETokenlessId Tokenless) : Index(0), TokenlessId((uint32)Tokenless), Mixed(0) {}
-	FORCEINLINE FTokenId(uint32 Idx, bool bIsMixed) : Index(Idx), TokenlessId(0), Mixed(bIsMixed) {}
+	FORCEINLINE FTokenId(ETokenlessId Tokenless) : Index(0), TokenlessId((uint32)Tokenless) {}
+	FORCEINLINE explicit FTokenId(uint32 Idx) : Index(Idx), TokenlessId(0) {}
 	
-	bool IsMixed() const { return Mixed; }
 	bool IsTokenless() const { return TokenlessId != 0; }
 	uint32 GetIndex() const { check(!IsTokenless()); return Index; }
 	int32 AsPrintableIndex() const { return IsTokenless() ? -int32(TokenlessId) : Index; }
@@ -337,7 +329,7 @@ public:
 
 private:
 	static constexpr uint32 TokenlessIdBits = 3;
-	static constexpr uint32 IndexBits = 32 - TokenlessIdBits - 1;
+	static constexpr uint32 IndexBits = 32 - TokenlessIdBits;
 	void StaticAssert();
 
 	union
@@ -346,7 +338,6 @@ private:
 		{
 			uint32 Index : IndexBits;
 			uint32 TokenlessId : TokenlessIdBits;
-			uint32 Mixed : 1;
 		};
 		uint32 All;
 	};
@@ -534,14 +525,6 @@ class TFastReferenceCollector : public FGCInternals
 	static constexpr EGCOptions Options = ProcessorType::Options;
 
 	static constexpr FORCEINLINE bool IsParallel()					{ return !!(Options & EGCOptions::Parallel); }
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	static constexpr FORCEINLINE bool ShouldProcessWeakReferences()	{ return !!(Options & EGCOptions::ProcessWeakReferences); }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	static FORCEINLINE FTokenId MakeTokenId(uint32 Index)
-	{
-		return FTokenId(Index, ShouldProcessWeakReferences());
-	}
 
 	static FORCEINLINE UE::GC::FTokenStreamView& GetTokenStream(UClass* Class)
 	{
@@ -550,7 +533,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			Class->AssembleReferenceTokenStream();
 		}
 
-		return ShouldProcessWeakReferences() ? Class->ReferenceTokens.Mixed : Class->ReferenceTokens.Strong;
+		return Class->ReferenceTokens.Strong;
 	}
 
 	ProcessorType& Processor;
@@ -689,21 +672,21 @@ StoleContext:
 						{								
 							UObject** ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 							TokenReturnCount = ReferenceInfo.ReturnCount;
-							Dispatcher.HandleKillableReference(*ObjectPtr, MakeTokenId(ReferenceTokenStreamIndex), TokenType);
+							Dispatcher.HandleKillableReference(*ObjectPtr, FTokenId(ReferenceTokenStreamIndex), TokenType);
 						}
 						break;
 						case GCRT_ArrayObject:
 						{
 							TArray<UObject*>& ObjectArray = *((TArray<UObject*>*)(StackEntryData + ReferenceInfo.Offset));
 							TokenReturnCount = ReferenceInfo.ReturnCount;
-							Dispatcher.HandleKillableArray(ObjectArray, MakeTokenId(ReferenceTokenStreamIndex), TokenType);
+							Dispatcher.HandleKillableArray(ObjectArray, FTokenId(ReferenceTokenStreamIndex), TokenType);
 						}
 						break;
 						case GCRT_ArrayObjectFreezable:
 						{
 							TArray<UObject*, FMemoryImageAllocator>& ObjectArray = *((TArray<UObject*, FMemoryImageAllocator>*)(StackEntryData + ReferenceInfo.Offset));
 							TokenReturnCount = ReferenceInfo.ReturnCount;
-							Dispatcher.HandleKillableReferences(ObjectArray, MakeTokenId(ReferenceTokenStreamIndex), TokenType);
+							Dispatcher.HandleKillableReferences(ObjectArray, FTokenId(ReferenceTokenStreamIndex), TokenType);
 						}
 						break;
 						case GCRT_ArrayStruct:
@@ -793,7 +776,7 @@ StoleContext:
 							// Test if the object isn't itself, since currently package are their own external and tracking that reference is pointless
 							UObject* Object = CurrentObject->GetExternalPackageInternal();
 							Object = Object != CurrentObject ? Object : nullptr;
-							Dispatcher.HandleImmutableReference( Object, MakeTokenId(ReferenceTokenStreamIndex), TokenType);
+							Dispatcher.HandleImmutableReference( Object, FTokenId(ReferenceTokenStreamIndex), TokenType);
 						}
 						break;
 						case GCRT_FixedArray:
@@ -916,7 +899,7 @@ StoleContext:
 							{
 								UObject* OwnerObject = static_cast<UObject*>(FieldOwnerItem->Object);
 								UObject* PreviousOwner = OwnerObject;
-								Dispatcher.HandleReferenceDirectly(CurrentObject, OwnerObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType, true);
+								Dispatcher.HandleReferenceDirectly(CurrentObject, OwnerObject, FTokenId(ReferenceTokenStreamIndex), TokenType, true);
 								
 								// Handle reference elimination (PendingKill owner)
 								if (PreviousOwner && !OwnerObject)
@@ -936,7 +919,7 @@ StoleContext:
 								{
 									UObject* OwnerObject = static_cast<UObject*>(FieldOwnerItem->Object);
 									UObject* PreviousOwner = OwnerObject;
-									Dispatcher.HandleReferenceDirectly(CurrentObject, OwnerObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType, true);
+									Dispatcher.HandleReferenceDirectly(CurrentObject, OwnerObject, FTokenId(ReferenceTokenStreamIndex), TokenType, true);
 
 									// Handle reference elimination (PendingKill owner)
 									if (PreviousOwner && !OwnerObject)
@@ -974,136 +957,6 @@ StoleContext:
 						case GCRT_EndOfPointer:
 						{
 							TokenReturnCount = ReferenceInfo.ReturnCount;
-						}
-						break;
-						case GCRT_WeakObject:
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
-							if (ShouldProcessWeakReferences())
-							{
-								FWeakObjectPtr& WeakPtr = *(FWeakObjectPtr*)(StackEntryData + ReferenceInfo.Offset);
-								Dispatcher.HandleWeakReference(WeakPtr, CurrentObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType);
-							}
-						}
-						break;
-						case GCRT_ArrayWeakObject:
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
-							if (ShouldProcessWeakReferences())
-							{
-								TArray<FWeakObjectPtr>& WeakPtrArray = *((TArray<FWeakObjectPtr>*)(StackEntryData + ReferenceInfo.Offset));
-								for (FWeakObjectPtr& WeakPtr : WeakPtrArray)
-								{
-									Dispatcher.HandleWeakReference(WeakPtr, CurrentObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType);
-								}
-							}
-						}
-						break;
-						case GCRT_LazyObject:
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
-							if (ShouldProcessWeakReferences())
-							{
-								FLazyObjectPtr& LazyPtr = *(FLazyObjectPtr*)(StackEntryData + ReferenceInfo.Offset);
-								FWeakObjectPtr& WeakPtr = AccessWeakPtr(LazyPtr);
-								Dispatcher.HandleWeakReference(WeakPtr, CurrentObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType);
-							}
-						}
-						break;
-						case GCRT_ArrayLazyObject:
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
-							if (ShouldProcessWeakReferences())
-							{
-								TArray<FLazyObjectPtr>& LazyPtrArray = *((TArray<FLazyObjectPtr>*)(StackEntryData + ReferenceInfo.Offset));
-								TokenReturnCount = ReferenceInfo.ReturnCount;
-								for (FLazyObjectPtr& LazyPtr : LazyPtrArray)
-								{
-									FWeakObjectPtr& WeakPtr = AccessWeakPtr(LazyPtr);
-									Dispatcher.HandleWeakReference(WeakPtr, CurrentObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType);
-								}
-							}
-						}
-						break;
-						case GCRT_SoftObject:
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
-							if (ShouldProcessWeakReferences())
-							{
-								FSoftObjectPtr& SoftPtr = *(FSoftObjectPtr*)(StackEntryData + ReferenceInfo.Offset);
-								FWeakObjectPtr& WeakPtr = AccessWeakPtr(SoftPtr);
-								Dispatcher.HandleWeakReference(WeakPtr, CurrentObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType);
-							}
-						}
-						break;
-						case GCRT_ArraySoftObject:
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
-							if (ShouldProcessWeakReferences())
-							{
-								TArray<FSoftObjectPtr>& SoftPtrArray = *((TArray<FSoftObjectPtr>*)(StackEntryData + ReferenceInfo.Offset));
-								for (FSoftObjectPtr& SoftPtr : SoftPtrArray)
-								{
-									FWeakObjectPtr& WeakPtr = AccessWeakPtr(SoftPtr);
-									Dispatcher.HandleWeakReference(WeakPtr, CurrentObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType);
-								}
-							}
-						}
-						break;
-						case GCRT_Delegate:
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
-							if (ShouldProcessWeakReferences())
-							{
-								FScriptDelegate& Delegate = *(FScriptDelegate*)(StackEntryData + ReferenceInfo.Offset);
-								UObject* DelegateObject = Delegate.GetUObject();
-								Dispatcher.HandleReferenceDirectly(CurrentObject, DelegateObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType, false);
-							}
-						}
-						break;
-						case GCRT_ArrayDelegate:
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
-							if (ShouldProcessWeakReferences())
-							{
-								TArray<FScriptDelegate>& DelegateArray = *((TArray<FScriptDelegate>*)(StackEntryData + ReferenceInfo.Offset));
-								for (FScriptDelegate& Delegate : DelegateArray)
-								{
-									UObject* DelegateObject = Delegate.GetUObject();
-									Dispatcher.HandleReferenceDirectly(CurrentObject, DelegateObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType, false);
-								}
-							}
-						}
-						break;
-						case GCRT_MulticastDelegate:
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
-							if (ShouldProcessWeakReferences())
-							{
-								FMulticastScriptDelegate& Delegate = *(FMulticastScriptDelegate*)(StackEntryData + ReferenceInfo.Offset);
-								TArray<UObject*> DelegateObjects(Delegate.GetAllObjects());
-								for (UObject* DelegateObject : DelegateObjects)
-								{
-									Dispatcher.HandleReferenceDirectly(CurrentObject, DelegateObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType, false);
-								}
-							}
-						}
-						break;
-						case GCRT_ArrayMulticastDelegate:
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
-							if (ShouldProcessWeakReferences())
-							{
-								TArray<FMulticastScriptDelegate>& DelegateArray = *((TArray<FMulticastScriptDelegate>*)(StackEntryData + ReferenceInfo.Offset));
-								for (FMulticastScriptDelegate& Delegate : DelegateArray)
-								{
-									TArray<UObject*> DelegateObjects(Delegate.GetAllObjects());
-									for (UObject* DelegateObject : DelegateObjects)
-									{
-										Dispatcher.HandleReferenceDirectly(CurrentObject, DelegateObject, MakeTokenId(ReferenceTokenStreamIndex), TokenType, false);
-									}
-								}
-							}
 						}
 						break;
 						case GCRT_DynamicallyTypedValue:

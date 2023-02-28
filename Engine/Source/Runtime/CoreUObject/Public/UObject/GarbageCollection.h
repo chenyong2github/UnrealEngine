@@ -86,16 +86,6 @@ enum EGCReferenceType
 	GCRT_ArrayObjectFreezable,				// Freezable array of references, e.g. TArray<MyObject*, FMemoryImageAllocator>
 	GCRT_ArrayStructFreezable,				// Freezable array of structs
 	GCRT_Optional,							// TOptional
-	GCRT_WeakObject,						// TWeakObjectPtr
-	GCRT_ArrayWeakObject,					// Array of weak pointers
-	GCRT_LazyObject,						// TLazyObjectPtr
-	GCRT_ArrayLazyObject,					// Array of lazy pointers
-	GCRT_SoftObject,						// TSoftObjectPtr
-	GCRT_ArraySoftObject,					// Array of soft object pointers
-	GCRT_Delegate,							// UobjectDelegate weak reference to target object
-	GCRT_ArrayDelegate,						// Array of delegates
-	GCRT_MulticastDelegate,					// Delegate weak reference to target object
-	GCRT_ArrayMulticastDelegate,			// Array of delegates
 	GCRT_DynamicallyTypedValue,				// FDynamicallyTypedValue
 	GCRT_SlowAddReferencedObjects,			// AddReferencedObjects() function using UE::GC::RegisterSlowImplementation
 };
@@ -266,8 +256,7 @@ struct FTokenStreamOwner
 	FTokenStreamOwner() = default;
 	~FTokenStreamOwner() { Reset(); }
 
-	FTokenStreamView Strong; // Strong references only
-	FTokenStreamView Mixed; // Strong and weak references
+	FTokenStreamView Strong;
 	
 	COREUOBJECT_API void Reset();
 
@@ -338,16 +327,11 @@ public:
 	COREUOBJECT_API void EmitExternalPackageReference();
 
 	void EmitFinalTokens(void(*AddReferencedObjects)(UObject*, FReferenceCollector&));	
-	
-	static FTokenStreamView DropFinalTokens(FTokenStreamView Mixed, void(*DropARO)(UObject*, FReferenceCollector&));
+	static FTokenStreamView DropFinalTokens(FTokenStreamView Tokens, void(*DropARO)(UObject*, FReferenceCollector&));
 
 	/** Allocate merged stream with tokens from super class and current class */
 	static void Merge(FTokenStreamView& Out, const FTokenStreamBuilder& Class, FTokenStreamView Super);
 	
-	class FConstIterator;
-	static void CopyStrongTokens(FConstIterator MixedIt, FTokenStreamBuilder& Out);
-	static bool CopyNextStrongToken(FConstIterator& /* in-out */ MixedIt, FTokenStreamBuilder& Out, uint32& OutReturnCount);
-
 	/** Reads count and advances stream */
 	FORCEINLINE uint32 ReadCount(uint32& CurrentIndex)
 	{

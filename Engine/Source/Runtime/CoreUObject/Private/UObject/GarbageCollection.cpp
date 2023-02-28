@@ -4802,39 +4802,13 @@ void FObjectProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream
 	TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_Object);
 }
 
-void FWeakObjectProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
-{
-	UE::GC::FFixedArrayTokenHelper FixedArrayHelper(TokenStream, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FWeakObjectPtr), *this, StackSizeHelper);
-	TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_WeakObject);
-}
-void FLazyObjectProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
-{
-	UE::GC::FFixedArrayTokenHelper FixedArrayHelper(TokenStream, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FLazyObjectPtr), *this, StackSizeHelper);
-	TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_LazyObject);
-}
-void FSoftObjectProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
-{
-	UE::GC::FFixedArrayTokenHelper FixedArrayHelper(TokenStream, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FSoftObjectPtr), *this, StackSizeHelper);
-	TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_SoftObject);
-}
-void FDelegateProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
-{
-	UE::GC::FFixedArrayTokenHelper FixedArrayHelper(TokenStream, BaseOffset + GetOffset_ForGC(), ArrayDim, this->ElementSize, *this, StackSizeHelper);
-	TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_Delegate);
-}
-void FMulticastDelegateProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
-{
-	UE::GC::FFixedArrayTokenHelper FixedArrayHelper(TokenStream, BaseOffset + GetOffset_ForGC(), ArrayDim, this->ElementSize, *this, StackSizeHelper);
-	TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_MulticastDelegate);
-}
-
 /**
  * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
 void FArrayProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
-	if (Inner->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
+	if (Inner->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong))
 	{
 		bool bUsesFreezableAllocator = EnumHasAnyFlags(ArrayFlags, EArrayPropertyFlags::UsesMemoryImageAllocator);
 
@@ -4864,26 +4838,6 @@ void FArrayProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream,
 		{
 			TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArrayAddFieldPathReferencedObject);
 		}
-		else if (Inner->IsA(FWeakObjectProperty::StaticClass()))
-		{
-			TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArrayWeakObject);
-		}
-		else if (Inner->IsA(FLazyObjectProperty::StaticClass()))
-		{
-			TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArrayLazyObject);
-		}
-		else if (Inner->IsA(FSoftObjectProperty::StaticClass()))
-		{
-			TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArraySoftObject);
-		}
-		else if (Inner->IsA(FDelegateProperty::StaticClass()))
-		{
-			TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArrayDelegate);
-		}
-		else if (Inner->IsA(FMulticastDelegateProperty::StaticClass()))
-		{
-			TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArrayMulticastDelegate);
-		}
 		else
 		{
 			// In the general case, emit a GCRT_ArrayStruct that can handle any inner property type.
@@ -4908,20 +4862,20 @@ void FArrayProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream,
  */
 void FMapProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
-	if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
+	if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong))
 	{
 		// TMap reference tokens are processed by GC in a similar way to an array of structs
 		TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_AddTMapReferencedObjects);
 		TokenStream.EmitPointer((const void*)this);
 		const uint32 SkipIndexIndex = TokenStream.EmitSkipIndexPlaceholder();
 
-		if (KeyProp->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
+		if (KeyProp->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong))
 		{
 			// GCRT_AddTMapReferencedObjects pushes a new stack frame in TFastReferenceCollector
 			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, KeyProp);
 			KeyProp->EmitReferenceInfo(TokenStream, 0, EncounteredStructProps, StackSizeHelper);
 		}
-		if (ValueProp->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
+		if (ValueProp->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong))
 		{
 			// GCRT_AddTMapReferencedObjects pushes a new stack frame in TFastReferenceCollector
 			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, ValueProp);
@@ -4939,7 +4893,7 @@ void FMapProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, i
 */
 void FSetProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
-	if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
+	if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong))
 	{
 		// TSet reference tokens are processed by GC in a similar way to an array of structs
 		TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_AddTSetReferencedObjects);
@@ -4983,7 +4937,7 @@ void FStructProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream
 		EncounteredStructProps.Add(this);
 		for (FProperty* Property = Struct->PropertyLink; Property && !bHasPropertiesWithObjectReferences; Property = Property->PropertyLinkNext)
 		{
-			bHasPropertiesWithObjectReferences = Property->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak);
+			bHasPropertiesWithObjectReferences = Property->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong);
 		}
 		EncounteredStructProps.RemoveSingleSwap(this, false /* bAllowShrinking */);
 	}
@@ -5146,90 +5100,6 @@ struct FNamedReferenceInfo
 	FName DebugName;
 };
 
-// Helps iterate over a range of FTokenStreamBuilder tokens and debug names
-class FTokenStreamBuilder::FConstIterator
-{
-public:
-	FConstIterator(const FTokenStreamBuilder& InBuilder)
-	: Builder(InBuilder)
-	, Idx(0)
-	, Num(InBuilder.Tokens.Num())
-	{}
-
-	explicit operator bool() const { return Idx < Num; }
-	
-	uint32 Pos() const { return Idx; }
-	uint32 EndPos() const { return Num; }
-
-	uint32 PeekReturnCount()
-	{
-		return FGCReferenceInfo(GetToken()).ReturnCount;
-	}
-
-	FNamedReferenceInfo ConsumeReferenceInfo()
-	{
-		FNamedReferenceInfo Out = { FGCReferenceInfo(GetToken()), GetDebugName() };
-		++Idx;
-		return Out;
-	}
-
-	// @return Index to skip to
-	uint32 ConsumeSkipInfo()
-	{
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-		static const FName TokenName("SkipIndexPlaceholder");
-		check(GetDebugName() == TokenName);
-#endif
-		FGCSkipInfo SkipInfo(ConsumeToken());
-		return Idx - 1 + SkipInfo.SkipIndex;
-	}
-	
-	uint32 ConsumeStride()
-	{
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-		static const FName TokenName("StrideToken");
-		check(GetDebugName() == TokenName);
-#endif
-		return ConsumeToken();
-	}
-
-	uint32 ConsumeCount()
-	{
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-		static const FName TokenName("CountToken");
-		check(GetDebugName() == TokenName);
-#endif
-		return ConsumeToken();
-	}
-		
-	void* ConsumePointer(uint32& OutReturnCount)
-	{
-		void* Out = Builder.ReadPointer(/* in-out */ Idx);
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-		static const FName TokenName("EndOfPointerToken");
-		check(GetDebugName() == TokenName);
-#endif
-		FGCReferenceInfo EndOfPointer(ConsumeToken());
-		OutReturnCount = EndOfPointer.ReturnCount;
-		return Out;
-	}
-
-	const FTokenStreamBuilder& DebugGetBuilder() { return Builder; }
-private:
-	uint32 GetToken() const { return Builder.Tokens[Idx]; }
-	uint32 ConsumeToken() { return Builder.Tokens[Idx++]; }
-
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-	FName GetDebugName() const { return Builder.DebugNames[Idx]; }
-#else
-	FName GetDebugName() const { return FName(); }
-#endif
-
-	const FTokenStreamBuilder& Builder;
-	uint32 Idx = 0;
-	uint32 Num = 0;
-};
-
 static AROFunc GetAROFunc(UClass* Class)
 {
 	AROFunc ARO = Class->CppClassStaticFunctions.GetAddReferencedObjects();
@@ -5268,8 +5138,6 @@ struct FScopeLockIfNotNative
 
 /** Token stream can assemble code can sometimes be called from two threads throuh a web of async loading calls. */
 static FCriticalSection GReferenceTokenStreamCritical;
-int32 GCreatedMixedTokens;
-int32 GCreatedStrongTokens;
 
 void UClass::AssembleReferenceTokenStream(bool bForce)
 {
@@ -5300,7 +5168,7 @@ void UClass::AssembleReferenceTokenStreamInternal(bool bForce)
 		{
 			IntrinsicBuilder = FIntrinsicClassTokens::ConsumeBuilder(this);
 		}
-		FTokenStreamBuilder& MixedTokens = IntrinsicBuilder ? *IntrinsicBuilder : StackBuilder;
+		FTokenStreamBuilder& Builder = IntrinsicBuilder ? *IntrinsicBuilder : StackBuilder;
 
 		if (bForce)
 		{
@@ -5316,49 +5184,31 @@ void UClass::AssembleReferenceTokenStreamInternal(bool bForce)
 			{
 				FProperty* Property = *It;
 				FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, Property);
-				Property->EmitReferenceInfo(MixedTokens, 0, EncounteredStructProps, StackSizeHelper);
+				Property->EmitReferenceInfo(Builder, 0, EncounteredStructProps, StackSizeHelper);
 			}
 
-			MixedTokens.SetStackSize(StackSizeHelper.GetMaxStackSize());
+			Builder.SetStackSize(StackSizeHelper.GetMaxStackSize());
 		}
 				
-		FTokenStreamView SuperMixedTokens;
-		FTokenStreamView SuperStrongTokens;
+		FTokenStreamView SuperTokens;
 		if (UClass* SuperClass = GetSuperClass())
 		{
 			// Make sure super class has valid token stream.
 			SuperClass->AssembleReferenceTokenStreamInternal();
-			SuperMixedTokens  = FTokenStreamBuilder::DropFinalTokens(SuperClass->ReferenceTokens.Mixed,  GetAROFunc(SuperClass));
-			SuperStrongTokens = FTokenStreamBuilder::DropFinalTokens(SuperClass->ReferenceTokens.Strong, GetAROFunc(SuperClass));
+			SuperTokens = FTokenStreamBuilder::DropFinalTokens(SuperClass->ReferenceTokens.Strong, GetAROFunc(SuperClass));
 		}
 		else
 		{
-			UObjectBase::EmitBaseReferences(MixedTokens);
+			UObjectBase::EmitBaseReferences(Builder);
 		}
 
 		// Make sure all Blueprint properties are marked as non-native
-		MixedTokens.SetTokenType(GetClass()->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading) ? EGCTokenType::NonNative : EGCTokenType::Native);
-		MixedTokens.EmitFinalTokens(GetAROFunc(this));
+		Builder.SetTokenType(GetClass()->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading) ? EGCTokenType::NonNative : EGCTokenType::Native);
+		Builder.EmitFinalTokens(GetAROFunc(this));
 
 		// Allocate flat token stream with current and super class tokens
-		FTokenStreamBuilder::Merge(/* out */ ReferenceTokens.Mixed, MixedTokens, SuperMixedTokens);
+		FTokenStreamBuilder::Merge(/* out */ ReferenceTokens.Strong, Builder, SuperTokens);
 		
-		// Create subset of strong reference tokens for this class
-		FTokenStreamBuilder StrongTokens(*this);
-		StrongTokens.SetStackSize(MixedTokens.GetStackSize());
-		StrongTokens.SetTokenType(MixedTokens.GetTokenType());
-		FTokenStreamBuilder::CopyStrongTokens(FTokenStreamBuilder::FConstIterator(MixedTokens), /* out */ StrongTokens);
-
-		// Reuse mixed tokens if possible
-		if (MixedTokens.Num() == StrongTokens.Num() && SuperMixedTokens.NumTokens() == SuperStrongTokens.NumTokens())
-		{
-			UpdateStreamReference(/* out */ ReferenceTokens.Strong, ReferenceTokens.Mixed);
-		}
-		else
-		{
-			FTokenStreamBuilder::Merge(/* out */ ReferenceTokens.Strong, StrongTokens, SuperStrongTokens);
-		}
-
 		checkf(!HasAnyClassFlags(CLASS_TokenStreamAssembled), TEXT("Token stream already assembled for class '%s'"), *GetPathName()); // recursion here is probably bad
 		ClassFlags |= CLASS_TokenStreamAssembled;
 	}
@@ -5506,155 +5356,6 @@ static uint32 PickReturnCount(uint32 OuterReturnCount, uint32 InnerReturnCount)
 	return OuterReturnCount;
 }
 
-static bool CopyStrongTokensUntilPos(FTokenStreamBuilder::FConstIterator& /* in-out */ MixedIt, uint32 MixedEndPos, FTokenStreamBuilder& Out, uint32& OutReturnCount)
-{
-	bool bOut = false;
-	uint32 LastReturnCount = 0;
-	while (MixedIt.Pos() < MixedEndPos)
-	{
-		bOut |= FTokenStreamBuilder::CopyNextStrongToken(MixedIt, Out, LastReturnCount);
-	}
-
-	OutReturnCount = PickReturnCount(OutReturnCount, LastReturnCount);
-
-	return bOut;
-}
-
-static bool CopyStrongTokensUntilReturn(FTokenStreamBuilder::FConstIterator& /* in-out */ MixedIt, FTokenStreamBuilder& Out, uint32& OutReturnCount)
-{
-	uint32 FooStartPos = MixedIt.Pos();
-
-	uint32 InnerReturnCount = 0;
-	bool bOut = false;
-	while (InnerReturnCount == 0)
-	{
-		bOut |= FTokenStreamBuilder::CopyNextStrongToken(/* in-out */ MixedIt, Out, InnerReturnCount);
-	}
-	
-	OutReturnCount = PickReturnCount(OutReturnCount, InnerReturnCount);
-
-	return bOut;
-}
-
-void FTokenStreamBuilder::CopyStrongTokens(FConstIterator MixedIt, FTokenStreamBuilder& Out)
-{
-	uint32 ReturnCount = 0;
-	CopyStrongTokensUntilPos(MixedIt, MixedIt.EndPos(), Out, ReturnCount);
-	checkf(Out.Num() < MixedIt.EndPos() || Out == MixedIt.DebugGetBuilder(), 
-		TEXT("No weak tokens stripped, copied tokens should be bitwise identical to the original mixed tokens"));
-}
-
-bool FTokenStreamBuilder::CopyNextStrongToken(FConstIterator& /* in-out */ MixedIt, FTokenStreamBuilder& Out, uint32& OutReturnCount)
-{
-	check(MixedIt);
-	
-	const uint32 RollbackNum = Out.Tokens.Num();
-	FNamedReferenceInfo Token = MixedIt.ConsumeReferenceInfo();
-
-	// Strip old return count and emit new returns since we might strip out entire fixed arrays/struct arrays/maps/sets/etc
-	OutReturnCount = Token.ReferenceInfo.ReturnCount;
-	Token.ReferenceInfo.ReturnCount = 0;
-
-	switch (Token.ReferenceInfo.Type)
-	{
-	case GCRT_Object:
-	case GCRT_ArrayObject:
-	case GCRT_ArrayObjectFreezable:
-	case GCRT_ExternalPackage:
-	case GCRT_AddFieldPathReferencedObject:
-	case GCRT_ArrayAddFieldPathReferencedObject:
-	case GCRT_DynamicallyTypedValue: // Always keep for now
-	case GCRT_SlowAddReferencedObjects:
-	case GCRT_EndOfStream:
-		Out.EmitReferenceInfo(Token.ReferenceInfo, Token.DebugName);
-		return true;
-
-	case GCRT_AddStructReferencedObjects:
-	case GCRT_AddReferencedObjects:
-		Out.EmitReferenceInfo(Token.ReferenceInfo, Token.DebugName);
-		Out.EmitPointer(MixedIt.ConsumePointer(OutReturnCount));
-		return true;
-
-	case GCRT_WeakObject:
-	case GCRT_ArrayWeakObject:
-	case GCRT_LazyObject:
-	case GCRT_ArrayLazyObject:
-	case GCRT_SoftObject:
-	case GCRT_ArraySoftObject:
-	case GCRT_Delegate:
-	case GCRT_ArrayDelegate:
-	case GCRT_MulticastDelegate:
-	case GCRT_ArrayMulticastDelegate:
-		return false;
-
-	// Below property types get their Out tokens rolled back if nested properties are entirely weak
-	case GCRT_Optional:
-	case GCRT_ArrayStructFreezable:
-	case GCRT_ArrayStruct:
-	{
-		Out.EmitReferenceInfo(Token.ReferenceInfo, Token.DebugName);
-		Out.EmitStride(MixedIt.ConsumeStride());
-
-		uint32 MixedSkipPos = MixedIt.ConsumeSkipInfo();
-		uint32 SkipSkipIndex = Out.EmitSkipIndexPlaceholder();
-
-		if (CopyStrongTokensUntilPos(MixedIt, MixedSkipPos, Out, OutReturnCount))
-		{
-			uint32 SkipIndex = Out.EmitReturn();
-			Out.UpdateSkipIndexPlaceholder(SkipSkipIndex, SkipIndex);
-			return true;
-		}
-	}
-	break;
-	case GCRT_FixedArray:
-	{
-		Out.EmitReferenceInfo(Token.ReferenceInfo, Token.DebugName);
-		Out.EmitStride(MixedIt.ConsumeStride());
-		Out.EmitCount(MixedIt.ConsumeCount());
-
-		if (CopyStrongTokensUntilReturn(/* in-out */ MixedIt, Out, OutReturnCount))
-		{
-			Out.EmitReturn();
-			return true;
-		}
-		break;
-	}
-	case GCRT_AddTSetReferencedObjects:
-	case GCRT_AddTMapReferencedObjects:
-	{
-		Out.EmitReferenceInfo(Token.ReferenceInfo, Token.DebugName);
-		uint32 NoReturnCount = 0;
-		FProperty* Property = (FProperty*)MixedIt.ConsumePointer(/* Out */ NoReturnCount);
-		check(NoReturnCount == 0);
-		check(Property->IsA<FMapProperty>() || Property->IsA<FSetProperty>());
-		Out.EmitPointer(Property);
-
-		uint32 MixedSkipPos = MixedIt.ConsumeSkipInfo();
-		uint32 SkipSkipIndex = Out.EmitSkipIndexPlaceholder();
-	
-		if (CopyStrongTokensUntilPos(MixedIt, MixedSkipPos, Out, OutReturnCount))
-		{
-			uint32 SkipIndex = Out.EmitReturn();
-			Out.UpdateSkipIndexPlaceholder(SkipSkipIndex, SkipIndex);
-			return true;
-		}
-		break;
-	}
-	case GCRT_EndOfPointer:
-		checkf(false, TEXT("ConsumePointer() should consume all GCRT_EndOfPointer tokens"));
-	break;
-	default:
-		checkf(false, TEXT("Illegal token type %d %s"), Token.ReferenceInfo.Type, *Token.DebugName.ToString());
-	break;
-	} // switch
-
-	Out.Tokens.SetNum(RollbackNum, /* shrink */ false);		
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-	Out.DebugNames.SetNum(RollbackNum, /* shrink */ false);		
-#endif
-	return false;
-}
-
 int32 FTokenStreamBuilder::EmitReferenceInfo(FGCReferenceInfo ReferenceInfo, FName DebugName)
 {
 	int32 TokenIndex = Tokens.Add(ReferenceInfo);
@@ -5785,14 +5486,13 @@ FTokenInfo FTokenStreamOwner::GetTokenInfo(FTokenId Id) const
 		return {-1, ToName(Id.AsTokenless()) };
 	}
 
-	FTokenStreamView Stream = Id.IsMixed() ? Mixed : Strong;
 	uint32 Idx = Id.GetIndex();
 
-	check(Idx < Stream.Num);
+	check(Idx < Strong.Num);
 	FTokenInfo DebugInfo;
-	DebugInfo.Offset = FGCReferenceInfo(Stream.Tokens[Idx]).Offset;
+	DebugInfo.Offset = FGCReferenceInfo(Strong.Tokens[Idx]).Offset;
 #if ENABLE_GC_TOKEN_DEBUG_INFO
-	DebugInfo.Name = Stream.GetDebugNames()[Idx];
+	DebugInfo.Name = Strong.GetDebugNames()[Idx];
 #else
 	static const FName DefaultTokenName("Token");	
 	DebugInfo.Name = DefaultTokenName; 
@@ -5806,13 +5506,11 @@ FTokenInfo FTokenStreamOwner::GetTokenInfo(FTokenId Id) const
 void FTokenStreamOwner::Reset()
 {
 	UpdateStreamReference(/* out */ Strong, FTokenStreamView());
-	UpdateStreamReference(/* out */ Mixed, FTokenStreamView());
 }
 
 int64 FTokenStreamOwner::GetTokenAllocatedSize() const
 {
-	uint32 NumTokens = Mixed.Tokens == Strong.Tokens ? Mixed.Num : Mixed.Num + Strong.Num;
-	return NumTokens * sizeof(uint32);
+	return Strong.Num * sizeof(uint32);
 }
 
 int64 FTokenStreamOwner::GetDebugInfoAllocatedSize() const
