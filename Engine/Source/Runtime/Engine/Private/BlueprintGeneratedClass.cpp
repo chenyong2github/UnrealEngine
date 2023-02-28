@@ -409,6 +409,8 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 
 	if (UnderlyingArchive.IsLoading() && !UnderlyingArchive.IsObjectReferenceCollector() && Object == ClassDefaultObject)
 	{
+		CreatePersistentUberGraphFrame(Object, true);
+
 		// On load, build the custom property list used in post-construct initialization logic. Note that in the editor, this will be refreshed during compile-on-load.
 		// @TODO - Potentially make this serializable (or cooked data) to eliminate the slight load time cost we'll incur below to generate this list in a cooked build. For now, it's not serialized since the raw FProperty references cannot be saved out.
 		UpdateCustomPropertyListForPostConstruction();
@@ -968,15 +970,6 @@ UInheritableComponentHandler* UBlueprintGeneratedClass::GetInheritableComponentH
 	if (!EnableInheritableComponents)
 	{
 		return nullptr;
-	}
-	
-	if (InheritableComponentHandler)
-	{
-		if (!GEventDrivenLoaderEnabled || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME)
-		{
-			// This preload will not succeed in EDL
-			InheritableComponentHandler->PreloadAll();
-		}	
 	}
 
 	if (!InheritableComponentHandler && bCreateIfNecessary)
@@ -2130,8 +2123,6 @@ void UBlueprintGeneratedClass::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading() && 0 == (Ar.GetPortFlags() & PPF_Duplicate))
 	{
-		CreatePersistentUberGraphFrame(ClassDefaultObject, true);
-
 		UPackage* Package = GetOutermost();
 		if (Package && Package->HasAnyPackageFlags(PKG_ForDiffing))
 		{

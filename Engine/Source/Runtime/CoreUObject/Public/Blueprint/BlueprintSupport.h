@@ -113,7 +113,7 @@ struct FBlueprintSupport
 	COREUOBJECT_API static void SetClassReparentingFPtr(FClassReparentingFPtr Ptr);
 
 	/** Tells if the specified object is one of the many flavors of FLinkerPlaceholderBase that we have. */
-	COREUOBJECT_API static bool IsDeferredDependencyPlaceholder(UObject* LoadedObj);
+	COREUOBJECT_API static bool IsDeferredDependencyPlaceholder(const UObject* LoadedObj);
 
 	/** Registers any object properties in this struct with the deferred dependency system */
 	COREUOBJECT_API static void RegisterDeferredDependenciesInStruct(const UStruct* Struct, void* StructData);
@@ -130,7 +130,7 @@ struct FBlueprintSupport
 	COREUOBJECT_API static bool ShouldTreatWarningAsError(FName WarningIdentifier);
 	COREUOBJECT_API static bool ShouldSuppressWarning(FName WarningIdentifier);
 
-	COREUOBJECT_API static bool IsClassPlaceholder(UClass* Class);
+	COREUOBJECT_API static bool IsClassPlaceholder(const UClass* Class);
 
 #if WITH_EDITOR
 	/** Function that walks the object graph, ensuring that there are no references to TRASH or REINST classes: */

@@ -149,7 +149,7 @@ void FBlueprintSupport::SetClassReparentingFPtr(FClassReparentingFPtr Ptr)
 	ClassReparentingFPtr = Ptr;
 }
 
-bool FBlueprintSupport::IsDeferredDependencyPlaceholder(UObject* LoadedObj)
+bool FBlueprintSupport::IsDeferredDependencyPlaceholder(const UObject* LoadedObj)
 {
 	return LoadedObj && ( LoadedObj->IsA<ULinkerPlaceholderClass>() ||
 		LoadedObj->IsA<ULinkerPlaceholderFunction>() ||
@@ -328,11 +328,11 @@ bool FBlueprintSupport::ShouldSuppressWarning(FName WarningIdentifier)
 	return BlueprintWarningsToSuppress.Find(WarningIdentifier) != nullptr;
 }
 
-bool FBlueprintSupport::IsClassPlaceholder(UClass* Class)
+bool FBlueprintSupport::IsClassPlaceholder(const UClass* Class)
 {
 	while (Class)
 	{
-		if (Cast<ULinkerPlaceholderClass>(Class))
+		if (Cast<const ULinkerPlaceholderClass>(Class))
 		{
 			return true;
 		}
@@ -1244,8 +1244,40 @@ bool FLinkerLoad::DeferExportCreation(const int32 Index, UObject* Outer)
 		return false;
 	}
 
+	const bool bIsCDOExport = (Export.ObjectFlags & RF_ClassDefaultObject) != 0;
+	if (bIsCDOExport)
+	{
+		// Check for any load dependencies that may have been deferred.
+		bool bHasDeferredDependencies = false;
+		TArray<UObject*> CDOPreloadDependencies;
+		LoadClass->GetDefaultObjectPreloadDependencies(CDOPreloadDependencies);
+		for (const UObject* PreloadDependency : CDOPreloadDependencies)
+		{
+			if (FBlueprintSupport::IsDeferredDependencyPlaceholder(PreloadDependency))
+			{
+				bHasDeferredDependencies = true;
+			}
+		}
+
+		// Defer the CDO export only if we're preloading its class and it has a deferred dependency. For
+		// example, we may need to resolve a non-native subobject type override before we can construct
+		// the actual CDO and execute its native ctor/initializer.
+		if (((LoadFlags & LOAD_DeferDependencyLoads) != 0) && bHasDeferredDependencies)
+		{
+			// This will cause IsBlueprintFinalizationPending() to fail below (which is what we want).
+			// We'll then fall through and create a placeholder object for the CDO in order to defer its
+			// actual construction (along with serialization) until after we've resolved its dependencies.
+			DEFERRED_DEPENDENCY_CHECK(DeferredCDOIndex == INDEX_NONE);
+			DeferredCDOIndex = Index;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
 	ULinkerPlaceholderClass* AsPlaceholderClass = Cast<ULinkerPlaceholderClass>(LoadClass);
-	bool const bIsPlaceholderClass = (AsPlaceholderClass != nullptr);
+	const bool bIsPlaceholderClass = (AsPlaceholderClass != nullptr);
 
 	FLinkerLoad* ClassLinker = LoadClass->GetLinker();
 	if (!bIsPlaceholderClass
@@ -1255,7 +1287,7 @@ bool FLinkerLoad::DeferExportCreation(const int32 Index, UObject* Outer)
 		return false;
 	}
 
-	bool const bIsLoadingExportClass = (LoadFlags & LOAD_DeferDependencyLoads) ||
+	const bool bIsLoadingExportClass = (LoadFlags & LOAD_DeferDependencyLoads) ||
 		IsBlueprintFinalizationPending();
 	// if we're not in the process of "loading/finalizing" this package's 
 	// Blueprint class, then we're either running this before the linker has got 
@@ -1289,6 +1321,12 @@ bool FLinkerLoad::DeferExportCreation(const int32 Index, UObject* Outer)
 	FResolvingExportTracker::Get().AddLinkerPlaceholderObject(LoadClass, Placeholder);
 
 	Export.Object = Placeholder;
+
+	if (bIsCDOExport)
+	{
+		DEFERRED_DEPENDENCY_CHECK(LoadClass->ClassDefaultObject == nullptr);
+		LoadClass->ClassDefaultObject = Placeholder;
+	}
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 
 	return true;
@@ -1955,12 +1993,21 @@ void FLinkerLoad::ResolveDeferredExports(UClass* LoadClass)
 
 	// Handle deferred construction of the CDO and patch it into the export table. Any deferred ctor
 	// initializer dependencies (e.g. subobject class overrides) should now be resolved at this point.
-	if (DeferredCDOIndex != INDEX_NONE && !ExportMap[DeferredCDOIndex].Object)
+	if (DeferredCDOIndex != INDEX_NONE)
 	{
-		// Note: We could just call GetDefaultObject() here, but then we'd also need to set object
-		// flags on it to ensure that it gets serialized later. For consistency/safety, this routes
-		// through CreateExport() so that we don't have to worry about keeping object flags in sync.
-		CreateExport(DeferredCDOIndex);
+		if (ULinkerPlaceholderExportObject* PlaceholderExport = Cast<ULinkerPlaceholderExportObject>(ExportMap[DeferredCDOIndex].Object))
+		{
+			LoadClass->ClassDefaultObject = nullptr;
+			PlaceholderExport->SetLinker(nullptr, INDEX_NONE);
+			ExportMap[DeferredCDOIndex].ResetObject();
+			UObject* ExportObj = CreateExport(DeferredCDOIndex);
+
+			PlaceholderExport->ResolveAllPlaceholderReferences(ExportObj);
+			ResolvedDeferredSubobjects(PlaceholderExport);
+			PlaceholderExport->MarkAsGarbage();
+
+			DEFERRED_DEPENDENCY_CHECK(LoadClass->ClassDefaultObject == ExportObj);
+		}
 	}
 
 	UObject* BlueprintCDO = DeferredCDOIndex != INDEX_NONE ? ExportMap[DeferredCDOIndex].Object : LoadClass->ClassDefaultObject;
@@ -2139,7 +2186,7 @@ void FLinkerLoad::ResolveDeferredExports(UClass* LoadClass)
 			{
 				FObjectExport& Export = ExportMap[ExportIndex];
 				ULinkerPlaceholderExportObject* PlaceholderExport = Cast<ULinkerPlaceholderExportObject>(Export.Object);
-				if (ensure(PlaceholderExport))
+				if (ensure(PlaceholderExport) && !PlaceholderExport->IsMarkedResolved())
 				{
 					// replace the placeholder with the proper object instance
 					PlaceholderExport->SetLinker(nullptr, INDEX_NONE);
