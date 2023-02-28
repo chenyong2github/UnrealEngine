@@ -88,6 +88,7 @@ enum EGCReferenceType
 	GCRT_Optional,							// TOptional
 	GCRT_DynamicallyTypedValue,				// FDynamicallyTypedValue
 	GCRT_SlowAddReferencedObjects,			// AddReferencedObjects() function using UE::GC::RegisterSlowImplementation
+	GCRT_Count
 };
 
 enum class EGCTokenType : uint32
@@ -222,7 +223,7 @@ public:
 		return Tokens[CurrentIndex++];
 	}
 
-	FORCEINLINE void* ReadPointer(uint32& CurrentIndex)
+	FORCEINLINE void* ReadPointer(uint32& CurrentIndex) const
 	{
 		UPTRINT Result = UPTRINT(Tokens[CurrentIndex]) | (UPTRINT(Tokens[CurrentIndex+1]) << 32);
 		CurrentIndex += 2;
