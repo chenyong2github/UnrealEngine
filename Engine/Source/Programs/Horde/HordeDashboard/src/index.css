@@ -32,6 +32,16 @@ code {
   color:#000000;
 }
 
+.horde-link, .horde-link:visited {
+  text-decoration: none;
+  color: rgb(0, 120, 212);
+}
+
+.horde-link:hover {
+  text-decoration: underline;
+  color: rgb(0, 120, 212)
+}
+
 .job-item:hover {
   background:rgb(243, 242, 241);
 }
