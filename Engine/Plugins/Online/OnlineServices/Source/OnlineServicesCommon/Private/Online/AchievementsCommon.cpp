@@ -55,6 +55,28 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsCommon::QueryAch
 	return Operation->GetHandle();
 }
 
+void FAchievementsCommon::OnAchievementStatesQueried(const FAccountId& AccountId)
+{
+	if (!Config.bIsTitleManaged)
+	{
+		return;
+	}
+
+	TOnlineResult<FGetCachedStats> CachedStatsResult = Services.Get<FStatsCommon>()->GetCachedStats({});
+	check(CachedStatsResult.IsOk());
+	const TArray<FUserStats>& UsersStats = CachedStatsResult.GetOkValue().UsersStats;
+	for (const FUserStats& UserStats : UsersStats)
+	{
+		if (UserStats.AccountId == AccountId)
+		{
+			FStatsUpdated StatsUpdated;
+			StatsUpdated.LocalAccountId = AccountId;
+			StatsUpdated.UpdateUsersStats.Add(UserStats);
+			UnlockAchievementsByStats(StatsUpdated);
+		}
+	}
+}
+
 TOnlineResult<FGetAchievementIds> FAchievementsCommon::GetAchievementIds(FGetAchievementIds::Params&& Params)
 {
 	return TOnlineResult<FGetAchievementIds>(Errors::NotImplemented());
@@ -105,21 +127,24 @@ void FAchievementsCommon::UnlockAchievementsByStats(const FStatsUpdated& StatsUp
 	TArray<FAccountId> AccountIds;
 	for (const FUserStats& UserStats : StatsUpdated.UpdateUsersStats)
 	{
-		for (const TPair<FString, FStatValue>& StatPair : UserStats.Stats)
+		if (AchievementStates.Find(UserStats.AccountId))
 		{
-			for (const FAchievementUnlockRule& AchievementUnlockRule : Config.UnlockRules)
+			for (const TPair<FString, FStatValue>& StatPair : UserStats.Stats)
 			{
-				if (AchievementUnlockRule.ContainsStat(StatPair.Key))
+				for (const FAchievementUnlockRule& AchievementUnlockRule : Config.UnlockRules)
 				{
-					for (const FAchievementUnlockCondition& Condition : AchievementUnlockRule.Conditions)
+					if (AchievementUnlockRule.ContainsStat(StatPair.Key))
 					{
-						StatNames.AddUnique(Condition.StatName);
+						for (const FAchievementUnlockCondition& Condition : AchievementUnlockRule.Conditions)
+						{
+							StatNames.AddUnique(Condition.StatName);
+						}
 					}
 				}
 			}
-		}
 
-		AccountIds.AddUnique(UserStats.AccountId);
+			AccountIds.AddUnique(UserStats.AccountId);
+		}
 	}
 
 	if (StatNames.IsEmpty() || AccountIds.IsEmpty())
@@ -234,7 +259,7 @@ bool FAchievementsCommon::IsUnlocked(const FAccountId& AccountId, const FString&
 		return FMath::IsNearlyEqual(AchievementState.Progress, 1.0f);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Can't find state achievement %s when check if it's unlocked."), *AchievementName);
+	UE_LOG(LogTemp, Warning, TEXT("Can't find state of achievement %s when check if it's unlocked."), *AchievementName);
 
 	return false;
 }

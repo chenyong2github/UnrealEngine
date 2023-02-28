@@ -46,7 +46,6 @@ protected:
 	using FAchievementStateMap = TMap<FString, FAchievementState>;
 
 	bool bAchievementDefinitionsQueried = false;
-	TMap<FAccountId, FAchievementStateMap> AchievementStates;
 
 	FAchievementsNullConfig Config;
 

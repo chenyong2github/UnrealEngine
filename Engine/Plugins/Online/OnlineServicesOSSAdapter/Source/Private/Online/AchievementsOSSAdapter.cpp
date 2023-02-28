@@ -261,17 +261,18 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsOSSAdapter::QueryAchi
 			return;
 		}
 
-		FAchievementStateMap& AchievementStates = UserToAchievementStates.Emplace(Op.GetParams().LocalAccountId);
+		FAchievementStateMap& LocalUserAchievementStates = AchievementStates.Emplace(Op.GetParams().LocalAccountId);
 
 		for (FOnlineAchievement& Achievement : Achievements)
 		{
-			FAchievementState& AchievementState = AchievementStates.Emplace(Achievement.Id);
+			FAchievementState& AchievementState = LocalUserAchievementStates.Emplace(Achievement.Id);
 			AchievementState.AchievementId = Achievement.Id;
 			AchievementState.Progress = Achievement.Progress / 100.f;
 			// AchievementState.UnlockTime left unset because this does not exist on per-user state, but on the common description...
 		}
 
 		Op.SetResult({});
+		OnAchievementStatesQueried(Op.GetParams().LocalAccountId);
 	})
 	.Enqueue(GetSerialQueue());
 
@@ -286,14 +287,14 @@ TOnlineResult<FGetAchievementState> FAchievementsOSSAdapter::GetAchievementState
 		return TOnlineResult<FGetAchievementState>(Errors::InvalidUser());
 	}
 
-	const FAchievementStateMap* AchievementStates = UserToAchievementStates.Find(Params.LocalAccountId);
-	if (!AchievementStates)
+	const FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Params.LocalAccountId);
+	if (!LocalUserAchievementStates)
 	{
 		// Call QueryAchievementStates first
 		return TOnlineResult<FGetAchievementState>(Errors::InvalidState());
 	}
 
-	const FAchievementState* AchievementState = AchievementStates->Find(Params.AchievementId);
+	const FAchievementState* AchievementState = LocalUserAchievementStates->Find(Params.AchievementId);
 	if (!AchievementState)
 	{
 		return TOnlineResult<FGetAchievementState>(Errors::NotFound());

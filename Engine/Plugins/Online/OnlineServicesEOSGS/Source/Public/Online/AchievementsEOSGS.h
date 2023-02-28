@@ -38,10 +38,8 @@ protected:
 	EOS_HAchievements AchievementsHandle = nullptr;
 
 	using FAchievementDefinitionMap = TMap<FString, FAchievementDefinition>;
-	using FAchievementStateMap = TMap<FString, FAchievementState>;
 
 	TOptional<FAchievementDefinitionMap> AchievementDefinitions;
-	TMap<FAccountId, FAchievementStateMap> AchievementStates;
 
 	EOS_NotificationId NotifyAchievementsUnlockedNotificationId = EOS_INVALID_NOTIFICATIONID;
 };

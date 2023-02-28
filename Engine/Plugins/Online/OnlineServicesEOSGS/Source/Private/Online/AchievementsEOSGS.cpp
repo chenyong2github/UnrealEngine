@@ -301,6 +301,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 			}
 			AchievementStates.Emplace(Params.LocalAccountId, MoveTemp(NewAchievementStates));
 			InAsyncOp.SetResult({});
+			OnAchievementStatesQueried(Params.LocalAccountId);
 		})
 		.Enqueue(GetSerialQueue());
 	}

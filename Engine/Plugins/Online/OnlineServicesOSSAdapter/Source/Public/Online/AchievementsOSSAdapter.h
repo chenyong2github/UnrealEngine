@@ -39,9 +39,6 @@ protected:
 
 	using FAchievementDefinitionMap = TMap<FString, FAchievementDefinition>;
 	TOptional<FAchievementDefinitionMap> AchievementDefinitions;
-
-	using FAchievementStateMap = TMap<FString, FAchievementState>;
-	TMap<FAccountId, FAchievementStateMap> UserToAchievementStates;
 };
 
 /* UE::Online */ }

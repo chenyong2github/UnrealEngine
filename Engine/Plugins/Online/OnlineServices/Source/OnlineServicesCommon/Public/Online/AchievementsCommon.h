@@ -76,6 +76,8 @@ public:
 protected:
 	TOnlineEventCallable<void(const FAchievementStateUpdated&)> OnAchievementStateUpdatedEvent;
 
+	void OnAchievementStatesQueried(const FAccountId& AccountId);
+
 	void UnlockAchievementsByStats(const FStatsUpdated& StatsUpdated);
 	void ExecuteUnlockRulesRelatedToStat(const FAccountId& AccountId, const FString& StatName, const TMap<FString, FStatValue>& Stats, TArray<FString>& OutAchievementsToUnlock);
 	bool MeetUnlockCondition(const FAchievementUnlockRule& AchievementUnlockRule, const TMap<FString, FStatValue>& Stats);
@@ -84,6 +86,9 @@ protected:
 	FOnlineEventDelegateHandle StatEventHandle;
 
 	FAchievementsCommonConfig Config;
+
+	using FAchievementStateMap = TMap<FString, FAchievementState>;
+	TMap<FAccountId, FAchievementStateMap> AchievementStates;
 };
 
 /* UE::Online */ }

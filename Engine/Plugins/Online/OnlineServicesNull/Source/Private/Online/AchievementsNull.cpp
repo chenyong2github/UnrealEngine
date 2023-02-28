@@ -106,6 +106,9 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsNull::QueryAchievemen
 	}
 
 	Op->SetResult({});
+
+	OnAchievementStatesQueried(Op->GetParams().LocalAccountId);
+
 	return Op->GetHandle();
 }
 
