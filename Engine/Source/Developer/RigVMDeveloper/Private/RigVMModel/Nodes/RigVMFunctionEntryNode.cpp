@@ -5,6 +5,12 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMFunctionEntryNode)
 
+uint32 URigVMFunctionEntryNode::GetStructureHash() const
+{
+	// Avoid hashing the template for library nodes
+	return URigVMNode::GetStructureHash();
+}
+
 FLinearColor URigVMFunctionEntryNode::GetNodeColor() const
 {
 	if(URigVMGraph* RootGraph = GetRootGraph())

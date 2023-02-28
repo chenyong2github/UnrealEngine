@@ -34,6 +34,7 @@ public:
 	virtual UScriptStruct* GetScriptStruct() const override { return nullptr; }
 	virtual const FRigVMTemplate* GetTemplate() const override { return nullptr; }
 	virtual FName GetNotation() const override { return NAME_None; }
+	virtual uint32 GetStructureHash() const override;
 
 	// URigVMNode interface
 	virtual  FText GetToolTipText() const override;

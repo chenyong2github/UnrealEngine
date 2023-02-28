@@ -1321,14 +1321,16 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 	const bool bIsPostLoad = InLoadType == EControlRigBlueprintLoadType::PostLoad;
 
 	// avoid any compute if the current structure hashes match with the serialized ones
-	if(RigVMClient.GetStructureHash() == RigVMClient.GetSerializedStructureHash())
+	const uint32 StructureHash = RigVMClient.GetStructureHash();
+	const uint32 SerializedHash = RigVMClient.GetSerializedStructureHash();
+	if(StructureHash == SerializedHash)
 	{
 		if(bIsPostLoad)
 		{
 			TArray<URigVMGraph*> ModelGraphs = RigVMClient.GetAllModels(true, true);
 			Algo::Reverse(ModelGraphs);
 			for (URigVMGraph* ModelGraph : ModelGraphs)
-			{	
+			{
 				URigVMController* Controller = GetOrCreateController(ModelGraph);
 				Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, true, true);
 			}

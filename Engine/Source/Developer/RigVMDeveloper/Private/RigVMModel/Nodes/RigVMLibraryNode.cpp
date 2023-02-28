@@ -35,6 +35,12 @@ bool URigVMLibraryNode::IsDefinedAsVarying() const
 	return false;
 }
 
+uint32 URigVMLibraryNode::GetStructureHash() const
+{
+	// Avoid hashing the template for library nodes
+	return URigVMNode::GetStructureHash();
+}
+
 FText URigVMLibraryNode::GetToolTipText() const
 {
 	return FText::FromName(GetFunctionIdentifier().HostObject.GetLongPackageFName());

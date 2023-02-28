@@ -20,6 +20,7 @@ public:
 	virtual UScriptStruct* GetScriptStruct() const override { return nullptr; }
 	virtual const FRigVMTemplate* GetTemplate() const override { return nullptr; }
 	virtual FName GetNotation() const override { return NAME_None; }
+	virtual uint32 GetStructureHash() const override;
 
 	// Override node functions
 	virtual FLinearColor GetNodeColor() const override;
