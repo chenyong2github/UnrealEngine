@@ -119,6 +119,7 @@ FGraphVertexHandle UGraph::CreateVertex(int64 InUniqueIndex)
 	// No need to increment since AddNode will do that.
 	Vertex->SetUniqueIndex((InUniqueIndex == INDEX_NONE) ? NextAvailableVertexUniqueIndex : InUniqueIndex);
 	RegisterVertex(Vertex);
+	OnVertexCreated.Broadcast(Vertex->Handle());
 	return Vertex->Handle();
 }
 
@@ -177,6 +178,8 @@ FGraphEdgeHandle UGraph::CreateEdge(FGraphVertexHandle Node1, FGraphVertexHandle
 	Node1Ptr->AddEdgeTo(Node2, Edge->Handle());
 	Node2Ptr->AddEdgeTo(Node1, Edge->Handle());
 
+	OnEdgeCreated.Broadcast(Edge->Handle());
+
 	// If we want to keep track of islands, this is where we need to create/merge islands.
 	if (Properties.bGenerateIslands && bAddToIslands)
 	{
@@ -224,6 +227,7 @@ FGraphIslandHandle UGraph::CreateIsland(TArray<FGraphVertexHandle> InputNodes, i
 	}
 
 	RegisterIsland(Island);
+	OnIslandCreated.Broadcast(Island->Handle());
 	return Island->Handle();
 }
 

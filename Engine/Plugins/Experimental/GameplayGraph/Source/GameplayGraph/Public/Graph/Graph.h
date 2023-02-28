@@ -23,6 +23,10 @@ struct FGraphProperties
 	bool bGenerateIslands = true;
 };
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnGraphVertexCreated, const FGraphVertexHandle&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnGraphEdgeCreated, const FGraphEdgeHandle&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnGraphIslandCreated, const FGraphIslandHandle&);
+
 /**
  * The minimum amount of data we need to serialize to be able to reconstruct the graph as it was.
  * Note that classes that inherit from UGraph and its elements will no doubt want to extend the graph
@@ -107,6 +111,10 @@ public:
 	int32 NumVertices() const { return Vertices.Num(); }
 	int32 NumEdges() const { return Edges.Num(); }
 	int32 NumIslands() const { return Islands.Num(); }
+
+	FOnGraphVertexCreated OnVertexCreated;
+	FOnGraphEdgeCreated OnEdgeCreated;
+	FOnGraphIslandCreated OnIslandCreated;
 
 protected:
 	const TMap<FGraphVertexHandle, TObjectPtr<UGraphVertex>>& GetVertices() const { return Vertices; }
