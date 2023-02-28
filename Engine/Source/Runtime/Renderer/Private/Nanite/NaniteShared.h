@@ -112,6 +112,11 @@ public:
 	// Maximum number of mips across all views.
 	const uint32 MaxNumMips;
 
+	UE::Tasks::FTask GetSetupTask() const
+	{
+		return SetupTask;
+	}
+
 private:
 	FPackedViewArray(uint32 InNumPrimaryViews, uint32 InMaxNumMips)
 		: NumPrimaryViews(InNumPrimaryViews)

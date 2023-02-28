@@ -1352,7 +1352,8 @@ static void UpdateCurrentFrameHZB(FLightSceneInfo& LightSceneInfo, const FPersis
 	LightSceneInfo.PersistentShadows.Add(ShadowKey, State);
 }
 
-static void RenderShadowDepthAtlasNanite(
+// Returns nanite views setup task
+static UE::Tasks::FTask RenderShadowDepthAtlasNanite(
 	FRDGBuilder& GraphBuilder,
 	ERHIFeatureLevel::Type FeatureLevel,
 	FScene& Scene,
@@ -1384,6 +1385,8 @@ static void RenderShadowDepthAtlasNanite(
 
 		ShadowsToEmit.Add(ProjectedShadowInfo);
 	}
+
+	UE::Tasks::FTask ViewsSetupTask{};
 
 	if (ShadowsToEmit.Num() > 0)
 	{
@@ -1426,6 +1429,7 @@ static void RenderShadowDepthAtlasNanite(
 				PackedViews.Add(Nanite::CreatePackedView(Initializer));
 			}
 		});
+		ViewsSetupTask = PackedViews->GetSetupTask();
 
 		RDG_EVENT_SCOPE(GraphBuilder, "Nanite Shadows");
 
@@ -1512,6 +1516,7 @@ static void RenderShadowDepthAtlasNanite(
 			);
 		}
 	}
+	return ViewsSetupTask;
 }
 
 bool IsParallelDispatchEnabled(const FProjectedShadowInfo* ProjectedShadowInfo, EShaderPlatform ShaderPlatform)
@@ -1522,9 +1527,11 @@ bool IsParallelDispatchEnabled(const FProjectedShadowInfo* ProjectedShadowInfo, 
 		&& !IsMobilePlatform(ShaderPlatform);
 }
 
-void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
+FSceneRenderer::FRenderShadowDepthMapAtlasesResult FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer::RenderShadowDepthMapAtlases);
+
+	FSceneRenderer::FRenderShadowDepthMapAtlasesResult Result;
 
 	const bool bNaniteEnabled = 
 		UseNanite(ShaderPlatform) &&
@@ -1635,7 +1642,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 		if (bNaniteEnabled)
 		{
 			const FViewInfo& SceneView = Views[0];
-			RenderShadowDepthAtlasNanite(GraphBuilder, FeatureLevel, *Scene, ViewFamily, SceneView, ShadowMapAtlas, AtlasIndex);
+			Result.NaniteViewsSetupTask = RenderShadowDepthAtlasNanite(GraphBuilder, FeatureLevel, *Scene, ViewFamily, SceneView, ShadowMapAtlas, AtlasIndex);
 		}
 
 		// Make readable because AtlasDepthTexture is not tracked via RDG yet
@@ -1645,6 +1652,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 	}
 
 	ExternalAccessQueue.Submit(GraphBuilder);
+	return Result;
 }
 
 void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled)
@@ -1680,7 +1688,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 	RenderVirtualShadowMaps(GraphBuilder, bNaniteEnabled);
 
 	// Render non-VSM shadows
-	RenderShadowDepthMapAtlases(GraphBuilder);
+	UE::Tasks::FTask AtlasSetupTask = RenderShadowDepthMapAtlases(GraphBuilder).NaniteViewsSetupTask;
 
 	const bool bUseGeometryShader = !GRHISupportsArrayIndexFromAnyShader;
 
@@ -1906,7 +1914,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 			Light.LightSceneInfo->PrevPersistentShadows = Light.LightSceneInfo->PersistentShadows;
 			Light.LightSceneInfo->PersistentShadows.Empty();
 		}
-	});
+	}, nullptr, AtlasSetupTask, UE::Tasks::ETaskPriority::Normal, true);
 
 	bShadowDepthRenderCompleted = true;
 }
