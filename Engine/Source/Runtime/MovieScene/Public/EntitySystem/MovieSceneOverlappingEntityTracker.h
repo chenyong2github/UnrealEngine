@@ -528,6 +528,7 @@ struct TOverlappingEntityTracker_WithGarbage : TOverlappingEntityTrackerImpl<Out
 		if (Linker)
 		{
 			Linker->Events.TagGarbage.RemoveAll(this);
+			Linker->Events.CleanTaggedGarbage.RemoveAll(this);
 			Linker->Events.AddReferencedObjects.RemoveAll(this);
 		}
 	}
@@ -542,11 +543,12 @@ struct TOverlappingEntityTracker_WithGarbage : TOverlappingEntityTrackerImpl<Out
 		this->bIsInitialized = true;
 		WeakOwningSystem = OwningSystem;
 
-		OwningSystem->GetLinker()->Events.TagGarbage.AddRaw(this, &ThisType::CleanupGarbage);
+		OwningSystem->GetLinker()->Events.TagGarbage.AddRaw(this, &ThisType::TagGarbage);
+		OwningSystem->GetLinker()->Events.CleanTaggedGarbage.AddRaw(this, &ThisType::CleanTaggedGarbage);
 		OwningSystem->GetLinker()->Events.AddReferencedObjects.AddRaw(this, &ThisType::AddReferencedObjects);
 	}
 
-	void CleanupGarbage(UMovieSceneEntitySystemLinker* Linker)
+	void TagGarbage(UMovieSceneEntitySystemLinker* Linker)
 	{
 		for (int32 Index = this->Outputs.GetMaxIndex()-1; Index >= 0; --Index)
 		{
@@ -576,6 +578,26 @@ struct TOverlappingEntityTracker_WithGarbage : TOverlappingEntityTrackerImpl<Out
 			if (KeyType::GarbageTraits::IsGarbage(It.Key()) || !this->Outputs.IsValidIndex(It.Value()))
 			{
 				It.RemoveCurrent();
+			}
+		}
+	}
+
+	void CleanTaggedGarbage(UMovieSceneEntitySystemLinker* Linker)
+	{
+		FComponentTypeID NeedsUnlink = FBuiltInComponentTypes::Get()->Tags.NeedsUnlink;
+
+		// Check whether any of our inputs are about to be destroyed
+		for (auto EntityToOutputIt = this->EntityToOutput.CreateIterator(); EntityToOutputIt; ++EntityToOutputIt)
+		{
+			const FMovieSceneEntityID EntityID    = EntityToOutputIt.Key();
+			const uint16              OutputIndex = EntityToOutputIt.Value();
+			if (OutputIndex != Super::NO_OUTPUT && Linker->EntityManager.HasComponent(EntityID, NeedsUnlink))
+			{
+				this->OutputToEntity.Remove(OutputIndex, EntityID);
+				this->EntityToOutput.Remove(EntityID);
+
+				this->InvalidatedOutputs.PadToNum(OutputIndex + 1, false);
+				this->InvalidatedOutputs[OutputIndex] = true;
 			}
 		}
 	}
