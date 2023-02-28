@@ -1859,6 +1859,11 @@ public:
 	virtual bool ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
 #endif
 protected:
+	/**
+	 * If PhysicsTransformUpdateMode is set to SimulationUpatesComponentTransform, this returns the 
+	 * world-space transform of the body passed in (assumed to be the root body), after applying the 
+	 * TransformToRoot offset. Otherwise, it returns the component transform.
+	 */
 	virtual FTransform GetComponentTransformFromBodyInstance(FBodyInstance* UseBI) override;
 	//~ End UPrimitiveComponent Interface.
 
@@ -2433,9 +2438,11 @@ private:
 	
 	void BlendInPhysicsInternal(FTickFunction& ThisTickFunction);
 
-	//wrapper for parallel blend physics
+	// Blends the simulation output with the component and bone space transforms coming from
+	// animation (just calls PerformBlendPhysicsBones)
 	void ParallelBlendPhysics() { PerformBlendPhysicsBones(RequiredBones, AnimEvaluationContext.ComponentSpaceTransforms, AnimEvaluationContext.BoneSpaceTransforms); }
 
+	// Blends the simulation output with the component and bone space transforms coming from animation
 	void PerformBlendPhysicsBones(const TArray<FBoneIndexType>& InRequiredBones, TArray<FTransform>& InOutComponentSpaceTransforms, TArray<FTransform>& InOutBoneSpaceTransforms);
 
 	friend class FParallelClothTask;
