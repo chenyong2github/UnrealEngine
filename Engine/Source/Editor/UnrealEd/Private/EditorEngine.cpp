@@ -1623,7 +1623,8 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	// Conditionally disable all viewport rendering when the editor is in the background.
 	// This aims to improve GPU performance of other applications when the editor is not actively used.
 	{
-		const bool bShouldDisableRendering = !FApp::HasFocus() && GetDefault<UEditorPerformanceSettings>()->bDisableRealtimeViewportsWhenNotForeground;
+		const UEditorPerformanceSettings* PerformanceSettings = GetDefault<UEditorPerformanceSettings>();
+		const bool bShouldDisableRendering = !FApp::HasFocus() && PerformanceSettings->bThrottleCPUWhenNotForeground;
 		const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_BackgroundProcess", "Background Process");
 		for (FEditorViewportClient* const ViewportClient : AllViewportClients)
 		{

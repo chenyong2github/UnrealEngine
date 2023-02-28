@@ -41,10 +41,6 @@ class UEditorPerformanceSettings : public UDeveloperSettings
 	UPROPERTY(EditAnywhere, config, Category=EditorPerformance, meta=(DisplayName="Use Less CPU when in Background") )
 	uint32 bThrottleCPUWhenNotForeground:1;
 
-	/** Disables realtime viewports when the editor is in the background to reduce GPU performance impact on other applications */
-	UPROPERTY(EditAnywhere, config, Category = EditorPerformance, meta = (DisplayName = "Disable realtime viewports when in Background"))
-	uint32 bDisableRealtimeViewportsWhenNotForeground : 1;
-
 	/** Disables realtime viewports by default when connected via a remote session */
 	UPROPERTY(EditAnywhere, config, Category = EditorPerformance, meta = (DisplayName = "Disable realtime viewports by default in Remote Sessions"))
 	uint32 bDisableRealtimeViewportsInRemoteSessions : 1;
