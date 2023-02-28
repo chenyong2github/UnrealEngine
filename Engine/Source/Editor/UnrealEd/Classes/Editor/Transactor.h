@@ -44,6 +44,13 @@ protected:
 	public:
 		struct FSerializedObject : public UE::Transaction::FSerializedObject
 		{
+			enum class EPendingKillChange : uint8
+			{
+				None,
+				DeadToAlive,
+				AliveToDead
+			};
+
 			void SetObject(const UObject* InObject)
 			{
 				ObjectId.SetObject(InObject);
@@ -55,6 +62,7 @@ protected:
 				UE::Transaction::FSerializedObject::Reset();
 				ObjectId.Reset();
 				ObjectAnnotation.Reset();
+				PendingKillChange = EPendingKillChange::None;
 			}
 
 			void Swap(FSerializedObject& Other)
@@ -62,6 +70,7 @@ protected:
 				UE::Transaction::FSerializedObject::Swap(Other);
 				ObjectId.Swap(Other.ObjectId);
 				Exchange(ObjectAnnotation, Other.ObjectAnnotation);
+				Exchange(PendingKillChange, Other.PendingKillChange);
 			}
 
 			/** ID of the object when it was serialized */
@@ -69,6 +78,9 @@ protected:
 
 			/** Annotation data for the object stored externally */
 			TSharedPtr<ITransactionObjectAnnotation> ObjectAnnotation;
+
+			/** Whether this transaction marked this actor as garbage, unmarked it, or didn't touch the garbage flag at all. */
+			EPendingKillChange PendingKillChange = EPendingKillChange::None;
 		};
 
 		// Variables.

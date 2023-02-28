@@ -1459,28 +1459,6 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 			SerializeScriptProperties(Record.EnterField(TEXT("Properties")));
 		}
 
-		// Keep track of pending kill
-		if (UnderlyingArchive.IsTransacting())
-		{
-			bool WasKill = !IsValidChecked(this);
-			if (UnderlyingArchive.IsLoading())
-			{
-				Record << SA_VALUE(TEXT("WasKill"), WasKill);
-				if (WasKill)
-				{
-					MarkAsGarbage();
-				}
-				else
-				{
-					ClearGarbage();
-				}
-			}
-			else if (UnderlyingArchive.IsSaving())
-			{
-				Record << SA_VALUE(TEXT("WasKill"), WasKill);
-			}
-		}
-
 		// Keep track of transient
 		if (UnderlyingArchive.IsTransacting())
 		{

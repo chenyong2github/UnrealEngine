@@ -286,6 +286,10 @@ void FTransaction::FObjectRecord::Save(FTransaction* Owner)
 	check(Owner->bFlip);
 	if (!bRestored)
 	{
+		// Since the transaction will be reset, we want to preserve if this transaction affected the garbage flag at all
+		// (since the only thing that should change is the updated state of the object)
+		FSerializedObject::EPendingKillChange PendingKillChange = SerializedObjectFlip.PendingKillChange;
+
 		SerializedObjectFlip.Reset();
 
 		UObject* CurrentObject = Object.Get();
@@ -296,6 +300,8 @@ void FTransaction::FObjectRecord::Save(FTransaction* Owner)
 
 		FWriter Writer(SerializedObjectFlip, bWantsBinarySerialization);
 		SerializeContents(Writer, -Oper);
+
+		SerializedObjectFlip.PendingKillChange = PendingKillChange;
 	}
 }
 
@@ -392,6 +398,12 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, UE::Transaction
 			
 			// Diff against the object state when the transaction started
 			UE::Transaction::DiffUtil::GenerateObjectDiff(*DiffableObject, CurrentDiffableObject, DeltaChange, UE::Transaction::DiffUtil::FGenerateObjectDiffOptions(), &ArchetypeCache);
+
+			if (DeltaChange.bHasPendingKillChange)
+			{
+				SerializedObject.PendingKillChange = IsValid(CurrentObject) ? FSerializedObject::EPendingKillChange::DeadToAlive: FSerializedObject::EPendingKillChange::AliveToDead;
+				SerializedObjectFlip.PendingKillChange = IsValid(CurrentObject) ? FSerializedObject::EPendingKillChange::AliveToDead : FSerializedObject::EPendingKillChange::DeadToAlive;
+			}
 
 			// If we have a previous snapshot then we need to consider that part of the diff for the finalized object, as systems may 
 			// have been tracking delta-changes between snapshots and this finalization will need to account for those changes too
@@ -853,6 +865,16 @@ void FTransaction::Apply()
 			{
 				Object->CheckDefaultSubobjects();
 				Object->PreEditUndo();
+			}
+			
+			// If we get here, we are undoing - in that case, we need to reverse whatever was in the transaction.
+			if (Record.SerializedObject.PendingKillChange == FObjectRecord::FSerializedObject::EPendingKillChange::AliveToDead)
+			{
+				Object->ClearGarbage();
+			}
+			else if (Record.SerializedObject.PendingKillChange == FObjectRecord::FSerializedObject::EPendingKillChange::DeadToAlive)
+			{
+				Object->MarkAsGarbage();
 			}
 
 			ChangedObjects.Add(Object, FChangedObjectValue(i, Record.SerializedObject.ObjectAnnotation));
