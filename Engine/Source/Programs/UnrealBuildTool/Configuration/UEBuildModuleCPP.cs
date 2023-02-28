@@ -181,8 +181,8 @@ namespace UnrealBuildTool
 			new KeyValuePair<string, string>("WebBrowser", "WebBrowserTexture"),
 		};
 
-		public UEBuildModuleCPP(ModuleRules Rules, DirectoryReference IntermediateDirectory, DirectoryReference? GeneratedCodeDirectory, ILogger Logger)
-			: base(Rules, IntermediateDirectory, Logger)
+		public UEBuildModuleCPP(ModuleRules Rules, DirectoryReference IntermediateDirectory, DirectoryReference IntermediateDirectoryNoArch, DirectoryReference? GeneratedCodeDirectory, ILogger Logger)
+			: base(Rules, IntermediateDirectory, IntermediateDirectoryNoArch, Logger)
 		{
 			this.GeneratedCodeDirectory = GeneratedCodeDirectory;
 
@@ -300,7 +300,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public virtual FileReference PrecompiledManifestLocation
 		{
-			get { return FileReference.Combine(IntermediateDirectory, String.Format("{0}.precompiled", Name)); }
+			get { return FileReference.Combine(IntermediateDirectoryNoArch, String.Format("{0}.precompiled", Name)); }
 		}
 
 		/// <summary>

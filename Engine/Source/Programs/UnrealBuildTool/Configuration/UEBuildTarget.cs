@@ -3747,8 +3747,9 @@ namespace UnrealBuildTool
 		/// Finds the base output directory for a module
 		/// </summary>
 		/// <param name="ModuleRules">The rules object created for this module</param>
+		/// <param name="Architectures">The architectures (or none) to insert into the directory structure</param>
 		/// <returns>The output directory for compiled object files for this module</returns>
-		private DirectoryReference GetModuleIntermediateDirectory(ModuleRules ModuleRules)
+		private DirectoryReference GetModuleIntermediateDirectory(ModuleRules ModuleRules, UnrealArchitectures? Architectures)
 		{
 			// Get the root output directory and base name (target name/app name) for this binary
 			DirectoryReference BaseOutputDirectory = GetBaseOutputDirectory(ModuleRules);
@@ -5126,13 +5127,19 @@ namespace UnrealBuildTool
 				case ModuleRules.ModuleType.CPlusPlus:
 					return new UEBuildModuleCPP(
 							Rules: RulesObject,
-							IntermediateDirectory: GetModuleIntermediateDirectory(RulesObject),
+							IntermediateDirectory: GetModuleIntermediateDirectory(RulesObject, Architectures),
+							IntermediateDirectoryNoArch: GetModuleIntermediateDirectory(RulesObject, null),
 							GeneratedCodeDirectory: GeneratedCodeDirectory,
 							Logger
 						);
 
 				case ModuleRules.ModuleType.External:
-					return new UEBuildModuleExternal(RulesObject, GetModuleIntermediateDirectory(RulesObject), Logger);
+					return new UEBuildModuleExternal(
+							Rules: RulesObject,
+							IntermediateDirectory: GetModuleIntermediateDirectory(RulesObject, Architectures),
+							IntermediateDirectoryNoArch: GetModuleIntermediateDirectory(RulesObject, null),
+							Logger
+						);
 
 				default:
 					throw new BuildException("Unrecognized module type specified by 'Rules' object {0}", RulesObject.ToString());

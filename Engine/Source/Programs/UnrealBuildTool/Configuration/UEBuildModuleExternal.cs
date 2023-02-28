@@ -15,8 +15,8 @@ namespace UnrealBuildTool
 	/// </summary>
 	class UEBuildModuleExternal : UEBuildModule
 	{
-		public UEBuildModuleExternal(ModuleRules Rules, DirectoryReference IntermediateDirectory, ILogger Logger)
-			: base(Rules, IntermediateDirectory, Logger)
+		public UEBuildModuleExternal(ModuleRules Rules, DirectoryReference IntermediateDirectory, DirectoryReference IntermediateDirectoryNoArch, ILogger Logger)
+			: base(Rules, IntermediateDirectory, IntermediateDirectoryNoArch, Logger)
 		{
 		}
 	}
