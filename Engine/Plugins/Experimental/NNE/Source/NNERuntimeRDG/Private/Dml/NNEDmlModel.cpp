@@ -1154,11 +1154,13 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 		);
 	}
 
+	int32 NumWeightTensors = 0;
+
 	for (int32 Idx = 0; Idx < WeightTensorIndices.Num(); ++Idx)
 	{
 		if (ConstantCPUTensorIndices.Find(WeightTensorIndices[Idx]) == -1)
 		{
-			InputBuffers.Emplace(nullptr);
+			++NumWeightTensors;
 		}
 	}
 
@@ -1181,13 +1183,18 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("FModel_Dispatch"),
 		ERDGPassFlags::None | ERDGPassFlags::NeverCull,
-		[this](FRHICommandListImmediate& RHICmdList)
+		[this, NumWeightTensors](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.EnqueueLambda(
-				[this](FRHICommandListImmediate& RHICmdList)
+				[this, NumWeightTensors](FRHICommandListImmediate& RHICmdList)
 				{
 					TArray<CD3DX12_RESOURCE_BARRIER, TInlineAllocator<MaxNumInputs + MaxNumOutputs>>	PreBarriers;
 					TArray<CD3DX12_RESOURCE_BARRIER, TInlineAllocator<MaxNumOutputs * 2>>				PostBarriers;
+
+					for (int32 Idx = 0; Idx < NumWeightTensors; ++Idx)
+					{
+						InputBuffers.Emplace(nullptr);
+					}
 
 					for (FRHIBuffer* Buffer : InputBuffers)
 					{

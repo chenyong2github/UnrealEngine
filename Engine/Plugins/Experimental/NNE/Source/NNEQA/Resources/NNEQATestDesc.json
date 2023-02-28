@@ -13,8 +13,8 @@
 					"absolute_tolerance": 5.0e-2
 				}
 			]
-				},
-				{
+		},
+		{
 			"category": "StyleTransfer.VariableInputSize",
 			"is_model_test": true,
 			"targets": [
@@ -35,9 +35,6 @@
 				{
 					"target": "NeuralMorphModel_global",
 					"tags": [ "SmokeTest" ],
-					"runtimes": [
-						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." }
-					],
 					"absolute_tolerance": 1e-5
 				},
 				{
@@ -60,11 +57,7 @@
 				},
 				{
 					"target": "VertexDeltaModel",
-					"runtimes": [
-						{ "name": "NNERuntimeORTDml", "absolute_tolerance": 1e-4 },
-						{ "name": "NNERuntimeRDGHlsl", "absolute_tolerance": 1e-4 },
-						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." }
-					]
+					"absolute_tolerance": 1e-4
 				}
 			]
 		},
