@@ -565,7 +565,7 @@ void FHLSLMaterialTranslator::CompileCustomOutputs(TArray<UMaterialExpressionCus
 
 			int32 MaxOutputs = CustomOutput->GetMaxOutputs();
 			int32 NumOutputs = CustomOutput->GetNumOutputs();
-			if (NumOutputs > MaxOutputs)
+			if ((MaxOutputs > 0) && (NumOutputs > MaxOutputs))
 			{
 				Errorf(TEXT("The material can only contain up to %i output %s nodes (current number: %i)"), MaxOutputs, *CustomOutput->GetDescription(), NumOutputs);
 			}
