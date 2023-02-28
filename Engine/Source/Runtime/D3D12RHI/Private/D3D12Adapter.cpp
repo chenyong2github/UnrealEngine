@@ -98,6 +98,8 @@ static bool CheckD3DStoredMessages()
 			D3D12_MESSAGE* d3dMessage = nullptr;
 			SIZE_T AllocateSize = 0;
 
+			static const bool bBreakOnWarning = FParse::Param(FCommandLine::Get(), TEXT("d3dbreakonwarning"));
+
 			int StoredMessageCount = d3dInfoQueue->GetNumStoredMessagesAllowedByRetrievalFilter();
 			for (int MessageIndex = 0; MessageIndex < StoredMessageCount; MessageIndex++)
 			{
@@ -130,24 +132,32 @@ static bool CheckD3DStoredMessages()
 					// get the actual message data from the queue
 					hr = d3dInfoQueue->GetMessage(MessageIndex, d3dMessage, &MessageLength);
 
-					if (d3dMessage->Severity == D3D12_MESSAGE_SEVERITY_ERROR)
+
+					switch (d3dMessage->Severity)
 					{
-						UE_LOG(LogD3D12RHI, Error, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
-					}
-					else if (d3dMessage->Severity == D3D12_MESSAGE_SEVERITY_WARNING)
-					{
-						UE_LOG(LogD3D12RHI, Warning, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
-					}
-					else 
-					{
-						UE_LOG(LogD3D12RHI, Log, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+					case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+					case D3D12_MESSAGE_SEVERITY_ERROR:
+						{
+							UE_LOG(LogD3D12RHI, Error, TEXT("[D3DDebug] %s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+							bResult = true;
+							break;
+						}
+					case D3D12_MESSAGE_SEVERITY_WARNING:
+						{
+							UE_LOG(LogD3D12RHI, Warning, TEXT("[D3DDebug] %s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+							if (bBreakOnWarning)
+								bResult = true;
+							break;
+						}
+					default:
+						{
+							UE_LOG(LogD3D12RHI, Log, TEXT("[D3DDebug] %s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+							break;
+						}
 					}
 				}
-
-				// we got messages
-				bResult = true;
 			}
-
+			d3dInfoQueue->ClearStoredMessages();
 			if (AllocateSize > 0)
 			{
 				FMemory::Free(d3dMessage);
@@ -611,10 +621,10 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			FMemory::Memzero(&NewFilter, sizeof(NewFilter));
 
 			// Turn off info msgs as these get really spewy
-			D3D12_MESSAGE_SEVERITY DenySeverity = D3D12_MESSAGE_SEVERITY_INFO;
-			NewFilter.DenyList.NumSeverities = 1;
-			NewFilter.DenyList.pSeverityList = &DenySeverity;
-
+			const bool bLogWarnings = FParse::Param(FCommandLine::Get(), TEXT("d3dbreakonwarning")) || FParse::Param(FCommandLine::Get(), TEXT("d3dlogwarnings"));
+			D3D12_MESSAGE_SEVERITY DenySeverity[] = { D3D12_MESSAGE_SEVERITY_INFO, D3D12_MESSAGE_SEVERITY_WARNING };
+			NewFilter.DenyList.NumSeverities = 1 + (bLogWarnings ? 0 : 1);
+			NewFilter.DenyList.pSeverityList = DenySeverity;
 			// Be sure to carefully comment the reason for any additions here!  Someone should be able to look at it later and get an idea of whether it is still necessary.
 			TArray<D3D12_MESSAGE_ID, TInlineAllocator<16>> DenyIds = {
 
@@ -703,7 +713,8 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			// Enable this to break on a specific id in order to quickly get a callstack
 			//pd3dInfoQueue->SetBreakOnID(D3D12_MESSAGE_ID_DEVICE_DRAW_CONSTANT_BUFFER_TOO_SMALL, true);
 
-			if (FParse::Param(FCommandLine::Get(), TEXT("d3dbreakonwarning")))
+			// Break on D3D warnings if warning log or warning breakpoint is enabled
+			if (bLogWarnings)
 			{
 				pd3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
 			}
@@ -1356,12 +1367,7 @@ FD3D12Adapter::~FD3D12Adapter()
 #endif
 
 #if PLATFORM_WINDOWS
-	if (ExceptionHandlerHandle != INVALID_HANDLE_VALUE)
-	{
-		RemoveVectoredExceptionHandler(ExceptionHandlerHandle);
-	}
-
-	if (D3D12RHI_ShouldCreateWithD3DDebug())
+	if (GetD3DDevice() && D3D12RHI_ShouldCreateWithD3DDebug())
 	{
 		TRefCountPtr<ID3D12DebugDevice> Debug;
 		if (SUCCEEDED(GetD3DDevice()->QueryInterface(IID_PPV_ARGS(Debug.GetInitReference()))))
@@ -1369,6 +1375,11 @@ FD3D12Adapter::~FD3D12Adapter()
 			D3D12_RLDO_FLAGS rldoFlags = D3D12_RLDO_DETAIL;
 			Debug->ReportLiveDeviceObjects(rldoFlags);
 		}
+	}
+
+	if (ExceptionHandlerHandle != INVALID_HANDLE_VALUE)
+	{
+		RemoveVectoredExceptionHandler(ExceptionHandlerHandle);
 	}
 #endif
 

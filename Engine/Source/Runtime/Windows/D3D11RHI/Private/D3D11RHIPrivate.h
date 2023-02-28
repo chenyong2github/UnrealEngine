@@ -933,6 +933,8 @@ protected:
 
 	FDisplayInformationArray DisplayList;
 
+	HANDLE ExceptionHandlerHandle = INVALID_HANDLE_VALUE;
+
 	bool bRenderDoc = false;
 
 public:

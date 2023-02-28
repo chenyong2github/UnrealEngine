@@ -668,6 +668,11 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 			}
 		}
 
+		if (ExceptionHandlerHandle != INVALID_HANDLE_VALUE)
+		{
+			RemoveVectoredExceptionHandler(ExceptionHandlerHandle);
+		}
+
 		// ORION - avoid shutdown crash that is currently present in UE
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 		if (1) // (IsRHIDeviceNVIDIA())
