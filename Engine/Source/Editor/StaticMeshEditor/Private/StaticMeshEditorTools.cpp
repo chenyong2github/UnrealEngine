@@ -5280,6 +5280,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	TSharedPtr<SCheckBox> NaniteEnabledCheck;
 	{
 		NaniteSettingsCategory.AddCustomRow( LOCTEXT("Enabled", "Enabled") )
+		.RowTag("EnabledNaniteSupport")
 		.NameContent()
 		[
 			SNew(STextBlock)
@@ -5297,6 +5298,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	{
 		TSharedPtr<SCheckBox> NanitePreserveAreaCheck;
 		NaniteSettingsCategory.AddCustomRow( LOCTEXT("PreserveArea", "Preserve Area") )
+		.RowTag("PreserveArea")
 		.NameContent()
 		[
 			SNew(STextBlock)
@@ -5314,6 +5316,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	{
 		TSharedPtr<STextComboBox> ComboBox;
 		NaniteSettingsCategory.AddCustomRow(LOCTEXT("PositionPrecision", "Position Precision"))
+		.RowTag("PositionPrecision")
 		.NameContent()
 		[
 			SNew(STextBlock)
@@ -5356,6 +5359,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	{
 		TSharedPtr<STextComboBox> ComboBox;
 		NaniteSettingsCategory.AddCustomRow(LOCTEXT("MinimumResidency", "Minimum Residency"))
+		.RowTag("MinimumResidency")
 		.NameContent()
 		[
 			SNew(STextBlock)
@@ -5375,7 +5379,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 
 	{
 		NaniteSettingsCategory.AddCustomRow( LOCTEXT("KeepTrianglePercent", "Keep Triangle Percent") )
-
+		.RowTag("KeepTrianglePercent")
 		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked(); } )))
 		.NameContent()
 		[
@@ -5399,7 +5403,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 
 	{
 		NaniteSettingsCategory.AddCustomRow( LOCTEXT("TrimRelativeError", "Trim Relative Error") )
-
+		.RowTag("TrimRelativeError")
 		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked(); } )))
 		.NameContent()
 		[
@@ -5424,7 +5428,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 
 	{
 		NaniteSettingsCategory.AddCustomRow( LOCTEXT("FallbackTrianglePercent", "Fallback Triangle Percent") )
-
+		.RowTag("FallbackTrianglePercent")
 		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([this, NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked() && IsHiResDataEmpty(); })))
 		.NameContent()
 		[
@@ -5452,7 +5456,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 
 	{
 		NaniteSettingsCategory.AddCustomRow( LOCTEXT("FallbackRelativeError", "Fallback Relative Error") )
-
+		.RowTag("FallbackRelativeError")
 		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([this, NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked() && IsHiResDataEmpty(); } )))
 		.NameContent()
 		[
@@ -5480,7 +5484,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	{
 		FString FileFilterText = TEXT("Filmbox (*.fbx)|*.fbx|All files (*.*)|*.*");
 		NaniteSettingsCategory.AddCustomRow( LOCTEXT("NANITE_SourceImportFilename", "Source Import Filename") )
-
+		.RowTag("NANITE_SourceImportFilename")
 		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked(); } )))
 		.NameContent()
 		[
@@ -5550,6 +5554,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	//Nanite import button
 	{
 		NaniteSettingsCategory.AddCustomRow(LOCTEXT("NaniteHiResButtons", "Nanite Hi Res buttons"))
+		.RowTag("NaniteHiResButtons")
 		.ValueContent()
 		.HAlign(HAlign_Fill)
 		[
