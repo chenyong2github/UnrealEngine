@@ -752,7 +752,11 @@ void ULevel::CreateReplicatedDestructionInfo(AActor* const Actor)
 	// mimic the checks the package map will do before assigning a guid
 	const bool bIsActorStatic = Actor->IsFullNameStableForNetworking() && Actor->IsSupportedForNetworking();
 	const bool bActorHasRole = Actor->GetRemoteRole() != ROLE_None;
-	const bool bShouldCreateDestructionInfo = bIsActorStatic && bActorHasRole;
+	const bool bShouldCreateDestructionInfo = bIsActorStatic && bActorHasRole
+#if WITH_EDITOR
+		&& !GIsReinstancing
+#endif
+		;
 
 	if (bShouldCreateDestructionInfo)
 	{
