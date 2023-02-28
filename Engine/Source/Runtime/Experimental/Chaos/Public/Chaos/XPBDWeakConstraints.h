@@ -12,6 +12,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/Paths.h"
 #include "Chaos/GraphColoring.h"
+#include "Chaos/DebugDrawQueue.h"
 
 //DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Corotated Constraint"), STAT_ChaosXPBDCorotated, STATGROUP_Chaos);
 //DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Corotated Constraint Polar Compute"), STAT_ChaosXPBDCorotatedPolar, STATGROUP_Chaos);
@@ -19,6 +20,13 @@
 
 namespace Chaos::Softs
 {
+
+	struct CHAOS_API FDeformableXPBDWeakConstraintParams
+	{
+		float DebugLineWidth = 5.f;
+		float DebugParticleWidth = 20.f;
+		bool bVisualizeBindings = false;
+	};
 
 	using Chaos::TVec3;
 
@@ -48,9 +56,10 @@ namespace Chaos::Softs
 			const TArray<TArray<T>>& InWeights,
 			const TArray<T>& InStiffness,
 			const TArray<TArray<int32>>& InSecondIndices,
-			const TArray<TArray<T>>& InSecondWeights
+			const TArray<TArray<T>>& InSecondWeights,
+			const FDeformableXPBDWeakConstraintParams& InParams
 		)
-			: Indices(InIndices), Weights(InWeights), SecondIndices(InSecondIndices), SecondWeights(InSecondWeights), Stiffness(InStiffness)
+			: Indices(InIndices), Weights(InWeights), SecondIndices(InSecondIndices), SecondWeights(InSecondWeights), Stiffness(InStiffness), DebugDrawParams(InParams)
 		{
 			ensureMsgf(Indices.Num() == SecondIndices.Num(), TEXT("Input Double Bindings have wrong size"));
 			
@@ -106,9 +115,13 @@ namespace Chaos::Softs
 			return Indices;
 		}
 
-		virtual void Init() const
+		void Init(const FSolverParticles& InParticles, const T Dt) const
 		{
 			for (T& Lambdas : LambdaArray) { Lambdas = (T)0.; }
+			if (DebugDrawParams.bVisualizeBindings)
+			{
+				VisualizeAllBindings(InParticles, Dt);
+			}
 		}
 
 		void UpdateTargets(TArray<TVector<T, 3>>&& InTargets)
@@ -222,6 +235,51 @@ namespace Chaos::Softs
 			}
 		}
 
+		void VisualizeAllBindings(const FSolverParticles& InParticles, const T Dt) const
+		{
+#if WITH_EDITOR
+			auto DoubleVert = [](Chaos::TVec3<T> V) { return FVector3d(V.X, V.Y, V.Z); };
+			for (int32 i = 0; i < Indices.Num(); i++)
+			{
+				Chaos::TVec3<T> SourcePos((T)0.), TargetPos((T)0.);
+				for (int32 j = 0; j < Indices[i].Num(); j++)
+				{
+					SourcePos += Weights[i][j] * InParticles.P(Indices[i][j]);
+				}
+				for (int32 j = 0; j < SecondIndices[i].Num(); j++)
+				{
+					TargetPos += SecondWeights[i][j] * InParticles.P(SecondIndices[i][j]);
+				}
+
+				float ParticleThickness = DebugDrawParams.DebugParticleWidth;
+				float LineThickness = DebugDrawParams.DebugLineWidth;
+
+				if (Indices[i].Num() == 1)
+				{
+					Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(DoubleVert(SourcePos), FColor::Red, false, Dt, 0, ParticleThickness);
+					for (int32 j = 0; j < SecondIndices[i].Num(); j++)
+					{
+						Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(DoubleVert(InParticles.P(SecondIndices[i][j])), FColor::Green, false, Dt, 0, ParticleThickness);
+						Chaos::FDebugDrawQueue::GetInstance().DrawDebugLine(DoubleVert(InParticles.P(SecondIndices[i][j])), DoubleVert(InParticles.P(SecondIndices[i][(j+1) % SecondIndices[i].Num()])), FColor::Green, false, Dt, 0, LineThickness);
+					}
+				
+				}
+
+				if (SecondIndices[i].Num() == 1)
+				{
+					Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(DoubleVert(TargetPos), FColor::Red, false, Dt, 0, ParticleThickness);
+					for (int32 j = 0; j < Indices[i].Num(); j++)
+					{
+						Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(DoubleVert(InParticles.P(Indices[i][j])), FColor::Green, false, Dt, 0, ParticleThickness);
+						Chaos::FDebugDrawQueue::GetInstance().DrawDebugLine(DoubleVert(InParticles.P(Indices[i][j])), DoubleVert(InParticles.P(Indices[i][(j + 1) % SecondIndices[i].Num()])), FColor::Green, false, Dt, 0, LineThickness);
+					}
+				}
+
+				Chaos::FDebugDrawQueue::GetInstance().DrawDebugLine(DoubleVert(SourcePos), DoubleVert(TargetPos), FColor::Yellow, false, Dt, 0, LineThickness);
+			}
+#endif
+		}
+
 
 	protected:
 		TArray<TArray<int32>> Indices;
@@ -232,7 +290,11 @@ namespace Chaos::Softs
 		TArray<T> Stiffness;
 		TArray<TArray<int32>> ConstraintsPerColor;
 		mutable TArray<T> LambdaArray;
+		bool VisualizeBindings = false;
+		FDeformableXPBDWeakConstraintParams DebugDrawParams;
 	};
+
+	
 
 }  // End namespace Chaos::Softs
 

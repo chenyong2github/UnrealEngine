@@ -74,6 +74,11 @@ namespace Chaos::Softs
 	FAutoConsoleVariableRef CVarDeformableXPBDCorotatedBatchSize(TEXT("p.Chaos.Deformable.XPBDBatchSize"), GDeformableXPBDCorotatedParams.XPBDCorotatedBatchSize, TEXT("Batch size for physics parallel for. [def: 5]"));
 	FAutoConsoleVariableRef CVarDeformableXPBDCorotatedBatchThreshold(TEXT("p.Chaos.Deformable.XPBDBatchThreshold"), GDeformableXPBDCorotatedParams.XPBDCorotatedBatchThreshold, TEXT("Batch threshold for physics parallel for. [def: 5]"));
 
+	FDeformableXPBDWeakConstraintParams GDeformableXPBDWeakConstraintParams;
+	FAutoConsoleVariableRef CVarDeformableXPBDWeakConstraintLineWidth(TEXT("p.Chaos.Deformable.XPBDWeakConstraintLineWidth"), GDeformableXPBDWeakConstraintParams.DebugLineWidth, TEXT("Line width for visualizing the double bindings in XPBD weak constraints. [def: 5]"));
+	FAutoConsoleVariableRef CVarDeformableXPBDWeakConstraintParticleWidth(TEXT("p.Chaos.Deformable.XPBDWeakConstraintParticleWidth"), GDeformableXPBDWeakConstraintParams.DebugParticleWidth, TEXT("Line width for visualizing the double bindings in XPBD weak constraints. [def: 20]"));
+	FAutoConsoleVariableRef CVarDeformableXPBDWeakConstraintDebugDraw(TEXT("p.Chaos.Deformable.XPBDWeakConstraintEnableDraw"), GDeformableXPBDWeakConstraintParams.bVisualizeBindings, TEXT("Debug draw the double bindings in XPBD weak constraints. [def: false]"));
+
 	FCriticalSection FDeformableSolver::InitializationMutex;
 	FCriticalSection FDeformableSolver::RemovalMutex;
 	FCriticalSection FDeformableSolver::PackageOutputMutex;
@@ -456,13 +461,12 @@ namespace Chaos::Softs
 
 			FXPBDWeakConstraints<FSolverReal, FSolverParticles>* WeakConstraint =
 				new FXPBDWeakConstraints<FSolverReal, FSolverParticles>(Evolution->Particles(),
-					PositionTargetIndices, PositionTargetWeights, PositionTargetStiffness, PositionTargetSecondIndices, PositionTargetSecondWeights);
+					PositionTargetIndices, PositionTargetWeights, PositionTargetStiffness, PositionTargetSecondIndices, PositionTargetSecondWeights, GDeformableXPBDWeakConstraintParams);
 
 			Evolution->ConstraintInits()[InitIndex] =
 				[WeakConstraint, this](FSolverParticles& InParticles, const FSolverReal Dt)
 			{
-				WeakConstraint->Init();
-				//WeakConstraint->UpdateTargets(this->ComputeParticleTargets(WeakConstraint->GetIndices()));
+				WeakConstraint->Init(InParticles, Dt);
 			};
 
 			Evolution->ConstraintRules()[ConstraintIndex] =

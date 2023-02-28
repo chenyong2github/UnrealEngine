@@ -910,5 +910,91 @@ namespace Chaos
 			return IncidentElements;
 		}
 
+		inline void DFS_iterative(const TArray<TArray<int32>>& L, int32 v, TArray<bool>& visited, TArray<int32>& component) {
+			TArray<int32> Stack({ v });
+			Stack.Heapify();
+			while (!Stack.IsEmpty()) {
+				Stack.HeapPop(v);
+				if (!visited[v]) {
+					visited[v] = true;
+					component.Emplace(v);
+					for (int32 i : L[v]) {
+						if (!visited[i]) {
+							Stack.HeapPush(i);
+						}
+					}
+				}
+			}
+		}
+
+		inline void ConnectedComponentsDFSIterative(const TArray<TArray<int32>>& L, TArray<TArray<int32>>& C) {
+			//Input: L, the given adjacency list
+			//Output: C, connected components
+			TArray<bool> Visited;
+			Visited.Init(false, L.Num());
+			for (int32 v = 0; v < L.Num(); ++v) {
+				if (!Visited[v]) {
+					TArray<int32> component;
+					DFS_iterative(L, v, Visited, component);
+					C.Emplace(component);
+				}
+			}
+		}
+
+		inline void FindConnectedRegions(const TArray<FIntVector4>& Elements, TArray<TArray<int32>>& ConnectedComponents) 
+		{
+			TArray<int32> AllEntries, ElementIndices, Ordering, Ranges;
+			int32 count = 0;
+			AllEntries.Init(-1, Elements.Num() * 4);
+			ElementIndices.Init(-1, Elements.Num()*4);
+			Ordering.Init(-1, Elements.Num()*4);
+			Ranges.Init(-1, Elements.Num()*4 + 1);
+			for (int32 i = 0; i < Elements.Num(); i++) 
+			{
+				for (int32 j = 0; j < 4; j++) 
+				{
+					AllEntries[4 * i + j] = Elements[i][j];
+					ElementIndices[4*i+j] = i;
+					Ordering[4*i+j] = count;
+					Ranges[4*i+j] = count++;
+				}
+			}
+			Ranges[Elements.Num() * 4] = count;
+			
+			if (AllEntries.Num() == 0)
+				return;
+			
+			Ordering.Sort([&AllEntries](int32 a, int32 b) { return AllEntries[a] < AllEntries[b]; });
+			TArray<int32> UniqueRanges({ 0 });
+			
+			for (int32 i = 0; i < Ranges.Num() - 2; ++i)
+			{
+				if (AllEntries[Ordering[i]] != AllEntries[Ordering[i+1]])
+				{
+					UniqueRanges.Emplace(i + 1);
+				}
+			}
+			
+			UniqueRanges.Emplace(count);
+
+			TArray<TArray<int32>> AdjacencyList;
+			AdjacencyList.Init(TArray<int32>(), Elements.Num());
+			for (int32 r = 0; r < UniqueRanges.Num() - 1; r++) 
+			{
+				if (UniqueRanges[r + 1] - UniqueRanges[r] > 1) 
+				{
+					for (int32 i = UniqueRanges[r]; i < UniqueRanges[r + 1]; i++) 
+					{
+						for (int32 j = i + 1; j < UniqueRanges[r + 1]; j++) 
+						{
+							AdjacencyList[ElementIndices[Ordering[i]]].Emplace(ElementIndices[Ordering[j]]);
+							AdjacencyList[ElementIndices[Ordering[j]]].Emplace(ElementIndices[Ordering[i]]);
+						}
+					}
+				}
+			}
+			ConnectedComponentsDFSIterative(AdjacencyList, ConnectedComponents);
+		}
+
 	} // namespace Utilities
 } // namespace Chaos
