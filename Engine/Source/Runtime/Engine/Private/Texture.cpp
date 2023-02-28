@@ -3529,7 +3529,7 @@ void UTexture::GetPlatformTextureFormatNamesWithPrefix(const class ITargetPlatfo
 	TargetPlatform->GetTextureFormats(this,OutFormats);
 
 	// almost always == 1, except for Android_Multi, which makes an array of layer formats per variant
-	check( OutFormats.Num() >= 1 );
+	// also OutFormats.Num() == 0 for server-only platforms
 	
 	// note : FinalizeVirtualTextureLayerFormat can do another set of remaps later; consider moving that here
 
