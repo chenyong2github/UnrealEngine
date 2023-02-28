@@ -22,7 +22,6 @@
 
 #include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
-#include "absl/random/internal/traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -99,7 +98,7 @@ class FastUniformBits {
   result_type operator()(URBG& g);  // NOLINT(runtime/references)
 
  private:
-  static_assert(IsUnsigned<UIntType>::value,
+  static_assert(std::is_unsigned<UIntType>::value,
                 "Class-template FastUniformBits<> must be parameterized using "
                 "an unsigned type.");
 

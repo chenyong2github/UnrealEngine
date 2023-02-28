@@ -123,13 +123,17 @@ namespace UE::NNERuntimeORTCpu::Private
 
 		TArray<NNECore::FTensorDesc>& SymbolicTensorDescs = bIsInput ? InputSymbolicTensors : OutputSymbolicTensors;
 		TArray<ONNXTensorElementDataType>& TensorsORTType = bIsInput ? InputTensorsORTType : OutputTensorsORTType;
-		TArray<const char*>& TensorNames = bIsInput ? InputTensorNames : OutputTensorNames;
+		TArray<Ort::AllocatedStringPtr>& TensorNames = bIsInput ? InputTensorNames : OutputTensorNames;
+		TArray<const char*>& TensorNamePtrs = bIsInput ? InputTensorNamePtrs : OutputTensorNamePtrs;
 
 		for (uint32 TensorIndex = 0; TensorIndex < NumberTensors; ++TensorIndex)
 		{
 			// Get Tensor name
-			const char* CurTensorName = bIsInput ? Session->GetInputName(TensorIndex, *Allocator) : Session->GetOutputName(TensorIndex, *Allocator);
-			TensorNames.Emplace(CurTensorName);
+			Ort::AllocatedStringPtr CurTensorName = bIsInput ? Session->GetInputNameAllocated(TensorIndex, *Allocator) : Session->GetOutputNameAllocated(TensorIndex, *Allocator);
+			const char* CurTensorNamePtr = CurTensorName.get();
+
+			TensorNames.Add(MoveTemp(CurTensorName));
+			TensorNamePtrs.Add(CurTensorNamePtr);
 
 			// Get node type
 			Ort::TypeInfo CurrentTypeInfo = bIsInput ? Session->GetInputTypeInfo(TensorIndex) : Session->GetOutputTypeInfo(TensorIndex);
@@ -149,7 +153,7 @@ namespace UE::NNERuntimeORTCpu::Private
 			}
 
 			NNECore::FSymbolicTensorShape Shape = NNECore::FSymbolicTensorShape::Make(ShapeData);
-			NNECore::FTensorDesc SymbolicTensorDesc = NNECore::FTensorDesc::Make(FString(CurTensorName), Shape, TypeAndSize.first);
+			NNECore::FTensorDesc SymbolicTensorDesc = NNECore::FTensorDesc::Make(FString(CurTensorNamePtr), Shape, TypeAndSize.first);
 
 			check(SymbolicTensorDesc.GetElemByteSize() == TypeAndSize.second);
 			SymbolicTensorDescs.Emplace(SymbolicTensorDesc);
@@ -239,8 +243,8 @@ namespace UE::NNERuntimeORTCpu::Private
 				BindTensorsToORT(InOutputBindings, OutputTensors, OutputTensorsORTType, AllocatorInfo.Get(), OutputOrtTensors);
 
 				Session->Run(Ort::RunOptions{ nullptr },
-					InputTensorNames.GetData(), &InputOrtTensors[0], InputTensorNames.Num(),
-					OutputTensorNames.GetData(), &OutputOrtTensors[0], OutputTensorNames.Num());
+					InputTensorNamePtrs.GetData(), &InputOrtTensors[0], InputTensorNamePtrs.Num(),
+					OutputTensorNamePtrs.GetData(), &OutputOrtTensors[0], OutputTensorNamePtrs.Num());
 			}
 			else
 			{
@@ -251,8 +255,8 @@ namespace UE::NNERuntimeORTCpu::Private
 				}
 
 				Session->Run(Ort::RunOptions{ nullptr },
-					InputTensorNames.GetData(), &InputOrtTensors[0], InputTensorNames.Num(),
-					OutputTensorNames.GetData(), &OutputOrtTensors[0], OutputTensorNames.Num());
+					InputTensorNamePtrs.GetData(), &InputOrtTensors[0], InputTensorNamePtrs.Num(),
+					OutputTensorNamePtrs.GetData(), &OutputOrtTensors[0], OutputTensorNamePtrs.Num());
 
 				// Output shapes were resolved during inference: Copy the data back to bindings and expose output tensor shapes
 				CopyFromORTToBindings(OutputOrtTensors, InOutputBindings, OutputSymbolicTensors, OutputTensors);

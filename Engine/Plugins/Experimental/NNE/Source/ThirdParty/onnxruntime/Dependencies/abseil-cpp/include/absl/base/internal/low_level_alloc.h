@@ -36,7 +36,7 @@
 // LowLevelAlloc.
 #ifdef ABSL_LOW_LEVEL_ALLOC_MISSING
 #error ABSL_LOW_LEVEL_ALLOC_MISSING cannot be directly set
-#elif !defined(ABSL_HAVE_MMAP) && !defined(_WIN32)
+#elif !defined(ABSL_HAVE_MMAP) && !defined(_WIN32) 
 #define ABSL_LOW_LEVEL_ALLOC_MISSING 1
 #endif
 

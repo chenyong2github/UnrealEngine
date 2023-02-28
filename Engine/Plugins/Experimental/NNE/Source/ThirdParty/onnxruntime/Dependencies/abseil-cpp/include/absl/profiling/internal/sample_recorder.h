@@ -46,7 +46,6 @@ struct Sample {
   absl::Mutex init_mu;
   T* next = nullptr;
   T* dead ABSL_GUARDED_BY(init_mu) = nullptr;
-  int64_t weight;  // How many sampling events were required to sample this one.
 };
 
 // Holds samples and their associated stack traces with a soft limit of
@@ -60,8 +59,7 @@ class SampleRecorder {
   ~SampleRecorder();
 
   // Registers for sampling.  Returns an opaque registration info.
-  template <typename... Targs>
-  T* Register(Targs&&... args);
+  T* Register();
 
   // Unregisters the sample.
   void Unregister(T* sample);
@@ -77,14 +75,12 @@ class SampleRecorder {
   // samples that have been dropped.
   int64_t Iterate(const std::function<void(const T& stack)>& f);
 
-  int32_t GetMaxSamples() const;
   void SetMaxSamples(int32_t max);
 
  private:
   void PushNew(T* sample);
   void PushDead(T* sample);
-  template <typename... Targs>
-  T* PopDead(Targs... args);
+  T* PopDead();
 
   std::atomic<size_t> dropped_samples_;
   std::atomic<size_t> size_estimate_;
@@ -166,8 +162,7 @@ void SampleRecorder<T>::PushDead(T* sample) {
 }
 
 template <typename T>
-template <typename... Targs>
-T* SampleRecorder<T>::PopDead(Targs... args) {
+T* SampleRecorder<T>::PopDead() {
   absl::MutexLock graveyard_lock(&graveyard_.init_mu);
 
   // The list is circular, so eventually it collapses down to
@@ -179,13 +174,12 @@ T* SampleRecorder<T>::PopDead(Targs... args) {
   absl::MutexLock sample_lock(&sample->init_mu);
   graveyard_.dead = sample->dead;
   sample->dead = nullptr;
-  sample->PrepareForSampling(std::forward<Targs>(args)...);
+  sample->PrepareForSampling();
   return sample;
 }
 
 template <typename T>
-template <typename... Targs>
-T* SampleRecorder<T>::Register(Targs&&... args) {
+T* SampleRecorder<T>::Register() {
   int64_t size = size_estimate_.fetch_add(1, std::memory_order_relaxed);
   if (size > max_samples_.load(std::memory_order_relaxed)) {
     size_estimate_.fetch_sub(1, std::memory_order_relaxed);
@@ -193,14 +187,10 @@ T* SampleRecorder<T>::Register(Targs&&... args) {
     return nullptr;
   }
 
-  T* sample = PopDead(args...);
+  T* sample = PopDead();
   if (sample == nullptr) {
     // Resurrection failed.  Hire a new warlock.
     sample = new T();
-    {
-      absl::MutexLock sample_lock(&sample->init_mu);
-      sample->PrepareForSampling(std::forward<Targs>(args)...);
-    }
     PushNew(sample);
   }
 
@@ -231,11 +221,6 @@ int64_t SampleRecorder<T>::Iterate(
 template <typename T>
 void SampleRecorder<T>::SetMaxSamples(int32_t max) {
   max_samples_.store(max, std::memory_order_release);
-}
-
-template <typename T>
-int32_t SampleRecorder<T>::GetMaxSamples() const {
-  return max_samples_.load(std::memory_order_acquire);
 }
 
 }  // namespace profiling_internal

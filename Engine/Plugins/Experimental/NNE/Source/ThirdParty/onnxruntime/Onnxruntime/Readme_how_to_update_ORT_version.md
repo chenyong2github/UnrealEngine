@@ -19,6 +19,15 @@ All changes in ORT have been (and should be!) labeled in the code with `WITH_UE`
 
 
 ## Upgrading ONNX Runtime
+
+
+### Configuration
+# https://github.com/microsoft/onnxruntime/archive/refs/heads/rel-1.13.1.zip
+#
+$ORT_RELEASE_BRANCH = "rel-1.13.1"
+$FINAL_COMMIT_HASH = "861125ccbc0853b2761bbc268841342550a4ff58" # The one NNI's ORT will be using after this merge
+
+
 ### Step 0: Compiling Third Parties
 - MLAS: The following script will compile the latest ORT and copy it into NNI (manually repeat the process for every platform).
 ```
@@ -27,7 +36,7 @@ $ORT_MLAS_PARENT_PATH = "D:/UpdatingORT" # D:/Users/francisco.vicente/Downloads 
 $NNI_ORT_MLAS_LOCATION = "D:/P4/francisco.vicente_ue5_nni_6149/Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/Deps"
 $NNI_ORT_MLAS_FINAL_NAME = "MLAS_2022_7_11"
 $NNI_ORT_MLAS_OLD_NAME = "MLAS_2022_4_1"
-$FINAL_COMMIT_HASH = "73310b2a0f6d623e95ae37d2ab4d7892a4654dc9" # The one NNI's ORT will be using after this merge
+# $FINAL_COMMIT_HASH = "861125ccbc0853b2761bbc268841342550a4ff58" # The one NNI's ORT will be using after this merge
 
 ################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 # Compile latest MLAS
@@ -73,8 +82,8 @@ Do this before starting with the scripts:
 (First time only, not needed if you already have your fork of ORT locally) Clone your fork of ORT locally:
 ```
 ################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
-$ORT_PARENT_PATH = "D:/UpdatingORT/ONNXRuntime" 
-$GITHUB_URL = "https://github.com/fkvicente/onnxruntime" 
+$ORT_PARENT_PATH = "D:/Libs/onnxruntime_updated_christian" 
+$GITHUB_URL = "https://github.com/christian-regg/onnxruntime" 
 
 ################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 cd $ORT_PARENT_PATH
@@ -105,8 +114,12 @@ DO THIS - You can now run the following commands:
 - Part 1: Reverting your ORT fork (locally) to the right commit:
 ```
 ################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
-$ORT_PARENT_PATH = "D:/UpdatingORT/ONNXRuntime" # D:/Users/francisco.vicente/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
-$CURRENT_NNI_ORT_COMMIT_HASH = "a405658370cc05989209c6608ff9f591799c84ae" # The one NNI's ORT is using on UE5/Main
+
+# CHRISTIAN Already defined. Avoid inconsistent parameters?!
+# $ORT_PARENT_PATH = "D:/UpdatingORT/ONNXRuntime" # D:/Users/francisco.vicente/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
+# $GITHUB_URL = "https://github.com/christian-regg/onnxruntime" 
+
+$CURRENT_NNI_ORT_COMMIT_HASH = "73310b2a0f6d623e95ae37d2ab4d7892a4654dc9" # The one NNI's ORT is using on UE5/Main
 
 ################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 ########## RESETING TO CURRENT_NNI_ORT_COMMIT_HASH ##########
@@ -114,7 +127,8 @@ $ORT_PATH = "${ORT_PARENT_PATH}/onnxruntime"
 $ORT_FROM_NNI = "${ORT_PARENT_PATH}/ONNXRuntime_code_from_NNI"
 cd $ORT_PATH
 
-git pull https://github.com/fkvicente/onnxruntime/ master
+# CHRISTIAN note that we use the relase branch instead of master
+git pull $GITHUB_URL $ORT_RELEASE_BRANCH
 git reset *; git checkout *; git clean -f -d; git reset --hard $CURRENT_NNI_ORT_COMMIT_HASH
 # git push -f # Optional
 git status
@@ -134,7 +148,10 @@ rm -r -fo $ORT_PATH/onnxruntime/core/framework/
 rm -r -fo $ORT_PATH/onnxruntime/core/graph/
 rm -r -fo $ORT_PATH/onnxruntime/core/optimizer/
 rm -r -fo $ORT_PATH/onnxruntime/core/platform/
-rm -r -fo $ORT_PATH/onnxruntime/core/profile/
+
+# CHRISTIAN Does not exist?!
+# rm -r -fo $ORT_PATH/onnxruntime/core/profile/
+
 rm -r -fo $ORT_PATH/onnxruntime/core/providers/cpu/
 rm -r -fo $ORT_PATH/onnxruntime/core/providers/dml/
 rm -r -fo $ORT_PATH/onnxruntime/core/providers/shared/
@@ -159,7 +176,10 @@ cp -r -fo $ORT_FROM_NNI/Internal/core $ORT_PATH/include/onnxruntime/core
 cp -r -fo $ORT_FROM_NNI/Private/contrib_ops/cpu $ORT_PATH/onnxruntime/contrib_ops
 # Copy core
 cp -r -fo $ORT_FROM_NNI/Private/core $ORT_PATH/onnxruntime
-cp -r -fo $ORT_FROM_NNI/Private/Windows/core/ $ORT_PATH/onnxruntime
+
+# CHRISTIAN Does not exist?!
+# cp -r -fo $ORT_FROM_NNI/Private/Windows/core/ $ORT_PATH/onnxruntime
+
 # Copy custom_op_library
 cp -r -fo $ORT_FROM_NNI/Private/test $ORT_PATH/onnxruntime
 
@@ -214,8 +234,13 @@ git clean -f -d   # https://koukia.ca/how-to-remove-local-untracked-files-from-t
 ### Step 4: Merge ORT Master with NNI's Canges and Create Zip to Copy to NNI
 ```
 ################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
-$FINAL_COMMIT_HASH = "b9279f637d12a66aae4cf285ba76e144a29106c3" # The one NNI's ORT will be using after this merge
-$ORT_PARENT_PATH = "D:/UpdatingORT/ONNXRuntime" # D:/Users/francisco.vicente/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
+
+# CHRISTIAN Already defined above!
+# $FINAL_COMMIT_HASH = "2490cf84c99407f1f41625cc82385f2181fd0dde" # The one NNI's ORT will be using after this merge
+# $ORT_PARENT_PATH = "D:/UpdatingORT/ONNXRuntime" # D:/Users/francisco.vicente/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
+
+$COMMIT_MESSAGE_NNI = "NNI ORT_7_12"
+$COMMIT_MESSAGE_MERGED = "Release 1.13.1 merged"
 $FINAL_ZIP_FILE_PATH = "${ORT_PARENT_PATH}/ort_compressed.zip"
 ```
 
@@ -224,7 +249,7 @@ Pull and merge with Microsoft::ONNXRuntime master:
 ################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 # Push code
 git add .
-git commit -m "NNI"
+git commit -m $COMMIT_MESSAGE_NNI
 
 # Checkout desired version to merged with (e.g., ORT master on Oct 18th)
 git pull https://github.com/microsoft/onnxruntime/ $FINAL_COMMIT_HASH
@@ -243,7 +268,7 @@ git diff --cached FILE_WITH_MERGE_CONFLICT_FULL_PATH # After fixing the merges, 
 (OPTIONAL and not needed at all) If no conflicts or after solving them, code ready to be moved to NNI. You can optionally commmit/push it:
 ```
 git add .
-git commit -m "Master from MONTH DAY-th merged"
+git commit -m $COMMIT_MESSAGE_MERGED
 git push
 ```
 
@@ -263,6 +288,10 @@ cp -r -fo $ORT_FROM_NNI/Internal/onnxruntime_config.h ${ORT_CODE_TO_PUSH_TO_NNI}
 # Copy ORTModule.h/cpp
 mkdir ${ORT_CODE_TO_PUSH_TO_NNI}/Private/
 cp -r -fo $ORT_FROM_NNI/Private/Module.* ${ORT_CODE_TO_PUSH_TO_NNI}/Private/
+
+# CHRISTIAN Copy PCH
+cp -r -fo $ORT_FROM_NNI/Private/ORTPrivatePch.h ${ORT_CODE_TO_PUSH_TO_NNI}/Private/
+
 # Copy contrib_ops/cpu
 cp -r -fo ${ORT_PATH}/onnxruntime/contrib_ops/cpu ${ORT_CODE_TO_PUSH_TO_NNI}/Private/contrib_ops/cpu
 # Copy core
@@ -276,9 +305,15 @@ rm -r -fo ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/platform/android
 rm -r -fo ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/platform/posix/env*
 rm -r -fo ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/platform/posix/logging
 rm -r -fo ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/platform/windows
-cp -r -fo ${ORT_PATH}/onnxruntime/core/profile ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/profile
+
+# CHRISTIAN Does not exist!
+# cp -r -fo ${ORT_PATH}/onnxruntime/core/profile ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/profile
+
 cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/cpu ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/providers/cpu
-cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/dml ${ORT_CODE_TO_PUSH_TO_NNI}/Private/Windows/core/providers/dml
+
+# CHRISTIAN No DML for now
+# cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/dml ${ORT_CODE_TO_PUSH_TO_NNI}/Private/Windows/core/providers/dml
+
 cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/shared ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/providers/shared
 cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/shared_library ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/providers/shared_library
 cp -r -fo ${ORT_PATH}/onnxruntime/core/dlpack ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/dlpack
@@ -288,7 +323,9 @@ cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/*.h ${ORT_CODE_TO_PUSH_TO_NNI}/
 cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/*.inc ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/providers/
 
 mv -fo ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/providers/utils.cc ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/providers/core_prov_utils.cc
-mv -fo ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/optimizer/qdq_transformer/selectors_actions/shared/utils.cc ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/optimizer/qdq_transformer/selectors_actions/shared/qdq_transformer_utils.cc
+
+# CHRISTIAN Rename is already in repo
+# mv -fo ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/optimizer/qdq_transformer/selectors_actions/shared/utils.cc ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/optimizer/qdq_transformer/selectors_actions/shared/qdq_transformer_utils.cc
 
 cp -r -fo ${ORT_PATH}/onnxruntime/core/quantization ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/quantization
 cp -r -fo ${ORT_PATH}/onnxruntime/core/session ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/session
@@ -300,7 +337,10 @@ cp -r -fo ${ORT_PATH}/onnxruntime/test/testdata/custom_op_library/custom_op_libr
 
 # Individual files
 ni ${ORT_CODE_TO_PUSH_TO_NNI}/$FINAL_COMMIT_HASH
-cp $ORT_FROM_NNI/ONNXRuntime.Build.cs ${ORT_CODE_TO_PUSH_TO_NNI}/ONNXRuntime.Build.cs
+
+# CHRISTIAN Added prefix 'NNE'
+cp $ORT_FROM_NNI/NNEONNXRuntime.Build.cs ${ORT_CODE_TO_PUSH_TO_NNI}/NNEONNXRuntime.Build.cs
+
 cp $ORT_FROM_NNI/ONNXRuntime.tps ${ORT_CODE_TO_PUSH_TO_NNI}/ONNXRuntime.tps
 cp $ORT_FROM_NNI/Readme_how_to_update_ORT_version.md ${ORT_CODE_TO_PUSH_TO_NNI}/Readme_how_to_update_ORT_version.md
 

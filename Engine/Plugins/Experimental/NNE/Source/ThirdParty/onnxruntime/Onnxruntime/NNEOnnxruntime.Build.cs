@@ -64,9 +64,8 @@ public class NNEOnnxruntime : ModuleRules
 				"Eigen",
 				"NNEFlatBuffers",
 				"NNEOnnx",
-				"NNEOnnxProto",
 				"NNEOnnxruntimeMlas",
-				//"AbseilCpp",
+				"NNEAbseilCpp",
 				"ORTHelper"
 			}
 		);
@@ -135,7 +134,7 @@ public class NNEOnnxruntime : ModuleRules
 		PublicDefinitions.Add("_UNICODE");
 		PublicDefinitions.Add("_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING");
 
-		PublicDefinitions.Add("DISABLE_ABSEIL");
+		// PublicDefinitions.Add("DISABLE_ABSEIL");
 
 		// Win64-only
 		if (Target.Platform == UnrealTargetPlatform.Win64)

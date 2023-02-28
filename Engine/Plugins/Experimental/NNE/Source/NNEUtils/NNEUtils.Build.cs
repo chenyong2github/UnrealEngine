@@ -32,7 +32,6 @@ public class NNEUtils : ModuleRules
 				"Engine",
 				"NNEOnnxruntime",
 				"NNEOnnx",
-				"NNEOnnxProto",
 				"ORTHelper",
 				}
 			);

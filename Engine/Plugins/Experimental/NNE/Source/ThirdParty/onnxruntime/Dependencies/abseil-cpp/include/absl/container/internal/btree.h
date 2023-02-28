@@ -74,14 +74,12 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
-template <typename Compare, typename T, typename U>
-using compare_result_t = absl::result_of_t<const Compare(const T &, const U &)>;
-
 // A helper class that indicates if the Compare parameter is a key-compare-to
 // comparator.
 template <typename Compare, typename T>
 using btree_is_key_compare_to =
-    std::is_convertible<compare_result_t<Compare, T, T>, absl::weak_ordering>;
+    std::is_convertible<absl::result_of_t<Compare(const T &, const T &)>,
+                        absl::weak_ordering>;
 
 struct StringBtreeDefaultLess {
   using is_transparent = void;
@@ -148,140 +146,49 @@ struct StringBtreeDefaultGreater {
   }
 };
 
-// See below comments for checked_compare.
-template <typename Compare, bool is_class = std::is_class<Compare>::value>
-struct checked_compare_base : Compare {
-  using Compare::Compare;
-  explicit checked_compare_base(Compare c) : Compare(std::move(c)) {}
-  const Compare &comp() const { return *this; }
-};
+// A helper class to convert a boolean comparison into a three-way "compare-to"
+// comparison that returns an `absl::weak_ordering`. This helper
+// class is specialized for less<std::string>, greater<std::string>,
+// less<string_view>, greater<string_view>, less<absl::Cord>, and
+// greater<absl::Cord>.
+//
+// key_compare_to_adapter is provided so that btree users
+// automatically get the more efficient compare-to code when using common
+// Abseil string types with common comparison functors.
+// These string-like specializations also turn on heterogeneous lookup by
+// default.
 template <typename Compare>
-struct checked_compare_base<Compare, false> {
-  explicit checked_compare_base(Compare c) : compare(std::move(c)) {}
-  const Compare &comp() const { return compare; }
-  Compare compare;
-};
-
-// A mechanism for opting out of checked_compare for use only in btree_test.cc.
-struct BtreeTestOnlyCheckedCompareOptOutBase {};
-
-// A helper class to adapt the specified comparator for two use cases:
-// (1) When using common Abseil string types with common comparison functors,
-// convert a boolean comparison into a three-way comparison that returns an
-// `absl::weak_ordering`. This helper class is specialized for
-// less<std::string>, greater<std::string>, less<string_view>,
-// greater<string_view>, less<absl::Cord>, and greater<absl::Cord>.
-// (2) Adapt the comparator to diagnose cases of non-strict-weak-ordering (see
-// https://en.cppreference.com/w/cpp/named_req/Compare) in debug mode. Whenever
-// a comparison is made, we will make assertions to verify that the comparator
-// is valid.
-template <typename Compare, typename Key>
-struct key_compare_adapter {
-  // Inherit from checked_compare_base to support function pointers and also
-  // keep empty-base-optimization (EBO) support for classes.
-  // Note: we can't use CompressedTuple here because that would interfere
-  // with the EBO for `btree::root_`. `btree::root_` is itself a CompressedTuple
-  // and nested `CompressedTuple`s don't support EBO.
-  // TODO(b/214288561): use CompressedTuple instead once it supports EBO for
-  // nested `CompressedTuple`s.
-  struct checked_compare : checked_compare_base<Compare> {
-   private:
-    using Base = typename checked_compare::checked_compare_base;
-    using Base::comp;
-
-    // If possible, returns whether `t` is equivalent to itself. We can only do
-    // this for `Key`s because we can't be sure that it's safe to call
-    // `comp()(k, k)` otherwise. Even if SFINAE allows it, there could be a
-    // compilation failure inside the implementation of the comparison operator.
-    bool is_self_equivalent(const Key &k) const {
-      // Note: this works for both boolean and three-way comparators.
-      return comp()(k, k) == 0;
-    }
-    // If we can't compare `t` with itself, returns true unconditionally.
-    template <typename T>
-    bool is_self_equivalent(const T &) const {
-      return true;
-    }
-
-   public:
-    using Base::Base;
-    checked_compare(Compare comp) : Base(std::move(comp)) {}  // NOLINT
-
-    // Allow converting to Compare for use in key_comp()/value_comp().
-    explicit operator Compare() const { return comp(); }
-
-    template <typename T, typename U,
-              absl::enable_if_t<
-                  std::is_same<bool, compare_result_t<Compare, T, U>>::value,
-                  int> = 0>
-    bool operator()(const T &lhs, const U &rhs) const {
-      // NOTE: if any of these assertions fail, then the comparator does not
-      // establish a strict-weak-ordering (see
-      // https://en.cppreference.com/w/cpp/named_req/Compare).
-      assert(is_self_equivalent(lhs));
-      assert(is_self_equivalent(rhs));
-      const bool lhs_comp_rhs = comp()(lhs, rhs);
-      assert(!lhs_comp_rhs || !comp()(rhs, lhs));
-      return lhs_comp_rhs;
-    }
-
-    template <
-        typename T, typename U,
-        absl::enable_if_t<std::is_convertible<compare_result_t<Compare, T, U>,
-                                              absl::weak_ordering>::value,
-                          int> = 0>
-    absl::weak_ordering operator()(const T &lhs, const U &rhs) const {
-      // NOTE: if any of these assertions fail, then the comparator does not
-      // establish a strict-weak-ordering (see
-      // https://en.cppreference.com/w/cpp/named_req/Compare).
-      assert(is_self_equivalent(lhs));
-      assert(is_self_equivalent(rhs));
-      const absl::weak_ordering lhs_comp_rhs = comp()(lhs, rhs);
-#ifndef NDEBUG
-      const absl::weak_ordering rhs_comp_lhs = comp()(rhs, lhs);
-      if (lhs_comp_rhs > 0) {
-        assert(rhs_comp_lhs < 0 && "lhs_comp_rhs > 0 -> rhs_comp_lhs < 0");
-      } else if (lhs_comp_rhs == 0) {
-        assert(rhs_comp_lhs == 0 && "lhs_comp_rhs == 0 -> rhs_comp_lhs == 0");
-      } else {
-        assert(rhs_comp_lhs > 0 && "lhs_comp_rhs < 0 -> rhs_comp_lhs > 0");
-      }
-#endif
-      return lhs_comp_rhs;
-    }
-  };
-  using type = absl::conditional_t<
-      std::is_base_of<BtreeTestOnlyCheckedCompareOptOutBase, Compare>::value,
-      Compare, checked_compare>;
+struct key_compare_to_adapter {
+  using type = Compare;
 };
 
 template <>
-struct key_compare_adapter<std::less<std::string>, std::string> {
+struct key_compare_to_adapter<std::less<std::string>> {
   using type = StringBtreeDefaultLess;
 };
 
 template <>
-struct key_compare_adapter<std::greater<std::string>, std::string> {
+struct key_compare_to_adapter<std::greater<std::string>> {
   using type = StringBtreeDefaultGreater;
 };
 
 template <>
-struct key_compare_adapter<std::less<absl::string_view>, absl::string_view> {
+struct key_compare_to_adapter<std::less<absl::string_view>> {
   using type = StringBtreeDefaultLess;
 };
 
 template <>
-struct key_compare_adapter<std::greater<absl::string_view>, absl::string_view> {
+struct key_compare_to_adapter<std::greater<absl::string_view>> {
   using type = StringBtreeDefaultGreater;
 };
 
 template <>
-struct key_compare_adapter<std::less<absl::Cord>, absl::Cord> {
+struct key_compare_to_adapter<std::less<absl::Cord>> {
   using type = StringBtreeDefaultLess;
 };
 
 template <>
-struct key_compare_adapter<std::greater<absl::Cord>, absl::Cord> {
+struct key_compare_to_adapter<std::greater<absl::Cord>> {
   using type = StringBtreeDefaultGreater;
 };
 
@@ -317,13 +224,6 @@ struct prefers_linear_node_search<
     T, absl::void_t<typename T::absl_btree_prefer_linear_node_search>>
     : T::absl_btree_prefer_linear_node_search {};
 
-template <typename Compare, typename Key>
-constexpr bool compare_has_valid_result_type() {
-  using compare_result_type = compare_result_t<Compare, Key, Key>;
-  return std::is_same<compare_result_type, bool>::value ||
-         std::is_convertible<compare_result_type, absl::weak_ordering>::value;
-}
-
 template <typename Key, typename Compare, typename Alloc, int TargetNodeSize,
           bool Multi, typename SlotPolicy>
 struct common_params {
@@ -331,31 +231,14 @@ struct common_params {
 
   // If Compare is a common comparator for a string-like type, then we adapt it
   // to use heterogeneous lookup and to be a key-compare-to comparator.
-  // We also adapt the comparator to diagnose invalid comparators in debug mode.
-  // We disable this when `Compare` is invalid in a way that will cause
-  // adaptation to fail (having invalid return type) so that we can give a
-  // better compilation failure in static_assert_validation. If we don't do
-  // this, then there will be cascading compilation failures that are confusing
-  // for users.
-  using key_compare =
-      absl::conditional_t<!compare_has_valid_result_type<Compare, Key>(),
-                          Compare,
-                          typename key_compare_adapter<Compare, Key>::type>;
-
-  static constexpr bool kIsKeyCompareStringAdapted =
-      std::is_same<key_compare, StringBtreeDefaultLess>::value ||
-      std::is_same<key_compare, StringBtreeDefaultGreater>::value;
-  static constexpr bool kIsKeyCompareTransparent =
-      IsTransparent<original_key_compare>::value ||
-      kIsKeyCompareStringAdapted;
-
+  using key_compare = typename key_compare_to_adapter<Compare>::type;
   // A type which indicates if we have a key-compare-to functor or a plain old
   // key-compare functor.
   using is_key_compare_to = btree_is_key_compare_to<key_compare, Key>;
 
   using allocator_type = Alloc;
   using key_type = Key;
-  using size_type = size_t;
+  using size_type = std::make_signed<size_t>::type;
   using difference_type = ptrdiff_t;
 
   using slot_policy = SlotPolicy;
@@ -377,25 +260,27 @@ struct common_params {
   //   that we know has the same equivalence classes for all lookup types.
   template <typename LookupKey>
   constexpr static bool can_have_multiple_equivalent_keys() {
-    return Multi || (IsTransparent<key_compare>::value &&
-                     !std::is_same<LookupKey, Key>::value &&
-                     !kIsKeyCompareStringAdapted);
+    return Multi ||
+           (IsTransparent<key_compare>::value &&
+            !std::is_same<LookupKey, Key>::value &&
+            !std::is_same<key_compare, StringBtreeDefaultLess>::value &&
+            !std::is_same<key_compare, StringBtreeDefaultGreater>::value);
   }
 
   enum {
     kTargetNodeSize = TargetNodeSize,
 
-    // Upper bound for the available space for slots. This is largest for leaf
+    // Upper bound for the available space for values. This is largest for leaf
     // nodes, which have overhead of at least a pointer + 4 bytes (for storing
     // 3 field_types and an enum).
-    kNodeSlotSpace =
+    kNodeValueSpace =
         TargetNodeSize - /*minimum overhead=*/(sizeof(void *) + 4),
   };
 
-  // This is an integral type large enough to hold as many slots as will fit a
-  // node of TargetNodeSize bytes.
+  // This is an integral type large enough to hold as many
+  // ValueSize-values as will fit a node of TargetNodeSize bytes.
   using node_count_type =
-      absl::conditional_t<(kNodeSlotSpace / sizeof(slot_type) >
+      absl::conditional_t<(kNodeValueSpace / sizeof(value_type) >
                            (std::numeric_limits<uint8_t>::max)()),
                           uint16_t, uint8_t>;  // NOLINT
 
@@ -427,6 +312,111 @@ struct common_params {
   static void move(Alloc *alloc, slot_type *src, slot_type *dest) {
     slot_policy::move(alloc, src, dest);
   }
+};
+
+// A parameters structure for holding the type parameters for a btree_map.
+// Compare and Alloc should be nothrow copy-constructible.
+template <typename Key, typename Data, typename Compare, typename Alloc,
+          int TargetNodeSize, bool Multi>
+struct map_params : common_params<Key, Compare, Alloc, TargetNodeSize, Multi,
+                                  map_slot_policy<Key, Data>> {
+  using super_type = typename map_params::common_params;
+  using mapped_type = Data;
+  // This type allows us to move keys when it is safe to do so. It is safe
+  // for maps in which value_type and mutable_value_type are layout compatible.
+  using slot_policy = typename super_type::slot_policy;
+  using slot_type = typename super_type::slot_type;
+  using value_type = typename super_type::value_type;
+  using init_type = typename super_type::init_type;
+
+  using original_key_compare = typename super_type::original_key_compare;
+  // Reference: https://en.cppreference.com/w/cpp/container/map/value_compare
+  class value_compare {
+    template <typename Params>
+    friend class btree;
+
+   protected:
+    explicit value_compare(original_key_compare c) : comp(std::move(c)) {}
+
+    original_key_compare comp;  // NOLINT
+
+   public:
+    auto operator()(const value_type &lhs, const value_type &rhs) const
+        -> decltype(comp(lhs.first, rhs.first)) {
+      return comp(lhs.first, rhs.first);
+    }
+  };
+  using is_map_container = std::true_type;
+
+  template <typename V>
+  static auto key(const V &value) -> decltype(value.first) {
+    return value.first;
+  }
+  static const Key &key(const slot_type *s) { return slot_policy::key(s); }
+  static const Key &key(slot_type *s) { return slot_policy::key(s); }
+  // For use in node handle.
+  static auto mutable_key(slot_type *s)
+      -> decltype(slot_policy::mutable_key(s)) {
+    return slot_policy::mutable_key(s);
+  }
+  static mapped_type &value(value_type *value) { return value->second; }
+};
+
+// This type implements the necessary functions from the
+// absl::container_internal::slot_type interface.
+template <typename Key>
+struct set_slot_policy {
+  using slot_type = Key;
+  using value_type = Key;
+  using mutable_value_type = Key;
+
+  static value_type &element(slot_type *slot) { return *slot; }
+  static const value_type &element(const slot_type *slot) { return *slot; }
+
+  template <typename Alloc, class... Args>
+  static void construct(Alloc *alloc, slot_type *slot, Args &&... args) {
+    absl::allocator_traits<Alloc>::construct(*alloc, slot,
+                                             std::forward<Args>(args)...);
+  }
+
+  template <typename Alloc>
+  static void construct(Alloc *alloc, slot_type *slot, slot_type *other) {
+    absl::allocator_traits<Alloc>::construct(*alloc, slot, std::move(*other));
+  }
+
+  template <typename Alloc>
+  static void destroy(Alloc *alloc, slot_type *slot) {
+    absl::allocator_traits<Alloc>::destroy(*alloc, slot);
+  }
+
+  template <typename Alloc>
+  static void swap(Alloc * /*alloc*/, slot_type *a, slot_type *b) {
+    using std::swap;
+    swap(*a, *b);
+  }
+
+  template <typename Alloc>
+  static void move(Alloc * /*alloc*/, slot_type *src, slot_type *dest) {
+    *dest = std::move(*src);
+  }
+};
+
+// A parameters structure for holding the type parameters for a btree_set.
+// Compare and Alloc should be nothrow copy-constructible.
+template <typename Key, typename Compare, typename Alloc, int TargetNodeSize,
+          bool Multi>
+struct set_params : common_params<Key, Compare, Alloc, TargetNodeSize, Multi,
+                                  set_slot_policy<Key>> {
+  using value_type = Key;
+  using slot_type = typename set_params::common_params::slot_type;
+  using value_compare =
+      typename set_params::common_params::original_key_compare;
+  using is_map_container = std::false_type;
+
+  template <typename V>
+  static const V &key(const V &value) { return value; }
+  static const Key &key(const slot_type *slot) { return *slot; }
+  static const Key &key(slot_type *slot) { return *slot; }
 };
 
 // An adapter class that converts a lower-bound compare into an upper-bound
@@ -481,7 +471,6 @@ class btree_node {
   using field_type = typename Params::node_count_type;
   using allocator_type = typename Params::allocator_type;
   using slot_type = typename Params::slot_type;
-  using original_key_compare = typename Params::original_key_compare;
 
  public:
   using params_type = Params;
@@ -503,15 +492,15 @@ class btree_node {
   //   - Otherwise, choose binary.
   // TODO(ezb): Might make sense to add condition(s) based on node-size.
   using use_linear_search = std::integral_constant<
-      bool, has_linear_node_search_preference<original_key_compare>::value
-                ? prefers_linear_node_search<original_key_compare>::value
-            : has_linear_node_search_preference<key_type>::value
+      bool,
+      has_linear_node_search_preference<key_compare>::value
+          ? prefers_linear_node_search<key_compare>::value
+          : has_linear_node_search_preference<key_type>::value
                 ? prefers_linear_node_search<key_type>::value
                 : std::is_arithmetic<key_type>::value &&
-                      (std::is_same<std::less<key_type>,
-                                    original_key_compare>::value ||
+                      (std::is_same<std::less<key_type>, key_compare>::value ||
                        std::is_same<std::greater<key_type>,
-                                    original_key_compare>::value)>;
+                                    key_compare>::value)>;
 
   // This class is organized by absl::container_internal::Layout as if it had
   // the following structure:
@@ -573,9 +562,9 @@ class btree_node {
                        /*children*/ 0)
         .AllocSize();
   }
-  // A lower bound for the overhead of fields other than slots in a leaf node.
+  // A lower bound for the overhead of fields other than values in a leaf node.
   constexpr static size_type MinimumOverhead() {
-    return SizeWithNSlots(1) - sizeof(slot_type);
+    return SizeWithNSlots(1) - sizeof(value_type);
   }
 
   // Compute how many values we can fit onto a leaf node taking into account
@@ -946,7 +935,6 @@ class btree_node {
   template <typename N, typename R, typename P>
   friend struct btree_iterator;
   friend class BtreeNodePeer;
-  friend struct btree_access;
 };
 
 template <typename Node, typename Reference, typename Pointer>
@@ -1081,7 +1069,6 @@ struct btree_iterator {
   friend class btree_multiset_container;
   template <typename TreeType, typename CheckerType>
   friend class base_checker;
-  friend struct btree_access;
 
   const key_type &key() const { return node->key(position); }
   slot_type *slot() { return node->slot(position); }
@@ -1410,7 +1397,6 @@ class btree {
   }
 
   // The total number of bytes used by the btree.
-  // TODO(b/169338300): update to support node_btree_*.
   size_type bytes_used() const {
     node_stats stats = internal_stats(root());
     if (stats.leaf_nodes == 1 && stats.internal_nodes == 0) {
@@ -1454,8 +1440,6 @@ class btree {
   allocator_type get_allocator() const { return allocator(); }
 
  private:
-  friend struct btree_access;
-
   // Internal accessor routines.
   node_type *root() { return root_.template get<2>(); }
   const node_type *root() const { return root_.template get<2>(); }
@@ -1613,7 +1597,7 @@ inline void btree_node<P>::emplace_value(const size_type i,
   set_finish(finish() + 1);
 
   if (!leaf() && finish() > i + 1) {
-    for (field_type j = finish(); j > i + 1; --j) {
+    for (int j = finish(); j > i + 1; --j) {
       set_child(j, child(j - 1));
     }
     clear_child(i + 1);
@@ -1937,12 +1921,15 @@ constexpr bool btree<P>::static_assert_validation() {
       "target node size too large");
 
   // Verify that key_compare returns an absl::{weak,strong}_ordering or bool.
+  using compare_result_type =
+      absl::result_of_t<key_compare(key_type, key_type)>;
   static_assert(
-      compare_has_valid_result_type<key_compare, key_type>(),
+      std::is_same<compare_result_type, bool>::value ||
+          std::is_convertible<compare_result_type, absl::weak_ordering>::value,
       "key comparison function must return absl::{weak,strong}_ordering or "
       "bool.");
 
-  // Test the assumption made in setting kNodeSlotSpace.
+  // Test the assumption made in setting kNodeValueSpace.
   static_assert(node_type::MinimumOverhead() >= sizeof(void *) + 4,
                 "node space assumption incorrect");
 
@@ -2237,7 +2224,7 @@ auto btree<P>::erase_range(iterator begin, iterator end)
     return {0, begin};
   }
 
-  if (static_cast<size_type>(count) == size_) {
+  if (count == size_) {
     clear();
     return {count, this->end()};
   }
@@ -2646,48 +2633,6 @@ int btree<P>::internal_verify(const node_type *node, const key_type *lo,
   }
   return count;
 }
-
-struct btree_access {
-  template <typename BtreeContainer, typename Pred>
-  static auto erase_if(BtreeContainer &container, Pred pred)
-      -> typename BtreeContainer::size_type {
-    const auto initial_size = container.size();
-    auto &tree = container.tree_;
-    auto *alloc = tree.mutable_allocator();
-    for (auto it = container.begin(); it != container.end();) {
-      if (!pred(*it)) {
-        ++it;
-        continue;
-      }
-      auto *node = it.node;
-      if (!node->leaf()) {
-        // Handle internal nodes normally.
-        it = container.erase(it);
-        continue;
-      }
-      // If this is a leaf node, then we do all the erases from this node
-      // at once before doing rebalancing.
-
-      // The current position to transfer slots to.
-      int to_pos = it.position;
-      node->value_destroy(it.position, alloc);
-      while (++it.position < node->finish()) {
-        if (pred(*it)) {
-          node->value_destroy(it.position, alloc);
-        } else {
-          node->transfer(node->slot(to_pos++), node->slot(it.position),
-                         alloc);
-        }
-      }
-      const int num_deleted = node->finish() - to_pos;
-      tree.size_ -= num_deleted;
-      node->set_finish(to_pos);
-      it.position = to_pos;
-      it = tree.rebalance_after_delete(it);
-    }
-    return initial_size - container.size();
-  }
-};
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END

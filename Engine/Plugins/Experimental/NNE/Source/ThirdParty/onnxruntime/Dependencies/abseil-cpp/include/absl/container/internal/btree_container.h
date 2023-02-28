@@ -44,8 +44,8 @@ class btree_container {
   // transparent case.
   template <class K>
   using key_arg =
-      typename KeyArg<params_type::kIsKeyCompareTransparent>::template type<
-          K, typename Tree::key_type>;
+      typename KeyArg<IsTransparent<typename Tree::key_compare>::value>::
+          template type<K, typename Tree::key_type>;
 
  public:
   using key_type = typename Tree::key_type;
@@ -228,7 +228,6 @@ class btree_container {
   }
 
  protected:
-  friend struct btree_access;
   Tree tree_;
 };
 

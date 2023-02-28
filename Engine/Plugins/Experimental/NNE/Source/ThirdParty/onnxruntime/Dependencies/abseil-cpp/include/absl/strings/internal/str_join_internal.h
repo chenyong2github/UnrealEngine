@@ -229,11 +229,10 @@ std::string JoinAlgorithm(Iterator start, Iterator end, absl::string_view s,
   std::string result;
   if (start != end) {
     // Sums size
-    auto&& start_value = *start;
-    size_t result_size = start_value.size();
+    size_t result_size = start->size();
     for (Iterator it = start; ++it != end;) {
       result_size += s.size();
-      result_size += (*it).size();
+      result_size += it->size();
     }
 
     if (result_size > 0) {
@@ -241,15 +240,13 @@ std::string JoinAlgorithm(Iterator start, Iterator end, absl::string_view s,
 
       // Joins strings
       char* result_buf = &*result.begin();
-
-      memcpy(result_buf, start_value.data(), start_value.size());
-      result_buf += start_value.size();
+      memcpy(result_buf, start->data(), start->size());
+      result_buf += start->size();
       for (Iterator it = start; ++it != end;) {
         memcpy(result_buf, s.data(), s.size());
         result_buf += s.size();
-        auto&& value = *it;
-        memcpy(result_buf, value.data(), value.size());
-        result_buf += value.size();
+        memcpy(result_buf, it->data(), it->size());
+        result_buf += it->size();
       }
     }
   }

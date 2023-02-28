@@ -81,8 +81,17 @@ ABSL_NAMESPACE_END
 #include <utility>
 
 #include "absl/base/internal/fast_type_id.h"
+#include "absl/base/macros.h"
 #include "absl/meta/type_traits.h"
 #include "absl/types/bad_any_cast.h"
+
+// NOTE: This macro is an implementation detail that is undefined at the bottom
+// of the file. It is not intended for expansion directly from user code.
+#ifdef ABSL_ANY_DETAIL_HAS_RTTI
+#error ABSL_ANY_DETAIL_HAS_RTTI cannot be directly set
+#elif !defined(__GNUC__) || defined(__GXX_RTTI)
+#define ABSL_ANY_DETAIL_HAS_RTTI 1
+#endif  // !defined(__GNUC__) || defined(__GXX_RTTI)
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -339,7 +348,7 @@ class any {
   // returns `false`.
   bool has_value() const noexcept { return obj_ != nullptr; }
 
-#ifdef ABSL_INTERNAL_HAS_RTTI
+#if ABSL_ANY_DETAIL_HAS_RTTI
   // Returns: typeid(T) if *this has a contained object of type T, otherwise
   // typeid(void).
   const std::type_info& type() const noexcept {
@@ -349,7 +358,7 @@ class any {
 
     return typeid(void);
   }
-#endif  // ABSL_INTERNAL_HAS_RTTI
+#endif  // ABSL_ANY_DETAIL_HAS_RTTI
 
  private:
   // Tagged type-erased abstraction for holding a cloneable object.
@@ -358,9 +367,9 @@ class any {
     virtual ~ObjInterface() = default;
     virtual std::unique_ptr<ObjInterface> Clone() const = 0;
     virtual const void* ObjTypeId() const noexcept = 0;
-#ifdef ABSL_INTERNAL_HAS_RTTI
+#if ABSL_ANY_DETAIL_HAS_RTTI
     virtual const std::type_info& Type() const noexcept = 0;
-#endif  // ABSL_INTERNAL_HAS_RTTI
+#endif  // ABSL_ANY_DETAIL_HAS_RTTI
   };
 
   // Hold a value of some queryable type, with an ability to Clone it.
@@ -377,9 +386,9 @@ class any {
 
     const void* ObjTypeId() const noexcept final { return IdForType<T>(); }
 
-#ifdef ABSL_INTERNAL_HAS_RTTI
+#if ABSL_ANY_DETAIL_HAS_RTTI
     const std::type_info& Type() const noexcept final { return typeid(T); }
-#endif  // ABSL_INTERNAL_HAS_RTTI
+#endif  // ABSL_ANY_DETAIL_HAS_RTTI
 
     T value;
   };
@@ -511,6 +520,8 @@ T* any_cast(any* operand) noexcept {
 
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+#undef ABSL_ANY_DETAIL_HAS_RTTI
 
 #endif  // ABSL_USES_STD_ANY
 

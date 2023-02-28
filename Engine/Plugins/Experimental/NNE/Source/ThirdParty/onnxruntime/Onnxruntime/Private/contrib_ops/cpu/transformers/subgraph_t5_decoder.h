@@ -16,9 +16,10 @@ class T5DecoderSubgraph : public Subgraph {
       const onnxruntime::Node& node_in,
       const std::string& attribute_name,
       const GraphViewer& subgraph_in) : Subgraph(node_in, attribute_name, subgraph_in),
-                                        has_hidden_state_(false) {
-        first_present_output_index_ = 1;
-      }
+                                        has_hidden_state_(false),
+                                        use_sequence_as_input_ids_(true) {
+    first_present_output_index_ = 1;
+  }
 
   // Create inputs for first inference of decoder subgraph.
   Status CreateInitialFeeds(
@@ -27,10 +28,10 @@ class T5DecoderSubgraph : public Subgraph {
       const std::vector<OrtValue>& encoder_feeds,
       const std::vector<OrtValue>& encoder_fetches,
       std::vector<OrtValue>& decoder_feeds,
-      const BeamSearchDeviceHelper::DeviceCopyFunc<int32_t>& device_copy_int32_func,
-      const BeamSearchDeviceHelper::ExpandBufferFunc<int32_t>& expand_buffer_int32_func,
-      const BeamSearchDeviceHelper::ExpandBufferFunc<float>& expand_buffer_float_func,
-      const BeamSearchDeviceHelper::ExpandBufferFunc<MLFloat16>& expand_buffer_float16_func,
+      const GenerationDeviceHelper::DeviceCopyFunc<int32_t>& device_copy_int32_func,
+      const GenerationDeviceHelper::ExpandBufferFunc<int32_t>& expand_buffer_int32_func,
+      const GenerationDeviceHelper::ExpandBufferFunc<float>& expand_buffer_float_func,
+      const GenerationDeviceHelper::ExpandBufferFunc<MLFloat16>& expand_buffer_float16_func,
       int num_beam,
       void* stream);
 
@@ -54,14 +55,15 @@ class T5DecoderSubgraph : public Subgraph {
     return first_present_output_index_;
   }
 
-  int HasHiddenStates() const {
-    return has_hidden_state_;
+  bool UseSequenceAsInputIds() const {
+    return use_sequence_as_input_ids_;
   }
 
  private:
   int first_past_input_index_;
   int first_present_output_index_;
   bool has_hidden_state_;
+  bool use_sequence_as_input_ids_;
 };
 
 }  // namespace transformers

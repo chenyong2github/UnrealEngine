@@ -26,7 +26,6 @@
 #include "absl/random/internal/fastmath.h"
 #include "absl/random/internal/generate_real.h"
 #include "absl/random/internal/iostream_state_saver.h"
-#include "absl/random/internal/traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -81,7 +80,7 @@ class poisson_distribution {
     double log_k_;
     int split_;
 
-    static_assert(random_internal::IsIntegral<IntType>::value,
+    static_assert(std::is_integral<IntType>::value,
                   "Class-template absl::poisson_distribution<> must be "
                   "parameterized using an integral type.");
   };
@@ -134,8 +133,7 @@ template <typename IntType>
 poisson_distribution<IntType>::param_type::param_type(double mean)
     : mean_(mean), split_(0) {
   assert(mean >= 0);
-  assert(mean <=
-         static_cast<double>((std::numeric_limits<result_type>::max)()));
+  assert(mean <= (std::numeric_limits<result_type>::max)());
   // As a defensive measure, avoid large values of the mean.  The rejection
   // algorithm used does not support very large values well.  It my be worth
   // changing algorithms to better deal with these cases.
@@ -224,9 +222,8 @@ poisson_distribution<IntType>::operator()(
     // clang-format on
     const double lhs = 2.0 * std::log(u) + p.log_k_ + s;
     if (lhs < rhs) {
-      return x > static_cast<double>((max)())
-                 ? (max)()
-                 : static_cast<result_type>(x);  // f(x)/k >= u^2
+      return x > (max)() ? (max)()
+                         : static_cast<result_type>(x);  // f(x)/k >= u^2
     }
   }
 }

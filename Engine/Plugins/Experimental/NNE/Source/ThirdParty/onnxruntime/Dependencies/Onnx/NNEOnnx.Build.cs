@@ -22,6 +22,7 @@ public class NNEOnnx : ModuleRules
 			string LibDirPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
 			string[] LibFileNames = new string[] {
 				"onnx",
+				"onnx_proto"
 			};
 
 			foreach(string LibFileName in LibFileNames)
@@ -37,7 +38,6 @@ public class NNEOnnx : ModuleRules
 			}
 
 			// PublicDefinitions
-			PublicDefinitions.Add("WITH_ONNX");
 			PublicDefinitions.Add("ONNX_NO_EXCEPTIONS");
 
 			//PublicDefinitions.Add("ONNX_API=NNX_ONNX_API");

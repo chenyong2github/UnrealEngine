@@ -61,8 +61,10 @@ namespace UE::NNERuntimeORTCpu::Private
 		TArray<ONNXTensorElementDataType> InputTensorsORTType;
 		TArray<ONNXTensorElementDataType> OutputTensorsORTType;
 
-		TArray<const char*> InputTensorNames;
-		TArray<const char*> OutputTensorNames;
+		TArray<Ort::AllocatedStringPtr> InputTensorNames;
+		TArray<Ort::AllocatedStringPtr> OutputTensorNames;
+		TArray<const char*> InputTensorNamePtrs;
+		TArray<const char*> OutputTensorNamePtrs;
 
 		TArray<NNECore::Internal::FTensor> InputTensors;
 		TArray<NNECore::Internal::FTensor> OutputTensors;

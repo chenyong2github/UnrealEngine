@@ -181,19 +181,16 @@ char* FastIntToBuffer(int_type i, char* buffer) {
   // TODO(jorg): This signed-ness check is used because it works correctly
   // with enums, and it also serves to check that int_type is not a pointer.
   // If one day something like std::is_signed<enum E> works, switch to it.
-  // These conditions are constexpr bools to suppress MSVC warning C4127.
-  constexpr bool kIsSigned = static_cast<int_type>(1) - 2 < 0;
-  constexpr bool kUse64Bit = sizeof(i) > 32 / 8;
-  if (kIsSigned) {
-    if (kUse64Bit) {
+  if (static_cast<int_type>(1) - 2 < 0) {  // Signed
+    if (sizeof(i) > 32 / 8) {           // 33-bit to 64-bit
       return FastIntToBuffer(static_cast<int64_t>(i), buffer);
-    } else {
+    } else {  // 32-bit or less
       return FastIntToBuffer(static_cast<int32_t>(i), buffer);
     }
-  } else {
-    if (kUse64Bit) {
+  } else {                     // Unsigned
+    if (sizeof(i) > 32 / 8) {  // 33-bit to 64-bit
       return FastIntToBuffer(static_cast<uint64_t>(i), buffer);
-    } else {
+    } else {  // 32-bit or less
       return FastIntToBuffer(static_cast<uint32_t>(i), buffer);
     }
   }
@@ -212,25 +209,22 @@ ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s, int_type* out,
   // TODO(jorg): This signed-ness check is used because it works correctly
   // with enums, and it also serves to check that int_type is not a pointer.
   // If one day something like std::is_signed<enum E> works, switch to it.
-  // These conditions are constexpr bools to suppress MSVC warning C4127.
-  constexpr bool kIsSigned = static_cast<int_type>(1) - 2 < 0;
-  constexpr bool kUse64Bit = sizeof(*out) == 64 / 8;
-  if (kIsSigned) {
-    if (kUse64Bit) {
+  if (static_cast<int_type>(1) - 2 < 0) {  // Signed
+    if (sizeof(*out) == 64 / 8) {       // 64-bit
       int64_t val;
       parsed = numbers_internal::safe_strto64_base(s, &val, base);
       *out = static_cast<int_type>(val);
-    } else {
+    } else {  // 32-bit
       int32_t val;
       parsed = numbers_internal::safe_strto32_base(s, &val, base);
       *out = static_cast<int_type>(val);
     }
-  } else {
-    if (kUse64Bit) {
+  } else {                         // Unsigned
+    if (sizeof(*out) == 64 / 8) {  // 64-bit
       uint64_t val;
       parsed = numbers_internal::safe_strtou64_base(s, &val, base);
       *out = static_cast<int_type>(val);
-    } else {
+    } else {  // 32-bit
       uint32_t val;
       parsed = numbers_internal::safe_strtou32_base(s, &val, base);
       *out = static_cast<int_type>(val);
@@ -265,7 +259,7 @@ inline size_t FastHexToBufferZeroPad16(uint64_t val, char* out) {
   }
 #endif
   // | 0x1 so that even 0 has 1 digit.
-  return 16 - static_cast<size_t>(countl_zero(val | 0x1) / 4);
+  return 16 - countl_zero(val | 0x1) / 4;
 }
 
 }  // namespace numbers_internal

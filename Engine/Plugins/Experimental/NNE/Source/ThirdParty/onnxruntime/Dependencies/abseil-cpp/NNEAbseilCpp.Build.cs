@@ -9,11 +9,10 @@ public class NNEAbseilCpp : ModuleRules
 	public NNEAbseilCpp(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
-		// Win64, Linux and PS5
+		// Win64, Linux and Mac
 		if (Target.Platform == UnrealTargetPlatform.Win64 ||
 			Target.Platform == UnrealTargetPlatform.Linux ||
-			Target.Platform == UnrealTargetPlatform.Mac 
-			)
+			Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			// PublicSystemIncludePaths
 			string IncPath = Path.Combine(ModuleDirectory, "include/");

@@ -70,7 +70,6 @@
 #include <string>
 #include <type_traits>
 
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/per_thread_tls.h"
@@ -79,11 +78,9 @@
 #include "absl/container/inlined_vector.h"
 #include "absl/functional/function_ref.h"
 #include "absl/meta/type_traits.h"
-#include "absl/strings/cord_analysis.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_btree.h"
 #include "absl/strings/internal/cord_rep_btree_reader.h"
-#include "absl/strings/internal/cord_rep_crc.h"
 #include "absl/strings/internal/cord_rep_ring.h"
 #include "absl/strings/internal/cordz_functions.h"
 #include "absl/strings/internal/cordz_info.h"
@@ -102,20 +99,6 @@ class CordTestPeer;
 template <typename Releaser>
 Cord MakeCordFromExternal(absl::string_view, Releaser&&);
 void CopyCordToString(const Cord& src, std::string* dst);
-
-// Cord memory accounting modes
-enum class CordMemoryAccounting {
-  // Counts the *approximate* number of bytes held in full or in part by this
-  // Cord (which may not remain the same between invocations). Cords that share
-  // memory could each be "charged" independently for the same shared memory.
-  kTotal,
-
-  // Counts the *approximate* number of bytes held in full or in part by this
-  // Cord weighted by the sharing ratio of that data. For example, if some data
-  // edge is shared by 4 different Cords, then each cord is attributed 1/4th of
-  // the total memory usage as a 'fair share' of the total memory usage.
-  kFairShare,
-};
 
 // Cord
 //
@@ -231,7 +214,7 @@ class Cord {
   //
   // Releases the Cord data. Any nodes that share data with other Cords, if
   // applicable, will have their reference counts reduced by 1.
-  ABSL_ATTRIBUTE_REINITIALIZES void Clear();
+  void Clear();
 
   // Cord::Append()
   //
@@ -287,10 +270,11 @@ class Cord {
 
   // Cord::EstimatedMemoryUsage()
   //
-  // Returns the *approximate* number of bytes held by this cord.
-  // See CordMemoryAccounting for more information on accounting method used.
-  size_t EstimatedMemoryUsage(CordMemoryAccounting accounting_method =
-                                  CordMemoryAccounting::kTotal) const;
+  // Returns the *approximate* number of bytes held in full or in part by this
+  // Cord (which may not remain the same between invocations).  Note that Cords
+  // that share memory could each be "charged" independently for the same shared
+  // memory.
+  size_t EstimatedMemoryUsage() const;
 
   // Cord::Compare()
   //
@@ -687,29 +671,6 @@ class Cord {
     cord->Append(part);
   }
 
-  // Cord::SetExpectedChecksum()
-  //
-  // Stores a checksum value with this non-empty cord instance, for later
-  // retrieval.
-  //
-  // The expected checksum is a number stored out-of-band, alongside the data.
-  // It is preserved across copies and assignments, but any mutations to a cord
-  // will cause it to lose its expected checksum.
-  //
-  // The expected checksum is not part of a Cord's value, and does not affect
-  // operations such as equality or hashing.
-  //
-  // This field is intended to store a CRC32C checksum for later validation, to
-  // help support end-to-end checksum workflows.  However, the Cord API itself
-  // does no CRC validation, and assigns no meaning to this number.
-  //
-  // This call has no effect if this cord is empty.
-  void SetExpectedChecksum(uint32_t crc);
-
-  // Returns this cord's expected checksum, if it has one.  Otherwise, returns
-  // nullopt.
-  absl::optional<uint32_t> ExpectedChecksum() const;
-
   template <typename H>
   friend H AbslHashValue(H hash_state, const absl::Cord& c) {
     absl::optional<absl::string_view> maybe_flat = c.TryFlat();
@@ -777,8 +738,9 @@ class Cord {
     bool empty() const;
     size_t size() const;
     const char* data() const;  // Returns nullptr if holding pointer
-    void set_data(const char* data, size_t n);  // Discards pointer, if any
-    char* set_data(size_t n);                   // Write data to the result
+    void set_data(const char* data, size_t n,
+                  bool nullify_tail);  // Discards pointer, if any
+    char* set_data(size_t n);          // Write data to the result
     // Returns nullptr if holding bytes
     absl::cord_internal::CordRep* tree() const;
     absl::cord_internal::CordRep* as_tree() const;
@@ -869,11 +831,6 @@ class Cord {
     // Returns true if the Cord is being profiled by cordz.
     bool is_profiled() const { return data_.is_tree() && data_.is_profiled(); }
 
-    // Returns the available inlined capacity, or 0 if is_tree() == true.
-    size_t remaining_inline_capacity() const {
-      return data_.is_tree() ? 0 : kMaxInline - data_.inline_size();
-    }
-
     // Returns the profiled CordzInfo, or nullptr if not sampled.
     absl::cord_internal::CordzInfo* cordz_info() const {
       return data_.cordz_info();
@@ -903,6 +860,9 @@ class Cord {
     cord_internal::InlineData data_;
   };
   InlineRep contents_;
+
+  // Helper for MemoryUsage().
+  static size_t MemoryUsageAux(const absl::cord_internal::CordRep* rep);
 
   // Helper for GetFlat() and TryFlat().
   static bool GetFlatAux(absl::cord_internal::CordRep* rep,
@@ -978,8 +938,8 @@ namespace cord_internal {
 // Fast implementation of memmove for up to 15 bytes. This implementation is
 // safe for overlapping regions. If nullify_tail is true, the destination is
 // padded with '\0' up to 16 bytes.
-template <bool nullify_tail = false>
-inline void SmallMemmove(char* dst, const char* src, size_t n) {
+inline void SmallMemmove(char* dst, const char* src, size_t n,
+                         bool nullify_tail = false) {
   if (n >= 8) {
     assert(n <= 16);
     uint64_t buf1;
@@ -1016,16 +976,22 @@ inline void SmallMemmove(char* dst, const char* src, size_t n) {
 }
 
 // Does non-template-specific `CordRepExternal` initialization.
-// Requires `data` to be non-empty.
+// Expects `data` to be non-empty.
 void InitializeCordRepExternal(absl::string_view data, CordRepExternal* rep);
 
 // Creates a new `CordRep` that owns `data` and `releaser` and returns a pointer
-// to it. Requires `data` to be non-empty.
+// to it, or `nullptr` if `data` was empty.
 template <typename Releaser>
 // NOLINTNEXTLINE - suppress clang-tidy raw pointer return.
 CordRep* NewExternalRep(absl::string_view data, Releaser&& releaser) {
-  assert(!data.empty());
   using ReleaserType = absl::decay_t<Releaser>;
+  if (data.empty()) {
+    // Never create empty external nodes.
+    InvokeReleaser(Rank0{}, ReleaserType(std::forward<Releaser>(releaser)),
+                   data);
+    return nullptr;
+  }
+
   CordRepExternal* rep = new CordRepExternalImpl<ReleaserType>(
       std::forward<Releaser>(releaser), 0);
   InitializeCordRepExternal(data, rep);
@@ -1045,15 +1011,10 @@ inline CordRep* NewExternalRep(absl::string_view data,
 template <typename Releaser>
 Cord MakeCordFromExternal(absl::string_view data, Releaser&& releaser) {
   Cord cord;
-  if (ABSL_PREDICT_TRUE(!data.empty())) {
-    cord.contents_.EmplaceTree(::absl::cord_internal::NewExternalRep(
-                                   data, std::forward<Releaser>(releaser)),
+  if (auto* rep = ::absl::cord_internal::NewExternalRep(
+          data, std::forward<Releaser>(releaser))) {
+    cord.contents_.EmplaceTree(rep,
                                Cord::MethodIdentifier::kMakeCordFromExternal);
-  } else {
-    using ReleaserType = absl::decay_t<Releaser>;
-    cord_internal::InvokeReleaser(
-        cord_internal::Rank0{}, ReleaserType(std::forward<Releaser>(releaser)),
-        data);
   }
   return cord;
 }
@@ -1246,15 +1207,10 @@ inline size_t Cord::size() const {
 
 inline bool Cord::empty() const { return contents_.empty(); }
 
-inline size_t Cord::EstimatedMemoryUsage(
-    CordMemoryAccounting accounting_method) const {
+inline size_t Cord::EstimatedMemoryUsage() const {
   size_t result = sizeof(Cord);
   if (const absl::cord_internal::CordRep* rep = contents_.tree()) {
-    if (accounting_method == CordMemoryAccounting::kFairShare) {
-      result += cord_internal::GetEstimatedFairShareMemoryUsage(rep);
-    } else {
-      result += cord_internal::GetEstimatedMemoryUsage(rep);
-    }
+    result += MemoryUsageAux(rep);
   }
   return result;
 }
@@ -1318,7 +1274,6 @@ inline bool Cord::StartsWith(absl::string_view rhs) const {
 }
 
 inline void Cord::ChunkIterator::InitTree(cord_internal::CordRep* tree) {
-  tree = cord_internal::SkipCrcNode(tree);
   if (tree->tag == cord_internal::BTREE) {
     current_chunk_ = btree_reader_.Init(tree->btree());
     return;

@@ -36,12 +36,26 @@
 #include "abi_session_options_impl.h"
 #include "core/framework/TensorSeq.h"
 #include "core/platform/ort_mutex.h"
+#include "core/common/string_helper.h"
 
 #ifdef USE_CUDA
 #include "core/providers/cuda/cuda_provider_factory.h"
 #include "core/providers/cuda/cuda_execution_provider_info.h"
 namespace onnxruntime {
 ProviderInfo_CUDA* TryGetProviderInfo_CUDA();
+}
+#endif
+
+#ifdef ENABLE_TRAINING_ON_DEVICE
+#include "orttraining/training_api/include/onnxruntime_training_c_api.h"
+#include "orttraining/training_api/include/ort_training_apis.h"
+#endif
+
+#ifdef USE_CANN
+#include "core/providers/cann/cann_provider_factory.h"
+#include "core/providers/cann/cann_execution_provider_info.h"
+namespace onnxruntime {
+ProviderInfo_CANN* TryGetProviderInfo_CANN();
 }
 #endif
 
@@ -1254,7 +1268,7 @@ ORT_API_STATUS_IMPL(OrtApis::SessionGetOverridableInitializerTypeInfo, _In_ cons
   return GetNodeDefTypeInfoHelper(sess, get_overridable_initializers_fn, index, out);
 }
 
-static char* StrDup(const std::string& str, _Inout_ OrtAllocator* allocator) {
+char* onnxruntime::StrDup(const std::string& str, OrtAllocator* allocator) {
   char* output_string = reinterpret_cast<char*>(allocator->Alloc(allocator, str.size() + 1));
   memcpy(output_string, str.c_str(), str.size());
   output_string[str.size()] = '\0';
@@ -2241,6 +2255,21 @@ ORT_API_STATUS_IMPL(OrtApis::SessionOptionsSetCustomJoinThreadFn, _Inout_ OrtSes
   API_IMPL_END
 }
 
+ORT_API(const OrtTrainingApi*, OrtApis::GetTrainingApi, uint32_t version) {
+#ifdef ENABLE_TRAINING_ON_DEVICE
+  return OrtTrainingApis::GetTrainingApi(version);
+#else
+
+  ORT_UNUSED_PARAMETER(version);
+  fprintf(stderr,
+          "Training APIs are not supported with this build. Please build onnxruntime "
+          "from source with the build flags enable_training and enable_training_on_device to "
+          "retrieve the training APIs.\n");
+
+  return nullptr;
+#endif
+}
+
 static constexpr OrtApiBase ort_api_base = {
     &OrtApis::GetApi,
     &OrtApis::GetVersionString,
@@ -2557,6 +2586,14 @@ static constexpr OrtApi ort_api_1_to_12 = {
     &OrtApis::ReleaseKernelInfo,
     // End of Version 12 - DO NOT MODIFY ABOVE (see above text for more information)
 
+    // Start of Version 13 API in progress, safe to modify/rename/rearrange until we ship
+    &OrtApis::GetTrainingApi,
+    &OrtApis::SessionOptionsAppendExecutionProvider_CANN,
+    &OrtApis::CreateCANNProviderOptions,
+    &OrtApis::UpdateCANNProviderOptions,
+    &OrtApis::GetCANNProviderOptionsAsString,
+    &OrtApis::ReleaseCANNProviderOptions,
+    // End of Version 13 - DO NOT MODIFY ABOVE (see above text for more information)
 };
 
 // Asserts to do a some checks to ensure older Versions of the OrtApi never change (will detect an addition or deletion but not if they cancel out each other)
@@ -2575,15 +2612,20 @@ static_assert(offsetof(OrtApi, SynchronizeBoundOutputs) / sizeof(void*) == 203, 
 #ifndef WITH_UE 
 static_assert(offsetof(OrtApi, SessionOptionsAppendExecutionProvider_MIGraphX) / sizeof(void*) == 209, "Size of version 11 API cannot change"); 
 static_assert(offsetof(OrtApi, ReleaseKernelInfo) / sizeof(void*) == 218, "Size of version 12 API cannot change");
+static_assert(offsetof(OrtApi, ReleaseCANNProviderOptions) / sizeof(void *) == 224,
+              "Size of version 13 API cannot change");
 #else
 static_assert(offsetof(OrtApi, SessionOptionsAppendExecutionProvider_MIGraphX) / sizeof(void*) == (210), "Size of version 11 API cannot change");
 static_assert(offsetof(OrtApi, ReleaseKernelInfo) / sizeof(void*) == 219, "Size of version 12 API cannot change");
+static_assert(offsetof(OrtApi, ReleaseCANNProviderOptions) / sizeof(void *) == 225,
+              "Size of version 13 API cannot change");
 #endif // WITH_UE
 
 // So that nobody forgets to finish an API version, this check will serve as a reminder:
-static_assert(std::string_view(ORT_VERSION) == "1.12.0", "ORT_Version change detected, please follow below steps to ensure OrtApi is updated properly");
+static_assert(std::string_view(ORT_VERSION) == "1.13.1",
+              "ORT_Version change detected, please follow below steps to ensure OrtApi is updated properly");
 // 1. Update the hardcoded version string in above static_assert to silence it
-// 2. If there were any APIs added to ort_api_1_to_11 above:
+// 2. If there were any APIs added to ort_api_1_to_13 above:
 //    a. Add the 'End of version #' markers (pattern above should be obvious)
 //    b. Add a static_assert in the directly above list of version sizes to ensure nobody adds any more functions to the just shipped API version
 

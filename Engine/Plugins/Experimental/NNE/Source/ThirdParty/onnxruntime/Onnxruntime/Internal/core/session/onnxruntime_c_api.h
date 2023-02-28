@@ -40,7 +40,7 @@ NNE_THIRD_PARTY_INCLUDES_END
 *
 * This value is used by some API functions to behave as this version of the header expects.
 */
-#define ORT_API_VERSION 12
+#define ORT_API_VERSION 13
 
 #ifdef __cplusplus
 extern "C" {
@@ -282,6 +282,7 @@ ORT_RUNTIME_CLASS(ArenaCfg);
 ORT_RUNTIME_CLASS(PrepackedWeightsContainer);
 ORT_RUNTIME_CLASS(TensorRTProviderOptionsV2);
 ORT_RUNTIME_CLASS(CUDAProviderOptionsV2);
+ORT_RUNTIME_CLASS(CANNProviderOptions);
 ORT_RUNTIME_CLASS(Op);
 ORT_RUNTIME_CLASS(OpAttr);
 
@@ -536,7 +537,7 @@ typedef struct OrtOpenVINOProviderOptions {
 #endif
   /** \brief Device type string
   *
-  * Valid settings are one of: "CPU_FP32", "GPU_FP32", "GPU_FP16", "MYRIAD_FP16", "VAD-M_FP16" or "VAD-F_FP32"
+  * Valid settings are one of: "CPU_FP32", "CPU_FP16", "GPU_FP32", "GPU_FP16", "MYRIAD_FP16", "VAD-M_FP16" or "VAD-F_FP32"
   */
   const char* device_type;
   unsigned char enable_vpu_fast_compile;  ///< 0 = disabled, nonzero = enabled
@@ -551,6 +552,9 @@ typedef struct OrtOpenVINOProviderOptions {
 
 struct OrtApi;
 typedef struct OrtApi OrtApi;
+
+struct OrtTrainingApi;
+typedef struct OrtTrainingApi OrtTrainingApi;
 
 /** \brief The helper interface to get the right version of OrtApi
 *
@@ -3363,13 +3367,13 @@ struct OrtApi {
                   _In_reads_(input_len) const OrtValue* const* initializers, size_t initializers_num);
 
   /** \brief: Create attribute of onnxruntime operator
-  * 
+  *
   * \param[in] name Name of the attribute
   * \param[in] data Data content of the attribute
   * \param[in] len Number of bytes stored in data
   * \param[in] type Data type
   * \param[out] op_attr Attribute that has been created, which must be released by OrtApi::ReleaseOpAttr
-  * 
+  *
   * \since Version 1.12.
   */
   ORT_API2_STATUS(CreateOpAttr,
@@ -3382,14 +3386,14 @@ struct OrtApi {
   /* \brief: Release op attribute
   *
   * \param[in] opAttr Attribute created by OrtApi::CreateOpAttr
-  * 
+  *
   * \since Version 1.12.
   */
   ORT_CLASS_RELEASE(OpAttr);
 
   /** \brief: Create onnxruntime native operator
-  * 
-  * \param[in] info Kernel info 
+  *
+  * \param[in] info Kernel info
   * \param[in] op_name Operator name
   * \param[in] domain Operator domain
   * \param[in] version Operator opset version
@@ -3401,7 +3405,7 @@ struct OrtApi {
   * \param[in] input_count Number of inputs
   * \param[in] output_count Number of outputs
   * \param[out] ort_op Operator that has been created
-  * 
+  *
   * \since Version 1.12.
   */
   ORT_API2_STATUS(CreateOp,
@@ -3420,14 +3424,14 @@ struct OrtApi {
 
   /** \brief: Invoke the operator created by OrtApi::CreateOp
   * The inputs must follow the order as specified in onnx specification
-  * 
+  *
   * \param[in] context Kernel context
   * \param[in] ort_op Operator that has been created
   * \param[in] input_values Array of inputs
   * \param[in] input_count Number of inputs
   * \param[in] output_values Array of outputs
   * \param[in] output_count Number of outputs
-  * 
+  *
   * \since Version 1.12.
   */
   ORT_API2_STATUS(InvokeOp,
@@ -3441,12 +3445,13 @@ struct OrtApi {
   /* \brief: Release an onnxruntime operator
   *
   * \param[in] Op Operator created by OrtApi::CreateOp
-  * 
+  *
   * \since Version 1.12.
   */
   ORT_CLASS_RELEASE(Op);
 
   /** \brief: Append execution provider to the session options.
+   * \param[in] options
    * \param[in] provider_name - provider to add.
    * \param[in] provider_options_keys - keys to configure the provider options
    * \param[in] provider_options_values - values to configure the provider options
@@ -3467,7 +3472,6 @@ struct OrtApi {
    *   GPU_FLOAT16 => zdl::DlSystem::Runtime_t::GPU_FLOAT16;
    *   DSP, DSP_FIXED8_TF => zdl::DlSystem::Runtime_t::DSP.
    *   AIP_FIXED_TF, AIP_FIXED8_TF => zdl::DlSystem::Runtime_t::AIP_FIXED_TF.
-   *   SNPE Runtime_t refers to https://developer.qualcomm.com/docs/snpe/group__c__plus__plus__apis.html
    *   "priority": execution priority, options: "low", "normal".
    *   "buffer_type": ITensor or user buffers, options: "ITENSOR", user buffer with different types - "TF8", "TF16", "UINT8", "FLOAT".
    *   "ITENSOR" -- default, ITensor which is float only.
@@ -3475,7 +3479,7 @@ struct OrtApi {
    *   If SNPE is not available (due to a non Snpe enabled build or its dependencies not being installed), this function will fail.
    *
    * XNNPACK supported keys:
-   *   None currently
+   *   "intra_op_num_threads": number of thread-pool size to use for XNNPACK execution provider.
    *
    * \since Version 1.12.
    */
@@ -3497,12 +3501,86 @@ struct OrtApi {
                   _Outptr_ OrtKernelInfo** info_copy);
 
   /* \brief: Release kernel info
-  * 
+  *
   * \param[in] KernelInfo A copy of kernel info returned by CopyKernelInfo
-  * 
+  *
   * \since Version 1.12.
   */
   ORT_CLASS_RELEASE(KernelInfo);
+
+  /* \brief: Get the training C Api
+  *
+  * \since Version 1.13
+  */
+  const OrtTrainingApi*(ORT_API_CALL* GetTrainingApi)(uint32_t version) NO_EXCEPTION;
+
+  /** \brief Append CANN provider to session options
+  *
+  * If CANN is not available (due to a non CANN enabled build, or if CANN is not installed on the system), this function will return failure.
+  *
+  * \param[in] options
+  * \param[in] cann_options
+  *
+  * \snippet{doc} snippets.dox OrtStatus Return Value
+  *
+  * \since Version 1.13.
+  */
+  ORT_API2_STATUS(SessionOptionsAppendExecutionProvider_CANN,
+                  _In_ OrtSessionOptions* options, _In_ const OrtCANNProviderOptions* cann_options);
+
+  /** \brief Create an OrtCANNProviderOptions
+  *
+  * \param[out] out created ::OrtCANNProviderOptions. Must be released with OrtApi::ReleaseCANNProviderOptions
+  *
+  * \snippet{doc} snippets.dox OrtStatus Return Value
+  *
+  * \since Version 1.13.
+  */
+  ORT_API2_STATUS(CreateCANNProviderOptions, _Outptr_ OrtCANNProviderOptions** out);
+
+  /** \brief Set options in a CANN Execution Provider.
+  *
+  * \param[in] cann_options
+  * \param[in] provider_options_keys Array of UTF-8 null-terminated string for provider options keys
+  * \param[in] provider_options_values Array of UTF-8 null-terminated string for provider options values
+  * \param[in] num_keys Number of elements in the `provider_option_keys` and `provider_options_values` arrays
+  *
+  * \snippet{doc} snippets.dox OrtStatus Return Value
+  *
+  * \since Version 1.13.
+  */
+  ORT_API2_STATUS(UpdateCANNProviderOptions, _Inout_ OrtCANNProviderOptions* cann_options,
+                  _In_reads_(num_keys) const char* const* provider_options_keys,
+                  _In_reads_(num_keys) const char* const* provider_options_values,
+                  _In_ size_t num_keys);
+
+  /** \brief Get serialized CANN provider options string.
+  *
+  * \param[in] cann_options OrtCANNProviderOptions instance
+  * \param[in] allocator a ptr to an instance of OrtAllocator obtained with CreateAllocator()
+  *                      or GetAllocatorWithDefaultOptions(), the specified allocator will be used to allocate
+  *                      continuous buffers for output strings and lengths.
+  * \param[out] ptr is a UTF-8 null terminated string allocated using 'allocator'.
+  *                 The caller is responsible for using the same allocator to free it.
+  *
+  * \snippet{doc} snippets.dox OrtStatus Return Value
+  *
+  * \since Version 1.13.
+  */
+  ORT_API2_STATUS(GetCANNProviderOptionsAsString, _In_ const OrtCANNProviderOptions* cann_options,
+                  _Inout_ OrtAllocator* allocator, _Outptr_ char** ptr);
+
+  /** \brief Release an OrtCANNProviderOptions
+  *
+  * \param[in] the pointer of OrtCANNProviderOptions which will been deleted
+  *
+  * \since Version 1.13.
+  */
+  void(ORT_API_CALL* ReleaseCANNProviderOptions)(_Frees_ptr_opt_ OrtCANNProviderOptions* input);
+
+#ifdef __cplusplus
+  OrtApi(const OrtApi&)=delete; // Prevent users from accidentally copying the API structure, it should always be passed as a pointer
+#endif
 };
 
 /*
@@ -3511,7 +3589,6 @@ struct OrtApi {
  *   2 Create an OrtCustomOp structure for each op and add them to the domain
  *   3 Call OrtAddCustomOpDomain to add the custom domain of ops to the session options
 */
-#define OrtCustomOpApi OrtApi
 
 // Specifies some characteristics of inputs/outputs of custom ops:
 // Specify if the inputs/outputs are one of:
