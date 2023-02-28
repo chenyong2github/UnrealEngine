@@ -187,7 +187,6 @@ namespace Horde.Agent.Tests
 		}
 
 		[TestMethod]
-		[Ignore]
 		public void SymbolStripSpuriousEventMatcher()
 		{
 			// Symbol stripping error
@@ -201,7 +200,7 @@ namespace Horde.Agent.Tests
 				};
 
 				List<LogEvent> logEvents = Parse(String.Join("\n", lines));
-				CheckEventGroup(logEvents, 1, 1, LogLevel.Information, KnownLogEvents.Systemic_PdbUtil);
+				CheckEventGroup(logEvents, 1, 2, LogLevel.Information, KnownLogEvents.Systemic_PdbUtil);
 			}
 		}
 

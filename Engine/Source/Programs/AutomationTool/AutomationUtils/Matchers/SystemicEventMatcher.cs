@@ -34,7 +34,7 @@ namespace AutomationUtils.Matchers
 				{
 					builder.MoveNext();
 				}
-				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_PdbUtil);
+				return builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_PdbUtil);
 			}
 			if (cursor.IsMatch(s_roboMerge))
 			{
