@@ -35,12 +35,7 @@ public:
 		, OriginalNumFailedResolves(Test.GetNumFailedResolves())
 		, OriginalNumReads(Test.GetNumReads())
 		{
-			Test.InstallCallbacks();
-		}
-
-		~FSnapshotObjectRefMetrics()
-		{
-			Test.RemoveCallbacks();
+			Test.ConditionalInstallCallbacks();
 		}
 
 		void TestNumResolves(const TCHAR* What, uint32 ExpectedDelta)
@@ -90,26 +85,33 @@ private:
 			NumFailedResolves++;
 		}
 	}
-	static void OnRefRead(const UObject* const* Obj, uint32 Count)
+	static void OnRefRead(UObject* Obj)
 	{
 		NumReads++;
 	}
 #endif
 	
-	static void InstallCallbacks()
+	static void ConditionalInstallCallbacks()
 	{
-#if UE_WITH_OBJECT_HANDLE_TRACKING
-		ResolvedCallbackHandle = UE::CoreUObject::AddObjectHandleReferenceResolvedCallback(OnRefResolved);
-		HandleReadCallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback(OnRefRead);
-#endif
-	}
+		static bool bCallbacksInstalled = false;
+		static FCriticalSection CallbackInstallationLock;
 
-	static void RemoveCallbacks()
-	{
+		if (bCallbacksInstalled)
+		{
+			return;
+		}
+
+		FScopeLock ScopeLock(&CallbackInstallationLock);
+		if (!bCallbacksInstalled)
+		{
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-		UE::CoreUObject::RemoveObjectHandleReferenceResolvedCallback(ResolvedCallbackHandle);
-		UE::CoreUObject::RemoveObjectHandleReadCallback(HandleReadCallbackHandle);
+			ResolvedCallbackHandle = UE::CoreUObject::AddObjectHandleReferenceResolvedCallback(OnRefResolved);
+			HandleReadCallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback(OnRefRead);
+			// TODO We should unhook these handles somewhere, but i don't want to refactor the test, it's not as if they were
+			// being unhooked before.  So...
 #endif
+			bCallbacksInstalled = true;
+		}
 	}
 
 #if UE_WITH_OBJECT_HANDLE_TRACKING

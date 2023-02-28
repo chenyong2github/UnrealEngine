@@ -25,7 +25,7 @@ namespace UE::CoreUObject
 	  *
 	  * @param ReadObject	The object that was read from a handle.
 	  */
-	using FObjectHandleReadFunc = TFunction<void(const UObject* const* ReadObject, uint32 Count)>;
+	using FObjectHandleReadFunc = TFunction<void(UObject* ReadObject)>;
 
 	/**
 	 * Callback notifying when a class is resolved from an object handle or object reference.
@@ -102,12 +102,7 @@ namespace UE::CoreUObject
 #if UE_WITH_OBJECT_HANDLE_TRACKING
 namespace UE::CoreUObject::Private
 {
-	
-	COREUOBJECT_API void OnHandleRead(const UObject* const* Object, uint32 Count);
-	inline void OnHandleRead(const UObject* Object)
-	{
-		OnHandleRead(&Object, 1u);
-	}
+	COREUOBJECT_API void OnHandleRead(UObject* Object);
 	COREUOBJECT_API void OnClassReferenceResolved(const FObjectRef& ObjectRef, UPackage* ClassPackage, UClass* Class);
 	COREUOBJECT_API void OnReferenceResolved(const FObjectRef& ObjectRef, UPackage* ObjectPackage, UObject* Object);
 	COREUOBJECT_API void OnReferenceLoaded(const FObjectRef& ObjectRef, UPackage* ObjectPackage, UObject* Object);
@@ -117,7 +112,6 @@ namespace UE::CoreUObject::Private
 namespace UE::CoreUObject::Private
 {
 	inline void OnHandleRead(UObject* Object) { }
-	inline void OnHandleRead(UObject** Object, int Count) { }
 	inline void OnClassReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UClass* Class) { }
 	inline void OnReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UClass* Class) { }
 	inline void OnReferenceLoaded(const FObjectRef& ObjectRef, UPackage* Package, UObject* Object) { }

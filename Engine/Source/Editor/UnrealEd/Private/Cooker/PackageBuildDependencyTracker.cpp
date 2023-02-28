@@ -64,9 +64,9 @@ FPackageBuildDependencyTracker::~FPackageBuildDependencyTracker()
 	UE::CoreUObject::RemoveObjectHandleReadCallback(ObjectHandleReadHandle);
 }
 
-void FPackageBuildDependencyTracker::StaticOnObjectHandleRead(const UObject* const* Objects, uint32 Count)
+void FPackageBuildDependencyTracker::StaticOnObjectHandleRead(UObject* ReadObject)
 {
-	if(Count == 0 || (Count == 1 && (!Objects[0] || !Objects[0]->HasAnyFlags(RF_Public))))
+	if (!ReadObject)
 	{
 		return;
 	}
@@ -82,51 +82,42 @@ void FPackageBuildDependencyTracker::StaticOnObjectHandleRead(const UObject* con
 		return;
 	}
 
-	for (uint32 i = 0; i < Count; ++i)
+	if (!ReadObject->HasAnyFlags(RF_Public))
 	{
-		const UObject* ReadObject = Objects[i];
-		if (!ReadObject)
-		{
-			continue;
-		}
+		return;
+	}
 
-		if (!ReadObject->HasAnyFlags(RF_Public))
-		{
-			continue;
-		}
+	FName Referencer = AccumulatedScopeData->PackageName;
+	FName Referenced = ReadObject->GetOutermost()->GetFName();
+	if (Referencer == Referenced)
+	{
+		return;
+	}
 
-		FName Referencer = AccumulatedScopeData->PackageName;
-		FName Referenced = ReadObject->GetOutermost()->GetFName();
-		if (Referencer == Referenced)
-		{
-			continue;
-		}
+	if (AccumulatedScopeData->OpName == PackageAccessTrackingOps::NAME_NoAccessExpected)
+	{
+		UE_LOG(LogPackageBuildDependencyTracker, Warning, TEXT("Object %s is referencing object %s inside of a NAME_NoAccessExpected scope. Programmer should narrow the scope or debug the reference."),
+			*Referencer.ToString(), *Referenced.ToString());
+	}
 
-		if (AccumulatedScopeData->OpName == PackageAccessTrackingOps::NAME_NoAccessExpected)
-		{
-			UE_LOG(LogPackageBuildDependencyTracker, Warning, TEXT("Object %s is referencing object %s inside of a NAME_NoAccessExpected scope. Programmer should narrow the scope or debug the reference."),
-				*Referencer.ToString(), *Referenced.ToString());
-		}
+	LLM_SCOPE_BYNAME(TEXTVIEW("PackageBuildDependencyTracker"));
 
-		LLM_SCOPE_BYNAME(TEXTVIEW("PackageBuildDependencyTracker"));
-
-		FBuildDependencyAccessData AccessData{ Referenced, AccumulatedScopeData->TargetPlatform };
-		FScopeLock RecordsScopeLock(&Singleton.RecordsLock);
-		if (Referencer == Singleton.LastReferencer)
-		{
-			if (AccessData != Singleton.LastAccessData)
-			{
-				Singleton.LastAccessData = AccessData;
-				Singleton.LastReferencerSet->Add(AccessData);
-			}
-		}
-		else
+	FBuildDependencyAccessData AccessData{Referenced, AccumulatedScopeData->TargetPlatform};
+	FScopeLock RecordsScopeLock(&Singleton.RecordsLock);
+	if (Referencer == Singleton.LastReferencer)
+	{
+		if (AccessData != Singleton.LastAccessData)
 		{
 			Singleton.LastAccessData = AccessData;
-			Singleton.LastReferencer = Referencer;
-			Singleton.LastReferencerSet = &Singleton.Records.FindOrAdd(Referencer);
 			Singleton.LastReferencerSet->Add(AccessData);
 		}
+	}
+	else
+	{
+		Singleton.LastAccessData = AccessData;
+		Singleton.LastReferencer = Referencer;
+		Singleton.LastReferencerSet = &Singleton.Records.FindOrAdd(Referencer);
+		Singleton.LastReferencerSet->Add(AccessData);
 	}
 }
 

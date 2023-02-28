@@ -44,9 +44,8 @@ namespace ArrayViewPrivate
 		auto NaturalPtr = GetData(Forward<T>(Arg));
 		using NaturalElementType = typename TRemovePointer<decltype(NaturalPtr)>::Type;
 
-		auto Size = GetNum(Arg);
-		auto EndPtr = NaturalPtr + Size;
-		TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretRangeContiguous(NaturalPtr, EndPtr, Size);
+		auto EndPtr = NaturalPtr + GetNum(Arg);
+		TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretRange(NaturalPtr, EndPtr);
 
 		return reinterpret_cast<typename TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretType*>(NaturalPtr);
 	}

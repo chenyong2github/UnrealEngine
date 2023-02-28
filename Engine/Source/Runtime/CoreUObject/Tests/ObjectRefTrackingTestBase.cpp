@@ -30,11 +30,11 @@ TEST_CASE("UE::CoreUObject::ObjectHandleTracking::Callbacks")
 	int32 CallbackCount7 = 0;
 	int32 CallbackCount8 = 0;
 
-	FObjectHandleReadFunc ReadCallback1 = [&](const UObject* const* Obj, int Count)
+	FObjectHandleReadFunc ReadCallback1 = [&](UObject* Obj)
 	{
 		++CallbackCount1;
 	};
-	FObjectHandleReadFunc ReadCallback2 = [&](const UObject* const* Obj, int Count)
+	FObjectHandleReadFunc ReadCallback2 = [&](UObject* Obj)
 	{
 		++CallbackCount2;
 	};
@@ -205,10 +205,10 @@ TEST_CASE("UE::CoreUObject::ObjectHandleTracking::Callbacks::Verify")
 
 	TObjectPtr<UObject> ObjPtr = Obj1;
 	int32 ReadCount = 0;
-	auto ReadCallbackHandle1 = AddObjectHandleReadCallback([&](const UObject* const* ReadObject, int Count)
+	auto ReadCallbackHandle1 = AddObjectHandleReadCallback([&](UObject* ReadObject)
 		{
 			++ReadCount;
-			CHECK(Obj1 == ReadObject[0]);
+			CHECK(Obj1 == ReadObject);
 		});
 	
 	CHECK(ObjPtr == Obj1);

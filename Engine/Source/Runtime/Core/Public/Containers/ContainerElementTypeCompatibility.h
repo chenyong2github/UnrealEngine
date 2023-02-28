@@ -14,17 +14,13 @@ template <typename InElementType>
 struct TContainerElementTypeCompatibility
 {
 	typedef InElementType ReinterpretType;
-	typedef InElementType CopyFromOtherType;
 
 	template <typename IterBeginType, typename IterEndType, typename OperatorType = InElementType&(*)(IterBeginType&)>
 	static void ReinterpretRange(IterBeginType Iter, IterEndType IterEnd, OperatorType Operator = [](IterBeginType& InIt) -> InElementType& { return *InIt; })
 	{
 	}
 
-	template <typename IterBeginType, typename IterEndType, typename SizeType, typename OperatorType = InElementType & (*)(IterBeginType&)>
-	static void ReinterpretRangeContiguous(IterBeginType Iter, IterEndType IterEnd, SizeType Size, OperatorType Operator = [](IterBeginType& InIt) -> InElementType& { return *InIt; })
-	{
-	}
+	typedef InElementType CopyFromOtherType;
 
 	static constexpr void CopyingFromOtherType() {}
 };

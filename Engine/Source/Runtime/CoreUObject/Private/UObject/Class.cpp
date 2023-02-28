@@ -3443,17 +3443,7 @@ static void FindUninitializedScriptStructMembers(UScriptStruct* ScriptStruct, ES
 		}
 #endif // WITH_EDITORONLY_DATA
 
-		if (const FObjectProperty* ObjectPtrProperty = CastField<const FObjectProperty>(Property))
-		{
-			// Check any reflected pointer properties to make sure they got initialized
-			TObjectPtr<UObject> PropValue = ObjectPtrProperty->GetObjectPtrPropertyValue(WrapperFE.GetData());
-			const void** RawValue = reinterpret_cast<const void**>(&PropValue);
-			if (RawValue == BadPointer)
-			{
-				OutUninitializedProperties.Add(Property);
-			}
-		}
-		else if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property))
+		if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property))
 		{
 			// Check any reflected pointer properties to make sure they got initialized
 			const UObject* PropValue = ObjectProperty->GetObjectPropertyValue_InContainer(WrapperFE.GetData());
@@ -3590,9 +3580,8 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 		const FObjectPropertyBase* UninitializedProperty = CastFieldChecked<const FObjectPropertyBase>(TestUninitializedScriptStructMembersTestStruct->FindPropertyByName(TEXT("UninitializedObjectReference")));
 		const FObjectPropertyBase* InitializedProperty = CastFieldChecked<const FObjectPropertyBase>(TestUninitializedScriptStructMembersTestStruct->FindPropertyByName(TEXT("InitializedObjectReference")));
 		
-		TObjectPtr<UObject> UninitializedPropValue = UninitializedProperty->GetObjectPtrPropertyValue(WrapperFE.GetData());
-		const void** RawValue = reinterpret_cast<const void**>(&UninitializedPropValue);
-		if (*RawValue != BadPointer)
+		const UObject* UninitializedPropValue = UninitializedProperty->GetObjectPropertyValue_InContainer(WrapperFE.GetData());
+		if (UninitializedPropValue != BadPointer)
 		{
 			UE_LOG(LogClass, Warning, TEXT("ObjectProperty %s%s::%s seems to be initialized properly but it shouldn't be. Verify that AttemptToFindUninitializedScriptStructMembers() is working properly"), 
 				TestUninitializedScriptStructMembersTestStruct->GetPrefixCPP(), *TestUninitializedScriptStructMembersTestStruct->GetName(), *UninitializedProperty->GetNameCPP());
