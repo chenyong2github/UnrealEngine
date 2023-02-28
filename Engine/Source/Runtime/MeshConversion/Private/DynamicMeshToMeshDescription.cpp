@@ -5,6 +5,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicMeshOverlay.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/DynamicBoneAttribute.h"
 #include "DynamicMesh/DynamicVertexAttribute.h"
 #include "MeshDescriptionBuilder.h"
 #include "DynamicMesh/MeshTangents.h"
@@ -678,6 +679,12 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 
 	const int32 NumUVLayers = bHasAttributes ? MeshIn->Attributes()->NumUVLayers() : 0;
 	
+	const bool bHasBones = bHasAttributes && MeshIn->Attributes()->HasBones();
+	const FDynamicMeshBoneNameAttribute* BoneNames = bHasBones ? MeshIn->Attributes()->GetBoneNames() : nullptr;
+	const FDynamicMeshBoneParentIndexAttribute* BoneParentIndices = bHasBones ? MeshIn->Attributes()->GetBoneParentIndices() : nullptr;
+	const FDynamicMeshBonePoseAttribute* BonePoses = bHasBones ? MeshIn->Attributes()->GetBonePoses() : nullptr;
+	const FDynamicMeshBoneColorAttribute* BoneColors = bHasBones ? MeshIn->Attributes()->GetBoneColors() : nullptr;
+
 	// cache the UV layers
 	TArray<const FDynamicMeshUVOverlay*> UVLayers;
 	for (int32 k = 0; k < NumUVLayers; ++k)
@@ -698,11 +705,36 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 		bCopyGroupToPolyGroup = true;
 	}
 
+	// We register skeletal attributes if either bone names or skinning infomation is available
+	if (bHasBones || !MeshIn->Attributes()->GetSkinWeightsAttributes().IsEmpty())
+	{
+		FSkeletalMeshAttributes MeshOutAttributes(MeshOut);
+		MeshOutAttributes.Register();
+		MeshOutAttributes.RegisterColorAttribute();
+	}
+
+	if (bHasBones)
+	{
+		FSkeletalMeshAttributes MeshOutAttributes(MeshOut);
+		checkSlow(MeshOutAttributes.HasBones()); // FSkeletalMeshAttributes::Register() must have been called
+		
+		const int32 NumBones = MeshIn->Attributes()->GetNumBones();
+		MeshOutAttributes.ReserveNewBones(NumBones);
+
+		for (int Idx = 0; Idx < NumBones; ++Idx)
+		{
+			const FBoneID BoneID = MeshOutAttributes.CreateBone();
+			MeshOutAttributes.GetBoneNames().Set(BoneID, BoneNames->GetValue(Idx));
+			MeshOutAttributes.GetBoneParentIndices().Set(BoneID, BoneParentIndices->GetValue(Idx));
+			MeshOutAttributes.GetBonePoses().Set(BoneID, BonePoses->GetValue(Idx));
+			MeshOutAttributes.GetBoneColors().Set(BoneID, BoneColors->GetValue(Idx));
+		}
+	}
+
 	TMap<FName, FSkinWeightsVertexAttributesRef> VertexBoneWeightsMap; 
 	if (!MeshIn->Attributes()->GetSkinWeightsAttributes().IsEmpty())
 	{
 		FSkeletalMeshAttributes MeshOutAttributes(MeshOut);
-		MeshOutAttributes.Register();
 		for (const TTuple<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttributeInfo: MeshIn->Attributes()->GetSkinWeightsAttributes())
 		{
 			FName ProfileName = AttributeInfo.Key;

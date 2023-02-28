@@ -1738,6 +1738,10 @@ bool FSkeletalMeshImportData::GetMeshDescription(FMeshDescription& OutMeshDescri
 
 	TPolygonGroupAttributesRef<FName> PolygonGroupMaterialSlotNames = MeshAttributes.GetPolygonGroupMaterialSlotNames();
 
+	FSkeletalMeshAttributes::FBoneNameAttributesRef BoneNames = MeshAttributes.GetBoneNames();
+	FSkeletalMeshAttributes::FBoneParentIndexAttributesRef BoneParentIndices = MeshAttributes.GetBoneParentIndices();
+	FSkeletalMeshAttributes::FBonePoseAttributesRef BonePoses = MeshAttributes.GetBonePoses();
+
 	VertexInstanceUVs.SetNumChannels(NumTexCoords);
 	
 	// Avoid repeated allocations and reserve the target buffers right off the bat.
@@ -1745,6 +1749,7 @@ bool FSkeletalMeshImportData::GetMeshDescription(FMeshDescription& OutMeshDescri
 	OutMeshDescription.ReserveNewTriangles(Faces.Num());
 	OutMeshDescription.ReserveNewVertexInstances(Wedges.Num());
 	OutMeshDescription.ReserveNewVertices(Points.Num());
+	MeshAttributes.ReserveNewBones(RefBonesBinary.Num());
 
 	// Copy the vertex positions first and maintain a map so that we can go from the import data's raw vertex index
 	// to the mesh description's VertexID.
@@ -1787,6 +1792,18 @@ bool FSkeletalMeshImportData::GetMeshDescription(FMeshDescription& OutMeshDescri
 		}
 
 		VertexSkinWeights.Set(VertexIDMap[VertexIndex], BoneWeights);		
+	}
+
+	// Set Bone Attributes
+	for (int Idx = 0; Idx < RefBonesBinary.Num(); ++Idx)
+	{
+		const SkeletalMeshImportData::FBone& Bone = RefBonesBinary[Idx];
+		
+		const FBoneID BoneID = MeshAttributes.CreateBone();
+		
+		BoneNames.Set(BoneID, FName(Bone.Name));
+		BoneParentIndices.Set(BoneID, Bone.ParentIndex);
+		BonePoses.Set(BoneID, FTransform(Bone.BonePos.Transform));
 	}
 
 	// Partition the faces by material index. Each material index corresponds to a polygon group.

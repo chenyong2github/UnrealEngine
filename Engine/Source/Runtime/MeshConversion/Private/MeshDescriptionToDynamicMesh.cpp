@@ -6,6 +6,7 @@
 #include "DynamicMesh/DynamicMeshOverlay.h"
 #include "DynamicMesh/DynamicVertexAttribute.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/DynamicBoneAttribute.h"
 #include "DynamicMesh/MeshTangents.h"
 #include "DynamicMesh/NonManifoldMappingSupport.h"
 #include "MeshDescriptionBuilder.h"
@@ -399,6 +400,10 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	FDynamicMeshNormalOverlay* TangentOverlay = nullptr;
 	FDynamicMeshNormalOverlay* BiTangentOverlay = nullptr;
 	FDynamicMeshMaterialAttribute* MaterialIDAttrib = nullptr;
+	FDynamicMeshBoneNameAttribute* BoneNameAttrib = nullptr;
+	FDynamicMeshBoneParentIndexAttribute* BoneParentIndexAttrib = nullptr;
+	FDynamicMeshBonePoseAttribute* BonePoseAttrib = nullptr;
+	FDynamicMeshBoneColorAttribute* BoneColorAttrib = nullptr;
 
 	TArray<FSkinWeightsAttribCopyInfo> SkinWeightAttribs;
 	if (!bDisableAttributes)
@@ -460,6 +465,30 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 				MeshOut.Attributes()->AttachSkinWeightsAttribute(ProfileName, VertexSkinWeightsAttrib);
 			}
 		});
+
+		if (Attributes.HasBones())
+		{	
+			MeshOut.Attributes()->EnableBones(Attributes.GetNumBones());
+			if (Attributes.HasBoneNameAttribute())
+			{
+				BoneNameAttrib = MeshOut.Attributes()->GetBoneNames();
+			}
+			
+			if (Attributes.HasBoneParentIndexAttribute())
+			{
+				BoneParentIndexAttrib = MeshOut.Attributes()->GetBoneParentIndices();
+			}
+
+			if (Attributes.HasBonePoseAttribute())
+			{
+				BonePoseAttrib = MeshOut.Attributes()->GetBonePoses();
+			}
+
+			if (Attributes.HasBoneColorAttribute())
+			{
+				BoneColorAttrib = MeshOut.Attributes()->GetBoneColors();
+			}
+		}
 	}
 
 
@@ -809,7 +838,36 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
             });
 			Pending.Add(MoveTemp(SkinWeightsTask));
 		}
-		
+
+		if (BoneNameAttrib != nullptr)
+		{	
+			auto BonesTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [&]() -> void
+			{
+				const int NumBones = Attributes.GetNumBones();
+				for (int32 BoneID = 0; BoneID < NumBones; ++BoneID)
+				{
+					BoneNameAttrib->SetValue(BoneID, Attributes.GetBoneNames().Get(BoneID));
+
+					if (BoneParentIndexAttrib)
+					{	
+						BoneParentIndexAttrib->SetValue(BoneID, Attributes.GetBoneParentIndices().Get(BoneID));
+					}
+
+					if (BonePoseAttrib)
+					{
+						BonePoseAttrib->SetValue(BoneID, Attributes.GetBonePoses().Get(BoneID));
+					}
+
+					if (BoneColorAttrib)
+					{
+						BoneColorAttrib->SetValue(BoneID, Attributes.GetBoneColors().Get(BoneID));
+					}
+				}
+				
+			});
+			Pending.Add(MoveTemp(BonesTask));
+		}
+
 		// initialize polygroup layers
 		for (int32 GroupLayerIdx = 0; GroupLayerIdx < PolygroupAttribs.Num(); GroupLayerIdx++)
 		{
