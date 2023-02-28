@@ -175,11 +175,14 @@ FName FSoundWaveData::FindRuntimeFormat(const USoundWave& InWave) const
 {		
 #if WITH_EDITOR	
 	// If this is an editor build, we can ask ITargetPlatform.
-	if (ITargetPlatformManagerModule* TPM = GetTargetPlatformManager())
+	if (!InWave.IsLoadedFromCookedData())
 	{
-		if (ITargetPlatform* RunningTarget = TPM->GetRunningTargetPlatform())
+		if (ITargetPlatformManagerModule* TPM = GetTargetPlatformManager())
 		{
-			return RunningTarget->GetWaveFormat(&InWave);
+			if (ITargetPlatform* RunningTarget = TPM->GetRunningTargetPlatform())
+			{
+				return RunningTarget->GetWaveFormat(&InWave);
+			}
 		}
 	}
 #endif //WITH_EDITOR
