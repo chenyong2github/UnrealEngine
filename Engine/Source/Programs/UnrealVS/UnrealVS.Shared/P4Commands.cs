@@ -54,7 +54,7 @@ namespace UnrealVS
 		private IVsOutputWindowPane P4OutputPane;
 		private string P4WorkingDirectory;
 		private bool bPullWorkingDirectorFromP4 = true;
-		private static Mutex bPullWorkingDirectorFromP4Mutex = new Mutex();
+		private static object bPullWorkingDirectorFromP4Lock = new object();
 
 		// Exe paths
 		private string P4Exe = "C:\\Program Files\\Perforce\\p4.exe";
@@ -969,9 +969,8 @@ namespace UnrealVS
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();
 
-			bPullWorkingDirectorFromP4Mutex.WaitOne();
-			try
-			{
+			lock(bPullWorkingDirectorFromP4Lock)
+			{ 
 				if (IsSolutionLoaded() && (P4WorkingDirectory == null || P4WorkingDirectory.Length < 2))
 				{
 					DTE DTE = UnrealVSPackage.Instance.DTE;
@@ -1001,10 +1000,6 @@ namespace UnrealVS
 						P4OutputPane.OutputStringThreadSafe($"P4WorkingDirectory set failed {Environment.NewLine}");
 					}
 				}
-			}
-			finally
-			{
-				bPullWorkingDirectorFromP4Mutex.ReleaseMutex();
 			}
 		}
 

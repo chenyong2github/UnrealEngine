@@ -1,3 +1,6 @@
+1.84.2
+* Fix to Unreal.TestAdapater to output test results to a file
+
 1.84.1
 * P4 Commands now are more aggressive about finding your working directory
 

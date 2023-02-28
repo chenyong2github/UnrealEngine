@@ -64,17 +64,19 @@ namespace Unreal.TestAdapter
 				if (File.Exists(tempFile))
 				{
 					xml = File.ReadAllText(tempFile);
+					File.Delete(tempFile);
 				}
 			}
 			else
 			{
+				System.Diagnostics.Debugger.Launch();
+				string tempFile = Path.Combine(Path.GetTempPath(), Path.GetTempFileName());
 				using (Process process = new Process())
 				{
 					process.StartInfo.FileName = testCase.Source;
 
 					//wrap in quotes because test names can have spaces
-					process.StartInfo.Arguments = "\"" + testCase.FullyQualifiedName + "\"  --reporter unreal";
-					process.StartInfo.RedirectStandardOutput = true;
+					process.StartInfo.Arguments = "\"" + testCase.FullyQualifiedName + "\"  --reporter unreal -o " + tempFile;
 					process.StartInfo.UseShellExecute = false;
 
 					if (token.IsCancellationRequested)
@@ -84,22 +86,21 @@ namespace Unreal.TestAdapter
 
 					frameworkHandle.RecordStart(testCase);
 					process.Start();
-					xml = process.StandardOutput.ReadToEnd();
-					while (!process.HasExited)
+					process.WaitForExit();
+					if (File.Exists(tempFile))
 					{
-						if (token.IsCancellationRequested)
-						{
-							process.Kill();
-							return;
-						}
+						xml = File.ReadAllText(tempFile);
+						File.Delete(tempFile);
 					}
 				}
 			}
 
-			var testResult = new TestResult(testCase) { Outcome = TestOutcome.NotFound };
-			ParseResult(xml, testResult);
-			frameworkHandle.RecordEnd(testCase, testResult.Outcome);
-			frameworkHandle.RecordResult(testResult);
+			{
+				var testResult = new TestResult(testCase) { Outcome = TestOutcome.NotFound };
+				ParseResult(xml, testResult);
+				frameworkHandle.RecordEnd(testCase, testResult.Outcome);
+				frameworkHandle.RecordResult(testResult);
+			}
 		}
 
 		void ParseResult(string xmlString, TestResult testResult)
