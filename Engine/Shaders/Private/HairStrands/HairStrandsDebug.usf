@@ -867,9 +867,6 @@ uint HairVisibilityNodeGroupSize;
 uint AllocatedSampleCount;
 uint HairInstanceCount;
 
-uint NumInstances;
-uint InstanceDataSOAStride;
-
 Buffer<uint> HairInstanceIDs;
 Texture2D<float> HairCountTexture;
 Texture2D<uint> HairCountUintTexture;
@@ -895,10 +892,10 @@ void DrawInstanceAABB(uint PrimitiveId)
 	// Since we don't have the actual instance ID (they are transient instance vs. persistent instance), 
 	// we find the primitive with the matching PrimitiveID
 	uint InstanceID = ~0;
-	const uint TotalInstanceCount = min(8192u, NumInstances);
+	const uint TotalInstanceCount = min(8192u, Scene.GPUScene.NumInstances);
 	for (uint LocalInstanceID = 0; LocalInstanceID < TotalInstanceCount; ++LocalInstanceID)
 	{
-		FInstanceSceneData InstanceData = GetInstanceSceneData(LocalInstanceID, InstanceDataSOAStride);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(LocalInstanceID, Scene.GPUScene.InstanceDataSOAStride);
 		if (InstanceData.PrimitiveId == PrimitiveId)
 		{
 			InstanceID = LocalInstanceID;
@@ -908,7 +905,7 @@ void DrawInstanceAABB(uint PrimitiveId)
 
 	if (InstanceID != ~0)
 	{
-		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceID, InstanceDataSOAStride);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceID, Scene.GPUScene.InstanceDataSOAStride);
 		const float4 InstanceBoundColor = ColorLightGreen;
 		AddOBBWS(InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent, InstanceBoundColor, LWCHackToFloat(InstanceData.LocalToWorld));
 		AddReferentialWS(LWCHackToFloat(InstanceData.LocalToWorld), 50.f);
