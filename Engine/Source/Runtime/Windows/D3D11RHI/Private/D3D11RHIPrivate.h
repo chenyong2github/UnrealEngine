@@ -933,7 +933,9 @@ protected:
 
 	FDisplayInformationArray DisplayList;
 
+#if PLATFORM_WINDOWS
 	HANDLE ExceptionHandlerHandle = INVALID_HANDLE_VALUE;
+#endif
 
 	bool bRenderDoc = false;
 

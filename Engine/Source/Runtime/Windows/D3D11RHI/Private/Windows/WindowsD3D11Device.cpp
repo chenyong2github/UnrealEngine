@@ -2094,8 +2094,10 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			TRefCountPtr<ID3D11InfoQueue> d3dInfoQueue;
 			if (SUCCEEDED(GD3D11RHI->GetDevice()->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)d3dInfoQueue.GetInitReference())))
 			{
+#if PLATFORM_WINDOWS
 				/* install callback */
 				ExceptionHandlerHandle = AddVectoredExceptionHandler(1, D3D11VectoredExceptionHandler);
+#endif
 
 				/* filter messages */
 				const bool bLogWarnings = FParse::Param(FCommandLine::Get(), TEXT("d3dbreakonwarning")) || FParse::Param(FCommandLine::Get(), TEXT("d3dlogwarnings"));

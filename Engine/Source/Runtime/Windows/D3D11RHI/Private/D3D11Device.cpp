@@ -668,10 +668,12 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 			}
 		}
 
+#if PLATFORM_WINDOWS
 		if (ExceptionHandlerHandle != INVALID_HANDLE_VALUE)
 		{
 			RemoveVectoredExceptionHandler(ExceptionHandlerHandle);
 		}
+#endif
 
 		// ORION - avoid shutdown crash that is currently present in UE
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
