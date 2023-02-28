@@ -147,6 +147,7 @@ void FTexture2DStreamIn::DoAsyncCreateWithNewMips(const FContext& Context)
 		FTexture2DResource::WarnRequiresTightPackedMip(RequestedMipMap.SizeX,RequestedMipMap.SizeY,Context.Resource->GetPixelFormat(),MipData[PendingFirstLODIdx].Pitch);
 
 		ensure(IntermediateTextureRHI == nullptr);
+		FGraphEventRef CompletionEvent;
 		IntermediateTextureRHI = RHIAsyncCreateTexture2D(
 			RequestedMipMap.SizeX,
 			RequestedMipMap.SizeY,
@@ -154,6 +155,19 @@ void FTexture2DStreamIn::DoAsyncCreateWithNewMips(const FContext& Context)
 			ResourceState.NumRequestedLODs,
 			Context.Resource->GetCreationFlags(),
 			InitialMipDataForAsyncCreate+PendingFirstLODIdx,
-			ResourceState.NumRequestedLODs - ResourceState.NumResidentLODs);
+			ResourceState.NumRequestedLODs - ResourceState.NumResidentLODs,
+			CompletionEvent);
+
+		if (CompletionEvent)
+		{
+			TaskSynchronization.Increment();
+			FFunctionGraphTask::CreateAndDispatchWhenReady(
+				[this]()
+				{
+					TaskSynchronization.Decrement();
+				},
+				TStatId{},
+				CompletionEvent);
+		}
 	}
 }

@@ -82,7 +82,29 @@ bool FTexture2DMipAllocator_AsyncCreate::FinalizeMips(const FTextureUpdateContex
 	if (!IntermediateTextureRHI)
 	{
 		// Create the intermediate texture.
-		IntermediateTextureRHI = RHIAsyncCreateTexture2D(FinalSizeX, FinalSizeY, FinalFormat, ResourceState.NumRequestedLODs, Context.Resource->GetCreationFlags(), FinalMipData.GetData(), FinalMipData.Num());
+		FGraphEventRef CompletionEvent;
+		IntermediateTextureRHI = RHIAsyncCreateTexture2D(
+			FinalSizeX,
+			FinalSizeY,
+			FinalFormat,
+			ResourceState.NumRequestedLODs,
+			Context.Resource->GetCreationFlags(),
+			FinalMipData.GetData(),
+			FinalMipData.Num(),
+			CompletionEvent);
+
+		if (CompletionEvent)
+		{
+			SyncOptions.Counter->Increment();
+			FFunctionGraphTask::CreateAndDispatchWhenReady(
+				[SyncCounter = SyncOptions.Counter]()
+				{
+					SyncCounter->Decrement();
+				},
+				TStatId{},
+				CompletionEvent);
+		}
+
 		// Free the temporary mip data, since copy is now in the RHIAsyncCreateTexture2D command.
 		ReleaseAllocatedMipData();
 

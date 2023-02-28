@@ -1008,7 +1008,61 @@ FTextureRHIRef FD3D12DynamicRHI::RHICreateTexture_RenderThread(class FRHICommand
 }
 
 
-FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips)
+class FWaitInitialMipDataUploadTask
+{
+public:
+	TRefCountPtr<FD3D12Texture> Texture;
+	FD3D12ResourceLocation TempResourceLocation;
+	FD3D12ResourceLocation TempResourceLocationLowMips;
+
+	FWaitInitialMipDataUploadTask(
+		FD3D12Texture* InTexture,
+		FD3D12ResourceLocation& InTempResourceLocation,
+		FD3D12ResourceLocation& InTempResourceLocationLowMips)
+		: Texture(InTexture)
+		, TempResourceLocation(InTempResourceLocation.GetParentDevice())
+		, TempResourceLocationLowMips(InTempResourceLocationLowMips.GetParentDevice())
+	{
+		FD3D12ResourceLocation::TransferOwnership(TempResourceLocation, InTempResourceLocation);
+		FD3D12ResourceLocation::TransferOwnership(TempResourceLocationLowMips, InTempResourceLocationLowMips);
+	}
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		for (FD3D12Texture& CurrentTexture : *Texture)
+		{
+			// Initial data upload is done
+			CurrentTexture.ResourceLocation.UnlockPoolData();
+		}
+
+		// These are clear to be recycled now because GPU is done with it at this point because this task use the copy command list sync points
+		// as prerequisites. No defer delete required but can be reused immediately
+		TempResourceLocation.GetResource()->DoNotDeferDelete();
+		TempResourceLocation.GetResource()->Release();
+		if (TempResourceLocationLowMips.IsValid())
+		{
+			TempResourceLocationLowMips.GetResource()->DoNotDeferDelete();
+			TempResourceLocationLowMips.GetResource()->Release();
+		}
+	}
+
+	static ESubsequentsMode::Type GetSubsequentsMode()
+	{
+		return ESubsequentsMode::TrackSubsequents;
+	}
+
+	ENamedThreads::Type GetDesiredThread()
+	{
+		return ENamedThreads::AnyNormalThreadNormalTask;
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FGatherRequestsTask, STATGROUP_D3D12RHI);
+	}
+};
+
+FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips, FGraphEventRef& OutCompletionEvent)
 {	
 	check(GRHISupportsAsyncTextureCreation);
 	
@@ -1101,6 +1155,9 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 
 		return NewTexture;
 	});
+
+	FGraphEventArray CopyCompleteEvents;
+	OutCompletionEvent = nullptr;
 
 	if (TextureOut)
 	{
@@ -1200,6 +1257,8 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 				FD3D12CopyScope CopyScope(Device, ED3D12SyncPointType::GPUAndCPU);
 				SyncPoint = CopyScope.GetSyncPoint();
 
+				CopyCompleteEvents.Add(SyncPoint->GetGraphEvent());
+
 				// NB: Do not increment NumCopies because that will count as work on the direct
 				// queue, not the copy queue, possibly causing it to flush prematurely. We are
 				// explicitly submitting the copy command list so there's no need to increment any
@@ -1249,26 +1308,16 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 
 				CopyScope.Context.UpdateResidency(Resource);
 			}
-
-			// The FD3D12CopyScope above immediately submits work to the copy queue when the scope ends.
-			// Block this CPU thread until the copy queue work has completed on the GPU.
-			SyncPoint->Wait();
-
-			// Blocking update is done
-			CurrentTexture.ResourceLocation.UnlockPoolData();
 		}
 
 		FD3D12TextureStats::D3D12TextureAllocated(*TextureOut);
 
-		// These are clear to be recycled now because GPU is done with it at this point. We wait on GPU in ExecuteCommandList() above.
-		// No defer delete required but can be reused immediately
-		TempResourceLocation.GetResource()->DoNotDeferDelete();
-		TempResourceLocation.GetResource()->Release();
-		if (bSplitAllocation)
-		{
-			TempResourceLocationLowMips.GetResource()->DoNotDeferDelete();
-			TempResourceLocationLowMips.GetResource()->Release();
-		}
+		check(CopyCompleteEvents.Num() > 0);
+
+		OutCompletionEvent = TGraphTask<FWaitInitialMipDataUploadTask>::CreateTask(&CopyCompleteEvents).ConstructAndDispatchWhenReady(
+			TextureOut,
+			TempResourceLocation,
+			TempResourceLocationLowMips);
 	}
 
 	if (TempBufferSize != ZeroBufferSize)

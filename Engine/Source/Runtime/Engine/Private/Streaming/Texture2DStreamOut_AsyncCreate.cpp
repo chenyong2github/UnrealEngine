@@ -34,13 +34,28 @@ void FTexture2DStreamOut_AsyncCreate::AsyncCreate(const FContext& Context)
 		const FTexture2DMipMap& RequestedMipMap = *Context.MipsView[PendingFirstLODIdx];
 
 		ensure(IntermediateTextureRHI == nullptr);
+		FGraphEventRef CompletionEvent;
 		IntermediateTextureRHI = RHIAsyncCreateTexture2D(
 			RequestedMipMap.SizeX,
 			RequestedMipMap.SizeY,
 			Context.Resource->GetPixelFormat(),
 			ResourceState.NumRequestedLODs,
 			Context.Resource->GetCreationFlags(),
-			nullptr, 0);
+			nullptr,
+			0,
+			CompletionEvent);
+
+		if (CompletionEvent)
+		{
+			TaskSynchronization.Increment();
+			FFunctionGraphTask::CreateAndDispatchWhenReady(
+				[this]()
+				{
+					TaskSynchronization.Decrement();
+				},
+				TStatId{},
+				CompletionEvent);
+		}
 	}
 
 	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(Finalize), TT_Render, SRA_UPDATE_CALLBACK(Cancel));

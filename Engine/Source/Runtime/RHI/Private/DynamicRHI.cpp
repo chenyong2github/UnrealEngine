@@ -569,6 +569,17 @@ uint64 FDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format
 	return 1;
 }
 
+FTextureRHIRef FDynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips)
+{
+	FGraphEventRef CompletionEvent;
+	FTextureRHIRef Result = this->RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, InResourceState, InitialMipData, NumInitialMips, CompletionEvent);
+	if (CompletionEvent)
+	{
+		CompletionEvent->Wait();
+	}
+	return Result;
+}
+
 uint64 FDynamicRHI::RHIComputePrecachePSOHash(const FGraphicsPipelineStateInitializer& Initializer)
 {
 	// When compute precache PSO hash we assume a valid state precache PSO hash is already provided

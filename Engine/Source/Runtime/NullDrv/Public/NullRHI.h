@@ -216,7 +216,7 @@ public:
 		return new FNullTexture(CreateDesc);
 	}
 
-	virtual FTextureRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips) final override
+	virtual FTextureRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips, FGraphEventRef& OutCompletionEvent) final override
 	{ 
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("FNullDynamicRHI::RHIAsyncCreateTexture2D"), SizeX, SizeY, (EPixelFormat)Format)
@@ -224,7 +224,7 @@ public:
 			.SetFlags(Flags)
 			.SetNumMips(NumMips)
 			.SetInitialState(InResourceState);
-
+		OutCompletionEvent = nullptr;
 		return this->RHICreateTexture(Desc);
 	}
 
