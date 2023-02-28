@@ -55,7 +55,13 @@ struct FPBIKEffector
 {
 	GENERATED_BODY()
 
-	FPBIKEffector()	: Bone(NAME_None) {}
+	FPBIKEffector()	:
+		Bone(NAME_None),
+		PositionAlpha(1.0f),
+		RotationAlpha(1.0f),
+		StrengthAlpha(1.0f),
+		PullChainAlpha(1.0f),
+		PinRotation(1.0f){}
 
 	/** The bone that this effector will pull on. */
 	UPROPERTY(EditAnywhere, Category="Effector", meta = (CustomWidget = "BoneName"))
