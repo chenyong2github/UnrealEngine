@@ -1809,7 +1809,7 @@ void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedOb
 						UNiagaraStackViewModel* StackViewModel = EmitterHandleViewModel->GetEmitterStackViewModel();
 						if(ensure(StackViewModel))
 						{
-							StackViewModel->Refresh();
+							StackViewModel->RequestRefreshDeferred();
 						}
 					}
 				}
@@ -3015,11 +3015,11 @@ void FNiagaraSystemViewModel::RefreshStackViewModels()
 {
 	if (SystemStackViewModel)
 	{
-		SystemStackViewModel->Refresh();
+		SystemStackViewModel->RequestRefreshDeferred();
 	}
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
 	{
-		EmitterHandleViewModel->GetEmitterStackViewModel()->Refresh();
+		EmitterHandleViewModel->GetEmitterStackViewModel()->RequestRefreshDeferred();
 	}
 }
 

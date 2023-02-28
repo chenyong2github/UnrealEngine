@@ -121,7 +121,7 @@ void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemV
 
 			if (UNiagaraEmitter* Emitter = EmitterViewModel->GetEmitter().Emitter)
 			{
-				EmitterViewModel->GetOrCreateEditorData().OnSummaryViewStateChanged().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
+				EmitterViewModel->GetOrCreateEditorData().OnSummaryViewStateChanged().AddUObject(this, &UNiagaraStackViewModel::RequestRefreshDeferred);
 			}
 
 		}
@@ -137,7 +137,7 @@ void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemV
 		StackRoot->OnExpansionInOverviewChanged().AddUObject(this, &UNiagaraStackViewModel::EntryExpansionInOverviewChanged);
 		StackRoot->OnDataObjectModified().AddUObject(this, &UNiagaraStackViewModel::EntryDataObjectModified);
 		StackRoot->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefresh);
-		StackRoot->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
+		StackRoot->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::RequestRefreshDeferred);
 		RootEntry = StackRoot;
 		RootEntries.Add(RootEntry);
 
@@ -159,7 +159,7 @@ void UNiagaraStackViewModel::InitializeWithRootEntry(UNiagaraStackEntry* InRootE
 	RootEntry->OnExpansionChanged().AddUObject(this, &UNiagaraStackViewModel::EntryExpansionChanged);
 	RootEntry->OnExpansionInOverviewChanged().AddUObject(this, &UNiagaraStackViewModel::EntryExpansionInOverviewChanged);
 	RootEntry->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefresh);
-	RootEntry->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
+	RootEntry->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::RequestRefreshDeferred);
 	RootEntries.Add(RootEntry);
 
 	bExternalRootEntry = true;
@@ -208,7 +208,7 @@ void UNiagaraStackViewModel::Reset()
 	TopLevelViewModels.Empty();
 
 	CurrentIssueCycleIndex = -1;
-	CurrentFocusedSearchMatchIndex = -1;
+	FocusedSearchResultCache.Reset();
 	bRestartSearch = false;
 	bRefreshPending = false;
 	bValidatorUpdatePending = false;
@@ -246,7 +246,7 @@ void UNiagaraStackViewModel::Tick()
 		{
 			RootEntry->RefreshChildren();
 			bRefreshPending = false;
-			InvalidateSearchResults();
+			RestartSearch();
 			bValidatorUpdatePending = true;
 		}
 
@@ -261,6 +261,7 @@ void UNiagaraStackViewModel::Tick()
 
 void UNiagaraStackViewModel::ResetSearchText()
 {
+	FocusedSearchResultCache.Reset();
 	CurrentSearchText = FText::GetEmpty();
 	// restarting the search with empty text will reset search results
 	bRestartSearch = true;	
@@ -284,6 +285,11 @@ void UNiagaraStackViewModel::OnSearchTextChanged(const FText& SearchText)
 		// also this can be triggered by multiple events, so better wait
 		bRestartSearch = true;
 	}
+
+	if(SearchText.IsEmpty())
+	{
+		FocusedSearchResultCache.Reset();
+	}
 }
 
 bool UNiagaraStackViewModel::IsSearching()
@@ -296,26 +302,54 @@ const TArray<UNiagaraStackViewModel::FSearchResult>& UNiagaraStackViewModel::Get
 	return CurrentSearchResults;
 }
 
-UNiagaraStackEntry* UNiagaraStackViewModel::GetCurrentFocusedEntry()
+UNiagaraStackEntry* UNiagaraStackViewModel::GetCurrentFocusedEntry() const
 {
-	if (CurrentFocusedSearchMatchIndex >= 0)
+	if (FocusedSearchResultCache.IsSet() && FocusedSearchResultCache->GetEntry() != nullptr && !FocusedSearchResultCache->GetEntry()->IsFinalized())
 	{
-		FSearchResult FocusedMatch = CurrentSearchResults[CurrentFocusedSearchMatchIndex];
-		return FocusedMatch.GetEntry();
+		return FocusedSearchResultCache->GetEntry();
 	}
+	
 	return nullptr;
+}
+
+int32 UNiagaraStackViewModel::GetCurrentFocusedEntryIndex() const
+{
+	if (FocusedSearchResultCache.IsSet() && FocusedSearchResultCache->GetEntry() != nullptr && !FocusedSearchResultCache->GetEntry()->IsFinalized())
+	{
+		for(int32 SearchResultIndex = 0; SearchResultIndex < CurrentSearchResults.Num(); SearchResultIndex++)
+		{
+			const FSearchResult& SearchResult = CurrentSearchResults[SearchResultIndex];
+			if(SearchResult.GetEntry() == FocusedSearchResultCache->GetEntry())
+			{
+				return SearchResultIndex;
+			}
+		}
+	}
+
+	return INDEX_NONE;
 }
 
 void UNiagaraStackViewModel::AddSearchScrollOffset(int NumberOfSteps)
 {
-	CurrentFocusedSearchMatchIndex += NumberOfSteps;
-	if (CurrentFocusedSearchMatchIndex >= CurrentSearchResults.Num())
+	int32 CurrentFocusedEntryIndex = GetCurrentFocusedEntryIndex();
+	int32 NewFocusedEntryIndex = CurrentFocusedEntryIndex + NumberOfSteps;
+	
+	if (NewFocusedEntryIndex >= CurrentSearchResults.Num())
 	{
-		CurrentFocusedSearchMatchIndex = 0;
+		NewFocusedEntryIndex = 0;
 	}
-	if (CurrentFocusedSearchMatchIndex < 0)
+	if (NewFocusedEntryIndex < 0)
 	{
-		CurrentFocusedSearchMatchIndex = CurrentSearchResults.Num() - 1;
+		NewFocusedEntryIndex = CurrentSearchResults.Num() - 1;
+	}
+
+	if(CurrentSearchResults.IsValidIndex(NewFocusedEntryIndex))
+	{
+		FocusedSearchResultCache = CurrentSearchResults[NewFocusedEntryIndex];
+	}
+	else
+	{
+		FocusedSearchResultCache.Reset();
 	}
 }
 
@@ -445,7 +479,6 @@ void UNiagaraStackViewModel::SearchTick()
 			SearchResult.GetEntry()->SetIsSearchResult(false);
 		}
 		CurrentSearchResults.Empty();
-		CurrentFocusedSearchMatchIndex = -1;
 		// generates ItemsToSearch, these will be processed on tick, in batches
 		if (CurrentSearchText.IsEmpty() == false)
 		{
@@ -472,7 +505,7 @@ void UNiagaraStackViewModel::SearchTick()
 			{
 				TArray<UNiagaraStackEntry::FStackSearchItem> SearchItems;
 				EntryToProcess->GetSearchItems(SearchItems);
-				TSet<FName> MatchedKeys;
+				
 				for (UNiagaraStackEntry::FStackSearchItem SearchItem : SearchItems)
 				{
 					if (!EntryToProcess->GetStackEditorDataKey().IsEmpty())
@@ -482,12 +515,9 @@ void UNiagaraStackViewModel::SearchTick()
 
 					if (ItemMatchesSearchCriteria(SearchItem)) 
 					{
-						if (MatchedKeys.Contains(SearchItem.Key) == false)
-						{
-							EntryToProcess->SetIsSearchResult(true);
-							CurrentSearchResults.Add({ ItemsToSearch[0].EntryPath, SearchItem });
-							MatchedKeys.Add(SearchItem.Key);
-						}
+						EntryToProcess->SetIsSearchResult(true);
+						CurrentSearchResults.Add({ ItemsToSearch[0].EntryPath, SearchItem });
+						break;
 					}
 				}
 			}
@@ -498,6 +528,26 @@ void UNiagaraStackViewModel::SearchTick()
 		{
 			// The search can change the child filtering so refresh it when the search finishes.
 			RootEntry->RefreshFilteredChildren();
+			
+			// we attempt to restore the focused search result we had from before
+			int32 CurrentSearchIndex = GetCurrentFocusedEntryIndex();
+			if(CurrentSearchIndex != INDEX_NONE)
+			{
+				FocusedSearchResultCache = CurrentSearchResults[CurrentSearchIndex];
+			}
+			else
+			{
+				// if we don't have a valid search result from before, we select the first result by default, if available
+				if(CurrentSearchResults.Num() > 0)
+				{
+					FocusedSearchResultCache = CurrentSearchResults[0];
+				}
+				else
+				{
+					FocusedSearchResultCache.Reset();
+				}
+			}
+			
 			SearchCompletedDelegate.Broadcast();
 		}
 	}
@@ -542,9 +592,12 @@ void UNiagaraStackViewModel::GeneratePathForEntry(UNiagaraStackEntry* Root, UNia
 	}
 }
 
-void UNiagaraStackViewModel::InvalidateSearchResults()
+void UNiagaraStackViewModel::RestartSearch()
 {
-	bRestartSearch = true;
+	if(bRestartSearch == false)
+	{
+		bRestartSearch = true;
+	}
 }
 
 UNiagaraStackEntry* UNiagaraStackViewModel::GetRootEntry()
@@ -609,7 +662,7 @@ void UNiagaraStackViewModel::SetShowAllAdvanced(bool bInShowAllAdvanced)
 		}
 	}
 
-	InvalidateSearchResults();
+	RestartSearch();
 	RootEntry->RefreshFilteredChildren();
 }
 
@@ -636,7 +689,7 @@ void UNiagaraStackViewModel::SetShowOutputs(bool bInShowOutputs)
 	}
 	
 	// Showing outputs changes indenting so a full refresh is needed.
-	InvalidateSearchResults();
+	RestartSearch();
 	RootEntry->RefreshChildren();
 }
 
@@ -663,7 +716,7 @@ void UNiagaraStackViewModel::SetShowLinkedInputs(bool bInShowLinkedInputs)
 	}
 
 	// Showing linked inputs changes indenting so a full refresh is needed.
-	InvalidateSearchResults();
+	RestartSearch();
 	RootEntry->RefreshChildren();
 }
 
@@ -689,7 +742,7 @@ void UNiagaraStackViewModel::SetShowOnlyIssues(bool bInShowOnlyIssues)
 		}
 	}
 
-	InvalidateSearchResults();
+	RestartSearch();
 	RootEntry->RefreshChildren();
 }
 
@@ -734,7 +787,7 @@ void UNiagaraStackViewModel::EntryStructureChanged(ENiagaraStructureChangedFlags
 	// if the structure changed, additionally invalidate search results
 	if((Flags & StructureChanged) != 0)
 	{
-		InvalidateSearchResults();
+		RestartSearch();
 	}
 }
 
@@ -744,7 +797,7 @@ void UNiagaraStackViewModel::EntryDataObjectModified(TArray<UObject*> ChangedObj
 	{
 		SystemViewModel.Pin()->NotifyDataObjectChanged(ChangedObjects, ChangeType);
 	}
-	InvalidateSearchResults();
+	RestartSearch();
 	DataObjectChangedDelegate.Broadcast(ChangedObjects, ChangeType);
 }
 
@@ -754,7 +807,7 @@ void UNiagaraStackViewModel::EntryRequestFullRefresh()
 	RootEntry->RefreshChildren();
 }
 
-void UNiagaraStackViewModel::EntryRequestFullRefreshDeferred()
+void UNiagaraStackViewModel::RequestRefreshDeferred()
 {
 	bRefreshPending = true;
 }

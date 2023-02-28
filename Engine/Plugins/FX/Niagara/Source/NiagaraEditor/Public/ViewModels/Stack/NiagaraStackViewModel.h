@@ -50,7 +50,7 @@ public:
 	{
 		TArray<UNiagaraStackEntry*> EntryPath;
 		UNiagaraStackEntry::FStackSearchItem MatchingItem;
-		UNiagaraStackEntry* GetEntry()
+		UNiagaraStackEntry* GetEntry() const
 		{
 			return EntryPath.Num() > 0 ? 
 				EntryPath[EntryPath.Num() - 1] : 
@@ -120,8 +120,8 @@ public:
 	void SetSearchTextExternal(const FText& NewSearchText);
 	bool IsSearching();
 	const TArray<FSearchResult>& GetCurrentSearchResults();
-	int GetCurrentFocusedMatchIndex() const { return CurrentFocusedSearchMatchIndex; }
-	UNiagaraStackEntry* GetCurrentFocusedEntry();
+	UNiagaraStackEntry* GetCurrentFocusedEntry() const;
+	int32 GetCurrentFocusedEntryIndex() const;
 	void AddSearchScrollOffset(int NumberOfSteps);
 
 	void OnCycleThroughIssues(TSharedPtr<FTopLevelViewModel> TopLevelToCycle);
@@ -141,7 +141,7 @@ public:
 
 	void Reset();
 	bool HasIssues() const;
-	void Refresh() { bRefreshPending = true; }
+	void RequestRefreshDeferred();
 	void RequestValidationUpdate() { bValidatorUpdatePending = true; }
 
 	bool ShouldHideDisabledModules() const;
@@ -168,7 +168,6 @@ private:
 	void EntryStructureChanged(ENiagaraStructureChangedFlags Flags);
 	void EntryDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
 	void EntryRequestFullRefresh();
-	void EntryRequestFullRefreshDeferred();
 	void RefreshTopLevelViewModels();
 	void RefreshHasIssues();
 	void EmitterParentRemoved();
@@ -179,7 +178,7 @@ private:
 	bool ItemMatchesSearchCriteria(UNiagaraStackEntry::FStackSearchItem SearchItem);
 	void GeneratePathForEntry(UNiagaraStackEntry* Root, UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*> CurrentPath, TArray<UNiagaraStackEntry*>& EntryPath) const;
 
-	void InvalidateSearchResults();
+	void RestartSearch();
 	void UpdateStackWithValidationResults();
 
 private:
@@ -203,11 +202,11 @@ private:
 
 	// ~Search stuff
 	FText CurrentSearchText;
-	int CurrentFocusedSearchMatchIndex;
 	FOnSearchCompleted SearchCompletedDelegate;
 	TArray<FSearchWorkItem> ItemsToSearch;
 	TArray<FSearchResult> CurrentSearchResults;
 	static const double MaxSearchTime;
+	TOptional<FSearchResult> FocusedSearchResultCache;
 	bool bRestartSearch;
 	bool bRefreshPending;
 	bool bValidatorUpdatePending;

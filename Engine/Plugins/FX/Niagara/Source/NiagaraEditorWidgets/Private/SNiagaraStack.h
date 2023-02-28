@@ -93,6 +93,7 @@ private:
 	void OnSearchBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo);	
 	void OnSearchBoxSearch(SSearchBox::SearchDirection Direction);
 	FSlateColor GetTextColorForItem(UNiagaraStackEntry* Item) const;
+	void ScrollFocusedEntryIntoView();
 	void AddSearchScrollOffset(int NumberOfSteps);
 	void OnStackSearchComplete();
 	void ExpandSearchResults();

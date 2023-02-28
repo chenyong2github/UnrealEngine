@@ -408,7 +408,7 @@ static void ExpandAllInPath(const TArray<UNiagaraStackEntry*>& EntryPath)
 
 FReply SNiagaraStack::ScrollToNextMatch()
 {
-	int NextMatchIndex = StackViewModel->GetCurrentFocusedMatchIndex() + 1;
+	int NextMatchIndex = StackViewModel->GetCurrentFocusedEntryIndex() + 1;
 	TArray<UNiagaraStackViewModel::FSearchResult> CurrentSearchResults = StackViewModel->GetCurrentSearchResults();
 	if (CurrentSearchResults.Num() != 0)
 	{
@@ -426,7 +426,7 @@ FReply SNiagaraStack::ScrollToNextMatch()
 
 FReply SNiagaraStack::ScrollToPreviousMatch()
 {
-	const int PreviousMatchIndex = StackViewModel->GetCurrentFocusedMatchIndex() - 1;
+	const int PreviousMatchIndex = StackViewModel->GetCurrentFocusedEntryIndex() - 1;
 	TArray<UNiagaraStackViewModel::FSearchResult> CurrentSearchResults = StackViewModel->GetCurrentSearchResults();
 	if (CurrentSearchResults.Num() != 0)
 	{
@@ -453,8 +453,7 @@ void SNiagaraStack::AddSearchScrollOffset(int NumberOfSteps)
 	}
 
 	StackViewModel->AddSearchScrollOffset(NumberOfSteps);
-
-	StackTree->RequestScrollIntoView(StackViewModel->GetCurrentFocusedEntry());
+	ScrollFocusedEntryIntoView();
 }
 
 TOptional<SSearchBox::FSearchResultData> SNiagaraStack::GetSearchResultData() const
@@ -463,7 +462,7 @@ TOptional<SSearchBox::FSearchResultData> SNiagaraStack::GetSearchResultData() co
 	{
 		return TOptional<SSearchBox::FSearchResultData>();
 	}
-	return TOptional<SSearchBox::FSearchResultData>({ StackViewModel->GetCurrentSearchResults().Num(), StackViewModel->GetCurrentFocusedMatchIndex() + 1 });
+	return TOptional<SSearchBox::FSearchResultData>({ StackViewModel->GetCurrentSearchResults().Num(), StackViewModel->GetCurrentFocusedEntryIndex() + 1 });
 }
 
 bool SNiagaraStack::GetIsSearching() const
@@ -592,7 +591,7 @@ FReply SNiagaraStack::OnRowAcceptDrop(const FDragDropEvent& InDragDropEvent, EIt
 void SNiagaraStack::OnStackSearchComplete()
 {
 	ExpandSearchResults();
-	ScrollToNextMatch();
+	ScrollFocusedEntryIntoView();
 }
 
 void SNiagaraStack::ExpandSearchResults()
@@ -632,6 +631,11 @@ FSlateColor SNiagaraStack::GetTextColorForItem(UNiagaraStackEntry* Item) const
 		return FSlateColor(FLinearColor(FColor::Orange));
 	}
 	return FSlateColor::UseForeground();
+}
+
+void SNiagaraStack::ScrollFocusedEntryIntoView()
+{
+	StackTree->RequestScrollIntoView(StackViewModel->GetCurrentFocusedEntry());
 }
 
 TSharedRef<ITableRow> SNiagaraStack::OnGenerateRowForStackItem(UNiagaraStackEntry* Item, const TSharedRef<STableViewBase>& OwnerTable)
