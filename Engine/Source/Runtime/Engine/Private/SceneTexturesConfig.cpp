@@ -3,6 +3,8 @@
 #include "SceneTexturesConfig.h"
 #include "ShaderCompiler.h"
 #include "Engine/Engine.h"
+#include "RenderGraphResources.h"
+#include "RenderUtils.h"
 #include "SceneInterface.h"
 #include "StereoRenderTargetManager.h"
 
