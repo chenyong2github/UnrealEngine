@@ -2,8 +2,12 @@
 
 #include "MovieSceneMediaTrack.h"
 
+#include "IMediaClock.h"
+#include "IMediaClockSink.h"
+#include "IMediaModule.h"
 #include "MediaPlayer.h"
 #include "MediaSource.h"
+#include "Modules/ModuleManager.h"
 #include "MovieScene.h"
 #include "MovieSceneMediaSection.h"
 #include "MovieSceneMediaTemplate.h"
@@ -15,12 +19,53 @@
 
 #define LOCTEXT_NAMESPACE "MovieSceneMediaTrack"
 
+#if WITH_EDITOR
+
+/**
+ * Media clock sink for media track.
+ */
+class FMovieSceneMediaTrackClockSink
+	: public IMediaClockSink
+{
+public:
+
+	FMovieSceneMediaTrackClockSink(UMovieSceneMediaTrack* InOwner)
+		: Owner(InOwner)
+	{ }
+
+	virtual ~FMovieSceneMediaTrackClockSink() { }
+
+	virtual void TickOutput(FTimespan DeltaTime, FTimespan Timecode) override
+	{
+		if (UMovieSceneMediaTrack* OwnerPtr = Owner.Get())
+		{
+			Owner->TickOutput();
+		}
+	}
+
+	/**
+	 * Call this when the owner is destroyed.
+	 */
+	void OwnerDestroyed()
+	{
+		Owner.Reset();
+	}
+
+private:
+
+	TWeakObjectPtr<UMovieSceneMediaTrack> Owner;
+};
+
+#endif // WITH_EDITOR
 
 /* UMovieSceneMediaTrack interface
  *****************************************************************************/
 
 UMovieSceneMediaTrack::UMovieSceneMediaTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+	, bGetDurationDelay(false)
+#endif // WITH_EDITORONLY_DATA
 {
 	EvalOptions.bCanEvaluateNearestSection = false;
 	EvalOptions.bEvalNearestSection = false;
@@ -43,14 +88,16 @@ UMovieSceneSection* UMovieSceneMediaTrack::AddNewMediaSourceOnRow(UMediaSource& 
 {
 	UMovieSceneMediaSection* NewSection = AddNewSectionOnRow(Time, RowIndex);
 	NewSection->SetMediaSource(&MediaSource);
+	StartGetDuration(&MediaSource, NewSection);
 	return NewSection;
 }
 
 
-UMovieSceneSection* UMovieSceneMediaTrack::AddNewMediaSourceProxyOnRow(const FMovieSceneObjectBindingID& ObjectBinding, int32 MediaSourceProxyIndex, FFrameNumber Time, int32 RowIndex)
+UMovieSceneSection* UMovieSceneMediaTrack::AddNewMediaSourceProxyOnRow(UMediaSource* MediaSource, const FMovieSceneObjectBindingID& ObjectBinding, int32 MediaSourceProxyIndex, FFrameNumber Time, int32 RowIndex)
 {
 	UMovieSceneMediaSection* NewSection = AddNewSectionOnRow(Time, RowIndex);
 	NewSection->SetMediaSourceProxy(ObjectBinding, MediaSourceProxyIndex);
+	StartGetDuration(MediaSource, NewSection);
 	return NewSection;
 }
 
@@ -70,6 +117,56 @@ UMovieSceneMediaSection* UMovieSceneMediaTrack::AddNewSectionOnRow(FFrameNumber 
 	UpdateSectionTextureIndices();
 
 	return NewSection;
+}
+
+void UMovieSceneMediaTrack::TickOutput()
+{
+#if WITH_EDITOR
+	// Do we have any new sections that need durations?
+	if (NewSections.Num() > 0)
+	{
+		// Can we get the duration?
+		if (bGetDurationDelay)
+		{
+			bGetDurationDelay = false;
+		}
+		else
+		{
+			// Loop over all new sections.
+			for (int32 Index = 0; Index < NewSections.Num();)
+			{
+				if (NewSections[Index].Key.IsValid())
+				{
+					// Try and get the duration.
+					if (GetDuration(NewSections[Index].Key, NewSections[Index].Value))
+					{
+						NewSections.RemoveAtSwap(Index);
+					}
+					else
+					{
+						++Index;
+					}
+				}
+				else
+				{
+					NewSections.RemoveAtSwap(Index);
+				}
+			}
+		}
+	}
+
+	if (NewSections.Num() == 0)
+	{
+		if (ClockSink.IsValid())
+		{
+			IMediaModule* MediaModule = FModuleManager::GetModulePtr<IMediaModule>("Media");
+			if (MediaModule != nullptr)
+			{
+				MediaModule->GetClock().RemoveSink(ClockSink.ToSharedRef());
+			}
+		}
+	}
+#endif // WITH_EDITOR
 }
 
 
@@ -126,6 +223,25 @@ void UMovieSceneMediaTrack::RemoveSectionAt(int32 SectionIndex)
 }
 
 #if WITH_EDITOR
+
+void UMovieSceneMediaTrack::BeginDestroy()
+{
+	if (ClockSink.IsValid())
+	{
+		// Tell sink we are done.
+		ClockSink->OwnerDestroyed();
+
+		IMediaModule* MediaModule = FModuleManager::GetModulePtr<IMediaModule>("Media");
+		if (MediaModule != nullptr)
+		{
+			MediaModule->GetClock().RemoveSink(ClockSink.ToSharedRef());
+		}
+
+		ClockSink.Reset();
+	}
+
+	Super::BeginDestroy();
+}
 
 EMovieSceneSectionMovedResult UMovieSceneMediaTrack::OnSectionMoved(UMovieSceneSection& InSection, const FMovieSceneSectionMovedParams& Params)
 {
@@ -234,6 +350,69 @@ void UMovieSceneMediaTrack::UpdateSectionTextureIndices()
 	}
 #endif // WITH_EDITOR
 }
+
+#if WITH_EDITOR
+
+void UMovieSceneMediaTrack::StartGetDuration(UMediaSource* MediaSource, UMovieSceneSection* Section)
+{
+	// Create media player.
+	TStrongObjectPtr<UMediaPlayer> MediaPlayer = TStrongObjectPtr<UMediaPlayer>(
+		NewObject<UMediaPlayer>(GetTransientPackage(),
+			MakeUniqueObjectName(GetTransientPackage(),
+				UMediaPlayer::StaticClass())));
+
+	// Open the media.
+	MediaPlayer->PlayOnOpen = false;
+	if (MediaPlayer->OpenSource(MediaSource))
+	{
+		NewSections.Emplace(MediaPlayer, Section);
+	}
+
+	// Some players like Electra report that they are closed at this point, so wait a frame.
+	bGetDurationDelay = true;
+
+	// Start the clock sink so we can tick.
+	IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
+	if (MediaModule != nullptr)
+	{
+		if (ClockSink.IsValid() == false)
+		{
+			ClockSink = MakeShared<FMovieSceneMediaTrackClockSink, ESPMode::ThreadSafe>(this);
+		}
+		MediaModule->GetClock().AddSink(ClockSink.ToSharedRef());
+	}
+}
+
+bool UMovieSceneMediaTrack::GetDuration(
+	const TStrongObjectPtr<UMediaPlayer>& MediaPlayer, TWeakObjectPtr<UMovieSceneSection>& NewSection)
+{
+	bool bIsDone = false;
+
+	// Check everything is ok.
+	if ((MediaPlayer.IsValid() == false) || (MediaPlayer->HasError()) || (MediaPlayer->IsClosed()) ||
+		(NewSection.IsValid() == false))
+	{
+		bIsDone = true;
+	}
+	else
+	{
+		// Get the duration.
+		FTimespan Duration = MediaPlayer->GetDuration();
+		if (Duration != 0)
+		{
+			// Once it is non zero, then set the length of the section.
+			FFrameRate TickResolution = NewSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
+			FFrameNumber StartFrame = NewSection->GetInclusiveStartFrame();
+			FFrameNumber EndFrame = StartFrame + (Duration.GetTotalSeconds() * TickResolution).FrameNumber;
+			NewSection->SetEndFrame(TRangeBound<FFrameNumber>::Exclusive(EndFrame));
+			bIsDone = true;
+		}
+	}
+
+	return bIsDone;
+}
+
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
 
