@@ -2251,6 +2251,7 @@ static uint32 BuildHierarchyRecursive(TArray<FPage>& Pages, TArray<Nanite::FHier
 			Part.HierarchyChildIndex = ChildIndex;
 
 			Pages[Part.PageIndex].MaxHierarchyDepth = FMath::Max(Pages[Part.PageIndex].MaxHierarchyDepth, Depth);
+			check(Pages[Part.PageIndex].MaxHierarchyDepth <= NANITE_MAX_CLUSTER_HIERARCHY_DEPTH);
 		}
 		else
 		{

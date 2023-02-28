@@ -145,6 +145,7 @@ DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("Root Pages"),							STAT_NaniteStreaming02
 DECLARE_DWORD_ACCUMULATOR_STAT(	TEXT("    Peak"),							STAT_NaniteStreaming03_PeakRootPages,					STATGROUP_NaniteStreaming);
 DECLARE_DWORD_ACCUMULATOR_STAT(	TEXT("    Allocated"),						STAT_NaniteStreaming04_AllocatedRootPages,				STATGROUP_NaniteStreaming);
 DECLARE_DWORD_ACCUMULATOR_STAT(	TEXT("Streaming Pool Pages"),				STAT_NaniteStreaming06_StreamingPoolPages,				STATGROUP_NaniteStreaming);
+DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("Max Hierarchy Levels"),				STAT_NaniteStreaming07_MaxHierarchyLevels,				STATGROUP_NaniteStreaming);
 
 DECLARE_FLOAT_ACCUMULATOR_STAT(	TEXT("Total Pool Size (MB)"),				STAT_NaniteStreaming10_TotalPoolSizeMB,					STATGROUP_NaniteStreaming);
 DECLARE_FLOAT_ACCUMULATOR_STAT(	TEXT("    Root Pool Size (MB)"),			STAT_NaniteStreaming11_AllocatedRootPagesSizeMB,		STATGROUP_NaniteStreaming);
@@ -432,7 +433,7 @@ public:
 		BufferDesc.Usage = BufferDesc.Usage | EBufferUsageFlags::Dynamic;
 		AllocatePooledBuffer(BufferDesc, PageUploadBuffer, TEXT("Nanite.PageUploadBuffer"));
 	
-		PageDataPtr = (uint8*)RHILockBuffer(PageUploadBuffer->GetRHI(), 0, PageAllocationSize, RLM_WriteOnly);
+		PageDataPtr = (uint8*)RHILockBuffer(PageUploadBuffer->GetRHI(), 0, MaxPageBytes, RLM_WriteOnly);
 	}
 
 	uint8* Add_GetRef(uint32 PageSize, uint32 DstPageOffset, const FPageKey& GPUPageKey, const TArray<uint32>& PageDependencies)
@@ -623,7 +624,38 @@ private:
 	}
 };
 
+FStreamingManager::FHierarchyDepthManager::FHierarchyDepthManager(uint32 MaxDepth)
+{
+	DepthHistogram.SetNumZeroed(MaxDepth + 1);
+}
+
+void FStreamingManager::FHierarchyDepthManager::Add(uint32 Depth)
+{
+	DepthHistogram[Depth]++;
+}
+
+void FStreamingManager::FHierarchyDepthManager::Remove(uint32 Depth)
+{
+	uint32& Count = DepthHistogram[Depth];
+	check(Count > 0u);
+	Count--;
+}
+
+uint32 FStreamingManager::FHierarchyDepthManager::CalculateNumLevels() const
+{
+	for (int32 Depth = uint32(DepthHistogram.Num() - 1); Depth >= 0; Depth--)
+	{
+		if (DepthHistogram[Depth] != 0u)
+		{
+			return uint32(Depth) + 1u;
+		}
+	}
+	return 0u;
+}
+
 FStreamingManager::FStreamingManager() :
+	HierarchyDepthManager(NANITE_MAX_CLUSTER_HIERARCHY_DEPTH),
+	MaxHierarchyLevels(0u),
 	StreamingRequestsBufferVersion(0),
 	MaxStreamingPages(0),
 	MaxPendingPages(0),
@@ -1153,6 +1185,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 
 						ModifiedResources.Add(StreamingPageInfo.ResidentKey.RuntimeResourceID);
 					}
+					HierarchyDepthManager.Remove(StreamingPageInfo.MaxHierarchyDepth);
 				}
 
 				StreamingPageInfo.ResidentKey.RuntimeResourceID = INVALID_RUNTIME_RESOURCE_ID;	// Only uninstall it the first time.
@@ -1237,6 +1270,9 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				const uint32 FixupChunkSize = ((const FFixupChunk*)SrcPtr)->GetSize();
 				FFixupChunk* FixupChunk = (FFixupChunk*)FMemory::Realloc(StreamingPageFixupChunks[PendingPage.GPUPageIndex], FixupChunkSize, sizeof(uint16));	// TODO: Get rid of this alloc. Can we come up with a tight conservative bound, so we could preallocate?
 				StreamingPageFixupChunks[PendingPage.GPUPageIndex] = FixupChunk;
+				StreamingPage->MaxHierarchyDepth = PageStreamingState.MaxHierarchyDepth;
+				HierarchyDepthManager.Add(StreamingPage->MaxHierarchyDepth);
+
 				FMemory::Memcpy(FixupChunk, SrcPtr, FixupChunkSize);
 
 				// Build list of GPU page dependencies
@@ -1466,8 +1502,14 @@ void FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 			}
 
 			FRootPageInfo& RootPageInfo = RootPageInfos[RootPageIndex];
+			if (RootPageInfo.RuntimeResourceID != INVALID_RUNTIME_RESOURCE_ID)
+			{
+				HierarchyDepthManager.Remove(RootPageInfo.MaxHierarchyDepth); // TODO: This can be very sloppy as root pages might not be reused for a long time, but they also rarely have significant depth.
+			}
 			RootPageInfo.RuntimeResourceID = Resources->RuntimeResourceID;
 			RootPageInfo.NumClusters = NumClusters;
+			RootPageInfo.MaxHierarchyDepth = PageStreamingState.MaxHierarchyDepth;
+			HierarchyDepthManager.Add(PageStreamingState.MaxHierarchyDepth);
 		}
 
 		Hierarchy.UploadBuffer.Add(Resources->HierarchyOffset, Resources->HierarchyNodes.GetData(), Resources->HierarchyNodes.Num());
@@ -2057,6 +2099,8 @@ void FStreamingManager::AsyncUpdate()
 
 	check(AsyncState.bUpdateActive);
 	InstallReadyPages(AsyncState.NumReadyPages);
+	MaxHierarchyLevels = HierarchyDepthManager.CalculateNumLevels();
+	SET_DWORD_STAT(STAT_NaniteStreaming07_MaxHierarchyLevels, MaxHierarchyLevels);
 
 	const uint32 Time = FPlatformTime::Cycles();
 

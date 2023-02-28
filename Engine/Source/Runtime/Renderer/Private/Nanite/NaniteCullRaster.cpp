@@ -2253,8 +2253,8 @@ static void AddPass_NodeAndClusterCull(
 
 		FRDGBufferRef NodeCullArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(3), TEXT("Nanite.NodeCullArgs"));
 
-		const uint32 MaxNodeLevels = 12;	// TODO: Calculate max based on installed pages?
-		for (uint32 NodeLevel = 0; NodeLevel < MaxNodeLevels; NodeLevel++)
+		const uint32 MaxLevels = Nanite::GStreamingManager.GetMaxHierarchyLevels();
+		for (uint32 NodeLevel = 0; NodeLevel < MaxLevels; NodeLevel++)
 		{
 			AddPass_InitCullArgs(GraphBuilder, RDG_EVENT_NAME("InitNodeCullArgs"), SharedContext, CullingContext, NodeCullArgs, CullingPass, NANITE_CULLING_TYPE_NODES);
 			

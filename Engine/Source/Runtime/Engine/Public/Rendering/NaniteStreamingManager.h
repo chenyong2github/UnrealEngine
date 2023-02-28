@@ -111,6 +111,11 @@ public:
 		return MaxStreamingPages;
 	}
 
+	uint32 GetMaxHierarchyLevels() const
+	{
+		return MaxHierarchyLevels;
+	}
+
 	inline bool HasResourceEntries() const
 	{
 		return !RuntimeResourceMap.IsEmpty();
@@ -133,15 +138,16 @@ private:
 
 	struct FStreamingPageInfo
 	{
-		FStreamingPageInfo* Next;
-		FStreamingPageInfo* Prev;
+		FStreamingPageInfo* Next = nullptr;
+		FStreamingPageInfo* Prev = nullptr;
 
 		FPageKey	RegisteredKey;
 		FPageKey	ResidentKey;
 
-		uint32		GPUPageIndex;
-		uint32		LatestUpdateIndex;
-		uint32		RefCount;
+		uint32		MaxHierarchyDepth = INDEX_NONE;
+		uint32		GPUPageIndex = INDEX_NONE;
+		uint32		LatestUpdateIndex = INDEX_NONE;
+		uint32		RefCount = 0;
 	};
 
 	struct FPrioritizedStreamingPage
@@ -152,8 +158,9 @@ private:
 
 	struct FRootPageInfo
 	{
-		uint32	RuntimeResourceID;
-		uint32	NumClusters;
+		uint32	RuntimeResourceID = INDEX_NONE;
+		uint32	NumClusters = 0u;
+		uint32	MaxHierarchyDepth = INDEX_NONE;
 	};
 
 	struct FGPUStreamingRequest
@@ -219,11 +226,26 @@ private:
 		}
 	};
 
+	class FHierarchyDepthManager
+	{
+	public:
+		FHierarchyDepthManager(uint32 MaxDepth);
+		void Add(uint32 Depth);
+		void Remove(uint32 Depth);
+
+		uint32 CalculateNumLevels() const;
+	private:
+		TArray<uint32> DepthHistogram;
+	};
+
 	FHeapBuffer				ClusterPageData;	// FPackedCluster*, GeometryData { Index, Position, TexCoord, TangentX, TangentZ }*
 	FHeapBuffer				Hierarchy;
 	FHeapBuffer				ImposterData;
 	TRefCountPtr< FRDGPooledBuffer > StreamingRequestsBuffer;
 	TArray<uint32>			ClusterLeafFlagUpdates;
+	
+	FHierarchyDepthManager	HierarchyDepthManager;
+	uint32					MaxHierarchyLevels;
 
 	uint32					StreamingRequestsBufferVersion;
 	uint32					MaxStreamingPages;
