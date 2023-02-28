@@ -815,9 +815,23 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 				ValidModules.Add(liveModule->GetModuleName().c_str());
 			}
 
+			// Build a list of loaded modules which are not enabled
+			TSet<FString> LazyLoadModules;
+			for (LiveProcess* liveProcess : m_liveProcesses)
+			{
+				const std::unordered_map<std::wstring, LiveProcess::LazyLoadedModule>& lazyLoadedModules = liveProcess->GetLazyLoadedModules();
+				for (const std::unordered_map<std::wstring, LiveProcess::LazyLoadedModule>::value_type& kvp : lazyLoadedModules)
+				{
+					if (!kvp.second.m_loaded)
+					{
+						LazyLoadModules.Add(FString(kvp.first.c_str()));
+					}
+				}
+			}
+
 			// Execute the compile
 			TArray<FString> RequiredModules;
-			ELiveCodingCompileResult CompileResult = CompileDelegate.Execute(Targets, ValidModules, RequiredModules, ModuleToModuleFiles, CompileReason);
+			ELiveCodingCompileResult CompileResult = CompileDelegate.Execute(Targets, ValidModules, LazyLoadModules, RequiredModules, ModuleToModuleFiles, CompileReason);
 			if (CompileResult == ELiveCodingCompileResult::Success)
 			{
 				break;
@@ -877,13 +891,8 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 
 				if (!bFoundNameMatch)
 				{
-					LC_ERROR_USER("Live coding is not enabled for %S.", ModuleFileName.c_str());
-					LC_ERROR_USER("Configure the list of enabled modules from the Live Coding section of the editor preferences window.");
-					// BEGIN EPIC MOD
-					postCompileResult = commands::PostCompileResult::Failure;
-					// END EPIC MOD
-					GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, *FString::Printf(TEXT("Live coding not enabled for %s"), ModuleFileName.c_str()));
-					return;
+					LC_WARNING_USER("The module '%S' has not been loaded by any process. Changes will be ignored.", ModuleFileName.c_str());
+					continue;
 				}
 			}
 

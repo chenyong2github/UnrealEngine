@@ -265,7 +265,8 @@ private:
 		LogWidget->AppendLine(GetLogColor(Verbosity), MoveTemp(Text));
 	}
 
-	ELiveCodingCompileResult CompilePatch(const TArray<FString>& Targets, const TArray<FString>& ValidModules, TArray<FString>& RequiredModules, FModuleToModuleFiles& ModuleToModuleFiles, ELiveCodingCompileReason CompileReason)
+	ELiveCodingCompileResult CompilePatch(const TArray<FString>& Targets, const TArray<FString>& ValidModules, const TSet<FString>& LazyLoadModules,
+		TArray<FString>& RequiredModules, FModuleToModuleFiles& ModuleToModuleFiles, ELiveCodingCompileReason CompileReason)
 	{
 		// Update the compile start time. This gets copied into the last patch time once a patch has been confirmed to have been applied.
 		NextPatchStartTime = FDateTime::UtcNow();
@@ -284,8 +285,36 @@ private:
 		FPaths::MakePlatformFilename(Executable);
 
 		// Write out the list of lazy-loaded modules for UBT to check
-		FString ModulesFileName = FPaths::ConvertRelativePathToFull(FPaths::EngineIntermediateDir() / TEXT("LiveCodingModules.txt"));
-		FFileHelper::SaveStringArrayToFile(ValidModules, *ModulesFileName);
+		FString ModulesFileName = FPaths::ConvertRelativePathToFull(FPaths::EngineIntermediateDir() / TEXT("LiveCodingModules.json"));
+
+		// Create and open a new Json file for writing, and initialize a JsonWriter to serialize the contents
+		{
+			TArray<uint8> TCharJsonData;
+			FMemoryWriter MemWriter(TCharJsonData, true);
+			{
+				TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&MemWriter);
+				JsonWriter->WriteObjectStart();
+				JsonWriter->WriteArrayStart(TEXT("EnabledModules"));
+				for (const FString& name : ValidModules)
+				{
+					JsonWriter->WriteValue(name);
+				}
+				JsonWriter->WriteArrayEnd();
+				JsonWriter->WriteArrayStart(TEXT("LazyLoadModules"));
+				for (const FString& name : LazyLoadModules)
+				{
+					JsonWriter->WriteValue(name);
+				}
+				JsonWriter->WriteArrayEnd();
+				JsonWriter->WriteObjectEnd();
+			}
+			MemWriter.Close();
+
+			TCharJsonData.AddZeroed(sizeof(TCHAR));
+			auto Utf8Data = StringCast<UTF8CHAR>((const TCHAR*)TCharJsonData.GetData());
+			TSharedPtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*ModulesFileName));
+			Ar->Serialize(const_cast<UTF8CHAR*>(Utf8Data.Get()), Utf8Data.Length());
+		}
 
 		// Delete the output file for non-allowed modules
 		FString ModulesOutputFileName = ModulesFileName + TEXT(".out");
