@@ -498,10 +498,11 @@ void UGraph::FinalizeVertex(const FGraphVertexHandle& InHandle)
 		return;
 	}
 
-	const FGraphIslandHandle& IslandHandle = Node->GetParentIsland();
+	FGraphIslandHandle IslandHandle = Node->GetParentIsland();
 	if (!IslandHandle.IsComplete())
 	{
-		return;
+		// Every vertex must be in an island.
+		IslandHandle = CreateIsland({ InHandle });
 	}
 
 	if (TObjectPtr<UGraphIsland> Island = IslandHandle.GetIsland())
