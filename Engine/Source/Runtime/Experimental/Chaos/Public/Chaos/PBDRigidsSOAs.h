@@ -671,15 +671,21 @@ public:
 		{ 
 			RemoveClusteredParticle(ClusteredParticle);
 			InsertClusteredParticle(ClusteredParticle);
-		}
 
-		if (ClusteredParticle->ObjectState() != EObjectStateType::Dynamic || ClusteredParticle->Disabled())
-		{
-			RemoveFromActiveArray(ClusteredParticle->CastToRigidParticle(), /*bStillDirty=*/true);
+			// Cluster particle must go in the active array because the Cluster arrays are not in the active view
+			if (ClusteredParticle->ObjectState() != EObjectStateType::Dynamic || ClusteredParticle->Disabled())
+			{
+				RemoveFromActiveArray(ClusteredParticle->CastToRigidParticle(), /*bStillDirty=*/true);
+			}
+			else
+			{
+				AddToActiveArray(ClusteredParticle->CastToRigidParticle());
+			}
 		}
 		else
 		{
-			AddToActiveArray(ClusteredParticle->CastToRigidParticle());
+			// Geometry collection particles have their own arrays which are also included in the active view
+			bGeometryCollectionDirty = true;
 		}
 		
 		UpdateViews();
