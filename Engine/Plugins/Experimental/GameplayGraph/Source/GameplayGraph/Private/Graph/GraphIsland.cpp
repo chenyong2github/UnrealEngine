@@ -93,20 +93,20 @@ FSerializedIslandData UGraphIsland::GetSerializedData() const
 
 void UGraphIsland::HandleOnVertexAdded(const FGraphVertexHandle& Handle)
 {
-	OnVertexAdded.Broadcast(Handle);
+	OnVertexAdded.Broadcast(this->Handle(), Handle);
 }
 
 void UGraphIsland::HandleOnVertexRemoved(const FGraphVertexHandle& Handle)
 {
-	OnVertexRemoved.Broadcast(Handle);
+	OnVertexRemoved.Broadcast(this->Handle(), Handle);
 }
 
 void UGraphIsland::HandleOnDestroyed()
 {
-	OnDestroyed.Broadcast();
+	OnDestroyed.Broadcast(Handle());
 }
 
 void UGraphIsland::HandleOnConnectivityChanged()
 {
-	OnConnectivityChanged.Broadcast();
+	OnConnectivityChanged.Broadcast(Handle());
 }
