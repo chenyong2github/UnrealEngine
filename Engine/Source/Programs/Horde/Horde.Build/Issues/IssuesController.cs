@@ -654,10 +654,16 @@ namespace Horde.Build.Issues
 			}
 
 			StreamId streamIdValue = new StreamId(issueRequest.StreamId);
-			if (!_globalConfig.Value.Authorize(AclAction.ViewStream, User))
+
+			if (!_globalConfig.Value.TryGetStream(streamIdValue, out StreamConfig? streamConfig))
+			{
+				return NotFound(streamIdValue);
+			}
+			if (!streamConfig.Authorize(AclAction.ViewStream, User))
 			{
 				return Forbid(AclAction.ViewStream, streamIdValue);
 			}
+
 
 			IUser? user = await _userCollection.GetUserAsync(User);
 
