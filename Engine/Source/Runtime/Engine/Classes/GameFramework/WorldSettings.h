@@ -730,8 +730,13 @@ public:
 
 	/************************************/
 	/** NANITE SETTINGS **/
-	UPROPERTY(EditAnywhere, config, replicated, Category = Nanite)
+	UPROPERTY(EditAnywhere, config, replicated, ReplicatedUsing = OnRep_NaniteSettings, Category = Nanite)
 	FNaniteSettings NaniteSettings;
+
+	UFUNCTION()
+	virtual void OnRep_NaniteSettings();
+
+	virtual void SetAllowMaskedMaterials(bool bState);
 
 	/************************************/
 	/** AUDIO SETTINGS **/
