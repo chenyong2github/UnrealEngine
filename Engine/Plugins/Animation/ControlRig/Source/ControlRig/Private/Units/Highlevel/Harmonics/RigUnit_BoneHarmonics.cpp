@@ -80,12 +80,11 @@ FRigUnit_ItemHarmonics_Execute()
 
 	if (CachedItems.Num() != Targets.Num())
 	{
-		CachedItems.Reset();
+		CachedItems.Reset(Targets.Num());
+		
 		WaveTime = FVector::ZeroVector;
-	}
 
 	if (CachedItems.IsEmpty())
-	{
 		for (int32 ItemIndex = 0; ItemIndex < Targets.Num(); ItemIndex++)
 		{
 			FCachedRigElement CachedItem(Targets[ItemIndex].Item, Hierarchy);
