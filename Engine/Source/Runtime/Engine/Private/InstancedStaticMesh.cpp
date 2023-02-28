@@ -3243,6 +3243,8 @@ TArray<int32> UInstancedStaticMeshComponent::AddInstancesInternal(const TArray<F
 	SelectedInstances.Add(false, Count);
 #endif
 
+	PerInstanceSMData.Reserve(InstanceIndex + Count);
+
 	for (const FTransform& InstanceTransform : InstanceTransforms)
 	{
 		FInstancedStaticMeshInstanceData& NewInstanceData = PerInstanceSMData.AddDefaulted_GetRef();
