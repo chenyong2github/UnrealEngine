@@ -1376,6 +1376,7 @@ void FFractureEditorModeToolkit::OnLevelViewValueChanged()
 			EditBoneColor.SetLevelViewMode(FractureLevel);
 			// Clear selection below currently-selected view level and update highlights,
 			// so the selection is compatible with the current 3D view and outliner (e.g., doesn't hide selection of children)
+			EditBoneColor.Sanitize();
 			EditBoneColor.FilterSelectionToLevel();
 			UpdateExplodedVectors(Comp);
 			Comp->MarkRenderStateDirty();
