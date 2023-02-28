@@ -316,6 +316,9 @@ private:
 
 	float LastDeltaSecondsValue = 0.f;
 
+	/** Stores the location relative to the actor's origin that stage actors like light cards or CCWs orbit around when owned by this root actor. */
+	FVector StageActorOrbitLocation = FVector::ZeroVector;
+
 private:
 	template <typename TComp>
 	void GetTypedPrimitives(TSet<FPrimitiveComponentId>& OutPrimitives, const TArray<FString>* InCompNames = nullptr, bool bCollectChildrenVisualizationComponent = true) const;

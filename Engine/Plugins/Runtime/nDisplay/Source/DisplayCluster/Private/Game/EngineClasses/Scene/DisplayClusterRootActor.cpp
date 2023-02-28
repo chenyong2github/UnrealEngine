@@ -783,7 +783,10 @@ void ADisplayClusterRootActor::UpdateLightCardPositions()
 	}
 
 	const FVector Location = ViewOriginComponent ? ViewOriginComponent->GetComponentLocation() : GetActorLocation();
+	const FVector RelativeLocation = GetTransform().InverseTransformPosition(Location);
 	const FRotator Rotation = GetActorRotation();
+
+	const bool bRepositionLightCards = RelativeLocation != StageActorOrbitLocation;
 
 	// Iterate over all the light cards referenced in the root actor's config data and update their location and rotation to match the view origin
 	if (UDisplayClusterConfigurationData* CurrentData = GetConfigData())
@@ -800,8 +803,53 @@ void ADisplayClusterRootActor::UpdateLightCardPositions()
 				LightCardActor->SetRootActorOwner(this);
 				if (LightCardActor->bLockToOwningRootActor)
 				{
+					const FTransform OldLightCardTransform = LightCardActor->GetStageActorTransform();
+
 					LightCardActor->SetActorLocation(Location);
 					LightCardActor->SetActorRotation(Rotation);
+
+					if (bRepositionLightCards)
+					{
+						const FTransform StageActorTransform = LightCardActor->GetOrigin();
+						FDisplayClusterPositionalParams PositionalParams = LightCardActor->GetPositionalParams();
+
+						// We want to adjust the positional params so that the light card stays in the same world position.
+						// First, compute the desired relative location based on the new orbit origin and the light card's previous world position
+						// Then convert that to longitude and latitude values
+						const FVector OrbitLocation = Rotation.UnrotateVector(OldLightCardTransform.GetLocation() - Location);
+
+						PositionalParams.DistanceFromCenter = OrbitLocation.Length();
+
+						if (PositionalParams.DistanceFromCenter > UE_SMALL_NUMBER)
+						{
+							PositionalParams.Latitude = FMath::RadiansToDegrees(FMath::Asin(OrbitLocation.Z / PositionalParams.DistanceFromCenter));
+							PositionalParams.Longitude = FMath::RadiansToDegrees(FMath::Atan2(OrbitLocation.Y, OrbitLocation.X)) + 180.0;
+						}
+						else
+						{
+							PositionalParams.Latitude = 0.0;
+							PositionalParams.Longitude = 180.0;
+						}
+
+						// The light card's orientation needs to be adjusted as well, since the orientation parameters are defined in radial space,
+						// which is relative to the orbit origin
+						const FVector WorldNormal = OldLightCardTransform.GetRotation().RotateVector(FVector::ForwardVector);
+						const FVector LocalNormal = FRotationMatrix::MakeFromX(OrbitLocation.GetSafeNormal()).InverseTransformVector(StageActorTransform.InverseTransformVectorNoScale(WorldNormal));
+						const FRotator NormalRotation = FRotationMatrix::MakeFromX(-LocalNormal).Rotator();
+
+						PositionalParams.Pitch = NormalRotation.Pitch;
+						PositionalParams.Yaw = NormalRotation.Yaw;
+
+						// The spin also needs to be adjusted. This can be done by transforming the old spin vector from world space into the new normal space,
+						// and then converting to an angle
+						const FVector WorldSpin = OldLightCardTransform.GetRotation().RotateVector(FVector::UpVector);
+						const FVector LocalSpin = FRotationMatrix::MakeFromX(OrbitLocation.GetSafeNormal()).InverseTransformVector(StageActorTransform.InverseTransformVectorNoScale(WorldSpin));
+						const FVector NormalSpin = FRotationMatrix::MakeFromX(LocalNormal).InverseTransformVector(LocalSpin);
+
+						PositionalParams.Spin = FMath::RadiansToDegrees(FMath::Atan2(NormalSpin.Y, NormalSpin.Z));
+
+						LightCardActor->SetPositionalParams(PositionalParams);
+					}
 				}
 			}
 		}
@@ -830,6 +878,8 @@ void ADisplayClusterRootActor::UpdateLightCardPositions()
 			}
 		}
 	}
+
+	StageActorOrbitLocation = RelativeLocation;
 }
 
 void ADisplayClusterRootActor::SetChromakeyCardsOwner()

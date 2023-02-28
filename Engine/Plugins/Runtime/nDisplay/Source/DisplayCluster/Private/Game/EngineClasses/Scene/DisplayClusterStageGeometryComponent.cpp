@@ -269,6 +269,9 @@ void UDisplayClusterStageGeometryComponent::UpdateStageGeometry()
 			}
 		});
 
+		// Make sure to add the viewport the stage geometry has been rendered from, in case that viewpoint is outside the stage geometry bounds
+		StageBoundingBox += RootActor->GetCommonViewPoint()->GetComponentLocation();
+
 		StageBoundingBox = StageBoundingBox.ShiftBy(-RootActor->GetActorLocation());
 		StageBoundingRadius = FMath::Max(StageBoundingBox.Min.Length(), StageBoundingBox.Max.Length());
 	}
