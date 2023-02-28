@@ -1402,10 +1402,20 @@ void SContentBrowser::PrepareToSyncItems(TArrayView<const FContentBrowserItem> I
 	bool bRepopulate = false;
 
 	// Check to see if any of the assets require certain folders to be visible
-	bool bDisplayDev = GetDefault<UContentBrowserSettings>()->GetDisplayDevelopersFolder();
-	bool bDisplayEngine = GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder();
-	bool bDisplayPlugins = GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
-	bool bDisplayLocalized = GetDefault<UContentBrowserSettings>()->GetDisplayL10NFolder();
+	const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
+	bool bDisplayDev = ContentBrowserSettings->GetDisplayDevelopersFolder();
+	bool bDisplayEngine = ContentBrowserSettings->GetDisplayEngineFolder();
+	bool bDisplayPlugins = ContentBrowserSettings->GetDisplayPluginFolders();
+	bool bDisplayLocalized = ContentBrowserSettings->GetDisplayL10NFolder();
+
+	// check to see if we have an instance config that overrides the default in UContentBrowserSettings
+	if (const FContentBrowserInstanceConfig* EditorConfig = GetConstInstanceConfig())
+	{
+		bDisplayDev = EditorConfig->bShowDeveloperContent;
+		bDisplayEngine = EditorConfig->bShowEngineContent;
+		bDisplayPlugins = EditorConfig->bShowPluginContent;
+		bDisplayLocalized = EditorConfig->bShowLocalizedContent;
+	}
 
 	// Keep track of any of the settings changing so we can let the user know
 	bool bDisplayDevChanged = false;
@@ -2475,7 +2485,12 @@ TSharedRef<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& C
 	else if( SourcesData.HasVirtualPaths() )
 	{
 		const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
-		const bool bDisplayEmpty = ContentBrowserSettings->DisplayEmptyFolders;
+		bool bDisplayEmpty = ContentBrowserSettings->DisplayEmptyFolders;
+		// check to see if we have an instance config that overrides the default in UContentBrowserSettings
+		if (const FContentBrowserInstanceConfig* EditorConfig = GetConstInstanceConfig())
+		{
+			bDisplayEmpty = EditorConfig->bShowEmptyFolders;
+		}
 
 		UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
 
@@ -2709,7 +2724,7 @@ void SContentBrowser::AppendNewMenuContextObjects(const EContentBrowserDataMenuC
 		DataContextObject->OnBeginItemCreation = UContentBrowserDataMenuContext_AddNewMenu::FOnBeginItemCreation::CreateSP(this, &SContentBrowser::NewFileItemRequested);
 		DataContextObject->bCanBeModified = bCanBeModified;
 		DataContextObject->bContainsValidPackagePath = bContainsValidPackagePath;
-
+		DataContextObject->OwningInstanceConfig = GetConstInstanceConfig();
 		InOutMenuContext.AddObject(DataContextObject);
 	}
 }
@@ -4343,12 +4358,9 @@ FContentBrowserInstanceConfig* SContentBrowser::CreateEditorConfigIfRequired()
 	InstanceConfig->bShowLocalizedContent = Settings->GetDisplayL10NFolder();
 	InstanceConfig->bShowPluginContent = Settings->GetDisplayPluginFolders();
 	InstanceConfig->bShowFolders = Settings->DisplayFolders;
-	InstanceConfig->bShowAllFolder = Settings->bShowAllFolder;
 	InstanceConfig->bShowEmptyFolders = Settings->DisplayEmptyFolders;
 	InstanceConfig->bShowCppFolders = Settings->GetDisplayCppFolders();
-	InstanceConfig->bOrganizeFolders = Settings->bOrganizeFolders;
 	InstanceConfig->bFavoritesExpanded = Settings->GetDisplayFavorites();
-	InstanceConfig->bRealTimeThumbnails = Settings->RealTimeThumbnails;
 	InstanceConfig->bSearchAssetPaths = Settings->GetIncludeAssetPaths();
 	InstanceConfig->bSearchClasses = Settings->GetIncludeClassNames();
 	InstanceConfig->bSearchCollections = Settings->GetIncludeCollectionNames();

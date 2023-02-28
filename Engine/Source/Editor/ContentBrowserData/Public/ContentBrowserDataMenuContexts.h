@@ -8,6 +8,7 @@
 #include "ContentBrowserDataMenuContexts.generated.h"
 
 class SWidget;
+struct FContentBrowserInstanceConfig;
 
 UENUM()
 enum class EContentBrowserDataMenuContext_AddNewMenuDomain : uint8
@@ -39,6 +40,8 @@ public:
 	EContentBrowserDataMenuContext_AddNewMenuDomain OwnerDomain = EContentBrowserDataMenuContext_AddNewMenuDomain::Toolbar;
 
 	FOnBeginItemCreation OnBeginItemCreation;
+
+	const FContentBrowserInstanceConfig* OwningInstanceConfig;
 };
 
 UCLASS()

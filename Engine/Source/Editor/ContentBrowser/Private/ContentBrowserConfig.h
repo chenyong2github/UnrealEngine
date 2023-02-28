@@ -72,9 +72,6 @@ struct FContentBrowserInstanceConfig
 	bool bShowEmptyFolders = true;
 
 	UPROPERTY()
-	bool bShowAllFolder = true;
-
-	UPROPERTY()
 	bool bShowEngineContent = false;
 
 	UPROPERTY()
@@ -88,12 +85,6 @@ struct FContentBrowserInstanceConfig
 
 	UPROPERTY()
 	bool bShowCppFolders = false;
-
-	UPROPERTY()
-	bool bOrganizeFolders = false;
-
-	UPROPERTY()
-	bool bRealTimeThumbnails = false;
 
 	UPROPERTY()
 	bool bSearchClasses = false;

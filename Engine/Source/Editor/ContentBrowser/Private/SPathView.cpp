@@ -419,22 +419,22 @@ void SPathView::SetPluginPathFilterActive(const TSharedRef<FContentBrowserPlugin
 		PluginPathFilters->Remove(Filter);
 	}
 
-	if (FPathViewConfig* EditorConfig = GetEditorConfig())
+	if (FPathViewConfig* PathViewConfig = GetPathViewConfig())
 	{
 		if (bActive)
 		{
-			EditorConfig->PluginFilters.Add(Filter->GetName());
+			PathViewConfig->PluginFilters.Add(Filter->GetName());
 		}
 		else
 		{
-			EditorConfig->PluginFilters.Remove(Filter->GetName());
+			PathViewConfig->PluginFilters.Remove(Filter->GetName());
 		}
 		
 		UContentBrowserConfig::Get()->SaveEditorConfig();
 	}
 }
 
-FPathViewConfig* SPathView::GetEditorConfig() const
+FPathViewConfig* SPathView::GetPathViewConfig() const
 {
 	if (OwningContentBrowserName.IsNone())
 	{
@@ -448,6 +448,22 @@ FPathViewConfig* SPathView::GetEditorConfig() const
 	}
 	
 	return &Config->PathView;
+}
+
+FContentBrowserInstanceConfig* SPathView::GetContentBrowserConfig() const
+{
+	if (OwningContentBrowserName.IsNone())
+	{
+		return nullptr;
+	}
+
+	FContentBrowserInstanceConfig* Config = UContentBrowserConfig::Get()->Instances.Find(OwningContentBrowserName);
+	if (Config == nullptr)
+	{
+		return nullptr;
+	}
+
+	return Config;
 }
 
 void SPathView::SetSelectedPaths(const TArray<FName>& Paths)
@@ -556,9 +572,9 @@ void SPathView::SetSelectedPaths(const TArray<FString>& Paths)
 		}
 	}
 
-	if (FPathViewConfig* EditorConfig = GetEditorConfig())
+	if (FPathViewConfig* PathViewConfig = GetPathViewConfig())
 	{
-		EditorConfig->SelectedPaths = LastSelectedPaths.Array();
+		PathViewConfig->SelectedPaths = LastSelectedPaths.Array();
 
 		UContentBrowserConfig::Get()->SaveEditorConfig();
 	}
@@ -848,6 +864,12 @@ void SPathView::RenameFolderItem(const FContentBrowserItem& InItem)
 FContentBrowserDataCompiledFilter SPathView::CreateCompiledFolderFilter() const
 {
 	const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
+	bool bDisplayPluginFolders = ContentBrowserSettings->GetDisplayPluginFolders();
+	// check to see if we have an instance config that overrides the default in UContentBrowserSettings
+	if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
+	{
+		bDisplayPluginFolders = EditorConfig->bShowPluginContent;
+	}
 
 	FContentBrowserDataFilter DataFilter;
 	DataFilter.bRecursivePaths = true;
@@ -866,7 +888,7 @@ FContentBrowserDataCompiledFilter SPathView::CreateCompiledFolderFilter() const
 		CombinedFolderPermissionList->Append(*CustomFolderPermissionList);
 	}
 
-	if (PluginPathFilters.IsValid() && PluginPathFilters->Num() > 0 && ContentBrowserSettings->GetDisplayPluginFolders())
+	if (PluginPathFilters.IsValid() && PluginPathFilters->Num() > 0 && bDisplayPluginFolders)
 	{
 		TArray<TSharedRef<IPlugin>> Plugins = IPluginManager::Get().GetEnabledPluginsWithContent();
 		for (const TSharedRef<IPlugin>& Plugin : Plugins)
@@ -899,8 +921,15 @@ FContentBrowserDataCompiledFilter SPathView::CreateCompiledFolderFilter() const
 EContentBrowserItemCategoryFilter SPathView::GetContentBrowserItemCategoryFilter() const
 {
 	const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
+	bool bDisplayCppFolders = ContentBrowserSettings->GetDisplayCppFolders();
+	// check to see if we have an instance config that overrides the default in UContentBrowserSettings
+	if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
+	{
+		bDisplayCppFolders = EditorConfig->bShowCppFolders;
+	}
+
 	EContentBrowserItemCategoryFilter ItemCategoryFilter = InitialCategoryFilter;
-	if (bAllowClassesFolder && ContentBrowserSettings->GetDisplayCppFolders())
+	if (bAllowClassesFolder && bDisplayCppFolders)
 	{
 		ItemCategoryFilter |= EContentBrowserItemCategoryFilter::IncludeClasses;
 	}
@@ -916,11 +945,25 @@ EContentBrowserItemCategoryFilter SPathView::GetContentBrowserItemCategoryFilter
 EContentBrowserItemAttributeFilter SPathView::GetContentBrowserItemAttributeFilter() const
 {
 	const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
+	bool bDisplayEngineContent = ContentBrowserSettings->GetDisplayEngineFolder();
+	bool bDisplayPluginContent = ContentBrowserSettings->GetDisplayPluginFolders();
+	bool bDisplayDevelopersContent = ContentBrowserSettings->GetDisplayDevelopersFolder();
+	bool bDisplayL10NContent = ContentBrowserSettings->GetDisplayL10NFolder();
+	
+	// check to see if we have an instance config that overrides the defaults in UContentBrowserSettings
+	if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
+	{
+		bDisplayEngineContent = EditorConfig->bShowEngineContent;
+		bDisplayPluginContent = EditorConfig->bShowPluginContent;
+		bDisplayDevelopersContent = EditorConfig->bShowDeveloperContent;
+		bDisplayL10NContent = EditorConfig->bShowLocalizedContent;
+	}
+	
 	return EContentBrowserItemAttributeFilter::IncludeProject
-			| (ContentBrowserSettings->GetDisplayEngineFolder() ? EContentBrowserItemAttributeFilter::IncludeEngine : EContentBrowserItemAttributeFilter::IncludeNone)
-			| (ContentBrowserSettings->GetDisplayPluginFolders() ? EContentBrowserItemAttributeFilter::IncludePlugins : EContentBrowserItemAttributeFilter::IncludeNone)
-			| (ContentBrowserSettings->GetDisplayDevelopersFolder() ? EContentBrowserItemAttributeFilter::IncludeDeveloper : EContentBrowserItemAttributeFilter::IncludeNone)
-			| (ContentBrowserSettings->GetDisplayL10NFolder() ? EContentBrowserItemAttributeFilter::IncludeLocalized : EContentBrowserItemAttributeFilter::IncludeNone);
+			| (bDisplayEngineContent ? EContentBrowserItemAttributeFilter::IncludeEngine : EContentBrowserItemAttributeFilter::IncludeNone)
+			| (bDisplayPluginContent ? EContentBrowserItemAttributeFilter::IncludePlugins : EContentBrowserItemAttributeFilter::IncludeNone)
+			| (bDisplayDevelopersContent ? EContentBrowserItemAttributeFilter::IncludeDeveloper : EContentBrowserItemAttributeFilter::IncludeNone)
+			| (bDisplayL10NContent ? EContentBrowserItemAttributeFilter::IncludeLocalized : EContentBrowserItemAttributeFilter::IncludeNone);
 }
 
 bool SPathView::InternalPathPassesBlockLists(const FStringView InInternalPath, const int32 InAlreadyCheckedDepth) const
@@ -947,7 +990,15 @@ bool SPathView::InternalPathPassesBlockLists(const FStringView InInternalPath, c
 	if (InAlreadyCheckedDepth < 1 && PluginPathFilters.IsValid() && PluginPathFilters->Num() > 0)
 	{
 		const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
-		if (ContentBrowserSettings->GetDisplayPluginFolders())
+		bool bDisplayPluginFolders = ContentBrowserSettings->GetDisplayPluginFolders();
+
+		// check to see if we have an instance config that overrides the default in UContentBrowserSettings
+		if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
+		{
+			bDisplayPluginFolders = EditorConfig->bShowPluginContent;
+		}
+
+		if (bDisplayPluginFolders)
 		{
 			const FStringView FirstFolderName = FPathViews::GetMountPointNameFromPath(InInternalPath);
 			if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(FirstFolderName))
@@ -1150,9 +1201,9 @@ void SPathView::LoadSettings(const FString& IniFilename, const FString& IniSecti
 {
 	// Selected Paths
 	TArray<FName> NewSelectedPaths;
-	if (FPathViewConfig* EditorConfig = GetEditorConfig())
+	if (FPathViewConfig* PathViewConfig = GetPathViewConfig())
 	{
-		NewSelectedPaths = EditorConfig->SelectedPaths;
+		NewSelectedPaths = PathViewConfig->SelectedPaths;
 	}
 	else 
 	{
@@ -1227,9 +1278,9 @@ void SPathView::LoadSettings(const FString& IniFilename, const FString& IniSecti
 	if (PluginPathFilters.IsValid())
 	{
 		TArray<FString> NewSelectedFilters;
-		if (FPathViewConfig* EditorConfig = GetEditorConfig())
+		if (FPathViewConfig* PathViewConfig = GetPathViewConfig())
 		{
-			NewSelectedFilters = EditorConfig->PluginFilters;
+			NewSelectedFilters = PathViewConfig->PluginFilters;
 		}
 		else
 		{
@@ -1403,9 +1454,9 @@ void SPathView::TreeSelectionChanged( TSharedPtr< FTreeItem > TreeItem, ESelectI
 			}
 		}
 
-		if (FPathViewConfig* EditorConfig = GetEditorConfig())
+		if (FPathViewConfig* PathViewConfig = GetPathViewConfig())
 		{
-			EditorConfig->SelectedPaths = LastSelectedPaths.Array();
+			PathViewConfig->SelectedPaths = LastSelectedPaths.Array();
 
 			UContentBrowserConfig::Get()->SaveEditorConfig();
 		}
@@ -1487,7 +1538,12 @@ void SPathView::Populate(const bool bIsRefreshingFilter)
 	// Populate the view
 	{
 		const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
-		const bool bDisplayEmpty = ContentBrowserSettings->DisplayEmptyFolders;
+		bool bDisplayEmpty = ContentBrowserSettings->DisplayEmptyFolders;
+		// check to see if we have an instance config that overrides the default in UContentBrowserSettings
+		if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
+		{
+			bDisplayEmpty = EditorConfig->bShowEmptyFolders;
+		}
 
 		UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
 		const FContentBrowserDataCompiledFilter CompiledDataFilter = CreateCompiledFolderFilter();
@@ -1927,7 +1983,12 @@ void SPathView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUp
 	const double HandleItemDataUpdatedStartTime = FPlatformTime::Seconds();
 
 	const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
-	const bool bDisplayEmpty = ContentBrowserSettings->DisplayEmptyFolders;
+	bool bDisplayEmpty = ContentBrowserSettings->DisplayEmptyFolders;
+	// check to see if we have an instance config that overrides the default in UContentBrowserSettings
+	if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
+	{
+		bDisplayEmpty = EditorConfig->bShowEmptyFolders;
+	}
 
 	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
 
@@ -2083,10 +2144,20 @@ void SPathView::HandleSettingChanged(FName PropertyName)
 		}
 
 		// If the dev or engine folder has become visible and we're inside it...
-		const bool bDisplayDev = GetDefault<UContentBrowserSettings>()->GetDisplayDevelopersFolder();
-		const bool bDisplayEngine = GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder();
-		const bool bDisplayPlugins = GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
-		const bool bDisplayL10N = GetDefault<UContentBrowserSettings>()->GetDisplayL10NFolder();
+		const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
+		bool bDisplayDev = ContentBrowserSettings->GetDisplayDevelopersFolder();
+		bool bDisplayEngine = ContentBrowserSettings->GetDisplayEngineFolder();
+		bool bDisplayPlugins = ContentBrowserSettings->GetDisplayPluginFolders();
+		bool bDisplayL10N = ContentBrowserSettings->GetDisplayL10NFolder();
+		// check to see if we have an instance config that overrides the default in UContentBrowserSettings
+		if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
+		{
+			bDisplayDev = EditorConfig->bShowDeveloperContent;
+			bDisplayEngine = EditorConfig->bShowEngineContent;
+			bDisplayPlugins = EditorConfig->bShowPluginContent;
+			bDisplayL10N = EditorConfig->bShowLocalizedContent;
+		}
+
 		if (bDisplayDev || bDisplayEngine || bDisplayPlugins || bDisplayL10N)
 		{
 			const TArray<FContentBrowserItem> NewSelectedItems = GetSelectedFolderItems();

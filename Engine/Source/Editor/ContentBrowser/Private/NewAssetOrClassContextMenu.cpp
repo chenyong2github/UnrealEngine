@@ -2,6 +2,7 @@
 
 #include "NewAssetOrClassContextMenu.h"
 
+#include "ContentBrowserConfig.h"
 #include "ContentBrowserDataMenuContexts.h"
 #include "ContentBrowserDataSubsystem.h"
 #include "Framework/Commands/UIAction.h"
@@ -41,10 +42,10 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 
 	// Get Content
 	FToolMenuSection& GetContentSection = Menu->AddSection("ContentBrowserGetContent", LOCTEXT("GetContentMenuHeading", "Get Content"));
+	UContentBrowserDataMenuContext_AddNewMenu* AddNewMenuContext = Menu->FindContext<UContentBrowserDataMenuContext_AddNewMenu>();
 
 	if ( InOnGetContentRequested.IsBound() )
 	{
-		UContentBrowserDataMenuContext_AddNewMenu* AddNewMenuContext = Menu->FindContext<UContentBrowserDataMenuContext_AddNewMenu>();
 		if (AddNewMenuContext && AddNewMenuContext->bCanBeModified && AddNewMenuContext->bContainsValidPackagePath)
 		{
 			GetContentSection.AddMenuEntry(
@@ -63,8 +64,15 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 		return;
 	}
 
+	bool bDisplayFolders = GetDefault<UContentBrowserSettings>()->DisplayFolders;
+	// check to see if we have an instance config that overrides the default in UContentBrowserSettings
+	if (AddNewMenuContext && AddNewMenuContext->OwningInstanceConfig)
+	{
+		bDisplayFolders = AddNewMenuContext->OwningInstanceConfig->bShowFolders;
+	}
+
 	// New Folder
-	if(InOnNewFolderRequested.IsBound() && GetDefault<UContentBrowserSettings>()->DisplayFolders)
+	if(InOnNewFolderRequested.IsBound() && bDisplayFolders)
 	{
 		{
 			FToolMenuSection& Section = Menu->AddSection("ContentBrowserNewFolder", LOCTEXT("FolderMenuHeading", "Folder") );
