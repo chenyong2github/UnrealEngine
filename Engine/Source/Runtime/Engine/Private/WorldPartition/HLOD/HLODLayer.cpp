@@ -5,8 +5,7 @@
 =============================================================================*/
 
 #include "WorldPartition/HLOD/HLODLayer.h"
-
-#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODLayer)
+#include "WorldPartition/HLOD/HLODActor.h"
 
 #if WITH_EDITOR
 #include "Engine/World.h"
@@ -14,12 +13,13 @@
 #include "Misc/StringFormatArg.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UnrealType.h"
-#include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/IWorldPartitionHLODUtilities.h"
 #include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #endif
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODLayer)
 
 DEFINE_LOG_CATEGORY_STATIC(LogHLODLayer, Log, All);
 
