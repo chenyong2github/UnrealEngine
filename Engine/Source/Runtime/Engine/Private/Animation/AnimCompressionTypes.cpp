@@ -727,7 +727,7 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 	const UAnimSequence* AnimSequence = WeakSequence.GetEvenIfUnreachable();
 	checkf(AnimSequence, TEXT("Invalid animation sequence while trying to fetch to-compress animation data"));
 	USkeleton* Skeleton = AnimSequence->GetSkeleton();
-	checkf(Skeleton, TEXT("Invalid Skeleton while trying to fetch to-compress animation data, %s"), *Skeleton->GetPathName());
+	checkf(Skeleton, TEXT("Invalid Skeleton while trying to fetch to-compress animation data, %s"), *AnimSequence->GetPathName());
 
 	FAnimationUtils::BuildSkeletonMetaData(Skeleton, BoneData);
 

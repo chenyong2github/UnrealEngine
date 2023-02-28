@@ -207,12 +207,12 @@ bool FPoseWatchTrack::UpdateInternal()
 
 			bChanged = bChanged || Children[i]->Update();
 		}
-	}
 
-	if(const TCHAR* FoundName = AnimationProvider->GetName(NameId))
-	{
-		bChanged = bChanged || TrackName.ToString().Compare(FoundName) != 0;
-		TrackName = FText::FromString(FoundName);
+		if(const TCHAR* FoundName = AnimationProvider->GetName(NameId))
+		{
+			bChanged = bChanged || TrackName.ToString().Compare(FoundName) != 0;
+			TrackName = FText::FromString(FoundName);
+		}
 	}
 
 	return bChanged;

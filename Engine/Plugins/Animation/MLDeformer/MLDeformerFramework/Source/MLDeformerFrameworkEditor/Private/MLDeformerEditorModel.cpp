@@ -1050,18 +1050,21 @@ namespace UE::MLDeformer
 		if (bIncludeCurves && SkeletalMesh)
 		{
 			// Anim curves.
-			// Include all curves when no list was provided.
-			if (Model->GetCurveIncludeList().IsEmpty())
+			if(Skeleton)
 			{
-				Skeleton->GetCurveMetaDataNames(CurveNames);
-			}
-			else // A list of curve names was provided.
-			{
-				for (const FMLDeformerCurveReference& CurveReference : Model->GetCurveIncludeList())
+				// Include all curves when no list was provided.
+				if (Model->GetCurveIncludeList().IsEmpty())
 				{
-					if (CurveReference.CurveName.IsValid())
+					Skeleton->GetCurveMetaDataNames(CurveNames);
+				}
+				else // A list of curve names was provided.
+				{
+					for (const FMLDeformerCurveReference& CurveReference : Model->GetCurveIncludeList())
 					{
-						CurveNames.Add(CurveReference.CurveName);
+						if (CurveReference.CurveName.IsValid())
+						{
+							CurveNames.Add(CurveReference.CurveName);
+						}
 					}
 				}
 			}
