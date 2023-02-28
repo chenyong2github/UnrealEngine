@@ -437,7 +437,7 @@ private:
 };
 
 #define FUNC_DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE(SparseDelegateClassName, OwningClass, DelegateName, FuncParamList, FuncParamPassThru, ...) \
-	FUNC_DECLARE_DYNAMIC_MULTICAST_DELEGATE(FWeakObjectPtr, SparseDelegateClassName##_MCSignature, SparseDelegateClassName##_DelegateWrapper, FUNC_CONCAT(FuncParamList), FUNC_CONCAT(FuncParamPassThru), __VA_ARGS__) \
+	FUNC_DECLARE_DYNAMIC_MULTICAST_DELEGATE(SparseDelegateClassName##_MCSignature, SparseDelegateClassName##_DelegateWrapper, FUNC_CONCAT(FuncParamList), FUNC_CONCAT(FuncParamPassThru), __VA_ARGS__) \
 	struct SparseDelegateClassName##InfoGetter \
 	{ \
 		static const char* GetDelegateName() { return #DelegateName; } \
