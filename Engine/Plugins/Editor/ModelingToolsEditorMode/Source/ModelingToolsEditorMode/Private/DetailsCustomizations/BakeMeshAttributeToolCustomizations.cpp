@@ -63,7 +63,8 @@ namespace BakeCustomizationLocals
 			// Mask
 			{
 				EBakeMapType::VertexColor,
-				EBakeMapType::MaterialID
+				EBakeMapType::MaterialID,
+				EBakeMapType::PolyGroupID
 			}
 		};
 

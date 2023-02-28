@@ -63,6 +63,7 @@ void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCo
 		DefaultValue = UVToColor(FVector2f::Zero());
 		break;
 	case EMeshPropertyMapType::MaterialID:
+	case EMeshPropertyMapType::PolyGroupID:
 		DefaultValue = FVector3f(LinearColors::LightPink3f());
 		Context.AccumulateMode = EAccumulateMode::Overwrite;
 		break;
@@ -200,6 +201,12 @@ FVector3f FMeshPropertyMapEvaluator::SampleFunction(const FCorrespondenceSample&
 		{
 			Color = FVector3f(DetailColor.X, DetailColor.Y, DetailColor.Z);
 		}
+	}
+	break;
+	case EMeshPropertyMapType::PolyGroupID:
+	{
+		const int32 GroupID = DetailSampler->GetPolyGroupID(DetailMesh, DetailTriID);
+		Color = LinearColors::SelectColor<FVector3f>(GroupID);
 	}
 	break;
 	}

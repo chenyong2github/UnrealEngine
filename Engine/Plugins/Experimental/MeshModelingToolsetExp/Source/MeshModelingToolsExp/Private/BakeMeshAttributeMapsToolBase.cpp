@@ -265,6 +265,7 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreview(const EBakeMapType PreviewMap
 		case EBakeMapType::FaceNormal:
 		case EBakeMapType::Position:
 		case EBakeMapType::MaterialID:
+		case EBakeMapType::PolyGroupID:
 		case EBakeMapType::Texture:
 		case EBakeMapType::MultiTexture:
 		case EBakeMapType::VertexColor:
@@ -444,6 +445,9 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 			case EMeshPropertyMapType::MaterialID:
 				MapType = EBakeMapType::MaterialID;
 				break;
+			case EMeshPropertyMapType::PolyGroupID:
+				MapType = EBakeMapType::PolyGroupID;
+				break;
 			case EMeshPropertyMapType::VertexColor:
 				MapType = EBakeMapType::VertexColor;
 				break;
@@ -514,6 +518,7 @@ FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(c
 		TexType = FTexture2DBuilder::ETextureType::ColorLinear;
 		break;
 	case EBakeMapType::MaterialID:
+	case EBakeMapType::PolyGroupID:
 	case EBakeMapType::VertexColor:
 		break;
 	case EBakeMapType::Texture:
@@ -556,6 +561,9 @@ void UBakeMeshAttributeMapsToolBase::GetTextureName(const EBakeMapType MapType, 
 		break;
 	case EBakeMapType::MaterialID:
 		TexName = FString::Printf(TEXT("%s_MaterialID"), *BaseName);
+		break;
+	case EBakeMapType::PolyGroupID:
+		TexName = FString::Printf(TEXT("%s_PolyGroupID"), *BaseName);
 		break;
 	case EBakeMapType::VertexColor:
 		TexName = FString::Printf(TEXT("%s_VertexColor"), *BaseName);
@@ -719,6 +727,9 @@ void UBakeMeshAttributeMapsToolBase::RecordAnalytics(const FBakeAnalytics& Data,
 
 	const bool bMaterialID = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::MaterialID);
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.MaterialID.Enabled"), bMaterialID));
+
+	const bool bPolyGroupID = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::PolyGroupID);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.PolyGroupID.Enabled"), bPolyGroupID));
 	
 	const bool bTexture = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::Texture);
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Texture.Enabled"), bTexture));

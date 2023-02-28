@@ -238,6 +238,13 @@ public:
 				Baker->AddEvaluator(PropertyEval);
 				break;
 			}
+			case EBakeMapType::PolyGroupID:
+			{
+				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
+				PropertyEval->Property = EMeshPropertyMapType::PolyGroupID;
+				Baker->AddEvaluator(PropertyEval);
+				break;
+			}
 			case EBakeMapType::VertexColor:
 			{
 				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
@@ -654,6 +661,7 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 		(bool)(CachedBakeSettings.BakeMapTypes & EBakeMapType::FaceNormal) ||
 		(bool)(CachedBakeSettings.BakeMapTypes & EBakeMapType::Position) ||
 		(bool)(CachedBakeSettings.BakeMapTypes & EBakeMapType::MaterialID) ||
+		(bool)(CachedBakeSettings.BakeMapTypes & EBakeMapType::PolyGroupID) ||
 		(bool)(CachedBakeSettings.BakeMapTypes & EBakeMapType::VertexColor))
 	{
 		OpState |= UpdateResult_MeshProperty(CachedBakeSettings.Dimensions);
@@ -784,6 +792,7 @@ void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 		case EBakeMapType::FaceNormal:
 		case EBakeMapType::Position:
 		case EBakeMapType::MaterialID:
+		case EBakeMapType::PolyGroupID:
 		case EBakeMapType::VertexColor:
 			break;
 		case EBakeMapType::Texture:

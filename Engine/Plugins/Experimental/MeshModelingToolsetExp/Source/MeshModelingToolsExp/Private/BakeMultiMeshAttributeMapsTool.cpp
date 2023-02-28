@@ -241,6 +241,13 @@ public:
 		return IndexConstants::InvalidID;
 	}
 
+	virtual int32 GetPolyGroupID(const void* Mesh, const int TriId) const override
+	{
+		// TODO
+		checkSlow(false);
+		return 0;
+	}
+
 	virtual bool HasNormals(const void* Mesh) const override
 	{
 		const FActorChildMesh* ChildMesh = static_cast<const FActorChildMesh*>(Mesh);

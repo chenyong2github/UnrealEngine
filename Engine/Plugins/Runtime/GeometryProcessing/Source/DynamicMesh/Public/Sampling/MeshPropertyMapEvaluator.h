@@ -20,7 +20,8 @@ enum class EMeshPropertyMapType
 	FacetNormal = 3,
 	UVPosition = 4,
 	MaterialID = 5,
-	VertexColor = 6
+	VertexColor = 6,
+	PolyGroupID = 7
 };
 
 /**

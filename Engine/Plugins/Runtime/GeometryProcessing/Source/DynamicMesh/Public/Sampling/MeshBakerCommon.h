@@ -247,6 +247,13 @@ public:
 
 	/**
 	 * @param Mesh pointer to mesh to query
+	 * @param TriId the triangle index to test
+	 * @return the group ID for the given triangle.
+	 */
+	virtual int32 GetPolyGroupID(const void* Mesh, const int TriId) const = 0;
+
+	/**
+	 * @param Mesh pointer to mesh to query
 	 * @return true if this mesh has normals
 	 */
 	virtual bool HasNormals(const void* Mesh) const = 0;
@@ -487,6 +494,12 @@ public:
 		const FDynamicMesh3* DynamicMesh = static_cast<const FDynamicMesh3*>(Mesh);
 		const FDynamicMeshMaterialAttribute* MaterialIDOverlay = DynamicMesh->Attributes()->GetMaterialID();
 		return MaterialIDOverlay ? MaterialIDOverlay->GetValue(TriId) : IndexConstants::InvalidID;
+	}
+
+	virtual int32 GetPolyGroupID(const void* Mesh, const int TriID) const override
+	{
+		const FDynamicMesh3* DynamicMesh = static_cast<const FDynamicMesh3*>(Mesh);
+		return DynamicMesh->GetTriangleGroup(TriID);
 	}
 
 	virtual bool HasNormals(const void* Mesh) const override

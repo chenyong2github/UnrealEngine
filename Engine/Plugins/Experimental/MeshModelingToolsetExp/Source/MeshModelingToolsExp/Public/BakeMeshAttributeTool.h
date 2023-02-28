@@ -47,6 +47,8 @@ enum class EBakeMapType
 	VertexColor            = 1 << 9,
 	/* Material IDs as unique colors */
 	MaterialID             = 1 << 10 UMETA(DisplayName = "Material ID"),
+	/* PolyGroup IDs as unique colors */
+	PolyGroupID            = 1 << 11 UMETA(DisplayName = "PolyGroup ID"),
 
 	All                    = 0x7FF UMETA(Hidden)
 };
@@ -69,7 +71,8 @@ static constexpr EBakeMapType ENUM_EBAKEMAPTYPE_ALL[] =
 	EBakeMapType::Texture,
 	EBakeMapType::MultiTexture,
 	EBakeMapType::VertexColor,
-	EBakeMapType::MaterialID
+	EBakeMapType::MaterialID,
+	EBakeMapType::PolyGroupID
 };
 
 
