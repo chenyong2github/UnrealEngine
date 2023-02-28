@@ -1584,21 +1584,29 @@ bool FDynamicMeshAttributeSet::AppendBonesUnique(const FDynamicMeshAttributeSet&
 
 bool FDynamicMeshAttributeSet::CheckBoneValidity(EValidityCheckFailMode FailMode) const
 {
-	const int32 NumBones = HasBones() ? GetNumBones() : 0;
-
 	bool bValid = true;
 	
-	bValid = (BoneParentIndexAttrib->Num() == NumBones || BoneParentIndexAttrib->IsEmpty()) && bValid;
-	bValid = (BoneColorAttrib->Num() == NumBones || BoneColorAttrib->IsEmpty()) && bValid;
-	bValid = (BonePoseAttrib->Num() == NumBones || BonePoseAttrib->IsEmpty()) && bValid;
+	if (!HasBones())
+	{
+		// if boneless, no bone-related attributes should be set
+		bValid = !BoneNameAttrib && !BoneParentIndexAttrib && !BoneColorAttrib && !BonePoseAttrib;
+	}
+	else
+	{
+		const int32 NumBones = GetNumBones();
+	
+		bValid = (BoneParentIndexAttrib->Num() == NumBones || BoneParentIndexAttrib->IsEmpty()) && bValid;
+		bValid = (BoneColorAttrib->Num() == NumBones || BoneColorAttrib->IsEmpty()) && bValid;
+		bValid = (BonePoseAttrib->Num() == NumBones || BonePoseAttrib->IsEmpty()) && bValid;
+	}
 
 	if (FailMode == EValidityCheckFailMode::Check)
 	{
-		checkf(bValid, TEXT("TDynamicSkeletalBonesAttribute::CheckValidity failed!"));
+		checkf(bValid, TEXT("FDynamicMeshAttributeSet::CheckBoneValidity failed!"));
 	}
 	else if (FailMode == EValidityCheckFailMode::Ensure)
 	{ 
-		ensureMsgf(bValid, TEXT("TDynamicSkeletalBonesAttribute::CheckValidity failed!"));
+		ensureMsgf(bValid, TEXT("FDynamicMeshAttributeSet::CheckBoneValidity failed!"));
 	}
 
 	return bValid;
