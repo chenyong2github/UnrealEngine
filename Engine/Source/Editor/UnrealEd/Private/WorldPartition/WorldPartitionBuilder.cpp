@@ -362,6 +362,8 @@ bool UWorldPartitionBuilder::SavePackages(const TArray<UPackage*>& Packages, FPa
 		}
 	}
 
+	ResetLoaders(TArray<UObject*>(Packages));
+
 	for (int PackageIndex = 0; PackageIndex < Packages.Num(); ++PackageIndex)
 	{
 		const FString& PackageFilename = PackageFilenames[PackageIndex];
