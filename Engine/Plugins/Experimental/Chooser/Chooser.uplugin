@@ -33,6 +33,11 @@
 			"LoadingPhase" : "Default"
 		},
 		{
+			"Name": "ChooserUncooked",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name" : "ChooserEditor",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default"
@@ -43,9 +48,14 @@
 			"LoadingPhase" : "Default"
 		},
 		{
+			"Name": "ProxyTableUncooked",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name" : "ProxyTableEditor",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default"
-		},
+		}
 	]
 }

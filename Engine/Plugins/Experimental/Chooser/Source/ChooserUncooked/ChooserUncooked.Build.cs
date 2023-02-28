@@ -2,9 +2,9 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class ChooserEditor : ModuleRules
+	public class ChooserUncooked : ModuleRules
 	{
-		public ChooserEditor(ReadOnlyTargetRules Target) : base(Target)
+		public ChooserUncooked(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(new string[] {"Chooser"});
 			PrivateDependencyModuleNames.AddRange(
@@ -14,23 +14,12 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"AssetTools",
+					"UnrealEd",
 					"AssetDefinition",
 					"Chooser",
-					"UnrealEd",
-					"EditorWidgets",
-					"ToolWidgets",
-					"ToolMenus",
-					"SlateCore",
-					"Slate",
-					"PropertyEditor",
-					"InputCore",
-					"EditorStyle",
-					"PropertyEditor",
-					"BlueprintGraph",
-					"GraphEditor",
 					"GameplayTags",
-					"GameplayTagsEditor",
 					"StructUtils",
+					"BlueprintGraph",
 					"KismetCompiler"
 					// ... add private dependencies that you statically link with here ...
 				}

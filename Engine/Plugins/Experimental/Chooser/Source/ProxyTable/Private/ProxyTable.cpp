@@ -83,9 +83,15 @@ bool FProxyTableContextProperty::GetValue(const UObject* ContextObject, const UP
 	return false;
 }
 
-UObject* UProxyTableFunctionLibrary::EvaluateProxyAsset(const UObject* ContextObject, const UProxyAsset* Proxy)
+UObject* UProxyTableFunctionLibrary::EvaluateProxyAsset(const UObject* ContextObject, const UProxyAsset* Proxy, TSubclassOf<UObject> ObjectClass)
 {
-	return FindProxyObject(Proxy, ContextObject);
+	UObject* Result = FindProxyObject(Proxy, ContextObject);
+	if (ObjectClass && Result && !Result->IsA(ObjectClass))
+	{
+		return nullptr;
+	}
+	return Result;
+	
 }
 
 // fallback for FName based Keys:

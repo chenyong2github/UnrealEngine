@@ -134,26 +134,41 @@ UChooserFunctionLibrary::UChooserFunctionLibrary(const FObjectInitializer& Objec
 {
 }
 
-UObject* UChooserFunctionLibrary::EvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser)
+UObject* UChooserFunctionLibrary::EvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser, TSubclassOf<UObject> ObjectClass)
 {
 	UObject* Result = nullptr;
-	StaticEvaluateChooser(ContextObject, Chooser, FObjectChooserBase::FObjectChooserIteratorCallback::CreateLambda([&Result](UObject* InResult)
+	StaticEvaluateChooser(ContextObject, Chooser, FObjectChooserBase::FObjectChooserIteratorCallback::CreateLambda([&Result, ObjectClass](UObject* InResult)
 	{
-		Result = InResult;
-		return FObjectChooserBase::EIteratorStatus::Stop;
+		if (InResult && (ObjectClass == nullptr || InResult->IsA(ObjectClass)))
+		{
+			Result = InResult;
+			return FObjectChooserBase::EIteratorStatus::Stop;
+		}
+		return FObjectChooserBase::EIteratorStatus::Continue;
 	}));
 
 	return Result;
 }
 
-TArray<UObject*> UChooserFunctionLibrary::EvaluateChooserMulti(const UObject* ContextObject, const UChooserTable* Chooser)
+TArray<UObject*> UChooserFunctionLibrary::EvaluateChooserMulti(const UObject* ContextObject, const UChooserTable* Chooser, TSubclassOf<UObject> ObjectClass)
 {
 	TArray<UObject*> Result;
-	StaticEvaluateChooser(ContextObject, Chooser, FObjectChooserBase::FObjectChooserIteratorCallback::CreateLambda([&Result](UObject* InResult)
+	StaticEvaluateChooser(ContextObject, Chooser, FObjectChooserBase::FObjectChooserIteratorCallback::CreateLambda([&Result, ObjectClass](UObject* InResult)
 	{
-		Result.Add(InResult);
+		if (InResult && (ObjectClass == nullptr || InResult->IsA(ObjectClass)))
+		{
+			Result.Add(InResult);
+		}
 		return FObjectChooserBase::EIteratorStatus::Continue;
 	}));
+
+	for (int Index = 0; Index < Result.Num(); ++Index)
+	{
+		if (Result[Index] && !Result[Index]->IsA(ObjectClass))
+		{
+			Result[Index] = nullptr;
+		}
+	}
 
 	return Result;
 }

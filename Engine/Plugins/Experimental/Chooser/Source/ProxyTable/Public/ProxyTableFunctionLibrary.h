@@ -4,6 +4,7 @@
 
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "ProxyTable.h"
+#include "Templates/SubclassOf.h"
 #include "ProxyTableFunctionLibrary.generated.h"
 
 /**
@@ -30,8 +31,9 @@ public:
 	*
 	* @param ContextObject			(in) An Object from which the Proxy Table will be read, and parameters to any nested Chooser Tables that need to evaluate
 	* @param ProxyAsset				(in) The ProxyAsset asset
+	* @param ObjectClass			(in) Expected type of result objects
 	*/
-	UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe), Category = "Animation")
-	static UObject* EvaluateProxyAsset(const UObject* ContextObject, const UProxyAsset* Proxy);
+	UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe, DeterminesOutputType = "ObjectClass"), Category = "Animation")
+	static UObject* EvaluateProxyAsset(const UObject* ContextObject, const UProxyAsset* Proxy, TSubclassOf<UObject> ObjectClass);
 
 };
