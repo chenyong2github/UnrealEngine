@@ -115,6 +115,11 @@ namespace Chaos::Softs
 
 		static FName TypeName() { return FName("Flesh"); }
 
+		bool CanSimulate() const
+		{
+			return Rest.NumElements(FGeometryCollection::VerticesGroup) > 0;
+		}
+
 		bool IsBoneSpace() const
 		{
 			return SimSpace == ChaosDeformableSimSpace::Bone;
