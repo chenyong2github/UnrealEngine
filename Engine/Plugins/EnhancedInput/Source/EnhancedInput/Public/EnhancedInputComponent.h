@@ -78,7 +78,7 @@ public:
 
 	/** Binds a script delegate on an arbitrary UObject, hidden for native delegates */
 	template<	typename TSig = TSignature,
-				typename = typename TEnableIf<TIsDerivedFrom<TSig, TScriptDelegate<FWeakObjectPtr> >::IsDerived || TIsDerivedFrom<TSig, TMulticastScriptDelegate<FWeakObjectPtr> >::IsDerived>::Type>
+				typename = typename TEnableIf<TIsDerivedFrom<TSig, FScriptDelegate>::IsDerived || TIsDerivedFrom<TSig, FMulticastScriptDelegate>::IsDerived>::Type>
 	void BindDelegate(UObject* Object, const FName FuncName)
 	{
 		Unbind();
