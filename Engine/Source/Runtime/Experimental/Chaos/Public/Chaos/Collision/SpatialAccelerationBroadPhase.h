@@ -15,6 +15,11 @@
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/AABBTree.h"
 
+// Set to 1 to enable some sanity chacks on the filtered broadphase results
+#ifndef CHAOS_CHECK_BROADPHASE
+#define CHAOS_CHECK_BROADPHASE 0
+#endif
+
 namespace Chaos
 {
 	template <typename TPayloadType, typename T, int d>
@@ -339,6 +344,10 @@ namespace Chaos
 				// Merge all the midphases from each worker into the primary allocator
 				Allocator->ProcessNewMidPhases();
 			}
+
+			// Run some error checks in non-shipping builds
+			// NOTE: This must come after MidPhase assignment for now because that's where the filter is applied
+			CheckOverlapResults();
 		}
 
 		/**
@@ -587,6 +596,36 @@ namespace Chaos
 			}
 
 			PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumFromBroadphase, NumPotentials, ECsvCustomStatOp::Accumulate);
+		}
+
+		void CheckOverlapResults()
+		{
+#if CHAOS_CHECK_BROADPHASE
+			// Make sure that no particle pair is in the overlap lists twice which will cause a race condition
+			// in the narrow phase as multiple threads will attempt to build the same constraint(s) leading to
+			// buffer overruns and who knows what other craziness.
+			TSet<uint64> ParticlePairKeys;
+			for (int32 ContextIndex = 0; ContextIndex < NumActiveBroadphaseContexts; ++ContextIndex)
+			{
+				for (const Private::FBroadPhaseOverlap& Overlap : BroadphaseContexts[ContextIndex].Overlaps)
+				{
+					if (Overlap.bCollisionsEnabled)
+					{
+						const FCollisionParticlePairKey PairKey = FCollisionParticlePairKey(Overlap.Particles[0], Overlap.Particles[1]);
+						const bool bIsInSet = ParticlePairKeys.Contains(PairKey.GetKey());
+						if (ensure(!bIsInSet))
+						{
+							ParticlePairKeys.Add(PairKey.GetKey());
+						}
+						else
+						{
+							// Last time this happened it was because a particle was in multiple views that should be mutually exclusive
+							UE_LOG(LogChaos, Fatal, TEXT("Broadphase overlaps generated the same particle pair twice"));
+						}
+					}
+				}
+			}
+#endif
 		}
 
 		const FPBDRigidsSOAs& Particles;
