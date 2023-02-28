@@ -465,7 +465,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 					BRANCH
 					if (CurrentRangeEnd > 0)
 					{
-						ExportRasterizerBin(CurrentRangeBin, RelativeClusterIndex, CurrentRangeStart, CurrentRangeEnd, CurrentBatchCount, CurrentBatchInfoOffset, Cluster, false, bSoftware);
+						ExportRasterizerBin(CurrentRangeBin, VisibleClusterIndex, CurrentRangeStart, CurrentRangeEnd, CurrentBatchCount, CurrentBatchInfoOffset, Cluster, false, bSoftware);
 					}
 
 					CurrentRangeBin   = RasterizerBinN;
@@ -477,7 +477,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 			}
 
 			// Need to flush current range
-			ExportRasterizerBin(CurrentRangeBin, RelativeClusterIndex, CurrentRangeStart, CurrentRangeEnd, CurrentBatchCount, CurrentBatchInfoOffset, Cluster, false, bSoftware);
+			ExportRasterizerBin(CurrentRangeBin, VisibleClusterIndex, CurrentRangeStart, CurrentRangeEnd, CurrentBatchCount, CurrentBatchInfoOffset, Cluster, false, bSoftware);
 		}
 	}
 #endif
