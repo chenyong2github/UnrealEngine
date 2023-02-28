@@ -170,7 +170,7 @@ void UZoneGraphTestingComponent::UpdateTests()
 				// @todo: pass FZoneGraphLaneLocation directly to the constructor
 				FZoneGraphAStarNode StartNode(NearestLaneLocation.LaneHandle.Index, NearestLaneLocation.Position);
 				FZoneGraphAStarNode EndNode(OtherTestingComp->NearestLaneLocation.LaneHandle.Index, OtherTestingComp->NearestLaneLocation.Position);
-				FZoneGraphPathFilter PathFilter(ZoneGraphStorage, NearestLaneLocation, OtherTestingComp->NearestLaneLocation);
+				FZoneGraphPathFilter PathFilter(ZoneGraphStorage, NearestLaneLocation, OtherTestingComp->NearestLaneLocation, QueryFilter);
 				
 				// @todo: see if we can return directly a path of lane handles
 				TArray<FZoneGraphAStarWrapper::FNodeRef> ResultPath;

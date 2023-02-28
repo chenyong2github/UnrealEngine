@@ -59,8 +59,9 @@ struct FZoneGraphPathFilter
 
 	typedef int32/*lane index type*/ FNodeRef;
 
-	FZoneGraphPathFilter(const FZoneGraphStorage& InGraph, const FZoneGraphLaneLocation& InStartLocation, const FZoneGraphLaneLocation& InEndLocation)
+	FZoneGraphPathFilter(const FZoneGraphStorage& InGraph, const FZoneGraphLaneLocation& InStartLocation, const FZoneGraphLaneLocation& InEndLocation, const FZoneGraphTagFilter InZoneTagFilter = FZoneGraphTagFilter())
 		: ZoneStorage(InGraph) 
+		, ZoneTagFilter(InZoneTagFilter)
 		, StartLocation(InStartLocation)
 		, EndLocation(InEndLocation)
 	{}
@@ -164,12 +165,18 @@ struct FZoneGraphPathFilter
 		}
 	}
 
-	FORCEINLINE bool IsTraversalAllowed(const FNodeRef StartNodeRef, const FNodeRef& Neighbour) const { return true; }
+	FORCEINLINE bool IsTraversalAllowed(const FNodeRef StartNodeRef, const FNodeRef& Neighbour) const
+	{
+		const FZoneGraphTagMask& LaneTagMask = ZoneStorage.Lanes[Neighbour].Tags;
+		return ZoneTagFilter.Pass(LaneTagMask);
+	}
+
 	FORCEINLINE bool WantsPartialSolution() const { return false; }
 	FORCEINLINE bool ShouldIncludeStartNodeInPath() const { return true; }
 
 protected:
 	const FZoneGraphStorage& ZoneStorage;
+	const FZoneGraphTagFilter ZoneTagFilter;
 	const FZoneGraphLaneLocation StartLocation;
 	const FZoneGraphLaneLocation EndLocation;
 };
