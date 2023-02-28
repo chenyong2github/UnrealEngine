@@ -799,7 +799,7 @@ void USocialDebugTools::FInstanceContext::Shutdown()
 		IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
 		if (OnlineParty.IsValid())
 		{
-			OnlineParty->ClearOnPartyInviteReceivedDelegate_Handle(PartyInviteReceivedDelegateHandle);
+			OnlineParty->ClearOnPartyInviteReceivedExDelegate_Handle(PartyInviteReceivedDelegateHandle);
 			OnlineParty->ClearOnPartyJoinRequestReceivedDelegate_Handle(PartyJoinRequestReceivedDelegateHandle);
 			OnlineParty.Reset();
 		}

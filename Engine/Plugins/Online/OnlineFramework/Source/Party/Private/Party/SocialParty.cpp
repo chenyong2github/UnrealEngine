@@ -486,11 +486,6 @@ void USocialParty::InitializePartyInternal()
 	PartyInterface->AddOnPartyMemberExitedDelegate_Handle(FOnPartyMemberExitedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberExited));
 	PartyInterface->AddOnPartySystemStateChangeDelegate_Handle(FOnPartySystemStateChangeDelegate::CreateUObject(this, &USocialParty::HandlePartySystemStateChange));
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	PartyInterface->AddOnPartyJIPRequestReceivedDelegate_Handle(FOnPartyJIPRequestReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyJIPRequestReceived));
-	PartyInterface->AddOnPartyJIPResponseDelegate_Handle(FOnPartyJIPResponseDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberJIP));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	// Create a UPartyMember for every existing member on the OSS party
 	TArray<FOnlinePartyMemberConstRef> OssPartyMembers;
 	PartyInterface->GetPartyMembers(*OwningLocalUserId, GetPartyId(), OssPartyMembers);
@@ -809,58 +804,6 @@ void USocialParty::RemovePlayerFromReservationBeacon(const FUniqueNetId& LocalUs
 	}
 }
 
-// DEPRECATED - Use the new join in progress flow with USocialParty::RequestJoinInProgress.
-void USocialParty::HandlePartyJIPRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId)
-{
-	if (!IsLocalPlayerPartyLeader() || PartyId != GetPartyId())
-	{
-		return;
-	}
-
-	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FPartyJoinApproval JoinApproval = EvaluateJIPRequest(SenderId);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	if (JoinApproval.GetApprovalAction() == EApprovalAction::Enqueue ||
-		JoinApproval.GetApprovalAction() == EApprovalAction::EnqueueAndStartBeacon)
-	{
-		FUserPlatform MemberPlatform;
-		for (const UPartyMember* Member : GetPartyMembers())
-		{
-			if (Member->GetPrimaryNetId() == SenderId)
-			{
-				MemberPlatform = Member->GetRepData().GetPlatformDataPlatform();
-				break;
-			}
-		}
-
-		// Enqueue for a more opportune time
-		UE_LOG(LogParty, Verbose, TEXT("[%s] Enqueuing JIP approval request for %s"), *PartyId.ToString(), *SenderId.ToString());
-
-		FPendingMemberApproval PendingApproval;
-		PendingApproval.RecipientId.SetUniqueNetId(LocalUserId.AsShared());
-		PendingApproval.Members.Emplace(SenderId.AsShared(), MoveTemp(MemberPlatform));
-		PendingApproval.bIsJIPApproval = true;
-		PendingApprovals.Enqueue(MoveTemp(PendingApproval));
-
-		if (!ReservationBeaconClient.Get() && JoinApproval.GetApprovalAction() == EApprovalAction::EnqueueAndStartBeacon)
-		{
-			ConnectToReservationBeacon();
-		}
-	}
-	else
-	{
-		const bool bIsApproved = JoinApproval.CanJoin();
-		UE_LOG(LogParty, Log, TEXT("[%s] Responding to approval request for %s with %s"), *PartyId.ToString(), *SenderId.ToString(), bIsApproved ? TEXT("approved") : TEXT("denied"));
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		PartyInterface->ApproveJIPRequest(LocalUserId, PartyId, SenderId, bIsApproved, JoinApproval.GetDenialReason());
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-}
-
 void USocialParty::HandleJoinabilityQueryReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoinRequestInfo)
 {
 	if (PartyId == GetPartyId()) 
@@ -966,24 +909,6 @@ void USocialParty::HandlePartyMemberJoined(const FUniqueNetId& LocalUserId, cons
 		{
 			TryFinishInitialization();
 		}
-	}
-}
-
-// DEPRECATED - Use the new join in progress flow with USocialParty::RequestJoinInProgress.
-void USocialParty::HandlePartyMemberJIP(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, bool Success, int32 DeniedResultCode)
-{
-	if (PartyId == GetPartyId())
-	{
-		FString DeniedResultCodeString = StaticEnum<EPartyJoinDenialReason>()->GetNameStringByValue(DeniedResultCode);
-		if (DeniedResultCodeString.IsEmpty())
-		{
-			UE_LOG(LogParty, Warning, TEXT("Failed to convert JIP result code. Value=%d"), DeniedResultCode);
-			DeniedResultCodeString = TEXT("Invalid");
-		}
-
-		// We are allowed to join the party.. start the JIP flow. 
-		OnPartyJIPApprovedEvent.Broadcast(PartyId, Success);
-		OnPartyJIPResponseEvent.Broadcast(PartyId, Success, DeniedResultCodeString);
 	}
 }
 
@@ -1609,10 +1534,6 @@ void USocialParty::RejectAllPendingJoinRequests()
 		UE_LOG(LogParty, Log, TEXT("[%s] Responding to approval request for %s with %s"), *PartyId.ToString(), *PrimaryJoiningUserId.ToDebugString(), ToString(EPartyJoinDenialReason::Busy));
 		if (PendingApproval.bIsJIPApproval)
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			PartyInterface->ApproveJIPRequest(*PendingApproval.RecipientId, PartyId, PrimaryJoiningUserId, false, (int32)EPartyJoinDenialReason::Busy);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 			RespondToJoinInProgressRequest(PendingApproval, EPartyJoinDenialReason::Busy);
 		}
 		else
@@ -1733,11 +1654,7 @@ void USocialParty::HandleReservationRequestComplete(EPartyReservationResult::Typ
 			IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 			if (PendingApproval.bIsJIPApproval)
 			{
-				// This player is already in our party. ApproveJIPRequest
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				PartyInterface->ApproveJIPRequest(*PendingApproval.RecipientId, GetPartyId(), *PendingApproval.Members[0].MemberId, bReservationApproved, DenialReason);
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
+				// Respond to the JIP request
 				RespondToJoinInProgressRequest(PendingApproval, DenialReason.GetReason());
 			}
 			else if (PendingApproval.bIsPlayerRemoval)

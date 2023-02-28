@@ -1126,15 +1126,8 @@ void USocialUser::HandlePartyRequestToJoinSent(const FUniqueNetId& LocalUserId, 
 
 	if (Result == ERequestToJoinPartyCompletionResult::Succeeded)
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		NotifyRequestToJoinSent(ExpiresAt);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 		GetOwningToolkit().OnPartyRequestToJoinSent().Broadcast(*this);
 	}
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	GetOwningToolkit().OnRequestToJoinPartyComplete(PartyLeaderId, Result);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 TSharedPtr<const IOnlinePartyJoinInfo> USocialUser::GetPartyJoinInfo(const FOnlinePartyTypeId& PartyTypeId) const

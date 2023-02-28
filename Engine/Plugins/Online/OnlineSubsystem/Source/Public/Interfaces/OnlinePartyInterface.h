@@ -856,16 +856,6 @@ DECLARE_DELEGATE_FourParams(FOnJoinPartyComplete, const FUniqueNetId& /*LocalUse
  * @param LocalUserId - id of user that initiated the request
  * @param PartyId - id associated with the party
  * @param Result - result of the operation
- * @param NotApprovedReason - client defined value describing why you were not approved
- */
-UE_DEPRECATED(5.1, "Use FOnQueryPartyJoinabilityCompleteEx")
-DECLARE_DELEGATE_FourParams(FOnQueryPartyJoinabilityComplete, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const EJoinPartyCompletionResult /*Result*/, const int32 /*NotApprovedReason*/);
-/**
- * Party query joinability async task completed callback
- *
- * @param LocalUserId - id of user that initiated the request
- * @param PartyId - id associated with the party
- * @param Result - result of the operation
  */
 DECLARE_DELEGATE_ThreeParams(FOnQueryPartyJoinabilityCompleteEx, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FQueryPartyJoinabilityResult& /*Result*/);
 /**
@@ -990,20 +980,6 @@ DECLARE_MULTICAST_DELEGATE_FourParams(F_PREFIX(OnPartyStateChanged), const FUniq
 PARTY_DECLARE_DELEGATETYPE(OnPartyStateChanged);
 
 /**
-* Notification when a player has been approved for JIP
-* @param LocalUserId - id associated with this notification
-* @param PartyId - id associated with the party
-* @param Success - whether the join in progress action succeeded
-* @param DeniedResultCode - descriptive reason for a failure to join
-*/
-DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyJIP), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, bool /*Success*/);
-UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
-typedef FOnPartyJIP::FDelegate FOnPartyJIPDelegate;
-DECLARE_MULTICAST_DELEGATE_FourParams(F_PREFIX(OnPartyJIPResponse), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, bool /*Success*/, int32 /*DeniedResultCode*/);
-UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
-PARTY_DECLARE_DELEGATETYPE(OnPartyJIPResponse);
-
-/**
  * Notification when player promotion is locked out.
  * @param LocalUserId - id associated with this notification
  * @param PartyId - id associated with the party
@@ -1020,17 +996,6 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyPromotionLockoutChanged);
  */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyConfigChanged), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FPartyConfiguration& /*PartyConfig*/);
 PARTY_DECLARE_DELEGATETYPE(OnPartyConfigChanged);
-
-/**
- * Notification when party data is updated
- * Deprecated - Use OnPartyDataReceived
- * @param LocalUserId - id associated with this notification
- * @param PartyId - id associated with the party
- * @param PartyData - party data that was updated
- */
-DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyDataReceivedConst), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FOnlinePartyData& /*PartyData*/);
-UE_DEPRECATED(5.1, "Use OnPartyDataReceived instead of OnPartyDataReceivedConst")
-typedef FOnPartyDataReceivedConst::FDelegate FOnPartyDataReceivedConstDelegate;
 
 /**
  * Notification when party data is updated
@@ -1072,18 +1037,6 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyMemberJoined);
 
 /**
  * Notification when party member data is updated
- * Deprecated - Use OnPartyMemberDataReceived
- * @param LocalUserId - id associated with this notification
- * @param PartyId - id associated with the party
- * @param MemberId - id of member that had updated data
- * @param PartyMemberData - party member data that was updated
- */
-DECLARE_MULTICAST_DELEGATE_FourParams(F_PREFIX(OnPartyMemberDataReceivedConst), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*MemberId*/, const FOnlinePartyData& /*PartyMemberData*/);
-UE_DEPRECATED(5.1, "Use OnPartyMemberDataReceived instead of OnPartyMemberDataReceivedConst")
-typedef FOnPartyMemberDataReceivedConst::FDelegate FOnPartyMemberDataReceivedConstDelegate;
-
-/**
- * Notification when party member data is updated
  * @param LocalUserId - id associated with this notification
  * @param PartyId - id associated with the party
  * @param MemberId - id of member that had updated data
@@ -1112,34 +1065,11 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyInviteRequestReceived);
 
 /**
  * Notification when a new invite is received
- * Deprecated - Use OnPartyInviteReceivedEx
- * @param LocalUserId id associated with this notification
- * @param PartyId id associated with the party
- * @param SenderId id of member that sent the invite
- */
-DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyInviteReceived), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/);
-UE_DEPRECATED(5.1, "Use OnPartyInviteReceivedEx instead of OnPartyInviteReceived")
-typedef FOnPartyInviteReceived::FDelegate FOnPartyInviteReceivedDelegate;
-
-/**
- * Notification when a new invite is received
  * @param LocalUserId id associated with this notification
  * @param Invitation the invitation that was received
  */
 DECLARE_MULTICAST_DELEGATE_TwoParams(F_PREFIX(OnPartyInviteReceivedEx), const FUniqueNetId& /*LocalUserId*/, const IOnlinePartyJoinInfo& /*Invitation*/);
 PARTY_DECLARE_DELEGATETYPE(OnPartyInviteReceivedEx);
-
-/**
- * Notification when an invite has been removed
- * Deprecated - Use OnPartyInviteRemovedEx
- * @param LocalUserId id associated with this notification
- * @param PartyId id associated with the party
- * @param SenderId id of member that sent the invite
- * @param Reason reason the invite has been removed
- */
-DECLARE_MULTICAST_DELEGATE_FourParams(F_PREFIX(OnPartyInviteRemoved), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/, EPartyInvitationRemovedReason /*Reason*/);
-UE_DEPRECATED(5.1, "Use OnPartyInviteRemovedEx instead of OnPartyInviteRemoved")
-typedef FOnPartyInviteRemoved::FDelegate FOnPartyInviteRemovedDelegate;
 
 /**
  * Notification when an invite has been removed
@@ -1168,18 +1098,6 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyInviteResponseReceived);
  */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyJoinRequestReceived), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const IOnlinePartyPendingJoinRequestInfo& /*JoinRequestInfo*/);
 PARTY_DECLARE_DELEGATETYPE(OnPartyJoinRequestReceived);
-
-/**
- * Notification when a new reservation request is received
- * @param LocalUserId - id associated with this notification
- * @param PartyId - id associated with the party
- * @param SenderId - id of member that sent the request
- * @param Platform - platform of member that sent the request
- * @param PartyData - data provided by the sender for the leader to use to determine joinability
- */
-DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyJIPRequestReceived), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/);
-UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
-PARTY_DECLARE_DELEGATETYPE(OnPartyJIPRequestReceived);
 
 /**
  * Notification when a player wants to know if the party is in a joinable state
@@ -1235,18 +1153,6 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyRequestToJoinReceived);
  */
 DECLARE_MULTICAST_DELEGATE_FiveParams(F_PREFIX(OnPartyRequestToJoinRemoved), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*RequesterId*/, const IOnlinePartyRequestToJoinInfo& /*Request*/, EPartyRequestToJoinRemovedReason /*Reason*/);
 PARTY_DECLARE_DELEGATETYPE(OnPartyRequestToJoinRemoved);
-
-#define DEFINE_DEPRECATED_PARTY_DELEGATE(DeprecatedDelegateName, DelegateName) \
-	virtual void Clear##DeprecatedDelegateName##Delegate_Handle(FDelegateHandle& Handle) \
-	{ \
-		DelegateName##Delegates.Remove(Handle); \
-		Handle.Reset(); \
-	} \
-	virtual void Clear##DeprecatedDelegateName##Delegates(void* Object) \
-	{ \
-		DelegateName##Delegates.RemoveAll(Object); \
-	}
-
 
 /**
  * Interface definition for the online party services 
@@ -1339,32 +1245,6 @@ public:
 	virtual void ClearRequestToJoinParty(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& Sender, EPartyRequestToJoinRemovedReason Reason) = 0;
 
 	/**
-	* Join an existing game session from within a party
-	*
-	* @param LocalUserId - user making the request
-	* @param OnlinePartyJoinInfo - join information containing data such as party id, leader id
-	* @param Delegate - called on completion
-	*
-	* @return true if task was started
-	*/
-	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
-	virtual bool JIPFromWithinParty(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& PartyLeaderId) { return false; }
-
-	/**
-	 * Query a party to check it's current joinability
-	 * Intended to be used before a call to LeaveParty (to leave your existing party, which would then be followed by JoinParty)
-	 * Note that the party's joinability can change from moment to moment so a successful response for this does not guarantee a successful JoinParty
-	 *
-	 * @param LocalUserId - user making the request
-	 * @param OnlinePartyJoinInfo - join information containing data such as party id, leader id
-	 * @param Delegate - called on completion
-	 */
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress deprecation warning for FOnQueryPartyJoinabilityComplete
-	UE_DEPRECATED(5.1, "Use QueryPartyJoinability with the FOnQueryPartyJoinabilityCompleteEx delegate instead")
-	virtual void QueryPartyJoinability(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& OnlinePartyJoinInfo, const FOnQueryPartyJoinabilityComplete& Delegate);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	/**
 	 * Query a party to check it's current joinability
 	 * Intended to be used before a call to LeaveParty (to leave your existing party, which would then be followed by JoinParty)
 	 * Note that the party's joinability can change from moment to moment so a successful response for this does not guarantee a successful JoinParty
@@ -1425,20 +1305,6 @@ public:
 	* @return true if task was started
 	*/
 	virtual bool ApproveJoinRequest(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RecipientId, bool bIsApproved, int32 DeniedResultCode = 0) = 0;
-
-	/**
-	* Approve a request to join the JIP match a party is in.
-	*
-	* @param LocalUserId - user making the request
-	* @param PartyId - id of an existing party
-	* @param RecipientId - id of the user being invited
-	* @param bIsApproved - whether the join request was approved or not
-	* @param DeniedResultCode - used when bIsApproved is false - client defined value to return when leader denies approval
-	*
-	* @return true if task was started
-	*/
-	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
-	virtual bool ApproveJIPRequest(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RecipientId, bool bIsApproved, int32 DeniedResultCode = 0) { return false; }
 
 	/**
 	 * Respond to a query joinability request.  This reflects the current party's joinability state and can change from moment to moment, and therefore does not guarantee a successful join.
@@ -1814,17 +1680,6 @@ public:
 	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnPartyStateChanged, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, EPartyState /*State*/, EPartyState /*PreviousState*/);
 
 	/**
-	* notification of when a player had been approved to Join In Progress
-	* @param LocalUserId - id associated with this notification
-	* @param PartyId - id associated with the party
-	* @param Success - whether the join in progress action succeeded
-	* @param DeniedResultCode - descriptive reason for a failure to join
-	*/
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnPartyJIPResponse, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, bool /*Success*/, int32 /*DeniedResultCode*/);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	/**
 	 * Notification when player promotion is locked out.
 	 *
 	 * @param PartyId - id associated with the party
@@ -1905,11 +1760,6 @@ public:
 	 * @param Invitation - the invitation that was received
 	 */
 	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnPartyInviteReceivedEx, const FUniqueNetId& /*LocalUserId*/, const IOnlinePartyJoinInfo& /*Invitation*/);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress deprecation warning for FOnPartyInviteReceivedDelegate
-	UE_DEPRECATED(5.1, "Use OnPartyInviteReceivedEx instead of OnPartyInviteReceived")
-	virtual FDelegateHandle AddOnPartyInviteReceivedDelegate_Handle(const FOnPartyInviteReceivedDelegate& Delegate);
-	DEFINE_DEPRECATED_PARTY_DELEGATE(OnPartyInviteReceived, OnPartyInviteReceivedEx);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Notification when an invite has been removed
@@ -1918,11 +1768,6 @@ public:
 	 * @param Reason reason the invitation was removed
 	 */
 	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnPartyInviteRemovedEx, const FUniqueNetId& /*LocalUserId*/, const IOnlinePartyJoinInfo& /*Invitation*/, EPartyInvitationRemovedReason /*Reason*/);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress deprecation warning for FOnPartyInviteRemovedDelegate
-	UE_DEPRECATED(5.1, "Use OnPartyInviteRemovedEx instead of OnPartyInviteRemoved")
-	virtual FDelegateHandle AddOnPartyInviteRemovedDelegate_Handle(const FOnPartyInviteRemovedDelegate& Delegate);
-	DEFINE_DEPRECATED_PARTY_DELEGATE(OnPartyInviteRemoved, OnPartyInviteRemovedEx);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Notification when an invitation response is received
@@ -1941,19 +1786,6 @@ public:
 	 * @param JoinRequestInfo - data about users that are joining
 	 */
 	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnPartyJoinRequestReceived, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const IOnlinePartyPendingJoinRequestInfo& /*JoinRequestInfo*/);
-
-	/**
-	* Notification when a new reservation request is received
-	* Subscriber is expected to call ApproveJoinRequest
-	* @param LocalUserId - id associated with this notification
-	* @param PartyId - id associated with the party
-	* @param SenderId - id of member that sent the request
-	* @param Platform - platform of member that sent the request
-	* @param PartyData - data provided by the sender for the leader to use to determine joinability
-	*/
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnPartyJIPRequestReceived, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Notification when a player wants to know if the party is in a joinable state
