@@ -79,6 +79,9 @@ public:
 		double SimplifyBaseTolerance = 1.0;
 		double SimplifyLODLevelToleranceScale = 2.0;
 
+		double OptimizeBaseTriCost = 0.7;
+		double OptimizeLODLevelTriCostScale = 1.5;
+
 		// LOD level to filter out detail parts
 		int32 FilterDecorativePartsLODLevel = 2;
 	};
