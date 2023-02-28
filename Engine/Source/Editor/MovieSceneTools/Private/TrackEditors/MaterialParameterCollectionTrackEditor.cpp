@@ -9,6 +9,7 @@
 #include "ContentBrowserDelegates.h"
 #include "ContentBrowserModule.h"
 #include "Delegates/Delegate.h"
+#include "Editor/UnrealEdEngine.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -133,11 +134,34 @@ void FMaterialParameterCollectionTrackEditor::BuildTrackContextMenu(FMenuBuilder
 		SubMenuBuilder.AddWidget(CreateAssetPicker(FOnAssetSelected::CreateLambda(AssignAsset), FOnAssetEnterPressed::CreateLambda(AssignAssetEnterPressed), GetSequencer()), FText::GetEmpty(), true);
 	};
 
+	UMaterialParameterCollection* MPC = MPCTrack ? MPCTrack->MPC : nullptr;
+
+	MenuBuilder.AddMenuEntry(
+		FText::Format(LOCTEXT("SelectAssetFormat", "Select {0}"), MPC ? FText::FromString(MPC->GetName()) : FText::GetEmpty()),
+		FText::Format(LOCTEXT("SelectAssetTooltipFormat", "Select {0}"), MPC ? FText::FromString(MPC->GetName()) : FText::GetEmpty()),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FMaterialParameterCollectionTrackEditor::OnSelectMPC, MPC),
+				  FCanExecuteAction::CreateLambda([MPC] { return MPC != nullptr; }))
+	);
+
 	MenuBuilder.AddSubMenu(
 		LOCTEXT("SetAsset", "Set Asset"),
 		LOCTEXT("SetAsset_ToolTip", "Sets the Material Parameter Collection that this track animates."),
 		FNewMenuDelegate::CreateLambda(SubMenuCallback)
 	);
+}
+
+void FMaterialParameterCollectionTrackEditor::OnSelectMPC(UMaterialParameterCollection* MPC)
+{
+	if (!MPC)
+	{
+		return;
+	}
+
+	TArray<UObject*> ObjectsToFocus;
+	ObjectsToFocus.Add(MPC);
+
+	GEditor->SyncBrowserToObjects(ObjectsToFocus);
 }
 
 
