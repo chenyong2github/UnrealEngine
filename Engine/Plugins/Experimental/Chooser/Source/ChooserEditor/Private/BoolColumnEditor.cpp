@@ -6,6 +6,7 @@
 #include "ContextPropertyWidget.h"
 #include "ChooserTableEditor.h"
 #include "ObjectChooserWidgetFactories.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "GraphEditorSettings.h"
 
@@ -17,22 +18,39 @@ namespace UE::ChooserEditor
 TSharedRef<SWidget> CreateBoolColumnWidget(UChooserTable* Chooser, FChooserColumnBase* Column, int Row)
 {
 	FBoolColumn* BoolColumn = static_cast<FBoolColumn*>(Column);
-
-	return SNew (SCheckBox)
-	.OnCheckStateChanged_Lambda([Chooser, BoolColumn,Row](ECheckBoxState State)
-	{
-		if (Row < BoolColumn->RowValues.Num())
-		{
-			const FScopedTransaction Transaction(LOCTEXT("Change Bool Value", "Change Bool Value"));
-			Chooser->Modify(true);
-			BoolColumn->RowValues[Row] = (State == ECheckBoxState::Checked);
-		}
-	})
-	.IsChecked_Lambda([BoolColumn, Row]()
-	{
-		const bool value = (Row < BoolColumn->RowValues.Num()) ? BoolColumn->RowValues[Row] : false;
-		return value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	});
+	
+	return
+	SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().FillWidth(1)
+		+ SHorizontalBox::Slot().MaxWidth(100).HAlign(HAlign_Center)
+		[
+			SNew(SButton).ButtonStyle(FAppStyle::Get(),"FlatButton").HAlign(HAlign_Center)
+    				.Text_Lambda([Row, BoolColumn]()
+    				{
+    					if (!BoolColumn->RowValuesWithAny.IsValidIndex(Row))
+    					{
+    						return FText();
+    					}
+    					switch (BoolColumn->RowValuesWithAny[Row])
+    					{
+							case EBoolColumnCellValue::MatchAny: return LOCTEXT("Any","Any");
+							case EBoolColumnCellValue::MatchTrue: return LOCTEXT("Any","True");
+							case EBoolColumnCellValue::MatchFalse: return LOCTEXT("Any","False");
+    					}
+    					return FText();
+    				})
+    				.OnClicked_Lambda([Chooser, Row, BoolColumn]()
+    				{
+    					if (BoolColumn->RowValuesWithAny.IsValidIndex(Row))
+    					{
+    						const FScopedTransaction Transaction(LOCTEXT("Edit Bool Cell Data", "Edit Bool Cell Data"));
+    						Chooser->Modify(true);
+    						BoolColumn->RowValuesWithAny[Row] = static_cast<EBoolColumnCellValue>((static_cast<int>(BoolColumn->RowValuesWithAny[Row]) + 1) % 3);
+    					}
+    					return FReply::Handled();
+    				})
+    	]
+		+ SHorizontalBox::Slot().FillWidth(1);
 }
 	
 TSharedRef<SWidget> CreateOutputBoolColumnWidget(UChooserTable* Chooser, FChooserColumnBase* Column, int Row)

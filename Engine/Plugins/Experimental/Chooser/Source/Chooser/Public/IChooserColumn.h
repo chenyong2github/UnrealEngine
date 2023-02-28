@@ -38,6 +38,7 @@ public:
 	virtual void SetOutputs(UObject* ContextObject, int RowIndex) const { }
 
 #if WITH_EDITOR
+	virtual FName RowValuesPropertyName() { return FName(); }
 	virtual void SetNumRows(uint32 NumRows) {}
 	virtual void DeleteRows(const TArray<uint32> & RowIndices) {}
 	virtual void MoveRow(int SourceIndex, int TargetIndex) {}
@@ -50,33 +51,33 @@ public:
 };
 
 #if WITH_EDITOR
-#define CHOOSER_COLUMN_BOILERPLATE_NoSetInputType(ParameterType) \
-	virtual void SetNumRows(uint32 NumRows) override { RowValues.SetNum(NumRows); }\
+#define CHOOSER_COLUMN_BOILERPLATE2(ParameterType, RowValuesProperty) \
+	virtual FName RowValuesPropertyName() override { return #RowValuesProperty; }\
+	virtual void SetNumRows(uint32 NumRows) override { RowValuesProperty.SetNum(NumRows); }\
 	virtual void DeleteRows(const TArray<uint32> & RowIndices )\
 	{\
 		for(uint32 Index : RowIndices)\
 		{\
-			RowValues.RemoveAt(Index);\
+			RowValuesProperty.RemoveAt(Index);\
 		}\
 	}\
 	virtual void MoveRow(int SourceRowIndex, int TargetRowIndex)\
 	{\
-		auto RowData = RowValues[SourceRowIndex];\
-    	RowValues.RemoveAt(SourceRowIndex);\
+		auto RowData = RowValuesProperty[SourceRowIndex];\
+    	RowValuesProperty.RemoveAt(SourceRowIndex);\
     	if (SourceRowIndex < TargetRowIndex) { TargetRowIndex--; }\
-    	RowValues.Insert(RowData, TargetRowIndex);\
+    	RowValuesProperty.Insert(RowData, TargetRowIndex);\
 	}\
 	virtual UScriptStruct* GetInputBaseType() const override { return ParameterType::StaticStruct(); };\
 	virtual const UScriptStruct* GetInputType() const override { return InputValue.IsValid() ? InputValue.GetScriptStruct() : nullptr; };\
-	virtual FChooserParameterBase* GetInputValue() override { return InputValue.IsValid() ? &InputValue.GetMutable<FChooserParameterBase>() : nullptr; };
-	
-#define CHOOSER_COLUMN_BOILERPLATE(ParameterType) \
-	CHOOSER_COLUMN_BOILERPLATE_NoSetInputType(ParameterType); \
+	virtual FChooserParameterBase* GetInputValue() override { return InputValue.IsValid() ? &InputValue.GetMutable<FChooserParameterBase>() : nullptr; };\
 	virtual void SetInputType(const UScriptStruct* Type) override { InputValue.InitializeAs(Type); };
+
+#define CHOOSER_COLUMN_BOILERPLATE(ParameterType) CHOOSER_COLUMN_BOILERPLATE2(ParameterType, RowValues)
 
 #else
 
+#define CHOOSER_COLUMN_BOILERPLATE2(ParameterType, RowValuesProperty)
 #define CHOOSER_COLUMN_BOILERPLATE(ParameterType)
-#define CHOOSER_COLUMN_BOILERPLATE_NoSetInputType(ParameterType)
 
 #endif

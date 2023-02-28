@@ -105,14 +105,9 @@ public:
 
 	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
 	
-	CHOOSER_COLUMN_BOILERPLATE_NoSetInputType(FChooserParameterEnumBase);
+	CHOOSER_COLUMN_BOILERPLATE(FChooserParameterEnumBase);
 
 #if WITH_EDITOR
-	virtual void SetInputType(const UScriptStruct* Type) override
-	{
-		InputValue.InitializeAs(Type);
-	};
-
 	virtual void PostLoad() override
 	{
 		Super::PostLoad();

@@ -51,9 +51,10 @@ void FBoolColumn::Filter(const UObject* ContextObject, const TArray<uint32>& Ind
 		
 		for (uint32 Index : IndexListIn)
 		{
-			if (RowValues.Num() > (int)Index)
+			if (RowValuesWithAny.Num() > (int)Index)
 			{
-				if (Result == RowValues[Index])
+				
+				if (RowValuesWithAny[Index] == EBoolColumnCellValue::MatchAny || Result == static_cast<bool>(RowValuesWithAny[Index]))
 				{
 					IndexListOut.Push(Index);
 				}

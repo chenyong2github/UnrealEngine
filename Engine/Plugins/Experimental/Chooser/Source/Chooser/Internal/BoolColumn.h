@@ -8,6 +8,14 @@
 #include "InstancedStruct.h"
 #include "BoolColumn.generated.h"
 
+UENUM()
+enum class EBoolColumnCellValue
+{
+	MatchFalse = 0,
+	MatchTrue = 1,
+	MatchAny = 2,
+};
+
 USTRUCT(DisplayName = "Bool Property Binding")
 struct CHOOSER_API FBoolContextProperty :  public FChooserParameterBoolBase
 {
@@ -65,21 +73,39 @@ struct CHOOSER_API FBoolColumn : public FChooserColumnBase
 	
 	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterBoolBase"), Category = "Data")
 	FInstancedStruct InputValue;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<bool> RowValues_DEPRECATED;
+#endif
 	
 	UPROPERTY(EditAnywhere, Category= "Data");
-	TArray<bool> RowValues; 
+	TArray<EBoolColumnCellValue> RowValuesWithAny; 
 	
 	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
 
 	virtual void PostLoad() override
 	{
+#if WITH_EDITORONLY_DATA
+		if (RowValues_DEPRECATED.Num() > 0)
+		{
+			RowValuesWithAny.SetNum(0,false);
+			RowValuesWithAny.Reserve(RowValues_DEPRECATED.Num());
+			for(bool Value : RowValues_DEPRECATED)
+			{
+				RowValuesWithAny.Add(Value ? EBoolColumnCellValue::MatchTrue : EBoolColumnCellValue::MatchFalse);
+			}
+			RowValues_DEPRECATED.SetNum(0);
+		}
+#endif
+		
 		if (InputValue.IsValid())
 		{
 			InputValue.GetMutable<FChooserParameterBase>().PostLoad();
 		}
 	}
 
-	CHOOSER_COLUMN_BOILERPLATE(FChooserParameterBoolBase);
+	CHOOSER_COLUMN_BOILERPLATE2(FChooserParameterBoolBase, RowValuesWithAny);
 };
 
 // deprecated class versions for converting old data
@@ -127,6 +153,12 @@ public:
 		{
 			InputValueInterface->ConvertToInstancedStruct(Column.InputValue);
 		}
-		Column.RowValues = RowValues;
+
+		Column.RowValuesWithAny.SetNum(0,false);
+		Column.RowValuesWithAny.Reserve(RowValues.Num());
+		for(bool Value : RowValues)
+		{
+			Column.RowValuesWithAny.Add(Value ? EBoolColumnCellValue::MatchTrue : EBoolColumnCellValue::MatchFalse);
+		}
 	}
 };

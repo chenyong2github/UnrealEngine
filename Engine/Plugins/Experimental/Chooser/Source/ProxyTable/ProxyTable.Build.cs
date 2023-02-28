@@ -9,6 +9,7 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"Chooser"
 					// ... add other public dependencies that you statically link with here ...
 				}
 			);
@@ -19,7 +20,6 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"Chooser",
 					"StructUtils"
 					// ... add private dependencies that you statically link with here ...
 				}
