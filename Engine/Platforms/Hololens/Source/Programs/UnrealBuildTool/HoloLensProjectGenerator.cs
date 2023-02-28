@@ -88,7 +88,7 @@ namespace UnrealBuildTool
 			if (PlatformWinMDLocation == null || !FileReference.Exists(FileReference.Combine(PlatformWinMDLocation, "platform.winmd")))
 			{
 				// Try Preview if Latest is not found
-				PlatformWinMDLocation = HoloLensPlatform.GetCppCXMetadataLocation(Compiler, "Preview", UnrealArch.x64, Logger);
+				PlatformWinMDLocation = HoloLensPlatform.GetCppCXMetadataLocation(Compiler, "Preview", UnrealArch.X64, Logger);
 				if (PlatformWinMDLocation == null || !FileReference.Exists(FileReference.Combine(PlatformWinMDLocation, "platform.winmd")))
 				{
 					Logger.LogWarning("Unable to find platform.winmd for {ToolChain} toolchain", WindowsPlatform.GetCompilerName(Compiler));
