@@ -114,4 +114,45 @@ TArray<FIoHash> FindVirtualizedPayloads(const TArray<FString>& PackagePaths)
 	return AllPayloads.Array();
 }
 
+void FindVirtualizedPayloadsAndTrailers(const TArray<FString>& PackagePaths, TMap<FString, UE::FPackageTrailer>& OutPackages, TSet<FIoHash>& OutPayloads)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FindVirtualizedPayloadsAndTrailers);
+
+	struct FTaskContext
+	{
+		TMap<FString, UE::FPackageTrailer> Packages;
+		TSet<FIoHash> Payloads;
+	};
+
+	TArray<FTaskContext> TaskContext;
+
+	ParallelForWithTaskContext(TaskContext, PackagePaths.Num(),
+		[&PackagePaths](FTaskContext& Context, int32 Index)
+		{
+			const FString& PackageName = PackagePaths[Index];
+
+	UE::FPackageTrailer Trailer;
+	if (UE::FPackageTrailer::TryLoadFromFile(PackageName, Trailer))
+	{
+		const TArray<FIoHash> VirtualizedPayloads = Trailer.GetPayloads(UE::EPayloadStorageType::Virtualized);
+		if (!VirtualizedPayloads.IsEmpty())
+		{
+			Context.Packages.Emplace(PackageName, MoveTemp(Trailer));
+			Context.Payloads.Append(VirtualizedPayloads);
+		}
+	}
+		});
+
+	for (const FTaskContext& Context : TaskContext)
+	{
+		OutPackages.Append(Context.Packages);
+		OutPayloads.Append(Context.Payloads);
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CompactStable);
+		OutPayloads.CompactStable();
+	}
+}
+
 } //namespace UE::Virtualization

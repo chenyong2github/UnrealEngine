@@ -6,6 +6,8 @@
 #include "Containers/UnrealString.h"
 #include "IO/IoHash.h"
 
+namespace UE { class FPackageTrailer; }
+
 namespace UE::Virtualization
 {
 
@@ -30,5 +32,16 @@ TArray<FString> DiscoverPackages(const FString& CmdlineParams);
 
 /** Returns a combined list of unique virtualized payload ids from the given list of packages */
 TArray<FIoHash> FindVirtualizedPayloads(const TArray<FString>& PackageNames);
+
+/** 
+ * Load and parse the package trailers for the given packages. We return a map of all of the packages that contain
+ * virtualized payloads and a unique set of all the virtualized payloads referenced. Note that packages can reference
+ * the same payload if they re-use assets.
+ * 
+ * @param PackagePaths	A list of packages to check
+ * @param OutPackages	A map of package paths to package trailers
+ * @param OutPayloads	A unique set of all the virtualized payloads referenced by the packages
+ */
+void FindVirtualizedPayloadsAndTrailers(const TArray<FString>& PackagePaths, TMap<FString, UE::FPackageTrailer>& OutPackages, TSet<FIoHash>& OutPayloads);
 
 } //namespace UE::Virtualization

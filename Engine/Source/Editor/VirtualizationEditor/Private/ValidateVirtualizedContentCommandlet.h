@@ -8,26 +8,15 @@
 #include "ValidateVirtualizedContentCommandlet.generated.h"
 
 /**
- * Used to validate that content does not contain virtualized payloads. The current 
- * cmdline options are:
- * -CheckEngine
- *     Checks all packages currently mounted in the engine
- * -CheckProject
- *     Checks all packages currently mounted in the current project
- * -CheckDir=XYZ (XYZ is the path to the directory, use '+' as the delimiter if supplying
- * more than one path)
- *     Checks packages in the given directory and all subdirectories
- * any or all of which can be passed to the commandlet.
+ * Iterates over all of the packages in a project and identifies which packages contain
+ * references to virtualized payloads. The commandlet will then check that all virtualized
+ * payloads can be found in persistent storage. Error messages will be logged for
+ * packages that contain virtualized payloads that cannot be found in one or more persistent
+ * storage backend.
  * 
- * If virtualized payloads are found then the package path (or file path if CheckDir 
- * indicates a directory that is not currently mounted by the porject) is logged 
- * as an error and the commandlet will eventually return 1 as a failure value.
- *
- * Because the commmandlet is the VirtualizationEditor module it needs to be invoked
+ * Because the commandlet is the VirtualizationEditor module it needs to be invoked
  * with the command line:
  * -run=VirtualizationEditor.ValidateVirtualizedContent
- * 
- * Followed by
  */
 UCLASS()
 class UValidateVirtualizedContentCommandlet
@@ -40,12 +29,4 @@ class UValidateVirtualizedContentCommandlet
 	//~ End UCommandlet Interface
 
 	static int32 StaticMain(const FString& Params);
-
-private:
-
-	TArray<FString> FindVirtualizedPackages(const TArray<FString>& PackagePaths);
-
-	bool TryValidateContent(const TCHAR* DebugName, const TArray<FString>& Packages);
-	bool TryValidateDirectory(const FString& Directory);
-
 };
