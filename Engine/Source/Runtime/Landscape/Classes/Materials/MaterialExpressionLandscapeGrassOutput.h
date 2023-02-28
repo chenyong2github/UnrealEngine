@@ -42,6 +42,9 @@ class LANDSCAPE_API UMaterialExpressionLandscapeGrassOutput : public UMaterialEx
 {
 	GENERATED_UCLASS_BODY()
 
+	// Maximum number of supported grass types on a given landscape material. Whenever adjusting this, make sure to update LandscapeGrassWeight.usf accordingly:
+	static constexpr int32 MaxGrassTypes = 32;
+
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
@@ -60,6 +63,7 @@ class LANDSCAPE_API UMaterialExpressionLandscapeGrassOutput : public UMaterialEx
 #endif
 
 	virtual int32 GetNumOutputs() const override { return GrassTypes.Num(); }
+	virtual int32 GetMaxOutputs() const { return MaxGrassTypes; };
 	virtual FString GetFunctionName() const override { return TEXT("GetGrassWeight"); }
 
 	UPROPERTY(EditAnywhere, Category = UMaterialExpressionLandscapeGrassOutput)

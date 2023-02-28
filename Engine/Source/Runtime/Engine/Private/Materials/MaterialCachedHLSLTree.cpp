@@ -185,6 +185,9 @@ void FMaterialCachedHLSLTree::EmitSharedCode(FStringBuilderBase& OutCode) const
 		const FString OutputName = CustomOutput->GetFunctionName();
 		const EShaderFrequency ShaderFrequency = CustomOutput->GetShaderFrequency();
 
+		// TODO [jonathan.bard] : Add support for UMaterialExpressionCustomOutput::GetMaxOutputs and UMaterialExpressionCustomOutput::AllowMultipleCustomOutputs, these should generate compilation errors. 
+		//  Not sure how errors are reported by FMaterialCachedHLSLTree ATM...
+
 		if (CustomOutput->NeedsCustomOutputDefines())
 		{
 			OutCode.Appendf(TEXT("#define NUM_MATERIAL_OUTPUTS_%s %d\n"), *OutputName.ToUpper(), NumOutputs);

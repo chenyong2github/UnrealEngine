@@ -17,6 +17,8 @@ class UMaterialExpressionCustomOutput : public UMaterialExpression
 
 	// Override to enable multiple outputs
 	virtual int32 GetNumOutputs() const { return 1; };
+	// Override to limit the maximum number of outputs
+	virtual int32 GetMaxOutputs() const { return -1; };
 	virtual FString GetFunctionName() const PURE_VIRTUAL(UMaterialExpressionCustomOutput::GetFunctionName, return TEXT("GetCustomOutput"););
 	virtual FString GetDisplayName() const { return GetFunctionName(); }
 

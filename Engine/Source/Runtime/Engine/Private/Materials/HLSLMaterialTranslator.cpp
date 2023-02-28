@@ -562,31 +562,39 @@ void FHLSLMaterialTranslator::CompileCustomOutputs(TArray<UMaterialExpressionCus
 		else
 		{
 			SeenCustomOutputExpressionsClasses.Add(CustomOutput->GetClass());
+
+			int32 MaxOutputs = CustomOutput->GetMaxOutputs();
 			int32 NumOutputs = CustomOutput->GetNumOutputs();
-
-			if (CustomOutput->NeedsCustomOutputDefines())
+			if (NumOutputs > MaxOutputs)
 			{
-				ResourcesString += FString::Printf(TEXT("#define NUM_MATERIAL_OUTPUTS_%s %d\r\n"), *CustomOutput->GetFunctionName().ToUpper(), NumOutputs);
+				Errorf(TEXT("The material can only contain up to %i output %s nodes (current number: %i)"), MaxOutputs, *CustomOutput->GetDescription(), NumOutputs);
 			}
-
-			if (NumOutputs > 0)
+			else
 			{
-				EShaderFrequency CustomOutputShaderFrequency = CustomOutput->GetShaderFrequency();
-				for (int32 Index = 0; Index < NumOutputs; Index++)
+				if (CustomOutput->NeedsCustomOutputDefines())
 				{
-					{
-						ClearFunctionStack(CustomOutputShaderFrequency);
-						FunctionStacks[CustomOutputShaderFrequency].Add(new FMaterialFunctionCompileState(nullptr));
-					}
-					MaterialProperty = MP_MAX; // Indicates we're not compiling any material property.
-					ShaderFrequency = CustomOutputShaderFrequency;
-					TArray<FShaderCodeChunk> CustomExpressionChunks;
-					AssignTempScope(CustomExpressionChunks);
-					CustomOutput->Compile(this, Index);
+					ResourcesString += FString::Printf(TEXT("#define NUM_MATERIAL_OUTPUTS_%s %d\r\n"), *CustomOutput->GetFunctionName().ToUpper(), NumOutputs);
 				}
 
-				ClearFunctionStack(CustomOutputShaderFrequency);
-				FunctionStacks[CustomOutputShaderFrequency].Add(new FMaterialFunctionCompileState(nullptr));
+				if (NumOutputs > 0)
+				{
+					EShaderFrequency CustomOutputShaderFrequency = CustomOutput->GetShaderFrequency();
+					for (int32 Index = 0; Index < NumOutputs; Index++)
+					{
+						{
+							ClearFunctionStack(CustomOutputShaderFrequency);
+							FunctionStacks[CustomOutputShaderFrequency].Add(new FMaterialFunctionCompileState(nullptr));
+						}
+						MaterialProperty = MP_MAX; // Indicates we're not compiling any material property.
+						ShaderFrequency = CustomOutputShaderFrequency;
+						TArray<FShaderCodeChunk> CustomExpressionChunks;
+						AssignTempScope(CustomExpressionChunks);
+						CustomOutput->Compile(this, Index);
+					}
+
+					ClearFunctionStack(CustomOutputShaderFrequency);
+					FunctionStacks[CustomOutputShaderFrequency].Add(new FMaterialFunctionCompileState(nullptr));
+				}
 			}
 		}
 	}
