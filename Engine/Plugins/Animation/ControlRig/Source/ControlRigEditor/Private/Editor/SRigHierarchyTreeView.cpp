@@ -277,12 +277,12 @@ void SRigHierarchyTreeView::Tick(const FGeometry& AllottedGeometry, const double
 			}
 			else
 			{
-				const TSharedPtr<FRigTreeElement> Item = FindItemAtPosition(MousePosition);
-				if(Item.IsValid())
+				const TSharedPtr<FRigTreeElement>* Item = FindItemAtPosition(MousePosition);
+				if(Item && Item->IsValid())
 				{
-					if(!IsItemExpanded(Item))
+					if(!IsItemExpanded(*Item))
 					{
-						SetItemExpansion(Item, true);
+						SetItemExpansion(*Item, true);
 					}
 				}
 			}
@@ -747,6 +747,33 @@ TArray<FRigElementKey> SRigHierarchyTreeView::GetSelectedKeys() const
 		Keys.Add(SelectedElement->Key);
 	}
 	return Keys;
+}
+
+const TSharedPtr<FRigTreeElement>* SRigHierarchyTreeView::FindItemAtPosition(FVector2D InScreenSpacePosition) const
+{
+	if (ItemsPanel.IsValid() && HasValidItemsSource())
+	{
+		FArrangedChildren ArrangedChildren(EVisibility::Visible);
+		const int32 Index = FindChildUnderPosition(ArrangedChildren, InScreenSpacePosition);
+		if (ArrangedChildren.IsValidIndex(Index))
+		{
+			TSharedRef<SRigHierarchyItem> ItemWidget = StaticCastSharedRef<SRigHierarchyItem>(ArrangedChildren[Index].Widget);
+			if (ItemWidget->WeakRigTreeElement.IsValid())
+			{
+				const FRigElementKey Key = ItemWidget->WeakRigTreeElement.Pin()->Key;
+				const TSharedPtr<FRigTreeElement>* ResultPtr = GetItems().FindByPredicate([Key](const TSharedPtr<FRigTreeElement>& Item) -> bool
+					{
+						return Item->Key == Key;
+					});
+
+				if (ResultPtr)
+				{
+					return ResultPtr;
+				}
+			}
+		}
+	}
+	return nullptr;
 }
 
 bool SRigHierarchyItem::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage)

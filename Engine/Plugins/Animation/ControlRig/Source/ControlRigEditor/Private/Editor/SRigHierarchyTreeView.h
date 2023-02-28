@@ -284,6 +284,9 @@ public:
 	const TArray<TSharedPtr<FRigTreeElement>>& GetRootElements() const { return RootElements; }
 	FRigTreeDelegates& GetRigTreeDelegates() { return Delegates; }
 
+	/** Given a position, return the item under that position. If nothing is there, return null. */
+	const TSharedPtr<FRigTreeElement>* FindItemAtPosition(FVector2D InScreenSpacePosition) const;
+
 private:
 
 	/** A temporary snapshot of the SparseItemInfos in STreeView, used during RefreshTreeView() */
