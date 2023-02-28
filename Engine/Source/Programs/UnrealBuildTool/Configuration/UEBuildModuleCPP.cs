@@ -463,7 +463,7 @@ namespace UnrealBuildTool
 			List<FileItem> CPPFiles = new List<FileItem>(InputFiles.CPPFiles);
 			List<FileItem> GeneratedFileItems = new List<FileItem>();
 			CppCompileEnvironment GeneratedCPPCompileEnvironment = CompileEnvironment;
-			bool bMergeUnityFiles = Target.bMergeModuleAndGeneratedUnityFiles && Rules.bMergeUnityFiles;
+			bool bMergeUnityFiles = !(Target.DisableMergingModuleAndGeneratedFilesInUnityFiles?.Contains(Name) ?? false) && Rules.bMergeUnityFiles;
 
 			// Compile all the generated CPP files
 			if (GeneratedCppDirectories != null && !CompileEnvironment.bHackHeaderGenerator)

@@ -1408,11 +1408,10 @@ namespace UnrealBuildTool
 		public bool bForceUnityBuild = false;
 
 		/// <summary>
-		/// Whether to merge module and generated unity files for faster compilation.
+		/// List of modules that disables merging module and generated cpp files in the same unity files.
 		/// </summary>
-		[CommandLine("-DisableMergingUnityFiles", Value = "false")]
-		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bMergeModuleAndGeneratedUnityFiles = true;
+		[XmlConfigFile(Category = "ModuleConfiguration", Name = "DisableMergingModuleAndGeneratedFilesInUnityFiles")]
+		public string[]? DisableMergingModuleAndGeneratedFilesInUnityFiles = null;
 
 		/// <summary>
 		/// Use a heuristic to determine which files are currently being iterated on and exclude them from unity blobs, result in faster
@@ -3325,10 +3324,11 @@ namespace UnrealBuildTool
 			get { return Inner.bForceUnityBuild; }
 		}
 
-		public bool bMergeModuleAndGeneratedUnityFiles
+		public IReadOnlyList<string>? DisableMergingModuleAndGeneratedFilesInUnityFiles
 		{
-			get { return Inner.bMergeModuleAndGeneratedUnityFiles; }
+			get { return Inner.DisableMergingModuleAndGeneratedFilesInUnityFiles; }
 		}
+
 		public bool bAdaptiveUnityDisablesOptimizations
 		{
 			get { return Inner.bAdaptiveUnityDisablesOptimizations; }
