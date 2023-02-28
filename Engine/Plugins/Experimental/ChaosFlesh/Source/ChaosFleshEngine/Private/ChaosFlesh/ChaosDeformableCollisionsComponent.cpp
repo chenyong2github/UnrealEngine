@@ -64,7 +64,7 @@ template<> class Chaos::TSphere<float, 3>;
 
 UDeformableCollisionsComponent::FDataMapValue 
 UDeformableCollisionsComponent::NewDeformableData()
-{ 
+{
 	TArray < Chaos::Softs::FCollisionObjectAddedBodies> AddedBodiesData;
 	TArray < Chaos::Softs::FCollisionObjectRemovedBodies> RemovedBodiesData;
 	TArray < Chaos::Softs::FCollisionObjectUpdatedBodies> UpdateBodiesData;
@@ -83,23 +83,34 @@ UDeformableCollisionsComponent::NewDeformableData()
 					FVector Scale = P.GetScale3D();
 					P.RemoveScaling();
 
-					if (BodySetup->AggGeom.SphereElems.Num())
+					for( int8 Index = 0; Index < BodySetup->AggGeom.SphereElems.Num(); Index++)
 					{
-						FKSphereElem& S = BodySetup->AggGeom.SphereElems[0];
-						Geometry = new ::Chaos::TSphere<Chaos::FReal, 3>(S.Center, S.Radius * Scale.GetMax());
+						FKSphereElem& S = BodySetup->AggGeom.SphereElems[Index];
+						FTransform ShapeTransform = FTransform(Scale * S.Center) * P;
+						Geometry = new ::Chaos::TSphere<Chaos::FReal, 3>(FVector(0), S.Radius * Scale.GetMax());
+						AddedBodiesData.Add(Chaos::Softs::FCollisionObjectAddedBodies(
+							{ CollisionBody, Chaos::Softs::ERigidCollisionShapeType::Sphere, Index },
+							ShapeTransform, "", Geometry));
 					}
-					else if (BodySetup->AggGeom.BoxElems.Num())
+
+					for (int8 Index = 0; Index < BodySetup->AggGeom.BoxElems.Num(); Index++)
 					{
-						FKBoxElem& B = BodySetup->AggGeom.BoxElems[0];
+						FKBoxElem& B = BodySetup->AggGeom.BoxElems[Index];
+						FTransform ShapeTransform = FTransform(Scale * B.Center) * P;
 						Geometry = new TBox<Chaos::FReal, 3>(
-							B.Center - 0.5 * Scale * FVector(B.X, B.Y, B.Z),
-							B.Center + 0.5 * Scale * FVector(B.X, B.Y, B.Z));
+							-0.5 * Scale * FVector(B.X, B.Y, B.Z),
+							0.5 * Scale * FVector(B.X, B.Y, B.Z));
+						AddedBodiesData.Add(Chaos::Softs::FCollisionObjectAddedBodies(
+							{ CollisionBody, Chaos::Softs::ERigidCollisionShapeType::Box, Index },
+							ShapeTransform, "", Geometry));
 					}
-					else if (BodySetup->AggGeom.ConvexElems.Num())
+
+					for (int8 Index = 0; Index < BodySetup->AggGeom.ConvexElems.Num(); Index++)
 					{
-						FKConvexElem& C = BodySetup->AggGeom.ConvexElems[0];
+						FKConvexElem& C = BodySetup->AggGeom.ConvexElems[Index];
 						if (C.VertexData.Num())
 						{
+							FTransform ShapeTransform = C.GetTransform() * P;
 							TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe> ConvexMesh = C.GetChaosConvexMesh();	
 							TArray<FConvex::FVec3Type> Vertices;
 							Vertices.SetNum(C.VertexData.Num());
@@ -108,16 +119,10 @@ UDeformableCollisionsComponent::NewDeformableData()
 								Vertices[i] = C.VertexData[i] * Scale;
 							}
 							Geometry = new FConvex(Vertices, 0.f);
+							AddedBodiesData.Add(Chaos::Softs::FCollisionObjectAddedBodies(
+								{ CollisionBody, Chaos::Softs::ERigidCollisionShapeType::Convex, Index},
+								ShapeTransform, "", Geometry));
 						}
-					}
-					//else if (BodySetup->ChaosTriMeshes.Num())
-					//{
-					//	TArray<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> ChaosTriMeshes;
-					//	Geometry = BodySetup->ChaosTriMeshes[0]->CopySlow().Release();
-					//}
-					if (Geometry)
-					{
-						AddedBodiesData.Add(Chaos::Softs::FCollisionObjectAddedBodies(CollisionBody, P, "", Geometry));
 					}
 				}
 			}
@@ -129,7 +134,7 @@ UDeformableCollisionsComponent::NewDeformableData()
 	{
 		if (RemovedBody)
 		{
-			RemovedBodiesData.Add({ RemovedBody });
+			RemovedBodiesData.Add({  {RemovedBody, Chaos::Softs::ERigidCollisionShapeType::Unknown, INDEX_NONE} });
 		}
 	}
 	AddedBodies.Empty();
@@ -140,7 +145,7 @@ UDeformableCollisionsComponent::NewDeformableData()
 		if (CollisionBody)
 		{
 			FTransform P = CollisionBody->GetComponentToWorld();
-			UpdateBodiesData.Add({ CollisionBody,P });
+			UpdateBodiesData.Add({ {CollisionBody, Chaos::Softs::ERigidCollisionShapeType::Unknown, INDEX_NONE},P });
 		}
 	}
 

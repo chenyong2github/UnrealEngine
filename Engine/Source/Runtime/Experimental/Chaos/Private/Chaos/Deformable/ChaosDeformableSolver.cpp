@@ -499,24 +499,38 @@ namespace Chaos::Softs
 					{
 						if (AddBody.Shapes)
 						{
-							typedef TPlane<Chaos::Softs::FSolverReal, 3> GeomType;
-							int32 Index = Evolution->AddCollisionParticle(INDEX_NONE, true);
-							int32 ViewIndex = Evolution->CollisionParticlesActiveView().GetRanges().Num()-1;
-							Evolution->CollisionParticles().X(Index) = AddBody.Transform.GetTranslation();
-							Evolution->CollisionParticles().R(Index) = AddBody.Transform.GetRotation();
-							TUniquePtr<FImplicitObject> UniquePtr(AddBody.Shapes); AddBody.Shapes = nullptr;
-							Evolution->CollisionParticles().SetDynamicGeometry(Index, MoveTemp(UniquePtr));
-							Proxy.CollisionBodies.Add(AddBody.BodyId, FCollisionObjectParticleHandel( Index,ViewIndex,AddBody.Transform ));
+							if (ensure(!Proxy.CollisionBodies.Contains(AddBody.Key)))
+							{
+								int32 Index = Evolution->AddCollisionParticle(INDEX_NONE, true);
+								int32 ViewIndex = Evolution->CollisionParticlesActiveView().GetRanges().Num() - 1;
+								Evolution->CollisionParticles().X(Index) = AddBody.Transform.GetTranslation();
+								Evolution->CollisionParticles().R(Index) = AddBody.Transform.GetRotation();
+								TUniquePtr<FImplicitObject> UniquePtr(AddBody.Shapes); AddBody.Shapes = nullptr;
+								Evolution->CollisionParticles().SetDynamicGeometry(Index, MoveTemp(UniquePtr));
+								Proxy.CollisionBodies.Add(AddBody.Key, FCollisionObjectParticleHandel(Index, ViewIndex, AddBody.Transform));
+							}
 						}
 					}
+
+					TArray<FCollisionObjectKey> KeysToRemove;
 					for (auto& RemovedBody : CollisionsInputBuffer->Removed)
 					{
-						if (Proxy.CollisionBodies.Contains(RemovedBody.BodyId))
+						for (auto& CollisionBodyPair : Proxy.CollisionBodies)
 						{
-							int32 ParticleIndex = Proxy.CollisionBodies[RemovedBody.BodyId].ParticleIndex;
-							int32 ViewIndex = Proxy.CollisionBodies[RemovedBody.BodyId].ActiveViewIndex;
+							if ((void*)CollisionBodyPair.Key.Get<0>() == (void*)RemovedBody.Key.Get<0>())
+							{
+								KeysToRemove.Add(CollisionBodyPair.Key);
+							}
+						}
+					}
+					for (auto& KeyToRemove : KeysToRemove)
+					{
+						if (ensure(Proxy.CollisionBodies.Contains(KeyToRemove)))
+						{
+							int32 ParticleIndex = Proxy.CollisionBodies[KeyToRemove].ParticleIndex;
+							int32 ViewIndex = Proxy.CollisionBodies[KeyToRemove].ActiveViewIndex;
 							Evolution->RemoveCollisionParticle(ParticleIndex, ViewIndex);
-							Proxy.CollisionBodies.Remove(RemovedBody.BodyId);
+							Proxy.CollisionBodies.Remove(KeyToRemove);
 						}
 					}
 				}

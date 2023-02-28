@@ -7,19 +7,32 @@
 
 namespace Chaos::Softs
 {
+	enum ERigidCollisionShapeType
+	{
+		Sphere,
+		Box,
+		Sphyl,
+		Convex,
+		TaperedCapsule,
+		LevelSet,
+
+		Unknown
+	};
+
+	typedef TTuple< const UObject*, ERigidCollisionShapeType, int8> FCollisionObjectKey;
+
 	struct CHAOS_API FCollisionObjectAddedBodies
 	{
-		FCollisionObjectAddedBodies( const UObject* InBodyId = nullptr,
+		FCollisionObjectAddedBodies( FCollisionObjectKey InKey = FCollisionObjectKey(),
 			FTransform InTransform = FTransform::Identity,
 			FString InType = "",
 			FImplicitObject* InShapes = nullptr)
-			: BodyId(InBodyId)
+			: Key(InKey)
 			, Transform(InTransform)
 			, Type(InType)
 			, Shapes(InShapes) {}
 
-	
-		const UObject* BodyId = nullptr;
+		FCollisionObjectKey Key = FCollisionObjectKey();
 		FTransform Transform = FTransform::Identity;
 		FString Type = "";
 		FImplicitObject* Shapes = nullptr;
@@ -27,12 +40,12 @@ namespace Chaos::Softs
 
 	struct CHAOS_API FCollisionObjectRemovedBodies
 	{
-		const UObject* BodyId = nullptr;
+		FCollisionObjectKey Key = FCollisionObjectKey();
 	};
 
 	struct CHAOS_API FCollisionObjectUpdatedBodies
 	{
-		const UObject* BodyId = nullptr;
+		FCollisionObjectKey Key = FCollisionObjectKey();
 		FTransform Transform = FTransform::Identity;
 	};
 
@@ -87,7 +100,9 @@ namespace Chaos::Softs
 
 		TArray<FCollisionObjectAddedBodies> CollisionObjectsToAdd;
 		TArray< FCollisionObjectRemovedBodies > CollisionObjectsToRemove;
-		TMap<const UObject*, FCollisionObjectParticleHandel > CollisionBodies;
+		TMap< FCollisionObjectKey, FCollisionObjectParticleHandel > CollisionBodies;
 	};
 
 }// namespace Chaos::Softs
+
+
