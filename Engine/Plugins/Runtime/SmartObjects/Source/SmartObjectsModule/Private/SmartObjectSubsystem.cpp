@@ -720,6 +720,15 @@ bool USmartObjectSubsystem::SetEnabled(const FSmartObjectHandle Handle, const bo
 	return true;
 }
 
+bool USmartObjectSubsystem::IsEnabled(const FSmartObjectHandle Handle) const
+{
+	const FSmartObjectRuntime* SmartObjectRuntime = GetRuntimeInstance(Handle);
+	UE_CVLOG_UELOG(SmartObjectRuntime == nullptr, this, LogSmartObject, Log,
+		TEXT("Failed to get the SmartObject enable state for %s. No associated runtime instance found."), *LexToString(Handle));
+	
+	return SmartObjectRuntime && SmartObjectRuntime->bEnabled;
+}
+
 void USmartObjectSubsystem::SetupConditionContextCommonData(FWorldConditionContextData& ContextData, const FSmartObjectRuntime& SmartObjectRuntime) const
 {
 	const USmartObjectWorldConditionSchema* DefaultSchema = GetDefault<USmartObjectWorldConditionSchema>();		

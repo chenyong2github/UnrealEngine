@@ -187,6 +187,13 @@ public:
 	bool SetEnabled(const FSmartObjectHandle Handle, const bool bEnabled);
 
 	/**
+	 * Returns the enabled state of the smart object represented by the provided handle.
+	 * @param Handle Handle to the smart object.
+	 * @return True when associated smart object is found and set to be enabled. False otherwise.
+	 */
+	bool IsEnabled(const FSmartObjectHandle Handle) const;
+
+	/**
 	 * Enables or disables all smart objects associated to the provided actor (multiple components).
 	 * @param SmartObjectActor Smart object(s) parent actor.
 	 * @param bEnabled If true enables, disables otherwise.
@@ -756,6 +763,9 @@ protected:
 
 	/** Returns the runtime instance associated to the provided handle */
 	FSmartObjectRuntime* GetRuntimeInstance(const FSmartObjectHandle SmartObjectHandle) { return RuntimeSmartObjects.Find(SmartObjectHandle); }
+
+	/** Returns the const runtime instance associated to the provided handle */
+	const FSmartObjectRuntime* GetRuntimeInstance(const FSmartObjectHandle SmartObjectHandle) const { return RuntimeSmartObjects.Find(SmartObjectHandle); }
 
 	/**
 	 * Indicates if the handle is set and the slot referred to is still accessible in the simulation.
