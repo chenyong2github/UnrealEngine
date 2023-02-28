@@ -311,7 +311,7 @@ public:
 		Keywords = "set control bus mix modulation modulator generator")
 	)
 	static void UpdateModulator(const UObject* WorldContextObject, USoundModulatorBase* Modulator);
-
+	
 	/** Gets the (normalized) value of the given modulator. 
 	 * @return Value - The current value of the modulator. If the modulator is not active, returns 1.0.
 	 */
@@ -320,7 +320,7 @@ public:
 		Keywords = "modulation generator bus")
 	)
 	static UPARAM(DisplayName = "Value") float GetModulatorValue(const UObject* WorldContextObject, USoundModulatorBase* Modulator);
-
+	
 	/** Gets the list of modulators currently applied to a Modulation Destination.
 	* @param Destination - The Modulation Destination.
 	* @return Modulators - The set of Modulators.
