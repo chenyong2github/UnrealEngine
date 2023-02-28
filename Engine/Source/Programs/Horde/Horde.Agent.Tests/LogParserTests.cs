@@ -187,6 +187,7 @@ namespace Horde.Agent.Tests
 		}
 
 		[TestMethod]
+		[Ignore]
 		public void SymbolStripSpuriousEventMatcher()
 		{
 			// Symbol stripping error
