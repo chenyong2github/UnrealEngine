@@ -1895,24 +1895,29 @@ bool UGeometryCollectionComponent::ProcessRepData(const float DeltaTime, const f
 		FPBDRigidParticleHandle* OneOff = PhysicsProxy->GetParticles()[ActivatedCluster.ActivatedIndex];
 		check(OneOff);
 
-		// If there's a parent cluster particle we need to release them first.
-		// This is generally an indication that something desynced between the client and server though...maybe something needs to be done
-		// to ensure internal clusters stay in sync.
-		if (FPBDRigidClusteredParticleHandle* ClusterParticle = OneOff->CastToClustered(); ClusterParticle && ClusterParticle->Parent())
+		if (FPBDRigidClusteredParticleHandle* ClusterParticle = OneOff->CastToClustered())
 		{
-			RigidClustering.ReleaseClusterParticles(TArray<FPBDRigidParticleHandle*>{ ClusterParticle->Parent() }, true);
-		}
+			// If there's a parent cluster particle we need to release them first.
+			// This is generally an indication that something desynced between the client and server though...maybe something needs to be done
+			// to ensure internal clusters stay in sync.
+			if (FPBDRigidClusteredParticleHandle* ParentParticle = ClusterParticle->Parent())
+			{
+				// server authoritative particles are unbreakable, we need to set them breakable again 
+				ParentParticle->SetUnbreakable(false);
+				RigidClustering.ReleaseClusterParticles(TArray<FPBDRigidParticleHandle*>{ ParentParticle }, true);
+			}
 
-		// Set initial velocities if not hard snapping
-		if (!bHardSnap)
-		{
-			// TODO: we should get an update cluster position first so that when particles break off they get the right position 
-			// TODO: should we invalidate?
-			OneOff->SetV(ActivatedCluster.InitialLinearVelocity);
-			OneOff->SetW(ActivatedCluster.InitialAngularVelocity);
-		}
+			// Set initial velocities if not hard snapping
+			if (!bHardSnap)
+			{
+				// TODO: we should get an update cluster position first so that when particles break off they get the right position 
+				// TODO: should we invalidate?
+				OneOff->SetV(ActivatedCluster.InitialLinearVelocity);
+				OneOff->SetW(ActivatedCluster.InitialAngularVelocity);
+			}
 
-		RigidClustering.ReleaseClusterParticles(TArray<FPBDRigidParticleHandle*>{ OneOff }, true);
+			RigidClustering.ReleaseClusterParticles(TArray<FPBDRigidParticleHandle*>{ ClusterParticle }, true);
+		}
 	}
 
 	// Keep track of whether we did some "work" on this frame so we can turn off the async tick after
@@ -2785,9 +2790,9 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 						if (ParticleHandle)
 						{
 							const int32 Level = EnableAbandonAfterLevel ? ComputeParticleLevel(ParticleHandle) : -1;
-							if (Level <= AbandonAfterLevel + 1)	//we only replicate up until level X, but it means we should replicate the breaking event of level X+1 (but not X+1's positions)
+							if (Level <= AbandonAfterLevel)	//we only replicate up until level X, but it means we should replicate the breaking event of level X+1 (but not X+1's positions)
 							{
-								ParticleHandle->SetMaximumInternalStrain();
+								ParticleHandle->SetUnbreakable(true);
 							}
 						}
 					}

@@ -227,11 +227,10 @@ public:
 	const TArrayCollectionArray<ClusterId>& GetClusterIdsArray() const { return MParticles.ClusterIdsArray(); }
 
 	/*
-	*  GetInternalClusterArray
-	*    The internal cluster array indicates if this cluster was generated internally
-	*    and would no be owned by an external source.
+	*  GetRigidClusteredFlagsArray
+	*    The RigidClusteredFlags array contains various flag related to clustered particles
 	*/
-	const TArrayCollectionArray<bool>& GetInternalClusterArray() const { return MParticles.InternalClusterArray(); }
+	const TArrayCollectionArray<FRigidClusteredFlags>& GetRigidClusteredFlagsArray() const { return MParticles.RigidClusteredFlags(); }
 
 	/*
 	*  GetChildToParentMap

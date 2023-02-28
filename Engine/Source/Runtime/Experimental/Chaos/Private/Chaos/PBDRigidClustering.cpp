@@ -647,6 +647,11 @@ namespace Chaos
 	{	
 		TSet<FPBDRigidParticleHandle*> ActivatedChildren;
 
+		if (ClusteredParticle && ClusteredParticle->Unbreakable())
+		{
+			return ActivatedChildren;
+		}
+
 		if (!ensureMsgf(MChildren.Contains(ClusteredParticle), TEXT("Removing Cluster that does not exist!")))
 		{
 			return ActivatedChildren;
