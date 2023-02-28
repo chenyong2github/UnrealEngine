@@ -44,9 +44,6 @@ void PostProcessSlabBeforeLighting(inout FStrataBSDF BSDF)
 
 void PostProcessBSDFBeforeLighting(inout FStrataBSDF BSDF)
 {
-	// Sanitize BSDF before it is used for forward shading
-	StrataSanitizeBSDF(BSDF);
-
 	switch (BSDF_GETTYPE(BSDF))
 	{
 	case STRATA_BSDF_TYPE_SLAB:
@@ -88,6 +85,9 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 #if USE_DEVELOPMENT_SHADERS
 	Roughness = Settings.bRoughnessTracking ? Roughness : 0.0;
 #endif
+
+	// Sanitize BSDF before it is used for forward shading or exported to GBuffer
+	StrataSanitizeBSDF(CurrentBSDF);
 
 	// Distortion and translucency passes accumnulate pass calls for colored transmittance, coverage and TopDownRefractionLobeStat to be setup correctly.
 #if STRATA_COMPLEXPATH || MATERIALBLENDING_ANY_TRANSLUCENT
