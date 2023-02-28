@@ -692,14 +692,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// If this platform can be compiled with the parallel executor
-		/// </summary>
-		public virtual bool CanUseParallelExecutor()
-		{
-			return CanUseXGE();
-		}
-
-		/// <summary>
 		/// If this platform can be compiled with FASTBuild
 		/// </summary>
 		public virtual bool CanUseFASTBuild()

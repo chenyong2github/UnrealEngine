@@ -107,9 +107,10 @@ namespace UnrealBuildTool
 		/// <param name="Platform">Platform to check</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the platform supports the parallel executor in UAT</returns>
+		[Obsolete]
 		public static bool CanUseParallelExecutor(UnrealTargetPlatform Platform, ILogger Logger)
 		{
-			return UEBuildPlatform.IsPlatformAvailable(Platform) && UEBuildPlatform.GetBuildPlatform(Platform).CanUseParallelExecutor();
+			return true;
 		}
 
 		/// <summary>
