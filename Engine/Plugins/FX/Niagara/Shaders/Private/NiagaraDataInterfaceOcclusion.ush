@@ -127,6 +127,65 @@ void QueryOcclusionFactorWithCircleGPU_{ParameterName}(in float3 In_SampleCenter
 	Out_SampleFraction = Steps == 0 ? 0 : (TotalSamples / (Rays * Steps + 1));
 }
 
+void QueryOcclusionFactorWithCircle_{ParameterName}(float3 WorldPosition, float WorldDiameter, bool bIncludeCenterSample, int NumberOfRings, int SamplesPerRing, out float VisibilityFraction, out float OnScreenFraction, out float DepthPassFraction)
+{
+	const float PI = 3.14159265;
+	const float SPIRAL_TURN = 2.0f * PI * 0.61803399; // use golden ratio to rotate sample pattern each ring so we get a spiral
+
+	const FLWCVector3 LWCWorldPosition = MakeLWCVector3({ParameterName}_SystemLWCTile, WorldPosition);
+	const float SampleDepth = LWCToFloat(LWCAbs(LWCDot(LWCSubtract(LWCWorldPosition, PrimaryView.WorldViewOrigin), View.ViewForward.xyz)));
+
+	const float3 PreViewPosition = LWCToFloat(LWCAdd(LWCWorldPosition, PrimaryView.PreViewTranslation));
+	const float4 ClipPosition = mul(float4(PreViewPosition, 1), PrimaryView.TranslatedWorldToClip);
+	const float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
+	const float2 ScreenUV = (ScreenPosition * float2(0.5f, -0.5f)) + 0.5f;
+
+	int TotalSamples = 0;
+	int UnoccludedSamples = 0;
+	int OnScreenSamples = 0;
+
+	// Take center tap
+	if ( bIncludeCenterSample )
+	{
+		++TotalSamples;
+		if ( all(ScreenUV >= 0.0f) && all(ScreenUV < 1.0f) )
+		{
+			UnoccludedSamples += CalcSceneDepth(ScreenUV) > SampleDepth;
+			++OnScreenSamples;
+		}
+	}
+
+	// Take ring taps
+	if ( NumberOfRings > 0 && SamplesPerRing > 0 )
+	{
+		const float WorldDepth = dot(LWCToFloat(LWCSubtract(LWCWorldPosition, PrimaryView.WorldCameraOrigin)), PrimaryView.ViewForward);
+		const float2 ScreenRadiusUV = (WorldDiameter * 0.5f) / (GetTanHalfFieldOfView() * 2.0f * WorldDepth);
+
+		const float RadStep = 2.0f * PI / float(SamplesPerRing + 1);
+		float Rad = 0.0f;
+		for ( int iRing=0; iRing < NumberOfRings; ++iRing )
+		{
+			const float2 RingRadiusUV = ScreenRadiusUV * (float(iRing + 1) / float(NumberOfRings));
+			Rad += SPIRAL_TURN;
+			for ( int iSample=0; iSample < SamplesPerRing; ++iSample )
+			{
+				const float2 SampleUV = ScreenUV + (RingRadiusUV * float2(sin(Rad), cos(Rad)));
+				if ( all(SampleUV >= 0.0f) && all(SampleUV < 1.0f) )
+				{
+					UnoccludedSamples += CalcSceneDepth(SampleUV) > SampleDepth;
+					++OnScreenSamples;
+				}
+				Rad += RadStep;
+			}
+		}
+		TotalSamples += NumberOfRings * SamplesPerRing;
+	}
+
+	VisibilityFraction = TotalSamples > 0 ? float(UnoccludedSamples) / float(TotalSamples) : 0.0f;
+	OnScreenFraction = TotalSamples > 0 ? float(OnScreenSamples) / float(TotalSamples) : 0.0f;
+	DepthPassFraction = OnScreenSamples > 0 ? float(UnoccludedSamples) / float(OnScreenSamples) : 0.0f;
+}
+
 void QueryCloudOcclusionWithCircle_{ParameterName}(float3 WorldPosition, float WorldDiameter, bool bIncludeCenterSample, int NumberOfRings, int SamplesPerRing, out float VisibilityFraction, out float SampleFraction, out float3 AtmosphereTransmittance)
 {
 	const float PI = 3.14159265;

@@ -16,10 +16,14 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceOcclusion"
 
-const TCHAR* UNiagaraDataInterfaceOcclusion::TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceOcclusion.ush");
-const FName UNiagaraDataInterfaceOcclusion::GetCameraOcclusionRectangleName(TEXT("QueryOcclusionFactorWithRectangleGPU"));
-const FName UNiagaraDataInterfaceOcclusion::GetCameraOcclusionCircleName(TEXT("QueryOcclusionFactorWithCircleGPU"));
-const FName UNiagaraDataInterfaceOcclusion::QueryCloudOcclusionWithCircleName(TEXT("QueryCloudOcclusionWithCircle"));
+namespace NDIOcclusionImpl
+{
+	static const TCHAR*	TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceOcclusion.ush");
+	static const FName	GetCameraOcclusionRectangleName(TEXT("QueryOcclusionFactorWithRectangleGPU"));
+	static const FName	Deprecated_GetCameraOcclusionCircleName(TEXT("QueryOcclusionFactorWithCircleGPU"));
+	static const FName	QueryOcclusionFactorWithCircleName(TEXT("QueryOcclusionFactorWithCircle"));
+	static const FName	QueryCloudOcclusionWithCircleName(TEXT("QueryCloudOcclusionWithCircle"));
+}
 
 struct FNiagaraOcclusionDIFunctionVersion
 {
@@ -53,6 +57,18 @@ void UNiagaraDataInterfaceOcclusion::PostInitProperties()
 
 void UNiagaraDataInterfaceOcclusion::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+	using namespace NDIOcclusionImpl;
+
+	static const FText VisibilityFractionDescription(LOCTEXT("VisibilityFractionDescription", "Returns a value 0..1 depending on how many of the samples on the screen were occluded.\nFor example, a value of 0.3 means that 70% of visible samples were occluded.\nIf the sample fraction is 0 then this also returns 0."));
+	static const FText OnScreenFractionDescription(LOCTEXT("OnScreenFractionDescription", "Returns a valid 0..1 depending on how may of the samples are on screen.\nFor example, a valid of 0.3 means 70% of the samples are off screen and 30% are on screen."));
+	static const FText DepthPassFractionDescription(LOCTEXT("DepthPassFractionDescription", "Returns a value 0..1 depending on how many of the samples passed the depth test.\nFor example, a value of 0.3 means 70% of the depth test samples are closer to the screen.\nNote this fraction only includes on screen samples."));
+	static const FText SampleFractionDescription(LOCTEXT("SampleFractionDescription", "Returns a value 0..1 depending on how many samples were inside the viewport or outside of it.\nFor example, a value of 0.3 means that 70% of samples were outside the current viewport and therefore not visible."));
+	static const FText CircleCenterPosDescription(LOCTEXT("CircleCenterPosDescription", "This world space position where the center of the sample circle should be."));
+	static const FText SampleWindowDiameterDescription(LOCTEXT("SampleWindowDiameterDescription", "The world space diameter of the circle to sample.\nIf the particle is a spherical sprite then this is the sprite size."));
+	static const FText SamplesPerRingDescription(LOCTEXT("SamplesPerRingDescription", "The number of samples for each ring inside the circle.\nThe total number of samples is NumRings * SamplesPerRing."));
+	static const FText NumberOfSampleRingsDescription(LOCTEXT("NumberOfSampleRingsDescription", "This number of concentric rings to sample inside the circle.\nThe total number of samples is NumRings * SamplesPerRing."));
+	static const FText IncludeCenterSampleDescription(LOCTEXT("IncludeCenterSampleDescription", "When enabled we sample the center of the circle in addition to the rings."));
+
 	FNiagaraFunctionSignature DefaultSig;
 	DefaultSig.bMemberFunction = true;
 	DefaultSig.bRequiresContext = false;
@@ -60,13 +76,6 @@ void UNiagaraDataInterfaceOcclusion::GetFunctions(TArray<FNiagaraFunctionSignatu
 	DefaultSig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Occlusion interface")));
 	DefaultSig.SetFunctionVersion(FNiagaraOcclusionDIFunctionVersion::LatestVersion);
 
-	static const FText VisibilityFractionDescription(LOCTEXT("VisibilityFractionDescription", "Returns a value 0..1 depending on how many of the samples on the screen were occluded.\nFor example, a value of 0.3 means that 70% of visible samples were occluded.\nIf the sample fraction is 0 then this also returns 0."));
-	static const FText SampleFractionDescription(LOCTEXT("SampleFractionDescription", "Returns a value 0..1 depending on how many samples were inside the viewport or outside of it.\nFor example, a value of 0.3 means that 70% of samples were outside the current viewport and therefore not visible."));
-	static const FText CircleCenterPosDescription(LOCTEXT("CircleCenterPosDescription", "This world space position where the center of the sample circle should be."));
-	static const FText SampleWindowDiameterDescription(LOCTEXT("SampleWindowDiameterDescription", "The world space diameter of the circle to sample.\nIf the particle is a spherical sprite then this is the sprite size."));
-	static const FText SamplesPerRingDescription(LOCTEXT("SamplesPerRingDescription", "The number of samples for each ring inside the circle.\nThe total number of samples is NumRings * SamplesPerRing."));
-	static const FText NumberOfSampleRingsDescription(LOCTEXT("NumberOfSampleRingsDescription", "This number of concentric rings to sample inside the circle.\nThe total number of samples is NumRings * SamplesPerRing."));
-	static const FText IncludeCenterSampleDescription(LOCTEXT("IncludeCenterSampleDescription", "When enabled we sample the center of the circle in addition to the rings."));
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = GetCameraOcclusionRectangleName;
@@ -81,14 +90,37 @@ void UNiagaraDataInterfaceOcclusion::GetFunctions(TArray<FNiagaraFunctionSignatu
 
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
-		Sig.Name = GetCameraOcclusionCircleName;
-		Sig.SetDescription(LOCTEXT("GetCameraOcclusionCircleFunctionDescription", "This function returns the occlusion factor of a sprite. It samples the depth buffer in concentric rings around the given world position and compares each sample with the camera distance."));
+		Sig.Name = Deprecated_GetCameraOcclusionCircleName;
+		Sig.bSoftDeprecatedFunction = true;
 		Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Sample Center World Position")), CircleCenterPosDescription);
 		Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Sample Window Diameter World")), SampleWindowDiameterDescription);
 		Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Samples per ring")), SamplesPerRingDescription);
 		Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Number of sample rings")), NumberOfSampleRingsDescription);
 		Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Visibility Fraction")), VisibilityFractionDescription);
 		Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Sample Fraction")), SampleFractionDescription);
+	}
+
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
+		Sig.Name = QueryOcclusionFactorWithCircleName;
+		Sig.SetDescription(LOCTEXT("QueryCloudOcclusionWithCircleDescription", "Returns the cloud occlusion factor for the world position. "));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetPositionDef(), TEXT("WorldPosition"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("WorldDiameter"));
+		Sig.Inputs.Emplace_GetRef(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IncludeCenterSample")).SetValue(true);
+		Sig.Inputs.Emplace_GetRef(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumberOfRings")).SetValue(1);
+		Sig.Inputs.Emplace_GetRef(FNiagaraTypeDefinition::GetIntDef(), TEXT("SamplesPerRing")).SetValue(1);
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("VisibilityFraction"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("OnScreenFraction"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("DepthPassFraction"));
+
+		Sig.SetInputDescription(Sig.Inputs[1], CircleCenterPosDescription);
+		Sig.SetInputDescription(Sig.Inputs[2], SampleWindowDiameterDescription);
+		Sig.SetInputDescription(Sig.Inputs[3], IncludeCenterSampleDescription);
+		Sig.SetInputDescription(Sig.Inputs[4], NumberOfSampleRingsDescription);
+		Sig.SetInputDescription(Sig.Inputs[5], SamplesPerRingDescription);
+		Sig.SetOutputDescription(Sig.Outputs[0], VisibilityFractionDescription);
+		Sig.SetOutputDescription(Sig.Outputs[1], OnScreenFractionDescription);
+		Sig.SetOutputDescription(Sig.Outputs[2], DepthPassFractionDescription);
 	}
 
 	{
@@ -117,6 +149,8 @@ void UNiagaraDataInterfaceOcclusion::GetFunctions(TArray<FNiagaraFunctionSignatu
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceOcclusion::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
+	using namespace NDIOcclusionImpl;
+
 	if (!Super::AppendCompileHash(InVisitor))
 		return false;
 
@@ -132,11 +166,14 @@ void UNiagaraDataInterfaceOcclusion::GetCommonHLSL(FString& OutHLSL)
 
 bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
+	using namespace NDIOcclusionImpl;
+
 	static const TSet<FName> ValidGpuFunctions =
 	{
 		GetCameraOcclusionRectangleName,
-		GetCameraOcclusionCircleName,
+		QueryOcclusionFactorWithCircleName,
 		QueryCloudOcclusionWithCircleName,
+		Deprecated_GetCameraOcclusionCircleName,
 	};
 	return ValidGpuFunctions.Contains(FunctionInfo.DefinitionName);
 }
@@ -162,6 +199,8 @@ bool UNiagaraDataInterfaceOcclusion::UpgradeFunctionCall(FNiagaraFunctionSignatu
 
 void UNiagaraDataInterfaceOcclusion::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo,	FString& OutHLSL)
 {
+	using namespace NDIOcclusionImpl;
+
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
 	const TMap<FString, FStringFormatArg> TemplateArgs =

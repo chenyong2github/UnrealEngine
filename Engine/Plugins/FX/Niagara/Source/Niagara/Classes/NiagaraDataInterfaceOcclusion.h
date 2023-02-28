@@ -37,12 +37,6 @@ public:
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return Target == ENiagaraSimTarget::GPUComputeSim; }
 	virtual bool RequiresDepthBuffer() const override { return true; }
 	//UNiagaraDataInterface Interface
-	
-private:
-	static const TCHAR* TemplateShaderFilePath;
-	static const FName GetCameraOcclusionRectangleName;
-	static const FName GetCameraOcclusionCircleName;
-	static const FName QueryCloudOcclusionWithCircleName;
 };
 
 struct FNiagaraDataIntefaceProxyOcclusionQuery : public FNiagaraDataInterfaceProxy
