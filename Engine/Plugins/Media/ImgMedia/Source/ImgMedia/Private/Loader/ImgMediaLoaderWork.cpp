@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ImgMediaLoaderWork.h"
+#include "Loader/ImgMediaLoaderWork.h"
 #include "ImgMediaPrivate.h"
 
 #include "Misc/ScopeLock.h"
 #include "IImgMediaModule.h"
 #include "Readers/IImgMediaReader.h"
-#include "ImgMediaLoader.h"
+#include "Loader/ImgMediaLoader.h"
 
 
 /** Time spent abandoning worker threads. */

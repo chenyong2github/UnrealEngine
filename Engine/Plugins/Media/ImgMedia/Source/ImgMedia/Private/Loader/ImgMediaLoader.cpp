@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ImgMediaLoader.h"
+#include "Loader/ImgMediaLoader.h"
 #include "ImgMediaGlobalCache.h"
 #include "ImgMediaPrivate.h"
 

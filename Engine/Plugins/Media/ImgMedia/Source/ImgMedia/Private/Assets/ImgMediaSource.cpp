@@ -4,7 +4,7 @@
 
 #include "IImgMediaModule.h"
 #include "ImgMediaGlobalCache.h"
-#include "ImgMediaMipMapInfo.h"
+#include "Assets/ImgMediaMipMapInfo.h"
 #include "ImgMediaPrivate.h"
 
 #include "HAL/FileManager.h"

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ImgMediaPlayer.h"
+#include "Player/ImgMediaPlayer.h"
 #include "ImgMediaPrivate.h"
 #include "ImgMediaSource.h"
 

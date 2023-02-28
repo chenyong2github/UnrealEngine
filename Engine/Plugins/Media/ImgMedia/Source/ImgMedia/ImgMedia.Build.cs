@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.IO;
-
 namespace UnrealBuildTool.Rules
 {
 	public class ImgMedia : ModuleRules
@@ -49,8 +47,6 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("OpenExrWrapper");
 				PrivateDependencyModuleNames.Add("ExrReaderGpu");
 			}
-
-			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{

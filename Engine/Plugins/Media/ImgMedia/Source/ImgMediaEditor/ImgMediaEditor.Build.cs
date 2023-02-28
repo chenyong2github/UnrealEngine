@@ -30,7 +30,7 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					"ImgMedia/Private",
+					//"ImgMedia/Private",
 				});
 
 			// Are we using the engine?
