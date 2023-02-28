@@ -3062,6 +3062,9 @@ public:
 	/** Returns whether InitWorld has ever been called since this World was created.  */
 	bool HasEverBeenInitialized() const { return bHasEverBeenInitialized; }
 #endif
+	UE_DEPRECATED(5.2, "Not for public use. This function is a workaround for UE-170919 and will be removed in 5.3")
+	bool HasEverBeenInitialized_DONOTUSE() const { return bHasEverBeenInitialized; }
+
 	/** Returns whether InitWorld has been called without yet calling CleanupWorld.  */
 	bool IsInitialized() const { return bIsWorldInitialized; }
 

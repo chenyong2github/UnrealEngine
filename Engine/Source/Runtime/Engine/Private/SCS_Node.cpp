@@ -120,7 +120,9 @@ UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* P
 		{
 			// Only register scene components if the world is initialized
 			UWorld* World = Actor->GetWorld();
-			bool bRegisterComponent = World && World->bIsWorldInitialized;
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			bool bRegisterComponent = World && World->HasEverBeenInitialized_DONOTUSE();
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			// If NULL is passed in, we are the root, so set transform and assign as RootComponent on Actor, similarly if the 
 			// NewSceneComp is the ParentComponent then we are the root component. This happens when the root component is recycled
