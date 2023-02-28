@@ -696,13 +696,14 @@ namespace Horde.Build
 				services.AddSingleton<ConformTaskSource>();
 				services.AddHostedService<ConformTaskSource>(provider => provider.GetRequiredService<ConformTaskSource>());
 				services.AddSingleton<ComputeService>();
+				services.AddSingleton<ComputeTaskSource>();
 
 				services.AddSingleton<ITaskSource, UpgradeTaskSource>();
 				services.AddSingleton<ITaskSource, ShutdownTaskSource>();
 				services.AddSingleton<ITaskSource, RestartTaskSource>();
 				services.AddSingleton<ITaskSource, ConformTaskSource>(provider => provider.GetRequiredService<ConformTaskSource>());
 				services.AddSingleton<ITaskSource, JobTaskSource>(provider => provider.GetRequiredService<JobTaskSource>());
-				services.AddSingleton<ITaskSource, ComputeTaskSource>();
+				services.AddSingleton<ITaskSource, ComputeTaskSource>(provider => provider.GetRequiredService<ComputeTaskSource>());
 			}
 
 			// Allow longer to shutdown so we can debug missing cancellation tokens

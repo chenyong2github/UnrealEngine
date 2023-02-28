@@ -26,14 +26,16 @@ namespace Horde.Agent.Leases.Handlers
 	/// </summary>
 	class ComputeHandler : LeaseHandler<ComputeTask>
 	{
+		readonly ComputeListenerService _listenerService;
 		readonly IMemoryCache _memoryCache;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeHandler(IMemoryCache memoryCache, ILogger<ComputeHandler> logger)
+		public ComputeHandler(ComputeListenerService listenerService, IMemoryCache memoryCache, ILogger<ComputeHandler> logger)
 		{
+			_listenerService = listenerService;
 			_memoryCache = memoryCache;
 			_logger = logger;
 		}
@@ -41,30 +43,35 @@ namespace Horde.Agent.Leases.Handlers
 		/// <inheritdoc/>
 		public override async Task<LeaseResult> ExecuteAsync(ISession session, string leaseId, ComputeTask computeTask, CancellationToken cancellationToken)
 		{
-			_logger.LogInformation("Starting compute task (lease {LeaseId})", leaseId);
+			_logger.LogInformation("Starting compute task (lease {LeaseId}). Waiting for connection...", leaseId);
 
+			TcpClient? tcpClient = null;
 			try
 			{
-				await ConnectAsync(computeTask, cancellationToken);
+				const int TimeoutSeconds = 30;
+
+				tcpClient = await _listenerService.WaitForClientAsync(new ByteString(computeTask.Nonce.Memory), TimeSpan.FromSeconds(TimeoutSeconds), cancellationToken);
+				if (tcpClient == null)
+				{
+					_logger.LogInformation("Timed out waiting for connection after {Time}s.", TimeoutSeconds); 
+					return LeaseResult.Success;
+				}
+
+				using (SocketComputeChannel channel = new SocketComputeChannel(tcpClient.Client, computeTask.AesKey.Memory, computeTask.AesIv.Memory))
+				{
+					await RunAsync(channel, cancellationToken);
+					return LeaseResult.Success;
+				}
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Exception while executing compute task");
+				_logger.LogError(ex, "Exception while executing compute task: {Message}", ex.Message);
+				return LeaseResult.Failed;
 			}
-
-			return LeaseResult.Success;
-		}
-
-		async Task ConnectAsync(ComputeTask computeTask, CancellationToken cancellationToken)
-		{
-			using TcpClient tcpClient = new TcpClient();
-			await tcpClient.ConnectAsync(computeTask.RemoteIp, computeTask.RemotePort);
-
-			Socket socket = tcpClient.Client;
-			await socket.SendAsync(computeTask.Nonce.Memory, SocketFlags.None, cancellationToken);
-
-			using SocketComputeChannel channel = new SocketComputeChannel(socket, computeTask.AesKey.Memory, computeTask.AesIv.Memory);
-			await RunAsync(channel, cancellationToken);
+			finally
+			{
+				tcpClient?.Dispose();
+			}
 		}
 
 		public async Task RunAsync(IComputeChannel channel, CancellationToken cancellationToken)

@@ -4,9 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace;
 using Datadog.Trace.Configuration;
@@ -202,6 +205,9 @@ namespace Horde.Agent
 			services.AddHostedService<WorkerService>();
 
 			services.AddSingleton<IStorageClientFactory, StorageClientFactory>();
+
+			services.AddSingleton<ComputeListenerService>();
+			services.AddHostedService(sp => sp.GetRequiredService<ComputeListenerService>());
 
 			services.AddMemoryCache();
 

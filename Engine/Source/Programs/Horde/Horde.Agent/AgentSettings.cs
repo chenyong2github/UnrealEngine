@@ -192,6 +192,11 @@ namespace Horde.Agent
 		public bool UseLocalStorageClient { get; set; }
 
 		/// <summary>
+		/// Incoming port for listening for compute work. Needs to be tied with a lease.
+		/// </summary>
+		public int ComputePort { get; set; } = 7000;
+
+		/// <summary>
 		/// Key/value properties in addition to those set internally by the agent
 		/// </summary>
 		public Dictionary<string, string> Properties { get; } = new();

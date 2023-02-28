@@ -1,36 +1,43 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Net;
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
 using Horde.Build.Acls;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
-using HordeCommon.Rpc.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Compute
 {
-	using ByteString = Google.Protobuf.ByteString;
-
 	/// <summary>
 	/// Request a machine to execute compute requests
 	/// </summary>
-	public class AddComputeTaskRequest
+	public class AssignComputeRequest
 	{
 		/// <summary>
 		/// Condition to identify machines that can execute the request
 		/// </summary>
 		public Requirements? Requirements { get; set; }
+	}
+
+	/// <summary>
+	/// Request a machine to execute compute requests
+	/// </summary>
+	public class AssignComputeResponse
+	{
+		/// <summary>
+		/// IP address of the remote machine
+		/// </summary>
+		public string Ip { get; set; } = String.Empty;
 
 		/// <summary>
-		/// Port to connect on
+		/// Port number on the remote machine
 		/// </summary>
-		public int? RemotePort { get; set; }
+		public int Port { get; set; }
 
 		/// <summary>
 		/// Cryptographic nonce to identify the request, as a hex string
@@ -49,48 +56,6 @@ namespace Horde.Build.Compute
 	}
 
 	/// <summary>
-	/// Request a machine to execute compute requests
-	/// </summary>
-	public class AddComputeTasksRequest
-	{
-		/// <summary>
-		/// Condition to identify machines that can execute the request
-		/// </summary>
-		public Requirements? Requirements { get; set; }
-
-		/// <summary>
-		/// Port to connect on
-		/// </summary>
-		public int RemotePort { get; set; }
-
-		/// <summary>
-		/// List of tasks to add
-		/// </summary>
-		public List<AddComputeTaskRequest> Tasks { get; set; } = new List<AddComputeTaskRequest>();
-	}
-
-	/// <summary>
-	/// Gets information about the configured compute tunnel
-	/// </summary>
-	public class GetComputeTunnelResponse
-	{
-		/// <summary>
-		/// IP address of the server
-		/// </summary>
-		public string? Ip { get; set; }
-
-		/// <summary>
-		/// Listening port for the initiator
-		/// </summary>
-		public int InitiatorPort { get; set; }
-
-		/// <summary>
-		/// Listening port for the remote
-		/// </summary>
-		public int RemotePort { get; set; }
-	}
-
-	/// <summary>
 	/// Controller for the /api/v2/compute endpoint
 	/// </summary>
 	[ApiController]
@@ -98,15 +63,15 @@ namespace Horde.Build.Compute
 	[Route("[controller]")]
 	public class ComputeControllerV2 : HordeControllerBase
 	{
-		readonly ComputeService _computeService;
+		readonly ComputeTaskSource _computeTaskSource;
 		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeControllerV2(ComputeService computeService, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public ComputeControllerV2(ComputeTaskSource computeTaskSource, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
-			_computeService = computeService;
+			_computeTaskSource = computeTaskSource;
 			_globalConfig = globalConfig;
 		}
 
@@ -119,7 +84,7 @@ namespace Horde.Build.Compute
 		[HttpPost]
 		[Authorize]
 		[Route("/api/v2/compute/{clusterId}")]
-		public ActionResult AddTasksAsync(ClusterId clusterId, [FromBody] AddComputeTasksRequest request)
+		public ActionResult<AssignComputeResponse> AssignComputeResourceAsync(ClusterId clusterId, [FromBody] AssignComputeRequest request)
 		{
 			ComputeClusterConfig? clusterConfig;
 			if (!_globalConfig.Value.TryGetComputeCluster(clusterId, out clusterConfig))
@@ -131,53 +96,21 @@ namespace Horde.Build.Compute
 				return Forbid(AclAction.AddComputeTasks, clusterId);
 			}
 
-			IPAddress? remoteIp = HttpContext.Connection.RemoteIpAddress;
-			if (remoteIp == null)
+			Requirements requirements = request.Requirements ?? new Requirements();
+
+			ComputeResource? computeResource = _computeTaskSource.TryAllocateResource(clusterId, requirements);
+			if (computeResource == null)
 			{
-				return BadRequest("Missing remote IP address");
+				return StatusCode((int)HttpStatusCode.ServiceUnavailable);
 			}
 
-			foreach (AddComputeTaskRequest taskRequest in request.Tasks)
-			{
-				Requirements requirements = taskRequest.Requirements ?? request.Requirements ?? new Requirements();
+			AssignComputeResponse response = new AssignComputeResponse();
+			response.Ip = computeResource.Ip.ToString();
+			response.Port = computeResource.Port;
+			response.Nonce = StringUtils.FormatHexString(computeResource.Task.Nonce.Span);
+			response.AesKey = StringUtils.FormatHexString(computeResource.Task.AesKey.Span);
+			response.AesIv = StringUtils.FormatHexString(computeResource.Task.AesIv.Span);
 
-				ComputeTask computeTask = new ComputeTask();
-				computeTask.RemoteIp = remoteIp.ToString();
-				computeTask.RemotePort = taskRequest.RemotePort ?? request.RemotePort;
-				computeTask.Nonce = ByteString.CopyFrom(StringUtils.ParseHexString(taskRequest.Nonce));
-				computeTask.AesKey = ByteString.CopyFrom(StringUtils.ParseHexString(taskRequest.AesKey));
-				computeTask.AesIv = ByteString.CopyFrom(StringUtils.ParseHexString(taskRequest.AesIv));
-
-				_computeService.AddRequest(clusterId, requirements, computeTask);
-			}
-			return Ok();
-		}
-
-		/// <summary>
-		/// Add tasks to be executed remotely
-		/// </summary>
-		/// <param name="clusterId">Id of the compute cluster</param>
-		/// <returns></returns>
-		[HttpGet]
-		[Authorize]
-		[Route("/api/v2/compute/{clusterId}/tunnel")]
-		public ActionResult<GetComputeTunnelResponse> GetTunnelInfoAsync(ClusterId clusterId)
-		{
-			if (!_globalConfig.Value.TryGetComputeCluster(clusterId, out _))
-			{
-				return NotFound(clusterId);
-			}
-
-			ServerSettings settings = _globalConfig.Value.ServerSettings;
-			if (settings.ComputeInitiatorPort == 0 || settings.ComputeRemotePort == 0)
-			{
-				return NotFound("Tunnelling is not configured on the server");
-			}
-
-			GetComputeTunnelResponse response = new GetComputeTunnelResponse();
-			response.Ip = HttpContext.Connection.LocalIpAddress?.ToString();
-			response.InitiatorPort = _globalConfig.Value.ServerSettings.ComputeInitiatorPort;
-			response.RemotePort = _globalConfig.Value.ServerSettings.ComputeRemotePort;
 			return response;
 		}
 	}

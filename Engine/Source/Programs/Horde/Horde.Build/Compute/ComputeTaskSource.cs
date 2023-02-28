@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -9,55 +13,207 @@ using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Leases;
+using Horde.Build.Server;
 using Horde.Build.Tasks;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Compute
 {
+	/// <summary>
+	/// Information about a compute 
+	/// </summary>
+	public class ComputeResource
+	{
+		/// <summary>
+		/// IP address of the agent
+		/// </summary>
+		public IPAddress Ip { get; }
+
+		/// <summary>
+		/// Port to connect on
+		/// </summary>
+		public int Port { get; }
+
+		/// <summary>
+		/// Information about the compute task
+		/// </summary>
+		public ComputeTask Task { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public ComputeResource(IPAddress ip, int port, ComputeTask task)
+		{
+			Ip = ip;
+			Port = port;
+			Task = task;
+		}
+	}
+
 	/// <summary>
 	/// Dispatches requests for compute resources
 	/// </summary>
 	public class ComputeTaskSource : TaskSourceBase<ComputeTask>
 	{
+		class Waiter
+		{
+			public IAgent Agent { get; }
+			public IPAddress Ip { get; }
+			public int Port { get; }
+			public TaskCompletionSource<(ComputeTask, Requirements)?> Lease { get; } = new TaskCompletionSource<(ComputeTask, Requirements)?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+			public Waiter(IAgent agent, IPAddress ip, int port)
+			{
+				Agent = agent;
+				Ip = ip;
+				Port = port;
+			}
+		}
+
 		/// <inheritdoc/>
 		public override string Type => "Compute";
 
 		/// <inheritdoc/>
 		public override TaskSourceFlags Flags => TaskSourceFlags.None;
 
-		readonly ComputeService _computeService;
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		readonly ILogger _logger;
+
+		readonly object _lockObject = new object();
+		readonly Dictionary<ClusterId, LinkedList<Waiter>> _waiters = new Dictionary<ClusterId, LinkedList<Waiter>>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeTaskSource(ComputeService computeService, ILogger<ComputeTaskSource> logger)
+		public ComputeTaskSource(IOptionsMonitor<GlobalConfig> globalConfig, ILogger<ComputeTaskSource> logger)
 		{
-			_computeService = computeService;
+			_globalConfig = globalConfig;
 			_logger = logger;
 		}
 
-		/// <inheritdoc/>
-		public override async Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
+		/// <summary>
+		/// Allocates a compute resource
+		/// </summary>
+		/// <returns></returns>
+		public ComputeResource? TryAllocateResource(ClusterId clusterId, Requirements requirements)
 		{
-			while (!cancellationToken.IsCancellationRequested)
+			lock (_lockObject)
 			{
-				ComputeRequest? request = _computeService.PopRequest(agent);
-				if (request != null)
+				LinkedList<Waiter>? waiters;
+				if (_waiters.TryGetValue(clusterId, out waiters))
 				{
-					string leaseName = $"Compute for {request.Task.RemoteIp}";
-					byte[] payload = Any.Pack(request.Task).ToByteArray();
+					ComputeTask? task = null;
+					for (LinkedListNode<Waiter>? node = waiters.First; node != null; node = node.Next)
+					{
+						if (node.Value.Agent.MeetsRequirements(requirements))
+						{
+							task ??= CreateComputeTask();
+							if (node.Value.Lease.TrySetResult((task, requirements)))
+							{
+								Waiter waiter = node.Value;
+								return new ComputeResource(waiter.Ip, waiter.Port, task);
+							}
+						}
+					}
+				}
+			}
+			return null;
+		}
 
-					AgentLease lease = new AgentLease(LeaseId.GenerateNewId(), leaseName, null, null, null, LeaseState.Pending, request.Requirements.Resources, request.Requirements.Exclusive, payload);
-					_logger.LogInformation("Created compute lease for agent {AgentId} and remote {RemoteIp}:{RemotePort}", agent.Id, request.Task.RemoteIp, request.Task.RemotePort);
-					return Task.FromResult<AgentLease?>(lease);
+		static ComputeTask CreateComputeTask()
+		{
+			ComputeTask computeTask = new ComputeTask();
+			computeTask.Nonce = UnsafeByteOperations.UnsafeWrap(RandomNumberGenerator.GetBytes(ServerComputeClient.NonceLength));
+
+			using (Aes aes = Aes.Create())
+			{
+				computeTask.AesKey = UnsafeByteOperations.UnsafeWrap(aes.Key);
+				computeTask.AesIv = UnsafeByteOperations.UnsafeWrap(aes.IV);
+			}
+
+			return computeTask;
+		}
+
+		/// <inheritdoc/>
+		public override Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
+		{
+			return Task.FromResult(WaitInternalAsync(agent, cancellationToken));
+		}
+
+		async Task<AgentLease?> WaitInternalAsync(IAgent agent, CancellationToken cancellationToken)
+		{
+			string? ipStr = agent.GetPropertyValues("ComputeIp").FirstOrDefault();
+			if (ipStr == null || !IPAddress.TryParse(ipStr, out IPAddress? ip))
+			{
+				return null;
+			}
+
+			string? portStr = agent.GetPropertyValues("ComputePort").FirstOrDefault();
+			if (portStr == null || !Int32.TryParse(portStr, out int port))
+			{
+				return null;
+			}
+
+			// Add it to the wait queue
+			List<(LinkedList<Waiter>, LinkedListNode<Waiter>)> nodes = new();
+			try
+			{
+				GlobalConfig globalConfig = _globalConfig.CurrentValue;
+
+				Waiter? waiter = null;
+				lock (_lockObject)
+				{
+					foreach (ComputeClusterConfig clusterConfig in globalConfig.Compute)
+					{
+						if (clusterConfig.Condition == null || agent.SatisfiesCondition(clusterConfig.Condition))
+						{
+							LinkedList<Waiter>? list;
+							if (!_waiters.TryGetValue(clusterConfig.Id, out list))
+							{
+								list = new LinkedList<Waiter>();
+								_waiters.Add(clusterConfig.Id, list);
+							}
+
+							waiter ??= new Waiter(agent, ip, port);
+							list.AddFirst(waiter);
+						}
+					}
 				}
 
-				await AsyncUtils.DelayNoThrow(TimeSpan.FromSeconds(5.0), cancellationToken);
+				if (waiter != null)
+				{
+					using (IDisposable disposable = cancellationToken.Register(() => waiter.Lease.TrySetResult(null)))
+					{
+						(ComputeTask, Requirements)? result = await waiter.Lease.Task;
+						if (result != null)
+						{
+							(ComputeTask task, Requirements requirements) = result.Value;
+
+							string leaseName = "Compute task";
+							byte[] payload = Any.Pack(task).ToByteArray();
+
+							AgentLease lease = new AgentLease(LeaseId.GenerateNewId(), leaseName, null, null, null, LeaseState.Pending, requirements.Resources, requirements.Exclusive, payload);
+							_logger.LogInformation("Created compute lease for agent {AgentId}", agent.Id);
+							return lease;
+						}
+					}
+				}
 			}
-			return Task.FromResult<AgentLease?>(null);
+			finally
+			{
+				lock (_lockObject)
+				{
+					foreach ((LinkedList<Waiter> list, LinkedListNode<Waiter> node) in nodes)
+					{
+						list.Remove(node);
+					}
+				}
+			}
+
+			return null;
 		}
 	}
 }

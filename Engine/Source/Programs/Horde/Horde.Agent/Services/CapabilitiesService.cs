@@ -338,6 +338,7 @@ namespace Horde.Agent.Services
 			}
 
 			// Get the IP addresses
+			IPAddress? ip = null;
 			try
 			{
 				using CancellationTokenSource dnsCts = new(3000);
@@ -347,6 +348,7 @@ namespace Horde.Agent.Services
 					if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
 					{
 						primaryDevice.Properties.Add($"Ipv4={address}");
+						ip = address;
 					}
 					else if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
 					{
@@ -357,6 +359,13 @@ namespace Horde.Agent.Services
 			catch (Exception ex)
 			{
 				logger.LogDebug(ex, "Unable to get local IP address");
+			}
+
+			// Add the compute configuration
+			if (ip != null && _settings.ComputePort != 0)
+			{
+				primaryDevice.Properties.Add($"ComputeIp={ip}");
+				primaryDevice.Properties.Add($"ComputePort={_settings.ComputePort}");
 			}
 
 			// Get the time that the machine booted
