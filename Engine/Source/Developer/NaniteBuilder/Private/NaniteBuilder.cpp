@@ -818,8 +818,11 @@ bool FBuilderModule::Build(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build);
 
-	// TODO: Properly error out if # of unique materials is > 64 (error message to editor log)
-	check(InputMeshData.Sections.Num() > 0 && InputMeshData.Sections.Num() <= 64);
+	if (InputMeshData.Sections.IsEmpty() || InputMeshData.Sections.Num() > 64)
+	{
+		UE_LOG(LogStaticMesh, Log, TEXT("Unable to build Nanite data. Unsupported number of sections: %d."), InputMeshData.Sections.Num());
+		return false;
+	}
 
 	// Build associated array of triangle index and material index.
 	TArray<int32> MaterialIndices;

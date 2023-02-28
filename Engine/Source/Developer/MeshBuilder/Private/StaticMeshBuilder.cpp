@@ -390,11 +390,13 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 			NaniteSettings,
 			PercentTriangles,
 			HiResBounds );
-		check( bBuildSuccess );
 
-		bHaveHiResBounds = true;
-		bNaniteDataBuilt = true;
-		NaniteBuiltLevels = PercentTriangles.Num();
+		if (bBuildSuccess)
+		{
+			bHaveHiResBounds = true;
+			bNaniteDataBuilt = true;
+			NaniteBuiltLevels = PercentTriangles.Num();
+		}
 
 		if (!bTargetSupportsNanite)
 		{
