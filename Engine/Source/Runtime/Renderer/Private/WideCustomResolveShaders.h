@@ -50,15 +50,14 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FmaskSRV, FIntPoint Origin)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FRHITexture* Texture2DMS, FRHIShaderResourceView* FmaskSRV, FIntPoint Origin)
 	{
-		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
-		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
+		SetTextureParameter(BatchedParameters, Tex, Texture2DMS);
 		if (MSAASampleCount > 0)
 		{
-			SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FmaskSRV);
+			SetSRVParameter(BatchedParameters, FMaskTex, FmaskSRV);
 		}
-		SetShaderValue(RHICmdList, PixelShaderRHI, ResolveOrigin, FVector2f(Origin));
+		SetShaderValue(BatchedParameters, ResolveOrigin, FVector2f(Origin));
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

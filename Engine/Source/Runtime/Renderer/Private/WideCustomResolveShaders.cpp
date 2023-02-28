@@ -61,8 +61,8 @@ static void ResolveColorWideInternal2(
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-	
-	PixelShader->SetParameters(RHICmdList, SrcTexture, FmaskSRV, SrcOrigin);
+
+	SetShaderParametersLegacyPS(RHICmdList, PixelShader, SrcTexture, FmaskSRV, SrcOrigin);
 
 	RHICmdList.SetStreamSource(0, DummyVB, 0);
 	RHICmdList.DrawPrimitive(0, 1, 1);

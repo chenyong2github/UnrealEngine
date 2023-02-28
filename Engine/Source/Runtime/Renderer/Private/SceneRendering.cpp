@@ -5256,7 +5256,7 @@ namespace
 		check(Shader);
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = Shader;
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-		ShaderRef->SetParameters(RHICmdList, SceneColorTargetableRHI);
+		SetShaderParametersLegacyPS(RHICmdList, ShaderRef, SceneColorTargetableRHI);
 	}
 
 	template<typename ShaderType, typename ShaderArrayType>
@@ -5365,7 +5365,7 @@ void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-					PixelShader->SetParameters(RHICmdList, SceneColorTargetableRHI, SceneColorFMaskRHI);
+					SetShaderParametersLegacyPS(RHICmdList, PixelShader, SceneColorTargetableRHI, SceneColorFMaskRHI);
 				}
 				else if (NumSamples == 4)
 				{
@@ -5373,7 +5373,7 @@ void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-					PixelShader->SetParameters(RHICmdList, SceneColorTargetableRHI, SceneColorFMaskRHI);
+					SetShaderParametersLegacyPS(RHICmdList, PixelShader, SceneColorTargetableRHI, SceneColorFMaskRHI);
 				}
 				else if (NumSamples == 8)
 				{
@@ -5381,7 +5381,7 @@ void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-					PixelShader->SetParameters(RHICmdList, SceneColorTargetableRHI, SceneColorFMaskRHI);
+					SetShaderParametersLegacyPS(RHICmdList, PixelShader, SceneColorTargetableRHI, SceneColorFMaskRHI);
 				}
 				else
 				{

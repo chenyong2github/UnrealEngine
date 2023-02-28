@@ -70,10 +70,17 @@ public:
 		Tex.Bind(Initializer.ParameterMap, TEXT("Tex"), SPF_Mandatory);
 	}
 
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FRHITexture* Texture2DMS)
+	{
+		SetTextureParameter(BatchedParameters, Tex, Texture2DMS);
+	}
+
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
 	{
-		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
-		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+		SetParameters(BatchedParameters, Texture2DMS);
+		RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundPixelShader(), BatchedParameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -96,16 +103,6 @@ public:
 	{
 	}
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return FHdrCustomResolve2xPS::ShouldCompilePermutation(Parameters);
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
-	{
-		return FHdrCustomResolve2xPS::SetParameters(RHICmdList, Texture2DMS);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		// skip parent because it sets 2X macro
@@ -123,16 +120,6 @@ public:
 	FHdrCustomResolve8xPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FHdrCustomResolve2xPS( Initializer )
 	{
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return FHdrCustomResolve2xPS::ShouldCompilePermutation(Parameters);
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
-	{
-		return FHdrCustomResolve2xPS::SetParameters(RHICmdList, Texture2DMS);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -165,11 +152,6 @@ public:
 		return false;
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
-	{
-		return FHdrCustomResolve2xPS::SetParameters(RHICmdList, Texture2DMS);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FHdrCustomResolve2xPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -185,16 +167,6 @@ public:
 	FHdrCustomResolveArray4xPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FHdrCustomResolveArray2xPS(Initializer)
 	{
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return FHdrCustomResolveArray2xPS::ShouldCompilePermutation(Parameters);
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
-	{
-		return FHdrCustomResolveArray2xPS::SetParameters(RHICmdList, Texture2DMS);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -215,16 +187,6 @@ public:
 	FHdrCustomResolveArray8xPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FHdrCustomResolveArray2xPS(Initializer)
 	{
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return FHdrCustomResolveArray2xPS::ShouldCompilePermutation(Parameters);
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
-	{
-		return FHdrCustomResolveArray2xPS::SetParameters(RHICmdList, Texture2DMS);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -250,11 +212,18 @@ public:
 		FMaskTex.Bind(Initializer.ParameterMap, TEXT("FMaskTex"), SPF_Optional);
 	}
 
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
+	{
+		SetTextureParameter(BatchedParameters, Tex, Texture2DMS);
+		SetSRVParameter(BatchedParameters, FMaskTex, FMaskSRV);
+	}
+
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
 	{
-		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
-		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
-		SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskSRV);
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+		SetParameters(BatchedParameters, Texture2DMS, FMaskSRV);
+		RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundPixelShader(), BatchedParameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -281,11 +250,18 @@ public:
 		FMaskTex.Bind(Initializer.ParameterMap, TEXT("FMaskTex"), SPF_Optional);
 	}
 
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
+	{
+		SetTextureParameter(BatchedParameters, Tex, Texture2DMS);
+		SetSRVParameter(BatchedParameters, FMaskTex, FMaskSRV);
+	}
+
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
 	{
-		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
-		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
-		SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskSRV);
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+		SetParameters(BatchedParameters, Texture2DMS, FMaskSRV);
+		RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundPixelShader(), BatchedParameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -313,11 +289,18 @@ public:
 		FMaskTex.Bind(Initializer.ParameterMap, TEXT("FMaskTex"), SPF_Optional);
 	}
 
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
+	{
+		SetTextureParameter(BatchedParameters, Tex, Texture2DMS);
+		SetSRVParameter(BatchedParameters, FMaskTex, FMaskSRV);
+	}
+
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
 	{
-		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
-		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
-		SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskSRV);
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+		SetParameters(BatchedParameters, Texture2DMS, FMaskSRV);
+		RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundPixelShader(), BatchedParameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
