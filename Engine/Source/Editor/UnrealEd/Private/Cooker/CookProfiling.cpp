@@ -913,7 +913,15 @@ void LogCookStats(ECookMode::Type CookMode)
 			for (const auto& Attr : StatAttributes)
 			{
 				FString FormattedAttrName = StatName + "." + Attr.Key;
-				Attributes.Emplace(FormattedAttrName, Attr.Value);
+
+				if (Attr.Value.IsNumeric())
+				{
+					Attributes.Emplace(FormattedAttrName, FCString::Atof(*Attr.Value));
+				}
+				else
+				{
+					Attributes.Emplace(FormattedAttrName, Attr.Value);
+				}
 			}
 		};
 

@@ -1051,7 +1051,15 @@ public:
 		for (const FDerivedDataCacheSummaryStat& Stat : SummaryStats.Stats)
 		{
 			FString FormattedAttrName = "DDC.Summary." + Stat.Key;
-			Attributes.Emplace(FormattedAttrName, Stat.Value);
+
+			if (Stat.Value.IsNumeric())
+			{
+				Attributes.Emplace(FormattedAttrName, FCString::Atof(*Stat.Value));
+			}
+			else
+			{
+				Attributes.Emplace(FormattedAttrName, Stat.Value);
+			}
 		}
 
 		TSharedRef<FDerivedDataCacheStatsNode> RootNode = Backend->GatherUsageStats();
@@ -1059,7 +1067,14 @@ public:
 			{
 				for (const FCookStatsManager::StringKeyValue& Stat : Node->CustomStats)
 				{
-					Attributes.Emplace(Stat.Key, Stat.Value);
+					if (Stat.Value.IsNumeric())
+					{
+						Attributes.Emplace(Stat.Key, FCString::Atof(*Stat.Value));
+					}
+					else
+					{
+						Attributes.Emplace(Stat.Key, Stat.Value);
+					}
 				}
 			});
 #endif
