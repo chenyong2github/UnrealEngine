@@ -999,7 +999,8 @@ void FStaticMeshOperations::AppendMeshDescriptions(const TArray<const FMeshDescr
 	int32 NumEdges = 0;
 	int32 NumTriangles = 0;
 
-	int32 MaxNumUVChannels = TargetVertexInstanceUVs.GetNumChannels();
+	int32 MaxNumVertexInstanceUVChannels = TargetVertexInstanceUVs.GetNumChannels();
+	int32 MaxNumUVChannels = TargetMesh.GetNumUVElementChannels();
 	int32 MaxNumPolygonGroups = 0;
 	int32 MaxNumMeshVertices = 0;
 	int32 MaxNumEdges = 0;
@@ -1016,7 +1017,14 @@ void FStaticMeshOperations::AppendMeshDescriptions(const TArray<const FMeshDescr
 
 		FStaticMeshConstAttributes SourceAttributes(SourceMesh);
 		TVertexInstanceAttributesConstRef<FVector2f> SourceVertexInstanceUVs = SourceAttributes.GetVertexInstanceUVs();
-		for (int32 ChannelIdx = MaxNumUVChannels; ChannelIdx < SourceVertexInstanceUVs.GetNumChannels(); ++ChannelIdx)
+		for (int32 ChannelIdx = MaxNumVertexInstanceUVChannels; ChannelIdx < SourceVertexInstanceUVs.GetNumChannels(); ++ChannelIdx)
+		{
+			if (AppendSettings.bMergeUVChannels[ChannelIdx])
+			{
+				MaxNumVertexInstanceUVChannels = ChannelIdx + 1;
+			}
+		}
+		for (int32 ChannelIdx = MaxNumUVChannels; ChannelIdx < SourceMesh.GetNumUVElementChannels(); ++ChannelIdx)
 		{
 			if (AppendSettings.bMergeUVChannels[ChannelIdx])
 			{
@@ -1036,9 +1044,13 @@ void FStaticMeshOperations::AppendMeshDescriptions(const TArray<const FMeshDescr
 	TargetMesh.ReserveNewEdges(NumEdges);
 	TargetMesh.ReserveNewTriangles(NumTriangles);
 
-	if (MaxNumUVChannels > TargetVertexInstanceUVs.GetNumChannels())
+	if (MaxNumVertexInstanceUVChannels > TargetVertexInstanceUVs.GetNumChannels())
 	{
-		TargetVertexInstanceUVs.SetNumChannels(MaxNumUVChannels);
+		TargetVertexInstanceUVs.SetNumChannels(MaxNumVertexInstanceUVChannels);
+	}
+	if (MaxNumUVChannels > TargetMesh.GetNumUVElementChannels())
+	{
+		TargetMesh.SetNumUVChannels(MaxNumUVChannels);
 	}
 
 	PolygonGroupMap RemapPolygonGroup;
@@ -1063,6 +1075,21 @@ void FStaticMeshOperations::AppendMeshDescriptions(const TArray<const FMeshDescr
 		TVertexInstanceAttributesConstRef<float> SourceVertexInstanceBinormalSigns = SourceAttributes.GetVertexInstanceBinormalSigns();
 		TVertexInstanceAttributesConstRef<FVector4f> SourceVertexInstanceColors = SourceAttributes.GetVertexInstanceColors();
 		TVertexInstanceAttributesConstRef<FVector2f> SourceVertexInstanceUVs = SourceAttributes.GetVertexInstanceUVs();
+
+		// Fill the UV arrays
+		const int32 NumUVChannel = FMath::Min(TargetMesh.GetNumUVElementChannels(), SourceMesh.GetNumUVElementChannels());
+		for (int32 UVLayerIndex = 0; UVLayerIndex < NumUVChannel; UVLayerIndex++)
+		{
+			TUVAttributesConstRef<FVector2f> SourceUVCoordinates = SourceMesh.UVAttributes(UVLayerIndex).GetAttributesRef<FVector2f>(MeshAttribute::UV::UVCoordinate);
+			TUVAttributesRef<FVector2f> TargetUVCoordinates = TargetMesh.UVAttributes(UVLayerIndex).GetAttributesRef<FVector2f>(MeshAttribute::UV::UVCoordinate);
+			int32 UVCount = SourceUVCoordinates.GetNumElements();
+			TargetMesh.ReserveNewUVs(UVCount, UVLayerIndex);
+			for (FUVID SourceUVID : SourceMesh.UVs(UVLayerIndex).GetElementIDs())
+			{
+				FUVID TargetUVID = TargetMesh.CreateUV(UVLayerIndex);
+				TargetUVCoordinates[TargetUVID] = SourceUVCoordinates[SourceUVID];
+			}
+		}
 
 		//PolygonGroups
 		if (AppendSettings.PolygonGroupsDelegate.IsBound())
@@ -1137,7 +1164,7 @@ void FStaticMeshOperations::AppendMeshDescriptions(const TArray<const FMeshDescr
 				TargetVertexInstanceColors[TargetVertexInstanceID] = SourceVertexInstanceColors[SourceVertexInstanceID];
 			}
 
-			for (int32 UVChannelIndex = 0; UVChannelIndex < MaxNumUVChannels && UVChannelIndex < SourceVertexInstanceUVs.GetNumChannels(); ++UVChannelIndex)
+			for (int32 UVChannelIndex = 0; UVChannelIndex < MaxNumVertexInstanceUVChannels && UVChannelIndex < SourceVertexInstanceUVs.GetNumChannels(); ++UVChannelIndex)
 			{
 				TargetVertexInstanceUVs.Set(TargetVertexInstanceID, UVChannelIndex, SourceVertexInstanceUVs.Get(SourceVertexInstanceID, UVChannelIndex));
 			}

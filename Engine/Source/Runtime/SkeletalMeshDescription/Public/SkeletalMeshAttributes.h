@@ -145,7 +145,7 @@ public:
 
 	explicit FSkeletalMeshAttributes(FMeshDescription& InMeshDescription);
 
-	virtual void Register() override;
+	virtual void Register(bool bKeepExistingAttribute = false) override;
 	
 	//
 	// Skin Weights Methods

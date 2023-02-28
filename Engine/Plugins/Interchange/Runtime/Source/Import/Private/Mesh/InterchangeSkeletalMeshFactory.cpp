@@ -518,7 +518,8 @@ namespace UE
 						//Add the skinning in the mesh description
 						{
 							FSkeletalMeshAttributes PayloadSkeletalMeshAttributes(LodMeshPayload->LodMeshDescription);
-							PayloadSkeletalMeshAttributes.Register();
+							constexpr bool bKeepExistingAttribute = true;
+							PayloadSkeletalMeshAttributes.Register(bKeepExistingAttribute);
 							using namespace UE::AnimationCore;
 							TArray<FBoneWeight> BoneWeights;
 							FBoneWeight& BoneWeight = BoneWeights.AddDefaulted_GetRef();

@@ -42,23 +42,35 @@ FSkeletalMeshAttributesShared(InMeshDescription)
 	}
 }
 
-void FSkeletalMeshAttributes::Register()
+void FSkeletalMeshAttributes::Register(bool bKeepExistingAttribute)
 {
-	MeshDescription.VertexAttributes().RegisterAttribute<int32[]>(MeshAttribute::Vertex::SkinWeights, 1, 0, EMeshAttributeFlags::Mandatory);
+	if (!MeshDescription.VertexAttributes().HasAttribute(MeshAttribute::Vertex::SkinWeights) || !bKeepExistingAttribute)
+	{
+		MeshDescription.VertexAttributes().RegisterAttribute<int32[]>(MeshAttribute::Vertex::SkinWeights, 1, 0, EMeshAttributeFlags::Mandatory);
+	}
 
 	if (MeshDescription.GetElements().Contains(BonesElementName) == false)
 	{
 		BoneElements = MeshDescription.GetElements().Emplace(BonesElementName).Get();
 	}
 
-	BoneAttributes().RegisterAttribute<FName>(MeshAttribute::Bone::Name, 1, NAME_None, EMeshAttributeFlags::Mandatory);
+	if (!MeshDescription.BoneAttributes().HasAttribute(MeshAttribute::Bone::Name) || !bKeepExistingAttribute)
+	{
+		BoneAttributes().RegisterAttribute<FName>(MeshAttribute::Bone::Name, 1, NAME_None, EMeshAttributeFlags::Mandatory);
+	}
 	
-	BoneAttributes().RegisterAttribute<int32>(MeshAttribute::Bone::ParentIndex, 1, INDEX_NONE, EMeshAttributeFlags::Mandatory);
+	if (!MeshDescription.BoneAttributes().HasAttribute(MeshAttribute::Bone::ParentIndex) || !bKeepExistingAttribute)
+	{
+		BoneAttributes().RegisterAttribute<int32>(MeshAttribute::Bone::ParentIndex, 1, INDEX_NONE, EMeshAttributeFlags::Mandatory);
+	}
 	
-	BoneAttributes().RegisterAttribute<FTransform>(MeshAttribute::Bone::Pose, 1, FTransform::Identity, EMeshAttributeFlags::Mandatory);
+	if (!MeshDescription.BoneAttributes().HasAttribute(MeshAttribute::Bone::Pose) || !bKeepExistingAttribute)
+	{
+		BoneAttributes().RegisterAttribute<FTransform>(MeshAttribute::Bone::Pose, 1, FTransform::Identity, EMeshAttributeFlags::Mandatory);
+	}
 
 	// Call super class
-	FStaticMeshAttributes::Register();
+	FStaticMeshAttributes::Register(bKeepExistingAttribute);
 }
 
 void FSkeletalMeshAttributes::RegisterColorAttribute()

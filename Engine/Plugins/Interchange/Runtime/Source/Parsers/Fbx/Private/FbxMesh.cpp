@@ -295,7 +295,8 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TAr
 	}
 
 	FStaticMeshAttributes Attributes(*MeshDescription);
-	Attributes.Register();
+	constexpr bool bKeepExistingAttribute = true;
+	Attributes.Register(bKeepExistingAttribute);
 
 	bool bStaticMeshUseSmoothEdgesIfSmoothingInformationIsMissing = true;
 
@@ -1014,7 +1015,7 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TAr
 		if (MeshType == EMeshType::Skinned)
 		{
 			FSkeletalMeshAttributes SkeletalMeshAttributes(*MeshDescription);
-			SkeletalMeshAttributes.Register();
+			SkeletalMeshAttributes.Register(true);
 
 			using namespace UE::AnimationCore;
 			TMap<FVertexID, TArray<FBoneWeight>> RawBoneWeights;

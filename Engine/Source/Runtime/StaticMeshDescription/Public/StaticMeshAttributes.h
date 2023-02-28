@@ -77,7 +77,7 @@ public:
 		: FMeshAttributes(InMeshDescription)
 	{}
 
-	virtual void Register() override;
+	virtual void Register(bool bKeepExistingAttribute = false) override;
 	
 	static bool IsReservedAttributeName(const FName InAttributeName)
 	{

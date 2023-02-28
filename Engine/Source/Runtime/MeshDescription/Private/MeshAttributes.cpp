@@ -41,7 +41,7 @@ namespace MeshAttribute
 }
 
 
-void FMeshAttributes::Register()
+void FMeshAttributes::Register(bool bKeepExistingAttribute)
 {
 	// Nothing to do here: Vertex positions are already registered by the FMeshDescription constructor
 }

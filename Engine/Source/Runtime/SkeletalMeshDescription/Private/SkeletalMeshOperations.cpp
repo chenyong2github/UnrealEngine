@@ -17,7 +17,8 @@ void FSkeletalMeshOperations::AppendSkinWeight(const FMeshDescription& SourceMes
 	FSkeletalMeshConstAttributes SourceSkeletalMeshAttributes(SourceMesh);
 	
 	FSkeletalMeshAttributes TargetSkeletalMeshAttributes(TargetMesh);
-	TargetSkeletalMeshAttributes.Register();
+	constexpr bool bKeepExistingAttribute = true;
+	TargetSkeletalMeshAttributes.Register(bKeepExistingAttribute);
 	
 	FSkinWeightsVertexAttributesConstRef SourceVertexSkinWeights = SourceSkeletalMeshAttributes.GetVertexSkinWeights();
 	FSkinWeightsVertexAttributesRef TargetVertexSkinWeights = TargetSkeletalMeshAttributes.GetVertexSkinWeights();

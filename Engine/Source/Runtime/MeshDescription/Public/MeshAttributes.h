@@ -64,7 +64,7 @@ public:
 
 	virtual ~FMeshAttributes() = default;
 
-	virtual void Register();
+	virtual void Register(bool bKeepExistingAttribute = false);
 
 	static bool IsReservedAttributeName(const FName InAttributeName)
 	{
