@@ -28,6 +28,7 @@ UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 	, bIsSpatiallyLoaded(true)
 	, CellSize(25600)
 	, LoadingRange(51200)
+	, HLODActorClass(AWorldPartitionHLOD::StaticClass())
 {
 }
 

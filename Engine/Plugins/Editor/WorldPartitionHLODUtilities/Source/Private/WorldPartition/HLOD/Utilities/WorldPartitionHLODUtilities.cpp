@@ -189,15 +189,23 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 		const TSet<FHLODSubActor>& SubActors = Pair.Value;
 		check(!SubActors.IsEmpty());
 
-		auto ComputeCellHash = [](const FString& HLODLayerName, const FGuid CellGuid)
+		auto ComputeHLODActorUniqueHash = [](const UHLODLayer* HLODLayer, const FGuid CellGuid)
 		{
-			uint32 HLODLayerNameHash = FCrc::StrCrc32(*HLODLayerName);
-			uint32 CellGuidHash = GetTypeHash(CellGuid);
-			return HashCombine(HLODLayerNameHash, CellGuidHash);
+			const uint32 HLODLayerNameHash = FCrc::StrCrc32(*HLODLayer->GetName());
+			const uint32 CellGuidHash = GetTypeHash(CellGuid);
+			uint32 HLODActorHash = HashCombine(HLODLayerNameHash, CellGuidHash);
+
+			if (HLODLayer->GetHLODActorClass() != AWorldPartitionHLOD::StaticClass())
+			{
+				const uint32 HLODActorClassHash = FCrc::StrCrc32(*HLODLayer->GetHLODActorClass()->GetPathName());
+				HLODActorHash = HashCombine(HLODActorHash, HLODActorClassHash);
+			}
+
+			return HLODActorHash;
 		};
 
-		uint64 CellHash = ComputeCellHash(HLODLayer->GetName(), InCreationParams.CellGuid);
-		FName HLODActorName = *FString::Printf(TEXT("%s_%016llx"), *HLODLayer->GetName(), CellHash);		
+		uint64 HLODActorHash = ComputeHLODActorUniqueHash(HLODLayer, InCreationParams.CellGuid);
+		FName HLODActorName = *FString::Printf(TEXT("%s_%016llx"), *HLODLayer->GetName(), HLODActorHash);
 
 		AWorldPartitionHLOD* HLODActor = nullptr;
 		FWorldPartitionHandle HLODActorHandle;
@@ -215,7 +223,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.Name = HLODActorName;
 			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
-			HLODActor = InCreationParams.WorldPartition->GetWorld()->SpawnActor<AWorldPartitionHLOD>(SpawnParams);
+			HLODActor = InCreationParams.WorldPartition->GetWorld()->SpawnActor<AWorldPartitionHLOD>(HLODLayer->GetHLODActorClass(), SpawnParams);
 
 			check(HLODActor->GetContentBundleGuid() == InCreationParams.ContentBundleGuid);
 
@@ -233,6 +241,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 #if DO_CHECK
 			check(HLODActor->GetSourceCellGuid() == InCreationParams.CellGuid);
 			check(HLODActor->GetSubActorsHLODLayer() == HLODLayer);
+			check(HLODActor->GetClass() == HLODLayer->GetHLODActorClass());
 #endif
 		}
 

@@ -16,6 +16,7 @@
 #include "HLODLayer.generated.h"
 
 class AActor;
+class AWorldPartitionHLOD;
 class UHLODBuilder;
 class UHLODBuilderSettings;
 class UMaterial;
@@ -55,6 +56,7 @@ public:
 	void SetLayerType(EHLODLayerType InLayerType) { LayerType = InLayerType; }
 	const TSubclassOf<UHLODBuilder> GetHLODBuilderClass() const { return HLODBuilderClass; }
 	const UHLODBuilderSettings* GetHLODBuilderSettings() const { return HLODBuilderSettings; }
+	const TSubclassOf<AWorldPartitionHLOD> GetHLODActorClass() const { return HLODActorClass; }
 	const TSubclassOf<UWorldPartitionHLODModifier> GetHLODModifierClass() const { return HLODModifierClass; }
 	FName GetRuntimeGrid(uint32 InHLODLevel) const;
 	int32 GetCellSize() const { return !bIsSpatiallyLoaded ? 0 : CellSize; }
@@ -105,6 +107,10 @@ private:
 	/** HLOD Layer to assign to the generated HLOD actors */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "bIsSpatiallyLoaded"))
 	TSoftObjectPtr<UHLODLayer> ParentLayer;
+
+	/** Specify a custom HLOD Actor class, the default is AWorldPartitionHLOD */
+	UPROPERTY(EditAnywhere, Category = HLOD, AdvancedDisplay, meta = (DisplayName = "HLOD Actor Class"))
+	TSubclassOf<AWorldPartitionHLOD> HLODActorClass;
 
 	/** HLOD Modifier class, to allow changes to the HLOD at runtime */
 	UPROPERTY(EditAnywhere, Config, Category = HLOD, AdvancedDisplay, meta = (DisplayName = "HLOD Modifier Class"))
