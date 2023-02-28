@@ -30,54 +30,69 @@ void UPCGIntersectionData::Initialize(const UPCGSpatialData* InA, const UPCGSpat
 	B = InB;
 	TargetActor = A->TargetActor;
 
-	CachedBounds = PCGHelpers::OverlapBounds(A->GetBounds(), B->GetBounds());
-	CachedStrictBounds = PCGHelpers::OverlapBounds(A->GetStrictBounds(), B->GetStrictBounds());
+#if WITH_EDITOR
+	RawPointerA = A;
+	RawPointerB = B;
+#endif
+
+	CachedBounds = PCGHelpers::OverlapBounds(GetA()->GetBounds(), GetB()->GetBounds());
+	CachedStrictBounds = PCGHelpers::OverlapBounds(GetA()->GetStrictBounds(), GetB()->GetStrictBounds());
 
 	check(Metadata);
 	// Note: this should behave the same way as the ToPointData
-	if (A->GetDimension() <= B->GetDimension())
+	if (GetA()->GetDimension() <= GetB()->GetDimension())
 	{
-		Metadata->Initialize(A->Metadata);
-		Metadata->AddAttributes(B->Metadata);
+		Metadata->Initialize(GetA()->Metadata);
+		Metadata->AddAttributes(GetB()->Metadata);
 	}
 	else
 	{
-		Metadata->Initialize(B->Metadata);
-		Metadata->AddAttributes(A->Metadata);
+		Metadata->Initialize(GetB()->Metadata);
+		Metadata->AddAttributes(GetA()->Metadata);
 	}
 }
 
+#if WITH_EDITOR
+void UPCGIntersectionData::PostLoad()
+{
+	Super::PostLoad();
+
+	RawPointerA = A;
+	RawPointerB = B;
+}
+#endif
+
 void UPCGIntersectionData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const
 {
-	check(A && B);
-	A->VisitDataNetwork(Action);
-	B->VisitDataNetwork(Action);
+	check(GetA() && GetB());
+	GetA()->VisitDataNetwork(Action);
+	GetB()->VisitDataNetwork(Action);
 }
 
 int UPCGIntersectionData::GetDimension() const
 {
-	check(A && B);
-	return FMath::Min(A->GetDimension(), B->GetDimension());
+	check(GetA() && GetB());
+	return FMath::Min(GetA()->GetDimension(), GetB()->GetDimension());
 }
 
 FBox UPCGIntersectionData::GetBounds() const
 {
-	check(A && B);
+	check(GetA() && GetB());
 	return CachedBounds;
 }
 
 FBox UPCGIntersectionData::GetStrictBounds() const
 {
-	check(A && B);
+	check(GetA() && GetB());
 	return CachedStrictBounds;
 }
 
 bool UPCGIntersectionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGIntersectionData::SamplePoint);
-	check(A && B);
-	const UPCGSpatialData* X = (A->HasNonTrivialTransform() || !B->HasNonTrivialTransform()) ? A : B;
-	const UPCGSpatialData* Y = (X == A) ? B : A;
+	check(GetA() && GetB());
+	const UPCGSpatialData* X = (GetA()->HasNonTrivialTransform() || !GetB()->HasNonTrivialTransform()) ? GetA() : GetB();
+	const UPCGSpatialData* Y = (X == GetA()) ? GetB() : GetA();
 
 	FPCGPoint PointFromX;
 	if(!X->SamplePoint(InTransform, InBounds, PointFromX, OutMetadata))
@@ -117,23 +132,23 @@ bool UPCGIntersectionData::SamplePoint(const FTransform& InTransform, const FBox
 
 bool UPCGIntersectionData::HasNonTrivialTransform() const
 {
-	check(A && B);
-	return A->HasNonTrivialTransform() || B->HasNonTrivialTransform();
+	check(GetA() && GetB());
+	return GetA()->HasNonTrivialTransform() || GetB()->HasNonTrivialTransform();
 }
 
 const UPCGSpatialData* UPCGIntersectionData::FindShapeFromNetwork(const int InDimension) const
 {
-	check(A && B);
+	check(GetA() && GetB());
 
 	if (InDimension >= 0)
 	{
 		// Return first candidate that matches Dimension
-		if (const UPCGSpatialData* CandidateA = A->FindShapeFromNetwork(InDimension))
+		if (const UPCGSpatialData* CandidateA = GetA()->FindShapeFromNetwork(InDimension))
 		{
 			return CandidateA;
 		}
 
-		if (const UPCGSpatialData* CandidateB = B->FindShapeFromNetwork(InDimension))
+		if (const UPCGSpatialData* CandidateB = GetB()->FindShapeFromNetwork(InDimension))
 		{
 			return CandidateB;
 		}
@@ -146,13 +161,13 @@ const UPCGSpatialData* UPCGIntersectionData::FindShapeFromNetwork(const int InDi
 		int LowestDimension = MAX_uint32;
 		const UPCGSpatialData* LowestDimensionalShape = nullptr;
 
-		if (const UPCGSpatialData* CandidateA = A->FindShapeFromNetwork(InDimension))
+		if (const UPCGSpatialData* CandidateA = GetA()->FindShapeFromNetwork(InDimension))
 		{
 			Result = CandidateA;
 			LowestDimension = CandidateA->GetDimension();
 		}
 
-		const UPCGSpatialData* CandidateB = B->FindShapeFromNetwork(InDimension);
+		const UPCGSpatialData* CandidateB = GetB()->FindShapeFromNetwork(InDimension);
 		if (CandidateB && CandidateB->GetDimension() < LowestDimension)
 		{
 			Result = CandidateB;
@@ -164,29 +179,29 @@ const UPCGSpatialData* UPCGIntersectionData::FindShapeFromNetwork(const int InDi
 
 const UPCGSpatialData* UPCGIntersectionData::FindFirstConcreteShapeFromNetwork() const
 {
-	check(A && B);
+	check(GetA() && GetB());
 
-	if (const UPCGSpatialData* CandidateA = A->FindFirstConcreteShapeFromNetwork())
+	if (const UPCGSpatialData* CandidateA = GetA()->FindFirstConcreteShapeFromNetwork())
 	{
 		return CandidateA;
 	}
 
-	return B->FindFirstConcreteShapeFromNetwork();
+	return GetB()->FindFirstConcreteShapeFromNetwork();
 }
 
 const UPCGPointData* UPCGIntersectionData::CreatePointData(FPCGContext* Context) const
 {
-	check(A && B);
+	check(GetA() && GetB());
 	// TODO: this is a placeholder;
 	// Here we will get the point data from the lower-dimensionality data
 	// and then cull out any of the points that are outside the bounds of the other
-	if (A->GetDimension() <= B->GetDimension())
+	if (GetA()->GetDimension() <= GetB()->GetDimension())
 	{
-		return CreateAndFilterPointData(Context, A, B);
+		return CreateAndFilterPointData(Context, GetA(), GetB());
 	}
 	else
 	{
-		return CreateAndFilterPointData(Context, B, A);
+		return CreateAndFilterPointData(Context, GetB(), GetA());
 	}
 }
 
@@ -267,6 +282,11 @@ UPCGSpatialData* UPCGIntersectionData::CopyInternal() const
 	NewIntersectionData->B = B;
 	NewIntersectionData->CachedBounds = CachedBounds;
 	NewIntersectionData->CachedStrictBounds = CachedStrictBounds;
+
+#if WITH_EDITOR
+	NewIntersectionData->RawPointerA = RawPointerA;
+	NewIntersectionData->RawPointerB = RawPointerB;
+#endif
 
 	return NewIntersectionData;
 }

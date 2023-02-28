@@ -24,6 +24,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	void Initialize(const UPCGSpatialData* InA, const UPCGSpatialData* InB);
 
+	// ~Begin UObject interface
+#if WITH_EDITOR
+	virtual void PostLoad();
+#endif
+	// ~End UObject interface
+
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial; }
 	virtual void VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const override;
@@ -65,4 +71,20 @@ protected:
 
 	UPROPERTY()
 	FBox CachedStrictBounds = FBox(EForceInit::ForceInit);
+
+#if WITH_EDITOR
+	inline const UPCGSpatialData* GetA() const { return RawPointerA; }
+	inline const UPCGSpatialData* GetB() const { return RawPointerB; }
+#else
+	inline const UPCGSpatialData* GetA() const { return A.Get(); }
+	inline const UPCGSpatialData* GetB() const { return B.Get(); }
+#endif
+
+#if WITH_EDITOR
+private:
+	// Cached pointers to avoid dereferencing object pointer which does access tracking and supports lazy loading, and can come with substantial
+	// overhead (add trace marker to FObjectPtr::Get to see).
+	const UPCGSpatialData* RawPointerA = nullptr;
+	const UPCGSpatialData* RawPointerB = nullptr;
+#endif
 };

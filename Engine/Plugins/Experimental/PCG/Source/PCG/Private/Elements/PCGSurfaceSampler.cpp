@@ -154,7 +154,11 @@ namespace PCGSurfaceSampler
 		// Make sure we're still in bounds though!
 		SampleZ = FMath::Max(SampleZ, LoopData.InputBoundsMinZ);
 
-		FPCGAsync::AsyncPointProcessing(Context, LoopData.CellCount, SampledPoints, [&LoopData, SampledData, InBoundingShape, InSurface, &ProjectionParams, SampleZ](int32 Index, FPCGPoint& OutPoint)
+		// Cache pointer ahead of time to avoid dereferencing object pointer which does access tracking and supports lazy loading, and can come with substantial
+		// overhead (add trace marker to FObjectPtr::Get to see).
+		UPCGMetadata* OutMetadata = SampledData->Metadata.Get();
+
+		FPCGAsync::AsyncPointProcessing(Context, LoopData.CellCount, SampledPoints, [&LoopData, SampledData, InBoundingShape, InSurface, &ProjectionParams, SampleZ, OutMetadata](int32 Index, FPCGPoint& OutPoint)
 		{
 			const FIntVector2 Indices = LoopData.ComputeCellIndices(Index);
 
@@ -182,7 +186,7 @@ namespace PCGSurfaceSampler
 			OutPoint = FPCGPoint();
 
 			// Firstly project onto elected generating shape to move to final position.
-			if (!InSurface->ProjectPoint(FTransform(TentativeLocation), LocalBound, ProjectionParams, OutPoint, SampledData->Metadata))
+			if (!InSurface->ProjectPoint(FTransform(TentativeLocation), LocalBound, ProjectionParams, OutPoint, OutMetadata))
 			{
 				return false;
 			}
