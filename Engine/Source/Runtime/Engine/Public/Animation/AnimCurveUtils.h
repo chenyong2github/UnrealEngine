@@ -447,7 +447,10 @@ public:
 		FNamedValueArrayUtils::Union(InCurve, InBulkCurves,
 			[&InValuePredicate](typename CurveType0::ElementType& InOutElement0, const typename CurveType1::ElementType& InElement1, UE::Anim::ENamedValueUnionFlags InFlags)
 			{
-				InOutElement0.Value = InValuePredicate(InElement1);
+				if(EnumHasAllFlags(InFlags, UE::Anim::ENamedValueUnionFlags::ValidArg1))
+				{
+					InOutElement0.Value = InValuePredicate(InElement1);
+				}
 			});
 	}
 };
