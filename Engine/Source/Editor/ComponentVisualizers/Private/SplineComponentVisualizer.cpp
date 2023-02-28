@@ -2391,7 +2391,7 @@ float FSplineComponentVisualizer::FindNearest(const FVector& InLocalPos, int32 I
 
 	FInterpCurveVector& SplinePosition = SplineComp->GetSplinePointsPosition();
 	float OutSquaredDistance = 0.0f;
-	float t = SplinePosition.InaccurateFindNearestOnSegment(InLocalPos, InSegmentIndex, OutSquaredDistance);
+	float t = SplinePosition.FindNearestOnSegment(InLocalPos, InSegmentIndex, OutSquaredDistance);
 	OutSplinePos = SplinePosition.Eval(t, FVector::ZeroVector);
 	OutSplineTangent = SplinePosition.EvalDerivative(t, FVector::ZeroVector);
 

@@ -546,7 +546,7 @@ float USplineComponent::GetDistanceAlongSplineAtLocation(const FVector& InLocati
 {
 	const FVector LocalLocation = (CoordinateSpace == ESplineCoordinateSpace::World) ? GetComponentTransform().InverseTransformPosition(InLocation) : InLocation;
 	float Dummy;
-	float Key = SplineCurves.Position.InaccurateFindNearest(LocalLocation, Dummy);
+	float Key = SplineCurves.Position.FindNearest(LocalLocation, Dummy);
 	return GetDistanceAlongSplineAtSplineInputKey(Key);
 }
 
@@ -1543,7 +1543,7 @@ float USplineComponent::FindInputKeyClosestToWorldLocation(const FVector& WorldL
 {
 	const FVector LocalLocation = GetComponentTransform().InverseTransformPosition(WorldLocation);
 	float Dummy;
-	return SplineCurves.Position.InaccurateFindNearest(LocalLocation, Dummy);
+	return SplineCurves.Position.FindNearest(LocalLocation, Dummy);
 }
 
 

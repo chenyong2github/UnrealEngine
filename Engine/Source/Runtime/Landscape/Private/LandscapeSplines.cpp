@@ -3331,7 +3331,7 @@ FName ULandscapeSplineSegment::GetCollisionProfileName() const
 void ULandscapeSplineSegment::FindNearest( const FVector& InLocation, float& t, FVector& OutLocation, FVector& OutTangent )
 {
 	float TempOutDistanceSq;
-	t = SplineInfo.InaccurateFindNearest(InLocation, TempOutDistanceSq);
+	t = SplineInfo.FindNearest(InLocation, TempOutDistanceSq);
 	OutLocation = SplineInfo.Eval(t, FVector::ZeroVector);
 	OutTangent = SplineInfo.EvalDerivative(t, FVector::ZeroVector);
 }

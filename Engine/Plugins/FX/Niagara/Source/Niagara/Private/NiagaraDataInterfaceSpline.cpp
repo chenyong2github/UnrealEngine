@@ -1023,7 +1023,7 @@ template <>
 float FNDISpline_InstanceData::EvaluateFindNearestPosition<TIntegralConstant<bool, false>>(FVector InPosition) const
 {
 	float Dummy;
-	return SplineCurves.Position.InaccurateFindNearest(InPosition, Dummy);
+	return SplineCurves.Position.FindNearest(InPosition, Dummy);
 }
 
 template <>

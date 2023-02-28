@@ -33,7 +33,7 @@ float FWaterSplineDataPhysics::FindInputKeyClosestToWorldLocation(const FVector&
 {
 	const FVector LocalLocation = ComponentTransform.InverseTransformPosition(WorldLocation);
 	float Dummy;
-	return SplineCurves.Position.InaccurateFindNearest(LocalLocation, Dummy);
+	return SplineCurves.Position.FindNearest(LocalLocation, Dummy);
 }
 
 FVector FWaterSplineDataPhysics::GetUpVectorAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace /*= ESplineCoordinateSpace::World*/) const

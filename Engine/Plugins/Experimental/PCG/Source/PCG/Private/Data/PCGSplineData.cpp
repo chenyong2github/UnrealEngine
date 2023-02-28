@@ -204,7 +204,7 @@ bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const 
 	FVector2D LocalPosition2D = Project(LocalTransform.GetLocation());
 	float Dummy;
 	// Find nearest key on 2D spline
-	float NearestInputKey = ProjectedPosition.InaccurateFindNearest(LocalPosition2D, Dummy);
+	float NearestInputKey = ProjectedPosition.FindNearest(LocalPosition2D, Dummy);
 	// TODO: if we didn't want to hand off density computation to the spline and do it here instead, we could do it in 2D space.
 	// Find point on original spline using the previously found key. Note this is an approximation that might not hold true since
 	// we are changing the curve length. Also, to support surface orientations that are not axis aligned, the project function
