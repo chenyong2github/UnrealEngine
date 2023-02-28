@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MergeUtils.h"
+
+#include "DiffUtils.h"
 #include "IAssetTypeActions.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Package.h"
@@ -112,8 +114,9 @@ UObject const* FMergeToolUtils::LoadAssetFromPackage(const FString& PackageFileN
 	const UObject* Object = nullptr;
 
 	// Try and load that package
-	UPackage* TempPackage = LoadPackage(NULL, *PackageFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad);
-	if (TempPackage != NULL)
+	const FPackagePath TempPackagePath = FPackagePath::FromLocalPath(PackageFileName);
+	// TODO: @jordan.hoffmann set InOriginalPackagePath parameter if this is used for Actors
+	if (UPackage* TempPackage = DiffUtils::LoadPackageForDiff(TempPackagePath, {}))
 	{
 		// Grab the old asset from that old package
 		UObject* FoundObject = FindObject<UObject>(TempPackage, *AssetName);

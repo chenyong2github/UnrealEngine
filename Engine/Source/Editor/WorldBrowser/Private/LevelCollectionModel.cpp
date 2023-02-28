@@ -25,6 +25,7 @@
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
+#include "DiffUtils.h"
 #include "EditorSupportDelegates.h"
 #include "GameFramework/WorldSettings.h"
 
@@ -1316,12 +1317,11 @@ void FLevelCollectionModel::SCCDiffAgainstDepot(const FLevelModelList& InList, U
 					// Get the head revision of this package from source control
 					FString AbsoluteFileName = FPaths::ConvertRelativePathToFull(RelativeFileName);
 					FString TempFileName;
-					if (Revision->Get(TempFileName))
+					if (UPackage* OldPackage = DiffUtils::LoadPackageForDiff(Revision))
 					{
 						// Try and load that package
 						FText NotMapReason;
-						UPackage* OldPackage = LoadPackage(NULL, *TempFileName, LOAD_ForDiff|LOAD_DisableCompileOnLoad);
-						if(OldPackage != NULL && InEditor->PackageIsAMapFile(*TempFileName, NotMapReason))
+						if(InEditor->PackageIsAMapFile(*TempFileName, NotMapReason))
 						{
 							/* Set the revision information*/
 							UPackage* Package = OriginalPackage;

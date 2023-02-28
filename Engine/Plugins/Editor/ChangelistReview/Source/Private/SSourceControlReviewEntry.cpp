@@ -5,6 +5,7 @@
 #include "AssetDefinition.h"
 #include "AssetToolsModule.h"
 #include "ClassIconFinder.h"
+#include "DiffUtils.h"
 #include "Engine/Blueprint.h"
 #include "SourceControlHelpers.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -223,7 +224,9 @@ void SSourceControlReviewEntry::TryBindUAssetDiff()
 	UObject* ReviewAsset = nullptr;	
 	if (IsAssetPath(ChangelistFileData.ReviewFileTempPath))
 	{
-		if (UPackage* ReviewFilePkg = LoadPackage(nullptr, FPackagePath::FromLocalPath(ChangelistFileData.ReviewFileTempPath), LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
+		const FPackagePath ReviewFileTempPath = FPackagePath::FromLocalPath(ChangelistFileData.ReviewFileTempPath);
+		const FPackagePath AssetPath = FPackagePath::FromLocalPath(ChangelistFileData.AssetFilePath);
+		if (UPackage* ReviewFilePkg = DiffUtils::LoadPackageForDiff(ReviewFileTempPath, AssetPath))
 		{
 			ReviewAsset = FindObject<UObject>(ReviewFilePkg, *ChangelistFileData.AssetName);
 			if(ReviewAsset && ReviewAsset->IsA<UObjectRedirector>())
@@ -236,7 +239,9 @@ void SSourceControlReviewEntry::TryBindUAssetDiff()
 	UObject* PreviousAsset = nullptr;
 	if (IsAssetPath(ChangelistFileData.PreviousFileTempPath))
 	{
-		if (UPackage* PreviousFilePkg = LoadPackage(nullptr, FPackagePath::FromLocalPath(ChangelistFileData.PreviousFileTempPath), LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
+		const FPackagePath PreviousFileTempPath = FPackagePath::FromLocalPath(ChangelistFileData.PreviousFileTempPath);
+		const FPackagePath AssetPath = FPackagePath::FromLocalPath(ChangelistFileData.AssetFilePath);
+		if (UPackage* PreviousFilePkg = DiffUtils::LoadPackageForDiff(PreviousFileTempPath, AssetPath))
 		{
 			if (ChangelistFileData.PreviousAssetName.IsEmpty())
 			{

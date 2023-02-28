@@ -7,6 +7,7 @@
 #include "BlueprintEditor.h"
 #include "BlueprintEditorCommands.h"
 #include "BlueprintEditorContext.h"
+#include "DiffUtils.h"
 #include "Containers/Array.h"
 #include "Containers/EnumAsByte.h"
 #include "Containers/UnrealString.h"
@@ -571,52 +572,45 @@ static void OnDiffRevisionPicked(FRevisionInfo const& RevisionInfo, TWeakObjectP
 				if (Revision->GetRevision() == RevisionInfo.Revision)
 				{
 					// Get the revision of this package from source control
-					FString PreviousTempPkgName;
-					if (Revision->Get(PreviousTempPkgName))
+					if (UPackage* PreviousTempPkg = DiffUtils::LoadPackageForDiff(Revision))
 					{
-						// Try and load that package
-						UPackage* PreviousTempPkg = LoadPackage(NULL, *PreviousTempPkgName, LOAD_ForDiff | LOAD_DisableCompileOnLoad);
+						UObject* PreviousAsset = nullptr;
 
-						if (PreviousTempPkg != NULL)
+						// If its a levelscript blueprint, find the previous levelscript blueprint in the map
+						if (bIsLevelScriptBlueprint)
 						{
-							UObject* PreviousAsset = NULL;
+							TArray<UObject*> ObjectsInOuter;
+							GetObjectsWithOuter(PreviousTempPkg, ObjectsInOuter);
 
-							// If its a levelscript blueprint, find the previous levelscript blueprint in the map
-							if (bIsLevelScriptBlueprint)
+							// Look for the level script blueprint for this package
+							for (int32 Index = 0; Index < ObjectsInOuter.Num(); Index++)
 							{
-								TArray<UObject*> ObjectsInOuter;
-								GetObjectsWithOuter(PreviousTempPkg, ObjectsInOuter);
-
-								// Look for the level script blueprint for this package
-								for (int32 Index = 0; Index < ObjectsInOuter.Num(); Index++)
+								UObject* Obj = ObjectsInOuter[Index];
+								if (ULevelScriptBlueprint* ObjAsBlueprint = Cast<ULevelScriptBlueprint>(Obj))
 								{
-									UObject* Obj = ObjectsInOuter[Index];
-									if (ULevelScriptBlueprint* ObjAsBlueprint = Cast<ULevelScriptBlueprint>(Obj))
-									{
-										PreviousAsset = ObjAsBlueprint;
-										break;
-									}
+									PreviousAsset = ObjAsBlueprint;
+									break;
 								}
 							}
-							// otherwise its a normal Blueprint
-							else
-							{
-								FString PreviousAssetName = FPaths::GetBaseFilename(Filename, true);
-								PreviousAsset = FindObject<UObject>(PreviousTempPkg, *PreviousAssetName);
-							}
-
-							if (PreviousAsset != NULL)
-							{
-								FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-								FRevisionInfo OldRevision = { Revision->GetRevision(), Revision->GetCheckInIdentifier(), Revision->GetDate() };
-								FRevisionInfo CurrentRevision = { TEXT(""), Revision->GetCheckInIdentifier(), Revision->GetDate() };
-								AssetToolsModule.Get().DiffAssets(PreviousAsset, BlueprintObj.Get(), OldRevision, CurrentRevision);
-							}
 						}
+						// otherwise its a normal Blueprint
 						else
 						{
-							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("SourceControl.HistoryWindow", "UnableToLoadAssets", "Unable to load assets to diff. Content may no longer be supported?"));
+							FString PreviousAssetName = FPaths::GetBaseFilename(Filename, true);
+							PreviousAsset = FindObject<UObject>(PreviousTempPkg, *PreviousAssetName);
 						}
+
+						if (PreviousAsset != nullptr)
+						{
+							FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+							FRevisionInfo OldRevision = { Revision->GetRevision(), Revision->GetCheckInIdentifier(), Revision->GetDate() };
+							FRevisionInfo CurrentRevision = { TEXT(""), Revision->GetCheckInIdentifier(), Revision->GetDate() };
+							AssetToolsModule.Get().DiffAssets(PreviousAsset, BlueprintObj.Get(), OldRevision, CurrentRevision);
+						}
+					}
+					else
+					{
+						FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("SourceControl.HistoryWindow", "UnableToLoadAssets", "Unable to load assets to diff. Content may no longer be supported?"));
 					}
 					break;
 				}

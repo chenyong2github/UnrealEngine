@@ -9,6 +9,7 @@
 #include "IAssetTypeActions.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
+#include "ISourceControlRevision.h"
 #include "Internationalization/Internationalization.h"
 #include "Math/UnrealMathSSE.h"
 #include "Misc/Attribute.h"
@@ -775,6 +776,29 @@ TArray<FPropertyPath> DiffUtils::ResolveAll(const UObject* Object, const TArray<
 		Ret.Push(Difference.Identifier.ResolvePath(Object));
 	}
 	return Ret;
+}
+
+UPackage* DiffUtils::LoadPackageForDiff(const FPackagePath& InTempPackagePath, const FPackagePath& InOriginalPackagePath)
+{
+	// set up instancing context
+	FLinkerInstancingContext Context;
+	Context.AddPackageMapping(InOriginalPackagePath.GetPackageFName(), InTempPackagePath.GetPackageFName());
+	
+	return LoadPackage(nullptr, *InTempPackagePath.GetPackageName(),
+		LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks, nullptr, &Context);
+}
+
+UPackage* DiffUtils::LoadPackageForDiff(TSharedPtr<ISourceControlRevision> Revision)
+{
+	FString TempFileName;
+	if(Revision->Get(TempFileName))
+	{
+		// Try and load that package
+		const FPackagePath TempPackagePath = FPackagePath::FromLocalPath(TempFileName);
+		const FPackagePath OriginalPackagePath = FPackagePath::FromLocalPath(Revision->GetFilename());
+		return LoadPackageForDiff(TempPackagePath, OriginalPackagePath);
+	}
+	return nullptr;
 }
 
 TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::NoDifferencesEntry()

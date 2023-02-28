@@ -102,6 +102,7 @@
 
 #include "AssetDefinition.h"
 #include "AssetDefinitionRegistry.h"
+#include "DiffUtils.h"
 #include "VirtualTexturingEditorModule.h"
 #include "Algo/AnyOf.h"
 #include "Engine/UserDefinedStruct.h"
@@ -2716,33 +2717,28 @@ void UAssetToolsImpl::DiffAgainstDepot( UObject* InObject, const FString& InPack
 				// Get the head revision of this package from source control
 				FString AbsoluteFileName = FPaths::ConvertRelativePathToFull(RelativeFileName);
 				FString TempFileName;
-				if(Revision->Get(TempFileName))
+				if(UPackage* TempPackage = DiffUtils::LoadPackageForDiff(Revision))
 				{
-					// Try and load that package
-					UPackage* TempPackage = LoadPackage(nullptr, *TempFileName, LOAD_ForDiff|LOAD_DisableCompileOnLoad);
-					if(TempPackage != nullptr)
+					// Grab the old asset from that old package
+					UObject* OldObject = FindObject<UObject>(TempPackage, *InPackageName);
+
+					// Recovery for package names that don't match
+					if (OldObject == nullptr)
 					{
-						// Grab the old asset from that old package
-						UObject* OldObject = FindObject<UObject>(TempPackage, *InPackageName);
+						OldObject = TempPackage->FindAssetInPackage();
+					}
 
-						// Recovery for package names that don't match
-						if (OldObject == nullptr)
-						{
-							OldObject = TempPackage->FindAssetInPackage();
-						}
+					if(OldObject != nullptr)
+					{
+						/* Set the revision information*/
+						FRevisionInfo OldRevision;
+						OldRevision.Changelist = Revision->GetCheckInIdentifier();
+						OldRevision.Date = Revision->GetDate();
+						OldRevision.Revision = Revision->GetRevision();
 
-						if(OldObject != nullptr)
-						{
-							/* Set the revision information*/
-							FRevisionInfo OldRevision;
-							OldRevision.Changelist = Revision->GetCheckInIdentifier();
-							OldRevision.Date = Revision->GetDate();
-							OldRevision.Revision = Revision->GetRevision();
-
-							FRevisionInfo NewRevision; 
-							NewRevision.Revision = TEXT("");
-							DiffAssets(OldObject, InObject, OldRevision, NewRevision);
-						}
+						FRevisionInfo NewRevision; 
+						NewRevision.Revision = TEXT("");
+						DiffAssets(OldObject, InObject, OldRevision, NewRevision);
 					}
 				}
 			}

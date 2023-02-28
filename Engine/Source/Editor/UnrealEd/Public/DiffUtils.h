@@ -22,6 +22,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/Views/STreeView.h"
 
+class ISourceControlRevision;
 class SWidget;
 class UBlueprint;
 class UObject;
@@ -101,10 +102,10 @@ struct FPropertySoftPath
 		PropertyChain.Push(FName(*FString::FromInt(ContainerIndex)));
 	}
 
-	KISMET_API FResolvedProperty Resolve(const UObject* Object) const;
-	KISMET_API FResolvedProperty Resolve(const UStruct* Struct, const void* StructData) const;
-	KISMET_API FPropertyPath ResolvePath(const UObject* Object) const;
-	KISMET_API FString ToDisplayName() const;
+	UNREALED_API FResolvedProperty Resolve(const UObject* Object) const;
+	UNREALED_API FResolvedProperty Resolve(const UStruct* Struct, const void* StructData) const;
+	UNREALED_API FPropertyPath ResolvePath(const UObject* Object) const;
+	UNREALED_API FString ToDisplayName() const;
 
 	inline bool IsSubPropertyMatch(const FPropertySoftPath& PotentialBasePropertyPath) const
 	{
@@ -277,21 +278,30 @@ struct FSCSDiffRoot
 
 namespace DiffUtils
 {
-	KISMET_API const UObject* GetCDO(const UBlueprint* ForBlueprint);
-	KISMET_API void CompareUnrelatedStructs(const UStruct* StructA, const void* A, const UStruct* StructB, const void* B, TArray<FSingleObjectDiffEntry>& OutDifferingProperties);
-	KISMET_API void CompareUnrelatedObjects(const UObject* A, const UObject* B, TArray<FSingleObjectDiffEntry>& OutDifferingProperties);
-	KISMET_API void CompareUnrelatedSCS(const UBlueprint* Old, const TArray< FSCSResolvedIdentifier >& OldHierarchy, const UBlueprint* New, const TArray< FSCSResolvedIdentifier >& NewHierarchy, FSCSDiffRoot& OutDifferingEntries );
-	KISMET_API bool Identical(const FResolvedProperty& AProp, const FResolvedProperty& BProp, const FPropertySoftPath& RootPath, TArray<FPropertySoftPath>& DifferingProperties); 
-	KISMET_API TArray<FPropertySoftPath> GetVisiblePropertiesInOrderDeclared(const UStruct* ForStruct, const FPropertySoftPath& Scope = FPropertySoftPath());
+	UNREALED_API const UObject* GetCDO(const UBlueprint* ForBlueprint);
+	UNREALED_API void CompareUnrelatedStructs(const UStruct* StructA, const void* A, const UStruct* StructB, const void* B, TArray<FSingleObjectDiffEntry>& OutDifferingProperties);
+	UNREALED_API void CompareUnrelatedObjects(const UObject* A, const UObject* B, TArray<FSingleObjectDiffEntry>& OutDifferingProperties);
+	UNREALED_API void CompareUnrelatedSCS(const UBlueprint* Old, const TArray< FSCSResolvedIdentifier >& OldHierarchy, const UBlueprint* New, const TArray< FSCSResolvedIdentifier >& NewHierarchy, FSCSDiffRoot& OutDifferingEntries );
+	UNREALED_API bool Identical(const FResolvedProperty& AProp, const FResolvedProperty& BProp, const FPropertySoftPath& RootPath, TArray<FPropertySoftPath>& DifferingProperties); 
+	UNREALED_API TArray<FPropertySoftPath> GetVisiblePropertiesInOrderDeclared(const UStruct* ForStruct, const FPropertySoftPath& Scope = FPropertySoftPath());
 
-	KISMET_API TArray<FPropertyPath> ResolveAll(const UObject* Object, const TArray<FPropertySoftPath>& InSoftProperties);
-	KISMET_API TArray<FPropertyPath> ResolveAll(const UObject* Object, const TArray<FSingleObjectDiffEntry>& InDifferences);
+	UNREALED_API TArray<FPropertyPath> ResolveAll(const UObject* Object, const TArray<FPropertySoftPath>& InSoftProperties);
+	UNREALED_API TArray<FPropertyPath> ResolveAll(const UObject* Object, const TArray<FSingleObjectDiffEntry>& InDifferences);
+
+	/**
+	 * @param InTempPackagePath		- filepath of the temporary uasset version (likely in /Saved/Temp/SourceControl)
+	 * @param InOriginalPackagePath	- filepath of the original uasset in the content directory. Strictly speaking most assets don't need this parameter set
+	 *								  but it's needed to instantiate OFPA Actors properly.
+	 */
+	UNREALED_API UPackage* LoadPackageForDiff(const FPackagePath& InTempPackagePath, const FPackagePath& InOriginalPackagePath);
+	UNREALED_API UPackage* LoadPackageForDiff(TSharedPtr<ISourceControlRevision> Revision);
+
 }
 
 DECLARE_DELEGATE(FOnDiffEntryFocused);
 DECLARE_DELEGATE_RetVal(TSharedRef<SWidget>, FGenerateDiffEntryWidget);
 
-class KISMET_API FBlueprintDifferenceTreeEntry
+class UNREALED_API FBlueprintDifferenceTreeEntry
 {
 public:
 	FBlueprintDifferenceTreeEntry(FOnDiffEntryFocused InOnFocus, FGenerateDiffEntryWidget InGenerateWidget, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > InChildren = TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >())
@@ -321,27 +331,27 @@ public:
 
 namespace DiffTreeView
 {
-	KISMET_API TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > CreateTreeView(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >* DifferencesList);
-	KISMET_API int32 CurrentDifference( TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > TreeView, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& Differences );
-	KISMET_API void HighlightNextDifference(TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > TreeView, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& Differences, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& RootDifferences);
-	KISMET_API void HighlightPrevDifference(TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > TreeView, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& Differences, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& RootDifferences);
-	KISMET_API bool HasNextDifference(TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > TreeView, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& Differences);
-	KISMET_API bool HasPrevDifference(TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > TreeView, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& Differences);
+	UNREALED_API TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > CreateTreeView(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >* DifferencesList);
+	UNREALED_API int32 CurrentDifference( TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > TreeView, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& Differences );
+	UNREALED_API void HighlightNextDifference(TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > TreeView, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& Differences, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& RootDifferences);
+	UNREALED_API void HighlightPrevDifference(TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > TreeView, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& Differences, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& RootDifferences);
+	UNREALED_API bool HasNextDifference(TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > TreeView, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& Differences);
+	UNREALED_API bool HasPrevDifference(TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > TreeView, const TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> >& Differences);
 }
 
 struct FRevisionInfo;
 
 namespace DiffViewUtils
 {
-	KISMET_API FLinearColor LookupColor( bool bDiffers, bool bConflicts = false );
-	KISMET_API FLinearColor Differs();
-	KISMET_API FLinearColor Identical();
-	KISMET_API FLinearColor Missing();
-	KISMET_API FLinearColor Conflicting();
+	UNREALED_API FLinearColor LookupColor( bool bDiffers, bool bConflicts = false );
+	UNREALED_API FLinearColor Differs();
+	UNREALED_API FLinearColor Identical();
+	UNREALED_API FLinearColor Missing();
+	UNREALED_API FLinearColor Conflicting();
 
-	KISMET_API FText PropertyDiffMessage(FSingleObjectDiffEntry Difference, FText ObjectName);
-	KISMET_API FText SCSDiffMessage(const FSCSDiffEntry& Difference, FText ObjectName);
-	KISMET_API FText GetPanelLabel(const UObject* Asset, const FRevisionInfo& Revision, FText Label);
+	UNREALED_API FText PropertyDiffMessage(FSingleObjectDiffEntry Difference, FText ObjectName);
+	UNREALED_API FText SCSDiffMessage(const FSCSDiffEntry& Difference, FText ObjectName);
+	UNREALED_API FText GetPanelLabel(const UObject* Asset, const FRevisionInfo& Revision, FText Label);
 
-	KISMET_API SHorizontalBox::FSlot::FSlotArguments Box(bool bIsPresent, FLinearColor Color);
+	UNREALED_API SHorizontalBox::FSlot::FSlotArguments Box(bool bIsPresent, FLinearColor Color);
 }

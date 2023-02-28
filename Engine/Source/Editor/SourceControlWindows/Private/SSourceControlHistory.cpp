@@ -50,6 +50,7 @@
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
+#include "DiffUtils.h"
 #include "ToolMenu.h"
 #include "ToolMenus.h"
 
@@ -210,10 +211,10 @@ static UObject* GetAssetRevisionObject(TSharedPtr<FHistoryTreeItem> HistoryTreeI
 				TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> FileRevision = FileSourceControlState->FindHistoryRevision(RevisionListItem->Revision);
 
 				FString TempPackageName;
-				if (FileRevision.IsValid() && FileRevision->Get(TempPackageName)) // grab the path to a temporary package (where the revision item will be stored)
+				if (FileRevision.IsValid())
 				{
 					// try and load the temporary package
-					AssetPackage = LoadPackage(NULL, *TempPackageName, LOAD_ForDiff|LOAD_DisableCompileOnLoad);
+					AssetPackage = DiffUtils::LoadPackageForDiff(FileRevision);
 				}
 			} // if FileSourceControlState.IsValid()
 		}
@@ -229,6 +230,10 @@ static UObject* GetAssetRevisionObject(TSharedPtr<FHistoryTreeItem> HistoryTreeI
 		// grab the asset from the package - we assume asset name matches file name
 		FString AssetName = FPaths::GetBaseFilename(FileListItem->FileName);
 		AssetObject = FindObject<UObject>(AssetPackage, *AssetName);
+		if (AssetObject == nullptr)
+		{
+			AssetObject = AssetPackage->FindAssetInPackage();
+		}
 
 	} // if HistoryTreeItemIn.IsValid()
 	
@@ -1779,8 +1784,9 @@ bool FSourceControlWindows::DiffAgainstShelvedFile(const FSourceControlStateRef&
 		if (Revision->Get(TempFileName))
 		{
 			// Try and load that package
-			UPackage* TempPackage = LoadPackage(nullptr, *TempFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad);
-			if (TempPackage != nullptr)
+			const FPackagePath TempPackagePath = FPackagePath::FromLocalPath(TempFileName);
+			const FPackagePath OriginalPackagePath = FPackagePath::FromLocalPath(InFileState->GetFilename());
+			if(UPackage* TempPackage = DiffUtils::LoadPackageForDiff(TempPackagePath, OriginalPackagePath))
 			{
 				// Grab the shelved asset from that package
 				UObject* ShelvedObject = FindObject<UObject>(TempPackage, *SelectedAsset->GetName());
