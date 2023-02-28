@@ -9,6 +9,35 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorByAttribute)
 
+namespace PCGMeshSelectorAttribute
+{
+	// Returns variation based on mesh, material overrides and reverse culling
+	FPCGMeshInstanceList& GetInstanceList(
+		TArray<FPCGMeshInstanceList>& InstanceLists,
+		const FSoftISMComponentDescriptor& TemplateDescriptor,
+		TSoftObjectPtr<UStaticMesh> Mesh,
+		const TArray<TSoftObjectPtr<UMaterialInterface>>& MaterialOverrides,
+		bool bReverseCulling)
+	{
+		for (FPCGMeshInstanceList& InstanceList : InstanceLists)
+		{
+			if (InstanceList.Descriptor.StaticMesh == Mesh &&
+				InstanceList.Descriptor.bReverseCulling == bReverseCulling &&
+				InstanceList.Descriptor.OverrideMaterials == MaterialOverrides)
+			{
+				return InstanceList;
+			}
+		}
+
+		FPCGMeshInstanceList& NewInstanceList = InstanceLists.Emplace_GetRef(TemplateDescriptor);
+		NewInstanceList.Descriptor.StaticMesh = Mesh;
+		NewInstanceList.Descriptor.OverrideMaterials = MaterialOverrides;
+		NewInstanceList.Descriptor.bReverseCulling = bReverseCulling;
+
+		return NewInstanceList;
+	}
+}
+
 void UPCGMeshSelectorByAttribute::PostLoad()
 {
 	Super::PostLoad();
@@ -16,8 +45,46 @@ void UPCGMeshSelectorByAttribute::PostLoad()
 #if WITH_EDITOR
 	if (bOverrideMaterials_DEPRECATED)
 	{
-		MaterialOverrideMode = EPCGMeshSelectorMaterialOverrideMode::StaticOverride;
+		MaterialOverrideMode_DEPRECATED = EPCGMeshSelectorMaterialOverrideMode::StaticOverride;
 		bOverrideMaterials_DEPRECATED = false;
+	}
+
+	if (bOverrideCollisionProfile_DEPRECATED ||
+		CollisionProfile_DEPRECATED.Name != UCollisionProfile::NoCollision_ProfileName ||
+		MaterialOverrides_DEPRECATED.Num() > 0 ||
+		MaterialOverrideMode_DEPRECATED != EPCGMeshSelectorMaterialOverrideMode::NoOverride ||
+		CullStartDistance_DEPRECATED != 0 ||
+		CullEndDistance_DEPRECATED != 0 ||
+		WorldPositionOffsetDisableDistance_DEPRECATED != 0)
+	{
+		if (bOverrideCollisionProfile_DEPRECATED)
+		{
+			TemplateDescriptor.bUseDefaultCollision = false;
+			TemplateDescriptor.BodyInstance.SetCollisionProfileName(CollisionProfile_DEPRECATED.Name);
+		}
+		else
+		{
+			TemplateDescriptor.bUseDefaultCollision = true;
+		}
+
+		if (MaterialOverrideMode_DEPRECATED != EPCGMeshSelectorMaterialOverrideMode::NoOverride)
+		{
+			TemplateDescriptor.OverrideMaterials = MaterialOverrides_DEPRECATED;
+		}
+		
+		TemplateDescriptor.InstanceStartCullDistance = CullStartDistance_DEPRECATED;
+		TemplateDescriptor.InstanceEndCullDistance = CullEndDistance_DEPRECATED;
+		TemplateDescriptor.WorldPositionOffsetDisableDistance = WorldPositionOffsetDisableDistance_DEPRECATED;
+
+		bUseAttributeMaterialOverrides = (MaterialOverrideMode_DEPRECATED == EPCGMeshSelectorMaterialOverrideMode::ByAttributeOverride);
+
+		bOverrideCollisionProfile_DEPRECATED = false;
+		CollisionProfile_DEPRECATED = UCollisionProfile::NoCollision_ProfileName;
+		MaterialOverrideMode_DEPRECATED = EPCGMeshSelectorMaterialOverrideMode::NoOverride;
+		MaterialOverrides_DEPRECATED.Reset();
+		CullStartDistance_DEPRECATED = 0;
+		CullEndDistance_DEPRECATED = 0;
+		WorldPositionOffsetDisableDistance_DEPRECATED = 0;
 	}
 #endif
 }
@@ -58,7 +125,7 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 
 	const FPCGMetadataAttribute<FString>* Attribute = static_cast<const FPCGMetadataAttribute<FString>*>(AttributeBase);
 
-	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, MaterialOverrideMode, MaterialOverrides, MaterialOverrideAttributes, InPointData->Metadata);
+	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, bUseAttributeMaterialOverrides, TemplateDescriptor.OverrideMaterials, MaterialOverrideAttributes, InPointData->Metadata);
 
 	if (!MaterialOverrideHelper.IsValid())
 	{
@@ -122,9 +189,8 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 		}
 
 		const bool bReverseTransform = (Point.Transform.GetDeterminant() < 0);
-		const int32 Index = FindOrAddInstanceList(OutMeshInstances, Mesh, bOverrideCollisionProfile, CollisionProfile, MaterialOverrideHelper.OverridesMaterials(), MaterialOverrideHelper.GetMaterialOverrides(Point.MetadataEntry), CullStartDistance, CullEndDistance, WorldPositionOffsetDisableDistance, bReverseTransform);
-		check(Index != INDEX_NONE);
-		
-		OutMeshInstances[Index].Instances.Emplace(Point);
+		FPCGMeshInstanceList& InstanceList = PCGMeshSelectorAttribute::GetInstanceList(OutMeshInstances, TemplateDescriptor, Mesh, MaterialOverrideHelper.GetMaterialOverrides(Point.MetadataEntry), bReverseTransform);
+		InstanceList.Instances.Emplace(Point.Transform);
+		InstanceList.InstancesMetadataEntry.Emplace(Point.MetadataEntry);
 	}
 }

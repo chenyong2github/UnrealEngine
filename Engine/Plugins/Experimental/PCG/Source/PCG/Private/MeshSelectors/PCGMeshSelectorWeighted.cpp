@@ -16,58 +16,99 @@ namespace PCGMeshSelectorWeighted
 {
 	FPCGMeshInstanceList& GetInstanceList(
 		TArray<FPCGMeshInstanceList>& InstanceLists,
-		bool bUseAttributeMaterialOverrides,
+		bool bUseMaterialOverrides,
 		const TArray<TSoftObjectPtr<UMaterialInterface>>& InMaterialOverrides,
-		bool bInIsLocalToWorldDeterminantNegative)
+		bool bInReverseCulling)
 	{
 		check(InstanceLists.Num() > 0);
-		const bool bOverrideMaterials = (bUseAttributeMaterialOverrides || InstanceLists[0].bOverrideMaterials);
 
 		// First look through previously existing values - note that we scope this to prevent issues with the 0 index access which might become invalid below
 		{
-			const TArray<TSoftObjectPtr<UMaterialInterface>>& MaterialOverrides = (bUseAttributeMaterialOverrides ? InMaterialOverrides : InstanceLists[0].MaterialOverrides);
-
-			for (int Index = 0; Index < InstanceLists.Num(); ++Index)
+			const TArray<TSoftObjectPtr<UMaterialInterface>>& MaterialOverrides = (bUseMaterialOverrides ? InMaterialOverrides : InstanceLists[0].Descriptor.OverrideMaterials);
+			for (FPCGMeshInstanceList& InstanceList : InstanceLists)
 			{
-				if (InstanceLists[Index].bOverrideMaterials != bOverrideMaterials)
+				if (InstanceList.Descriptor.bReverseCulling == bInReverseCulling &&
+					InstanceList.Descriptor.OverrideMaterials == MaterialOverrides)
 				{
-					continue;
+					return InstanceList;
 				}
-
-				if (InstanceLists[Index].bIsLocalToWorldDeterminantNegative != bInIsLocalToWorldDeterminantNegative)
-				{
-					continue;
-				}
-
-				if (bOverrideMaterials && InstanceLists[Index].MaterialOverrides != MaterialOverrides)
-				{
-					continue;
-				}
-
-				return InstanceLists[Index];
 			}
 		}
 
-		// If not found, then copy first entry which is our "clean" version and apply the new values
+		FPCGMeshInstanceList& NewInstanceList = InstanceLists.Emplace_GetRef();
+		NewInstanceList.Descriptor = InstanceLists[0].Descriptor;
+		NewInstanceList.Descriptor.bReverseCulling = bInReverseCulling;
+
+		if (bUseMaterialOverrides)
 		{
-			FPCGMeshInstanceList& NewInstanceList = InstanceLists.Emplace_GetRef();
-			const FPCGMeshInstanceList& SourceInstanceList = InstanceLists[0];
-			NewInstanceList.Mesh = SourceInstanceList.Mesh;
-			NewInstanceList.bOverrideCollisionProfile = SourceInstanceList.bOverrideCollisionProfile;
-			NewInstanceList.CollisionProfile = SourceInstanceList.CollisionProfile;
-			NewInstanceList.CullStartDistance = SourceInstanceList.CullStartDistance;
-			NewInstanceList.CullEndDistance = SourceInstanceList.CullEndDistance;
-			NewInstanceList.WorldPositionOffsetDisableDistance = SourceInstanceList.WorldPositionOffsetDisableDistance;
-
-			NewInstanceList.bOverrideMaterials = bOverrideMaterials;
-
-			const TArray<TSoftObjectPtr<UMaterialInterface>>& MaterialOverrides = (bUseAttributeMaterialOverrides ? InMaterialOverrides : SourceInstanceList.MaterialOverrides);
-			NewInstanceList.MaterialOverrides = MaterialOverrides;
-			NewInstanceList.bIsLocalToWorldDeterminantNegative = bInIsLocalToWorldDeterminantNegative;
-
-			return NewInstanceList;
+			NewInstanceList.Descriptor.OverrideMaterials = InMaterialOverrides;
 		}
+
+		return NewInstanceList;
 	}
+}
+
+FPCGMeshSelectorWeightedEntry::FPCGMeshSelectorWeightedEntry(TSoftObjectPtr<UStaticMesh> InMesh, int InWeight)
+	: Weight(InWeight)
+{
+	Descriptor.StaticMesh = InMesh;
+}
+
+#if WITH_EDITOR
+void FPCGMeshSelectorWeightedEntry::ApplyDeprecation()
+{
+	if (Mesh_DEPRECATED.IsValid() ||
+		bOverrideCollisionProfile_DEPRECATED ||
+		CollisionProfile_DEPRECATED.Name != UCollisionProfile::NoCollision_ProfileName ||
+		bOverrideMaterials_DEPRECATED ||
+		MaterialOverrides_DEPRECATED.Num() > 0 ||
+		CullStartDistance_DEPRECATED != 0 ||
+		CullEndDistance_DEPRECATED != 0 ||
+		WorldPositionOffsetDisableDistance_DEPRECATED != 0)
+	{
+		Descriptor.StaticMesh = Mesh_DEPRECATED;
+		
+		if (bOverrideCollisionProfile_DEPRECATED)
+		{
+			Descriptor.bUseDefaultCollision = false;
+			Descriptor.BodyInstance.SetCollisionProfileName(CollisionProfile_DEPRECATED.Name);
+		}
+		else
+		{
+			Descriptor.bUseDefaultCollision = true;
+		}
+
+		Descriptor.InstanceStartCullDistance = CullStartDistance_DEPRECATED;
+		Descriptor.InstanceEndCullDistance = CullEndDistance_DEPRECATED;
+		Descriptor.WorldPositionOffsetDisableDistance = WorldPositionOffsetDisableDistance_DEPRECATED;
+
+		if (bOverrideMaterials_DEPRECATED)
+		{
+			Descriptor.OverrideMaterials = MaterialOverrides_DEPRECATED;
+		}
+
+		Mesh_DEPRECATED.Reset();
+		bOverrideCollisionProfile_DEPRECATED = false;
+		CollisionProfile_DEPRECATED = UCollisionProfile::NoCollision_ProfileName;
+		bOverrideMaterials_DEPRECATED = false;
+		MaterialOverrides_DEPRECATED.Reset();
+		CullStartDistance_DEPRECATED = 0;
+		CullEndDistance_DEPRECATED = 0;		
+		WorldPositionOffsetDisableDistance_DEPRECATED = 0;
+	}
+}
+#endif
+
+void UPCGMeshSelectorWeighted::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	for (FPCGMeshSelectorWeightedEntry& Entry : MeshEntries)
+	{
+		Entry.ApplyDeprecation();
+	}
+#endif
 }
 
 void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
@@ -92,7 +133,7 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 		}
 
 		TArray<FPCGMeshInstanceList>& PickEntry = MeshInstances.Emplace_GetRef();
-		FindOrAddInstanceList(PickEntry, Entry.Mesh, Entry.bOverrideCollisionProfile, Entry.CollisionProfile, Entry.bOverrideMaterials, Entry.MaterialOverrides, Entry.CullStartDistance, Entry.CullEndDistance, Entry.WorldPositionOffsetDisableDistance, /*bReverseCulling=*/false);
+		PickEntry.Emplace_GetRef(Entry.Descriptor);
 
 		TotalWeight += Entry.Weight;
 		CumulativeWeights.Add(TotalWeight);
@@ -169,9 +210,10 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 			{
 				const bool bNeedsReverseCulling = (Point.Transform.GetDeterminant() < 0);
 				FPCGMeshInstanceList& InstanceList = PCGMeshSelectorWeighted::GetInstanceList(MeshInstances[RandomPick], bUseAttributeMaterialOverrides, MaterialOverrideHelper.GetMaterialOverrides(Point.MetadataEntry), bNeedsReverseCulling);
-				InstanceList.Instances.Emplace(Point);
+				InstanceList.Instances.Emplace(Point.Transform);
+				InstanceList.InstancesMetadataEntry.Emplace(Point.MetadataEntry);
 
-				const TSoftObjectPtr<UStaticMesh>& Mesh = InstanceList.Mesh;
+				const TSoftObjectPtr<UStaticMesh>& Mesh = InstanceList.Descriptor.StaticMesh;
 
 				if (OutPointData && OutAttribute)
 				{

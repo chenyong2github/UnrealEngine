@@ -18,6 +18,10 @@ struct PCG_API FPCGWeightedByCategoryEntryList
 		: CategoryEntry(InCategoryEntry), WeightedMeshEntries(InWeightedMeshEntries)
 	{}
 
+#if WITH_EDITOR
+	void ApplyDeprecation();
+#endif
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FString CategoryEntry;
 
@@ -40,6 +44,8 @@ public:
 		const UPCGPointData* InPointData,
 		TArray<FPCGMeshInstanceList>& OutMeshInstances,
 		UPCGPointData* OutPointData) const override;
+
+	void PostLoad();
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)

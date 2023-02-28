@@ -304,7 +304,7 @@ void TestMeshSelectorWeighted(
 		TObjectPtr<UStaticMesh> StaticMesh = ISMC->GetStaticMesh();
 
 		FPCGMeshSelectorWeightedEntry* Entry = MeshSelector->MeshEntries.FindByPredicate([StaticMesh](const FPCGMeshSelectorWeightedEntry& Entry) {
-			return Entry.Mesh == StaticMesh;
+			return Entry.Descriptor.StaticMesh == StaticMesh;
 			});
 
 		if (Test->TestNotNull("Validate instanced mesh exists in MeshEntries", Entry))

@@ -2,18 +2,19 @@
 
 #include "Elements/PCGDebugElement.h"
 
-#include "Data/PCGSpatialData.h"
 #include "PCGComponent.h"
-#include "Engine/CollisionProfile.h"
+#include "PCGContext.h"
 #include "PCGHelpers.h"
+#include "PCGPin.h"
+#include "Data/PCGSpatialData.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGActorHelpers.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
+#include "ISMPartition/ISMComponentDescriptor.h"
 #include "Materials/MaterialInterface.h"
-#include "PCGContext.h"
-#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDebugElement)
 
@@ -150,18 +151,22 @@ namespace PCGDebugElement
 				}
 			}
 
-			FPCGISMCBuilderParameters Params;
-			Params.Mesh = Mesh;
-			Params.MaterialOverrides = Materials;
-			Params.CollisionProfile = UCollisionProfile::NoCollision_ProfileName;
+			FPCGISMCBuilderParameters Params[2];
+			Params[0].NumCustomDataFloats = NumCustomData;
+			Params[0].Descriptor.StaticMesh = Mesh;
+			Params[0].Descriptor.OverrideMaterials = Materials;
+			Params[0].Descriptor.BodyInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			// Note: In the future we may consider enabling culling for performance reasons, but for now culling disabled.
-			Params.CullStartDistance = Params.CullEndDistance = 0;
-
+			Params[0].Descriptor.InstanceStartCullDistance = Params[0].Descriptor.InstanceEndCullDistance = 0;
+			
 			// If the root actor we're binding to is movable, then the ISMC should be movable by default
 			if (USceneComponent* SceneComponent = TargetActor->GetRootComponent())
 			{
-				Params.Mobility = SceneComponent->Mobility;
+				Params[0].Descriptor.Mobility = SceneComponent->Mobility;
 			}
+
+			Params[1] = Params[0];
+			Params[1].Descriptor.bReverseCulling = true;
 
 			for (int32 Direction = 0; Direction < 2; ++Direction)
 			{
@@ -172,12 +177,10 @@ namespace PCGDebugElement
 					continue;
 				}
 
-				Params.bIsLocalToWorldDeterminantNegative = (Direction != 0);
-				UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), Params);
-				check(ISMC);
+				UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), Params[Direction]);
+				check(ISMC && ISMC->NumCustomDataFloats == NumCustomData);
 
 				ISMC->ComponentTags.AddUnique(PCGHelpers::DefaultPCGDebugTag);
-				ISMC->NumCustomDataFloats = NumCustomData;
 				const int32 PreExistingInstanceCount = ISMC->GetInstanceCount();
 				ISMC->AddInstances(Instances, /*bShouldReturnIndices=*/false, /*bWorldSpace=*/true);
 

@@ -12,7 +12,6 @@
 #include "Engine/InheritableComponentHandler.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/StaticMesh.h"
-#include "ISMPartition/ISMComponentDescriptor.h"
 #include "PCGModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGActorHelpers)
@@ -20,45 +19,66 @@
 #if WITH_EDITOR
 #endif
 
-UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FISMComponentDescriptor& InISMCDescriptor)
+UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FPCGISMCBuilderParameters& InParams)
 {
-	check(InTargetActor);
-	check(InSourceComponent);
+	UPCGManagedISMComponent* MISMC = GetOrCreateManagedISMC(InTargetActor, InSourceComponent, InParams);
+	if (MISMC)
+	{
+		return MISMC->GetComponent();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
 
-	const UStaticMesh* StaticMesh = InISMCDescriptor.StaticMesh;
+UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FPCGISMCBuilderParameters& InParams)
+{
+	check(InTargetActor && InSourceComponent);
+
+	const UStaticMesh* StaticMesh = InParams.Descriptor.StaticMesh;
 	if (!StaticMesh)
 	{
 		return nullptr;
 	}
-	
-	TArray<UPCGManagedISMComponent*> MISMCs;
-	InSourceComponent->ForEachManagedResource([&MISMCs](UPCGManagedResource* InResource)
-	{
-		if (UPCGManagedISMComponent* Resource = Cast<UPCGManagedISMComponent>(InResource))
-		{
-			MISMCs.Add(Resource);
-		}
-	});
 
-	for (UPCGManagedISMComponent* MISMC : MISMCs)
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorHelpers::GetOrCreateManagedISMC);
+
 	{
-		UInstancedStaticMeshComponent* ISMC = MISMC->GetComponent();
-		if (ISMC)
+		TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorHelpers::GetOrCreateManagedISMC::FindMatchingMISMC);
+		UPCGManagedISMComponent* MatchingResource = nullptr;
+		InSourceComponent->ForEachManagedResource([&MatchingResource, &InParams](UPCGManagedResource* InResource)
 		{
-			FISMComponentDescriptor ManagedDescriptor;
-			ManagedDescriptor.InitFrom(MISMC->GetComponent());
-			ManagedDescriptor.ComputeHash();
-			
-			if (ManagedDescriptor == InISMCDescriptor)
+			// Early out if already found a match
+			if (MatchingResource)
 			{
-				MISMC->MarkAsUsed();
-				return MISMC;
+				return;
 			}
+
+			if (UPCGManagedISMComponent* Resource = Cast<UPCGManagedISMComponent>(InResource))
+			{
+				if (UInstancedStaticMeshComponent* ISMC = Resource->GetComponent())
+				{
+					if (ISMC->NumCustomDataFloats == InParams.NumCustomDataFloats &&
+						Resource->GetDescriptor() == InParams.Descriptor)
+					{
+						MatchingResource = Resource;
+					}
+				}
+			}
+		});
+
+		if (MatchingResource)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorHelpers::GetOrCreateManagedISMC::MarkAsUsed);
+			MatchingResource->MarkAsUsed();
+			return MatchingResource;
 		}
 	}
 
+	// No matching ISM component found, let's create a new one
 	InTargetActor->Modify();
-	
+
 	// Done as in InstancedStaticMesh.cpp
 #if WITH_EDITOR
 	const bool bMeshHasNaniteData = StaticMesh->IsNaniteEnabled();
@@ -79,177 +99,23 @@ UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTarg
 		ComponentName += TEXT("HISM");
 	}
 
-	if (InISMCDescriptor.StaticMesh)
-	{
-		ComponentName += TEXT("_") + InISMCDescriptor.StaticMesh->GetName();
-	}
-	
-	UInstancedStaticMeshComponent* ISMC = NewObject<UInstancedStaticMeshComponent>(InTargetActor, ComponentClass, MakeUniqueObjectName(InTargetActor, ComponentClass, FName(ComponentName)));
-	InISMCDescriptor.InitComponent(ISMC);
-		
-	ISMC->RegisterComponent();
+	ComponentName += TEXT("_") + StaticMesh->GetName();
 
+	UInstancedStaticMeshComponent* ISMC = NewObject<UInstancedStaticMeshComponent>(InTargetActor, ComponentClass, MakeUniqueObjectName(InTargetActor, ComponentClass, FName(ComponentName)));
+	InParams.Descriptor.InitComponent(ISMC);
+	ISMC->NumCustomDataFloats = InParams.NumCustomDataFloats;
+
+	ISMC->RegisterComponent();
 	InTargetActor->AddInstanceComponent(ISMC);
-	
+
 	ISMC->AttachToComponent(InTargetActor->GetRootComponent(), FAttachmentTransformRules(EAttachmentRule::KeepRelative, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, false));
 	ISMC->ComponentTags.Add(InSourceComponent->GetFName());
 	ISMC->ComponentTags.Add(PCGHelpers::DefaultPCGTag);
 
 	// Create managed resource on source component
 	UPCGManagedISMComponent* Resource = NewObject<UPCGManagedISMComponent>(InSourceComponent);
-	Resource->GeneratedComponent = ISMC;
-	InSourceComponent->AddToManagedResources(Resource);
-
-	return Resource;
-}
-
-UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FPCGISMCBuilderParameters& InParams)
-{
-	UPCGManagedISMComponent* MISMC = GetOrCreateManagedISMC(InTargetActor, InSourceComponent, InParams);
-	if (MISMC)
-	{
-		return MISMC->GetComponent();
-	}
-	else
-	{
-		return nullptr;
-	}
-}
-
-UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FPCGISMCBuilderParameters& InParams)
-{
-	UStaticMesh* InMesh = InParams.Mesh;
-	const TArray<UMaterialInterface*>& InMaterials = InParams.MaterialOverrides;
-	const int32 InNumCustomDataFloats = InParams.NumCustomDataFloats;
-
-	check(InTargetActor != nullptr && InMesh != nullptr);
-	check(InSourceComponent);
-
-	TArray<UPCGManagedISMComponent*> MISMCs;
-	InSourceComponent->ForEachManagedResource([&MISMCs](UPCGManagedResource* InResource)
-	{
-		if (UPCGManagedISMComponent* Resource = Cast<UPCGManagedISMComponent>(InResource))
-		{
-			MISMCs.Add(Resource);
-		}
-	});
-
-	for (UPCGManagedISMComponent* MISMC : MISMCs)
-	{
-		UInstancedStaticMeshComponent* ISMC = MISMC->GetComponent();
-
-		if (ISMC && 
-			ISMC->GetStaticMesh() == InMesh &&
-			ISMC->ComponentTags.Contains(InSourceComponent->GetFName()) &&
-			ISMC->NumCustomDataFloats == InNumCustomDataFloats)
-		{
-			// If materials are provided, we'll make sure they match to the already set materials.
-			// If not provided, we'll make sure that the current materials aren't overriden
-			bool bMaterialsMatched = true;
-
-			// Check basic parameters
-			if (ISMC->Mobility != InParams.Mobility ||
-				(ISMC->bUseDefaultCollision && InParams.CollisionProfile != TEXT("Default")) ||
-				(!ISMC->bUseDefaultCollision && ISMC->GetCollisionProfileName() != InParams.CollisionProfile) ||
-				ISMC->InstanceStartCullDistance != InParams.CullStartDistance ||
-				ISMC->InstanceEndCullDistance != InParams.CullEndDistance ||
-				ISMC->WorldPositionOffsetDisableDistance != InParams.WorldPositionOffsetDisableDistance ||
-				ISMC->bReverseCulling != InParams.bIsLocalToWorldDeterminantNegative)
-			{
-				continue;
-			}
-
-			for (int32 MaterialIndex = 0; MaterialIndex < ISMC->GetNumMaterials() && bMaterialsMatched; ++MaterialIndex)
-			{
-				if (MaterialIndex < InMaterials.Num() && InMaterials[MaterialIndex])
-				{
-					if (InMaterials[MaterialIndex] != ISMC->GetMaterial(MaterialIndex))
-					{
-						bMaterialsMatched = false;
-					}
-				}
-				else
-				{
-					// Material is currently overriden
-					if (ISMC->OverrideMaterials.IsValidIndex(MaterialIndex) && ISMC->OverrideMaterials[MaterialIndex])
-					{
-						bMaterialsMatched = false;
-					}
-				}
-			}
-
-			if (bMaterialsMatched)
-			{
-				MISMC->MarkAsUsed();
-				return MISMC;
-			}
-		}
-	}
-
-	InTargetActor->Modify();
-
-	// Otherwise, create a new component
-
-	// Done as in InstancedStaticMesh.cpp
-#if WITH_EDITOR
-	const bool bMeshHasNaniteData = InMesh->IsNaniteEnabled();
-#else
-	const bool bMeshHasNaniteData = InMesh->GetRenderData()->NaniteResources.PageStreamingStates.Num() > 0;
-#endif
-
-	FString ComponentName;
-	TSubclassOf<UInstancedStaticMeshComponent> ComponentClass;
-	if (bMeshHasNaniteData)
-	{
-		ComponentClass = UInstancedStaticMeshComponent::StaticClass();
-		ComponentName += TEXT("ISM");
-	}
-	else
-	{
-		ComponentClass = UHierarchicalInstancedStaticMeshComponent::StaticClass();
-		ComponentName += TEXT("HISM");
-	}
-
-	ComponentName += TEXT("_") + InMesh->GetName();
-	
-	// TODO: use static mesh component if there's only one instance
-	// TODO: add hism/ism switch or better yet, use a template component
-	UInstancedStaticMeshComponent* ISMC = NewObject<UInstancedStaticMeshComponent>(InTargetActor, ComponentClass, MakeUniqueObjectName(InTargetActor, ComponentClass, FName(ComponentName)));
-	
-	ISMC->SetStaticMesh(InMesh);
-
-	// TODO: improve material override mechanisms
-	const int32 NumMaterials = ISMC->GetNumMaterials();
-	for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
-	{
-		ISMC->SetMaterial(MaterialIndex, (MaterialIndex < InMaterials.Num()) ? InMaterials[MaterialIndex] : nullptr);
-	}
-
-	ISMC->RegisterComponent();
-	InTargetActor->AddInstanceComponent(ISMC);
-	ISMC->SetMobility(InParams.Mobility);
-	if (InParams.CollisionProfile != TEXT("Default"))
-	{
-		ISMC->SetCollisionProfileName(InParams.CollisionProfile, /*bOverlaps=*/false);
-	}
-	else
-	{
-		ISMC->bUseDefaultCollision = true;
-	}
-
-	ISMC->InstanceStartCullDistance = InParams.CullStartDistance;
-	ISMC->InstanceEndCullDistance = InParams.CullEndDistance;
-	ISMC->WorldPositionOffsetDisableDistance = InParams.WorldPositionOffsetDisableDistance;
-	ISMC->bReverseCulling = (InParams.bIsLocalToWorldDeterminantNegative ? 1 : 0);
-
-	// Implementation note: we use the relative for position only to prevent issues at the rendering level, but world for scale & rotation otherwise we run into issues when we have non-uniform scales esp. in volumes
-	ISMC->AttachToComponent(InTargetActor->GetRootComponent(), FAttachmentTransformRules(EAttachmentRule::KeepRelative, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, false));
-	ISMC->ComponentTags.Add(InSourceComponent->GetFName());
-	ISMC->ComponentTags.Add(PCGHelpers::DefaultPCGTag);
-
-	// Create managed resource on source component
-	UPCGManagedISMComponent* Resource = NewObject<UPCGManagedISMComponent>(InSourceComponent);
-	Resource->GeneratedComponent = ISMC;
+	Resource->SetComponent(ISMC);
+	Resource->SetDescriptor(InParams.Descriptor);
 	InSourceComponent->AddToManagedResources(Resource);
 
 	return Resource;

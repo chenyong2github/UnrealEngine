@@ -18,6 +18,28 @@ struct FPCGInstancesAndWeights
 	TArray<int> CumulativeWeights;
 };
 
+#if WITH_EDITOR
+void FPCGWeightedByCategoryEntryList::ApplyDeprecation()
+{
+	for (FPCGMeshSelectorWeightedEntry& Entry : WeightedMeshEntries)
+	{
+		Entry.ApplyDeprecation();
+	}
+}
+#endif
+
+void UPCGMeshSelectorWeightedByCategory::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	for (FPCGWeightedByCategoryEntryList& Entry : Entries)
+	{
+		Entry.ApplyDeprecation();
+	}
+#endif
+}
+
 void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 	FPCGContext& Context,
 	const UPCGStaticMeshSpawnerSettings* Settings,
@@ -109,7 +131,7 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 			}
 			
 			TArray<FPCGMeshInstanceList>& PickEntry = InstancesAndWeights->MeshInstances.Emplace_GetRef();
-			FindOrAddInstanceList(PickEntry, WeightedEntry.Mesh, WeightedEntry.bOverrideCollisionProfile, WeightedEntry.CollisionProfile, WeightedEntry.bOverrideMaterials, WeightedEntry.MaterialOverrides, WeightedEntry.CullStartDistance, WeightedEntry.CullEndDistance, WeightedEntry.WorldPositionOffsetDisableDistance, /*bReverseCulling=*/false);
+			PickEntry.Emplace_GetRef(WeightedEntry.Descriptor);
 
 			// precompute the weights
 			TotalWeight += WeightedEntry.Weight;
@@ -201,9 +223,10 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 		{
 			const bool bNeedsReverseCulling = (Point.Transform.GetDeterminant() < 0);
 			FPCGMeshInstanceList& InstanceList = PCGMeshSelectorWeighted::GetInstanceList(InstancesAndWeights->MeshInstances[RandomPick], bUseAttributeMaterialOverrides, MaterialOverrideHelper.GetMaterialOverrides(Point.MetadataEntry), bNeedsReverseCulling);
-			InstanceList.Instances.Emplace(Point);
+			InstanceList.Instances.Emplace(Point.Transform);
+			InstanceList.InstancesMetadataEntry.Emplace(Point.MetadataEntry);
 
-			const TSoftObjectPtr<UStaticMesh>& Mesh = InstanceList.Mesh;
+			const TSoftObjectPtr<UStaticMesh>& Mesh = InstanceList.Descriptor.StaticMesh;
 
 			if (OutPointData && OutAttribute)
 			{

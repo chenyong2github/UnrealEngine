@@ -6,6 +6,7 @@
 #include "Metadata/PCGMetadata.h"
 
 #include "Engine/CollisionProfile.h"
+#include "ISMPartition/ISMComponentDescriptor.h"
 
 #include "PCGMeshSelectorBase.generated.h"
 
@@ -24,42 +25,18 @@ struct FPCGMeshInstanceList
 
 	FPCGMeshInstanceList() = default;
 
-	FPCGMeshInstanceList(const TSoftObjectPtr<UStaticMesh>& InMesh, bool bInOverrideCollisionProfile, const FCollisionProfileName& InCollisionProfile, bool bInOverrideMaterials, const TArray<TSoftObjectPtr<UMaterialInterface>>& InMaterialOverrides, const float InCullStartDistance, const float InCullEndDistance, const int32 InWorldPositionOffsetDisableDistance, const bool bInIsLocalToWorldDeterminantNegative)
-		: Mesh(InMesh), bOverrideCollisionProfile(bInOverrideCollisionProfile), CollisionProfile(InCollisionProfile), bOverrideMaterials(bInOverrideMaterials), MaterialOverrides(InMaterialOverrides), CullStartDistance(InCullStartDistance), CullEndDistance(InCullEndDistance), WorldPositionOffsetDisableDistance(InWorldPositionOffsetDisableDistance), bIsLocalToWorldDeterminantNegative(bInIsLocalToWorldDeterminantNegative)
+	explicit FPCGMeshInstanceList(const FSoftISMComponentDescriptor& InDescriptor)
+		: Descriptor(InDescriptor)
 	{}
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TSoftObjectPtr<UStaticMesh> Mesh;
+	UPROPERTY(EditAnywhere, Category = Settings)
+	FSoftISMComponentDescriptor Descriptor;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bOverrideCollisionProfile = false;
+	TArray<FTransform> Instances;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FCollisionProfileName CollisionProfile = UCollisionProfile::NoCollision_ProfileName;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bOverrideMaterials = false;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TArray<TSoftObjectPtr<UMaterialInterface>> MaterialOverrides;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-    TArray<FPCGPoint> Instances;
-
-	/** Distance at which instances begin to fade. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	float CullStartDistance = 0;
-	
-	/** Distance at which instances are culled. Use 0 to disable. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	float CullEndDistance = 0;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	int32 WorldPositionOffsetDisableDistance = 0;
-
-	/** Whether the culling should be reversed or not (needed to support negative scales) */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bIsLocalToWorldDeterminantNegative = false;
+	TArray<int64> InstancesMetadataEntry;
 };
 
 UENUM()
@@ -76,7 +53,7 @@ struct FPCGMeshMaterialOverrideHelper
 	// Use this constructor when you have a 1:1 mapping between attributes or static overrides
 	FPCGMeshMaterialOverrideHelper(
 		FPCGContext& InContext,
-		EPCGMeshSelectorMaterialOverrideMode InMaterialOverrideMode,
+		bool bUseMaterialOverrideAttributes,
 		const TArray<TSoftObjectPtr<UMaterialInterface>>& InStaticMaterialOverrides,
 		const TArray<FName>& InMaterialOverrideAttributeNames,
 		const UPCGMetadata* InMetadata);
@@ -89,7 +66,7 @@ struct FPCGMeshMaterialOverrideHelper
 		const UPCGMetadata* InMetadata);
 
 	bool IsValid() const { return bIsValid; }
-	bool OverridesMaterials() const { return MaterialOverrideMode != EPCGMeshSelectorMaterialOverrideMode::NoOverride; }
+	bool OverridesMaterials() const { return bUseMaterialOverrideAttributes; }
 	const TArray<TSoftObjectPtr<UMaterialInterface>>& GetMaterialOverrides(PCGMetadataEntryKey EntryKey);
 
 	// Cached data
@@ -100,7 +77,7 @@ struct FPCGMeshMaterialOverrideHelper
 
 	// Data needed to perform operations
 	bool bIsValid = false;
-	EPCGMeshSelectorMaterialOverrideMode MaterialOverrideMode = EPCGMeshSelectorMaterialOverrideMode::NoOverride;
+	bool bUseMaterialOverrideAttributes = false;
 
 	const TArray<TSoftObjectPtr<UMaterialInterface>>& StaticMaterialOverrides;
 	const TArray<FName>& MaterialOverrideAttributeNames;
@@ -130,20 +107,6 @@ public:
 		const UPCGPointData* InPointData,
 		TArray<FPCGMeshInstanceList>& OutMeshInstances,
 		UPCGPointData* OutPointData) const PURE_VIRTUAL(UPCGMeshSelectorBase::SelectInstances_Implementation);
-
-	/** Searches OutInstanceLists for an InstanceList matching the given parameters. If nothing is found, creates a new InstanceList and adds to OutInstanceLists. Returns index of the matching instance list. */
-	UFUNCTION(BlueprintCallable, Category = MeshSelection)
-	static int32 FindOrAddInstanceList(
-		TArray<FPCGMeshInstanceList>& OutInstanceLists,
-		const TSoftObjectPtr<UStaticMesh>& Mesh,
-		bool bOverrideCollisionProfile,
-		const FCollisionProfileName& CollisionProfile,
-		bool bOverrideMaterials,
-		const TArray<TSoftObjectPtr<UMaterialInterface>>& MaterialOverrides,
-		const float InCullStartDistance,
-		const float InCullEndDistance,
-		const int32 InWorldPositionOffsetDisableDistance,
-		const bool bInIsLocalToWorldDeterminantNegative);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

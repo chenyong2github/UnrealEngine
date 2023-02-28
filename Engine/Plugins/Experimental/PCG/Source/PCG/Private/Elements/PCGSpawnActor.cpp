@@ -441,17 +441,17 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 			TArray<UActorComponent*> Components;
 			UPCGActorHelpers::GetActorClassDefaultComponents(Settings->TemplateActorClass, Components, UStaticMeshComponent::StaticClass());
 			
-			TMap<FISMComponentDescriptor, TArray<FTransform>> MeshDescriptorTransforms;
+			TMap<FPCGISMCBuilderParameters, TArray<FTransform>> MeshDescriptorTransforms;
 
 			for (UActorComponent* Component : Components)
 			{
 				if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
 				{
-					FISMComponentDescriptor ISMDescriptor;
-					ISMDescriptor.InitFrom(StaticMeshComponent);
-					ISMDescriptor.ComputeHash();
+					FPCGISMCBuilderParameters Params;
+					Params.Descriptor.InitFrom(StaticMeshComponent);
+					// TODO: No custom data float support?
 
-					TArray<FTransform>& Transforms = MeshDescriptorTransforms.FindOrAdd(ISMDescriptor);
+					TArray<FTransform>& Transforms = MeshDescriptorTransforms.FindOrAdd(Params);
 
 					if (UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent))
 					{
@@ -474,11 +474,11 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 				}
 			}
 				
-			for (const TPair<FISMComponentDescriptor, TArray<FTransform>>& ISMCDescriptorTransforms : MeshDescriptorTransforms)
+			for(const TPair<FPCGISMCBuilderParameters, TArray<FTransform>>& ISMCBuilderTransforms : MeshDescriptorTransforms)
 			{
-				const FISMComponentDescriptor& ISMCDescriptor = ISMCDescriptorTransforms.Key;
+				const FPCGISMCBuilderParameters& ISMCParams = ISMCBuilderTransforms.Key;
 
-				UPCGManagedISMComponent* MISMC = UPCGActorHelpers::GetOrCreateManagedISMC(TargetActor, Context->SourceComponent.Get(), ISMCDescriptor);
+				UPCGManagedISMComponent* MISMC = UPCGActorHelpers::GetOrCreateManagedISMC(TargetActor, Context->SourceComponent.Get(), ISMCParams);
 				if (!MISMC)
 				{
 					continue;
@@ -489,7 +489,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 				UInstancedStaticMeshComponent* ISMC = MISMC->GetComponent();
 				check(ISMC);
 				
-				const TArray<FTransform>& ISMCTransforms = ISMCDescriptorTransforms.Value;
+				const TArray<FTransform>& ISMCTransforms = ISMCBuilderTransforms.Value;
 				
 				TArray<FTransform> Transforms;
 				Transforms.Reserve(Points.Num() * ISMCTransforms.Num());
@@ -503,7 +503,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 					}
 				}
 				
-				ISMC->NumCustomDataFloats = 0;
+				// Fill in custom data (?)
 				ISMC->AddInstances(Transforms, false, true);
 				ISMC->UpdateBounds();
 				

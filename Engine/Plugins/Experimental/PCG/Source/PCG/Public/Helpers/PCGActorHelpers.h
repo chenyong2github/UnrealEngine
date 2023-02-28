@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "Engine/EngineTypes.h"
+#include "ISMPartition/ISMComponentDescriptor.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Templates/SubclassOf.h"
-#include "Engine/EngineTypes.h"
-
 
 #include "PCGActorHelpers.generated.h"
 
@@ -18,19 +18,18 @@ class UPCGComponent;
 class UPCGManagedISMComponent;
 class UStaticMesh;
 class UWorld;
-struct FISMComponentDescriptor;
 
 struct FPCGISMCBuilderParameters
 {
-	UStaticMesh* Mesh = nullptr;
-	TArray<UMaterialInterface*> MaterialOverrides;
-	EComponentMobility::Type Mobility = EComponentMobility::Static;
-	FName CollisionProfile = TEXT("Default");
+	FISMComponentDescriptor Descriptor;
 	int32 NumCustomDataFloats = 0;
-	float CullStartDistance = 0;
-	float CullEndDistance = 0;
-	int32 WorldPositionOffsetDisableDistance = 0;
-	bool bIsLocalToWorldDeterminantNegative = false;
+
+	friend inline uint32 GetTypeHash(const FPCGISMCBuilderParameters& Key)
+	{
+		return HashCombine(GetTypeHash(Key.Descriptor), 1 + Key.NumCustomDataFloats);
+	}
+
+	inline bool operator==(const FPCGISMCBuilderParameters& Other) const { return Descriptor == Other.Descriptor && NumCustomDataFloats == Other.NumCustomDataFloats; }
 };
 
 UCLASS(BlueprintType)
@@ -39,7 +38,6 @@ class PCG_API UPCGActorHelpers : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
-	static UPCGManagedISMComponent* GetOrCreateManagedISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FISMComponentDescriptor& InISMCDescriptor);
 	static UInstancedStaticMeshComponent* GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* SourceComponent, const FPCGISMCBuilderParameters& Params);
 	static UPCGManagedISMComponent* GetOrCreateManagedISMC(AActor* InTargetActor, UPCGComponent* SourceComponent, const FPCGISMCBuilderParameters& Params);
 	static bool DeleteActors(UWorld* World, const TArray<TSoftObjectPtr<AActor>>& ActorsToDelete);

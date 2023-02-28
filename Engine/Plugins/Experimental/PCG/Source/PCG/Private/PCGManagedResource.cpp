@@ -184,13 +184,13 @@ void UPCGManagedComponent::PostEditImport()
 		{
 			// Not quite clear what to do when we have a component that cannot be remapped.
 			// Maybe we should check against guids instead?
-			GeneratedComponent.Reset();
+			ForgetComponent();
 		}
 	}
 	else
 	{
 		// Somewhat irrelevant case, if we don't have an actor or a component, there's not a lot we can do.
-		GeneratedComponent.Reset();
+		ForgetComponent();
 	}
 }
 
@@ -260,7 +260,7 @@ bool UPCGManagedComponent::MoveResourceToNewActor(AActor* NewActor)
 		NewActor->AddInstanceComponent(GeneratedComponent.Get());
 	}
 
-	GeneratedComponent.Reset();
+	ForgetComponent();
 
 	return true;
 }
@@ -295,6 +295,37 @@ void UPCGManagedComponent::MarkAsReused()
 	}
 }
 
+void UPCGManagedISMComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	if (!bHasDescriptor)
+	{
+		if (UInstancedStaticMeshComponent* ISMC = GetComponent())
+		{
+			FISMComponentDescriptor NewDescriptor;
+			NewDescriptor.InitFrom(ISMC);
+
+			SetDescriptor(NewDescriptor);
+		}
+	}
+
+	// Cache raw ptr
+	GetComponent();
+}
+
+void UPCGManagedISMComponent::ForgetComponent()
+{
+	Super::ForgetComponent();
+	CachedRawComponentPtr = nullptr;
+}
+
+void UPCGManagedISMComponent::SetDescriptor(const FISMComponentDescriptor& InDescriptor)
+{
+	bHasDescriptor = true;
+	Descriptor = InDescriptor;
+}
+
 bool UPCGManagedISMComponent::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
 {
 	if (Super::ReleaseIfUnused(OutActorsToDelete) || !GetComponent())
@@ -304,6 +335,7 @@ bool UPCGManagedISMComponent::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutA
 	else if (GetComponent()->GetInstanceCount() == 0)
 	{
 		GeneratedComponent->DestroyComponent();
+		ForgetComponent();
 		return true;
 	}
 	else
@@ -323,5 +355,16 @@ void UPCGManagedISMComponent::ResetComponent()
 
 UInstancedStaticMeshComponent* UPCGManagedISMComponent::GetComponent() const
 {
-	return Cast<UInstancedStaticMeshComponent>(GeneratedComponent.Get());
+	if (!CachedRawComponentPtr)
+	{
+		CachedRawComponentPtr = Cast<UInstancedStaticMeshComponent>(GeneratedComponent.Get());
+	}
+
+	return CachedRawComponentPtr;
+}
+
+void UPCGManagedISMComponent::SetComponent(UInstancedStaticMeshComponent* InComponent)
+{
+	GeneratedComponent = InComponent;
+	CachedRawComponentPtr = InComponent;
 }

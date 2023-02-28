@@ -266,46 +266,43 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 		return;
 	}
 
-	// Todo: we could likely pre-load these meshes asynchronously in the settings
-	UStaticMesh* LoadedMesh = InstanceList.Mesh.LoadSynchronous();
+	// TODO: we could likely pre-load these meshes asynchronously in the settings
+	UStaticMesh* LoadedMesh = InstanceList.Descriptor.StaticMesh.LoadSynchronous();
 
 	if (!LoadedMesh)
 	{
+		// Either we have no mesh (so nothing to do) or the mesh couldn't be loaded
+		if (InstanceList.Descriptor.StaticMesh.IsValid())
+		{
+			PCGE_LOG(Error, "Unable to load mesh %s", *InstanceList.Descriptor.StaticMesh.ToString());
+		}
+
 		return;
 	}
 
-	FPCGISMCBuilderParameters Params;
-	Params.Mesh = LoadedMesh;
-
-	if (InstanceList.bOverrideCollisionProfile)
+	// TODO: we could likely pre-load these materials asynchronously in the settings
+	for (TSoftObjectPtr<UMaterialInterface> OverrideMaterial : InstanceList.Descriptor.OverrideMaterials)
 	{
-		Params.CollisionProfile = InstanceList.CollisionProfile.Name;
-	}
-
-	if (InstanceList.bOverrideMaterials)
-	{
-		Params.MaterialOverrides.Reserve(InstanceList.MaterialOverrides.Num());
-		for (TSoftObjectPtr<UMaterialInterface> MaterialOverride : InstanceList.MaterialOverrides)
+		if (OverrideMaterial.IsValid() && !OverrideMaterial.LoadSynchronous())
 		{
-			Params.MaterialOverrides.Add(MaterialOverride.LoadSynchronous());
+			PCGE_LOG(Error, "Unable to load override material %s", *OverrideMaterial.ToString());
+			return;
 		}
 	}
 
+	FPCGISMCBuilderParameters Params;
+	Params.Descriptor = FISMComponentDescriptor(InstanceList.Descriptor);
 	Params.NumCustomDataFloats = PackedCustomData.NumCustomDataFloats;
-	Params.CullStartDistance = InstanceList.CullStartDistance;
-	Params.CullEndDistance = InstanceList.CullEndDistance;
-	Params.WorldPositionOffsetDisableDistance = InstanceList.WorldPositionOffsetDisableDistance;
-	Params.bIsLocalToWorldDeterminantNegative = InstanceList.bIsLocalToWorldDeterminantNegative;
 
 	// If the root actor we're binding to is movable, then the ISMC should be movable by default
 	if (USceneComponent* SceneComponent = TargetActor->GetRootComponent())
 	{
-		Params.Mobility = SceneComponent->Mobility;
+		Params.Descriptor.Mobility = SceneComponent->Mobility;
 	}
 
 	UPCGManagedISMComponent* MISMC = UPCGActorHelpers::GetOrCreateManagedISMC(TargetActor, Context->SourceComponent.Get(), Params);
+	
 	check(MISMC);
-
 	MISMC->SetCrc(Context->DependenciesCrc);
 
 	UInstancedStaticMeshComponent* ISMC = MISMC->GetComponent();
@@ -322,14 +319,7 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 	const int32 PreviousCustomDataOffset = PreExistingInstanceCount * NumCustomDataFloats;
 
 	// Populate the ISM instances
-	TArray<FTransform> Instances;
-	Instances.Reserve(NewInstanceCount);
-	for (int32 InstanceIndex = 0; InstanceIndex < NewInstanceCount; ++InstanceIndex)
-	{
-		Instances.Emplace(InstanceList.Instances[InstanceIndex].Transform);
-	}
-
-	ISMC->AddInstances(Instances, /*bShouldReturnIndices=*/false, /*bWorldSpace=*/true);
+	ISMC->AddInstances(InstanceList.Instances, /*bShouldReturnIndices=*/false, /*bWorldSpace=*/true);
 
 	// Copy new CustomData into the ISMC PerInstanceSMCustomData
 	if (NumCustomDataFloats > 0)
@@ -343,7 +333,7 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 
 	ISMC->UpdateBounds();
 
-	PCGE_LOG(Verbose, "Added %d instances of %s on actor %s", InstanceList.Instances.Num(), *InstanceList.Mesh->GetFName().ToString(), *TargetActor->GetFName().ToString());
+	PCGE_LOG(Verbose, "Added %d instances of %s on actor %s", InstanceList.Instances.Num(), *InstanceList.Descriptor.StaticMesh->GetFName().ToString(), *TargetActor->GetFName().ToString());
 }
 
 void UPCGStaticMeshSpawnerSettings::PostLoad()
@@ -360,8 +350,10 @@ void UPCGStaticMeshSpawnerSettings::PostLoad()
 		for (const FPCGStaticMeshSpawnerEntry& Entry : Meshes_DEPRECATED)
 		{
 			FPCGMeshSelectorWeightedEntry& NewEntry = MeshSelector->MeshEntries.Emplace_GetRef(Entry.Mesh, Entry.Weight);
-			NewEntry.CollisionProfile = Entry.CollisionProfile;
-			NewEntry.bOverrideCollisionProfile = Entry.bOverrideCollisionProfile;
+			if (Entry.bOverrideCollisionProfile)
+			{
+				NewEntry.Descriptor.BodyInstance.SetCollisionProfileName(Entry.CollisionProfile.Name);
+			}
 		}
 
 		Meshes_DEPRECATED.Reset();
