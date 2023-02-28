@@ -736,15 +736,16 @@ namespace UnrealBuildTool
 		/// <param name="Module">The UEBuildModule that needs to be validated</param>
 		/// <param name="Target">Options for the target being built</param>
 		/// <param name="AllModules">Other modules to validate against, if needed</param>
-		public virtual void ValidateModuleIncludePaths(UEBuildModule Module, ReadOnlyTargetRules Target, IEnumerable<UEBuildModule> AllModules)
+		public virtual bool ValidateModuleIncludePaths(UEBuildModule Module, ReadOnlyTargetRules Target, IEnumerable<UEBuildModule> AllModules)
 		{
 			if (Module.Rules.ModuleIncludePathWarningLevel <= WarningLevel.Off
 				&& Module.Rules.ModuleIncludePrivateWarningLevel <= WarningLevel.Off
 				&& Module.Rules.ModuleIncludeSubdirectoryWarningLevel <= WarningLevel.Off)
 			{
-				return;
+				return false;
 			}
 
+			bool AnyErrors = false;
 			void LoggerFunc(string? message, params object?[] args)
 			{
 				if (Module.Rules.ModuleIncludePathWarningLevel == WarningLevel.Warning)
@@ -754,6 +755,7 @@ namespace UnrealBuildTool
 				else if (Module.Rules.ModuleIncludePathWarningLevel == WarningLevel.Error)
 				{
 					Logger.LogError($"Error: {message}", args);
+					AnyErrors = true;
 				}
 			}
 
@@ -766,6 +768,7 @@ namespace UnrealBuildTool
 				else if (Module.Rules.ModuleIncludePrivateWarningLevel == WarningLevel.Error)
 				{
 					Logger.LogError($"Error: {message}", args);
+					AnyErrors = true;
 				}
 			}
 
@@ -778,6 +781,7 @@ namespace UnrealBuildTool
 				else if (Module.Rules.ModuleIncludeSubdirectoryWarningLevel == WarningLevel.Error)
 				{
 					Logger.LogError($"Error: {message}", args);
+					AnyErrors = true;
 				}
 			}
 
@@ -948,6 +952,8 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+
+			return AnyErrors;
 		}
 
 		/// <summary>

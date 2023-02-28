@@ -3151,10 +3151,16 @@ namespace UnrealBuildTool
 			// ie: iOS/macOS do a static library version build check for unsupported clang version builds.
 			using (GlobalTracer.Instance.BuildSpan("UEBuildTarget.PreBuildSetup().ValidateModules").StartActive())
 			{
+				bool AnyErrors = false;
 				foreach (UEBuildModule Module in Modules.Values.OrderBy(x => x.Name))
 				{
 					UEBuildPlatform.GetBuildPlatform(Platform).ValidateModule(Module, Rules);
-					UEBuildPlatform.GetBuildPlatform(Platform).ValidateModuleIncludePaths(Module, Rules, Modules.Values);
+					AnyErrors |= UEBuildPlatform.GetBuildPlatform(Platform).ValidateModuleIncludePaths(Module, Rules, Modules.Values);
+				}
+
+				if (AnyErrors)
+				{
+					throw new BuildException("Errors validating modules.");
 				}
 			}
 
