@@ -15,6 +15,7 @@ struct RIGVM_API FRigVMDispatch_Print : public FRigVMDispatchFactory
 
 public:
 
+	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
 	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
@@ -32,4 +33,10 @@ protected:
 		return &FRigVMDispatch_Print::Execute;
 	}
 	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles);
+
+	static const FName PrefixName;
+	static const FName ValueName;
+	static const FName EnabledName;
+	static const FName ScreenDurationName;
+	static const FName ScreenColorName;
 };

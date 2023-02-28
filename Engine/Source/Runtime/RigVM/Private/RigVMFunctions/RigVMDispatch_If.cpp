@@ -11,6 +11,18 @@ const FName FRigVMDispatch_If::TrueName = TEXT("True");
 const FName FRigVMDispatch_If::FalseName = TEXT("False");
 const FName FRigVMDispatch_If::ResultName = TEXT("Result");
 
+FName FRigVMDispatch_If::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ConditionName,
+		TrueName,
+		FalseName,
+		ResultName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
+
 TArray<FRigVMTemplateArgument> FRigVMDispatch_If::GetArguments() const
 {
 	static const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {

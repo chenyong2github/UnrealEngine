@@ -11,6 +11,18 @@ const FName FRigVMDispatch_SelectInt32::IndexName = TEXT("Index");
 const FName FRigVMDispatch_SelectInt32::ValuesName = TEXT("Values");
 const FName FRigVMDispatch_SelectInt32::ResultName = TEXT("Result");
 
+
+FName FRigVMDispatch_SelectInt32::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	if(InOperandIndex > 0 && InOperandIndex < InTotalOperands - 1)
+	{
+		return FRigVMBranchInfo::GetFixedArrayLabel(ValuesName, *FString::FromInt(InOperandIndex - 1));
+	}
+	
+	return InOperandIndex == 0 ? IndexName : ResultName;
+}
+
+
 TArray<FRigVMTemplateArgument> FRigVMDispatch_SelectInt32::GetArguments() const
 {
 	static const TArray<FRigVMTemplateArgument::ETypeCategory> ArrayCategories = {
@@ -91,14 +103,6 @@ FString FRigVMDispatch_SelectInt32::GetArgumentDefaultValue(const FName& InArgum
 
 #endif
 
-FName FRigVMDispatch_SelectInt32::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
-{
-	if(InOperandIndex > 0 && InOperandIndex < InTotalOperands - 1)
-	{
-		return FRigVMBranchInfo::GetFixedArrayLabel(ValuesName, *FString::FromInt(InOperandIndex - 1));
-	}
-	return FRigVMDispatch_CoreBase::GetArgumentNameForOperandIndex(InOperandIndex == 0 ? 0 : 2, 3);
-}
 
 FRigVMFunctionPtr FRigVMDispatch_SelectInt32::GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const
 {

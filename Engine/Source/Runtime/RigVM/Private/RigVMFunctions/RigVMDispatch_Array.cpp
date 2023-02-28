@@ -278,7 +278,8 @@ FName FRigVMDispatch_ArrayMake::GetArgumentNameForOperandIndex(int32 InOperandIn
 	{
 		return FRigVMBranchInfo::GetFixedArrayLabel(ValuesName, *FString::FromInt(InOperandIndex - 1));
 	}
-	return FRigVMDispatch_ArrayBase::GetArgumentNameForOperandIndex(1, 2);
+	check(InOperandIndex == (InTotalOperands - 1));
+	return ArrayName;
 }
 
 void FRigVMDispatch_ArrayMake::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
@@ -305,6 +306,12 @@ void FRigVMDispatch_ArrayMake::Execute(FRigVMExtendedExecuteContext& InContext, 
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FName FRigVMDispatch_ArrayReset::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	check(InTotalOperands == 1);
+	return ArrayName;
+}
 
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayReset::GetArguments() const
 {
@@ -347,6 +354,16 @@ FText FRigVMDispatch_ArrayReset::GetArgumentTooltip(const FName& InArgumentName,
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FName FRigVMDispatch_ArrayGetNum::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ArrayName,
+		NumName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
 
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayGetNum::GetArguments() const
 {
@@ -396,6 +413,16 @@ FText FRigVMDispatch_ArrayGetNum::GetArgumentTooltip(const FName& InArgumentName
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FName FRigVMDispatch_ArraySetNum::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ArrayName,
+		NumName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
 
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArraySetNum::GetArguments() const
 {
@@ -448,6 +475,17 @@ FText FRigVMDispatch_ArraySetNum::GetArgumentTooltip(const FName& InArgumentName
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FName FRigVMDispatch_ArrayGetAtIndex::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ArrayName,
+		IndexName,
+		ElementName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
 
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayGetAtIndex::GetArguments() const
 {
@@ -520,6 +558,17 @@ FText FRigVMDispatch_ArrayGetAtIndex::GetArgumentTooltip(const FName& InArgument
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FName FRigVMDispatch_ArraySetAtIndex::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ArrayName,
+		IndexName,
+		ElementName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
+
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArraySetAtIndex::GetArguments() const
 {
 	return {
@@ -590,6 +639,17 @@ FText FRigVMDispatch_ArraySetAtIndex::GetArgumentTooltip(const FName& InArgument
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FName FRigVMDispatch_ArrayAdd::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ArrayName,
+		ElementName,
+		IndexName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
 
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayAdd::GetArguments() const
 {
@@ -698,6 +758,16 @@ FText FRigVMDispatch_ArrayInsert::GetArgumentTooltip(const FName& InArgumentName
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FName FRigVMDispatch_ArrayRemove::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ArrayName,
+		IndexName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
+
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayRemove::GetArguments() const
 {
 	return {
@@ -781,6 +851,18 @@ FText FRigVMDispatch_ArrayReverse::GetArgumentTooltip(const FName& InArgumentNam
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FName FRigVMDispatch_ArrayFind::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ArrayName,
+		ElementName,
+		IndexName,
+		SuccessName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
 
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayFind::GetArguments() const
 {
@@ -881,6 +963,16 @@ FText FRigVMDispatch_ArrayFind::GetArgumentTooltip(const FName& InArgumentName, 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FName FRigVMDispatch_ArrayAppend::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ArrayName,
+		OtherName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
+
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayAppend::GetArguments() const
 {
 	return {
@@ -948,6 +1040,16 @@ FText FRigVMDispatch_ArrayAppend::GetArgumentTooltip(const FName& InArgumentName
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FName FRigVMDispatch_ArrayClone::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ArrayName,
+		CloneName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
 
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayClone::GetArguments() const
 {
@@ -1102,6 +1204,17 @@ FText FRigVMDispatch_ArrayUnion::GetArgumentTooltip(const FName& InArgumentName,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FName FRigVMDispatch_ArrayDifference::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ArrayName,
+		OtherName,
+		ResultName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
+
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayDifference::GetArguments() const
 {
 	return {
@@ -1255,6 +1368,20 @@ FText FRigVMDispatch_ArrayIntersection::GetArgumentTooltip(const FName& InArgume
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FName FRigVMDispatch_ArrayIterator::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		ArrayName,
+		ElementName,
+		IndexName,
+		CountName,
+		RatioName,
+		FRigVMStruct::ControlFlowBlockToRunName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
 
 TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayIterator::GetArguments() const
 {

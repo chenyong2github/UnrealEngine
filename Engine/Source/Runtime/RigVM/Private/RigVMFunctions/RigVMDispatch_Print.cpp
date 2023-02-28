@@ -7,6 +7,27 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDispatch_Print)
 
+
+const FName FRigVMDispatch_Print::PrefixName = TEXT("Prefix");
+const FName FRigVMDispatch_Print::ValueName = TEXT("Value");
+const FName FRigVMDispatch_Print::EnabledName = TEXT("Enabled");
+const FName FRigVMDispatch_Print::ScreenDurationName = TEXT("ScreenDuration");
+const FName FRigVMDispatch_Print::ScreenColorName = TEXT("ScreenColor");
+
+
+FName FRigVMDispatch_Print::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		PrefixName,
+		ValueName,
+		EnabledName,
+		ScreenDurationName,
+		ScreenColorName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
+
 TArray<FRigVMTemplateArgument> FRigVMDispatch_Print::GetArguments() const
 {
 	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
@@ -14,11 +35,11 @@ TArray<FRigVMTemplateArgument> FRigVMDispatch_Print::GetArguments() const
 		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
 	};
 	return {
-		FRigVMTemplateArgument(TEXT("Prefix"), ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::FString),
-		FRigVMTemplateArgument(TEXT("Value"), ERigVMPinDirection::Input, ValueCategories),
-		FRigVMTemplateArgument(TEXT("Enabled"), ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Bool),
-		FRigVMTemplateArgument(TEXT("ScreenDuration"), ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Float),
-		FRigVMTemplateArgument(TEXT("ScreenColor"), ERigVMPinDirection::Input, FRigVMRegistry::Get().GetTypeIndex<FLinearColor>())
+		FRigVMTemplateArgument(PrefixName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::FString),
+		FRigVMTemplateArgument(ValueName, ERigVMPinDirection::Input, ValueCategories),
+		FRigVMTemplateArgument(EnabledName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Bool),
+		FRigVMTemplateArgument(ScreenDurationName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Float),
+		FRigVMTemplateArgument(ScreenColorName, ERigVMPinDirection::Input, FRigVMRegistry::Get().GetTypeIndex<FLinearColor>())
 	};
 }
 
@@ -31,11 +52,11 @@ FRigVMTemplateTypeMap FRigVMDispatch_Print::OnNewArgumentType(const FName& InArg
                                                               TRigVMTypeIndex InTypeIndex) const
 {
 	FRigVMTemplateTypeMap Types;
-	Types.Add(TEXT("Prefix"), RigVMTypeUtils::TypeIndex::FString);
-	Types.Add(TEXT("Value"), InTypeIndex);
-	Types.Add(TEXT("Enabled"), RigVMTypeUtils::TypeIndex::Bool);
-	Types.Add(TEXT("ScreenDuration"), RigVMTypeUtils::TypeIndex::Float);
-	Types.Add(TEXT("ScreenColor"), FRigVMRegistry::Get().GetTypeIndex<FLinearColor>());
+	Types.Add(PrefixName, RigVMTypeUtils::TypeIndex::FString);
+	Types.Add(ValueName, InTypeIndex);
+	Types.Add(EnabledName, RigVMTypeUtils::TypeIndex::Bool);
+	Types.Add(ScreenDurationName, RigVMTypeUtils::TypeIndex::Float);
+	Types.Add(ScreenColorName, FRigVMRegistry::Get().GetTypeIndex<FLinearColor>());
 	return Types;
 }
 
@@ -43,11 +64,11 @@ FRigVMTemplateTypeMap FRigVMDispatch_Print::OnNewArgumentType(const FName& InArg
 
 FString FRigVMDispatch_Print::GetArgumentDefaultValue(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
 {
-	if(InArgumentName == TEXT("Enabled"))
+	if(InArgumentName == EnabledName)
 	{
 		return TEXT("True");
 	}
-	if(InArgumentName == TEXT("ScreenDuration"))
+	if(InArgumentName == ScreenDurationName)
 	{
 		return TEXT("0.050000");
 	}
@@ -56,7 +77,7 @@ FString FRigVMDispatch_Print::GetArgumentDefaultValue(const FName& InArgumentNam
 
 FString FRigVMDispatch_Print::GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
 {
-	if(InArgumentName == TEXT("ScreenDuration") || InArgumentName == TEXT("ScreenColor"))
+	if(InArgumentName == ScreenDurationName || InArgumentName == ScreenColorName)
 	{
 		if(InMetaDataKey == FRigVMStruct::DetailsOnlyMetaName)
 		{

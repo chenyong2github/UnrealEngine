@@ -6,6 +6,23 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDispatch_Core)
 
+
+const FName FRigVMDispatch_CoreEquals::AName = TEXT("A");
+const FName FRigVMDispatch_CoreEquals::BName = TEXT("B");
+const FName FRigVMDispatch_CoreEquals::ResultName = TEXT("Result");
+
+
+FName FRigVMDispatch_CoreEquals::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		AName,
+		BName,
+		ResultName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
+
 TArray<FRigVMTemplateArgument> FRigVMDispatch_CoreEquals::GetArguments() const
 {
 	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
@@ -13,9 +30,9 @@ TArray<FRigVMTemplateArgument> FRigVMDispatch_CoreEquals::GetArguments() const
 		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
 	};
 	return {
-		FRigVMTemplateArgument(TEXT("A"), ERigVMPinDirection::Input, ValueCategories),
-		FRigVMTemplateArgument(TEXT("B"), ERigVMPinDirection::Input, ValueCategories),
-		FRigVMTemplateArgument(TEXT("Result"), ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Bool)
+		FRigVMTemplateArgument(AName, ERigVMPinDirection::Input, ValueCategories),
+		FRigVMTemplateArgument(BName, ERigVMPinDirection::Input, ValueCategories),
+		FRigVMTemplateArgument(ResultName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Bool)
 	};
 }
 
@@ -23,17 +40,17 @@ FRigVMTemplateTypeMap FRigVMDispatch_CoreEquals::OnNewArgumentType(const FName& 
 	TRigVMTypeIndex InTypeIndex) const
 {
 	FRigVMTemplateTypeMap Types;
-	Types.Add(TEXT("A"), InTypeIndex);
-	Types.Add(TEXT("B"), InTypeIndex);
-	Types.Add(TEXT("Result"), RigVMTypeUtils::TypeIndex::Bool);
+	Types.Add(AName, InTypeIndex);
+	Types.Add(BName, InTypeIndex);
+	Types.Add(ResultName, RigVMTypeUtils::TypeIndex::Bool);
 	return Types;
 }
 
 FRigVMFunctionPtr FRigVMDispatch_CoreEquals::GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const
 {
-	const TRigVMTypeIndex TypeIndex = InTypes.FindChecked(TEXT("A"));
-	check(TypeIndex == InTypes.FindChecked(TEXT("B")));
-	check(InTypes.FindChecked(TEXT("Result")) == RigVMTypeUtils::TypeIndex::Bool);
+	const TRigVMTypeIndex TypeIndex = InTypes.FindChecked(AName);
+	check(TypeIndex == InTypes.FindChecked(BName));
+	check(InTypes.FindChecked(ResultName) == RigVMTypeUtils::TypeIndex::Bool);
 
 	if(TypeIndex == RigVMTypeUtils::TypeIndex::Float)
 	{
@@ -103,7 +120,7 @@ void FRigVMDispatch_CoreEquals::Execute(FRigVMExtendedExecuteContext& InContext,
 
 	const uint8* A = Handles[0].GetData();
 	const uint8* B = Handles[1].GetData();
-	bool& Result = *(bool*)Handles[2].GetData();
+	bool& Result = *reinterpret_cast<bool*>(Handles[2].GetData());
 	Result = PropertyA->Identical(A, B);
 	Result = AdaptResult(Result, InContext);
 }

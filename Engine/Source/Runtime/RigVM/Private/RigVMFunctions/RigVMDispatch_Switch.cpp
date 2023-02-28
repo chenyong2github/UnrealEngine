@@ -10,6 +10,16 @@
 const FName FRigVMDispatch_SwitchInt32::IndexName = TEXT("Index");
 const FName FRigVMDispatch_SwitchInt32::CasesName = TEXT("Cases");
 
+FName FRigVMDispatch_SwitchInt32::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	static const FName ArgumentNames[] = {
+		IndexName,
+		FRigVMStruct::ControlFlowBlockToRunName
+	};
+	check(InTotalOperands == UE_ARRAY_COUNT(ArgumentNames));
+	return ArgumentNames[InOperandIndex];
+}
+
 TArray<FRigVMTemplateArgument> FRigVMDispatch_SwitchInt32::GetArguments() const
 {
 	return {

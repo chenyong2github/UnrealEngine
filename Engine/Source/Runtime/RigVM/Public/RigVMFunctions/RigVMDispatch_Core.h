@@ -21,6 +21,7 @@ struct RIGVM_API FRigVMDispatch_CoreEquals : public FRigVMDispatch_CoreBase
 
 public:
 
+	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
 
@@ -75,6 +76,10 @@ protected:
 		bool& Result = *(bool*)Handles[2].GetData();
 		Result = AdaptResult(A.Equals(B), InContext);
 	}
+
+	static const FName AName;
+	static const FName BName;
+	static const FName ResultName;
 };
 
 /*
