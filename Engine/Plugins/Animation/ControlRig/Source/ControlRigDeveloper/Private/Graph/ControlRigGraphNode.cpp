@@ -703,6 +703,8 @@ bool UControlRigGraphNode::CreateGraphPinFromModelPin(const URigVMPin* InModelPi
 			{
 				CreateGraphPinFromModelPin(ModelSubPin, InDirection, GraphPin);
 			}
+
+			SetupPinDefaultsFromModel(GraphPin, InModelPin);
 		}
 
 		return GraphPin;

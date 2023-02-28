@@ -15896,7 +15896,7 @@ void URigVMController::CreateDefaultValueForStructIfRequired(UScriptStruct* InSt
 		// before ExportText() because ExportText() appends to it.
 		InOutDefaultValue.Reset();
 
-		InStruct->ExportText(InOutDefaultValue, TempBuffer.GetData(), nullptr, nullptr, PPF_None, nullptr);
+		InStruct->ExportText(InOutDefaultValue, TempBuffer.GetData(), TempBuffer.GetData(), nullptr, PPF_None, nullptr);
 		InStruct->DestroyStruct(TempBuffer.GetData());
 	}
 }
