@@ -17,6 +17,21 @@ class ADeformableSolverActor;
 class UDeformableSolverComponent;
 
 /**
+*  Options for binding positions query.
+*/
+UENUM()
+enum ChaosDeformableBindingOption : uint8
+{
+	WorldPos		UMETA(DisplayName = "World Positions"),
+	WorldDelta		UMETA(DisplayName = "World Deltas"),
+	ComponentPos    UMETA(DisplayName = "Component Positions"),
+	ComponentDelta  UMETA(DisplayName = "Component Deltas"),
+	BonePos			UMETA(DisplayName = "Bone Positions"),
+	BoneDelta		UMETA(DisplayName = "Bone Deltas"),
+};
+
+
+/**
 *	FleshComponent
 */
 UCLASS(meta = (BlueprintSpawnableComponent))
@@ -28,9 +43,6 @@ public:
 	typedef Chaos::Softs::FFleshThreadingProxy FFleshThreadingProxy;
 
 	~UFleshComponent();
-
-	UFUNCTION(BlueprintCallable, Category = "Physics")
-	TArray<FVector> GetSkeletalMeshBindingPositions(const USkeletalMesh* InSkeletalMesh) const;
 
 	/** USceneComponent Interface */
 	virtual void BeginPlay() override;
@@ -61,16 +73,32 @@ public:
 	UPROPERTY()
 	TObjectPtr<UProceduralMeshComponent> Mesh;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
-	TObjectPtr<USkeletalMesh> TargetDeformationSkeleton;
+	/** @deprecated Use GetSkeletalMeshEmbeddedPositions() instead. */
+	UFUNCTION(BlueprintCallable, Category = "Physics", meta = (DeprecatedFunction, DeprecationMessage = "Use GetSkeletalMeshEmbeddedPositions() instead."))
+	TArray<FVector> GetSkeletalMeshBindingPositions(const USkeletalMesh* InSkeletalMesh) const;
 
+	/**
+	* Get the current positions of the transformation hierarchy from \c TargetDeformationSkeleton,
+	* deformed by the tetrahedral mesh.  Results can be in world space postions/deltas, component space
+	* positions/deltas, or bone space positions/deltas.  If a bone space is desired \p TargetBone
+	* must indicate which bone to use. TargetDeformationSkeletonOffset is an offset transform that moves 
+	* the \c TargetDeformationSkeleton to be co-located with the flesh mesh.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics")
+	TArray<FVector> GetSkeletalMeshEmbeddedPositions(const ChaosDeformableBindingOption Format, const FTransform TargetDeformationSkeletonOffset, const FName TargetBone = "") const;
+
+	/** 
+	* Offset transform that moves the \c TargetDeformationSkeleton to be co-located with the flesh mesh. 
+	*/
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
+//	FTransform TargetDeformationSkeletonOffset;
 
 private:
-	// FleshAsset that describes the simulation rest state.
+	/** FleshAsset that describes the simulation rest state. */
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics")
 	TObjectPtr<const UFleshAsset> RestCollection;
 
-	// Current simulation state.
+	/** Current simulation state. */
 	UPROPERTY()
 	TObjectPtr<UFleshDynamicAsset> DynamicCollection;
 
@@ -78,18 +106,22 @@ private:
 	// Sim Space
 	//
 
-	// Space the simulation will run in.
+	/** Space the simulation will run in. */
 	UPROPERTY(EditAnywhere, Category = "ChaosDeformable")
 	TEnumAsByte<ChaosDeformableSimSpace> SimSpace = ChaosDeformableSimSpace::World;
 
-	// Bone from the associated skeletal mesh (indicated by RestCollection.TargetSkeletalMesh) to use as the space the sim runs in.
+	/** 
+	* Bone from the associated skeletal mesh (indicated by RestCollection.TargetSkeletalMesh) to use as 
+	* the space the sim runs in.
+	*/
 	UPROPERTY(EditAnywhere, Category = "ChaosDeformable", meta = (GetOptions = "GetSimSpaceBoneNameOptions", EditCondition = "SimSpace == ChaosDeformableSimSpace::Bone"))
 	FName SimSpaceBoneName;
 
+	/** The skeletal mesh to use pull the \c SimSpaceBoneName from. */
 	UPROPERTY()
 	TObjectPtr<USkeletalMesh> SimSpaceSkeletalMesh;
 
-	// Returns a list of bone names from the currently selected skeletal mesh.
+	/* Returns a list of bone names from the currently selected skeletal mesh. */
 	UFUNCTION(CallInEditor)
 	TArray<FString> GetSimSpaceBoneNameOptions() const;
 
@@ -123,6 +155,8 @@ private:
 
 	FTransform PrevTransform = FTransform::Identity;
 
+	TArray<FVector> GetSkeletalMeshEmbeddedPositionsInternal(const ChaosDeformableBindingOption Format, const FTransform TargetDeformationSkeletonOffset, const FName TargetBone = "", TArray<bool>* OutInfluence = nullptr) const;
+	TArray<FVector> GetEmbeddedPositionsInternal(const TArray<FVector>& InPositions, const FName SkeletalMeshName, TArray<bool>* OutInfluence = nullptr) const;
 	TArray<FVector> GetSkeletalMeshBindingPositionsInternal(const USkeletalMesh* InSkeletalMesh, TArray<bool>* OutInfluence = nullptr) const;
 	void DebugDrawSkeletalMeshBindingPositions() const;
 

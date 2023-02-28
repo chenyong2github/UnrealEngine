@@ -101,46 +101,53 @@ namespace GeometryCollection::Facades
 	}
 
 
-	void FTetrahedralSkeletalBindings::CalculateBindings(const FString & InKey, const TArray<FVector3f>& InVertices, TArray<FVector>& OutPosition, TArray<bool>* OutInfluence) const
+	bool FTetrahedralSkeletalBindings::CalculateBindings(const FString & InKey, const TArray<FVector3f>& InVertices, TArray<FVector>& OutPosition, TArray<bool>* OutInfluence) const
 	{
 		auto UEVert3d = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
 
-		if (IsValid() && InVertices.Num())
+		if (!IsValid())
+		{
+			return false;
+		}
+		if(InVertices.Num())
 		{
 			int32 GroupIndex = MeshIdAttribute.Get().Find(InKey);
-			if (GroupIndex != INDEX_NONE)
+			if (GroupIndex == INDEX_NONE)
 			{
-				const TManagedArray<int32>& MeshGroupIndex = MeshGroupIndexAttribute.Get();
-				const TManagedArray<int32>& TetrahedronIndex = TetrahedronIndexAttribute.Get();
-				const TManagedArray<FVector4f>& Weights = WeightsAttribute.Get();
-				const TManagedArray<int32>& SkeletalIndices = SkeletalIndexAttribute.Get();
-				const TManagedArray<FIntVector4>& Tetrahedron = TetrahedronAttribute.Get();
+				return false;
+			}
 
-				int32 NumBindings = MeshGroupIndex.Num();
-				for (int32 BindingIndex = 0; BindingIndex < MeshGroupIndex.Num(); BindingIndex++)
+			const TManagedArray<int32>& MeshGroupIndex = MeshGroupIndexAttribute.Get();
+			const TManagedArray<int32>& TetrahedronIndex = TetrahedronIndexAttribute.Get();
+			const TManagedArray<FVector4f>& Weights = WeightsAttribute.Get();
+			const TManagedArray<int32>& SkeletalIndices = SkeletalIndexAttribute.Get();
+			const TManagedArray<FIntVector4>& Tetrahedron = TetrahedronAttribute.Get();
+
+			int32 NumBindings = MeshGroupIndex.Num();
+			for (int32 BindingIndex = 0; BindingIndex < MeshGroupIndex.Num(); BindingIndex++)
+			{
+				if (MeshGroupIndex[BindingIndex] == GroupIndex)
 				{
-					if (MeshGroupIndex[BindingIndex] == GroupIndex)
+					int32 TetIndex = TetrahedronIndex[BindingIndex];
+					if (0 <= TetIndex && TetIndex < TetrahedronAttribute.Num())
 					{
-						int32 TetIndex = TetrahedronIndex[BindingIndex];
-						if (0 <= TetIndex && TetIndex < TetrahedronAttribute.Num())
+						const FIntVector4& Tet = Tetrahedron[TetIndex];
+						int32 SkeletonIndex = SkeletalIndices[BindingIndex];
+						if (0 <= SkeletonIndex && SkeletonIndex < OutPosition.Num())
 						{
-							const FIntVector4& Tet = Tetrahedron[TetIndex];
-							int32 SkeletonIndex = SkeletalIndices[BindingIndex];
-							if (0 <= SkeletonIndex && SkeletonIndex < OutPosition.Num())
-							{
-								const FVector4 Weight(Weights[BindingIndex][0], Weights[BindingIndex][1], Weights[BindingIndex][2], Weights[BindingIndex][3]);
-								FVector X0 = InVertices.IsValidIndex(Tet[0]) ? UEVert3d(InVertices[Tet[0]]) : FVector();
-								FVector X1 = InVertices.IsValidIndex(Tet[0]) ? UEVert3d(InVertices[Tet[1]]) : FVector();
-								FVector X2 = InVertices.IsValidIndex(Tet[0]) ? UEVert3d(InVertices[Tet[2]]) : FVector();
-								FVector X3 = InVertices.IsValidIndex(Tet[0]) ? UEVert3d(InVertices[Tet[3]]) : FVector();
-								OutPosition[SkeletonIndex] = Weight[0] * X0 + Weight[1] * X1 + Weight[2] * X2 + Weight[3] * X3;
-								if (OutInfluence!=nullptr) if(SkeletonIndex<OutInfluence->Num()) (*OutInfluence)[SkeletonIndex] = true;
-							}
+							const FVector4 Weight(Weights[BindingIndex][0], Weights[BindingIndex][1], Weights[BindingIndex][2], Weights[BindingIndex][3]);
+							FVector X0 = InVertices.IsValidIndex(Tet[0]) ? UEVert3d(InVertices[Tet[0]]) : FVector();
+							FVector X1 = InVertices.IsValidIndex(Tet[0]) ? UEVert3d(InVertices[Tet[1]]) : FVector();
+							FVector X2 = InVertices.IsValidIndex(Tet[0]) ? UEVert3d(InVertices[Tet[2]]) : FVector();
+							FVector X3 = InVertices.IsValidIndex(Tet[0]) ? UEVert3d(InVertices[Tet[3]]) : FVector();
+							OutPosition[SkeletonIndex] = Weight[0] * X0 + Weight[1] * X1 + Weight[2] * X2 + Weight[3] * X3;
+							if (OutInfluence != nullptr) if (SkeletonIndex < OutInfluence->Num()) (*OutInfluence)[SkeletonIndex] = true;
 						}
 					}
 				}
 			}
 		}
+		return true;
 	}
 };
 

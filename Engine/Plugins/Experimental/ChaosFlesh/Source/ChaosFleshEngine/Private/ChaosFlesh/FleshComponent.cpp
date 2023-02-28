@@ -545,17 +545,22 @@ void UFleshComponent::DebugDrawSkeletalMeshBindingPositions() const
 
 	if (const UFleshAsset* RestAsset = GetRestCollection())
 	{
-		const USkeletalMesh* SkeletalMesh = TargetDeformationSkeleton ? TargetDeformationSkeleton : RestAsset->SkeletalMesh;
+		const USkeletalMesh* SkeletalMesh = 
+			GetRestCollection() && GetRestCollection()->TargetDeformationSkeleton ? 
+			GetRestCollection()->TargetDeformationSkeleton : RestAsset->SkeletalMesh;
 		if (SkeletalMesh)
 		{
 			TArray<bool> Influenced;
-			TArray<FVector> PosArray = GetSkeletalMeshBindingPositionsInternal(SkeletalMesh, &Influenced);
-			for (int i=0;i<PosArray.Num();i++)
+			TArray<FVector> PosArray = GetSkeletalMeshEmbeddedPositionsInternal(
+				ChaosDeformableBindingOption::ComponentPos, FTransform::Identity, "", &Influenced);
+
+			for (int i = 0; i < PosArray.Num(); i++)
 			{
 				const FVector& Pos = PosArray[i];
 				if (Influenced[i])
 				{
-					Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(GetComponentTransform().TransformPosition(Pos), FColor::Red, true, 2.0f, SDPG_Foreground, 10);
+					Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(
+						GetComponentTransform().TransformPosition(Pos), FColor::Yellow, true, 2.0f, SDPG_Foreground, 10);
 				}
 			}
 		}
@@ -565,7 +570,263 @@ void UFleshComponent::DebugDrawSkeletalMeshBindingPositions() const
 
 TArray<FVector> UFleshComponent::GetSkeletalMeshBindingPositions(const USkeletalMesh* InSkeletalMesh) const
 {
-	return GetSkeletalMeshBindingPositionsInternal(InSkeletalMesh);
+	return GetSkeletalMeshBindingPositionsInternal(InSkeletalMesh, nullptr);
+}
+
+TArray<FVector> UFleshComponent::GetSkeletalMeshEmbeddedPositions(
+	const ChaosDeformableBindingOption Format,
+	const FTransform TargetDeformationSkeletonOffset,
+	const FName TargetBone) const
+{
+	return GetSkeletalMeshEmbeddedPositionsInternal(Format, TargetDeformationSkeletonOffset, TargetBone, nullptr);
+}
+
+TArray<FVector> UFleshComponent::GetSkeletalMeshEmbeddedPositionsInternal(
+	const ChaosDeformableBindingOption Format,
+	const FTransform TargetDeformationSkeletonOffset, 
+	const FName TargetBone,
+	TArray<bool>* OutInfluence) const
+{
+	if (!GetRestCollection())
+	{
+		UE_LOG(LogFleshComponentInternal, Warning,
+			TEXT("'%s' - GetSkeletalMeshEmbeddedPositionsInternal - RestCollection is not set."),
+			*GetName());
+		return TArray<FVector>();
+	}
+	if(!GetRestCollection()->TargetDeformationSkeleton)
+	{
+		UE_LOG(LogFleshComponentInternal, Warning,
+			TEXT("'%s' - GetSkeletalMeshEmbeddedPositionsInternal - TargetDeformationSkeleton is not set on the flesh asset."),
+			*GetName());
+		return TArray<FVector>();
+	}
+
+	// Get sample points in the skel mesh's component space.  This code assumes that the
+	// skeletal mesh and the flesh asset are aligned in their respective local spaces.  If
+	// they're not aligned, then the TargetDeformationSkeletonOffset should be provided to
+	// put the skeletal mesh in the same place as the flesh mesh.
+	TArray<FVector> TransformPositions;
+	if (Format == ChaosDeformableBindingOption::WorldDelta || 
+		Format == ChaosDeformableBindingOption::ComponentDelta) // BoneDelta handled below
+	{
+		TArray<FTransform> ComponentPose;
+		Dataflow::Animation::GlobalTransforms(GetRestCollection()->TargetDeformationSkeleton->GetRefSkeleton(), ComponentPose);
+		TransformPositions.SetNumUninitialized(ComponentPose.Num());
+		if (TargetDeformationSkeletonOffset.Equals(FTransform::Identity))
+		{
+			for (int32 i = 0; i < ComponentPose.Num(); i++)
+			{
+				TransformPositions[i] = ComponentPose[i].GetTranslation();
+			}
+		}
+		else
+		{
+			for (int32 i = 0; i < ComponentPose.Num(); i++)
+			{
+				TransformPositions[i] =
+					TargetDeformationSkeletonOffset.TransformPosition(
+						ComponentPose[i].GetTranslation());
+			}
+		}
+	}
+	else
+	{
+		// If we aren't computing deltas, then we don't need the bone positions.  We
+		// only need to size the array to however many bones we have.
+		TransformPositions.SetNum(GetRestCollection()->TargetDeformationSkeleton->GetRefSkeleton().GetNum());
+	}
+
+	// Calculate their current embedded positions
+	TArray<FVector> EmbeddedPosComp = 
+		GetEmbeddedPositionsInternal(
+			TransformPositions, 
+			FName(GetRestCollection()->TargetDeformationSkeleton->GetName()), // for identifying the binding group
+			OutInfluence);
+
+	// World space
+	if (Format == ChaosDeformableBindingOption::WorldPos)
+	{
+		// Put component space points into world space
+		const FTransform ComponentXf = GetComponentTransform();
+		for (int32 i = 0; i < EmbeddedPosComp.Num(); i++)
+		{
+			EmbeddedPosComp[i] = ComponentXf.TransformPosition(EmbeddedPosComp[i]);
+		}
+	}
+	else if (Format == ChaosDeformableBindingOption::WorldDelta)
+	{
+		const FTransform ComponentXf = GetComponentTransform();
+		for (int32 i = 0; i < EmbeddedPosComp.Num(); i++)
+		{
+			EmbeddedPosComp[i] = EmbeddedPosComp[i] - TransformPositions[i];
+			EmbeddedPosComp[i] = ComponentXf.TransformVector(EmbeddedPosComp[i]);
+		}
+	}
+
+	// Component space
+	else if (Format == ChaosDeformableBindingOption::ComponentPos)
+	{
+		// Do nothing.
+	}
+	else if (Format == ChaosDeformableBindingOption::ComponentDelta)
+	{
+		for (int32 i = 0; i < EmbeddedPosComp.Num(); i++)
+		{
+			EmbeddedPosComp[i] = EmbeddedPosComp[i] - TransformPositions[i];
+		}
+	}
+
+	// Bone space
+	else
+	{
+		// Find the component that owns TargetDeformationSkeleton, so we can pull the 
+		// current animated bone transforms out of it.
+		//
+		// It's possible that TargetDeformationSkeleton is owned by a component on another 
+		// actor, in which case, we can't (easily) find it. If that becomes a desired use
+		// case, then we'll need to have a handle to that component, not just the asset.
+		TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+		GetOwner()->GetComponents<USkeletalMeshComponent>(SkeletalMeshComponents);
+		USkeletalMeshComponent* TargetDeformationSkeletalMeshComponent = nullptr;
+		for (int32 i = 0; i < SkeletalMeshComponents.Num(); i++)
+		{
+			if (SkeletalMeshComponents[i]->GetSkeletalMeshAsset() == GetRestCollection()->TargetDeformationSkeleton)
+			{
+				TargetDeformationSkeletalMeshComponent = SkeletalMeshComponents[i];
+				break;
+			}
+		}
+
+		if (TargetDeformationSkeletalMeshComponent)
+		{
+			// Get the current animated bone transforms and then their positions.
+			const TArray<FTransform>& TargetDeformationComponentTransforms = 
+				TargetDeformationSkeletalMeshComponent->GetComponentSpaceTransforms();
+			TArray<FVector> AnimTransformPositions;
+			AnimTransformPositions.SetNumUninitialized(TargetDeformationComponentTransforms.Num());
+
+			// Get their positions, and apply the offset if necessary.
+			if (!TargetDeformationSkeletonOffset.Equals(FTransform::Identity) && 
+				Format == ChaosDeformableBindingOption::BoneDelta)
+			{
+				for (int32 i = 0; i < TargetDeformationComponentTransforms.Num(); i++)
+				{
+					AnimTransformPositions[i] =
+						TargetDeformationSkeletonOffset.TransformPosition(
+							TargetDeformationComponentTransforms[i].GetTranslation());
+				}
+			}
+			else
+			{
+				for (int32 i = 0; i < TargetDeformationComponentTransforms.Num(); i++)
+				{
+					AnimTransformPositions[i] = TargetDeformationComponentTransforms[i].GetTranslation();
+				}
+			}
+
+			// Find the transform index of 'TargetBone'
+			FTransform BoneToComponentXf = FTransform::Identity;
+			const int32 BoneIndex = GetRestCollection()->TargetDeformationSkeleton->GetRefSkeleton().FindBoneIndex(TargetBone);
+			if (TargetDeformationComponentTransforms.IsValidIndex(BoneIndex))
+			{
+				BoneToComponentXf = FTransform(TargetDeformationComponentTransforms[BoneIndex].ToMatrixWithScale().Inverse());
+			}
+			else
+			{
+				UE_LOG(LogFleshComponentInternal, Warning, 
+					TEXT("'%s' - Failed to find a valid bone index (got %d) for bone name '%s' in TargetDeformationSkeleton '%s' "
+					"corresponding to SkeletalMeshComponent '%s', which has %d bones."), 
+					*GetName(),
+					BoneIndex, *TargetBone.ToString(), *GetRestCollection()->TargetDeformationSkeleton.GetName(),
+					*TargetDeformationSkeletalMeshComponent->GetName(), TargetDeformationComponentTransforms.Num());
+				return TArray<FVector>();
+			}
+
+			// Compute the return values
+			if (Format == ChaosDeformableBindingOption::BonePos)
+			{
+				if (!BoneToComponentXf.Equals(FTransform::Identity))
+				{
+					for (int32 i = 0; i < EmbeddedPosComp.Num(); i++)
+					{
+						EmbeddedPosComp[i] = BoneToComponentXf.TransformPosition(EmbeddedPosComp[i]);
+					}
+				}
+			}
+			else if (Format == ChaosDeformableBindingOption::BoneDelta)
+			{
+				if (!BoneToComponentXf.Equals(FTransform::Identity))
+				{
+					for (int32 i = 0; i < EmbeddedPosComp.Num(); i++)
+					{
+						EmbeddedPosComp[i] = EmbeddedPosComp[i] - AnimTransformPositions[i];
+						EmbeddedPosComp[i] = BoneToComponentXf.TransformVector(EmbeddedPosComp[i]);
+					}
+				}
+				else
+				{
+					for (int32 i = 0; i < EmbeddedPosComp.Num(); i++)
+					{
+						EmbeddedPosComp[i] = EmbeddedPosComp[i] - AnimTransformPositions[i];
+					}
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogFleshComponentInternal, Warning, 
+				TEXT("'%s' - Failed to find SkeletalMeshComponent for TargetDeformationSkeleton '%s'."),
+				*GetName(),
+				*GetRestCollection()->TargetDeformationSkeleton->GetName());
+			return TArray<FVector>();
+		}
+	}
+	return EmbeddedPosComp;
+}
+
+TArray<FVector> UFleshComponent::GetEmbeddedPositionsInternal(
+	const TArray<FVector>& InPositions, 
+	const FName SkeletalMeshName,
+	TArray<bool>* OutInfluence) const
+{
+	auto UEVert3d = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
+	auto UEVert4d = [](FVector4f V) { return FVector4d(V.X, V.Y, V.Z, V.W); };
+
+	TArray<FVector> OutPositions = InPositions;
+
+	if (const UFleshAsset* RestAsset = GetRestCollection())
+	{
+		if (const FFleshCollection* Rest = RestAsset->GetCollection())
+		{
+			GeometryCollection::Facades::FTetrahedralSkeletalBindings TetBindings(*Rest);
+
+			const TManagedArray<int32>* TetrahedronStart = Rest->FindAttribute<int32>(FTetrahedralCollection::TetrahedronStartAttribute, FGeometryCollection::GeometryGroup);
+			const TManagedArray<FVector3f>* RestVerts = Rest->FindAttributeTyped<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
+			const TManagedArray<FVector3f>* Verts = GetDynamicCollection() ? GetDynamicCollection()->FindPositions() : RestVerts;
+
+			if (ensure(Verts != nullptr) && TetrahedronStart)
+			{
+				if (OutInfluence != nullptr)
+					OutInfluence->Init(false, OutPositions.Num());
+				for (int32 TetMeshIdx = 0; TetMeshIdx < TetrahedronStart->Num(); TetMeshIdx++)
+				{
+					FString MeshBindingsName =
+						GeometryCollection::Facades::FTetrahedralSkeletalBindings::GenerateMeshGroupName(TetMeshIdx, SkeletalMeshName);
+					if (!TetBindings.CalculateBindings(MeshBindingsName, Verts->GetConstArray(), OutPositions, OutInfluence))
+					{
+						UE_LOG(LogFleshComponentInternal, Warning,
+							TEXT("'%s' - GetEmbeddedPositionsInternal - Failed to find mesh bindings for skeletal mesh '%s'"),
+							*GetName(),
+							*SkeletalMeshName.ToString());
+					}
+				}
+
+			}
+
+		}
+	}
+	return OutPositions;
 }
 
 TArray<FVector> UFleshComponent::GetSkeletalMeshBindingPositionsInternal(const USkeletalMesh* InSkeletalMesh, TArray<bool>* OutInfluence) const
@@ -588,6 +849,7 @@ TArray<FVector> UFleshComponent::GetSkeletalMeshBindingPositionsInternal(const U
 
 				if (ensure(Verts != nullptr) && TetrahedronStart)
 				{
+					// Component relative transforms, not world.
 					TArray<FTransform> ComponentPose;
 					Dataflow::Animation::GlobalTransforms(InSkeletalMesh->GetRefSkeleton(), ComponentPose);
 
@@ -609,11 +871,3 @@ TArray<FVector> UFleshComponent::GetSkeletalMeshBindingPositionsInternal(const U
 	}
 	return TransformPositions;
 }
-
-
-
-
-
-
-
-

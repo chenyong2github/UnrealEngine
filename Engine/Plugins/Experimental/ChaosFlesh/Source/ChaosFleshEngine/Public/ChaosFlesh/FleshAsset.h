@@ -113,6 +113,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Animation")
 	TObjectPtr<USkeleton> Skeleton;
 
+	/**
+	* Skeleton to use with \c GetSkeletalMeshEmbeddedPositions() on the flesh component. 
+	* Bindings for this skeletal mesh must be stored in the rest collection.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
+	TObjectPtr<USkeletalMesh> TargetDeformationSkeleton;
+
 	//
 	// SkeletalMesh
 	//
