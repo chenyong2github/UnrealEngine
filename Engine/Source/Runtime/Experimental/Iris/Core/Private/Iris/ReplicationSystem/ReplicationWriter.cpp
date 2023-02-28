@@ -1604,7 +1604,7 @@ uint32 FReplicationWriter::WriteObjectsPendingDestroy(FNetSerializationContext& 
 		// We do not support destroying an object that is currently being sent as a huge object.
 		if (IsObjectPartOfActiveHugeObject(InternalIndex, Info))
 		{
-			UE_LOG(LogIris, Warning, TEXT("Skipping writing destroy for object ( InternalIndex: %u ) which is part of active huge object."), InternalIndex);
+			UE_LOG(LogIris, Log, TEXT("Skipping writing destroy for object ( InternalIndex: %u ) which is part of active huge object."), InternalIndex);
 			bWroteAllDestroyedObjects = false;
 			continue;
 		}

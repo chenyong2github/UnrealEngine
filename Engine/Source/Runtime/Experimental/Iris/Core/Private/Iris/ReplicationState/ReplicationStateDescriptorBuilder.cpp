@@ -2307,7 +2307,7 @@ TRefCountPtr<const FReplicationStateDescriptor> FReplicationStateDescriptorBuild
 		if (bAllMembersAreReplicated && PropertyCount == 0U)
 		{
 			// Warn if someone tries to replicate a struct with no properties for which we do not have a custom NetSerialzier.
-			UE_LOG_DESCRIPTORBUILDER_WARNING(TEXT("FReplicationStateDescriptorBuilder ::CreateDescriptorForStruct a replicated struct WITH no replicated properties must have a CustomNetSerializer. Struct: %s."), ToCStr(InStruct->GetName()));
+			UE_CLOG(bWarnAboutStructPropertiesWithSuspectedNotReplicatedProperties, LogIris, Warning, TEXT("FReplicationStateDescriptorBuilder ::CreateDescriptorForStruct a replicated struct WITH no replicated properties must have a CustomNetSerializer. Struct: %s."), ToCStr(InStruct->GetName()));
 			bAllMembersAreReplicated = false;
 		}
 	}

@@ -127,7 +127,7 @@ FReplicationReader::FReplicationReader()
 , ObjectsToDispatchCapacity(0U)
 , NetBlobHandlerManager(nullptr)
 , NetObjectBlobType(InvalidNetBlobType)
-, DelayAttachmentsWithUnresolvedReferences(IConsoleManager::Get().FindConsoleVariable(TEXT("net.DelayUnmappedRPCs")))
+, DelayAttachmentsWithUnresolvedReferences(IConsoleManager::Get().FindConsoleVariable(TEXT("net.DelayUnmappedRPCs"), false /* bTrackFrequentCalls */))
 {
 }
 
@@ -235,8 +235,8 @@ uint16 FReplicationReader::ReadObjectsPendingDestroy(FNetSerializationContext& C
 					continue;
 				}
 
-				// If we did not find the object or associated bridge something is wrong and we should disconnect.
-				UE_LOG_REPLICATIONREADER_WARNING(TEXT("FReplicationReader::Read Tried to destroy object with %s (This can occur if the server sends destroy for an object that has not yet been confirmed as created)"), *IncompleteHandle.ToString());
+				// If we did not find the object or associated bridge, the packet that would have created the object may have been lost.
+				UE_LOG(LogIris, Log, TEXT("FReplicationReader::Read Tried to destroy object with %s (This can occur if the server sends destroy for an object that has not yet been confirmed as created)"), *IncompleteHandle.ToString());
 			}
 		}
 	}
