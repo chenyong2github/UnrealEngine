@@ -10,7 +10,7 @@
  * A modifier that only exists in uncooked builds.
  */
 UCLASS(Abstract)
-class VCAMCOREEDITOR_API UEditorOnlyVCamModifier : public UVCamModifier
+class VCAMCOREEDITOR_API UEditorOnlyVCamModifier : public UVCamBlueprintModifier
 {
 	GENERATED_BODY()
 public:
