@@ -2,24 +2,13 @@
 
 #include "Widgets/STextureEditorViewport.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/SToolTip.h"
-#include "Widgets/Input/SComboButton.h"
 #include "Widgets/SViewport.h"
-#include "Widgets/Input/SSlider.h"
-#include "Engine/Texture.h"
-#include "Engine/VolumeTexture.h"
-#include "Engine/TextureRenderTargetVolume.h"
 #include "Slate/SceneViewport.h"
-#include "TextureEditorConstants.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "TextureEditorSettings.h"
-
 
 #define LOCTEXT_NAMESPACE "STextureEditorViewport"
-
 
 
 /* STextureEditorViewport interface
@@ -30,23 +19,10 @@ void STextureEditorViewport::AddReferencedObjects( FReferenceCollector& Collecto
 	ViewportClient->AddReferencedObjects(Collector);
 }
 
-
 void STextureEditorViewport::Construct( const FArguments& InArgs, const TSharedRef<ITextureEditorToolkit>& InToolkit )
 {
-
 	bIsRenderingEnabled = true;
 	ToolkitPtr = InToolkit;
-	
-	FText TextureName = FText::GetEmpty();
-
-	if (InToolkit->GetTexture() != nullptr)
-	{
-		FText FormattedText = InToolkit->HasValidTextureResource() ? FText::FromString(TEXT("{0}")) : LOCTEXT( "InvalidTextureWithParam", "{0} (Invalid Texture)");
-		TextureName = FText::Format(FormattedText, FText::FromName(InToolkit->GetTexture()->GetFName()));
-	}
-
-
-	TSharedPtr<SHorizontalBox> HorizontalBox;
 
 	this->ChildSlot
 	[
@@ -86,8 +62,6 @@ void STextureEditorViewport::Construct( const FArguments& InArgs, const TSharedR
 		]
 
 	];
-
-
 	
 	ViewportClient = MakeShareable(new FTextureEditorViewportClient(ToolkitPtr, SharedThis(this)));
 
@@ -96,7 +70,6 @@ void STextureEditorViewport::Construct( const FArguments& InArgs, const TSharedR
 	// The viewport widget needs an interface so it knows what should render
 	ViewportWidget->SetViewportInterface( Viewport.ToSharedRef() );
 }
-
 
 void STextureEditorViewport::ModifyCheckerboardTextureColors( )
 {
@@ -161,16 +134,14 @@ FText STextureEditorViewport::GetDisplayedResolution( ) const
 /* STextureEditorViewport event handlers
  *****************************************************************************/
 
-
 void STextureEditorViewport::HandleHorizontalScrollBarScrolled( float InScrollOffsetFraction )
 {
-	float Ratio = ViewportClient->GetViewportHorizontalScrollBarRatio();
-	float MaxOffset = (Ratio < 1.0f) ? 1.0f - Ratio : 0.0f;
+	const float Ratio = ViewportClient->GetViewportHorizontalScrollBarRatio();
+	const float MaxOffset = (Ratio < 1.0f) ? 1.0f - Ratio : 0.0f;
 	InScrollOffsetFraction = FMath::Clamp(InScrollOffsetFraction, 0.0f, MaxOffset);
 
 	TextureViewportHorizontalScrollBar->SetState(InScrollOffsetFraction, Ratio);
 }
-
 
 EVisibility STextureEditorViewport::HandleHorizontalScrollBarVisibility( ) const
 {
@@ -182,16 +153,14 @@ EVisibility STextureEditorViewport::HandleHorizontalScrollBarVisibility( ) const
 	return EVisibility::Collapsed;
 }
 
-
 void STextureEditorViewport::HandleVerticalScrollBarScrolled( float InScrollOffsetFraction )
 {
-	float Ratio = ViewportClient->GetViewportVerticalScrollBarRatio();
-	float MaxOffset = (Ratio < 1.0f) ? 1.0f - Ratio : 0.0f;
+	const float Ratio = ViewportClient->GetViewportVerticalScrollBarRatio();
+	const float MaxOffset = (Ratio < 1.0f) ? 1.0f - Ratio : 0.0f;
 	InScrollOffsetFraction = FMath::Clamp(InScrollOffsetFraction, 0.0f, MaxOffset);
 
 	TextureViewportVerticalScrollBar->SetState(InScrollOffsetFraction, Ratio);
 }
-
 
 EVisibility STextureEditorViewport::HandleVerticalScrollBarVisibility( ) const
 {
@@ -202,8 +171,6 @@ EVisibility STextureEditorViewport::HandleVerticalScrollBarVisibility( ) const
 	
 	return EVisibility::Collapsed;
 }
-
-
 
 
 #undef LOCTEXT_NAMESPACE

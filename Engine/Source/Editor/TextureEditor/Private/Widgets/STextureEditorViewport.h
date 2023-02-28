@@ -24,8 +24,6 @@ public:
 	SLATE_BEGIN_ARGS(STextureEditorViewport) { }
 	SLATE_END_ARGS()
 
-public:
-
 	/**
 	 */
 	void AddReferencedObjects( FReferenceCollector& Collector );
@@ -83,13 +81,6 @@ private:
 	// Callback for getting the visibility of the horizontal scroll bar.
 	EVisibility HandleVerticalScrollBarVisibility( ) const;
 
-
-	// Checks if the texture being edited has a valid texture resource
-	bool HasValidTextureResource( ) const;
-
-private:
-
-
 	// Pointer back to the Texture editor tool that owns us.
 	TWeakPtr<ITextureEditorToolkit> ToolkitPtr;
 	
@@ -109,5 +100,5 @@ private:
 	TSharedPtr<SScrollBar> TextureViewportHorizontalScrollBar;
 
 	// Is rendering currently enabled? (disabled when reimporting a texture)
-	bool bIsRenderingEnabled;
+	bool bIsRenderingEnabled = true;
 };
