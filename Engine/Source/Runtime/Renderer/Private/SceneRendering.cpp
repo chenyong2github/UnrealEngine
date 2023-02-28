@@ -4986,6 +4986,49 @@ void FRendererModule::PrefetchNaniteResource(const Nanite::FResources* Resource,
 	Nanite::GStreamingManager.PrefetchResource(Resource, NumFramesUntilRender);
 }
 
+const FViewMatrices& FRendererModule::GetPreviousViewMatrices(const FSceneView& View)
+{
+	if (ensure(View.bIsViewInfo))
+	{
+		return static_cast<const FViewInfo&>(View).PrevViewInfo.ViewMatrices;
+	}
+	return View.ViewMatrices;
+}
+
+const FGlobalDistanceFieldParameterData* FRendererModule::GetGlobalDistanceFieldParameterData(const FSceneView& View)
+{
+	if (ensure(View.bIsViewInfo))
+	{
+		return &static_cast<const FViewInfo&>(View).GlobalDistanceFieldInfo.ParameterData;
+	}
+	return nullptr;
+}
+
+void FRendererModule::BeginDeferredUpdateOfPrimitiveSceneInfo(FPrimitiveSceneInfo* Info)
+{
+	if (Info)
+	{
+		Info->BeginDeferredUpdateStaticMeshes();
+	}
+}
+
+void FRendererModule::AddMeshBatchToGPUScene(FGPUScenePrimitiveCollector* Collector, FMeshBatch& MeshBatch)
+{
+	for (FMeshBatchElement& Element : MeshBatch.Elements)
+	{
+		if (const TUniformBuffer<FPrimitiveUniformShaderParameters>* PrimitiveUniformBufferResource = Element.PrimitiveUniformBufferResource)
+		{
+			Element.PrimitiveIdMode = PrimID_DynamicPrimitiveShaderData;
+			Collector->Add(
+				Element.DynamicPrimitiveData,
+				*reinterpret_cast<const FPrimitiveUniformShaderParameters*>(PrimitiveUniformBufferResource->GetContents()),
+				Element.NumInstances,
+				Element.DynamicPrimitiveIndex,
+				Element.DynamicPrimitiveInstanceSceneDataOffset);
+		}
+	}
+}
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 class FConsoleVariableAutoCompleteVisitor 

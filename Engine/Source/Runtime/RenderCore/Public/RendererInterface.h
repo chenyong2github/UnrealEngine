@@ -30,10 +30,12 @@ class FGlobalDistanceFieldParameterData;
 struct FMeshBatch;
 struct FSynthBenchmarkResults;
 struct FSceneTextures;
+struct FViewMatrices;
 class FShader;
 class FShaderMapPointerTable;
 class FRDGBuilder;
 class FMaterialRenderProxy;
+class FGPUScenePrimitiveCollector;
 class FViewInfo;
 template<typename ShaderType, typename PointerTableType> class TShaderRefBase;
 
@@ -840,5 +842,10 @@ public:
 	 *  targets. The next scene render will create them at the requested size.
 	 */
 	virtual void ResetSceneTextureExtentHistory() = 0;
+
+	virtual const FViewMatrices& GetPreviousViewMatrices(const FSceneView& View) = 0;
+	virtual const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldParameterData(const FSceneView& View) = 0;
+	virtual void BeginDeferredUpdateOfPrimitiveSceneInfo(FPrimitiveSceneInfo* Info) = 0;
+	virtual void AddMeshBatchToGPUScene(FGPUScenePrimitiveCollector* Collector, FMeshBatch& MeshBatch) = 0;
 };
 

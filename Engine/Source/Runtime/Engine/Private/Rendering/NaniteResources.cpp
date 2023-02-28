@@ -4,6 +4,7 @@
 #include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/Engine.h"
 #include "EngineLogs.h"
+#include "EngineModule.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "EngineUtils.h"
@@ -18,7 +19,10 @@
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 #include "MaterialCachedData.h"
-#include "ScenePrivate.h"
+#include "MaterialDomain.h"
+#include "MeshMaterialShader.h"
+#include "PrimitiveSceneInfo.h"
+#include "SceneInterface.h"
 #include "StaticMeshComponentLODInfo.h"
 #include "Stats/StatsTrace.h"
 
@@ -1010,12 +1014,7 @@ void FSceneProxy::OnEvaluateWorldPositionOffsetChanged_RenderThread()
 		bHasProgrammableRaster |= bProgrammableRasterMaterial;
 	}
 
-	FPrimitiveSceneInfo* Info = GetPrimitiveSceneInfo();
-	if (Info && Info->Scene && Info->IsIndexValid())
-	{
-		// Mark that we need to re-cache the Nanite commands for this primitive
-		Info->Scene->PrimitivesNeedingStaticMeshUpdate[Info->GetIndex()] = true;
-	}
+	GetRendererModule().BeginDeferredUpdateOfPrimitiveSceneInfo(GetPrimitiveSceneInfo());
 }
 
 SIZE_T FSceneProxy::GetTypeHash() const

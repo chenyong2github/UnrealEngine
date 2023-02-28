@@ -112,7 +112,7 @@ struct ENGINE_API FTemporalLODState
 		return FMath::Clamp((LastRenderTime - TemporalLODLag - TemporalLODTime[0]) / (TemporalLODTime[1] - TemporalLODTime[0]), 0.0f, 1.0f);
 	}
 
-	void UpdateTemporalLODTransition(const class FViewInfo& View, float LastRenderTime);
+	void UpdateTemporalLODTransition(const FSceneView& View, float LastRenderTime);
 };
 
 enum ESequencerState

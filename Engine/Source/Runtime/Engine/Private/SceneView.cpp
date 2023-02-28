@@ -775,6 +775,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, UnderwaterDepth(-1.0f)
 	, bForceCameraVisibilityReset(false)
 	, bForcePathTracerReset(false)
+	, bDisableDistanceBasedFadeTransitions(false)
 	, GlobalClippingPlane(FPlane(0, 0, 0, 0))
 	, LensPrincipalPointOffsetScale(0.0f, 0.0f, 1.0f, 1.0f)
 #if WITH_EDITOR

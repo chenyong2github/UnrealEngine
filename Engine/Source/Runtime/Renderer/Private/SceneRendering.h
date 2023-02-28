@@ -35,6 +35,7 @@
 #include "HairStrands/HairStrandsData.h"
 #include "Strata/Strata.h"
 #include "GPUScene.h"
+#include "RenderCore.h"
 #include "SceneTextures.h"
 #include "TranslucencyPass.h"
 #include "SceneTexturesConfig.h"
@@ -80,8 +81,6 @@ class FTexture2DResource;
 class FSimpleLightArray;
 struct FNaniteMaterialPassCommand;
 struct FScreenMessageWriter;
-
-DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(VirtualTextureUpdate);
 
@@ -1475,8 +1474,6 @@ public:
 	uint32 bIgnoreExistingQueries : 1;
 	/** Whether we should submit new queries this frame. (used to disable occlusion queries completely. */
 	uint32 bDisableQuerySubmissions : 1;
-	/** Whether we should disable distance-based fade transitions for this frame (usually after a large camera movement.) */
-	uint32 bDisableDistanceBasedFadeTransitions : 1;
 	/** Whether the view has any materials that use the global distance field. */
 	uint32 bUsesGlobalDistanceField : 1;
 	uint32 bUsesLightingChannels : 1;
@@ -1797,8 +1794,6 @@ public:
 			return false;
 		}
 	}
-
-	inline FVector GetPrevViewDirection() const { return PrevViewInfo.ViewMatrices.GetViewMatrix().GetColumn(2); }
 
 	/** Prepares the view shader parameters for rendering and calls the persistent uniform buffer hooks. */
 	void BeginRenderView() const;

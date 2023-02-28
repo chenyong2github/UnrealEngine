@@ -3,11 +3,11 @@
 #include "SceneManagement.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "EngineModule.h"
+#include "MaterialShared.h"
 #include "PrimitiveSceneProxy.h"
 #include "StaticMeshResources.h"
 #include "RHIStaticStates.h"
-#include "SceneRendering.h"
-#include "SceneCore.h"
 #include "SceneView.h"
 #include "Async/ParallelFor.h"
 #include "LightMap.h"
@@ -70,7 +70,7 @@ bool ShouldCompileDistanceFieldShaders(EShaderPlatform ShaderPlatform)
 }
 
 
-void FTemporalLODState::UpdateTemporalLODTransition(const FViewInfo& View, float LastRenderTime)
+void FTemporalLODState::UpdateTemporalLODTransition(const FSceneView& View, float LastRenderTime)
 {
 	bool bOk = false;
 	if (!View.bDisableDistanceBasedFadeTransitions)
@@ -445,22 +445,7 @@ void FMeshElementCollector::AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch)
 	// If we are maintaining primitive scene data on the GPU, copy the primitive uniform buffer data to a unified array so it can be uploaded later
 	if (UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) && MeshBatch.VertexFactory->GetPrimitiveIdStreamIndex(FeatureLevel, EVertexInputStreamType::Default) >= 0)
 	{
-		for (int32 Index = 0; Index < MeshBatch.Elements.Num(); ++Index)
-		{
-			const TUniformBuffer<FPrimitiveUniformShaderParameters>* PrimitiveUniformBufferResource = MeshBatch.Elements[Index].PrimitiveUniformBufferResource;
-			if (PrimitiveUniformBufferResource)
-			{
-				FMeshBatchElement& Element = MeshBatch.Elements[Index];
-
-				Element.PrimitiveIdMode = PrimID_DynamicPrimitiveShaderData;
-				DynamicPrimitiveCollectorPerView[ViewIndex]->Add(
-					Element.DynamicPrimitiveData,
-					*reinterpret_cast<const FPrimitiveUniformShaderParameters*>(PrimitiveUniformBufferResource->GetContents()),
-					Element.NumInstances,
-					Element.DynamicPrimitiveIndex,
-					Element.DynamicPrimitiveInstanceSceneDataOffset);
-			}
-		}
+		GetRendererModule().AddMeshBatchToGPUScene(DynamicPrimitiveCollectorPerView[ViewIndex], MeshBatch);
 	}
 
 	MeshBatch.MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(Views[ViewIndex]->GetFeatureLevel());

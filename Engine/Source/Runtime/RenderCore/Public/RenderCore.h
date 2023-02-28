@@ -24,6 +24,8 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogRendererCore, Log, All);
 
+DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
+
 /**
  * The scene rendering stats.
  */

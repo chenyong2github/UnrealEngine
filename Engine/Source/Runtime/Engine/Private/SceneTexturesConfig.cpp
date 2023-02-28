@@ -4,7 +4,6 @@
 #include "ShaderCompiler.h"
 #include "Engine/Engine.h"
 #include "SceneInterface.h"
-#include "ShadowRendering.h" // IWYU pragma: keep
 #include "StereoRenderTargetManager.h"
 
 FSceneTexturesConfig FSceneTexturesConfig::GlobalInstance;

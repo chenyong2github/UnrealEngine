@@ -5,12 +5,14 @@
 =============================================================================*/
 
 #include "ParticleEmitterInstances.h"
+#include "EngineModule.h"
 #include "PrimitiveSceneProxy.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "Particles/Orientation/ParticleModuleOrientationAxisLock.h"
 #include "UObject/UObjectIterator.h"
 #include "MaterialDomain.h"
+#include "MaterialShared.h"
 #include "MeshParticleVertexFactory.h"
 #include "Particles/ParticleEmitter.h"
 #include "Particles/ParticleSystemComponent.h"
@@ -26,7 +28,6 @@
 #include "Particles/ParticleModuleRequired.h"
 #include "ParticleBeamTrailVertexFactory.h"
 #include "SceneInterface.h"
-#include "SceneRendering.h"
 #include "Particles/ParticleLODLevel.h"
 #include "Engine/StaticMesh.h"
 #include "Stats/StatsTrace.h"
@@ -1658,13 +1659,16 @@ void FDynamicMeshEmitterData::GetParticlePrevTransform(
 	const FMeshRotationPayloadData* RotationPayload = (const FMeshRotationPayloadData*)((const uint8*)&InParticle + Source.MeshRotationOffset);
 	const FMeshMotionBlurPayloadData* MotionBlurPayload = (const FMeshMotionBlurPayloadData*)((const uint8*)&InParticle + Source.MeshMotionBlurOffset);
 
-	const auto* ViewInfo = static_cast<const FViewInfo*>(View);
+	const FViewMatrices& PreviousViewMatrices = GetRendererModule().GetPreviousViewMatrices(*View);
+
+	const FVector PreviousViewOrigin = PreviousViewMatrices.GetViewOrigin();
+	const FVector PreviousViewDirection = PreviousViewMatrices.GetViewMatrix().GetColumn(2);
 
 	FVector CameraPayloadCameraOffset = FVector::ZeroVector;
 	if (Source.CameraPayloadOffset != 0)
 	{
 		// Put the camera origin in the appropriate coordinate space.
-		FVector CameraPosition = ViewInfo->PrevViewInfo.ViewMatrices.GetViewOrigin();
+		FVector CameraPosition = PreviousViewOrigin;
 		if (Source.bUseLocalSpace)
 		{
 			const FMatrix InvLocalToWorld = Proxy->GetLocalToWorld().Inverse();
@@ -1690,8 +1694,8 @@ void FDynamicMeshEmitterData::GetParticlePrevTransform(
 		MotionBlurPayload->PayloadPrevRotation,
 		CameraPayloadCameraOffset,
 		MotionBlurPayload->PayloadPrevOrbitOffset,
-		ViewInfo->PrevViewInfo.ViewMatrices.GetViewOrigin(),
-		(FVector3f)ViewInfo->GetPrevViewDirection(),
+		PreviousViewOrigin,
+		(FVector3f)PreviousViewDirection,
 		OutTransformMat
 		);
 }

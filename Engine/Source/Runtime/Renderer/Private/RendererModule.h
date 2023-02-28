@@ -138,6 +138,11 @@ public:
 
 	virtual void ResetSceneTextureExtentHistory() override;
 
+	virtual const FViewMatrices& GetPreviousViewMatrices(const FSceneView& View) override;
+	virtual const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldParameterData(const FSceneView& View) override;
+	virtual void BeginDeferredUpdateOfPrimitiveSceneInfo(FPrimitiveSceneInfo* Info) override;
+	virtual void AddMeshBatchToGPUScene(FGPUScenePrimitiveCollector* Collector, FMeshBatch& MeshBatch) override;
+
 private:
 	TSet<FSceneInterface*> AllocatedScenes;
 	FOnPostOpaqueRender PostOpaqueRenderDelegate;

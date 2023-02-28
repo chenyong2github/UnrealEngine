@@ -1331,6 +1331,9 @@ public:
 	/** True if we should force the path tracer to reset its internal accumulation state */
 	bool bForcePathTracerReset;
 
+	/** Whether we should disable distance-based fade transitions for this frame (usually after a large camera movement.) */
+	bool bDisableDistanceBasedFadeTransitions;
+
 	/** Global clipping plane being applied to the scene, or all 0's if disabled.  This is used when rendering the planar reflection pass. */
 	FPlane GlobalClippingPlane;
 

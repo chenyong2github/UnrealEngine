@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "FXSystem.h"
+#include "EngineModule.h"
 #include "Particles/FXSystemPrivate.h"
 #include "Particles/FXSystemSet.h"
 #include "GPUSort.h"
@@ -13,11 +14,13 @@
 #include "VectorField/VectorField.h"
 #include "Components/VectorFieldComponent.h"
 #include "SceneInterface.h"
-#include "SceneRendering.h" // needed for STATGROUP_CommandListMarkers
+#include "RenderCore.h" // needed for STATGROUP_CommandListMarkers
 #include "DataDrivenShaderPlatformInfo.h"
 #include "FXRenderingUtils.h"
 #include "Containers/StridedView.h"
-
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
+#include "RenderGraphEvent.h"
+#include "RenderGraphUtils.h"
 
 TMap<FName, FCreateCustomFXSystemDelegate> FFXSystemInterface::CreateCustomFXDelegates;
 
@@ -494,7 +497,7 @@ void FFXSystem::PreRender(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneVie
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, FXSystem);
 
 		TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer = Views[0].ViewUniformBuffer;
-		const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData = &static_cast<const FViewInfo&>(Views[0]).GlobalDistanceFieldInfo.ParameterData;
+		const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData = GetRendererModule().GetGlobalDistanceFieldParameterData(Views[0]);
 
 		AddPass(
 			GraphBuilder,
