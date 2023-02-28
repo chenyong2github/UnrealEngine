@@ -11,9 +11,10 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "MessageFilter.h"
 #include "Presentation/MessageLogListingViewModel.h"
 #include "Framework/Commands/UICommandList.h"
+
+class FMessageFilter;
 
 /**
  * A message log listing, such as the Compiler Log, or the Map Check Log.

@@ -2,6 +2,7 @@
 
 #include "Presentation/MessageLogListingViewModel.h"
 #include "Modules/ModuleManager.h"
+#include "MessageFilter.h"
 #include "MessageLogModule.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -9,6 +10,8 @@
 #define LOCTEXT_NAMESPACE "MessageLog"
 
 int32 FMessageLogListingViewModel::NextNotificationId = 0;
+
+FMessageLogListingViewModel::FMessageLogListingViewModel() = default;
 
 FMessageLogListingViewModel::~FMessageLogListingViewModel()
 {

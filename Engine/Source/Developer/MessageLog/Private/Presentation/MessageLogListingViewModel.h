@@ -7,7 +7,8 @@
 #include "Logging/TokenizedMessage.h"
 #include "IMessageLogListing.h"
 #include "Model/MessageLogListingModel.h"
-#include "MessageFilter.h"
+
+class FMessageFilter;
 
 /**
  * The non-UI solution specific presentation logic for a collection of messages for a particular system.
@@ -34,7 +35,7 @@ public:
 	}
 
 public:
-
+	FMessageLogListingViewModel();
 	~FMessageLogListingViewModel();
 
 	/** Begin IMessageLogListing interface */
@@ -53,7 +54,7 @@ public:
 	virtual const FName& GetName() const override;
 	virtual void SetLabel( const FText& InLogLabel ) override;
 	virtual const FText& GetLabel() const override;
-	virtual const TArray< TSharedRef< class FMessageFilter> >& GetMessageFilters() const override;
+	virtual const TArray< TSharedRef<FMessageFilter> >& GetMessageFilters() const override;
 	virtual void ExecuteToken( const TSharedRef<class IMessageToken>& Token ) const override;
 	virtual void NewPage( const FText& Title ) override;
 	virtual void SetCurrentPage( const FText& Title ) override;
