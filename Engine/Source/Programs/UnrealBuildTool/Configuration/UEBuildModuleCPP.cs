@@ -492,28 +492,25 @@ namespace UnrealBuildTool
 
 				if (GeneratedFiles.Count > 0)
 				{
-					if (!Target.bDisableInliningGenCpps)
+					// Remove any generated files from the compile list if they are inlined
+					foreach (FileItem CPPFileItem in CPPFiles)
 					{
-						// Remove any generated files from the compile list if they are inlined
-						foreach (FileItem CPPFileItem in CPPFiles)
+						var ListOfInlinedGenCpps = ModuleCompileEnvironment.MetadataCache.GetListOfInlinedGeneratedCppFiles(CPPFileItem);
+						foreach (string ListOfInlinedGenCppsItem in ListOfInlinedGenCpps)
 						{
-							var ListOfInlinedGenCpps = ModuleCompileEnvironment.MetadataCache.GetListOfInlinedGeneratedCppFiles(CPPFileItem);
-							foreach (string ListOfInlinedGenCppsItem in ListOfInlinedGenCpps)
+							string Prefix = "UHT/";
+							string Key = Prefix + ListOfInlinedGenCppsItem;
+							if (GeneratedFiles.Remove(Key, out FileItem? FoundGenCppFile))
 							{
-								string Prefix = "UHT/";
-								string Key = Prefix + ListOfInlinedGenCppsItem;
-								if (GeneratedFiles.Remove(Key, out FileItem? FoundGenCppFile))
+								if (!CompileEnvironment.FileInlineGenCPPMap.ContainsKey(CPPFileItem))
 								{
-									if (!CompileEnvironment.FileInlineGenCPPMap.ContainsKey(CPPFileItem))
-									{
-										CompileEnvironment.FileInlineGenCPPMap[CPPFileItem] = new List<FileItem>();
-									}
-									CompileEnvironment.FileInlineGenCPPMap[CPPFileItem].Add(FoundGenCppFile);
+									CompileEnvironment.FileInlineGenCPPMap[CPPFileItem] = new List<FileItem>();
 								}
-								else
-								{
-									Logger.LogError("'{CPPFileItem}' is looking for a generated cpp with named '{HeaderFile}.gen.cpp'", CPPFileItem.AbsolutePath, ListOfInlinedGenCppsItem);
-								}
+								CompileEnvironment.FileInlineGenCPPMap[CPPFileItem].Add(FoundGenCppFile);
+							}
+							else
+							{
+								Logger.LogError("'{CPPFileItem}' is looking for a generated cpp with named '{HeaderFile}.gen.cpp'", CPPFileItem.AbsolutePath, ListOfInlinedGenCppsItem);
 							}
 						}
 					}
@@ -1745,15 +1742,6 @@ namespace UnrealBuildTool
 				Result.Definitions.Add("UE_IS_ENGINE_MODULE=0");
 			}
 
-			if (Target.bDisableInliningGenCpps)
-			{
-				Result.Definitions.Add("UE_DISABLE_INLINE_GEN_CPP=1");
-			}
-			else
-			{
-				Result.Definitions.Add("UE_DISABLE_INLINE_GEN_CPP=0");
-			}
-
 			Result.Definitions.AddRange(EngineIncludeOrderHelper.GetDeprecationDefines(Rules.IncludeOrderVersion));
 
 			// For game modules, set the define for the project and target names, which will be used by the IMPLEMENT_PRIMARY_GAME_MODULE macro.
@@ -1810,15 +1798,6 @@ namespace UnrealBuildTool
 			else
 			{
 				CompileEnvironment.Definitions.Add("UE_IS_ENGINE_MODULE=0");
-			}
-
-			if (Rules.Target.bDisableInliningGenCpps)
-			{
-				CompileEnvironment.Definitions.Add("UE_DISABLE_INLINE_GEN_CPP=1");
-			}
-			else
-			{
-				CompileEnvironment.Definitions.Add("UE_DISABLE_INLINE_GEN_CPP=0");
 			}
 
 			CompileEnvironment.Definitions.AddRange(EngineIncludeOrderHelper.GetDeprecationDefines(Rules.IncludeOrderVersion));

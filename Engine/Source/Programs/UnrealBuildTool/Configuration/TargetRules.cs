@@ -1972,13 +1972,6 @@ namespace UnrealBuildTool
 		public bool bPublicSymbolsByDefault = false;
 
 		/// <summary>
-		/// Disable supports for inlining gen.cpps
-		/// </summary>
-		[XmlConfigFile(Name = "bDisableInliningGenCpps")]
-		[CommandLine("-DisableInliningGenCpps")]
-		public bool bDisableInliningGenCpps = false;
-
-		/// <summary>
 		/// Allows overriding the toolchain to be created for this target. This must match the name of a class declared in the UnrealBuildTool assembly.
 		/// </summary>
 		[CommandLine("-ToolChain")]
@@ -3699,11 +3692,6 @@ namespace UnrealBuildTool
 		public bool bPublicSymbolsByDefault
 		{
 			get { return Inner.bPublicSymbolsByDefault; }
-		}
-
-		public bool bDisableInliningGenCpps
-		{
-			get { return Inner.bDisableInliningGenCpps; }
 		}
 
 		public string? ToolChainName
