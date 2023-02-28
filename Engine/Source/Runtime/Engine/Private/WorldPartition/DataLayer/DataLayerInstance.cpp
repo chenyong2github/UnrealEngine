@@ -151,7 +151,7 @@ bool UDataLayerInstance::AddActor(AActor* InActor) const
 
 bool UDataLayerInstance::CanRemoveActor(AActor* InActor) const
 {
-	return InActor->ContainsDataLayer(this);
+	return InActor->GetDataLayerInstances().Contains(this) || InActor->GetDataLayerInstancesForLevel().Contains(this);
 }
 
 bool UDataLayerInstance::RemoveActor(AActor* InActor) const

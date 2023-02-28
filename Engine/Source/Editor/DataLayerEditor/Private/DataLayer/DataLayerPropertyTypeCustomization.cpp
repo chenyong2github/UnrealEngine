@@ -243,10 +243,9 @@ FReply FDataLayerPropertyTypeCustomization::OnDrop(const FGeometry& InGeometry, 
 	TSharedPtr<const FDataLayerDragDropOp> DataLayerDragDropOp = GetDataLayerDragDropOp(InDragDropEvent.GetOperation());
 	if (DataLayerDragDropOp.IsValid())
 	{
-		const TArray<FDataLayerDragDropOp::FDragDropInfo>& DragDropInfos = DataLayerDragDropOp->DataLayerDragDropInfos;
-		if (ensure(DragDropInfos.Num() == 1))
+		if (ensure(DataLayerDragDropOp->DataLayerInstances.Num() == 1))
 		{
-			if (const UDataLayerInstance* DataLayerPtr = UDataLayerEditorSubsystem::Get()->GetDataLayerInstance(DragDropInfos[0].DataLayerInstanceName))
+			if (const UDataLayerInstance* DataLayerPtr = DataLayerDragDropOp->DataLayerInstances[0].Get())
 			{
 				AssignDataLayer(DataLayerPtr);
 			}
@@ -258,7 +257,7 @@ FReply FDataLayerPropertyTypeCustomization::OnDrop(const FGeometry& InGeometry, 
 bool FDataLayerPropertyTypeCustomization::OnVerifyDrag(TSharedPtr<FDragDropOperation> InDragDrop)
 {
 	TSharedPtr<const FDataLayerDragDropOp> DataLayerDragDropOp = GetDataLayerDragDropOp(InDragDrop);
-	return DataLayerDragDropOp.IsValid() && DataLayerDragDropOp->DataLayerDragDropInfos.Num() == 1;
+	return DataLayerDragDropOp.IsValid() && DataLayerDragDropOp->DataLayerInstances.Num() == 1;
 }
 
 TSharedPtr<const FDataLayerDragDropOp> FDataLayerPropertyTypeCustomization::GetDataLayerDragDropOp(TSharedPtr<FDragDropOperation> InDragDrop)

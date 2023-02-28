@@ -644,10 +644,28 @@ void UDataLayerManager::GetUserLoadedInEditorStates(TArray<FName>& OutDataLayers
 	});
 }
 
+TArray<AWorldDataLayers*> UDataLayerManager::GetActorEditorContextWorldDataLayers() const
+{
+	TArray<AWorldDataLayers*> WorldDataLayersArray;
+	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
+	{
+		WorldDataLayersArray.Add(WorldDataLayers);
+	}
+	const UWorld* OuterWorld = GetTypedOuter<UWorld>();
+	if (const ULevel* CurrentLevel = (OuterWorld->GetCurrentLevel() && (OuterWorld->GetCurrentLevel() != OuterWorld->PersistentLevel)) ? OuterWorld->GetCurrentLevel() : nullptr)
+	{
+		if (AWorldDataLayers* CurrentLevelWorldDataLayers = CurrentLevel->GetWorldDataLayers())
+		{
+			WorldDataLayersArray.Add(CurrentLevelWorldDataLayers);
+		}
+	}
+	return WorldDataLayersArray;
+}
+
 void UDataLayerManager::PushActorEditorContext() const
 {
 	++DataLayerActorEditorContextID;
-	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
+	for (AWorldDataLayers* WorldDataLayers : GetActorEditorContextWorldDataLayers())
 	{
 		WorldDataLayers->PushActorEditorContext(DataLayerActorEditorContextID);
 	}
@@ -656,7 +674,7 @@ void UDataLayerManager::PushActorEditorContext() const
 void UDataLayerManager::PopActorEditorContext() const
 {
 	check(DataLayerActorEditorContextID > 0);
-	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
+	for (AWorldDataLayers* WorldDataLayers : GetActorEditorContextWorldDataLayers())
 	{
 		WorldDataLayers->PopActorEditorContext(DataLayerActorEditorContextID);
 	}
@@ -665,9 +683,12 @@ void UDataLayerManager::PopActorEditorContext() const
 
 TArray<UDataLayerInstance*> UDataLayerManager::GetActorEditorContextDataLayers() const
 {
-	static TArray<UDataLayerInstance*> EmptyArray;
-	AWorldDataLayers* WorldDataLayers = GetWorldDataLayers();
-	return WorldDataLayers ? WorldDataLayers->GetActorEditorContextDataLayers() : EmptyArray;
+	TArray<UDataLayerInstance*> ActorEditorContextDataLayers;
+	for (AWorldDataLayers* WorldDataLayers : GetActorEditorContextWorldDataLayers())
+	{
+		ActorEditorContextDataLayers.Append(WorldDataLayers->GetActorEditorContextDataLayers());
+	}
+	return ActorEditorContextDataLayers;
 }
 
 uint32 UDataLayerManager::GetDataLayerEditorContextHash() const

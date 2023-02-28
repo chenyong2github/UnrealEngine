@@ -179,7 +179,7 @@ struct FDataLayerSection
 
 	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
 	{
-		if (DragDropOperation->IsOfType<FDataLayerDragDropOp>() && StaticCastSharedPtr<FDataLayerDragDropOp>(DragDropOperation)->DataLayerDragDropInfos.Num() > 0)
+		if (DragDropOperation->IsOfType<FDataLayerDragDropOp>() && StaticCastSharedPtr<FDataLayerDragDropOp>(DragDropOperation)->DataLayerInstances.Num() > 0)
 		{
 			return true;
 		}
@@ -207,13 +207,13 @@ struct FDataLayerSection
 		TArray<UDataLayerAsset*> DataLayerAssets = Section->GetDataLayerAssets();
 		if (TSharedPtr<FDataLayerDragDropOp> DataLayerDragDropOp = InDragDropEvent.GetOperationAs<FDataLayerDragDropOp>())
 		{
-			if (DataLayerDragDropOp->DataLayerDragDropInfos.Num() > 0)
+			if (DataLayerDragDropOp->DataLayerInstances.Num() > 0)
 			{
-				for (const FDataLayerDragDropOp::FDragDropInfo& DragDropInfo : DataLayerDragDropOp->DataLayerDragDropInfos)
+				for (const TWeakObjectPtr<UDataLayerInstance>& DataLayerInstance : DataLayerDragDropOp->DataLayerInstances)
 				{
-					if (UDataLayerInstance* DataLayerInstance = SubSystem->GetDataLayerInstance(DragDropInfo.DataLayerInstanceName))
+					if (DataLayerInstance.IsValid())
 					{
-						UDataLayerInstanceWithAsset* DataLayerWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayerInstance);
+						UDataLayerInstanceWithAsset* DataLayerWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayerInstance.Get());
 						UDataLayerAsset* DataLayerAsset = DataLayerWithAsset ? const_cast<UDataLayerAsset*>(DataLayerWithAsset->GetAsset()) : nullptr;
 
 						if (DataLayerAsset)

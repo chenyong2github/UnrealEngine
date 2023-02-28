@@ -40,7 +40,7 @@ bool UDataLayerInstanceWithAsset::IsReadOnly() const
 	{
 		return true;
 	}
-	return GetOuterWorldDataLayers()->IsSubWorldDataLayers();
+	return GetOuterWorldDataLayers()->IsReadOnly();
 }
 
 bool UDataLayerInstanceWithAsset::IsLocked() const

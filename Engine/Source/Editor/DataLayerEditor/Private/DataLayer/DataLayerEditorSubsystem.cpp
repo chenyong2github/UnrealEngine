@@ -683,41 +683,7 @@ bool UDataLayerEditorSubsystem::SelectActorsInDataLayer(UDataLayerInstance* Data
 
 bool UDataLayerEditorSubsystem::SelectActorsInDataLayer(UDataLayerInstance* DataLayerInstance, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden, const TSharedPtr<FActorFilter>& Filter)
 {
-	bool bChangesOccurred = false;
-
-	GEditor->GetSelectedActors()->BeginBatchSelectOperation();
-	{
-		// Iterate over all actors, looking for actors in the specified DataLayers.
-		for (AActor* Actor : FActorRange(GetWorld()))
-		{
-			if (!IsActorValidForDataLayer(Actor))
-			{
-				continue;
-			}
-
-			if (Filter.IsValid() && !Filter->PassesFilter(Actor))
-			{
-				continue;
-			}
-
-			if (Actor->ContainsDataLayer(DataLayerInstance))
-			{
-				// The actor was found to be in a specified DataLayerInstance. Set selection state and move on to the next actor.
-				bool bNotifyForActor = false;
-				GEditor->GetSelectedActors()->Modify();
-				GEditor->SelectActor(Actor, bSelect, bNotifyForActor, bSelectEvenIfHidden);
-				bChangesOccurred = true;
-			}
-		}
-	}
-	GEditor->GetSelectedActors()->EndBatchSelectOperation();
-
-	if (bNotify)
-	{
-		GEditor->NoteSelectionChange();
-	}
-
-	return bChangesOccurred;
+	return SelectActorsInDataLayers({ DataLayerInstance }, bSelect, bNotify, bSelectEvenIfHidden, Filter);
 }
 
 bool UDataLayerEditorSubsystem::SelectActorsInDataLayers(const TArray<UDataLayerInstance*>& DataLayers, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden)
@@ -743,14 +709,14 @@ bool UDataLayerEditorSubsystem::SelectActorsInDataLayers(const TArray<UDataLayer
 			continue;
 		}
 
-		if (Filter.IsValid() && !Filter->PassesFilter(TWeakObjectPtr<AActor>(Actor)))
+		if (Filter.IsValid() && !Filter->PassesFilter(Actor))
 		{
 			continue;
 		}
 
 		for (const UDataLayerInstance* DataLayerInstance : DataLayers)
 		{
-			if (Actor->ContainsDataLayer(DataLayerInstance))
+			if (Actor->ContainsDataLayer(DataLayerInstance) || Actor->GetDataLayerInstancesForLevel().Contains(DataLayerInstance))
 			{
 				// The actor was found to be in a specified DataLayerInstance. Set selection state and move on to the next actor.
 				bool bNotifyForActor = false;
@@ -891,25 +857,15 @@ void UDataLayerEditorSubsystem::AppendActorsFromDataLayer(UDataLayerInstance* Da
 
 void UDataLayerEditorSubsystem::AppendActorsFromDataLayer(UDataLayerInstance* DataLayerInstance, TArray<AActor*>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const
 {
-	for (AActor* Actor : FActorRange(GetWorld()))
-	{
-		if (Filter.IsValid() && !Filter->PassesFilter(Actor))
-		{
-			continue;
-		}
-		if (Actor->ContainsDataLayer(DataLayerInstance))
-		{
-			InOutActors.Add(Actor);
-		}
-	}
+	AppendActorsFromDataLayers({ DataLayerInstance }, InOutActors, Filter);
 }
 
-void UDataLayerEditorSubsystem::AppendActorsFromDataLayers(const TArray<UDataLayerInstance*>& DataLayers, TArray<AActor*>& InOutActors) const
+void UDataLayerEditorSubsystem::AppendActorsFromDataLayers(const TArray<UDataLayerInstance*>& DataLayerInstances, TArray<AActor*>& InOutActors) const
 {
-	AppendActorsFromDataLayers(DataLayers, InOutActors, nullptr);
+	AppendActorsFromDataLayers(DataLayerInstances, InOutActors, nullptr);
 }
 
-void UDataLayerEditorSubsystem::AppendActorsFromDataLayers(const TArray<UDataLayerInstance*>& DataLayers, TArray<AActor*>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const
+void UDataLayerEditorSubsystem::AppendActorsFromDataLayers(const TArray<UDataLayerInstance*>& DataLayerInstances, TArray<AActor*>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const
 {
 	for (AActor* Actor : FActorRange(GetWorld()))
 	{
@@ -917,12 +873,15 @@ void UDataLayerEditorSubsystem::AppendActorsFromDataLayers(const TArray<UDataLay
 		{
 			continue;
 		}
-		for (const UDataLayerInstance* DataLayerInstance : DataLayers)
+		for (const UDataLayerInstance* DataLayerInstance : DataLayerInstances)
 		{
-			if (Actor->ContainsDataLayer(DataLayerInstance))
+			if (DataLayerInstance)
 			{
-				InOutActors.Add(Actor);
-				break;
+				if (Actor->ContainsDataLayer(DataLayerInstance) || Actor->GetDataLayerInstancesForLevel().Contains(DataLayerInstance))
+				{
+					InOutActors.Add(Actor);
+					break;
+				}
 			}
 		}
 	}
@@ -1315,6 +1274,10 @@ const TSet<TWeakObjectPtr<const UDataLayerInstance>>& UDataLayerEditorSubsystem:
 		for (const AActor* Actor : Actors)
 		{
 			for (const UDataLayerInstance* DataLayerInstance : Actor->GetDataLayerInstances())
+			{
+				SelectedDataLayersFromEditorSelection.Add(DataLayerInstance);
+			}
+			for (const UDataLayerInstance* DataLayerInstance : Actor->GetDataLayerInstancesForLevel())
 			{
 				SelectedDataLayersFromEditorSelection.Add(DataLayerInstance);
 			}

@@ -99,7 +99,7 @@ private:
 		{
 			ULevel* Level = Actor.IsValid() ? Actor->GetLevel() : nullptr;
 			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(OwningWorld);
-			if (LevelInstanceSubsystem && Level)
+			if (LevelInstanceSubsystem && Level && (Level != OwningWorld->GetCurrentLevel()))
 			{
 				DisplayString = LevelInstanceSubsystem->PrefixWithParentLevelInstanceActorLabels(DisplayString, Level);
 			}

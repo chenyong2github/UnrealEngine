@@ -18,13 +18,13 @@ struct FSlateBrush;
 void FDataLayerDragDropOp::Construct()
 {
 	const FSlateBrush* Icon = FAppStyle::GetBrush(TEXT("DataLayer.Editor"));
-	if (DataLayerDragDropInfos.Num() == 1)
+	if (DataLayerInstances.Num() == 1 && DataLayerInstances[0].IsValid())
 	{
-		SetToolTip(FText::FromString(DataLayerDragDropInfos[0].DataLayerShortName), Icon);
+		SetToolTip(FText::FromString(DataLayerInstances[0]->GetDataLayerShortName()), Icon);
 	}
 	else
 	{
-		FText Text = FText::Format(NSLOCTEXT("FDataLayerDragDropOp", "MultipleFormat", "{0} DataLayers"), DataLayerDragDropInfos.Num());
+		FText Text = FText::Format(NSLOCTEXT("FDataLayerDragDropOp", "MultipleFormat", "{0} DataLayers"), DataLayerInstances.Num());
 		SetToolTip(Text, Icon);
 	}
 

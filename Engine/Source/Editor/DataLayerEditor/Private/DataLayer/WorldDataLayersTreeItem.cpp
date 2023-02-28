@@ -83,10 +83,28 @@ struct SWorldDataLayersTreeLabel : FSceneOutlinerCommonLabelData, public SCompou
 private:
 	TWeakPtr<FWorldDataLayersTreeItem> TreeItemPtr;
 
+	bool IsInActorEditorContext() const
+	{
+		auto Item = TreeItemPtr.Pin();
+		const AWorldDataLayers* WorldDataLayers = Item.IsValid() ? Item->GetWorldDataLayers() : nullptr;
+		const UWorld* OwningWorld = WorldDataLayers ? WorldDataLayers->GetWorld() : nullptr;
+		ULevel* CurrentLevel = (OwningWorld && OwningWorld->GetCurrentLevel() && !OwningWorld->GetCurrentLevel()->IsPersistentLevel()) ? OwningWorld->GetCurrentLevel() : nullptr;
+		return CurrentLevel && (CurrentLevel == WorldDataLayers->GetLevel());
+	}
+
 	FText GetDisplayText() const
 	{
 		auto Item = TreeItemPtr.Pin();
-		return Item.IsValid() ? FText::FromString(Item->GetDisplayString()) : FText();
+		if (Item.IsValid())
+		{
+			FText SuffixText = FText::GetEmpty();
+			if (IsInActorEditorContext())
+			{
+				SuffixText = FText(LOCTEXT("IsCurrentSuffix", " (Current)"));
+			}
+			return FText::Format(LOCTEXT("WorldDataLayersDisplayText", "{0}{1}"), FText::FromString(Item->GetDisplayString()), SuffixText);
+		}
+		return FText();
 	}
 
 	FSlateColor GetForegroundColor() const
@@ -94,6 +112,10 @@ private:
 		if (auto BaseColor = FSceneOutlinerCommonLabelData::GetForegroundColor(*TreeItemPtr.Pin()))
 		{
 			return BaseColor.GetValue();
+		}
+		else if (IsInActorEditorContext())
+		{
+			return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
 		}
 
 		return FSlateColor::UseForeground();
@@ -113,14 +135,7 @@ FString FWorldDataLayersTreeItem::GetDisplayString() const
 	if (const AWorldDataLayers* WorldDataLayersPtr = WorldDataLayers.Get())
 	{
 		check(WorldDataLayersPtr->GetLevel());
-		FString DisplayString = SceneOutliner::GetWorldDescription(WorldDataLayersPtr->GetLevel()->GetTypedOuter<UWorld>()).ToString();
-
-		if (!WorldDataLayersPtr->GetActorLabel().IsEmpty())
-		{
-			DisplayString += TEXT(" - ") + WorldDataLayersPtr->GetActorLabel();
-		}
-
-		return DisplayString;
+		return SceneOutliner::GetWorldDescription(WorldDataLayersPtr->GetLevel()->GetTypedOuter<UWorld>()).ToString();
 	}
 	return LOCTEXT("UnknownWorldDataLayers", "Unknown").ToString();
 }
@@ -134,7 +149,7 @@ bool FWorldDataLayersTreeItem::IsReadOnly() const
 {
 	const AWorldDataLayers* WorldDataLayersPtr = WorldDataLayers.Get();
 	UWorld* WorldPtr = WorldDataLayersPtr ? WorldDataLayersPtr->GetLevel()->GetTypedOuter<UWorld>() : nullptr;
-	return (WorldDataLayersPtr && WorldDataLayersPtr->IsSubWorldDataLayers()) || !WorldPtr || (WorldPtr->WorldType != EWorldType::Editor);
+	return (WorldDataLayersPtr && WorldDataLayersPtr->IsReadOnly()) || !WorldPtr || (WorldPtr->WorldType != EWorldType::Editor);
 }
 
 TSharedRef<SWidget> FWorldDataLayersTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)

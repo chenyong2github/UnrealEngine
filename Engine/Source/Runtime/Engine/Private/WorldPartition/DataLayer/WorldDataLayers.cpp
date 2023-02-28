@@ -850,6 +850,18 @@ bool AWorldDataLayers::IsSubWorldDataLayers() const
 	return ActorWorld != nullptr && OuterWorld != nullptr && (OuterWorld->GetFName() != ActorWorld->GetFName());
 }
 
+bool AWorldDataLayers::IsReadOnly() const
+{
+	if (IsSubWorldDataLayers())
+	{
+		const UWorld* ActorWorld = GetWorld();
+		const ULevel* CurrentLevel = (ActorWorld && ActorWorld->GetCurrentLevel() && !ActorWorld->GetCurrentLevel()->IsPersistentLevel()) ? ActorWorld->GetCurrentLevel() : nullptr;
+		const bool bIsCurrentLevelWorldDataLayers = CurrentLevel && (CurrentLevel == GetLevel());
+		return !bIsCurrentLevelWorldDataLayers;
+	}
+	return false;
+}
+
 bool AWorldDataLayers::IsRuntimeRelevant() const
 {
 	// This function is only meant to be called on Game worlds

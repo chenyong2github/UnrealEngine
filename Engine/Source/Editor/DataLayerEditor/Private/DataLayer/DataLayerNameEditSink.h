@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DataLayer/DataLayerEditorSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "ScopedTransaction.h"
 #include "IObjectNameEditSink.h"
 
@@ -23,6 +24,11 @@ class FDataLayerNameEditSink : public UE::EditorWidgets::IObjectNameEditSink
 			return FText::Format(FText::FromString("{0}"), FText::FromString(DataLayerInstance->GetDataLayerShortName()));
 		}
 		
+		UDataLayerInstanceWithAsset* DataLayerWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayerInstance);
+		if (DataLayerWithAsset && !DataLayerWithAsset->GetAsset())
+		{
+			return FText::FromString(TEXT("Unknown"));
+		}
 		return FText::Format(FText::FromString("{0} ({1})"), FText::FromString(DataLayerInstance->GetDataLayerShortName()), FText::FromString(DataLayerInstance->GetDataLayerFullName()));
 	}
 

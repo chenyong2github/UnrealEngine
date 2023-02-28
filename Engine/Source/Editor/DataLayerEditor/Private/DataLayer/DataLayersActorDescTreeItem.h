@@ -53,7 +53,7 @@ public:
 			UWorld* OwningWorld = Container->GetWorldPartition()->GetWorld();
 			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(OwningWorld);
 			ULevel* Level = Container->GetTypedOuter<UWorld>()->PersistentLevel;
-			if (LevelInstanceSubsystem && Level)
+			if (LevelInstanceSubsystem && Level && (Level != OwningWorld->GetCurrentLevel()))
 			{
 				DisplayString = LevelInstanceSubsystem->PrefixWithParentLevelInstanceActorLabels(DisplayString, Level);
 			}

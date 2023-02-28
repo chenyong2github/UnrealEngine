@@ -51,6 +51,7 @@
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionHandle.h"
+#include "Editor.h"
 
 class ISceneOutliner;
 class UObject;
@@ -187,7 +188,18 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SAssignNew(ContentAreaBox, SVerticalBox)
-		.IsEnabled_Lambda([]() { return GWorld ? UWorld::IsPartitionedWorld(GWorld) : false; })
+		.IsEnabled_Lambda([]()
+		{
+			if (UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr)
+			{
+				if (ULevel* CurrentLevel = World->GetCurrentLevel() && World->GetCurrentLevel() != World->PersistentLevel ? World->GetCurrentLevel() : nullptr)
+				{
+					World = CurrentLevel->GetTypedOuter<UWorld>();
+				}
+				return UWorld::IsPartitionedWorld(World);
+			}
+			return false;
+		})
 	];
 
 	InitializeDataLayerBrowser();

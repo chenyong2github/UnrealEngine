@@ -21,19 +21,19 @@ class FDataLayerDragDropOp : public FDecoratedDragDropOp
 public:
 	DRAG_DROP_OPERATOR_TYPE(FDataLayerDragDropOp, FDecoratedDragDropOp)
 
-	struct FDragDropInfo
+	void Init(const TArray<TWeakObjectPtr<UDataLayerInstance>>& InDataLayerInstances)
 	{
-		FDragDropInfo(const UDataLayerInstance* DataLayerInstance)
-			:DataLayerInstanceName(DataLayerInstance->GetDataLayerFName()),
-			DataLayerShortName(DataLayerInstance->GetDataLayerShortName())
-		{}
-
-		FName DataLayerInstanceName;
-		FString DataLayerShortName;
-	};
+		for (const auto& DataLayerInstance : InDataLayerInstances)
+		{
+			if (DataLayerInstance.IsValid())
+			{
+				DataLayerInstances.Emplace(DataLayerInstance.Get());
+			}
+		}
+	}
 
 	/** The labels of the layers being dragged */
-	TArray<FDragDropInfo> DataLayerDragDropInfos;
+	TArray< TWeakObjectPtr<UDataLayerInstance> > DataLayerInstances;
 
 	virtual void Construct() override;
 };

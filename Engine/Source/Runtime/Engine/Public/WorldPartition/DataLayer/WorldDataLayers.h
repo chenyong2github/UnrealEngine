@@ -88,6 +88,7 @@ public:
 	template<class T>
 	void OverwriteDataLayerRuntimeStates(const TArray<T>* InActiveDataLayers, const TArray<T>* InLoadedDataLayers );
 
+	bool IsReadOnly() const;
 	bool IsSubWorldDataLayers() const;
 	bool IsRuntimeRelevant() const;
 #endif

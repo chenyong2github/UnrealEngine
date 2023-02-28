@@ -43,7 +43,9 @@ bool FDataLayerTreeItem::GetVisibility() const
 bool FDataLayerTreeItem::ShouldShowVisibilityState() const
 {
 	const UDataLayerInstance* DataLayerInstancePtr = DataLayerInstance.Get();
-	return DataLayerInstancePtr && !DataLayerInstancePtr->IsReadOnly();
+	const AWorldDataLayers* OuterWorldDataLayers = DataLayerInstancePtr ? DataLayerInstancePtr->GetOuterWorldDataLayers() : nullptr;
+	const bool bIsSubWorldDataLayers = OuterWorldDataLayers && OuterWorldDataLayers->IsSubWorldDataLayers();
+	return DataLayerInstancePtr && !DataLayerInstancePtr->IsReadOnly() && !bIsSubWorldDataLayers;
 }
 
 bool FDataLayerTreeItem::CanInteract() const 

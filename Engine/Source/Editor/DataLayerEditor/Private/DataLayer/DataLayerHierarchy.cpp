@@ -24,6 +24,7 @@
 #include "WorldDataLayersTreeItem.h"
 #include "WorldPartition/ActorDescContainerCollection.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
@@ -207,38 +208,13 @@ void FDataLayerHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItem
 
 		if (bShowDataLayerActors)
 		{
-			const ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(GetOwningWorld());
-
-			// Build a set of considered level instances to show nested level instance actors and their child actors
-			TSet<const ILevelInstanceInterface*> ConsideredLevelInstances;		
-			if (bShowLevelInstanceContent && CurrentLevel && LevelInstanceSubsystem)
-			{
-				ILevelInstanceInterface* CurrentLevelInstance = LevelInstanceSubsystem->GetOwningLevelInstance(CurrentLevel);
-				if (LevelInstanceSubsystem->IsEditingLevelInstance(CurrentLevelInstance))
-				{
-					const bool bRecursive = true;
-					LevelInstanceSubsystem->ForEachLevelInstanceChild(CurrentLevelInstance, bRecursive, [&ConsideredLevelInstances](const ILevelInstanceInterface* ChildLevelInstance)
-					{
-						ConsideredLevelInstances.Add(ChildLevelInstance);
-						return true;
-					});
-				}
-			}
-
 			for (AActor* Actor : FActorRange(GetOwningWorld()))
 			{
 				// Consider all actors or actors part of current level (if there is one)
 				bool bConsiderActor = !CurrentLevel || (Actor->GetLevel() == CurrentLevel);
-				if (!bConsiderActor && bShowLevelInstanceContent && LevelInstanceSubsystem)
-				{
-					// If current level is referenced by editing level instance, also consider child actors part of any child Level Instances of this level
-					ILevelInstanceInterface* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor);
-					bConsiderActor = ParentLevelInstance && ConsideredLevelInstances.Contains(ParentLevelInstance);
-				}
-
 				if (bConsiderActor)
 				{
-					for (const UDataLayerInstance* DataLayerInstance : Actor->GetDataLayerInstances())
+					for (const UDataLayerInstance* DataLayerInstance : (Actor->GetLevel() == CurrentLevel) ? Actor->GetDataLayerInstancesForLevel() : Actor->GetDataLayerInstances())
 					{
 						if (IsDataLayerShown(DataLayerInstance))
 						{
@@ -253,9 +229,36 @@ void FDataLayerHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItem
 
 			if (bShowUnloadedActors)
 			{
-				if (UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(GetOwningWorld()))
+				// Build mapping of OwninWorld DataLayerInstance to CurrentLevel DataLayerInstance
+				TMap<UDataLayerInstance*, UDataLayerInstance*> WorldToLevelDataLayerMap;
+				if (CurrentLevel)
 				{
-					WorldPartitionSubsystem->ForEachWorldPartition([this, CurrentLevel, LevelInstanceSubsystem, IsDataLayerShown, &OutItems](UWorldPartition* WorldPartition)
+					AWorldDataLayers* OwningWorldWorldDataLayers = GetOwningWorld()->GetWorldDataLayers();
+					AWorldDataLayers* CurrentLevelWorldDataLayers = CurrentLevel->GetWorldDataLayers();
+					if (OwningWorldWorldDataLayers && CurrentLevelWorldDataLayers)
+					{
+						check(OwningWorldWorldDataLayers != CurrentLevelWorldDataLayers);
+						OwningWorldWorldDataLayers->ForEachDataLayer([&WorldToLevelDataLayerMap, CurrentLevelWorldDataLayers](UDataLayerInstance* DataLayerInstance)
+						{
+							if (UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayerInstance))
+							{
+								const UDataLayerAsset* DataLayerAsset = DataLayerInstanceWithAsset->GetAsset();
+								if (const UDataLayerInstance* LevelDataLayerInstance = DataLayerAsset ? CurrentLevelWorldDataLayers->GetDataLayerInstance(DataLayerAsset) : nullptr)
+								{
+									WorldToLevelDataLayerMap.Add(DataLayerInstance, const_cast<UDataLayerInstance*>(LevelDataLayerInstance));
+								}
+							}
+							return true;
+						});
+					}
+				}
+
+				UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(GetOwningWorld());
+				const UDataLayerManager* DataLayerManager = GetOwningWorld()->GetDataLayerManager();
+				if (WorldPartitionSubsystem && DataLayerManager)
+				{
+					const ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(GetOwningWorld());
+					WorldPartitionSubsystem->ForEachWorldPartition([this, DataLayerManager, CurrentLevel, LevelInstanceSubsystem, IsDataLayerShown, &WorldToLevelDataLayerMap, &OutItems](UWorldPartition* WorldPartition)
 					{
 						// Skip WorldPartition if it's not the one of the current level (the editing level instance)
 						// or if we hide the content of level instances
@@ -268,18 +271,24 @@ void FDataLayerHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItem
 						}
 
 						// Create an FDataLayerActorDescTreeItem for each unloaded actor of this WorldPartition
-						const UDataLayerManager* DataLayerManager = WorldPartition->GetDataLayerManager();
-						FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, [this, IsDataLayerShown, DataLayerManager, &OutItems](const FWorldPartitionActorDesc* ActorDesc)
+						FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, [this, IsDataLayerShown, DataLayerManager, CurrentLevel, &WorldToLevelDataLayerMap, &OutItems](const FWorldPartitionActorDesc* ActorDesc)
 						{
 							if (ActorDesc != nullptr && !ActorDesc->IsLoaded())
 							{
 								for (const FName& DataLayerInstanceName : ActorDesc->GetDataLayerInstanceNames())
 								{
-									if (const UDataLayerInstance* const DataLayerInstance = DataLayerManager->GetDataLayerInstance(DataLayerInstanceName))
+									if (const UDataLayerInstance* DataLayerInstance = DataLayerManager->GetDataLayerInstance(DataLayerInstanceName))
 									{
 										if (IsDataLayerShown(DataLayerInstance))
 										{
-											if (const FSceneOutlinerTreeItemPtr ActorDescItem = Mode->CreateItemFor<FDataLayerActorDescTreeItem>(FDataLayerActorDescTreeItemData(ActorDesc->GetGuid(), ActorDesc->GetContainer(), const_cast<UDataLayerInstance*>(DataLayerInstance))))
+											UDataLayerInstance* EffectiveDataLayerInstance = const_cast<UDataLayerInstance*>(DataLayerInstance);
+											// If current level is valid, build Item with current level's DataLayerInstance
+											if (CurrentLevel)
+											{
+												UDataLayerInstance** LevelDataLayerInstance = WorldToLevelDataLayerMap.Find(DataLayerInstance);
+												EffectiveDataLayerInstance = *LevelDataLayerInstance;
+											}
+											if (const FSceneOutlinerTreeItemPtr ActorDescItem = Mode->CreateItemFor<FDataLayerActorDescTreeItem>(FDataLayerActorDescTreeItemData(ActorDesc->GetGuid(), ActorDesc->GetContainer(), EffectiveDataLayerInstance)))
 											{
 												OutItems.Add(ActorDescItem);
 											}

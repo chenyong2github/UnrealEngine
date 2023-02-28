@@ -1127,7 +1127,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetPressed(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed))
 		);
 		Set("DataLayerBrowser.LabelFont", DEFAULT_FONT("Regular", 9));
-		Set("DataLayerBrowser.LabelFontBold", DEFAULT_FONT("Bold", 10));
+		Set("DataLayerBrowser.LabelFontBold", DEFAULT_FONT("BoldItalic", 10));
 		Set("DataLayer.ColorIcon", new FSlateBoxBrush(NAME_None, 8.0f / 32.0f, FStyleColors::White));
 	}
 

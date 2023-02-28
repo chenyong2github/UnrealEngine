@@ -76,7 +76,9 @@ const TSharedRef<SWidget> FDataLayerOutlinerIsLoadedInEditorColumn::ConstructRow
 				{
 					FDataLayerTreeItem* DataLayerTreeItem = TreeItem->CastTo<FDataLayerTreeItem>();
 					const UDataLayerInstance* DataLayerInstance = DataLayerTreeItem->GetDataLayer();
-					return DataLayerInstance && !DataLayerInstance->IsReadOnly() ? EVisibility::Visible : EVisibility::Collapsed;
+					const AWorldDataLayers* OuterWorldDataLayers = DataLayerInstance ? DataLayerInstance->GetOuterWorldDataLayers() : nullptr;
+					const bool bIsSubWorldDataLayers = OuterWorldDataLayers && OuterWorldDataLayers->IsSubWorldDataLayers();
+					return DataLayerInstance && !DataLayerInstance->IsReadOnly() && !bIsSubWorldDataLayers ? EVisibility::Visible : EVisibility::Collapsed;
 				})
 				.IsChecked_Lambda([TreeItem]()
 				{

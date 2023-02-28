@@ -137,6 +137,7 @@ private:
 	void PushActorEditorContext() const;
 	void PopActorEditorContext() const;
 	TArray<UDataLayerInstance*> GetActorEditorContextDataLayers() const;
+	TArray<AWorldDataLayers*> GetActorEditorContextWorldDataLayers() const;
 	uint32 GetDataLayerEditorContextHash() const;
 	//~ End Editor Context
 
