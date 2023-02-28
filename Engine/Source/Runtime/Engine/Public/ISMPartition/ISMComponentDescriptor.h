@@ -15,34 +15,18 @@ enum class ERendererStencilMask : uint8;
 /** Struct that holds the relevant properties that can help decide if instances of different 
 	StaticMeshComponents/InstancedStaticMeshComponents/HISM can be merged into a single component. */
 USTRUCT()
-struct ENGINE_API FISMComponentDescriptor
+struct ENGINE_API FISMComponentDescriptorBase
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
-	FISMComponentDescriptor();
-	static FISMComponentDescriptor CreateFrom(const TSubclassOf<UStaticMeshComponent>& ComponentClass);
+	FISMComponentDescriptorBase() = default;
 	void InitFrom(const UStaticMeshComponent* Component, bool bInitBodyInstance = true);
 
 	uint32 ComputeHash() const;
-	UInstancedStaticMeshComponent* CreateComponent(UObject* Outer, FName Name = NAME_None, EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags) const;
 	void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
 
-	friend inline uint32 GetTypeHash(const FISMComponentDescriptor& Key)
-	{
-		if (Key.Hash == 0)
-		{
-			Key.ComputeHash();
-		}
-		return Key.Hash;
-	}
-
-	bool operator!=(const FISMComponentDescriptor& Other) const;
-	bool operator==(const FISMComponentDescriptor& Other) const;
-
-	friend inline bool operator<(const FISMComponentDescriptor& Lhs, const FISMComponentDescriptor& Rhs)
-	{
-		return Lhs.Hash < Rhs.Hash;
-	}
+	bool operator!=(const FISMComponentDescriptorBase& Other) const;
+	bool operator==(const FISMComponentDescriptorBase& Other) const;
 
 public:
 	UPROPERTY()
@@ -51,15 +35,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	TSubclassOf<UInstancedStaticMeshComponent> ComponentClass;
 	
-	UPROPERTY(EditAnywhere, Category = "Component Settings")
-	TObjectPtr<UStaticMesh> StaticMesh = nullptr;
-	
-	UPROPERTY(EditAnywhere, Category = "Component Settings")
-	TArray<TObjectPtr<UMaterialInterface>> OverrideMaterials;
-	
-	UPROPERTY(EditAnywhere, Category = "Component Settings")
-	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
-
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	TEnumAsByte<EComponentMobility::Type> Mobility;
 		
@@ -175,6 +150,93 @@ public:
 	uint8 bConsiderForActorPlacementWhenHidden : 1;
 #endif
 
+	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "CustomDepthStencilWriteMask"))
+	uint8 bUseDefaultCollision : 1;
+
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 WorldPositionOffsetDisableDistance;
+};
+
+USTRUCT()
+struct ENGINE_API FISMComponentDescriptor : public FISMComponentDescriptorBase
+{
+	GENERATED_USTRUCT_BODY()
+
+	FISMComponentDescriptor();
+	explicit FISMComponentDescriptor(const FSoftISMComponentDescriptor& Other);
+	static FISMComponentDescriptor CreateFrom(const TSubclassOf<UStaticMeshComponent>& ComponentClass);
+	void InitFrom(const UStaticMeshComponent* Component, bool bInitBodyInstance = true);
+
+	uint32 ComputeHash() const;
+	UInstancedStaticMeshComponent* CreateComponent(UObject* Outer, FName Name = NAME_None, EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags) const;
+	void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
+
+	friend inline uint32 GetTypeHash(const FISMComponentDescriptor& Key)
+	{
+		if (Key.Hash == 0)
+		{
+			Key.ComputeHash();
+		}
+		return Key.Hash;
+	}
+
+	bool operator!=(const FISMComponentDescriptor& Other) const;
+	bool operator==(const FISMComponentDescriptor& Other) const;
+
+	friend inline bool operator<(const FISMComponentDescriptor& Lhs, const FISMComponentDescriptor& Rhs)
+	{
+		return Lhs.Hash < Rhs.Hash;
+	}
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "ComponentClass"))
+	TObjectPtr<UStaticMesh> StaticMesh = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "ComponentClass"))
+	TArray<TObjectPtr<UMaterialInterface>> OverrideMaterials;
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "ComponentClass"))
+	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
+};
+
+USTRUCT()
+struct ENGINE_API FSoftISMComponentDescriptor : public FISMComponentDescriptorBase
+{
+	GENERATED_BODY()
+
+	FSoftISMComponentDescriptor();
+	explicit FSoftISMComponentDescriptor(const FISMComponentDescriptor& Other);
+	static FSoftISMComponentDescriptor CreateFrom(const TSubclassOf<UStaticMeshComponent>& ComponentClass);
+	void InitFrom(const UStaticMeshComponent* Component, bool bInitBodyInstance = true);
+
+	uint32 ComputeHash() const;
+	UInstancedStaticMeshComponent* CreateComponent(UObject* Outer, FName Name = NAME_None, EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags) const;
+	void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
+
+	friend inline uint32 GetTypeHash(const FSoftISMComponentDescriptor& Key)
+	{
+		if (Key.Hash == 0)
+		{
+			Key.ComputeHash();
+		}
+		return Key.Hash;
+	}
+
+	bool operator!=(const FSoftISMComponentDescriptor& Other) const;
+	bool operator==(const FSoftISMComponentDescriptor& Other) const;
+
+	friend inline bool operator<(const FSoftISMComponentDescriptor& Lhs, const FSoftISMComponentDescriptor& Rhs)
+	{
+		return Lhs.Hash < Rhs.Hash;
+	}
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "ComponentClass"))
+	TSoftObjectPtr<UStaticMesh> StaticMesh = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "ComponentClass"))
+	TArray<TSoftObjectPtr<UMaterialInterface>> OverrideMaterials;
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "ComponentClass"))
+	TArray<TSoftObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
 };
