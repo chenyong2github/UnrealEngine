@@ -91,6 +91,7 @@ private:
 	/** Check-in button */
 	static int GetNumLocalChanges();
 	static bool HasLocalChanges();
+	static void SaveUnsavedFiles();
 	static EVisibility GetSourceControlCheckInStatusVisibility();
 	static FText GetSourceControlCheckInStatusText();
 	static FText GetSourceControlCheckInStatusTooltipText();
