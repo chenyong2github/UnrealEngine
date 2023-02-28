@@ -40,7 +40,7 @@ private:
 	virtual ~FPackageBuildDependencyTracker();
 
 	/** Track object reference reads */
-	static void StaticOnObjectHandleRead(UObject* ReadObject);
+	static void StaticOnObjectHandleRead(TArrayView<const UObject* const> Objects);
 
 	mutable FCriticalSection RecordsLock;
 	TMap<FName, TSet<FBuildDependencyAccessData>> Records;

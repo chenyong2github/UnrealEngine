@@ -17,12 +17,12 @@ namespace UE::CoreUObject
 				return Callbacks;
 			}
 
-			void OnHandleRead(UObject* Object)
+			void OnHandleRead(TArrayView<const UObject* const> Objects)
 			{
 				FReadScopeLock _(HandleLock);
 				for (auto&& Pair : ReadHandleCallbacks)
 				{
-					Pair.Value(Object);
+					Pair.Value(Objects);
 				}
 			}
 
@@ -148,9 +148,9 @@ namespace UE::CoreUObject
 			FRWLock HandleLock;
 		};
 
-		void OnHandleRead(UObject* Object)
+		void OnHandleRead(TArrayView<const UObject* const> Objects)
 		{
-			ObjectHandleCallbacks::Get().OnHandleRead(Object);
+			ObjectHandleCallbacks::Get().OnHandleRead(Objects);
 		}
 
 		void OnClassReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UClass* Class)

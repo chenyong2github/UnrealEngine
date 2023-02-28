@@ -17,7 +17,7 @@ TEST_CASE("UE::CoreUObject::FClassProperty::Identical")
 {
 	bool bAllowRead = false;
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback([&bAllowRead](UObject* ReadObject)
+	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback([&bAllowRead](TArrayView<const UObject* const> Objects)
 		{
 			if (!bAllowRead)
 				FAIL("Unexpected read during CheckValidObject");

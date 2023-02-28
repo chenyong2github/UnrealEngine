@@ -742,7 +742,8 @@ template <typename T>
 struct TContainerElementTypeCompatibility<TObjectPtr<T>>
 {
 	typedef T* ReinterpretType;
-	
+	typedef T* CopyFromOtherType;
+
 	template <typename IterBeginType, typename IterEndType, typename OperatorType = std::remove_reference_t<decltype(*std::declval<IterBeginType>())>& (*)(IterBeginType&)>
 	UE_OBJPTR_DEPRECATED(5.0, "Reinterpretation between ranges of one type to another type is deprecated.")
 	static void ReinterpretRange(IterBeginType Iter, IterEndType IterEnd, OperatorType Operator = [](IterBeginType& InIt) -> decltype(auto) { return *InIt; })
@@ -756,8 +757,24 @@ struct TContainerElementTypeCompatibility<TObjectPtr<T>>
 #endif
 	}
 
-	typedef T* CopyFromOtherType;
-
+	template <typename IterBeginType, typename IterEndType, typename SizeType, typename OperatorType = std::remove_reference_t<decltype(*std::declval<IterBeginType>())>& (*)(IterBeginType&)>
+	UE_OBJPTR_DEPRECATED(5.0, "Reinterpretation between ranges of one type to another type is deprecated.")
+	static void ReinterpretRangeContiguous(IterBeginType Iter, IterEndType IterEnd, SizeType Size, OperatorType Operator = [](IterBeginType& InIt) -> decltype(auto) { return *InIt; })
+	{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
+		const TObjectPtr<T>* Begin = &*Iter;
+		while (Iter != IterEnd)
+		{
+			auto& Ptr = Operator(Iter);
+			const FObjectPtr& ObjPtr = reinterpret_cast<const FObjectPtr&>(Ptr);
+			UE::CoreUObject::Private::ResolveObjectHandleNoRead(ObjPtr.GetHandleRef());
+			++Iter;
+		}
+		const UObject* const* ObjPtr = reinterpret_cast<const UObject* const*>(Begin);
+		UE::CoreUObject::Private::OnHandleRead(TArrayView<const UObject* const>(ObjPtr, Size));
+#endif
+	}
+	
 	UE_OBJPTR_DEPRECATED(5.0, "Copying ranges of one type to another type is deprecated.")
 	static constexpr void CopyingFromOtherType() {}
 };
@@ -766,6 +783,7 @@ template <typename T>
 struct TContainerElementTypeCompatibility<const TObjectPtr<T>>
 {
 	typedef T* const ReinterpretType;
+	typedef T* const CopyFromOtherType;
 
 	template <typename IterBeginType, typename IterEndType, typename OperatorType = const std::remove_cv_t<std::remove_reference_t<decltype(*std::declval<IterBeginType>())>>&(*)(IterBeginType&)>
 	UE_OBJPTR_DEPRECATED(5.0, "Reinterpretation between ranges of one type to another type is deprecated.")
@@ -780,12 +798,27 @@ struct TContainerElementTypeCompatibility<const TObjectPtr<T>>
 #endif
 	}
 
-	typedef T* const CopyFromOtherType;
+	template <typename IterBeginType, typename IterEndType, typename SizeType, typename OperatorType = std::remove_reference_t<decltype(*std::declval<IterBeginType>())>& (*)(IterBeginType&)>
+	UE_OBJPTR_DEPRECATED(5.0, "Reinterpretation between ranges of one type to another type is deprecated.")
+	static void ReinterpretRangeContiguous(IterBeginType Iter, IterEndType IterEnd, SizeType Size, OperatorType Operator = [](IterBeginType& InIt) -> decltype(auto) { return *InIt; })
+	{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
+		const TObjectPtr<T>* Begin = &*Iter;
+		while (Iter != IterEnd)
+		{
+			auto& Ptr = Operator(Iter);
+			const FObjectPtr& ObjPtr = reinterpret_cast<const FObjectPtr&>(Ptr);
+			UE::CoreUObject::Private::ResolveObjectHandleNoRead(ObjPtr.GetHandleRef());
+			++Iter;
+		}
+		const UObject* const* ObjPtr = reinterpret_cast<const UObject* const*>(Begin);
+		UE::CoreUObject::Private::OnHandleRead(TArrayView<const UObject* const>(ObjPtr, Size));
+#endif
+	}
 
 	UE_OBJPTR_DEPRECATED(5.0, "Copying ranges of one type to another type is deprecated.")
 	static constexpr void CopyingFromOtherType() {}
 };
-
 
 // Trait which allows TObjectPtr to be default constructed by memsetting to zero.
 template <typename T>

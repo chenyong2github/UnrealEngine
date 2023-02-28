@@ -17,7 +17,7 @@ TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddress")
 {
 	bool bAllowRead = false;
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback([&bAllowRead](UObject* ReadObject)
+	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback([&bAllowRead](TArrayView<const UObject* const> Objects)
 		{
 			if (!bAllowRead)
 				FAIL("Unexpected read during CheckValidObject");
@@ -71,7 +71,7 @@ TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddressNonNullable")
 {
 	bool bAllowRead = false;
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback([&bAllowRead](UObject* ReadObject)
+	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback([&bAllowRead](TArrayView<const UObject* const> Objects)
 		{
 			if (!bAllowRead)
 			{
@@ -163,7 +163,7 @@ static void TestSerializeItem(FName ObjectName)
 
 	int ReadCount = 0;
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	auto CallbackId = UE::CoreUObject::AddObjectHandleReadCallback([&ReadCount](UObject* ReadObject)
+	auto CallbackId = UE::CoreUObject::AddObjectHandleReadCallback([&ReadCount](TArrayView<const UObject* const> Objects)
 		{
 			++ReadCount;
 		});

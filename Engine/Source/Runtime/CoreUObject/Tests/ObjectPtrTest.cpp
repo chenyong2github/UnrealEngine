@@ -500,6 +500,72 @@ TEST_CASE("CoreUObject::TObjectPtr::InnerRename")
 	TestPackage->RemoveFromRoot();
 }
 
+TEST_CASE("CoreUObject::TObjectPtr::Swap")
+{
+	const FName TestPackageName(TEXT("/Engine/TestPackage"));
+	UPackage* TestPackage = NewObject<UPackage>(nullptr, TestPackageName, RF_Transient);
+	TestPackage->AddToRoot();
+	UObject* Obj1 = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("Obj1"));
+	UObject* Inner1 = NewObject<UObjectPtrTestClass>(Obj1, TEXT("Inner1"));
+	UObject* RawPtrA = Obj1;
+	UObject* RawPtrB = Inner1;
+
+	FObjectPtr ObjPtr1(MakeUnresolvedHandle(RawPtrA));
+	FObjectPtr InnerPtr1(MakeUnresolvedHandle(RawPtrB));
+
+	TObjectPtr<UObject> PtrA = *reinterpret_cast<TObjectPtr<UObject>*>(&ObjPtr1);
+	TObjectPtr<UObject> PtrB = *reinterpret_cast<TObjectPtr<UObject>*>(&InnerPtr1);
+	CHECK(!PtrA.IsResolved());
+	CHECK(!PtrB.IsResolved());
+
+	Swap(PtrA, PtrB);
+	
+	CHECK(!PtrA.IsResolved());
+	CHECK(!PtrB.IsResolved());
+	CHECK(PtrA != PtrB);
+	CHECK(PtrA != RawPtrA);
+	
+	Swap(PtrA, RawPtrA);
+	CHECK(PtrA.IsResolved());
+	CHECK(RawPtrA == Inner1);
+	CHECK(PtrA == Obj1);
+
+	Swap(PtrB, PtrA);
+	CHECK(!PtrA.IsResolved());
+	CHECK(PtrB.IsResolved());
+
+}
+
+TEST_CASE("CoreUObject::TObjectPtr::SwapArray")
+{
+	const FName TestPackageName(TEXT("/Engine/TestPackage"));
+	UPackage* TestPackage = NewObject<UPackage>(nullptr, TestPackageName, RF_Transient);
+	TestPackage->AddToRoot();
+	UObject* Obj1 = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("Obj1"));
+	UObject* Inner1 = NewObject<UObjectPtrTestClass>(Obj1, TEXT("Inner1"));
+	UObject* RawPtrA = Obj1;
+	UObject* RawPtrB = Inner1;
+
+	FObjectPtr ObjPtr1(MakeUnresolvedHandle(RawPtrA));
+	FObjectPtr InnerPtr1(MakeUnresolvedHandle(RawPtrB));
+	TObjectPtr<UObject> PtrA = *reinterpret_cast<TObjectPtr<UObject>*>(&ObjPtr1);
+	TObjectPtr<UObject> PtrB = *reinterpret_cast<TObjectPtr<UObject>*>(&InnerPtr1);
+
+	
+	TArray<TObjectPtr<UObject>> ArrayPtr;
+	auto t = ArrayPtr.begin();
+	ArrayPtr.Add(PtrA);
+
+	TArray<UObject*> ArrayRaw;
+	ArrayRaw.Add(RawPtrB);
+
+	Swap(ArrayRaw, ArrayPtr);
+
+	CHECK(ArrayRaw[0] == RawPtrA);
+	CHECK(ArrayPtr[0] == RawPtrB);
+}
+
+
 TEST_CASE("CoreUObject::TObjectPtr::Move")
 {
 	UPackage* TestPackageA = NewObject<UPackage>(nullptr, TEXT("/Engine/PackageA"), RF_Transient);
@@ -699,7 +765,305 @@ TEST_CASE("CoreUObject::TObjectPtr::GetTypeHash")
 	TestPackageA->RemoveFromRoot();
 	TestPackageB->RemoveFromRoot();
 }
+
+
 #endif
+
+template<typename TObj>
+void TestArrayConversion()
+{
+	const FName TestPackageName(TEXT("/Engine/TestPackage"));
+	UPackage* TestPackage = NewObject<UPackage>(nullptr, TestPackageName, RF_Transient);
+	TestPackage->AddToRoot();
+	UObject* Obj1 = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("Obj1"));
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+	int ResolveCount = 0;
+	uint32 ObjCount = 0;
+	auto ResolveDelegate = [&](TArrayView<const UObject* const> Objects)
+	{
+		++ResolveCount;
+		ObjCount = Objects.Num();
+		for(const UObject* ReadObj : Objects)
+		{
+			CHECK(ReadObj == Obj1);
+		}
+	};
+	auto Handle = UE::CoreUObject::AddObjectHandleReadCallback(ResolveDelegate);
+	ON_SCOPE_EXIT
+	{
+		UE::CoreUObject::RemoveObjectHandleReadCallback(Handle);
+	};
+#endif
+	TArray<TObjectPtr<TObj>> PtrArray;
+	uint32  NumObjs = 1000000;
+	for (uint32 i = 0; i < NumObjs; ++i)
+	{
+		PtrArray.Add(Obj1);
+	}
+
+	{
+		TArray<TObj*> RawArray;
+		RawArray = PtrArray;
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == NumObjs);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawArray.Num() == NumObjs);
+		for (uint32 i = 0; i < NumObjs; ++i)
+		{
+			CHECK(RawArray[i] == Obj1);
+		}
+	}
+	{
+		TArray<TObjectPtr<TObj>> EmptyArray;
+		TArray<TObj*> RawArray;
+		RawArray = EmptyArray;
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == 0);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawArray.Num() == 0);
+	}
+	{
+		const TArray<TObjectPtr<TObj>>& ConstPtrArray = PtrArray;
+		TArray<TObj*> RawArray;
+		RawArray = ConstPtrArray;
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == NumObjs);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawArray.Num() == NumObjs);
+		for (uint32 i = 0; i < NumObjs; ++i)
+		{
+			CHECK(RawArray[i] == Obj1);
+		}
+	}
+	{
+		TArray<TObjectPtr<TObj>> EmptyArray;
+		const TArray<TObjectPtr<TObj>>& ConstPtrArray = EmptyArray;
+		TArray<TObj*> RawArray;
+		RawArray = ConstPtrArray;
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == 0);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawArray.Num() == 0);
+	}
+	{
+		const TArray<TObjectPtr<TObj>>& ConstPtrArray = PtrArray;
+		const TArray<TObj*>& RawArray = ConstPtrArray;
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == NumObjs);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawArray.Num() == NumObjs);
+		for (uint32 i = 0; i < NumObjs; ++i)
+		{
+			CHECK(RawArray[i] == Obj1);
+		}
+	}
+	{
+		TArray<TObjectPtr<TObj>> EmptyArray;
+		const TArray<TObjectPtr<TObj>>& ConstPtrArray = EmptyArray;
+		const TArray<TObj*>& RawArray = ConstPtrArray;
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == 0);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawArray.Num() == 0);
+	}
+
+	//ArrayView
+	{
+		TArrayView<TObj*> RawArray = PtrArray;
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == NumObjs);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawArray.Num() == NumObjs);
+		for (uint32 i = 0; i < NumObjs; ++i)
+		{
+			CHECK(RawArray[i] == Obj1);
+		}
+	}
+	{
+		TArray<TObjectPtr<TObj>> EmptyArray;
+		TArrayView<TObj*> RawArray = EmptyArray;
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == 0);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawArray.Num() == 0);
+	}
+	{
+		const TArray<TObjectPtr<TObj>>& ConstPtrArray = PtrArray;
+		const TArrayView<TObj* const> RawArray = ConstPtrArray;
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == NumObjs);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawArray.Num() == NumObjs);
+		for (uint32 i = 0; i < NumObjs; ++i)
+		{
+			CHECK(RawArray[i] == Obj1);
+		}
+	}
+	{
+		TArray<TObjectPtr<TObj>> EmptyArray;
+		const TArray<TObjectPtr<TObj>>& ConstPtrArray = EmptyArray;
+		const TArrayView<TObj* const> RawArray = ConstPtrArray;
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == 0);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawArray.Num() == 0);
+	}
+}
+
+TEST_CASE("CoreUObject::TObjectPtr::ArrayConversion")
+{
+	TestArrayConversion<UObject>();
+	TestArrayConversion<const UObject>();
+}
+
+TEST_CASE("CoreUObject::TObjectPtr::ArrayConversionReferenceForSet")
+{
+	const FName TestPackageName(TEXT("/Engine/TestPackage"));
+	UPackage* TestPackage = NewObject<UPackage>(nullptr, TestPackageName, RF_Transient);
+	TestPackage->AddToRoot();
+	UObject* Obj1 = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("Obj1"));
+	UObject* Obj2 = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("Obj2"));
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+	int ResolveCount = 0;
+	uint32 ObjCount = 0;
+	auto ResolveDelegate = [&](TArrayView<const UObject* const> Objects)
+	{
+		++ResolveCount;
+		ObjCount = Objects.Num();
+
+		if (ObjCount == 2)
+		{
+			CHECK(Objects[0] == Obj1);
+			CHECK(Objects[1] == Obj2);
+		}
+	};
+	auto Handle = UE::CoreUObject::AddObjectHandleReadCallback(ResolveDelegate);
+	ON_SCOPE_EXIT
+	{
+		UE::CoreUObject::RemoveObjectHandleReadCallback(Handle);
+	};
+#endif
+	{
+		TArray<TObjectPtr<UObject>> Array;
+		Array.Add(Obj1);
+		Array.Add(Obj2);
+
+		TSet<UObject*> RawSet(Array);
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == 2);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawSet.Num() == 2);
+	}
+	{
+		TArray<TObjectPtr<UObject>> Array;
+		TSet<UObject*> RawSet(Array);
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		CHECK(ObjCount == 0);
+		ResolveCount = 0;
+		ObjCount = 0;
+#endif
+		CHECK(RawSet.Num() == 0);
+	}
+}
+
+
+TEST_CASE("CoreUObject::TObjectPtr::ConstArrayViewConversion")
+{
+	TObjectPtr<UObject> ObjectArray[3];
+	TConstArrayView<TObjectPtr<UObject>> View(&ObjectArray[0], 3);
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+	int ResolveCount = 0;
+	auto ResolveDelegate = [&](TArrayView<const UObject* const> Objects)
+	{
+		++ResolveCount;
+		CHECK(Objects.Num() == 3);
+		CHECK(Objects[0] == nullptr);
+		CHECK(Objects[1] == nullptr);
+		CHECK(Objects[2] == nullptr);
+	};
+	auto Handle = UE::CoreUObject::AddObjectHandleReadCallback(ResolveDelegate);
+	ON_SCOPE_EXIT
+	{
+		UE::CoreUObject::RemoveObjectHandleReadCallback(Handle);
+	};
+#endif
+
+	{
+		TConstArrayView<UObject*> ConvertedArray = View;
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+		ResolveCount = 0;
+#endif
+
+		CHECK(ConvertedArray.Num() == 3);
+		CHECK(ConvertedArray[0] == nullptr);
+		CHECK(ConvertedArray[1] == nullptr);
+		CHECK(ConvertedArray[2] == nullptr);
+	}
+	{
+		TArrayView<const TObjectPtr<UObject>> ConstArray(&ObjectArray[0], 3);
+		TArrayView<const UObject* const> ConvertedArray = ConstArray;
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+		CHECK(ResolveCount == 1);
+#endif
+
+		CHECK(ConvertedArray.Num() == 3);
+		CHECK(ConvertedArray[0] == nullptr);
+		CHECK(ConvertedArray[1] == nullptr);
+		CHECK(ConvertedArray[2] == nullptr);
+	}
+
+	
+}
 
 // @TODO: OBJPTR: We should have a test that ensures that lazy loading of an object with an external package is handled correctly.
 //				  This should also include external packages in the outer chain of the target object.

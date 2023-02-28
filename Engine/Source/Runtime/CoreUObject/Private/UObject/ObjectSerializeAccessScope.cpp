@@ -41,7 +41,7 @@ namespace UE::CoreUObject::Private
 		{
 			if (bEnabled)
 			{
-				FObjectHandleReadFunc Func = [this](UObject* ReadObject)
+				FObjectHandleReadFunc Func = [this](TArrayView<const UObject* const> ReadObject)
 				{
 					FLocalData& Data = GetThreadLocalData();
 					if (!IsEnableSerializeAccessWarnings() || (Data.CurrentScope == nullptr || Data.CurrentScope->bSuspended))
@@ -60,7 +60,14 @@ namespace UE::CoreUObject::Private
 					ANSICHAR StackTrace[StackTraceSize];
 					StackTrace[0] = 0;
 					FPlatformStackWalk::StackWalkAndDump(StackTrace, StackTraceSize, 3);
-					UE_LOG(LogLinker, Warning, TEXT("%s trying to access referenced object %s during serialize\n%s"), *CurrentObject.GetClass()->GetFullName(), (ReadObject ? *ReadObject->GetFullName() : TEXT("None")), ANSI_TO_TCHAR(StackTrace));
+					if (ReadObject.Num() == 1)
+					{
+						UE_LOG(LogLinker, Warning, TEXT("%s trying to access referenced object %s during serialize\n%s"), *CurrentObject.GetClass()->GetFullName(), (ReadObject[0] ? *ReadObject[0]->GetFullName() : TEXT("None")), ANSI_TO_TCHAR(StackTrace));
+					}
+					else
+					{
+						UE_LOG(LogLinker, Warning, TEXT("%s trying to access an array of referenced objects during serialize\n%s"), *CurrentObject.GetClass()->GetFullName(), ANSI_TO_TCHAR(StackTrace));
+					}
 				};
 
 				CallbackHandle = AddObjectHandleReadCallback(Func);

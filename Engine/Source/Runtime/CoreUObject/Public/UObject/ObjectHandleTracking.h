@@ -25,7 +25,7 @@ namespace UE::CoreUObject
 	  *
 	  * @param ReadObject	The object that was read from a handle.
 	  */
-	using FObjectHandleReadFunc = TFunction<void(UObject* ReadObject)>;
+	using FObjectHandleReadFunc = TFunction<void(TArrayView<const UObject* const> Objects)>;
 
 	/**
 	 * Callback notifying when a class is resolved from an object handle or object reference.
@@ -102,7 +102,13 @@ namespace UE::CoreUObject
 #if UE_WITH_OBJECT_HANDLE_TRACKING
 namespace UE::CoreUObject::Private
 {
-	COREUOBJECT_API void OnHandleRead(UObject* Object);
+	
+	COREUOBJECT_API void OnHandleRead(TArrayView<const UObject* const> Objects);
+	inline void OnHandleRead(const UObject* Object)
+	{
+		TArrayView<const UObject* const> View(&Object, 1);
+		OnHandleRead(View);
+	}
 	COREUOBJECT_API void OnClassReferenceResolved(const FObjectRef& ObjectRef, UPackage* ClassPackage, UClass* Class);
 	COREUOBJECT_API void OnReferenceResolved(const FObjectRef& ObjectRef, UPackage* ObjectPackage, UObject* Object);
 	COREUOBJECT_API void OnReferenceLoaded(const FObjectRef& ObjectRef, UPackage* ObjectPackage, UObject* Object);
@@ -111,7 +117,8 @@ namespace UE::CoreUObject::Private
 
 namespace UE::CoreUObject::Private
 {
-	inline void OnHandleRead(UObject* Object) { }
+	inline void OnHandleRead(const UObject* Object) { }
+	inline void OnHandleRead(TArrayView<const UObject*> Objects) { }
 	inline void OnClassReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UClass* Class) { }
 	inline void OnReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UClass* Class) { }
 	inline void OnReferenceLoaded(const FObjectRef& ObjectRef, UPackage* Package, UObject* Object) { }
