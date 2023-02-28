@@ -71,22 +71,6 @@ class ONLINESUBSYSTEMUTILS_API AOnlineBeaconClient : public AOnlineBeacon
 	bool InitClient(FURL& URL);
 
 	/**
-	 * Sets the encryption token that will be sent to servers on connection requests as a parameter to the NMT_Hello message.
-	 *
-	 * @param EncryptionToken the token to use
-	 */
-	UE_DEPRECATED(4.24, "Use SetEncryptionData instead")
-	void SetEncryptionToken(const FString& InEncryptionToken);
-
-	/**
-	 * Sets the encryption key that will be used for server connections.
-	 *
-	 * @param EncryptionKey the key to use
-	 */
-	UE_DEPRECATED(4.24, "Use SetEncryptionData instead")
-	void SetEncryptionKey(TArrayView<uint8> InEncryptionKey);
-
-	/**
 	 * Sets the encryption data that will be used for server connections.
 	 *
 	 * @param InEncryptionData the encryption data to use, including key and identifier

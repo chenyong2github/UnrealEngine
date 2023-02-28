@@ -207,9 +207,6 @@ private:
 	void FinishHandshake(UNetConnection* Connection, FString BeaconType);
 	void SendFailurePacket(UNetConnection* Connection, FNetCloseResult&& CloseReason, const FText& ErrorText);
 
-	UE_DEPRECATED(5.1, "SendFailurePacket without CloseReason is deprecated. Use the version which takes CloseReason.")
-	void SendFailurePacket(UNetConnection* Connection, const FText& ErrorMsg);
-
 	void CloseHandshakeConnection(UNetConnection* Connection);
 
 	bool GetConnectionDataForUniqueNetId(const FUniqueNetId& UniqueNetId, UNetConnection*& OutConnection, FConnectionState*& OutConnectionState);

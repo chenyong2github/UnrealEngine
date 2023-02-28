@@ -220,20 +220,6 @@ void AOnlineBeaconClient::Tick(float DeltaTime)
 	}
 }
 
-void AOnlineBeaconClient::SetEncryptionToken(const FString& InEncryptionToken)
-{
-	EncryptionData.Identifier = InEncryptionToken;
-}
-
-void AOnlineBeaconClient::SetEncryptionKey(TArrayView<uint8> InEncryptionKey)
-{
-	if (CVarNetAllowEncryption.GetValueOnGameThread() != 0)
-	{
-		EncryptionData.Key.Reset(InEncryptionKey.Num());
-		EncryptionData.Key.Append(InEncryptionKey.GetData(), InEncryptionKey.Num());
-	}
-}
-
 void AOnlineBeaconClient::SetEncryptionData(const FEncryptionData& InEncryptionData)
 {
 	if (CVarNetAllowEncryption.GetValueOnGameThread() != 0)

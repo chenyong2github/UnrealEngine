@@ -392,20 +392,6 @@ public:
 	 * @param CompletionDelegate - Completion delegate called when ReportGameMatchResults is complete
 	 */
 	virtual void ReportGameMatchResults(const FUniqueNetId& UserId, const FString& MatchId, const FFinalGameMatchReport& FinalReport, const FOnGameMatchReportComplete& CompletionDelegate) = 0;
-	
-	/**
-	 * Provides a way to leave feedback on a game match
-	 *
-	 * This call will invoke a UI for the player to provide feedback about the recent match they participated in
-	 *
-	 * @param UserId - Id of the user leaving feedback on the match
-	 * @param MatchId - Id of the match to leave feedback on
-	 * @param bReviewTeam - Whether not to review a team or only the members of the team
-	 * @param CompletionDelegate - Completion delegate called when GameMatchFeedback is complete
-	 */
-	UE_DEPRECATED(5.0, "ProvideGameMatchFeedback is now deprecated and will be removed.")
-	virtual void ProvideGameMatchFeedback(const FUniqueNetId& UserId, const FString& MatchId, const bool bReviewTeam, const FOnGameMatchFeedbackComplete& CompletionDelegate) {}
-
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

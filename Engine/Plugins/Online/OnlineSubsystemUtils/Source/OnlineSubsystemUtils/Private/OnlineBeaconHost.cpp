@@ -556,20 +556,6 @@ void AOnlineBeaconHost::SendFailurePacket(UNetConnection* Connection, FNetCloseR
 	}
 }
 
-void AOnlineBeaconHost::SendFailurePacket(UNetConnection* Connection, const FText& ErrorText)
-{
-	if (Connection != nullptr)
-	{
-		FString ErrorMsg = ErrorText.ToString();
-
-		UE_LOG(LogBeacon, Log, TEXT("%s: Send failure: %s"), ToCStr(GetDebugName(Connection)), ToCStr(ErrorMsg));
-
-		FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
-		Connection->FlushNet(true);
-		Connection->Close();
-	}
-}
-
 void AOnlineBeaconHost::CloseHandshakeConnection(UNetConnection* Connection)
 {
 	if (Connection && Connection->GetConnectionState() != USOCK_Closed)

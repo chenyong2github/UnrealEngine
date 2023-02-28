@@ -55,7 +55,7 @@ public:
 	/** global static instance of invalid (zero) id */
 	static const FUniqueNetIdEOSPlusRef& EmptyId()
 	{
-		static const FUniqueNetIdEOSPlusRef EmptyId(Create());
+		static const FUniqueNetIdEOSPlusRef EmptyId(Create(nullptr, nullptr));
 		return EmptyId;
 	}
 
@@ -65,12 +65,6 @@ PACKAGE_SCOPE:
 	TArray<uint8> RawBytes;
 
 private:
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FUniqueNetIdEOSPlus()
-	{
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	explicit FUniqueNetIdEOSPlus(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId);
 };
 
