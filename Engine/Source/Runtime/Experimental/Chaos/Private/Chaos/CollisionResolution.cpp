@@ -4,19 +4,24 @@
 
 #include "Chaos/ChaosPerfTest.h"
 #include "Chaos/Capsule.h"
+#include "Chaos/CCDUtilities.h"
+#include "Chaos/CollisionOneShotManifolds.h"
+#include "Chaos/CollisionOneShotManifoldsMeshShapes.h"
+#include "Chaos/CollisionOneShotManifoldsMiscShapes.h"
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/CollisionResolutionUtil.h"
 #include "Chaos/Collision/CapsuleConvexContactPoint.h"
 #include "Chaos/Collision/CollisionContext.h"
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/CollisionFilter.h"
-#include "Chaos/Collision/PBDCollisionConstraint.h"
-#include "Chaos/Collision/SphereConvexContactPoint.h"
 #include "Chaos/Collision/ContactPointsMiscShapes.h"
 #include "Chaos/Collision/GJKContactPointSwept.h"
 #include "Chaos/Collision/GJKContactPoint.h"
+#include "Chaos/Collision/PBDCollisionConstraint.h"
+#include "Chaos/Collision/SphereConvexContactPoint.h"
 #include "Chaos/Convex.h"
 #include "Chaos/Defines.h"
+#include "Chaos/GeometryQueries.h"
 #include "Chaos/HeightField.h"
 #include "Chaos/ImplicitFwd.h"
 #include "Chaos/ImplicitObjectScaled.h"
@@ -29,10 +34,6 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/Transform.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
-#include "Chaos/GeometryQueries.h"
-#include "Chaos/CollisionOneShotManifolds.h"
-#include "Chaos/CollisionOneShotManifoldsMiscShapes.h"
-#include "Chaos/CCDUtilities.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -654,7 +655,7 @@ namespace Chaos
 		{
 			if (Constraint.GetUseManifold())
 			{
-				ConstructSphereHeightFieldOneShotManifold(A, ATransform, B, BTransform, Dt, Constraint);
+				ConstructQuadraticConvexHeightFieldOneShotManifold(A, ATransform, B, BTransform, Dt, Constraint);
 			}
 			else
 			{
@@ -846,7 +847,7 @@ namespace Chaos
 		{
 			if (Constraint.GetUseManifold())
 			{
-				ConstructSphereTriangleMeshOneShotManifold(Sphere0, WorldTransform0, TriangleMesh1, WorldTransform1, Dt, Constraint);
+				ConstructQuadraticConvexTriMeshOneShotManifold(Sphere0, WorldTransform0, TriangleMesh1, WorldTransform1, Dt, Constraint);
 			}
 			else
 			{
@@ -1092,7 +1093,7 @@ namespace Chaos
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateCapsuleHeightFieldConstraint, ConstraintsDetailedStats);
 			if (Constraint.GetUseManifold())
 			{
-				ConstructCapsuleHeightFieldOneShotManifold(A, ATransform, B, BTransform, Dt, Constraint);
+				ConstructQuadraticConvexHeightFieldOneShotManifold(A, ATransform, B, BTransform, Dt, Constraint);
 			}
 			else
 			{
@@ -1155,7 +1156,7 @@ namespace Chaos
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateCapsuleTriangleMeshConstraint, ConstraintsDetailedStats);
 			if (Constraint.GetUseManifold())
 			{
-				ConstructCapsuleTriMeshOneShotManifold(Capsule0, WorldTransform0, TriangleMesh1, WorldTransform1, Dt, Constraint);
+				ConstructQuadraticConvexTriMeshOneShotManifold(Capsule0, WorldTransform0, TriangleMesh1, WorldTransform1, Dt, Constraint);
 			}
 			else
 			{
