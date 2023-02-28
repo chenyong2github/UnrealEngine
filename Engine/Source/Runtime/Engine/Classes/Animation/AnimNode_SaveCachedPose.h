@@ -33,6 +33,13 @@ private:
 	TUniqueFunction<void(TArrayView<const FMessageStack>)> Function;
 };
 
+/** RAII helper for cached pose lifetimes (as they are stored on the mem stack) */
+struct FCachedPoseScope
+{
+	FCachedPoseScope();
+	~FCachedPoseScope();
+};
+
 }}	// namespace UE::Anim
 
 USTRUCT(BlueprintInternalUseOnly)
@@ -50,10 +57,6 @@ struct ENGINE_API FAnimNode_SaveCachedPose : public FAnimNode_Base
 	float GlobalWeight;
 
 protected:
-	FCompactPose CachedPose;
-	FBlendedCurve CachedCurve;
-	UE::Anim::FStackAttributeContainer CachedAttributes;
-
 	struct FCachedUpdateContext
 	{
 		FAnimationUpdateContext Context;

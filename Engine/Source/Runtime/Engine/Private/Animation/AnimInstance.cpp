@@ -25,6 +25,7 @@
 #include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "Animation/AnimSubsystem_Tag.h"
 #include "Animation/ActiveMontageInstanceScope.h"
+#include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimSubsystem_SharedLinkedAnimLayers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimInstance)
@@ -813,6 +814,9 @@ void UAnimInstance::ParallelEvaluateAnimation(bool bForceRefPose, const USkeleta
 	OutEvaluationData.OutPose.SetBoneContainer(&Proxy.GetRequiredBones());
 
 	FMemMark Mark(FMemStack::Get());
+	// Push cached pose scope to constrain cached pose lifetime to within this evaluate pass only (as cached poses are
+	// allocated with the above FMemMark)
+	UE::Anim::FCachedPoseScope CachedPoseScope;
 
 	if( !bForceRefPose )
 	{
