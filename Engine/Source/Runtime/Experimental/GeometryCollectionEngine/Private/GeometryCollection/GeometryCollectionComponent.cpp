@@ -384,7 +384,10 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	// By default, we initialize immediately. If this is set false, we defer initialization.
 	BodyInstance.bSimulatePhysics = true;
 
-	EventDispatcher = ObjectInitializer.CreateDefaultSubobject<UChaosGameplayEventDispatcher>(this, TEXT("GameplayEventDispatcher"));
+	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+		EventDispatcher = NewObject<UChaosGameplayEventDispatcher>(this, TEXT("GameplayEventDispatcher"), RF_Transient);
+	}
 
 	DynamicCollection = nullptr;
 	bHasCustomNavigableGeometry = EHasCustomNavigableGeometry::Yes;
@@ -1389,51 +1392,54 @@ void UGeometryCollectionComponent::DispatchChaosPhysicsCollisionBlueprintEvents(
 // call when first registering
 void UGeometryCollectionComponent::RegisterForEvents()
 {
-	if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions || bNotifyRemovals || bNotifyCrumblings)
+	if (EventDispatcher)
 	{
-		Chaos::FPhysicsSolver* Solver = GetWorld()->GetPhysicsScene()->GetSolver();
-		if (Solver)
+		if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions || bNotifyRemovals || bNotifyCrumblings)
 		{
-			if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
+			Chaos::FPhysicsSolver* Solver = GetWorld()->GetPhysicsScene()->GetSolver();
+			if (Solver)
 			{
-				EventDispatcher->RegisterForCollisionEvents(this, this);
+				if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
+				{
+					EventDispatcher->RegisterForCollisionEvents(this, this);
 
-				Solver->EnqueueCommandImmediate([Solver]()
-					{
-						Solver->SetGenerateCollisionData(true);
-					});
-			}
+					Solver->EnqueueCommandImmediate([Solver]()
+						{
+							Solver->SetGenerateCollisionData(true);
+						});
+				}
 
-			if (bNotifyBreaks)
-			{
-				EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
+				if (bNotifyBreaks)
+				{
+					EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
 
-				Solver->EnqueueCommandImmediate([Solver]()
-					{
-						Solver->SetGenerateBreakingData(true);
-					});
+					Solver->EnqueueCommandImmediate([Solver]()
+						{
+							Solver->SetGenerateBreakingData(true);
+						});
 
-			}
+				}
 
-			if (bNotifyRemovals)
-			{
-				EventDispatcher->RegisterForRemovalEvents(this, &DispatchGeometryCollectionRemovalEvent);
+				if (bNotifyRemovals)
+				{
+					EventDispatcher->RegisterForRemovalEvents(this, &DispatchGeometryCollectionRemovalEvent);
 
-				Solver->EnqueueCommandImmediate([Solver]()
-					{
-						Solver->SetGenerateRemovalData(true);
-					});
+					Solver->EnqueueCommandImmediate([Solver]()
+						{
+							Solver->SetGenerateRemovalData(true);
+						});
 
-			}
+				}
 
-			if (bNotifyCrumblings)
-			{
-				EventDispatcher->RegisterForCrumblingEvents(this, &DispatchGeometryCollectionCrumblingEvent);
+				if (bNotifyCrumblings)
+				{
+					EventDispatcher->RegisterForCrumblingEvents(this, &DispatchGeometryCollectionCrumblingEvent);
 
-				Solver->EnqueueCommandImmediate([Solver]()
-					{
-						Solver->SetGenerateBreakingData(true);
-					});
+					Solver->EnqueueCommandImmediate([Solver]()
+						{
+							Solver->SetGenerateBreakingData(true);
+						});
+				}
 			}
 		}
 	}
@@ -1441,49 +1447,61 @@ void UGeometryCollectionComponent::RegisterForEvents()
 
 void UGeometryCollectionComponent::UpdateRBCollisionEventRegistration()
 {
-	if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
+	if (EventDispatcher)
 	{
-		EventDispatcher->RegisterForCollisionEvents(this, this);
-	}
-	else
-	{
-		EventDispatcher->UnRegisterForCollisionEvents(this, this);
+		if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
+		{
+			EventDispatcher->RegisterForCollisionEvents(this, this);
+		}
+		else
+		{
+			EventDispatcher->UnRegisterForCollisionEvents(this, this);
+		}
 	}
 }
 
 void UGeometryCollectionComponent::UpdateBreakEventRegistration()
 {
-	if (bNotifyBreaks)
+	if (EventDispatcher)
 	{
-		EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
-	}
-	else
-	{
-		EventDispatcher->UnRegisterForBreakEvents(this);
+		if (bNotifyBreaks)
+		{
+			EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
+		}
+		else
+		{
+			EventDispatcher->UnRegisterForBreakEvents(this);
+		}
 	}
 }
 
 void UGeometryCollectionComponent::UpdateRemovalEventRegistration()
 {
-	if (bNotifyRemovals)
+	if (EventDispatcher)
 	{
-		EventDispatcher->RegisterForRemovalEvents(this, &DispatchGeometryCollectionRemovalEvent);
-	}
-	else
-	{
-		EventDispatcher->UnRegisterForRemovalEvents(this);
+		if (bNotifyRemovals)
+		{
+			EventDispatcher->RegisterForRemovalEvents(this, &DispatchGeometryCollectionRemovalEvent);
+		}
+		else
+		{
+			EventDispatcher->UnRegisterForRemovalEvents(this);
+		}
 	}
 }
 
 void UGeometryCollectionComponent::UpdateCrumblingEventRegistration()
 {
-	if (bNotifyCrumblings)
+	if (EventDispatcher)
 	{
-		EventDispatcher->RegisterForCrumblingEvents(this, &DispatchGeometryCollectionCrumblingEvent);
-	}
-	else
-	{
-		EventDispatcher->UnRegisterForCrumblingEvents(this);
+		if (bNotifyCrumblings)
+		{
+			EventDispatcher->RegisterForCrumblingEvents(this, &DispatchGeometryCollectionCrumblingEvent);
+		}
+		else
+		{
+			EventDispatcher->UnRegisterForCrumblingEvents(this);
+		}
 	}
 }
 

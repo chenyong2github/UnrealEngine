@@ -1212,7 +1212,9 @@ private:
 #endif
 	void SwitchRenderModels(const AActor* Actor);
 
-	UChaosGameplayEventDispatcher* EventDispatcher;
+	// Event dispatcher for break, crumble, removal and collision events
+	UPROPERTY(transient)
+	TObjectPtr<UChaosGameplayEventDispatcher> EventDispatcher;
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	bool bIsTransformSelectionModeEnabled;
