@@ -440,7 +440,7 @@ namespace UnrealBuildTool
 			return base.GetBinaryExtension(InBinaryType);
 		}
 
-		internal static DirectoryReference? GetCppCXMetadataLocation(WindowsCompiler Compiler, string CompilerVersion, UnrealArch Architecture, ILogger Logger)
+		internal static DirectoryReference? GetCppCXMetadataLocation(WindowsCompiler Compiler, string? CompilerVersion, UnrealArch Architecture, ILogger Logger)
 		{
 			VersionNumber? SelectedToolChainVersion;
 			DirectoryReference? SelectedToolChainDir;
