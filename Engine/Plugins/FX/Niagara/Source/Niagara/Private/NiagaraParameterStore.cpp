@@ -788,13 +788,17 @@ bool FNiagaraParameterStore::RemoveParameter(const FNiagaraVariableBase& ToRemov
 					NewOffsets.Add(FNiagaraVariableWithOffset(ExistingVar, Offset, FNiagaraLwcStructConverter()));
 					NewUObjects[Offset] = UObjects[ExistingOffset];
 				}
-				else
+				else if (ExistingVar.IsValid())
 				{
 					int32 Offset = NewData.Num();
 					int32 ParamSize = ExistingVar.GetSizeInBytes();
 					NewOffsets.Add(FNiagaraVariableWithOffset(ExistingVar, Offset, Existing.StructConverter));
 					NewData.AddUninitialized(ParamSize);
 					FMemory::Memcpy(NewData.GetData() + Offset, ParameterData.GetData() + ExistingOffset, ParamSize);
+				}
+				else
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("RemoveParameter: Encountered invalid variable in parameter store (%s) -> variable: %s"), *GetPathNameSafe(Owner.Get()), *ExistingVar.GetName().ToString());
 				}
 			}
 		}

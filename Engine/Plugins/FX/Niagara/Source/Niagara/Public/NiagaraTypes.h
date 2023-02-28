@@ -1002,7 +1002,8 @@ public:
 
 	FORCEINLINE bool IsUObject() const
 	{
-		return GetStruct()->IsChildOf<UObject>();
+		const UStruct* ClassStruct = GetStruct();
+		return ClassStruct ? ClassStruct->IsChildOf<UObject>() : false;
 	}
 
 	bool IsEnum() const { return UnderlyingType == UT_Enum; }
