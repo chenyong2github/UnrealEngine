@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProxyTableUncookedModule.h"
+#include "Modules/ModuleManager.h"
 
 namespace UE::ProxyTable
 {

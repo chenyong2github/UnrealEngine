@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChooserUncookedModule.h"
+#include "Modules/ModuleManager.h"
 
 namespace UE::Chooser
 {
