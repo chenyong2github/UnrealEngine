@@ -33,7 +33,6 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Views/SListPanel.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Editor/EditorEngine.h"
@@ -852,23 +851,6 @@ TArray<FMultiRigData> SMultiRigHierarchyTreeView::GetSelectedData() const
 		Keys.Add(SelectedElement->Data);
 	}
 	return Keys;
-}
-
-TSharedPtr<FMultiRigTreeElement> SMultiRigHierarchyTreeView::FindItemAtPosition(FVector2D InScreenSpacePosition) const
-{
-	if (ItemsPanel.IsValid() && HasValidItemsSource())
-	{
-		const FGeometry MyGeometry = ItemsPanel->GetCachedGeometry();
-		FArrangedChildren ArrangedChildren(EVisibility::Visible);
-		ItemsPanel->ArrangeChildren(MyGeometry, ArrangedChildren, true);
-
-		const int32 Index = ItemsPanel->FindChildUnderPosition(ArrangedChildren, InScreenSpacePosition);
-		if (GetItems().IsValidIndex(Index))
-		{
-			return GetItems()[Index];
-		}
-	}
-	return TSharedPtr<FMultiRigTreeElement>();
 }
 
 TArray<URigHierarchy*> SMultiRigHierarchyTreeView::GetHierarchy() const

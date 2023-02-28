@@ -1717,6 +1717,20 @@ public:
 		return Private_ItemFromWidget( WidgetToFind );
 	}
 
+	/** Given a position, return the item under that position. If nothing is there, return null. */
+	const ItemType* FindItemAtPosition(FVector2D InScreenSpacePosition) const
+	{
+		if (this->ItemsSource)
+		{
+			const int32 Index = this->FindChildUnderPosition(InScreenSpacePosition);
+			if (this->ItemsSource->IsValidIndex(Index))
+			{
+				return &this->ItemsSource->operator[](Index);
+			}
+		}
+		return nullptr;
+	}
+
 	/**
 	 * Test if the current item is selected.
 	 *

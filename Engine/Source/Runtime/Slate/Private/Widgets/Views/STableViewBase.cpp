@@ -1024,6 +1024,20 @@ void STableViewBase::NavigateToWidget(const uint32 UserIndex, const TSharedPtr<S
 	FSlateApplication::Get().NavigateToWidget(UserIndex, NavigationDestination, NavigationSource);
 }
 
+int32 STableViewBase::FindChildUnderPosition(const FVector2D& ArrangedSpacePosition) const
+{
+	if (ItemsPanel.IsValid())
+	{
+		const FGeometry MyGeometry = ItemsPanel->GetCachedGeometry();
+		FArrangedChildren ArrangedChildren(EVisibility::Visible);
+		ItemsPanel->ArrangeChildren(MyGeometry, ArrangedChildren, true);
+
+		return ItemsPanel->FindChildUnderPosition(ArrangedChildren, ArrangedSpacePosition);
+	}
+
+	return INDEX_NONE;
+}
+
 void STableViewBase::OnRightMouseButtonUp(const FPointerEvent& MouseEvent)
 {
 	FVector2f SummonLocation = MouseEvent.GetScreenSpacePosition();

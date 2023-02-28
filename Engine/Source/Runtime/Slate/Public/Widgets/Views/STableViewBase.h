@@ -383,6 +383,9 @@ protected:
 	/** Util Function so templates classes don't need to include SlateApplication */
 	void NavigateToWidget(const uint32 UserIndex, const TSharedPtr<SWidget>& NavigationDestination, ENavigationSource NavigationSource = ENavigationSource::FocusedWidget) const;
 
+	/** Util function to find the child index under the given position. */
+	int32 FindChildUnderPosition(const FVector2D& ArrangedSpacePosition) const;
+
 	/** The panel which holds the visible widgets in this list */
 	TSharedPtr< SListPanel > ItemsPanel;
 

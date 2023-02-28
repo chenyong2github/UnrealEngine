@@ -190,7 +190,6 @@ public:
 	const TArray<TSharedPtr<FMultiRigTreeElement>>& GetRootElements() const { return RootElements; }
 	FMultiRigTreeDelegates& GetTreeDelegates() { return Delegates; }
 
-	TSharedPtr<FMultiRigTreeElement> FindItemAtPosition(FVector2D InScreenSpacePosition) const;
 	TArray<URigHierarchy*> GetHierarchy() const;
 	void SetControlRigs(TArrayView < TWeakObjectPtr<UControlRig>>& InControlRigs);
 

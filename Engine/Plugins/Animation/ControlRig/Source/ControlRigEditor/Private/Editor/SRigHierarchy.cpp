@@ -42,7 +42,6 @@
 #include "Editor/ControlRigContextMenuContext.h"
 #include "Editor/SRigSpacePickerWidget.h"
 #include "Settings/ControlRigSettings.h"
-#include "Widgets/Views/SListPanel.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Styling/AppStyle.h"
@@ -51,6 +50,7 @@
 #include "Algo/MinElement.h"
 #include "Algo/MaxElement.h"
 #include "RigVMFunctions/Math/RigVMMathLibrary.h"
+#include "Preferences/PersonaOptions.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SRigHierarchy)
 
@@ -2459,8 +2459,8 @@ bool SRigHierarchy::HandleVerifyNameChanged(const FRigElementKey& OldKey, const 
 FReply SRigHierarchy::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
 	// only allow drops onto empty space of the widget (when there's no target item under the mouse)
-	TSharedPtr<FRigTreeElement> ItemAtMouse = TreeView->FindItemAtPosition(DragDropEvent.GetScreenSpacePosition());
-	if(ItemAtMouse.IsValid())
+	const TSharedPtr<FRigTreeElement>* ItemAtMouse = TreeView->FindItemAtPosition(DragDropEvent.GetScreenSpacePosition());
+	if (ItemAtMouse && ItemAtMouse->IsValid())
 	{
 		return FReply::Unhandled();
 	}
