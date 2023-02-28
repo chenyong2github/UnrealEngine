@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SkeletonRemapping.h"
+#include "Animation/SkeletonRemapping.h"
 
 #include "AnimationRuntime.h"
 #include "Animation/Skeleton.h"

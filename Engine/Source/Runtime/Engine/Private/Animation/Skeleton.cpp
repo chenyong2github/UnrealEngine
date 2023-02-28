@@ -27,7 +27,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "UObject/AnimObjectVersion.h"
 #include "EngineUtils.h"
-#include "SkeletonRemappingRegistry.h"
+#include "Animation/SkeletonRemappingRegistry.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Skeleton)

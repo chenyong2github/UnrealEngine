@@ -7,8 +7,8 @@
 
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
-#include "SkeletonRemappingRegistry.h"
-#include "SkeletonRemapping.h"
+#include "Animation/SkeletonRemappingRegistry.h"
+#include "Animation/SkeletonRemapping.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 DECLARE_CYCLE_STAT(TEXT("Build Anim Track Pairs"), STAT_BuildAnimTrackPairs, STATGROUP_Anim);
