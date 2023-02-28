@@ -542,7 +542,7 @@ D3D12_RESOURCE_ALLOCATION_INFO FD3D12Device::GetResourceAllocationInfo(const FD3
 	{
 		D3D12_RESOURCE_ALLOCATION_INFO Result;
 #if INTEL_EXTENSIONS
-		if (InDesc.bRequires64BitAtomicSupport && IsRHIDeviceIntel() && GRHISupportsAtomicUInt64)
+		if (InDesc.bRequires64BitAtomicSupport && IsRHIDeviceIntel() && GDX12INTCAtomicUInt64Emulation)
 		{
 			FD3D12ResourceDesc LocalDesc = InDesc;
 

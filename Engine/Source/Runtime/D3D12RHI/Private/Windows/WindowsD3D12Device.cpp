@@ -27,6 +27,8 @@
 	THIRD_PARTY_INCLUDES_START
 	#include "igdext.h"
 	THIRD_PARTY_INCLUDES_END
+
+	bool GDX12INTCAtomicUInt64Emulation = false;
 #endif
 
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -365,8 +367,6 @@ static INTCExtensionContext* CreateIntelExtensionsContext(ID3D12Device* Device, 
 
 static bool EnableIntelAtomic64Support(INTCExtensionContext* IntelExtensionContext, INTCExtensionInfo& INTCExtensionInfo)
 {
-	bool bEmulatedAtomic64Support = false;
-
 	if (IntelExtensionContext)
 	{
 #if D3D12_CORE_ENABLED
@@ -379,7 +379,7 @@ static bool EnableIntelAtomic64Support(INTCExtensionContext* IntelExtensionConte
 			const HRESULT hr = INTC_D3D12_SetFeatureSupport(IntelExtensionContext, &INTCFeature);
 			if (SUCCEEDED(hr))
 			{
-				bEmulatedAtomic64Support = true;
+				GDX12INTCAtomicUInt64Emulation = true;
 				UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions 64-bit Typed Atomics emulation enabled."));
 			}
 			else
@@ -390,7 +390,7 @@ static bool EnableIntelAtomic64Support(INTCExtensionContext* IntelExtensionConte
 #endif
 	}
 
-	return bEmulatedAtomic64Support;
+	return GDX12INTCAtomicUInt64Emulation;
 }
 #endif
 

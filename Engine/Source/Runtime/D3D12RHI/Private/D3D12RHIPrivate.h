@@ -102,6 +102,10 @@ inline const TCHAR* GetD3DCommandQueueTypeName(ED3D12QueueType QueueType)
 
 #endif // NV_AFTERMATH
 
+#if INTEL_EXTENSIONS
+	extern bool GDX12INTCAtomicUInt64Emulation;
+#endif //INTEL_EXTENSIONS
+
 #include "D3D12Residency.h"
 
 // D3D RHI public headers.
