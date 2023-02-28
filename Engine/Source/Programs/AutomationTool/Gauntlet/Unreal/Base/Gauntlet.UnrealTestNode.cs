@@ -1479,7 +1479,7 @@ namespace Gauntlet
 			);
 			HordeReport.TestDataCollection HordeTestDataCollection = new HordeReport.TestDataCollection();
 			HordeTestDataCollection.AddNewTestReport(Report, GetCachedConfiguration().HordeTestDataKey);
-			HordeTestDataCollection.WriteToJson(HordeTestDataFilePath, true);
+			HordeTestDataCollection.WriteToJson(HordeTestDataFilePath, !AutomationTool.Automation.IsBuildMachine);
 		}
 
 		/// <summary>

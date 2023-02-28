@@ -1178,7 +1178,16 @@ namespace Gauntlet
 				DataItem NewDataItem = new DataItem();
 				NewDataItem.Key = string.IsNullOrEmpty(InKey) ? InData.Type : InKey;
 				NewDataItem.Data = InData;
-				Items.Add(NewDataItem);
+
+				var FoundItemIndex = Items.FindIndex(I => I.Key == InKey);
+				if (FoundItemIndex == -1)
+				{
+					Items.Add(NewDataItem);
+				}
+				else
+				{
+					Items[FoundItemIndex] = NewDataItem;
+				}
 
 				var ExtraItems = InData.GetReportDependencies();
 				if (ExtraItems.Count() > 0)
