@@ -237,6 +237,8 @@ int32 UMovieSceneTrack::GetMaxRowIndex() const
 
 bool UMovieSceneTrack::FixRowIndices()
 {
+	TMap<int32, int32> NewToOldRowIndices;
+
 	bool bFixesMade = false;
 	TArray<UMovieSceneSection*> Sections = GetAllSections();
 	if (SupportsMultipleRows())
@@ -259,8 +261,10 @@ bool UMovieSceneTrack::FixRowIndices()
 				{
 					if (SectionForIndex->GetRowIndex() != NewIndex)
 					{
+						int32 OldIndex = SectionForIndex->GetRowIndex();
 						SectionForIndex->Modify();
 						SectionForIndex->SetRowIndex(NewIndex);
+						NewToOldRowIndices.FindOrAdd(NewIndex, OldIndex);
 						bFixesMade = true;
 					}
 				}
@@ -286,6 +290,11 @@ bool UMovieSceneTrack::FixRowIndices()
 				bFixesMade = true;
 			}
 		}
+	}
+
+	if (NewToOldRowIndices.Num())
+	{
+		OnRowIndicesChanged(NewToOldRowIndices);
 	}
 	return bFixesMade;
 }

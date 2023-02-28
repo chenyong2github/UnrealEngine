@@ -1086,17 +1086,22 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 
 	// If sections are all on different rows or from different tracks, don't set row indices for anything because it leads to odd behavior.
 	bool bSectionsAreOnDifferentRows = false;
-	int32 FirstRowIndex = -1;
+	TOptional<int32> LowestRowIndex;
+	TOptional<int32> HighestRowIndex;
 	UMovieSceneTrack* FirstTrack = nullptr;
 
 	for (UMovieSceneSection* Section : Sections)
 	{
 		UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
-		if (FirstRowIndex == -1)
+		if (!LowestRowIndex.IsSet() || LowestRowIndex.GetValue() < Section->GetRowIndex())
 		{
-			FirstRowIndex = Section->GetRowIndex();
+			LowestRowIndex = Section->GetRowIndex();
 		}
-		if (FirstRowIndex != Section->GetRowIndex())
+		if (!HighestRowIndex.IsSet() || HighestRowIndex.GetValue() > Section->GetRowIndex())
+		{
+			HighestRowIndex = Section->GetRowIndex();
+		}
+		if (LowestRowIndex.IsSet() && LowestRowIndex.GetValue() != Section->GetRowIndex())
 		{
 			bSectionsAreOnDifferentRows = true;
 		}
@@ -1296,7 +1301,7 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 					{
 						if (!Sections.Contains(InitialRowIndex.Section))
 						{
-							if (InitialRowIndex.RowIndex <= FirstRowIndex)
+							if (LowestRowIndex.IsSet() && InitialRowIndex.RowIndex <= LowestRowIndex.GetValue())
 							{
 								bSectionsBeingMovedAreAtTop = false;
 								break;
@@ -1320,9 +1325,30 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 			}
 			else
 			{
-				Section->Modify();
-				Section->SetRowIndex(TargetRowIndex);
-				bRowIndexChanged = true;
+				if (!bSectionsAreOnDifferentRows)
+				{
+					// If the sections being moved are all at the bottom, and all others are aove it, do nothing
+					bool bSectionsBeingMovedAreAtBottom = true;
+
+					for (const FInitialRowIndex& InitialRowIndex : InitialSectionRowIndicies)
+					{
+						if (!Sections.Contains(InitialRowIndex.Section))
+						{
+							if (HighestRowIndex.IsSet() && InitialRowIndex.RowIndex >= HighestRowIndex.GetValue())
+							{
+								bSectionsBeingMovedAreAtBottom = false;
+								break;
+							}
+						}
+					}
+
+					if (!bSectionsBeingMovedAreAtBottom || TargetRowIndex < Section->GetRowIndex())
+					{
+						Section->Modify();
+						Section->SetRowIndex(TargetRowIndex);
+						bRowIndexChanged = true;
+					}
+				}
 			}
 		}
 	}

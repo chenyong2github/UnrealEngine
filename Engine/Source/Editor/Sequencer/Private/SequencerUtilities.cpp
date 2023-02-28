@@ -30,6 +30,7 @@
 #include "EntitySystem/MovieSceneBlenderSystem.h"
 #include "EntitySystem/IMovieSceneBlenderSystemSupport.h"
 #include "MovieSceneFolder.h"
+#include "MovieSceneNameableTrack.h"
 #include "MovieSceneSection.h"
 #include "MovieSceneSpawnRegister.h"
 #include "MovieSceneTimeHelpers.h"
@@ -181,18 +182,25 @@ void FSequencerUtilities::PopulateMenu_CreateNewSection(FMenuBuilder& MenuBuilde
 		if (UMovieSceneSection* NewSection = Track->CreateNewSection())
 		{
 			int32 OverlapPriority = 0;
+			TMap<int32, int32> NewToOldRowIndices;
 			for (UMovieSceneSection* Section : Track->GetAllSections())
 			{
-				OverlapPriority = FMath::Max(Section->GetOverlapPriority() + 1, OverlapPriority);
+				OverlapPriority = FMath::Max(Section->GetOverlapPriority() + 1, OverlapPriority);				
 
 				// Move existing sections on the same row or beyond so that they don't overlap with the new section
 				if (Section != NewSection && Section->GetRowIndex() >= RowIndex)
 				{
-					Section->SetRowIndex(Section->GetRowIndex() + 1);
+					int32 OldRowIndex = Section->GetRowIndex();
+					int32 NewRowIndex = Section->GetRowIndex() + 1;
+					NewToOldRowIndices.FindOrAdd(NewRowIndex, OldRowIndex);
+					Section->Modify();
+					Section->SetRowIndex(NewRowIndex);
 				}
 			}
 
 			Track->Modify();
+
+			Track->OnRowIndicesChanged(NewToOldRowIndices);
 
 			FFrameNumber NewSectionRangeEnd = PlaybackEnd;
 			if (PlaybackEnd <= CurrentTime.Time.FrameNumber)
@@ -204,11 +212,16 @@ void FSequencerUtilities::PopulateMenu_CreateNewSection(FMenuBuilder& MenuBuilde
 			
 			NewSection->SetRange(TRange<FFrameNumber>(CurrentTime.Time.FrameNumber, NewSectionRangeEnd));
 			NewSection->SetOverlapPriority(OverlapPriority);
-			NewSection->SetRowIndex(RowIndex);
+			NewSection->SetRowIndex(RowIndex);			
 			NewSection->SetBlendType(BlendType);
 
 			Track->AddSection(*NewSection);
 			Track->UpdateEasing();
+
+			if (UMovieSceneNameableTrack* NameableTrack = Cast<UMovieSceneNameableTrack>(Track))
+			{
+				NameableTrack->SetTrackRowDisplayName(FText::GetEmpty(), RowIndex);
+			}
 
 			Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 			Sequencer->EmptySelection();

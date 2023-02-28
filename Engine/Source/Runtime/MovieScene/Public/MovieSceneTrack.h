@@ -345,6 +345,9 @@ public:
 	 */
 	MOVIESCENE_API bool FixRowIndices();
 
+	/** Called when row indices have been fixed up */
+	MOVIESCENE_API virtual void OnRowIndicesChanged(const TMap<int32, int32>& NewToOldRowIndices) {}
+
 	/**
 	* @return Whether evaluation of this track should be disabled due to mute/solo settings
 	*/

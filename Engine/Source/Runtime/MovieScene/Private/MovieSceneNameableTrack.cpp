@@ -93,9 +93,25 @@ FText UMovieSceneNameableTrack::GetTrackRowDisplayName(int32 TrackRowIndex) cons
 }
 
 FText UMovieSceneNameableTrack::GetDefaultDisplayName() const
-
 { 
 	return LOCTEXT("UnnamedTrackName", "Unnamed Track"); 
+}
+
+void UMovieSceneNameableTrack::OnRowIndicesChanged(const TMap<int32, int32>& NewToOldRowIndices)
+{
+	TArray<FText> OriginalTrackRowDisplayNames = TrackRowDisplayNames;
+
+	Modify();
+	TrackRowDisplayNames.Empty();
+	for (int32 RowIndex = 0, RowMax = GetMaxRowIndex(); RowIndex <= RowMax; ++RowIndex)
+	{
+		const int32* OldIndex = NewToOldRowIndices.Find(RowIndex);
+		int32 RemappedIndex = OldIndex ? *OldIndex : RowIndex;
+		if (RemappedIndex < OriginalTrackRowDisplayNames.Num())
+		{
+			TrackRowDisplayNames.Add(OriginalTrackRowDisplayNames[RemappedIndex]);
+		}
+	}
 }
 
 #endif

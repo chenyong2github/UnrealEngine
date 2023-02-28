@@ -65,6 +65,8 @@ public:
 	MOVIESCENE_API virtual FText GetTrackRowDisplayName(int32 RowIndex) const override;
 	MOVIESCENE_API virtual FText GetDefaultDisplayName() const;
 
+	MOVIESCENE_API virtual void OnRowIndicesChanged(const TMap<int32, int32>& NewToOldRowIndices) override;
+
 private:
 
 	/** The track's human readable display name. */
