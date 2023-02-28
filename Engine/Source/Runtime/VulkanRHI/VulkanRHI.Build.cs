@@ -10,6 +10,7 @@ public class VulkanRHI : ModuleRules
 	{
 		IWYUSupport = IWYUSupport.None;
 		bLegalToDistributeObjectCode = true;
+		bBuildLocallyWithSNDBS = false; // VulkanPlatform.h
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
