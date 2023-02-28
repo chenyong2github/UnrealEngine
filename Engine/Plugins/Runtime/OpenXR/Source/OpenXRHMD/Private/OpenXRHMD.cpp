@@ -1954,12 +1954,12 @@ void FOpenXRHMD::DestroySession()
 			Layer.LeftEye.Swapchain.Reset();
 		});
 
-		NativeQuadLayers.Reset();
+		NativeLayers.Reset();
 		EmulatedFaceLockedLayers.Reset();
 
 		PipelinedLayerStateRendering.ColorSwapchain.Reset();
 		PipelinedLayerStateRendering.DepthSwapchain.Reset();
-		PipelinedLayerStateRendering.QuadSwapchains.Reset();
+		PipelinedLayerStateRendering.NativeOverlaySwapchains.Reset();
 		PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain.Reset();
 
 		// TODO: Once we handle OnFinishRendering_RHIThread + StopSession interactions
@@ -1967,7 +1967,7 @@ void FOpenXRHMD::DestroySession()
 		// `ensure` here to make sure these are released.
 		PipelinedLayerStateRHI.ColorSwapchain.Reset();
 		PipelinedLayerStateRHI.DepthSwapchain.Reset();
-		PipelinedLayerStateRHI.QuadSwapchains.Reset();
+		PipelinedLayerStateRHI.NativeOverlaySwapchains.Reset();
 		PipelinedLayerStateRHI.EmulatedLayerState.EmulationSwapchain.Reset();
 
 		PipelinedFrameStateGame.TrackingSpace.Reset();
@@ -2373,35 +2373,30 @@ bool FOpenXRHMD::IsEmulatingStereoLayers()
 	return !bLayerSupportOpenXRCompliant || CVarOpenXRForceStereoLayerEmulation.GetValueOnAnyThread();
 }
 
-void FOpenXRHMD::SetupFrameQuadLayers_RenderThread(FRHICommandListImmediate& RHICmdList)
+void FOpenXRHMD::SetupFrameLayers_RenderThread(FRHICommandListImmediate& RHICmdList)
 {
 	ensure(IsInRenderingThread());
-
 	if (GetStereoLayersDirty())
 	{
-		// When SetupFrameQuadLayers_RenderThread is called more than once with GetStereoLayersDirty = true,
-		// NativeQuadLayers is rebuilt from the internal array of stereo layers. However, the internal array is
+		// When SetupFrameLayers_RenderThread is called more than once with GetStereoLayersDirty = true,
+		// NativeLayers is rebuilt from the internal array of stereo layers. However, the internal array is
 		// not updated after a static swapchain is created for a layer and it always retains bUpdateTexture = true
 		// which leads to the swapchain trying to acquire a second image and resulting in a crash.
 		// This serves as a workaround that updates the internal state of the layers mirroring the most recent state
 		// of the NativeQuadLayers.
-		TArray<FOpenXRLayer> NativeQuadLayersBackup = NativeQuadLayers;
-		// Go over the dirtied layers to bin them into either native or emulated
+		TArray<FOpenXRLayer> NativeLayersBackup = NativeLayers;
+		
 		BackgroundCompositedEmulatedLayers.Reset();
 		EmulatedFaceLockedLayers.Reset();
-		NativeQuadLayers.Reset();
+		NativeLayers.Reset();
 
+		// Go over the dirtied layers to bin them into either native or emulated
 		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
 		{
-			// OpenXR currently supports only Quad layers
-			if (!Layer.Desc.HasShape<FQuadLayer>())
-			{
-				return;
-			}
 			if (IsEmulatingStereoLayers())
 			{
-
-				if (!Layer.Desc.IsVisible())
+				// Only quad layers are supported by emulation.
+				if (!Layer.Desc.HasShape<FQuadLayer>() || !Layer.Desc.IsVisible())
 				{
 					return;
 				}
@@ -2424,30 +2419,7 @@ void FOpenXRHMD::SetupFrameQuadLayers_RenderThread(FRHICommandListImmediate& RHI
 			} // OpenXR compliant layer support (16 layers).
 			else 
 			{
-				if (Layer.Desc.IsVisible())
-				{
-					CreateNativeLayerSwapchain(Layer, RenderBridge, Session);
-					FOpenXRLayer& LastLayer = NativeQuadLayers.Add_GetRef(Layer);
-					FOpenXRLayer* FoundLayer = NativeQuadLayersBackup.FindByPredicate([LayerId = LastLayer.GetLayerId()](const FOpenXRLayer& Layer)
-					{
-						if (Layer.GetLayerId() == LayerId)
-						{
-							return true;
-						}
-						return false;
-					});
-					if (FoundLayer != nullptr)
-					{
-						LastLayer.RightEye.bUpdateTexture = FoundLayer->RightEye.bUpdateTexture;
-						LastLayer.LeftEye.bUpdateTexture = FoundLayer->LeftEye.bUpdateTexture;
-					}
-				}
-				else
-				{
-					// We retain references in FPipelinedLayerState to avoid premature destruction
-					Layer.RightEye.Swapchain.Reset();
-					Layer.LeftEye.Swapchain.Reset();
-				}
+				ConfigureLayerSwapchain(Layer, NativeLayersBackup);
 			}
 		});
 
@@ -2477,7 +2449,7 @@ void FOpenXRHMD::SetupFrameQuadLayers_RenderThread(FRHICommandListImmediate& RHI
 
 		BackgroundCompositedEmulatedLayers.Sort(LayerCompare);
 		EmulatedFaceLockedLayers.Sort(LayerCompare);
-		NativeQuadLayers.Sort(LayerCompare);
+		NativeLayers.Sort(LayerCompare);
 
 		PipelinedLayerStateRendering.EmulatedLayerState.bIsFaceLockedLayerEmulationActive = !EmulatedFaceLockedLayers.IsEmpty();
 	}
@@ -2485,67 +2457,82 @@ void FOpenXRHMD::SetupFrameQuadLayers_RenderThread(FRHICommandListImmediate& RHI
 	const FTransform InvTrackingToWorld = GetTrackingToWorldTransform().Inverse();
 	const float WorldToMeters = GetWorldToMetersScale();
 
-	// Set up our OpenXR info per native quad layer. Emulated layers have everything in FLayerDesc
-	PipelinedLayerStateRendering.QuadLayers.Reset(NativeQuadLayers.Num());
-	PipelinedLayerStateRendering.QuadSwapchains.Reset(NativeQuadLayers.Num());
+	PipelinedLayerStateRendering.NativeOverlays.Reset(NativeLayers.Num());
+	PipelinedLayerStateRendering.NativeOverlaySwapchains.Reset(NativeLayers.Num());
+
+	// Set up our OpenXR info per native layer. Emulated layers have everything in FLayerDesc.
+	for (const FOpenXRLayer& Layer : NativeLayers)
 	{
 		FReadScopeLock DeviceLock(DeviceMutex);
 
-		for (const FOpenXRLayer& Layer : NativeQuadLayers)
+		XrSpace Space = Layer.Desc.PositionType == ELayerType::FaceLocked ?
+			DeviceSpaces[HMDDeviceId].Space : PipelinedFrameStateRendering.TrackingSpace->Handle;
+		
+		TArray<FXrCompositionLayerUnion> Headers = Layer.CreateOpenXRLayer(InvTrackingToWorld, WorldToMeters, Space);
+		PipelinedLayerStateRendering.NativeOverlays.Append(Headers);
+		UpdateLayerSwapchainTexture(Layer, RHICmdList);
+	}
+}
+
+void FOpenXRHMD::ConfigureLayerSwapchain(FOpenXRLayer& Layer, TArray<FOpenXRLayer>& BackupLayers)
+{
+	// OpenXR currently supports only Quad layers unless the cylinder and equirect extensions are enabled.
+	if ((Layer.Desc.HasShape<FCylinderLayer>() && IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_CYLINDER_EXTENSION_NAME)) ||
+		(Layer.Desc.HasShape<FEquirectLayer>() && IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_EQUIRECT_EXTENSION_NAME)) ||
+		Layer.Desc.HasShape<FQuadLayer>())
+	{
+		if (Layer.Desc.IsVisible())
 		{
-			const bool bNoAlpha = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL;
-			const bool bIsStereo = Layer.Desc.LeftTexture.IsValid();
-			const FTransform PositionTransform = Layer.Desc.PositionType == ELayerType::WorldLocked ?
-				InvTrackingToWorld : FTransform::Identity;
-
-			XrCompositionLayerQuad Quad = { XR_TYPE_COMPOSITION_LAYER_QUAD, nullptr };
-			Quad.layerFlags = bNoAlpha ? 0 : XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT |
-				XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
-			Quad.space = Layer.Desc.PositionType == ELayerType::FaceLocked ?
-				DeviceSpaces[HMDDeviceId].Space : PipelinedFrameStateRendering.TrackingSpace->Handle;
-			Quad.subImage.imageArrayIndex = 0;
-			Quad.pose = ToXrPose(Layer.Desc.Transform * PositionTransform, WorldToMeters);
-
-			// The layer pose doesn't take the transform scale into consideration, so we need to manually apply it the quad size.
-			const FVector2D LayerComponentScaler(Layer.Desc.Transform.GetScale3D().Y, Layer.Desc.Transform.GetScale3D().Z);
-			const ETextureCopyBlendModifier SrcTextureCopyModifier = bNoAlpha ? ETextureCopyBlendModifier::Opaque : ETextureCopyBlendModifier::TransparentAlphaPassthrough;
-
-			// We need to copy each layer into an OpenXR swapchain so they can be displayed by the compositor
-			if (Layer.RightEye.Swapchain.IsValid() && Layer.Desc.Texture.IsValid())
+			CreateNativeLayerSwapchain(Layer, RenderBridge, Session);
+			FOpenXRLayer& LastLayer = NativeLayers.Add_GetRef(Layer);
+			FOpenXRLayer* FoundLayer = BackupLayers.FindByPredicate([LayerId = LastLayer.GetLayerId()](const FOpenXRLayer& Layer)
 			{
-				if (Layer.RightEye.bUpdateTexture && bIsRunning)
+				if (Layer.GetLayerId() == LayerId)
 				{
-					FRHITexture2D* SrcTexture = Layer.Desc.Texture->GetTexture2D();
-					const FIntRect DstRect(FIntPoint(0, 0), Layer.RightEye.SwapchainSize.IntPoint());
-					CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.RightEye.Swapchain, DstRect, false, SrcTextureCopyModifier);
+					return true;
 				}
-
-				Quad.eyeVisibility = bIsStereo ? XR_EYE_VISIBILITY_RIGHT : XR_EYE_VISIBILITY_BOTH;
-
-				Quad.subImage.imageRect = ToXrRect(Layer.GetRightViewportSize());
-				Quad.subImage.swapchain = static_cast<FOpenXRSwapchain*>(Layer.RightEye.Swapchain.Get())->GetHandle();
-				Quad.size = ToXrExtent2D(Layer.GetRightQuadSize() * LayerComponentScaler, WorldToMeters);
-				PipelinedLayerStateRendering.QuadLayers.Add(Quad);
-				PipelinedLayerStateRendering.QuadSwapchains.Add(Layer.RightEye.Swapchain);
-			}
-
-			if (Layer.LeftEye.Swapchain.IsValid() && Layer.Desc.LeftTexture.IsValid())
+				return false;
+			});
+			if (FoundLayer != nullptr)
 			{
-				if (Layer.LeftEye.bUpdateTexture && bIsRunning)
-				{
-					FRHITexture2D* SrcTexture = Layer.Desc.LeftTexture->GetTexture2D();
-					const FIntRect DstRect(FIntPoint(0, 0), Layer.LeftEye.SwapchainSize.IntPoint());
-					CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.LeftEye.Swapchain, DstRect, false, SrcTextureCopyModifier);
-				}
-
-				Quad.eyeVisibility = XR_EYE_VISIBILITY_LEFT;
-				Quad.subImage.imageRect = ToXrRect(Layer.GetLeftViewportSize());
-				Quad.subImage.swapchain = static_cast<FOpenXRSwapchain*>(Layer.LeftEye.Swapchain.Get())->GetHandle();
-				Quad.size = ToXrExtent2D(Layer.GetLeftQuadSize() * LayerComponentScaler, WorldToMeters);
-				PipelinedLayerStateRendering.QuadLayers.Add(Quad);
-				PipelinedLayerStateRendering.QuadSwapchains.Add(Layer.LeftEye.Swapchain);
+				LastLayer.RightEye.bUpdateTexture = FoundLayer->RightEye.bUpdateTexture;
+				LastLayer.LeftEye.bUpdateTexture = FoundLayer->LeftEye.bUpdateTexture;
 			}
 		}
+		else
+		{
+			// We retain references in FPipelinedLayerState to avoid premature destruction
+			Layer.RightEye.Swapchain.Reset();
+			Layer.LeftEye.Swapchain.Reset();
+		}
+	}
+}
+
+void FOpenXRHMD::UpdateLayerSwapchainTexture(const FOpenXRLayer& Layer, FRHICommandListImmediate& RHICmdList)
+{
+	const bool bNoAlpha = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL;
+	const ETextureCopyBlendModifier SrcTextureCopyModifier = bNoAlpha ? ETextureCopyBlendModifier::Opaque : ETextureCopyBlendModifier::TransparentAlphaPassthrough;
+
+	// We need to copy each layer into an OpenXR swapchain so they can be displayed by the compositor.
+	if (Layer.RightEye.Swapchain.IsValid() && Layer.Desc.Texture.IsValid())
+	{
+		if (Layer.RightEye.bUpdateTexture && bIsRunning)
+		{
+			FRHITexture2D* SrcTexture = Layer.Desc.Texture->GetTexture2D();
+			FIntRect DstRect(FIntPoint(0, 0), Layer.RightEye.SwapchainSize.IntPoint());
+			CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.RightEye.Swapchain, DstRect, false, SrcTextureCopyModifier);
+		}
+		PipelinedLayerStateRendering.NativeOverlaySwapchains.Add(Layer.RightEye.Swapchain);
+	}
+	if (Layer.LeftEye.Swapchain.IsValid() && Layer.Desc.LeftTexture.IsValid())
+	{
+		if (Layer.LeftEye.bUpdateTexture && bIsRunning)
+		{
+			FRHITexture2D* SrcTexture = Layer.Desc.LeftTexture->GetTexture2D();
+			FIntRect DstRect(FIntPoint(0, 0), Layer.LeftEye.SwapchainSize.IntPoint());
+			CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.LeftEye.Swapchain, DstRect, false, SrcTextureCopyModifier);
+		}
+		PipelinedLayerStateRendering.NativeOverlaySwapchains.Add(Layer.LeftEye.Swapchain);
 	}
 }
 
@@ -2706,7 +2693,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		}
 	}
 
-	SetupFrameQuadLayers_RenderThread(RHICmdList);
+	SetupFrameLayers_RenderThread(RHICmdList);
 
 #if !PLATFORM_HOLOLENS
 	if (bHiddenAreaMaskSupported && bNeedReBuildOcclusionMesh)
@@ -2725,11 +2712,11 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		SCOPED_NAMED_EVENT(EnqueueFrame, FColor::Red);
 
 		// Reset the update flag on native quad layers
-		for (FOpenXRLayer& NativeQuadLayer : NativeQuadLayers)
+		for (FOpenXRLayer& Layer : NativeLayers)
 		{
-			const bool bUpdateTexture = NativeQuadLayer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
-			NativeQuadLayer.RightEye.bUpdateTexture = bUpdateTexture;
-			NativeQuadLayer.LeftEye.bUpdateTexture = bUpdateTexture;
+			const bool bUpdateTexture = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
+			Layer.RightEye.bUpdateTexture = bUpdateTexture;
+			Layer.LeftEye.bUpdateTexture = bUpdateTexture;
 		}
 
 		FXRSwapChainPtr ColorSwapchain = PipelinedLayerStateRendering.ColorSwapchain;
@@ -3243,10 +3230,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 			Headers.Add(reinterpret_cast<const XrCompositionLayerBaseHeader*>(&CompositedLayer));
 		}
 
-		for (const XrCompositionLayerQuad& Quad : PipelinedLayerStateRHI.QuadLayers)
-		{
-			Headers.Add(reinterpret_cast<const XrCompositionLayerBaseHeader*>(&Quad));
-		}
+		AddLayersToHeaders(Headers);
 
 		int32 BlendModeOverride = CVarOpenXREnvironmentBlendMode.GetValueOnRenderThread();
 
@@ -3284,6 +3268,14 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	}
 
 	bIsRendering = false;
+}
+
+void FOpenXRHMD::AddLayersToHeaders(TArray<const XrCompositionLayerBaseHeader*>& Headers)
+{
+	for (const FXrCompositionLayerUnion& Layer : PipelinedLayerStateRHI.NativeOverlays)
+	{
+		Headers.Add(reinterpret_cast<const XrCompositionLayerBaseHeader*>(&Layer.Header));
+	}
 }
 
 FXRRenderBridge* FOpenXRHMD::GetActiveRenderBridge_GameThread(bool /* bUseSeparateRenderTarget */)
@@ -3780,7 +3772,7 @@ void FOpenXRHMD::DrawVisibleAreaMesh(class FRHICommandList& RHICmdList, int32 Vi
 
 void FOpenXRHMD::UpdateLayer(FOpenXRLayer& ManagerLayer, uint32 LayerId, bool bIsValid)
 {
-	for (FOpenXRLayer& NativeLayer : NativeQuadLayers)
+	for (FOpenXRLayer& NativeLayer : NativeLayers)
 	{
 		if (NativeLayer.GetLayerId() == LayerId)
 		{

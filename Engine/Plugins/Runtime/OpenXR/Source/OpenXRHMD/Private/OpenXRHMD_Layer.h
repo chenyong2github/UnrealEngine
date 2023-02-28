@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "IStereoLayers.h"
+#include "OpenXRCore.h"
 #include "XRSwapChain.h"
+
+union FXrCompositionLayerUnion;
 
 struct FOpenXRLayer
 {
@@ -45,6 +48,14 @@ struct FOpenXRLayer
 
 	FIntRect GetLeftViewportSize() const;
 	FVector2D GetLeftQuadSize() const;
+
+	TArray<FXrCompositionLayerUnion> CreateOpenXRLayer(FTransform InvTrackingToWorld, float WorldToMeters, XrSpace Space) const;
+	
+private:
+	void CreateOpenXRQuadLayer(bool bIsStereo, bool bNoAlpha, FTransform PositionTransform, float WorldToMeters, XrSpace Space, TArray<FXrCompositionLayerUnion>& Headers) const;
+	void CreateOpenXRCylinderLayer(bool bIsStereo, bool bNoAlpha, FTransform PositionTransform, float WorldToMeters, XrSpace Space, TArray<FXrCompositionLayerUnion>& Headers) const;
+	void CreateOpenXREquirectLayer(bool bIsStereo, bool bNoAlpha, FTransform PositionTransform, float WorldToMeters, XrSpace Space, TArray<FXrCompositionLayerUnion>& Headers) const;
+
 };
 
 bool GetLayerDescMember(const FOpenXRLayer& Layer, IStereoLayers::FLayerDesc& OutLayerDesc);

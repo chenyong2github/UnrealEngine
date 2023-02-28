@@ -111,6 +111,11 @@ FORCEINLINE FVector2D ToFVector2D(XrVector2f Vector, float Scale = 1.0f)
 	return FVector2D(Vector.x * Scale, Vector.y * Scale);
 }
 
+FORCEINLINE XrVector2f ToXrVector2f(FVector2D Vector, float Scale = 1.0f)
+{
+	return XrVector2f{ (float)Vector.X / Scale, (float)Vector.Y / Scale };
+}
+
 FORCEINLINE FVector2D ToFVector2D(XrExtent2Df Extent, float Scale = 1.0f)
 {
 	return FVector2D(Extent.width * Scale, Extent.height * Scale);
@@ -130,6 +135,14 @@ FORCEINLINE uint32 ToXrPriority(int32 Priority)
 	// We do this by casting to an unsigned int and then flipping the signed bit.
 	return (uint32)Priority ^ (1 << 31);
 }
+
+union FXrCompositionLayerUnion
+{
+	XrCompositionLayerBaseHeader Header;
+	XrCompositionLayerQuad Quad;
+	XrCompositionLayerCylinderKHR Cylinder;
+	XrCompositionLayerEquirectKHR Equirect;
+};
 
 /**
  * XrPath wrapper with convenience functions

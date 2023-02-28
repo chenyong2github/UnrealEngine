@@ -25,6 +25,7 @@ class UCanvas;
 class FOpenXRRenderBridge;
 class IOpenXRInputModule;
 struct FDefaultStereoLayers_LayerRenderParams;
+union FXrCompositionLayerUnion;
 
 /**
  * Simple Head Mounted Display
@@ -107,7 +108,7 @@ public:
 
 	struct FPipelinedLayerState
 	{
-		TArray<XrCompositionLayerQuad> QuadLayers;
+		TArray<FXrCompositionLayerUnion> NativeOverlays;
 		TArray<XrCompositionLayerProjectionView> ProjectionLayers;
 		TArray<XrCompositionLayerDepthInfoKHR> DepthLayers;
 
@@ -116,7 +117,7 @@ public:
 
 		FXRSwapChainPtr ColorSwapchain;
 		FXRSwapChainPtr DepthSwapchain;
-		TArray<FXRSwapChainPtr> QuadSwapchains;
+		TArray<FXRSwapChainPtr> NativeOverlaySwapchains;
 
 		FEmulatedLayerState EmulatedLayerState;
 
@@ -233,7 +234,6 @@ public:
 	virtual bool HDRGetMetaDataForStereo(EDisplayOutputFormat& OutDisplayOutputFormat, EDisplayColorGamut& OutDisplayColorGamut, bool& OutbHDRSupported) override;
 
 protected:
-
 	enum ETextureCopyBlendModifier : uint8;
 
 	bool StartSession();
@@ -266,7 +266,7 @@ protected:
 	// Used with FCoreDelegates
 	void VRHeadsetRecenterDelegate();
 
-	void SetupFrameQuadLayers_RenderThread(FRHICommandListImmediate& RHICmdList);
+	void SetupFrameLayers_RenderThread(FRHICommandListImmediate& RHICmdList);
 	void DrawEmulatedLayers_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView);
 	void DrawBackgroundCompositedEmulatedLayers_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView);
 	void DrawEmulatedFaceLockedLayers_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView);
@@ -393,10 +393,15 @@ public:
 	OPENXRHMD_API void SetEnvironmentBlendMode(XrEnvironmentBlendMode NewBlendMode);
 
 private:
+
 	TArray<XrEnvironmentBlendMode> RetrieveEnvironmentBlendModes() const;
 	FDefaultStereoLayers_LayerRenderParams CalculateEmulatedLayerRenderParams(const FSceneView& InView);
 	FRHIRenderPassInfo SetupEmulatedLayersRenderPass(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, TArray<IStereoLayers::FLayerDesc>& Layers, FTexture2DRHIRef RenderTarget, FDefaultStereoLayers_LayerRenderParams& OutRenderParams);
 	bool IsEmulatingStereoLayers();
+	
+	void UpdateLayerSwapchainTexture(const FOpenXRLayer& Layer, FRHICommandListImmediate& RHICmdList);
+	void ConfigureLayerSwapchain(FOpenXRLayer& Layer, TArray<FOpenXRLayer>& BackupLayers);
+	void AddLayersToHeaders(TArray<const XrCompositionLayerBaseHeader*>& Headers);
 
 	bool					bStereoEnabled;
 	TAtomic<bool>			bIsRunning;
@@ -464,5 +469,5 @@ private:
 	bool					bLayerSupportOpenXRCompliant;
 	TArray<IStereoLayers::FLayerDesc> BackgroundCompositedEmulatedLayers;
 	TArray<IStereoLayers::FLayerDesc> EmulatedFaceLockedLayers;
-	TArray<FOpenXRLayer>			  NativeQuadLayers;
+	TArray<FOpenXRLayer>			  NativeLayers;
 };
