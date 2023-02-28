@@ -8,6 +8,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public HLMedia_HoloLens(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PrivateIncludePathModuleNames.Add("D3D11RHI_HoloLens");
 		}
 	}
 }
