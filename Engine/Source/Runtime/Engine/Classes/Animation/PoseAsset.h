@@ -102,8 +102,8 @@ private:
 	UPROPERTY()
 	TArray<FName> PoseFNames;
 
-	// Sorted pose name indices
-	TArray<int32> SortedPoseIndices;
+	// Sorted curve name indices
+	TArray<int32> SortedCurveIndices;
 	
 	// this is list of tracks - vertical data
 	UPROPERTY()
