@@ -3212,6 +3212,10 @@ TSharedFuture<FString> FCsvProfiler::EndCapture(FGraphEventRef EventToSignal)
 	{
 		FScopeLock Lock(&MetadataCS);
 		CopyMetadataMap = MetadataMap;
+		// Merge the metadata
+		CopyMetadataMap.Append(MoveTemp(NonPersistentMetadataMap));
+		// Clear now that the capture is finished.
+		NonPersistentMetadataMap = TMap<FString, FString>();
 	}
 	MetadataQueue.Enqueue(MoveTemp(CopyMetadataMap));
 
@@ -3473,30 +3477,38 @@ void FCsvProfiler::RecordEvent(int32 CategoryIndex, const FString& EventText)
 
 void FCsvProfiler::SetMetadata(const TCHAR* Key, const TCHAR* Value)
 {
-	FCsvProfiler::Get()->SetMetadataInternal(Key, Value, true);
+	FCsvProfiler::Get()->SetMetadataInternal(Key, Value, true, EMetadataPersistenceType::Persistent);
+}
+
+void FCsvProfiler::SetNonPersistentMetadata(const TCHAR* Key, const TCHAR* Value)
+{
+	FCsvProfiler::Get()->SetMetadataInternal(Key, Value, true, EMetadataPersistenceType::NonPersistent);
 }
 
 TMap<FString, FString> FCsvProfiler::GetMetadataMapCopy()
 {
 	LLM_SCOPE(ELLMTag::CsvProfiler);
 	FScopeLock Lock(&MetadataCS);
-	return MetadataMap;
+	TMap<FString, FString> MetadataMapCopy = MetadataMap;
+	MetadataMapCopy.Append(NonPersistentMetadataMap);
+	return MetadataMapCopy;
 }
 
-void FCsvProfiler::SetMetadataInternal(const TCHAR* Key, const TCHAR* Value, bool bSanitize)
+void FCsvProfiler::SetMetadataInternal(const TCHAR* Key, const TCHAR* Value, bool bSanitize, EMetadataPersistenceType PersistenceType)
 {
 	// Always gather CSV metadata, even if we're not currently capturing.
 	// Metadata is applied to the next CSV profile, when the file is written.
 	LLM_SCOPE(ELLMTag::CsvProfiler);
 	FString KeyLower = FString(Key).ToLower();
 
+	TMap<FString, FString>& CurrentMetadataMap = PersistenceType == EMetadataPersistenceType::Persistent ? MetadataMap : NonPersistentMetadataMap;
 	if (Value == nullptr)
 	{
 		FScopeLock Lock(&MetadataCS);
-		if (MetadataMap.Contains(KeyLower))
+		if (CurrentMetadataMap.Contains(KeyLower))
 		{
 			UE_LOG(LogCsvProfiler, Display, TEXT("Metadata unset : %s"), *KeyLower);
-			MetadataMap.Remove(KeyLower);
+			CurrentMetadataMap.Remove(KeyLower);
 		}
 	}
 	else
@@ -3513,11 +3525,11 @@ void FCsvProfiler::SetMetadataInternal(const TCHAR* Key, const TCHAR* Value, boo
 		}
 		// Only log if the metadata changed, to prevent logspam 
 		FScopeLock Lock(&MetadataCS);
-		if (!MetadataMap.Contains(KeyLower) || MetadataMap[KeyLower]!=ValueStr)
+		if (!CurrentMetadataMap.Contains(KeyLower) || CurrentMetadataMap[KeyLower] != ValueStr)
 		{
 			UE_LOG(LogCsvProfiler, Display, TEXT("Metadata set : %s=\"%s\""), *KeyLower, *ValueStr);
 		}
-		MetadataMap.FindOrAdd(KeyLower) = ValueStr;
+		CurrentMetadataMap.FindOrAdd(KeyLower) = ValueStr;
 	}
 }
 

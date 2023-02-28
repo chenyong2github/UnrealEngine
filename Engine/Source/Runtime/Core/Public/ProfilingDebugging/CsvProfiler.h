@@ -107,6 +107,7 @@ struct FCsvDeclaredStat;
 
 // Metadata
 #define CSV_METADATA(Key,Value)									FCsvProfiler::SetMetadata( Key, Value )
+#define CSV_NON_PERSISTENT_METADATA(Key,Value)					FCsvProfiler::SetNonPersistentMetadata( Key, Value )
 
 #else
   #define CSV_CATEGORY_INDEX(CategoryName)						
@@ -133,6 +134,7 @@ struct FCsvDeclaredStat;
   #define CSV_EVENT(Category, Format, ...) 						
   #define CSV_EVENT_GLOBAL(Format, ...)
   #define CSV_METADATA(Key,Value)
+  #define CSV_NON_PERSISTENT_METADATA(Key,Value)
 #endif
 
 
@@ -360,7 +362,10 @@ public:
 	CORE_API static void RecordEvent(int32 CategoryIndex, const FString& EventText);
 	CORE_API static void RecordEventAtTimestamp(int32 CategoryIndex, const FString& EventText, uint64 Cycles64);
 
+	/** Metadata values set with this function will persist between captures. */
 	CORE_API static void SetMetadata(const TCHAR* Key, const TCHAR* Value);
+	/** Metadata values set with this function will be cleared after the capture ends. */
+	CORE_API static void SetNonPersistentMetadata(const TCHAR* Key, const TCHAR* Value);
 	
 	static CORE_API int32 RegisterCategory(const FString& Name, bool bEnableByDefault, bool bIsGlobal);
 	static CORE_API int32 GetCategoryIndex(const FString& Name);
@@ -461,7 +466,13 @@ public:
 private:
 	CORE_API static void VARARGS RecordEventfInternal(int32 CategoryIndex, const TCHAR* Fmt, ...);
 
-	void SetMetadataInternal(const TCHAR* Key, const TCHAR* Value, bool bSanitize=true);
+	enum class EMetadataPersistenceType : int8
+	{
+		Persistent,
+		NonPersistent
+	};
+
+	void SetMetadataInternal(const TCHAR* Key, const TCHAR* Value, bool bSanitize=true, EMetadataPersistenceType PersistenceType = EMetadataPersistenceType::Persistent);
 
 	void FinalizeCsvFile();
 
@@ -485,6 +496,7 @@ private:
 	FThreadSafeCounter IsShuttingDown;
 
 	TMap<FString, FString> MetadataMap;
+	TMap<FString, FString> NonPersistentMetadataMap;
 	TQueue<TMap<FString, FString>> MetadataQueue;
 	FCriticalSection MetadataCS;
 
