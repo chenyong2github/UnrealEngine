@@ -48,18 +48,6 @@ struct PCG_API FPCGCrc
 		Value = HashCombineFast(Value, InOtherCrcValue);
 	}
 
-	/** Computes Crc of given FName and combines it into this Crc. */
-	void Combine(FName InName)
-	{
-#if WITH_EDITOR
-		ensure(IsValid());
-#endif
-
-		uint32 Crc = 0;
-		FCrc::StrCrc32(*InName.ToString(), Crc);
-		Combine(Crc);
-	}
-
 	/** Compares Crc. This and other Crc must be valid. */
 	bool operator==(const FPCGCrc& InOtherCrc) const
 	{
