@@ -1468,6 +1468,7 @@ void FPrimitiveSceneProxy::UpdateVisibleInLumenScene()
 	bool bLumenUsesHardwareRayTracing = false;
 #if RHI_RAYTRACING
 	static const auto LumenUseHardwareRayTracingCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Lumen.HardwareRayTracing"));
+	static const auto LumenUseFarFieldCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.LumenScene.FarField"));
 	bLumenUsesHardwareRayTracing = IsRayTracingEnabled()
 		&& (GRHISupportsRayTracingShaders || GRHISupportsInlineRayTracing)
 		&& LumenUseHardwareRayTracingCVar->GetValueOnAnyThread() != 0;
@@ -1479,7 +1480,8 @@ void FPrimitiveSceneProxy::UpdateVisibleInLumenScene()
 #if RHI_RAYTRACING
 		if (IsRayTracingAllowed() && HasRayTracingRepresentation())
 		{
-			if ((IsVisibleInRayTracing() && (IsDrawnInGame() || AffectsIndirectLightingWhileHidden())) || IsRayTracingFarField())
+			if ((IsVisibleInRayTracing() && (IsDrawnInGame() || AffectsIndirectLightingWhileHidden())) 
+				|| (IsRayTracingFarField() && LumenUseFarFieldCVar->GetValueOnAnyThread() != 0))
 			{
 				bCanBeTraced = true;
 			}
@@ -1490,13 +1492,15 @@ void FPrimitiveSceneProxy::UpdateVisibleInLumenScene()
 	{
 		if (DoesProjectSupportDistanceFields() && AffectsDistanceFieldLighting() && (SupportsDistanceFieldRepresentation() || SupportsHeightfieldRepresentation()))
 		{
-			bCanBeTraced = true;
+			if (IsDrawnInGame() || AffectsIndirectLightingWhileHidden())
+			{
+				bCanBeTraced = true;
+			}
 		}
 	}
 
 	const bool bAffectsLumen = AffectsDynamicIndirectLighting();
-	const bool bVisible = IsDrawnInGame() || AffectsIndirectLightingWhileHidden();
-	bVisibleInLumenScene = bAffectsLumen && bVisible && bCanBeTraced;
+	bVisibleInLumenScene = bAffectsLumen && bCanBeTraced;
 }
 
 void FPrimitiveSceneProxy::RenderBounds(

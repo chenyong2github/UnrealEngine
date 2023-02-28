@@ -71,9 +71,9 @@ END_SHADER_PARAMETER_STRUCT()
 
 namespace LumenReflections
 {
-	bool UseFarFieldForReflections(const FSceneViewFamily& ViewFamily);
+	bool UseFarField(const FSceneViewFamily& ViewFamily);
+	bool UseHitLighting(const FViewInfo& View);
 	bool IsHitLightingForceEnabled(const FViewInfo& View);
-	bool UseHitLightingForReflections(const FViewInfo& View);
 	bool UseSurfaceCacheFeedback();
 	float GetSampleSceneColorNormalTreshold();
 };

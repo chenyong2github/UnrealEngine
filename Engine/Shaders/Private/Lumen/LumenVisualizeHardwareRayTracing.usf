@@ -137,6 +137,7 @@ FRayData UnpackRayData(FRayDataPacked RayDataPacked)
 Buffer<uint> TileAllocator;
 StructuredBuffer<FTileDataPacked> TileDataPacked;
 float MaxTraceDistance;
+float FarFieldMaxTraceDistance;
 
 RWBuffer<uint> RWRayAllocator;
 RWStructuredBuffer<FRayDataPacked> RWRayDataPacked;
@@ -213,6 +214,7 @@ struct FTraceDataLocal
 
 	bool bIsHit;
 	bool bIsValidMeshCardIndex;
+	bool bIsFarField;
 };
 
 struct FTraceDataLocalPacked
@@ -220,13 +222,14 @@ struct FTraceDataLocalPacked
 	uint PackedData[2];
 };
 
-FTraceDataLocal CreateTraceData(float TraceDistance, uint MaterialId, bool bIsHit, bool bIsValidMeshCardIndex)
+FTraceDataLocal CreateTraceData(float TraceDistance, uint MaterialId, bool bIsHit, bool bIsValidMeshCardIndex, bool bIsFarField)
 {
 	FTraceDataLocal TraceData;
 	TraceData.TraceDistance = TraceDistance;
 	TraceData.MaterialId = MaterialId;
 	TraceData.bIsHit = bIsHit;
 	TraceData.bIsValidMeshCardIndex = bIsValidMeshCardIndex;
+	TraceData.bIsFarField = bIsFarField;
 
 	return TraceData;
 }
@@ -235,9 +238,10 @@ FTraceDataLocalPacked PackTraceData(FTraceDataLocal TraceData)
 {
 	FTraceDataLocalPacked TraceDataPacked;
 	TraceDataPacked.PackedData[0] =
-		(asint(TraceData.TraceDistance) & 0xFFFFFFFC)
-		| (TraceData.bIsHit & 0x01)
-		| ((TraceData.bIsValidMeshCardIndex & 0x01) << 1);
+		(asuint(TraceData.TraceDistance) & 0xFFFFFFF8)
+		| (TraceData.bIsHit ? 0x01 : 0)
+		| (TraceData.bIsValidMeshCardIndex ? 0x02 : 0)
+		| (TraceData.bIsFarField ? 0x04 : 0);
 	TraceDataPacked.PackedData[1] = TraceData.MaterialId;
 
 	return TraceDataPacked;
@@ -246,9 +250,10 @@ FTraceDataLocalPacked PackTraceData(FTraceDataLocal TraceData)
 FTraceDataLocal UnpackTraceData(FTraceDataLocalPacked TraceDataPacked)
 {
 	FTraceDataLocal TraceData;
-	TraceData.TraceDistance = asfloat(asint(TraceDataPacked.PackedData[0] & 0xFFFFFFFc));
+	TraceData.TraceDistance = asfloat(asuint(TraceDataPacked.PackedData[0] & 0xFFFFFFFc));
 	TraceData.bIsHit = (TraceDataPacked.PackedData[0] & 0x01) != 0;
 	TraceData.bIsValidMeshCardIndex = (TraceDataPacked.PackedData[0] & 0x02) != 0;
+	TraceData.bIsFarField = (TraceDataPacked.PackedData[0] & 0x04) != 0;
 	TraceData.MaterialId = TraceDataPacked.PackedData[1];
 
 	return TraceData;
@@ -266,8 +271,7 @@ RWStructuredBuffer<FTraceDataLocalPacked> RWCompactedTraceDataPacked;
 groupshared FTraceDataLocalPacked SharedTraceDataPacked[THREADGROUP_SIZE_1D];
 
 #define COMPACT_MODE_HIT_LIGHTING_RETRACE 0
-#define COMPACT_MODE_FAR_FIELD_RETRACE 1
-#define COMPACT_MODE_FORCE_HIT_LIGHTING 2
+#define COMPACT_MODE_FORCE_HIT_LIGHTING 1
 
 
 [numthreads(THREADGROUP_SIZE_1D, 1, 1)]
@@ -285,10 +289,8 @@ void FLumenVisualizeCompactRaysCS(
 		FTraceDataLocal TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
 #if DIM_COMPACT_MODE == COMPACT_MODE_HIT_LIGHTING_RETRACE
 		bool bIsRayValid = TraceData.bIsHit && !TraceData.bIsValidMeshCardIndex;
-#elif DIM_COMPACT_MODE == COMPACT_MODE_FORCE_HIT_LIGHTING
+#else
 		bool bIsRayValid = TraceData.bIsHit;
-#else // DIM_COMPACT_MODE == COMPACT_MODE_FAR_FIELD_RETRACE
-		bool bIsRayValid = !TraceData.bIsHit;
 #endif // DIM_COMPACT_MODE
 		if (bIsRayValid)
 		{
@@ -410,7 +412,6 @@ RWTexture2D<float3> RWRadiance;
 
 #define TRACE_MODE_DEFAULT_TRACE 0
 #define TRACE_MODE_HIT_LIGHTING_RETRACE 1
-#define TRACE_MODE_FAR_FIELD_RETRACE 2
 
 RaytracingAccelerationStructure TLAS;
 
@@ -451,7 +452,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 		float2 BufferUV = ViewportUV * View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw;
 
 		int HitLightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING;
-#if DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
+#if DIM_HIT_LIGHTING
 		HitLightingMode = LightingMode;
 #endif // DIM_TRACE_MODE
 
@@ -463,7 +464,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 
 		FRayDesc Ray = CreatePrimaryRay(BufferUV);
 		Ray.TMax = min(Ray.TMax, DitheredMaxTraceDistance);
-#if DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
+#if DIM_HIT_LIGHTING
 		FTraceDataLocal TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
 		if (TraceData.bIsValidMeshCardIndex)
 		{
@@ -471,8 +472,6 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 		}
 		const float Epsilon = 0.5;
 		Ray.TMin = max(TraceData.TraceDistance - Epsilon, 0);
-#elif DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
-		Ray.TMin = UnpackTraceData(TraceDataPacked[RayIndex]).TraceDistance;
 #endif // DIM_TRACE_MODE
 
 		FRayCone RayCone = (FRayCone)0;
@@ -490,47 +489,45 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 			MaxTranslucentSkipCount,
 			MaxTraversalIterations,
 			bHiResSurface);
-		Context.FarFieldMaxTraceDistance = MaxTraceDistance;
+		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
-#if DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
-		Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
-#endif // DIM_TRACE_MODE
 
-#if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
-
-#if LUMEN_HARDWARE_INLINE_RAYTRACING
-		Context.HitGroupData = HitGroupData;
-		Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
-#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
-
-		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
-#else
-		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, HitLightingMode);
-
-		#define DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS 0
-		#if DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS && DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
-			if (TraceData.bIsHit && !Result.bIsHit)
+		FRayTracedLightingResult Result = CreateRayTracedLightingResult();
+		#if DIM_HIT_LIGHTING
+		{
+			if (TraceData.bIsFarField)
 			{
-				Result.Radiance = float3(10, 0, 10);
-				Result.bIsHit = true;
+				Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
+				Ray.TMax = FarFieldMaxTraceDistance;
 			}
+
+			Result = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, HitLightingMode);
+
+			#define DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS 0
+			#if DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS && DIM_HIT_LIGHTING
+			{
+				if (TraceData.bIsHit && !Result.bIsHit)
+				{
+					Result.Radiance = float3(10, 0, 10);
+					Result.bIsHit = true;
+				}
+			}
+			#endif
+		}
+		#else
+		{
+			#if LUMEN_HARDWARE_INLINE_RAYTRACING
+				Context.HitGroupData = HitGroupData;
+				Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
+			#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
+			Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
+		}
 		#endif
-#endif // DIM_TRACE_MODE
 
-		// Trace segmentation visualization
-#if 0
-#if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
-		if (Result.bIsHit && Result.bIsRadianceCompleted) Result.Radiance = float3(1, 1, 0);
-#elif DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
-		if (Result.bIsHit) Result.Radiance = float3(1, 0, 0);
-#elif DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
-		if (Result.bIsHit) Result.Radiance = float3(0, 1, 1);
-#endif
-#endif
-
-#if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
-		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.bIsHit, Result.bIsRadianceCompleted));
-#endif // DIM_TRACE_MODE
+		#if !DIM_HIT_LIGHTING
+			RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.bIsHit, Result.bIsRadianceCompleted, Result.bIsFarField));
+		#endif // DIM_TRACE_MODE
 
 		FConeTraceResult TraceResult;
 		TraceResult.Lighting = Result.Radiance;
@@ -538,7 +535,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 		TraceResult.OpaqueHitDistance = Result.TraceHitDistance;
 
 		// Trace against hair voxel structure, if enabled
-#if DIM_HAIRSTRANDS_VOXEL
+		#if DIM_HAIRSTRANDS_VOXEL
 		{
 			float HairTraceDistance = min(Ray.TMax, TraceResult.OpaqueHitDistance);
 
@@ -564,7 +561,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 				TraceResult.OpaqueHitDistance = min(HairHitT, TraceResult.OpaqueHitDistance);
 			}
 		}
-#endif
+		#endif
 
 		if (ApplySkylightStage != 0 && !Result.bIsHit)
 		{
@@ -583,4 +580,3 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 }
 
 #endif // LUMEN_HARDWARE_RAYTRACING
-

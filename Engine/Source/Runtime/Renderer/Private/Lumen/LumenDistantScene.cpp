@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenDistantScene.cpp
-=============================================================================*/
-
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneUtils.h"
@@ -11,6 +7,7 @@
 #include "ShaderParameterStruct.h"
 #include "PixelShaderUtils.h"
 #include "ReflectionEnvironment.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 int32 GLumenDistantScene = 0;
 FAutoConsoleVariableRef CVarLumenDistantScene(
@@ -117,7 +114,12 @@ static TAutoConsoleVariable<float> CVarLumenDistantSceneNaniteLODBias(
 static TAutoConsoleVariable<int32> CVarLumenFarField(
 	TEXT("r.LumenScene.FarField"), 0,
 	TEXT("Enable/Disable Lumen far-field ray tracing."),
-	ECVF_RenderThreadSafe);
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		// Recreate proxies so that FPrimitiveSceneProxy::UpdateVisibleInLumenScene() can pick up any changed state
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarLumenFarFieldMaxTraceDistance(
 	TEXT("r.LumenScene.FarField.MaxTraceDistance"), 1.0e6f,

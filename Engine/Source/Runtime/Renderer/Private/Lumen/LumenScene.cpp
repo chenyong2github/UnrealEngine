@@ -1760,9 +1760,11 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 			{
 				if (ScenePrimitive && ScenePrimitive->Proxy)
 				{
-					UE_LOG(LogRenderer, Log, TEXT("Group:%d InstanceIndex:%d %s"), 
+					UE_LOG(LogRenderer, Log, TEXT("Group:%d InstanceIndex:%d FarField:%d Heightfield:%d %s"), 
 						PrimitiveGroup.RayTracingGroupMapElementId.GetIndex(),
 						PrimitiveGroup.PrimitiveInstanceIndex,
+						PrimitiveGroup.bFarField ? 1 : 0,
+						PrimitiveGroup.bHeightfield ? 1 : 0,
 						*ScenePrimitive->Proxy->GetStatId().GetName().ToString());
 				}
 			}

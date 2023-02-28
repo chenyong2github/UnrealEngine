@@ -91,7 +91,7 @@ namespace Lumen
 	}
 } // namespace Lumen
 
-bool LumenReflections::UseFarFieldForReflections(const FSceneViewFamily& ViewFamily)
+bool LumenReflections::UseFarField(const FSceneViewFamily& ViewFamily)
 {
 #if RHI_RAYTRACING
 	return Lumen::UseFarField(ViewFamily) && CVarLumenReflectionsHardwareRayTracingRetraceFarField.GetValueOnRenderThread();
@@ -248,15 +248,14 @@ bool LumenReflections::IsHitLightingForceEnabled(const FViewInfo& View)
 	return Lumen::GetHardwareRayTracingLightingMode(View) != Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 }
 
-bool LumenReflections::UseHitLightingForReflections(const FViewInfo& View)
+bool LumenReflections::UseHitLighting(const FViewInfo& View)
 {
 	return IsHitLightingForceEnabled(View) || (CVarLumenReflectionsHardwareRayTracingRetraceHitLighting.GetValueOnRenderThread() != 0);
 }
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::UseHardwareRayTracedReflections(*View.Family)
-		&& LumenReflections::UseHitLightingForReflections(View))
+	if (Lumen::UseHardwareRayTracedReflections(*View.Family) && LumenReflections::UseHitLighting(View))
 	{
 		for (int RadianceCacheDim = 0; RadianceCacheDim < FLumenReflectionHardwareRayTracingRGS::FRadianceCache::PermutationCount; ++RadianceCacheDim)
 		{
@@ -266,7 +265,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(co
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(LumenHWRTPipeline::ELightingMode::HitLighting);
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FRadianceCache>(RadianceCacheDim != 0);
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableNearFieldTracing>(true);
-				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(Lumen::UseFarField(*View.Family));
+				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(LumenReflections::UseFarField(*View.Family));
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FWriteFinalLightingDim>(true);
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FHairStrandsOcclusionDim>(HairOcclusion == 0);
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FIndirectDispatchDim>(Lumen::UseHardwareIndirectRayTracing());
@@ -285,8 +284,8 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 {
 	if (Lumen::UseHardwareRayTracedReflections(*View.Family))
 	{
-		const bool bUseFarFieldForReflections = LumenReflections::UseFarFieldForReflections(*View.Family);
-		const bool bUseHitLightingForReflections = LumenReflections::UseHitLightingForReflections(View);
+		const bool bUseFarFieldForReflections = LumenReflections::UseFarField(*View.Family);
+		const bool bUseHitLightingForReflections = LumenReflections::UseHitLighting(View);
 		const bool bIsHitLightingForceEnabled = LumenReflections::IsHitLightingForceEnabled(View);
 
 		// Default
@@ -381,7 +380,7 @@ void SetLumenHardwareRayTracingReflectionParameters(
 	Parameters->NearFieldLightingMode = static_cast<int32>(Lumen::GetHardwareRayTracingLightingMode(View));
 	Parameters->FarFieldBias = LumenHardwareRayTracing::GetFarFieldBias();
 	Parameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
-	Parameters->FarFieldDitheredStartDistanceFactor = LumenReflections::UseFarFieldForReflections(*View.Family) ? Lumen::GetFarFieldDitheredStartDistanceFactor() : 1.0;
+	Parameters->FarFieldDitheredStartDistanceFactor = LumenReflections::UseFarField(*View.Family) ? Lumen::GetFarFieldDitheredStartDistanceFactor() : 1.0;
 	Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 	Parameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 	Parameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
@@ -567,10 +566,10 @@ void RenderLumenHardwareRayTracingReflections(
 	FRDGBufferRef RayAllocatorBufferCached = CompactedTraceParameters.CompactedTraceTexelAllocator->Desc.Buffer;
 	FRDGBufferRef TraceTexelDataPackedBufferCached = CompactedTraceParameters.CompactedTraceTexelData->Desc.Buffer;
 
-	const bool bUseHitLighting = LumenReflections::UseHitLightingForReflections(View);
+	const bool bUseHitLighting = LumenReflections::UseHitLighting(View);
 	const bool bIsHitLightingForceEnabled = LumenReflections::IsHitLightingForceEnabled(View);
 	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family) && !bIsHitLightingForceEnabled;
-	const bool bUseFarFieldForReflections = LumenReflections::UseFarFieldForReflections(*View.Family);
+	const bool bUseFarFieldForReflections = LumenReflections::UseFarField(*View.Family);
 	extern int32 GLumenReflectionHairStrands_VoxelTrace;
 	const bool bNeedTraceHairVoxel = HairStrands::HasViewHairStrandsVoxelData(View) && GLumenReflectionHairStrands_VoxelTrace > 0;
 	const bool bIndirectDispatch = Lumen::UseHardwareIndirectRayTracing() || bInlineRayTracing;
