@@ -8,10 +8,12 @@ float3 DecodeVelocityFromTexture(float4 EncodedV);
 
 #if SHADER_HITPROXY_ID
 
+float 							 CoverageThreshold;
 uint							 MaxMaterialCount;
 Buffer<uint>					 MaterialIdToHitProxyIdBuffer;
 Texture2D<uint>					 VisNodeIndex;
 StructuredBuffer<FPackedHairVis> VisNodeData;
+Texture2D<float>				 CoverageTexture;
 
 void EmitPS(
 	in float4 SvPosition : SV_Position,
@@ -22,7 +24,8 @@ void EmitPS(
 
 	// Take the first sample
 	const FNodeDesc NodeDesc = DecodeNodeDesc(VisNodeIndex.Load(uint3(PixelCoord,0)));
-	if (NodeDesc.Count > 0)
+	const float Coverage = CoverageTexture.Load(uint3(PixelCoord, 0));
+	if (NodeDesc.Count > 0 && Coverage > CoverageThreshold)
 	{
 		const uint SampleIndex = NodeDesc.Offset + 0;
 		const FHairVis InNode  = UnpackHairVis(VisNodeData[SampleIndex]);
