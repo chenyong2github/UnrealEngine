@@ -13,6 +13,7 @@ FMovieGraphInitConfig::FMovieGraphInitConfig()
 	RendererClass = UMovieGraphDefaultRenderer::StaticClass();
 	TimeRangeBuilderClass = UMovieGraphSequenceTimeRangeBuilder::StaticClass();
 	DataCachingClass = UMovieGraphDefaultDataCaching::StaticClass();
+	bRenderViewport = false;
 }
 
 UMovieGraphPipeline* UMovieGraphTimeStepBase::GetOwningGraph() const
