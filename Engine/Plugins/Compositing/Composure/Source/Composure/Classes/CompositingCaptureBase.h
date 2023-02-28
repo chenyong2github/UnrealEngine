@@ -47,14 +47,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> LastDistortionMID = nullptr;
 
-#if WITH_EDITORONLY_DATA
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.1, "This property has been deprecated. Use the LensComponent picker to choose a lens to use for distortion.")
-	UPROPERTY()
-	FDistortionHandlerPicker DistortionSource_DEPRECATED;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif //WITH_EDITORONLY_DATA
-
 public:
 	/** Default constructor */
 	ACompositingCaptureBase();
@@ -76,10 +68,4 @@ public:
 
 	/** Set the Lens Component this CG layer will use to drive distortion on the scene capture */
 	void SetLens(ULensComponent* InLens);
-
-	UE_DEPRECATED(5.1, "This function has been deprecated. Use SetLens() to set a lens component that this CG layer should use to query for distortion.")
-	void SetDistortionHandler(ULensDistortionModelHandlerBase* InDistortionHandler);
-
-	UE_DEPRECATED(5.1, "This function has been deprecated. Query the lens component used by this CG layer for its distortion handler instead.")
-	ULensDistortionModelHandlerBase* GetDistortionHandler();
 };

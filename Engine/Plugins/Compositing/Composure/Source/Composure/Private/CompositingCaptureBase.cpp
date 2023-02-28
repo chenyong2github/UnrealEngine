@@ -9,7 +9,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogCompositingCaptureBase, Log, All);
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ACompositingCaptureBase::ACompositingCaptureBase()
 {
 	// Create the SceneCapture component and assign its parent to be the RootComponent (the ComposurePostProcessingPassProxy)
@@ -19,7 +18,6 @@ ACompositingCaptureBase::ACompositingCaptureBase()
 	// The SceneCaptureComponent2D default constructor disables TAA, but CG Compositing Elements enable it by default
 	SceneCaptureComponent2D->ShowFlags.TemporalAA = true;
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void ACompositingCaptureBase::PostInitProperties()
 {
@@ -166,25 +164,4 @@ void ACompositingCaptureBase::SetLens(ULensComponent* InLens)
 		LensComponentPicker.OtherActor = InLens->GetOwner();
 		LensComponentPicker.PathToComponent = InLens->GetPathName(InLens->GetOwner());
 	}
-}
-
-void ACompositingCaptureBase::SetDistortionHandler(ULensDistortionModelHandlerBase* InDistortionHandler)
-{
-	// This function has been deprecated.
-}
-
-ULensDistortionModelHandlerBase* ACompositingCaptureBase::GetDistortionHandler()
-{
-	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
-
-	if (ACameraActor* TargetCamera = FindTargetCamera())
-	{
-		ULensComponent* LensComponent = Cast<ULensComponent>(LensComponentPicker.GetComponent(TargetCamera));
-		if (LensComponent && LensComponent->GetOwner() == TargetCamera)
-		{
-			LensDistortionHandler = LensComponent->GetLensDistortionHandler();
-		}
-	}
-
-	return LensDistortionHandler;
 }
