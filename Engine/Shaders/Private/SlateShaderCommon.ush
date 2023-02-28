@@ -36,14 +36,27 @@ struct VertexToPixelInterpolants
 	half4 SecondaryColor : COLOR1;
 	float4 OriginalPosition : ORIGINAL_POSITION;
 	float2 MaterialTexCoords : TEXCOORD0;
-	float4 TextureCoordinates[NUM_SLATE_TEXCOORDS] : TEXCOORD1;
+	
+	float4 TextureCoordinates0 : TEXCOORD1;
+#if NUM_SLATE_TEXCOORDS > 2
+	float4 TextureCoordinates1 : TEXCOORD2;
+#endif
+#if NUM_SLATE_TEXCOORDS > 4
+	float4 TextureCoordinates2 : TEXCOORD3;
+#endif
+#if NUM_SLATE_TEXCOORDS > 6
+	float4 TextureCoordinates3 : TEXCOORD4;
+#endif
 };
 
-float2 GetUV(VertexToPixelInterpolants Interpolants, uint UVIndex)
-{
-	float4 UVVector = Interpolants.TextureCoordinates[UVIndex / 2];
-	return Mod(UVIndex, 2) ? UVVector.zw : UVVector.xy;
-}
+#define SLATE_UV0(Interpolants) Interpolants.TextureCoordinates0.xy
+#define SLATE_UV1(Interpolants) Interpolants.TextureCoordinates0.zw
+#define SLATE_UV2(Interpolants) Interpolants.TextureCoordinates1.xy
+#define SLATE_UV3(Interpolants) Interpolants.TextureCoordinates1.zw
+#define SLATE_UV4(Interpolants) Interpolants.TextureCoordinates2.xy
+#define SLATE_UV5(Interpolants) Interpolants.TextureCoordinates2.zw
+#define SLATE_UV6(Interpolants) Interpolants.TextureCoordinates3.xy
+#define SLATE_UV7(Interpolants) Interpolants.TextureCoordinates3.zw
 
 float cross(float2 a, float2 b)
 {

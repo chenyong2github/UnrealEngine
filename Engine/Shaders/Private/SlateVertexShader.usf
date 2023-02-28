@@ -34,7 +34,7 @@ VertexToPixelInterpolants Main(
 	VOut.MaterialTexCoords = InMaterialTextureCoordinates;
 	VOut.Color = InColor FCOLOR_COMPONENT_SWIZZLE;;
 	VOut.SecondaryColor = InSecondaryColor FCOLOR_COMPONENT_SWIZZLE;
-	VOut.TextureCoordinates[0] = InTextureCoordinates;
+	VOut.TextureCoordinates0 = InTextureCoordinates;
 
 #if USE_MATERIALS
 	FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
@@ -77,22 +77,29 @@ VertexToPixelInterpolants Main(
 
 		float2 CustomizedUVs[NUM_SLATE_TEXCOORDS];
 		GetMaterialCustomizedUVs(VertexParameters, CustomizedUVs);
-
-		{
-			UNROLL
-			for( uint CoordinateIndex = 0; CoordinateIndex < NUM_SLATE_TEXCOORDS; CoordinateIndex++ )
-			{
-				FLATTEN
-				if (Mod(CoordinateIndex, 2))
-				{
-					VOut.TextureCoordinates[CoordinateIndex / 2].zw = CustomizedUVs[CoordinateIndex];
-				}
-				else
-				{
-					VOut.TextureCoordinates[CoordinateIndex / 2].xy = CustomizedUVs[CoordinateIndex];
-				}
-			}
-		}
+		
+		SLATE_UV0(VOut) = CustomizedUVs[0];
+	#if NUM_SLATE_TEXCOORDS > 1
+		SLATE_UV1(VOut) = CustomizedUVs[1];
+	#endif
+	#if NUM_SLATE_TEXCOORDS > 2
+		SLATE_UV2(VOut) = CustomizedUVs[2];
+	#endif
+	#if NUM_SLATE_TEXCOORDS > 3
+		SLATE_UV3(VOut) = CustomizedUVs[3];
+	#endif
+	#if NUM_SLATE_TEXCOORDS > 4
+		SLATE_UV4(VOut) = CustomizedUVs[4];
+	#endif
+	#if NUM_SLATE_TEXCOORDS > 5
+		SLATE_UV5(VOut) = CustomizedUVs[5];
+	#endif
+	#if NUM_SLATE_TEXCOORDS > 6
+		SLATE_UV6(VOut) = CustomizedUVs[6];
+	#endif
+	#if NUM_SLATE_TEXCOORDS > 7
+		SLATE_UV7(VOut) = CustomizedUVs[7];
+	#endif
 		
 	#endif // HAS_MATERIAL_TEXCOORDS
 #endif // NUM_MATERIAL_TEXCOORDS_VERTEX
