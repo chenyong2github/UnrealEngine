@@ -129,7 +129,7 @@ FScreenPassTexture AddVisualizeComplexityPass(FRDGBuilder& GraphBuilder, const F
 	if (SceneTextures.QuadOverdraw)
 	{
 		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-		PassParameters->QuadOverdrawTexture = GetIfProduced(SceneTextures.QuadOverdraw, SystemTextures.Black);
+		PassParameters->QuadOverdrawTexture = HasBeenProduced(SceneTextures.QuadOverdraw) ? SceneTextures.QuadOverdraw : GSystemTextures.GetZeroUIntDummy(GraphBuilder);
 		PassParameters->DebugViewShaderMode = DebugViewShaderMode;
 		QuadOverdrawEnum = FVisualizeComplexityApplyPS::EQuadOverdraw::Enable;
 	}
