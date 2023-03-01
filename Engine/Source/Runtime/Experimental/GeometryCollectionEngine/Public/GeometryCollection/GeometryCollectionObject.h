@@ -8,6 +8,7 @@
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "GeometryCollection/ManagedArray.h"
 #include "InstanceUniformShaderParameters.h"
+#include "Interfaces/Interface_AssetUserData.h"
 #include "Misc/Crc.h"
 
 #include "GeometryCollectionObject.generated.h"

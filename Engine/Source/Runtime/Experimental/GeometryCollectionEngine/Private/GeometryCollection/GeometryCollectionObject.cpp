@@ -21,6 +21,7 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Rendering/NaniteResources.h"
+#include "Engine/AssetUserData.h"
 
 #if WITH_EDITOR
 #include "GeometryCollection/DerivedDataGeometryCollectionCooker.h"
