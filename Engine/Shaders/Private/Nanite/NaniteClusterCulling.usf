@@ -58,8 +58,13 @@ static const uint QueueStateIndex = 0;
 
 groupshared uint GroupOccludedBitmask[NANITE_MAX_BVH_NODES_PER_GROUP];
 
+#if CULLING_TYPE == NANITE_CULLING_TYPE_PERSISTENT_NODES_AND_CLUSTERS
 RWCoherentByteAddressBuffer	MainAndPostNodesAndClusterBatches;
 RWCoherentByteAddressBuffer	MainAndPostCandididateClusters;
+#else
+RWByteAddressBuffer	MainAndPostNodesAndClusterBatches;
+RWByteAddressBuffer	MainAndPostCandididateClusters;
+#endif
 
 Buffer<uint>							OffsetClustersArgsSWHW;
 StructuredBuffer<uint2>					InTotalPrevDrawClusters;
@@ -355,7 +360,7 @@ struct FNaniteTraversalClusterCullCallback
 				Node.NodeIndex = CandidateNode.NodeIndex;
 				Node.EnabledBitmask = GroupOccludedBitmask[LocalNodeIndex];
 
-				StoreCandidateNodeDataCoherent(MainAndPostNodesAndClusterBatches, OccludedNodesOffset, PackCandidateNode(Node), true);
+				StoreCandidateNodeData(MainAndPostNodesAndClusterBatches, OccludedNodesOffset, PackCandidateNode(Node), true);
 			}
 		}
 #endif
@@ -370,7 +375,7 @@ struct FNaniteTraversalClusterCullCallback
 		Node.NodeIndex = HierarchyNodeSlice.ChildStartReference;
 		Node.EnabledBitmask = NANITE_BVH_NODE_ENABLE_MASK;
 
-		StoreCandidateNodeCoherent(MainAndPostNodesAndClusterBatches, StoreIndex, Node, bIsPostPass);
+		StoreCandidateNode(MainAndPostNodesAndClusterBatches, StoreIndex, Node, bIsPostPass);
 	}
 
 	void StoreCluster(uint StoreIndex, FHierarchyNodeSlice HierarchyNodeSlice, uint ClusterIndex)
@@ -401,7 +406,7 @@ struct FNaniteTraversalClusterCullCallback
 
 	bool LoadCandidateNodeDataToGroup(uint NodeIndex, uint GroupIndex, bool bCheckIfReady = true)
 	{
-		uint4 NodeData = LoadCandidateNodeDataCoherent(MainAndPostNodesAndClusterBatches, NodeIndex, bIsPostPass);
+		uint4 NodeData = LoadCandidateNodeData(MainAndPostNodesAndClusterBatches, NodeIndex, bIsPostPass);
 
 		bool bNodeReady = IsNodeDataReady(NodeData);
 		if (!bCheckIfReady || bNodeReady)
@@ -414,22 +419,22 @@ struct FNaniteTraversalClusterCullCallback
 
 	void ClearCandidateNodeData(uint NodeIndex)
 	{
-		ClearCandidateNodeCoherent(MainAndPostNodesAndClusterBatches, NodeIndex, bIsPostPass);
+		::ClearCandidateNode(MainAndPostNodesAndClusterBatches, NodeIndex, bIsPostPass);
 	}
 
 	void AddToClusterBatch(uint BatchIndex, uint Num)
 	{
-		AddToClusterBatchCoherent(MainAndPostNodesAndClusterBatches, BatchIndex, Num, bIsPostPass);
+		::AddToClusterBatch(MainAndPostNodesAndClusterBatches, BatchIndex, Num, bIsPostPass);
 	}
 
 	void ClearClusterBatch(uint BatchIndex)
 	{
-		ClearClusterBatchCoherent(MainAndPostNodesAndClusterBatches, BatchIndex, bIsPostPass);
+		::ClearClusterBatch(MainAndPostNodesAndClusterBatches, BatchIndex, bIsPostPass);
 	}
 
 	uint LoadClusterBatch(uint BatchIndex)
 	{
-		return LoadClusterBatchCoherent(MainAndPostNodesAndClusterBatches, BatchIndex, bIsPostPass);
+		return ::LoadClusterBatch(MainAndPostNodesAndClusterBatches, BatchIndex, bIsPostPass);
 	}
 
 	void ProcessCluster(uint4 PackedCluster)
@@ -755,11 +760,11 @@ struct FNaniteTraversalClusterCullCallback
 					WaveInterlockedAddScalar_(QueueState[0].PassState[1].ClusterWriteOffset, 1, OccludedClusterOffset);
 					VisibleCluster.Flags = (bUseHWRaster ? NANITE_CULLING_FLAG_USE_HW : 0u);
 
-					StoreCandidateClusterCoherent(MainAndPostCandididateClusters, (MaxCandidateClusters - 1) - OccludedClusterOffset, VisibleCluster);
+					StoreCandidateCluster(MainAndPostCandididateClusters, (MaxCandidateClusters - 1) - OccludedClusterOffset, VisibleCluster);
 
 					DeviceMemoryBarrier();
 					const uint BatchIndex = OccludedClusterOffset / NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
-					AddToClusterBatchCoherent(MainAndPostNodesAndClusterBatches, BatchIndex, 1, true);
+					::AddToClusterBatch(MainAndPostNodesAndClusterBatches, BatchIndex, 1, true);
 				}
 			}
 #endif
