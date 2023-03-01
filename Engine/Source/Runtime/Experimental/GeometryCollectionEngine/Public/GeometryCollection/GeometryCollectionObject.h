@@ -328,7 +328,7 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionProxyMeshData
 *
 */
 UCLASS(BlueprintType, customconstructor)
-class GEOMETRYCOLLECTIONENGINE_API UGeometryCollection : public UObject
+class GEOMETRYCOLLECTIONENGINE_API UGeometryCollection : public UObject, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
@@ -702,6 +702,13 @@ public:
 	void UpdateGeometryDependentProperties();
 
 
+	//~ Begin IInterface_AssetUserData Interface
+	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	//~ End IInterface_AssetUserData Interface
+
 	//
 	// Dataflow
 	//
@@ -761,4 +768,8 @@ private:
 	TObjectPtr<UMaterialInterface> BoneSelectedMaterial = nullptr;
 
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection;
+
+	/** Array of user data stored with the asset */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = AssetUserData)
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 };
