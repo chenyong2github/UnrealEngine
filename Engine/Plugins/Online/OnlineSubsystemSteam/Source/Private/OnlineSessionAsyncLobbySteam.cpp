@@ -299,9 +299,9 @@ bool FillSessionFromLobbyData(FOnlineSubsystemSteam* SteamSubsystem, const FUniq
 		}
 		else if (FCStringAnsi::Stricmp(Key, STEAMKEY_OWNINGUSERNAME) == 0)
 		{
-			if (FCString::Strlen(ANSI_TO_TCHAR(Value)) > 0)
+			if (FCString::Strlen(UTF8_TO_TCHAR(Value)) > 0)
 			{
-				Session.OwningUserName = Value;
+				Session.OwningUserName = UTF8_TO_TCHAR(Value);
 				KeysFound++;
 			}
 		}
