@@ -125,6 +125,16 @@ export class Dashboard {
 
     }
 
+    get preview(): boolean {
+        
+        try {            
+            return !!(process.env.REACT_APP_HORDE_DEBUG_PREVIEW) || window?.location?.hostname?.indexOf("preview") !== -1;
+        } catch (reason) {
+            console.error(reason);
+        }
+        return false;        
+    }
+
     get browser(): WebBrowser {
 
         const agent = window.navigator.userAgent.toLowerCase();
