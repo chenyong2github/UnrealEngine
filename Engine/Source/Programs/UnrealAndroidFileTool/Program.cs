@@ -16,7 +16,7 @@ namespace UnrealAndroidFileTool
 {
 	class Program
 	{
-		private static string AppVersion = "1.0.1";
+		private static string AppVersion = "1.0.2";
 
 		static void ShowHelp(string command)
 		{
@@ -1081,7 +1081,7 @@ namespace UnrealAndroidFileTool
 			Assembly? assembly = Assembly.GetEntryAssembly();
 			if (assembly != null)
 			{
-				string? PathToBinariesDotNET = Path.GetDirectoryName(assembly.GetOriginalLocation());
+				string? PathToBinariesDotNET = Path.GetDirectoryName(AppContext.BaseDirectory);//assembly.GetOriginalLocation());
 				if (PathToBinariesDotNET != null)
 				{
 					AssemblyUtils.InstallAssemblyResolver(PathToBinariesDotNET);

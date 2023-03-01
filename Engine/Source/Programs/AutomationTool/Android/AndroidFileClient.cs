@@ -18,6 +18,7 @@ using AutomationScripts;
 using System.Net;
 using System.Net.Sockets;
 using System.IO.Compression;
+using Newtonsoft.Json.Linq;
 
 
 namespace AutomationTool
@@ -1353,7 +1354,55 @@ namespace AutomationTool
 			return Result;
 		}
 
-		public static bool GetListenStatus_netstat(string Device, int Port, out bool bUSB, out bool bWifi, out string WifiAddress)
+		public static List<string> GetInstalledActivities(string Device)
+		{
+			List<string> Result = new List<string>();
+
+			String InstalledResult = adb.Shell(Device, "cmd package query-activities --components -a com.epicgames.unreal.RemoteFileManager.intent.COMMAND2");
+			if (InstalledResult.Contains("not found") || InstalledResult.Contains("FAIL"))
+			{
+				InstalledResult = adb.Shell(Device, "dumpsys package");
+				bool bFoundActivity = false;
+				foreach (string Line in InstalledResult.Split('\n'))
+				{
+					if (!bFoundActivity)
+					{
+						if (Line.Contains("com.epicgames.unreal.RemoteFileManager.intent.COMMAND2:"))
+						{
+							bFoundActivity = true;
+						}
+					}
+					else
+					{
+						int SlashIndex = Line.IndexOf("/com.epicgames.unreal.RemoteFileManagerActivity");
+						if (SlashIndex > 0)
+						{
+							int StartIndex = Line.LastIndexOf(' ');
+							if (StartIndex >= 0)
+							{
+								Result.Add(Line.Substring(StartIndex + 1, SlashIndex - StartIndex - 1));
+							}
+						}
+						else if (Line.IndexOf(":") > 0)
+						{
+							break;
+						}
+					}
+				}
+				return Result;
+			}
+			foreach (string Line in InstalledResult.Split('\n'))
+			{
+				int SlashIndex = Line.IndexOf('/');
+				if (SlashIndex > 0 && (Line.Substring(SlashIndex + 1) == "com.epicgames.unreal.RemoteFileManagerActivity"))
+				{
+					Result.Add(Line.Substring(0, SlashIndex));
+				}
+			}
+			return Result;
+		}
+
+		public static bool GetListenStatus_netstat(string Device, int Port, out bool bHaveApp, out bool bUSB, out bool bWifi, out string WifiAddress)
 		{
 			bUSB = false;
 			bWifi = false;
@@ -1363,8 +1412,10 @@ namespace AutomationTool
 			string netstatResult = adb.Shell(Device, "netstat -atn");
 			if (netstatResult.Contains("not found") || netstatResult.Contains("FAIL"))
 			{
+				bHaveApp = false;
 				return false;
 			}
+			bHaveApp = true;
 			foreach (string Line in netstatResult.Split('\n'))
 			{
 				if (Line.Contains("LISTEN") && Line.Contains(Search))
@@ -1389,7 +1440,7 @@ namespace AutomationTool
 			return true;
 		}
 
-		public static bool GetListenStatus_ss(string Device, int Port, out bool bUSB, out bool bWifi, out string WifiAddress)
+		public static bool GetListenStatus_ss(string Device, int Port, out bool bHaveApp, out bool bUSB, out bool bWifi, out string WifiAddress)
 		{
 			bUSB = false;
 			bWifi = false;
@@ -1399,8 +1450,10 @@ namespace AutomationTool
 			string ssResult = adb.Shell(Device, "ss -ta");
 			if (ssResult.Contains("not found") || ssResult.Contains("FAIL"))
 			{
+				bHaveApp = false;
 				return false;
 			}
+			bHaveApp = true;
 			bool bConnectionsPresent = false;
 			bool bFirstLine = true;
 			foreach (string Line in ssResult.Split('\n', StringSplitOptions.RemoveEmptyEntries))
@@ -1469,8 +1522,7 @@ namespace AutomationTool
 			// try ss first and remember if available for next time
 			if (bHave_ss)
 			{
-				bHave_ss = GetListenStatus_ss(Device, Port == 0 ? DefaultPort : Port, out bUSB, out bWifi, out WifiAddress);
-				if (bHave_ss)
+				if (GetListenStatus_ss(Device, Port == 0 ? DefaultPort : Port, out bHave_ss, out bUSB, out bWifi, out WifiAddress))
 				{
 					return true;
 				}
@@ -1479,8 +1531,7 @@ namespace AutomationTool
 			// next fall back to netstat and remember if available for next time
 			if (bHave_netstat)
 			{
-				bHave_netstat = GetListenStatus_netstat(Device, Port == 0 ? DefaultPort : Port, out bUSB, out bWifi, out WifiAddress);
-				if (bHave_netstat)
+				if (GetListenStatus_netstat(Device, Port == 0 ? DefaultPort : Port, out bHave_netstat, out bUSB, out bWifi, out WifiAddress))
 				{
 					return true;
 				}
@@ -1501,6 +1552,14 @@ namespace AutomationTool
 			{
 				bDidSendStops = true;
 				adb.Shell(Device, "am broadcast -a com.epicgames.unreal.RemoteFileManager.intent.COMMAND -n " + Receiver + "/com.epicgames.unreal.RemoteFileManagerReceiver -e cmd stop");
+			}
+
+			// get a list of installed activities and verify package is available first
+			List<string> InstalledActivities = GetInstalledActivities(Device);
+			foreach (string Activity in InstalledActivities)
+			{
+				bDidSendStops = true;
+				adb.Shell(Device, "am start -a com.epicgames.unreal.RemoteFileManager.intent.COMMAND2 -n " + Activity + "/com.epicgames.unreal.RemoteFileManagerActivity -e cmd stop");
 			}
 
 			// it can take up to 2 seconds for running servers to terminate so check if any binds to port are still active
@@ -1556,7 +1615,7 @@ namespace AutomationTool
 				}
 			}
 
-
+			/*
 			// get a list of installed clients and verify package is available (up to 6 seconds)
 			int tries = 60;
 			List<string> InstalledReceivers = GetInstalledReceivers(Device);
@@ -1581,6 +1640,32 @@ namespace AutomationTool
 					return false;
 				}
 			}
+			*/
+
+			// get a list of installed clients and verify package is available (up to 6 seconds)
+			int tries = 60;
+			List<string> InstalledActivities = GetInstalledActivities(Device);
+			if (!InstalledActivities.Contains(PackageName))
+			{
+				// if this was called right after installed the activity may not be registered yet, wait and try again
+				bool bFound = false;
+				while (tries-- > 0)
+				{
+					Thread.Sleep(100);
+
+					InstalledActivities = GetInstalledActivities(Device);
+					if (InstalledActivities.Contains(PackageName))
+					{
+						bFound = true;
+						break;
+					}
+				}
+				if (!bFound)
+				{
+					Log.TraceInformation("Did not find package with activity");
+					return false;
+				}
+			}
 
 			// retries up to 8 seconds to start and see listener ready
 			tries = 40;
@@ -1589,7 +1674,8 @@ namespace AutomationTool
 			string WifiAddress;
 
 			// sent start request (won't do anything if already started)
-			string StartCommand = "am broadcast -a com.epicgames.unreal.RemoteFileManager.intent.COMMAND -n " + PackageName + "/com.epicgames.unreal.RemoteFileManagerReceiver -e cmd start -e token " + Token + " -ei port " + ServerPort;
+//			string StartCommand = "am broadcast -a com.epicgames.unreal.RemoteFileManager.intent.COMMAND -n " + PackageName + "/com.epicgames.unreal.RemoteFileManagerReceiver -e cmd start -e token " + Token + " -ei port " + ServerPort;
+			string StartCommand = "am start -a com.epicgames.unreal.RemoteFileManager.intent.COMMAND2 -n " + PackageName + "/com.epicgames.unreal.RemoteFileManagerActivity -e cmd start -e token " + Token + " -ei port " + ServerPort;
 			adb.Shell(Device, StartCommand);
 
 			// see if we can check listen status
