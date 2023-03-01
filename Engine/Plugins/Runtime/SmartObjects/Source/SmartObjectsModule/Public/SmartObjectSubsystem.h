@@ -7,6 +7,7 @@
 #include "WorldConditionContext.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "AI/Navigation/NavigationTypes.h"
+#include "AI/Navigation/NavQueryFilter.h"
 #include "SmartObjectSubsystem.generated.h"
 
 class UCanvas;
