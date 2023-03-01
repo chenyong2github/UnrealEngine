@@ -71,6 +71,9 @@ public:
 		: FAdvancedPreviewScene(CVS)
 	{}
 
+	/** Unregister this scene from the Undo chain. Necessary for certain editor windows. */
+	virtual void UnregisterForUndo() = 0;
+
 	/** Get the persona toolkit we are associated with */
 	virtual TSharedRef<class IPersonaToolkit> GetPersonaToolkit() const = 0;
 

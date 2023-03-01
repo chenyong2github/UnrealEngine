@@ -26,7 +26,6 @@
 #include "Sequencer/ControlRigLayerInstance.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "IPersonaPreviewScene.h"
-#include "AnimationEditorPreviewScene.h"
 #include "Animation/AnimData/BoneMaskFilter.h"
 #include "ControlRig.h"
 #include "Editor/ControlRigSkeletalMeshComponent.h"
@@ -105,6 +104,7 @@
 #include "MaterialDomain.h"
 #include "RigVMFunctions/RigVMFunction_ControlFlow.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
+#include "AnimationEditorViewportClient.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -4362,15 +4362,8 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 		PreviewInstance = Cast<UAnimPreviewInstance>(EditorSkelComp->GetAnimInstance());
 	}
 
-	if (GEditor)
-	{
-		// remove the preview scene undo handling - it has unwanted side effects
-		FAnimationEditorPreviewScene* AnimationEditorPreviewScene = static_cast<FAnimationEditorPreviewScene*>(&InPersonaPreviewScene.Get());
-		if (AnimationEditorPreviewScene)
-		{
-			GEditor->UnregisterForUndo(AnimationEditorPreviewScene);
-		}
-	}
+	// remove the preview scene undo handling - it has unwanted side effects
+	InPersonaPreviewScene->UnregisterForUndo();
 }
 
 void FControlRigEditor::UpdateControlRig()

@@ -21,6 +21,7 @@ public:
 	~FAnimationEditorPreviewScene();
 
 	/** IPersonaPreviewScene interface */
+	virtual void UnregisterForUndo() override;
 	virtual TSharedRef<class IPersonaToolkit> GetPersonaToolkit() const override { return PersonaToolkit.Pin().ToSharedRef(); }
 	virtual void SetPreviewAnimationAsset(UAnimationAsset* AnimAsset, bool bEnablePreview = true) override;
 	virtual UAnimationAsset* GetPreviewAnimationAsset() const override;

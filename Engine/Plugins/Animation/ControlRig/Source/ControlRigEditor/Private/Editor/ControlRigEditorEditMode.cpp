@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Editor/ControlRigEditorEditMode.h"
+#include "AnimationEditorViewportClient.h"
 #include "IPersonaPreviewScene.h"
 #include "AssetEditorModeManager.h"
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRigGizmoActor.h"
+#include "Preferences/PersonaOptions.h"
 #include "SkeletalDebugRendering.h"
 
 FName FControlRigEditorEditMode::ModeName("EditMode.ControlRigEditor");

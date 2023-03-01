@@ -16,7 +16,6 @@
 #include "IDetailPropertyExtensionHandler.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "SAdvancedTransformInputBox.h"
-#include "PropertyNode.h"
 
 class IDetailLayoutBuilder;
 

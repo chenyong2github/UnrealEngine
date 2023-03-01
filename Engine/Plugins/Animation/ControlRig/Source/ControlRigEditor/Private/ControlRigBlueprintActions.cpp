@@ -14,7 +14,6 @@
 
 #include "ToolMenus.h"
 #include "ContentBrowserMenuContexts.h"
-#include "AssetTools.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"

@@ -2,13 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EditMode/ControlRigEditMode.h"
-#include "IPersonaEditMode.h"
-#include "Preferences/PersonaOptions.h"
-#include "AnimationEditorViewportClient.h"
 
-#pragma once
+class UPersonaOptions;
 
 class FControlRigEditorEditMode : public FControlRigEditMode
 {

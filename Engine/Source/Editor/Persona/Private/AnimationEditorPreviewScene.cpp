@@ -126,6 +126,14 @@ FAnimationEditorPreviewScene::~FAnimationEditorPreviewScene()
 	}
 }
 
+void FAnimationEditorPreviewScene::UnregisterForUndo()
+{
+	if (GEditor)
+	{
+		GEditor->UnregisterForUndo(this);
+	}
+}
+
 TArray<UDebugSkelMeshComponent*> FAnimationEditorPreviewScene::GetAllPreviewMeshComponents() const
 {
 	TArray<UDebugSkelMeshComponent*> PreviewMeshComponents;
