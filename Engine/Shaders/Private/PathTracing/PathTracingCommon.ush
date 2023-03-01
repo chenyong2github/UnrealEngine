@@ -148,6 +148,7 @@ struct FPackedPathTracingPayload : FMinimalPayload
 
 	bool IsFrontFace() { return (GetFlags() & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE) != 0; }
 
+	bool IsDecalReceiver() { return (GetFlags() & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RECEIVER) != 0; }
 
 	// These method are meant to be used only when IsVisibilityRay() is true
 	float3 GetRayThroughput()
