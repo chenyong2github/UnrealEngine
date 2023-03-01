@@ -9,16 +9,35 @@ using EpicGames.Core;
 
 public class EOSSDK : ModuleRules
 {
+	public virtual bool bHasPlatformBaseFile { get { return false; } }
+	public virtual bool bHasMultiplePlatformSDKBuilds { get { return false; } }
+
+	public virtual string EOSSDKPlatformName
+	{
+		get
+		{
+			return Target.Platform.ToString();
+		}
+	}
+
+	public virtual string EOSSDKIdealPlatformSDKBuildName
+	{
+		get
+		{
+			return UEBuildPlatformSDK.GetSDKForPlatform(Target.Platform.ToString()).GetInstalledVersion();
+		}
+	}
+
 	public virtual string SDKBaseDir
 	{
 		get
 		{
-			// Overridden by platform extensions to point at the PE module directory
-			return Path.Combine(ModuleDirectory, "SDK");
+			// Try and grab the PX dir, which will fail if this is not a PX. Fallback on the Module directory.
+			return Path.Combine(GetModuleDirectoryForSubClass(this.GetType())?.FullName ?? ModuleDirectory, "SDK");
 		}
 	}
 
-	public virtual string SDKIncludesDir
+	private string SDKIncludesDir
 	{
 		get
 		{
@@ -30,31 +49,51 @@ public class EOSSDK : ModuleRules
             {
 				return Path.Combine(SDKBinariesDir, "EOSSDK.framework", "Headers");
 			}
-			return Path.Combine(SDKBaseDir, "Include");
-		}
-	}
-
-	public virtual string SDKLibsDir
-	{
-		get
-		{
-			return Path.Combine(SDKBaseDir, "Lib");
-		}
-	}
-
-	public virtual string SDKBinariesDir
-	{
-		get
-		{
-			if (Target.Platform == UnrealTargetPlatform.IOS)
+			else
 			{
-				return Path.Combine(SDKBaseDir, "Bin", "IOS");
+				return Path.Combine(SDKBaseDir, "Include");
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Android)
-            {
-				return Path.Combine(SDKBaseDir, "Bin", "Android");
-            }
-			return Path.Combine(SDKBaseDir, "Bin");
+		}
+	}
+
+	public string SDKLibsDir
+	{
+		get
+		{
+			string LibDir = Path.Combine(SDKBaseDir, "Lib");
+			string PlatformLibDir = Path.Combine(LibDir, EOSSDKPlatformName);
+			if (Directory.Exists(PlatformLibDir))
+			{
+				return PlatformLibDir;
+			}
+			return LibDir;
+		}
+	}
+
+	public string SDKBinariesDir
+	{
+		get
+		{
+			string BinDir = SDKBaseDir;
+			if (bHasMultiplePlatformSDKBuilds)
+			{
+				string PlatformSDKBuildDir = Path.Combine(BinDir, EOSSDKPlatformName + "-" + EOSSDKIdealPlatformSDKBuildName);
+				if(!Directory.Exists(PlatformSDKBuildDir))
+				{
+					// Fall back on any available one.
+					PlatformSDKBuildDir = Directory.GetDirectories(SDKBaseDir, EOSSDKPlatformName + "-*").First();
+					string Fallback = PlatformSDKBuildDir.Split(EOSSDKPlatformName + "-").Last();
+					Log.TraceWarningOnce("Unable to find EOSSDK for platform SDK \"{0}\", falling back on EOSSDK for platform SDK \"{1}\".", EOSSDKIdealPlatformSDKBuildName, Fallback);
+				}
+				BinDir = PlatformSDKBuildDir;
+			}
+			BinDir = Path.Combine(BinDir, "Bin");
+			string PlatformBinDir = Path.Combine(BinDir, EOSSDKPlatformName);
+			if (Directory.Exists(PlatformBinDir))
+			{
+				BinDir = PlatformBinDir;
+			}
+			return BinDir;
 		}
 	}
 
@@ -75,7 +114,7 @@ public class EOSSDK : ModuleRules
 				return "EOSSDK";
             }
 			
-			return String.Format("EOSSDK-{0}-Shipping", Target.Platform.ToString());
+			return String.Format("EOSSDK-{0}-Shipping", EOSSDKPlatformName);
 		}
 	}
 
@@ -160,6 +199,12 @@ public class EOSSDK : ModuleRules
 
 		PublicDefinitions.Add(String.Format("EOSSDK_RUNTIME_LOAD_REQUIRED={0}", bRequiresRuntimeLoad ? 1 : 0));
 		PublicDefinitions.Add(String.Format("EOSSDK_RUNTIME_LIBRARY_NAME=\"{0}\"", RuntimeLibraryFileName));
+
+		if(bHasPlatformBaseFile)
+		{
+			PublicSystemIncludePaths.Add(Path.Combine(SDKIncludesDir, EOSSDKPlatformName));
+			PublicDefinitions.Add(string.Format("EOS_PLATFORM_BASE_FILE_NAME=\"eos_{0}_base.h\"", EOSSDKPlatformName));
+		}
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
