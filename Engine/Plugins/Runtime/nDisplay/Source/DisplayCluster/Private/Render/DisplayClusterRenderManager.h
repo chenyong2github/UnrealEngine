@@ -6,7 +6,6 @@
 
 #include "Render/IPDisplayClusterRenderManager.h"
 
-
 class IDisplayClusterPostProcess;
 class IDisplayClusterPostProcessFactory; 
 class IDisplayClusterProjectionPolicy;
@@ -14,9 +13,7 @@ class IDisplayClusterProjectionPolicyFactory;
 class IDisplayClusterRenderDeviceFactory;
 class IDisplayClusterRenderSyncPolicy;
 class IDisplayClusterRenderSyncPolicyFactory;
-class IDisplayClusterVblankMonitor;
 class UDisplayClusterCameraComponent;
-
 
 /**
  * Render manager. Responsible for everything related to the visuals.
@@ -63,11 +60,6 @@ public:
 	virtual TSharedPtr<IDisplayClusterPostProcessFactory> GetPostProcessFactory(const FString& InPostProcessType) override;
 	virtual void GetRegisteredPostProcess(TArray<FString>& OutPostProcessIDs) const override;
 	virtual TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> CreateMeshComponent() const override;
-
-	virtual TSharedPtr<IDisplayClusterVblankMonitor, ESPMode::ThreadSafe> GetVblankMonitor() override
-	{
-		return VBlankMonitor;
-	}
 
 	virtual IDisplayClusterViewportManager* GetViewportManager() const override;
 
@@ -116,8 +108,4 @@ private:
 
 	// This flag is used to auto-focus the UE window once on start
 	bool bWasWindowFocused = false;
-
-private:
-	// V-blank monitor
-	TSharedPtr<IDisplayClusterVblankMonitor, ESPMode::ThreadSafe> VBlankMonitor;
 };

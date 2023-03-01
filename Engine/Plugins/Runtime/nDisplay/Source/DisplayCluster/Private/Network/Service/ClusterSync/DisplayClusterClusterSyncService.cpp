@@ -38,9 +38,9 @@ FDisplayClusterClusterSyncService::FDisplayClusterClusterSyncService()
 	const FDisplayClusterConfigurationNetworkSettings& NetworkSettings = GDisplayCluster->GetConfigMgr()->GetConfig()->Cluster->Network;
 
 	// Instantiate service barriers
-	BarrierGameStart.Reset(FDisplayClusterBarrierFactory::CreateBarrier(TEXT("GameStart_barrier"), NodeIds, NetworkSettings.GameStartBarrierTimeout));
-	BarrierFrameStart.Reset(FDisplayClusterBarrierFactory::CreateBarrier(TEXT("FrameStart_barrier"), NodeIds, NetworkSettings.FrameStartBarrierTimeout));
-	BarrierFrameEnd.Reset(FDisplayClusterBarrierFactory::CreateBarrier(TEXT("FrameEnd_barrier"), NodeIds, NetworkSettings.FrameEndBarrierTimeout));
+	BarrierGameStart  = FDisplayClusterBarrierFactory::CreateBarrier(NodeIds, NetworkSettings.GameStartBarrierTimeout,  TEXT("GameStart_barrier"));
+	BarrierFrameStart = FDisplayClusterBarrierFactory::CreateBarrier(NodeIds, NetworkSettings.FrameStartBarrierTimeout, TEXT("FrameStart_barrier"));
+	BarrierFrameEnd   = FDisplayClusterBarrierFactory::CreateBarrier(NodeIds, NetworkSettings.FrameEndBarrierTimeout,   TEXT("FrameEnd_barrier"));
 
 	// Put the barriers into an aux container
 	ServiceBarriers.Emplace(BarrierGameStart->GetName(),  &BarrierGameStart);
@@ -116,7 +116,7 @@ void FDisplayClusterClusterSyncService::KillSession(const FString& NodeId)
 	// Before killing the session on the parent level, we need to unregister this node from the barriers
 	for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>*>& BarrierIt : ServiceBarriers)
 	{
-		(*BarrierIt.Value)->UnregisterSyncCaller(NodeId);
+		(*BarrierIt.Value)->UnregisterSyncNode(NodeId);
 	}
 
 	// Now do the session related job
@@ -141,7 +141,7 @@ void FDisplayClusterClusterSyncService::ProcessSessionClosed(const FDisplayClust
 			// We have to unregister the node that just disconnected from all barriers
 			for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>*>& BarrierIt : ServiceBarriers)
 			{
-				(*BarrierIt.Value)->UnregisterSyncCaller(NodeId);
+				(*BarrierIt.Value)->UnregisterSyncNode(NodeId);
 			}
 
 			// Notify others about node fail
@@ -157,7 +157,7 @@ void FDisplayClusterClusterSyncService::ProcessBarrierTimeout(const FString& Bar
 	{
 		for (const FString& NodeId : NodesTimedOut)
 		{
-			(*BarrierIt.Value)->UnregisterSyncCaller(NodeId);
+			(*BarrierIt.Value)->UnregisterSyncNode(NodeId);
 		}
 	}
 

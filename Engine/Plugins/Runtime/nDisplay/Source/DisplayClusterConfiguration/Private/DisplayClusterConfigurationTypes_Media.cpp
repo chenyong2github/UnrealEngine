@@ -5,24 +5,24 @@
 #include "DisplayClusterConfigurationTypes_Media.h"
 
 
-bool FDisplayClusterConfigurationMediaICVFX::IsMediaInputAssigned(const FString& NodeId) const
+bool FDisplayClusterConfigurationMediaICVFX::IsMediaInputAssigned(const FString& InNodeId) const
 {
-	return GetMediaSource(NodeId) != nullptr;
+	return GetMediaSource(InNodeId) != nullptr;
 }
 
-bool FDisplayClusterConfigurationMediaICVFX::IsMediaOutputAssigned(const FString& NodeId) const
+bool FDisplayClusterConfigurationMediaICVFX::IsMediaOutputAssigned(const FString& InNodeId) const
 {
-	return GetMediaOutput(NodeId) != nullptr;
+	return GetMediaOutput(InNodeId) != nullptr;
 }
 
-UMediaSource* FDisplayClusterConfigurationMediaICVFX::GetMediaSource(const FString& NodeId) const
+UMediaSource* FDisplayClusterConfigurationMediaICVFX::GetMediaSource(const FString& InNodeId) const
 {
 	// Look up for a group that contains node ID specified
 	for (const FDisplayClusterConfigurationMediaInputGroup& MediaInputGroup : MediaInputGroups)
 	{
-		const bool bFound = MediaInputGroup.ClusterNodes.ItemNames.ContainsByPredicate([NodeId](const FString& Item)
+		const bool bFound = MediaInputGroup.ClusterNodes.ItemNames.ContainsByPredicate([InNodeId](const FString& Item)
 			{
-				return Item.Equals(NodeId, ESearchCase::IgnoreCase);
+				return Item.Equals(InNodeId, ESearchCase::IgnoreCase);
 			});
 
 		if (bFound)
@@ -34,38 +34,19 @@ UMediaSource* FDisplayClusterConfigurationMediaICVFX::GetMediaSource(const FStri
 	return nullptr;
 }
 
-UMediaOutput* FDisplayClusterConfigurationMediaICVFX::GetMediaOutput(const FString& NodeId) const
+UMediaOutput* FDisplayClusterConfigurationMediaICVFX::GetMediaOutput(const FString& InNodeId) const
 {
 	// Look up for a group that contains node ID specified
 	for (const FDisplayClusterConfigurationMediaOutputGroup& MediaOutputGroup : MediaOutputGroups)
 	{
-		const bool bFound = MediaOutputGroup.ClusterNodes.ItemNames.ContainsByPredicate([NodeId](const FString& Item)
+		const bool bFound = MediaOutputGroup.ClusterNodes.ItemNames.ContainsByPredicate([InNodeId](const FString& Item)
 			{
-				return Item.Equals(NodeId, ESearchCase::IgnoreCase);
+				return Item.Equals(InNodeId, ESearchCase::IgnoreCase);
 			});
 
 		if (bFound)
 		{
 			return MediaOutputGroup.MediaOutput;
-		}
-	}
-
-	return nullptr;
-}
-
-UDisplayClusterMediaOutputSynchronizationPolicy* FDisplayClusterConfigurationMediaICVFX::GetOutputSyncPolicy(const FString& NodeId) const
-{
-	// Look up for a group that contains node ID specified
-	for (const FDisplayClusterConfigurationMediaOutputGroup& MediaOutputGroup : MediaOutputGroups)
-	{
-		const bool bFound = MediaOutputGroup.ClusterNodes.ItemNames.ContainsByPredicate([NodeId](const FString& Item)
-			{
-				return Item.Equals(NodeId, ESearchCase::IgnoreCase);
-			});
-
-		if (bFound)
-		{
-			return MediaOutputGroup.OutputSyncPolicy;
 		}
 	}
 

@@ -10,7 +10,6 @@ class FDisplayClusterClusterSyncService;
 class FDisplayClusterRenderSyncService;
 class FDisplayClusterClusterEventsJsonService;
 class FDisplayClusterClusterEventsBinaryService;
-class FDisplayClusterGenericBarrierService;
 class FDisplayClusterTcpListener;
 
 
@@ -64,7 +63,6 @@ private:
 	// Node servers
 	TUniquePtr<FDisplayClusterClusterSyncService>         ClusterSyncServer;
 	TUniquePtr<FDisplayClusterRenderSyncService>          RenderSyncServer;
-	TUniquePtr<FDisplayClusterGenericBarrierService>      GenericBarriersServer;
 	TUniquePtr<FDisplayClusterClusterEventsJsonService>   ClusterEventsJsonServer;
 	TUniquePtr<FDisplayClusterClusterEventsBinaryService> ClusterEventsBinaryServer;
 

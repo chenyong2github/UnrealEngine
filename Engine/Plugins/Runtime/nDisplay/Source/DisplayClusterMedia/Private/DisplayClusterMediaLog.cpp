@@ -5,4 +5,3 @@
 
 // Module-wide log categories
 DEFINE_LOG_CATEGORY(LogDisplayClusterMedia);
-DEFINE_LOG_CATEGORY(LogDisplayClusterMediaSync);

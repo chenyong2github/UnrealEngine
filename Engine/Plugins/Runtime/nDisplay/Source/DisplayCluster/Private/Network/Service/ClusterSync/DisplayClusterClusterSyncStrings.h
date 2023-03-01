@@ -10,8 +10,8 @@ namespace DisplayClusterClusterSyncStrings
 {
 	constexpr static auto ProtocolName = "ClusterSync";
 	
-	constexpr static auto TypeRequest  = "Request";
-	constexpr static auto TypeResponse = "Response";
+	constexpr static auto TypeRequest  = "request";
+	constexpr static auto TypeResponse = "response";
 
 	constexpr static auto ArgumentsDefaultCategory = "CS";
 	constexpr static auto ArgumentsJsonEvents      = "CS_JE";

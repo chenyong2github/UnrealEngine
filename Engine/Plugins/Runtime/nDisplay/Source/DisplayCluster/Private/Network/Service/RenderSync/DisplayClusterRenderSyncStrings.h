@@ -10,8 +10,8 @@ namespace DisplayClusterRenderSyncStrings
 {
 	constexpr static auto ProtocolName = "RenderSync";
 
-	constexpr static auto TypeRequest  = "Request";
-	constexpr static auto TypeResponse = "Response";
+	constexpr static auto TypeRequest  = "request";
+	constexpr static auto TypeResponse = "response";
 
 	constexpr static auto ArgumentsDefaultCategory = "RS";
 

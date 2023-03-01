@@ -246,13 +246,11 @@ void FDisplayClusterRenderSyncService::InitializeBarriers()
 		const FString BarrierName = SyncGroup.Key + TEXT("_barrier");
 
 		// Instantiate the barrier
-		if (IDisplayClusterBarrier* const Barrier = FDisplayClusterBarrierFactory::CreateBarrier(BarrierName, SyncGroup.Value, Config->Cluster->Network.RenderSyncBarrierTimeout))
-		{
-			// Subscribe for barrier timeout events
-			Barrier->OnBarrierTimeout().AddRaw(this, &FDisplayClusterRenderSyncService::ProcessBarrierTimeout);
-			// Store barrier instance
-			PolicyToBarrierMap.Emplace(SyncGroup.Key, Barrier);
-		}
+		TUniquePtr<IDisplayClusterBarrier> Barrier = FDisplayClusterBarrierFactory::CreateBarrier(SyncGroup.Value, Config->Cluster->Network.RenderSyncBarrierTimeout, BarrierName);
+		// Subscribe for barrier timeout events
+		Barrier->OnBarrierTimeout().AddRaw(this, &FDisplayClusterRenderSyncService::ProcessBarrierTimeout);
+		// Store barrier instance
+		PolicyToBarrierMap.Emplace(SyncGroup.Key, MoveTemp(Barrier));
 	}
 }
 
@@ -297,6 +295,6 @@ void FDisplayClusterRenderSyncService::UnregisterClusterNode(const FString& Node
 {
 	if (IDisplayClusterBarrier* Barrier = GetBarrierForNode(NodeId))
 	{
-		Barrier->UnregisterSyncCaller(NodeId);
+		Barrier->UnregisterSyncNode(NodeId);
 	}
 }

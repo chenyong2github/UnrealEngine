@@ -24,7 +24,6 @@
 #include "Render/Device/DisplayClusterRenderDeviceFactoryInternal.h"
 
 #include "Render/Device/IDisplayClusterRenderDeviceFactory.h"
-#include "Render/Monitoring/DisplayClusterVblankMonitor.h"
 #include "Render/PostProcess/IDisplayClusterPostProcess.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
@@ -54,17 +53,6 @@
 #endif
 
 
-static TAutoConsoleVariable<int32> CVarSyncDiagnosticsVBlankMonitoring(
-	TEXT("nDisplay.sync.diag.VBlankMonitoring"),
-	0,
-	TEXT("Sync diagnostics: V-blank monitoring\n")
-	TEXT("0 : disabled\n")
-	TEXT("1 : enabled (if policy supports only)\n")
-	,
-	ECVF_ReadOnly
-);
-
-
 FDisplayClusterRenderManager::FDisplayClusterRenderManager()
 {
 	// Instantiate and register internal render device factory
@@ -80,9 +68,6 @@ FDisplayClusterRenderManager::FDisplayClusterRenderManager()
 	RegisterSynchronizationPolicyFactory(DisplayClusterConfigurationStrings::config::cluster::render_sync::Ethernet,        NewSyncPolicyFactory); // Ethernet
 	RegisterSynchronizationPolicyFactory(DisplayClusterConfigurationStrings::config::cluster::render_sync::EthernetBarrier, NewSyncPolicyFactory); // Ethernet_Simple
 	RegisterSynchronizationPolicyFactory(DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia,          NewSyncPolicyFactory); // NVIDIA
-
-	// Instantiate V-blank monitor (it won't auto-start polling)
-	VBlankMonitor = MakeShared<FDisplayClusterVBlankMonitor, ESPMode::ThreadSafe>();
 }
 
 FDisplayClusterRenderManager::~FDisplayClusterRenderManager()
@@ -134,12 +119,6 @@ bool FDisplayClusterRenderManager::StartSession(UDisplayClusterConfigurationData
 	{
 		GEngine->StereoRenderingDevice = StaticCastSharedPtr<IStereoRendering>(NewRenderDevice);
 		RenderDevicePtr = NewRenderDevice.Get();
-	}
-
-	// Start v-blank monitoring if requested
-	if (!!CVarSyncDiagnosticsVBlankMonitoring.GetValueOnGameThread())
-	{
-		VBlankMonitor->StartMonitoring();
 	}
 
 	// When session is starting in Editor the device won't be initialized so we avoid nullptr access here.

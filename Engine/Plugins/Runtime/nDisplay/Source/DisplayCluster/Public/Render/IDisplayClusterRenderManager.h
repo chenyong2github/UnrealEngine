@@ -13,7 +13,6 @@ class IDisplayClusterProjectionPolicyFactory;
 class IDisplayClusterRenderDeviceFactory;
 class IDisplayClusterRenderSyncPolicy;
 class IDisplayClusterRenderSyncPolicyFactory;
-class IDisplayClusterVblankMonitor;
 class IDisplayClusterViewportManager; 
 class UCineCameraComponent;
 struct FPostProcessSettings;
@@ -162,11 +161,6 @@ public:
 	* @param OutPostProcessIDs - (out) array to put registered IDs
 	*/
 	virtual void GetRegisteredPostProcess(TArray<FString>& OutPostProcessIDs) const = 0;
-
-	/**
-	* Returns V-blank monitor interface
-	*/
-	virtual TSharedPtr<IDisplayClusterVblankMonitor, ESPMode::ThreadSafe> GetVblankMonitor() = 0;
 
 	/**
 	* @return - Current viewport manager from root actor

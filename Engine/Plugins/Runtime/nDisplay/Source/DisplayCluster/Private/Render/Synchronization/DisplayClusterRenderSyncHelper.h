@@ -27,7 +27,7 @@ public:
 
 
 /**
- * Synchronization helper implementation. The main purpose of this class
+ * Syncrhonization helper implementation. The main purpose of this class
  * is to solve the combinatoric complexity Platform/RHI/SyncPolicy without
  * making the whole sync policies hierarchy overcomplicated.
  */

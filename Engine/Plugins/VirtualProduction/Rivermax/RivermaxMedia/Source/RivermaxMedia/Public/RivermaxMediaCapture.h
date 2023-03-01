@@ -23,10 +23,6 @@ class RIVERMAXMEDIA_API URivermaxMediaCapture : public UMediaCapture, public UE:
 	GENERATED_BODY()
 
 public:
-	/** Rivermax capture specific API to provide stream options access */
-	UE::RivermaxCore::FRivermaxOutputStreamOptions GetOutputStreamOptions() const;
-
-public:
 
 	//~ Begin UMediaCapture interface
 	virtual bool HasFinishedProcessing() const override;
@@ -44,7 +40,6 @@ protected:
 	virtual EMediaCaptureResourceType GetCustomOutputResourceType() const override;
 	virtual FRDGBufferDesc GetCustomBufferDescription(const FIntPoint& InDesiredSize) const override;
 	virtual void OnCustomCapture_RenderingThread(FRDGBuilder& GraphBuilder, const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FRDGTextureRef InSourceTexture, FRDGBufferRef OutputBuffer, const FRHICopyTextureInfo& CopyInfo, FVector2D CropU, FVector2D CropV) override;
-	virtual bool IsOutputSynchronizationSupported() const override { return true; }
 	//~ End UMediaCapture interface
 
 	//~ Begin UObject interface
@@ -54,7 +49,6 @@ protected:
 	//~ Begin IRivermaxOutputStreamListener interface
 	virtual void OnInitializationCompleted(bool bHasSucceed) override;
 	virtual void OnStreamError() override;
-	virtual void OnPreFrameEnqueue() override;
 	//~ End IRivermaxOutputStreamListener interface
 
 private:

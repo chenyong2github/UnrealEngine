@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "DisplayClusterEnums.h"
 #include "Misc/Optional.h"
 #include "Misc/QualifiedFrameTime.h"

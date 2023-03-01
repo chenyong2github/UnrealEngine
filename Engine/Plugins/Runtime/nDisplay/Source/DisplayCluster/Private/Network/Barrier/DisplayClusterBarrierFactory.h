@@ -17,5 +17,5 @@ private:
 
 public:
 	// Factory method to instantiate a barrier based on the user settings
-	static IDisplayClusterBarrier* CreateBarrier(const FString& BarrierId, const TArray<FString>& ThreadMarkers, const uint32 Timeout);
+	static TUniquePtr<IDisplayClusterBarrier> CreateBarrier(const TArray<FString>& ThreadMarkers, const uint32 Timeout, const FString& Name);
 };

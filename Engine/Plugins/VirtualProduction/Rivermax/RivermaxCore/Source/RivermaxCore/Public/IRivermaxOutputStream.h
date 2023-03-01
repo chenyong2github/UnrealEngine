@@ -29,9 +29,6 @@ namespace UE::RivermaxCore
 
 		/** Called when stream has encountered an error and has to stop */
 		virtual void OnStreamError() = 0;
-
-		/** Called when stream is about to enqueue new frame */
-		virtual void OnPreFrameEnqueue() = 0;
 	};
 
 	class RIVERMAXCORE_API IRivermaxOutputStream

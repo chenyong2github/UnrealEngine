@@ -12,12 +12,12 @@
 /**
  * Thread barrier v2
  */
-class FDisplayClusterBarrier
+class FDisplayClusterBarrierV2
 	: public IDisplayClusterBarrier
 {
 public:
-	FDisplayClusterBarrier(const FString& Name, const TArray<FString>& CallersAllowed, const uint32 Timeout);
-	virtual  ~FDisplayClusterBarrier();
+	FDisplayClusterBarrierV2(const TArray<FString>& NodesAllowed, const uint32 Timeout, const FString& Name);
+	virtual  ~FDisplayClusterBarrierV2();
 
 public:
 	// Barrier name
@@ -30,14 +30,11 @@ public:
 	virtual bool Activate() override;
 	// Deactivate barrier, no threads will be blocked
 	virtual void Deactivate() override;
-	// Returns true if the barrier has been activated
-	virtual bool IsActivated() const override;
+	// Wait until all node threads arrived
+	virtual EDisplayClusterBarrierWaitResult Wait(const FString& NodeId, double* OutThreadWaitTime = nullptr, double* OutBarrierWaitTime = nullptr) override;
 
-	// Wait until all caller threads arrived
-	virtual EDisplayClusterBarrierWaitResult Wait(const FString& CallerId, double* OutThreadWaitTime = nullptr, double* OutBarrierWaitTime = nullptr) override;
-
-	// Remove specified caller from the sync pipeline
-	virtual void UnregisterSyncCaller(const FString& CallerId) override;
+	// Remove specified node from sync pipeline
+	virtual void UnregisterSyncNode(const FString& NodeId) override;
 
 	// Barrier timout notification
 	virtual FDisplayClusterBarrierTimeoutEvent& OnBarrierTimeout() override
@@ -56,14 +53,14 @@ private:
 	bool bActive = false;
 
 
-	// Caller that are allowed to join the barrier
-	TArray<FString> CallersAllowed;
+	// Cluster nodes that are allowed to join the barrier
+	TArray<FString> NodesAllowed;
 
-	// Callers that are already waiting at the barrier
-	TArray<FString> CallersAwaiting;
+	// Cluster nodes that are already waiting at the barrier
+	TArray<FString> NodesAwaiting;
 
-	// Cluster Callers that have been timed out previously
-	TArray<FString> CallersTimedout;
+	// Cluster nodes that have been timed out previously
+	TArray<FString> NodesTimedout;
 
 
 	// Timeout for the barrier

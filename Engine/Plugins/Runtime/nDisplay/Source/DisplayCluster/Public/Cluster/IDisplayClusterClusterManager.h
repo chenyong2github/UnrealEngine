@@ -7,13 +7,12 @@
 #include "UObject/ScriptInterface.h"
 #include "DisplayClusterEnums.h"
 
-struct FDisplayClusterClusterEventBinary;
 struct FDisplayClusterClusterEventJson;
-class IDisplayClusterClusterEventBinaryListener;
+struct FDisplayClusterClusterEventBinary;
 class IDisplayClusterClusterEventJsonListener;
-class IDisplayClusterClusterEventListener;
+class IDisplayClusterClusterEventBinaryListener;
 class IDisplayClusterClusterSyncObject;
-class IDisplayClusterGenericBarriersClient;
+class IDisplayClusterClusterEventListener;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnClusterEventJson, const FDisplayClusterClusterEventJson& /* Event */);
 typedef FOnClusterEventJson::FDelegate FOnClusterEventJsonListener;
@@ -54,9 +53,6 @@ public:
 	virtual void RegisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj, EDisplayClusterSyncGroup SyncGroup) = 0;
 	/** Unregisters synchronization object. */
 	virtual void UnregisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj) = 0;
-
-	/** Spawns a client for generic barriers service. */
-	virtual TUniquePtr<IDisplayClusterGenericBarriersClient> CreateGenericBarriersClient(const FString& ClientName) = 0;
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Cluster events
