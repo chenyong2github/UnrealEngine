@@ -50,7 +50,7 @@ void ReflectionTraceScreenTexturesCS(
 	if (all(ReflectionTracingCoord.Coord < ReflectionTracingViewSize))
 	{
 		float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord.Coord);
-		float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord.Coord, 0)).x;
+		float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord.CoordFlatten, 0)).x;
 
 		if (SceneDepth > 0.0f)
 		{
