@@ -740,10 +740,6 @@ void FPackageData::OnEnterIdle()
 
 void FPackageData::OnExitIdle()
 {
-	if (PackageDatas.GetLogDiscoveredPackages())
-	{
-		UE_LOG(LogCook, Warning, TEXT("Missing dependency: Package %s discovered after initial dependency search."), *WriteToString<256>(PackageName));
-	}
 }
 
 void FPackageData::OnEnterRequest()
@@ -1476,12 +1472,17 @@ bool FGeneratorPackage::TryGenerateList(UObject* OwnerObject, FPackageDatas& Pac
 	FPackageData& OwnerPackageData = GetOwner();
 	UPackage* LocalOwnerPackage = OwnerPackageData.GetPackage();
 	check(LocalOwnerPackage);
-	TArray<ICookPackageSplitter::FGeneratedPackage> GeneratorDatas =
-		CookPackageSplitterInstance->GetGenerateList(LocalOwnerPackage, OwnerObject);
+	UCookOnTheFlyServer& COTFS = GetOwner().GetPackageDatas().GetCookOnTheFlyServer();
+
+	TArray<ICookPackageSplitter::FGeneratedPackage> GeneratorDatas;
+	{
+		UCookOnTheFlyServer::FScopedActivePackage ScopedActivePackage(COTFS, OwnerPackageData.GetPackageName(),
+			PackageAccessTrackingOps::NAME_CookerBuildObject);
+		GeneratorDatas = CookPackageSplitterInstance->GetGenerateList(LocalOwnerPackage, OwnerObject);
+	}
 	PackagesToGenerate.Reset(GeneratorDatas.Num());
 	TArray<const ITargetPlatform*, TInlineAllocator<1>> RequestedPlatforms;
 	OwnerPackageData.GetRequestedPlatforms(RequestedPlatforms);
-	UCookOnTheFlyServer& COTFS = GetOwner().GetPackageDatas().GetCookOnTheFlyServer();
 	bool bHybridIterativeEnabled = COTFS.bHybridIterativeEnabled;
 
 	int32 NumIterativeModified = 0; 
@@ -1786,6 +1787,9 @@ UPackage* FGeneratorPackage::CreateGeneratedUPackage(FCookGenerationInfo& Genera
 	const UPackage* InOwnerPackage, const TCHAR* GeneratedPackageName)
 {
 	check(IsInitialized());
+#if ENABLE_COOK_STATS
+	++DetailedCookStats::NumRequestedLoads;
+#endif
 	UPackage* GeneratedPackage = CreatePackage(GeneratedPackageName);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	GeneratedPackage->SetGuid(GeneratedInfo.Guid);
@@ -1838,6 +1842,9 @@ void FGeneratorPackage::ResetSaveState(FCookGenerationInfo& Info, UPackage* Pack
 		}
 		else
 		{
+			UCookOnTheFlyServer& COTFS = Info.PackageData->GetPackageDatas().GetCookOnTheFlyServer();
+			UCookOnTheFlyServer::FScopedActivePackage ScopedActivePackage(COTFS, GetOwner().GetPackageName(),
+				PackageAccessTrackingOps::NAME_CookerBuildObject);
 			if (Info.IsGenerator())
 			{
 				GetCookPackageSplitterInstance()->PostSaveGeneratorPackage(Package, SplitObject);
@@ -2226,8 +2233,8 @@ bool FPendingCookedPlatformData::PollIsComplete()
 		Release();
 		return true;
 	}
-	UE_TRACK_REFERENCING_PACKAGE_SCOPED(LocalObject, PackageAccessTrackingOps::NAME_CookerBuildObject);
-	if (RouteIsCachedCookedPlatformDataLoaded(LocalObject, TargetPlatform))
+	UCookOnTheFlyServer& COTFS = PackageData.GetPackageDatas().GetCookOnTheFlyServer();
+	if (COTFS.RouteIsCachedCookedPlatformDataLoaded(PackageData.GetPackageName(), LocalObject, TargetPlatform))
 	{
 		Release();
 		return true;
@@ -2435,9 +2442,6 @@ void FPackageDatas::SetBeginCookConfigSettings(FStringView CookShowInstigator)
 			}
 		}
 	}
-
-	// Discoveries during the processing of the initial cluster are expected, so LogDiscoveredPackages must be off.
-	SetLogDiscoveredPackages(false);
 }
 
 FPackageDatas::~FPackageDatas()
@@ -2865,6 +2869,26 @@ FPackageData* FPackageDatas::UpdateFileName(FName PackageName)
 	return PackageData;
 }
 
+FThreadsafePackageData::FThreadsafePackageData()
+	: bInitialized(false)
+	, bCookable(true)
+	, bHasLoggedDiscoveryWarning(false)
+	, bHasLoggedDependencyWarning(false)
+{
+}
+
+void FPackageDatas::UpdateThreadsafePackageData(const FPackageData& PackageData)
+{
+	UpdateThreadsafePackageData(PackageData.GetPackageName(),
+		[&PackageData](FThreadsafePackageData& ThreadsafeData, bool bNew)
+		{
+			ThreadsafeData.Instigator = PackageData.GetInstigator();
+			FGeneratorPackage* Generator = PackageData.GetGeneratedOwner();
+			ThreadsafeData.Generator = Generator ? Generator->GetOwner().GetPackageName() : NAME_None;
+			ThreadsafeData.bCookable = PackageData.CanCookForPlatforms();
+		});
+}
+
 int32 FPackageDatas::GetNumCooked()
 {
 	int32 Count = 0;
@@ -3055,25 +3079,24 @@ void FPackageDatas::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPla
 
 void FPackageDatas::DebugInstigator(FPackageData& PackageData)
 {
-	if (ShowInstigatorPackageData != &PackageData)
+	if (ShowInstigatorPackageData == &PackageData)
 	{
-		return;
+		TArray<FInstigator> Chain = CookOnTheFlyServer.GetInstigatorChain(PackageData.GetPackageName());
+		TStringBuilder<256> ChainText;
+		if (Chain.Num() == 0)
+		{
+			ChainText << TEXT("<NoInstigator>");
+		}
+		bool bFirst = true;
+		for (FInstigator& Instigator : Chain)
+		{
+			if (!bFirst) ChainText << TEXT(" <- ");
+			ChainText << TEXT("{ ") << Instigator.ToString() << TEXT(" }");
+			bFirst = false;
+		}
+		UE_LOG(LogCook, Display, TEXT("Instigator chain of %s: %s"), *PackageData.GetPackageName().ToString(), ChainText.ToString());
 	}
-
-	TArray<FInstigator> Chain = CookOnTheFlyServer.GetInstigatorChain(PackageData.GetPackageName());
-	TStringBuilder<256> ChainText;
-	if (Chain.Num() == 0)
-	{
-		ChainText << TEXT("<NoInstigator>");
-	}
-	bool bFirst = true;
-	for (FInstigator& Instigator : Chain)
-	{
-		if (!bFirst) ChainText << TEXT(" <- ");
-		ChainText << TEXT("{ ") << Instigator.ToString() << TEXT(" }");
-		bFirst = false;
-	}
-	UE_LOG(LogCook, Display, TEXT("Instigator chain of %s: %s"), *PackageData.GetPackageName().ToString(), ChainText.ToString());
+	UpdateThreadsafePackageData(PackageData);
 }
 
 void FRequestQueue::Empty()

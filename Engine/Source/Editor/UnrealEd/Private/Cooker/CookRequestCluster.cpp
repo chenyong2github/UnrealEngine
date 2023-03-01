@@ -853,6 +853,7 @@ void FRequestCluster::FGraphSearch::MarkExplored(FPackageData& PackageData, bool
 		PlatformData.SetExplored(true);
 		PlatformData.SetCookable(bCookable);
 	}
+	Cluster.COTFS.PackageDatas->UpdateThreadsafePackageData(PackageData);
 }
 
 FRequestCluster::FVertexData::FVertexData(EAsyncType, int32 NumPlatforms)

@@ -1065,6 +1065,19 @@ public:
 	FPackageDataQueue EntryQueue;
 };
 
+/** Data duplicated from FPackageData that is stored separately for read/write from any thread. */
+struct FThreadsafePackageData
+{
+	FInstigator Instigator;
+	FName Generator;
+	bool bInitialized : 1;
+	bool bCookable : 1;
+	bool bHasLoggedDiscoveryWarning : 1;
+	bool bHasLoggedDependencyWarning : 1;
+
+	FThreadsafePackageData();
+};
+
 typedef TArray<FPendingCookedPlatformData> FPendingCookedPlatformDataContainer;
 
 /*
@@ -1160,6 +1173,11 @@ public:
 	FPackageData& AddPackageDataByPackageNameChecked(const FName& PackageName, bool bRequireExists = true,
 		bool bCreateAsMap = false);
 
+	void UpdateThreadsafePackageData(const FPackageData& PackageData);
+	/** Callback == void (*Callback)(FThreadsafePackageData& Value, bool bNew) */
+	template<typename CallbackType>
+	void UpdateThreadsafePackageData(FName PackageName, CallbackType&& Callback);
+	TOptional<FThreadsafePackageData> FindThreadsafePackageData(FName PackageName);
 	/**
 	 * Return the PackageData with the given FileName if one exists, otherwise return nullptr.
 	 */
@@ -1290,10 +1308,6 @@ public:
 	/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
 	void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
-	/** Get/Set whether to log newly discovered packages to debug missing transitive references. */
-	void SetLogDiscoveredPackages(bool bLog) { bLogDiscoveredPackages = bLog; }
-	bool GetLogDiscoveredPackages() const { return bLogDiscoveredPackages; }
-
 	/** Called when a PackageData assigns its instigator, for debugging. */
 	void DebugInstigator(FPackageData& PackageData);
 
@@ -1322,6 +1336,8 @@ private:
 	TMap<FName, FPackageData*> PackageNameToPackageData;
 	/** Guarded by ExistenceLock */
 	TMap<FName, FPackageData*> FileNameToPackageData;
+	/* Guarded by ExistenceLock. Duplicates information on FPackageData, but can be read/write from any thread. */
+	TMap<FName, FThreadsafePackageData> ThreadsafePackageDatas;
 	TRingBuffer<FPendingCookedPlatformDataContainer> PendingCookedPlatformDataLists;
 	int32 PendingCookedPlatformDataNum = 0;
 	FRequestQueue RequestQueue;
@@ -1330,10 +1346,9 @@ private:
 	FPackageDataQueue LoadReadyQueue;
 	FPackageDataQueue SaveQueue;
 	UCookOnTheFlyServer& CookOnTheFlyServer;
-	FRWLock ExistenceLock;
+	mutable FRWLock ExistenceLock;
 	FPackageData* ShowInstigatorPackageData = nullptr;
 	double LastPollAsyncTime;
-	bool bLogDiscoveredPackages = false;
 
 	static IAssetRegistry* AssetRegistry;
 };
@@ -1365,5 +1380,26 @@ struct FPoppedPackageDataScope
 	FPackageData& PackageData;
 #endif
 };
+
+template<typename CallbackType>
+inline void FPackageDatas::UpdateThreadsafePackageData(FName PackageName, CallbackType&& Callback)
+{
+	FWriteScopeLock ExistenceWriteLock(ExistenceLock);
+	FThreadsafePackageData& Value = ThreadsafePackageDatas.FindOrAdd(PackageName);
+	bool bNew = false;
+	if (!Value.bInitialized)
+	{
+		Value.bInitialized = true;
+		bNew = true;
+	}
+	Callback(Value, bNew);
+}
+
+inline TOptional<FThreadsafePackageData> FPackageDatas::FindThreadsafePackageData(FName PackageName)
+{
+	FReadScopeLock ExistenceReadLock(ExistenceLock);
+	FThreadsafePackageData* Value = ThreadsafePackageDatas.Find(PackageName);
+	return Value ? TOptional<FThreadsafePackageData>(*Value) : TOptional<FThreadsafePackageData>();
+}
 
 } // namespace UE::Cook

@@ -8,6 +8,8 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "Stats/Stats.h"
 
+#include <atomic>
+
 #define OUTPUT_COOKTIMING ENABLE_COOK_STATS
 #define PROFILE_NETWORK 0
 
@@ -155,6 +157,8 @@ extern bool IsUnversioned;
 
 // Stats tracked through FAutoRegisterCallback
 extern uint32 NumPreloadedDependencies;
+extern std::atomic<int32> NumDetectedLoads;
+extern int32 NumRequestedLoads;
 extern uint32 NumPackagesIterativelySkipped;
 extern int32 PeakRequestQueueSize;
 extern int32 PeakLoadQueueSize;

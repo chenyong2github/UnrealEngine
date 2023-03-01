@@ -12,11 +12,13 @@
 #include "IPlatformFileSandboxWrapper.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/Optional.h"
+#include "Misc/PackageAccessTracking.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "TickableEditorObject.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectHandleTracking.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
@@ -35,6 +37,7 @@ class IPlugin;
 class ITargetPlatform;
 enum class ODSCRecompileCommand;
 struct FBeginCookContext;
+struct FCrashContextExtendedWriter;
 struct FGenericMemoryStats;
 struct FPropertyChangedEvent;
 struct FResourceSizeEx;
@@ -146,6 +149,7 @@ namespace UE::Cook
 {
 	class FAssetRegistryMPCollector;
 	class FBuildDefinitions;
+	class FCachedDependencies;
 	class FCookDirector;
 	class FCookWorkerClient;
 	class FCookWorkerServer;
@@ -1269,6 +1273,9 @@ private:
 		return (CookFlags & InCookFlags) != ECookInitializationFlags::None;
 	}
 
+	void RouteBeginCacheForCookedPlatformData(FName PackageName, UObject* Obj, const ITargetPlatform* TargetPlatform);
+	bool RouteIsCachedCookedPlatformDataLoaded(FName PackageName, UObject* Obj, const ITargetPlatform* TargetPlatform);
+
 	/** Cook (save) a package and process the results */
 	void SaveCookedPackage(UE::Cook::FSaveCookedPackageContext& Context);
 	/** Helper for package saves using ExternalActors: record ExternalActors for iterative builds. */
@@ -1346,12 +1353,60 @@ private:
 	 */
 	void DeleteOutputForPackage(FName PackageName, const ITargetPlatform* TargetPlatform);
 
+	/**
+	 * Set the given package as the active package for diagnostics (e.g. hidden dependencies).
+ 	 * Must be balanced with call to ClearActivePackage. Consider using FScopedActivePackage instead.
+	 * @param PackageTrackingOpsName Optional op for TObjectPtr tracking. Set to NAME_None to not set TObjectPtr context.
+	 */
+	void SetActivePackage(FName PackageName, FName PackageTrackingOpsName);
+	/** Clear the package for diagnostics. Must be balanced with call to SetActivePackage */
+	void ClearActivePackage();
+	struct FActivePackageData
+	{
+		FName PackageName;
+		bool bActive = false;
+		UE_TRACK_REFERENCING_PACKAGE_DECLARE_SCOPE_VARIABLE(ReferenceTrackingScope);
+	};
+	/** Scoped type to call Set/ClearActivePackage. */
+	struct FScopedActivePackage
+	{
+		FScopedActivePackage(UCookOnTheFlyServer& InCOTFS, FName InPackageName, FName InPackageTrackingOpsName);
+		~FScopedActivePackage();
+
+		UCookOnTheFlyServer& COTFS;
+	};
+	/** Callback for FGenericCrashContext; provides the current ActivePackage as context. */
+	void DumpCrashContext(FCrashContextExtendedWriter& Writer);
+	/** Callback for analytics when a new UPackage is loaded. */
+	void OnDiscoveredPackageDebug(FName PackageName, const UE::Cook::FInstigator& Instigator);
+	/** Callback for analytics when a TObjectPtr is read. */
+	void OnObjectHandleReadDebug(TArrayView<const UObject*const> ReadObjects);
+	/** Send warnings/telemetry when a discovered or read package is found to be a hidden dependency. */
+	void ReportHiddenDependency(FName Referencer, FName Dependency);
+
 	static UCookOnTheFlyServer* ActiveCOTFS;
 	uint32		StatLoadedPackageCount = 0;
 	uint32		StatSavedPackageCount = 0;
 	int32		PackageDataFromBaseGameNum = 0;
 	UE::Cook::FStatHistoryInt NumObjectsHistory;
 	UE::Cook::FStatHistoryInt VirtualMemoryHistory;
+
+	FCriticalSection HiddenDependenciesLock;
+	/**
+	 * AllowList or BlockList for reporting hidden dependencies, parsed from ini and commandline, only used if bHiddenDependenciesDebug.
+	 * Read/Write only within HiddenDependenciesLock.
+	 */
+	TSet<FName> HiddenDependenciesClassPathFilterList;
+	/**
+	 * A cache of TSet<FName> of dependencies for each Package, guarded by HiddenDependenciesLock.
+	 * Read/Write only within HiddenDependenciesLock.
+	 */
+	TUniquePtr<UE::Cook::FCachedDependencies> CachedDependencies;
+
+	/** Registration handle for TObjectPtr's OnRead delegate. */
+	UE::CoreUObject::FObjectHandleTrackingCallbackId ObjectHandleReadHandle;
+	/** Data tracking the package currently having calls made (Load/Save/Other) from COTFS. Used for diagnostics. */
+	FActivePackageData ActivePackageData;
 
 	/** True when the which packages we need to cook changes because e.g. a platform was added to the sessionplatforms. */
 	bool bPackageFilterDirty = false;
@@ -1369,8 +1424,8 @@ private:
 	 * cooked in hybrid-iterative builds.
 	 */
 	bool bHybridIterativeEnabled = true;
-	/** Test mode for the debug of hybrid iterative dependencies. */
-	bool bHybridIterativeDebug = false;
+	bool bHiddenDependenciesDebug = false;
+	bool bHiddenDependenciesClassPathFilterListIsAllowList = true;
 	bool bFirstCookInThisProcessInitialized = false;
 	bool bFirstCookInThisProcess = true;
 	bool bImportBehaviorCallbackInstalled = false;
@@ -1448,6 +1503,8 @@ private:
 	friend UE::Cook::FGeneratorPackage;
 	friend UE::Cook::FInitializeConfigSettings;
 	friend UE::Cook::FPackageData;
+	friend UE::Cook::FPackageDatas;
+	friend UE::Cook::FPackageTracker;
 	friend UE::Cook::FPackageWriterMPCollector;
 	friend UE::Cook::FPendingCookedPlatformData;
 	friend UE::Cook::FPlatformManager;

@@ -173,7 +173,7 @@ private:
 struct FPackageTracker : public FUObjectArray::FUObjectCreateListener, public FUObjectArray::FUObjectDeleteListener
 {
 public:
-	FPackageTracker(FPackageDatas& InPackageDatas);
+	FPackageTracker(UCookOnTheFlyServer& InCOTFS);
 	~FPackageTracker();
 
 	/** Returns all packages that have been loaded since the last time GetNewPackages was called */
@@ -189,10 +189,7 @@ public:
 	/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
 	void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
-	/** The package currently being loaded at CookOnTheFlyServer's direct request. Used to determine which load dependencies were not preloaded. */
-	FPackageData* LoadingPackageData = nullptr;
-
-	FPackageDatas& PackageDatas;
+	UCookOnTheFlyServer& COTFS;
 
 	FThreadSafeUnsolicitedPackagesList UnsolicitedCookedPackages;
 	FThreadSafeQueue<FRecompileShaderRequest> RecompileRequests;
@@ -201,8 +198,6 @@ public:
 	FThreadSafeSet<FName> NeverCookPackageList;
 	FThreadSafeSet<FName> UncookedEditorOnlyPackages; // set of packages that have been rejected due to being referenced by editor-only properties
 	TFastPointerMap<const ITargetPlatform*, TSet<FName>> PlatformSpecificNeverCookPackages;
-
-	bool bHasBeenConsumed = false;
 
 	// Thread-safe enumeration of loaded package. 
 	// A lock is held during enumeration, keep code simple and optimal so the lock is released as fast as possible.
@@ -226,6 +221,8 @@ public:
 		ExpectedNeverLoadPackages.Empty();
 	}
 private:
+	void InitializeTracking();
+
 	// Protects data for thread-safety
 	FRWLock Lock;
 
@@ -235,6 +232,7 @@ private:
 
 	// This list contains the UPackages loaded since last call to GetNewPackages
 	TMap<UPackage*, FInstigator> NewPackages;
+	bool bTrackingInitialized = false;
 };
 
 } // namespace UE::Cook

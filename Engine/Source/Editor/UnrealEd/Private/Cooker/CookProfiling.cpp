@@ -244,15 +244,20 @@ namespace DetailedCookStats
 	int32 PeakRequestQueueSize = 0;
 	int32 PeakLoadQueueSize = 0;
 	int32 PeakSaveQueueSize = 0;
+	std::atomic<int32> NumDetectedLoads{ 0 };
+	int32 NumRequestedLoads = 0;
 	uint32 NumPreloadedDependencies = 0;
 	uint32 NumPackagesIterativelySkipped = 0;
 	FCookStatsManager::FAutoRegisterCallback RegisterCookOnTheFlyServerStats([](FCookStatsManager::AddStatFuncRef AddStat)
 		{
-			AddStat(TEXT("Package.Load"), FCookStatsManager::CreateKeyValueArray(TEXT("NumPreloadedDependencies"), NumPreloadedDependencies));
+			AddStat(TEXT("Package.Load"), FCookStatsManager::CreateKeyValueArray(
+				TEXT("NumPreloadedDependencies"), NumPreloadedDependencies,
+				TEXT("NumInlineLoads"), NumDetectedLoads - NumRequestedLoads));
 			AddStat(TEXT("Package.Save"), FCookStatsManager::CreateKeyValueArray(TEXT("NumPackagesIterativelySkipped"), NumPackagesIterativelySkipped));
-			AddStat(TEXT("CookOnTheFlyServer"), FCookStatsManager::CreateKeyValueArray(TEXT("PeakRequestQueueSize"), PeakRequestQueueSize));
-			AddStat(TEXT("CookOnTheFlyServer"), FCookStatsManager::CreateKeyValueArray(TEXT("PeakLoadQueueSize"), PeakLoadQueueSize));
-			AddStat(TEXT("CookOnTheFlyServer"), FCookStatsManager::CreateKeyValueArray(TEXT("PeakSaveQueueSize"), PeakSaveQueueSize));
+			AddStat(TEXT("CookOnTheFlyServer"), FCookStatsManager::CreateKeyValueArray(
+				TEXT("PeakRequestQueueSize"), PeakRequestQueueSize,
+				TEXT("PeakLoadQueueSize"), PeakLoadQueueSize,
+				TEXT("PeakSaveQueueSize"), PeakSaveQueueSize));
 		});
 }
 #endif

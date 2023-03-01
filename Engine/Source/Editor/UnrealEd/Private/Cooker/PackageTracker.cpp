@@ -5,27 +5,13 @@
 #include "CookOnTheFlyServerInterface.h"
 #include "CookPackageData.h"
 #include "CookPlatformManager.h"
+#include "CookProfiling.h"
 #include "Misc/ScopeRWLock.h"
-#include "ProfilingDebugging/CookStats.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 
 namespace UE::Cook
 {
-
-#if ENABLE_COOK_STATS
-namespace Stats
-{
-
-// Stats tracked through FAutoRegisterCallback
-static uint32 NumInlineLoads = 0;
-static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
-	{
-		AddStat(TEXT("Package.Load"), FCookStatsManager::CreateKeyValueArray(TEXT("NumInlineLoads"), NumInlineLoads));
-	});
-
-}
-#endif
 
 void FThreadSafeUnsolicitedPackagesList::AddCookedPackage(const FFilePlatformRequest& PlatformRequest)
 {
@@ -62,9 +48,24 @@ void FThreadSafeUnsolicitedPackagesList::Empty()
 }
 
 
-FPackageTracker::FPackageTracker(FPackageDatas& InPackageDatas)
-	:PackageDatas(InPackageDatas)
+FPackageTracker::FPackageTracker(UCookOnTheFlyServer& InCOTFS)
+	:COTFS(InCOTFS)
 {
+}
+
+FPackageTracker::~FPackageTracker()
+{
+	if (bTrackingInitialized)
+	{
+		GUObjectArray.RemoveUObjectDeleteListener(this);
+		GUObjectArray.RemoveUObjectCreateListener(this);
+	}
+}
+
+void FPackageTracker::InitializeTracking()
+{
+	check(!bTrackingInitialized);
+
 	LLM_SCOPE_BYTAG(Cooker);
 
 	FWriteScopeLock ScopeLock(Lock);
@@ -86,41 +87,53 @@ FPackageTracker::FPackageTracker(FPackageDatas& InPackageDatas)
 
 	GUObjectArray.AddUObjectDeleteListener(this);
 	GUObjectArray.AddUObjectCreateListener(this);
-}
 
-FPackageTracker::~FPackageTracker()
-{
-	GUObjectArray.RemoveUObjectDeleteListener(this);
-	GUObjectArray.RemoveUObjectCreateListener(this);
+	bTrackingInitialized = true;
 }
 
 TMap<UPackage*, FInstigator> FPackageTracker::GetNewPackages()
 {
+	if (!bTrackingInitialized)
+	{
+		InitializeTracking();
+		check(bTrackingInitialized);
+	}
+
 	FWriteScopeLock ScopeLock(Lock);
 	TMap<UPackage*, FInstigator> Result = MoveTemp(NewPackages);
 	NewPackages.Reset();
-	bHasBeenConsumed = true;
 	return Result;
 }
 
 bool FPackageTracker::HasBeenConsumed() const
 {
-	return bHasBeenConsumed;
+	// Tracking is initialized only during GetNewPackages, so we can use bTrackingInitialized to
+	// tell whether GetNewPackages has been called.
+	return bTrackingInitialized;
 }
 
 void FPackageTracker::NotifyUObjectCreated(const class UObjectBase* Object, int32 Index)
 {
 	if (Object->GetClass() == UPackage::StaticClass())
 	{
-		LLM_SCOPE_BYTAG(Cooker);
 		auto Package = const_cast<UPackage*>(static_cast<const UPackage*>(Object));
 
 		if (Package->GetOuter() == nullptr)
 		{
 			LLM_SCOPE_BYTAG(Cooker);
-			if (LoadingPackageData && Package->GetFName() != LoadingPackageData->GetPackageName())
+#if ENABLE_COOK_STATS
+			++DetailedCookStats::NumDetectedLoads;
+#endif
+#if UE_WITH_PACKAGE_ACCESS_TRACKING
+			PackageAccessTracking_Private::FTrackedData* AccumulatedScopeData = PackageAccessTracking_Private::FPackageAccessRefScope::GetCurrentThreadAccumulatedData();
+			FName ReferencerName(AccumulatedScopeData ? AccumulatedScopeData->PackageName : NAME_None);
+#else
+			FName ReferencerName(NAME_None);
+#endif
+			FInstigator Instigator(EInstigator::Unsolicited, ReferencerName);
+			if (COTFS.bHiddenDependenciesDebug)
 			{
-				COOK_STAT(++Stats::NumInlineLoads);
+				COTFS.OnDiscoveredPackageDebug(Package->GetFName(), Instigator);
 			}
 
 			FWriteScopeLock ScopeLock(Lock);
@@ -129,10 +142,8 @@ void FPackageTracker::NotifyUObjectCreated(const class UObjectBase* Object, int3
 				UE_LOG(LogCook, Verbose, TEXT("SoftGC PoorPerformance: Reloaded package %s."), *WriteToString<256>(Package->GetFName()));
 			}
 			LoadedPackages.Add(Package);
-			NewPackages.Add(Package,
-					FInstigator(EInstigator::Unsolicited,
-						LoadingPackageData ? LoadingPackageData->GetPackageName() : NAME_None)
-				);
+			NewPackages.Add(Package, MoveTemp(Instigator));
+
 		}
 	}
 }
