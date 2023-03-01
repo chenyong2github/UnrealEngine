@@ -1488,6 +1488,12 @@ void UPaperSprite::SetPivotMode(ESpritePivotMode::Type InPivotMode, FVector2D In
 
 #if WITH_EDITOR
 
+static TAutoConsoleVariable<bool> CVarDisableSyncLoadInEditor(
+	TEXT("Paper2d.DisableSyncLoadInEditor"),
+	true,
+	TEXT("Don't attempt to load the source texture synchronous if we are inside the AsyncLoading thread alreayd."),
+	ECVF_Cheat);
+
 UTexture2D* UPaperSprite::GetSourceTexture() const
 {
 	// Verify the cache is still valid.
@@ -1495,8 +1501,13 @@ UTexture2D* UPaperSprite::GetSourceTexture() const
 	{
 		return SourceTextureCacheNeverSerialized;
 	}
-
-	UTexture2D* SourceTexturePtr = SourceTexture.LoadSynchronous();
+	
+	// We don't want to load synchronously unless we are OUTSIDE of an async loading thread.
+	// We could be in the Async loading thread if we are in the editor with cooked content already
+	UTexture2D* SourceTexturePtr =
+			CVarDisableSyncLoadInEditor.GetValueOnGameThread() && IsInAsyncLoadingThread() ?
+			nullptr :
+			SourceTexture.LoadSynchronous();
 
 	// We need to completely load the texture if we're in post load and this texture is needed immediately,
 	// not safe to do in a game with EDL, but safe at editor time.
