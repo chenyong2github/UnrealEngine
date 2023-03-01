@@ -7,7 +7,7 @@
 #include "Net/Core/Trace/Private/NetTraceInternal.h"
 #include "ProfilingDebugging/TraceAuxiliary.h"
 #include "SlateGlobals.h"
-#include "Styling/SlateWidgetStyleContainerBase.h
+#include "Styling/SlateWidgetStyleContainerBase.h"
 #include "TestCommon/Initialization.h"
 
 #include <catch2/catch_test_macros.hpp>
