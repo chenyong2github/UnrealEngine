@@ -549,7 +549,13 @@ void FModeToolkit::UpdatePrimaryModePanel()
 			if (HasToolkitBuilder())
 			{
 				TabPtr->SetParentDockTabStackTabWellHidden(HasToolkitBuilder());
-				return;				
+				const TSharedPtr<SWidget> Content = GetInlineContent() ;
+				
+				if ( Content && InlineContentHolder.IsValid() )
+				{
+					InlineContentHolder->SetContent( Content.ToSharedRef() );
+				}
+				return;
 			}
 		}
 
