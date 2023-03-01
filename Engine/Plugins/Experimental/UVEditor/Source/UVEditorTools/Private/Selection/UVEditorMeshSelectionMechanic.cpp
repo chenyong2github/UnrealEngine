@@ -750,6 +750,14 @@ void UUVEditorMeshSelectionMechanic::SetShowHoveredElements(bool bShow)
 
 void UUVEditorMeshSelectionMechanic::Shutdown()
 {
+	// Note that the ForceTerminateSource should happen before destroying everything else so that we
+	// can shut down behaviors properly.
+	if (LivePreviewInputRouter.IsValid())
+	{
+		LivePreviewInputRouter->ForceTerminateSource(LivePreviewBehaviorSource);
+		LivePreviewInputRouter->DeregisterSource(LivePreviewBehaviorSource);
+	}
+
 	if (HoverGeometryActor)
 	{
 		HoverGeometryActor->Destroy();
@@ -759,10 +767,6 @@ void UUVEditorMeshSelectionMechanic::Shutdown()
 	{
 		LivePreviewHoverGeometryActor->Destroy();
 		LivePreviewHoverGeometryActor = nullptr;
-	}
-	if (LivePreviewAPI)
-	{
-		LivePreviewInputRouter->DeregisterSource(LivePreviewBehaviorSource);
 	}
 
 	SelectionAPI = nullptr;
