@@ -20,7 +20,7 @@
 
 #define LOCTEXT_NAMESPACE "SMessageLogMessageListRow"
 
-class MESSAGELOG_API SMessageLogMessageListRow
+class SMessageLogMessageListRow
 	: public STableRow<TSharedPtr<FTokenizedMessage>>
 {
 public:
