@@ -32,8 +32,19 @@ public class EOSSDK : ModuleRules
 	{
 		get
 		{
-			// Try and grab the PX dir, which will fail if this is not a PX. Fallback on the Module directory.
-			return Path.Combine(GetModuleDirectoryForSubClass(this.GetType())?.FullName ?? ModuleDirectory, "SDK");
+			// Prefer to use the SDK dir from the platform extension.
+			// Will fail if this is not a platform extension, or there is no SDK in the platform extension.
+			string PlatformExtensionBaseDir = GetModuleDirectoryForSubClass(this.GetType())?.FullName;
+			if(PlatformExtensionBaseDir != null)
+			{
+				PlatformExtensionBaseDir = Path.Combine(PlatformExtensionBaseDir, "SDK");
+				if(Directory.Exists(PlatformExtensionBaseDir))
+				{
+					return PlatformExtensionBaseDir;
+				}
+			}
+			// Fallback on the base module SDK.
+			return Path.Combine(ModuleDirectory, "SDK");
 		}
 	}
 
