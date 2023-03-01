@@ -5043,7 +5043,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 				// Don't do this for any packages that have previously fully loaded as they may have in memory changes
 				check(CurrentLoadContext);
 				CurrentLoadContext->AddLoadedObject(Export.Object);
-				if (!Export.Object->HasAnyFlags(RF_LoadCompleted) && !LinkerRoot->IsFullyLoaded())
+				if (!Export.Object->HasAnyFlags(RF_LoadCompleted) && (!LinkerRoot->IsFullyLoaded() || IsBlueprintFinalizationPending()))
 				{
 					check(!GEventDrivenLoaderEnabled || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
 

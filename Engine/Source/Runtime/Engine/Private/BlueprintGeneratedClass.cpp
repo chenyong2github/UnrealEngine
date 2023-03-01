@@ -1550,6 +1550,9 @@ void UBlueprintGeneratedClass::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 void UBlueprintGeneratedClass::GetDefaultObjectPreloadDependencies(TArray<UObject*>& OutDeps)
 {
 	Super::GetDefaultObjectPreloadDependencies(OutDeps);
+	
+	// Add the super classes CDO, as it needs to be in place to properly serialize.
+	OutDeps.Add(GetSuperClass()->GetDefaultObject());
 
 	// Ensure that BPGC-owned component templates (archetypes) are loaded prior to CDO serialization in order to support the following use cases:
 	//
@@ -1613,9 +1616,6 @@ void UBlueprintGeneratedClass::GetDefaultObjectPreloadDependencies(TArray<UObjec
 	// Add objects related to the sparse class data struct
 	if (SparseClassDataStruct)
 	{
-		// Add the super classes CDO, as it needs to be in place to properly serialize the sparse class data's archetype
-		OutDeps.Add(GetSuperClass()->GetDefaultObject());
-	
 		// Add the sparse class data struct, as it is serialized as part of the CDO
 		OutDeps.Add(SparseClassDataStruct);
 

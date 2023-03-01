@@ -1264,7 +1264,7 @@ bool FLinkerLoad::DeferExportCreation(const int32 Index, UObject* Outer)
 		// the actual CDO and execute its native ctor/initializer.
 		if (((LoadFlags & LOAD_DeferDependencyLoads) != 0) && bHasDeferredDependencies)
 		{
-			// This will cause IsBlueprintFinalizationPending() to fail below (which is what we want).
+			// This will cause IsBlueprintFinalizationPending() to return true (which is what we want).
 			// We'll then fall through and create a placeholder object for the CDO in order to defer its
 			// actual construction (along with serialization) until after we've resolved its dependencies.
 			DEFERRED_DEPENDENCY_CHECK(DeferredCDOIndex == INDEX_NONE);
@@ -1837,7 +1837,7 @@ void FLinkerLoad::FinalizeBlueprint(UClass* LoadClass)
 			// paramount that we force it through serialization (so we reset the 
 			// RF_NeedLoad guard, and leave it to ResolveDeferredExports, for it
 			// to re-run the serialization)
-			if ( (SuperCDO != nullptr) && !SuperCDO->HasAnyFlags(RF_NeedLoad|RF_LoadCompleted) )
+			if ((SuperCDO != nullptr) && !SuperCDO->HasAnyFlags(RF_NeedLoad|RF_LoadCompleted) && !FBlueprintSupport::IsDeferredDependencyPlaceholder(SuperCDO))
 			{
 				check(!GEventDrivenLoaderEnabled || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
 				SuperCDO->SetFlags(RF_NeedLoad);
