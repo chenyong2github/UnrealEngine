@@ -92,7 +92,7 @@ void USmartObjectSubsystem::OnWorldComponentsUpdated(UWorld& World)
 	UE_CVLOG_UELOG(!SpacePartitionClassName.IsValid(), this, LogSmartObject, Error, TEXT("A valid space partition class name is required."));
 	if (SpacePartitionClassName.IsValid())
 	{
-		SpacePartitionClass = LoadClass<USmartObjectSpacePartition>(this, *SpacePartitionClassName.ToString());
+		SpacePartitionClass = LoadClass<USmartObjectSpacePartition>(nullptr, *SpacePartitionClassName.ToString());
 		UE_CVLOG_UELOG(*SpacePartitionClass == nullptr, this, LogSmartObject, Error, TEXT("Unable to load class %s"), *SpacePartitionClassName.ToString());
 	}
 
