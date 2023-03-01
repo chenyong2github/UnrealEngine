@@ -19,7 +19,7 @@ namespace UE::NNECore::Internal
 		Atanh,
 		//BitShift, //Note: need integer tensors
 		Ceil,
-		//Clip,     //Note: need scalar tensor inputs
+		Clip,
 		Cos,
 		Cosh,
 		Elu,

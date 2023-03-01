@@ -6,6 +6,7 @@
 #include "Algo/Transform.h"
 #include "Algo/Count.h"
 #include "Misc/EnumerateRange.h"
+#include "Helper/NNERuntimeRDGHelperReshape.h"
 
 namespace UE::NNERuntimeRDG::Private::Dml
 {
@@ -15,72 +16,6 @@ namespace UE::NNERuntimeRDG::Private::Dml
  */
 class FOperatorDmlReshape : public FOperatorDml
 {
-
-    template<typename DataType>
-    bool ReshapeTensorToDmlShape(
-        const NNECore::Internal::FTensor& InputTensor, 
-        const NNECore::Internal::FTensor& ShapeTensor, 
-        bool bAllowZero,
-        DmlUtil::FSmallUIntArray& OutShape)
-    {
-        
-        DmlUtil::FSmallArray<DataType> ReshapedShape(ShapeTensor.GetPreparedData<DataType>());
-
-        if(!bAllowZero)
-        {
-            // at most 1 dimension can be -1
-            if(Algo::Count(ReshapedShape, -1) > 1)
-            {
-                UE_LOG(LogNNE, Error, TEXT("Shape tensor can't contain more than one '-1'."));
-                return false;
-            }
-            for (TEnumerateRef<DataType> Elem : EnumerateRange(ReshapedShape))
-            {
-                if(!(*Elem != 0 || InputTensor.GetShape().Rank() > Elem.GetIndex()))
-                {
-                    UE_LOG(LogNNE, Error, TEXT("Shape tensor contains '0' in an invalid place."));
-                    return false;
-                }
-                *Elem = 
-                    *Elem == 0 ? 
-                        InputTensor.GetShape().GetData()[Elem.GetIndex()] 
-                        : 
-                        *Elem;
-            }
-        }
-        else
-        {
-            // no -1 is allowed if there is a 0
-            if(Algo::Count(ReshapedShape, 0) != 0 && Algo::Count(ReshapedShape, -1) != 0)
-            {
-                UE_LOG(LogNNE, Error, TEXT("Shape tensor contains both '0' and '-1'. This is not allowed."));
-                return false;
-            }
-        }
-
-        auto PartialVolume = [](TConstArrayView<DataType> Shape) -> uint32
-            {
-                uint32 Volume = 1;
-                for(DataType Dim : Shape)
-                {
-                    Volume *= Dim != -1 ? (DataType) Dim : 1;
-                }
-                return Volume;
-            };
-
-        OutShape.SetNumUninitialized(ReshapedShape.Num());
-
-        for(TConstEnumerateRef<DataType> Elem : EnumerateRange(ReshapedShape))
-        {
-            OutShape[Elem.GetIndex()] = 
-                *Elem == -1 ? 
-                    (uint32) InputTensor.GetShape().Volume() / PartialVolume(ReshapedShape)
-                    :
-                    (uint32) *Elem;
-        }
-
-        return true;
-    }
 
 public:
 
@@ -110,19 +45,19 @@ public:
         switch(InputTensors[1].GetDataType())
         {
         case ENNETensorDataType::Int32:
-            if(!ReshapeTensorToDmlShape<int32>(InputTensors[0], InputTensors[1], bAllowZero, ReshapedShape))
+            if(!ShapeHelper::Reshape::ReshapeTensor<int32>(InputTensors[0].GetShape(), InputTensors[1], bAllowZero, ReshapedShape))
             {
                 return false;
             }
             break;
         case ENNETensorDataType::Int64:
-            if(!ReshapeTensorToDmlShape<int64>(InputTensors[0], InputTensors[1], bAllowZero, ReshapedShape))
+			if (!ShapeHelper::Reshape::ReshapeTensor<int64>(InputTensors[0].GetShape(), InputTensors[1], bAllowZero, ReshapedShape))
             {
                 return false;
             }
             break;
         case ENNETensorDataType::UInt32:
-            if(!ReshapeTensorToDmlShape<uint32>(InputTensors[0], InputTensors[1], bAllowZero, ReshapedShape))
+			if (!ShapeHelper::Reshape::ReshapeTensor<uint32>(InputTensors[0].GetShape(), InputTensors[1], bAllowZero, ReshapedShape))
             {
                 return false;
             }

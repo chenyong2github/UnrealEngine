@@ -1,54 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNERuntimeRDGReshape.h"
+#include "NNERuntimeRDGIdentity.h"
 #include "NNECoreTensor.h"
 #include "NNECoreTypes.h"
 #include "RenderGraphUtils.h"
-#include "Helper/NNERuntimeRDGHelperReshape.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNEOperatorReshape, TEXT("NNE.Operator.Hlsl.Reshape"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorIdentity, TEXT("NNE.Operator.Hlsl.Identity"));
 
 	/**
-	 * Reshape operator implementation
+	 * Identity operator implementation
 	 */
-	class FReshape : public FOperatorHlsl
+	class FIdentity : public FOperatorHlsl
 	{
 	public:
 
-		FReshape() {}
-		virtual ~FReshape() = default;
-
-		bool bAllowZero = false;
+		FIdentity() {}
+		virtual ~FIdentity() = default;
 
 	public:
 
 		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
 		{
-			check(InputTensors.Num() == 2);
+			check(InputTensors.Num() == 1);
 			check(OutputTensors.Num() == 1);
 
 			const NNECore::Internal::FTensor& X = *InputTensors[0];
-			const NNECore::Internal::FTensor& ShapeTensor = *InputTensors[1];
-			TArray<uint32> OutputShapeData;
 
-			check(ShapeTensor.GetDataType() == ENNETensorDataType::Int64);
-
-			if (!ShapeTensor.HasPreparedData())
-			{
-				UE_LOG(LogNNE, Warning, TEXT("Reshape input 'Shape' (name: %s) should be constant for shape inference to succeed, however it is not."), *ShapeTensor.GetName());
-				return -1;
-			}
-
-			if (!ShapeHelper::Reshape::ReshapeTensor<int64>(X.GetShape(), ShapeTensor, bAllowZero, OutputShapeData))
-			{
-				return -1;
-			}
-
-			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
-			
-			OutputTensors[0]->SetShape(OutputShape);
+			OutputTensors[0]->SetShape(X.GetShape());
 			if (X.HasPreparedData())
 			{
 				OutputTensors[0]->SetPreparedData<uint8>(X.GetPreparedData<uint8>());
@@ -59,17 +39,15 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
 		{
-			check(InputTensorDescs.Num() == 2);
+			check(InputTensorDescs.Num() == 1);
 			check(OutputTensorDescs.Num() == 1);
-
-			bAllowZero = (bool) (Attributes.GetValueOrDefault<int32>(TEXT("allowzero"), 0));
 			
 			return true;
 		}
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InputTensors, TConstArrayView<FTensorRDGRef> OutputTensors) override
 		{
-			check(InputTensors.Num() == 2);
+			check(InputTensors.Num() == 1);
 			check(OutputTensors.Num() == 1);
 			check(InputTensors[0] != nullptr);
 			check(OutputTensors[0] != nullptr);
@@ -77,25 +55,23 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			const FTensorRDG& Data = *InputTensors[0];
 			const FTensorRDG& Output = *OutputTensors[0];
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Reshape");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorReshape);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Identity");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorIdentity);
 
 			AddCopyBufferPass(GraphBuilder, Output.GetBuffer(), Data.GetBuffer());
 		}
 	};
 
-	bool ValidateReshapeOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputReshapes)
+	bool ValidateIdentityOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputIdentitys)
 	{
 		bool bIsValid = true;
 
-		//This match version 14 of the Reshape operator
-		//https://github.com/onnx/onnx/blob/main/docs/Operators.md#Reshape
+		//This match version 16 of the Identity operator
+		//https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity
 		FAttributeValidator AttributeValidator;
-		AttributeValidator.AddOptional(TEXT("allowzero"), ENNEAttributeDataType::Int32);
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		FInputValidator InputValidator;
-		InputValidator.SetTemplateCount(2);
 		InputValidator.AddSupportedType(ENNETensorDataType::Half);
 		InputValidator.AddSupportedType(ENNETensorDataType::Float);
 		InputValidator.AddSupportedType(ENNETensorDataType::Double);
@@ -109,22 +85,19 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		InputValidator.AddSupportedType(ENNETensorDataType::UInt64);
 		InputValidator.AddRequired();
 
-		InputValidator.AddSupportedType(ENNETensorDataType::Int64, 1);
-		InputValidator.AddRequired(1);
-
 		bIsValid &= InputValidator.Validate(InputTypes);
 
 		return bIsValid;
 	}
 
-	FOperatorHlsl* CreateReshapeOperator()
+	FOperatorHlsl* CreateIdentityOperator()
 	{
-		return new FReshape();
+		return new FIdentity();
 	}
 
-	bool RegisterReshapeOperator(FOperatorRegistryHlsl& Registry)
+	bool RegisterIdentityOperator(FOperatorRegistryHlsl& Registry)
 	{
-		Registry.OpAdd(TEXT("Reshape"), CreateReshapeOperator, ValidateReshapeOperator);
+		Registry.OpAdd(TEXT("Identity"), CreateIdentityOperator, ValidateIdentityOperator);
 		return true;
 	}
 } // UE::NNERuntimeRDG::Private::Hlsl

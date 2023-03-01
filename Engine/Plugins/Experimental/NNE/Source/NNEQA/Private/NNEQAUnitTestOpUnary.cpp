@@ -118,6 +118,20 @@ namespace UE::NNEQA::Private::NNERuntimeRDG::UnaryOp
 		UTEST_EQUAL(TEXT("Ceil(XC2x1)[1]"), Y.GetPreparedData<float>()[1], FMath::CeilToFloat(XC2x1.GetPreparedData<float>()[1]));
 		return true;
 	}
+
+	IMPLEMENT_NNE_SHAPEINFERENCEHELPER_UNIT_AUTOMATION_TEST(FElementWiseUnaryCPUHelperClip, "System.Engine.MachineLearning.NNE.UnitTest.UnaryHelper.Clip");
+	bool FElementWiseUnaryCPUHelperClip::RunTest(const FString& Parameter)
+	{
+		FTensor XC2x1 = MakeConstTensor(TEXT("XC3x1"), { 3,1 }, { 0.5f, 1.8f, 2.1f });
+		FTensor Y = MakeTensor(TEXT("Y"), { 3,1 });
+		CPUHelper::ElementWiseUnary::Apply(EElementWiseUnaryOperatorType::Clip, XC2x1, 1.0f, 2.0f, 3.0f, Y);
+		UTEST_TRUE(TEXT("Y const if input is const"), Y.HasPreparedData());
+		UTEST_EQUAL(TEXT("Clip(XC3x1)[0]"), Y.GetPreparedData<float>()[0], 1.0f);
+		UTEST_EQUAL(TEXT("Clip(XC3x1)[1]"), Y.GetPreparedData<float>()[1], XC2x1.GetPreparedData<float>()[1]);
+		UTEST_EQUAL(TEXT("Clip(XC3x1)[2]"), Y.GetPreparedData<float>()[2], 2.0f);
+		return true;
+	}
+
 	IMPLEMENT_NNE_SHAPEINFERENCEHELPER_UNIT_AUTOMATION_TEST(FElementWiseUnaryCPUHelperCos, "System.Engine.MachineLearning.NNE.UnitTest.UnaryHelper.Cos");
 	bool FElementWiseUnaryCPUHelperCos::RunTest(const FString& Parameter)
 	{

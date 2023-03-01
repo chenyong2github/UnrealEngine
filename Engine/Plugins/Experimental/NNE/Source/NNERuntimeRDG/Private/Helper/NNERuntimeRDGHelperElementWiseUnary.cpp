@@ -41,6 +41,8 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::ElementWiseUnary
 	}
 
 	template<> float Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Ceil>(float X, float Alpha, float Beta, float Gamma) { return FMath::CeilToFloat(X); }
+
+	template<> float Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Clip>(float X, float Alpha, float Beta, float Gamma) { return FMath::Clamp(X, Alpha, Beta); }
 	
 	template<> float Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Cos>(float X, float Alpha, float Beta, float Gamma) { return FMath::Cos(X); }
 	
@@ -169,6 +171,9 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::ElementWiseUnary
 			break;
 		case NNECore::Internal::EElementWiseUnaryOperatorType::Ceil:
 			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Ceil>(Tensor, Alpha, Beta, Gamma, OutputTensor);
+			break;
+		case NNECore::Internal::EElementWiseUnaryOperatorType::Clip:
+			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Clip>(Tensor, Alpha, Beta, Gamma, OutputTensor);
 			break;
 		case NNECore::Internal::EElementWiseUnaryOperatorType::Cos:
 			Apply<NNECore::Internal::EElementWiseUnaryOperatorType::Cos>(Tensor, Alpha, Beta, Gamma, OutputTensor);

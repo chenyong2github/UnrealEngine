@@ -38,7 +38,7 @@ namespace UE::NNEHlslShaders::Internal
 		//OP(BitShift,  TEXT("bitshift(X)"));
 		//OP(Cast,      TEXT("cast(X)"));
 		OP(Ceil,        TEXT("ceil(X)"));
-		//OP(Clip,      TEXT("clip(X)"));
+		OP(Clip,        TEXT("clipOp(X)"));
 		OP(Cos,         TEXT("cos(X)"));
 		OP(Cosh,        TEXT("cosh(X)"));
 		OP(Elu,         TEXT("elu(X)"));

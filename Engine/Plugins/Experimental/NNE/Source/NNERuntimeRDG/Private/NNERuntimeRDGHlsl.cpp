@@ -8,15 +8,19 @@
 #include "NNERuntimeRDGHlslHelper.h"
 #include "NNERuntimeRDGModelHlsl.h"
 #include "NNEUtilsModelOptimizer.h"
+#include "Hlsl/NNERuntimeRDGBatchNormalization.h"
 #include "Hlsl/NNERuntimeRDGCast.h"
 #include "Hlsl/NNERuntimeRDGConv.h"
 #include "Hlsl/NNERuntimeRDGConcat.h"
 #include "Hlsl/NNERuntimeRDGConvTranspose.h"
+#include "Hlsl/NNERuntimeRDGDropout.h"
 #include "Hlsl/NNERuntimeRDGElementWiseBinary.h"
 #include "Hlsl/NNERuntimeRDGElementWiseUnary.h"
 #include "Hlsl/NNERuntimeRDGElementWiseVariadic.h"
+#include "Hlsl/NNERuntimeRDGFlatten.h"
 #include "Hlsl/NNERuntimeRDGGather.h"
 #include "Hlsl/NNERuntimeRDGGemm.h"
+#include "Hlsl/NNERuntimeRDGIdentity.h"
 #include "Hlsl/NNERuntimeRDGInstanceNormalization.h"
 #include "Hlsl/NNERuntimeRDGPad.h"
 #include "Hlsl/NNERuntimeRDGReshape.h"
@@ -38,15 +42,19 @@ bool UNNERuntimeRDGHlslImpl::Init()
 	FOperatorRegistryHlsl* registry = FOperatorRegistryHlsl::Get();
 	check(registry != nullptr);
 
+	RegisterBatchNormalizationOperator(*registry);
 	RegisterCastOperator(*registry);
 	RegisterConvOperator(*registry);
 	RegisterConcatOperator(*registry);
 	RegisterConvTransposeOperator(*registry);
+	RegisterDropoutOperator(*registry);
 	RegisterElementWiseBinaryOperators(*registry);
 	RegisterElementWiseUnaryOperators(*registry);
 	RegisterElementWiseVariadicOperators(*registry);
+	RegisterFlattenOperator(*registry);
 	RegisterGatherOperator(*registry);
 	RegisterGemmOperator(*registry);
+	RegisterIdentityOperator(*registry);
 	RegisterInstanceNormalizationOperator(*registry);
 	RegisterPadOperator(*registry);
 	RegisterReshapeOperator(*registry);

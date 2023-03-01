@@ -107,6 +107,15 @@ float leakyRelu(float x)
 }
 
 
+//see https://github.com/onnx/onnx/blob/main/docs/Operators.md#clip
+float clipOp(float x)
+{
+	float min = Alpha;
+	float max = Beta;
+	return clamp(x, Alpha, Beta);
+}
+
+
 [numthreads(THREADGROUP_SIZE_X, 1, 1)]
 void ElementWiseUnary(in const uint3 DispatchThreadID : SV_DispatchThreadID)
 {

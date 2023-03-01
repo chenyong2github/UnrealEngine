@@ -13,8 +13,8 @@
 					"absolute_tolerance": 5.0e-2
 				}
 			]
-		},
-		{
+				},
+				{
 			"category": "StyleTransfer.VariableInputSize",
 			"is_model_test": true,
 			"targets": [
@@ -156,13 +156,12 @@
 				{	"target": "BitShift", "skip": true, "comment": "TODO need attributes" },
 				{	"target": "Cast",     "skip": true, "comment": "TODO need attributes" },
 				{	"target": "Ceil"},
-				{	"target": "Clip", "additional_datasets": [ "Elementwise.ClipTestWithExtraInput" ], "runtimes": [
-						{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "RDG need scalar tensor support"},
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "RDG need scalar tensor support"}						
+				{	"target": "Clip", "additional_datasets": [ "Elementwise.Clip.AttributeTest" ], "runtimes": [
+						{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "RDG need scalar tensor support"}
 					]},
 				{	"target": "Cos" },
 				{	"target": "Cosh" },
-				{	"target": "Elu", "comment": "TODO test with not-default attribute", "runtimes": [
+				{	"target": "Elu", "additional_datasets": [ "Elementwise.Elu.AttributeTest" ], "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  1e-4}
@@ -176,7 +175,7 @@
 				{	"target": "Floor" },
 				{	"target": "IsInf", "skip": true, "comment": "TODO add flexibility in test data setup + bool tensors" },
 				{	"target": "IsNan", "skip": true, "comment": "TODO add flexibility in test data setup + bool tensors" },
-				{	"target": "HardSigmoid",         "comment": "TODO test with not-default attribute" },
+				{	"target": "HardSigmoid", "additional_datasets": [ "Elementwise.HardSigmoid.AttributeTest" ] },
 				{	"target": "HardSwish", "runtimes": [ { "name": "NNERuntimeRDGDml", "skip": true, "comment": "Not implemented atm on NNERuntimeRDGDml."} ]},
 				{	"target": "LeakyRelu", "additional_datasets": [ "Elementwise.LeakyRelu.AttributeTest" ] },
 				{	"target": "Log", "runtimes": [
@@ -192,7 +191,7 @@
 				{	"target": "Reciprocal"},
 				{	"target": "Relu"},
 				{	"target": "Round"},
-				{	"target": "Selu", "comment": "TODO test with not-default attribute", "runtimes": [
+				{	"target": "Selu", "additional_datasets": [ "Elementwise.Selu.AttributeTest" ], "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  1e-4}
@@ -310,6 +309,42 @@
 			]
 		},
 		{
+			"category": "Identity",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGDml", "skip": true },
+			],
+			"targets": [
+				{ "target": "Identity" }
+			]
+		},
+		{
+			"category": "Dropout",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGDml", "skip": true },
+			],
+			"targets": [
+				{ "target": "Dropout" }
+			]
+		},
+		{
+			"category": "Flatten",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGDml", "skip": true },
+			],
+			"targets": [
+				{ "target": "Flatten" }
+			]
+		},
+		{
+			"category": "BatchNormalization",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGDml", "skip": true },
+			],
+			"targets": [
+				{ "target": "BatchNormalization", "relative_tolerance": 5e-1 }
+			]
+		},
+		{
 			"category": "InstanceNormalization",
 			"targets": [
 				{ "target": "InstanceNormalization", "absolute_tolerance": 1e-5 }
@@ -379,8 +414,6 @@
 		},
 		{
 			"category": "Reshape",
-			"runtimes": [
-			],
 			"targets": [
 				{ "target": "Reshape" }
 			]
@@ -451,6 +484,38 @@
 			"datasets": [
 				{
 					"inputs": [ { "shape": [ 65536, 513 ] } ]
+				}
+			]
+		},
+		{
+			"name": "Elementwise.Elu.AttributeTest",
+			"datasets": [
+				{
+					"inputs": [ { "shape": [ 4 ] } ]
+				}
+			]
+		},
+		{
+			"name": "Elementwise.Selu.AttributeTest",
+			"datasets": [
+				{
+					"inputs": [ { "shape": [ 4 ] } ]
+				}
+			]
+		},
+		{
+			"name": "Elementwise.HardSigmoid.AttributeTest",
+			"datasets": [
+				{
+					"inputs": [ { "shape": [ 4 ] } ]
+				}
+			]
+		},
+		{
+			"name": "Elementwise.Clip.AttributeTest",
+			"datasets": [
+				{
+					"inputs": [ { "shape": [ 4 ] } ]
 				}
 			]
 		},
@@ -735,6 +800,55 @@
 			]
 		},
 		{
+			"name": "Identity",
+			"datasets": [
+				{ 
+					"inputs": [ { "shape": [ 1, 2, 3, 4 ] } ], "outputs": [ { "shape": [ 1, 2, 3, 4 ] } ]
+				}
+			]
+		},
+		{
+			"name": "Dropout",
+			"datasets": [
+				{ 
+					"inputs": [ { "shape": [ 1, 2, 3, 4 ] } ], "outputs": [ { "shape": [ 1, 2, 3, 4 ] } ]
+				}
+			]
+		},
+		{ 
+			"name": "Flatten.Axis2",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3, 1, 4 ] } ], "outputs": [ { "shape": [ 6, 4 ] } ] }
+			]
+		},
+		{ 
+			"name": "Flatten.Axis1",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3, 1, 4 ] } ], "outputs": [ { "shape": [ 2, 12 ] } ] }
+			]
+		},
+		{ 
+			"name": "Flatten.Axis0",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3, 1, 4 ] } ], "outputs": [ { "shape": [ 1, 24 ] } ] }
+			]
+		},
+		{
+			"name": "BatchNormalization",
+			"datasets": [
+				{ 
+					"inputs": [ { "shape": [ 2, 3, 4 ] }, { "shape": [ 3 ] }, { "shape": [ 3 ] }, { "shape": [ 3 ] },
+								{ "shape": [ 3 ], "source": [ "0.1", "1.0", "2.0" ], "comments":  "variance should be positive"}],
+					"outputs": [ { "shape": [ 2, 3, 4 ] } ]
+				},
+				{ 
+					"inputs": [ { "shape": [ 1, 8, 32, 64 ] }, { "shape": [ 8 ] }, { "shape": [ 8 ] }, { "shape": [ 8 ] },
+								{ "shape": [ 8 ], "source": [ "0.0", "0.1", "1.2", "3.0", "0.4", "2.0", "6.0", "0.5" ], "comments":  "variance should be positive"}],
+					"outputs": [ { "shape": [ 1, 8, 32, 64 ] } ]
+				}
+			]
+		},
+		{
 			"name": "InstanceNormalization",
 			"datasets": [
 				{ 
@@ -912,20 +1026,74 @@
 		{
 			"name": "Reshape.MinusOne",
 			"datasets": [
-				{ "inputs": [ { "shape": [ 2, 4, 3 ] } ], "weights": [ { "shape": [ 2 ], "source": [ "12", "-1" ], "type": "int64" } ], "outputs": [ { "shape": [ 12, 2 ] } ], 
-				  "runtimes": [ { "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Shape inference here not yet supported" } ] }
+				{ "inputs": [ { "shape": [ 2, 4, 3 ] } ], "weights": [ { "shape": [ 2 ], "source": [ "12", "-1" ], "type": "int64" } ], "outputs": [ { "shape": [ 12, 2 ] } ] }
 			]
 		},
 		{
 			"name": "Reshape.Zero",
 			"datasets": [
-				{ "inputs": [ { "shape": [ 2, 4, 3 ] } ], "weights": [ { "shape": [ 3 ], "source": [ "3", "0", "2" ], "type": "int64" } ], "outputs": [ { "shape": [ 3, 4, 2 ] } ], 
-				  "runtimes": [ { "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Shape inference here not yet supported" } ] }
+				{ "inputs": [ { "shape": [ 2, 4, 3 ] } ], "weights": [ { "shape": [ 3 ], "source": [ "3", "0", "2" ], "type": "int64" } ], "outputs": [ { "shape": [ 3, 4, 2 ] } ] }
 			]
 		}
 	],
 
 	"attribute_sets": [
+		{
+			"name": "Flatten.Axis0",
+			"attribute_maps": [
+				{ "attributes": [ { "name": "axis", "value": 0, "type": "Int32" } ] }
+			]
+		},
+		{
+			"name": "Flatten.Axis1",
+			"attribute_maps": [
+				{ "attributes": [ { "name": "axis", "value": 1, "type": "Int32" } ] }
+			]
+		},
+		{
+			"name": "Flatten.Axis2",
+			"attribute_maps": [
+				{ "attributes": [ { "name": "axis", "value": 2, "type": "Int32" } ] }
+			]
+		},
+		{
+			"name": "Elementwise.Elu.AttributeTest",
+			"attribute_maps": [
+				{ "attributes": [ { "name": "alpha", "value": 0.5 } ] },
+				{ "attributes": [ { "name": "alpha", "value": 1.0 } ] },
+				{ "attributes": [ ] }
+			]
+		},
+		{
+			"name": "Elementwise.Selu.AttributeTest",
+			"attribute_maps": [
+				{ "attributes": [ { "name": "alpha", "value": 0.5 } ] },
+				{ "attributes": [ { "name": "alpha", "value": 1.0 } ] },
+				{ "attributes": [ { "name": "alpha", "value": 0.7 }, { "name": "gamma", "value": 0.1 } ] },
+				{ "attributes": [ { "name": "alpha", "value": 0.7 }, { "name": "gamma", "value": 0.5 } ] },
+				{ "attributes": [ ] }
+			]
+		},
+		{
+			"name": "Elementwise.HardSigmoid.AttributeTest",
+			"attribute_maps": [
+				{ "attributes": [ { "name": "alpha", "value": 0.5 } ] },
+				{ "attributes": [ { "name": "alpha", "value": 1.0 } ] },
+				{ "attributes": [ { "name": "alpha", "value": 0.7 }, { "name": "beta", "value": 0.1 } ] },
+				{ "attributes": [ { "name": "alpha", "value": 0.7 }, { "name": "beta", "value": 0.5 } ] },
+				{ "attributes": [ ] }
+			]
+		},
+		{
+			"name": "Elementwise.Clip.AttributeTest",
+			"attribute_maps": [
+				{ "attributes": [ { "name": "min", "value": 0.1 } ] },
+				{ "attributes": [ { "name": "max", "value": 0.5 } ] },
+				{ "attributes": [ { "name": "min", "value": -0.1 }, { "name": "max", "value": 0.1 } ] },
+				{ "attributes": [ { "name": "min", "value": -0.1 }, { "name": "max", "value": 0.5 } ] },
+				{ "attributes": [ ] }
+			]
+		},
 		{
 			"name": "Elementwise.LeakyRelu.AttributeTest",
 			"attribute_maps": [
