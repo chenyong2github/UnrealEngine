@@ -51,10 +51,10 @@ public:
 
 	void SetResetOnNextTick(bool bInValue) { bResetOnNextTick = bInValue; }
 
-	STimingView* GetTimingView() { return TimingView; }
+	static TSharedPtr<STimingView> GetTimingView();
 
 private:
-	void InitCommandList();
+	void InitCommandList(TSharedPtr<STimingView> TimingView);
 
 	void BuildTasksSubMenu(FMenuBuilder& MenuBuilder);
 
@@ -97,7 +97,7 @@ private:
 	void OnTaskSettingsChanged();
 
 private:
-	STimingView* TimingView;
+	Insights::ITimingViewSession* TimingViewSession;
 
 	bool bShowHideTaskTrack;
 	bool bResetOnNextTick = false;

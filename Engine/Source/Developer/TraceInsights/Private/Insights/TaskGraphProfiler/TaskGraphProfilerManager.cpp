@@ -238,6 +238,8 @@ TSharedRef<SDockTab> FTaskGraphProfilerManager::SpawnTab_TaskTableTreeView(const
 			SAssignNew(TaskTableTreeView, STaskTableTreeView, TaskTable)
 		];
 
+	RegisterOnWindowClosedEventHandle();
+
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FTaskGraphProfilerManager::OnTaskTableTreeViewTabClosed));
 
 	return DockTab;
@@ -491,6 +493,8 @@ void FTaskGraphProfilerManager::ShowTaskRelations(TaskTrace::FId TaskId)
 
 void FTaskGraphProfilerManager::OnWindowClosedEvent()
 {
+	OnWindowClosedEventHandle.Reset();
+
 	if (TaskTableTreeView.IsValid())
 	{
 		TaskTableTreeView->OnClose();
@@ -818,6 +822,20 @@ void FTaskGraphProfilerManager::SelectTaskInTaskTable(TaskTrace::FId InId)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskGraphProfilerManager::RegisterOnWindowClosedEventHandle()
+{
+	if (!OnWindowClosedEventHandle.IsValid())
+	{
+		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (!Window.IsValid())
+		{
+			return;
+		}
+
+		OnWindowClosedEventHandle = Window->GetWindowClosedEvent().AddSP(this, &FTaskGraphProfilerManager::OnWindowClosedEvent);
+	}
+}
 
 } // namespace Insights
 

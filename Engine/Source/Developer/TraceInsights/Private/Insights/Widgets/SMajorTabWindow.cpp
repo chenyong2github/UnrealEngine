@@ -119,6 +119,8 @@ void SMajorTabWindow::RemoveOpenTab(const TSharedRef<SDockTab>& DockTab)
 
 void SMajorTabWindow::CloseAllOpenTabs()
 {
+	WindowClosedEvent.Broadcast();
+
 	// Close all tabs.
 	TArray<TSharedPtr<SDockTab>> LocalOpenTabs;
 	for (TSharedPtr<SDockTab>& Tab : OpenTabs)

@@ -71,7 +71,7 @@ public:
 
 	//////////////////////////////////////////////////
 
-	STimingView* GetTimingView() { return TimingView; }
+	static TSharedPtr<STimingView> GetTimingView();
 
 	bool AreContextSwitchesAvailable() const;
 
@@ -153,10 +153,10 @@ private:
 	void PopulateCoreEventNameSuggestionList(const FString& Text, TArray<FString>& OutSuggestions);
 
 private:
-	STimingView* TimingView;
-
 	TMap<uint32, TSharedPtr<FCpuCoreTimingTrack>> CpuCoreTimingTracks;
 	TMap<uint32, TSharedPtr<FContextSwitchesTimingTrack>> ContextSwitchesTimingTracks;
+
+	Insights::ITimingViewSession* TimingViewSession;
 
 	uint64 ThreadsSerial;
 	uint64 CpuCoresSerial;

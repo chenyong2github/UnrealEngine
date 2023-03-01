@@ -52,6 +52,16 @@ public:
 	void ShowHideTab(const FName& TabId, bool bShow) { bShow ? ShowTab(TabId) : HideTab(TabId); }
 	void CloseAllOpenTabs();
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// OnWindowClosedEvent
+public:
+	/** The event to execute when the window is closed. */
+	DECLARE_MULTICAST_DELEGATE(FWindowClosedEvent);
+	FWindowClosedEvent& GetWindowClosedEvent() { return WindowClosedEvent; }
+private:
+	/** The event to execute when the window is closed. */
+	FWindowClosedEvent WindowClosedEvent;
+
 protected:
 	virtual const TCHAR* GetAnalyticsEventName() const;
 	virtual TSharedRef<FWorkspaceItem> CreateWorkspaceMenuGroup();

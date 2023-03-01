@@ -135,6 +135,8 @@ public:
 
 	void SelectTaskInTaskTable(TaskTrace::FId);
 
+	void RegisterOnWindowClosedEventHandle();
+
 private:
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
@@ -180,6 +182,8 @@ private:
 	bool bShowSubsequents = false;
 	bool bShowParentTasks = false;
 	bool bShowNestedTasks = false;
+	
+	FDelegateHandle OnWindowClosedEventHandle;
 };
 
 } // namespace Insights

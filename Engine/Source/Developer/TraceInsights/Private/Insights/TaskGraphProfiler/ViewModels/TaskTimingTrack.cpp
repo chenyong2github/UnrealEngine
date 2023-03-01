@@ -122,7 +122,7 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTaskTimingSharedState::FTaskTimingSharedState(STimingView* InTimingView)
-	: TimingView(InTimingView)
+	: TimingViewSession(InTimingView)
 {
 }
 
@@ -130,20 +130,11 @@ FTaskTimingSharedState::FTaskTimingSharedState(STimingView* InTimingView)
 
 void FTaskTimingSharedState::OnBeginSession(Insights::ITimingViewSession& InSession)
 {
-	if (&InSession != TimingView)
+	if (&InSession != TimingViewSession)
 	{
-		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-		if (Window.IsValid())
+		if (InSession.GetName() == FInsightsManagerTabs::TimingProfilerTabId)
 		{
-			TSharedPtr<STimingView> WindowTimingView = Window->GetTimingView();
-			if (WindowTimingView.IsValid() && WindowTimingView.Get() == &InSession)
-			{
-				TimingView = WindowTimingView.Get();
-			}
-		}
-		else if (TimingView == nullptr && FTimingProfilerManager::Get()->IsTimingViewVisible())
-		{
-			TimingView = (STimingView*)&InSession;
+			TimingViewSession = &InSession;
 		}
 		else
 		{
@@ -158,28 +149,32 @@ void FTaskTimingSharedState::OnBeginSession(Insights::ITimingViewSession& InSess
 
 void FTaskTimingSharedState::OnEndSession(Insights::ITimingViewSession& InSession)
 {
-	if (&InSession != TimingView)
+	if (&InSession != TimingViewSession)
 	{
 		return;
 	}
 
 	FTaskGraphProfilerManager::Get()->ClearTaskRelations();
 	TaskTrack = nullptr;
-	TimingView = nullptr;
+	TimingViewSession = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FTaskTimingSharedState::Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession)
 {
-	if (&InSession != TimingView)
+	if (&InSession != TimingViewSession)
 	{
 		return;
 	}
 
 	if (!TaskTrack.IsValid() && FTaskGraphProfilerManager::Get()->GetIsAvailable())
 	{
-		InitCommandList();
+		TSharedPtr<STimingView> TimingView = GetTimingView();
+
+		InitCommandList(TimingView);
+
+		FTaskGraphProfilerManager::Get()->RegisterOnWindowClosedEventHandle();
 
 		TaskTrack = MakeShared<FTaskTimingTrack>(*this, TEXT("Task Overview"), 0);
 		TaskTrack->SetVisibilityFlag(true);
@@ -192,6 +187,8 @@ void FTaskTimingSharedState::Tick(Insights::ITimingViewSession& InSession, const
 
 	if (bResetOnNextTick)
 	{
+		TSharedPtr<STimingView> TimingView = GetTimingView();
+
 		bResetOnNextTick = false;
 		if (!TimingView->GetSelectedEvent().IsValid() &&
 			(!TimingView->GetSelectedTrack().IsValid() || TimingView->GetSelectedTrack().Get() != TaskTrack.Get()))
@@ -204,9 +201,23 @@ void FTaskTimingSharedState::Tick(Insights::ITimingViewSession& InSession, const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedPtr<STimingView> FTaskTimingSharedState::GetTimingView()
+{
+	TSharedPtr<STimingView> TimingView;
+	TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+	if (Window.IsValid())
+	{
+		TimingView = Window->GetTimingView();
+	}
+
+	return TimingView;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTaskTimingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
 {
-	if (&InSession != TimingView)
+	if (&InSession != TimingViewSession)
 	{
 		return;
 	}
@@ -226,7 +237,7 @@ void FTaskTimingSharedState::SetTaskId(TaskTrace::FId InTaskId)
 
 void FTaskTimingSharedState::ExtendOtherTracksFilterMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder)
 {
-	if (&InSession != TimingView)
+	if (&InSession != TimingViewSession)
 	{
 		return;
 	}
@@ -335,7 +346,7 @@ void FTaskTimingSharedState::BuildTasksSubMenu(FMenuBuilder& MenuBuilder)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTaskTimingSharedState::InitCommandList()
+void FTaskTimingSharedState::InitCommandList(TSharedPtr<STimingView> TimingView)
 {
 	TSharedPtr<FUICommandList> CommandList = TimingView->GetCommandList();
 	ensure(CommandList);
@@ -665,6 +676,12 @@ void FTaskTimingSharedState::OnTaskSettingsChanged()
 	TaskTrack->SetTaskId(TaskTrace::InvalidId);
 
 	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
+	TSharedPtr<STimingView> TimingView = GetTimingView();
+
+	if (!TimingView)
+	{
+		return;
+	}
 
 	TSharedPtr<const ITimingEvent> SelectedEvent = TimingView->GetSelectedEvent();
 	if (SelectedEvent.IsValid() && SelectedEvent->Is<const FThreadTrackEvent>())
@@ -1074,7 +1091,12 @@ void FTaskTimingTrack::GetEventRelations(const FThreadTrackEvent& InSelectedEven
 	const TraceServices::ITasksProvider* TasksProvider = TraceServices::ReadTasksProvider(*Session.Get());
 	if (TasksProvider)
 	{
-		STimingView* TimingView = SharedState.GetTimingView();
+		TSharedPtr<STimingView> TimingView = SharedState.GetTimingView();
+		if (!TimingView.IsValid())
+		{
+			return;
+		}
+
 		TSharedRef<const FThreadTimingTrack> EventTrack = StaticCastSharedRef<const FThreadTimingTrack>(InSelectedEvent.GetTrack());
 		uint32 ThreadId = EventTrack->GetThreadId();
 
