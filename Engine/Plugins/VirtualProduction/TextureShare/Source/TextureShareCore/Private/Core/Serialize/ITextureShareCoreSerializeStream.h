@@ -63,11 +63,13 @@ public:
 		int32 StrLen = InOutData.Len();
 		*this << StrLen;
 
+		// Always serialize string as wchar_t (An external application from the SDK side can easily use this string type without conversion)
 		if (StrLen > 0)
 		{
 			if (IsWriteStream())
 			{
-				SerializeData(FTCHARToWChar(*InOutData).Get(), sizeof(wchar_t) * StrLen);
+				FTCHARToWChar WCharString(*InOutData, StrLen);
+				SerializeData(WCharString.Get(), sizeof(wchar_t) * StrLen);
 			}
 			else
 			{
@@ -75,7 +77,8 @@ public:
 				WCharBuffer.AddZeroed(StrLen + 1);
 				SerializeData(WCharBuffer.GetData(), sizeof(wchar_t) * StrLen);
 
-				InOutData = FWCharToTCHAR(WCharBuffer.GetData()).Get();
+				FWCharToTCHAR TCHARString(WCharBuffer.GetData());
+				InOutData = TCHARString.Get();
 			}
 		}
 

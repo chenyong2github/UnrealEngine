@@ -28,11 +28,9 @@ void FTextureShareCoreSMD5Hash::Initialize(const FString& InText)
 {
 	Empty();
 
-	// Create MD5 Hash
-	uint64 BlobInputLen = FCString::Strlen(*InText);
-
+	// Generate MD5 Hash from TCHAR as binary data
 	FMD5 Md5Gen;
-	Md5Gen.Update((unsigned char*)TCHAR_TO_ANSI(*InText), BlobInputLen);
+	Md5Gen.Update((const uint8*)GetData(InText), GetNum(InText) * sizeof(TCHAR));
 	Md5Gen.Final(MD5Digest);
 }
 
@@ -68,20 +66,12 @@ void FTextureShareCoreStringHash::Initialize(const FString& InText)
 
 	Hash.Initialize(InText);
 
-	// Copy string
 	FTCHARToWChar WCharString(*InText);
-	const wchar_t* WCharValue = WCharString.Get();
-	if (WCharValue && WCharValue[0])
 	{
-		for (int32 CharIt = 0; CharIt < (MaxStringLength-1); CharIt++)
-		{
-			String[CharIt] = WCharValue[CharIt];
+		const int32 StrLength = FMath::Min(WCharString.Length(), MaxStringLength - 1);
 
-			// EndOfString
-			if (WCharValue[CharIt] == 0)
-			{
-				break;
-			}
-		}
+		// Reset and copy wchar string
+		FPlatformMemory::Memset(&String[0], 0, sizeof(String));
+		FPlatformMemory::Memcpy(&String[0], WCharString.Get(), sizeof(wchar_t) * StrLength);
 	}
 }
