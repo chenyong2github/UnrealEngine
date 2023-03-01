@@ -45,7 +45,6 @@ FPowerMethod::ESolveStatus FPowerMethod::Solve(ScalarType& OutEigenValue, RealVe
         ScalarType SquaredMagnitude = OutEigenVector.squaredNorm();
         if (FMath::IsFinite(SquaredMagnitude) == false || FMath::IsNearlyZero(SquaredMagnitude))
         {
-            checkSlow(false);
             return ESolveStatus::NumericalIssue;
         } 
 
@@ -56,7 +55,6 @@ FPowerMethod::ESolveStatus FPowerMethod::Solve(ScalarType& OutEigenValue, RealVe
         OutEigenValue = this->RayleighQuotient(OutEigenVector);  
         if (FMath::IsFinite(OutEigenValue) == false) 
         {
-            checkSlow(false);
             return ESolveStatus::NumericalIssue;
         }
 
@@ -161,7 +159,6 @@ bool FPowerMethod::Iteration(RealVectorType& EVector, bool bComputeLargest)
         Solver->Solve(EVector, EVectorSolve);
         if (Solver->bSucceeded() == false) 
         {
-            checkSlow(false);
             return false;
         }
         
@@ -181,7 +178,6 @@ bool FPowerMethod::Iteration(RealVectorType& EVector, bool bComputeLargest)
             Solver->Solve(EVector, EVectorSolve);
             if (Solver->bSucceeded() == false) 
             {
-                checkSlow(false);
                 return false;
             } 
 
