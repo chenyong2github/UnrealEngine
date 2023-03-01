@@ -9,6 +9,7 @@ AClusterUnionActor::AClusterUnionActor(const FObjectInitializer& ObjectInitializ
 	: AActor(ObjectInitializer)
 {
 	ClusterUnion = CreateDefaultSubobject<UClusterUnionComponent>(TEXT("ClusterUnion"));
+	SetRootComponent(ClusterUnion);
 
 	SetRemoteRoleForBackwardsCompat(ROLE_SimulatedProxy);
 	bReplicates = true;
