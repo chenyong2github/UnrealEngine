@@ -103,6 +103,8 @@ void FMovieSceneSpawnRegister::ForgetExternallyOwnedSpawnedObjects(FMovieSceneEv
 
 void FMovieSceneSpawnRegister::CleanUp(IMovieScenePlayer& Player)
 {
+	TGuardValue<bool> CleaningUp(bCleaningUp, true);
+
 	DestroyObjectsByPredicate(Player, [&](const FGuid&, ESpawnOwnership, FMovieSceneSequenceIDRef){
 		return true;
 	});

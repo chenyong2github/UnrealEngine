@@ -254,6 +254,9 @@ protected:
 
 	/** Register of spawned objects */
 	TMap<FMovieSceneSpawnRegisterKey, FSpawnedObject> Register;
+
+	/** True when cleaning ourselves up. Used to bypass marking a sequence dirty when objects are modified since we're cleaning ourselves up */
+	bool bCleaningUp = false;
 };
 
 class FNullMovieSceneSpawnRegister : public FMovieSceneSpawnRegister
