@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#ifdef DNA_BUILD_WITH_JSON_SUPPORT
+
 #include "dnatests/FixturesJSON.h"
 
 namespace dna {
@@ -182,3 +184,5 @@ const char* jsonDNA =
 }";
 
 }  // namespace dna
+
+#endif  // DNA_BUILD_WITH_JSON_SUPPORT

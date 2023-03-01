@@ -4,6 +4,7 @@
 
 #include "riglogic/TypeDefs.h"
 #include "riglogic/types/Aliases.h"
+#include "riglogic/utils/Macros.h"
 #include "riglogic/ml/MachineLearnedBehaviorEvaluator.h"
 #include "riglogic/ml/MachineLearnedBehaviorOutputInstance.h"
 
@@ -32,14 +33,22 @@ class MachineLearnedBehavior {
 
         template<class Archive>
         void load(Archive& archive) {
-            evaluator->load(archive);
-            archive >> neuralNetworkIndicesPerMeshRegion;
+            #ifdef RL_BUILD_WITH_ML_EVALUATOR
+                evaluator->load(archive);
+                archive >> neuralNetworkIndicesPerMeshRegion;
+            #else
+                UNUSED(archive);
+            #endif  // RL_BUILD_WITH_ML_EVALUATOR
         }
 
         template<class Archive>
         void save(Archive& archive) {
-            evaluator->save(archive);
-            archive << neuralNetworkIndicesPerMeshRegion;
+            #ifdef RL_BUILD_WITH_ML_EVALUATOR
+                evaluator->save(archive);
+                archive << neuralNetworkIndicesPerMeshRegion;
+            #else
+                UNUSED(archive);
+            #endif  // RL_BUILD_WITH_ML_EVALUATOR
         }
 
         std::uint16_t getMeshCount() const;

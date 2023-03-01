@@ -55,7 +55,7 @@
         // offset to meet the alignment requirement)
         std::ptrdiff_t shift = pAlignedChunk - pUnalignedChunk;
         // The guaranteed storage size for the shift value is only one byte
-        assert(shift > 0ul && shift <= 256ul);
+        assert(shift > 0 && shift <= 256);
         pAlignedChunk[-1] = static_cast<char>(shift & 0xFF);
         return static_cast<void*>(pAlignedChunk);
     }

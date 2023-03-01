@@ -2,6 +2,9 @@
 
 #pragma once
 
+// *INDENT-OFF*
+#ifdef DNA_BUILD_WITH_JSON_SUPPORT
+
 #include "dna/JSONStreamReader.h"
 #include "dna/ReaderImpl.h"
 #include "dna/TypeDefs.h"
@@ -26,3 +29,6 @@ class JSONStreamReaderImpl : public ReaderImpl<JSONStreamReader> {
 };
 
 }  // namespace dna
+
+#endif  // DNA_BUILD_WITH_JSON_SUPPORT
+// *INDENT-ON*

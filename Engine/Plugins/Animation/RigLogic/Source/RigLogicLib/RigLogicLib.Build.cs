@@ -51,6 +51,7 @@ namespace UnrealBuildTool.Rules
 			}
 
 			PrivateDefinitions.Add("RL_AUTODETECT_SSE=1");
+			PublicDefinitions.Add("RL_BUILD_WITH_ML_EVALUATOR=1");
 		}
 	}
 }

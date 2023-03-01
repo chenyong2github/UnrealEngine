@@ -3,7 +3,9 @@
 #include "dnatests/TestStreamReadWriteIntegration.h"
 
 #include "dnatests/Defs.h"
-#include "dnatests/FixturesJSON.h"
+#ifdef DNA_BUILD_WITH_JSON_SUPPORT
+    #include "dnatests/FixturesJSON.h"
+#endif  // DNA_BUILD_WITH_JSON_SUPPORT
 #include "dnatests/Fixturesv21.h"
 #include "dnatests/Fixturesv22.h"
 #include "dnatests/Fixturesv23.h"
@@ -12,8 +14,10 @@
 #include "dna/DNA.h"
 #include "dna/BinaryStreamReader.h"
 #include "dna/BinaryStreamWriter.h"
-#include "dna/JSONStreamReader.h"
-#include "dna/JSONStreamWriter.h"
+#ifdef DNA_BUILD_WITH_JSON_SUPPORT
+    #include "dna/JSONStreamReader.h"
+    #include "dna/JSONStreamWriter.h"
+#endif  // DNA_BUILD_WITH_JSON_SUPPORT
 
 namespace dna {
 
@@ -438,21 +442,23 @@ struct ReaderDataVerifier<APICopyParameters<Reader, Writer, RawV23, DecodedV23, 
 };
 
 using TAPICopyTestParameters = ::testing::Types<
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV21, DecodedV21, 0u, 1u, 0u>,
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV21, DecodedV21, 0u, 1u, 1u>,
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV21, DecodedV21, 0u, 0u, 0u>,
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV21, DecodedV21, 1u, 1u, 0u>,
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV22, DecodedV22, 0u, 1u, 0u>,
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV22, DecodedV22, 0u, 1u, 1u>,
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV22, DecodedV22, 0u, 0u, 0u>,
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV22, DecodedV22, 1u, 1u, 0u>,
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV23, DecodedV23, 0u, 1u, 0u>,
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV23, DecodedV23, 0u, 1u, 1u>,
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV23, DecodedV23, 0u, 0u, 0u>,
-    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV23, DecodedV23, 1u, 1u, 0u>,
-    APICopyParameters<dna::JSONStreamReader, dna::JSONStreamWriter, RawV21, DecodedV21, 0u, 1u, 0u>,
-    APICopyParameters<dna::JSONStreamReader, dna::JSONStreamWriter, RawV22, DecodedV22, 0u, 1u, 0u>,
-    APICopyParameters<dna::JSONStreamReader, dna::JSONStreamWriter, RawV23, DecodedV23, 0u, 1u, 0u>
+    APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV21, DecodedV21, 0u, 1u, 0u>
+    , APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV21, DecodedV21, 0u, 1u, 1u>
+    , APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV21, DecodedV21, 0u, 0u, 0u>
+    , APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV21, DecodedV21, 1u, 1u, 0u>
+    , APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV22, DecodedV22, 0u, 1u, 0u>
+    , APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV22, DecodedV22, 0u, 1u, 1u>
+    , APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV22, DecodedV22, 0u, 0u, 0u>
+    , APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV22, DecodedV22, 1u, 1u, 0u>
+    , APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV23, DecodedV23, 0u, 1u, 0u>
+    , APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV23, DecodedV23, 0u, 1u, 1u>
+    , APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV23, DecodedV23, 0u, 0u, 0u>
+    , APICopyParameters<dna::BinaryStreamReader, dna::BinaryStreamWriter, RawV23, DecodedV23, 1u, 1u, 0u>
+    #ifdef DNA_BUILD_WITH_JSON_SUPPORT
+        , APICopyParameters<dna::JSONStreamReader, dna::JSONStreamWriter, RawV21, DecodedV21, 0u, 1u, 0u>
+        , APICopyParameters<dna::JSONStreamReader, dna::JSONStreamWriter, RawV22, DecodedV22, 0u, 1u, 0u>
+        , APICopyParameters<dna::JSONStreamReader, dna::JSONStreamWriter, RawV23, DecodedV23, 0u, 1u, 0u>
+    #endif  // DNA_BUILD_WITH_JSON_SUPPORT
     >;
 TYPED_TEST_SUITE(StreamReadWriteAPICopyIntegrationTest, TAPICopyTestParameters, );
 
@@ -471,17 +477,19 @@ struct ReaderFactory<dna::BinaryStreamReader> {
 
 };
 
-template<>
-struct ReaderFactory<dna::JSONStreamReader> {
-    static pma::ScopedPtr<dna::JSONStreamReader> create(trio::BoundedIOStream* stream,
-                                                        dna::DataLayer  /*unused*/,
-                                                        dna::UnknownLayerPolicy  /*unused*/,
-                                                        std::uint16_t  /*unused*/,
-                                                        std::uint16_t  /*unused*/) {
-        return pma::makeScoped<dna::JSONStreamReader>(stream);
-    }
+#ifdef DNA_BUILD_WITH_JSON_SUPPORT
+    template<>
+    struct ReaderFactory<dna::JSONStreamReader> {
+        static pma::ScopedPtr<dna::JSONStreamReader> create(trio::BoundedIOStream* stream,
+                                                            dna::DataLayer  /*unused*/,
+                                                            dna::UnknownLayerPolicy  /*unused*/,
+                                                            std::uint16_t  /*unused*/,
+                                                            std::uint16_t  /*unused*/) {
+            return pma::makeScoped<dna::JSONStreamReader>(stream);
+        }
 
-};
+    };
+#endif  // DNA_BUILD_WITH_JSON_SUPPORT
 
 TYPED_TEST(StreamReadWriteAPICopyIntegrationTest, VerifyAllDNADataAfterSetFromThroughAPI) {
     using CurrentParameters = typename TestFixture::Parameters;
@@ -580,35 +588,37 @@ TYPED_TEST(StreamReadWriteRawCopyIntegrationTest, VerifySetFromCopiesEvenUnknown
     ASSERT_EQ(expectedBytes, copiedBytes);
 }
 
-TEST(StreamReadWriteIntegrationTest, ReadWriteJSON) {
-    auto stream = pma::makeScoped<trio::MemoryStream>();
-    auto writer = pma::makeScoped<JSONStreamWriter>(stream.get(), 4u);
+#ifdef DNA_BUILD_WITH_JSON_SUPPORT
+    TEST(StreamReadWriteIntegrationTest, ReadWriteJSON) {
+        auto stream = pma::makeScoped<trio::MemoryStream>();
+        auto writer = pma::makeScoped<JSONStreamWriter>(stream.get(), 4u);
 
-    writer->setMeshName(0, "mesh0");
-    const Position vertices[] = {Position{0.0f, 1.0f, 2.0}, Position{3.0f, 4.0f, 5.0}};
-    writer->setVertexPositions(0u, vertices, 2u);
-    writer->write();
+        writer->setMeshName(0, "mesh0");
+        const Position vertices[] = {Position{0.0f, 1.0f, 2.0}, Position{3.0f, 4.0f, 5.0}};
+        writer->setVertexPositions(0u, vertices, 2u);
+        writer->write();
 
-    #if !defined(__clang__) && defined(__GNUC__)
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wuseless-cast"
-    #endif
-    pma::Vector<char> json(static_cast<std::size_t>(stream->size()));
-    #if !defined(__clang__) && defined(__GNUC__)
-        #pragma GCC diagnostic pop
-    #endif
+        #if !defined(__clang__) && defined(__GNUC__)
+            #pragma GCC diagnostic push
+            #pragma GCC diagnostic ignored "-Wuseless-cast"
+        #endif
+        pma::Vector<char> json(static_cast<std::size_t>(stream->size()));
+        #if !defined(__clang__) && defined(__GNUC__)
+            #pragma GCC diagnostic pop
+        #endif
 
-    pma::String<char> expected = jsonDNA;
-    stream->seek(0ul);
-    stream->read(json.data(), json.size());
-    ASSERT_EQ(json.size(), expected.size());
-    ASSERT_ELEMENTS_EQ(json.data(), expected.data(), expected.size());
+        pma::String<char> expected = jsonDNA;
+        stream->seek(0ul);
+        stream->read(json.data(), json.size());
+        ASSERT_EQ(json.size(), expected.size());
+        ASSERT_ELEMENTS_EQ(json.data(), expected.data(), expected.size());
 
-    stream->seek(0ul);
-    auto reader = pma::makeScoped<JSONStreamReader>(stream.get());
-    reader->read();
-    ASSERT_TRUE(dna::Status::isOk());
-}
+        stream->seek(0ul);
+        auto reader = pma::makeScoped<JSONStreamReader>(stream.get());
+        reader->read();
+        ASSERT_TRUE(dna::Status::isOk());
+    }
+#endif  // DNA_BUILD_WITH_JSON_SUPPORT
 
 using TReadWriteMultipleParameters = ::testing::Types<
     ReadWriteMultipleParameters<RawV21>,

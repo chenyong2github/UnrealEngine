@@ -2,6 +2,9 @@
 
 #pragma once
 
+// *INDENT-OFF*
+#ifdef RL_BUILD_WITH_ML_EVALUATOR
+
 #include <type_traits>
 
 namespace rl4 {
@@ -20,3 +23,6 @@ struct HasSize {
 }  // namespace ml
 
 }  // namespace rl4
+
+#endif  // RL_BUILD_WITH_ML_EVALUATOR
+// *INDENT-ON*

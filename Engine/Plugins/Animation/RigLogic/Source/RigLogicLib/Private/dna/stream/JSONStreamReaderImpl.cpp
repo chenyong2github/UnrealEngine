@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#ifdef DNA_BUILD_WITH_JSON_SUPPORT
+
 #include "dna/stream/JSONStreamReaderImpl.h"
 
 #include "dna/TypeDefs.h"
@@ -95,3 +97,5 @@ void JSONStreamReaderImpl::read() {
 }
 
 }  // namespace dna
+
+#endif  // DNA_BUILD_WITH_JSON_SUPPORT

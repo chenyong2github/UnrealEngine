@@ -2,6 +2,9 @@
 
 #pragma once
 
+// *INDENT-OFF*
+#ifdef RL_BUILD_WITH_ML_EVALUATOR
+
 #include "rltests/Defs.h"
 #include "rltests/StorageValueType.h"
 #include "rltests/dna/FakeReader.h"
@@ -135,3 +138,6 @@ class CanonicalReader : public dna::FakeReader {
 }  // namespace ml
 
 }  // namespace rltests
+
+#endif  // RL_BUILD_WITH_ML_EVALUATOR
+// *INDENT-ON*

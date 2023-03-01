@@ -41,10 +41,12 @@ class DNAAPI BinaryStreamWriter : public StreamWriter {
                              DataLayer layer = DataLayer::All,
                              UnknownLayerPolicy policy = UnknownLayerPolicy::Preserve,
                              MemoryResource* memRes = nullptr) = 0;
-        virtual void setFrom(const JSONStreamReader* source,
-                             DataLayer layer = DataLayer::All,
-                             UnknownLayerPolicy policy = UnknownLayerPolicy::Preserve,
-                             MemoryResource* memRes = nullptr) = 0;
+        #ifdef DNA_BUILD_WITH_JSON_SUPPORT
+            virtual void setFrom(const JSONStreamReader* source,
+                                 DataLayer layer = DataLayer::All,
+                                 UnknownLayerPolicy policy = UnknownLayerPolicy::Preserve,
+                                 MemoryResource* memRes = nullptr) = 0;
+        #endif  // DNA_BUILD_WITH_JSON_SUPPORT
 };
 
 }  // namespace dna

@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// *INDENT-OFF*
+#ifdef RL_BUILD_WITH_ML_EVALUATOR
+
 #include "rltests/Defs.h"
 #include "rltests/StorageValueType.h"
 #include "rltests/controls/ControlFixtures.h"
@@ -21,11 +24,20 @@ namespace {
 template<typename TTestTypes>
 class MLBInferenceTest : public ::testing::Test {
     protected:
-        void SetUp() {
-            using T = typename std::tuple_element<0, TTestTypes>::type;
-            using TF256 = typename std::tuple_element<1, TTestTypes>::type;
-            using TF128 = typename std::tuple_element<2, TTestTypes>::type;
+        void SetUp() override {
+            MLBInferenceTest::SetUpImpl();
+        }
+
+        template<typename TestTypes = TTestTypes>
+        typename std::enable_if<std::tuple_size<TestTypes>::value != 0ul, void>::type SetUpImpl() {
+            using T = typename std::tuple_element<0, TestTypes>::type;
+            using TF256 = typename std::tuple_element<1, TestTypes>::type;
+            using TF128 = typename std::tuple_element<2, TestTypes>::type;
             evaluator = rl4::ml::cpu::Factory<T, TF256, TF128>::create(&reader, &memRes);
+        }
+
+        template<typename TestTypes = TTestTypes>
+        typename std::enable_if<std::tuple_size<TestTypes>::value == 0ul, void>::type SetUpImpl() {
         }
 
     protected:
@@ -40,10 +52,10 @@ class MLBInferenceTest : public ::testing::Test {
 #if defined(RL_BUILD_WITH_AVX) && defined(RL_BUILD_WITH_SSE)
     using InferenceTypeList = ::testing::Types<
     #ifdef RL_USE_HALF_FLOATS
-            std::tuple<StorageValueType, trimd::avx::F256, trimd::F128>,
+            std::tuple<StorageValueType, trimd::avx::F256, trimd::sse::F128>,
             std::tuple<StorageValueType, trimd::sse::F256, trimd::sse::F128>
     #else
-            std::tuple<StorageValueType, trimd::avx::F256, trimd::F128>,
+            std::tuple<StorageValueType, trimd::avx::F256, trimd::sse::F128>,
             std::tuple<StorageValueType, trimd::sse::F256, trimd::sse::F128>,
             std::tuple<StorageValueType, trimd::scalar::F256, trimd::scalar::F128>
     #endif  // RL_USE_HALF_FLOATS
@@ -51,9 +63,9 @@ class MLBInferenceTest : public ::testing::Test {
 #elif defined(RL_BUILD_WITH_AVX)
     using InferenceTypeList = ::testing::Types<
     #ifdef RL_USE_HALF_FLOATS
-            std::tuple<StorageValueType, trimd::avx::F256, trimd::F128>
+            std::tuple<StorageValueType, trimd::avx::F256, trimd::sse::F128>
     #else
-            std::tuple<StorageValueType, trimd::avx::F256, trimd::F128>,
+            std::tuple<StorageValueType, trimd::avx::F256, trimd::sse::F128>,
             std::tuple<StorageValueType, trimd::scalar::F256, trimd::scalar::F128>
     #endif  // RL_USE_HALF_FLOATS
         >;
@@ -70,13 +82,17 @@ class MLBInferenceTest : public ::testing::Test {
     #ifndef RL_USE_HALF_FLOATS
         using InferenceTypeList = ::testing::Types<std::tuple<StorageValueType, trimd::scalar::F256, trimd::scalar::F128> >;
     #else
-        using InferenceTypeList = ::testing::Types<>;
+        using InferenceTypeList = ::testing::Types<std::tuple<> >;
     #endif  // RL_USE_HALF_FLOATS
 #endif
 
 TYPED_TEST_SUITE(MLBInferenceTest, InferenceTypeList, );
 
 TYPED_TEST(MLBInferenceTest, InferencePerLOD) {
+    if (this->evaluator == nullptr) {
+        return;
+    }
+
     auto inputInstanceFactory = ControlsFactory::getInstanceFactory(0,
                                                                     rltests::ml::block4::unoptimized::rawControlCount,
                                                                     0,
@@ -105,3 +121,6 @@ TYPED_TEST(MLBInferenceTest, InferencePerLOD) {
 #ifdef _MSC_VER
     #pragma warning(pop)
 #endif
+
+#endif  // RL_BUILD_WITH_ML_EVALUATOR
+// *INDENT-ON*

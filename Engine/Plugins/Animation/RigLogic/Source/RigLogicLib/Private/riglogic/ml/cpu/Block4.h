@@ -2,6 +2,9 @@
 
 #pragma once
 
+// *INDENT-OFF*
+#ifdef RL_BUILD_WITH_ML_EVALUATOR
+
 #include "riglogic/TypeDefs.h"
 #include "riglogic/ml/cpu/Consts.h"
 #include "riglogic/utils/Macros.h"
@@ -214,3 +217,6 @@ static FORCE_INLINE void calculateBlock4(const NeuralNetLayer<T>& layer, ConstAr
 }  // namespace ml
 
 }  // namespace cpu
+
+#endif  // RL_BUILD_WITH_ML_EVALUATOR
+// *INDENT-ON*

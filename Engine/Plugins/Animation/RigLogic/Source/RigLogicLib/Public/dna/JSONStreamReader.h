@@ -2,6 +2,9 @@
 
 #pragma once
 
+// *INDENT-OFF*
+#ifdef DNA_BUILD_WITH_JSON_SUPPORT
+
 #include "dna/Defs.h"
 #include "dna/StreamReader.h"
 #include "dna/types/Aliases.h"
@@ -49,3 +52,6 @@ struct DefaultInstanceDestroyer<dna::JSONStreamReader> {
 };
 
 }  // namespace pma
+
+#endif  // DNA_BUILD_WITH_JSON_SUPPORT
+// *INDENT-ON*

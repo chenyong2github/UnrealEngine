@@ -2,6 +2,9 @@
 
 #pragma once
 
+// *INDENT-OFF*
+#ifdef RL_BUILD_WITH_ML_EVALUATOR
+
 #include "riglogic/TypeDefs.h"
 #include "riglogic/types/AlignedBlockView.h"
 #include "riglogic/types/Extent.h"
@@ -86,3 +89,6 @@ struct NeuralNet {
 }  // namespace ml
 
 }  // namespace rl4
+
+#endif  // RL_BUILD_WITH_ML_EVALUATOR
+// *INDENT-ON*

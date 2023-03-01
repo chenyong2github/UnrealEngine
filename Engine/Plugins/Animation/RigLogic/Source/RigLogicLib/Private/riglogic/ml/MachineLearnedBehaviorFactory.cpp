@@ -6,15 +6,19 @@
 #include "riglogic/utils/Extd.h"
 #include "riglogic/ml/MachineLearnedBehaviorEvaluator.h"
 #include "riglogic/ml/MachineLearnedBehaviorNullEvaluator.h"
-#include "riglogic/ml/cpu/Factory.h"
+#ifdef RL_BUILD_WITH_ML_EVALUATOR
+    #include "riglogic/ml/cpu/Factory.h"
+#endif  // RL_BUILD_WITH_ML_EVALUATOR
 #include "riglogic/riglogic/Configuration.h"
 #include "riglogic/riglogic/RigMetrics.h"
-#include "riglogic/system/simd/Detect.h"
 #include "riglogic/system/simd/SIMD.h"
 
 #include <cstdint>
 
 namespace rl4 {
+
+// *INDENT-OFF*
+#ifdef RL_BUILD_WITH_ML_EVALUATOR
 
 #ifdef RL_USE_HALF_FLOATS
     using StorageValueType = std::uint16_t;
@@ -35,7 +39,7 @@ MachineLearnedBehaviorEvaluator::Pointer createEvaluator(const Configuration& co
     #ifdef RL_BUILD_WITH_AVX
         if (config.calculationType == CalculationType::AVX) {
             // Use 256-bit AVX registers and whatever 128-bit width type is available
-            return ml::cpu::Factory<StorageValueType, trimd::avx::F256, trimd::F128>::create(reader, memRes);
+            return ml::cpu::Factory<StorageValueType, trimd::avx::F256, trimd::sse::F128>::create(reader, memRes);
         }
     #endif  // RL_BUILD_WITH_AVX
     return ml::cpu::Factory<float, trimd::scalar::F256, trimd::scalar::F128>::create(reader, memRes);
@@ -73,5 +77,22 @@ MachineLearnedBehavior::Pointer MachineLearnedBehaviorFactory::create(const Conf
     }
     return moduleFactory.create(createEvaluator(config, nullptr, memRes), memRes);
 }
+
+#else
+
+MachineLearnedBehavior::Pointer MachineLearnedBehaviorFactory::create(const Configuration&  /*unused*/,
+                                                                      const dna::MachineLearnedBehaviorReader*  /*unused*/,
+                                                                      MemoryResource* memRes) {
+    auto moduleFactory = UniqueInstance<MachineLearnedBehavior>::with(memRes);
+    auto evaluator = UniqueInstance<MachineLearnedBehaviorNullEvaluator, MachineLearnedBehaviorEvaluator>::with(memRes).create();
+    return moduleFactory.create(std::move(evaluator), memRes);
+}
+
+MachineLearnedBehavior::Pointer MachineLearnedBehaviorFactory::create(const Configuration& config, MemoryResource* memRes) {
+    return create(config, nullptr, memRes);
+}
+
+#endif  // RL_BUILD_WITH_ML_EVALUATOR
+// *INDENT-ON*
 
 }  // namespace rl4

@@ -22,8 +22,10 @@ class BinaryStreamWriterImpl : public WriterImpl<BinaryStreamWriter> {
         using BinaryStreamWriter::setFrom;
         void setFrom(const BinaryStreamReader* source, DataLayer layer, UnknownLayerPolicy policy,
                      MemoryResource* memRes_) override;
-        void setFrom(const JSONStreamReader* source, DataLayer layer, UnknownLayerPolicy policy,
-                     MemoryResource* memRes_) override;
+        #ifdef DNA_BUILD_WITH_JSON_SUPPORT
+            void setFrom(const JSONStreamReader* source, DataLayer layer, UnknownLayerPolicy policy,
+                         MemoryResource* memRes_) override;
+        #endif  // DNA_BUILD_WITH_JSON_SUPPORT
 
     private:
         BoundedIOStream* stream;

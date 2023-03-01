@@ -2,6 +2,9 @@
 
 #pragma once
 
+// *INDENT-OFF*
+#ifdef RL_BUILD_WITH_ML_EVALUATOR
+
 #include "riglogic/TypeDefs.h"
 #include "riglogic/ml/MachineLearnedBehaviorOutputInstance.h"
 
@@ -43,3 +46,6 @@ class OutputInstance : public MachineLearnedBehaviorOutputInstance {
 }  // namespace ml
 
 }  // namespace rl4
+
+#endif  // RL_BUILD_WITH_ML_EVALUATOR
+// *INDENT-ON*

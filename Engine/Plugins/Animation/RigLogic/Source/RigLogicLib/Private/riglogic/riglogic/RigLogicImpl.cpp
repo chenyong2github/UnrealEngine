@@ -38,11 +38,13 @@ static RigMetrics::Pointer computeRigMetrics(const dna::Reader* reader, MemoryRe
     metrics->guiControlCount = reader->getGUIControlCount();
     metrics->rawControlCount = reader->getRawControlCount();
     metrics->psdControlCount = reader->getPSDCount();
-    metrics->mlControlCount = reader->getMLControlCount();
     metrics->jointAttributeCount = reader->getJointRowCount();
     metrics->blendShapeCount = reader->getBlendShapeChannelCount();
     metrics->animatedMapCount = reader->getAnimatedMapCount();
-    metrics->neuralNetworkCount = reader->getNeuralNetworkCount();
+    #ifdef RL_BUILD_WITH_ML_EVALUATOR
+        metrics->mlControlCount = reader->getMLControlCount();
+        metrics->neuralNetworkCount = reader->getNeuralNetworkCount();
+    #endif  // RL_BUILD_WITH_ML_EVALUATOR
     return metrics;
 }
 

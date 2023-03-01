@@ -2,6 +2,9 @@
 
 #pragma once
 
+// *INDENT-OFF*
+#ifdef RL_BUILD_WITH_ML_EVALUATOR
+
 #include "riglogic/TypeDefs.h"
 #include "riglogic/ml/LODSpec.h"
 #include "riglogic/ml/MachineLearnedBehaviorEvaluator.h"
@@ -18,14 +21,6 @@ namespace ml {
 
 namespace cpu {
 
-static OutputInstance::Factory createInstanceFactory() {
-    return [](ConstArrayView<std::uint32_t> maxLayerOutputCounts, MemoryResource* memRes) {
-               return UniqueInstance<OutputInstance, MachineLearnedBehaviorOutputInstance>::with(memRes).create(
-                   maxLayerOutputCounts,
-                   memRes);
-    };
-}
-
 template<typename T, typename TF256, typename TF128>
 class Factory {
     public:
@@ -33,7 +28,10 @@ class Factory {
                                                                MemoryResource* memRes) {
             Vector<NeuralNetInference<T, TF256, TF128> > neuralNets{memRes};
             Vector<std::uint32_t> maxLayerOutputCountPerNet{memRes};
-            auto instanceFactory = createInstanceFactory();
+            auto instanceFactory = [](ConstArrayView<std::uint32_t> maxLayerOutputCounts, MemoryResource* instanceMemRes) {
+                    using OutputInstancePointer = UniqueInstance<OutputInstance, MachineLearnedBehaviorOutputInstance>;
+                    return OutputInstancePointer::with(instanceMemRes).create(maxLayerOutputCounts, instanceMemRes);
+                };
             auto factory = UniqueInstance<Evaluator<T, TF256, TF128>, MachineLearnedBehaviorEvaluator>::with(memRes);
 
             if (reader == nullptr) {
@@ -156,3 +154,6 @@ class Factory {
 }  // namespace ml
 
 }  // namespace rl4
+
+#endif  // RL_BUILD_WITH_ML_EVALUATOR
+// *INDENT-ON*

@@ -3,6 +3,7 @@
 
 #include "riglogic/types/Extent.h"
 #include "riglogic/utils/Extd.h"
+#include "riglogic/utils/Macros.h"
 #include "riglogic/system/simd/SIMD.h"
 
 #include <cstdint>
@@ -92,6 +93,10 @@ struct Optimizer {
                     #endif
                 }
 
+                // GCC-7 has a bug in its `array-bounds` check, and incorrectly warns about OOB access in the
+                // below loop on `output[blkIdx]`, but `blkIdx` can never be higher than `paddedBlockHeight`,
+                // which in turn is always either below or equal to `BlockHeight`, thus OOB is impossible.
+                ASSUME_TRUE(paddedBlockHeight <= BlockHeight);
                 // Copy even the padded zero values as the representation of half-floats might
                 // differ from the storage's zero-initialized state
                 for (std::uint32_t blkIdx = 0u; blkIdx < paddedBlockHeight; ++blkIdx, ++offset) {

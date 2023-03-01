@@ -5,8 +5,6 @@
 #include <dna/DataLayer.h>
 #include <dna/BinaryStreamReader.h>
 #include <dna/BinaryStreamWriter.h>
-#include <dna/JSONStreamReader.h>
-#include <dna/JSONStreamWriter.h>
 #include <dna/types/Aliases.h>
 #include <dna/types/Vector3.h>
 #include <pma/MemoryResource.h>
@@ -30,8 +28,6 @@ using trio::MemoryStream;
 using dna::DataLayer;
 using dna::BinaryStreamReader;
 using dna::BinaryStreamWriter;
-using dna::JSONStreamReader;
-using dna::JSONStreamWriter;
 using dna::StringView;
 using dna::UnknownLayerPolicy;
 using dna::Vector3;

@@ -2,6 +2,9 @@
 
 #pragma once
 
+// *INDENT-OFF*
+#ifdef DNA_BUILD_WITH_JSON_SUPPORT
+
 #include "dna/Defs.h"
 #include "dna/StreamWriter.h"
 #include "dna/types/Aliases.h"
@@ -27,7 +30,8 @@ class DNAAPI JSONStreamWriter : public StreamWriter {
                 User is responsible for releasing the returned pointer by calling destroy.
             @see destroy
         */
-        static JSONStreamWriter* create(BoundedIOStream* stream, std::uint32_t indentWidth = 4u,
+        static JSONStreamWriter* create(BoundedIOStream* stream,
+                                        std::uint32_t indentWidth = 4u,
                                         MemoryResource* memRes = nullptr);
         /**
             @brief Method for freeing a JSONStreamWriter instance.
@@ -65,3 +69,6 @@ struct DefaultInstanceDestroyer<dna::JSONStreamWriter> {
 };
 
 }  // namespace pma
+
+#endif  // DNA_BUILD_WITH_JSON_SUPPORT
+// *INDENT-ON*

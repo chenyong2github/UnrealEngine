@@ -57,12 +57,15 @@ void BinaryStreamWriterImpl::setFrom(const BinaryStreamReader* source,
     reader->rawCopyInto(dna, layer, policy, memRes_);
 }
 
-void BinaryStreamWriterImpl::setFrom(const JSONStreamReader* source,
-                                     DataLayer layer,
-                                     UnknownLayerPolicy policy,
-                                     MemoryResource* memRes_) {
-    auto reader = const_cast<JSONStreamReaderImpl*>(static_cast<const JSONStreamReaderImpl*>(source));
-    reader->rawCopyInto(dna, layer, policy, memRes_);
-}
+#ifdef DNA_BUILD_WITH_JSON_SUPPORT
+    void BinaryStreamWriterImpl::setFrom(const JSONStreamReader* source,
+                                         DataLayer layer,
+                                         UnknownLayerPolicy policy,
+                                         MemoryResource* memRes_) {
+        auto reader = const_cast<JSONStreamReaderImpl*>(static_cast<const JSONStreamReaderImpl*>(source));
+        reader->rawCopyInto(dna, layer, policy, memRes_);
+    }
+
+#endif  // DNA_BUILD_WITH_JSON_SUPPORT
 
 }  // namespace dna

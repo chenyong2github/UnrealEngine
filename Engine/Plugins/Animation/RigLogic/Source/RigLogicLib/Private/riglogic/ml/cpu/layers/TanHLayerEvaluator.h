@@ -2,6 +2,9 @@
 
 #pragma once
 
+// *INDENT-OFF*
+#ifdef RL_BUILD_WITH_ML_EVALUATOR
+
 #include "riglogic/TypeDefs.h"
 #include "riglogic/ml/cpu/Block4.h"
 #include "riglogic/ml/cpu/Consts.h"
@@ -78,3 +81,6 @@ class TanHLayerEvaluator : public LayerEvaluator<T> {
 }  // namespace ml
 
 }  // namespace rl4
+
+#endif  // RL_BUILD_WITH_ML_EVALUATOR
+// *INDENT-ON*

@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// *INDENT-OFF*
+#ifdef RL_BUILD_WITH_ML_EVALUATOR
+
 #include "rltests/ml/cpu/FixturesBlock4.h"
 
 #include "riglogic/TypeDefs.h"
@@ -1100,3 +1103,6 @@ CanonicalReader::~CanonicalReader() = default;
 }  // namespace ml
 
 }  // namespace rltests
+
+#endif  // RL_BUILD_WITH_ML_EVALUATOR
+// *INDENT-ON*
