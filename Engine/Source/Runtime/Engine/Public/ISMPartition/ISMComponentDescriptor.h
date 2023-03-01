@@ -19,7 +19,8 @@ struct ENGINE_API FISMComponentDescriptorBase
 {
 	GENERATED_BODY()
 
-	FISMComponentDescriptorBase() = default;
+	FISMComponentDescriptorBase();
+	explicit FISMComponentDescriptorBase(ENoInit) {}
 	void InitFrom(const UStaticMeshComponent* Component, bool bInitBodyInstance = true);
 
 	uint32 ComputeHash() const;
@@ -150,8 +151,11 @@ public:
 	uint8 bConsiderForActorPlacementWhenHidden : 1;
 #endif
 
-	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "CustomDepthStencilWriteMask"))
+	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "bGenerateOverlapEvents"))
 	uint8 bUseDefaultCollision : 1;
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "CustomDepthStencilWriteMask"))
+	uint8 bGenerateOverlapEvents : 1;
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 WorldPositionOffsetDisableDistance;
