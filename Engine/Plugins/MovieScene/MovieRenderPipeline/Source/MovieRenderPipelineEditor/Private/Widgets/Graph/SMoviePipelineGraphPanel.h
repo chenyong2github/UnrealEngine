@@ -6,6 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class UMoviePipelineConfigBase;
+class SGraphEditor;
 class SMoviePipelineQueueEditor;
 class SWindow;
 class UMoviePipelineExecutorJob;
@@ -34,6 +35,9 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
+
+	/** Clears the selection in the graph widget being displayed. */
+	void ClearGraphSelection() const;
 
 private:
 	FReply OnRenderLocalRequested();
@@ -71,6 +75,9 @@ private:
 private:
 	/** The main movie pipeline queue editor widget */
 	TSharedPtr<SMoviePipelineQueueEditor> PipelineQueueEditorWidget;
+
+	/** The graph widget displayed in this panel. */
+	TSharedPtr<SGraphEditor> GraphEditorWidget;
 
 	TWeakPtr<SWindow> WeakEditorWindow;
 	

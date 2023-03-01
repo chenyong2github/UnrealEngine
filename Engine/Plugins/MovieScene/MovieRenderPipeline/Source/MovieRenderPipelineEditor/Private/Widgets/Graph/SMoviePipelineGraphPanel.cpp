@@ -104,18 +104,18 @@ void SMoviePipelineGraphPanel::Construct(const FArguments& InArgs)
 	const UEdGraphSchema* Schema = GraphToEdit->GetSchema();
 	Schema->CreateDefaultNodesForGraph(*GraphToEdit);
 
-	TSharedRef<SWidget> GraphEditor =
-		SNew(SGraphEditor)
-		.IsEditable(true)
-		// .Appearance(this, &FTestEditor::GetGraphAppearance)
-		// .TitleBar(TitleBarWidget)
-		.GraphToEdit(GraphToEdit)
-		.GraphEvents(InEvents);
-
 	ChildSlot
 	[
-		GraphEditor
+		SAssignNew(GraphEditorWidget, SGraphEditor)
+		.IsEditable(true)
+		.GraphToEdit(GraphToEdit)
+		.GraphEvents(InEvents)
 	];
+}
+
+void SMoviePipelineGraphPanel::ClearGraphSelection() const
+{
+	GraphEditorWidget->ClearSelectionSet();
 }
 
 UE_ENABLE_OPTIMIZATION_SHIP
@@ -135,7 +135,15 @@ void SMoviePipelineGraphPanel::OnSelectedNodesChanged(const TSet<UObject*>& NewS
 		{
 			if (UMovieGraphNode* GraphNode = NodeBase->GetRuntimeNode())
 			{
-				SelectedObjects.Add(GraphNode);
+				// For variable nodes, select the underlying variable instead. Otherwise, just select the runtime node.
+				if (const UMovieGraphVariableNode* VariableNode = Cast<UMovieGraphVariableNode>(GraphNode))
+				{
+					SelectedObjects.Add(VariableNode->GetVariable());
+				}
+				else
+				{
+					SelectedObjects.Add(GraphNode);
+				}
 			}
 		}
 	}

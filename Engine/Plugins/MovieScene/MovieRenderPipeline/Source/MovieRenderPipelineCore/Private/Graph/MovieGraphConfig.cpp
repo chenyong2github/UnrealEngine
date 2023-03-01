@@ -1,9 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Graph/MovieGraphConfig.h"
+
+#include "Algo/Transform.h"
 #include "Graph/MovieGraphEdge.h"
+#include "MovieGraphUtils.h"
 #include "MovieRenderPipelineCoreModule.h"
 
+#define LOCTEXT_NAMESPACE "MovieGraphConfig"
+
+#if WITH_EDITOR
+void UMovieGraphVariable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	OnMovieGraphVariableChangedDelegate.Broadcast(this);
+}
+#endif
 
 UMovieGraphConfig::UMovieGraphConfig()
 {
@@ -34,6 +47,13 @@ void UMovieGraphConfig::TraverseTest(UMovieGraphNode* InNode)
 			}
 		}
 	}
+}
+
+void UMovieGraphConfig::OnVariableUpdated(UMovieGraphVariable* UpdatedVariable)
+{
+#if WITH_EDITOR
+	OnGraphChangedDelegate.Broadcast();
+#endif
 }
 
 UMovieGraphNode* UMovieGraphConfig::FindTraversalStartForContext(const FMovieGraphTraversalContext& InContext) const
@@ -221,3 +241,108 @@ bool UMovieGraphConfig::RemoveOutboundEdges(UMovieGraphNode* InNode, const FName
 	return bChanged;
 }
 
+bool UMovieGraphConfig::RemoveNode(UMovieGraphNode* InNode)
+{
+	if (!InNode)
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("RemoveNode: Invalid Node"));
+		return false;
+	}
+
+	RemoveAllInboundEdges(InNode);
+	RemoveAllOutboundEdges(InNode);
+
+	return AllNodes.RemoveSingle(InNode) == 1;
+}
+
+UMovieGraphVariable* UMovieGraphConfig::AddVariable()
+{
+	using namespace UE::MoviePipeline::RenderGraph;
+	
+	UMovieGraphVariable* NewVariable = NewObject<UMovieGraphVariable>(this, NAME_None, RF_Transactional);
+	Variables.Add(NewVariable);
+
+	NewVariable->Type = EMovieGraphVariableType::Float;
+	NewVariable->SetGuid(FGuid::NewGuid());
+
+#if WITH_EDITOR
+	NewVariable->OnMovieGraphVariableChangedDelegate.AddUObject(this, &UMovieGraphConfig::OnVariableUpdated);
+#endif
+
+	// Generate and set a unique name
+	TArray<FString> ExistingVariableNames;
+	Algo::Transform(GetVariables(), ExistingVariableNames, [](const UMovieGraphVariable* Variable) { return Variable->Name; });
+	NewVariable->Name = GetUniqueName(ExistingVariableNames, "Variable");
+
+	return NewVariable;
+}
+
+UMovieGraphVariable* UMovieGraphConfig::GetVariableByGuid(const FGuid& InGuid) const
+{
+	for (const TObjectPtr<UMovieGraphVariable> Variable : Variables)
+	{
+		if (Variable->GetGuid() == InGuid)
+		{
+			return Variable;
+		}
+	}
+
+	return nullptr;
+}
+
+TArray<UMovieGraphVariable*> UMovieGraphConfig::GetVariables() const
+{
+	return Variables;
+}
+
+void UMovieGraphConfig::DeleteMember(UObject* MemberToDelete)
+{
+	if (!MemberToDelete)
+	{
+		return;
+	}
+
+	if (UMovieGraphVariable* GraphVariableToDelete = Cast<UMovieGraphVariable>(MemberToDelete))
+	{
+		DeleteVariableMember(GraphVariableToDelete);
+	}
+}
+
+void UMovieGraphConfig::DeleteVariableMember(UMovieGraphVariable* VariableMemberToDelete)
+{
+	// Find all accessor nodes using this graph variable
+	TArray<TObjectPtr<UMovieGraphNode>> NodesToRemove =
+		AllNodes.FilterByPredicate([VariableMemberToDelete](const TObjectPtr<UMovieGraphNode>& GraphNode)
+		{
+			if (const UMovieGraphVariableNode* VariableNode = Cast<UMovieGraphVariableNode>(GraphNode))
+			{
+				const UMovieGraphVariable* GraphVariable = VariableNode->GetVariable();
+				if (GraphVariable && (GraphVariable->GetGuid() == VariableMemberToDelete->GetGuid()))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		});
+
+	// Remove accessor nodes
+	TArray<UMovieGraphNode*> RemovedNodes;
+	for (const TObjectPtr<UMovieGraphNode>& NodeToRemove : NodesToRemove)
+	{
+		const FGuid& NodeGuid = NodeToRemove->GetGuid();
+		if (RemoveNode(NodeToRemove.Get()))
+		{
+			RemovedNodes.Add(NodeToRemove.Get());
+		}
+	}
+
+	// Remove this variable from the variables tracked by the graph
+	Variables.RemoveSingle(VariableMemberToDelete);
+
+#if WITH_EDITOR
+	OnGraphNodesDeletedDelegate.Broadcast(RemovedNodes);
+#endif
+}
+
+#undef LOCTEXT_NAMESPACE

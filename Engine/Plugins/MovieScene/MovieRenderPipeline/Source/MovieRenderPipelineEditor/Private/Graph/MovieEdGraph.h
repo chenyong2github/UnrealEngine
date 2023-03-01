@@ -30,9 +30,27 @@ public:
 	/** Creates the links/edges between nodes in the graph */
 	void CreateLinks(UMoviePipelineEdGraphNodeBase* InGraphNode, bool bCreateInboundLinks, bool bCreateOutboundLinks);
 
+	/** Completely reconstruct the graph. This is a big hammer and should be used sparingly. */
+	void ReconstructGraph();
+
 protected:
 	void CreateLinks(UMoviePipelineEdGraphNodeBase* InGraphNode, bool bCreateInboundLinks, bool bCreateOutboundLinks,
 		const TMap<UMovieGraphNode*, UMoviePipelineEdGraphNodeBase*>& RuntimeNodeToEdNodeMap);
 
+	/**
+	 * Handler which deals with changes made to the runtime graph. This will most likely be replaced with more specific
+	 * handlers in the future when the graph is more fully-featured.
+	 */
+	void OnGraphConfigChanged();
+
+	/** Handler which deals with deleted nodes in the runtime graph. The GUIDs provided are those of the deleted runtime nodes. */
+	void OnGraphNodesDeleted(TArray<UMovieGraphNode*> DeletedNodes);
+
+protected:
 	bool bInitialized = false;
+
+private:
+	/** Create a new editor node of type T from the given runtime node. */
+	template <typename T>
+	UMoviePipelineEdGraphNodeBase* CreateNodeFromRuntimeNode(UMovieGraphNode* InRuntimeNode);
 };

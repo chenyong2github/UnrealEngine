@@ -9,6 +9,7 @@
 #include "UObject/UObjectIterator.h"
 #include "ScopedTransaction.h"
 #include "GraphEditor.h"
+#include "MovieEdGraphVariableNode.h"
 
 TArray<UClass*> UMovieGraphSchema::MoviePipelineNodeClasses;
 
@@ -67,24 +68,17 @@ void UMovieGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Context
 {
 	InitMoviePipelineNodeClasses();
 
-	/* {
-		FText Category = NSLOCTEXT("MoveiPipeline", "Category", "Cat1");
-		FText MenuDesc = NSLOCTEXT("MoveiPipeline", "MenuDesc", "New Render Layer");
-		FText Description = NSLOCTEXT("MoveiPipeline", "Description", "Description");
-
-		TSharedPtr<FMovieGraphSchemaAction_NewNativeElement> NewAction(new FMovieGraphSchemaAction_NewNativeElement(Category, MenuDesc, Description, 0));
-		NewAction->NodeClass = UMovieGraphRenderLayerNode::StaticClass();
-		ContextMenuBuilder.AddAction(NewAction);
+	const UMoviePipelineEdGraph* Graph = Cast<UMoviePipelineEdGraph>(ContextMenuBuilder.CurrentGraph);
+	if (!Graph)
+	{
+		return;
 	}
 
+	const UMovieGraphConfig* RuntimeGraph = Graph->GetPipelineGraph();
+	if (!RuntimeGraph)
 	{
-		FText Category = NSLOCTEXT("MoveiPipeline", "Category", "Cat1");
-		FText MenuDesc = NSLOCTEXT("MoveiPipeline", "MenuDesc", "New Collection");
-		FText Description = NSLOCTEXT("MoveiPipeline", "Description", "Description");
-
-		NewAction->NodeClass = UMovieGraphCollectionNode::StaticClass();
-		ContextMenuBuilder.AddAction(NewAction);
-	}*/
+		return;
+	}
 
 	for (UClass* PipelineNodeClass : MoviePipelineNodeClasses)
 	{
@@ -93,13 +87,32 @@ void UMovieGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Context
 		{
 			const FText Name = PipelineNode->GetMenuDescription();
 			const FText Category = PipelineNode->GetMenuCategory();
-			const FText Tooltip = NSLOCTEXT("MoveiPipeline", "Description", "Placeholder Tooltip");
+			const FText Tooltip = LOCTEXT("CreateNode_Tooltip", "Create a node of this type.");
 
-			TSharedPtr<FMovieGraphSchemaAction_NewNativeElement> NewAction(new FMovieGraphSchemaAction_NewNativeElement(Category, Name, Tooltip, 0));
+			if (PipelineNodeClass == UMovieGraphVariableNode::StaticClass())
+			{
+				// Add variable actions separately
+				continue;
+			}
+			
+			TSharedPtr<FMovieGraphSchemaAction> NewAction = MakeShared<FMovieGraphSchemaAction_NewNode>(Category, Name, Tooltip); 
 			NewAction->NodeClass = PipelineNodeClass;
 
 			ContextMenuBuilder.AddAction(NewAction);
 		}
+	}
+
+	// Create an accessor node action for each variable the graph has
+	for (const UMovieGraphVariable* Variable : RuntimeGraph->GetVariables())
+	{
+		const FText Name = FText::FromString(Variable->Name);
+		const FText Category = LOCTEXT("CreateVariable_Category", "Variables");
+		const FText Tooltip = LOCTEXT("CreateVariable_Tooltip", "Create an accessor node for this variable.");
+		
+		TSharedPtr<FMovieGraphSchemaAction> NewAction = MakeShared<FMovieGraphSchemaAction_NewVariableNode>(Category, Name, Variable->GetGuid(), Tooltip);
+		NewAction->NodeClass = UMovieGraphVariableNode::StaticClass();
+		
+		ContextMenuBuilder.AddAction(NewAction);
 	}
 }
 
@@ -234,9 +247,13 @@ FLinearColor UMovieGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) 
 	//return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(PinType);
 }
 
+FMovieGraphSchemaAction_NewNode::FMovieGraphSchemaAction_NewNode(FText InNodeCategory, FText InDisplayName, FText InToolTip)
+	: FMovieGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), 0)
+{
+	
+}
 
-
-UEdGraphNode* FMovieGraphSchemaAction_NewNativeElement::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
+UEdGraphNode* FMovieGraphSchemaAction_NewNode::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
 {
 	UMovieGraphConfig* RuntimeGraph = CastChecked<UMoviePipelineEdGraph>(ParentGraph)->GetPipelineGraph();
 	const FScopedTransaction Transaction(LOCTEXT("GraphEditor_NewNode", "Create Pipeline Graph Node."));
@@ -247,6 +264,37 @@ UEdGraphNode* FMovieGraphSchemaAction_NewNativeElement::PerformAction(UEdGraph* 
 	// Now create the editor graph node
 	FGraphNodeCreator<UMoviePipelineEdGraphNode> NodeCreator(*ParentGraph);
 	UMoviePipelineEdGraphNode* GraphNode = NodeCreator.CreateUserInvokedNode(bSelectNewNode);
+	GraphNode->Construct(RuntimeNode);
+	GraphNode->NodePosX = Location.X;
+	GraphNode->NodePosY = Location.Y;
+
+	// Finalize generates a guid, calls a post-place callback, and allocates default pins if needed
+	NodeCreator.Finalize();
+	return GraphNode;
+}
+
+FMovieGraphSchemaAction_NewVariableNode::FMovieGraphSchemaAction_NewVariableNode(FText InNodeCategory, FText InDisplayName, FGuid InVariableGuid, FText InToolTip)
+	: FMovieGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), 0)
+	, VariableGuid(InVariableGuid)
+{
+	
+}
+
+UEdGraphNode* FMovieGraphSchemaAction_NewVariableNode::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
+{
+	UMovieGraphConfig* RuntimeGraph = CastChecked<UMoviePipelineEdGraph>(ParentGraph)->GetPipelineGraph();
+	const FScopedTransaction Transaction(LOCTEXT("GraphEditor_NewVariableNode", "Add New Variable Accessor Node"));
+	RuntimeGraph->Modify();
+
+	UMovieGraphNode* RuntimeNode = RuntimeGraph->ConstructRuntimeNode<UMovieGraphNode>(NodeClass);
+	if (UMovieGraphVariableNode* VariableNode = Cast<UMovieGraphVariableNode>(RuntimeNode))
+	{
+		VariableNode->SetVariable(RuntimeGraph->GetVariableByGuid(VariableGuid));
+	}
+
+	// Now create the variable node
+	FGraphNodeCreator<UMoviePipelineEdGraphVariableNode> NodeCreator(*ParentGraph);
+	UMoviePipelineEdGraphVariableNode* GraphNode = NodeCreator.CreateNode(bSelectNewNode);
 	GraphNode->Construct(RuntimeNode);
 	GraphNode->NodePosX = Location.X;
 	GraphNode->NodePosY = Location.Y;

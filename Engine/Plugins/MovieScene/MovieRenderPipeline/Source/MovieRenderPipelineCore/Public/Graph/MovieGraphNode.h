@@ -10,6 +10,7 @@
 
 // Forward Declares
 class UMovieGraphPin;
+class UMovieGraphVariable;
 
 #if WITH_EDITOR
 class UEdGraphNode;
@@ -64,6 +65,9 @@ public:
 	UMovieGraphPin* GetInputPin(const FName& InPinLabel) const;
 	UMovieGraphPin* GetOutputPin(const FName& InPinLabel) const;
 
+	/** Gets the GUID which uniquely identifies this node. */
+	const FGuid& GetGuid() const { return Guid; }
+
 #if WITH_EDITOR
 	int32 GetNodePosX() const { return NodePosX; }
 	int32 GetNodePosY() const { return NodePosY; }
@@ -111,6 +115,10 @@ protected:
 	UPROPERTY()
 	int32 NodePosY = 0;
 #endif
+
+	/** A GUID which uniquely identifies this node. */
+	UPROPERTY()
+	FGuid Guid;
 };
 
 // Dummy test nodes
@@ -229,4 +237,40 @@ public:
 		Properties.Add(FMovieGraphPinProperties(TEXT("Input"), false));
 		return Properties;
 	}
+};
+
+/** A node which gets the value of a variable which has been defined on the graph. */
+UCLASS()
+class MOVIERENDERPIPELINECORE_API UMovieGraphVariableNode : public UMovieGraphNode
+{
+	GENERATED_BODY()
+
+public:
+	UMovieGraphVariableNode() = default;
+
+	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
+
+	/** Gets the variable that this node represents. */
+	UMovieGraphVariable* GetVariable() const { return GraphVariable; }
+
+	/** Sets the variable that this node represents. */
+	void SetVariable(UMovieGraphVariable* InVariable);
+
+#if WITH_EDITOR
+	virtual FText GetMenuDescription() const override;
+	virtual FText GetMenuCategory() const override;
+#endif
+
+private:
+	/** Updates the output pin on the node to match the provided variable. */
+	void UpdateOutputPin(UMovieGraphVariable* ChangedVariable);
+
+private:
+	/** The underlying graph variable this node represents. */
+	UPROPERTY()
+	TObjectPtr<UMovieGraphVariable> GraphVariable = nullptr;
+
+	/** The properties for the output pin on this node. */
+	UPROPERTY(Transient)
+	FMovieGraphPinProperties OutputPin;
 };

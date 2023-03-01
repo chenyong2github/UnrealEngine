@@ -185,3 +185,56 @@ UMovieGraphPin* UMovieGraphNode::GetOutputPin(const FName& Label) const
 
 	return nullptr;
 }
+
+TArray<FMovieGraphPinProperties> UMovieGraphVariableNode::GetOutputPinProperties() const
+{
+	TArray<FMovieGraphPinProperties> Properties;
+	
+	if (GraphVariable)
+	{
+		Properties.Add(FMovieGraphPinProperties(FName(GraphVariable->Name), false));
+	}
+	else
+	{
+		Properties.Add(FMovieGraphPinProperties(TEXT("Unknown"), false));
+	}
+	
+	return Properties;
+}
+
+void UMovieGraphVariableNode::SetVariable(UMovieGraphVariable* InVariable)
+{
+	if (InVariable)
+	{
+		GraphVariable = InVariable;
+
+		// Update the output pin to reflect the new variable, and update the pin whenever the variable changes
+		// (eg, when the variable is renamed)
+		UpdateOutputPin(GraphVariable);
+
+#if WITH_EDITOR
+		GraphVariable->OnMovieGraphVariableChangedDelegate.AddUObject(this, &UMovieGraphVariableNode::UpdateOutputPin);
+#endif
+	}
+}
+
+#if WITH_EDITOR
+FText UMovieGraphVariableNode::GetMenuDescription() const
+{
+	return GraphVariable ? FText::FromString(GraphVariable->Name) : FText();
+}
+	
+FText UMovieGraphVariableNode::GetMenuCategory() const
+{
+	return NSLOCTEXT("MovieGraphNode", "VariableNode_Category", "Variables");
+}
+#endif // WITH_EDITOR
+
+void UMovieGraphVariableNode::UpdateOutputPin(UMovieGraphVariable* ChangedVariable)
+{
+	if (!OutputPins.IsEmpty() && ChangedVariable)
+	{
+		// Update the output pin w/ the name of the variable
+		OutputPins[0]->Properties.Label = FName(ChangedVariable->Name);
+	}
+}

@@ -41,6 +41,7 @@ protected:
 	void UpdatePosition();
 
 protected:
+	/** The runtime node that this editor node represents. */
 	UPROPERTY()
 	TObjectPtr<UMovieGraphNode> RuntimeNode;
 };

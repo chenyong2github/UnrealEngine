@@ -2,7 +2,9 @@
 
 #include "MovieGraphAssetToolkit.h"
 
+#include "Framework/Commands/GenericCommands.h"
 #include "Graph/MovieGraphConfig.h"
+#include "MovieGraphSchema.h"
 #include "PropertyEditorModule.h"
 #include "SMovieGraphMembersTabContent.h"
 #include "ToolMenus.h"
@@ -22,6 +24,11 @@ static TAutoConsoleVariable<bool> CVarMoviePipelineEnableRenderGraph(
 	false,
 	TEXT("Determines if the Render Graph feature is enabled in the UI. This is a highly experimental feature and is not ready for use.")
 );
+
+FMovieGraphAssetToolkit::FMovieGraphAssetToolkit()
+	: bIsInternalSelectionChange(false)
+{
+}
 
 void FMovieGraphAssetToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
@@ -99,6 +106,8 @@ void FMovieGraphAssetToolkit::InitMovieGraphAssetToolkit(const EToolkitMode::Typ
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
 	InitAssetEditor(Mode, InitToolkitHost, AppIdentifier, Layout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, InitGraph);
+
+	BindGraphCommands();
 }
 
 TSharedRef<SDockTab> FMovieGraphAssetToolkit::SpawnTab_RenderGraphEditor(const FSpawnTabArgs& Args)
@@ -114,7 +123,22 @@ TSharedRef<SDockTab> FMovieGraphAssetToolkit::SpawnTab_RenderGraphEditor(const F
 				.Graph(InitialGraph)
 				.OnGraphSelectionChanged_Lambda([this](const TArray<UObject*>& NewSelection) -> void
 				{
-					SelectedGraphObjectsDetailsWidget->SetObjects(NewSelection);
+					if (bIsInternalSelectionChange)
+					{
+						return;
+					}
+					
+					// Reset selection in the Members panel
+					if (MembersTabContent.IsValid())
+					{
+						TGuardValue<bool> GuardSelectionChange(bIsInternalSelectionChange, true);
+						MembersTabContent->ClearSelection();
+					}
+
+					if (SelectedGraphObjectsDetailsWidget.IsValid())
+					{
+						SelectedGraphObjectsDetailsWidget->SetObjects(NewSelection);
+					}
 				})
 			]
 		];
@@ -128,7 +152,38 @@ TSharedRef<SDockTab> FMovieGraphAssetToolkit::SpawnTab_RenderGraphMembers(const 
 		.TabColorScale(GetTabColorScale())
 		.Label(LOCTEXT("MembersTab_Title", "Members"))
 		[
-			SNew(SMovieGraphMembersTabContent)
+			SAssignNew(MembersTabContent, SMovieGraphMembersTabContent)
+			.Editor(SharedThis(this))
+			.Graph(InitialGraph)
+			.OnActionSelected_Lambda([this](const TArray<TSharedPtr<FEdGraphSchemaAction>>& Selection, ESelectInfo::Type Type)
+			{
+				if (bIsInternalSelectionChange)
+				{
+					return;
+				}
+				
+				// Reset selection in the graph
+				if (MovieGraphWidget.IsValid())
+				{
+					TGuardValue<bool> GuardSelectionChange(bIsInternalSelectionChange, true);
+					MovieGraphWidget->ClearGraphSelection();
+				}
+				
+				TArray<UObject*> SelectedObjects;
+				for (const TSharedPtr<FEdGraphSchemaAction>& SelectedAction : Selection)
+				{
+					const FMovieGraphSchemaAction* GraphAction = static_cast<FMovieGraphSchemaAction*>(SelectedAction.Get());
+					if (GraphAction->ActionTarget)
+					{
+						SelectedObjects.Add(GraphAction->ActionTarget);
+					}
+				}
+
+				if (SelectedGraphObjectsDetailsWidget.IsValid())
+				{
+					SelectedGraphObjectsDetailsWidget->SetObjects(SelectedObjects);
+				}
+			})
 		];
 
 	return NewDockTab;
@@ -151,6 +206,31 @@ TSharedRef<SDockTab> FMovieGraphAssetToolkit::SpawnTab_RenderGraphDetails(const 
 		[
 			SelectedGraphObjectsDetailsWidget.ToSharedRef()
 		];
+}
+
+void FMovieGraphAssetToolkit::BindGraphCommands()
+{
+	ToolkitCommands->MapAction(FGenericCommands::Get().Delete,
+		FExecuteAction::CreateSP(this, &FMovieGraphAssetToolkit::DeleteSelectedMembers),
+		FCanExecuteAction::CreateSP(this, &FMovieGraphAssetToolkit::CanDeleteSelectedMembers));
+}
+
+void FMovieGraphAssetToolkit::DeleteSelectedMembers()
+{
+	if (MembersTabContent.IsValid())
+	{
+		MembersTabContent->DeleteSelectedMembers();
+	}
+}
+
+bool FMovieGraphAssetToolkit::CanDeleteSelectedMembers()
+{
+	if (MembersTabContent.IsValid())
+	{
+		return MembersTabContent->CanDeleteSelectedMembers();
+	}
+
+	return false;
 }
 
 FName FMovieGraphAssetToolkit::GetToolkitFName() const

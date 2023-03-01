@@ -38,27 +38,82 @@ private:
 	
 };
 
-
+/** Base class for schema actions in the graph. */
 USTRUCT()
-struct FMovieGraphSchemaAction_NewNativeElement : public FEdGraphSchemaAction
+struct FMovieGraphSchemaAction : public FEdGraphSchemaAction
 {
 	GENERATED_BODY()
-	
+
 	// Inherit the base class's constructors
 	using FEdGraphSchemaAction::FEdGraphSchemaAction;
+
+	virtual ~FMovieGraphSchemaAction() override = default;
 	
-	// Simple type info
 	static FName StaticGetTypeId()
 	{
-		static FName Type("FMovieGraphSchemaAction_NewNativeElement");
+		static FName Type("FMovieGraphSchemaAction");
+		return Type;
+	}
+
+	/** The object the action relates to. */
+	UPROPERTY()
+	TObjectPtr<UObject> ActionTarget = nullptr;
+
+	UPROPERTY()
+	TSubclassOf<UMovieGraphNode> NodeClass;
+};
+
+/** Schema action for creating a new node in the graph. */
+USTRUCT()
+struct FMovieGraphSchemaAction_NewNode : public FMovieGraphSchemaAction
+{
+	GENERATED_BODY()
+
+	FMovieGraphSchemaAction_NewNode()
+		: FMovieGraphSchemaAction()
+	{}
+
+	FMovieGraphSchemaAction_NewNode(FText InNodeCategory, FText InDisplayName, FText InToolTip);
+
+	virtual ~FMovieGraphSchemaAction_NewNode() override = default;
+	
+	static FName StaticGetTypeId()
+	{
+		static FName Type("FMovieGraphSchemaAction_NewNode");
 		return Type;
 	}
 	
-	UPROPERTY()
-	TSubclassOf<UMovieGraphNode> NodeClass;
-
 	//~ Begin FEdGraphSchemaAction Interface
-	virtual FName GetTypeId() const override { return StaticGetTypeId(); }
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	//~ End FEdGraphSchemaAction Interface
+};
+
+/** Schema action for creating a new variable node in the graph. */
+USTRUCT()
+struct FMovieGraphSchemaAction_NewVariableNode : public FMovieGraphSchemaAction
+{
+	GENERATED_BODY()
+	
+	static FName StaticGetTypeId()
+	{
+		static FName Type("FMovieGraphSchemaAction_NewVariableNode");
+		return Type;
+	}
+
+	FMovieGraphSchemaAction_NewVariableNode()
+		: FMovieGraphSchemaAction()
+	{}
+
+	FMovieGraphSchemaAction_NewVariableNode(FText InNodeCategory, FText InDisplayName, FGuid InVariableGuid, FText InToolTip);
+
+	virtual ~FMovieGraphSchemaAction_NewVariableNode() override = default;
+	
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+
+private:
+	/** GUID of the runtime variable this action relates to. */
+	UPROPERTY()
+	FGuid VariableGuid;
 };

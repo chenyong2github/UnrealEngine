@@ -7,8 +7,14 @@
 #include "Graph/MovieGraphNode.h"
 #include "MovieEdGraphOutputNode.h"
 #include "MovieEdGraphInputNode.h"
+#include "MovieEdGraphVariableNode.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "EdGraph/EdGraphPin.h"
+
+template UMoviePipelineEdGraphNodeBase* UMoviePipelineEdGraph::CreateNodeFromRuntimeNode<UMoviePipelineEdGraphNodeInput>(UMovieGraphNode* InRuntimeNode);
+template UMoviePipelineEdGraphNodeBase* UMoviePipelineEdGraph::CreateNodeFromRuntimeNode<UMoviePipelineEdGraphNodeOutput>(UMovieGraphNode* InRuntimeNode);
+template UMoviePipelineEdGraphNodeBase* UMoviePipelineEdGraph::CreateNodeFromRuntimeNode<UMoviePipelineEdGraphVariableNode>(UMovieGraphNode* InRuntimeNode);
+template UMoviePipelineEdGraphNodeBase* UMoviePipelineEdGraph::CreateNodeFromRuntimeNode<UMoviePipelineEdGraphNode>(UMovieGraphNode* InRuntimeNode);
 
 UMovieGraphConfig* UMoviePipelineEdGraph::GetPipelineGraph() const
 {
@@ -20,37 +26,31 @@ void UMoviePipelineEdGraph::InitFromRuntimeGraph(UMovieGraphConfig* InGraph)
 	// Don't allow reinitialization of an existing graph
 	check(InGraph && !bInitialized);
 
-	const bool bSelectNewNode = false;
 	TMap<UMovieGraphNode*, UMoviePipelineEdGraphNodeBase*> NodeLookup;
 
 	// Input
 	{
 		UMovieGraphNode* InputNode = InGraph->GetInputNode();
-		FGraphNodeCreator<UMoviePipelineEdGraphNodeInput> InputNodeCreator(*this);
-		UMoviePipelineEdGraphNodeInput* InputGraphNode = InputNodeCreator.CreateNode(bSelectNewNode);
-		InputGraphNode->Construct(InputNode);
-		InputNodeCreator.Finalize();
-		NodeLookup.Add(InputNode, InputGraphNode);
+		NodeLookup.Add(InputNode, CreateNodeFromRuntimeNode<UMoviePipelineEdGraphNodeInput>(InputNode));
 	}
 
 	// Output
 	{
 		UMovieGraphNode* OutputNode = InGraph->GetOutputNode();
-		FGraphNodeCreator<UMoviePipelineEdGraphNodeOutput> OutputNodeCreator(*this);
-		UMoviePipelineEdGraphNodeOutput* OutputGraphNode = OutputNodeCreator.CreateNode(bSelectNewNode);
-		OutputGraphNode->Construct(OutputNode);
-		OutputNodeCreator.Finalize();
-		NodeLookup.Add(OutputNode, OutputGraphNode);
+		NodeLookup.Add(OutputNode, CreateNodeFromRuntimeNode<UMoviePipelineEdGraphNodeOutput>(OutputNode));
 	}
 
 	// Create the rest of the nodes in the graph
 	for (const TObjectPtr<UMovieGraphNode> RuntimeNode : InGraph->GetNodes())
 	{
-		FGraphNodeCreator<UMoviePipelineEdGraphNode> NodeCreator(*this);
-		UMoviePipelineEdGraphNode* GraphNode = NodeCreator.CreateNode(bSelectNewNode);
-		GraphNode->Construct(RuntimeNode);
-		NodeCreator.Finalize();
-		NodeLookup.Add(RuntimeNode, GraphNode);
+		if (RuntimeNode->IsA<UMovieGraphVariableNode>())
+		{
+			NodeLookup.Add(RuntimeNode, CreateNodeFromRuntimeNode<UMoviePipelineEdGraphVariableNode>(RuntimeNode));
+		}
+		else
+		{
+			NodeLookup.Add(RuntimeNode, CreateNodeFromRuntimeNode<UMoviePipelineEdGraphNode>(RuntimeNode));
+		}
 	}
 
 	// Now that we've added an Editor Graph representation for every node in the graph, link
@@ -61,6 +61,9 @@ void UMoviePipelineEdGraph::InitFromRuntimeGraph(UMovieGraphConfig* InGraph)
 		const bool bCreateOutboundLinks = true;
 		CreateLinks(Pair.Value, bCreateInboundLinks, bCreateOutboundLinks, NodeLookup);
 	}
+
+	InGraph->OnGraphChangedDelegate.AddUObject(this, &UMoviePipelineEdGraph::OnGraphConfigChanged);
+	InGraph->OnGraphNodesDeletedDelegate.AddUObject(this, &UMoviePipelineEdGraph::OnGraphNodesDeleted);
 
 	bInitialized = true;
 }
@@ -81,6 +84,11 @@ void UMoviePipelineEdGraph::CreateLinks(UMoviePipelineEdGraphNodeBase* InGraphNo
 	}
 
 	CreateLinks(InGraphNode, bCreateInboundLinks, bCreateOutboundLinks, RuntimeNodeToEdNodeMap);
+}
+
+void UMoviePipelineEdGraph::ReconstructGraph()
+{
+	OnGraphConfigChanged();
 }
 
 void UMoviePipelineEdGraph::CreateLinks(UMoviePipelineEdGraphNodeBase* InGraphNode, bool bCreateInboundLinks, bool bCreateOutboundLinks,
@@ -137,4 +145,53 @@ void UMoviePipelineEdGraph::CreateLinks(UMoviePipelineEdGraphNodeBase* InGraphNo
 	{
 		CreateLinks(RuntimeNode->GetOutputPins(), EEdGraphPinDirection::EGPD_Output);
 	}
+}
+
+void UMoviePipelineEdGraph::OnGraphConfigChanged()
+{
+	// TODO: Optimize this. Ideally we can target specific changes to the graph rather than rebuilding everything.
+	// However, this isn't strictly necessary unless rebuilding becomes a performance bottleneck.
+	for (const TObjectPtr<UEdGraphNode> Node: Nodes)
+	{
+		Node->ReconstructNode();
+	}
+}
+
+void UMoviePipelineEdGraph::OnGraphNodesDeleted(TArray<UMovieGraphNode*> DeletedNodes)
+{
+	TArray<TObjectPtr<UEdGraphNode>> EdGraphNodesToDelete;
+	
+	for (const TObjectPtr<UEdGraphNode> Node : Nodes)
+	{
+		if (!Node)
+		{
+			continue;
+		}
+
+		if (const UMoviePipelineEdGraphNodeBase* GraphNode = Cast<UMoviePipelineEdGraphNodeBase>(Node.Get()))
+		{
+			if (DeletedNodes.Contains(GraphNode->GetRuntimeNode()))
+			{
+				EdGraphNodesToDelete.Add(Node);
+			}
+		}
+	}
+
+	for (TObjectPtr<UEdGraphNode>& EdNodeToDelete : EdGraphNodesToDelete)
+	{
+		RemoveNode(EdNodeToDelete);
+	}
+}
+
+template <typename T>
+UMoviePipelineEdGraphNodeBase* UMoviePipelineEdGraph::CreateNodeFromRuntimeNode(UMovieGraphNode* InRuntimeNode)
+{
+	const bool bSelectNewNode = false;
+	
+	FGraphNodeCreator<T> NodeCreator(*this);
+	UMoviePipelineEdGraphNodeBase* NewNode = NodeCreator.CreateNode(bSelectNewNode);
+	NewNode->Construct(InRuntimeNode);
+	NodeCreator.Finalize();
+
+	return NewNode;
 }

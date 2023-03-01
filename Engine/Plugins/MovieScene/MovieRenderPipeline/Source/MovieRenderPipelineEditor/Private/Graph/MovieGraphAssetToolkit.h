@@ -8,7 +8,7 @@
 class FMovieGraphAssetToolkit :  public FAssetEditorToolkit
 {
 public:
-	FMovieGraphAssetToolkit() {}
+	FMovieGraphAssetToolkit();
 	virtual ~FMovieGraphAssetToolkit() override {}
 
 	//~ Begin FAssetEditorToolkit interface
@@ -31,6 +31,15 @@ private:
 	TSharedRef<SDockTab> SpawnTab_RenderGraphMembers(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_RenderGraphDetails(const FSpawnTabArgs& Args);
 
+	/** Register commands used by the editor. */
+	void BindGraphCommands();
+
+	/** Deletes the member(s) which are currently selected. */
+	void DeleteSelectedMembers();
+
+	/** Determines if the selected member(s) can be deleted. */
+	bool CanDeleteSelectedMembers();
+
 private:
 	/** The details panel for the selected object(s) in the graph */
 	TSharedPtr<IDetailsView> SelectedGraphObjectsDetailsWidget;
@@ -38,8 +47,14 @@ private:
 	/** The widget that contains the main node graph */
 	TSharedPtr<class SMoviePipelineGraphPanel> MovieGraphWidget;
 
+	/** The widget which encapsulates all of the content in the Members tab */
+	TSharedPtr<class SMovieGraphMembersTabContent> MembersTabContent;
+
 	/** The graph that the editor was initialized with */
 	TObjectPtr<UMovieGraphConfig> InitialGraph;
+
+	/** Flag which is set when a selection change is not triggered by the user */
+	bool bIsInternalSelectionChange;
 
 	static const FName AppIdentifier;
 	static const FName GraphTabId;
