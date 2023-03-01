@@ -377,12 +377,6 @@ namespace HoloLens.Automation
 		{
 
 		}
-	
-		public override bool CanBeCompiled() //block auto compilation
-		{
-			return false;
-		}
-
 
 		public override void PlatformSetupParams(ref ProjectParams ProjParams)
 		{
@@ -415,24 +409,47 @@ namespace HoloLens.Automation
 				AcceptThumbprints.AddRange(ThumbprintsFromConfig);
 			}
 
-			// if we are running, make sure we have built the matching arch if building is enabled
-			if (ProjParams.Run)
+			// Find out which architectures we should build for.
 			{
-				var ArchList = new List<UnrealArch>();
-				foreach (string DeviceAddress in ProjParams.DeviceNames)
+				var ArchSet = new HashSet<UnrealArch>();
+
+				// if we are running, make sure we have built the matching arch if building is enabled
+				if (ProjParams.Run)
 				{
-					//We have to choose architecture of the device to run
-					UnrealArch Arch = UnrealArch.X64;
-					if (!IsLocalDevice(DeviceAddress))
+					foreach (string DeviceAddress in ProjParams.DeviceNames)
 					{
-						Arch = RemoteDeviceArchitecture(DeviceAddress, ProjParams);
+						//We have to choose architecture of the device to run
+						UnrealArch Arch = UnrealArch.X64;
+						if (!IsLocalDevice(DeviceAddress))
+						{
+							Arch = RemoteDeviceArchitecture(DeviceAddress, ProjParams);
+						}
+
+						ArchSet.Add(Arch);
+						LogInformation(String.Format("Project will be compiled for the architecture {0} of the HoloLens device {1}.", Arch, DeviceAddress));
 					}
-
-					ArchList.Add(Arch);
-
-					LogInformation(String.Format("Project will be compiled for the architecture {0} of the HoloLens device {1}.", Arch, DeviceAddress));
 				}
-				ProjParams.ClientArchitecture = new UnrealArchitectures(ArchList);
+
+				if (ProjParams.Package)
+				{
+					bool bBuildForEmulation;
+					if (PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bBuildForEmulation", out bBuildForEmulation) && bBuildForEmulation)
+					{
+						ArchSet.Add(UnrealArch.X64);
+						LogInformation(String.Format("Project will be compiled for the architecture X64 of the HoloLens  device for packaging because bBuildForEmulation is true in project settings."));
+					}
+					else
+					{
+						ArchSet.Add(UnrealArch.Arm64);
+						LogInformation(String.Format("Project will be compiled for the architecture Arm64 of the HoloLens device for packaging."));
+					}
+				}
+
+				if (ArchSet.Count > 0)
+				{
+					LogInformation(String.Format("Project will be compiled for the architectures {0} for HoloLens.", string.Join(", ", ArchSet)));
+					ProjParams.ClientArchitecture = new UnrealArchitectures(ArchSet);
+				}
 			}
 
 			FindInstruments();

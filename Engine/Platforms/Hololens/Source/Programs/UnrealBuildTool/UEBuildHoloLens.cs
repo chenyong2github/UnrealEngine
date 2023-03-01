@@ -245,50 +245,35 @@ namespace UnrealBuildTool
 			this.Logger = Logger;
 		}
 
-		static bool bShownLog = false;
 		public override UnrealArchitectures ActiveArchitectures(FileReference? ProjectFile, string? TargetName)
 		{
 			var ArchList = new List<UnrealArch>();
 			bool bBuildForEmulation;
-			bool bBuildForDevice;
-
-			bool bHasArmToolchain = MicrosoftPlatformSDK.HasValidCompiler(GetCompiler(ProjectFile, UnrealArch.Arm64), UnrealArch.Arm64, Logger);
-			bool bHasX64Toolchain = MicrosoftPlatformSDK.HasValidCompiler(GetCompiler(ProjectFile, UnrealArch.X64), UnrealArch.X64, Logger);
-
-			Log.TraceLogOnce($"HoloLens Arm: Desired Compiler: {GetCompiler(ProjectFile, UnrealArch.Arm64)}, Valid: {bHasArmToolchain}");
-			Log.TraceLogOnce($"HoloLens X64: Desired Compiler: {GetCompiler(ProjectFile, UnrealArch.X64)}, Valid: {bHasX64Toolchain}");
-
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.HoloLens);
 			if (Ini.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bBuildForEmulation", out bBuildForEmulation) && bBuildForEmulation)
 			{
+				bool bHasX64Toolchain = MicrosoftPlatformSDK.HasValidCompiler(GetCompiler(ProjectFile, UnrealArch.X64), UnrealArch.X64, Logger);
+				Log.TraceLogOnce($"HoloLens X64: Desired Compiler: {GetCompiler(ProjectFile, UnrealArch.X64)}, Valid: {bHasX64Toolchain}");
 				if (bHasX64Toolchain)
 				{
 					ArchList.Add(UnrealArch.X64);
 				}
-			}
-			if (Ini.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bBuildForDevice", out bBuildForDevice) && bBuildForDevice)
-			{
-				if (bHasArmToolchain)
+				else
 				{
-					ArchList.Add(UnrealArch.Arm64);
+					throw new BuildException($"Project configured to build for HoloLens Emulation (on PC), but a valid X64 toolchain was not found!  Perhaps you need to install it?");
 				}
-			}
-
-			// if neither were selected, build for device
-			if (ArchList.Count() == 0)
+			} 
+			else
 			{
+				bool bHasArmToolchain = MicrosoftPlatformSDK.HasValidCompiler(GetCompiler(ProjectFile, UnrealArch.Arm64), UnrealArch.Arm64, Logger);
+				Log.TraceLogOnce($"HoloLens Arm64: Desired Compiler: {GetCompiler(ProjectFile, UnrealArch.Arm64)}, Valid: {bHasArmToolchain}");
 				if (bHasArmToolchain)
 				{
 					ArchList.Add(UnrealArch.Arm64);
 				}
 				else
 				{
-					if (!bShownLog)
-					{
-						Logger.LogInformation("Arm64 was requested for HoloLens, but the {0} Arm64 toolchain is not installed, defaulting to X64 build", GetCompiler(ProjectFile, UnrealArch.Arm64));
-						bShownLog = true;
-					}
-					ArchList.Add(UnrealArch.X64);
+					throw new BuildException($"Project configured to build for HoloLens device, but a valid ARM64 toolchain was not found!  Perhaps you need to install it?");
 				}
 			}
 

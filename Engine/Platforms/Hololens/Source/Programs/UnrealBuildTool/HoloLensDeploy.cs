@@ -469,6 +469,8 @@ namespace UnrealBuildTool
 
 		private void CopyDataAndSymbolsBetweenReceipts(TargetReceipt Receipt, TargetReceipt NewReceipt, UnrealArch Architecture)
 		{
+			NewReceipt.Launch = Receipt.Launch;
+		
 			NewReceipt.AdditionalProperties.AddRange(Receipt.AdditionalProperties);
 			NewReceipt.AdditionalProperties = NewReceipt.AdditionalProperties.GroupBy(e => e.Name).Select(g => g.First()).ToList();
 

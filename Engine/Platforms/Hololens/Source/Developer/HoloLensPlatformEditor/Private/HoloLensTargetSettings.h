@@ -29,16 +29,11 @@ public:
 	virtual void PostInitProperties() override;
 
 	/**
-	 * When checked, a build that can be run via emulation is added
+	 * When true, we build for Hololens Emulation.  When false we build for Hololens 2 device.
+	 * Note LaunchOn can add a build for the device that is being launched to.
 	 */
 	UPROPERTY(EditAnywhere, Config, Category="HoloLens", Meta=(DisplayName="Build for HoloLens Emulation"))
 	bool bBuildForEmulation = false;
-
-	/**
-	 * When the box checked the final bundle has binaries of ARM64 OSes.
-	 */
-	UPROPERTY(EditAnywhere, Config, Category="HoloLens", Meta=(DisplayName="Build for HoloLens Device"))
-	bool bBuildForDevice = true;
 
 	UPROPERTY(EditAnywhere, config, Category = "Packaging", AdvancedDisplay, Meta = (DisplayName = "Use Name in App Logo"))
 	bool bUseNameForLogo = true;

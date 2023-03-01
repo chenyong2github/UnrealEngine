@@ -15,7 +15,7 @@ namespace UnrealBuildTool.Rules
 				string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-uwp", "lib");
 				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "proj.lib"));
 			}
-			else if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64) // device target, bBuildForDevice
+			else if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64) // device target
 			{
 				PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-arm64-uwp", "include"));
 
