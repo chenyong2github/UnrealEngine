@@ -17,6 +17,12 @@
 UPCGPointMatchAndSetSettings::UPCGPointMatchAndSetSettings(const FObjectInitializer& ObjectInitializer)
 {
 	MatchAndSetType = UPCGMatchAndSetWeighted::StaticClass();
+
+	if (!this->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		MatchAndSetInstance = ObjectInitializer.CreateDefaultSubobject<UPCGMatchAndSetWeighted>(this, TEXT("DefaultMatchAndSet"));
+	}
+
 	bUseSeed = MatchAndSetInstance && MatchAndSetInstance->UsesRandomProcess();
 }
 
@@ -62,6 +68,7 @@ void UPCGPointMatchAndSetSettings::PostLoad()
 	{
 		const EObjectFlags Flags = GetMaskedFlags(RF_PropagateToSubObjects) | RF_Transactional;
 		MatchAndSetInstance->SetFlags(Flags);
+		bUseSeed = MatchAndSetInstance->UsesRandomProcess();
 	}
 }
 
@@ -124,6 +131,14 @@ void UPCGPointMatchAndSetSettings::RefreshMatchAndSet()
 {
 	if (MatchAndSetType)
 	{
+		// Forget previous instance
+		if (MatchAndSetInstance)
+		{
+			MatchAndSetInstance->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+			MatchAndSetInstance->MarkAsGarbage();
+			MatchAndSetInstance = nullptr;
+		}
+
 		const EObjectFlags Flags = GetMaskedFlags(RF_PropagateToSubObjects);
 		MatchAndSetInstance = NewObject<UPCGMatchAndSetBase>(this, MatchAndSetType, NAME_None, Flags);
 		check(MatchAndSetInstance);
