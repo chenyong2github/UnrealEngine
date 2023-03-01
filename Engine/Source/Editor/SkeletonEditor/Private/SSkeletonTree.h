@@ -217,7 +217,7 @@ private:
 	void OnPromoteSocket();
 
 	/** Create sub menu to allow users to pick a target bone for the new space switching bone(s) */
-	void FillVirtualBoneSubmenu(FMenuBuilder& MenuBuilder);
+	static TSharedRef<class SBoneTreeMenu> CreateVirtualBoneMenu(SSkeletonTree* InSkeletonTree);
 
 	/** Handler for user picking a target bone */
 	void OnVirtualTargetBonePicked(FName TargetBoneName, TArray<TSharedPtr<class ISkeletonTreeItem>> SourceBones);
