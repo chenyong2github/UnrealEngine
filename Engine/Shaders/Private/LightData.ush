@@ -64,6 +64,7 @@ struct FDirectionalLightData
 	float2 DirectionalLightDistanceFadeMAD;
 	float3 DirectionalLightColor;
 	float3 DirectionalLightDirection;
+	float  DirectionalLightSourceRadius;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -413,6 +414,7 @@ FDeferredLightData ConvertToDeferredLight(
 	Out.SpecularScale		= InSpecularScale;
 	Out.ShadowedBits		= (In.DirectionalLightShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
 	Out.HairTransmittance	= InitHairTransmittanceData();
+	Out.SourceRadius		= In.DirectionalLightSourceRadius;
 
 	// Shadow
 	// * Static shadowing uses ShadowMapChannel, 

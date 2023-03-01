@@ -10,8 +10,10 @@
 #include "../LightGridCommon.ush"
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
 #include "../Visualization.ush"
+#include "../BlueNoise.ush"
 #include "VirtualShadowMapPageAccessCommon.ush"
 #include "VirtualShadowMapProjectionCommon.ush"
+#include "VirtualShadowMapProjectionFilter.ush"
 #include "VirtualShadowMapProjectionDirectional.ush"
 #include "VirtualShadowMapProjectionSpot.ush"
 #include "VirtualShadowMapTransmissionCommon.ush"
@@ -407,19 +409,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 		#endif
 	}
 
-	// Add some simple dither to break up banding
-	// This is not perfect for stuff like subsurface stuff in motion, as the banding on those smooth
-	// gradients can be significant and in motion TSR can't get enough samples to average it all out,
-	// but it's inexpensive amd usually pretty reasonable.
-	// Current noise scale aligns with one pass projection packing, but also works well for typical SMRT ray counts
-	// The tolerance on the lower end is somewhat arbitrary, but needed to trade off brightening umbra regions in subsurface
-	// materials (due to adding noise then clamping) against banding in penumbra regions on these surfaces.
-	const float NoiseScale = (1.0f / 15.0f);
-	if (Result.ShadowFactor > (NoiseScale/4.0f) && Result.ShadowFactor < 1.0f)
-	{
-		Result.ShadowFactor += (BlueNoiseScalar(PixelPos, View.StateFrameIndex) - 0.5f) * NoiseScale;
-		Result.ShadowFactor = saturate(Result.ShadowFactor);
-	}
+	FilterVirtualShadowMapSampleResult(PixelPos, Result);
 
 	return Result;
 }

@@ -30,6 +30,8 @@
 
 #if VIRTUAL_SHADOW_MAP
 #include "VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
+#include "VirtualShadowMaps/VirtualShadowMapProjectionFilter.ush"
+#include "VirtualShadowMaps/VirtualShadowMapProjectionDirectional.ush"
 #endif
 
 #ifndef ENABLE_FORWARD_CLOUD_SHADOW
@@ -120,6 +122,7 @@ float GetIndirectOcclusion(float2 ScreenUV, bool bHasDynamicIndirectShadowCaster
 }
 
 FDeferredLightingSplit GetForwardDirectLightingSplit(
+	uint2 PixelPos,
 	uint GridIndex, float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, 
 	float InDirectionalLightCloudShadow, float3 InDirectionalLightAtmosphereTransmittance, inout float OutDirectionalLightShadow,
 	bool bSeparateMainDirLightLuminance, inout float3 SeparatedMainDirLightLuminance, bool bSkipDirLightVirtualShadowMapEvaluation)
@@ -187,8 +190,42 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 			BRANCH
 			if ( !bSkipDirLightVirtualShadowMapEvaluation && ForwardLightData.DirectionalLightVSM != INDEX_NONE )
 			{
-				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld( ForwardLightData.DirectionalLightVSM, TranslatedWorldPosition );
-				DynamicShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+				#if SUPPORT_VSM_FOWARD_QUALITY == 1
+				{
+					const FLightShaderParameters DireciontalLight = ConvertToLightShaderParameters(LightData);
+					FVirtualShadowMapSMRTSettings SMRTSettings = GetDirectionalLighSMRTSettings();
+
+					const bool bBackfaceCull = !IsSubsurfaceModel(GBufferData.ShadingModelID);
+					const float ScreenRayLengthWorld = SMRTSettings.ScreenRayLength * View.ClipToView[1][1] * GBufferData.Depth;
+					float SMRTRayOffset = ScreenRayLengthWorld;
+
+					FVirtualShadowMapSampleResult VirtualShadowMapSample = TraceDirectional(
+						ForwardLightData.DirectionalLightVSM,
+						DireciontalLight,
+						PixelPos,
+						GBufferData.Depth,
+						TranslatedWorldPosition,
+						SMRTRayOffset,
+						SMRTSettings.RayCount,
+						SMRTSettings.SamplesPerRay,
+						SMRTSettings.RayLengthScale,
+						Dither,
+						bBackfaceCull,
+						GBufferData.WorldNormal,
+						SMRTSettings.TexelDitherScale,
+						SMRTSettings.ExtrapolateSlope,
+						SMRTSettings.AdaptiveRayCount);
+
+					FilterVirtualShadowMapSampleResult(PixelPos, VirtualShadowMapSample);
+
+					DynamicShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+				}
+				#else
+				{
+					FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld( ForwardLightData.DirectionalLightVSM, TranslatedWorldPosition );
+					DynamicShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+				}
+				#endif
 			}
 			#endif
 

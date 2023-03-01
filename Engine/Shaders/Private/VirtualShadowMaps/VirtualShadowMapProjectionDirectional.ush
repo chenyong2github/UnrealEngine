@@ -9,11 +9,11 @@ VirtualShadowMapProjectionDirectional.ush:
 #include "../SceneTexturesCommon.ush"
 #include "../LightShaderParameters.ush"
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
+#include "../Visualization.ush"
+#include "../BlueNoise.ush"
 #include "VirtualShadowMapPageAccessCommon.ush"
 #include "VirtualShadowMapProjectionCommon.ush"
 #include "VirtualShadowMapSMRTCommon.ush"
-#include "../Visualization.ush"
-#include "../BlueNoise.ush"
 
 #define USE_BLUE_NOISE 1
 
@@ -304,6 +304,7 @@ FVirtualShadowMapSampleResult TraceDirectional(
 				++RayMissCount;
 			}
 
+			#if COMPUTESHADER
 			if (SMRTAdaptiveRayCount > 0)
 			{
 				// TODO: Adapt this heuristic based on SMRTAdaptiveRayCount as well?
@@ -328,6 +329,7 @@ FVirtualShadowMapSampleResult TraceDirectional(
 					}
 				}
 			}
+			#endif
 		}
 		uint RayCount = min(i + 1, MaxRayCount);		// break vs regular for loop exit
 

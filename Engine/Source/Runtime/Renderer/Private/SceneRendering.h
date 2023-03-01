@@ -31,6 +31,7 @@
 #include "ShaderPrintParameters.h"
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
+#include "VirtualShadowMaps/VirtualShadowMapProjection.h"
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
 #include "HairStrands/HairStrandsData.h"
 #include "Strata/Strata.h"
@@ -775,6 +776,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FForwardLightData, )
 	SHADER_PARAMETER(uint32, LightGridPixelSizeShift)
 	SHADER_PARAMETER(FVector3f, LightGridZParams)
 	SHADER_PARAMETER(FVector3f, DirectionalLightDirection)
+	SHADER_PARAMETER(float, DirectionalLightSourceRadius)
 	SHADER_PARAMETER(FVector3f, DirectionalLightColor)
 	SHADER_PARAMETER(float, DirectionalLightVolumetricScatteringIntensity)
 	SHADER_PARAMETER(uint32, DirectionalLightShadowMapChannelMask)
@@ -793,6 +795,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FForwardLightData, )
 	SHADER_PARAMETER(FVector4f, DirectionalLightStaticShadowBufferSize)
 	SHADER_PARAMETER(FMatrix44f, DirectionalLightTranslatedWorldToStaticShadow)
 	SHADER_PARAMETER(uint32, DirectLightingShowFlag)
+	SHADER_PARAMETER_STRUCT(FVirtualShadowMapSMRTSettings, DirectionalLightSMRTSettings)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DirectionalLightShadowmapAtlas)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ShadowmapSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightStaticShadowmap)

@@ -1067,7 +1067,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	FRDGTextureDesc RayTraceDistanceDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_R16_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ReflectionTracingParameters.RayTraceDistance = GraphBuilder.CreateTexture(RayTraceDistanceDesc, TEXT("Lumen.Reflections.RayTraceDistance"));
 
-	FBlueNoise BlueNoise = GetBlueNoiseParameters();
+	FBlueNoise BlueNoise = GetBlueNoiseGlobalParameters();
 	ReflectionTracingParameters.BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 	LumenReflections::FCompositeParameters ReflectionsCompositeParameters;

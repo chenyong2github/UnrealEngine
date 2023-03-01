@@ -11,27 +11,34 @@
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FBlueNoise, "BlueNoise");
 
-FBlueNoise GetBlueNoiseParameters()
+FBlueNoiseParameters GetBlueNoiseParameters()
 {
-	FBlueNoise BlueNoise;
+	FBlueNoiseParameters Out;
 	check(GEngine);
 	check(GEngine->BlueNoiseScalarTexture && GEngine->BlueNoiseVec2Texture);
 
-	BlueNoise.Dimensions = FIntVector(
+	Out.Dimensions = FIntVector(
 		GEngine->BlueNoiseScalarTexture->GetSizeX(),
 		GEngine->BlueNoiseScalarTexture->GetSizeX(),
 		GEngine->BlueNoiseScalarTexture->GetSizeY() / FMath::Max<int32>(1, GEngine->BlueNoiseScalarTexture->GetSizeX()));
 
-	BlueNoise.ModuloMasks = FIntVector(
-		(1u << FMath::FloorLog2(BlueNoise.Dimensions.X)) - 1,
-		(1u << FMath::FloorLog2(BlueNoise.Dimensions.Y)) - 1,
-		(1u << FMath::FloorLog2(BlueNoise.Dimensions.Z)) - 1);
+	Out.ModuloMasks = FIntVector(
+		(1u << FMath::FloorLog2(Out.Dimensions.X)) - 1,
+		(1u << FMath::FloorLog2(Out.Dimensions.Y)) - 1,
+		(1u << FMath::FloorLog2(Out.Dimensions.Z)) - 1);
 
-	check((BlueNoise.ModuloMasks.X + 1) == BlueNoise.Dimensions.X
-		&& (BlueNoise.ModuloMasks.Y + 1) == BlueNoise.Dimensions.Y
-		&& (BlueNoise.ModuloMasks.Z + 1) == BlueNoise.Dimensions.Z);
+	check((Out.ModuloMasks.X + 1)  == Out.Dimensions.X
+		&&(Out.ModuloMasks.Y + 1) == Out.Dimensions.Y
+		&&(Out.ModuloMasks.Z + 1) == Out.Dimensions.Z);
 
-	BlueNoise.ScalarTexture = GEngine->BlueNoiseScalarTexture->GetResource()->TextureRHI;
-	BlueNoise.Vec2Texture = GEngine->BlueNoiseVec2Texture->GetResource()->TextureRHI;
-	return BlueNoise;
+	Out.ScalarTexture = GEngine->BlueNoiseScalarTexture->GetResource()->TextureRHI;
+	Out.Vec2Texture = GEngine->BlueNoiseVec2Texture->GetResource()->TextureRHI;
+	return Out;
+}
+
+FBlueNoise GetBlueNoiseGlobalParameters()
+{
+	FBlueNoise Out;
+	Out.BlueNoise = GetBlueNoiseParameters();
+	return Out;
 }

@@ -6,6 +6,13 @@
 #include "StrataLightingCommon.ush"
 #include "../LightData.ush"
 
+#if VIRTUAL_SHADOW_MAP
+#include "../BlueNoise.ush"
+#include "../VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
+#include "../VirtualShadowMaps/VirtualShadowMapProjectionFilter.ush"
+#include "../VirtualShadowMaps/VirtualShadowMapProjectionDirectional.ush"
+#endif
+
 #define FORWARD_PER_PIXEL_SHADING (FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
 // Forward declarations
@@ -109,8 +116,45 @@ float3 StrataForwardLighting(
 	BRANCH
 	if ( ForwardLightData.DirectionalLightVSM != INDEX_NONE )
 	{
-		FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld(ForwardLightData.DirectionalLightVSM, TranslatedWorldPosition);
-		DirLightDynamicShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+		#if SUPPORT_VSM_FOWARD_QUALITY == 1
+		{
+			const FLightShaderParameters DireciontalLight = ConvertToLightShaderParameters(DirLightData);
+			FVirtualShadowMapSMRTSettings SMRTSettings = GetDirectionalLighSMRTSettings();
+
+			const bool bBackfaceCull = true; // STRATA_TODO: this needs to be fixed but require to extract hair/SSS/diffusebackface prior to BSDF looping
+			const float ScreenRayLengthWorld = SMRTSettings.ScreenRayLength * View.ClipToView[1][1] * SceneDepth;
+			float SMRTRayOffset = ScreenRayLengthWorld;
+
+			// Use the surface normal instead of the layer's normal, for a single evaluation before runing throught the StrataTree
+			const half3 WorldNormal = normalize(MaterialParameters.TangentToWorld[2]);
+
+			FVirtualShadowMapSampleResult VirtualShadowMapSample = TraceDirectional(
+				ForwardLightData.DirectionalLightVSM,
+				DireciontalLight,
+				PixelPos,
+				SceneDepth,
+				TranslatedWorldPosition,
+				SMRTRayOffset,
+				SMRTSettings.RayCount,
+				SMRTSettings.SamplesPerRay,
+				SMRTSettings.RayLengthScale,
+				Dither,
+				bBackfaceCull,
+				WorldNormal,
+				SMRTSettings.TexelDitherScale,
+				SMRTSettings.ExtrapolateSlope,
+				SMRTSettings.AdaptiveRayCount);
+
+			FilterVirtualShadowMapSampleResult(PixelPos, VirtualShadowMapSample);
+
+			DirLightDynamicShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+		}
+		#else
+		{
+			FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld(ForwardLightData.DirectionalLightVSM, TranslatedWorldPosition);
+			DirLightDynamicShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+		}
+		#endif
 	}
 #endif
 

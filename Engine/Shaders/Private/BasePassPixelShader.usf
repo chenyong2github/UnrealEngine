@@ -8,7 +8,7 @@
 
 // Reroute SceneTexturesStruct uniform buffer references to the appropriate base pass uniform buffer
 #if MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
-	#define SceneTexturesStruct TranslucentBasePass.SceneTextures 
+	#define SceneTexturesStruct TranslucentBasePass.SceneTextures
 	#define EyeAdaptationStruct TranslucentBasePass
 	#define SceneColorCopyTexture	TranslucentBasePass.SceneColorCopyTexture
 	#define PreIntegratedGF			TranslucentBasePass.PreIntegratedGFTexture
@@ -21,6 +21,7 @@
 	#endif
 	#define UseBasePassSkylight TranslucentBasePass.Shared.UseBasePassSkylight
 	#define StrataStruct TranslucentBasePass.Strata
+	#define BlueNoise TranslucentBasePass.BlueNoise
 #else
 	#define EyeAdaptationStruct OpaqueBasePass
 	#define UseBasePassSkylight OpaqueBasePass.Shared.UseBasePassSkylight
@@ -1243,6 +1244,7 @@ void FPixelShaderInOut_MainPS(
 					#endif
 
 					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(
+						In.SvPosition,
 						GridIndex, MaterialParameters.WorldPosition_CamRelative, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, 
 						DirectionalLightCloudShadow, DirectionalLightAtmosphereTransmittance, DirectionalLightShadow,
 						bSeparateWaterMainDirLightLuminance, SeparatedWaterMainDirLightLuminance,

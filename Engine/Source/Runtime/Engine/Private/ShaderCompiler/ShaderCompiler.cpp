@@ -6503,6 +6503,12 @@ void GlobalBeginCompileShader(
 	}
 
 	{
+		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.TranslucentQuality"));
+		const bool bHighQualityShadow = CVar && CVar->GetInt() > 0;
+		Input.Environment.SetDefine(TEXT("SUPPORT_VSM_FOWARD_QUALITY"), bHighQualityShadow ? 1 : 0);
+	}
+
+	{
 		const bool bStrata = Strata::IsStrataEnabled();
 		Input.Environment.SetDefine(TEXT("STRATA_ENABLED"), bStrata ? 1 : 0);
 

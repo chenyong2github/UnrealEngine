@@ -146,6 +146,34 @@ FCulledLightsGridData GetCulledLightsGrid(uint GridIndex, uint EyeIndex)
 	return Result;
 }
 
+struct FVirtualShadowMapSMRTSettings
+{
+	int   RayCount;
+	int   SamplesPerRay;
+	float RayLengthScale;
+	float ScreenRayLength;
+	float CotMaxRayAngleFromLight;
+	float TexelDitherScale;
+	float ExtrapolateSlope;
+	float MaxSlopeBias;
+	uint  AdaptiveRayCount;
+};
+
+FVirtualShadowMapSMRTSettings GetDirectionalLighSMRTSettings()
+{
+	FVirtualShadowMapSMRTSettings Out;
+	Out.ScreenRayLength			= ForwardLightData.DirectionalLightSMRTSettings.ScreenRayLength;
+	Out.RayCount 				= ForwardLightData.DirectionalLightSMRTSettings.SMRTRayCount;
+	Out.SamplesPerRay 			= ForwardLightData.DirectionalLightSMRTSettings.SMRTSamplesPerRay;
+	Out.RayLengthScale 			= ForwardLightData.DirectionalLightSMRTSettings.SMRTRayLengthScale;
+	Out.CotMaxRayAngleFromLight = ForwardLightData.DirectionalLightSMRTSettings.SMRTCotMaxRayAngleFromLight;
+	Out.TexelDitherScale 		= ForwardLightData.DirectionalLightSMRTSettings.SMRTTexelDitherScale;
+	Out.ExtrapolateSlope 		= ForwardLightData.DirectionalLightSMRTSettings.SMRTExtrapolateSlope;
+	Out.MaxSlopeBias 			= ForwardLightData.DirectionalLightSMRTSettings.SMRTMaxSlopeBias;
+	Out.AdaptiveRayCount 		= ForwardLightData.DirectionalLightSMRTSettings.SMRTAdaptiveRayCount;
+	return Out;
+}
+
 FDirectionalLightData GetDirectionalLightData(uint EyeIndex)
 {
 	FDirectionalLightData Result;
@@ -161,6 +189,7 @@ FDirectionalLightData GetDirectionalLightData(uint EyeIndex)
 		Result.DirectionalLightDistanceFadeMAD		= ForwardLightData.DirectionalLightDistanceFadeMAD;
 		Result.DirectionalLightColor				= ForwardLightData.DirectionalLightColor;
 		Result.DirectionalLightDirection			= ForwardLightData.DirectionalLightDirection;
+		Result.DirectionalLightSourceRadius			= ForwardLightData.DirectionalLightSourceRadius;
 
 #if INSTANCED_STEREO
 	}
@@ -171,6 +200,7 @@ FDirectionalLightData GetDirectionalLightData(uint EyeIndex)
 		Result.DirectionalLightDistanceFadeMAD		= ForwardLightDataISR.DirectionalLightDistanceFadeMAD;
 		Result.DirectionalLightColor				= ForwardLightDataISR.DirectionalLightColor;
 		Result.DirectionalLightDirection			= ForwardLightDataISR.DirectionalLightDirection;
+		Result.DirectionalLightSourceRadius			= ForwardLightDataISR.DirectionalLightSourceRadius;
 	}
 #endif
 

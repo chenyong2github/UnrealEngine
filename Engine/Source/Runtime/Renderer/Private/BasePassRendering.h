@@ -32,6 +32,7 @@
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "VolumetricCloudRendering.h"
 #include "Nanite/NaniteMaterials.h"
+#include "BlueNoise.h"
 
 class FScene;
 
@@ -124,6 +125,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentBasePassUniformParameters,)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorCopyTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorCopySampler)
+	SHADER_PARAMETER_STRUCT(FBlueNoiseParameters, BlueNoise)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(Basepass);

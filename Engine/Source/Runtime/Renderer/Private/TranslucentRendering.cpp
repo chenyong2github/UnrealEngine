@@ -22,6 +22,7 @@
 #include "DynamicResolutionState.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "PostProcess/TemporalAA.h"
+#include "BlueNoise.h"
 
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQueryFence Wait"), STAT_TranslucencyTimestampQueryFence_Wait, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQuery Wait"), STAT_TranslucencyTimestampQuery_Wait, STATGROUP_SceneRendering);
@@ -979,6 +980,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	OIT::SetOITParameters(GraphBuilder, View, BasePassParameters.OIT, OITData);
+	BasePassParameters.BlueNoise = GetBlueNoiseParameters();
 
 	return GraphBuilder.CreateUniformBuffer(&BasePassParameters);
 }
