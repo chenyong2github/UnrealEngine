@@ -903,9 +903,12 @@ void LogCookStats(ECookMode::Type CookMode)
 
 	if (FStudioAnalytics::IsAvailable() && IsCookByTheBookMode(CookMode))
 	{
+		const int SchemaVersion = 1;
 
 		// convert filtered stats directly to an analytics event
 		TArray<FAnalyticsEventAttribute> Attributes;
+
+		Attributes.Emplace(TEXT("SchemaVersion"), SchemaVersion);
 
 		// Sends each cook stat to the studio analytics system.
 		auto SendCookStatsToAnalytics = [&Attributes](const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
