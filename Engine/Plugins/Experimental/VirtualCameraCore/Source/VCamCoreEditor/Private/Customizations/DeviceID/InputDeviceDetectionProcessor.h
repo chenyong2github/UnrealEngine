@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Delegates/DelegateCombinations.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "Templates/SharedPointer.h"
 

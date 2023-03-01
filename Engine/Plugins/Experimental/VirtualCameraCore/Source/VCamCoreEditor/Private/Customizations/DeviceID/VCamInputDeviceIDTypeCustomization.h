@@ -6,6 +6,9 @@
 
 class IPropertyUtilities;
 
+template<typename T>
+struct TOptional;
+
 namespace UE::VCamCoreEditor::Private
 {
 	/** Customizes FVCamInputDeviceID to display a button the user can use to listen for input from any device and numeric box for manual entry */

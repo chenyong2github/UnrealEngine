@@ -3,10 +3,12 @@
 #include "VCamInputDeviceIDTypeCustomization.h"
 
 #include "Input/VCamInputDeviceConfig.h"
+#include "SInputDeviceSelector.h"
 
 #include "DetailWidgetRow.h"
 #include "IPropertyUtilities.h"
-#include "SInputDeviceSelector.h"
+#include "Misc/Optional.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "FVCamInputDeviceIDTypeCustomization"
 

@@ -2,6 +2,11 @@
 
 #include "InputDeviceDetectionProcessor.h"
 
+#include "Framework/Application/SlateApplication.h"
+#include "Input/Events.h"
+#include "Misc/CoreMiscDefines.h"
+#include "Templates/UnrealTemplate.h"
+
 namespace UE::VCamCoreEditor::Private
 {
 	TSharedPtr<FInputDeviceDetectionProcessor> FInputDeviceDetectionProcessor::MakeAndRegister(FOnInputDeviceDetected OnInputDeviceDetectedDelegate)
