@@ -36,7 +36,7 @@ void UDisplayClusterConfiguratorViewportNode::Cleanup()
 
 TSharedPtr<SGraphNode> UDisplayClusterConfiguratorViewportNode::CreateVisualWidget()
 {
-	return SNew(SDisplayClusterConfiguratorViewportNode, this, ToolkitPtr.Pin().ToSharedRef());;
+	return SNew(SDisplayClusterConfiguratorViewportNode, this, ToolkitPtr.Pin().ToSharedRef());
 }
 
 void UDisplayClusterConfiguratorViewportNode::ResizeNode(const FVector2D& NewSize)

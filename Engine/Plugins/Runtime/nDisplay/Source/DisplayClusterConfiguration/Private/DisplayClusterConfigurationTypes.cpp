@@ -245,10 +245,11 @@ void UDisplayClusterConfigurationViewport::OnPreCompile(FCompilerResultsLog& Mes
 {
 	Super::OnPreCompile(MessageLog);
 
-	if (!ensure(bAllowPreviewTexture))
+	if (!bAllowPreviewTexture)
 	{
 		// Verify correct rendering value is applied. This branch shouldn't be hit as long as the Region
-		// struct always has a final PostEditChangeProperty called without a change type of Interactive.
+		// struct always has a final PostEditChangeProperty called without a change type of Interactive, but may
+		// be hit when compiling after this viewport was deleted and then the deletion undone.
 		EnablePreviewTexture();
 	}
 }

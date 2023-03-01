@@ -20,7 +20,8 @@ USceneComponent* FDisplayClusterSceneComponentRef::GetOrFindSceneComponent() con
 		{
 			for (UActorComponent* ItActorComponent : Actor->GetComponents())
 			{
-				if (ItActorComponent->GetFName() == ComponentName)
+				// Component can be null when a viewport is deleted and GC occurs.
+				if (ItActorComponent && ItActorComponent->GetFName() == ComponentName)
 				{
 					USceneComponent* SceneComponent = Cast<USceneComponent>(ItActorComponent);
 					if (SceneComponent)

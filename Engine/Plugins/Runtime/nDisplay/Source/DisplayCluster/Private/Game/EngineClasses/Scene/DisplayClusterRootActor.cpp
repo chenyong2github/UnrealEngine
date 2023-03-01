@@ -1163,6 +1163,25 @@ static void PropagateDefaultMapToInstancedMap(const FMapProperty* MapProperty, U
 			ObjectToAdd = NewObject<UObject>(InstanceOwner, ArchetypeToUse->GetClass(),
 			ArchetypeToUse->GetFName(), RF_Transactional, ArchetypeToUse);
 		}
+#if WITH_EDITOR
+		else if (GIsTransacting)
+		{
+			// HACK: Projection policy parameters can become cleared when a VP is deleted, undone, redone, undone.
+			// The policy params are meant to only be set from the DCRA CDO, so resetting them back to the VP archetype is safe.
+			// @todo figure out how the parameters are being cleared between the redo/undo. No other properties seem to be impacted. 
+			if (UDisplayClusterConfigurationViewport* InstanceViewport = Cast<UDisplayClusterConfigurationViewport>(ObjectToAdd))
+			{
+				const UDisplayClusterConfigurationViewport* ArchetypeViewport = CastChecked<UDisplayClusterConfigurationViewport>(ArchetypeToUse);
+				if (InstanceViewport->ProjectionPolicy.Parameters.IsEmpty() && !ArchetypeViewport->ProjectionPolicy.Parameters.IsEmpty())
+				{
+					UE_LOG(LogDisplayClusterBlueprint, Warning, TEXT("Projection Policy mismatch from archetype on viewport, correcting. Instance: %s, Archetype: %s."),
+						*ObjectToAdd->GetName(), *ObjectToAdd->GetArchetype()->GetName());
+
+					InstanceViewport->ProjectionPolicy.Parameters = ArchetypeViewport->ProjectionPolicy.Parameters;
+				}
+			}
+		}
+#endif
 		
 		MapInstanceHelper.AddPair(Key, &ObjectToAdd);
 		
@@ -1217,7 +1236,7 @@ static void PropagateDefaultMapToInstancedMap(const FMapProperty* MapProperty, U
 						ensure(bArchetypeCorrect || bIsMultiUserSession);
 					}
 #endif
-					UE_LOG(LogDisplayClusterBlueprint, Warning, TEXT("Archetype mismatch on nDisplay config %s. Make sure the config is compiled and saved. Property: %s, Instance: %s, Archetype: %s, Default %s."),
+					UE_LOG(LogDisplayClusterBlueprint, Warning, TEXT("Archetype mismatch on nDisplay config %s. Make sure the config is compiled and saved. Property: %s, Instance: %s, Archetype: %s, Default: %s."),
 						*RootActor->GetName(), *MapProperty->GetName(), *InstancedObject->GetName(), *InstancedObject->GetArchetype()->GetName(), *DefaultObject->GetName());
 				}
 				continue;
@@ -1228,7 +1247,7 @@ static void PropagateDefaultMapToInstancedMap(const FMapProperty* MapProperty, U
 	}
 
 	// Look for elements that should be removed.
-	for (FScriptMapHelper::FIterator InstanceIt = MapInstanceHelper.CreateIterator(); InstanceIt;)
+	for (FScriptMapHelper::FIterator InstanceIt = MapInstanceHelper.CreateIterator(); InstanceIt; ++InstanceIt)
 	{
 		uint8* InstancePairPtr = MapInstanceHelper.GetPairPtr(*InstanceIt);
 		check(InstancePairPtr);
@@ -1253,10 +1272,6 @@ static void PropagateDefaultMapToInstancedMap(const FMapProperty* MapProperty, U
 			
 			MapInstanceHelper.RemoveAt(*InstanceIt);
 			bHasChanged = true;
-		}
-		else
-		{
-			++InstanceIt;
 		}
 	}
 	
