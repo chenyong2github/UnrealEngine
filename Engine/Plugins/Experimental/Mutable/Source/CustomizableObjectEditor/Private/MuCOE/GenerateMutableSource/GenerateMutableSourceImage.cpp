@@ -588,6 +588,31 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 		ImageNode->SetImageSize(TextureSize);
 
 		ImageNode->SetAngleFadeChannels(TypedNodeProject->bEnableAngleFadeOutForRGB, TypedNodeProject->bEnableAngleFadeOutForAlpha);
+		ImageNode->SetSamplingMethod(Invoke(
+			[](ETextureProjectSamplingMethod Method) -> mu::ESamplingMethod 
+			{
+				switch(Method)
+				{
+				case ETextureProjectSamplingMethod::Point:    return mu::ESamplingMethod::Point;
+				case ETextureProjectSamplingMethod::BiLinear: return mu::ESamplingMethod::BiLinear;
+				default: { check(false); return mu::ESamplingMethod::Point; }
+				}
+			}, 
+			TypedNodeProject->SamplingMethod)
+		);
+
+		ImageNode->SetMinFilterMethod(Invoke(
+			[](ETextureProjectMinFilterMethod Method) -> mu::EMinFilterMethod 
+			{
+				switch(Method)
+				{
+				case ETextureProjectMinFilterMethod::None:               return mu::EMinFilterMethod::None;
+				case ETextureProjectMinFilterMethod::TotalAreaHeuristic: return mu::EMinFilterMethod::TotalAreaHeuristic;
+				default: { check(false); return mu::EMinFilterMethod::None; }
+				}
+			}, 
+			TypedNodeProject->MinFilterMethod)
+		);
 
 		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeProject->AngleFadeStartPin()))
 		{

@@ -25,8 +25,11 @@ namespace mu
 
 		int32 blockIndex;
 		uint16 sizeX, sizeY;
+		uint16 SourceSizeX, SourceSizeY;
 		uint8 bIsRGBFadingEnabled : 1;
 		uint8 bIsAlphaFadingEnabled : 1;
+		ESamplingMethod SamplingMethod;
+		EMinFilterMethod MinFilterMethod;
 
 	public:
 

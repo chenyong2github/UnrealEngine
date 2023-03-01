@@ -7,15 +7,14 @@
 #include "MuR/SerialisationPrivate.h"
 #include "MuR/MutableMath.h"
 
-#include <initializer_list>
-
 namespace mu
 {
 
 	MUTABLE_DEFINE_ENUM_SERIALISABLE( EBlendType );
 	MUTABLE_DEFINE_ENUM_SERIALISABLE( EMipmapFilterType );
 	MUTABLE_DEFINE_ENUM_SERIALISABLE( ECompositeImageMode );
-
+	MUTABLE_DEFINE_ENUM_SERIALISABLE( ESamplingMethod );
+	MUTABLE_DEFINE_ENUM_SERIALISABLE( EMinFilterMethod );
 
     struct FImageFormatData
 	{
@@ -45,8 +44,10 @@ namespace mu
 			)
 			: FImageFormatData(pixelsPerBlockX, pixelsPerBlockY, bytesPerBlock, channels)
 		{
-			check(BlackBlockInit.size() <= MAX_BYTES_PER_BLOCK);
-			FMemory::Memcpy(BlackBlock, BlackBlockInit.begin(), FMath::Min<SIZE_T>(MAX_BYTES_PER_BLOCK, BlackBlockInit.size()));
+			check(MAX_BYTES_PER_BLOCK >= BlackBlockInit.size());
+
+			const SIZE_T SanitizedBlockSize = FMath::Min<SIZE_T>(MAX_BYTES_PER_BLOCK, BlackBlockInit.size());
+			FMemory::Memcpy(BlackBlock, BlackBlockInit.begin(), SanitizedBlockSize);
 		}
 
 		//! For block based formats, size of the block size. For uncompressed formats it will

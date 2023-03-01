@@ -162,6 +162,18 @@ namespace mu
 		m_pD->m_pAngleFadeEnd = pNode;
 	}
 
+	//---------------------------------------------------------------------------------------------
+	void NodeImageProject::SetSamplingMethod( ESamplingMethod SamplingMethod )
+	{
+		m_pD->SamplingMethod = SamplingMethod;
+	}
+
+	//---------------------------------------------------------------------------------------------
+	void NodeImageProject::SetMinFilterMethod( EMinFilterMethod MinFilterMethod )
+	{
+		m_pD->MinFilterMethod = MinFilterMethod;
+	}
+
 
 	//---------------------------------------------------------------------------------------------
 	NodeImagePtr NodeImageProject::GetTargetMask() const

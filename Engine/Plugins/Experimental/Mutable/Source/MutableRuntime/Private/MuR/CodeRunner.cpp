@@ -3867,29 +3867,99 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                    if (!args.image)
-                    {
-                        AddOp( FScheduledOp( item.At, item, 1),
-                            FScheduledOp::FromOpAndOptions( args.mesh, item, 0 ) );
-                    }
-                    else
-                    {
-                        AddOp( FScheduledOp( item.At, item, 1),
-							FScheduledOp::FromOpAndOptions( args.mesh, item, 0),
-							FScheduledOp( args.image, item ),
-							FScheduledOp( args.mask, item ),
-							FScheduledOp::FromOpAndOptions( args.angleFadeProperties, item, 0 ),
-							FScheduledOp::FromOpAndOptions( args.projector, item, 0 ) );
-                    }
+				if (args.image)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp::FromOpAndOptions(args.mesh, item, 0),
+						FScheduledOp::FromOpAndOptions(args.projector, item, 0));
+				}
+				else
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp::FromOpAndOptions(args.mesh, item, 0));
+				}
                 break;
-
-            case 1:
-            {
+			case 1:
+			{
                 MUTABLE_CPUPROFILER_SCOPE(IM_RASTERMESH_1)
 
-                Ptr<const Mesh> pMesh = GetMemory().GetMesh( FScheduledOp::FromOpAndOptions(args.mesh, item, 0) );
+				Ptr<const Mesh> pMesh = GetMemory().GetMesh(FScheduledOp::FromOpAndOptions(args.mesh, item, 0));
+				Ptr<const Projector> pProjector = GetMemory().GetProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
 
-                ImagePtr pNew;
+				if (!pMesh)
+				{
+					// Stop execution.
+					check(false);
+					GetMemory().SetImage(item, nullptr);
+					break;
+				}
+
+				// If no image we are generating a flat mesh UV raster. This is the final stage in this case.
+				if (!args.image)
+				{
+					uint16 SizeX = args.sizeX;
+					uint16 SizeY = args.sizeY;
+
+					// Drop mips while possible
+					int32 MipsToDrop = item.ExecutionOptions;
+					while (MipsToDrop && !(SizeX % 2) && !(SizeY % 2))
+					{
+						SizeX = FMath::Max(uint16(1),FMath::DivideAndRoundUp(SizeX, uint16(2)));
+						SizeY = FMath::Max(uint16(1),FMath::DivideAndRoundUp(SizeY, uint16(2)));
+						--MipsToDrop;
+					}
+
+                    // Flat mesh UV raster
+					Ptr<Image> ResultImage = new Image(SizeX, SizeY, 1, EImageFormat::IF_L_UBYTE);
+                    ImageRasterMesh( pMesh.get(), ResultImage.get(), args.blockIndex );
+
+					// Stop execution.
+					GetMemory().SetImage(item, ResultImage);
+					break;
+				}
+
+				const int32 MipsToSkip = item.ExecutionOptions;
+				int32 ProjectionMip = MipsToSkip;
+
+				if (pProjector)
+				{
+					if (static_cast<EMinFilterMethod>(args.MinFilterMethod) == EMinFilterMethod::TotalAreaHeuristic)
+					{
+						FVector2f TargetImageSizeF = FVector2f(
+							FMath::Max(args.sizeX >> MipsToSkip, 1),
+							FMath::Max(args.sizeY >> MipsToSkip, 1));
+						FVector2f SourceImageSizeF = FVector2f(args.SourceSizeX, args.SourceSizeY);
+
+						ProjectionMip = ComputeProjectedFootprintBestMip(pMesh.get(), pProjector->m_value, TargetImageSizeF, SourceImageSizeF);
+					}
+				}
+
+				AddOp(FScheduledOp(item.At, item, 2, ProjectionMip),
+					FScheduledOp::FromOpAndOptions(args.mesh, item, 0),
+					FScheduledOp::FromOpAndOptions(args.projector, item, 0),
+					FScheduledOp::FromOpAndOptions(args.image, item, ProjectionMip),
+					FScheduledOp(args.mask, item),
+					FScheduledOp::FromOpAndOptions(args.angleFadeProperties, item, 0));
+
+				// Set mesh and projector back to the cache to prevent possible code re-execution.
+				GetMemory().SetMesh(FScheduledOp::FromOpAndOptions(args.mesh, item, 0), pMesh);
+				GetMemory().SetProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0), pProjector);
+
+				break;
+			}
+            case 2:
+            {
+				MUTABLE_CPUPROFILER_SCOPE(IM_RASTERMESH_2)
+
+				if (!args.image)
+				{
+					// This case is treated at the previous stage.
+					check(false);
+					GetMemory().SetImage(item, nullptr);
+					break;
+				}
+
+                Ptr<const Mesh> pMesh = GetMemory().GetMesh(FScheduledOp::FromOpAndOptions(args.mesh, item, 0));
 
 				uint16 SizeX = args.sizeX;
 				uint16 SizeY = args.sizeY;
@@ -3902,110 +3972,112 @@ namespace mu
 					SizeY = FMath::Max(uint16(1),FMath::DivideAndRoundUp(SizeY, uint16(2)));
 					--MipsToDrop;
 				}
-
-                if (!pMesh.get())
-                {
-                    pNew = new Image(SizeX, SizeY, 1, EImageFormat::IF_L_UBYTE);
+	
+				if (!pMesh)
+				{
                     check(false);
-                }
-                else if (args.image)
-                {
-                    // Raster with projection
-                    Ptr<const Image> pSource = GetMemory().GetImage( FCacheAddress(args.image,item) );
+                    Ptr<Image> ResultImage = new Image(SizeX, SizeY, 1, EImageFormat::IF_L_UBYTE);
 
-                    Ptr<const Image> pMask = nullptr;
-                    if ( args.mask )
-                    {
-                        pMask = GetMemory().GetImage( FCacheAddress(args.mask,item) );
+					GetMemory().SetImage(item, ResultImage);
 
-						// TODO: This shouldn't happen, but be defensive.
-						FImageSize ResultSize(SizeX, SizeY);
-						if (pMask && pMask->GetSize()!= ResultSize)
+					break;
+				}
+
+				// Raster with projection
+				Ptr<const Image> pSource = GetMemory().GetImage(
+					FCacheAddress(args.image, item.ExecutionIndex, static_cast<uint8>(item.CustomState)));
+
+				Ptr<const Image> pMask = nullptr;
+				if (args.mask)
+				{
+					pMask = GetMemory().GetImage(FCacheAddress(args.mask, item));
+
+					// TODO: This shouldn't happen, but be defensive.
+					FImageSize ResultSize(SizeX, SizeY);
+					if (pMask && pMask->GetSize()!= ResultSize)
+					{
+						MUTABLE_CPUPROFILER_SCOPE(ImageResize_MaskFixForProjection);
+						pMask = ImageResizeLinear(0, pMask.get(), ResultSize);
+					}
+				}
+
+				float fadeStart = 180.0f;
+				float fadeEnd = 180.0f;
+				if ( args.angleFadeProperties )
+				{
+					FVector4f fadeProperties = GetMemory().GetColour(FScheduledOp::FromOpAndOptions(args.angleFadeProperties, item, 0));
+					fadeStart = fadeProperties[0];
+					fadeEnd = fadeProperties[1];
+				}
+				const float FadeStartRad = FMath::DegreesToRadians(fadeStart);
+				const float FadeEndRad = FMath::DegreesToRadians(fadeEnd);
+
+				EImageFormat Format = pSource ? GetUncompressedFormat(pSource->GetFormat()) : EImageFormat::IF_L_UBYTE;
+                Ptr<Image> pNew = new Image( SizeX, SizeY, 1, Format );
+
+				if (pSource && pSource->GetFormat()!=Format)
+				{
+					MUTABLE_CPUPROFILER_SCOPE(RunCode_RasterMesh_ReformatSource);
+					pSource = ImagePixelFormat( m_pSettings->GetPrivate()->m_imageCompressionQuality, pSource.get(), Format );
+				}
+
+				// Allocate memory for the temporary buffers
+				SCRATCH_IMAGE_PROJECT scratch;
+				scratch.vertices.SetNum( pMesh->GetVertexCount() );
+				scratch.culledVertex.SetNum( pMesh->GetVertexCount() );
+
+				// Layout is always 0 because the previous mesh project operations take care of
+				// moving the right layout channel to the 0.
+				int layout = 0;
+
+				ESamplingMethod SamplingMethod = static_cast<ESamplingMethod>(args.SamplingMethod);
+
+				if (args.projector && pSource && pSource->GetSizeX() > 0 && pSource->GetSizeY() > 0)
+				{
+					Ptr<const Projector> pProjector = GetMemory().GetProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
+					if (pProjector)
+					{
+						switch (pProjector->m_value.type)
 						{
-							MUTABLE_CPUPROFILER_SCOPE(ImageResize_MaskFixForProjection);
-							pMask = ImageResizeLinear(0, pMask.get(), ResultSize);
+						case PROJECTOR_TYPE::PLANAR:
+							ImageRasterProjectedPlanar(pMesh.get(), pNew.get(),
+								pSource.get(), pMask.get(),
+								args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
+								SamplingMethod,
+								FadeStartRad, FadeEndRad,
+								layout, args.blockIndex,
+								&scratch);
+							break;
+
+						case PROJECTOR_TYPE::WRAPPING:
+							ImageRasterProjectedWrapping(pMesh.get(), pNew.get(),
+								pSource.get(), pMask.get(),
+								args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
+								SamplingMethod,
+								FadeStartRad, FadeEndRad,
+								layout, args.blockIndex,
+								&scratch);
+							break;
+
+						case PROJECTOR_TYPE::CYLINDRICAL:
+							ImageRasterProjectedCylindrical(pMesh.get(), pNew.get(),
+								pSource.get(), pMask.get(),
+								args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
+								FadeStartRad, FadeEndRad,
+								layout,
+								pProjector->m_value.projectionAngle,
+								&scratch);
+							break;
+
+						default:
+							check(false);
+							break;
 						}
-                    }
+					}
+				}
 
-                    float fadeStart = 180.0f;
-                    float fadeEnd = 180.0f;
-                    if ( args.angleFadeProperties )
-                    {
-                        FVector4f fadeProperties = GetMemory().GetColour(FScheduledOp::FromOpAndOptions(args.angleFadeProperties, item, 0));
-                        fadeStart = fadeProperties[0];
-                        fadeEnd = fadeProperties[1];
-                    }
-                    fadeStart *= PI / 180.0f;
-                    fadeEnd *= PI / 180.0f;
+				GetMemory().SetImage(item, pNew);
 
-					EImageFormat format = pSource ? GetUncompressedFormat(pSource->GetFormat()) : EImageFormat::IF_L_UBYTE;
-                    pNew = new Image( SizeX, SizeY, 1, format );
-
-                    if (pSource && pSource->GetFormat()!=format)
-                    {
-						MUTABLE_CPUPROFILER_SCOPE(RunCode_RasterMesh_ReformatSource);
-                        pSource = ImagePixelFormat( m_pSettings->GetPrivate()->m_imageCompressionQuality, pSource.get(), format );
-                    }
-
-                    // Allocate memory for the temporary buffers
-                    SCRATCH_IMAGE_PROJECT scratch;
-                    scratch.vertices.SetNum( pMesh->GetVertexCount() );
-                    scratch.culledVertex.SetNum( pMesh->GetVertexCount() );
-
-                    // Layout is always 0 because the previous mesh project operations take care of
-                    // moving the right layout channel to the 0.
-                    int layout = 0;
-
-                    if ( args.projector && pSource && pSource->GetSizeX()>0 && pSource->GetSizeY()>0 )
-                    {
-                        Ptr<const Projector> pProjector = GetMemory().GetProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
-                        if (pProjector)
-                        {
-                            switch (pProjector->m_value.type)
-                            {
-                            case PROJECTOR_TYPE::PLANAR:
-                                ImageRasterProjectedPlanar( pMesh.get(), pNew.get(),
-                                                            pSource.get(), pMask.get(),
-															args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
-                                                            fadeStart, fadeEnd,
-                                                            layout, args.blockIndex,
-                                                            &scratch );
-                                break;
-
-                            case PROJECTOR_TYPE::WRAPPING:
-                                ImageRasterProjectedWrapping( pMesh.get(), pNew.get(),
-                                                              pSource.get(), pMask.get(),
-															  args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
-															  fadeStart, fadeEnd,
-                                                              layout, args.blockIndex,
-                                                              &scratch );
-                                break;
-
-                            case PROJECTOR_TYPE::CYLINDRICAL:
-                                ImageRasterProjectedCylindrical( pMesh.get(), pNew.get(),
-                                                                 pSource.get(), pMask.get(),
-																 args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
-																 fadeStart, fadeEnd,
-                                                                 layout,
-																 pProjector->m_value.projectionAngle,
-                                                                 &scratch );
-                                break;
-
-                            default:
-                                check(false);
-                                break;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    // Flat mesh UV raster
-                    pNew = new Image( SizeX, SizeY, 1, EImageFormat::IF_L_UBYTE );
-                    ImageRasterMesh( pMesh.get(), pNew.get(), args.blockIndex );
-                }
-
-                GetMemory().SetImage( item, pNew );
                 break;
             }
 
@@ -4171,7 +4243,6 @@ namespace mu
             break;
         }
     }
-
 
     //---------------------------------------------------------------------------------------------
     Ptr<RangeIndex> CodeRunner::BuildCurrentOpRangeIndex( const FScheduledOp& item, const Parameters* pParams, const Model* pModel, int32 parameterIndex )

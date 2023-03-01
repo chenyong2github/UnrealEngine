@@ -16,6 +16,19 @@ class UObject;
 struct FEdGraphPinReference;
 struct FPropertyChangedEvent;
 
+UENUM()
+enum class ETextureProjectSamplingMethod
+{
+	Point,
+	BiLinear
+};
+
+UENUM()
+enum class ETextureProjectMinFilterMethod
+{
+	None,
+	TotalAreaHeuristic
+};
 
 UCLASS()
 class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeTextureProject : public UCustomizableObjectNode
@@ -34,6 +47,12 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	bool bEnableAngleFadeOutForAlpha = true;
+
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	ETextureProjectSamplingMethod SamplingMethod = ETextureProjectSamplingMethod::Point;
+
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	ETextureProjectMinFilterMethod MinFilterMethod = ETextureProjectMinFilterMethod::None;
 
 	/** Set the width of the Texture. If the reference texture is not null, it overrides the Size X property */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)

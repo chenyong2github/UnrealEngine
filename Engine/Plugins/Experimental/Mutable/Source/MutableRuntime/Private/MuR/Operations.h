@@ -784,8 +784,14 @@ namespace mu
 			
 			int32 blockIndex;
 			uint16 sizeX, sizeY;
+			uint16 SourceSizeX, SourceSizeY;
 			uint8 bIsRGBFadingEnabled : 1;
 			uint8 bIsAlphaFadingEnabled : 1;
+			
+			// Currently only 2 sampling methods are contemplated, but reserve 3 bits for future uses. 
+			uint8 SamplingMethod : 3;
+			// Currently only 2 min filter methods are contemplated, but reserve 3 bits for future uses. 
+			uint8 MinFilterMethod : 3;
         };
 
         struct ImageMakeGrowMapArgs

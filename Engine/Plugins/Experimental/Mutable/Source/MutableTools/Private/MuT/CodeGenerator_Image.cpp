@@ -1556,6 +1556,8 @@ namespace mu
 
             // Generate
             op->image = Generate( node.m_pImage.get() );
+			op->SourceSizeX = desc.m_size.x();
+			op->SourceSizeY = desc.m_size.y();
 
             // Restore rect
             m_imageState.Pop();
@@ -1575,6 +1577,8 @@ namespace mu
 
 		op->bIsRGBFadingEnabled = node.bIsRGBFadingEnabled;
 		op->bIsAlphaFadingEnabled = node.bIsAlphaFadingEnabled;
+		op->SamplingMethod = node.SamplingMethod;
+		op->MinFilterMethod = node.MinFilterMethod;
 
 		// Fading angles are optional, and stored in a colour. If one exists, we generate both.
 		if (node.m_pAngleFadeStart || node.m_pAngleFadeEnd)
@@ -1612,6 +1616,10 @@ namespace mu
         rasterop->blockIndex = op->blockIndex;
         rasterop->sizeX = op->sizeX;
         rasterop->sizeY = op->sizeY;
+		rasterop->SourceSizeX = op->sizeX;
+		rasterop->SourceSizeY = op->sizeX;
+		rasterop->SamplingMethod = ESamplingMethod::Point;
+		rasterop->MinFilterMethod = EMinFilterMethod::None;
 
         Ptr<ASTOpImageMakeGrowMap> MakeGrowMapOp = new ASTOpImageMakeGrowMap();
 		MakeGrowMapOp->Mask = rasterop;
@@ -1628,8 +1636,8 @@ namespace mu
 
         Ptr<ASTOpFixed> disop = new ASTOpFixed();
         disop->op.type = OP_TYPE::IM_DISPLACE;
-        disop->SetChild( disop->op.args.ImageDisplace.displacementMap, MakeGrowMapOp);
-        disop->SetChild( disop->op.args.ImageDisplace.source, op );
+        disop->SetChild(disop->op.args.ImageDisplace.displacementMap, MakeGrowMapOp);
+        disop->SetChild(disop->op.args.ImageDisplace.source, op );
 
         result.op = disop;
     }

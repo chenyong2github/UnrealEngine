@@ -34,11 +34,13 @@ namespace mu
 		uint8 m_layout = 0;
 		bool bIsRGBFadingEnabled = true;
 		bool bIsAlphaFadingEnabled = true;
+		ESamplingMethod SamplingMethod = ESamplingMethod::Point;
+		EMinFilterMethod MinFilterMethod = EMinFilterMethod::None;
 
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32 ver = 3;
+            uint32 ver = 4;
 			arch << ver;
 
 			arch << m_pProjector;
@@ -51,6 +53,8 @@ namespace mu
 			arch << m_imageSize;
 			arch << bIsRGBFadingEnabled;
 			arch << bIsAlphaFadingEnabled;
+			arch << SamplingMethod;
+			arch << MinFilterMethod;
 		}
 
 		//!
@@ -58,7 +62,7 @@ namespace mu
 		{
             uint32 ver;
 			arch >> ver;
-            check(ver>=2 && ver<=3);
+            check(ver>=2 && ver<=4);
 
 			arch >> m_pProjector;
 			arch >> m_pMesh;
@@ -72,6 +76,12 @@ namespace mu
 			{
 				arch >> bIsRGBFadingEnabled;
 				arch >> bIsAlphaFadingEnabled;
+			}
+
+			if (ver >= 4)
+			{
+				arch >> SamplingMethod;
+				arch >> MinFilterMethod;
 			}
 		}
 	};

@@ -162,6 +162,23 @@ namespace mu
 		Black
 	};
 
+	enum class ESamplingMethod : uint8
+	{
+		Point = 0,
+		BiLinear,
+		MaxValue
+	};
+	static_assert(uint32(ESamplingMethod::MaxValue) <= (1 << 3), "ESampligMethod enum cannot hold more than 8 values");
+
+	enum class EMinFilterMethod : uint8
+	{
+		None = 0,
+		TotalAreaHeuristic,
+		MaxValue
+	};
+	static_assert(uint32(EMinFilterMethod::MaxValue) <= (1 << 3), "EMinFilterMethod enum cannot hold more than 8 values");
+
+
     //! \brief 2D image resource with mipmaps.
 	//! \ingroup runtime
     class MUTABLERUNTIME_API Image : public RefCounted

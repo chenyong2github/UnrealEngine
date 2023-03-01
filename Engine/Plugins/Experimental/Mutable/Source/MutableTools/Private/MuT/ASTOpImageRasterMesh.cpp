@@ -29,8 +29,12 @@ namespace mu
 		blockIndex = -1;
 		sizeX = 0;
 		sizeY = 0;
+		SourceSizeX = 0;
+		SourceSizeY = 0;
 		bIsRGBFadingEnabled = 1;
 		bIsAlphaFadingEnabled = 1;
+		SamplingMethod = ESamplingMethod::Point;
+		MinFilterMethod = EMinFilterMethod::None;
 	}
 
 
@@ -55,8 +59,12 @@ namespace mu
 				blockIndex == Other->blockIndex &&
 				sizeX == Other->sizeX &&
 				sizeY == Other->sizeY &&
+				SourceSizeX == Other->SourceSizeX &&
+				SourceSizeY == Other->SourceSizeY &&
 				bIsRGBFadingEnabled == Other->bIsRGBFadingEnabled &&
-				bIsAlphaFadingEnabled == Other->bIsAlphaFadingEnabled;
+				bIsAlphaFadingEnabled == Other->bIsAlphaFadingEnabled &&
+				SamplingMethod == Other->SamplingMethod &&
+				MinFilterMethod == Other->MinFilterMethod;
 		}
 		return false;
 	}
@@ -88,8 +96,12 @@ namespace mu
 		n->blockIndex = blockIndex;
 		n->sizeX = sizeX;
 		n->sizeY = sizeY;
+		n->SourceSizeX = SourceSizeX;
+		n->SourceSizeY = SourceSizeY;
 		n->bIsRGBFadingEnabled = bIsRGBFadingEnabled;
 		n->bIsAlphaFadingEnabled = bIsAlphaFadingEnabled;
+		n->SamplingMethod = SamplingMethod;
+		n->MinFilterMethod = MinFilterMethod;
 		return n;
 	}
 
@@ -117,8 +129,12 @@ namespace mu
 			args.blockIndex = blockIndex;
 			args.sizeX = sizeX;
 			args.sizeY = sizeY;
+			args.SourceSizeX = SourceSizeX;
+			args.SourceSizeY = SourceSizeY;
 			args.bIsRGBFadingEnabled = bIsRGBFadingEnabled;
 			args.bIsAlphaFadingEnabled = bIsAlphaFadingEnabled;
+			args.SamplingMethod = static_cast<uint8>(SamplingMethod);
+			args.MinFilterMethod = static_cast<uint8>(MinFilterMethod);
 
 			if (mesh) args.mesh = mesh->linkedAddress;
 			if (image) args.image = image->linkedAddress;

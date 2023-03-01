@@ -8,6 +8,7 @@
 #include "MuR/RefCounted.h"
 #include "MuT/Node.h"
 #include "MuT/NodeImage.h"
+#include "MuR/Image.h"
 
 namespace mu
 {
@@ -35,7 +36,6 @@ namespace mu
 
 	class InputArchive;
 	class OutputArchive;
-
 
 	//!
 	//! \ingroup model
@@ -92,6 +92,12 @@ namespace mu
 
 		//! Set the node generating the fading end angle
 		void SetAngleFadeEnd( NodeScalarPtr );
+
+		//! Set sampling method.
+		void SetSamplingMethod(ESamplingMethod SamplingMethod);
+		
+		//! Set min filter method
+		void SetMinFilterMethod(EMinFilterMethod MinFilterMethod);
 
         //! Get the node generating the image to project.
         NodeImagePtr GetImage() const;

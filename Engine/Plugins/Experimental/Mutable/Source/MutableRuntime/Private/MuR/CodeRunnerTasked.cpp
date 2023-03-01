@@ -102,7 +102,6 @@ namespace mu
 		}
 	}
 
-
 	//---------------------------------------------------------------------------------------------
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_OpenTask, TEXT("MutableRuntime/OpenTask"));
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_ClosedTasks, TEXT("MutableRuntime/ClosedTasks"));
@@ -489,7 +488,6 @@ namespace mu
 			}
 		}
     }
-
 
 	//---------------------------------------------------------------------------------------------
 	void CodeRunner::GetImageDescResult(FImageDesc& OutDesc)
@@ -1233,8 +1231,13 @@ namespace mu
 	{
 		MUTABLE_CPUPROFILER_SCOPE(FImageSaturateTask);
 
-		const bool bOptimizeUnchanged = FMath::IsNearlyEqual(Factor, 1.0f);
+		if (!Source)
+		{
+			check(false);
+			return;
+		}
 
+		const bool bOptimizeUnchanged = FMath::IsNearlyEqual(Factor, 1.0f);
 		if (Source->IsUnique())
 		{
 			Ptr<Image> MutableImage = mu::CloneOrTakeOver<>(Source.get());

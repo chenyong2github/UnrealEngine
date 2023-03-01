@@ -4,20 +4,24 @@
 
 #include "HAL/UnrealMemory.h"
 #include "Math/UnrealMathSSE.h"
+#include "Math/NumericLimits.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"
 #include "MuR/OpImagePixelFormat.h"
 #include "MuR/OpImageResize.h"
 
-bool bDisableCompressedImageBlackBlockInit = false;
+#include <initializer_list>
 
-static FAutoConsoleVariableRef CVarDisableCompressedImageBlackBlockInit(
-	TEXT("mutable.DisableCompressedImageBlackBlockInit"),
-	bDisableCompressedImageBlackBlockInit,
-	TEXT("A value of 1 disables mutable compressed black block initialization"),
-	ECVF_Default);
-
+namespace
+{
+	static bool bDisableCompressedImageBlackBlockInit = false;
+	static FAutoConsoleVariableRef CVarDisableCompressedImageBlackBlockInit(
+		TEXT("mutable.DisableCompressedImageBlackBlockInit"),
+		bDisableCompressedImageBlackBlockInit,
+		TEXT("A value of 1 disables mutable compressed black block initialization"),
+		ECVF_Default);
+}
 
 namespace mu
 {
@@ -82,10 +86,14 @@ namespace mu
     Image::Image( uint32_t sizeX, uint32_t sizeY, uint32_t lods, EImageFormat format, EInitializationType Init )
     {
 		MUTABLE_CPUPROFILER_SCOPE(NewImage)
-			LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
+		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
         check(format != EImageFormat::IF_NONE);
 		check(format < EImageFormat::IF_COUNT);
+
+		check(sizeX <= TNumericLimits<uint16>::Max())
+		check(sizeY <= TNumericLimits<uint16>::Max())
+		check(lods <= TNumericLimits<uint8>::Max())
 
         m_format = format;
         m_size = FImageSize( (uint16)sizeX, (uint16)sizeY );
@@ -120,6 +128,7 @@ namespace mu
 					{
 						m_data.SetNumUninitialized(DataSize);
 
+						check(fdata.m_bytesPerBlock > 0);
 						for (int32 BlockDataOffset = 0; BlockDataOffset < DataSize; BlockDataOffset += fdata.m_bytesPerBlock)
 						{
 							FMemory::Memcpy(m_data.GetData() + BlockDataOffset, fdata.BlackBlock, fdata.m_bytesPerBlock);

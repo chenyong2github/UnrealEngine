@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MuR/Mesh.h"
-
+#include "MuR/Image.h"
 
 namespace mu
 {
@@ -22,6 +22,7 @@ namespace mu
                                             const Image* pSource,
                                             const Image* pMask,
 											bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+											ESamplingMethod SamplingMethod,
 											float fadeStart, float fadeEnd,
                                             int layout,
                                             int block,
@@ -42,10 +43,14 @@ namespace mu
                                       const Image* pSource,
                                       const Image* pMask,
 									  bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+									  ESamplingMethod SamplingMethod,
 									  float fadeStart, float fadeEnd,
 									  int layout,
                                       int block,
                                       SCRATCH_IMAGE_PROJECT* scratch );
+
+	extern int32 ComputeProjectedFootprintBestMip(
+			const Mesh* pMesh, const FProjector& Projector, const FVector2f& TargetSize, const FVector2f& SourceSize);
 
     extern MeshPtr MeshProject( const Mesh* pMesh,
                                 const FProjector& projector );
