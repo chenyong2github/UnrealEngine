@@ -150,8 +150,14 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransfor
 				}
 			}
 		}
+		else
+		{
+			//If it does not have a SkeletonFactoryNode with the given Uid, then it is not a root joint node:
+			bRootJointNode = false;
+		}
 	}
-	else
+	
+	if (!bRootJointNode)
 	{
 		FString AssetInstanceUid;
 		if (SceneNode->GetCustomAssetInstanceUid(AssetInstanceUid))
