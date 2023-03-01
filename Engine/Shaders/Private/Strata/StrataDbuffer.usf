@@ -61,9 +61,15 @@ SamplerState DBufferCTextureSampler;
 #define OpaqueBasePassDBufferCTexture DBufferCTexture
 #define OpaqueBasePassDBufferRenderMask DBufferRenderMask
 
-#define OpaqueBasePassDBufferBTextureSampler DBufferBTextureSampler
+#if SUPPORTS_INDEPENDENT_SAMPLERS
 #define OpaqueBasePassDBufferATextureSampler DBufferATextureSampler
+#define OpaqueBasePassDBufferBTextureSampler DBufferATextureSampler
+#define OpaqueBasePassDBufferCTextureSampler DBufferATextureSampler
+#else
+#define OpaqueBasePassDBufferATextureSampler DBufferATextureSampler
+#define OpaqueBasePassDBufferBTextureSampler DBufferBTextureSampler
 #define OpaqueBasePassDBufferCTextureSampler DBufferCTextureSampler
+#endif
 
 #include "../DBufferDecalShared.ush"
 

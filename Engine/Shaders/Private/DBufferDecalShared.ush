@@ -16,9 +16,16 @@
 #define OpaqueBasePassDBufferCTexture OpaqueBasePass.DBufferCTexture
 #define OpaqueBasePassDBufferRenderMask OpaqueBasePass.DBufferRenderMask
 
+#if SUPPORTS_INDEPENDENT_SAMPLERS
+#define OpaqueBasePassDBufferATextureSampler OpaqueBasePass.DBufferATextureSampler
+#define OpaqueBasePassDBufferBTextureSampler OpaqueBasePass.DBufferATextureSampler
+#define OpaqueBasePassDBufferCTextureSampler OpaqueBasePass.DBufferATextureSampler
+#else
 #define OpaqueBasePassDBufferATextureSampler OpaqueBasePass.DBufferATextureSampler
 #define OpaqueBasePassDBufferBTextureSampler OpaqueBasePass.DBufferBTextureSampler
 #define OpaqueBasePassDBufferCTextureSampler OpaqueBasePass.DBufferCTextureSampler
+#endif
+
 #endif // DBUFFER_BASEPASS_RESOURCE
 
 // Returns a bitmask of DBuffer targets that contain valid data for this pixel.
