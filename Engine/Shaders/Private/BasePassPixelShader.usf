@@ -39,6 +39,10 @@
 	#endif
 #endif
 
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+#define BlueNoise SingleLayerWater.BlueNoise
+#endif
+
 // Enable Strata. This define & include need to be defined before certains includes (i.e., DBufferDecalShared which uses them internally)
 #if !MATERIAL_IS_STRATA && STRATA_ENABLED
 #undef STRATA_ENABLED
