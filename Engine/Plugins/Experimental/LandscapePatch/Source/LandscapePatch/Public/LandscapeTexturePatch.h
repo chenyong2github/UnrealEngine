@@ -126,8 +126,8 @@ struct LANDSCAPEPATCH_API FLandscapeTexturePatchEncodingSettings
 	GENERATED_BODY()
 public:
 	/**
-	 * The value in the patch data that corresponds to 0 landscape height (which is in line with patch Z when
-	 * "Use Patch Z As Reference" is true, and at landscape zero/mid value when false).
+	 * The value in the patch data that corresponds to 0 height relative to the starting point
+	 * specified by Zero Height Meaning.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	double ZeroInEncoding = 0;
@@ -322,11 +322,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = LandscapePatch)
 	void SetHeightTextureAsset(UTexture* TextureIn);
 
+	/**
+	 * Gets the internal height render target, if source mode is set to Texture Backed Render Target.
+	 * 
+	 * @param bMarkDirty If true, marks the containing package as dirty, since the render target is presumably
+	 *  being written to. Can be set to false if the render target is not being written to.
+	 */
 	UFUNCTION(BlueprintCallable, Category = LandscapePatch)
-	virtual UTextureRenderTarget2D* GetHeightRenderTarget() 
-	{ 
-		return HeightInternalData ? HeightInternalData->GetRenderTarget() : nullptr; 
-	}
+	virtual UTextureRenderTarget2D* GetHeightRenderTarget(bool bMarkDirty = true);
 
 	UFUNCTION(BlueprintCallable, Category = LandscapePatch, meta = (ETextureRenderTargetFormat = "ETextureRenderTargetFormat::RTF_R32f"))
 	void SetHeightRenderTargetFormat(ETextureRenderTargetFormat Format);
@@ -494,7 +497,7 @@ protected:
 	/** How the values stored in the patch represent the height. Not customizable for Internal Texture source mode, which always uses native packed height. */
 	UPROPERTY(EditAnywhere, Category = HeightPatch, meta = (
 		EditCondition = "HeightSourceMode != ELandscapeTexturePatchSourceMode::InternalTexture"))
-	ELandscapeTextureHeightPatchEncoding HeightEncoding = ELandscapeTextureHeightPatchEncoding::ZeroToOne;
+	ELandscapeTextureHeightPatchEncoding HeightEncoding = ELandscapeTextureHeightPatchEncoding::WorldUnits;
 
 	/** Encoding settings. Not relevant when using native packed height as the encoding. */
 	UPROPERTY(EditAnywhere, Category = HeightPatch, meta = (UIMin = "0", UIMax = "1",

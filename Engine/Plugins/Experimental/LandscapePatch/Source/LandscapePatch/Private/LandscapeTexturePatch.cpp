@@ -142,7 +142,7 @@ UTextureRenderTarget2D* ULandscapeTexturePatch::ApplyToHeightmap(UTextureRenderT
 		PatchUObject = GetHeightInternalTexture();
 		break;
 	case ELandscapeTexturePatchSourceMode::TextureBackedRenderTarget:
-		PatchUObject = GetHeightRenderTarget();
+		PatchUObject = GetHeightRenderTarget(/*bMarkDirty = */ false);
 		break;
 	case ELandscapeTexturePatchSourceMode::TextureAsset:
 
@@ -751,12 +751,12 @@ void ULandscapeTexturePatch::ReinitializeWeightPatch(ULandscapeWeightPatchTextur
 
 	FMatrix44f PatchToSource = GetPatchToHeightmapUVs(RenderTarget->SizeX, RenderTarget->SizeY, InCombinedResult->SizeX, InCombinedResult->SizeY);
 
-	ENQUEUE_RENDER_COMMAND(LandscapeTexturePatchReinitializeHeight)(
+	ENQUEUE_RENDER_COMMAND(LandscapeTexturePatchReinitializeWeight)(
 		[Source = InCombinedResult->GetResource(), Destination = RenderTarget->GetResource(), &PatchToSource](FRHICommandListImmediate& RHICmdList)
 	{
 		using namespace UE::Landscape;
 
-		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("LandscapeTexturePatchReinitializeHeight"));
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("LandscapeTexturePatchReinitializeWeight"));
 
 		FReinitializeLandscapePatchPS::FParameters* ShaderParams = GraphBuilder.AllocParameters<FReinitializeLandscapePatchPS::FParameters>();
 
@@ -1158,6 +1158,15 @@ void ULandscapeTexturePatch::SetHeightTextureAsset(UTexture* TextureIn)
 	ensureMsgf(!TextureIn || TextureIn->VirtualTextureStreaming == 0,
 		TEXT("ULandscapeTexturePatch::SetHeightTextureAsset: Virtual textures are not supported."));
 	HeightTextureAsset = TextureIn;
+}
+
+UTextureRenderTarget2D* ULandscapeTexturePatch::GetHeightRenderTarget(bool bMarkDirty)
+{
+	if (bMarkDirty)
+	{
+		MarkPackageDirty();
+	}
+	return HeightInternalData ? HeightInternalData->GetRenderTarget() : nullptr;
 }
 
 void ULandscapeTexturePatch::ResetHeightEncodingMode(ELandscapeTextureHeightPatchEncoding EncodingMode)

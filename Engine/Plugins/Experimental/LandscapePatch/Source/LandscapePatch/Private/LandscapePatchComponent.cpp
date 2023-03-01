@@ -77,6 +77,7 @@ void ULandscapePatchComponent::SetIsEnabled(bool bEnabledIn)
 		return;
 	}
 
+	Modify();
 	bIsEnabled = bEnabledIn;
 	RequestLandscapeUpdate();
 }

@@ -262,7 +262,10 @@ void ULandscapeWeightTextureBackedRenderTarget::CopyToInternalTexture()
 	}
 	else
 	{
-		InternalTexture->Modify();
+		// CopyToInternalTexture currently gets called in many non-dirty cases because we do not yet have a way to
+		// detect a true change to the render target. So, we set bAlwaysMarkDirty here to false to avoid spuriously
+		// marking the package dirty, since the internal texture may not be changing.
+		InternalTexture->Modify(false);
 	}
 
 	RenderTarget->UpdateTexture2D(InternalTexture, GetInternalTextureFormat());
@@ -369,7 +372,10 @@ void ULandscapeHeightTextureBackedRenderTarget::CopyToInternalTexture()
 	}
 	else
 	{
-		InternalTexture->Modify();
+		// CopyToInternalTexture currently gets called in many non-dirty cases because we do not yet have a way to
+		// detect a true change to the render target. So, we set bAlwaysMarkDirty here to false to avoid spuriously
+		// marking the package dirty, since the internal texture may not be changing.
+		InternalTexture->Modify(false);
 	}
 
 	UTextureRenderTarget2D* NativeEncodingRenderTarget = RenderTarget;
