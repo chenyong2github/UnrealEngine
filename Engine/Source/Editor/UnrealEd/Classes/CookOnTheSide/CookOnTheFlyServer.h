@@ -86,7 +86,7 @@ enum class ECookByTheBookOptions
 	NoInputPackages =					0x00000800, // don't include slate content (this cook will probably be missing content unless you know what you are doing)
 	SkipSoftReferences =				0x00001000, // Don't follow soft references when cooking. Usually not viable for a real cook and the results probably wont load properly, but can be useful for debugging
 	SkipHardReferences =				0x00002000, // Don't follow hard references when cooking. Not viable for a real cook, only useful for debugging
-	FullLoadAndSave =					0x00004000, // Load all packages into memory and save them all at once in one tick for speed reasons. This requires a lot of RAM for large games.
+	//Unused=							0x00004000,
 	CookAgainstFixedBase =				0x00010000, // If cooking DLC, assume that the base content can not be modified. 
 	DlcLoadMainAssetRegistry =			0x00020000, // If cooking DLC, populate the main game asset registry
 	ZenStore =							0x00040000, // Store cooked data in Zen Store
@@ -681,25 +681,11 @@ public:
 	/** Tick CookWorker until it finishes or needs to yield. Should only be called when in CookWorker Mode. */
 	uint32 TickCookWorker();
 
-	/**
-	 * Execute CookByTheBook as a load of all packages followed by a save of all packages.
-	 * This mode is sometimes faster than normal CBTB.
-	 * Should be called at the beginning of the cook after StartCookByTheBook, and only if IsFullLoadAndSave.
-	 */
-	uint32 CookFullLoadAndSave();
-
-	/**
-	 * Is the Local CookOnTheFlyServer using FullLoadAndSave?
-	 * FullLoadAndSave is used in SingleProcess cooks only, always false on CookWorkers or MPCook Directors.
-	 */
-	bool IsFullLoadAndSave() const;
-
 	/** Clear all the previously cooked data all cook requests from now on will be considered recook requests */
 	void ClearAllCookedData();
 
 	/** Demote PackageDatas in any queue back to Idle, and eliminate pending requests. Used when canceling a cook. */
 	void CancelAllQueues();
-
 
 	/**
 	 * Clear any cached cooked platform data for a platform and call ClearCachedCookedPlatformData on all UObjects.

@@ -410,7 +410,6 @@ FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FCookByTheBookOptions& 
 	Writer << "AllowUncookedAssetReferences" << Value.bAllowUncookedAssetReferences;
 	Writer << "SkipHardReferences" << Value.bSkipHardReferences;
 	Writer << "SkipSoftReferences" << Value.bSkipSoftReferences;
-	Writer << "FullLoadAndSave" << Value.bFullLoadAndSave;
 	Writer << "CookAgainstFixedBase" << Value.bCookAgainstFixedBase;
 	Writer << "DlcLoadMainAssetRegistry" << Value.bDlcLoadMainAssetRegistry;
 	Writer.EndObject();
@@ -440,7 +439,6 @@ bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FCookByTheBookOptions& 
 	bOk = LoadFromCompactBinary(Field["AllowUncookedAssetReferences"], OutValue.bAllowUncookedAssetReferences) & bOk;
 	bOk = LoadFromCompactBinary(Field["SkipHardReferences"], OutValue.bSkipHardReferences) & bOk;
 	bOk = LoadFromCompactBinary(Field["SkipSoftReferences"], OutValue.bSkipSoftReferences) & bOk;
-	bOk = LoadFromCompactBinary(Field["FullLoadAndSave"], OutValue.bFullLoadAndSave) & bOk;
 	bOk = LoadFromCompactBinary(Field["CookAgainstFixedBase"], OutValue.bCookAgainstFixedBase) & bOk;
 	bOk = LoadFromCompactBinary(Field["DlcLoadMainAssetRegistry"], OutValue.bDlcLoadMainAssetRegistry) & bOk;
 

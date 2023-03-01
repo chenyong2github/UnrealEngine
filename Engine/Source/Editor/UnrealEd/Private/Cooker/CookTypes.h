@@ -423,7 +423,6 @@ public:
 	bool							bAllowUncookedAssetReferences = false; // this is a flag for dlc, will allow DLC to be cook when the fixed base might be missing references.
 	bool							bSkipHardReferences = false;
 	bool							bSkipSoftReferences = false;
-	bool							bFullLoadAndSave = false;
 	bool							bCookAgainstFixedBase = false;
 	bool							bDlcLoadMainAssetRegistry = false;
 

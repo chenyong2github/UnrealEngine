@@ -399,7 +399,12 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 	CookOptions |= bCookAll ? ECookByTheBookOptions::CookAll : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("MAPSONLY")) ? ECookByTheBookOptions::MapsOnly : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("NODEV")) ? ECookByTheBookOptions::NoDevContent : ECookByTheBookOptions::None;
-	CookOptions |= Switches.Contains(TEXT("FullLoadAndSave")) ? ECookByTheBookOptions::FullLoadAndSave : ECookByTheBookOptions::None;
+	if (Switches.Contains(TEXT("FullLoadAndSave")))
+	{
+		UE_LOG(LogCook, Warning, TEXT("-FullLoadAndSave has been deprecated; remove the argument to remove this warning.\n")
+			TEXT("For cook optimizations, try using multiprocess cook (-cookprocesscount=<N>, N>1).\n")
+			TEXT("If you still need further optimizations, contact Epic on UDN."));
+	}
 	CookOptions |= bUseZenStore ? ECookByTheBookOptions::ZenStore : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("NoGameAlwaysCook")) ? ECookByTheBookOptions::NoGameAlwaysCookPackages : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("DisableUnsolicitedPackages")) ? (ECookByTheBookOptions::SkipHardReferences | ECookByTheBookOptions::SkipSoftReferences) : ECookByTheBookOptions::None;
@@ -494,21 +499,14 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 			CookOnTheFlyServer->StartCookByTheBook(StartupOptions);
 		}
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CookByTheBook.MainLoop"), STAT_CookByTheBook_MainLoop, STATGROUP_LoadTime);
-		if (CookOnTheFlyServer->IsFullLoadAndSave())
+		while (CookOnTheFlyServer->IsInSession())
 		{
-			CookOnTheFlyServer->CookFullLoadAndSave();
-		}
-		else
-		{
-			while (CookOnTheFlyServer->IsInSession())
-			{
-				uint32 TickResults = 0;
-				uint32 UnusedVariable = 0;
+			uint32 TickResults = 0;
+			uint32 UnusedVariable = 0;
 
-				TickResults = CookOnTheFlyServer->TickCookByTheBook(MAX_flt,
-					ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay);
-				ConditionalCollectGarbage(TickResults, *CookOnTheFlyServer);
-			}
+			TickResults = CookOnTheFlyServer->TickCookByTheBook(MAX_flt,
+				ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay);
+			ConditionalCollectGarbage(TickResults, *CookOnTheFlyServer);
 		}
 	} while (bTestCook);
 
