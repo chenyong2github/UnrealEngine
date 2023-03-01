@@ -21,7 +21,9 @@ public class ReplicationSystemLowLevelTests : TestModuleRules
 			{
 				"Engine",
 				"RHI",
-				"SlateCore"
+				"SlateCore",
+				"InputCore",
+				"ApplicationCore"
 			}
 		);
 

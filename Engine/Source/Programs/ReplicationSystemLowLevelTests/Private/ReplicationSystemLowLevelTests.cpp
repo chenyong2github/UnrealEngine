@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Iris/IrisConfig.h"
+#include "Logging/LogScopedVerbosityOverride.h"
 #include "Misc/CommandLine.h"
 #include "Modules/ModuleManager.h"
 #include "Net/Core/Trace/Private/NetTraceInternal.h"
 #include "ProfilingDebugging/TraceAuxiliary.h"
-
+#include "SlateGlobals.h"
+#include "Styling/SlateWidgetStyleContainerBase.h
 #include "TestCommon/Initialization.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -30,7 +32,13 @@ GROUP_BEFORE_GLOBAL(Catch::DefaultGroup)
 
 	UE::Net::SetUseIrisReplication(true);
 
-	InitAll(true, true);
+	{
+		// Silence some warnings during initialization unrelated to the replication system
+		LOG_SCOPE_VERBOSITY_OVERRIDE(LogSlate, ELogVerbosity::Error);
+		LOG_SCOPE_VERBOSITY_OVERRIDE(LogSlateStyle, ELogVerbosity::Error);
+		LOG_SCOPE_VERBOSITY_OVERRIDE(LogUObjectGlobals, ELogVerbosity::Error);
+		InitAll(true, true);
+	}
 
 	FModuleManager::Get().LoadModule(TEXT("IrisCore"));
 }
