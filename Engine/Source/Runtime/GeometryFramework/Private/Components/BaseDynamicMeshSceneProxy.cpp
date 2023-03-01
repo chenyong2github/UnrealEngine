@@ -8,6 +8,7 @@
 #include "RayTracingInstance.h"
 #include "SceneInterface.h"
 #include "SceneManagement.h"
+#include "Engine/Engine.h"		// for GEngine definition
 
 FBaseDynamicMeshSceneProxy::FBaseDynamicMeshSceneProxy(UBaseDynamicMeshComponent* Component)
 	: FPrimitiveSceneProxy(Component),
