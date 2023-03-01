@@ -748,7 +748,7 @@ struct RIGVM_API FRigVMFunction_MathFloatIsNearlyEqual : public FRigVMFunction_M
 /**
  * Return one of the two values based on the condition
  */
-USTRUCT(meta=(DisplayName="Select", TemplateName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
+USTRUCT(meta=(DisplayName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
 struct RIGVM_API FRigVMFunction_MathFloatSelectBool : public FRigVMFunction_MathFloatBase
 {
 	GENERATED_BODY()

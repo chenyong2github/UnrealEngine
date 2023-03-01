@@ -332,7 +332,7 @@ struct RIGVM_API FRigVMFunction_MathTransformLerp : public FRigVMFunction_MathTr
 /**
  * Return one of the two values based on the condition
  */
-USTRUCT(meta=(DisplayName="Select", TemplateName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
+USTRUCT(meta=(DisplayName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
 struct RIGVM_API FRigVMFunction_MathTransformSelectBool : public FRigVMFunction_MathTransformBase
 {
 	GENERATED_BODY()

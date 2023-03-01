@@ -484,7 +484,7 @@ struct RIGVM_API FRigVMFunction_MathQuaternionNotEquals : public FRigVMFunction_
 /**
  * Return one of the two values based on the condition
  */
-USTRUCT(meta=(DisplayName="Select", TemplateName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
+USTRUCT(meta=(DisplayName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
 struct RIGVM_API FRigVMFunction_MathQuaternionSelectBool : public FRigVMFunction_MathQuaternionBase
 {
 	GENERATED_BODY()

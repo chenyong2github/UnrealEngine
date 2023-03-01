@@ -18,7 +18,7 @@ enum class ERigUnitVisualDebugPointMode : uint8
 	Max UMETA(Hidden),
 };
 
-USTRUCT(meta=(DisplayName = "Visual Debug Vector", TemplateName="VisualDebug", Keywords = "Draw,Point", Deprecated = "4.25", Varying))
+USTRUCT(meta=(DisplayName = "Visual Debug Vector", Keywords = "Draw,Point", Deprecated = "4.25", Varying))
 struct RIGVM_API FRigVMFunction_VisualDebugVector : public FRigVMFunction_DebugBase
 {
 	GENERATED_BODY()
@@ -102,7 +102,7 @@ struct RIGVM_API FRigVMFunction_VisualDebugVectorNoSpace : public FRigVMFunction
 	float Scale;
 };
 
-USTRUCT(meta = (DisplayName = "Visual Debug Quat", TemplateName="VisualDebug", Keywords = "Draw,Rotation", Deprecated = "4.25", Varying))
+USTRUCT(meta = (DisplayName = "Visual Debug Quat", Keywords = "Draw,Rotation", Deprecated = "4.25", Varying))
 struct RIGVM_API FRigVMFunction_VisualDebugQuat : public FRigVMFunction_DebugBase
 {
 	GENERATED_BODY()
@@ -170,7 +170,7 @@ struct RIGVM_API FRigVMFunction_VisualDebugQuatNoSpace : public FRigVMFunction_D
 	float Scale;
 };
 
-USTRUCT(meta=(DisplayName="Visual Debug Transform", TemplateName="VisualDebug", Keywords = "Draw,Axes", Deprecated = "4.25", Varying))
+USTRUCT(meta=(DisplayName="Visual Debug Transform", Keywords = "Draw,Axes", Deprecated = "4.25", Varying))
 struct RIGVM_API FRigVMFunction_VisualDebugTransform : public FRigVMFunction_DebugBase
 {
 	GENERATED_BODY()

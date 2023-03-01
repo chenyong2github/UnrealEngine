@@ -537,7 +537,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlRotator : public FRigUnitMutable
 /**
  * SetControlTransform is used to perform a change in the hierarchy by setting a single control's transform.
  */
-USTRUCT(meta=(DisplayName="Set Control Transform", Category="Controls", DocumentationPolicy="Strict", Keywords = "SetControlTransform,SetGizmoTransform", TemplateName="SetControlValue", Deprecated = "4.25"))
+USTRUCT(meta=(DisplayName="Set Control Transform", Category="Controls", DocumentationPolicy="Strict", Keywords = "SetControlTransform,SetGizmoTransform", Deprecated = "4.25"))
 struct CONTROLRIG_API FRigUnit_SetControlTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()

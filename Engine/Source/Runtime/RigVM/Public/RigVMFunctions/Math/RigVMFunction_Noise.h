@@ -88,7 +88,7 @@ struct RIGVM_API FRigVMFunction_NoiseDouble : public FRigVMFunction_MathBase
 /**
  * Generates a vector through a noise fluctuation process between a min and a max through speed
  */
-USTRUCT(meta = (DisplayName = "Noise (Vector)", Category = "Math|Noise", TemplateName="Noise", Deprecated = "5.0.0"))
+USTRUCT(meta = (DisplayName = "Noise (Vector)", Category = "Math|Noise", Deprecated = "5.0.0"))
 struct RIGVM_API FRigVMFunction_NoiseVector : public FRigVMFunction_MathBase
 {
 	GENERATED_BODY()
