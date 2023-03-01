@@ -84,14 +84,16 @@ public:
 
 	/** true when we are routing ConditionalPostLoad/PostLoad to objects										*/
 	bool IsRoutingPostLoad;
-	/** The object we are routing PostLoad from the Async Loading code for */
-	UObject* CurrentlyPostLoadedObjectByALT;
 	/** true when FLinkerManager deletes linkers */
 	bool IsDeletingLinkers;
+	/* Global int to track how many nested loads we're doing by triggering an async load and immediately flushing that request. */
+	int32 SyncLoadUsingAsyncLoaderCount;
 	/* Global flag so that FObjectFinders know if they are called from inside the UObject constructors or not. */
 	int32 IsInConstructor;
 	/* Object that is currently being constructed with ObjectInitializer */
 	UObject* ConstructedObject;
+	/** The object we are routing PostLoad from the Async Loading code for */
+	UObject* CurrentlyPostLoadedObjectByALT;
 	/** Async Package currently processing objects */
 	void* AsyncPackage;
 	/** Async package loader currently processing objects */

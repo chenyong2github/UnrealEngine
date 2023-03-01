@@ -8192,7 +8192,12 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 			return;
 		}
 
-		FCoreDelegates::OnAsyncLoadingFlush.Broadcast();
+		// if the sync count is 0, then this flush is not triggered from a sync load, broadcast the delegate in that case
+		FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
+		if (ThreadContext.SyncLoadUsingAsyncLoaderCount == 0)
+		{
+			FCoreDelegates::OnAsyncLoadingFlush.Broadcast();
+		}
 
 		double StartTime = FPlatformTime::Seconds();
 		double LogFlushTime = StartTime;

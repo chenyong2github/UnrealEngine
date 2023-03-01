@@ -1330,13 +1330,10 @@ UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const T
 	return Result;
 }
 
-// Track how many nested loads we're doing by triggering an async load and immediately flushing that request.
-static int32 GSyncLoadUsingAsyncLoaderCount = 0;
-
 UObject* StaticLoadObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, uint32 LoadFlags, UPackageMap* Sandbox, bool bAllowObjectReconciliation, const FLinkerInstancingContext* InstancingContext)
 {
 	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
-	if ((GSyncLoadUsingAsyncLoaderCount == 0) && ThreadContext.IsRoutingPostLoad && IsInAsyncLoadingThread())
+	if ((ThreadContext.SyncLoadUsingAsyncLoaderCount == 0) && ThreadContext.IsRoutingPostLoad && IsInAsyncLoadingThread())
 	{
 		UE_LOG(LogUObjectGlobals, Warning, TEXT("Calling StaticLoadObject(\"%s\", \"%s\", \"%s\") during PostLoad of %s is illegal and will crash in a cooked runtime"), 
 			*GetFullNameSafe(ObjectClass),
@@ -1550,6 +1547,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 	}
 	checkf(IsInGameThread(), TEXT("Unable to load %s. Objects and Packages can only be loaded from the game thread."), *PackagePath.GetDebugName());
 
+	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
 	if (ShouldAlwaysLoadPackageAsync(PackagePath))
 	{
 		checkf(!InOuter || !InOuter->GetOuter(), TEXT("Loading into subpackages is not implemented.")); // Subpackages are no longer supported in UE
@@ -1567,7 +1565,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 			FCoreDelegates::OnSyncLoadPackage.Broadcast(PackageName.ToString());
 		}
 
-		GSyncLoadUsingAsyncLoaderCount++;
+		ThreadContext.SyncLoadUsingAsyncLoaderCount++;
 		EPackageFlags PackageFlags = PKG_None;
 		if ((!FApp::IsGame() || GIsEditor) && (LoadFlags & LOAD_PackageForPIE) != 0)
 		{
@@ -1582,7 +1580,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 			UE_SCOPED_IO_ACTIVITY(*WriteToString<512>(TEXT("Sync "), PackagePath.GetDebugName()));
 			FlushAsyncLoading(RequestID);
 		}
-		GSyncLoadUsingAsyncLoaderCount--;
+		ThreadContext.SyncLoadUsingAsyncLoaderCount--;
 
 		return (InOuter ? InOuter : FindObjectFast<UPackage>(nullptr, PackageName));
 	}
@@ -1612,7 +1610,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 	TRACE_LOADTIME_POSTLOAD_SCOPE;
 
 	// Set up a load context
-	TRefCountPtr<FUObjectSerializeContext> LoadContext = FUObjectThreadContext::Get().GetSerializeContext();
+	TRefCountPtr<FUObjectSerializeContext> LoadContext = ThreadContext.GetSerializeContext();
 
 	UE_SCOPED_IO_ACTIVITY(*WriteToString<512>(TEXT("Sync "), PackagePath.GetDebugName()));
 

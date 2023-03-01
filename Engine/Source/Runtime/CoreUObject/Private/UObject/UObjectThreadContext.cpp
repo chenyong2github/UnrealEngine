@@ -12,10 +12,11 @@ DEFINE_LOG_CATEGORY(LogUObjectThreadContext);
 
 FUObjectThreadContext::FUObjectThreadContext()
 : IsRoutingPostLoad(false)
-, CurrentlyPostLoadedObjectByALT(nullptr)
 , IsDeletingLinkers(false)
+, SyncLoadUsingAsyncLoaderCount(0)
 , IsInConstructor(0)
 , ConstructedObject(nullptr)
+, CurrentlyPostLoadedObjectByALT(nullptr)
 , AsyncPackage(nullptr)
 , AsyncPackageLoader(nullptr)
 , SerializeContext(new FUObjectSerializeContext())
