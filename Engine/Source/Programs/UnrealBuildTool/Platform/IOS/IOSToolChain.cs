@@ -1761,14 +1761,8 @@ namespace UnrealBuildTool
 					string SchemeName;
 					if (AppName == "UnrealGame" || AppName == "UnrealClient")
 					{
-						if (Target.bBuildAsFramework)
-						{
-							SchemeName = "UnrealGame";
-						}
-						else
-						{
-							SchemeName = "UE5";
-						}
+
+						SchemeName = "UnrealGame";
 					}
 					else
 					{
