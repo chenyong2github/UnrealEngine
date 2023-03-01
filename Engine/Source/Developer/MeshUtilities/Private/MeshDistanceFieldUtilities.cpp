@@ -274,6 +274,12 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 
 		check(EmbreeScene.bUseEmbree);
 
+		// If Embree setup fails, there will be no scene to operate on. Early out.
+		if (!EmbreeScene.EmbreeScene)
+		{
+			return;
+		}
+
 		// Whether to use an Embree Point Query to compute the closest unsigned distance.  Rays will only be traced to determine backfaces visible for sign.
 		const bool bUsePointQuery = true;
 
