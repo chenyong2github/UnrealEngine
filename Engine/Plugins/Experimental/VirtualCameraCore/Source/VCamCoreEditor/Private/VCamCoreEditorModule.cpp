@@ -2,7 +2,6 @@
 
 #include "VCamCoreEditorModule.h"
 
-#include "AssetToolsModule.h"
 #include "Customizations/OutputProvider/ConnectionRemapCustomization_StateSwitcher.h"
 #include "Customizations/OutputProvider/ConnectionRemapCustomization_VCamWidget.h"
 #include "Customizations/OutputProvider/OutputProviderLayoutCustomization.h"
@@ -18,6 +17,7 @@
 #include "Customizations/VCamViewportLockerTypeCustomization.h"
 #include "Customizations/WidgetReference/ChildWidgetReferenceCustomization.h"
 #include "Customizations/WidgetReference/VCamChildWidgetReferenceCustomization.h"
+#include "Input/VCamInputDeviceConfig.h"
 #include "LogVCamEditor.h"
 #include "Modifier/VCamModifier.h"
 #include "Output/VCamOutputProviderBase.h"
@@ -28,12 +28,14 @@
 #include "VCamBaseActor.h"
 #include "VCamComponent.h"
 
+#include "AssetToolsModule.h"
 #include "Interfaces/IPluginManager.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Compilation/CompilationExtensionManager.h"
+#include "Customizations/DeviceID/VCamInputDeviceIDTypeCustomization.h"
 
 #define LOCTEXT_NAMESPACE "FVCamCoreEditorModule"
 
@@ -173,6 +175,10 @@ namespace UE::VCamCoreEditor::Private
 			FVCamChildWidgetReference::StaticStruct()->GetFName(),
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FVCamChildWidgetReferenceCustomization::MakeInstance)
 			);
+		PropertyModule.RegisterCustomPropertyTypeLayout(
+			FVCamInputDeviceID::StaticStruct()->GetFName(),
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FVCamInputDeviceIDTypeCustomization::MakeInstance)
+			);
 		
 		PropertyModule.RegisterCustomClassLayout(
 			UVCamOutputProviderBase::StaticClass()->GetFName(),
@@ -211,6 +217,7 @@ namespace UE::VCamCoreEditor::Private
 			PropertyModule->UnregisterCustomPropertyTypeLayout(FVCamViewportLocker::StaticStruct()->GetFName());
 			PropertyModule->UnregisterCustomPropertyTypeLayout(FChildWidgetReference::StaticStruct()->GetFName());
 			PropertyModule->UnregisterCustomPropertyTypeLayout(FVCamChildWidgetReference::StaticStruct()->GetFName());
+			PropertyModule->UnregisterCustomPropertyTypeLayout(FVCamInputDeviceID::StaticStruct()->GetFName());
 
 			PropertyModule->UnregisterCustomClassLayout(UVCamOutputProviderBase::StaticClass()->GetFName());
 			PropertyModule->UnregisterCustomClassLayout(AVCamBaseActor::StaticClass()->GetFName());

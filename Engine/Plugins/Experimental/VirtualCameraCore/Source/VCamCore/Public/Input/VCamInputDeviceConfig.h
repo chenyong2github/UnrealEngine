@@ -45,6 +45,33 @@ enum class EVCamGamepadInputMode : uint8
 	IgnoreAndConsume
 };
 
+USTRUCT(BlueprintType)
+struct VCAMCORE_API FVCamInputDeviceID
+{
+	GENERATED_BODY()
+
+	/**
+	 * The ID of an input device.
+	 *
+	 * Input device IDs start at 0 and increase by 1 as more devices connect. When a device disconnects, the ID is recycled
+	 * and becomes available for reassignment to the next device that connects; when a device connects, the lowest possible ID is reassigned.
+	 *
+	 * Example: suppose you have three gamepads called A, B, and VCamDevicePairingConfig.h
+	 * 1. Connect gamepad A > receives ID 0
+	 * 2. Connect gamepad B > receives ID 1
+	 * 3. Disconnect gamepad A > gamepad B will still have ID 1
+	 * 4. Connect the same gamepad A OR another gamepad C > receives ID 0.
+	 *
+	 * Note: Keyboards always have ID = 0, mice ID = -1.
+	 * Note: The first gamepad will have ID = 0 even though keyboards will also have ID 0.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	int32 DeviceId;
+
+	friend bool operator==(const FVCamInputDeviceID& Left, const FVCamInputDeviceID& Right) { return Left.DeviceId == Right.DeviceId; }
+	friend bool operator!=(const FVCamInputDeviceID& Left, const FVCamInputDeviceID& Right) { return !(Left == Right); }
+};
+
 /** Defines the input devices a UVCamComponent will accept input from. */
 USTRUCT(BlueprintType)
 struct VCAMCORE_API FVCamInputDeviceConfig
@@ -63,7 +90,7 @@ struct VCAMCORE_API FVCamInputDeviceConfig
 	 * List of input devices from which input can trigger input actions.
 	 * Typically this is used for gamepads.
 	 *
-	 * Input device IDs start at 0 and increase by 1 as more devices connect. When a device disconnect, the ID is recycled
+	 * Input device IDs start at 0 and increase by 1 as more devices connect. When a device disconnects, the ID is recycled
 	 * and becomes available for reassignment to the next device that connects; when a device connects, the lowest possible ID is reassigned.
 	 *
 	 * Example: suppose you have three gamepads called A, B, and VCamDevicePairingConfig.h
@@ -76,7 +103,7 @@ struct VCAMCORE_API FVCamInputDeviceConfig
 	 * Note: The first gamepad will have ID = 0 even though keyboards will also have ID 0.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Input", meta = (EditCondition = "!bAllowAllInputDevices", EditConditionHides))
-	TArray<int32> AllowedInputDeviceIds;
+	TArray<FVCamInputDeviceID> AllowedInputDeviceIds;
 	
 	/**
 	 * Should keyboard input trigger input actions?

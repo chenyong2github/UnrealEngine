@@ -85,7 +85,7 @@ bool UVCamPlayerInput::InputKey(const FInputKeyParams& Params)
 	const bool bSkipGamepad = Params.IsGamepad() && InputDeviceSettings.GamepadInputMode != EVCamGamepadInputMode::Allow && InputDeviceSettings.GamepadInputMode != EVCamGamepadInputMode::AllowAndConsume;
 	const bool bSkipMouse = InputDeviceSettings.MouseInputMode == EVCamInputMode::Ignore && Params.Key.IsMouseButton();
 	const bool bSkipKeyboard = InputDeviceSettings.KeyboardInputMode == EVCamInputMode::Ignore && bIsKeyboard;
-	const bool bSkipNonAllowListed = bCanCheckAllowList && !InputDeviceSettings.bAllowAllInputDevices && !InputDeviceSettings.AllowedInputDeviceIds.Contains(Params.InputDevice.GetId());
+	const bool bSkipNonAllowListed = bCanCheckAllowList && !InputDeviceSettings.bAllowAllInputDevices && !InputDeviceSettings.AllowedInputDeviceIds.Contains(FVCamInputDeviceID{ Params.InputDevice.GetId() });
 	const bool bIsFilteredOut = bSkipGamepad || bSkipMouse || bSkipKeyboard || bSkipNonAllowListed;
 	
 	UE::VCamCore::Private::LogInput(InputDeviceSettings, Params, bIsFilteredOut);
