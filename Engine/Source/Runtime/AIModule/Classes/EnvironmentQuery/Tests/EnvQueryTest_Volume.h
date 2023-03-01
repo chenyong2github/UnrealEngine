@@ -39,4 +39,8 @@ private:
 	/** If bDoComplexVolumeTest is set, it will use a full volume physic test (not only a bounding box test)  */
 	UPROPERTY(EditAnywhere, Category = Volumes, meta = (AllowPrivateAccess = "true"))
 	uint32 bDoComplexVolumeTest : 1;
+
+	/** If no volumes are returned to evaluate the points against then just ignore the test rather than failing each item */
+	UPROPERTY(EditAnywhere, Category = Volumes, meta = (AllowPrivateAccess = "true"))
+	uint32 bSkipTestIfNoVolumes : 1;
 };
