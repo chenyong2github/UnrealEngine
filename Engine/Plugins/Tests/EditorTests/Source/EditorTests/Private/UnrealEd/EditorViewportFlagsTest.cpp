@@ -57,6 +57,9 @@ namespace FViewportTestHelper
 			case SFG_Lumen:
 				GroupName = TEXT("Lumen");
 				break;
+			case SFG_Nanite:
+				GroupName = TEXT("Nanite");
+				break;
 			case SFG_Hidden:
 			case SFG_Transient:
 				GroupName = TEXT("Hidden");

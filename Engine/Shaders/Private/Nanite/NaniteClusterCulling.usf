@@ -523,7 +523,7 @@ struct FNaniteTraversalClusterCullCallback
 					const bool bSmallEnoughToDraw = SmallEnoughToDraw(NaniteView, InstanceData, DynamicData, Cluster.LODBounds, Cluster.LODError, Cluster.EdgeLength, bUseHWRaster);
 
 #if DEBUG_FLAGS
-					if ((DebugFlags & NANITE_DEBUG_FLAG_RENDER_ONLY_ROOT_DATA) != 0u)
+					if ((DebugFlags & NANITE_DEBUG_FLAG_DRAW_ONLY_ROOT_DATA) != 0u)
 					{
 						bVisible = (Cluster.Flags & NANITE_CLUSTER_FLAG_ROOT_GROUP) && (bSmallEnoughToDraw || (Cluster.Flags & NANITE_CLUSTER_FLAG_ROOT_LEAF));
 					}

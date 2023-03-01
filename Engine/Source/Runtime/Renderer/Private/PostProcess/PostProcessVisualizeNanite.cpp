@@ -31,11 +31,6 @@ void AddVisualizeNanitePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FS
 		const bool bSingleVisualization = VisualizationData.GetActiveModeID() > 0;
 		const bool bOverviewVisualization = VisualizationData.GetActiveModeID() == 0;
 
-		if (VisualizationData.GetActiveModeID() >= NANITE_VISUALIZE_FIRST_NON_POST_PROCESS)
-		{
-			return;
-		}
-
 		// Any individual mode
 		if (bSingleVisualization)
 		{

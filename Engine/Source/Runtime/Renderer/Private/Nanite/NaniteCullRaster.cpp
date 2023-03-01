@@ -1878,6 +1878,10 @@ FCullingContext InitCullingContext(
 		{
 			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING;
 		}
+		if (Configuration.bDrawOnlyRootGeometry)
+		{
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DRAW_ONLY_ROOT_DATA;
+		}
 	}
 
 	// TODO: Might this not break if the view has overridden the InstanceSceneData?
@@ -3821,19 +3825,6 @@ void CullRasterize(
 		CullingContext.NumInstancesPreCull = Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize();
 	}
 
-	
-	{
-		CullingContext.DebugFlags &= ~NANITE_DEBUG_FLAG_RENDER_ONLY_ROOT_DATA;
-		if (SceneView.Family->EngineShowFlags.VisualizeNanite)
-		{
-			const FNaniteVisualizationData& VisualizationData = GetNaniteVisualizationData();
-			if (VisualizationData.IsActive() && VisualizationData.GetActiveModeID() == NANITE_VISUALIZE_ROOT_GEOMETRY)
-			{
-				CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_RENDER_ONLY_ROOT_DATA;
-			}
-		}
-	}
-	
 	if (CullingContext.DebugFlags != 0)
 	{
 		FNaniteStats Stats;
@@ -4303,6 +4294,7 @@ void FCullingContext::FConfiguration::SetViewFlags(const FViewInfo& View)
 	bGameShowFlag						= !!View.Family->EngineShowFlags.Game;
 	bEditorShowFlag						= !!View.Family->EngineShowFlags.Editor;
 	bDrawOnlyVSMInvalidatingGeometry	= !!View.Family->EngineShowFlags.DrawOnlyVSMInvalidatingGeo;
+	bDrawOnlyRootGeometry				= !View.Family->EngineShowFlags.NaniteStreamingGeometry;
 }
 
 } // namespace Nanite
