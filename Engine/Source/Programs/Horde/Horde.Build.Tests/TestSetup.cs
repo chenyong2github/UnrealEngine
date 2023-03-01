@@ -307,7 +307,7 @@ namespace Horde.Build.Tests
 
 		private DashboardController GetDashboardController()
 		{
-			DashboardController dashboardCtrl = new DashboardController(DashboardPreviewCollection, ServerSettingsMon);
+			DashboardController dashboardCtrl = new DashboardController(DashboardPreviewCollection, ServerSettingsMon, GlobalConfigSnapshot);
 			dashboardCtrl.ControllerContext = GetControllerContext();
 			return dashboardCtrl;
 		}
