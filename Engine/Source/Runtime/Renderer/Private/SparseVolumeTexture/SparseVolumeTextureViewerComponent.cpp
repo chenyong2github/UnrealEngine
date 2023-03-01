@@ -154,18 +154,15 @@ void USparseVolumeTextureViewerComponent::SendRenderTransformCommand()
 	if (SparseVolumeTextureViewerSceneProxy)
 	{
 		FVector VolumeExtent = FVector(SVTViewerDefaultVolumeExtent);
-		// In order to keep the contents of an animated SVT sequence stable in world space, we need to account for the fact that
-		// different frames of the sequence have different AABBs.
-		FVector UVScale = FVector::One();
-		FVector UVBias = FVector::Zero();
-		
+		FVector VolumeResolution = FVector(SVTViewerDefaultVolumeExtent * 2.0);
+		FUintVector4 PackedSVTUniforms0 = FUintVector4();
+		FUintVector4 PackedSVTUniforms1 = FUintVector4();
 		if (SparseVolumeTextureFrame)
 		{
-			const FVector VolumeResolution = FVector(SparseVolumeTextureFrame->GetVolumeResolution());
+			VolumeResolution = FVector(SparseVolumeTextureFrame->GetVolumeResolution());
 			const double MaxBoundsDim = FMath::Max(FMath::Max(VolumeResolution.X, VolumeResolution.Y), VolumeResolution.Z);
 			VolumeExtent = VolumeResolution / MaxBoundsDim * SVTViewerDefaultVolumeExtent;
-
-			SparseVolumeTextureFrame->GetFrameUVScaleBias(&UVScale, &UVBias);
+			SparseVolumeTextureFrame->GetPackedUniforms(PackedSVTUniforms0, PackedSVTUniforms1);
 		}
 
 		const FTransform ToWorldTransform = GetComponentTransform();
@@ -178,20 +175,25 @@ void USparseVolumeTextureViewerComponent::SendRenderTransformCommand()
 		const FRotationMatrix WorldToLocalRotation = FRotationMatrix(FRotator(ToWorldTransform.GetRotation().Inverse()));
 		const FMatrix44f ToLocalMatNoScale = FMatrix44f(WorldToLocalRotation);
 		const FMatrix44f ToLocalMat = FMatrix44f(
-			FTranslationMatrix(-ToWorldTransform.GetTranslation()) * WorldToLocalRotation * FScaleMatrix((VolumeExtent * MaxScaling).Reciprocal())
-			* FScaleMatrix(0.5) * FTranslationMatrix(FVector(0.5))
-			* FScaleMatrix(UVScale) * FTranslationMatrix(UVBias)
-			* FScaleMatrix(2.0) * FTranslationMatrix(FVector(-1.0)));
+			FTranslationMatrix(-ToWorldTransform.GetTranslation()) 
+			* WorldToLocalRotation 
+			* FScaleMatrix((VolumeExtent * MaxScaling).Reciprocal()));
 
-		const uint32 CompToVisualize = (uint32)ComponentToVisualize;
+		const FVector3f VolumeRes3f = FVector3f(VolumeResolution.X, VolumeResolution.Y, VolumeResolution.Z);
+
 
 		FSparseVolumeTextureViewerSceneProxy* SVTViewerSceneProxy = SparseVolumeTextureViewerSceneProxy;
 		ENQUEUE_RENDER_COMMAND(FUpdateSparseVolumeTextureViewerProxyTransformCommand)(
-			[SVTViewerSceneProxy, ToLocalMat, ToLocalMatNoScale, CompToVisualize, Ext = Extinction](FRHICommandList& RHICmdList)
+			[SVTViewerSceneProxy, ToLocalMat, ToLocalMatNoScale, CompIdx = (uint32)ComponentToVisualize, Ext = Extinction, Mip = MipLevel, PackedSVTUniforms0, PackedSVTUniforms1, VolumeRes3f]
+		(FRHICommandList& RHICmdList)
 			{
 				SVTViewerSceneProxy->WorldToLocal = ToLocalMat;
 				SVTViewerSceneProxy->WorldToLocalNoScale = ToLocalMatNoScale;
-				SVTViewerSceneProxy->ComponentToVisualize = CompToVisualize;
+				SVTViewerSceneProxy->PackedSVTUniforms0 = PackedSVTUniforms0;
+				SVTViewerSceneProxy->PackedSVTUniforms1 = PackedSVTUniforms1;
+				SVTViewerSceneProxy->VolumeResolution = VolumeRes3f;
+				SVTViewerSceneProxy->MipLevel = Mip;
+				SVTViewerSceneProxy->ComponentToVisualize = CompIdx;
 				SVTViewerSceneProxy->Extinction = Ext;
 			});
 	}

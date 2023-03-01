@@ -26,6 +26,9 @@ class ENGINE_API UMaterialExpressionSparseVolumeTextureSample : public UMaterial
 	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Defaults to 'SparseVolumeTexture' if not specified"))
 	FExpressionInput TextureObject;
 
+	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Defaults to 0 if not specified"))
+	FExpressionInput MipLevel;
+
 protected:
 
 #if WITH_EDITOR

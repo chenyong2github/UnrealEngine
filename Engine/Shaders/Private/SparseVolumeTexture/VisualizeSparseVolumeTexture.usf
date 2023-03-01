@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "/Engine/Private/Common.ush"
+#include "SparseVolumeTextureCommon.ush"
 
 
 #ifdef VERTEX_SHADER
@@ -40,6 +41,13 @@ bool Slabs(float3 p0, float3 p1, float3 rayOrigin, float3 invRaydir, out float o
 	return maxtmin <= mintmax;
 }
 
+Texture3D<uint> SparseVolumeTexturePageTable;
+Texture3D<float4> SparseVolumeTextureA;
+Texture3D<float4> SparseVolumeTextureB;
+uint4 PackedSVTUniforms0;
+uint4 PackedSVTUniforms1;
+float3 SparseVolumeTextureResolution;
+int MipLevel;
 float4 WorldToLocal0;
 float4 WorldToLocal1;
 float4 WorldToLocal2;
@@ -47,18 +55,7 @@ float3 WorldToLocalNoScale0;
 float3 WorldToLocalNoScale1;
 float3 WorldToLocalNoScale2;
 uint ComponentToVisualize;
-uint MipLevel;
 float Extinction;
-
-
-Texture3D<float4> SparseVolumeTextureA;
-Texture3D<float4> SparseVolumeTextureB;
-float3 SparseVolumeTextureResolution;
-
-Texture3D<uint> SparseVolumeTexturePageTable;
-float3 SparseVolumeTexturePageTableResolution;
-
-#define SPARSE_VOLUME_TILE_RES	16
 
 void VisualizeSparseVolumeTexturePS(
 	in float4 SVPos : SV_POSITION,
@@ -101,7 +98,8 @@ void VisualizeSparseVolumeTexturePS(
 
 		float3 StartPos = RayOrig + RayDir * max(0.0, TMin);
 
-		float3 VolumeResolution = SparseVolumeTexturePageTableResolution * SPARSE_VOLUME_TILE_RES;
+		float3 VolumeResolution = SparseVolumeTextureResolution;
+		float3 RcpVolumeResolution = 1.0f / VolumeResolution;
 
 		const float3 StartUVs = StartPos * 0.5f + 0.5f;
 		float3 P = StartUVs * VolumeResolution;
@@ -132,31 +130,27 @@ void VisualizeSparseVolumeTexturePS(
 		tMax.y *= tDelta.y;
 		tMax.z *= tDelta.z;
 
-		float StepLength = float(1 << MipLevel);
+		const FSparseVolumeTextureUniforms SVTUniforms = SparseVolumeTextureUnpackUniforms(PackedSVTUniforms0, PackedSVTUniforms1);
+
+		float StepLength = 1.0f;
 
 		LOOP
 		while (P.x >= 0 && P.y >= 0 && P.z >= 0 && P.x <= VolumeResolution.x && P.y <= VolumeResolution.y && P.z <= VolumeResolution.z)
 		{
-			if (all(P >= 0.0f) && all(P < SparseVolumeTextureResolution))
+			const float3 UVW = P * RcpVolumeResolution;
+			const float3 VoxelCoord = SparseVolumeTextureSamplePageTable(SparseVolumeTexturePageTable, SVTUniforms, UVW, MipLevel);
+			if (any(VoxelCoord >= SVTUniforms.TileSize)) // skip on null tile
 			{
-				const float3 PageCoordF = floor(P * (1.0 / SPARSE_VOLUME_TILE_RES));
-				const uint EncodedPage = SparseVolumeTexturePageTable.Load(int4(int3(PageCoordF), 0));
-				const int3 TileCoord = int3(
-					EncodedPage & 0x7FF,
-					(EncodedPage >> 11) & 0x7FF,
-					(EncodedPage >> 22) & 0x3FF);
-
-				const int3 VoxelCoord = TileCoord * SPARSE_VOLUME_TILE_RES + int3(P - PageCoordF * SPARSE_VOLUME_TILE_RES);
+				const int PhysicalTileDataIndex = ComponentToVisualize < 4 ? 0 : 1;
+				const float4 VoxelData = SparseVolumeTextureSamplePhysicalTileData(SparseVolumeTextureA, SparseVolumeTextureB, VoxelCoord, PhysicalTileDataIndex);
 
 				float Density = 0.0f;
 				if (ComponentToVisualize < 4)
 				{
-					float4 VoxelData = SparseVolumeTextureA.Load(int4(VoxelCoord, 0));
 					Density = VoxelData[ComponentToVisualize];
 				}
 				else
 				{
-					float4 VoxelData = SparseVolumeTextureB.Load(int4(VoxelCoord, 0));
 					Density = VoxelData[min(ComponentToVisualize - 4, 3u)];
 				}
 

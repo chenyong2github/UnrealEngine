@@ -18,158 +18,25 @@ namespace UE { namespace DerivedData { class FRequestOwner; } }
 
 #define SPARSE_VOLUME_TILE_RES	16
 
-uint32 SparseVolumeTexturePackPageTableEntry(const FIntVector3& Coord);
-FIntVector3 SparseVolumeTextureUnpackPageTableEntry(uint32 Packed);
+struct FSparseVolumeTextureData;
+class FSparseVolumeTextureSceneProxy;
 
-struct ENGINE_API FSparseVolumeAssetHeader
+struct ENGINE_API FSparseVolumeTextureHeader
 {
+	static const uint32 kVersion = 0; // The current data format version for the header.
+	uint32 Version = kVersion; // This version can be used to convert existing header to new version later.
+
 	FIntVector3 VirtualVolumeResolution = FIntVector3(0, 0, 0);
 	FIntVector3 VirtualVolumeAABBMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
 	FIntVector3 VirtualVolumeAABBMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
 	FIntVector3 PageTableVolumeResolution = FIntVector3(0, 0, 0);
 	FIntVector3 PageTableVolumeAABBMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
 	FIntVector3 PageTableVolumeAABBMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
-	FIntVector3 TileDataVolumeResolution = FIntVector3(0, 0, 0);
 	TStaticArray<EPixelFormat, 2> AttributesFormats = TStaticArray<EPixelFormat, 2>(InPlace, PF_Unknown);
-	int32 MipLevel = 0;
-	bool bHasNullTile = false;
-
-	// The current data format version for the header.
-	static const uint32 kVersion = 0;
-
-	// This version can be used to convert existing header to new version later.
-	uint32 Version = kVersion;
+	TStaticArray<FVector4f, 2> NullTileValues = TStaticArray<FVector4f, 2>(InPlace, FVector4f());
 
 	void Serialize(FArchive& Ar);
 };
-
-class ISparseVolumeRawSourceConstructionAdapter
-{
-public:
-	struct FAttributesInfo
-	{
-		EPixelFormat Format;
-		FVector4f FallbackValue;
-		FVector4f NormalizeScale;
-		FVector4f NormalizeBias;
-		bool bNormalized;
-	};
-
-	virtual void GetAttributesInfo(FAttributesInfo& OutInfoA, FAttributesInfo& OutInfoB) const = 0;
-	virtual FIntVector3 GetAABBMin() const = 0;
-	virtual FIntVector3 GetAABBMax() const = 0;
-	virtual FIntVector3 GetResolution() const = 0;
-	virtual void IteratePhysicalSource(TFunctionRef<void(const FIntVector3& Coord, int32 AttributesIdx, int32 ComponentIdx, float VoxelValue)> OnVisit) const = 0;
-	virtual ~ISparseVolumeRawSourceConstructionAdapter() = default;
-};
-
-// The structure represent the source asset in high quality. It is used to cook the runtime data
-struct ENGINE_API FSparseVolumeRawSource
-{
-	FSparseVolumeAssetHeader Header;
-	TArray<uint32> PageTable;
-	TArray<uint8> PhysicalTileDataA;
-	TArray<uint8> PhysicalTileDataB;
-
-	// The current data format version for the raw source data.
-	static const uint32 kVersion = 0;
-
-	// This version can be used to convert existing source data to new version later.
-	uint32 Version;
-
-	void Serialize(FArchive& Ar);
-
-	bool Construct(const ISparseVolumeRawSourceConstructionAdapter& Adapter);
-	uint32 ReadPageTablePacked(const FIntVector3& PageTableCoord) const;
-	FIntVector3 ReadPageTable(const FIntVector3& PageTableCoord) const;
-	FVector4f ReadTileDataVoxel(const FIntVector3& TileDataCoord, int32 AttributesIdx) const;
-	FVector4f Sample(const FIntVector3& VolumeCoord, int32 AttributesIdx) const;
-	void Sample(const FIntVector3& VolumeCoord, FVector4f& OutAttributesA, FVector4f& OutAttributesB) const;
-	void WriteTileDataVoxel(const FIntVector3& TileDataCoord, int32 AttributesIdx, const FVector4f& Value, int32 DstComponent = -1);
-	void FillNullTile(const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
-	FSparseVolumeRawSource GenerateMipMap() const;
-
-	FSparseVolumeRawSource()
-		: Version(kVersion)
-	{
-	}
-};
-
-// The structure represent the runtime data cooked runtime data.
-struct ENGINE_API FSparseVolumeTextureRuntime
-{
-	FSparseVolumeAssetHeader	Header;
-	TArray<uint32>				PageTable;
-	TArray<uint8>				PhysicalTileDataA;
-	TArray<uint8>				PhysicalTileDataB;
-
-	void SetAsDefaultTexture();
-
-	// The current data format version for the raw source data.
-	static const uint32 kVersion = 0;
-
-	// This version can be used to convert existing source data to new version later.
-	uint32 Version;
-
-	void Serialize(FArchive& Ar);
-
-	FSparseVolumeTextureRuntime()
-		: Header()
-		, Version(kVersion)
-	{
-	}
-};
-
-
-class FSparseVolumeTextureSceneProxy : public FRenderResource
-{
-public:
-
-	FSparseVolumeTextureSceneProxy();
-	virtual ~FSparseVolumeTextureSceneProxy() override;
-
-	FSparseVolumeTextureRuntime& GetRuntimeData()
-	{
-		return SparseVolumeTextureRuntime;
-	}
-
-	const FSparseVolumeTextureRuntime& GetRuntimeData() const
-	{
-		return SparseVolumeTextureRuntime;
-	}
-
-	const FSparseVolumeAssetHeader& GetHeader() const 
-	{
-		return SparseVolumeTextureRuntime.Header;
-	}
-
-	FTextureRHIRef GetPhysicalTileDataATextureRHI() const
-	{
-		return PhysicalTileDataATextureRHI;
-	}
-	FTextureRHIRef GetPhysicalTileDataBTextureRHI() const
-	{
-		return PhysicalTileDataBTextureRHI;
-	}
-	FTextureRHIRef GetPageTableTextureRHI() const
-	{
-		return PageTableTextureRHI;
-	}
-
-	void GetMemorySize(SIZE_T* SizeCPU, SIZE_T* SizeGPU) const;
-
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
-
-private:
-
-	FSparseVolumeTextureRuntime			SparseVolumeTextureRuntime;
-
-	FTextureRHIRef						PageTableTextureRHI;
-	FTextureRHIRef						PhysicalTileDataATextureRHI;
-	FTextureRHIRef						PhysicalTileDataBTextureRHI;
-};
-
 
 struct ENGINE_API FSparseVolumeTextureFrame
 {
@@ -186,11 +53,9 @@ struct ENGINE_API FSparseVolumeTextureFrame
 
 	FSparseVolumeTextureFrame();
 	virtual ~FSparseVolumeTextureFrame();
-	bool BuildRuntimeData(FSparseVolumeTextureRuntime* OutRuntimeData);
-	void Serialize(FArchive& Ar, UStreamableSparseVolumeTexture* Owner, int32 FrameIndex);
+	bool BuildDerivedData(FSparseVolumeTextureData* OutMippedTextureData);
+	void Serialize(FArchive& Ar, class UStreamableSparseVolumeTexture* Owner, int32 FrameIndex);
 };
-
-using FSparseVolumeTextureFrameMips = TArray<FSparseVolumeTextureFrame, TInlineAllocator<1u>>;
 
 
 enum ESparseVolumeTextureShaderUniform
@@ -254,6 +119,9 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Rendering")
 	FIntVector VolumeResolution;
 
+	UPROPERTY(VisibleAnywhere, Category = "Rendering")
+	int32 NumMipLevels;
+
 	UStreamableSparseVolumeTexture();
 	virtual ~UStreamableSparseVolumeTexture() = default;
 
@@ -270,16 +138,16 @@ public:
 
 	//~ Begin USparseVolumeTexture Interface.
 	int32 GetNumFrames() const override { return Frames.Num(); }
-	int32 GetNumMipLevels() const override { return Frames.IsEmpty() ? 0 : Frames[0].Num(); }
+	int32 GetNumMipLevels() const override { return NumMipLevels; }
 	FIntVector GetVolumeResolution() const override { return VolumeResolution; };
 	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return GetStreamedFrameProxyOrFallback(0 /*FrameIndex*/, 0 /*MipLevel*/); };
 	//~ End USparseVolumeTexture Interface.
 
 	const FSparseVolumeTextureSceneProxy* GetStreamedFrameProxyOrFallback(int32 FrameIndex, int32 MipLevel) const;
-	TArrayView<const FSparseVolumeTextureFrameMips> GetFrames() const;
+	TArrayView<const FSparseVolumeTextureFrame> GetFrames() const;
 
 protected:
-	TArray<FSparseVolumeTextureFrameMips> Frames;
+	TArray<FSparseVolumeTextureFrame> Frames;
 
 	void GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
 	void GenerateOrLoadDDCRuntimeDataForFrame(FSparseVolumeTextureFrame& Frame, UE::DerivedData::FRequestOwner& DDCRequestOwner);
@@ -320,10 +188,6 @@ public:
 	//~ Begin USparseVolumeTexture Interface.
 	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override;
 	//~ End USparseVolumeTexture Interface.
-
-	// Used for debugging a specific frame of an animated sequence.
-	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureFrameSceneProxy(int32 FrameIndex, int32 MipLevel) const;
-	const FSparseVolumeAssetHeader* GetSparseVolumeTextureFrameHeader(int32 FrameIndex, int32 MipLevel) const;
 
 private:
 

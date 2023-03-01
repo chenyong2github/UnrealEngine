@@ -20,6 +20,10 @@ public:
 	const FSparseVolumeTextureSceneProxy* SparseVolumeTextureSceneProxy = nullptr;
 	FMatrix44f WorldToLocal;
 	FMatrix44f WorldToLocalNoScale;
+	FUintVector4 PackedSVTUniforms0;
+	FUintVector4 PackedSVTUniforms1;
+	FVector3f VolumeResolution;
+	int32 MipLevel;
 	uint32 ComponentToVisualize;
 	float Extinction;
 

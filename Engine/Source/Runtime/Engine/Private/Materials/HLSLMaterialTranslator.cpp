@@ -12621,9 +12621,9 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureUniformParameter(FName Paramet
 	return AddUniformExpression(new FMaterialUniformExpressionSparseVolumeTextureUniform(ParameterInfo, TextureIndex, VectorIndex), GetMaterialValueType(Type), TEXT(""));
 }
 
-int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable(int32 SparseVolumeTextureIndex, int32 UVWIndex)
+int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable(int32 SparseVolumeTextureIndex, int32 UVWIndex, int32 MipLevelIndex)
 {
-	if (SparseVolumeTextureIndex == INDEX_NONE || UVWIndex == INDEX_NONE)
+	if (SparseVolumeTextureIndex == INDEX_NONE || UVWIndex == INDEX_NONE || MipLevelIndex == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
@@ -12632,12 +12632,6 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable(int32 SparseVo
 	if ((TextureType & MCT_SparseVolumeTexture) == 0)
 	{
 		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable expects MCT_SparseVolumeTexture but was passed %s ERROR."), DescribeType(TextureType));
-	}
-
-	EMaterialValueType UVWType = GetParameterType(UVWIndex);
-	if ((UVWType & MCT_Float3) == 0)
-	{
-		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable expects MCT_Float3 as UVW input but was passed %s ERROR."), DescribeType(UVWType));
 	}
 
 	FMaterialUniformExpression* UniformExpression = GetParameterUniformExpression(SparseVolumeTextureIndex);
@@ -12651,6 +12645,9 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable(int32 SparseVo
 		return Errorf(TEXT("The provided uniform expression is not a texture"));
 	}
 
+	int32 UVWAsFloat3Index = ForceCast(UVWIndex, MCT_Float3);
+	int32 MipLevelAsFloatIndex = ForceCast(MipLevelIndex, MCT_Float1);
+
 	// Make sure the SVT has been added to UniformTextureExpressions
 	AccessUniformExpression(SparseVolumeTextureIndex);
 
@@ -12658,8 +12655,8 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable(int32 SparseVo
 	check(UniformTextureExpressions[(uint32)EMaterialTextureParameterType::SparseVolume].IsValidIndex(SVTReferenceIndex));
 
 	AddEstimatedTextureSample();
-	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureSamplePageTable(Material.SparseVolumeTexturePageTable_%d, %s, %s)"),
-		SVTReferenceIndex , *GetParameterCode(SparseVolumeTextureIndex), *GetParameterCode(UVWIndex));
+	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureSamplePageTable(Material.SparseVolumeTexturePageTable_%d, %s, %s, %s)"),
+		SVTReferenceIndex , *GetParameterCode(SparseVolumeTextureIndex), *GetParameterCode(UVWAsFloat3Index), *GetParameterCode(MipLevelAsFloatIndex));
 	return AddCodeChunk(MCT_Float3, *SampleCode);
 }
 
@@ -12676,18 +12673,6 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePhysicalTileData(int32 S
 		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSamplePhysicalTileData expects MCT_SparseVolumeTexture but was passed %s ERROR."), DescribeType(TextureType));
 	}
 
-	EMaterialValueType VoxelCoordType = GetParameterType(VoxelCoordIndex);
-	if ((VoxelCoordType & MCT_Float3) == 0)
-	{
-		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSamplePhysicalTileData expects MCT_Float3 as VoxelCoord input but was passed %s ERROR."), DescribeType(VoxelCoordType));
-	}
-
-	EMaterialValueType IndexType = GetParameterType(PhysicalTileDataIdxIndex);
-	if ((IndexType & MCT_Float1) == 0 && (IndexType & MCT_UInt1) == 0)
-	{
-		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSamplePhysicalTileData expects MCT_Float1 or MCT_UInt1 as PhysicalTileDataIndex input but was passed %s ERROR."), DescribeType(IndexType));
-	}
-
 	FMaterialUniformExpression* UniformExpression = GetParameterUniformExpression(SparseVolumeTextureIndex);
 	if (UniformExpression == nullptr)
 	{
@@ -12699,6 +12684,9 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePhysicalTileData(int32 S
 		return Errorf(TEXT("The provided uniform expression is not a texture"));
 	}
 
+	int32 VoxelCoordAsFloat3Index = ForceCast(VoxelCoordIndex, MCT_Float3);
+	int32 IndexAsFloatIndex = ForceCast(PhysicalTileDataIdxIndex, MCT_Float1);
+
 	// Make sure the SVT has been added to UniformTextureExpressions
 	AccessUniformExpression(SparseVolumeTextureIndex);
 
@@ -12707,7 +12695,7 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePhysicalTileData(int32 S
 
 	AddEstimatedTextureSample();
 	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureSamplePhysicalTileData(Material.SparseVolumeTexturePhysicalA_%d, Material.SparseVolumeTexturePhysicalB_%d, %s, %s)"),
-		SVTReferenceIndex, SVTReferenceIndex, *GetParameterCode(VoxelCoordIndex), *GetParameterCode(PhysicalTileDataIdxIndex));
+		SVTReferenceIndex, SVTReferenceIndex, *GetParameterCode(VoxelCoordAsFloat3Index), *GetParameterCode(IndexAsFloatIndex));
 	return AddCodeChunk(MCT_Float4, *SampleCode);
 }
 

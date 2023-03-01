@@ -2,6 +2,8 @@
 
 #include "SparseVolumeTexture/SparseVolumeTextureStreaming.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
+#include "SparseVolumeTexture/SparseVolumeTextureSceneProxy.h"
+#include "SparseVolumeTexture/SparseVolumeTextureData.h"
 #include "RenderingThread.h"
 
 #include "Serialization/LargeMemoryReader.h"
@@ -77,9 +79,8 @@ bool FStreamingSparseVolumeTextureData::Initialize(UStreamableSparseVolumeTextur
 	check(LoadedChunks.IsEmpty());
 	check(LoadedChunkIndices.IsEmpty());
 	check(!InSparseVolumeTexture->GetFrames().IsEmpty()); // Must hold at least the first frame
-	check(!InSparseVolumeTexture->GetFrames()[0].IsEmpty()); // Must hold at least the first frame
 
-	AddNewLoadedChunk(0, InSparseVolumeTexture->GetFrames()[0][0].SparseVolumeTextureSceneProxy);
+	AddNewLoadedChunk(0, InSparseVolumeTexture->GetFrames()[0].SparseVolumeTextureSceneProxy);
 	LoadedChunkIndices.Add(0);
 
 	return true;
@@ -239,15 +240,13 @@ void FStreamingSparseVolumeTextureData::BeginPendingRequests(const TArray<int32>
 
 	// Set off all IO Requests
 	const int32 NumFrames = SparseVolumeTexture->GetNumFrames();
-	const int32 NumMipLevels = SparseVolumeTexture->GetNumMipLevels();
-	check(NumFrames > 0 && NumMipLevels > 0);
+	check(NumFrames > 0);
 	const EAsyncIOPriorityAndFlags AsyncIOPriority = AIOP_CriticalPath; //Set to Crit temporarily as emergency speculative fix for streaming issue
-	TArrayView<const FSparseVolumeTextureFrameMips> SVTFrames = SparseVolumeTexture->GetFrames();
+	TArrayView<const FSparseVolumeTextureFrame> SVTFrames = SparseVolumeTexture->GetFrames();
 	for (int32 IndexToLoad : IndicesToLoad)
 	{
 		const int32 FrameToLoad = SVTChunkIndexToFrame(IndexToLoad, NumFrames) % NumFrames;
-		const int32 MipLevelToLoad = FMath::Clamp(SVTChunkIndexToMipLevel(IndexToLoad, NumFrames), 0, NumMipLevels - 1);
-		const FSparseVolumeTextureFrame& Frame = SVTFrames[FrameToLoad][MipLevelToLoad];
+		const FSparseVolumeTextureFrame& Frame = SVTFrames[FrameToLoad];
 		FSparseVolumeTextureSceneProxy* ExistingProxy = Frame.SparseVolumeTextureSceneProxy;
 		FLoadedSparseVolumeTextureChunk& ChunkStorage = AddNewLoadedChunk(IndexToLoad, ExistingProxy);
 
@@ -459,6 +458,7 @@ void FSparseVolumeTextureStreamingManager::GetMemorySizeForSparseVolumeTexture(c
 
 const FSparseVolumeTextureSceneProxy* FSparseVolumeTextureStreamingManager::GetSparseVolumeTextureSceneProxy(const UStreamableSparseVolumeTexture* SparseVolumeTexture, int32 FrameIndex, int32 MipLevel, bool bTrackAsRequested)
 {
+	MipLevel = 0; // Currently streaming all mips at once
 	FScopeLock Lock(&CriticalSection);
 
 	FStreamingSparseVolumeTextureData* StreamingData = StreamingSparseVolumeTextures.FindRef(SparseVolumeTexture);
@@ -529,7 +529,9 @@ void FSparseVolumeTextureStreamingManager::OnAsyncFileCallback(FStreamingSparseV
 		FMemoryReaderView Reader(MemView);
 
 		FSparseVolumeTextureSceneProxy* NewProxy = new FSparseVolumeTextureSceneProxy();
-		NewProxy->GetRuntimeData().Serialize(Reader);
+		FSparseVolumeTextureData TextureData;
+		TextureData.Serialize(Reader);
+		NewProxy->GetRuntimeData().Create(TextureData);
 		BeginInitResource(NewProxy);
 
 		ChunkStorage.Proxy = NewProxy;

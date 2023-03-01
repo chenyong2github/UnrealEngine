@@ -17,6 +17,7 @@
 #include "GlobalRenderResources.h"
 #include "Shader/PreshaderTypes.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
+#include "SparseVolumeTexture/SparseVolumeTextureSceneProxy.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "TextureResource.h"
 

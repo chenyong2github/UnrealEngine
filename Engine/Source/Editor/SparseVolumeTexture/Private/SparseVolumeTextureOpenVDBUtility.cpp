@@ -5,6 +5,7 @@
 #include "SparseVolumeTextureOpenVDBUtility.h"
 #include "SparseVolumeTextureOpenVDB.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
+#include "SparseVolumeTexture/SparseVolumeTextureData.h"
 #include "OpenVDBGridAdapter.h"
 #include "OpenVDBImportOptions.h"
 
@@ -175,13 +176,6 @@ static FOpenVDBGridInfo GetOpenVDBGridInfo(openvdb::GridBase::Ptr Grid, uint32 G
 
 bool IsOpenVDBGridValid(const FOpenVDBGridInfo& GridInfo, const FString& Filename)
 {
-	if (GridInfo.VolumeActiveDim.X * GridInfo.VolumeActiveDim.Y * GridInfo.VolumeActiveDim.Z == 0)
-	{
-		// SVT_TODO we should gently handle that case
-		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("OpenVDB grid is empty due to volume size being 0: %s"), *Filename);
-		return false;
-	}
-
 	if (!GridInfo.bHasUniformVoxels)
 	{
 		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("OpenVDB importer cannot handle non uniform voxels: %s"), *Filename);
@@ -258,7 +252,7 @@ static EPixelFormat GetMultiComponentFormat(ESparseVolumeAttributesFormat Format
 
 #if OPENVDB_AVAILABLE
 
-class FSparseVolumeRawSourceConstructionOpenVDBAdapter : public ISparseVolumeRawSourceConstructionAdapter
+class FSparseVolumeTextureDataConstructionOpenVDBAdapter : public ISparseVolumeTextureDataConstructionAdapter
 {
 public:
 
@@ -468,10 +462,10 @@ private:
 
 #endif // OPENVDB_AVAILABLE
 
-bool ConvertOpenVDBToSparseVolumeTexture(TArray64<uint8>& SourceFile, const FOpenVDBImportOptions& ImportOptions, const FIntVector3& VolumeBoundsMin, FSparseVolumeRawSource& OutResult)
+bool ConvertOpenVDBToSparseVolumeTexture(TArray64<uint8>& SourceFile, const FOpenVDBImportOptions& ImportOptions, const FIntVector3& VolumeBoundsMin, FSparseVolumeTextureData& OutResult)
 {
 #if OPENVDB_AVAILABLE
-	FSparseVolumeRawSourceConstructionOpenVDBAdapter Adapter;
+	FSparseVolumeTextureDataConstructionOpenVDBAdapter Adapter;
 	if (!Adapter.Initialize(SourceFile, ImportOptions, VolumeBoundsMin))
 	{
 		return false;

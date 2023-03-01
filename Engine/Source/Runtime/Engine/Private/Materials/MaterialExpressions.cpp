@@ -26179,6 +26179,9 @@ uint32 UMaterialExpressionSparseVolumeTextureSample::GetInputType(int32 InputInd
 		return MCT_Float3;
 	case 1:
 		return MCT_SparseVolumeTexture;
+	case 2:
+		return MCT_Float1;
+	default:
 		break;
 	}
 
@@ -26218,11 +26221,35 @@ int32 UMaterialExpressionSparseVolumeTextureSample::Compile(class FMaterialCompi
 			return INDEX_NONE;
 		}
 
-		int32 UVWIndex = CompileWithDefaultFloat3(Compiler, Coordinates, 0.0f, 0.0f, 0.0f);
-		int32 VoxelCoordIndex = Compiler->SparseVolumeTextureSamplePageTable(SparseVolumeTextureIndex, UVWIndex);
-		int32 PhysicalTileDataIdxIndex = Compiler->Constant(OutputIndex);
+		UMaterialExpression* MipLevelExpression = MipLevel.GetTracedInput().Expression;
 
-		return Compiler->SparseVolumeTextureSamplePhysicalTileData(SparseVolumeTextureIndex, VoxelCoordIndex, PhysicalTileDataIdxIndex);
+		// Shared inputs for both potential samples
+		int32 UVWIndex = CompileWithDefaultFloat3(Compiler, Coordinates, 0.0f, 0.0f, 0.0f);
+		int32 PhysicalTileDataIdxIndex = Compiler->Constant(OutputIndex);
+		int32 MipLevelInputIndex = MipLevelExpression ? MipLevel.Compile(Compiler) : INDEX_NONE;
+		
+		// Sample the first mip
+		int32 MipLevel0Index = MipLevelExpression ? Compiler->Floor(MipLevelInputIndex) : Compiler->Constant(0.0f);
+		int32 VoxelCoordMip0Index = Compiler->SparseVolumeTextureSamplePageTable(SparseVolumeTextureIndex, UVWIndex, MipLevel0Index);
+		int32 Mip0SampleIndex = Compiler->SparseVolumeTextureSamplePhysicalTileData(SparseVolumeTextureIndex, VoxelCoordMip0Index, PhysicalTileDataIdxIndex);
+
+		if (MipLevelExpression)
+		{
+			// Sample the second mip
+			// SVT_TODO: Try to optimize out this second sample if LerpAlpha == 0. Might need to do that in HLSL.
+			int32 MipLevel1Index = Compiler->Ceil(MipLevelInputIndex);
+			int32 VoxelCoordMip1Index = Compiler->SparseVolumeTextureSamplePageTable(SparseVolumeTextureIndex, UVWIndex, MipLevel1Index);
+			int32 Mip1SampleIndex = Compiler->SparseVolumeTextureSamplePhysicalTileData(SparseVolumeTextureIndex, VoxelCoordMip1Index, PhysicalTileDataIdxIndex);
+
+			// Lerp
+			int32 LerpAlphaIndex = Compiler->Frac(MipLevelInputIndex);
+			int32 LerpedResultIndex = Compiler->Lerp(Mip0SampleIndex, Mip1SampleIndex, LerpAlphaIndex);
+			return LerpedResultIndex;
+		}
+		else
+		{
+			return Mip0SampleIndex;
+		}
 	}
 
 	return INDEX_NONE;

@@ -3,6 +3,7 @@
 #include "SparseVolumeTextureFactory.h"
 
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
+#include "SparseVolumeTexture/SparseVolumeTextureData.h"
 
 #if WITH_EDITOR
 
@@ -478,7 +479,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 	{
 		int32 Levels = 1;
 		FIntVector3 Resolution = VolumeBoundsMax - VolumeBoundsMin;
-		while (Resolution.X > 1 || Resolution.Y > 1 || Resolution.Z > 1)
+		while (Resolution.X > SPARSE_VOLUME_TILE_RES || Resolution.Y > SPARSE_VOLUME_TILE_RES || Resolution.Z > SPARSE_VOLUME_TILE_RES)
 		{
 			Resolution /= 2;
 			++Levels;
@@ -503,11 +504,10 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		ExpandVolumeBounds(ImportOptions, PreviewData.GridInfo, VolumeBoundsMin, VolumeBoundsMax);
 		StaticSVTexture->VolumeResolution = VolumeBoundsMax - VolumeBoundsMin;
 		StaticSVTexture->Frames.SetNum(1);
+		StaticSVTexture->NumMipLevels = ComputeNumMipLevels(VolumeBoundsMin, VolumeBoundsMax);
 
-		const int32 NumMipLevels = ComputeNumMipLevels(VolumeBoundsMin, VolumeBoundsMax);
-
-		FSparseVolumeRawSource SparseVolumeRawSource{};
-		const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(PreviewData.LoadedFile, ImportOptions, VolumeBoundsMin, SparseVolumeRawSource);
+		FSparseVolumeTextureData TextureData{};
+		const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(PreviewData.LoadedFile, ImportOptions, VolumeBoundsMin, TextureData);
 
 		if (!bConversionSuccess)
 		{
@@ -516,18 +516,8 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		}
 
 		// Serialize the raw source data into the asset object.
-		// After serializing the data, we generate the next mip level by downsampling the current one (with a call to GenerateMipMap())
-		// and then repeating the loop until we processed all levels.
-		StaticSVTexture->Frames[0].SetNum(NumMipLevels);
-		for (int32 MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
-		{
-			UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(StaticSVTexture->Frames[0][MipLevel].RawData);
-			SparseVolumeRawSource.Serialize(RawDataArchiveWriter);
-			if ((MipLevel + 1) < NumMipLevels)
-			{
-				SparseVolumeRawSource = SparseVolumeRawSource.GenerateMipMap();
-			}
-		}
+		UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(StaticSVTexture->Frames[0].RawData);
+		TextureData.Serialize(RawDataArchiveWriter);
 
 		if (ImportTask.ShouldCancel())
 		{
@@ -626,7 +616,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 		ImportTask.EnterProgressFrame(1.0f, LOCTEXT("ConvertingVDBAnim", "Converting OpenVDB animation"));
 
-		const int32 NumMipLevels = ComputeNumMipLevels(VolumeBoundsMin, VolumeBoundsMax);
+		AnimatedSVTexture->NumMipLevels = ComputeNumMipLevels(VolumeBoundsMin, VolumeBoundsMax);
 
 		FEvent* AllTasksFinishedEvent = FPlatformProcess::GetSynchEventFromPool();
 		std::atomic_int FinishedTasksCounter = 0; // Will be incremented even if frame processing failed
@@ -654,7 +644,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 			AsyncTask(ENamedThreads::AnyNormalThreadNormalTask, 
 				[FrameIdx, NumFrames, &PreviewData, &ImportOptions, &AnimatedSVTexture,
-				AllTasksFinishedEvent, &bErrored, &bCanceled, &FinishedTasksCounter, &ProcessedFramesCounter, &VolumeBoundsMin, &NumMipLevels]()
+				AllTasksFinishedEvent, &bErrored, &bCanceled, &FinishedTasksCounter, &ProcessedFramesCounter, &VolumeBoundsMin]()
 				{
 					// Ensure the FinishedTasksCounter will be incremented in all cases
 					FScopedIncrementer Incremeter(FinishedTasksCounter, NumFrames, AllTasksFinishedEvent);
@@ -677,8 +667,8 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 						return;
 					}
 
-					FSparseVolumeRawSource SparseVolumeRawSource{};
-					const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(LoadedFrameFile, ImportOptions, VolumeBoundsMin, SparseVolumeRawSource);
+					FSparseVolumeTextureData TextureData{};
+					const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(LoadedFrameFile, ImportOptions, VolumeBoundsMin, TextureData);
 
 					if (!bConversionSuccess)
 					{
@@ -688,18 +678,8 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 					}
 
 					// Serialize the raw source data from this frame into the asset object.
-					// After serializing the data, we generate the next mip level by downsampling the current one (with a call to GenerateMipMap())
-					// and then repeating the loop until we processed all levels.
-					AnimatedSVTexture->Frames[FrameIdx].SetNum(NumMipLevels);
-					for (int32 MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
-					{
-						UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(AnimatedSVTexture->Frames[FrameIdx][MipLevel].RawData);
-						SparseVolumeRawSource.Serialize(RawDataArchiveWriter);
-						if ((MipLevel + 1) < NumMipLevels)
-						{
-							SparseVolumeRawSource = SparseVolumeRawSource.GenerateMipMap();
-						}
-					}
+					UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(AnimatedSVTexture->Frames[FrameIdx].RawData);
+					TextureData.Serialize(RawDataArchiveWriter);
 
 					// Increment ProcessedFramesCounter
 					ProcessedFramesCounter.fetch_add(1);
