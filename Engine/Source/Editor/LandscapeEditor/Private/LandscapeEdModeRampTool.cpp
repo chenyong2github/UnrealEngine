@@ -491,7 +491,7 @@ public:
 
 		FScopedTransaction Transaction(LOCTEXT("Ramp_Apply", "Landscape Editing: Add ramp"));
 		ALandscape* Landscape = EdMode->GetLandscape();
-		FScopedSetLandscapeEditingLayer Scope(Landscape, EdMode->GetCurrentLayerGuid(), [&] { if (Landscape) { Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Heightmap_All); } });
+		FGuid EditLayerGUID = EdMode->GetCurrentLayerGuid();
 
 		const ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get();
 		const ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
@@ -540,9 +540,12 @@ public:
 			return;
 		}
 
-		FLandscapeEditDataInterface LandscapeEdit(EdMode->CurrentToolTarget.LandscapeInfo.Get());
+		// construct the caches, and set them to work in the EditLayer
+		FLandscapeEditDataInterface LandscapeEdit(EdMode->CurrentToolTarget.LandscapeInfo.Get(), EditLayerGUID);
 		FLandscapeHeightCache HeightCache(EdMode->CurrentToolTarget);
 		FLandscapeLayerDataCache<FHeightmapToolTarget> LayerHeightDataCache(EdMode->CurrentToolTarget, HeightCache);
+		LayerHeightDataCache.SetCacheEditingLayer(EditLayerGUID);
+
 		const bool bCombinedLayerOperation = EdMode->UISettings->bCombinedLayersOperation && Landscape && Landscape->HasLayersContent();
 		LayerHeightDataCache.Initialize(EdMode->CurrentToolTarget.LandscapeInfo.Get(), bCombinedLayerOperation);
 
@@ -608,6 +611,10 @@ public:
 				}
 			}
 		}
+ 		if (Landscape)
+ 		{
+ 			Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Heightmap_All);
+ 		}
 	}
 
 	bool CanApplyRamp()

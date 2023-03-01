@@ -285,6 +285,8 @@ struct TLandscapeEditCache
 {
 public:
 	typedef AccessorType DataType;
+	typedef Accessor AccessorClass;
+
 	Accessor DataAccess;
 
 	TLandscapeEditCache(const FLandscapeToolTarget& InTarget)
@@ -917,6 +919,7 @@ public:
 	FLandscapeLayerDataCache(const FLandscapeToolTarget& InTarget, typename ToolTarget::CacheClass& Cache)
 		: LandscapeInfo(nullptr)
 		, Landscape(nullptr)
+		, EditingLayerGuid()
 		, EditingLayerIndex(MAX_uint8)
 		, bIsInitialized(false)
 		, bCombinedLayerOperation(false)
@@ -927,8 +930,16 @@ public:
 	{
 	}
 
+	void SetCacheEditingLayer(const FGuid& InEditLayerGUID)
+	{
+		CacheUpToEditingLayer.DataAccess.SetEditLayer(InEditLayerGUID);
+		CacheBottomLayers.DataAccess.SetEditLayer(InEditLayerGUID);
+		EditingLayerGuid = InEditLayerGUID;
+	}
+
 	void Initialize(ULandscapeInfo* InLandscapeInfo, bool InCombinedLayerOperation)
 	{
+		check(EditingLayerGuid.IsSet());	// you must call SetCacheEditingLayer before Initialize
 		if (!bIsInitialized)
 		{
 			LandscapeInfo = InLandscapeInfo;
@@ -936,12 +947,11 @@ public:
 			bCombinedLayerOperation = Landscape && Landscape->HasLayersContent() && InCombinedLayerOperation && bTargetIsHeightmap;
 			if (bCombinedLayerOperation)
 			{
-				EditingLayerGuid = Landscape->GetEditingLayer();
 				for (int i = 0; i < Landscape->GetLayerCount(); ++i)
 				{
 					FLandscapeLayer* CurrentLayer = Landscape->GetLayer(i);
 					BackupLayerVisibility.Add(CurrentLayer->bVisible);
-					if (CurrentLayer->Guid == EditingLayerGuid)
+					if (CurrentLayer->Guid == EditingLayerGuid.GetValue())
 					{
 						EditingLayerIndex = i;
 					}
@@ -952,6 +962,7 @@ public:
 		}
 	}
 
+	// read values in the specified rectangle into the array
 	void Read(int32 X1, int32 Y1, int32 X2, int32 Y2, TArray<typename ToolTarget::CacheClass::DataType>& Data)
 	{
 		check(bIsInitialized);
@@ -987,7 +998,10 @@ public:
 				return DesiredCacheBounds;
 			};
 
-			FScopedSetLandscapeEditingLayer Scope(Landscape, FGuid());
+			// temporarily switch to working on the final runtime data, so we can gather the combined layer data into the caches
+			FGuid PreviousLayerGUID = EditingLayerGuid.GetValue();
+			SetCacheEditingLayer(FGuid());
+
 			CacheUpToEditingLayer.GetDataAndCache(X1, Y1, X2, Y2, Data, OnCacheUpdating);
 			// Release Texture Mips that will be Locked by the next SynchronousUpdateComponentVisibilityForHeight
 			CacheUpToEditingLayer.DataAccess.Flush();
@@ -997,6 +1011,9 @@ public:
 			CacheBottomLayers.GetDataAndCache(X1, Y1, X2, Y2, BottomLayersData, OnCacheUpdating);
 			// Do the same here for consistency
 			CacheBottomLayers.DataAccess.Flush();
+			
+			SetCacheEditingLayer(PreviousLayerGUID);
+			check(PreviousLayerGUID == CacheUpToEditingLayer.DataAccess.GetEditLayer());
 		}
 		else
 		{
@@ -1021,9 +1038,11 @@ public:
 				float Contribution = (LandscapeDataAccess::GetLocalHeight(Data[i]) - LandscapeDataAccess::GetLocalHeight(BottomLayersData[i])) * InverseAlpha;
 				DataContribution[i] = LandscapeDataAccess::GetTexHeight(Contribution);
 			}
-			checkf(EditingLayerGuid == Landscape->GetEditingLayer(), TEXT("EditingLayer has changed between Initialize and Write. Was: %s (%s). Is now: %s (%s)"), 
-				Landscape->GetLayer(EditingLayerGuid) ? *(Landscape->GetLayer(EditingLayerGuid)->Name.ToString()) : TEXT("<unknown>"), *EditingLayerGuid.ToString(),
-				Landscape->GetLayer(Landscape->GetEditingLayer()) ? *(Landscape->GetLayer(Landscape->GetEditingLayer())->Name.ToString()) : TEXT("<unknown>"), *Landscape->GetEditingLayer().ToString());
+
+			FGuid CacheAccessorLayerGuid = CacheUpToEditingLayer.DataAccess.GetEditLayer();
+ 			checkf(EditingLayerGuid.GetValue() == CacheAccessorLayerGuid, TEXT("Editing Layer has changed between Initialize and Write. Was: %s (%s). Is now: %s (%s)"),
+ 				Landscape->GetLayer(*EditingLayerGuid) ? *(Landscape->GetLayer(*EditingLayerGuid)->Name.ToString()) : TEXT("<unknown>"), *EditingLayerGuid->ToString(),
+ 				Landscape->GetLayer(CacheAccessorLayerGuid) ? *(Landscape->GetLayer(CacheAccessorLayerGuid)->Name.ToString()) : TEXT("<unknown>"), *CacheAccessorLayerGuid.ToString());
 
 			// Restore layers visibility
 			SetLayersVisibility(BackupLayerVisibility);
@@ -1087,7 +1106,7 @@ private:
 
 	ULandscapeInfo* LandscapeInfo;
 	ALandscape* Landscape;
-	FGuid EditingLayerGuid;
+	TOptional<FGuid> EditingLayerGuid;
 	uint8 EditingLayerIndex;
 	TArray<bool> BackupLayerVisibility;
 	TArray<typename ToolTarget::CacheClass::DataType> BottomLayersData;
@@ -1139,6 +1158,16 @@ struct FFullWeightmapAccessor
 				}
 			}
 		}
+	}
+
+	void SetEditLayer(const FGuid& InEditLayerGUID)
+	{
+		LandscapeEdit.SetEditLayer(InEditLayerGUID);
+	}
+
+	FGuid GetEditLayer() const
+	{
+		return LandscapeEdit.GetEditLayer();
 	}
 
 	void GetData(int32& X1, int32& Y1, int32& X2, int32& Y2, TMap<FIntPoint, TArray<uint8>>& Data)
@@ -1376,6 +1405,13 @@ public:
 	{
 	}
 
+	virtual void SetEditLayer(const FGuid& EditLayerGUID)
+	{
+		// if this function is not overridden, then the tool uses the old method of getting the edit layer (using the shared EditingLayer on ALandscape)
+		// we should migrate tools to use SetEditLayer() and deprecate the reliance on the shared EditingLayer
+		// once all tools use SetEditLayer we can move this to be part of the constructor
+	}
+
 	// Signature of Apply() method for derived strokes
 	// void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolMousePosition>& MousePositions);
 
@@ -1447,7 +1483,7 @@ public:
 			if (Landscape)
 			{
 				Landscape->RequestLayersContentUpdate(GetBeginToolContentUpdateFlag());
-				Landscape->SetEditingLayer(this->EdMode->GetCurrentLayerGuid());
+				Landscape->SetEditingLayer(this->EdMode->GetCurrentLayerGuid());	// legacy way to set the edit layer, via Landscape state
 				Landscape->SetGrassUpdateEnabled(false);
 			}
 		}
@@ -1457,13 +1493,14 @@ public:
 			InteractorPositions.Empty(1);
 		}
 
-		if( !IsToolActive() )
+		if (ensure(!IsToolActive()))
 		{
-			ToolStroke.Emplace( EdMode, ViewportClient, InTarget );
+			ToolStroke.Emplace( EdMode, ViewportClient, InTarget );				// construct the tool stroke class
+			ToolStroke->SetEditLayer(this->EdMode->GetCurrentLayerGuid());		// set the edit layer explicitly (if the tool supports this path)
 			EdMode->CurrentBrush->BeginStroke( InHitLocation.X, InHitLocation.Y, this );
 		}
 
-		// Save the mouse position
+		// Save the mouse position  
 		LastInteractorPosition = FVector2D(InHitLocation);
 		InteractorPositions.Emplace(LastInteractorPosition, ViewportClient ? IsModifierPressed(ViewportClient) : false); // Copy tool sometimes activates without a specific viewport via ctrl+c hotkey
 		TimeSinceLastInteractorMove = 0.0f;
@@ -1515,7 +1552,7 @@ public:
 			InteractorPositions.Empty(1);
 		}
 
-		ToolStroke.Reset();
+		ToolStroke.Reset();		// destruct the tool stroke class
 		EdMode->CurrentBrush->EndStroke();
 		EdMode->UpdateLayerUsageInformation(&EdMode->CurrentToolTarget.LayerInfo);
 

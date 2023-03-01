@@ -67,6 +67,12 @@ public:
 	{
 	}
 
+	virtual void SetEditLayer(const FGuid& EditLayerGUID) override
+	{
+		LayerHeightDataCache.SetCacheEditingLayer(EditLayerGUID);
+		WeightCache.DataAccess.SetEditLayer(EditLayerGUID);
+	}
+
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeErosion_Apply);
@@ -306,6 +312,12 @@ public:
 	FLandscapeToolStrokeHydraErosion(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
 		: Super(InEdMode, InViewportClient, InTarget)
 	{
+	}
+
+	virtual void SetEditLayer(const FGuid& EditLayerGUID) override
+	{
+		LayerHeightDataCache.SetCacheEditingLayer(EditLayerGUID);
+		WeightCache.DataAccess.SetEditLayer(EditLayerGUID);
 	}
 
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)

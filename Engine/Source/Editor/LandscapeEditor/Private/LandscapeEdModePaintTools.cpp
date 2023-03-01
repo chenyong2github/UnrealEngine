@@ -434,6 +434,11 @@ public:
 	{
 	}
 
+	virtual void SetEditLayer(const FGuid& EditLayerGUID) override
+	{
+		this->Cache.DataAccess.SetEditLayer(EditLayerGUID);
+	}
+
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeSculpt_Apply);
@@ -690,6 +695,11 @@ public:
 	{
 	}
 
+	virtual void SetEditLayer(const FGuid& EditLayerGUID) override
+	{
+		LayerDataCache.SetCacheEditingLayer(EditLayerGUID);
+	}
+
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeToolStrokeSmooth_Apply);
@@ -848,6 +858,11 @@ public:
 		}
 	}
 
+	virtual void SetEditLayer(const FGuid& EditLayerGUID) override
+	{
+		LayerDataCache.SetCacheEditingLayer(EditLayerGUID);
+	}
+
 	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
  	{
 		if (!this->LandscapeInfo) return;
@@ -873,15 +888,17 @@ public:
 			float V11 = 0.f;
 			if (bCombinedLayerOperation)
 			{
-				// Can't rely on cache in this mode
-				FScopedSetLandscapeEditingLayer Scope(Landscape, FGuid());
+				// create a new accessor and point it read from the final runtime data
+				typename ToolTarget::CacheClass::AccessorClass RuntimeDataAccessor(this->Target);
+				RuntimeDataAccessor.SetEditLayer(FGuid());
+
 				typename ToolTarget::CacheClass::DataType P00, P10, P01, P11;
-				this->Cache.DataAccess.GetDataFast(FlattenHeightX,     FlattenHeightY,     FlattenHeightX,     FlattenHeightY,     &P00);
-				this->Cache.DataAccess.GetDataFast(FlattenHeightX + 1, FlattenHeightY,     FlattenHeightX + 1, FlattenHeightY,     &P10);
-				this->Cache.DataAccess.GetDataFast(FlattenHeightX,     FlattenHeightY + 1, FlattenHeightX,     FlattenHeightY + 1, &P01);
-				this->Cache.DataAccess.GetDataFast(FlattenHeightX + 1, FlattenHeightY + 1, FlattenHeightX + 1, FlattenHeightY + 1, &P11);
+				RuntimeDataAccessor.GetDataFast(FlattenHeightX, FlattenHeightY, FlattenHeightX, FlattenHeightY, &P00);
+				RuntimeDataAccessor.GetDataFast(FlattenHeightX + 1, FlattenHeightY, FlattenHeightX + 1, FlattenHeightY, &P10);
+				RuntimeDataAccessor.GetDataFast(FlattenHeightX, FlattenHeightY + 1, FlattenHeightX, FlattenHeightY + 1, &P01);
+				RuntimeDataAccessor.GetDataFast(FlattenHeightX + 1, FlattenHeightY + 1, FlattenHeightX + 1, FlattenHeightY + 1, &P11);
 				// Release Texture Mips that will be Locked by the next SynchronousUpdateComponentVisibilityForHeight (inside the LayerDataCache.Read call)
-				this->Cache.DataAccess.Flush();
+				RuntimeDataAccessor.Flush();
 				V00 = P00;
 				V10 = P10;
 				V01 = P01;
