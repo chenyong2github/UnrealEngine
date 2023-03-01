@@ -8,47 +8,38 @@
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/SlateTypes.h"
 #include "Interfaces/IPluginManager.h"
+
 #include "Misc/Paths.h"
 #include "Styling/StyleColors.h"
-#include "Styling/SlateStyleMacros.h"
 
+#define IMAGE_BRUSH( RelativePath, ... ) FSlateImageBrush( StyleSet->RootToContentDir( RelativePath, TEXT( ".png" ) ), __VA_ARGS__ )
+#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FMeshEditorStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
+#define BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( StyleSet->RootToContentDir( RelativePath, TEXT( ".png" ) ), __VA_ARGS__ )
+#define TTF_CORE_FONT( RelativePath, ... ) FSlateFontInfo( StyleSet->RootToCoreContentDir( RelativePath, TEXT( ".ttf" ) ), __VA_ARGS__ )
 
-#define CORE_FONT( RelativePath, ... ) FSlateFontInfo( RootToCoreContentDir( RelativePath, TEXT( ".ttf" ) ), __VA_ARGS__ )
+#define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
 
-namespace UE::StateTree::Editor
+TSharedPtr<FSlateStyleSet> FStateTreeEditorStyle::StyleSet = nullptr;
+
+FString FStateTreeEditorStyle::InContent(const FString& RelativePath, const ANSICHAR* Extension)
 {
+	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("StateTreeEditorModule"))->GetContentDir() / TEXT("Slate");
+	return (ContentDir / RelativePath) + Extension;
+}
 
-class FContentRootScope
+void FStateTreeEditorStyle::Initialize()
 {
-public:
-	FContentRootScope(FStateTreeEditorStyle* InStyle, const FString& NewContentRoot)
-		: Style(InStyle)
-		, PreviousContentRoot(InStyle->GetContentRootDir())
+	if (StyleSet.IsValid())
 	{
-		Style->SetContentRoot(NewContentRoot);
+		return;
 	}
 
-	~FContentRootScope()
-	{
-		Style->SetContentRoot(PreviousContentRoot);
-	}
-private:
-	FStateTreeEditorStyle* Style;
-	FString PreviousContentRoot;
-};
-
-}; // UE::StateTree::Editor
-
-FStateTreeEditorStyle::FStateTreeEditorStyle()
-	: FSlateStyleSet(TEXT("StateTreeEditorStyle"))
-{
 	const FVector2f Icon8x8(8.0f, 8.0f);
 
-	const FString EngineEditorSlateDir = FPaths::EngineContentDir() / TEXT("Slate");
-	SetCoreContentRoot(EngineEditorSlateDir);
+	StyleSet = MakeShared<FSlateStyleSet>(GetStyleSetName());
 
-	const FString StateTreePluginContentDir = FPaths::EnginePluginsDir() / TEXT("Runtime/StateTree/Resources");
-	SetContentRoot(StateTreePluginContentDir);
+	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
+	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 	const FScrollBarStyle ScrollBar = FAppStyle::GetWidgetStyle<FScrollBarStyle>("ScrollBar");
 	const FTextBlockStyle& NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
@@ -58,21 +49,21 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 		FTextBlockStyle StateIcon = FTextBlockStyle(NormalText)
 			.SetFont(FAppStyle::Get().GetFontStyle("FontAwesome.12"))
 			.SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f, 0.5f));
-		Set("StateTree.Icon", StateIcon);
+		StyleSet->Set("StateTree.Icon", StateIcon);
 
 		FTextBlockStyle StateDetailsIcon = FTextBlockStyle(NormalText)
 			.SetFont(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 		    .SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f, 0.5f));
-		Set("StateTree.DetailsIcon", StateDetailsIcon);
+		StyleSet->Set("StateTree.DetailsIcon", StateDetailsIcon);
 
 		FTextBlockStyle StateTitle = FTextBlockStyle(NormalText)
-			.SetFont(CORE_FONT("Fonts/Roboto-Bold", 12))
+			.SetFont(TTF_CORE_FONT("Fonts/Roboto-Bold", 12))
 			.SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f, 0.9f));
-		Set("StateTree.State.Title", StateTitle);
+		StyleSet->Set("StateTree.State.Title", StateTitle);
 
 		FEditableTextBoxStyle StateTitleEditableText = FEditableTextBoxStyle()
 			.SetTextStyle(NormalText)
-			.SetFont(CORE_FONT("Fonts/Roboto-Bold", 12))
+			.SetFont(TTF_CORE_FONT("Fonts/Roboto-Bold", 12))
 			.SetBackgroundImageNormal(BOX_BRUSH("Common/TextBox", FMargin(4.0f / 16.0f)))
 			.SetBackgroundImageHovered(BOX_BRUSH("Common/TextBox_Hovered", FMargin(4.0f / 16.0f)))
 			.SetBackgroundImageFocused(BOX_BRUSH("Common/TextBox_Hovered", FMargin(4.0f / 16.0f)))
@@ -80,9 +71,9 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 			.SetBackgroundColor(FLinearColor(0,0,0,0.1f))
 			.SetPadding(FMargin(0))
 			.SetScrollBarStyle(ScrollBar);
-		Set("StateTree.State.TitleEditableText", StateTitleEditableText);
+		StyleSet->Set("StateTree.State.TitleEditableText", StateTitleEditableText);
 
-		Set("StateTree.State.TitleInlineEditableText", FInlineEditableTextBlockStyle()
+		StyleSet->Set("StateTree.State.TitleInlineEditableText", FInlineEditableTextBlockStyle()
 			.SetTextStyle(StateTitle)
 			.SetEditableTextBoxStyle(StateTitleEditableText));
 	}
@@ -90,27 +81,27 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 	// Details
 	{
 		FTextBlockStyle StateTitle = FTextBlockStyle(NormalText)
-			.SetFont(CORE_FONT("Fonts/Roboto-Regular", 10))
+			.SetFont(TTF_CORE_FONT("Fonts/Roboto-Regular", 10))
 			.SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f, 0.75f));
-		Set("StateTree.Details", StateTitle);
+		StyleSet->Set("StateTree.Details", StateTitle);
 	}
 
 	// Details rich text
 	{
-		Set("Details.Normal", FTextBlockStyle(NormalText)
+		StyleSet->Set("Details.Normal", FTextBlockStyle(NormalText)
 			.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"))));
 
-		Set("Details.Bold", FTextBlockStyle(NormalText)
+		StyleSet->Set("Details.Bold", FTextBlockStyle(NormalText)
 			.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont"))));
 
-		Set("Details.Subdued", FTextBlockStyle(NormalText)
+		StyleSet->Set("Details.Subdued", FTextBlockStyle(NormalText)
 			.SetColorAndOpacity(FSlateColor::UseSubduedForeground())
 			.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"))));
 	}
 
 	const FLinearColor SelectionColor = FColor(0, 0, 0, 32);
 	const FTableRowStyle& NormalTableRowStyle = FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
-	Set("StateTree.Selection",
+	StyleSet->Set("StateTree.Selection",
 		FTableRowStyle(NormalTableRowStyle)
 		.SetActiveBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
 		.SetActiveHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
@@ -133,17 +124,17 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 		.SetNormalPadding(FMargin(2, 2, 2, 2))
 		.SetPressedPadding(FMargin(2, 3, 2, 1));
 
-	Set("StateTree.Node.Operand.ComboBox", FComboButtonStyle(ComboButtonStyle).SetButtonStyle(OperandButton));
+	StyleSet->Set("StateTree.Node.Operand.ComboBox", FComboButtonStyle(ComboButtonStyle).SetButtonStyle(OperandButton));
 
-	Set("StateTree.Node.Operand", FTextBlockStyle(NormalText)
+	StyleSet->Set("StateTree.Node.Operand", FTextBlockStyle(NormalText)
 		.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
 		.SetFontSize(8));
 
-	Set("StateTree.Node.Parens", FTextBlockStyle(NormalText)
+	StyleSet->Set("StateTree.Node.Parens", FTextBlockStyle(NormalText)
 		.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		.SetFontSize(12));
 
-	Set("StateTree.Param.Label", FTextBlockStyle(NormalText)
+	StyleSet->Set("StateTree.Param.Label", FTextBlockStyle(NormalText)
 		.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
 		.SetFontSize(7));
 
@@ -158,47 +149,30 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 		.SetNormalPadding(FMargin(2, 2, 2, 2))
 		.SetPressedPadding(FMargin(2, 3, 2, 1));
 	
-	Set("StateTree.Node.Indent.ComboBox", FComboButtonStyle(ComboButtonStyle).SetButtonStyle(IndentButton));
+	StyleSet->Set("StateTree.Node.Indent.ComboBox", FComboButtonStyle(ComboButtonStyle).SetButtonStyle(IndentButton));
 
 	const FEditableTextStyle& NormalEditableText = FCoreStyle::Get().GetWidgetStyle<FEditableTextStyle>("NormalEditableText");
 	FEditableTextStyle NameEditStyle(NormalEditableText);
 	NameEditStyle.Font.Size = 10;
-	Set("StateTree.Node.Name", NameEditStyle);
+	StyleSet->Set("StateTree.Node.Name", NameEditStyle);
+	
+	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
+}
 
-	// Command icons
+
+void FStateTreeEditorStyle::Shutdown()
+{
+	if (StyleSet.IsValid())
 	{
-		// From generic
-		UE::StateTree::Editor::FContentRootScope Scope(this, EngineEditorSlateDir);
-		Set("StateTreeEditor.CutStates", new IMAGE_BRUSH_SVG("Starship/Common/Cut", CoreStyleConstants::Icon16x16));
-		Set("StateTreeEditor.CopyStates", new IMAGE_BRUSH_SVG("Starship/Common/Copy", CoreStyleConstants::Icon16x16));
-		Set("StateTreeEditor.DuplicateStates", new IMAGE_BRUSH_SVG("Starship/Common/Duplicate", CoreStyleConstants::Icon16x16));
-		Set("StateTreeEditor.DeleteStates", new IMAGE_BRUSH_SVG("Starship/Common/Delete", CoreStyleConstants::Icon16x16));
-		Set("StateTreeEditor.RenameState", new IMAGE_BRUSH_SVG("Starship/Common/Rename", CoreStyleConstants::Icon16x16));
+		FSlateStyleRegistry::UnRegisterSlateStyle(*StyleSet.Get());
+		ensure(StyleSet.IsUnique());
+		StyleSet.Reset();
 	}
-
-	{
-		// From plugin
-		Set("StateTreeEditor.AddSiblingState", new IMAGE_BRUSH_SVG("Icons/Sibling_State", CoreStyleConstants::Icon16x16));
-		Set("StateTreeEditor.AddChildState", new IMAGE_BRUSH_SVG("Icons/Child_State", CoreStyleConstants::Icon16x16));
-
-		Set("StateTreeEditor.PasteStatesAsSiblings", new IMAGE_BRUSH_SVG("Icons/Sibling_State", CoreStyleConstants::Icon16x16));
-		Set("StateTreeEditor.PasteStatesAsChildren", new IMAGE_BRUSH_SVG("Icons/Child_State", CoreStyleConstants::Icon16x16));
-	}
-
 }
 
-void FStateTreeEditorStyle::Register()
-{
-	FSlateStyleRegistry::RegisterSlateStyle(Get());
-}
 
-void FStateTreeEditorStyle::Unregister()
+FName FStateTreeEditorStyle::GetStyleSetName()
 {
-	FSlateStyleRegistry::UnRegisterSlateStyle(Get());
-}
-
-FStateTreeEditorStyle& FStateTreeEditorStyle::Get()
-{
-	static FStateTreeEditorStyle Instance;
-	return Instance;
+	static FName StyleName("StateTreeEditorStyle");
+	return StyleName;
 }

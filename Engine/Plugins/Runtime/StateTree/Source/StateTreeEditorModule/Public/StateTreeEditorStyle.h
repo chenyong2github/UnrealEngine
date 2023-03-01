@@ -7,17 +7,23 @@
 class ISlateStyle;
 
 class STATETREEEDITORMODULE_API FStateTreeEditorStyle
-	: public FSlateStyleSet
 {
 public:
-	static FStateTreeEditorStyle& Get();
 
-protected:
-	friend class FStateTreeEditorModule;
+	static void Initialize();
+	static void Shutdown();
+	static TSharedPtr<ISlateStyle> Get() { return StyleSet; }
+	static FName GetStyleSetName();
 
-	static void Register();
-	static void Unregister();
+	static const FSlateBrush* GetBrush(FName PropertyName, const ANSICHAR* Specifier = NULL)
+	{
+		return StyleSet->GetBrush(PropertyName, Specifier);
+	}
+
+	static FString InContent(const FString& RelativePath, const ANSICHAR* Extension);
+
 
 private:
-	FStateTreeEditorStyle();
+
+	static TSharedPtr<FSlateStyleSet> StyleSet;
 };

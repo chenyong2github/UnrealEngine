@@ -36,7 +36,6 @@ public:
 	// ~IStateTreeEditorPropertyBindingsOwner
 
 #if WITH_EDITOR
-	virtual void PostLoad() override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
@@ -103,8 +102,6 @@ public:
 	UE_DEPRECATED(5.3, "Use GetAllStructValues with values instead.")
 	void GetAllStructIDs(TMap<FGuid, const UStruct*>& AllStructs) const;
 
-	void ReparentStates();
-	
 	// StateTree Builder API
 
 	/**

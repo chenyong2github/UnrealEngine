@@ -20,6 +20,7 @@ namespace UE::StateTree::Editor
 
 	// Calculates editor data hash of the asset. 
 	uint32 CalcAssetHash(const UStateTree& StateTree);
+ 
 } // UE::StateTree::Editor
 
 

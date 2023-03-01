@@ -580,7 +580,11 @@ namespace UE::StateTree::Editor::Internal
 			return;
 		}
 
-		TreeData->ReparentStates();
+		TreeData->VisitHierarchy([](UStateTreeState& State, UStateTreeState* ParentState)
+		{
+			State.Parent = ParentState;
+			return EStateTreeVisitor::Continue;
+		});
 	}
 
 	void ApplySchema(UStateTree& StateTree)

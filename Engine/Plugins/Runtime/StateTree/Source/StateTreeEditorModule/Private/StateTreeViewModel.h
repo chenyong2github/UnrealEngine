@@ -4,7 +4,6 @@
 
 #include "UObject/WeakObjectPtr.h"
 #include "EditorUndoClient.h"
-#include "StateTreeViewModel.generated.h"
 
 struct FPropertyChangedEvent;
 
@@ -12,7 +11,6 @@ class UStateTreeEditorData;
 class UStateTreeState;
 class UStateTree;
 class FMenuBuilder;
-struct FStateTreePropertyPathBinding;
 
 enum class FStateTreeViewModelInsert : uint8
 {
@@ -68,9 +66,6 @@ public:
 	void AddChildState(UStateTreeState* ParentState);
 	void RenameState(UStateTreeState* State, FName NewName);
 	void RemoveSelectedStates();
-	void CopySelectedStates();
-	void PasteStates(UStateTreeState* AfterState);
-	void PasteStatesAsChildren(UStateTreeState* ParentState, const int32 Index = INDEX_NONE);
 	void MoveSelectedStatesBefore(UStateTreeState* TargetState);
 	void MoveSelectedStatesAfter(UStateTreeState* TargetState);
 	void MoveSelectedStatesInto(UStateTreeState* TargetState);
@@ -111,14 +106,4 @@ protected:
 	FOnStatesRemoved OnStatesRemoved;
 	FOnStatesMoved OnStatesMoved;
 	FOnSelectionChanged OnSelectionChanged;
-};
-
-/** Helper class to allow to copy bindings into clipboard. */
-UCLASS(Hidden)
-class STATETREEEDITORMODULE_API UStateTreeClipboardBindings : public UObject
-{
-	GENERATED_BODY()
-public:
-	UPROPERTY()
-	TArray<FStateTreePropertyPathBinding> Bindings;
 };

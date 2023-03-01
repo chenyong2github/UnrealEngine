@@ -12,7 +12,7 @@
 
 #include "StateTreeViewModel.h"
 #include "StateTreeState.h"
-#include "StateTreeEditorCommands.h"
+#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
@@ -131,77 +131,8 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 	];
 
 	UpdateTree(true);
-
-	CommandList = MakeShared<FUICommandList>();
-	BindCommands();
 }
 
-void SStateTreeView::BindCommands()
-{
-	const FStateTreeEditorCommands& Commands = FStateTreeEditorCommands::Get();
-
-	CommandList->MapAction(
-		Commands.AddSiblingState,
-		FExecuteAction::CreateSP(this, &SStateTreeView::HandleAddSiblingState),
-		FCanExecuteAction());
-
-	CommandList->MapAction(
-		Commands.AddChildState,
-		FExecuteAction::CreateSP(this, &SStateTreeView::HandleAddChildState),
-		FCanExecuteAction::CreateSP(this, &SStateTreeView::HasSelection));
-
-	CommandList->MapAction(
-		Commands.CutStates,
-		FExecuteAction::CreateSP(this, &SStateTreeView::HandleCutSelectedStates),
-		FCanExecuteAction::CreateSP(this, &SStateTreeView::HasSelection));
-
-	CommandList->MapAction(
-		Commands.CopyStates,
-		FExecuteAction::CreateSP(this, &SStateTreeView::HandleCopySelectedStates),
-		FCanExecuteAction::CreateSP(this, &SStateTreeView::HasSelection));
-
-	CommandList->MapAction(
-		Commands.DeleteStates,
-		FExecuteAction::CreateSP(this, &SStateTreeView::HandleDeleteStates),
-		FCanExecuteAction::CreateSP(this, &SStateTreeView::HasSelection));
-
-	CommandList->MapAction(
-		Commands.PasteStatesAsSiblings,
-		FExecuteAction::CreateSP(this, &SStateTreeView::HandlePasteStatesAsSiblings),
-		FCanExecuteAction::CreateSP(this, &SStateTreeView::HasSelection));
-
-	CommandList->MapAction(
-		Commands.PasteStatesAsChildren,
-		FExecuteAction::CreateSP(this, &SStateTreeView::HandlePasteStatesAsChildren),
-		FCanExecuteAction::CreateSP(this, &SStateTreeView::HasSelection));
-
-	CommandList->MapAction(
-		Commands.DuplicateStates,
-		FExecuteAction::CreateSP(this, &SStateTreeView::HandleDuplicateSelectedStates),
-		FCanExecuteAction::CreateSP(this, &SStateTreeView::HasSelection));
-
-	CommandList->MapAction(
-		Commands.RenameState,
-		FExecuteAction::CreateSP(this, &SStateTreeView::HandleRenameState),
-		FCanExecuteAction::CreateSP(this, &SStateTreeView::HasSelection));
-}
-
-bool SStateTreeView::HasSelection() const
-{
-	return StateTreeViewModel && StateTreeViewModel->HasSelection();
-}
-
-FReply SStateTreeView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
-{
-	if(CommandList->ProcessCommandBindings(InKeyEvent))
-	{
-		return FReply::Handled();
-	}
-	else
-	{
-		return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
-	}
-}
 
 void SStateTreeView::SavePersistentExpandedStates()
 {
@@ -293,8 +224,7 @@ void SStateTreeView::HandleModelStateAdded(UStateTreeState* ParentState, UStateT
 {
 	bItemsDirty = true;
 
-	// Request to rename the state immediately.
-	RequestedRenameState = NewState;
+	HandleRenameState(NewState);
 
 	if (StateTreeViewModel.IsValid())
 	{
@@ -385,40 +315,40 @@ TSharedPtr<SWidget> SStateTreeView::HandleContextMenuOpening()
 		return nullptr;
 	}
 
-	FMenuBuilder MenuBuilder(true, CommandList);
+	TArray<UStateTreeState*> SelectedStates;
+	StateTreeViewModel->GetSelectedStates(SelectedStates);
+	UStateTreeState* FirstSelectedState = SelectedStates.Num() > 0 ? SelectedStates[0] : nullptr;
 
-	MenuBuilder.AddSubMenu(
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddState", "Add State"),
 		FText(),
-		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& MenuBuilder)
-		{
-			MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().AddSiblingState);
-			MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().AddChildState);
-		}),
-		/*bInOpenSubMenuOnClick =*/false,
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Plus")
-	);
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateSP(this, &SStateTreeView::HandleAddState, FirstSelectedState)));
 
-	MenuBuilder.AddSeparator();
+	if (FirstSelectedState)
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AddChildState", "Add Child State"),
+			FText(),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SStateTreeView::HandleAddChildState, FirstSelectedState)));
 
-	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().CutStates);
-	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().CopyStates);
+		MenuBuilder.AddSeparator();
 
-	MenuBuilder.AddSubMenu(
-		LOCTEXT("Paste", "Paste"),
-		FText(),
-		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& MenuBuilder)
-		{
-			MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().PasteStatesAsSiblings);
-			MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().PasteStatesAsChildren);
-		}),
-		/*bInOpenSubMenuOnClick =*/false,
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Paste")
-	);
-	
-	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().DuplicateStates);
-	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().DeleteStates);
-	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().RenameState);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("RenameNodeGroup", "Rename"),
+			FText(),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SStateTreeView::HandleRenameState, FirstSelectedState)));
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("DeleteState", "Delete Selected"),
+			FText(),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SStateTreeView::HandleDeleteItems)));
+	}
 
 	return MenuBuilder.MakeWidget();
 }
@@ -457,90 +387,45 @@ FReply SStateTreeView::HandleAddStateButton()
 	return FReply::Handled();
 }
 
-UStateTreeState* SStateTreeView::GetFirstSelectedState() const
+void SStateTreeView::HandleAddState(UStateTreeState* AfterState)
 {
-	TArray<UStateTreeState*> SelectedStates;
-	if (StateTreeViewModel)
+	if (StateTreeViewModel == nullptr)
 	{
-		StateTreeViewModel->GetSelectedStates(SelectedStates);
+		return;
 	}
-	return SelectedStates.IsEmpty() ? nullptr : SelectedStates[0];
+
+	StateTreeViewModel->AddState(AfterState);
 }
 
-void SStateTreeView::HandleAddSiblingState()
+void SStateTreeView::HandleRenameState(UStateTreeState* State)
 {
-	if (StateTreeViewModel)
-	{
-		StateTreeViewModel->AddState(GetFirstSelectedState());
-	}
+	RequestedRenameState = State;
 }
 
-void SStateTreeView::HandleAddChildState()
+void SStateTreeView::HandleAddChildState(UStateTreeState* ParentState)
 {
-	if (StateTreeViewModel)
+	if (StateTreeViewModel == nullptr)
 	{
-		UStateTreeState* ParentState = GetFirstSelectedState();
-		if (ParentState)
-		{
-			StateTreeViewModel->AddChildState(ParentState);
-			TreeView->SetItemExpansion(ParentState, true);
-		}
+		return;
+	}
+
+	if (ParentState)
+	{
+		StateTreeViewModel->AddChildState(ParentState);
+		TreeView->SetItemExpansion(ParentState, true);
 	}
 }
 
-void SStateTreeView::HandleCutSelectedStates()
+void SStateTreeView::HandleDeleteItems()
 {
-	if (StateTreeViewModel)
+	if (StateTreeViewModel == nullptr)
 	{
-		StateTreeViewModel->CopySelectedStates();
-		StateTreeViewModel->RemoveSelectedStates();
+		return;
 	}
+
+	StateTreeViewModel->RemoveSelectedStates();
 }
 
-void SStateTreeView::HandleCopySelectedStates()
-{
-	if (StateTreeViewModel)
-	{
-		StateTreeViewModel->CopySelectedStates();
-	}
-}
 
-void SStateTreeView::HandlePasteStatesAsSiblings()
-{
-	if (StateTreeViewModel)
-	{
-		StateTreeViewModel->PasteStates(GetFirstSelectedState());
-	}
-}
-
-void SStateTreeView::HandlePasteStatesAsChildren()
-{
-	if (StateTreeViewModel)
-	{
-		StateTreeViewModel->PasteStatesAsChildren(GetFirstSelectedState());
-	}
-}
-
-void SStateTreeView::HandleDuplicateSelectedStates()
-{
-	if (StateTreeViewModel)
-	{
-		StateTreeViewModel->CopySelectedStates();
-		StateTreeViewModel->PasteStates(GetFirstSelectedState());
-	}
-}
-
-void SStateTreeView::HandleDeleteStates()
-{
-	if (StateTreeViewModel)
-	{
-		StateTreeViewModel->RemoveSelectedStates();
-	}
-}
-
-void SStateTreeView::HandleRenameState()
-{
-	RequestedRenameState = GetFirstSelectedState();
-}
 
 #undef LOCTEXT_NAMESPACE

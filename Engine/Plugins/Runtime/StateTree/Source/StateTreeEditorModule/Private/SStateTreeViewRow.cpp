@@ -27,7 +27,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
         .OnDragDetected(this, &SStateTreeViewRow::HandleDragDetected)
         .OnCanAcceptDrop(this, &SStateTreeViewRow::HandleCanAcceptDrop)
         .OnAcceptDrop(this, &SStateTreeViewRow::HandleAcceptDrop)
-        .Style(&FStateTreeEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("StateTree.Selection"))
+        .Style(&FStateTreeEditorStyle::Get()->GetWidgetStyle<FTableRowStyle>("StateTree.Selection"))
     , InOwnerTableView);
 
 	static const FLinearColor TasksBackground = FLinearColor(FColor(17, 117, 131));

@@ -50,33 +50,9 @@ void FStateTreeStateLinkDetails::CustomizeHeader(TSharedRef<class IPropertyHandl
 			.OnGetMenuContent(this, &FStateTreeStateLinkDetails::OnGetStateContent)
 			.ButtonContent()
 			[
-				SNew(SHorizontalBox)
-
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(0,0,4,0)
-				[
-					SNew(SBox)
-					[
-						SNew(SImage)
-						.ToolTipText(LOCTEXT("MissingState", "The specified state cannot be found."))
-						.Visibility_Lambda([this]()
-						{
-							return IsValidLink() ? EVisibility::Collapsed : EVisibility::Visible;
-						})
-						.Image(FAppStyle::GetBrush("Icons.ErrorWithColor"))
-					]
-				]
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(this, &FStateTreeStateLinkDetails::GetCurrentStateDesc)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
+				SNew(STextBlock)
+				.Text(this, &FStateTreeStateLinkDetails::GetCurrentStateDesc)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
 		];
 
@@ -259,7 +235,9 @@ FText FStateTreeStateLinkDetails::GetCurrentStateDesc() const
 				}
 			}
 
-			return FText::FromName(OldName);
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Identifier"), FText::FromName(OldName));
+			Result = FText::Format(LOCTEXT("InvalidReference", "Invalid Reference {Identifier}"), Args);
 		}
 		break;
 	default:
@@ -269,41 +247,6 @@ FText FStateTreeStateLinkDetails::GetCurrentStateDesc() const
 	}
 
 	return Result;
-}
-
-bool FStateTreeStateLinkDetails::IsValidLink() const
-{
-	const EStateTreeTransitionType TransitionType = GetTransitionType().Get(EStateTreeTransitionType::Failed);
-
-	bool bIsValid = false;
-	switch (TransitionType)
-	{
-	// all these are unconditionally valid		
-	case EStateTreeTransitionType::None: // fall through on purpose
-	case EStateTreeTransitionType::NextState: // fall through on purpose
-	case EStateTreeTransitionType::Succeeded: // fall through on purpose
-	case EStateTreeTransitionType::Failed:
-		bIsValid = true;
-		break;
-	case EStateTreeTransitionType::GotoState:
-		{
-			bIsValid = false;
-			if (NameProperty && IDProperty)
-			{
-				FGuid StateID;
-				if (UE::StateTree::PropertyHelpers::GetStructValue<FGuid>(IDProperty, StateID) == FPropertyAccess::Success)
-				{
-					bIsValid = !StateID.IsValid() || CachedIDs.Contains(StateID);
-				}
-			}
-		}
-		break;
-	default:
-		bIsValid = false;
-		break;
-	}
-
-	return bIsValid;
 }
 
 TOptional<EStateTreeTransitionType> FStateTreeStateLinkDetails::GetTransitionType() const
