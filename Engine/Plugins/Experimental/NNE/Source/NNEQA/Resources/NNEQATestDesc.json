@@ -56,6 +56,15 @@
 					]
 				},
 				{
+					"target": "NeuralMorphModel_Local-sim",
+					"tags": [ "SmokeTest" ],
+					"runtimes": [
+						{ "name": "NNERuntimeORTDml", "absolute_tolerance": 1e-6 },
+						{ "name": "NNERuntimeRDGHlsl",  "skip": true, "comment": "Missing Reshape operator." },
+						{ "name": "NNERuntimeRDGDml", "absolute_tolerance": 1e-6 }
+					]
+				},
+				{
 					"target": "VertexDeltaModel",
 					"absolute_tolerance": 1e-4
 				}
