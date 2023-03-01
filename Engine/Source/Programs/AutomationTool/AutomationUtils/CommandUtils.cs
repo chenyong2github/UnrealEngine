@@ -1295,7 +1295,7 @@ namespace AutomationTool
 				}
 			}
 
-			for (int AttemptsRemaining = 5; AttemptsRemaining > 0; --AttemptsRemaining)
+			for (int AttemptsRemaining = 5; AttemptsRemaining >= 0; --AttemptsRemaining)
 			{
 				if (InternalUtils.SafeFileExists(Dest, true))
 				{
