@@ -138,6 +138,7 @@ namespace Chaos::Softs
 		void WriteFrame(FThreadingProxy&, const FSolverReal DeltaTime);
 
 		/*Debug Drawing*/
+		void DebugDrawSimulationData();
 		void DebugDrawTetrahedralParticles(FFleshThreadingProxy& Proxy);
 
 		/*Game Thread API*/

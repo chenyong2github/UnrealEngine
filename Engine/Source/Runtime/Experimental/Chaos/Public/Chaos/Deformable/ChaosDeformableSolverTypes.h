@@ -143,6 +143,7 @@ namespace Chaos::Softs
 	{				
 		bool bDoDrawTetrahedralParticles = false;
 		bool bDoDrawKinematicParticles = false;
+		bool bDoDrawRigidCollisionGeometry = false;
 
 
 		bool IsDebugDrawingEnabled()
