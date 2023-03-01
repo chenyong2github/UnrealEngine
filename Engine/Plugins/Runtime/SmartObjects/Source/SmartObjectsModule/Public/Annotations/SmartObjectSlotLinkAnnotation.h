@@ -15,7 +15,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotLinkAnnotation : public FSmartObje
 	GENERATED_BODY()
 	virtual ~FSmartObjectSlotLinkAnnotation() override {}
 
-#if WITH_EDITOR
+#if UE_ENABLE_DEBUG_DRAWING
 	virtual void DrawVisualization(FSmartObjectVisualizationContext& VisContext) const override;
 	virtual void DrawVisualizationHUD(FSmartObjectVisualizationContext& VisContext) const override;
 #endif

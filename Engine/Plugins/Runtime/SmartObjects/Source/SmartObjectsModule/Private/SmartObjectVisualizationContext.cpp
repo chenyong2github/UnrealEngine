@@ -4,7 +4,7 @@
 #include "SceneView.h"
 #include "SceneManagement.h"
 
-#if WITH_EDITOR
+#if UE_ENABLE_DEBUG_DRAWING
 
 bool FSmartObjectVisualizationContext::IsValidForDraw() const
 {
@@ -90,4 +90,4 @@ void FSmartObjectVisualizationContext::DrawArrow(const FVector& Start, const FVe
 	PDI->DrawTranslucentLine(EndLoc, EndLoc - Dir * ArrowHeadLength - Side * ArrowHeadLength * 0.5f, Color, DepthPriorityGroup, Thickness, DepthBias, bScreenSpace);
 }
 
-#endif // WITH_EDITOR
+#endif // UE_ENABLE_DEBUG_DRAWING

@@ -10,18 +10,16 @@ class FSceneView;
 class FPrimitiveDrawInterface;
 class USmartObjectDefinition;
 class UFont;
-class USmartObjectSubsystem;
 
-#if WITH_EDITOR
+#if UE_ENABLE_DEBUG_DRAWING
 
 /**
  * Helper class used for Smart Object Annotation rendering.
  */
 struct SMARTOBJECTSMODULE_API FSmartObjectVisualizationContext
 {
-	explicit FSmartObjectVisualizationContext(const USmartObjectDefinition& InDefinition, const UWorld& InWorld)
+	explicit FSmartObjectVisualizationContext(const USmartObjectDefinition& InDefinition)
 		: Definition(InDefinition)
-		, World(InWorld)
 	{
 	}
 
@@ -55,9 +53,6 @@ struct SMARTOBJECTSMODULE_API FSmartObjectVisualizationContext
 
 	/** Pointer to the visualized Smart Object definition. */
 	const USmartObjectDefinition& Definition;
-
-	/** World associated with the drawing. */
-	const UWorld& World;
 	
 	/** Index of the visualized, or invalid of the annotation is on the object.  */
 	int32 SlotIndex = 0;
@@ -87,4 +82,4 @@ struct SMARTOBJECTSMODULE_API FSmartObjectVisualizationContext
 	FLinearColor SelectedColor = FLinearColor::White;
 };
 
-#endif // WITH_EDITOR
+#endif // UE_ENABLE_DEBUG_DRAWING

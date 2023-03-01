@@ -2,7 +2,6 @@
 
 #include "GameplayDebuggerCategory_SmartObject.h"
 #include "SmartObjectSubsystem.h"
-#include "SmartObjectAnnotation.h"
 #include "Math/ColorList.h"
 #include "Engine/World.h"
 
@@ -92,15 +91,10 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		constexpr float DebugArrowThickness = 2.f;
 		constexpr float DebugCircleRadius = 40.f;
 		constexpr float DebugArrowHeadSize = 10.f;
-		float SlotSize = DebugCircleRadius;
-		ESmartObjectSlotShape SlotShape = ESmartObjectSlotShape::Circle;
-
 #if WITH_EDITORONLY_DATA
 		DebugColor = View.GetDefinition().DEBUG_DrawColor;
-		SlotShape = View.GetDefinition().DEBUG_DrawShape;
-		SlotSize = View.GetDefinition().DEBUG_DrawSize;
 #endif
-		const FVector Pos = Transform.GetLocation() + FVector(0.0f, 0.0f, 2.0f);
+		const FVector Pos = Transform.GetLocation() + FVector(0.0f, 0.0f, 25.0f);
 		const FVector Dir = Transform.GetRotation().GetForwardVector();
 
 		FColor StateColor = FColor::Silver;
@@ -126,20 +120,9 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 			}
 		}
 
-		const FVector AxisX = Transform.GetUnitAxis(EAxis::X);
-		const FVector AxisY = Transform.GetUnitAxis(EAxis::Y);
-		if (SlotShape == ESmartObjectSlotShape::Circle)
-		{
-			AddShape(FGameplayDebuggerShape::MakeCircle(Pos, AxisX, AxisY, SlotSize, DebugColor));
-			AddShape(FGameplayDebuggerShape::MakeCircle(Pos, AxisX, AxisY, 0.75f * SlotSize, /* Thickness */5.f, StateColor));
-		}
-		else if (SlotShape == ESmartObjectSlotShape::Rectangle)
-		{
-			AddShape(FGameplayDebuggerShape::MakeRectangle(Pos, AxisX, AxisY, SlotSize * 2.0f, SlotSize * 2.0f, DebugColor));
-			AddShape(FGameplayDebuggerShape::MakeRectangle(Pos, AxisX, AxisY, .75f * SlotSize * 2.0f, .75f * SlotSize * 2.0f, /* Thickness */5.f, StateColor));
-		}
-		
-		AddShape(FGameplayDebuggerShape::MakeArrow(Pos, Pos + Dir * 2.0f * SlotSize, DebugArrowHeadSize, DebugArrowThickness, DebugColor));
+		AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, DebugCircleRadius, DebugColor));
+		AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, 0.75f * DebugCircleRadius, /* Thickness */5.f, StateColor));
+		AddShape(FGameplayDebuggerShape::MakeArrow(Pos, Pos + Dir * 2.0f * DebugCircleRadius, DebugArrowHeadSize, DebugArrowThickness, DebugColor));
 		
 		FString TagsAsString = SlotState.GetTags().ToStringSimple();
 		if (!TagsAsString.IsEmpty())
@@ -148,16 +131,6 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 			AddShape(FGameplayDebuggerShape::MakePoint(Pos, /*Radius*/ 1.0f, FColorList::White, TagsAsString));
 		}
 
-		// Let annotations debug draw too
-		const FSmartObjectSlotDefinition& Definition = View.GetDefinition();
-		for (const FInstancedStruct& Data : Definition.Data)
-		{
-			if (const FSmartObjectSlotAnnotation* Annotation = Data.GetPtr<FSmartObjectSlotAnnotation>())
-			{
-				Annotation->CollectDataForGameplayDebugger(*this, Transform, ViewLocation, ViewDirection, DebugActor);
-			}
-		}
-		
 		// Look if the slot has an active user; if so and it's an actor then display a segment between it and the slot.
 		if (const FSmartObjectActorUserData* ActorUser = SlotState.GetUserData().GetPtr<const FSmartObjectActorUserData>())
 		{

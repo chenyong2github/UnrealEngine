@@ -6,8 +6,6 @@
 #include "SmartObjectAnnotation.generated.h"
 
 struct FSmartObjectVisualizationContext;
-class FGameplayDebuggerCategory;
-struct FSmartObjectSlotView;
 
 /**
  * Base class for Smart Object Slot annotations. Annotation is a specific type of slot definition data that has methods to visualize it.
@@ -18,7 +16,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotAnnotation : public FSmartObjectSl
 	GENERATED_BODY()
 	virtual ~FSmartObjectSlotAnnotation() override {}
 
-#if WITH_EDITOR
+#if UE_ENABLE_DEBUG_DRAWING
 	// @todo: Try to find a way to add visualization without requiring virtual functions.
 
 	/** Methods to override to draw 3D visualization of the annotation. */
@@ -26,15 +24,6 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotAnnotation : public FSmartObjectSl
 
 	/** Methods to override to draw canvas visualization of the annotation. */
 	virtual void DrawVisualizationHUD(FSmartObjectVisualizationContext& VisContext) const {}
-
-	/**
-	 * Called in editor to adjust the transform of the annotation.
-	 * @param SlotTransform World space transform of the slot.
-	 * @param DeltaTranslation World space delta translation to apply.
-	 * @param DeltaRotation World space delta rotation to apply.
-	 **/
-	virtual void AdjustWorldTransform(const FTransform& SlotTransform, const FVector& DeltaTranslation, const FRotator& DeltaRotation) {}
-#endif // WITH_EDITOR
 	
 	/**
 	 * Returns the world space transform of the annotation.
@@ -43,8 +32,12 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotAnnotation : public FSmartObjectSl
 	 */
 	virtual TOptional<FTransform> GetWorldTransform(const FTransform& SlotTransform) const { return TOptional<FTransform>(); }
 	
-#if WITH_GAMEPLAY_DEBUGGER
-	virtual void CollectDataForGameplayDebugger(FGameplayDebuggerCategory& Category, const FTransform& SlotTransform, const FVector ViewLocation, const FVector ViewDirection, AActor* DebugActor) const {}
-#endif // WITH_GAMEPLAY_DEBUGGER	
-	
+	/**
+	 * Called in editor to adjust the transform of the annotation.
+	 * @param SlotTransform World space transform of the slot.
+	 * @param DeltaTranslation World space delta translation to apply.
+	 * @param DeltaRotation World space delta rotation to apply.
+	 **/
+	virtual void AdjustWorldTransform(const FTransform& SlotTransform, const FVector& DeltaTranslation, const FRotator& DeltaRotation) {}
+#endif
 };
