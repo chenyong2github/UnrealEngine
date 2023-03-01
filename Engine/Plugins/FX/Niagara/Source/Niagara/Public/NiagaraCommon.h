@@ -918,16 +918,19 @@ namespace ENiagaraScriptUsageMask
 		System =
 			(1 << int32(ENiagaraScriptUsage::Module)) |
 			(1 << int32(ENiagaraScriptUsage::DynamicInput)) |
+			(1 << int32(ENiagaraScriptUsage::Function)) |
 			(1 << int32(ENiagaraScriptUsage::SystemSpawnScript)) |
 			(1 << int32(ENiagaraScriptUsage::SystemUpdateScript)),
 		Emitter =
 			(1 << int32(ENiagaraScriptUsage::Module)) |
 			(1 << int32(ENiagaraScriptUsage::DynamicInput)) |
+			(1 << int32(ENiagaraScriptUsage::Function)) |
 			(1 << int32(ENiagaraScriptUsage::EmitterSpawnScript)) |
 			(1 << int32(ENiagaraScriptUsage::EmitterUpdateScript)),
 		Particle =
 			(1 << int32(ENiagaraScriptUsage::Module)) |
 			(1 << int32(ENiagaraScriptUsage::DynamicInput)) |
+			(1 << int32(ENiagaraScriptUsage::Function)) |
 			(1 << int32(ENiagaraScriptUsage::ParticleSpawnScript)) |
 			(1 << int32(ENiagaraScriptUsage::ParticleSpawnScriptInterpolated)) |
 			(1 << int32(ENiagaraScriptUsage::ParticleUpdateScript)) |
