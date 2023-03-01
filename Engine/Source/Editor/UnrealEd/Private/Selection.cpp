@@ -235,8 +235,8 @@ void USelection::OnElementListSyncEvent(const FTypedElementList& InElementList, 
 
 void USelection::Select(UObject* InObject)
 {
-	check(InObject && IsValidObjectToSelect(InObject));
-	if (ElementSelectionSet)
+	check(InObject);
+	if (IsValidObjectToSelect(InObject) && ElementSelectionSet)
 	{
 		FTypedElementHandle ElementHandle = SelectionElementBridge->GetElementHandleForObject(InObject);
 		check(ElementHandle);
