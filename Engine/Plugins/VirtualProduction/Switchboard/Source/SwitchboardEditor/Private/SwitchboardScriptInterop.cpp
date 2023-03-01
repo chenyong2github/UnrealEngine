@@ -56,10 +56,7 @@ FSwitchboardUtilScript::FSwitchboardUtilScript(FStringView PythonVenvDir)
 
 FSwitchboardUtilScript::~FSwitchboardUtilScript()
 {
-	if (WritePipe || ReadPipe)
-	{
-		FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
-	}
+	FPlatformProcess::ClosePipe(StdoutParentReadPipe, StdoutChildWritePipe);
 
 	if (ProcHandle.IsValid())
 	{
@@ -87,9 +84,9 @@ bool FSwitchboardUtilScript::Run(const FString& Args)
 	uint32 OutProcessId = 0;
 	const int32 PriorityModifier = 0;
 	const TCHAR* WorkingDirectory = nullptr;
-	FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
+	FPlatformProcess::CreatePipe(StdoutParentReadPipe, StdoutChildWritePipe);
 
-	ProcHandle = FPlatformProcess::CreateProc(*PythonExe, *Args, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &OutProcessId, PriorityModifier, WorkingDirectory, WritePipe, ReadPipe);
+	ProcHandle = FPlatformProcess::CreateProc(*PythonExe, *Args, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &OutProcessId, PriorityModifier, WorkingDirectory, StdoutChildWritePipe);
 	return ProcHandle.IsValid();
 }
 
@@ -108,7 +105,7 @@ TOptional<int32> FSwitchboardUtilScript::PollStdoutAndReturnCode()
 	}
 
 	TArray<uint8> Output;
-	if (FPlatformProcess::ReadPipeToArray(ReadPipe, Output))
+	if (FPlatformProcess::ReadPipeToArray(StdoutParentReadPipe, Output))
 	{
 		StdoutBuf.Append(Output);
 	}
@@ -119,7 +116,7 @@ TOptional<int32> FSwitchboardUtilScript::PollStdoutAndReturnCode()
 		ReturnCode.Emplace(OutReturnCode);
 
 		// Additional read necessary to ensure we've captured all output.
-		if (FPlatformProcess::ReadPipeToArray(ReadPipe, Output))
+		if (FPlatformProcess::ReadPipeToArray(StdoutParentReadPipe, Output))
 		{
 			StdoutBuf.Append(Output);
 		}

@@ -24,8 +24,8 @@ public:
 public:
 	FString PythonExe;
 	FProcHandle ProcHandle;
-	void* WritePipe = nullptr;
-	void* ReadPipe = nullptr;
+	void* StdoutChildWritePipe = nullptr;
+	void* StdoutParentReadPipe = nullptr;
 	TArray<uint8> StdoutBuf;
 	TOptional<int32> ReturnCode;
 };

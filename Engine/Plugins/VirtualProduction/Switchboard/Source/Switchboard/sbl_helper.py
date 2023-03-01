@@ -1092,12 +1092,7 @@ class SbListenerHelper:
                       f'args={args}')
 
         try:
-            # stdin=subprocess.DEVNULL is required when launched via
-            # SwitchboardListener; otherwise this call tries to make the
-            # non-existent stdin inheritable, raising `OSError: [WinError 6]
-            # The handle is invalid`
-            with subprocess.Popen(args, stdin=subprocess.DEVNULL,
-                                  stdout=subprocess.PIPE) as proc:
+            with subprocess.Popen(args, stdout=subprocess.PIPE) as proc:
                 for line in proc.stdout:
                     logging.info(f'gpf> {line.decode().rstrip()}')
 

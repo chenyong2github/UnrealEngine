@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import ctypes
 import importlib
 import io
 import json
@@ -288,16 +287,6 @@ class SbSetup:
 
 
 def main() -> int:
-    if sys.platform.startswith('win'):
-        # As invoked by UE, we wind up with a non-inheritable stdin.
-        # We can work around this in our own `Popen` invocations by passing
-        # `stdin=subprocess.DEVNULL`, but unfortunately lots of external code
-        # still fails (including `venv.EnvBuilder.create()`).
-        # This clears the handle process-wide and prevents `subprocess` usage
-        # in external code from failing with an exception.
-        kernel32 = ctypes.WinDLL('kernel32')
-        kernel32.SetStdHandle(subprocess.STD_INPUT_HANDLE, 0)
-
     app = SbSetup()
     result = app.run()
     logging.info(f'Finished with return code {result}')

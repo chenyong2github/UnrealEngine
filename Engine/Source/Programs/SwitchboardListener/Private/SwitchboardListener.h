@@ -136,8 +136,8 @@ private:
 
 	void CleanUpDisconnectedSockets();
 	void DisconnectClient(const FIPv4Endpoint& InClientEndpoint);
-	void HandleStdout(const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& Process);
-	void HandleRunningProcesses(TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>>& Processes, bool bNotifyThatProgramEnded);
+	void HandleStdout(const TSharedPtr<FRunningProcess>& Process);
+	void HandleRunningProcesses(TArray<TSharedPtr<FRunningProcess>>& Processes, bool bNotifyThatProgramEnded);
 
 	bool SendMessage(const FString& InMessage, const FIPv4Endpoint& InEndpoint);
 	void SendMessageFutures();
@@ -159,15 +159,15 @@ private:
 
 	TQueue<TUniquePtr<FSwitchboardTask>, EQueueMode::Spsc> ScheduledTasks;
 	TQueue<TUniquePtr<FSwitchboardTask>, EQueueMode::Spsc> DisconnectTasks;
-	TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>> RunningProcesses;
-	TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>> FlipModeMonitors;
+	TArray<TSharedPtr<FRunningProcess>> RunningProcesses;
+	TArray<TSharedPtr<FRunningProcess>> FlipModeMonitors;
 	TArray<FSwitchboardMessageFuture> MessagesFutures;
-	TSharedPtr<FCpuUtilizationMonitor, ESPMode::ThreadSafe> CpuMonitor;
+	TSharedPtr<FCpuUtilizationMonitor> CpuMonitor;
 
 	bool bIsNvAPIInitialized;
 
-	TSharedPtr<FRWLock, ESPMode::ThreadSafe> CachedMosaicToposLock;
-	TSharedPtr<TArray<FMosaicTopo>, ESPMode::ThreadSafe> CachedMosaicTopos;
+	TSharedPtr<FRWLock> CachedMosaicToposLock;
+	TSharedPtr<TArray<FMosaicTopo>> CachedMosaicTopos;
 
 	FRedeployStatus RedeployStatus;
 };
