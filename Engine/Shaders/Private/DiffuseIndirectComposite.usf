@@ -114,6 +114,11 @@ Texture2D DiffuseIndirect_Textures_3;
 #define DiffuseIndirect_Textures_3 DiffuseIndirect_Textures_0
 #endif
 
+#if !ENABLE_DUAL_SRC_BLENDING
+Texture2D SceneColorTexture;
+SamplerState SceneColorSampler;
+#endif
+
 RWTexture2D<float4> PassDebugOutput;
 
 uint bLumenSupportBackfaceDiffuse;
@@ -302,8 +307,12 @@ FStrataDeferredLighting StrataIndirectLighting(
 void MainPS(
 	float4 SvPosition : SV_POSITION
 #if DIM_APPLY_DIFFUSE_INDIRECT
+#if ENABLE_DUAL_SRC_BLENDING
 	, out float4 OutAddColor      DUAL_SOURCE_BLENDING_SLOT(0) : SV_Target0
 	, out float4 OutMultiplyColor DUAL_SOURCE_BLENDING_SLOT(1) : SV_Target1
+#else
+	, out float4 OutColor 		  : SV_Target0
+#endif
 #else
 	, out float4 OutMultiplyColor : SV_Target0
 #endif
@@ -312,6 +321,13 @@ void MainPS(
 	const uint2 PixelPos = SvPosition.xy;
 	const float2 SceneBufferUV = SvPositionToBufferUV(SvPosition);
 	const float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
+
+	#if !ENABLE_DUAL_SRC_BLENDING && DIM_APPLY_DIFFUSE_INDIRECT
+	float4 OutAddColor = float4(0.0, 0.0, 0.0, 0.0);
+	float4 OutMultiplyColor;
+
+	const float4 SceneColor = SceneColorTexture.SampleLevel(SceneColorSampler, SceneBufferUV, 0);
+	#endif
 
 	// Sample scene textures.
 	const FLumenMaterialData Material = ReadMaterialData(PixelPos, SceneBufferUV);
@@ -541,4 +557,8 @@ void MainPS(
 	#endif
 
 	OutMultiplyColor = FinalAmbientOcclusion;
+
+	#if !ENABLE_DUAL_SRC_BLENDING && DIM_APPLY_DIFFUSE_INDIRECT
+	OutColor = SceneColor * OutMultiplyColor + OutAddColor;
+	#endif
 }
