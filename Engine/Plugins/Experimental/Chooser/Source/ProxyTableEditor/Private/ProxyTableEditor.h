@@ -80,15 +80,22 @@ namespace UE::ProxyTableEditor
 	
 		struct FProxyTableRow
 		{
-			FProxyTableRow(int32 i) { RowIndex = i; }
+			FProxyTableRow(int32 InIndex, UProxyTable* InProxyTable) :
+				ProxyTable(InProxyTable),
+				RowIndex(InIndex)
+			{
+			}
+			
+			UProxyTable* ProxyTable;
 			int32 RowIndex;
 		};
 
 		void UpdateTableColumns();
 		void UpdateTableRows();
 		void MoveRow(int SourceRowIndex, int TargetIndex);
+		void InsertEntry(FProxyEntry& Entry, int RowIndex);
 	private:
-
+		void AddInheritedRows(UProxyTable* ProxyTable);
 		void SelectRootProperties();
 		void RegisterToolbar();
 		void BindCommands();
@@ -102,6 +109,7 @@ namespace UE::ProxyTableEditor
 
 		/** Called when objects need to be swapped out for new versions, like after a blueprint recompile. */
 		void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
+		void OnObjectTransacted(UObject* InObject, const FTransactionObjectEvent& InTransactionObjectEvent);
 
 		/** Details view */
 		TSharedPtr< class IDetailsView > DetailsView;
@@ -118,6 +126,7 @@ namespace UE::ProxyTableEditor
 
 		TArray<TObjectPtr<UProxyRowDetails>> SelectedRows;
 
+		TArray<TSharedPtr<FProxyTableRow>> MainTableRows;
 		TArray<TSharedPtr<FProxyTableRow>> TableRows;
 	
 		TSharedPtr<SComboButton> CreateRowComboButton;

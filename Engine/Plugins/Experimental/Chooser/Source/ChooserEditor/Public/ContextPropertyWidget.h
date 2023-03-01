@@ -9,12 +9,13 @@
 namespace UE::ChooserEditor
 {
 	template <typename PropertyType>
-	TSharedRef<SWidget> CreatePropertyWidget(UObject* TransactionObject, void* Value, UClass* ContextClass, const FLinearColor& BindingColor)
+	TSharedRef<SWidget> CreatePropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ContextClass, const FLinearColor& BindingColor)
 	{
 		PropertyType* ContextProperty = static_cast<PropertyType*>(Value);
 		
 		FPropertyBindingWidgetArgs Args;
 		Args.bAllowPropertyBindings = true;
+		// todo: there doesn't seem to be an "Enabled" Argument to assign !bReadOnly to
 		
 		Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda([](FProperty* Property)
 		{
