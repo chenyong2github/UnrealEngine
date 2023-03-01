@@ -530,6 +530,11 @@ namespace Horde.Build.Jobs
 		/// The triggered job id
 		/// </summary>
 		public JobId? JobId { get; }
+
+		/// <summary>
+		/// Whether to run the latest change, or default change for the template, when starting the new job. Uses same change as the triggering job by default.
+		/// </summary>
+		public bool UseDefaultChangeForTemplate { get; }
 	}
 
 	/// <summary>

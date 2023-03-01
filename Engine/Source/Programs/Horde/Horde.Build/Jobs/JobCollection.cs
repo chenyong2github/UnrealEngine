@@ -177,6 +177,7 @@ namespace Horde.Build.Jobs
 			public string Target { get; set; }
 			public TemplateId TemplateRefId { get; set; }
 			public JobId? JobId { get; set; }
+			public bool UseDefaultChangeForTemplate { get; set; }
 
 			[BsonConstructor]
 			private ChainedJobDocument()
@@ -188,6 +189,7 @@ namespace Horde.Build.Jobs
 			{
 				Target = trigger.Trigger;
 				TemplateRefId = trigger.TemplateId;
+				UseDefaultChangeForTemplate = trigger.UseDefaultChangeForTemplate;
 			}
 		}
 

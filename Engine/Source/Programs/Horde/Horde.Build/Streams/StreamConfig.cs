@@ -663,6 +663,11 @@ namespace Horde.Build.Streams
 		/// </summary>
 		[Required]
 		public TemplateId TemplateId { get; set; }
+
+		/// <summary>
+		/// Whether to use the default change for the template rather than the change for the parent job.
+		/// </summary>
+		public bool UseDefaultChangeForTemplate { get; set; }
 	}
 
 	/// <summary>

@@ -1248,6 +1248,8 @@ namespace Horde.Build.Jobs
 		/// <returns>New job instance</returns>
 		private async Task<IJob?> FireJobTriggerAsync(IJob job, IGraph graph, IChainedJob jobTrigger, StreamConfig streamConfig)
 		{
+			CancellationToken cancellationToken = CancellationToken.None;
+
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.FireJobTriggerAsync").StartActive();
 			traceScope.Span.SetTag("Job", job.Id.ToString());
 			traceScope.Span.SetTag("Graph", graph.Id);
@@ -1273,14 +1275,39 @@ namespace Horde.Build.Jobs
 					ITemplate template = await _templateCollection.GetOrAddAsync(templateRefConfig);
 
 					IGraph triggerGraph = await _graphs.AddAsync(template, streamConfig.InitialAgentType);
-					_logger.LogInformation("Creating downstream job {ChainedJobId} from job {JobId}", chainedJobId, newJob.Id);
+
+					int? change = null;
+					int codeChange;
+					if (jobTrigger.UseDefaultChangeForTemplate)
+					{
+						ICommitCollection commits = _perforceService.GetCommits(streamConfig);
+
+						if (templateRefConfig.DefaultChange != null)
+						{
+							change = await EvaluateChangeQueriesAsync(streamConfig.Id, templateRefConfig.DefaultChange, null, commits, cancellationToken);
+						}
+						if (change == null)
+						{
+							change = await commits.GetLatestNumberAsync(cancellationToken);
+						}
+
+						ICommit? commit = await commits.GetLastCodeChangeAsync(change, cancellationToken);
+						codeChange = commit?.Number ?? change.Value;
+					}
+					else
+					{
+						change = job.Change;
+						codeChange = job.CodeChange;
+					}
+
+					_logger.LogInformation("Creating downstream job {ChainedJobId} from job {JobId} at change {Change}", chainedJobId, newJob.Id, change);
 
 					CreateJobOptions options = new CreateJobOptions(templateRefConfig);
 					options.PreflightChange = newJob.PreflightChange;
 					options.PreflightDescription = newJob.PreflightDescription;
 					options.Arguments.AddRange(template.GetDefaultArguments());
 
-					await CreateJobAsync(chainedJobId, streamConfig, jobTrigger.TemplateRefId, template.Hash, triggerGraph, templateRefConfig.Name, newJob.Change, newJob.CodeChange, options);
+					await CreateJobAsync(chainedJobId, streamConfig, jobTrigger.TemplateRefId, template.Hash, triggerGraph, templateRefConfig.Name, change.Value, codeChange, options);
 					return newJob;
 				}
 
