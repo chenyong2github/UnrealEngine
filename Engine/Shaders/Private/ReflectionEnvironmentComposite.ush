@@ -42,7 +42,7 @@ float3 CompositeReflectionCapturesAndSkylightTWS(
 #ifdef REFLECTION_COMPOSITE_NO_CULLING_DATA
 		CaptureIndex = TileCaptureIndex;	// Go from 0 to NumCapturesAffectingTile as absolute index in capture array
 #else
-	#if INSTANCED_STEREO
+	#if (INSTANCED_STEREO || MOBILE_MULTI_VIEW)
 		BRANCH
 		if (EyeIndex == 0)
 		{
@@ -50,7 +50,7 @@ float3 CompositeReflectionCapturesAndSkylightTWS(
 	
 			CaptureIndex = GetCulledLightDataGrid(CaptureDataStartIndex + TileCaptureIndex);
 	
-	#if INSTANCED_STEREO
+	#if (INSTANCED_STEREO || MOBILE_MULTI_VIEW)
 		}
 		else
 		{

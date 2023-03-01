@@ -426,7 +426,7 @@ half3 GetImageBasedReflectionSpecular(FMaterialPixelParameters MaterialParameter
 		uint DataStartIndex = 0;
 
 #if REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES
-		#if INSTANCED_STEREO
+		#if (INSTANCED_STEREO || MOBILE_MULTI_VIEW)
 			BRANCH
 			if (EyeIndex == 0)
 			{
@@ -436,7 +436,7 @@ half3 GetImageBasedReflectionSpecular(FMaterialPixelParameters MaterialParameter
 				NumLocalReflectionCaptures = min(ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 0], ForwardLightData.NumReflectionCaptures);
 				DataStartIndex = ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 1];
 
-		#if INSTANCED_STEREO
+		#if (INSTANCED_STEREO || MOBILE_MULTI_VIEW)
 			}
 			else
 			{

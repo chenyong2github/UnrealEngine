@@ -817,8 +817,15 @@ void Main(
 	// Local lights
 #if  !MATERIAL_SHADINGMODEL_SINGLELAYERWATER && ENABLE_CLUSTERED_LIGHTS
 	{
+
+#if MOBILE_MULTI_VIEW
+		const uint EyeIndex = BasePassInterpolants.MultiViewId;
+#else
 		const uint EyeIndex = 0;
+#endif
+
 		const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid(GridIndex, EyeIndex);
+
 		half4 LocalLightDynamicShadowFactors = 1.0f;
 
 		#if USE_SHADOWMASKTEXTURE
@@ -994,4 +1001,5 @@ void Main(
 #if DEFERRED_SHADING_PATH && USE_GLES_FBF_DEFERRED 
 	OutProxy.rgb = OutColor.rgb;
 #endif
+
 }

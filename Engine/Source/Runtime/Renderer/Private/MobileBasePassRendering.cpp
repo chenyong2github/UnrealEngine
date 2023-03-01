@@ -182,6 +182,18 @@ void SetupMobileBasePassUniformParameters(
 		SetupDummyForwardLightUniformParameters(GraphBuilder, BasePassParameters.Forward, View.GetShaderPlatform());
 	}
 
+	// Setup forward light data for mobile multi-view secondary view if enabled and available
+	const FViewInfo* InstancedView = View.GetInstancedView();
+	const FForwardLightData* InstancedForwardLightData = InstancedView ? InstancedView->ForwardLightingResources.ForwardLightData : nullptr;
+	if (View.bIsMobileMultiViewEnabled && InstancedForwardLightData)
+	{
+		BasePassParameters.ForwardMMV = *InstancedForwardLightData;
+	}
+	else
+	{
+		BasePassParameters.ForwardMMV = BasePassParameters.Forward; // Duplicate primary data if not
+	}
+
 	const FScene* Scene = View.Family->Scene ? View.Family->Scene->GetRenderScene() : nullptr;
 	const FPlanarReflectionSceneProxy* ReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, BasePassParameters.PlanarReflection);
