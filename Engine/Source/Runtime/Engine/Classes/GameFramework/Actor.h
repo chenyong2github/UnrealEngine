@@ -899,9 +899,9 @@ protected:
 	TArray<FActorDataLayer> DataLayers;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = DataLayers)
-	TArray<TSoftObjectPtr<UDataLayerAsset>> DataLayerAssets;
+	TArray<TObjectPtr<const UDataLayerAsset>> DataLayerAssets;
 
-	TArray<TSoftObjectPtr<UDataLayerAsset>> PreEditChangeDataLayers;
+	TArray<TObjectPtr<const UDataLayerAsset>> PreEditChangeDataLayers;
 
 public:
 	/** The copy/paste id used to remap actors during copy operations */
@@ -1250,7 +1250,7 @@ public:
 	static const FName GetDataLayerAssetsPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, DataLayerAssets); }
 	static const FName GetDataLayerPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, DataLayers); }
 
-	TArray<const UDataLayerAsset*> GetDataLayerAssets() const;
+	const TArray<TObjectPtr<const UDataLayerAsset>>& GetDataLayerAssets() const { return DataLayerAssets; }
 
 	//~ Begin Deprecated
 

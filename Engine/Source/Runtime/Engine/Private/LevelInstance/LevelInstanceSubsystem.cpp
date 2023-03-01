@@ -1041,7 +1041,7 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 					if (UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(ActorToMove))
 					{
 						// Use the raw asset list as we don't want parent DataLayers
-						for (const UDataLayerAsset* DataLayerAsset : ActorToMove->GetDataLayerAssets())
+						for (const TObjectPtr<const UDataLayerAsset>& DataLayerAsset : ActorToMove->GetDataLayerAssets())
 						{
 							// Validate that there's a valid Data Layer Instance for this asset in the source level
 							if (DataLayerManager->GetDataLayerInstanceFromAsset(DataLayerAsset))

@@ -6161,7 +6161,7 @@ TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesInternal(bool bUs
 		TArray<const UDataLayerInstance*> DataLayerInstances;
 		if (UDataLayerManager* DataLayerManager = bUseLevelContext ? UDataLayerManager::GetDataLayerManager(this) : UDataLayerManager::GetDataLayerManager(GetWorld()))
 		{
-			DataLayerInstances += DataLayerManager->GetDataLayerInstances(GetDataLayerAssets());
+			DataLayerInstances += DataLayerManager->GetDataLayerInstances(DataLayerAssets);
 
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			DataLayerInstances += DataLayerManager->GetDataLayerInstances(DataLayers);
