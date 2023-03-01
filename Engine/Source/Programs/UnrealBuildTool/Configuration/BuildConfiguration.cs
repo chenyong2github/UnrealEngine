@@ -43,13 +43,6 @@ namespace UnrealBuildTool
 		public bool bAllowHybridExecutor = false;
 
 		/// <summary>
-		/// Whether Horde remote compute may be used. Highly experimental, disabled by default.
-		/// </summary>
-		[XmlConfigFile]
-		[CommandLine("-HordeCompute", Value = "true")]
-		public bool bAllowHordeCompute = false;
-
-		/// <summary>
 		/// Whether XGE may be used.
 		/// </summary>
 		[XmlConfigFile]
