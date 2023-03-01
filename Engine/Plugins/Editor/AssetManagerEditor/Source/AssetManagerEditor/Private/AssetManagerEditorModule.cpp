@@ -301,6 +301,7 @@ public:
 	virtual void OpenAssetAuditUI(TArray<FAssetData> SelectedAssets) override;
 	virtual void OpenAssetAuditUI(TArray<FAssetIdentifier> SelectedIdentifiers) override;
 	virtual void OpenAssetAuditUI(TArray<FName> SelectedPackages) override;
+	virtual FCanOpenReferenceViewerUI& OnCanOpenReferenceViewerUI() override;
 	virtual void OpenReferenceViewerUI(const TArray<FAssetIdentifier> SelectedIdentifiers, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) override;
 	virtual void OpenReferenceViewerUI(const TArray<FName> SelectedPackages, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) override;
 	virtual void OpenSizeMapUI(TArray<FAssetIdentifier> SelectedIdentifiers) override;
@@ -370,6 +371,8 @@ private:
 	TSharedPtr<FAssetManagerGraphPanelPinFactory> AssetManagerGraphPanelPinFactory;
 
 	FAssetSourceControlContextMenu AssetSourceControlContextMenu;
+
+	FCanOpenReferenceViewerUI CanOpenReferenceViewerUIDelegate;
 
 	void CreateAssetContextMenu(FToolMenuSection& InSection);
 	void OnExtendContentBrowserCommands(TSharedRef<FUICommandList> CommandList, FOnContentBrowserGetSelection GetSelectionDelegate);
@@ -662,11 +665,29 @@ void FAssetManagerEditorModule::OpenAssetAuditUI(TArray<FName> SelectedPackages)
 	}
 }
 
+IAssetManagerEditorModule::FCanOpenReferenceViewerUI& FAssetManagerEditorModule::OnCanOpenReferenceViewerUI()
+{
+	return CanOpenReferenceViewerUIDelegate;
+}
+
 void FAssetManagerEditorModule::OpenReferenceViewerUI(const TArray<FAssetIdentifier> SelectedIdentifiers, const FReferenceViewerParams ReferenceViewerParams)
 {
-	if (SelectedIdentifiers.Num() > 0)
+	if (!SelectedIdentifiers.IsEmpty())
 	{
-		if (TSharedPtr<SDockTab> NewTab = FGlobalTabmanager::Get()->TryInvokeTab(ReferenceViewerTabName))
+		FText ErrorMessage;
+		if (OnCanOpenReferenceViewerUI().IsBound() && !OnCanOpenReferenceViewerUI().Execute(SelectedIdentifiers, &ErrorMessage))
+		{
+			if (!ErrorMessage.IsEmpty())
+			{
+				FNotificationInfo Info(ErrorMessage);
+				Info.ExpireDuration = 5.0f;
+				if (TSharedPtr<SNotificationItem> InfoItem = FSlateNotificationManager::Get().AddNotification(Info))
+				{
+					InfoItem->SetCompletionState(SNotificationItem::CS_Fail);
+				}
+			}
+		}
+		else if (TSharedPtr<SDockTab> NewTab = FGlobalTabmanager::Get()->TryInvokeTab(ReferenceViewerTabName))
 		{
 			TSharedRef<SReferenceViewer> ReferenceViewer = StaticCastSharedRef<SReferenceViewer>(NewTab->GetContent());
 			ReferenceViewer->SetGraphRootIdentifiers(SelectedIdentifiers, ReferenceViewerParams);

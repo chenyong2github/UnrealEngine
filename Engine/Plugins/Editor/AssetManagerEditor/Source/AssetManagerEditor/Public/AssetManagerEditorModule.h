@@ -410,6 +410,10 @@ public:
 	virtual void OpenReferenceViewerUI(const TArray<FAssetIdentifier> SelectedIdentifiers, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) = 0;
 	virtual void OpenReferenceViewerUI(const TArray<FName> SelectedPackages, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) = 0;
 
+	/** Returns false if should not open reference viewer for items */
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FCanOpenReferenceViewerUI, const TArray<FAssetIdentifier>&, FText*);
+	virtual FCanOpenReferenceViewerUI& OnCanOpenReferenceViewerUI() = 0;
+
 	/** Spawns size map with selected packages */
 	virtual void OpenSizeMapUI(TArray<FAssetIdentifier> SelectedIdentifiers) = 0;
 	virtual void OpenSizeMapUI(TArray<FName> SelectedPackages) = 0;
