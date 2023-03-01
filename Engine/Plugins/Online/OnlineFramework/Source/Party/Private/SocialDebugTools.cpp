@@ -43,6 +43,7 @@ void USocialDebugTools::PrintExecCommands() const
 	UE_LOG(LogParty, Log, TEXT("LEAVEPARTY"));
 	UE_LOG(LogParty, Log, TEXT("AUTOACCEPTFRIENDINVITES"));
 	UE_LOG(LogParty, Log, TEXT("AUTOACCEPTPARTYINVITES"));
+	UE_LOG(LogParty, Log, TEXT("JIP"));
 	UE_LOG(LogParty, Log, TEXT("HELP"));
 }
 

@@ -98,6 +98,7 @@ public:
 	FInstanceContext* GetContextForUser(const FUniqueNetId& UserId);
 
 protected:
+	virtual void PrintExecCommands() const;
 	virtual bool RunCommand(const TCHAR* Cmd, const TArray<FString>& TargetInstances);
 	virtual void NotifyContextInitialized(const FInstanceContext& Context) { }
 
@@ -111,7 +112,6 @@ private:
 	IOnlinePartyJoinInfoConstPtr GetDefaultPartyJoinInfo() const;
 	IOnlineSubsystem* GetDefaultOSS() const;
 	void PrintExecUsage() const;
-	virtual void PrintExecCommands() const;
 
 	// OSS callback handlers
 	void HandleFriendInviteReceived(const FUniqueNetId& LocalUserId, const FUniqueNetId& FriendId);
