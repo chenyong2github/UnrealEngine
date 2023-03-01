@@ -302,6 +302,12 @@ namespace UE::USDInfoCacheImpl::Private
 	)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( UE::USDInfoCacheImpl::Private::RecursiveRebuildCache );
+
+		if (!UsdPrim)
+		{
+			return;
+		}
+
 		FScopedUsdAllocs Allocs;
 
 		pxr::SdfPath UsdPrimPath = UsdPrim.GetPrimPath();
@@ -335,13 +341,33 @@ namespace UE::USDInfoCacheImpl::Private
 			}
 		}
 
-		pxr::UsdShadeMaterialBindingAPI BindingAPI{UsdPrim};
-		if (BindingAPI)
+		if (!UsdPrim.IsPseudoRoot())
 		{
-			if (pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial(MaterialPurposeToken))
+			pxr::UsdShadeMaterialBindingAPI BindingAPI{UsdPrim};
+			if (BindingAPI)
 			{
-				FWriteScopeLock ScopeLock(Impl.UsedMaterialPathsLock);
-				Impl.UsedMaterialPaths.Add(UE::FSdfPath{ShadeMaterial.GetPrim().GetPath()});
+				if (pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial(MaterialPurposeToken))
+				{
+					FWriteScopeLock ScopeLock(Impl.UsedMaterialPathsLock);
+					Impl.UsedMaterialPaths.Add(UE::FSdfPath{ShadeMaterial.GetPrim().GetPath()});
+				}
+			}
+			else if (pxr::UsdRelationship Relationship = UsdPrim.GetRelationship(pxr::UsdShadeTokens->materialBinding))
+			{
+				pxr::SdfPathVector Targets;
+				Relationship.GetTargets(&Targets);
+
+				if (Targets.size() > 0)
+				{
+					const pxr::SdfPath& TargetMaterialPrimPath = Targets[0];
+					pxr::UsdPrim MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath(TargetMaterialPrimPath);
+					pxr::UsdShadeMaterial UsdShadeMaterial{MaterialPrim};
+					if (UsdShadeMaterial)
+					{
+						FWriteScopeLock ScopeLock(Impl.UsedMaterialPathsLock);
+						Impl.UsedMaterialPaths.Add(UE::FSdfPath{TargetMaterialPrimPath});
+					}
+				}
 			}
 		}
 
