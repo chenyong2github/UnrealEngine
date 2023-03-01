@@ -6,7 +6,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectSlotLinkAnnotation)
 
-#if UE_ENABLE_DEBUG_DRAWING
+#if WITH_EDITOR
 
 void FSmartObjectSlotLinkAnnotation::DrawVisualization(FSmartObjectVisualizationContext& VisContext) const
 {
@@ -50,4 +50,4 @@ void FSmartObjectSlotLinkAnnotation::DrawVisualizationHUD(FSmartObjectVisualizat
 	}
 }
 
-#endif
+#endif // WITH_EDITOR

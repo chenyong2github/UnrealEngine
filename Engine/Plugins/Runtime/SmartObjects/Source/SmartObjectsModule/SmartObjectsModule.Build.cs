@@ -23,7 +23,8 @@ namespace UnrealBuildTool.Rules
 				"MassEntity",
 				"RHI",
 				"StructUtils",
-				"WorldConditions"
+				"WorldConditions",
+				"NavigationSystem"
 			}
 			);
 

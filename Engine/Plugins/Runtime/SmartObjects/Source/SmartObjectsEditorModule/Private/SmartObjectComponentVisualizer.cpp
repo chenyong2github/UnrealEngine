@@ -15,9 +15,9 @@ IMPLEMENT_HIT_PROXY(HSmartObjectSlotProxy, HComponentVisProxy);
 namespace UE::SmartObjects::Editor
 {
 
-void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FPrimitiveDrawInterface& PDI)
+void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FPrimitiveDrawInterface& PDI, const UWorld& World)
 {
-	FSmartObjectVisualizationContext VisContext(Definition);
+	FSmartObjectVisualizationContext VisContext(Definition, World);
 	VisContext.OwnerLocalToWorld = OwnerLocalToWorld;
 	VisContext.View = &View;
 	VisContext.PDI = &PDI;
@@ -45,9 +45,14 @@ void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedIte
 			continue;
 		}
 		bIsSelected = false;
+		float SlotSize = DebugCylinderRadius;
+		ESmartObjectSlotShape SlotShape = ESmartObjectSlotShape::Circle;
+		
 #if WITH_EDITORONLY_DATA
 		Color = Slot->bEnabled ? Slot->DEBUG_DrawColor : FColor::Silver;
 		SlotID = Slot->ID;
+		SlotShape = Slot->DEBUG_DrawShape;
+		SlotSize = Slot->DEBUG_DrawSize;
 
 		if (Selection.Contains(FSelectedItem(Slot->ID)))
 		{
@@ -64,11 +69,18 @@ void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedIte
 			const FVector AxisY = Transform->GetUnitAxis(EAxis::Y);
 
 			// Arrow with tick at base.
-			VisContext.DrawArrow(Location - AxisX * TickSize, Location + AxisX * DebugCylinderRadius * 2.0, Color, /*ArrowHeadLength*/ 20.0f, /*EndLocationInset*/ 0.0f, SDPG_World);
+			VisContext.DrawArrow(Location - AxisX * TickSize, Location + AxisX * SlotSize * 2.0, Color, /*ArrowHeadLength*/ 20.0f, /*EndLocationInset*/ 0.0f, SDPG_World);
 			PDI.DrawTranslucentLine(Location - AxisY * TickSize, Location + AxisY * TickSize, Color, SDPG_World, 1.0f);
 
 			// Circle and direction arrow.
-			DrawCircle(&PDI, Location, AxisX, AxisY, Color, DebugCylinderRadius, /*NumSides*/64, SDPG_World, /*Thickness*/2.f);
+			if (SlotShape == ESmartObjectSlotShape::Circle)
+			{
+				DrawCircle(&PDI, Location, AxisX, AxisY, Color, SlotSize, /*NumSides*/64, SDPG_World, /*Thickness*/2.f);
+			}
+			else if (SlotShape == ESmartObjectSlotShape::Rectangle)
+			{
+				DrawRectangle(&PDI, Location, AxisX, AxisY, Color.ToFColor(/*bSRGB*/true), SlotSize * 2.0f, SlotSize * 2.0f, SDPG_World, /*Thickness*/2.f);
+			}
 		}
 			
 		PDI.SetHitProxy(nullptr);
@@ -90,9 +102,9 @@ void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedIte
 	}
 }
 
-void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FCanvas& Canvas)
+void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FCanvas& Canvas, const UWorld& World)
 {
-	FSmartObjectVisualizationContext VisContext(Definition);
+	FSmartObjectVisualizationContext VisContext(Definition, World);
 	VisContext.OwnerLocalToWorld = OwnerLocalToWorld;
 	VisContext.View = &View;
 	VisContext.Canvas = &Canvas;
@@ -169,7 +181,7 @@ void FSmartObjectComponentVisualizer::DrawVisualization( const UActorComponent* 
 
 	const FTransform OwnerLocalToWorld = SOComp->GetComponentTransform();
 
-	UE::SmartObjects::Editor::Draw(*Definition, {}, OwnerLocalToWorld, *View, *PDI);
+	UE::SmartObjects::Editor::Draw(*Definition, {}, OwnerLocalToWorld, *View, *PDI, *Component->GetWorld());
 }
 
 
@@ -194,5 +206,5 @@ void FSmartObjectComponentVisualizer::DrawVisualizationHUD(const UActorComponent
 
 	const FTransform OwnerLocalToWorld = SOComp->GetComponentTransform();
 
-	UE::SmartObjects::Editor::DrawCanvas(*Definition, {}, OwnerLocalToWorld, *View, *Canvas);
+	UE::SmartObjects::Editor::DrawCanvas(*Definition, {}, OwnerLocalToWorld, *View, *Canvas, *Component->GetWorld());
 }
