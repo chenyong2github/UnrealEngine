@@ -1408,6 +1408,14 @@ namespace UnrealBuildTool
 		public bool bForceUnityBuild = false;
 
 		/// <summary>
+		/// Whether to merge module and generated unity files for faster compilation.
+		/// </summary>
+		[Obsolete("Deprecated in UE5.3; use DisableMergingModuleAndGeneratedFilesInUnityFiles instead")]
+		[CommandLine("-DisableMergingUnityFiles", Value = "false")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bMergeModuleAndGeneratedUnityFiles = true;
+
+		/// <summary>
 		/// List of modules that disables merging module and generated cpp files in the same unity files.
 		/// </summary>
 		[XmlConfigFile(Category = "ModuleConfiguration", Name = "DisableMergingModuleAndGeneratedFilesInUnityFiles")]
@@ -1969,6 +1977,14 @@ namespace UnrealBuildTool
 		[CommandLine("-PublicSymbolsByDefault")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bPublicSymbolsByDefault = false;
+
+		/// <summary>
+		/// Disable supports for inlining gen.cpps
+		/// </summary>
+		[Obsolete("Deprecated in UE5.3; the engine code relies on inlining generated cpp files to compile")]
+		[XmlConfigFile(Name = "bDisableInliningGenCpps")]
+		[CommandLine("-DisableInliningGenCpps")]
+		public bool bDisableInliningGenCpps = false;
 
 		/// <summary>
 		/// Allows overriding the toolchain to be created for this target. This must match the name of a class declared in the UnrealBuildTool assembly.
