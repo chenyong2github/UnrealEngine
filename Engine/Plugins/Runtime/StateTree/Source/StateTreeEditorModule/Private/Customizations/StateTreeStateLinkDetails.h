@@ -41,6 +41,7 @@ private:
 	void OnStateComboChange(int Idx);
 	TSharedRef<SWidget> OnGetStateContent() const;
 	FText GetCurrentStateDesc() const;
+	bool IsValidLink() const;
 	TOptional<EStateTreeTransitionType> GetTransitionType() const;
 
 	TArray<FName> CachedNames;

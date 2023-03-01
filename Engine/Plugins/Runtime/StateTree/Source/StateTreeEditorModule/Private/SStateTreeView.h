@@ -45,13 +45,14 @@ public:
 	SLATE_END_ARGS()
 
 	SStateTreeView();
-	~SStateTreeView();
+	virtual ~SStateTreeView() override;
 
 	void Construct(const FArguments& InArgs, TSharedRef<FStateTreeViewModel> StateTreeViewModel);
 
 	void SavePersistentExpandedStates();
 
 private:
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	void UpdateTree(bool bExpandPersistent = false);
@@ -73,11 +74,21 @@ private:
 	TSharedPtr<SWidget> HandleContextMenuOpening();
 
 	// Action handlers
+	UStateTreeState* GetFirstSelectedState() const;
 	FReply HandleAddStateButton();
-	void HandleRenameState(UStateTreeState* State);
-	void HandleAddState(UStateTreeState* AfterItem);
-	void HandleAddChildState(UStateTreeState* ParentItem);
-	void HandleDeleteItems();
+	void HandleAddSiblingState();
+	void HandleAddChildState();
+	void HandleCutSelectedStates();
+	void HandleCopySelectedStates();
+	void HandlePasteStatesAsSiblings();
+	void HandlePasteStatesAsChildren();
+	void HandleDuplicateSelectedStates();
+	void HandleRenameState();
+	void HandleDeleteStates();
+
+	bool HasSelection() const;
+
+	void BindCommands();
 
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
 
@@ -85,6 +96,8 @@ private:
 	TSharedPtr<SScrollBar> ExternalScrollbar;
 	TSharedPtr<SScrollBox> ViewBox;
 	TArray<TWeakObjectPtr<UStateTreeState>> Subtrees;
+
+	TSharedPtr<FUICommandList> CommandList;
 
 	UStateTreeState* RequestedRenameState;
 	bool bItemsDirty;

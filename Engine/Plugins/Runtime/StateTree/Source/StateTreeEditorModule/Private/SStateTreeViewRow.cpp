@@ -23,12 +23,12 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 	WeakState = InState;
 
 	STableRow<TWeakObjectPtr<UStateTreeState>>::ConstructInternal(STableRow::FArguments()
-		.Padding(5.0f)
-		.OnDragDetected(this, &SStateTreeViewRow::HandleDragDetected)
-		.OnCanAcceptDrop(this, &SStateTreeViewRow::HandleCanAcceptDrop)
-		.OnAcceptDrop(this, &SStateTreeViewRow::HandleAcceptDrop)
-		.Style(&FStateTreeEditorStyle::Get()->GetWidgetStyle<FTableRowStyle>("StateTree.Selection"))
-	, InOwnerTableView);
+        .Padding(5.0f)
+        .OnDragDetected(this, &SStateTreeViewRow::HandleDragDetected)
+        .OnCanAcceptDrop(this, &SStateTreeViewRow::HandleCanAcceptDrop)
+        .OnAcceptDrop(this, &SStateTreeViewRow::HandleAcceptDrop)
+        .Style(&FStateTreeEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("StateTree.Selection"))
+    , InOwnerTableView);
 
 	static const FLinearColor TasksBackground = FLinearColor(FColor(17, 117, 131));
 	static const FLinearColor LinkBackground = FLinearColor(FColor(84, 84, 84));

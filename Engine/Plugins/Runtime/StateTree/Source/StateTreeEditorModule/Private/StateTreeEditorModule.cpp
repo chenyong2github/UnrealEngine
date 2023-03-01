@@ -72,7 +72,7 @@ void FStateTreeEditorModule::StartupModule()
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
 
-	FStateTreeEditorStyle::Initialize();
+	FStateTreeEditorStyle::Register();
 	FStateTreeEditorCommands::Register();
 
 	// Register the details customizer
@@ -96,7 +96,7 @@ void FStateTreeEditorModule::ShutdownModule()
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
 
-	FStateTreeEditorStyle::Shutdown();
+	FStateTreeEditorStyle::Unregister();
 	FStateTreeEditorCommands::Unregister();
 
 	// Unregister the details customization

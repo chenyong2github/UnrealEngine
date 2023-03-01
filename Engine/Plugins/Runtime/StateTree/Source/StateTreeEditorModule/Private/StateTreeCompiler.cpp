@@ -192,7 +192,7 @@ FStateTreeStateHandle FStateTreeCompiler::GetStateHandle(const FGuid& StateID) c
 	return FStateTreeStateHandle(uint16(*Idx));
 }
 
-UStateTreeState* FStateTreeCompiler::GetState(const FGuid& StateID)
+UStateTreeState* FStateTreeCompiler::GetState(const FGuid& StateID) const
 {
 	const int32* Idx = IDToState.Find(StateID);
 	if (Idx == nullptr)
@@ -686,6 +686,17 @@ bool FStateTreeCompiler::ResolveTransitionState(const UStateTreeState* SourceSta
 {
 	if (Link.LinkType == EStateTreeTransitionType::GotoState)
 	{
+		// Warn if goto state points to another subtree.
+		if (const UStateTreeState* TargetState = GetState(Link.ID))
+		{
+			if (TargetState->GetRootState() != SourceState->GetRootState())
+			{
+				Log.Reportf(EMessageSeverity::Warning,
+					TEXT("Target state '%s' is in different subtree. Verify that this is intentional."),
+					*Link.Name.ToString());
+			}			
+		}
+		
 		OutTransitionHandle = GetStateHandle(Link.ID);
 		if (!OutTransitionHandle.IsValid())
 		{
