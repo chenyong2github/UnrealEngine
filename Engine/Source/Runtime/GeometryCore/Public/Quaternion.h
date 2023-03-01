@@ -277,6 +277,27 @@ TQuaternion<RealType> operator*(const TQuaternion<RealType>& A, const TQuaternio
 	return TQuaternion<RealType>(X, Y, Z, W);
 }
 
+
+template<typename RealType>
+TQuaternion<RealType> operator*(RealType Scalar, const TQuaternion<RealType>& Q) 
+{
+	return TQuaternion<RealType>(Scalar * Q.X, Scalar * Q.Y, Scalar * Q.Z, Scalar * Q.W);
+}
+
+template<typename RealType>
+TQuaternion<RealType> operator*(const TQuaternion<RealType>& Q, RealType Scalar) 
+{
+	return TQuaternion<RealType>(Scalar * Q.X, Scalar * Q.Y, Scalar * Q.Z, Scalar * Q.W);
+}
+
+
+template<typename RealType>
+TQuaternion<RealType> operator+(const TQuaternion<RealType>& A, const TQuaternion<RealType>& B) 
+{
+	return TQuaternion<RealType>(A.X + B.X, A.Y + B.Y, A.Z + B.Z, A.W + B.W);
+}
+
+
 template<typename RealType>
 TQuaternion<RealType> operator -(const TQuaternion<RealType>& A, const TQuaternion<RealType>& B) 
 {

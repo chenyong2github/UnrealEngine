@@ -29,6 +29,9 @@
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "Operations/RemoveOccludedTriangles.h"
 
+#include "Physics/CollisionGeometryConversion.h"
+#include "Physics/PhysicsDataCollection.h"
+
 #include "TransformSequence.h"
 
 
@@ -76,7 +79,7 @@ struct FMeshInstanceSet
 struct FSourceGeometry
 {
 	TArray<UE::Geometry::FDynamicMesh3> SourceMeshLODs;
-	//UE::Geometry::FSimpleShapeSet3d CollisionShapes;
+	UE::Geometry::FSimpleShapeSet3d CollisionShapes;
 };
 
 struct FOptimizedGeometry
@@ -251,7 +254,25 @@ void InitializeAssemblySourceMeshesFromLOD(
 				Target.SourceMeshLODs[k] = Target.SourceMeshLODs[k-1];
 			}
 		}
+
 	});
+
+
+	// not clear that it is safe to do this in parallel...
+	for (int32 Index = 0; Index < NumSets; ++Index)
+	{
+		TUniquePtr<FMeshInstanceSet>& InstanceSet = Assembly.InstanceSets[Index];
+		FSourceGeometry& Target = Assembly.SourceMeshGeometry[Index];
+
+		UStaticMesh* StaticMesh = InstanceSet->SourceAsset;
+		UBodySetup* BodySetup = StaticMesh->GetBodySetup();
+		if (BodySetup)
+		{
+			UE::Geometry::GetShapeSet(BodySetup->AggGeom, Target.CollisionShapes);
+			// todo: detect boxes?
+		}
+	}
+
 
 
 	//ParallelFor(NumSets, [&](int32 Index)
@@ -914,12 +935,166 @@ void BuildCombinedMesh(
 	{
 		CombinedMeshLODs.Add(MoveTemp(MeshLODs[LODLevel].Mesh));
 	}
-
 }
 
 
 
 
+
+
+/**
+ * Construct a new OrientedBox that contains both A and B. The main problem is to
+ * determine the new Orientation, this is done by a 0.5 slerp of the orientations of A and B.
+ * The new local Origin and Extents are then computed in this new orientation.
+ */
+FOrientedBox3d MergeBoxes(const FOrientedBox3d& A, const FOrientedBox3d& B)
+{
+	FOrientedBox3d NewBox;
+	NewBox.Frame.Origin = (A.Center() + B.Center()) * 0.5;
+
+	FQuaterniond RotationA(A.Frame.Rotation), RotationB(B.Frame.Rotation);
+	if (RotationA.Dot(RotationB) < 0)
+	{
+		RotationB = -RotationB;
+	}
+
+	// this is just a slerp?
+	FQuaterniond HalfRotation = RotationA + RotationB;
+	HalfRotation.Normalize();
+	NewBox.Frame.Rotation = HalfRotation;
+
+	// likely faster to compute the frame X/Y/Z instead of calling ToFramePoint each time...
+	FAxisAlignedBox3d LocalBounds(FVector3d::Zero(), FVector3d::Zero());
+	A.EnumerateCorners([&](FVector3d P)
+	{
+		LocalBounds.Contain( NewBox.Frame.ToFramePoint(P) );
+	});
+	B.EnumerateCorners([&](FVector3d P)
+	{
+		LocalBounds.Contain( NewBox.Frame.ToFramePoint(P) );
+	});
+
+	// update origin and extents
+	NewBox.Frame.Origin = NewBox.Frame.FromFramePoint( LocalBounds.Center() );
+	NewBox.Extents = 0.5 * LocalBounds.Diagonal();
+
+	return NewBox;
+}
+
+
+
+static void CombineCollisionShapes(
+	FSimpleShapeSet3d& CollisionShapes,
+	double AxisToleranceDelta = 0.01)
+{
+	// only going to merge boxes for now
+	TArray<FOrientedBox3d> Boxes;
+	for (FBoxShape3d Box : CollisionShapes.Boxes)
+	{
+		Boxes.Add(Box.Box);
+	}
+
+	// want to merge larger-volume boxes first
+	Boxes.Sort([&](const FOrientedBox3d& A, const FOrientedBox3d& B)
+	{
+		return A.Volume() > B.Volume();
+	});
+
+	auto CalcOffsetVolume = [](FOrientedBox3d Box, double AxisDelta) -> double
+	{
+		Box.Extents.X = FMathd::Max(0, Box.Extents.X+AxisDelta);
+		Box.Extents.Y = FMathd::Max(0, Box.Extents.Y+AxisDelta);
+		Box.Extents.Z = FMathd::Max(0, Box.Extents.Z+AxisDelta);
+		return Box.Volume();
+	};
+
+	double DotTol = 0.99;
+	auto HasMatchingAxis = [DotTol](const FVector3d& Axis, const FOrientedBox3d& Box)
+	{
+		for (int32 k = 0; k < 3; ++k)
+		{
+			if (FMathd::Abs(Axis.Dot(Box.GetAxis(k))) > DotTol)
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+
+	bool bFoundMerge = true;
+	while (bFoundMerge)
+	{
+		bFoundMerge = false;
+
+		int32 N = Boxes.Num();
+		for (int32 i = 0; i < N; ++i)
+		{
+			FOrientedBox3d Box1 = Boxes[i];
+
+			for (int32 j = i + 1; j < N; ++j)
+			{
+				FOrientedBox3d Box2 = Boxes[j];
+
+				// should we just be appending box2 to Box1? prevents getting skewed boxes...
+				FOrientedBox3d NewBox = MergeBoxes(Box1, Box2);
+
+				// check if newbox is still aligned w/ box2?
+				bool bAllAxesAligned = true;
+				for (int32 k = 0; k < 3; ++k)
+				{
+					bAllAxesAligned = bAllAxesAligned && HasMatchingAxis(Box1.GetAxis(k), NewBox) && HasMatchingAxis(Box2.GetAxis(k), NewBox);
+				}
+				if (!bAllAxesAligned)
+				{
+					continue;
+				}
+
+				double SumVolume = Box1.Volume() + Box2.Volume();
+				if ( (CalcOffsetVolume(NewBox, AxisToleranceDelta) > SumVolume) &&
+						(CalcOffsetVolume(NewBox, -AxisToleranceDelta) < SumVolume) )
+				{
+					bFoundMerge = true;
+					Boxes[i] = NewBox;
+					Boxes.RemoveAtSwap(j);
+					j = N;
+					N--;
+				}
+			}
+		}
+	}
+
+	CollisionShapes.Boxes.Reset();
+	for (FOrientedBox3d Box : Boxes)
+	{
+		CollisionShapes.Boxes.Add(FBoxShape3d(Box));
+	}
+}
+
+
+void BuildCombinedCollisionShapes(
+	const FMeshInstanceAssembly& Assembly,
+	IGeometryProcessing_CombineMeshInstances::FOptions CombineOptions,
+	FSimpleShapeSet3d& CombinedCollisionShapes)
+{
+	int32 NumSets = Assembly.InstanceSets.Num();
+
+	for ( int32 SetIndex = 0; SetIndex < NumSets; ++SetIndex )
+	{
+		const TUniquePtr<FMeshInstanceSet>& InstanceSet = Assembly.InstanceSets[SetIndex];
+		const FSourceGeometry& SourceGeometry = Assembly.SourceMeshGeometry[SetIndex];
+		for ( const FMeshInstance& Instance : InstanceSet->Instances )
+		{
+			bool bIsDecorativePart = (Instance.DetailLevel == EMeshDetailLevel::Decorative);
+			if ( ! bIsDecorativePart )
+			{
+				CombinedCollisionShapes.Append( SourceGeometry.CollisionShapes, Instance.WorldTransform );
+			}
+		}
+	}
+
+	// trivially merge any adjacent boxes that merge to a perfect combined-box
+	CombineCollisionShapes(CombinedCollisionShapes, 0.01);
+}
 
 
 
@@ -1008,8 +1183,16 @@ void FCombineMeshInstancesImpl::CombineMeshInstances(
 	TArray<UE::Geometry::FDynamicMesh3> CombinedMeshLODs;
 	BuildCombinedMesh(InstanceAssembly, Options, CombinedMeshLODs);
 
+	FSimpleShapeSet3d CombinedCollisionShapes;
+	BuildCombinedCollisionShapes(InstanceAssembly, Options, CombinedCollisionShapes);
+	FPhysicsDataCollection PhysicsData;
+	PhysicsData.Geometry = CombinedCollisionShapes;
+	PhysicsData.CopyGeometryToAggregate();		// need FPhysicsDataCollection to convert to agg geom, should fix this
+
+
 	ResultsOut.CombinedMeshes.SetNum(1);
 	IGeometryProcessing_CombineMeshInstances::FOutputMesh& OutputMesh = ResultsOut.CombinedMeshes[0];
 	OutputMesh.MeshLODs = MoveTemp(CombinedMeshLODs);
 	OutputMesh.MaterialSet = InstanceAssembly.UniqueMaterials;
+	OutputMesh.SimpleCollisionShapes = PhysicsData.AggGeom;
 }

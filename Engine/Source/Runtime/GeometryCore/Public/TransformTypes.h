@@ -150,6 +150,14 @@ public:
 	}
 
 	/**
+	 * @return Scale portion of transform
+	 */
+	const TVector<RealType>& GetScale3D() const
+	{
+		return Scale3D;
+	}
+
+	/**
 	 * set Scale portion of transform
 	 */
 	void SetScale(const UE::Math::TVector<RealType>& ScaleIn)

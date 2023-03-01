@@ -500,7 +500,7 @@ struct TAxisAlignedBox3
 		return dx * dx + dy * dy + dz * dz;
 	}
 
-	RealType DistanceSquared(const TAxisAlignedBox3<RealType>& Box)
+	RealType DistanceSquared(const TAxisAlignedBox3<RealType>& Box) const
 	{
 		// compute lensqr( max(0, abs(center1-center2) - (extent1+extent2)) )
 		RealType delta_x = TMathUtil<RealType>::Abs((Box.Min.X + Box.Max.X) - (Min.X + Max.X))

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Features/IModularFeature.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "PhysicsEngine/AggregateGeom.h"
 
 class UPrimitiveComponent;
 class UStaticMesh;
@@ -91,6 +92,8 @@ public:
 	{
 		TArray<UE::Geometry::FDynamicMesh3> MeshLODs;
 		TArray<UMaterialInterface*> MaterialSet;
+
+		FKAggregateGeom SimpleCollisionShapes;
 	};
 
 

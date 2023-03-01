@@ -11,6 +11,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Spatial/DenseGrid3.h"
 #include "TransformTypes.h"
+#include "TransformSequence.h"
 
 
 namespace UE {
@@ -178,6 +179,10 @@ struct DYNAMICMESH_API FSimpleShapeSet3d
 	 */
 	void Append(const FSimpleShapeSet3d& OtherShapeSet, const TArray<FTransform3d>& TransformSequence);
 
+	/**
+	 * Append elements of another shape set with given transforms applied
+	 */
+	void Append(const FSimpleShapeSet3d& OtherShapeSet, const FTransformSequence3d& TransformSequence);
 
 	/**
 	 * Remove any of the elements that are fully contained in larger elements
