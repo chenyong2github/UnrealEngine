@@ -669,10 +669,13 @@ void SInterchangePipelineConfigurationDialog::OnPipelineSelectionChanged(TObject
 		CurrentSelectedPipeline = InItem;
 	}
 	PipelineConfigurationDetailsView->SetObject(CurrentSelectedPipeline.Get());
-
-	FString CurrentPipelineName = CurrentSelectedPipeline->GetClass()->GetName();
-	FString KeyName = CurrentStackName.ToString() + TEXT("_LastSelectedPipeline");
-	GConfig->SetString(TEXT("InterchangeSelectPipeline"), *KeyName, *CurrentPipelineName, GEditorPerProjectIni);
+	
+	if (CurrentSelectedPipeline)
+	{
+		FString CurrentPipelineName = CurrentSelectedPipeline->GetClass()->GetName();
+		FString KeyName = CurrentStackName.ToString() + TEXT("_LastSelectedPipeline");
+		GConfig->SetString(TEXT("InterchangeSelectPipeline"), *KeyName, *CurrentPipelineName, GEditorPerProjectIni);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
