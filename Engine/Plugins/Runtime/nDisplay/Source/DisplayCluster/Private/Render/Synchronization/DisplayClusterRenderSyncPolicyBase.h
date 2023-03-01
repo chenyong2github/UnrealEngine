@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
-#include "Render/Synchronization/DisplayClusterVblankMonitor.h"
 
 
 /**
@@ -28,7 +27,7 @@ public:
 	virtual bool WaitForVBlank() override;
 
 public:
-	// Performs Ethernet barrier syncrhonization with other nodes in the cluster
+	// Performs Ethernet barrier synchronization with other nodes in the cluster
 	void SyncOnBarrier();
 
 	// Returns policy configuration parameters
@@ -44,7 +43,4 @@ protected:
 private:
 	// Sync policy configuration parameters
 	TMap<FString, FString> Parameters;
-
-	// V-blank monitoring thread. Performs V-blank polling on the top level of the sync policies hierarchy.
-	TUniquePtr<FDisplayClusterVBlankMonitor> VBlankMonitor;
 };

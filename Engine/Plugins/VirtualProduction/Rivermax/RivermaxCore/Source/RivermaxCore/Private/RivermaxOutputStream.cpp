@@ -230,6 +230,9 @@ namespace UE::RivermaxCore::Private
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::PushVideoFrame);
 
+		// Notify owner that new frame is about to be enqueued
+		Listener->OnPreFrameEnqueue();
+
 		if (TSharedPtr<FRivermaxOutputFrame> AvailableFrame = GetNextAvailableFrame(NewFrame.FrameIdentifier))
 		{
 			const int32 Stride = GetStride();
@@ -242,7 +245,7 @@ namespace UE::RivermaxCore::Private
 			{
 				const FString TraceName = FString::Format(TEXT("FRivermaxOutputStream::PushFrame {0}"), { AvailableFrame->FrameIndex });
 				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
-				
+
 				MarkFrameToBeSent(MoveTemp(AvailableFrame));
 			}
 
@@ -1010,6 +1013,9 @@ namespace UE::RivermaxCore::Private
 				TRACE_CPUPROFILER_EVENT_SCOPE(CudaWorkDoneCallback);
 
 				FRivermaxOutputStream* Stream = reinterpret_cast<FRivermaxOutputStream*>(userData);
+
+				// Notify owner that new frame is about to be enqueued
+				Stream->Listener->OnPreFrameEnqueue();
 
 				TOptional<uint32> TargetFrameIdentifier = Stream->PendingIdentifiers.Dequeue();
 				if (TargetFrameIdentifier.IsSet())

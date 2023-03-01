@@ -14,6 +14,8 @@
 #include "Cluster/Failover/DisplayClusterFailoverNodeCtrlPrimary.h"
 #include "Cluster/Failover/DisplayClusterFailoverNodeCtrlSecondary.h"
 
+#include "Network/Service/GenericBarrier/DisplayClusterGenericBarrierClient.h"
+
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "DisplayClusterConfigurationTypes.h"
 
@@ -304,6 +306,11 @@ void FDisplayClusterClusterManager::UnregisterSyncObject(IDisplayClusterClusterS
 
 		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Unregistered sync object: %s"), *SyncObj->GetSyncId());
 	}
+}
+
+TUniquePtr<IDisplayClusterGenericBarriersClient> FDisplayClusterClusterManager::CreateGenericBarriersClient(const FString& ClientName)
+{
+	return MakeUnique<FDisplayClusterGenericBarrierClient>(ClientName);
 }
 
 void FDisplayClusterClusterManager::AddClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener> Listener)

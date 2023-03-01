@@ -7,6 +7,7 @@ DEFINE_LOG_CATEGORY(LogDisplayClusterEngine);
 DEFINE_LOG_CATEGORY(LogDisplayClusterModule);
 DEFINE_LOG_CATEGORY(LogDisplayClusterCluster);
 DEFINE_LOG_CATEGORY(LogDisplayClusterConfig);
+DEFINE_LOG_CATEGORY(LogDisplayClusterBarrier);
 DEFINE_LOG_CATEGORY(LogDisplayClusterGame);
 DEFINE_LOG_CATEGORY(LogDisplayClusterNetwork);
 DEFINE_LOG_CATEGORY(LogDisplayClusterRender);

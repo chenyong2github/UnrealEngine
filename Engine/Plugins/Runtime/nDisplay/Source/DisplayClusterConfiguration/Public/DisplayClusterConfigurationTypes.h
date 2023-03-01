@@ -171,7 +171,7 @@ public:
 	FDisplayClusterConfigurationPrimaryNodePorts();
 
 public:
-	/** Advanced: network port for Cluster Sync Events */
+	/** Advanced: TCP port for nDisplay internal services */
 	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "1024", ClampMax = "65535", UIMin = "1024", UIMax = "65535"))
 	uint16 ClusterSync;
 
@@ -359,7 +359,7 @@ public:
 	TMap<FString, FDisplayClusterConfigurationPostprocess> Postprocess;
 
 	// Media settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
 	FDisplayClusterConfigurationMedia Media;
 
 #if WITH_EDITORONLY_DATA

@@ -211,6 +211,7 @@ public:
 /** Delegate signatures */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMediaCaptureStateChangedSignature);
 DECLARE_MULTICAST_DELEGATE(FMediaCaptureStateChangedSignatureNative);
+DECLARE_DELEGATE(FMediaCaptureOutputSynchronization)
 
 /**
  * Abstract base class for media capture.
@@ -333,6 +334,20 @@ public:
 	 * The callback is called on the game thread. Note that the change may occur on the rendering thread.
 	 */
 	FMediaCaptureStateChangedSignatureNative OnStateChangedNative;
+
+	/**
+	 * Returns true if media capture implementation supports synchronization logic. If so,
+	 * OnOutputSynchronization delegate below must be called before each captured frame is exported.
+	 */
+	virtual bool IsOutputSynchronizationSupported() const { return false; }
+
+	/**
+	 * Called when output data is ready to be sent out. This blocking call allows to
+	 * postpone data export based on the synchronization logic.
+	 *
+	 * This delegate must be called if IsOutputSynchronizationSupported() returns true.
+	 */
+	FMediaCaptureOutputSynchronization OnOutputSynchronization;
 
 	void SetFixedViewportSize(TSharedPtr<FSceneViewport> InSceneViewport, FIntPoint InSize);
 	void ResetFixedViewportSize(TSharedPtr<FSceneViewport> InViewport, bool bInFlushRenderingCommands);

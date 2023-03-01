@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "Synchronization/DisplayClusterFrameQueueItem.h"
+#include "Synchronization/LatencyQueue/DisplayClusterFrameQueueItem.h"
 
 class FDisplayClusterMediaInputViewport;
 class FDisplayClusterShaderParameters_ICVFX;

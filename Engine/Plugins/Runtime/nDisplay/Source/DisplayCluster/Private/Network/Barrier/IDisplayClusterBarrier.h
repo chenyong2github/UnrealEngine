@@ -37,13 +37,16 @@ public:
 	// Deactivate barrier, no threads will be blocked
 	virtual void Deactivate() = 0;
 
+	// Returns true if the barrier has been activated
+	virtual bool IsActivated() const = 0;
+
 	// Wait until all threads arrive
 	virtual EDisplayClusterBarrierWaitResult Wait(const FString& ThreadMarker, double* OutThreadWaitTime = nullptr, double* OutBarrierWaitTime = nullptr) = 0;
 
-	// Remove specified node from sync pipeline
-	virtual void UnregisterSyncNode(const FString& NodeId) = 0;
+	// Remove specified caller from the sync pipeline
+	virtual void UnregisterSyncCaller(const FString& CallerId) = 0;
 
-	// Barrier timout notification (provides BarrierName and NodesTimedOut in parameters)
+	// Barrier timout notification (provides BarrierName and CallersTimedOut in parameters)
 	DECLARE_EVENT_TwoParams(IDisplayClusterBarrier, FDisplayClusterBarrierTimeoutEvent, const FString&, const TArray<FString>&);
 	virtual FDisplayClusterBarrierTimeoutEvent& OnBarrierTimeout() = 0;
 };

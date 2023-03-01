@@ -10,6 +10,51 @@
 
 namespace DisplayClusterMediaHelpers
 {
+	namespace MediaId
+	{
+		// Generate media ID for a specific entity
+		FString GenerateMediaId(EMediaDeviceType DeviceType, EMediaOwnerType OwnerType, const FString& NodeId, const FString& DCRAName, const FString& OwnerName)
+		{
+			if (DeviceType == EMediaDeviceType::Input)
+			{
+				switch (OwnerType)
+				{
+				case EMediaOwnerType::Backbuffer:
+					return FString::Printf(TEXT("%s_%s_backbuffer_input"), *NodeId, *DCRAName);
+
+				case EMediaOwnerType::Viewport:
+					return FString::Printf(TEXT("%s_%s_%s_viewport_input"), *NodeId, *DCRAName, *OwnerName);
+
+				case EMediaOwnerType::ICVFXCamera:
+					return FString::Printf(TEXT("%s_%s_%s_icvfx_input"), *NodeId, *DCRAName, *OwnerName);
+
+				default:
+					unimplemented();
+				}
+			}
+			else if (DeviceType == EMediaDeviceType::Output)
+			{
+				switch (OwnerType)
+				{
+				case EMediaOwnerType::Backbuffer:
+					return FString::Printf(TEXT("%s_%s_backbuffer_capture"), *NodeId, *DCRAName);
+
+				case EMediaOwnerType::Viewport:
+					return FString::Printf(TEXT("%s_%s_%s_viewport_capture"), *NodeId, *DCRAName, *OwnerName);
+
+				case EMediaOwnerType::ICVFXCamera:
+					return FString::Printf(TEXT("%s_%s_%s_icvfx_capture"), *NodeId, *DCRAName, *OwnerName);
+
+				default:
+					unimplemented();
+				}
+			}
+
+			// Should never get here
+			return FString();
+		}
+	}
+
 	//@todo This needs to be exposed from the DisplayCluster core module after its refactoring
 	FString GenerateICVFXViewportName(const FString& ClusterNodeId, const FString& ICVFXCameraName)
 	{

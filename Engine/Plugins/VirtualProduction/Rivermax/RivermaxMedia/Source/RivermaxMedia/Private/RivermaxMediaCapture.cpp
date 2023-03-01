@@ -144,6 +144,11 @@ namespace UE::RivermaxMediaCaptureUtil
 ///* URivermaxMediaCapture implementation
 //*****************************************************************************/
 
+UE::RivermaxCore::FRivermaxOutputStreamOptions URivermaxMediaCapture::GetOutputStreamOptions() const
+{
+	return Options;
+}
+
 bool URivermaxMediaCapture::ValidateMediaOutput() const
 {
 	URivermaxMediaOutput* RivermaxMediaOutput = Cast<URivermaxMediaOutput>(MediaOutput);
@@ -568,5 +573,13 @@ void URivermaxMediaCapture::OnStreamError()
 	if (GetState() != EMediaCaptureState::Stopped)
 	{
 		SetState(EMediaCaptureState::Error);
+	}
+}
+
+void URivermaxMediaCapture::OnPreFrameEnqueue()
+{
+	if (IsOutputSynchronizationSupported())
+	{
+		OnOutputSynchronization.ExecuteIfBound();
 	}
 }

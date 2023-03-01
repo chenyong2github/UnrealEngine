@@ -13,6 +13,7 @@ public class DisplayClusterMedia : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
+				"DisplayClusterConfiguration",
 				"Media",
 				"MediaAssets",
 				"MediaIOCore",
@@ -23,11 +24,12 @@ public class DisplayClusterMedia : ModuleRules
 				"Core",
 				"CoreUObject",
 				"DisplayCluster",
-				"DisplayClusterConfiguration",
 				"Engine",
 				"Renderer",
 				"RenderCore",
 				"RHI",
+				"RivermaxCore",
+				"RivermaxMedia",
 			});
 
 		if (Target.bBuildEditor == true)
