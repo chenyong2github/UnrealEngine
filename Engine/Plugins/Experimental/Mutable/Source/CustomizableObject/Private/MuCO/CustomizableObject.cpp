@@ -12,13 +12,14 @@
 #include "Input/Reply.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/DataValidation.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
-#include "Misc/DataValidation.h"
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/CustomizableObjectPrivate.h"
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/ICustomizableObjectModule.h"
+#include "MuCO/MutableProjectorTypeUtils.h"
 #include "MuCO/UnrealMutableModelDiskStreamer.h"
 #include "MuR/ModelPrivate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -1419,6 +1420,187 @@ void UCustomizableObject::LoadMaskOutCache()
 void UCustomizableObject::UnloadMaskOutCache()
 {
 	MaskOutCache_HardRef = nullptr;
+}
+
+
+bool UCustomizableObject::CanDefaultParameterBeAccessed(const FString& InParameterName,
+	const EMutableParameterType& InParameterType, int32& OutParameterIndex) const
+{
+	OutParameterIndex = FindParameter(InParameterName);
+	if (OutParameterIndex == INDEX_NONE)
+	{
+		UE_LOG(LogMutable,Error,TEXT("The parameter with name [%s] does not exist in the CO with name [%s]."), *InParameterName,*GetName());
+		return false;
+	}
+
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	if (!MutableModel)
+	{
+		UE_LOG(LogMutable,Error,TEXT("Mutable model not set in [%s] CO. Compile this Customizable Object in order to be able to acces the default values of the parameters."),*GetName());
+		return false;
+	}
+	
+	const int32 ParameterCount = MutableModel->GetPrivate()->m_program.m_parameters.Num();
+	check (OutParameterIndex < ParameterCount);		// this failing would mean the data between CO and core is not synced 
+	
+	if ( GetParameterType(OutParameterIndex) != InParameterType)
+	{
+		UE_LOG(LogMutable,Error,TEXT("The parameter with name [%s] is not a [%s] parameter of the [%s] CO."), *InParameterName,*UEnum::GetValueAsString(InParameterType),*GetName());
+		return false;
+	}
+	
+	return true;
+}
+
+float UCustomizableObject::GetFloatParameterDefaultValue(const FString& InParameterName) const
+{
+	float Value = -1.0f;
+	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Float,ParameterIndex))
+	{
+		return Value;
+	}
+
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_float;
+	return Value;
+}
+
+
+int32 UCustomizableObject::GetIntParameterDefaultValue(const FString& InParameterName) const
+{
+	int32 Value = -1;
+	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Int,ParameterIndex))
+	{
+		return Value;
+	}
+
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_int;
+	return Value;
+}
+
+
+bool UCustomizableObject::GetBoolParameterDefaultValue(const FString& InParameterName) const
+{
+	bool Value = false;
+	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Bool,ParameterIndex))
+	{
+		return Value;
+	}
+	
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_bool;
+	return Value;
+}
+
+
+FLinearColor UCustomizableObject::GetColorParameterDefaultValue(const FString& InParameterName) const
+{
+	FLinearColor Value = FLinearColor::Black;
+	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Color,ParameterIndex))
+	{
+		return Value;
+	}
+	
+	const mu::Model::Private* ModelPrivate = PrivateData->GetModel()->GetPrivate();
+	Value.R = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.m_colour[0];
+	Value.G = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.m_colour[1];
+	Value.B = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.m_colour[2];
+	Value.A = 1.0f;
+	
+	return Value;
+}
+
+
+void UCustomizableObject::GetProjectorParameterDefaultValue(const FString& InParameterName, FVector3f& OutPos,
+	FVector3f& OutDirection, FVector3f& OutUp, FVector3f& OutScale, float& OutAngle,
+	ECustomizableObjectProjectorType& OutType) const
+{
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Projector,ParameterIndex))
+	{
+		return;
+	}
+	
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	
+	mu::FProjector MutableProjector = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_projector;
+	OutType = ProjectorUtils::GetEquivalentProjectorType(MutableProjector.type);
+	OutPos = MutableProjector.position;
+	OutDirection = MutableProjector.direction;
+	OutUp = MutableProjector.up;
+	OutScale = MutableProjector.scale;
+	OutAngle = MutableProjector.projectionAngle;
+}
+
+FCustomizableObjectProjector UCustomizableObject::GetProjectorParameterDefaultValue(const FString& InParameterName) const 
+{
+	FCustomizableObjectProjector Value;
+	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Projector,ParameterIndex))
+	{
+		return Value;
+	}
+	
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+
+	mu::FProjector MutableProjector = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_projector;
+	Value.Angle = MutableProjector.projectionAngle;
+	Value.Direction = MutableProjector.direction;
+	Value.Position = MutableProjector.position;
+	Value.Scale = MutableProjector.scale;
+	Value.Up = MutableProjector.up;
+	Value.ProjectionType = ProjectorUtils::GetEquivalentProjectorType(MutableProjector.type);
+
+	return Value;
+}
+
+
+uint64 UCustomizableObject::GetTextureParameterDefaultValue(const FString& InParameterName) const
+{
+	uint64 Value = false;
+	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Texture,ParameterIndex))
+	{
+		return Value;
+	}
+	
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_image;
+	return Value;
+}
+
+bool UCustomizableObject::IsParameterMultidimensional(const FString& InParameterName) const
+{
+	const int32 ParameterIndex = FindParameter(InParameterName);
+	if (ParameterIndex == INDEX_NONE)
+	{
+		UE_LOG(LogMutable,Error,TEXT("The parameter with name %s does not exist in the CO with name %s."), *InParameterName,*GetName());
+		checkNoEntry();
+	}
+
+	return IsParameterMultidimensional(ParameterIndex);
+}
+
+bool UCustomizableObject::IsParameterMultidimensional(const int32& InParamIndex) const
+{
+	check(InParamIndex != INDEX_NONE);
+	
+	const mu::ParametersPtr MutableParameters = mu::Model::NewParameters(this->GetPrivate()->GetModel());
+	check(InParamIndex < MutableParameters->GetCount());
+	const mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(InParamIndex);
+
+	return RangeIdxPtr.get() != nullptr;
 }
 
 

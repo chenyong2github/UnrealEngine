@@ -270,15 +270,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	bool IsParameterRelevant(const FString& ParamName) const;
 
-	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance, 
+		meta = (DeprecatedFunction, DeprecationMessage = "Use the method with the same name located at the Customizable Object instead."))
 	bool IsParamMultidimensional(const FString& ParamName) const;
-
+	
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	int32 GetProjectorValueRange(const FString& ParamName) const;
 	
-	bool IsParamMultidimensional(int32 ParamIndex) const;
-	FCustomizableObjectProjector GetProjectorDefaultValue(int32 ParamIndex) const;
-
 	bool bShowOnlyRuntimeParameters = true;
 	bool bShowOnlyRelevantParameters = true;
 

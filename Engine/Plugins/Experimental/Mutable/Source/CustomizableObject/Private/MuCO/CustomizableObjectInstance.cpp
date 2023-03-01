@@ -29,6 +29,7 @@
 
 // Required for engine branch preprocessor defines.
 #include "MuCO/UnrealPortabilityHelpers.h"
+#include "MuR/Model.h"
 #include "MuR/OpImagePixelFormat.h"
 #include "MuR/OpImageSwizzle.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
@@ -475,22 +476,15 @@ FString UCustomizableObjectInstance::GetDesc()
 	return FString::Printf(TEXT("Instance of [%s]"), *ObjectName);
 }
 
-
-bool UCustomizableObjectInstance::IsParamMultidimensional(const FString& ParamName) const
-{
-	return Descriptor.IsParamMultidimensional(ParamName);
-}
-
-
 int32 UCustomizableObjectInstance::GetProjectorValueRange(const FString& ParamName) const
 {
 	return Descriptor.GetProjectorValueRange(ParamName);
 }
 
 
-bool UCustomizableObjectInstance::IsParamMultidimensional(int32 ParamIndex) const
+bool UCustomizableObjectInstance::IsParamMultidimensional(const FString& ParamName) const
 {
-	return Descriptor.IsParamMultidimensional(ParamIndex);
+	return GetCustomizableObject()->IsParameterMultidimensional(ParamName);
 }
 
 
@@ -516,12 +510,6 @@ void UCustomizableInstancePrivateData::ReleaseMutableTexture(int32 MutableTextur
 			break;
 		}
 	}
-}
-
-
-FCustomizableObjectProjector UCustomizableObjectInstance::GetProjectorDefaultValue(const int32 ParamIndex) const
-{
-	return Descriptor.GetProjectorDefaultValue(ParamIndex);
 }
 
 

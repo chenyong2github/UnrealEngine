@@ -5,6 +5,7 @@
 #include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectPrivate.h"
 #include "MuCO/DefaultImageProvider.h"
+#include "MuCO/MutableProjectorTypeUtils.h"
 #include "MuR/Model.h"
 #include "MuR/MutableMemory.h"
 #include "MuR/Parameters.h"
@@ -126,7 +127,7 @@ void FCustomizableObjectInstanceDescriptor::SaveDescriptor(FArchive& Ar)
 					Value = CustomizableObject->FindIntParameterValue(ModelParameterIndex,P.ParameterValueName);
 
 				int32 ParameterIndexInObject = CustomizableObject->FindParameter(IntParameters[IntParameterIndex].ParameterName);
-				bIsParamMultidimensional = IsParamMultidimensional(ParameterIndexInObject);
+				bIsParamMultidimensional = CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject);
 
 				if (bIsParamMultidimensional)
 				{
@@ -314,7 +315,7 @@ void FCustomizableObjectInstanceDescriptor::LoadDescriptor(FArchive& Ar)
 
 			const int32 IntParameterIndex = FindIntParameterNameIndex(Name);
 			const int32 ParameterIndexInObject = CustomizableObject->FindParameter(IntParameters[IntParameterIndex].ParameterName);
-			const bool bIsParamMultidimensional = IsParamMultidimensional(ParameterIndexInObject);
+			const bool bIsParamMultidimensional = CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject);
 
 			if (bUseCompactDescriptor)
 			{
@@ -903,28 +904,15 @@ void FCustomizableObjectInstanceDescriptor::ReloadParameters()
 						&Value.Angle,
 						RangeIndex);
 					
-					switch (Type)
+					Value.ProjectionType = ProjectorUtils::GetEquivalentProjectorType(Type);
+					if (Value.ProjectionType == ECustomizableObjectProjectorType::Cylindrical)
 					{
-					case mu::PROJECTOR_TYPE::PLANAR:
-						Value.ProjectionType = ECustomizableObjectProjectorType::Planar;
-						break;
-
-					case mu::PROJECTOR_TYPE::CYLINDRICAL:
 						// Unapply strange swizzle for scales.
 						// TODO: try to avoid this
-						Value.ProjectionType = ECustomizableObjectProjectorType::Cylindrical;
 						Value.Direction = -Value.Direction;
 						Value.Up = -Value.Up;
 						Value.Scale[2] = -Value.Scale[0];
 						Value.Scale[0] = Value.Scale[1] = Value.Scale[1] * 2.0f;
-						break;
-
-					case mu::PROJECTOR_TYPE::WRAPPING:
-						Value.ProjectionType = ECustomizableObjectProjectorType::Wrapping;
-						break;
-
-					default:
-						check(false); // Not implemented.
 					}
 				}; 
 
@@ -1153,12 +1141,12 @@ const FString& FCustomizableObjectInstanceDescriptor::GetIntParameterSelectedOpt
 	{
 		if (RangeIndex == -1)
 		{
-			check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+			check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
 			return IntParameters[IntParamIndex].ParameterValueName;
 		}
 		else
 		{
-			check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+			check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
 
 			if (IntParameters[IntParamIndex].ParameterRangeValueNames.IsValidIndex(RangeIndex))
 			{
@@ -1197,12 +1185,12 @@ void FCustomizableObjectInstanceDescriptor::SetIntParameterSelectedOption(const 
 			
 			if (RangeIndex == -1)
 			{
-				check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+				check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
 				IntParameters[IntParamIndex].ParameterValueName = SelectedOption;
 			}
 			else
 			{
-				check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+				check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
 
 				if (!IntParameters[IntParamIndex].ParameterRangeValueNames.IsValidIndex(RangeIndex))
 				{
@@ -1238,12 +1226,12 @@ float FCustomizableObjectInstanceDescriptor::GetFloatParameterSelectedOption(con
 	{
 		if (RangeIndex == -1)
 		{
-			check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+			check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
 			return FloatParameters[FloatParamIndex].ParameterValue;
 		}
 		else
 		{
-			check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+			check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
 
 			if (FloatParameters[FloatParamIndex].ParameterRangeValues.IsValidIndex(RangeIndex))
 			{
@@ -1268,12 +1256,12 @@ void FCustomizableObjectInstanceDescriptor::SetFloatParameterSelectedOption(cons
 	{
 		if (RangeIndex == -1)
 		{
-			check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+			check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
 			FloatParameters[FloatParamIndex].ParameterValue = FloatValue;
 		}
 		else
 		{
-			check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+			check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
 
 			if (!FloatParameters[FloatParamIndex].ParameterRangeValues.IsValidIndex(RangeIndex))
 			{
@@ -1301,12 +1289,12 @@ uint64 FCustomizableObjectInstanceDescriptor::GetTextureParameterSelectedOption(
 	{
 		if (RangeIndex == -1)
 		{
-			check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+			check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
 			return TextureParameters[TextureParamIndex].ParameterValue;
 		}
 		else
 		{
-			check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+			check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
 
 			if (TextureParameters[TextureParamIndex].ParameterRangeValues.IsValidIndex(RangeIndex))
 			{
@@ -1340,12 +1328,12 @@ void FCustomizableObjectInstanceDescriptor::SetTextureParameterSelectedOption(co
 	{
 		if (RangeIndex == -1)
 		{
-			check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+			check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
 			TextureParameters[TextureParamIndex].ParameterValue = TextureValue;
 		}
 		else
 		{
-			check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+			check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
 
 			if (!TextureParameters[TextureParamIndex].ParameterRangeValues.IsValidIndex(RangeIndex))
 			{
@@ -1463,12 +1451,12 @@ void FCustomizableObjectInstanceDescriptor::SetProjectorValue(const FString& Pro
 
 		if (RangeIndex == -1)
 		{
-			check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+			check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
 			ProjectorParameters[ProjectorParamIndex].Value = ProjectorData;
 		}
 		else
 		{
-			check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+			check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
 
 			if (!ProjectorParameters[ProjectorParamIndex].RangeValues.IsValidIndex(RangeIndex))
 			{
@@ -1499,12 +1487,12 @@ void FCustomizableObjectInstanceDescriptor::SetProjectorPosition(const FString& 
 
 		if (RangeIndex == -1)
 		{
-			check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+			check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
 			ProjectorParameters[ProjectorParamIndex].Value = ProjectorData;
 		}
 		else
 		{
-			check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+			check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
 
 			if (!ProjectorParameters[ProjectorParamIndex].RangeValues.IsValidIndex(RangeIndex))
 			{
@@ -1537,13 +1525,13 @@ void FCustomizableObjectInstanceDescriptor::GetProjectorValue(const FString& Pro
 
 		if (RangeIndex == -1)
 		{
-			check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+			check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
 
 			Projector = &ProjectorParameters[ProjectorParamIndex].Value;
 		}
 		else
 		{
-			check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+			check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
 			check(ProjectorParameters[ProjectorParamIndex].RangeValues.IsValidIndex(RangeIndex));
 
 			Projector = &ProjectorParameters[ProjectorParamIndex].RangeValues[RangeIndex];
@@ -1579,13 +1567,13 @@ void FCustomizableObjectInstanceDescriptor::GetProjectorValueF(const FString& Pr
 
 		if (RangeIndex == -1)
 		{
-			check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+			check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
 
 			Projector = &ProjectorParameters[ProjectorParamIndex].Value;
 		}
 		else
 		{
-			check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+			check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
 			check(ProjectorParameters[ProjectorParamIndex].RangeValues.IsValidIndex(RangeIndex));
 
 			Projector = &ProjectorParameters[ProjectorParamIndex].RangeValues[RangeIndex];
@@ -1851,28 +1839,6 @@ int32 FCustomizableObjectInstanceDescriptor::FindProjectorParameterNameIndex(con
 	return -1;
 }
 
-
-bool FCustomizableObjectInstanceDescriptor::IsParamMultidimensional(const FString& ParamName) const
-{
-	check(CustomizableObject);
-
-	const int32 ParameterIndex = CustomizableObject->FindParameter(ParamName);
-	return IsParamMultidimensional(ParameterIndex);
-}
-
-
-bool FCustomizableObjectInstanceDescriptor::IsParamMultidimensional(const int32 ParamIndex) const
-{
-	check(CustomizableObject);
-
-	const mu::ParametersPtr MutableParameters = mu::Model::NewParameters(CustomizableObject->GetPrivate()->GetModel());
-	check(ParamIndex < MutableParameters->GetCount());
-	const mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(ParamIndex);
-
-	return RangeIdxPtr.get() != nullptr;
-}
-
-
 int32 FCustomizableObjectInstanceDescriptor::GetProjectorValueRange(const FString& ParamName) const
 {
 	check(CustomizableObject);
@@ -1925,7 +1891,7 @@ int32 FCustomizableObjectInstanceDescriptor::AddValueToProjectorRange(const FStr
 	if (projectorParameterIndex != -1)
 	{
 		FCustomizableObjectProjectorParameterValue& ProjectorParameter = ProjectorParameters[projectorParameterIndex];
-		const FCustomizableObjectProjector Projector = GetProjectorDefaultValue(CustomizableObject->FindParameter(ParamName));
+		const FCustomizableObjectProjector Projector = GetCustomizableObject()->GetProjectorParameterDefaultValue(ParamName);
 		return ProjectorParameter.RangeValues.Add(Projector);
 	}
 
@@ -2061,53 +2027,6 @@ int32 FCustomizableObjectInstanceDescriptor::RemoveValueFromProjectorRange(const
 }
 
 
-FCustomizableObjectProjector FCustomizableObjectInstanceDescriptor::GetProjectorDefaultValue(int32 const ParamIndex) const
-{
-	check(CustomizableObject);
-
-	const mu::ParametersPtr MutableParameters = mu::Model::NewParameters(CustomizableObject->GetPrivate()->GetModel());
-	check(ParamIndex < MutableParameters->GetCount());
-
-	FCustomizableObjectProjector Projector;
-
-	mu::PROJECTOR_TYPE type;
-	
-	MutableParameters->GetProjectorValue(ParamIndex,
-		&type,
-		&Projector.Position,
-		&Projector.Direction,
-		&Projector.Up,
-		&Projector.Scale,
-		&Projector.Angle,
-		nullptr);
-
-	switch (type)
-	{
-	case mu::PROJECTOR_TYPE::PLANAR:
-		Projector.ProjectionType = ECustomizableObjectProjectorType::Planar;
-		break;
-
-	case mu::PROJECTOR_TYPE::CYLINDRICAL:
-		// Unapply strange swizzle for scales.
-		// TODO: try to avoid this
-		Projector.ProjectionType = ECustomizableObjectProjectorType::Cylindrical;
-		Projector.Direction = -Projector.Direction;
-		Projector.Up = -Projector.Up;
-		Projector.Scale[2] = -Projector.Scale[0];
-		Projector.Scale[0] = Projector.Scale[1] = Projector.Scale[1] * 2.0f;
-		break;
-
-	case mu::PROJECTOR_TYPE::WRAPPING:
-		Projector.ProjectionType = ECustomizableObjectProjectorType::Wrapping;
-		break;
-	default:
-		unimplemented()
-	}
-
-	return Projector;
-}
-
-
 int32 FCustomizableObjectInstanceDescriptor::GetState() const
 {
 	return State;
@@ -2163,7 +2082,7 @@ void FCustomizableObjectInstanceDescriptor::SetRandomValues()
 		const int32 ParameterIndexInCO = CustomizableObject->FindParameter(IntParameters[i].ParameterName);
 
 		// TODO: Randomize multidimensional parameters
-		if (ParameterIndexInCO >= 0 && !IsParamMultidimensional(ParameterIndexInCO))
+		if (ParameterIndexInCO >= 0 && !CustomizableObject->IsParameterMultidimensional(ParameterIndexInCO))
 		{
 			const int32 NumValues = CustomizableObject->GetIntParameterNumOptions(ParameterIndexInCO);
 			if (NumValues > 0)

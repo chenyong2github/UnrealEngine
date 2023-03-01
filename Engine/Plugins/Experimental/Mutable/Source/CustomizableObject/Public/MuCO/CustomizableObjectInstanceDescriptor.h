@@ -211,12 +211,6 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 
 	// Parameter Ranges
 
-	/** Returns true if the parameter is multidimensional (has multiple ranges). */
-	bool IsParamMultidimensional(const FString& ParamName) const;
-
-	/** Returns true if the parameter is multidimensional (has multiple ranges). */
-	bool IsParamMultidimensional(int32 ParamIndex) const;
-
 	/** Gets the range of values of the projector with ParamName, returns -1 if the parameter does not exist. */
 	int32 GetProjectorValueRange(const FString& ParamName) const;
 
@@ -260,10 +254,6 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 	/** Remove the RangeIndex element of the projector range of values from the parameter ParamName, returns the index of the last valid projector, -1 if no values left. */
 	int32 RemoveValueFromProjectorRange(const FString& ParamName, int32 RangeIndex);
 
-	// Default values
-
-	FCustomizableObjectProjector GetProjectorDefaultValue(int32 ParamIndex) const;
-	
 	// ------------------------------------------------------------
    	// States
    	// ------------------------------------------------------------

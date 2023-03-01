@@ -2,6 +2,7 @@
 
 #include "MuCOE/GenerateMutableSource/GenerateMutableSourceProjector.h"
 
+#include "MuCO/MutableProjectorTypeUtils.h"
 #include "MuCOE/CustomizableObjectCompiler.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeProjectorConstant.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeProjectorParameter.h"
@@ -32,49 +33,49 @@ mu::NodeProjectorPtr GenerateMutableSourceProjector(const UEdGraphPin* Pin, FMut
 		mu::NodeProjectorConstantPtr ProjectorNode = new mu::NodeProjectorConstant();
 		Result = ProjectorNode;
 
-		switch ((int)TypedNodeConst->Value.ProjectionType)
-		{
-		case 0:
-			ProjectorNode->SetValue(
-				mu::PROJECTOR_TYPE::PLANAR,
-				TypedNodeConst->Value.Position[0], TypedNodeConst->Value.Position[1], TypedNodeConst->Value.Position[2],
-				TypedNodeConst->Value.Direction[0], TypedNodeConst->Value.Direction[1], TypedNodeConst->Value.Direction[2],
-				TypedNodeConst->Value.Up[0], TypedNodeConst->Value.Up[1], TypedNodeConst->Value.Up[2],
-				TypedNodeConst->Value.Scale[0], TypedNodeConst->Value.Scale[1], TypedNodeConst->Value.Scale[2],
-				TypedNodeConst->Value.Angle);
-			break;
-
-		case 1:
-		{
-			// Apply strange swizzle for scales
-			// TODO: try to avoid this
-			float Radius = FMath::Abs(TypedNodeConst->Value.Scale[0] / 2.0f);
-			float Height = TypedNodeConst->Value.Scale[2];
-			ProjectorNode->SetValue(
-				mu::PROJECTOR_TYPE::CYLINDRICAL,
-				TypedNodeConst->Value.Position[0], TypedNodeConst->Value.Position[1], TypedNodeConst->Value.Position[2],
-				-TypedNodeConst->Value.Direction[0], -TypedNodeConst->Value.Direction[1], -TypedNodeConst->Value.Direction[2],
-				-TypedNodeConst->Value.Up[0], -TypedNodeConst->Value.Up[1], -TypedNodeConst->Value.Up[2],
-				-Height, Radius, Radius,
-				TypedNodeConst->Value.Angle);
-			break;
+		const mu::PROJECTOR_TYPE ProjectorType = ProjectorUtils::GetEquivalentProjectorType(TypedNodeConst->Value.ProjectionType);
+		switch (ProjectorType) 
+		{ 
+			case mu::PROJECTOR_TYPE::PLANAR:
+				ProjectorNode->SetValue(
+					ProjectorType,
+					TypedNodeConst->Value.Position[0], TypedNodeConst->Value.Position[1], TypedNodeConst->Value.Position[2],
+					TypedNodeConst->Value.Direction[0], TypedNodeConst->Value.Direction[1], TypedNodeConst->Value.Direction[2],
+					TypedNodeConst->Value.Up[0], TypedNodeConst->Value.Up[1], TypedNodeConst->Value.Up[2],
+					TypedNodeConst->Value.Scale[0], TypedNodeConst->Value.Scale[1], TypedNodeConst->Value.Scale[2],
+					TypedNodeConst->Value.Angle);
+				break;
+			
+			case mu::PROJECTOR_TYPE::CYLINDRICAL:
+				{
+					// Apply strange swizzle for scales
+					// TODO: try to avoid this
+					const float Radius = FMath::Abs(TypedNodeConst->Value.Scale[0] / 2.0f);
+					const float Height = TypedNodeConst->Value.Scale[2];
+					ProjectorNode->SetValue(
+						ProjectorType,
+						TypedNodeConst->Value.Position[0], TypedNodeConst->Value.Position[1], TypedNodeConst->Value.Position[2],
+						-TypedNodeConst->Value.Direction[0], -TypedNodeConst->Value.Direction[1], -TypedNodeConst->Value.Direction[2],
+						-TypedNodeConst->Value.Up[0], -TypedNodeConst->Value.Up[1], -TypedNodeConst->Value.Up[2],
+						-Height, Radius, Radius,
+						TypedNodeConst->Value.Angle);
+				}
+				break;
+			
+			case mu::PROJECTOR_TYPE::WRAPPING:
+				ProjectorNode->SetValue(
+					ProjectorType,
+					TypedNodeConst->Value.Position[0], TypedNodeConst->Value.Position[1], TypedNodeConst->Value.Position[2],
+					TypedNodeConst->Value.Direction[0], TypedNodeConst->Value.Direction[1], TypedNodeConst->Value.Direction[2],
+					TypedNodeConst->Value.Up[0], TypedNodeConst->Value.Up[1], TypedNodeConst->Value.Up[2],
+					TypedNodeConst->Value.Scale[0], TypedNodeConst->Value.Scale[1], TypedNodeConst->Value.Scale[2],
+					TypedNodeConst->Value.Angle);
+				break;
+			
+			case mu::PROJECTOR_TYPE::COUNT: 
+			default:
+				checkNoEntry();
 		}
-
-		case 2:
-			ProjectorNode->SetValue(
-				mu::PROJECTOR_TYPE::WRAPPING,
-				TypedNodeConst->Value.Position[0], TypedNodeConst->Value.Position[1], TypedNodeConst->Value.Position[2],
-				TypedNodeConst->Value.Direction[0], TypedNodeConst->Value.Direction[1], TypedNodeConst->Value.Direction[2],
-				TypedNodeConst->Value.Up[0], TypedNodeConst->Value.Up[1], TypedNodeConst->Value.Up[2],
-				TypedNodeConst->Value.Scale[0], TypedNodeConst->Value.Scale[1], TypedNodeConst->Value.Scale[2],
-				TypedNodeConst->Value.Angle);
-			break;
-
-		default:
-			// Not implemented.
-			check(false);
-		}
-
 	}
 
 	else if (const UCustomizableObjectNodeProjectorParameter* TypedNodeParam = Cast<UCustomizableObjectNodeProjectorParameter>(Node))

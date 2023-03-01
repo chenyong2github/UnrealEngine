@@ -46,7 +46,7 @@ void FCustomizableObjectPopulationClassGenerator::GenerateParameters(
 					const FString& OptionName = IntParamSampler.GetOptionName(IntParamSampler.Sample(Rand));
 					if (Instance->FindIntParameterNameIndex(ParamName) != INDEX_NONE)
 					{
-						if (!Instance->IsParamMultidimensional(CustomizableObject->FindParameter(ParamName)))
+						if (!CustomizableObject->IsParameterMultidimensional(ParamName))
 						{
 							Instance->SetIntParameterSelectedOption(ParamName, OptionName);
 						}
@@ -63,7 +63,7 @@ void FCustomizableObjectPopulationClassGenerator::GenerateParameters(
 				const float SampledValue = UniformFloatSamplers[SamplerIndex.SamplerIndex].Sample(Rand);
 				if (Instance->FindFloatParameterNameIndex(ParamName) != INDEX_NONE)
 				{
-					if (!Instance->IsParamMultidimensional(CustomizableObject->FindParameter(ParamName)))
+					if (!CustomizableObject->IsParameterMultidimensional(ParamName))
 					{
 						Instance->SetFloatParameterSelectedOption(ParamName, SampledValue);
 					}

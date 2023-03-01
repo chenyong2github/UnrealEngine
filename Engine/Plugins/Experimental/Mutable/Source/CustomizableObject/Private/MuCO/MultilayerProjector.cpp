@@ -150,7 +150,7 @@ void FMultilayerProjector::CreateLayer(FCustomizableObjectInstanceDescriptor& De
 		const int32 ProjectorParameterIndex = Descriptor.FindProjectorParameterNameIndex(ParamNameString);
 		
 		FCustomizableObjectProjectorParameterValue& ProjectorParameter = Descriptor.GetProjectorParameters()[ProjectorParameterIndex];
-		const FCustomizableObjectProjector Projector = Descriptor.GetProjectorDefaultValue(Object->FindParameter(ParamNameString));
+		const FCustomizableObjectProjector Projector = Descriptor.GetCustomizableObject()->GetProjectorParameterDefaultValue(ParamNameString);
 		ProjectorParameter.RangeValues.Insert(Projector, Index);
 	}
 	

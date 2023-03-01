@@ -40,7 +40,7 @@ public class CustomizableObject : ModuleRules
             "Engine",
 			"SkeletalMerging",
 			"ClothingSystemRuntimeCommon",
-            "GameplayTags",
+            "GameplayTags"
 		});
 
         PrivateIncludePathModuleNames.AddRange(

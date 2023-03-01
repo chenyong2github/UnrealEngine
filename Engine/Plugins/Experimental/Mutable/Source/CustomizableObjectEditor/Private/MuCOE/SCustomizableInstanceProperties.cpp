@@ -506,6 +506,7 @@ void SCustomizableInstanceProperties::FillChildrenMap(int32 ParamIndexInObject)
 void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 {
 	UCustomizableObject* CustomizableObject = CustomInstance->GetCustomizableObject();
+	check(CustomizableObject);
 	
 	FString ParamName = CustomizableObject->GetParameterName(ParamIndexInObject);
 
@@ -517,8 +518,8 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 	bool bHasCollapsibleChildren = UIData.ParamUIMetadata.ExtraInformation.Find(FString("__HasCollapsibleChildren")) != nullptr;
 
 	bool bHideParam = ParamName.EndsWith(FMultilayerProjector::NUM_LAYERS_PARAMETER_POSTFIX)
-		|| (ParamName.EndsWith(FMultilayerProjector::IMAGE_PARAMETER_POSTFIX) && CustomInstance->IsParamMultidimensional(ParamIndexInObject))
-		|| (ParamName.EndsWith(FMultilayerProjector::OPACITY_PARAMETER_POSTFIX) && CustomInstance->IsParamMultidimensional(ParamIndexInObject))
+		|| (ParamName.EndsWith(FMultilayerProjector::IMAGE_PARAMETER_POSTFIX) && CustomizableObject->IsParameterMultidimensional(ParamIndexInObject))
+		|| (ParamName.EndsWith(FMultilayerProjector::OPACITY_PARAMETER_POSTFIX) && CustomizableObject->IsParameterMultidimensional(ParamIndexInObject))
 		|| (ParamName.EndsWith(FMultilayerProjector::POSE_PARAMETER_POSTFIX));
 	
 	const FString Name = CustomInstance->ParametersSearchFilter.ToString();
@@ -699,7 +700,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 	case EMutableParameterType::Int:
 	{
 		int numValues = CustomizableObject->GetIntParameterNumOptions(ParamIndexInObject);
-		bool bIsParamMultidimensional = CustomInstance->IsParamMultidimensional(ParamIndexInObject);
+		bool bIsParamMultidimensional = CustomInstance->GetCustomizableObject()->IsParameterMultidimensional((ParamIndexInObject));
 
 		if (!bIsParamMultidimensional && numValues)
 		{
@@ -859,7 +860,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 		}
 		else
 		{
-			bool bIsParamMultidimensional = CustomInstance->IsParamMultidimensional(ParamIndexInObject);
+			bool bIsParamMultidimensional = CustomInstance->GetCustomizableObject()->IsParameterMultidimensional(ParamIndexInObject);
 
 			if (!bIsParamMultidimensional)
 			{
@@ -2101,7 +2102,7 @@ FReply SCustomizableInstanceProperties::OnProjectorResetTransform(FString ParamN
 
 	FString ParamName = ParseNameAndIndex(ParamNameWithIndex, RangeIndex);
 
-	const FCustomizableObjectProjector DefaultValue = CustomInstance->GetProjectorDefaultValue(CustomInstance->GetCustomizableObject()->FindParameter(ParamName));
+	const FCustomizableObjectProjector DefaultValue = CustomInstance->GetCustomizableObject()->GetProjectorParameterDefaultValue(ParamName);
 
 	CustomInstance->SetProjectorValue(ParamName,
 		static_cast<FVector>(DefaultValue.Position),

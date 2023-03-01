@@ -2,10 +2,11 @@
  
 #pragma once
 
+#include "RHIDefinitions.h"
 #include "MuCO/CustomizableObjectClothingTypes.h"
 #include "MuCO/CustomizableObjectIdentifier.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCO/CustomizableObjectUIData.h"
-#include "RHIDefinitions.h"
 
 class FReply;
 
@@ -1187,6 +1188,89 @@ public:
 	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
 	void UnloadMaskOutCache();
 
+private:
+	
+	/** Returns true or false if the parameter with name can be located and it has the type the caller is looking for. It will also
+	 * check if the model has been set to ensure access to it can take place at the calculated parameter index.
+	 * @param InParameterName The name of the parameter to look for.
+	 * @param InParameterType The type the parameter we are looking for we know has. If the name does not match this type this check will fail and return false.
+	 * @param OutParameterIndex The index of the parameter.
+	 * @return True if the parameter can be accessed for it's default values, false if it can not be accessed.
+	 */
+	bool CanDefaultParameterBeAccessed(const FString& InParameterName,const EMutableParameterType& InParameterType, int32& OutParameterIndex) const;
+
+public:
+	/** Get the default value of a parameter of type Float.
+	 * @param InParameterName The name of the Float parameter to get the default value of.
+	 * @return The default value of the provided parameter name.
+	 */
+	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
+	float GetFloatParameterDefaultValue(UPARAM(DisplayName = "Parameter Name") const FString& InParameterName) const;
+	
+	/** Get the default value of a parameter of type Int. 
+	 * @param InParameterName The name of the Int parameter to get the default value of.
+	 * @return The default value of the provided parameter name.
+	 */
+	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
+	int32 GetIntParameterDefaultValue(UPARAM(DisplayName = "Parameter Name") const FString& InParameterName) const;
+ 
+	/** Get the default value of a parameter of type Bool.
+	 * @param InParameterName The name of the Bool parameter to get the default value of.
+	 * @return The default value of the provided parameter name.
+	 */
+	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
+	bool GetBoolParameterDefaultValue(UPARAM(DisplayName = "Parameter Name") const FString& InParameterName) const;
+
+	/** Get the default value of a parameter of type Color.
+	 * @param InParameterName The name of the Color parameter to get the default value of.
+	 * @return The default value of the provided parameter name.
+	*/
+	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
+	FLinearColor GetColorParameterDefaultValue(UPARAM(DisplayName = "Parameter Name") const FString& InParameterName) const;
+	
+	/** Get the default value of a parameter of type Projector.
+	 * @param InParameterName The name of the Projector parameter to get the default value of.
+	 * @param OutPos The default position of the Projector.
+	 * @param OutDirection The default projection direction of the Projector.
+	 * @param OutUp The default up vector of the Projector.
+	 * @param OutScale The default scale of the Projector.
+	 * @param OutAngle The default angle of the Projector.
+	 * @param OutType The default type of the Projector.
+	 */
+	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
+	void GetProjectorParameterDefaultValue (
+		UPARAM(DisplayName = "Parameter Name") const FString& InParameterName,
+		UPARAM(DisplayName = "Possition") FVector3f& OutPos,
+		UPARAM(DisplayName = "Direction") FVector3f& OutDirection,
+		UPARAM(DisplayName = "Up") FVector3f& OutUp,
+		UPARAM(DisplayName = "Scale") FVector3f& OutScale,
+		UPARAM(DisplayName = "Angle") float& OutAngle,
+		UPARAM(DisplayName = "Type") ECustomizableObjectProjectorType& OutType) const;
+
+	/** Get the default value of a projector with the provided name
+	 * @param InParameterName The name of the parameter to get the default value of.
+	 * @return A data structure containing all the default data for the targeted projector parameter.
+	 */
+	FCustomizableObjectProjector GetProjectorParameterDefaultValue ( const FString& InParameterName) const;
+	
+	/** Get the default value of a parameter of type Texture.
+	 * @param InParameterName The name of the Projector parameter to get the default value of.
+	 * @return An uint64 (EXTERNAL_IMAGE_ID) pointing at the default parameter's texture.
+	 */
+	uint64 GetTextureParameterDefaultValue (const FString& InParameterName) const;
+
+	/** Return true or false depending if the parameter at the index provided is multidimensional or not.
+	 * @param InParamIndex The index of the parameter to check.
+	 * @return True if the parameter is multilayer and false if it is not.
+	 */
+	bool IsParameterMultidimensional(const int32& InParamIndex) const;
+	
+	/** Return true or false depending if the parameter at the index provided is multidimensional or not.
+	 * @param InParameterName The name of the parameter to check.
+	 * @return True if the parameter is multilayer and false if it is not.
+	 */
+	bool IsParameterMultidimensional (const FString& InParameterName) const;
+	
 private: 
 
 	// This is information about the parameters in the model that is generated at model compile time.
@@ -1220,7 +1304,7 @@ public:
 	void UpdateVersionId();
 	FGuid GetVersionId() const { return VersionId; }
 
-	int GetCurrentSupportedVersion() const { return CurrentSupportedVersion; };
+	int32 GetCurrentSupportedVersion() const { return CurrentSupportedVersion; };
 
 	// Compose folder name where the data is stored
 	FString GetCompiledDataFolderPath(bool bIsEditorData) const;
