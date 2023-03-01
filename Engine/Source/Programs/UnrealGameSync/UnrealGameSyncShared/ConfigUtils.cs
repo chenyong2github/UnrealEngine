@@ -425,7 +425,7 @@ namespace UnrealGameSync
 			return defaultBuildSteps.ToDictionary(x => x.UniqueId, x => x.ToConfigObject());
 		}
 
-		public static Dictionary<string, string> GetWorkspaceVariables(ProjectInfo projectInfo, int changeNumber, int codeChangeNumber, TargetReceipt? editorTarget, ConfigFile? projectConfigFile)
+		public static Dictionary<string, string> GetWorkspaceVariables(ProjectInfo projectInfo, int changeNumber, int codeChangeNumber, TargetReceipt? editorTarget, ConfigFile? projectConfigFile, IPerforceSettings perforceSettings)
 		{
 			Dictionary<string, string> variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -466,12 +466,19 @@ namespace UnrealGameSync
 				}
 			}
 
+			variables.Add("PerforceServerAndPort", perforceSettings.ServerAndPort);
+			variables.Add("PerforceUserName", perforceSettings.UserName);
+			if (perforceSettings.ClientName != null)
+			{
+				variables.Add("PerforceClientName", perforceSettings.ClientName);
+			}
+
 			return variables;
 		}
 
-		public static Dictionary<string, string> GetWorkspaceVariables(ProjectInfo projectInfo, int changeNumber, int codeChangeNumber, TargetReceipt? editorTarget, ConfigFile? projectConfigFile, IEnumerable<KeyValuePair<string, string>> additionalVariables)
+		public static Dictionary<string, string> GetWorkspaceVariables(ProjectInfo projectInfo, int changeNumber, int codeChangeNumber, TargetReceipt? editorTarget, ConfigFile? projectConfigFile, IPerforceSettings perforceSettings, IEnumerable<KeyValuePair<string, string>> additionalVariables)
 		{
-			Dictionary<string, string> variables = GetWorkspaceVariables(projectInfo, changeNumber, codeChangeNumber, editorTarget, projectConfigFile);
+			Dictionary<string, string> variables = GetWorkspaceVariables(projectInfo, changeNumber, codeChangeNumber, editorTarget, projectConfigFile, perforceSettings);
 			foreach ((string key, string value) in additionalVariables)
 			{
 				variables[key] = value;

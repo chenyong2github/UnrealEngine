@@ -1066,7 +1066,7 @@ namespace UnrealGameSync
 							logger.LogInformation("");
 							logger.LogInformation("Executing post-sync steps...");
 
-							Dictionary<string, string> postSyncVariables = ConfigUtils.GetWorkspaceVariables(project, Context.ChangeNumber, versionChangeNumber, null, Context.ProjectConfigFile);
+							Dictionary<string, string> postSyncVariables = ConfigUtils.GetWorkspaceVariables(project, Context.ChangeNumber, versionChangeNumber, null, Context.ProjectConfigFile, perforceSettings);
 							foreach (string postSyncStep in postSyncSteps.Select(x => x.Trim()))
 							{
 								ConfigObject postSyncStepObject = new ConfigObject(postSyncStep);
@@ -1305,7 +1305,7 @@ namespace UnrealGameSync
 							{
 								editorReceipt = defaultEditorReceipt;
 							}
-							Dictionary<string, string> variables = ConfigUtils.GetWorkspaceVariables(project, state.CurrentChangeNumber, state.CurrentCodeChangeNumber, editorReceipt, Context.ProjectConfigFile, Context.AdditionalVariables);
+							Dictionary<string, string> variables = ConfigUtils.GetWorkspaceVariables(project, state.CurrentChangeNumber, state.CurrentCodeChangeNumber, editorReceipt, Context.ProjectConfigFile, perforceSettings, Context.AdditionalVariables);
 
 							// Handle all the different types of steps
 							switch (step.Type)
