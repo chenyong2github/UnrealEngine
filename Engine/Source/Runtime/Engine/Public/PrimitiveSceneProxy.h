@@ -33,6 +33,7 @@ class FColorVertexBuffer;
 struct FInstanceUpdateCmdBuffer;
 class FRayTracingGeometry;
 class FVertexFactory;
+class IHeterogeneousVolumeInterface;
 
 namespace Nanite
 {
@@ -793,6 +794,11 @@ public:
 	inline bool IsHeterogeneousVolume() const
 	{
 		return bIsHeterogeneousVolume;
+	}
+
+	virtual const IHeterogeneousVolumeInterface* GetHeterogeneousVolumeInterface() const
+	{
+		return nullptr;
 	}
 
 	/**

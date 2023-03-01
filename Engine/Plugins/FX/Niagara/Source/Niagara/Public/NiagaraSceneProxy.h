@@ -4,6 +4,7 @@
 
 #include "Particles/ParticlePerfStats.h"
 #include "PrimitiveSceneProxy.h"
+#include "HeterogeneousVolumeInterface.h"
 
 class FNiagaraGpuComputeDispatchInterface;
 class FNiagaraSystemRenderData;
@@ -89,6 +90,8 @@ private:
 
 	uint32 GetAllocatedSize() const;
 
+	virtual const IHeterogeneousVolumeInterface* GetHeterogeneousVolumeInterface() const override { return &HeterogeneousVolumeData; }
+
 private:
 	/** Custom Uniform Buffers, allows us to have renderer specific data packed inside such as pre-skinned bounds. */
 	mutable TMap<uint32, TUniformBuffer<FPrimitiveUniformShaderParameters>*> CustomUniformBuffers;
@@ -103,5 +106,8 @@ private:
 	TStatId SystemStatID;
 
 	FDynamicData DynamicData;
+
+	// Consider wrapping in a TUniquePtr
+	FHeterogeneousVolumeData HeterogeneousVolumeData;
 };
 

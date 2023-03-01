@@ -195,6 +195,31 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(UNiagaraComponent* InComponent)
 		bAlwaysHasVelocity = RenderData->HasAnyMotionBlurEnabled();
 		bIsHeterogeneousVolume = RenderData->HasAnyHeterogeneousVolumesEnabled();
 
+		// Initialize Heterogeneous Volume properties
+		if (bIsHeterogeneousVolume)
+		{
+			// Temporarily dependening on user variables until a NiagaraVolumeRenderer is created
+			FNiagaraVariable VoxelResolutionVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("ResolutionMaxAxis"));
+			float ResolutionMaxAxis = InComponent->GetOverrideParameters().GetParameterValueOrDefault(VoxelResolutionVariable, 0);
+			ResolutionMaxAxis = FMath::Max(ResolutionMaxAxis, 0);
+
+			FNiagaraVariable WorldSpaceSizeVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("WorldSpaceSize"));
+			FVector3f WorldSpaceSize = InComponent->GetOverrideParameters().GetParameterValueOrDefault(WorldSpaceSizeVariable, FVector3f(0));
+
+			float WorldSpaceSizeMaxInv = WorldSpaceSize.GetMax() > 0.0 ? 1.0 / WorldSpaceSize.GetMax() : 0.0;
+			FVector3f ResolutionFactor = WorldSpaceSize * WorldSpaceSizeMaxInv;
+
+			FVector3f VolumeResolutionV3f = ResolutionFactor * ResolutionMaxAxis;
+			FIntVector VolumeResolutionInt3 = FIntVector(
+				FMath::CeilToInt(VolumeResolutionV3f.X),
+				FMath::CeilToInt(VolumeResolutionV3f.Y),
+				FMath::CeilToInt(VolumeResolutionV3f.Z));
+
+			HeterogeneousVolumeData.VoxelResolution = VolumeResolutionInt3;
+			HeterogeneousVolumeData.LightingDownsampleFactor = 1;
+			HeterogeneousVolumeData.MinimumVoxelSize = 0.1;
+		}
+
 		SystemStatID = InComponent->GetAsset()->GetStatID(false, false);
 	}
 }
