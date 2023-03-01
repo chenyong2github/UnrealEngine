@@ -860,6 +860,14 @@ struct FWaveCue
 	uint32 SampleLength = 0;
 };
 
+// data representing a sample loop in a wave file
+struct FWaveSampleLoop
+{
+	uint32 LoopID = 0;
+	uint32 StartFrame = 0;
+	uint32 EndFrame = 0;
+};
+
 //
 // Structure for in-memory interpretation and modification of WAVE sound structures.
 //
@@ -886,6 +894,9 @@ public:
 
 	// List of cues parsed from the wave file
 	TArray<FWaveCue> WaveCues;
+
+	// List of sample loops parsed from the wave file
+	TArray<FWaveSampleLoop> WaveSampleLoops;
 
 	// Timecode data if it was found on import.
 	TPimplPtr<FSoundWaveTimecodeInfo, EPimplPtrMode::DeepCopy> TimecodeInfo;

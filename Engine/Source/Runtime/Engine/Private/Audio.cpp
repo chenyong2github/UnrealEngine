@@ -1167,6 +1167,34 @@ struct FRiffCuePointChunk
 	uint32 SampleOffset;	// Byte offset to sample byte of first channel
 };
 
+// ChunkID: 'smpl'
+// The sample chunk allows a MIDI sampler to use the Wave file as a collection of samples.
+// The 'smpl' chunk is optional and if included, a single 'smple' chunk should specify all Sample Loops
+struct FRiffSampleChunk
+{
+	uint32 ChunkID;				// 'smpl'
+	uint32 ChunkDataSize;		// Depends on the number of sample loops
+	uint32 ManufacturerCode;	// The MIDI Manufacturers Association manufacturer code
+	uint32 Product;				// The Product / Model ID of the target device, specific to the manufacturer
+	uint32 SamplePeriod;		// The period of one sample in nanoseconds.
+	uint32 MidiUnityNote;		// The MIDI note that will play when this sample is played at its current pitch
+	uint32 MidiPitchFraction;	// The fraction of a semitone up from the specified note. 
+	uint32 SmpteFormat;			// The SMPTE format. Possible values: 0, 24, 25, 29, 30
+	uint32 SmpteOffset;			// Specifies a time offset for the sample, if the sample should start at a later time and not immediately.
+	uint32 NumSampleLoops;		// Number of sample loops contained in this chunks data
+	uint32 NumSampleDataBytes;	// Number of bytes of optional sampler specific data that follows the sample loops. zero if there is no such data.
+};
+
+struct FRiffSampleLoopChunk
+{
+	uint32 LoopID;			// A unique ID of the loop, which could be a cue point
+	uint32 LoopType;		// The loop type. 0: Forward Looping, 1: Ping-Pong, 2: Backward, 3-31: future standard types. >=32: manufacturer specific types
+	uint32 StartFrame;		// Start point of the loop in samples
+	uint32 EndFrame;		// End point of the loop in samples. The end sample is also played.
+	uint32 Fraction;		// The resolution at which this loop should be fine tuned.
+	uint32 NumPlayTimes;	// The number of times to play the loop. A value of zero means inifity. In a Midi sampler, that may mean infinite sustain.
+};
+
 struct FRiffListChunk
 {
 	uint32 ChunkID;			// 'list'
@@ -1756,6 +1784,44 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 					TimecodeInfo->bTimecodeIsDropFrame = true;
 				}
 			}
+		}
+	}
+
+	// Look for smpl chunk
+	RiffChunk = FindRiffChunk(RiffChunkStart, WaveDataEnd, UE_mmioFOURCC('s', 'm', 'p', 'l'));
+
+	if (RiffChunk != nullptr)
+	{
+		const FRiffSampleChunk* SampleChunk = (const FRiffSampleChunk*)(RiffChunk);
+
+		// only swap the members that we care about
+#if !PLATFORM_LITTLE_ENDIAN
+		if (!AlreadySwapped)
+		{
+			SampleChunk->NumSampleLoops = INTEL_ORDER32(SampleChunk->NumSampleLoops);
+		}
+#endif
+		WaveSampleLoops.Reset(SampleChunk->NumSampleLoops);
+
+		// use the RiffSampleChunk size to offset into the chunk data and get the list of SampleLoops
+		FRiffSampleLoopChunk* SampleLoopChunks = (FRiffSampleLoopChunk*)((uint8*)RiffChunk + sizeof(FRiffSampleChunk));
+		for (uint32 LoopIdx = 0; LoopIdx < SampleChunk->NumSampleLoops; ++LoopIdx)
+		{
+			FRiffSampleLoopChunk& SampleLoopChunk = SampleLoopChunks[LoopIdx];
+
+#if !PLATFORM_LITTLE_ENDIAN
+			if (!AlreadySwapped)
+			{
+				SampleLoopChunk.LoopID = INTEL_ORDER32(SampleLoopChunk.LoopID);
+				SampleLoopChunk.StartFrame = INTEL_ORDER32(SampleLoopChunk.StartFrame);
+				SampleLoopChunk.EndFrame = INTEL_ORDER32(SampleLoopChunk.EndFrame);
+			}
+#endif
+			FWaveSampleLoop NewSampleLoop;
+			NewSampleLoop.LoopID = SampleLoopChunk.LoopID;
+			NewSampleLoop.StartFrame = SampleLoopChunk.StartFrame;
+			NewSampleLoop.EndFrame = SampleLoopChunk.EndFrame;
+			WaveSampleLoops.Add(NewSampleLoop);
 		}
 	}
 

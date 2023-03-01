@@ -585,8 +585,10 @@ UObject* USoundFactory::CreateObject
 		Sound->AssetImportData->Update(CurrentFilename);
 
 		// Setup the cue points
-		Sound->CuePoints.Reset(WaveInfo.WaveCues.Num());
+		int TotalNum = WaveInfo.WaveCues.Num() + WaveInfo.WaveSampleLoops.Num();
+		Sound->CuePoints.Reset(TotalNum);
 
+		// Start with WaveCues
 		for (FWaveCue& WaveCue : WaveInfo.WaveCues)
 		{
 			FSoundWaveCuePoint NewCuePoint;
@@ -595,6 +597,36 @@ UObject* USoundFactory::CreateObject
 			NewCuePoint.FramePosition = (int32)WaveCue.Position;
 			NewCuePoint.Label = WaveCue.Label;
 			Sound->CuePoints.Add(NewCuePoint);
+		}
+
+		// add Sample Loops to end
+		bool FoundInvalidSampleLoops = false;
+		for (FWaveSampleLoop& SampleLoop : WaveInfo.WaveSampleLoops)
+		{
+			FSoundWaveCuePoint NewCuePoint;
+			NewCuePoint.bIsLoopRegion = true;
+			NewCuePoint.CuePointID = (int32)SampleLoop.LoopID;
+			NewCuePoint.FramePosition = (int32)SampleLoop.StartFrame;
+			NewCuePoint.FrameLength = (int32)SampleLoop.EndFrame - (int32)SampleLoop.StartFrame;
+			if (SampleLoop.EndFrame <= SampleLoop.StartFrame)
+			{
+				Warn->Logf(ELogVerbosity::Error, 
+					TEXT("Found invalid start and end frames when creating Cue Point from Sample Loop Region! LoopID = %d, StartFrame = %d, EndFrame = %d"), 
+					SampleLoop.LoopID, SampleLoop.StartFrame, SampleLoop.EndFrame);
+
+				FoundInvalidSampleLoops = true;
+			}
+			Sound->CuePoints.Add(NewCuePoint);
+		}
+
+		// fail import if we found invalid sample loops
+		// each invalid sample loop is logged
+		if (FoundInvalidSampleLoops)
+		{
+			FText InvalidSamplesText = NSLOCTEXT("SoundFactory", "Invalid Sample Loops", "Found sample loops with invalid start and end frames. See logs for more info.");
+			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(NSLOCTEXT("SoundFactory", "Import Failed", "Import failed for {0}: {1}"), FText::FromString(Name.ToString()), InvalidSamplesText));
+			GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
+			return nullptr;
 		}
 
 		// If we've read some time-code.

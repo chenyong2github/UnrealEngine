@@ -151,7 +151,8 @@ void FSoundWaveData::InitializeDataFromSoundWave(USoundWave& InWave)
 	}
 	
 	SoundWaveKeyCached = FObjectKey(&InWave);
-	CuePoints = InWave.CuePoints;
+	CuePoints = InWave.GetCuePoints();
+	LoopRegions = InWave.GetLoopRegions();
 	SampleRate = InWave.GetSampleRateForCurrentPlatform();
 	Duration = InWave.Duration;
 	NumChannels = InWave.NumChannels;
@@ -1148,6 +1149,32 @@ void USoundWave::SetSoundAssetCompressionType(ESoundAssetCompressionType InSound
 	SoundWaveDataPtr->RuntimeFormat = SoundWaveDataPtr->FindRuntimeFormat(*this);
 	UpdateAsset(bMarkDirty);
 #endif // #if WITH_EDITOR
+}
+
+TArray<FSoundWaveCuePoint> USoundWave::GetCuePoints() const
+{
+	TArray<FSoundWaveCuePoint> OutCuePoints;
+	for (const FSoundWaveCuePoint& CuePoint : CuePoints)
+	{
+		if (!CuePoint.bIsLoopRegion)
+		{
+			OutCuePoints.Add(CuePoint);
+		}
+	}
+	return OutCuePoints;
+}
+
+TArray<FSoundWaveCuePoint> USoundWave::GetLoopRegions() const
+{
+	TArray<FSoundWaveCuePoint> OutLoopRegions;
+	for (const FSoundWaveCuePoint& CuePoint : CuePoints)
+	{
+		if (CuePoint.bIsLoopRegion)
+		{
+			OutLoopRegions.Add(CuePoint);
+		}
+	}
+	return OutLoopRegions;
 }
 
 FName USoundWave::GetRuntimeFormat() const
@@ -4213,6 +4240,12 @@ const TArray<FSoundWaveCuePoint>& FSoundWaveProxy::GetCuePoints() const
 {
 	check(SoundWaveDataPtr);
 	return SoundWaveDataPtr->GetCuePoints();
+}
+
+const TArray<FSoundWaveCuePoint>& FSoundWaveProxy::GetLoopRegions() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetLoopRegions();
 }
 
 FSoundWaveData::MaxChunkSizeResults FSoundWaveProxy::GetMaxChunkSizeResults() const

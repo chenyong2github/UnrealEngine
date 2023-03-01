@@ -381,6 +381,14 @@ struct FSoundWaveCuePoint
 	// The frame length of the cue point (non-zero if it's a region)
 	UPROPERTY(Category = Info, VisibleAnywhere, BlueprintReadOnly)
 	int32 FrameLength = 0;
+
+	friend class USoundFactory;
+	friend class USoundWave;
+private:
+	// intentionally kept private.
+	// only USoundFactory should modify this value on import
+	UPROPERTY(Category = Info, VisibleAnywhere)
+	bool bIsLoopRegion = false;
 };
 
 struct ISoundWaveClient
@@ -466,6 +474,14 @@ public:
 	/** Procedurally set the compression type. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	void SetSoundAssetCompressionType(ESoundAssetCompressionType InSoundAssetCompressionType, bool bMarkDirty = true);
+
+	/** Filters for the cue points that are _not_ loop regions and returns those as a new array*/
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	TArray<FSoundWaveCuePoint> GetCuePoints() const;
+
+	/** Filters for the cue points that _are_ loop regions and returns those as a new array */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	TArray<FSoundWaveCuePoint> GetLoopRegions() const;
 
 	/** Returns the Runtime format of the wave */
 	FName GetRuntimeFormat() const;
@@ -710,7 +726,7 @@ public:
 	UPROPERTY(Category = Info, AssetRegistrySearchable, VisibleAnywhere)
 	int32 NumChannels;
 
-	/** Cue point data */
+	/** Cue point data parsed fro the .wav file. Contains "Loop Regions" as cue points as well! */
 	UPROPERTY(Category = Info, VisibleAnywhere, BlueprintReadOnly)
 	TArray<FSoundWaveCuePoint> CuePoints;
 
@@ -1275,6 +1291,7 @@ public:
 	float GetSampleRate() const { return SampleRate; }
 	uint32 GetNumChannels() const { return NumChannels; }
 	const TArray<FSoundWaveCuePoint>& GetCuePoints() const { return CuePoints; }
+	const TArray<FSoundWaveCuePoint>& GetLoopRegions() const { return LoopRegions; }
 
 	MaxChunkSizeResults GetMaxChunkSizeResults() const;
 
@@ -1363,6 +1380,7 @@ private:
 	FName RuntimeFormat{ "FSoundWaveProxy_InvalidFormat" };
 	FObjectKey SoundWaveKeyCached;
 	TArray<FSoundWaveCuePoint> CuePoints;
+	TArray<FSoundWaveCuePoint> LoopRegions;
 	ESoundAssetCompressionType SoundAssetCompressionType;
 	
 	float SampleRate = 0;
@@ -1422,6 +1440,7 @@ public:
 	uint32 GetNumChannels() const;
 	uint32 GetSizeOfChunk(uint32 ChunkIndex) const;
 	const TArray<FSoundWaveCuePoint>& GetCuePoints() const;
+	const TArray<FSoundWaveCuePoint>& GetLoopRegions() const;
 
 	FSoundWaveData::MaxChunkSizeResults GetMaxChunkSizeResults() const;
 
