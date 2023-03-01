@@ -326,7 +326,8 @@ public:
 			EPackageFlags InPackageFlags,
 			int32 InPIEInstanceID,
 			int32 InPackagePriority,
-			const FLinkerInstancingContext* InstancingContext) override;
+			const FLinkerInstancingContext* InInstancingContext,
+			uint32 InLoadFlags) override;
 
 	EAsyncPackageState::Type ProcessLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, double TimeLimit) override;
 

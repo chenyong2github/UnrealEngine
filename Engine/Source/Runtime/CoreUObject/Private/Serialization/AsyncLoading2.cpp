@@ -425,6 +425,7 @@ struct FPackageRequest
 	int32 Priority = -1;
 	EPackageFlags PackageFlags = PKG_None;
 #if WITH_EDITOR
+	uint32 LoadFlags = LOAD_None;
 	int32 PIEInstanceID = INDEX_NONE;
 #endif
 #if WITH_EDITORONLY_DATA
@@ -444,7 +445,7 @@ struct FPackageRequest
 #endif
 	}
 
-	static FPackageRequest Create(int32 RequestId, EPackageFlags PackageFlags, int32 PIEInstanceID, int32 Priority, const FLinkerInstancingContext* InstancingContext, const FPackagePath& PackagePath, FName CustomName, TUniquePtr<FLoadPackageAsyncDelegate> PackageLoadedDelegate)
+	static FPackageRequest Create(int32 RequestId, EPackageFlags PackageFlags, uint32 LoadFlags, int32 PIEInstanceID, int32 Priority, const FLinkerInstancingContext* InstancingContext, const FPackagePath& PackagePath, FName CustomName, TUniquePtr<FLoadPackageAsyncDelegate> PackageLoadedDelegate)
 	{
 		return FPackageRequest
 		{
@@ -452,6 +453,7 @@ struct FPackageRequest
 			Priority,
 			PackageFlags,
 #if WITH_EDITOR
+			LoadFlags,
 			PIEInstanceID,
 #endif
 #if WITH_EDITORONLY_DATA
@@ -474,6 +476,7 @@ struct FAsyncPackageDesc2
 	/** The flags that should be applied to the package */
 	EPackageFlags PackageFlags;
 #if WITH_EDITOR
+	uint32 LoadFlags;
 	/** PIE instance ID this package belongs to, INDEX_NONE otherwise */
 	int32 PIEInstanceID;
 #endif
@@ -502,6 +505,7 @@ struct FAsyncPackageDesc2
 			Request.Priority,
 			Request.PackageFlags,
 #if WITH_EDITOR
+			Request.LoadFlags,
 			Request.PIEInstanceID,
 #endif
 			FPackageId::FromName(UPackageName),
@@ -529,6 +533,7 @@ struct FAsyncPackageDesc2
 			ImportingPackageDesc.Priority,
 			PKG_None,
 #if WITH_EDITOR
+			LOAD_None,
 			INDEX_NONE,
 #endif
 			ImportedPackageId,
@@ -3101,7 +3106,8 @@ public:
 		EPackageFlags InPackageFlags,
 		int32 InPIEInstanceID,
 		int32 InPackagePriority,
-		const FLinkerInstancingContext* InstancingContext = nullptr) override;
+		const FLinkerInstancingContext* InstancingContext = nullptr,
+		uint32 InLoadFlags = LOAD_None) override;
 
 	EAsyncPackageState::Type ProcessLoadingFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool bUseTimeLimit, bool bUseFullTimeLimit, double TimeLimit);
 
@@ -4542,7 +4548,7 @@ void FAsyncPackage2::ImportPackagesRecursiveInner(FAsyncLoadingThreadState2& Thr
 				IoBatch.Issue(); // The batch might already contain requests for packages being imported from the uncooked one we're going to load so make sure that those are started before blocking
 				ImportedPackagePath = FPackagePath::FromPackageNameUnchecked(ImportedPackageEntry.UncookedPackageName);
 				ImportedPackagePath.SetHeaderExtension(static_cast<EPackageExtension>(ImportedPackageEntry.UncookedPackageHeaderExtension));
-				int32 ImportRequestId = AsyncLoadingThread.UncookedPackageLoader->LoadPackage(ImportedPackagePath, NAME_None, FLoadPackageAsyncDelegate(), PKG_None, INDEX_NONE, 0, nullptr);
+				int32 ImportRequestId = AsyncLoadingThread.UncookedPackageLoader->LoadPackage(ImportedPackagePath, NAME_None, FLoadPackageAsyncDelegate(), PKG_None, INDEX_NONE, 0, nullptr, LOAD_None);
 				AsyncLoadingThread.UncookedPackageLoader->FlushLoading(ImportRequestId);
 				UncookedPackage = FindObjectFast<UPackage>(nullptr, ImportedPackagePath.GetPackageFName());
 				ImportedPackageRef.SetPackage(UncookedPackage);
@@ -8079,7 +8085,7 @@ void FAsyncPackage2::AddCompletionCallback(TUniquePtr<FLoadPackageAsyncDelegate>
 	CompletionCallbacks.Emplace(MoveTemp(Callback));
 }
 
-int32 FAsyncLoadingThread2::LoadPackage(const FPackagePath& InPackagePath, FName InCustomName, FLoadPackageAsyncDelegate InCompletionDelegate, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority, const FLinkerInstancingContext* InInstancingContext)
+int32 FAsyncLoadingThread2::LoadPackage(const FPackagePath& InPackagePath, FName InCustomName, FLoadPackageAsyncDelegate InCompletionDelegate, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority, const FLinkerInstancingContext* InInstancingContext, uint32 InLoadFlags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackage);
 
@@ -8105,7 +8111,7 @@ int32 FAsyncLoadingThread2::LoadPackage(const FPackagePath& InPackagePath, FName
 		? MakeUnique<FLoadPackageAsyncDelegate>(MoveTemp(InCompletionDelegate))
 		: TUniquePtr<FLoadPackageAsyncDelegate>();
 
-	PackageRequestQueue.Enqueue(FPackageRequest::Create(RequestId, InPackageFlags, InPIEInstanceID, InPackagePriority, InInstancingContext, InPackagePath, InCustomName, MoveTemp(CompletionDelegate)));
+	PackageRequestQueue.Enqueue(FPackageRequest::Create(RequestId, InPackageFlags, InLoadFlags, InPIEInstanceID, InPackagePriority, InInstancingContext, InPackagePath, InCustomName, MoveTemp(CompletionDelegate)));
 	++QueuedPackagesCounter;
 	++PackagesWithRemainingWorkCounter;
 
@@ -8126,12 +8132,19 @@ void FAsyncLoadingThread2::QueueMissingPackage(FAsyncPackageDesc2& PackageDesc, 
 
 	SkippedPackages.Add(FailedPackageName, &bIsAlreadySkipped);
 
-	if (!bIsAlreadySkipped)
+	bool bIssueWarning = !bIsAlreadySkipped;
+#if WITH_EDITOR
+	bIssueWarning &= ((PackageDesc.LoadFlags & (LOAD_NoWarn | LOAD_Quiet)) == 0);
+#endif
+	if (bIssueWarning)
 	{
-		UE_LOG(LogStreaming, Warning,
-			TEXT("LoadPackage: SkipPackage: %s (0x%llX) - The package to load does not exist on disk or in the loader"),
-			*FailedPackageName.ToString(), PackageDesc.PackageIdToLoad.ValueForDebugging());
+		bool bIsScriptPackage = FPackageName::IsScriptPackage(WriteToString<FName::StringBufferSize>(FailedPackageName));
+		bIssueWarning &= !bIsScriptPackage;
 	}
+
+	UE_CLOG(bIssueWarning, LogStreaming, Warning,
+		TEXT("LoadPackage: SkipPackage: %s (0x%llX) - The package to load does not exist on disk or in the loader"),
+		*FailedPackageName.ToString(), PackageDesc.PackageIdToLoad.ValueForDebugging());
 
 	if (PackageLoadedDelegate.IsValid())
 	{

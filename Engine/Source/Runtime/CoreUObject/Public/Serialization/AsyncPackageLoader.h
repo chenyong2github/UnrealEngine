@@ -100,26 +100,17 @@ public:
 
 	virtual bool ShouldAlwaysLoadPackageAsync(const FPackagePath& PackagePath) = 0;
 
-	UE_DEPRECATED(5.0, "Call the version that takes a FPackagePath without a FGuid instead")
-	COREUOBJECT_API int32 LoadPackage(
-		const FString& InPackageName,
-		const FGuid* InGuid,
-		const TCHAR* InPackageToLoadFrom,
-		FLoadPackageAsyncDelegate InCompletionDelegate,
-		EPackageFlags InPackageFlags,
-		int32 InPIEInstanceID,
-		int32 InPackagePriority,
-		const FLinkerInstancingContext* InstancingContext);
-
 	/**
 	 * Asynchronously load a package.
 	 *
-	 * @param	PackagePath		Name of package to load. The package is created if it does not already exist.
-	 * @param	CustomName				If not none, this is the name of the package to load into (and create if not yet existing). If none, the name is take from PackagePath.
+	 * @param	PackagePath				PackagePath to load. Must be a mounted path. The package is created if it does not already exist.
+	 * @param	CustomPackageName		If not none, this is the name of the package to load into (and create if not yet existing). If none, the name is take from PackagePath.
 	 * @param	InCompletionDelegate	Delegate to be invoked when the packages has finished streaming
 	 * @param	InPackageFlags			Package flags used to construct loaded package in memory
 	 * @param	InPIEInstanceID			Play in Editor instance ID
 	 * @param	InPackagePriority		Loading priority
+	 * @param   InstancingContext		Additional context to map object names to their instanced counterpart when loading an instanced package
+	 * @param	LoadFlags				Flags controlling loading behavior, from the ELoadFlags enum
 	 * @return Unique ID associated with this load request (the same package can be associated with multiple IDs).
 	 */
 	virtual int32 LoadPackage(
@@ -129,7 +120,8 @@ public:
 			EPackageFlags InPackageFlags,
 			int32 InPIEInstanceID,
 			int32 InPackagePriority,
-			const FLinkerInstancingContext* InstancingContext) = 0;
+			const FLinkerInstancingContext* InInstancingContext,
+			uint32 InLoadFlags) = 0;
 
 	/**
 	 * Process all currently loading package requests.

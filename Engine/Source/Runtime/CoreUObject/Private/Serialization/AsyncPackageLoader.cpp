@@ -560,20 +560,6 @@ static FPackagePath GetLoadPackageAsyncPackagePath(FStringView InPackageNameOrFi
 	return PackagePath;
 }
 
-int32 IAsyncPackageLoader::LoadPackage(
-	const FString& InPackageName,
-	const FGuid* InGuid,
-	const TCHAR* InPackageToLoadFrom,
-	FLoadPackageAsyncDelegate InCompletionDelegate,
-	EPackageFlags InPackageFlags,
-	int32 InPIEInstanceID,
-	int32 InPackagePriority,
-	const FLinkerInstancingContext* InstancingContext)
-{
-	FPackagePath PackagePath = GetLoadPackageAsyncPackagePath(InPackageToLoadFrom ? FStringView(InPackageToLoadFrom) : FStringView(InPackageName));
-	return LoadPackage(PackagePath, FName(InPackageName), InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
-}
-
 bool ShouldAlwaysLoadPackageAsync(const FPackagePath& InPackagePath)
 {
 	if (!GPackageLoader)
@@ -583,14 +569,21 @@ bool ShouldAlwaysLoadPackageAsync(const FPackagePath& InPackagePath)
 	return GPackageLoader->ShouldAlwaysLoadPackageAsync(InPackagePath);
 }
 
-int32 LoadPackageAsync(const FPackagePath& InPackagePath, FName InPackageNameToCreate /* = NAME_None*/, FLoadPackageAsyncDelegate InCompletionDelegate /*= FLoadPackageAsyncDelegate()*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/, int32 InPackagePriority /*= 0*/, const FLinkerInstancingContext* InstancingContext /*=nullptr*/)
+int32 LoadPackageAsync(const FPackagePath& InPackagePath,
+		FName InPackageNameToCreate /* = NAME_None*/,
+		FLoadPackageAsyncDelegate InCompletionDelegate /*= FLoadPackageAsyncDelegate()*/,
+		EPackageFlags InPackageFlags /*= PKG_None*/,
+		int32 InPIEInstanceID /*= INDEX_NONE*/,
+		int32 InPackagePriority /*= 0*/,
+		const FLinkerInstancingContext* InstancingContext /*=nullptr*/,
+		uint32 LoadFlags /*=LOAD_None*/)
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	UE_CLOG(!GAsyncLoadingAllowed && !IsInAsyncLoadingThread(), LogStreaming, Fatal, TEXT("Requesting async load of \"%s\" when async loading is not allowed (after shutdown). Please fix higher level code."), *InPackagePath.GetDebugName());
 #if DO_TRACK_ASYNC_LOAD_REQUESTS
 	FTrackAsyncLoadRequests::Get().TrackRequest(InPackagePath.GetDebugName(), nullptr, InPackagePriority);
 #endif
-	return GetAsyncPackageLoader().LoadPackage(InPackagePath, InPackageNameToCreate, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
+	return GetAsyncPackageLoader().LoadPackage(InPackagePath, InPackageNameToCreate, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext, LoadFlags);
 }
 
 int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid /* nullptr*/)

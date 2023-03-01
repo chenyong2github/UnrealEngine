@@ -6567,7 +6567,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports()
 						UE_LOG(LogStreaming, Verbose, TEXT("FAsyncPackage::LoadImports for %s: Loading %s (0x%llX) using IoStore package loader"), *Desc.PackagePath.GetDebugName(), *ImportPackageName, FPackageId::FromName(ImportPackageFName).ValueForDebugging());
 						check(IsInGameThread());
 						FAsyncLoadingThread::LeaveAsyncLoadingTick(AsyncLoadingThread.GetThreadIndex()); // Fix thread check that triggers if we recurse back into the uncooked package loader from here
-						int32 ImportRequestId = IoStorePackageLoader->LoadPackage(ImportedPackagePath, NAME_None, FLoadPackageAsyncDelegate(), PKG_None, INDEX_NONE, 0, nullptr);
+						int32 ImportRequestId = IoStorePackageLoader->LoadPackage(ImportedPackagePath, NAME_None, FLoadPackageAsyncDelegate(), PKG_None, INDEX_NONE, 0, nullptr, LOAD_None);
 						IoStorePackageLoader->FlushLoading(ImportRequestId);
 						FAsyncLoadingThread::EnterAsyncLoadingTick(AsyncLoadingThread.GetThreadIndex());
 						bLoadedFromIoStore = true;
@@ -7401,7 +7401,7 @@ bool FAsyncLoadingThread::ShouldAlwaysLoadPackageAsync(const FPackagePath& InPac
 	return FPlatformProperties::RequiresCookedData() && GEventDrivenLoaderEnabled && EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME;
 }
 
-int32 FAsyncLoadingThread::LoadPackage(const FPackagePath& InPackagePath, FName InCustomName, FLoadPackageAsyncDelegate InCompletionDelegate, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority, const FLinkerInstancingContext* InstancingContext)
+int32 FAsyncLoadingThread::LoadPackage(const FPackagePath& InPackagePath, FName InCustomName, FLoadPackageAsyncDelegate InCompletionDelegate, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority, const FLinkerInstancingContext* InInstancingContext, uint32 InLoadFlags)
 {
 	static bool bOnce = false;
 	if (!bOnce && GEventDrivenLoaderEnabled)
@@ -7440,9 +7440,9 @@ int32 FAsyncLoadingThread::LoadPackage(const FPackagePath& InPackagePath, FName 
 
 	// Add new package request
 	FAsyncPackageDesc PackageDesc(RequestID, PackageName, InPackagePath, MoveTemp(CompletionDelegatePtr), InPackageFlags, InPIEInstanceID, InPackagePriority);
-	if (InstancingContext)
+	if (InInstancingContext)
 	{
-		PackageDesc.SetInstancingContext(*InstancingContext);
+		PackageDesc.SetInstancingContext(*InInstancingContext);
 	}
 	QueuePackage(PackageDesc);
 	return RequestID;
