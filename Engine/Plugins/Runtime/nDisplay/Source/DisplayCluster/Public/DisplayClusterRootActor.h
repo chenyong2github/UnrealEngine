@@ -418,7 +418,14 @@ public:
 
 	/** If editor rendering is enabled. */
 	bool IsEditorRenderEnabled() const { return bEnableEditorRender; }
-	
+
+protected:
+	/** Reset preview rendering for cluster node. */
+	void ResetClusterNodePreviewRendering_Editor();
+
+	/** Is preview rendering for cluster node in progress. */
+	bool IsActiveClusterNodePreviewRendering_Editor() const;
+
 private:
 	/** Is editor rendering enabled? This can be false and the preview still enabled. */
 	bool bEnableEditorRender = true;
@@ -520,7 +527,7 @@ protected:
 	bool ImplUpdatePreviewConfiguration_Editor(const FString& InClusterNodeId);
 
 	void ImplRenderPreview_Editor();
-	bool ImplRenderPassPreviewClusterNode_Editor();
+	bool ImplRenderPassPreviewClusterNode_Editor(const FString& InClusterNodeId);
 
 	bool ImplUpdatePreviewRenderFrame_Editor(const FString& InClusterNodeId);
 
@@ -562,9 +569,11 @@ private:
 	int32 TickPerFrameCounter = 0;
 
 	int32 PreviewClusterNodeIndex = 0;
-	int32 PreviewViewportIndex = 0;
+	
+	int32 PreviewViewportIndex = -1;
 	TUniquePtr<FDisplayClusterRenderFrame> PreviewRenderFrame;
 	FString PreviewRenderFrameClusterNodeId;
+
 	int32 PreviewViewportsRenderedInThisFrameCnt = 0;
 
 	FOnPreviewUpdated OnPreviewGenerated;

@@ -623,6 +623,12 @@ void FDisplayClusterViewportManager::InitializeNewFrame()
 			}
 		}
 	}
+
+	// Send render frame settings to rendering thread
+	ViewportManagerProxy->ImplUpdateRenderFrameSettings(GetRenderFrameSettings(), ViewportManagerViewExtension);
+
+	// Send updated viewports data to render thread proxy
+	ViewportManagerProxy->ImplUpdateViewports(ClusterNodeViewports);
 }
 
 void FDisplayClusterViewportManager::FinalizeNewFrame()
@@ -643,12 +649,6 @@ void FDisplayClusterViewportManager::FinalizeNewFrame()
 			}
 		}
 	}
-
-	// Send render frame settings to rendering thread
-	ViewportManagerProxy->ImplUpdateRenderFrameSettings(GetRenderFrameSettings(), ViewportManagerViewExtension);
-
-	// Send updated viewports data to render thread proxy
-	ViewportManagerProxy->ImplUpdateViewports(ClusterNodeViewports);
 
 	// Finish update settings
 	for (FDisplayClusterViewport* Viewport : ClusterNodeViewports)
