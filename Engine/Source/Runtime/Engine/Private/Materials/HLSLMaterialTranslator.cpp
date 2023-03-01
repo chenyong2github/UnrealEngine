@@ -11856,8 +11856,11 @@ static bool IsMaterialPathExemptFromRestrictiveMode(FStringBuilderBase& PathName
 		return false;
 	}
 
-	// Anything else in /Engine/ and /Game/ folders is exempt
-	if (PathNameView.StartsWith(TEXT("/Engine/")) || PathNameView.StartsWith(TEXT("/Game/")))
+	// Anything else in /Engine/ and /Game/ and other selected built-in folders is exempt
+	if (PathNameView.StartsWith(TEXT("/Engine/")) ||
+		PathNameView.StartsWith(TEXT("/Game/")) ||
+		PathNameView.StartsWith(TEXT("/Landmass/")) ||
+		PathNameView.StartsWith(TEXT("/Water/")))
 	{
 		return true;
 	}
