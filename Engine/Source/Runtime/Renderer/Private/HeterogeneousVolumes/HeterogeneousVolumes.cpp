@@ -2,6 +2,7 @@
 
 #include "HeterogeneousVolumes.h"
 
+#include "HeterogeneousVolumeInterface.h"
 #include "PixelShaderUtils.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
@@ -81,23 +82,29 @@ static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesPreshadingMipLevel(
 );
 
 static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesPreshadingVolumeResolutionX(
-	TEXT("r.HeterogeneousVolumes.Preshading.VolumeResolution.X"),
-	256,
-	TEXT("Determines the preshading volume resolution in X (Default = 256)"),
+	TEXT("r.HeterogeneousVolumes.VolumeResolution.X"),
+	0,
+	TEXT("Overrides the preshading and lighting volume resolution in X (Default = 0)")
+	TEXT("0: Disabled, uses per-volume attribute\n")
+	TEXT(">0: Overrides resolution in X\n"),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesPreshadingVolumeResolutionY(
-	TEXT("r.HeterogeneousVolumes.Preshading.VolumeResolution.Y"),
-	256,
-	TEXT("Determines the preshading volume resolution in Y (Default = 256)"),
+	TEXT("r.HeterogeneousVolumes.VolumeResolution.Y"),
+	0,
+	TEXT("Overrides the preshading and lighting volume resolution in X (Default = 0)")
+	TEXT("0: Disabled, uses per-volume attribute\n")
+	TEXT(">0: Overrides resolution in Y\n"),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesPreshadingVolumeResolutionZ(
-	TEXT("r.HeterogeneousVolumes.Preshading.VolumeResolution.Z"),
-	256,
-	TEXT("Determines the preshading volume resolution in Z (Default = 256)"),
+	TEXT("r.HeterogeneousVolumes.VolumeResolution.Z"),
+	0,
+	TEXT("Overrides the preshading and lighting volume resolution in X (Default = 0)")
+	TEXT("0: Disabled, uses per-volume attribute\n")
+	TEXT(">0: Overrides resolution in Z\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -155,8 +162,10 @@ static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesLightingCache(
 
 static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesLightingCacheDownsampleFactor(
 	TEXT("r.HeterogeneousVolumes.LightingCache.DownsampleFactor"),
-	1,
-	TEXT("Determines the downsample factor, relative to the preshading volume resolution (Default = 1)"),
+	0,
+	TEXT("Overrides the lighting-cache downsample factor, relative to the preshading volume resolution (Default = 0)\n")
+	TEXT("0: Disabled, uses per-volume attribute\n")
+	TEXT(">0: Overrides the lighting-cache downsample factor"),
 	ECVF_RenderThreadSafe
 );
 
@@ -197,15 +206,13 @@ bool DoesPlatformSupportHeterogeneousVolumes(EShaderPlatform Platform)
 bool DoesMaterialShaderSupportHeterogeneousVolumes(const FMaterialShaderParameters& MaterialShaderParameters)
 {
 	return (MaterialShaderParameters.MaterialDomain == MD_Volume)
-		// Restricting compilation to materials bound to Niagara meshes
-		&& MaterialShaderParameters.bIsUsedWithNiagaraMeshParticles;
+		&& MaterialShaderParameters.bIsUsedWithHeterogeneousVolumes;
 }
 
 bool DoesMaterialShaderSupportHeterogeneousVolumes(const FMaterial& Material)
 {
 	return (Material.GetMaterialDomain() == MD_Volume)
-		// Restricting compilation to materials bound to Niagara meshes
-		&& Material.IsUsedWithNiagaraMeshParticles();
+		&& Material.IsUsedWithHeterogeneousVolumes();
 }
 
 bool ShouldRenderMeshBatchWithHeterogeneousVolumes(
@@ -228,13 +235,23 @@ bool ShouldRenderMeshBatchWithHeterogeneousVolumes(
 namespace HeterogeneousVolumes
 {
 	// CVars
-
-	FIntVector GetVolumeResolution()
+	FIntVector GetVolumeResolution(const IHeterogeneousVolumeInterface* Interface)
 	{
-		FIntVector VolumeResolution;
-		VolumeResolution.X = FMath::Clamp(CVarHeterogeneousVolumesPreshadingVolumeResolutionX.GetValueOnRenderThread(), 64, 1024);
-		VolumeResolution.Y = FMath::Clamp(CVarHeterogeneousVolumesPreshadingVolumeResolutionY.GetValueOnRenderThread(), 64, 1024);
-		VolumeResolution.Z = FMath::Clamp(CVarHeterogeneousVolumesPreshadingVolumeResolutionZ.GetValueOnRenderThread(), 64, 1024);
+		FIntVector VolumeResolution = Interface->GetVoxelResolution();
+
+		FIntVector OverrideVolumeResolution = FIntVector(
+			CVarHeterogeneousVolumesPreshadingVolumeResolutionX.GetValueOnRenderThread(),
+			CVarHeterogeneousVolumesPreshadingVolumeResolutionY.GetValueOnRenderThread(),
+			CVarHeterogeneousVolumesPreshadingVolumeResolutionZ.GetValueOnRenderThread());
+
+		VolumeResolution.X = OverrideVolumeResolution.X > 0 ? OverrideVolumeResolution.X : VolumeResolution.X;
+		VolumeResolution.Y = OverrideVolumeResolution.Y > 0 ? OverrideVolumeResolution.Y : VolumeResolution.Y;
+		VolumeResolution.Z = OverrideVolumeResolution.Z > 0 ? OverrideVolumeResolution.Z : VolumeResolution.Z;
+
+		// Clamp each dimension to [1, 1024]
+		VolumeResolution.X = FMath::Clamp(VolumeResolution.X, 1, 1024);
+		VolumeResolution.Y = FMath::Clamp(VolumeResolution.Y, 1, 1024);
+		VolumeResolution.Z = FMath::Clamp(VolumeResolution.Z, 1, 1024);
 		return VolumeResolution;
 	}
 
@@ -327,6 +344,15 @@ namespace HeterogeneousVolumes
 
 	// Convenience Utils
 
+	const IHeterogeneousVolumeInterface* GetInterface(const FPrimitiveSceneProxy* PrimitiveSceneProxy)
+	{
+		check(PrimitiveSceneProxy->IsHeterogeneousVolume());
+		const IHeterogeneousVolumeInterface* Interface = PrimitiveSceneProxy->GetHeterogeneousVolumeInterface();
+		check(Interface);
+
+		return Interface;
+	}
+
 	int GetVoxelCount(FIntVector VolumeResolution)
 	{
 		return VolumeResolution.X * VolumeResolution.Y * VolumeResolution.Z;
@@ -345,12 +371,13 @@ namespace HeterogeneousVolumes
 			FMath::Max(VolumeResolution.Z >> MipLevel, 1)
 		);
 	}
-
-	FIntVector GetLightingCacheResolution()
+	FIntVector GetLightingCacheResolution(const IHeterogeneousVolumeInterface* RenderInterface)
 	{
-		float DownsampleFactor = FMath::Max(CVarHeterogeneousVolumesLightingCacheDownsampleFactor.GetValueOnRenderThread(), 1);
-		FIntVector LightingCacheResolution = GetVolumeResolution() / DownsampleFactor;
+		float OverrideDownsampleFactor = CVarHeterogeneousVolumesLightingCacheDownsampleFactor.GetValueOnRenderThread();
+		float DownsampleFactor = OverrideDownsampleFactor > 0.0 ? OverrideDownsampleFactor : RenderInterface->GetLightingDownsampleFactor();
+		DownsampleFactor = FMath::Max(DownsampleFactor, 1.0);
 
+		FIntVector LightingCacheResolution = GetVolumeResolution(RenderInterface) / DownsampleFactor;
 		return LightingCacheResolution;
 	}
 }
@@ -394,7 +421,7 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 
 				// Allocate transmittance volume
 				// TODO: Allow option for scalar transmittance to conserve bandwidth
-				FIntVector LightingCacheResolution = HeterogeneousVolumes::GetLightingCacheResolution();
+				FIntVector LightingCacheResolution = HeterogeneousVolumes::GetLightingCacheResolution(HeterogeneousVolumes::GetInterface(PrimitiveSceneProxy));
 				uint32 NumMips = FMath::Log2(float(FMath::Min(FMath::Min(LightingCacheResolution.X, LightingCacheResolution.Y), LightingCacheResolution.Z))) + 1;
 				FRDGTextureDesc LightingCacheDesc = FRDGTextureDesc::Create3D(
 					LightingCacheResolution,

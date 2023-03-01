@@ -15,6 +15,7 @@ class FSceneView;
 class FViewInfo;
 class FVirtualShadowMapArray;
 class FVisibleLightInfo;
+class IHeterogeneousVolumeInterface;
 
 struct FMaterialShaderParameters;
 struct FRDGTextureDesc;
@@ -28,6 +29,7 @@ bool ShouldRenderHeterogeneousVolumes(const FScene* Scene);
 bool ShouldRenderHeterogeneousVolumesForView(const FViewInfo& View);
 bool DoesPlatformSupportHeterogeneousVolumes(EShaderPlatform Platform);
 bool DoesMaterialShaderSupportHeterogeneousVolumes(const FMaterialShaderParameters& Parameters);
+bool DoesMaterialShaderSupportHeterogeneousVolumes(const FMaterial& Material);
 bool ShouldRenderMeshBatchWithHeterogeneousVolumes(
 	const FMeshBatch* Mesh,
 	const FPrimitiveSceneProxy* Proxy,
@@ -41,8 +43,8 @@ bool ShouldRenderMeshBatchWithHeterogeneousVolumes(
 namespace HeterogeneousVolumes
 {
 	// CVars
-	FIntVector GetVolumeResolution();
-	FIntVector GetLightingCacheResolution();
+	FIntVector GetVolumeResolution(const IHeterogeneousVolumeInterface*);
+	FIntVector GetLightingCacheResolution(const IHeterogeneousVolumeInterface*);
 
 	float GetShadowStepSize();
 	float GetMaxTraceDistance();
@@ -65,6 +67,8 @@ namespace HeterogeneousVolumes
 	bool UseLightingCacheForTransmittance();
 
 	// Convenience Utils
+	const IHeterogeneousVolumeInterface* GetInterface(const FPrimitiveSceneProxy* PrimitiveSceneProxy);
+
 	int GetVoxelCount(FIntVector VolumeResolution);
 	int GetVoxelCount(const FRDGTextureDesc& TextureDesc);
 	FIntVector GetMipVolumeResolution(FIntVector VolumeResolution, uint32 MipLevel);
