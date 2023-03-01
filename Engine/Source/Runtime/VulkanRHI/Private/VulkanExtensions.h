@@ -88,6 +88,7 @@ public:
 		: FVulkanExtensionBase(InExtensionName, InEnabledInCode, InPromotedVersion, InActivation)
 		, Device(InDevice)
 		, FlagSetter(MoveTemp(InFlagSetter))
+		, bRequirementsPassed(true)
 	{}
 
 	static FVulkanDeviceExtensionArray GetUESupportedDeviceExtensions(FVulkanDevice* InDevice);
@@ -109,14 +110,17 @@ public:
 	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceInfo) {}
 #endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
-	// Holds extensions requested external (eg plugins)
+	// Holds extensions requested externally (eg plugins)
 	static TArray<const ANSICHAR*> ExternalExtensions;
 
 protected:
 	struct FOptionalVulkanDeviceExtensionProperties& GetDeviceExtensionProperties();
 
 	FVulkanDevice* Device;
-	TUniqueFunction<void(FOptionalVulkanDeviceExtensions& ExtensionFlags)> FlagSetter = nullptr;
+	TUniqueFunction<void(FOptionalVulkanDeviceExtensions& ExtensionFlags)> FlagSetter;
+
+	// Signals that this extension has passed any specific feature and/or property requirements
+	bool bRequirementsPassed;
 };
 
 
@@ -144,7 +148,7 @@ public:
 	static TArray<const ANSICHAR*> ExternalExtensions;
 
 protected:
-	TUniqueFunction<void(FOptionalVulkanInstanceExtensions& ExtensionFlags)> FlagSetter = nullptr;
+	TUniqueFunction<void(FOptionalVulkanInstanceExtensions& ExtensionFlags)> FlagSetter;
 };
 
 // Helpers to create simple extensions that set a flag
