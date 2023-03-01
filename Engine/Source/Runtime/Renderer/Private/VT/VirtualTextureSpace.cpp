@@ -197,6 +197,14 @@ public:
 		return true;
 	}
 
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FIntPoint InPageTableSize, uint32 InFirstUpdate, uint32 InNumUpdates, FRHIShaderResourceView* InUpdateBuffer)
+	{
+		SetShaderValue(BatchedParameters, PageTableSize, InPageTableSize);
+		SetShaderValue(BatchedParameters, FirstUpdate, InFirstUpdate);
+		SetShaderValue(BatchedParameters, NumUpdates, InNumUpdates);
+		SetSRVParameter(BatchedParameters, UpdateBuffer, InUpdateBuffer);
+	}
+
 	LAYOUT_FIELD(FShaderParameter, PageTableSize);
 	LAYOUT_FIELD(FShaderParameter, FirstUpdate);
 	LAYOUT_FIELD(FShaderParameter, NumUpdates);
@@ -522,13 +530,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuild
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-					{
-						FRHIVertexShader* ShaderRHI = VertexShader.GetVertexShader();
-						SetShaderValue(RHICmdList, ShaderRHI, VertexShader->PageTableSize, FIntPoint(CachedPageTableWidth, CachedPageTableHeight));
-						SetShaderValue(RHICmdList, ShaderRHI, VertexShader->FirstUpdate, FirstUpdate);
-						SetShaderValue(RHICmdList, ShaderRHI, VertexShader->NumUpdates, NumUpdates);
-						SetSRVParameter(RHICmdList, ShaderRHI, VertexShader->UpdateBuffer, UpdateBufferSRV);
-					}
+					SetShaderParametersLegacyVS(RHICmdList, VertexShader, FIntPoint(CachedPageTableWidth, CachedPageTableHeight), FirstUpdate, NumUpdates, UpdateBufferSRV);
 
 					// needs to be the same on shader side (faster on NVIDIA and AMD)
 					uint32 QuadsPerInstance = 8;

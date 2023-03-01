@@ -7,6 +7,7 @@
 #include "GlobalRenderResources.h"
 #include "ShaderParameterMacros.h"
 #include "ShaderParameters.h"
+#include "ShaderParameterUtils.h"
 #include "RenderUtils.h"
 #include "RHIStaticStates.h"
 #include "RenderGraphResources.h"
@@ -151,22 +152,26 @@ public:
 	{
 		if (IsBound())
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldPageAtlasTexture, ParameterData.PageAtlasTexture ? ParameterData.PageAtlasTexture : GBlackVolumeTexture->TextureRHI.GetReference());
-			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldPageTableTexture, ParameterData.PageTableTexture ? ParameterData.PageTableTexture : GBlackVolumeTexture->TextureRHI.GetReference());
-			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldMipTexture, ParameterData.MipTexture ? ParameterData.MipTexture : GBlackVolumeTexture->TextureRHI.GetReference());
+			FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 
-			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalVolumeTranslatedCenterAndExtent, ParameterData.TranslatedCenterAndExtent, GlobalDistanceField::MaxClipmaps);
-			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalVolumeTranslatedWorldToUVAddAndMul, ParameterData.TranslatedWorldToUVAddAndMul, GlobalDistanceField::MaxClipmaps);
-			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalDistanceFieldMipTranslatedWorldToUVScale, ParameterData.MipTranslatedWorldToUVScale, GlobalDistanceField::MaxClipmaps);
-			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalDistanceFieldMipTranslatedWorldToUVBias, ParameterData.MipTranslatedWorldToUVBias, GlobalDistanceField::MaxClipmaps);
-			SetShaderValue(RHICmdList, ShaderRHI, GlobalDistanceFieldMipFactor, ParameterData.MipFactor);
-			SetShaderValue(RHICmdList, ShaderRHI, GlobalDistanceFieldMipTransition, ParameterData.MipTransition);
-			SetShaderValue(RHICmdList, ShaderRHI, GlobalDistanceFieldClipmapSizeInPages, ParameterData.ClipmapSizeInPages);
-			SetShaderValue(RHICmdList, ShaderRHI, GlobalDistanceFieldInvPageAtlasSize, (FVector3f)ParameterData.InvPageAtlasSize);
-			SetShaderValue(RHICmdList, ShaderRHI, GlobalVolumeDimension, ParameterData.GlobalDFResolution);
-			SetShaderValue(RHICmdList, ShaderRHI, GlobalVolumeTexelSize, 1.0f / ParameterData.GlobalDFResolution);
-			SetShaderValue(RHICmdList, ShaderRHI, MaxGlobalDFAOConeDistance, ParameterData.MaxDFAOConeDistance);
-			SetShaderValue(RHICmdList, ShaderRHI, NumGlobalSDFClipmaps, ParameterData.NumGlobalSDFClipmaps);
+			SetTextureParameter(BatchedParameters, GlobalDistanceFieldPageAtlasTexture, ParameterData.PageAtlasTexture ? ParameterData.PageAtlasTexture : GBlackVolumeTexture->TextureRHI.GetReference());
+			SetTextureParameter(BatchedParameters, GlobalDistanceFieldPageTableTexture, ParameterData.PageTableTexture ? ParameterData.PageTableTexture : GBlackVolumeTexture->TextureRHI.GetReference());
+			SetTextureParameter(BatchedParameters, GlobalDistanceFieldMipTexture, ParameterData.MipTexture ? ParameterData.MipTexture : GBlackVolumeTexture->TextureRHI.GetReference());
+
+			SetShaderValueArray(BatchedParameters, GlobalVolumeTranslatedCenterAndExtent, ParameterData.TranslatedCenterAndExtent, GlobalDistanceField::MaxClipmaps);
+			SetShaderValueArray(BatchedParameters, GlobalVolumeTranslatedWorldToUVAddAndMul, ParameterData.TranslatedWorldToUVAddAndMul, GlobalDistanceField::MaxClipmaps);
+			SetShaderValueArray(BatchedParameters, GlobalDistanceFieldMipTranslatedWorldToUVScale, ParameterData.MipTranslatedWorldToUVScale, GlobalDistanceField::MaxClipmaps);
+			SetShaderValueArray(BatchedParameters, GlobalDistanceFieldMipTranslatedWorldToUVBias, ParameterData.MipTranslatedWorldToUVBias, GlobalDistanceField::MaxClipmaps);
+			SetShaderValue(BatchedParameters, GlobalDistanceFieldMipFactor, ParameterData.MipFactor);
+			SetShaderValue(BatchedParameters, GlobalDistanceFieldMipTransition, ParameterData.MipTransition);
+			SetShaderValue(BatchedParameters, GlobalDistanceFieldClipmapSizeInPages, ParameterData.ClipmapSizeInPages);
+			SetShaderValue(BatchedParameters, GlobalDistanceFieldInvPageAtlasSize, (FVector3f)ParameterData.InvPageAtlasSize);
+			SetShaderValue(BatchedParameters, GlobalVolumeDimension, ParameterData.GlobalDFResolution);
+			SetShaderValue(BatchedParameters, GlobalVolumeTexelSize, 1.0f / ParameterData.GlobalDFResolution);
+			SetShaderValue(BatchedParameters, MaxGlobalDFAOConeDistance, ParameterData.MaxDFAOConeDistance);
+			SetShaderValue(BatchedParameters, NumGlobalSDFClipmaps, ParameterData.NumGlobalSDFClipmaps);
+
+			RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
 		}
 	}
 

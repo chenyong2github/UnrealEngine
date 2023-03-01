@@ -118,11 +118,16 @@ public:
 		: FColorCorrectRegionsPostProcessMaterialShader(Initializer)
 	{}
 
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View)
+	{
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(BatchedParameters, View.ViewUniformBuffer);
+	}
+
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
 	}
-	
 };
 
 class FColorCorrectGenericPS : public FColorCorrectRegionsPostProcessMaterialShader
@@ -147,16 +152,16 @@ public:
 		: FColorCorrectRegionsPostProcessMaterialShader(Initializer)
 	{}
 
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View)
+	{
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(BatchedParameters, View.ViewUniformBuffer);
+	}
+
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
 	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FColorCorrectRegionsPostProcessMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
 };
 
 class FColorCorrectRegionMaterialPS : public FColorCorrectGenericPS
@@ -198,11 +203,6 @@ class FColorCorrectScreenPassVS : public FGlobalShader
 public:
 	DECLARE_GLOBAL_SHADER(FColorCorrectScreenPassVS);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters&)
-	{
-		return true;
-	}
-
 	FColorCorrectScreenPassVS() = default;
 	FColorCorrectScreenPassVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -214,11 +214,6 @@ class FClearRectPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FClearRectPS);
 	SHADER_USE_PARAMETER_STRUCT(FClearRectPS, FGlobalShader);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{
-		return true;
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -238,11 +233,6 @@ class FCCRStencilMergerVS : public FGlobalShader
 public:
 	DECLARE_GLOBAL_SHADER(FCCRStencilMergerVS);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters&)
-	{
-		return true;
-	}
-
 	FCCRStencilMergerVS() = default;
 	FCCRStencilMergerVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -254,11 +244,6 @@ class FCCRStencilMergerPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCCRStencilMergerPS);
 	SHADER_USE_PARAMETER_STRUCT(FCCRStencilMergerPS, FGlobalShader);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return true;
-	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)

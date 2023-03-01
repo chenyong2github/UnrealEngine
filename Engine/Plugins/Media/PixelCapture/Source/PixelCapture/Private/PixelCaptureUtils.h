@@ -55,7 +55,7 @@ inline void CopyTexture(FRHICommandList& RHICmdList, FTextureRHIRef SourceTextur
             GraphicsPSOInit.PrimitiveType = PT_TriangleList;
             SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-            PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceTexture);
+			SetShaderParametersLegacyPS(RHICmdList, PixelShader, TStaticSamplerState<SF_Point>::GetRHI(), SourceTexture);
 
             FIntPoint TargetBufferSize(DestTexture->GetDesc().Extent.X, DestTexture->GetDesc().Extent.Y);
             RendererModule->DrawRectangle(RHICmdList, 0, 0, // Dest X, Y

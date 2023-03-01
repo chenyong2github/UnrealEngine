@@ -50,18 +50,22 @@ void FRayTracingValidateGeometryBuildParamsCS::Dispatch(FRHICommandList& RHICmdL
 
 		const uint32 IndexBufferOffsetInBytes = Segment.FirstPrimitive * IndexStride * 3;
 
-		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->VertexBufferStrideParam, Segment.VertexBufferStride);
-		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->VertexBufferOffsetInBytesParam, Segment.VertexBufferOffset);
-		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->IndexBufferOffsetInBytesParam, IndexBufferOffsetInBytes);
-		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->IndexBufferStrideParam, IndexStride);
-		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NumPrimitivesParam, Segment.NumPrimitives);
-		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->MaxVerticesParam, Segment.MaxVertices);
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+		SetShaderValue(BatchedParameters, ComputeShader->VertexBufferStrideParam, Segment.VertexBufferStride);
+		SetShaderValue(BatchedParameters, ComputeShader->VertexBufferOffsetInBytesParam, Segment.VertexBufferOffset);
+		SetShaderValue(BatchedParameters, ComputeShader->IndexBufferOffsetInBytesParam, IndexBufferOffsetInBytes);
+		SetShaderValue(BatchedParameters, ComputeShader->IndexBufferStrideParam, IndexStride);
+		SetShaderValue(BatchedParameters, ComputeShader->NumPrimitivesParam, Segment.NumPrimitives);
+		SetShaderValue(BatchedParameters, ComputeShader->MaxVerticesParam, Segment.MaxVertices);
 
 		const FRawBufferShaderResourceViewInitializer VBViewInitializer(Segment.VertexBuffer);
 		FShaderResourceViewRHIRef VertexBufferSRV = RHICreateShaderResourceView(VBViewInitializer);
 
-		SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->VertexBufferParam, VertexBufferSRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->IndexBufferParam, IndexBufferSRV);
+		SetSRVParameter(BatchedParameters, ComputeShader->VertexBufferParam, VertexBufferSRV);
+		SetSRVParameter(BatchedParameters, ComputeShader->IndexBufferParam, IndexBufferSRV);
+
+		RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
 
 		// TODO: handle arbitrary large meshes that may overrun the 1D dispatch limit
 		const uint32 MaxDispatchDimension = 65536; // D3D11_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION
@@ -70,8 +74,12 @@ void FRayTracingValidateGeometryBuildParamsCS::Dispatch(FRHICommandList& RHICmdL
 		RHICmdList.DispatchComputeShader(NumGroupsX, 1, 1);
 	}
 
-	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->VertexBufferParam, nullptr);
-	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->IndexBufferParam, nullptr);
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+	SetSRVParameter(BatchedParameters, ComputeShader->VertexBufferParam, nullptr);
+	SetSRVParameter(BatchedParameters, ComputeShader->IndexBufferParam, nullptr);
+
+	RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
 
 	RHICmdList.PopEvent();
 }
@@ -90,21 +98,29 @@ void FRayTracingValidateSceneBuildParamsCS::Dispatch(FRHICommandList& RHICmdList
 
 	RHICmdList.PushEvent(TEXT("RTSceneValidation"), FColor::Black);
 
-	const FRawBufferShaderResourceViewInitializer InstanceBufferViewInitializer(InstanceBuffer);
-	FShaderResourceViewRHIRef InstanceBufferSRV = RHICreateShaderResourceView(InstanceBufferViewInitializer);
+	{
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 
-	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NumInstancesParam, NumInstances);
-	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NumHitGroupsParam, NumHitGroups);
-	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->InstanceBufferOffsetInBytesParam, InstanceBufferOffset);
-	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->InstanceBufferStrideInBytesParam, InstanceBufferStride);
-	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->InstanceBufferParam, InstanceBufferSRV);
+		const FRawBufferShaderResourceViewInitializer InstanceBufferViewInitializer(InstanceBuffer);
+		FShaderResourceViewRHIRef InstanceBufferSRV = RHICreateShaderResourceView(InstanceBufferViewInitializer);
 
-	const uint32 MaxDispatchDimension = 65536; // D3D11_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION
-	const uint32 NumGroupsX = FMath::Min((NumInstances + NumThreadsX - 1) / NumThreadsX, MaxDispatchDimension);
+		SetShaderValue(BatchedParameters, ComputeShader->NumInstancesParam, NumInstances);
+		SetShaderValue(BatchedParameters, ComputeShader->NumHitGroupsParam, NumHitGroups);
+		SetShaderValue(BatchedParameters, ComputeShader->InstanceBufferOffsetInBytesParam, InstanceBufferOffset);
+		SetShaderValue(BatchedParameters, ComputeShader->InstanceBufferStrideInBytesParam, InstanceBufferStride);
+		SetSRVParameter(BatchedParameters, ComputeShader->InstanceBufferParam, InstanceBufferSRV);
 
-	RHICmdList.DispatchComputeShader(NumGroupsX, 1, 1);
+		const uint32 MaxDispatchDimension = 65536; // D3D11_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION
+		const uint32 NumGroupsX = FMath::Min((NumInstances + NumThreadsX - 1) / NumThreadsX, MaxDispatchDimension);
 
-	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->InstanceBufferParam, nullptr);
+		RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
+
+		RHICmdList.DispatchComputeShader(NumGroupsX, 1, 1);
+	}
+
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+	SetSRVParameter(BatchedParameters, ComputeShader->InstanceBufferParam, nullptr);
+	RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
 
 	RHICmdList.PopEvent();
 }

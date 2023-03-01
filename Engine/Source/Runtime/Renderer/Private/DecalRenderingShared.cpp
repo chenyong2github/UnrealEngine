@@ -86,11 +86,12 @@ public:
 		MobileBasePassUniformBuffer.Bind(Initializer.ParameterMap, FMobileBasePassUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName());
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FDeferredDecalProxy& DecalProxy, const FMaterialRenderProxy* MaterialProxy, const FMaterial* MaterialResource, const float FadeAlphaValue = 1.0f)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View, const FDeferredDecalProxy& DecalProxy, const FMaterialRenderProxy* MaterialProxy, const FMaterial* MaterialResource, const float FadeAlphaValue = 1.0f)
 	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
+		auto& PrimitivePS = GetUniformBufferParameter<FPrimitiveUniformShaderParameters>();
+		SetUniformBufferParameter(BatchedParameters, PrimitivePS, GIdentityPrimitiveUniformBuffer);
 
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialResource, View);
+		FMaterialShader::SetParameters(BatchedParameters, MaterialProxy, *MaterialResource, View);
 
 		const FMatrix DecalToWorldMatrix = DecalProxy.ComponentTrans.ToMatrixWithScale();
 		const FMatrix WorldToDecalMatrix = DecalProxy.ComponentTrans.ToInverseMatrixWithScale();
@@ -101,7 +102,7 @@ public:
 
 		if (DecalTilePosition.IsBound())
 		{
-			SetShaderValue(RHICmdList, ShaderRHI, DecalTilePosition, TilePosition);
+			SetShaderValue(BatchedParameters, DecalTilePosition, TilePosition);
 		}
 		if(SvPositionToDecal.IsBound())
 		{
@@ -125,19 +126,19 @@ public:
 					FPlane(Ax, Ay,   0,  1)
 				) * View.ViewMatrices.GetInvViewProjectionMatrix() * WorldToDecalMatrix);
 
-			SetShaderValue(RHICmdList, ShaderRHI, SvPositionToDecal, SvPositionToDecalValue);
+			SetShaderValue(BatchedParameters, SvPositionToDecal, SvPositionToDecalValue);
 		}
 		if(DecalToWorld.IsBound())
 		{
-			SetShaderValue(RHICmdList, ShaderRHI, DecalToWorld, RelativeDecalToWorldMatrix);
+			SetShaderValue(BatchedParameters, DecalToWorld, RelativeDecalToWorldMatrix);
 		}
 		if (DecalToWorldInvScale.IsBound())
 		{
-			SetShaderValue(RHICmdList, ShaderRHI, DecalToWorldInvScale, RelativeDecalToWorldMatrix.GetScaleVector().Reciprocal());
+			SetShaderValue(BatchedParameters, DecalToWorldInvScale, RelativeDecalToWorldMatrix.GetScaleVector().Reciprocal());
 		}
 		if (DecalOrientation.IsBound())
 		{
-			SetShaderValue(RHICmdList, ShaderRHI, DecalOrientation, OrientationVector);
+			SetShaderValue(BatchedParameters, DecalOrientation, OrientationVector);
 		}
 		
 		float LifetimeAlpha = 1.0f;
@@ -148,8 +149,8 @@ public:
 			LifetimeAlpha = FMath::Clamp(FMath::Min(View.Family->Time.GetWorldTimeSeconds() * -DecalProxy.InvFadeDuration + DecalProxy.FadeStartDelayNormalized, View.Family->Time.GetWorldTimeSeconds() * DecalProxy.InvFadeInDuration + DecalProxy.FadeInStartDelayNormalized), 0.0f, 1.0f);
 		}
  
-		SetShaderValue(RHICmdList, ShaderRHI, DecalParams, FVector2f(FadeAlphaValue, LifetimeAlpha));
-		SetShaderValue(RHICmdList, ShaderRHI, DecalColorParam, DecalProxy.DecalColor);
+		SetShaderValue(BatchedParameters, DecalParams, FVector2f(FadeAlphaValue, LifetimeAlpha));
+		SetShaderValue(BatchedParameters, DecalColorParam, DecalProxy.DecalColor);
 	}
 
 private:
@@ -454,9 +455,7 @@ namespace DecalRendering
 
 		// Set pixel shader parameters.
 		{
-			PixelShader->SetParameters(RHICmdList, View, DecalData.Proxy, MaterialProxy, MaterialResource, DecalData.FadeAlpha);
-			auto& PrimitivePS = PixelShader->GetUniformBufferParameter<FPrimitiveUniformShaderParameters>();
-			SetUniformBufferParameter(RHICmdList, PixelShader.GetPixelShader(), PrimitivePS, GIdentityPrimitiveUniformBuffer);
+			SetShaderParametersLegacyPS(RHICmdList, PixelShader, View, DecalData.Proxy, MaterialProxy, MaterialResource, DecalData.FadeAlpha);
 		}
 
 		// Set stream source after updating cached strides

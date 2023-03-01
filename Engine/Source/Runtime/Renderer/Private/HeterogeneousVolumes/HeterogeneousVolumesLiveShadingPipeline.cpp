@@ -116,18 +116,6 @@ class FRenderLightingCacheWithLiveShadingCS : public FMeshMaterialShader
 		OutEnvironment.SetDefine(TEXT("GET_PRIMITIVE_DATA_OVERRIDE"), 1);
 	}
 
-	void SetParameters(
-		FRHIComputeCommandList & RHICmdList,
-		FRHIComputeShader * ShaderRHI,
-		const FViewInfo & View,
-		const FMaterialRenderProxy * MaterialProxy,
-		const FMaterial & Material
-	)
-	{
-		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
-	}
-
 	static int32 GetThreadGroupSize1D() { return GetThreadGroupSize2D() * GetThreadGroupSize2D(); }
 	static int32 GetThreadGroupSize2D() { return 8; }
 	static int32 GetThreadGroupSize3D() { return 4; }
@@ -242,18 +230,6 @@ class FRenderSingleScatteringWithLiveShadingCS : public FMeshMaterialShader
 		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
 
 		OutEnvironment.SetDefine(TEXT("GET_PRIMITIVE_DATA_OVERRIDE"), 1);
-	}
-
-	void SetParameters(
-		FRHIComputeCommandList& RHICmdList,
-		FRHIComputeShader* ShaderRHI,
-		const FViewInfo& View,
-		const FMaterialRenderProxy* MaterialProxy,
-		const FMaterial& Material
-	)
-	{
-		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
 	}
 
 	static int32 GetThreadGroupSize1D() { return GetThreadGroupSize2D() * GetThreadGroupSize2D(); }

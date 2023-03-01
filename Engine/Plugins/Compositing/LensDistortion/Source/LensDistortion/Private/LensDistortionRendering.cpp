@@ -85,10 +85,8 @@ public:
 		OutputMultiplyAndAdd.Bind(Initializer.ParameterMap, TEXT("OutputMultiplyAndAdd"));
 	}
 
-	template<typename TShaderRHIParamRef>
 	void SetParameters(
-		FRHICommandListImmediate& RHICmdList,
-		const TShaderRHIParamRef ShaderRHI,
+		FRHIBatchedShaderParameters& BatchedParameters,
 		const FCompiledCameraModel& CompiledCameraModel,
 		const FIntPoint& DisplacementMapResolution)
 	{
@@ -102,12 +100,12 @@ public:
 			CompiledCameraModel.OriginalCameraModel.P1,
 			CompiledCameraModel.OriginalCameraModel.P2);
 
-		SetShaderValue(RHICmdList, ShaderRHI, PixelUVSize, PixelUVSizeValue);
-		SetShaderValue(RHICmdList, ShaderRHI, DistortedCameraMatrix, FVector4f(CompiledCameraModel.DistortedCameraMatrix));
-		SetShaderValue(RHICmdList, ShaderRHI, UndistortedCameraMatrix, FVector4f(CompiledCameraModel.UndistortedCameraMatrix));
-		SetShaderValue(RHICmdList, ShaderRHI, RadialDistortionCoefs, RadialDistortionCoefsValue);
-		SetShaderValue(RHICmdList, ShaderRHI, TangentialDistortionCoefs, TangentialDistortionCoefsValue);
-		SetShaderValue(RHICmdList, ShaderRHI, OutputMultiplyAndAdd, FVector2f(CompiledCameraModel.OutputMultiplyAndAdd));
+		SetShaderValue(BatchedParameters, PixelUVSize, PixelUVSizeValue);
+		SetShaderValue(BatchedParameters, DistortedCameraMatrix, FVector4f(CompiledCameraModel.DistortedCameraMatrix));
+		SetShaderValue(BatchedParameters, UndistortedCameraMatrix, FVector4f(CompiledCameraModel.UndistortedCameraMatrix));
+		SetShaderValue(BatchedParameters, RadialDistortionCoefs, RadialDistortionCoefsValue);
+		SetShaderValue(BatchedParameters, TangentialDistortionCoefs, TangentialDistortionCoefsValue);
+		SetShaderValue(BatchedParameters, OutputMultiplyAndAdd, FVector2f(CompiledCameraModel.OutputMultiplyAndAdd));
 	}
 
 private:
@@ -210,8 +208,9 @@ static void DrawUVDisplacementToRenderTarget_RenderThread(
 			OutTextureRenderTargetResource->GetSizeX(), OutTextureRenderTargetResource->GetSizeY(), 1.f);
 
 		// Update shader uniform parameters.
-		VertexShader->SetParameters(RHICmdList, VertexShader.GetVertexShader(), CompiledCameraModel, DisplacementMapResolution);
-		PixelShader->SetParameters(RHICmdList, PixelShader.GetPixelShader(), CompiledCameraModel, DisplacementMapResolution);
+
+		SetShaderParametersLegacyVS(RHICmdList, VertexShader, CompiledCameraModel, DisplacementMapResolution);
+		SetShaderParametersLegacyPS(RHICmdList, PixelShader, CompiledCameraModel, DisplacementMapResolution);
 
 		// Draw grid.
 		uint32 PrimitiveCount = kGridSubdivisionX * kGridSubdivisionY * 2;

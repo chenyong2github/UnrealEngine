@@ -129,7 +129,7 @@ void FMoviePipelineSurfaceReader::ResolveSampleToReadbackTexture_RenderThread(co
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 			// Bind the SourceSurfaceSample to our texture sampler with a point sample (since the resolutions match).
-			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceSurfaceSample);
+			SetShaderParametersLegacyPS(RHICmdList, PixelShader, TStaticSamplerState<SF_Point>::GetRHI(), SourceSurfaceSample);
 		}
 		else
 		{
@@ -139,7 +139,7 @@ void FMoviePipelineSurfaceReader::ResolveSampleToReadbackTexture_RenderThread(co
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 			// Bind the SourceSurfaceSample to our texture sampler with a point sample (since the resolutions match).
-			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceSurfaceSample);
+			SetShaderParametersLegacyPS(RHICmdList, PixelShader, TStaticSamplerState<SF_Point>::GetRHI(), SourceSurfaceSample);
 		}
 
 		RendererModule->DrawRectangle(

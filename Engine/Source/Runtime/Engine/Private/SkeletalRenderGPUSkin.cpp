@@ -1118,26 +1118,28 @@ FGPUMorphUpdateCS::FGPUMorphUpdateCS(const ShaderMetaType::CompiledShaderInitial
 	MorphDataBufferParameter.Bind(Initializer.ParameterMap, TEXT("MorphDataBuffer"));
 }
 
-void FGPUMorphUpdateCS::SetParameters(FRHICommandList& RHICmdList, const FVector4& LocalScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer, uint32 NumGroups)
+void FGPUMorphUpdateCS::SetParameters(
+	FRHIBatchedShaderParameters& BatchedParameters,
+	const FVector4& LocalScale,
+	const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers,
+	FMorphVertexBuffer& MorphVertexBuffer,
+	uint32 NumGroups,
+	uint32 BatchOffsets[MorphTargetDispatchBatchSize],
+	uint32 GroupOffsets[MorphTargetDispatchBatchSize],
+	float Weights[MorphTargetDispatchBatchSize])
 {
-	FRHIComputeShader* CS = RHICmdList.GetBoundComputeShader();
+	SetUAVParameter(BatchedParameters, MorphVertexBufferParameter, MorphVertexBuffer.GetUAV());
 
-	SetUAVParameter(RHICmdList, CS, MorphVertexBufferParameter, MorphVertexBuffer.GetUAV());
-
-	SetShaderValue(RHICmdList, CS, PositionScaleParameter, (FVector4f)LocalScale);
+	SetShaderValue(BatchedParameters, PositionScaleParameter, (FVector4f)LocalScale);
 	FVector2f Precision = { MorphTargetVertexInfoBuffers.GetPositionPrecision(), MorphTargetVertexInfoBuffers.GetTangentZPrecision() };
-	SetShaderValue(RHICmdList, CS, PrecisionParameter, Precision);
-	SetShaderValue(RHICmdList, CS, NumGroupsParameter, NumGroups);
+	SetShaderValue(BatchedParameters, PrecisionParameter, Precision);
+	SetShaderValue(BatchedParameters, NumGroupsParameter, NumGroups);
 
-	SetSRVParameter(RHICmdList, CS, MorphDataBufferParameter, MorphTargetVertexInfoBuffers.MorphDataSRV);
-}
+	SetSRVParameter(BatchedParameters, MorphDataBufferParameter, MorphTargetVertexInfoBuffers.MorphDataSRV);
 
-void FGPUMorphUpdateCS::SetMorphOffsetsAndWeights(FRHICommandList& RHICmdList, uint32 BatchOffsets[MorphTargetDispatchBatchSize], uint32 GroupOffsets[MorphTargetDispatchBatchSize], float Weights[MorphTargetDispatchBatchSize])
-{
-	FRHIComputeShader* CS = RHICmdList.GetBoundComputeShader();
-	SetShaderValue(RHICmdList, CS, MorphTargetBatchOffsetsParameter,*(uint32(*)[MorphTargetDispatchBatchSize]) BatchOffsets);
-	SetShaderValue(RHICmdList, CS, MorphTargetGroupOffsetsParameter,*(uint32(*)[MorphTargetDispatchBatchSize]) GroupOffsets);
-	SetShaderValue(RHICmdList, CS, MorphTargetWeightsParameter,		*(float(*)[MorphTargetDispatchBatchSize]) Weights);
+	SetShaderValue(BatchedParameters, MorphTargetBatchOffsetsParameter, *(uint32(*)[MorphTargetDispatchBatchSize]) BatchOffsets);
+	SetShaderValue(BatchedParameters, MorphTargetGroupOffsetsParameter, *(uint32(*)[MorphTargetDispatchBatchSize]) GroupOffsets);
+	SetShaderValue(BatchedParameters, MorphTargetWeightsParameter, *(float(*)[MorphTargetDispatchBatchSize]) Weights);
 }
 
 void FGPUMorphUpdateCS::Dispatch(FRHICommandList& RHICmdList, uint32 Size)
@@ -1146,10 +1148,9 @@ void FGPUMorphUpdateCS::Dispatch(FRHICommandList& RHICmdList, uint32 Size)
 	RHICmdList.DispatchComputeShader(DispatchSize.X, DispatchSize.Y, DispatchSize.Z);
 }
 
-void FGPUMorphUpdateCS::EndAllDispatches(FRHICommandList& RHICmdList)
+void FGPUMorphUpdateCS::UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
 {
-	FRHIComputeShader* CS = RHICmdList.GetBoundComputeShader();
-	SetUAVParameter(RHICmdList, CS, MorphVertexBufferParameter, nullptr);
+	SetUAVParameter(BatchedParameters, MorphVertexBufferParameter, nullptr);
 }
 
 bool FGPUMorphUpdateCS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1174,12 +1175,11 @@ bool FGPUMorphNormalizeCS::ShouldCompilePermutation(const FGlobalShaderPermutati
 	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 }
 
-void FGPUMorphNormalizeCS::SetParameters(FRHICommandList& RHICmdList, const FVector4& InvLocalScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer, uint32 NumVertices)
+void FGPUMorphNormalizeCS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FVector4& InvLocalScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer, uint32 NumVertices)
 {
-	FRHIComputeShader* CS = RHICmdList.GetBoundComputeShader();
-	SetUAVParameter(RHICmdList, CS, MorphVertexBufferParameter, MorphVertexBuffer.GetUAV());
-	SetShaderValue(RHICmdList, CS, PositionScaleParameter, (FVector4f)InvLocalScale);
-	SetShaderValue(RHICmdList, CS, NumVerticesParameter, NumVertices);
+	SetUAVParameter(BatchedParameters, MorphVertexBufferParameter, MorphVertexBuffer.GetUAV());
+	SetShaderValue(BatchedParameters, PositionScaleParameter, (FVector4f)InvLocalScale);
+	SetShaderValue(BatchedParameters, NumVerticesParameter, NumVertices);
 }
 
 void FGPUMorphNormalizeCS::Dispatch(FRHICommandList& RHICmdList, uint32 NumVertices)
@@ -1188,10 +1188,9 @@ void FGPUMorphNormalizeCS::Dispatch(FRHICommandList& RHICmdList, uint32 NumVerti
 	RHICmdList.DispatchComputeShader(DispatchSize.X, DispatchSize.Y, DispatchSize.Z);
 }
 
-void FGPUMorphNormalizeCS::EndAllDispatches(FRHICommandList& RHICmdList)
+void FGPUMorphNormalizeCS::UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
 {
-	FRHIComputeShader* CS = RHICmdList.GetBoundComputeShader();
-	SetUAVParameter(RHICmdList, CS, MorphVertexBufferParameter, nullptr);
+	SetUAVParameter(BatchedParameters, MorphVertexBufferParameter, nullptr);
 }
 
 IMPLEMENT_SHADER_TYPE(, FGPUMorphNormalizeCS, TEXT("/Engine/Private/MorphTargets.usf"), TEXT("GPUMorphNormalizeCS"), SF_Compute);
@@ -1279,12 +1278,22 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 
 					SetComputePipelineState(RHICmdList, GPUMorphUpdateCS.GetComputeShader());
 
-					GPUMorphUpdateCS->SetParameters(RHICmdList, MorphScale, MorphTargetVertexInfoBuffers, MorphVertexBuffer, NumBatches);
-					GPUMorphUpdateCS->SetMorphOffsetsAndWeights(RHICmdList, BatchOffsets, GroupOffsets, Weights);
+					SetShaderParametersLegacyCS(
+						RHICmdList,
+						GPUMorphUpdateCS,
+						MorphScale,
+						MorphTargetVertexInfoBuffers,
+						MorphVertexBuffer,
+						NumBatches,
+						BatchOffsets,
+						GroupOffsets,
+						Weights);
+
 					GPUMorphUpdateCS->Dispatch(RHICmdList, NumBatches);
 				}
+
+				UnsetShaderParametersLegacyCS(RHICmdList, GPUMorphUpdateCS);
 				
-				GPUMorphUpdateCS->EndAllDispatches(RHICmdList);
 				RHICmdList.EndUAVOverlap(MorphVertexBuffer.GetUAV());
 			}
 
@@ -1302,10 +1311,10 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 				TShaderMapRef<FGPUMorphNormalizeCS> GPUMorphNormalizeCS(GetGlobalShaderMap(FeatureLevel));
 
 				SetComputePipelineState(RHICmdList, GPUMorphNormalizeCS.GetComputeShader());
-
-				GPUMorphNormalizeCS->SetParameters(RHICmdList, InvMorphScale, MorphTargetVertexInfoBuffers, MorphVertexBuffer, MorphVertexBuffer.GetNumVerticies());
+				SetShaderParametersLegacyCS(RHICmdList, GPUMorphNormalizeCS, InvMorphScale, MorphTargetVertexInfoBuffers, MorphVertexBuffer, MorphVertexBuffer.GetNumVerticies());
 				GPUMorphNormalizeCS->Dispatch(RHICmdList, MorphVertexBuffer.GetNumVerticies());
-				GPUMorphNormalizeCS->EndAllDispatches(RHICmdList);
+				UnsetShaderParametersLegacyCS(RHICmdList, GPUMorphNormalizeCS);
+
 				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask));
 			}
 		}

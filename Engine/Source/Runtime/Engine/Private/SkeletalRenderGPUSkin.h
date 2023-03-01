@@ -712,11 +712,18 @@ public:
 
 	static const uint32 MorphTargetDispatchBatchSize = 128;
 
-	void SetParameters(FRHICommandList& RHICmdList, const FVector4& LocalScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer, uint32 NumGroups);
-	void SetMorphOffsetsAndWeights(FRHICommandList& RHICmdList, uint32 BatchOffsets[MorphTargetDispatchBatchSize], uint32 GroupOffsets[MorphTargetDispatchBatchSize], float Weights[MorphTargetDispatchBatchSize]);
+	void SetParameters(
+		FRHIBatchedShaderParameters& BatchedParameters,
+		const FVector4& LocalScale,
+		const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers,
+		FMorphVertexBuffer& MorphVertexBuffer,
+		uint32 NumGroups,
+		uint32 BatchOffsets[MorphTargetDispatchBatchSize],
+		uint32 GroupOffsets[MorphTargetDispatchBatchSize],
+		float Weights[MorphTargetDispatchBatchSize]);
 
 	void Dispatch(FRHICommandList& RHICmdList, uint32 Size);
-	void EndAllDispatches(FRHICommandList& RHICmdList);
+	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
@@ -744,10 +751,10 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
-	void SetParameters(FRHICommandList& RHICmdList, const FVector4& LocalScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer, uint32 NumVertices);
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FVector4& LocalScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer, uint32 NumVertices);
 
 	void Dispatch(FRHICommandList& RHICmdList, uint32 NumVertices);
-	void EndAllDispatches(FRHICommandList& RHICmdList);
+	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters);
 
 protected:
 	LAYOUT_FIELD(FShaderResourceParameter, MorphVertexBufferParameter);

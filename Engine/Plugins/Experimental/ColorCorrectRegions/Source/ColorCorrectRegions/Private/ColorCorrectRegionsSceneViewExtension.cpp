@@ -573,20 +573,28 @@ namespace
 					EScreenPassDrawFlags::None,
 					[&](FRHICommandList& RHICmdList)
 					{
-						SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRRegionDataInputParameter>(), RegionData);
-						SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRColorCorrectParameter>(), CCBase);
+						FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+						SetUniformBufferParameterImmediate(BatchedParameters, PixelShader->GetUniformBufferParameter<FCCRRegionDataInputParameter>(), RegionData);
+						SetUniformBufferParameterImmediate(BatchedParameters, PixelShader->GetUniformBufferParameter<FCCRColorCorrectParameter>(), CCBase);
 						if (bIsAdvanced)
 						{
-							SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRColorCorrectShadowsParameter>(), CCShadows);
-							SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRColorCorrectMidtonesParameter>(), CCMidtones);
-							SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRColorCorrectHighlightsParameter>(), CCHighlights);
+							SetUniformBufferParameterImmediate(BatchedParameters, PixelShader->GetUniformBufferParameter<FCCRColorCorrectShadowsParameter>(), CCShadows);
+							SetUniformBufferParameterImmediate(BatchedParameters, PixelShader->GetUniformBufferParameter<FCCRColorCorrectMidtonesParameter>(), CCMidtones);
+							SetUniformBufferParameterImmediate(BatchedParameters, PixelShader->GetUniformBufferParameter<FCCRColorCorrectHighlightsParameter>(), CCHighlights);
 						}
 
-						VertexShader->SetParameters(RHICmdList, View);
-						SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PostProcessMaterialParameters);
+						PixelShader->SetParameters(BatchedParameters, View);
+						SetShaderParameters(BatchedParameters, PixelShader, *PostProcessMaterialParameters);
 
-						PixelShader->SetParameters(RHICmdList, View);
-						SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PostProcessMaterialParameters);
+						RHICmdList.SetBatchedShaderParameters(PixelShader.GetPixelShader(), BatchedParameters);
+
+						BatchedParameters.Reset();
+
+						VertexShader->SetParameters(BatchedParameters, View);
+						SetShaderParameters(BatchedParameters, VertexShader, *PostProcessMaterialParameters);
+
+						RHICmdList.SetBatchedShaderParameters(VertexShader.GetVertexShader(), BatchedParameters);
 					});
 
 			});

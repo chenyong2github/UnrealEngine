@@ -679,9 +679,8 @@ public:
 
 	FVisualizeSkyLightMipTreePS() {}
 
-	template<typename TRHICommandList>
 	void SetParameters(
-		TRHICommandList& RHICmdList,
+		FRHIBatchedShaderParameters& BatchedParameters,
 		const FViewInfo& View,
 		const FIntVector Dimensions,
 		const FRWBuffer& MipTreePosX,
@@ -691,16 +690,15 @@ public:
 		const FRWBuffer& MipTreePosZ,
 		const FRWBuffer& MipTreeNegZ)
 	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(BatchedParameters, View.ViewUniformBuffer);
 
-		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
-		SetSRVParameter(RHICmdList, ShaderRHI, MipTreePosXParameter, MipTreePosX.SRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, MipTreeNegXParameter, MipTreeNegX.SRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, MipTreePosYParameter, MipTreePosY.SRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, MipTreeNegYParameter, MipTreeNegY.SRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, MipTreePosZParameter, MipTreePosZ.SRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, MipTreeNegZParameter, MipTreeNegZ.SRV);
+		SetShaderValue(BatchedParameters, DimensionsParameter, Dimensions);
+		SetSRVParameter(BatchedParameters, MipTreePosXParameter, MipTreePosX.SRV);
+		SetSRVParameter(BatchedParameters, MipTreeNegXParameter, MipTreeNegX.SRV);
+		SetSRVParameter(BatchedParameters, MipTreePosYParameter, MipTreePosY.SRV);
+		SetSRVParameter(BatchedParameters, MipTreeNegYParameter, MipTreeNegY.SRV);
+		SetSRVParameter(BatchedParameters, MipTreePosZParameter, MipTreePosZ.SRV);
+		SetSRVParameter(BatchedParameters, MipTreeNegZParameter, MipTreeNegZ.SRV);
 	}
 
 private:
@@ -771,7 +769,7 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 
 	// Draw
 	RHICmdList.SetViewport((float)View.ViewRect.Min.X, (float)View.ViewRect.Min.Y, 0.0f, (float)View.ViewRect.Max.X, (float)View.ViewRect.Max.Y, 1.0f);
-	PixelShader->SetParameters(RHICmdList, View, SkyLightMipDimensions, SkyLightMipTreePosX, SkyLightMipTreeNegX, SkyLightMipTreePosY, SkyLightMipTreeNegY, SkyLightMipTreePosZ, SkyLightMipTreeNegZ);
+	SetShaderParametersLegacyPS(RHICmdList, PixelShader, View, SkyLightMipDimensions, SkyLightMipTreePosX, SkyLightMipTreeNegX, SkyLightMipTreePosY, SkyLightMipTreeNegY, SkyLightMipTreePosZ, SkyLightMipTreeNegZ);
 	DrawRectangle(
 		RHICmdList,
 		0, 0,

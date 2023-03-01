@@ -48,13 +48,12 @@ public:
 		BilinearSampler.Bind(Initializer.ParameterMap, TEXT("BilinearClampedSampler"));
 	}
 
-	template<typename TShaderRHIParamRef>
-	void SetParameters(FRHICommandListImmediate& RHICmdList, const TShaderRHIParamRef ShaderRHI, const FTextureResource* PreComputedDisplacementMap, const FIntPoint& DisplacementMapResolution)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTextureResource* PreComputedDisplacementMap, const FIntPoint& DisplacementMapResolution)
 	{
 		FVector2f PixelUVSizeValue(1.f / float(DisplacementMapResolution.X), 1.f / float(DisplacementMapResolution.Y));
 
-		SetShaderValue(RHICmdList, ShaderRHI, PixelUVSize, PixelUVSizeValue);
-		SetTextureParameter(RHICmdList, ShaderRHI, UndistortDisplacementMap, BilinearSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), PreComputedDisplacementMap->TextureRHI);
+		SetShaderValue(BatchedParameters, PixelUVSize, PixelUVSizeValue);
+		SetTextureParameter(BatchedParameters, UndistortDisplacementMap, BilinearSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), PreComputedDisplacementMap->TextureRHI);
 	}
 
 private:
@@ -147,8 +146,8 @@ static void DrawUVDisplacementToRenderTargetFromPreComputedDisplacementMap_Rende
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		// Update shader uniform parameters.
-		VertexShader->SetParameters(RHICmdList, VertexShader.GetVertexShader(), PreComputedDisplacementMap, DisplacementMapResolution);
-		PixelShader->SetParameters(RHICmdList, PixelShader.GetPixelShader(), PreComputedDisplacementMap, DisplacementMapResolution);
+		SetShaderParametersLegacyVS(RHICmdList, VertexShader, PreComputedDisplacementMap, DisplacementMapResolution);
+		SetShaderParametersLegacyPS(RHICmdList, PixelShader, PreComputedDisplacementMap, DisplacementMapResolution);
 
 		// Draw grid.
 		const uint32 PrimitiveCount = kGridSubdivisionX * kGridSubdivisionY * 2;

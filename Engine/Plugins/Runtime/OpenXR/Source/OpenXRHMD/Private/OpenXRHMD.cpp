@@ -3451,28 +3451,28 @@ public:
 
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, EDisplayOutputFormat DisplayOutputFormat, EDisplayColorGamut DisplayColorGamut, EDisplayColorGamut TextureColorGamut, FRHITexture* SceneTextureRHI, bool bSameSize)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, EDisplayOutputFormat DisplayOutputFormat, EDisplayColorGamut DisplayColorGamut, EDisplayColorGamut TextureColorGamut, FRHITexture* SceneTextureRHI, bool bSameSize)
 	{
 		int32 OutputDeviceValue = (int32)DisplayOutputFormat;
 		int32 OutputGamutValue = (int32)DisplayColorGamut;
 
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputDevice, OutputDeviceValue);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputGamut, OutputGamutValue);
+		SetShaderValue(BatchedParameters, OutputDevice, OutputDeviceValue);
+		SetShaderValue(BatchedParameters, OutputGamut, OutputGamutValue);
 
 		const FMatrix44f TextureGamutMatrixToXYZ = GamutToXYZMatrix(TextureColorGamut);
 		const FMatrix44f XYZToDisplayMatrix = XYZToGamutMatrix(DisplayColorGamut);
 		// note: we use mul(m,v) instead of mul(v,m) in the shaders for color conversions which is why matrix multiplication is reversed compared to what we usually do
 		const FMatrix44f CombinedMatrix = XYZToDisplayMatrix * TextureGamutMatrixToXYZ;
 
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), TextureToOutputGamutMatrix, CombinedMatrix);
+		SetShaderValue(BatchedParameters, TextureToOutputGamutMatrix, CombinedMatrix);
 
 		if (bSameSize)
 		{
-			SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), SceneTexture, SceneSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneTextureRHI);
+			SetTextureParameter(BatchedParameters, SceneTexture, SceneSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneTextureRHI);
 		}
 		else
 		{
-			SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), SceneTexture, SceneSampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), SceneTextureRHI);
+			SetTextureParameter(BatchedParameters, SceneTexture, SceneSampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), SceneTextureRHI);
 		}
 	}
 
@@ -3588,13 +3588,13 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 		const auto FeatureLevel = GMaxRHIFeatureLevel;
-		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
+		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 		TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 
 		TShaderRef<FGlobalShader> PixelShader;
-		FDisplayMappingPS* DisplayMappingPS = nullptr;
-		FScreenPS* ScreenPS = nullptr;
+		TShaderRef<FDisplayMappingPS> DisplayMappingPS;
+		TShaderRef<FScreenPS> ScreenPS;
 
 		bool bNeedsDisplayMapping = false;
 		EDisplayOutputFormat TVDisplayOutputFormat = EDisplayOutputFormat::SDR_sRGB;
@@ -3631,7 +3631,7 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 
 			ensureMsgf(!bIsArraySource, TEXT("Stub implementation for array source exists, but this path is not fully supported because post-processing not working with MMV"));
 
-			DisplayMappingPS = DisplayMappingPSRef.GetShader();
+			DisplayMappingPS = DisplayMappingPSRef;
 			PixelShader = DisplayMappingPSRef;
 		}
 		else
@@ -3639,13 +3639,13 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			if (LIKELY(!bIsArraySource))
 			{
 				TShaderMapRef<FScreenPS> ScreenPSRef(ShaderMap);
-				ScreenPS = ScreenPSRef.GetShader();
+				ScreenPS = ScreenPSRef;
 				PixelShader = ScreenPSRef;
 			}
 			else
 			{
 				TShaderMapRef<FScreenFromSlice0PS> ScreenPSRef(ShaderMap);
-				ScreenPS = ScreenPSRef.GetShader();
+				ScreenPS = ScreenPSRef;
 				PixelShader = ScreenPSRef;
 			}
 		}
@@ -3659,20 +3659,14 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		RHICmdList.Transition(FRHITransitionInfo(SrcTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 
 		const bool bSameSize = DstRect.Size() == SrcRect.Size();
-		if (ScreenPS)
+		if (ScreenPS.IsValid())
 		{
-			if (bSameSize)
-			{
-				ScreenPS->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SrcTexture);
-			}
-			else
-			{
-				ScreenPS->SetParameters(RHICmdList, TStaticSamplerState<SF_Bilinear>::GetRHI(), SrcTexture);
-			}
+			FRHISamplerState* PixelSampler = bSameSize ? TStaticSamplerState<SF_Point>::GetRHI() : TStaticSamplerState<SF_Bilinear>::GetRHI();
+			SetShaderParametersLegacyPS(RHICmdList, ScreenPS, PixelSampler, SrcTexture);
 		}
-		else if (DisplayMappingPS)
+		else if (DisplayMappingPS.IsValid())
 		{
-			DisplayMappingPS->SetParameters(RHICmdList, TVDisplayOutputFormat, TVColorGamut, HMDColorGamut, SrcTexture, bSameSize);
+			SetShaderParametersLegacyPS(RHICmdList, DisplayMappingPS, TVDisplayOutputFormat, TVColorGamut, HMDColorGamut, SrcTexture, bSameSize);
 		}
 
 		RendererModule->DrawRectangle(

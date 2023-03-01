@@ -441,14 +441,14 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 					TShaderMapRef<FScreenPSMipLevel> PixelShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-					PixelShader->SetParameters(RHICmdList, SamplerState, SrcTextureRHI, MipIndex);
+					SetShaderParametersLegacyPS(RHICmdList, PixelShader, SamplerState, SrcTextureRHI, MipIndex);
 				}
 				else
 				{
 					TShaderMapRef<FScreenPSsRGBSourceMipLevel> PixelShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-					PixelShader->SetParameters(RHICmdList, SamplerState, SrcTextureRHI, MipIndex);
+					SetShaderParametersLegacyPS(RHICmdList, PixelShader, SamplerState, SrcTextureRHI, MipIndex);
 				}
 
 				RHICmdList.SetViewport(DstRect.Min.X, DstRect.Min.Y, 0.0f, DstRect.Min.X + MipViewportWidth, DstRect.Min.Y + MipViewportHeight, 1.0f);

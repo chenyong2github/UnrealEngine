@@ -51,14 +51,9 @@ namespace DisplayClusterMediaHelpers
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-			if (SrcRect.Size() != DstRect.Size())
-			{
-				PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Bilinear>::GetRHI(), SrcTexture);
-			}
-			else
-			{
-				PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SrcTexture);
-			}
+			FRHISamplerState* SamplerState = (SrcRect.Size() != DstRect.Size()) ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();
+
+			SetShaderParametersLegacyPS(RHICmdList, PixelShader, SamplerState, SrcTexture);
 
 			// Set up vertex uniform parameters for scaling and biasing the rectangle.
 			// Note: Use DrawRectangle in the vertex shader to calculate the correct vertex position and uv.

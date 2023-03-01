@@ -47,10 +47,9 @@ public:
 		MeshToPFMMatrixParameter.Bind(Initializer.ParameterMap, TEXT("MeshToPFMMatrix"));
 	}	
 
-	template<typename TShaderRHIParamRef>
-	void SetMeshToPFMMatrix(FRHICommandListImmediate& RHICmdList, const TShaderRHIParamRef ShaderRHI, const FMatrix& MeshToPFMMatrix)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FMatrix& MeshToPFMMatrix)
 	{
-		SetShaderValue(RHICmdList, ShaderRHI, MeshToPFMMatrixParameter, (FMatrix44f)MeshToPFMMatrix);
+		SetShaderValue(BatchedParameters, MeshToPFMMatrixParameter, (FMatrix44f)MeshToPFMMatrix);
 	}
 
 private:
@@ -162,7 +161,8 @@ bool FPFMExporterShader::ApplyPFMExporter_RenderThread(
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 			}
-			VertexShader->SetMeshToPFMMatrix(RHICmdList, VertexShader.GetVertexShader(), MeshToPFMMatrix);
+
+			SetShaderParametersLegacyVS(RHICmdList, VertexShader, MeshToPFMMatrix);
 
 			// Render mesh to PFM texture:
 			RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
