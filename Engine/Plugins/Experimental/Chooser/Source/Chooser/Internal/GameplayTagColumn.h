@@ -68,6 +68,11 @@ struct CHOOSER_API FGameplayTagColumn : public FChooserColumnBase
 	UPROPERTY(EditAnywhere, Category="Data")
 	EGameplayContainerMatchType	TagMatchType = EGameplayContainerMatchType::Any;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category=Runtime)
+	FGameplayTagContainer DefaultRowValue;
+#endif
+	
 	UPROPERTY(EditAnywhere, Category=Runtime)
 	// array of results (cells for this column for each row in the table)
 	// should match the length of the Results array 

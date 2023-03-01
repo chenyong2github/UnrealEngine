@@ -98,6 +98,11 @@ public:
 	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterEnumBase"), Category = "Data")
 	FInstancedStruct InputValue;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = "Data")
+	FChooserEnumRowData DefaultRowValue;
+#endif
+	
 	UPROPERTY(EditAnywhere, Category = "Data")
 	// array of results (cells for this column for each row in the table)
 	// should match the length of the Results array

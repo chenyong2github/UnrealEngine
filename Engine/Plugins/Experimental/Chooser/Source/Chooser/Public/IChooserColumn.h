@@ -39,7 +39,7 @@ public:
 
 #if WITH_EDITOR
 	virtual FName RowValuesPropertyName() { return FName(); }
-	virtual void SetNumRows(uint32 NumRows) {}
+	virtual void SetNumRows(int32 NumRows) {}
 	virtual void DeleteRows(const TArray<uint32> & RowIndices) {}
 	virtual void MoveRow(int SourceIndex, int TargetIndex) {}
 	
@@ -53,7 +53,18 @@ public:
 #if WITH_EDITOR
 #define CHOOSER_COLUMN_BOILERPLATE2(ParameterType, RowValuesProperty) \
 	virtual FName RowValuesPropertyName() override { return #RowValuesProperty; }\
-	virtual void SetNumRows(uint32 NumRows) override { RowValuesProperty.SetNum(NumRows); }\
+	virtual void SetNumRows(int32 NumRows) override\
+	{\
+		if (NumRows <= RowValuesProperty.Num())\
+		{\
+			RowValuesProperty.SetNum(NumRows);\
+		}\
+		else\
+		{\
+			while(RowValuesProperty.Num() < NumRows)\
+			RowValuesProperty.Add(DefaultRowValue);\
+		}\
+	}\
 	virtual void DeleteRows(const TArray<uint32> & RowIndices )\
 	{\
 		for(uint32 Index : RowIndices)\

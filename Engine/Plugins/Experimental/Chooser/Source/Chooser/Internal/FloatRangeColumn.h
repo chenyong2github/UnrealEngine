@@ -19,7 +19,6 @@ struct CHOOSER_API FFloatContextProperty :  public FChooserParameterFloatBase
 	TArray<FName> PropertyBindingChain_DEPRECATED;
 	
 	UPROPERTY(EditAnywhere, Meta = (BindingType = "double", BindingColor = "FloatPinTypeColor"), Category = "Binding")
-	
 	FChooserPropertyBinding Binding;
 
 	virtual void PostLoad() override
@@ -77,6 +76,11 @@ struct CHOOSER_API FFloatRangeColumn : public FChooserColumnBase
 		
 	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterFloatBase"), Category = "Data")
 	FInstancedStruct InputValue;
+	
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category="Data")
+	FChooserFloatRangeRowData DefaultRowValue;
+#endif
 	
 	UPROPERTY(EditAnywhere, Category="Data")
 	// array of results (cells for this column for each row in the table)

@@ -77,9 +77,12 @@ struct CHOOSER_API FBoolColumn : public FChooserColumnBase
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<bool> RowValues_DEPRECATED;
+
+	UPROPERTY(EditAnywhere, Category= "Data", DisplayName="DefaultRowValue");
+	EBoolColumnCellValue DefaultRowValue = EBoolColumnCellValue::MatchAny;
 #endif
 	
-	UPROPERTY(EditAnywhere, Category= "Data");
+	UPROPERTY(EditAnywhere, Category= "Data", DisplayName="RowValues");
 	TArray<EBoolColumnCellValue> RowValuesWithAny; 
 	
 	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;

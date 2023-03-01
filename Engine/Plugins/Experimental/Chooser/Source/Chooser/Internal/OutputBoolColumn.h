@@ -21,6 +21,11 @@ struct CHOOSER_API FOutputBoolColumn : public FChooserColumnBase
 	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterBoolBase"), Category = "Hidden")
 	FInstancedStruct InputValue;
 	
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category=Runtime);
+	bool DefaultRowValue = 0;
+#endif
+	
 	UPROPERTY(EditAnywhere, Category=Runtime);
 	TArray<bool> RowValues; 
 
