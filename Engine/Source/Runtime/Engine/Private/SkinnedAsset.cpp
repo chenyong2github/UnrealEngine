@@ -92,7 +92,7 @@ void USkinnedAsset::PostLoad()
 	{
 		// Assume GPU skinning when precaching PSOs
 		bool bCPUSkin = false;
-		ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? GetWorld()->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
+		ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? GetWorld()->GetFeatureLevel() : GMaxRHIFeatureLevel;
 		int32 MinLODIndex = GetMinLodIdx();
 		
 		FPSOPrecacheVertexFactoryDataPerMaterialIndexList VFsPerMaterials = GetVertexFactoryTypesPerMaterialIndex(nullptr, MinLODIndex, bCPUSkin, FeatureLevel);

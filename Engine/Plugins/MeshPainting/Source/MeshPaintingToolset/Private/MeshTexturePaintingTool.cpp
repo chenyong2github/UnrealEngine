@@ -767,7 +767,7 @@ void UMeshTexturePaintingTool::StartPaintingTexture(UMeshComponent* InMeshCompon
 	PaintingTransaction = MakeUnique<FScopedTransaction>(LOCTEXT("MeshPaintMode_TexturePaint_Transaction", "Texture Paint"));
 	Modify();
 
-	const auto FeatureLevel = InMeshComponent->GetWorld()->FeatureLevel;
+	const auto FeatureLevel = InMeshComponent->GetWorld()->GetFeatureLevel();
 
 	UTexture2D* Texture2D = TextureProperties->PaintTexture;
 	if (Texture2D == nullptr)
@@ -1519,7 +1519,7 @@ void UMeshTexturePaintingTool::ClearAllTextureOverrides()
 {
 	if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 	{
-		const auto FeatureLevel = GetTargetWorld()->FeatureLevel;
+		const auto FeatureLevel = GetTargetWorld()->GetFeatureLevel();
 		/** Remove all texture overrides which are currently stored and active */
 		for (decltype(PaintTargetData)::TIterator It(PaintTargetData); It; ++It)
 		{

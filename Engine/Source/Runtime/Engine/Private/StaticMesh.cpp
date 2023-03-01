@@ -3475,7 +3475,7 @@ void UStaticMesh::InitResources()
 		// TODO : This will require to refactor code in FStaticMeshLODResources::Serialize() and FStaticMeshRenderData::Cache() around bBuffersInlined (in cooked).
 
 		UWorld* World = GetWorld();
-		GetRenderData()->InitResources(World ? World->FeatureLevel.GetValue() : ERHIFeatureLevel::Num, this);
+		GetRenderData()->InitResources(World ? World->GetFeatureLevel() : ERHIFeatureLevel::Num, this);
 		CachedSRRState.bHasPendingInitHint = true;
 	}
 
@@ -5856,7 +5856,7 @@ void UStaticMesh::PostLoad()
 	if (IsResourcePSOPrecachingEnabled() &&
 		GetRenderData() != nullptr)
 	{
-		ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? GetWorld()->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
+		ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? GetWorld()->GetFeatureLevel() : GMaxRHIFeatureLevel;
 		EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
 		bool bUseNanite = UseNanite(ShaderPlatform) && HasValidNaniteData();
 

@@ -79,7 +79,7 @@ void SAnimationEditorViewport::Construct(const FArguments& InArgs, const FAnimat
 		UWorld* World = ScenePtr->GetWorld();
 		if (World != nullptr)
 		{
-			World->ChangeFeatureLevel(GWorld->FeatureLevel);
+			World->ChangeFeatureLevel(GWorld->GetFeatureLevel());
 		}
 	}
 

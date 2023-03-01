@@ -455,7 +455,7 @@ bool UDebugSkelMeshComponent::IsTrackingAttachedLOD() const
 FPrimitiveSceneProxy* UDebugSkelMeshComponent::CreateSceneProxy()
 {
 	FDebugSkelMeshSceneProxy* Result = nullptr;
-	ERHIFeatureLevel::Type SceneFeatureLevel = GetWorld()->FeatureLevel;
+	ERHIFeatureLevel::Type SceneFeatureLevel = GetWorld()->GetFeatureLevel();
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshAsset() ? GetSkeletalMeshAsset()->GetResourceForRendering() : nullptr;
 
 	// only create a scene proxy for rendering if

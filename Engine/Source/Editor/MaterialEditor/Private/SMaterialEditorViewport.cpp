@@ -240,7 +240,7 @@ void SMaterialEditor3DPreviewViewport::Construct(const FArguments& InArgs)
 	UWorld* PreviewWorld = AdvancedPreviewScene->GetWorld();
 	if (PreviewWorld != nullptr)
 	{
-		PreviewWorld->ChangeFeatureLevel(GWorld->FeatureLevel);
+		PreviewWorld->ChangeFeatureLevel(GWorld->GetFeatureLevel());
 	}	
 
 	UEditorEngine* Editor = CastChecked<UEditorEngine>(GEngine);

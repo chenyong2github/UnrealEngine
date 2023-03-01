@@ -144,7 +144,7 @@ static void RestoreReferencesToRendererModuleClasses(
 	IRendererModule& RendererModule = GetRendererModule();
 
 	TMap<UWorld*, bool>::TConstIterator WorldsIt(WorldsToUpdate);
-	const ERHIFeatureLevel::Type FirstFeatureLevel = WorldsIt ? WorldsIt.Key()->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
+	const ERHIFeatureLevel::Type FirstFeatureLevel = WorldsIt ? WorldsIt.Key()->GetFeatureLevel() : GMaxRHIFeatureLevel;
 
 	FSceneViewStateReference::AllocateAll(FirstFeatureLevel);
 
@@ -153,7 +153,7 @@ static void RestoreReferencesToRendererModuleClasses(
 	{
 		UWorld* World = It.Key();
 
-		RendererModule.AllocateScene(World, World->RequiresHitProxies(), It.Value(), World->FeatureLevel);
+		RendererModule.AllocateScene(World, World->RequiresHitProxies(), It.Value(), World->GetFeatureLevel());
 
 		for (int32 LevelIndex = 0; LevelIndex < World->GetNumLevels(); LevelIndex++)
 		{

@@ -2194,7 +2194,7 @@ void ULandscapeHeightfieldCollisionComponent::PreSave(FObjectPreSaveContext Obje
 			{
 				if (!RenderComponent->CanRenderGrassMap())
 				{
-					RenderComponent->GetMaterialInstance(0, false)->GetMaterialResource(GetWorld()->FeatureLevel)->FinishCompilation();
+					RenderComponent->GetMaterialInstance(0, false)->GetMaterialResource(GetWorld()->GetFeatureLevel())->FinishCompilation();
 				}
 				RenderComponent->RenderGrassMap();
 			}

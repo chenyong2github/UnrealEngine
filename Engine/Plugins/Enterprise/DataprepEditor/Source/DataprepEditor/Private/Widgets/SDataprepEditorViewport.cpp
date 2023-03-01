@@ -233,7 +233,7 @@ void SDataprepEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<FDa
 	UWorld* PreviewSceneWorld = PreviewScene->GetWorld();
 	if (PreviewSceneWorld != nullptr)
 	{
-		PreviewSceneWorld->ChangeFeatureLevel(GWorld->FeatureLevel);
+		PreviewSceneWorld->ChangeFeatureLevel(GWorld->GetFeatureLevel());
 	}
 
 	// Listen to and act on changes in feature level

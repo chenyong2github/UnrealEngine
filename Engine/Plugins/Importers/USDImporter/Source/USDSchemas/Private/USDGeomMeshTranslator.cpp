@@ -1347,7 +1347,7 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 			}
 			if (World)
 			{
-				FeatureLevel = World->FeatureLevel;
+				FeatureLevel = World->GetFeatureLevel();
 			}
 
 			if (!UsdGeomMeshTranslatorImpl::BuildStaticMesh(*StaticMesh, FeatureLevel, LODIndexToMeshDescription))

@@ -1683,7 +1683,7 @@ bool FEditorBuildUtils::EditorBuildVirtualTexture(UWorld* InWorld)
 		}
 
 		// We will need to build VTs for both shading paths
-		const ERHIFeatureLevel::Type CurFeatureLevel = InWorld->FeatureLevel;
+		const ERHIFeatureLevel::Type CurFeatureLevel = InWorld->GetFeatureLevel();
 		const ERHIFeatureLevel::Type AltFeatureLevel = (CurFeatureLevel == ERHIFeatureLevel::ES3_1 ? GMaxRHIFeatureLevel : ERHIFeatureLevel::ES3_1);
 		const EShadingPath CurShadingPath = FSceneInterface::GetShadingPath(CurFeatureLevel);
 		const EShadingPath AltShadingPath = FSceneInterface::GetShadingPath(AltFeatureLevel);

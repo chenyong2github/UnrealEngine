@@ -207,7 +207,7 @@ bool UTexturePaintToolset::GenerateSeamMask(UMeshComponent* MeshComponent, int32
 
 	{
 		// Create a canvas for the render target and clear it to white
-		FCanvas Canvas(RenderTargetResource, nullptr, FGameTime(), GEditor->GetEditorWorldContext().World()->FeatureLevel);
+		FCanvas Canvas(RenderTargetResource, nullptr, FGameTime(), GEditor->GetEditorWorldContext().World()->GetFeatureLevel());
 		Canvas.Clear(FLinearColor::White);
 
 		TArray<FCanvasUVTri> TriList;
@@ -394,7 +394,7 @@ void UTexturePaintToolset::SetupInitialRenderTargetData(FPaintTexture2DData& Pai
 				check(PaintTextureData.ScratchTexture != nullptr);
 
 				// Copy the texture to the render target using the GPU
-				CopyTextureToRenderTargetTexture(PaintTextureData.ScratchTexture, PaintTextureData.PaintRenderTargetTexture, GEditor->GetEditorWorldContext().World()->FeatureLevel);
+				CopyTextureToRenderTargetTexture(PaintTextureData.ScratchTexture, PaintTextureData.PaintRenderTargetTexture, GEditor->GetEditorWorldContext().World()->GetFeatureLevel());
 			}
 			
 			// No need to update the render target if the scratch texture exist the paint operations and the undo/redo keep the render target up to date
@@ -405,7 +405,7 @@ void UTexturePaintToolset::SetupInitialRenderTargetData(FPaintTexture2DData& Pai
 		// Just copy (render) the texture in GPU memory to our render target.  Hopefully it's not
 		// compressed already!
 		check(PaintTextureData.PaintingTexture2D->IsFullyStreamedIn());
-		CopyTextureToRenderTargetTexture(PaintTextureData.PaintingTexture2D, PaintTextureData.PaintRenderTargetTexture, GEditor->GetEditorWorldContext().World()->FeatureLevel);
+		CopyTextureToRenderTargetTexture(PaintTextureData.PaintingTexture2D, PaintTextureData.PaintRenderTargetTexture, GEditor->GetEditorWorldContext().World()->GetFeatureLevel());
 	}
 }
 
@@ -439,7 +439,7 @@ void UTexturePaintToolset::UpdateRenderTargetData(FPaintTexture2DData& PaintText
 	PaintTextureData.ScratchTexture->GetPlatformData()->Mips[0].BulkData.Unlock();
 	PaintTextureData.ScratchTexture->UpdateResource();
 
-	CopyTextureToRenderTargetTexture(PaintTextureData.ScratchTexture, PaintTextureData.PaintRenderTargetTexture, GEditor->GetEditorWorldContext().World()->FeatureLevel);
+	CopyTextureToRenderTargetTexture(PaintTextureData.ScratchTexture, PaintTextureData.PaintRenderTargetTexture, GEditor->GetEditorWorldContext().World()->GetFeatureLevel());
 }
 
 void UTexturePaintToolset::FindMaterialIndicesUsingTexture(const UTexture* Texture, const UMeshComponent* MeshComponent, TArray<int32>& OutIndices)

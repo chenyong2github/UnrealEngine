@@ -285,7 +285,7 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateViewModeOptionsMen
 	TSharedRef<SEditorViewport> ViewportRef = GetInfoProvider().GetViewportWidget();
 	FEditorViewportClient& ViewClient = GetViewportClient();
 	const UWorld* World = ViewClient.GetWorld();
-	return BuildViewModeOptionsMenu(ViewportRef->GetCommandList(), ViewClient.GetViewMode(), World ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel, ViewClient.GetViewModeParamNameMap());
+	return BuildViewModeOptionsMenu(ViewportRef->GetCommandList(), ViewClient.GetViewMode(), World ? World->GetFeatureLevel() : GMaxRHIFeatureLevel, ViewClient.GetViewModeParamNameMap());
 }
 
 

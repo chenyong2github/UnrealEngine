@@ -196,7 +196,7 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 			RenderTargetResource, 
 			nullptr, 
 			World,
-			World->FeatureLevel);
+			World->GetFeatureLevel());
 
 		Canvas->Init(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, nullptr, &RenderCanvas);
 
@@ -750,7 +750,7 @@ void UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(UObject* WorldContex
 			RenderTargetResource,
 			nullptr, 
 			World,
-			World->FeatureLevel, 
+			World->GetFeatureLevel(),
 			// Draw immediately so that interleaved SetVectorParameter (etc) function calls work as expected
 			FCanvas::CDM_ImmediateDrawing);
 		Canvas->Init(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, nullptr, NewCanvas);

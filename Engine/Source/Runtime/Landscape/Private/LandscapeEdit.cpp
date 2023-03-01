@@ -1794,7 +1794,7 @@ bool ULandscapeComponent::GetRenderPhysicalMaterials(TArray<UPhysicalMaterial*>&
 
 bool ULandscapeComponent::CanUpdatePhysicalMaterial()
 {
-	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? (ERHIFeatureLevel::Type)GetWorld()->FeatureLevel : GMaxRHIFeatureLevel;
+	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? (ERHIFeatureLevel::Type)GetWorld()->GetFeatureLevel() : GMaxRHIFeatureLevel;
 	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
 	{
 		// physical material update is not supported on ES3_1 level hardware
@@ -5570,7 +5570,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 			if (World != nullptr)
 			{
-				if (World->FeatureLevel == ERHIFeatureLevel::ES3_1)
+				if (World->GetFeatureLevel() == ERHIFeatureLevel::ES3_1)
 				{
 					for (ULandscapeComponent* Component : LandscapeComponents)
 					{
@@ -6056,7 +6056,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 				if (World != nullptr)
 				{
-					if (World->FeatureLevel == ERHIFeatureLevel::ES3_1)
+					if (World->GetFeatureLevel() == ERHIFeatureLevel::ES3_1)
 					{
 						for (ULandscapeComponent* Component : LandscapeComponents)
 						{
@@ -6151,7 +6151,7 @@ void ULandscapeComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 
 			UWorld* World = GetWorld();
 
-			if (World != nullptr && World->FeatureLevel == ERHIFeatureLevel::ES3_1)
+			if (World != nullptr && World->GetFeatureLevel() == ERHIFeatureLevel::ES3_1)
 			{
 				CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 			}
@@ -7355,7 +7355,7 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 	FTextureRenderTargetResource* RenderTargetResource = InRenderTarget->GameThread_GetRenderTargetResource();
 
 	// Create a canvas for the render target and clear it to black
-	FCanvas Canvas(RenderTargetResource, nullptr, FGameTime(), World->FeatureLevel);
+	FCanvas Canvas(RenderTargetResource, nullptr, FGameTime(), World->GetFeatureLevel());
 	Canvas.Clear(FLinearColor::Black);
 
 	// Find exported component's base offset

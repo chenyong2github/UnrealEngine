@@ -204,7 +204,7 @@ bool TexturePaintHelpers::GenerateSeamMask(UMeshComponent* MeshComponent, int32 
 
 	{
 		// Create a canvas for the render target and clear it to white
-		FCanvas Canvas(RenderTargetResource, nullptr, FGameTime(), GEditor->GetEditorWorldContext().World()->FeatureLevel);
+		FCanvas Canvas(RenderTargetResource, nullptr, FGameTime(), GEditor->GetEditorWorldContext().World()->GetFeatureLevel());
 		Canvas.Clear(FLinearColor::White);
 
 		TArray<FCanvasUVTri> TriList;
@@ -388,7 +388,7 @@ void TexturePaintHelpers::SetupInitialRenderTargetData(UTexture2D* InTextureSour
 			check(TempSourceArtTexture != nullptr);
 
 			// Copy the texture to the render target using the GPU
-			CopyTextureToRenderTargetTexture(TempSourceArtTexture, InRenderTarget, GEditor->GetEditorWorldContext().World()->FeatureLevel);
+			CopyTextureToRenderTargetTexture(TempSourceArtTexture, InRenderTarget, GEditor->GetEditorWorldContext().World()->GetFeatureLevel());
 
 			// NOTE: TempSourceArtTexture is no longer needed (will be GC'd)
 		}
@@ -398,7 +398,7 @@ void TexturePaintHelpers::SetupInitialRenderTargetData(UTexture2D* InTextureSour
 		// Just copy (render) the texture in GPU memory to our render target.  Hopefully it's not
 		// compressed already!
 		check(InTextureSource->IsFullyStreamedIn());
-		CopyTextureToRenderTargetTexture(InTextureSource, InRenderTarget, GEditor->GetEditorWorldContext().World()->FeatureLevel);
+		CopyTextureToRenderTargetTexture(InTextureSource, InRenderTarget, GEditor->GetEditorWorldContext().World()->GetFeatureLevel());
 	}
 }
 

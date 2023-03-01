@@ -274,7 +274,7 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 		{
 			if (GEditor != nullptr)
 			{
-				if (GWorld != nullptr && GWorld->FeatureLevel == ERHIFeatureLevel::ES3_1)
+				if (GWorld != nullptr && GWorld->GetFeatureLevel() == ERHIFeatureLevel::ES3_1)
 				{
 					// When we feature change from SM5 to ES31 we call BuildReflectionCapture if we have Unbuilt Reflection Components, so no reason to call it again here
 					// This is to make sure that we have valid data for Mobile Preview.

@@ -1036,7 +1036,7 @@ void SImgMediaProcessEXR::DrawTextureToRenderTarget()
 		RenderTargetResource,
 		nullptr,
 		World,
-		World->FeatureLevel);
+		World->GetFeatureLevel());
 	Canvas->Init(RenderTarget->SizeX, RenderTarget->SizeY, nullptr, &RenderCanvas);
 	Canvas->Update();
 

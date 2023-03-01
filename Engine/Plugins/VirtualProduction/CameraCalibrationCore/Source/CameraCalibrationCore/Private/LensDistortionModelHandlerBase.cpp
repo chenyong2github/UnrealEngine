@@ -236,7 +236,7 @@ bool ULensDistortionModelHandlerBase::DrawDistortionDisplacementMap(UTextureRend
 
 bool ULensDistortionModelHandlerBase::IsDisplacementMapMaterialReady(UMaterialInstanceDynamic* MID)
 {
-	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? (ERHIFeatureLevel::Type)GetWorld()->FeatureLevel : GMaxRHIFeatureLevel;
+	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? (ERHIFeatureLevel::Type)GetWorld()->GetFeatureLevel() : GMaxRHIFeatureLevel;
 	if (FMaterialResource* MaterialResource = MID->GetMaterialResource(FeatureLevel))
 	{
 		if (MaterialResource->IsGameThreadShaderMapComplete())

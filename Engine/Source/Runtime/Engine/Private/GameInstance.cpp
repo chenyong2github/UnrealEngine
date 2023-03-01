@@ -325,7 +325,7 @@ FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanc
 			UWorld* WorldToDuplicate = Cast<UWorld>(TargetWorld.TryLoad());
 			if (WorldToDuplicate)
 			{
-				WorldToDuplicate->ChangeFeatureLevel(EditorEngine->EditorWorld->FeatureLevel, false);
+				WorldToDuplicate->ChangeFeatureLevel(EditorEngine->EditorWorld->GetFeatureLevel(), false);
 				NewWorld = EditorEngine->CreatePIEWorldByDuplication(*WorldContext, WorldToDuplicate, PIEMapName);
 			}
 		}

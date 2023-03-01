@@ -1212,7 +1212,7 @@ void ULandscapeComponent::PostLoad()
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		UWorld* World = GetWorld();
-		ERHIFeatureLevel::Type FeatureLevel = ((GEngine->GetDefaultWorldFeatureLevel() == ERHIFeatureLevel::ES3_1) || (World && (World->FeatureLevel <= ERHIFeatureLevel::ES3_1))) 
+		ERHIFeatureLevel::Type FeatureLevel = ((GEngine->GetDefaultWorldFeatureLevel() == ERHIFeatureLevel::ES3_1) || (World && (World->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1))) 
 			? ERHIFeatureLevel::ES3_1 : GMaxRHIFeatureLevel;
 
 		// If we're loading on a platform that doesn't require cooked data, but defaults to a mobile feature level, generate or preload data from the DDC
@@ -5254,7 +5254,7 @@ void ALandscapeProxy::UpdateGIBakedTextures(bool bBakeAllGITextures)
 {
 	// See if we can render
 	UWorld* World = GetWorld();
-	if (!GIsEditor || GUsingNullRHI || !World || World->IsGameWorld() || World->FeatureLevel < ERHIFeatureLevel::SM5)
+	if (!GIsEditor || GUsingNullRHI || !World || World->IsGameWorld() || World->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 	{
 		return;
 	}
@@ -5312,7 +5312,7 @@ void ALandscapeProxy::UpdateGIBakedTextures(bool bBakeAllGITextures)
 				break;
 			}
 
-			FMaterialResource* MaterialResource = MaterialInstance->GetMaterialResource(World->FeatureLevel);
+			FMaterialResource* MaterialResource = MaterialInstance->GetMaterialResource(World->GetFeatureLevel());
 			if (!MaterialResource || !MaterialResource->HasValidGameThreadShaderMap())
 			{
 				// Cannot render this component yet as its shaders aren't compiled; abandon the atlas for this heightmap
@@ -5534,7 +5534,7 @@ void ALandscapeProxy::UpdateRenderingMethod()
 		{
 			if (UWorld* World = LandscapeActor->GetWorld())
 			{
-				if ((GEngine->GetDefaultWorldFeatureLevel() == ERHIFeatureLevel::ES3_1) || (World->FeatureLevel <= ERHIFeatureLevel::ES3_1))
+				if ((GEngine->GetDefaultWorldFeatureLevel() == ERHIFeatureLevel::ES3_1) || (World->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1))
 				{
 					bNaniteActive = UseNanite(GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1]);
 				}

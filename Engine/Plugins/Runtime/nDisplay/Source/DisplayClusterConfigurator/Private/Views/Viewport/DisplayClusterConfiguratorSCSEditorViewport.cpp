@@ -479,7 +479,7 @@ void SDisplayClusterConfiguratorSCSEditorViewport::Construct(const FArguments& I
 		UWorld* World = ViewportClient->GetPreviewScene()->GetWorld();
 		if (World != nullptr)
 		{
-			World->ChangeFeatureLevel(GWorld->FeatureLevel);
+			World->ChangeFeatureLevel(GWorld->GetFeatureLevel());
 		}
 	}
 

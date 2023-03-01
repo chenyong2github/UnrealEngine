@@ -87,7 +87,7 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 	// Note how many tiles we wish to render with.
 	BackbufferTileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
 
-	const ERHIFeatureLevel::Type FeatureLevel = GetWorld()->FeatureLevel;
+	const ERHIFeatureLevel::Type FeatureLevel = GetWorld()->GetFeatureLevel();
 
 	// Initialize our render pass. This is a copy of the settings to make this less coupled to the Settings UI.
 	const MoviePipeline::FMoviePipelineRenderPassInitSettings RenderPassInitSettings(FeatureLevel, BackbufferResolution, BackbufferTileCount);
@@ -555,7 +555,7 @@ void UMoviePipeline::FlushAsyncEngineSystems()
 	}
 
 	// Flush virtual texture tile calculations
-	ERHIFeatureLevel::Type FeatureLevel = GetWorld()->FeatureLevel;
+	ERHIFeatureLevel::Type FeatureLevel = GetWorld()->GetFeatureLevel();
 	ENQUEUE_RENDER_COMMAND(VirtualTextureSystemFlushCommand)(
 		[FeatureLevel](FRHICommandListImmediate& RHICmdList)
 	{

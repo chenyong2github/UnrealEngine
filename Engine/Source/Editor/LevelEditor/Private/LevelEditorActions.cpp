@@ -691,7 +691,7 @@ bool FLevelEditorActionCallbacks::CanBuildLighting()
 {
 	// Building lighting modifies the BuildData package, which the PIE session will also be referencing without getting notified
 	return !(GEditor->PlayWorld || GUnrealEd->bIsSimulatingInEditor)
-		&& GetWorld()->FeatureLevel >= ERHIFeatureLevel::SM5;
+		&& GetWorld()->GetFeatureLevel() >= ERHIFeatureLevel::SM5;
 }
 
 bool FLevelEditorActionCallbacks::CanBuildReflectionCaptures()
@@ -742,7 +742,7 @@ bool FLevelEditorActionCallbacks::BuildLighting_CanExecute()
 
 void FLevelEditorActionCallbacks::BuildReflectionCapturesOnly_Execute()
 {
-	if (GWorld != nullptr && GWorld->FeatureLevel == ERHIFeatureLevel::ES3_1)
+	if (GWorld != nullptr && GWorld->GetFeatureLevel() == ERHIFeatureLevel::ES3_1)
 	{
 		// When we feature change from SM5 to ES31 we call BuildReflectionCapture if we have Unbuilt Reflection Components, so no reason to call it again here
 		// This is to make sure that we have valid data for Mobile Preview.

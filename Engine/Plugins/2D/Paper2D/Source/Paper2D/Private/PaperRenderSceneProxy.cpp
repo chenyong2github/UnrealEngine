@@ -166,7 +166,7 @@ const FName FSpriteTextureOverrideRenderProxy::AdditionalTextureParameterRootNam
 
 FPaperRenderSceneProxy::FPaperRenderSceneProxy(const UPrimitiveComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent)
-	, VertexFactory(InComponent->GetWorld()->FeatureLevel)
+	, VertexFactory(InComponent->GetWorld()->GetFeatureLevel())
 	, Owner(InComponent->GetOwner())
 	, MyBodySetup(const_cast<UPrimitiveComponent*>(InComponent)->GetBodySetup())
 	, bCastShadow(InComponent->CastShadow)

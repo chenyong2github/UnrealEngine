@@ -242,7 +242,7 @@ void SSCSEditorViewport::Construct(const FArguments& InArgs)
 		UWorld* World = ViewportClient->GetPreviewScene()->GetWorld();
 		if (World != nullptr)
 		{
-			World->ChangeFeatureLevel(GWorld->FeatureLevel);
+			World->ChangeFeatureLevel(GWorld->GetFeatureLevel());
 		}
 	}
 

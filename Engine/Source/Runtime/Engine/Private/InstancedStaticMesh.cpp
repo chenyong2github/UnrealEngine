@@ -2430,7 +2430,7 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		}
 		else
 		{
-			return ::new FInstancedStaticMeshSceneProxy(this, GetWorld()->FeatureLevel);
+			return ::new FInstancedStaticMeshSceneProxy(this, GetWorld()->GetFeatureLevel());
 		}
 	}
 	else
@@ -4288,7 +4288,7 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 	}
 
 	UWorld* World = GetWorld();
-	ERHIFeatureLevel::Type FeatureLevel = World != nullptr ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
+	ERHIFeatureLevel::Type FeatureLevel = World != nullptr ? World->GetFeatureLevel() : GMaxRHIFeatureLevel;
 
 	bool KeepInstanceBufferCPUAccess = UseGPUScene(GetFeatureLevelShaderPlatform(FeatureLevel), FeatureLevel) || GIsEditor || InRequireCPUAccess || ComponentRequestsCPUAccess(this, FeatureLevel);
 

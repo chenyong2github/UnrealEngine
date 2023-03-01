@@ -2786,7 +2786,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				}
 				else
 				{
-					World->FeatureLevel = FeatureLevel;
+					World->SetFeatureLevel(FeatureLevel);
 					World->InitWorld(GetEditorWorldInitializationValues());
 				}
 				

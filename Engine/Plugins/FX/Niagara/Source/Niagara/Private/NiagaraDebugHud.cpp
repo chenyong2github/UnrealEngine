@@ -2794,7 +2794,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 						{
 							StringBuilder.Appendf(TEXT("TickGroup - %s\n"), *TickingGroupEnum->GetNameStringByValue(SystemInstance->CalculateTickGroup()));
 						}
-						BuildGpuHudInformation(StringBuilder, NiagaraComponent, SystemInstance, World->FeatureLevel);
+						BuildGpuHudInformation(StringBuilder, NiagaraComponent, SystemInstance, World->GetFeatureLevel());
 					}
 
 					int64 TotalBytes = 0;

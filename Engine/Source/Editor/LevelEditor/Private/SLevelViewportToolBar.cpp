@@ -1281,7 +1281,7 @@ TSharedRef<SWidget> SLevelViewportToolBar::GenerateViewModeOptionsMenu() const
 	Viewport.Pin()->OnFloatingButtonClicked();
 	FLevelEditorViewportClient& ViewClient = Viewport.Pin()->GetLevelViewportClient();
 	const UWorld* World = ViewClient.GetWorld();
-	return BuildViewModeOptionsMenu(Viewport.Pin()->GetCommandList(), ViewClient.GetViewMode(), World ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel, ViewClient.GetViewModeParamNameMap());
+	return BuildViewModeOptionsMenu(Viewport.Pin()->GetCommandList(), ViewClient.GetViewMode(), World ? World->GetFeatureLevel() : GMaxRHIFeatureLevel, ViewClient.GetViewModeParamNameMap());
 }
 
 TSharedRef<SWidget> SLevelViewportToolBar::GenerateFOVMenu() const

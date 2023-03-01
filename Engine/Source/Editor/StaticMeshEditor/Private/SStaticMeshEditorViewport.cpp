@@ -47,7 +47,7 @@ void SStaticMeshEditorViewport::Construct(const FArguments& InArgs)
 	UWorld* World = PreviewScene->GetWorld();
 	if (World != nullptr)
 	{
-		World->ChangeFeatureLevel(GWorld->FeatureLevel);
+		World->ChangeFeatureLevel(GWorld->GetFeatureLevel());
 	}
 
 	UEditorEngine* Editor = CastChecked<UEditorEngine>(GEngine);

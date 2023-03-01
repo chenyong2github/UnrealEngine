@@ -527,7 +527,7 @@ void FStreamingTextureLevelContext::UpdateQualityAndFeatureLevel(EMaterialQualit
 	{
 		if (const UWorld* World = InLevel->GetWorld())
 		{
-			FeatureLevel = World->FeatureLevel;
+			FeatureLevel = World->GetFeatureLevel();
 		}
 #if !WITH_EDITOR
 		// Detect if quality level and feature level used to build texture streaming data matches the one of the context

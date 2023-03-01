@@ -1577,7 +1577,7 @@ void FViewport::HighResScreenshot()
 	{
 		HighResScreenshotBeginFrame(DummyViewport);
 
-		FCanvas Canvas(DummyViewport, NULL, ViewportClient->GetWorld(), ViewportClient->GetWorld()->FeatureLevel);
+		FCanvas Canvas(DummyViewport, NULL, ViewportClient->GetWorld(), ViewportClient->GetWorld()->GetFeatureLevel());
 		{
 			ViewportClient->Draw(DummyViewport, &Canvas);
 		}
@@ -1841,7 +1841,7 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 				}
 
 				UWorld* ViewportWorld = ViewportClient->GetWorld();
-				FCanvas Canvas(this, nullptr, ViewportWorld, ViewportWorld ? ViewportWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel, FCanvas::CDM_DeferDrawing, ViewportClient->ShouldDPIScaleSceneCanvas() ? ViewportClient->GetDPIScale() : 1.0f);
+				FCanvas Canvas(this, nullptr, ViewportWorld, ViewportWorld ? ViewportWorld->GetFeatureLevel() : GMaxRHIFeatureLevel, FCanvas::CDM_DeferDrawing, ViewportClient->ShouldDPIScaleSceneCanvas() ? ViewportClient->GetDPIScale() : 1.0f);
 				Canvas.SetRenderTargetRect(FIntRect(0, 0, SizeX, SizeY));
 				{
 					ViewportClient->Draw(this, &Canvas);
@@ -2655,7 +2655,7 @@ FDummyViewport::FDummyViewport(FViewportClient* InViewportClient)
 {
 	ViewportType = NAME_DummyViewport;
 	UWorld* CurWorld = (InViewportClient != NULL ? InViewportClient->GetWorld() : NULL);
-	DebugCanvas = new FCanvas(this, NULL, CurWorld, (CurWorld != NULL ? CurWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel));
+	DebugCanvas = new FCanvas(this, NULL, CurWorld, (CurWorld != NULL ? CurWorld->GetFeatureLevel() : GMaxRHIFeatureLevel));
 		
 	DebugCanvas->SetAllowedModes(0);
 }

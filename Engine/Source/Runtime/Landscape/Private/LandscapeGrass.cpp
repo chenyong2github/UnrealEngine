@@ -1595,13 +1595,13 @@ bool ULandscapeComponent::CanRenderGrassMap() const
 {
 	// Check we can render
 	UWorld* ComponentWorld = GetWorld();
-	if (!GIsEditor || GUsingNullRHI || !ComponentWorld || ComponentWorld->IsGameWorld() || ComponentWorld->FeatureLevel < ERHIFeatureLevel::SM5 || !SceneProxy)
+	if (!GIsEditor || GUsingNullRHI || !ComponentWorld || ComponentWorld->IsGameWorld() || ComponentWorld->GetFeatureLevel() < ERHIFeatureLevel::SM5 || !SceneProxy)
 	{
 		return false;
 	}
 
 	UMaterialInstance* MaterialInstance = GetMaterialInstanceCount(false) > 0 ? GetMaterialInstance(0) : nullptr;
-	FMaterialResource* MaterialResource = MaterialInstance != nullptr ? MaterialInstance->GetMaterialResource(ComponentWorld->FeatureLevel) : nullptr;
+	FMaterialResource* MaterialResource = MaterialInstance != nullptr ? MaterialInstance->GetMaterialResource(ComponentWorld->GetFeatureLevel()) : nullptr;
 
 	// Check we can render the material
 	if (MaterialResource == nullptr)
@@ -1698,7 +1698,7 @@ TArray<uint16> ULandscapeComponent::RenderWPOHeightmap(int32 LOD)
 
 	if (!CanRenderGrassMap())
 	{
-		GetMaterialInstance(0)->GetMaterialResource(GetWorld()->FeatureLevel)->FinishCompilation();
+		GetMaterialInstance(0)->GetMaterialResource(GetWorld()->GetFeatureLevel())->FinishCompilation();
 	}
 
 	if (ensure(SceneProxy))
@@ -2332,7 +2332,7 @@ void ALandscapeProxy::TickGrass(const TArray<FVector>& Cameras, int32& InOutNumC
 	if (ALandscape* Landscape = GetLandscapeActor())
 	{
 		// Don't allow grass to tick, except in ES3.1 preview mode, since landscape update is not possible there : IsUpToDate might return false and we'll never see grass in the preview mode as a result :
-		bool bAllowGrassTick = Landscape->IsUpToDate() || (GetWorld()->FeatureLevel < ERHIFeatureLevel::SM5);
+		bool bAllowGrassTick = Landscape->IsUpToDate() || (GetWorld()->GetFeatureLevel() < ERHIFeatureLevel::SM5);
 		if (!bAllowGrassTick || !Landscape->bGrassUpdateEnabled)
 		{
 			return;

@@ -839,7 +839,7 @@ EVisibility SEditorViewport::GetCurrentFeatureLevelPreviewTextVisibility() const
 {
 	if (Client->GetWorld())
 	{
-		return (Client->GetWorld()->FeatureLevel != GMaxRHIFeatureLevel) ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
+		return (Client->GetWorld()->GetFeatureLevel() != GMaxRHIFeatureLevel) ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
 	}
 	else
 	{
@@ -860,7 +860,7 @@ FText SEditorViewport::GetCurrentFeatureLevelPreviewText(bool bDrawOnlyLabel) co
 		UWorld* World = Client->GetWorld();
 		if (World != nullptr)
 		{
-			ERHIFeatureLevel::Type TargetFeatureLevel = World->FeatureLevel;
+			ERHIFeatureLevel::Type TargetFeatureLevel = World->GetFeatureLevel();
 			EShaderPlatform ShaderPlatform = GetShaderPlatformHelper(TargetFeatureLevel);
 			const FText& PlatformText = FDataDrivenShaderPlatformInfo::GetFriendlyName(ShaderPlatform);
 			LabelName = FText::Format(LOCTEXT("WorldFeatureLevel", "{0}"), PlatformText);

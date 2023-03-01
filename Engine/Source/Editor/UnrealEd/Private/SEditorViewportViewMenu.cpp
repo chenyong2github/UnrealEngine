@@ -163,7 +163,7 @@ void SEditorViewportViewMenu::FillViewMenu(UToolMenu* Menu) const
 						const FEditorViewportCommands& BaseViewportCommands = FEditorViewportCommands::Get();
 
 						UWorld* World = GWorld;
-						const ERHIFeatureLevel::Type FeatureLevel = (IsInGameThread() && World) ? (ERHIFeatureLevel::Type)World->FeatureLevel : GMaxRHIFeatureLevel;
+						const ERHIFeatureLevel::Type FeatureLevel = (IsInGameThread() && World) ? (ERHIFeatureLevel::Type)World->GetFeatureLevel() : GMaxRHIFeatureLevel;
 
 						{
 							FToolMenuSection& Section = Menu->AddSection("OptimizationViewmodes", LOCTEXT("OptimizationSubMenuHeader", "Optimization Viewmodes"));

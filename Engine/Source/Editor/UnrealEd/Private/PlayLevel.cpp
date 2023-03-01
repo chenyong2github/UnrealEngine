@@ -2449,7 +2449,7 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 	UWorld::WorldTypePreLoadMap.Remove(PlayWorldMapFName);
 
 	check( NewPIEWorld );
-	NewPIEWorld->FeatureLevel = InWorld->FeatureLevel;
+	NewPIEWorld->SetFeatureLevel(InWorld->GetFeatureLevel());
 	NewPIEWorld->WorldType = EWorldType::PIE;
 	
 	UE_LOG(LogPlayLevel, Log, TEXT("PIE: Created PIE world by copying editor world from %s to %s (%fs)"), *InWorld->GetPathName(), *NewPIEWorld->GetPathName(), float(FPlatformTime::Seconds() - StartTime));

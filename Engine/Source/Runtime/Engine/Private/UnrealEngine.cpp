@@ -14985,7 +14985,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 #if WITH_EDITOR
 			// PIE worlds should use the same feature level as the editor
-			if (WorldContext.PIEWorldFeatureLevel != ERHIFeatureLevel::Num && NewWorld->FeatureLevel != WorldContext.PIEWorldFeatureLevel)
+			if (WorldContext.PIEWorldFeatureLevel != ERHIFeatureLevel::Num && NewWorld->GetFeatureLevel() != WorldContext.PIEWorldFeatureLevel)
 			{
 				NewWorld->ChangeFeatureLevel(WorldContext.PIEWorldFeatureLevel);
 			}

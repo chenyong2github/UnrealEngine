@@ -4988,7 +4988,7 @@ void FMaterialEditor::SetNumericParameterDefaultOnDependentMaterials(EMaterialPa
 		MaterialsToOverride.Add(OriginalMaterial);
 	}
 
-	const ERHIFeatureLevel::Type FeatureLevel = GEditor->GetEditorWorldContext().World()->FeatureLevel;
+	const ERHIFeatureLevel::Type FeatureLevel = GEditor->GetEditorWorldContext().World()->GetFeatureLevel();
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialsToOverride.Num(); MaterialIndex++)
 	{

@@ -1231,7 +1231,7 @@ FSceneProxy::FFallbackLODInfo::FFallbackLODInfo(
 	int32 InClampedMinLOD
 )
 {
-	const auto FeatureLevel = InComponent->GetWorld()->FeatureLevel;
+	const auto FeatureLevel = InComponent->GetWorld()->GetFeatureLevel();
 
 	FStaticMeshRenderData* MeshRenderData = InComponent->GetStaticMesh()->GetRenderData();
 	FStaticMeshLODResources& LODModel = MeshRenderData->LODResources[LODIndex];

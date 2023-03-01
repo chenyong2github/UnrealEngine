@@ -8114,7 +8114,7 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	};
 	
 	// The Edit layers shaders only work on SM5 : cancel any update that might happen when SM5+ shading model is not active :
-	if (World->FeatureLevel < ERHIFeatureLevel::SM5)
+	if (World->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 	{
 		if (LandscapeNotificationManager)
 		{
@@ -8157,7 +8157,7 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		WaitingForLandscapeTextureResourcesStartTime = -1.0;
 	}
 
-	bResourcesReady &= PrepareLayersBrushResources(World->FeatureLevel, bInWaitForStreaming);
+	bResourcesReady &= PrepareLayersBrushResources(World->GetFeatureLevel(), bInWaitForStreaming);
 	if (!bResourcesReady && LandscapeNotificationManager)
 	{
 		WaitingForLandscapeBrushResourcesStartTime = GetCurrentTime();

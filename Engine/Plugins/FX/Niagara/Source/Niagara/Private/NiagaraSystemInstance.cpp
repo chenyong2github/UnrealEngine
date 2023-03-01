@@ -153,7 +153,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	}
 
 	ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World);
-	FeatureLevel = World->FeatureLevel;
+	FeatureLevel = World->GetFeatureLevel();
 
 	// In some cases the system may have already stated that you should ignore dependencies and tick as early as possible.
 	if (!InSystem.bRequireCurrentFrameData)

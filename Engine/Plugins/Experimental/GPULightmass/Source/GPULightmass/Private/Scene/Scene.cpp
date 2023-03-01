@@ -44,7 +44,7 @@ FScene::FScene(FGPULightmass* InGPULightmass)
 	: GPULightmass(InGPULightmass)
 	, Settings(InGPULightmass->Settings)
 	, Geometries(*this)
-	, FeatureLevel(InGPULightmass->World->FeatureLevel)
+	, FeatureLevel(InGPULightmass->World->GetFeatureLevel())
 {
 	StaticMeshInstances.LinkRenderStateArray(RenderState.StaticMeshInstanceRenderStates);
 	InstanceGroups.LinkRenderStateArray(RenderState.InstanceGroupRenderStates);
@@ -1853,7 +1853,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 	UWorld* World = GPULightmass->World;
 
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(World->FeatureLevel);
+	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(World->GetFeatureLevel());
 
 	bool bHasSkyShadowing = LightScene.SkyLight.IsSet() && LightScene.SkyLight->CastsStationaryShadow();
 	

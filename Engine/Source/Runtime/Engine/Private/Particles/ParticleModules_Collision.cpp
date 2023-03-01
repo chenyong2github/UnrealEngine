@@ -678,7 +678,7 @@ bool UParticleModuleCollisionGPU::IsValidForLODLevel(UParticleLODLevel* LODLevel
 
 	bool bIsOpaqueOrMasked = true;
 	UWorld* World = GetWorld();
-	const FMaterialResource* MaterialResource = Material->GetMaterialResource(World ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel);
+	const FMaterialResource* MaterialResource = Material->GetMaterialResource(World ? World->GetFeatureLevel() : GMaxRHIFeatureLevel);
 	if (MaterialResource)
 	{
 		bIsOpaqueOrMasked = IsOpaqueOrMaskedBlendMode(*MaterialResource);

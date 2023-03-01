@@ -501,7 +501,7 @@ void USkinnedMeshComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 FPrimitiveSceneProxy* USkinnedMeshComponent::CreateSceneProxy()
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
-	ERHIFeatureLevel::Type SceneFeatureLevel = GetWorld()->FeatureLevel;
+	ERHIFeatureLevel::Type SceneFeatureLevel = GetWorld()->GetFeatureLevel();
 	FSkeletalMeshSceneProxy* Result = nullptr;
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
 
@@ -572,7 +572,7 @@ void USkinnedMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& Bas
 		return;
 	}
 
-	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? GetWorld()->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
+	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? GetWorld()->GetFeatureLevel() : GMaxRHIFeatureLevel;
 	int32 MinLODIndex = ComputeMinLOD();
 	bool bCPUSkin = bRenderStatic || ShouldCPUSkin();
 
@@ -869,7 +869,7 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 		// No need to create the mesh object if we aren't actually rendering anything (see UPrimitiveComponent::Attach)
 		if ( FApp::CanEverRender() && ShouldComponentAddToScene() )
 		{
-			ERHIFeatureLevel::Type SceneFeatureLevel = GetWorld()->FeatureLevel;
+			ERHIFeatureLevel::Type SceneFeatureLevel = GetWorld()->GetFeatureLevel();
 			FSkeletalMeshRenderData* SkelMeshRenderData = GetSkinnedAsset()->GetResourceForRendering();
 			int32 MinLODIndex = ComputeMinLOD();
 			

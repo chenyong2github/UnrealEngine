@@ -1182,7 +1182,7 @@ void FCascadeEmitterCanvasClient::DrawHeaderBlock(int32 Index, int32 XPos, UPart
 
 							// Re-render
 							FTextureRenderTargetResource* ThumbnailRTResource = Thumbnail.Texture->GameThread_GetRenderTargetResource();
-							FCanvas ThumbnailCanvas(ThumbnailRTResource, nullptr, GetWorld(), GetWorld()->FeatureLevel, FCanvas::CDM_DeferDrawing, ShouldDPIScaleSceneCanvas() ? GetDPIScale() : 1.0f);
+							FCanvas ThumbnailCanvas(ThumbnailRTResource, nullptr, GetWorld(), GetWorld()->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, ShouldDPIScaleSceneCanvas() ? GetDPIScale() : 1.0f);
 							RenderInfo->Renderer->Draw(MaterialInterface, 0, 0, ScaledSize, ScaledSize, ThumbnailRTResource, &ThumbnailCanvas, false);
 
 							ENQUEUE_RENDER_COMMAND(TransitionThumbnail_RT)

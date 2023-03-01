@@ -2133,7 +2133,7 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 	, PreCulledIndexBuffer(nullptr)
 	, bUsesMeshModifyingMaterials(false)
 {
-	const auto FeatureLevel = InComponent->GetWorld()->FeatureLevel;
+	const auto FeatureLevel = InComponent->GetWorld()->GetFeatureLevel();
 
 	FStaticMeshRenderData* MeshRenderData = InComponent->GetStaticMesh()->GetRenderData();
 	FStaticMeshLODResources& LODModel = MeshRenderData->LODResources[LODIndex];

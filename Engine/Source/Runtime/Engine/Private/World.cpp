@@ -902,7 +902,7 @@ void UWorld::PostDuplicate(bool bDuplicateForPIE)
 		// compilation finishes.
 		TWeakObjectPtr<ULevel> PersistentLevelPtr(PersistentLevel);
 		auto ValidateTextureOverridesForPIE =
-			[PersistentLevelPtr, FeatureLevel = FeatureLevel]()
+			[PersistentLevelPtr, FeatureLevel = GetFeatureLevel()]()
 			{
 				ULevel* Level = PersistentLevelPtr.Get();
 				if (Level)
@@ -1820,7 +1820,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 		
 		// Save off the value used to create the scene, so this UWorld can recreate its scene later
 		bRequiresHitProxies = IVS.bRequiresHitProxies;
-		GetRendererModule().AllocateScene(this, bRequiresHitProxies, IVS.bCreateFXSystem, FeatureLevel);
+		GetRendererModule().AllocateScene(this, bRequiresHitProxies, IVS.bCreateFXSystem, GetFeatureLevel());
 	}
 
 	// Prepare AI systems
@@ -1922,7 +1922,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 		{
 			if (Level && Level->MapBuildData)
 			{
-				if (Level->MapBuildData->IsLightingValid(FeatureLevel) == false)
+				if (Level->MapBuildData->IsLightingValid(GetFeatureLevel()) == false)
 				{
 					Level->MapBuildData->InvalidateSurfaceLightmaps(this);
 				}
@@ -2150,7 +2150,7 @@ UWorld* UWorld::CreateWorld(const EWorldType::Type InWorldType, bool bInformEngi
 	UWorld* NewWorld = NewObject<UWorld>(WorldPackage, *WorldNameString);
 	NewWorld->SetFlags(RF_Transactional);
 	NewWorld->WorldType = InWorldType;
-	NewWorld->FeatureLevel = InFeatureLevel;
+	NewWorld->SetFeatureLevel(InFeatureLevel);
 	NewWorld->InitializeNewWorld(InIVS ? *InIVS : UWorld::InitializationValues().CreatePhysicsScene(InWorldType != EWorldType::Inactive).ShouldSimulatePhysics(false).EnableTraceCollision(true).CreateNavigation(InWorldType == EWorldType::Editor).CreateAISystem(InWorldType == EWorldType::Editor), bInSkipInitWorld);
 
 	// Clear the dirty flags set during SpawnActor and UpdateLevelComponents
@@ -3555,7 +3555,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 
 
 	// Ensure the feature level matches the editor's, this is required as FeatureLevel is not a UPROPERTY and is not duplicated from EditorLevelWorld.
-	PIELevelWorld->FeatureLevel = EditorLevelWorld->FeatureLevel;
+	PIELevelWorld->SetFeatureLevel(EditorLevelWorld->GetFeatureLevel());
 
 	// Clean up the world type list and owning world list now that PostLoad has occurred
 	UWorld::WorldTypePreLoadMap.Remove(PrefixedLevelFName);
@@ -8247,7 +8247,7 @@ void UWorld::CreateFXSystem()
 {
 	if ( !IsRunningDedicatedServer() && !IsRunningCommandlet() )
 	{
-		FXSystem = FFXSystemInterface::Create(FeatureLevel, Scene);
+		FXSystem = FFXSystemInterface::Create(GetFeatureLevel(), Scene);
 	}
 	else
 	{
@@ -8412,7 +8412,7 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 	UWorld* NewWorld = NewObject<UWorld>(NewPackage, OriginalOwningWorld->GetFName());
 	NewWorld->SetFlags(RF_Transactional);
 	NewWorld->WorldType = EWorldType::Game;
-	NewWorld->FeatureLevel = ERHIFeatureLevel::Num;
+	NewWorld->SetFeatureLevel(ERHIFeatureLevel::Num);
 
 	ULevel::StreamedLevelsOwningWorld.Add(NewPackage->GetFName(), OriginalOwningWorld);
 
@@ -8506,9 +8506,9 @@ void UWorld::StoreIrisAndClearReferences()
 #if WITH_EDITOR
 void UWorld::ChangeFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel, bool bShowSlowProgressDialog )
 {
-	if (InFeatureLevel != FeatureLevel)
+	if (InFeatureLevel != GetFeatureLevel())
 	{
-		UE_LOG(LogWorld, Log, TEXT("Changing Feature Level (Enum) from %i to %i"), (int)FeatureLevel, (int)InFeatureLevel);
+		UE_LOG(LogWorld, Log, TEXT("Changing Feature Level (Enum) from %i to %i"), (int)GetFeatureLevel(), (int)InFeatureLevel);
 		FScopedSlowTask SlowTask(100.f, NSLOCTEXT("Engine", "ChangingPreviewRenderingLevelMessage", "Changing Preview Rendering Level"), bShowSlowProgressDialog);
 		SlowTask.MakeDialog();
 		{
@@ -8529,14 +8529,14 @@ void UWorld::ChangeFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel, bool bSho
 			GetRendererModule().PerFrameCleanupIfSkipRenderer();
 			FlushRenderingCommands();
 
-			FeatureLevel = InFeatureLevel;
+			SetFeatureLevel(InFeatureLevel);
 
 			SlowTask.EnterProgressFrame(10.0f);
 			RecreateScene(InFeatureLevel);
 
 			InvalidateAllSkyCaptures();
 
-			OnFeatureLevelChanged.Broadcast(FeatureLevel);
+			OnFeatureLevelChanged.Broadcast(GetFeatureLevel());
 
 			SlowTask.EnterProgressFrame(10.0f);
 			TriggerStreamingDataRebuild();
@@ -8548,7 +8548,7 @@ void UWorld::RecreateScene(ERHIFeatureLevel::Type InFeatureLevel)
 {
 	if (Scene)
 	{
-		ensure(InFeatureLevel == FeatureLevel);
+		ensure(InFeatureLevel == GetFeatureLevel());
 		for (ULevel* Level : Levels)
 		{
 			Level->ReleaseRenderingResources();

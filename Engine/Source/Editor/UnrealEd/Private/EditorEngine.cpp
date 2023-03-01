@@ -4053,7 +4053,7 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 
 	// Only the cubemap array path supports reading back from the GPU
 	// Calling code should not allow building reflection captures on lower feature levels
-	check(World->FeatureLevel >= ERHIFeatureLevel::SM5);
+	check(World->GetFeatureLevel() >= ERHIFeatureLevel::SM5);
 
 	// Only reset reflection captures if we had hit an OOM condition, and there is a chance we could fit in memory if we rebuild from scratch
 	const bool bOnlyIfOOM = true;
@@ -7827,7 +7827,7 @@ void UEditorEngine::OnModuleCompileFinished(const FString& CompilationOutput, EC
 
 bool UEditorEngine::IsEditorShaderPlatformEmulated(UWorld* World)
 {
-	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(World->FeatureLevel);
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(World->GetFeatureLevel());
 
 	bool bIsSimulated = IsSimulatedPlatform(ShaderPlatform);
 
@@ -7836,7 +7836,7 @@ bool UEditorEngine::IsEditorShaderPlatformEmulated(UWorld* World)
 
 bool UEditorEngine::IsOfflineShaderCompilerAvailable(UWorld* World)
 {
-	const auto ShaderPlatform = GetFeatureLevelShaderPlatform(World->FeatureLevel);
+	const auto ShaderPlatform = GetFeatureLevelShaderPlatform(World->GetFeatureLevel());
 
 	const auto RealPlatform = GetSimulatedPlatform(ShaderPlatform);
 

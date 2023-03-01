@@ -1153,6 +1153,11 @@ private:
 
 public:
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FORCEINLINE ERHIFeatureLevel::Type GetFeatureLevel() const{ return FeatureLevel; }
+	FORCEINLINE void SetFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel) { FeatureLevel = InFeatureLevel; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** View locations rendered in the previous frame, if any. */
 	TArray<FVector>								ViewLocationsRenderedLastFrame;
 
@@ -1162,6 +1167,7 @@ public:
 	double										LastRenderTime = 0.0;
 
 	/** The current renderer feature level of this world */
+	UE_DEPRECATED(5.3, "FeatureLevel will be removed in the future from UWorld. Please use GetFeatureLevel or SetFeatureLevel instead")
 	TEnumAsByte<ERHIFeatureLevel::Type> FeatureLevel;
 
 	/** The current ticking group																								*/

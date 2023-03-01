@@ -3900,7 +3900,7 @@ ELandscapeEditingState FEdModeLandscape::GetEditingState() const
 	{
 		return ELandscapeEditingState::Unknown;
 	}
-	else if (World->FeatureLevel < ERHIFeatureLevel::SM5)
+	else if (World->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 	{
 		return ELandscapeEditingState::BadFeatureLevel;
 	}

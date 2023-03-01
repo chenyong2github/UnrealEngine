@@ -1885,7 +1885,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 	check(World);
 	World->Scene = this;
 
-	FeatureLevel = World->FeatureLevel;
+	FeatureLevel = World->GetFeatureLevel();
 
 	GPUScene.SetEnabled(FeatureLevel);
 

@@ -3241,7 +3241,7 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 		}
 		else
 		{
-			return ::new FHierarchicalStaticMeshSceneProxy(this, GetWorld()->FeatureLevel);
+			return ::new FHierarchicalStaticMeshSceneProxy(this, GetWorld()->GetFeatureLevel());
 		}
 	}
 

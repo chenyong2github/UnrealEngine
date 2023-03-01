@@ -93,7 +93,7 @@ namespace PreviewModeFunctionality
 			{
 				return FText::Format(LOCTEXT("PreviewModeViewingAs", "Viewing {0}."), RenderingAsPlatformName);
 			}
-			else if (GWorld->FeatureLevel == GMaxRHIFeatureLevel)
+			else if (GWorld->GetFeatureLevel() == GMaxRHIFeatureLevel)
 			{
 				return FText::Format(LOCTEXT("PreviewModeViewingAsSwitchTo", "Viewing {0}. Click to preview {1}."), RenderingAsPlatformName, SwitchToPlatformName);
 			}

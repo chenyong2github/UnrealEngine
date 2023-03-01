@@ -133,7 +133,7 @@ void FStreamingPauseRenderingModule::BeginStreamingPause( FViewport* GameViewpor
 
 			SceneViewport->EnqueueBeginRenderFrame(false);
 
-			FCanvas Canvas(SceneViewport.Get(), nullptr, ViewportClient->GetWorld(), ViewportClient->GetWorld()->FeatureLevel);
+			FCanvas Canvas(SceneViewport.Get(), nullptr, ViewportClient->GetWorld(), ViewportClient->GetWorld()->GetFeatureLevel());
 			{
 				ViewportClient->Draw(SceneViewport.Get(), &Canvas);
 			}
