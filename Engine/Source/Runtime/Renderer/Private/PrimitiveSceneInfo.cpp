@@ -576,7 +576,7 @@ void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FScene* Scene, const TArrayVie
 				SceneInfos.Num(),
 				[Scene, &SceneInfos](FNaniteDrawListContext& Context, int32 Index)
 				{
-					FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+					FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 					BuildNaniteDrawCommands(Scene, SceneInfos[Index], Context);
 				}
 			);
