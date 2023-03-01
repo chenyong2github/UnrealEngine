@@ -1017,7 +1017,7 @@ namespace UnrealBuildTool
 
 		public override bool CanUseXGE()
 		{
-			return false;
+			return BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac;
 		}
 
 		public override bool CanUseFASTBuild()

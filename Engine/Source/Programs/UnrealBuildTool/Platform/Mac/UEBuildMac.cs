@@ -265,11 +265,6 @@ namespace UnrealBuildTool
 		{
 		}
 
-		public override bool CanUseXGE()
-		{
-			return false;
-		}
-
 		public override bool CanUseFASTBuild()
 		{
 			return true;
