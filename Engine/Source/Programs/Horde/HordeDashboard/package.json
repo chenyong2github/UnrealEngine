@@ -7,7 +7,7 @@
   "dependencies": {
     "@blueprintjs/icons": "^3.13.0",
     "@datadog/browser-logs": "^4.30.0",
-    "@fluentui/react": "^8.104.5",
+    "@fluentui/react": "^8.106.2",
     "@fluentui/react-charting": "5.2.0",
     "crypto-js": "^4.1.1",
     "d3": "^7.6.1",

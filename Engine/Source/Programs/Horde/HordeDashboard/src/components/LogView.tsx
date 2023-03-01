@@ -722,10 +722,7 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
    const doQuery = (newValue: string) => {
 
       handler.currentWarning = undefined;
-      handler.currentError = undefined;
-
-
-      logListKey++;
+      handler.currentError = undefined;      
 
       if (!newValue) {
 
@@ -746,9 +743,7 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
                curSearchIdx = 0;
 
                const lines = logResponse.lines;
-
-               logListKey++;
-
+               
                setSearchState({
                   search: newValue,
                   curRequest: undefined,
@@ -761,12 +756,9 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
                   if (lineIdx < 0) {
                      lineIdx = 0;
                   }
-                  listRef?.scrollToIndex(0, (index) => { return handler.lineHeight; }, ScrollToMode.top);
+                  
                   listRef?.scrollToIndex(lineIdx, (index) => { return handler.lineHeight; }, ScrollToMode.top);
-               }
-               else {
-                  listRef?.scrollToIndex(0, (index) => { return handler.lineHeight; }, ScrollToMode.top);
-               }
+               } 
 
             };
          });
