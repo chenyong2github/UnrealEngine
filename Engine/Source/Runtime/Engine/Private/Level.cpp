@@ -1086,6 +1086,28 @@ void ULevel::PostLoad()
 	}
 
 #if WITH_EDITOR
+	if ((IsUsingExternalActors() || IsUsingExternalObjects())
+		&& OwningWorld
+		&& OwningWorld->WorldType == EWorldType::Editor)
+	{
+		const FLinkerLoad* Linker = GetLinker();
+		if (Linker && Linker->IsPackageRelocated())
+		{
+			const FString LevelPackageName = GetPackage()->GetName();
+			UE_LOG(LogLevel, Error, TEXT("The level %s was moved on disk without the editor knowing it. This might cause some loading issues and some saving issue like an actor potentialy stomping the file of another actor."), *LevelPackageName);
+
+			if (GIsEditor)
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("PackageName"), FText::FromString(LevelPackageName));
+				FNotificationInfo Info(FText::Format(LOCTEXT("UnsupportedRelocatedLevel", "The level ({PackageName}) was relocated.\nLevels that use one file per actor cannot be moved on disk without using the editor or the migration tool."), Args));
+				Info.ExpireDuration = 10.0f;
+
+				FSlateNotificationManager::Get().AddNotification(Info);
+			}
+		}
+	}
+
 	if (IsUsingActorFolders() && IsUsingExternalObjects() && IsActorFolderObjectsFeatureAvailable())
 	{
 		if (!bWasDuplicated)

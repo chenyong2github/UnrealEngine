@@ -200,6 +200,13 @@ public:
 		return PackageTrailer.Get();
 	}
 
+#if WITH_EDITOR
+	bool IsPackageRelocated() const
+	{
+		return bIsPackageRelocated;
+	}
+#endif
+
 private:
 
 	/** True if the linker is currently deleting loader */
@@ -450,17 +457,21 @@ private:
 	bool					bUseFullTimeLimit:1;
 	/** Whether the loader needs version and correctness checks (see OpenReadPackage)										*/
 	bool					bLoaderNeedsEngineVersionChecks : 1;
+
+#if WITH_EDITOR
+	/** Check to avoid multiple export duplicate fixups in case we don't save asset. */
+	bool bExportsDuplicatesFixed : 1;
+
+	/** Cache if the package is relocated or not */
+	bool bIsPackageRelocated : 1;
+#endif // WITH_EDITOR
+
 	/** Call count of IsTimeLimitExceeded.																					*/
 	int32					IsTimeLimitExceededCallCount;
 	/** Current time limit to use if bUseTimeLimit is true.																	*/
 	float					TimeLimit;
 	/** Time at begin of Tick function. Used for time limit determination.													*/
 	double					TickStartTime;
-
-#if WITH_EDITOR
-	/** Check to avoid multiple export duplicate fixups in case we don't save asset. */
-	bool bExportsDuplicatesFixed;
-#endif // WITH_EDITOR
 	/** Id of the thread that created this linker. This is to guard against using this linker on other threads than the one it was created on **/
 	int32					OwnerThread;
 

@@ -985,11 +985,14 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 , bUseTimeLimit(false)
 , bUseFullTimeLimit(false)
 , bLoaderNeedsEngineVersionChecks(true)
+#if WITH_EDITOR
+, bExportsDuplicatesFixed(false)
+, bIsPackageRelocated(false)
+#endif // WITH_EDITOR
 , IsTimeLimitExceededCallCount(0)
 , TimeLimit(0.0f)
 , TickStartTime(0.0)
 #if WITH_EDITOR
-, bExportsDuplicatesFixed(false)
 , LoadProgressScope( nullptr )
 #endif // WITH_EDITOR
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
@@ -2117,8 +2120,11 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::RelocateReferences()
 			UE_LOG(LogPackageRelocation, Verbose, TEXT("Loading relocated package (%s). The package was saved as (%s)."), *PackageNameToLoad, *Summary.PackageName);
 			UE::Package::Relocation::Private::ApplyRelocationToObjectImportMap(RelocationArgs, ImportMap);
 			UE::Package::Relocation::Private::ApplyRelocationToSoftObjectArray(RelocationArgs, SoftObjectPathList);
+
+			bIsPackageRelocated = true;
 		}
 #endif
+
 		// Avoid duplicate work in async case.
 		bHasRelocatedReferences = true;
 	}
