@@ -3,8 +3,8 @@
 #include "RHITransition.h"
 #include "DynamicRHI.h"
 
-RHI_API uint64 GRHITransitionPrivateData_SizeInBytes = 0;
-RHI_API uint64 GRHITransitionPrivateData_AlignInBytes = 0;
+uint64 GRHITransitionPrivateData_SizeInBytes = 0;
+uint64 GRHITransitionPrivateData_AlignInBytes = 0;
 
 FRHIViewableResource* GetViewableResource(const FRHITransitionInfo& Info)
 {

@@ -1053,7 +1053,7 @@ inline bool RHISupportsAbsoluteVertexID(const FStaticShaderPlatform InShaderPlat
  *  Check GRHISupportsRayTracingShaders before using full ray tracing pipeline state objects.
  *  Check GRHISupportsInlineRayTracing before using inline ray tracing features in compute and other shaders.
  **/
-inline RHI_API bool RHISupportsRayTracing(const FStaticShaderPlatform Platform)
+inline bool RHISupportsRayTracing(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Platform);
 }
@@ -1061,7 +1061,7 @@ inline RHI_API bool RHISupportsRayTracing(const FStaticShaderPlatform Platform)
 /** Whether this platform can compile ray tracing shaders (regardless of project settings).
  *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
  **/
-inline RHI_API bool RHISupportsRayTracingShaders(const FStaticShaderPlatform Platform)
+inline bool RHISupportsRayTracingShaders(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracingShaders(Platform);
 }
@@ -1069,7 +1069,7 @@ inline RHI_API bool RHISupportsRayTracingShaders(const FStaticShaderPlatform Pla
 /** Whether this platform can compile shaders with inline ray tracing features.
  *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
  **/
-inline RHI_API bool RHISupportsInlineRayTracing(const FStaticShaderPlatform Platform)
+inline bool RHISupportsInlineRayTracing(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetSupportsInlineRayTracing(Platform);
 }
@@ -1077,7 +1077,7 @@ inline RHI_API bool RHISupportsInlineRayTracing(const FStaticShaderPlatform Plat
 /** Whether this platform can compile ray tracing callable shaders.
  *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
  **/
-inline RHI_API bool RHISupportsRayTracingCallableShaders(const FStaticShaderPlatform Platform)
+inline bool RHISupportsRayTracingCallableShaders(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracingCallableShaders(Platform);
 }
@@ -1106,7 +1106,7 @@ inline uint32 RHIMaxMeshShaderThreadGroupSize(const FStaticShaderPlatform Platfo
 /** Can this platform compile shaders that use shader model 6.0 wave intrinsics.
  *  To use such shaders at runtime, also check GRHISupportsWaveOperations.
  **/
-inline RHI_API bool RHISupportsWaveOperations(const FStaticShaderPlatform Platform)
+inline bool RHISupportsWaveOperations(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Platform) != ERHIFeatureSupport::Unsupported;
 }
@@ -1118,7 +1118,7 @@ inline bool RHISupportsRenderTargetWriteMask(const FStaticShaderPlatform Platfor
 }
 
 /** True if the given shader platform supports overestimated conservative rasterization */
-inline RHI_API bool RHISupportsConservativeRasterization(const FStaticShaderPlatform Platform)
+inline bool RHISupportsConservativeRasterization(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetSupportsConservativeRasterization(Platform);
 }

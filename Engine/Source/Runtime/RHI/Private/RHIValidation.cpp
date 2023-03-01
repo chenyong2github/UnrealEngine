@@ -1685,7 +1685,7 @@ namespace RHIValidation
 		}
 	}
 
-	RHI_API EReplayStatus FOperation::Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap, FBreadcrumbStack& Breadcrumbs) const
+	EReplayStatus FOperation::Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap, FBreadcrumbStack& Breadcrumbs) const
 	{
 		switch (Type)
 		{
@@ -1940,7 +1940,7 @@ namespace RHIValidation
 	
 	FTracker::FOpQueueState FTracker::OpQueues[int32(ERHIPipeline::Num)] = {};
 
-	RHI_API void* CaptureBacktrace()
+	void* CaptureBacktrace()
 	{
 		// Back traces will leak. Don't leave this turned on.
 		const uint32 MaxDepth = 32;

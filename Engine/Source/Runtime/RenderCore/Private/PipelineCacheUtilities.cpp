@@ -458,8 +458,6 @@ bool UE::PipelineCacheUtilities::SaveStableKeysFile(const FStringView& Filename,
 	return true;
 }
 
-extern const RHI_API uint32 FPipelineCacheFileFormatCurrentVersion;
-
 bool UE::PipelineCacheUtilities::SaveStablePipelineCacheFile(const FString& OutputFilename, const TArray<FPermsPerPSO>& StableResults, const TArray<FStableShaderKeyAndValue>& StableShaderKeyIndexTable)
 {
 	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileWriter(*OutputFilename));

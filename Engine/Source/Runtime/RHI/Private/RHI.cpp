@@ -1290,7 +1290,7 @@ ERHIAccess GRHIMergeableAccessMask = ERHIAccess::ReadOnlyMask | ERHIAccess::UAVM
 // By default, only exclusively read only accesses are allowed.
 ERHIAccess GRHIMultiPipelineMergeableAccessMask = ERHIAccess::ReadOnlyExclusiveMask;
 
-RHI_API void FRHIDrawStats::Accumulate(FRHIDrawStats& Other)
+void FRHIDrawStats::Accumulate(FRHIDrawStats& Other)
 {
 	for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
 	{
@@ -1378,39 +1378,36 @@ void FRHICommandListImmediate::ProcessStats()
 	FrameDrawStats.Reset();
 }
 
-/** Whether to initialize 3D textures using a bulk data (or through a mip update if false). */
-RHI_API bool GUseTexture3DBulkDataRHI = false;
-
 //
 // The current shader platform.
 //
 
-RHI_API EShaderPlatform GMaxRHIShaderPlatform = SP_PCD3D_SM5;
+EShaderPlatform GMaxRHIShaderPlatform = SP_PCD3D_SM5;
 
 /** The maximum feature level supported on this machine */
-RHI_API ERHIFeatureLevel::Type GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
+ERHIFeatureLevel::Type GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
 
-RHI_API bool IsRHIDeviceAMD()
+bool IsRHIDeviceAMD()
 {
 	check(GRHIVendorId != 0);
 	// AMD's drivers tested on July 11 2013 have hitching problems with async resource streaming, setting single threaded for now until fixed.
 	return GRHIVendorId == 0x1002;
 }
 
-RHI_API bool IsRHIDeviceIntel()
+bool IsRHIDeviceIntel()
 {
 	check(GRHIVendorId != 0);
 	return GRHIVendorId == 0x8086;
 }
 
-RHI_API bool IsRHIDeviceNVIDIA()
+bool IsRHIDeviceNVIDIA()
 {
 	check(GRHIVendorId != 0);
 	// NVIDIA GPUs are discrete and use DedicatedVideoMemory only.
 	return GRHIVendorId == 0x10DE;
 }
 
-RHI_API uint32 RHIGetMetalShaderLanguageVersion(const FStaticShaderPlatform Platform)
+uint32 RHIGetMetalShaderLanguageVersion(const FStaticShaderPlatform Platform)
 {
     if (IsMetalPlatform(Platform))
 	{
@@ -1443,7 +1440,8 @@ RHI_API uint32 RHIGetMetalShaderLanguageVersion(const FStaticShaderPlatform Plat
 }
 
 static ERHIFeatureLevel::Type GRHIMobilePreviewFeatureLevel = ERHIFeatureLevel::Num;
-RHI_API void RHISetMobilePreviewFeatureLevel(ERHIFeatureLevel::Type MobilePreviewFeatureLevel)
+
+void RHISetMobilePreviewFeatureLevel(ERHIFeatureLevel::Type MobilePreviewFeatureLevel)
 {
 	check(GRHIMobilePreviewFeatureLevel == ERHIFeatureLevel::Num);
 	check(!GIsEditor);
@@ -1469,7 +1467,7 @@ bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT)
 	return true;
 }
 
- RHI_API EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat)
+EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat)
 {
 	if (GDynamicRHI)
 	{
@@ -1478,7 +1476,7 @@ bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT)
 	return PreferredPixelFormat;
 }
 
-RHI_API int32 RHIGetPreferredClearUAVRectPSResourceType(const FStaticShaderPlatform Platform)
+int32 RHIGetPreferredClearUAVRectPSResourceType(const FStaticShaderPlatform Platform)
 {
 	if (IsMetalPlatform(Platform))
 	{

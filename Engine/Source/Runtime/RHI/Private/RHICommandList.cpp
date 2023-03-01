@@ -89,7 +89,7 @@ static FAutoConsoleTaskPriority CPrio_FParallelTranslateCommandListPrepass(
 	ENamedThreads::HighTaskPriority
 );
 
-RHI_API FAutoConsoleTaskPriority CPrio_SceneRenderingTask(
+FAutoConsoleTaskPriority CPrio_SceneRenderingTask(
 	TEXT("TaskGraph.TaskPriorities.SceneRenderingTask"),
 	TEXT("Task and thread priority for various scene rendering tasks."),
 	ENamedThreads::NormalThreadPriority,
@@ -121,8 +121,8 @@ uint64 GInputLatencyTime = 0;
 
 FRHICommandBase* GCurrentCommand = nullptr;
 
-RHI_API bool GEnableAsyncCompute = true;
-RHI_API FRHICommandListExecutor GRHICommandList;
+bool GEnableAsyncCompute = true;
+FRHICommandListExecutor GRHICommandList;
 
 FGraphEventArray FRHICommandListImmediate::WaitOutstandingTasks;
 FGraphEventRef   FRHICommandListImmediate::RHIThreadTask;

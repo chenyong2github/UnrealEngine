@@ -517,12 +517,12 @@ FRHIFrameFlipTrackingRunnable FRHIFrameFlipTrackingRunnable::Singleton;
 bool FRHIFrameFlipTrackingRunnable::bInitialized = false;
 bool FRHIFrameFlipTrackingRunnable::bRun = false;
 
-RHI_API uint32 RHIGetSyncInterval()
+uint32 RHIGetSyncInterval()
 {
 	return FMath::Max(CVarRHISyncInterval.GetValueOnAnyThread(), 0);
 }
 
-RHI_API float RHIGetSyncSlackMS()
+float RHIGetSyncSlackMS()
 {
 #if USE_FRAME_OFFSET_THREAD
 	const float SyncSlackMS = CVarRHISyncSlackMS.GetValueOnAnyThread();
@@ -532,30 +532,30 @@ RHI_API float RHIGetSyncSlackMS()
 	return SyncSlackMS;
 }
 
-RHI_API bool RHIGetSyncAllowVariable()
+bool RHIGetSyncAllowVariable()
 {
 	return CVarRHISyncAllowVariable.GetValueOnAnyThread() != 0;
 }
 
-RHI_API void RHIGetPresentThresholds(float& OutTopPercent, float& OutBottomPercent)
+void RHIGetPresentThresholds(float& OutTopPercent, float& OutBottomPercent)
 {
 	OutTopPercent = FMath::Clamp(CVarRHIPresentThresholdTop.GetValueOnAnyThread(), 0.0f, 1.0f);
 	OutBottomPercent = FMath::Clamp(CVarRHIPresentThresholdBottom.GetValueOnAnyThread(), 0.0f, 1.0f);
 }
 
-RHI_API void RHICompleteGraphEventOnFlip(uint64 PresentIndex, FGraphEventRef Event)
+void RHICompleteGraphEventOnFlip(uint64 PresentIndex, FGraphEventRef Event)
 {
 	FRHIFrameFlipTrackingRunnable::CompleteGraphEventOnFlip(PresentIndex, Event);
 }
 
-RHI_API void RHISetFrameDebugInfo(uint64 PresentIndex, uint64 FrameIndex, uint64 InputTime)
+void RHISetFrameDebugInfo(uint64 PresentIndex, uint64 FrameIndex, uint64 InputTime)
 {
 #if USE_FRAME_OFFSET_THREAD
 	FRHIFrameOffsetThread::SetFrameDebugInfo(PresentIndex, FrameIndex, InputTime);
 #endif
 }
 
-RHI_API void RHIInitializeFlipTracking()
+void RHIInitializeFlipTracking()
 {
 #if USE_FRAME_OFFSET_THREAD
 	FRHIFrameOffsetThread::Initialize();
@@ -563,19 +563,19 @@ RHI_API void RHIInitializeFlipTracking()
 	FRHIFrameFlipTrackingRunnable::Initialize();
 }
 
-RHI_API void RHICalculateFrameTime()
+void RHICalculateFrameTime()
 {
 	double CurrentTimeInSeconds = FPlatformTime::Seconds();
 	GRHIFrameTimeMS = (float)((CurrentTimeInSeconds - GLastRHITimeInSeconds) * 1000.0);
 	GLastRHITimeInSeconds = CurrentTimeInSeconds;
 }
 
-RHI_API float RHIGetFrameTime()
+float RHIGetFrameTime()
 {
 	return GRHIFrameTimeMS;
 }
 
-RHI_API void RHIShutdownFlipTracking()
+void RHIShutdownFlipTracking()
 {
 	FRHIFrameFlipTrackingRunnable::Shutdown();
 #if USE_FRAME_OFFSET_THREAD
@@ -583,7 +583,7 @@ RHI_API void RHIShutdownFlipTracking()
 #endif
 }
 
-RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool bInHasInitialData)
+ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool bInHasInitialData)
 {
 	// By default assume it can be bound for reading
 	ERHIAccess ResourceState = ERHIAccess::SRVMask;
@@ -615,7 +615,7 @@ RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool 
 	return ResourceState;
 }
 
-RHI_API ERHIAccess RHIGetDefaultResourceState(EBufferUsageFlags InUsage, bool bInHasInitialData)
+ERHIAccess RHIGetDefaultResourceState(EBufferUsageFlags InUsage, bool bInHasInitialData)
 {
 	// Default reading state is different per buffer type
 	ERHIAccess DefaultReadingState = ERHIAccess::Unknown;

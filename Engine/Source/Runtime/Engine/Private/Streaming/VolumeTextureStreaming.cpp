@@ -8,8 +8,6 @@ VolumeTextureStreaming.cpp: Helpers to stream in and out volume texture LODs.
 #include "RenderingThread.h"
 #include "Streaming/TextureMipAllocator.h"
 
-extern RHI_API bool GUseTexture3DBulkDataRHI;
-
 //*****************************************************************************
 //******************** FVolumeTextureMipAllocator_Reallocate ******************
 //*****************************************************************************

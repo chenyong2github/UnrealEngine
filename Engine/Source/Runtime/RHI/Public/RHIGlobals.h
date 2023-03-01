@@ -212,8 +212,11 @@ struct FRHIGlobals
 	/** True if the RHI has artifacts with atlased CSM depths. */
 	bool NeedsUnatlasedCSMDepthsWorkaround = false;
 
-	/** true if the RHI supports 3D textures */
+	/** Whether to initialize 3D textures using a bulk data (or through a mip update if false). */
 	bool SupportsTexture3D = true;
+
+	/** true if bulk data should be used with 3d textures */
+	bool UseTexture3DBulkData = false;
 
 	/** true if the RHI supports mobile multi-view */
 	bool SupportsMobileMultiView = false;
@@ -619,6 +622,7 @@ extern RHI_API FRHIGlobals GRHIGlobals;
 #define GSupportsSeparateRenderTargetBlendState                GRHIGlobals.SupportsSeparateRenderTargetBlendState
 #define GRHINeedsUnatlasedCSMDepthsWorkaround                  GRHIGlobals.NeedsUnatlasedCSMDepthsWorkaround
 #define GSupportsTexture3D                                     GRHIGlobals.SupportsTexture3D
+#define GUseTexture3DBulkDataRHI                               GRHIGlobals.UseTexture3DBulkData
 #define GSupportsMobileMultiView                               GRHIGlobals.SupportsMobileMultiView
 #define GSupportsImageExternal                                 GRHIGlobals.SupportsImageExternal
 #define GSupportsWideMRT                                       GRHIGlobals.SupportsWideMRT
