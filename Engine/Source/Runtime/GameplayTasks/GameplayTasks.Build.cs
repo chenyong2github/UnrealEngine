@@ -25,6 +25,8 @@ namespace UnrealBuildTool.Rules
 				CircularlyReferencedDependentModules.Add("UnrealEd");
                 //PrivateDependencyModuleNames.Add("GameplayTagsEditor");
 			}
+
+			SetupIrisSupport(Target);
 		}
 	}
 }

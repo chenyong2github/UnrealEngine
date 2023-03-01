@@ -310,6 +310,11 @@ protected:
 	virtual void OnGameplayTaskDeactivated(UGameplayTask& Task) override;
 	// IGameplayTaskOwnerInterface END
 
+#if UE_WITH_IRIS
+	/** Register all replication fragments */
+	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
+#endif // UE_WITH_IRIS
+
 private:
 	friend UGameplayTasksComponent;
 
