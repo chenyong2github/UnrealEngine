@@ -51,6 +51,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	EGameplayInteractionTaskTrigger Trigger = EGameplayInteractionTaskTrigger::OnEnterState;
 
+	/** If false, will not trigger on state reselection. */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bShouldTriggerOnReselect = true;
+
 	/** Handle to retrieve USmartObjectSubsystem. */
 	TStateTreeExternalDataHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
 };
