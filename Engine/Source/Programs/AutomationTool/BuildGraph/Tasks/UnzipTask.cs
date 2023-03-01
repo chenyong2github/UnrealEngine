@@ -38,6 +38,12 @@ namespace AutomationTool.Tasks
 		public bool UseLegacyUnzip = false;
 
 		/// <summary>
+		/// Whether or not to overwrite files during unzip.
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public bool OverwriteFiles = true;
+
+		/// <summary>
 		/// Tag to be applied to the extracted files.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
@@ -83,11 +89,11 @@ namespace AutomationTool.Tasks
 			{
 				if (Parameters.UseLegacyUnzip)
 				{
-					OutputFiles.UnionWith(CommandUtils.LegacyUnzipFiles(ZipFile.FullName, ToDir.FullName).Select(x => new FileReference(x)));
+					OutputFiles.UnionWith(CommandUtils.LegacyUnzipFiles(ZipFile.FullName, ToDir.FullName, Parameters.OverwriteFiles).Select(x => new FileReference(x)));
 				}
 				else
 				{
-					OutputFiles.UnionWith(CommandUtils.UnzipFiles(ZipFile, ToDir));
+					OutputFiles.UnionWith(CommandUtils.UnzipFiles(ZipFile, ToDir, Parameters.OverwriteFiles));
 				}
 			}
 
