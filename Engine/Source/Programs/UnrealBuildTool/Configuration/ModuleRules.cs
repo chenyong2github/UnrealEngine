@@ -802,6 +802,11 @@ namespace UnrealBuildTool
 		private WarningLevel ShadowVariableWarningLevelPrivate;
 
 		/// <summary>
+		/// Whether to enable all warnings as errors. UE enables most warnings as errors already, but disables a few (such as deprecation warnings).
+		/// </summary>`
+		public bool bWarningsAsErrors = false;
+
+		/// <summary>
 		/// How to treat unsafe implicit type cast warnings (e.g., double->float or int64->int32)
 		/// </summary>
 		public WarningLevel UnsafeTypeCastWarningLevel
