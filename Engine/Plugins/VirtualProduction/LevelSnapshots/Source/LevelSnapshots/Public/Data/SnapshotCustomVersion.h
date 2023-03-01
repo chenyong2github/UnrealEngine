@@ -42,6 +42,9 @@ namespace UE::LevelSnapshots
 			 */
 			NonEditableComponentsAreCaptured = 7,
 
+			/** FActorSnapshotHash::Serialize was not implemented correctly (typo with TStructOpsTypeTraits using WithSerialize instead of WithSerializer). */
+			FixActorHashSerialize = 8,
+
 			// -----<new versions can be added above this line>-------------------------------------------------
 			VersionPlusOne,
 			LatestVersion = VersionPlusOne - 1
