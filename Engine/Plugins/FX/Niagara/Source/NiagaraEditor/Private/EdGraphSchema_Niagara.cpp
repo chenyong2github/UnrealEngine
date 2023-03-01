@@ -2193,6 +2193,11 @@ TArray<TPair<FString, FString>> UEdGraphSchema_Niagara::GetDataInterfaceFunction
 			FunctionPrototypes.Reserve(FunctionSignatures.Num());
 			for (const FNiagaraFunctionSignature& FunctionSignature : FunctionSignatures)
 			{
+				if (FunctionSignature.bSoftDeprecatedFunction || FunctionSignature.bHidden )
+				{
+					continue;
+				}
+
 				FString Prototype = FHlslNiagaraTranslator::GenerateFunctionHlslPrototype(DataInterfaceName, FunctionSignature);
 				if ( Prototype.Len() > 0 )
 				{
