@@ -14343,7 +14343,7 @@ void UMaterialFunction::PostLoad()
 		{
 			// Force this function to recompile because its expressions have changed
 			// Which means removing an expression class will cause the need for a resave of all materials affected
-			UE_LOG(LogMaterial, Warning, TEXT("Please resave %s.  It is missing a material expression and this will cause any material using this function to recompile shaders each time it loads."), *GetFullName());
+			UE_LOG(LogMaterial, Log, TEXT("Please resave %s.  It is missing a material expression and this will cause any material using this function to recompile shaders each time it loads."), *GetFullName());
 			StateId = FGuid::NewGuid();
 		}
 	}
