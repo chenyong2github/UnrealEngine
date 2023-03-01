@@ -13,9 +13,9 @@
 namespace UE::Virtualization
 {
 
-TArray<FString> FindAllPackages()
+TArray<FString> FindPackages(EFindPackageFlags Flags)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FindAllPackages);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FindPackages);
 
 	TArray<FString> PackagePaths;
 
@@ -30,7 +30,9 @@ TArray<FString> FindAllPackages()
 
 	const FString EnginePath = FPaths::EngineDir();
 
-	AssetRegistry.Get().EnumerateAllPackages([&PackagePaths, EnginePath](FName PackageName, const FAssetPackageData& PackageData)
+	const bool bFilterEngineContent = Flags & EFindPackageFlags::ExcludeEngineContent;
+
+	AssetRegistry.Get().EnumerateAllPackages([&PackagePaths, EnginePath, bFilterEngineContent](FName PackageName, const FAssetPackageData& PackageData)
 		{
 			FString RelFileName;
 			if (PackageData.Extension != EPackageExtension::Unspecified && PackageData.Extension != EPackageExtension::Custom)
@@ -41,7 +43,7 @@ TArray<FString> FindAllPackages()
 					FString StdFileName = FPaths::CreateStandardFilename(RelFileName);
 				
 					// Now we have the absolute file path we can filter out engine packages
-					if (!StdFileName.StartsWith(EnginePath))
+					if (!bFilterEngineContent || !StdFileName.StartsWith(EnginePath))
 					{
 						PackagePaths.Emplace(MoveTemp(StdFileName));
 					}
@@ -68,7 +70,7 @@ TArray<FString> FindPackagesInDirectory(const FString& DirectoryToSearch)
 	return PackageNames;
 }
 
-TArray<FString> DiscoverPackages(const FString& CmdlineParams)
+TArray<FString> DiscoverPackages(const FString& CmdlineParams, EFindPackageFlags Flags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(DiscoverPackages);
 
@@ -79,7 +81,7 @@ TArray<FString> DiscoverPackages(const FString& CmdlineParams)
 	}
 	else
 	{
-		return FindAllPackages();
+		return FindPackages(Flags);
 	}
 }
 

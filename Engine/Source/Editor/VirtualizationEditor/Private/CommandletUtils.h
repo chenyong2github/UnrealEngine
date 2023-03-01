@@ -11,8 +11,19 @@ namespace UE { class FPackageTrailer; }
 namespace UE::Virtualization
 {
 
-/** Parse all of the active mount points and find all packages */
-TArray<FString> FindAllPackages();
+/** Used to customize package discovery behavior */
+enum EFindPackageFlags
+{
+	None = 0,
+	/** Do not return packages mounted to the engine or engine plugins */
+	ExcludeEngineContent = 1 << 0
+};
+
+/** 
+ * Parse all of the active mount points for the current project and returns the
+ * packages found.
+ */
+TArray<FString> FindPackages(EFindPackageFlags Flags);
 
 /** Finds all of the packages under a given directory including its subdirectories */
 TArray<FString> FindPackagesInDirectory(const FString& DirectoryToSearch);
@@ -28,7 +39,7 @@ TArray<FString> FindPackagesInDirectory(const FString& DirectoryToSearch);
  * @param CmdlineParams A string containing the command line
  * @return An array with the file path for each package found
  */
-TArray<FString> DiscoverPackages(const FString& CmdlineParams);
+TArray<FString> DiscoverPackages(const FString& CmdlineParams, EFindPackageFlags Flags);
 
 /** Returns a combined list of unique virtualized payload ids from the given list of packages */
 TArray<FIoHash> FindVirtualizedPayloads(const TArray<FString>& PackageNames);

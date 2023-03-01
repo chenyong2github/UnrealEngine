@@ -27,7 +27,7 @@ int32 UVirtualizeProjectCommandlet::Main(const FString& Params)
 	}
 
 	UE_LOG(LogVirtualization, Display, TEXT("Scanning for project packages..."));
-	TArray<FString> Packages = UE::Virtualization::FindAllPackages();
+	TArray<FString> Packages = UE::Virtualization::FindPackages(UE::Virtualization::EFindPackageFlags::ExcludeEngineContent);
 
 	UE_LOG(LogVirtualization, Display, TEXT("Virtualizing packages..."));
 

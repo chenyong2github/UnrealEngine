@@ -18,7 +18,7 @@ int32 UValidateVirtualizedContentCommandlet::Main(const FString& Params)
 	TRACE_CPUPROFILER_EVENT_SCOPE(UValidateVirtualizedContentCommandlet);
 
 	UE_LOG(LogVirtualization, Display, TEXT("Finding packages in the project..."));
-	TArray<FString> PackagePaths = FindAllPackages();
+	TArray<FString> PackagePaths = FindPackages(EFindPackageFlags::ExcludeEngineContent);
 	UE_LOG(LogVirtualization, Display, TEXT("Found %d package(s)"), PackagePaths.Num());
 
 	TMap<FString, UE::FPackageTrailer> Packages;

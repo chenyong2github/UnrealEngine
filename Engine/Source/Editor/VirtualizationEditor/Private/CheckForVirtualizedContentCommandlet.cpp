@@ -52,7 +52,7 @@ int32 UCheckForVirtualizedContentCommandlet::Main(const FString& Params)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(SortAllPackages);
 
-		TArray<FString> AllPackages = UE::Virtualization::FindAllPackages();
+		TArray<FString> AllPackages = UE::Virtualization::FindPackages(UE::Virtualization::EFindPackageFlags::None);
 
 		const FString EngineDir = FPaths::EngineDir();
 
