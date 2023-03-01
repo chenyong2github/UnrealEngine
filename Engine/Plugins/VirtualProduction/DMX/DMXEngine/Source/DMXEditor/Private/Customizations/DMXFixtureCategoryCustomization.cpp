@@ -50,11 +50,6 @@ void FDMXFixtureCategoryCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 			.bDisplayWarningIcon(true)
 			.OnValueChanged(this, &FDMXFixtureCategoryCustomization::SetValue)
 		];
-
-	ProtocolSettings->GetOnDefaultAttributesChanged().AddLambda([PropertyUtilities]()
-		{
-			PropertyUtilities->ForceRefresh();
-		});
 }
 
 void FDMXFixtureCategoryCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
