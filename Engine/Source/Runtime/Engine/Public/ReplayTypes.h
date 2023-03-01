@@ -19,6 +19,8 @@
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogDemo, Log, All);
 
 class UNetConnection;
+enum class EChannelCloseReason : uint8;
+enum ELifetimeCondition : int;
 
 enum class EReplayHeaderFlags : uint32
 {

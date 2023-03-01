@@ -24,6 +24,7 @@
 #include "Net/Core/Trace/NetDebugName.h"
 #include "DequantizeAndApplyHelper.h"
 #include "HAL/IConsoleManager.h"
+#include "UObject/CoreNetTypes.h"
 
 namespace UE::Net::Private
 {

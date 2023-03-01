@@ -119,6 +119,12 @@ void UBlueprint::ConformNativeComponents()
 //////////////////////////////////////////////////////////////////////////
 // FBPVariableDescription
 
+FBPVariableDescription::FBPVariableDescription()
+	: PropertyFlags(CPF_Edit)
+	, ReplicationCondition(ELifetimeCondition::COND_None)
+{
+}
+
 int32 FBPVariableDescription::FindMetaDataEntryIndexForKey(const FName Key) const
 {
 	for(int32 i=0; i<MetaDataArray.Num(); i++)

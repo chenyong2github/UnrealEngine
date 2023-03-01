@@ -292,11 +292,7 @@ struct FBPVariableDescription
 	UPROPERTY(EditAnywhere, Category=BPVariableDescription)
 	FString DefaultValue;
 
-	FBPVariableDescription()
-		: PropertyFlags(CPF_Edit)
-		, ReplicationCondition(ELifetimeCondition::COND_None)
-	{
-	}
+	ENGINE_API FBPVariableDescription();
 
 	/** Set a metadata value on the variable */
 	ENGINE_API void SetMetaData(FName Key, FString Value);

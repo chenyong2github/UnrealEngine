@@ -48,7 +48,6 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Trace/Detail/Channel.h"
 #include "UObject/Class.h"
-#include "UObject/CoreNetTypes.h"
 #include "UObject/Field.h"
 #include "UObject/LazyObjectPtr.h"
 #include "UObject/NameTypes.h"
@@ -71,6 +70,7 @@ class FBlake3;
 class FOutputDevice;
 class UPackageMap;
 class UPropertyWrapper;
+enum ELifetimeCondition : int;
 struct CGetTypeHashable;
 struct FUObjectSerializeContext;
 template <typename FuncType> class TFunctionRef;
