@@ -29,8 +29,6 @@ public class Engine : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				Path.Combine(GetModuleDirectory("NetCore"), "Private"),
-				Path.Combine(GetModuleDirectory("SynthBenchmark"), "Private"),
-				Path.Combine(GetModuleDirectory("Virtualization"), "Private"),
 			}
 		);
 
