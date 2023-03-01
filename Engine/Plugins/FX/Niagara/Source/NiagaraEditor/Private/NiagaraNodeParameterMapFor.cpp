@@ -38,6 +38,25 @@ void UNiagaraNodeParameterMapFor::GetPinHoverText(const UEdGraphPin& Pin, FStrin
 	Super::GetPinHoverText(Pin, HoverTextOut);
 }
 
+bool UNiagaraNodeParameterMapFor::CanModifyPin(const UEdGraphPin* Pin) const
+{
+	if(Super::CanModifyPin(Pin) == false)
+	{
+		return false;
+	}
+
+	FPinCollectorArray InputPins;
+	GetInputPins(InputPins);
+
+	// we don't allow the modification of the iteration count pin
+	if(Pin == InputPins[1])
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void UNiagaraNodeParameterMapFor::Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
 {
 	FPinCollectorArray InputPins;
@@ -131,6 +150,25 @@ void UNiagaraNodeParameterMapForWithContinue::GetPinHoverText(const UEdGraphPin&
 		return;
 	}
 	Super::GetPinHoverText(Pin, HoverTextOut);
+}
+
+bool UNiagaraNodeParameterMapForWithContinue::CanModifyPin(const UEdGraphPin* Pin) const
+{
+	if(Super::CanModifyPin(Pin) == false)
+	{
+		return false;
+	}
+
+	FPinCollectorArray InputPins;
+	GetInputPins(InputPins);
+
+	// we don't allow the modification of the iteration count pin or the iteration enabled pin
+	if(Pin == InputPins[1] || Pin == InputPins[2])
+	{
+		return false;
+	}
+
+	return true;
 }
 
 bool UNiagaraNodeParameterMapForWithContinue::SkipPinCompilation(UEdGraphPin* Pin) const

@@ -52,6 +52,8 @@ public:
 	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() override { return EEdGraphPinDirection::EGPD_Output; };
 
 protected:
+	virtual bool CanModifyPin(const UEdGraphPin* Pin) const override;
+	
 	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) override;
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
 	virtual void OnPinRemoved(UEdGraphPin* InRemovedPin) override;

@@ -49,9 +49,6 @@ public:
 	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
 	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_MAX; };
 
-	/** Will remove any dynamic pins. */
-	void RemoveAllDynamicPins();
-
 protected:
 	virtual bool AllowDynamicPins() const { return true; }
 
@@ -70,15 +67,15 @@ protected:
 
 	virtual bool CanRenamePinFromContextMenu(const UEdGraphPin* Pin) const { return CanRenamePin(Pin); }
 
+	/** Called to determine if this node can modify a given pin at all. */
+	virtual bool CanModifyPin(const UEdGraphPin* Pin) const;
+	
 	/** Called to determine if a pin can be renamed by the user. */
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const;
 
 	/** Called to determine if a pin can be removed by the user. */
 	virtual bool CanRemovePin(const UEdGraphPin* Pin) const;
-
-	/** Called to determine if this node can modify pins that existed on node creation and were not added dynamically. If true, the only pin that cannot be modified is the Add pin. */
-	virtual bool CanModifyExistingPins() const { return true; }
-
+	
 	/** Called to determine if a pin can be moved by the user. Negative values for up, positive for down. */
 	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const;
 
@@ -109,8 +106,4 @@ private:
 public:
 	/** The sub category for add pins. */
 	static const FName AddPinSubCategory;
-
-	/** Track dynamic pins so that we only allow removing of dynamic pins. */
-	UPROPERTY()
-	TArray<FGuid> DynamicPins;
 };

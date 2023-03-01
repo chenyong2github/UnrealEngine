@@ -112,6 +112,7 @@ protected:
 	virtual TArray<int32> GetOptionValues() const override;
 	//~ End UNiagaraNodeUsageSelector Interface
 
+	virtual bool CanModifyPin(const UEdGraphPin* Pin) const override;
 private:
 	/** INotifyOnEnumChanged interface */
 	virtual void PreChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType) override;

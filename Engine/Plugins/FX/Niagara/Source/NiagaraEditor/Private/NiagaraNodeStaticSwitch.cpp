@@ -124,6 +124,16 @@ TArray<int32> UNiagaraNodeStaticSwitch::GetOptionValues() const
 	return OptionValues;
 }
 
+bool UNiagaraNodeStaticSwitch::CanModifyPin(const UEdGraphPin* Pin) const
+{
+	if(IsAddPin(Pin))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void UNiagaraNodeStaticSwitch::PreChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
 {
 	// do nothing

@@ -56,7 +56,6 @@ public:
 
 protected:
 	virtual bool AllowDynamicPins() const override { return true; }
-	virtual bool CanModifyExistingPins() const { return true; }
 	virtual bool GetValidateDataInterfaces() const override { return false; }
 	virtual bool VerifyEditablePinName(const FText& InName, FText& OutErrorMessage, const UEdGraphPin* InGraphPinObj) const override;
 	virtual bool IsPinNameEditableUponCreation(const UEdGraphPin* Pin) const override;

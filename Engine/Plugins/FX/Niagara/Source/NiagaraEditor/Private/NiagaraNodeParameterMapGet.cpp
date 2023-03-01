@@ -198,6 +198,16 @@ void UNiagaraNodeParameterMapGet::OnPinRemoved(UEdGraphPin* InRemovedPin)
 	Super::OnPinRemoved(InRemovedPin);
 }
 
+bool UNiagaraNodeParameterMapGet::CanModifyPin(const UEdGraphPin* Pin) const
+{
+	if(Super::CanModifyPin(Pin) == false || Pin->Direction == EGPD_Input)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 {
 	if (NewPin->Direction == EEdGraphPinDirection::EGPD_Output)

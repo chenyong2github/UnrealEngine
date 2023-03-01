@@ -108,7 +108,6 @@ void UNiagaraNodeFunctionCall::PostLoad()
 		const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 		if (NiagaraVer < FNiagaraCustomVersion::DynamicPinNodeFixup && AllowDynamicPins())
 		{
-			DynamicPins.Empty();
 			bool bFoundInputAdd = false;
 			bool bFoundOutputAdd = false;
 			for (const UEdGraphPin* Pin : Pins)
@@ -123,10 +122,6 @@ void UNiagaraNodeFunctionCall::PostLoad()
 					{
 						bFoundOutputAdd = true;
 					}
-				}
-				else
-				{
-					DynamicPins.Add(Pin->PinId);
 				}
 			}
 
@@ -262,6 +257,34 @@ void UNiagaraNodeFunctionCall::AddOrphanedStaticSwitchPinForDataRetention(FNiaga
 	NewPin->bOrphanedPin = true;
 }
 
+void UNiagaraNodeFunctionCall::RemoveAllDynamicPins()
+{
+	FScopedTransaction RemovePinTransaction(LOCTEXT("RemoveAllDynamicPinsTransaction", "Remove all dynamic pins"));
+	if(AllowDynamicPins())
+	{
+		FPinCollectorArray PinArray;
+		GetInputPins(PinArray);
+
+		for(UEdGraphPin* Pin : PinArray)
+		{
+			if(CanModifyPin(Pin) && IsBaseSignatureOfDataInterfaceFunction(Pin) == false)
+			{
+				RemoveDynamicPin(Pin);
+			}
+		}
+
+		GetOutputPins(PinArray);
+
+		for(UEdGraphPin* Pin : PinArray)
+		{
+			if(CanModifyPin(Pin) && IsBaseSignatureOfDataInterfaceFunction(Pin) == false)
+			{
+				RemoveDynamicPin(Pin);
+			}
+		}
+	}
+}
+
 UEdGraphPin* UNiagaraNodeFunctionCall::AddStaticSwitchInputPin(FNiagaraVariable Input)
 {
 	UNiagaraGraph* Graph = GetCalledGraph();
@@ -296,6 +319,24 @@ UEdGraphPin* UNiagaraNodeFunctionCall::AddStaticSwitchInputPin(FNiagaraVariable 
 	}
 
 	return NewPin;
+}
+
+bool UNiagaraNodeFunctionCall::CanModifyPin(const UEdGraphPin* Pin) const
+{
+	if(IsAddPin(Pin))
+	{
+		return false;
+	}
+	
+	if(Signature.IsValid() && (Signature.VariadicInput() || Signature.VariadicOutput()))
+	{
+		if(IsBaseSignatureOfDataInterfaceFunction(Pin) == false)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void UNiagaraNodeFunctionCall::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -1587,11 +1628,12 @@ void UNiagaraNodeFunctionCall::RefreshSignature()
 
 				for (int32 i = 0; i < FoundPins.Num(); ++i)
 				{
-					UEdGraphPin* Pin = FoundPins[i];
+					UEdGraphPin* InputPin = FoundPins[i];
+					FNiagaraVariable InputVariable = UEdGraphSchema_Niagara::PinToNiagaraVariable(InputPin);
 
-					if (DynamicPins.Contains(Pin->PinId))
+					if(!BaseSig->Inputs.Contains(InputVariable))
 					{
-						Signature.AddInput(UEdGraphSchema_Niagara::PinToNiagaraVariable(Pin), FText::FromString(Pin->PinToolTip));
+						Signature.AddInput(InputVariable, FText::FromString(InputPin->PinToolTip));
 					}
 				}
 
@@ -1599,11 +1641,12 @@ void UNiagaraNodeFunctionCall::RefreshSignature()
 
 				for (int32 i = 0; i < FoundPins.Num(); ++i)
 				{
-					UEdGraphPin* Pin = FoundPins[i];
+					UEdGraphPin* OutputPin = FoundPins[i];
+					FNiagaraVariable InputVariable = UEdGraphSchema_Niagara::PinToNiagaraVariable(OutputPin);
 
-					if (DynamicPins.Contains(Pin->PinId))
+					if(!BaseSig->Outputs.Contains(InputVariable))
 					{
-						Signature.AddOutput(UEdGraphSchema_Niagara::PinToNiagaraVariable(Pin), FText::FromString(Pin->PinToolTip));
+						Signature.AddOutput(UEdGraphSchema_Niagara::PinToNiagaraVariable(OutputPin), FText::FromString(OutputPin->PinToolTip));
 					}
 				}
 
@@ -1612,6 +1655,41 @@ void UNiagaraNodeFunctionCall::RefreshSignature()
 		}
 	}
 	Signature = FNiagaraFunctionSignature();
+}
+
+bool UNiagaraNodeFunctionCall::IsBaseSignatureOfDataInterfaceFunction(const UEdGraphPin* Pin) const
+{
+	if ((Signature.Inputs.Num() > 0) && Signature.Inputs[0].GetType().IsDataInterface())
+	{
+		UNiagaraDataInterface* CDO = CastChecked<UNiagaraDataInterface>(Signature.Inputs[0].GetType().GetClass()->GetDefaultObject());
+		TArray<FNiagaraFunctionSignature> BaseDIFuncs;
+		CDO->GetFunctions(BaseDIFuncs);
+		if (FNiagaraFunctionSignature* BaseSig = BaseDIFuncs.FindByPredicate([&](const FNiagaraFunctionSignature& CheckSig) { return Signature.Name == CheckSig.Name; }))
+		{
+			FPinCollectorArray FoundPins;
+			TArray<FNiagaraVariable> InputOrOutputVariables;
+
+			if(Pin->Direction == EGPD_Input)
+			{
+				GetInputPins(FoundPins);
+				InputOrOutputVariables = BaseSig->Inputs;
+			}
+			else
+			{
+				GetOutputPins(FoundPins);
+				InputOrOutputVariables = BaseSig->Outputs;
+			}
+			
+			FNiagaraVariable Variable = UEdGraphSchema_Niagara::PinToNiagaraVariable(Pin);
+
+			if(InputOrOutputVariables.Contains(Variable))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 void UNiagaraNodeFunctionCall::ComputeNodeName(FString SuggestedName, bool bForceSuggestion)

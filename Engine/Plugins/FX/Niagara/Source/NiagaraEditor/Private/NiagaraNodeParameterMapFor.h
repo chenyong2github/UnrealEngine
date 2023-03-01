@@ -24,6 +24,8 @@ public:
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	
 protected:
+	virtual bool CanModifyPin(const UEdGraphPin* Pin) const override;
+	
 	virtual bool SkipPinCompilation(UEdGraphPin* Pin) const override;
 };
 
@@ -42,6 +44,7 @@ public:
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	
 protected:
+	virtual bool CanModifyPin(const UEdGraphPin* Pin) const override;
 	virtual bool SkipPinCompilation(UEdGraphPin* Pin) const override;
 };
 

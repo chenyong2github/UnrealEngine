@@ -158,18 +158,13 @@ void UNiagaraNodeParameterMapBase::SetPinName(UEdGraphPin* InPin, const FName& I
 
 bool UNiagaraNodeParameterMapBase::CanRenamePin(const UEdGraphPin* Pin) const
 {
-	if (IsAddPin(Pin))
+	if(Super::CanRenamePin(Pin) == false)
 	{
 		return false;
 	}
 
 	FText Unused;
 	return FNiagaraParameterUtilities::TestCanRenameWithMessage(Pin->PinName, Unused);
-}
-
-bool UNiagaraNodeParameterMapBase::CanRemovePin(const UEdGraphPin* Pin) const
-{
-	return IsAddPin(Pin) == false && IsParameterMapPin(Pin) == false;
 }
 
 bool UNiagaraNodeParameterMapBase::GetIsPinEditNamespaceModifierPending(const UEdGraphPin* Pin)

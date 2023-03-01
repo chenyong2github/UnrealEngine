@@ -187,16 +187,17 @@ public:
 		orphaned. This allows a previously available static switch value to be retained on the node even if the the switch is no longer exposed. */
 	void AddOrphanedStaticSwitchPinForDataRetention(FNiagaraVariableBase StaticSwitchVariable, const FString& StaticSwitchPinDefault);
 
+	void RemoveAllDynamicPins();
 protected:
 	UEdGraphPin* AddStaticSwitchInputPin(FNiagaraVariable Input);
 
 	virtual bool GetValidateDataInterfaces() const { return true; };
 
 	virtual bool AllowDynamicPins() const override { return Signature.VariadicInput() || Signature.VariadicOutput(); }
+	virtual bool CanModifyPin(const UEdGraphPin* Pin) const override;
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override { return AllowDynamicPins() && Super::CanRenamePin(Pin); }
 	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override { return AllowDynamicPins() && Super::CanRemovePin(Pin); }
 	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const override { return AllowDynamicPins() && Super::CanMovePin(Pin, DirectionToMove); }
-	virtual bool CanModifyExistingPins() const override { return false; }
 
 	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) override { Super::OnNewTypedPinAdded(NewPin); RefreshSignature(); }
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldPinName) override { Super::OnPinRenamed(RenamedPin, OldPinName); RefreshSignature(); }
@@ -205,6 +206,8 @@ protected:
 
 	void RefreshSignature();
 
+	bool IsBaseSignatureOfDataInterfaceFunction(const UEdGraphPin* Pin) const;
+	
 	/** Resets the node name based on the referenced script or signature. Guaranteed unique within a given graph instance.*/
 	void ComputeNodeName(FString SuggestedName = FString(), bool bForceSuggestion = false);
 

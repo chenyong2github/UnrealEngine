@@ -33,15 +33,13 @@ public:
 
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
-	virtual bool CanModifyExistingPins() const override { return false; }
 	virtual bool IncludeParentNodeContextMenu() const override { return true; }
 
 	void SetPinName(UEdGraphPin* InPin, const FName& InName);
 
 	virtual bool CanRenamePinFromContextMenu(const UEdGraphPin* Pin) const override { return false; }
-
+	
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override;
-	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override;
 	
 	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_LOCAL_MODULE_STR; }
 
