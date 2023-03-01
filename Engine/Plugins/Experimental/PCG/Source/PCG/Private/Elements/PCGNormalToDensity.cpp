@@ -7,23 +7,6 @@
 #include "PCGContext.h"
 #include "PCGPin.h"
 
-TArray<FPCGPinProperties> UPCGNormalToDensitySettings::InputPinProperties() const
-{
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial);
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections*/ false);
-
-	return PinProperties;
-}
-
-TArray<FPCGPinProperties> UPCGNormalToDensitySettings::OutputPinProperties() const
-{
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Spatial);
-
-	return PinProperties;
-}
-
 FPCGElementPtr UPCGNormalToDensitySettings::CreateElement() const
 {
 	return MakeShared<FPCGNormalToDensityElement>();
