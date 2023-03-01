@@ -1154,6 +1154,13 @@ void UControlRigGraph::RemoveNode(UEdGraphNode* InNode)
 {
 	// Make sure EdGraph is not part of the transaction
 	TGuardValue<ITransaction*> TransactionGuard(GUndo, nullptr);
+
+	// clear out the pin relationships
+	for(UEdGraphPin* Pin : InNode->Pins)
+	{
+		Pin->MarkAsGarbage();
+	}
+	InNode->Pins.Reset();
 					
 	// Rename the soon to be deleted object to a unique name, so that other objects can use
 	// the old name
@@ -1163,12 +1170,12 @@ void UControlRigGraph::RemoveNode(UEdGraphNode* InNode)
 		static int32 DeletedIndex = FMath::Rand();
 		do
 		{
-			DeletedName = FString::Printf(TEXT("%s_Deleted_%d"), *InNode->GetName(), DeletedIndex++); 
+			DeletedName = FString::Printf(TEXT("ControlRigGraph_%s_Deleted_%d"), *InNode->GetName(), DeletedIndex++); 
 			ExistingObject = StaticFindObject(/*Class=*/ NULL, this, *DeletedName, true);						
 		}
 		while (ExistingObject);
 	}
-	InNode->Rename(*DeletedName, nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors);	
+	InNode->Rename(*DeletedName, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DontCreateRedirectors);	
 	Super::RemoveNode(InNode);
 
 	NotifyGraphChanged(FEdGraphEditAction(EEdGraphActionType::GRAPHACTION_RemoveNode, this, InNode, false));

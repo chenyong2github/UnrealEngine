@@ -261,6 +261,7 @@ private:
 	TArray<URigVMPin*> InputPins;
 	TArray<URigVMPin*> OutputPins;
 	TArray<TSharedPtr<FRigVMExternalVariable>> ExternalVariables;
+	TArray<UEdGraphPin*> LastEdGraphPins;
 	
 	TMap<URigVMPin*, FPinPair> CachedPins;
 

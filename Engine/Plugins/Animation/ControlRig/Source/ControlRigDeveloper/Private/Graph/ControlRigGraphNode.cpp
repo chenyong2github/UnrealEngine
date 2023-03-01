@@ -235,12 +235,21 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 	// Clear previously set messages
 	ErrorMsg.Reset();
 
-	// Move the existing pins to a saved array
-	TArray<UEdGraphPin*> OldPins(Pins);
+	// Move the existing pins to a saved array.
+	// This way we can reuse them later
+	LastEdGraphPins = Pins;
+
+	// Also make sure to clean up any indirections
+	// on them.
+	for(UEdGraphPin* LastEdGraphPin : LastEdGraphPins)
+	{
+		LastEdGraphPin->ParentPin = nullptr;
+		LastEdGraphPin->SubPins.Reset();
+	}
 	Pins.Reset();
 
 	// Recreate the new pins
-	ReallocatePinsDuringReconstruction(OldPins);
+	ReallocatePinsDuringReconstruction(LastEdGraphPins);
 
 	// Maintain watches up to date
 	if (URigVMNode* Node = GetModelNode())
@@ -261,7 +270,10 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 		}
 	}
 	
-	RewireOldPinsToNewPins(OldPins, Pins);
+	// LogBlueprint: Warning: UEdGraphPin::DestroyImpl BasicIKSetup_0.UpperBone? causing an issue?
+	// we may need to clean these pins in the opposite order? child pins first?
+	RewireOldPinsToNewPins(LastEdGraphPins, Pins);
+	LastEdGraphPins.Reset();
 
 	DrawAsCompactNodeCache.Reset();
 
@@ -688,7 +700,33 @@ bool UControlRigGraphNode::CreateGraphPinFromModelPin(const URigVMPin* InModelPi
 
 	auto CreatePinLambda = [this](const URigVMPin* InModelPin, EEdGraphPinDirection InDirection, UEdGraphPin* InParentPin) -> UEdGraphPin*
 	{
-		UEdGraphPin* GraphPin = CreatePin(InDirection, GetPinTypeForModelPin(InModelPin), FName(*InModelPin->GetPinPath()));
+		// check if we already have a pin like this in the last pins arrays
+		const FString PinPath = InModelPin->GetPinPath();
+		const FEdGraphPinType PinType = GetPinTypeForModelPin(InModelPin);
+
+		UEdGraphPin* GraphPin = nullptr;
+		UEdGraphPin** ExistingEdGraphPinPtr = LastEdGraphPins.FindByPredicate([PinPath, InDirection, PinType](const UEdGraphPin* ExistingPin) -> bool
+		{
+			return !ExistingPin->bWasTrashed &&
+				ExistingPin->GetName() == PinPath &&
+				ExistingPin->Direction == InDirection &&
+				ExistingPin->PinType == PinType;
+		});
+		if(ExistingEdGraphPinPtr)
+		{
+			GraphPin = *ExistingEdGraphPinPtr;
+			GraphPin->ParentPin = nullptr;
+			GraphPin->SubPins.Reset();
+			ExistingEdGraphPinPtr = nullptr;
+			LastEdGraphPins.Remove(GraphPin);
+			Pins.Add(GraphPin);
+		}
+
+		if(GraphPin == nullptr)
+		{
+			GraphPin = CreatePin(InDirection, GetPinTypeForModelPin(InModelPin), FName(*InModelPin->GetPinPath()));
+		}
+		
 		if (GraphPin)
 		{
 			ConfigurePin(GraphPin, InModelPin);
@@ -772,6 +810,8 @@ void UControlRigGraphNode::RemoveGraphSubPins(UEdGraphPin* InParentPin, const TA
 				{
 					RemoveGraphSubPins(SubPin);
 				}
+
+				SubPin->MarkAsGarbage();
 			};
 			
 			Traverse(PinPair->InputPin);
@@ -1033,6 +1073,7 @@ bool UControlRigGraphNode::ModelPinRemoved_Internal(const URigVMPin* InModelPin)
 		{
 			RemoveGraphSubPins(GraphPin);
 			Pins.Remove(GraphPin);
+			GraphPin->MarkAsGarbage();
 		}
 	};
 	RemoveGraphPin(InModelPin, true);

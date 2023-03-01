@@ -1645,7 +1645,7 @@ void UEdGraphPin::DestroyImpl(bool bClearLinks)
 	for (int32 SubPinIndex = SubPins.Num() - 1; SubPinIndex >= 0; --SubPinIndex)
 	{
 		UEdGraphPin* SubPin = SubPins[SubPinIndex];
-		if (!SubPin->bWasTrashed)
+		if (SubPin && !SubPin->bWasTrashed)
 		{
 			SubPins[SubPinIndex]->DestroyImpl(bClearLinks);
 		}
