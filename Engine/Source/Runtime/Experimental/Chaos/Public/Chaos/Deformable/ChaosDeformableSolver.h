@@ -58,10 +58,6 @@ namespace Chaos::Softs
 			void InitializeSelfCollisionVariables();
 			void RemoveSimulationObjects();
 
-			/*IO Utility*/
-			void WriteTrisGEO(const Softs::FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh);
-			void WriteFrame(FThreadingProxy& , const FSolverReal DeltaTime);
-
 			const FDeformableSolverProperties& GetProperties() const { return Solver->GetProperties(); }
 
 			FPBDEvolution* GetEvolution() { return Solver->Evolution.Get(); }
@@ -132,14 +128,11 @@ namespace Chaos::Softs
 		void RemoveSimulationObjects();
 		TArray<Chaos::TVec3<FSolverReal>> ComputeParticleTargets(const TArray<TArray<int32>>& ParticleIndices);
 
-
-		/*IO Utility*/
-		void WriteTrisGEO(const FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh);
-		void WriteFrame(FThreadingProxy&, const FSolverReal DeltaTime);
-
-		/*Debug Drawing*/
+		/*Debug Output*/
 		void DebugDrawSimulationData();
 		void DebugDrawTetrahedralParticles(FFleshThreadingProxy& Proxy);
+		void WriteFrame(FThreadingProxy& InProxy, const FSolverReal DeltaTime);
+		void WriteTrisGEO(const FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh);
 
 		/*Game Thread API*/
 		bool HasObject(UObject* InObject) const { return InitializedObjects_External.Contains(InObject); }

@@ -13,6 +13,13 @@
 #include "PhysicsEngine/BodySetup.h"
 DEFINE_LOG_CATEGORY_STATIC(LogUDeformableCollisionsComponentInternal, Log, All);
 
+#define PERF_SCOPE(X) SCOPE_CYCLE_COUNTER(X); TRACE_CPUPROFILER_EVENT_SCOPE(X);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableCollisionsComponent.AddStaticMeshComponent"), STAT_ChaosDeformable_UDeformableCollisionsComponent_AddStaticMeshComponent, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableCollisionsComponent.RemoveStaticMeshComponent"), STAT_ChaosDeformable_UDeformableCollisionsComponent_RemoveStaticMeshComponent, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableCollisionsComponent.NewProxy"), STAT_ChaosDeformable_UDeformableCollisionsComponent_NewProxy, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableCollisionsComponent.NewDeformableData"), STAT_ChaosDeformable_UDeformableCollisionsComponent_NewDeformableData, STATGROUP_Chaos);
+
+
 UDeformableCollisionsComponent::UDeformableCollisionsComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -22,7 +29,9 @@ UDeformableCollisionsComponent::UDeformableCollisionsComponent(const FObjectInit
 
 void UDeformableCollisionsComponent::AddStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent)
 {
-	if (StaticMeshComponent)
+	PERF_SCOPE(STAT_ChaosDeformable_UDeformableCollisionsComponent_AddStaticMeshComponent);
+
+		if (StaticMeshComponent)
 	{
 		if (!CollisionBodies.Contains(StaticMeshComponent))
 		{
@@ -34,6 +43,8 @@ void UDeformableCollisionsComponent::AddStaticMeshComponent(UStaticMeshComponent
 
 void UDeformableCollisionsComponent::RemoveStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent)
 {
+	PERF_SCOPE(STAT_ChaosDeformable_UDeformableCollisionsComponent_RemoveStaticMeshComponent);
+
 	if (StaticMeshComponent)
 	{
 		if (CollisionBodies.Contains(StaticMeshComponent))
@@ -47,6 +58,8 @@ void UDeformableCollisionsComponent::RemoveStaticMeshComponent(UStaticMeshCompon
 
 UDeformablePhysicsComponent::FThreadingProxy* UDeformableCollisionsComponent::NewProxy()
 {
+	PERF_SCOPE(STAT_ChaosDeformable_UDeformableCollisionsComponent_NewProxy);
+
 	for (auto& Body : CollisionBodies)
 	{
 		if (Body)
@@ -65,6 +78,8 @@ template<> class Chaos::TSphere<float, 3>;
 UDeformableCollisionsComponent::FDataMapValue 
 UDeformableCollisionsComponent::NewDeformableData()
 {
+	PERF_SCOPE(STAT_ChaosDeformable_UDeformableCollisionsComponent_NewDeformableData);
+
 	TArray < Chaos::Softs::FCollisionObjectAddedBodies> AddedBodiesData;
 	TArray < Chaos::Softs::FCollisionObjectRemovedBodies> RemovedBodiesData;
 	TArray < Chaos::Softs::FCollisionObjectUpdatedBodies> UpdateBodiesData;

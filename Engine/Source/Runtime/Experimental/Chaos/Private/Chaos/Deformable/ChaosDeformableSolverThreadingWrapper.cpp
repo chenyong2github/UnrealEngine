@@ -162,15 +162,4 @@ namespace Chaos::Softs
 			Solver->UpdateOutputState(InProxy);
 	}
 
-	void  FDeformableSolver::FPhysicsThreadAccess::WriteFrame(FThreadingProxy& InProxy, const FSolverReal DeltaTime)
-	{
-		if(Solver) 
-			Solver->WriteFrame(InProxy, DeltaTime);
-	}
-
-	void  FDeformableSolver::FPhysicsThreadAccess::WriteTrisGEO(const FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh)
-	{
-		if(Solver) 
-			Solver->WriteTrisGEO(Particles, Mesh);
-	}
 }; // Namespace Chaos::Softs

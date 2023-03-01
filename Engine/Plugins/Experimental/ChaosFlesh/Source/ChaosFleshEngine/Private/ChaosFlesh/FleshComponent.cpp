@@ -28,9 +28,10 @@ FChaosEngineDeformableCVarParams CVarParams;
 FAutoConsoleVariableRef CVarDeforambleDoDrawSimulationMesh(TEXT("p.Chaos.DebugDraw.Deformable.SimulationMesh"), CVarParams.bDoDrawSimulationMesh, TEXT("Debug draw the deformable simulation resutls on the game thread. [def: true]"));
 FAutoConsoleVariableRef CVarDeforambleDoDrawSkeletalMeshBindingPositions(TEXT("p.Chaos.DebugDraw.Deformable.SkeletalMeshBindingPositions"), CVarParams.bDoDrawSkeletalMeshBindingPositions, TEXT("Debug draw the deformable simulation's SkeletalMeshBindingPositions on the game thread. [def: false]"));
 
+#define PERF_SCOPE(X) SCOPE_CYCLE_COUNTER(X); TRACE_CPUPROFILER_EVENT_SCOPE(X);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UFleshComponent.TickComponent"), STAT_ChaosDeformable_UFleshComponent_TickComponent, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UFleshComponent.NewProxy"), STAT_ChaosDeformable_UFleshComponent_NewProxy, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UFleshComponent.UpdateFromSimualtion"), STAT_ChaosDeformable_UFleshComponent_NewDeformableData, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UFleshComponent.NewDeformableData"), STAT_ChaosDeformable_UFleshComponent_NewDeformableData, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UFleshComponent.UpdateFromSimualtion"), STAT_ChaosDeformable_UFleshComponent_UpdateFromSimualtion, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UFleshComponent.RenderProceduralMesh"), STAT_ChaosDeformable_UFleshComponent_RenderProceduralMesh, STATGROUP_Chaos);
 
@@ -39,12 +40,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogFleshComponentInternal, Log, All);
 UFleshComponent::UFleshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.TickGroup = TG_LastDemotable;
-
-	bTickInEditor = true;
-	DynamicCollection = ObjectInitializer.CreateDefaultSubobject<UFleshDynamicAsset>(this, TEXT("Flesh Dynamic Asset"));
 	Mesh = ObjectInitializer.CreateDefaultSubobject<UProceduralMeshComponent>(this, TEXT("Flesh Visualization Component"));
+	PrimaryComponentTick.TickGroup = TG_LastDemotable;
+	PrimaryComponentTick.bCanEverTick = CVarParams.bDoDrawSimulationMesh;
+	bTickInEditor = CVarParams.bDoDrawSimulationMesh;
+
+	DynamicCollection = ObjectInitializer.CreateDefaultSubobject<UFleshDynamicAsset>(this, TEXT("Flesh Dynamic Asset"));
 }
 
 UFleshComponent::~UFleshComponent()
@@ -67,42 +68,6 @@ void UFleshComponent::OnRegister()
 	Super::OnRegister();
 }
 
-
-void UFleshComponent::BeginPlay()
-{
-	Super::BeginPlay();
-
-	if (ASkeletalMeshActor* SkeletalMeshActor = Cast<ASkeletalMeshActor>(GetOwner()))
-	{
-		if (USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent())
-		{
-			PrimaryComponentTick.AddPrerequisite(SkeletalMeshComponent, SkeletalMeshComponent->PrimaryComponentTick);
-		}
-	}
-	if (PrimarySolverComponent)
-	{
-		PrimaryComponentTick.AddPrerequisite(PrimarySolverComponent, PrimarySolverComponent->PrimaryComponentTick);
-	}
-}
-
-void UFleshComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
-{
-	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UFleshComponent_NewDeformableData);
-	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UFleshComponent_NewDeformableData);
-
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	if (CVarParams.bDoDrawSimulationMesh)
-	{
-		RenderProceduralMesh();
-	}
-	else 
-	{
-		ResetProceduralMesh();
-	}
-	UpdateLocalBounds();
-}
-
 void UFleshComponent::EndPlay(const EEndPlayReason::Type ReasonEnd)
 {
 	if (GetDynamicCollection())
@@ -122,8 +87,7 @@ void UFleshComponent::SetRestCollection(const UFleshAsset* InRestCollection)
 
 UDeformablePhysicsComponent::FThreadingProxy* UFleshComponent::NewProxy()
 {
-	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UFleshComponent_NewProxy);
-	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UFleshComponent_NewProxy);
+	PERF_SCOPE(STAT_ChaosDeformable_UFleshComponent_NewProxy);
 
 	UpdateSimSpaceTransformIndex();
 	if (const UFleshAsset* RestAsset = GetRestCollection())
@@ -157,8 +121,7 @@ UDeformablePhysicsComponent::FThreadingProxy* UFleshComponent::NewProxy()
 
 UDeformablePhysicsComponent::FDataMapValue UFleshComponent::NewDeformableData()
 {
-	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UFleshComponent_NewDeformableData);
-	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UFleshComponent_NewDeformableData);
+	PERF_SCOPE(STAT_ChaosDeformable_UFleshComponent_NewDeformableData);
 
 	using namespace GeometryCollection::Facades;
 	if (GetOwner())
@@ -327,8 +290,7 @@ FTransform UFleshComponent::GetSimSpaceRestTransform() const
 
 void UFleshComponent::UpdateFromSimualtion(const FDataMapValue* SimualtionBuffer)
 {
-	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UFleshComponent_UpdateFromSimualtion);
-	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UFleshComponent_UpdateFromSimualtion);
+	PERF_SCOPE(STAT_ChaosDeformable_UFleshComponent_UpdateFromSimualtion);
 
 	if (const FFleshThreadingProxy::FFleshOutputBuffer* FleshBuffer = (*SimualtionBuffer)->As<FFleshThreadingProxy::FFleshOutputBuffer>())
 	{
@@ -401,9 +363,45 @@ void UFleshComponent::ResetDynamicCollection()
 	}
 }
 
+//
+// Rendering Support
+//
+
+void UFleshComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (ASkeletalMeshActor* SkeletalMeshActor = Cast<ASkeletalMeshActor>(GetOwner()))
+	{
+		if (USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent())
+		{
+			PrimaryComponentTick.AddPrerequisite(SkeletalMeshComponent, SkeletalMeshComponent->PrimaryComponentTick);
+		}
+	}
+	if (PrimarySolverComponent)
+	{
+		PrimaryComponentTick.AddPrerequisite(PrimarySolverComponent, PrimarySolverComponent->PrimaryComponentTick);
+	}
+}
+
+void UFleshComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	PERF_SCOPE(STAT_ChaosDeformable_UFleshComponent_TickComponent);
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (IsVisible())
+	{
+		RenderProceduralMesh();
+	}
+	else
+	{
+		ResetProceduralMesh();
+	}
+}
+
 void UFleshComponent::ResetProceduralMesh()
 {
-	if (Mesh )
+	if (Mesh && RenderMesh)
 	{
 		Mesh->ClearAllMeshSections();
 	}
@@ -416,9 +414,6 @@ void UFleshComponent::ResetProceduralMesh()
 
 void UFleshComponent::RenderProceduralMesh()
 {
-	SCOPE_CYCLE_COUNTER(STAT_ChaosDeformable_UFleshComponent_RenderProceduralMesh);
-	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UFleshComponent_RenderProceduralMesh);
-
 	bool bCanRender = false;
 	if (const UFleshAsset* FleshAsset = GetRestCollection())
 	{
@@ -430,6 +425,8 @@ void UFleshComponent::RenderProceduralMesh()
 			{
 				if (Mesh && CVarParams.bDoDrawSimulationMesh)
 				{
+					PERF_SCOPE(STAT_ChaosDeformable_UFleshComponent_RenderProceduralMesh);
+
 					if (const FFleshCollection* Flesh = FleshAsset->GetCollection())
 					{
 						int32 NumVertices = Flesh->NumElements(FGeometryCollection::VerticesGroup);
