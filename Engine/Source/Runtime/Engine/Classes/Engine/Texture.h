@@ -550,6 +550,8 @@ private:
 	/** The state of any lock being held on the mip data */
 	ELockState LockState;
 
+	void CheckTextureIsUnlocked(const TCHAR* DebugMessage);
+
 #if WITH_EDITOR
 	/** Pointer to locked mip data, if any. */
 	FMipAllocation LockedMipData;
