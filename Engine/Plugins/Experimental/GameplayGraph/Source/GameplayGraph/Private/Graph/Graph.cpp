@@ -221,13 +221,14 @@ FGraphIslandHandle UGraph::CreateIsland(TArray<FGraphVertexHandle> InputNodes, i
 	Island->OnCreate();
 
 	Island->SetUniqueIndex((InUniqueIndex == INDEX_NONE) ? NextAvailableIslandUniqueIndex : InUniqueIndex);
+
+	OnIslandCreated.Broadcast(Island->Handle());
 	for (const FGraphVertexHandle& Node : InputNodes)
 	{
 		Island->AddVertex(Node);
 	}
 
 	RegisterIsland(Island);
-	OnIslandCreated.Broadcast(Island->Handle());
 	return Island->Handle();
 }
 
