@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/Class.h"
 #include "UObject/ObjectMacros.h"
@@ -160,6 +161,16 @@ public:
 	 * Event called after an asset finishes compilation.
 	 */
 	FAssetPostCompileEvent& OnAssetPostCompileEvent() { return AssetPostCompileEvent; }
+
+	/**
+	 * Event called before and after FinishAllCompilation or ProcessAsyncTasks run operations on a specific package,
+	 * used for subscribers to associate low-level actions with that Package (e.g. TObjectPtr reads).
+	 * void OnPackageScopeEvent(UPackage* Package, bool bEntering)
+	 * Called with bEntering=true followed by actions for Package followed by call with bEntering=false.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FPackageScopeEvent, UPackage*, bool);
+	FPackageScopeEvent& OnPackageScopeEvent() { return PackageScopeEvent; }
+
 private:
 	FAssetCompilingManager();
 	~FAssetCompilingManager();
@@ -176,4 +187,6 @@ private:
 
 	/** Event issued at the end of the compile process */
 	FAssetPostCompileEvent AssetPostCompileEvent;
+
+	FPackageScopeEvent PackageScopeEvent;
 };

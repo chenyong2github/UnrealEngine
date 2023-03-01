@@ -3010,7 +3010,21 @@ void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce, double& LastCook
 
 	GShaderCompilingManager->ProcessAsyncResults(true /* bLimitExecutionTime */,
 		false /* bBlockOnGlobalShaderCompletion */);
+	FDelegateHandle EventHandle = FAssetCompilingManager::Get().OnPackageScopeEvent().AddLambda(
+		[this](UPackage* Package, bool bEntering)
+		{
+			if (bEntering)
+			{
+				CookOnTheFlyServer.SetActivePackage(Package->GetFName(), PackageAccessTrackingOps::NAME_CookerBuildObject);
+			}
+			else
+			{
+				CookOnTheFlyServer.ClearActivePackage();
+			}
+		});
 	FAssetCompilingManager::Get().ProcessAsyncTasks(true);
+	FAssetCompilingManager::Get().OnPackageScopeEvent().Remove(EventHandle);
+
 	if (LastCookableObjectTickTime + TickCookableObjectsFrameTime <= CurrentTime)
 	{
 		UE_SCOPED_COOKTIMER(TickCookableObjects);

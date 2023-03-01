@@ -189,6 +189,8 @@ void FActorDeferredScriptManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 		TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
 
 		int32 CurrentIndex = NextIndexToProcess;
+		UPackage* EnteredPackage = nullptr;
+		FAssetCompilingManager::FPackageScopeEvent& OnPackageScopeEvent = FAssetCompilingManager::Get().OnPackageScopeEvent();
 
 		UE_LOG(LogActorDeferredScriptManager, VeryVerbose, TEXT("Starting to process at index %d"), CurrentIndex);
 
@@ -231,6 +233,20 @@ void FActorDeferredScriptManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 
 				UE_LOG(LogActorDeferredScriptManager, VeryVerbose, TEXT("Rerunning construction script for index %d (%s)"), CircularIndex, *Actor->GetPathName());
 
+				UPackage* Package = Actor->GetPackage();
+				if (Package != EnteredPackage)
+				{
+					if (EnteredPackage)
+					{
+						OnPackageScopeEvent.Broadcast(EnteredPackage, false /* bEnter */);
+					}
+					EnteredPackage = Package;
+					if (EnteredPackage)
+					{
+						OnPackageScopeEvent.Broadcast(EnteredPackage, true /* bEnter */);
+					}
+				}
+
 				// Temporarily do not consider actor as initialized if they were when running deferred construction scripts
 				FGuardValue_Bitfield(Actor->bActorInitialized, false);
 				Actor->RerunConstructionScripts();
@@ -250,6 +266,10 @@ void FActorDeferredScriptManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 			{
 				UE_LOG(LogActorDeferredScriptManager, VeryVerbose, TEXT("Finished processing construction scripts"));
 			}
+		}
+		if (EnteredPackage)
+		{
+			OnPackageScopeEvent.Broadcast(EnteredPackage, false /* bEnter */);
 		}
 	}
 
