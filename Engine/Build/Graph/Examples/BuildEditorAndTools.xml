@@ -44,6 +44,7 @@
 	<Option Name="OutputDir" DefaultValue="$(RootDir)\LocalBuilds\$(EditorTarget)Binaries" Description ="Output directory for compiled binaries"/>
 	<Option Name="Licensee" Restrict="true|false" DefaultValue="true" Description="Whether to treat the changelist number as being from a licensee Perforce server"/>
 	<Option Name="Versioned" Restrict="true|false" DefaultValue="$(IsBuildMachine)" Description="Whether to embed changelist number into binaries"/>
+	<Option Name="Promoted" Restrict="true|false" DefaultValue="true" Description="Whether to set the promoted flag in version files, allowing the editor to run without UBT."/>
 	<Option Name="ArchiveStream" Restrict="(?://.*)?" DefaultValue="" Description="Stream path that will contain zip file of the compiled binaries, for use by UnrealGameSync"/>
 	<Option Name="ForceSubmit" Restrict="true|false" DefaultValue="false" Description="Forces the submit to happen even if another change has been submitted (resolves in favor of local files)"/>
 	<Option Name="PreferredAgent" DefaultValue="CompileWin64" Description ="Agent type to use for job"/>
@@ -58,6 +59,7 @@
 		<!-- Update the engine version files -->
 		<Node Name="Update Version Files">
 			<SetVersion Change="$(Change)" Branch="$(EscapedBranch)" Licensee="$(Licensee)" If="$(Versioned)"/>
+			<SetVersion Change="0" Branch="$(EscapedBranch)" Licensee="$(Licensee)" If="!$(Versioned) and $(Promoted)"/>
 		</Node>
 		
 		<!-- Compile the tool executables -->
@@ -78,10 +80,14 @@
 		</Node>
 		
 		<!-- Compile the editor executable -->
-		<Node Name="Compile $(EditorTarget) Win64" Requires="Compile Tools Win64" Produces="#EditorBinaries">
+		<Node Name="Compile $(EditorTarget) Win64" Requires="Compile Tools Win64" Produces="#EditorBinaries;#TargetInfo">
 			<Property Name="UProjectParam" Value=""/>
 			<Property Name="UProjectParam" Value="-Project=&quot;$(UProjectPath)&quot;" If="'$(UProjectPath)' != ''"/>
 			<Compile Target="$(EditorTarget)" Platform="Win64" Configuration="Development" Tag="#EditorBinaries" Arguments="$(UProjectParam)"/>
+
+			<Property Name="UProjectArg" Value=""/>
+			<Property Name="UProjectArg" Value="$(UProjectPath)" If="'$(UProjectPath)' != ''"/>
+			<QueryTargets ProjectFile="$(UProjectPath)" Tag="#TargetInfo"/>
 		</Node>
 		
 		<!-- Compile the game targets -->
@@ -97,8 +103,9 @@
 		</ForEach>
 		
 		<!-- Copy all the files to the output directory -->
-		<Node Name="Tag Output Files" Requires="#ToolBinaries;#EditorBinaries;$(GameBinaries)" Produces="#OutputFiles">
-			<Tag Files="#ToolBinaries;#EditorBinaries;$(GameBinaries)" Except=".../Intermediate/..." With="#OutputFiles"/>			
+		<Node Name="Tag Output Files" Requires="#ToolBinaries;#EditorBinaries;#TargetInfo;$(GameBinaries)" Produces="#OutputFiles">
+			<Tag Files="#ToolBinaries;#EditorBinaries;$(GameBinaries)" Except=".../Intermediate/..." With="#OutputFiles"/>
+			<Tag Files="#TargetInfo" With="#OutputFiles"/>
 		</Node>
 
 		<!-- Copy all the files to the output directory -->
