@@ -9,6 +9,7 @@
 #include "EditorUndoClient.h"
 #include "Toolkits/IToolkitHost.h"
 #include "ISkeletalMeshEditor.h"
+#include "SkeletalMeshNotifier.h"
 #include "Containers/ArrayView.h"
 
 class IDetailLayoutBuilder;
@@ -25,7 +26,7 @@ struct FSkeletalMeshClothBuildParams;
 struct FToolMenuContext;
 class UToolMenu;
 class SSkeletalMeshEditorToolbox;
-
+class FSkeletalMeshEditorBinding;
 
 namespace SkeletalMeshEditorModes
 {
@@ -121,6 +122,8 @@ public:
 
 	// Returns the currently hosted toolkit. Can be invalid if no toolkit is being hosted.
 	TSharedPtr<IToolkit> GetHostedToolkit() const { return HostedToolkit; }
+	
+	virtual TSharedPtr<ISkeletalMeshEditorBinding> GetBinding() override;
 
 private:
 	void HandleObjectSelected(UObject* InObject);
@@ -214,4 +217,37 @@ private:
 
 	// The toolbox widget
 	TSharedPtr<SSkeletalMeshEditorToolbox> ToolboxWidget;
+
+	// Binding to send/receive skeletal mesh modifications
+	TSharedPtr<FSkeletalMeshEditorBinding> Binding;
+};
+
+/**
+ * FSkeletalMeshEditorNotifier
+ */
+
+class FSkeletalMeshEditorNotifier: public ISkeletalMeshNotifier
+{
+public:
+	FSkeletalMeshEditorNotifier(TSharedRef<FSkeletalMeshEditor> InEditor);
+	virtual void HandleNotification(const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType) override;
+	
+private:
+	TWeakPtr<FSkeletalMeshEditor> Editor;
+};
+
+/**
+ * FSkeletalMeshEditorBinding
+ */
+
+class FSkeletalMeshEditorBinding: public ISkeletalMeshEditorBinding
+{
+public:
+	FSkeletalMeshEditorBinding(TSharedRef<FSkeletalMeshEditor> InEditor);
+
+	virtual ISkeletalMeshNotifier& GetNotifier() override;
+	virtual NameFunction GetNameFunction() override;
+	
+private:
+	FSkeletalMeshEditorNotifier Notifier;
 };

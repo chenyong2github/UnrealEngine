@@ -36,6 +36,8 @@
 #include "ToolTargetManager.h"
 #include "WeldMeshEdgesTool.h"
 
+#include "SkeletalMeshNotifier.h"
+#include "SkeletalMesh/SkeletalMeshEditionInterface.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshModelingToolsEditorMode"
 
@@ -249,5 +251,106 @@ void USkeletalMeshModelingToolsEditorMode::Tick(FEditorViewportClient* ViewportC
 	Super::Tick(ViewportClient, DeltaTime);
 }
 
+bool USkeletalMeshModelingToolsEditorMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click)
+{
+	if (Binding.IsValid())
+	{
+		TSharedPtr<ISkeletalMeshEditorBinding> BindingPtr = Binding.Pin();
+
+		TArray<FName> SelectedBones;
+		if (HitProxy && BindingPtr->GetNameFunction())
+		{
+			if (TOptional<FName> BoneName = BindingPtr->GetNameFunction()(HitProxy))
+			{
+				SelectedBones.Emplace(*BoneName);
+			}
+		}
+		
+		BindingPtr->GetNotifier().HandleNotification( SelectedBones, ESkeletalMeshNotifyType::BonesSelected);
+	}
+	
+	return Super::HandleClick(InViewportClient, HitProxy, Click);
+}
+
+void USkeletalMeshModelingToolsEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+{
+	ConnectTool(Tool);
+}
+
+void USkeletalMeshModelingToolsEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+{
+	DisconnectTool(Tool);
+}
+
+void USkeletalMeshModelingToolsEditorMode::SetEditorBinding(TSharedPtr<ISkeletalMeshEditorBinding> InBinding)
+{
+	Binding = InBinding;
+}
+
+ISkeletalMeshEditionInterface* USkeletalMeshModelingToolsEditorMode::GetSkeletonInterface(UInteractiveTool* InTool)
+{
+	if (!IsValid(InTool) && !InTool->Implements<USkeletalMeshEditionInterface>())
+	{
+		return nullptr;
+	}
+	return static_cast<ISkeletalMeshEditionInterface*>(InTool->GetInterfaceAddress(USkeletalMeshEditionInterface::StaticClass()));
+}
+
+void USkeletalMeshModelingToolsEditorMode::ConnectTool(UInteractiveTool* InTool)
+{
+	ISkeletalMeshEditionInterface* SkeletonInterface = GetSkeletonInterface(InTool);
+	if (!SkeletonInterface)
+	{
+		return;
+	}
+
+	// binding
+	if (Binding.IsValid())
+	{
+		TSharedPtr<ISkeletalMeshEditorBinding> BindingPtr = Binding.Pin();
+
+		SkeletonInterface->BindTo(BindingPtr);
+
+		// connect external interface to tool (ie skeletal mesh editor -> tool)
+		if (!ToToolNotifierHandle.IsValid())
+		{
+			ToToolNotifierHandle = BindingPtr->GetNotifier().Delegate().AddLambda([SkeletonInterface](const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType)
+			{
+				SkeletonInterface->GetNotifier().HandleNotification(BoneNames, InNotifyType);
+			});
+		}
+
+		// connect too to external interface (ie tool -> skeletal mesh editor)
+		if (!FromToolNotifierHandle.IsValid())
+		{
+			FromToolNotifierHandle = SkeletonInterface->GetNotifier().Delegate().AddLambda([BindingPtr](const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType)
+			{
+				BindingPtr->GetNotifier().HandleNotification(BoneNames, InNotifyType);
+			});
+		}
+	}
+}
+
+void USkeletalMeshModelingToolsEditorMode::DisconnectTool(UInteractiveTool* InTool)
+{
+	if (ToToolNotifierHandle.IsValid())
+	{
+		// check that
+		if (Binding.IsValid())
+		{
+			Binding.Pin()->GetNotifier().Delegate().Remove(ToToolNotifierHandle);
+		}
+		ToToolNotifierHandle.Reset();
+	}
+
+	if (FromToolNotifierHandle.IsValid())
+	{
+		ISkeletalMeshEditionInterface* SkeletonInterface = GetSkeletonInterface(InTool);
+		check(SkeletonInterface);
+		SkeletonInterface->GetNotifier().Delegate().Remove(FromToolNotifierHandle);
+		FromToolNotifierHandle.Reset();
+		SkeletonInterface->Unbind();
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

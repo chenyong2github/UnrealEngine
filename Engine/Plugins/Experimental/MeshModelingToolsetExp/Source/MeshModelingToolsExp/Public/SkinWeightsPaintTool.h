@@ -11,6 +11,7 @@
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "Misc/Optional.h"
 #include "Containers/Map.h"
+#include "SkeletalMesh/SkeletalMeshEditionInterface.h"
 
 #include "SkinWeightsPaintTool.generated.h"
 
@@ -254,7 +255,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkinWeightsPaintTool : public UDynamicMeshBrushTool
+class MESHMODELINGTOOLSEXP_API USkinWeightsPaintTool : public UDynamicMeshBrushTool, public ISkeletalMeshEditionInterface
 {
 	GENERATED_BODY()
 
@@ -349,4 +350,6 @@ protected:
 	float MaxDrawRadius = 0.0f;
 	void UpdateBonePositionInfos(float MinRadius);
 	void RenderBonePositions(FPrimitiveDrawInterface *PDI);
+
+	virtual void HandleSkeletalMeshModified(const TArray<FName>& InBoneNames, const ESkeletalMeshNotifyType InNotifyType) override;
 };

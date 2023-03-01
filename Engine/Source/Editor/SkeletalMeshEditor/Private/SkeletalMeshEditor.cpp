@@ -1306,6 +1306,15 @@ void FSkeletalMeshEditor::HandleSelectionChanged(const TArrayView<TSharedPtr<ISk
 		TArray<UObject*> Objects;
 		Algo::TransformIf(InSelectedItems, Objects, [](const TSharedPtr<ISkeletonTreeItem>& InItem) { return InItem->GetObject() != nullptr; }, [](const TSharedPtr<ISkeletonTreeItem>& InItem) { return InItem->GetObject(); });
 		DetailsView->SetObjects(Objects);
+
+		if (Binding.IsValid())
+		{
+			TArray<FName> Selection;
+			Algo::TransformIf(InSelectedItems, Selection,
+				[](const TSharedPtr<ISkeletonTreeItem>& InItem) { return InItem->GetRowItemName() != NAME_None; },
+				[](const TSharedPtr<ISkeletonTreeItem>& InItem) { return InItem->GetRowItemName(); });
+			Binding->GetNotifier().Notify(Selection, ESkeletalMeshNotifyType::BonesSelected);
+		}
 	}
 }
 
@@ -1549,6 +1558,73 @@ void FSkeletalMeshEditor::HandleMeshClick(HActor* HitProxy, const FViewportClick
 				FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
 				);
 		}
+	}
+}
+
+TSharedPtr<ISkeletalMeshEditorBinding> FSkeletalMeshEditor::GetBinding()
+{
+	if (!Binding)
+	{
+		Binding = MakeShared<FSkeletalMeshEditorBinding>(SharedThis(this));
+	}
+	
+	return Binding;
+}
+
+FSkeletalMeshEditorBinding::FSkeletalMeshEditorBinding(TSharedRef<FSkeletalMeshEditor> InEditor)
+	: Notifier(InEditor)
+{}
+
+ISkeletalMeshNotifier& FSkeletalMeshEditorBinding::GetNotifier()
+{
+	return Notifier;	
+}
+
+ISkeletalMeshEditorBinding::NameFunction FSkeletalMeshEditorBinding::GetNameFunction()
+{
+	return [this](HHitProxy* InHitProxy) -> TOptional<FName>
+	{
+		if (const HPersonaBoneHitProxy* BoneHitProxy = HitProxyCast<HPersonaBoneHitProxy>(InHitProxy))
+		{
+			return BoneHitProxy->BoneName;
+		}
+
+		static const TOptional<FName> Dummy;
+		return Dummy;
+	};
+}
+
+FSkeletalMeshEditorNotifier::FSkeletalMeshEditorNotifier(TSharedRef<FSkeletalMeshEditor> InEditor)
+	: ISkeletalMeshNotifier()
+	, Editor(InEditor)
+{}
+
+void FSkeletalMeshEditorNotifier::HandleNotification(const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType)
+{
+	if (!Editor.IsValid())
+	{
+		return;
+	}
+
+	TSharedRef<ISkeletonTree> SkeletonTree = Editor.Pin()->GetSkeletonTree();
+
+	switch (InNotifyType)
+	{
+	case ESkeletalMeshNotifyType::BonesAdded:
+		SkeletonTree->Refresh();
+		break;
+	case ESkeletalMeshNotifyType::BonesRemoved:
+		SkeletonTree->Refresh();
+		break;
+	case ESkeletalMeshNotifyType::BonesMoved:
+		break;
+	case ESkeletalMeshNotifyType::BonesSelected:
+		SkeletonTree->DeselectAll();
+		if (!BoneNames.IsEmpty())
+		{
+			SkeletonTree->SetSelectedBone(BoneNames[0], ESelectInfo::Direct);
+		}
+		break;
 	}
 }
 

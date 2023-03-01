@@ -7,11 +7,13 @@
 
 #include "SkeletalMeshModelingToolsEditorMode.generated.h"
 
-
 class FStylusStateTracker;
 class FSkeletalMeshModelingToolsEditorModeToolkit;
 class UEdModeInteractiveToolsContext;
-
+class ISkeletalMeshNotifier;
+class ISkeletalMeshEditorBinding;
+class ISkeletalMeshEditionInterface;
+class HHitProxy;
 
 UCLASS()
 class USkeletalMeshModelingToolsEditorMode : 
@@ -26,18 +28,36 @@ public:
 	virtual ~USkeletalMeshModelingToolsEditorMode() override;
 
 	// UEdMode overrides
-	void Initialize() override;
+	virtual void Initialize() override;
 
-	void Enter() override;
-	void Exit() override;
-	void CreateToolkit() override;
+	virtual void Enter() override;
+	virtual void Exit() override;
+	virtual void CreateToolkit() override;
 
-	void Tick(FEditorViewportClient* InViewportClient, float InDeltaTime) override;
+	virtual void Tick(FEditorViewportClient* InViewportClient, float InDeltaTime) override;
 	// void Render(const FSceneView* InView, FViewport* InViewport, FPrimitiveDrawInterface* InPDI) override;
 	// void DrawHUD(FEditorViewportClient* InViewportClient, FViewport* InViewport, const FSceneView* InView, FCanvas* InCanvas) override;
+	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click) override;
 
-	bool UsesToolkits() const override { return true; }
+	virtual bool UsesToolkits() const override { return true; }
 
+	// binding
+	void SetEditorBinding(TSharedPtr<ISkeletalMeshEditorBinding> InBinding);
+		
+protected:
+	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+	
 private:
 	TUniquePtr<FStylusStateTracker> StylusStateTracker;
+
+	static ISkeletalMeshEditionInterface* GetSkeletonInterface(UInteractiveTool* InTool);
+
+	void ConnectTool(UInteractiveTool* InTool);
+	void DisconnectTool(UInteractiveTool* InTool);
+
+	FDelegateHandle ToToolNotifierHandle;
+	FDelegateHandle FromToolNotifierHandle;
+	
+	TWeakPtr<ISkeletalMeshEditorBinding> Binding;
 };

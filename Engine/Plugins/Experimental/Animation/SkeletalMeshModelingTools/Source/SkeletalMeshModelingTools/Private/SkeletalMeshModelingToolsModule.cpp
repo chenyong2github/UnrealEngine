@@ -130,16 +130,22 @@ void FSkeletalMeshModelingToolsModule::OnToggleModelingToolsMode(TWeakPtr<ISkele
 	TSharedPtr<ISkeletalMeshEditor> SkeletalMeshEditor = InSkeletalMeshEditor.Pin();
 	if (SkeletalMeshEditor.IsValid())
 	{
+		FEditorModeTools& EditorModeManager = SkeletalMeshEditor->GetEditorModeManager();
 		if (!IsModelingToolModeActive(InSkeletalMeshEditor))
 		{
-			SkeletalMeshEditor->GetEditorModeManager().ActivateMode(USkeletalMeshModelingToolsEditorMode::Id, true);
+			EditorModeManager.ActivateMode(USkeletalMeshModelingToolsEditorMode::Id, true);
+
+			UEdMode* ActiveMode = EditorModeManager.GetActiveScriptableMode(USkeletalMeshModelingToolsEditorMode::Id);
+			if (USkeletalMeshModelingToolsEditorMode* SkeletalMeshMode = CastChecked<USkeletalMeshModelingToolsEditorMode>(ActiveMode))
+			{
+				SkeletalMeshMode->SetEditorBinding(SkeletalMeshEditor->GetBinding());
+			}
 		}
 		else
 		{
-			SkeletalMeshEditor->GetEditorModeManager().ActivateDefaultMode();
+			EditorModeManager.ActivateDefaultMode();
 		}
 	}
 }
-
 
 #undef LOCTEXT_NAMESPACE

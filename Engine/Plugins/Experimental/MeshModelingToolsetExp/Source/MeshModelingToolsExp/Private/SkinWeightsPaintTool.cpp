@@ -1144,6 +1144,27 @@ void USkinWeightsPaintTool::ExternalUpdateWeights(const FName& BoneName, const T
 	}
 }
 
+void USkinWeightsPaintTool::HandleSkeletalMeshModified(const TArray<FName>& InBoneNames, const ESkeletalMeshNotifyType InNotifyType)
+{
+	const FName BoneName = InBoneNames.IsEmpty() ? NAME_None : InBoneNames[0];
+
+	switch (InNotifyType)
+	{
+	case ESkeletalMeshNotifyType::BonesAdded:
+		break;
+	case ESkeletalMeshNotifyType::BonesRemoved:
+		break;
+	case ESkeletalMeshNotifyType::BonesMoved:
+		break;
+	case ESkeletalMeshNotifyType::BonesSelected:
+		if (BoneName != NAME_None)
+		{
+			PendingCurrentBone = BoneName;
+		}
+		break;
+	}
+}
+
 void USkinWeightsPaintTool::OnToolPropertiesModified(UObject* ModifiedObject, FProperty* ModifiedProperty)
 {
 	// bone changed?
@@ -1151,6 +1172,10 @@ void USkinWeightsPaintTool::OnToolPropertiesModified(UObject* ModifiedObject, FP
 	if (bCurrentBoneModified)
 	{
 		PendingCurrentBone = ToolProps->CurrentBone.BoneName;
+		if (NeedsNotification())
+		{
+			GetNotifier().Notify({ToolProps->CurrentBone.BoneName}, ESkeletalMeshNotifyType::BonesSelected);
+		}
 	}
 	
 	// invalidate vertex color cache when weight color properties are modified
