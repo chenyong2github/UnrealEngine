@@ -2487,12 +2487,6 @@ void CopyTextureProperties(UTexture2D* Texture, const UTexture2D* SourceTexture)
 	Texture->AddressY = SourceTexture->AddressY;
 }
 
-static int32 MaxTextureSizeToGenerate = 0;
-FAutoConsoleVariableRef CVarMaxTextureSizeToGenerate(
-	TEXT("Mutable.MaxTextureSizeToGenerate"),
-	MaxTextureSizeToGenerate,
-	TEXT("Max texture size on non streamed textures. Mip 0 will be the first mip with max size equal or less than MaxTextureSizeToGenerate."
-		"If a texture doesn't have small enough mips, mip 0 will be the last mip available."));
 
 // The memory allocated in the function and pointed by the returned pointer is owned by the caller and must be freed. 
 // If assigned to a UTexture2D, it will be freed by that UTexture2D
@@ -2531,6 +2525,11 @@ FTexturePlatformData* UCustomizableInstancePrivateData::MutableCreateImagePlatfo
 	}
 
 	// Reduce final texture size if we surpass the max size we can generate.
+	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
+	FCustomizableObjectSystemPrivate* SystemPrivate = System ? System->GetPrivate() : nullptr;
+
+	int32 MaxTextureSizeToGenerate = SystemPrivate ? SystemPrivate->MaxTextureSizeToGenerate : 0;
+
 	if (MaxTextureSizeToGenerate > 0)
 	{
 		// Skip mips only if texture streaming is disabled 

@@ -567,6 +567,7 @@ public:
 	static int32 EnableMutableAnimInfoDebugging;
 	static int32 EnableSkipGenerateResidentMips;
 	static int32 EnableOnlyGenerateRequestedLODs;
+	static int32 MaxTextureSizeToGenerate;
 	static bool bEnableMutableReusePreviousUpdateData;
 
 	/** */

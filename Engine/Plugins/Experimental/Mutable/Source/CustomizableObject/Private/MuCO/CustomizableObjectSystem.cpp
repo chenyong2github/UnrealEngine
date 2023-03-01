@@ -707,6 +707,14 @@ static FAutoConsoleVariableRef CVarSkipGenerateResidentMips(
 	TEXT("If 1 or greater, resident mip generation will be optional. If 0, resident mips will be always generated"),
 	ECVF_Default);
 
+int32 FCustomizableObjectSystemPrivate::MaxTextureSizeToGenerate = 0;
+
+FAutoConsoleVariableRef CVarMaxTextureSizeToGenerate(
+	TEXT("Mutable.MaxTextureSizeToGenerate"),
+	FCustomizableObjectSystemPrivate::MaxTextureSizeToGenerate,
+	TEXT("Max texture size on Mutable textures. Mip 0 will be the first mip with max size equal or less than MaxTextureSizeToGenerate."
+		"If a texture doesn't have small enough mips, mip 0 will be the last mip available."));
+
 
 /** Update the given Instance Skeletal Meshes and call its callbacks. */
 void UpdateSkeletalMesh(UCustomizableObjectInstance* CustomizableObjectInstance, const FDescriptorRuntimeHash& UpdatedDescriptorRuntimeHash)
@@ -1425,8 +1433,18 @@ namespace impl
 			// This should only be done when using progressive images, since GetImageDesc does some actual processing.
 			{
 				System->GetImageDesc(OperationData->InstanceID, Image.ImageID, ImageDesc);
-				Image.FullImageSizeX = ImageDesc.m_size[0];
-				Image.FullImageSizeY = ImageDesc.m_size[1];
+
+				uint16 MaxTextureSizeToGenerate = uint16(CustomizableObjectSystemPrivateData->MaxTextureSizeToGenerate);
+				uint16 MaxSize = FMath::Max(ImageDesc.m_size[0], ImageDesc.m_size[1]);
+				uint16 Reduction = 1;
+
+				if (MaxTextureSizeToGenerate > 0 && MaxSize > MaxTextureSizeToGenerate)
+				{
+					Reduction = MaxSize / MaxTextureSizeToGenerate;
+				}
+
+				Image.FullImageSizeX = ImageDesc.m_size[0] / Reduction;
+				Image.FullImageSizeY = ImageDesc.m_size[1] / Reduction;
 			}
 
 			bool bCached = false;
@@ -1515,7 +1533,7 @@ namespace impl
 			}
 		}
 	}
-
+	
 
 	void Subtask_Mutable_PrepareSkeletonData(const TSharedPtr<FMutableOperationData>& OperationData)
 	{
