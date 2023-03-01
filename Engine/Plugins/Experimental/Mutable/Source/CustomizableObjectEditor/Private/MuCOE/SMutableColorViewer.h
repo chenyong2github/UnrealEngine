@@ -4,7 +4,7 @@
 
 #include "Widgets/SCompoundWidget.h"
 
-class SMutableColorPreviewBox;
+class SColorBlock;
 
 
 class SMutableColorViewer : public SCompoundWidget
@@ -28,17 +28,14 @@ private:
 	float AlphaValue = 1.0f;
 
 	/** Color box widget designed to serve as a preview of the color reported by mutable */
-	TSharedPtr<SMutableColorPreviewBox> ColorPreview;
+	TSharedPtr<SColorBlock> ColorPreview;
 
+	/** Callback method invoked by the ColorPreview slate to get a FLinearColor object to display. */
+	FLinearColor GetColor() const;
+	
 	/** Retrieve the values of each color component for the UI Texts to be updated */
 	FText GetRedValue() const;
 	FText GetGreenValue() const;
 	FText GetBlueValue() const;
 	FText GetAlphaValue() const;
-
-	/*
-	* Get a color object that the SMutableColorPreviewBox is able to display 
-	* @return a new FSlateColor generated from the float values held by this widget
-	*/
-	FSlateColor GetPreviewColor() const;
 };

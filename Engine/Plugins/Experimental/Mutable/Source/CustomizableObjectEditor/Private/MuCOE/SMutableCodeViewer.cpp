@@ -6,10 +6,10 @@
 #include "EditorDirectories.h"
 #include "IDesktopPlatform.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Misc/Paths.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCOE/SMutableBoolViewer.h"
-#include "MuCOE/SMutableColorPreviewBox.h"
 #include "MuCOE/SMutableColorViewer.h"
 #include "MuCOE/SMutableConstantsWidget.h"
 #include "MuCOE/SMutableCurveViewer.h"
@@ -107,6 +107,24 @@ public:
 		}
 	}
 
+	/** Depending on the state of the row returns one color or another to be used by the highlighting system */
+	FLinearColor GetHighlightColor() const
+	{
+		if (bShouldBeHiglighted)
+		{
+			if (RowItem->DuplicatedOf)
+			{
+				return HighlightedDuplicatedBoxColor;
+			}
+			else
+			{
+				return HighlightedUniqueRowBoxColor;
+			}
+		}
+
+		return HighlightBoxDefaultColor;
+	}
+	
 	/** Method intended with the generation of the wanted objects for each column*/
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
 	{
@@ -243,14 +261,14 @@ public:
 				
 			// First coll showing operation name and type
 			+ SHorizontalBox::Slot()
-			.HAlign(EHorizontalAlignment::HAlign_Left)
+			.HAlign(EHorizontalAlignment::HAlign_Fill)
 			[
 				SNew(SOverlay)
 
 				+ SOverlay::Slot()
 				[
-					SAssignNew(this->HighlightingColorBox, SMutableColorPreviewBox)
-					.BoxColor(HighlightBoxDefaultColor)
+					SAssignNew(this->HighlightingColorBox, SColorBlock)
+					.Color(this, &SMutableCodeTreeRow::GetHighlightColor)
 				]
 
 				+ SOverlay::Slot()
@@ -322,23 +340,16 @@ public:
 		return SNullWidget::NullWidget;
 	}
 	
-	/** Set the row background to one or another highlighting color depending if it is a unique or a duplicated row */
-	void Highlight() const
+	/** Marks the row to be highlighted */
+	void Highlight()
 	{
-		if (RowItem->DuplicatedOf)
-		{
-			HighlightingColorBox->SetColor(HighlightedDuplicatedBoxColor);
-		}
-		else
-		{
-			HighlightingColorBox->SetColor(HighlightedUniqueRowBoxColor);
-		}
+		bShouldBeHiglighted = true;
 	}
 
-	/** Sets the background of the row to the default state */
-	void ResetHighlight() const
+	/** Resets the highlighting status */
+	void ResetHighlight()
 	{
-		HighlightingColorBox->SetColor(HighlightBoxDefaultColor);
+		bShouldBeHiglighted = false;
 	}
 
 	/** Returns a reference to the Element this row is representing */
@@ -360,16 +371,16 @@ private:
 	 */
 	
 	/** Custom Widget used to display a color. Used as the background of the text on the row to serve as highlighting Visual Element*/
-	TSharedPtr<SMutableColorPreviewBox> HighlightingColorBox = nullptr;
+	TSharedPtr<SColorBlock> HighlightingColorBox = nullptr;
 	
 	/** The color used to highlight the row if duplicated from another row */
-	const FSlateColor HighlightedDuplicatedBoxColor = FSlateColor(FLinearColor(1, 1, 1, 0.15));
+	const FLinearColor HighlightedDuplicatedBoxColor = FLinearColor(1, 1, 1, 0.15);
 
 	/** The color used to highlight elements that are originals (not duplicates)  */
-	const FSlateColor HighlightedUniqueRowBoxColor = FSlateColor(FLinearColor(1, 1, 1, 0.28));
+	const FLinearColor HighlightedUniqueRowBoxColor = FLinearColor(1, 1, 1, 0.28);
 
 	/** Default color used when the row is not highlighted */
-	const FSlateColor HighlightBoxDefaultColor = FSlateColor(TransparentColor);
+	const FLinearColor HighlightBoxDefaultColor = TransparentColor;
 
 	/*
 	 * Extra data objects
@@ -392,6 +403,8 @@ private:
 
 	/** Color shown on the extra data column when the resource is found to be State Constant */
 	const FLinearColor StateConstantBoxColor = FLinearColor(1,0,0,0.8);
+
+	bool bShouldBeHiglighted = false;
 };
 
 
@@ -1764,7 +1777,7 @@ void SMutableCodeViewer::HighlightDuplicatesOfEntry(const TSharedPtr<FMutableCod
 		if (TreeItem.Get() != InTargetEntry.Get() && TreeItem->MutableOperation == HighlightedOperation)
 		{
 			TSharedPtr<ITableRow> TableRow = TreeView->WidgetFromItem(TreeItem);
-			const SMutableCodeTreeRow* MutableRow = static_cast<SMutableCodeTreeRow*>(TableRow.Get());
+			SMutableCodeTreeRow* MutableRow = static_cast<SMutableCodeTreeRow*>(TableRow.Get());
 			MutableRow->Highlight();
 		}
 	}
@@ -1783,7 +1796,7 @@ void SMutableCodeViewer::ClearHighlightedItems()
 
 			if (TableRow.IsValid())
 			{
-				const SMutableCodeTreeRow* MutableRow = static_cast<SMutableCodeTreeRow*>(TableRow.Get());
+				SMutableCodeTreeRow* MutableRow = static_cast<SMutableCodeTreeRow*>(TableRow.Get());
 				MutableRow->ResetHighlight();
 			}
 
