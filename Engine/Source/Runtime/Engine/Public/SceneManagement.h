@@ -204,7 +204,7 @@ public:
 	/**
 	 * Clears the pool of mids being referenced by this view state 
 	 */
-	virtual void ClearMIDPool() = 0;
+	virtual void ClearMIDPool(FStringView MidParentRootPath = {}) = 0;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** If frozen view matrices are available, return a pointer to them */

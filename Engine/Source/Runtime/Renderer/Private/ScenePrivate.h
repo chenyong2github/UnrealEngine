@@ -52,6 +52,8 @@
 #include "Experimental/Containers/RobinHoodHashTable.h"
 #include "SpanAllocator.h"
 #include "GlobalDistanceField.h"
+#include "Algo/RemoveIf.h"
+#include "UObject/Package.h"
 
 /** Factor by which to grow occlusion tests **/
 #define OCCLUSION_SLOP (1.0f)
@@ -1422,10 +1424,21 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return NewMID;
 	}
 
-	virtual void ClearMIDPool() override
+	virtual void ClearMIDPool(FStringView MidParentRootPath = {}) override
 	{
 		check(IsInGameThread());
-		MIDPool.Empty();
+		if (MidParentRootPath.IsEmpty())
+		{
+			MIDPool.Empty();
+			return;
+		}
+
+		const int32 RemoveNum = Algo::RemoveIf(MIDPool, [MidParentRootPath](UMaterialInstanceDynamic* MID) -> bool
+		{
+			return MID->Parent && MID->Parent->GetPackage()->GetName().StartsWith(MidParentRootPath);
+		});
+
+		MIDPool.SetNum(RemoveNum);
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

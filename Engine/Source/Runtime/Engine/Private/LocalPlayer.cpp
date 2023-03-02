@@ -1834,14 +1834,14 @@ bool ULocalPlayer::IsPrimaryPlayer() const
 	return GetLocalPlayerIndex() == 0;
 }
 
-void ULocalPlayer::CleanupViewState()
+void ULocalPlayer::CleanupViewState(FStringView MidParentRootPath /*= {}*/)
 {
 	for (FSceneViewStateReference& State : ViewStates)
 	{
 		FSceneViewStateInterface* Ref = State.GetReference();
 		if (Ref)
 		{
-			Ref->ClearMIDPool();
+			Ref->ClearMIDPool(MidParentRootPath);
 		}
 	}
 }

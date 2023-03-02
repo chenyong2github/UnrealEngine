@@ -587,7 +587,7 @@ public:
 	/**
 	 * Clear cached view state.  Suitable for calling when cleaning up the world but the view state has some references objects (usually mids) owned by the world (thus preventing GC) 
 	 */
-	virtual void CleanupViewState();
+	virtual void CleanupViewState(FStringView MidParentRootPath = {});
 
 	/** Locked view state needs access to GetViewPoint. */
 	friend class FLockedViewState;
