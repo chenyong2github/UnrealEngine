@@ -254,7 +254,7 @@ class FWorldPartitionStreamingGenerator
 
 	void ResolveRuntimeDataLayers(FWorldPartitionActorDescView& ActorDescView, const FActorDescViewMap& ActorDescViewMap)
 	{
-		const UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(WorldPartitionContext);
+		const UDataLayerManager* DataLayerManager = WorldPartitionContext->GetDataLayerManager();
 
 		// Resolve DataLayerInstanceNames of ActorDescView only when necessary (i.e. when container is a template)
 		if (!ActorDescView.GetActorDesc()->HasResolvedDataLayerInstanceNames())
@@ -546,7 +546,7 @@ class FWorldPartitionStreamingGenerator
 				}
 
 				// Validate data layers
-				if (UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(WorldPartitionContext))
+				if (UDataLayerManager* DataLayerManager = WorldPartitionContext->GetDataLayerManager())
 				{
 					DataLayerManager->ForEachDataLayerInstance([this](const UDataLayerInstance* DataLayerInstance)
 					{
@@ -975,7 +975,7 @@ public:
 	TArray<const UDataLayerInstance*> GetRuntimeDataLayerInstances(const TArray<FName>& RuntimeDataLayers) const
 	{
 		static TArray<const UDataLayerInstance*> EmptyArray;
-		UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(WorldPartitionContext);
+		UDataLayerManager* DataLayerManager = WorldPartitionContext->GetDataLayerManager();
 		return DataLayerManager ? DataLayerManager->GetRuntimeDataLayerInstances(RuntimeDataLayers) : EmptyArray;
 	}
 

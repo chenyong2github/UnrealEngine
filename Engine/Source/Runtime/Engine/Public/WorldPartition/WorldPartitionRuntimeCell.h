@@ -167,9 +167,6 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 		return Super::GetTypedOuter<T>();
 	}
 
-	UWorld* GetOwningWorld() const;
-	UWorld* GetOuterWorld() const;
-
 	virtual void Load() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Load,);
 	virtual void Unload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Unload,);
 	virtual bool CanUnload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::CanUnload, return true;);
@@ -201,6 +198,8 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	}
 	virtual FName GetLevelPackageName() const override;
 	virtual FString GetDebugName() const override;
+	virtual UWorld* GetOwningWorld() const override;
+	virtual UWorld* GetOuterWorld() const override;
 	//~End IWorldPartitionCell Interface
 
 	inline bool HasDataLayers() const { return !DataLayers.IsEmpty(); }

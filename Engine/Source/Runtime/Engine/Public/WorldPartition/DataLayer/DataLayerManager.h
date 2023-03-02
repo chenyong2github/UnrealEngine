@@ -4,6 +4,7 @@
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHandle.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerEditorContext.h"
@@ -44,8 +45,12 @@ class ENGINE_API UDataLayerManager : public UObject
 	GENERATED_BODY()
 
 public:
-
-	static UDataLayerManager* GetDataLayerManager(const UObject* InObject);
+	template <class T>
+	static UDataLayerManager* GetDataLayerManager(const T* InObject)
+	{
+		UWorldPartition* WorldPartition = IsValid(InObject) ? FWorldPartitionHelpers::GetWorldPartition(InObject) : nullptr;
+		return WorldPartition ? WorldPartition->GetDataLayerManager() : nullptr;
+	}
 
 	//~ Begin Blueprint interface
 

@@ -3,6 +3,7 @@
 #include "WorldPartition/WorldPartitionHelpers.h"
 
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "Engine/World.h"
@@ -14,41 +15,32 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionHelpers, Log, All);
 
-UWorldPartition* FWorldPartitionHelpers::GetWorldPartition(const UObject* InObject)
+namespace FWorldPartitionHelpersPrivate
 {
-	if (!IsValid(InObject))
+	UWorldPartition* GetWorldPartitionFromObject(const UObject* InObject)
 	{
+		for (const UObject* Object = InObject; IsValid(Object); Object = Object->GetOuter())
+		{
+			if (const AActor* Actor = Cast<const AActor>(Object))
+			{
+				return GetWorldPartition(Actor);
+			}
+			else if (const ULevel* Level = Cast<const ULevel>(Object))
+			{
+				return GetWorldPartition(Level);
+			}
+			else if (const UWorld* World = Cast<const UWorld>(Object))
+			{
+				return GetWorldPartition(World);
+			}
+			else if (const UWorldPartition* WorldPartition = Cast<const UWorldPartition>(Object))
+			{
+				return const_cast<UWorldPartition*>(WorldPartition);
+			}
+		}
+
 		return nullptr;
 	}
-
-	const UWorld* OuterWorld = nullptr;
-
-	if (const UWorld* InWorld = Cast<const UWorld>(InObject))
-	{
-		return GetWorldPartition(InWorld->PersistentLevel);
-	}
-	else if (const ULevel* Level = Cast<const ULevel>(InObject))
-	{
-		if (const IWorldPartitionCell* Cell = Level->GetWorldPartitionRuntimeCell())
-		{
-			return GetWorldPartition(Cast<UObject>(Cell));
-		}
-	}
-	else if (const ULevel* OuterLevel = InObject->GetTypedOuter<ULevel>())
-	{
-		return GetWorldPartition(OuterLevel);
-	}
-	else if (const UWorldPartitionRuntimeCell* Cell = Cast<const UWorldPartitionRuntimeCell>(InObject))
-	{
-		OuterWorld = Cell->GetOuterWorld();
-	}
-
-	if (!OuterWorld)
-	{
-		OuterWorld = InObject ? InObject->GetTypedOuter<UWorld>() : nullptr;
-	}
-
-	return OuterWorld ? OuterWorld->GetWorldPartition() : nullptr;
 }
 
 #if WITH_EDITOR

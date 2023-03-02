@@ -543,12 +543,6 @@ TArray<UDataLayerInstance*> UDataLayerManager::ConvertArgsToDataLayers(const TAr
 	return OutDataLayers.Array();
 }
 
-UDataLayerManager* UDataLayerManager::GetDataLayerManager(const UObject* InObject)
-{
-	UWorldPartition* WorldPartition = FWorldPartitionHelpers::GetWorldPartition(InObject);
-	return WorldPartition ? WorldPartition->GetDataLayerManager() : nullptr;
-}
-
 void UDataLayerManager::ForEachDataLayerInstance(TFunctionRef<bool(UDataLayerInstance*)> Func)
 {
 	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())

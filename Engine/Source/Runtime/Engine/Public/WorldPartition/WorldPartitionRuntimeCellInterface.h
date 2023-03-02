@@ -39,6 +39,10 @@ public:
 	virtual FName GetLevelPackageName() const = 0;
 	/** Returns the debug name associated with this cell. */
 	virtual FString GetDebugName() const = 0;
+	/**  Returns the owning world of this cell. */
+	virtual UWorld* GetOwningWorld() const = 0;
+	/**  REturns the outer world of this cell. */
+	virtual UWorld* GetOuterWorld() const = 0;
 
 #if WITH_EDITOR
 	/** Returns the referenced actor packages. */

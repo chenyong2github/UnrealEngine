@@ -204,7 +204,11 @@ void FDataLayerHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItem
 
 		// Create DataLayerTreeItems for World and for Current Level (if any).
 		CreateDataLayerTreeItems(GetOwningWorld()->GetDataLayerManager());
-		CreateDataLayerTreeItems(UDataLayerManager::GetDataLayerManager(CurrentLevel));
+
+		if (CurrentLevel)
+		{
+			CreateDataLayerTreeItems(UDataLayerManager::GetDataLayerManager(CurrentLevel));
+		}
 
 		if (bShowDataLayerActors)
 		{

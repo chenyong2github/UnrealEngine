@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "WorldPartition/WorldPartitionRuntimeCellInterface.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionHandle.h"
@@ -15,11 +16,56 @@ class UWorldPartition;
 class FWorldPartitionActorDesc;
 #endif
 
+namespace FWorldPartitionHelpersPrivate
+{
+	ENGINE_API UWorldPartition* GetWorldPartitionFromObject(const UObject* InObject);
+
+	template <class T>
+	inline UWorldPartition* GetWorldPartition(const T* InObject)
+	{
+		return IsValid(InObject) ? GetWorldPartitionFromObject(InObject) : nullptr;
+	}
+
+	template <>
+	inline UWorldPartition* GetWorldPartition(const ULevel* InLevel)
+	{
+		if (IsValid(InLevel))
+		{
+			if (const IWorldPartitionCell* Cell = InLevel->GetWorldPartitionRuntimeCell())
+			{
+				return Cell->GetOuterWorld()->GetWorldPartition();
+			}		
+			else if (const UWorld* OuterWorld = Cast<UWorld>(InLevel->GetOuter()))
+			{
+				return OuterWorld->GetWorldPartition();
+			}
+		}
+			
+		return nullptr;
+	}
+
+	template <>
+	inline UWorldPartition* GetWorldPartition(const UWorld* InWorld)
+	{
+		return IsValid(InWorld) ? GetWorldPartition<ULevel>(InWorld->PersistentLevel) : nullptr;
+	}
+
+	template <>
+	inline UWorldPartition* GetWorldPartition(const AActor* InActor)
+	{
+		return IsValid(InActor) ? GetWorldPartition<ULevel>(InActor->GetLevel()) : nullptr;
+	}
+}
+
 class ENGINE_API FWorldPartitionHelpers
 {
 public:
 	/** Returns the owning World Partition for this object. */
-	static UWorldPartition* GetWorldPartition(const UObject* InObject);
+	template <class T>
+	static inline UWorldPartition* GetWorldPartition(const T* InObject)
+	{
+		return FWorldPartitionHelpersPrivate::GetWorldPartition(InObject);
+	}
 
 #if WITH_EDITOR
 private:
@@ -90,7 +136,6 @@ public:
 	// Editor/Runtime conversions
 	static bool ConvertRuntimePathToEditorPath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath);
 	static bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath);
-
 #endif // WITH_EDITOR
 };
 

@@ -1652,6 +1652,12 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 		return;
 	}
 
+	// Don't fixup if the actor is not part of a level (template actors, etc.)
+	if (!GetLevel())
+	{
+		return;
+	}
+
 	// Don't fixup in game world
 	UWorld* World = GetWorld();
 	if ((GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor)) ||
