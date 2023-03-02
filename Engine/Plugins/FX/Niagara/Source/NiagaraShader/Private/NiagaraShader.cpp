@@ -487,7 +487,7 @@ void FNiagaraShaderMap::LoadFromDerivedDataCache(const FNiagaraShaderScript* Scr
 				// Deserialize from the cached data
 				if (InOutShaderMap->Serialize(Ar))
 				{
-					checkSlow(InOutShaderMap->GetShaderMapId() == ShaderMapId);
+					check(InOutShaderMap->GetShaderMapId() == ShaderMapId);
 
 					// Register in the global map
 					InOutShaderMap->Register(Platform);
