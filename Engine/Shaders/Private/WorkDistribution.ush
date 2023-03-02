@@ -246,7 +246,7 @@ void DistributeWork( FTask Task, uint GroupIndex, uint NumWorkItems )
 		if( WaveActiveAnyTrue( NumWorkItems == 0 ) )	// Might know this is impossible
 		{
 			// Compact LaneIndex
-		#if COMPILER_SUPPORTS_WAVE_PERMUTE
+		#if 0//COMPILER_SUPPORTS_WAVE_PERMUTE
 			QueueIndex = bHasWork ? QueueIndex : LaneCount - 1;
 			WorkSource = WaveWriteLaneAt( QueueIndex, LaneIndex );
 		#else
@@ -351,7 +351,8 @@ struct FInputQueue
 struct FGlobalWorkQueue
 {
 	RWCoherentByteAddressBuffer				DataBuffer;
-	RWStructuredBuffer< FWorkQueueState >	StateBuffer;	// Ideally this was GDS but we don't have that API control.
+	//RWStructuredBuffer< FWorkQueueState >	StateBuffer;	// Ideally this was GDS but we don't have that API control.
+	RWCoherentStructuredBuffer( FWorkQueueState )	StateBuffer;
 
 	uint	StateIndex;
 	uint	Size;
@@ -384,10 +385,14 @@ struct FGlobalWorkQueue
 
 	bool IsEmpty()
 	{
+	#if 1
+		return StateBuffer[ StateIndex ].TaskCount == 0;
+	#else
 		uint Count = 0;
 		if( WaveIsFirstLane() )
 			InterlockedAdd( StateBuffer[ StateIndex ].TaskCount, 0, Count );
 		return WaveReadLaneFirst( Count ) == 0;
+	#endif
 	}
 };
 

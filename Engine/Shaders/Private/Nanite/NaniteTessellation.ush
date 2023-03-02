@@ -104,7 +104,7 @@ float3 GetSplitFactors( float3 TessFactors )
 {
 #if 1
 	return TessFactors / TessellationTable_Size;
-
+#elif 1
 	const float SizeLog2 = log2( TessellationTable_Size );
 
 	float MaxTessFactor = max3( TessFactors.x, TessFactors.y, TessFactors.z );
@@ -128,7 +128,7 @@ uint GetTessellationTablePattern( float3 TessFactors, inout uint3 VertIndexes, i
 
 	float MaxTessFactor = max3( TessFactors.x, TessFactors.y, TessFactors.z );
 
-	uint Swizzle = 0b010110;
+	uint Swizzle = 0b011010;
 
 	// TessFactors in descending order to reduce size of table.
 	// Rotate patch so TessFactors.x == MaxTessFactor
@@ -136,13 +136,13 @@ uint GetTessellationTablePattern( float3 TessFactors, inout uint3 VertIndexes, i
 	{
 		VertIndexes = VertIndexes.yzx;
 		TessFactors = TessFactors.yzx;
-		Swizzle = 0b001011;
+		Swizzle = 0b110100;
 	}
 	else if( TessFactors.z == MaxTessFactor )
 	{
 		VertIndexes = VertIndexes.zxy;
 		TessFactors = TessFactors.zxy;
-		Swizzle = 0b100101;
+		Swizzle = 0b101001;
 	}
 
 	// Sorting can flip winding which we need to undo later.
@@ -152,7 +152,7 @@ uint GetTessellationTablePattern( float3 TessFactors, inout uint3 VertIndexes, i
 		VertIndexes.xy = VertIndexes.yx;
 		TessFactors.yz = TessFactors.zy;
 		bFlipWinding = true;
-		Swizzle ^= 0b111000;
+		Swizzle ^= 0b000111;
 	}
 
 	uint Pattern = uint(
@@ -279,7 +279,8 @@ struct FSplitPatch
 #include "../WorkDistribution.ush"
 
 RWCoherentByteAddressBuffer				SplitWorkQueue_DataBuffer;
-RWStructuredBuffer< FWorkQueueState >	SplitWorkQueue_StateBuffer;
+//RWStructuredBuffer< FWorkQueueState >	SplitWorkQueue_StateBuffer;
+RWCoherentStructuredBuffer( FWorkQueueState )	SplitWorkQueue_StateBuffer;
 uint									SplitWorkQueue_Size;
 
 static const FGlobalWorkQueue SplitWorkQueue = { SplitWorkQueue_DataBuffer, SplitWorkQueue_StateBuffer, 0, SplitWorkQueue_Size };

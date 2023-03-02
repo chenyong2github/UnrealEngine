@@ -630,12 +630,17 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 	FSplitPatch Patch;
 	Patch.Decode( PatchEncoded );
 
+#if 1
 	while( WaveActiveAnyTrue( bPending ) )
 	{
 		uint2 ExecMask = WaveBallot( bPending );
 		//uint FirstLane = ExecMask.x ? firstbitlow( ExecMask.x ) : firstbitlow( ExecMask.y ) + 32;
 		uint FirstLane = firstbitlow( ExecMask.x );
 		uint VisibleClusterIndex = WaveReadLaneAt( Patch.VisibleClusterIndex, FirstLane );
+#else
+	{
+		uint VisibleClusterIndex = Patch.VisibleClusterIndex;
+#endif
 
 		FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleClusterIndex, VIRTUAL_TEXTURE_TARGET );
 		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
@@ -715,6 +720,7 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 
 		uint NumVerts = 0;
 		uint NumTris = 0;
+#if 1
 		if( Patch.VisibleClusterIndex == VisibleClusterIndex )
 		{
 			DiceTask.Create( TessFactors, NumVerts, NumTris );
@@ -725,6 +731,14 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		//DiceTask.NumCached = 0;
 
 		DistributeWork( DiceTask, GroupThreadIndex, NumTris );
+#else
+		DiceTask.Create( TessFactors, NumVerts, NumTris );
+
+		for( uint TriIndex = GroupThreadIndex; TriIndex < NumTris; TriIndex += THREADGROUP_SIZE )
+		{
+			DiceTask.RunChild( TriIndex );
+		}
+#endif
 	}
 #endif
 }
