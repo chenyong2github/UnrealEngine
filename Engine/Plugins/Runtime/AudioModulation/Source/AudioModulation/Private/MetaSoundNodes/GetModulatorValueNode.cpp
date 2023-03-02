@@ -145,6 +145,27 @@ namespace AudioModulation
 			*OutValue = Value;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			if (InParams.Environment.Contains<Audio::FDeviceId>(Metasound::Frontend::SourceInterface::Environment::DeviceID))
+			{
+				Audio::FDeviceId PriorDeviceId = DeviceId;
+				DeviceId = InParams.Environment.GetValue<Audio::FDeviceId>(Metasound::Frontend::SourceInterface::Environment::DeviceID);
+
+				if (PriorDeviceId != DeviceId)
+				{
+					// Reset mod handle if device ID is altered. Modulator handle IDs 
+					// are not unique across devices.
+					ModHandle = Audio::FModulatorHandle();
+				}
+			}
+			else
+			{
+				UE_LOG(LogMetaSound, Warning, TEXT("Missing audio device ID environment variable (%s) required to properly configure node (Modulation.GetModulatorValue)"), *Metasound::Frontend::SourceInterface::Environment::DeviceID.ToString());
+			}
+			Execute();
+		}
+
 	private:
 		Audio::FDeviceId DeviceId;
 

@@ -107,6 +107,11 @@ namespace Metasound
 			return Outputs;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			*OutValue = Audio::GetBandwidthFromQ(FMath::Max(*InValue, KINDA_SMALL_NUMBER));
+		}
+
 		void Execute()
 		{
 			*OutValue = Audio::GetBandwidthFromQ(FMath::Max(*InValue, KINDA_SMALL_NUMBER));

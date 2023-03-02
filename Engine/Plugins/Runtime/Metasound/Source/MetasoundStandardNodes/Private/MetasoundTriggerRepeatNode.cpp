@@ -46,6 +46,7 @@ namespace Metasound
 			virtual FDataReferenceCollection GetOutputs() const override;
 
 			void Execute();
+			void Reset(const IOperator::FResetParams& InParams);
 
 		private:
 			bool bEnabled;
@@ -131,6 +132,13 @@ namespace Metasound
 		}
 	}
 
+	void FTriggerRepeatOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		bEnabled = false;
+
+		TriggerOut->Reset();
+		SampleCounter.SetNumSamples(0);
+	}
 
 	TUniquePtr<IOperator> FTriggerRepeatOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{

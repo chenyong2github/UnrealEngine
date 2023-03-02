@@ -272,6 +272,11 @@ namespace Metasound
 			Crossfader.GetCrossfadeOutput(IndexA, IndexB, Alpha, InputValues, *OutputValue);
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			PerformCrossfadeOutput();
+		}
+
 		void Execute()
 		{
 			PerformCrossfadeOutput();

@@ -36,6 +36,7 @@ namespace Metasound
 			, AudioInputModulator(InputAudioModulator)
 			, AudioOutput(FAudioBufferWriteRef::CreateNew(InSettings))
 		{
+			AudioOutput->Zero();
 		}
 
 		static const FNodeClassMetadata& GetNodeInfo()
@@ -123,6 +124,11 @@ namespace Metasound
 			
 			// @TODO Add Array Multiply Ain, Bin, Cout
 			Audio::ArrayMultiplyInPlace(*AudioInputModulator, *AudioOutput);
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			AudioOutput->Zero();
 		}
 
 	private:

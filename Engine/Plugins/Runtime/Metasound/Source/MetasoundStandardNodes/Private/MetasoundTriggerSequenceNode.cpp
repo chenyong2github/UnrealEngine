@@ -52,6 +52,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetOutputs() const override;
 
 		void Execute();
+		void Reset(const IOperator::FResetParams& InParams);
 
 	private:
 		FTriggerReadRef TriggerInput;
@@ -147,6 +148,16 @@ namespace Metasound
 				}
 			}
 		);
+	}
+
+	template<uint32 NumOutputs>
+	void TTriggerSequenceOperator<NumOutputs>::Reset(const IOperator::FResetParams& InParams)
+	{
+		for (uint32 i = 0; i < NumOutputs; ++i)
+		{
+			TriggerOutputs[i]->Reset();
+		}
+		CurrentIndex = 0;
 	}
 
 	template<uint32 NumOutputs>

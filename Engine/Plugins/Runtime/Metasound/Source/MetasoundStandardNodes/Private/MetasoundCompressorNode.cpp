@@ -230,6 +230,53 @@ namespace Metasound
 			return MakeUnique<FCompressorOperator>(InParams.OperatorSettings, AudioIn, RatioIn, ThresholdDbIn, AttackTimeIn, ReleaseTimeIn, LookaheadTimeIn, KneeIn, bIsSidechainConnected, SidechainIn, EnvelopeModeIn, bIsAnalogIn, bIsUpwardsIn, WetDryMixIn);
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			// Flush audio buffers
+			AudioOutput->Zero();
+			EnvelopeOutput->Zero();
+			InputDelay.Reset();
+			DelayedInputSignal.Zero();
+
+			// Cache dynamics timing
+			PrevAttackTime = FMath::Max(FTime::ToMilliseconds(*AttackTimeInput), 0.0);
+			PrevReleaseTime = FMath::Max(FTime::ToMilliseconds(*ReleaseTimeInput), 0.0);
+			PrevLookaheadTime = FMath::Max(FTime::ToMilliseconds(*LookaheadTimeInput), 0.0);
+
+			// Initialize compressor
+			Compressor.Init(InParams.OperatorSettings.GetSampleRate(), 1);
+			Compressor.SetKeyNumChannels(1);
+			Compressor.SetRatio(FMath::Max(*RatioInput, 1.0f));
+			Compressor.SetThreshold(*ThresholdDbInput);
+			Compressor.SetAttackTime(PrevAttackTime);
+			Compressor.SetReleaseTime(PrevReleaseTime);
+			Compressor.SetLookaheadMsec(PrevLookaheadTime);
+			Compressor.SetKneeBandwidth(*KneeInput);
+
+			if (*bIsUpwardsInput)
+			{
+				Compressor.SetProcessingMode(Audio::EDynamicsProcessingMode::UpwardsCompressor);
+			}
+			else
+			{
+				Compressor.SetProcessingMode(Audio::EDynamicsProcessingMode::Compressor);
+			}
+
+			switch (*EnvelopeModeInput)
+			{
+			default:
+			case EEnvelopePeakMode::MeanSquared:
+				Compressor.SetPeakMode(Audio::EPeakMode::MeanSquared);
+				break;
+			case EEnvelopePeakMode::RootMeanSquared:
+				Compressor.SetPeakMode(Audio::EPeakMode::RootMeanSquared);
+				break;
+			case EEnvelopePeakMode::Peak:
+				Compressor.SetPeakMode(Audio::EPeakMode::Peak);
+				break;
+			}
+		}
+
 		void Execute()
 		{
 			/* Update parameters */

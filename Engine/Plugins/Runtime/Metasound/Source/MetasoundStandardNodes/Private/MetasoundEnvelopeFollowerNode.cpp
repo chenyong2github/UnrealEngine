@@ -42,7 +42,7 @@ namespace Metasound
 		static const FVertexInterface& GetVertexInterface();
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
-		FEnvelopeFollowerOperator(const FOperatorSettings& InSettings,
+		FEnvelopeFollowerOperator(const FCreateOperatorParams& InOperatorSettings,
 			const FAudioBufferReadRef& InAudioInput,
 			const FTimeReadRef& InAttackTime,
 			const FTimeReadRef& InReleaseTime,
@@ -50,6 +50,7 @@ namespace Metasound
 
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 	private:
@@ -77,7 +78,7 @@ namespace Metasound
 		EEnvelopePeakMode PrevFollowMode = EEnvelopePeakMode::Peak;
 	};
 
-	FEnvelopeFollowerOperator::FEnvelopeFollowerOperator(const FOperatorSettings& InSettings,
+	FEnvelopeFollowerOperator::FEnvelopeFollowerOperator(const FCreateOperatorParams& InParams,
 		const FAudioBufferReadRef& InAudioInput,
 		const FTimeReadRef& InAttackTime,
 		const FTimeReadRef& InReleaseTime,
@@ -87,19 +88,9 @@ namespace Metasound
 		, ReleaseTimeInput(InReleaseTime)
 		, FollowModeInput(InEnvelopeMode)
 		, EnvelopeFloatOutput(FFloatWriteRef::CreateNew())
-		, EnvelopeAudioOutput(FAudioBufferWriteRef::CreateNew(InSettings))
+		, EnvelopeAudioOutput(FAudioBufferWriteRef::CreateNew(InParams.OperatorSettings))
 	{
-		PrevAttackTime = FMath::Max(FTime::ToMilliseconds(*AttackTimeInput), 0.0);
-		PrevReleaseTime = FMath::Max(FTime::ToMilliseconds(*ReleaseTimeInput), 0.0);
-
-		Audio::FEnvelopeFollowerInitParams EnvelopeParamsInitParams;
-	
-		EnvelopeParamsInitParams.SampleRate = InSettings.GetSampleRate();
-		EnvelopeParamsInitParams.NumChannels = 1;
-		EnvelopeParamsInitParams.AttackTimeMsec = PrevAttackTime;
-		EnvelopeParamsInitParams.ReleaseTimeMsec = PrevReleaseTime;
-
-		EnvelopeFollower.Init(EnvelopeParamsInitParams);
+		Reset(InParams);
 	}
 
 	FDataReferenceCollection FEnvelopeFollowerOperator::GetInputs() const
@@ -123,6 +114,23 @@ namespace Metasound
 		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutParamEnvelope), EnvelopeFloatOutput);
 		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioEnvelope), EnvelopeAudioOutput);
 		return OutputDataReferences;
+	}
+
+	void FEnvelopeFollowerOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		PrevAttackTime = FMath::Max(FTime::ToMilliseconds(*AttackTimeInput), 0.0);
+		PrevReleaseTime = FMath::Max(FTime::ToMilliseconds(*ReleaseTimeInput), 0.0);
+
+		Audio::FEnvelopeFollowerInitParams EnvelopeParamsInitParams;
+	
+		EnvelopeParamsInitParams.SampleRate = InParams.OperatorSettings.GetSampleRate();
+		EnvelopeParamsInitParams.NumChannels = 1;
+		EnvelopeParamsInitParams.AttackTimeMsec = PrevAttackTime;
+		EnvelopeParamsInitParams.ReleaseTimeMsec = PrevReleaseTime;
+
+		EnvelopeFollower.Init(EnvelopeParamsInitParams);
+		*EnvelopeFloatOutput = 0.f;
+		EnvelopeAudioOutput->Zero();
 	}
 
 	void FEnvelopeFollowerOperator::Execute()
@@ -228,7 +236,7 @@ namespace Metasound
 		FEnvelopePeakModeReadRef EnvelopeModeIn = InputCollection.GetDataReadReferenceOrConstruct<FEnumEnvelopePeakMode>(METASOUND_GET_PARAM_NAME(InParamFollowMode));
 
 
-		return MakeUnique<FEnvelopeFollowerOperator>(InParams.OperatorSettings, AudioIn, AttackTime, ReleaseTime, EnvelopeModeIn);
+		return MakeUnique<FEnvelopeFollowerOperator>(InParams, AudioIn, AttackTime, ReleaseTime, EnvelopeModeIn);
 	}
 
 	FEnvelopeFollowerNode::FEnvelopeFollowerNode(const FNodeInitData& InitData)

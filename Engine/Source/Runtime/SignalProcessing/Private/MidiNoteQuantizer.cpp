@@ -53,7 +53,7 @@ namespace Audio
 		// QuantizeValueToScaleDegree() works within a single octave, so compensate for the octave and root
 		const float SetRange = InScaleDegrees[InScaleDegrees.Num() - 1]; // (SetRange will == 12.0 for a normal octave)
 		const float NoteRootDelta = (InNote - InRoot);
-		const float InNoteOctave = FMath::FloorToFloat(NoteRootDelta / SetRange);
+		const float InNoteOctave = FMath::FloorToFloat(NoteRootDelta / FMath::Max(SetRange, UE_SMALL_NUMBER));
 		const float ValueToQuant = NoteRootDelta - (SetRange * InNoteOctave);
 
 		const float QuantizedValue = QuantizeValueToScaleDegree(ValueToQuant, InScaleDegrees);

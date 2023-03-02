@@ -235,6 +235,11 @@ namespace Metasound
 				return Info;
 			}
 
+			void Reset(const IOperator::FResetParams& InParams)
+			{
+				TMathOpClass::Calculate(InstanceData, PrimaryOperandRef, AdditionalOperandRefs, ValueRef);
+			}
+
 			void Execute()
 			{
 				TMathOpClass::Calculate(InstanceData, PrimaryOperandRef, AdditionalOperandRefs, ValueRef);
@@ -264,16 +269,15 @@ namespace Metasound
 				TOperandDataClassReadRef Op1 = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<TOperandDataClass>(OpName, TMathOpClass::GetDefaultOp(InParams.OperatorSettings, DefaultValue));
 				TArray<TOperandDataClassReadRef> AdditionalOperandRefs = { Op1 };
 
-				return MakeUnique<TMathOperator>(InParams.OperatorSettings, PrimaryOperand, AdditionalOperandRefs);
+				return MakeUnique<TMathOperator>(InParams, PrimaryOperand, AdditionalOperandRefs);
 			}
 
-			TMathOperator(const FOperatorSettings& InSettings, const TDataClassReadRef& InPrimaryOperand, const TArray<TOperandDataClassReadRef>& InAdditionalOperands)
+			TMathOperator(const FCreateOperatorParams& InParams, const TDataClassReadRef& InPrimaryOperand, const TArray<TOperandDataClassReadRef>& InAdditionalOperands)
 				: PrimaryOperandRef(InPrimaryOperand)
 				, AdditionalOperandRefs(InAdditionalOperands)
-				, ValueRef(TDataWriteReferenceFactory<TDataClass>::CreateAny(InSettings))
+				, ValueRef(TDataWriteReferenceFactory<TDataClass>::CreateAny(InParams.OperatorSettings))
 			{
-				// Set initial value.
-				TMathOpClass::Calculate(InstanceData, PrimaryOperandRef, AdditionalOperandRefs, ValueRef);
+				Reset(InParams);
 			}
 
 			virtual FDataReferenceCollection GetInputs() const override

@@ -219,6 +219,11 @@ namespace Metasound
 			TMax<ValueType>::GetMax(*InputA, *InputB, *OutputValue);
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			GetMax();
+		}
+
 		void Execute()
 		{
 			GetMax();

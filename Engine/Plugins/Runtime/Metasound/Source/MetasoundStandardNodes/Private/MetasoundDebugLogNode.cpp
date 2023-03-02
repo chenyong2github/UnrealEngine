@@ -99,28 +99,16 @@ namespace Metasound
 				TDataReadReference<FString> Label = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FString>(InputInterface, METASOUND_GET_PARAM_NAME(InputLabel), InParams.OperatorSettings);
 				TDataReadReference<PrintLogType> ValueToLog = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<PrintLogType>(InputInterface, METASOUND_GET_PARAM_NAME(InputValueToLog), InParams.OperatorSettings);
 
-				FString GraphName;
-				if (InParams.Environment.Contains<FString>(Frontend::SourceInterface::Environment::GraphName))
-				{
-					FString GraphNameFull = InParams.Environment.GetValue<FString>(Frontend::SourceInterface::Environment::GraphName);
-					TArray<FString> ParsedString;
-					GraphNameFull.ParseIntoArray(ParsedString, TEXT("."), true);
-					if (ParsedString.Num() > 0)
-					{
-						GraphName = ParsedString.Last();
-					}
-				}
-
-				return MakeUnique<TPrintLogOperator<PrintLogType>>(InParams.OperatorSettings, Trigger, Label, ValueToLog, GraphName);
+				return MakeUnique<TPrintLogOperator<PrintLogType>>(InParams, Trigger, Label, ValueToLog);
 			}
 
 
-			TPrintLogOperator(const FOperatorSettings& InSettings, TDataReadReference<FTrigger> InTrigger, TDataReadReference<FString> InLabelPrintLog, TDataReadReference<PrintLogType> InValueToLogPrintLog, const FString& InGraphName)
+			TPrintLogOperator(const FCreateOperatorParams& InParams, TDataReadReference<FTrigger> InTrigger, TDataReadReference<FString> InLabelPrintLog, TDataReadReference<PrintLogType> InValueToLogPrintLog)
 				: Trigger(InTrigger)
 				, Label(InLabelPrintLog)
 				, ValueToLog(InValueToLogPrintLog)
-				, GraphName(InGraphName)
 			{
+				Reset(InParams);
 			}
 
 			virtual ~TPrintLogOperator() = default;
@@ -143,6 +131,21 @@ namespace Metasound
 				FDataReferenceCollection Outputs;
 
 				return Outputs;
+			}
+
+			void Reset(const IOperator::FResetParams& InParams)
+			{
+				GraphName = TEXT("");
+				if (InParams.Environment.Contains<FString>(Frontend::SourceInterface::Environment::GraphName))
+				{
+					FString GraphNameFull = InParams.Environment.GetValue<FString>(Frontend::SourceInterface::Environment::GraphName);
+					TArray<FString> ParsedString;
+					GraphNameFull.ParseIntoArray(ParsedString, TEXT("."), true);
+					if (ParsedString.Num() > 0)
+					{
+						GraphName = ParsedString.Last();
+					}
+				}
 			}
 
 			void Execute()

@@ -139,6 +139,17 @@ namespace Metasound
 			return OutputDataReferences;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			using namespace DiffuserNode;
+
+			for (Audio::FLongDelayAPF* Delay : Delays)
+			{
+				Delay->Reset();
+			}
+			AudioOutput->Zero();
+		}
+
 		void Execute()
 		{
 			const int32 NumSamples = AudioInput->Num();

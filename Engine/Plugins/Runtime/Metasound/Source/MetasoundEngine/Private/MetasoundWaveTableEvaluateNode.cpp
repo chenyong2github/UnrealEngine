@@ -101,10 +101,7 @@ namespace Metasound
 			, InterpModeReadRef(InInterpModeReadRef)
 			, OutWriteRef(TDataWriteReferenceFactory<float>::CreateAny(InParams.OperatorSettings))
 		{
-			using namespace WaveTable;
-			FWaveTableSampler::FSettings Settings;
-			Settings.Freq = 0.0f; // Sampler phase is manually progressed via this node
-			Sampler = FWaveTableSampler(MoveTemp(Settings));
+			Reset(InParams);
 		}
 
 		virtual ~FMetasoundWaveTableEvaluateNodeOperator() = default;
@@ -159,6 +156,16 @@ namespace Metasound
 			Sampler.Process(WaveTableView, NextValue, SampleMode);
 
 			*OutWriteRef = NextValue;
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			using namespace WaveTable;
+			FWaveTableSampler::FSettings Settings;
+			Settings.Freq = 0.0f; // Sampler phase is manually progressed via this node
+			Sampler = FWaveTableSampler(MoveTemp(Settings));
+
+			*OutWriteRef = 0.f;
 		}
 
 	private:

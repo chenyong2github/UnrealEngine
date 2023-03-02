@@ -434,6 +434,38 @@ namespace Metasound
 			UpdatePlaybackLocation();
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			TriggerOnDone->Reset();
+			TriggerOnNearlyDone->Reset();
+			TriggerOnLooped->Reset();
+			TriggerOnCuePoint->Reset();
+
+			*CuePointID = 0;
+			*CuePointLabel = TEXT("");
+			*LoopPercent = 0;
+			*PlaybackLocation = 0;
+			for (const FAudioBufferWriteRef& BufferRef : OutputAudioBuffers)
+			{
+				BufferRef->Zero();
+			}
+
+			WaveProxyReader.Reset();
+			ConvertDeinterleave.Reset();
+			Resampler.Reset();
+
+			SortedCuePoints.Reset();
+			for (Audio::TCircularAudioBuffer<float>& Buffer : SourceCircularBuffer)
+			{
+				Buffer.SetNum(0);
+			}
+
+			SourceState = WavePlayerNodePrivate::FSourceBufferState();
+			SampleRateFrameRatio = 1.f;
+			bOnNearlyDoneTriggeredForWave = false;
+			bIsPlaying = false;
+		}
+
 	private:
 
 		void ExecuteSubblocks()

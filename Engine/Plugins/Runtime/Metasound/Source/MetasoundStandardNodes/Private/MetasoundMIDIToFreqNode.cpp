@@ -66,10 +66,11 @@ namespace Metasound
 		static const FVertexInterface& GetVertexInterface();
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
-		TMidiToFreqOperator(const FOperatorSettings& InSettings, const TDataReadReference<ValueType>& InMidiNote);
+		TMidiToFreqOperator(const FCreateOperatorParams& InParams, const TDataReadReference<ValueType>& InMidiNote);
 
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 	private:
@@ -84,11 +85,12 @@ namespace Metasound
 	};
 
 	template<typename ValueType>
-	TMidiToFreqOperator<ValueType>::TMidiToFreqOperator(const FOperatorSettings& InSettings, const TDataReadReference<ValueType>& InMidiNote)
+	TMidiToFreqOperator<ValueType>::TMidiToFreqOperator(const FCreateOperatorParams& InParams, const TDataReadReference<ValueType>& InMidiNote)
 		: MidiNote(InMidiNote)
 		, FreqOutput(FFloatWriteRef::CreateNew(Audio::GetFrequencyFromMidi(*InMidiNote)))
 		, PrevMidiNote(*InMidiNote)
 	{
+		Reset(InParams);
 	}
 
 	template<typename ValueType>
@@ -110,6 +112,14 @@ namespace Metasound
 		FDataReferenceCollection OutputDataReferences;
 		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputFreq), FreqOutput);
 		return OutputDataReferences;
+	}
+
+	template<typename ValueType>
+	void TMidiToFreqOperator<ValueType>::Reset(const IOperator::FResetParams& InParams)
+	{
+		using namespace MidiToFrequencyPrivate;
+		PrevMidiNote = *MidiNote;
+		*FreqOutput = TMidiToFreqNodeSpecialization<ValueType>::GetFreqValue(PrevMidiNote);
 	}
 
 	template<typename ValueType>
@@ -183,7 +193,7 @@ namespace Metasound
 
 		TDataReadReference<ValueType> InMidiNote = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, METASOUND_GET_PARAM_NAME(InputMidi), InParams.OperatorSettings);
 
-		return MakeUnique<TMidiToFreqOperator>(InParams.OperatorSettings, InMidiNote);
+		return MakeUnique<TMidiToFreqOperator>(InParams, InMidiNote);
 	}
 
 	template<typename ValueType>

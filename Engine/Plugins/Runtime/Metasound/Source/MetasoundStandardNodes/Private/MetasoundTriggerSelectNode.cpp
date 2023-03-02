@@ -49,13 +49,13 @@ namespace Metasound
 		virtual FDataReferenceCollection GetOutputs() const override;
 
 		void Execute();
+		void Reset(const IOperator::FResetParams& InParams);
 
 	private:
 		FTriggerReadRef TriggerInput;
 		FInt32ReadRef IndexInput;
 
 		TArray<FTriggerWriteRef> TriggerOutputs;
-
 	};
 
 	template<uint32 NumOutputs>
@@ -65,7 +65,6 @@ namespace Metasound
 		: TriggerInput(InTrigger)
 		, IndexInput(InIndex)
 	{
-
 		for (uint32 i = 0; i < NumOutputs; ++i)
 		{
 			TriggerOutputs.Add(FTriggerWriteRef::CreateNew(InSettings));
@@ -120,6 +119,15 @@ namespace Metasound
 				}
 			}
 			);
+	}
+
+	template<uint32 NumOutputs>
+	void TTriggerSelectOperator<NumOutputs>::Reset(const IOperator::FResetParams& InParams)
+	{
+		for (uint32 i = 0; i < NumOutputs; ++i)
+		{
+			TriggerOutputs[i]->Reset();
+		}
 	}
 
 	template<uint32 NumOutputs>

@@ -57,13 +57,10 @@ namespace Metasound
 			, bPhaseCompensate(InPhaseCompensate)
 			, Settings(InSettings)
 		{
+			// Update internal crossover buffer from passed data references
 			Crossovers.Reset();
 			Crossovers.AddUninitialized(NumBands - 1);
-
-			for (int32 i = 0; i < InCrossoverFrequencies.Num(); ++i)
-			{
-				Crossovers[i] = *InCrossoverFrequencies[i];
-			}
+			CopyClampCrossovers();
 
 			bPrevPhaseCompensate = *bPhaseCompensate;
 			PrevFilterOrder = GetFilterOrder(*InFilterOrder);
@@ -261,16 +258,7 @@ namespace Metasound
 		void UpdateFilterSettings()
 		{
 			bool bNeedsReinitFilters = false;
-			bool bNeedsUpdateCrossovers = false;
-
-			for (int32 CrossoverIndex = 0; CrossoverIndex < Crossovers.Num(); CrossoverIndex++)
-			{
-				if (Crossovers[CrossoverIndex] != *CrossoverFrequencies[CrossoverIndex])
-				{
-					bNeedsUpdateCrossovers = true;
-					Crossovers[CrossoverIndex] = *CrossoverFrequencies[CrossoverIndex];
-				}
-			}
+			bool bNeedsUpdateCrossovers = CopyClampCrossovers();
 
 			if (*bPhaseCompensate != bPrevPhaseCompensate)
 			{
@@ -300,6 +288,25 @@ namespace Metasound
 			}
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			CopyClampCrossovers();
+
+			bPrevPhaseCompensate = *bPhaseCompensate;
+			PrevFilterOrder = GetFilterOrder(*FilterOrder);
+
+			for (uint32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
+			{
+				MultiBandBuffers[ChannelIndex].Reset();
+				Filters[ChannelIndex].Init(1, InParams.OperatorSettings.GetSampleRate(), PrevFilterOrder, bPrevPhaseCompensate, Crossovers);
+			}
+
+			for (const TDataWriteReference<FAudioBuffer>& AudioOutput : AudioOutputs)
+			{
+				AudioOutput->Zero();
+			}
+		}
+
 		void Execute()
 		{
 			UpdateFilterSettings();
@@ -319,7 +326,33 @@ namespace Metasound
 			}
 		}
 
+
 	private:
+		bool CopyClampCrossovers()
+		{
+			check(Crossovers.Num() == CrossoverFrequencies.Num());
+
+			bool bDidUpdate = false;
+			
+			const float MaxFrequency = 0.95f * Settings.GetSampleRate() / 2.f;
+			const float MinFrequency = FMath::Min(20.f, MaxFrequency);
+
+			const TDataReadReference<float>* InputFreqs = CrossoverFrequencies.GetData();
+			float* CrossoverData = Crossovers.GetData();
+
+			for (int32 i = 0; i < CrossoverFrequencies.Num(); ++i)
+			{
+				const float NewCrossover = FMath::Clamp(*InputFreqs[i], MinFrequency, MaxFrequency);
+				if (NewCrossover != CrossoverData[i])
+				{
+					bDidUpdate = true;
+					CrossoverData[i] = NewCrossover;
+				}
+			}
+
+			return bDidUpdate;
+		}
+
 		TArray<FAudioBufferReadRef> AudioInputs;
 		TArray<FFloatReadRef> CrossoverFrequencies;
 

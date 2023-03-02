@@ -35,6 +35,7 @@ namespace Metasound
 
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 	private:
@@ -73,6 +74,12 @@ namespace Metasound
 		FDataReferenceCollection OutputDataReferences;
 		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputSemitone), SemitoneOutput);
 		return OutputDataReferences;
+	}
+
+	void FFrequencyMultiplierToSemitoneOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		PrevFrequencyMultiplier = *FrequencyMultiplierInput;
+		*SemitoneOutput = Audio::GetSemitones(*FrequencyMultiplierInput);
 	}
 
 	void FFrequencyMultiplierToSemitoneOperator::Execute()

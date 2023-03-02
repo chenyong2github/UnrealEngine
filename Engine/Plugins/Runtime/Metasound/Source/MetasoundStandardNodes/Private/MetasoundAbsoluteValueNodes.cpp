@@ -212,6 +212,11 @@ namespace Metasound
 			GetAbs();
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			GetAbs();
+		}
+
 	private:
 
 		TDataReadReference<ValueType> Input;

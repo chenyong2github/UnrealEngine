@@ -209,6 +209,12 @@ namespace Metasound
 				);
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			TriggerOutOnTrue->Reset();
+			TriggerOutOnFalse->Reset();
+		}
+
 	private:
 
 		FTriggerReadRef OnCompareTrigger;

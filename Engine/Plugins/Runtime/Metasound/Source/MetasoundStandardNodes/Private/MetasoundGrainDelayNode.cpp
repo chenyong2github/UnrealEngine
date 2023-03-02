@@ -69,6 +69,7 @@ namespace Metasound
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 	private:
@@ -245,6 +246,19 @@ namespace Metasound
 		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InGrainDelayFeedbackAmount), FFloatReadRef(GrainDelayFeedbackAmount));
 
 		return InputDataReferences;
+	}
+
+	void FGrainDelayOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		AudioOutput->Zero();
+
+		GrainDelayProcessor.Reset();
+		PreviousGrainDelayMsec = GrainDelayProcessor.GetGrainDelayClamped(*GrainDelay);
+		PreviousGrainEnvelopeType = *GrainDelayEnvelope;
+		PreviousPitchShift = GrainDelayProcessor.GetGrainPitchShiftClamped(*GrainPitchShift);
+		
+		GrainDelayProcessor.SetGrainEnvelope(*GrainDelayEnvelope);
+		GrainDelayProcessor.SetGrainBasePitchShiftRatio(GrainDelayProcessor.GetGrainPitchShiftFrameRatio(PreviousPitchShift));
 	}
 
 	void FGrainDelayOperator::Execute()

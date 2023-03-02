@@ -72,6 +72,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Execute();
+		void Reset(const IOperator::FResetParams& InParams);
 
 	private:
 		float GetInputDelayTimeMsecClamped() const;
@@ -283,6 +284,20 @@ namespace Metasound
 				break;
 			}
 		}
+	}
+
+	void FStereoDelayOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		LeftAudioOutput->Zero();
+		RightAudioOutput->Zero();
+
+		PrevDelayTimeMsec = GetInputDelayTimeMsecClamped();
+		PrevDelayRatio = GetInputDelayRatioClamped();
+
+		LeftDelayBuffer.Reset();
+		LeftDelayBuffer.SetDelayMsec(PrevDelayTimeMsec * (1.0f + PrevDelayRatio));
+		RightDelayBuffer.Reset();
+		RightDelayBuffer.SetDelayMsec(PrevDelayTimeMsec * (1.0f - PrevDelayRatio));
 	}
 
 	const FVertexInterface& FStereoDelayOperator::GetVertexInterface()

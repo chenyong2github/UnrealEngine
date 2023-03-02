@@ -116,6 +116,7 @@ namespace Metasound
 			return OutputDataReferences;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 
@@ -224,6 +225,14 @@ namespace Metasound
 			);
 	}
 
+	void FLadderFilterOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		PreviousFrequency = InvalidValue;
+		PreviousResonance = InvalidValue;
+		AudioOutput->Zero();
+		LadderFilter.Init(SampleRate, 1 /* NumChannels */);
+	}
+
 	void FLadderFilterOperator::Execute()
 	{
 		const float CurrentFrequency = FMath::Clamp(*Frequency, 0.f, MaxCutoffFrequency);
@@ -286,6 +295,7 @@ namespace Metasound
 			return OutputDataReferences;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 
@@ -416,6 +426,21 @@ namespace Metasound
 			);
 	}
 
+	void FStateVariableFilterOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		PreviousFrequency = InvalidValue;
+		PreviousResonance = InvalidValue;
+		PreviousBandStopControl = InvalidValue;
+
+		// output pins
+		LowPassOutput->Zero();
+		HighPassOutput->Zero();
+		BandPassOutput->Zero();
+		BandStopOutput->Zero();
+
+		StateVariableFilter.Init(SampleRate, 1 /* NumChannels */);
+	}
+
 	void FStateVariableFilterOperator::Execute()
 	{
 		const float CurrentFrequency = FMath::Clamp(*Frequency, 0.f, MaxCutoffFrequency);
@@ -484,6 +509,7 @@ namespace Metasound
 			return OutputDataReferences;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 
@@ -580,6 +606,12 @@ namespace Metasound
 			);
 	}
 
+	void FOnePoleLowPassFilterOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		AudioOutput->Zero();
+		OnePoleLowPassFilter.Init(SampleRate, 1 /* NumChannels */);
+	}
+
 	void FOnePoleLowPassFilterOperator::Execute()
 	{
 		float ClampedFreq = FMath::Clamp(0.0f, *Frequency, SampleRate);
@@ -622,6 +654,7 @@ namespace Metasound
 			return OutputDataReferences;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 
@@ -718,6 +751,12 @@ namespace Metasound
 			);
 	}
 
+	void FOnePoleHighPassFilterOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		AudioOutput->Zero();
+		OnePoleHighPassFilter.Init(SampleRate, 1 /* NumChannels */);
+	}
+
 	void FOnePoleHighPassFilterOperator::Execute()
 	{
 		float ClampedFreq = FMath::Clamp(0.0f, *Frequency, SampleRate);
@@ -763,10 +802,13 @@ namespace Metasound
 			return OutputDataReferences;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 
-	private: // members
+	private: 
+		void ResetInternal();
+
 		// input pins
 		FAudioBufferReadRef AudioInput;
 		FFloatReadRef Frequency;
@@ -813,9 +855,7 @@ namespace Metasound
 			, MaxCutoffFrequency(0.5f * SampleRate)
 			, PreviousFilterType(*FilterType)
 		{
-			// verify our buffer sizes:
-			check(AudioOutput->Num() == BlockSize);
-			BiquadFilter.Init(SampleRate, 1, *FilterType);
+			ResetInternal();
 		}
 	};
 
@@ -897,6 +937,22 @@ namespace Metasound
 			, FilterGainDbIn
 			, FilterType
 			);
+	}
+
+	void FBiquadFilterOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		ResetInternal();
+	}
+
+	void FBiquadFilterOperator::ResetInternal()
+	{
+		PreviousFrequency = InvalidValue;
+		PreviousBandwidth = InvalidValue;
+		PreviousFilterGainDb = InvalidValue;
+		PreviousFilterType = *FilterType;
+
+		AudioOutput->Zero();
+		BiquadFilter.Init(SampleRate, 1, *FilterType);
 	}
 
 	void FBiquadFilterOperator::Execute()

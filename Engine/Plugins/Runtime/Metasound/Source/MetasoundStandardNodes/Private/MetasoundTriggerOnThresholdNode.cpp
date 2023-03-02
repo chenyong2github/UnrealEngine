@@ -235,6 +235,13 @@ namespace Metasound
 			}
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			Out->Reset();
+			bTriggered = false;
+			LastSample = 0;
+		}
+
 		FDataReferenceCollection GetInputs() const
 		{
 			using namespace TriggerOnThresholdVertexNames;

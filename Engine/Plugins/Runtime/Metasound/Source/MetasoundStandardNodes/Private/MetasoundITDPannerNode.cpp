@@ -48,6 +48,7 @@ namespace Metasound
 
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 	private:
@@ -177,6 +178,24 @@ namespace Metasound
 		}
 	}
 	
+
+	void FITDPannerOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		AudioLeftOutput->Zero();
+		AudioRightOutput->Zero();
+
+		LeftDelay.Reset();
+		RightDelay.Reset();
+
+		CurrAngle = FMath::Clamp(*PanningAngle, 0.0f, 360.0f);
+		CurrDistanceFactor = FMath::Clamp(*DistanceFactor, 0.0f, 1.0f);
+		CurrHeadWidth = FMath::Max(*HeadWidth, 0.0f);
+
+		UpdateParams(true);
+
+		PrevLeftGain = CurrLeftGain;
+		PrevRightGain = CurrRightGain;
+	}
 
 	void FITDPannerOperator::Execute()
 	{

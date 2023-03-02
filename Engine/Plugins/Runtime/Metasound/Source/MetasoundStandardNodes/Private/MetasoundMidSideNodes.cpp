@@ -34,7 +34,7 @@ namespace Metasound
 	{
 	public:
 
-		FMidSideEncodeOperator(const FOperatorSettings& InSettings,
+		FMidSideEncodeOperator(const FCreateOperatorParams& InParams,
 			const FAudioBufferReadRef& InLeftAudioInput,
 			const FAudioBufferReadRef& InRightAudioInput,
 			const FFloatReadRef& InSpreadAmount,
@@ -43,14 +43,15 @@ namespace Metasound
 			, AudioInputRight(InRightAudioInput)
 			, SpreadAmount(InSpreadAmount)
 			, bEqualPower(InEqualPower)
-			, AudioOutputMid(FAudioBufferWriteRef::CreateNew(InSettings))
-			, AudioOutputSide(FAudioBufferWriteRef::CreateNew(InSettings))
+			, AudioOutputMid(FAudioBufferWriteRef::CreateNew(InParams.OperatorSettings))
+			, AudioOutputSide(FAudioBufferWriteRef::CreateNew(InParams.OperatorSettings))
 			, MidScale(0.0f)
 			, SideScale(0.0f)
 			, PrevMidScale(0.0f)
 			, PrevSideScale(0.0f)
 			, PrevSpreadAmount(*SpreadAmount)
 		{
+			Reset(InParams);
 		}
 
 		static const FNodeClassMetadata& GetNodeInfo()
@@ -113,7 +114,6 @@ namespace Metasound
 			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputEqualPower), bEqualPower);
 			
 			return InputDataReferences;
-
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
@@ -139,38 +139,19 @@ namespace Metasound
 			FFloatReadRef SpreadAmountIn = Inputs.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputSpreadAmount), InParams.OperatorSettings);
 			FBoolReadRef bEqualPowerIn = Inputs.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, METASOUND_GET_PARAM_NAME(InputEqualPower), InParams.OperatorSettings);
 
-			return MakeUnique<FMidSideEncodeOperator>(InParams.OperatorSettings, LeftAudioIn, RightAudioIn, SpreadAmountIn, bEqualPowerIn);
+			return MakeUnique<FMidSideEncodeOperator>(InParams, LeftAudioIn, RightAudioIn, SpreadAmountIn, bEqualPowerIn);
 		}
 
 		void Execute()
 		{
 			/* Update internal variables, if necessary */
-			
 			const float ClampedSpread = FMath::Clamp(*SpreadAmount, 0.0f, 1.0f);
 			bool bNeedsUpdate = FMath::IsNearlyEqual(ClampedSpread, PrevSpreadAmount);
 			if (bNeedsUpdate)
 			{
-				// Convert to radians between 0.0 and PI/2
-				const float SpreadScale = ClampedSpread * 0.5f * PI;
-
-				// Compute equal power relationship between Mid and Side
-				FMath::SinCos(&SideScale, &MidScale, SpreadScale);
-
-				// Adjust gain so 0.5f Spread results in a 1.0f to 1.0f gain ratio between Mid and Side
-				const float NormalizingFactor = UE_SQRT_2;
-				MidScale *= NormalizingFactor;
-				SideScale *= NormalizingFactor;
-
-				// Clamp values if not Equal Power
-				if (!*bEqualPower)
-				{
-					MidScale = FMath::Clamp(MidScale, 0.0f, 1.0f);
-					SideScale = FMath::Clamp(SideScale, 0.0f, 1.0f);
-				}
-
+				UpdateScale(ClampedSpread);
+				PrevSpreadAmount = ClampedSpread;
 			}
-
-			PrevSpreadAmount = ClampedSpread;
 
 			/* Generate Mid-Side Output */
 
@@ -193,11 +174,45 @@ namespace Metasound
 				PrevMidScale = MidScale;
 				PrevSideScale = SideScale;
 			}
-			
+		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			const float ClampedSpread = FMath::Clamp(*SpreadAmount, 0.0f, 1.0f);
+			UpdateScale(ClampedSpread);
+
+			PrevSpreadAmount = ClampedSpread;
+			PrevMidScale = MidScale;
+			PrevSideScale = SideScale;
+
+			// Encode the signal to to MS
+			Audio::EncodeMidSide(*AudioInputLeft, *AudioInputRight, *AudioOutputMid, *AudioOutputSide);			
+			Audio::ArrayMultiplyByConstantInPlace(*AudioOutputMid, MidScale);
+			Audio::ArrayMultiplyByConstantInPlace(*AudioOutputSide, SideScale);
 		}
 
 	private:
+
+		void UpdateScale(float InSpread)
+		{
+			// Convert to radians between 0.0 and PI/2
+			const float SpreadScale = InSpread * 0.5f * PI;
+
+			// Compute equal power relationship between Mid and Side
+			FMath::SinCos(&SideScale, &MidScale, SpreadScale);
+
+			// Adjust gain so 0.5f Spread results in a 1.0f to 1.0f gain ratio between Mid and Side
+			const float NormalizingFactor = UE_SQRT_2;
+			MidScale *= NormalizingFactor;
+			SideScale *= NormalizingFactor;
+
+			// Clamp values if not Equal Power
+			if (!*bEqualPower)
+			{
+				MidScale = FMath::Clamp(MidScale, 0.0f, 1.0f);
+				SideScale = FMath::Clamp(SideScale, 0.0f, 1.0f);
+			}
+		}
 
 		// The input audio buffer
 		FAudioBufferReadRef AudioInputLeft;
@@ -223,7 +238,6 @@ namespace Metasound
 
 		// Previous Spread variable; need to update MidScale and SideScale if this changes between Execute() calls
 		float PrevSpreadAmount;
-
 	};
 
 	// Node Class
@@ -275,6 +289,11 @@ namespace Metasound
 			, PrevSideScale(0.0f)
 			, PrevSpreadAmount(*SpreadAmount)
 		{
+			MidInBuffer.AddUninitialized(InSettings.GetNumFramesPerBlock());
+			FMemory::Memset(MidInBuffer.GetData(), 0, sizeof(float) * MidInBuffer.Num());
+
+			SideInBuffer.AddUninitialized(InSettings.GetNumFramesPerBlock());
+			FMemory::Memset(SideInBuffer.GetData(), 0, sizeof(float) * SideInBuffer.Num());
 		}
 
 		static const FNodeClassMetadata& GetNodeInfo()
@@ -370,57 +389,29 @@ namespace Metasound
 		{
 			/* Update internal variables, if necessary */
 			const float ClampedSpread = FMath::Clamp(*SpreadAmount, 0.0f, 1.0f);
-			bool bNeedsUpdate = FMath::IsNearlyEqual(ClampedSpread, PrevSpreadAmount);
-			if (bNeedsUpdate)
+			
+			if (!FMath::IsNearlyEqual(ClampedSpread, PrevSpreadAmount))
 			{
-				// Convert to radians between 0.0 and PI/2
-				const float SpreadScale = ClampedSpread * 0.5f * PI;
-
-				// Compute equal power relationship between Mid and Side
-				FMath::SinCos(&SideScale, &MidScale, SpreadScale);
-
-
-				// Adjust gain so 0.5f Spread results in a 1.0f to 1.0f gain ratio between Mid and Side
-				const float NormalizingFactor = UE_SQRT_2;
-				MidScale *= NormalizingFactor;
-				SideScale *= NormalizingFactor;
-
-				// Clamp values if not Equal Power
-				if (!*bEqualPower)
-				{
-					MidScale = FMath::Clamp(MidScale, 0.0f, 1.0f);
-					SideScale = FMath::Clamp(SideScale, 0.0f, 1.0f);
-				}
+				UpdateScale(ClampedSpread);
+				PrevSpreadAmount = ClampedSpread;
 			}
 
-			PrevSpreadAmount = ClampedSpread;
-
 			/* Generate Mid-Side Output */
-
-			// We need to make a copy of the input data so we can scale it before decoding
-			const float* MidInput = AudioInputMid->GetData();
-			const float* SideInput = AudioInputSide->GetData();
-
-			const int32 NumFrames = AudioInputMid->Num();
-
-			MidInBuffer.Reset();
-			MidInBuffer.Append(MidInput, NumFrames);
-			SideInBuffer.Reset();
-			SideInBuffer.Append(SideInput, NumFrames);
-
 
 			// SideScale never changes quickly without MidScale also changing quickly
 			if (FMath::IsNearlyEqual(PrevMidScale, MidScale))
 			{
-				Audio::ArrayMultiplyByConstantInPlace(MidInBuffer, MidScale);
-				Audio::ArrayMultiplyByConstantInPlace(SideInBuffer, SideScale);
+				Audio::ArrayMultiplyByConstant(*AudioInputMid, MidScale, MidInBuffer);
+				Audio::ArrayMultiplyByConstant(*AudioInputSide, SideScale, SideInBuffer);
 			}
 			else
 			{
+				MidInBuffer = *AudioInputMid;
 				Audio::ArrayFade(MidInBuffer, PrevMidScale, MidScale);
-				Audio::ArrayFade(SideInBuffer, PrevSideScale, SideScale);
-
 				PrevMidScale = MidScale;
+
+				SideInBuffer = *AudioInputSide;
+				Audio::ArrayFade(SideInBuffer, PrevSideScale, SideScale);
 				PrevSideScale = SideScale;
 			}
 
@@ -428,7 +419,41 @@ namespace Metasound
 			Audio::DecodeMidSide(MidInBuffer, SideInBuffer, *AudioOutputLeft, *AudioOutputRight);
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			AudioOutputLeft->Zero();
+			AudioOutputRight->Zero();
+
+			const float ClampedSpread = FMath::Clamp(*SpreadAmount, 0.0f, 1.0f);
+			UpdateScale(ClampedSpread);
+			PrevSpreadAmount = ClampedSpread;
+
+			PrevMidScale = MidScale;
+			PrevSideScale = SideScale;
+		}
+
 	private:
+
+		void UpdateScale(float InSpread)
+		{
+			// Convert to radians between 0.0 and PI/2
+			const float SpreadScale = InSpread * 0.5f * PI;
+
+			// Compute equal power relationship between Mid and Side
+			FMath::SinCos(&SideScale, &MidScale, SpreadScale);
+
+			// Adjust gain so 0.5f Spread results in a 1.0f to 1.0f gain ratio between Mid and Side
+			constexpr float NormalizingFactor = UE_SQRT_2;
+			MidScale *= NormalizingFactor;
+			SideScale *= NormalizingFactor;
+
+			// Clamp values if not Equal Power
+			if (!*bEqualPower)
+			{
+				MidScale = FMath::Clamp(MidScale, 0.0f, 1.0f);
+				SideScale = FMath::Clamp(SideScale, 0.0f, 1.0f);
+			}
+		}
 
 		// The input audio buffer
 		FAudioBufferReadRef AudioInputMid;

@@ -134,23 +134,7 @@ namespace Metasound
 			, OutWriteRef(TDataWriteReferenceFactory<float>::CreateAny(InParams.OperatorSettings))
 			, SampleRate(InParams.OperatorSettings.GetSampleRate())
 		{
-			{
-				using namespace WaveTable;
-				FWaveTableSampler::FSettings Settings;
-				Settings.Freq = 0.0f; // Sampler phase is manually progressed via this node
-				Sampler = FWaveTableSampler(MoveTemp(Settings));
-			}
-
-			{
-				const float BlockRate = InParams.OperatorSettings.GetActualBlockRate();
-				check(BlockRate > 0.0f && !FMath::IsNearlyZero(BlockRate));
-				SecondsPerBlock = 1.0f / BlockRate;
-			}
-
-			{
-				BlockSize = InParams.OperatorSettings.GetNumFramesPerBlock();
-				check(BlockSize > 0);
-			}
+			Reset(InParams);
 		}
 
 		virtual ~FMetasoundWaveTableEnvelopeNodeOperator() = default;
@@ -309,6 +293,33 @@ namespace Metasound
 			}
 
 			*OutWriteRef = NextValue;
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			{
+				using namespace WaveTable;
+				FWaveTableSampler::FSettings Settings;
+				Settings.Freq = 0.0f; // Sampler phase is manually progressed via this node
+				Sampler = FWaveTableSampler(MoveTemp(Settings));
+			}
+
+			{
+				const float BlockRate = InParams.OperatorSettings.GetActualBlockRate();
+				check(BlockRate > 0.0f && !FMath::IsNearlyZero(BlockRate));
+				SecondsPerBlock = 1.0f / BlockRate;
+			}
+
+			{
+				BlockSize = InParams.OperatorSettings.GetNumFramesPerBlock();
+				check(BlockSize > 0);
+			}
+
+			OnFinishedWriteRef->Reset();
+			*OutWriteRef = 0.f;
+
+			Elapsed = -1.0f;
+			bPaused = false;
 		}
 
 	private:

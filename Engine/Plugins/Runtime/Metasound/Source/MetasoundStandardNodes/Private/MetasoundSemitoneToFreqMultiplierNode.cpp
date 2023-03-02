@@ -36,6 +36,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Execute();
+		void Reset(const IOperator::FResetParams& InParams);
 
 	private:
 		// The input difference in semitones
@@ -85,6 +86,12 @@ namespace Metasound
 			PrevSemitone = CurrSemitone;
 			*FrequencyMultiplierOutput = Audio::GetFrequencyMultiplier(CurrSemitone);
 		}
+	}
+
+	void FSemitoneToFrequencyMultiplierOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		*FrequencyMultiplierOutput = Audio::GetFrequencyMultiplier(*SemitoneInput);
+		PrevSemitone = *SemitoneInput;
 	}
 
 	const FVertexInterface& FSemitoneToFrequencyMultiplierOperator::GetVertexInterface()

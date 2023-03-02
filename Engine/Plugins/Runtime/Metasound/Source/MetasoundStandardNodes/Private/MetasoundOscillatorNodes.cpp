@@ -80,7 +80,7 @@ namespace Metasound
 	// Base Oscillator Operator CRTP.
 	// Expects your Derived class to implement a Generate(int32 InStartFrame, int32 InEndFrame, float InFreq)
 	template<typename GeneratorPolicy, typename Derived>
-	class TOscillatorOperatorBase : public TExecutableOperator<Derived>
+	class TOscillatorOperatorBase : public TExecutableOperator<TOscillatorOperatorBase<GeneratorPolicy, Derived>>
 	{		
 	public:
 		TOscillatorOperatorBase(const FOscillatorOperatorConstructParams& InConstructParams)
@@ -127,6 +127,12 @@ namespace Metasound
 			
 			// Recreate the generator type with the phase requested.
 			Generator = GeneratorPolicy{ LinearPhase };
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			ResetPhase(*PhaseOffset);
+			AudioBuffer->Zero();
 		}
 
 		void Execute()
@@ -959,6 +965,12 @@ namespace Metasound
 		{
 			float ClampedDegrees = FMath::Clamp(*PhaseOffset, 0.f, 360.f);
 			Phase = ClampedDegrees / 360.f;
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			ResetPhase();
+			*Output = 0.f;
 		}
 
 		void Execute()

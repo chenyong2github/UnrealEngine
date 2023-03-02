@@ -371,6 +371,14 @@ namespace Metasound
 			}
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			if (bIsEnabled)
+			{
+				Disable();
+			}
+		}
+
 	protected:
 		static const FVertexName GetAudioInputName(int32 InInputIndex)
 		{

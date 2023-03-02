@@ -60,6 +60,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Execute();
+		void Reset(const IOperator::FResetParams& InParams);
 
 	private:
 		float GetInputDelayTimeMsec() const;
@@ -177,6 +178,15 @@ namespace Metasound
 			PrevLeftPan = CurrentLeftPan;
 			PrevRightPan = CurrentRightPan;
 		}
+	}
+
+	void FStereoPannerOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		AudioLeftOutput->Zero();
+		AudioRightOutput->Zero();
+
+		PrevPanningAmount = FMath::Clamp(*PanningAmount, -1.0f, 1.0f);
+		ComputePanGains(PrevPanningAmount, PrevLeftPan, PrevRightPan);
 	}
 
 	const FVertexInterface& FStereoPannerOperator::GetVertexInterface()

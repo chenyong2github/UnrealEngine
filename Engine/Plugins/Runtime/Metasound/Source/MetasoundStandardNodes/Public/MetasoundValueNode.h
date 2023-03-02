@@ -167,6 +167,13 @@ namespace Metasound
 
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			TriggerOnSet->Reset();
+			TriggerOnReset->Reset();
+			*OutputValue = *InitValue;
+		}
+
 	private:
 
 		TDataReadReference<FTrigger> SetTrigger;

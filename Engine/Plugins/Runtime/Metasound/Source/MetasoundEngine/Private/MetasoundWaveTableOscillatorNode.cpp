@@ -210,6 +210,23 @@ namespace Metasound
 			}
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			const float BlockRate = InParams.OperatorSettings.GetActualBlockRate();
+			if (BlockRate > 0.0f)
+			{
+				BlockPeriod = 1.0f / BlockRate;
+			}
+
+			bPlaying = false;
+			if (SyncBuffer.Num() > 0)
+			{
+				FMemory::Memset(SyncBuffer.GetData(), 0, sizeof(float) * SyncBuffer.Num());
+			}
+			Sampler = WaveTable::FWaveTableSampler{};
+			OutBufferWriteRef->Zero();
+		}
+
 	private:
 		float BlockPeriod = 0.0f;
 		bool bPlaying = false;

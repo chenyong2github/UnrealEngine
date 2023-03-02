@@ -180,6 +180,12 @@ namespace Metasound
 			}
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			OutputTrigger->Reset();
+			ResetTriggerState();
+		}
+
 	private:
 
 		FBoolReadRef bAutoReset;

@@ -84,6 +84,7 @@ namespace Metasound
 			, TableIndexReadRef(InTableIndexReadRef)
 			, OutTable(TDataWriteReferenceFactory<WaveTable::FWaveTable>::CreateAny(InParams.OperatorSettings))
 		{
+			Reset(InParams);
 		}
 
 		virtual ~FMetasoundWaveTableGetNodeOperator() = default;
@@ -202,6 +203,13 @@ namespace Metasound
 			}
 
 			LastTableIndex = NextTableIndex;
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			LastTableIndex = -1.0f;
+			OutTable->SetNum(0);
+			OutTable->SetFinalValue(0.f);
 		}
 
 	private:

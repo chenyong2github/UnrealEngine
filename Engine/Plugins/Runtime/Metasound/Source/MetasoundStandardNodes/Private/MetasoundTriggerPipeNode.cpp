@@ -41,6 +41,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Execute();
+		void Reset(const IOperator::FResetParams& InParams);
 
 	private:
 		TArray<FSampleCount> SamplesUntilTrigger;
@@ -133,6 +134,12 @@ namespace Metasound
 				SamplesUntilTrigger.RemoveAtSwap(i);
 			}
 		}
+	}
+
+	void FTriggerPipeOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		SamplesUntilTrigger.Reset();
+		TriggerOut->Reset();
 	}
 
 	TUniquePtr<IOperator> FTriggerPipeOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)

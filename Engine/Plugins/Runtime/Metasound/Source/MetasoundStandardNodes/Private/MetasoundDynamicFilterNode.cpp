@@ -247,6 +247,13 @@ namespace Metasound
 			}
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			AudioOutput->Zero();
+			Filter.Reset();
+			UpdateFilterSettings();
+		}
+
 		void Execute()
 		{
 			const float* InputAudio = AudioInput->GetData();

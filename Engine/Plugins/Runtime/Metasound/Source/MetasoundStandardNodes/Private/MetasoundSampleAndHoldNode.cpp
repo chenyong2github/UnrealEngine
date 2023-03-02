@@ -84,16 +84,15 @@ namespace Metasound
 			FTriggerReadRef InputTriggerSampleAndHold = Inputs.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputTriggerSampleAndHold), InParams.OperatorSettings);
 			FAudioBufferReadRef InputAudio = Inputs.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(InputAudio), InParams.OperatorSettings);
 
-			return MakeUnique<FSampleAndHoldOperator>(InParams.OperatorSettings, InputTriggerSampleAndHold, InputAudio);
+			return MakeUnique<FSampleAndHoldOperator>(InParams, InputTriggerSampleAndHold, InputAudio);
 		}
 
-		FSampleAndHoldOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerSampleAndHold, const FAudioBufferReadRef& InAudioInput)
+		FSampleAndHoldOperator(const FCreateOperatorParams& InParams, const FTriggerReadRef& InTriggerSampleAndHold, const FAudioBufferReadRef& InAudioInput)
 			: AudioInput(InAudioInput)
 			, TriggerSampleAndHold(InTriggerSampleAndHold)
-			, AudioOutput(FAudioBufferWriteRef::CreateNew(InSettings))
+			, AudioOutput(FAudioBufferWriteRef::CreateNew(InParams.OperatorSettings))
 		{
-			// Init the hold value to the first sample in the audio buffer
-			HoldValue = AudioInput->GetData()[0];
+			Reset(InParams);
 		}
 
 		virtual FDataReferenceCollection GetInputs() const override
@@ -119,36 +118,44 @@ namespace Metasound
 		
 		void Execute()
 		{
-			// Lambda is used for both pre and post trigger frames
-			auto SetToHoldLambda = [this](int32 StartFrame, int32 EndFrame)
-			{
-				check(AudioOutput->Num() >= EndFrame);
-				float* OutputBufferPtr = AudioOutput->GetData();
-				float* CurrOutputPtr = &OutputBufferPtr[StartFrame];
-
-				const int32 NumSamples = EndFrame - StartFrame;
-
-				// non-SIMD version
-				for (int32 i = 0; i < NumSamples; ++i)
-				{
-					CurrOutputPtr[i] = HoldValue;
-				}
-			};
-
 			TriggerSampleAndHold->ExecuteBlock(
 				// On Pre-Trigger, continue outputting the held value
-				SetToHoldLambda, 
+				[this](int32 StartFrame, int32 EndFrame)
+				{
+					SetToHold(StartFrame, EndFrame);
+				},
 				// On Trigger, get a new hold value, then output for the rest of the block
-				[this, &SetToHoldLambda](int32 StartFrame, int32 EndFrame)
+				[this](int32 StartFrame, int32 EndFrame)
 				{
 					// Get a new value to sample and hold
 					HoldValue = AudioInput->GetData()[StartFrame];
-					SetToHoldLambda(StartFrame, EndFrame);
+					SetToHold(StartFrame, EndFrame);
 				}
 			);
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			HoldValue = AudioInput->GetData()[0];
+			SetToHold(0, AudioOutput->Num());
+		}
+
 	private:
+
+		void SetToHold(int32 StartFrame, int32 EndFrame)
+		{
+			check(AudioOutput->Num() >= EndFrame);
+			float* OutputBufferPtr = AudioOutput->GetData();
+			float* CurrOutputPtr = &OutputBufferPtr[StartFrame];
+
+			const int32 NumSamples = EndFrame - StartFrame;
+
+			// non-SIMD version
+			for (int32 i = 0; i < NumSamples; ++i)
+			{
+				CurrOutputPtr[i] = HoldValue;
+			}
+		}
 
 		FAudioBufferReadRef AudioInput;
 		FTriggerReadRef TriggerSampleAndHold;

@@ -40,7 +40,7 @@ namespace Metasound
 		static const FVertexInterface& GetVertexInterface();
 		static TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults);
 
-		FDelayOperator(const FOperatorSettings& InSettings, 
+		FDelayOperator(const FBuildOperatorParams& InParams, 
 			const FAudioBufferReadRef& InAudioInput, 
 			const FTimeReadRef& InDelayTime, 
 			const FFloatReadRef& InDryLevel, 
@@ -51,6 +51,7 @@ namespace Metasound
 		virtual void Bind(FVertexInterfaceData& InVertexData) const override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 	private:
@@ -87,7 +88,7 @@ namespace Metasound
 		float MaxDelayTimeSeconds = Delay::DefaultMaxDelaySeconds;
 	};
 
-	FDelayOperator::FDelayOperator(const FOperatorSettings& InSettings,
+	FDelayOperator::FDelayOperator(const FBuildOperatorParams& InParams,
 		const FAudioBufferReadRef& InAudioInput,
 		const FTimeReadRef& InDelayTime,
 		const FFloatReadRef& InDryLevel,
@@ -100,13 +101,11 @@ namespace Metasound
 		, DryLevel(InDryLevel)
 		, WetLevel(InWetLevel)
 		, Feedback(InFeedback)
-		, AudioOutput(FAudioBufferWriteRef::CreateNew(InSettings))
+		, AudioOutput(FAudioBufferWriteRef::CreateNew(InParams.OperatorSettings))
 	{
 		MaxDelayTimeSeconds = FMath::Clamp(InMaxDelayTimeSeconds, Delay::MinMaxDelaySeconds, Delay::MaxMaxDelaySeconds);
-		PrevDelayTimeMsec = GetInputDelayTimeMsec();
 
-		DelayBuffer.Init(InSettings.GetSampleRate(), MaxDelayTimeSeconds);
-		DelayBuffer.SetDelayMsec(PrevDelayTimeMsec);
+		Reset(InParams);
 	}
 
 	void FDelayOperator::Bind(FVertexInterfaceData& InVertexData) const
@@ -152,6 +151,18 @@ namespace Metasound
 	{
 		// Clamp the delay time to the max delay allowed
 		return 1000.0f * FMath::Clamp((float)DelayTime->GetSeconds(), 0.0f, MaxDelayTimeSeconds);
+	}
+
+	void FDelayOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		FeedbackSample = 0.f;
+		PrevDelayTimeMsec = GetInputDelayTimeMsec();
+
+		DelayBuffer.Reset();
+		DelayBuffer.Init(InParams.OperatorSettings.GetSampleRate(), MaxDelayTimeSeconds);
+		DelayBuffer.SetDelayMsec(PrevDelayTimeMsec);
+
+		AudioOutput->Zero();
 	}
 
 	void FDelayOperator::Execute()
@@ -255,7 +266,7 @@ namespace Metasound
 		FFloatReadRef Feedback = InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(InParamFeedbackAmount), InParams.OperatorSettings);
 		FTime MaxDelayTime = InputData.GetOrCreateDefaultValue<FTime>(METASOUND_GET_PARAM_NAME(InParamMaxDelayTime), InParams.OperatorSettings);
 
-		return MakeUnique<FDelayOperator>(InParams.OperatorSettings, AudioIn, DelayTime, DryLevel, WetLevel, Feedback, MaxDelayTime.GetSeconds());
+		return MakeUnique<FDelayOperator>(InParams, AudioIn, DelayTime, DryLevel, WetLevel, Feedback, MaxDelayTime.GetSeconds());
 	}
 
 	class FDelayNode : public FNodeFacade

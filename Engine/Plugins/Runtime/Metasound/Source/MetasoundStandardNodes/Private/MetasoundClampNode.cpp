@@ -242,6 +242,11 @@ namespace Metasound
 			TClamp<ValueType>::GetClamped(*InputValue, *InputMinValue, *InputMaxValue, *OutputValue);
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			GetClamped();
+		}
+
 		void Execute()
 		{
 			GetClamped();

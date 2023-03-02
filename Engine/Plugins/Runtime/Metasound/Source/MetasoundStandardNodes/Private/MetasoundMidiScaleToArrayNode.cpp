@@ -47,7 +47,7 @@ namespace Metasound
 
 		// ctor
 		FMusicalScaleToNoteArrayOperator(
-			  const FOperatorSettings& InSettings
+			  const FCreateOperatorParams& InParams
 			, const FEnumMusicalScaleReadRef& InScale
 			, const FBoolReadRef& InChordTonesOnly
 		);
@@ -58,6 +58,7 @@ namespace Metasound
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 	private: // members
@@ -71,10 +72,6 @@ namespace Metasound
 		// cached values
 		Audio::EMusicalScale::Scale PreviousScale = Audio::EMusicalScale::Scale::Count;
 		bool bPreviousChordTones = false;
-		TArray<float> PreviousNoteOut;
-
-		// other
-		FOperatorSettings Settings;
 
 	}; // class FMusicalScaleToNoteArrayOperator
 
@@ -85,17 +82,16 @@ namespace Metasound
 
 	// ctor
 	FMusicalScaleToNoteArrayOperator::FMusicalScaleToNoteArrayOperator(
-		  const FOperatorSettings& InSettings
+		  const FCreateOperatorParams& InParams
 		, const FEnumMusicalScaleReadRef& InScale
 		, const FBoolReadRef& InChordTonesOnly
 		)
 		: Scale(InScale)
 		, bChordTonesOnly(InChordTonesOnly)
 		, ScaleArrayOutput(FArrayScaleDegreeWriteRef::CreateNew())
-		, Settings(InSettings)
 	{
 		// prime our output array
-		Execute();
+		Reset(InParams);
 	}
 
 
@@ -150,7 +146,7 @@ namespace Metasound
 		FBoolReadRef ChordTonesOnly = InputDataRefs.GetDataReadReferenceOrConstruct<bool>(METASOUND_GET_PARAM_NAME(ParamChordTonesOnly));
 
 		return MakeUnique <FMusicalScaleToNoteArrayOperator>(
-			  InParams.OperatorSettings
+			  InParams
 			, Scale
 			, ChordTonesOnly
 			);
@@ -174,6 +170,14 @@ namespace Metasound
 		return OutputDataReferences;
 	}
 
+	void FMusicalScaleToNoteArrayOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		PreviousScale = *Scale;
+		bPreviousChordTones = *bChordTonesOnly;
+
+		*ScaleArrayOutput = Audio::FMidiNoteQuantizer::ScaleDegreeSetMap[PreviousScale].GetScaleDegreeSet(bPreviousChordTones);
+	}
+
 	void FMusicalScaleToNoteArrayOperator::Execute()
 	{
 		// calculate new output and cache values if needed
@@ -183,7 +187,7 @@ namespace Metasound
 			PreviousScale = *Scale;
 			bPreviousChordTones = *bChordTonesOnly;
 
-			PreviousNoteOut = *ScaleArrayOutput = Audio::FMidiNoteQuantizer::ScaleDegreeSetMap[PreviousScale].GetScaleDegreeSet(bPreviousChordTones);
+			*ScaleArrayOutput = Audio::FMidiNoteQuantizer::ScaleDegreeSetMap[PreviousScale].GetScaleDegreeSet(bPreviousChordTones);
 		}
 	}
 

@@ -55,6 +55,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Execute();
+		void Reset(const IOperator::FResetParams& InParams);
 
 	private:
 		// The input audio buffer
@@ -131,6 +132,12 @@ namespace Metasound
 		WaveShaper.SetType(*Type);
 
 		WaveShaper.ProcessAudioBuffer(InputAudio, OutputAudio, NumFrames);
+	}
+
+	void FWaveShaperOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		AudioOutput->Zero();
+		WaveShaper.Init(InParams.OperatorSettings.GetSampleRate());
 	}
 
 	const FVertexInterface& FWaveShaperOperator::GetVertexInterface()

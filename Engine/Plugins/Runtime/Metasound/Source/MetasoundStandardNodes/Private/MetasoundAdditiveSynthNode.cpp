@@ -139,6 +139,13 @@ namespace Metasound
 			return OutputDataReferences;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			CreateSinusoids();
+			LeftAudioOut->Zero();
+			RightAudioOut->Zero();
+		}
+
 		void Execute()
 		{
 			int32 NumSamples = LeftAudioOut->Num();

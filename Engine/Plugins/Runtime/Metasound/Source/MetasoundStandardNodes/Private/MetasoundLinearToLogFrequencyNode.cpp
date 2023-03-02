@@ -132,6 +132,12 @@ namespace Metasound
 			return OutputDataReferences;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			PrevInputValue = *Value;
+			*FreqOutput = GetOutputValue();
+		}
+
 		void Execute()
 		{
 			using namespace LinearToLogFrequencyVertexNames;

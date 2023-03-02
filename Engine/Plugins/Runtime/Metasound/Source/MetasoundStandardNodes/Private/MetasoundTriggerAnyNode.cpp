@@ -178,6 +178,11 @@ namespace Metasound
 			}
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			OutputTrigger->Reset();
+		}
+
 	private:
 
 		TArray<FTriggerReadRef> InputTriggers;

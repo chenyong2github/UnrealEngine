@@ -52,7 +52,7 @@ namespace Metasound
 		static constexpr float SoftKneeBandwitdh = 10.0f;
 		static constexpr float MaxInputGain = 100.0f;
 
-		FLimiterOperator(const FOperatorSettings& InSettings,
+		FLimiterOperator(const FCreateOperatorParams& InParams,
 			const FAudioBufferReadRef& InAudio,
 			const FFloatReadRef& InGainDb,
 			const FFloatReadRef& InThresholdDb,
@@ -63,31 +63,13 @@ namespace Metasound
 			, ThresholdDbInput(InThresholdDb)
 			, ReleaseTimeInput(InReleaseTime)
 			, KneeModeInput(InKneeMode)
-			, AudioOutput(FAudioBufferWriteRef::CreateNew(InSettings))
+			, AudioOutput(FAudioBufferWriteRef::CreateNew(InParams.OperatorSettings))
 			, Limiter()
 			, PrevInGainDb(*InGainDb)
 			, PrevThresholdDb(*InThresholdDb)
 			, PrevReleaseTime(FMath::Max(FTime::ToMilliseconds(*InReleaseTime), 0.0))
 		{
-			Limiter.Init(InSettings.GetSampleRate(), 1);
-			Limiter.SetProcessingMode(Audio::EDynamicsProcessingMode::Limiter);
-			Limiter.SetInputGain(FMath::Min(*InGainDbInput, MaxInputGain));
-			Limiter.SetThreshold(*ThresholdDbInput);
-			Limiter.SetAttackTime(0.0f);
-			Limiter.SetReleaseTime(PrevReleaseTime);
-			Limiter.SetPeakMode(Audio::EPeakMode::Peak);
-
-			switch (*KneeModeInput)
-			{
-			default:
-			case EKneeMode::Hard:
-				Limiter.SetKneeBandwidth(HardKneeBandwitdh);
-				break;
-			case EKneeMode::Soft:
-				Limiter.SetKneeBandwidth(SoftKneeBandwitdh);
-				break;
-			}
-
+			Reset(InParams);
 		}
 
 		static const FNodeClassMetadata& GetNodeInfo()
@@ -176,26 +158,23 @@ namespace Metasound
 			FTimeReadRef ReleaseTimeIn = Inputs.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputReleaseTime), InParams.OperatorSettings);
 			FKneeModeReadRef KneeModeIn = Inputs.GetDataReadReferenceOrConstruct<FEnumKneeMode>(METASOUND_GET_PARAM_NAME(InputKneeMode));
 
-			return MakeUnique<FLimiterOperator>(InParams.OperatorSettings, AudioIn, InGainDbIn, ThresholdDbIn, ReleaseTimeIn, KneeModeIn);
+			return MakeUnique<FLimiterOperator>(InParams, AudioIn, InGainDbIn, ThresholdDbIn, ReleaseTimeIn, KneeModeIn);
 		}
-		void Execute()
+
+		void Reset(const IOperator::FResetParams& InParams)
 		{
-			/* Update parameters */
-			if (!FMath::IsNearlyEqual(*InGainDbInput, PrevInGainDb))
-			{
-				Limiter.SetInputGain(FMath::Min(*InGainDbInput, MaxInputGain));
-			}
-			if (!FMath::IsNearlyEqual(*ThresholdDbInput, PrevThresholdDb))
-			{
-				Limiter.SetThreshold(*ThresholdDbInput);
-			}
-			// Release time cannot be negative
-			double CurrRelease = FMath::Max(FTime::ToMilliseconds(*ReleaseTimeInput), 0.0f);
-			if (!FMath::IsNearlyEqual(CurrRelease, PrevReleaseTime))
-			{
-				Limiter.SetReleaseTime(CurrRelease);
-				PrevReleaseTime = CurrRelease;
-			}
+			AudioOutput->Zero();
+
+			const float ClampedInGainDb = FMath::Min(*InGainDbInput, MaxInputGain);
+			const float ClampedReleaseTime = FMath::Max(FTime::ToMilliseconds(*ReleaseTimeInput), 0.0);
+
+			Limiter.Init(InParams.OperatorSettings.GetSampleRate(), 1);
+			Limiter.SetProcessingMode(Audio::EDynamicsProcessingMode::Limiter);
+			Limiter.SetInputGain(ClampedInGainDb);
+			Limiter.SetThreshold(*ThresholdDbInput);
+			Limiter.SetAttackTime(0.0f);
+			Limiter.SetReleaseTime(ClampedReleaseTime);
+			Limiter.SetPeakMode(Audio::EPeakMode::Peak);
 
 			switch (*KneeModeInput)
 			{
@@ -206,7 +185,51 @@ namespace Metasound
 			case EKneeMode::Soft:
 				Limiter.SetKneeBandwidth(SoftKneeBandwitdh);
 				break;
-			}			
+			}
+
+			PrevInGainDb = ClampedInGainDb;
+			PrevReleaseTime = ClampedReleaseTime;
+			PrevThresholdDb = *ThresholdDbInput;
+			PrevKneeMode = *KneeModeInput;
+		}
+
+		void Execute()
+		{
+			/* Update parameters */
+			float ClampedInGainDb = FMath::Min(*InGainDbInput, MaxInputGain);
+			if (!FMath::IsNearlyEqual(ClampedInGainDb, PrevInGainDb))
+			{
+				Limiter.SetInputGain(ClampedInGainDb);
+				PrevInGainDb = ClampedInGainDb;
+			}
+
+			if (!FMath::IsNearlyEqual(*ThresholdDbInput, PrevThresholdDb))
+			{
+				Limiter.SetThreshold(*ThresholdDbInput);
+				PrevThresholdDb = *ThresholdDbInput;
+			}
+			// Release time cannot be negative
+			double CurrRelease = FMath::Max(FTime::ToMilliseconds(*ReleaseTimeInput), 0.0f);
+			if (!FMath::IsNearlyEqual(CurrRelease, PrevReleaseTime))
+			{
+				Limiter.SetReleaseTime(CurrRelease);
+				PrevReleaseTime = CurrRelease;
+			}
+
+			if (PrevKneeMode != *KneeModeInput)
+			{
+				switch (*KneeModeInput)
+				{
+				default:
+				case EKneeMode::Hard:
+					Limiter.SetKneeBandwidth(HardKneeBandwitdh);
+					break;
+				case EKneeMode::Soft:
+					Limiter.SetKneeBandwidth(SoftKneeBandwitdh);
+					break;
+				}			
+				PrevKneeMode = *KneeModeInput;
+			}
 
 			Limiter.ProcessAudio(AudioInput->GetData(), AudioInput->Num(), AudioOutput->GetData());
 		}
@@ -227,7 +250,7 @@ namespace Metasound
 		float PrevInGainDb;
 		float PrevThresholdDb;
 		double PrevReleaseTime;
-		float PrevKnee;
+		EKneeMode PrevKneeMode;
 	};
 
 	// Node Class

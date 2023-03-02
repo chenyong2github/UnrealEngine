@@ -361,11 +361,7 @@ namespace Metasound
 			, bIsDefaultSeeded(*SeedValue == DefaultSeed)
 			, bIsRandomStreamInitialized(false)
 		{
-			EvaluateSeedChanges();
-			RandomStream.Reset();
-
-			// We need to initialize the output value to *something*
-			*OutputValue = TRandomNodeSpecialization<ValueType>::GetNextValue(RandomStream, *MinValue, *MaxValue);
+			ResetInternal();
 		}
 
 		TRandomNodeOperator(const FOperatorSettings& InSettings,
@@ -383,11 +379,7 @@ namespace Metasound
 			, bIsDefaultSeeded(*SeedValue == DefaultSeed)
 			, bIsRandomStreamInitialized(false)
 		{
-			EvaluateSeedChanges();
-			RandomStream.Reset();
-
-			// We need to initialize the output value to *something*
-			*OutputValue = TRandomNodeSpecialization<ValueType>::GetNextValue(RandomStream, *MinValue, *MaxValue);
+			ResetInternal();
 		}
 
 		virtual ~TRandomNodeOperator() = default;
@@ -451,7 +443,27 @@ namespace Metasound
 			);
 		}
 
+		// Externally visible initialize function
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			ResetInternal();
+		}
+
 	private:
+		void ResetInternal()
+		{
+			TriggerOutOnNext->Reset();
+			TriggerOutOnReset->Reset();
+			bIsDefaultSeeded = (DefaultSeed == *SeedValue);
+			bIsRandomStreamInitialized = false;
+
+			EvaluateSeedChanges();
+			RandomStream.Reset();
+
+			// We need to initialize the output value to *something*
+			*OutputValue = TRandomNodeSpecialization<ValueType>::GetNextValue(RandomStream, *MinValue, *MaxValue);
+		}
+
 		void EvaluateSeedChanges()
 		{
 			// if we have a non-zero seed

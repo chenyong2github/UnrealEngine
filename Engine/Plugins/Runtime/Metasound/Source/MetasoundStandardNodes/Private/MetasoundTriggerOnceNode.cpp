@@ -46,6 +46,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetOutputs() const override;
 
 		void Execute();
+		void Reset(const IOperator::FResetParams& InParams);
 
 	private:
 		// Try to go through gate
@@ -126,6 +127,11 @@ namespace Metasound
 
 	}
 
+	void FTriggerOnceOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		TriggerExitOutput->Reset();
+		bIsGateOpen = !(*bStartClosedInput);
+	}
 
 	TUniquePtr<IOperator> FTriggerOnceOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{

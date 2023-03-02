@@ -259,6 +259,12 @@ namespace Metasound
 			return Outputs;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			using namespace MetasoundConversionNodePrivate;
+			TConversionNodeSpecialization<FromType, ToType>::GetConvertedValue(*InputValue, *OutputValue);
+		}
+
 		void Execute()
 		{
 			using namespace MetasoundConversionNodePrivate;

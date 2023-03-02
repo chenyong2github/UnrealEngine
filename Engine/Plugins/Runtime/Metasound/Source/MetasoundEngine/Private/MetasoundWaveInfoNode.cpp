@@ -50,6 +50,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Execute();
+		void Reset(const IOperator::FResetParams& InParams);
 
 	private: // members
 		// input pins
@@ -156,6 +157,11 @@ namespace Metasound
 		{
 			*DurationSeconds = FTime::FromSeconds(0.0f);
 		}
+	}
+
+	void FWaveInfoNodeOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		Execute();
 	}
 
 

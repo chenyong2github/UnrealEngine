@@ -44,10 +44,11 @@ namespace Metasound
 		static const FVertexInterface& GetVertexInterface();
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
-		FInterpToOperator(const FOperatorSettings& InSettings, const FFloatReadRef& InTargetValue, const FTimeReadRef& InInterpTime);
+		FInterpToOperator(const FCreateOperatorParams& InSettings, const FFloatReadRef& InTargetValue, const FTimeReadRef& InInterpTime);
 
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 	private:
@@ -70,20 +71,12 @@ namespace Metasound
 		float PreviousTargetValue = 0.0f;
 	};
 
-	FInterpToOperator::FInterpToOperator(const FOperatorSettings& InSettings, const FFloatReadRef& InTargetValue, const FTimeReadRef& InInterpTime)
+	FInterpToOperator::FInterpToOperator(const FCreateOperatorParams& InParams, const FFloatReadRef& InTargetValue, const FTimeReadRef& InInterpTime)
 		: TargetValue(InTargetValue)
 		, InterpTime(InInterpTime)
 		, ValueOutput(FFloatWriteRef::CreateNew(*TargetValue))
 	{
-		// Set the fade to start at the value specified in the current value
-		VolumeFader.SetVolume(*TargetValue);
-
-		float BlockRate = InSettings.GetActualBlockRate();
-		BlockTimeDelta = 1.0f / BlockRate;
-
-		PreviousTargetValue = *TargetValue;
-
-		*ValueOutput = *TargetValue;
+		Reset(InParams);
 	}
 
 	FDataReferenceCollection FInterpToOperator::GetInputs() const
@@ -104,6 +97,20 @@ namespace Metasound
 		FDataReferenceCollection OutputDataReferences;
 		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutParamValue), FFloatReadRef(ValueOutput));
 		return OutputDataReferences;
+	}
+
+	void FInterpToOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		// Set the fade to start at the value specified in the current value
+		VolumeFader.SetVolume(*TargetValue);
+
+		float BlockRate = InParams.OperatorSettings.GetActualBlockRate();
+		BlockTimeDelta = 1.0f / BlockRate;
+
+		PreviousTargetValue = *TargetValue;
+
+		*ValueOutput = *TargetValue;
+
 	}
 
 	void FInterpToOperator::Execute()
@@ -184,7 +191,7 @@ namespace Metasound
 		FFloatReadRef TargetValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InParamTarget), InParams.OperatorSettings);
 		FTimeReadRef InterpTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InParamInterpTime), InParams.OperatorSettings);
 
-		return MakeUnique<FInterpToOperator>(InParams.OperatorSettings, TargetValue, InterpTime);
+		return MakeUnique<FInterpToOperator>(InParams, TargetValue, InterpTime);
 	}
 
 

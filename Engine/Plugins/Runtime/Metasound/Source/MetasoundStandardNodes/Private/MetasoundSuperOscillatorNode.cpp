@@ -207,59 +207,14 @@ namespace Metasound
 			, DetuneDb(InConstructParams.DetunedVoiceVolumeDb)
 			, GlideFactor(InConstructParams.GlideFactor)
 			, PulseWidth(InConstructParams.PulseWidth)
+			, bUseModulation(InConstructParams.bUseModulation)
 			, Fm(InConstructParams.Fm)
 			, OscType(InConstructParams.OscType)
 		{
-			using namespace Generators;
 
-			const int32 NumVoicesToInit = NumVoices;
 			ScratchBuffer.SetNumZeroed(InConstructParams.Settings.GetNumFramesPerBlock());
 			
-			// init generators
-			if (InConstructParams.bUseModulation)
-			{
-				// fm generators
-				switch (OscType)
-				{
-				case ELfoWaveshapeType::Sine:
-					FillGeneratorsArray<TVoiceGenerator<FSineWaveTableWithFm>>(Generators, NumVoicesToInit, SampleRate);
-					break;
-				case ELfoWaveshapeType::Triangle:
-					FillGeneratorsArray<TVoiceGenerator<FTrianglePolysmoothWithFm>>(Generators, NumVoicesToInit, SampleRate);
-					break;
-				case ELfoWaveshapeType::Square:
-					FillGeneratorsArray<TVoiceGenerator<FSquarePolysmoothWithFm>>(Generators, NumVoicesToInit, SampleRate);
-					break;
-				case ELfoWaveshapeType::Saw:
-					FillGeneratorsArray<TVoiceGenerator<FSawPolysmoothWithFm>>(Generators, NumVoicesToInit, SampleRate);
-					break;
-				default: 
-					check(!"Unsupported Wave Shape in FSuperOscillatorOperator");
-					return;
-				}
-			}
-			else
-			{
-				//non-fm generators
-				switch (OscType)
-				{
-				case ELfoWaveshapeType::Sine:
-					FillGeneratorsArray<TVoiceGenerator<FSineWaveTable>>(Generators, NumVoicesToInit, SampleRate);
-					break;
-				case ELfoWaveshapeType::Triangle:
-					FillGeneratorsArray<TVoiceGenerator<FTrianglePolysmooth>>(Generators, NumVoicesToInit, SampleRate);
-					break;
-				case ELfoWaveshapeType::Square:
-					FillGeneratorsArray<TVoiceGenerator<FSquarePolysmooth>>(Generators, NumVoicesToInit, SampleRate);
-					break;
-				case ELfoWaveshapeType::Saw:
-					FillGeneratorsArray<TVoiceGenerator<FSawPolysmooth>>(Generators, NumVoicesToInit, SampleRate);
-					break;
-				default: 
-					check(!"Unsupported Wave Shape in FSuperOscillatorOperator");
-					return;
-				}
-			}
+			InitializeGenerators();
 		}
 		
 		virtual void Bind(FVertexInterfaceData& InVertexData) const override
@@ -300,6 +255,7 @@ namespace Metasound
 		virtual void FillOutputs(const float Gain = 1.f, const float LinearPan = 0.f) {}
 		virtual void ZeroOutputs() {}
 		virtual float GetStereoWidth() const { return 0.f; }
+		virtual void ResetLimiters() = 0;
 		
 		void SetLimiterSettings(Audio::FDynamicsProcessor& InLimiter) const
 		{
@@ -379,11 +335,71 @@ namespace Metasound
 			}
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			ZeroOutputs();
+			ResetLimiters();
+
+			InitializeGenerators();
+		}
+
+	protected:
+
+		void InitializeGenerators()
+		{
+			using namespace Generators;
+			// init generators
+			if (bUseModulation)
+			{
+				// fm generators
+				switch (OscType)
+				{
+				case ELfoWaveshapeType::Sine:
+					FillGeneratorsArray<TVoiceGenerator<FSineWaveTableWithFm>>(Generators, NumVoices, SampleRate);
+					break;
+				case ELfoWaveshapeType::Triangle:
+					FillGeneratorsArray<TVoiceGenerator<FTrianglePolysmoothWithFm>>(Generators, NumVoices, SampleRate);
+					break;
+				case ELfoWaveshapeType::Square:
+					FillGeneratorsArray<TVoiceGenerator<FSquarePolysmoothWithFm>>(Generators, NumVoices, SampleRate);
+					break;
+				case ELfoWaveshapeType::Saw:
+					FillGeneratorsArray<TVoiceGenerator<FSawPolysmoothWithFm>>(Generators, NumVoices, SampleRate);
+					break;
+				default: 
+					check(!"Unsupported Wave Shape in FSuperOscillatorOperator");
+					return;
+				}
+			}
+			else
+			{
+				//non-fm generators
+				switch (OscType)
+				{
+				case ELfoWaveshapeType::Sine:
+					FillGeneratorsArray<TVoiceGenerator<FSineWaveTable>>(Generators, NumVoices, SampleRate);
+					break;
+				case ELfoWaveshapeType::Triangle:
+					FillGeneratorsArray<TVoiceGenerator<FTrianglePolysmooth>>(Generators, NumVoices, SampleRate);
+					break;
+				case ELfoWaveshapeType::Square:
+					FillGeneratorsArray<TVoiceGenerator<FSquarePolysmooth>>(Generators, NumVoices, SampleRate);
+					break;
+				case ELfoWaveshapeType::Saw:
+					FillGeneratorsArray<TVoiceGenerator<FSawPolysmooth>>(Generators, NumVoices, SampleRate);
+					break;
+				default: 
+					check(!"Unsupported Wave Shape in FSuperOscillatorOperator");
+					return;
+				}
+			}
+		}
+
 		float SampleRate = 1.f;
 		float Nyquist = 1.f;
 
 		// apply this gain whether we are limiting or not, to avoid large volume jumps when toggling the limiter
-		const float PreLimiterGain = 0.707f;
+		static constexpr float PreLimiterGain = 0.707f;
 
 		FBoolReadRef bEnabled;
 		FBoolReadRef bLimit;
@@ -395,6 +411,7 @@ namespace Metasound
 		FFloatReadRef GlideFactor;
 		FFloatReadRef PulseWidth;
 
+		bool bUseModulation = false;
 		FAudioBufferReadRef Fm;
 		FEnumLfoWaveshapeType OscType;
 
@@ -502,6 +519,11 @@ namespace Metasound
 		virtual void LimitOutput() override
 		{
 			Limiter.ProcessAudio(AudioBuffer->GetData(), AudioBuffer->Num(), AudioBuffer->GetData());
+		}
+
+		virtual void ResetLimiters() override
+		{
+			SetLimiterSettings(Limiter);
 		}
 
 		virtual void Bind(FVertexInterfaceData& InVertexData) const override
@@ -628,6 +650,12 @@ namespace Metasound
 
 			Audio::ArrayMixIn(ScratchBuffer, *AudioLeft, Gain * PanLeftGain * PreLimiterGain);
 			Audio::ArrayMixIn(ScratchBuffer, *AudioRight, Gain * PanRightGain * PreLimiterGain);
+		}
+
+		virtual void ResetLimiters() override
+		{
+			SetLimiterSettings(LimiterLeft);
+			SetLimiterSettings(LimiterRight);
 		}
 
 		virtual void LimitOutput() override

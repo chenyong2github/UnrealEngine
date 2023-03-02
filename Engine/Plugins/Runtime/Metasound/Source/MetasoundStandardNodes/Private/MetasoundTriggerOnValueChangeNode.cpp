@@ -56,6 +56,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetOutputs() const override;
 
 		void Execute();
+		void Reset(const IOperator::FResetParams& InParams);
 
 	private:
 		// Parameter to watch for changes
@@ -111,6 +112,12 @@ namespace Metasound
 			TriggerOnChangeOutput->TriggerFrame(0);
 		}
 
+	}
+	template <typename ValueType>
+	void TTriggerOnValueChangeOperator<ValueType>::Reset(const IOperator::FResetParams& InParams)
+	{
+		TriggerOnChangeOutput->Reset();
+		PrevValue = *ValueInput;
 	}
 
 	template <typename ValueType>

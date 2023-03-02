@@ -88,10 +88,10 @@ namespace Metasound
 			FFloatReadRef CenterDelay = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputCenterDelay), InParams.OperatorSettings);
 			FFloatReadRef MixLevel = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputMixLevel), InParams.OperatorSettings);
 
-			return MakeUnique<FFlangerOperator>(InParams.OperatorSettings, AudioInput, ModulationRate, ModulationDepth, CenterDelay, MixLevel);
+			return MakeUnique<FFlangerOperator>(InParams, AudioInput, ModulationRate, ModulationDepth, CenterDelay, MixLevel);
 		}
 
-		FFlangerOperator(const FOperatorSettings& InSettings,
+		FFlangerOperator(const FCreateOperatorParams& InParams,
 			const FAudioBufferReadRef& InAudioInput,
 			const FFloatReadRef& InputModulationRate,
 			const FFloatReadRef& InputModulationDepth,
@@ -103,10 +103,10 @@ namespace Metasound
 			, ModulationDepth(InputModulationDepth)
 			, CenterDelay(InputCenterDelay)
 			, MixLevel(InMixLevel)
-			, AudioOut(FAudioBufferWriteRef::CreateNew(InSettings))
+			, AudioOut(FAudioBufferWriteRef::CreateNew(InParams.OperatorSettings))
 			, Flanger()
 		{
-			Flanger.Init(InSettings.GetSampleRate());
+			Reset(InParams);
 		}
 
 		FDataReferenceCollection GetInputs() const
@@ -132,6 +132,12 @@ namespace Metasound
 			return OutputDataReferences;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			AudioOut->Zero();
+			Flanger.Init(InParams.OperatorSettings.GetSampleRate());
+		}
+
 		void Execute()
 		{
 			// Update flanger parameters if necessary 
@@ -140,19 +146,9 @@ namespace Metasound
 			Flanger.SetModulationDepth(*ModulationDepth);
 			Flanger.SetMixLevel(*MixLevel);
 
-			const float* InputAudio = AudioIn->GetData();
-			float* OutputAudio = AudioOut->GetData();
 			int32 NumFrames = AudioIn->Num();
 
-			// Copy input audio into aligned buffer
-			AlignedAudioIn.Reset();
-			AlignedAudioIn.Append(InputAudio, NumFrames);
-
-			AlignedAudioOut.Reset();
-			AlignedAudioOut.AddUninitialized(NumFrames);
-
-			Flanger.ProcessAudio(AlignedAudioIn, NumFrames, AlignedAudioOut);
-			FMemory::Memcpy(OutputAudio, AlignedAudioOut.GetData(), sizeof(float) * NumFrames);
+			Flanger.ProcessAudio(*AudioIn, NumFrames, *AudioOut);
 		}
 
 	private:
@@ -175,10 +171,6 @@ namespace Metasound
 
 		// Flanger DSP object
 		Audio::FFlanger Flanger;
-
-		// Input/output aligned buffers
-		Audio::FAlignedFloatBuffer AlignedAudioIn;
-		Audio::FAlignedFloatBuffer AlignedAudioOut;
 	};
 
 	class METASOUNDSTANDARDNODES_API FFlangerNode : public FNodeFacade

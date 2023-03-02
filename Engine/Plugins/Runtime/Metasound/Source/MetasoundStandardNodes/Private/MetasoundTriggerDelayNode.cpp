@@ -39,6 +39,7 @@ namespace Metasound
 			virtual FDataReferenceCollection GetOutputs() const override;
 
 			void Execute();
+			void Reset(const IOperator::FResetParams& InParams);
 
 		private:
 			float SampleRate;
@@ -104,6 +105,11 @@ namespace Metasound
 				TriggerOut->RemoveAfter(StartFrame);
 			}
 		);
+	}
+
+	void FTriggerDelayOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		TriggerOut->Reset();
 	}
 
 	TUniquePtr<IOperator> FTriggerDelayOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)

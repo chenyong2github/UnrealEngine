@@ -16,6 +16,8 @@ namespace Audio
 			FGrainDelay(const float InSampleRate);
 			~FGrainDelay();
 
+			void Reset();
+
 			// Helpers to clamp audio
 			float GetGrainDelayClamped(const float InDelay) const;
 			float GetGrainDurationClamped(const float InDuration) const;
@@ -44,6 +46,8 @@ namespace Audio
 		private:
 			// Synthesize a single frame of audio
 			float SynthesizeFrame(const Audio::FDelay& InDelayLine);
+
+			void InitDynamicsProcessor();
 			
 			// Simple grain data structure for tracking grain state
 			struct FGrain

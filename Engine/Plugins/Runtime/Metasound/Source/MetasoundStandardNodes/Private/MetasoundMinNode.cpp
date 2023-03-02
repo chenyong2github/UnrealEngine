@@ -215,6 +215,11 @@ namespace Metasound
 			TMin<ValueType>::GetMin(*InputA, *InputB, *OutputValue);
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			GetMin();
+		}
+
 		void Execute()
 		{
 			GetMin();

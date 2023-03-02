@@ -50,7 +50,7 @@ namespace Metasound
 
 		// ctor
 		FMidiNoteQuantizerOperator(
-			  const FOperatorSettings& InSettings
+			  const FCreateOperatorParams& InParams
 			, const FFloatReadRef& InMidiNoteIn
 			, const FFloatReadRef& InRootNote
 			, const FArrayScaleDegreeReadRef& InScale
@@ -62,6 +62,7 @@ namespace Metasound
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 	private: // members
@@ -79,8 +80,10 @@ namespace Metasound
 		TArray<float> PreviousScale;
 		float PreviousNoteOut = 0.0f;
 
-		// other
-		FOperatorSettings Settings;
+		static constexpr float MaxNote = 1e12f;
+		static constexpr float MinNote = -1e12f;
+		static constexpr float MaxRoot = 1e12f;
+		static constexpr float MinRoot = 0.f;
 
 	}; // class FMidiNoteQuantizerOperator
 
@@ -91,7 +94,7 @@ namespace Metasound
 
 	// ctor
 	FMidiNoteQuantizerOperator::FMidiNoteQuantizerOperator(
-		  const FOperatorSettings& InSettings
+		  const FCreateOperatorParams& InParams
 		, const FFloatReadRef& InMidiNoteIn
 		, const FFloatReadRef& InRootNote
 		, const FArrayScaleDegreeReadRef& InScale
@@ -100,8 +103,8 @@ namespace Metasound
 		, RootNote(InRootNote)
 		, Scale(InScale)
 		, MidiNoteOut(FFloatWriteRef::CreateNew())
-		, Settings(InSettings)
 	{
+		Reset(InParams);
 	}
 
 
@@ -157,7 +160,7 @@ namespace Metasound
 		FArrayScaleDegreeReadRef InScaleArray = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<ScaleDegreeArrayType>(METASOUND_GET_PARAM_NAME(ParamScaleDegrees));
 
 		return MakeUnique <FMidiNoteQuantizerOperator>(
-			  InParams.OperatorSettings
+			  InParams
 			, MidiNoteIn
 			, RootNoteIn
 			, InScaleArray
@@ -183,6 +186,17 @@ namespace Metasound
 		return OutputDataReferences;
 	}
 
+	void FMidiNoteQuantizerOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		PreviousNoteIn = FMath::Clamp(*MidiNoteIn, MinNote, MaxNote);
+		PreviousRoot = FMath::Clamp(*RootNote, MinRoot, MaxRoot);
+		PreviousScale = *Scale;
+
+		PreviousScale.Sort();
+		PreviousNoteOut = Audio::FMidiNoteQuantizer::QuantizeMidiNote(PreviousNoteIn, PreviousRoot, PreviousScale);
+		*MidiNoteOut = PreviousNoteOut;
+	}
+
 	void FMidiNoteQuantizerOperator::Execute()
 	{
 		if ((*Scale).IsEmpty())
@@ -192,15 +206,16 @@ namespace Metasound
 		}
 
 		// calculate new output and cache values if needed
-		const float CurrentRoot = FMath::Max(*RootNote, 0.0f);
-		if (!FMath::IsNearlyEqual(PreviousNoteIn, *MidiNoteIn)
+		const float CurrentNote = FMath::Clamp(*MidiNoteIn, MinNote, MaxNote);
+		const float CurrentRoot = FMath::Clamp(*RootNote, MinRoot, MaxRoot);
+		if (!FMath::IsNearlyEqual(PreviousNoteIn, CurrentNote)
 			|| !FMath::IsNearlyEqual(PreviousRoot, CurrentRoot)
 			|| PreviousScale !=  *Scale
 			)
 		{
 			// cache values
-			PreviousNoteIn = *MidiNoteIn;
-			PreviousRoot = *RootNote;
+			PreviousNoteIn = CurrentNote;
+			PreviousRoot = CurrentRoot;
 			PreviousScale = *Scale;
 
 			PreviousScale.Sort();

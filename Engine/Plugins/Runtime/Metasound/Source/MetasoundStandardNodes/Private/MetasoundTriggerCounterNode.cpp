@@ -50,6 +50,7 @@ namespace Metasound
 			virtual FDataReferenceCollection GetOutputs() const override;
 
 			void Execute();
+			void Reset(const IOperator::FResetParams& InParams);
 
 		private:
 			FTriggerReadRef TriggerIn;
@@ -169,6 +170,19 @@ namespace Metasound
 			}
 		);
 
+	}
+
+	void FTriggerCounterOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		TriggerOut->Reset();
+		TriggerOnReset->Reset();
+		*OutValue = *StartValue;
+		*OutCount = 0;
+
+		CurrentAutoResetCount = FMath::Max(0, *AutoResetCount);
+		CurrentTriggerCount = 0;
+		CurrentValue = 0.0f;
+		bIsFirstTrigger = true;
 	}
 
 	TUniquePtr<IOperator> FTriggerCounterOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)

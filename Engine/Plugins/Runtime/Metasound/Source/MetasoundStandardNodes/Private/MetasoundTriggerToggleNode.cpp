@@ -43,6 +43,7 @@ namespace Metasound
 			virtual FDataReferenceCollection GetOutputs() const override;
 
 			void Execute();
+			void Reset(const IOperator::FResetParams& InParams);
 
 		private:
 
@@ -109,6 +110,12 @@ namespace Metasound
 				TriggerOutput->TriggerFrame(StartFrame);
 			}
 		);
+	}
+
+	void FTriggerToggleOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		TriggerOutput->Reset();
+		*ValueOutput = *InitValue;
 	}
 
 	TUniquePtr<IOperator> FTriggerToggleOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)

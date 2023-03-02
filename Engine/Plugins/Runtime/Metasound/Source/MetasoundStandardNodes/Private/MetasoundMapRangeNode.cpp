@@ -354,6 +354,11 @@ namespace Metasound
 			return MappingObject.GetOutputs();
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			MappingObject.DoMapping();
+		}
+
 		void Execute()
 		{
 			MappingObject.DoMapping();

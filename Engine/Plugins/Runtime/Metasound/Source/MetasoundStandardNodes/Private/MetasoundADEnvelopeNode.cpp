@@ -60,6 +60,23 @@ namespace Metasound
 
 			bool bLooping = false;
 			bool bHardReset = false;
+
+			void Reset()
+			{
+				CurrentSampleIndex = INDEX_NONE;
+				AttackSampleCount = 1;
+				DecaySampleCount = 1;
+
+				AttackCurveFactor = 0.0f;
+				DecayCurveFactor = 0.0f;
+
+				StartingEnvelopeValue = 0.0f;
+				CurrentEnvelopeValue = 0.0f;
+
+				bLooping = false;
+				bHardReset = false;
+				EnvEase.Init(0.f, 0.01f);
+			}
 		};
 
 		template<typename ValueType>
@@ -121,7 +138,12 @@ namespace Metasound
 				}
 			}
 
-			static bool IsAudio() { return false; }
+			static void GetInitialOutputEnvelope(float& OutputEnvelope)
+			{
+				OutputEnvelope = 0.f;
+			}
+
+			static constexpr bool IsAudio() { return false; }
 		};
 
 		template<>
@@ -194,7 +216,12 @@ namespace Metasound
 				}
 			}
 
-			static bool IsAudio() { return true; }
+			static void GetInitialOutputEnvelope(FAudioBuffer& OutputEnvelope)
+			{
+				OutputEnvelope.Zero();
+			}
+
+			static constexpr bool IsAudio() { return true; }
 		};
 	}
 
@@ -272,10 +299,10 @@ namespace Metasound
 			FBoolReadRef bLooping = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, METASOUND_GET_PARAM_NAME(InputLooping), InParams.OperatorSettings);
 			FBoolReadRef bHardReset = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, METASOUND_GET_PARAM_NAME(InputHardReset), InParams.OperatorSettings);
 
-			return MakeUnique<TADEnvelopeNodeOperator<ValueType>>(InParams.OperatorSettings, TriggerIn, AttackTime, DecayTime, AttackCurveFactor, DecayCurveFactor, bLooping, bHardReset);
+			return MakeUnique<TADEnvelopeNodeOperator<ValueType>>(InParams, TriggerIn, AttackTime, DecayTime, AttackCurveFactor, DecayCurveFactor, bLooping, bHardReset);
 		}
 
-		TADEnvelopeNodeOperator(const FOperatorSettings& InSettings,
+		TADEnvelopeNodeOperator(const FCreateOperatorParams& InParams,
 			const FTriggerReadRef& InTriggerIn,
 			const FTimeReadRef& InAttackTime,
 			const FTimeReadRef& InDecayTime,
@@ -290,22 +317,11 @@ namespace Metasound
 			, DecayCurveFactor(InDecayeCurveFactor)
 			, bLooping(bInLooping)
 			, bHardReset(bInHardReset)
-			, OnAttackTrigger(TDataWriteReferenceFactory<FTrigger>::CreateAny(InSettings))
-			, OnDone(TDataWriteReferenceFactory<FTrigger>::CreateAny(InSettings))
-			, OutputEnvelope(TDataWriteReferenceFactory<ValueType>::CreateAny(InSettings))
+			, OnAttackTrigger(TDataWriteReferenceFactory<FTrigger>::CreateExplicitArgs(InParams.OperatorSettings))
+			, OnDone(TDataWriteReferenceFactory<FTrigger>::CreateExplicitArgs(InParams.OperatorSettings))
+			, OutputEnvelope(TDataWriteReferenceFactory<ValueType>::CreateExplicitArgs(InParams.OperatorSettings))
 		{
-			NumFramesPerBlock = InSettings.GetNumFramesPerBlock();
-
-			EnvState.EnvEase.SetEaseFactor(0.01f);
-
-			if (ADEnvelopeNodePrivate::TADEnvelope<ValueType>::IsAudio())
-			{
-				SampleRate = InSettings.GetSampleRate();
-			}
-			else
-			{
-				SampleRate = InSettings.GetActualBlockRate();
-			}
+			Reset(InParams);
 		}
 
 		virtual ~TADEnvelopeNodeOperator() = default;
@@ -350,6 +366,25 @@ namespace Metasound
 			EnvState.bHardReset = *bHardReset;
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			NumFramesPerBlock = InParams.OperatorSettings.GetNumFramesPerBlock();
+
+
+			if constexpr (ADEnvelopeNodePrivate::TADEnvelope<ValueType>::IsAudio())
+			{
+				SampleRate = InParams.OperatorSettings.GetSampleRate();
+			}
+			else
+			{
+				SampleRate = InParams.OperatorSettings.GetActualBlockRate();
+			}
+
+			OnAttackTrigger->Reset();
+			OnDone->Reset();
+			ADEnvelopeNodePrivate::TADEnvelope<ValueType>::GetInitialOutputEnvelope(*OutputEnvelope);
+			EnvState.Reset();
+		}
 
 		void Execute()
 		{

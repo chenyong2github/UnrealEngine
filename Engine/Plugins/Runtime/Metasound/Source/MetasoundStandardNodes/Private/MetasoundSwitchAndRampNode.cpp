@@ -168,6 +168,15 @@ namespace Metasound
 			);
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			AudioOut->Zero();
+			MostRecentOutputValue = 0.0f;
+			DiscontinuityAmount = 0.0f;
+			NumRampSamples = 0;
+			RampSampleIndex = 0;
+		}
+
 	private:
 		FTriggerReadRef TriggerIn;
 		

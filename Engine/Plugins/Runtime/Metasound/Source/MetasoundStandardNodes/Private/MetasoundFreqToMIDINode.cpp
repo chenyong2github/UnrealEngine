@@ -14,14 +14,11 @@
 
 namespace Metasound
 {
-	
-		
 	namespace FrequencyToMidiVertexNames
 	{
 		METASOUND_PARAM(InputFreq, "Frequency In", "Input frequency value in Hz.");
 		METASOUND_PARAM(OutputMidi, "Out MIDI", "Output MIDI note value that corresponds to the input frequency value.");
 	}
-
 
 	class FFreqToMidiOperator : public TExecutableOperator<FFreqToMidiOperator>
 	{
@@ -35,6 +32,7 @@ namespace Metasound
 
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
+		void Reset(const IOperator::FResetParams& InParams);
 		void Execute();
 
 	private:
@@ -54,7 +52,6 @@ namespace Metasound
 		, PrevFreq(*InFreq)
 	{
 	}
-
 	
 	FDataReferenceCollection FFreqToMidiOperator::GetInputs() const
 	{
@@ -73,6 +70,12 @@ namespace Metasound
 		FDataReferenceCollection OutputDataReferences;
 		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputMidi), MidiOutput);
 		return OutputDataReferences;
+	}
+
+	void FFreqToMidiOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		PrevFreq = *FreqInput;
+		*MidiOutput = Audio::GetMidiFromFrequency(PrevFreq);
 	}
 
 	void FFreqToMidiOperator::Execute()

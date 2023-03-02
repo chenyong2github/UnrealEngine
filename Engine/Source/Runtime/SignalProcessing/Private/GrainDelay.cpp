@@ -19,22 +19,22 @@ namespace Audio
 			// Generate the grain data
 			GenerateEnvelopeData(GrainEnvelope, GrainEnvelopeSampleCount, GrainEnvelopeType);
 			
-			// Setup the dynamics processor
-			DynamicsProcessor.Init(InSampleRate, 1);
-			DynamicsProcessor.SetLookaheadMsec(3.0f);
-			DynamicsProcessor.SetAttackTime(0.0f);
-			DynamicsProcessor.SetReleaseTime(10.0f);
-			DynamicsProcessor.SetThreshold(-6.0f);
-			DynamicsProcessor.SetKneeBandwidth(3.0f);
-			DynamicsProcessor.SetInputGain(0.0f);
-			DynamicsProcessor.SetOutputGain(0.0f);
-			DynamicsProcessor.SetAnalogMode(false);
-			DynamicsProcessor.SetPeakMode(EPeakMode::Peak);
-			DynamicsProcessor.SetProcessingMode(EDynamicsProcessingMode::Limiter);
+			InitDynamicsProcessor();
 		}
 
 		FGrainDelay::~FGrainDelay()
 		{
+		}
+
+		void FGrainDelay::Reset()
+		{
+			GrainDelayLine.Reset();
+
+			InitDynamicsProcessor();
+
+			// Move any active grains into free grains
+			FreeGrains.Append(ActiveGrains);
+			ActiveGrains.Reset();
 		}
 
 		float FGrainDelay::GetGrainDelayClamped(const float InDelay) const
@@ -181,6 +181,22 @@ namespace Audio
 			
 				OutAudioBuffer[FrameIndex] = LastFrame;
 			}
+		}
+
+		void FGrainDelay::InitDynamicsProcessor()
+		{
+			// Setup the dynamics processor
+			DynamicsProcessor.Init(SampleRate, 1);
+			DynamicsProcessor.SetLookaheadMsec(3.0f);
+			DynamicsProcessor.SetAttackTime(0.0f);
+			DynamicsProcessor.SetReleaseTime(10.0f);
+			DynamicsProcessor.SetThreshold(-6.0f);
+			DynamicsProcessor.SetKneeBandwidth(3.0f);
+			DynamicsProcessor.SetInputGain(0.0f);
+			DynamicsProcessor.SetOutputGain(0.0f);
+			DynamicsProcessor.SetAnalogMode(false);
+			DynamicsProcessor.SetPeakMode(EPeakMode::Peak);
+			DynamicsProcessor.SetProcessingMode(EDynamicsProcessingMode::Limiter);
 		}
 	};
 

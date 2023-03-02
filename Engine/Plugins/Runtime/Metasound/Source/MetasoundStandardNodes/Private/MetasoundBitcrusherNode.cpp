@@ -33,20 +33,17 @@ namespace Metasound
 	{
 	public:
 
-		FBitcrusherOperator(const FOperatorSettings& InSettings,
+		FBitcrusherOperator(const FCreateOperatorParams& InParams,
 			const FAudioBufferReadRef& InAudio,
 			const FFloatReadRef& InCrushedSampleRate,
 			const FFloatReadRef& InCrushedBitDepth)
 			: AudioInput(InAudio)
-			, AudioOutput(FAudioBufferWriteRef::CreateNew(InSettings))
+			, AudioOutput(FAudioBufferWriteRef::CreateNew(InParams.OperatorSettings))
 			, CrushedSampleRate(InCrushedSampleRate)
 			, CrushedBitDepth(InCrushedBitDepth)
-			, MaxSampleRate(InSettings.GetSampleRate())
+			, MaxSampleRate(InParams.OperatorSettings.GetSampleRate())
 		{
-			// Passing in 1 for NumChannels because the node takes one audio input
-			Bitcrusher.Init(InSettings.GetSampleRate(), 1);
-			Bitcrusher.SetSampleRateCrush(FMath::Clamp(*CrushedSampleRate, 1.0f, MaxSampleRate));
-			Bitcrusher.SetBitDepthCrush(FMath::Clamp(*CrushedBitDepth, 1.0f, Bitcrusher.GetMaxBitDepth()));
+			Reset(InParams);
 		}
 
 		static const FNodeClassMetadata& GetNodeInfo()
@@ -130,7 +127,24 @@ namespace Metasound
 			FFloatReadRef SampleRateIn = Inputs.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputSampleRate), InParams.OperatorSettings);
 			FFloatReadRef BitDepthIn = Inputs.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputBitDepth), InParams.OperatorSettings);
 
-			return MakeUnique<FBitcrusherOperator>(InParams.OperatorSettings, AudioIn, SampleRateIn, BitDepthIn);
+			return MakeUnique<FBitcrusherOperator>(InParams, AudioIn, SampleRateIn, BitDepthIn);
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			AudioOutput->Zero();
+
+			// Passing in 1 for NumChannels because the node takes one audio input
+			Bitcrusher.Init(InParams.OperatorSettings.GetSampleRate(), 1);
+
+			const float CurSampleRate = FMath::Clamp(*CrushedSampleRate, 1.0f, MaxSampleRate);
+			const float CurBitDepth = FMath::Clamp(*CrushedBitDepth, 1.0f, Bitcrusher.GetMaxBitDepth());
+
+			Bitcrusher.SetSampleRateCrush(CurSampleRate);
+			Bitcrusher.SetBitDepthCrush(CurBitDepth);
+
+			PrevSampleRate = CurSampleRate;
+			PrevBitDepth = CurBitDepth;
 		}
 
 		void Execute()

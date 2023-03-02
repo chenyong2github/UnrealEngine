@@ -48,6 +48,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetOutputs() const override;
 
 		void Execute();
+		void Reset(const IOperator::FResetParams& InParams);
 
 	private:
 		// Generate new random number
@@ -156,6 +157,17 @@ namespace Metasound
 
 	}
 
+	void FTriggerCoinOperator::Reset(const IOperator::FResetParams& InParams)
+	{
+		// Trigger output
+		TriggerTrueOutput->Reset();
+		TriggerFalseOutput->Reset();
+
+		bIsDefaultSeeded = false;
+		bIsRandomStreamInitialized = false;
+		EvaluateSeedChanges();
+		RandomStream.Reset();
+	}
 
 	TUniquePtr<IOperator> FTriggerCoinOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{

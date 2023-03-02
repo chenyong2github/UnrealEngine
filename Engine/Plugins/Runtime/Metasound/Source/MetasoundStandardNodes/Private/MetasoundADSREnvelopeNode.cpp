@@ -83,11 +83,40 @@ namespace Metasound
 			{
 				return CurrentSampleIndex != INDEX_NONE; 
 			}
+
+			void Reset()
+			{
+				CurrentSampleIndex = INDEX_NONE;
+
+				AttackSampleCount = 0;
+				DecaySampleCount = 0;
+				ReleaseSampleCount = 0;
+				
+				SustainLevel = 0.0f;
+
+				AttackCurveFactor = 0.0f;
+				DecayCurveFactor = 0.0f;
+				ReleaseCurveFactor = 0.0f;
+
+				StartingEnvelopeValue = 0.0f;
+				CurrentEnvelopeValue = 0.0f;
+				EnvelopeValueAtReleaseStart = 0.0f;
+
+				bHardReset = false;
+				bIsInRelease = false;
+			
+				EnvEase.Init(0.f, 0.1f);
+			}
 		};
 
 
 		struct FFloatADSREnvelope
 		{
+			static void GetInitialOutputEnvelope(float& OutputEnvelope)
+			{
+				OutputEnvelope = 0.f;
+			}
+
 			static float GetSampleRate(const FOperatorSettings& InOperatorSettings)
 			{		
 				return InOperatorSettings.GetActualBlockRate();
@@ -183,6 +212,11 @@ namespace Metasound
 
 		struct FAudioADSREnvelope
 		{
+			static void GetInitialOutputEnvelope(FAudioBuffer& OutputEnvelope)
+			{
+				OutputEnvelope.Zero();
+			}
+
 			static float GetSampleRate(const FOperatorSettings& InOperatorSettings)
 			{
 					return InOperatorSettings.GetSampleRate();
@@ -514,7 +548,7 @@ namespace Metasound
 
 		struct FOperatorArgs
 		{
-			FOperatorSettings OperatorSettings;
+			const FBuildOperatorParams& BuildOperatorParams;
 			FTriggerReadRef TriggerAttackIn;
 			FTriggerReadRef TriggerReleaseIn;
 			FTimeReadRef AttackTime;
@@ -526,8 +560,7 @@ namespace Metasound
 			FFloatReadRef ReleaseCurveFactor;
 			FBoolReadRef bInHardReset;
 		};
-
-		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors)
+		static TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults)
 		{
 			using namespace ADSREnvelopeVertexNames;
 
@@ -535,17 +568,17 @@ namespace Metasound
 
 			FOperatorArgs Args 
 			{
-				InParams.OperatorSettings,
-				InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputAttackTrigger), InParams.OperatorSettings),
-				InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputReleaseTrigger), InParams.OperatorSettings),
-				InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputAttackTime), InParams.OperatorSettings),
-				InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputDecayTime), InParams.OperatorSettings),
-				InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputSustainLevel), InParams.OperatorSettings),
-				InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputReleaseTime), InParams.OperatorSettings),
-				InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputAttackCurve), InParams.OperatorSettings),
-				InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputDecayCurve), InParams.OperatorSettings),
-				InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputReleaseCurve), InParams.OperatorSettings),
-				InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, METASOUND_GET_PARAM_NAME(InputHardReset), InParams.OperatorSettings)
+				InParams,
+				InParams.InputData.GetOrConstructDataReadReference<FTrigger>(METASOUND_GET_PARAM_NAME(InputAttackTrigger), InParams.OperatorSettings),
+				InParams.InputData.GetOrConstructDataReadReference<FTrigger>(METASOUND_GET_PARAM_NAME(InputReleaseTrigger), InParams.OperatorSettings),
+				InParams.InputData.GetOrCreateDefaultDataReadReference<FTime>(METASOUND_GET_PARAM_NAME(InputAttackTime), InParams.OperatorSettings),
+				InParams.InputData.GetOrCreateDefaultDataReadReference<FTime>(METASOUND_GET_PARAM_NAME(InputDecayTime), InParams.OperatorSettings),
+				InParams.InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(InputSustainLevel), InParams.OperatorSettings),
+				InParams.InputData.GetOrCreateDefaultDataReadReference<FTime>(METASOUND_GET_PARAM_NAME(InputReleaseTime), InParams.OperatorSettings),
+				InParams.InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(InputAttackCurve), InParams.OperatorSettings),
+				InParams.InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(InputDecayCurve), InParams.OperatorSettings),
+				InParams.InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(InputReleaseCurve), InParams.OperatorSettings),
+				InParams.InputData.GetOrCreateDefaultDataReadReference<bool>(METASOUND_GET_PARAM_NAME(InputHardReset), InParams.OperatorSettings)
 			};
 
 			return MakeUnique<TADSREnvelopeNodeOperator<EnvelopeClass, ValueType>>(Args);
@@ -562,15 +595,12 @@ namespace Metasound
 			, DecayCurveFactor(InArgs.DecayCurveFactor)
 			, ReleaseCurveFactor(InArgs.ReleaseCurveFactor)
 			, bHardReset(InArgs.bInHardReset)
-			, OnDecayTrigger(TDataWriteReferenceFactory<FTrigger>::CreateExplicitArgs(InArgs.OperatorSettings))
-			, OnSustainTrigger(TDataWriteReferenceFactory<FTrigger>::CreateExplicitArgs(InArgs.OperatorSettings))
-			, OnDone(TDataWriteReferenceFactory<FTrigger>::CreateExplicitArgs(InArgs.OperatorSettings))
-			, OutputEnvelope(TDataWriteReferenceFactory<ValueType>::CreateExplicitArgs(InArgs.OperatorSettings))
+			, OnDecayTrigger(TDataWriteReferenceFactory<FTrigger>::CreateExplicitArgs(InArgs.BuildOperatorParams.OperatorSettings))
+			, OnSustainTrigger(TDataWriteReferenceFactory<FTrigger>::CreateExplicitArgs(InArgs.BuildOperatorParams.OperatorSettings))
+			, OnDone(TDataWriteReferenceFactory<FTrigger>::CreateExplicitArgs(InArgs.BuildOperatorParams.OperatorSettings))
+			, OutputEnvelope(TDataWriteReferenceFactory<ValueType>::CreateExplicitArgs(InArgs.BuildOperatorParams.OperatorSettings))
 		{
-			NumFramesPerBlock = InArgs.OperatorSettings.GetNumFramesPerBlock();
-
-			EnvState.EnvEase.SetEaseFactor(0.1f);
-			SampleRate = EnvelopeClass::GetSampleRate(InArgs.OperatorSettings);
+			Reset(InArgs.BuildOperatorParams);
 		}
 
 		virtual ~TADSREnvelopeNodeOperator() = default;
@@ -647,6 +677,19 @@ namespace Metasound
 			}
 		}
 
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			NumFramesPerBlock = InParams.OperatorSettings.GetNumFramesPerBlock();
+
+			SampleRate = EnvelopeClass::GetSampleRate(InParams.OperatorSettings);
+			EnvelopeClass::GetInitialOutputEnvelope(*OutputEnvelope);
+			EnvState.Reset();
+
+			OnDecayTrigger->Reset();
+			OnSustainTrigger->Reset();
+			OnDone->Reset();
+		}
+
 		void Execute()
 		{
 			using namespace ADSREnvelopeNodePrivate;
@@ -655,8 +698,6 @@ namespace Metasound
 			OnSustainTrigger->AdvanceBlock();
 			OnDone->AdvanceBlock();
  
-			
-
 			FTriggerIterator TriggerIter(*TriggerAttackIn, *TriggerReleaseIn, NumFramesPerBlock);
 
 			FTriggerInfo NextTrigger = TriggerIter.NextTrigger(EnvState.IsTriggered());
