@@ -25,6 +25,7 @@
 #include "Delegates/DelegateCombinations.h"
 #include "Skeleton.generated.h"
 
+class UAnimCurveMetaData;
 class UAnimSequence;
 class UBlendProfile;
 class URig;
@@ -492,6 +493,9 @@ protected:
 private:
 	// Refresh skeleton metadata (updates bone indices for linked bone references)
 	void RefreshSkeletonMetaData();
+
+	// Returns the UAnimCurveMetaData from this skeleton's AssetUserData, creating one if it doesn't exist
+	UAnimCurveMetaData* GetOrCreateCurveMetaDataObject();
 
 public:
 	//////////////////////////////////////////////////////////////////////////

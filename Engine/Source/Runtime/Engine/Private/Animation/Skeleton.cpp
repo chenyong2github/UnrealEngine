@@ -376,7 +376,7 @@ void USkeleton::PostLoad()
 	if(GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimationRemoveSmartNames)
 	{
 		// Move curve metadata over to asset user data
-		UAnimCurveMetaData* AnimCurveMetaData = NewObject<UAnimCurveMetaData>(this, NAME_None, RF_Transactional);
+		UAnimCurveMetaData* AnimCurveMetaData = GetOrCreateCurveMetaDataObject();
 		for(const TPair<FName, FSmartNameMapping>& NameMappingPair : SmartNames_DEPRECATED.NameMappings)
 		{
 			for(const TPair<FName, FCurveMetaData>& NameMetaDataPair : NameMappingPair.Value.CurveMetaDataMap)
@@ -384,7 +384,6 @@ void USkeleton::PostLoad()
 				AnimCurveMetaData->CurveMetaData.Add(NameMetaDataPair.Key, NameMetaDataPair.Value);
 			}
 		}
-		AddAssetUserData(AnimCurveMetaData);
 	}
 #endif
 }
@@ -1598,11 +1597,8 @@ void USkeleton::RenameSlotName(const FName& OldName, const FName& NewName)
 
 bool USkeleton::AddCurveMetaData(FName CurveName)
 {
-	if(UAnimCurveMetaData* AnimCurveMetaData = GetAssetUserData<UAnimCurveMetaData>())
-	{
-		return AnimCurveMetaData->AddCurveMetaData(CurveName);
-	}
-	return false;
+	UAnimCurveMetaData* AnimCurveMetaData = GetOrCreateCurveMetaDataObject();
+	return AnimCurveMetaData->AddCurveMetaData(CurveName);
 }
 
 #if WITH_EDITOR
@@ -1719,30 +1715,22 @@ void USkeleton::AccumulateCurveMetaData(FName CurveName, bool bMaterialSet, bool
 {
 	if (bMaterialSet || bMorphtargetSet)
 	{
-		// Add user data if not already added
-		UAnimCurveMetaData* AnimCurveMetaData = GetAssetUserData<UAnimCurveMetaData>();
-		if(AnimCurveMetaData == nullptr)
-		{
-			AnimCurveMetaData = NewObject<UAnimCurveMetaData>(this, NAME_None, RF_Transactional);
-			AddAssetUserData(AnimCurveMetaData);
-		}
-
 		// Add curve if not already present
 		AddCurveMetaData(CurveName);
 
-		if(FCurveMetaData* FoundCurveMetaData = GetCurveMetaData(CurveName))
-		{
-			bool bOldMaterial = FoundCurveMetaData->Type.bMaterial;
-			bool bOldMorphtarget = FoundCurveMetaData->Type.bMorphtarget;
-			// we don't want to undo previous flags, if it was true, we just allow more to it. 
-			FoundCurveMetaData->Type.bMaterial |= bMaterialSet;
-			FoundCurveMetaData->Type.bMorphtarget |= bMorphtargetSet;
+		FCurveMetaData* FoundCurveMetaData = GetCurveMetaData(CurveName);
+		check(FoundCurveMetaData);
 
-			if (bOldMaterial != FoundCurveMetaData->Type.bMaterial 
-				|| bOldMorphtarget != FoundCurveMetaData->Type.bMorphtarget)
-			{
-				MarkPackageDirty();
-			}
+		bool bOldMaterial = FoundCurveMetaData->Type.bMaterial;
+		bool bOldMorphtarget = FoundCurveMetaData->Type.bMorphtarget;
+		// we don't want to undo previous flags, if it was true, we just allow more to it. 
+		FoundCurveMetaData->Type.bMaterial |= bMaterialSet;
+		FoundCurveMetaData->Type.bMorphtarget |= bMorphtargetSet;
+
+		if (bOldMaterial != FoundCurveMetaData->Type.bMaterial 
+			|| bOldMorphtarget != FoundCurveMetaData->Type.bMorphtarget)
+		{
+			MarkPackageDirty();
 		}
 	}
 }
@@ -2214,6 +2202,18 @@ void USkeleton::RefreshSkeletonMetaData()
 	{
 		AnimCurveMetaData->RefreshBoneIndices(this);
 	}
+}
+
+UAnimCurveMetaData* USkeleton::GetOrCreateCurveMetaDataObject()
+{
+	UAnimCurveMetaData* AnimCurveMetaData = GetAssetUserData<UAnimCurveMetaData>();
+	if (AnimCurveMetaData == nullptr)
+	{
+		AnimCurveMetaData = NewObject<UAnimCurveMetaData>(this, NAME_None, RF_Transactional);
+		AddAssetUserData(AnimCurveMetaData);
+	}
+
+	return AnimCurveMetaData;
 }
 
 #undef LOCTEXT_NAMESPACE 
