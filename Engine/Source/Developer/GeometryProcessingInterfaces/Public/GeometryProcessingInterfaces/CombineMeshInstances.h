@@ -67,6 +67,15 @@ public:
 	};
 
 
+	enum class ERemoveHiddenFacesMode
+	{
+		None = 0,
+		Fastest = 1,
+
+		ExteriorVisibility = 5,
+		OcclusionBased = 6
+	};
+
 	struct FOptions
 	{
 		// number of requested LODs
@@ -83,8 +92,25 @@ public:
 		double OptimizeBaseTriCost = 0.7;
 		double OptimizeLODLevelTriCostScale = 1.5;
 
+		//
+		// Hidden Faces removal options
+		// 
+		
+		// overall strategy to use for removing hidden faces
+		ERemoveHiddenFacesMode RemoveHiddenFacesMethod = ERemoveHiddenFacesMode::None;
+		// start removing hidden faces at this LOD level 
+		int32 RemoveHiddenStartLOD = 0;
+		// (approximately) spacing between samples on triangle faces used for determining exterior visibility
+		double RemoveHiddenSamplingDensity = 1.0;
+
+
 		// LOD level to filter out detail parts
 		int32 FilterDecorativePartsLODLevel = 2;
+		// Decorative part will be approximated by simple shape for this many LOD levels before Filter level
+		int ApproximateDecorativePartLODs = 1;
+
+		// opening angle used to detect/assign sharp edges
+		double HardNormalAngleDeg = 15.0;
 	};
 
 
