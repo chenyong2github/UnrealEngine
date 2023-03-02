@@ -11,7 +11,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 #define PLATFORM_NAME_MOBILE	TEXT("MOBILE")
-#define PLATFORM_NAME_DESKTOP	TEXT("PC")
+#define PLATFORM_NAME_DESKTOP	TEXT("DESKTOP")
 #define PLATFORM_NAME_CONSOLE	TEXT("CONSOLE")
 
 FUserPlatform::FUserPlatform()
