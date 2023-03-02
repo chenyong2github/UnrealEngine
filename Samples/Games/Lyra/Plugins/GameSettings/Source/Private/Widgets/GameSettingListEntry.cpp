@@ -253,13 +253,16 @@ void UGameSettingListEntrySetting_Scalar::HandleSliderValueChanged(float Value)
 {
 	TGuardValue<bool> Suspend(bSuspendChangeUpdates, true);
 
-	ScalarSetting->SetValueNormalized(Value);
-	Value = ScalarSetting->GetValueNormalized();
+	if (ensure(ScalarSetting))
+	{
+		ScalarSetting->SetValueNormalized(Value);
+		Value = ScalarSetting->GetValueNormalized();
 
-	Slider_SettingValue->SetValue(Value);
-	Text_SettingValue->SetText(ScalarSetting->GetFormattedText());
+		Slider_SettingValue->SetValue(Value);
+		Text_SettingValue->SetText(ScalarSetting->GetFormattedText());
 
-	OnValueChanged(Value);
+		OnValueChanged(Value);
+	}
 }
 
 void UGameSettingListEntrySetting_Scalar::HandleSliderCaptureEnded()
