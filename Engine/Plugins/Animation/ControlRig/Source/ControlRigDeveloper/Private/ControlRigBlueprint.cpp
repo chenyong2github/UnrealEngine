@@ -57,7 +57,7 @@
 
 TAutoConsoleVariable<bool> CVarEnablePostLoadHashing(
 	TEXT("ControlRig.EnablePostLoadHashing"),
-	false,
+	true,
 	TEXT("When true refreshing the RigVMGraphs will be skipped if the hash matches the serialized hash."));
 
 static TArray<UClass*> GetClassObjectsInPackage(UPackage* InPackage)
@@ -1335,7 +1335,7 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 			for (URigVMGraph* ModelGraph : ModelGraphs)
 			{
 				URigVMController* Controller = GetOrCreateController(ModelGraph);
-				Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, true, true);
+				Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true, false);
 			}
 		}
 		return;

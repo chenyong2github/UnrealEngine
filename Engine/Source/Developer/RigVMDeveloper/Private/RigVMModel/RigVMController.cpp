@@ -14171,7 +14171,7 @@ int32 URigVMController::DetachLinksFromPinObjects(const TArray<URigVMLink*>* InL
 	return Links.Num();
 }
 
-int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, const TArray<URigVMLink*>* InLinks, bool bSetupOrphanedPins, bool bAllowNonArgumentLinks)
+int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, const TArray<URigVMLink*>* InLinks, bool bSetupOrphanedPins, bool bAllowNonArgumentLinks, bool bRecursive)
 {
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
@@ -14232,6 +14232,7 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 			// ignore duplicated links that have been processed
 			if (SourcePin->IsLinkedTo(TargetPin))
 			{
+				NewLinks.Add(Link);
 				continue;
 			}
 
@@ -14324,6 +14325,10 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 
 	if (bReplacingAllLinks)
 	{
+		if(Graph->Links.Num() != NewLinks.Num())
+		{
+			ReportWarningf(TEXT("Number of links changed during ReattachLinksToPinObjects in graph %s in project %s"), *Graph->GetPathName(), *GetPackage()->GetPathName());
+		}
 		Graph->Links = NewLinks;
 
 		for (URigVMLink* Link : Graph->Links)
@@ -14350,7 +14355,7 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 		}
 	}
 
-	if (InLinks == nullptr)
+	if (bRecursive && InLinks == nullptr)
 	{
 		for (URigVMNode* Node : Graph->Nodes)
 		{
@@ -14358,7 +14363,7 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 			{
 				FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
 				TGuardValue<bool> GuardEditGraph(CollapseNode->ContainedGraph->bEditable, true);
-				ReattachLinksToPinObjects(bFollowCoreRedirectors, nullptr, bSetupOrphanedPins, bAllowNonArgumentLinks);
+				ReattachLinksToPinObjects(bFollowCoreRedirectors, nullptr, bSetupOrphanedPins, bAllowNonArgumentLinks, bRecursive);
 			}
 		}
 	}
