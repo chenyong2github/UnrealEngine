@@ -118,6 +118,7 @@ void FControlFlow::HandleControlFlowNodeCompleted(TSharedRef<const FControlFlowN
 			}
 			else
 			{
+				OnStepCompletedDelegate.Broadcast();
 				OnFlowCompleteDelegate.Broadcast();
 				OnCompleteDelegate_Internal.ExecuteIfBound();				
 			}
