@@ -475,8 +475,8 @@ void UChaosVehicleSimulation::SyncHistoryInputs(const FChaosVehicleDefaultAsyncI
 					RigidSolver->GetCurrentFrame(), this, *VehicleState.LastFrameVehicleLocalVelocity.ToString(), PVehicle->GetEngine().GetEngineOmega());
 			}
 		}
-	}
 #endif
+	}
 }
 
 void UChaosVehicleSimulation::ApplyDeferredForces(Chaos::FRigidBodyHandle_Internal* Handle)
