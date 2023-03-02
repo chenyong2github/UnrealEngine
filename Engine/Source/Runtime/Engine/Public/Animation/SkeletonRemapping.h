@@ -7,7 +7,7 @@
 
 class USkeleton;
 
-struct FSkeletonRemapping
+struct ENGINE_API FSkeletonRemapping
 {
 	FSkeletonRemapping() = default;
 	FSkeletonRemapping(const USkeleton* InSourceSkeleton, const USkeleton* InTargetSkeleton);

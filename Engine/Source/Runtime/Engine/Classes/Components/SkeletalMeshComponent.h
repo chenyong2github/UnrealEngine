@@ -65,6 +65,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBoneTransformsFinalized);  // Deprecated, 
 
 DECLARE_MULTICAST_DELEGATE(FOnBoneTransformsFinalizedMultiCast);
 
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnLODRequiredBonesUpdateMulticast, USkeletalMeshComponent*, int32, const TArray<FBoneIndexType>&);
+typedef FOnLODRequiredBonesUpdateMulticast::FDelegate FOnLODRequiredBonesUpdate;
+
 /** Method used when retrieving a attribute value*/
 UENUM()
 enum class ECustomBoneAttributeLookup : uint8
@@ -2556,6 +2559,10 @@ public:
 	FDelegateHandle RegisterOnBoneTransformsFinalizedDelegate(const FOnBoneTransformsFinalizedMultiCast::FDelegate& Delegate);
 	void UnregisterOnBoneTransformsFinalizedDelegate(const FDelegateHandle& DelegateHandle);
 
+	/** Register/Unregister for OnLODRequiredBonesUpdate callback */
+	FDelegateHandle RegisterOnLODRequiredBonesUpdate(const FOnLODRequiredBonesUpdate& Delegate);
+	void UnregisterOnLODRequiredBonesUpdate(const FDelegateHandle& DelegateHandle);
+	
 private:
 
 #if WITH_EDITORONLY_DATA
@@ -2590,6 +2597,9 @@ private:
 
 	/** Multicaster fired when this component bone transforms are finalized */
 	FOnBoneTransformsFinalizedMultiCast OnBoneTransformsFinalizedMC;
+
+	/** Static Multicaster fired when this component finalizes the regeneration of the required bones list for the current LOD*/
+	static FOnLODRequiredBonesUpdateMulticast OnLODRequiredBonesUpdate;
 
 	/** Mark current anim UID version to up-to-date. Called when it's recalculated */
 	void MarkRequiredCurveUpToDate();

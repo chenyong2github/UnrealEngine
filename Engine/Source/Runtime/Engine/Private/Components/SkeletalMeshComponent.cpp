@@ -102,6 +102,9 @@ FAutoConsoleTaskPriority CPrio_ParallelAnimationEvaluationTask(
 	ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
 	);
 
+/** Static Multicaster fired when SkeletalMeshComponent finalizes the regeneration of the required bones list for the current LOD*/
+/*static*/ FOnLODRequiredBonesUpdateMulticast USkeletalMeshComponent::OnLODRequiredBonesUpdate;
+
 class FParallelAnimationEvaluationTask
 {
 	TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
@@ -1957,6 +1960,8 @@ void USkeletalMeshComponent::RecalcRequiredBones(int32 LODIndex)
 
 	// Invalidate cached bones.
 	ClearCachedAnimProperties();
+
+	OnLODRequiredBonesUpdate.Broadcast(this, LODIndex, RequiredBones);
 }
 
 void USkeletalMeshComponent::MarkRequiredCurveUpToDate()
@@ -4323,6 +4328,16 @@ FDelegateHandle USkeletalMeshComponent::RegisterOnBoneTransformsFinalizedDelegat
 void USkeletalMeshComponent::UnregisterOnBoneTransformsFinalizedDelegate(const FDelegateHandle& DelegateHandle)
 {
 	OnBoneTransformsFinalizedMC.Remove(DelegateHandle);
+}
+
+FDelegateHandle USkeletalMeshComponent::RegisterOnLODRequiredBonesUpdate(const FOnLODRequiredBonesUpdate& Delegate)
+{
+	return OnLODRequiredBonesUpdate.Add(Delegate);
+}
+
+void USkeletalMeshComponent::UnregisterOnLODRequiredBonesUpdate(const FDelegateHandle& DelegateHandle)
+{
+	OnLODRequiredBonesUpdate.Remove(DelegateHandle);
 }
 
 bool USkeletalMeshComponent::MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* OutHit /*= nullptr*/, EMoveComponentFlags MoveFlags /*= MOVECOMP_NoFlags*/, ETeleportType Teleport /*= ETeleportType::None*/)
