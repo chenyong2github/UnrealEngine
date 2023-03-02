@@ -48,7 +48,7 @@ export class TestDataHandler {
         this.load();
     }
 
-    setAutomation(automation: string) {
+    setAutomation(automation: string, initStreams: boolean = false) {
         this.state.automation = automation;
 
         if (automation) {
@@ -73,6 +73,11 @@ export class TestDataHandler {
                 this.state.suites = undefined;
             }
 
+            if (initStreams) {
+                const streams = this.getAutomationStreams(automation);
+                this.state.streams = streams.map(s => s);
+            }
+    
         }
 
         if (this.updateSearch()) {
