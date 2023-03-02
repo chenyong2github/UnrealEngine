@@ -168,16 +168,21 @@ struct WORLDCONDITIONS_API FWorldConditionQueryDefinition
 	/** @return true of the definition has conditions and has been initialized. */
 	bool IsValid() const;
 
-	/** Initialized the condition from editable data. */
-	bool Initialize(UObject& Outer);
+	/**
+	 * Initialized the condition from editable data.
+	 * @param Outer Used in logging error messages, optional
+	 * @return true if initialization succeeded.
+	 */
+	bool Initialize(const UObject* Outer);
 
 	bool Serialize(FArchive& Ar);
+	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive = nullptr);
 	void AddStructReferencedObjects(FReferenceCollector& Collector) const;
 
 
 #if WITH_EDITORONLY_DATA
 	/** Initialized the condition with specific data. */
-	bool Initialize(UObject& Outer, const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions);
+	bool Initialize(const UObject* Outer, const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions);
 
 	/** Adds a single condition to the definition. The condition will not be in use until Initialize() is called, and a state is initialized. */
 	void AddCondition(const FWorldConditionEditable& NewCondition)
@@ -213,6 +218,7 @@ struct TStructOpsTypeTraits<FWorldConditionQueryDefinition> : public TStructOpsT
 	{
 		WithAddStructReferencedObjects = true,
 		WithSerializer = true,
+		WithImportTextItem = true,
 	};
 };
 
@@ -477,7 +483,7 @@ struct WORLDCONDITIONS_API FWorldConditionQuery
 	 * Initializes a query from array of conditions for testing.
 	 * @return true of the query was created and initialized.
 	 */
-	bool DebugInitialize(UObject& Outer, const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions);
+	bool DebugInitialize(const UObject* Outer, const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions);
 #endif // WITH_EDITORONLY_DATA
 	
 protected:

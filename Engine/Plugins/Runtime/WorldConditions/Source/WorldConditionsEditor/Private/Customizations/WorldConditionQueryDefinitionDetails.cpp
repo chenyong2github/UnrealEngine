@@ -84,12 +84,9 @@ void FWorldConditionQueryDefinitionDetails::InitializeDefinition() const
 	
 	for (int32 Index = 0; Index < RawData.Num(); Index++)
 	{
-		if (UObject* Outer = OuterObjects[Index])
+		if (FWorldConditionQueryDefinition* QueryDefinition = static_cast<FWorldConditionQueryDefinition*>(RawData[Index]))
 		{
-			if (FWorldConditionQueryDefinition* QueryDefinition = static_cast<FWorldConditionQueryDefinition*>(RawData[Index]))
-			{
-				QueryDefinition->Initialize(*Outer);
-			}
+			QueryDefinition->Initialize(OuterObjects[Index]);
 		}
 	}
 }

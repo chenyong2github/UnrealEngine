@@ -84,13 +84,10 @@ void FSmartObjectSlotDefinitionDetails::OnPaste() const
 		
 		for (int32 Index = 0; Index < RawNodeData.Num(); Index++)
 		{
-			if (UObject* Outer = OuterObjects[Index])
+			if (FSmartObjectSlotDefinition* Slot = static_cast<FSmartObjectSlotDefinition*>(RawNodeData[Index]))
 			{
-				if (FSmartObjectSlotDefinition* Slot = static_cast<FSmartObjectSlotDefinition*>(RawNodeData[Index]))
-				{
-					Slot->ID = FGuid::NewGuid();
-					Slot->SelectionPreconditions.Initialize(*Outer, Definition->GetWorldConditionSchemaClass(), {});
-				}
+				Slot->ID = FGuid::NewGuid();
+				Slot->SelectionPreconditions.Initialize(OuterObjects[Index], Definition->GetWorldConditionSchemaClass(), {});
 			}
 		}
 		

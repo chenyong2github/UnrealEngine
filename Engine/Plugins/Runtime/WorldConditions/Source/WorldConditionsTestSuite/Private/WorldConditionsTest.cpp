@@ -16,7 +16,7 @@ struct FWorldConditionTest_Init : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQueryDefinition Definition;
-		const bool bInitialized = Definition.Initialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
+		const bool bInitialized = Definition.Initialize(&GetWorld(), UWorldConditionTestSchema::StaticClass(),
 			{
 				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest())),
 				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTest())),
@@ -43,7 +43,7 @@ struct FWorldConditionTest_Eval : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
+		const bool bInitialized = Query.DebugInitialize(&GetWorld(), UWorldConditionTestSchema::StaticClass(),
 			{
 				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest(1))),
 				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTest(1)))
@@ -78,7 +78,7 @@ struct FWorldConditionTest_EvalInvert : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
+		const bool bInitialized = Query.DebugInitialize(&GetWorld(), UWorldConditionTestSchema::StaticClass(),
 			{
 				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest(1))),
 				FWorldConditionEditable(0, EWorldConditionOperator::And, /*bInvert*/true, FConstStructView::Make(FWorldConditionTest(0)))
@@ -113,7 +113,7 @@ struct FWorldConditionTest_CachedEval : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestCachedSchema::StaticClass(),
+		const bool bInitialized = Query.DebugInitialize(&GetWorld(), UWorldConditionTestCachedSchema::StaticClass(),
 			{
 				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTestCached(1))),
 				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTestCached(1)))
@@ -166,7 +166,7 @@ struct FWorldConditionTest_EvalComplex : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
+		const bool bInitialized = Query.DebugInitialize(&GetWorld(), UWorldConditionTestSchema::StaticClass(),
 			{
 				FWorldConditionEditable(/*Depth*/0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest(0))),	//	if	(A
 				FWorldConditionEditable(/*Depth*/1, EWorldConditionOperator::Or,   FConstStructView::Make(FWorldConditionTest(1))),	//	.	|| B)
@@ -209,7 +209,7 @@ struct FWorldConditionTest_Empty : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),{});
+		const bool bInitialized = Query.DebugInitialize(&GetWorld(), UWorldConditionTestSchema::StaticClass(),{});
 
 		AITEST_TRUE("Query should get initialized", bInitialized);
 		
@@ -239,7 +239,7 @@ struct FWorldConditionTest_FailingActivate : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
+		const bool bInitialized = Query.DebugInitialize(&GetWorld(), UWorldConditionTestSchema::StaticClass(),
 			{
 				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest(1))),
 				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTest(1, false))) // this conditions fails to activate
@@ -274,7 +274,7 @@ struct FWorldConditionTest_Serialization : FAITestBase
 	virtual bool InstantTest() override
 	{
 		UWorldConditionOwnerClass* Owner = NewAutoDestroyObject<UWorldConditionOwnerClass>();
-		const bool bInitialized = Owner->Definition.Initialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
+		const bool bInitialized = Owner->Definition.Initialize(&GetWorld(), UWorldConditionTestSchema::StaticClass(),
 			{
 				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest())),
 				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTest())),

@@ -737,7 +737,7 @@ struct FInstanceTagsFilter : FSmartObjectTestBase
 			FGameplayTagQueryExpression()
 			.NoTagsMatch()
 			.AddTag(FNativeGameplayTags::Get().TestTag1));
-		ConditionQueryDefinition.Initialize(*Definition, Definition->GetWorldConditionSchemaClass(),
+		ConditionQueryDefinition.Initialize(Definition, Definition->GetWorldConditionSchemaClass(),
 			{
 				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(NewCondition))
 			});

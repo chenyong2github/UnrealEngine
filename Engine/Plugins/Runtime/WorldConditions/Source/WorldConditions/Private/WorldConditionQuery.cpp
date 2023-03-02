@@ -371,7 +371,7 @@ void FWorldConditionQueryDefinition::SetSchemaClass(const TSubclassOf<UWorldCond
 }
 
 #if WITH_EDITORONLY_DATA
-bool FWorldConditionQueryDefinition::Initialize(UObject& Outer, const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions)
+bool FWorldConditionQueryDefinition::Initialize(const UObject* Outer, const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions)
 {
 	SchemaClass = InSchemaClass;
 	EditableConditions = InConditions;
@@ -379,7 +379,7 @@ bool FWorldConditionQueryDefinition::Initialize(UObject& Outer, const TSubclassO
 }
 #endif
 
-bool FWorldConditionQueryDefinition::Initialize(UObject& Outer)
+bool FWorldConditionQueryDefinition::Initialize(const UObject* Outer)
 {
 	bool bResult = true;
 
@@ -389,7 +389,7 @@ bool FWorldConditionQueryDefinition::Initialize(UObject& Outer)
 
 	if (!::IsValid(SchemaClass))
 	{
-		UE_LOG(LogWorldCondition, Warning, TEXT("World Condition: Failed to initialize query for %s due to missing schema."), *GetFullNameSafe(&Outer));
+		UE_LOG(LogWorldCondition, Warning, TEXT("World Condition: Failed to initialize query for %s due to missing schema."), *GetFullNameSafe(Outer));
 		return false;
 	}
 
@@ -415,7 +415,7 @@ bool FWorldConditionQueryDefinition::Initialize(UObject& Outer)
 			else
 			{
 				UE_LOG(LogWorldCondition, Warning, TEXT("World Condition: Query for %s contains condition of type %s that is not allowed by schema %s."),
-					*GetFullNameSafe(&Outer), *GetNameSafe(EditableCondition.Condition.GetScriptStruct()), *GetNameSafe(Schema));
+					*GetFullNameSafe(Outer), *GetNameSafe(EditableCondition.Condition.GetScriptStruct()), *GetNameSafe(Schema));
 			}
 		}
 	}
@@ -498,22 +498,33 @@ bool FWorldConditionQueryDefinition::Serialize(FArchive& Ar)
 		}
 	}
 #if WITH_EDITOR
-	if (Ar.IsLoading())
+	if (Ar.IsLoading()
+		|| (Ar.IsSaving() && Ar.IsPersistent()))
 	{
  
 		// If not initialized yet, but has data, initialize on load in editor.
 		if (!SharedDefinition.IsValid() && EditableConditions.Num() > 0)
 		{
 			const FUObjectSerializeContext* LoadContext = FUObjectThreadContext::Get().GetSerializeContext();
-			if (LoadContext && LoadContext->SerializedObject)
-			{
-				Initialize(*LoadContext->SerializedObject);
-			}
+			const UObject* Outer = LoadContext ? LoadContext->SerializedObject : nullptr;
+			Initialize(Outer);
 		}
 	}
 #endif
 	
 	return true;
+}
+
+bool FWorldConditionQueryDefinition::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive)
+{
+	if (const TCHAR* Result = TBaseStructure<FWorldConditionQueryDefinition>::Get()->ImportText(Buffer, this, Parent, PortFlags, ErrorText, TEXT("FWorldConditionQueryDefinition"), /*bAllowNativeOverride*/false))
+	{
+		Initialize(Parent);
+		Buffer = Result;
+		return true;
+	}
+	
+	return false;
 }
 
 void FWorldConditionQueryDefinition::AddStructReferencedObjects(FReferenceCollector& Collector) const
@@ -530,7 +541,7 @@ void FWorldConditionQueryDefinition::AddStructReferencedObjects(FReferenceCollec
 //
 
 #if WITH_EDITORONLY_DATA
-bool FWorldConditionQuery::DebugInitialize(UObject& Outer, const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions)
+bool FWorldConditionQuery::DebugInitialize(const UObject* Outer, const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions)
 {
 	if (IsActive())
 	{

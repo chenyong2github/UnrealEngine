@@ -238,7 +238,7 @@ void USmartObjectDefinition::PostEditChangeChainProperty(FPropertyChangedChainEv
 		for (FSmartObjectSlotDefinition& Slot : Slots)
 		{
 			Slot.SelectionPreconditions.SetSchemaClass(WorldConditionSchemaClass);
-			Slot.SelectionPreconditions.Initialize(*this);
+			Slot.SelectionPreconditions.Initialize(this);
 		}
 	}
 
@@ -249,7 +249,7 @@ void USmartObjectDefinition::PreSave(FObjectPreSaveContext SaveContext)
 {
 	for (FSmartObjectSlotDefinition& Slot : Slots)
 	{
-		Slot.SelectionPreconditions.Initialize(*this);
+		Slot.SelectionPreconditions.Initialize(this);
 	}
 
 	UpdateSlotReferences();
@@ -318,7 +318,7 @@ void USmartObjectDefinition::PostLoad()
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif	
 
-	Preconditions.Initialize(*this);
+	Preconditions.Initialize(this);
 	
 	for (FSmartObjectSlotDefinition& Slot : Slots)
 	{
@@ -335,7 +335,7 @@ void USmartObjectDefinition::PostLoad()
 			Slot.SelectionPreconditions.SetSchemaClass(WorldConditionSchemaClass);
 		}
 
-		Slot.SelectionPreconditions.Initialize(*this);
+		Slot.SelectionPreconditions.Initialize(this);
 	}
 	
 #if WITH_EDITOR
