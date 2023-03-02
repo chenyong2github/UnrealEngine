@@ -436,12 +436,20 @@ namespace Chaos
 			return *this;
 		}
 
-		//Grows (or shrinks) the box by this vector symmetrically - Changed name because previous Thicken had different semantics which caused several bugs
+		//Grows the box by this vector symmetrically - Changed name because previous Thicken had different semantics which caused several bugs
 		FORCEINLINE TAABB<T, d>& ThickenSymmetrically(const TVector<T, d>& Thickness)
 		{
 			const TVector<T, d> AbsThickness = TVector<T, d>(FGenericPlatformMath::Abs(Thickness.X), FGenericPlatformMath::Abs(Thickness.Y), FGenericPlatformMath::Abs(Thickness.Z));
 			MMin -= AbsThickness;
 			MMax += AbsThickness;
+			return *this;
+		}
+
+		FORCEINLINE TAABB<T, d>& ShrinkSymmetrically(const TVector<T, d>& Thickness)
+		{
+			const TVector<T, d> AbsThickness = TVector<T, d>(FGenericPlatformMath::Abs(Thickness.X), FGenericPlatformMath::Abs(Thickness.Y), FGenericPlatformMath::Abs(Thickness.Z));
+			MMin += AbsThickness;
+			MMax -= AbsThickness;
 			return *this;
 		}
 

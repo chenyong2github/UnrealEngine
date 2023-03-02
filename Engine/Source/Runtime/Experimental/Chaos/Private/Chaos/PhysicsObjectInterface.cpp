@@ -282,7 +282,7 @@ namespace Chaos
 	bool FReadPhysicsObjectInterface<Id>::GetPhysicsObjectOverlap(FPhysicsObjectHandle ObjectA, const FTransform& InTransformA, FPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FReadPhysicsObjectInterface<Id>::GetPhysicsObjectOverlap);
-		return PairwiseShapeOverlapHelper(ObjectA, InTransformA, ObjectB, InTransformB, bTraceComplex, false, [](const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo&) { return false; });
+		return PairwiseShapeOverlapHelper(ObjectA, InTransformA, ObjectB, InTransformB, bTraceComplex, false, FVector::Zero(), [](const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo&) { return false; });
 	}
 
 	template<EThreadContext Id>
@@ -297,6 +297,7 @@ namespace Chaos
 			InTransformB,
 			bTraceComplex,
 			true,
+			FVector::Zero(),
 			[&OutMTD](const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo& MTDInfo)
 			{
 				OutMTD.Penetration = FMath::Max(OutMTD.Penetration, MTDInfo.Penetration);
@@ -317,11 +318,10 @@ namespace Chaos
 			InTransformB,
 			bTraceComplex,
 			false,
+			Tolerance,
 			[&OutOverlap, &Tolerance](const FShapeOverlapData& ShapeA, const FShapeOverlapData& ShapeB, const FMTDInfo&)
 			{
-				const FAABB3 BoxA = { ShapeA.BoundingBox.Min() + Tolerance, ShapeA.BoundingBox.Max() - Tolerance };
-				const FAABB3 BoxB = { ShapeB.BoundingBox.Min() + Tolerance, ShapeB.BoundingBox.Max() - Tolerance };
-				const FAABB3 Intersection = BoxA.GetIntersection(BoxB);
+				const FAABB3 Intersection = ShapeA.BoundingBox.GetIntersection(ShapeB.BoundingBox);
 				OutOverlap += FBox{ Intersection.Min(), Intersection.Max() };
 				return true;
 			}
@@ -340,11 +340,10 @@ namespace Chaos
 			InTransformB,
 			bTraceComplex,
 			false,
-			[&OutOverlapSize, &Tolerance](const FShapeOverlapData& ShapeA, const FShapeOverlapData& ShapeB, const FMTDInfo&)
+			Tolerance,
+			[&OutOverlapSize](const FShapeOverlapData& ShapeA, const FShapeOverlapData& ShapeB, const FMTDInfo&)
 			{
-				const FAABB3 BoxA = { ShapeA.BoundingBox.Min() + Tolerance, ShapeA.BoundingBox.Max() - Tolerance };
-				const FAABB3 BoxB = { ShapeB.BoundingBox.Min() + Tolerance, ShapeB.BoundingBox.Max() - Tolerance };
-				const FAABB3 Intersection = BoxA.GetIntersection(BoxB);
+				const FAABB3 Intersection = ShapeA.BoundingBox.GetIntersection(ShapeB.BoundingBox);
 				OutOverlapSize += Intersection.Extents();
 				return true;
 			}
@@ -352,7 +351,7 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
-	bool FReadPhysicsObjectInterface<Id>::PairwiseShapeOverlapHelper(FPhysicsObjectHandle ObjectA, const FTransform& InTransformA, FPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, bool bComputeMTD, const TFunction<bool(const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo&)>& Lambda)
+	bool FReadPhysicsObjectInterface<Id>::PairwiseShapeOverlapHelper(FPhysicsObjectHandle ObjectA, const FTransform& InTransformA, FPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, bool bComputeMTD, const FVector& Tolerance, const TFunction<bool(const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo&)>& Lambda)
 	{
 		TArray<FPerShapeData*> ShapesA = GetAllShapes({ &ObjectA, 1 });
 		const FTransform TransformA = FTransform{ GetR(ObjectA), GetX(ObjectA) } *InTransformA;
@@ -381,7 +380,7 @@ namespace Chaos
 				continue;
 			}
 
-			const FAABB3 BoxShapeB = GeomB->CalculateTransformedBounds(TransformB);
+			const FAABB3 BoxShapeB = GeomB->CalculateTransformedBounds(TransformB).ShrinkSymmetrically(Tolerance);
 			// At this point on, this function should be mirror the Overlap_GeomInternal function in PhysInterface_Chaos.cpp.
 			// ShapeA is equivalent to InInstance and GeomB is equivalent to InGeom.
 
@@ -401,7 +400,7 @@ namespace Chaos
 					continue;
 				}
 
-				const FAABB3 BoxShapeA = A->GetGeometry()->CalculateTransformedBounds(TransformA);
+				const FAABB3 BoxShapeA = A->GetGeometry()->CalculateTransformedBounds(TransformA).ShrinkSymmetrically(Tolerance);
 				if (!BoxShapeA.Intersects(BoxShapeB))
 				{
 					continue;
