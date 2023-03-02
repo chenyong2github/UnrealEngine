@@ -112,10 +112,11 @@ class PollProcess(object):
 
     @property
     def args(self) -> str:
-        get_commandline_cmd = f"wmic process where caption=\"{self.task_name}\" get commandline"
+        get_commandline_cmd = f"wmic process where caption=\"{self.task_name}\" get commandline /format:csv"
         try:
             output = subprocess.check_output(get_commandline_cmd, startupinfo=get_hidden_sp_startupinfo()).decode()
-            return output
+            dictobj = next(csv.DictReader(io.StringIO(output.strip())))
+            return dictobj['CommandLine'] if dictobj else ''
         except:
             return ""
 

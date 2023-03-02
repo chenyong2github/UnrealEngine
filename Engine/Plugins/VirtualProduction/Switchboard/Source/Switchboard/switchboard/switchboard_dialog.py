@@ -1,5 +1,7 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
+from __future__ import annotations
+
 import datetime
 import logging
 import os
@@ -154,7 +156,7 @@ class DeviceAdditionalSettingsUI(QtCore.QObject):
         self.settings_menu = QtWidgets.QMenu(parent)
         self._generate_settings_menu_items(self.settings_menu)
         self._button.setMenu(self.settings_menu)
-        self._button.setStyleSheet("QPushButton::menu-indicator{image:none;}");
+        self._button.setStyleSheet("QPushButton::menu-indicator{image:none;}")
         self._button.setDisabled(False)
 
     def make_button(self, parent):
@@ -163,31 +165,68 @@ class DeviceAdditionalSettingsUI(QtCore.QObject):
         """
         button = sb_widgets.ControlQPushButton.create(
                 icon_size=QtCore.QSize(21, 21),
-                tool_tip=f'Change device settings',
+                tool_tip='Change device settings',
                 hover_focus=False,
                 name='settings')
 
-        self.assign_button(button,parent)
+        self.assign_button(button, parent)
         return button
 
-class PeriodicRunnable(QtCore.QRunnable):
-    ''' Performs periodic tasks on the switchboard dialog. '''
 
-    def __init__(self, switchboard):
+class ProcessMonitor(QtCore.QObject):
+    ''' Offloads potentially expensive periodic checks to another thread. '''
+
+    mu_server_status_changed = QtCore.Signal(object)
+
+    class MuServerStatus:
+        def __init__(self):
+            self.pid: Optional[int] = None
+            self.endpoint: Optional[str] = None
+            self.name: Optional[str] = None
+
+        def __eq__(self, other):
+            if isinstance(other, ProcessMonitor.MuServerStatus):
+                return ((self.pid == other.pid) and
+                        (self.endpoint == other.endpoint) and
+                        (self.name == other.name))
+            else:
+                return False
+
+    def __init__(self, dialog: SwitchboardDialog):
         super().__init__()
-        self._switchboard = switchboard
+
+        self._dialog = dialog
         self._exiting = False
+        self._last_mu_status = ProcessMonitor.MuServerStatus()
+
+        self._thread = threading.Thread(target=self._run)
+        self._thread.start()
 
     def exit(self):
         self._exiting = True
+        self._thread.join()
 
-    def run(self):
+    def _run(self):
         while not self._exiting:
-            self._switchboard.update_muserver_button()
-            self._switchboard.update_locallistener_menuitem()
-            self._switchboard.update_insights_menuitem()
+            self._poll_multiuser_status()
+            self._dialog.update_locallistener_menuitem()
+            self._dialog.update_insights_menuitem()
 
             time.sleep(1.0)
+
+    def _poll_multiuser_status(self):
+        new_status = ProcessMonitor.MuServerStatus()
+
+        server = switchboard_application.get_multi_user_server_instance()
+        if server.is_running():
+            new_status.pid = server._running_pid
+            new_status.endpoint = server.running_endpoint()
+            new_status.name = server.running_server_name()
+
+        if new_status != self._last_mu_status:
+            self._last_mu_status = new_status
+            self.mu_server_status_changed.emit(new_status)
+
 
 class SwitchboardDialog(QtCore.QObject):
 
@@ -258,7 +297,6 @@ class SwitchboardDialog(QtCore.QObject):
         self._multiuser_session_name = None
         self._is_recording = False
         self._description = 'description'
-        self._started_mu_server = False
 
         # Recording Manager
         self.recording_manager = recording.RecordingManager(CONFIG.SWITCHBOARD_DIR)
@@ -476,59 +514,58 @@ class SwitchboardDialog(QtCore.QObject):
             SETTINGS.save()
             self.osc_server.launch(SETTINGS.ADDRESS.get_value(), CONFIG.OSC_SERVER_PORT.get_value())
 
-    def warn_user_about_muserver(self):
-        if self.have_warned_about_muserver:
-            return
-
-        ServerInstance = switchboard_application.get_multi_user_server_instance()
-        expected_server = ServerInstance.server_name()
-        expected_endpoint = ServerInstance.endpoint_address()
-        actual_server = ServerInstance.running_server_name()
-        actual_endpoint = ServerInstance.running_endpoint()
-        LOGGER.warning(f'The running Multi-user server does not match Switchboard configuration. Expected "{expected_server}" with "{expected_endpoint}" but found "{actual_server}" with "{actual_endpoint}". Please restart the multi-user server.')
-
-        self.have_warned_about_muserver = True
-
-    def get_muserver_label(self, is_running, is_valid):
-        ServerInstance = switchboard_application.get_multi_user_server_instance()
-        if is_running and is_valid:
-            actual_server = ServerInstance.running_server_name()
-            actual_endpoint = ServerInstance.running_endpoint()
-            return f'Multi-user Server ({actual_server} {actual_endpoint})'
-        elif is_running and not is_valid:
-            return 'Multi-user Server (WARNING: RUNNING SERVER DOES NOT MATCH CONFIGURATION)'
-        else:
-            return 'Multi-user Server'
-
-    def update_muserver_button(self):
+    def _on_mu_server_status_changed(
+            self,
+            new_status: ProcessMonitor.MuServerStatus
+    ):
         '''
         Update the status of the Multi-user start/stop button to reflect the status of Multi-user server.
         '''
-        ServerInstance = switchboard_application.get_multi_user_server_instance()
+        server = switchboard_application.get_multi_user_server_instance()
+        expected_name = server.configured_server_name()
+        expected_endpoint = server.configured_endpoint()
+
+        is_running = new_status.pid is not None
+        actual_name = new_status.name
+        actual_endpoint = new_status.endpoint
+
+        is_valid = (is_running and (actual_endpoint == expected_endpoint) and
+                    (actual_name == expected_name))
+
         is_checked = self.window.muserver_start_stop_button.isChecked()
-        is_running = ServerInstance.is_running()
-        is_valid =  ServerInstance.validate_process()
-        if  (is_running or self._started_mu_server) and not is_checked:
-            self.window.muserver_start_stop_button.setChecked( True )
+        if is_running and not is_checked:
+            self.window.muserver_start_stop_button.setChecked(True)
         elif not is_running and is_checked:
-            self.window.muserver_start_stop_button.setChecked( False )
+            self.window.muserver_start_stop_button.setChecked(False)
             self.have_warned_about_muserver = False
 
-        label = self.get_muserver_label(is_running or self._started_mu_server,is_valid)
-        self.window.muserver_label.setText(label)
-        if is_running and not is_valid:
-            self.warn_user_about_muserver()
+        # Re-enable the button after a pending launch completes
+        self.window.muserver_start_stop_button.setEnabled(True)
 
-        if is_running and self._started_mu_server:
-            # Server has finished starting so reset our start flag.
-            self._started_mu_server = False
+        label = 'Multi-user Server'
+        if is_running:
+            label += f' ({new_status.name} {new_status.endpoint})'
+            if not is_valid:
+                label += ' (WARNING: RUNNING SERVER DOES NOT MATCH CONFIGURATION)'
+                if not self.have_warned_about_muserver:
+                    LOGGER.warning(
+                        'The running Multi-user server does not match '
+                        'Switchboard configuration. Expected '
+                        f'"{expected_name}" with "{expected_endpoint}" but '
+                        f'found "{actual_name}" with "{actual_endpoint}". '
+                        'Please restart the multi-user server.')
+
+                    self.have_warned_about_muserver = True
+
+        self.window.muserver_label.setText(label)
 
     def setup_periodic_tasks_thread(self):
         '''
         Sets up a thread for performing maintenance tasks
         '''
-        self._periodic_runner = PeriodicRunnable(self)
-        QtCore.QThreadPool.globalInstance().start(self._periodic_runner)
+        self._periodic_runner = ProcessMonitor(self)
+        self._periodic_runner.mu_server_status_changed.connect(
+            self._on_mu_server_status_changed)
 
     def update_locallistener_menuitem(self):
         ''' 
@@ -551,12 +588,11 @@ class SwitchboardDialog(QtCore.QObject):
         '''
         ServerInstance = switchboard_application.get_multi_user_server_instance()
         if ServerInstance.is_running():
-            ServerInstance.terminate(bypolling=True)
-            self._started_mu_server = False
+            ServerInstance.process.kill()
         else:
-            self._started_mu_server = True
             ServerInstance.launch()
-        self.update_muserver_button()
+            # This will be re-enabled when the button transitions to stop/close
+            self.window.muserver_start_stop_button.setEnabled(False)
 
     def init_insights_launcher(self):
         ''' Initializes insights launcher '''

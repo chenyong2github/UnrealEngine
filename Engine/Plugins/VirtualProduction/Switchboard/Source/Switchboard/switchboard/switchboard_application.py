@@ -3,12 +3,13 @@
 import os
 import pathlib
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
 import threading
 
-from typing import Dict, List, NamedTuple, Optional
+from typing import NamedTuple, Optional, Union
 
 import pythonosc.dispatcher
 import pythonosc.osc_server
@@ -16,6 +17,7 @@ import pythonosc.osc_server
 from .config import CONFIG, SETTINGS
 from .switchboard_logging import LOGGER
 from . import switchboard_utils as sb_utils
+
 
 class OscServer:
     def __init__(self):
@@ -77,11 +79,59 @@ class OscServer:
         return self.server_thread.is_alive()
 
     def dispatcher_map(self, command, method):
-        # LOGGER.osc(f'OSC Server: dispatcher map {command} to {method}')
         self.dispatcher.map(command, method, needs_reply_address=True)
 
     def _default_callback(self, client_address, command, *args):
         LOGGER.warning(f'Received unhandled OSC message: {command} {args}.')
+
+
+class CommandLineExtractor:
+    '''
+    Given command line arguments as either a single string or an array,
+    tokenizes and normalizes them (quotes removed), and provides a means to
+    extract specific values.
+    '''
+
+    # Any single backslash not followed by a "
+    WIN_SLASH_RE = re.compile(r"(?<!\\)\\(?![\"\\])")
+
+    def __init__(self, args: Union[str, list[str]]):
+        if sys.platform.startswith('win'):
+            # Escape path separators (which shlex will subsequently unescape)
+            if isinstance(args, str):
+                args = self.WIN_SLASH_RE.sub(R'\\\\', args)
+            else:
+                for arg in args:
+                    arg = self.WIN_SLASH_RE.sub(R'\\\\', arg)
+
+        self.tokens = self._extract(args)
+
+    def get_value_for_switch(self, switch: str) -> Optional[str]:
+        switch_re = re.compile(f'-{switch}=(.*)', re.IGNORECASE)
+        for token in self.tokens:
+            if match := switch_re.search(token):
+                return match.group(1)
+
+        return None
+
+    def _extract(self, args: Union[str, list[str]]):
+        tokens: list[str] = []
+
+        if isinstance(args, str):
+            lex = self._shlex(args)
+            tokens = list(lex)
+        else:
+            for arg in args:
+                tokens.extend(list(self._shlex(arg)))
+
+        return tokens
+
+    def _shlex(self, instream) -> shlex.shlex:
+        lex = shlex.shlex(instream=instream, posix=True)
+        lex.whitespace_split = True
+        if sys.platform.startswith('win'):
+            lex.quotes = '"'  # Single quotes don't affect tokenization
+        return lex
 
 
 class MultiUserApplication:
@@ -102,11 +152,11 @@ class MultiUserApplication:
     def get_mu_server_multicast_arg(self):
         multicast = CONFIG.MUSERVER_MULTICAST_ENDPOINT.get_value().strip()
         if multicast:
-            return f'-UDPMESSAGING_TRANSPORT_MULTICAST={multicast}'
+            return f'-UDPMESSAGING_TRANSPORT_MULTICAST="{multicast}"'
         return ''
 
     def get_mu_server_endpoint_arg(self):
-        endpoint = self.endpoint_address()
+        endpoint = self.configured_endpoint()
         if endpoint:
             return f'-UDPMESSAGING_TRANSPORT_UNICAST="{endpoint}"'
         return ''
@@ -123,7 +173,7 @@ class MultiUserApplication:
         # and we'd like to pick up on name changes.
         return sb_utils.PollProcess(self.exe_name())
 
-    def launch(self, args: Optional[List[str]] = None):
+    def launch(self, args: Optional[list[str]] = None):
         if args is None:
             args = []
 
@@ -136,83 +186,64 @@ class MultiUserApplication:
                              f'{self.exe_path()}. Has it been built?')
                 return
 
-            cmdline = ''
-            if sys.platform.startswith('win'):
-                if CONFIG.MUSERVER_SLATE_MODE.get_value():
-                    cmdline = f'"{self.exe_path()}"'
-                else:
-                    cmdline = f'start "Multi User Server" "{self.exe_path()}"'
-            else:
-                cmdline = f'"{self.exe_path()}"'
+            creationflags = 0
 
-            cmdline += f' -CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME.get_value()}"'
-            cmdline += f' {CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS.get_value()}'
-            cmdline += f' {self.get_mu_server_endpoint_arg()}'
-            cmdline += f' {self.get_mu_server_multicast_arg()}'
+            if sys.platform.startswith('win'):
+                args.insert(0, f'"{self.exe_path()}"')
+                if not CONFIG.MUSERVER_SLATE_MODE.get_value():
+                    creationflags = subprocess.CREATE_NEW_CONSOLE
+            else:
+                args.insert(0, f'{self.exe_path()}')
+
+            args.extend([
+                f'-CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME.get_value()}"',
+                f'{CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS.get_value()}',
+                f'{self.get_mu_server_endpoint_arg()}',
+                f'{self.get_mu_server_multicast_arg()}'])
 
             if self.concert_ignore_cl:
-                cmdline += " -ConcertIgnore"
+                args.append('-ConcertIgnore')
 
-            if CONFIG.MUSERVER_WORKING_DIR.get_value():
-                cmdline += f' -ConcertWorkingDir="{CONFIG.MUSERVER_WORKING_DIR.get_value()}"'
+            working_dir = CONFIG.MUSERVER_WORKING_DIR.get_value()
+            if working_dir:
+                args.append(f'-ConcertWorkingDir="{working_dir}"')
 
-            if CONFIG.MUSERVER_ARCHIVE_DIR.get_value():
-                cmdline += f' -ConcertSavedDir="{CONFIG.MUSERVER_ARCHIVE_DIR.get_value()}"'
+            archive_dir = CONFIG.MUSERVER_ARCHIVE_DIR.get_value()
+            if archive_dir:
+                args.append(f'-ConcertSavedDir="{archive_dir}"')
 
             if CONFIG.MUSERVER_CLEAN_HISTORY.get_value():
-                cmdline += " -ConcertClean"
+                args.append('-ConcertClean')
 
-            if len(args) > 0:
-                cmdline += f' {" ".join(args)}'
+            args = list(filter(None, args))
 
-            LOGGER.debug(cmdline)
-            self._process = subprocess.Popen(
-                cmdline, shell=True,
-                startupinfo=sb_utils.get_hidden_sp_startupinfo())
+            if sys.platform.startswith('win'):
+                # Given a list on Windows, Popen calls subprocess.list2cmdline
+                # to combine to a string. However, that also has the effect
+                # of turning `-foo="bar baz"`` into `"-foo=\"bar baz\""`,
+                # and Unreal's FParse won't accept that (OR `"-foo=bar baz"`);
+                # its tokenization is too different from MSVCRT.
+                args = ' '.join(args)
+
+            self._process = subprocess.Popen(args, creationflags=creationflags)
 
             return True
 
-    def terminate(self, bypolling=False):
-        if not bypolling and self._process:
-            self._process.terminate()
-        else:
-            self.poll_process().kill()
-
-    FIND_IP_RE = re.compile(
-        r'-UDPMESSAGING_TRANSPORT_UNICAST="(\d+.\d+.\d+.\d+:\d+)"',
-        re.IGNORECASE)
-    FIND_NAME_RE = re.compile(
-        r'-CONCERTSERVER="([A-Za-z0-9_]+)"', re.IGNORECASE)
-
     def extract_process_info(self):
         pid = self.process.pid
-        command_line = str(self.process.args)
+        args = self.process.args
 
-        if command_line == '' or pid == self._running_pid:
+        if (not args) or (pid == self._running_pid):
             return
 
         self.clear_process_info()
         self._running_pid = pid
-        try:
-            ip_match = self.FIND_IP_RE.search(command_line)
-            name_match = self.FIND_NAME_RE.search(command_line)
-            if ip_match:
-                self._running_endpoint = ip_match.group(1)
-            if name_match:
-                self._running_name = name_match.group(1)
-        except:
-            pass
 
-    def validate_process(self):
-        if self._running_pid is None:
-            return False
-
-        endpoint = self.endpoint_address()
-        server_name = CONFIG.MUSERVER_SERVER_NAME.get_value()
-        if endpoint == self._running_endpoint and server_name == self._running_name:
-            return True
-
-        return False
+        extractor = CommandLineExtractor(args)
+        self._running_endpoint = extractor.get_value_for_switch(
+            'UDPMESSAGING_TRANSPORT_UNICAST') or ''
+        self._running_name = extractor.get_value_for_switch(
+            'CONCERTSERVER') or ''
 
     def running_server_name(self):
         return self._running_name
@@ -220,7 +251,7 @@ class MultiUserApplication:
     def running_endpoint(self):
         return self._running_endpoint
 
-    def endpoint_address(self):
+    def configured_endpoint(self):
         endpoint_setting = CONFIG.MUSERVER_ENDPOINT.get_value().strip()
         endpoint = ""
         if endpoint_setting:
@@ -228,7 +259,7 @@ class MultiUserApplication:
             endpoint = sb_utils.expand_endpoint(endpoint_setting, addr_setting)
         return endpoint
 
-    def server_name(self):
+    def configured_server_name(self):
         return CONFIG.MUSERVER_SERVER_NAME.get_value()
 
     def clear_process_info(self):
@@ -292,7 +323,7 @@ hosts allow = {allowed_addrs}
         self.log_file = tempfile.NamedTemporaryFile(
             prefix='sb_rsync', suffix='.log', mode='rt')
         self.process: Optional[subprocess.Popen] = None
-        self.allowed_clients: Dict[object, RsyncServer.Client] = {}
+        self.allowed_clients: dict[object, RsyncServer.Client] = {}
 
         self._shutdown_event = threading.Event()
         self._monitor_thread: Optional[threading.Thread] = None
