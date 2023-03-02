@@ -92,6 +92,10 @@ public:
 		double OptimizeBaseTriCost = 0.7;
 		double OptimizeLODLevelTriCostScale = 1.5;
 
+		int32 NumVoxWrapLODs = 1;
+		double VoxWrapBaseTolerance = 1.0;
+		int32 VoxWrapMaxTriCountBase = 500;
+
 		//
 		// Hidden Faces removal options
 		// 
