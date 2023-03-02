@@ -2830,6 +2830,14 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 
 	double LoadStartTime = FStudioAnalytics::GetAnalyticSeconds();
 	
+	// Fire delegate when a map is about to be loaded in, with an out-value to report failures from external dependencies which can prevent the map from loading
+	FCanLoadMap OutCanLoadMap;
+	FEditorDelegates::OnMapLoad.Broadcast(InFilename, OutCanLoadMap);
+	if (!OutCanLoadMap.Get())
+	{
+		return false;
+	}
+
 	if (GEditor->WarnIfLightingBuildIsCurrentlyRunning())
 	{
 		return false;

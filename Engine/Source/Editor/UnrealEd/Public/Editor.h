@@ -55,6 +55,22 @@ private:
 	bool bResult;
 };
 
+/**
+ * Helper struct for the FOnLoadMap delegate
+ */
+struct FCanLoadMap
+{
+public:
+	FCanLoadMap() : bResult(true) {}
+	FCanLoadMap(const FCanLoadMap&) = delete;
+	FCanLoadMap(FCanLoadMap&&) = delete;
+
+	void SetFalse() { bResult = false; }
+	bool Get() const { return bResult; }
+private:
+	bool bResult;
+};
+
 /** 
  * FEditorDelegates
  * Delegates used by the editor.
@@ -107,6 +123,8 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGridSnappingChanged, bool, float);
 	/** delegate type for triggering when focusing on a set of actors */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnFocusViewportOnActors, const TArray<AActor*>&);
+	/** delegate type for triggering when a map starts loading */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMapLoad, const FString& /* Filename */, FCanLoadMap& /*OutCanLoadMap*/);
 	/** delegate type for triggering when a map is opened */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMapOpened, const FString& /* Filename */, bool /*bAsTemplate*/);
 	/** Delegate used for entering or exiting an editor mode */
@@ -279,6 +297,8 @@ struct UNREALED_API FEditorDelegates
 	static FOnApplyObjectToActor OnApplyObjectToActor;
 	/** Called when focusing viewport on a set of actors */
 	static FOnFocusViewportOnActors OnFocusViewportOnActors;
+	/** Called before LoadMap is processed */
+	static FOnMapLoad OnMapLoad;
 	/** Called when a map is opened, giving map name, and whether it was a template */
 	static FOnMapOpened OnMapOpened;
 	/** Called when the editor camera is moved */

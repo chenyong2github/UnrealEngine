@@ -141,6 +141,7 @@ FSimpleMulticastDelegate								FEditorDelegates::OnLightingBuildFailed;
 FSimpleMulticastDelegate								FEditorDelegates::OnLightingBuildSucceeded;
 FEditorDelegates::FOnApplyObjectToActor					FEditorDelegates::OnApplyObjectToActor;
 FEditorDelegates::FOnFocusViewportOnActors				FEditorDelegates::OnFocusViewportOnActors;
+FEditorDelegates::FOnMapLoad							FEditorDelegates::OnMapLoad;
 FEditorDelegates::FOnMapOpened							FEditorDelegates::OnMapOpened;
 FEditorDelegates::FOnEditorCameraMoved					FEditorDelegates::OnEditorCameraMoved;
 FEditorDelegates::FOnDollyPerspectiveCamera				FEditorDelegates::OnDollyPerspectiveCamera;
