@@ -10,7 +10,7 @@ import { Link, NavigateFunction, useNavigate } from "react-router-dom";
 import { GetBatchResponse, GetStepResponse, JobStepOutcome, StepData } from "../../backend/Api";
 import dashboard, { StatusColor } from "../../backend/Dashboard";
 import { ISideRailLink } from "../../base/components/SideRail";
-import { msecToElapsed } from "../../base/utilities/timeUtils";
+import { getShortNiceTime, msecToElapsed } from "../../base/utilities/timeUtils";
 import { hordeClasses, modeColors } from "../../styles/Styles";
 import { HistoryModal } from "../HistoryModal";
 import { JobDataView, JobDetailsV2 } from "./JobDetailsViewCommon";
@@ -551,6 +551,15 @@ class TimelineRenderer {
 
          svg!.selectAll(".x-axis").call(xAxis as any);
 
+         const span = dataView.tooltip.span;
+         if (span) {
+            svg!.select(`.cline`)
+               .attr("x1", xScale(span.utcStart.getTime() / 1000) - 1)
+               .attr("x2", xScale(span.utcFinish.getTime() / 1000) - 1)
+               .attr("y1", i => yScale(span.lane) as number + 16)
+               .attr("y2", i => yScale(span.lane) as number + 16)
+         }
+
       }
 
       const zoom = d3.zoom()
@@ -558,8 +567,6 @@ class TimelineRenderer {
          .extent([[margin.left, 0], [width - margin.right, height]])
          .translateExtent([[margin.left, -Infinity], [width - margin.right, Infinity]])
          .on("zoom", zoomed)
-
-
 
       svg.call(zoom as any);
 
@@ -640,6 +647,9 @@ class TimelineRenderer {
                   .attr("y2", i => yScale(span.lane) as number + 16)
                   .attr("stroke", color)
             }
+         } else {
+            this.svg!.select(`.cline`)
+               .attr("stroke-width", 0)
          }
 
          dataView.tooltip.update(span, d3.pointer(event, container)[0], d3.pointer(event, container)[1]);
@@ -700,7 +710,7 @@ const GraphTooltip: React.FC<{ dataView: TimelineDataView }> = observer(({ dataV
       return null;
    }
 
-   const textSize = 12;
+   const textSize = 11;
 
    let tipX = tooltip.x;
    let offsetX = 32;
@@ -739,7 +749,7 @@ const GraphTooltip: React.FC<{ dataView: TimelineDataView }> = observer(({ dataV
       }
 
       if (agent) {
-         valueElement = <button className="horde-link" style={{borderWidth: 0, padding: 0, backgroundColor: modeColors.background}}>
+         valueElement = <button className="horde-link" style={{ borderWidth: 0, padding: 0, backgroundColor: modeColors.background }}>
             {valueElement}
          </button>
       }
@@ -794,7 +804,7 @@ const GraphTooltip: React.FC<{ dataView: TimelineDataView }> = observer(({ dataV
       elements.push(dataElement("Cost:", `$${span.cost.toFixed(2)}`));
    }
 
-   const elapsed = msecToElapsed(span.utcFinish.getTime() - span.utcStart.getTime(), true, false);
+   let elapsed = msecToElapsed(span.utcFinish.getTime() - span.utcStart.getTime(), true, false);
 
    let spanType = "Wait:";
    if (span.type === 1) {
@@ -804,7 +814,13 @@ const GraphTooltip: React.FC<{ dataView: TimelineDataView }> = observer(({ dataV
       spanType = "Time:";
    }
 
+   const startTime = getShortNiceTime(span.utcStart, false, true, false);
+   const finishTime = getShortNiceTime(span.utcFinish, false, true, false);
+
+   elapsed = `${elapsed} / ${startTime} - ${finishTime}`;
+
    elements.push(dataElement(spanType, elapsed));
+
 
    return <div style={{
       position: "absolute",
@@ -823,7 +839,7 @@ const GraphTooltip: React.FC<{ dataView: TimelineDataView }> = observer(({ dataV
    }}>
       {!!viewAgent && <HistoryModal agentId={viewAgent} onDismiss={() => setViewAgent("")} />}
       <Stack horizontal>
-         <Stack tokens={{ childrenGap: 6, padding: 16 }}>
+         <Stack tokens={{ childrenGap: 6, padding: 12 }}>
             {elements}
          </Stack>
          {!!tooltip.frozen && <Stack style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 12, cursor: "pointer" }} onClick={() => { tooltip.freeze(false); tooltip.update() }}>
