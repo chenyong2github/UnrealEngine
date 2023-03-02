@@ -6,8 +6,6 @@
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
-#include "Engine/World.h"
-#include "Engine/Level.h"
 #include "Algo/AnyOf.h"
 
 #include "Commandlets/Commandlet.h"
