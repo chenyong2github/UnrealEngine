@@ -38,6 +38,11 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("Engine");
 				PrivateDependencyModuleNames.Add("RHI");
 			}
+
+			if (Target.bCompileAgainstEditor)
+			{
+				PrivateDependencyModuleNames.Add("UnrealEd");
+			}
 		}
 	}
 }

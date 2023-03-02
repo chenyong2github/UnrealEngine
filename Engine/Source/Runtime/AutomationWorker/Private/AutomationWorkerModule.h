@@ -129,6 +129,18 @@ private:
 	/** Helper for Performance Capture Analytics. */
 	void RecordPerformanceAnalytics(const FAutomationPerformanceSnapshot& PerfSnapshot);
 
+	/** The main check if tests corresponding to the run tests message should be skipped. */
+	bool AreTestsShouldBeSkipped(const FAutomationWorkerRunTests& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context, struct FAutomationWorkerRunTestsReply*& OutReply);
+
+	/** Check if the run tests request should be skipped due to formal reasons. */
+	bool AreTestsShouldBeSkippedFormalCheck(const FAutomationWorkerRunTests& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context	, struct FAutomationWorkerRunTestsReply*& OutReply);
+
+	/** Check if the run tests request should be skipped due to unsopported network mode. */
+	bool AreTestsShouldBeSkippedNetworkModeCheck(const FAutomationWorkerRunTests& Message, struct FAutomationWorkerRunTestsReply*& OutReply);
+
+	/** Check if the run tests request should be skipped due to exclude list. */
+	bool AreTestsShouldBeSkippedExcludeListCheck(const FAutomationWorkerRunTests& Message, struct FAutomationWorkerRunTestsReply*& OutReply);
+
 private:
 
 	/** The collection of test data we are to send to a controller. */
