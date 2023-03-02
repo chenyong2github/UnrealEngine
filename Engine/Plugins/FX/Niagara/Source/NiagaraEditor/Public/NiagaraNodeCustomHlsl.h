@@ -62,14 +62,11 @@ protected:
 	virtual bool IsPinNameEditable(const UEdGraphPin* Pin) const override;
 	virtual bool CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents = false) override;
 	virtual bool CancelEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) override;
-	
+
+	virtual bool CanModifyPin(const UEdGraphPin* Pin) const override { return UNiagaraNodeWithDynamicPins::CanModifyPin(Pin); }
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override { return UNiagaraNodeWithDynamicPins::CanRenamePin(Pin); }
-	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override {
-		return UNiagaraNodeWithDynamicPins::CanRemovePin(Pin);
-	}
-	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const override {
-		return UNiagaraNodeWithDynamicPins::CanMovePin(Pin, DirectionToMove);
-	}
+	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override { return UNiagaraNodeWithDynamicPins::CanRemovePin(Pin); }
+	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const override {	return UNiagaraNodeWithDynamicPins::CanMovePin(Pin, DirectionToMove); }
 
 	/** Called when a new typed pin is added by the user. */
 	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) override;
