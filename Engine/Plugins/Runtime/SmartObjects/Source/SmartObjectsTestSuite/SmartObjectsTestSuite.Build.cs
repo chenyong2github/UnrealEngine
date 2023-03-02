@@ -21,7 +21,8 @@ namespace UnrealBuildTool.Rules
 					"MassEntity",
 					"SmartObjectsModule",
 					"StructUtils",
-					"WorldConditions"
+					"WorldConditions",
+					"NavigationSystem"
 				}
 			);
 

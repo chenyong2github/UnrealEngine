@@ -7,6 +7,7 @@
 class USmartObjectComponent;
 class USmartObjectDefinition;
 class USmartObjectAssetEditorTool;
+class USmartObjectSubsystem;
 
 /**
  * Hit proxy for Smart Object slots.
@@ -55,8 +56,8 @@ namespace UE::SmartObjects::Editor
 		int32 AnnotationIndex = INDEX_NONE; // @todo: consider guid for this too.
 	};
 
-	void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FPrimitiveDrawInterface& PDI);
-	void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FCanvas& Canvas);
+	void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FPrimitiveDrawInterface& PDI, const UWorld& World);
+	void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FCanvas& Canvas, const UWorld& World);
 }; // UE::SmartObjects::Editor
 
 

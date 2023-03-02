@@ -16,6 +16,14 @@ class UGameplayBehaviorConfig;
 enum class ESmartObjectTagFilteringPolicy: uint8;
 enum class ESmartObjectTagMergingPolicy: uint8;
 
+/** Indicates how Tags from slots and parent object are combined to be evaluated by a TagQuery from a find request. */
+UENUM()
+enum class ESmartObjectSlotShape : uint8
+{
+	Circle,
+	Rectangle
+};
+
 /**
  * Abstract class that can be extended to bind a new type of behavior framework
  * to the smart objects by defining the required definition.
@@ -40,6 +48,12 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 
 	UPROPERTY(EditAnywhere, Category = "SmartObject", meta = (DisplayName = "Color"))
 	FColor DEBUG_DrawColor = FColor::Yellow;
+
+	UPROPERTY(EditAnywhere, Category = "SmartObject", meta = (DisplayName = "Shape"))
+	ESmartObjectSlotShape DEBUG_DrawShape = ESmartObjectSlotShape::Circle;
+	
+	UPROPERTY(EditAnywhere, Category = "SmartObject", meta = (DisplayName = "Size"))
+	float DEBUG_DrawSize = 40.0f;
 
 	UPROPERTY(EditAnywhere, Category = "SmartObject", meta = (Hidden))
 	FGuid ID;

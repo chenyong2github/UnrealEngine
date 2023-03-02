@@ -52,6 +52,8 @@ public:
 		constexpr float DebugCylinderRadius = 40.f;
 		constexpr float DebugCylinderHalfHeight = 100.f;
 		FColor DebugColor = FColor::Yellow;
+		ESmartObjectSlotShape SlotShape = ESmartObjectSlotShape::Circle;
+		float SlotSize = DebugCylinderRadius;
 
 		const FTransform OwnerLocalToWorld = SOComp->GetComponentTransform();
 		for (int32 i = 0; i < Definition->GetSlots().Num(); ++i)
@@ -63,11 +65,22 @@ public:
 			}
 #if WITH_EDITORONLY_DATA
 			DebugColor = Definition->GetSlots()[i].DEBUG_DrawColor;
+			SlotShape = Definition->GetSlots()[i].DEBUG_DrawShape;
+			SlotSize = Definition->GetSlots()[i].DEBUG_DrawSize;
 #endif
+			// @todo: these are not in par with the other Smart Object debug rendering.
 			const FVector DebugPosition = Transform.GetValue().GetLocation();
 			const FVector Direction = Transform.GetValue().GetRotation().GetForwardVector();
-			Cylinders.Emplace(DebugPosition, DebugCylinderRadius, DebugCylinderHalfHeight, DebugColor);
-			ArrowLines.Emplace(DebugPosition, DebugPosition + Direction * 2.0f * DebugCylinderRadius, DebugColor);
+			if (SlotShape == ESmartObjectSlotShape::Circle)
+			{
+				Cylinders.Emplace(DebugPosition, SlotSize, DebugCylinderHalfHeight, DebugColor);
+			}
+			else if (SlotShape == ESmartObjectSlotShape::Rectangle)
+			{
+				Boxes.Emplace(FBox(FVector(-SlotSize,-SlotSize,0), FVector(SlotSize,SlotSize,DebugCylinderHalfHeight)), DebugColor, *Transform);
+			}
+			
+			ArrowLines.Emplace(DebugPosition, DebugPosition + Direction * 2.0f * SlotSize, DebugColor);
 		}
 	}
 
