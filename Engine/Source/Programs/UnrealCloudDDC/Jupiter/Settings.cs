@@ -167,6 +167,7 @@ namespace Jupiter
         [Required] public string BucketName { get; set; } = "";
 
         public bool ForceAWSPathStyle { get; set; }
+        public bool AssumeHttpForRedirectUri { get; set; } = false;
         public bool CreateBucketIfMissing { get;set; } = true;
 
         // Options to disable setting of bucket access policies, useful for local testing as minio does not support them.

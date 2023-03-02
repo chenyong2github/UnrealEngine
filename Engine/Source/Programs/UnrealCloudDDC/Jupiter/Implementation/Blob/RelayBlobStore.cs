@@ -19,6 +19,19 @@ namespace Jupiter.Implementation
         {
         }
 
+        public Task<Uri?> GetObjectByRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            // not supported
+            return Task.FromResult<Uri?>(null);
+        }
+
+        public Task<Uri?> PutObjectWithRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            // TODO: It could be useful to support relaying the presigned url
+            // not supported
+            return Task.FromResult<Uri?>(null);
+        }
+
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] blob, BlobIdentifier identifier)
         {
             using HttpRequestMessage putObjectRequest = await BuildHttpRequest(HttpMethod.Put, new Uri($"api/v1/blobs/{ns}/{identifier}", UriKind.Relative));
@@ -52,7 +65,7 @@ namespace Jupiter.Implementation
             return identifier;
         }
 
-        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags)
+        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags, bool supportsRedirectUri = false)
         {
             using HttpRequestMessage getObjectRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{ns}/{blob}", UriKind.Relative));
             getObjectRequest.Headers.Add("Accept", MediaTypeNames.Application.Octet);

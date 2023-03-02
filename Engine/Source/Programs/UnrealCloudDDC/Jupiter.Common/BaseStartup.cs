@@ -646,7 +646,6 @@ namespace Jupiter
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
         public List<AclEntry> Acls { get; set; } = new List<AclEntry>();
 
-
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
             List<ValidationResult> validationResults = new List<ValidationResult>();
@@ -756,5 +755,6 @@ namespace Jupiter
         public StoragePoolGCMethod GcMethod { get; set; } = StoragePoolGCMethod.LastAccess;
 
         public TimeSpan DefaultTTL { get; set; } = TimeSpan.FromDays(14);
+        public bool AllowRedirectUris { get; set; } = false;
     }
 }

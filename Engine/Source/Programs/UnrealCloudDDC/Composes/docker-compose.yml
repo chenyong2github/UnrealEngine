@@ -11,6 +11,8 @@ services:
 
     depends_on: 
       - unreal_cloud_ddc
+    volumes:
+     - jupiter-storage-volume:/data/blob-store
   scylla:
     logging:
       driver: none
@@ -32,19 +34,25 @@ services:
     - network_jupiter
     environment:
     - Jupiter__CurrentSite=docker-compose
-    - Serilog__MinimumLevel__Default=Debug
+    # - Serilog__MinimumLevel__Default=Debug # Enable this to get debug logging, can be quite a lot
     - CORECLR_ENABLE_PROFILING=0
     - Auth__Enabled=false
     - Replication__CurrentSite=docker-compose
     - Scylla__ContactPoints__0=scylla
     - Scylla__LocalDatacenterName=datacenter1
     - Scylla__LocalKeyspaceSuffix=dc1
+    - Filesystem__RootDir=/data/blob-store
+    - Nginx__UseNginxRedirect=true
+    - UnrealCloudDDC__storageImplementations__0=Filesystem
     links:
     - scylla
     labels:
       com.datadoghq.ad.logs: '[{"source":"csharp", "service": "jupiter"}]'
+    volumes:
+     - jupiter-storage-volume:/data/blob-store
 volumes:
   scylla-volume-1:
+  jupiter-storage-volume:
 networks:
   network_jupiter:
     driver: bridge

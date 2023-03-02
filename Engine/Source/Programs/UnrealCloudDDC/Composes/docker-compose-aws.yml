@@ -8,7 +8,7 @@ services:
     - AWS_ACCESS_KEY_ID=FSYPTVCPKC2IV5D1U8RE
     - AWS_SECRET_ACCESS_KEY=WaUf4Zq+J6YMlvbCVvTRkQJIPc7DvZwTm5UP0tPJ
 
-    - UnrealCloudDDC__storageImplementations__0=s3
+    - UnrealCloudDDC__storageImplementations__1=s3
     - S3__ConnectionString=http://minio:9000
     - S3__ForceAWSPathStyle=true
     - S3__BucketName=docker-bucket

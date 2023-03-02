@@ -16,12 +16,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using ContentId = Jupiter.Implementation.ContentId;
-using System;
-using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Controllers
 {
-	using IDiagnosticContext = Serilog.IDiagnosticContext;
+    using IDiagnosticContext = Serilog.IDiagnosticContext;
     using BlobNotFoundException = Jupiter.Implementation.BlobNotFoundException;
 
     [ApiController]
@@ -34,14 +32,16 @@ namespace Jupiter.Controllers
         private readonly IDiagnosticContext _diagnosticContext;
         private readonly RequestHelper _requestHelper;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
+        private readonly NginxRedirectHelper _nginxRedirectHelper;
 
-        public CompressedBlobController(IBlobService storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, RequestHelper requestHelper, BufferedPayloadFactory bufferedPayloadFactory)
+        public CompressedBlobController(IBlobService storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, RequestHelper requestHelper, BufferedPayloadFactory bufferedPayloadFactory, NginxRedirectHelper nginxRedirectHelper)
         {
             _storage = storage;
             _contentIdStore = contentIdStore;
             _diagnosticContext = diagnosticContext;
             _requestHelper = requestHelper;
             _bufferedPayloadFactory = bufferedPayloadFactory;
+            _nginxRedirectHelper = nginxRedirectHelper;
         }
 
         [HttpGet("{ns}/{id}")]
@@ -61,12 +61,22 @@ namespace Jupiter.Controllers
 
             try
             {
-                (BlobContents blobContents, string mediaType) = await _storage.GetCompressedObject(ns, id, HttpContext.RequestServices);
+                (BlobContents blobContents, string mediaType) = await _storage.GetCompressedObject(ns, id, HttpContext.RequestServices, supportsRedirectUri: true);
 
                 StringValues acceptHeader = Request.Headers["Accept"];
                 if (!acceptHeader.Contains("*/*") && acceptHeader.Count != 0 && !acceptHeader.Contains(mediaType))
                 {
                     return new UnsupportedMediaTypeResult();
+                }
+
+                if (blobContents.RedirectUri != null)
+                {
+                    return Redirect(blobContents.RedirectUri.ToString());
+                }
+
+                if (_nginxRedirectHelper.CanRedirect(Request, blobContents))
+                {
+                    return _nginxRedirectHelper.CreateActionResult(blobContents);
                 }
 
                 return File(blobContents.Stream, mediaType, enableRangeProcessing: true);

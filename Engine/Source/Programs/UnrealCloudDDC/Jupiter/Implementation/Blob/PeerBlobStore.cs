@@ -81,7 +81,7 @@ namespace Jupiter.Implementation
             return null;
         }
 
-        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking)
+        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking, bool supportsRedirectUri = false)
         {
             List<Task<BlobContents?>> tasks = new();
 
@@ -168,6 +168,18 @@ namespace Jupiter.Implementation
                 httpClient.Timeout = TimeSpan.FromSeconds(1.0);
                 return httpClient;
             });
+        }
+
+        public Task<Uri?> GetObjectByRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            // not supported
+            return Task.FromResult<Uri?>(null);
+        }
+
+        public Task<Uri?> PutObjectWithRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            // not supported
+            return Task.FromResult<Uri?>(null);
         }
 
         public Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] blob, BlobIdentifier identifier)

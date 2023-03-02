@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Concurrent;
@@ -20,26 +20,28 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Jupiter.Controllers
 {
-	using IDiagnosticContext = Serilog.IDiagnosticContext;
+    using IDiagnosticContext = Serilog.IDiagnosticContext;
     using BlobNotFoundException = Jupiter.Implementation.BlobNotFoundException;
 
     [ApiController]
     [Route("api/v1/s", Order = 1)]
     [Route("api/v1/blobs", Order = 0)]
     [Authorize]
-    public class StorageController : ControllerBase
+    public class BlobsController : ControllerBase
     {
         private readonly IBlobService _storage;
         private readonly IDiagnosticContext _diagnosticContext;
         private readonly RequestHelper _requestHelper;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
+        private readonly NginxRedirectHelper _nginxRedirectHelper;
 
-        public StorageController(IBlobService storage, IDiagnosticContext diagnosticContext, RequestHelper requestHelper, BufferedPayloadFactory bufferedPayloadFactory)
+        public BlobsController(IBlobService storage, IDiagnosticContext diagnosticContext, RequestHelper requestHelper, BufferedPayloadFactory bufferedPayloadFactory, NginxRedirectHelper nginxRedirectHelper)
         {
             _storage = storage;
             _diagnosticContext = diagnosticContext;
             _requestHelper = requestHelper;
             _bufferedPayloadFactory = bufferedPayloadFactory;
+            _nginxRedirectHelper = nginxRedirectHelper;
         }
 
         [HttpGet("{ns}/{id}")]
@@ -57,8 +59,16 @@ namespace Jupiter.Controllers
 
             try
             {
-                BlobContents blobContents = await GetImpl(ns, id, storageLayers);
+                BlobContents blobContents = await GetImpl(ns, id, storageLayers, supportsRedirectUri: true);
 
+                if (blobContents.RedirectUri != null)
+                {
+                    return Redirect(blobContents.RedirectUri.ToString());
+                }
+                if (_nginxRedirectHelper.CanRedirect(Request, blobContents))
+                {
+                    return _nginxRedirectHelper.CreateActionResult(blobContents);
+                }
                 return File(blobContents.Stream, MediaTypeNames.Application.Octet, enableRangeProcessing: true);
             }
             catch (BlobNotFoundException e)
@@ -97,7 +107,7 @@ namespace Jupiter.Controllers
         [ProducesDefaultResponseType]
         public async Task<IActionResult> ExistsMultiple(
             [Required] NamespaceId ns,
-             [Required] [FromQuery] List<BlobIdentifier> id)
+            [Required] [FromQuery] List<BlobIdentifier> id)
         {
             ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
             if (result != null)
@@ -145,11 +155,11 @@ namespace Jupiter.Controllers
             return Ok(new HeadMultipleResponse { Needs = missingBlobs.ToArray()});
         }
 
-        private async Task<BlobContents> GetImpl(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null)
+        private async Task<BlobContents> GetImpl(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null, bool supportsRedirectUri = false)
         {
             try
             {
-                return await _storage.GetObject(ns, blob, storageLayers);
+                return await _storage.GetObject(ns, blob, storageLayers, supportsRedirectUri);
             }
             catch (BlobNotFoundException)
             {
@@ -179,6 +189,15 @@ namespace Jupiter.Controllers
 
             try
             {
+                Uri? uri = await _storage.MaybePutObjectWithRedirect(ns, id);
+                if (uri != null)
+                {
+                    return Ok(new
+                    {
+                        Identifier = id.ToString(),
+                        RedirectUri = uri,
+                    });
+                }
                 using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
 
                 BlobIdentifier identifier = await _storage.PutObject(ns, payload, id);
@@ -370,21 +389,21 @@ namespace Jupiter.Controllers
                             .ContinueWith((t,_) => t.Result ? (object?) null : op.Id, null, TaskScheduler.Current);
                         break;
                     case BatchOp.Operation.PUT:
-                    {
-                        if (op.Content == null)
                         {
-                            return BadRequest();
-                        }
+                            if (op.Content == null)
+                            {
+                                return BadRequest();
+                            }
 
-                        if (op.Id == null)
-                        {
-                            return BadRequest();
-                        }
+                            if (op.Id == null)
+                            {
+                                return BadRequest();
+                            }
 
-                        using MemoryBufferedPayload payload = new MemoryBufferedPayload(op.Content);
-                        tasks[index] = _storage.PutObject(op.Namespace.Value, payload, op.Id).ContinueWith((t, _) => (object?) t.Result, null, TaskScheduler.Current);
-                        break;
-                    }
+                            using MemoryBufferedPayload payload = new MemoryBufferedPayload(op.Content);
+                            tasks[index] = _storage.PutObject(op.Namespace.Value, payload, op.Id).ContinueWith((t, _) => (object?) t.Result, null, TaskScheduler.Current);
+                            break;
+                        }
                     case BatchOp.Operation.DELETE:
                         if (op.Id == null)
                         {

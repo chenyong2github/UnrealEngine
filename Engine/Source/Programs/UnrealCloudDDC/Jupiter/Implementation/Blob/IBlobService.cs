@@ -33,8 +33,11 @@ public interface IBlobService
     Task<BlobIdentifier> PutObjectKnownHash(NamespaceId ns, IBufferedPayload content, BlobIdentifier identifier);
     Task<BlobIdentifier> PutObject(NamespaceId ns, IBufferedPayload payload, BlobIdentifier identifier);
     Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] payload, BlobIdentifier identifier);
+    Task<Uri?> MaybePutObjectWithRedirect(NamespaceId ns, BlobIdentifier identifier);
 
-    Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null);
+    Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null, bool supportsRedirectUri = false);
+    
+    Task<Uri?> GetObjectWithRedirect(NamespaceId ns, BlobIdentifier blobIdentifier, List<string>? storageLayers = null);
 
     Task<BlobContents> ReplicateObject(NamespaceId ns, BlobIdentifier blob, bool force = false);
 
@@ -179,6 +182,40 @@ public class BlobService : IBlobService
         return objectStoreIdentifier;
     }
 
+    public async Task<Uri?> MaybePutObjectWithRedirect(NamespaceId ns, BlobIdentifier identifier)
+    {
+        bool allowRedirectUris = _namespacePolicyResolver.GetPoliciesForNs(ns).AllowRedirectUris;
+        if (!allowRedirectUris)
+        {
+            return null;
+        }
+
+        IServerTiming? serverTiming = _httpContextAccessor.HttpContext?.RequestServices.GetService<IServerTiming>();
+
+        // we only attempt to upload to the last store
+        // assuming that any other store will pull from it when they lack content once the upload has finished
+        IBlobStore store = _blobStores.Last();
+        {
+            string storeName = store.GetType().Name;
+            using TelemetrySpan scope = _tracer.StartActiveSpan("put_blob_with_redirect")
+                    .SetAttribute("operation.name", "put_blob_with_redirect")
+                    .SetAttribute("resource.name", identifier.ToString())
+                    .SetAttribute("store", storeName)
+            ;
+
+            using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope($"blob.put-redirect.{storeName}", $"PUT(redirect) to store: '{storeName}'");
+
+            Uri? redirectUri = await store.PutObjectWithRedirect(ns, identifier);
+            if (redirectUri != null)
+            {
+                return redirectUri;
+            }
+        }
+
+        // no store found that supports redirect
+        return null;
+    }
+
     public async Task<BlobIdentifier> PutObjectKnownHash(NamespaceId ns, IBufferedPayload content, BlobIdentifier identifier)
     {
         using TelemetrySpan scope = _tracer.StartActiveSpan("put_blob")
@@ -236,11 +273,11 @@ public class BlobService : IBlobService
         return identifier;
     }
 
-    public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null)
+    public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null, bool supportsRedirectUri = false)
     {
         try
         {
-            return await GetObjectFromStores(ns, blob, storageLayers);
+            return await GetObjectFromStores(ns, blob, storageLayers, supportsRedirectUri);
         }
         catch (BlobNotFoundException)
         {
@@ -324,7 +361,7 @@ public class BlobService : IBlobService
         }
     }
 
-    private async Task<BlobContents> GetObjectFromStores(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null)
+    private async Task<BlobContents> GetObjectFromStores(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null, bool supportsRedirectUri = false)
     {
         bool seenBlobNotFound = false;
         bool seenNamespaceNotFound = false;
@@ -367,7 +404,7 @@ public class BlobService : IBlobService
             _storeGetAttemptsCounter?.Add(1, new KeyValuePair<string, object?>("store", storeName));
             try
             {
-                blobContents = await store.GetObject(ns, blob);
+                blobContents = await store.GetObject(ns, blob, supportsRedirectUri: supportsRedirectUri);
                 scope.SetAttribute("ObjectFound", true.ToString());
                 _storeGetHitsCounter?.Add(1, new KeyValuePair<string, object?>("store", storeName));
                 break;
@@ -431,6 +468,83 @@ public class BlobService : IBlobService
         }
         
         return blobContents;
+    }
+
+    public async Task<Uri?> GetObjectWithRedirect(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null)
+    {
+        bool seenBlobNotFound = false;
+        bool seenNamespaceNotFound = false;
+        int numStoreMisses = 0;
+        IServerTiming? serverTiming = _httpContextAccessor.HttpContext?.RequestServices.GetService<IServerTiming>();
+
+        Uri? redirectUri = null;
+        foreach (IBlobStore store in _blobStores)
+        {
+            string blobStoreName = store.GetType().Name;
+
+            // check which storage layers to skip if we have a explicit list of storage layers to use
+            if (storageLayers != null && storageLayers.Count != 0)
+            {
+                bool found = false;
+                foreach (string storageLayer in storageLayers)
+                {
+                    if (string.Equals(storageLayer, blobStoreName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    continue;
+                }
+            }
+
+            using TelemetrySpan scope = _tracer.StartActiveSpan("HierarchicalStore.GetObjectRedirect")
+                .SetAttribute("operation.name", "HierarchicalStore.GetObject")
+                .SetAttribute("resource.name",  blob.ToString())
+                .SetAttribute("BlobStore", store.GetType().ToString())
+                .SetAttribute("ObjectFound", false.ToString())
+                ;
+
+            string storeName = store.GetType().Name;
+            using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope($"blob.get-redirect.{storeName}", $"Blob GET from: '{storeName}'");
+
+            try
+            {
+                redirectUri = await store.GetObjectByRedirect(ns, blob);
+                scope.SetAttribute("ObjectFound", true.ToString());
+                break;
+            }
+            catch (BlobNotFoundException)
+            {
+                seenBlobNotFound = true;
+                numStoreMisses++;
+            }
+            catch (NamespaceNotFoundException)
+            {
+                seenNamespaceNotFound = true;
+            }
+        }
+
+        if (seenBlobNotFound && redirectUri == null)
+        {
+            throw new BlobNotFoundException(ns, blob);
+        }
+
+        if (seenNamespaceNotFound && redirectUri == null)
+        {
+            throw new NamespaceNotFoundException(ns);
+        }
+
+        // if we applied filters to the storage layers resulting in no blob found we consider it a miss
+        if (storageLayers != null && storageLayers.Count != 0 && redirectUri == null)
+        {
+            throw new BlobNotFoundException(ns, blob);
+        }
+
+        return redirectUri;
     }
 
     public async Task<BlobContents> ReplicateObject(NamespaceId ns, BlobIdentifier blob, bool force = false)
@@ -816,7 +930,7 @@ public static class BlobServiceExtensions
         return identifierDecompressedPayload;
     }
 
-    public static async Task<(BlobContents, string)> GetCompressedObject(this IBlobService blobService, NamespaceId ns, ContentId contentId, IServiceProvider provider)
+    public static async Task<(BlobContents, string)> GetCompressedObject(this IBlobService blobService, NamespaceId ns, ContentId contentId, IServiceProvider provider, bool supportsRedirectUri = false)
     {
         IContentIdStore contentIdStore = provider.GetService<IContentIdStore>()!;
         Tracer tracer = provider.GetService<Tracer>()!;
@@ -838,7 +952,7 @@ public static class BlobServiceExtensions
                 mimeType = MediaTypeNames.Application.Octet;
             }
 
-            return (await blobService.GetObject(ns, blobToReturn), mimeType);
+            return (await blobService.GetObject(ns, blobToReturn, supportsRedirectUri: supportsRedirectUri), mimeType);
         }
 
         // chunked content, combine the chunks into a single stream
@@ -846,7 +960,8 @@ public static class BlobServiceExtensions
         Task<BlobContents>[] tasks = new Task<BlobContents>[chunks.Length];
         for (int i = 0; i < chunks.Length; i++)
         {
-            tasks[i] = blobService.GetObject(ns, chunks[i]);
+            // even if it was requested to support redirect, since we need to combine the chunks using redirects is not possible
+            tasks[i] = blobService.GetObject(ns, chunks[i], supportsRedirectUri: false);
         }
 
         MemoryStream ms = new MemoryStream();

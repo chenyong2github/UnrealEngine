@@ -42,6 +42,17 @@ namespace Jupiter.Implementation
             using MemoryStream stream = new MemoryStream(blob);
             return PutObject(ns, stream, identifier);
         }
+        public Task<Uri?> GetObjectByRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            // not supported
+            return Task.FromResult<Uri?>(null);
+        }
+
+        public Task<Uri?> PutObjectWithRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            // not supported
+            return Task.FromResult<Uri?>(null);
+        }
 
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, ReadOnlyMemory<byte> blob, BlobIdentifier identifier)
         {
@@ -55,7 +66,7 @@ namespace Jupiter.Implementation
             return identifier;
         }
 
-        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking)
+        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking, bool supportsRedirectUri = false)
         {
             BlobContents? contents = await GetBackend(ns).TryReadAsync(GetPath(blob), flags);
             if(contents == null)

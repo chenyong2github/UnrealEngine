@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
@@ -17,21 +18,21 @@ namespace Jupiter.Implementation
 {
     public class FileSystemStore : IBlobStore, IBlobCleanup 
     {
-        private readonly ILogger _logger;
+        private readonly IServiceProvider _provider;
         private readonly IOptionsMonitor<FilesystemSettings> _settings;
         private readonly Tracer _tracer;
-        private readonly ConcurrentDictionary<NamespaceId, IStorageBackend> _backends = new ConcurrentDictionary<NamespaceId, IStorageBackend>();
+        private readonly ConcurrentDictionary<NamespaceId, FileStorageBackend> _backends = new ConcurrentDictionary<NamespaceId, FileStorageBackend>();
 
-        public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings, Tracer tracer, ILogger<FileSystemStore> logger)
+        public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings, Tracer tracer, IServiceProvider provider)
         {
             _settings = settings;
             _tracer = tracer;
-            _logger = logger;
+            _provider = provider;
         }
 
-        private IStorageBackend GetBackend(NamespaceId ns)
+        private FileStorageBackend GetBackend(NamespaceId ns)
         {
-            return _backends.GetOrAdd(ns, x => new FileStorageBackend(_logger, GetFilesystemPath(x), _settings));
+            return _backends.GetOrAdd(ns, x => ActivatorUtilities.CreateInstance<FileStorageBackend>(_provider, GetFilesystemPath(x), x));
         }
 
         private string GetRootDir()
@@ -60,10 +61,21 @@ namespace Jupiter.Implementation
             return DirectoryReference.Combine(new DirectoryReference(GetRootDir()), ns.ToString());
         }
 
+        public Task<Uri?> GetObjectByRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            // not supported
+            return Task.FromResult<Uri?>(null);
+        }
+
+        public Task<Uri?> PutObjectWithRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            // not supported
+            return Task.FromResult<Uri?>(null);
+        }
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, ReadOnlyMemory<byte> content, BlobIdentifier blobIdentifier)
         {
-			using EpicGames.Core.ReadOnlyMemoryStream stream = new EpicGames.Core.ReadOnlyMemoryStream(content);
-			return await PutObject(ns, stream, blobIdentifier);
+            using EpicGames.Core.ReadOnlyMemoryStream stream = new EpicGames.Core.ReadOnlyMemoryStream(content);
+            return await PutObject(ns, stream, blobIdentifier);
         }
 
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, Stream content, BlobIdentifier blobIdentifier)
@@ -75,11 +87,11 @@ namespace Jupiter.Implementation
 
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] content, BlobIdentifier blobIdentifier)
         {
-			using MemoryStream stream = new MemoryStream(content);
-			return await PutObject(ns, stream, blobIdentifier);
+            using MemoryStream stream = new MemoryStream(content);
+            return await PutObject(ns, stream, blobIdentifier);
         }
 
-        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags)
+        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags, bool supportsRedirectUri = false)
         {
             string path = GetFilesystemPath(blob);
 
@@ -95,13 +107,13 @@ namespace Jupiter.Implementation
         public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, bool forceCheck)
         {
             string path = GetFilesystemPath(blob);
-            return await GetBackend(ns).ExistsAsync(path);
+            return await GetBackend(ns).ExistsAsync(path, CancellationToken.None);
         }
 
         public async Task DeleteObject(NamespaceId ns, BlobIdentifier objectName)
         {
             string path = GetFilesystemPath(objectName);
-            await GetBackend(ns).DeleteAsync(path);
+            await GetBackend(ns).DeleteAsync(path, CancellationToken.None);
         }
 
         public Task DeleteNamespace(NamespaceId ns)
@@ -264,14 +276,16 @@ namespace Jupiter.Implementation
     {
         private readonly ILogger _logger;
         private readonly DirectoryReference _baseDir;
+        private readonly NamespaceId _namespaceId;
         private readonly IOptionsMonitor<FilesystemSettings> _settings;
 
         private const int DefaultBufferSize = 4096;
 
-        public FileStorageBackend(ILogger logger, DirectoryReference baseDir, IOptionsMonitor<FilesystemSettings> settings)
+        public FileStorageBackend(DirectoryReference baseDir, NamespaceId ns, ILogger<FileStorageBackend> logger, IOptionsMonitor<FilesystemSettings> settings)
         {
             _logger = logger;
             _baseDir = baseDir;
+            _namespaceId = ns;
             _settings = settings;
         }
 
@@ -376,7 +390,7 @@ namespace Jupiter.Implementation
             }
             FileStream fs = new FileStream(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-            return Task.FromResult<BlobContents?>(new BlobContents(fs, fs.Length));
+            return Task.FromResult<BlobContents?>(new BlobContents(fs, fs.Length, $"{_namespaceId}/{path}"));
         }
 
         public Task<bool> ExistsAsync(string path, CancellationToken cancellationToken)

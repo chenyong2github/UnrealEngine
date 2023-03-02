@@ -68,6 +68,13 @@ namespace Jupiter.FunctionalTests.Storage
             await _s3.PutObjectAsync(new PutObjectRequest {BucketName = s3BucketName, Key = OldBlobFileHash.AsS3Key(), ContentBody = OldFileContents});
         }
 
+        [TestMethod]
+        public async Task GetBlobRedirect()
+        {
+            HttpResponseMessage result = await HttpClient!.GetAsync(new Uri($"api/v1/s/{TestRedirectNamespaceName}/{SmallFileHash}", UriKind.Relative));
+            Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
+        }
+
         protected override async Task Teardown(IServiceProvider provider)
         {
             string s3BucketName = $"tests-{TestNamespaceName}";
@@ -126,6 +133,13 @@ namespace Jupiter.FunctionalTests.Storage
         }
 
         private const string DefaultContainerName = "jupiter";
+
+        [TestMethod]
+        public async Task GetBlobRedirect()
+        {
+            HttpResponseMessage result = await HttpClient!.GetAsync(new Uri($"api/v1/s/{TestRedirectNamespaceName}/{SmallFileHash}", UriKind.Relative));
+            Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
+        }
 
         protected override async Task Teardown(IServiceProvider provider)
         {
@@ -317,6 +331,7 @@ namespace Jupiter.FunctionalTests.Storage
     {
         protected TestServer? Server { get; set; }
         protected NamespaceId TestNamespaceName { get; } = new NamespaceId("testbucket");
+        protected NamespaceId TestRedirectNamespaceName { get; } = new NamespaceId("test-namespace-redirect");
 
         private HttpClient? _httpClient;
 
@@ -329,6 +344,8 @@ namespace Jupiter.FunctionalTests.Storage
         protected BlobIdentifier AnotherFileHash { get; } = BlobIdentifier.FromBlob(Encoding.ASCII.GetBytes(AnotherFileContents));
         protected BlobIdentifier DeleteFileHash { get; } = BlobIdentifier.FromBlob(Encoding.ASCII.GetBytes(DeletableFileContents));
         protected BlobIdentifier OldBlobFileHash { get; } = BlobIdentifier.FromBlob(Encoding.ASCII.GetBytes(OldFileContents));
+
+        protected HttpClient? HttpClient => _httpClient;
 
         [TestInitialize]
         public async Task Setup()

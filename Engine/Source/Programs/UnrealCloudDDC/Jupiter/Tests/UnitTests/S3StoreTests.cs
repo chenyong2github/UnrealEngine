@@ -9,11 +9,13 @@ using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 using Jupiter.Implementation.Blob;
 using Jupiter.Common;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.UnitTests
 {
@@ -22,20 +24,38 @@ namespace Jupiter.UnitTests
     {
         private readonly NamespaceId Namespace = new NamespaceId("foo");
 
+        private ServiceProvider SetupProvider(Mock<IAmazonS3> s3Mock, string storagePool = "")
+        {
+            ServiceCollection serviceCollection = new ServiceCollection();
+
+            serviceCollection.AddSingleton<IAmazonS3>(s3Mock.Object);
+
+            S3Settings settings = new S3Settings{BucketName = "tests-foo"};
+            IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
+            serviceCollection.AddSingleton<IOptionsMonitor<S3Settings>>(settingsMock);
+
+            INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
+                new NamespacePolicy
+                {
+                    StoragePool = storagePool
+                });
+            serviceCollection.AddSingleton<INamespacePolicyResolver>(namespacePolicyResolver);
+
+            serviceCollection.AddSingleton<IBlobIndex>(Mock.Of<IBlobIndex>());
+            serviceCollection.AddSingleton<Tracer>(TracerProvider.Default.GetTracer("Tests"));
+            serviceCollection.AddSingleton<ILogger<AmazonS3Store>>(NullLogger<AmazonS3Store>.Instance);
+            serviceCollection.AddSingleton<ILogger<AmazonStorageBackend>>(NullLogger<AmazonStorageBackend>.Instance);
+            
+            return serviceCollection.BuildServiceProvider();
+        }
+
         [TestMethod]
         public async Task PutBufferSuccess()
         {
             Mock<IAmazonS3> s3Mock = new Mock<IAmazonS3>();
-            S3Settings settings = new S3Settings{BucketName = "tests-foo"};
-            IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
 
-            INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
-                                                  new NamespacePolicy
-                                                  {
-                                                      StoragePool = ""
-                                                  });
-
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, NullLogger<AmazonS3Store>.Instance);
+            ServiceProvider provider = SetupProvider(s3Mock);
+            AmazonS3Store store = ActivatorUtilities.CreateInstance<AmazonS3Store>(provider);
             byte[] content = Encoding.ASCII.GetBytes("test content");
             BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(content);
             Task task = store.PutObject(Namespace, content.AsMemory(), blobIdentifier);
@@ -54,16 +74,8 @@ namespace Jupiter.UnitTests
         public async Task PutBufferSuccessStoragePool()
         {
             Mock<IAmazonS3> s3Mock = new Mock<IAmazonS3>();
-            S3Settings settings = new S3Settings{BucketName = "tests-foo"};
-            IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
-            
-            INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
-                new NamespacePolicy
-                {
-                    StoragePool = "storagepool"
-                });
-
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, NullLogger<AmazonS3Store>.Instance);
+            ServiceProvider provider = SetupProvider(s3Mock, "storagepool");
+            AmazonS3Store store = ActivatorUtilities.CreateInstance<AmazonS3Store>(provider);
             byte[] content = Encoding.ASCII.GetBytes("test content");
             BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(content);
             Task task = store.PutObject(Namespace, content.AsMemory(), blobIdentifier);
@@ -86,15 +98,9 @@ namespace Jupiter.UnitTests
             BlobIdentifier blob = BlobIdentifier.FromBlob(content);
 
             Mock<IAmazonS3> s3Mock = new Mock<IAmazonS3>();
-            S3Settings settings = new S3Settings{BucketName = "tests-foo"};
-            IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
-            INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
-                new NamespacePolicy
-                {
-                    StoragePool = ""
-                });
             s3Mock.Setup(s3 => s3.PutObjectAsync(It.IsAny<PutObjectRequest>(), default)).Throws<Exception>();
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, NullLogger<AmazonS3Store>.Instance);
+            ServiceProvider provider = SetupProvider(s3Mock);
+            AmazonS3Store store = ActivatorUtilities.CreateInstance<AmazonS3Store>(provider);
             Task task = store.PutObject(Namespace, content, blob);
             await task;
 
@@ -111,16 +117,8 @@ namespace Jupiter.UnitTests
             BlobIdentifier blob = BlobIdentifier.FromBlob(content);
             Mock<IAmazonS3> s3Mock = new Mock<IAmazonS3>();
             s3Mock.Setup(s3 => s3.GetObjectAsync("tests-foo", blob.AsS3Key(), default)).ReturnsAsync(Mock.Of<GetObjectResponse>());
-
-            S3Settings settings = new S3Settings{BucketName = "tests-foo"};
-            IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
-
-            INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
-                new NamespacePolicy
-                {
-                    StoragePool = ""
-                });
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, NullLogger<AmazonS3Store>.Instance);
+            ServiceProvider provider = SetupProvider(s3Mock);
+            AmazonS3Store store = ActivatorUtilities.CreateInstance<AmazonS3Store>(provider);
             await using BlobContents blobContents = await store.GetObject(Namespace, blob);
 
             s3Mock.Verify(s3 => s3.GetObjectAsync("tests-foo", blob.AsS3Key(), default));
@@ -131,17 +129,10 @@ namespace Jupiter.UnitTests
         {
             byte[] content = Encoding.ASCII.GetBytes("test content");
             BlobIdentifier blob = BlobIdentifier.FromBlob(content);
+            
             Mock<IAmazonS3> s3Mock = new Mock<IAmazonS3>();
-            S3Settings settings = new S3Settings{BucketName = "tests-foo"};
-            IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
-
-            INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
-                new NamespacePolicy
-                {
-                    StoragePool = ""
-                });
-
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver, NullLogger<AmazonS3Store>.Instance);
+            ServiceProvider provider = SetupProvider(s3Mock);
+            AmazonS3Store store = ActivatorUtilities.CreateInstance<AmazonS3Store>(provider);
             Task task = store.DeleteObject(Namespace, blob);
             await task;
 

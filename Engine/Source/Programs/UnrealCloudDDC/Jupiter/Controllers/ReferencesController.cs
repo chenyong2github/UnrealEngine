@@ -4,7 +4,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -50,6 +49,7 @@ namespace Jupiter.Controllers
         private readonly FormatResolver _formatResolver;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
         private readonly IReferenceResolver _referenceResolver;
+        private readonly NginxRedirectHelper _nginxRedirectHelper;
         private readonly RequestHelper _requestHelper;
         private readonly Tracer _tracer;
 
@@ -57,7 +57,7 @@ namespace Jupiter.Controllers
         private readonly IObjectService _objectService;
         private readonly IBlobService _blobStore;
 
-        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver, RequestHelper requestHelper, Tracer tracer, ILogger<ReferencesController> logger)
+        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver, NginxRedirectHelper nginxRedirectHelper, RequestHelper requestHelper, Tracer tracer, ILogger<ReferencesController> logger)
         {
             _objectService = objectService;
             _blobStore = blobStore;
@@ -65,6 +65,7 @@ namespace Jupiter.Controllers
             _formatResolver = formatResolver;
             _bufferedPayloadFactory = bufferedPayloadFactory;
             _referenceResolver = referenceResolver;
+            _nginxRedirectHelper = nginxRedirectHelper;
             _requestHelper = requestHelper;
             _tracer = tracer;
             _logger = logger;
@@ -203,6 +204,11 @@ namespace Jupiter.Controllers
                             IoHash hash = binaryAttachmentField.AsBinaryAttachment();
 
                             BlobContents referencedBlobContents = await _blobStore.GetObject(ns, BlobIdentifier.FromIoHash(hash));
+
+                            if (_nginxRedirectHelper.CanRedirect(Request, referencedBlobContents))
+                            {
+                                return _nginxRedirectHelper.CreateActionResult(referencedBlobContents);
+                            }
                             await WriteBody(referencedBlobContents, MediaTypeNames.Application.Octet);
                             break;
                         }
@@ -343,6 +349,10 @@ namespace Jupiter.Controllers
                                     BlobContents referencedBlobContents = await _blobStore.GetObject(ns, attachmentToSend);
                                     Response.Headers[CommonHeaders.InlinePayloadHash] = attachmentToSend.ToString();
 
+                                    if (_nginxRedirectHelper.CanRedirect(Request, referencedBlobContents))
+                                    {
+                                        return _nginxRedirectHelper.CreateActionResult(referencedBlobContents);
+                                    }
                                     await WriteBody(referencedBlobContents, CustomMediaTypeNames.JupiterInlinedPayload);
                                 }
                                 catch (BlobNotFoundException)

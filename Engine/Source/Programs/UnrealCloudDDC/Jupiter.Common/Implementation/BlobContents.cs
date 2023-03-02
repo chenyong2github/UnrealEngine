@@ -8,29 +8,52 @@ namespace Jupiter.Implementation
 {
     public sealed class BlobContents : IDisposable, IAsyncDisposable
     {
-        public BlobContents(Stream stream, long length)
-        {
-            Stream = stream;
-            Length = length;
-        }
+        private readonly Stream? _stream;
 
+        public BlobContents(Stream stream, long length, string? localPath = null)
+        {
+            _stream = stream;
+
+            Length = length;
+            LocalPath = localPath;
+        }
+        
         public BlobContents(byte[] payload)
         {
-            Stream = new MemoryStream(payload);
+            _stream = new MemoryStream(payload);
             Length = payload.LongLength;
+            LocalPath = null;
         }
 
-        public Stream Stream { get; }
-        public long Length {get;}
+        public BlobContents(Uri redirectUri)
+        {
+            RedirectUri = redirectUri;
+        }
+
+        public Uri? RedirectUri { get; }
+
+        public Stream Stream 
+        { 
+            get
+            {
+                if (_stream == null)
+                {
+                    throw new Exception("Stream not set in blob contents, did you specify support for redirect uris but forgot to check result?");
+                }
+                return _stream;
+            }
+        }
+        public long Length { get; }
+
+        public string? LocalPath { get; }
 
         public void Dispose()
         {
-            Stream?.Dispose();
+            _stream?.Dispose();
         }
-
         public ValueTask DisposeAsync()
         {
-            Stream?.Dispose();
+            _stream?.Dispose();
             return ValueTask.CompletedTask;
         }
     }

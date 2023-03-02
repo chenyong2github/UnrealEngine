@@ -91,6 +91,8 @@ namespace Jupiter
             services.AddOptions<AzureSettings>().Bind(Configuration.GetSection("Azure")).ValidateDataAnnotations();
             services.AddOptions<FilesystemSettings>().Bind(Configuration.GetSection("Filesystem")).ValidateDataAnnotations();
 
+            services.AddOptions<NginxSettings>().Bind(Configuration.GetSection("Nginx")).ValidateDataAnnotations();
+
             services.AddOptions<ConsistencyCheckSettings>().Bind(Configuration.GetSection("ConsistencyCheck")).ValidateDataAnnotations();
 
             services.AddOptions<UpstreamRelaySettings>().Configure(o => Configuration.GetSection("Upstream").Bind(o)).ValidateDataAnnotations();
@@ -140,7 +142,6 @@ namespace Jupiter
             services.AddSingleton<OrphanBlobCleanupRefs>();
 
             services.AddSingleton(typeof(IBlobService), typeof(BlobService));
-
             services.AddSingleton(serviceType: typeof(IScyllaSessionManager), ScyllaFactory);
 
             services.AddSingleton(serviceType: typeof(IReplicationLog), ReplicationLogWriterFactory);
@@ -156,6 +157,7 @@ namespace Jupiter
             services.AddSingleton(Configuration);
 
             services.AddSingleton<FormatResolver>();
+            services.AddSingleton<NginxRedirectHelper>();
 
             services.AddSingleton(serviceType: typeof(ISecretResolver), typeof(SecretResolver));
             services.AddSingleton(typeof(IAmazonSecretsManager), CreateAWSSecretsManager);

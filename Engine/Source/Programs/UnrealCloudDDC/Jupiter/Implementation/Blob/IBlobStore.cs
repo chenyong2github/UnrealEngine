@@ -21,7 +21,7 @@ namespace Jupiter.Implementation
         Task<BlobIdentifier> PutObject(NamespaceId ns, ReadOnlyMemory<byte> blob, BlobIdentifier identifier);
         Task<BlobIdentifier> PutObject(NamespaceId ns, Stream content, BlobIdentifier identifier);
 
-        Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking);
+        Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking, bool supportsRedirectUri = false);
         Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, bool forceCheck = false);
 
         // Delete a object
@@ -31,6 +31,8 @@ namespace Jupiter.Implementation
         Task DeleteNamespace(NamespaceId ns);
 
         IAsyncEnumerable<(BlobIdentifier,DateTime)> ListObjects(NamespaceId ns);
+        Task<Uri?> PutObjectWithRedirect(NamespaceId ns, BlobIdentifier identifier);
+        Task<Uri?> GetObjectByRedirect(NamespaceId ns, BlobIdentifier blob);
     }
 
     public interface IStorageBackend

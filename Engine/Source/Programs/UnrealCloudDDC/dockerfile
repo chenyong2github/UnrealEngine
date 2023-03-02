@@ -11,6 +11,7 @@ COPY Programs/Shared/EpicGames.Core/*.csproj ./Programs/Shared/EpicGames.Core/
 COPY Programs/Shared/EpicGames.AspNet/*.csproj ./Programs/Shared/EpicGames.AspNet/
 COPY Programs/Shared/EpicGames.Horde/*.csproj ./Programs/Shared/EpicGames.Horde/
 COPY Programs/Shared/EpicGames.IoHash/*.csproj ./Programs/Shared/EpicGames.IoHash/
+COPY Programs/Shared/EpicGames.Oodle/*.csproj ./Programs/Shared/EpicGames.Oodle/
 COPY Programs/Shared/EpicGames.Serialization/*.csproj ./Programs/Shared/EpicGames.Serialization/
 COPY Programs/UnrealCloudDDC/Jupiter.Common/*.csproj ./Programs/UnrealCloudDDC/Jupiter.Common/
 COPY Programs/UnrealCloudDDC/Jupiter/*.csproj ./Programs/UnrealCloudDDC/Jupiter/

@@ -16,6 +16,8 @@ using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Implementation
 {
@@ -25,24 +27,39 @@ namespace Jupiter.Implementation
         private readonly IBlobIndex _blobIndex;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly ILogger<AmazonS3Store> _logger;
+        private readonly IServiceProvider _provider;
         private readonly S3Settings _settings;
         private readonly ConcurrentDictionary<NamespaceId, AmazonStorageBackend> _backends = new ConcurrentDictionary<NamespaceId, AmazonStorageBackend>();
 
-        public AmazonS3Store(IAmazonS3 amazonS3, IOptionsMonitor<S3Settings> settings, IBlobIndex blobIndex, INamespacePolicyResolver namespacePolicyResolver, ILogger<AmazonS3Store> logger)
+        public AmazonS3Store(IAmazonS3 amazonS3, IOptionsMonitor<S3Settings> settings, IBlobIndex blobIndex, INamespacePolicyResolver namespacePolicyResolver, ILogger<AmazonS3Store> logger, IServiceProvider provider)
         {
             _amazonS3 = amazonS3;
             _blobIndex = blobIndex;
             _namespacePolicyResolver = namespacePolicyResolver;
             _logger = logger;
+            _provider = provider;
             _settings = settings.CurrentValue;
         }
 
         AmazonStorageBackend GetBackend(NamespaceId ns)
         {
-            return _backends.GetOrAdd(ns, x => new AmazonStorageBackend(_amazonS3, GetBucketName(x), _settings));
+            return _backends.GetOrAdd(ns, x => ActivatorUtilities.CreateInstance<AmazonStorageBackend>(_provider, GetBucketName(x)));
         }
 
-        // interact with a S3 compatible object store
+        public async Task<Uri?> GetObjectByRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            Uri? uri = await GetBackend(ns).GetReadRedirectAsync(identifier.AsS3Key());
+
+            return uri;
+        }
+
+        public async Task<Uri?> PutObjectWithRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            Uri? uri = await GetBackend(ns).GetWriteRedirectAsync(identifier.AsS3Key());
+
+            return uri;
+        }
+
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, ReadOnlyMemory<byte> content, BlobIdentifier objectName)
         {
             await using MemoryStream stream = new MemoryStream(content.ToArray());
@@ -82,10 +99,20 @@ namespace Jupiter.Implementation
             }
         }
 
-        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking)
+        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking, bool supportsRedirectUri = false)
         {
+            NamespacePolicy policies = _namespacePolicyResolver.GetPoliciesForNs(ns);
             try
             {
+                if (supportsRedirectUri && policies.AllowRedirectUris)
+                {
+                    Uri? redirectUri = await GetBackend(ns).GetReadRedirectAsync(blob.AsS3Key());
+                    if (redirectUri != null)
+                    {
+                        return new BlobContents(redirectUri);
+                    }
+                }
+            
                 BlobContents? contents = await GetBackend(ns).TryReadAsync(blob.AsS3Key(), flags);
                 if (contents == null)
                 {
@@ -160,20 +187,24 @@ namespace Jupiter.Implementation
     {
         private readonly IAmazonS3 _amazonS3;
         private readonly string _bucketName;
-        private readonly S3Settings _settings;
+        private readonly IOptionsMonitor<S3Settings> _settings;
+        private readonly Tracer _tracer;
+        private readonly ILogger<AmazonStorageBackend> _logger;
         private bool _bucketExistenceChecked;
         private bool _bucketAccessPolicyApplied;
 
-        public AmazonStorageBackend(IAmazonS3 amazonS3, string bucketName, S3Settings settings)
+        public AmazonStorageBackend(IAmazonS3 amazonS3, string bucketName, IOptionsMonitor<S3Settings> settings, Tracer tracer, ILogger<AmazonStorageBackend> logger)
         {
             _amazonS3 = amazonS3;
             _bucketName = bucketName;
             _settings = settings;
+            _tracer = tracer;
+            _logger = logger;
         }
 
         public async Task WriteAsync(string path, Stream stream, CancellationToken cancellationToken)
         {
-            if (_settings.CreateBucketIfMissing)
+            if (_settings.CurrentValue.CreateBucketIfMissing)
             {
                 if (!_bucketExistenceChecked)
                 {
@@ -192,7 +223,7 @@ namespace Jupiter.Implementation
                 }
             }
 
-            if (_settings.SetBucketPolicies && !_bucketAccessPolicyApplied)
+            if (_settings.CurrentValue.SetBucketPolicies && !_bucketAccessPolicyApplied)
             {
                 // block all public access to the bucket
                 try
@@ -320,6 +351,48 @@ namespace Jupiter.Implementation
         public async Task DeleteAsync(string path, CancellationToken cancellationToken)
         {
             await _amazonS3.DeleteObjectAsync(_bucketName, path, cancellationToken);
+        }
+
+        public ValueTask<Uri?> GetReadRedirectAsync(string path)
+        {
+            return new ValueTask<Uri?>(GetPresignedUrl(path, HttpVerb.GET));
+        }
+
+        public ValueTask<Uri?> GetWriteRedirectAsync(string path)
+        {
+            return new ValueTask<Uri?>(GetPresignedUrl(path, HttpVerb.PUT));
+        }
+
+        /// <summary>
+        /// Helper method to generate a presigned URL for a request
+        /// </summary>
+        Uri? GetPresignedUrl(string path, HttpVerb verb)
+        {
+            using TelemetrySpan span = _tracer.StartActiveSpan("s3.BuildPresignedUrl")
+                .SetAttribute("Path", path)
+            ;
+
+            try
+            {
+                GetPreSignedUrlRequest newGetRequest = new GetPreSignedUrlRequest();
+                newGetRequest.BucketName = _bucketName;
+                newGetRequest.Key = path;
+                newGetRequest.Verb = verb;
+                newGetRequest.Expires = DateTime.UtcNow.AddHours(3.0);
+
+                string url = _amazonS3.GetPreSignedURL(newGetRequest);
+
+                if (_settings.CurrentValue.AssumeHttpForRedirectUri)
+                {
+                    url = url.Replace("https://", "http://", StringComparison.InvariantCultureIgnoreCase);
+                }
+                return new Uri(url);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Unable to get presigned url for {Path} from S3", path);
+                return null;
+            }
         }
     }
 

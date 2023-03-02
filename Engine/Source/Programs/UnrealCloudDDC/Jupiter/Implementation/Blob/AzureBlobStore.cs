@@ -14,8 +14,11 @@ using Jupiter.Common.Implementation;
 using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Collections.Concurrent;
+using Azure.Storage.Sas;
 using Jupiter.Common;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Implementation
 {
@@ -23,21 +26,21 @@ namespace Jupiter.Implementation
     {
         private readonly IOptionsMonitor<AzureSettings> _settings;
         private readonly ISecretResolver _secretResolver;
-        private readonly ILogger _logger;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
-        private readonly ConcurrentDictionary<NamespaceId, IStorageBackend> _backends = new ConcurrentDictionary<NamespaceId, IStorageBackend>();
+        private readonly IServiceProvider _provider;
+        private readonly ConcurrentDictionary<NamespaceId, AzureStorageBackend> _backends = new ConcurrentDictionary<NamespaceId, AzureStorageBackend>();
 
-        public AzureBlobStore(IOptionsMonitor<AzureSettings> settings, ISecretResolver secretResolver, ILogger<AzureBlobStore> logger, INamespacePolicyResolver namespacePolicyResolver)
+        public AzureBlobStore(IOptionsMonitor<AzureSettings> settings, ISecretResolver secretResolver, INamespacePolicyResolver namespacePolicyResolver, IServiceProvider provider)
         {
             _settings = settings;
             _secretResolver = secretResolver;
-            _logger = logger;
             _namespacePolicyResolver = namespacePolicyResolver;
+            _provider = provider;
         }
 
-        private IStorageBackend GetBackend(NamespaceId ns)
+        private AzureStorageBackend GetBackend(NamespaceId ns)
         {
-            return _backends.GetOrAdd(ns, x => new AzureStorageBackend(GetConnectionString(ns), ns, GetContainerName(ns), _logger));
+            return _backends.GetOrAdd(ns, x => ActivatorUtilities.CreateInstance<AzureStorageBackend>(_provider, GetConnectionString(ns), ns, GetContainerName(ns)));
         }
 
         private string GetContainerName(NamespaceId ns)
@@ -68,6 +71,20 @@ namespace Jupiter.Implementation
 
         private static string GetPath(BlobIdentifier blobIdentifier) => blobIdentifier.ToString();
 
+        public async Task<Uri?> GetObjectByRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            Uri? redirectUri = await GetBackend(ns).GetReadRedirectAsync(GetPath(identifier));
+
+            return redirectUri;
+        }
+
+        public async Task<Uri?> PutObjectWithRedirect(NamespaceId ns, BlobIdentifier identifier)
+        {
+            Uri? redirectUri = await GetBackend(ns).GetWriteRedirectAsync(GetPath(identifier));
+
+            return redirectUri;
+        }
+
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, ReadOnlyMemory<byte> content, BlobIdentifier blobIdentifier)
         {
             // TODO: this is not ideal as we copy the buffer, but there is no upload from memory available so we would need this copy anyway
@@ -87,9 +104,18 @@ namespace Jupiter.Implementation
             return await PutObject(ns, stream, blobIdentifier);
         }
 
-        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blobIdentifier,
-            LastAccessTrackingFlags flags)
+        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blobIdentifier, LastAccessTrackingFlags flags, bool supportsRedirectUri = false)
         {
+            NamespacePolicy policies = _namespacePolicyResolver.GetPoliciesForNs(ns);
+            if (supportsRedirectUri && policies.AllowRedirectUris)
+            {
+                Uri? redirectUri = await GetBackend(ns).GetReadRedirectAsync(GetPath(blobIdentifier));
+                if (redirectUri != null)
+                {
+                    return new BlobContents(redirectUri);
+                }
+            }
+            
             BlobContents? contents = await GetBackend(ns).TryReadAsync(GetPath(blobIdentifier), flags, CancellationToken.None);
             if (contents == null)
             {
@@ -100,12 +126,12 @@ namespace Jupiter.Implementation
 
         public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blobIdentifier, bool forceCheck)
         {
-            return await GetBackend(ns).ExistsAsync(GetPath(blobIdentifier));
+            return await GetBackend(ns).ExistsAsync(GetPath(blobIdentifier), CancellationToken.None);
         }
 
         public async Task DeleteObject(NamespaceId ns, BlobIdentifier blobIdentifier)
         {
-            await GetBackend(ns).DeleteAsync(GetPath(blobIdentifier));
+            await GetBackend(ns).DeleteAsync(GetPath(blobIdentifier), CancellationToken.None);
         }
 
         public async Task DeleteNamespace(NamespaceId ns)
@@ -121,7 +147,7 @@ namespace Jupiter.Implementation
 
         public async IAsyncEnumerable<(BlobIdentifier, DateTime)> ListObjects(NamespaceId ns)
         {
-            await foreach ((string path, DateTime time) in GetBackend(ns).ListAsync())
+            await foreach ((string path, DateTime time) in GetBackend(ns).ListAsync(CancellationToken.None))
             {
                 yield return (new BlobIdentifier(path), time);
             }
@@ -136,16 +162,18 @@ namespace Jupiter.Implementation
     public class AzureStorageBackend : IStorageBackend
     {
         private readonly NamespaceId _namespaceId;
-        private readonly ILogger _logger;
+        private readonly ILogger<AzureStorageBackend> _logger;
+        private readonly Tracer _tracer;
         private readonly BlobContainerClient _blobContainer;
 
         private const string LastTouchedKey = "Io_LastTouched";
         private const string NamespaceKey = "Io_Namespace";
 
-        public AzureStorageBackend(string connectionString, NamespaceId namespaceId, string containerName, ILogger logger)
+        public AzureStorageBackend(string connectionString, NamespaceId namespaceId, string containerName, ILogger<AzureStorageBackend> logger, Tracer tracer)
         {
             _namespaceId = namespaceId;
             _logger = logger;
+            _tracer = tracer;
             _blobContainer = new BlobContainerClient(connectionString, containerName);
         }
 
@@ -248,6 +276,51 @@ namespace Jupiter.Implementation
             await foreach (BlobItem? item in _blobContainer.GetBlobsAsync(BlobTraits.Metadata, cancellationToken: cancellationToken))
             {
                 yield return (item.Name, item.Properties?.LastModified?.DateTime ?? DateTime.Now);
+            }
+        }
+
+        public async ValueTask<Uri?> GetReadRedirectAsync(string path)
+        {
+            if (!await _blobContainer.ExistsAsync())
+            {
+                throw new InvalidOperationException($"Container {_blobContainer.Name} did not exist");
+            }
+
+            return GetPresignedUrl(path, BlobSasPermissions.Read);
+        }
+
+        public async ValueTask<Uri?> GetWriteRedirectAsync(string path)
+        {
+            if (!await _blobContainer.ExistsAsync())
+            {
+                throw new InvalidOperationException($"Container {_blobContainer.Name} did not exist");
+            }
+
+            return GetPresignedUrl(path, BlobSasPermissions.Write);
+        }
+
+        /// <summary>
+        /// Helper method to generate a presigned URL for a request
+        /// </summary>
+        Uri? GetPresignedUrl(string path, BlobSasPermissions permissions)
+        {
+            using TelemetrySpan span = _tracer.StartActiveSpan("azure.BuildPresignedUrl")
+                    .SetAttribute("Path", path)
+                ;
+
+            try
+            {
+                BlobClient blob = _blobContainer.GetBlobClient(path);
+                return blob.GenerateSasUri(permissions, DateTimeOffset.Now.AddHours(1.0));
+            }
+            catch (RequestFailedException e)
+            {
+                if (e.Status == 404)
+                {
+                    return null;
+                }
+
+                throw;
             }
         }
     }
