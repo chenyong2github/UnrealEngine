@@ -156,11 +156,11 @@ class UETWeakObjectPtrSynthProvider:
         logger = lldb.formatters.Logger.Logger()
         logger >> "Retrieving child %s" % index
         if self.ObjectSerialNumberVal >= 1:
-            Expr = 'GObjectArrayForDebugVisualizers->Objects[%s][%s].SerialNumber == %s' % (self.ObjectIndexVal/65536, self.ObjectIndexVal%65536, self.ObjectSerialNumberVal)
+            Expr = 'GObjectArrayForDebugVisualizers->Objects[%s][%s].SerialNumber == %s' % (int(self.ObjectIndexVal/65536), self.ObjectIndexVal%65536, self.ObjectSerialNumberVal)
             Val = self.valobj.CreateValueFromExpression("%s" % self.ObjectIndexVal, Expr)
             Value = Val.GetValueAsUnsigned(0)
             if Value != 0:
-                Expr = 'GObjectArrayForDebugVisualizers->Objects[%s][%s].Object' % (self.ObjectIndexVal/65536, self.ObjectIndexVal%65536)
+                Expr = 'GObjectArrayForDebugVisualizers->Objects[%s][%s].Object' % (int(self.ObjectIndexVal/65536), self.ObjectIndexVal%65536)
                 return self.valobj.CreateValueFromExpression('Object', Expr)
             else:
                 Expr = '(void*)0xDEADBEEF'
@@ -189,13 +189,13 @@ def UEFWeakObjectPtrSummaryProvider(valobj,dict):
         return 'object=nullptr'
     ObjectIndex = valobj.GetChildMemberWithName('ObjectIndex')
     ObjectIndexVal = ObjectIndex.GetValueAsSigned(0)
-    Expr = 'GObjectArrayForDebugVisualizers->Objects[%s][%s].SerialNumber == %s' % (ObjectIndexVal/65536, ObjectIndexVal%65536, ObjectSerialNumberVal)
+    Expr = 'GObjectArrayForDebugVisualizers->Objects[%s][%s].SerialNumber == %s' % (int(ObjectIndexVal/65536), ObjectIndexVal%65536, ObjectSerialNumberVal)
     Val = valobj.CreateValueFromExpression('%s' % ObjectIndexVal, Expr)
     ValRef = Val.GetValueAsUnsigned(0)
     if ValRef == 0:
         return 'object=STALE'
     else:
-        Expr = 'GObjectArrayForDebugVisualizers->Objects[%s][%s].Object' % (ObjectIndexVal/65536, ObjectIndexVal%65536)
+        Expr = 'GObjectArrayForDebugVisualizers->Objects[%s][%s].Object' % (int(ObjectIndexVal/65536), ObjectIndexVal%65536)
         Val = valobj.CreateValueFromExpression("%s" % ObjectIndexVal, Expr)
         return 'object=' + Val.GetValue()
 
