@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSceneLighting.cpp
-=============================================================================*/
-
 #include "LumenSceneLighting.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
@@ -32,7 +28,7 @@ FAutoConsoleVariableRef CVarLumenSceneLightingFeedback(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenDirectLightingUpdateFactor = 16;
+int32 GLumenDirectLightingUpdateFactor = 32;
 FAutoConsoleVariableRef CVarLumenSceneDirectLightingUpdateFactor(
 	TEXT("r.LumenScene.DirectLighting.UpdateFactor"),
 	GLumenDirectLightingUpdateFactor,

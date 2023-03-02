@@ -15,9 +15,6 @@
 #include "../VolumeLightingCommon.ush"
 #include "../ForwardShadowingCommon.ush"
 #include "../LightDataUniforms.ush"
-#if VIRTUAL_SHADOW_MAP
-	#include "../VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
-#endif
 #include "SurfaceCache/LumenSurfaceCache.ush"
 #if LIGHT_FUNCTION
 	#include "/Engine/Generated/Material.ush"
@@ -31,14 +28,7 @@
 RWStructuredBuffer<uint> RWShadowTraces;
 RWStructuredBuffer<uint> RWShadowTraceAllocator;
 
-float ShadowMapSamplingBias;
-float VirtualShadowMapSamplingBias;
 float HeightfieldShadowReceiverBias;
-
-int VirtualShadowMapId;
-
-// Debug variables
-uint ForceShadowMaps;
 
 groupshared uint SharedNumShadowTraces;
 groupshared uint SharedShadowTraces[THREADGROUP_SIZE_X * THREADGROUP_SIZE_Y];
@@ -136,71 +126,6 @@ void LumenSceneDirectLightingNonRayTracedShadowsCS(
 		{
 			ShadowMaskRay.ShadowFactor = 1.0f;
 			ShadowMaskRay.bShadowFactorComplete = false;
-			bool bVSMValid = false;
-
-			const float4 PostProjectionPosition = mul(float4(TranslatedWorldPosition, 1.0), PrimaryView.TranslatedWorldToClip);
-			float ReceiverBias = 0.0f;
-			if (Card.bHeightfield)
-			{
-				ReceiverBias = CalculateDistanceBasedHeightfieldBias(HeightfieldShadowReceiverBias, TranslatedWorldPosition, PrimaryView.TranslatedWorldCameraOrigin);
-			}
-
-			// Shadow maps are culled so only query points inside the view frustum are valid
-			if (all(and(PostProjectionPosition.xy < PostProjectionPosition.w, PostProjectionPosition.xy > -PostProjectionPosition.w)))
-			{
-				#if VIRTUAL_SHADOW_MAP
-				{
-					// Bias only ray start to maximize chances of hitting an allocated page
-					FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapLWCHack(VirtualShadowMapId, WorldPosition, VirtualShadowMapSamplingBias + ReceiverBias, WorldNormal);
-
-					bVSMValid = VirtualShadowMapSample.bValid;
-					ShadowMaskRay.ShadowFactor *= VirtualShadowMapSample.ShadowFactor;
-						
-					// If there's also a dense shadow map present we need to sample both (unless the VSM determines we are fully shadowed anyways)
-					ShadowMaskRay.bShadowFactorComplete = ShadowMaskRay.ShadowFactor < 0.01f;
-					#if !DENSE_SHADOW_MAP
-					ShadowMaskRay.bShadowFactorComplete = ShadowMaskRay.bShadowFactorComplete || VirtualShadowMapSample.bValid;
-					#endif
-				}
-				#endif
-
-				#if DENSE_SHADOW_MAP
-				if (!ShadowMaskRay.bShadowFactorComplete)
-				{
-					float3 TranslatedWorldPositionForShadowing = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, ShadowMapSamplingBias + ReceiverBias);
-
-					#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
-					{
-						#if DYNAMICALLY_SHADOWED
-						{
-							float SceneDepth = dot(TranslatedWorldPositionForShadowing - PrimaryView.TranslatedWorldCameraOrigin, View.ViewForward);
-
-							bool bShadowingFromValidUVArea = false;
-							float NewShadowFactor = ComputeDirectionalLightDynamicShadowing(TranslatedWorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
-
-							if (bShadowingFromValidUVArea)
-							{
-								ShadowMaskRay.ShadowFactor *= NewShadowFactor;
-								ShadowMaskRay.bShadowFactorComplete = VIRTUAL_SHADOW_MAP ? bVSMValid : true;
-							}
-						}
-						#endif
-					}
-					#else
-					{
-						bool bShadowingFromValidUVArea = false;
-						float NewShadowFactor = ComputeVolumeShadowing(TranslatedWorldPositionForShadowing, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowingFromValidUVArea);
-
-						if (bShadowingFromValidUVArea) 
-						{
-							ShadowMaskRay.ShadowFactor *= NewShadowFactor;
-							ShadowMaskRay.bShadowFactorComplete = VIRTUAL_SHADOW_MAP ? bVSMValid : true;
-						}
-					}
-					#endif
-				}
-				#endif
-			}
 
 			#if LIGHT_FUNCTION
 			if (ShadowMaskRay.ShadowFactor > 0.01f)
@@ -230,11 +155,6 @@ void LumenSceneDirectLightingNonRayTracedShadowsCS(
 			ShadowMaskRay.ShadowFactor = 0.0f;
 			ShadowMaskRay.bShadowFactorComplete = true;
 		}
-	}
-
-	if (ForceShadowMaps != 0)
-	{
-		ShadowMaskRay.bShadowFactorComplete = true;
 	}
 
 	WriteSharedShadowMaskRay(ShadowMaskRay, GroupThreadId.xy, false);

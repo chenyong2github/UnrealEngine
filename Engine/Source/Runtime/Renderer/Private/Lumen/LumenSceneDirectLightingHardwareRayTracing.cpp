@@ -8,7 +8,6 @@
 #include "ShaderParameterStruct.h"
 #include "VolumeLighting.h"
 #include "DistanceFieldLightingShared.h"
-#include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 #include "VolumetricCloudRendering.h"
 
 #if RHI_RAYTRACING

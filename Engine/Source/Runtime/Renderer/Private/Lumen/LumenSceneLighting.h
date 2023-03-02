@@ -160,14 +160,6 @@ enum class ELumenLightType
 	MAX
 };
 
-struct FLumenShadowSetup
-{
-	int32 VirtualShadowMapId;
-	const FProjectedShadowInfo* DenseShadowMap;
-};
-
-FLumenShadowSetup GetShadowForLumenDirectLighting(FVisibleLightInfo& VisibleLightInfo);
-
 void TraceLumenHardwareRayTracedDirectLightingShadows(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -242,12 +234,8 @@ namespace LumenSceneLighting
 
 namespace LumenSceneDirectLighting
 {
-	float GetShadowMapSamplingBias();
-	float GetVirtualShadowMapSamplingBias();
 	float GetMeshSDFShadowRayBias();
 	float GetHeightfieldShadowRayBias();
 	float GetGlobalSDFShadowRayBias();
 	float GetHardwareRayTracingShadowRayBias();
-	bool UseShadowMaps(const FViewFamilyInfo& ViewFamily);
-	bool UseVirtualShadowMaps();
 }
