@@ -38,7 +38,9 @@
 #include "Editor.h"
 #include "LevelEditorViewport.h"
 #include "TransformConstraint.h"
+#include "TransformableHandle.h"
 #include "Constraints/MovieSceneConstraintChannelHelper.h"
+#include "Constraints/TransformConstraintChannelInterface.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Engine/Selection.h"
 
@@ -1450,6 +1452,7 @@ void F3DTransformTrackEditor::HandleOnConstraintAdded(IMovieSceneConstrainedSect
 					}
 				});
 	}
+
 	// Store Section so we can remove these delegates
 	UMovieScene3DTransformSection* Section = Cast<UMovieScene3DTransformSection>(InSection);
 	SectionsToClear.Add(Section);
@@ -1480,6 +1483,11 @@ void F3DTransformTrackEditor::HandleOnConstraintAdded(IMovieSceneConstrainedSect
 	if (InSection)
 	{
 		HandleConstraintRemoved(InSection);
+	}
+
+	if (!UTickableTransformConstraint::GetOnConstraintChanged().IsBoundToObject(this))
+	{
+		UTickableTransformConstraint::GetOnConstraintChanged().AddRaw(this, &F3DTransformTrackEditor::HandleConstraintPropertyChanged);
 	}
 }
 
@@ -1602,6 +1610,50 @@ void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSect
 	}
 }
 
+void F3DTransformTrackEditor::HandleConstraintPropertyChanged(UTickableTransformConstraint* InConstraint, const FPropertyChangedEvent& InPropertyChangedEvent) const
+{
+	if (!IsValid(InConstraint))
+	{
+		return;
+	}
+
+	// find constraint section
+	const UTransformableComponentHandle* Handle = Cast<UTransformableComponentHandle>(InConstraint->ChildTRSHandle);
+	if (!IsValid(Handle) || !Handle->IsValid())
+	{
+		return;
+	}
+
+	const FConstraintChannelInterfaceRegistry& InterfaceRegistry = FConstraintChannelInterfaceRegistry::Get();	
+	ITransformConstraintChannelInterface* Interface = InterfaceRegistry.FindConstraintChannelInterface(Handle->GetClass());
+	if (!Interface)
+	{
+		return;
+	}
+	
+	UMovieSceneSection* Section = Interface->GetHandleConstraintSection(Handle, GetSequencer());
+	IMovieSceneConstrainedSection* ConstraintSection = Cast<IMovieSceneConstrainedSection>(Section);
+	if (!ConstraintSection)
+	{
+		return;
+	}
+
+	// find corresponding channel
+	const TArray<FConstraintAndActiveChannel>& ConstraintChannels = ConstraintSection->GetConstraintsChannels();
+	const FConstraintAndActiveChannel* Channel = ConstraintChannels.FindByPredicate([InConstraint](const FConstraintAndActiveChannel& Channel)
+	{
+		return Channel.Constraint == InConstraint || Channel.ConstraintCopyToSpawn == InConstraint;
+	});
+
+	if (!Channel)
+	{
+		return;
+	}
+
+	FMovieSceneConstraintChannelHelper::HandleConstraintPropertyChanged(
+			InConstraint, Channel->ActiveChannel, InPropertyChangedEvent, GetSequencer(), Section);
+}
+
 void F3DTransformTrackEditor::ClearOutConstraintDelegates() 
 {
 	UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
@@ -1634,5 +1686,7 @@ void F3DTransformTrackEditor::ClearOutConstraintDelegates()
 		}
 	}
 	SectionsToClear.Reset();
+
+	UTickableTransformConstraint::GetOnConstraintChanged().RemoveAll(this);
 }
 #undef LOCTEXT_NAMESPACE

@@ -12,6 +12,7 @@ class UTickableConstraint;
 class ISequencer;
 class UMovieSceneSection;
 class UTickableTransformConstraint;
+class UTickableParentConstraint;
 class UTransformableHandle;
 struct FMovieSceneConstraintChannel;
 struct FFrameNumber;
@@ -30,6 +31,8 @@ public:
 	void ComputeLocalTransformsBeforeDeletion(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InFrames);
 	void ComputeCompensation(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const FFrameNumber& InTime);
 	void ComputeLocalTransformsForBaking(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InFrames);
+	void CacheTransforms(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InFrames);
+	
 private:
 
 	TArray< TObjectPtr<UTickableConstraint> > GetHandleTransformConstraints(UWorld* InWorld) const;
@@ -118,6 +121,13 @@ public:
 		const TArrayView<ChannelType*>& InChannels,
 		const FFrameNumber& InTime);
 
+	static void HandleConstraintPropertyChanged(
+		UTickableTransformConstraint* InConstraint,
+		const FMovieSceneConstraintChannel& InActiveChannel,
+		const FPropertyChangedEvent& InPropertyChangedEvent,
+		const TSharedPtr<ISequencer>& InSequencer,
+		UMovieSceneSection* InSection);
+
 	static bool bDoNotCompensate;
 
 private:
@@ -126,4 +136,10 @@ private:
 	
 	/** For the given handle create any movie scene binding for it based upon the current sequencer that's open*/
 	static void CreateBindingIDForHandle(const TSharedPtr<ISequencer>& InSequencer, UTransformableHandle* InHandle);
+
+	static void CompensateScale(
+		UTickableParentConstraint* InParentConstraint,
+		const FMovieSceneConstraintChannel& InActiveChannel,
+		const TSharedPtr<ISequencer>& InSequencer,
+		UMovieSceneSection* InSection);
 };

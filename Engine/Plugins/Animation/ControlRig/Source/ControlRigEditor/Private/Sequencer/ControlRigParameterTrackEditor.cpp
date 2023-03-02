@@ -82,6 +82,7 @@
 #include "Constraints/MovieSceneConstraintChannelHelper.h"
 #include "Constraints/ControlRigTransformableHandle.h"
 #include "PropertyEditorModule.h"
+#include "Constraints/TransformConstraintChannelInterface.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 
@@ -2417,7 +2418,7 @@ FMovieSceneTrackEditor::FFindOrCreateTrackResult FControlRigParameterTrackEditor
 	return Result;
 }
 
-UMovieSceneControlRigParameterTrack* FControlRigParameterTrackEditor::FindTrack(UControlRig* InControlRig)
+UMovieSceneControlRigParameterTrack* FControlRigParameterTrackEditor::FindTrack(const UControlRig* InControlRig) const
 {
 	if (!GetSequencer().IsValid())
 	{
@@ -2556,6 +2557,8 @@ void FControlRigParameterTrackEditor::HandleSpaceKeyMoved(
 
 void FControlRigParameterTrackEditor::ClearOutAllSpaceAndConstraintDelegates(const UControlRig* InOptionalControlRig) const
 {
+	UTickableTransformConstraint::GetOnConstraintChanged().RemoveAll(this);
+	
 	const UMovieScene* MovieScene = GetSequencer().IsValid() && GetSequencer()->GetFocusedMovieSceneSequence() ? GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene() : nullptr;
 	if (!MovieScene)
 	{
@@ -2701,6 +2704,11 @@ void FControlRigParameterTrackEditor::HandleOnConstraintAdded(
 	{
 		HandleConstraintRemoved(InSection);
 	}
+
+	if (!UTickableTransformConstraint::GetOnConstraintChanged().IsBoundToObject(this))
+	{
+		UTickableTransformConstraint::GetOnConstraintChanged().AddRaw(this, &FControlRigParameterTrackEditor::HandleConstraintPropertyChanged);
+	}
 }
 
 void FControlRigParameterTrackEditor::HandleConstraintKeyDeleted(
@@ -2807,6 +2815,50 @@ void FControlRigParameterTrackEditor::HandleConstraintRemoved(IMovieSceneConstra
 			ConstraintHandlesToClear.Add(InSection->OnConstraintRemovedHandle);
 		}
 	}
+}
+
+void FControlRigParameterTrackEditor::HandleConstraintPropertyChanged(UTickableTransformConstraint* InConstraint, const FPropertyChangedEvent& InPropertyChangedEvent) const
+{
+	if (!IsValid(InConstraint))
+	{
+		return;
+	}
+
+	// find constraint section
+	const UTransformableControlHandle* Handle = Cast<UTransformableControlHandle>(InConstraint->ChildTRSHandle);
+	if (!IsValid(Handle) || !Handle->IsValid())
+	{
+		return;
+	}
+
+	const FConstraintChannelInterfaceRegistry& InterfaceRegistry = FConstraintChannelInterfaceRegistry::Get();	
+	ITransformConstraintChannelInterface* Interface = InterfaceRegistry.FindConstraintChannelInterface(Handle->GetClass());
+	if (!Interface)
+	{
+		return;
+	}
+	
+	UMovieSceneSection* Section = Interface->GetHandleConstraintSection(Handle, GetSequencer());
+	IMovieSceneConstrainedSection* ConstraintSection = Cast<IMovieSceneConstrainedSection>(Section);
+	if (!ConstraintSection)
+	{
+		return;
+	}
+
+	// find corresponding channel
+	const TArray<FConstraintAndActiveChannel>& ConstraintChannels = ConstraintSection->GetConstraintsChannels();
+	const FConstraintAndActiveChannel* Channel = ConstraintChannels.FindByPredicate([InConstraint](const FConstraintAndActiveChannel& Channel)
+	{
+		return Channel.Constraint == InConstraint || Channel.ConstraintCopyToSpawn == InConstraint;
+	});
+
+	if (!Channel)
+	{
+		return;
+	}
+
+	FMovieSceneConstraintChannelHelper::HandleConstraintPropertyChanged(
+			InConstraint, Channel->ActiveChannel, InPropertyChangedEvent, GetSequencer(), Section);
 }
 
 void FControlRigParameterTrackEditor::SetUpEditModeIfNeeded(UControlRig* ControlRig)

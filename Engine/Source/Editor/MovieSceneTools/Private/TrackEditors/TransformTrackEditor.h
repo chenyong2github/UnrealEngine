@@ -20,6 +20,7 @@
 class AActor;
 struct FAssetData;
 class SHorizontalBox;
+class UTickableTransformConstraint;
 
 namespace UE { namespace MovieScene { struct FIntermediate3DTransform; } }
 
@@ -187,6 +188,8 @@ private:
 	void HandleConstraintKeyMoved(IMovieSceneConstrainedSection* InSection, const FMovieSceneConstraintChannel* InConstraintChannel,
 		const TArray<FKeyMoveEventItem>& InMovedItems);
 	void HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection);
+	void HandleConstraintPropertyChanged(UTickableTransformConstraint* InConstraint, const FPropertyChangedEvent& InPropertyChangedEvent) const;
+	
 	void ClearOutConstraintDelegates();
 private:
 

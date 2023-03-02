@@ -20,6 +20,7 @@
 #include "EditorUndoClient.h"
 #include "ScopedTransaction.h"
 
+class UTickableTransformConstraint;
 struct FAssetData;
 class FMenuBuilder;
 class USkeleton;
@@ -160,6 +161,7 @@ private:
 		const FMovieSceneConstraintChannel* InConstraintChannel,
 		const TArray<FKeyMoveEventItem>& InMovedItems);
 	void HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection);
+	void HandleConstraintPropertyChanged(UTickableTransformConstraint* InConstraint, const FPropertyChangedEvent& InPropertyChangedEvent) const;
 
 	/** Select control rig if not selected, select controls from key areas */
 	void SelectRigsAndControls(UControlRig* Subject, const TArray<const IKeyArea*>& KeyAreas);
@@ -174,7 +176,7 @@ private:
 	void ImportFBX(UMovieSceneControlRigParameterTrack* InTrack, UMovieSceneControlRigParameterSection* InSection, 
 		TArray<FFBXNodeAndChannels>* NodeAndChannels);
 	/** Find Track for given ControlRig*/
-	UMovieSceneControlRigParameterTrack* FindTrack(UControlRig* InControlRig);
+	UMovieSceneControlRigParameterTrack* FindTrack(const UControlRig* InControlRig) const;
 
 	/** Select Bones to Animate on FK Rig*/
 	void SelectFKBonesToAnimate(UFKControlRig* FKControlRig, UMovieSceneControlRigParameterTrack* Track);

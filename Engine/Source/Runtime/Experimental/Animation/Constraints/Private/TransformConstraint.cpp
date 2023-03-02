@@ -198,6 +198,10 @@ private:
  * UTickableTransformConstraint
  **/
 
+#if WITH_EDITOR
+UTickableTransformConstraint::FOnConstraintChanged UTickableTransformConstraint::OnConstraintChanged;
+#endif // WITH_EDITOR
+
 int64 UTickableTransformConstraint::GetType() const
 {
 	return static_cast<int64>(Type);
@@ -303,6 +307,11 @@ void UTickableTransformConstraint::PostEditChangeProperty(FPropertyChangedEvent&
 			Evaluate();
 		}
 	}
+}
+
+UTickableTransformConstraint::FOnConstraintChanged& UTickableTransformConstraint::GetOnConstraintChanged()
+{
+	return OnConstraintChanged;	
 }
 
 #endif
@@ -1167,24 +1176,42 @@ void UTickableParentConstraint::PostEditChangeProperty(FPropertyChangedEvent& Pr
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+	auto UpdateOffset = [&]()
+	{
+		FTransform ChildGlobalTransform = GetChildGlobalTransform();
+		if (!bScaling)
+		{
+			ChildGlobalTransform.RemoveScaling();
+		}
+		const FTransform ParentWorldTransform = GetParentGlobalTransform();
+		OffsetTransform = ChildGlobalTransform.GetRelativeTransform(ParentWorldTransform);
+	};
+	
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTickableTransformConstraint, bDynamicOffset))
 	{
 		if(bDynamicOffset)
 		{
 			Cache.CachedInputHash = CalculateInputHash();
-			
-			FTransform ChildGlobalTransform = GetChildGlobalTransform();
-			if (!bScaling)
-			{
-				ChildGlobalTransform.RemoveScaling();
-			}
-			const FTransform ParentWorldTransform = GetParentGlobalTransform();
-			OffsetTransform = ChildGlobalTransform.GetRelativeTransform(ParentWorldTransform);
-			
+			UpdateOffset();			
 			Evaluate();
 		}
 		return;
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTickableParentConstraint, bScaling))
+	{
+		// notify scale change. note that this is currently the only property change we monitor but this broadcast
+		// call could be made higher in the hierarchy to monitor other changes.
+		OnConstraintChanged.Broadcast(this, PropertyChangedEvent);
+		
+		if (bMaintainOffset || bDynamicOffset)
+		{
+			Cache.CachedInputHash = CalculateInputHash();
+			UpdateOffset();
+			Evaluate();
+			return;
+		}
 	}
 }
 

@@ -6,6 +6,9 @@
 #include "ConstraintsManager.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
+#include "Delegates/DelegateCombinations.h"
+#include "Delegates/Delegate.h"
+
 #include "TransformConstraint.generated.h"
 
 enum class EHandleEvent : uint8;
@@ -160,6 +163,16 @@ public:
 	// UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
+
+	/** Returns a delegate that can be used to monitor for property changes. This can be used to monitor constraints changes
+	 * only instead of using FCoreUObjectDelegates::OnObjectPropertyChanged that is listening to every objects.
+	 * Note that bScaling is currently the only property change we monitor but this can be used for other properties.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConstraintChanged, UTickableTransformConstraint*, const FPropertyChangedEvent&);
+	static FOnConstraintChanged& GetOnConstraintChanged();
+
+protected:
+	static FOnConstraintChanged OnConstraintChanged;
 #endif
 };
 
@@ -323,6 +336,12 @@ public:
 		return bScaling;
 	}
 	
+	void SetScaling(const bool bInScale)
+	{
+		bScaling = bInScale;
+	}
+
+	static FName GetScalingPropertyName() { return GET_MEMBER_NAME_CHECKED(UTickableParentConstraint, bScaling); }
 
 	/** Updates the dynamic offset based on external child's transform changes. */
 	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;

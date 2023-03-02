@@ -527,6 +527,89 @@ void FCompensationEvaluator::ComputeCompensation(UWorld* InWorld, const TSharedP
 	}
 }
 
+void FCompensationEvaluator::CacheTransforms(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InTime)
+{
+	if (InTime.IsEmpty())
+	{
+		return;
+	}
+
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+
+	// get all constraints for evaluation
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+	static constexpr bool bSorted = true;
+	const TArray<ConstraintPtr> AllConstraints = Controller.GetAllConstraints(bSorted);
+	
+	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	const FFrameRate TickResolution = MovieScene->GetTickResolution();
+	const EMovieScenePlayerStatus::Type PlaybackStatus = InSequencer->GetPlaybackStatus();
+
+	const int32 NumFrames = InTime.Num();
+
+	ChildLocals.SetNum(NumFrames);
+	ChildGlobals.SetNum(NumFrames);
+	SpaceGlobals.SetNum(NumFrames);
+
+	const TArray<IMovieSceneToolsAnimationBakeHelper*>& BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
+	
+	auto EvaluateAt = [&](const FFrameNumber InFrame)
+	{
+		const FMovieSceneEvaluationRange EvaluationRange = FMovieSceneEvaluationRange(FFrameTime(InFrame), TickResolution);
+		const FMovieSceneContext Context = FMovieSceneContext(EvaluationRange, PlaybackStatus).SetHasJumped(true);
+
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PreEvaluation(MovieScene, InFrame);
+			}
+		}
+		InSequencer->GetEvaluationTemplate().EvaluateSynchronousBlocking(Context, *InSequencer);
+
+		// evaluate constraints
+		for (const UTickableConstraint* InConstraint : AllConstraints)
+		{
+			InConstraint->Evaluate(true);
+		}
+		
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PostEvaluation(MovieScene, InFrame);
+			}
+		}
+	};
+
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->StartBaking(MovieScene);
+		}
+	}
+	
+	for (int32 Index = 0; Index < NumFrames; ++Index)
+	{
+		// evaluate animation
+		EvaluateAt(InTime[Index]);
+
+		// store transforms        	
+		ChildLocals[Index] = Handle->GetLocalTransform();
+		ChildGlobals[Index] = Handle->GetGlobalTransform();
+		SpaceGlobals[Index] = Constraint->GetParentGlobalTransform();
+	}
+	
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->StopBaking(MovieScene);
+		}
+	}
+}
+
 TArray< TObjectPtr<UTickableConstraint> > FCompensationEvaluator::GetHandleTransformConstraints(UWorld* InWorld) const
 {
 	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
@@ -947,4 +1030,109 @@ void FMovieSceneConstraintChannelHelper::CreateBindingIDForHandle(const TSharedP
 			}
 		}
 	}
+}
+
+void FMovieSceneConstraintChannelHelper::HandleConstraintPropertyChanged(
+	UTickableTransformConstraint* InConstraint,
+	const FMovieSceneConstraintChannel& InActiveChannel,
+	const FPropertyChangedEvent& InPropertyChangedEvent,
+	const TSharedPtr<ISequencer>& InSequencer,
+	UMovieSceneSection* InSection)
+{
+	if (!InConstraint || !InSection || !InSequencer.IsValid())
+	{
+		return;
+	}
+	
+	const FName PropertyName = InPropertyChangedEvent.GetPropertyName();
+	if (PropertyName == UTickableParentConstraint::GetScalingPropertyName())
+	{
+		return CompensateScale(Cast<UTickableParentConstraint>(InConstraint), InActiveChannel, InSequencer, InSection);
+	}
+}
+
+void FMovieSceneConstraintChannelHelper::CompensateScale(
+	UTickableParentConstraint* InParentConstraint,
+	const FMovieSceneConstraintChannel& InActiveChannel,
+	const TSharedPtr<ISequencer>& InSequencer,
+	UMovieSceneSection* InSection)
+{
+	if (!InParentConstraint)
+	{
+		return;
+	}
+
+	TObjectPtr<UTransformableHandle> Handle = InParentConstraint->ChildTRSHandle;
+	ITransformConstraintChannelInterface* Interface = GetHandleInterface(Handle);
+	if (!Interface)
+	{
+		return;
+	}
+
+	const TArrayView<const FFrameNumber> Times = InActiveChannel.GetTimes();
+	if (Times.IsEmpty())
+	{
+	    return;
+	}
+
+	// get transform channels
+	const TArrayView<FMovieSceneFloatChannel*> FloatTransformChannels = Handle->GetFloatChannels(InSection);
+	const TArrayView<FMovieSceneDoubleChannel*> DoubleTransformChannels = Handle->GetDoubleChannels(InSection);
+
+	// get frames after this time
+	TArray<FFrameNumber> ActiveTimes;
+	if (!FloatTransformChannels.IsEmpty())
+	{
+	    GetFramesWithinActiveState(InActiveChannel, FloatTransformChannels, ActiveTimes);
+	}
+	else
+	{
+	    GetFramesWithinActiveState(InActiveChannel, DoubleTransformChannels, ActiveTimes);
+	}
+
+	if (ActiveTimes.IsEmpty())
+	{
+	    return;
+	}
+
+	const bool bRefScalingValue = InParentConstraint->IsScalingEnabled();
+	
+	// if scaling has been enabled (bRefScalingValue == true), it means that it was not before the property has changed so
+	// the current scale channels values represent the local scale values of the handle
+	// if scaling has been disabled (bRefScalingValue == false), it means that it was before the property has changed so
+	// the current scale channels values represent the offset in the constraint space
+	
+	InParentConstraint->SetScaling(!bRefScalingValue);
+
+	TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
+	InSection->Modify();
+	
+	FCompensationEvaluator Evaluator(InParentConstraint);
+	UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
+	Evaluator.CacheTransforms(World, InSequencer, ActiveTimes);
+
+	TArray<FTransform>& ChildLocals = Evaluator.ChildLocals;
+	const TArray<FTransform>& ChildGlobals = Evaluator.ChildGlobals;
+	const TArray<FTransform>& SpaceGlobals = Evaluator.SpaceGlobals;
+
+	const int32 NumTransforms = ChildLocals.Num();
+
+	if (bRefScalingValue)
+	{
+	    // local scale values have to be switched to the constraint space to represent the offset
+	    for (int Index = 0; Index < NumTransforms; Index++)
+	    {
+    		FTransform& ChildLocal = ChildLocals[Index];
+    		const FTransform Offset = ChildGlobals[Index].GetRelativeTransform(SpaceGlobals[Index]);
+    		ChildLocal.SetScale3D(Offset.GetScale3D());
+	    }
+	}
+	// else ChildLocals already represents the data that needs to be keyed as it is the result of
+	// the constraint evaluation so it just needs to be keyed
+
+	// add keys
+	Interface->AddHandleTransformKeys(InSequencer, Handle, ActiveTimes, ChildLocals, EMovieSceneTransformChannel::Scale);
+
+	// reset scaling to reference value
+	InParentConstraint->SetScaling(bRefScalingValue);
 }
