@@ -2577,7 +2577,9 @@ void FAnimationRuntime::RetargetBoneTransform(const USkeleton* SourceSkeleton, c
 	check(!RetargetTransforms.IsEmpty());
 	if (SourceSkeleton)
 	{
-		const USkeleton* TargetSkeleton = RequiredBones.GetSkeletonAsset();
+		// Retrieve skeleton, even if it is unreachable (but not GC-ed yet)
+		const bool bEvenIfUnreachable = true; 
+		const USkeleton* TargetSkeleton = RequiredBones.GetSkeletonAsset(bEvenIfUnreachable);
 		const FSkeletonRemapping& SkeletonRemapping = UE::Anim::FSkeletonRemappingRegistry::Get().GetRemapping(SourceSkeleton, TargetSkeleton);
 
 		const int32 TargetSkeletonBoneIndex = RequiredBones.GetSkeletonIndex(BoneIndex);
