@@ -371,6 +371,7 @@ void FWmfMediaTracks::Shutdown()
 	SelectionChanged = false;
 #if WMFMEDIA_PLAYER_VERSION >= 2
 	SeekTimeOptional.Reset();
+	SeekIndex = 0;
 #endif // WMFMEDIA_PLAYER_VERSION >= 2
 }
 
@@ -386,6 +387,7 @@ void FWmfMediaTracks::SeekStarted(const FTimespan& InTime)
 {
 	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FWmfMediaTracks::SeekStarted %f"), InTime.GetTotalSeconds());
 	SeekTimeOptional = InTime;
+	++SeekIndex;
 }
 
 #endif // WMFMEDIA_PLAYER_VERSION >= 2
@@ -552,11 +554,7 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 			if (SeekTimeOptional.IsSet())
 			{
 				// Are we past the seek time?
-				if (TimeRangeTime.Contains(SeekTimeOptional.GetValue()) == false)
-				{
-					SeekTimeOptional.Reset();
-				}
-				else
+				if (TimeRangeTime.Contains(SeekTimeOptional.GetValue()))
 				{
 					// Is this our seek sample?
 					FTimespan SeekTime = SeekTimeOptional.GetValue();
@@ -634,9 +632,8 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 							// Update sequence index.
 							FWmfMediaTextureSample* WmfSample =
 								static_cast<FWmfMediaTextureSample*>(OutSample.Get());
-							WmfSample->SetSequenceIndex(GetSequenceIndex(TimeRange,
-								WmfSample->GetTime().Time));
-								
+							WmfSample->SetSequenceIndex(FMediaTimeStamp::MakeSequenceIndex(SeekIndex, 0));
+
 							UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FetchBestVideoSampleForTimeRange got sample."));
 						}
 					}
@@ -1999,33 +1996,6 @@ const FWmfMediaTracks::FFormat* FWmfMediaTracks::GetVideoFormat(int32 TrackIndex
 	return nullptr;
 }
 
-
-int64 FWmfMediaTracks::GetSequenceIndex(const TRange<FMediaTimeStamp>& TimeRange, FTimespan Time) const
-{
-	int64 SequenceIndex = 0;
-
-	// Make sure this has the sequence index that matches the time range.
-	// If the time range only has one sequence index then just use that.
-	if (TimeRange.GetLowerBoundValue().SequenceIndex == TimeRange.GetUpperBoundValue().SequenceIndex)
-	{
-		SequenceIndex = TimeRange.GetLowerBoundValue().SequenceIndex;
-	}
-	else
-	{
-		// Try the lower bound sequence index.
-		SequenceIndex = TimeRange.GetLowerBoundValue().SequenceIndex;
-		FMediaTimeStamp SampleTime = FMediaTimeStamp(Time, SequenceIndex);
-
-		// Does our time overlap the time range?
-		if (TimeRange.Contains(SampleTime) == false)
-		{
-			// No. Use the upper bound sequence index.
-			SequenceIndex = TimeRange.GetUpperBoundValue().SequenceIndex;
-		}
-	}
-
-	return SequenceIndex;
-}
 
 /* FWmfMediaTracks callbacks
  *****************************************************************************/

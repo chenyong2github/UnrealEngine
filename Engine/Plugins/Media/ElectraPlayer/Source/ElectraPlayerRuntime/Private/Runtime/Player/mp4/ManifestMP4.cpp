@@ -952,7 +952,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					// Set the PTS range for which to present samples.
 					req->EarliestPTS = bFrameAccurateSearch ? StartPosition.Time : firstTimestamp;
 					req->LastPTS = PlayRangeEnd;
-					req->TimestampSequenceIndex = InSequenceState.SequenceIndex;
+					req->TimestampSequenceIndex = InSequenceState.GetSequenceIndex();
 
 					// Add dependent stream types
 					if (AudioAdaptationSets.Num())
@@ -994,7 +994,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 						// Set the PTS range for which to present samples.
 						req->EarliestPTS = bFrameAccurateSearch ? StartPosition.Time : firstTimestamp;
 						req->LastPTS = PlayRangeEnd;
-						req->TimestampSequenceIndex = InSequenceState.SequenceIndex;
+						req->TimestampSequenceIndex = InSequenceState.GetSequenceIndex();
 						return IManifest::FResult(IManifest::FResult::EType::Found);
 					}
 				}
@@ -1095,7 +1095,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					// Set the PTS range for which to present samples.
 					req->EarliestPTS = bFrameAccurateSearch ? StartPosition.Time : firstTimestamp;
 					req->LastPTS = PlayRangeEnd;
-					req->TimestampSequenceIndex = InSequenceState.SequenceIndex;
+					req->TimestampSequenceIndex = InSequenceState.GetSequenceIndex();
 
 					// Add dependent stream types.
 					// In case the video stream is shorter than audio we still need to add it as a dependent stream
@@ -1136,7 +1136,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					// Set the PTS range for which to present samples.
 					req->EarliestPTS = bFrameAccurateSearch ? StartPosition.Time : firstTimestamp;
 					req->LastPTS = PlayRangeEnd;
-					req->TimestampSequenceIndex = InSequenceState.SequenceIndex;
+					req->TimestampSequenceIndex = InSequenceState.GetSequenceIndex();
 					// But if there is a video track we add it as a dependent stream that is also at EOS.
 					if (VideoAdaptationSets.Num())
 					{
@@ -1178,7 +1178,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetNextSegment(TShar
 			FPlayStartPosition dummyPos;
 			FPlayerSequenceState seqState;
 			dummyPos.Options = Options;
-			seqState.SequenceIndex = Request->TimestampSequenceIndex;
+			seqState.SetSequenceIndex(Request->TimestampSequenceIndex);
 			IManifest::FResult res = GetStartingSegment(OutSegment, seqState, dummyPos, ESearchType::Same, Request->FileEndOffset + 1);
 			if (res.GetType() == IManifest::FResult::EType::Found)
 			{
@@ -1205,7 +1205,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetRetrySegment(TSha
 		FPlayStartPosition dummyPos;
 		FPlayerSequenceState seqState;
 		dummyPos.Options = Options;
-		seqState.SequenceIndex = Request->TimestampSequenceIndex;
+		seqState.SetSequenceIndex(Request->TimestampSequenceIndex);
 		IManifest::FResult res = GetStartingSegment(OutSegment, seqState, dummyPos, ESearchType::Same, Request->CurrentIteratorBytePos);
 		if (res.GetType() == IManifest::FResult::EType::Found)
 		{

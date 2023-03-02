@@ -308,6 +308,15 @@ public:
 	FTimespan GetTime() const;
 
 	/**
+	 * Get the media's current playback time as appropriate for display.
+	 *
+	 * @return Playback time.
+	 * @see GetDuration, Seek
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
+	FTimespan GetDisplayTime() const;
+
+	/**
 	 * Get the media's current playback timestamp.
 	 *
 	 * @return Playback timestamp.
@@ -315,6 +324,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
 	UMediaTimeStampInfo* GetTimeStamp() const;
+
+	/**
+	 * Get the media's current playback timestamp as appropriate for display.
+	 *
+	 * @return Playback timestamp.
+	 * @see GetDuration, Seek
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
+	UMediaTimeStampInfo* GetDisplayTimeStamp() const;
 
 	/**
 	 * Get the human readable name of the specified track.

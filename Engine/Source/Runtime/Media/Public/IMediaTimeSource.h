@@ -42,6 +42,32 @@ public:
 	bool operator > (const FMediaTimeStamp & Other) const { return (SequenceIndex > Other.SequenceIndex) || (SequenceIndex == Other.SequenceIndex && Time > Other.Time); }
 	bool operator >= (const FMediaTimeStamp & Other) const { return (SequenceIndex > Other.SequenceIndex) || (SequenceIndex == Other.SequenceIndex && Time >= Other.Time); }
 
+	static int64 MakeSequenceIndex(int32 PrimaryIndex, int32 SecondaryIndex)
+	{
+		return (int64(PrimaryIndex) << 32) + int64(SecondaryIndex);
+	}
+
+	static int64 AdjustPrimaryIndex(int64 SequenceIndex, int32 Add)
+	{
+		return SequenceIndex + (int64(Add) << 32);
+	}
+
+	static int64 AdjustSecondaryIndex(int64 SequenceIndex, int32 Add)
+	{
+		return SequenceIndex + Add;
+	}
+
+	static int32 GetPrimaryIndex(int64 SequenceIndex)
+	{
+		// note: needs to cope with signed operation
+		return int32((SequenceIndex - int32(SequenceIndex)) >> 32);
+	}
+
+	static int32 GetSecondaryIndex(int64 SequenceIndex)
+	{
+		return int32(SequenceIndex);
+	}
+
 	FMediaTimeStamp operator + (const FTimespan & Other) const { return FMediaTimeStamp(Time + Other, SequenceIndex); }
 	FMediaTimeStamp operator - (const FTimespan & Other) const { return FMediaTimeStamp(Time - Other, SequenceIndex); }
 

@@ -143,7 +143,7 @@ protected:
 	 * @param Time The play position to commit.
 	 * @see CommitRate, CommitTopology
 	 */
-	bool CommitTime(FTimespan Time);
+	bool CommitTime(FTimespan Time, bool bIsSeek);
 
 	/**
 	 * Commit the given playback topology.

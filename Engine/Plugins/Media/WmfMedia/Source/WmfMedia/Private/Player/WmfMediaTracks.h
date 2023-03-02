@@ -102,7 +102,7 @@ public:
 	 *
 	 * @param OutStats The string to append the statistics to.
 	 */
-	void AppendStats(FString &OutStats) const;
+	void AppendStats(FString& OutStats) const;
 
 	/**
 	 * Clear the streams flags.
@@ -205,6 +205,12 @@ public:
 	virtual bool FetchCaption(TRange<FTimespan> TimeRange, TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual bool FetchMetadata(TRange<FTimespan> TimeRange, TSharedPtr<IMediaBinarySample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual bool FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample) override;
+
+	virtual bool FetchAudio(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe>& OutSample) override { return FetchAudio(TimeRange.GetLowerBound().IsOpen() ? TRange<FTimespan>() : TRange<FTimespan>(TimeRange.GetLowerBoundValue().Time, TimeRange.GetUpperBoundValue().Time), OutSample); }
+	virtual bool FetchCaption(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>& OutSample) override { return FetchCaption(TRange<FTimespan>(TimeRange.GetLowerBoundValue().Time, TimeRange.GetUpperBoundValue().Time), OutSample); }
+	virtual bool FetchMetadata(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaBinarySample, ESPMode::ThreadSafe>& OutSample) override { return FetchMetadata(TRange<FTimespan>(TimeRange.GetLowerBoundValue().Time, TimeRange.GetUpperBoundValue().Time), OutSample); }
+	virtual bool FetchVideo(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample) override { return FetchVideo(TRange<FTimespan>(TimeRange.GetLowerBoundValue().Time, TimeRange.GetUpperBoundValue().Time), OutSample); }
+
 	virtual void FlushSamples() override;
 #if WMFMEDIA_PLAYER_VERSION >= 2
 	virtual EFetchBestSampleResult FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp> & TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bReverse) override;
@@ -281,15 +287,6 @@ private:
 	 * @see GetAudioFormat
 	 */
 	const FFormat* GetVideoFormat(int32 TrackIndex, int32 FormatIndex) const;
-
-	/**
-	 * Gets the sequence index for a specific time that fits the time range.
-	 * 
-	 * @param	TimeRange		Sequence index will be in this range.
-	 * @param	Time			Time to retrieve sequence index for.
-	 * @return					Sequence index.
-	 */
-	int64 GetSequenceIndex(const TRange<FMediaTimeStamp>& TimeRange, FTimespan Time) const;
 
 private:
 
@@ -386,6 +383,8 @@ private:
 #if WMFMEDIA_PLAYER_VERSION >= 2
 	/** If set, then discard samples until we get this sample. */
 	TOptional<FTimespan> SeekTimeOptional;
+	/** Seek index tracking */
+	int32 SeekIndex;
 #endif // WMFMEDIA_PLAYER_VERSION >= 2
 };
 

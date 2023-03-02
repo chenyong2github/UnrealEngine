@@ -130,6 +130,8 @@ public:
 		TOptional<bool> bOptimizeForScrubbing;
 		// Allowed distance to last performed seek to save a redundant new seek.
 		TOptional<double> DistanceThreshold;
+		// Ignore the seek for sequence index updates
+		TOptional<bool> bIgnoreForSequenceIndex;
 	};
 	
 	/**

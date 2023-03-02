@@ -76,8 +76,10 @@ FImgMediaPlayer::FImgMediaPlayer(IMediaEventSink& InEventSink, const TSharedRef<
 	const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache)
 	: CurrentDuration(FTimespan::Zero())
 	, CurrentRate(0.0f)
+	, LastNonZeroRate(0.0f)
 	, CurrentState(EMediaState::Closed)
 	, CurrentTime(FTimespan::Zero())
+	, CurrentSeekIndex(0)
 	, DeltaTimeHackApplied(false)
 	, EventSink(InEventSink)
 	, LastFetchTime(FTimespan::MinValue())
@@ -126,8 +128,10 @@ void FImgMediaPlayer::Close()
 	CurrentDuration = FTimespan::Zero();
 	CurrentUrl.Empty();
 	CurrentRate = 0.0f;
+	LastNonZeroRate = 0.0f;
 	CurrentState = EMediaState::Closed;
 	CurrentTime = FTimespan::Zero();
+	CurrentSeekIndex = 0;
 	DeltaTimeHackApplied = false;
 	LastFetchTime = FTimespan::MinValue();
 	PlaybackRestarted = false;
@@ -392,6 +396,7 @@ void FImgMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan /*Timecode*/)
 			CurrentState = EMediaState::Stopped;
 			CurrentTime = FTimespan::Zero();
 			CurrentRate = 0.0f;
+			LastNonZeroRate = 0.0f;
 			DeltaTimeHackApplied = false;
 
 			EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackSuspended);
@@ -422,8 +427,7 @@ bool FImgMediaPlayer::FlushOnSeekStarted() const
 #if IMG_MEDIA_PLAYER_VERSION == 1
 	return false;
 #else
-	// Flush on start, otherwise if we already have the frames ready during a seek,
-	// the frames we return will get flushed straight away.
+	// V2 player response will always be treated as 'true'
 	return true;
 #endif
 }
@@ -433,6 +437,7 @@ bool FImgMediaPlayer::FlushOnSeekCompleted() const
 #if IMG_MEDIA_PLAYER_VERSION == 1
 	return true;
 #else
+	// V2 player response will always be treated as 'false'
 	return false;
 #endif
 }
@@ -473,6 +478,7 @@ bool FImgMediaPlayer::GetPlayerFeatureFlag(EFeatureFlag flag) const
 	switch (flag)
 	{
 	case EFeatureFlag::UsePlaybackTimingV2:
+	case EFeatureFlag::PlayerUsesInternalFlushOnSeek:
 		return true;
 	default:
 		break;
@@ -645,6 +651,11 @@ bool FImgMediaPlayer::Seek(const FTimespan& Time)
 	}
 #else
 	CurrentTime = Time;
+	CurrentSeekIndex += (CurrentRate >= 0.0f) ? 1 : -1;
+	if (Loader.IsValid())
+	{
+		Loader->Seek(FMediaTimeStamp(CurrentTime, FMediaTimeStamp::MakeSequenceIndex(CurrentSeekIndex, 0)));
+	}
 #endif // IMG_MEDIA_PLAYER_VERSION == 1
 
 	if (CurrentState == EMediaState::Paused)
@@ -702,16 +713,18 @@ bool FImgMediaPlayer::SetRate(float Rate)
 		}
 
 		CurrentRate = Rate;
+		LastNonZeroRate = Rate;
 		CurrentState = EMediaState::Playing;
 
 		EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackResumed);
 
 		return true;
 	}
-	
+
 	// handle pausing
 	if ((CurrentRate != 0.0f) && (Rate == 0.0f))
 	{
+		LastNonZeroRate = CurrentRate;
 		CurrentRate = Rate;
 		CurrentState = EMediaState::Paused;
 
@@ -724,6 +737,10 @@ bool FImgMediaPlayer::SetRate(float Rate)
 		return true;
 	}
 
+	if (Rate != 0.0f)
+	{
+		LastNonZeroRate = Rate;
+	}
 	CurrentRate = Rate;
 
 	return true;
@@ -785,9 +802,20 @@ void FImgMediaPlayer::FlushSamples()
 {
 	if (IsInitialized())
 	{
+		CurrentSeekIndex = 0;
 		LastFetchTime = FTimespan::MinValue();
 		Loader->ResetFetchLogic();
 	}
+}
+
+
+bool FImgMediaPlayer::DiscardVideoSamples(const TRange<FMediaTimeStamp>& TimeRange, bool bReverse)
+{
+	if (Loader.IsValid() && IsInitialized())
+	{
+		return Loader->DiscardVideoSamples(TimeRange, ShouldLoop, CurrentRate);
+	}
+	return false;
 }
 
 
@@ -795,39 +823,28 @@ IMediaSamples::EFetchBestSampleResult FImgMediaPlayer::FetchBestVideoSampleForTi
 {
 	IMediaSamples::EFetchBestSampleResult SampleResult = EFetchBestSampleResult::NoSample;
 
-	// The facade will keep on asking for frames, so don't do anything if we are stopped.
-	if (Loader.IsValid() && IsInitialized() && (CurrentState != EMediaState::Stopped))
+	if (Loader.IsValid() && IsInitialized())
 	{
 		// See if we have any samples in the specified time range.
-		SampleResult = Loader->FetchBestVideoSampleForTimeRange(TimeRange, OutSample, ShouldLoop, CurrentRate);
+		SampleResult = Loader->FetchBestVideoSampleForTimeRange(TimeRange, OutSample, ShouldLoop, LastNonZeroRate);
 		Scheduler->TickInput(FTimespan::Zero(), FTimespan::MinValue());
 		if (SampleResult == IMediaSamples::EFetchBestSampleResult::Ok)
 		{
 			CurrentTime = OutSample->GetTime().Time;
-		}
 
-		// Are we not looping?
-		if (ShouldLoop == false)
-		{
-			// Are we at the end?
-			bool bIsAtEnd = false;
-			if (CurrentRate >= 0.0f)
+			// Are we not looping?
+			if (!ShouldLoop)
 			{
-				bIsAtEnd = ((TimeRange.HasUpperBound()) &&
-					(TimeRange.GetUpperBoundValue().Time >= CurrentDuration));
-			}
-			else
-			{
-				bIsAtEnd = ((TimeRange.HasLowerBound()) &&
-					(TimeRange.GetLowerBoundValue().Time <= 0.0f));
-			}
-			if (bIsAtEnd)
-			{
-				// Stop the player.
-				EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackEndReached);
-				CurrentState = EMediaState::Stopped;
-				CurrentRate = 0.0f;
-				EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackSuspended);
+				// Is this the last frame?
+				if ((CurrentRate < 0.0f) ? Loader->IsFrameFirst(CurrentTime) : Loader->IsFrameLast(CurrentTime))
+				{
+					// Yes. Stop the player...
+					EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackEndReached);
+					CurrentState = EMediaState::Stopped;
+					CurrentRate = 0.0f;
+					LastNonZeroRate = 0.0f;
+					EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackSuspended);
+				}
 			}
 		}
 	}
@@ -840,7 +857,7 @@ bool FImgMediaPlayer::PeekVideoSampleTime(FMediaTimeStamp& TimeStamp)
 	if (Loader.IsValid() && IsInitialized())
 	{
 		// Do we have the current frame?
-		return Loader->PeekVideoSampleTime(TimeStamp, ShouldLoop, CurrentRate, GetTime());
+		return Loader->PeekVideoSampleTime(TimeStamp, ShouldLoop, LastNonZeroRate, GetTime());
 	}
 	return false;
 }

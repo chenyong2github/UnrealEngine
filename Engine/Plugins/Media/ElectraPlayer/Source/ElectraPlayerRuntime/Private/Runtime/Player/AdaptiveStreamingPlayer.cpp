@@ -628,6 +628,10 @@ void FAdaptiveStreamingPlayer::SeekTo(const FSeekParam& NewPosition)
 	FScopeLock lock(&SeekVars.Lock);
 	SeekVars.PendingRequest = NewPosition;
 	SeekVars.PlayrangeOnRequest = NewPlayRange;
+	if (!NewPosition.bIgnoreForSequenceIndex.Get(false))
+	{
+		++SeekVars.NumSeekToCallsSinceLastSeen;
+	}
 	WorkerThread.TriggerSharedWorkerThread();
 }
 
@@ -1660,9 +1664,16 @@ void FAdaptiveStreamingPlayer::HandleSeeking()
 
 		// Not playing on the Live edge. This may get set to true later on handling the start segment.
 		PlaybackState.SetShouldPlayOnLiveEdge(false);
-		// On a user-induced seek the sequence index is supposed to reset to 0.
+		// On a user-induced seek the sequence index is supposed to be increased
 		// We need to reset this even when we would not actually issue the seek.
-		CurrentPlaybackSequenceState.SequenceIndex = 0;
+
+		if (!SeekVars.PendingRequest.GetValue().bIgnoreForSequenceIndex.Get(false))
+		{
+			CurrentPlaybackSequenceState.PrimaryIndex += SeekVars.NumSeekToCallsSinceLastSeen;
+			CurrentPlaybackSequenceState.SecondaryIndex = 0;
+			SeekVars.NumSeekToCallsSinceLastSeen = 0;
+		}
+
 		// And since it is a seek on purpose the loop counter is reset as well.
 		FInternalLoopState LoopStateNow;
 		PlaybackState.GetLoopState(LoopStateNow);
@@ -2679,7 +2690,7 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 							else
 							{
 								FPlayerSequenceState NextPlaybackState = CurrentPlaybackSequenceState;
-								++NextPlaybackState.SequenceIndex;
+								++NextPlaybackState.SecondaryIndex;
 								Result = InitialPlayPeriod->GetLoopingSegment(FirstSegmentRequest, NextPlaybackState, StartAt, PendingStartRequest->SearchType);
 								if (Result.GetType() == IManifest::FResult::EType::Found)
 								{

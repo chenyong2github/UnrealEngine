@@ -97,14 +97,6 @@ public:
 	bool Open(const TSharedRef<FArchive, ESPMode::ThreadSafe>& Archive, const FString& OriginalUrl, const IMediaOptions* Options) override;
 	void TickInput(FTimespan DeltaTime, FTimespan Timecode) override;
 	void SetLastAudioRenderedSampleTime(FTimespan SampleTime) override;
-	bool FlushOnSeekStarted() const override
-	{
-		return true;
-	}
-	bool FlushOnSeekCompleted() const override
-	{
-		return false;
-	}
 
 	TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaPlayer::IMetadataItem>>>, ESPMode::ThreadSafe> GetMediaMetadata() const override;
 

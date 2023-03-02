@@ -264,12 +264,30 @@ FTimespan UMediaPlayer::GetTime() const
 	return PlayerFacade->GetTime();
 }
 
+FTimespan UMediaPlayer::GetDisplayTime() const
+{
+	auto TimeStamp = PlayerFacade->GetDisplayTimeStamp();
+	return TimeStamp.IsValid() ? TimeStamp.Time : FTimespan::Zero();
+}
+
 UMediaTimeStampInfo* UMediaPlayer::GetTimeStamp() const
 {
 	UMediaTimeStampInfo *TimeStampInfo = NewObject<UMediaTimeStampInfo>();
 	if (TimeStampInfo)
 	{
 		FMediaTimeStamp TimeStamp = PlayerFacade->GetTimeStamp();
+		TimeStampInfo->Time = TimeStamp.Time;
+		TimeStampInfo->SequenceIndex = TimeStamp.SequenceIndex;
+	}
+	return TimeStampInfo;
+}
+
+UMediaTimeStampInfo* UMediaPlayer::GetDisplayTimeStamp() const
+{
+	UMediaTimeStampInfo* TimeStampInfo = NewObject<UMediaTimeStampInfo>();
+	if (TimeStampInfo)
+	{
+		FMediaTimeStamp TimeStamp = PlayerFacade->GetDisplayTimeStamp();
 		TimeStampInfo->Time = TimeStamp.Time;
 		TimeStampInfo->SequenceIndex = TimeStamp.SequenceIndex;
 	}

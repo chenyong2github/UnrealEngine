@@ -222,9 +222,10 @@ struct FMediaSectionExecutionToken
 				//  the direction is taken into account as hint for internal operation of the player)
 				if (!MediaPlayer->SetRate((Context.GetDirection() == EPlayDirection::Forwards) ? 1.0f : -1.0f))
 				{
-					// Failed to set needed rate: better switch off blocking and bail...
-					MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
-					return;
+					// Failed to set needed rate. Keep things blocked, as this means the player will still not be playing, this will
+					// trigger a seek to each and every frame. A potentially very SLOW method of approximating backwards playback, but better
+					// than nothing.
+					// -> nothing to do
 				}
 			}
 			else
@@ -239,18 +240,20 @@ struct FMediaSectionExecutionToken
 				{
 					if (!MediaPlayer->SetRate(1.0f))
 					{
-						// Failed to set needed rate: better switch off blocking and bail...
-						MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
-						return;
+					// Failed to set needed rate. Keep things blocked, as this means the player will still be returning the old rate, we will get here repeatedly
+					// and each time trigger a seek. A potentially very SLOW method of approximating backwards playback, but better
+					// than nothing.
+					MediaPlayer->Seek(MediaTime);
 					}
 				}
 				else if (Context.GetDirection() == EPlayDirection::Backwards && CurrentPlayerRate > 0.0f)
 				{
 					if (!MediaPlayer->SetRate(-1.0f))
 					{
-						// Failed to set needed rate: better switch off blocking and bail...
-						MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
-						return;
+					// Failed to set needed rate. Keep things blocked, as this means the player will still be returning the old rate, we will get here repeatedly
+					// and each time trigger a seek. A potentially very SLOW method of approximating backwards playback, but better
+					// than nothing.
+					MediaPlayer->Seek(MediaTime);
 					}
 				}
 			}
@@ -265,8 +268,8 @@ struct FMediaSectionExecutionToken
 			MediaPlayer->Seek(MediaTime);
 		}
 
-	// Set blocking range / time-range to display
-	// (we always use the full current time for this, any adjustments to player timestamps are done internally)
+		// Set blocking range / time-range to display
+		// (we always use the full current time for this, any adjustments to player timestamps are done internally)
 		MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>(CurrentTime, CurrentTime + FrameDuration));
 	}
 

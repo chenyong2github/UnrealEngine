@@ -107,6 +107,11 @@ bool FMediaSamples::FetchSubtitle(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<
 	return FetchSample(SubtitleSampleQueue, TimeRange, OutSample);
 }
 
+bool FMediaSamples::FetchMetadata(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaBinarySample, ESPMode::ThreadSafe>& OutSample)
+{
+	return FetchSample(MetadataSampleQueue, TimeRange, OutSample);
+}
+
 bool FMediaSamples::FetchVideo(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample)
 {
 	return FetchSample(VideoSampleQueue, TimeRange, OutSample);
@@ -139,17 +144,33 @@ FMediaSamples::EFetchBestSampleResult FMediaSamples::FetchBestVideoSampleForTime
 /**
  * Remove any video samples from the queue that have no chance of being displayed anymore
  */
-uint32 FMediaSamples::PurgeOutdatedVideoSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed)
+uint32 FMediaSamples::PurgeOutdatedVideoSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed, FTimespan MaxAge)
 {
-	return VideoSampleQueue.PurgeOutdatedSamples(ReferenceTime, bReversed);
+	return VideoSampleQueue.PurgeOutdatedSamples(ReferenceTime, bReversed, MaxAge);
 }
 
 /**
  * Remove any subtitle samples from the queue that have no chance of being displayed anymore
  */
-uint32 FMediaSamples::PurgeOutdatedSubtitleSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed)
+uint32 FMediaSamples::PurgeOutdatedSubtitleSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed, FTimespan MaxAge)
 {
-	return SubtitleSampleQueue.PurgeOutdatedSamples(ReferenceTime, bReversed);
+	return SubtitleSampleQueue.PurgeOutdatedSamples(ReferenceTime, bReversed, MaxAge);
+}
+
+/**
+ * Remove any caption samples from the queue that have no chance of being displayed anymore
+ */
+uint32 FMediaSamples::PurgeOutdatedCaptionSamples(const FMediaTimeStamp& ReferenceTime, bool bReversed, FTimespan MaxAge)
+{
+	return CaptionSampleQueue.PurgeOutdatedSamples(ReferenceTime, bReversed, MaxAge);
+}
+
+/**
+ * Remove any caption samples from the queue that have no chance of being displayed anymore
+ */
+uint32 FMediaSamples::PurgeOutdatedMetadataSamples(const FMediaTimeStamp& ReferenceTime, bool bReversed, FTimespan MaxAge)
+{
+	return MetadataSampleQueue.PurgeOutdatedSamples(ReferenceTime, bReversed, MaxAge);
 }
 
 /**

@@ -135,10 +135,6 @@ public:
 		return VideoSampleQueue.Num();
 	}
 
-	/**
-	 * Peek next video sample's timestamp
-	 * @return true if value could be retrieved, false otherwise
-	 */
 public:
 
 	//~ IMediaSamples interface
@@ -152,11 +148,16 @@ public:
 
 	virtual bool FetchAudio(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual bool FetchCaption(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>& OutSample) override;
+	virtual bool FetchMetadata(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaBinarySample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual bool FetchSubtitle(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual bool FetchVideo(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample) override;
 
 	virtual EFetchBestSampleResult FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp> & TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bReverse) override;
 
+	/**
+	 * Peek next video sample's timestamp
+	 * @return true if value could be retrieved, false otherwise
+	 */
 	virtual bool PeekVideoSampleTime(FMediaTimeStamp & TimeStamp) override
 	{
 		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
@@ -168,8 +169,35 @@ public:
 		return true;
 	}
 
-	virtual uint32 PurgeOutdatedVideoSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed) override;
-	virtual uint32 PurgeOutdatedSubtitleSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed) override;
+	virtual bool DiscardVideoSamples(const TRange<FMediaTimeStamp>& TimeRange, bool bReverse) override
+	{
+		return VideoSampleQueue.Discard(TimeRange, bReverse);
+	}
+
+	virtual bool DiscardAudioSamples(const TRange<FMediaTimeStamp>& TimeRange, bool bReverse) override
+	{
+		return AudioSampleQueue.Discard(TimeRange, bReverse);
+	}
+
+	virtual bool DiscardCaptionSamples(const TRange<FMediaTimeStamp>& TimeRange, bool bReverse) override
+	{
+		return CaptionSampleQueue.Discard(TimeRange, bReverse);
+	}
+
+	virtual bool DiscardSubtitleSamples(const TRange<FMediaTimeStamp>& TimeRange, bool bReverse) override
+	{
+		return SubtitleSampleQueue.Discard(TimeRange, bReverse);
+	}
+
+	virtual bool DiscardMetadataSamples(const TRange<FMediaTimeStamp>& TimeRange, bool bReverse) override
+	{
+		return MetadataSampleQueue.Discard(TimeRange, bReverse);
+	}
+
+	virtual uint32 PurgeOutdatedVideoSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed, FTimespan MaxAge) override;
+	virtual uint32 PurgeOutdatedSubtitleSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed, FTimespan MaxAge) override;
+	virtual uint32 PurgeOutdatedCaptionSamples(const FMediaTimeStamp& ReferenceTime, bool bReversed, FTimespan MaxAge) override;
+	virtual uint32 PurgeOutdatedMetadataSamples(const FMediaTimeStamp& ReferenceTime, bool bReversed, FTimespan MaxAge) override;
 
 	virtual bool CanReceiveVideoSamples(uint32 Num) const override;
 	virtual bool CanReceiveAudioSamples(uint32 Num) const override;

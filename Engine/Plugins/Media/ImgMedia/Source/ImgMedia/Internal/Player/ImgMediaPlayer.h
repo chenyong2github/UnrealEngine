@@ -110,6 +110,7 @@ protected:
 
 	virtual EFetchBestSampleResult FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp> & TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bReverse) override;
 	virtual bool PeekVideoSampleTime(FMediaTimeStamp & TimeStamp) override;
+	virtual bool DiscardVideoSamples(const TRange<FMediaTimeStamp>& TimeRange, bool bReverse) override;
 
 protected:
 
@@ -135,11 +136,17 @@ private:
 	/** The current playback rate. */
 	float CurrentRate;
 
+	/** The last playback rate not zero (zero if never played). */
+	float LastNonZeroRate;
+
 	/** The player's current state. */
 	EMediaState CurrentState;
 
 	/** The current time of the playback. */
 	FTimespan CurrentTime;
+
+	/** Current seek index portion of sequence index */
+	int32 CurrentSeekIndex;
 
 	/** The URL of the currently opened media. */
 	FString CurrentUrl;

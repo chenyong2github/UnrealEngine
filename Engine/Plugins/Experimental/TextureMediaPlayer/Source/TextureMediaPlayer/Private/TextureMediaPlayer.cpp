@@ -431,7 +431,7 @@ void FTextureMediaPlayer::OnFrame(const TArray<uint8>& TextureBuffer, FIntPoint 
 			// NOTE: We cannot use Internal_PurgeVideoSamplesHint here because if the game loop is not
 			//       being ticked the time it uses for comparison will not have advanced and nothing
 			//       will get purged.
-			MediaSamples->PurgeOutdatedVideoSamples(FMediaTimeStamp(FTimespan::MaxValue()), false);
+			MediaSamples->PurgeOutdatedVideoSamples(FMediaTimeStamp(FTimespan::MaxValue()), false, FTimespan::Zero());
 			EventSink.ReceiveMediaEvent(EMediaEvent::Internal_ResetForDiscontinuity);
 		}
 
@@ -484,7 +484,7 @@ void FTextureMediaPlayer::OnFrame(FTextureRHIRef TextureRHIRef, TRefCountPtr<ID3
 			// NOTE: We cannot use Internal_PurgeVideoSamplesHint here because if the game loop is not
 			//       being ticked the time it uses for comparison will not have advanced and nothing
 			//       will get purged.
-			MediaSamples->PurgeOutdatedVideoSamples(FMediaTimeStamp(FTimespan::MaxValue()), false);
+			MediaSamples->PurgeOutdatedVideoSamples(FMediaTimeStamp(FTimespan::MaxValue()), false, FTimespan::Zero());
 			EventSink.ReceiveMediaEvent(EMediaEvent::Internal_ResetForDiscontinuity);
 		}
 

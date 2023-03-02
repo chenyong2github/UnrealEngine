@@ -150,13 +150,18 @@ public:
 	}
 
 	/**
+	 * Notify loader out a seek
+	 */
+	void Seek(const FMediaTimeStamp& SeekTarget);
+
+	/**
 	 * Tries to get the best sample for a given time range.
 	 *
 	 * @param TimeRange is the range to check for.
 	 * @param OutSample will be filled in with the sample if found.
 	 * @param bIsLoopingEnabled True if we can loop.
 	 * @param PlayRate How fast we are playing.
-	 * @return True if successful.
+	 * @return Return code indicating status (ok, unsupported, no sample)
 	 */
 	IMediaSamples::EFetchBestSampleResult FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp>& TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bIsLoopingEnabled, float PlayRate);
 
@@ -170,6 +175,11 @@ public:
 	 * @return True if a sample is available.
 	 */
 	bool PeekVideoSampleTime(FMediaTimeStamp& TimeStamp, bool bIsLoopingEnabled, float PlayRate, const FTimespan& CurrentTime);
+
+	/**
+	 * Discard any samples in the given range from the output "queue" (logically)
+	 */
+	bool DiscardVideoSamples(const TRange<FMediaTimeStamp>& TimeRange, bool bIsLoopingEnabled, float PlayRate);
 
 	/**
 	 * Get the time ranges of frames that are pending to be loaded.
@@ -371,6 +381,12 @@ public:
 	 * Handler for when the (owning) player's state changes to EMediaState::Paused.
 	 */
 	void HandlePause();
+
+	/** Query if time represents last first frame or before */
+	bool IsFrameFirst(const FTimespan& TimeStamp) const;
+
+	/** Query if time represents last last frame or later */
+	bool IsFrameLast(const FTimespan& TimeStamp) const;
 
 protected:
 
@@ -636,7 +652,9 @@ private:
 	struct
 	{
 		int32 LastFrameIndex;
-		uint64 CurrentSequenceIndex;
+		FMediaTimeStamp LastTimeStamp;
+		FTimespan LastDuration;
+		int32 LoopIndex;
 	} QueuedSampleFetch;
 
 private:

@@ -500,7 +500,7 @@ bool FWmfMediaSession::Seek(const FTimespan& Time)
 		return true;
 	}
 
-	return CommitTime(Time);
+	return CommitTime(Time, true);
 }
 
 
@@ -961,7 +961,7 @@ bool FWmfMediaSession::CommitRate(float Rate)
 		else
 		{
 			UE_LOG(LogWmfMedia, Verbose, TEXT("Session %p: Starting session for rate change"), this);
-			CommitTime(RestartTime);
+			CommitTime(RestartTime, false);
 		}
 	}
 
@@ -969,7 +969,7 @@ bool FWmfMediaSession::CommitRate(float Rate)
 }
 
 
-bool FWmfMediaSession::CommitTime(FTimespan Time)
+bool FWmfMediaSession::CommitTime(FTimespan Time, bool bIsSeek)
 {
 	check(MediaSession != NULL);
 	check(PendingChanges == false);
@@ -1020,7 +1020,7 @@ bool FWmfMediaSession::CommitTime(FTimespan Time)
 
 #if WMFMEDIA_PLAYER_VERSION >= 2
 	// If this is not a loop, then tell the tracks about the seek.
-	if ((bIsRequestedTimeLoop == false) && (bCanSeek))
+	if ((bIsRequestedTimeLoop == false) && (bCanSeek) && bIsSeek)
 	{
 		TSharedPtr<FWmfMediaTracks, ESPMode::ThreadSafe> TracksPinned = Tracks.Pin();
 		if (TracksPinned.IsValid())
@@ -1171,7 +1171,7 @@ void FWmfMediaSession::DoPendingChanges()
 		const FTimespan Time = RequestedTime.GetValue();
 		RequestedTime.Reset();
 
-		CommitTime(Time);
+		CommitTime(Time, false);
 		bIsRequestedTimeLoop = false;
 	}
 }

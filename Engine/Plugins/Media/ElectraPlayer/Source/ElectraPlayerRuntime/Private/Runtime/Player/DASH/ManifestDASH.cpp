@@ -1111,7 +1111,7 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 	// dependent streams. This is a special case for playback start.
 	TSharedPtrTS<FStreamSegmentRequestFMP4DASH> StartSegmentRequest = MakeSharedTS<FStreamSegmentRequestFMP4DASH>();
 	StartSegmentRequest->bIsInitialStartRequest = true;
-	StartSegmentRequest->TimestampSequenceIndex = InSequenceState.SequenceIndex;
+	StartSegmentRequest->TimestampSequenceIndex = InSequenceState.GetSequenceIndex();
 
 	struct FSelectedStream
 	{
@@ -1192,7 +1192,7 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 				}
 				SegmentRequest->Segment = MoveTemp(SegmentInfo);
 				SegmentRequest->bIsEOSSegment = true;
-				SegmentRequest->TimestampSequenceIndex = InSequenceState.SequenceIndex;
+				SegmentRequest->TimestampSequenceIndex = InSequenceState.GetSequenceIndex();
 				SetupCommonSegmentRequestInfos(SegmentRequest);
 				StartSegmentRequest->DependentStreams.Emplace(MoveTemp(SegmentRequest));
 				bAnyStreamAtEOS = true;
@@ -1251,7 +1251,7 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 					SegmentRequest->bInsertFillerData = true;
 				}
 				SegmentRequest->Segment = MoveTemp(SegmentInfo);
-				SegmentRequest->TimestampSequenceIndex = InSequenceState.SequenceIndex;
+				SegmentRequest->TimestampSequenceIndex = InSequenceState.GetSequenceIndex();
 
 				// The start segment request needs to be able to return a valid first PTS which is what the player sets
 				// the playback position to. If not valid yet update it with the current stream values.
@@ -1312,7 +1312,7 @@ IManifest::FResult FDASHPlayPeriod::GetContinuationSegment(TSharedPtrTS<IStreamS
 	auto DummyReq = MakeSharedTS<FStreamSegmentRequestFMP4DASH>();
 	DummyReq->StreamType = StreamType;
 	DummyReq->PeriodStart = StartPosition.Time;
-	DummyReq->TimestampSequenceIndex = SequenceState.SequenceIndex;
+	DummyReq->TimestampSequenceIndex = SequenceState.GetSequenceIndex();
 	return GetNextOrRetrySegment(OutSegment, bNeedRemoteElement, DummyReq, ENextSegType::SamePeriodStartOver, StartPosition.Options);
 }
 

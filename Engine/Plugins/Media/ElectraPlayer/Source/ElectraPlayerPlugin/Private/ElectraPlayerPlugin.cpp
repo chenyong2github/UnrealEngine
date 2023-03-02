@@ -16,19 +16,7 @@
 #include "MediaSubtitleDecoderOutput.h"
 #include "MediaMetaDataDecoderOutput.h"
 
-#include "HAL/IConsoleManager.h"
-
 using namespace Electra;
-
-//-----------------------------------------------------------------------------
-
-static int GElectraEnableBlockOnFetch = 0;							// Temporarily disable Electra's support for BlockOnFetch by default
-static FAutoConsoleVariableRef CVarElectraEnableBlockOnFetch(
-	TEXT("ElectraPlayer.EnableBlockOnFetch"),
-	GElectraEnableBlockOnFetch,
-	TEXT("Whether 'BlockOnFetch' support is enabled.\n")
-	TEXT(" 0: disabled (default)\n")
-	TEXT(" 1: enabled"));
 
 //-----------------------------------------------------------------------------
 
@@ -460,6 +448,7 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentAudioFrame(const IAudi
 	}
 }
 
+
 void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentSubtitleSample(const ISubtitleDecoderOutputPtr& InSubtitleSample)
 {
 	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
@@ -474,6 +463,7 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentSubtitleSample(const I
 		}
 	}
 }
+
 
 void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentMetadataSample(const IMetaDataDecoderOutputPtr& InMetadataFrame)
 {
@@ -847,11 +837,7 @@ bool FElectraPlayerPlugin::CanControl(EMediaControl Control) const
 	EMediaState CurrentState = GetState();
 	if (Control == EMediaControl::BlockOnFetch)
 	{
-		if (GElectraEnableBlockOnFetch == 0)
-		{
-			return false;
-		}
-		return CurrentState == EMediaState::Playing;
+		return CurrentState == EMediaState::Paused || CurrentState == EMediaState::Playing;
 	}
 	else if (Control == EMediaControl::Pause)
 	{

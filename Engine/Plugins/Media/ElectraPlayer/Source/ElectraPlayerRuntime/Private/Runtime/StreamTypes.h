@@ -805,9 +805,22 @@ namespace Electra
 		}
 		void Reset()
 		{
-			SequenceIndex = 0;
+			PrimaryIndex = 0;
+			SecondaryIndex = 0;
 		}
-		int64	SequenceIndex;
+		int64 GetSequenceIndex() const
+		{
+			return (int64(PrimaryIndex) << 32) + int64(SecondaryIndex);
+		}
+		void SetSequenceIndex(int64 SequenceIndex)
+		{
+			check(SequenceIndex >= 0);	// should be the case in Electra at all times
+			PrimaryIndex = int32(SequenceIndex >> 32);
+			SecondaryIndex = int32(SequenceIndex);
+		}
+
+		int32	PrimaryIndex;
+		int32	SecondaryIndex;
 	};
 
 

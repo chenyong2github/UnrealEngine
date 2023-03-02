@@ -360,12 +360,8 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 	bool bIsSampleValid = false;
 	if (UMediaPlayer* CurrentPlayerPtr = CurrentPlayer.Get())
 	{
-		const bool PlayerActive = CurrentPlayerPtr->IsPaused() || CurrentPlayerPtr->IsPlaying() || CurrentPlayerPtr->IsPreparing();
-
-		if (PlayerActive)
+		if (CurrentPlayerPtr->GetPlayerFacade()->GetPlayer().IsValid())
 		{
-			check(CurrentPlayerPtr->GetPlayerFacade()->GetPlayer());
-
 			if (CurrentPlayerPtr->GetPlayerFacade()->GetPlayer()->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UsePlaybackTimingV2))
 			{
 				/*
@@ -404,23 +400,37 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 				//
 				// Old style: pass queue along and dequeue only at render time
 				//
-				TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
-				if (SampleQueue->Peek(Sample))
+				const bool PlayerActive = CurrentPlayerPtr->IsPaused() || CurrentPlayerPtr->IsPlaying() || CurrentPlayerPtr->IsPreparing();
+				if (PlayerActive)
 				{
-					UpdateSampleInfo(Sample);
+					TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
+					if (SampleQueue->Peek(Sample))
+					{
+						UpdateSampleInfo(Sample);
 
-					// See above: track sRGB state (for V1 we don't look at all samples - but this should be fine as this should not change on a per sample basis usually)
-					SRGB = Sample->IsOutputSrgb();
-					LastSrgb = SRGB;
+						// See above: track sRGB state (for V1 we don't look at all samples - but this should be fine as this should not change on a per sample basis usually)
+						SRGB = Sample->IsOutputSrgb();
+						LastSrgb = SRGB;
 
-					TextureNumMips = (Sample->GetNumMips() > 1) ? Sample->GetNumMips() : NumMips;
-					bIsSampleValid = true;
+						TextureNumMips = (Sample->GetNumMips() > 1) ? Sample->GetNumMips() : NumMips;
+						bIsSampleValid = true;
+					}
+
+					RenderParams.SampleSource = SampleQueue;
+
+					RenderParams.Rate = CurrentPlayerPtr->GetRate();
+					RenderParams.Time = CurrentPlayerPtr->GetTime();
 				}
+				else
+				{
+					CurrentAspectRatio = 0.0f;
+					CurrentOrientation = MTORI_Original;
 
-				RenderParams.SampleSource = SampleQueue;
-
-				RenderParams.Rate = CurrentPlayerPtr->GetRate();
-				RenderParams.Time = CurrentPlayerPtr->GetTime();
+					if (!AutoClear)
+					{
+						return; // retain last frame
+					}
+				}
 			}
 		}
 		else 

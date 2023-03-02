@@ -381,7 +381,7 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 													})
 													.OnMouseCaptureBegin_Lambda([this]()
 													{
-														ScrubValue = FTimespan::Ratio(MediaPlayer->GetTime(), MediaPlayer->GetDuration());
+														ScrubValue = FTimespan::Ratio(MediaPlayer->GetDisplayTime(), MediaPlayer->GetDuration());
 
 														if (MediaPlayer->SupportsScrubbing())
 														{
@@ -416,7 +416,7 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 														}
 
 														return (MediaPlayer->GetDuration() > FTimespan::Zero())
-															? FTimespan::Ratio(MediaPlayer->GetTime(), MediaPlayer->GetDuration())
+															? FTimespan::Ratio(MediaPlayer->GetDisplayTime(), MediaPlayer->GetDuration())
 															: 0.0f;
 													})
 													.Visibility_Lambda([this]() -> EVisibility {
@@ -943,7 +943,7 @@ FText SMediaPlayerEditorViewer::HandleTimerTextBlockText() const
 		return FText::GetEmpty();
 	}
 
-	FTimespan Time = MediaPlayer->GetTime();
+	FTimespan Time = MediaPlayer->GetDisplayTime();
 
 	// empty string if time n/a
 	if (Time < FTimespan::Zero())
@@ -976,7 +976,7 @@ FText SMediaPlayerEditorViewer::HandleTimerTextBlockToolTipText() const
 	}
 
 	FTimespan Duration = MediaPlayer->GetDuration();
-	FTimespan Remaining = Duration - MediaPlayer->GetTime();
+	FTimespan Remaining = Duration - MediaPlayer->GetDisplayTime();
 	bool bInfiniteTimeRemaining = Duration == FTimespan::MaxValue();
 
 	if (Remaining <= FTimespan::Zero() && !bInfiniteTimeRemaining)

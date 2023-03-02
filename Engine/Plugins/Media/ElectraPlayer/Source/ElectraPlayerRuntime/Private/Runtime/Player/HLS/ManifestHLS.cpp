@@ -876,7 +876,7 @@ IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegmen
 		SearchParam.Time = StartPosition.Time;
 		SearchParam.LastPTS = PlayRangeEnd;
 		SearchParam.bFrameAccurateSearch = bFrameAccurateSearch;
-		SearchParam.TimestampSequenceIndex = InSequenceState.SequenceIndex;
+		SearchParam.TimestampSequenceIndex = InSequenceState.GetSequenceIndex();
 
 
 		// Do we have both video and audio?

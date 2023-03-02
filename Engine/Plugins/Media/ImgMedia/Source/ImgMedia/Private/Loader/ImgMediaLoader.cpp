@@ -28,6 +28,8 @@
 	#include "Readers/ExrImgMediaReader.h"
 #endif
 
+#define ALLOW_CHEATED_FRAMES 0		// if set to 1 the loader is allowed to return "close by" frame data with a fake PTS to optimize for quick delivery IF there is no blocked range is set
+									// ^^^ DISABLED as this can lead to entirely incorrect frames being displayed when seeking in paused state
 
 /** Time spent loading a new image sequence. */
 DECLARE_CYCLE_STAT(TEXT("ImgMedia Loader Load Sequence"), STAT_ImgMedia_LoaderLoadSequence, STATGROUP_Media);
@@ -343,8 +345,8 @@ const FString& FImgMediaLoader::GetImagePath(int32 FrameNumber, int32 MipLevel) 
 void FImgMediaLoader::ResetFetchLogic()
 {
 	QueuedSampleFetch.LastFrameIndex = INDEX_NONE;
-	// note: we can reset the sequence index here as this will be called when MFW does flush any queues - so we can start from scratch with no issues
-	QueuedSampleFetch.CurrentSequenceIndex = 0;
+	QueuedSampleFetch.LastTimeStamp.Invalidate();
+	QueuedSampleFetch.LoopIndex = 0;
 
 	SkipFramesCounter = 0;
 	SkipFramesLevel = 0;
@@ -409,15 +411,95 @@ const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* FImgMediaLoader::GetFrame
 }
 
 
-IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp>& TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bIsLoopingEnabled, float PlayRate)
+void FImgMediaLoader::Seek(const FMediaTimeStamp& SeekTarget)
 {
-	if (IsInitialized() && TimeRange.HasLowerBound() && TimeRange.HasUpperBound())
+	ResetFetchLogic();
+	QueuedSampleFetch.LastTimeStamp = SeekTarget;
+	QueuedSampleFetch.LastDuration = FTimespan::Zero();
+	QueuedSampleFetch.LoopIndex = 0;
+	QueuedSampleFetch.LastFrameIndex = INDEX_NONE;
+
+	QueuedSampleFetch.LastTimeStamp.Time = FrameNumberToTime(TimeToFrameNumber(QueuedSampleFetch.LastTimeStamp.Time));
+}
+
+
+bool FImgMediaLoader::DiscardVideoSamples(const TRange<FMediaTimeStamp>& TimeRange, bool bIsLoopingEnabled, float PlayRate)
+{
+	bool bOk = false;
+	if (PlayRate >= 0.0f)
 	{
+		if ((QueuedSampleFetch.LastTimeStamp + QueuedSampleFetch.LastDuration) < TimeRange.GetUpperBoundValue())
+		{
+			QueuedSampleFetch.LastTimeStamp = TimeRange.GetUpperBoundValue();
+			bOk = true;
+		}
+	}
+	else
+	{
+		if ((QueuedSampleFetch.LastTimeStamp - QueuedSampleFetch.LastDuration) > TimeRange.GetLowerBoundValue())
+		{
+			QueuedSampleFetch.LastTimeStamp = TimeRange.GetLowerBoundValue();
+			bOk = true;
+		}
+	}
+
+	if (bOk)
+	{
+		QueuedSampleFetch.LastDuration = FTimespan::Zero();
+		QueuedSampleFetch.LastTimeStamp.Time = FrameNumberToTime(TimeToFrameNumber(QueuedSampleFetch.LastTimeStamp.Time));
+		QueuedSampleFetch.LastFrameIndex = INDEX_NONE;
+	}
+
+	return bOk;
+}
+
+
+IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp>& InTimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bIsLoopingEnabled, float PlayRate)
+{
+	if (IsInitialized() && InTimeRange.HasLowerBound() && InTimeRange.HasUpperBound())
+	{
+		// A few sanity checks
+		check(InTimeRange.GetLowerBoundValue() <= InTimeRange.GetUpperBoundValue());
+		check(FMediaTimeStamp::GetPrimaryIndex(InTimeRange.GetLowerBoundValue().SequenceIndex) == FMediaTimeStamp::GetPrimaryIndex(InTimeRange.GetUpperBoundValue().SequenceIndex));
+
+		auto TimeRange = InTimeRange;
+
+		// Clamp the current range requested against the last known timestamp to ensure we return the "next" sample at all times...
+		if (QueuedSampleFetch.LastTimeStamp.IsValid())
+		{
+			if (PlayRate >= 0.0f)
+			{
+//WHAT IF THE LAST FRAME WAS SHOWN IN PAUSE MODE?
+				FMediaTimeStamp NextTimeStamp = QueuedSampleFetch.LastTimeStamp + QueuedSampleFetch.LastDuration;
+				if (NextTimeStamp >= TimeRange.GetUpperBoundValue())
+					{
+					return IMediaSamples::EFetchBestSampleResult::NoSample;
+					}
+
+				if (TimeRange.GetLowerBoundValue() < NextTimeStamp)
+				{
+					TimeRange = TRange<FMediaTimeStamp>(NextTimeStamp, InTimeRange.GetUpperBoundValue());
+				}
+			}
+			else
+			{
+				FMediaTimeStamp NextTimeStamp = QueuedSampleFetch.LastTimeStamp;
+				if (NextTimeStamp <= TimeRange.GetLowerBoundValue())
+				{
+					return IMediaSamples::EFetchBestSampleResult::NoSample;
+				}
+
+				if (TimeRange.GetUpperBoundValue() > NextTimeStamp)
+				{
+					TimeRange = TRange<FMediaTimeStamp>(InTimeRange.GetLowerBoundValue(), NextTimeStamp);
+				}
+			}
+		}
+
 		FTimespan StartTime = TimeRange.GetLowerBoundValue().Time;
-		int64 StartSequenceIndex = TimeRange.GetLowerBoundValue().SequenceIndex;
+		int32 StartLoopIndex = FMediaTimeStamp::GetSecondaryIndex(TimeRange.GetLowerBoundValue().SequenceIndex);
 		FTimespan EndTime = TimeRange.GetUpperBoundValue().Time;
-		int64 EndSequenceIndex = TimeRange.GetUpperBoundValue().SequenceIndex;
-		check(TimeRange.GetLowerBoundValue() <= TimeRange.GetUpperBoundValue());
+		int32 EndLoopIndex = FMediaTimeStamp::GetSecondaryIndex(TimeRange.GetUpperBoundValue().SequenceIndex);
 
 		if (bIsLoopingEnabled)
 		{
@@ -449,6 +531,8 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 		int32 MaxIdx = -1;
 		if (PlayRate >= 0.0f)
 		{
+			// Forward...
+
 			// Is the start index the same as the end index?
 			if (StartIndex == EndIndex)
 			{
@@ -456,7 +540,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 				FTimespan CurrentStartTime = FrameNumberToTime(StartIndex);
 				if (StartTime < CurrentStartTime)
 				{
-					// Yes. TimeToFrameNumber rounded up, but we really dont want that
+					// Yes. TimeToFrameNumber rounded up, but we really don't want that
 					// so adjust StartIndex.
 					if (StartIndex > 0)
 					{
@@ -465,9 +549,10 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 				}
 			}
 
-			// Forward...
-			if ((StartIndex > EndIndex) || (EndSequenceIndex > StartSequenceIndex))
+			// Does the range span across the end of the media?
+			if ((StartIndex > EndIndex) || (EndLoopIndex > StartLoopIndex))
 			{
+				// Yes...
 				int32 MaxIdx1, MaxIdx2;
 				float MaxOverlap1 = FindMaxOverlapInRange(StartIndex, GetNumImages()-1, StartTime, FrameNumberToTime(GetNumImages()), MaxIdx1);
 				float MaxOverlap2 = FindMaxOverlapInRange(0, EndIndex, FTimespan::Zero(), EndTime, MaxIdx2);
@@ -481,8 +566,27 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 		else
 		{
 			// Backward...
-			if ((StartIndex > EndIndex) || (StartSequenceIndex < EndSequenceIndex))
+			
+			// Is the start index the same as the end index?
+			if (StartIndex == EndIndex)
 			{
+				// Is StartTime larger than the time of StartIndex?
+				FTimespan CurrentEndTime = FrameNumberToTime(EndIndex);
+				if (EndTime > CurrentEndTime)
+				{
+					// Yes. TimeToFrameNumber rounded up, but we really don't want that
+					// so adjust StartIndex.
+					if (EndIndex < (GetNumImages() - 1))
+					{
+						++EndIndex;
+					}
+				}
+			}
+
+			// Does the range span across the end of the media?
+			if ((StartIndex > EndIndex) || (StartLoopIndex < EndLoopIndex))
+			{
+				// Yes...
 				int32 MaxIdx1, MaxIdx2;
 				float MaxOverlap1 = FindMaxOverlapInRange(EndIndex, 0, FTimespan::Zero(), EndTime, MaxIdx1);
 				float MaxOverlap2 = FindMaxOverlapInRange(GetNumImages()-1, StartIndex,  StartTime, FrameNumberToTime(GetNumImages()), MaxIdx2);
@@ -504,6 +608,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 
 			FScopeLock Lock(&CriticalSection);
 
+#if ALLOW_CHEATED_FRAMES
 			// If playback is not blocking, we expect less expectancy of precision on the users side, but more need for speedy return of "some ok frame"
 			// So: if we detect non-blocking playback we return a "as good sample as we can", but not always the "perfect" one we calculated
 			// (still we adhere to a rough emulation of a classic output pipeline as other players have)
@@ -563,6 +668,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 				}
 			}
 			else
+#endif
 			{
 				// Get a frame if we have one available right now...
 				Frame = UseGlobalCache ? GlobalCache->FindAndTouch(SequenceName, MaxIdx) : Frames.FindAndTouch(MaxIdx);
@@ -571,40 +677,44 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 			// Got a potential frame?
 			if (Frame)
 			{
-				RetryCount = 0;
-				double Duration = Frame->Get()->Info.FrameRate.AsInterval();
-
 				// Yes.
-				int32 NewSequenceIndex = 0;
-				
-				// Make sure this sample has the sequence index that matches the time range.
-				// If the time range only has one sequence index then just use that.
-				if (TimeRange.GetLowerBoundValue().SequenceIndex == TimeRange.GetUpperBoundValue().SequenceIndex)
+
+				/*
+					The player facade will pass in a time range with current primary and secondary sequence indices.
+					We need to make sure that we detect if we return a value "before" the last one (loop case) and
+					adjust the secondary index accordingly.
+				*/
+
+				RetryCount = 0;
+
+
+				// Check if we wrapped around the end of the media vs. the last frame we returned...
+				if (QueuedSampleFetch.LastFrameIndex != INDEX_NONE && bIsLoopingEnabled)
 				{
-					NewSequenceIndex = TimeRange.GetLowerBoundValue().SequenceIndex;
-				}
-				else
-				{
-					// Try the lower bound sequence index.
-					NewSequenceIndex = TimeRange.GetLowerBoundValue().SequenceIndex;
-					FMediaTimeStamp SampleTime = FMediaTimeStamp(FrameNumberToTime(MaxIdx), NewSequenceIndex);
-					TRange<FMediaTimeStamp> SampleTimeRange(
-						SampleTime,
-						SampleTime + FTimespan::FromSeconds(Duration));
-						
-					// Does our sample time overlap the time range?
-					if (TimeRange.Overlaps(SampleTimeRange) == false)
+					if (PlayRate >= 0.0f)
 					{
-						// No. Use the upper bound sequence index.
-						NewSequenceIndex = TimeRange.GetUpperBoundValue().SequenceIndex;
+						if (QueuedSampleFetch.LastFrameIndex > MaxIdx)
+						{
+							++QueuedSampleFetch.LoopIndex;
+						}
+					}
+					else
+					{
+						if (QueuedSampleFetch.LastFrameIndex < MaxIdx)
+						{
+							--QueuedSampleFetch.LoopIndex;
+						}
 					}
 				}
+
+				int64 NewSequenceIndex = FMediaTimeStamp::MakeSequenceIndex(FMediaTimeStamp::GetPrimaryIndex(TimeRange.GetLowerBoundValue().SequenceIndex), QueuedSampleFetch.LoopIndex);
 				
 				// Different from the last one we returned?
-				if ((QueuedSampleFetch.LastFrameIndex != MaxIdx) || (QueuedSampleFetch.CurrentSequenceIndex != NewSequenceIndex) || (ImagePaths.Num() == 1))
+				if ((QueuedSampleFetch.LastFrameIndex != MaxIdx) || (QueuedSampleFetch.LastTimeStamp.IsValid() && (QueuedSampleFetch.LastTimeStamp.SequenceIndex != NewSequenceIndex)) || (ImagePaths.Num() == 1))
 				{
 					QueuedSampleFetch.LastFrameIndex = MaxIdx;
-					QueuedSampleFetch.CurrentSequenceIndex = NewSequenceIndex;
+					QueuedSampleFetch.LastTimeStamp = FMediaTimeStamp(FrameNumberToTime(MaxIdx), NewSequenceIndex);
+					QueuedSampleFetch.LastDuration = FTimespan::FromSeconds(Frame->Get()->Info.FrameRate.AsInterval());
 
 					// We are clear to return it as new result... Make a sample & initialize it...
 					auto Sample = MakeShared<FImgMediaTextureSample, ESPMode::ThreadSafe>();
@@ -612,7 +722,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 
 					ImgMediaLoader::CheckAndUpdateImgDimensions(SequenceDim, Frame->Get()->Info.Dim);
 
-					if (Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameNumberToTime(MaxIdx), QueuedSampleFetch.CurrentSequenceIndex), FTimespan::FromSeconds(Duration), GetNumMipLevels(), TilingDescription))
+					if (Sample->Initialize(*Frame->Get(), SequenceDim, QueuedSampleFetch.LastTimeStamp, QueuedSampleFetch.LastDuration, GetNumMipLevels(), TilingDescription))
 					{
 						OutSample = Sample;
 						CSV_EVENT(ImgMedia, TEXT("LoaderFetchHit %d %d-%d"), MaxIdx, StartIndex, EndIndex);
@@ -660,7 +770,7 @@ bool FImgMediaLoader::PeekVideoSampleTime(FMediaTimeStamp &TimeStamp, bool bIsLo
 	if (IsInitialized())
 	{
 		int32 Idx;
-		bool bNewSeq = false;
+		bool bNewLoopSeq = false;
 
 		// Do we know which index we handed out last?
 		if (QueuedSampleFetch.LastFrameIndex != INDEX_NONE)
@@ -673,12 +783,12 @@ bool FImgMediaLoader::PeekVideoSampleTime(FMediaTimeStamp &TimeStamp, bool bIsLo
 				if (Idx < 0)
 				{
 					Idx = NumFrames - 1;
-					bNewSeq = true;
+					bNewLoopSeq = true;
 				}
 				else if (Idx >= NumFrames)
 				{
 					Idx = 0;
-					bNewSeq = true;
+					bNewLoopSeq = true;
 				}
 			}
 			else
@@ -692,9 +802,44 @@ bool FImgMediaLoader::PeekVideoSampleTime(FMediaTimeStamp &TimeStamp, bool bIsLo
 		}
 		else
 		{
-			// No, we don't have an index. Just compute things based on the current time given...
-			Idx = TimeToFrameNumber(CurrentTime);
+			if (QueuedSampleFetch.LastTimeStamp.IsValid())
+			{
+				if (PlayRate >= 0.0f)
+				{
+					auto NextTime = QueuedSampleFetch.LastTimeStamp.Time + QueuedSampleFetch.LastDuration;
+					if (NextTime >= SequenceDuration)
+					{
+						if (!bIsLoopingEnabled)
+						{
+							return false;
+						}
+						NextTime -= SequenceDuration;
+						bNewLoopSeq = true;
+					}
+					Idx = TimeToFrameNumber(NextTime);
+				}
+				else
+				{
+					auto NextTime = QueuedSampleFetch.LastTimeStamp.Time - QueuedSampleFetch.LastDuration;
+					if (NextTime < FTimespan::Zero())
+					{
+						if (!bIsLoopingEnabled)
+						{
+							return false;
+						}
+						NextTime += SequenceDuration;
+						bNewLoopSeq = true;
+					}
+					Idx = TimeToFrameNumber(NextTime);
+				}
+			}
+			else
+			{
+				Idx = TimeToFrameNumber(CurrentTime);
+			}
 		}
+
+		auto SequenceIndex = QueuedSampleFetch.LastTimeStamp.IsValid() ? QueuedSampleFetch.LastTimeStamp.SequenceIndex : 0;
 
 		if (SkipFramesLevel > 0)
 		{
@@ -713,7 +858,7 @@ bool FImgMediaLoader::PeekVideoSampleTime(FMediaTimeStamp &TimeStamp, bool bIsLo
 		{
 			// Yes. Return the timing information...
 			TimeStamp.Time = FrameStart;
-			TimeStamp.SequenceIndex = bNewSeq ? (QueuedSampleFetch.CurrentSequenceIndex + 1) : QueuedSampleFetch.CurrentSequenceIndex;
+			TimeStamp.SequenceIndex = bNewLoopSeq ? FMediaTimeStamp::AdjustSecondaryIndex(SequenceIndex, (PlayRate >= 0.0f) ? 1 : -1) : SequenceIndex;
 			return true;
 		}
 		else
@@ -723,6 +868,18 @@ bool FImgMediaLoader::PeekVideoSampleTime(FMediaTimeStamp &TimeStamp, bool bIsLo
 		}
 	}
 	return false;
+}
+
+
+bool FImgMediaLoader::IsFrameFirst(const FTimespan& TimeStamp) const
+{
+	return TimeToFrameNumber(TimeStamp) == 0;
+}
+
+
+bool FImgMediaLoader::IsFrameLast(const FTimespan & TimeStamp) const
+{
+	return TimeToFrameNumber(TimeStamp) == (GetNumImages() - 1);
 }
 
 

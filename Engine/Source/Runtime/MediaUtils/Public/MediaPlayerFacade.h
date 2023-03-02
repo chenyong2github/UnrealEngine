@@ -334,9 +334,18 @@ public:
 	 * Get the media's current playback time stamp.
 	 *
 	 * @return Playback time stamp.
-	 * @see GetDuration, Seek
 	 */
 	FMediaTimeStamp GetTimeStamp() const;
+
+	/**
+	 * Get the media's current playback time stamp in a "display" version
+	 *
+	 * @return Playback time stamp.
+	 * 
+	 * @note The timestamp returned here will reflect a user-logic oriented version.
+	 *       (e.g. during seeks this will return the seek target rather than the last valid frame still displayed)
+	 */
+	FMediaTimeStamp GetDisplayTimeStamp() const;
 
 	/**
 	 * Get the human readable name of the specified track.
@@ -742,7 +751,10 @@ protected:
 	bool BlockOnFetch() const;
 
 	/** Flush all media sample sinks & player plugin. */
-	void Flush(bool bExcludePlayer = false);
+	void Flush(bool bExcludePlayer = false, bool bOnSeek = false);
+
+	/** Internal function to retrieve the current timestamp */
+	FMediaTimeStamp GetTimeStampInternal(bool bForDisplay) const;
 
 	/**
 	 * Get details about the specified audio track format.
@@ -791,20 +803,6 @@ protected:
 	bool HaveVideoPlayback() const;
 	float GetUnpausedRate() const;
 
-	/** Fetch audio samples from the player and forward them to the registered sinks. */
-	void ProcessAudioSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
-
-	/** Fetch metadata samples from the player and forward them to the registered sinks. */
-	void ProcessMetadataSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
-
-	/** Fetch audio samples from the player and forward them to the registered sinks. */
-	void ProcessCaptionSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
-
-	/** Fetch subtitle samples from the player and forward them to the registered sinks. */
-	void ProcessSubtitleSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
-
-	/** Fetch video samples from the player and forward them to the registered sinks. */
-	void ProcessVideoSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
 
 protected:
 
@@ -823,12 +821,23 @@ private:
 	bool NotifyLifetimeManagerDelegate_PlayerDestroyed();
 	bool NotifyLifetimeManagerDelegate_PlayerResourcesReleased(uint32 ResourceFlags);
 
+	void ProcessAudioSamples(IMediaSamples& Samples, const TRange<FMediaTimeStamp>& TimeRange);
 	bool ProcessVideoSamples(IMediaSamples& Samples, const TRange<FMediaTimeStamp>& TimeRange);
-	void ProcessCaptionSamples(IMediaSamples& Samples, TRange<FMediaTimeStamp> TimeRange);
-	void ProcessSubtitleSamples(IMediaSamples& Samples, TRange<FMediaTimeStamp> TimeRange);
+	void ProcessCaptionSamples(IMediaSamples& Samples, const TRange<FMediaTimeStamp>& TimeRange);
+	void ProcessSubtitleSamples(IMediaSamples& Samples, const TRange<FMediaTimeStamp>& TimeRange);
+	void ProcessMetadataSamples(IMediaSamples& Samples, const TRange<FMediaTimeStamp>& TimeRange);
 
+	void ProcessAudioSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
+	void ProcessVideoSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
+	void ProcessSubtitleSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
+	void ProcessCaptionSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
+	void ProcessMetadataSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
+
+	bool IsVideoSampleStillGood(const TRange<FMediaTimeStamp>& LastSampleTimeRange, const TRange<FMediaTimeStamp>& TimeRange, bool bReverse) const;
+	void MonitorAudioEnablement();
+	void UpdateSeekStatus(const FMediaTimeStamp* pCheckTimeStamp = nullptr);
 	void PreSampleProcessingTimeHandling();
-	bool GetCurrentPlaybackTimeRange(TRange<FMediaTimeStamp>& TimeRange, float Rate, FTimespan DeltaTime, bool bDoNotUseFrameStartReference) const;
+	bool GetCurrentPlaybackTimeRange(TRange<FMediaTimeStamp>& TimeRange, float Rate, FTimespan DeltaTime, bool bPurgeSampleRelated) const;
 	void PostSampleProcessingTimeHandling(FTimespan DeltaTime);
 
 	void DestroyPlayer();
@@ -863,7 +872,8 @@ private:
 		const TRange<FMediaTimeStamp> & GetRange() const;
 		bool IsSet() const;
 
-		void Flush();
+		void OnFlush();
+		void OnSeek(int32 PrimaryIndex);
 
 		void Reset()
 		{
@@ -871,7 +881,8 @@ private:
 			CurrentTimeRange = TRange<FTimespan>::Empty();
 			LastBlockOnRange = TRange<FTimespan>::Empty();
 			RangeIsDirty = false;
-			OnBlockSeqIndex = 0;
+			OnBlockPrimaryIndex = 0;
+			OnBlockSecondaryIndex = 0;
 		}
 
 	private:
@@ -890,8 +901,10 @@ private:
 		/** Flag to indicate if internal range is valid or not */
 		mutable bool RangeIsDirty;
 
-		/** Sequence index used during blocked playback processing */
-		mutable int64 OnBlockSeqIndex;
+		/** Primary sequence index used during blocked playback processing */
+		mutable int32 OnBlockPrimaryIndex;
+		/** Secondary sequence index used during blocked playback processing */
+		mutable int32 OnBlockSecondaryIndex;
 	};
 
 	FBlockOnRange BlockOnRange;
@@ -964,8 +977,17 @@ private:
 	/** Timestamp for video considered "current" for this frame (stays valid even after a flush, until new data comes in) */
 	FMediaTimeStamp CurrentFrameVideoTimeStamp;
 
+	/** Timestamp for video considered "current" for this frame for GUI / display purposes (stays valid even after a flush, until new data comes in) */
+	FMediaTimeStamp CurrentFrameVideoDisplayTimeStamp;
+
 	/** Estimation for next frame's video timestamp (used when no audio present or active in stream) */
 	FMediaTimeStampSample NextEstVideoTimeAtFrameStart;
+
+	/** Timestamp of seek target location if seek is pending */
+	FMediaTimeStamp SeekTargetTime;
+
+	/** Current seek index */
+	int32 SeekIndex;
 
 	/** Set if sinks are to be flushed at the request of the player. */
 	TAtomic<bool>	bIsSinkFlushPending;

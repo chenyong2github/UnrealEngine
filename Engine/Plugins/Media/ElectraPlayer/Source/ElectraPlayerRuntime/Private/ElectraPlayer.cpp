@@ -1082,6 +1082,10 @@ void FElectraPlayer::TriggerFirstSeekIfNecessary()
 
 		// Set up the initial playback position
 		IAdaptiveStreamingPlayer::FSeekParam playParam;
+
+		// Whatever the initial seek target: we will ignore it for sequence index updates
+		playParam.bIgnoreForSequenceIndex = true;
+
 		// First we look at any potential time offset specified in the playstart options.
 		if (PlaystartOptions.TimeOffset.IsSet())
 		{

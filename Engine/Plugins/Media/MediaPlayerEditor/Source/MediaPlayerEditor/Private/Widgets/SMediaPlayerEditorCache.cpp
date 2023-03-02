@@ -63,7 +63,7 @@ int32 SMediaPlayerEditorCache::OnPaint(const FPaintArgs& Args, const FGeometry& 
 	{
 		DrawSampleCache(EMediaTrackType::Audio, AllottedGeometry, OutDrawElements, LayerId, InWidgetStyle, 0.0f, 0.5f);
 		DrawSampleCache(EMediaTrackType::Video, AllottedGeometry, OutDrawElements, LayerId, InWidgetStyle, 0.5f, 0.5f);
-		DrawPlayerPosition(MediaPlayer->GetTime(), AllottedGeometry, OutDrawElements, LayerId, InWidgetStyle, FLinearColor::Gray);
+		DrawPlayerPosition(MediaPlayer->GetDisplayTime(), AllottedGeometry, OutDrawElements, LayerId, InWidgetStyle, FLinearColor::Gray);
 	}
 
 	return LayerId + 1;

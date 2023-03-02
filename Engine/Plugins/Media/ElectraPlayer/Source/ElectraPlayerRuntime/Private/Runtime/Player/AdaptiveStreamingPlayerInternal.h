@@ -1776,7 +1776,9 @@ private:
 		void Reset()
 		{
 			FScopeLock lock(&Lock);
-			PendingRequest.Reset();
+			// Note: Do _not_ reset the pending request created by a user induced seek, or it may get lost if
+			//       triggered while already processing a seek due to the asynchronous processing of the request.
+			//PendingRequest.Reset();
 			ActiveRequest.Reset();
 			LastFinishedRequest.Reset();
 			PlayrangeOnRequest.Reset();
@@ -1798,6 +1800,7 @@ private:
 		bool	bForScrubbing = false;
 		bool	bScrubPrerollDone = false;
 		bool	bIsPlayStart = true;
+		int32	NumSeekToCallsSinceLastSeen = 0;
 
 		TOptional<FSeekParam> ActiveRequest;
 		TOptional<FSeekParam> LastFinishedRequest;
