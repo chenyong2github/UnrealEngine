@@ -39,10 +39,7 @@ namespace Horde.Agent.Commands
 			logger.LogInformation("Connecting to server: {Server}", profile.Name);
 
 			await using ServerComputeClient client = new ServerComputeClient(CreateHttpClient, logger);
-			client.Start();
-
-			IComputeRequest<object?> request = await client.AddRequestAsync(ClusterId, null, TestCommandAsync);
-			await request.Result;
+			await client.ExecuteAsync(ClusterId, null, TestCommandAsync, CancellationToken.None);
 
 			return 0;
 		}

@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,8 +36,11 @@ namespace Horde.Agent.Commands
 			public List<string> OutputPaths { get; set; } = new List<string>();
 		}
 
+		[CommandLine("-Cluster")]
+		public string ClusterId { get; set; } = "default";
+
 		[CommandLine("-Loopback")]
-		bool Loopback { get; set; }
+		public bool Loopback { get; set; }
 
 		[CommandLine("-Task=", Required = true)]
 		FileReference TaskFile { get; set; } = null!;
@@ -62,8 +66,7 @@ namespace Horde.Agent.Commands
 		{
 			await using IComputeClient client = CreateClient();
 
-			IComputeRequest<bool> request = await client.AddRequestAsync<bool>(default, null, HandleRequestAsync);
-			bool result = await request.Result;
+			bool result = await client.ExecuteAsync(new ClusterId(ClusterId), null, HandleRequestAsync, CancellationToken.None);
 
 			return result? 0 : 1;
 		}
@@ -152,8 +155,11 @@ namespace Horde.Agent.Commands
 
 		HttpClient CreateHttpClient()
 		{
+			ServerProfile profile = _settings.GetCurrentServerProfile();
+
 			HttpClient client = _httpClientFactory.CreateClient();
-			client.BaseAddress = _settings.GetCurrentServerProfile().Url;
+			client.BaseAddress = profile.Url;
+			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", profile.Token);
 			return client;
 		}
 

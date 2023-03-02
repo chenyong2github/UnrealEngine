@@ -14,14 +14,6 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public sealed class LoopbackComputeClient : IComputeClient
 	{
-		class ComputeRequest<TResult> : IComputeRequest<TResult>
-		{
-			public Task<TResult> Result { get; }
-
-			public ComputeRequest(Task<TResult> result) => Result = result;
-			public void Cancel() { }
-		}
-
 		readonly Task _listenerTask;
 		readonly SocketComputeChannel _inner;
 		readonly Socket _socket;
@@ -66,9 +58,9 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public Task<IComputeRequest<TResult>> AddRequestAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeChannel, CancellationToken, Task<TResult>> handler)
+		public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeChannel, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
 		{
-			return Task.FromResult<IComputeRequest<TResult>>(new ComputeRequest<TResult>(handler(_inner, CancellationToken.None)));
+			return await handler(_inner, cancellationToken);
 		}
 	}
 }

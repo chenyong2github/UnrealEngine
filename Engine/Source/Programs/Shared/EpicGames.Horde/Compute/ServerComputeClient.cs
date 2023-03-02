@@ -3,11 +3,10 @@
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,107 +22,23 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		public const int NonceLength = 64;
 
-		class AddComputeTaskRequest
+		class AssignComputeRequest
 		{
 			public Requirements? Requirements { get; set; }
-			public int? RemotePort { get; set; }
+		}
+
+		class AssignComputeResponse
+		{
+			public string Ip { get; set; } = String.Empty;
+			public int Port { get; set; }
 			public string Nonce { get; set; } = String.Empty;
 			public string AesKey { get; set; } = String.Empty;
 			public string AesIv { get; set; } = String.Empty;
 		}
 
-		class AddComputeTasksRequest
-		{
-			public Requirements? Requirements { get; set; }
-			public int RemotePort { get; set; }
-			public List<AddComputeTaskRequest> Tasks { get; set; } = new List<AddComputeTaskRequest>();
-		}
-
-		abstract class RequestInfo : IDisposable
-		{
-			public ReadOnlyMemory<byte> Nonce { get; }
-			public ReadOnlyMemory<byte> AesKey { get; }
-			public ReadOnlyMemory<byte> AesIv { get; }
-
-			protected readonly TaskCompletionSource<IComputeChannel> _computeChannelSource;
-			protected readonly CancellationTokenSource _cancellationSource;
-
-			public RequestInfo(CancellationToken cancellationToken)
-			{
-				Nonce = RandomNumberGenerator.GetBytes(NonceLength);
-
-				using (Aes aes = Aes.Create())
-				{
-					AesKey = aes.Key;
-					AesIv = aes.IV;
-				}
-
-				_computeChannelSource = new TaskCompletionSource<IComputeChannel>();
-				_cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-			}
-
-			public abstract Task RunAsync(IComputeChannel channel);
-
-			public void Cancel()
-			{
-				_computeChannelSource.TrySetCanceled();
-				_cancellationSource.Cancel();
-			}
-
-			public void Dispose()
-			{
-				_cancellationSource.Dispose();
-			}
-		}
-
-		class RequestInfo<TResult> : RequestInfo, IComputeRequest<TResult>
-		{
-			readonly Func<IComputeChannel, CancellationToken, Task<TResult>> _handler;
-
-			public Task<TResult> Result { get; }
-
-			public RequestInfo(Func<IComputeChannel, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
-				: base(cancellationToken)
-			{
-				_handler = handler;
-
-				Result = RunWrapperAsync();
-			}
-
-			public override Task RunAsync(IComputeChannel channel)
-			{
-				_computeChannelSource.SetResult(channel);
-				return Result;
-			}
-
-			async Task<TResult> RunWrapperAsync()
-			{
-				IComputeChannel channel = await _computeChannelSource.Task;
-				return await _handler(channel, _cancellationSource.Token);
-			}
-		}
-
-		class MemoryComparer : IEqualityComparer<ReadOnlyMemory<byte>>
-		{
-			public static MemoryComparer Instance { get; } = new MemoryComparer();
-
-			public bool Equals(ReadOnlyMemory<byte> x, ReadOnlyMemory<byte> y) => x.Span.SequenceEqual(y.Span);
-
-			public int GetHashCode(ReadOnlyMemory<byte> memory)
-			{
-				HashCode hasher = new HashCode();
-				hasher.AddBytes(memory.Span);
-				return hasher.ToHashCode();
-			}
-		}
-
-		readonly object _lockObject = new object();
 		readonly HttpClient? _defaultHttpClient;
 		readonly Func<HttpClient> _createHttpClient;
 		readonly CancellationTokenSource _cancellationSource = new CancellationTokenSource();
-		readonly Dictionary<ReadOnlyMemory<byte>, RequestInfo> _requests = new Dictionary<ReadOnlyMemory<byte>, RequestInfo>(MemoryComparer.Instance);
-		TcpListener? _listener;
-		Task _listenTask = Task.CompletedTask;
 		readonly ILogger _logger;
 
 		/// <summary>
@@ -164,157 +79,54 @@ namespace EpicGames.Horde.Compute
 		HttpClient GetDefaultHttpClient() => _defaultHttpClient!;
 
 		/// <inheritdoc/>
-		public async ValueTask DisposeAsync()
+		public ValueTask DisposeAsync()
 		{
-			await StopAsync();
-			_cancellationSource.Dispose();
-			_defaultHttpClient?.Dispose();
+			Dispose();
+			return new ValueTask();
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			DisposeAsync().AsTask().Wait();
+			_cancellationSource.Dispose();
+			_defaultHttpClient?.Dispose();
 		}
 
-		/// <summary>
-		/// Starts the client
-		/// </summary>
-		public void Start()
+		/// <inheritdoc/>
+		public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeChannel, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
 		{
-			_listener = new TcpListener(IPAddress.IPv6Any, 0);
-			_listener.Start();
-			_listenTask = Task.Run(() => ListenAsync(_listener, _cancellationSource.Token));
-		}
+			// Assign a compute worker
+			HttpClient client = _createHttpClient();
 
-		/// <summary>
-		/// Cancels all running tasks and waits for them to complete
-		/// </summary>
-		public async Task StopAsync()
-		{
-			_cancellationSource.Cancel();
-			try
+			AssignComputeRequest request = new AssignComputeRequest();
+			request.Requirements = requirements;
+
+			AssignComputeResponse? responseMessage;
+			using (HttpResponseMessage response = await client.PostAsync($"api/v2/compute/{clusterId}", request, _cancellationSource.Token))
 			{
-				await _listenTask;
-			}
-			catch (OperationCanceledException)
-			{
-			}
-		}
-
-		/// <summary>
-		/// Adds a new remote request
-		/// </summary>
-		/// <param name="clusterId">Cluster to execute the request</param>
-		/// <param name="requirements">Requirements for the agent</param>
-		/// <param name="handler">Handler for the connection</param>
-		public async Task<IComputeRequest<TResult>> AddRequestAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeChannel, CancellationToken, Task<TResult>> handler)
-		{
-			RequestInfo<TResult> requestInfo = new RequestInfo<TResult>(handler, _cancellationSource.Token);
-			await AddRequestAsync(clusterId, requirements, requestInfo);
-			return requestInfo;
-		}
-
-		async Task AddRequestAsync(ClusterId clusterId, Requirements? requirements, RequestInfo requestInfo)
-		{
-			try
-			{
-				HttpClient client = _createHttpClient();
-
-				AddComputeTaskRequest task = new AddComputeTaskRequest();
-				task.Nonce = StringUtils.FormatHexString(requestInfo.Nonce.Span);
-				task.AesKey = StringUtils.FormatHexString(requestInfo.AesKey.Span);
-				task.AesIv = StringUtils.FormatHexString(requestInfo.AesIv.Span);
-
-				AddComputeTasksRequest request = new AddComputeTasksRequest();
-				request.Requirements = requirements;
-				request.RemotePort = ((IPEndPoint)_listener!.LocalEndpoint).Port;
-				request.Tasks.Add(task);
-
-				using (HttpResponseMessage response = await client.PostAsync($"api/v2/compute/{clusterId}", request, _cancellationSource.Token))
+				response.EnsureSuccessStatusCode();
+				responseMessage = await response.Content.ReadFromJsonAsync<AssignComputeResponse>(cancellationToken: cancellationToken);
+				if (responseMessage == null)
 				{
-					response.EnsureSuccessStatusCode();
-					_requests.Add(requestInfo.Nonce, requestInfo);
+					throw new InvalidOperationException();
 				}
 			}
-			catch
-			{
-				requestInfo.Dispose();
-			}
-		}
 
-		async Task ListenAsync(TcpListener listener, CancellationToken cancellationToken)
-		{
-			List<Task> tasks = new List<Task>();
-			try
-			{
-				for (; ; )
-				{
-					TcpClient client = await listener.AcceptTcpClientAsync(cancellationToken);
-					_logger.LogInformation("Received connection from {Remote}", client.Client.RemoteEndPoint);
+			// Connect to the remote machine
+			using Socket socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+			await socket.ConnectAsync(IPAddress.Parse(responseMessage.Ip), responseMessage.Port, cancellationToken);
 
-					Task task = HandleConnectionGuardedAsync(client, cancellationToken);
-					tasks.Add(task);
-				}
-			}
-			finally
-			{
-				await Task.WhenAll(tasks);
-				listener.Stop();
-			}
-		}
+			// Send the nonce
+			byte[] nonce = StringUtils.ParseHexString(responseMessage.Nonce);
+			await socket.SendFullAsync(nonce, SocketFlags.None, cancellationToken);
+			_logger.LogInformation("Connected to {Ip} with nonce {Nonce}", responseMessage.Ip, responseMessage.Nonce);
 
-		async Task HandleConnectionGuardedAsync(TcpClient client, CancellationToken cancellationToken)
-		{
-			try
-			{
-				await HandleConnectionAsync(client, cancellationToken);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogInformation(ex, "Exception while handling request: {Message}", ex.Message);
-			}
-		}
+			// Pass the rest of the call over to the handler
+			byte[] aesKey = StringUtils.ParseHexString(responseMessage.AesKey);
+			byte[] aesIv = StringUtils.ParseHexString(responseMessage.AesIv);
 
-		async Task HandleConnectionAsync(TcpClient client, CancellationToken cancellationToken)
-		{
-			using TcpClient disposeClient = client;
-			Socket socket = client.Client;
-
-			// Read the nonce for this connection
-			byte[] nonceBuffer = new byte[NonceLength];
-			for (int nonceLength = 0; nonceLength < nonceBuffer.Length;)
-			{
-				int read = await socket.ReceiveAsync(nonceBuffer.AsMemory(nonceLength), SocketFlags.Partial, cancellationToken);
-				if (read == 0)
-				{
-					return;
-				}
-				nonceLength += read;
-			}
-
-			// Dispatch the connection to the appropriate handler
-			RequestInfo? requestInfo = null;
-			try
-			{
-				// Find the matching request
-				lock (_lockObject)
-				{
-					if (!_requests.Remove(nonceBuffer, out requestInfo))
-					{
-						_logger.LogInformation("Invalid nonce for connection; ignoring.");
-						return;
-					}
-				}
-
-				// Create a crypto stream for communication, using the predetermined key for this request
-				using SocketComputeChannel channel = new SocketComputeChannel(socket, requestInfo.AesKey, requestInfo.AesIv);
-				await requestInfo.RunAsync(channel);
-			}
-			finally
-			{
-				requestInfo?.Dispose();
-			}
+			using SocketComputeChannel channel = new SocketComputeChannel(socket, aesKey, aesIv);
+			return await handler(channel, cancellationToken);
 		}
 	}
 }
