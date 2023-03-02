@@ -62,7 +62,7 @@ namespace DmlUtil
 		ElemSizeInBytes = Tensor.GetElemByteSize();
 
 		SetShape1D(Tensor.GetShape().GetData()[0], Rank);
-		Update(DmlDataType);
+		Update(DmlDataType, Tensor.HasPreparedData());
 
 		return true;
 	}

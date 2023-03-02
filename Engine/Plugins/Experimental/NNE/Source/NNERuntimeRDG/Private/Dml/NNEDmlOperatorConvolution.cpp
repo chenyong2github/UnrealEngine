@@ -302,13 +302,13 @@ public:
 		DmlUtil::FTensorDesc	DmlBiasTensor{};
 		DmlUtil::FTensorDesc	DmlOutputTensor{};
 
-		if (!InitDmlTensorDesc(DmlInputTensor, InputTensor))
+		if (!DmlInputTensor.InitFromTensor(InputTensor, 3))
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
-		if (!InitDmlTensorDesc(DmlFilterTensor, FilterTensor))
+		if (!DmlFilterTensor.InitFromTensor(FilterTensor, 3))
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
@@ -316,12 +316,12 @@ public:
 
 		if (InputTensors.Num() > 2)
 		{
-			NNECore::Internal::FTensor BiasTensor = InputTensors[2];
+			const NNECore::Internal::FTensor& BiasTensor = InputTensors[2];
+
+			FSmallArray Shape;
 
 			if (BiasTensor.GetShape().Rank() < (int32) Args.NumDimensions)
 			{
-				FSmallArray Shape;
-
 				Shape.Add(1);
 				Shape.Add(BiasTensor.GetShape().GetData()[0]);
 				Shape.Add(1);
@@ -330,18 +330,20 @@ public:
 				{
 					Shape.Add(1);
 				}
-
-				BiasTensor.SetShape(NNECore::FTensorShape::Make(Shape));
+			}
+			else
+			{
+				Shape = BiasTensor.GetShape().GetData();
 			}
 
-			if (!InitDmlTensorDesc(DmlBiasTensor, BiasTensor))
+			if (!DmlBiasTensor.InitFromTensor(BiasTensor, 3, MakeEmptyArrayView<uint32>(), Shape))
 			{
 				UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 				return false;
 			}
 		}
 
-		if (!InitDmlTensorDesc(DmlOutputTensor, OutputTensor))
+		if (!DmlOutputTensor.InitFromTensor(OutputTensor, 3))
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;

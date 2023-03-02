@@ -7,9 +7,6 @@
 			"targets": [
 				{
 					"target": "udnie-160-small-720p",
-					"runtimes": [
-						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." }
-					],
 					"absolute_tolerance": 5.0e-2
 				}
 			]
@@ -41,9 +38,9 @@
 					"target": "NeuralMorphModel_global_Dax",
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
-						{ "name": "NNERuntimeORTDml", "relative_tolerance": 2e-4 },
-						{ "name": "NNERuntimeRDGHlsl", "absolute_tolerance": 1e-6 },
-						{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeORTDml", "absolute_tolerance": 1e-4 },
+						{ "name": "NNERuntimeRDGDml", "absolute_tolerance": 1e-4 },
+						{ "name": "NNERuntimeRDGHlsl", "absolute_tolerance": 1e-6 }
 					]
 				},
 				{
