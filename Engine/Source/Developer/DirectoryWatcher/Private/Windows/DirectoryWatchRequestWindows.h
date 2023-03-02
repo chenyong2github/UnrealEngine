@@ -43,7 +43,7 @@ private:
 
 	FString Directory;
 	HANDLE DirectoryHandle;
-	int64 WatchStartedTimestamp;
+	int64 WatchStartedTimeStampHistory[2];
 	uint32 NotifyFilter;
 	uint32 BufferLength = 0;
 	struct FDeleterFree
