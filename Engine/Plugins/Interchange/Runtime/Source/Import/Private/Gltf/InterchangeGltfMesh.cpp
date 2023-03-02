@@ -13,7 +13,7 @@
 #include "StaticMeshOperations.h"
 #include "SkeletalMeshOperations.h"
 
-#include "Mesh/InterchangeStaticMeshPayload.h"
+#include "Mesh/InterchangeMeshPayload.h"
 
 namespace UE::Interchange::Gltf::Private
 {
@@ -73,16 +73,8 @@ namespace UE::Interchange::Gltf::Private
 
 	bool GetSkeletalMeshDescriptionForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey, FMeshDescription& MeshDescription, TArray<FString>* OutJointUniqueNames)
 	{
-		TArray<FString> MorphTargetCheckPayLoadKeys;
-		PayLoadKey.ParseIntoArray(MorphTargetCheckPayLoadKeys, TEXT("~"));
-
-		if (MorphTargetCheckPayLoadKeys.Num() == 2)
-		{
-			return GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, MorphTargetCheckPayLoadKeys[1], MeshDescription);
-		}
-		
 		TArray<FString> PayLoadKeys;
-		MorphTargetCheckPayLoadKeys[0].ParseIntoArray(PayLoadKeys, TEXT(":"));
+		PayLoadKey.ParseIntoArray(PayLoadKeys, TEXT(":"));
 		TMap<int32, TArray<int32>> MeshIndexToSkinIndicesMap;
 
 		int32 MeshIndex = 0;

@@ -15,7 +15,8 @@ namespace UE
 
 		struct INTERCHANGENODES_API FMeshNodeStaticData : public FBaseNodeStaticData
 		{
-			static const FAttributeKey& PayloadSourceKey();
+			static const FAttributeKey& PayLoadKey();
+			static const FAttributeKey& PayLoadTypeKey();
 			static const FAttributeKey& IsSkinnedMeshKey();
 			static const FAttributeKey& IsMorphTargetKey();
 			static const FAttributeKey& MorphTargetNameKey();
@@ -27,6 +28,38 @@ namespace UE
 
 	}//ns Interchange
 }//ns UE
+
+UENUM(BlueprintType)
+enum class EInterchangeMeshPayLoadType : uint8
+{
+	STATIC = 0,
+	SKELETAL,
+	MORPHTARGET
+};
+
+
+USTRUCT(BlueprintType)
+struct INTERCHANGENODES_API FInterchangeMeshPayLoadKey
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange | Mesh")
+	FString UniqueId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange | Mesh")
+	EInterchangeMeshPayLoadType Type;
+
+	FInterchangeMeshPayLoadKey() {}
+
+	FInterchangeMeshPayLoadKey(const FString& InUniqueId, const EInterchangeMeshPayLoadType& InType)
+		: UniqueId(InUniqueId)
+		, Type(InType)
+	{
+	}
+};
+
 
 UCLASS(BlueprintType, Experimental)
 class INTERCHANGENODES_API UInterchangeMeshNode : public UInterchangeBaseNode
@@ -101,10 +134,10 @@ public:
 	bool SetMorphTargetName(const FString& MorphTargetName);
 
 	/** Mesh node Interface Begin */
-	virtual const TOptional<FString> GetPayLoadKey() const;
+	virtual const TOptional<FInterchangeMeshPayLoadKey> GetPayLoadKey() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	virtual void SetPayLoadKey(const FString& PayloadKey);
+	virtual void SetPayLoadKey(const FString& PayLoadKey, const EInterchangeMeshPayLoadType& PayLoadType);
 	
 	/** Query this mesh vertices count. Return false if the attribute was not set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")

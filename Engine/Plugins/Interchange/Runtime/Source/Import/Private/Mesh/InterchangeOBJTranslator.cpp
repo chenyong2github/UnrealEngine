@@ -979,7 +979,7 @@ bool UInterchangeOBJTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 
 			// The payload key is the group name.
 			// A MeshDescription is generated for each group of faces.
-			MeshNode->SetPayLoadKey(GroupName);
+			MeshNode->SetPayLoadKey(GroupName, EInterchangeMeshPayLoadType::STATIC);
 
 			MeshNode->SetCustomBoundingBox(ObjDataPtr->GetGroupBoundingBox(GroupName));
 			MeshNode->SetCustomVertexCount(ObjDataPtr->GetGroupVertexCount(GroupName));
@@ -1028,16 +1028,16 @@ bool UInterchangeOBJTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 }
 
 
-TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeOBJTranslator::GetStaticMeshPayloadData(const FString& PayloadKey) const
+TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeOBJTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const
 {
-	return Async(EAsyncExecution::TaskGraph, [this, PayloadKey]
+	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey]
 		{
 			using namespace UE::Interchange;
 
-			FStaticMeshPayloadData Payload;
-			Payload.MeshDescription = ObjDataPtr->MakeMeshDescriptionForGroup(PayloadKey);
+			FMeshPayloadData Payload;
+			Payload.MeshDescription = ObjDataPtr->MakeMeshDescriptionForGroup(PayLoadKey.UniqueId);
 
-			return TOptional<FStaticMeshPayloadData>(Payload);
+			return TOptional<FMeshPayloadData>(Payload);
 		}
 	);
 }

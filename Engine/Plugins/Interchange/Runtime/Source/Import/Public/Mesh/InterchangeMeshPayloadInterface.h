@@ -4,15 +4,16 @@
 #include "CoreMinimal.h"
 #include "Async/Future.h"
 #include "InterchangeSourceData.h"
-#include "Mesh/InterchangeStaticMeshPayload.h"
+#include "Mesh/InterchangeMeshPayload.h"
+#include "InterchangeMeshNode.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Interface.h"
 
-#include "InterchangeStaticMeshPayloadInterface.generated.h"
+#include "InterchangeMeshPayloadInterface.generated.h"
 
 UINTERFACE()
-class INTERCHANGEIMPORT_API UInterchangeStaticMeshPayloadInterface : public UInterface
+class INTERCHANGEIMPORT_API UInterchangeMeshPayloadInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -20,7 +21,7 @@ class INTERCHANGEIMPORT_API UInterchangeStaticMeshPayloadInterface : public UInt
 /**
  * Static mesh payload interface. Derive from this interface if your payload can import static mesh
  */
-class INTERCHANGEIMPORT_API IInterchangeStaticMeshPayloadInterface
+class INTERCHANGEIMPORT_API IInterchangeMeshPayloadInterface
 {
 	GENERATED_BODY()
 public:
@@ -32,7 +33,7 @@ public:
 	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
 	 * @return a PayloadData containing the the data ask with the key.
 	 */
-	virtual TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> GetStaticMeshPayloadData(const FString& PayloadKey) const = 0;
+	virtual TFuture<TOptional<UE::Interchange::FMeshPayloadData>> GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const = 0;
 };
 
 

@@ -7,8 +7,8 @@
 #include "UObject/ObjectMacros.h"
 #include "InterchangeTranslatorBase.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
-#include "Mesh/InterchangeStaticMeshPayload.h"
-#include "Mesh/InterchangeStaticMeshPayloadInterface.h"
+#include "Mesh/InterchangeMeshPayload.h"
+#include "Mesh/InterchangeMeshPayloadInterface.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
 
 #include "InterchangeOBJTranslator.generated.h"
@@ -19,7 +19,7 @@ struct FObjData;
 
 UCLASS(BlueprintType, Experimental)
 class INTERCHANGEIMPORT_API UInterchangeOBJTranslator : public UInterchangeTranslatorBase,
-	                                                    public IInterchangeStaticMeshPayloadInterface,
+	                                                    public IInterchangeMeshPayloadInterface,
 	                                                    public IInterchangeTexturePayloadInterface
 {
 	GENERATED_BODY()
@@ -50,7 +50,7 @@ public:
 	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
 	 * @return a PayloadData containing the the data ask with the key.
 	 */
-	virtual TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> GetStaticMeshPayloadData(const FString& PayloadKey) const override;
+	virtual TFuture<TOptional<UE::Interchange::FMeshPayloadData>> GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const override;
 
 	/* IInterchangeStaticMeshPayloadInterface End */
 

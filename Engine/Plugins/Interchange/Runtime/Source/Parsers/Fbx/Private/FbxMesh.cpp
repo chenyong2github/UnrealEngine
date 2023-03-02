@@ -1392,7 +1392,7 @@ void FFbxMesh::AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometr
 			GeoPayload->bIsSkinnedMesh = MeshNode->IsSkinnedMesh();
 			PayloadContexts.Add(PayLoadKey, GeoPayload);
 		}
-		MeshNode->SetPayLoadKey(PayLoadKey);
+		MeshNode->SetPayLoadKey(PayLoadKey, MeshNode->IsSkinnedMesh() ? EInterchangeMeshPayLoadType::SKELETAL : EInterchangeMeshPayLoadType::STATIC);
 
 		int32 NumAnimations = SDKScene->GetSrcObjectCount<FbxAnimStack>();
 
@@ -1467,7 +1467,7 @@ void FFbxMesh::AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometr
 							GeoPayload->SDKGeometryConverter = SDKGeometryConverter;
 							PayloadContexts.Add(MorphTargetPayLoadKey, GeoPayload);
 						}
-						MorphTargetNode->SetPayLoadKey(MorphTargetPayLoadKey);
+						MorphTargetNode->SetPayLoadKey(MorphTargetPayLoadKey, EInterchangeMeshPayLoadType::MORPHTARGET);
 
 						for (int32 AnimationIndex = 0; AnimationIndex < NumAnimations; AnimationIndex++)
 						{

@@ -199,7 +199,7 @@ bool UInterchangeDatasmithTranslator::Translate(UInterchangeBaseNodeContainer& B
 				const FString DisplayLabel = StaticMeshNameProvider.GenerateUniqueName(MeshElement->GetLabel());
 
 				MeshNode->InitializeNode(MeshNodeUid, DisplayLabel, EInterchangeNodeContainerType::TranslatedAsset);
-				MeshNode->SetPayLoadKey(LexToString(MeshIndex));
+				MeshNode->SetPayLoadKey(LexToString(MeshIndex), EInterchangeMeshPayLoadType::STATIC);
 				MeshNode->SetSkinnedMesh(false);
 				MeshNode->SetCustomHasVertexNormal(true);
 				// TODO: Interchange expect each LOD to have its own mesh node and to declare the number of vertices, however we don't know the content of a datasmith mesh until its bulk data is loaded.
@@ -547,10 +547,10 @@ TOptional<UE::Interchange::FImportImage> UInterchangeDatasmithTranslator::GetTex
 	return TextureTranslator->GetTexturePayloadData(PayloadSourceData, TextureElement->GetFile());
 }
 
-TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeDatasmithTranslator::GetStaticMeshPayloadData(const FString& PayloadKey) const
+TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeDatasmithTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const
 {
-	TPromise<TOptional<UE::Interchange::FStaticMeshPayloadData>> EmptyPromise;
-	EmptyPromise.SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>());
+	TPromise<TOptional<UE::Interchange::FMeshPayloadData>> EmptyPromise;
+	EmptyPromise.SetValue(TOptional<UE::Interchange::FMeshPayloadData>());
 
 	if (!LoadedExternalSource || !LoadedExternalSource->GetDatasmithScene())
 	{
@@ -558,7 +558,7 @@ TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeDatasmit
 	}
 
 	int32 MeshIndex = 0;
-	LexFromString(MeshIndex, *PayloadKey);
+	LexFromString(MeshIndex, *PayLoadKey.UniqueId);
 	TSharedPtr<IDatasmithScene> DatasmithScene = LoadedExternalSource->GetDatasmithScene();
 	if (MeshIndex < 0 || MeshIndex >= DatasmithScene->GetMeshesCount())
 	{
@@ -573,14 +573,14 @@ TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeDatasmit
 
 	return Async(EAsyncExecution::TaskGraph, [this, MeshElement = MoveTemp(MeshElement)]
 		{
-			TOptional<UE::Interchange::FStaticMeshPayloadData> Result;
+			TOptional<UE::Interchange::FMeshPayloadData> Result;
 
 			FDatasmithMeshElementPayload DatasmithMeshPayload;
 			if (LoadedExternalSource->GetAssetTranslator()->LoadStaticMesh(MeshElement.ToSharedRef(), DatasmithMeshPayload))
 			{
 				if (DatasmithMeshPayload.LodMeshes.Num() > 0)
 				{
-					UE::Interchange::FStaticMeshPayloadData StaticMeshPayloadData;
+					UE::Interchange::FMeshPayloadData StaticMeshPayloadData;
 					StaticMeshPayloadData.MeshDescription = MoveTemp(DatasmithMeshPayload.LodMeshes[0]);
 
 					Result.Emplace(MoveTemp(StaticMeshPayloadData));

@@ -9,10 +9,15 @@ namespace UE
 {
 	namespace Interchange
 	{
-
-		const FAttributeKey& FMeshNodeStaticData::PayloadSourceKey()
+		const FAttributeKey& FMeshNodeStaticData::PayLoadKey()
 		{
-			static FAttributeKey AttributeKey(TEXT("__PayloadSourceKey__"));
+			static FAttributeKey AttributeKey(TEXT("__PayloadKey__"));
+			return AttributeKey;
+		}
+
+		const FAttributeKey& FMeshNodeStaticData::PayLoadTypeKey()
+		{
+			static FAttributeKey AttributeKey(TEXT("__PayloadTypeKey__"));
 			return AttributeKey;
 		}
 
@@ -73,7 +78,7 @@ FString UInterchangeMeshNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 {
 	FString KeyDisplayName = NodeAttributeKey.ToString();
 	const FString NodeAttributeKeyString = KeyDisplayName;
-	if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::PayloadSourceKey())
+	if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::PayLoadKey())
 	{
 		return KeyDisplayName = TEXT("Payload Source Key");
 	}
@@ -280,33 +285,67 @@ bool UInterchangeMeshNode::SetMorphTargetName(const FString& MorphTargetName)
 	return false;
 }
 
-const TOptional<FString> UInterchangeMeshNode::GetPayLoadKey() const
+const TOptional<FInterchangeMeshPayLoadKey> UInterchangeMeshNode::GetPayLoadKey() const
 {
-	if (!Attributes->ContainAttribute(UE::Interchange::FMeshNodeStaticData::PayloadSourceKey()))
-	{
-		return TOptional<FString>();
-	}
-	UE::Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FMeshNodeStaticData::PayloadSourceKey());
-	if (!AttributeHandle.IsValid())
-	{
-		return TOptional<FString>();
-	}
 	FString PayloadKey;
-	UE::Interchange::EAttributeStorageResult Result = AttributeHandle.Get(PayloadKey);
-	if (!IsAttributeStorageResultSuccess(Result))
+	EInterchangeMeshPayLoadType PayLoadType;
+
+	//PayLoadKey
 	{
-		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.GetPayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayloadSourceKey());
-		return TOptional<FString>();
+		if (!Attributes->ContainAttribute(UE::Interchange::FMeshNodeStaticData::PayLoadKey()))
+		{
+			return TOptional<FInterchangeMeshPayLoadKey>();
+		}
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FMeshNodeStaticData::PayLoadKey());
+		if (!AttributeHandle.IsValid())
+		{
+			return TOptional<FInterchangeMeshPayLoadKey>();
+		}
+		UE::Interchange::EAttributeStorageResult Result = AttributeHandle.Get(PayloadKey);
+		if (!IsAttributeStorageResultSuccess(Result))
+		{
+			LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.GetPayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayLoadKey());
+			return TOptional<FInterchangeMeshPayLoadKey>();
+		}
 	}
-	return TOptional<FString>(PayloadKey);
+
+	//PayLoadType
+	{
+		if (!Attributes->ContainAttribute(UE::Interchange::FMeshNodeStaticData::PayLoadTypeKey()))
+		{
+			return TOptional<FInterchangeMeshPayLoadKey>();
+		}
+		UE::Interchange::FAttributeStorage::TAttributeHandle<EInterchangeMeshPayLoadType> AttributeHandle = Attributes->GetAttributeHandle<EInterchangeMeshPayLoadType>(UE::Interchange::FMeshNodeStaticData::PayLoadTypeKey());
+		if (!AttributeHandle.IsValid())
+		{
+			return TOptional<FInterchangeMeshPayLoadKey>();
+		}
+
+		UE::Interchange::EAttributeStorageResult Result = AttributeHandle.Get(PayLoadType);
+		if (!IsAttributeStorageResultSuccess(Result))
+		{
+			LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.GetPayLoadTypeKey"), UE::Interchange::FMeshNodeStaticData::PayLoadTypeKey());
+			return TOptional<FInterchangeMeshPayLoadKey>();
+		}
+	}
+	
+	return TOptional<FInterchangeMeshPayLoadKey>(FInterchangeMeshPayLoadKey(PayloadKey, PayLoadType));
 }
 
-void UInterchangeMeshNode::SetPayLoadKey(const FString& PayloadKey)
+void UInterchangeMeshNode::SetPayLoadKey(const FString& PayLoadKey, const EInterchangeMeshPayLoadType& PayLoadType)
 {
-	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FMeshNodeStaticData::PayloadSourceKey(), PayloadKey);
+	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FMeshNodeStaticData::PayLoadKey(), PayLoadKey);
 	if (!IsAttributeStorageResultSuccess(Result))
 	{
-		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.SetPayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayloadSourceKey());
+		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.SetPayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayLoadKey());
+	}
+	else
+	{
+		Result = Attributes->RegisterAttribute(UE::Interchange::FMeshNodeStaticData::PayLoadTypeKey(), PayLoadType);
+		if (!IsAttributeStorageResultSuccess(Result))
+		{
+			LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.SetPayLoadTypeKey"), UE::Interchange::FMeshNodeStaticData::PayLoadTypeKey());
+		}
 	}
 }
 

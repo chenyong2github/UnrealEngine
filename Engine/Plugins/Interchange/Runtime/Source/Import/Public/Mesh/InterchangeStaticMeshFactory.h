@@ -6,7 +6,7 @@
 #include "InterchangeFactoryBase.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Mesh/InterchangeStaticMeshPayload.h"
+#include "Mesh/InterchangeMeshPayload.h"
 
 #include "InterchangeStaticMeshFactory.generated.h"
 
@@ -44,7 +44,7 @@ private:
 	struct FMeshPayload
 	{
 		FString MeshName;
-		TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> PayloadData;
+		TFuture<TOptional<UE::Interchange::FMeshPayloadData>> PayloadData;
 		FTransform Transform = FTransform::Identity;
 	};
 

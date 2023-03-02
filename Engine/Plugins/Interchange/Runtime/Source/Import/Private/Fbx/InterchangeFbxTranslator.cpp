@@ -10,8 +10,7 @@
 #include "InterchangeDispatcherTask.h"
 #include "InterchangeManager.h"
 #include "InterchangeImportLog.h"
-#include "Mesh/InterchangeSkeletalMeshPayload.h"
-#include "Mesh/InterchangeStaticMeshPayload.h"
+#include "Mesh/InterchangeMeshPayload.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -183,19 +182,19 @@ TOptional<UE::Interchange::FImportImage> UInterchangeFbxTranslator::GetTexturePa
 	return TextureTranslator->GetTexturePayloadData(PayloadSourceData, PayLoadKey);
 }
 
-TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeFbxTranslator::GetStaticMeshPayloadData(const FString& PayLoadKey) const
+TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeFbxTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const
 {
-	TSharedPtr<TPromise<TOptional<UE::Interchange::FStaticMeshPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FStaticMeshPayloadData>>>();
+	TSharedPtr<TPromise<TOptional<UE::Interchange::FMeshPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FMeshPayloadData>>>();
 
 	if (!Dispatcher.IsValid())
 	{
-		Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>());
+		Promise->SetValue(TOptional<UE::Interchange::FMeshPayloadData>());
 		return Promise->GetFuture();
 	}
 
 	// Create a json command to read the fbx file
-	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
-	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
+	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey.UniqueId);
+	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise, PayLoadKey](const int32 TaskIndex)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetStaticMeshPayloadData::Dispatcher->AddTaskDone")
 		UE::Interchange::ETaskState TaskState;
@@ -211,7 +210,7 @@ TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeFbxTrans
 
 		if (TaskState != UE::Interchange::ETaskState::ProcessOk)
 		{
-			Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>());
+			Promise->SetValue(TOptional<UE::Interchange::FMeshPayloadData>());
 			return;
 		}
 
@@ -223,12 +222,12 @@ TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeFbxTrans
 		if (!ensure(FPaths::FileExists(StaticMeshPayloadFilename)))
 		{
 			// TODO log an error saying the payload file does not exist even if the get payload command succeeded
-			Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>());
+			Promise->SetValue(TOptional<UE::Interchange::FMeshPayloadData>());
 			return;
 		}
 
-		UE::Interchange::FStaticMeshPayloadData StaticMeshPayload;
-		StaticMeshPayload.MeshDescription.Empty();
+		UE::Interchange::FMeshPayloadData MeshPayloadData;
+		MeshPayloadData.MeshDescription.Empty();
 
 		// All sub object should be gone with the reset
 		TArray64<uint8> Buffer;
@@ -238,178 +237,47 @@ TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeFbxTrans
 		if (FileDataSize < 1)
 		{
 			// Nothing to load from this file
-			Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>());
+			Promise->SetValue(TOptional<UE::Interchange::FMeshPayloadData>());
 			return;
 		}
 
-		// Buffer keeps the ownership of the data, the large memory reader is use to serialize the TMap
-		FLargeMemoryReader Ar(FileData, FileDataSize);
-		StaticMeshPayload.MeshDescription.Serialize(Ar);
-
-		// This is a static mesh payload can contain skinned data if we need to convert skeletalmesh to staticmesh
-		bool bFetchSkinnedData = false;
-		Ar << bFetchSkinnedData;
-		if (bFetchSkinnedData)
+		switch (PayLoadKey.Type)
 		{
-			TArray<FString> JointNames;
-			//Read into a dummy structure, we will not use the influence channel of this skinned meshdescription
-			Ar << JointNames;
+		case EInterchangeMeshPayLoadType::STATIC:
+		case EInterchangeMeshPayLoadType::SKELETAL:
+			{
+				// Buffer keeps the ownership of the data, the large memory reader is use to serialize the TMap
+				FLargeMemoryReader Ar(FileData, FileDataSize);
+				MeshPayloadData.MeshDescription.Serialize(Ar);
+
+				// This is a static mesh payload can contain skinned data if we need to convert skeletalmesh to staticmesh
+				bool bFetchSkinnedData = false;
+				Ar << bFetchSkinnedData;
+				if (bFetchSkinnedData)
+				{
+					Ar << MeshPayloadData.JointNames;
+				}
+			}
+			break;
+		case EInterchangeMeshPayLoadType::MORPHTARGET:
+		{
+			//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
+			FLargeMemoryReader Ar(FileData, FileDataSize);
+			MeshPayloadData.MeshDescription.Serialize(Ar);
 		}
-		Promise->SetValue(MoveTemp(StaticMeshPayload));
+			break;
+		default:
+			break;
+		}
+
+		
+		Promise->SetValue(MoveTemp(MeshPayloadData));
 	}));
 
 	// The task was not added to the dispatcher
 	if (CreatedTaskIndex == INDEX_NONE)
 	{
-		Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>{});
-	}
-
-	return Promise->GetFuture();
-}
-
-TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>> UInterchangeFbxTranslator::GetSkeletalMeshLodPayloadData(const FString& PayLoadKey) const
-{
-	TSharedPtr<TPromise<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>>>();
-	if (!Dispatcher.IsValid())
-	{
-		Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>{});
-		return Promise->GetFuture();
-	}
-
-	//Create a json command to read the fbx file
-	const FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
-	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetSkeletalMeshLodPayloadData::Dispatcher->AddTaskDone")
-		UE::Interchange::ETaskState TaskState;
-		FString JsonResult;
-		TArray<FString> JsonMessages;
-		Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JsonMessages);
-
-		// Parse the Json messages into UInterchangeResults
-		for (const FString& JsonMessage : JsonMessages)
-		{
-			AddMessage(UInterchangeResult::FromJson(JsonMessage));
-		}
-
-		if (TaskState != UE::Interchange::ETaskState::ProcessOk)
-		{
-			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>{});
-			return;
-		}
-		//Grab the result file and fill the BaseNodeContainer
-		UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
-		ResultParser.FromJson(JsonResult);
-		FString SkeletalMeshPayloadFilename = ResultParser.GetResultFilename();
-
-		if (!ensure(FPaths::FileExists(SkeletalMeshPayloadFilename)))
-		{
-			//TODO log an error saying the payload file do not exist even if the get payload command succeed
-			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>{});
-			return;
-		}
-		
-		//All sub object should be gone with the reset
-		TArray64<uint8> Buffer;
-		FFileHelper::LoadFileToArray(Buffer, *SkeletalMeshPayloadFilename);
-		uint8* FileData = Buffer.GetData();
-		int64 FileDataSize = Buffer.Num();
-		if (FileDataSize < 1)
-		{
-			//Nothing to load from this file
-			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>{});
-			return;
-		}
-
-		UE::Interchange::FSkeletalMeshLodPayloadData SkeletalMeshLodPayload;
-		SkeletalMeshLodPayload.LodMeshDescription.Empty();
-
-		//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
-		FLargeMemoryReader Ar(FileData, FileDataSize);
-		SkeletalMeshLodPayload.LodMeshDescription.Serialize(Ar);
-		bool bFetchSkinnedData = false;
-		Ar << bFetchSkinnedData;
-		if (bFetchSkinnedData)
-		{
-			//Read the bone Name to remap the influence correctly
-			Ar << SkeletalMeshLodPayload.JointNames;
-		}
-		Promise->SetValue(MoveTemp(SkeletalMeshLodPayload));
-	}));
-
-	//The task was not added to the dispatcher
-	if (CreatedTaskIndex == INDEX_NONE)
-	{
-		Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>{});
-	}
-
-	return Promise->GetFuture();
-}
-
-TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>> UInterchangeFbxTranslator::GetSkeletalMeshMorphTargetPayloadData(const FString& PayLoadKey) const
-{
-	TSharedPtr<TPromise<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>>();
-	if (!Dispatcher.IsValid())
-	{
-		Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>{});
-		return Promise->GetFuture();
-	}
-
-	//Create a json command to read the fbx file
-	const FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
-	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetSkeletalMeshMorphTargetPayloadData::Dispatcher->AddTaskDone")
-		UE::Interchange::ETaskState TaskState;
-		FString JsonResult;
-		TArray<FString> JsonMessages;
-		Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JsonMessages);
-
-		// Parse the Json messages into UInterchangeResults
-		for (const FString& JsonMessage : JsonMessages)
-		{
-			AddMessage(UInterchangeResult::FromJson(JsonMessage));
-		}
-
-		if (TaskState != UE::Interchange::ETaskState::ProcessOk)
-		{
-			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>{});
-			return;
-		}
-		//Grab the result file and fill the BaseNodeContainer
-		UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
-		ResultParser.FromJson(JsonResult);
-		FString SkeletalMeshPayloadFilename = ResultParser.GetResultFilename();
-
-		if (!ensure(FPaths::FileExists(SkeletalMeshPayloadFilename)))
-		{
-			//TODO log an error saying the payload file do not exist even if the get payload command succeed
-			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>{});
-			return;
-		}
-		//All sub object should be gone with the reset
-		TArray64<uint8> Buffer;
-		FFileHelper::LoadFileToArray(Buffer, *SkeletalMeshPayloadFilename);
-		uint8* FileData = Buffer.GetData();
-		int64 FileDataSize = Buffer.Num();
-		if (FileDataSize < 1)
-		{
-			//Nothing to load from this file
-			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>{});
-			return;
-		}
-		UE::Interchange::FSkeletalMeshMorphTargetPayloadData SkeletalMeshMorphTargetPayload;
-		SkeletalMeshMorphTargetPayload.LodMeshDescription.Empty();
-		//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
-		FLargeMemoryReader Ar(FileData, FileDataSize);
-		SkeletalMeshMorphTargetPayload.LodMeshDescription.Serialize(Ar);
-		Promise->SetValue(MoveTemp(SkeletalMeshMorphTargetPayload));
-	}));
-
-	//The task was not added to the dispatcher
-	if (CreatedTaskIndex == INDEX_NONE)
-	{
-		Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>{});
+		Promise->SetValue(TOptional<UE::Interchange::FMeshPayloadData>{});
 	}
 
 	return Promise->GetFuture();

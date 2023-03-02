@@ -6,10 +6,9 @@
 
 #include "Animation/InterchangeAnimationPayloadInterface.h"
 #include "InterchangeTranslatorBase.h"
-#include "Mesh/InterchangeStaticMeshPayloadInterface.h"
+#include "Mesh/InterchangeMeshPayloadInterface.h"
 #include "Texture/InterchangeTexturePayloadData.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
-#include "Mesh/InterchangeStaticMeshPayloadInterface.h"
 #include "Scene/InterchangeVariantSetPayloadInterface.h"
 
 #include "Async/Async.h"
@@ -33,7 +32,7 @@ class UInterchangeSceneNode;
 namespace UE::Interchange
 {
 	struct FImportImage;
-	struct FStaticMeshPayloadData;
+	struct FMeshPayloadData;
 	struct FAnimationTransformPayloadData;
 	struct FAnimationBakeTransformPayloadData;
 }
@@ -53,7 +52,7 @@ namespace UE::DatasmithInterchange::AnimUtils
 UCLASS(BlueprintType, Experimental)
 class DATASMITHINTERCHANGE_API UInterchangeDatasmithTranslator : public UInterchangeTranslatorBase
 	, public IInterchangeTexturePayloadInterface
-	, public IInterchangeStaticMeshPayloadInterface
+	, public IInterchangeMeshPayloadInterface
 	, public IInterchangeAnimationPayloadInterface
 	, public IInterchangeVariantSetPayloadInterface
 {
@@ -80,7 +79,7 @@ public:
 	/* IInterchangeTexturePayloadInterface End */
 
 	/* IInterchangeStaticMeshPayloadInterface Begin */
-	virtual TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> GetStaticMeshPayloadData(const FString& PayloadKey) const override;
+	virtual TFuture<TOptional<UE::Interchange::FMeshPayloadData>> GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const override;
 	/* IInterchangeStaticMeshPayloadInterface End */
 
 	/* IInterchangeAnimationPayloadInterface Begin */

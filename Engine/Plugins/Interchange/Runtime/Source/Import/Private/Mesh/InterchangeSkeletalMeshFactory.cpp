@@ -28,8 +28,8 @@
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Math/GenericOctree.h"
-#include "Mesh/InterchangeSkeletalMeshPayload.h"
-#include "Mesh/InterchangeSkeletalMeshPayloadInterface.h"
+#include "Mesh/InterchangeMeshPayload.h"
+#include "Mesh/InterchangeMeshPayloadInterface.h"
 #include "Misc/MessageDialog.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -61,12 +61,12 @@ namespace UE
 				const UInterchangeMeshNode* MeshNode = nullptr;
 				const UInterchangeSceneNode* SceneNode = nullptr;
 				TOptional<FTransform> SceneGlobalTransform;
-				FString TranslatorPayloadKey;
+				FInterchangeMeshPayLoadKey TranslatorPayloadKey;
 			};
 
 			void FillMorphTargetMeshDescriptionsPerMorphTargetName(const FMeshNodeContext& MeshNodeContext
-																 , TMap<FString, TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>& MorphTargetMeshDescriptionsPerMorphTargetName
-																 , const IInterchangeSkeletalMeshPayloadInterface* SkeletalMeshTranslatorPayloadInterface
+																 , TMap<FString, TOptional<UE::Interchange::FMeshPayloadData>>& MorphTargetMeshDescriptionsPerMorphTargetName
+																 , const IInterchangeMeshPayloadInterface* MeshTranslatorPayloadInterface
 																 , const int32 VertexOffset
 																 , const UInterchangeBaseNodeContainer* NodeContainer
 																 , FString AssetName)
@@ -74,21 +74,22 @@ namespace UE
 				TRACE_CPUPROFILER_EVENT_SCOPE("FillMorphTargetMeshDescriptionsPerMorphTargetName")
 				TArray<FString> MorphTargetUids;
 				MeshNodeContext.MeshNode->GetMorphTargetDependencies(MorphTargetUids);
-				TMap<FString, TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>> TempMorphTargetMeshDescriptionsPerMorphTargetName;
+				TMap<FString, TFuture<TOptional<UE::Interchange::FMeshPayloadData>>> TempMorphTargetMeshDescriptionsPerMorphTargetName;
 				TempMorphTargetMeshDescriptionsPerMorphTargetName.Reserve(MorphTargetUids.Num());
 				for (const FString& MorphTargetUid : MorphTargetUids)
 				{
 					if (const UInterchangeMeshNode* MorphTargetMeshNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(MorphTargetUid)))
 					{
-						TOptional<FString> MorphTargetPayloadKey = MorphTargetMeshNode->GetPayLoadKey();
-						if (!MorphTargetPayloadKey.IsSet())
+						TOptional<FInterchangeMeshPayLoadKey> OptionalPayLoadKey = MorphTargetMeshNode->GetPayLoadKey();
+						if (!OptionalPayLoadKey.IsSet())
 						{
 							UE_LOG(LogInterchangeImport, Warning, TEXT("Empty LOD morph target mesh reference payload when importing SkeletalMesh asset %s"), *AssetName);
 							continue;
 						}
-						const FString PayloadKey = MorphTargetPayloadKey.GetValue();
+						FInterchangeMeshPayLoadKey& PayLoadKey = OptionalPayLoadKey.GetValue();
+
 						//Add the map entry key, the translator will be call after to bulk get all the needed payload
-						TempMorphTargetMeshDescriptionsPerMorphTargetName.Add(PayloadKey, SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshMorphTargetPayloadData(PayloadKey));
+						TempMorphTargetMeshDescriptionsPerMorphTargetName.Add(PayLoadKey.UniqueId, MeshTranslatorPayloadInterface->GetMeshPayloadData(PayLoadKey));
 					}
 				}
 
@@ -97,18 +98,20 @@ namespace UE
 					if (const UInterchangeMeshNode* MorphTargetMeshNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(MorphTargetUid)))
 					{
 						
-						TOptional<FString> MorphTargetPayloadKey = MorphTargetMeshNode->GetPayLoadKey();
-						if (!MorphTargetPayloadKey.IsSet())
+						TOptional<FInterchangeMeshPayLoadKey> OptionalPayLoadKey = MorphTargetMeshNode->GetPayLoadKey();
+						if (!OptionalPayLoadKey.IsSet())
 						{
 							continue;
 						}
-						const FString& MorphTargetPayloadKeyString = MorphTargetPayloadKey.GetValue();
+						FInterchangeMeshPayLoadKey& PayLoadKey = OptionalPayLoadKey.GetValue();
+
+						const FString& MorphTargetPayloadKeyString = PayLoadKey.UniqueId;
 						if (!ensure(TempMorphTargetMeshDescriptionsPerMorphTargetName.Contains(MorphTargetPayloadKeyString)))
 						{
 							continue;
 						}
 
-						TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData> MorphTargetMeshPayload = TempMorphTargetMeshDescriptionsPerMorphTargetName.FindChecked(MorphTargetPayloadKeyString).Get();
+						TOptional<UE::Interchange::FMeshPayloadData> MorphTargetMeshPayload = TempMorphTargetMeshDescriptionsPerMorphTargetName.FindChecked(MorphTargetPayloadKeyString).Get();
 						if (!MorphTargetMeshPayload.IsSet())
 						{
 							UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeletal mesh morph target payload key [%s] SkeletalMesh asset %s"), *MorphTargetPayloadKeyString, *AssetName);
@@ -135,23 +138,23 @@ namespace UE
 				}
 			}
 
-			void CopyMorphTargetsMeshDescriptionToSkeletalMeshImportData(const TMap<FString, TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>& LodMorphTargetMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
+			void CopyMorphTargetsMeshDescriptionToSkeletalMeshImportData(const TMap<FString, TOptional<UE::Interchange::FMeshPayloadData>>& LodMorphTargetMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE("CopyMorphTargetsMeshDescriptionToSkeletalMeshImportData")
 				const int32 OriginalMorphTargetCount = LodMorphTargetMeshDescriptions.Num();
 				TArray<FString> Keys;
 				int32 MorphTargetCount = 0;
-				for (const TPair<FString, TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>& Pair : LodMorphTargetMeshDescriptions)
+				for (const TPair<FString, TOptional<UE::Interchange::FMeshPayloadData>>& Pair : LodMorphTargetMeshDescriptions)
 				{
 					const FString MorphTargetName(Pair.Key);
-					const TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>& MorphTargetPayloadData = Pair.Value;
+					const TOptional<UE::Interchange::FMeshPayloadData>& MorphTargetPayloadData = Pair.Value;
 					if (!MorphTargetPayloadData.IsSet())
 					{
 						UE_LOG(LogInterchangeImport, Error, TEXT("Empty morph target optional payload data [%s]"), *MorphTargetName);
 						continue;
 					}
 
-					const FMeshDescription& SourceMeshDescription = MorphTargetPayloadData.GetValue().LodMeshDescription;
+					const FMeshDescription& SourceMeshDescription = MorphTargetPayloadData.GetValue().MeshDescription;
 					const int32 VertexOffset = MorphTargetPayloadData->VertexOffset;
 					const int32 SourceMeshVertexCount = SourceMeshDescription.Vertices().Num();
 					const int32 DestinationVertexIndexMax = VertexOffset + SourceMeshVertexCount;
@@ -199,14 +202,14 @@ namespace UE
 							break;
 						}
 						const FString MorphTargetKey(Keys[MorphTargetIndex]);
-						const TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>& MorphTargetPayloadData = LodMorphTargetMeshDescriptions.FindChecked(MorphTargetKey);
+						const TOptional<UE::Interchange::FMeshPayloadData>& MorphTargetPayloadData = LodMorphTargetMeshDescriptions.FindChecked(MorphTargetKey);
 						if (!ensure(MorphTargetPayloadData.IsSet()))
 						{
 							//This error was suppose to be catch in the pre parallel for loop
 							break;
 						}
 
-						const FMeshDescription& SourceMeshDescription = MorphTargetPayloadData.GetValue().LodMeshDescription;
+						const FMeshDescription& SourceMeshDescription = MorphTargetPayloadData.GetValue().MeshDescription;
 						const FTransform GlobalTransform = MorphTargetPayloadData->GlobalTransform.IsSet() ? MorphTargetPayloadData->GlobalTransform.GetValue() : FTransform::Identity;
 						const int32 VertexOffset = MorphTargetPayloadData->VertexOffset;
 						const int32 SourceMeshVertexCount = SourceMeshDescription.Vertices().Num();
@@ -275,13 +278,13 @@ namespace UE
 				return nullptr;
 			}
 
-			void SkinVertexPositionToTimeZero(UE::Interchange::FSkeletalMeshLodPayloadData& LodMeshPayload
+			void SkinVertexPositionToTimeZero(UE::Interchange::FMeshPayloadData& LodMeshPayload
 				, const UInterchangeBaseNodeContainer* NodeContainer
 				, const FString& RootJointNodeId
 				, const FTransform& MeshGlobalTransform)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE("SkinVertexPositionToTimeZero")
-				FMeshDescription& MeshDescription = LodMeshPayload.LodMeshDescription;
+				FMeshDescription& MeshDescription = LodMeshPayload.MeshDescription;
 				const int32 VertexCount = MeshDescription.Vertices().Num();
 				const TArray<FString>& JointNames = LodMeshPayload.JointNames;
 				// Create a copy of the vertex array to receive vertex deformations.
@@ -407,13 +410,13 @@ namespace UE
 																  , TArray<FMeshNodeContext>& MeshReferences
 																  , TArray<SkeletalMeshImportData::FBone>& RefBonesBinary
 																  , const UInterchangeSkeletalMeshFactory::FImportAssetObjectParams& Arguments
-																  , const IInterchangeSkeletalMeshPayloadInterface* SkeletalMeshTranslatorPayloadInterface
+																  , const IInterchangeMeshPayloadInterface* MeshTranslatorPayloadInterface
 																  , const bool bSkinControlPointToTimeZero
 																  , const UInterchangeBaseNodeContainer* NodeContainer
 																  , const FString& RootJointNodeId)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE("RetrieveAllSkeletalMeshPayloadsAndFillImportData")
-				if (!SkeletalMeshTranslatorPayloadInterface)
+				if (!MeshTranslatorPayloadInterface)
 				{
 					return;
 				}
@@ -429,16 +432,16 @@ namespace UE
 				bool bImportMorphTarget = true;
 				SkeletalMeshFactoryNode->GetCustomImportMorphTarget(bImportMorphTarget);
 
-				TMap<FString, TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>>> LodMeshPayloadPerTranslatorPayloadKey;
+				TMap<FString, TFuture<TOptional<UE::Interchange::FMeshPayloadData>>> LodMeshPayloadPerTranslatorPayloadKey;
 				LodMeshPayloadPerTranslatorPayloadKey.Reserve(MeshReferences.Num());
 
-				TMap<FString, TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>> MorphTargetMeshDescriptionsPerMorphTargetName;
+				TMap<FString, TOptional<UE::Interchange::FMeshPayloadData>> MorphTargetMeshDescriptionsPerMorphTargetName;
 				int32 MorphTargetCount = 0;
 
 				for (const FMeshNodeContext& MeshNodeContext : MeshReferences)
 				{
 					//Add the payload entry key, the payload data will be fill later in bulk by the translator
-					LodMeshPayloadPerTranslatorPayloadKey.Add(MeshNodeContext.TranslatorPayloadKey, SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshLodPayloadData(MeshNodeContext.TranslatorPayloadKey));
+					LodMeshPayloadPerTranslatorPayloadKey.Add(MeshNodeContext.TranslatorPayloadKey.UniqueId, MeshTranslatorPayloadInterface->GetMeshPayloadData(MeshNodeContext.TranslatorPayloadKey));
 					//Count the morph target dependencies so we can reserve the right amount
 					MorphTargetCount += (bImportMorphTarget && MeshNodeContext.MeshNode) ? MeshNodeContext.MeshNode->GetMorphTargetDependeciesCount() : 0;
 				}
@@ -448,10 +451,10 @@ namespace UE
 				for (const FMeshNodeContext& MeshNodeContext : MeshReferences)
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE("RetrieveAllSkeletalMeshPayloadsAndFillImportData::GetPayload")
-					TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> LodMeshPayload = LodMeshPayloadPerTranslatorPayloadKey.FindChecked(MeshNodeContext.TranslatorPayloadKey).Get();
+					TOptional<UE::Interchange::FMeshPayloadData> LodMeshPayload = LodMeshPayloadPerTranslatorPayloadKey.FindChecked(MeshNodeContext.TranslatorPayloadKey.UniqueId).Get();
 					if (!LodMeshPayload.IsSet())
 					{
-						UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeletal mesh payload key [%s] SkeletalMesh asset %s"), *MeshNodeContext.TranslatorPayloadKey, *Arguments.AssetName);
+						UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeletal mesh payload key [%s] SkeletalMesh asset %s"), *MeshNodeContext.TranslatorPayloadKey.UniqueId, *Arguments.AssetName);
 						continue;
 					}
 					const int32 VertexOffset = LodMeshDescription.Vertices().Num();
@@ -461,7 +464,7 @@ namespace UE
 					{
 						TRACE_CPUPROFILER_EVENT_SCOPE("RetrieveAllSkeletalMeshPayloadsAndFillImportData::CompactPayload")
 						FElementIDRemappings ElementIDRemappings;
-						LodMeshPayload->LodMeshDescription.Compact(ElementIDRemappings);
+						LodMeshPayload->MeshDescription.Compact(ElementIDRemappings);
 					}
 
 					const bool bIsRigidMesh = LodMeshPayload->JointNames.Num() <= 0 && MeshNodeContext.SceneNode;
@@ -517,7 +520,7 @@ namespace UE
 						}
 						//Add the skinning in the mesh description
 						{
-							FSkeletalMeshAttributes PayloadSkeletalMeshAttributes(LodMeshPayload->LodMeshDescription);
+							FSkeletalMeshAttributes PayloadSkeletalMeshAttributes(LodMeshPayload->MeshDescription);
 							constexpr bool bKeepExistingAttribute = true;
 							PayloadSkeletalMeshAttributes.Register(bKeepExistingAttribute);
 							using namespace UE::AnimationCore;
@@ -526,7 +529,7 @@ namespace UE
 							BoneWeight.SetBoneIndex(0);
 							BoneWeight.SetWeight(1.0f);
 							FSkinWeightsVertexAttributesRef PayloadVertexSkinWeights = PayloadSkeletalMeshAttributes.GetVertexSkinWeights();
-							for (const FVertexID& PayloadVertexID : LodMeshPayload->LodMeshDescription.Vertices().GetElementIDs())
+							for (const FVertexID& PayloadVertexID : LodMeshPayload->MeshDescription.Vertices().GetElementIDs())
 							{
 								PayloadVertexSkinWeights.Set(PayloadVertexID, BoneWeights);
 							}
@@ -541,16 +544,16 @@ namespace UE
 					{
 						AppendSettings.MeshTransform.Reset();
 					}
-					FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->LodMeshDescription, LodMeshDescription, AppendSettings);
+					FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->MeshDescription, LodMeshDescription, AppendSettings);
 					if (MeshNodeContext.MeshNode->IsSkinnedMesh() || bIsRigidMesh)
 					{
-						FSkeletalMeshOperations::AppendSkinWeight(LodMeshPayload->LodMeshDescription, LodMeshDescription, SkeletalMeshAppendSettings);
+						FSkeletalMeshOperations::AppendSkinWeight(LodMeshPayload->MeshDescription, LodMeshDescription, SkeletalMeshAppendSettings);
 					}
 					if (bImportMorphTarget)
 					{
 						FillMorphTargetMeshDescriptionsPerMorphTargetName(MeshNodeContext
 																		, MorphTargetMeshDescriptionsPerMorphTargetName
-																		, SkeletalMeshTranslatorPayloadInterface
+																		, MeshTranslatorPayloadInterface
 																		, VertexOffset
 																		, Arguments.NodeContainer
 																		, Arguments.AssetName);
@@ -953,8 +956,8 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 		return nullptr;
 	}
 
-	const IInterchangeSkeletalMeshPayloadInterface* SkeletalMeshTranslatorPayloadInterface = Cast<IInterchangeSkeletalMeshPayloadInterface>(Arguments.Translator);
-	if (!SkeletalMeshTranslatorPayloadInterface)
+	const IInterchangeMeshPayloadInterface* MeshTranslatorPayloadInterface = Cast<IInterchangeMeshPayloadInterface>(Arguments.Translator);
+	if (!MeshTranslatorPayloadInterface)
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh, the translator do not implement the IInterchangeSkeletalMeshPayloadInterface."));
 		return nullptr;
@@ -1259,10 +1262,11 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 					continue;
 				}
-				TOptional<FString> MeshPayloadKey = MeshReference.MeshNode->GetPayLoadKey();
-				if (MeshPayloadKey.IsSet())
+
+				TOptional<FInterchangeMeshPayLoadKey> OptionalPayLoadKey = MeshReference.MeshNode->GetPayLoadKey();
+				if (OptionalPayLoadKey.IsSet())
 				{
-					MeshReference.TranslatorPayloadKey = MeshPayloadKey.GetValue();
+					MeshReference.TranslatorPayloadKey = OptionalPayLoadKey.GetValue();
 				}
 				else
 				{
@@ -1282,7 +1286,7 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 																					, MeshReferences
 																					, RefBonesBinary
 																					, Arguments
-																					, SkeletalMeshTranslatorPayloadInterface
+																					, MeshTranslatorPayloadInterface
 																					, bSkinControlPointToTimeZero
 																					, Arguments.NodeContainer
 																					, RootJointNodeId);

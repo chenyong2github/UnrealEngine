@@ -1258,20 +1258,6 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 	return true;
 }
 
-TFuture< TOptional< UE::Interchange::FStaticMeshPayloadData > > UInterchangeGltfTranslator::GetStaticMeshPayloadData( const FString& PayLoadKey ) const
-{
-	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey]
-		{
-			UE::Interchange::FStaticMeshPayloadData StaticMeshPayloadData;
-			UE::Interchange::Gltf::Private::GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, PayLoadKey, StaticMeshPayloadData.MeshDescription);
-
-			TOptional<UE::Interchange::FStaticMeshPayloadData> Result;
-			Result.Emplace(StaticMeshPayloadData);
-
-			return Result;
-		});
-}
-
 TOptional< UE::Interchange::FImportImage > UInterchangeGltfTranslator::GetTexturePayloadData( const UInterchangeSourceData* InSourceData, const FString& PayLoadKey ) const
 {
 	int32 TextureIndex = 0;
@@ -1451,10 +1437,10 @@ void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 							{
 								if (MorphTargetNodeConst->GetPayLoadKey().IsSet())
 								{
-									FString PayLoadKey = MorphTargetNodeConst->GetPayLoadKey().GetValue(); // meshindex : MorphTargetIndex
-									PayLoadKey = TEXT("MorphTargetAnimation~") + LexToString(AnimationIndex) + TEXT(":") + LexToString(ChannelIndex) + TEXT(":") + PayLoadKey;
+									FInterchangeMeshPayLoadKey PayLoadKey = MorphTargetNodeConst->GetPayLoadKey().GetValue();
+									FString PayLoadKeyUniqueId = TEXT("MorphTargetAnimation~") + LexToString(AnimationIndex) + TEXT(":") + LexToString(ChannelIndex) + TEXT(":") + PayLoadKey.UniqueId;
 
-									AnimationPayloadKeyForMorphTargetNodeUids.Add(MorphTargetDependencyUid, PayLoadKey);
+									AnimationPayloadKeyForMorphTargetNodeUids.Add(MorphTargetDependencyUid, PayLoadKeyUniqueId);
 								}
 							}
 						}
@@ -1905,32 +1891,34 @@ bool UInterchangeGltfTranslator::GetVariantSetPayloadData(UE::Interchange::FVari
 	return true;
 }
 
-TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>> UInterchangeGltfTranslator::GetSkeletalMeshLodPayloadData(const FString& PayLoadKey) const
+TFuture< TOptional< UE::Interchange::FMeshPayloadData > > UInterchangeGltfTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const
 {
 	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey]
 		{
-			TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> Result;
-			UE::Interchange::FSkeletalMeshLodPayloadData SkeletalMeshPayloadData;
-			
-			if (UE::Interchange::Gltf::Private::GetSkeletalMeshDescriptionForPayLoadKey(GltfAsset, PayLoadKey, SkeletalMeshPayloadData.LodMeshDescription, &SkeletalMeshPayloadData.JointNames))
+			UE::Interchange::FMeshPayloadData MeshPayLoadData;
+			bool bSuccessfullAcquisition = false;
+
+			switch (PayLoadKey.Type)
 			{
-				Result.Emplace(SkeletalMeshPayloadData);
+			case EInterchangeMeshPayLoadType::STATIC:
+				bSuccessfullAcquisition = UE::Interchange::Gltf::Private::GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, PayLoadKey.UniqueId, MeshPayLoadData.MeshDescription);
+				break;
+			case EInterchangeMeshPayLoadType::SKELETAL:
+				bSuccessfullAcquisition = UE::Interchange::Gltf::Private::GetSkeletalMeshDescriptionForPayLoadKey(GltfAsset, PayLoadKey.UniqueId, MeshPayLoadData.MeshDescription, &MeshPayLoadData.JointNames);
+				break;
+			case EInterchangeMeshPayLoadType::MORPHTARGET:
+				//GLTF handles morph targets as simple Meshes
+				bSuccessfullAcquisition = UE::Interchange::Gltf::Private::GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, PayLoadKey.UniqueId, MeshPayLoadData.MeshDescription);
+				break;
+			default:
+				break;
 			}
 
-			return Result;
-		});
-}
-
-TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>> UInterchangeGltfTranslator::GetSkeletalMeshMorphTargetPayloadData(const FString& PayLoadKey) const
-{
-	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey]
-		{
-			UE::Interchange::FSkeletalMeshMorphTargetPayloadData StaticMeshPayloadData;
-
-			UE::Interchange::Gltf::Private::GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, PayLoadKey, StaticMeshPayloadData.LodMeshDescription);
-
-			TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData> Result;
-			Result.Emplace(StaticMeshPayloadData);
+			TOptional<UE::Interchange::FMeshPayloadData> Result;
+			if (bSuccessfullAcquisition)
+			{
+				Result.Emplace(MeshPayLoadData);
+			}
 
 			return Result;
 		});
@@ -2001,7 +1989,7 @@ void UInterchangeGltfTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContain
 				}
 				Payload += LexToString(SkinnedMeshNode.MeshIndex | (SkinnedMeshNode.Skindex << 16));
 			}
-			SkeletalMeshNode->SetPayLoadKey(Payload);
+			SkeletalMeshNode->SetPayLoadKey(Payload, EInterchangeMeshPayLoadType::SKELETAL);
 
 			//set the root joint node as the skeletonDependency:
 			int32 RootJointNodeIndex = RootJointToSkinnedMeshNodes.Key;
@@ -2059,18 +2047,8 @@ UInterchangeMeshNode* UInterchangeGltfTranslator::HandleGltfMesh(UInterchangeBas
 	MeshNode->InitializeNode(MeshNodeUid, MeshName, EInterchangeNodeContainerType::TranslatedAsset);
 
 	//Generate Mesh Payload:
-	FString PayloadKey;
-	//if it has MorphTargets but is not a Skeletal (aka not called from HandleGltfSkeletons, aka SkeletalName.len = 0
-	//then the Payload processing should be calling the StaticMesh acquisition from the SkeletalMesh acquisition
-	// SkeletalMesh acqusition is called because UE handles MorphTargets in SkeletalMeshes 
-	// (hence Meshes with MorphTargets are marked to be skinned and the node that references it, is set to be Joint)
-	if (GltfMesh.MorphTargetNames.Num() > 0 && SkeletalName.Len() == 0)
-	{
-		PayloadKey = "StaticMeshWithMorphTarget~";
-		//if it is called from HandleGltfSkeletons then the payloadkey will be overwritten. (in HandleGltfSkeletons)
-	}
-	PayloadKey += LexToString(MeshIndex);
-	MeshNode->SetPayLoadKey(PayloadKey);
+	FString PayloadKey = LexToString(MeshIndex);
+	MeshNode->SetPayLoadKey(PayloadKey, EInterchangeMeshPayLoadType::STATIC);
 
 	NodeContainer.AddNode(MeshNode);
 
@@ -2113,7 +2091,7 @@ UInterchangeMeshNode* UInterchangeGltfTranslator::HandleGltfMesh(UInterchangeBas
 
 			//Generate Payload:
 			FString MorphTargetPayLoadKey = LexToString(MeshIndex) + TEXT(":") + LexToString(MorphTargetIndex);
-			MorphTargetMeshNode->SetPayLoadKey(MorphTargetPayLoadKey);
+			MorphTargetMeshNode->SetPayLoadKey(MorphTargetPayLoadKey, EInterchangeMeshPayLoadType::MORPHTARGET);
 
 			//set mesh as a morph target:
 			MorphTargetMeshNode->SetMorphTarget(true);

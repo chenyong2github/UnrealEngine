@@ -5,10 +5,8 @@
 #include "GLTFMaterial.h"
 #include "InterchangeTranslatorBase.h"
 #include "Animation/InterchangeAnimationPayloadInterface.h"
-#include "Mesh/InterchangeStaticMeshPayload.h"
-#include "Mesh/InterchangeStaticMeshPayloadInterface.h"
-#include "Mesh/InterchangeSkeletalMeshPayload.h"
-#include "Mesh/InterchangeSkeletalMeshPayloadInterface.h"
+#include "Mesh/InterchangeMeshPayload.h"
+#include "Mesh/InterchangeMeshPayloadInterface.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Scene/InterchangeVariantSetPayloadInterface.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
@@ -26,11 +24,10 @@ class UInterchangeMeshNode;
 
 UCLASS(BlueprintType)
 class UInterchangeGltfTranslator : public UInterchangeTranslatorBase
-	, public IInterchangeStaticMeshPayloadInterface
+	, public IInterchangeMeshPayloadInterface
 	, public IInterchangeTexturePayloadInterface
 	, public IInterchangeAnimationPayloadInterface
 	, public IInterchangeVariantSetPayloadInterface
-	, public IInterchangeSkeletalMeshPayloadInterface
 {
 	GENERATED_BODY()
 
@@ -44,7 +41,7 @@ public:
 
 	/* IInterchangeStaticMeshPayloadInterface Begin */
 
-	virtual TFuture< TOptional< UE::Interchange::FStaticMeshPayloadData > > GetStaticMeshPayloadData( const FString& PayLoadKey ) const override;
+	virtual TFuture<TOptional<UE::Interchange::FMeshPayloadData>> GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const override;
 
 	/* IInterchangeStaticMeshPayloadInterface End */
 
@@ -63,11 +60,6 @@ public:
 	/* IInterchangeVariantSetPayloadInterface Begin */
 	virtual TFuture<TOptional<UE::Interchange::FVariantSetPayloadData>> GetVariantSetPayloadData(const FString& PayloadKey) const override;
 	/* IInterchangeVariantSetPayloadInterface End */
-
-	/* IInterchangeSkeletalMeshPayloadInterface Begin */
-	virtual TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>> GetSkeletalMeshLodPayloadData(const FString& PayLoadKey) const override;
-	virtual TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>> GetSkeletalMeshMorphTargetPayloadData(const FString& PayLoadKey) const override;
-	/* IInterchangeSkeletalMeshPayloadInterface End */
 
 protected:
 	using FNodeUidMap = TMap<const GLTF::FNode*, FString>;

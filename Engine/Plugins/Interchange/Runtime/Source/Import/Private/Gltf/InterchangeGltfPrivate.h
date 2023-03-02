@@ -14,7 +14,7 @@ namespace UE::Interchange
 {
 	struct FAnimationCurvePayloadData;
 	struct FAnimationBakeTransformPayloadData;
-	struct FStaticMeshPayloadData;
+	struct FMeshPayloadData;
 
 	namespace Gltf::Private
 	{

@@ -24,7 +24,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInterface.h"
-#include "Mesh/InterchangeStaticMeshPayloadInterface.h"
+#include "Mesh/InterchangeMeshPayloadInterface.h"
 #include "MeshBudgetProjectSettings.h"
 #include "Model.h"
 #include "Nodes/InterchangeBaseNode.h"
@@ -274,7 +274,7 @@ UObject* UInterchangeStaticMeshFactory::ImportAssetObject_Async(const FImportAss
 		bool bFirstValidMoved = false;
 		for (FMeshPayload& MeshPayload : MeshPayloads)
 		{
-			const TOptional<UE::Interchange::FStaticMeshPayloadData>& LodMeshPayload = MeshPayload.PayloadData.Get();
+			const TOptional<UE::Interchange::FMeshPayloadData>& LodMeshPayload = MeshPayload.PayloadData.Get();
 			if (!LodMeshPayload.IsSet())
 			{
 				UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid static mesh payload key, StaticMesh asset %s"), *Arguments.AssetName);
@@ -558,10 +558,10 @@ TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactor
 	TArray<FMeshPayload> Payloads;
 	Payloads.Reserve(MeshUids.Num());
 
-	const IInterchangeStaticMeshPayloadInterface* StaticMeshTranslatorPayloadInterface = Cast<IInterchangeStaticMeshPayloadInterface>(Arguments.Translator);
-	if (!StaticMeshTranslatorPayloadInterface)
+	const IInterchangeMeshPayloadInterface* MeshTranslatorPayloadInterface = Cast<IInterchangeMeshPayloadInterface>(Arguments.Translator);
+	if (!MeshTranslatorPayloadInterface)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import static mesh, the translator does not implement the IInterchangeStaticMeshPayloadInterface."));
+		UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import static mesh, the translator does not implement the IInterchangeMeshPayloadInterface."));
 		return Payloads;
 	}
 
@@ -619,15 +619,17 @@ TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactor
 			continue;
 		}
 
-		TOptional<FString> MeshPayloadKey = MeshNode->GetPayLoadKey();
-		if (!ensure(MeshPayloadKey.IsSet()))
+		TOptional<FInterchangeMeshPayLoadKey> OptionalPayLoadKey = MeshNode->GetPayLoadKey();
+		if (!ensure(OptionalPayLoadKey.IsSet()))
 		{
 			UE_LOG(LogInterchangeImport, Warning, TEXT("Empty LOD mesh reference payload when importing StaticMesh asset %s"), *Arguments.AssetName);
 			continue;
 		}
 
-		Payload.MeshName = *MeshPayloadKey;
-		Payload.PayloadData = StaticMeshTranslatorPayloadInterface->GetStaticMeshPayloadData(*MeshPayloadKey);
+		FInterchangeMeshPayLoadKey& PayLoadKey = OptionalPayLoadKey.GetValue();
+
+		Payload.MeshName = PayLoadKey.UniqueId;
+		Payload.PayloadData = MeshTranslatorPayloadInterface->GetMeshPayloadData(PayLoadKey);
 
 		Payloads.Emplace(MoveTemp(Payload));
 	}
@@ -1062,7 +1064,7 @@ bool UInterchangeStaticMeshFactory::ImportBoxCollision(const FImportAssetObjectP
 	for (const FMeshPayload& MeshPayload : MeshPayloads)
 	{
 		const FTransform& Transform = MeshPayload.Transform;
-		const TOptional<FStaticMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
+		const TOptional<FMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
 
 		if (!PayloadData.IsSet())
 		{
@@ -1110,7 +1112,7 @@ bool UInterchangeStaticMeshFactory::ImportCapsuleCollision(const FImportAssetObj
 	for (const FMeshPayload& MeshPayload : MeshPayloads)
 	{
 		const FTransform& Transform = MeshPayload.Transform;
-		const TOptional<FStaticMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
+		const TOptional<FMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
 
 		if (!PayloadData.IsSet())
 		{
@@ -1158,7 +1160,7 @@ bool UInterchangeStaticMeshFactory::ImportSphereCollision(const FImportAssetObje
 	for (const FMeshPayload& MeshPayload : MeshPayloads)
 	{
 		const FTransform& Transform = MeshPayload.Transform;
-		const TOptional<FStaticMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
+		const TOptional<FMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
 
 		if (!PayloadData.IsSet())
 		{
@@ -1209,7 +1211,7 @@ bool UInterchangeStaticMeshFactory::ImportConvexCollision(const FImportAssetObje
 		for (const FMeshPayload& MeshPayload : MeshPayloads)
 		{
 			const FTransform& Transform = MeshPayload.Transform;
-			const TOptional<FStaticMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
+			const TOptional<FMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
 
 			if (!PayloadData.IsSet())
 			{
@@ -1234,7 +1236,7 @@ bool UInterchangeStaticMeshFactory::ImportConvexCollision(const FImportAssetObje
 		for (const FMeshPayload& MeshPayload : MeshPayloads)
 		{
 			const FTransform& Transform = MeshPayload.Transform;
-			TOptional<FStaticMeshPayloadData> PayloadData = MeshPayload.PayloadData.Get();
+			TOptional<FMeshPayloadData> PayloadData = MeshPayload.PayloadData.Get();
 
 			if (!PayloadData.IsSet())
 			{
