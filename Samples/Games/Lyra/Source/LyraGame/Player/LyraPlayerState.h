@@ -126,6 +126,12 @@ public:
 	UFUNCTION(Client, Unreliable, BlueprintCallable, Category = "Lyra|PlayerState")
 	void ClientBroadcastMessage(const FLyraVerbMessage Message);
 
+	// Gets the replicated view rotation of this player, used for spectating
+	FRotator GetReplicatedViewRotation() const;
+
+	// Sets the replicated view rotation, only valid on the server
+	void SetReplicatedViewRotation(const FRotator& NewRotation);
+
 private:
 	void OnExperienceLoaded(const ULyraExperienceDefinition* CurrentExperience);
 
@@ -158,6 +164,9 @@ private:
 
 	UPROPERTY(Replicated)
 	FGameplayTagStackContainer StatTags;
+
+	UPROPERTY(Replicated)
+	FRotator ReplicatedViewRotation;
 
 private:
 	UFUNCTION()

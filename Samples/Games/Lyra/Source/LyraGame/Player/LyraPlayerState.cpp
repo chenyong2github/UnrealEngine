@@ -132,7 +132,25 @@ void ALyraPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, MyTeamID, SharedParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, MySquadID, SharedParams);
 
-	DOREPLIFETIME(ThisClass, StatTags);
+	SharedParams.Condition = ELifetimeCondition::COND_SkipOwner;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, ReplicatedViewRotation, SharedParams);
+
+	DOREPLIFETIME(ThisClass, StatTags);	
+}
+
+FRotator ALyraPlayerState::GetReplicatedViewRotation() const
+{
+	// Could replace this with custom replication
+	return ReplicatedViewRotation;
+}
+
+void ALyraPlayerState::SetReplicatedViewRotation(const FRotator& NewRotation)
+{
+	if (NewRotation != ReplicatedViewRotation)
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ReplicatedViewRotation, this);
+		ReplicatedViewRotation = NewRotation;
+	}
 }
 
 ALyraPlayerController* ALyraPlayerState::GetLyraPlayerController() const

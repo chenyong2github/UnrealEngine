@@ -467,6 +467,27 @@ private:
 	UPROPERTY(Config)
 	TMap<FName, FKey> CustomKeyboardConfig;
 
+	// Replays
+public:
+
+	UFUNCTION()
+	bool ShouldAutoRecordReplays() const { return bShouldAutoRecordReplays; }
+	UFUNCTION()
+	void SetShouldAutoRecordReplays(bool bEnabled) { bShouldAutoRecordReplays = bEnabled;}
+
+	UFUNCTION()
+	int32 GetNumberOfReplaysToKeep() const { return NumberOfReplaysToKeep; }
+	UFUNCTION()
+	void SetNumberOfReplaysToKeep(int32 InNumberOfReplays) { NumberOfReplaysToKeep = InNumberOfReplays; }
+
+private:
+
+	UPROPERTY(Config)
+	bool bShouldAutoRecordReplays = false;
+
+	UPROPERTY(Config)
+	int32 NumberOfReplaysToKeep = 5;
+
 private:
 	void OnAppActivationStateChanged(bool bIsActive);
 	void ReapplyThingsDueToPossibleDeviceProfileChange();

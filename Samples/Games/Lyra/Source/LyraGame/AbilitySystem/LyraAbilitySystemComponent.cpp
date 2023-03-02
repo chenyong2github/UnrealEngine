@@ -58,8 +58,12 @@ void ULyraAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AAc
 				TArray<UGameplayAbility*> Instances = AbilitySpec.GetAbilityInstances();
 				for (UGameplayAbility* AbilityInstance : Instances)
 				{
-					ULyraGameplayAbility* LyraAbilityInstance = CastChecked<ULyraGameplayAbility>(AbilityInstance);
-					LyraAbilityInstance->OnPawnAvatarSet();
+					ULyraGameplayAbility* LyraAbilityInstance = Cast<ULyraGameplayAbility>(AbilityInstance);
+					if (LyraAbilityInstance)
+					{
+						// Ability instances may be missing for replays
+						LyraAbilityInstance->OnPawnAvatarSet();
+					}
 				}
 			}
 			else

@@ -152,7 +152,6 @@ void ULyraHeroComponent::HandleChangeInitState(UGameFrameworkComponentManager* M
 			return;
 		}
 
-		const bool bIsLocallyControlled = Pawn->IsLocallyControlled();
 		const ULyraPawnData* PawnData = nullptr;
 
 		if (ULyraPawnExtensionComponent* PawnExtComp = ULyraPawnExtensionComponent::FindPawnExtensionComponent(Pawn))
@@ -172,7 +171,8 @@ void ULyraHeroComponent::HandleChangeInitState(UGameFrameworkComponentManager* M
 			}
 		}
 
-		if (bIsLocallyControlled && PawnData)
+		// Hook up the delegate for all pawns, in case we spectate later
+		if (PawnData)
 		{
 			if (ULyraCameraComponent* CameraComponent = ULyraCameraComponent::FindCameraComponent(Pawn))
 			{
