@@ -22,6 +22,8 @@ limitations under the License.
 #include "base/constants_and_types.h"
 #include "base/misc_math.h"
 
+#include "Misc/AssertionMacros.h"
+
 
 namespace vraudio {
 
@@ -60,6 +62,30 @@ size_t GetEncoderTableIndex(size_t i, size_t j, size_t k, size_t width,
 
 size_t GetSymmetriesTableIndex(size_t i, size_t j, size_t width) {
   return i * width + j;
+}
+
+size_t EnsureClampElevationIndex(size_t InIndex, const SphericalAngle& InSourceDirection)
+{
+	// InSourceDirection is passed in to provide additional debug information in an 
+	// attempt to find the source of the invalid encoder table index (FORT-522582)
+	if (ensureMsgf((0 <= InIndex ) && (InIndex < kNumElevations), TEXT("Out of bounds elevation index derived from elevation value %f radians"), InSourceDirection.elevation()))
+	{
+		return InIndex;
+	}
+	// Default to zeroth index to avoid reading out of bounds. 
+	return 0;
+}
+
+size_t EnsureClampAzimuthIndex(size_t InIndex, const SphericalAngle& InSourceDirection)
+{
+	// InSourceDirection is passed in to provide additional debug information in an 
+	// attempt to find the source of the invalid encoder table index (FORT-522582)
+	if (ensureMsgf((0 <= InIndex ) && (InIndex < kNumAzimuths), TEXT("Out of bound azimuth index derived from azimuth value %f radians"), InSourceDirection.azimuth()))
+	{
+		return InIndex;
+	}
+	// Default to zeroth index to avoid reading out of bounds. 
+	return 0;
 }
 
 int GetSpreadTableIndex(int ambisonic_order, float source_spread_deg) {
@@ -111,10 +137,11 @@ void AmbisonicLookupTable::GetEncodingCoeffs(
                 360;
   const int elevation_deg =
       static_cast<int>(source_direction.elevation() * kDegreesFromRadians);
+
   const size_t abs_azimuth_deg = static_cast<size_t>(std::abs(azimuth_deg));
-  const size_t azimuth_idx =
-      abs_azimuth_deg > 90 ? 180 - abs_azimuth_deg : abs_azimuth_deg;
-  const size_t elevation_idx = static_cast<size_t>(std::abs(elevation_deg));
+  const size_t azimuth_idx = EnsureClampAzimuthIndex(abs_azimuth_deg > 90 ? 180 - abs_azimuth_deg : abs_azimuth_deg, source_direction);
+  const size_t elevation_idx = EnsureClampElevationIndex(static_cast<size_t>(std::abs(elevation_deg)), source_direction);
+
   (*encoding_coeffs)[0] = 1.0f;
   for (size_t raw_coeff_idx = 0; raw_coeff_idx < num_raw_coeffs;
        ++raw_coeff_idx) {
