@@ -288,6 +288,8 @@ public:
 
 	bool bExposeClothingSceneElementMenu = true;
 
+	bool bExposeNotifiesUICommands = true;
+
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnIsClassAllowed, const UClass* /*InClass*/);
 
 	/** Sets a delegate that allows external code to restrict which features can be used within the Persona editor by filtering which classes are allowed. */
