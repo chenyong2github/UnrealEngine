@@ -252,11 +252,14 @@ namespace Chaos::Softs
 		{
 			if (Proxy->CanSimulate())
 			{
-				InitializeDeformableParticles(*Proxy);
-				InitializeKinematicParticles(*Proxy);
-				InitializeWeakConstraint(*Proxy);
-				InitializeTetrahedralConstraint(*Proxy);
-				InitializeGidBasedConstraints(*Proxy);
+				if (Proxy->GetRestCollection().NumElements(FGeometryCollection::VerticesGroup))
+				{
+					InitializeDeformableParticles(*Proxy);
+					InitializeKinematicParticles(*Proxy);
+					InitializeWeakConstraint(*Proxy);
+					InitializeTetrahedralConstraint(*Proxy);
+					InitializeGidBasedConstraints(*Proxy);
+				}
 			}
 		}
 		if (FCollisionManagerProxy* CollisionManagerProxy = InProxy.As< FCollisionManagerProxy>())
@@ -803,74 +806,38 @@ namespace Chaos::Softs
 										int32 TransformNum = FleshInputBuffer->Transforms.Num();
 										if (RestNum > 0 && TransformNum > 0)
 										{
-											
-											for (int32 i = BoneIndices.Num() - 1; 0 <= i; i--)
+
+											for (int32 i = 0; i < BoneIndices.Num(); i++)
 											{
 												if (BoneIndices[i] > -1 && BoneIndices[i] < RestNum && BoneIndices[i] < TransformNum)
 												{
-													// We're lerp'ing between the previous skinned position and the current skinned 
-													// position, based on the substep.  If our SimSpace is a bone, we need to transform
-													// those points by the inverse bone transform at each of those points in time.
-													const FVector3f& Pt = Vertex[Index - Range[0]];
 
 													// @todo(flesh) : Add the pre-cached component space rest transforms to the rest collection. 
 													// see  UFleshComponent::NewDeformableData for how its pulled from the SkeletalMesh
-													const FTransform& BoneRestTransform = FleshInputBuffer->RestTransforms[BoneIndices[i]];
-													FVec3 LocalPoint = BoneRestTransform.InverseTransformPosition(ChaosVert(Pt));
-													const FTransform& BoneCurrentTransform = FleshInputBuffer->Transforms[BoneIndices[i]];
-													FVec3 ComponentPointAtT = BoneCurrentTransform.TransformPosition(LocalPoint);
+													FVec3 LocalPoint = FleshInputBuffer->RestTransforms[BoneIndices[i]].InverseTransformPosition(ChaosVert(Vertex[Index - Range[0]]));
+													FVec3 ComponentPointAtT = FleshInputBuffer->Transforms[BoneIndices[i]].TransformPosition(LocalPoint);
 
 													if (PreviousFleshBuffer)
 													{
-														const FTransform& BonePreviousTransform = PreviousFleshBuffer->Transforms[BoneIndices[i]];
-														FVec3 PreviousComponentPointAtT = BonePreviousTransform.TransformPosition(LocalPoint);
-
-														if (Proxy->IsBoneSpace())
-														{
-															// Current position gets current bone xf
-															ComponentPointAtT = GlobalTransform.TransformPosition(ComponentPointAtT);
-															// Previous position gets previous bone xf
-															const FTransform& PrevGlobalTransform = Proxy->GetPreviousPointsTransform();
-															PreviousComponentPointAtT = PrevGlobalTransform.TransformPosition(PreviousComponentPointAtT);
-														}
-														ComponentPointAtT = 
-															ComponentPointAtT * CurrentRatio + PreviousComponentPointAtT * ((FSolverReal)1. - CurrentRatio);
-													}
-													else if (Proxy->IsBoneSpace())
-													{
-														ComponentPointAtT = GlobalTransform.TransformPosition(ComponentPointAtT);
+														FTransform BonePreviousTransform = PreviousFleshBuffer->Transforms[BoneIndices[i]];
+														ComponentPointAtT = ComponentPointAtT * CurrentRatio + BonePreviousTransform.TransformPosition(LocalPoint) * ((FSolverReal)1. - CurrentRatio);
 													}
 
-													if (!Proxy->IsBoneSpace())
-													{
-														MParticles.X(Index) = GlobalTransform.TransformPosition(ComponentPointAtT);
-													}
-													else
-													{
-														MParticles.X(Index) = ComponentPointAtT;
-													}
+													MParticles.X(Index) = MParticles.X(Index) + GlobalTransform.TransformPosition(ComponentPointAtT) * BoneWeights[i];
 
 													bParticleTouched = true;
-
-
-													// @todo(flesh): Add non rigid skinning weights. 
-													// Currently this just grabs the last joint, ideally
-													// we would be using the weighted average for the vertex
-													// positions.
-
-#if WITH_EDITOR
-													//debug draw
-													//p.Chaos.DebugDraw.Enabled 1
-													//p.Chaos.DebugDraw.Deformable.KinematicParticle 1
-													if (GDeformableDebugParams.IsDebugDrawingEnabled() && GDeformableDebugParams.bDoDrawKinematicParticles)
-													{
-														auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
-														Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(DoubleVert(MParticles.X(Index)), FColor::Red, false, -1.0f, 0, 5);
-													}
-#endif
-													break;
 												}
 											}
+#if WITH_EDITOR
+											//debug draw
+											//p.Chaos.DebugDraw.Enabled 1
+											//p.Chaos.DebugDraw.Deformable.KinematicParticle 1
+											if (GDeformableDebugParams.IsDebugDrawingEnabled() && GDeformableDebugParams.bDoDrawKinematicParticles)
+											{
+												auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
+												Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(DoubleVert(MParticles.X(Index)), FColor::Red, false, -1.0f, 0, 5);
+											}
+#endif
 										}
 										MParticles.PAndInvM(Index).P = MParticles.X(Index);
 									}

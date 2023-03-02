@@ -88,14 +88,48 @@ public:
 		RegisterInputConnection(&Collection);
 		RegisterOutputConnection(&Collection, &Collection);
 		RegisterInputConnection(&SkeletalMeshIn);
-		RegisterInputConnection(&VertexIndicesIn);	
+		RegisterInputConnection(&VertexIndicesIn);
 		RegisterInputConnection(&BoneIndexIn);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
+USTRUCT(meta = (DataflowFlesh))
+struct FKinematicOriginInsertionInitializationDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+		DATAFLOW_NODE_DEFINE_INTERNAL(FKinematicOriginInsertionInitializationDataflowNode, "KinematicOriginInsertionInitialization", "Flesh", "")
+		DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
 
+public:
+	typedef FManagedArrayCollection DataType;
+
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
+		FManagedArrayCollection Collection;
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "OriginSelectionSet"))
+		TArray<int32> OriginVertexIndicesIn;
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "InsertionSelectionSet"))
+		TArray<int32> InsertionVertexIndicesIn;
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "BoneSkeletalMesh"))
+		TObjectPtr<USkeletalMesh> BoneSkeletalMeshIn;
+
+
+	FKinematicOriginInsertionInitializationDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Collection, &Collection);
+		RegisterInputConnection(&OriginVertexIndicesIn);
+		RegisterInputConnection(&InsertionVertexIndicesIn);
+		RegisterInputConnection(&BoneSkeletalMeshIn);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
 
 USTRUCT(meta = (DataflowFlesh))
 struct FSetVerticesKinematicDataflowNode : public FDataflowNode
@@ -148,6 +182,37 @@ public:
 		RegisterInputConnection(&Collection);
 		RegisterOutputConnection(&Collection, &Collection);
 		RegisterInputConnection(&SkeletalMeshIn);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
+USTRUCT(meta = (DataflowFlesh))
+struct FKinematicSkeletalMeshInitializationDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+		DATAFLOW_NODE_DEFINE_INTERNAL(FKinematicSkeletalMeshInitializationDataflowNode, "KinematicSkeletalMeshInitialization", "Flesh", "")
+		//DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
+
+public:
+	typedef FManagedArrayCollection DataType;
+
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection"))
+		FManagedArrayCollection Collection;
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "SkeletalMesh"))
+		TObjectPtr<USkeletalMesh> SkeletalMeshIn;
+	
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "SelectionSet"))
+		TArray<int32> IndicesOut;
+
+	FKinematicSkeletalMeshInitializationDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&SkeletalMeshIn);
+		RegisterOutputConnection(&Collection);
+		RegisterOutputConnection(&IndicesOut);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;

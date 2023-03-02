@@ -94,25 +94,28 @@ UDeformablePhysicsComponent::FThreadingProxy* UFleshComponent::NewProxy()
 	{
 		if (const FFleshCollection* Rest = RestAsset->GetCollection())
 		{
-			if (!GetDynamicCollection())
+			if (Rest->NumElements(FGeometryCollection::VerticesGroup))
 			{
-				DynamicCollection = NewObject<UFleshDynamicAsset>(this, TEXT("Flesh Dynamic Asset"));
-			}
+				if (!GetDynamicCollection())
+				{
+					DynamicCollection = NewObject<UFleshDynamicAsset>(this, TEXT("Flesh Dynamic Asset"));
+				}
 
-			GetDynamicCollection()->Reset(Rest);
-			if (const FManagedArrayCollection* Dynamic = GetDynamicCollection()->GetCollection())
-			{
-				// Mesh points are in component space, such that the exterior hull aligns with the
-                // surface of the skeletal mesh, which is subject to the transform hierarchy.
-				const FTransform& ComponentToWorldXf = GetComponentTransform();
-				const FTransform ComponentToSimXf = GetSimSpaceRestTransform();
-				return new FFleshThreadingProxy(
-					this,
-					ComponentToWorldXf, 
-					ComponentToSimXf, 
-					SimSpace,
-					*Rest, 
-					*Dynamic);
+				GetDynamicCollection()->Reset(Rest);
+				if (const FManagedArrayCollection* Dynamic = GetDynamicCollection()->GetCollection())
+				{
+					// Mesh points are in component space, such that the exterior hull aligns with the
+					// surface of the skeletal mesh, which is subject to the transform hierarchy.
+					const FTransform& ComponentToWorldXf = GetComponentTransform();
+					const FTransform ComponentToSimXf = GetSimSpaceRestTransform();
+					return new FFleshThreadingProxy(
+						this,
+						ComponentToWorldXf,
+						ComponentToSimXf,
+						SimSpace,
+						*Rest,
+						*Dynamic);
+				}
 			}
 		}
 	}

@@ -34,14 +34,12 @@ namespace Dataflow
 
 void FAddKinematicParticlesDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<DataType>(&Collection))
+	if (Out->IsA<DataType>(&Collection) || Out->IsA<TArray<int32>>(&TargetIndicesOut))
 	{
 		DataType InCollection = GetValue<DataType>(Context, &Collection);
-
+		TArray<int32> TargetIndices;
 		if (TManagedArray<FVector3f>* Vertices = InCollection.FindAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup))
 		{
-			TArray<int32> TargetIndices;
-			TargetIndices.SetNum(0);
 			if (FindInput(&VertexIndicesIn) && FindInput(&VertexIndicesIn)->GetConnection())
 			{
 				TArray<int32> BoundVerts;
@@ -139,10 +137,9 @@ void FAddKinematicParticlesDataflowNode::Evaluate(Dataflow::FContext& Context, c
 					GeometryCollection::Facades::FVertexBoneWeightsFacade(InCollection).AddBoneWeightsFromKinematicBindings();
 				}
 			}
-
-			SetValue<TArray<int32>>(Context, TargetIndices, &TargetIndicesOut);
 		}
 		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue<TArray<int32>>(Context, TargetIndices, &TargetIndicesOut);
 	}
 }
 
@@ -323,7 +320,7 @@ void FSetVertexTetrahedraPositionTargetBindingDataflowNode::Evaluate(Dataflow::F
 									for (int32 j = 0; j < TetIntersections.Num(); j++)
 									{
 										const int32 TetIdx = TetIntersections[j];
-										if (!Tets[TetIdx].Outside(ParticlePos, 1.0e-2))
+										if (!Tets[TetIdx].Outside(ParticlePos, 0))
 										{
 											Chaos::TVector<Chaos::FReal, 4> WeightsD = Tets[TetIdx].GetBarycentricCoordinates(ParticlePos);
 											GeometryCollection::Facades::FPositionTargetsData DataPackage;
