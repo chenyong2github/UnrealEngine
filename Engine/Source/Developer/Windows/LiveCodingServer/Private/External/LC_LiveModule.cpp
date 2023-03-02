@@ -1210,7 +1210,9 @@ void LiveModule::Load(symbols::Provider* provider, symbols::DiaCompilandDB* diaC
 	}
 
 	// now that all the databases are built, store their info into the module cache
-	m_mainModuleToken = m_moduleCache->Insert(m_symbolDB, m_contributionDB, m_compilandDB, m_thunkDB, m_imageSectionDB);
+	// BEGIN EPIC MOD
+	m_mainModuleToken = m_moduleCache->Insert(m_symbolDB, m_contributionDB, m_compilandDB, m_thunkDB, m_imageSectionDB, provider->lastModificationTime);
+	// END EPIC MOD
 }
 
 
@@ -3674,6 +3676,9 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	executable::DestroyImageSectionDB(patchImageSections);
 	executable::CloseImage(patchImage);
 
+	// BEGIN EPIC MOD
+	uint64_t patchLastModicationTime = patchSymbolProvider->lastModificationTime;
+	// END EPIC MOD
 	symbols::Close(patchSymbolProvider);
 
 
@@ -3684,7 +3689,9 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 
 	// store the new databases into the module cache
 	ModulePatch* compiledModulePatch = nullptr;
-	const size_t token = m_moduleCache->Insert(patch_symbolDB, patch_contributionDB, patch_compilandDB, patch_thunkDB, patch_imageSectionDB);
+	// BEGIN EPIC MOD
+	const size_t token = m_moduleCache->Insert(patch_symbolDB, patch_contributionDB, patch_compilandDB, patch_thunkDB, patch_imageSectionDB, patchLastModicationTime);
+	// END EPIC MOD
 	{
 		for (size_t p = 0u; p < processCount; ++p)
 		{
@@ -4895,3 +4902,29 @@ void LiveModule::OnCompiledFile(const symbols::ObjPath& objPath, symbols::Compil
 		LC_ERROR_USER("Failed to compile %s (%.3fs) (Exit code: 0x%X)", objPath.c_str(), compileTime, compileResult.exitCode);
 	}
 }
+
+// BEGIN EPIC MOD
+bool LiveModule::IsModifiedSource(const wchar_t* sourceFile) const
+{
+	if (m_moduleCache == nullptr || m_moduleCache->GetSize() == 0)
+	{
+		return false;
+	}
+
+	Filesystem::PathAttributes attr = Filesystem::GetAttributes(sourceFile);
+	if (!Filesystem::DoesExist(attr))
+	{
+		return false;
+	}
+
+	for (size_t i = 0; i < m_moduleCache->GetSize(); ++i)
+	{
+		const ModuleCache::Data& data = m_moduleCache->GetEntry(i);
+		if (data.lastModificationTime > attr.lastModificationTime)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+// END EPIC MOD

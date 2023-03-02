@@ -864,42 +864,52 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 		symbols::ResetCachedUnityManifests();
 
 		// Build up a list of all the modified object files in each module
-		types::unordered_set<std::wstring> ValidModuleFileNames;
+		types::unordered_map<std::wstring, const LiveModule*> EnabledModulesByName;
 		for (const LiveModule* liveModule : m_liveModules)
 		{
-			ValidModuleFileNames.insert(liveModule->GetModuleName());
+			EnabledModulesByName[liveModule->GetModuleName()] = liveModule;
 		}
 
 		for(const TPair<FString, FModuleFiles>& Pair : ModuleToModuleFiles)
 		{
+			const LiveModule* liveModule = nullptr;
 			std::wstring ModuleFileName = Filesystem::NormalizePath(*Pair.Key).GetString();
-			if(ValidModuleFileNames.find(ModuleFileName) == ValidModuleFileNames.end())
+			types::unordered_map<std::wstring, const LiveModule*>::iterator ix = EnabledModulesByName.find(ModuleFileName);
+			if (ix == EnabledModulesByName.end())
 			{
 				// We couldn't find this exact module filename, but this could be a staged executable. See if we can just match the name.
 				std::wstring ModuleFileNameOnly = Filesystem::GetFilename(ModuleFileName.c_str()).GetString();
 
-				bool bFoundNameMatch = false;
-				for (const LiveModule* liveModule : m_liveModules)
+				for (const LiveModule* testLiveModule : m_liveModules)
 				{
-					if (ModuleFileNameOnly == Filesystem::GetFilename(liveModule->GetModuleName().c_str()).GetString())
+					if (ModuleFileNameOnly == Filesystem::GetFilename(testLiveModule->GetModuleName().c_str()).GetString())
 					{
-						ModuleFileName = liveModule->GetModuleName();
-						bFoundNameMatch = true;
+						ModuleFileName = testLiveModule->GetModuleName();
+						liveModule = testLiveModule;
 						break;
 					}
 				}
 
-				if (!bFoundNameMatch)
+				if (liveModule == nullptr)
 				{
 					LC_WARNING_USER("The module '%S' has not been loaded by any process. Changes will be ignored.", ModuleFileName.c_str());
 					continue;
 				}
+			}
+			else
+			{
+				liveModule = ix->second;
 			}
 
 			types::vector<symbols::ModifiedObjFile> ObjectFiles;
 			for (const FString& ObjectFile : Pair.Value.Objects)
 			{
 				std::wstring NormalizedObjectFile = Filesystem::NormalizePath(*ObjectFile).GetString();
+
+				if (!liveModule->IsModifiedSource(NormalizedObjectFile.c_str()))
+				{
+					continue;
+				}
 
 				// If this file has a .lc.obj suffix, temporarily replace the original .obj file while generating the patch.
 				// It'd be nice to track this explicitly inside Live++ and just load the new file, but it requires a lot of changes and would make upgrades difficult.

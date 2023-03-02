@@ -14,13 +14,14 @@ ModuleCache::ModuleCache(void)
 	m_cache.reserve(128u);
 }
 
-
-size_t ModuleCache::Insert(const symbols::SymbolDB* symbolDb, const symbols::ContributionDB* contributionDb, const symbols::CompilandDB* compilandDb, const symbols::ThunkDB* thunkDb, const symbols::ImageSectionDB* imageSectionDb)
+// BEGIN EPIC MOD
+size_t ModuleCache::Insert(const symbols::SymbolDB* symbolDb, const symbols::ContributionDB* contributionDb, const symbols::CompilandDB* compilandDb, const symbols::ThunkDB* thunkDb, const symbols::ImageSectionDB* imageSectionDb, uint64_t lastModicationTime)
+// END EPIC MOD
 {
 	CriticalSection::ScopedLock lock(&m_cs);
 
 	const size_t token = m_cache.size();
-	m_cache.push_back(Data { static_cast<uint16_t>(token), symbolDb, contributionDb, compilandDb, thunkDb, imageSectionDb, {} });
+	m_cache.push_back(Data { static_cast<uint16_t>(token), symbolDb, contributionDb, compilandDb, thunkDb, imageSectionDb, lastModicationTime, {} });
 
 	return token;
 }

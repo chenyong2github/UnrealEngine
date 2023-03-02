@@ -51,8 +51,6 @@ private:
 	bool bDisableActionLimit;
 	bool bHasReinstancingProcess;
 	bool bWarnOnRestart;
-	FDateTime LastPatchTime;
-	FDateTime NextPatchStartTime;
 
 public:
 	FLiveCodingConsoleApp(FSlateApplication& InSlate, ILiveCodingServer& InServer)
@@ -62,8 +60,6 @@ public:
 		, bDisableActionLimit(false)
 		, bHasReinstancingProcess(false)
 		, bWarnOnRestart(false)
-		, LastPatchTime(FDateTime::MinValue())
-		, NextPatchStartTime(FDateTime::MinValue())
 	{
 	}
 
@@ -268,9 +264,6 @@ private:
 	ELiveCodingCompileResult CompilePatch(const TArray<FString>& Targets, const TArray<FString>& ValidModules, const TSet<FString>& LazyLoadModules,
 		TArray<FString>& RequiredModules, FModuleToModuleFiles& ModuleToModuleFiles, ELiveCodingCompileReason CompileReason)
 	{
-		// Update the compile start time. This gets copied into the last patch time once a patch has been confirmed to have been applied.
-		NextPatchStartTime = FDateTime::UtcNow();
-
 		// Get the UBT path
 		FString Executable;
 		FString Entry;
@@ -400,22 +393,12 @@ private:
 		// Override the linker path
 		Server.SetLinkerPath(*Manifest.LinkerPath, Manifest.LinkerEnvironment);
 
-		// Strip out all the files that haven't been modified
-		IFileManager& FileManager = IFileManager::Get();
+		// Add all the sources regardless of modification time.  The patch will exclude old ones
 		for(TPair<FString, TArray<FString>>& Pair : Manifest.BinaryToObjectFiles)
 		{
-			FDateTime MinTimeStamp = FileManager.GetTimeStamp(*Pair.Key);
-			if(LastPatchTime > MinTimeStamp)
-			{
-				MinTimeStamp = LastPatchTime;
-			}
-
 			for (const FString& ObjectFileName : Pair.Value)
 			{
-				if (FileManager.GetTimeStamp(*ObjectFileName) > MinTimeStamp)
-				{
-					ModuleToModuleFiles.FindOrAdd(Pair.Key).Objects.Add(ObjectFileName);
-				}
+				ModuleToModuleFiles.FindOrAdd(Pair.Key).Objects.Add(ObjectFileName);
 			}
 		}
 
@@ -427,10 +410,6 @@ private:
 				ModuleToModuleFiles.FindOrAdd(Pair.Key).Libraries.Add(Library);
 			}
 		}
-
-		// Force the next patch time to include any CPP files modified this time around.  This avoids the issue 
-		// where a patch might be generated for a file twice instead of just once.
-		NextPatchStartTime = FDateTime::UtcNow();
 
 		return ELiveCodingCompileResult::Success;
 	}
@@ -498,7 +477,6 @@ private:
 		FScopeLock Lock(&CriticalSection);
 		MainThreadTasks.Add(FSimpleDelegate::CreateRaw(this, &FLiveCodingConsoleApp::OnCompileStarted));
 		bRequestCancel = false;
-		NextPatchStartTime = FDateTime::UtcNow();
 	}
 
 	void OnCompileStarted()
@@ -524,11 +502,6 @@ private:
 	{
 		FScopeLock Lock(&CriticalSection);
 		MainThreadTasks.Add(FSimpleDelegate::CreateLambda([this, Result, Status](){ OnCompileFinished(Result, Status); }));
-
-		if (Result == ELiveCodingResult::Success)
-		{
-			LastPatchTime = NextPatchStartTime;
-		}
 	}
 
 	void OnCompileFinished(ELiveCodingResult Result, const FString& Status)

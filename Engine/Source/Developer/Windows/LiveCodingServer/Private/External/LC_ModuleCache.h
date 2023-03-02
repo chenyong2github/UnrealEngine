@@ -39,6 +39,9 @@ public:
 		const symbols::CompilandDB* compilandDb;
 		const symbols::ThunkDB* thunkDb;
 		const symbols::ImageSectionDB* imageSectionDb;
+		// BEGIN EPIC MOD
+		uint64_t lastModificationTime;
+		// END EPIC MOD
 
 		types::vector<ProcessData> processes;	// all processes that this patch is loaded into
 	};
@@ -61,7 +64,9 @@ public:
 	
 	// adds an entry to the cache. does not take ownership of the databases.
 	// returns a token for registering a process associated with this entry.
-	size_t Insert(const symbols::SymbolDB* symbolDb, const symbols::ContributionDB* contributionDb, const symbols::CompilandDB* compilandDb, const symbols::ThunkDB* thunkDb, const symbols::ImageSectionDB* imageSectionDb);
+	// BEGIN EPIC MOD
+	size_t Insert(const symbols::SymbolDB* symbolDb, const symbols::ContributionDB* contributionDb, const symbols::CompilandDB* compilandDb, const symbols::ThunkDB* thunkDb, const symbols::ImageSectionDB* imageSectionDb, uint64_t lastModicationTime);
+	// END EPIC MOD
 
 	// associates a process with an entry identified by a previously returned token.
 	void RegisterProcess(size_t token, LiveProcess* liveProcess, void* moduleBase);

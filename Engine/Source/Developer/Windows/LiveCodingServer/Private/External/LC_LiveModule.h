@@ -92,6 +92,10 @@ public:
 
 	bool HasInstalledPatches(void) const;
 
+	// BEGIN EPIC MOD
+	bool IsModifiedSource(const wchar_t* sourceFile) const;
+	// END EPIC MOD
+
 private:
 	void UpdateDirectoryCache(const ImmutableString& path, symbols::Dependency* dependency, DirectoryCache* cache);
 
