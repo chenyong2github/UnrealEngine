@@ -1220,6 +1220,17 @@ FRigVMExprAST* FRigVMParserAST::TraverseLink(int32 InLinkIndex, FRigVMExprAST* I
 			bRequiresCopy = true;
 		}
 	}
+	if (!bRequiresCopy)
+	{
+		// Connections between entry and return in a function requires a copy
+		if (LibraryNodeBeingCompiled)
+		{
+			if (SourceRootPin->GetNode()->IsA<URigVMFunctionEntryNode>() && TargetRootPin->GetNode()->IsA<URigVMFunctionReturnNode>())
+			{
+				bRequiresCopy = true;
+			}
+		}
+	}
 
 	FRigVMAssignExprAST* AssignExpr = nullptr;
 	if (bRequiresCopy)

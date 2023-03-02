@@ -1119,7 +1119,7 @@ bool URigVMMemoryStorage::CopyProperty(
 
 			if (!ReportedErrors.Contains(Message))
 			{
-				UE_LOG(LogRigVM, Warning, TEXT("%s"), *Message);
+				UE_LOG(LogRigVM, Error, TEXT("%s"), *Message);
 				ReportedErrors.Add(Message);
 			}
 			
