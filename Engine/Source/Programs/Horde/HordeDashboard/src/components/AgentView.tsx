@@ -11,6 +11,7 @@ import { agentStore } from '../backend/AgentStore';
 import { AgentData, BatchUpdatePoolRequest, GetAgentResponse, LeaseState, PoolData } from '../backend/Api';
 import { copyToClipboard } from '../base/utilities/clipboard';
 import { useWindowSize } from '../base/utilities/hooks';
+import { getShortNiceTime } from '../base/utilities/timeUtils';
 import { hexToRGB, hordeClasses, linearInterpolate } from '../styles/Styles';
 import { Breadcrumbs } from './Breadcrumbs';
 import { ConfirmationDialog } from './ConfirmationDialog';
@@ -2396,7 +2397,7 @@ export const AgentView: React.FC = observer(() => {
                let subtitle = "";
                if (!agent.online) {
                   title = `Offline - ${agent.lastShutdownReason}`;
-                  subtitle = `(Last online at ${moment.utc(agent.updateTime).local().format("YYYY-MM-DD HH:mm:ss")})`;
+                  subtitle = `(Last online at ${getShortNiceTime(agent.updateTime, true, true, true)}`;
                }
                else if (agent.pendingShutdown) {
                   title = `Pending Shutdown`;
@@ -2406,7 +2407,7 @@ export const AgentView: React.FC = observer(() => {
                   if (agent.conformAttemptCount && agent.conformAttemptCount > 0) {
                      title = `${agent.pendingFullConform ? "Full " : ""}Conform failed (${agent.conformAttemptCount} attempts)`;
                      if (agent.nextConformTime) {
-                        subtitle = `Next attempt at ${moment.utc(agent.nextConformTime).local().format("YYYY-MM-DD HH:mm:ss")}`;
+                        subtitle = `Next attempt at ${getShortNiceTime(agent.nextConformTime, true, true, true)}`;
                      }
                   }
                   else {

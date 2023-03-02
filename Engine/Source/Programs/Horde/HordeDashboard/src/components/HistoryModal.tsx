@@ -9,6 +9,7 @@ import backend from "../backend";
 import { agentStore } from "../backend/AgentStore";
 import { AgentData, GetAgentLeaseResponse, GetAgentSessionResponse, JobStepBatchError, LeaseData, SessionData, UpdateAgentRequest } from "../backend/Api";
 import dashboard from "../backend/Dashboard";
+import { getShortNiceTime } from "../base/utilities/timeUtils";
 import { hordeClasses, modeColors } from "../styles/Styles";
 import { BatchStatusIcon, LeaseStatusIcon } from "./StatusIcon";
 
@@ -669,9 +670,9 @@ export const HistoryModal: React.FC<{ agentId: string | undefined, onDismiss: (.
             case 'name':
                return <Stack>{lease.name}</Stack>;
             case 'startTime':
-               return <Stack styles={{ root: { height: '100%', } }} horizontal horizontalAlign={'center'}><Stack.Item align={"center"}>{lease.startTime.toString().substring(0, 24)}</Stack.Item></Stack>
+               return <Stack styles={{ root: { height: '100%', } }} horizontal horizontalAlign={'center'}><Stack.Item align={"center"}>{getShortNiceTime(lease.startTime, false, true, true)}</Stack.Item></Stack>
             case 'endTime':
-               return <Stack styles={{ root: { height: '100%', } }} horizontal horizontalAlign={'center'}><Stack.Item align={"center"}>{lease.finishTime?.toString().substring(0, 24) || ""}</Stack.Item></Stack>
+               return <Stack styles={{ root: { height: '100%', } }} horizontal horizontalAlign={'center'}><Stack.Item align={"center"}>{getShortNiceTime(lease.finishTime, false, true, true)}</Stack.Item></Stack>
             case 'description':
                link = "";
                if (lease.details) {
@@ -701,9 +702,9 @@ export const HistoryModal: React.FC<{ agentId: string | undefined, onDismiss: (.
             case 'id':
                return <Stack styles={{ root: { height: '100%', } }} horizontal><Stack.Item align={"center"}>{session.id}</Stack.Item></Stack>
             case 'startTime':
-               return <Stack styles={{ root: { height: '100%', } }} horizontal horizontalAlign={'center'}><Stack.Item align={"center"}>{session.startTime.toString().substring(0, 24)}</Stack.Item></Stack>
+               return <Stack styles={{ root: { height: '100%', } }} horizontal horizontalAlign={'center'}><Stack.Item align={"center"}>{getShortNiceTime(session.startTime, false, true)}</Stack.Item></Stack>
             case 'endTime':
-               return <Stack styles={{ root: { height: '100%', } }} horizontal horizontalAlign={'center'}><Stack.Item align={"center"}>{session.finishTime?.toString().substring(0, 24) || ""}</Stack.Item></Stack>
+               return <Stack styles={{ root: { height: '100%', } }} horizontal horizontalAlign={'center'}><Stack.Item align={"center"}>{getShortNiceTime(session.finishTime, false, true)}</Stack.Item></Stack>
             default:
                return <span>{session[column!.fieldName as keyof SessionData] as string}</span>;
          }
