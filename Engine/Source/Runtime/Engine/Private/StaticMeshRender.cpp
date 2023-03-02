@@ -2464,6 +2464,47 @@ FLODMask FStaticMeshSceneProxy::GetLODMask(const FSceneView* View) const
 	return Result;
 }
 
+bool UStaticMeshComponent::ShouldCreateNaniteProxy(Nanite::FMaterialAudit* OutNaniteMaterials) const
+{
+	// Whether or not to allow Nanite for this component
+#if WITH_EDITORONLY_DATA
+	const bool bForceFallback = bDisplayNaniteFallbackMesh;
+#else
+	const bool bForceFallback = false;
+#endif
+
+	if (bForceFallback || bDisallowNanite || bForceDisableNanite)
+	{
+		// Regardless of the static mesh asset supporting Nanite, this component does not want Nanite to be used
+		return false;
+	}
+
+	const EShaderPlatform ShaderPlatform = GetScene() ? GetScene()->GetShaderPlatform() : GMaxRHIShaderPlatform;
+	
+	if (!UseNanite(ShaderPlatform) || !HasValidNaniteData())
+	{
+		return false;
+	}
+
+	{
+		Nanite::FMaterialAudit NaniteMaterials{};
+		Nanite::AuditMaterials(this, NaniteMaterials);
+
+		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;
+		if (!NaniteMaterials.IsValid(bIsMaskingAllowed))
+		{
+			return false;
+		}
+
+		if (OutNaniteMaterials)
+		{
+			*OutNaniteMaterials = MoveTemp(NaniteMaterials);
+		}
+	}
+
+	return true;
+}
+
 FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 {
 	if (GetStaticMesh() == nullptr)
@@ -2497,23 +2538,14 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
+	const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;
+
 	Nanite::FMaterialAudit NaniteMaterials{};
 
-#if WITH_EDITORONLY_DATA
-	const bool bForceFallback = bDisplayNaniteFallbackMesh;
-#else
-	const bool bForceFallback = false;
-#endif
-
 	// Is Nanite supported, and is there built Nanite data for this static mesh?
-	bool bUseNanite = ShouldCreateNaniteProxy() && !bForceFallback;
-	if (bUseNanite)
-	{
-		Nanite::AuditMaterials(this, NaniteMaterials);
-	}
+	const bool bUseNanite = ShouldCreateNaniteProxy(&NaniteMaterials);
 
-	const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;;
-	if (bUseNanite && NaniteMaterials.IsValid(bIsMaskingAllowed))
+	if (bUseNanite)
 	{
 		LLM_SCOPE(ELLMTag::StaticMesh);
 

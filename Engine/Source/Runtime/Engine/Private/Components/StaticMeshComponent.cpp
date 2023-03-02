@@ -1714,25 +1714,6 @@ void UStaticMeshComponent::UpdatePreCulledData(int32 LODIndex, const TArray<uint
 	}
 }
 
-bool UStaticMeshComponent::ShouldCreateNaniteProxy() const
-{
-	if (bDisallowNanite || bForceDisableNanite)
-	{
-		// Regardless of the static mesh asset supporting Nanite, this component does not want Nanite to be used
-		return false;
-	}
-
-	// Whether or not to allow Nanite for this component
-#if WITH_EDITORONLY_DATA
-	const bool bAllowNanite = !bDisplayNaniteFallbackMesh;
-#else
-	const bool bAllowNanite = true;
-#endif
-
-	EShaderPlatform ShaderPlatform = GetScene() ? GetScene()->GetShaderPlatform() : GMaxRHIShaderPlatform;
-	return bAllowNanite && UseNanite(ShaderPlatform) && HasValidNaniteData();
-}
-
 void UStaticMeshComponent::ReleaseResources()
 {
 	for(int32 LODIndex = 0;LODIndex < LODData.Num();LODIndex++)
@@ -2264,10 +2245,15 @@ bool UStaticMeshComponent::HasValidNaniteData() const
 	return NaniteResources ? NaniteResources->PageStreamingStates.Num() > 0 : false;
 }
 
-bool UStaticMeshComponent::UseNaniteOverrideMaterials() const
+bool UStaticMeshComponent::UseNaniteOverrideMaterials(bool bDoingMaterialAudit) const
 {
 	// Check for valid data on this SMC and support for Nanite material overrides
-	return ShouldCreateNaniteProxy() && GEnableNaniteMaterialOverrides != 0;
+	return (bDoingMaterialAudit || ShouldCreateNaniteProxy()) && GEnableNaniteMaterialOverrides != 0;
+}
+
+bool UStaticMeshComponent::UseNaniteOverrideMaterials() const
+{
+	return UseNaniteOverrideMaterials(false);
 }
 
 void UStaticMeshComponent::SetForcedLodModel(int32 NewForcedLodModel)
@@ -2666,7 +2652,7 @@ bool UStaticMeshComponent::IsMaterialSlotNameValid(FName MaterialSlotName) const
 	return GetMaterialIndex(MaterialSlotName) >= 0;
 }
 
-UMaterialInterface* UStaticMeshComponent::GetMaterial(int32 MaterialIndex) const
+UMaterialInterface* UStaticMeshComponent::GetMaterial(int32 MaterialIndex, bool bDoingNaniteMaterialAudit) const
 {
 	UMaterialInterface* OutMaterial = nullptr;
 
@@ -2682,13 +2668,23 @@ UMaterialInterface* UStaticMeshComponent::GetMaterial(int32 MaterialIndex) const
 	}
 
 	// If we have a nanite override, use that
-	if (OutMaterial != nullptr && UseNaniteOverrideMaterials())
+	if (OutMaterial != nullptr && UseNaniteOverrideMaterials(bDoingNaniteMaterialAudit))
 	{
 		UMaterialInterface* NaniteOverride = OutMaterial->GetNaniteOverride();
 		OutMaterial = NaniteOverride != nullptr ? NaniteOverride : OutMaterial;
 	}
 
 	return OutMaterial;
+}
+
+UMaterialInterface* UStaticMeshComponent::GetMaterial(int32 MaterialIndex) const
+{
+	return GetMaterial(MaterialIndex, false);
+}
+
+UMaterialInterface* UStaticMeshComponent::GetNaniteAuditMaterial(int32 MaterialIndex) const
+{
+	return GetMaterial(MaterialIndex, true);
 }
 
 UMaterialInterface* UStaticMeshComponent::GetEditorMaterial(int32 MaterialIndex) const

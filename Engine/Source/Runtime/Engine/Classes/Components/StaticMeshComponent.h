@@ -42,6 +42,7 @@ struct FStaticLightingPrimitiveInfo;
 namespace Nanite
 {
 	struct FResources;
+	struct FMaterialAudit;
 }
 
 /** Cached vertex information at the time the mesh was painted. */
@@ -668,6 +669,8 @@ public:
 	/** Whether we can support dithered LOD transitions (default behavior checks all materials). Used for HISMC LOD. */
 	virtual bool SupportsDitheredLODTransitions(ERHIFeatureLevel::Type FeatureLevel);
 
+	UMaterialInterface* GetNaniteAuditMaterial(int32 MaterialIndex) const;
+
 private:
 	/** Initializes the resources used by the static mesh component. */
 	void InitResources();
@@ -682,6 +685,11 @@ private:
 	/** Clears texture streaming data. */
 	void ClearStreamingTextureData();
 #endif
+
+	bool UseNaniteOverrideMaterials(bool bDoingMaterialAudit) const;
+
+	UMaterialInterface* GetMaterial(int32 MaterialIndex, bool bDoingNaniteMaterialAudit) const;
+
 protected:
 
 	/** Collect all the PSO precache data used by the static mesh component */
@@ -693,9 +701,9 @@ protected:
 		return true;
 	}
 
-public:
+	bool ShouldCreateNaniteProxy(Nanite::FMaterialAudit* OutNaniteMaterials = nullptr) const;
 
-	bool ShouldCreateNaniteProxy() const;
+public:
 
 	void ReleaseResources();
 

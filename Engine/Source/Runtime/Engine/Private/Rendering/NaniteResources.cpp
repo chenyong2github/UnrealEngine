@@ -2068,7 +2068,7 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 			FMaterialAuditEntry& Entry = Audit.Entries.AddDefaulted_GetRef();
 			Entry.MaterialSlotName = SlotName;
 			Entry.MaterialIndex = Component->GetMaterialIndex(SlotName);
-			Entry.Material = Component->GetMaterial(Entry.MaterialIndex);
+			Entry.Material = Component->GetNaniteAuditMaterial(Entry.MaterialIndex);
 			Entry.bHasNullMaterial = Entry.Material == nullptr;
 
 			if (Entry.bHasNullMaterial)

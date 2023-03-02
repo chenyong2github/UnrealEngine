@@ -4075,11 +4075,11 @@ public:
 
 FPrimitiveSceneProxy* ULandscapeNaniteComponent::CreateSceneProxy()
 {
+	Nanite::FMaterialAudit MaterialAudit{};
+
 	// Is Nanite supported, and is there built Nanite data for this static mesh?
-	if (IsEnabled() && ShouldCreateNaniteProxy())
+	if (IsEnabled() && ShouldCreateNaniteProxy(&MaterialAudit))
 	{
-		Nanite::FMaterialAudit MaterialAudit;
-		Nanite::AuditMaterials(this, MaterialAudit);
 		return ::new FLandscapeNaniteSceneProxy(MaterialAudit, this);
 	}
 

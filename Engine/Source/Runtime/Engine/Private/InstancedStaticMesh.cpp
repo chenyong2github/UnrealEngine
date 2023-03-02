@@ -2411,14 +2411,9 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		Nanite::FMaterialAudit NaniteMaterials{};
 
 		// Is Nanite supported, and is there built Nanite data for this static mesh?
-		bool bUseNanite = ShouldCreateNaniteProxy();
-		if (bUseNanite)
-		{
-			Nanite::AuditMaterials(this, NaniteMaterials);
-		}
+		bool bUseNanite = ShouldCreateNaniteProxy(&NaniteMaterials);
 
-		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;
-		if (bUseNanite && NaniteMaterials.IsValid(bIsMaskingAllowed))
+		if (bUseNanite)
 		{
 			return ::new Nanite::FSceneProxy(NaniteMaterials, this);
 		}
