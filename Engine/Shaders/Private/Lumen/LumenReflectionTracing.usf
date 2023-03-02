@@ -10,6 +10,7 @@
 #include "LumenReflectionCommon.ush"
 #include "../SceneTextureParameters.ush"
 #include "../SHCommon.ush"
+#include "../ShaderPrint.ush"
 #define HZB_TRACE_INCLUDE_FULL_RES_DEPTH 1
 #include "LumenScreenTracing.ush"
 #include "LumenHairTracing.ush"
@@ -690,5 +691,55 @@ void ReflectionTraceVoxelsCS(uint DispatchThreadId : SV_DispatchThreadID)
 		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ReflectionTracingCoord, TraceHitDistance, MaxTraceDistance);
 
 		TraceVoxels(ReflectionTracingCoord, TraceHitDistance);
+	}
+}
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void VisualizeReflectionTracesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 GroupThreadId : SV_GroupThreadID,
+	uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (all(DispatchThreadId == 0))
+	{
+		int2 QueryProbeScreenPosition = View.CursorPosition.x >= 0 ? View.CursorPosition * View.ViewResolutionFraction / ReflectionDownsampleFactor : -1;
+
+		if (all(QueryProbeScreenPosition > 0) && all(QueryProbeScreenPosition < ReflectionTracingViewSize))
+		{
+			const FReflectionTracingCoord ReflectionTracingCoord = GetReflectionTracingCoord(QueryProbeScreenPosition);
+			float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord.Coord);
+			float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord.CoordFlatten, 0)).x;
+
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth); // LUMEN_LWC_TODO
+			float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			FRayData RayData = GetRayData(ReflectionTracingCoord.CoordFlatten);
+
+			bool bHit;
+			float TraceHitDistance = DecodeRayDistance(TraceHit[ReflectionTracingCoord.Coord].x, bHit);
+			float3 RayHitRadiance = TraceRadiance[ReflectionTracingCoord.Coord];
+
+			FShaderPrintContext Context = InitShaderPrintContext(true, float2(0.1, 0.1));
+
+			Print(Context, TEXT("Pixel: "));
+			Print(Context, QueryProbeScreenPosition.x);
+			Print(Context, QueryProbeScreenPosition.y);
+			Newline(Context);
+
+			if (SceneDepth > 0.0f)
+			{
+				Print(Context, TEXT("Distance: "));
+				Print(Context, TraceHitDistance);
+				Newline(Context);
+
+				Print(Context, TEXT("Radiance: "));
+				Print(Context, RayHitRadiance.x);
+				Print(Context, RayHitRadiance.y);
+				Print(Context, RayHitRadiance.z);
+
+				const float3 HitPoint = TranslatedWorldPosition + RayData.Direction * TraceHitDistance;
+				AddLineTWS(Context, TranslatedWorldPosition, HitPoint, float4(RayHitRadiance, 1.0f));
+				AddCrossTWS(Context, HitPoint, 2.0f, float4(1, 1, 0, 1));				
+			}
+		}
 	}
 }

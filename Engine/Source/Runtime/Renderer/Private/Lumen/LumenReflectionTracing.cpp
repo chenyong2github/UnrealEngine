@@ -11,6 +11,7 @@
 #include "LumenReflections.h"
 #include "HairStrands/HairStrandsData.h"
 #include "LumenTracingUtils.h"
+#include "ShaderPrintParameters.h"
 
 int32 GLumenReflectionScreenTraces = 1;
 FAutoConsoleVariableRef CVarLumenReflectionScreenTraces(
@@ -128,6 +129,13 @@ static TAutoConsoleVariable<float> CVarLumenReflectionsSampleSceneColorNormalTre
 	TEXT("r.Lumen.Reflections.SampleSceneColorNormalTreshold"),
 	85.0f,
 	TEXT("Normal threshold in degrees that controls how close ray hit normal and screen normal have to be, before sampling SceneColor is allowed. 0 - only exactly matching normals allowed. 180 - all normals allowed."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarLumenReflectionsVisualizeTraces(
+	TEXT("r.Lumen.Reflections.VisualizeTraces"),
+	0,
+	TEXT("Whether to visualize reflection traces from cursor position, useful for debugging"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -446,6 +454,39 @@ class FReflectionTraceVoxelsCS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FReflectionTraceVoxelsCS, "/Engine/Private/Lumen/LumenReflectionTracing.usf", "ReflectionTraceVoxelsCS", SF_Compute);
+
+class FVisualizeReflectionTracesCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVisualizeReflectionTracesCS)
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeReflectionTracesCS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static int32 GetGroupSize()
+	{
+		return 8;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FVisualizeReflectionTracesCS, "/Engine/Private/Lumen/LumenReflectionTracing.usf", "VisualizeReflectionTracesCS", SF_Compute);
 
 enum class ECompactedReflectionTracingIndirectArgs
 {
@@ -913,5 +954,28 @@ void TraceReflections(
 				(int32)(Lumen::UseThreadGroupSize32() ? ECompactedReflectionTracingIndirectArgs::NumTracesDiv32 : ECompactedReflectionTracingIndirectArgs::NumTracesDiv64));
 			bNeedTraceHairVoxel = false;
 		}
+	}
+
+	if (CVarLumenReflectionsVisualizeTraces.GetValueOnRenderThread())
+	{
+		ShaderPrint::SetEnabled(true);
+
+		FVisualizeReflectionTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeReflectionTracesCS::FParameters>();
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
+		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
+		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintUniformBuffer);
+		
+		auto ComputeShader = View.ShaderMap->GetShader<FVisualizeReflectionTracesCS>();
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("VisualizeReflectionTraces"),
+			ComputePassFlags,
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1));
 	}
 }
