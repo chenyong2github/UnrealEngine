@@ -31,14 +31,23 @@ void FGetFleshAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 {
 	if (Out->IsA<FManagedArrayCollection>(&Output))
 	{
-		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
+		FManagedArrayCollection Collection;
+		SetValue<FManagedArrayCollection>(Context, Collection, &Output);
+
+		const UFleshAsset* FleshAssetValue = FleshAsset;
+		if (!FleshAssetValue)
 		{
-			if (UFleshAsset* FleshAsset = Cast<UFleshAsset>(EngineContext->Owner))
+			if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 			{
-				if (const FFleshCollection* AssetCollection = FleshAsset->GetCollection())
-				{
-					SetValue<FManagedArrayCollection>(Context, *AssetCollection, &Output);
-				}
+				FleshAssetValue = Cast<UFleshAsset>(EngineContext->Owner);
+			}
+		}
+
+		if (FleshAssetValue)
+		{
+			if (const FFleshCollection* AssetCollection = FleshAssetValue->GetCollection())
+			{
+				SetValue<FManagedArrayCollection>(Context, *AssetCollection, &Output);
 			}
 		}
 	}

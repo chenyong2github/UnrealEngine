@@ -21,6 +21,9 @@ struct FGetFleshAssetDataflowNode : public FDataflowNode
 
 public:
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (DisplayName = "FleshAsset"))
+	TObjectPtr<const UFleshAsset> FleshAsset = nullptr;
+
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "Collection"))
 	FManagedArrayCollection Output;
 
