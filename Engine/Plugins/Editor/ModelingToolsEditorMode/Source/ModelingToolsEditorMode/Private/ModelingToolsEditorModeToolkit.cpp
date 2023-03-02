@@ -697,7 +697,7 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 		AssetOptionsArgs
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Fill)
-		.Padding(0, 0, 0, 8)
+		.Padding(0, 0, 0, 0)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().Padding(0).HAlign(HAlign_Left).VAlign(VAlign_Center).FillWidth(2.f)
