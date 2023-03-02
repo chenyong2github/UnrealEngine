@@ -112,6 +112,8 @@ namespace Horde.Agent.Utility
 			if (_tailTaskStop != null)
 			{
 				_tailTaskStop.Latch();
+				_newTailDataEvent.Latch();
+
 				try
 				{
 					await _tailTask;
