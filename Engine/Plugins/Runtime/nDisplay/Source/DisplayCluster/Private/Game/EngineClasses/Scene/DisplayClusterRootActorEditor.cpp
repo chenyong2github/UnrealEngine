@@ -998,7 +998,8 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 					PreviewComp = nullptr;
 				}
 
-				Modify();
+				const bool bMarkDirty = false;
+				Modify(bMarkDirty);
 				if (!PreviewComp)
 				{
 					PreviewComp = NewObject<UDisplayClusterPreviewComponent>(this, FName(*PreviewCompId), RF_DuplicateTransient | RF_Transactional | RF_NonPIEDuplicateTransient);
