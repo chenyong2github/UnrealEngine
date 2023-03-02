@@ -210,17 +210,17 @@ namespace UE
 			const int32 NumTris = TriangleLinearization.NumTris();
 			TriangleDataArray.SetNumUninitialized(NumTris);
 
-			const auto& ToTriIdx = TriangleLinearization.ToIndex();
+			const auto& ToTriId = TriangleLinearization.ToId();
 
 			for (int32 i = 0; i < NumTris; ++i)
 			{
 				// Current triangle
 
-				const int32 TriIdx = ToTriIdx[i];
+				const int32 TriId = ToTriId[i];
 
 				// Compute all the geometric data needed for this triangle.
 
-				TriangleDataArray[i].Initialize(DynamicMesh, TriIdx);
+				TriangleDataArray[i].Initialize(DynamicMesh, TriId);
 			}
 		}
 
