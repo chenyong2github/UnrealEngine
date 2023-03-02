@@ -41,6 +41,11 @@ public:
 		return bSupportsAudio[UserIndex];
 	}
 
+	void RefreshControllerType(int32 UserIndex)
+	{
+		ControllerTypeIdentifiers[UserIndex] = GetControllerType(UserIndex);
+	}
+
 private:
 	float OutputGain = 1.0f;
 };

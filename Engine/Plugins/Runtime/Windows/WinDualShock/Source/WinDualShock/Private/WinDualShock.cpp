@@ -131,8 +131,20 @@ public:
 	{
 		for (int32 UserIndex = 0; UserIndex < SCE_USER_SERVICE_MAX_LOGIN_USERS; UserIndex++)
 		{
-			FInputDeviceScope InputScope(this, InputClassName, UserIndex, Controllers.GetControllerTypeIdentifierName(UserIndex));
-			Controllers.SendControllerEvents(UserIndex, MessageHandler);
+			// On Windows all controllers exist and can be opened, but until their state changes to connected
+			// (which is updated asynchronously on an internal thread in libScePad) we don't know the controller type.
+			// That's why checking querying the type in ConnectStateToUser is not enough and we need this lazy update.
+			if (Controllers.GetControllerTypeIdentifier(UserIndex) == ESonyControllerType::None)
+			{
+				Controllers.RefreshControllerType(UserIndex);
+			}
+
+			// Don't send events until we have the controller type as we need to set the device scope up.
+			if (Controllers.GetControllerTypeIdentifier(UserIndex) != ESonyControllerType::None)
+			{
+				FInputDeviceScope InputScope(this, InputClassName, UserIndex, Controllers.GetControllerTypeIdentifierName(UserIndex));
+				Controllers.SendControllerEvents(UserIndex, MessageHandler);
+			}
 		}
 		UpdateAudioDevices();
 	}
