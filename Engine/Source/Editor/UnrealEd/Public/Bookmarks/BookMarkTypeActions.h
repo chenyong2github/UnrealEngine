@@ -26,6 +26,8 @@ public:
 		{
 			if (UWorld * const World = InViewportClient.GetWorld())
 			{
+				Bookmark->Modify();
+
 				// Use the rotation from the first perspective viewport can find.
 				FRotator Rotation(0, 0, 0);
 				if (!InViewportClient.IsOrtho())
