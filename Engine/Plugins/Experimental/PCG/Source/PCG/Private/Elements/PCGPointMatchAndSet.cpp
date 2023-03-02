@@ -10,6 +10,8 @@
 #include "Metadata/Accessors/IPCGAttributeAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 
+#include "UObject/Package.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointMatchAndSet)
 
 #define LOCTEXT_NAMESPACE "PCGPointMatchAndSetElement"
