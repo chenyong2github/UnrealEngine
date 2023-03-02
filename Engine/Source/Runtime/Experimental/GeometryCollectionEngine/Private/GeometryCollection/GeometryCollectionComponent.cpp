@@ -114,10 +114,10 @@ FAutoConsoleVariableRef CVarChaosGCUseISMPoolForNonFracturedParts(TEXT("p.Chaos.
 bool bChaos_GC_ForceAutoAssignISMPool = false;
 FAutoConsoleVariableRef CVarChaosGCForceAutoAssignISMPool(TEXT("p.Chaos.GC.ForceAutoAssignISMPool"), bChaos_GC_ForceAutoAssignISMPool, TEXT("When enabled, force assignement of ISMPool regardgless of the settings of the components"));
 
-bool bChaos_GC_UseHierarchicalISMForProxyMesh = true;
+bool bChaos_GC_UseHierarchicalISMForProxyMesh = false;
 FAutoConsoleVariableRef CVarChaosGCUseHierarchicalISMForProxyMesh(TEXT("p.Chaos.GC.UseHierarchicalISMForProxyMesh"), bChaos_GC_UseHierarchicalISMForProxyMesh, TEXT("When enabled along with ISM Pool, proxy mesh will prefer using HISM vs standard ISM"));
 
-bool bChaos_GC_UseHierarchicalISMForLeafMeshes = true;
+bool bChaos_GC_UseHierarchicalISMForLeafMeshes = false;
 FAutoConsoleVariableRef CVarChaosGCUseHierarchicalISMForLeafMeshes(TEXT("p.Chaos.GC.UseHierarchicalISMForLeafMeshes"), bChaos_GC_UseHierarchicalISMForLeafMeshes, TEXT("When enabled along with ISM Pool, leaf meshes will prefer using HISM vs standard ISM"));
 
 bool bChaos_GC_InitConstantDataUseParallelFor = true;
