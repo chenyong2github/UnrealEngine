@@ -161,14 +161,14 @@ FSlateElementVS::FSlateElementVS( const ShaderMetaType::CompiledShaderInitialize
 	VertexShaderParams.Bind( Initializer.ParameterMap, TEXT("VertexShaderParams"));
 }
 
-void FSlateElementVS::SetViewProjection(FRHICommandList& RHICmdList, const FMatrix44f& InViewProjection )
+void FSlateElementVS::SetViewProjection(FRHIBatchedShaderParameters& BatchedParameters, const FMatrix44f& InViewProjection )
 {
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewProjection, InViewProjection );
+	SetShaderValue(BatchedParameters, ViewProjection, InViewProjection );
 }
 
-void FSlateElementVS::SetShaderParameters(FRHICommandList& RHICmdList, const FVector4f& ShaderParams )
+void FSlateElementVS::SetShaderParameters(FRHIBatchedShaderParameters& BatchedParameters, const FVector4f& ShaderParams )
 {
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), VertexShaderParams, ShaderParams );
+	SetShaderValue(BatchedParameters, VertexShaderParams, ShaderParams );
 }
 
 /** Serializes the shader data */
@@ -194,16 +194,16 @@ FSlateMaskingVS::FSlateMaskingVS(const ShaderMetaType::CompiledShaderInitializer
 	MaskRect.Bind(Initializer.ParameterMap, TEXT("MaskRectPacked"));
 }
 
-void FSlateMaskingVS::SetViewProjection(FRHICommandList& RHICmdList, const FMatrix44f& InViewProjection)
+void FSlateMaskingVS::SetViewProjection(FRHIBatchedShaderParameters& BatchedParameters, const FMatrix44f& InViewProjection)
 {
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewProjection, InViewProjection);
+	SetShaderValue(BatchedParameters, ViewProjection, InViewProjection);
 }
 
-void FSlateMaskingVS::SetMaskRect(FRHICommandList& RHICmdList, const FVector2f TopLeft, const FVector2f TopRight, const FVector2f BotLeft, const FVector2f BotRight)
+void FSlateMaskingVS::SetMaskRect(FRHIBatchedShaderParameters& BatchedParameters, const FVector2f TopLeft, const FVector2f TopRight, const FVector2f BotLeft, const FVector2f BotRight)
 {
 	FVector4f MaskRectVal[2] = { FVector4f(TopLeft, TopRight), FVector4f(BotLeft, BotRight) };
 
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), MaskRect, MaskRectVal);
+	SetShaderValue(BatchedParameters, MaskRect, MaskRectVal);
 }
 
 /** Serializes the shader data */

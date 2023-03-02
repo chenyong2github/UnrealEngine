@@ -73,15 +73,14 @@ public:
 	/**
 	* Sets parameters for particle injection.
 	*/
-	void SetParameters(FRHICommandList& RHICmdList, const FVector2D& CurveOffset)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FVector2D& CurveOffset)
 	{
 		FParticleCurveInjectionParameters Parameters;
 		Parameters.PixelScale.X = 1.0f / GParticleCurveTextureSizeX;
 		Parameters.PixelScale.Y = 1.0f / GParticleCurveTextureSizeY;
 		Parameters.CurveOffset = FVector2f(CurveOffset);
 		FParticleCurveInjectionBufferRef UniformBuffer = FParticleCurveInjectionBufferRef::CreateUniformBufferImmediate(Parameters, UniformBuffer_SingleDraw);
-		FRHIVertexShader* VertexShader = RHICmdList.GetBoundVertexShader();
-		SetUniformBufferParameter(RHICmdList, VertexShader, GetUniformBufferParameter<FParticleCurveInjectionParameters>(), UniformBuffer);
+		SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FParticleCurveInjectionParameters>(), UniformBuffer);
 	}
 };
 
@@ -261,7 +260,7 @@ static void InjectCurves(
 			// Stream 0: TexCoord.
 			RHICmdList.SetStreamSource(1, GParticleTexCoordVertexBuffer.VertexBufferRHI, 0);
 
-			VertexShader->SetParameters(RHICmdList, CurveOffset);
+			SetShaderParametersLegacyVS(RHICmdList, VertexShader, CurveOffset);
 
 			// Inject particles.
 			RHICmdList.DrawIndexedPrimitive(

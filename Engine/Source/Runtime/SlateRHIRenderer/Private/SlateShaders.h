@@ -80,14 +80,14 @@ public:
 	 *
 	 * @param InViewProjection	The ViewProjection matrix to use when this shader is bound 
 	 */
-	void SetViewProjection(FRHICommandList& RHICmdList, const FMatrix44f& InViewProjection );
+	void SetViewProjection(FRHIBatchedShaderParameters& BatchedParameters, const FMatrix44f& InViewProjection );
 
 	/** 
 	 * Sets shader parameters for use in this shader
 	 *
 	 * @param ShaderParams	The shader params to be used
 	 */
-	void SetShaderParameters(FRHICommandList& RHICmdList, const FVector4f& ShaderParams );
+	void SetShaderParameters(FRHIBatchedShaderParameters& BatchedParameters, const FVector4f& ShaderParams );
 
 	/** Serializes the shader data */
 	//virtual bool Serialize( FArchive& Ar ) override;
@@ -139,9 +139,9 @@ public:
 	 * @param Texture	Texture resource to use when this pixel shader is bound
 	 * @param SamplerState	Sampler state to use when sampling this texture
 	 */
-	void SetTexture(FRHICommandList& RHICmdList, FRHITexture* InTexture, const FSamplerStateRHIRef SamplerState )
+	void SetTexture(FRHIBatchedShaderParameters& BatchedParameters, FRHITexture* InTexture, const FSamplerStateRHIRef SamplerState )
 	{
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), TextureParameter, TextureParameterSampler, SamplerState, InTexture );
+		SetTextureParameter(BatchedParameters, TextureParameter, TextureParameterSampler, SamplerState, InTexture );
 	}
 
 	/**
@@ -149,7 +149,7 @@ public:
 	 *
 	 * @param InVirtualTexture	Virtual Texture resource to use when this pixel shader is bound
 	 */
-	void SetVirtualTextureParameters(FRHICommandList& RHICmdList, FVirtualTexture2DResource* InVirtualTexture)
+	void SetVirtualTextureParameters(FRHIBatchedShaderParameters& BatchedParameters, FVirtualTexture2DResource* InVirtualTexture)
 	{
 		if (InVirtualTexture == nullptr)
 		{
@@ -161,9 +161,9 @@ public:
 
 		FRHIShaderResourceView* PhysicalView = AllocatedVT->GetPhysicalTextureSRV(LayerIndex, InVirtualTexture->bSRGB);
 		
-		SetSRVParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), TextureParameter, PhysicalView);
-		SetSamplerParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), TextureParameterSampler, InVirtualTexture->SamplerStateRHI);
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InPageTableTexture, AllocatedVT->GetPageTableTexture(0u));
+		SetSRVParameter(BatchedParameters, TextureParameter, PhysicalView);
+		SetSamplerParameter(BatchedParameters, TextureParameterSampler, InVirtualTexture->SamplerStateRHI);
+		SetTextureParameter(BatchedParameters, InPageTableTexture, AllocatedVT->GetPageTableTexture(0u));
 		
 		FUintVector4 PageTableUniform[2];
 		FUintVector4 Uniform;
@@ -173,9 +173,9 @@ public:
 		AllocatedVT->GetPackedPageTableUniform(PageTableUniform);
 		AllocatedVT->GetPackedUniform(&Uniform, LayerIndex);
 
-		SetShaderValueArray(RHICmdList, RHICmdList.GetBoundPixelShader(), VTPackedPageTableUniform, PageTableUniform, UE_ARRAY_COUNT(PageTableUniform));
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), VTPackedUniform, Uniform);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), VTShaderParams, VTParams);
+		SetShaderValueArray(BatchedParameters, VTPackedPageTableUniform, PageTableUniform, UE_ARRAY_COUNT(PageTableUniform));
+		SetShaderValue(BatchedParameters, VTPackedUniform, Uniform);
+		SetShaderValue(BatchedParameters, VTShaderParams, VTParams);
 	}
 
 	/**
@@ -183,10 +183,10 @@ public:
 	 * 
 	 * @param InShaderParams Shader params to use
 	 */
-	void SetShaderParams(FRHICommandList& RHICmdList, const FShaderParams& InShaderParams)
+	void SetShaderParams(FRHIBatchedShaderParameters& BatchedParameters, const FShaderParams& InShaderParams)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ShaderParams, InShaderParams.PixelParams);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ShaderParams2, InShaderParams.PixelParams2);
+		SetShaderValue(BatchedParameters, ShaderParams, InShaderParams.PixelParams);
+		SetShaderValue(BatchedParameters, ShaderParams2, InShaderParams.PixelParams2);
 	}
 
 	/**
@@ -194,11 +194,11 @@ public:
 	 *
 	 * @param DisplayGamma The display gamma to use
 	 */
-	void SetDisplayGammaAndInvertAlphaAndContrast(FRHICommandList& RHICmdList, float InDisplayGamma, float bInvertAlpha, float InContrast)
+	void SetDisplayGammaAndInvertAlphaAndContrast(FRHIBatchedShaderParameters& BatchedParameters, float InDisplayGamma, float bInvertAlpha, float InContrast)
 	{
 		FVector4f Values( 2.2f / InDisplayGamma, 1.0f/InDisplayGamma, bInvertAlpha, InContrast);
 
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), GammaAndAlphaValues, Values);
+		SetShaderValue(BatchedParameters, GammaAndAlphaValues, Values);
 	}
 
 private:
@@ -305,9 +305,9 @@ public:
 	*
 	* @param InShaderParams Shader params to use
 	*/
-	void SetBatchColor(FRHICommandList& RHICmdList, const FLinearColor& InBatchColor)
+	void SetBatchColor(FRHIBatchedShaderParameters& BatchedParameters, const FLinearColor& InBatchColor)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), BatchColor, InBatchColor);
+		SetShaderValue(BatchedParameters, BatchColor, InBatchColor);
 	}
 
 private:
@@ -340,21 +340,21 @@ public:
 		UVBounds.Bind(Initializer.ParameterMap, TEXT("UVBounds"));
 	}
 
-	void SetBufferSizeAndDirection(FRHICommandList& RHICmdList, const FVector2f InBufferSize, const FVector2f InDir)
+	void SetBufferSizeAndDirection(FRHIBatchedShaderParameters& BatchedParameters, const FVector2f InBufferSize, const FVector2f InDir)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), BufferSizeAndDirection, FVector4f(InBufferSize, InDir));
+		SetShaderValue(BatchedParameters, BufferSizeAndDirection, FVector4f(InBufferSize, InDir));
 	}
 
-	void SetWeightsAndOffsets(FRHICommandList& RHICmdList, const TArray<FVector4f>& InWeightsAndOffsets, int32 NumSamples )
+	void SetWeightsAndOffsets(FRHIBatchedShaderParameters& BatchedParameters, const TArray<FVector4f>& InWeightsAndOffsets, int32 NumSamples )
 	{
 		check(InWeightsAndOffsets.Num() <= MAX_BLUR_SAMPLES);
-		SetShaderValueArray<FRHIPixelShader*, FVector4f>(RHICmdList, RHICmdList.GetBoundPixelShader(), WeightAndOffsets, InWeightsAndOffsets.GetData(), InWeightsAndOffsets.Num() );
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), SampleCount, NumSamples);
+		SetShaderValueArray<FVector4f>(BatchedParameters, WeightAndOffsets, InWeightsAndOffsets.GetData(), InWeightsAndOffsets.Num() );
+		SetShaderValue(BatchedParameters, SampleCount, NumSamples);
 	}
 
-	void SetUVBounds(FRHICommandList& RHICmdList, const FVector4f& InUVBounds)
+	void SetUVBounds(FRHIBatchedShaderParameters& BatchedParameters, const FVector4f& InUVBounds)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UVBounds, InUVBounds);
+		SetShaderValue(BatchedParameters, UVBounds, InUVBounds);
 	}
 
 private:
@@ -386,9 +386,9 @@ public:
 		UVBounds.Bind(Initializer.ParameterMap, TEXT("UVBounds"));
 	}
 
-	void SetUVBounds(FRHICommandList& RHICmdList, const FVector4f& InUVBounds)
+	void SetUVBounds(FRHIBatchedShaderParameters& BatchedParameters, const FVector4f& InUVBounds)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UVBounds, InUVBounds);
+		SetShaderValue(BatchedParameters, UVBounds, InUVBounds);
 	}
 
 private:
@@ -462,16 +462,16 @@ public:
 		bSimulateCorrectionWithDeficiency.Bind(Initializer.ParameterMap, TEXT("bSimulateCorrectionWithDeficiency"));
 	}
 
-	void SetColorRules(FRHICommandList& RHICmdList, bool bCorrect, EColorVisionDeficiency DeficiencyType, int32 Severity)
+	void SetColorRules(FRHIBatchedShaderParameters& BatchedParameters, bool bCorrect, EColorVisionDeficiency DeficiencyType, int32 Severity)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ColorVisionDeficiencyType, (float)DeficiencyType);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ColorVisionDeficiencySeverity, (float)Severity);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), bCorrectDeficiency, bCorrect ? 1.0f : 0.0f);
+		SetShaderValue(BatchedParameters, ColorVisionDeficiencyType, (float)DeficiencyType);
+		SetShaderValue(BatchedParameters, ColorVisionDeficiencySeverity, (float)Severity);
+		SetShaderValue(BatchedParameters, bCorrectDeficiency, bCorrect ? 1.0f : 0.0f);
 	}
 
-	void SetShowCorrectionWithDeficiency(FRHICommandList& RHICmdList, bool bShowCorrectionWithDeficiency)
+	void SetShowCorrectionWithDeficiency(FRHIBatchedShaderParameters& BatchedParameters, bool bShowCorrectionWithDeficiency)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), bSimulateCorrectionWithDeficiency, bShowCorrectionWithDeficiency ? 1.0f : 0.0f);
+		SetShaderValue(BatchedParameters, bSimulateCorrectionWithDeficiency, bShowCorrectionWithDeficiency ? 1.0f : 0.0f);
 	}
 
 private:
@@ -504,12 +504,12 @@ public:
 	*
 	* @param InViewProjection	The ViewProjection matrix to use when this shader is bound
 	*/
-	void SetViewProjection(FRHICommandList& RHICmdList, const FMatrix44f& InViewProjection);
+	void SetViewProjection(FRHIBatchedShaderParameters& BatchedParameters, const FMatrix44f& InViewProjection);
 
 	/**
 	 * Sets the mask rect positions
 	 */
-	void SetMaskRect(FRHICommandList& RHICmdList, const FVector2f TopLeft, const FVector2f TopRight, const FVector2f BotLeft, const FVector2f BotRight);
+	void SetMaskRect(FRHIBatchedShaderParameters& BatchedParameters, const FVector2f TopLeft, const FVector2f TopRight, const FVector2f BotLeft, const FVector2f BotRight);
 
 	//virtual bool Serialize(FArchive& Ar) override;
 

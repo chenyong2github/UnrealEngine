@@ -432,15 +432,19 @@ static bool UpdateScissorRect(
 					WriteMaskPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 					WriteMaskPSOInit.PrimitiveType = PT_TriangleStrip;
 
-					SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit, MaskingID + 1);
-
-					VertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
-
 					// Draw the first stencil using SO_Replace, so that we stomp any pixel with a MaskingID + 1.
 					{
+
+						SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit, MaskingID + 1);
+
 						const FSlateClippingZone& MaskQuad = StencilQuads[0];
 
-						VertexShader->SetMaskRect(RHICmdList, MaskQuad.TopLeft, MaskQuad.TopRight, MaskQuad.BottomLeft, MaskQuad.BottomRight);
+						FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+						VertexShader->SetViewProjection(BatchedParameters, FMatrix44f(ViewProjection));
+						VertexShader->SetMaskRect(BatchedParameters, MaskQuad.TopLeft, MaskQuad.TopRight, MaskQuad.BottomLeft, MaskQuad.BottomRight);
+
+						RHICmdList.SetBatchedShaderParameters(VertexShader.GetVertexShader(), BatchedParameters);
 
 						RHICmdList.SetStreamSource(0, StencilVertexBuffer.VertexBufferRHI, 0);
 						RHICmdList.DrawPrimitive(0, 2, 1);
@@ -470,8 +474,6 @@ static bool UpdateScissorRect(
 
 
 						SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit, 0);
-
-						VertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
 					}
 				}
 
@@ -482,7 +484,12 @@ static bool UpdateScissorRect(
 				{
 					const FSlateClippingZone& MaskQuad = StencilQuads[MaskIndex];
 
-					VertexShader->SetMaskRect(RHICmdList, MaskQuad.TopLeft, MaskQuad.TopRight, MaskQuad.BottomLeft, MaskQuad.BottomRight);
+					FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+					VertexShader->SetViewProjection(BatchedParameters, FMatrix44f(ViewProjection));
+					VertexShader->SetMaskRect(BatchedParameters, MaskQuad.TopLeft, MaskQuad.TopRight, MaskQuad.BottomLeft, MaskQuad.BottomRight);
+
+					RHICmdList.SetBatchedShaderParameters(VertexShader.GetVertexShader(), BatchedParameters);
 
 					RHICmdList.SetStreamSource(0, StencilVertexBuffer.VertexBufferRHI, 0);
 					RHICmdList.DrawPrimitive(0, 2, 1);
@@ -573,6 +580,98 @@ static bool UpdateScissorRect(
 		StencilVertexBuffer,
 		ViewProjection,
 		bForceStateChange);
+}
+
+static FRHISamplerState* GetSamplerState(ESlateBatchDrawFlag DrawFlags, ETextureSamplerFilter Filter)
+{
+	FRHISamplerState* SamplerState = nullptr;
+
+	if (EnumHasAllFlags(DrawFlags, (ESlateBatchDrawFlag::TileU | ESlateBatchDrawFlag::TileV)))
+	{
+		switch (Filter)
+		{
+		case ETextureSamplerFilter::Point:
+			SamplerState = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+			break;
+		case ETextureSamplerFilter::AnisotropicPoint:
+			SamplerState = TStaticSamplerState<SF_AnisotropicPoint, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+			break;
+		case ETextureSamplerFilter::Trilinear:
+			SamplerState = TStaticSamplerState<SF_Trilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+			break;
+		case ETextureSamplerFilter::AnisotropicLinear:
+			SamplerState = TStaticSamplerState<SF_AnisotropicLinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+			break;
+		default:
+			SamplerState = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+			break;
+		}
+	}
+	else if (EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::TileU))
+	{
+		switch (Filter)
+		{
+		case ETextureSamplerFilter::Point:
+			SamplerState = TStaticSamplerState<SF_Point, AM_Wrap, AM_Clamp, AM_Wrap>::GetRHI();
+			break;
+		case ETextureSamplerFilter::AnisotropicPoint:
+			SamplerState = TStaticSamplerState<SF_AnisotropicPoint, AM_Wrap, AM_Clamp, AM_Wrap>::GetRHI();
+			break;
+		case ETextureSamplerFilter::Trilinear:
+			SamplerState = TStaticSamplerState<SF_Trilinear, AM_Wrap, AM_Clamp, AM_Wrap>::GetRHI();
+			break;
+		case ETextureSamplerFilter::AnisotropicLinear:
+			SamplerState = TStaticSamplerState<SF_AnisotropicLinear, AM_Wrap, AM_Clamp, AM_Wrap>::GetRHI();
+			break;
+		default:
+			SamplerState = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Clamp, AM_Wrap>::GetRHI();
+			break;
+		}
+	}
+	else if (EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::TileV))
+	{
+		switch (Filter)
+		{
+		case ETextureSamplerFilter::Point:
+			SamplerState = TStaticSamplerState<SF_Point, AM_Clamp, AM_Wrap, AM_Wrap>::GetRHI();
+			break;
+		case ETextureSamplerFilter::AnisotropicPoint:
+			SamplerState = TStaticSamplerState<SF_AnisotropicPoint, AM_Clamp, AM_Wrap, AM_Wrap>::GetRHI();
+			break;
+		case ETextureSamplerFilter::Trilinear:
+			SamplerState = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Wrap, AM_Wrap>::GetRHI();
+			break;
+		case ETextureSamplerFilter::AnisotropicLinear:
+			SamplerState = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Wrap, AM_Wrap>::GetRHI();
+			break;
+		default:
+			SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Wrap, AM_Wrap>::GetRHI();
+			break;
+		}
+	}
+	else
+	{
+		switch (Filter)
+		{
+		case ETextureSamplerFilter::Point:
+			SamplerState = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			break;
+		case ETextureSamplerFilter::AnisotropicPoint:
+			SamplerState = TStaticSamplerState<SF_AnisotropicPoint, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			break;
+		case ETextureSamplerFilter::Trilinear:
+			SamplerState = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			break;
+		case ETextureSamplerFilter::AnisotropicLinear:
+			SamplerState = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			break;
+		default:
+			SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			break;
+		}
+	}
+
+	return SamplerState;
 }
 
 void FSlateRHIRenderingPolicy::DrawElements(
@@ -882,10 +981,12 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
+				FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
 #if WITH_SLATE_VISUALIZERS
 				if (CVarShowSlateBatching.GetValueOnRenderThread() != 0)
 				{
-					BatchingPixelShader->SetBatchColor(RHICmdList, BatchColor);
+					BatchingPixelShader->SetBatchColor(BatchedParameters, BatchColor);
 				}
 #endif
 
@@ -930,108 +1031,29 @@ void FSlateRHIRenderingPolicy::DrawElements(
 						TextureRHI = NativeTextureRHI ? NativeTextureRHI : (FRHITexture*)GWhiteTexture->TextureRHI;
 					}
 
-					if (EnumHasAllFlags(DrawFlags, (ESlateBatchDrawFlag::TileU | ESlateBatchDrawFlag::TileV)))
-					{
-						switch (Filter)
-						{
-						case ETextureSamplerFilter::Point:
-							SamplerState = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-							break;
-						case ETextureSamplerFilter::AnisotropicPoint:
-							SamplerState = TStaticSamplerState<SF_AnisotropicPoint, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-							break;
-						case ETextureSamplerFilter::Trilinear:
-							SamplerState = TStaticSamplerState<SF_Trilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-							break;
-						case ETextureSamplerFilter::AnisotropicLinear:
-							SamplerState = TStaticSamplerState<SF_AnisotropicLinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-							break;
-						default:
-							SamplerState = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-							break;
-						}
-					}
-					else if (EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::TileU))
-					{
-						switch (Filter)
-						{
-						case ETextureSamplerFilter::Point:
-							SamplerState = TStaticSamplerState<SF_Point, AM_Wrap, AM_Clamp, AM_Wrap>::GetRHI();
-							break;
-						case ETextureSamplerFilter::AnisotropicPoint:
-							SamplerState = TStaticSamplerState<SF_AnisotropicPoint, AM_Wrap, AM_Clamp, AM_Wrap>::GetRHI();
-							break;
-						case ETextureSamplerFilter::Trilinear:
-							SamplerState = TStaticSamplerState<SF_Trilinear, AM_Wrap, AM_Clamp, AM_Wrap>::GetRHI();
-							break;
-						case ETextureSamplerFilter::AnisotropicLinear:
-							SamplerState = TStaticSamplerState<SF_AnisotropicLinear, AM_Wrap, AM_Clamp, AM_Wrap>::GetRHI();
-							break;
-						default:
-							SamplerState = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Clamp, AM_Wrap>::GetRHI();
-							break;
-						}
-					}
-					else if (EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::TileV))
-					{
-						switch (Filter)
-						{
-						case ETextureSamplerFilter::Point:
-							SamplerState = TStaticSamplerState<SF_Point, AM_Clamp, AM_Wrap, AM_Wrap>::GetRHI();
-							break;
-						case ETextureSamplerFilter::AnisotropicPoint:
-							SamplerState = TStaticSamplerState<SF_AnisotropicPoint, AM_Clamp, AM_Wrap, AM_Wrap>::GetRHI();
-							break;
-						case ETextureSamplerFilter::Trilinear:
-							SamplerState = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Wrap, AM_Wrap>::GetRHI();
-							break;
-						case ETextureSamplerFilter::AnisotropicLinear:
-							SamplerState = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Wrap, AM_Wrap>::GetRHI();
-							break;
-						default:
-							SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Wrap, AM_Wrap>::GetRHI();
-							break;
-						}
-					}
-					else
-					{
-						switch (Filter)
-						{
-						case ETextureSamplerFilter::Point:
-							SamplerState = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-							break;
-						case ETextureSamplerFilter::AnisotropicPoint:
-							SamplerState = TStaticSamplerState<SF_AnisotropicPoint, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-							break;
-						case ETextureSamplerFilter::Trilinear:
-							SamplerState = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-							break;
-						case ETextureSamplerFilter::AnisotropicLinear:
-							SamplerState = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-							break;
-						default:
-							SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-							break;
-						}
-					}
+					SamplerState = GetSamplerState(DrawFlags, Filter);
 				}
 
 				{
-					GlobalVertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
-
 					if (bIsVirtualTexture && (TextureResource != nullptr))
 					{
-						PixelShader->SetVirtualTextureParameters(RHICmdList, static_cast<FVirtualTexture2DResource*>(TextureResource));
+						PixelShader->SetVirtualTextureParameters(BatchedParameters, static_cast<FVirtualTexture2DResource*>(TextureResource));
 					}
 					else
 					{
-						PixelShader->SetTexture(RHICmdList, TextureRHI, SamplerState);
+						PixelShader->SetTexture(BatchedParameters, TextureRHI, SamplerState);
 					}
 					
-					PixelShader->SetShaderParams(RHICmdList, ShaderParams);
+					PixelShader->SetShaderParams(BatchedParameters, ShaderParams);
 					const float FinalGamma = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::ReverseGamma) ? (1.0f / EngineGamma) : EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1.0f : DisplayGamma;
 					const float FinalContrast = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1 : DisplayContrast;
-					PixelShader->SetDisplayGammaAndInvertAlphaAndContrast(RHICmdList, FinalGamma, EnumHasAllFlags(DrawEffects, ESlateDrawEffect::InvertAlpha) ? 1.0f : 0.0f, FinalContrast);
+					PixelShader->SetDisplayGammaAndInvertAlphaAndContrast(BatchedParameters, FinalGamma, EnumHasAllFlags(DrawEffects, ESlateDrawEffect::InvertAlpha) ? 1.0f : 0.0f, FinalContrast);
+
+					RHICmdList.SetBatchedShaderParameters(PixelShader.GetPixelShader(), BatchedParameters);
+				}
+				{
+					GlobalVertexShader->SetViewProjection(BatchedParameters, FMatrix44f(ViewProjection));
+					RHICmdList.SetBatchedShaderParameters(PixelShader.GetPixelShader(), BatchedParameters);
 				}
 
 				{
@@ -1114,6 +1136,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 						const FUniformBufferStaticBindings StaticUniformBuffers(SceneTextureUniformBuffer);
 						SCOPED_UNIFORM_BUFFER_STATIC_BINDINGS(RHICmdList, StaticUniformBuffers);
 
+						FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
 #if WITH_SLATE_VISUALIZERS
 						if (CVarShowSlateBatching.GetValueOnRenderThread() != 0)
 						{
@@ -1122,9 +1146,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 							GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = bUseInstancing ? GSlateInstancedVertexDeclaration.VertexDeclarationRHI : GSlateVertexDeclaration.VertexDeclarationRHI;
 							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GlobalVertexShader.GetVertexShader();
 							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = BatchingPixelShader.GetPixelShader();
-
-							BatchingPixelShader->SetBatchColor(RHICmdList, BatchColor);
 							GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI();
+
+							BatchingPixelShader->SetBatchColor(BatchedParameters, BatchColor);
 						}
 						else if (CVarShowSlateOverdraw.GetValueOnRenderThread() != 0)
 						{
@@ -1133,10 +1157,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 							GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = bUseInstancing ? GSlateInstancedVertexDeclaration.VertexDeclarationRHI : GSlateVertexDeclaration.VertexDeclarationRHI;
 							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GlobalVertexShader.GetVertexShader();
 							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = OverdrawPixelShader.GetPixelShader();
-
 							GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI();
 						}
-						else
 #endif
 						{
 							PixelShader->SetBlendState(GraphicsPSOInit, EffectiveMaterial);
@@ -1155,23 +1177,28 @@ void FSlateRHIRenderingPolicy::DrawElements(
 							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
 							{
-								VertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
-								VertexShader->SetMaterialShaderParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, EffectiveMaterial);
 
-								PixelShader->SetParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, EffectiveMaterial, ShaderParams);
+								PixelShader->SetParameters(BatchedParameters, ActiveSceneView, MaterialRenderProxy, EffectiveMaterial, ShaderParams);
 								const float FinalGamma = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::ReverseGamma) ? 1.0f / EngineGamma : EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1.0f : DisplayGamma;
 								const float FinalContrast = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1 : DisplayContrast;
-								PixelShader->SetDisplayGammaAndContrast(RHICmdList, FinalGamma, FinalContrast);
+								PixelShader->SetDisplayGammaAndContrast(BatchedParameters, FinalGamma, FinalContrast);
 								const bool bDrawDisabled = EnumHasAllFlags(DrawEffects, ESlateDrawEffect::DisabledEffect);
-								PixelShader->SetDrawFlags(RHICmdList, bDrawDisabled);
+								PixelShader->SetDrawFlags(BatchedParameters, bDrawDisabled);
 
 								if (MaskResource)
 								{
 									FTexture2DRHIRef TextureRHI;
 									TextureRHI = ((TSlateTexture<FTexture2DRHIRef>*)MaskResource)->GetTypedResource();
 
-									PixelShader->SetAdditionalTexture(RHICmdList, TextureRHI, BilinearClamp);
+									PixelShader->SetAdditionalTexture(BatchedParameters, TextureRHI, BilinearClamp);
 								}
+
+								RHICmdList.SetBatchedShaderParameters(PixelShader.GetPixelShader(), BatchedParameters);
+							}
+							{
+								VertexShader->SetViewProjection(BatchedParameters, FMatrix44f(ViewProjection));
+								VertexShader->SetMaterialShaderParameters(BatchedParameters, ActiveSceneView, MaterialRenderProxy, EffectiveMaterial);
+								RHICmdList.SetBatchedShaderParameters(VertexShader.GetVertexShader(), BatchedParameters);
 							}
 						}
 

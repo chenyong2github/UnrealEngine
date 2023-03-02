@@ -139,7 +139,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FAYUVConvertUB, "AYUVConvertUB");
 IMPLEMENT_SHADER_TYPE(, FAYUVConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("AYUVConvertPS"), SF_Pixel);
 
 
-void FAYUVConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> AYUVTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+void FAYUVConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> AYUVTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FAYUVConvertUB UB;
 	{
@@ -150,7 +150,14 @@ void FAYUVConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FAYUVConvertUB> Data = TUniformBufferRef<FAYUVConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FAYUVConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FAYUVConvertUB>(), Data);
+}
+
+void FAYUVConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> AYUVTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, AYUVTexture, ColorTransform, YUVOffset, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 
@@ -168,7 +175,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FBMPConvertUB, "BMPConvertUB");
 IMPLEMENT_SHADER_TYPE(, FBMPConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("BMPConvertPS"), SF_Pixel);
 
 
-void FBMPConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> BMPTexture, const FIntPoint& OutputDimensions, bool SrgbToLinear)
+void FBMPConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> BMPTexture, const FIntPoint& OutputDimensions, bool SrgbToLinear)
 {
 	FBMPConvertUB UB;
 	{
@@ -179,7 +186,14 @@ void FBMPConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRH
 	}
 
 	TUniformBufferRef<FBMPConvertUB> Data = TUniformBufferRef<FBMPConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FBMPConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FBMPConvertUB>(), Data);
+}
+
+void FBMPConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> BMPTexture, const FIntPoint& OutputDimensions, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, BMPTexture, OutputDimensions, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 
@@ -200,7 +214,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNV12ConvertUB, "NV12ConvertUB");
 IMPLEMENT_SHADER_TYPE(, FNV12ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("NV12ConvertPS"), SF_Pixel);
 
-void FNV12ConvertPS::SetParameters(FRHICommandList& CommandList, const FIntPoint & TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_UV, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+void FNV12ConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FIntPoint & TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_UV, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FNV12ConvertUB UB;
 	{
@@ -215,7 +229,14 @@ void FNV12ConvertPS::SetParameters(FRHICommandList& CommandList, const FIntPoint
 	}
 
 	TUniformBufferRef<FNV12ConvertUB> Data = TUniformBufferRef<FNV12ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FNV12ConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FNV12ConvertUB>(), Data);
+}
+
+void FNV12ConvertPS::SetParameters(FRHICommandList& CommandList, const FIntPoint & TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_UV, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, TexDim, SRV_Y, SRV_UV, OutputDimensions, ColorTransform, YUVOffset, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 /* FNV12ConvertAsBytesPS shader
@@ -234,7 +255,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNV12ConvertAsBytesUB, "NV12ConvertAsBytesUB");
 IMPLEMENT_SHADER_TYPE(, FNV12ConvertAsBytesPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("NV12ConvertAsBytesPS"), SF_Pixel);
 
-void FNV12ConvertAsBytesPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+void FNV12ConvertAsBytesPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FNV12ConvertAsBytesUB UB;
 	{
@@ -248,7 +269,14 @@ void FNV12ConvertAsBytesPS::SetParameters(FRHICommandList& CommandList, TRefCoun
 	}
 
 	TUniformBufferRef<FNV12ConvertAsBytesUB> Data = TUniformBufferRef<FNV12ConvertAsBytesUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FNV12ConvertAsBytesUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FNV12ConvertAsBytesUB>(), Data);
+}
+
+void FNV12ConvertAsBytesPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, NV12Texture, OutputDimensions, ColorTransform, YUVOffset, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 /* FNV21ConvertPS shader
@@ -268,7 +296,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNV21ConvertUB, "NV21ConvertUB");
 IMPLEMENT_SHADER_TYPE(, FNV21ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("NV21ConvertPS"), SF_Pixel);
 
 
-void FNV21ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> NV21Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+void FNV21ConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> NV21Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FNV21ConvertUB UB;
 	{
@@ -282,7 +310,14 @@ void FNV21ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FNV21ConvertUB> Data = TUniformBufferRef<FNV21ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FNV21ConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FNV21ConvertUB>(), Data);
+}
+
+void FNV21ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> NV21Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, NV21Texture, OutputDimensions, ColorTransform, YUVOffset, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 /* FP010ConvertPS shader
@@ -302,7 +337,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FP010ConvertUB, "P010ConvertUB");
 IMPLEMENT_SHADER_TYPE(, FP010ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("P010ConvertPS"), SF_Pixel);
 
-void FP010ConvertPS::SetParameters(FRHICommandList& CommandList, const FIntPoint& TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_UV, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool bIsST2084)
+void FP010ConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FIntPoint& TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_UV, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool bIsST2084)
 {
 	FP010ConvertUB UB;
 	{
@@ -317,7 +352,14 @@ void FP010ConvertPS::SetParameters(FRHICommandList& CommandList, const FIntPoint
 	}
 
 	TUniformBufferRef<FP010ConvertUB> Data = TUniformBufferRef<FP010ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FP010ConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FP010ConvertUB>(), Data);
+}
+
+void FP010ConvertPS::SetParameters(FRHICommandList& CommandList, const FIntPoint& TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_UV, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool bIsST2084)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, TexDim, SRV_Y, SRV_UV, OutputDimensions, ColorTransform, CSTransform, bIsST2084);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 /* FP010ConvertAsUINT16sPS shader (from G16 texture)
@@ -337,7 +379,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FP010ConvertAsUINT16sUB, "P010ConvertAsUINT16sUB");
 IMPLEMENT_SHADER_TYPE(, FP010ConvertAsUINT16sPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("P010ConvertAsUINT16sPS"), SF_Pixel);
 
-void FP010ConvertAsUINT16sPS::SetParameters(FRHICommandList& CommandList, const FIntPoint& TexDim, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool bIsST2084)
+void FP010ConvertAsUINT16sPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FIntPoint& TexDim, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool bIsST2084)
 {
 	FP010ConvertAsUINT16sUB UB;
 	{
@@ -352,7 +394,14 @@ void FP010ConvertAsUINT16sPS::SetParameters(FRHICommandList& CommandList, const 
 	}
 
 	TUniformBufferRef<FP010ConvertAsUINT16sUB> Data = TUniformBufferRef<FP010ConvertAsUINT16sUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FP010ConvertAsUINT16sUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FP010ConvertAsUINT16sUB>(), Data);
+}
+
+void FP010ConvertAsUINT16sPS::SetParameters(FRHICommandList& CommandList, const FIntPoint& TexDim, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool bIsST2084)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, TexDim, NV12Texture, OutputDimensions, ColorTransform, CSTransform, bIsST2084);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 /* FP010_2101010ConvertPS shader
@@ -375,7 +424,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FP010_2101010ConvertUB, "P010_2101010ConvertUB");
 IMPLEMENT_SHADER_TYPE(, FP010_2101010ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("P010_2101010ConvertPS"), SF_Pixel);
 
-void FP010_2101010ConvertPS::SetParameters(FRHICommandList& CommandList, const FIntPoint& TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_U, FShaderResourceViewRHIRef SRV_V, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool bIsST2084)
+void FP010_2101010ConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FIntPoint& TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_U, FShaderResourceViewRHIRef SRV_V, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool bIsST2084)
 {
 	FP010_2101010ConvertUB UB;
 	{
@@ -397,7 +446,14 @@ void FP010_2101010ConvertPS::SetParameters(FRHICommandList& CommandList, const F
 	}
 
 	TUniformBufferRef<FP010_2101010ConvertUB> Data = TUniformBufferRef<FP010_2101010ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FP010_2101010ConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FP010_2101010ConvertUB>(), Data);
+}
+
+void FP010_2101010ConvertPS::SetParameters(FRHICommandList& CommandList, const FIntPoint& TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_U, FShaderResourceViewRHIRef SRV_V, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool bIsST2084)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, TexDim, SRV_Y, SRV_U, SRV_V, OutputDimensions, ColorTransform, CSTransform, bIsST2084);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 /* FRGBConvertPS shader
@@ -415,7 +471,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRGBConvertUB, "RGBConvertUB");
 IMPLEMENT_SHADER_TYPE(, FRGBConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("RGBConvertPS"), SF_Pixel);
 
 
-void FRGBConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> RGBTexture, const FIntPoint& OutputDimensions, bool bSrgbToLinear, bool bIsST2084, const FMatrix44f& CSTransform)
+void FRGBConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> RGBTexture, const FIntPoint& OutputDimensions, bool bSrgbToLinear, bool bIsST2084, const FMatrix44f& CSTransform)
 {
 	FRGBConvertUB UB;
 	{
@@ -427,7 +483,14 @@ void FRGBConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRH
 	}
 
 	TUniformBufferRef<FRGBConvertUB> Data = TUniformBufferRef<FRGBConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FRGBConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FRGBConvertUB>(), Data);
+}
+
+void FRGBConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> RGBTexture, const FIntPoint& OutputDimensions, bool bSrgbToLinear, bool bIsST2084, const FMatrix44f& CSTransform)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, RGBTexture, OutputDimensions, bSrgbToLinear, bIsST2084, CSTransform);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 
@@ -448,7 +511,7 @@ IMPLEMENT_SHADER_TYPE(, FYCbCrConvertPS, TEXT("/Engine/Private/MediaShaders.usf"
 IMPLEMENT_SHADER_TYPE(, FYCbCrConvertPS_4x4Matrix, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("YCbCrConvertPS_4x4Matrix"), SF_Pixel);
 
 
-void FYCbCrConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> LumaTexture, TRefCountPtr<FRHITexture2D> CbCrTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+void FYCbCrConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> LumaTexture, TRefCountPtr<FRHITexture2D> CbCrTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FYCbCrConvertUB UB;
 	{
@@ -464,7 +527,14 @@ void FYCbCrConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<F
 	}
 
 	TUniformBufferRef<FYCbCrConvertUB> Data = TUniformBufferRef<FYCbCrConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FYCbCrConvertUB>(), Data);	
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FYCbCrConvertUB>(), Data);
+}
+
+void FYCbCrConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> LumaTexture, TRefCountPtr<FRHITexture2D> CbCrTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, LumaTexture, CbCrTexture, ColorTransform, YUVOffset, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 
@@ -484,7 +554,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FUYVYConvertUB, "UYVYConvertUB");
 IMPLEMENT_SHADER_TYPE(, FUYVYConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("UYVYConvertPS"), SF_Pixel);
 
 
-void FUYVYConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> UYVYTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+void FUYVYConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> UYVYTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FUYVYConvertUB UB;
 	{
@@ -497,7 +567,14 @@ void FUYVYConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FUYVYConvertUB> Data = TUniformBufferRef<FUYVYConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FUYVYConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FUYVYConvertUB>(), Data);
+}
+
+void FUYVYConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> UYVYTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, UYVYTexture, ColorTransform, YUVOffset, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 
@@ -520,7 +597,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FYUVConvertUB, "YUVConvertUB");
 IMPLEMENT_SHADER_TYPE(, FYUVConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("YUVConvertPS"), SF_Pixel);
 
 
-void FYUVConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> YTexture, TRefCountPtr<FRHITexture2D> UTexture, TRefCountPtr<FRHITexture2D> VTexture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+void FYUVConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> YTexture, TRefCountPtr<FRHITexture2D> UTexture, TRefCountPtr<FRHITexture2D> VTexture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FYUVConvertUB UB;
 	{
@@ -536,7 +613,14 @@ void FYUVConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRH
 	}
 
 	TUniformBufferRef<FYUVConvertUB> Data = TUniformBufferRef<FYUVConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FYUVConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FYUVConvertUB>(), Data);
+}
+
+void FYUVConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> YTexture, TRefCountPtr<FRHITexture2D> UTexture, TRefCountPtr<FRHITexture2D> VTexture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, YTexture, UTexture, VTexture, OutputDimensions, ColorTransform, YUVOffset, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 
@@ -555,7 +639,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FYUVv210ConvertUB, "YUVv210ConvertUB");
 IMPLEMENT_SHADER_TYPE(, FYUVv210ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("YUVv210ConvertPS"), SF_Pixel);
 
 
-void FYUVv210ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> YUVTexture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+void FYUVv210ConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> YUVTexture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FYUVv210ConvertUB UB;
 	{
@@ -567,7 +651,14 @@ void FYUVv210ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr
 	}
 
 	TUniformBufferRef<FYUVv210ConvertUB> Data = TUniformBufferRef<FYUVv210ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FYUVv210ConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FYUVv210ConvertUB>(), Data);
+}
+
+void FYUVv210ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> YUVTexture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, YUVTexture, OutputDimensions, ColorTransform, YUVOffset, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 
@@ -585,7 +676,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FYUVY416ConvertUB, "YUVY416ConvertUB");
 IMPLEMENT_SHADER_TYPE(, FYUVY416ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("YUVY416ConvertPS"), SF_Pixel);
 
 
-void FYUVY416ConvertPS::SetParameters(FRHICommandList& CommandList, FShaderResourceViewRHIRef SRV_Y, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+void FYUVY416ConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FShaderResourceViewRHIRef SRV_Y, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FYUVY416ConvertUB UB;
 	{
@@ -596,7 +687,14 @@ void FYUVY416ConvertPS::SetParameters(FRHICommandList& CommandList, FShaderResou
 	}
 
 	TUniformBufferRef<FYUVY416ConvertUB> Data = TUniformBufferRef<FYUVY416ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FYUVY416ConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FYUVY416ConvertUB>(), Data);
+}
+
+void FYUVY416ConvertPS::SetParameters(FRHICommandList& CommandList, FShaderResourceViewRHIRef SRV_Y, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, SRV_Y, ColorTransform, YUVOffset, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 
@@ -617,7 +715,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FYUY2ConvertUB, "YUY2ConvertUB");
 IMPLEMENT_SHADER_TYPE(, FYUY2ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("YUY2ConvertPS"), SF_Pixel);
 
 
-void FYUY2ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> YUY2Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+void FYUY2ConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> YUY2Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FYUY2ConvertUB UB;
 	{
@@ -631,7 +729,14 @@ void FYUY2ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FYUY2ConvertUB> Data = TUniformBufferRef<FYUY2ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FYUY2ConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FYUY2ConvertUB>(), Data);
+}
+
+void FYUY2ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> YUY2Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, YUY2Texture, OutputDimensions, ColorTransform, YUVOffset, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 
@@ -651,7 +756,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FYVYUConvertUB, "YVYUConvertUB");
 IMPLEMENT_SHADER_TYPE(, FYVYUConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("YVYUConvertPS"), SF_Pixel);
 
 
-void FYVYUConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> YVYUTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+void FYVYUConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> YVYUTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FYVYUConvertUB UB;
 	{
@@ -664,7 +769,14 @@ void FYVYUConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FYVYUConvertUB> Data = TUniformBufferRef<FYVYUConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FYVYUConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FYVYUConvertUB>(), Data);
+}
+
+void FYVYUConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> YVYUTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, YVYUTexture, ColorTransform, YUVOffset, SrgbToLinear);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 
@@ -682,7 +794,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRGB8toY8ConvertUB, "RGB8toY8ConvertUB"
 IMPLEMENT_SHADER_TYPE(, FRGB8toY8ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("RGB8toY8ConvertPS"), SF_Pixel);
 
 
-void FRGB8toY8ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> RGBATexture, const FVector4f& ColorTransform, bool LinearToSrgb)
+void FRGB8toY8ConvertPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, TRefCountPtr<FRHITexture2D> RGBATexture, const FVector4f& ColorTransform, bool LinearToSrgb)
 {
 	FRGB8toY8ConvertUB UB;
 	{
@@ -693,7 +805,14 @@ void FRGB8toY8ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPt
 	}
 
 	TUniformBufferRef<FRGB8toY8ConvertUB> Data = TUniformBufferRef<FRGB8toY8ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FRGB8toY8ConvertUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FRGB8toY8ConvertUB>(), Data);
+}
+
+void FRGB8toY8ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> RGBATexture, const FVector4f& ColorTransform, bool LinearToSrgb)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, RGBATexture, ColorTransform, LinearToSrgb);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 
@@ -711,7 +830,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FReadTextureExternalUB, "ReadTextureExt
 IMPLEMENT_SHADER_TYPE(, FReadTextureExternalPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("ReadTextureExternalPS"), SF_Pixel);
 
 
-void FReadTextureExternalPS::SetParameters(FRHICommandList& CommandList, FTextureRHIRef TextureExt, FSamplerStateRHIRef SamplerState, const FLinearColor& ScaleRotation, const FLinearColor& Offset)
+void FReadTextureExternalPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FTextureRHIRef TextureExt, FSamplerStateRHIRef SamplerState, const FLinearColor& ScaleRotation, const FLinearColor& Offset)
 {
 	FReadTextureExternalUB UB;
 	{
@@ -722,7 +841,14 @@ void FReadTextureExternalPS::SetParameters(FRHICommandList& CommandList, FTextur
 	}
 
 	TUniformBufferRef<FReadTextureExternalUB> Data = TUniformBufferRef<FReadTextureExternalUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FReadTextureExternalUB>(), Data);
+	SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FReadTextureExternalUB>(), Data);
+}
+
+void FReadTextureExternalPS::SetParameters(FRHICommandList& CommandList, FTextureRHIRef TextureExt, FSamplerStateRHIRef SamplerState, const FLinearColor& ScaleRotation, const FLinearColor& Offset)
+{
+	FRHIBatchedShaderParameters& BatchedParameters = CommandList.GetScratchShaderParameters();
+	SetParameters(BatchedParameters, TextureExt, SamplerState, ScaleRotation, Offset);
+	CommandList.SetBatchedShaderParameters(CommandList.GetBoundPixelShader(), BatchedParameters);
 }
 
 /* FRGB8toUYVY8ConvertPS shader

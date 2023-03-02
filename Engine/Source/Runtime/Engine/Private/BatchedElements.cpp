@@ -686,9 +686,8 @@ void FBatchedElements::PrepareShaders(
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = MaskedPixelShader.GetPixelShader();
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-					MaskedPixelShader->SetEditorCompositingParameters(RHICmdList, View);
 
-					SetShaderParametersLegacyPS(RHICmdList, MaskedPixelShader, Texture, Gamma, OpacityMaskRefVal, BlendMode);
+					SetShaderParametersLegacyPS(RHICmdList, MaskedPixelShader, View, Texture, Gamma, OpacityMaskRefVal, BlendMode);
 				}
 				else
 				{
@@ -697,8 +696,7 @@ void FBatchedElements::PrepareShaders(
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-					MaskedPixelShader->SetEditorCompositingParameters(RHICmdList, View);
-					SetShaderParametersLegacyPS(RHICmdList, MaskedPixelShader, Texture, Gamma, OpacityMaskRefVal, BlendMode);
+					SetShaderParametersLegacyPS(RHICmdList, MaskedPixelShader, View, Texture, Gamma, OpacityMaskRefVal, BlendMode);
 				}
 			}
 			// render distance field elements
@@ -751,9 +749,6 @@ void FBatchedElements::PrepareShaders(
 					(GlowInfo != NULL) ? *GlowInfo : FDepthFieldGlowInfo(),
 					BlendMode
 					);
-
-				// This shader does not use editor compositing
-				DistanceFieldPixelShader->SetEditorCompositingParameters(RHICmdList, nullptr);
 			}
 			else if(BlendMode == SE_BLEND_TranslucentAlphaOnly || BlendMode == SE_BLEND_TranslucentAlphaOnlyWriteAlpha)
 			{
@@ -766,8 +761,7 @@ void FBatchedElements::PrepareShaders(
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-					SetShaderParametersLegacyPS(RHICmdList, AlphaOnlyPixelShader, Texture);
-					AlphaOnlyPixelShader->SetEditorCompositingParameters(RHICmdList, View);
+					SetShaderParametersLegacyPS(RHICmdList, AlphaOnlyPixelShader, View, Texture);
 				}
 				else
 				{
@@ -776,8 +770,7 @@ void FBatchedElements::PrepareShaders(
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-					SetShaderParametersLegacyPS(RHICmdList, GammaAlphaOnlyPixelShader, Texture, Gamma, BlendMode);
-					GammaAlphaOnlyPixelShader->SetEditorCompositingParameters(RHICmdList, View);
+					SetShaderParametersLegacyPS(RHICmdList, GammaAlphaOnlyPixelShader, View, Texture, Gamma, BlendMode);
 				}
 			}
 			else if(BlendMode >= SE_BLEND_RGBA_MASK_START && BlendMode <= SE_BLEND_RGBA_MASK_END)
@@ -800,8 +793,7 @@ void FBatchedElements::PrepareShaders(
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-					SetShaderParametersLegacyPS(RHICmdList, PixelShader, Texture);
-					PixelShader->SetEditorCompositingParameters(RHICmdList, View);
+					SetShaderParametersLegacyPS(RHICmdList, PixelShader, View, Texture);
 				}
 				else
 				{
@@ -820,8 +812,7 @@ void FBatchedElements::PrepareShaders(
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = BasePixelShader.GetPixelShader();
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-					SetShaderParametersLegacyPS(RHICmdList, BasePixelShader, Texture, Gamma, BlendMode);
-					BasePixelShader->SetEditorCompositingParameters(RHICmdList, View);
+					SetShaderParametersLegacyPS(RHICmdList, BasePixelShader, View, Texture, Gamma, BlendMode);
 				}
 			}
 		}

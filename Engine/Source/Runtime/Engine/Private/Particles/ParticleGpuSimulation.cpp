@@ -957,7 +957,7 @@ public:
  */
 class FParticleSimulationClearPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FParticleSimulationClearPS,Global);
+	DECLARE_GLOBAL_SHADER(FParticleSimulationClearPS);
 
 public:
 
@@ -1450,18 +1450,13 @@ typedef TUniformBufferRef<FParticleInjectionParameters> FParticleInjectionBuffer
  */
 class FParticleInjectionVS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FParticleInjectionVS,Global);
+	DECLARE_GLOBAL_SHADER(FParticleInjectionVS);
 
 public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return SupportsGPUParticles(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
 	}
 
 	/** Default constructor. */
@@ -1478,14 +1473,13 @@ public:
 	/**
 	 * Sets parameters for particle injection.
 	 */
-	void SetParameters(FRHICommandList& RHICmdList)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters)
 	{
 		FParticleInjectionParameters Parameters;
 		Parameters.PixelScale.X = 1.0f / GParticleSimulationTextureSizeX;
 		Parameters.PixelScale.Y = 1.0f / GParticleSimulationTextureSizeY;
 		FParticleInjectionBufferRef UniformBuffer = FParticleInjectionBufferRef::CreateUniformBufferImmediate( Parameters, UniformBuffer_SingleDraw );
-		FRHIVertexShader* VertexShader = RHICmdList.GetBoundVertexShader();
-		SetUniformBufferParameter(RHICmdList, VertexShader, GetUniformBufferParameter<FParticleInjectionParameters>(), UniformBuffer );
+		SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FParticleInjectionParameters>(), UniformBuffer );
 	}
 };
 
@@ -1495,7 +1489,7 @@ public:
 template <bool StaticPropertiesOnly>
 class TParticleInjectionPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(TParticleInjectionPS,Global);
+	DECLARE_GLOBAL_SHADER(TParticleInjectionPS);
 
 public:
 
@@ -1626,8 +1620,7 @@ void InjectNewParticles(FRHICommandList& RHICmdList, FGraphicsPipelineStateIniti
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-		
-		VertexShader->SetParameters(RHICmdList);
+		SetShaderParametersLegacyVS(RHICmdList, VertexShader);
 
 		// Stream 0: New particles.
 		RHICmdList.SetStreamSource(

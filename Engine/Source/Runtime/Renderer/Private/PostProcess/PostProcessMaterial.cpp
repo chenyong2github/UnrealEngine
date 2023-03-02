@@ -262,13 +262,9 @@ public:
 		OutEnvironment.SetDefine(TEXT("STRATA_DEFERRED_SHADING"), 1);
 	}
 
-protected:
-	template <typename TRHIShader>
-	static void SetParameters(FRHICommandList& RHICmdList, const TShaderRef<FPostProcessMaterialShader> & Shader, TRHIShader* ShaderRHI, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FMaterial& Material, const FParameters& Parameters)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FMaterial& Material)
 	{
-		FMaterialShader* MaterialShader = Shader.GetShader();
-		MaterialShader->SetParameters(RHICmdList, ShaderRHI, Proxy, Material, View);
-		SetShaderParameters(RHICmdList, Shader, ShaderRHI, Parameters);
+		FMaterialShader::SetParameters(BatchedParameters, Proxy, Material, View);
 	}
 };
 
@@ -276,11 +272,6 @@ class FPostProcessMaterialVS : public FPostProcessMaterialShader
 {
 public:
 	DECLARE_SHADER_TYPE(FPostProcessMaterialVS, Material);
-
-	static void SetParameters(FRHICommandList& RHICmdList, const TShaderRef<FPostProcessMaterialVS>& Shader, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FMaterial& Material, const FParameters& Parameters)
-	{
-		FPostProcessMaterialShader::SetParameters(RHICmdList, Shader, Shader.GetVertexShader(), View, Proxy, Material, Parameters);
-	}
 
 	FPostProcessMaterialVS() = default;
 	FPostProcessMaterialVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -295,11 +286,6 @@ public:
 
 	class FManualStencilTestDim : SHADER_PERMUTATION_BOOL("MANUAL_STENCIL_TEST");
 	using FPermutationDomain = TShaderPermutationDomain<FManualStencilTestDim>;
-
-	static void SetParameters(FRHICommandList& RHICmdList, const TShaderRef<FPostProcessMaterialPS>& Shader, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FMaterial& Material, const FParameters& Parameters)
-	{
-		FPostProcessMaterialShader::SetParameters(RHICmdList, Shader, Shader.GetPixelShader(), View, Proxy, Material, Parameters);
-	}
 
 	FPostProcessMaterialPS() = default;
 	FPostProcessMaterialPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -323,11 +309,6 @@ public:
 		}
 
 		return true;
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FPostProcessMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
 
@@ -686,10 +667,10 @@ FScreenPassTexture AddPostProcessMaterialPass(
 			PostProcessMaterialParameters,
 			ScreenPassFlags,
 			[&View, VertexShader, PixelShader, MaterialRenderProxy, Material, PostProcessMaterialParameters](FRHICommandList& RHICmdList)
-		{
-			FPostProcessMaterialVS::SetParameters(RHICmdList, VertexShader, View, MaterialRenderProxy, *Material, *PostProcessMaterialParameters);
-			FPostProcessMaterialPS::SetParameters(RHICmdList, PixelShader, View, MaterialRenderProxy, *Material, *PostProcessMaterialParameters);
-		});
+			{
+				SetShaderParametersMixedVS(RHICmdList, VertexShader, *PostProcessMaterialParameters, View, MaterialRenderProxy, *Material);
+				SetShaderParametersMixedPS(RHICmdList, PixelShader, *PostProcessMaterialParameters, View, MaterialRenderProxy, *Material);
+			});
 
 		if (bForceIntermediateTarget && !bCompositeWithInputAndDecode)
 		{

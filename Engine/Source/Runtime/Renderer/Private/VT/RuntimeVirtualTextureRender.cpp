@@ -152,19 +152,6 @@ namespace RuntimeVirtualTexture
 			: FMeshMaterialShader(Initializer)
 		{
 		}
-
-		template <typename TRHICmdList>
-		void SetParameters(TRHICmdList& RHICmdList, FSceneView const& View, FMaterialRenderProxy const& MaterialProxy, FMaterial const& Material)
-		{
-			FMeshMaterialShader::SetParameters(
-				RHICmdList,
-				RHICmdList.GetBoundPixelShader(),
-				&MaterialProxy,
-				Material,
-				View,
-				View.ViewUniformBuffer,
-				ESceneTextureSetupMode::All);
-		}
 	};
 
 

@@ -148,12 +148,9 @@ class FMobileDirectionalLightFunctionPS : public FMaterialShader
 		return PermutationVector;
 	}
 
-	static void SetParameters(FRHICommandList& RHICmdList, const TShaderRef<FMobileDirectionalLightFunctionPS>& Shader, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FMaterial& Material, const FParameters& Parameters)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FMaterial& Material)
 	{
-		FMaterialShader* MaterialShader = Shader.GetShader();
-		FRHIPixelShader* ShaderRHI = Shader.GetPixelShader();
-		MaterialShader->SetParameters(RHICmdList, ShaderRHI, Proxy, Material, View);
-		SetShaderParameters(RHICmdList, Shader, ShaderRHI, Parameters);
+		FMaterialShader::SetParameters(BatchedParameters, Proxy, Material, View);
 	}
 };
 
@@ -226,13 +223,10 @@ public:
 		OutEnvironment.SetDefine(TEXT("IS_MOBILE_DEFERREDSHADING_SUBPASS"), 1u);
 	}
 
-	static void SetParameters(FRHICommandList& RHICmdList, const TShaderRef<FMobileRadialLightFunctionPS>& Shader, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FMaterial& Material, const FParameters& Parameters)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FMaterial& Material)
 	{
-		FMaterialShader* MaterialShader = Shader.GetShader();
-		FRHIPixelShader* ShaderRHI = Shader.GetPixelShader();
-		MaterialShader->SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		MaterialShader->SetParameters(RHICmdList, ShaderRHI, Proxy, Material, View);
-		SetShaderParameters(RHICmdList, Shader, ShaderRHI, Parameters);
+		FMaterialShader::SetViewParameters(BatchedParameters, View, View.ViewUniformBuffer);
+		FMaterialShader::SetParameters(BatchedParameters, Proxy, Material, View);
 	}
 };
 
@@ -542,7 +536,7 @@ static void RenderDirectionalLight(FRHICommandListImmediate& RHICmdList, const F
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-		FMobileDirectionalLightFunctionPS::SetParameters(RHICmdList, PixelShader, View, LightMaterial.MaterialProxy, *LightMaterial.Material, PassParameters);
+		SetShaderParametersMixedPS(RHICmdList, PixelShader, PassParameters, View, LightMaterial.MaterialProxy, *LightMaterial.Material);
 
 		const FIntPoint TargetSize = View.GetSceneTexturesConfig().Extent;
 
@@ -795,7 +789,8 @@ static void RenderLocalLight(
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
 		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
-		FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PixelShader, View, LightMaterial.MaterialProxy, *LightMaterial.Material, PassParameters);
+
+		SetShaderParametersMixedPS(RHICmdList, PixelShader, PassParameters, View, LightMaterial.MaterialProxy, *LightMaterial.Material);
 
 		if (LightType == LightType_Point)
 		{
@@ -910,7 +905,8 @@ static void RenderSimpleLights(
 		{
 			uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(PassShadingModelStencilValue[PassIndex]);
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOLight[PassIndex], StencilRef);
-			FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PassPixelShaders[PassIndex], View, DefaultMaterial.MaterialProxy, *DefaultMaterial.Material, PassParameters);
+
+			SetShaderParametersMixedPS(RHICmdList, PassPixelShaders[PassIndex], PassParameters, View, DefaultMaterial.MaterialProxy, *DefaultMaterial.Material);
 
 			// Apply the point or spot light with some approximately bounding geometry,
 			// So we can get speedups from depth testing and not processing pixels outside of the light's influence.

@@ -79,18 +79,18 @@ public:
 	}
 	FBlitUIToHDRPSBase() = default;
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* UITextureRHI, FRHITexture* HDRTextureRHI, FRHITexture* UITextureWriteMaskRHI, const FVector2f& InUITextureSize)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, FRHITexture* UITextureRHI, FRHITexture* HDRTextureRHI, FRHITexture* UITextureWriteMaskRHI, const FVector2f& InUITextureSize)
 	{
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), HDRTexture, UISampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), HDRTextureRHI);
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), UITexture, UISampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), UITextureRHI);
+		SetTextureParameter(BatchedParameters, HDRTexture, UISampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), HDRTextureRHI);
+		SetTextureParameter(BatchedParameters, UITexture, UISampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), UITextureRHI);
 		static auto CVarHDRUILevel = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.UI.Level"));
 		static auto CVarHDRUILuminance = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.UI.Luminance"));
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UILevel, CVarHDRUILevel ? CVarHDRUILevel->GetFloat() : 1.0f);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UILuminance, CVarHDRUILuminance ? CVarHDRUILuminance->GetFloat() : 300.0f);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UITextureSize, InUITextureSize);
+		SetShaderValue(BatchedParameters, UILevel, CVarHDRUILevel ? CVarHDRUILevel->GetFloat() : 1.0f);
+		SetShaderValue(BatchedParameters, UILuminance, CVarHDRUILuminance ? CVarHDRUILuminance->GetFloat() : 300.0f);
+		SetShaderValue(BatchedParameters, UITextureSize, InUITextureSize);
 		if (UITextureWriteMaskRHI != nullptr)
 		{
-			SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), UIWriteMaskTexture, UITextureWriteMaskRHI);
+			SetTextureParameter(BatchedParameters, UIWriteMaskTexture, UITextureWriteMaskRHI);
 		}
 	}
 
@@ -223,7 +223,7 @@ static void BlitUIToHDRScene(FRHICommandListImmediate& RHICmdList, IRendererModu
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-		PixelShader->SetParameters(RHICmdList, UITexture, RectParams.SourceTexture, UITargetRTMaskTexture, FVector2f(SrcTextureWidth, SrcTextureHeight));
+		SetShaderParametersLegacyPS(RHICmdList, PixelShader, UITexture, RectParams.SourceTexture, UITargetRTMaskTexture, FVector2f(SrcTextureWidth, SrcTextureHeight));
 
 		RendererModule.DrawRectangle(
 			RHICmdList,
@@ -340,13 +340,17 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-				PixelShader->SetWeightsAndOffsets(RHICmdList, WeightsAndOffsets, SampleCount);
-				PixelShader->SetTexture(RHICmdList, SourceTexture, BilinearClamp);
+				FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+				PixelShader->SetWeightsAndOffsets(BatchedParameters, WeightsAndOffsets, SampleCount);
+				PixelShader->SetTexture(BatchedParameters, SourceTexture, BilinearClamp);
 
 				if (bDownsample || bIsHDRSource)
 				{
-					PixelShader->SetUVBounds(RHICmdList, FVector4f(FVector2f::ZeroVector, FVector2f((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - HalfTexelOffset));
-					PixelShader->SetBufferSizeAndDirection(RHICmdList, InvBufferSize, FVector2f(1.f, 0.f));
+					PixelShader->SetUVBounds(BatchedParameters, FVector4f(FVector2f::ZeroVector, FVector2f((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - HalfTexelOffset));
+					PixelShader->SetBufferSizeAndDirection(BatchedParameters, InvBufferSize, FVector2f(1.f, 0.f));
+
+					RHICmdList.SetBatchedShaderParameters(PixelShader.GetPixelShader(), BatchedParameters);
 
 					RendererModule.DrawRectangle(
 						RHICmdList,
@@ -367,8 +371,10 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 					const FVector2f UVEnd = FVector2f(DestRect.Right, DestRect.Bottom) * InvSrcTextureSize;
 					const FVector2f SizeUV = UVEnd - UVStart;
 
-					PixelShader->SetUVBounds(RHICmdList, FVector4f(UVStart, UVEnd));
-					PixelShader->SetBufferSizeAndDirection(RHICmdList, InvSrcTextureSize, FVector2f(1.f, 0.f));
+					PixelShader->SetUVBounds(BatchedParameters, FVector4f(UVStart, UVEnd));
+					PixelShader->SetBufferSizeAndDirection(BatchedParameters, InvSrcTextureSize, FVector2f(1.f, 0.f));
+
+					RHICmdList.SetBatchedShaderParameters(PixelShader.GetPixelShader(), BatchedParameters);
 
 					RendererModule.DrawRectangle(
 						RHICmdList,
@@ -403,10 +409,14 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-				PixelShader->SetWeightsAndOffsets(RHICmdList, WeightsAndOffsets, SampleCount);
-				PixelShader->SetUVBounds(RHICmdList, FVector4f(FVector2f::ZeroVector, FVector2f((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - HalfTexelOffset));
-				PixelShader->SetTexture(RHICmdList, SourceTexture, BilinearClamp);
-				PixelShader->SetBufferSizeAndDirection(RHICmdList, InvBufferSize, FVector2f(0.f, 1.f));
+				FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+				PixelShader->SetWeightsAndOffsets(BatchedParameters, WeightsAndOffsets, SampleCount);
+				PixelShader->SetUVBounds(BatchedParameters, FVector4f(FVector2f::ZeroVector, FVector2f((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - HalfTexelOffset));
+				PixelShader->SetTexture(BatchedParameters, SourceTexture, BilinearClamp);
+				PixelShader->SetBufferSizeAndDirection(BatchedParameters, InvBufferSize, FVector2f(0.f, 1.f));
+
+				RHICmdList.SetBatchedShaderParameters(PixelShader.GetPixelShader(), BatchedParameters);
 
 				RendererModule.DrawRectangle(
 					RHICmdList,
@@ -487,9 +497,13 @@ void FSlatePostProcessor::ColorDeficiency(FRHICommandListImmediate& RHICmdList, 
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-			PixelShader->SetColorRules(RHICmdList, GSlateColorDeficiencyCorrection, GSlateColorDeficiencyType, GSlateColorDeficiencySeverity);
-			PixelShader->SetShowCorrectionWithDeficiency(RHICmdList, GSlateShowColorDeficiencyCorrectionWithDeficiency);
-			PixelShader->SetTexture(RHICmdList, SourceTexture, PointClamp);
+			FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+			PixelShader->SetColorRules(BatchedParameters, GSlateColorDeficiencyCorrection, GSlateColorDeficiencyType, GSlateColorDeficiencySeverity);
+			PixelShader->SetShowCorrectionWithDeficiency(BatchedParameters, GSlateShowColorDeficiencyCorrectionWithDeficiency);
+			PixelShader->SetTexture(BatchedParameters, SourceTexture, PointClamp);
+
+			RHICmdList.SetBatchedShaderParameters(PixelShader.GetPixelShader(), BatchedParameters);
 
 			RendererModule.DrawRectangle(
 				RHICmdList,
@@ -577,9 +591,13 @@ void FSlatePostProcessor::DownsampleRect(FRHICommandListImmediate& RHICmdList, I
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-			PixelShader->SetShaderParams(RHICmdList, FShaderParams::MakePixelShaderParams(FVector4f(InvSrcTextureSize.X, InvSrcTextureSize.Y, 0, 0)));
-			PixelShader->SetUVBounds(RHICmdList, FVector4f(UVStart, UVEnd));
-			PixelShader->SetTexture(RHICmdList, Params.SourceTexture, BilinearClamp);
+			FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+			PixelShader->SetShaderParams(BatchedParameters, FShaderParams::MakePixelShaderParams(FVector4f(InvSrcTextureSize.X, InvSrcTextureSize.Y, 0, 0)));
+			PixelShader->SetUVBounds(BatchedParameters, FVector4f(UVStart, UVEnd));
+			PixelShader->SetTexture(BatchedParameters, Params.SourceTexture, BilinearClamp);
+
+			RHICmdList.SetBatchedShaderParameters(PixelShader.GetPixelShader(), BatchedParameters);
 
 			RendererModule.DrawRectangle(
 				RHICmdList,
@@ -701,9 +719,10 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 		const FVector2f Size(DestRect.Right - DestRect.Left, DestRect.Bottom - DestRect.Top);
 		FShaderParams ShaderParams = FShaderParams::MakePixelShaderParams(FVector4f(Size, SizeUV), Params.CornerRadius);
 
-
-		PixelShader->SetShaderParams(RHICmdList, ShaderParams);
-		PixelShader->SetTexture(RHICmdList, SrcTexture, Sampler);
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+		PixelShader->SetShaderParams(BatchedParameters, ShaderParams);
+		PixelShader->SetTexture(BatchedParameters, SrcTexture, Sampler);
+		RHICmdList.SetBatchedShaderParameters(PixelShader.GetPixelShader(), BatchedParameters);
 
 
 		RendererModule.DrawRectangle(RHICmdList,

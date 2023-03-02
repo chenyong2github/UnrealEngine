@@ -727,13 +727,12 @@ public:
 	FTranslucentLightingInjectPS() {}
 
 	void SetParameters(
-		FRHICommandList& RHICmdList, 
+		FRHIBatchedShaderParameters& BatchedParameters,
 		const FViewInfo& View, 
 		const FMaterialRenderProxy* MaterialProxy)
 	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialProxy);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+		FMaterialShader::SetParameters(BatchedParameters, MaterialProxy, Material, View);
 	}
 };
 
@@ -1223,7 +1222,7 @@ void InjectTranslucencyLightingVolume(
 						SetShaderParametersLegacyGS(RHICmdList, GeometryShader, VolumeBounds.MinZ);
 					}
 
-					PixelShader->SetParameters(RHICmdList, View, InjectionData.LightFunctionMaterialProxy);
+					SetShaderParametersLegacyPS(RHICmdList, PixelShader, View, InjectionData.LightFunctionMaterialProxy);
 					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 
 					RasterizeToVolumeTexture(RHICmdList, VolumeBounds);

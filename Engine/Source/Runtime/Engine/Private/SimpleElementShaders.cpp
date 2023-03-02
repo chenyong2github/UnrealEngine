@@ -69,6 +69,19 @@ FSimpleElementPS::FSimpleElementPS(const ShaderMetaType::CompiledShaderInitializ
 	TextureComponentReplicateAlpha.Bind(Initializer.ParameterMap,TEXT("TextureComponentReplicateAlpha"));
 }
 
+void FSimpleElementPS::SetEditorCompositingParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView* View)
+{
+	if (View)
+	{
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(BatchedParameters, View->ViewUniformBuffer);
+	}
+	else
+	{
+		// Unset the view uniform buffers since we don't have a view
+		SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FViewUniformShaderParameters>(), nullptr);
+	}
+}
+
 void FSimpleElementPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* TextureValue)
 {
 	SetTextureParameter(BatchedParameters, InTexture, InTextureSampler, TextureValue);
@@ -77,17 +90,17 @@ void FSimpleElementPS::SetParameters(FRHIBatchedShaderParameters& BatchedParamet
 	SetShaderValue(BatchedParameters, TextureComponentReplicateAlpha, TextureValue->bGreyScaleFormat ? FLinearColor(1, 0, 0, 0) : FLinearColor(0, 0, 0, 1));
 }
 
+void FSimpleElementPS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView* View, const FTexture* TextureValue)
+{
+	SetEditorCompositingParameters(BatchedParameters, View);
+	SetParameters(BatchedParameters, TextureValue);
+}
+
 void FSimpleElementPS::SetEditorCompositingParameters(FRHICommandList& RHICmdList, const FSceneView* View)
 {
-	if( View )
-	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View->ViewUniformBuffer );
-	}
-	else
-	{
-		// Unset the view uniform buffers since we don't have a view
-		SetUniformBufferParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), GetUniformBufferParameter<FViewUniformShaderParameters>(), NULL);
-	}
+	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+	SetEditorCompositingParameters(BatchedParameters, View);
+	RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundPixelShader(), BatchedParameters);
 }
 
 void FSimpleElementPS::SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue)
@@ -115,6 +128,12 @@ void FSimpleElementGammaBasePS::SetParameters(FRHIBatchedShaderParameters& Batch
 	SetShaderValue(BatchedParameters, Gamma, GammaValue);
 }
 
+void FSimpleElementGammaBasePS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView* View, const FTexture* Texture, float GammaValue, ESimpleElementBlendMode BlendMode)
+{
+	SetEditorCompositingParameters(BatchedParameters, View);
+	SetParameters(BatchedParameters, Texture, GammaValue, BlendMode);
+}
+
 void FSimpleElementGammaBasePS::SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, float GammaValue, ESimpleElementBlendMode BlendMode)
 {
 	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
@@ -132,6 +151,12 @@ void FSimpleElementMaskedGammaBasePS::SetParameters(FRHIBatchedShaderParameters&
 {
 	FSimpleElementGammaBasePS::SetParameters(BatchedParameters, Texture, InGamma, BlendMode);
 	SetShaderValue(BatchedParameters, ClipRef, ClipRefValue);
+}
+
+void FSimpleElementMaskedGammaBasePS::SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView* View, const FTexture* Texture, float InGamma, float ClipRefValue, ESimpleElementBlendMode BlendMode)
+{
+	SetEditorCompositingParameters(BatchedParameters, View);
+	SetParameters(BatchedParameters, Texture, InGamma, ClipRefValue, BlendMode);
 }
 
 void FSimpleElementMaskedGammaBasePS::SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, float InGamma, float ClipRefValue, ESimpleElementBlendMode BlendMode)
@@ -174,6 +199,9 @@ void FSimpleElementDistanceFieldGammaPS::SetParameters(
 	ESimpleElementBlendMode BlendMode
 )
 {
+	// This shader does not use editor compositing
+	SetEditorCompositingParameters(BatchedParameters, nullptr);
+
 	FSimpleElementMaskedGammaBasePS::SetParameters(BatchedParameters, Texture, InGamma, InClipRef, BlendMode);
 	SetShaderValue(BatchedParameters, SmoothWidth, SmoothWidthValue);
 	const uint32 bEnableShadowValueUInt = (bEnableShadowValue ? 1 : 0);

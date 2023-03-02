@@ -248,7 +248,7 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 						TShaderMapRef<FMediaShadersVS> VertexShader(GlobalShaderMap);
 						TShaderMapRef<FYCbCrConvertPS> PixelShader(GlobalShaderMap);
 
-						PixelShader->SetParameters(RHICmdList, YTex, UVTex, *ColorTransform, Off, true);
+						SetShaderParametersLegacyPS(RHICmdList, PixelShader, YTex, UVTex, *ColorTransform, Off, true);
 
 						GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
@@ -273,7 +273,7 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 						FShaderResourceViewRHIRef UV_SRV = RHICreateShaderResourceView(UVTex, 0, 1, PF_G16R16);
 
 						// Update shader uniform parameters.
-						PixelShader->SetParameters(RHICmdList, { YWidth, YHeight }, Y_SRV, UV_SRV, { YWidth, YHeight }, YUVMtx, ColorSpaceMtx, EncodingType == UE::Color::EEncoding::ST2084);
+						SetShaderParametersLegacyPS(RHICmdList, PixelShader, FIntPoint(YWidth, YHeight), Y_SRV, UV_SRV, FIntPoint(YWidth, YHeight), YUVMtx, ColorSpaceMtx, EncodingType == UE::Color::EEncoding::ST2084);
 
 						GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();

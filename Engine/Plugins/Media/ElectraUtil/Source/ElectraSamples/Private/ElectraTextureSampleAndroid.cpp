@@ -538,7 +538,7 @@ bool FElectraTextureSample::Convert(FTexture2DRHIRef& InDstTexture, const FConve
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 	// Update shader uniform parameters.
-	PixelShader->SetParameters(RHICmdList, InputTexture, OutputDim, GetEncodingType() == UE::Color::EEncoding::sRGB, GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx);
+	SetShaderParametersLegacyPS(RHICmdList, PixelShader, InputTexture, OutputDim, GetEncodingType() == UE::Color::EEncoding::sRGB, GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx);
 
 	RHICmdList.SetStreamSource(0, CreateTempMediaVertexBuffer(), 0);
 

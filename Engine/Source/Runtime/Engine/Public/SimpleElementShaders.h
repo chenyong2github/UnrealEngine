@@ -53,19 +53,17 @@ public:
 	FSimpleElementPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	FSimpleElementPS() {}
 
-	/**
-	 * Sets parameters for compositing editor primitives
-	 *
-	 * @param View			SceneView for view constants when compositing
-	 */
-	void SetEditorCompositingParameters(FRHICommandList& RHICmdList, const FSceneView* View);
-
 	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* TextureValue);
+	/** Sets parameters for compositing editor primitives */
+	void SetEditorCompositingParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView* View);
+
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView* View, const FTexture* TextureValue);
+
+	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
+	void SetEditorCompositingParameters(FRHICommandList& RHICmdList, const FSceneView* View);
 
 	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue);
-
-	//virtual bool Serialize(FArchive& Ar) override;
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, InTexture)
@@ -100,6 +98,7 @@ public:
 	FSimpleElementGammaBasePS() {}
 
 	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* Texture, float GammaValue, ESimpleElementBlendMode BlendMode);
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView* View, const FTexture* Texture, float GammaValue, ESimpleElementBlendMode BlendMode);
 
 	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture,float GammaValue,ESimpleElementBlendMode BlendMode);
@@ -144,6 +143,7 @@ public:
 	FSimpleElementMaskedGammaBasePS() {}
 
 	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FTexture* Texture,float Gamma,float ClipRefValue,ESimpleElementBlendMode BlendMode);
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView* View, const FTexture* Texture,float Gamma,float ClipRefValue,ESimpleElementBlendMode BlendMode);
 
 	UE_DEPRECATED(5.3, "SetParameters with FRHIBatchedShaderParameters should be used.")
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture,float Gamma,float ClipRefValue,ESimpleElementBlendMode BlendMode);

@@ -79,10 +79,13 @@ public:
 		check(SrcOffset.GetMin() >= 0 && DstOffset.GetMin() >= 0 && Dimensions.GetMin() >= 0);
 		check(Context.DstType != ECopyTextureResourceType::Texture2D || Dimensions.Z <= 1);
 
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-		SetShaderValue(RHICmdList, ShaderRHI, SrcOffsetParam, SrcOffset);
-		SetShaderValue(RHICmdList, ShaderRHI, DstOffsetParam, DstOffset);
-		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParam, Dimensions);
+		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
+		SetShaderValue(BatchedParameters, SrcOffsetParam, SrcOffset);
+		SetShaderValue(BatchedParameters, DstOffsetParam, DstOffset);
+		SetShaderValue(BatchedParameters, DimensionsParam, Dimensions);
+
+		RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundComputeShader(), BatchedParameters);
 
 		RHICmdList.DispatchComputeShader(
 			FMath::DivideAndRoundUp(uint32(Dimensions.X), Context.ThreadGroupSizeX),
