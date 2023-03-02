@@ -94,6 +94,8 @@ protected:
 
 	void SmoothAndRemesh(FMeshFaceSelection& tris);
 
+	void ConstrainSubregionSeams(FSubRegionRemesher& Remesher, bool bConstrainROIBoundary);
+
 	void DefaultConfigureRemesher(FSubRegionRemesher& Remesher, bool bConstrainROIBoundary);
 
 };
