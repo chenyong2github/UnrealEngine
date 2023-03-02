@@ -15,8 +15,6 @@
 #include "PostProcess/DrawRectangle.h"
 #include "ScenePrivate.h"
 
-IMPLEMENT_TYPE_LAYOUT(FGammaShaderParameters);
-
 void FTesselatedScreenRectangleIndexBuffer::InitRHI()
 {
 	TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> IndexBuffer;
