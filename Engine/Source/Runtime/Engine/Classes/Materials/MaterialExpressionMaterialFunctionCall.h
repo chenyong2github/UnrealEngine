@@ -176,6 +176,9 @@ private:
 
 	/** Temporary compilation state shared between function calls */
 	FMaterialFunctionCompileState* SharedCompileState;
+
+	/** Stashed data between a Pre/PostEditChange event */
+	UMaterialFunctionInterface* SavedMaterialFunction = nullptr;
 #endif // WITH_EDITOR
 };
 

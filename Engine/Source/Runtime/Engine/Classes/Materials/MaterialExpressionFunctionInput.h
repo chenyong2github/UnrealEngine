@@ -134,6 +134,9 @@ private:
 #if WITH_EDITOR
 	/** Helper function which compiles this expression for previewing. */
 	int32 CompilePreviewValue(FMaterialCompiler* Compiler);
+
+	/** Stashed data between a Pre/PostEditChange event */
+	FName InputNameBackup;
 #endif // WITH_EDITOR
 };
 

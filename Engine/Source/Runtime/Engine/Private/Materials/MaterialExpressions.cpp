@@ -15980,8 +15980,6 @@ void FMaterialLayersFunctions::Validate(const FMaterialLayersFunctionsRuntimeDat
 // UMaterialExpressionMaterialFunctionCall
 ///////////////////////////////////////////////////////////////////////////////
 
-UMaterialFunctionInterface* SavedMaterialFunction = nullptr;
-
 UMaterialExpressionMaterialFunctionCall::UMaterialExpressionMaterialFunctionCall(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -16066,6 +16064,11 @@ void UMaterialExpressionMaterialFunctionCall::PostEditChangeProperty(FPropertyCh
 		// Set the new material function
 		SetMaterialFunctionEx(SavedMaterialFunction, MaterialFunction);
 		SavedMaterialFunction = nullptr;
+	}
+	else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Redirected)
+	{
+		// Refresh from the current material function as it may have been redirected to a different value
+		UpdateFromFunctionResource();
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -16684,8 +16687,6 @@ void UMaterialExpressionFunctionInput::PostEditImport()
 	ConditionallyGenerateId(true);
 }
 
-FName InputNameBackup;
-
 void UMaterialExpressionFunctionInput::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UMaterialExpressionFunctionInput, InputName))
@@ -17078,8 +17079,6 @@ void UMaterialExpressionFunctionOutput::PostEditImport()
 	ConditionallyGenerateId(true);
 }
 #endif	//#if WITH_EDITOR
-
-FName OutputNameBackup;
 
 #if WITH_EDITOR
 void UMaterialExpressionFunctionOutput::PreEditChange(FProperty* PropertyAboutToChange)

@@ -78,6 +78,12 @@ class UMaterialExpressionFunctionOutput : public UMaterialExpression
 	/** Validate OutputName.  Must be called after OutputName is changed to prevent duplicate outputs. */
 	ENGINE_API void ValidateName();
 #endif // WITH_EDITOR
+
+private:
+#if WITH_EDITOR
+	/** Stashed data between a Pre/PostEditChange event */
+	FName OutputNameBackup;
+#endif // WITH_EDITOR
 };
 
 
