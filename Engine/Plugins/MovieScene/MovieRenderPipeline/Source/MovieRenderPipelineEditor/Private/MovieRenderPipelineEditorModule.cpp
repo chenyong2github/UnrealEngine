@@ -29,6 +29,9 @@
 #include "MoviePipelineEditorBlueprintLibrary.h"
 #include "MovieSceneSection.h"
 #include "Sections/MovieSceneCinematicShotSection.h"
+#include "MoviePipelineConsoleVariableSetting.h"
+#include "PropertyEditorModule.h"
+#include "Customizations/ConsoleVariableCustomization.h"
 
 #define LOCTEXT_NAMESPACE "FMovieRenderPipelineEditorModule"
 
@@ -187,6 +190,19 @@ void FMovieRenderPipelineEditorModule::UnregisterMovieRenderer()
 	}
 }
 
+void FMovieRenderPipelineEditorModule::RegisterTypeCustomizations()
+{
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.RegisterCustomPropertyTypeLayout(FMoviePipelineConsoleVariableEntry::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(FConsoleVariablesDetailsCustomization::MakeInstance));
+}
+
+void FMovieRenderPipelineEditorModule::UnregisterTypeCustomizations()
+{
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.UnregisterCustomPropertyTypeLayout(FMoviePipelineConsoleVariableEntry::StaticStruct()->GetFName());
+}
+
 void FMovieRenderPipelineEditorModule::StartupModule()
 {
 	// Initialize our custom style
@@ -195,12 +211,14 @@ void FMovieRenderPipelineEditorModule::StartupModule()
 
 	RegisterTabImpl();
 	RegisterSettings();
+	RegisterTypeCustomizations();
 	RegisterMovieRenderer();
 }
 
 void FMovieRenderPipelineEditorModule::ShutdownModule()
 {
 	UnregisterMovieRenderer();
+	UnregisterTypeCustomizations();
 	UnregisterSettings();
 	FMoviePipelineCommands::Unregister();
 }

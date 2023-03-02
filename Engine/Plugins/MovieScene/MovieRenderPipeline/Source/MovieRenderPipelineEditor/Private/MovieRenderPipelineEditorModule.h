@@ -20,5 +20,8 @@ private:
 	void RegisterMovieRenderer();
 	void UnregisterMovieRenderer();
 
+	void RegisterTypeCustomizations();
+	void UnregisterTypeCustomizations();
+
 	FDelegateHandle MovieRendererDelegate;
 };
