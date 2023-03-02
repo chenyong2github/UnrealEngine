@@ -998,10 +998,13 @@ public:
 
 	void SetParameters(
 		FRHIBatchedShaderParameters& BatchedParameters,
+		const FCompositeAnimatedVectorFieldUniformBufferRef& UniformBuffer,
 		FRHIUnorderedAccessView* VolumeTextureUAV,
 		FRHITexture* AtlasTextureRHI,
 		FRHITexture* NoiseVolumeTextureRHI)
 	{
+		SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FCompositeAnimatedVectorFieldUniformParameters>(), UniformBuffer);
+
 		FRHISamplerState* SamplerStateLinear = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 		SetUAVParameter(BatchedParameters, OutVolumeTexture, VolumeTextureUAV);
@@ -1166,11 +1169,10 @@ public:
 			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			SetComputePipelineState(RHICmdList, CompositeCS.GetComputeShader());
 
-			SetUniformBufferParameter(RHICmdList, CompositeCS.GetComputeShader(), CompositeCS->GetUniformBufferParameter<FCompositeAnimatedVectorFieldUniformParameters>(), UniformBuffer);
-
 			SetShaderParametersLegacyCS(
 				RHICmdList,
 				CompositeCS,
+				UniformBuffer,
 				VolumeTextureUAV,
 				AnimatedVectorField->Texture->GetResource()->TextureRHI,
 				NoiseVolumeTextureRHI);

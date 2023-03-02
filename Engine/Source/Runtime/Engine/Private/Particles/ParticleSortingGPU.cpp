@@ -78,12 +78,16 @@ public:
 
 	void SetParameters(
 		FRHIBatchedShaderParameters& BatchedParameters,
+		const FParticleKeyGenParameters& KeyGenParameters,
 		FRHIUnorderedAccessView* OutKeysUAV,
 		FRHIUnorderedAccessView* OutIndicesUAV,
 		FRHITexture2D* PositionTextureRHI,
 		FRHIShaderResourceView* InIndicesSRV
 		)
 	{
+		FParticleKeyGenUniformBufferRef KeyGenUniformBuffer = FParticleKeyGenUniformBufferRef::CreateUniformBufferImmediate(KeyGenParameters, UniformBuffer_SingleDraw);
+		SetUniformBufferParameter(BatchedParameters, GetUniformBufferParameter<FParticleKeyGenParameters>(), KeyGenUniformBuffer);
+
 		SetUAVParameter(BatchedParameters, OutKeys, OutKeysUAV);
 		SetUAVParameter(BatchedParameters, OutParticleIndices, OutIndicesUAV);
 		SetTextureParameter(BatchedParameters, PositionTexture, PositionTextureRHI);
@@ -159,10 +163,7 @@ int32 GenerateParticleSortKeys(
 			KeyGenParameters.EmitterKey = (uint32)SortInfo.AllocationInfo.ElementIndex << 16;
 			KeyGenParameters.KeyCount = ParticleCount;
 
-			FParticleKeyGenUniformBufferRef KeyGenUniformBuffer = FParticleKeyGenUniformBufferRef::CreateUniformBufferImmediate( KeyGenParameters, UniformBuffer_SingleDraw );
-			SetUniformBufferParameter(RHICmdList, KeyGenCS.GetComputeShader(), KeyGenCS->GetUniformBufferParameter<FParticleKeyGenParameters>(), KeyGenUniformBuffer);
-
-			SetShaderParametersLegacyCS(RHICmdList, KeyGenCS, KeyBufferUAV, SortedVertexBufferUAV, PositionTextureRHI, SortInfo.VertexBufferSRV);
+			SetShaderParametersLegacyCS(RHICmdList, KeyGenCS, KeyGenParameters, KeyBufferUAV, SortedVertexBufferUAV, PositionTextureRHI, SortInfo.VertexBufferSRV);
 
 			DispatchComputeShader(RHICmdList, KeyGenCS.GetShader(), GroupCount, 1, 1);
 		}
