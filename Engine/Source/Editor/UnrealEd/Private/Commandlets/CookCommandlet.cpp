@@ -41,6 +41,7 @@
 #include "Settings/ProjectPackagingSettings.h"
 #include "ShaderCompiler.h"
 #include "Stats/StatsMisc.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/Class.h"
 #include "UObject/MetaData.h"
 #include "UObject/Package.h"
@@ -639,7 +640,10 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 	COTFS.SetGarbageCollectType(TickResults);
 
 	UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), *GCType, *GCReason);
-	CollectGarbage(RF_NoFlags);
+	{
+		TGuardValue<bool> SoftGCGuard(UPackage::bSupportCookerSoftGC, true);
+		CollectGarbage(RF_NoFlags);
+	}
 
 	COTFS.ClearGarbageCollectType();
 	FPlatformMemoryStats MemStatsAfterGC = FPlatformMemory::GetStats();

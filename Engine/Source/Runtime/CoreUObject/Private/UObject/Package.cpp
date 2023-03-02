@@ -141,6 +141,27 @@ void UPackage::Serialize( FArchive& Ar )
 	}
 }
 
+#if WITH_EDITOR
+bool UPackage::bSupportCookerSoftGC = false;
+TMap<UPackage*, TArrayView<UObject*>> UPackage::SoftGCPackageToObjectList;
+void UPackage::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	if (bSupportCookerSoftGC)
+	{
+		UPackage* ThisPackage = static_cast<UPackage*>(InThis);
+		TArrayView<UObject*>* ObjectList = SoftGCPackageToObjectList.Find(ThisPackage);
+		if (ObjectList)
+		{
+			for (UObject* Object : *ObjectList)
+			{
+				Collector.AddReferencedObject(Object);
+			}
+		}
+	}
+	Super::AddReferencedObjects(InThis, Collector);
+}
+#endif
+
 UObject* UPackage::FindAssetInPackage(EObjectFlags RequiredTopLevelFlags) const
 {
 	UObject* Asset = nullptr;

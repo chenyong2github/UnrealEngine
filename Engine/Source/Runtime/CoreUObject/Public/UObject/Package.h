@@ -350,6 +350,18 @@ public:
 	/** Packages are never assets */
 	virtual bool IsAsset() const override { return false; }
 
+#if WITH_EDITOR
+	/**
+	 *  Functionality to support SoftGC in the cooker. When activated by the cooker, objects in
+	 * each package are Objects in each package are stored in SoftGCPackageToObjectList and are
+	 * marked as referenced if the package is referenced.
+	 */
+	static bool bSupportCookerSoftGC;
+	static TMap<UPackage*, TArrayView<UObject*>> SoftGCPackageToObjectList;
+	/** Static class override of UObject::AddReferencedObjects */
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+#endif
+
 	// UPackage interface.
 
 private:

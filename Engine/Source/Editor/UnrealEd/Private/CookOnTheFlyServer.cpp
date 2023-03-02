@@ -4704,6 +4704,126 @@ void UCookOnTheFlyServer::ClearGarbageCollectType()
 	bGarbageCollectTypeSoft = false;
 }
 
+/**
+ * For every package in memory, add a list of all of its public UObjects into the map
+ * used in garbage collection: UPackage::SoftGCPackageToObjectList. This will cause all of
+ * its public objects to be referenced if the UPackage is referenced.
+ */
+static void ConstructSoftGCPackageToObjectList(TArray<UObject*>& PackageToObjectListBuffer)
+{
+	struct FPackageObjectPair
+	{
+		UPackage* Package;
+		UObject* Object;
+		bool operator<(const FPackageObjectPair& Other) const
+		{
+			if (Package != Other.Package)
+				return Package < Other.Package;
+			return Object < Other.Object;
+		}
+		bool operator==(const FPackageObjectPair& Other) const
+		{
+			return Object == Other.Object;
+		}
+	};
+
+	PackageToObjectListBuffer.Empty();
+
+	// Iterate over all UObjects in memory (in parallel) and for each valid public object, get its package and add a FPackageObjectPair for it
+	int32 MaxNumberOfObjects = GUObjectArray.GetObjectArrayNum();
+	int32 NumThreads = FMath::Clamp(FTaskGraphInterface::Get().GetNumWorkerThreads(), 1, MaxNumberOfObjects);
+	int32 NumberOfObjectsPerThread = (MaxNumberOfObjects + NumThreads - 1) / NumThreads; // ceiling
+	check(NumberOfObjectsPerThread * (NumThreads - 1) <= MaxNumberOfObjects);
+
+	TArray<TArray<FPackageObjectPair>> ThreadContexts;
+	ThreadContexts.SetNum(NumThreads);
+	std::atomic<int32> PackagesNum{ 0 };
+
+	ParallelFor(TEXT("ConstructSoftGCPackageToObjectList"), NumThreads, 1,
+		[&ThreadContexts, &PackagesNum, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
+		{
+			TArray<FPackageObjectPair>& ThreadContext = ThreadContexts[ThreadIndex];
+			int32 FirstObjectIndex = ThreadIndex * NumberOfObjectsPerThread;
+			int32 NumObjects = (ThreadIndex < (NumThreads - 1)) ? NumberOfObjectsPerThread : (MaxNumberOfObjects - (NumThreads - 1) * NumberOfObjectsPerThread);
+			check(FirstObjectIndex + NumObjects <= MaxNumberOfObjects);
+
+			for (int32 ObjectIndex = 0; ObjectIndex < NumObjects && (FirstObjectIndex + ObjectIndex) < MaxNumberOfObjects; ++ObjectIndex)
+			{
+				FUObjectItem& ObjectItem = GUObjectArray.GetObjectItemArrayUnsafe()[FirstObjectIndex + ObjectIndex];
+				if (!ObjectItem.Object)
+				{
+					continue;
+				}
+				UObject* Object = static_cast<UObject*>(ObjectItem.Object);
+				if (!Object->HasAnyFlags(RF_Public))
+				{
+					continue;
+				}
+				if (Object->HasAnyFlags(RF_InternalPendingKill | RF_InternalGarbage))
+				{
+					continue;
+				}
+				UPackage* Package = Object->GetPackage();
+				if (!Package)
+				{
+					return;
+				}
+				if (Object == Package)
+				{
+					PackagesNum.fetch_add(1, std::memory_order_relaxed);
+				}
+				ThreadContext.Add(FPackageObjectPair{ Package, Object });
+			}
+		});
+
+	// Accumulate results from the parallel threads into a single array
+	TArray<FPackageObjectPair> PackageObjectPairs = MoveTemp(ThreadContexts[0]);
+	int32 PackageObjectPairsNum = PackageObjectPairs.Num();
+	TArrayView<TArray<FPackageObjectPair>> RemainingThreadContexts = TArrayView<TArray<FPackageObjectPair>>(ThreadContexts).RightChop(1);
+	for (TArray<FPackageObjectPair>& ThreadContext : RemainingThreadContexts)
+	{
+		PackageObjectPairsNum += ThreadContext.Num();
+	}
+	PackageObjectPairs.Reserve(PackageObjectPairsNum);
+	for (TArray<FPackageObjectPair>& ThreadContext : RemainingThreadContexts)
+	{
+		PackageObjectPairs.Append(ThreadContext);
+	}
+	ThreadContexts.Empty();
+
+	// Sort the array so that all objects for each package are together
+	PackageObjectPairs.Sort();
+
+	// Pull the UObject* out of the array of Pairs into a separate array of just UObject*,
+	// and for each UPackage, add the ArrayView of UObjects matching that package into the UPackage::SoftGCPackageToObjectList.
+	PackageToObjectListBuffer.SetNum(PackageObjectPairsNum);
+	UObject** PackageToObjectListBufferPtr = PackageToObjectListBuffer.GetData();
+
+	UPackage::SoftGCPackageToObjectList.Empty(PackagesNum);
+	int32 PreviousPackageStartIndex = 0;
+	UPackage* PreviousPackage = nullptr;
+	for (int32 Index = 0; Index < PackageObjectPairsNum; ++Index)
+	{
+		FPackageObjectPair& Pair = PackageObjectPairs[Index];
+		if (Pair.Package != PreviousPackage)
+		{
+			if (Index > PreviousPackageStartIndex)
+			{
+				UPackage::SoftGCPackageToObjectList.Add(PreviousPackage,
+					TArrayView<UObject*>(PackageToObjectListBufferPtr + PreviousPackageStartIndex, Index - PreviousPackageStartIndex));
+			}
+			PreviousPackage = Pair.Package;
+			PreviousPackageStartIndex = Index;
+		}
+		PackageToObjectListBufferPtr[Index] = Pair.Object;
+	}
+	if (PackageObjectPairsNum > PreviousPackageStartIndex)
+	{
+		UPackage::SoftGCPackageToObjectList.Add(PreviousPackage,
+			TArrayView<UObject*>(PackageToObjectListBufferPtr + PreviousPackageStartIndex, PackageObjectPairsNum - PreviousPackageStartIndex));
+	}
+}
+
 void UCookOnTheFlyServer::PreGarbageCollect()
 {
 	using namespace UE::Cook;
@@ -4874,25 +4994,20 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 			});
 	}
 
-	// Add packages and all RF_Public objects outered to them to GCKeepObjects
+	// Add packages to GCKeepObjects. 
 	TArray<UObject*> ObjectsWithOuter;
 	for (UPackage* Package : GCKeepPackages)
 	{
 		GCKeepObjects.Add(Package);
-		ObjectsWithOuter.Reset();
-		GetObjectsWithOuter(Package, ObjectsWithOuter);
-		for (UObject* Obj : ObjectsWithOuter)
-		{
-			if (IsValidChecked(Obj) && Obj->HasAnyFlags(RF_Public))
-			{
-				GCKeepObjects.Add(Obj);
-			}
-		}
 	}
 	for (FPackageData* PackageData : GCKeepPackageDatas)
 	{
 		PackageData->SetKeepReferencedDuringGC(true);
 	}
+
+	// Add all public objects within every package in memory to the UPackage::SoftGCPackageToObjectList container,
+	// so they will be kept in memory if the package is kept in memory.
+	ConstructSoftGCPackageToObjectList(this->SoftGCPackageToObjectListBuffer);
 }
 
 void UCookOnTheFlyServer::CookerAddReferencedObjects(FReferenceCollector& Collector)
@@ -4934,6 +5049,8 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 	check(!SavingPackageData || SavingPackageData->GetPackage() != nullptr);
 
 	GCKeepObjects.Empty();
+	UPackage::SoftGCPackageToObjectList.Empty();
+	SoftGCPackageToObjectListBuffer.Empty();
 
 	PackageDatas->LockAndEnumeratePackageDatas([](FPackageData* PackageData)
 	{
