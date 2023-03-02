@@ -10,6 +10,7 @@
 #include "InterchangeShaderGraphNode.h"
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeTexture2DArrayNode.h"
+#include "InterchangeTextureBlurNode.h"
 #include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureFactoryNode.h"
 #include "InterchangeTextureNode.h"
@@ -30,6 +31,7 @@
 #include "Materials/MaterialExpressionOneMinus.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
+#include "Materials/MaterialExpressionTextureObject.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2DArray.h"
@@ -42,6 +44,7 @@
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "MaterialX/MaterialExpressionTextureSampleParameterBlur.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
@@ -1354,6 +1357,77 @@ void UInterchangeGenericMaterialPipeline::HandleFlattenNormalNode(const UInterch
 	}
 }
 
+void UInterchangeGenericMaterialPipeline::HandleNormalFromHeightMapNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* NormalFromHeightMapFactoryNode)
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes::NormalFromHeightMap;
+
+	NormalFromHeightMapFactoryNode->SetCustomExpressionClassName(UMaterialExpressionMaterialFunctionCall::StaticClass()->GetName());
+
+	const FName MaterialFunctionMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialFunctionCall, MaterialFunction);
+	NormalFromHeightMapFactoryNode->AddStringAttribute(MaterialFunctionMemberName, TEXT("/Engine/Functions/Engine_MaterialFunctions03/Procedurals/NormalFromHeightmap.NormalFromHeightmap"));
+	NormalFromHeightMapFactoryNode->AddApplyAndFillDelegates<FString>(MaterialFunctionMemberName, UMaterialExpressionMaterialFunctionCall::StaticClass(), MaterialFunctionMemberName);
+
+	// Heightmap
+	{
+		const FString HeightMapInput = Inputs::HeightMap.ToString();
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> HeightMapExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, HeightMapInput, NormalFromHeightMapFactoryNode->GetUniqueID());
+
+		if(HeightMapExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(NormalFromHeightMapFactoryNode, HeightMapInput, HeightMapExpression.Get<0>()->GetUniqueID(), HeightMapExpression.Get<1>());
+		}
+	}
+
+	// Intensity
+	{
+		const FString Intensity = Inputs::Intensity.ToString();
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> IntensityExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Intensity, NormalFromHeightMapFactoryNode->GetUniqueID());
+
+		if(IntensityExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(NormalFromHeightMapFactoryNode, Intensity, IntensityExpression.Get<0>()->GetUniqueID(), IntensityExpression.Get<1>());
+		}
+	}
+
+	// Offset
+	{
+		const FString Offset = Inputs::Offset.ToString();
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> OffsetExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Offset, NormalFromHeightMapFactoryNode->GetUniqueID());
+
+		if(OffsetExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(NormalFromHeightMapFactoryNode, Offset, OffsetExpression.Get<0>()->GetUniqueID(), OffsetExpression.Get<1>());
+		}
+	}
+
+	// Coordinates
+	{
+		const FString Coordinates = Inputs::Coordinates.ToString();
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> CoordinatesExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Coordinates, NormalFromHeightMapFactoryNode->GetUniqueID());
+
+		if(CoordinatesExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(NormalFromHeightMapFactoryNode, Coordinates, CoordinatesExpression.Get<0>()->GetUniqueID(), CoordinatesExpression.Get<1>());
+		}
+	}
+
+	// Channel
+	{
+		const FString Channel = Inputs::Channel.ToString();
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ChannelExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Channel, NormalFromHeightMapFactoryNode->GetUniqueID());
+
+		if(ChannelExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(NormalFromHeightMapFactoryNode, Channel, ChannelExpression.Get<0>()->GetUniqueID(), ChannelExpression.Get<1>());
+		}
+	}
+}
+
 void UInterchangeGenericMaterialPipeline::HandleMakeFloat3Node(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode,
 	UInterchangeMaterialExpressionFactoryNode* MakeFloat3FactoryNode)
 {
@@ -1390,6 +1464,90 @@ void UInterchangeGenericMaterialPipeline::HandleMakeFloat3Node(const UInterchang
 	}
 }
 
+void UInterchangeGenericMaterialPipeline::HandleTextureNode(const UInterchangeTextureNode* TextureNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* TextureBaseFactoryNode, const FString & ExpressionClassName)
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes::TextureSample;
+
+	FString TextureFactoryUid;
+	TArray<FString> TextureTargetNodes;
+	TextureNode->GetTargetNodeUids(TextureTargetNodes);
+
+	if(TextureTargetNodes.Num() > 0)
+	{
+		TextureFactoryUid = TextureTargetNodes[0];
+	}
+
+	TextureBaseFactoryNode->SetCustomExpressionClassName(ExpressionClassName);
+	TextureBaseFactoryNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Inputs::Texture.ToString()), TextureFactoryUid);
+
+	if(UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetFactoryNode(TextureFactoryUid)))
+	{
+		EMaterialInputType TextureUsage = EMaterialInputType::Unknown;
+		TextureFactoryNode->GetAttribute(TEXT("TextureUsage"), TextureUsage);
+
+		const bool bIsOutputLinear = MaterialExpressionCreationContextStack.Top().OutputName.Equals(Outputs::A.ToString());
+		const EMaterialInputType DesiredTextureUsage = MaterialCreationContext.InputTypeBeingProcessed == EMaterialInputType::Scalar && bIsOutputLinear ?
+			EMaterialInputType::Unknown : // Alpha channels are always in linear space so ignore them when determining texture usage
+			MaterialCreationContext.InputTypeBeingProcessed;
+
+		if(TextureUsage == EMaterialInputType::Unknown)
+		{
+			if(DesiredTextureUsage == EMaterialInputType::Vector)
+			{
+				TextureFactoryNode->SetCustomCompressionSettings(TextureCompressionSettings::TC_Normalmap);
+			}
+			else if(DesiredTextureUsage == EMaterialInputType::Scalar)
+			{
+				bool bSRGB;
+				if(!TextureNode->GetCustomSRGB(bSRGB))
+				{
+					// Only set CustomSRGB if it wasn't set by the InterchangeGenericTexturePipeline before
+					TextureFactoryNode->SetCustomSRGB(false);
+				}
+			}
+
+			TextureFactoryNode->SetAttribute(TEXT("TextureUsage"), DesiredTextureUsage);
+		}
+		else if(TextureUsage != DesiredTextureUsage && DesiredTextureUsage != EMaterialInputType::Unknown)
+		{
+			UInterchangeResultWarning_Generic* TextureUsageWarning = AddMessage<UInterchangeResultWarning_Generic>();
+			TextureUsageWarning->DestinationAssetName = TextureFactoryNode->GetAssetName();
+			TextureUsageWarning->AssetType = TextureFactoryNode->GetObjectClass();
+
+			TextureUsageWarning->Text = FText::Format(LOCTEXT("TextureUsageMismatch", "{0} is being used as both {1} and {2} which aren't compatible."),
+													  FText::FromString(TextureFactoryNode->GetAssetName()), FText::FromString(LexToString(TextureUsage)), FText::FromString(LexToString(DesiredTextureUsage)));
+
+			// Flipping the green channel only makes sense for vector data as it's used to compensate for different handedness.
+			// Clear it if we're not gonna be used only as a vector map. This normally happens when a normal map is also used as a color map.
+			bool bFlipGreenChannel;
+			if(TextureFactoryNode->GetCustombFlipGreenChannel(bFlipGreenChannel))
+			{
+				TextureFactoryNode->SetCustombFlipGreenChannel(false);
+			}
+		}
+	}
+}
+
+void UInterchangeGenericMaterialPipeline::HandleTextureObjectNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* TextureObjectFactoryNode)
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes::TextureObject;
+
+	FString TextureUid;
+	ShaderNode->GetStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Inputs::Texture.ToString()), TextureUid);
+	FString ExpressionClassName;
+	FString TextureFactoryUid;
+
+	if(const UInterchangeTextureNode* TextureNode = Cast<const UInterchangeTextureNode>(BaseNodeContainer->GetNode(TextureUid)))
+	{
+		HandleTextureNode(TextureNode, MaterialFactoryNode, TextureObjectFactoryNode, UMaterialExpressionTextureObject::StaticClass()->GetName());
+	}
+	else
+	{
+		TextureObjectFactoryNode->SetCustomExpressionClassName(UMaterialExpressionTextureObject::StaticClass()->GetName());
+		TextureObjectFactoryNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Inputs::Texture.ToString()), TextureFactoryUid);
+	}
+}
+
 void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* TextureSampleFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Standard::Nodes::TextureSample;
@@ -1410,6 +1568,10 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 		{
 			ExpressionClassName = UMaterialExpressionTextureSampleParameter2DArray::StaticClass()->GetName();
 		}
+		else if(TextureNode->IsA<UInterchangeTextureBlurNode>())
+		{
+			ExpressionClassName = UMaterialExpressionTextureSampleParameterBlur::StaticClass()->GetName();
+		}
 		else if (TextureNode->IsA<UInterchangeTexture2DNode>())
 		{
 			ExpressionClassName = UMaterialExpressionTextureSampleParameter2D::StaticClass()->GetName();
@@ -1419,63 +1581,7 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 			ExpressionClassName = UMaterialExpressionTextureSampleParameter2D::StaticClass()->GetName();
 		}
 
-		TArray<FString> TextureTargetNodes;
-		TextureNode->GetTargetNodeUids(TextureTargetNodes);
-
-		if (TextureTargetNodes.Num() > 0)
-		{
-			TextureFactoryUid = TextureTargetNodes[0];
-		}
-
-		TextureSampleFactoryNode->SetCustomExpressionClassName(ExpressionClassName);
-		TextureSampleFactoryNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Inputs::Texture.ToString()), TextureFactoryUid);
-
-		if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetFactoryNode(TextureFactoryUid)))
-		{
-			EMaterialInputType TextureUsage = EMaterialInputType::Unknown;
-			TextureFactoryNode->GetAttribute(TEXT("TextureUsage"), TextureUsage);
-
-			const bool bIsOutputLinear = MaterialExpressionCreationContextStack.Top().OutputName.Equals(Outputs::A.ToString());
-			const EMaterialInputType DesiredTextureUsage = MaterialCreationContext.InputTypeBeingProcessed == EMaterialInputType::Scalar && bIsOutputLinear ?
-																		EMaterialInputType::Unknown : // Alpha channels are always in linear space so ignore them when determining texture usage
-																		MaterialCreationContext.InputTypeBeingProcessed;
-
-			if (TextureUsage == EMaterialInputType::Unknown)
-			{
-				if (DesiredTextureUsage == EMaterialInputType::Vector)
-				{
-					TextureFactoryNode->SetCustomCompressionSettings(TextureCompressionSettings::TC_Normalmap);
-				}
-				else if (DesiredTextureUsage == EMaterialInputType::Scalar)
-				{
-					bool bSRGB;
-					if (!TextureNode->GetCustomSRGB(bSRGB))
-					{
-						// Only set CustomSRGB if it wasn't set by the InterchangeGenericTexturePipeline before
-						TextureFactoryNode->SetCustomSRGB(false);
-					}
-				}
-
-				TextureFactoryNode->SetAttribute(TEXT("TextureUsage"), DesiredTextureUsage);
-			}
-			else if (TextureUsage != DesiredTextureUsage && DesiredTextureUsage != EMaterialInputType::Unknown)
-			{
-				UInterchangeResultWarning_Generic* TextureUsageWarning = AddMessage<UInterchangeResultWarning_Generic>();
-				TextureUsageWarning->DestinationAssetName = TextureFactoryNode->GetAssetName();
-				TextureUsageWarning->AssetType = TextureFactoryNode->GetObjectClass();
-
-				TextureUsageWarning->Text = FText::Format(LOCTEXT("TextureUsageMismatch", "{0} is being used as both {1} and {2} which aren't compatible."),
-					FText::FromString(TextureFactoryNode->GetAssetName()), FText::FromString(LexToString(TextureUsage)), FText::FromString(LexToString(DesiredTextureUsage)));
-
-				// Flipping the green channel only makes sense for vector data as it's used to compensate for different handedness.
-				// Clear it if we're not gonna be used only as a vector map. This normally happens when a normal map is also used as a color map.
-				bool bFlipGreenChannel;
-				if (TextureFactoryNode->GetCustombFlipGreenChannel(bFlipGreenChannel))
-				{
-					TextureFactoryNode->SetCustombFlipGreenChannel(false);
-				}
-			}
-		}
+		HandleTextureNode(TextureNode, MaterialFactoryNode, TextureSampleFactoryNode, ExpressionClassName);
 	}
 	else
 	{
@@ -1493,6 +1599,48 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 			UInterchangeShaderPortsAPI::ConnectOuputToInput(TextureSampleFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSample, Coordinates).ToString(),
 				CoordinatesExpression.Get<0>()->GetUniqueID(), CoordinatesExpression.Get<1>());
 		}
+	}
+
+	if(ExpressionClassName == UMaterialExpressionTextureSampleParameterBlur::StaticClass()->GetName())
+	{
+		HandleTextureSampleBlurNode(ShaderNode, MaterialFactoryNode, TextureSampleFactoryNode);
+	}
+}
+
+void UInterchangeGenericMaterialPipeline::HandleTextureSampleBlurNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* TextureSampleFactoryNode)
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes;
+
+	// KernelSize
+	if(float KernelSize; ShaderNode->GetFloatAttribute(TextureSampleBlur::Attributes::KernelSize, KernelSize))
+	{
+		const FName KernelSizeMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameterBlur, KernelSize);
+		TextureSampleFactoryNode->AddFloatAttribute(KernelSizeMemberName, KernelSize);
+		TextureSampleFactoryNode->AddApplyAndFillDelegates<float>(KernelSizeMemberName, UMaterialExpressionTextureSampleParameterBlur::StaticClass(), KernelSizeMemberName);
+	}
+
+	// FilterSize
+	if(float FilterSize; ShaderNode->GetFloatAttribute(TextureSampleBlur::Attributes::FilterSize, FilterSize))
+	{
+		const FName FilterSizeMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameterBlur, FilterSize);
+		TextureSampleFactoryNode->AddFloatAttribute(FilterSizeMemberName, FilterSize);
+		TextureSampleFactoryNode->AddApplyAndFillDelegates<float>(FilterSizeMemberName, UMaterialExpressionTextureSampleParameterBlur::StaticClass(), FilterSizeMemberName);
+	}
+
+	// FilterOffset
+	if(float FilterOffset; ShaderNode->GetFloatAttribute(TextureSampleBlur::Attributes::FilterOffset, FilterOffset))
+	{
+		const FName FilterOffsetMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameterBlur, FilterOffset);
+		TextureSampleFactoryNode->AddFloatAttribute(FilterOffsetMemberName, FilterOffset);
+		TextureSampleFactoryNode->AddApplyAndFillDelegates<float>(FilterOffsetMemberName, UMaterialExpressionTextureSampleParameterBlur::StaticClass(), FilterOffsetMemberName);
+	}
+
+	// Filter
+	if(int32 Filter; ShaderNode->GetInt32Attribute(TextureSampleBlur::Attributes::Filter, Filter))
+	{
+		const FName FilterMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameterBlur, Filter);
+		TextureSampleFactoryNode->AddInt32Attribute(FilterMemberName, Filter);
+		TextureSampleFactoryNode->AddApplyAndFillDelegates<int>(FilterMemberName, UMaterialExpressionTextureSampleParameterBlur::StaticClass(), FilterMemberName);
 	}
 }
 
@@ -2036,9 +2184,17 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	{
 		HandleNoiseNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
 	}
+	else if(*ShaderType == Nodes::NormalFromHeightMap::Name)
+	{
+		HandleNormalFromHeightMapNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
+	}
 	else if (*ShaderType == Nodes::TextureCoordinate::Name)
 	{
 		HandleTextureCoordinateNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
+	}
+	else if(*ShaderType == Nodes::TextureObject::Name)
+	{
+		HandleTextureObjectNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
 	}
 	else if (*ShaderType == Nodes::TextureSample::Name)
 	{

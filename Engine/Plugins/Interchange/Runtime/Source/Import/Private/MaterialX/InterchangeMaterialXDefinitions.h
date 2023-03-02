@@ -119,6 +119,18 @@ MATERIALX_NAMESPACE_BEGIN
 		}
 	}
 
+	namespace SurfaceUnlit
+	{
+		namespace Input
+		{
+			static constexpr const char* Emission = "emission";
+			static constexpr const char* EmissionColor = "emission_color";
+			static constexpr const char* Transmission = "transmission";
+			static constexpr const char* TransmissionColor = "transmission_color";
+			static constexpr const char* Opacity = "opacity";
+		}
+	}
+
 	namespace Lights
 	{
 		//There's no input per se in a Light, but we can find some common inputs among those lights
@@ -279,11 +291,17 @@ MATERIALX_NAMESPACE_BEGIN
 		static constexpr const char* Time= "time";
 		// PBR
 		static constexpr const char* StandardSurface = "standard_surface";
+		// Shader
+		static constexpr const char* SurfaceUnlit = "surface_unlit";
+		// Convolution
+		static constexpr const char* Blur = "blur";
+		static constexpr const char* HeightToNormal = "heighttonormal";
 	}
 
 	namespace NodeDefinition
 	{
 		static constexpr const char* StandardSurface = "ND_standard_surface_surfaceshader";
+		static constexpr const char* SurfaceUnlit = "ND_surface_unlit";
 		static constexpr const char* PointLight = "ND_point_light";
 		static constexpr const char* DirectionalLight = "ND_directional_light";
 		static constexpr const char* SpotLight = "ND_spot_light";

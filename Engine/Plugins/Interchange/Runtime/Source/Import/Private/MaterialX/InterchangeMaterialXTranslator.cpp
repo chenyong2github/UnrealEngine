@@ -11,6 +11,7 @@
 #include "InterchangeSceneNode.h"
 #include "InterchangeMaterialXDefinitions.h"
 #include "InterchangeTexture2DNode.h"
+#include "InterchangeTextureBlurNode.h"
 #include "Nodes/InterchangeSourceNode.h"
 #include "UObject/GCObjectScopeGuard.h"
 
@@ -18,6 +19,8 @@
 #include "Materials/MaterialExpressionTransform.h"
 #include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionVectorNoise.h"
+
+#include "Misc/PackageName.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeMaterialXTranslator)
 
@@ -33,71 +36,105 @@ static FAutoConsoleVariableRef CCvarInterchangeEnableMaterialXImport(
 
 namespace mx = MaterialX;
 
+namespace UE::Interchange::MaterialX
+{
+	bool IsMaterialFunctionPackageLoaded()
+	{
+		auto IsPackageLoaded = [](const FString& TextPath) -> bool
+		{
+			const FString FunctionPath{ FPackageName::ExportTextPathToObjectPath(TextPath) };
+			if(FPackageName::DoesPackageExist(FunctionPath))
+			{
+				if(FSoftObjectPath(FunctionPath).TryLoad())
+				{
+					return true;
+				}
+				else
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't load %s"), *FunctionPath);
+				}
+			}
+			else
+			{
+				UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't find %s"), *FunctionPath);
+			}
+
+			return false;
+		};
+
+		static const bool bNormalFromHeightMapPackageLoaded = 
+			IsPackageLoaded(TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions03/Procedurals/NormalFromHeightmap.NormalFromHeightmap'"));
+
+		return bNormalFromHeightMapPackageLoaded;
+	}
+}
+
 UInterchangeMaterialXTranslator::UInterchangeMaterialXTranslator()
 #if WITH_EDITOR
 	:
 InputNamesMaterialX2UE
 {
-	{{TEXT(""),                         TEXT("amplitude")}, TEXT("Amplitude")},
-	{{TEXT(""),                         TEXT("bg")},        TEXT("B")},
-	{{TEXT(""),                         TEXT("center")},    TEXT("Center")},
-	{{TEXT(""),                         TEXT("diminish")},  TEXT("Diminish")},
-	{{TEXT(""),                         TEXT("fg")},        TEXT("A")},
-	{{TEXT(""),                         TEXT("high")},      TEXT("Max")},
-	{{TEXT(""),                         TEXT("in")},        TEXT("Input")},
-	{{TEXT(""),                         TEXT("in1")},       TEXT("A")},
-	{{TEXT(""),                         TEXT("in2")},       TEXT("B")},
-	{{TEXT(""),                         TEXT("in3")},       TEXT("C")},
-	{{TEXT(""),                         TEXT("in4")},       TEXT("D")},
-	{{TEXT(""),                         TEXT("inlow")},     TEXT("InputLow")},
-	{{TEXT(""),                         TEXT("inhigh")},    TEXT("InputHigh")},
-	{{TEXT(""),                         TEXT("lacunarity")},TEXT("Lacunarity")},
-	{{TEXT(""),                         TEXT("low")},       TEXT("Min")},
-	{{TEXT(""),                         TEXT("lumacoeffs")},TEXT("LuminanceFactors")}, // for the moment not yet handled by Interchange, because of the attribute being an advanced pin
-	{{TEXT(""),                         TEXT("mix")},       TEXT("Alpha")},
-	{{TEXT(""),                         TEXT("position")},  TEXT("Position")},
-	{{TEXT(""),                         TEXT("texcoord")},  TEXT("Coordinates")},
-	{{TEXT(""),                         TEXT("octaves")},   TEXT("Octaves")},
-	{{TEXT(""),                         TEXT("outlow")},    TEXT("TargetLow")},
-	{{TEXT(""),                         TEXT("outhigh")},   TEXT("TargetHigh")},
-	{{TEXT(""),                         TEXT("valuel")},    TEXT("A")},
-	{{TEXT(""),                         TEXT("valuer")},    TEXT("B")},
-	{{MaterialX::Category::Atan2,       TEXT("in1")},       TEXT("Y")},
-	{{MaterialX::Category::Atan2,       TEXT("in2")},       TEXT("X")},
-	{{MaterialX::Category::IfGreater,   TEXT("value1")},    TEXT("A")},
-	{{MaterialX::Category::IfGreater,   TEXT("value2")},    TEXT("B")},
-	{{MaterialX::Category::IfGreater,   TEXT("in1")},       TEXT("AGreaterThanB")},
-	{{MaterialX::Category::IfGreater,   TEXT("in2")},       TEXT("ALessThanB")}, //another input is added for the case equal see ConnectIfGreater
-	{{MaterialX::Category::IfGreaterEq, TEXT("value1")},    TEXT("A")},
-	{{MaterialX::Category::IfGreaterEq, TEXT("value2")},    TEXT("B")},
-	{{MaterialX::Category::IfGreaterEq, TEXT("in1")},       TEXT("AGreaterThanB")}, //another is added for the case equal see ConnectIfGreaterEq
-	{{MaterialX::Category::IfGreaterEq, TEXT("in2")},       TEXT("ALessThanB")},
-	{{MaterialX::Category::IfEqual,     TEXT("value1")},    TEXT("A")},
-	{{MaterialX::Category::IfEqual,     TEXT("value2")},    TEXT("B")},
-	{{MaterialX::Category::IfEqual,     TEXT("in1")},       TEXT("AEqualsB")},
-	{{MaterialX::Category::IfEqual,     TEXT("in2")},       TEXT("ALessThanB")},  // another input is added for the case greater see ConnectIfEqual
-	{{MaterialX::Category::Inside,      TEXT("in")},        TEXT("A")},			  // Inside is treated as a Multiply node
-	{{MaterialX::Category::Inside,      TEXT("mask")},      TEXT("B")},			  // Inside is treated as a Multiply node
-	{{MaterialX::Category::Invert,      TEXT("amount")},    TEXT("A")},
-	{{MaterialX::Category::Invert,      TEXT("in")},        TEXT("B")},
-	{{MaterialX::Category::Magnitude,   TEXT("in")},        TEXT("A")},
-	{{MaterialX::Category::Mix,         TEXT("fg")},        TEXT("B")},
-	{{MaterialX::Category::Mix,         TEXT("bg")},        TEXT("A")},
-	{{MaterialX::Category::Mix,         TEXT("mix")},		TEXT("Factor")},
-	{{MaterialX::Category::Noise3D,     TEXT("amplitude")}, TEXT("B")},            // The amplitude of the noise is connected to a multiply node
-	{{MaterialX::Category::Noise3D,     TEXT("pivot")},     TEXT("B")},            // The pivot of the noise is connected to a add node
-	{{MaterialX::Category::Normalize,   TEXT("in")},        TEXT("VectorInput")},
-	{{MaterialX::Category::Outside,     TEXT("in")},        TEXT("A")},				// Outside is treated as Multiply node
-	{{MaterialX::Category::Outside,     TEXT("mask")},      TEXT("B")},				// Outside is treated as Multiply node
-	{{MaterialX::Category::Power,       TEXT("in1")},       TEXT("Base")},
-	{{MaterialX::Category::Power,	    TEXT("in2")},       TEXT("Exponent")},
-	{{MaterialX::Category::Rotate2D,    TEXT("amount")},    TEXT("RotationAngle")},
-	{{MaterialX::Category::Rotate2D,    TEXT("in")},        TEXT("Position")},
-	{{MaterialX::Category::Rotate3D,    TEXT("amount")},    TEXT("RotationAngle")},
-	{{MaterialX::Category::Rotate3D,    TEXT("axis")},		TEXT("NormalizedRotationAxis")},
-	{{MaterialX::Category::Rotate3D,    TEXT("in")},        TEXT("Position")},
-	{{MaterialX::Category::Saturate,    TEXT("amount")},    TEXT("Fraction")},
-	{{MaterialX::Category::Smoothstep,  TEXT("in")},        TEXT("Value")},
+	{{TEXT(""),                            TEXT("amplitude")}, TEXT("Amplitude")},
+	{{TEXT(""),                            TEXT("bg")},        TEXT("B")},
+	{{TEXT(""),                            TEXT("center")},    TEXT("Center")},
+	{{TEXT(""),                            TEXT("diminish")},  TEXT("Diminish")},
+	{{TEXT(""),                            TEXT("fg")},        TEXT("A")},
+	{{TEXT(""),                            TEXT("high")},      TEXT("Max")},
+	{{TEXT(""),                            TEXT("in")},        TEXT("Input")},
+	{{TEXT(""),                            TEXT("in1")},       TEXT("A")},
+	{{TEXT(""),                            TEXT("in2")},       TEXT("B")},
+	{{TEXT(""),                            TEXT("in3")},       TEXT("C")},
+	{{TEXT(""),                            TEXT("in4")},       TEXT("D")},
+	{{TEXT(""),                            TEXT("inlow")},     TEXT("InputLow")},
+	{{TEXT(""),                            TEXT("inhigh")},    TEXT("InputHigh")},
+	{{TEXT(""),                            TEXT("lacunarity")},TEXT("Lacunarity")},
+	{{TEXT(""),                            TEXT("low")},       TEXT("Min")},
+	{{TEXT(""),                            TEXT("lumacoeffs")},TEXT("LuminanceFactors")}, // for the moment not yet handled by Interchange, because of the attribute being an advanced pin
+	{{TEXT(""),                            TEXT("mix")},       TEXT("Alpha")},
+	{{TEXT(""),                            TEXT("position")},  TEXT("Position")},
+	{{TEXT(""),                            TEXT("texcoord")},  TEXT("Coordinates")},
+	{{TEXT(""),                            TEXT("octaves")},   TEXT("Octaves")},
+	{{TEXT(""),                            TEXT("outlow")},    TEXT("TargetLow")},
+	{{TEXT(""),                            TEXT("outhigh")},   TEXT("TargetHigh")},
+	{{TEXT(""),                            TEXT("valuel")},    TEXT("A")},
+	{{TEXT(""),                            TEXT("valuer")},    TEXT("B")},
+	{{MaterialX::Category::Atan2,          TEXT("in1")},       TEXT("Y")},
+	{{MaterialX::Category::Atan2,          TEXT("in2")},       TEXT("X")},
+	{{MaterialX::Category::HeightToNormal, TEXT("scale")},     UE::Interchange::Materials::Standard::Nodes::NormalFromHeightMap::Inputs::Intensity.ToString()},
+	{{MaterialX::Category::IfGreater,      TEXT("value1")},    TEXT("A")},
+	{{MaterialX::Category::IfGreater,      TEXT("value2")},    TEXT("B")},
+	{{MaterialX::Category::IfGreater,      TEXT("in1")},       TEXT("AGreaterThanB")},
+	{{MaterialX::Category::IfGreater,      TEXT("in2")},       TEXT("ALessThanB")}, //another input is added for the case equal see ConnectIfGreater
+	{{MaterialX::Category::IfGreaterEq,    TEXT("value1")},    TEXT("A")},
+	{{MaterialX::Category::IfGreaterEq,    TEXT("value2")},    TEXT("B")},
+	{{MaterialX::Category::IfGreaterEq,    TEXT("in1")},       TEXT("AGreaterThanB")}, //another is added for the case equal see ConnectIfGreaterEq
+	{{MaterialX::Category::IfGreaterEq,    TEXT("in2")},       TEXT("ALessThanB")},
+	{{MaterialX::Category::IfEqual,        TEXT("value1")},    TEXT("A")},
+	{{MaterialX::Category::IfEqual,        TEXT("value2")},    TEXT("B")},
+	{{MaterialX::Category::IfEqual,        TEXT("in1")},       TEXT("AEqualsB")},
+	{{MaterialX::Category::IfEqual,        TEXT("in2")},       TEXT("ALessThanB")},  // another input is added for the case greater see ConnectIfEqual
+	{{MaterialX::Category::Inside,         TEXT("in")},        TEXT("A")},			  // Inside is treated as a Multiply node
+	{{MaterialX::Category::Inside,         TEXT("mask")},      TEXT("B")},			  // Inside is treated as a Multiply node
+	{{MaterialX::Category::Invert,         TEXT("amount")},    TEXT("A")},
+	{{MaterialX::Category::Invert,         TEXT("in")},        TEXT("B")},
+	{{MaterialX::Category::Magnitude,      TEXT("in")},        TEXT("A")},
+	{{MaterialX::Category::Mix,            TEXT("fg")},        TEXT("B")},
+	{{MaterialX::Category::Mix,            TEXT("bg")},        TEXT("A")},
+	{{MaterialX::Category::Mix,            TEXT("mix")},		TEXT("Factor")},
+	{{MaterialX::Category::Noise3D,        TEXT("amplitude")}, TEXT("B")},            // The amplitude of the noise is connected to a multiply node
+	{{MaterialX::Category::Noise3D,        TEXT("pivot")},     TEXT("B")},            // The pivot of the noise is connected to a add node
+	{{MaterialX::Category::Normalize,      TEXT("in")},        TEXT("VectorInput")},
+	{{MaterialX::Category::Outside,        TEXT("in")},        TEXT("A")},				// Outside is treated as Multiply node
+	{{MaterialX::Category::Outside,        TEXT("mask")},      TEXT("B")},				// Outside is treated as Multiply node
+	{{MaterialX::Category::Power,          TEXT("in1")},       TEXT("Base")},
+	{{MaterialX::Category::Power,	       TEXT("in2")},       TEXT("Exponent")},
+	{{MaterialX::Category::Rotate2D,       TEXT("amount")},    TEXT("RotationAngle")},
+	{{MaterialX::Category::Rotate2D,       TEXT("in")},        TEXT("Position")},
+	{{MaterialX::Category::Rotate3D,       TEXT("amount")},    TEXT("RotationAngle")},
+	{{MaterialX::Category::Rotate3D,       TEXT("axis")},		TEXT("NormalizedRotationAxis")},
+	{{MaterialX::Category::Rotate3D,       TEXT("in")},        TEXT("Position")},
+	{{MaterialX::Category::Saturate,       TEXT("amount")},    TEXT("Fraction")},
+	{{MaterialX::Category::Smoothstep,     TEXT("in")},        TEXT("Value")},
 },
 NodeNamesMaterialX2UE{
 	// Math nodes
@@ -219,7 +256,7 @@ TArray<FString> UInterchangeMaterialXTranslator::GetSupportedFormats() const
 		return TArray<FString>{};
 	}
 
-	return TArray<FString>{ TEXT("mtlx;MaterialX File Format") };
+	return UE::Interchange::MaterialX::IsMaterialFunctionPackageLoaded() ? TArray<FString>{ TEXT("mtlx;MaterialX File Format") } : TArray<FString>{};
 }
 
 bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
@@ -1027,7 +1064,15 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 				else if(UpstreamNode->getCategory() == mx::Category::WorleyNoise3D)
 				{
 					ConnectWorleyNoise3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}				
+				}
+				else if(UpstreamNode->getCategory() == mx::Category::Blur)
+				{
+					ConnectBlurInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
+				else if(UpstreamNode->getCategory() == mx::Category::HeightToNormal)
+				{
+					ConnectHeightToNormalInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
 				else
 				{
 					UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
@@ -1063,46 +1108,6 @@ bool UInterchangeMaterialXTranslator::ConnectNodeOutputToInput(MaterialX::NodePt
 	}
 
 	return bIsConnected;
-}
-
-UInterchangeTextureNode* UInterchangeMaterialXTranslator::CreateTextureNode(MaterialX::NodePtr Node, UInterchangeBaseNodeContainer& NodeContainer) const
-{
-	UInterchangeTextureNode* TextureNode = nullptr;
-
-	//A node image should have an input file otherwise the user should check its default value
-	if(Node)
-	{
-		if(mx::InputPtr InputFile = Node->getInput("file"); InputFile && InputFile->hasValue())
-		{
-			FString Filepath{ InputFile->getValueString().c_str() };
-			const FString FilePrefix = GetFilePrefix(InputFile);
-			Filepath = FPaths::Combine(FilePrefix, Filepath);
-			const FString Filename = FPaths::GetCleanFilename(Filepath);
-			const FString TextureNodeUID = TEXT("\\Texture\\") + Filename;
-
-			//Only add the TextureNode once
-			TextureNode = const_cast<UInterchangeTextureNode*>(Cast<UInterchangeTextureNode>(NodeContainer.GetNode(TextureNodeUID)));
-			if(TextureNode == nullptr)
-			{
-				TextureNode = NewObject<UInterchangeTexture2DNode>(&NodeContainer);
-				TextureNode->InitializeNode(TextureNodeUID, Filename, EInterchangeNodeContainerType::TranslatedAsset);
-				NodeContainer.AddNode(TextureNode);
-
-				if(FPaths::IsRelative(Filepath))
-				{
-					Filepath = FPaths::ConvertRelativePathToFull(FPaths::GetPath(Node->getActiveSourceUri().c_str()), Filepath);
-				}
-
-				TextureNode->SetPayLoadKey(Filepath);
-
-				const FString ColorSpace = GetColorSpace(InputFile);
-				const bool bIsSRGB = ColorSpace == TEXT("srgb_texture");
-				TextureNode->SetCustomSRGB(bIsSRGB);
-			}
-		}
-	}
-
-	return TextureNode;
 }
 
 const FString& UInterchangeMaterialXTranslator::GetMatchedInputName(MaterialX::NodePtr Node, MaterialX::InputPtr Input) const
@@ -1514,7 +1519,7 @@ void UInterchangeMaterialXTranslator::ConnectImageInputToOutput(MaterialX::NodeP
 {
 	using namespace UE::Interchange::Materials::Standard::Nodes;
 
-	if(UInterchangeTextureNode* TextureNode = CreateTextureNode(UpstreamNode, NodeContainer))
+	if(UInterchangeTextureNode* TextureNode = CreateTextureNode<UInterchangeTexture2DNode>(UpstreamNode, NodeContainer))
 	{
 		//By default set the output of a texture to RGB
 		FString OutputChannel{ TEXT("RGB") };
@@ -2049,6 +2054,123 @@ void UInterchangeMaterialXTranslator::ConnectWorleyNoise3DInputToOutput(Material
 	NoiseNode->AddInt32Attribute(Noise::Attributes::Function, ENoiseFunction::NOISEFUNCTION_VoronoiALU);
 
 	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, NoiseNode->GetUniqueID());
+}
+
+void UInterchangeMaterialXTranslator::ConnectHeightToNormalInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	if(mx::InputPtr Input = UpstreamNode->getInput("in"))
+	{
+		// Image node will become this node
+		if(mx::NodePtr ConnectedNode = Input->getConnectedNode();
+		   ConnectedNode && ConnectedNode->getCategory() == mx::Category::Image)
+		{
+			//we need to copy the content of the image node to this node
+			UpstreamNode->copyContentFrom(ConnectedNode);
+
+			RenameNodeInputs(UpstreamNode);
+
+			//the copy overwrite every attribute of the node, so we need to get them back, essentially the type and the renaming
+			// the output is always a vec3
+			UpstreamNode->setType(mx::Type::Vector3);
+			
+			mx::NodeGraphPtr Graph = UpstreamNode->getParent()->asA<mx::NodeGraph>();
+			Graph->removeNode(ConnectedNode->getName());
+
+			using namespace UE::Interchange::Materials::Standard::Nodes;
+
+			if(UInterchangeTextureNode* TextureNode = CreateTextureNode<UInterchangeTexture2DNode>(UpstreamNode, NodeContainer))
+			{
+				UInterchangeShaderNode* HeightMapNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), NormalFromHeightMap::Name.ToString(), NamesToShaderNodes, NodeContainer);
+				UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, HeightMapNode->GetUniqueID());
+
+				const FString TextureNodeName = UpstreamNode->getName().c_str() + FString{ "_texture" };
+				UInterchangeShaderNode* TextureShaderNode = CreateShaderNode<UInterchangeShaderNode>(TextureNodeName, TextureObject::Name.ToString(), NamesToShaderNodes, NodeContainer);
+				TextureShaderNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureObject::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
+				UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(HeightMapNode, NormalFromHeightMap::Inputs::HeightMap.ToString(), TextureShaderNode->GetUniqueID());
+
+				AddAttributeFromValueOrInterface(UpstreamNode->getInput("scale"), NormalFromHeightMap::Inputs::Intensity.ToString(), HeightMapNode);
+			}
+			else
+			{
+				AddAttributeFromValueOrInterface(UpstreamNode->getInput(mx::NodeGroup::Texture2D::Inputs::Default), InputChannelName, ParentShaderNode);
+			}
+		}
+	}
+	else
+	{
+		// For the moment it doesn't make sense to plug a value to it, so let's plug directly the child to the parent, in the future we could implement a Sobel and handle a multi output
+		RenameInput(Input, TCHAR_TO_UTF8(*InputChannelName)); //let's take the parent node's input name
+		NamesToShaderNodes.Add(UpstreamNode->getName().c_str(), ParentShaderNode);
+	}
+}
+
+void UInterchangeMaterialXTranslator::ConnectBlurInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	if(mx::InputPtr Input = UpstreamNode->getInput("in"))
+	{
+		// Image node will become this node
+		if(mx::NodePtr ConnectedNode = Input->getConnectedNode();
+		   ConnectedNode && ConnectedNode->getCategory() == mx::Category::Image)
+		{
+			std::string NodeType = UpstreamNode->getType();
+
+			//we need to copy the content of the image node to this node
+			UpstreamNode->copyContentFrom(ConnectedNode);
+
+			RenameNodeInputs(UpstreamNode);
+
+			//the copy overwrites every attribute of the node, so we need to get them back, essentially the type and the renaming
+			UpstreamNode->setType(NodeType);
+
+			mx::NodeGraphPtr Graph = UpstreamNode->getParent()->asA<mx::NodeGraph>();
+			Graph->removeNode(ConnectedNode->getName());
+
+			using namespace UE::Interchange::Materials::Standard::Nodes;
+
+			if(UInterchangeTextureNode* TextureNode = CreateTextureNode<UInterchangeTextureBlurNode>(UpstreamNode, NodeContainer))
+			{
+				FString OutputChannel{ TEXT("RGB") };
+
+				if(NodeType == mx::Type::Vector4 || NodeType == mx::Type::Color4)
+				{
+					OutputChannel = TEXT("RGBA");
+				}
+				else if(NodeType == mx::Type::Float)
+				{
+					OutputChannel = TEXT("R");
+				}
+
+				UInterchangeShaderNode* TextureShaderNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TextureSampleBlur::Name.ToString(), NamesToShaderNodes, NodeContainer);
+				TextureShaderNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSampleBlur::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
+				UInterchangeShaderPortsAPI::ConnectOuputToInput(ParentShaderNode, InputChannelName, TextureShaderNode->GetUniqueID(), OutputChannel);
+
+				if(mx::InputPtr InputKernel = UpstreamNode->getInput("filtertype"))
+				{
+					// By default TextureSampleBox uses gaussian filter
+					if(InputKernel->getValueString() == "box")
+					{
+						TextureShaderNode->AddInt32Attribute(TextureSampleBlur::Attributes::Filter, 0);
+					}
+				}
+
+				if(mx::InputPtr InputKernel = UpstreamNode->getInput("size"))
+				{
+					float KernelSize = mx::fromValueString<float>(InputKernel->getValueString());
+					TextureShaderNode->AddFloatAttribute(TextureSampleBlur::Attributes::KernelSize, KernelSize);
+				}
+			}
+			else
+			{
+				AddAttributeFromValueOrInterface(UpstreamNode->getInput(mx::NodeGroup::Texture2D::Inputs::Default), InputChannelName, ParentShaderNode);
+			}
+		}
+	}
+	else
+	{
+		// For a blur it doesn't make sense if there's no image input
+		RenameInput(Input, TCHAR_TO_UTF8(*InputChannelName)); //let's take the parent node's input name
+		NamesToShaderNodes.Add(UpstreamNode->getName().c_str(), ParentShaderNode);
+	}
 }
 
 UInterchangeShaderNode* UInterchangeMaterialXTranslator::CreateMaskShaderNode(uint8 RGBA, const FString& NodeName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const

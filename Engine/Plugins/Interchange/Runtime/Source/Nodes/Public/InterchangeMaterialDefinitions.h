@@ -113,6 +113,20 @@ namespace Interchange
 					}
 				}
 
+				namespace NormalFromHeightMap
+				{
+					const FName Name = TEXT("NormalFromHeightMap");
+
+					namespace Inputs
+					{
+						const FName HeightMap = TEXT("Height Map");                // Type: FString (unique id of a texture node)
+						const FName Intensity = TEXT("Normal Map Intensity");      // Type: float
+						const FName Offset = TEXT("Height Map UV Offset");         // Type: float
+						const FName Coordinates = TEXT("Coordinates");             // Type: vec2
+						const FName Channel = TEXT("Height Map Channel Selector"); // Type: vec4
+					}
+				}
+
 				namespace OneMinus
 				{
 					const FName Name = TEXT("OneMinus");
@@ -139,6 +153,16 @@ namespace Interchange
 					}
 				}
 
+				namespace TextureObject
+				{
+					const FName Name = TEXT("TextureObject");
+
+					namespace Inputs
+					{
+						const FName Texture = TEXT("TextureUid"); // Type: FString (unique id of a texture node)
+					}
+				}
+
 				namespace TextureSample
 				{
 					const FName Name = TEXT("TextureSample");
@@ -157,6 +181,19 @@ namespace Interchange
 						const FName B = TEXT("B"); // Type: float
 						const FName A = TEXT("A"); // Type: float
 						const FName RGBA = TEXT("RGBA"); // Type: linear color
+					}
+				}
+
+				namespace TextureSampleBlur
+				{
+					using namespace TextureSample;					
+
+					namespace Attributes
+					{
+						const FName KernelSize = TEXT("KernelSize"); // Type: float
+						const FName FilterSize = TEXT("FilterSize"); // Type: float
+						const FName FilterOffset= TEXT("FilterOffset"); // Type: float
+						const FName Filter = TEXT("Filter"); // Type: int
 					}
 				}
 

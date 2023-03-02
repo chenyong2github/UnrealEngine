@@ -10,6 +10,7 @@
 #include "InterchangeTexture2DArrayNode.h"
 #include "InterchangeTexture2DFactoryNode.h"
 #include "InterchangeTexture2DNode.h"
+#include "InterchangeTextureBlurNode.h"
 #include "InterchangeTextureCubeArrayFactoryNode.h"
 #include "InterchangeTextureCubeArrayNode.h"
 #include "InterchangeTextureCubeFactoryNode.h"
@@ -62,6 +63,11 @@ namespace UE::Interchange::Private
 		if (UInterchangeVolumeTextureNode::StaticClass() == NodeClass)
 		{
 			return UInterchangeVolumeTextureFactoryNode::StaticClass();
+		}
+
+		if(UInterchangeTextureBlurNode::StaticClass() == NodeClass)
+		{
+			return UInterchangeTexture2DFactoryNode::StaticClass();
 		}
 
 		return nullptr;
