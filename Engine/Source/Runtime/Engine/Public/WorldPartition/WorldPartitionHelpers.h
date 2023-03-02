@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Engine/Level.h"
 #include "WorldPartition/WorldPartitionRuntimeCellInterface.h"
 
 #if WITH_EDITOR

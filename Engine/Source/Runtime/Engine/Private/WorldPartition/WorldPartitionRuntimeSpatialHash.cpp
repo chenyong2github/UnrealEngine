@@ -29,7 +29,6 @@
 #include "Math/TranslationMatrix.h"
 #include "Misc/ArchiveMD5.h"
 #include "Misc/HierarchicalLogArchive.h"
-#include "ProfilingDebugging/ScopedTimers.h"
 #include "UObject/UnrealType.h"
 #include "UObject/ObjectSaveContext.h"
 
@@ -1098,8 +1097,6 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(UWorldPartitionStreami
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GenerateStreaming);
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 
-	UE_SCOPED_TIMER(TEXT("GenerateStreaming"), LogWorldPartition, Display);
-	
 	if (!Grids.Num())
 	{
 		UE_LOG(LogWorldPartition, Error, TEXT("Invalid partition grids setup"));

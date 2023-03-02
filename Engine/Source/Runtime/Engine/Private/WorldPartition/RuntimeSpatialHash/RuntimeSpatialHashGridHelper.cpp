@@ -3,7 +3,6 @@
 #include "WorldPartition/RuntimeSpatialHash/RuntimeSpatialHashGridHelper.h"
 #include "ActorPartition/PartitionActor.h"
 #include "HAL/IConsoleManager.h"
-#include "ProfilingDebugging/ScopedTimers.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionStreamingGeneration.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
@@ -148,7 +147,6 @@ FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int64 GridCellSize)
 FSquare2DGridHelper GetPartitionedActors(const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<const IStreamingGenerationContext::FActorSetInstance*>& ActorSetInstances)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GetPartitionedActors);
-	UE_SCOPED_TIMER(TEXT("GetPartitionedActors"), LogWorldPartition, Display);
 
 	//
 	// Create the hierarchical grids for the game

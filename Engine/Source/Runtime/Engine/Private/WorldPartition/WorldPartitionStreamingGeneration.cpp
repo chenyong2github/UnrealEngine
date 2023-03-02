@@ -11,6 +11,7 @@
 #include "Misc/PackageName.h"
 #include "ReferenceCluster.h"
 #include "Misc/Paths.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
@@ -1025,21 +1026,25 @@ bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InAc
 		ErrorHandler = &MapCheckErrorHandler;
 	}
 
-	// Dump state log
-	TStringBuilder<256> StateLogSuffix;
-	StateLogSuffix += bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : TEXT("Manual")));
-	StateLogSuffix += TEXT("_");
-	FString ContainerPackageName = InActorDescContainer->ContainerPackageName.ToString();
-	StateLogSuffix += FPackageName::GetShortName(ContainerPackageName);
+	const FString ContainerPackageName = InActorDescContainer->ContainerPackageName.ToString();
+	FString ContainerShortName = FPackageName::GetShortName(ContainerPackageName);
 	if (!ContainerPackageName.StartsWith(TEXT("/Game/")))
 	{
 		TArray<FString> SplitContainerPath;
 		if (ContainerPackageName.ParseIntoArray(SplitContainerPath, TEXT("/")))
 		{
-			StateLogSuffix += TEXT("_");
-			StateLogSuffix += SplitContainerPath[0];
+			ContainerShortName += TEXT(".");
+			ContainerShortName += SplitContainerPath[0];
 		}
 	}
+
+	UE_SCOPED_TIMER(*FString::Printf(TEXT("GenerateStreaming for '%s'"), *ContainerShortName), LogWorldPartition, Display);
+
+	// Dump state log
+	TStringBuilder<256> StateLogSuffix;
+	StateLogSuffix += bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : TEXT("Manual")));
+	StateLogSuffix += TEXT("_");
+	StateLogSuffix += ContainerShortName;
 	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(*StateLogSuffix);
 	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
 
