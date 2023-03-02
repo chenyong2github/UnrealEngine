@@ -998,8 +998,8 @@ using TTSMulticastDelegate = TMulticastDelegate<DelegateSignature, FDefaultTSDel
  * macros to create the actual delegate type, templated to the function signature the delegate is compatible with.
  * Then, you can create an instance of that class when you want to assign functions to the delegate.
  */
-template <typename TWeakPtr, typename RetValType, typename... ParamTypes>
-class TBaseDynamicDelegate : public TScriptDelegate<TWeakPtr>
+template <typename ScriptDelegateDummyType, typename RetValType, typename... ParamTypes>
+class TBaseDynamicDelegate : public TScriptDelegate<ScriptDelegateDummyType>
 {
 public:
 	/**
@@ -1012,8 +1012,8 @@ public:
 	 *
 	 * @param	InScriptDelegate	The delegate to construct from by copying
 	 */
-	explicit TBaseDynamicDelegate( const TScriptDelegate<TWeakPtr>& InScriptDelegate )
-		: TScriptDelegate<TWeakPtr>( InScriptDelegate )
+	explicit TBaseDynamicDelegate( const TScriptDelegate<ScriptDelegateDummyType>& InScriptDelegate )
+		: TScriptDelegate<ScriptDelegateDummyType>( InScriptDelegate )
 	{ }
 
 	/**
@@ -1075,12 +1075,12 @@ public:
  * signature the delegate is compatible with.   Then, you can create an instance of that class when you
  * want to assign functions to the delegate.
  */
-template <typename TWeakPtr, typename RetValType, typename... ParamTypes>
-class TBaseDynamicMulticastDelegate : public TMulticastScriptDelegate<TWeakPtr>
+template <typename ScriptDelegateDummyType, typename RetValType, typename... ParamTypes>
+class TBaseDynamicMulticastDelegate : public TMulticastScriptDelegate<ScriptDelegateDummyType>
 {
 public:
 	/** The actual single-cast delegate class for this multi-cast delegate */
-	typedef TBaseDynamicDelegate<FWeakObjectPtr, RetValType, ParamTypes...> FDelegate;
+	typedef TBaseDynamicDelegate<ScriptDelegateDummyType, RetValType, ParamTypes...> FDelegate;
 
 	/**
 	 * Default constructor
@@ -1092,8 +1092,8 @@ public:
 	 *
 	 * @param	InScriptDelegate	The delegate to construct from by copying
 	 */
-	explicit TBaseDynamicMulticastDelegate( const TMulticastScriptDelegate<TWeakPtr>& InMulticastScriptDelegate )
-		: TMulticastScriptDelegate<TWeakPtr>( InMulticastScriptDelegate )
+	explicit TBaseDynamicMulticastDelegate( const TMulticastScriptDelegate<ScriptDelegateDummyType>& InMulticastScriptDelegate )
+		: TMulticastScriptDelegate<ScriptDelegateDummyType>( InMulticastScriptDelegate )
 	{ }
 
 	/**
