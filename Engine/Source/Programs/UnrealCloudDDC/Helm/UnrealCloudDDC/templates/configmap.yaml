@@ -64,6 +64,11 @@ Jupiter:
 {{ $config.Jupiter | toYaml | nindent 2 }}
 {{- end }}
 
+{{ if .Values.nginx.enabled }}
+Nginx:
+  UseNginxRedirect: true
+{{ end }}
+
 Replication:
   Enabled: {{ default "false" $replication.Enabled }}
 {{ with $replication.Replicators }}

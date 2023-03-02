@@ -17,5 +17,8 @@ spec:
     - name: {{ .Values.extraService2.portName }}
       port: {{ .Values.extraService2.port }}
       targetPort: {{ default "http" .Values.extraService2.targetPort }}
+  {{- if .Values.extraService2.extraPort }}
+  {{- toYaml .Values.extraService2.extraPort | nindent 4 }}
+  {{- end }}
   selector: {{- include "common.labels.matchLabels" . | nindent 4 }}
 {{- end }}

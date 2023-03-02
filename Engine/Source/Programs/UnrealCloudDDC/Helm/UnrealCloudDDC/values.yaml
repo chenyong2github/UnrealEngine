@@ -307,6 +307,15 @@ useDotnetMonitorSidecar : false
 ## this is typically faster then falling back to global blob store
 fetchBlobsFromPeerPods: false
 
+## Nginx configuration
+nginx:
+
+  ## Enable this option to run a nginx proxy in the all pods that is able to serve content directly from the filesystem
+  enabled: false
+
+  ## Set this to add a header whenever X-Accel is used from nginx to send blobs
+  addXAccelDebugHeader: false
+
 ## Worker configuration
 
 worker:

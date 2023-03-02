@@ -101,6 +101,10 @@ spec:
         - name: diagnostics
           mountPath: /tmp
         {{- end }}
+    {{- if .Values.nginx.enabled }}
+        - name: nginx
+          mountPath: /nginx
+    {{- end }}
         {{- if or .Values.persistence.volume .Values.persistence.enabled }}
         - name: data
           mountPath: {{ .Values.persistence.mountPath }}
@@ -116,6 +120,32 @@ spec:
           - name: diagnostics
             mountPath: /tmp
     {{- end }}
+    {{- if .Values.nginx.enabled }}
+      - name: nginx
+        image: nginx:1.23.3
+        {{- if .Values.nginx.env }}
+        env:
+        {{- include "common.tplvalues.render" ( dict "value" .Values.nginx.env "context" $ ) | nindent 8 }}
+        {{- end }}
+        ports:
+        - name: nginx-http
+          containerPort: 81
+        - name: nginx-corp-http
+          containerPort: 8009
+        - name: nginx-h2
+          containerPort: 8091
+        - name: nginx-corp-h
+          containerPort: 8092
+        volumeMounts:
+          - name: nginx
+            mountPath: /nginx
+          - name: nginx-config-volume
+            mountPath: /etc/nginx
+        {{- if or .Values.persistence.volume .Values.persistence.enabled }}
+          - name: data
+            mountPath: {{ .Values.persistence.mountPath }}
+        {{- end }}
+    {{- end }}
       volumes:
       - name: config-volume
         configMap:
@@ -123,6 +153,13 @@ spec:
     {{- if .Values.useDotnetMonitorSidecar }}
       - name: diagnostics
         emptyDir: {}
+    {{- end }}
+    {{- if .Values.nginx.enabled }}
+      - name: nginx
+        emptyDir: {}
+      - name: nginx-config-volume
+        configMap:
+          name: {{ $fullname }}-nginx
     {{- end }}
       {{- if or .Values.persistence.enabled .Values.persistence.volume }}
       - name: data
