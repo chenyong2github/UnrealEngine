@@ -1202,6 +1202,9 @@ const k_tips = [
 	// Dumping process
 	'Can use the CTRL+SHIFT+/ keyboard shortcut to summon the DumpGPU command.',
 	'Speed up your frame dump by only selecting the passes you need with r.DumpGPU.Root. For instance r.DumpGPU.Root="*PostProcessing*".',
+	'Uses r.DumpGPU.Delay to delay the dump of few seconds to have time to repro the issue with gameplay logic (for instance moving arround in the map).',
+	'Uses r.DumpGPU.FrameCount to dump more than one frame. This is useful when artifact may be produced only some frames but end up stucked in temporal histories.',
+	'Uses r.DumpGPU.DumpOnScreenshotTest=1 to automatically produce a GPU dump of the frame producing screenshot in the automated AScreenshotFunctionalTest',
 	'GPU dumps can be large and accumulate on your hard drive in your various projects\' Saved/ directories. Set r.DumpGPU.Directory="D:/tmp/DumpGPU/" in your console variables or UE-DumpGPUPath environment variable to dump them all at the same location on your machine.',
 	'Uses -cvarsini to override console variables with your own ConsoleVariables.ini file on a cooked build.',
 

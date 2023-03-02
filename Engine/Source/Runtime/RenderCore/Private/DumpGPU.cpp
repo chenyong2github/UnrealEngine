@@ -90,6 +90,11 @@ static TAutoConsoleVariable<float> GDumpGPUDelay(
 	TEXT("Delay in seconds before dumping the frame."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> GDumpGPUFrameCount(
+	TEXT("r.DumpGPU.FrameCount"), 1,
+	TEXT("Number of consecutive frames to dump (default=1)."),
+	ECVF_Default);
+
 static TAutoConsoleVariable<int32> GDumpGPUDraws(
 	TEXT("r.DumpGPU.Draws"), 0,
 	TEXT("Whether to dump resource after each individual draw call (disabled by default)."),
@@ -203,6 +208,7 @@ public:
 
 	bool bEnableDiskWrite = false;
 	bool bUpload = false;
+	int32 RemainingFrameCount = 1;
 	FName UploadResourceCompressionName;
 	FString DumpingDirectoryPath;
 	FDateTime Time;
@@ -1684,6 +1690,7 @@ FString FRDGBuilder::BeginResourceDump(const TCHAR* Cmd)
 			NewResourceDumpContext->DumpingDirectoryPath = DirectoryPath / FApp::GetProjectName() + TEXT("-") + FPlatformProperties::PlatformName() + TEXT("-") + NewResourceDumpContext->Time.ToString() + TEXT("/");
 		}
 		NewResourceDumpContext->bEnableDiskWrite = GDumpTestEnableDiskWrite.GetValueOnGameThread() != 0;
+		NewResourceDumpContext->RemainingFrameCount = FMath::Max(GDumpGPUFrameCount.GetValueOnGameThread(), 1);
 
 		if (Switches.Contains(TEXT("upload")))
 		{
@@ -1872,6 +1879,12 @@ void FRDGBuilder::EndResourceDump()
 				check(!GNextRDGResourceDumpContext);
 			}
 		}
+		return;
+	}
+
+	GRDGResourceDumpContext->RemainingFrameCount--;
+	if (GRDGResourceDumpContext->RemainingFrameCount > 0)
+	{
 		return;
 	}
 
