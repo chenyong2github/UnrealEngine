@@ -50,6 +50,7 @@ uint EnableCameraBackfaceCulling;
 uint SamplerType;
 uint VisualizeLightGrid;
 uint VisualizeDecalGrid;
+uint EnableDBuffer;
 uint ApplyDiffuseSpecularOverrides;
 uint EnabledDirectLightingContributions;
 uint EnabledIndirectLightingContributions;
@@ -200,14 +201,23 @@ struct FDecalData
 
 float ApplyDecal(inout FPathTracingPayload HitPayload, FDecalData DecalData)
 {
-	HitPayload.BaseColor = HitPayload.BaseColor * DecalData.BaseColor.a + DecalData.BaseColor.rgb;
+	if (!EnableDBuffer || HitPayload.HasDecalResponseColor())
+	{
+		HitPayload.BaseColor = HitPayload.BaseColor * DecalData.BaseColor.a + DecalData.BaseColor.rgb;
+	}
 
-	// We normalize the normal to get smoother visual result (it helps to avoid having D_GGX explodes toward infinity, and matches ApplyDBufferData(...))
-	HitPayload.WorldNormal = normalize(HitPayload.WorldNormal * DecalData.WorldNormal.a + DecalData.WorldNormal.rgb);
+	if (!EnableDBuffer || HitPayload.HasDecalResponseNormal())
+	{
+		// We normalize the normal to get smoother visual result (it helps to avoid having D_GGX explodes toward infinity, and matches ApplyDBufferData(...))
+		HitPayload.WorldNormal = normalize(HitPayload.WorldNormal * DecalData.WorldNormal.a + DecalData.WorldNormal.rgb);
+	}
 
-	HitPayload.Metallic = HitPayload.Metallic * DecalData.MetallicSpecularRoughness.a + DecalData.MetallicSpecularRoughness.x;
-	HitPayload.Specular = HitPayload.Specular * DecalData.MetallicSpecularRoughness.a + DecalData.MetallicSpecularRoughness.y;
-	HitPayload.Roughness = HitPayload.Roughness * DecalData.MetallicSpecularRoughness.a + DecalData.MetallicSpecularRoughness.z;
+	if (!EnableDBuffer || HitPayload.HasDecalResponseRoughness())
+	{
+		HitPayload.Metallic = HitPayload.Metallic * DecalData.MetallicSpecularRoughness.a + DecalData.MetallicSpecularRoughness.x;
+		HitPayload.Specular = HitPayload.Specular * DecalData.MetallicSpecularRoughness.a + DecalData.MetallicSpecularRoughness.y;
+		HitPayload.Roughness = HitPayload.Roughness * DecalData.MetallicSpecularRoughness.a + DecalData.MetallicSpecularRoughness.z;
+	}
 
 	HitPayload.Radiance += DecalData.Emissive;
 
@@ -344,6 +354,9 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 	for (;;)
 	{
 		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(PathState.FirstScatterType, ApproximateCaustics ? PathState.PathRoughness : 0.0);
+		PackedPayload.SetDBufferA(float4(0, 0, 0, 1));
+		PackedPayload.SetDBufferB(float4(0, 0, 0, 1));
+		PackedPayload.SetDBufferC(float4(0, 0, 0, 1));
 		// Trace the ray
 		TraceRay(
 			TLAS,
@@ -364,6 +377,29 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		if (!PackedPayload.IsMiss() && PackedPayload.IsDecalReceiver())
 		{
 			EvaluateDecals(PathState, InstanceInclusionMask, PackedPayload, DecalData);
+
+#if USE_DBUFFER
+			const float DecalThroughput = min3(DecalData.BaseColor.a, DecalData.WorldNormal.a, DecalData.MetallicSpecularRoughness.a);
+			if (EnableDBuffer && PackedPayload.UsesDBufferLookup() && DecalThroughput < 1.0f)
+			{
+				// Retrace ray with DBuffer data
+
+				PackedPayload = InitPathTracingPayload(PathState.FirstScatterType, ApproximateCaustics ? PathState.PathRoughness : 0.0);
+
+				PackedPayload.SetDBufferA(DecalData.BaseColor);
+				PackedPayload.SetDBufferB(DecalData.WorldNormal);
+				PackedPayload.SetDBufferC(DecalData.MetallicSpecularRoughness);
+				TraceRay(
+					TLAS,
+					RayFlags,
+					InstanceInclusionMask,
+					RAY_TRACING_SHADER_SLOT_MATERIAL,
+					RAY_TRACING_NUM_SHADER_SLOTS,
+					MissShaderIndex,
+					PathState.Ray.GetNativeDesc(),
+					PackedPayload);
+			}
+#endif
 		}
 
 		if (PackedPayload.IsMiss() && VolumeIsectList.HitBlocker())

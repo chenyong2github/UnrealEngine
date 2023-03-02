@@ -678,6 +678,7 @@ public:
 		UsedDBufferTextures(0),
 		RuntimeVirtualTextureOutputAttributeMask(0),
 		bNeedsSceneTextures(false),
+		bUsesDBufferTextureLookup(false),
 		bUsesEyeAdaptation(false),
 		bModifiesMeshPosition(false),
 		bUsesWorldPositionOffset(false),
@@ -697,6 +698,7 @@ public:
 	ENGINE_API void SetIsSceneTextureUsed(ESceneTextureId TexId) { UsedSceneTextures |= (1 << TexId); }
 
 	ENGINE_API void SetIsDBufferTextureUsed(int32 TextureIndex) { UsedDBufferTextures |= (1 << TextureIndex); }
+	ENGINE_API void SetIsDBufferTextureLookupUsed(bool bValue) { bUsesDBufferTextureLookup = bValue; }
 
 	ENGINE_API void SetIsPathTracingBufferTextureUsed(int32 TexId) { UsedPathTracingBufferTextures |= (1 << TexId); }
 
@@ -765,6 +767,9 @@ public:
 
 	/** true if the material needs the scene texture lookups. */
 	LAYOUT_BITFIELD(uint8, bNeedsSceneTextures, 1);
+
+	/** true if the material uses DBuffer texture lookups. */
+	LAYOUT_BITFIELD(uint8, bUsesDBufferTextureLookup, 1);
 
 	/** true if the material uses the EyeAdaptationLookup */
 	LAYOUT_BITFIELD(uint8, bUsesEyeAdaptation, 1);

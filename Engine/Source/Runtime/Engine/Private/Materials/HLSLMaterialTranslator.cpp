@@ -1807,6 +1807,7 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 	OutEnvironment.SetDefine(TEXT("MATERIAL_USES_ANISOTROPY"), bUsesAnisotropy && FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(InPlatform));
 
 	OutEnvironment.SetDefine(TEXT("MATERIAL_DECAL_READ_MASK"), MaterialCompilationOutput.UsedDBufferTextures);
+	OutEnvironment.SetDefine(TEXT("MATERIAL_USES_DECAL_LOOKUP"), MaterialCompilationOutput.bUsesDBufferTextureLookup);
 	OutEnvironment.SetDefine(TEXT("MATERIAL_PATH_TRACING_BUFFER_READ"), MaterialCompilationOutput.UsedPathTracingBufferTextures);
 
 	// Count the number of VTStacks (each stack will allocate a feedback slot)
@@ -7053,6 +7054,9 @@ int32 FHLSLMaterialTranslator::DBufferTextureLookup(int32 ViewportUV, uint32 DBu
 	}
 
 	MaterialCompilationOutput.SetIsDBufferTextureUsed(DBufferTextureIndex);
+	// set separate flag to indicate that material uses DBuffer lookup specifically
+	// can't rely on UsedDBufferTextures because those bits are also set depending on the default decal response behavior.
+	MaterialCompilationOutput.SetIsDBufferTextureLookupUsed(true);
 	AddEstimatedTextureSample();
 
 	return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionDBufferTextureLookup(Parameters, %s, %d)"), *CoerceParameter(BufferUV, MCT_Float2), (int)DBufferTextureIndex);

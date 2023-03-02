@@ -11,11 +11,17 @@
 #include "../OctahedralCommon.ush"
 #include "/Engine/Shared/PathTracingDefinitions.h"
 
-// These flags are analogous to RAY_TRACING_PAYLOAD_* flags. There are currently 9 bits available
+// These flags are analogous to RAY_TRACING_PAYLOAD_* flags. There are currently 9 bits available.
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE                   (1 << 0) // Indicates that ray has hit the front face of a primitive. Set by closest hit shader.
-#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RECEIVER               (1 << 1) // Indicates that ray has hit a primitive that receives decals. Set by closest hit shader.
-#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED_MATERIAL           (1 << 2) // Indicates that ray has hit a primitive surface with a two sided material. Set by closest hit shader. Used by GPU Lightmass to detect invalid surfaces.
-#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_IS_HOLDOUT                   (1 << 3) // Indicates that ray has hit a primitive which should be held out from alpha
+#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED_MATERIAL           (1 << 1) // Indicates that ray has hit a primitive surface with a two sided material. Set by closest hit shader. Used by GPU Lightmass to detect invalid surfaces.
+#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_IS_HOLDOUT                   (1 << 2) // Indicates that ray has hit a primitive which should be held out from alpha.
+#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_MASK_SHIFT    (3)
+#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_COLOR         (1 << 3) // Indicates that ray has hit a primitive that receives decals color. Set by closest hit shader.
+#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_NORMAL        (1 << 4) // Indicates that ray has hit a primitive that receives decals normal. Set by closest hit shader.
+#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_ROUGHNESS     (1 << 5) // Indicates that ray has hit a primitive that receives decals metallic/specular/roughness. Set by closest hit shader.
+#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_USE_DBUFFER_LOOKUP           (1 << 6) // Indicates that ray has hit a primitive that uses DBufferTextureLookup. Set by closest hit shader.
+#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_UNUSED7                      (1 << 7) // Free for future use
+#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_UNUSED8                      (1 << 8) // Free for future use
 
 #define PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_MASK                 (7 << 0) // Reserve 3 bits for ray-mask
 #define PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_CAMERA                0       // Indicates that this is a camera ray which can trigger a number of special behaviors in the closest hit shader
@@ -147,8 +153,17 @@ struct FPackedPathTracingPayload : FMinimalPayload
 	bool IsVisibilityRay() { return (GetFlags() & PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_MASK) == PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_SHADOW; }
 
 	bool IsFrontFace() { return (GetFlags() & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE) != 0; }
-
-	bool IsDecalReceiver() { return (GetFlags() & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RECEIVER) != 0; }
+	
+	bool IsDecalReceiver() 
+	{
+		const uint Mask = 
+			PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_COLOR |
+			PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_NORMAL | 
+			PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_ROUGHNESS | 
+			PATH_TRACING_PAYLOAD_OUTPUT_FLAG_USE_DBUFFER_LOOKUP;
+		return (GetFlags() & Mask) != 0;
+	}
+	bool UsesDBufferLookup() { return (GetFlags() & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_USE_DBUFFER_LOOKUP) != 0; }
 
 	// These method are meant to be used only when IsVisibilityRay() is true
 	float3 GetRayThroughput()
@@ -195,6 +210,60 @@ struct FPackedPathTracingPayload : FMinimalPayload
 		PackedData[5] = asuint(Tau.x);
 		PackedData[6] = asuint(Tau.y);
 		PackedData[7] = asuint(Tau.z);
+	}
+
+	float4 GetDBufferA()
+	{
+		return float4(
+			f16tof32(PackedData[8]),
+			f16tof32(PackedData[8] >> 16),
+			f16tof32(PackedData[9]),
+			f16tof32(PackedData[9] >> 16)
+		);
+	}
+
+	void SetDBufferA(float4 DBufferA)
+	{
+		PackedData[8] = f32tof16(DBufferA.x);
+		PackedData[8] |= f32tof16(DBufferA.y) << 16;
+		PackedData[9] = f32tof16(DBufferA.z);
+		PackedData[9] |= f32tof16(DBufferA.w) << 16;
+	}
+
+	float4 GetDBufferB()
+	{
+		return float4(
+			f16tof32(PackedData[10]),
+			f16tof32(PackedData[10] >> 16),
+			f16tof32(PackedData[11]),
+			f16tof32(PackedData[11] >> 16)
+		);
+	}
+
+	void SetDBufferB(float4 DBufferB)
+	{
+		PackedData[10] = f32tof16(DBufferB.x);
+		PackedData[10] |= f32tof16(DBufferB.y) << 16;
+		PackedData[11] = f32tof16(DBufferB.z);
+		PackedData[11] |= f32tof16(DBufferB.w) << 16;
+	}
+
+	float4 GetDBufferC()
+	{
+		return float4(
+			f16tof32(PackedData[12]),
+			f16tof32(PackedData[12] >> 16),
+			f16tof32(PackedData[13]),
+			f16tof32(PackedData[13] >> 16)
+		);
+	}
+
+	void SetDBufferC(float4 DBufferC)
+	{
+		PackedData[12] = f32tof16(DBufferC.x);
+		PackedData[12] |= f32tof16(DBufferC.y) << 16;
+		PackedData[13] = f32tof16(DBufferC.z);
+		PackedData[13] |= f32tof16(DBufferC.w) << 16;
 	}
 #endif
 };
@@ -246,8 +315,14 @@ struct FPathTracingPayload : FMinimalPayload
 	void SetFrontFace() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE; }
 	bool IsFrontFace() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE) != 0; }
 
-	void SetDecalReceiver() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RECEIVER; }
-	bool IsDecalReceiver() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RECEIVER) != 0; }
+	void SetDecalReceiver(uint DecalResponseMask) { Flags |= (DecalResponseMask & 0x07) << PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_MASK_SHIFT; }
+	bool IsDecalReceiver() { return (Flags & (PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_COLOR | PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_NORMAL | PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_ROUGHNESS)) != 0; }
+	bool HasDecalResponseColor() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_COLOR) != 0; }
+	bool HasDecalResponseNormal() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_NORMAL) != 0; }
+	bool HasDecalResponseRoughness() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_ROUGHNESS) != 0; }
+
+	void SetUseDBufferLookup() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_USE_DBUFFER_LOOKUP; }
+	bool UsesDBufferLookup() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_USE_DBUFFER_LOOKUP) != 0; }
 	
 	void SetHoldout() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_IS_HOLDOUT; }
 	bool IsHoldout() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_IS_HOLDOUT) != 0; }

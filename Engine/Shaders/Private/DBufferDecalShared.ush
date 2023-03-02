@@ -28,21 +28,30 @@
 
 #endif // DBUFFER_BASEPASS_RESOURCE
 
+#if USE_DBUFFER && RAYHITGROUPSHADER
+// This must be set prior to running the generated material code.
+static float4 CurrentPayloadDBufferA = float4(0.0, 0.0, 0.0, 1.0);
+static float4 CurrentPayloadDBufferB = float4(0.0, 0.0, 0.0, 1.0);
+static float4 CurrentPayloadDBufferC = float4(0.0, 0.0, 0.0, 1.0);
+#endif
+
 // Returns a bitmask of DBuffer targets that contain valid data for this pixel.
 // @param BufferUV - UV space in the DBuffer textures
 uint GetDBufferTargetMask(uint2 PixelPos)
 {
 #if USE_DBUFFER && ENABLE_DBUFFER_TEXTURES && !RAYHITGROUPSHADER && !LUMEN_CARD_CAPTURE
-
-#if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
-	return DecodeRTWriteMask(PixelPos, OpaqueBasePassDBufferRenderMask, 3);
-#elif PLATFORM_SUPPORTS_PER_PIXEL_DBUFFER_MASK
-	uint Mask = OpaqueBasePassDBufferRenderMask.Load(uint3(PixelPos, 0));
-	return Mask > 0 ? 0x07 : 0x00;
-#else
+	{
+#	if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
+		return DecodeRTWriteMask(PixelPos, OpaqueBasePassDBufferRenderMask, 3);
+#	elif PLATFORM_SUPPORTS_PER_PIXEL_DBUFFER_MASK
+		uint Mask = OpaqueBasePassDBufferRenderMask.Load(uint3(PixelPos, 0));
+		return Mask > 0 ? 0x07 : 0x00;
+#	else
+		return 0x07;
+#	endif
+	}
+#elif USE_DBUFFER && RAYHITGROUPSHADER
 	return 0x07;
-#endif
-
 #else
 	return 0;
 #endif
@@ -89,6 +98,13 @@ FStrataDBuffer GetDBufferData(float2 BufferUV, uint RTMaskBit)
 	if (RTMaskBit & 0x2) { DBufferB = Texture2DSampleLevel(OpaqueBasePassDBufferBTexture, OpaqueBasePassDBufferBTextureSampler, BufferUV, 0);	}
 	BRANCH
 	if (RTMaskBit & 0x4) { DBufferC = Texture2DSampleLevel(OpaqueBasePassDBufferCTexture, OpaqueBasePassDBufferCTextureSampler, BufferUV, 0);	}
+#elif USE_DBUFFER && RAYHITGROUPSHADER
+	BRANCH
+	if (RTMaskBit & 0x1) { DBufferA = CurrentPayloadDBufferA; }
+	BRANCH // StrataUnpackDBuffer expects DBufferB to have a specific scale and bias
+	if (RTMaskBit & 0x2) { DBufferB = float4(CurrentPayloadDBufferB.rgb * 0.5f + 128.0f / 255.0f, CurrentPayloadDBufferB.a); }
+	BRANCH
+	if (RTMaskBit & 0x4) { DBufferC = CurrentPayloadDBufferC; }
 #endif
 	return StrataUnpackDBuffer(DBufferA, DBufferB, DBufferC);
 }
@@ -360,6 +376,25 @@ FDBufferData GetDBufferData(float2 BufferUV, uint RTMaskBit)
 	if (RTMaskBit & 0x4)
 	{
 		DBufferC = Texture2DSampleLevel(OpaqueBasePass.DBufferCTexture, OpaqueBasePassDBufferCTextureSampler, BufferUV, 0);
+	}
+#elif USE_DBUFFER && RAYHITGROUPSHADER
+	BRANCH
+	if (RTMaskBit & 0x1)
+	{
+		DBufferA = CurrentPayloadDBufferA;
+	}
+
+	BRANCH
+	if (RTMaskBit & 0x2)
+	{
+		// DecodeDBufferData expects DBufferB to have a specific scale and bias
+		DBufferB = float4(CurrentPayloadDBufferB.rgb * 0.5f + 128.0f / 255.0f, CurrentPayloadDBufferB.a);
+	}
+
+	BRANCH
+	if (RTMaskBit & 0x4)
+	{
+		DBufferC = CurrentPayloadDBufferC;
 	}
 #endif
 

@@ -102,6 +102,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 
 	CurrentPayloadInputFlags = PackedPayload.GetFlags();
 
+#if USE_DBUFFER && MATERIAL_USES_DECAL_LOOKUP
+	CurrentPayloadDBufferA = PackedPayload.GetDBufferA();
+	CurrentPayloadDBufferB = PackedPayload.GetDBufferB();
+	CurrentPayloadDBufferC = PackedPayload.GetDBufferC();
+#endif
+
 #if VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
 	// this is a newer codepath that is both more flexible and allows for more direct calculation compared to the other codepath
 	// TODO: implement such a method for all vertex factories
@@ -685,7 +691,14 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #if MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
 	if ((PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0)
 	{
-		Payload.SetDecalReceiver();
+#if USE_DBUFFER
+		Payload.SetDecalReceiver(MATERIALDECALRESPONSEMASK);
+#	if MATERIAL_USES_DECAL_LOOKUP
+		Payload.SetUseDBufferLookup();
+#	endif
+#else
+		Payload.SetDecalReceiver(0x07);
+#endif
 	}
 #endif
 
