@@ -3124,6 +3124,7 @@ float FBodyInstance::GetSleepThresholdMultiplier() const
 
 void FBodyInstance::SetLinearVelocity(const FVector& NewVel, bool bAddToCurrent, bool bAutoWake)
 {
+
 	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
 	{
 		if(FPhysicsInterface::IsRigidBody(Actor))
@@ -3213,30 +3214,55 @@ void FBodyInstance::AddCustomPhysics(FCalculateCustomPhysics& CalculateCustomPhy
 	});
 }
 
-void FBodyInstance::AddForce(const FVector& Force, bool bAllowSubstepping, bool bAccelChange)
+void FBodyInstance::ApplyAsyncPhysicsCommand(FAsyncPhysicsTimestamp TimeStamp, const bool bIsInternal, APlayerController* PlayerController, const TFunction<void()>& Command)
 {
-	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
+	if (bIsInternal && TimeStamp.IsValid())
 	{
-		if(!IsRigidBodyKinematic_AssumesLocked(Actor))
+		APlayerController* LocalController = PlayerController ? PlayerController : 
+			OwnerComponent->GetWorld() ? OwnerComponent->GetWorld()->GetFirstPlayerController() : nullptr;
+		if (LocalController)
 		{
-			if(FPhysScene* PhysScene = GetPhysicsScene())
+			TimeStamp.LocalFrame = TimeStamp.ServerFrame - LocalController->GetLocalToServerAsyncPhysicsTickOffset();
+			LocalController->ExecuteAsyncPhysicsCommand(TimeStamp, OwnerComponent.Get(), Command);
+		}
+	}
+	else
+	{
+		FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
 			{
-				PhysScene->AddForce_AssumesLocked(this, Force, bAllowSubstepping, bAccelChange);
-			}
+				Command();
+			});
+	}
+}
+
+static bool IsBodyDynamic(const FPhysicsActorHandle& ActorHandle, const bool bIsInternal)
+{
+	const Chaos::EObjectStateType ObjectState = bIsInternal ? ActorHandle->GetPhysicsThreadAPI()->ObjectState() :
+		ActorHandle->GetGameThreadAPI().ObjectState();
+
+	return (ObjectState == Chaos::EObjectStateType::Dynamic) || (ObjectState == Chaos::EObjectStateType::Sleeping);
+}
+
+void FBodyInstance::AddForce(const FVector& Force, bool bAllowSubstepping, bool bAccelChange, const FAsyncPhysicsTimestamp TimeStamp, APlayerController* PlayerController)
+{
+	const bool bIsInternal = TimeStamp.IsValid();
+	ApplyAsyncPhysicsCommand(TimeStamp, bIsInternal, PlayerController, [&, Force, bAllowSubstepping, bAccelChange, bIsInternal]()
+	{
+		if (FPhysicsInterface::IsInScene(ActorHandle) && IsBodyDynamic(ActorHandle, bIsInternal))
+		{
+			FPhysicsInterface::AddForce_AssumesLocked(ActorHandle, Force, bAllowSubstepping, bAccelChange, bIsInternal);
 		}
 	});
 }
 
-void FBodyInstance::AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping, bool bIsLocalForce)
+void FBodyInstance::AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping, bool bIsLocalForce, const FAsyncPhysicsTimestamp TimeStamp, APlayerController* PlayerController)
 {
-	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
+	const bool bIsInternal = TimeStamp.IsValid();
+	ApplyAsyncPhysicsCommand(TimeStamp, bIsInternal, PlayerController, [&, Force, Position, bAllowSubstepping, bIsLocalForce, bIsInternal]()
 	{
-		if(!IsRigidBodyKinematic_AssumesLocked(Actor))
+		if (FPhysicsInterface::IsInScene(ActorHandle) && IsBodyDynamic(ActorHandle, bIsInternal))
 		{
-			if(FPhysScene* PhysScene = GetPhysicsScene())
-			{
-				PhysScene->AddForceAtPosition_AssumesLocked(this, Force, Position, bAllowSubstepping, bIsLocalForce);
-			}
+			FPhysicsInterface::AddForceAtPosition_AssumesLocked(ActorHandle, Force, Position, bAllowSubstepping, bIsLocalForce, bIsInternal);
 		}
 	});
 }
@@ -3266,16 +3292,14 @@ void FBodyInstance::SetOneWayInteraction(bool InOneWayInteraction /*= true*/)
 		});
 }
 
-void FBodyInstance::AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping, bool bAccelChange)
+void FBodyInstance::AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping, bool bAccelChange, const FAsyncPhysicsTimestamp TimeStamp, APlayerController* PlayerController)
 {
-	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
+	const bool bIsInternal = TimeStamp.IsValid();
+	ApplyAsyncPhysicsCommand(TimeStamp, bIsInternal, PlayerController, [&, Torque, bAllowSubstepping, bAccelChange, bIsInternal]()
 	{
-		if(!IsRigidBodyKinematic_AssumesLocked(Actor))
+		if (FPhysicsInterface::IsInScene(ActorHandle) && IsBodyDynamic(ActorHandle, bIsInternal))
 		{
-			if(FPhysScene* PhysScene = GetPhysicsScene())
-			{
-				PhysScene->AddTorque_AssumesLocked(this, Torque, bAllowSubstepping, bAccelChange);
-			}
+			FPhysicsInterface::AddTorque_AssumesLocked(ActorHandle, Torque, bAllowSubstepping, bAccelChange, bIsInternal);
 		}
 	});
 }
@@ -3294,63 +3318,64 @@ void FBodyInstance::ClearTorques(bool bAllowSubstepping)
 	});
 }
 
-void FBodyInstance::AddAngularImpulseInRadians(const FVector& AngularImpulse, bool bVelChange)
+void FBodyInstance::AddAngularImpulseInRadians(const FVector& AngularImpulse, bool bVelChange, const FAsyncPhysicsTimestamp TimeStamp, APlayerController* PlayerController)
 {
-	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
+	const bool bIsInternal = TimeStamp.IsValid();
+	ApplyAsyncPhysicsCommand(TimeStamp, bIsInternal, PlayerController, [&, AngularImpulse, bVelChange, bIsInternal]()
 	{
-		if (FPhysicsInterface::IsRigidBody(Actor) && FPhysicsInterface::IsInScene(Actor) && !IsRigidBodyKinematic_AssumesLocked(Actor))
+		if (FPhysicsInterface::IsInScene(ActorHandle) && IsBodyDynamic(ActorHandle, bIsInternal))
 		{
-			if (FPhysScene* PhysScene = GetPhysicsScene())
+			if (bVelChange)
 			{
-				if (bVelChange)
-				{
-					FPhysicsInterface::AddAngularVelocityInRadians_AssumesLocked(Actor, AngularImpulse);
-				}
-				else
-				{
-					FPhysicsInterface::AddAngularImpulseInRadians_AssumesLocked(Actor, AngularImpulse);
-				}
-			}
-		}
-	});
-}
-
-void FBodyInstance::AddImpulse(const FVector& Impulse, bool bVelChange)
-{
-	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
-	{
-		if(FPhysicsInterface::IsRigidBody(Actor) && FPhysicsInterface::IsInScene(Actor) && !IsRigidBodyKinematic_AssumesLocked(Actor))
-		{
-			if(bVelChange)
-			{
-				FPhysicsInterface::AddVelocity_AssumesLocked(Actor, Impulse);
+				FPhysicsInterface::AddAngularVelocityInRadians_AssumesLocked(ActorHandle, AngularImpulse, bIsInternal);
 			}
 			else
 			{
-				FPhysicsInterface::AddImpulse_AssumesLocked(Actor, Impulse);
+				FPhysicsInterface::AddAngularImpulseInRadians_AssumesLocked(ActorHandle, AngularImpulse, bIsInternal);
 			}
 		}
 	});
 }
 
-void FBodyInstance::AddImpulseAtPosition(const FVector& Impulse, const FVector& Position)
+void FBodyInstance::AddImpulse(const FVector& Impulse, bool bVelChange, const FAsyncPhysicsTimestamp TimeStamp, APlayerController* PlayerController)
 {
-	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
-	{
-		if(FPhysicsInterface::IsRigidBody(Actor) && FPhysicsInterface::IsInScene(Actor) && !IsRigidBodyKinematic_AssumesLocked(Actor))
+	const bool bIsInternal = TimeStamp.IsValid();
+	ApplyAsyncPhysicsCommand(TimeStamp, bIsInternal, PlayerController, [&, Impulse, bVelChange, bIsInternal]()
+	{		
+		if (FPhysicsInterface::IsInScene(ActorHandle) && IsBodyDynamic(ActorHandle, bIsInternal))
 		{
-			FPhysicsInterface::AddImpulseAtLocation_AssumesLocked(Actor, Impulse, Position);
+			if (bVelChange)
+			{
+				FPhysicsInterface::AddVelocity_AssumesLocked(ActorHandle, Impulse, bIsInternal);
+			}
+			else
+			{
+				FPhysicsInterface::AddImpulse_AssumesLocked(ActorHandle, Impulse, bIsInternal);
+			}
 		}
 	});
 }
 
-void FBodyInstance::AddVelocityChangeImpulseAtLocation(const FVector& Impulse, const FVector& Position)
+void FBodyInstance::AddImpulseAtPosition(const FVector& Impulse, const FVector& Position, const FAsyncPhysicsTimestamp TimeStamp, APlayerController* PlayerController)
 {
-	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
+	const bool bIsInternal = TimeStamp.IsValid();
+	ApplyAsyncPhysicsCommand(TimeStamp, bIsInternal, PlayerController, [&, Impulse, Position, bIsInternal]()
 	{
-		if (FPhysicsInterface::IsRigidBody(Actor) && FPhysicsInterface::IsInScene(Actor) && !IsRigidBodyKinematic_AssumesLocked(Actor))
+		if (FPhysicsInterface::IsInScene(ActorHandle) && IsBodyDynamic(ActorHandle, bIsInternal))
 		{
-			FPhysicsInterface::AddVelocityChangeImpulseAtLocation_AssumesLocked(Actor, Impulse, Position);
+			FPhysicsInterface::AddImpulseAtLocation_AssumesLocked(ActorHandle, Impulse, Position, bIsInternal);
+		}
+	});
+}
+
+void FBodyInstance::AddVelocityChangeImpulseAtLocation(const FVector& Impulse, const FVector& Position, const FAsyncPhysicsTimestamp TimeStamp, APlayerController* PlayerController)
+{
+	const bool bIsInternal = TimeStamp.IsValid();
+	ApplyAsyncPhysicsCommand(TimeStamp, bIsInternal, PlayerController, [&, Impulse, Position, bIsInternal]()
+	{
+		if (FPhysicsInterface::IsInScene(ActorHandle) && IsBodyDynamic(ActorHandle, bIsInternal))
+		{
+			FPhysicsInterface::AddVelocityChangeImpulseAtLocation_AssumesLocked(ActorHandle, Impulse, Position, bIsInternal);
 		}
 	});
 }

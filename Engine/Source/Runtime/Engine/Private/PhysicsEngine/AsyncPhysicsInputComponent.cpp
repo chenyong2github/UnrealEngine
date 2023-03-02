@@ -8,6 +8,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "PBDRigidsSolver.h"
+#include "PhysicsReplication.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
@@ -97,8 +98,7 @@ struct FAsyncPhysicsInputRewindCallback : public Chaos::IRewindCallback
 		{
 			if (APlayerController* PC = World->GetFirstPlayerController())
 			{
-				static IConsoleVariable* EnableNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.EnableNetworkPhysicsPrediction"));
-				if (EnableNetworkPhysicsCVar && EnableNetworkPhysicsCVar->GetInt() == 1)
+				if (Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled())
 				{
 					const int32 LocalToServerOffset = PC->GetLocalToServerAsyncPhysicsTickOffset();
 					ServerFrame = PhysicsStep + LocalToServerOffset;
@@ -114,6 +114,23 @@ struct FAsyncPhysicsInputRewindCallback : public Chaos::IRewindCallback
 			}
 		}
 		DispatchPhysicsTick.Broadcast(PhysicsStep, NumSteps, ServerFrame);
+	}
+
+	virtual int32 TriggerRewindIfNeeded_Internal(int32 LatestStepCompleted)
+	{
+		int32 CachedClientFrame = INDEX_NONE;
+		if (World->GetNetMode() == NM_Client && World->GetPhysicsScene())
+		{
+			if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(World->GetPhysicsScene()))
+			{
+				if(const FPhysicsReplication* PhysicsReplication  = Scene->GetPhysicsReplication())
+				{
+					CachedClientFrame = Scene->GetPhysicsReplication()->GetResimFrame();
+				}
+			}
+		}
+
+		return CachedClientFrame;
 	}
 
 	virtual void ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs)
@@ -138,10 +155,14 @@ struct FAsyncPhysicsInputRewindCallback : public Chaos::IRewindCallback
 				// -----------------------------------------------------------------
 				APlayerController::FClientFrameInfo& ClientFrameInfo = PC->GetClientFrameInfo();
 
-				if (ClientFrameInfo.LastProcessedInputFrame != INDEX_NONE)
+				if (Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled())
+				{
+					const int32 LocalToServerOffset = PC->GetLocalToServerAsyncPhysicsTickOffset();
+					CachedServerFrame = PhysicsStep + LocalToServerOffset;
+				}
+				else if (ClientFrameInfo.LastProcessedInputFrame != INDEX_NONE)
 				{
 					const int32 FrameOffset = ClientFrameInfo.GetLocalFrameOffset();
-					
 					CachedServerFrame = PhysicsStep - FrameOffset; // Local = Server + Offset
 				}
 
@@ -278,7 +299,7 @@ struct FAsyncPhysicsInputRewindCallback : public Chaos::IRewindCallback
 						{
 							FObjectKey Key(RootComponent);
 							FRigidBodyState& LatestState = Scene->ReplicationCache.Map.FindOrAdd(Key);
-
+							
 							// This might be wrong... see FBodyInstance::GetRigidBodyState (converts to unreal units?) and FRepMovement::FillFrom
 							LatestState.Position = Handle->X();
 							LatestState.Quaternion = Handle->R();
@@ -328,7 +349,7 @@ void UAsyncPhysicsInputComponent::SetDataClass(TSubclassOf<UAsyncPhysicsData> In
 					// 1 frame is required to enable rewind capture. 
 					NumFrames = FMath::Max<int32>(1, NumFramesCVar->GetInt());
 				}
-				Solver->EnableRewindCapture(NumFrames, false, MakeUnique<FAsyncPhysicsInputRewindCallback>(World));
+				Solver->EnableRewindCapture(NumFrames, true, MakeUnique<FAsyncPhysicsInputRewindCallback>(World));
 			}
 
 			FAsyncPhysicsInputRewindCallback* Callback = static_cast<FAsyncPhysicsInputRewindCallback*>(Solver->GetRewindCallback());

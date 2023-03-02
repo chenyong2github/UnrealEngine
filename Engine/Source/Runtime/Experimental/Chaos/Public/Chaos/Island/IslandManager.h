@@ -193,7 +193,7 @@ public:
 	/**
 	  * Pack all the constraints into their assigned islands in sorted order
 	  */
-	void UpdateIslands(FPBDRigidsSOAs& Particles);
+	void UpdateIslands(FPBDRigidsSOAs& Particles, const bool IsResimming = false);
 
 	/**
 	  * @brief Put all particles and constraints in an island to sleep
@@ -232,6 +232,15 @@ public:
 	 * @return If true the island need to be resim
 	 */
 	bool IslandNeedsResim(const int32 IslandIndex) const;
+
+	/** Get the particle resim frame */
+	int32 GetParticleResimFrame(const FGeometryParticleHandle* ParticleHandle) const;
+
+	/** Set the particle resim frame */
+	void SetParticleResimFrame(FGeometryParticleHandle* ParticleHandle, const int32 ResimFrame);
+
+	/** Reset all the particle resim frames to INDEX_NONE */
+	void ResetParticleResimFrame(const int32 ResetFrame = INDEX_NONE);
 
 	/**
 	  * The number of islands in the graph.
@@ -340,7 +349,7 @@ protected:
 	/**
 	* Sync the Islands with the IslandGraph
 	*/
-	void SyncIslands(FPBDRigidsSOAs& Particles);
+	void SyncIslands(FPBDRigidsSOAs& Particles, const bool IsResimming);
 
 
 	/**

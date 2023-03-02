@@ -1036,7 +1036,8 @@ namespace Chaos
 	{
 		int32 MatchIndex = INDEX_NONE;
 
-		if (bChaos_Manifold_EnableFrictionRestore)
+		const bool bEnableNetworkPhysicsResim = FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled() && FPhysicsSolverBase::CanResimNetworkPhysicsPrediction();
+		if (bChaos_Manifold_EnableFrictionRestore && !bEnableNetworkPhysicsResim)
 		{
 			const FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
 			if (!ManifoldPoint.Flags.bDisabled)

@@ -214,13 +214,7 @@ TArray<FPushPhysicsData*> FChaosMarshallingManager::StealHistory_Internal(int32 
 	{
 		History.Add(HistoryQueue_Internal[Idx]);
 	}
-
-	for(int32 Idx = UseNumFrames; Idx < HistoryQueue_Internal.Num(); ++Idx)
-	{
-		FreeData_Internal(HistoryQueue_Internal[Idx]);
-	}
-
-	HistoryQueue_Internal.Reset();
+	HistoryQueue_Internal.RemoveAt(0, UseNumFrames);
 	return History;
 }
 
