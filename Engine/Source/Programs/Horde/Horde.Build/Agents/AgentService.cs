@@ -518,7 +518,7 @@ namespace Horde.Build.Agents
 				Task<AgentLease?> task = await source.AssignLeaseAsync(agent, cancellationToken);
 				return task.ContinueWith(x => WrapAssignedLease(source, x, cancellationSource), TaskScheduler.Default);
 			}
-			catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 			{
 				return Task.FromResult<(ITaskSource, AgentLease)?>(null);
 			}
