@@ -356,6 +356,22 @@ namespace UE::Net
 }
 #endif // UE_WITH_IRIS
 
+namespace UE::Net
+{
+	class FScopedIgnoreStaticActorDestruction
+	{
+	public:
+		FScopedIgnoreStaticActorDestruction();
+		~FScopedIgnoreStaticActorDestruction();
+
+		UE_NONCOPYABLE(FScopedIgnoreStaticActorDestruction);
+
+	private:
+		bool bCachedValue = false;
+	};
+
+	bool ShouldIgnoreStaticActorDestruction();
+}
 
 using FConnectionMap = TMap<TSharedRef<const FInternetAddr>, UNetConnection*, FDefaultSetAllocator, FInternetAddrConstKeyMapFuncs<UNetConnection*>>;
 

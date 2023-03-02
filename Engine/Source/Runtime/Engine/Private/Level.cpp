@@ -34,6 +34,7 @@ Level.cpp: Level-related functions
 #include "Engine/AssetUserData.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/LevelScriptActor.h"
+#include "Engine/NetDriver.h"
 #include "Engine/WorldComposition.h"
 #include "StaticLighting.h"
 #include "TickTaskManagerInterface.h"
@@ -744,7 +745,7 @@ void ULevel::Serialize( FArchive& Ar )
 
 void ULevel::CreateReplicatedDestructionInfo(AActor* const Actor)
 {
-	if (Actor == nullptr)
+	if ((Actor == nullptr) || GIsReconstructingBlueprintInstances || UE::Net::ShouldIgnoreStaticActorDestruction())
 	{
 		return;
 	}

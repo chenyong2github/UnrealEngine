@@ -75,6 +75,8 @@ void UChildActorComponent::OnRegister()
 			bool bChildActorPackageWasDirty = ChildActor->GetPackage()->IsDirty();
 			bool bPackageWasDirty = GetPackage()->IsDirty();
 
+			UE::Net::FScopedIgnoreStaticActorDestruction ScopedIgnoreDestruction;
+
 			DestroyChildActor();
 			CreateChildActor();
 			
@@ -703,7 +705,7 @@ void UChildActorComponent::CreateChildActor(TFunction<void(AActor*)> CustomizerF
 
 	if (MyOwner && !MyOwner->HasAuthority())
 	{
-		if (IsChildActorReplicated())
+		if (IsChildActorReplicated() && !GIsReconstructingBlueprintInstances)
 		{
 			// If we belong to an actor that is not authoritative and the child class is replicated then we expect that Actor will be replicated across so don't spawn one
 			return;
