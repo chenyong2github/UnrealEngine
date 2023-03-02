@@ -33,6 +33,7 @@ bool UPCGWorldVolumetricData::SamplePoint(const FTransform& InTransform, const F
 	FCollisionObjectQueryParams ObjectQueryParams(QueryParams.CollisionChannel);
 	FCollisionShape CollisionShape = FCollisionShape::MakeBox(InBounds.GetExtent() * InTransform.GetScale3D());
 	FCollisionQueryParams Params; // TODO: apply properties from the settings when/if they exist
+	Params.bTraceComplex = QueryParams.bTraceComplex;
 
 	TArray<FOverlapResult> Overlaps;
 	/*bool bOverlaps =*/ World->OverlapMultiByObjectType(Overlaps, InTransform.TransformPosition(InBounds.GetCenter()), InTransform.GetRotation(), ObjectQueryParams, CollisionShape, Params);
@@ -169,6 +170,7 @@ bool UPCGWorldRayHitData::SamplePoint(const FTransform& InTransform, const FBox&
 	// Todo: consider prebuilding this
 	FCollisionObjectQueryParams ObjectQueryParams(QueryParams.CollisionChannel);
 	FCollisionQueryParams Params; // TODO: apply properties from the settings when/if they exist
+	Params.bTraceComplex = QueryParams.bTraceComplex;
 
 	// Project the InTransform location on the ray origin plane
 	const FVector PointLocation = InTransform.GetLocation();
@@ -257,7 +259,7 @@ const UPCGPointData* UPCGWorldRayHitData::CreatePointData(FPCGContext* Context, 
 	{
 		if (!Bounds.IsValid && !InBounds.IsValid)
 		{
-			UE_LOG(LogPCG, Error, TEXT("PCG World Volumetric Data cannot generate if there are no framing bounds"));
+			UE_LOG(LogPCG, Error, TEXT("PCG World Ray Hit Data cannot generate if there are no framing bounds"));
 		}
 
 		return Data;

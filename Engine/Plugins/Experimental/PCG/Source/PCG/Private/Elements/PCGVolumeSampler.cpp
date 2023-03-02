@@ -229,10 +229,19 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		check(GeneratingShape);
 
 		// Calculate the intersection of bounds of the provided inputs
-		FBox InputBounds = GeneratingShape->GetBounds();
-		if (BoundingShapeBounds.IsValid)
+		FBox InputBounds = FBox(EForceInit::ForceInit);
+		if (GeneratingShape->IsBounded())
 		{
-			InputBounds = PCGHelpers::OverlapBounds(InputBounds, BoundingShapeBounds);
+			InputBounds = GeneratingShape->GetBounds();
+
+			if (BoundingShapeBounds.IsValid)
+			{
+				InputBounds = PCGHelpers::OverlapBounds(InputBounds, BoundingShapeBounds);
+			}
+		}
+		else
+		{
+			InputBounds = BoundingShapeBounds;
 		}
 
 		if (!InputBounds.IsValid)

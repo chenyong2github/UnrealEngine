@@ -60,6 +60,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual FBox GetBounds() const PURE_VIRTUAL(UPCGSpatialData::GetBounds, return FBox(EForceInit::ForceInit););
 
+	/** Returns whether a given spatial data is bounded as some data types do not require bounds by themselves */
+	virtual bool IsBounded() const { return true; }
+
 	/** Returns the bounds in which the density is always 1 */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual FBox GetStrictBounds() const { return FBox(EForceInit::ForceInit); }

@@ -45,11 +45,9 @@ bool FPCGWorldVolumetricQueryElement::ExecuteInternal(FPCGContext* Context) cons
 
 	check(Context->SourceComponent.IsValid());
 	UWorld* World = Context->SourceComponent->GetWorld();
-	// TODO: Not strictly required but will be useful until we change the usage of this
-	FBox SourceBounds = PCGHelpers::GetActorBounds(Context->SourceComponent->GetOwner());
 
 	UPCGWorldVolumetricData* Data = NewObject<UPCGWorldVolumetricData>();
-	Data->Initialize(World, SourceBounds);
+	Data->Initialize(World);
 	Data->QueryParams = QueryParams;
 	Data->OriginatingComponent = Context->SourceComponent;
 	Data->TargetActor = Context->SourceComponent->GetOwner();
@@ -124,11 +122,9 @@ bool FPCGWorldRayHitQueryElement::ExecuteInternal(FPCGContext* Context) const
 
 	check(Context->SourceComponent.IsValid());
 	UWorld* World = Context->SourceComponent->GetWorld();
-	// TODO: Not strictly required but will be useful until we change the usage of this
-	FBox SourceBounds = PCGHelpers::GetActorBounds(Context->SourceComponent->GetOwner());
 
 	UPCGWorldRayHitData* Data = NewObject<UPCGWorldRayHitData>();
-	Data->Initialize(World, SourceBounds);
+	Data->Initialize(World);
 	Data->QueryParams = QueryParams;
 	Data->OriginatingComponent = Context->SourceComponent;
 	Data->TargetActor = Context->SourceComponent->GetOwner();

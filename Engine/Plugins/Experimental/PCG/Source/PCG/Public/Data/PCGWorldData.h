@@ -31,6 +31,10 @@ struct FPCGWorldVolumetricQueryParams
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Advanced")
 	TEnumAsByte<ECollisionChannel> CollisionChannel = ECC_WorldStatic;
+
+	/** Queries against complex collision if enabled, performance warning */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Advanced")
+	bool bTraceComplex = false;
 };
 
 /** Queries volume for presence of world collision or not. Can be used to voxelize environment. */
@@ -43,6 +47,7 @@ public:
 	void Initialize(UWorld* InWorld, const FBox& InBounds = FBox(EForceInit::ForceInit));
 
 	//~Begin UPCGSpatialData interface
+	virtual bool IsBounded() const override { return !!Bounds.IsValid; }
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	// TODO not sure what this would mean. Without a direction, this means perhaps finding closest point on any collision surface? Should we implement this disabled?
 	//virtual bool ProjectPoint(const FTransform& InTransform, const FBox& InBounds, const FPCGProjectionParams& InParams, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
@@ -93,8 +98,12 @@ struct FPCGWorldRayHitQueryParams
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Advanced")
 	TEnumAsByte<ECollisionChannel> CollisionChannel = ECC_WorldStatic;
 
+	/** Queries against complex collision if enabled, performance warning */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Advanced")
+	bool bTraceComplex = false;
+
 	// TODO: see in FCollisionQueryParams if there are some flags we want to expose
-	// examples: bTraceComplex, bReturnFaceIndex, bReturnPhysicalMaterial, some ignore patterns
+	// examples: bReturnFaceIndex, bReturnPhysicalMaterial, some ignore patterns
 
 	//TODO UPROPERTY()
 	//bool bUseMetadataFromLandscape = true;
@@ -112,6 +121,7 @@ public:
 	//~Begin UPCGSpatialData interface
 	virtual FBox GetBounds() const override { return Bounds; }
 	virtual FBox GetStrictBounds() const override { return Bounds; }
+	virtual bool IsBounded() const override { return !!Bounds.IsValid; }
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	virtual bool HasNonTrivialTransform() const override { return true; }
 protected:
