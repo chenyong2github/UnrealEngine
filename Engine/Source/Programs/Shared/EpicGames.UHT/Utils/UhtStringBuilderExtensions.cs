@@ -140,14 +140,15 @@ namespace EpicGames.UHT.Utils
 			{
 				return builder
 					.Append("METADATA_PARAMS(")
+					.Append("UE_ARRAY_COUNT(")
 					.AppendNameDef(staticsName, namePrefix, name, nameSuffix).Append(metaNameSuffix)
-					.Append(", UE_ARRAY_COUNT(")
+					.Append("), ")
 					.AppendNameDef(staticsName, namePrefix, name, nameSuffix).Append(metaNameSuffix)
-					.Append("))");
+					.Append(")");
 			}
 			else
 			{
-				return builder.Append("METADATA_PARAMS(nullptr, 0)");
+				return builder.Append("METADATA_PARAMS(0, nullptr)");
 			}
 		}
 

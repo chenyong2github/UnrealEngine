@@ -1214,8 +1214,7 @@ namespace EpicGames.UHT.Types
 				.AppendNotifyFunc(this).Append(", ")
 				.AppendFlags(PropertyFlags).Append(", ")
 				.Append(paramsGenFlags).Append(", ")
-				.Append(ObjectFlags).Append(", ")
-				.AppendArrayDim(this, context).Append(", ");
+				.Append(ObjectFlags).Append(", ");
 
 			if (PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.SetterFound))
 			{
@@ -1234,6 +1233,8 @@ namespace EpicGames.UHT.Types
 			{
 				builder.Append("nullptr, ");
 			}
+
+			builder.AppendArrayDim(this, context).Append(", ");
 
 			if (appendOffset)
 			{

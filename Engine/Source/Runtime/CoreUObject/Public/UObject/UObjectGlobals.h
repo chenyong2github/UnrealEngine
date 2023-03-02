@@ -3090,7 +3090,7 @@ typedef void (*GetterFuncPtr)(const void* InContainer, void* OutValue);
 /// @cond DOXYGEN_IGNORE
 namespace UECodeGen_Private
 {
-	enum class EPropertyGenFlags : uint32
+	enum class EPropertyGenFlags : uint8
 	{
 		None              = 0x00,
 
@@ -3163,9 +3163,9 @@ namespace UECodeGen_Private
 		EPropertyFlags    PropertyFlags;
 		EPropertyGenFlags Flags;
 		EObjectFlags   ObjectFlags;
-		int32          ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
+		uint16         ArrayDim;
 	};
 
 	struct FPropertyParamsBaseWithoutOffset // : FPropertyParamsBase
@@ -3175,9 +3175,9 @@ namespace UECodeGen_Private
 		EPropertyFlags    PropertyFlags;
 		EPropertyGenFlags Flags;
 		EObjectFlags   ObjectFlags;
-		int32          ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
+		uint16         ArrayDim;
 	};
 
 	struct FPropertyParamsBaseWithOffset // : FPropertyParamsBase
@@ -3187,10 +3187,10 @@ namespace UECodeGen_Private
 		EPropertyFlags    PropertyFlags;
 		EPropertyGenFlags Flags;
 		EObjectFlags   ObjectFlags;
-		int32          ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32          Offset;
+		uint16         ArrayDim;
+		uint16         Offset;
 	};
 
 	struct FGenericPropertyParams // : FPropertyParamsBaseWithOffset
@@ -3200,13 +3200,13 @@ namespace UECodeGen_Private
 		EPropertyFlags    PropertyFlags;
 		EPropertyGenFlags Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3217,14 +3217,14 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 		UEnum*         (*EnumFunc)();
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3235,15 +3235,15 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		uint32           ElementSize;
-		SIZE_T           SizeOfOuter;
+		uint16           ArrayDim;
+		uint16           ElementSize;
+		uint16           SizeOfOuter;
 		void           (*SetBitFunc)(void* Obj);
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3254,13 +3254,13 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                               NumMetaData;
+		uint16                              NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
 #endif
 	};
 
@@ -3271,14 +3271,14 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 		UClass*        (*ClassFunc)();
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                               NumMetaData;
+		uint16                              NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
 #endif
 	};
 
@@ -3289,14 +3289,14 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 		UClass*        (*ClassFunc)();
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3307,15 +3307,15 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 		UClass*        (*ClassFunc)();
 		UClass*        (*MetaClassFunc)();		
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3326,14 +3326,14 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 		UClass*        (*MetaClassFunc)();
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3344,14 +3344,14 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 		UClass*        (*InterfaceClassFunc)();
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3362,14 +3362,14 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 		UScriptStruct* (*ScriptStructFunc)();
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3380,14 +3380,14 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 		UFunction*     (*SignatureFunctionFunc)();
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3398,14 +3398,14 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 		UFunction*     (*SignatureFunctionFunc)();
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3416,14 +3416,14 @@ namespace UECodeGen_Private
 		EPropertyFlags     PropertyFlags;
 		EPropertyGenFlags  Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 		UEnum*         (*EnumFunc)();
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3434,14 +3434,14 @@ namespace UECodeGen_Private
 		EPropertyFlags     PropertyFlags;
 		EPropertyGenFlags  Flags;
 		EObjectFlags     ObjectFlags;
-		int32            ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32            Offset;
+		uint16           ArrayDim;
+		uint16           Offset;
 		FFieldClass*     (*PropertyClassFunc)();
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3452,14 +3452,14 @@ namespace UECodeGen_Private
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
 		EObjectFlags        ObjectFlags;
-		int32               ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32               Offset;
+		uint16              ArrayDim;
+		uint16              Offset;
 		EArrayPropertyFlags ArrayFlags;
 #if WITH_METADATA
+		uint16                    NumMetaData;
 		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
 #endif
 	};
 
@@ -3470,14 +3470,14 @@ namespace UECodeGen_Private
 		EPropertyFlags    PropertyFlags;
 		EPropertyGenFlags Flags;
 		EObjectFlags      ObjectFlags;
-		int32             ArrayDim;
 		SetterFuncPtr  SetterFunc;
 		GetterFuncPtr  GetterFunc;
-		int32             Offset;
+		uint16            ArrayDim;
+		uint16            Offset;
 		EMapPropertyFlags MapFlags;
 #if WITH_METADATA
+		uint16                    NumMetaData;
 		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
 #endif
 	};
 
@@ -3511,16 +3511,16 @@ namespace UECodeGen_Private
 		const char*                         NameUTF8;
 		const char*                         OwningClassName;
 		const char*                         DelegateName;
-		SIZE_T                              StructureSize;
 		const FPropertyParamsBase* const*   PropertyArray;
-		int32                               NumProperties;
+		uint16                              NumProperties;
+		uint16                              StructureSize;
 		EObjectFlags                        ObjectFlags;
 		EFunctionFlags                      FunctionFlags;
 		uint16                              RPCId;
 		uint16                              RPCResponseId;
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3531,13 +3531,13 @@ namespace UECodeGen_Private
 		const char*                 NameUTF8;
 		const char*                 CppTypeUTF8;
 		const FEnumeratorParam*     EnumeratorParams;
-		int32                       NumEnumerators;
 		EObjectFlags                ObjectFlags;
+		int16                       NumEnumerators;
 		EEnumFlags                  EnumFlags;
 		uint8                       CppForm; // this is of type UEnum::ECppForm
 #if WITH_METADATA
+		uint16                      NumMetaData;
 		const FMetaDataPairParam*   MetaDataArray;
-		int32                       NumMetaData;
 #endif
 	};
 
@@ -3547,15 +3547,15 @@ namespace UECodeGen_Private
 		UScriptStruct*                    (*SuperFunc)();
 		void*                             (*StructOpsFunc)(); // really returns UScriptStruct::ICppStructOps*
 		const char*                         NameUTF8;
-		SIZE_T                              SizeOf;
-		SIZE_T                              AlignOf;
 		const FPropertyParamsBase* const*   PropertyArray;
-		int32                               NumProperties;
+		uint16                              NumProperties;
+		uint16                              SizeOf;
+		uint8                               AlignOf;
 		EObjectFlags                        ObjectFlags;
 		uint32                              StructFlags; // EStructFlags
 #if WITH_METADATA
+		uint16                              NumMetaData;
 		const FMetaDataPairParam*           MetaDataArray;
-		int32                               NumMetaData;
 #endif
 	};
 
@@ -3568,8 +3568,8 @@ namespace UECodeGen_Private
 		uint32                             BodyCRC;
 		uint32                             DeclarationsCRC;
 #if WITH_METADATA
+		uint16                             NumMetaData;
 		const FMetaDataPairParam*          MetaDataArray;
-		int32                              NumMetaData;
 #endif
 	};
 
@@ -3589,14 +3589,14 @@ namespace UECodeGen_Private
 		const FClassFunctionLinkInfo*               FunctionLinkArray;
 		const FPropertyParamsBase* const*           PropertyArray;
 		const FImplementedInterfaceParams*          ImplementedInterfaceArray;
-		int32                                       NumDependencySingletons;
-		int32                                       NumFunctions;
-		int32                                       NumProperties;
-		int32                                       NumImplementedInterfaces;
+		uint32                                      NumDependencySingletons : 4;
+		uint32                                      NumFunctions : 11;
+		uint32                                      NumProperties : 11;
+		uint32                                      NumImplementedInterfaces : 6;
 		uint32                                      ClassFlags; // EClassFlags
 #if WITH_METADATA
+		uint16                                      NumMetaData;
 		const FMetaDataPairParam*                   MetaDataArray;
-		int32                                       NumMetaData;
 #endif
 	};
 

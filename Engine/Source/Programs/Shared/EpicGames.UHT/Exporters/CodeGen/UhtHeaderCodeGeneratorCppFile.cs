@@ -482,8 +482,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\t\t").AppendUTF8LiteralString(enumObj.SourceName).Append(",\r\n");
 				builder.Append("\t\t").AppendUTF8LiteralString(enumObj.CppType).Append(",\r\n");
 				builder.Append("\t\t").Append(staticsName).Append("::Enumerators,\r\n");
-				builder.Append("\t\tUE_ARRAY_COUNT(").Append(staticsName).Append("::Enumerators),\r\n");
 				builder.Append("\t\t").Append(ObjectFlags).Append(",\r\n");
+				builder.Append("\t\tUE_ARRAY_COUNT(").Append(staticsName).Append("::Enumerators),\r\n");
 				builder.Append("\t\t").Append(enumObj.EnumFlags.HasAnyFlags(EEnumFlags.Flags) ? "EEnumFlags::Flags" : "EEnumFlags::None").Append(",\r\n");
 				builder.Append("\t\t(uint8)UEnum::ECppForm::").Append(enumObj.CppForm.ToString()).Append(",\r\n");
 				builder.Append("\t\t").AppendMetaDataParams(enumObj, staticsName, MetaDataParamsName).Append("\r\n");
@@ -618,6 +618,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				foreach (UhtScriptStruct noExportStruct in noExportStructs)
 				{
 					AppendMirrorsForNoexportStruct(builder, noExportStruct, 2);
+					builder.Append("\t\tstatic_assert(sizeof(").Append(noExportStruct.SourceName).Append(") < MAX_uint16);\r\n");
+					builder.Append("\t\tstatic_assert(alignof(").Append(noExportStruct.SourceName).Append(") < MAX_uint8);\r\n");
 				}
 
 				// Meta data
@@ -661,13 +663,15 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					builder.Append("\t\tnullptr,\r\n");
 				}
 				builder.Append("\t\t").AppendUTF8LiteralString(scriptStruct.EngineName).Append(",\r\n");
+				builder.AppendPropertiesParams(scriptStruct, staticsName, 2, "\r\n");
 				builder.Append("\t\tsizeof(").Append(scriptStruct.SourceName).Append("),\r\n");
 				builder.Append("\t\talignof(").Append(scriptStruct.SourceName).Append("),\r\n");
-				builder.AppendPropertiesParams(scriptStruct, staticsName, 2, "\r\n");
 				builder.Append("\t\tRF_Public|RF_Transient|RF_MarkAsNative,\r\n");
 				builder.Append($"\t\tEStructFlags(0x{(uint)(scriptStruct.ScriptStructFlags & ~EStructFlags.ComputedFlags):X8}),\r\n");
 				builder.Append("\t\t").AppendMetaDataParams(scriptStruct, staticsName, MetaDataParamsName).Append("\r\n");
 				builder.Append("\t};\r\n");
+
+				builder.AppendPropertiesParamsCountStaticAssert(scriptStruct, staticsName);
 			}
 
 			// Generate the registration function
@@ -860,6 +864,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					.AppendUTF8LiteralString(function.FunctionType == UhtFunctionType.SparseDelegate, function.SparseOwningClassName).Append(", ")
 					.AppendUTF8LiteralString(function.FunctionType == UhtFunctionType.SparseDelegate, function.SparseDelegateName).Append(", ");
 
+				builder.AppendPropertiesParams(function, staticsName, 0, " ");
+
+				string sizeOfStatic = "";
 				if (function.Children.Count > 0)
 				{
 					UhtFunction tempFunction = function;
@@ -870,12 +877,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 					if (paramsInStatic)
 					{
-						builder.Append("sizeof(").Append(staticsName).Append("::").Append(GetEventStructParametersName(tempFunction.Outer, tempFunction.StrippedFunctionName)).Append(')');
+						sizeOfStatic = "sizeof(" + staticsName + "::" + GetEventStructParametersName(tempFunction.Outer, tempFunction.StrippedFunctionName) + ")";
 					}
 					else
 					{
-						builder.Append("sizeof(").Append(GetEventStructParametersName(tempFunction.Outer, tempFunction.StrippedFunctionName)).Append(')');
+						sizeOfStatic = "sizeof(" + GetEventStructParametersName(tempFunction.Outer, tempFunction.StrippedFunctionName) + ")";
 					}
+
+					builder.Append(sizeOfStatic);
 				}
 				else
 				{
@@ -884,13 +893,19 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append(", ");
 
 				builder
-					.AppendPropertiesParams(function, staticsName, 0, " ")
 					.Append("RF_Public|RF_Transient|RF_MarkAsNative, ")
 					.Append($"(EFunctionFlags)0x{(uint)function.FunctionFlags:X8}, ")
 					.Append(isNet ? function.RPCId : 0).Append(", ")
 					.Append(isNet ? function.RPCResponseId : 0).Append(", ")
 					.AppendMetaDataParams(function, staticsName, MetaDataParamsName)
 					.Append(" };\r\n");
+
+				builder.AppendPropertiesParamsCountStaticAssert(function, staticsName);
+
+				if (!string.IsNullOrEmpty(sizeOfStatic))
+				{
+					builder.Append("\tstatic_assert(").Append(sizeOfStatic).Append(" < MAX_uint16);\r\n");
+				}
 			}
 
 			// Registration function
@@ -1500,6 +1515,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\t\t(UObject* (*)())").Append(GetSingletonName(Package, true)).Append(",\r\n");
 				builder.Append("\t};\r\n");
 
+				builder.Append("\tstatic_assert(UE_ARRAY_COUNT(").Append(staticsName).Append("::DependentSingletons) < 16);\r\n");
+
 				if (sortedFunctions.Count > 0)
 				{
 					builder.AppendBeginEditorOnlyGuard(allEditorOnlyFunctions);
@@ -1521,6 +1538,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					}
 
 					builder.Append("\t};\r\n");
+					builder.Append("\tstatic_assert(UE_ARRAY_COUNT(").Append(staticsName).Append("::FuncInfo) < 2048);\r\n");
 					builder.AppendEndEditorOnlyGuard(allEditorOnlyFunctions);
 				}
 
@@ -1553,6 +1571,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					}
 
 					builder.Append("\t\t};\r\n");
+
+					builder.Append("\tstatic_assert(UE_ARRAY_COUNT(").Append(staticsName).Append("::InterfaceParams) < 64);\r\n");
 				}
 
 				builder.Append("\tconst FCppClassTypeInfoStatic ").Append(staticsName).Append("::StaticCppClassTypeInfo = {\r\n");
@@ -1612,6 +1632,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append($"\t\t0x{(uint)classFlags:X8}u,\r\n");
 				builder.Append("\t\t").AppendMetaDataParams(classObj, staticsName, MetaDataParamsName).Append("\r\n");
 				builder.Append("\t};\r\n");
+
+				builder.AppendPropertiesParamsCountStaticAssert(classObj, staticsName);
 			}
 
 			// Class registration
@@ -2086,6 +2108,32 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			else
 			{
 				builder.AppendTabs(tabs).Append("IF_WITH_EDITORONLY_DATA(UE_ARRAY_COUNT(").Append(staticsName).Append("::PropPointers), 0),").Append(endl);
+			}
+			return builder;
+		}
+
+		/// <summary>
+		/// Append static_assert to check that properties params count fit within struct
+		/// </summary>
+		/// <param name="builder">Destination builder</param>
+		/// <param name="structObj">Structure in question</param>
+		/// <param name="staticsName">Name of the statics section for this structure</param>
+		/// <returns>Destination builder</returns>
+		public static StringBuilder AppendPropertiesParamsCountStaticAssert(this StringBuilder builder, UhtStruct structObj, string staticsName)
+		{
+			if (!structObj.Children.Any(x => x is UhtProperty))
+			{
+				// do nothing here
+			}
+			else if (structObj.Properties.Any(x => !x.IsEditorOnlyProperty))
+			{
+				builder.Append("\tstatic_assert(UE_ARRAY_COUNT(").Append(staticsName).Append("::PropPointers) < 2048);\r\n");
+			}
+			else
+			{
+				builder.Append("#if WITH_EDITORONLY_DATA\r\n")
+					   .Append("\tstatic_assert(UE_ARRAY_COUNT(").Append(staticsName).Append("::PropPointers) < 2048);\r\n")
+					   .Append("#endif\r\n");
 			}
 			return builder;
 		}

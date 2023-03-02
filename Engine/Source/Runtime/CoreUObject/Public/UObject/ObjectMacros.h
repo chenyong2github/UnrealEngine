@@ -480,7 +480,7 @@ ENUM_CLASS_FLAGS(EPropertyFlags)
 /**
  * Extra flags for array properties.
  */
-enum class EArrayPropertyFlags
+enum class EArrayPropertyFlags : uint8
 {
 	None,
 	UsesMemoryImageAllocator
@@ -491,7 +491,7 @@ ENUM_CLASS_FLAGS(EArrayPropertyFlags)
 /**
  * Extra flags for map properties.
  */
-enum class EMapPropertyFlags
+enum class EMapPropertyFlags : uint8
 {
 	None,
 	UsesMemoryImageAllocator
@@ -611,7 +611,7 @@ ENUM_CLASS_FLAGS(EInternalObjectFlags);
  * This MUST be kept in sync with EEnumFlags defined in
  * Engine\Source\Programs\Shared\EpicGames.Core\UnrealEngineTypes.cs
  */
-enum class EEnumFlags
+enum class EEnumFlags : uint8
 {
 	None,
 
