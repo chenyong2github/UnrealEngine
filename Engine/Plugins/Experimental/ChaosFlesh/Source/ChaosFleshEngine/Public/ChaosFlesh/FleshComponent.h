@@ -85,7 +85,7 @@ public:
 	* the \c TargetDeformationSkeleton to be co-located with the flesh mesh.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics")
-	TArray<FVector> GetSkeletalMeshEmbeddedPositions(const ChaosDeformableBindingOption Format, const FTransform TargetDeformationSkeletonOffset, const FName TargetBone = "") const;
+	TArray<FVector> GetSkeletalMeshEmbeddedPositions(const ChaosDeformableBindingOption Format, const FTransform TargetDeformationSkeletonOffset, const FName TargetBone = "", const float AnimationBlendWeight = 0.f) const;
 
 	/** 
 	* Offset transform that moves the \c TargetDeformationSkeleton to be co-located with the flesh mesh. 
@@ -155,8 +155,8 @@ private:
 
 	FTransform PrevTransform = FTransform::Identity;
 
-	TArray<FVector> GetSkeletalMeshEmbeddedPositionsInternal(const ChaosDeformableBindingOption Format, const FTransform TargetDeformationSkeletonOffset, const FName TargetBone = "", TArray<bool>* OutInfluence = nullptr) const;
-	TArray<FVector> GetEmbeddedPositionsInternal(const TArray<FVector>& InPositions, const FName SkeletalMeshName, TArray<bool>* OutInfluence = nullptr) const;
+	TArray<FVector> GetSkeletalMeshEmbeddedPositionsInternal(const ChaosDeformableBindingOption Format, const FTransform TargetDeformationSkeletonOffset, const FName TargetBone = "", const float AnimationBlendWeight = 0.f, TArray<bool>* OutInfluence = nullptr) const;
+	TArray<FVector> GetEmbeddedPositionsInternal(const TArray<FVector>& InPositions, const FName SkeletalMeshName, const float AnimationBlendWeight = 0.f, TArray<bool>* OutInfluence = nullptr) const;
 	TArray<FVector> GetSkeletalMeshBindingPositionsInternal(const USkeletalMesh* InSkeletalMesh, TArray<bool>* OutInfluence = nullptr) const;
 	void DebugDrawSkeletalMeshBindingPositions() const;
 
