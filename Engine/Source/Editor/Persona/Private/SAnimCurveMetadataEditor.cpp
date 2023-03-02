@@ -504,7 +504,7 @@ void SAnimCurveMetadataEditor::Construct(const FArguments& InArgs, UObject* InAn
 				
 				+SHeaderRow::Column(CurveMetadataEditorColumns::AnimCurveMaxLODLabel)
 				.FillWidth(0.17f)
-				.DefaultLabel(LOCTEXT("AnimCurveNumBoneLabel", "Max LOD"))	
+				.DefaultLabel(LOCTEXT("AnimCurveMaxLODLabel", "Max LOD"))	
 			)
 		]
 	];

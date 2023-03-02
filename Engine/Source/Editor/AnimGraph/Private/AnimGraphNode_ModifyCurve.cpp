@@ -48,7 +48,7 @@ void UAnimGraphNode_ModifyCurve::GetAddCurveMenuActions(FMenuBuilder& MenuBuilde
 
 			TSharedRef<STextEntryPopup> TextEntry =
 				SNew(STextEntryPopup)
-				.Label(LOCTEXT("NewCurveLabel", "New Curve Name"))
+				.Label(LOCTEXT("NewCurvePopupLabel", "New Curve Name"))
 				.OnTextCommitted_Lambda([this](FText InText, ETextCommit::Type InCommitType)
 				{
 					FSlateApplication::Get().DismissAllMenus();

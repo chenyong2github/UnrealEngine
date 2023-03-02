@@ -893,7 +893,7 @@ TSharedRef<SWidget> SAnimCurveViewer::CreateCurveSourceSelector()
 		SAssignNew(PoseWatchCombo, SComboBox<TSharedPtr<TWeakObjectPtr<UPoseWatchPoseElement>>>)
 		.ToolTipText_Lambda([this]()
 		{
-			return PoseWatch.Get() != nullptr && PoseWatch->GetParent() != nullptr ? FText::Format(LOCTEXT("PoseWatchTooltipFormat", "Viewing Pose Watch Curves for '{0}'"), PoseWatch->GetParent()->GetLabel()) : LOCTEXT("NoPoseWatchSelected", "Viewing output Curves");
+			return PoseWatch.Get() != nullptr && PoseWatch->GetParent() != nullptr ? FText::Format(LOCTEXT("PoseWatchTooltipFormat", "Viewing Pose Watch Curves for '{0}'"), PoseWatch->GetParent()->GetLabel()) : LOCTEXT("PoseWatchViewingOutputCurves", "Viewing output Curves");
 		})
 		.OptionsSource(&PoseWatches)
 		.OnGenerateWidget_Lambda([this](TSharedPtr<TWeakObjectPtr<UPoseWatchPoseElement>> InElement)
@@ -934,7 +934,7 @@ TSharedRef<SWidget> SAnimCurveViewer::CreateCurveSourceSelector()
 					SNew(STextBlock)
 					.Text_Lambda([Element]()
 					{
-						return Element.Get() != nullptr && Element->GetParent() != nullptr ? Element->GetParent()->GetLabel() : LOCTEXT("NoPoseWatchSelected", "Output Curves");
+						return Element.Get() != nullptr && Element->GetParent() != nullptr ? Element->GetParent()->GetLabel() : LOCTEXT("PoseWatchOutputCurves", "Output Curves");
 					})
 				];
 		})
@@ -1004,7 +1004,7 @@ TSharedRef<SWidget> SAnimCurveViewer::CreateCurveSourceSelector()
 				SNew(STextBlock)
 				.Text_Lambda([this]()
 				{
-					return PoseWatch.Get() != nullptr && PoseWatch->GetParent() != nullptr ? PoseWatch->GetParent()->GetLabel() : LOCTEXT("NoPoseWatchSelected", "Output Curves");
+					return PoseWatch.Get() != nullptr && PoseWatch->GetParent() != nullptr ? PoseWatch->GetParent()->GetLabel() : LOCTEXT("PoseWatchOutputCurves", "Output Curves");
 				})
 			]
 		];
