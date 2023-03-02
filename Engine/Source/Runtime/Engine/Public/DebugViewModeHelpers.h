@@ -12,7 +12,7 @@
 #include "SceneTypes.h"
 #endif
 
-#define WITH_DEBUG_VIEW_MODES !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#define WITH_DEBUG_VIEW_MODES (WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
 class UMaterialInterface;
 struct FSlowTask;

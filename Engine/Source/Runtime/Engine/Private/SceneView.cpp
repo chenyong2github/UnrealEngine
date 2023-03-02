@@ -2883,7 +2883,9 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	{
 		Time = FGameTime::CreateDilated(0.0, Time.GetDeltaRealTimeSeconds(), 0.0, Time.GetDeltaWorldTimeSeconds());
 	}
+#endif
 
+#if WITH_DEBUG_VIEW_MODES
 	DebugViewShaderMode = ChooseDebugViewShaderMode();
 	ViewModeParam = CVS.ViewModeParam;
 	ViewModeParamName = CVS.ViewModeParamName;
@@ -3035,7 +3037,7 @@ FSceneViewFamilyContext::~FSceneViewFamilyContext()
 	}
 }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_DEBUG_VIEW_MODES
 
 EDebugViewShaderMode FSceneViewFamily::ChooseDebugViewShaderMode() const
 {
@@ -3089,4 +3091,4 @@ EDebugViewShaderMode FSceneViewFamily::ChooseDebugViewShaderMode() const
 	return DVSM_None;
 }
 
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_DEBUG_VIEW_MODES
