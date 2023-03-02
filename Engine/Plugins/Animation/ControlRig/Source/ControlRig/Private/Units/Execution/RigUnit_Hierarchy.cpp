@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_Hierarchy.h"
+#include "Units/Execution/RigUnit_Hierarchy.h"
 #include "Units/Execution/RigUnit_Item.h"
 #include "Units/RigUnitContext.h"
-#include "RigUnit_Collection.h"
+#include "Units/Execution/RigUnit_Collection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Hierarchy)
 

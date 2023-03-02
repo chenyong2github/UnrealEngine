@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_SetSpaceInitialTransform.h"
+#include "Units/Hierarchy/RigUnit_SetSpaceInitialTransform.h"
 #include "Units/RigUnitContext.h"
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
 #include "Units/Hierarchy/RigUnit_SetTransform.h"

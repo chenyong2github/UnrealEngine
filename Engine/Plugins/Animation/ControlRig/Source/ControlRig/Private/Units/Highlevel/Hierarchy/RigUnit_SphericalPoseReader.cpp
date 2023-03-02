@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_SphericalPoseReader.h"
+#include "Units/Highlevel/Hierarchy/RigUnit_SphericalPoseReader.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Units/RigUnitContext.h"
 

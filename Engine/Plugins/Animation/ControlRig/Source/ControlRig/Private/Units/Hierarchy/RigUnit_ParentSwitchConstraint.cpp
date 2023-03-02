@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_ParentSwitchConstraint.h"
+#include "Units/Hierarchy/RigUnit_ParentSwitchConstraint.h"
 #include "Units/RigUnitContext.h"
 #include "Math/ControlRigMathLibrary.h"
 

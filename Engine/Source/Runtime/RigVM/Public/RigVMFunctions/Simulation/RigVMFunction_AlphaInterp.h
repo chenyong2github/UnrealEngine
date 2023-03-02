@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "RigVMFunction_SimBase.h"
+#include "RigVMFunctions/Simulation/RigVMFunction_SimBase.h"
 #include "Animation/InputScaleBias.h"
 #include "RigVMFunction_AlphaInterp.generated.h"
 

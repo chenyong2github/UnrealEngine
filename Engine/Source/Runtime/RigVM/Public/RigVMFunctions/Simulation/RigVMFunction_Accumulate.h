@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "RigVMFunction_SimBase.h"
+#include "RigVMFunctions/Simulation/RigVMFunction_SimBase.h"
 #include "RigVMFunction_Accumulate.generated.h"
 
 USTRUCT(meta=(Category="Simulation|Accumulate"))

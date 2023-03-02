@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_UnsetCurveValue.h"
+#include "Units/Hierarchy/RigUnit_UnsetCurveValue.h"
 #include "Units/RigUnitContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_UnsetCurveValue)

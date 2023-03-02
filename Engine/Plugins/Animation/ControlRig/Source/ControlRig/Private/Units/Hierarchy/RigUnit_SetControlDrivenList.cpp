@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_SetControlDrivenList.h"
+#include "Units/Hierarchy/RigUnit_SetControlDrivenList.h"
 
 #include "Rigs/RigHierarchyController.h"
 #include "Units/RigUnitContext.h"

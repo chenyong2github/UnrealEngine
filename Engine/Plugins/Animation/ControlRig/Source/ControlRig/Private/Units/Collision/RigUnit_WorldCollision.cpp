@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_WorldCollision.h"
+#include "Units/Collision/RigUnit_WorldCollision.h"
 #include "Engine/World.h"
 #include "Math/ControlRigMathLibrary.h"
 #include "Units/RigUnitContext.h"

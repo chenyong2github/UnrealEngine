@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_SetBoneRotation.h"
+#include "Units/Hierarchy/RigUnit_SetBoneRotation.h"
 #include "Units/RigUnitContext.h"
 #include "Units/Hierarchy/RigUnit_SetTransform.h"
 

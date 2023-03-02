@@ -5,7 +5,7 @@
 #include "Units/RigUnit.h"
 #include "ControlRig.h"
 #include "ControlRigSplineTypes.h"
-#include "RigUnit_FitChainToCurve.h"
+#include "Units/Highlevel/Hierarchy/RigUnit_FitChainToCurve.h"
 #include "ControlRigSplineUnits.generated.h"
 
 USTRUCT(meta = (Abstract, NodeColor = "0.3 0.1 0.1"))

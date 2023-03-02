@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_SetControlOffset.h"
+#include "Units/Hierarchy/RigUnit_SetControlOffset.h"
 
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "Units/RigUnitContext.h"

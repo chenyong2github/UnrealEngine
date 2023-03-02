@@ -19,7 +19,7 @@ namespace UnrealBuildTool.Rules
 			});
 
 			// TODO: Should not be including private headers in public code
-			PublicIncludePaths.Add(Path.Combine(GetModuleDirectory("ControlRig"), "Private/Units/Highlevel/Hierarchy")); // For RigUnit_FitChainToCurve.h
+			PublicIncludePaths.Add(Path.Combine(GetModuleDirectory("ControlRig"), "Private")); // For RigUnit_FitChainToCurve.h
 		}
 	}
 }

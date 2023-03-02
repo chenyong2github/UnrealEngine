@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_Metadata.h"
+#include "Units/Hierarchy/RigUnit_Metadata.h"
 #include "RigVMTypeUtils.h"
 #include "RigVMCore/RigVMStruct.h"
 #include "Units/RigUnitContext.h"

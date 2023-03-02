@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "RigVMFunction_SimBase.h"
+#include "RigVMFunctions/Simulation/RigVMFunction_SimBase.h"
 #include "RigVMFunctions/Math/RigVMMathLibrary.h"
 #include "RigVMFunction_Verlet.generated.h"
 

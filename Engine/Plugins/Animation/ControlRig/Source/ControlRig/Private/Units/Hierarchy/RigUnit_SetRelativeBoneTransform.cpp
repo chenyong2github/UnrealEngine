@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_SetRelativeBoneTransform.h"
+#include "Units/Hierarchy/RigUnit_SetRelativeBoneTransform.h"
 #include "Units/RigUnitContext.h"
 #include "Units/Hierarchy/RigUnit_SetRelativeTransform.h"
 #include "Math/ControlRigMathLibrary.h"
