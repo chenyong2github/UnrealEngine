@@ -47,4 +47,6 @@ public:
 
 	using NameFunction = TFunction< TOptional<FName>(HHitProxy*) >;
 	virtual NameFunction GetNameFunction() = 0;
+
+	virtual TArray<FName> GetSelectedBones() const = 0;
 };

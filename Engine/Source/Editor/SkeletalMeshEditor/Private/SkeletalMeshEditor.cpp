@@ -1572,7 +1572,8 @@ TSharedPtr<ISkeletalMeshEditorBinding> FSkeletalMeshEditor::GetBinding()
 }
 
 FSkeletalMeshEditorBinding::FSkeletalMeshEditorBinding(TSharedRef<FSkeletalMeshEditor> InEditor)
-	: Notifier(InEditor)
+	: Editor(InEditor)
+	, Notifier(InEditor)
 {}
 
 ISkeletalMeshNotifier& FSkeletalMeshEditorBinding::GetNotifier()
@@ -1592,6 +1593,24 @@ ISkeletalMeshEditorBinding::NameFunction FSkeletalMeshEditorBinding::GetNameFunc
 		static const TOptional<FName> Dummy;
 		return Dummy;
 	};
+}
+
+TArray<FName> FSkeletalMeshEditorBinding::GetSelectedBones() const
+{
+	TArray<FName> Selection;
+
+	if (!Editor.IsValid())
+	{
+		return Selection;
+	}
+
+	const TArray<TSharedPtr<ISkeletonTreeItem>> SelectedItems = Editor.Pin()->GetSkeletonTree()->GetSelectedItems();
+
+	Algo::TransformIf(SelectedItems, Selection,
+	[](const TSharedPtr<ISkeletonTreeItem>& InItem) { return InItem->IsOfTypeByName("FSkeletonTreeBoneItem") && InItem->GetRowItemName() != NAME_None; },
+	[](const TSharedPtr<ISkeletonTreeItem>& InItem) { return InItem->GetRowItemName(); });
+	
+	return Selection;
 }
 
 FSkeletalMeshEditorNotifier::FSkeletalMeshEditorNotifier(TSharedRef<FSkeletalMeshEditor> InEditor)

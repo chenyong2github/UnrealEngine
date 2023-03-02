@@ -13,6 +13,7 @@
 #include "IStylusInputModule.h"
 #include "IStylusState.h"
 #include "ToolTargets/SkeletalMeshComponentToolTarget.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include "DeformMeshPolygonsTool.h"
 #include "DisplaceMeshTool.h"
@@ -270,6 +271,52 @@ bool USkeletalMeshModelingToolsEditorMode::HandleClick(FEditorViewportClient* In
 	}
 	
 	return Super::HandleClick(InViewportClient, HitProxy, Click);
+}
+
+bool USkeletalMeshModelingToolsEditorMode::ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const
+{
+	if (const USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(PrimitiveComponent))
+	{
+		check(Component->GetSkeletalMeshAsset());
+		
+		if (Binding.IsValid())
+		{
+			const TArray<FName> Selection = Binding.Pin()->GetSelectedBones();
+			if (!Selection.IsEmpty())
+			{
+				TArray<FName> AllChildren;
+
+				const FReferenceSkeleton& RefSkeleton = Component->GetSkeletalMeshAsset()->GetRefSkeleton();
+				for (const FName& BoneName: Selection)
+				{
+					const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+					if (BoneIndex > INDEX_NONE)
+					{
+						// enlarge box
+						InOutBox += Component->GetBoneLocation(BoneName);
+
+						// get direct children
+						TArray<int32> Children;
+						RefSkeleton.GetDirectChildBones(BoneIndex, Children);
+						Algo::Transform(Children, AllChildren, [&RefSkeleton](int ChildrenIndex)
+						{
+							return RefSkeleton.GetBoneName(ChildrenIndex);
+						});
+					}
+				}
+
+				// enlarge box using direct children
+				for (const FName& BoneName: AllChildren)
+				{
+					InOutBox += Component->GetBoneLocation(BoneName);
+				}
+				
+				return true;
+			}
+		}
+	}
+	
+	return Super::ComputeBoundingBoxForViewportFocus(Actor, PrimitiveComponent, InOutBox);
 }
 
 void USkeletalMeshModelingToolsEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)

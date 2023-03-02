@@ -247,7 +247,9 @@ public:
 
 	virtual ISkeletalMeshNotifier& GetNotifier() override;
 	virtual NameFunction GetNameFunction() override;
+	virtual TArray<FName> GetSelectedBones() const override;
 	
 private:
+	TWeakPtr<FSkeletalMeshEditor> Editor;
 	FSkeletalMeshEditorNotifier Notifier;
 };
