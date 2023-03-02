@@ -20,7 +20,7 @@ namespace Jupiter.Controllers
             MediaTypeNames.Application.Json, 
             CustomMediaTypeNames.UnrealCompactBinary, 
             CustomMediaTypeNames.JupiterInlinedPayload,
-			CustomMediaTypeNames.UnrealCompactBinaryPackage
+            CustomMediaTypeNames.UnrealCompactBinaryPackage
         };
 
         public FormatResolver(IOptionsMonitor<MvcOptions> mvcOptions)

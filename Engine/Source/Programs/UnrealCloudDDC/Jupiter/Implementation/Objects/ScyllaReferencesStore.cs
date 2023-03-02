@@ -553,7 +553,6 @@ namespace Jupiter.Implementation
         [Cassandra.Mapping.Attributes.PartitionKey(2)]
         public string? Name { get; set; }
 
-
         [Cassandra.Mapping.Attributes.Column("last_access_time")]
         public DateTime LastAccessTime { get; set; }
     }

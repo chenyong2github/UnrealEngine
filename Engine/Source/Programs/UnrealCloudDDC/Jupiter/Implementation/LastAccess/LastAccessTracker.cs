@@ -73,8 +73,9 @@ namespace Jupiter.Implementation
                 {
                     _rwLock.AcquireReaderLock(-1);
 
-                    _logger.LogDebug("Last Access time updated for {@RefRecord}", record);
                     string cacheKey = BuildCacheKey(record);
+                    _logger.LogDebug("Last Access time updated for {RefRecordCacheKey}", cacheKey);
+
                     _cache.AddOrUpdate(cacheKey, _ => new LastAccessRecord(record, DateTime.Now),
                         (_, cacheRecord) =>
                         {

@@ -14,7 +14,6 @@ using Cassandra;
 using EpicGames.Core;
 using Jupiter.Controllers;
 using Jupiter.Implementation;
-using Jupiter;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;

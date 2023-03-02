@@ -10,7 +10,6 @@ using System.Net.Mime;
 using System.Text;
 using System.Threading.Tasks;
 using Jupiter.FunctionalTests.Storage;
-using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Hosting;

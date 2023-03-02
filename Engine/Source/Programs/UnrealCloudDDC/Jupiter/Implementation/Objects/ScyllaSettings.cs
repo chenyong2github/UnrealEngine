@@ -69,7 +69,6 @@ public class ScyllaSettings : IValidatableObject
     /// </summary>
     public bool UpdateLegacyLastAccessField { get; set; } = true;
 
-
     /// <summary>
     /// Read timeout in milliseconds
     /// Set to -1 to get the default timeout, set to 0 to disable timeouts

@@ -20,7 +20,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Controllers
 {
-	using IDiagnosticContext = Serilog.IDiagnosticContext;
+    using IDiagnosticContext = Serilog.IDiagnosticContext;
     using BlobNotFoundException = Jupiter.Implementation.BlobNotFoundException;
 
     [ApiController]

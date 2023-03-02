@@ -1,6 +1,5 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using Cassandra;
 using OpenTelemetry.Trace;
@@ -61,7 +60,7 @@ namespace Jupiter.Implementation
             ulong rangeSize = maxSize / countOfRanges;
 
             long start = long.MinValue;
-            long end = 0;
+            long end;
             for (ulong i = 0; i < countOfRanges; i++)
             {
                 end = start + (long)rangeSize;
