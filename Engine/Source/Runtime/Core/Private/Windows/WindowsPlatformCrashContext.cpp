@@ -35,12 +35,14 @@
 
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
+THIRD_PARTY_INCLUDES_START
 #include <strsafe.h>
 #include <dbghelp.h>
 #include <Shlwapi.h>
 #include <psapi.h>
 #include <tlhelp32.h>
 #include <shellapi.h>
+THIRD_PARTY_INCLUDES_END
 // Windows platform types intentionally not hidden till later
 
 #ifndef UE_LOG_CRASH_CALLSTACK
@@ -929,8 +931,10 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 // Original code below
 
 #include "Windows/AllowWindowsPlatformTypes.h"
+THIRD_PARTY_INCLUDES_START
 	#include <ErrorRep.h>
 	#include <DbgHelp.h>
+THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #pragma comment(lib, "Faultrep.lib")
