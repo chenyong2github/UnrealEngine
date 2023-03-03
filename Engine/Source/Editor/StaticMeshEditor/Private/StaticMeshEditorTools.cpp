@@ -5799,7 +5799,8 @@ FString FNaniteSettingsLayout::MinimumResidencyValueToDisplayString(uint32 Value
 
 ECheckBoxState FNaniteSettingsLayout::IsEnabledChecked() const
 {
-	return NaniteSettings.bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	return NaniteSettings.bEnabled || (StaticMesh && StaticMesh->IsNaniteForceEnabled()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 void FNaniteSettingsLayout::OnEnabledChanged(ECheckBoxState NewState)
