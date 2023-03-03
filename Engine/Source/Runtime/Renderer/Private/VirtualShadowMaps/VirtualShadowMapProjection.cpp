@@ -173,6 +173,11 @@ static TAutoConsoleVariable<int32> CVarTestPermutation(
 // Is also used as the workgroup size for the CS without tile list.
 static constexpr int32 VSMProjectionWorkTileSize = 8;
 
+bool IsVSMTranslucentHighQualityEnabled()
+{
+	return CVarVSMTranslucentQuality.GetValueOnRenderThread() > 0;
+}
+
 FVirtualShadowMapSMRTSettings GetVirtualShadowMapSMRTSettings(bool bDirectionalLight)
 {
 	FVirtualShadowMapSMRTSettings Out;

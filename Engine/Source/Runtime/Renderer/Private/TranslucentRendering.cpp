@@ -32,6 +32,7 @@ DEFINE_GPU_DRAWCALL_STAT(Translucency);
 
 // Forward declarations
 bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
+bool IsVSMTranslucentHighQualityEnabled();
 
 static TAutoConsoleVariable<float> CVarSeparateTranslucencyScreenPercentage(
 	TEXT("r.SeparateTranslucencyScreenPercentage"),
@@ -980,7 +981,16 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	OIT::SetOITParameters(GraphBuilder, View, BasePassParameters.OIT, OITData);
-	BasePassParameters.BlueNoise = GetBlueNoiseParameters();
+
+	// Only use blue noise resources if VSM quality is set to high
+	if (IsVSMTranslucentHighQualityEnabled())
+	{
+		BasePassParameters.BlueNoise = GetBlueNoiseParameters();
+	}
+	else
+	{
+		BasePassParameters.BlueNoise = GetBlueNoiseDummyParameters();
+	}
 
 	return GraphBuilder.CreateUniformBuffer(&BasePassParameters);
 }

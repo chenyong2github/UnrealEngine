@@ -8,8 +8,19 @@
 #include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
 #include "TextureResource.h"
+#include "SystemTextures.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FBlueNoise, "BlueNoise");
+
+FBlueNoiseParameters GetBlueNoiseDummyParameters()
+{
+	FBlueNoiseParameters Out;
+	Out.Dimensions = FIntVector(1,1,1);
+	Out.ModuloMasks = FIntVector(1,1,1);
+	Out.ScalarTexture = GSystemTextures.BlackDummy->GetRHI();
+	Out.Vec2Texture = GSystemTextures.BlackDummy->GetRHI();
+	return Out;
+}
 
 FBlueNoiseParameters GetBlueNoiseParameters()
 {

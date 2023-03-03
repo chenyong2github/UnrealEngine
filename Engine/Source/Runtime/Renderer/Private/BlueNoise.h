@@ -22,3 +22,4 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 extern RENDERER_API FBlueNoise GetBlueNoiseGlobalParameters();
 extern RENDERER_API FBlueNoiseParameters GetBlueNoiseParameters();
+extern RENDERER_API FBlueNoiseParameters GetBlueNoiseDummyParameters();
