@@ -4,6 +4,7 @@
 #include "RHI.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Misc/CommandLine.h"
 #include "RHIStrings.h"
 
 const FName LANGUAGE_D3D("D3D");
