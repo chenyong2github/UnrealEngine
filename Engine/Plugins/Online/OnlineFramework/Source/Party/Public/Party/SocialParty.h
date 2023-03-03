@@ -37,7 +37,7 @@ struct PARTY_API FPartyRepData : public FOnlinePartyRepDataBase
 
 public:
 	FPartyRepData() {}
-	void SetOwningParty(const class USocialParty& InOwnerParty);
+	virtual void SetOwningParty(const class USocialParty& InOwnerParty);
 	/** Mark the party data as ownerless. This will bypass any "CanEdit" checks. Useful for using this object in a test context. */
 	void MarkOwnerless();
 
