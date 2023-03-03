@@ -18,6 +18,12 @@ void UStateTreeEditorData::PostInitProperties()
 }
 
 #if WITH_EDITOR
+void UStateTreeEditorData::PostLoad()
+{
+	Super::PostLoad();
+	ReparentStates();
+}
+
 void UStateTreeEditorData::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
@@ -315,6 +321,22 @@ void UStateTreeEditorData::GetAllStructValues(TMap<FGuid, const FStateTreeDataVi
 			AllValues.Emplace(Desc.ID, Value);
 			return EStateTreeVisitor::Continue;
 		});
+}
+
+void UStateTreeEditorData::ReparentStates()
+{
+	VisitHierarchy([TreeData = this](UStateTreeState& State, UStateTreeState* ParentState) mutable 
+	{
+		UObject* ExpectedOuter = ParentState ? Cast<UObject>(ParentState) : Cast<UObject>(TreeData);
+		if (State.GetOuter() != ExpectedOuter)
+		{
+			State.Rename(nullptr, ExpectedOuter, REN_DontCreateRedirectors | REN_DoNotDirty | REN_ForceNoResetLoaders);
+		}
+		
+		State.Parent = ParentState;
+		
+		return EStateTreeVisitor::Continue;
+	});
 }
 
 EStateTreeVisitor UStateTreeEditorData::VisitStateNodes(const UStateTreeState& State, TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const

@@ -38,7 +38,7 @@ private:
 	/** Resolves the state a transition points to. SourceState is nullptr for global tasks. */
 	bool ResolveTransitionState(const UStateTreeState* SourceState, const FStateTreeStateLink& Link, FStateTreeStateHandle& OutTransitionHandle) const;
 	FStateTreeStateHandle GetStateHandle(const FGuid& StateID) const;
-	UStateTreeState* GetState(const FGuid& StateID);
+	UStateTreeState* GetState(const FGuid& StateID) const;
 
 	bool CreateStates();
 	bool CreateStateRecursive(UStateTreeState& State, const FStateTreeStateHandle Parent);
