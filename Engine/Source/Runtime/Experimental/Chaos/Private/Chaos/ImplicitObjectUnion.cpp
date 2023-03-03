@@ -6,6 +6,7 @@ namespace Chaos
 {
 struct FLargeImplicitObjectUnionData
 {
+	// @todo(chaos): FGeometryParticles is way too much data for this. Use a custom struct
 	FGeometryParticles GeomParticles;
 	TBoundingVolumeHierarchy<FGeometryParticles, TArray<int32>> Hierarchy;
 
@@ -152,6 +153,44 @@ void FImplicitObjectUnion::CacheAllImplicitObjects()
 		}
 	}
 }
+
+void FImplicitObjectUnion::VisitOverlappingObjectsImpl(const FAABB3& LocalBounds, const FRigidTransform3& ParentTM, int32& VisitId, const TFunctionRef<void(const FImplicitObject*, const FRigidTransform3&, const int32)>& VisitorFunc) const
+{
+	if (LargeUnionData.IsValid())
+	{
+		// @todo(chaos): can a child be in multiple leafs? If not we can ditch this visited array, but
+		// see TBoundingVolumeHierarchy::FindAllIntersectionsHelper which implies that dupes are possible
+		TArray<bool> LeafVisited;
+		LeafVisited.AddZeroed(LargeUnionData->GeomParticles.Size());
+
+		// A visitor for the bounding volume.
+		// NOTE: The leaf data is an array of indices into the Hierarchy's flattened list of implicit objects
+		const auto& LeafVisitor = [this, &LeafVisited, &VisitorFunc](const TArray<int32>& Indices)
+		{
+			for (const int32 Index : Indices)
+			{
+				if (!LeafVisited[Index])
+				{
+					LeafVisited[Index] = true;
+					const FImplicitObject* Implicit = LargeUnionData->GeomParticles.Geometry(Index).Get();
+					const FRigidTransform3 Transform = FRigidTransform3(LargeUnionData->GeomParticles.X(Index), LargeUnionData->GeomParticles.R(Index));
+					VisitorFunc(Implicit, Transform, Index);
+				}
+			}
+		};
+
+		LargeUnionData->Hierarchy.VisitAllIntersections(LocalBounds, LeafVisitor);
+	}
+	else
+	{
+		for (int32 ObjectIndex = 0; ObjectIndex < MObjects.Num(); ++ObjectIndex)
+		{
+			MObjects[ObjectIndex]->VisitOverlappingObjectsImpl(LocalBounds, ParentTM, VisitId, VisitorFunc);
+			++VisitId;
+		}
+	}
+}
+
 TUniquePtr<FImplicitObject> FImplicitObjectUnion::Copy() const
 {
 	TArray<TUniquePtr<FImplicitObject>> CopyOfObjects;
@@ -342,6 +381,15 @@ const FPBDRigidParticleHandle* FImplicitObjectUnionClustered::FindParticleForImp
 
 	const ValueType* Handle = MCollisionParticleLookupHack.Find(Object);
 	return Handle ? *Handle : nullptr;
+}
+
+const FBVHParticles* FImplicitObjectUnionClustered::GetChildSimplicial(const int32 ChildIndex) const
+{
+	if (MOriginalParticleLookupHack.IsValidIndex(ChildIndex))
+	{
+		return MOriginalParticleLookupHack[ChildIndex]->CollisionParticles().Get();
+	}
+	return nullptr;
 }
 
 } // namespace Chaos

@@ -143,12 +143,29 @@ namespace Chaos
 		{
 		}
 
+		UE_DEPRECATED(5.3, "Replaced with version that takes Shape and ImplicitID")
 		FCollisionParticlePairConstraintKey(const FImplicitObject* Implicit0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FBVHParticles* Simplicial1)
 			: Key(0)
 		{
 			check((Implicit0 != nullptr) || (Simplicial0 != nullptr));
 			check((Implicit1 != nullptr) || (Simplicial1 != nullptr));
-			GenerateHash(Implicit0, Simplicial0, Implicit1, Simplicial1);
+			GenerateHash(nullptr, Implicit0, 0, Simplicial0, nullptr, Implicit1, 0, Simplicial1);
+		}
+
+		FCollisionParticlePairConstraintKey(
+			const FShapeInstance* Shape0, 
+			const FImplicitObject* Implicit0, 
+			const int32 ImplicitId0, 
+			const FBVHParticles* Simplicial0, 
+			const FShapeInstance* Shape1,
+			const FImplicitObject* Implicit1,
+			const int32 ImplicitId1,
+			const FBVHParticles* Simplicial1)
+			: Key(0)
+		{
+			check((Implicit0 != nullptr) || (Simplicial0 != nullptr));
+			check((Implicit1 != nullptr) || (Simplicial1 != nullptr));
+			GenerateHash(Shape0, Implicit0, ImplicitId0, Simplicial0, Shape1, Implicit1, ImplicitId1, Simplicial1);
 		}
 
 		uint32 GetKey() const
@@ -172,11 +189,21 @@ namespace Chaos
 		}
 
 	private:
-		void GenerateHash(const FImplicitObject* Implicit0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FBVHParticles* Simplicial1)
+		void GenerateHash(
+			const FShapeInstance* Shape0,
+			const FImplicitObject* Implicit0,
+			const int32 ImplicitId0,
+			const FBVHParticles* Simplicial0,
+			const FShapeInstance* Shape1,
+			const FImplicitObject* Implicit1,
+			const int32 ImplicitId1,
+			const FBVHParticles* Simplicial1)
 		{
-			const uint32 Hash0 = (Implicit0 != nullptr) ? ::GetTypeHash(Implicit0) : ::GetTypeHash(Simplicial0);
-			const uint32 Hash1 = (Implicit1 != nullptr) ? ::GetTypeHash(Implicit1) : ::GetTypeHash(Simplicial1);
-			Key = OrderIndependentHashCombine(Hash0, Hash1);
+			uint32 Hash0 = (Implicit0 != nullptr) ? ::GetTypeHash(Implicit0) : ::GetTypeHash(Simplicial0);
+			Hash0 = HashCombine(Hash0, ImplicitId0);
+			uint32 Hash1 = (Implicit1 != nullptr) ? ::GetTypeHash(Implicit1) : ::GetTypeHash(Simplicial1);
+			Hash1 = HashCombine(Hash1, ImplicitId1);
+			Key = HashCombine(Hash0, Hash1);
 		}
 
 		uint32 Key;

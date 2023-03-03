@@ -103,9 +103,13 @@ namespace ChaosTest {
 			true,
 			EContactShapesType::BoxBox);
 
+		FRigidTransform3 ShapeWorldTransform0 = Constraint->GetShapeRelativeTransform0() * Collisions::GetTransform(Constraint->GetParticle0());
+		FRigidTransform3 ShapeWorldTransform1 = Constraint->GetShapeRelativeTransform1() * Collisions::GetTransform(Constraint->GetParticle1());
+		Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+
 		// Detect collisions
 		Constraint->ResetPhi(Constraint->GetCullDistance());
-		Collisions::UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(*Constraint, FParticleUtilitiesPQ::GetActorWorldTransform(Box0), FParticleUtilitiesPQ::GetActorWorldTransform(Box1), 1 / 30.0f);
+		Collisions::UpdateConstraint(*Constraint, ShapeWorldTransform0, ShapeWorldTransform1, 1 / 30.0f);
 
 		EXPECT_NEAR(Constraint->GetPhi(), ExpectedPhi, Tolerance);
 		EXPECT_NEAR(Constraint->CalculateWorldContactNormal().X, ExpectedNormal.X, Tolerance);
@@ -216,8 +220,12 @@ namespace ChaosTest {
 			true,
 			EContactShapesType::GenericConvexConvex);
 
+		FRigidTransform3 ShapeWorldTransform0 = Constraint->GetShapeRelativeTransform0() * Collisions::GetTransform(Constraint->GetParticle0());
+		FRigidTransform3 ShapeWorldTransform1 = Constraint->GetShapeRelativeTransform1() * Collisions::GetTransform(Constraint->GetParticle1());
+		Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+
 		// Detect collisions
-		Collisions::UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(*Constraint, FParticleUtilitiesPQ::GetActorWorldTransform(Box0), FParticleUtilitiesPQ::GetActorWorldTransform(Box1), 1 / 30.0f);
+		Collisions::UpdateConstraint(*Constraint, ShapeWorldTransform0, ShapeWorldTransform1, 1 / 30.0f);
 
 		EXPECT_NEAR(Constraint->GetPhi(), ExpectedPhi, Tolerance);
 		EXPECT_NEAR(Constraint->CalculateWorldContactNormal().X, ExpectedNormal.X, Tolerance);

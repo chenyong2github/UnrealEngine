@@ -90,12 +90,12 @@ public:
 			// Dt is not important for the tests that use this function
 			const FReal Dt = FReal(1) / FReal(30);
 
+			FRigidTransform3 ShapeWorldTransform0 = Constraint.GetShapeRelativeTransform0() * Collisions::GetTransform(Constraint.GetParticle0());
+			FRigidTransform3 ShapeWorldTransform1 = Constraint.GetShapeRelativeTransform1() * Collisions::GetTransform(Constraint.GetParticle1());
+			Constraint.SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+
 			Constraint.ResetPhi(TNumericLimits<FReal>::Max());
-			Collisions::UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(
-				Constraint, 
-				FParticleUtilities::GetActorWorldTransform(FGenericParticleHandle(Constraint.GetParticle0())), 
-				FParticleUtilities::GetActorWorldTransform(FGenericParticleHandle(Constraint.GetParticle1())), 
-				Dt);
+			Collisions::UpdateConstraint(Constraint, ShapeWorldTransform0, ShapeWorldTransform1,Dt);
 		}
 	}
 
@@ -109,7 +109,7 @@ public:
 		FRigidTransform3 WorldTransform1 = Constraint.GetShapeRelativeTransform1() * Collisions::GetTransform(Constraint.GetParticle1());
 
 		Constraint.ResetManifold();
-		Collisions::UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Deepest>(WorldTransform0, WorldTransform1, FReal(1 / 30.0f), Constraint);
+		Collisions::UpdateLevelsetLevelsetConstraint(WorldTransform0, WorldTransform1, FReal(1 / 30.0f), Constraint);
 	}
 
 	int32 NumConstraints() const

@@ -919,10 +919,14 @@ namespace Chaos
 			const FConstGenericParticleHandle P0 = FConstGenericParticleHandle(Collision->GetParticle0());
 			const FConstGenericParticleHandle P1 = FConstGenericParticleHandle(Collision->GetParticle1());
 
+			const FRigidTransform3 ShapeWorldTransform0 = Collision->GetShapeRelativeTransform0() * P0->GetTransformPQ();
+			const FRigidTransform3 ShapeWorldTransform1 = Collision->GetShapeRelativeTransform1() * P1->GetTransformPQ();
+			Collision->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+
 			// NOTE: ResetManifold also reset friction anchors. If CCD sweep was run, static friction probably will not hold
 			// We could potentially call ResetActiveManifold here instead and then AssignSavedManifoldPoints if we want static friction
 			Collision->ResetManifold();
-			Collisions::UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(*Collision, P0->GetTransformPQ(), P1->GetTransformPQ(), Dt);
+			Collisions::UpdateConstraint(*Collision, ShapeWorldTransform0, ShapeWorldTransform1, Dt);
 		}
 	}
 

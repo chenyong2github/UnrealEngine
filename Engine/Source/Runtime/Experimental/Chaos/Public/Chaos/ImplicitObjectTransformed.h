@@ -353,6 +353,13 @@ public:
 		return MObject->GetMaterialIndex(HintIndex);
 	}
 
+protected:
+	virtual void VisitOverlappingObjectsImpl(const FAABB3& InLocalBounds, const FRigidTransform3& ParentTM, int32& VisitId, const TFunctionRef<void(const FImplicitObject*, const FRigidTransform3&, const int32)>& VisitorFunc) const
+	{
+		const FAABB3 LocalBounds = InLocalBounds.InverseTransformedAABB(MTransform);
+		MObject->VisitOverlappingObjectsImpl(LocalBounds, MTransform * ParentTM, VisitId, VisitorFunc);
+	}
+
 private:
 	ObjectType MObject;
 	TUniquePtr<Chaos::FImplicitObject> MObjectOwner;

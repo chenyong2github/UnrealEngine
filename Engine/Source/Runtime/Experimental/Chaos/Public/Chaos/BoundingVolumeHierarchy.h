@@ -137,6 +137,17 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 		}
 	}
 
+	// Calls the visitor for every overlapping leaf.
+	// @tparam TVisitor void(const LEAF_TYPE& Leaf)
+	template<typename TVisitor>
+	void VisitAllIntersections(const FAABB3& LocalBounds, const TVisitor& Visitor) const
+	{
+		if (Elements.Num())
+		{
+			VisitAllIntersectionsRecursive(Elements[0], LocalBounds, Visitor);
+		}
+	}
+
 	// Begin ISpatialAcceleration interface
 	CHAOS_API TArray<int32> FindAllIntersections(const FAABB3& Box) const { return FindAllIntersectionsImp(Box); }
 	CHAOS_API TArray<int32> FindAllIntersections(const TSpatialRay<T,d>& Ray) const { return FindAllIntersectionsImp(Ray); }
@@ -172,6 +183,29 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 			PrintTree(Prefix + " ", &Elements[Child]);
 		}
 	}
+
+	template<typename TVisitor>
+	void VisitAllIntersectionsRecursive(const TBVHNode<T, d>& MyNode, const FAABB3& ObjectBox, const TVisitor& Visitor) const
+	{
+		TAABB<T, d> Box(MyNode.MMin, MyNode.MMax);
+		if (!Box.Intersects(ObjectBox))
+		{
+			return;
+		}
+
+		if (MyNode.MChildren.Num() == 0)
+		{
+			Visitor(Leafs[MyNode.LeafIndex]);
+			return;
+		}
+
+		int32 NumChildren = MyNode.MChildren.Num();
+		for (int32 Child = 0; Child < NumChildren; ++Child)
+		{
+			VisitAllIntersectionsRecursive(Elements[MyNode.MChildren[Child]], ObjectBox, Visitor);
+		}
+	}
+
 
 	CHAOS_API TArray<int32> FindAllIntersectionsHelper(const TBVHNode<T,d>& MyNode, const TVector<T, d>& Point) const;
 	CHAOS_API TArray<int32> FindAllIntersectionsHelper(const TBVHNode<T,d>& MyNode, const TAABB<T, d>& ObjectBox) const;

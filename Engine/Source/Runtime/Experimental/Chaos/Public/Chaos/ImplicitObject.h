@@ -314,6 +314,24 @@ public:
 
 	virtual uint16 GetMaterialIndex(uint32 HintIndex) const { return 0; }
 
+	// Visit all the objects in the hierarchy that overlap the specified local-space bounds.
+	// The Visitor ChildId is an unique index into the hierarchy that can be used to distinguish ImplicitObjects when
+	// they are reused in multiple locations in the hierarchy.
+	void VisitOverlappingObjects(const FAABB3& LocalBounds, const TFunctionRef<void(const FImplicitObject* Implicit, const FRigidTransform3& Transform, const int32 ChildId)>& Visitor) const
+	{
+		int32 VisitId = 0;
+		VisitOverlappingObjectsImpl(LocalBounds, FRigidTransform3::Identity, VisitId, Visitor);
+	}
+
+	// This should not be public, but it needs to be callable by derived classes on another instance (e.g., see FImplicitObjectUnion::VisitOverlappingObjectsImpl)
+	virtual void VisitOverlappingObjectsImpl(const FAABB3& LocalBounds, const FRigidTransform3& ParentTM, int32& VisitId, const TFunctionRef<void(const FImplicitObject*, const FRigidTransform3&, const int32)>& VisitorFunc) const
+	{
+		if (!HasBoundingBox() || LocalBounds.Intersects(BoundingBox()))
+		{
+			VisitorFunc(this, ParentTM, VisitId);
+		}
+	}
+
 protected:
 
 	// Safely scale a normalized Vec3 - used with both scale and inverse scale

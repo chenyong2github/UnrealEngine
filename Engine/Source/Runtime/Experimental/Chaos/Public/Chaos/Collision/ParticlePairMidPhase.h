@@ -193,6 +193,12 @@ namespace Chaos
 			const FReal Dt,
 			const FCollisionContext& Context);
 
+		int32 GenerateCollisionsCCD(
+			const bool bEnableCCDSweep,
+			const FReal CullDistance,
+			const FReal Dt,
+			const FCollisionContext& Context);
+
 		/**
 		 * @brief Callback from the narrow phase to create a collision constraint for this particle pair.
 		 * We should never be asked for a collision for a different particle pair, but the 
@@ -200,37 +206,67 @@ namespace Chaos
 		*/
 		FPBDCollisionConstraint* FindOrCreateConstraint(
 			FGeometryParticleHandle* InParticle0,
-			const FImplicitObject* Implicit0,
-			const FPerShapeData* Shape0,
-			const FBVHParticles* BVHParticles0,
-			const FRigidTransform3& ShapeRelativeTransform0,
+			const FImplicitObject* InImplicit0,
+			const int32 InImplicitId0,
+			const FShapeInstance* InShape0,
+			const FBVHParticles* InBVHParticles0,
+			const FRigidTransform3& InShapeRelativeTransform0,
 			FGeometryParticleHandle* InParticle1,
 			const FImplicitObject* Implicit1,
-			const FPerShapeData* Shape1,
-			const FBVHParticles* BVHParticles1,
-			const FRigidTransform3& ShapeRelativeTransform1,
+			const int32 InImplicitId1,
+			const FShapeInstance* InShape1,
+			const FBVHParticles* InBVHParticles1,
+			const FRigidTransform3& InhapeRelativeTransform1,
 			const FReal CullDistance,
 			const EContactShapesType ShapePairType,
 			const bool bUseManifold,
+			const bool bEnableSweep,
 			const FCollisionContext& Context);
 
-		/**
-		 * @brief FindOrCreateConstraint for swept constraints 
-		*/
-		FPBDCollisionConstraint* FindOrCreateSweptConstraint(
+		UE_DEPRECATED(5.3, "Replaced with version taking ImplicitIDs")
+		FPBDCollisionConstraint* FindOrCreateConstraint(
 			FGeometryParticleHandle* InParticle0,
-			const FImplicitObject* Implicit0,
-			const FPerShapeData* Shape0,
-			const FBVHParticles* BVHParticles0,
-			const FRigidTransform3& ShapeRelativeTransform0,
+			const FImplicitObject* InImplicit0,
+			const FPerShapeData* InShape0,
+			const FBVHParticles* InBVHParticles0,
+			const FRigidTransform3& InShapeRelativeTransform0,
 			FGeometryParticleHandle* InParticle1,
-			const FImplicitObject* Implicit1,
-			const FPerShapeData* Shape1,
-			const FBVHParticles* BVHParticles1,
-			const FRigidTransform3& ShapeRelativeTransform1,
+			const FImplicitObject* InImplicit1,
+			const FPerShapeData* InShape1,
+			const FBVHParticles* InBVHParticles1,
+			const FRigidTransform3& InShapeRelativeTransform1,
 			const FReal CullDistance,
 			const EContactShapesType ShapePairType,
-			const FCollisionContext& Context);
+			const bool bUseManifold,
+			const FCollisionContext& Context)
+		{
+			return FindOrCreateConstraint(
+				InParticle0, InImplicit0, 0, InShape0->AsShapeInstance(), InBVHParticles0, InShapeRelativeTransform0,
+				InParticle1, InImplicit1, 0, InShape1->AsShapeInstance(), InBVHParticles1, InShapeRelativeTransform1,
+				CullDistance, ShapePairType, bUseManifold, false, Context);
+		}
+
+		UE_DEPRECATED(5.3, "Replaced with version taking ImplicitIDs")
+		FPBDCollisionConstraint* FindOrCreateSweptConstraint(
+			FGeometryParticleHandle* InParticle0,
+			const FImplicitObject* InImplicit0,
+			const FPerShapeData* InShape0,
+			const FBVHParticles* InBVHParticles0,
+			const FRigidTransform3& InShapeRelativeTransform0,
+			FGeometryParticleHandle* InParticle1,
+			const FImplicitObject* InImplicit1,
+			const FPerShapeData* InShape1,
+			const FBVHParticles* InBVHParticles1,
+			const FRigidTransform3& InShapeRelativeTransform1,
+			const FReal CullDistance,
+			const EContactShapesType ShapePairType,
+			const FCollisionContext& Context)
+		{
+			return FindOrCreateConstraint(
+				InParticle0, InImplicit0, 0, InShape0->AsShapeInstance(), InBVHParticles0, InShapeRelativeTransform0,
+				InParticle1, InImplicit1, 0, InShape1->AsShapeInstance(), InBVHParticles1, InShapeRelativeTransform1,
+				CullDistance, ShapePairType, true, true, Context);
+		}
 
 		/**
 		 * @brief Reactivate the constraint
@@ -254,6 +290,12 @@ namespace Chaos
 		ECollisionVisitorResult VisitConstCollisions(const TLambda& Visitor, const bool bOnlyActive = true) const;
 
 	private:
+		int32 GenerateCollisionsImpl(
+			const bool bEnableCCDSweep,
+			const FReal CullDistance,
+			const FReal Dt,
+			const FCollisionContext& Context);
+
 		FPBDCollisionConstraint* FindConstraint(const FCollisionParticlePairConstraintKey& Key);
 
 		FPBDCollisionConstraint* CreateConstraint(
@@ -273,8 +315,24 @@ namespace Chaos
 			const FCollisionParticlePairConstraintKey& Key,
 			const FCollisionContext& Context);
 
-		int32 ProcessNewConstraints(const FCollisionContext& Context);
+		int32 ProcessNewConstraints(
+			const FReal CullDistance,
+			const FReal Dt,
+			const FCollisionContext& Context);
+
 		void PruneConstraints(const int32 CurrentEpoch);
+
+		void UpdateCollision(
+			FPBDCollisionConstraint* Constraint,
+			const FReal CullDistance,
+			const FReal Dt,
+			const FCollisionContext& Context);
+
+		void UpdateCollisionCCD(
+			FPBDCollisionConstraint* Constraint,
+			const FReal CullDistance,
+			const FReal Dt,
+			const FCollisionContext& Context);
 
 		FParticlePairMidPhase& MidPhase;
 		TMap<uint32, FPBDCollisionConstraintPtr> Constraints;
@@ -460,6 +518,22 @@ namespace Chaos
 			Flags.bIsCCDActive = bCCDIsActive;
 		}
 
+		/*
+		 * True if CCD is supported by either particle
+		 */
+		bool IsCCD() const
+		{
+			return Flags.bIsCCD;
+		}
+
+		/*
+		 * True if CCD is active for this midphase on this frame.This can be changed by modifiers and resets to bIsCCD each frame.
+		 */
+		bool IsCCDActive() const
+		{
+			return Flags.bIsCCDActive;
+		}
+
 	private:
 		/**
 		 * @brief Build the list of potentially colliding shape pairs.
@@ -495,7 +569,7 @@ namespace Chaos
 			{
 				uint32 bIsActive : 1;    // True if this midphase should generate a narrow phase at all
 				uint32 bIsCCD : 1;       // True if CCD is supported by either particle
-				uint32 bIsCCDActive : 1; // True if CCD is active for this midphase on this frame. This can be changes by modifiers and resets to bIsCCD each frame.
+				uint32 bIsCCDActive : 1; // True if CCD is active for this midphase on this frame. This can be changed by modifiers and resets to bIsCCD each frame.
 				uint32 bIsSleeping : 1;
 				uint32 bIsModified : 1;  // True if a modifier applied any changes to this midphase
 			};

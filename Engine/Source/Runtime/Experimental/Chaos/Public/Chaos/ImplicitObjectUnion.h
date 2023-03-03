@@ -211,6 +211,8 @@ protected:
 		return ClosestIntersection;
 	}
 
+	virtual void VisitOverlappingObjectsImpl(const FAABB3& LocalBounds, const FRigidTransform3& ParentTM, int32& VisitId, const TFunctionRef<void(const FImplicitObject*, const FRigidTransform3&, const int32)>& VisitorFunc) const override final;
+
   protected:
 	//needed for serialization
 	FImplicitObjectUnion();
@@ -252,40 +254,13 @@ public:
 	void FindAllIntersectingClusteredObjects(TArray<FLargeUnionClusteredImplicitInfo>& Out, const FAABB3& LocalBounds) const;
 	TArray<FPBDRigidParticleHandle*> FindAllIntersectingChildren(const FAABB3& LocalBounds) const;
 
-#if CHAOS_PARTICLEHANDLE_TODO
-	TArray<int32> FindAllIntersectingChildren(const TSpatialRay<FReal,3>& LocalRay) const;
-	{
-		TArray<int32> IntersectingChildren;
-		if (LargeUnionData) //todo: make this work when hierarchy is not built
-		{
-			IntersectingChildren = LargeUnionData->Hierarchy.FindAllIntersections(LocalRay);
-			for (int32 i = IntersectingChildren.Num() - 1; i >= 0; --i)
-			{
-				const int32 Idx = IntersectingChildren[i];
-				if (Idx < MOriginalParticleLookupHack.Num())
-				{
-					IntersectingChildren[i] = MOriginalParticleLookupHack[Idx];
-				}
-				else
-				{
-					IntersectingChildren.RemoveAtSwap(i);
-				}
-			}
-			/*for (int32& Idx : IntersectingChildren)
-			{
-				Idx = MOriginalParticleLookupHack[Idx];
-			}*/
-		}
-		else
-		{
-			IntersectingChildren = MOriginalParticleLookupHack;
-		}
-
-		return IntersectingChildren;
-	}
-#endif
-
+	// DO NOT USE!!
+	// @todo(chaos): we should get rid of this. Instead we should hold the map/whatever on the GeometryParticle that currently owns the geom
 	const FPBDRigidParticleHandle* FindParticleForImplicitObject(const FImplicitObject* Object) const;
+
+	// DO NOT USE!!
+	// @todo(chaos): move this fucntionality to the geometry particle?
+	const FBVHParticles* GetChildSimplicial(const int32 ChildIndex) const;
 
 private:
 	// Temp hack for finding original particles
