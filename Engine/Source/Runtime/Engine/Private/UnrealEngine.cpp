@@ -16064,9 +16064,11 @@ TArray<FString> UEngine::FindAndPrintStaleReferencesToObjects(TConstArrayView<UO
 {
 	TArray<FString> Paths; 
 	checkf(ObjectsToFindReferencesTo.Num() > 0, TEXT("ObjectsToFindReferencesTo cannot be empty"));
+	bool bAnyGarbage = false;
 	for (UObject* Obj : ObjectsToFindReferencesTo)
 	{
 		checkf(Obj, TEXT("Object to find references to cannot be null"));
+		bAnyGarbage = bAnyGarbage || Obj->HasAnyInternalFlags(EInternalObjectFlags::Garbage);
 	}
 
 	ELogVerbosity::Type Verbosity = ELogVerbosity::NoLogging;
@@ -16104,7 +16106,7 @@ TArray<FString> UEngine::FindAndPrintStaleReferencesToObjects(TConstArrayView<UO
 	}
 	else
 	{
-		SearchMode |= EReferenceChainSearchMode::ShortestToGarbage;
+		SearchMode |= bAnyGarbage ? EReferenceChainSearchMode::ShortestToGarbage : EReferenceChainSearchMode::Shortest;
 	}
 
 	FReferenceChainSearch RefChainSearch(ObjectsToFindReferencesTo, SearchMode);
