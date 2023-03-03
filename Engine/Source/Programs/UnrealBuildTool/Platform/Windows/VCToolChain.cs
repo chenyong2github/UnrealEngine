@@ -1832,6 +1832,10 @@ namespace UnrealBuildTool
 
 		public virtual FileReference GetApplicationIcon(FileReference? ProjectFile)
 		{
+			if (Target.WindowsPlatform.ApplicationIcon != null)
+			{
+				return new FileReference(Target.WindowsPlatform.ApplicationIcon);
+			}
 			return WindowsPlatform.GetWindowsApplicationIcon(ProjectFile);
 		}
 

@@ -371,6 +371,11 @@ namespace UnrealBuildTool
 		public string? ManifestFile;
 
 		/// <summary>
+		/// Specifies the path to an .ico file to use as the appliction icon. Can be assigned to null and will default to Engine/Build/Windows/Resources/Default.ico for engine targets or Build/Windows/Application.ico for projects.
+		/// </summary>
+		public string? ApplicationIcon;
+
+		/// <summary>
 		/// Enables strict standard conformance mode (/permissive-).
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
@@ -747,6 +752,11 @@ namespace UnrealBuildTool
 		public string? ManifestFile
 		{
 			get { return Inner.ManifestFile; }
+		}
+
+		public string? ApplicationIcon
+		{
+			get { return Inner.ApplicationIcon; }
 		}
 
 		public bool bNeedsLegacyStdioDefinitionsLib
