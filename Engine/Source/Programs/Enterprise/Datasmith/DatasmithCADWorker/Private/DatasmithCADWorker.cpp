@@ -88,6 +88,8 @@ int32 Main(int32 Argc, TCHAR * Argv[])
 	FDatasmithCADWorkerImpl Worker(FCString::Atoi(*ServerPID), FCString::Atoi(*ServerPort), EnginePluginsPath, CacheDirectory);
 	Worker.Run();
 
+	FDatasmithCADWorkerImpl::bProcessIsRunning = false;
+
 	return EXIT_SUCCESS;
 #endif // USE_TECHSOFT_SDK
 }
@@ -111,6 +113,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	}
 	__except (Filter(GetExceptionCode(), GetExceptionInformation()))
 	{
+		FDatasmithCADWorkerImpl::bProcessIsRunning = false;
 		Result = EXIT_FAILURE;
 	}
 
