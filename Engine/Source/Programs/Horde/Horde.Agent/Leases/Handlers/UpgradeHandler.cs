@@ -5,14 +5,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Grpc.Core;
-using Horde.Agent.Parser;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using HordeCommon.Rpc;
@@ -75,59 +73,66 @@ namespace Horde.Agent.Leases.Handlers
 				// Get the current process and assembly. This may be different if running through dotnet.exe rather than a native PE image.
 				FileReference assemblyFileName = new FileReference(Assembly.GetExecutingAssembly().Location);
 
-				// Spawn the other process
-				using (Process process = new Process())
+				StringBuilder arguments = new StringBuilder();
+
+				DirectoryReference targetDir = assemblyFileName.Directory;
+
+				// We were launched via an external application (presumably dotnet.exe). Do the same thing again.
+				FileReference newAssemblyFileName = FileReference.Combine(extractedDir, assemblyFileName.MakeRelativeTo(targetDir));
+				if (!FileReference.Exists(newAssemblyFileName))
 				{
-					StringBuilder arguments = new StringBuilder();
-
-					DirectoryReference targetDir = assemblyFileName.Directory;
-
-					// We were launched via an external application (presumably dotnet.exe). Do the same thing again.
-					FileReference newAssemblyFileName = FileReference.Combine(extractedDir, assemblyFileName.MakeRelativeTo(targetDir));
-					if (!FileReference.Exists(newAssemblyFileName))
-					{
-						logger.LogError("Unable to find {AgentExe} in extracted archive", newAssemblyFileName);
-						return LeaseResult.Failed;
-					}
-
-					process.StartInfo.FileName = "dotnet";
-
-					StringBuilder currentArguments = new StringBuilder();
-					foreach (string arg in Program.Args)
-					{
-						currentArguments.AppendArgument(arg);
-					}
-
-					arguments.AppendArgument(newAssemblyFileName.FullName);
-					arguments.AppendArgument("Service");
-					arguments.AppendArgument("Upgrade");
-					arguments.AppendArgument("-ProcessId=", Environment.ProcessId.ToString());
-					arguments.AppendArgument("-TargetDir=", targetDir.FullName);
-					arguments.AppendArgument("-Arguments=", currentArguments.ToString());
-
-					process.StartInfo.Arguments = arguments.ToString();
-					process.StartInfo.UseShellExecute = false;
-					process.EnableRaisingEvents = true;
-
-					StringBuilder launchCommand = new StringBuilder();
-					launchCommand.AppendArgument(process.StartInfo.FileName);
-					launchCommand.Append(' ');
-					launchCommand.Append(arguments);
-					logger.LogInformation("Launching: {Launch}", launchCommand.ToString());
-
-					TaskCompletionSource<int> exitCodeSource = new TaskCompletionSource<int>();
-					process.Exited += (sender, args) => { exitCodeSource.SetResult(process.ExitCode); };
-
-					process.Start();
-
-					using (cancellationToken.Register(() => { exitCodeSource.SetResult(0); }))
-					{
-						await exitCodeSource.Task;
-					}
+					logger.LogError("Unable to find {AgentExe} in extracted archive", newAssemblyFileName);
+					return LeaseResult.Failed;
 				}
+
+				StringBuilder currentArguments = new StringBuilder();
+				foreach (string arg in Program.Args)
+				{
+					currentArguments.AppendArgument(arg);
+				}
+
+				arguments.AppendArgument(newAssemblyFileName.FullName);
+				arguments.AppendArgument("Service");
+				arguments.AppendArgument("Upgrade");
+				arguments.AppendArgument("-ProcessId=", Environment.ProcessId.ToString());
+				arguments.AppendArgument("-TargetDir=", targetDir.FullName);
+				arguments.AppendArgument("-Arguments=", currentArguments.ToString());
+
+				// Spawn the other process
+				SessionResult result = new SessionResult((logger, ctx) => RunUpgradeAsync("dotnet", arguments.ToString(), logger, ctx));
+				return new LeaseResult(result);
 			}
 
 			return LeaseResult.Success;
+		}
+
+		static async Task RunUpgradeAsync(string fileName, string arguments, ILogger logger, CancellationToken cancellationToken)
+		{
+			using (Process process = new Process())
+			{
+				StringBuilder launchCommand = new StringBuilder();
+				launchCommand.AppendArgument(fileName);
+				launchCommand.Append(' ');
+				launchCommand.Append(arguments);
+				logger.LogInformation("Launching: {Launch}", launchCommand.ToString());
+
+				process.StartInfo.FileName = fileName;
+				process.StartInfo.Arguments = arguments.ToString();
+				process.StartInfo.UseShellExecute = false;
+				process.EnableRaisingEvents = true;
+
+				TaskCompletionSource<int> exitCodeSource = new TaskCompletionSource<int>();
+				process.Exited += (sender, args) => { exitCodeSource.SetResult(process.ExitCode); };
+
+				process.Start();
+
+				using (cancellationToken.Register(() => { exitCodeSource.SetResult(0); }))
+				{
+					await exitCodeSource.Task;
+				}
+
+				logger.LogInformation("Upgrade did not terminate initiating process; reconnecting to server...");
+			}
 		}
 
 		/// <summary>

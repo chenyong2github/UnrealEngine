@@ -25,32 +25,6 @@ namespace Horde.Agent.Leases
 	using ByteString = Google.Protobuf.ByteString;
 
 	/// <summary>
-	/// Outcome from a session
-	/// </summary>
-	enum SessionResult
-	{
-		/// <summary>
-		/// Create a new session (server migration, etc...)
-		/// </summary>
-		Continue,
-
-		/// <summary>
-		/// Session completed normally, terminate the application.
-		/// </summary>
-		Terminate,
-
-		/// <summary>
-		/// Machine should be scheduled to restart
-		/// </summary>
-		Restart,
-
-		/// <summary>
-		/// Machine should be scheduled to shut down
-		/// </summary>
-		Shutdown,
-	}
-
-	/// <summary>
 	/// Implements the message handling loop for an agent. Runs asynchronously until disposed.
 	/// </summary>
 	class LeaseManager
@@ -114,7 +88,7 @@ namespace Horde.Agent.Leases
 		/// <summary>
 		/// Result from executing this session
 		/// </summary>
-		SessionResult _result = SessionResult.Continue;
+		SessionResult? _sessionResult;
 
 		/// <summary>
 		/// Task completion source used to trigger the background thread to update the leases. Must take a lock on LockObject before 
@@ -174,12 +148,12 @@ namespace Horde.Agent.Leases
 			catch (OperationCanceledException ex) when (stoppingToken.IsCancellationRequested)
 			{
 				_logger.LogInformation(ex, "Execution cancelled");
-				result = SessionResult.Terminate;
+				result = new SessionResult(SessionOutcome.Terminate);
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Exception while executing session. Restarting.");
-				result = SessionResult.Continue;
+				result = new SessionResult(SessionOutcome.BackOff);
 			}
 
 			while (_activeLeases.Count > 0)
@@ -273,9 +247,9 @@ namespace Horde.Agent.Leases
 					stopping = true;
 				}
 
-				if (_result != SessionResult.Continue)
+				if (_sessionResult != null)
 				{
-					_logger.LogInformation("Session termination requested (result: {Result})", _result);
+					_logger.LogInformation("Session termination requested (result: {Result})", _sessionResult.Outcome);
 					stopping = true;
 				}
 
@@ -291,7 +265,7 @@ namespace Horde.Agent.Leases
 					{
 						updateSessionRequest.Leases.Add(new Lease(leaseInfo.Lease));
 					}
-					if (_result != SessionResult.Continue && _activeLeases.Count == 0)
+					if (_sessionResult != null && _activeLeases.Count == 0)
 					{
 						stopping = true;
 					}
@@ -352,7 +326,7 @@ namespace Horde.Agent.Leases
 							if (atLeastOneLeaseFinished && shutdownAfterFinishedLease)
 							{
 								_logger.LogInformation("At least one lease executed. Requesting shutdown.");
-								_result = SessionResult.Terminate;
+								_sessionResult = new SessionResult(SessionOutcome.Terminate);
 							}
 
 							// Remove any leases which have completed
@@ -385,10 +359,10 @@ namespace Horde.Agent.Leases
 						}
 
 						// If there's nothing still running and cancellation was requested, exit
-						if (_activeLeases.Count == 0 && updateSessionRequest.Status == AgentStatus.Stopping)
+						if (_activeLeases.Count == 0 && _sessionResult != null)
 						{
 							_logger.LogInformation("No leases are active. Agent is stopping.");
-							break;
+							return _sessionResult;
 						}
 					}
 				}
@@ -408,7 +382,6 @@ namespace Horde.Agent.Leases
 					await Task.Delay(TimeSpan.FromSeconds(10.0), stoppingToken);
 				}
 			}
-			return _result;
 		}
 
 		/// <summary>
@@ -537,10 +510,10 @@ namespace Horde.Agent.Leases
 				}
 				_logger.LogInformation("Transitioning lease {LeaseId} to {State}, outcome={Outcome}", leaseInfo.Lease.Id, leaseInfo.Lease.State, leaseInfo.Lease.Outcome);
 
-				if (result.SessionResult.HasValue && result.SessionResult.Value != SessionResult.Continue && _result == SessionResult.Continue)
+				if (result.SessionResult != null && _sessionResult == null)
 				{
-					_logger.LogInformation("Lease {LeaseId} is setting session result to {Result}", leaseInfo.Lease.Id, result.SessionResult.Value);
-					_result = result.SessionResult.Value;
+					_logger.LogInformation("Lease {LeaseId} is setting session result to {Result}", leaseInfo.Lease.Id, result.SessionResult.Outcome);
+					_sessionResult = result.SessionResult;
 				}
 			}
 			_updateLeasesEvent.Set();

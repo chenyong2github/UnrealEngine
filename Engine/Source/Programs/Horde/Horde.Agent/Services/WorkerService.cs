@@ -81,9 +81,10 @@ namespace Horde.Agent.Services
 			int failureCount = 0;
 			while (!stoppingToken.IsCancellationRequested)
 			{
-				SessionResult result = SessionResult.Continue;
+				SessionResult? result = null;
 
 				Stopwatch sessionTime = Stopwatch.StartNew();
+
 				await using (AsyncServiceScope scope = _serviceProvider.CreateAsyncScope())
 				{
 					try
@@ -120,31 +121,19 @@ namespace Horde.Agent.Services
 					}
 				}
 
-				if (result == SessionResult.Terminate)
+				if (result != null)
 				{
-					break;
-				}
-				else if (result == SessionResult.Shutdown || result == SessionResult.Restart)
-				{
-					bool restart = (result == SessionResult.Restart);
-					_logger.LogInformation("Initiating shutdown (restart={Restart})", restart);
-
-					if (Shutdown.InitiateShutdown(restart, _logger))
+					if (result.Outcome == SessionOutcome.BackOff)
 					{
-						for (int idx = 10; idx > 0; idx--)
-						{
-							_logger.LogInformation("Waiting for shutdown ({Count})", idx);
-							try
-							{
-								await Task.Delay(TimeSpan.FromSeconds(60.0), stoppingToken);
-								_logger.LogInformation("Shutdown aborted.");
-							}
-							catch (OperationCanceledException)
-							{
-								_logger.LogInformation("Agent is shutting down.");
-								return;
-							}
-						}
+						await Task.Delay(TimeSpan.FromSeconds(30.0), stoppingToken);
+					}
+					else if (result.Outcome == SessionOutcome.Terminate)
+					{
+						break;
+					}
+					else if (result.Outcome == SessionOutcome.RunCallback)
+					{
+						await result.CallbackAsync!(_logger, stoppingToken);
 					}
 				}
 

@@ -4,6 +4,8 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Utility
@@ -49,7 +51,7 @@ namespace Horde.Agent.Utility
 		[SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Native struct")]
 		[return: MarshalAs(UnmanagedType.Bool)]
 		static extern bool AdjustTokenPrivileges(IntPtr TokenHandle,
-		   [MarshalAs(UnmanagedType.Bool)]bool DisableAllPrivileges,
+		   [MarshalAs(UnmanagedType.Bool)] bool DisableAllPrivileges,
 		   ref TOKEN_PRIVILEGES NewState,
 		   uint Zero,
 		   IntPtr Null1,
@@ -123,11 +125,11 @@ namespace Horde.Agent.Utility
 			{
 				string shutdownArgs;
 				if (restartAfterShutdown)
-                {
+				{
 					shutdownArgs = "sudo shutdown -r +0 \"Horde Agent is restarting\"";
 				}
 				else
-                {
+				{
 					shutdownArgs = "sudo shutdown +0 \"Horde Agent is shutting down\"";
 				}
 
@@ -154,6 +156,35 @@ namespace Horde.Agent.Utility
 			{
 				logger.LogError("Shutdown is not implemented on this platform");
 				return false;
+			}
+		}
+
+		/// <summary>
+		/// Attempt to initiate a shutdown and return if it failed
+		/// </summary>
+		/// <param name="restart">Whether to restart</param>
+		/// <param name="logger">Logger for output</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static async Task ExecuteAsync(bool restart, ILogger logger, CancellationToken cancellationToken)
+		{
+			logger.LogInformation("Initiating shutdown (restart={Restart})", restart);
+
+			if (Shutdown.InitiateShutdown(restart, logger))
+			{
+				for (int idx = 10; idx > 0; idx--)
+				{
+					logger.LogInformation("Waiting for shutdown ({Count})", idx);
+					try
+					{
+						await Task.Delay(TimeSpan.FromMinutes(2.0), cancellationToken);
+						logger.LogInformation("Shutdown aborted.");
+					}
+					catch (OperationCanceledException)
+					{
+						logger.LogInformation("Agent is shutting down.");
+						return;
+					}
+				}
 			}
 		}
 	}
