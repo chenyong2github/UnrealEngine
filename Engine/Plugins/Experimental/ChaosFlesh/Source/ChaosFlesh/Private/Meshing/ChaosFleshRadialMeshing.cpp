@@ -3,21 +3,23 @@
 #include "Meshing/ChaosFleshRadialMeshing.h"
 
 using FReal = FVector::FReal;
-void RadialTetMesh(const FReal InnerRadius, const FReal OuterRadius, const FReal Height, const int32 RadialSample, const int32 AngularSample, const int32 VerticalSample, TArray<FIntVector4>& TetElements, TArray<FVector>& TetVertices) 
+void RadialTetMesh(const FReal InnerRadius, const FReal OuterRadius, const FReal Height, const int32 RadialSample, const int32 AngularSample, const int32 VerticalSample, const FReal BulgeDistance, TArray<FIntVector4>& TetElements, TArray<FVector>& TetVertices)
 {
 	TArray<FVector> HexVertices;
 	TArray<int32> HexElements;
-	RadialHexMesh(InnerRadius, OuterRadius, Height, RadialSample, AngularSample, VerticalSample, HexElements, HexVertices);
+	RadialHexMesh(InnerRadius, OuterRadius, Height, RadialSample, AngularSample, VerticalSample, BulgeDistance, HexElements, HexVertices);
 	RegularHexMesh2TetMesh(HexVertices, HexElements, TetVertices, TetElements);
 }
 
-void RadialHexMesh(const FReal InnerRadius, const FReal OuterRadius, const FReal Height, const int32 RadialSample, const int32 AngularSample, const int32 VerticalSample, TArray<int32>& HexElements, TArray<FVector>& HexVertices) 
+void RadialHexMesh(const FReal InnerRadius, const FReal OuterRadius, const FReal Height, const int32 RadialSample, const int32 AngularSample, const int32 VerticalSample, const FReal BulgeDistance, TArray<int32>& HexElements, TArray<FVector>& HexVertices) 
 {
 	HexElements.SetNum(8 * (VerticalSample - 1) * (RadialSample - 1) * AngularSample);
 	HexVertices.SetNum(VerticalSample * RadialSample * AngularSample);
 	FReal dr = (OuterRadius - InnerRadius) / FReal(RadialSample - 1);
 	FReal dtheta = FReal(2) * PI / FReal(AngularSample);
 	FReal dz = Height / FReal(VerticalSample - 1);
+	FReal l = (OuterRadius - InnerRadius) / (FReal)2.;
+	FReal Mag = (l * l + BulgeDistance * BulgeDistance) / ((FReal)2. * BulgeDistance);
 	for (int32 i = 0; i < VerticalSample; i++)
 	{
 		//start at top, work way down
@@ -29,6 +31,21 @@ void RadialHexMesh(const FReal InnerRadius, const FReal OuterRadius, const FReal
 			for (int32 k = 0; k < RadialSample; k++)
 			{
 				FReal RVal = InnerRadius + k * dr;
+
+				if (BulgeDistance > DOUBLE_SMALL_NUMBER)
+				{
+					if (i == 0)
+					{
+						FReal ZElevation = Height * FReal(0.5) - Mag * sin(PI * (Mag - l) / (2 * Mag));
+						ZVal = Mag * sin(PI * (Mag - l + (FReal)k * dr) / (2 * Mag)) + ZElevation;
+					}
+					if (i == VerticalSample - 1)
+					{
+						FReal ZElevation = -Height * FReal(0.5) - Mag * sin(PI + PI * (Mag - l) / (FReal(2) * Mag));
+						ZVal = Mag * sin(PI + PI * (Mag - l + (FReal)k * dr) / (FReal(2) * Mag)) + ZElevation;
+					}
+				}
+
 				HexVertices[AngularSample * RadialSample * i + RadialSample * j + k] = { RVal * XVal,RVal * YVal,ZVal };
 
 			}
