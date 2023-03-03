@@ -210,6 +210,11 @@ FFuzzyPathMatcher::FFuzzyPathMatcher(const TArray<FString>& InIncludePathFilters
 
 		const int32 PathOneFuzzRating = GetFuzzRating(PathOne);
 		const int32 PathTwoFuzzRating = GetFuzzRating(PathTwo);
+		if (PathOneFuzzRating == PathTwoFuzzRating)
+		{
+			// In the case of a tie, allow an exclusion to take priority
+			return (uint8)PathOne.PathType > (uint8)PathTwo.PathType;
+		}
 		return PathOneFuzzRating < PathTwoFuzzRating;
 	});
 }
