@@ -386,13 +386,13 @@ const AutomationSidebarLeft: React.FC<{ handler: TestDataHandler }> = ({ handler
             </Stack>
          </Stack>
          <Stack>
-            <StreamChooser handler={handler} />
-         </Stack>
-         <Stack>
             <TestChooser handler={handler} />
          </Stack>
          <Stack>
             <SuiteChooser handler={handler} />
+         </Stack>
+         <Stack>
+            <StreamChooser handler={handler} />
          </Stack>
          <Stack>
             <PlatformChooser handler={handler} />
