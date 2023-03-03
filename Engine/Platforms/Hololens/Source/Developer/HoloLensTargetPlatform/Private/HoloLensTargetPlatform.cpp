@@ -96,8 +96,8 @@ FHoloLensTargetPlatform::FHoloLensTargetPlatform(bool bIsClientOnly)
 	DeviceDetectedRegistration = DeviceDetector->OnDeviceDetected().AddRaw(this, &FHoloLensTargetPlatform::OnDeviceDetected);
 
 #if WITH_EDITOR
-	// Don't automatically try to detect a device if running editor with -server.
-	if (!IsRunningDedicatedServer() && !IsRunningCommandlet())
+	GConfig->GetBool(TEXT("/Script/HoloLensPlatformEditor.HoloLensEditorSettings"), TEXT("bEditorAutomaticallyDetectsHoloLensDevices"), bEditorAutomaticallyDetectsHoloLensDevices, GEditorPerProjectIni);
+	if (bEditorAutomaticallyDetectsHoloLensDevices && !IsRunningDedicatedServer() && !IsRunningCommandlet() )
 #endif
 	{
 		DeviceDetector->StartDeviceDetection();
@@ -111,6 +111,13 @@ FHoloLensTargetPlatform::~FHoloLensTargetPlatform()
 
 void FHoloLensTargetPlatform::GetAllDevices(TArray<ITargetDevicePtr>& OutDevices) const
 {
+#if WITH_EDITOR
+	if (!bEditorAutomaticallyDetectsHoloLensDevices)
+	{
+		return;
+	}
+#endif
+
 	DeviceDetector->StartDeviceDetection();
 
 	OutDevices.Reset();

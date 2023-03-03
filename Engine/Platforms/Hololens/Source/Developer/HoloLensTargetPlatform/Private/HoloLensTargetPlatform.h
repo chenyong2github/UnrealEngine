@@ -115,6 +115,9 @@ private:
 	FStaticMeshLODSettings StaticMeshLODSettings;
 #endif //WITH_ENGINE
 
+#if WITH_EDITOR
+	bool bEditorAutomaticallyDetectsHoloLensDevices = false;
+#endif
 };
 
 

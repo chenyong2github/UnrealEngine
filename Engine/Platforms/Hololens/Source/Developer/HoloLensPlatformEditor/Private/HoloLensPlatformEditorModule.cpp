@@ -7,7 +7,7 @@
 #include "ISettingsModule.h"
 #include "Modules/ModuleManager.h"
 #include "HoloLensTargetSettings.h"
-
+#include "HoloLensEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "FHoloLensPlatformEditorModule"
 
@@ -43,6 +43,11 @@ public:
 				LOCTEXT("TargetSettingsDescription", "Settings for HoloLens"),
 				GetMutableDefault<UHoloLensTargetSettings>()
 			);
+			SettingsModule->RegisterSettings("Project", "Platforms", "HoloLensEditor",
+				LOCTEXT("EditorSettingsName", "HoloLens - Editor"),
+				LOCTEXT("EditorSettingsDescription", "Editor Settings for HoloLens"),
+				GetMutableDefault<UHoloLensEditorSettings>()
+			);
 		}
 
 		// register settings detail panel customization
@@ -70,6 +75,7 @@ public:
 		if (SettingsModule != nullptr)
 		{
 			SettingsModule->UnregisterSettings("Project", "Platforms", "HoloLens");
+			SettingsModule->UnregisterSettings("Project", "Platforms", "HoloLensEditor");
 		}
 	}
 
