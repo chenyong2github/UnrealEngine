@@ -309,6 +309,8 @@ private:
 	 */
 	void TickDeferredMipLevelChangeCallbacks();
 
+	void ProcessPendingLevelManagers();
+
 	/** Cached from the system settings. */
 	int32 NumStreamedMips_Texture[TEXTUREGROUP_MAX];
 	TArray<int32> NumStreamedMips_StaticMesh;
@@ -361,6 +363,22 @@ private:
 
 	/** Level data */
 	TArray<FLevelRenderAssetManager*> LevelRenderAssetManagers;
+
+	// Used to prevent hazard when LevelRenderAssetManagers array is modified through recursion
+	struct FScopedLevelRenderAssetManagersLock
+	{
+		FRenderAssetStreamingManager* StreamingManager;
+		TArray<FLevelRenderAssetManager*> PendingAddLevelManagers;
+		TArray<FLevelRenderAssetManager*> PendingRemoveLevelManagers;
+
+		FScopedLevelRenderAssetManagersLock(FRenderAssetStreamingManager* InStreamingManager);
+
+		~FScopedLevelRenderAssetManagersLock();
+	};
+
+	friend struct FScopedLevelRenderAssetManagersLock;
+
+	FScopedLevelRenderAssetManagersLock* LevelRenderAssetManagersLock;
 
 	/** Stages [0,N-2] is non-threaded data collection, Stage N-1 is wait-for-AsyncWork-and-finalize. */
 	int32					ProcessingStage;
