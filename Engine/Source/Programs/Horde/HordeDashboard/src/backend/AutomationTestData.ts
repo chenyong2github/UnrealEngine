@@ -883,6 +883,10 @@ export class TestDataHandler {
         const state = this.state;
 
         if (!state.automation || !state.streams?.length || (!state.tests?.length && !state.suites?.length)) {
+            this.refs = [];
+            this.streamStatus = new Map();
+            this.setQueryLoading(false);
+            this.setQueryUpdated();
             return;
         }
 
