@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Horde.Build.Tools
@@ -80,8 +81,8 @@ namespace Horde.Build.Tools
 		/// <inheritdoc cref="IToolDeployment.MimeType"/>
 		public string MimeType => _deployment.MimeType;
 
-		/// <inheritdoc cref="IToolDeployment.RefId"/>
-		public RefId RefId => _deployment.RefId;
+		/// <inheritdoc cref="IToolDeployment.RefName"/>
+		public RefName RefName => _deployment.RefName;
 
 		/// <summary>
 		/// Constructor
@@ -153,9 +154,10 @@ namespace Horde.Build.Tools
 		/// <returns>Information about the registered agent</returns>
 		[HttpPost]
 		[Route("/api/v1/tools/{id}/deployments")]
-		public async Task<ActionResult<CreateDeploymentResponse>> CreateDeploymentAsync(ToolId id, [FromForm] ToolDeploymentConfig options, [FromForm] IFormFile file)
+		public async Task<ActionResult<CreateDeploymentResponse>> CreateDeploymentAsync(ToolId id, [FromForm] ToolDeploymentConfig options, [FromForm] IFormFile file, CancellationToken cancellationToken)
 		{
 			ITool? tool = await _toolCollection.GetAsync(id, _globalConfig.Value);
+
 			if (tool == null)
 			{
 				return NotFound(id);
@@ -167,7 +169,7 @@ namespace Horde.Build.Tools
 
 			using (Stream stream = file.OpenReadStream())
 			{
-				tool = await _toolCollection.CreateDeploymentAsync(tool, options, stream, _globalConfig.Value);
+				tool = await _toolCollection.CreateDeploymentAsync(tool, options, stream, _globalConfig.Value, cancellationToken);
 				if (tool == null)
 				{
 					return NotFound(id);
@@ -183,7 +185,7 @@ namespace Horde.Build.Tools
 		/// <returns>Information about the registered agent</returns>
 		[HttpGet]
 		[Route("/api/v1/tools/{id}/deployments/{deploymentId}")]
-		public async Task<ActionResult> GetDeploymentAsync(ToolId id, ToolDeploymentId deploymentId, [FromQuery] GetToolAction action = GetToolAction.Info)
+		public async Task<ActionResult> GetDeploymentAsync(ToolId id, ToolDeploymentId deploymentId, [FromQuery] GetToolAction action = GetToolAction.Info, CancellationToken cancellationToken = default)
 		{
 			ITool? tool = await _toolCollection.GetAsync(id, _globalConfig.Value);
 			if (tool == null)
@@ -201,10 +203,10 @@ namespace Horde.Build.Tools
 				return NotFound(id, deploymentId);
 			}
 
-			return await GetDeploymentResponseAsync(tool, deployment, action);
+			return await GetDeploymentResponseAsync(tool, deployment, action, cancellationToken);
 		}
 
-		private async Task<ActionResult> GetDeploymentResponseAsync(ITool tool, IToolDeployment deployment, GetToolAction action)
+		private async Task<ActionResult> GetDeploymentResponseAsync(ITool tool, IToolDeployment deployment, GetToolAction action, CancellationToken cancellationToken)
 		{
 			if (action == GetToolAction.Info)
 			{
@@ -213,7 +215,7 @@ namespace Horde.Build.Tools
 			}
 			else
 			{
-				Stream stream = await _toolCollection.GetDeploymentPayloadAsync(tool, deployment);
+				Stream stream = await _toolCollection.GetDeploymentPayloadAsync(tool, deployment, cancellationToken);
 				return new FileStreamResult(stream, "application/zip");
 			}
 		}
@@ -273,7 +275,7 @@ namespace Horde.Build.Tools
 		/// <returns>Information about the registered agent</returns>
 		[HttpGet]
 		[Route("/api/v1/tools/{id}")]
-		public async Task<ActionResult> GetToolAsync(ToolId id, GetToolAction action = GetToolAction.Info)
+		public async Task<ActionResult> GetToolAsync(ToolId id, GetToolAction action = GetToolAction.Info, CancellationToken cancellationToken = default)
 		{
 			ITool? tool = await _toolCollection.GetAsync(id, _globalConfig.Value);
 			if (tool == null)
@@ -296,7 +298,7 @@ namespace Horde.Build.Tools
 					return NotFound(LogEvent.Create(LogLevel.Error, "Tool {ToolId} does not currently have any deployments", id));
 				}
 
-				return await GetDeploymentPayloadAsync(tool, tool.Deployments[^1]);
+				return await GetDeploymentPayloadAsync(tool, tool.Deployments[^1], cancellationToken);
 			}
 		}
 
@@ -306,10 +308,11 @@ namespace Horde.Build.Tools
 		/// <param name="id">The tool identifier</param>
 		/// <param name="phase">Value indicating the client's preference for deployment to receive.</param>
 		/// <param name="action">Information about the returned deployment</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Information about the registered agent</returns>
 		[HttpGet]
 		[Route("/api/v1/tools/{id}/deployments")]
-		public async Task<ActionResult> FindDeploymentAsync(ToolId id, [FromQuery] double phase = 0.0, [FromQuery] GetToolAction action = GetToolAction.Info)
+		public async Task<ActionResult> FindDeploymentAsync(ToolId id, [FromQuery] double phase = 0.0, [FromQuery] GetToolAction action = GetToolAction.Info, CancellationToken cancellationToken = default)
 		{
 			ITool? tool = await _toolCollection.GetAsync(id, _globalConfig.Value);
 			if (tool == null)
@@ -342,13 +345,13 @@ namespace Horde.Build.Tools
 			}
 			else
 			{
-				return await GetDeploymentPayloadAsync(tool, tool.Deployments[idx]);
+				return await GetDeploymentPayloadAsync(tool, tool.Deployments[idx], cancellationToken);
 			}
 		}
 
-		async Task<ActionResult> GetDeploymentPayloadAsync(ITool tool, IToolDeployment deployment)
+		async Task<ActionResult> GetDeploymentPayloadAsync(ITool tool, IToolDeployment deployment, CancellationToken cancellationToken)
 		{
-			Stream stream = await _toolCollection.GetDeploymentPayloadAsync(tool, deployment);
+			Stream stream = await _toolCollection.GetDeploymentPayloadAsync(tool, deployment, cancellationToken);
 			return new FileStreamResult(stream, deployment.MimeType);
 		}
 

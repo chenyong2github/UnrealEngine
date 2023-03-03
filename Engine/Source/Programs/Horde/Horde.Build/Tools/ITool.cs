@@ -101,7 +101,7 @@ namespace Horde.Build.Tools
 		/// <summary>
 		/// Reference to this tool in Horde Storage.
 		/// </summary>
-		RefId RefId { get; }
+		RefName RefName { get; }
 	}
 
 	/// <summary>

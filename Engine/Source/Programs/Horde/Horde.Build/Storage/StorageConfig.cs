@@ -70,6 +70,7 @@ namespace Horde.Build.Storage
 		internal void PostLoad(GlobalConfig globalConfig)
 		{
 			// Create a lookup for backend configs
+			_backendLookup.Clear();
 			foreach (BackendConfig backendConfig in Backends)
 			{
 				_backendLookup.Add(backendConfig.Id, backendConfig);
@@ -83,6 +84,7 @@ namespace Horde.Build.Storage
 			}
 
 			// Validate the backend config for each namespace
+			_namespaceLookup.Clear();
 			foreach (NamespaceConfig namespaceConfig in Namespaces)
 			{
 				BackendConfig? backendConfig;

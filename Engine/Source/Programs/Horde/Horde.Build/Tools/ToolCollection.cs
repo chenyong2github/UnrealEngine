@@ -2,13 +2,14 @@
 
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Nodes;
 using EpicGames.Serialization;
 using Horde.Build.Server;
 using Horde.Build.Storage;
 using Horde.Build.Utilities;
 using HordeCommon;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
@@ -18,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Horde.Build.Tools
@@ -89,7 +91,7 @@ namespace Horde.Build.Tools
 			public string MimeType { get; set; }
 
 			[BsonElement("ref")]
-			public RefId RefId { get; set; }
+			public RefName RefName { get; set; }
 
 			public ToolDeployment(ToolDeploymentId id)
 			{
@@ -98,13 +100,13 @@ namespace Horde.Build.Tools
 				MimeType = ToolDeploymentConfig.DefaultMimeType;
 			}
 
-			public ToolDeployment(ToolDeploymentId id, ToolDeploymentConfig options, RefId refId)
+			public ToolDeployment(ToolDeploymentId id, ToolDeploymentConfig options, RefName refName)
 			{
 				Id = id;
 				Version = options.Version;
 				Duration = options.Duration;
 				MimeType = options.MimeType;
-				RefId = refId;
+				RefName = refName;
 			}
 
 			public void UpdateTemporalState(DateTime utcNow)
@@ -157,9 +159,9 @@ namespace Horde.Build.Tools
 		}
 
 		private readonly VersionedCollection<ToolId, Tool> _tools;
-		private readonly ILegacyStorageClient _storage;
+		private readonly StorageService _storageService;
 		private readonly IClock _clock;
-		private readonly NamespaceId _namespaceId;
+		private readonly IMemoryCache _cache;
 		private readonly ILogger _logger;
 
 		private static readonly RedisKey s_baseKey = "tools/v1/";
@@ -169,12 +171,12 @@ namespace Horde.Build.Tools
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ToolCollection(MongoService mongoService, RedisService redisService, ILegacyStorageClient storage, IClock clock, ILogger<ToolCollection> logger)
+		public ToolCollection(MongoService mongoService, RedisService redisService, StorageService storageService, IMemoryCache cache, IClock clock, ILogger<ToolCollection> logger)
 		{
 			_tools = new VersionedCollection<ToolId, Tool>(mongoService, "Tools", redisService, s_baseKey, s_types);
-			_storage = storage;
+			_storageService = storageService;
 			_clock = clock;
-			_namespaceId = Namespace.Tools;
+			_cache = cache;
 			_logger = logger;
 		}
 
@@ -231,23 +233,26 @@ namespace Horde.Build.Tools
 		/// <param name="options">Options for the new deployment</param>
 		/// <param name="stream">Stream containing the tool data</param>
 		/// <param name="globalConfig">The current configuration</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Updated tool document, or null if it does not exist</returns>
-		public async Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, Stream stream, GlobalConfig globalConfig)
+		public async Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, Stream stream, GlobalConfig globalConfig, CancellationToken cancellationToken)
 		{
+			ToolDeploymentId deploymentId = ToolDeploymentId.GenerateNewId();
+			RefName refName = new RefName($"{tool.Id}/{deploymentId}");
+
 			// Upload the tool data first
-			IoHash hash = await _storage.WriteBlobAsync(_namespaceId, stream);
+			IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
 
-			ToolDeploymentData deploymentData = new ToolDeploymentData();
-			deploymentData.Id = ToolDeploymentId.GenerateNewId();
-			deploymentData.Version = options.Version;
-			deploymentData.Data = new CbBinaryAttachment(hash);
-
-			BucketId bucketId = GetBucket(tool.Id);
-			RefId refId = new RefId(deploymentData.Id.ToString());
-			await _storage.SetRefAsync(_namespaceId, bucketId, refId, deploymentData);
+			NodeHandle handle;
+			using (TreeWriter writer = new TreeWriter(client, refName))
+			{
+				FileNodeWriter nodeWriter = new FileNodeWriter(writer, new ChunkingOptions());
+				handle = await nodeWriter.CreateAsync(stream, cancellationToken);
+			}
+			await client.WriteRefTargetAsync(refName, handle, cancellationToken: cancellationToken);
 
 			// Create the new deployment object
-			ToolDeployment deployment = new ToolDeployment(deploymentData.Id, options, refId);
+			ToolDeployment deployment = new ToolDeployment(deploymentId, options, refName);
 
 			// Start the deployment
 			DateTime utcNow = _clock.UtcNow;
@@ -260,7 +265,7 @@ namespace Horde.Build.Tools
 			Tool? newTool = (Tool)tool;
 			for (; ; )
 			{
-				newTool = await TryAddDeploymentAsync(newTool, deployment);
+				newTool = await TryAddDeploymentAsync(newTool, deployment, cancellationToken);
 				if (newTool != null)
 				{
 					break;
@@ -278,7 +283,7 @@ namespace Horde.Build.Tools
 			return newTool;
 		}
 
-		async ValueTask<Tool?> TryAddDeploymentAsync(Tool tool, ToolDeployment deployment)
+		async ValueTask<Tool?> TryAddDeploymentAsync(Tool tool, ToolDeployment deployment, CancellationToken cancellationToken)
 		{
 			Tool? newTool = tool;
 
@@ -291,7 +296,9 @@ namespace Horde.Build.Tools
 				{
 					return null;
 				}
-				await _storage.DeleteRefAsync(_namespaceId, GetBucket(newTool.Id), tool.Deployments[0].RefId);
+
+				IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
+				await client.DeleteRefAsync(tool.Deployments[0].RefName, cancellationToken);
 			}
 
 			// Add the new deployment
@@ -317,8 +324,6 @@ namespace Horde.Build.Tools
 			{
 				return null;
 			}
-
-			BucketId bucketId = GetBucket(tool.Id);
 
 			ToolDeployment deployment = tool.Deployments[idx];
 			switch (action)
@@ -360,13 +365,28 @@ namespace Horde.Build.Tools
 		/// </summary>
 		/// <param name="tool">Identifier for the tool</param>
 		/// <param name="deployment">The deployment</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Stream for the data</returns>
-		public async Task<Stream> GetDeploymentPayloadAsync(ITool tool, IToolDeployment deployment)
+		public async Task<Stream> GetDeploymentPayloadAsync(ITool tool, IToolDeployment deployment, CancellationToken cancellationToken)
 		{
-			ToolDeploymentData data = await _storage.GetRefAsync<ToolDeploymentData>(_namespaceId, GetBucket(tool.Id), deployment.RefId);
-			return await _storage.ReadBlobAsync(_namespaceId, data.Data);
-		}
+			_ = tool;
 
-		private static BucketId GetBucket(ToolId toolId) => new BucketId(toolId.ToString());
+			IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
+			TreeReader reader = new TreeReader(client, _cache, _logger);
+			FileNode node = await reader.ReadNodeAsync<FileNode>(deployment.RefName, DateTime.UtcNow - TimeSpan.FromDays(2.0), cancellationToken);
+
+			MemoryStream memoryStream = new MemoryStream();
+			try
+			{
+				await node.CopyToStreamAsync(reader, memoryStream, cancellationToken);
+				memoryStream.Position = 0;
+				return memoryStream;
+			}
+			catch
+			{
+				await memoryStream.DisposeAsync();
+				throw;
+			}
+		}
 	}
 }

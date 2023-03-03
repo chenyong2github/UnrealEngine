@@ -4,10 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Server;
+using Horde.Build.Storage;
 using Horde.Build.Tools;
-using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -17,15 +18,25 @@ namespace Horde.Build.Tests
 	[TestClass]
     public class ToolTests : TestSetup
     {
+		ToolId _toolId = new ToolId("ugs");
+
+		public ToolTests()
+		{
+			GlobalConfig globalConfig = new GlobalConfig();
+			globalConfig.Storage.Backends.Clear();
+			globalConfig.Storage.Backends.Add(new BackendConfig { Id = new BackendId("tools-backend"), Type = StorageBackendType.Memory });
+			globalConfig.Storage.Namespaces.Clear();
+			globalConfig.Storage.Namespaces.Add(new NamespaceConfig { Id = Namespace.Tools, Backend = new BackendId("tools-backend") });
+			globalConfig.Tools.Add(new ToolConfig(_toolId) { Name = "UnrealGameSync", Description = "Tool for syncing content from source control" });
+			SetConfig(globalConfig);
+		}
+
         [TestMethod]
         public async Task AddTool()
         {
 			ToolCollection collection = ServiceProvider.GetRequiredService<ToolCollection>();
 
-			ToolId toolId = new ToolId("ugs");
-			SetConfig(new GlobalConfig { Tools = new List<ToolConfig> { new ToolConfig(toolId) { Name = "UnrealGameSync", Description = "Tool for syncing content from source control" } } });
-
-			ITool tool = Deref(await collection.GetAsync(toolId, GlobalConfig.CurrentValue));
+			ITool tool = Deref(await collection.GetAsync(_toolId, GlobalConfig.CurrentValue));
 			Assert.AreEqual(tool.Id, new ToolId("ugs"));
 			Assert.AreEqual(tool.Config.Name, "UnrealGameSync");
 			Assert.AreEqual(tool.Config.Description, "Tool for syncing content from source control");
@@ -41,10 +52,7 @@ namespace Horde.Build.Tests
 		{
 			ToolCollection collection = ServiceProvider.GetRequiredService<ToolCollection>();
 
-			ToolId toolId = new ToolId("ugs");
-			SetConfig(new GlobalConfig { Tools = new List<ToolConfig> { new ToolConfig(toolId) { Name = "UnrealGameSync", Description = "Tool for syncing content from source control" } } });
-
-			ITool tool = Deref(await collection.GetAsync(toolId, GlobalConfig.CurrentValue));
+			ITool tool = Deref(await collection.GetAsync(_toolId, GlobalConfig.CurrentValue));
 			Assert.AreEqual(new ToolId("ugs"), tool.Id);
 			Assert.AreEqual("UnrealGameSync", tool.Config.Name);
 			Assert.AreEqual("Tool for syncing content from source control", tool.Config.Description);
@@ -55,7 +63,7 @@ namespace Horde.Build.Tests
 			ToolDeploymentId deploymentId;
 			using (MemoryStream stream = new MemoryStream(deploymentData))
 			{
-				tool = Deref(await collection.CreateDeploymentAsync(tool, new ToolDeploymentConfig { Version = "1.0", Duration = TimeSpan.FromMinutes(5.0), CreatePaused = true }, stream, GlobalConfig.CurrentValue));
+				tool = Deref(await collection.CreateDeploymentAsync(tool, new ToolDeploymentConfig { Version = "1.0", Duration = TimeSpan.FromMinutes(5.0), CreatePaused = true }, stream, GlobalConfig.CurrentValue, CancellationToken.None));
 				Assert.AreEqual(1, tool.Deployments.Count);
 				Assert.IsNull(tool.Deployments[0].StartedAt);
 				deploymentId = tool.Deployments[^1].Id;
@@ -93,7 +101,7 @@ namespace Horde.Build.Tests
 			byte[] outputDeploymentData;
 			using (MemoryStream stream = new MemoryStream())
 			{
-				Stream dataStream = await collection.GetDeploymentPayloadAsync(tool, tool.Deployments[0]);
+				Stream dataStream = await collection.GetDeploymentPayloadAsync(tool, tool.Deployments[0], CancellationToken.None);
 				await dataStream.CopyToAsync(stream);
 				outputDeploymentData = stream.ToArray();
 			}
