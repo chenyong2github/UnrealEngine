@@ -267,6 +267,14 @@ namespace UnrealBuildTool
 		public string? CompilerVersion = null;
 
 		/// <summary>
+		/// True if /fastfail should be passed to the msvc compiler and linker
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/WindowsTargetPlatform.WindowsTargetSettings", "bVCFastFail")]
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-VCFastFail")]
+		public bool bVCFastFail = false;
+
+		/// <summary>
 		/// True if we should use the Clang linker (LLD) when we are compiling with Clang, or Intel linker (xilink\xilib) when we are compiling with Intel oneAPI, otherwise we use the MSVC linker.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/WindowsTargetPlatform.WindowsTargetSettings", "bAllowClangLinker")]
@@ -695,6 +703,11 @@ namespace UnrealBuildTool
 		public bool bUseCPPWinRT
 		{
 			get { return Inner.bUseCPPWinRT; }
+		}
+
+		public bool bVCFastFail
+		{
+			get { return Inner.bVCFastFail; }
 		}
 
 		public bool bAllowClangLinker
