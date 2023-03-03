@@ -2364,58 +2364,62 @@ void FWebRemoteControlModule::RegisterDefaultPreprocessors()
 
 	const FHttpRequestHandler IPValidationRequestHandler = FHttpRequestHandler([this](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 	{
-		TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
-
-		FString OriginHeader;
-		if (const TArray<FString>* OriginHeaders = Request.Headers.Find(WebRemoteControlInternalUtils::OriginHeader))
+		const URemoteControlSettings* Settings = GetDefault<URemoteControlSettings>();
+		if (Settings->bRestrictServerAccess)
 		{
-			if (OriginHeaders->Num())
+			TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+
+			FString OriginHeader;
+			if (const TArray<FString>* OriginHeaders = Request.Headers.Find(WebRemoteControlInternalUtils::OriginHeader))
 			{
-				OriginHeader = (*OriginHeaders)[0];
-			}
-		}
-
-		OriginHeader.RemoveSpacesInline();
-		OriginHeader.TrimStartAndEndInline();
-		
-		auto SimplifyAddress = [] (FString Address)
-		{
-			Address.RemoveFromStart(TEXT("https://www."));
-			Address.RemoveFromStart(TEXT("http://www."));
-			Address.RemoveFromStart(TEXT("https://"));
-			Address.RemoveFromStart(TEXT("http://"));
-			Address.RemoveFromEnd(TEXT("/"));
-			return Address;
-		};
-
-		const FString SimplifiedOrigin = SimplifyAddress(OriginHeader);
-		const FWildcardString SimplifiedAllowedOrigin = SimplifyAddress(GetDefault<URemoteControlSettings>()->AllowedOrigin);
-		if (GetDefault<URemoteControlSettings>()->AllowedOrigin != TEXT("*"))
-		{
-			if (!SimplifiedAllowedOrigin.IsMatch(SimplifiedOrigin))
-			{
-				WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Client origin %s does not respect the allowed origin set in Remote Control Settings."), *OriginHeader), Response->Body);
-				Response->Code = EHttpServerResponseCodes::Denied;
-				OnComplete(MoveTemp(Response));
-				return true;
-			}
-		}
-
-		if (Request.PeerAddress)
-		{
-			constexpr bool bAppendPort = false;
-			FString ClientIP = Request.PeerAddress->ToString(bAppendPort);
-			const FWildcardString WildcardAllowedIP = SimplifyAddress(GetDefault<URemoteControlSettings>()->AllowedIP);
-				
-			// Allow requests from localhost
-			if (ClientIP != TEXT("localhost") && ClientIP != TEXT("127.0.0.1"))
-			{
-				if (!WildcardAllowedIP.IsEmpty() && WildcardAllowedIP.IsMatch(ClientIP))
+				if (OriginHeaders->Num())
 				{
-					WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Client IP %s does not respect the allowed IP set in Remote Control Settings."), *ClientIP), Response->Body);
+					OriginHeader = (*OriginHeaders)[0];
+				}
+			}
+
+			OriginHeader.RemoveSpacesInline();
+			OriginHeader.TrimStartAndEndInline();
+			
+			auto SimplifyAddress = [] (FString Address)
+			{
+				Address.RemoveFromStart(TEXT("https://www."));
+				Address.RemoveFromStart(TEXT("http://www."));
+				Address.RemoveFromStart(TEXT("https://"));
+				Address.RemoveFromStart(TEXT("http://"));
+				Address.RemoveFromEnd(TEXT("/"));
+				return Address;
+			};
+
+			const FString SimplifiedOrigin = SimplifyAddress(OriginHeader);
+			if (Settings->AllowedOrigin != TEXT("*"))
+			{
+				const FWildcardString SimplifiedAllowedOrigin = SimplifyAddress(Settings->AllowedOrigin);
+				if (!SimplifiedAllowedOrigin.IsMatch(SimplifiedOrigin))
+				{
+					WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Client origin %s does not respect the allowed origin set in Remote Control Settings."), *OriginHeader), Response->Body);
 					Response->Code = EHttpServerResponseCodes::Denied;
 					OnComplete(MoveTemp(Response));
 					return true;
+				}
+			}
+
+			if (Request.PeerAddress)
+			{
+				constexpr bool bAppendPort = false;
+				FString ClientIP = Request.PeerAddress->ToString(bAppendPort);
+
+				// Allow requests from localhost
+				if (ClientIP != TEXT("localhost") && ClientIP != TEXT("127.0.0.1"))
+				{
+					const FWildcardString WildcardAllowedIP = SimplifyAddress(Settings->AllowedIP);
+					if (!WildcardAllowedIP.IsEmpty() && WildcardAllowedIP.IsMatch(ClientIP))
+					{
+						WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Client IP %s does not respect the allowed IP set in Remote Control Settings."), *ClientIP), Response->Body);
+						Response->Code = EHttpServerResponseCodes::Denied;
+						OnComplete(MoveTemp(Response));
+						return true;
+					}
 				}
 			}
 		}
