@@ -11,6 +11,7 @@
 #include "NiagaraSystemInstance.h"
 #include "RHIStaticStates.h"
 #include "ShaderCompilerCore.h"
+#include "GlobalRenderResources.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceSparseVolumeTexture)
 
