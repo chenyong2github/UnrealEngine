@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenFrontLayerTranslucency.cpp
-=============================================================================*/
-
 #include "LumenFrontLayerTranslucency.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
@@ -62,13 +58,9 @@ namespace Lumen
 
 	bool ShouldRenderInFrontLayerTranslucencyGBufferPass(bool bShouldRenderInMainPass, const FMaterial& Material)
 	{
-		const bool bIsTranslucent = IsTranslucentBlendMode(Material);
-		const ETranslucencyLightingMode TranslucencyLightingMode = Material.GetTranslucencyLightingMode();
-
-		return bIsTranslucent
-			&& (TranslucencyLightingMode == TLM_Surface || TranslucencyLightingMode == TLM_SurfacePerPixelLighting)
-			&& bShouldRenderInMainPass
-			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain());
+		return bShouldRenderInMainPass
+			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
+			&& Material.IsTranslucencyWritingFrontLayerTransparency();
 	}
 }
 

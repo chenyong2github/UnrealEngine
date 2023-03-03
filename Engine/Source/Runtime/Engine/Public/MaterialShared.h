@@ -1830,6 +1830,7 @@ public:
 	virtual bool IsDitheredLODTransition() const = 0;
 	virtual bool IsTranslucencyWritingCustomDepth() const { return false; }
 	virtual bool IsTranslucencyWritingVelocity() const { return false; }
+	virtual bool IsTranslucencyWritingFrontLayerTransparency() const { return false; }
 	virtual bool IsTangentSpaceNormal() const { return false; }
 	virtual bool ShouldGenerateSphericalParticleNormals() const { return false; }
 	virtual	bool ShouldDisableDepthTest() const { return false; }
@@ -2540,6 +2541,7 @@ public:
 	ENGINE_API virtual bool IsDitheredLODTransition() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const override;
+	ENGINE_API virtual bool IsTranslucencyWritingFrontLayerTransparency() const override;
 	ENGINE_API virtual bool IsTangentSpaceNormal() const override;
 	ENGINE_API virtual bool ShouldGenerateSphericalParticleNormals() const override;
 	ENGINE_API virtual bool ShouldDisableDepthTest() const override;

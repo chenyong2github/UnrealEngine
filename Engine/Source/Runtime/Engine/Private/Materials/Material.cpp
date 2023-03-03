@@ -986,6 +986,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	bUseMaterialAttributes = false;
 	bCastRayTracedShadows = true;
 	bUseTranslucencyVertexFog = true;
+	bAllowFrontLayerTranslucency = true;
 	bApplyCloudFogging = false;
 	bIsSky = false;
 	bUsedWithWater = false;
@@ -6461,6 +6462,13 @@ bool UMaterial::IsTranslucencyWritingCustomDepth() const
 bool UMaterial::IsTranslucencyWritingVelocity() const
 {
 	return bOutputTranslucentVelocity && IsTranslucentBlendMode(GetBlendMode());
+}
+
+bool UMaterial::IsTranslucencyWritingFrontLayerTransparency() const
+{
+	return IsTranslucentBlendMode(GetBlendMode())
+		&& (TranslucencyLightingMode == TLM_Surface || TranslucencyLightingMode == TLM_SurfacePerPixelLighting) 
+		&& bAllowFrontLayerTranslucency;
 }
 
 bool UMaterial::IsMasked() const

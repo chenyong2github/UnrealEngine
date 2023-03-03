@@ -869,6 +869,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Translucency, AdvancedDisplay, meta = (DisplayName = "Allow Custom Depth Writes"))
 	uint8 AllowTranslucentCustomDepthWrites : 1;
 
+	/** Allows a translucent material to be used with Front Layer Translucency by compiling additional shaders. Useful for controlling what should be included in Front Layer Translucency. */
+	UPROPERTY(EditAnywhere, Category = Translucency, AdvancedDisplay, meta = (DisplayName = "Allow Front Layer Translucency"))
+	uint8 bAllowFrontLayerTranslucency : 1;
+
 	/** Enables a wireframe view of the mesh the material is applied to.  */
 	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
 	uint8 Wireframe : 1;
@@ -1109,6 +1113,7 @@ public:
 	ENGINE_API virtual bool IsDitheredLODTransition() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const override;
+	ENGINE_API virtual bool IsTranslucencyWritingFrontLayerTransparency() const override;
 	ENGINE_API virtual bool IsMasked() const override;
 	ENGINE_API virtual bool IsDeferredDecal() const override;
 	ENGINE_API virtual bool IsUIMaterial() const;

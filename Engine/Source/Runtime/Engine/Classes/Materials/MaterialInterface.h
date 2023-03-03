@@ -899,6 +899,7 @@ public:
 	ENGINE_API virtual bool IsDitheredLODTransition() const;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const;
 	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const;
+	ENGINE_API virtual bool IsTranslucencyWritingFrontLayerTransparency() const;
 	ENGINE_API virtual bool IsMasked() const;
 	ENGINE_API virtual bool IsDeferredDecal() const;
 	ENGINE_API virtual float GetMaxWorldPositionOffsetDisplacement() const;

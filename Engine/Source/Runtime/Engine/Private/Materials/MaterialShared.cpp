@@ -1824,12 +1824,20 @@ bool FMaterialResource::IsDitheredLODTransition() const
 bool FMaterialResource::IsTranslucencyWritingCustomDepth() const
 {
 	// We cannot call UMaterial::IsTranslucencyWritingCustomDepth because we need to check the instance potentially overriden blend mode.
-	return  Material->AllowTranslucentCustomDepthWrites != 0 && IsTranslucentBlendMode(GetBlendMode());
+	return Material->AllowTranslucentCustomDepthWrites != 0 && IsTranslucentBlendMode(GetBlendMode());
 }
 
 bool FMaterialResource::IsTranslucencyWritingVelocity() const
 {
 	return MaterialInstance ? MaterialInstance->IsTranslucencyWritingVelocity() : Material->IsTranslucencyWritingVelocity();
+}
+
+bool FMaterialResource::IsTranslucencyWritingFrontLayerTransparency() const
+{
+	// We cannot call UMaterial::IsTranslucencyWritingFrontLayerTransparency because we need to check the instance potentially overriden blend mode.
+	return IsTranslucentBlendMode(GetBlendMode())
+		&& (Material->TranslucencyLightingMode == TLM_Surface || Material->TranslucencyLightingMode == TLM_SurfacePerPixelLighting)
+		&& Material->bAllowFrontLayerTranslucency;
 }
 
 bool FMaterialResource::IsMasked() const 
