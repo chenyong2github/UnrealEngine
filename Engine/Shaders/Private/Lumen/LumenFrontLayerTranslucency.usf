@@ -95,6 +95,10 @@ void MainPS(
 			FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
 			StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, Settings, TotalCoverage, TotalTransmittancePreCoverage);
 
+			// Clip pixels that will never receive any lumen front material reflections.
+			// We cannot generalise and use GetMaterialClippingVelocity for that because this function clips with a 1/255 threshold...that can result in NaN refelctions if some pixels are not genrated correctly.
+			clip(TotalCoverage <= 0.0f ? -1.0f : 1.0f);
+
 			// Extract averaged normal and roughness
 			WorldNormal = 0;
 			Roughness = 0;
@@ -123,7 +127,13 @@ void MainPS(
 			Roughness = TopLayerTotalWeight > 0.0f ? Roughness / TopLayerTotalWeight : 0.0f;
 		}
 	}
+#else 
+	// Thin translucent materials are assumed to always have a coverage of 1.
+#if !MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+	clip(PixelMaterialInputs.Opacity <= 0.0f ? -1.0f : 1.0f);
+#endif
 #endif // TEMPLATE_USES_STRATA
+
 	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
 
 #if OUTPUT_PIXEL_DEPTH_OFFSET
