@@ -51,6 +51,9 @@ public:
 	int32 GetPriority() const override;
 
 private:
+	/** Cache camera view information for the current frame. */
+	void CacheViewInfo(FSceneViewFamily& InViewFamily, const FSceneView& View);
+	
 	/** Array of info on each camera used for mipmap calculations. */
 	TArray<FImgMediaViewInfo> CachedViewInfos;
 
