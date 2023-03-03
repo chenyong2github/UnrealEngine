@@ -1639,16 +1639,12 @@ bool USmartObjectSubsystem::FindEntryLocationForSlot(const FSmartObjectSlotHandl
 				&& NavLocation.HasNodeRef()
 				&& UE::SmartObject::Helpers::IsPointInBox(NavLocation.Location, Candidate.Location, FVector(Request.NavigationValidationExtents)))
 			{
-				DrawDebugSphere(GetWorld(), Candidate.Location, 40.0f, 32, FColor::Green, false, 2.0f, 0, 2.0f);
-				
 				Result.Location = NavLocation.Location;
 				Result.Rotation = Candidate.Rotation;
 				Result.NodeRef = NavLocation.NodeRef;
 				Result.Tag = Candidate.Tag;
 				return true;
 			}
-
-			DrawDebugSphere(GetWorld(), Candidate.Location, 40.0f, 32, FColor::Red, false, 2.0f, 0, 2.0f);
 		}
 		return false;
 	}
