@@ -246,51 +246,54 @@ static FString GetSectionString(const FConfigSection& Section, FName Key)
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 static void ParsePreviewPlatforms(const FConfigFile& IniFile)
 {
-	// walk over the file looking for PreviewPlatform sections
-	for (auto Section : IniFile)
+	if (!FParse::Param(FCommandLine::Get(), TEXT("NoPreviewPlatforms")))
 	{
-		if (Section.Key.StartsWith(TEXT("PreviewPlatform ")))
+		// walk over the file looking for PreviewPlatform sections
+		for (auto Section : IniFile)
 		{
-			const FString& SectionName = Section.Key;
-			FName PreviewPlatformName = *(SectionName.Mid(16) + TEXT("_Preview"));
-
-			// Early-out if enabled cvar is specified and not set
-			TArray<FString> Tokens;
-			GetSectionString(Section.Value, FName("EnabledCVar")).ParseIntoArray(Tokens, TEXT(":"));
-			if (Tokens.Num() == 5)
+			if (Section.Key.StartsWith(TEXT("PreviewPlatform ")))
 			{
-				// now load a local version of the ini hierarchy
-				FConfigFile LocalIni;
-				FConfigCacheIni::LoadLocalIniFile(LocalIni, *Tokens[1], true, *Tokens[2]);
+				const FString& SectionName = Section.Key;
+				FName PreviewPlatformName = *(SectionName.Mid(16) + TEXT("_Preview"));
 
-				// and get the enabled cvar's value
-				bool bEnabled = false;
-				LocalIni.GetBool(*Tokens[3], *Tokens[4], bEnabled);
-				if (!bEnabled)
+				// Early-out if enabled cvar is specified and not set
+				TArray<FString> Tokens;
+				GetSectionString(Section.Value, FName("EnabledCVar")).ParseIntoArray(Tokens, TEXT(":"));
+				if (Tokens.Num() == 5)
 				{
-					continue;
+					// now load a local version of the ini hierarchy
+					FConfigFile LocalIni;
+					FConfigCacheIni::LoadLocalIniFile(LocalIni, *Tokens[1], true, *Tokens[2]);
+
+					// and get the enabled cvar's value
+					bool bEnabled = false;
+					LocalIni.GetBool(*Tokens[3], *Tokens[4], bEnabled);
+					if (!bEnabled)
+					{
+						continue;
+					}
 				}
+
+				FName PlatformName = *GetSectionString(Section.Value, FName("PlatformName"));
+				checkf(PlatformName != NAME_None, TEXT("DataDrivenPlatformInfo section [%s] must specify a PlatformName"), *SectionName);
+
+				FPreviewPlatformMenuItem Item;
+				Item.PlatformName = PlatformName;
+				Item.PreviewShaderPlatformName = PreviewPlatformName;
+				Item.ShaderFormat = *GetSectionString(Section.Value, FName("ShaderFormat"));
+				checkf(Item.ShaderFormat != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a ShaderFormat"), *SectionName);
+				Item.ActiveIconPath = GetSectionString(Section.Value, FName("ActiveIconPath"));
+				Item.ActiveIconName = *GetSectionString(Section.Value, FName("ActiveIconName"));
+				Item.InactiveIconPath = GetSectionString(Section.Value, FName("InactiveIconPath"));
+				Item.InactiveIconName = *GetSectionString(Section.Value, FName("InactiveIconName"));
+				Item.DeviceProfileName = *GetSectionString(Section.Value, FName("DeviceProfileName"));
+				Item.ShaderPlatformToPreview = *GetSectionString(Section.Value, FName("ShaderPlatform"));
+				checkf(Item.ShaderPlatformToPreview != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a ShaderPlatform"), *SectionName);
+				FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("FriendlyName")), Item.OptionalFriendlyNameOverride);
+				FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("MenuTooltip")), Item.MenuTooltip);
+				FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("IconText")), Item.IconText);
+				PreviewPlatformMenuItems.Add(Item);
 			}
-
-			FName PlatformName = *GetSectionString(Section.Value, FName("PlatformName"));
-			checkf(PlatformName != NAME_None, TEXT("DataDrivenPlatformInfo section [%s] must specify a PlatformName"), *SectionName);
-
-			FPreviewPlatformMenuItem Item;
-			Item.PlatformName = PlatformName;
-			Item.PreviewShaderPlatformName = PreviewPlatformName;
-			Item.ShaderFormat = *GetSectionString(Section.Value, FName("ShaderFormat"));
-			checkf(Item.ShaderFormat != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a ShaderFormat"), *SectionName);
-			Item.ActiveIconPath = GetSectionString(Section.Value, FName("ActiveIconPath"));
-			Item.ActiveIconName = *GetSectionString(Section.Value, FName("ActiveIconName"));
-			Item.InactiveIconPath = GetSectionString(Section.Value, FName("InactiveIconPath"));
-			Item.InactiveIconName = *GetSectionString(Section.Value, FName("InactiveIconName"));
-			Item.DeviceProfileName = *GetSectionString(Section.Value, FName("DeviceProfileName"));
-			Item.ShaderPlatformToPreview = *GetSectionString(Section.Value, FName("ShaderPlatform"));
-			checkf(Item.ShaderPlatformToPreview != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a ShaderPlatform"), *SectionName);
-			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("FriendlyName")), Item.OptionalFriendlyNameOverride);
-			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("MenuTooltip")), Item.MenuTooltip);
-			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("IconText")), Item.IconText);
-			PreviewPlatformMenuItems.Add(Item);
 		}
 	}
 }

@@ -11872,8 +11872,17 @@ static bool IsMaterialPathExemptFromRestrictiveMode(FStringBuilderBase& PathName
 	return false;
 }
 
-static bool IsMaterialExpressionExemptFromRestrictiveMode(const UMaterialExpression* Expression, FStringBuilderBase& PathName)
+static bool IsMaterialExpressionExemptFromRestrictiveMode(const UMaterialExpression* Expression, FStringBuilderBase& PathName, EShaderPlatform ShaderPlatform)
 {
+	static bool bNoPreviewPlatforms = FParse::Param(FCommandLine::Get(), TEXT("NoPreviewPlatforms"));
+	if (!bNoPreviewPlatforms && FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(ShaderPlatform))
+	{
+		// Preview shader platforms do not need to have their expressions validated.
+		// The validation for the main editor platform will prevent disallowed expressions
+		// from being used in the material editor.
+		return true;
+	}
+
 	if (Expression)
 	{
 		if (Expression->Material)
@@ -11893,7 +11902,7 @@ static bool IsMaterialExpressionExemptFromRestrictiveMode(const UMaterialExpress
 bool FHLSLMaterialTranslator::ValidateMaterialExpressionPermission(const UMaterialExpression* Expression)
 {
 	FNameBuilder MaterialPathName;
-	if (!IsExpressionClassPermitted(Expression->GetClass()) && !IsMaterialExpressionExemptFromRestrictiveMode(Expression, MaterialPathName))
+	if (!IsExpressionClassPermitted(Expression->GetClass()) && !IsMaterialExpressionExemptFromRestrictiveMode(Expression, MaterialPathName, Platform))
 	{
 		if (MaterialPathName.Len() > 0)
 		{

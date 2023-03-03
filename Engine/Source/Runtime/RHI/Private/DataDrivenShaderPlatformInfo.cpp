@@ -335,23 +335,26 @@ void FGenericDataDrivenShaderPlatformInfo::Initialize()
 				Infos[ShaderPlatform].bContainsValidPlatformInfo = true;
 
 #if WITH_EDITOR
-				for (const FPreviewPlatformMenuItem& Item : FDataDrivenPlatformInfoRegistry::GetAllPreviewPlatformMenuItems())
+				if (!FParse::Param(FCommandLine::Get(), TEXT("NoPreviewPlatforms")))
 				{
-					FName PreviewPlatformName = *(Infos[ShaderPlatform].Name).ToString();
-					if (Item.ShaderPlatformToPreview == PreviewPlatformName)
+					for (const FPreviewPlatformMenuItem& Item : FDataDrivenPlatformInfoRegistry::GetAllPreviewPlatformMenuItems())
 					{
-						EShaderPlatform PreviewShaderPlatform = EShaderPlatform(CustomShaderPlatform++);
-
-						ParseDataDrivenShaderInfo(Section.Value, Infos[PreviewShaderPlatform]);
-						if (!Item.OptionalFriendlyNameOverride.IsEmpty())
+						FName PreviewPlatformName = *(Infos[ShaderPlatform].Name).ToString();
+						if (Item.ShaderPlatformToPreview == PreviewPlatformName)
 						{
-							Infos[PreviewShaderPlatform].FriendlyName = Item.OptionalFriendlyNameOverride;
+							EShaderPlatform PreviewShaderPlatform = EShaderPlatform(CustomShaderPlatform++);
+
+							ParseDataDrivenShaderInfo(Section.Value, Infos[PreviewShaderPlatform]);
+							if (!Item.OptionalFriendlyNameOverride.IsEmpty())
+							{
+								Infos[PreviewShaderPlatform].FriendlyName = Item.OptionalFriendlyNameOverride;
+							}
+							Infos[PreviewShaderPlatform].Name = Item.PreviewShaderPlatformName;
+							PlatformNameToShaderPlatformMap.FindOrAdd(Infos[PreviewShaderPlatform].Name) = PreviewShaderPlatform;
+							Infos[PreviewShaderPlatform].PreviewShaderPlatformParent = ShaderPlatform;
+							Infos[PreviewShaderPlatform].bIsPreviewPlatform = true;
+							Infos[PreviewShaderPlatform].bContainsValidPlatformInfo = true;
 						}
-						Infos[PreviewShaderPlatform].Name = Item.PreviewShaderPlatformName;
-						PlatformNameToShaderPlatformMap.FindOrAdd(Infos[PreviewShaderPlatform].Name) = PreviewShaderPlatform;
-						Infos[PreviewShaderPlatform].PreviewShaderPlatformParent = ShaderPlatform;
-						Infos[PreviewShaderPlatform].bIsPreviewPlatform = true;
-						Infos[PreviewShaderPlatform].bContainsValidPlatformInfo = true;
 					}
 				}
 #endif
