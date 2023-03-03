@@ -1228,10 +1228,11 @@ void FShaderMapResource_SharedCode::ReleaseRHI()
 	// on assumption that we aren't going to get resurrected
 	LibraryInstance = nullptr;
 
-	if (GetNumRefs()> 0)
+	if (GetNumRefs() > 0)
 	{
 		ensureMsgf(false, TEXT("FShaderMapResource_SharedCode::ReleaseRHI is still referenced (Num of references %d). Invoking OnSharedShaderMapResourceExplicitRelease delegate."), GetNumRefs());
-		UE_LOG(LogShaderLibrary, Warning, TEXT("FShaderMapResource_SharedCode::ReleaseRHI is still referenced (Num of references %d). Invoking OnSharedShaderMapResourceExplicitRelease delegate."), GetNumRefs());
+		UE_LOG(LogShaderLibrary, Warning, TEXT("FShaderMapResource_SharedCode::ReleaseRHI is still referenced (Num of references %d, owner %s). Invoking OnSharedShaderMapResourceExplicitRelease delegate."), 
+			GetNumRefs(), *GetOwnerName().ToString());
 		
 		// Invoke delegate to notify shader map resource needs to be forced released
 		OnSharedShaderMapResourceExplicitRelease.ExecuteIfBound(this);

@@ -374,11 +374,21 @@ public:
 		return GameThreadShaderMap;
 	}
 
+	/** Returns owner name for tracking */
+	FName GetOwnerFName() const
+	{
+		return AssetPath;
+	}
+
 	/** Note: SetRenderingThreadShaderMap must also be called with the same value, but from the rendering thread. */
 	void SetGameThreadShaderMap(FComputeKernelShaderMap* InShaderMap)
 	{
 		checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
 		GameThreadShaderMap = InShaderMap;
+		if (LIKELY(GameThreadShaderMap))
+		{
+			GameThreadShaderMap->GetResource()->SetOwnerName(GetOwnerFName());
+		}
 	}
 
 	/** Note: SetGameThreadShaderMap must also be called with the same value, but from the game thread. */
@@ -393,6 +403,10 @@ public:
 	{
 		checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
 		GameThreadShaderMap = InShaderMap;
+		if (LIKELY(GameThreadShaderMap))
+		{
+			GameThreadShaderMap->GetResource()->SetOwnerName(GetOwnerFName());
+		}
 		bContainsInlineShaders = true;
 		bLoadedCookedShaderMapId = true;
 		CookedShaderMapId = InShaderMap->GetShaderMapId();
@@ -555,10 +569,8 @@ private:
 
 	FString FriendlyName;
 
-#if WITH_EDITOR
 	/** Asset using this resource */
 	FName AssetPath;
-#endif
 
 	friend class FComputeKernelShaderMap;
 	friend class FShaderCompilingManager;

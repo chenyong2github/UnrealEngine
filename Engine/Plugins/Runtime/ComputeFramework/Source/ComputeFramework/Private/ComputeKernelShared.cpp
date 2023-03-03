@@ -218,6 +218,7 @@ void FComputeKernelResource::SerializeShaderMap(FArchive& Ar)
 				if (bSuccessfullyLoaded && FApp::CanEverRender())
 				{
 					GameThreadShaderMap = RenderingThreadShaderMap = LoadedShaderMap;
+					GameThreadShaderMap->GetResource()->SetOwnerName(GetOwnerFName());
 				}
 			}
 		}
@@ -251,9 +252,7 @@ void FComputeKernelResource::SetupResource(
 	ShaderParameterMetadataAllocations = MoveTemp(InShaderParameterMetadataAllocations);
 	ShaderParameterMetadata = InShaderParameterMetadata;
 	CompilationResults.Messages.Reset();
-#if WITH_EDITOR
 	AssetPath = InAssetPath;
-#endif
 }
 
 int32 FComputeKernelResource::GetNumPermutations() const 

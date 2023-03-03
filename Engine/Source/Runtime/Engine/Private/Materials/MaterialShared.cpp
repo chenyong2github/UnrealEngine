@@ -1122,6 +1122,10 @@ void FMaterial::SetGameThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 	checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
 	const bool bIsComplete = InMaterialShaderMap ? InMaterialShaderMap->IsComplete(this, true) : false;
 	GameThreadShaderMap = InMaterialShaderMap;
+	if (LIKELY(GameThreadShaderMap))
+	{
+		GameThreadShaderMap->GetResource()->SetOwnerName(GetOwnerFName());
+	}
 	bGameThreadShaderMapIsComplete = bIsComplete;
 
 	TRefCountPtr<FMaterial> Material = this;
@@ -1155,6 +1159,7 @@ void FMaterial::SetInlineShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 	check(InMaterialShaderMap);
 
 	GameThreadShaderMap = InMaterialShaderMap;
+	GameThreadShaderMap->GetResource()->SetOwnerName(GetOwnerFName());
 	bContainsInlineShaders = true;
 	bLoadedCookedShaderMapId = true;
 
@@ -1376,6 +1381,7 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 				if (LoadedShaderMap->Serialize(Ar, true, bCooked && Ar.IsLoading()))
 				{
 					GameThreadShaderMap = MoveTemp(LoadedShaderMap);
+					GameThreadShaderMap->GetResource()->SetOwnerName(GetOwnerFName());
 #if WITH_EDITOR
 					GameThreadShaderMap->AssociateWithAsset(GetAssetPath());
 #endif
@@ -1402,6 +1408,12 @@ void FMaterial::RegisterInlineShaderMap(bool bLoadedByCookedMaterial)
 		}
 		//GameThreadShaderMap->RegisterSerializedShaders(bLoadedByCookedMaterial);
 	}
+}
+
+FName FMaterial::GetOwnerFName() const
+{
+	UMaterialInterface* Owner = GetMaterialInterface();
+	return Owner ? Owner->GetOutermost()->GetFName() : NAME_None;
 }
 
 void FMaterialResource::LegacySerialize(FArchive& Ar)
@@ -4844,7 +4856,15 @@ void FMaterial::SetShaderMapsOnMaterialResources(const TMap<TRefCountPtr<FMateri
 		FMaterial* Material = It.Key;
 		const TRefCountPtr<FMaterialShaderMap>& ShaderMap = It.Value;
 		Material->GameThreadShaderMap = ShaderMap;
-		Material->bGameThreadShaderMapIsComplete = ShaderMap ? ShaderMap->IsComplete(Material, true) : false;
+		if (LIKELY(Material->GameThreadShaderMap))
+		{
+			Material->GameThreadShaderMap->GetResource()->SetOwnerName(Material->GetOwnerFName());
+			Material->bGameThreadShaderMapIsComplete = ShaderMap->IsComplete(Material, true);
+		}
+		else
+		{
+			Material->bGameThreadShaderMapIsComplete = false;
+		}
 	}
 
 	ENQUEUE_RENDER_COMMAND(FSetShaderMapOnMaterialResources)(

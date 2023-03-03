@@ -377,6 +377,7 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 				if (FApp::CanEverRender() && bLoaded)
 				{
 					GameThreadShaderMap = RenderingThreadShaderMap = LoadedShaderMap;
+					GameThreadShaderMap->GetResource()->SetOwnerName(GetOwnerFName());
 
 					UpdateCachedData_PostCompile(true);
 				}
@@ -387,6 +388,12 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 			}
 		}
 	}
+}
+
+FName FNiagaraShaderScript::GetOwnerFName() const
+{
+	const UNiagaraScriptBase* Owner = GetBaseVMScript();
+	return Owner ? Owner->GetOutermost()->GetFName() : NAME_None;
 }
 
 #if WITH_EDITOR

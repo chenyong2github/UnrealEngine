@@ -1953,6 +1953,8 @@ public:
 	 */
 	virtual bool IsPersistent() const = 0;
 	virtual UMaterialInterface* GetMaterialInterface() const { return NULL; }
+	/** For tracking ownership data */
+	FName GetOwnerFName() const;
 
 	virtual bool IsPreview() const { return false; }
 

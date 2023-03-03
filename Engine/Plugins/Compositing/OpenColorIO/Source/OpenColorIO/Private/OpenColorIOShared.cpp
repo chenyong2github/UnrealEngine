@@ -190,6 +190,7 @@ void FOpenColorIOTransformResource::SerializeShaderMap(FArchive& Ar)
 				if (bSuccessfullyLoaded && FApp::CanEverRender())
 				{
 					GameThreadShaderMap = RenderingThreadShaderMap = LoadedShaderMap;
+					GameThreadShaderMap->GetResource()->SetOwnerName(GetOwnerFName());
 #if WITH_EDITOR
 					GameThreadShaderMap->AssociateWithAsset(AssetPath);
 #endif
@@ -216,9 +217,7 @@ void FOpenColorIOTransformResource::SetupResource(ERHIFeatureLevel::Type InFeatu
 	ShaderCode = InShadercode;
 	FriendlyName = InFriendlyName.Replace(TEXT("/"), TEXT(""));
 	WorkingColorSpaceTransformType = InWorkingColorSpaceTransformType;
-#if WITH_EDITOR
 	AssetPath = InAssetPath;
-#endif // WITH_EDITOR
 
 	SetFeatureLevel(InFeatureLevel);
 }

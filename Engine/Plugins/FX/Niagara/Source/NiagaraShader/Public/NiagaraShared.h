@@ -817,6 +817,10 @@ public:
 	{
 		checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
 		GameThreadShaderMap = InShaderMap;
+		if (LIKELY(GameThreadShaderMap))
+		{
+			GameThreadShaderMap->GetResource()->SetOwnerName(GetOwnerFName());
+		}
 	}
 
 	/** Note: SetGameThreadShaderMap must also be called with the same value, but from the game thread. */
@@ -837,6 +841,10 @@ public:
 	{
 		checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
 		GameThreadShaderMap = InShaderMap;
+		if (LIKELY(GameThreadShaderMap))
+		{
+			GameThreadShaderMap->GetResource()->SetOwnerName(GetOwnerFName());
+		}
 		bLoadedCookedShaderMapId = true;
 		CookedShaderMapId = InShaderMap->GetShaderMapId();
 	}
@@ -883,6 +891,8 @@ public:
 
 	UNiagaraScriptBase* GetBaseVMScript() { return BaseVMScript; }
 	const UNiagaraScriptBase* GetBaseVMScript() const { return BaseVMScript; }
+	/** Returns owner name for tracking */
+	NIAGARASHADER_API FName GetOwnerFName() const;
 
 	NIAGARASHADER_API  FNiagaraShaderRef GetShader(int32 PermutationId) const;
 	NIAGARASHADER_API  FNiagaraShaderRef GetShaderGameThread(int32 PermutationId) const;
