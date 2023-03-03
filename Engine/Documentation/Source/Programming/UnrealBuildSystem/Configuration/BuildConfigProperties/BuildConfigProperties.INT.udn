@@ -12,8 +12,6 @@ $ bPrintDebugInfo : Whether debug info should be written to the console.
 
 $ bAllowHybridExecutor : Whether the hybrid executor will be used (a remote executor and local executor).
 
-$ bAllowHordeCompute : Whether Horde remote compute may be used. Highly experimental, disabled by default.
-
 $ bAllowXGE : Whether XGE may be used.
 
 $ bAllowFASTBuild : Whether FASTBuild may be used.
@@ -51,6 +49,8 @@ $ bUseXGEController : Whether the XGE controller worker and modules should be in
 $ bUseUnityBuild : Whether to unify C++ code into larger files for faster compilation.
 
 $ bForceUnityBuild : Whether to force C++ source files to be combined into larger files for faster compilation.
+
+$ bMergeModuleAndGeneratedUnityFiles : Whether to merge module and generated unity files for faster compilation.
 
 $ bUseAdaptiveUnityBuild : Use a heuristic to determine which files are currently being iterated on and exclude them from unity blobs, result in faster incremental compile times. The current implementation uses the read-only flag to distinguish the working set, assuming that files will be made writable by the source control system if they are being modified. This is true for Perforce, but not for Git.
 
@@ -292,6 +292,14 @@ $ OptimizeForSize : List of modules to optimize for size. This allows the target
 
 $ OptimizeForSizeAndSpeed : List of modules to optimize for size and speed. This allows the target to override module optimization level Note that this may disable PCH usage if a private PCH is not provided
 
+### TargetRules
+
+$ bDisableInliningGenCpps : Disable supports for inlining gen.cpps
+
+### TestTargetRules
+
+$ bDisableInliningGenCpps : Disable supports for inlining gen.cpps
+
 ### FASTBuild
 
 $ FBuildExecutablePath : Used to specify the location of fbuild.exe if the distributed binary isn't being used
@@ -315,14 +323,6 @@ $ bStopOnError : Whether to stop on error
 $ MsvcCRTRedistVersion : Which MSVC CRT Redist version to use
 
 $ CompilerVersion : Which MSVC Compiler version to use
-
-### HordeExecutor
-
-$ NumRemoteParallelProcesses : How many processes that will be executed in parallel remotely
-
-$ RemoteProcessOnly : Only run work remotely, for testing
-
-$ RetryFailedRemote : Retry actions locally when failed remotely.
 
 ### ParallelExecutor
 

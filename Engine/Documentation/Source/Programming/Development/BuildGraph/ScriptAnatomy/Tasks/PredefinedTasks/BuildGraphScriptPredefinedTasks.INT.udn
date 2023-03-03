@@ -385,6 +385,18 @@ Creates a PAK file from a given set of files.
 | Tag          | TagList       | Optional | Tag to be applied to build products of this task.                                                                                 |
 | If           | Condition     | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                                                 |
 
+### QueryTargets
+
+Runs UBT to query all the targets for a particular project
+
+|                   |               |          |                                                                                                               |
+| ----------------- | ------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| ProjectFile       | FileReference | Optional | Path to the project file to query                                                                             |
+| OutputFile        | FileReference | Optional | Path to the output file to receive information about the targets                                              |
+| IncludeAllTargets | Boolean       | Optional | Write out all targets, even if a default is specified in the BuildSettings section of the Default*.ini files. |
+| Tag               | TagList       | Optional | Tag to be applied to build products of this task.                                                             |
+| If                | Condition     | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                             |
+
 ### RandomData
 
 Creates files containing random data in the specified output directory. Used for generating test data for the temp storage system.
@@ -564,6 +576,7 @@ Extract files from a zip archive.
 | ZipFile        | FileSpec           | Required | Path to the zip file to extract.                                                  |
 | ToDir          | DirectoryReference | Required | Output directory for the extracted files.                                         |
 | UseLegacyUnzip | Boolean            | Optional | Whether or not to use the legacy unzip code.                                      |
+| OverwriteFiles | Boolean            | Optional | Whether or not to overwrite files during unzip.                                   |
 | Tag            | TagList            | Optional | Tag to be applied to the extracted files.                                         |
 | If             | Condition          | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
 

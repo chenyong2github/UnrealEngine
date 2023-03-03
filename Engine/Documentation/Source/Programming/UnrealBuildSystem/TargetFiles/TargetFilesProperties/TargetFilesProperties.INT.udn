@@ -204,6 +204,8 @@ $ bDisableSymbolCache (Boolean): True if debug symbols that are cached for some 
 
 $ bForceUnityBuild (Boolean): Whether to force C++ source files to be combined into larger files for faster compilation.
 
+$ bMergeModuleAndGeneratedUnityFiles (Boolean): Whether to merge module and generated unity files for faster compilation.
+
 $ DisableMergingModuleAndGeneratedFilesInUnityFiles (String[]): List of modules that disables merging module and generated cpp files in the same unity files.
 
 $ bUseAdaptiveUnityBuild (Boolean): Use a heuristic to determine which files are currently being iterated on and exclude them from unity blobs, result in faster incremental compile times. The current implementation uses the read-only flag to distinguish the working set, assuming that files will be made writable by the source control system if they are being modified. This is true for Perforce, but not for Git.
@@ -351,6 +353,8 @@ $ bPrintToolChainTimingInfo (Boolean): Whether to write detailed timing info fro
 $ bParseTimingInfoForTracing (Boolean): Whether to parse timing data into a tracing file compatible with chrome://tracing.
 
 $ bPublicSymbolsByDefault (Boolean): Whether to expose all symbols as public by default on POSIX platforms
+
+$ bDisableInliningGenCpps (Boolean): Disable supports for inlining gen.cpps
 
 $ ToolChainName (String): Allows overriding the toolchain to be created for this target. This must match the name of a class declared in the UnrealBuildTool assembly.
 
