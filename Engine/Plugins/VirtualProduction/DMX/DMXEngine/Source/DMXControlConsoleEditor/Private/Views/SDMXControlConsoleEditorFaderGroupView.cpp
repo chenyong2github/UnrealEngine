@@ -160,20 +160,8 @@ void SDMXControlConsoleEditorFaderGroupView::ShowAllElements()
 	{
 		const TSharedRef<SWidget> Child = Children->GetChildAt(ChildIndex);
 		if (Child->GetType() == "SDMXControlConsoleEditorMatrixCell")
-		{
-			StaticCastSharedRef<SDMXControlConsoleEditorMatrixCell>(Child)->SetVisibility(EVisibility::Visible);
-			FChildren* CellChildren = ElementsHorizontalBox->GetChildren();
-			if (!CellChildren)
-			{
-				continue;
-			}
-			
-			int32 NumCellChildren = CellChildren->Num();
-			for (int32 CellChildIndex = 0; CellChildIndex < NumChildren; ++CellChildIndex)
-			{
-				const TSharedRef<SWidget> CellChild = Children->GetChildAt(ChildIndex);
-				CellChild->SetVisibility(EVisibility::Visible);
-			}
+		{			
+			StaticCastSharedRef<SDMXControlConsoleEditorMatrixCell>(Child)->ApplyGlobalFilter(TEXT(""));
 		}
 		else if (Child->GetType() == "SDMXControlConsoleEditorFader")
 		{

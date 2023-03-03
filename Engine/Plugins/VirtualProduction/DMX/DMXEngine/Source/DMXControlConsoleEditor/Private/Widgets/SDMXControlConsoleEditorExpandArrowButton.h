@@ -46,5 +46,5 @@ private:
 	ExpandArrowButtonDelegate OnExpandClicked;
 
 	/** True if the button is in expand state */
-	bool bIsExpanded = false;
+	bool bIsExpanded = true;
 };
