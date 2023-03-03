@@ -100,6 +100,12 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = "Enhanced Input", meta=(ConsoleVariable="EnhancedInput.OnlyTriggerLastActionInChord"))
 	uint8 bShouldOnlyTriggerLastActionInChord : 1;
+
+	/**
+	 * If true, then a warning will be logged when a UPlayerMappableInputConfig that has been marked as deprecated is used.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input")
+	uint8 bLogOnDeprecatedConfigUsed : 1;
 	
 	/** If true, then the world subsystem will be created. */
 	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input|World Subsystem", meta=(DisplayName="Enable World Subsystem (Experimental)", DisplayPriority = 1))

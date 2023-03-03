@@ -29,6 +29,7 @@ UEnhancedInputDeveloperSettings::UEnhancedInputDeveloperSettings(const FObjectIn
 	, bEnableUserSettings(false)
 	, bEnableDefaultMappingContexts(true)
 	, bShouldOnlyTriggerLastActionInChord(true)
+	, bLogOnDeprecatedConfigUsed(true)
 	, bEnableWorldSubsystem(false)
 	, bShouldLogAllWorldSubsystemInputs(false)
 {
