@@ -493,8 +493,12 @@ void UNiagaraRendererProperties::UpdateMaterialParametersMIC(const FNiagaraRende
 	if (InOutMIC == nullptr)
 	{
 		InOutMIC = NewObject<UMaterialInstanceConstant>(this);
+		InOutMIC->SetParentEditorOnly(InOutMaterial);
 	}
-	InOutMIC->SetParentEditorOnly(InOutMaterial);
+	else if (InOutMIC->Parent != InOutMaterial)
+	{
+		InOutMIC->SetParentEditorOnly(InOutMaterial);
+	}
 
 	if (UpdateMaterialStaticParameters(MaterialParameters, InOutMIC) == false)
 	{
@@ -532,8 +536,20 @@ void UNiagaraRendererProperties::UpdateMaterialParametersMIC(const FNiagaraRende
 		}
 
 		//-OPT: We should be able to reuse rather than create
-		UMaterialInstanceConstant* MIC = MICPool.Num() > 0 ? MICPool.Pop() : NewObject<UMaterialInstanceConstant>(this);
-		MIC->SetParentEditorOnly(Material);
+		UMaterialInstanceConstant* MIC = nullptr;
+		if (MICPool.Num() > 0)
+		{
+			MIC = MICPool.Pop();
+			if (MIC->Parent != Material)
+			{
+				MIC->SetParentEditorOnly(Material);
+			}
+		}
+		else
+		{
+			MIC = NewObject<UMaterialInstanceConstant>(this);
+			MIC->SetParentEditorOnly(Material);
+		}
 
 		if (UpdateMaterialStaticParameters(MaterialParameters, MIC) == false)
 		{
