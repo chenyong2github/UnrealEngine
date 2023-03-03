@@ -12,6 +12,12 @@ class UAnimBoneCompressionCodec;
 struct FBlendedCurve;
 class FBoneData;
 
+namespace UE::Anim
+{
+struct FAnimPoseDecompressionData;
+}
+
+
 /*
  * Base class for all bone compression codecs.
  */
@@ -90,4 +96,11 @@ class ENGINE_API UAnimBoneCompressionCodec : public UObject
 
 	/** Decompress a single bone. */
 	virtual void DecompressBone(FAnimSequenceDecompressionContext& DecompContext, int32 TrackIndex, FTransform& OutAtom) const PURE_VIRTUAL(UAnimCurveCompressionCodec::DecompressBone, );
+
+	/**
+	 * Decompresses all the specified bone tracks.
+	 * The caller is responsible for pre-filling the output pose with sensible values (e.g. reference/bind/additive identity pose) as
+	 * the codec will only decompress and write out tracks that are contained in the compressed data.
+	 */
+	virtual void DecompressPose(FAnimSequenceDecompressionContext& DecompContext, const UE::Anim::FAnimPoseDecompressionData& DecompressionData) const;
 };

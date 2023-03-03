@@ -2,6 +2,8 @@
 
 #include "Animation/AnimBoneCompressionCodec.h"
 #include "Animation/AnimBoneCompressionSettings.h"
+#include "Animation/AnimBoneDecompressionData.h"
+#include "Misc/MemStack.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimBoneCompressionCodec)
 
@@ -58,3 +60,48 @@ void UAnimBoneCompressionCodec::PopulateDDCKey(FArchive& Ar)
 }
 #endif
 
+
+// Default implementation that codecs should override and implement in a more performant way
+// It performs a conversion between SoA and AoS, making copies of the data between the formats
+void UAnimBoneCompressionCodec::DecompressPose(FAnimSequenceDecompressionContext& DecompContext, const UE::Anim::FAnimPoseDecompressionData& DecompressionData) const
+{
+	const int32 NumTransforms = DecompressionData.GetOutAtomRotations().Num();
+
+	FMemMark Mark(FMemStack::Get());
+
+	TArray<FTransform, TMemStackAllocator<>> OutAtoms;
+	OutAtoms.SetNum(NumTransforms);
+
+	// Right now we only support same size arrays
+	check(DecompressionData.GetOutAtomRotations().Num() == DecompressionData.GetOutAtomTranslations().Num() && DecompressionData.GetOutAtomRotations().Num() == DecompressionData.GetOutAtomScales3D().Num());
+
+	// Copy atoms data into the FTransform array
+	ITERATE_NON_OVERLAPPING_ARRAYS_START(FQuat, DecompressionData.GetOutAtomRotations(), FTransform, OutAtoms, NumTransforms)
+		ItSecond->SetRotation(*ItFirst);
+	ITERATE_NON_OVERLAPPING_ARRAYS_END()
+
+	ITERATE_NON_OVERLAPPING_ARRAYS_START(FVector, DecompressionData.GetOutAtomTranslations(), FTransform, OutAtoms, NumTransforms)
+		ItSecond->SetTranslation(*ItFirst);
+	ITERATE_NON_OVERLAPPING_ARRAYS_END()
+
+	ITERATE_NON_OVERLAPPING_ARRAYS_START(FVector, DecompressionData.GetOutAtomScales3D(), FTransform, OutAtoms, NumTransforms)
+		ItSecond->SetScale3D(*ItFirst);
+	ITERATE_NON_OVERLAPPING_ARRAYS_END()
+
+	// Decompress using default FTransform function
+	TArrayView<FTransform> OutAtomsView = OutAtoms;
+	DecompressPose(DecompContext, DecompressionData.GetRotationPairs(), DecompressionData.GetTranslationPairs(), DecompressionData.GetScalePairs(), OutAtomsView);
+
+	// Copy back the result
+	ITERATE_NON_OVERLAPPING_ARRAYS_START(FTransform, OutAtoms, FQuat, DecompressionData.GetOutAtomRotations(), NumTransforms)
+		*ItSecond = ItFirst->GetRotation();
+	ITERATE_NON_OVERLAPPING_ARRAYS_END()
+
+	ITERATE_NON_OVERLAPPING_ARRAYS_START(FTransform, OutAtoms, FVector, DecompressionData.GetOutAtomTranslations(), NumTransforms)
+		*ItSecond = ItFirst->GetTranslation();
+	ITERATE_NON_OVERLAPPING_ARRAYS_END()
+
+	ITERATE_NON_OVERLAPPING_ARRAYS_START(FTransform, OutAtoms, FVector, DecompressionData.GetOutAtomScales3D(), NumTransforms)
+		*ItSecond = ItFirst->GetScale3D();
+	ITERATE_NON_OVERLAPPING_ARRAYS_END()
+}
