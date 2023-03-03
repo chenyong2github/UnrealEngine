@@ -9,9 +9,11 @@
 #if VIRTUAL_SHADOW_MAP
 #include "../BlueNoise.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
+if SUPPORT_VSM_FOWARD_QUALITY > 0
 #include "../VirtualShadowMaps/VirtualShadowMapProjectionFilter.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapProjectionDirectional.ush"
-#endif
+#endif // SUPPORT_VSM_FOWARD_QUALITY
+#endif // VIRTUAL_SHADOW_MAP
 
 #define FORWARD_PER_PIXEL_SHADING (FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
@@ -119,7 +121,7 @@ float3 StrataForwardLighting(
 		#if SUPPORT_VSM_FOWARD_QUALITY == 1
 		{
 			const FLightShaderParameters DireciontalLight = ConvertToLightShaderParameters(DirLightData);
-			FVirtualShadowMapSMRTSettings SMRTSettings = GetDirectionalLighSMRTSettings();
+			FVirtualShadowMapSMRTSettings SMRTSettings = GetDirectionalLightSMRTSettings();
 
 			const bool bBackfaceCull = true; // STRATA_TODO: this needs to be fixed but require to extract hair/SSS/diffusebackface prior to BSDF looping
 			const float ScreenRayLengthWorld = SMRTSettings.ScreenRayLength * View.ClipToView[1][1] * SceneDepth;

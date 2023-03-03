@@ -30,9 +30,11 @@
 
 #if VIRTUAL_SHADOW_MAP
 #include "VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
+#if SUPPORT_VSM_FOWARD_QUALITY > 0
 #include "VirtualShadowMaps/VirtualShadowMapProjectionFilter.ush"
 #include "VirtualShadowMaps/VirtualShadowMapProjectionDirectional.ush"
-#endif
+#endif // SUPPORT_VSM_FOWARD_QUALITY
+#endif // VIRTUAL_SHADOW_MAP
 
 #ifndef ENABLE_FORWARD_CLOUD_SHADOW
 #define ENABLE_FORWARD_CLOUD_SHADOW 0
@@ -193,7 +195,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 				#if SUPPORT_VSM_FOWARD_QUALITY == 1
 				{
 					const FLightShaderParameters DireciontalLight = ConvertToLightShaderParameters(LightData);
-					FVirtualShadowMapSMRTSettings SMRTSettings = GetDirectionalLighSMRTSettings();
+					FVirtualShadowMapSMRTSettings SMRTSettings = GetDirectionalLightSMRTSettings();
 
 					const bool bBackfaceCull = !IsSubsurfaceModel(GBufferData.ShadingModelID);
 					const float ScreenRayLengthWorld = SMRTSettings.ScreenRayLength * View.ClipToView[1][1] * GBufferData.Depth;

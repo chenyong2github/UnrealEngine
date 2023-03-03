@@ -331,14 +331,14 @@ FVirtualShadowMapSampleResult TraceDirectional(
 			}
 			#endif
 		}
-		uint RayCount = min(i + 1, MaxRayCount);		// break vs regular for loop exit
+		uint RayCount = min(i + 1U, MaxRayCount);		// break vs regular for loop exit
 
 		/* TODO: Experiment with max vs avg distance in various cases
 		float OccluderDistance = (View.GeneralPurposeTweak == 0)
 			? MaxOccluderDistance
 			: (OccluderDistanceSum / float(max(1, RayCount - RayMissCount)));
 		*/
-		float OccluderDistance = (OccluderDistanceSum / float(max(1, RayCount - RayMissCount)));
+		float OccluderDistance = (OccluderDistanceSum / float(max(1U, RayCount - RayMissCount)));
 
 		Result.ShadowFactor = float(RayMissCount) / float(RayCount);
 		Result.OccluderDistance = OccluderDistance;

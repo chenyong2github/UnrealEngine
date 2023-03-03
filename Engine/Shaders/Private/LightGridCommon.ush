@@ -161,7 +161,7 @@ struct FVirtualShadowMapSMRTSettings
 	uint  AdaptiveRayCount;
 };
 
-FVirtualShadowMapSMRTSettings GetDirectionalLighSMRTSettings()
+FVirtualShadowMapSMRTSettings GetDirectionalLightSMRTSettings()
 {
 	FVirtualShadowMapSMRTSettings Out;
 	Out.ScreenRayLength			= ForwardLightData.DirectionalLightSMRTSettings.ScreenRayLength;
