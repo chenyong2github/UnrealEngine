@@ -484,8 +484,8 @@ namespace mu
             if ( s.m_runtimeParams.Num() > MUTABLE_MAX_RUNTIME_PARAMETERS_PER_STATE )
             {
                 FString Msg = FString::Printf( TEXT("State [%s] has more than %d runtime parameters. Their update may fail."),
-								  MUTABLE_MAX_RUNTIME_PARAMETERS_PER_STATE,
-                                  s.m_name.c_str() );
+                	StringCast<TCHAR>(s.m_name.c_str()).Get(),
+                    MUTABLE_MAX_RUNTIME_PARAMETERS_PER_STATE);
                 m_pErrorLog->GetPrivate()->Add(Msg, ELMT_ERROR, node.m_errorContext );
             }
         }
