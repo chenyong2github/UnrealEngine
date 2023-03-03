@@ -85,7 +85,7 @@ public:
 
 	// FArchiveUObject implementation
 	virtual FString GetArchiveName() const override;
-	virtual void MarkSearchableName(const UObject* TypeObject, const FName& ValueName) const override;
+	virtual void MarkSearchableName(const TObjectPtr<const UObject>& TypeObject, const FName& ValueName) const override;
 	virtual FArchive& operator<<(UObject*& Obj) override;
 	virtual FArchive& operator<<(struct FWeakObjectPtr& Value) override;
 	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override;

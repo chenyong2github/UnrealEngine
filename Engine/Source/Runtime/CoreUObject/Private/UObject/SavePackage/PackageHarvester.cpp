@@ -446,7 +446,7 @@ FString FPackageHarvester::GetArchiveName() const
 	return FString::Printf(TEXT("PackageHarvester (%s)"), *SaveContext.GetPackage()->GetName());
 }
 
-void FPackageHarvester::MarkSearchableName(const UObject* TypeObject, const FName& ValueName) const
+void FPackageHarvester::MarkSearchableName(const TObjectPtr<const UObject>& TypeObject, const FName& ValueName) const
 {
 	if (TypeObject == nullptr)
 	{
@@ -455,7 +455,7 @@ void FPackageHarvester::MarkSearchableName(const UObject* TypeObject, const FNam
 
 	// Serialize object to make sure it ends up in import table
 	// This is doing a const cast to avoid backward compatibility issues
-	UObject* TempObject = const_cast<UObject*>(TypeObject);
+	UObject* TempObject = const_cast<UObject*>(TypeObject.Get());
 	FPackageHarvester* MutableArchive = const_cast<FPackageHarvester*>(this);
 	MutableArchive->HarvestSearchableName(TempObject, ValueName);
 }

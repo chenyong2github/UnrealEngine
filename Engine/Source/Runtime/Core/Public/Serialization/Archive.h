@@ -37,6 +37,7 @@ class UObject;
 namespace UE::Serialization{ class FEditorBulkData; }
 struct FArchiveSerializedPropertyChain;
 template<class TEnum> class TEnumAsByte;
+template <typename T> struct TObjectPtr;
 
 typedef TFunction<bool (double RemainingTime)> FExternalReadCallback;
 class FField;
@@ -1810,7 +1811,7 @@ public:
 	/**
 	 * Called to register a reference to a specific name value, of type TypeObject (UEnum or UStruct normally). Const so it can be called from PostSerialize
 	 */
-	virtual void MarkSearchableName(const UObject* TypeObject, const FName& ValueName) const { }
+	virtual void MarkSearchableName(const TObjectPtr<const UObject>& TypeObject, const FName& ValueName) const { }
 
 	using FArchiveState::GetArchetypeFromLoader;
 

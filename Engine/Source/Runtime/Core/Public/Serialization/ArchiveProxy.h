@@ -204,7 +204,7 @@ public:
 		InnerArchive.ResetCustomVersions();
 	}
 
-	virtual void MarkSearchableName(const UObject* TypeObject, const FName& ValueName) const override
+	virtual void MarkSearchableName(const TObjectPtr<const UObject>& TypeObject, const FName& ValueName) const override
 	{
 		InnerArchive.MarkSearchableName(TypeObject, ValueName);
 	}
