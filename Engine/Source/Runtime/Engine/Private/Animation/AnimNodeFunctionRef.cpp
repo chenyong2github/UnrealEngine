@@ -76,23 +76,24 @@ namespace Anim
 {
 
 template<typename WrapperType, typename ContextType>
-static void CallFunctionHelper(const FAnimNodeFunctionRef& InFunction, ContextType InContext, FAnimNode_Base& InNode)
+static void CallFunctionHelper(const FAnimNodeFunctionRef& InFunction, const ContextType& InContext, FAnimNode_Base& InNode)
 {
+	struct FAnimNodeFunctionParams
+	{
+		WrapperType ExecutionContext;
+		FAnimNodeReference NodeReference;
+	};
+
 	if(InFunction.IsValid())
 	{
-		UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(InContext.GetAnimInstanceObject());
-		
-		TSharedRef<FAnimExecutionContext::FData> ContextData = MakeShared<FAnimExecutionContext::FData>(InContext);
-			
-		struct FAnimNodeFunctionParams
+		if(ensureMsgf(InFunction.GetFunction()->ParmsSize == sizeof(FAnimNodeFunctionParams), TEXT("Function parameters size of %s does not match expected."), *InFunction.GetFunction()->GetName()))
 		{
-			WrapperType ExecutionContext;
-			FAnimNodeReference NodeReference;
-		};
-			
-		FAnimNodeFunctionParams Params = { WrapperType(ContextData), FAnimNodeReference(AnimInstance, InNode) };
-			
-		InFunction.Call(AnimInstance, &Params);
+			UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(InContext.GetAnimInstanceObject());
+			TSharedRef<FAnimExecutionContext::FData> ContextData = MakeShared<FAnimExecutionContext::FData>(InContext);
+			FAnimNodeFunctionParams Params = { WrapperType(ContextData), FAnimNodeReference(AnimInstance, InNode) };
+
+			InFunction.Call(AnimInstance, &Params);
+		}
 	}
 }
 

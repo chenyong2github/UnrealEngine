@@ -227,7 +227,7 @@ void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkelet
 		}
 	}
 
-	auto ValidateFunctionRef = [this, &MessageLog](const FMemberReference& InRef, const FText& InFunctionName)
+	auto ValidateFunctionRef = [this, &MessageLog](FName InPropertyName, const FMemberReference& InRef, const FText& InFunctionName)
 	{
 		if(InRef.GetMemberName() != NAME_None)
 		{
@@ -238,6 +238,17 @@ void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkelet
 			}
 			else
 			{
+				// Check signatures match
+				const FProperty* Property = UAnimGraphNode_Base::StaticClass()->FindPropertyByName(InPropertyName);
+				check(Property);
+				const FString& PrototypeFunctionName = Property->GetMetaData("PrototypeFunction");
+				const UFunction* PrototypeFunction = PrototypeFunctionName.IsEmpty() ? nullptr : FindObject<UFunction>(nullptr, *PrototypeFunctionName);
+				if(PrototypeFunction != nullptr && !PrototypeFunction->IsSignatureCompatibleWith(Function))
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("FunctionSignatureErrorFormat", "{0} function's signature is not compatible @@"), InFunctionName).ToString(), this);
+				}
+
+				// Check thread safety
 				if(!FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Function))
 				{
 					MessageLog.Error(*FText::Format(LOCTEXT("FunctionThreadSafetyErrorFormat", "{0} function is not thread safe @@"), InFunctionName).ToString(), this);
@@ -259,9 +270,9 @@ void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkelet
 		MessageLog.Note(*(LOCTEXT("EarlyAccessNode", "@@ - Node is in early access")).ToString(), this);
 	}
 
-	ValidateFunctionRef(InitialUpdateFunction, LOCTEXT("InitialUpdateFunctionName", "Initial Update"));
-	ValidateFunctionRef(BecomeRelevantFunction, LOCTEXT("BecomeRelevantFunctionName", "Become Relevant"));
-	ValidateFunctionRef(UpdateFunction, LOCTEXT("UpdateFunctionName", "Update"));
+	ValidateFunctionRef(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitialUpdateFunction), InitialUpdateFunction, LOCTEXT("InitialUpdateFunctionName", "Initial Update"));
+	ValidateFunctionRef(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction), BecomeRelevantFunction, LOCTEXT("BecomeRelevantFunctionName", "Become Relevant"));
+	ValidateFunctionRef(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction), UpdateFunction, LOCTEXT("UpdateFunctionName", "Update"));
 }
 
 void UAnimGraphNode_Base::CopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
