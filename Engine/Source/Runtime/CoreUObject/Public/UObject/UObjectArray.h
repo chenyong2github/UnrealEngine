@@ -919,6 +919,22 @@ public:
 #endif
 
 	/**
+	* Returns the estimated number of object indices available for allocation
+	*/
+	int32 GetObjectArrayCapacity() const
+	{
+		return ObjObjects.Capacity();
+	}
+
+	/**
+	* Returns the estimated number of object indices available for allocation
+	*/
+	int32 GetObjectArrayNumAvailable() const
+	{
+		return ObjObjects.Capacity() - ObjObjects.Num() + ObjAvailableList.Num();
+	}
+
+	/**
 	 * Clears some internal arrays to get rid of false memory leaks
 	 */
 	void ShutdownUObjectArray();

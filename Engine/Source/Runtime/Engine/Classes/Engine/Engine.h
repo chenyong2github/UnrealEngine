@@ -706,6 +706,16 @@ DECLARE_MULTICAST_DELEGATE(FPostRenderDelegate);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPostRenderDelegateEx, class FRDGBuilder&);
 
 /**
+ * Type of UObject purge type to be performed by the engine
+ */
+enum class EGarbageCollectionType
+{
+	None,
+	Incremental,
+	Full
+};
+
+/**
  * Abstract base class of all Engine classes, responsible for management of systems critical to editor or game systems.
  * Also defines default classes for certain engine systems.
  */
@@ -2669,6 +2679,14 @@ protected:
 	  * Dispatches EndOfFrameUpdates for all UWorlds
 	  */
 	 static void SendWorldEndOfFrameUpdates();
+
+	 /**
+	  * Allows derived classes to force garbage collection based on various factors (low on available UObject slots / other resources)
+	  */
+	 virtual EGarbageCollectionType ShouldForceGarbageCollection()
+	 {
+		 return EGarbageCollectionType::None;
+	 }
 
 public:
 	/** @return the GIsEditor flag setting */

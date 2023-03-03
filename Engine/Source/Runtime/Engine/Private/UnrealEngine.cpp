@@ -1742,6 +1742,13 @@ void UEngine::ConditionalCollectGarbage()
 		}
 		else
 #endif
+		{
+			EGarbageCollectionType ForceTriggerPurge = ShouldForceGarbageCollection();
+			if (ForceTriggerPurge != EGarbageCollectionType::None)
+			{
+				ForceGarbageCollection(ForceTriggerPurge == EGarbageCollectionType::Full);
+			}
+
 			if (bFullPurgeTriggered)
 			{
 				if (TryCollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true))
@@ -1822,6 +1829,7 @@ void UEngine::ConditionalCollectGarbage()
 					}
 				}
 			}
+		}
 
 		if (CVarCollectGarbageEveryFrame.GetValueOnGameThread() > 0)
 		{
