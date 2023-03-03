@@ -312,6 +312,7 @@ public:
 	virtual PROJECTS_API TSharedPtr<IPlugin> FindPlugin(const ANSICHAR* Name) = 0;
 
 	virtual PROJECTS_API TSharedPtr<IPlugin> FindPluginFromPath(const FString& PluginPath) = 0;
+	virtual PROJECTS_API TSharedPtr<IPlugin> FindPluginFromDescriptor(const FPluginReferenceDescriptor& PluginDesc) = 0;
 
 	/** 
 	 * Finds all plugin descriptors underneath a given directory (recursively)

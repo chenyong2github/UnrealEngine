@@ -2445,6 +2445,19 @@ TSharedPtr<IPlugin> FPluginManager::FindPluginFromPath(const FString& PluginPath
 	return FindPlugin(PluginName);
 }
 
+TSharedPtr<IPlugin> FPluginManager::FindPluginFromDescriptor(const FPluginReferenceDescriptor& PluginDesc)
+{
+	const TSharedRef<FPlugin>* Instance = DiscoveredPluginMapUtils::FindPluginInMap_FromDescriptor(AllPlugins, PluginDesc);
+	if (Instance == nullptr)
+	{
+		return TSharedPtr<IPlugin>();
+	}
+	else
+	{
+		return TSharedPtr<IPlugin>(*Instance);
+	}
+}
+
 TArray<TSharedRef<IPlugin>> FPluginManager::GetEnabledPlugins()
 {
 	TArray<TSharedRef<IPlugin>> Plugins;
