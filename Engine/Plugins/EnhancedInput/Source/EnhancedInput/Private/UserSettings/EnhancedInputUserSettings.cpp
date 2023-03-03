@@ -19,6 +19,8 @@
 #include "EnhancedInputLibrary.h"
 #include "Algo/Find.h"
 #include "NativeGameplayTags.h"
+#include "PlatformFeatures.h"
+#include "SaveGameSystem.h"
 
 #define LOCTEXT_NAMESPACE "EnhancedInputMappableUserSettings"
 
@@ -39,7 +41,7 @@ namespace UE::EnhancedInput
 	{
 		if (PlayerInput)
 		{
-			if (APlayerController* PC = Cast<APlayerController>(PlayerInput->GetOuter()))
+			if (APlayerController* PC = PlayerInput->GetOuterAPlayerController())
 			{
 				return PC->GetLocalPlayer();
 			}
@@ -414,14 +416,22 @@ UEnhancedInputUserSettings* UEnhancedInputUserSettings::LoadOrCreateSettings(UEn
 		USaveGame* Slot = UGameplayStatics::LoadGameFromSlot(UE::EnhancedInput::SETTINGS_SLOT_NAME, LocalPlayer->GetLocalPlayerIndex());
 		Settings = Cast<UEnhancedInputUserSettings>(Slot);
 	}
-	
+
+	// If there is no settings save game object, then we can create on
+	// based on the class type set in the developer settings
 	if (Settings == nullptr)
 	{
-		Settings = Cast<UEnhancedInputUserSettings>(UGameplayStatics::CreateSaveGameObject(UEnhancedInputUserSettings::StaticClass()));
+		const UEnhancedInputDeveloperSettings* DevSettings = GetDefault<UEnhancedInputDeveloperSettings>();
+		UClass* SettingsClass = DevSettings->UserSettingsClass ? DevSettings->UserSettingsClass.Get() : UEnhancedInputDeveloperSettings::StaticClass();
+		
+		Settings = Cast<UEnhancedInputUserSettings>(UGameplayStatics::CreateSaveGameObject(SettingsClass));
 	}
 
-	Settings->Initialize(PlayerInput);
-	Settings->ApplySettings();
+	if (ensure(Settings))
+	{
+		Settings->Initialize(PlayerInput);
+    	Settings->ApplySettings();	
+	}
 
 	return Settings;
 }
@@ -447,6 +457,8 @@ void UEnhancedInputUserSettings::ApplySettings()
 {
 	ensureMsgf(GetPlayerInput(), TEXT("UEnhancedInputUserSettings is missing a player input!"));
 	UE_LOG(LogEnhancedInput, Verbose, TEXT("Enhanced Input User Settings applied!"));
+
+	OnSettingsApplied.Broadcast();
 }
 
 void UEnhancedInputUserSettings::SaveSettings()
@@ -461,6 +473,33 @@ void UEnhancedInputUserSettings::SaveSettings()
 	else
 	{
 		UE_LOG(LogEnhancedInput, Warning, TEXT("Attempting to save Enhanced Input User settings without an owning local player!"));
+	}
+}
+
+void UEnhancedInputUserSettings::AsyncSaveSettings()
+{
+	if (const ULocalPlayer* OwningPlayer = GetLocalPlayer())
+	{
+		FAsyncSaveGameToSlotDelegate SavedDelegate;
+		SavedDelegate.BindUObject(this, &UEnhancedInputUserSettings::OnAsyncSaveComplete);
+		
+		UGameplayStatics::AsyncSaveGameToSlot(this, UE::EnhancedInput::SETTINGS_SLOT_NAME, OwningPlayer->GetLocalPlayerIndex(), SavedDelegate);
+	}
+	else
+	{
+		UE_LOG(LogEnhancedInput, Error, TEXT("[UEnhancedInputUserSettings::AsyncSaveSettings] Failed async save, there is no owning local player!"));
+	}
+}
+
+void UEnhancedInputUserSettings::OnAsyncSaveComplete(const FString& SlotName, const int32 UserIndex, bool bSuccess)
+{
+	if (bSuccess)
+	{
+		UE_LOG(LogEnhancedInput, Log, TEXT("UEnhancedInputUserSettings::OnAsyncSaveComplete] Async save of slot '%s' for user index '%d' completed successfully!"), *SlotName, UserIndex);
+	}
+	else
+	{
+		UE_LOG(LogEnhancedInput, Error, TEXT("[UEnhancedInputUserSettings::OnAsyncSaveComplete] Failed async save of slot '%s' for user index '%d'"), *SlotName, UserIndex);
 	}
 }
 
@@ -646,13 +685,12 @@ void UEnhancedInputUserSettings::MapPlayerKey(const FMapPlayerKeyArgs& InArgs, F
 		// Then set the player mapped key
 		FoundMapping->SetCurrentKey(InArgs.NewKey);
 		OnSettingsChanged.Broadcast(this);
-		return;
 	}
 	// If it doesn't exist, then we need to make it if there is a valid action name
 	else if (FKeyMappingRow* MappingRow = KeyProfile->PlayerMappedKeys.Find(InArgs.ActionName))
 	{
-		// If one doesn't exist, then we need to create a new mapping in the given
-		// slot. 
+		// If one doesn't exist, then we need to create a new mapping in the given slot.
+		// 
 		// In order to populate the default values correctly, we only do this if we know that
 		// mappings exist for it
 		const int32 NumMappings = MappingRow->Mappings.Num();
@@ -708,11 +746,14 @@ void UEnhancedInputUserSettings::UnMapPlayerKey(const FMapPlayerKeyArgs& InArgs,
 	{
 		// Then set the player mapped key
 		FoundMapping->ResetToDefault();
-		OnSettingsChanged.Broadcast(this);
+
+		// The settings have only changed if the mapping is dirty now
+		if (FoundMapping->IsDirty())
+		{
+			OnSettingsChanged.Broadcast(this);
+		}
 		
 		UE_LOG(LogEnhancedInput, Verbose, TEXT("[UEnhancedInputUserSettings::MapPlayerKey] Reset keymapping to default: '%s'"), *FoundMapping->ToString());
-		
-		return;
 	}
 	// if a mapping doesn't exist, then we can't unmap it
 	else

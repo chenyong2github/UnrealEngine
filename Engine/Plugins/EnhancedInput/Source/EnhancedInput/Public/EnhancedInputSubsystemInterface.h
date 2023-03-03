@@ -84,6 +84,13 @@ public:
 
 protected:
 	
+	/**
+	 * Create a new user settings object if it is enabled in the EI developer settings.
+	 *
+	 * Not every enhanced input subsystem needs user settings, so this is an optional feature.
+	 */
+	virtual void InitalizeUserSettings();
+	
 	/** Binds to any delegates of interest on the UEnhancedInputUserSettings if they are enabled in the developer settings. */
 	virtual void BindUserSettingDelegates();
 	

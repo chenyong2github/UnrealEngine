@@ -44,46 +44,6 @@ UEnhancedPlayerInput::UEnhancedPlayerInput()
 	}
 }
 
-void UEnhancedPlayerInput::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		return;
-	}
-	
-	InitalizeUserSettings();
-}
-
-void UEnhancedPlayerInput::InitalizeUserSettings()
-{
-	// We don't want to be re-creating any user settings, they should share the lifetime with the player input object
-	if (!ensureMsgf(!UserSettings, TEXT("Attempting to initalize the User Settings, but they have already been created!")))
-	{
-		return;
-	}
-	
-	const UEnhancedInputDeveloperSettings* DevSettings = GetDefault<UEnhancedInputDeveloperSettings>();
-	
-	// These are player settings, so only player owned input components can have them.
-	const bool bHasValidPlayerController = GetOuterAPlayerController() != nullptr;
-
-	if (bHasValidPlayerController && DevSettings->bEnableUserSettings && !IsDefaultSubobject())
-	{
-		// Spawn a new instance of the specified user settings class. This is a "NoClear" UPROPERTY so it should always be set
-		const UClass* SettingsClass = DevSettings->UserSettingsClass.Get();
-		if (ensure(SettingsClass))
-		{
-			UserSettings = UEnhancedInputUserSettings::LoadOrCreateSettings(this);
-		}
-	}
-	else
-	{
-		UE_LOG(LogEnhancedInput, Log, TEXT("bEnableUserSettings is set to false, skipping creation of UEnhancedInputUserSettings!"));
-	}
-}
-
 // NOTE: Enum order represents firing priority(lowest to highest) and is important as multiple keys bound to the same action may generate differing trigger event states.
 enum class ETriggerEventInternal : uint8
 {
@@ -293,11 +253,6 @@ float UEnhancedPlayerInput::GetEffectiveTimeDilation() const
 		}
 	}
 	return 1.0f;
-}
-
-UEnhancedInputUserSettings* UEnhancedPlayerInput::GetUserSettings() const
-{
-	return UserSettings;
 }
 
 void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnhancedInputSubsystems.h"
-
+#include "EnhancedInputModule.h"
 #include "Components/InputComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputDeveloperSettings.h"
@@ -11,6 +11,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
 #include "InputMappingContext.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputSubsystems)
 
@@ -30,7 +31,7 @@ void UEnhancedInputLocalPlayerSubsystem::PlayerControllerChanged(APlayerControll
 	// That means that we can listen for changes to that player's settings!
 	if (GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
 	{
-		BindUserSettingDelegates();	
+		InitalizeUserSettings();
 	}
 }
 
@@ -41,6 +42,42 @@ UEnhancedPlayerInput* UEnhancedInputLocalPlayerSubsystem::GetPlayerInput() const
 		return Cast<UEnhancedPlayerInput>(PlayerController->PlayerInput);
 	}
 	return nullptr;
+}
+
+UEnhancedInputUserSettings* UEnhancedInputLocalPlayerSubsystem::GetUserSettings() const
+{
+	return UserSettings;
+}
+
+void UEnhancedInputLocalPlayerSubsystem::InitalizeUserSettings()
+{
+	// We don't want to be re-creating any user settings, they should share the lifetime with the player input object
+	if (!ensureMsgf(!UserSettings, TEXT("Attempting to initalize the User Settings, but they have already been created!")))
+	{
+		return;
+	}
+
+	if (!GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
+	{
+		UE_LOG(LogEnhancedInput, Verbose, TEXT("bEnableUserSettings is set to false, skipping creation of UEnhancedInputUserSettings!"));
+		return;
+	}
+
+	UEnhancedPlayerInput* PlayerInput = GetPlayerInput();
+	if (!PlayerInput)
+	{
+		UE_LOG(LogEnhancedInput, Error, TEXT("Unable to find a valid player input to initalize user settings with!"));
+		return;
+	}
+	
+	UserSettings = UEnhancedInputUserSettings::LoadOrCreateSettings(PlayerInput);
+
+	// Bind delegates to the user settings if it was successfully created
+	if (ensure(UserSettings))
+	{
+		BindUserSettingDelegates();
+		UE_LOG(LogEnhancedInput, Log, TEXT("Enhanced Input local player subsystem has initalized the user settings!"));
+	}
 }
 
 void UEnhancedInputLocalPlayerSubsystem::ControlMappingsRebuiltThisFrame()

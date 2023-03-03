@@ -28,6 +28,8 @@ public:
 	
 	// Begin IEnhancedInputSubsystemInterface
 	virtual UEnhancedPlayerInput* GetPlayerInput() const override;
+	virtual UEnhancedInputUserSettings* GetUserSettings() const override;
+	virtual void InitalizeUserSettings() override;
 	virtual void ControlMappingsRebuiltThisFrame() override;
 	// End IEnhancedInputSubsystemInterface
 
@@ -39,6 +41,12 @@ public:
 	 */
 	UPROPERTY(BlueprintAssignable, DisplayName=OnControlMappingsRebuilt, Category = "Input")
 	FOnControlMappingsRebuilt ControlMappingsRebuiltDelegate;
+
+protected:
+    	
+	/** The user settings for this subsystem used to store each user's input related settings */
+	UPROPERTY()
+	TObjectPtr<UEnhancedInputUserSettings> UserSettings;
 };
 
 /**

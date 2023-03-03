@@ -49,8 +49,6 @@ public:
 
 	UEnhancedPlayerInput();
 
-	virtual void PostInitProperties() override;
-
 	/**
 	* Returns the action instance data for the given input action if there is any. Returns nullptr if the action is not available.
 	*/
@@ -71,14 +69,8 @@ public:
 
 	/** Returns the Time Dilation value that is currently effecting this input. */
 	float GetEffectiveTimeDilation() const;
-
-	/** Returns the current user settings for this player input. Will be null if the bEnableUserSettings flag is false on the developer settings */
-	UEnhancedInputUserSettings* GetUserSettings() const;
 	
 protected:
-
-	/** Create a new user settings object if it is enabled in the EI developer settings */
-	virtual void InitalizeUserSettings();
 	
 	// Causes key to be consumed if it is affecting an action.
 	virtual bool IsKeyHandledByAction(FKey Key) const override;
@@ -167,11 +159,6 @@ private:
 	 */
 	TArray<FDependentChordTracker> DependentChordActions;
 
-protected:
-	
-	/** The user settings for this subsystem used to store each user's input related settings */
-	UPROPERTY()
-	TObjectPtr<UEnhancedInputUserSettings> UserSettings;
 
 private:
 

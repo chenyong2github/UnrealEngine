@@ -367,6 +367,10 @@ public:
 	static UEnhancedInputUserSettings* LoadOrCreateSettings(UEnhancedPlayerInput* PlayerInput);
 	virtual void Initialize(UEnhancedPlayerInput* PlayerInput);
 
+	/**
+	 * Apply any custom input settings to your user. By default, this will just broadcast the OnSettingsApplied delegate
+	 * which is a useful hook to maybe rebuild some UI or do other user facing updates.
+	 */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
 	virtual void ApplySettings();
 
@@ -376,6 +380,21 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
 	virtual void SaveSettings();
+
+	/**
+	 * Asynchronously save the settings to a hardcoded save game slot. This will work for simple games,
+	 * but if you need to integrate it into an advanced save system you should Serialize this object out with the rest of your save data.
+	 *
+	 * OnAsyncSaveComplete will be called upon save completion.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
+	virtual void AsyncSaveSettings();
+
+protected:
+
+	virtual void OnAsyncSaveComplete(const FString& SlotName, const int32 UserIndex, bool bSuccess);
+
+public:
 	
 	UEnhancedPlayerInput* GetPlayerInput() const;
 	ULocalPlayer* GetLocalPlayer() const;
@@ -383,7 +402,13 @@ public:
 	
 	/** Fired when the user settings have changed, such as their key mappings. */
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEnhancedInputUserSettingsChanged, UEnhancedInputUserSettings*, Settings);
+	UPROPERTY(BlueprintAssignable, Category = "Enhanced Input|User Settings")
 	FEnhancedInputUserSettingsChanged OnSettingsChanged;
+	
+	/** Called after the settings have been applied from the ApplySettings call. */
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FEnhancedInputUserSettingsApplied);
+	UPROPERTY(BlueprintAssignable, Category = "Enhanced Input|User Settings")
+	FEnhancedInputUserSettingsApplied OnSettingsApplied;
 
 	// Remappable keys API
 

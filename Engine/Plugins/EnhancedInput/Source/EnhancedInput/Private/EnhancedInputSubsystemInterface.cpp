@@ -29,12 +29,14 @@ static FAutoConsoleVariableRef GCVarGlobalAxisConfigMode(
 	TEXT("Whether or not to apply Global Axis Config settings. 0 = Default (Mouse Only), 1 = All, 2 = None")
 );
 
+void IEnhancedInputSubsystemInterface::InitalizeUserSettings()
+{
+	// Not every implementer of the EI subsystem wants user settings, so leave it up to them to determine if they want it or not
+}
+
 UEnhancedInputUserSettings* IEnhancedInputSubsystemInterface::GetUserSettings() const
 {
-	if (const UEnhancedPlayerInput* PlayerInput = GetPlayerInput())
-	{
-		return PlayerInput->GetUserSettings();
-	}
+	// Not every implementer of the EI subsystem wants user settings, so leave it up to them to determine if they want it or not
 	return nullptr;
 }
 
@@ -756,8 +758,8 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 	// Reset the tracking of dependant chord actions on the player input
 	PlayerInput->DependentChordActions.Reset();
 
-	UEnhancedInputUserSettings* UserSettings = GetUserSettings();
-	UEnhancedPlayerMappableKeyProfile* PlayerKeyProfile = UserSettings ? UserSettings->GetCurrentKeyProfile() : nullptr;
+	UEnhancedInputUserSettings* CurrentUserSettings = GetUserSettings();
+	UEnhancedPlayerMappableKeyProfile* PlayerKeyProfile = CurrentUserSettings ? CurrentUserSettings->GetCurrentKeyProfile() : nullptr;
 
 	// An array of keys that are mapped to a given Action.
 	// This is populated by any player mapped keys if they exist, or the default mapping from
