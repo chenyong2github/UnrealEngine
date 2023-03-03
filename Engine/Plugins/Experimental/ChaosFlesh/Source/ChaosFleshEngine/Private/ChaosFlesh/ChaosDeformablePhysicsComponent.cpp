@@ -7,12 +7,9 @@
 #include "ChaosFlesh/FleshComponent.h"
 
 
-DEFINE_LOG_CATEGORY_STATIC(LogDeformablePhysicsComponentInternal, Log, All);
-
 void UDeformablePhysicsComponent::OnCreatePhysicsState()
 {
 	Super::OnCreatePhysicsState();
-	UE_LOG(LogDeformablePhysicsComponentInternal, Log, TEXT("UDeformablePhysicsComponent::OnCreatePhysicsState()"));
 	if (PrimarySolverComponent)
 	{
 		FDeformableSolver::FGameThreadAccess GameThreadSolver = PrimarySolverComponent->GameThreadAccess();
@@ -26,7 +23,6 @@ void UDeformablePhysicsComponent::OnCreatePhysicsState()
 void UDeformablePhysicsComponent::OnDestroyPhysicsState()
 {
 	Super::OnDestroyPhysicsState();
-	UE_LOG(LogDeformablePhysicsComponentInternal, Log, TEXT("UDeformablePhysicsComponent::OnDestroyPhysicsState()"));
 	if (PrimarySolverComponent)
 	{
 		FDeformableSolver::FGameThreadAccess GameThreadSolver = PrimarySolverComponent->GameThreadAccess();
