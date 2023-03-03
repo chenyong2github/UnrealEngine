@@ -1255,6 +1255,9 @@ private:
 
 	void UpdateAttachedChildrenTransform() const;
 	
+	void UpdateRenderSystemsIfNeeded(bool bDynamicCollectionDirty);
+	void UpdateNavigationDataIfNeeded(bool bDynamicCollectionDirty);
+
 	void BuildInitialFilterData();
 
 	void LoadCollisionProfiles();
@@ -1262,6 +1265,8 @@ private:
 	void OnPostPhysicsSync();
 
 	void AddAutoInstancesToISMPool();
+
+	bool HasVisibleGeometry() const;
 
 	/** The clusters we need to replicate */
 	TUniquePtr<TSet<Chaos::FPBDRigidClusteredParticleHandle*>> ClustersToRep;

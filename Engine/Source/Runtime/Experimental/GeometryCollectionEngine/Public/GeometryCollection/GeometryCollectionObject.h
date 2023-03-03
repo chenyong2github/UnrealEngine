@@ -453,6 +453,9 @@ public:
 	FGuid GetIdGuid() const;
 	FGuid GetStateGuid() const;
 
+	/** Get the cached root index */
+	int32 GetRootIndex() const { return RootIndex; }
+
 	/** Pointer to the data used to render this geometry collection. */
 	TUniquePtr<FGeometryCollectionRenderData> RenderData;
 
@@ -732,6 +735,8 @@ private:
 	*/
 	void ValidateSizeSpecificDataDefaults();
 
+	// update cachedroot index using the current hierarchy setup
+	void UpdateRootIndex();
 
 private:
 	/** Guid created on construction of this collection. It should be used to uniquely identify this collection */
@@ -757,6 +762,10 @@ private:
 	//Used to determine whether we need to regenerate render data
 	FGuid RenderDataGuid;
 #endif
+
+	// cached root index for faster queries
+	UPROPERTY(VisibleAnywhere, Category = "Clustering")
+	int32 RootIndex = INDEX_NONE;
 
 	// #todo(dmp): rename to be consistent BoneSelectedMaterialID?
 	// Legacy index of the bone selected material in the object's Materials array, or INDEX_NONE if it is not stored there.

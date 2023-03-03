@@ -2324,85 +2324,22 @@ void UGeometryCollectionComponent::UpdateAttachedChildrenTransform() const
 	}
 }
 
+bool UGeometryCollectionComponent::HasVisibleGeometry() const
+{
+	return AssignedISMPool || RestCollection->HasVisibleGeometry();
+}
+
 void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::TickComponent()"), this);
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-#if WITH_EDITOR
-	if (IsRegistered() && SceneProxy && RestCollection)
+	// todo(chaos) : cache root broken state ? 
+	if (IsRootBroken())
 	{
-		const bool bWantNanite = RestCollection->EnableNanite && GGeometryCollectionNanite != 0;
-		const bool bHaveNanite = SceneProxy->IsNaniteMesh();
-		bool bRecreateProxy = bWantNanite != bHaveNanite;
-		if (bRecreateProxy)
-		{
-			// Wait until resources are released
-			FlushRenderingCommands();
-
-			FComponentReregisterContext ReregisterContext(this);
-			UpdateAllPrimitiveSceneInfosForSingleComponent(this);
-		}
-	}
-#endif
-
-	//if (bRenderStateDirty && DynamicCollection)	//todo: always send for now
-	if (RestCollection)
-	{
-		// In editor mode we have no DynamicCollection so this test is necessary
-		if(DynamicCollection) //, TEXT("No dynamic collection available for component %s during tick."), *GetName()))
-		{
-			if (IsRootBroken())
-			{
-				IncrementSleepTimer(DeltaTime);
-				IncrementBreakTimer(DeltaTime);
-			}
-
-			// todo(chaos) : find a way to only update that of transform have changed
-			// right now this does not work properly because the dirty flags may not be updated at the right time
-			//if (PhysicsProxy && PhysicsProxy->IsGTCollectionDirty())
-			// {
-			// 	for (const TObjectPtr<USceneComponent>& AttachedChild: this->GetAttachChildren())
-			// 	{
-			// 		AttachedChild->UpdateComponentToWorld();
-			// 	}
-			// }
-			
-			const bool bHasVisibleGeometry = AssignedISMPool || RestCollection->HasVisibleGeometry();
-			if (bHasVisibleGeometry && DynamicCollection->IsDirty())
-			{
-				// #todo review: When we've made changes to ISMC, we need to move this function call to SetRenderDynamicData_Concurrent
-				RefreshEmbeddedGeometry();
-				
-				// we may want to call this when the geometry collection updates ( notified by the proxy buffer updates ) 
-				// otherwise we are getting a frame delay 
-				RefreshISMPoolInstances();
-
-				if (SceneProxy && SceneProxy->IsNaniteMesh())
-				{
-					FNaniteGeometryCollectionSceneProxy* NaniteProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
-					NaniteProxy->FlushGPUSceneUpdate_GameThread();
-				}
-				
-				MarkRenderTransformDirty();
-				MarkRenderDynamicDataDirty();
-				bRenderStateDirty = false;
-
-				if (bUpdateNavigationInTick)
-				{
-					const UWorld* MyWorld = GetWorld();
-					if (MyWorld && MyWorld->IsGameWorld())
-					{
-						//cycle every 0xff frames
-						//@todo - Need way of seeing if the collection is actually changing
-						if (bNavigationRelevant && bRegistered && (((GFrameCounter + NavmeshInvalidationTimeSliceIndex) & 0xff) == 0))
-						{
-							UpdateNavigationData();
-						}
-					}
-				}
-			}
-		}
+		// todo(chaos) : move removal logic on the physics thread
+		IncrementSleepTimer(DeltaTime);
+		IncrementBreakTimer(DeltaTime);
 	}
 }
 
@@ -2842,6 +2779,67 @@ void UGeometryCollectionComponent::OnPostPhysicsSync()
 		// The GameThreadCollection dirty flag doesn't correspond to the "dirtiness" that should trigger replication.
 		// So as long as the physics sync happens, check for potential replication updates.
 		RequestUpdateRepData();
+	}
+
+	const bool bDynamicDataIsDirty = (DynamicCollection && DynamicCollection->IsDirty() && HasVisibleGeometry());
+	UpdateRenderSystemsIfNeeded(bDynamicDataIsDirty);
+	UpdateNavigationDataIfNeeded(bDynamicDataIsDirty);
+}
+
+void UGeometryCollectionComponent::UpdateRenderSystemsIfNeeded(bool bDynamicCollectionDirty)
+{
+#if WITH_EDITOR
+	if (IsRegistered() && SceneProxy && RestCollection)
+	{
+		const bool bWantNanite = RestCollection->EnableNanite && GGeometryCollectionNanite != 0;
+		const bool bHaveNanite = SceneProxy->IsNaniteMesh();
+		bool bRecreateProxy = bWantNanite != bHaveNanite;
+		if (bRecreateProxy)
+		{
+			// Wait until resources are released
+			FlushRenderingCommands();
+
+			FComponentReregisterContext ReregisterContext(this);
+			UpdateAllPrimitiveSceneInfosForSingleComponent(this);
+		}
+	}
+#endif
+
+	if (bDynamicCollectionDirty)
+	{
+		// #todo review: When we've made changes to ISMC, we need to move this function call to SetRenderDynamicData_Concurrent
+		RefreshEmbeddedGeometry();
+
+		// we may want to call this when the geometry collection updates ( notified by the proxy buffer updates ) 
+		// otherwise we are getting a frame delay 
+		RefreshISMPoolInstances();
+
+		if (SceneProxy && SceneProxy->IsNaniteMesh())
+		{
+			FNaniteGeometryCollectionSceneProxy* NaniteProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
+			NaniteProxy->FlushGPUSceneUpdate_GameThread();
+		}
+
+		MarkRenderTransformDirty();
+		MarkRenderDynamicDataDirty();
+		bRenderStateDirty = false;
+	}
+}
+
+void UGeometryCollectionComponent::UpdateNavigationDataIfNeeded(bool bDynamicCollectionDirty)
+{
+	if (bUpdateNavigationInTick && bDynamicCollectionDirty)
+	{
+		const UWorld* MyWorld = GetWorld();
+		if (MyWorld && MyWorld->IsGameWorld())
+		{
+			//cycle every 0xff frames
+			//@todo - Need way of seeing if the collection is actually changing
+			if (bNavigationRelevant && bRegistered && (((GFrameCounter + NavmeshInvalidationTimeSliceIndex) & 0xff) == 0))
+			{
+				UpdateNavigationData();
+			}
+		}
 	}
 }
 
@@ -4556,7 +4554,7 @@ void UGeometryCollectionComponent::UpdateDecay(int32 TransformIdx, float Updated
 
 void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 {
-	if (DeltaTime <= 0 || !RestCollection->bRemoveOnMaxSleep || !bAllowRemovalOnSleep)
+	if (DeltaTime <= 0 || !RestCollection || !RestCollection->bRemoveOnMaxSleep || !bAllowRemovalOnSleep)
 	{
 		return;
 	}
@@ -4839,10 +4837,9 @@ int32 UGeometryCollectionComponent::GetInitialLevel(int32 ItemIndex)
 
 int32 UGeometryCollectionComponent::GetRootIndex() const
 {
-	if (RestCollection && RestCollection->GetGeometryCollection())
+	if (RestCollection)
 	{
-		Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(*RestCollection->GetGeometryCollection());
-		return HierarchyFacade.GetRootIndex();
+		return RestCollection->GetRootIndex();
 	}
 	return INDEX_NONE;
 }

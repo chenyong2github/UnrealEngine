@@ -39,6 +39,7 @@
 #include "GeometryCollection/GeometryCollectionSimulationCoreTypes.h"
 #include "Chaos/ChaosArchive.h"
 #include "GeometryCollectionProxyData.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionObject)
 
@@ -293,6 +294,18 @@ void UGeometryCollection::ValidateSizeSpecificDataDefaults()
 		SizeSpecificData.Add(Data);
 	}
 	check(SizeSpecificData.Num());
+}
+
+
+// update cachedroot index using the current hierarchy setup
+void UGeometryCollection::UpdateRootIndex()
+{
+	RootIndex = INDEX_NONE;
+	if (GeometryCollection)
+	{
+		Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(*GeometryCollection);
+		RootIndex = HierarchyFacade.GetRootIndex();
+	}
 }
 
 void UGeometryCollection::UpdateGeometryDependentProperties()
@@ -978,6 +991,12 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		BoneSelectedMaterialIndex = INDEX_NONE;
 	}
 
+	// Make sure the root index is properly set 
+	if (RootIndex == INDEX_NONE)
+	{
+		UpdateRootIndex();
+	}
+
 #if WITH_EDITORONLY_DATA
 	if (bCreateSimulationData)
 	{
@@ -1261,6 +1280,7 @@ void UGeometryCollection::ReleaseResources()
 void UGeometryCollection::InvalidateCollection()
 {
 	StateGuid = FGuid::NewGuid();
+	UpdateRootIndex();
 }
 
 #if WITH_EDITOR
