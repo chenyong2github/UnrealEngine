@@ -104,6 +104,7 @@ union FNetProfilerBunchInfo
 		uint64 bPartial : 1;
 		uint64 bPartialInitial : 1;
 		uint64 bPartialFinal : 1;
+		UE_DEPRECATED(5.3, "Replication pausing is now deprecated.")
 		uint64 bIsReplicationPaused : 1;
 		uint64 bOpen : 1;
 		uint64 bClose : 1;

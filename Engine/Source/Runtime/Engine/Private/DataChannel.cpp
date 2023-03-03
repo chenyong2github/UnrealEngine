@@ -252,11 +252,6 @@ namespace DataChannelInternal
 	UChannel implementation.
 -----------------------------------------------------------------------------*/
 
-UChannel::UChannel(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
 void UChannel::Init(UNetConnection* InConnection, int32 InChIndex, EChannelCreateFlags CreateFlags)
 {
 	// if child connection then use its parent
@@ -884,7 +879,9 @@ bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 					InPartialBunch->bPartialFinal			= true;
 					InPartialBunch->bClose					= Bunch.bClose;
 					InPartialBunch->CloseReason				= Bunch.CloseReason;
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					InPartialBunch->bIsReplicationPaused	= Bunch.bIsReplicationPaused;
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					InPartialBunch->bHasMustBeMappedGUIDs	= Bunch.bHasMustBeMappedGUIDs;
 				}
 				else
@@ -1332,7 +1329,9 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 	{
 		UE_LOG(LogNetPartialBunch, Warning, TEXT("SendBunch: Reliable partial bunch overflows reliable buffer! %s"), *Describe() );
 		UE_LOG(LogNetPartialBunch, Warning, TEXT("   Num OutgoingBunches: %d. NumOutRec: %d"), OutgoingBunches.Num(), NumOutRec );
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		PrintReliableBunchBuffer();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Bail out, we can't recover from this (without increasing RELIABLE_BUFFER)
 		FString ErrorMsg = NSLOCTEXT("NetworkErrors", "ClientReliableBufferOverflow", "Outgoing reliable buffer overflow").ToString();
@@ -1354,7 +1353,9 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 		NextBunch->bOpen = Bunch->bOpen;
 		NextBunch->bClose = Bunch->bClose;
 		NextBunch->CloseReason = Bunch->CloseReason;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		NextBunch->bIsReplicationPaused = Bunch->bIsReplicationPaused;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		NextBunch->ChIndex = Bunch->ChIndex;
 		NextBunch->ChName = Bunch->ChName;
 
@@ -1434,7 +1435,9 @@ FOutBunch* UChannel::PrepBunch(FOutBunch* Bunch, FOutBunch* OutBunch, bool Merge
 			if (!(NumOutRec<RELIABLE_BUFFER-1+Bunch->bClose))
 			{
 				UE_LOG(LogNetTraffic, Warning, TEXT("PrepBunch: Reliable buffer overflow! %s"), *Describe());
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				PrintReliableBunchBuffer();
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 #else
 			check(NumOutRec<RELIABLE_BUFFER-1+Bunch->bClose);
@@ -1466,7 +1469,9 @@ FOutBunch* UChannel::PrepBunch(FOutBunch* Bunch, FOutBunch* OutBunch, bool Merge
 		if (CVarNetReliableDebug.GetValueOnAnyThread() == 2)
 		{
 			UE_LOG(LogNetTraffic, Warning, TEXT("%s. Reliable: %s"), *Describe(), *Bunch->DebugString);
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			PrintReliableBunchBuffer();
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			UE_LOG(LogNetTraffic, Warning, TEXT(""));
 		}
 #endif
@@ -1576,7 +1581,9 @@ void UChannel::AddedToChannelPool()
 	OpenAcked = false;
 	Closing = false;
 	Dormant = false;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bIsReplicationPaused = false;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	OpenTemporary = false;
 	Broken = false;
 	bTornOff = false;
@@ -3044,12 +3051,14 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 		UE_LOG(LogNetTraffic, Log, TEXT("      Actor %s:"), *Actor->GetFullName() );
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bool bLatestIsReplicationPaused = Bunch.bIsReplicationPaused != 0;
 	if (bLatestIsReplicationPaused != IsReplicationPaused())
 	{
 		Actor->OnReplicationPausedChanged(bLatestIsReplicationPaused);
 		SetReplicationPaused(bLatestIsReplicationPaused);
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Owned by connection's player?
 	UNetConnection* ActorConnection = Actor->GetNetConnection();
@@ -3313,10 +3322,11 @@ int64 UActorChannel::ReplicateActor()
 		return 0;
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const TArray<FNetViewer>& NetViewers = ActorWorld->GetWorldSettings()->ReplicationViewers;
 	bool bIsNewlyReplicationPaused = false;
 	bool bIsNewlyReplicationUnpaused = false;
-	
+
 	if (OpenPacketId.First != INDEX_NONE && NetViewers.Num() > 0)
 	{
 		bool bNewPaused = true;
@@ -3342,6 +3352,7 @@ int64 UActorChannel::ReplicateActor()
 		bIsNewlyReplicationPaused = !bOldPaused && bNewPaused;
 		SetReplicationPaused(bNewPaused);
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// The package map shouldn't have any carry over guids
 	// Static cast is fine here, since we check above.
@@ -3376,7 +3387,9 @@ int64 UActorChannel::ReplicateActor()
 	if (bIsNewlyReplicationPaused)
 	{
 		Bunch.bReliable = true;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Bunch.bIsReplicationPaused = true;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

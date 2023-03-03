@@ -17,6 +17,7 @@ const int32 MAX_BUNCH_SIZE = 1024 * 1024;
 	FInBunch implementation.
 -----------------------------------------------------------------------------*/
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FInBunch::FInBunch( UNetConnection* InConnection, uint8* Src, int64 CountBits )
 :	FNetBitReader	(InConnection->PackageMap, Src, CountBits)
 ,	PacketId	( 0 )
@@ -27,6 +28,7 @@ FInBunch::FInBunch( UNetConnection* InConnection, uint8* Src, int64 CountBits )
 ,	ChSequence ( 0 )
 ,	bOpen ( 0 )
 ,	bClose ( 0 )
+,	bIsReplicationPaused( 0 )
 ,	bReliable ( 0 )
 ,	bPartial ( 0 )
 ,	bPartialInitial ( 0 )
@@ -77,6 +79,7 @@ FInBunch::FInBunch( FInBunch &InBunch, bool CopyBuffer )
 
 	Pos = 0;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FInBunch::CountMemory(FArchive& Ar) const
 {
@@ -99,6 +102,8 @@ void FInBunch::CountMemory(FArchive& Ar) const
 FOutBunch::FOutBunch()
 : FNetBitWriter( 0 )
 {}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOutBunch::FOutBunch( UChannel* InChannel, bool bInClose )
 :	FNetBitWriter	( InChannel->Connection->PackageMap, InChannel->Connection->GetMaxSingleBunchSizeBits())
 ,	Next		( nullptr )
@@ -155,6 +160,7 @@ FOutBunch::FOutBunch( UPackageMap *InPackageMap, int64 MaxBits )
 ,	CloseReason( EChannelCloseReason::Destroyed )
 {
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FOutBunch::FOutBunch(int64 InMaxBits)
 : FOutBunch(static_cast<UPackageMap*>(nullptr), InMaxBits)

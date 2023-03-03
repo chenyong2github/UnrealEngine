@@ -33,6 +33,7 @@ public:
 	uint8					ReceivedAck:1;
 	uint8					bOpen:1;
 	uint8					bClose:1;
+	UE_DEPRECATED(5.3, "Replication pausing is deprecated")
 	uint8					bIsReplicationPaused:1;   // Replication on this channel is being paused by the server
 	uint8					bReliable:1;
 	uint8					bPartial:1;				// Not a complete bunch
@@ -73,6 +74,11 @@ public:
 	FOutBunch( class UChannel* InChannel, bool bClose );
 	FOutBunch( UPackageMap * PackageMap, int64 InMaxBits = 1024 );
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FOutBunch(const FOutBunch&) = default;
+	FOutBunch& operator=(const FOutBunch&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	virtual ~FOutBunch();
 
 	FString	ToString()
@@ -90,7 +96,9 @@ public:
 		{
 			Str += FString::Printf(TEXT("CloseReason: %s "), LexToString(CloseReason));
 		}
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Str += FString::Printf(TEXT("bIsReplicationPaused: %d "), bIsReplicationPaused);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Str += FString::Printf(TEXT("bReliable: %d "), bReliable);
 		Str += FString::Printf(TEXT("bPartial: %d//%d//%d "), bPartial, bPartialInitial, bPartialFinal);
 		Str += FString::Printf( TEXT( "bHasPackageMapExports: %d " ), bHasPackageMapExports );
@@ -119,6 +127,7 @@ public:
 	int32				ChSequence;
 	uint8				bOpen:1;
 	uint8				bClose:1;
+	UE_DEPRECATED(5.3, "Replication pausing is deprecated")
 	uint8				bIsReplicationPaused:1;		// Replication on this channel is being paused by the server
 	uint8				bReliable:1;
 	uint8				bPartial:1;					// Not a complete bunch
@@ -145,7 +154,9 @@ public:
 		{
 			Str += FString::Printf(TEXT("CloseReason: %s "), LexToString(CloseReason));
 		}
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Str += FString::Printf(TEXT("bIsReplicationPaused: %d "), bIsReplicationPaused);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Str += FString::Printf(TEXT("bReliable: %d "), bReliable);
 		Str += FString::Printf(TEXT("bPartial: %d//%d//%d "), bPartial, bPartialInitial, bPartialFinal);
 		Str += FString::Printf(TEXT("bHasPackageMapExports: %d "), bHasPackageMapExports );
@@ -160,6 +171,10 @@ public:
 	// Functions.
 	FInBunch( UNetConnection* InConnection, uint8* Src=NULL, int64 CountBits=0 );
 	FInBunch( FInBunch &InBunch, bool CopyBuffer );
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FInBunch(const FInBunch&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual void CountMemory(FArchive& Ar) const override;
 };

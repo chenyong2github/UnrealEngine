@@ -692,9 +692,11 @@ public:
 	TEnumAsByte<enum ENetDormancy> NetDormancy;
 
 	/** Gives the actor a chance to pause replication to a player represented by the passed in actor - only called on server */
+	UE_DEPRECATED(5.3, "Replication pausing is deprecated.")
 	virtual bool IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer);
 
 	/** Called on the client when the replication paused value is changed */
+	UE_DEPRECATED(5.3, "Replication pausing is deprecated.")
 	virtual void OnReplicationPausedChanged(bool bIsReplicationPaused);
 
 	/** Controls how to handle spawning this actor in a situation where it's colliding with something else. "Default" means AlwaysSpawn here. */

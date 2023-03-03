@@ -75,6 +75,7 @@ union FNetTraceBunchInfo
 		uint64 bPartial : 1;
 		uint64 bPartialInitial : 1;
 		uint64 bPartialFinal : 1;
+		UE_DEPRECATED(5.3, "Replication pausing is deprecated")
 		uint64 bIsReplicationPaused : 1;
 		uint64 bOpen : 1;
 		uint64 bClose : 1;
@@ -299,7 +300,9 @@ FNetTraceBunchInfo MakeBunchInfo(const T& Bunch)
 	BunchInfo.bPartial = Bunch.bPartial;
 	BunchInfo.bPartialInitial = Bunch.bPartialInitial;
 	BunchInfo.bPartialFinal = Bunch.bPartialFinal;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	BunchInfo.bIsReplicationPaused = Bunch.bIsReplicationPaused;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	BunchInfo.bOpen = Bunch.bOpen;
 	BunchInfo.bClose = Bunch.bClose;
 	BunchInfo.bReliable = Bunch.bReliable;

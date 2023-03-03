@@ -53,11 +53,11 @@ ENUM_CLASS_FLAGS(EChannelCreateFlags);
  * Base class of communication channels.
  */
 UCLASS(abstract, transient)
-class ENGINE_API UChannel
-	: public UObject
+class ENGINE_API UChannel : public UObject
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 	
+public:
 	UPROPERTY()
 	TObjectPtr<class UNetConnection>	Connection;		// Owner connection.
 
@@ -65,6 +65,7 @@ class ENGINE_API UChannel
 	uint32				OpenAcked:1;		// If OpenedLocally is true, this means we have acknowledged the packet we sent the bOpen bunch on. Otherwise, it means we have received the bOpen bunch from the server.
 	uint32				Closing:1;			// State of the channel.
 	uint32				Dormant:1;			// Channel is going dormant (it will close but the client will not destroy
+	UE_DEPRECATED(5.3, "Replication pausing is deprecated and will be removed")
 	uint32				bIsReplicationPaused:1;	// Replication is being paused, but channel will not be closed
 	uint32				OpenTemporary:1;	// Opened temporarily.
 	uint32				Broken:1;			// Has encountered errors and is ignoring subsequent packets.
@@ -85,14 +86,10 @@ class ENGINE_API UChannel
 	class FOutBunch*	OutRec;				// Outgoing reliable unacked data.
 	class FInBunch*		InPartialBunch;		// Partial bunch we are receiving (incoming partial bunches are appended to this)
 
-public:
-
 	// UObject overrides
 
 	virtual void BeginDestroy() override;
 	virtual void Serialize(FArchive& Ar) override;
-
-public:	
 
 	/** UChannel interface. */
 	/** Initialize this channel for the given connection and index. */
@@ -162,6 +159,7 @@ public:
 	/** Puts the channel in a state to start becoming dormant. It will not become dormant until ReadyForDormancy returns true in Tick */
 	virtual void StartBecomingDormant() { }
 
+	UE_DEPRECATED(5.3, "Will be removed from test/shipping in the future.")
 	void PrintReliableBunchBuffer();
 
 	/* Notification that this channel has been placed in a channel pool and needs to reset to its original state so it can be used again like a new channel */
@@ -176,10 +174,22 @@ protected:
 	virtual bool CleanUp( const bool bForDestroy, EChannelCloseReason CloseReason );
 
 	/** Sets whether replication is currently paused on this channel or not */
-	virtual void SetReplicationPaused(bool InbIsReplicationPaused) { bIsReplicationPaused = InbIsReplicationPaused; }
+	UE_DEPRECATED(5.3, "Replication pausing is deprecated and will be removed")
+	virtual void SetReplicationPaused(bool InbIsReplicationPaused) 
+	{ 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bIsReplicationPaused = InbIsReplicationPaused;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Returns whether replication is currently paused on this channel */
-	virtual bool IsReplicationPaused() { return bIsReplicationPaused; }
+	UE_DEPRECATED(5.3, "Replication pausing is deprecated and will be removed")
+	virtual bool IsReplicationPaused() 
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bIsReplicationPaused; 
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 private:
 

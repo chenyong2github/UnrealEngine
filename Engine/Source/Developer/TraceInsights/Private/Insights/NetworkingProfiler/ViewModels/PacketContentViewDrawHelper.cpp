@@ -213,10 +213,12 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const TraceServices::FNetProfi
 				{
 					Builder.Appendf(TEXT(" | Partial%s%s"), Info.bPartialInitial ? TEXT("Initial") : TEXT(""), Info.bPartialFinal ? TEXT("Final") : TEXT(""));
 				}
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				if (Event.BunchInfo.bIsReplicationPaused)
 				{
 					Builder.Append(TEXT(" | ReplicationPaused"));
 				}
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				if (Event.BunchInfo.bHasMustBeMappedGUIDs)
 				{
 					Builder.Append(TEXT(" | HasMustBeMappedGUIDs"));

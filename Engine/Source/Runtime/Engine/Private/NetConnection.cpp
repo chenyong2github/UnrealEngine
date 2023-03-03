@@ -3012,7 +3012,10 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 														EChannelCloseReason::Destroyed;
 				}
 
-				Bunch.bIsReplicationPaused  = Reader.ReadBit();
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				// Removing this will require a new network version for replay compatabilty
+				Bunch.bIsReplicationPaused = Reader.ReadBit();
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				Bunch.bReliable				= Reader.ReadBit();
 
 				if (Bunch.EngineNetVer() < FEngineNetworkCustomVersion::MaxActorChannelsCustomization)
@@ -3941,7 +3944,9 @@ int32 UNetConnection::SendRawBunch(FOutBunch& Bunch, bool InAllowMerge, const FN
 			SendBunchHeader.SerializeInt(Value, (uint32)EChannelCloseReason::MAX);
 		}
 	}
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SendBunchHeader.WriteBit(Bunch.bIsReplicationPaused);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	SendBunchHeader.WriteBit(Bunch.bReliable);
 
 	uint32 ChIndex = Bunch.ChIndex;
