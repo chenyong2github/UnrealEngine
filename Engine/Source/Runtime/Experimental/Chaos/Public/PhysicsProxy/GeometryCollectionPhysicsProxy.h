@@ -391,6 +391,8 @@ public:
 		}
 		return FGeometryCollectionItemIndex::CreateInvalidItemIndex();
 	}
+	
+	FName GetTransformName_External(FGeometryCollectionItemIndex ItemIndex) const;
 
 	bool GetIsObjectDynamic() const { return IsObjectDynamic; }
 

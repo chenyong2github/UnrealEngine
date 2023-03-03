@@ -1644,6 +1644,21 @@ void FGeometryCollectionPhysicsProxy::GetRelevantParticleHandles(
 #endif
 }
 
+FName FGeometryCollectionPhysicsProxy::GetTransformName_External(const FGeometryCollectionItemIndex ItemIndex) const
+{
+	if (Parameters.RestCollection)
+	{
+		if (!ItemIndex.IsInternalCluster())
+		{
+			const Chaos::FPhysicsObjectHandle PhysicsObject = GetPhysicsObjectByIndex(ItemIndex.GetTransformIndex());
+			return Chaos::FPhysicsObjectInterface::GetName(PhysicsObject);
+		}
+	}
+
+	// NOTE: Internal clusters don't have names
+	return NAME_None;
+}
+
 void FGeometryCollectionPhysicsProxy::DisableParticles_External(TArray<int32>&& TransformGroupIndices)
 {
 	check(IsInGameThread());
