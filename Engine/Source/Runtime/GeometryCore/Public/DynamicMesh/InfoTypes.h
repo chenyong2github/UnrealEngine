@@ -189,7 +189,7 @@ struct FEdgeCollapseInfo
 	FIndex2i RemovedEdges;			// the edges that were removed (second is InvalidID for boundary edge)
 	FIndex2i KeptEdges;				// the edges that were kept (second is InvalidID for boundary edge)
 
-	double CollapseT;				// interpolation parameter along edge for new vertex in range [0,1]
+	double CollapseT;				// interpolation parameter along edge for new vertex in range [0,1] where 0 => KeptVertex and 1 => RemovedVertex
 };
 
 /** Information about mesh elements modified by MergeEdges() */

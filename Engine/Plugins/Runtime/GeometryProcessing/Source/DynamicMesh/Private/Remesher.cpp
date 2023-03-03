@@ -176,26 +176,32 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 		//  funcs will do it internally...
 		//  (or maybe we can collapse if cd exists? edge-collapse doesn't check for it explicitly...)
 
-		double collapse_t = 0.5;		// need to know t-value along edge to update lerpable attributes properly
-		FVector3d vNewPos = (vA + vB) * collapse_t;
+		int iKeep;
+		int iCollapse;
+		double collapse_t;		// need to know t-value along edge to update lerpable attributes properly
+		FVector3d vNewPos;
 
-		int iKeep = b;
-		int iCollapse = a;
-		// if either vtx is fixed, collapse to that position
+		// If either vtx is fixed, make that vertex iKeep and set collapse_t to 0 so vNewPos corresponds to the kept vtx
+		// Otherwise set collapse_t and vNewPos using the projected edge midpoint and measure collapse_t from iKeep
 		if (collapse_to == b)
 		{
-			collapse_t = 1.0;
+			iKeep = b;
+			iCollapse = a;
+			collapse_t = 0;
 			vNewPos = vB;
 		}
 		else if (collapse_to == a)
 		{
-			iKeep = a; iCollapse = b;
+			iKeep = a;
+			iCollapse = b;
 			collapse_t = 0;
 			vNewPos = vA;
 		}
 		else
 		{
-			vNewPos = GetProjectedCollapsePosition(iKeep, vNewPos);
+			iKeep = b;
+			iCollapse = a;
+			vNewPos = GetProjectedCollapsePosition(iKeep, (vA + vB) * 0.5);
 			double div = Distance(vA, vB);
 			collapse_t = (div < FMathd::ZeroTolerance) ? 0.5 : (Distance(vNewPos, Mesh->GetVertex(iKeep))) / div;
 			collapse_t = VectorUtil::Clamp(collapse_t, 0.0, 1.0);

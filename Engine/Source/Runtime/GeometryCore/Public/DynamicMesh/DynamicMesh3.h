@@ -1270,7 +1270,7 @@ public:
 	 * Collapse the edge between the two vertices, if topologically possible.
 	 * @param KeepVertID index of the vertex that should be kept
 	 * @param RemoveVertID index of the vertex that should be removed
-	 * @param EdgeParameterT vKeep is moved to Lerp(KeepPos, RemovePos, collapse_t)
+	 * @param EdgeParameterT vKeep is moved to Lerp(KeepPos, RemovePos, EdgeParameterT)
 	 * @param CollapseInfo returned information about new and modified mesh elements
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
