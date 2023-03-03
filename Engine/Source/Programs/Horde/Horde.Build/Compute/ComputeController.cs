@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
@@ -53,6 +54,11 @@ namespace Horde.Build.Compute
 		/// AES IV for the channel, as a hex string
 		/// </summary>
 		public string AesIv { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Resources assigned to this machine
+		/// </summary>
+		public Dictionary<string, int> Resources { get; set; } = new Dictionary<string, int>();
 	}
 
 	/// <summary>

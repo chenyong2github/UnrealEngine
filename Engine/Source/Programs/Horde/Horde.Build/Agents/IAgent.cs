@@ -597,10 +597,11 @@ namespace Horde.Build.Agents
 		/// </summary>
 		/// <param name="agent">The agent to create a lease for</param>
 		/// <param name="requirements">Requirements for the lease</param>
+		/// <param name="assignedResources">Receives the allocated resources</param>
 		/// <returns>True if the new lease can be granted</returns>
-		public static bool MeetsRequirements(this IAgent agent, Requirements requirements)
+		public static bool MeetsRequirements(this IAgent agent, Requirements requirements, Dictionary<string, int> assignedResources)
 		{
-			return MeetsRequirements(agent, requirements.Condition, requirements.Resources, requirements.Exclusive);
+			return MeetsRequirements(agent, requirements.Condition, requirements.Resources, requirements.Exclusive, assignedResources);
 		}
 
 		/// <summary>
@@ -610,8 +611,9 @@ namespace Horde.Build.Agents
 		/// <param name="exclusive">Whether t</param>
 		/// <param name="condition">Condition to satisfy</param>
 		/// <param name="resources">Resources required to execute</param>
+		/// <param name="assignedResources">Resources allocated to the task</param>
 		/// <returns>True if the new lease can be granted</returns>
-		public static bool MeetsRequirements(this IAgent agent, Condition? condition, Dictionary<string, int>? resources, bool exclusive)
+		public static bool MeetsRequirements(this IAgent agent, Condition? condition, Dictionary<string, ResourceRequirements>? resources, bool exclusive, Dictionary<string, int> assignedResources)
 		{
 			if (!agent.Enabled || agent.Status != AgentStatus.Ok)
 			{
@@ -631,7 +633,7 @@ namespace Horde.Build.Agents
 			}
 			if (resources != null)
 			{
-				foreach ((string name, int count) in resources)
+				foreach ((string name, ResourceRequirements resourceRequirements) in resources)
 				{
 					int remainingCount;
 					if (!agent.Resources.TryGetValue(name, out remainingCount))
@@ -647,10 +649,21 @@ namespace Horde.Build.Agents
 							remainingCount -= leaseCount;
 						}
 					}
-					if (remainingCount < count)
+					if (remainingCount < resourceRequirements.Min)
 					{
 						return false;
 					}
+
+					int allocatedCount;
+					if (resourceRequirements.Max != null)
+					{
+						allocatedCount = Math.Min(resourceRequirements.Max.Value, remainingCount);
+					}
+					else
+					{
+						allocatedCount = resourceRequirements.Min;
+					}
+					assignedResources.Add(name, allocatedCount);
 				}
 			}
 			return true;

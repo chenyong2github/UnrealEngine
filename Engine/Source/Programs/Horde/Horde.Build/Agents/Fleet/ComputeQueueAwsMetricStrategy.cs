@@ -45,7 +45,7 @@ namespace Horde.Build.Agents.Fleet
 
 	static class ComputeServiceExtensions
 	{
-		public static Task<int> GetNumQueuedTasksForPoolAsync(this ComputeService computeService, ClusterId clusterId, IPool pool)
+		public static Task<int> GetNumQueuedTasksForPoolAsync(this ComputeTaskSource computeTaskSource, ClusterId clusterId, IPool pool)
 		{
 			// Will need to reimplement this functionality in ComputeService if we want to use this strategy, but conditions on tasks
 			// may reference properties that are specific to an agent rather than a pool...
@@ -60,7 +60,7 @@ namespace Horde.Build.Agents.Fleet
 	public class ComputeQueueAwsMetricStrategy : IPoolSizeStrategy
 	{
 		private readonly IAmazonCloudWatch _cloudWatch;
-		private readonly ComputeService _computeService;
+		private readonly ComputeTaskSource _computeTaskSource;
 		private readonly ComputeQueueAwsMetricSettings _settings;
 		private readonly ILogger<ComputeQueueAwsMetricStrategy> _logger;
 
@@ -68,14 +68,14 @@ namespace Horde.Build.Agents.Fleet
 		/// Constructor
 		/// </summary>
 		/// <param name="cloudWatch"></param>
-		/// <param name="computeService"></param>
+		/// <param name="computeTaskSource"></param>
 		/// <param name="settings"></param>
 		/// <param name="logger"></param>
-		public ComputeQueueAwsMetricStrategy(IAmazonCloudWatch cloudWatch, ComputeService computeService,
+		public ComputeQueueAwsMetricStrategy(IAmazonCloudWatch cloudWatch, ComputeTaskSource computeTaskSource,
 			ComputeQueueAwsMetricSettings settings, ILogger<ComputeQueueAwsMetricStrategy> logger)
 		{
 			_cloudWatch = cloudWatch;
-			_computeService = computeService;
+			_computeTaskSource = computeTaskSource;
 			_settings = settings;
 			_logger = logger;
 		}
@@ -91,7 +91,7 @@ namespace Horde.Build.Agents.Fleet
 			Dictionary<string, List<MetricDatum>> metricsPerCloudWatchNamespace = new();
 			int numAgents = agents.Count;
 			int totalCpuCores = agents.Select(x => x.Resources.TryGetValue(KnownPropertyNames.LogicalCores, out int numCpuCores) ? numCpuCores : 0).Sum();
-			int numQueuedComputeTasks =	await _computeService.GetNumQueuedTasksForPoolAsync(new ClusterId(_settings.ComputeClusterId), pool);
+			int numQueuedComputeTasks =	await _computeTaskSource.GetNumQueuedTasksForPoolAsync(new ClusterId(_settings.ComputeClusterId), pool);
 
 			double numQueuedTasksPerAgent = numQueuedComputeTasks / (double)Math.Max(numAgents, 1);
 			double numQueuedTasksPerCores = numQueuedComputeTasks / (double)Math.Max(totalCpuCores, 1);

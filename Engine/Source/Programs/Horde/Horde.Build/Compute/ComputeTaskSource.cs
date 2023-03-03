@@ -43,13 +43,19 @@ namespace Horde.Build.Compute
 		public ComputeTask Task { get; }
 
 		/// <summary>
+		/// Resources assigned to this lease
+		/// </summary>
+		public Dictionary<string, int> AssignedResources { get; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeResource(IPAddress ip, int port, ComputeTask task)
+		public ComputeResource(IPAddress ip, int port, ComputeTask task, Dictionary<string, int> assignedResources)
 		{
 			Ip = ip;
 			Port = port;
 			Task = task;
+			AssignedResources = assignedResources;
 		}
 	}
 
@@ -63,7 +69,7 @@ namespace Horde.Build.Compute
 			public IAgent Agent { get; }
 			public IPAddress Ip { get; }
 			public int Port { get; }
-			public TaskCompletionSource<(ComputeTask, Requirements)?> Lease { get; } = new TaskCompletionSource<(ComputeTask, Requirements)?>(TaskCreationOptions.RunContinuationsAsynchronously);
+			public TaskCompletionSource<AgentLease?> Lease { get; } = new TaskCompletionSource<AgentLease?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
 			public Waiter(IAgent agent, IPAddress ip, int port)
 			{
@@ -105,16 +111,21 @@ namespace Horde.Build.Compute
 				LinkedList<Waiter>? waiters;
 				if (_waiters.TryGetValue(clusterId, out waiters))
 				{
-					ComputeTask? task = null;
+					ComputeTask? computeTask = null;
 					for (LinkedListNode<Waiter>? node = waiters.First; node != null; node = node.Next)
 					{
-						if (node.Value.Agent.MeetsRequirements(requirements))
+						Dictionary<string, int> assignedResources = new Dictionary<string, int>(); 
+						if (node.Value.Agent.MeetsRequirements(requirements, assignedResources))
 						{
-							task ??= CreateComputeTask();
-							if (node.Value.Lease.TrySetResult((task, requirements)))
+							computeTask ??= CreateComputeTask();
+
+							byte[] payload = Any.Pack(computeTask).ToByteArray();
+							AgentLease lease = new AgentLease(LeaseId.GenerateNewId(), "Compute task", null, null, null, LeaseState.Pending, assignedResources, requirements.Exclusive, payload);
+
+							if (node.Value.Lease.TrySetResult(lease))
 							{
 								Waiter waiter = node.Value;
-								return new ComputeResource(waiter.Ip, waiter.Port, task);
+								return new ComputeResource(waiter.Ip, waiter.Port, computeTask, assignedResources);
 							}
 						}
 					}
@@ -187,15 +198,9 @@ namespace Horde.Build.Compute
 				{
 					using (IDisposable disposable = cancellationToken.Register(() => waiter.Lease.TrySetResult(null)))
 					{
-						(ComputeTask, Requirements)? result = await waiter.Lease.Task;
-						if (result != null)
+						AgentLease? lease = await waiter.Lease.Task;
+						if (lease != null)
 						{
-							(ComputeTask task, Requirements requirements) = result.Value;
-
-							string leaseName = "Compute task";
-							byte[] payload = Any.Pack(task).ToByteArray();
-
-							AgentLease lease = new AgentLease(LeaseId.GenerateNewId(), leaseName, null, null, null, LeaseState.Pending, requirements.Resources, requirements.Exclusive, payload);
 							_logger.LogInformation("Created compute lease for agent {AgentId}", agent.Id);
 							return lease;
 						}

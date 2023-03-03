@@ -22,7 +22,7 @@ namespace EpicGames.Horde.Compute
 		/// Resources used by the process
 		/// </summary>
 		[CbField("r")]
-		public Dictionary<string, int> Resources { get; } = new Dictionary<string, int>();
+		public Dictionary<string, ResourceRequirements> Resources { get; } = new Dictionary<string, ResourceRequirements>();
 
 		/// <summary>
 		/// Whether we require exclusive access to the device
@@ -64,9 +64,9 @@ namespace EpicGames.Horde.Compute
 			{
 				list.Add($"\"{Condition}\"");
 			}
-			foreach ((string name, int count) in Resources)
+			foreach ((string name, ResourceRequirements allocation) in Resources)
 			{
-				list.Add($"{name}: {count}");
+				list.Add($"{name}: {allocation.Min}-{allocation.Max}");
 			}
 			if (Exclusive)
 			{
@@ -74,5 +74,23 @@ namespace EpicGames.Horde.Compute
 			}
 			return String.Join(", ", list);
 		}
+	}
+
+	/// <summary>
+	/// Specifies requirements for resource allocation
+	/// </summary>
+	public class ResourceRequirements
+	{
+		/// <summary>
+		/// Minimum allocation of the requested resource
+		/// </summary>
+		[CbField("min")]
+		public int Min { get; set; } = 1;
+
+		/// <summary>
+		/// Maximum allocation of the requested resource. Allocates as much as possible unless capped.
+		/// </summary>
+		[CbField("max")]
+		public int? Max { get; set; }
 	}
 }
