@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 using OpenTelemetry.Trace;
 
 namespace Jupiter.Controllers;
@@ -52,11 +53,36 @@ public class RequestHelper
 
         // namespace is a restricted namespace
         HttpContext context = request.HttpContext;
-        bool isUnitTest = context.Connection.LocalPort == 0 && context.Connection.LocalIpAddress == null;
-        /* unit tests do not run on ports, we consider them always on the internal port */
+        string? portHeaderValue = null;
+        if (context.Request.Headers.TryGetValue("X-Jupiter-Port", out StringValues values))
+        {
+            portHeaderValue = values.ToString();
+        }
+
+        // unit tests do not run on ports, we consider them always on the internal port
+        bool isLocalConnection = context.Connection.LocalPort == 0 && context.Connection.LocalIpAddress == null;
+        // public port is either running on the public port, or if using domain sockets we check the header that is passed along instead
         bool isPublicPort = _settings!.CurrentValue.PublicApiPorts.Contains(context.Connection.LocalPort);
-            
-        if (isPublicPort && !isUnitTest)
+
+        if (isLocalConnection && _settings.CurrentValue.AssumeLocalConnectionsHasFullAccess)
+        {
+            // local connection so granting it full access
+            isPublicPort = false;
+        }
+
+        if (isLocalConnection && portHeaderValue != null)
+        {
+            if (string.Equals(portHeaderValue, "Public", StringComparison.OrdinalIgnoreCase))
+            {
+                isPublicPort = true;
+            }
+            else if (string.Equals(portHeaderValue, "Corp", StringComparison.OrdinalIgnoreCase))
+            {
+                isPublicPort = false;
+            }
+        }
+
+        if (isPublicPort)
         {
             // trying to access restricted namespace on a public port, this is not allowed
             return new ForbidResult();

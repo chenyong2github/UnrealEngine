@@ -726,6 +726,11 @@ namespace Jupiter
         /// Enable to change access (chmod) the sockets to allow for anyone to access them
         /// </summary>
         public bool ChmodDomainSockets { get; set; } = false;
+
+        /// <summary>
+        /// Assumes that any local connection should have full access, this is used only for tests
+        /// </summary>
+        public bool AssumeLocalConnectionsHasFullAccess { get; set; }
     }
 
     public class NamespaceSettings

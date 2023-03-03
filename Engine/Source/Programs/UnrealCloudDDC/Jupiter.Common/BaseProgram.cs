@@ -66,10 +66,8 @@ namespace Jupiter
 
                 if (settings.ChmodDomainSockets)
                 {
-                    FileUtils.SetFileMode_Linux(Path.Combine(socketsRoot, "public-http.sock"), 755);
-                    FileUtils.SetFileMode_Linux(Path.Combine(socketsRoot, "public-http2.sock"), 755);
-                    FileUtils.SetFileMode_Linux(Path.Combine(socketsRoot, "corp-http.sock"), 755);
-                    FileUtils.SetFileMode_Linux(Path.Combine(socketsRoot, "corp-http2.sock"), 755);
+                    FileUtils.SetFileMode_Linux(Path.Combine(socketsRoot, "jupiter-http.sock"), 766);
+                    FileUtils.SetFileMode_Linux(Path.Combine(socketsRoot, "jupiter-http2.sock"), 766);
                 }
 
                 host.WaitForShutdown();
@@ -115,21 +113,11 @@ namespace Jupiter
                         if (settings.UseDomainSockets)
                         {
                             Log.Logger.Information("Using unix domain sockets at {SocketsRoot}", socketsRoot);
-                            options.ListenUnixSocket(Path.Combine(socketsRoot, "public-http.sock"), listenOptions =>
+                            options.ListenUnixSocket(Path.Combine(socketsRoot, "jupiter-http.sock"), listenOptions =>
                             {
                                 listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
                             });
-                            options.ListenUnixSocket(Path.Combine(socketsRoot, "public-http2.sock"), listenOptions =>
-                            {
-                                listenOptions.Protocols = HttpProtocols.Http2;
-                            });
-
-                            options.ListenUnixSocket(Path.Combine(socketsRoot, "corp-http.sock"), listenOptions =>
-                            {
-                                listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
-                            });
-
-                            options.ListenUnixSocket(Path.Combine(socketsRoot, "corp-http2.sock"), listenOptions =>
+                            options.ListenUnixSocket(Path.Combine(socketsRoot, "jupiter-http2.sock"), listenOptions =>
                             {
                                 listenOptions.Protocols = HttpProtocols.Http2;
                             });
