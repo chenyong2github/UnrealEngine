@@ -450,7 +450,6 @@ public:
 	static bool Parse(const TCHAR* Cmd, FOnlineBeaconClientFilter& OutFilter, FOnlineBeaconClientFilterFlags Flags);
 
 	FOnlineBeaconClientFilter() = default;
-	FOnlineBeaconClientFilter(const FString& Name, const FString& Type, const FUniqueNetIdRepl& UniqueId, FOnlineBeaconClientFilterFlags Flags);
 	FString ToString() const;
 
 	// Returns true if the beacon matches the filter.
@@ -458,6 +457,8 @@ public:
 	bool operator()(const AOnlineBeaconClient* Beacon) const;
 
 private:
+	FOnlineBeaconClientFilter(const FString& Name, const FString& Type, const FUniqueNetIdRepl& UniqueId, FOnlineBeaconClientFilterFlags Flags);
+
 	FString Name;
 	FString Type;
 	FUniqueNetIdRepl UniqueId;
@@ -485,6 +486,13 @@ bool FOnlineBeaconClientFilter::Parse(const TCHAR* Cmd, FOnlineBeaconClientFilte
 			UE_LOG(LogBeacon, Warning, TEXT("Beacon filter parse failure - unable to parse UniqueId: %s"), *UniqueIdStr);
 			bArgumentsValid = false;
 		}
+	}
+
+	const bool bHasAnyArguments = !BeaconName.IsEmpty() || !BeaconType.IsEmpty() || UniqueId.IsValid();
+	if (!EnumHasAnyFlags(Flags, FOnlineBeaconClientFilterFlags::WildcardAllowed) && !bHasAnyArguments)
+	{
+		UE_LOG(LogBeacon, Warning, TEXT("Beacon filter parse failure - no arguments found. Wildcard filter is not allowed."));
+		bArgumentsValid = false;
 	}
 
 	if (!bArgumentsValid)
@@ -530,7 +538,15 @@ bool FOnlineBeaconClientFilter::operator()(const UObject* Obj) const
 
 bool FOnlineBeaconClientFilter::operator()(const AOnlineBeaconClient* Beacon) const
 {
-	return IsValid(Beacon) && (bIsWildcard || Name == Beacon->GetName() || Type == Beacon->GetBeaconType() || UniqueId == Beacon->GetUniqueId());
+	if (!IsValid(Beacon))
+	{
+		return false;
+	}
+
+	const bool bNameMatches = Name.IsEmpty() || Name == Beacon->GetName();
+	const bool bTypeMatches = Type.IsEmpty() || Type == Beacon->GetBeaconType();
+	const bool bUniqueIdMatches = !UniqueId.IsValid() || UniqueId == Beacon->GetUniqueId();
+	return bIsWildcard || (bNameMatches && bTypeMatches && bUniqueIdMatches);
 }
 
 TArray<AOnlineBeaconClient*> GetFilteredOnlineBeaconClientInstances(const FOnlineBeaconClientFilter& Filter)
