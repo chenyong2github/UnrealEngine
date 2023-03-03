@@ -9,6 +9,8 @@
 #include "BlackboardKeyEnums.h"
 #include "BlackboardKeyType.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogBlackboard, Log, All);
+
 class UBlackboardComponent;
 
 struct FBlackboardInstancedKeyMemory

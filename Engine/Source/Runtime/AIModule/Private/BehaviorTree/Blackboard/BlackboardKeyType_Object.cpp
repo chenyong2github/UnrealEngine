@@ -58,7 +58,8 @@ FString UBlackboardKeyType_Object::DescribeSelf() const
 bool UBlackboardKeyType_Object::IsAllowedByFilter(UBlackboardKeyType* FilterOb) const
 {
 	UBlackboardKeyType_Object* FilterObject = Cast<UBlackboardKeyType_Object>(FilterOb);
-	return (FilterObject && (FilterObject->BaseClass == BaseClass || BaseClass->IsChildOf(FilterObject->BaseClass)));
+	UE_CLOG(BaseClass == nullptr, LogBlackboard, Warning, TEXT("Cannot assign %s to a Blackboard Key with null base class. Should the base class be changed?"), *FilterObject->DescribeSelf());
+	return (FilterObject && (FilterObject->BaseClass == BaseClass || (BaseClass != nullptr && BaseClass->IsChildOf(FilterObject->BaseClass))));
 }
 
 bool UBlackboardKeyType_Object::GetLocation(const UBlackboardComponent& OwnerComp, const uint8* RawData, FVector& Location) const
