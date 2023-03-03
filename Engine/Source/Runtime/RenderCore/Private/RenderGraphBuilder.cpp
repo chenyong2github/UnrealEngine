@@ -1850,6 +1850,12 @@ void FRDGBuilder::Execute()
 			}
 		}
 	}
+	else
+	{
+		PrepareBufferUploads();
+		SubmitBufferUploads();
+		CreateUniformBuffers();
+	}
 
 	{
 		SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::Finalize", FColor::Magenta);
@@ -2243,11 +2249,6 @@ void FRDGBuilder::SetupPassResources(FRDGPass* Pass)
 			// them any more for culling / transition purposes. Validation checks that these invariants are true.
 			IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExternalAccess(Buffer, Access, Pass));
 			return;
-		}
-
-		if (!FCString::Stricmp(Buffer->Name, TEXT("DefaultBuffer")))
-		{
-			UE_DEBUG_BREAK();
 		}
 
 		const FRDGViewHandle NoUAVBarrierHandle = GetHandleIfNoUAVBarrier(BufferView);
