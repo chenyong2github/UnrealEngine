@@ -34,6 +34,7 @@ class MESHMODELINGTOOLS_API UUVProjectionToolBuilder : public USingleTargetWithS
 public:
 	virtual USingleTargetWithSelectionTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual bool RequiresInputSelection() const override { return false; }
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
