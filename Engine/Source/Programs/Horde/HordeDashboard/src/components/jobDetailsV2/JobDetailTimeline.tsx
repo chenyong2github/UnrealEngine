@@ -198,6 +198,11 @@ class TimelineDataView extends JobDataView {
 
       });
 
+      if (!batches.length) {
+         console.error("No batches to render in timeline");
+         return;
+      }
+
       batches = batches.sort((a, b) => {
          return a.utcWaitStart.getTime() - b.utcWaitStart.getTime();
       });

@@ -1067,7 +1067,7 @@ class TestGraphRenderer extends AutomationGraph {
 
 }
 
-const TestGraph: React.FC<{ testId: string, streamId: string, handler: TestDataHandler }> = observer(({ testId, streamId, handler }) => {
+const TestGraph: React.FC<{ testId: string, streamId: string, handler: TestDataHandler }> = ({ testId, streamId, handler }) => {
 
    const graph_container_id = `${testId}_${streamId}_automation_graph_container`;
 
@@ -1094,7 +1094,7 @@ const TestGraph: React.FC<{ testId: string, streamId: string, handler: TestDataH
       </Stack>
    </Stack>;
 
-})
+}
 
 const AutomationTestView: React.FC<{ test: GetTestResponse, handler: TestDataHandler }> = observer(({ test, handler }) => {
 
