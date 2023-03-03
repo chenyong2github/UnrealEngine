@@ -130,8 +130,8 @@ void SNiagaraGraphNodeCustomHlsl::CreateBelowPinControls(TSharedPtr<SVerticalBox
 				TStringBuilder<256> Options;
 				for (int i = 0; (i + AutoCompletePageIndex * 9) < FunctionPrototypes.Num() && i < 9; i++)
 				{
-					TPair<FString, FString> Prototype = FunctionPrototypes[i + AutoCompletePageIndex * 9];
-					Options.Appendf(TEXT("\n(%i) %s"), i + 1, *Prototype.Key);
+					const FString& Prototype = FunctionPrototypes[i + AutoCompletePageIndex * 9].Get<0>();
+					Options.Appendf(TEXT("\n(%i) %s"), i + 1, *Prototype);
 				}
 				FText HiddenText = FText::GetEmpty();
 				if (FunctionPrototypes.Num() > (AutoCompletePageIndex + 1) * 9)
@@ -251,14 +251,14 @@ FReply SNiagaraGraphNodeCustomHlsl::OnShaderTextKeyChar(const FGeometry&, const 
 
 						for (int i = 0; i < FunctionPrototypes.Num(); i++)
 						{
-							TPair<FString, FString> Prototype = FunctionPrototypes[i];
+							FString Prototype = FunctionPrototypes[i].Get<1>();
 							int32 NameDot = 0;
-							if (Prototype.Value.FindChar('.', NameDot))
+							if (Prototype.FindChar('.', NameDot))
 							{
-								Prototype.Value.RightChopInline(NameDot + 1);
+								Prototype.RightChopInline(NameDot + 1);
 							}
-							Prototype.Value.TrimStartAndEndInline();
-							AutoCompleteOptions.Add(Prototype.Value);
+							Prototype.TrimStartAndEndInline();
+							AutoCompleteOptions.Add(Prototype);
 						}						
 						MenuAnchor->SetIsOpen(true, false);
 						break;

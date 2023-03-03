@@ -43,6 +43,6 @@ private:
 
 	bool bIsAutoCompleteActive = false;
 	TArray<FString> AutoCompleteOptions;
-	TArray<TPair<FString, FString>> FunctionPrototypes;
+	TArray<TTuple<FString, FString, FText>> FunctionPrototypes;
 	int32 AutoCompletePageIndex = 0;
 };

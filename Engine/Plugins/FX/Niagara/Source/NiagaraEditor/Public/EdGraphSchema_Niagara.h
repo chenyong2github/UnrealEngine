@@ -186,7 +186,9 @@ class NIAGARAEDITOR_API UEdGraphSchema_Niagara : public UEdGraphSchema
 	
 	bool PinTypesValidForNumericConversion(FEdGraphPinType AType, FEdGraphPinType BType) const;	
 
-	static TArray<TPair<FString, FString>> GetDataInterfaceFunctionPrototypes(const UEdGraphPin* GraphPin);
+	// Return type is Name, Prototype, Description
+	static TArray<TTuple<FString, FString, FText>> GetDataInterfaceFunctionPrototypes(const UEdGraphPin* GraphPin);
+
 private:
 	void GetNumericConversionToSubMenuActions(class UToolMenu* Menu, const FName SectionName, UEdGraphPin* InGraphPin);
 	void GetNumericConversionToSubMenuActionsAll(class UToolMenu* Menu, const FName SectionName, UNiagaraNode* InGraphPin);

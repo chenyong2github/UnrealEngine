@@ -2160,9 +2160,9 @@ void UEdGraphSchema_Niagara::GetNumericConversionToSubMenuActionsAll(UToolMenu* 
 	}
 }
 
-TArray<TPair<FString, FString>> UEdGraphSchema_Niagara::GetDataInterfaceFunctionPrototypes(const UEdGraphPin* InGraphPin)
+TArray<TTuple<FString, FString, FText>> UEdGraphSchema_Niagara::GetDataInterfaceFunctionPrototypes(const UEdGraphPin* InGraphPin)
 {
-	TArray<TPair<FString, FString>> FunctionPrototypes;
+	TArray<TTuple<FString, FString, FText>> FunctionPrototypes;
 	if (InGraphPin)
 	{
 		FNiagaraTypeDefinition GraphPinType = UEdGraphSchema_Niagara::PinToTypeDefinition(InGraphPin);
@@ -2202,7 +2202,8 @@ TArray<TPair<FString, FString>> UEdGraphSchema_Niagara::GetDataInterfaceFunction
 				if ( Prototype.Len() > 0 )
 				{
 					Prototype.Append(TEXT("\r\n"));
-					FunctionPrototypes.Emplace(FunctionSignature.GetNameString(), Prototype);
+					FText Description = FText::Format(LOCTEXT("DataInterfacePrototypeDescriptionFormat", "{0}\n{1}"), FText::FromString(Prototype), FunctionSignature.GetDescription());
+					FunctionPrototypes.Emplace(FunctionSignature.GetNameString(), Prototype, Description);
 				}
 			}
 		}
@@ -2212,13 +2213,13 @@ TArray<TPair<FString, FString>> UEdGraphSchema_Niagara::GetDataInterfaceFunction
 
 void UEdGraphSchema_Niagara::GenerateDataInterfacePinMenu(UToolMenu* ToolMenu, const FName SectionName, const UEdGraphPin* GraphPin, FNiagaraTypeDefinition TypeDef) const
 {
-	TArray<TPair<FString, FString>> FunctionPrototypes = GetDataInterfaceFunctionPrototypes(GraphPin);
+	TArray<TTuple<FString, FString, FText>> FunctionPrototypes = GetDataInterfaceFunctionPrototypes(GraphPin);
 	if (FunctionPrototypes.Num () == 0)
 	{
 		return;
 	}
 
-	Algo::Sort(FunctionPrototypes, [](const TPair<FString, FString>& Lhs, const TPair<FString, FString>& Rhs) { return Lhs.Key < Rhs.Key; });
+	Algo::Sort(FunctionPrototypes, [](const TTuple<FString, FString, FText>& Lhs, const TTuple<FString, FString, FText>& Rhs) { return Lhs.Get<0>() < Rhs.Get<0>(); });
 
 	// Make the menu
 	FToolMenuSection& Section = ToolMenu->FindOrAddSection(SectionName);
@@ -2232,7 +2233,7 @@ void UEdGraphSchema_Niagara::GenerateDataInterfacePinMenu(UToolMenu* ToolMenu, c
 				FString AllPrototypes;
 				for ( const auto& Prototype : FunctionPrototypes )
 				{
-					AllPrototypes += Prototype.Value;
+					AllPrototypes += Prototype.Get<1>();
 				}
 
 				FToolMenuSection& Section = ToolMenu->FindOrAddSection(SectionName);
@@ -2249,10 +2250,10 @@ void UEdGraphSchema_Niagara::GenerateDataInterfacePinMenu(UToolMenu* ToolMenu, c
 				{
 					Section.AddMenuEntry(
 						NAME_None,
-						FText::FromString(Prototype.Key),
-						FText::FromString(Prototype.Value),
+						FText::FromString(Prototype.Get<0>()),
+						Prototype.Get<2>(),
 						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateLambda([ClipboardText=Prototype.Value]() { FPlatformApplicationMisc::ClipboardCopy(*ClipboardText); }))
+						FUIAction(FExecuteAction::CreateLambda([ClipboardText=Prototype.Get<1>()]() { FPlatformApplicationMisc::ClipboardCopy(*ClipboardText); }))
 					);
 				}
 			}
