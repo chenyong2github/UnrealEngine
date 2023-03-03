@@ -29,6 +29,7 @@
 #include "LocationVolume.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "ActorReferencesUtils.h"
+#include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
@@ -517,7 +518,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			);
 		}
 
-		ActorDescContainer = RegisterActorDescContainer(PackageName);
+		FContainerRegistrationParams ContainerInitParams(PackageName);
+		ActorDescContainer = RegisterActorDescContainer(ContainerInitParams);
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::Hash);
@@ -1736,14 +1738,38 @@ void UWorldPartition::AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags
 	}
 }
 
-UActorDescContainer* UWorldPartition::RegisterActorDescContainer(const FName& ContainerPackage)
+UActorDescContainer* UWorldPartition::RegisterActorDescContainer(const FContainerRegistrationParams& InRegistrationParameters)
 {
-	if (!Contains(ContainerPackage))
-	{
-		UActorDescContainer* ContainerToRegister = NewObject<UActorDescContainer>(this);
+	if (!Contains(InRegistrationParameters.PackageName))
+	{	
+		UActorDescContainer::FInitializeParams ContainerInitParams(GetWorld(), InRegistrationParameters.PackageName);
 
-		UActorDescContainer::FInitializeParams ContainerInitParams(GetWorld(), ContainerPackage);
-		ContainerInitParams.FilterActorDesc = [this](const FWorldPartitionActorDesc* ActorDesc) { return !GetActorDesc(ActorDesc->GetGuid()); };
+		const FWorldDataLayersActorDesc* WorldDataLayerActorsDesc = nullptr;
+		ContainerInitParams.FilterActorDesc = [this, &WorldDataLayerActorsDesc, &InRegistrationParameters](const FWorldPartitionActorDesc* ActorDesc)
+		{
+			if (InRegistrationParameters.FilterActorDescFunc && !InRegistrationParameters.FilterActorDescFunc(ActorDesc))
+			{
+				return false;
+			}
+
+			// Filter duplicate WorldDataLayers
+			if (ActorDesc->GetActorNativeClass()->IsChildOf<AWorldDataLayers>())
+			{
+				const FWorldDataLayersActorDesc* FoundWorldDataLayerActorsDesc = StaticCast<const FWorldDataLayersActorDesc*>(ActorDesc);
+				if (FoundWorldDataLayerActorsDesc != nullptr && WorldDataLayerActorsDesc != nullptr)
+				{
+					UE_LOG(LogWorldPartition, Warning, TEXT("Extra World Data Layer '%s' actor found. Clean up invalid actors to remove the error."), *ActorDesc->GetActorPackage().ToString());
+					return false;
+				}
+
+				WorldDataLayerActorsDesc = FoundWorldDataLayerActorsDesc;
+			}
+
+			// Filter actors with duplicated GUID in WorldPartition
+			return !GetActorDesc(ActorDesc->GetGuid());
+		};
+
+		UActorDescContainer* ContainerToRegister = NewObject<UActorDescContainer>(this);
 		ContainerToRegister->Initialize(ContainerInitParams);
 
 		AddContainer(ContainerToRegister);

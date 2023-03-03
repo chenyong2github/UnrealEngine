@@ -222,12 +222,28 @@ public:
 
 	void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
 
+	struct FContainerRegistrationParams
+	{
+		FContainerRegistrationParams(FName InPackageName)
+			: PackageName(InPackageName)
+		{}
+
+		/* The long package name of the container package on disk. */
+		FName PackageName;
+
+		/* Custom filter function used to filter actors descriptors. */
+		TUniqueFunction<bool(const FWorldPartitionActorDesc*)> FilterActorDescFunc;
+	};
+	UActorDescContainer* RegisterActorDescContainer(const FContainerRegistrationParams& InRegistrationParameters);
+	bool UnregisterActorDescContainer(UActorDescContainer* Container);
+	void UninitializeActorDescContainers();
+
 	DECLARE_MULTICAST_DELEGATE_OneParam(FActorDescContainerRegistrationDelegate, UActorDescContainer*);
 	FActorDescContainerRegistrationDelegate OnActorDescContainerRegistered;
 	FActorDescContainerRegistrationDelegate OnActorDescContainerUnregistered;
-	UActorDescContainer* RegisterActorDescContainer(const FName& ContainerPackage);
-	bool UnregisterActorDescContainer(UActorDescContainer* Container);
-	void UninitializeActorDescContainers();
+
+	UE_DEPRECATED(5.3, "Use RegisterActorDescContainer with FContainerRegistrationParams instead.")
+	UActorDescContainer* RegisterActorDescContainer(const FName& ContainerPackage) { return RegisterActorDescContainer(FContainerRegistrationParams(ContainerPackage)); }
 
 	// Actors pinning
 	void PinActors(const TArray<FGuid>& ActorGuids);

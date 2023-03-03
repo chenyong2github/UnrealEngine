@@ -1675,7 +1675,6 @@ void UWorld::RepairWorldSettings()
 void UWorld::RepairSingletonActors()
 {
 	RepairWorldSettings();
-	RepairSingletonActorOfClass<AWorldDataLayers>();
 }
 
 #if WITH_EDITOR

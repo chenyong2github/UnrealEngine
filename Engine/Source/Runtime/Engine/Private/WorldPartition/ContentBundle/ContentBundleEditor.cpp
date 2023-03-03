@@ -58,7 +58,8 @@ void FContentBundleEditor::DoInjectContent()
 		UnsavedActorMonitor->Initialize(*this);
 
 		UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
-		ActorDescContainer = WorldPartition->RegisterActorDescContainer(FName(*ActorDescContainerPackage));
+		UWorldPartition::FContainerRegistrationParams RegistrationsParams(*ActorDescContainerPackage);
+		ActorDescContainer = WorldPartition->RegisterActorDescContainer(RegistrationsParams);
 		if (ActorDescContainer.IsValid())
 		{
 			UE_LOG(LogContentBundle, Log, TEXT("%s ExternalActors in %s found. %u actors were injected"), *ContentBundle::Log::MakeDebugInfoString(*this), *ActorDescContainer->GetExternalActorPath(), ActorDescContainer->GetActorDescCount());
