@@ -8,13 +8,6 @@ namespace UnrealBuildTool.Rules
 		{
 			OverridePackageType = PackageOverrideType.EngineDeveloper;
 
-			PrivateIncludePaths.AddRange(
-                new string[] {
-					System.IO.Path.Combine(GetModuleDirectory("AssetTools"), "Private"),
-					System.IO.Path.Combine(GetModuleDirectory("Kismet"), "Private"),
-				}
-			);
-
             PrivateDependencyModuleNames.AddRange(
                 new string[]
 				{

@@ -25,13 +25,6 @@ public class AndroidDeviceDetection : ModuleRules
 			}
 		);
 
-		PublicIncludePaths.AddRange(
-			new string[]
-			{
-				"Runtime/Core/Public/Android"
-			}
-		);
-
         if (Target.bCompileAgainstEngine)
 		{
 			PrivateDependencyModuleNames.Add("Engine");
