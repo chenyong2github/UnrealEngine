@@ -33,6 +33,12 @@ public:
 	virtual void ControlMappingsRebuiltThisFrame() override;
 	// End IEnhancedInputSubsystemInterface
 
+	template<class UserSettingClass = UEnhancedInputUserSettings>
+	inline UserSettingClass* GetUserSettings() const
+	{
+		return Cast<UserSettingClass>(GetUserSettings());
+	}
+
 	/** A delegate that will be called when control mappings have been rebuilt this frame. */
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnControlMappingsRebuilt);
 

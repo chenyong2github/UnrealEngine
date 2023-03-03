@@ -76,12 +76,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
 	virtual UEnhancedInputUserSettings* GetUserSettings() const;
 
-	template<class T>
-	inline T* GetUserSettings() const
-	{
-		return Cast<T>(GetUserSettings());
-	}
-
 protected:
 	
 	/**
