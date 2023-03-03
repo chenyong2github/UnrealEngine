@@ -7,6 +7,7 @@
 #include "Delegates/Delegate.h"
 #include "Elements/Framework/TypedElementColumnUtils.h"
 #include "Math/NumericLimits.h"
+#include "Templates/Function.h"
 #include "UObject/Interface.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
@@ -14,6 +15,7 @@
 #include "TypedElementDataStorageInterface.generated.h"
 
 class UClass;
+class USubsystem;
 class UScriptStruct;
 
 struct ColumnDataResult
@@ -143,6 +145,73 @@ public:
 	 * can be used directly in the processor to do additional filtering. This will however impact performance and it's 
 	 * therefore recommended to try to simplify the query first before relying on extended query filtering in a processor.
 	 */
+	
+	enum class EQueryTickPhase : uint8
+	{
+		PrePhysics, //< Queries are executed before physics simulation starts.
+		DuringPhysics, //< Queries that can be run in parallel with physics simulation work.
+		PostPhysics, //< Queries that need rigid body and cloth simulation to be completed before being executed.
+		FrameEnd, //< Catchall for queries demoted to the last possible moment.
+
+		MAX
+	};
+
+	enum class EQueryTickGroups : uint8
+	{
+		/** The standard group to run work in. */
+		Default,
+		/** 
+		 * The group for processors that need to sync data from external sources such as subsystems or the world into
+		 * the Data Storage. These typically run early in a phase.
+		 */
+		SyncExternalToDataStorage,
+		/**
+		 * The group for processors that need to sync data from the Data Storage to external sources such as subsystems 
+		 * or the world into. These typically run late in a phase.
+		 */
+		SyncDataStorageToExternal
+	};
+
+	enum class EQueryCallbackType : uint8
+	{
+		/** No callback provided. */
+		None,
+		/** The query will be run every tick if at least one row matches. */
+		Processor,
+		/** The query will be run when a row is added that matches the query. The first recorded column will be actively monitored for changes. */
+		ObserveAdd,
+		/** The query will be run when a row is removed that matches the query. The first recorded column will be actively monitored for changes. */
+		ObserveRemove
+	};
+
+	enum class EQueryAccessType
+	{ 
+		ReadOnly, 
+		ReadWrite 
+	};
+
+	/** Base class to be provided to query callbacks. */
+	struct FQueryContext
+	{
+		virtual ~FQueryContext() = default;
+		
+		virtual const void* GetColumn(const UScriptStruct* ColumnType) const = 0;
+		virtual void* GetMutableColumn(const UScriptStruct* ColumnType) = 0;
+		virtual void GetColumns(TArrayView<char*> RetrievedAddresses, TConstArrayView<const UScriptStruct*> ColumnTypes,
+			TConstArrayView<ITypedElementDataStorageInterface::EQueryAccessType> AccessTypes) = 0;
+		virtual void GetColumnsUnguarded(int32 TypeCount, char** RetrievedAddresses, const UScriptStruct* const* ColumnTypes, 
+			const ITypedElementDataStorageInterface::EQueryAccessType* AccessTypes) = 0;
+
+		virtual USubsystem* GetMutableSubsystem(const TSubclassOf<USubsystem> SubsystemClass) = 0;
+		virtual const USubsystem* GetSubsystem(const TSubclassOf<USubsystem> SubsystemClass) = 0;
+		virtual void GetSubsystems(TArrayView<char*> RetrievedAddresses, TConstArrayView<const TSubclassOf<USubsystem>> SubsystemTypes, 
+			TConstArrayView<EQueryAccessType> AccessTypes) = 0;
+
+		virtual uint32 GetRowCount() const = 0;
+	};
+
+	using QueryCallback = TFunction<void(FQueryContext&)>;
+
 	struct FQueryDescription final
 	{
 		enum class EActionType : uint8
@@ -153,7 +222,7 @@ public:
 		};
 
 		using OperatorIndex = int32;
-		enum class EOperatorType
+		enum class EOperatorType : uint16
 		{
 			SimpleAll,			// Unary: Type
 			SimpleAny,			// Unary: Type
@@ -178,26 +247,38 @@ public:
 			const UScriptStruct* Type;
 		};
 
-		enum class EAccessType { ReadOnly, ReadWrite };
-
 		struct FAccessControlledStruct
 		{
 			FAccessControlledStruct() = default;
-			inline FAccessControlledStruct(const UScriptStruct* Type, EAccessType Access) : Type(Type), Access(Access) {}
+			inline FAccessControlledStruct(const UScriptStruct* Type, EQueryAccessType Access) : Type(Type), Access(Access) {}
 
 			const UScriptStruct* Type;
-			EAccessType Access;
+			EQueryAccessType Access;
 		};
 
 		struct FAccessControlledClass
 		{
 			FAccessControlledClass() = default;
-			inline FAccessControlledClass(const UClass* Type, EAccessType Access) : Type(Type), Access(Access) {}
+			inline FAccessControlledClass(const UClass* Type, EQueryAccessType Access) : Type(Type), Access(Access) {}
 
 			const UClass* Type;
-			EAccessType Access;
+			EQueryAccessType Access;
 		};
 
+		struct FCallbackData
+		{
+			QueryCallback Function;
+			FName Name;
+			FName Group;
+			FName BeforeGroup;
+			FName AfterGroup;
+			const UScriptStruct* MonitoredType{ nullptr };
+			EQueryCallbackType Type{ EQueryCallbackType::None };
+			EQueryTickPhase Phase;
+			bool bForceToGameThread{ false };
+		};
+		
+		FCallbackData Callback;
 		TArray<FAccessControlledStruct, TInlineAllocator<16>> Selection;
 		TArray<EOperatorType, TInlineAllocator<32>> ConditionTypes;
 		TArray<FOperator, TInlineAllocator<32>> ConditionOperators;
@@ -206,8 +287,14 @@ public:
 		/** If true, this query only has simple operations and is guaranteed to be executed fully and at optimal performance. */
 		bool bSimpleQuery{ false };
 	};
-	virtual TypedElementQueryHandle RegisterQuery(const FQueryDescription& Query) = 0;
+	virtual TypedElementQueryHandle RegisterQuery(FQueryDescription&& Query) = 0;
 	virtual void UnregisterQuery(TypedElementQueryHandle Query) = 0;
+	/**
+	 * Tick groups for queries can be given any name and the Data Storage will figure out the order of execution based on found
+	 * dependencies. However keeping processors within the same query group can help promote better performance through parallelization.
+	 * Therefore a collection of common tick group names is provided to help create consistent tick group names.
+	 */
+	virtual FName GetQueryTickGroupName(EQueryTickGroups Group) const = 0;
 	struct FQueryResult
 	{
 		enum class ECompletion
@@ -278,6 +365,8 @@ public:
 	template<typename SystemType>
 	SystemType* GetExternalSystem();
 };
+
+
 
 // Implementations
 template<typename TagType>

@@ -14,12 +14,22 @@
 struct FMassEntityManager;
 class UWorld;
 
+struct FTypedElementDatabaseExtendedQuery
+{
+	FMassEntityQuery NativeQuery;
+	ITypedElementDataStorageInterface::FQueryDescription::EActionType Action{ ITypedElementDataStorageInterface::FQueryDescription::EActionType::None };
+	ITypedElementDataStorageInterface::FQueryDescription::FCallbackData Callback;
+	TStrongObjectPtr<UMassProcessor> Processor{ nullptr };
+	bool bSimpleQuery{ false };
+};
+
 UCLASS()
 class TYPEDELEMENTSDATASTORAGE_API UTypedElementDatabase 
 	: public UObject
 	, public ITypedElementDataStorageInterface
 {
 	GENERATED_BODY()
+
 public:
 	~UTypedElementDatabase() override = default;
 	
@@ -54,8 +64,9 @@ public:
 		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments) override;
 	ColumnDataResult GetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) override;
 
-	TypedElementQueryHandle RegisterQuery(const FQueryDescription& Query) override;
+	TypedElementQueryHandle RegisterQuery(FQueryDescription&& Query) override;
 	void UnregisterQuery(TypedElementQueryHandle Query) override;
+	FName GetQueryTickGroupName(EQueryTickGroups Group) const override;
 	FQueryResult RunQuery(TypedElementQueryHandle Query) override;
 
 	FTypedElementOnDataStorageUpdate& OnUpdate() override;
@@ -63,13 +74,7 @@ public:
 	void* GetExternalSystemAddress(UClass* Target) override;
 
 private:
-	struct FExtendedQuery
-	{
-		FMassEntityQuery NativeQuery;
-		FQueryDescription::EActionType Action{ FQueryDescription::EActionType::None };
-		bool bSimpleQuery{ false };
-	};
-	using QueryStore = TTypedElementHandleStore<FExtendedQuery>;
+	using QueryStore = TTypedElementHandleStore<FTypedElementDatabaseExtendedQuery>;
 
 	void Reset();
 	

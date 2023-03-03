@@ -39,7 +39,7 @@ namespace TypedElementQueryBuilder
 	FDependency& FDependency::ReadOnly(const UClass* Target)
 	{
 		checkf(Target, TEXT("The Dependency section in the Typed Elements query builder doesn't support nullptrs as Read-Only input."));
-		Query->Dependencies.Emplace(Target, EAccessType::ReadOnly);
+		Query->Dependencies.Emplace(Target, ITypedElementDataStorageInterface::EQueryAccessType::ReadOnly);
 		return *this;
 	}
 
@@ -47,7 +47,7 @@ namespace TypedElementQueryBuilder
 	{
 		for (const UClass* Target : Targets)
 		{
-			ReadOnly(Targets);
+			ReadOnly(Target);
 		}
 		return *this;
 	}
@@ -55,7 +55,7 @@ namespace TypedElementQueryBuilder
 	FDependency& FDependency::ReadWrite(const UClass* Target)
 	{
 		checkf(Target, TEXT("The Dependency section in the Typed Elements query builder doesn't support nullptrs as Read/Write input."));
-		Query->Dependencies.Emplace(Target, EAccessType::ReadWrite);
+		Query->Dependencies.Emplace(Target, ITypedElementDataStorageInterface::EQueryAccessType::ReadWrite);
 		return *this;
 	}
 
@@ -63,7 +63,7 @@ namespace TypedElementQueryBuilder
 	{
 		for (const UClass* Target : Targets)
 		{
-			ReadWrite(Targets);
+			ReadWrite(Target);
 		}
 		return *this;
 	}
@@ -153,6 +153,125 @@ namespace TypedElementQueryBuilder
 
 
 	/**
+	 * FProcessor
+	 */
+	FProcessor::FProcessor(ITypedElementDataStorageInterface::EQueryTickPhase Phase, FName Group)
+		: Phase(Phase)
+		, Group(Group)
+	{}
+
+	FProcessor& FProcessor::SetPhase(ITypedElementDataStorageInterface::EQueryTickPhase NewPhase)
+	{
+		Phase = NewPhase;
+		return *this;
+	}
+
+	FProcessor& FProcessor::SetGroup(FName GroupName)
+	{
+		Group = GroupName;
+		return *this;
+	}
+
+	FProcessor& FProcessor::SetBeforeGroup(FName GroupName)
+	{
+		BeforeGroup = GroupName;
+		return *this;
+	}
+
+	FProcessor& FProcessor::SetAfterGroup(FName GroupName)
+	{
+		AfterGroup = GroupName;
+		return *this;
+	}
+
+	FProcessor& FProcessor::ForceToGameThread(bool bForce)
+	{
+		bForceToGameThread = bForce;
+		return *this;
+	}
+
+
+	/**
+	 * FObserver
+	 */
+	
+	FObserver::FObserver(EEvent MonitorForEvent, const UScriptStruct* MonitoredColumn)
+		: Monitor(MonitoredColumn)
+		, Event(MonitorForEvent)
+	{}
+
+	FObserver& FObserver::SetEvent(EEvent MonitorForEvent)
+	{
+		Event = MonitorForEvent;
+		return *this;
+	}
+
+	FObserver& FObserver::SetMonitoredColumn(const UScriptStruct* MonitoredColumn)
+	{
+		Monitor = MonitoredColumn;
+		return *this;
+	}
+
+	FObserver& FObserver::ForceToGameThread(bool bForce)
+	{
+		bForceToGameThread = bForce;
+		return *this;
+	}
+
+
+	/**
+	 * FQueryContextForwarder
+	 */
+
+	FQueryContextForwarder::FQueryContextForwarder(ITypedElementDataStorageInterface::FQueryContext& InParentContext)
+		: ParentContext(InParentContext)
+	{}
+
+	const void* FQueryContextForwarder::GetColumn(const UScriptStruct* ColumnType) const
+	{
+		return ParentContext.GetColumn(ColumnType);
+	}
+
+	void* FQueryContextForwarder::GetMutableColumn(const UScriptStruct* ColumnType)
+	{
+		return ParentContext.GetMutableColumn(ColumnType);
+	}
+
+	void FQueryContextForwarder::GetColumns(TArrayView<char*> RetrievedAddresses, TConstArrayView<const UScriptStruct*> ColumnTypes,
+		TConstArrayView<ITypedElementDataStorageInterface::EQueryAccessType> AccessTypes)
+	{
+		ParentContext.GetColumns(RetrievedAddresses, ColumnTypes, AccessTypes);
+	}
+
+	void FQueryContextForwarder::GetColumnsUnguarded(int32 TypeCount, char** RetrievedAddresses, const UScriptStruct* const* ColumnTypes,
+		const ITypedElementDataStorageInterface::EQueryAccessType* AccessTypes)
+	{
+		ParentContext.GetColumnsUnguarded(TypeCount, RetrievedAddresses, ColumnTypes, AccessTypes);
+	}
+
+	USubsystem* FQueryContextForwarder::GetMutableSubsystem(const TSubclassOf<USubsystem> SubsystemClass)
+	{
+		return ParentContext.GetMutableSubsystem(SubsystemClass);
+	}
+
+	const USubsystem* FQueryContextForwarder::GetSubsystem(const TSubclassOf<USubsystem> SubsystemClass)
+	{
+		return ParentContext.GetSubsystem(SubsystemClass);
+	}
+
+	void FQueryContextForwarder::GetSubsystems(TArrayView<char*> RetrievedAddresses, TConstArrayView<const TSubclassOf<USubsystem>> SubsystemTypes,
+		TConstArrayView<ITypedElementDataStorageInterface::EQueryAccessType> AccessTypes)
+	{
+		ParentContext.GetSubsystems(RetrievedAddresses, SubsystemTypes, AccessTypes);
+	}
+
+	uint32 FQueryContextForwarder::GetRowCount() const
+	{
+		return ParentContext.GetRowCount();
+	}
+
+
+	/**
 	 * Select
 	 */
 
@@ -164,7 +283,7 @@ namespace TypedElementQueryBuilder
 	Select& Select::ReadOnly(const UScriptStruct* Target)
 	{
 		checkf(Target, TEXT("The Select section in the Typed Elements query builder doesn't support nullptrs as Read-Only input."));
-		Query.Selection.Emplace(Target, EAccessType::ReadOnly);
+		Query.Selection.Emplace(Target, ITypedElementDataStorageInterface::EQueryAccessType::ReadOnly);
 		return *this;
 	}
 
@@ -180,7 +299,7 @@ namespace TypedElementQueryBuilder
 	Select& Select::ReadWrite(const UScriptStruct* Target)
 	{
 		checkf(Target, TEXT("The Select section in the Typed Elements query builder doesn't support nullptrs as Read/Write input."));
-		Query.Selection.Emplace(Target, EAccessType::ReadWrite);
+		Query.Selection.Emplace(Target, ITypedElementDataStorageInterface::EQueryAccessType::ReadWrite);
 		return *this;
 	}
 
