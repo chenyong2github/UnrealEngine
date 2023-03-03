@@ -76,12 +76,6 @@ void UDMXLibrary::PostLoad()
 				UE_LOG(LogDMXRuntime, Warning, TEXT("Invalid Entity found in Library %s. Please resave the library."), *GetName());
 				Entities.Remove(Entity);
 			}
-
-			// UE-177836: Fix RF_Public flag is not set on Entities in 5.0, 5.1.
-			if (!Entity->HasAnyFlags(RF_Public))
-			{
-				Entity->SetFlags(Entity->GetFlags() | RF_Public);
-			}
 		}
 	}
 }
