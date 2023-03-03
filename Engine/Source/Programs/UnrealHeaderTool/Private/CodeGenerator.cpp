@@ -118,8 +118,6 @@ FFindDelcarationResults FindDeclaration(const FUnrealStructDefinitionInfo& Struc
 
 namespace
 {
-	static const FName NAME_Comment(TEXT("Comment"));
-	static const FName NAME_ToolTip(TEXT("ToolTip"));
 	static const FName NAME_SerializeToFArchive("SerializeToFArchive");
 	static const FName NAME_SerializeToFStructuredArchive("SerializeToFStructuredArchive");
 	static const FName NAME_ObjectInitializerConstructorDeclared("ObjectInitializerConstructorDeclared");
@@ -612,6 +610,8 @@ FString CreateUTF8LiteralString(const FString& Str)
 static FString OutputMetaDataCodeForObject(FOutputDevice& OutDeclaration, FOutputDevice& Out, FUnrealTypeDefinitionInfo& TypeDef, const TCHAR* MetaDataBlockName, const TCHAR* DeclSpaces, const TCHAR* Spaces)
 {
 	TMap<FName, FString> MetaData = TypeDef.GenerateMetadataMap();
+	static const FName NAME_Comment(TEXT("Comment"));
+	static const FName NAME_ToolTip(TEXT("ToolTip"));
 
 	FString Result;
 	if (MetaData.Num())
