@@ -978,7 +978,7 @@ FTextureResource* UTexture2D::CreateResource()
 				}
 				else
 				{
-					UE_LOG(LogTexture, Error, TEXT("%s contains no miplevels! Please delete. (Format: %d)"), *GetFullName(), (int)PixelFormat);
+					UE_LOG(LogTexture, Warning, TEXT("%s contains no miplevels! This could happen if this texture is a thumbnail and hasn't been generated (Format: %d)"), *GetFullName(), (int)PixelFormat);
 				}
 #else
 				UE_LOG(LogTexture, Error, TEXT("%s contains no miplevels! Please delete. (Format: %d)"), *GetFullName(), (int)PixelFormat);
