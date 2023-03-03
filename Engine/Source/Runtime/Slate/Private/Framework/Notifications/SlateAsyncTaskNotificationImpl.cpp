@@ -431,7 +431,7 @@ bool FSlateAsyncTaskNotificationImpl::TickNotification(float InDeltaTime)
 		if(OwningNotification)
 		{
 			SNotificationItem::ECompletionState OwningCompletionState = SNotificationItem::CS_None;
-			switch (State)
+			switch (CompletionStateToApply)
 			{
 			case EAsyncTaskNotificationState::Pending:
 				OwningCompletionState = SNotificationItem::CS_Pending;
