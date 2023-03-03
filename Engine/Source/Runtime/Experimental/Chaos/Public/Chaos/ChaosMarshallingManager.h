@@ -340,6 +340,9 @@ public:
 
 	/** Returns the history buffer of the latest NumFrames. The history that comes before these frames is discarded*/
 	TArray<FPushPhysicsData*> StealHistory_Internal(int32 NumFrames);
+
+	/** Return the size of the history queue */
+	int32 GetNumHistory_Internal() const {return HistoryQueue_Internal.Num();}
 		
 private:
 	FReal ExternalTime_External;	//the global time external thread is currently at

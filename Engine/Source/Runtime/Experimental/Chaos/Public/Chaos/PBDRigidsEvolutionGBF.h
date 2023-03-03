@@ -171,6 +171,10 @@ namespace Chaos
 
 		virtual void DestroyTransientConstraints(FGeometryParticleHandle* Particle) override;
 
+		/** Reset the collisions warm starting when resimulate. Ideally we should store
+		  that in the RewindData history but probably too expensive for now */
+		virtual void ResetCollisions() override;
+
 		CHAOS_API inline void EndFrame(FReal Dt)
 		{
 			Particles.GetNonDisabledDynamicView().ParallelFor([&](auto& Particle, int32 Index) {
@@ -212,13 +216,11 @@ namespace Chaos
 					Particle.V() += Particle.Acceleration() * Dt;
 					Particle.W() += Particle.AngularAcceleration() * Dt;
 
-
 					//AddImpulsesRule.Apply(Particle, Dt);
 					Particle.V() += Particle.LinearImpulseVelocity();
 					Particle.W() += Particle.AngularImpulseVelocity();
 					Particle.LinearImpulseVelocity() = FVec3(0);
 					Particle.AngularImpulseVelocity() = FVec3(0);
-					
 
 					//EtherDragRule.Apply(Particle, Dt);
 					{

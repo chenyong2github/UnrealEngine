@@ -219,11 +219,18 @@ USTRUCT()
 struct FAsyncPhysicsTimestamp
 {
 	GENERATED_BODY()
+
+	/** Check if the server and local frames are valid */
+	bool IsValid() const
+	{
+		return ServerFrame != INDEX_NONE && LocalFrame != INDEX_NONE;
+	}
 	UPROPERTY()
 	int32 ServerFrame = INDEX_NONE;
 
 	UPROPERTY()
 	int32 LocalFrame = INDEX_NONE;
+
 };
 
 /**
@@ -2345,7 +2352,7 @@ public:
 		These commands are all run on the game thread. If you want to run on the physics thread see FPhysicsSolverBase::RegisterSimOneShotCallback
 		If OwningObject is not null this command will only fire as long as the object is still alive. This allows a lambda to still use the owning object's data for read/write (assuming data is designed for async physics tick)
 	*/
-	void ExecuteAsyncPhysicsCommand(const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, UObject* OwningObject, const TFunction<void()>& Command);
+	void ExecuteAsyncPhysicsCommand(const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, UObject* OwningObject, const TFunction<void()>& Command, const bool bEnableResim = true);
 
 	/** Generates a timestamp for the upcoming physics step (plus any pending time). Useful for synchronizing client and server events on a specific physics step */
 	FAsyncPhysicsTimestamp GetAsyncPhysicsTimestamp(float DeltaSeconds = 0.f);

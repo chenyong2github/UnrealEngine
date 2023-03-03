@@ -173,6 +173,13 @@ static FAutoConsoleVariableRef CVarQuantizeActorVelocityOnSpawn(
 	TEXT("When enabled, we will quantize Velocity for newly spawned actors to a single decimal of precision.")
 );
 
+static bool GbQuantizeActorRotationOnSpawn = true;
+static FAutoConsoleVariableRef CVarQuantizeActorRotationOnSpawn(
+	TEXT("net.QuantizeActorRotationOnSpawn"),
+	GbQuantizeActorRotationOnSpawn,
+	TEXT("When enabled, we will quantize Rotation for newly spawned actors to a single decimal of precision.")
+);
+
 static bool GbNetCheckNoLoadPackages = true;
 static FAutoConsoleVariableRef CVarNetCheckNoLoadPackages(
 	TEXT("net.CheckNoLoadPackages"),
@@ -632,7 +639,14 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 			Ar.SerializeBits(&bSerializeRotation, 1);
 			if (bSerializeRotation)
 			{
-				Rotation.NetSerialize(Ar, this, SerSuccess);
+				if (GbQuantizeActorRotationOnSpawn)
+				{
+					Rotation.NetSerialize(Ar, this, SerSuccess);
+				} 
+				else
+				{
+					Ar << Rotation;
+				}
 			}
 			else
 			{

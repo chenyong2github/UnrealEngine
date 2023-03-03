@@ -604,6 +604,7 @@ void FPBDIslandManager::InitIslands()
 			LocalIsland++;
 
 			Island->ReserveParticles(GraphIsland.NumNodes);
+			Island->SetResimFrame(INDEX_NONE);
 
 			// Reset of the sleep counter if the island is :
 			// - Non persistent since we are starting incrementing the counter once the island is persistent and if values below the threshold
@@ -629,7 +630,7 @@ void FPBDIslandManager::InitIslands()
 	IslandIndexing.SetNum(LocalIsland, false);
 }
 
-void FPBDIslandManager::SyncIslands(FPBDRigidsSOAs& Particles)
+void FPBDIslandManager::SyncIslands(FPBDRigidsSOAs& Particles, const bool IsResimming)
 {
 	// Update of the sync and sleep state of all particles in all awake islands
 	for(auto& Island : Islands)
@@ -665,6 +666,13 @@ void FPBDIslandManager::GraphNodeLevelAssigned(FGraphNode& GraphNode)
 #endif
 
 		Island->AddParticle(GraphNode.NodeItem);
+
+		if(GraphNode.ResimFrame != INDEX_NONE)
+		{
+			const int32 ResimFrame = (Island->GetResimFrame() == INDEX_NONE) ? 
+					GraphNode.ResimFrame : FMath::Min(Island->GetResimFrame(), GraphNode.ResimFrame);
+			Island->SetResimFrame(ResimFrame);
+		}
 	}
 }
 
@@ -696,7 +704,7 @@ void FPBDIslandManager::GraphEdgeLevelAssigned(FGraphEdge& GraphEdge)
 	Island->AddConstraint(GraphEdge.EdgeItem, GraphEdge.LevelIndex, GraphEdge.ColorIndex, SubSortKey);
 }
 
-void FPBDIslandManager::UpdateIslands(FPBDRigidsSOAs& Particles)
+void FPBDIslandManager::UpdateIslands(FPBDRigidsSOAs& Particles, const bool IsResimming)
 {
 	// Assign all particles and constraints to islands, merging and splitting islands as required
 	IslandGraph->UpdateGraph();
@@ -722,7 +730,7 @@ void FPBDIslandManager::UpdateIslands(FPBDRigidsSOAs& Particles)
 	//IslandGraph->ComputeColors();
 
 	// Sync the state of all particles and constraints (primarily sleep state)
-	SyncIslands(Particles);
+	SyncIslands(Particles, IsResimming);
 
 	// Sort each island's constraints based on level, color, etc
 	// This is not required when we have a persistent graph because we already added constraints to islands in 
@@ -895,6 +903,31 @@ int32 FPBDIslandManager::GetConstraintIsland(const FConstraintHandle* Constraint
 bool FPBDIslandManager::IslandNeedsResim(const int32 IslandIndex) const
 {
 	return Islands[GetGraphIndex(IslandIndex)]->NeedsResim();
+}
+
+int32 FPBDIslandManager::GetParticleResimFrame(const FGeometryParticleHandle* ParticleHandle) const
+{
+	if (ParticleHandle && IslandGraph->GraphNodes.IsValidIndex(ParticleHandle->ConstraintGraphIndex()))
+	{
+		return IslandGraph->GraphNodes[ParticleHandle->ConstraintGraphIndex()].ResimFrame;
+	}
+	return INDEX_NONE;
+}
+
+void FPBDIslandManager::SetParticleResimFrame(FGeometryParticleHandle* ParticleHandle, const int32 ResimFrame)
+{
+	if (ParticleHandle && IslandGraph->GraphNodes.IsValidIndex(ParticleHandle->ConstraintGraphIndex()))
+	{
+		IslandGraph->GraphNodes[ParticleHandle->ConstraintGraphIndex()].ResimFrame = ResimFrame;
+	}
+}
+
+void FPBDIslandManager::ResetParticleResimFrame(const int32 ResetFrame)
+{
+	for(auto& GraphNode : IslandGraph->GraphNodes)
+	{
+		GraphNode.ResimFrame = ResetFrame;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

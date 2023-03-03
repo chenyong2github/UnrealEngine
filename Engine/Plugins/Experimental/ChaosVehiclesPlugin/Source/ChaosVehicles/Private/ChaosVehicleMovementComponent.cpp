@@ -31,10 +31,14 @@
 #include "AI/Navigation/AvoidanceManager.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "GameFramework/HUD.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 
+#include "PhysicsReplication.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "PBDRigidsSolver.h"
 
 
 #define LOCTEXT_NAMESPACE "UVehicleMovementComponent"
@@ -68,6 +72,7 @@ FAutoConsoleVariableRef CVarChaosVehiclesSetMaxMPH(TEXT("p.Vehicle.SetMaxMPH"), 
 FAutoConsoleVariableRef CVarChaosVehiclesEnableMultithreading(TEXT("p.Vehicle.EnableMultithreading"), GVehicleDebugParams.EnableMultithreading, TEXT("Enable multi-threading of vehicle updates."));
 FAutoConsoleVariableRef CVarChaosVehiclesControlInputWakeTolerance(TEXT("p.Vehicle.ControlInputWakeTolerance"), GVehicleDebugParams.ControlInputWakeTolerance, TEXT("Set the control input wake tolerance."));
 
+using namespace Chaos;
 
 void FVehicleState::CaptureState(const FBodyInstance* TargetInstance, float GravityZ, float DeltaTime)
 {
@@ -112,10 +117,20 @@ void FVehicleState::CaptureState(const Chaos::FRigidBodyHandle_Internal* Handle,
 		VehicleLocalVelocity = VehicleWorldTransform.InverseTransformVector(VehicleWorldVelocity);
 		LocalAcceleration = (VehicleLocalVelocity - LastFrameVehicleLocalVelocity) / DeltaTime;
 		LocalGForce = LocalAcceleration / FMath::Abs(GravityZ);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled() && Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
+		{
+			UE_LOG(LogVehicle, Log, TEXT("Vehicle state last velocity = %s | World Transform = %s | World Velocity = %s"),
+				*LastFrameVehicleLocalVelocity.ToString(), *VehicleWorldTransform.ToString(), *VehicleWorldVelocity.ToString());
+		}
+#endif
 		LastFrameVehicleLocalVelocity = VehicleLocalVelocity;
 
 		ForwardSpeed = FVector::DotProduct(VehicleWorldVelocity, VehicleForwardAxis);
 		ForwardsAcceleration = LocalAcceleration.X;
+
+
 	}
 }
 
@@ -131,10 +146,22 @@ void UChaosVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTime, cons
 	// movement updates and replication
 	if (World && RigidHandle)
 	{
+		if (CanSimulate() && Handle)
+		{
+			// Sync the inputs datas from the history
+			SyncHistoryInputs(InputData, Handle);
+		}
 		if (!VehicleState.bSleeping)
 		{
 			if (CanSimulate() && Handle)
 			{
+				// Update the vehicle/wheels... states
+				UpdateState(DeltaTime, InputData, Handle);
+
+				// Apply the controls inputs
+				ApplyInput(InputData.ControlInputs, DeltaTime);
+
+				// Update the simulation forces/impulses...
 				UpdateSimulation(DeltaTime, InputData, Handle);
 				FillOutputState(OutputData);
 			}
@@ -147,15 +174,323 @@ void UChaosVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTime, cons
 #endif
 }
 
+FVehicleStatesHistory::FVehicleStatesHistory(const int32 FrameCount, const bool bIsHistoryLocal, class UChaosVehicleSimulation* ChaosSimulation)
+	: Super(FrameCount, bIsHistoryLocal), VehicleSimulation(ChaosSimulation)
+{}
+
+FVehicleStatesHistory::~FVehicleStatesHistory()
+{}
+
+bool FVehicleStatesHistory::RecordStates(const int32 RecordFrame, const DatasType& ReplicatedDatas)
+{
+	if (VehicleSimulation && Super::RecordDatas(RecordFrame))
+	{
+		FVehicleStatesDatas& CurrentDatas = GetCurrentDatas();
+		CurrentDatas.StateLastVelocity = ReplicatedDatas.StateLastVelocity;
+		CurrentDatas.EngineOmega = ReplicatedDatas.EngineOmega;
+		CurrentDatas.SuspensionAveragedCount = ReplicatedDatas.SuspensionAveragedCount;
+		CurrentDatas.SuspensionAveragedNum = ReplicatedDatas.SuspensionAveragedNum;
+		CurrentDatas.SuspensionAveragedLength = ReplicatedDatas.SuspensionAveragedLength;
+		CurrentDatas.SuspensionLastDisplacement = ReplicatedDatas.SuspensionLastDisplacement;
+		CurrentDatas.SuspensionLastSpringLength = ReplicatedDatas.SuspensionLastSpringLength;
+		CurrentDatas.WheelsOmega = ReplicatedDatas.WheelsOmega;
+		CurrentDatas.WheelsAngularPosition = ReplicatedDatas.WheelsAngularPosition;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
+		{
+			UE_LOG(LogVehicle, Log, TEXT("Record States at Frame %d on Vehicle = %d with Current = %d | Velocity = %s | Omega = %f"),
+				RecordFrame, VehicleSimulation, CurrentFrame, *CurrentDatas.StateLastVelocity.ToString(), CurrentDatas.EngineOmega);
+		}
+#endif
+		return true;
+	}
+	return false;
+}
+
+void FVehicleStatesHistory::ReplicateStates(DatasType& ReplicatedDatas)
+{
+	if (VehicleSimulation)
+	{
+		if (TUniquePtr<Chaos::FSimpleWheeledVehicle>& Vehicle = VehicleSimulation->PVehicle)
+		{
+			ReplicatedDatas.EngineOmega = Vehicle->GetEngine().GetEngineOmega();
+			ReplicatedDatas.StateLastVelocity = VehicleSimulation->VehicleState.LastFrameVehicleLocalVelocity;
+
+			const int32 NumWheels = Vehicle->Wheels.Num();
+
+			int32 NumLength = 0;
+			for (int32 WheelIdx = 0; WheelIdx < NumWheels; ++WheelIdx)
+			{
+				NumLength += Vehicle->GetSuspension(WheelIdx).GetAveragingNum();
+			}
+
+			ReplicatedDatas.SuspensionLastSpringLength.SetNum(NumWheels);
+			ReplicatedDatas.SuspensionLastDisplacement.SetNum(NumWheels);
+			ReplicatedDatas.SuspensionAveragedCount.SetNum(NumWheels);
+			ReplicatedDatas.SuspensionAveragedNum.SetNum(NumWheels);
+			ReplicatedDatas.SuspensionAveragedLength.SetNum(NumLength);
+			ReplicatedDatas.WheelsAngularPosition.SetNum(NumWheels);
+			ReplicatedDatas.WheelsOmega.SetNum(NumWheels);
+
+			int32 LengthCount = 0;
+			for (int32 WheelIdx = 0; WheelIdx < Vehicle->Wheels.Num(); ++WheelIdx)
+			{
+				FSimpleSuspensionSim& Suspension = Vehicle->GetSuspension(WheelIdx);
+				ReplicatedDatas.SuspensionLastSpringLength[WheelIdx] = Suspension.GetLastSpringLength();
+				ReplicatedDatas.SuspensionLastDisplacement[WheelIdx] = Suspension.GetLastDisplacement();
+				ReplicatedDatas.SuspensionAveragedCount[WheelIdx] = Suspension.GetAveragingCount();
+				ReplicatedDatas.SuspensionAveragedNum[WheelIdx] = Suspension.GetAveragingNum();
+
+				for (int32 LengthIdx = 0; LengthIdx < Suspension.GetAveragingNum(); ++LengthIdx)
+				{
+					ReplicatedDatas.SuspensionAveragedLength[LengthCount++] = Suspension.GetAveragingLength(LengthIdx);
+				}
+
+				FSimpleWheelSim& Wheel = Vehicle->GetWheel(WheelIdx);
+				ReplicatedDatas.WheelsOmega[WheelIdx] = Wheel.Omega;
+				ReplicatedDatas.WheelsAngularPosition[WheelIdx] = Wheel.AngularPosition;
+			}
+		}
+	}
+}
+
+bool FVehicleStatesHistory::RewindStates(const int32 RewindFrame, const bool bResetSolver)
+{
+	if (VehicleSimulation && Super::RewindStates(RewindFrame, bResetSolver))
+	{
+		const FVehicleStatesDatas& CurrentDatas = GetCurrentDatas();
+		VehicleSimulation->VehicleState.LastFrameVehicleLocalVelocity = CurrentDatas.StateLastVelocity;
+
+		if (TUniquePtr<Chaos::FSimpleWheeledVehicle>& Vehicle = VehicleSimulation->PVehicle)
+		{
+			Vehicle->GetEngine().SetEngineOmega(CurrentDatas.EngineOmega);
+
+			int32 LengthCount = 0;
+			for (int32 WheelIdx = 0, NumWheels = Vehicle->Wheels.Num(); WheelIdx < NumWheels; ++WheelIdx)
+			{
+				FSimpleSuspensionSim& Suspension = Vehicle->GetSuspension(WheelIdx);
+				Suspension.SetLastSpringLength(CurrentDatas.SuspensionLastSpringLength[WheelIdx]);
+				Suspension.SetLastDisplacement(CurrentDatas.SuspensionLastDisplacement[WheelIdx]);
+				Suspension.SetAveragingCount(CurrentDatas.SuspensionAveragedCount[WheelIdx]);
+				Suspension.SetAveragingNum(CurrentDatas.SuspensionAveragedNum[WheelIdx]);
+
+				for (int32 LengthIdx = 0; LengthIdx < Suspension.GetAveragingNum(); ++LengthIdx)
+				{
+					Suspension.SetAveragingLength(LengthIdx, CurrentDatas.SuspensionAveragedLength[LengthCount++]);
+				}
+
+				FSimpleWheelSim& Wheel = Vehicle->GetWheel(WheelIdx);
+				Wheel.Omega = CurrentDatas.WheelsOmega[WheelIdx];
+				Wheel.AngularPosition = CurrentDatas.WheelsAngularPosition[WheelIdx];
+			}
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if (Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
+			{
+				UE_LOG(LogVehicle, Log, TEXT("Rewind States at Frame %d on Vehicle = %d with Current = %d | Velocity = %s | Omega = %f"),
+					RewindFrame, VehicleSimulation, CurrentFrame, *CurrentDatas.StateLastVelocity.ToString(), CurrentDatas.EngineOmega);
+			}
+#endif
+		}
+		return true;
+	}
+	return false;
+}
+
+FVehicleInputsHistory::FVehicleInputsHistory(const int32 FrameCount, const bool bIsHistoryLocal, class UChaosVehicleSimulation* ChaosSimulation)
+	: Super(FrameCount, bIsHistoryLocal), VehicleSimulation(ChaosSimulation)
+{}
+
+FVehicleInputsHistory::~FVehicleInputsHistory()
+{}
+
+bool FVehicleInputsHistory::RecordInputs(const int32 RecordFrame, const DatasType& ReplicatedDatas)
+{
+	if (VehicleSimulation && Super::RecordDatas(RecordFrame))
+	{
+		FVehicleInputsDatas& CurrentDatas = GetCurrentDatas();
+		CurrentDatas.VehicleInputs.SteeringInput = ReplicatedDatas.VehicleInputs.SteeringInput;
+		CurrentDatas.VehicleInputs.ThrottleInput = ReplicatedDatas.VehicleInputs.ThrottleInput;
+		CurrentDatas.VehicleInputs.BrakeInput = ReplicatedDatas.VehicleInputs.BrakeInput;
+		CurrentDatas.VehicleInputs.HandbrakeInput = ReplicatedDatas.VehicleInputs.HandbrakeInput;
+		CurrentDatas.VehicleInputs.RollInput = ReplicatedDatas.VehicleInputs.RollInput;
+		CurrentDatas.VehicleInputs.PitchInput = ReplicatedDatas.VehicleInputs.PitchInput;
+		CurrentDatas.VehicleInputs.YawInput = ReplicatedDatas.VehicleInputs.YawInput;
+		CurrentDatas.TransmissionCurrentGear = ReplicatedDatas.TransmissionCurrentGear;
+		CurrentDatas.TransmissionTargetGear = ReplicatedDatas.TransmissionTargetGear;
+		CurrentDatas.TransmissionChangeTime = ReplicatedDatas.TransmissionChangeTime;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
+		{
+			UE_LOG(LogVehicle, Log, TEXT("Record Inputs at Frame %d on Vehicle = %d with Current = %d | Brake = %f | Handbrake = %f | Pitch = %f | Roll = %f | Steering = %f | Throttle = %f | Yaw = %f | Gear = %d"),
+				RecordFrame, VehicleSimulation, CurrentFrame, CurrentDatas.VehicleInputs.BrakeInput, CurrentDatas.VehicleInputs.HandbrakeInput,
+				CurrentDatas.VehicleInputs.PitchInput, CurrentDatas.VehicleInputs.RollInput, CurrentDatas.VehicleInputs.SteeringInput,
+				CurrentDatas.VehicleInputs.ThrottleInput, CurrentDatas.VehicleInputs.YawInput, CurrentDatas.TransmissionCurrentGear);
+		}
+#endif
+		return true;
+	}
+	return false;
+}
+
+void FVehicleInputsHistory::ReplicateInputs(
+	const float SteeringInput, const float ThrottleInput,
+	const float BrakeInput, const float HandbrakeInput, const float RollInput,
+	const float PitchInput, const float YawInput, const int32 CurrentGear, DatasType& ReplicatedDatas)
+{
+	ReplicatedDatas.VehicleInputs.SteeringInput = SteeringInput;
+	ReplicatedDatas.VehicleInputs.ThrottleInput = ThrottleInput;
+	ReplicatedDatas.VehicleInputs.BrakeInput = BrakeInput;
+	ReplicatedDatas.VehicleInputs.HandbrakeInput = HandbrakeInput;
+	ReplicatedDatas.VehicleInputs.RollInput = RollInput;
+	ReplicatedDatas.VehicleInputs.PitchInput = PitchInput;
+	ReplicatedDatas.VehicleInputs.YawInput = YawInput;
+
+	if (VehicleSimulation)
+	{
+		if (TUniquePtr<Chaos::FSimpleWheeledVehicle>& Vehicle = VehicleSimulation->PVehicle)
+		{
+			if (Vehicle->HasTransmission())
+			{
+				FSimpleTransmissionSim& Transmission = Vehicle->GetTransmission();
+
+				Transmission.SetGear(CurrentGear, true);
+				ReplicatedDatas.TransmissionCurrentGear = Transmission.GetCurrentGear();
+				ReplicatedDatas.TransmissionTargetGear = Transmission.GetCurrentGear();
+				ReplicatedDatas.TransmissionChangeTime = Transmission.GetCurrentGearChangeTime();
+			}
+		}
+	}
+}
+
+void FVehicleInputsHistory::SmoothInputs(const int32 ApplyFrame, const int32 ValidFrame, const bool bApplySmoothing)
+{
+	if (!bIsLocalHistory && VehicleSimulation)
+	{
+		const float HalfFrames = (float)NumFrames / 2.0f;
+		const float GaussSigma = HalfFrames / 2.0f;
+
+		const int32 ValidIndex = ValidFrame % NumFrames;
+		const int32 FrameIndex = ValidFrame - ApplyFrame;
+
+		const float SmoothFactor = bApplySmoothing ? FMath::Exp(-FrameIndex * FrameIndex / (2.0f * GaussSigma * GaussSigma)) : 1.0;
+
+		VehicleSimulation->VehicleInputs.BrakeInput = SmoothFactor * DatasArray[ValidIndex].VehicleInputs.BrakeInput;
+		VehicleSimulation->VehicleInputs.HandbrakeInput = SmoothFactor * DatasArray[ValidIndex].VehicleInputs.HandbrakeInput;
+		VehicleSimulation->VehicleInputs.PitchInput = SmoothFactor * DatasArray[ValidIndex].VehicleInputs.PitchInput;
+		VehicleSimulation->VehicleInputs.RollInput = SmoothFactor * DatasArray[ValidIndex].VehicleInputs.RollInput;
+		VehicleSimulation->VehicleInputs.ThrottleInput = SmoothFactor * DatasArray[ValidIndex].VehicleInputs.ThrottleInput;
+		VehicleSimulation->VehicleInputs.SteeringInput = SmoothFactor * DatasArray[ValidIndex].VehicleInputs.SteeringInput;
+		VehicleSimulation->VehicleInputs.YawInput = SmoothFactor * DatasArray[ValidIndex].VehicleInputs.YawInput;
+
+		if (TUniquePtr<Chaos::FSimpleWheeledVehicle>& Vehicle = VehicleSimulation->PVehicle)
+		{
+			if (Vehicle->HasTransmission())
+			{
+				FSimpleTransmissionSim& Transmission = VehicleSimulation->PVehicle->GetTransmission();
+				Transmission.SetCurrentGear(DatasArray[ValidIndex].TransmissionCurrentGear);
+				Transmission.SetTargetGear(DatasArray[ValidIndex].TransmissionTargetGear);
+				Transmission.SetCurrentGearChangeTime(DatasArray[ValidIndex].TransmissionChangeTime);
+			}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if (Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
+			{
+				UE_LOG(LogVehicle, Log, TEXT("Smooth Inputs from frame %d to frame = %d with factor %f"),
+					ValidFrame, ApplyFrame, SmoothFactor);
+			}
+#endif
+		}
+	}
+}
+
+bool FVehicleInputsHistory::ApplyInputs(const int32 ApplyFrame, const bool bResetSolver)
+{
+	if (VehicleSimulation )
+	{
+		if(Super::ApplyInputs(ApplyFrame, bResetSolver))
+		{
+			const FVehicleInputsDatas& CurrentDatas = GetCurrentDatas();
+
+			VehicleSimulation->VehicleInputs = CurrentDatas.VehicleInputs;
+
+			FSimpleTransmissionSim& Transmission = VehicleSimulation->PVehicle->GetTransmission();
+			Transmission.SetCurrentGear(CurrentDatas.TransmissionCurrentGear);
+			Transmission.SetTargetGear(CurrentDatas.TransmissionTargetGear);
+			Transmission.SetCurrentGearChangeTime(CurrentDatas.TransmissionChangeTime);
+		}
+		else
+		{
+			int32 ClosestFrame = INDEX_NONE;
+			for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
+			{
+				const int32 ValidFrame = FMath::Max(0, ApplyFrame - FrameIndex);
+				const int32 ValidIndex = ValidFrame % NumFrames;
+
+				if (DatasArray[ValidIndex].DatasFrame == ValidFrame)
+				{
+					ClosestFrame = ValidFrame;
+					break;
+				}
+			}
+			if(ClosestFrame != INDEX_NONE)
+			{ 
+				SmoothInputs(ApplyFrame, ClosestFrame, false);
+			}
+		}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FSimpleTransmissionSim& Transmission = VehicleSimulation->PVehicle->GetTransmission();
+
+		if (Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
+		{
+			UE_LOG(LogVehicle, Log, TEXT("Apply Inputs at Frame %d on Vehicle = %d with Current = %d | Brake = %f | Handbrake = %f | Pitch = %f | Roll = %f | Steering = %f | Throttle = %f | Yaw = %f | Gear = %d"),
+				ApplyFrame, VehicleSimulation, CurrentFrame, VehicleSimulation->VehicleInputs.BrakeInput,
+				VehicleSimulation->VehicleInputs.HandbrakeInput, VehicleSimulation->VehicleInputs.PitchInput,
+				VehicleSimulation->VehicleInputs.RollInput, VehicleSimulation->VehicleInputs.SteeringInput,
+				VehicleSimulation->VehicleInputs.ThrottleInput, VehicleSimulation->VehicleInputs.YawInput,
+				Transmission.GetCurrentGear());
+
+		}
+#endif
+		return true;
+	}
+	return false;
+}
+
+void UChaosVehicleSimulation::SyncHistoryInputs(const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
+{
+	if (Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled())
+	{
+		InputData.ControlInputs.CopyVehicleInputs(VehicleInputs);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
+		{
+			auto* RigidSolver = Handle->GetProxy()->GetSolver<Chaos::FPBDRigidsSolver>();
+			if (RigidSolver && !RigidSolver->GetEvolution()->IsResimming())
+			{
+				UE_LOG(LogVehicle, Log, TEXT("Store States at Frame %d on Vehicle = %d | Velocity = %s | Omega = %f"),
+					RigidSolver->GetCurrentFrame(), this, *VehicleState.LastFrameVehicleLocalVelocity.ToString(), PVehicle->GetEngine().GetEngineOmega());
+			}
+		}
+#endif
+	}
+}
+
 void UChaosVehicleSimulation::ApplyDeferredForces(Chaos::FRigidBodyHandle_Internal* Handle)
 {
 	DeferredForces.Apply(Handle);
 }
 
-void UChaosVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
+void UChaosVehicleSimulation::UpdateState(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
 	VehicleState.CaptureState(Handle, InputData.GravityZ, DeltaTime);
+}
 
+void UChaosVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
+{
 	ApplyAerodynamics(DeltaTime);
 	ApplyAerofoilForces(DeltaTime);
 	ApplyThrustForces(DeltaTime);
@@ -163,9 +498,7 @@ void UChaosVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehi
 }
 
 void UChaosVehicleSimulation::FillOutputState(FChaosVehicleAsyncOutput& Output)
-{
-
-}
+{}
 
 /** Pass control Input to the vehicle systems */
 void UChaosVehicleSimulation::ApplyInput(const FControlInputs& ControlInputs, float DeltaTime)
@@ -241,7 +574,6 @@ void UChaosVehicleSimulation::ApplyInput(const FControlInputs& ControlInputs, fl
 	}
 
 }
-
 
 void UChaosVehicleSimulation::ApplyAerodynamics(float DeltaTime)
 {
@@ -451,7 +783,7 @@ void UChaosVehicleSimulation::ApplyTorqueControl(float DeltaTime, const FChaosVe
 		}
 		AddForce(CorrectionalForce);
 	}
-	
+
 }
 
 void UChaosVehicleSimulation::DrawDebug3D()
@@ -555,7 +887,6 @@ void UChaosVehicleSimulation::InitializeSuspension(int WheelIndex, const Chaos::
 	}
 }
 
-
 /**
  * UChaosVehicleMovementComponent
  */
@@ -610,6 +941,7 @@ UChaosVehicleMovementComponent::UChaosVehicleMovementComponent(const FObjectInit
 	TransmissionType = Chaos::ETransmissionType::Automatic;
 
 	SetIsReplicatedByDefault(true);
+	bUsingNetworkPhysicsPrediction = Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled();
 
 	AHUD::OnShowDebugInfo.AddUObject(this, &UChaosVehicleMovementComponent::ShowDebugInfo);
 }
@@ -712,17 +1044,41 @@ void UChaosVehicleMovementComponent::OnCreatePhysicsState()
 	UWorld* World = GetWorld();
 	if (World->IsGameWorld())
 	{
-		FPhysScene* PhysScene = World->GetPhysicsScene();
-
-		if (PhysScene && FChaosVehicleManager::GetVehicleManagerFromScene(PhysScene))
+		if (FPhysScene* PhysScene = World->GetPhysicsScene())
 		{
-			CreateVehicle();
-			FixupSkeletalMesh();
-
-			if (PVehicleOutput)
+			if (FChaosVehicleManager::GetVehicleManagerFromScene(PhysScene))
 			{
-				FChaosVehicleManager* VehicleManager = FChaosVehicleManager::GetVehicleManagerFromScene(PhysScene);
-				VehicleManager->AddVehicle(this);
+				CreateVehicle();
+				FixupSkeletalMesh();
+
+				if (PVehicleOutput)
+				{
+					FChaosVehicleManager* VehicleManager = FChaosVehicleManager::GetVehicleManagerFromScene(PhysScene);
+					VehicleManager->AddVehicle(this);
+				}
+			}
+			if (bUsingNetworkPhysicsPrediction)
+			{
+				if (Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver())
+				{
+					if (Chaos::FRewindData* RewindData = Solver->GetRewindData())
+					{
+						if (VehicleSimulationPT.IsValid())
+						{
+							AController* Controller = GetController();
+							const bool bIsLocalHistory = (Controller && Controller->IsLocalController());
+
+							const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
+							const int32 NumFrames = NumFramesCVar ? NumFramesCVar->GetInt() : 50;
+
+							VehicleSimulationPT->InputsHistory = MakeShared<FVehicleInputsHistory>(NumFrames, bIsLocalHistory, VehicleSimulationPT.Get());
+							RewindData->AddInputsHistory(VehicleSimulationPT->InputsHistory);
+
+							VehicleSimulationPT->StatesHistory = MakeShared<FVehicleStatesHistory>(NumFrames, bIsLocalHistory, VehicleSimulationPT.Get());
+							RewindData->AddStatesHistory(VehicleSimulationPT->StatesHistory);
+						}
+					}
+				}
 			}
 		}
 	}
@@ -750,6 +1106,27 @@ void UChaosVehicleMovementComponent::OnDestroyPhysicsState()
 			UpdatedComponent->RecreatePhysicsState();
 		}
 	}
+	if (bUsingNetworkPhysicsPrediction)
+	{
+		UWorld* World = GetWorld();
+		if (World->IsGameWorld())
+		{
+			if (FPhysScene* PhysScene = World->GetPhysicsScene())
+			{
+				if (Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver())
+				{
+					if (Chaos::FRewindData* RewindData = Solver->GetRewindData())
+					{
+						if (VehicleSimulationPT.IsValid())
+						{
+							RewindData->RemoveInputsHistory(VehicleSimulationPT->InputsHistory);
+							RewindData->RemoveStatesHistory(VehicleSimulationPT->StatesHistory);
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 void UChaosVehicleMovementComponent::PreTickGT(float DeltaTime)
@@ -764,8 +1141,8 @@ void UChaosVehicleMovementComponent::PreTickGT(float DeltaTime)
 		}
 	}
 
+	if (!bUsingNetworkPhysicsPrediction)
 	{
-		// is this needless copying
 		FControlInputs ControlInputs;
 		ControlInputs.ThrottleInput = ThrottleInput;
 		ControlInputs.BrakeInput = BrakeInput;
@@ -778,7 +1155,6 @@ void UChaosVehicleMovementComponent::PreTickGT(float DeltaTime)
 		ProcessSleeping(ControlInputs);
 	}
 
-
 	if (VehicleSetupTag != FChaosVehicleManager::VehicleSetupTag)
 	{
 		RecreatePhysicsState();
@@ -787,6 +1163,11 @@ void UChaosVehicleMovementComponent::PreTickGT(float DeltaTime)
 
 void UChaosVehicleMovementComponent::StopMovementImmediately()
 {
+	if (bUsingNetworkPhysicsPrediction)
+	{
+		return; // Called when player onwership changes I think - client restarts - resets velocity/forces bad for our case.
+	}
+
 	FBodyInstance* TargetInstance = GetBodyInstance();
 	if (TargetInstance)
 	{
@@ -884,17 +1265,20 @@ void UChaosVehicleMovementComponent::SetTargetGear(int32 GearNum, bool bImmediat
 {
 	if (PVehicleOutput && GearNum != PVehicleOutput->TargetGear)
 	{
-		FBodyInstance* TargetInstance = UpdatedPrimitive->GetBodyInstance();
-
-		if (TargetInstance)
+		if (!bUsingNetworkPhysicsPrediction)
 		{
-			FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
-				{
-					if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && VehicleSimulationPT->PVehicle->HasTransmission())
+			FBodyInstance* TargetInstance = UpdatedPrimitive->GetBodyInstance();
+
+			if (TargetInstance)
+			{
+				FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
 					{
-						VehicleSimulationPT->PVehicle->GetTransmission().SetGear(GearNum, bImmediate);
-					}
-				});
+						if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && VehicleSimulationPT->PVehicle->HasTransmission())
+						{
+							VehicleSimulationPT->PVehicle->GetTransmission().SetGear(GearNum, bImmediate);
+						}
+					});
+			}
 		}
 
 		TargetGear = GearNum;
@@ -915,7 +1299,7 @@ void UChaosVehicleMovementComponent::SetRequiresControllerForInputs(bool bRequir
 
 int32 UChaosVehicleMovementComponent::GetCurrentGear() const
 {
-	return (PVehicleOutput)?PVehicleOutput->CurrentGear:0;
+	return (PVehicleOutput) ? PVehicleOutput->CurrentGear : 0;
 }
 
 int32 UChaosVehicleMovementComponent::GetTargetGear() const
@@ -1060,7 +1444,10 @@ void UChaosVehicleMovementComponent::ClearInput()
 	AController* Controller = GetController();
 	if (Controller && Controller->IsLocalController() && PVehicleOutput)
 	{
-		ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, CurrentGear, RollInput, PitchInput, YawInput);
+		if (!bUsingNetworkPhysicsPrediction)
+		{
+			ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, CurrentGear, RollInput, PitchInput, YawInput);
+		}
 	}
 }
 
@@ -1104,7 +1491,7 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 	}
 	VehicleState.bAllWheelsOnGround = (VehicleState.NumWheelsOnGround == NumWheels);
 
-	bool bProcessLocally = bRequiresControllerForInputs?(Controller && Controller->IsLocalController()):true;
+	bool bProcessLocally = bRequiresControllerForInputs ? (Controller && Controller->IsLocalController()) : true;
 
 	// IsLocallyControlled will fail if the owner is unpossessed (i.e. Controller == nullptr);
 	// Should we remove input instead of relying on replicated state in that case?
@@ -1143,6 +1530,8 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 		float ModifiedThrottle = 0.f;
 		float ModifiedBrake = 0.f;
 		CalcThrottleBrakeInput(ModifiedThrottle, ModifiedBrake);
+
+		// Apply Inputs locally
 		SteeringInput = SteeringInputRate.InterpInputValue(DeltaTime, SteeringInput, CalcSteeringInput());
 		ThrottleInput = ThrottleInputRate.InterpInputValue(DeltaTime, ThrottleInput, ModifiedThrottle);
 		BrakeInput = BrakeInputRate.InterpInputValue(DeltaTime, BrakeInput, ModifiedBrake);
@@ -1151,15 +1540,37 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 		YawInput = YawInputRate.InterpInputValue(DeltaTime, YawInput, CalcYawInput());
 		HandbrakeInput = HandbrakeInputRate.InterpInputValue(DeltaTime, HandbrakeInput, CalcHandbrakeInput());
 
-		// and send to server - (ServerUpdateState_Implementation below)
-		ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, GetCurrentGear(), RollInput, PitchInput, YawInput);
+		if (!bUsingNetworkPhysicsPrediction)
+		{
+			// and send to server - (ServerUpdateState_Implementation below)
+			ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, GetCurrentGear(), RollInput, PitchInput, YawInput);
+		}
+		else
+		{
+			if (APawn* MyPawn = Cast<APawn>(GetOwner()))
+			{
+				if (APlayerController* PlayerController = Cast<APlayerController>(MyPawn->GetController()))
+				{
+					if (PlayerController->IsLocalController() && !PlayerController->IsNetMode(NM_DedicatedServer))
+					{
+						const FAsyncPhysicsTimestamp TimeStamp = PlayerController->GetAsyncPhysicsTimestamp();
+						ApplyControls_Imp(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, TargetGear, RollInput, PitchInput, YawInput, TimeStamp, true);
+
+						if (!PlayerController->IsNetMode(NM_ListenServer))
+						{
+							ServerApplyControls(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, TargetGear, RollInput, PitchInput, YawInput, TimeStamp);
+						}
+					}
+				}
+			}
+		}
 
 		if (PawnOwner && PawnOwner->IsNetMode(NM_Client))
 		{
 			MarkForClientCameraUpdate();
 		}
 	}
-	else
+	else if (!bUsingNetworkPhysicsPrediction)
 	{
 		// use replicated values for remote pawns
 		SteeringInput = ReplicatedState.SteeringInput;
@@ -1191,16 +1602,24 @@ void UChaosVehicleMovementComponent::ProcessSleeping(const FControlInputs& Contr
 		// If the vehicle is locally controlled, we want to use the raw inputs to determine sleep.
 		// However, if it's on the Server or is just being replicated to other Clients then there
 		// won't be any Raw input. In that case, use ReplicatedState instead.
-		
+
 		// NOTE: Even on local clients, ReplicatedState will still be populated (the call to ServerUpdateState will
 		//			be processed locally). Maybe we should *just* use ReplicatedState?
 
 		const AController* Controller = GetController();
 		const bool bIsLocallyControlled = (Controller && Controller->IsLocalController());
-		const bool bControlInputPressed = bIsLocallyControlled ? (ControlInputs.ThrottleInput >= GVehicleDebugParams.ControlInputWakeTolerance) || (FMath::Abs(ControlInputs.SteeringInput - PrevSteeringInput) >= GVehicleDebugParams.ControlInputWakeTolerance)
-			|| (ControlInputs.RollInput >= GVehicleDebugParams.ControlInputWakeTolerance) || (ControlInputs.PitchInput >= GVehicleDebugParams.ControlInputWakeTolerance) || (ControlInputs.YawInput >= GVehicleDebugParams.ControlInputWakeTolerance)
-			: (ReplicatedState.ThrottleInput >= GVehicleDebugParams.ControlInputWakeTolerance) || (FMath::Abs(ReplicatedState.SteeringInput - PrevReplicatedSteeringInput) >= GVehicleDebugParams.ControlInputWakeTolerance)
-			|| (ReplicatedState.RollInput >= GVehicleDebugParams.ControlInputWakeTolerance) || (ReplicatedState.PitchInput >= GVehicleDebugParams.ControlInputWakeTolerance) || (ReplicatedState.YawInput >= GVehicleDebugParams.ControlInputWakeTolerance);
+		const bool bControlInputPressed = bIsLocallyControlled ? (ControlInputs.ThrottleInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+			|| (ControlInputs.BrakeInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+			|| (FMath::Abs(ControlInputs.SteeringInput - PrevSteeringInput) >= GVehicleDebugParams.ControlInputWakeTolerance)
+			|| (ControlInputs.RollInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+			|| (ControlInputs.PitchInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+			|| (ControlInputs.YawInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+			: (ReplicatedState.ThrottleInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+			|| (ReplicatedState.BrakeInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+			|| (FMath::Abs(ReplicatedState.SteeringInput - PrevReplicatedSteeringInput) >= GVehicleDebugParams.ControlInputWakeTolerance)
+			|| (ReplicatedState.RollInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+			|| (ReplicatedState.PitchInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+			|| (ReplicatedState.YawInput >= GVehicleDebugParams.ControlInputWakeTolerance);
 
 		PrevSteeringInput = ControlInputs.SteeringInput;
 		PrevReplicatedSteeringInput = ReplicatedState.SteeringInput;
@@ -1215,7 +1634,7 @@ void UChaosVehicleMovementComponent::ProcessSleeping(const FControlInputs& Contr
 		else if (!GVehicleDebugParams.DisableVehicleSleep && !VehicleState.bSleeping && !bControlInputPressed && VehicleState.bAllWheelsOnGround && (VehicleState.VehicleUpAxis.Z > SleepSlopeLimit))
 		{
 			float SpeedSqr = TargetInstance->GetUnrealWorldVelocity().SizeSquared();
-			if (SpeedSqr < (SleepThreshold* SleepThreshold))
+			if (SpeedSqr < (SleepThreshold * SleepThreshold))
 			{
 				if (VehicleState.SleepCounter < GVehicleDebugParams.SleepCounterThreshold)
 				{
@@ -1272,6 +1691,57 @@ void UChaosVehicleMovementComponent::ServerUpdateState_Implementation(float InSt
 
 }
 
+void UChaosVehicleMovementComponent::ServerApplyControls_Implementation(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput,
+	int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput, const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp)
+{
+	ApplyControls_Imp(InSteeringInput, InThrottleInput, InBrakeInput, InHandbrakeInput, InCurrentGear, InRollInput, InPitchInput, InYawInput, AsyncPhysicsTimestamp, false);
+}
+
+void UChaosVehicleMovementComponent::ApplyControls_Imp(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput,
+	int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput, const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, const bool bEnableResim)
+{
+	if (UWorld* World = GetWorld())
+	{
+		APawn* LocalPawn = Cast<APawn>(GetOwner());
+		if (APlayerController* PlayerController = (LocalPawn && LocalPawn->GetController()) ?
+			Cast<APlayerController>(LocalPawn->GetController()) : World->GetFirstPlayerController())
+		{
+			const bool bControlInputPressed = ((InThrottleInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+				|| (InBrakeInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+				|| (InRollInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+				|| (InPitchInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+				|| (InYawInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+				|| (FMath::Abs(InSteeringInput - PrevSteeringInput) >= GVehicleDebugParams.ControlInputWakeTolerance));
+
+			if (bControlInputPressed)
+			{
+				SetSleeping(false);
+			}
+			const FAsyncPhysicsTimestamp LocalStep = PlayerController->GetAsyncPhysicsTimestamp();
+
+			PlayerController->ExecuteAsyncPhysicsCommand(AsyncPhysicsTimestamp, this, [this, InSteeringInput, InThrottleInput, InBrakeInput, InHandbrakeInput, InCurrentGear, InRollInput, InPitchInput, InYawInput, AsyncPhysicsTimestamp, LocalStep]
+			{
+				const bool bIsServer = (GetWorld()->IsNetMode(NM_ListenServer) || GetWorld()->IsNetMode(NM_DedicatedServer));
+				const int32 HistoryFrame = bIsServer ? AsyncPhysicsTimestamp.ServerFrame : AsyncPhysicsTimestamp.LocalFrame;
+
+				ReplicatedDatas.ServerFrame = AsyncPhysicsTimestamp.ServerFrame;
+
+				// Replicate the Inputs to send them to other clients
+				VehicleSimulationPT->InputsHistory->ReplicateInputs(InSteeringInput, InThrottleInput, 
+					InBrakeInput, InHandbrakeInput, InRollInput, InPitchInput, InYawInput, InCurrentGear, ReplicatedDatas.InputsDatas);
+
+				// We record in the history buffer the local client control inputs since they are the ground truth
+				VehicleSimulationPT->InputsHistory->RecordInputs(HistoryFrame, ReplicatedDatas.InputsDatas);
+					
+				// On the server we replicate the vehicle state in order to be used during resimulation at the rewind step
+				if (bIsServer)
+				{
+					VehicleSimulationPT->StatesHistory->ReplicateStates(ReplicatedDatas.StatesDatas);
+				}
+			}, bEnableResim);
+		}
+	}
+}
 /// @endcond
 
 
@@ -1509,12 +1979,13 @@ void UChaosVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL, float
 
 /// @cond DOXYGEN_WARNINGS
 
-void UChaosVehicleMovementComponent::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifetimeProps ) const
+void UChaosVehicleMovementComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
 {
-	Super::GetLifetimeReplicatedProps( OutLifetimeProps );
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME( UChaosVehicleMovementComponent, ReplicatedState );
+	DOREPLIFETIME(UChaosVehicleMovementComponent, ReplicatedState);
 	DOREPLIFETIME(UChaosVehicleMovementComponent, OverrideController);
+	DOREPLIFETIME(UChaosVehicleMovementComponent, ReplicatedDatas);
 }
 
 /// @endcond
@@ -1706,25 +2177,28 @@ void UChaosVehicleMovementComponent::Update(float DeltaTime)
 			if (auto Handle = BodyInstance->ActorHandle)
 			{
 				CurAsyncInput->Proxy = Handle;	// vehicles are never static
-
 				FChaosVehicleDefaultAsyncInput* AsyncInput = static_cast<FChaosVehicleDefaultAsyncInput*>(CurAsyncInput);
-				AsyncInput->ControlInputs.ThrottleInput = ThrottleInputRate.CalcControlFunction(ThrottleInput);
-				AsyncInput->ControlInputs.BrakeInput = BrakeInputRate.CalcControlFunction(BrakeInput);
-				AsyncInput->ControlInputs.SteeringInput = SteeringInputRate.CalcControlFunction(SteeringInput);
-				AsyncInput->ControlInputs.HandbrakeInput = HandbrakeInput;
-				AsyncInput->ControlInputs.RollInput = RollInputRate.CalcControlFunction(RollInput);
-				AsyncInput->ControlInputs.PitchInput = PitchInputRate.CalcControlFunction(PitchInput);
-				AsyncInput->ControlInputs.YawInput = YawInputRate.CalcControlFunction(YawInput);
-				AsyncInput->ControlInputs.GearUpInput = bRawGearUpInput;
-				AsyncInput->ControlInputs.GearDownInput = bRawGearDownInput;
-				AsyncInput->ControlInputs.TransmissionType = TransmissionType;
 
-				AsyncInput->ControlInputs.ParkingEnabled = bParkEnabled;
-
-				// debug feature to limit the vehicles top speed
-				if ((GVehicleDebugParams.SetMaxMPH > 0.f) && (FMath::Abs(ThrottleInput) > 0.0f) && FMath::Abs(GetForwardSpeedMPH()) >= GVehicleDebugParams.SetMaxMPH)
+				if (!bUsingNetworkPhysicsPrediction)
 				{
-					AsyncInput->ControlInputs.ThrottleInput = 0.1f;
+					AsyncInput->ControlInputs.ThrottleInput = ThrottleInputRate.CalcControlFunction(ThrottleInput);
+					AsyncInput->ControlInputs.BrakeInput = BrakeInputRate.CalcControlFunction(BrakeInput);
+					AsyncInput->ControlInputs.SteeringInput = SteeringInputRate.CalcControlFunction(SteeringInput);
+					AsyncInput->ControlInputs.HandbrakeInput = HandbrakeInput;
+					AsyncInput->ControlInputs.RollInput = RollInputRate.CalcControlFunction(RollInput);
+					AsyncInput->ControlInputs.PitchInput = PitchInputRate.CalcControlFunction(PitchInput);
+					AsyncInput->ControlInputs.YawInput = YawInputRate.CalcControlFunction(YawInput);
+					AsyncInput->ControlInputs.GearUpInput = bRawGearUpInput;
+					AsyncInput->ControlInputs.GearDownInput = bRawGearDownInput;
+					AsyncInput->ControlInputs.TransmissionType = TransmissionType;
+
+					AsyncInput->ControlInputs.ParkingEnabled = bParkEnabled;
+
+					// debug feature to limit the vehicles top speed
+					if ((GVehicleDebugParams.SetMaxMPH > 0.f) && (FMath::Abs(ThrottleInput) > 0.0f) && FMath::Abs(GetForwardSpeedMPH()) >= GVehicleDebugParams.SetMaxMPH)
+					{
+						AsyncInput->ControlInputs.ThrottleInput = 0.1f;
+					}
 				}
 
 				AsyncInput->GravityZ = GetGravityZ();
@@ -1914,6 +2388,57 @@ void UChaosVehicleMovementComponent::PutAllEnabledRigidBodiesToSleep()
 			{
 				BI->PutInstanceToSleep();
 			}
+		}
+	}
+}
+
+void UChaosVehicleMovementComponent::OnRep_SetVehicleHistory()
+{
+	if (UWorld* World = GetWorld())
+	{
+		bool bHasController = false;
+		if (APawn* MyPawn = Cast<APawn>(GetOwner()))
+		{
+			if (APlayerController* PlayerController = Cast<APlayerController>(MyPawn->GetController()))
+			{
+				if (PlayerController->IsLocalController() && !PlayerController->IsNetMode(NM_DedicatedServer))
+				{
+					bHasController = true;
+				}
+			}
+		}
+
+		if (!bHasController)
+		{
+			const bool bControlInputPressed = ((ReplicatedDatas.InputsDatas.VehicleInputs.ThrottleInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+				|| (ReplicatedDatas.InputsDatas.VehicleInputs.BrakeInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+				|| (ReplicatedDatas.InputsDatas.VehicleInputs.RollInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+				|| (ReplicatedDatas.InputsDatas.VehicleInputs.PitchInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+				|| (ReplicatedDatas.InputsDatas.VehicleInputs.YawInput >= GVehicleDebugParams.ControlInputWakeTolerance)
+				|| (FMath::Abs(ReplicatedDatas.InputsDatas.VehicleInputs.SteeringInput - PrevSteeringInput) >= GVehicleDebugParams.ControlInputWakeTolerance));
+
+			if (bControlInputPressed)
+			{
+				SetSleeping(false);
+			}
+		}
+
+		APawn* LocalPawn = Cast<APawn>(GetOwner());
+		if (APlayerController* PlayerController = (LocalPawn && LocalPawn->GetController()) ?
+			Cast<APlayerController>(LocalPawn->GetController()) : World->GetFirstPlayerController())
+		{
+			const int32 HistoryFrame = ReplicatedDatas.ServerFrame - PlayerController->GetLocalToServerAsyncPhysicsTickOffset();
+			const FVehicleReplicatedDatas ServerDatas = ReplicatedDatas;
+
+			const int32 CurrentFrame = PlayerController->GetAsyncPhysicsTimestamp().LocalFrame;
+			PlayerController->ExecuteAsyncPhysicsCommand(PlayerController->GetAsyncPhysicsTimestamp(), this, [this, ServerDatas, HistoryFrame, bHasController, CurrentFrame]
+				{
+					if (HistoryFrame >= 0)
+					{
+						VehicleSimulationPT->InputsHistory->RecordInputs(HistoryFrame, ServerDatas.InputsDatas);
+						VehicleSimulationPT->StatesHistory->RecordStates(HistoryFrame, ServerDatas.StatesDatas);
+					}
+				}, false);
 		}
 	}
 }

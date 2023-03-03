@@ -753,107 +753,360 @@ void FChaosEngineInterface::SetAngularDamping_AssumesLocked(const FPhysicsActorH
 	}
 }
 
-void FChaosEngineInterface::AddImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InForce)
+template<typename BodyHandleType>
+struct FChaosStateOps
 {
-	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	static void AddImpulse(BodyHandleType& BodyHandle, const FVector& InForce)
 	{
-		Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
-		Body_External.SetLinearImpulse(Body_External.LinearImpulse() + InForce, /*bIsVelocity=*/false);
+		BodyHandle.SetLinearImpulse(BodyHandle.LinearImpulse() + InForce, /*bIsVelocity=*/false);
 	}
-}
 
-void FChaosEngineInterface::AddAngularImpulseInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InTorque)
-{
-	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	static void AddAngularImpulseInRadians(BodyHandleType& BodyHandle, const FVector& InTorque)
 	{
-		Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
-		Body_External.SetAngularImpulse(Body_External.AngularImpulse() + InTorque, /*bIsVelocity=*/false);
+		BodyHandle.SetAngularImpulse(BodyHandle.AngularImpulse() + InTorque, /*bIsVelocity=*/false);
 	}
-}
 
-void FChaosEngineInterface::AddVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InVelocityDelta)
-{
-	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	static void AddVelocity(BodyHandleType& BodyHandle, const FVector& InVelocityDelta)
 	{
-		AddImpulse_AssumesLocked(InActorReference, InActorReference->GetGameThreadAPI().M() * InVelocityDelta);
+		AddImpulse(BodyHandle, BodyHandle.M() * InVelocityDelta);
 	}
-}
 
-void FChaosEngineInterface::AddAngularVelocityInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InAngularVelocityDeltaRad)
-{
-	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	static void AddAngularVelocityInRadians(BodyHandleType& BodyHandle, const FVector& InAngularVelocityDeltaRad)
 	{
-		const Chaos::FMatrix33 WorldI = Chaos::FParticleUtilitiesXR::GetWorldInertia(&InActorReference->GetGameThreadAPI());
-		AddAngularImpulseInRadians_AssumesLocked(InActorReference,WorldI * InAngularVelocityDeltaRad);
+		const Chaos::FMatrix33 WorldI = Chaos::FParticleUtilitiesXR::GetWorldInertia(&BodyHandle);
+		AddAngularImpulseInRadians(BodyHandle, WorldI * InAngularVelocityDeltaRad);
 	}
-}
 
-void FChaosEngineInterface::AddImpulseAtLocation_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InImpulse,const FVector& InLocation)
-{
-	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	static void AddImpulseAtLocation(BodyHandleType& BodyHandle, const FVector& InImpulse, const FVector& InLocation)
 	{
-		const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&InActorReference->GetGameThreadAPI());
-		const Chaos::FVec3 AngularImpulse = Chaos::FVec3::CrossProduct(InLocation - WorldCOM,InImpulse);
-		AddImpulse_AssumesLocked(InActorReference,InImpulse);
-		AddAngularImpulseInRadians_AssumesLocked(InActorReference,AngularImpulse);
+		const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&BodyHandle);
+		const Chaos::FVec3 AngularImpulse = Chaos::FVec3::CrossProduct(InLocation - WorldCOM, InImpulse);
+		AddImpulse(BodyHandle, InImpulse);
+		AddAngularImpulseInRadians(BodyHandle, AngularImpulse);
 	}
-}
 
-void FChaosEngineInterface::AddVelocityChangeImpulseAtLocation_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InVelocityDelta, const FVector& InLocation)
-{
-	if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	static void AddVelocityChangeImpulseAtLocation(BodyHandleType& BodyHandle, const FVector& InVelocityDelta, const FVector& InLocation)
 	{
-		AddImpulseAtLocation_AssumesLocked(InActorReference, InActorReference->GetGameThreadAPI().M() * InVelocityDelta, InLocation);
+		AddImpulseAtLocation(BodyHandle, BodyHandle.M() * InVelocityDelta, InLocation);
 	}
-}
 
-void FChaosEngineInterface::AddRadialImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InOrigin,float InRadius,float InStrength,ERadialImpulseFalloff InFalloff,bool bInVelChange)
-{
-	using namespace Chaos;
-	if (ensure(InActorReference->GetGameThreadAPI().CanTreatAsRigid()))
+	static void AddRadialImpulse(BodyHandleType& BodyHandle, const FVector& InOrigin, float InRadius, float InStrength, ERadialImpulseFalloff InFalloff, bool bInVelChange)
 	{
-		const FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(&InActorReference->GetGameThreadAPI());
-		const FVec3 OriginToActor = WorldCOM - InOrigin;
-		const FReal OriginToActorDistance = OriginToActor.Size();
-		if(OriginToActorDistance < InRadius)
+		const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&BodyHandle);
+		const Chaos::FVec3 OriginToActor = WorldCOM - InOrigin;
+		const Chaos::FReal OriginToActorDistance = OriginToActor.Size();
+		if (OriginToActorDistance < InRadius)
 		{
-			FVec3 FinalImpulse = FVector::ZeroVector;
-			if(OriginToActorDistance > 0)
-		{
-			const FVec3 OriginToActorNorm = OriginToActor / OriginToActorDistance;
+			Chaos::FVec3 FinalImpulse = FVector::ZeroVector;
+			if (OriginToActorDistance > 0)
+			{
+				const Chaos::FVec3 OriginToActorNorm = OriginToActor / OriginToActorDistance;
 
-				if(InFalloff == ERadialImpulseFalloff::RIF_Constant)
-			{
-					FinalImpulse = OriginToActorNorm * InStrength;
-			}
-				else if(InFalloff == ERadialImpulseFalloff::RIF_Linear)
-			{
-				const FReal DistanceOverlapping = InRadius - OriginToActorDistance;
-					if(DistanceOverlapping > 0)
+				if (InFalloff == ERadialImpulseFalloff::RIF_Constant)
 				{
+					FinalImpulse = OriginToActorNorm * InStrength;
+				}
+				else if (InFalloff == ERadialImpulseFalloff::RIF_Linear)
+				{
+					const Chaos::FReal DistanceOverlapping = InRadius - OriginToActorDistance;
+					if (DistanceOverlapping > 0)
+					{
 						FinalImpulse = OriginToActorNorm * FMath::Lerp(0.0f, InStrength, DistanceOverlapping / InRadius);
+					}
+				}
+				else
+				{
+					// Unimplemented falloff type
+					ensure(false);
 				}
 			}
 			else
 			{
-				// Unimplemented falloff type
-				ensure(false);
-			}
-		}
-		else
-		{
-			// Sphere and actor center are coincident, just pick a direction and apply maximum strength impulse.
+				// Sphere and actor center are coincident, just pick a direction and apply maximum strength impulse.
 				FinalImpulse = FVector::ForwardVector * InStrength;
 			}
 
-			if(bInVelChange)
+			if (bInVelChange)
 			{
-				AddVelocity_AssumesLocked(InActorReference, FinalImpulse);
+				AddVelocity(BodyHandle, FinalImpulse);
 			}
 			else
 			{
-				AddImpulse_AssumesLocked(InActorReference, FinalImpulse);
+				AddImpulse(BodyHandle, FinalImpulse);
 			}
+		}
+	}
+
+	static void AddForce(BodyHandleType& BodyHandle, const FVector& Force, bool bAllowSubstepping, bool bAccelChange)
+	{
+		Chaos::EObjectStateType ObjectState = BodyHandle.ObjectState();
+		BodyHandle.SetObjectState(Chaos::EObjectStateType::Dynamic);
+
+		if (bAccelChange)
+		{
+			const Chaos::FReal Mass = BodyHandle.M();
+			const Chaos::FVec3 Acceleration = Force * Mass;
+			BodyHandle.AddForce(Acceleration);
+		}
+		else
+		{
+			BodyHandle.AddForce(Force);
+		}
+	}
+
+	static void AddForceAtPosition(BodyHandleType& BodyHandle, const FVector& Force, const FVector& Position, bool bAllowSubstepping, bool bIsLocalForce /*= false*/)
+	{
+		
+		Chaos::EObjectStateType ObjectState = BodyHandle.ObjectState();
+		const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&BodyHandle);
+
+		BodyHandle.SetObjectState(Chaos::EObjectStateType::Dynamic);
+
+		if (bIsLocalForce)
+		{
+			const Chaos::FRigidTransform3 CurrentTransform = Chaos::FParticleUtilitiesGT::GetActorWorldTransform(&BodyHandle);
+			const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
+			const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
+			const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);
+			BodyHandle.AddForce(WorldForce);
+			BodyHandle.AddTorque(WorldTorque);
+		}
+		else
+		{
+			const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
+			BodyHandle.AddForce(Force);
+			BodyHandle.AddTorque(WorldTorque);
+		}
+	}
+
+	static void AddRadialForce(BodyHandleType& BodyHandle, const FVector& Origin, const float Radius, const float Strength, const uint8 Falloff, bool bAccelChange, bool bAllowSubstepping)
+	{
+		Chaos::EObjectStateType ObjectState = BodyHandle.ObjectState();
+		if (CHAOS_ENSURE(ObjectState == Chaos::EObjectStateType::Dynamic || ObjectState == Chaos::EObjectStateType::Sleeping))
+		{
+			const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&BodyHandle);
+
+			Chaos::FVec3 Direction = WorldCOM - Origin;
+			const Chaos::FReal Distance = Direction.Size();
+			if (Distance > Radius)
+			{
+				return;
+			}
+
+			BodyHandle.SetObjectState(Chaos::EObjectStateType::Dynamic);
+
+			if (Distance < 1e-4)
+			{
+				Direction = Chaos::FVec3(1, 0, 0);
+			}
+			else
+			{
+				Direction = Direction.GetUnsafeNormal();
+			}
+			Chaos::FVec3 Force(0, 0, 0);
+			CHAOS_ENSURE(Falloff < RIF_MAX);
+			if (Falloff == ERadialImpulseFalloff::RIF_Constant)
+			{
+				Force = Strength * Direction;
+			}
+			if (Falloff == ERadialImpulseFalloff::RIF_Linear)
+			{
+				Force = (Radius - Distance) / Radius * Strength * Direction;
+			}
+			if (bAccelChange)
+			{
+				const Chaos::FReal Mass = BodyHandle.M();
+				const Chaos::FVec3 Acceleration = Force * Mass;
+				BodyHandle.AddForce(Acceleration);
+			}
+			else
+			{
+				BodyHandle.AddForce(Force);
+			}
+		}
+	}
+
+	static void AddTorque(BodyHandleType& BodyHandle, const FVector& Torque, bool bAllowSubstepping, bool bAccelChange)
+	{
+		Chaos::EObjectStateType ObjectState = BodyHandle.ObjectState();
+		if (CHAOS_ENSURE(ObjectState == Chaos::EObjectStateType::Dynamic || ObjectState == Chaos::EObjectStateType::Sleeping))
+		{
+			if (bAccelChange)
+			{
+				BodyHandle.AddTorque(Chaos::FParticleUtilitiesXR::GetWorldInertia(&BodyHandle) * Torque);
+			}
+			else
+			{
+				BodyHandle.AddTorque(Torque);
+			}
+		}
+	}
+};
+
+void FChaosEngineInterface::AddImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InForce, bool bIsInternal)
+{
+	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		if (bIsInternal)
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_Internal>::AddImpulse(*InActorReference->GetPhysicsThreadAPI(), InForce);
+		}
+		else
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_External>::AddImpulse(InActorReference->GetGameThreadAPI(), InForce);
+		}
+	}
+}
+
+void FChaosEngineInterface::AddAngularImpulseInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InTorque, bool bIsInternal)
+{
+	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		if (bIsInternal)
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_Internal>::AddAngularImpulseInRadians(*InActorReference->GetPhysicsThreadAPI(), InTorque);
+		}
+		else
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_External>::AddAngularImpulseInRadians(InActorReference->GetGameThreadAPI(), InTorque);
+		}
+	}
+}
+
+void FChaosEngineInterface::AddVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InVelocityDelta, bool bIsInternal)
+{
+	if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		if (bIsInternal)
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_Internal>::AddVelocity(*InActorReference->GetPhysicsThreadAPI(), InVelocityDelta);
+		}
+		else
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_External>::AddVelocity(InActorReference->GetGameThreadAPI(), InVelocityDelta);
+		}
+	}
+}
+
+void FChaosEngineInterface::AddAngularVelocityInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InAngularVelocityDeltaRad, bool bIsInternal)
+{
+	if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		if (bIsInternal)
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_Internal>::AddAngularVelocityInRadians(*InActorReference->GetPhysicsThreadAPI(), InAngularVelocityDeltaRad);
+		}
+		else
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_External>::AddAngularVelocityInRadians(InActorReference->GetGameThreadAPI(), InAngularVelocityDeltaRad);
+		}
+	}
+}
+
+void FChaosEngineInterface::AddImpulseAtLocation_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InImpulse,const FVector& InLocation, bool bIsInternal)
+{
+	if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		if (bIsInternal)
+		{
+			
+			FChaosStateOps<Chaos::FRigidBodyHandle_Internal>::AddImpulseAtLocation(*InActorReference->GetPhysicsThreadAPI(), InImpulse, InLocation);
+			//UE_LOG(LogTemp, Warning, TEXT("AddImpulseAtLocation_AssumesLocked Impulse = %s | State = %d"), *InImpulse.ToString(), InActorReference->GetPhysicsThreadAPI()->ObjectState());
+		}
+		else
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_External>::AddImpulseAtLocation(InActorReference->GetGameThreadAPI(), InImpulse, InLocation);
+		}
+	}
+}
+
+void FChaosEngineInterface::AddVelocityChangeImpulseAtLocation_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InVelocityDelta, const FVector& InLocation, bool bIsInternal)
+{
+	if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		if (bIsInternal)
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_Internal>::AddVelocityChangeImpulseAtLocation(*InActorReference->GetPhysicsThreadAPI(), InVelocityDelta, InLocation);
+		}
+		else
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_External>::AddVelocityChangeImpulseAtLocation(InActorReference->GetGameThreadAPI(), InVelocityDelta, InLocation);
+		}
+	}
+}
+
+void FChaosEngineInterface::AddRadialImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InOrigin,float InRadius,float InStrength,ERadialImpulseFalloff InFalloff,bool bInVelChange, bool bIsInternal)
+{
+	if (ensure(FChaosEngineInterface::IsValid(InActorReference)) && ensure(InActorReference->GetGameThreadAPI().CanTreatAsRigid()))
+	{
+		if (bIsInternal)
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_Internal>::AddRadialImpulse(*InActorReference->GetPhysicsThreadAPI(), InOrigin, InRadius, InStrength, InFalloff, bInVelChange);
+		}
+		else
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_External>::AddRadialImpulse(InActorReference->GetGameThreadAPI(), InOrigin, InRadius, InStrength, InFalloff, bInVelChange);
+		}
+	}
+}
+
+void FChaosEngineInterface::AddForce_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& Force, bool bAllowSubstepping, bool bAccelChange, bool bIsInternal)
+{
+	if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		if (bIsInternal)
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_Internal>::AddForce(*InActorReference->GetPhysicsThreadAPI(), Force, bAllowSubstepping, bAccelChange);
+		}
+		else
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_External>::AddForce(InActorReference->GetGameThreadAPI(), Force, bAllowSubstepping, bAccelChange);
+		}
+	}
+}
+
+void FChaosEngineInterface::AddForceAtPosition_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& Force, const FVector& Position, bool bAllowSubstepping, bool bIsLocalForce, bool bIsInternal)
+{
+	if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		if (bIsInternal)
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_Internal>::AddForceAtPosition(*InActorReference->GetPhysicsThreadAPI(), Force, Position, bAllowSubstepping, bIsLocalForce);
+			//UE_LOG(LogTemp, Warning, TEXT("AddForceAtPosition_AssumesLocked Force = %s | State = %d"), *Force.ToString(), InActorReference->GetPhysicsThreadAPI()->ObjectState());
+		}
+		else
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_External>::AddForceAtPosition(InActorReference->GetGameThreadAPI(), Force, Position,  bAllowSubstepping, bIsLocalForce);
+		}
+	}
+}
+
+void FChaosEngineInterface::AddRadialForce_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& Origin, const float Radius, const float Strength, const uint8 Falloff, bool bAccelChange, bool bAllowSubstepping, bool bIsInternal)
+{
+	if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		if (bIsInternal)
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_Internal>::AddRadialForce(*InActorReference->GetPhysicsThreadAPI(), Origin, Radius, Strength, Falloff, bAccelChange, bAllowSubstepping);
+		}
+		else
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_External>::AddRadialForce(InActorReference->GetGameThreadAPI(), Origin, Radius, Strength, Falloff, bAccelChange, bAllowSubstepping);
+		}
+	}
+}
+
+void FChaosEngineInterface::AddTorque_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& Torque, bool bAllowSubstepping, bool bAccelChange, bool bIsInternal)
+{
+	if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		if (bIsInternal)
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_Internal>::AddTorque(*InActorReference->GetPhysicsThreadAPI(), Torque, bAllowSubstepping, bAccelChange);
+		}
+		else
+		{
+			FChaosStateOps<Chaos::FRigidBodyHandle_External>::AddTorque(InActorReference->GetGameThreadAPI(), Torque, bAllowSubstepping, bAccelChange);
 		}
 	}
 }

@@ -205,6 +205,18 @@ namespace Chaos
 
 		void Simulate(float DeltaTime);
 
+		int32 GetAveragingCount() const {return AveragingCount;}
+		int32 GetAveragingNum() const { return AveragingNum; }
+		float GetLastSpringLength() const { return LastSpringLength; }
+		float GetLastDisplacement() const { return LastDisplacement; }
+		float GetAveragingLength(const int32 LengthIndex) const { return AveragingLength[LengthIndex]; }
+
+		void SetAveragingCount(const int32 InAveragingCount) {AveragingCount = InAveragingCount;}
+		void SetAveragingNum(const int32 InAveragingNum) { AveragingNum = InAveragingNum; }
+		void SetLastSpringLength(const float InLastSpringLength) { LastSpringLength = InLastSpringLength; }
+		void SetLastDisplacement(const float InLastDisplacement) { LastDisplacement = InLastDisplacement; }
+		void SetAveragingLength(const int32 LengthIndex, const float InAveragingLength) { AveragingLength[LengthIndex] = InAveragingLength; }
+
 	protected:
 
 		float DisplacementInput;	
