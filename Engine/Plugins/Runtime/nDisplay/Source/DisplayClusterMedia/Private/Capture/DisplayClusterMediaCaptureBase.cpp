@@ -11,12 +11,16 @@
 
 #include "RenderGraphBuilder.h"
 
+#include "UObject/UObjectGlobals.h"
+#include "UObject/Package.h"
+
 
 FDisplayClusterMediaCaptureBase::FDisplayClusterMediaCaptureBase(const FString& InMediaId, const FString& InClusterNodeId, UMediaOutput* InMediaOutput)
 	: FDisplayClusterMediaBase(InMediaId, InClusterNodeId)
-	, MediaOutput(InMediaOutput)
 {
-	check(InMediaOutput);
+	checkSlow(InMediaOutput);
+	MediaOutput = DuplicateObject(InMediaOutput, GetTransientPackage());
+	checkSlow(MediaOutput);
 
 	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostTick().AddRaw(this, &FDisplayClusterMediaCaptureBase::OnPostClusterTick);
 }

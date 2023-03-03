@@ -11,11 +11,15 @@
 #include "TextureResource.h"
 #include "RHIUtilities.h"
 
+#include "UObject/UObjectGlobals.h"
+#include "UObject/Package.h"
+
 
 FDisplayClusterMediaInputBase::FDisplayClusterMediaInputBase(const FString& InMediaId, const FString& InClusterNodeId, UMediaSource* InMediaSource)
 	: FDisplayClusterMediaBase(InMediaId, InClusterNodeId)
-	, MediaSource(InMediaSource)
 {
+	checkSlow(InMediaSource);
+	MediaSource = DuplicateObject(InMediaSource, GetTransientPackage());
 	checkSlow(MediaSource);
 
 	// Instantiate media player
