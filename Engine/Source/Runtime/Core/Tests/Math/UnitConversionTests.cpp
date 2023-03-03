@@ -1,24 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
+#if WITH_TESTS
 
 #include "CoreTypes.h"
 #include "Math/UnrealMathUtility.h"
 #include "Containers/UnrealString.h"
-#include "Misc/AutomationTest.h"
 #include "Math/UnitConversion.h"
-
-PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
-
-#if WITH_DEV_AUTOMATION_TESTS
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnitUnitTests, "System.Core.Math.Unit Conversion", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FParsingUnitTests, "System.Core.Math.Unit Parsing", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+#include "Tests/TestHarnessAdapter.h"
 
 bool IsRoughlyEqual(double One, double Two, float Epsilon)
 {
 	return FMath::Abs(One-Two) <= Epsilon;
 }
 
-bool FUnitUnitTests::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FUnitUnitTests, "System::Core::Math::Unit Conversion", "[ApplicationContextMask][SmokeFilter]")
 {
 	struct FTestStruct
 	{
@@ -89,30 +85,26 @@ bool FUnitUnitTests::RunTest(const FString& Parameters)
 
 	};
 
-	bool bSuccess = true;
 	for (auto& Test : Tests)
 	{
 		const double ActualResult = FUnitConversion::Convert(Test.Source, Test.FromUnit, Test.ToUnit);
 		if (!IsRoughlyEqual(ActualResult, Test.ExpectedResult, Test.AccuracyEpsilon))
 		{
-			bSuccess = false;
 
 			const TCHAR* FromUnitString	= FUnitConversion::GetUnitDisplayString(Test.FromUnit);
 			const TCHAR* ToUnitString 	= FUnitConversion::GetUnitDisplayString(Test.ToUnit);
 
-			AddError(FString::Printf(TEXT("Conversion from %s to %s was incorrect. Converting %.10f%s to %s resulted in %.15f%s, expected %.15f%s (threshold = %.15f)"),
+			FAIL_CHECK(FString::Printf(TEXT("Conversion from %s to %s was incorrect. Converting %.10f%s to %s resulted in %.15f%s, expected %.15f%s (threshold = %.15f)"),
 				FromUnitString, ToUnitString,
 				Test.Source, FromUnitString, ToUnitString,
 				ActualResult, ToUnitString,
 				Test.ExpectedResult, ToUnitString,
-				Test.AccuracyEpsilon)
-			);
+				Test.AccuracyEpsilon));
 		}
 	}
-	return bSuccess;
 }
 
-bool FParsingUnitTests::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FParsingUnitTests, "System::Core::Math::Unit Parsing", "[ApplicationContextMask][SmokeFilter]")
 {
 	struct FTestCases
 	{
@@ -133,7 +125,6 @@ bool FParsingUnitTests::RunTest(const FString& Parameters)
 		{TEXT("+=0.7 m"),						140.0,		EUnit::Centimeters,			TOptional<FNumericUnit<double>>(70.0)},
 	};
 
-	bool bSuccess = true;
 	for (FTestCases& Test : Tests)
 	{
 		const FNumericUnit<double> ExistingValue = Test.ExistingValue.IsSet() ? Test.ExistingValue.GetValue() : FNumericUnit<double>(0.0, EUnit::Unspecified);
@@ -141,29 +132,22 @@ bool FParsingUnitTests::RunTest(const FString& Parameters)
 		if (Result.IsValid())
 		{
 			const bool IsEqual = IsRoughlyEqual(Result.GetValue().ConvertTo(Test.UnderlyingUnit).GetValue().Value, Test.ExpectedValue, 1e-6);
-			if (!IsEqual)
-			{
-				AddError(FString::Printf(TEXT("Parsing of expression \"%s\" failed. Expected %f but got %f."),
+			CHECK_MESSAGE(FString::Printf(TEXT("Parsing of expression \"%s\" failed. Expected %f but got %f."),
 					Test.Expression,
 					Test.ExpectedValue,
 					Result.GetValue().Value
-				));
-			}
-			bSuccess &= IsEqual;
+				), IsEqual);
 		}
 		else
 		{
-			AddError(FString::Printf( TEXT("Parsing of expression \"%s\" was incorrect (%s). Expected %f."),
-				Test.Expression, 
-				*(Result.GetError().ToString()), 
-				Test.ExpectedValue
-			));
-			bSuccess = false;
+			FAIL_CHECK(FString::Printf(TEXT("Parsing of expression \"%s\" was incorrect (%s). Expected %f."),
+				Test.Expression,
+				*(Result.GetError().ToString()),
+				Test.ExpectedValue));
 		}
 	}
-	return bSuccess;
 }
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+#endif //WITH_TESTS
 
 PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
