@@ -5487,11 +5487,6 @@ void UCookOnTheFlyServer::TickRecompileShaderRequestsPrivate()
 	}
 }
 
-bool UCookOnTheFlyServer::HasRecompileShaderRequests() const 
-{ 
-	return PackageTracker->RecompileRequests.HasItems();
-}
-
 class FDiffModeCookServerUtils
 {
 public:
@@ -5614,7 +5609,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 
 			// If package was actually saved check with asset manager to make sure it wasn't excluded for being a
 			// development or never cook package. But skip sending the warnings from this check if it was editor-only.
-			if (Context.SavePackageResult == ESavePackageResult::Success && UAssetManager::IsValid())
+			if (Context.SavePackageResult == ESavePackageResult::Success)
 			{
 				UE_SCOPED_HIERARCHICAL_COOKTIMER(VerifyCanCookPackage);
 				if (!UAssetManager::Get().VerifyCanCookPackage(this, Package->GetFName()))
@@ -5690,7 +5685,7 @@ void FSaveCookedPackageContext::SetupPlatform(const ITargetPlatform* InTargetPla
 		return;
 	}
 	// Check whether or not game-specific behaviour should prevent this package from being cooked for the target platform
-	else if (UAssetManager::IsValid() && !UAssetManager::Get().ShouldCookForPlatform(Package, TargetPlatform))
+	else if (!UAssetManager::Get().ShouldCookForPlatform(Package, TargetPlatform))
 	{
 		SavePackageResult = ESavePackageResult::ContainsEditorOnlyData;
 		UE_LOG(LogCook, Display, TEXT("Excluding %s -> %s"), *PackageName, *PlatFilename);
@@ -8033,31 +8028,26 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, TMap<FN
 		}
 
 		FModifyCookDelegate& ModifyCookDelegate = FGameDelegates::Get().GetModifyCookDelegate();
-		if (UAssetManager::IsValid() || ModifyCookDelegate.IsBound())
+		TArray<FName> PackagesToNeverCook;
+
+		// allow the AssetManager to fill out the asset registry, as well as get a list of objects to always cook
+		UAssetManager::Get().ModifyCook(TargetPlatforms, FilesInPath, PackagesToNeverCook);
+		UpdateInstigators(EInstigator::AssetManagerModifyCook);
+
+		if (ModifyCookDelegate.IsBound())
 		{
-			TArray<FName> PackagesToNeverCook;
+			// allow game or plugins to fill out the asset registry, as well as get a list of objects to always cook
+			ModifyCookDelegate.Broadcast(TargetPlatforms, FilesInPath, PackagesToNeverCook);
+			UpdateInstigators(EInstigator::ModifyCookDelegate);
+		}
 
-			if (UAssetManager::IsValid())
-			{
-				// allow the AssetManager to fill out the asset registry, as well as get a list of objects to always cook
-				UAssetManager::Get().ModifyCook(TargetPlatforms, FilesInPath, PackagesToNeverCook);
-				UpdateInstigators(EInstigator::AssetManagerModifyCook);
-			}
-			if (ModifyCookDelegate.IsBound())
-			{
-				// allow game or plugins to fill out the asset registry, as well as get a list of objects to always cook
-				ModifyCookDelegate.Broadcast(TargetPlatforms, FilesInPath, PackagesToNeverCook);
-				UpdateInstigators(EInstigator::ModifyCookDelegate);
-			}
+		for (FName NeverCookPackage : PackagesToNeverCook)
+		{
+			const FName StandardPackageFilename = PackageDatas->GetFileNameByFlexName(NeverCookPackage);
 
-			for (FName NeverCookPackage : PackagesToNeverCook)
+			if (!StandardPackageFilename.IsNone())
 			{
-				const FName StandardPackageFilename = PackageDatas->GetFileNameByFlexName(NeverCookPackage);
-
-				if (!StandardPackageFilename.IsNone())
-				{
-					PackageTracker->NeverCookPackageList.Add(StandardPackageFilename);
-				}
+				PackageTracker->NeverCookPackageList.Add(StandardPackageFilename);
 			}
 		}
 	}
@@ -8219,14 +8209,6 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, TMap<FN
 			{
 				AddFileToCook(FilesInPath, Instigators, InterfaceFile, EInstigator::InputSettingsIni);
 			}
-		}
-	}
-
-	{
-		TArray<FString> UIContentPaths;
-		if (GConfig->GetArray(TEXT("UI"), TEXT("ContentDirectories"), UIContentPaths, GEditorIni) > 0)
-		{
-			UE_LOG(LogCook, Warning, TEXT("The [UI]ContentDirectories is deprecated. You may use DirectoriesToAlwaysCook in your project settings instead."));
 		}
 	}
 }
@@ -9939,7 +9921,7 @@ const UCookOnTheFlyServer::FCookByTheBookStartupOptions& UCookOnTheFlyServer::Bl
 								UE_LOG(LogCook, Display, TEXT("Received Package token in cook command file, adding package '%.*s' to cook workload."), PackageToken.Len(), PackageToken.GetData());
 							}, UE::String::EParseTokensOptions::SkipEmpty);
 					}
-					else if (UAssetManager::IsValid() && UAssetManager::Get().HandleCookCommand(Token))
+					else if (UAssetManager::Get().HandleCookCommand(Token))
 					{
 						// Do nothing - handled by the asset manager
 					}

@@ -106,29 +106,26 @@ int32 UGenerateDistillFileSetsCommandlet::Main( const FString& InParams )
 	}
 
 	// Add any assets from the asset manager
-	if (UAssetManager::IsValid())
+	UAssetManager& Manager = UAssetManager::Get();
+	TArray<FPrimaryAssetTypeInfo> TypeInfos;
+	Manager.GetPrimaryAssetTypeInfoList(TypeInfos);
+
+	for (const FPrimaryAssetTypeInfo& TypeInfo : TypeInfos)
 	{
-		UAssetManager& Manager = UAssetManager::Get();
-		TArray<FPrimaryAssetTypeInfo> TypeInfos;
-		Manager.GetPrimaryAssetTypeInfoList(TypeInfos);
+		TArray<FAssetData> AssetDataList;
 
-		for (const FPrimaryAssetTypeInfo& TypeInfo : TypeInfos)
+		Manager.GetPrimaryAssetDataList(TypeInfo.PrimaryAssetType, AssetDataList);
+
+		for (const FAssetData& AssetData : AssetDataList)
 		{
-			TArray<FAssetData> AssetDataList;
-
-			Manager.GetPrimaryAssetDataList(TypeInfo.PrimaryAssetType, AssetDataList);
-
-			for (const FAssetData& AssetData : AssetDataList)
+			FString PackageName = AssetData.PackageName.ToString();
+			// Warn about maps in "NoShip" or "TestMaps" folders.
+			if (PackageName.Contains("/NoShip/") || PackageName.Contains("/TestMaps/"))
 			{
-				FString PackageName = AssetData.PackageName.ToString();
-				// Warn about maps in "NoShip" or "TestMaps" folders.
-				if (PackageName.Contains("/NoShip/") || PackageName.Contains("/TestMaps/"))
-				{
-					UE_LOG(LogGenerateDistillFileSetsCommandlet, Display, TEXT("Skipping map package %s in TestMaps or NoShip folder"), *PackageName);
-					continue;
-				}
-				MapList.AddUnique(AssetData.PackageName.ToString());
+				UE_LOG(LogGenerateDistillFileSetsCommandlet, Display, TEXT("Skipping map package %s in TestMaps or NoShip folder"), *PackageName);
+				continue;
 			}
+			MapList.AddUnique(AssetData.PackageName.ToString());
 		}
 	}
 	

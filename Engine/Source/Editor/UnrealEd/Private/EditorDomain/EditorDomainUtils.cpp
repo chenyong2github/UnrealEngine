@@ -216,10 +216,6 @@ static bool GetEditorDomainSaveUnversioned()
 	{
 		bool bParsedValue;
 		bool bResult = GConfig->GetBool(TEXT("EditorDomain"), TEXT("SaveUnversioned"), bParsedValue, GEditorIni) ? bParsedValue : true;
-		if (GConfig->GetBool(TEXT("CookSettings"), TEXT("EditorDomainSaveUnversioned"), bResult, GEditorIni))
-		{
-			UE_LOG(LogEditorDomain, Error, TEXT("Editor.ini:[CookSettings]:EditorDomainSaveUnversioned is deprecated, use Editor.ini:[EditorDomain]:SaveUnversioned instead."));
-		}
 		return bResult;
 	};
 	static bool bEditorDomainSaveUnversioned = Initialize();

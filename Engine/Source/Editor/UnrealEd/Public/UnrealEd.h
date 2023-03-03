@@ -73,7 +73,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "MaterialEditor/DEditorVectorParameterValue.h"
 #include "Commandlets/DerivedDataCacheCommandlet.h"
 #include "Commandlets/DiffAssetsCommandlet.h"
-#include "Commandlets/DiffPackagesCommandlet.h"
 #include "Commandlets/DiffFilesCommandlet.h"
 #include "Commandlets/DumpBlueprintsInfoCommandlet.h"
 #include "Commandlets/DumpHiddenCategoriesCommandlet.h"

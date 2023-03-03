@@ -13,7 +13,7 @@
 
 TSoftObjectPtr<UObject> ULyraSystemStatics::GetTypedSoftObjectReferenceFromPrimaryAssetId(FPrimaryAssetId PrimaryAssetId, TSubclassOf<UObject> ExpectedAssetType)
 {
-	if (UAssetManager* Manager = UAssetManager::GetIfValid())
+	if (UAssetManager* Manager = UAssetManager::GetIfInitialized())
 	{
 		FPrimaryAssetTypeInfo Info;
 		if (Manager->GetPrimaryAssetTypeInfo(PrimaryAssetId.PrimaryAssetType, Info) && !Info.bHasBlueprintClasses)

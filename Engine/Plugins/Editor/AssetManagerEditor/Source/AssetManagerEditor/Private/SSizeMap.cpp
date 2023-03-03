@@ -140,7 +140,7 @@ void SSizeMap::Construct(const FArguments& InArgs)
 	IAssetManagerEditorModule& ManagerEditorModule = IAssetManagerEditorModule::Get();
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistry = &AssetRegistryModule.Get();
-	AssetManager = UAssetManager::GetIfValid();
+	AssetManager = &UAssetManager::Get();
 	EditorModule = &IAssetManagerEditorModule::Get();
 
 	SizeTypeComboList.Add(MakeShared<FName>(IAssetManagerEditorModule::DiskSizeName));

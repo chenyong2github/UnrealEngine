@@ -95,12 +95,6 @@ public:
 		IAssetRegistry::GetChecked().PackageDeleted(DeletedPackage);
 	}
 
-	UE_DEPRECATED(4.26, "Use GetDependencies that takes a UE::AssetRegistry::EDependencyCategory instead")
-	void GetDependencies(FName InPackageName, TArray<FName>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType)
-	{
-		GetDependenciesDeprecated(InPackageName, OutDependencies, InDependencyType);
-	}
-
 	/** Access the dependent package names for a given source package */
 	virtual void GetDependencies(FName InPackageName, TArray<FName>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::Package, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) override
 	{
@@ -125,14 +119,5 @@ public:
 			return UE::AssetRegistry::EExists::Unknown;
 		}
 		return AssetRegistry->TryGetAssetPackageData(PackageName, OutAssetPackageData);
-	}
-
-protected:
-	/* This function is a workaround for platforms that don't support disable of deprecation warnings on override functions*/
-	virtual void GetDependenciesDeprecated(FName InPackageName, TArray<FName>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) override
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		IAssetRegistry::GetChecked().GetDependencies(InPackageName, OutDependencies, InDependencyType);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 };

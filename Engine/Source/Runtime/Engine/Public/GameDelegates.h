@@ -26,8 +26,6 @@ DECLARE_DELEGATE_OneParam(FCookModificationDelegate, TArray<FString>& /*ExtraPac
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FModifyCookDelegate,
 	TConstArrayView<const ITargetPlatform*> /* InTargetPlatforms */, TArray<FName>& /* InOutPackagesToCook */,
 	TArray<FName>& /* InOutPackagesToNeverCook */);
-DECLARE_DELEGATE_FiveParams(FAssignStreamingChunkDelegate, const FString& /*PackageToAdd*/, const FString& /*LastLoadedMapName*/, const TArray<int32>& /*AssetRegistryChunkIDs*/, const TArray<int32>& /*ExistingChunkIds*/, TArray<int32>& /*OutChunkIndexList*/);
-DECLARE_DELEGATE_RetVal_ThreeParams(bool, FGetPackageDependenciesForManifestGeneratorDelegate, FName /*PackageName*/, TArray<FName>& /*DependentPackageNames*/, uint8 /*DependencyType*/);
 
 /** Delegate to assign a disc layer to a chunk */
 typedef const TMap<FName, FString> FAssignLayerChunkMap;
@@ -106,13 +104,4 @@ private:
 	DEFINE_GAME_DELEGATE(ModifyCookDelegate);
 
 	DEFINE_GAME_DELEGATE(CookedEditorPackageManagerFactoryDelegate);
-public:
-	UE_DEPRECATED(4.26, "Switch to subclassing AssetManager instead")
-	FAssignStreamingChunkDelegate& GetAssignStreamingChunkDelegate() { return AssignStreamingChunkDelegate; }
-	UE_DEPRECATED(4.26, "Switch to subclassing AssetManager instead")
-	FGetPackageDependenciesForManifestGeneratorDelegate& GetGetPackageDependenciesForManifestGeneratorDelegate() { return GetPackageDependenciesForManifestGeneratorDelegate; }
-
-private:
-	FAssignStreamingChunkDelegate AssignStreamingChunkDelegate;
-	FGetPackageDependenciesForManifestGeneratorDelegate GetPackageDependenciesForManifestGeneratorDelegate;
 };

@@ -84,9 +84,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Cooking, meta = (DisplayName = "Use shared cooked builds in launch on", ConfigRestartRequired = true))
 	bool bSharedCookedBuilds;
 
-	UPROPERTY()
-	int32 MultiProcessCooking_DEPRECATED;
-
 	/** Enable late joining in PIE */
 	UPROPERTY(EditAnywhere, config, Category = PIE, meta = (DisplayName = "Allow late joining"))
 	bool bAllowLateJoinInPIE;

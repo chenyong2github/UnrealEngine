@@ -890,27 +890,6 @@ void UDiffAssetRegistriesCommandlet::LogChangedFiles(FArchive *CSVFile, FString 
 			{
 				UE_LOG(LogDiffAssets, Display, TEXT("%c %s : (Class=%s,NewSize=%d bytes,OldSize=%d bytes)"), classification, *AssetPath.ToString(), *ClassName.ToString(), ChangeInfo.ChangedBytes, PrevData->DiskSize);
 			}
-			//UE_LOG(LogDiffAssets, Display, TEXT("Source file changed: %s"), (flags & EAssetFlags::GuidChange) ? TEXT("true") : TEXT("false"));
-			/*if ((flags & EAssetFlags::GuidChange) && bMatchChangelists)
-			{
-				UE_LOG(LogDiffAssets, Display, TEXT("Last change: %d"), Changelist);
-			}*/
-#if 0			
-			TArray<FAssetIdentifier> Dependencies;
-			NewState.GetDependencies(AssetPath, Dependencies, EAssetRegistryDependencyType::Hard);
-			if (Dependencies.Num() > 0)
-			{
-				UE_LOG(LogDiffAssets, Display, TEXT("Dependency changes:"));
-
-				for (const FAssetIdentifier& Dependency : Dependencies)
-				{
-					if (AssetPathToSourceChanged.FindOrAdd(Dependency.PackageName))
-					{
-						UE_LOG(LogDiffAssets, Display, TEXT("  %s: %d"), *Dependency.PackageName.ToString(), AssetPathToChangelist.FindOrAdd(Dependency.PackageName));
-					}
-				}
-			}
-#endif
 		}
 		else if (ChangeInfo.Deletes)
 		{

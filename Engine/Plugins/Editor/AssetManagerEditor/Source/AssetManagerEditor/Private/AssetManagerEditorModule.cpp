@@ -598,16 +598,7 @@ void FAssetManagerEditorModule::ShutdownModule()
 
 TSharedRef<SDockTab> FAssetManagerEditorModule::SpawnAssetAuditTab(const FSpawnTabArgs& Args)
 {
-	if (!UAssetManager::IsValid())
-	{
-		return SNew(SDockTab)
-			.TabRole(ETabRole::NomadTab)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("BadAssetAuditUI", "Cannot load Asset Audit if there is no asset manager!"))
-			];
-	}
-	
+	check(UAssetManager::IsInitialized());
 	return SAssignNew(AssetAuditTab, SDockTab)
 		.TabRole(ETabRole::NomadTab)
 		[
@@ -1038,28 +1029,22 @@ void FAssetManagerEditorModule::ExtendLevelEditorActorContextMenu()
 
 void FAssetManagerEditorModule::OnReloadComplete(EReloadCompleteReason Reason)
 {
-	UAssetManager* AssetManager = UAssetManager::GetIfValid();
-
-	if (AssetManager)
-	{
-		// Invalidate on a hot reload
-		AssetManager->InvalidatePrimaryAssetDirectory();
-	}
+	// Invalidate on a hot reload
+	check(UAssetManager::IsInitialized());
+	UAssetManager::Get().InvalidatePrimaryAssetDirectory();
 }
 
 void FAssetManagerEditorModule::OnMarkPackageDirty(UPackage* Pkg, bool bWasDirty)
 {
-	UAssetManager* AssetManager = UAssetManager::GetIfValid();
+	check(UAssetManager::IsInitialized());
+	UAssetManager& AssetManager = UAssetManager::Get();
 
-	if (AssetManager)
+	// Check if this package is managed, if so invalidate
+	FPrimaryAssetId AssetId = AssetManager.GetPrimaryAssetIdForPackage(Pkg->GetFName());
+
+	if (AssetId.IsValid())
 	{
-		// Check if this package is managed, if so invalidate
-		FPrimaryAssetId AssetId = AssetManager->GetPrimaryAssetIdForPackage(Pkg->GetFName());
-
-		if (AssetId.IsValid())
-		{
-			AssetManager->InvalidatePrimaryAssetDirectory();
-		}
+		AssetManager.InvalidatePrimaryAssetDirectory();
 	}
 }
 
@@ -1632,10 +1617,7 @@ void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceNa
 			if (CurrentRegistrySource->bIsEditor)
 			{
 				// Load chunk list from asset manager
-				if (UAssetManager::IsValid())
-				{
-					CurrentRegistrySource->ChunkAssignments = UAssetManager::Get().GetChunkManagementMap();
-				}
+				CurrentRegistrySource->ChunkAssignments = UAssetManager::Get().GetChunkManagementMap();
 			}
 			else
 			{
@@ -1753,13 +1735,6 @@ bool FAssetManagerEditorModule::IsPackageInCurrentRegistrySource(FName PackageNa
 
 	// In editor, no packages are filtered
 	return true;
-}
-
-bool IAssetManagerEditorModule::FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers, EAssetRegistryDependencyType::Type DependencyType, bool bForwardDependency)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return FilterAssetIdentifiersForCurrentRegistrySource(AssetIdentifiers, FAssetManagerDependencyQuery(DependencyType), bForwardDependency);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FAssetManagerEditorModule::FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers, const FAssetManagerDependencyQuery& DependencyQuery, bool bForwardDependency)
@@ -2217,10 +2192,7 @@ void FAssetManagerEditorModule::DumpAssetRegistry(const TArray<FString>& Args)
 
 void FAssetManagerEditorModule::DumpAssetDependencies(const TArray<FString>& Args)
 {
-	if (!UAssetManager::IsValid())
-	{
-		return;
-	}
+	check(UAssetManager::IsInitialized());
 
 	UAssetManager& Manager = UAssetManager::Get();
 	TArray<FPrimaryAssetTypeInfo> TypeInfos;
@@ -2359,29 +2331,4 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return bSuccess;
 }
 
-FAssetManagerDependencyQuery::FAssetManagerDependencyQuery(EAssetRegistryDependencyType::Type DependencyType)
-{
-	using namespace UE::AssetRegistry;
-
-	Categories = EDependencyCategory::None;
-	Flags = EDependencyQuery::NoRequirements;
-	if (DependencyType & EAssetRegistryDependencyType::Packages)
-	{
-		Categories |= EDependencyCategory::Package;
-		Flags |= (DependencyType & EAssetRegistryDependencyType::Hard) ? EDependencyQuery::NoRequirements : EDependencyQuery::Soft;
-		Flags |= (DependencyType & EAssetRegistryDependencyType::Soft) ? EDependencyQuery::NoRequirements : EDependencyQuery::Hard;
-	}
-
-	if (DependencyType & EAssetRegistryDependencyType::SearchableName)
-	{
-		Categories |= EDependencyCategory::SearchableName;
-	}
-
-	if (DependencyType & EAssetRegistryDependencyType::Manage)
-	{
-		Categories |= EDependencyCategory::Manage;
-		Flags |= (DependencyType & EAssetRegistryDependencyType::HardManage) ? EDependencyQuery::NoRequirements : EDependencyQuery::Indirect;
-		Flags |= (DependencyType & EAssetRegistryDependencyType::SoftManage) ? EDependencyQuery::NoRequirements : EDependencyQuery::Direct;
-	}
-}
 #undef LOCTEXT_NAMESPACE

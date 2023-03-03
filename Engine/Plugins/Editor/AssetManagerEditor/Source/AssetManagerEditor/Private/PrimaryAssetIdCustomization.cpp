@@ -18,23 +18,7 @@
 
 void FPrimaryAssetIdCustomization::CustomizeHeader(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	if (!UAssetManager::IsValid())
-	{
-		HeaderRow
-		.NameContent()
-		[
-			InStructPropertyHandle->CreatePropertyNameWidget()
-		]
-		.ValueContent()
-		.MinDesiredWidth(250.0f)
-		.MaxDesiredWidth(0.0f)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("NoAssetManager", "Enable Asset Manager to edit Primary Asset Ids"))
-		];
-
-		return;
-	}
+	check(UAssetManager::IsInitialized());
 
 	StructPropertyHandle = InStructPropertyHandle;
 

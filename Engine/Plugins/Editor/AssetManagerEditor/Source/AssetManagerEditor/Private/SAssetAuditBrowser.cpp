@@ -212,10 +212,7 @@ void SAssetAuditBrowser::OnGetCustomSourceAssets(const FARFilter& Filter, TArray
 
 void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 {
-	if (!UAssetManager::IsValid())
-	{
-		return;
-	}
+	check(UAssetManager::IsInitialized());
 
 	IAssetManagerEditorModule& ManagerEditorModule = IAssetManagerEditorModule::Get();
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));

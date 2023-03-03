@@ -1188,14 +1188,8 @@ void UDataRegistry::HandleAcquireResult(const FDataRegistrySourceAcquireRequest&
 
 class FTimerManager* UDataRegistry::GetTimerManager()
 {
-	UAssetManager* AssetManager = UAssetManager::GetIfValid();
-
-	if (AssetManager)
-	{
-		return AssetManager->GetTimerManager();
-	}
-
-	return nullptr;
+	check(UAssetManager::IsInitialized());
+	return UAssetManager::Get().GetTimerManager();
 }
 
 #undef LOCTEXT_NAMESPACE

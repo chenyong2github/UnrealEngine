@@ -177,9 +177,6 @@ public:
 	/** Enumerate assets in the State, filtering by package not in PackagesToSkip */
 	void EnumerateAllDiskAssets(TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const;
 
-	/** Delete any temporary allocated objects that were passed out to external callers and hopefully have been deleted by now */
-	UE_DEPRECATED(5.0, "Supports deprecated functions returning pointers")
-	void TickDeletes();
 	/** Waits for the gatherer to be idle if it is operating synchronously. */
 	void WaitForGathererIdleIfSynchronous();
 	/** Callback type for TickGatherer */
@@ -248,8 +245,6 @@ public:
 	const FAssetRegistryState& GetState() const;
 	const FPathTree& GetCachedPathTree() const;
 	const TSet<FName>& GetCachedEmptyPackages() const;
-	/** Find the AssetPackageData for the given PackageName and return a pointer to it or nullptr if not found */
-	const FAssetPackageData* GetAssetPackageData(FName PackageName);
 
 	/** Same as UE::AssetRegistry::Filtering::ShouldSkipAsset, but can be read from any thread under readlock */
 	bool ShouldSkipAsset(FTopLevelAssetPath AssetClass, uint32 PackageFlags) const;
@@ -388,9 +383,6 @@ private:
 
 	/** Lists of results from the background thread that are waiting to get processed by the main thread */
 	FAssetDataGatherer::FResults BackgroundResults;
-
-	UE_DEPRECATED(5.0, "DelayDelete is only intended to support deprecated functions.")
-	TArray<TUniqueFunction<void()>> DeleteActions;
 
 	/** Time spent processing Gather results */
 	float StoreGatherResultsTimeSeconds;

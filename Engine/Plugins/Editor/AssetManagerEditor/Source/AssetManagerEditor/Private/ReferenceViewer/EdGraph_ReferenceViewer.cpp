@@ -72,11 +72,7 @@ void UEdGraph_ReferenceViewer::SetGraphRoot(const TArray<FAssetIdentifier>& Grap
 		}
 		else if (AssetId.GetPrimaryAssetId().IsValid())
 		{
-			if (UAssetManager::IsValid())
-			{
-				UAssetManager::Get().UpdateManagementDatabase();
-			}
-			
+			UAssetManager::Get().UpdateManagementDatabase();
 			Settings->SetShowManagementReferencesEnabled(true);
 		}
 	}

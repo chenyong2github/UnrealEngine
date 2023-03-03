@@ -1933,11 +1933,6 @@ namespace AutomationTool
 		[Help("SkipCookingEditorContent", "Skips content under /Engine/Editor when cooking")]
         public bool SkipCookingEditorContent;
 
-        /// <summary>
-        /// Cook: number of additional cookers to spawn while cooking
-        /// </summary>
-        public int NumCookersToSpawn;
-
 		/// <summary>
 		/// Cook: Uses the iterative deploy, command line: -iterativedeploy or -iterate
 		/// </summary>
@@ -3113,7 +3108,6 @@ namespace AutomationTool
 				CommandUtils.LogLog("UnversionedCookedContent={0}", UnversionedCookedContent);
 				CommandUtils.LogLog("OptionalContent={0}", OptionalContent);
 				CommandUtils.LogLog("SkipCookingEditorContent={0}", SkipCookingEditorContent);
-                CommandUtils.LogLog("NumCookersToSpawn={0}", NumCookersToSpawn);
                 CommandUtils.LogLog("GeneratePatch={0}", GeneratePatch);
 				CommandUtils.LogLog("AddPatchLevel={0}", AddPatchLevel);
 				CommandUtils.LogLog("StageBaseReleasePaks={0}", StageBaseReleasePaks);

@@ -8,28 +8,27 @@
 
 void UAsyncActionLoadPrimaryAssetBase::Activate()
 {
-	if (UAssetManager* Manager = UAssetManager::GetIfValid())
+	check(UAssetManager::IsInitialized());
+	UAssetManager& Manager = UAssetManager::Get();
+	switch (Operation)
 	{
-		switch (Operation)
-		{
-		case EAssetManagerOperation::Load:
-			LoadHandle = Manager->LoadPrimaryAssets(AssetsToLoad, LoadBundles);
-			break;
-		case EAssetManagerOperation::ChangeBundleStateMatching:
-			LoadHandle = Manager->ChangeBundleStateForMatchingPrimaryAssets(LoadBundles, OldBundles);
-			break;
-		case EAssetManagerOperation::ChangeBundleStateList:
-			LoadHandle = Manager->ChangeBundleStateForPrimaryAssets(AssetsToLoad, LoadBundles, OldBundles);
-			break;
-		}
+	case EAssetManagerOperation::Load:
+		LoadHandle = Manager.LoadPrimaryAssets(AssetsToLoad, LoadBundles);
+		break;
+	case EAssetManagerOperation::ChangeBundleStateMatching:
+		LoadHandle = Manager.ChangeBundleStateForMatchingPrimaryAssets(LoadBundles, OldBundles);
+		break;
+	case EAssetManagerOperation::ChangeBundleStateList:
+		LoadHandle = Manager.ChangeBundleStateForPrimaryAssets(AssetsToLoad, LoadBundles, OldBundles);
+		break;
+	}
 		
-		if (LoadHandle.IsValid())
+	if (LoadHandle.IsValid())
+	{
+		if (!LoadHandle->HasLoadCompleted())
 		{
-			if (!LoadHandle->HasLoadCompleted())
-			{
-				LoadHandle->BindCompleteDelegate(FStreamableDelegate::CreateUObject(this, &UAsyncActionLoadPrimaryAssetBase::HandleLoadCompleted));
-				return;
-			}
+			LoadHandle->BindCompleteDelegate(FStreamableDelegate::CreateUObject(this, &UAsyncActionLoadPrimaryAssetBase::HandleLoadCompleted));
+			return;
 		}
 	}
 
@@ -45,16 +44,15 @@ void UAsyncActionLoadPrimaryAssetBase::HandleLoadCompleted()
 
 void UAsyncActionLoadPrimaryAssetBase::GetCurrentlyLoadedAssets(TArray<UObject*>& AssetList)
 {
-	if (UAssetManager* Manager = UAssetManager::GetIfValid())
+	check(UAssetManager::IsInitialized());
+	UAssetManager& Manager = UAssetManager::Get();
+	// The assets may have already been loaded but the handle was invalid, check the original list
+	for (const FPrimaryAssetId& IdToLoad : AssetsToLoad)
 	{
-		// The assets may have already been loaded but the handle was invalid, check the original list
-		for (const FPrimaryAssetId& IdToLoad : AssetsToLoad)
+		UObject* LoadedObject = Manager.GetPrimaryAssetObject(IdToLoad);
+		if (LoadedObject)
 		{
-			UObject* LoadedObject = Manager->GetPrimaryAssetObject(IdToLoad);
-			if (LoadedObject)
-			{
-				AssetList.Add(LoadedObject);
-			}
+			AssetList.Add(LoadedObject);
 		}
 	}
 }

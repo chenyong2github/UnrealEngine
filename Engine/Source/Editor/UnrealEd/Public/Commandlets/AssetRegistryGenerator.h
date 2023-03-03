@@ -286,8 +286,6 @@ private:
 
 	void SetOverridePackageDependencies(FName PackageName, TConstArrayView<FAssetDependency> OverridePackageDependencies);
 
-	static void InitializeUseAssetManager();
-
 	/** State of the asset registry that is being built for this platform */
 	FAssetRegistryState State;
 	
@@ -351,9 +349,6 @@ private:
 	/** Mapping from chunk id to pakchunk file index. If not defined, Pakchunk index will be the same as chunk id by default */
 	TMap<int32, int32> ChunkIdPakchunkIndexMapping;
 
-	/** True if we should use the AssetManager, false to use the deprecated path */
-	static bool bUseAssetManager;
-
 	struct FReferencePair
 	{
 		FReferencePair() {}
@@ -407,7 +402,7 @@ private:
 	 */
 	void InjectEncryptionData(FAssetRegistryState& TargetState);
 
-	void AddPackageAndDependenciesToChunk(FChunkPackageSet& ThisPackageSet, FName InPkgName,
+	void AddPackageToChunk(FChunkPackageSet& ThisPackageSet, FName InPkgName,
 		const FString& InSandboxFile, int32 PakchunkIndex, FSandboxPlatformFile& SandboxPlatformFile);
 
 	/**

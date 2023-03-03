@@ -351,12 +351,12 @@ void UAssetManager::GetCachedPrimaryAssetEncryptionKeyGuid(FPrimaryAssetId InPri
 
 bool UAssetManager::IsValid()
 {
-	if (GEngine && GEngine->AssetManager)
-	{
-		return true;
-	}
+	return IsInitialized();
+}
 
-	return false;
+bool UAssetManager::IsInitialized()
+{
+	return GEngine && GEngine->AssetManager;
 }
 
 UAssetManager& UAssetManager::Get()
@@ -376,12 +376,12 @@ UAssetManager& UAssetManager::Get()
 
 UAssetManager* UAssetManager::GetIfValid()
 {
-	if (GEngine && GEngine->AssetManager)
-	{
-		return GEngine->AssetManager;
-	}
+	return GetIfInitialized();
+}
 
-	return nullptr;
+UAssetManager* UAssetManager::GetIfInitialized()
+{
+	return GEngine ? GEngine->AssetManager : nullptr;
 }
 
 FPrimaryAssetId UAssetManager::CreatePrimaryAssetIdFromChunkId(int32 ChunkId)
@@ -2902,10 +2902,7 @@ static FAutoConsoleCommand CVarDumpAssetTypeSummary(
 
 void UAssetManager::DumpAssetTypeSummary()
 {
-	if (!UAssetManager::IsValid())
-	{
-		return;
-	}
+	check(UAssetManager::IsInitialized());
 
 	UAssetManager& Manager = Get();
 	TArray<FPrimaryAssetTypeInfo> TypeInfos;
@@ -2930,10 +2927,7 @@ static FAutoConsoleCommand CVarDumpLoadedAssetState(
 
 void UAssetManager::DumpLoadedAssetState()
 {
-	if (!UAssetManager::IsValid())
-	{
-		return;
-	}
+	check(UAssetManager::IsInitialized());
 
 	UAssetManager& Manager = Get();
 	TArray<FPrimaryAssetTypeInfo> TypeInfos;
@@ -3017,11 +3011,7 @@ void UAssetManager::DumpBundlesForAsset(const TArray<FString>& Args)
 		return;
 	}
 
-	if (!UAssetManager::IsValid())
-	{
-		UE_LOG(LogAssetManager, Warning, TEXT("DumpBundlesForAsset Failed. Invalid asset manager."));
-		return;
-	}
+	check(UAssetManager::IsInitialized());
 
 	UAssetManager& Manager = Get();
 
@@ -3081,11 +3071,12 @@ static FAutoConsoleCommand CVarDumpReferencersForPackage(
 
 void UAssetManager::DumpReferencersForPackage(const TArray< FString >& PackageNames)
 {
-	if (!UAssetManager::IsValid() || PackageNames.Num() == 0)
+	if (PackageNames.Num() == 0)
 	{
 		return;
 	}
 
+	check(UAssetManager::IsInitialized());
 	UAssetManager& Manager = Get();
 	IAssetRegistry& AssetRegistry = Manager.GetAssetRegistry();
 
@@ -3267,7 +3258,7 @@ bool UAssetManager::DoesPrimaryAssetMatchCustomOverride(FPrimaryAssetId PrimaryA
 
 void UAssetManager::CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate&& Delegate)
 {
-	if (IsValid() && Get().HasInitialScanCompleted())
+	if (IsInitialized() && Get().HasInitialScanCompleted())
 	{
 		Delegate.Execute();
 	}
@@ -3279,7 +3270,7 @@ void UAssetManager::CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelega
 
 void UAssetManager::CallOrRegister_OnAssetManagerCreated(FSimpleMulticastDelegate::FDelegate&& Delegate)
 {
-	if (IsValid())
+	if (IsInitialized())
 	{
 		Delegate.Execute();
 	}
@@ -3649,12 +3640,6 @@ void UAssetManager::RefreshPrimaryAssetDirectory(bool bForceRefresh)
 
 #if WITH_EDITOR
 
-EAssetSetManagerResult::Type UAssetManager::ShouldSetManager(const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target, EAssetRegistryDependencyType::Type DependencyType, EAssetSetManagerFlags::Type Flags) const
-{
-	checkf(false, TEXT("Call ShouldSetManager that takes a Category instead"));
-	return EAssetSetManagerResult::DoNotSet;
-}
-
 EAssetSetManagerResult::Type UAssetManager::ShouldSetManager(const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target,
 	UE::AssetRegistry::EDependencyCategory Category, UE::AssetRegistry::EDependencyProperty Properties, EAssetSetManagerFlags::Type Flags) const
 {
@@ -3990,19 +3975,6 @@ void UAssetManager::ApplyPrimaryAssetLabels()
 
 void UAssetManager::ModifyCook(TConstArrayView<const ITargetPlatform*> TargetPlatforms, TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook)
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	DeprecationSupportTargetPlatforms = TargetPlatforms;
-	ModifyCook(PackagesToCook, PackagesToNeverCook);
-	DeprecationSupportTargetPlatforms = TConstArrayView<const ITargetPlatform*>();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-}
-
-void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	TConstArrayView<const ITargetPlatform*> TargetPlatforms = DeprecationSupportTargetPlatforms;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-
 	check(TargetPlatforms.Num() > 0);
 	bTargetPlatformsAllowDevelopmentObjects = TargetPlatforms[0]->AllowsDevelopmentObjects();
 	for (const ITargetPlatform* TargetPlatform : TargetPlatforms.Slice(1,TargetPlatforms.Num() - 1))
@@ -4105,19 +4077,6 @@ void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& Pac
 void UAssetManager::ModifyDLCCook(const FString& DLCName, TConstArrayView<const ITargetPlatform*> TargetPlatforms,
 	TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook)
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	DeprecationSupportTargetPlatforms = TargetPlatforms;
-	ModifyDLCCook(DLCName, PackagesToCook, PackagesToNeverCook);
-	DeprecationSupportTargetPlatforms = TConstArrayView<const ITargetPlatform*>();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-}
-
-void UAssetManager::ModifyDLCCook(const FString& DLCName, TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	TConstArrayView<const ITargetPlatform*> TargetPlatforms = DeprecationSupportTargetPlatforms;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-
 	UE_LOG(LogAssetManager, Display, TEXT("ModifyDLCCook: Scanning Plugin Directory %s for assets, and adding them to the cook list"), *DLCName);
 	FString DLCPath;
 	FString ExternalMountPointName;
@@ -4356,19 +4315,6 @@ static FString GetInstigatorChainString(UE::Cook::ICookInfo* CookInfo, FName Pac
 
 bool UAssetManager::VerifyCanCookPackage(UE::Cook::ICookInfo* CookInfo, FName PackageName, bool bLogError) const
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	DeprecationSupportCookInfo = CookInfo;
-	bool bResult = VerifyCanCookPackage(PackageName, bLogError);
-	DeprecationSupportCookInfo = nullptr;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-	return bResult;
-}
-
-bool UAssetManager::VerifyCanCookPackage(FName PackageName, bool bLogError) const
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	UE::Cook::ICookInfo* CookInfo = DeprecationSupportCookInfo;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	bool bRetVal = true;
 	EPrimaryAssetCookRule CookRule = UAssetManager::Get().GetPackageCookRule(PackageName);
 	if (CookRule == EPrimaryAssetCookRule::NeverCook)

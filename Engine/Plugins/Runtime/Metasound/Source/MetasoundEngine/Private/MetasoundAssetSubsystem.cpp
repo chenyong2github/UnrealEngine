@@ -112,15 +112,10 @@ void UMetaSoundAssetSubsystem::Initialize(FSubsystemCollectionBase& InCollection
 
 void UMetaSoundAssetSubsystem::PostEngineInit()
 {
-	if (UAssetManager* AssetManager = UAssetManager::GetIfValid())
-	{
-		AssetManager->CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UMetaSoundAssetSubsystem::PostInitAssetScan));
-		RebuildDenyListCache(*AssetManager);
-	}
-	else
-	{
-		UE_LOG(LogMetaSound, Error, TEXT("Cannot initialize MetaSoundAssetSubsystem: Enable AssetManager or disable MetaSound plugin"));
-	}
+	check(UAssetManager::IsInitialized());
+	UAssetManager& AssetManager = UAssetManager::Get();
+	AssetManager.CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UMetaSoundAssetSubsystem::PostInitAssetScan));
+	RebuildDenyListCache(AssetManager);
 }
 
 void UMetaSoundAssetSubsystem::PostInitAssetScan()
@@ -308,19 +303,18 @@ void UMetaSoundAssetSubsystem::RebuildDenyListCache(const UAssetManager& InAsset
 		AutoUpdateDenyListCache.Add(ClassName.GetFullName());
 	}
 
+	check(UAssetManager::IsInitialized());
+	UAssetManager& AssetManager = UAssetManager::Get();
 	for (const FDefaultMetaSoundAssetAutoUpdateSettings& UpdateSettings : Settings->AutoUpdateAssetDenylist)
 	{
-		if (UAssetManager* AssetManager = UAssetManager::GetIfValid())
+		FAssetData AssetData;
+		if (AssetManager.GetAssetDataForPath(UpdateSettings.MetaSound, AssetData))
 		{
-			FAssetData AssetData;
-			if (AssetManager->GetAssetDataForPath(UpdateSettings.MetaSound, AssetData))
+			FString AssetClassID;
+			if (AssetData.GetTagValue(AssetTags::AssetClassID, AssetClassID))
 			{
-				FString AssetClassID;
-				if (AssetData.GetTagValue(AssetTags::AssetClassID, AssetClassID))
-				{
-					const FMetasoundFrontendClassName ClassName = { FName(), *AssetClassID, FName() };
-					AutoUpdateDenyListCache.Add(ClassName.GetFullName());
-				}
+				const FMetasoundFrontendClassName ClassName = { FName(), *AssetClassID, FName() };
+				AutoUpdateDenyListCache.Add(ClassName.GetFullName());
 			}
 		}
 	}
@@ -355,10 +349,8 @@ TSet<UMetaSoundAssetSubsystem::FAssetInfo> UMetaSoundAssetSubsystem::GetReferenc
 
 void UMetaSoundAssetSubsystem::RescanAutoUpdateDenyList()
 {
-	if (const UAssetManager* AssetManager = UAssetManager::GetIfValid())
-	{
-		RebuildDenyListCache(*AssetManager);
-	}
+	check(UAssetManager::IsInitialized());
+	RebuildDenyListCache(UAssetManager::Get());
 }
 
 FMetasoundAssetBase* UMetaSoundAssetSubsystem::TryLoadAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const

@@ -30,7 +30,7 @@ void UDataAsset::Serialize(FStructuredArchive::FRecord Record)
 void UPrimaryDataAsset::UpdateAssetBundleData()
 {
 	// By default parse the metadata
-	if (UAssetManager::IsValid())
+	if (UAssetManager::IsInitialized())
 	{
 		AssetBundleData.Reset();
 		UAssetManager::Get().InitializeAssetBundlesFromMetadata(this, AssetBundleData);
@@ -50,7 +50,7 @@ void UPrimaryDataAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 	UpdateAssetBundleData();
 
-	if (UAssetManager::IsValid())
+	if (UAssetManager::IsInitialized())
 	{
 		// Bundles may have changed, refresh
 		UAssetManager::Get().RefreshAssetData(this);
@@ -118,7 +118,7 @@ void UPrimaryDataAsset::PostLoad()
 	
 	UpdateAssetBundleData();
 
-	if (UAssetManager::IsValid() && OldData != AssetBundleData)
+	if (UAssetManager::IsInitialized() && OldData != AssetBundleData)
 	{
 		// Bundles changed, refresh
 		UAssetManager::Get().RefreshAssetData(this);

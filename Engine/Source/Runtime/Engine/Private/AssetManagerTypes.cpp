@@ -235,7 +235,7 @@ void UAssetManagerSettings::PostEditChangeProperty(FPropertyChangedEvent& Proper
 		}
 		ApplyMetaDataTagsSettings();
 	}
-	else if (PropertyChangedEvent.Property && UAssetManager::IsValid())
+	else if (PropertyChangedEvent.Property && UAssetManager::IsInitialized())
 	{
 		UAssetManager::Get().ReinitializeFromConfig();
 	}

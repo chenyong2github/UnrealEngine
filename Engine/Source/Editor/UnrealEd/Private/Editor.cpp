@@ -117,8 +117,6 @@ FSimpleMulticastDelegate								FEditorDelegates::CancelPIE;
 FEditorDelegates::FOnStandaloneLocalPlayEvent			FEditorDelegates::BeginStandaloneLocalPlay;
 FSimpleMulticastDelegate								FEditorDelegates::PropertySelectionChange;
 FSimpleMulticastDelegate								FEditorDelegates::PostLandscapeLayerUpdated;
-FEditorDelegates::FOnPreSaveWorld						FEditorDelegates::PreSaveWorld;
-FEditorDelegates::FOnPostSaveWorld						FEditorDelegates::PostSaveWorld;
 FEditorDelegates::FOnPreSaveWorldWithContext			FEditorDelegates::PreSaveWorldWithContext;
 FEditorDelegates::FOnPostSaveWorldWithContext			FEditorDelegates::PostSaveWorldWithContext;
 FEditorDelegates::FOnPreSaveExternalActors				FEditorDelegates::PreSaveExternalActors;

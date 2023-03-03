@@ -25,7 +25,7 @@ struct FAssetData;
 
 namespace EAssetRegistryDependencyType
 {
-	enum Type
+	enum UE_DEPRECATED(5.3, "No longer used") Type
 	{
 		// Dependencies which don't need to be loaded for the object to be used (i.e. soft object paths)
 		Soft = 0x01,
@@ -45,10 +45,16 @@ namespace EAssetRegistryDependencyType
 		// Note: Also update FAssetRegistryDependencyOptions when adding more flags
 	};
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	UE_DEPRECATED(5.3, "No longer used")
 	inline static const Type None = (Type)(0);
+	UE_DEPRECATED(5.3, "No longer used")
 	inline static const Type All = (Type)(Soft | Hard | SearchableName | SoftManage | HardManage);
+	UE_DEPRECATED(5.3, "No longer used")
 	inline static const Type Packages = (Type)(Soft | Hard);
+	UE_DEPRECATED(5.3, "No longer used")
 	inline static const Type Manage = (Type)(SoftManage | HardManage);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 }
 
 class IAssetRegistry;
@@ -180,15 +186,6 @@ namespace UE::AssetRegistry
 				| (!!(QueryFlags & EDependencyQuery::NotDirect) ? UE::AssetRegistry::EDependencyProperty::Direct : UE::AssetRegistry::EDependencyProperty::None);
 		}
 
-		UE_DEPRECATED(4.26, "Helper function for backwards compatibility")
-		inline explicit FDependencyQuery(EAssetRegistryDependencyType::Type DependencyType)
-		{
-			Required = (DependencyType & EAssetRegistryDependencyType::Soft) ? UE::AssetRegistry::EDependencyProperty::None : UE::AssetRegistry::EDependencyProperty::Hard;
-			Excluded = (DependencyType & EAssetRegistryDependencyType::Hard) ? UE::AssetRegistry::EDependencyProperty::None : UE::AssetRegistry::EDependencyProperty::Hard;
-			Required |= (DependencyType & EAssetRegistryDependencyType::SoftManage) ? UE::AssetRegistry::EDependencyProperty::None : UE::AssetRegistry::EDependencyProperty::Direct;
-			Excluded |= (DependencyType & EAssetRegistryDependencyType::HardManage) ? UE::AssetRegistry::EDependencyProperty::None : UE::AssetRegistry::EDependencyProperty::Direct;
-		}
-
 		FDependencyQuery(const FDependencyQuery& Other) = default;
 		FDependencyQuery& operator=(const FDependencyQuery& Other) = default;
 	};
@@ -286,12 +283,6 @@ public:
 	 */
 	static IAssetRegistryInterface* GetPtr();
 
-	UE_DEPRECATED(4.26, "Use GetDependencies that takes a UE::AssetRegistry::EDependencyCategory instead")
-	void GetDependencies(FName InPackageName, TArray<FName>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType)
-	{
-		GetDependenciesDeprecated(InPackageName, OutDependencies, InDependencyType);
-	}
-
 	/**
 	 * Lookup dependencies for the given package name and fill OutDependencies with direct dependencies
 	 */
@@ -316,8 +307,6 @@ public:
 	virtual UE::AssetRegistry::EExists TryGetAssetPackageData(FName PackageName, class FAssetPackageData& OutPackageData) const = 0;
 
 protected:
-	/* This function is a workaround for platforms that don't support disable of deprecation warnings on override functions*/
-	virtual void GetDependenciesDeprecated(FName InPackageName, TArray<FName>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) = 0;
 
 	static IAssetRegistryInterface* Default;
 	friend class UAssetRegistryImpl;

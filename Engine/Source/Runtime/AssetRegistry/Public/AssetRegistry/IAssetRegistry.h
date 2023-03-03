@@ -60,10 +60,6 @@ struct FAssetRegistryDependencyOptions
 {
 	GENERATED_BODY()
 
-	UE_DEPRECATED(4.26, "Implementation detail that is no longer needed by the AssetRegistry; contact Epic if you need it on your project")
-	void SetFromFlags(const EAssetRegistryDependencyType::Type InFlags);
-	UE_DEPRECATED(4.26, "Implementation detail that is no longer needed by the AssetRegistry; contact Epic if you need it on your project")
-	EAssetRegistryDependencyType::Type GetAsFlags() const;
 	bool GetPackageQuery(UE::AssetRegistry::FDependencyQuery& Flags) const;
 	bool GetSearchableNameQuery(UE::AssetRegistry::FDependencyQuery& Flags) const;
 	bool GetManageQuery(UE::AssetRegistry::FDependencyQuery& Flags) const;
@@ -330,8 +326,6 @@ public:
 	 */
 	virtual FName GetFirstPackageByName(FStringView PackageName) const = 0;
 
-	UE_DEPRECATED(4.26, "Use GetDependencies that takes a UE::AssetRegistry::EDependencyCategory instead")
-	virtual bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const = 0;
 	/**
 	 * Gets a list of AssetIdentifiers or FAssetDependencies that are referenced by the supplied AssetIdentifier. (On disk references ONLY)
 	 *
@@ -343,8 +337,6 @@ public:
 	virtual bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const = 0;
 	virtual bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetDependency>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const = 0;
 
-	UE_DEPRECATED(4.26, "Use GetDependencies that takes a UE::AssetRegistry::EDependencyCategory instead")
-	virtual bool GetDependencies(FName PackageName, TArray<FName>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const = 0;
 	/**
 	 * Gets a list of PackageNames that are referenced by the supplied package. (On disk references ONLY)
 	 *
@@ -365,8 +357,6 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry", meta=(DisplayName="Get Dependencies", ScriptName="GetDependencies"))
 	virtual bool K2_GetDependencies(FName PackageName, const FAssetRegistryDependencyOptions& DependencyOptions, TArray<FName>& OutDependencies) const;
 
-	UE_DEPRECATED(4.26, "Use GetReferencers that takes a UE::AssetRegistry::EDependencyCategory instead")
-	virtual bool GetReferencers(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutReferencers, EAssetRegistryDependencyType::Type InReferenceType) const = 0;
 	/**
 	 * Gets a list of AssetIdentifiers or FAssetDependencies that reference the supplied AssetIdentifier. (On disk references ONLY)
 	 *
@@ -378,8 +368,6 @@ public:
 	virtual bool GetReferencers(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutReferencers, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const = 0;
 	virtual bool GetReferencers(const FAssetIdentifier& AssetIdentifier, TArray<FAssetDependency>& OutReferencers, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const = 0;
 
-	UE_DEPRECATED(4.26, "Use GetReferencers that takes a UE::AssetRegistry::EDependencyCategory instead")
-	virtual bool GetReferencers(FName PackageName, TArray<FName>& OutReferencers, EAssetRegistryDependencyType::Type InReferenceType) const = 0;
 	/**
 	 * Gets a list of PackageNames that reference the supplied package. (On disk references ONLY)
 	 *
@@ -402,8 +390,6 @@ public:
 
 	/** Finds Package data for a package name. This data is only updated on save and can only be accessed for valid packages */
 	virtual TOptional<FAssetPackageData> GetAssetPackageDataCopy(FName PackageName) const = 0;
-	UE_DEPRECATED(5.0, "Receiving a pointer is not threadsafe. Use GetAssetPackageDataCopy instead.")
-	virtual const FAssetPackageData* GetAssetPackageData(FName PackageName) const = 0;
 
 	/**
 	 * Enumerate all PackageDatas in the AssetRegistry. The callback is called from within the AssetRegistry's lock, so it must not call
@@ -418,10 +404,6 @@ public:
 
 	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
 	virtual FName GetRedirectedObjectPath(const FName ObjectPath) const = 0;
-
-	UE_DEPRECATED(4.27, "Loading then discarding tags is no longer allowed as it can "
-						"increase engine init time and since the new fixed tag store uses less memory. ")
-	virtual void StripAssetRegistryKeyForObject(FName ObjectPath, FName Key) {}
 
 	/** Returns true if the specified ClassName's ancestors could be found. If so, OutAncestorClassNames is a list of all its ancestors. This can be slow if temporary caching mode is not on */
 	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "AssetRegistry", meta = (DisplayName = "GetAncestorClassNames", ScriptName = "GetAncestorClassNames"))
@@ -476,10 +458,6 @@ public:
 
 	/** Tests to see whether the given asset would be excluded (fails) the given filter */
 	virtual bool IsAssetExcludedByFilter(const FAssetData& AssetData, const FARCompiledFilter& Filter) const = 0;
-
-	/** Modifies passed in filter to make it safe for use on FAssetRegistryState. This expands recursive paths and classes */
-	UE_DEPRECATED(4.26, "ExpandRecursiveFilter is deprecated in favor of CompileFilter")
-	virtual void ExpandRecursiveFilter(const FARFilter& InFilter, FARFilter& ExpandedFilter) const = 0;
 
 	/** Modifies passed in filter optimize it for query and expand any recursive paths and classes */
 	virtual void CompileFilter(const FARFilter& InFilter, FARCompiledFilter& OutCompiledFilter) const = 0;

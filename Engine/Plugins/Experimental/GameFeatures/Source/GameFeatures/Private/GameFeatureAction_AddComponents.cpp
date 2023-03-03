@@ -48,7 +48,7 @@ void UGameFeatureAction_AddComponents::OnGameFeatureDeactivating(FGameFeatureDea
 #if WITH_EDITORONLY_DATA
 void UGameFeatureAction_AddComponents::AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData)
 {
-	if (UAssetManager::IsValid())
+	if (UAssetManager::IsInitialized())
 	{
 		for (const FGameFeatureComponentEntry& Entry : ComponentList)
 		{

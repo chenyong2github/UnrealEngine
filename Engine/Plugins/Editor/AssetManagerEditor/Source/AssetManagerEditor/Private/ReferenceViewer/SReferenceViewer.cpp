@@ -1169,7 +1169,7 @@ bool SReferenceViewer::IsShowEditorOnlyReferencesChecked() const
 
 bool SReferenceViewer::GetManagementReferencesVisibility() const
 {
-	return bShowShowReferencesOptions && UAssetManager::IsValid();
+	return bShowShowReferencesOptions;
 }
 
 void SReferenceViewer::OnShowManagementReferencesChanged()

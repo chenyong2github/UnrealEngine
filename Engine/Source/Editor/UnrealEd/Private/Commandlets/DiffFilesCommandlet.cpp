@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-DiffPackagesCommandlet.cpp: Commandlet used for comparing two packages.
+DiffFilesCommandlet.cpp: Commandlet used for comparing two packages.
 
 =============================================================================*/
 

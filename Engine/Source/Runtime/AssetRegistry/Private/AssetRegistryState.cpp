@@ -894,29 +894,6 @@ FName FAssetRegistryState::GetFirstPackageByName(FStringView PackageName) const
 
 bool FAssetRegistryState::GetDependencies(const FAssetIdentifier& AssetIdentifier,
 										  TArray<FAssetIdentifier>& OutDependencies,
-										  EAssetRegistryDependencyType::Type InDependencyType) const
-{
-	bool bResult = false;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE::AssetRegistry::FDependencyQuery Flags(InDependencyType);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	if (!!(InDependencyType & EAssetRegistryDependencyType::Packages))
-	{
-		bResult = GetDependencies(AssetIdentifier, OutDependencies, UE::AssetRegistry::EDependencyCategory::Package, Flags) || bResult;
-	}
-	if (!!(InDependencyType & EAssetRegistryDependencyType::SearchableName))
-	{
-		bResult = GetDependencies(AssetIdentifier, OutDependencies, UE::AssetRegistry::EDependencyCategory::SearchableName) || bResult;
-	}
-	if (!!(InDependencyType & EAssetRegistryDependencyType::Manage))
-	{
-		bResult = GetDependencies(AssetIdentifier, OutDependencies, UE::AssetRegistry::EDependencyCategory::Manage, Flags) || bResult;
-	}
-	return bResult;
-}
-
-bool FAssetRegistryState::GetDependencies(const FAssetIdentifier& AssetIdentifier,
-										  TArray<FAssetIdentifier>& OutDependencies,
 										  UE::AssetRegistry::EDependencyCategory Category, const UE::AssetRegistry::FDependencyQuery& Flags) const
 {
 	const FDependsNode* const* NodePtr = CachedDependsNodes.Find(AssetIdentifier);
@@ -957,29 +934,6 @@ bool FAssetRegistryState::GetDependencies(const FAssetIdentifier& AssetIdentifie
 	{
 		return false;
 	}
-}
-
-bool FAssetRegistryState::GetReferencers(const FAssetIdentifier& AssetIdentifier,
-										 TArray<FAssetIdentifier>& OutReferencers,
-										 EAssetRegistryDependencyType::Type InReferenceType) const
-{
-	bool bResult = false;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE::AssetRegistry::FDependencyQuery Flags(InReferenceType);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	if (!!(InReferenceType & EAssetRegistryDependencyType::Packages))
-	{
-		bResult = GetReferencers(AssetIdentifier, OutReferencers, UE::AssetRegistry::EDependencyCategory::Package, Flags) || bResult;
-	}
-	if (!!(InReferenceType & EAssetRegistryDependencyType::SearchableName))
-	{
-		bResult = GetReferencers(AssetIdentifier, OutReferencers, UE::AssetRegistry::EDependencyCategory::SearchableName) || bResult;
-	}
-	if (!!(InReferenceType & EAssetRegistryDependencyType::Manage))
-	{
-		bResult = GetReferencers(AssetIdentifier, OutReferencers, UE::AssetRegistry::EDependencyCategory::Manage, Flags) || bResult;
-	}
-	return bResult;
 }
 
 bool FAssetRegistryState::GetReferencers(const FAssetIdentifier& AssetIdentifier,

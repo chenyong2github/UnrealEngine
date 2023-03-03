@@ -2095,10 +2095,8 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	CSV_METADATA(TEXT("LargeWorldCoordinates"), TEXT("1"));	// LWC_TODO: Remove
 
 	// Finish asset manager loading
-	if (AssetManager)
-	{
-		AssetManager->FinishInitialLoading();
-	}
+	check(AssetManager);
+	AssetManager->FinishInitialLoading();
 
 	bool bIsRHS = true;
 	if (GConfig)
@@ -3244,25 +3242,23 @@ void UEngine::InitializeObjectReferences()
 		}
 	}
 
-	if (AssetManager == nullptr && AssetManagerClassName.ToString().Len() > 0)
+	if (AssetManager == nullptr)
 	{
-		UClass *SingletonClass = LoadClass<UObject>(nullptr, *AssetManagerClassName.ToString());
-
-		if (SingletonClass)
+		UClass* SingletonClass = nullptr;
+		if (AssetManagerClassName.ToString().Len() > 0)
 		{
-			AssetManager = NewObject<UAssetManager>(this, SingletonClass);
-
-			if (AssetManager)
-			{
-				if (!FParse::Param(FCommandLine::Get(), TEXT("SkipAssetScan")))
-				{
-					AssetManager->StartInitialLoading();
-				}
-			}
+			SingletonClass = LoadClass<UObject>(nullptr, *AssetManagerClassName.ToString());
 		}
-		else
+		if (!SingletonClass)
 		{
-			UE_LOG(LogEngine, Error, TEXT("Engine config value AssetManagerClassName '%s' is not a valid class name."), *AssetManagerClassName.ToString());
+			UE_LOG(LogEngine, Fatal, TEXT("Engine config value AssetManagerClassName '%s' is not a valid class name."), *AssetManagerClassName.ToString());
+		}
+
+		AssetManager = NewObject<UAssetManager>(this, SingletonClass);
+		check(AssetManager);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SkipAssetScan")))
+		{
+			AssetManager->StartInitialLoading();
 		}
 	}
 

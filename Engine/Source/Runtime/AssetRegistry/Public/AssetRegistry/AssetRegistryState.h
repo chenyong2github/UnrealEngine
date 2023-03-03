@@ -85,13 +85,6 @@ struct FAssetRegistrySerializationOptions
 	/** Tag keys whose values should be stored as FRegistryExportPath in cooked builds */
 	TSet<FName> CookTagsAsPath;
 
-	/** Options used to read/write the DevelopmentAssetRegistry, which includes all data */
-	UE_DEPRECATED(4.26, "Use new UE::AssetRegistry::ESerializationTarget on either the constructor or InitializeSerializationOptions")
-	void ModifyForDevelopment()
-	{
-		InitForDevelopment();
-	}
-
 	/** Disable all filters */
 	void DisableFilters()
 	{
@@ -277,8 +270,6 @@ public:
 	 */
 	FName GetFirstPackageByName(FStringView PackageName) const;
 
-	UE_DEPRECATED(4.26, "Use GetDependencies that takes a UE::AssetRegistry::EDependencyCategory instead")
-	bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const;
 	/**
 	 * Appends a list of packages and searchable names that are referenced by the supplied package or name. (On disk references ONLY)
 	 *
@@ -290,8 +281,6 @@ public:
 	bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const;
 	bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetDependency>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const;
 
-	UE_DEPRECATED(4.26, "Use GetReferencers that takes a UE::AssetRegistry::EDependencyCategory instead")
-	bool GetReferencers(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutReferencers, EAssetRegistryDependencyType::Type InReferenceType = EAssetRegistryDependencyType::All) const;
 	/**
 	 * Appends a list of packages and searchable names that reference the supplied package or name. (On disk references ONLY)
 	 *

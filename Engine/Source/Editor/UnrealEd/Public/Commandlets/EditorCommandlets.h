@@ -188,7 +188,7 @@ struct FResourceDiskSize
 /**
  * Contains an object and the object's path name.
  */
-struct FObjectReference
+struct UE_DEPRECATED(5.3, "DiffPackagesCommandlet has been deleted") FObjectReference
 {
 	UObject* Object;
 	FString ObjectPathName;
@@ -207,7 +207,7 @@ struct FObjectReference
 /**
  * Represents a single top-level object along with all its subobjects.
  */
-struct FObjectGraph
+struct UE_DEPRECATED(5.3, "DiffPackagesCommandlet has been deleted.") FObjectGraph
 {
 	/**
 	 * The list of objects in this object graph.  The first element is always the root object.
@@ -226,13 +226,13 @@ struct FObjectGraph
 	/**
 	 * Returns the root of this object graph.
 	 */
-	inline UObject* GetRootObject() const { return Objects[0].Object; }
+	UObject* GetRootObject() const;
 };
 
 /**
  * Contains the natively serialized property data for a single UObject.
  */
-struct FNativePropertyData 
+struct UE_DEPRECATED(5.3, "DiffPackagesCommandlet has been deleted.") FNativePropertyData
 {
 	/** the object that this property data is for */
 	UObject*				Object;

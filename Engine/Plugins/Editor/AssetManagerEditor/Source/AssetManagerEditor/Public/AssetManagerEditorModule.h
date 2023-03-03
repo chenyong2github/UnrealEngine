@@ -25,8 +25,6 @@ struct FAssetManagerDependencyQuery
 	}
 
 	FAssetManagerDependencyQuery() = default;
-	UE_DEPRECATED(4.26, "Helper for backwards compatibility functions")
-	ASSETMANAGEREDITOR_API FAssetManagerDependencyQuery(EAssetRegistryDependencyType::Type DependencyType);
 
 	static FAssetManagerDependencyQuery All()
 	{
@@ -391,9 +389,6 @@ public:
 
 	/** Returns true if this package exists in the current registry source, optionally setting a redirected package name */
 	virtual bool IsPackageInCurrentRegistrySource(FName PackageName) = 0;
-
-	UE_DEPRECATED(4.26, "Use the version that takes a FAssetManagerDependencyQuery instead")
-	bool FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers, EAssetRegistryDependencyType::Type DependencyType, bool bForwardDependency = true);
 
 	/** Filters list of identifiers and removes ones that do not exist in this registry source. Handles replacing redirectors as well */
 	virtual bool FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers,	const FAssetManagerDependencyQuery& DependencyQuery = FAssetManagerDependencyQuery::None(), bool bForwardDependency = true) = 0;

@@ -400,7 +400,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 	CookOptions |= bCookAll ? ECookByTheBookOptions::CookAll : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("MAPSONLY")) ? ECookByTheBookOptions::MapsOnly : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("NODEV")) ? ECookByTheBookOptions::NoDevContent : ECookByTheBookOptions::None;
-	if (Switches.Contains(TEXT("FullLoadAndSave")))
+	if (Switches.Contains(TEXT("FullLoadAndSave"))) // Deprecated in UE 5.3
 	{
 		UE_LOG(LogCook, Warning, TEXT("-FullLoadAndSave has been deprecated; remove the argument to remove this warning.\n")
 			TEXT("For cook optimizations, try using multiprocess cook (-cookprocesscount=<N>, N>1).\n")

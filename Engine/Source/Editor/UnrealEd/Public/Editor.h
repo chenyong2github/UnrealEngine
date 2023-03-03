@@ -85,12 +85,8 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE_FourParams(FOnEditorCameraMoved, const FVector&, const FRotator&, ELevelViewportType, int32 );
 	/** delegate type for dollying/zooming editor camera movement */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDollyPerspectiveCamera, const FVector&, int32 );
-	/** delegate type for pre save world events ( uint32 SaveFlags, UWorld* World ) */
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPreSaveWorld, uint32, class UWorld*);
 	/** delegate type for pre save world events ( UWorld* World, FObjectPreSaveContext ObjectSaveContext ) */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPreSaveWorldWithContext, class UWorld*, FObjectPreSaveContext);
-	/** delegate type for post save world events ( uint32 SaveFlags, UWorld* World, bool bSuccess ) */
-	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPostSaveWorld, uint32, class UWorld*, bool);
 	/** delegate type for post save world events ( UWorld* World, FObjectPostSaveContext ObjectSaveContext ) */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPostSaveWorldWithContext, class UWorld*, FObjectPostSaveContext);
 	/** delegate type for pre save external actors event, called by editor save codepaths and auto saves ( UWorld* World )*/
@@ -246,12 +242,8 @@ struct UNREALED_API FEditorDelegates
 	static FSimpleMulticastDelegate PropertySelectionChange;
 	/** Called after Landscape layer infomap update have completed */
 	static FSimpleMulticastDelegate PostLandscapeLayerUpdated;
-	UE_DEPRECATED(5.0, "Use PreSaveWorldWithContext instead.")
-	static FOnPreSaveWorld PreSaveWorld;
 	/** Called before SaveWorld is processed */
 	static FOnPreSaveWorldWithContext PreSaveWorldWithContext;
-	UE_DEPRECATED(5.0, "Use PostSaveWorldWithContext instead.")
-	static FOnPostSaveWorld PostSaveWorld;
 	/** Called after SaveWorld is processed */
 	static FOnPostSaveWorldWithContext PostSaveWorldWithContext;
 	/** Called before any number of external actors will be saved */

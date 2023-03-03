@@ -32,7 +32,7 @@ void UPrimaryAssetLabel::UpdateAssetBundleData()
 {
 	Super::UpdateAssetBundleData();
 
-	if (!UAssetManager::IsValid())
+	if (!UAssetManager::IsInitialized())
 	{
 		return;
 	}

@@ -47,14 +47,18 @@ public:
 	/** Constructor */
 	UAssetManager();
 
-	/** Returns true if there is a current asset manager */
+	UE_DEPRECATED(5.3, "AssetManager is now always constructed during UEngine::InitializeObjectReferences. Call IsInitialized instead if you need to check whether it has not yet been initialized.")
 	static bool IsValid();
+	/** Returns true if the global singleton AssetManager has been constructed. */
+	static bool IsInitialized();
 
 	/** Returns the current AssetManager object */
 	static UAssetManager& Get();
 
-	/** Returns the current AssetManager object if it exists, null otherwise */
+	UE_DEPRECATED(5.3, "AssetManager is now always constructed during UEngine::InitializeObjectReferences. Call GetIfInitialized instead if you need to check whether it has not yet been initialized.")
 	static UAssetManager* GetIfValid();
+	/** Returns the current global singleton AssetManager if it has been constructed, null otherwise */
+	static UAssetManager* GetIfInitialized();
 
 	/** Accesses the StreamableManager used by this Asset Manager. Static for easy access */
 	static FStreamableManager& GetStreamableManager() { return Get().StreamableManager; }
@@ -513,14 +517,10 @@ public:
 	/** Gets package names to add to the cook, and packages to never cook even if in startup set memory or referenced */
 	virtual void ModifyCook(TConstArrayView<const ITargetPlatform*> TargetPlatforms, TArray<FName>& PackagesToCook,
 		TArray<FName>& PackagesToNeverCook);
-	UE_DEPRECATED(5.0, "Use version that takes TargetPlatforms instead")
-	virtual void ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook);
 
 	/** Gets package names to add to a DLC cook*/
 	virtual void ModifyDLCCook(const FString& DLCName, TConstArrayView<const ITargetPlatform*> TargetPlatforms,
 		TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook);
-	UE_DEPRECATED(5.0, "Use version that takes TargetPlatforms instead")
-	virtual void ModifyDLCCook(const FString& DLCName, TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook);
 
 	/** Returns whether or not a specific UPackage should be cooked for the provied TargetPlatform */
 	virtual bool ShouldCookForPlatform(const UPackage* Package, const ITargetPlatform* TargetPlatform);
@@ -536,9 +536,6 @@ public:
 	 */
 	EPrimaryAssetCookRule CalculateCookRuleUnion(const TMap<FPrimaryAssetId, UE::AssetRegistry::EDependencyProperty>& Managers,
 		TOptional<TPair<FPrimaryAssetId, FPrimaryAssetId>>* OutConflictIds) const;
-
-	UE_DEPRECATED(5.0, "Use version that takes ICookInfo instead")
-	virtual bool VerifyCanCookPackage(FName PackageName, bool bLogError = true) const;
 
 	/** Returns true if the specified asset package can be cooked, will error and return false if it is disallowed */
 	virtual bool VerifyCanCookPackage(UE::Cook::ICookInfo* CookInfo, FName PackageName, bool bLogError = true) const;
@@ -685,8 +682,6 @@ protected:
 	virtual void OnChunkDownloaded(uint32 ChunkId, bool bSuccess);
 
 #if WITH_EDITOR
-	UE_DEPRECATED(4.26, "ShouldSetManager that takes EAssetRegistryDependencyType is no longer called; switch to the version that takes EDependencyCategory")
-	virtual EAssetSetManagerResult::Type ShouldSetManager(const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target, EAssetRegistryDependencyType::Type DependencyType, EAssetSetManagerFlags::Type Flags) const;
 	/** Function used during creating Management references to decide when to recurse and set references */
 	virtual EAssetSetManagerResult::Type ShouldSetManager(const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target,
 		UE::AssetRegistry::EDependencyCategory Category, UE::AssetRegistry::EDependencyProperty Properties, EAssetSetManagerFlags::Type Flags) const;
@@ -867,10 +862,6 @@ private:
 
 	mutable class IAssetRegistry* CachedAssetRegistry;
 	mutable const class UAssetManagerSettings* CachedSettings;
-	UE_DEPRECATED(5.0, "Only used for deprecation support, do not use directly.")
-	mutable UE::Cook::ICookInfo* DeprecationSupportCookInfo = nullptr;
-	UE_DEPRECATED(5.0, "Only used for deprecation support, do not use directly.")
-	mutable TConstArrayView<const ITargetPlatform*> DeprecationSupportTargetPlatforms;
 
 	friend struct FCompiledAssetManagerSearchRules;
 };

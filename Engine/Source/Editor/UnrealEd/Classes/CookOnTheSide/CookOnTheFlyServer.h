@@ -55,7 +55,7 @@ enum class ECookInitializationFlags
 	AsyncSave =									0x00000020, // save packages async
 	// unused =									0x00000040,
 	IncludeServerMaps =							0x00000080, // should we include the server maps when cooking
-	UseSerializationForPackageDependencies UE_DEPRECATED(4.26, "No longer used.") = 0x00000100,
+	// unused = 								0x00000100,
 	BuildDDCInBackground =						0x00000200, // build ddc content in background while the editor is running (only valid for modes which are in editor IsCookingInEditor())
 	// unused =									0x00000400,
 	OutputVerboseCookerWarnings =				0x00000800, // output additional cooker warnings about content issues
@@ -83,17 +83,16 @@ enum class ECookByTheBookOptions
 	NoGameAlwaysCookPackages =			0x00000080, // don't include the packages specified by the game in the cook (this cook will probably be missing content unless you know what you are doing)
 	NoAlwaysCookMaps =					0x00000100, // don't include always cook maps (this cook will probably be missing content unless you know what you are doing)
 	NoDefaultMaps =						0x00000200, // don't include default cook maps (this cook will probably be missing content unless you know what you are doing)
+	// Unused =							0x00000400,
 	NoInputPackages =					0x00000800, // don't include slate content (this cook will probably be missing content unless you know what you are doing)
 	SkipSoftReferences =				0x00001000, // Don't follow soft references when cooking. Usually not viable for a real cook and the results probably wont load properly, but can be useful for debugging
 	SkipHardReferences =				0x00002000, // Don't follow hard references when cooking. Not viable for a real cook, only useful for debugging
-	//Unused=							0x00004000,
+	// Unused=							0x00004000,
 	CookAgainstFixedBase =				0x00010000, // If cooking DLC, assume that the base content can not be modified. 
 	DlcLoadMainAssetRegistry =			0x00020000, // If cooking DLC, populate the main game asset registry
 	ZenStore =							0x00040000, // Store cooked data in Zen Store
 	DlcReevaluateUncookedAssets =		0x00080000, // If cooking DLC, ignore assets in the base asset registry that were not cooked, so that this cook has an opportunity to cook the assets
 
-	// Deprecated flags
-	NoSlatePackages UE_DEPRECATED(5.0, "The [UI]ContentDirectories is deprecated. You may use DirectoriesToAlwaysCook in your project settings instead.") = 0x00000400, // don't include slate content
 };
 ENUM_CLASS_FLAGS(ECookByTheBookOptions);
 
@@ -725,13 +724,6 @@ public:
 
 	void TickRequestManager();
 
-	/** Process any shader recompile requests */
-	UE_DEPRECATED(5.1, "Ticking RecompileShaderRequests is now handled by the Tick function")
-	void TickRecompileShaderRequests() {}
-
-	UE_DEPRECATED(5.1, "Ticking RecompileShaderRequests is now handled by the Tick function")
-	bool HasRecompileShaderRequests() const;
-
 	/**
 	 * Return whether the tick needs to take any action for the current session. If not, the session is done.
 	 * Used for external managers of the cooker to know when to tick it.
@@ -795,7 +787,7 @@ public:
 	/** Returns the configured amount of idle time before forcing a GC */
 	double GetIdleTimeToGC() const;
 
-	UE_DEPRECATED(5.2, "UCookOnTheFLyServer now uses a more complicated private GC scheme; HasExceededMaxMemory is no longer used and returns false")
+	UE_DEPRECATED(5.2, "UCookOnTheFlyServer now uses a more complicated private GC scheme; HasExceededMaxMemory is no longer used and returns false")
 	bool HasExceededMaxMemory() { return false; }
 	void SetGarbageCollectType(uint32 ResultFlagsFromTick);
 	void ClearGarbageCollectType();

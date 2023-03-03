@@ -4632,24 +4632,6 @@ void UEditorEngine::CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, 
 	}
 }
 
-FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InBase, EObjectFlags TopLevelFlags,
-	const TCHAR* Filename, FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping,
-	bool bWarnOfLongFilename, uint32 SaveFlags, const ITargetPlatform* TargetPlatform,
-	const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
-	FSavePackageContext* SavePackageContext)
-{
-	// CookData can only be nonzero if we are cooking.
-	TOptional<FArchiveCookData> CookData;
-	FArchiveCookContext CookContext(InOuter, FArchiveCookContext::ECookTypeUnknown);
-	if (TargetPlatform != nullptr)
-	{
-		CookData.Emplace(*TargetPlatform, CookContext);
-	}
-	FSavePackageArgs SaveArgs = { nullptr /* deprecated target platform */, CookData.GetPtrOrNull(), TopLevelFlags, SaveFlags, bForceByteSwapping,
-		bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error, SavePackageContext };
-	return Save(InOuter, InBase, Filename, SaveArgs);
-}
-
 FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename,
 	const FSavePackageArgs& InSaveArgs)
 {
@@ -4712,9 +4694,6 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 				}
 			}
 
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-			OnPreSaveWorld(ObjectSaveContext.SaveFlags, World);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 			OnPreSaveWorld(World, FObjectPreSaveContext(ObjectSaveContext));
 		}
 
@@ -4770,9 +4749,6 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 
 		if (!bSavingConcurrent)
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-			OnPostSaveWorld(ObjectSaveContext.SaveFlags, World, ObjectSaveContext.OriginalPackageFlags, ObjectSaveContext.bSaveSucceeded);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 			OnPostSaveWorld(World, FObjectPostSaveContext(ObjectSaveContext));
 
 			if (bInitializedPhysicsSceneForSave)
@@ -4798,22 +4774,6 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 	return Result;
 }
 
-bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InBase, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-	FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename,
-	uint32 SaveFlags, const ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask)
-{
-	// CookData should only be nonzero if we are cooking.
-	TOptional<FArchiveCookData> CookData;
-	FArchiveCookContext CookContext(InOuter, FArchiveCookContext::ECookTypeUnknown);
-	if (TargetPlatform != nullptr)
-	{
-		CookData.Emplace(*TargetPlatform, CookContext);
-	}
-	FSavePackageArgs SaveArgs = { nullptr /* deprecated target platform */, CookData.GetPtrOrNull(), TopLevelFlags, SaveFlags, bForceByteSwapping,
-		bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error };
-	return SavePackage(InOuter, InBase, Filename, SaveArgs);
-}
-
 bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename,
 	const FSavePackageArgs& SaveArgs)
 {
@@ -4822,10 +4782,6 @@ bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InAsset, const TCHAR
 	// Workaround to avoid function signature change while keeping both bool and ESavePackageResult versions of SavePackage
 	const FSavePackageResultStruct Result = Save(InOuter, InAsset, Filename, SaveArgs);
 	return Result == ESavePackageResult::Success;
-}
-
-void UEditorEngine::OnPreSaveWorld(uint32 SaveFlags, UWorld* World)
-{
 }
 
 void UEditorEngine::OnPreSaveWorld(UWorld* World, FObjectPreSaveContext ObjectSaveContext)
@@ -4844,9 +4800,6 @@ void UEditorEngine::OnPreSaveWorld(UWorld* World, FObjectPreSaveContext ObjectSa
 	check(World->PersistentLevel);
 
 	// Pre save world event
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	FEditorDelegates::PreSaveWorld.Broadcast(ObjectSaveContext.GetSaveFlags(), World);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	FEditorDelegates::PreSaveWorldWithContext.Broadcast(World, ObjectSaveContext);
 
 	// Update cull distance volumes (and associated primitives).
@@ -4912,10 +4865,6 @@ void UEditorEngine::OnPreSaveWorld(UWorld* World, FObjectPreSaveContext ObjectSa
 
 	// Make sure the public and standalone flags are set on this world to allow it to work properly with the editor
 	World->SetFlags(RF_Public | RF_Standalone);
-}
-
-void UEditorEngine::OnPostSaveWorld(uint32 SaveFlags, UWorld* World, uint32 OriginalPackageFlags, bool bSuccess)
-{
 }
 
 void UEditorEngine::OnPostSaveWorld(UWorld* World, FObjectPostSaveContext ObjectSaveContext)
@@ -5003,9 +4952,6 @@ void UEditorEngine::OnPostSaveWorld(UWorld* World, FObjectPostSaveContext Object
 	}
 
 	// Post save world event
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	FEditorDelegates::PostSaveWorld.Broadcast(ObjectSaveContext.GetSaveFlags(), World, bSuccess);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	FEditorDelegates::PostSaveWorldWithContext.Broadcast(World, ObjectSaveContext);
 }
 

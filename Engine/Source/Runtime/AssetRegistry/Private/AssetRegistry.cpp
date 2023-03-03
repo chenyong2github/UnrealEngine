@@ -145,15 +145,6 @@ public:
 		}
 		return AssetRegistry->TryGetAssetPackageData(PackageName, OutPackageData);
 	}
-
-protected:
-	/* This function is a workaround for platforms that don't support disable of deprecation warnings on override functions*/
-	virtual void GetDependenciesDeprecated(FName InPackageName, TArray<FName>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) override
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		IAssetRegistry::GetChecked().GetDependencies(InPackageName, OutDependencies, InDependencyType);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 };
 FAssetRegistryInterface GAssetRegistryInterface;
 
@@ -2402,14 +2393,6 @@ FName UAssetRegistryImpl::GetFirstPackageByName(FStringView PackageName) const
 	return LongPackageName;
 }
 
-bool UAssetRegistryImpl::GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const
-{
-	FReadScopeLock InterfaceScopeLock(InterfaceLock);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return GuardedData.GetState().GetDependencies(AssetIdentifier, OutDependencies, InDependencyType);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 bool UAssetRegistryImpl::GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category, const UE::AssetRegistry::FDependencyQuery& Flags) const
 {
 	FReadScopeLock InterfaceScopeLock(InterfaceLock);
@@ -2439,19 +2422,6 @@ static void ConvertAssetIdentifiersToPackageNames(const TArray<FAssetIdentifier>
 
 	int UniqueNum = Algo::Unique( OutPackageNames );
 	OutPackageNames.SetNum(UniqueNum,false);
-}
-
-bool UAssetRegistryImpl::GetDependencies(FName PackageName, TArray<FName>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const
-{
-	TArray<FAssetIdentifier> TempDependencies;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (!GetDependencies(PackageName, TempDependencies, InDependencyType))
-	{
-		return false;
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	ConvertAssetIdentifiersToPackageNames(TempDependencies, OutDependencies);
-	return true;
 }
 
 bool UAssetRegistryImpl::GetDependencies(FName PackageName, TArray<FName>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category, const UE::AssetRegistry::FDependencyQuery& Flags) const
@@ -2484,14 +2454,6 @@ bool IAssetRegistry::K2_GetDependencies(FName PackageName, const FAssetRegistryD
 	return bResult;
 }
 
-bool UAssetRegistryImpl::GetReferencers(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutReferencers, EAssetRegistryDependencyType::Type InReferenceType) const
-{
-	FReadScopeLock InterfaceScopeLock(InterfaceLock);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return GuardedData.GetState().GetReferencers(AssetIdentifier, OutReferencers, InReferenceType);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 bool UAssetRegistryImpl::GetReferencers(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutReferencers, UE::AssetRegistry::EDependencyCategory Category, const UE::AssetRegistry::FDependencyQuery& Flags) const
 {
 	FReadScopeLock InterfaceScopeLock(InterfaceLock);
@@ -2502,20 +2464,6 @@ bool UAssetRegistryImpl::GetReferencers(const FAssetIdentifier& AssetIdentifier,
 {
 	FReadScopeLock InterfaceScopeLock(InterfaceLock);
 	return GuardedData.GetState().GetReferencers(AssetIdentifier, OutReferencers, Category, Flags);
-}
-
-bool UAssetRegistryImpl::GetReferencers(FName PackageName, TArray<FName>& OutReferencers, EAssetRegistryDependencyType::Type InReferenceType) const
-{
-	TArray<FAssetIdentifier> TempReferencers;
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (!GetReferencers(FAssetIdentifier(PackageName), TempReferencers, InReferenceType))
-	{
-		return false;
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	ConvertAssetIdentifiersToPackageNames(TempReferencers, OutReferencers);
-	return true;
 }
 
 bool UAssetRegistryImpl::GetReferencers(FName PackageName, TArray<FName>& OutReferencers, UE::AssetRegistry::EDependencyCategory Category, const UE::AssetRegistry::FDependencyQuery& Flags) const
@@ -2548,34 +2496,6 @@ bool IAssetRegistry::K2_GetReferencers(FName PackageName, const FAssetRegistryDe
 	}
 
 	return bResult;
-}
-
-const FAssetPackageData* UAssetRegistryImpl::GetAssetPackageData(FName PackageName) const
-{
-	LLM_SCOPE(ELLMTag::AssetRegistry);
-	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return const_cast<UE::AssetRegistry::FAssetRegistryImpl&>(GuardedData).GetAssetPackageData(PackageName);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-namespace UE::AssetRegistry
-{
-
-const FAssetPackageData* FAssetRegistryImpl::GetAssetPackageData(FName PackageName)
-{
-	const FAssetPackageData* AssetPackageData = State.GetAssetPackageData(PackageName);
-	if (!AssetPackageData)
-	{
-		return nullptr;
-	}
-	FAssetPackageData* Result = new FAssetPackageData(*AssetPackageData);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DeleteActions.Add([Result]() { delete Result; });
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	return Result;
-}
-
 }
 
 TOptional<FAssetPackageData> UAssetRegistryImpl::GetAssetPackageDataCopy(FName PackageName) const
@@ -3162,22 +3082,6 @@ void RunAssetsThroughFilter(TArray<FAssetData>& AssetDataList, const FARCompiled
 	}
 }
 
-}
-
-void UAssetRegistryImpl::ExpandRecursiveFilter(const FARFilter& InFilter, FARFilter& ExpandedFilter) const
-{
-	FARCompiledFilter CompiledFilter;
-	CompileFilter(InFilter, CompiledFilter);
-
-	ExpandedFilter.Clear();
-	ExpandedFilter.PackageNames = CompiledFilter.PackageNames.Array();
-	ExpandedFilter.PackagePaths = CompiledFilter.PackagePaths.Array();
-	ExpandedFilter.SoftObjectPaths = CompiledFilter.SoftObjectPaths.Array();
-	ExpandedFilter.ClassPaths = CompiledFilter.ClassPaths.Array();
-	ExpandedFilter.TagsAndValues = CompiledFilter.TagsAndValues;
-	ExpandedFilter.bIncludeOnlyOnDiskAssets = CompiledFilter.bIncludeOnlyOnDiskAssets;
-	ExpandedFilter.WithoutPackageFlags = CompiledFilter.WithoutPackageFlags;
-	ExpandedFilter.WithPackageFlags = CompiledFilter.WithPackageFlags;
 }
 
 void UAssetRegistryImpl::CompileFilter(const FARFilter& InFilter, FARCompiledFilter& OutCompiledFilter) const
@@ -3866,10 +3770,7 @@ void UAssetRegistryImpl::Tick(float DeltaTime)
 			UE::AssetRegistry::Impl::FClassInheritanceBuffer InheritanceBuffer;
 			GetInheritanceContextWithRequiredLock(InterfaceScopeLock, InheritanceContext, InheritanceBuffer);
 
-			// Process any deferred events and deletes
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			GuardedData.TickDeletes();
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			// Process any deferred events
 			EventContext = MoveTemp(DeferredEvents);
 			DeferredEvents.Clear();
 			if (EventContext.IsEmpty())
@@ -3896,17 +3797,6 @@ void UAssetRegistryImpl::Tick(float DeltaTime)
 
 namespace UE::AssetRegistry
 {
-
-void FAssetRegistryImpl::TickDeletes()
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	for (TUniqueFunction<void()>& Action : DeleteActions)
-	{
-		Action();
-	}
-	DeleteActions.Empty();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
 
 void FAssetRegistryImpl::WaitForGathererIdleIfSynchronous()
 {
@@ -6785,26 +6675,6 @@ bool FAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(Impl::FEventContext& Eve
 	return true;
 }
 
-}
-
-void FAssetRegistryDependencyOptions::SetFromFlags(const EAssetRegistryDependencyType::Type InFlags)
-{
-	bIncludeSoftPackageReferences = (InFlags & EAssetRegistryDependencyType::Soft);
-	bIncludeHardPackageReferences = (InFlags & EAssetRegistryDependencyType::Hard);
-	bIncludeSearchableNames = (InFlags & EAssetRegistryDependencyType::SearchableName);
-	bIncludeSoftManagementReferences = (InFlags & EAssetRegistryDependencyType::SoftManage);
-	bIncludeHardManagementReferences = (InFlags & EAssetRegistryDependencyType::HardManage);
-}
-
-EAssetRegistryDependencyType::Type FAssetRegistryDependencyOptions::GetAsFlags() const
-{
-	uint32 Flags = EAssetRegistryDependencyType::None;
-	Flags |= (bIncludeSoftPackageReferences ? EAssetRegistryDependencyType::Soft : EAssetRegistryDependencyType::None);
-	Flags |= (bIncludeHardPackageReferences ? EAssetRegistryDependencyType::Hard : EAssetRegistryDependencyType::None);
-	Flags |= (bIncludeSearchableNames ? EAssetRegistryDependencyType::SearchableName : EAssetRegistryDependencyType::None);
-	Flags |= (bIncludeSoftManagementReferences ? EAssetRegistryDependencyType::SoftManage : EAssetRegistryDependencyType::None);
-	Flags |= (bIncludeHardManagementReferences ? EAssetRegistryDependencyType::HardManage : EAssetRegistryDependencyType::None);
-	return (EAssetRegistryDependencyType::Type)Flags;
 }
 
 bool FAssetRegistryDependencyOptions::GetPackageQuery(UE::AssetRegistry::FDependencyQuery& Flags) const
