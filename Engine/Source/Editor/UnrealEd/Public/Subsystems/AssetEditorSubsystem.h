@@ -251,7 +251,11 @@ public:
 	void RestorePreviouslyOpenAssets();
 
 	/** Sets bAutoRestoreAndDisableSaving and sets bRequestRestorePreviouslyOpenAssets to false to avoid running RestorePreviouslyOpenAssets() twice. */
+	UE_DEPRECATED(5.0, "Please use the SetAutoRestoreAndDisableSavingOverride instead to set/unset the override")
 	void SetAutoRestoreAndDisableSaving(const bool bInAutoRestoreAndDisableSaving);
+
+	/** Set/Unset the bAutoRestoreAndDisableSaving override, along with setting bRequestRestorePreviouslyOpenAssets to false to avoid running RestorePreviouslyOpenAssets() twice */
+	void SetAutoRestoreAndDisableSavingOverride(TOptional<bool> bInAutoRestoreAndDisableSaving);
 
 private:
 
@@ -352,12 +356,16 @@ private:
 	 * Flag whether to disable SaveOpenAssetEditors() and enable auto-restore on RestorePreviouslyOpenAssets().
 	 * Useful e.g., to allow LayoutsMenu.cpp re-load layouts on-the-fly and reload the previously opened assets.
 	 * If true, SaveOpenAssetEditors() will not save any asset editor and RestorePreviouslyOpenAssets() will automatically open them without asking the user.
-	 * If false, default behavior of both SaveOpenAssetEditors() and RestorePreviouslyOpenAssets().
+	 * If false, SaveOpenAssetEditors() will not save any asset editor and RestorePreviouslyOpenAssets() will never open them.
+	 * If unset, default behavior of both SaveOpenAssetEditors() and RestorePreviouslyOpenAssets().
 	 */
-	bool bAutoRestoreAndDisableSaving;
+	TOptional<bool> bAutoRestoreAndDisableSaving;
 
 	/** Flag whether there has been a request to notify whether to restore previously open assets */
 	bool bRequestRestorePreviouslyOpenAssets;
+	
+	/** True if the "Remember my choice" checkbox on the restore assets notification is checked */
+	bool bRememberMyChoiceChecked = false;
 
 	/** A pointer to the notification used by RestorePreviouslyOpenAssets */
 	TWeakPtr<SNotificationItem> RestorePreviouslyOpenAssetsNotificationPtr;

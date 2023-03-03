@@ -29,6 +29,18 @@ enum class EAutoSaveMethod : uint8
 	BackupAndOverwrite,
 };
 
+UENUM()
+enum class ERestoreOpenAssetTabsMethod : uint8
+{
+	/** Always prompt the user if they want to restore previously opened asset tabs on launch */
+	AlwaysPrompt = 0,
+	
+	/** Always automatically restore any previously opened asset tabs on launch */
+	AlwaysRestore = 1,
+
+	/** Never restore previously opened asset tabs on launch */
+	NeverRestore = 2
+};
 
 /** A filter used by the auto reimport manager to explicitly include/exclude files matching the specified wildcard */
 USTRUCT()
@@ -95,10 +107,16 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Startup)
 	uint32 bForceCompilationAtStartup:1;
 
-	/** Whether to restore previously open assets at startup */
+	/** Whether to restore previously open assets at startup after a clean shutdown */
 	UPROPERTY(EditAnywhere, config, Category=Startup)
-	uint32 bRestoreOpenAssetTabsOnRestart:1;
+	ERestoreOpenAssetTabsMethod RestoreOpenAssetTabsOnRestart = ERestoreOpenAssetTabsMethod::AlwaysPrompt;
 
+#if WITH_EDITOR
+	/** Whether to restore previously open assets at startup */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use RestoreOpenAssetTabsOnRestart instead"))
+	uint32 bRestoreOpenAssetTabsOnRestart_DEPRECATED:1;
+#endif
+	
 private:
 
 	UPROPERTY(config)
