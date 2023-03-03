@@ -22,6 +22,7 @@ public:
 
 	//~ Begin UEdGraphNode Interface
 	virtual void ReconstructNode() override;
+	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	//~ End UEdGraphNode Interface
 	
 	//~ Begin UObject interface

@@ -13,6 +13,8 @@ class UMoviePipelineExecutorJob;
 class UMoviePipelineExecutorShot;
 class IDetailsView;
 struct FAssetData;
+class FUICommandList;
+class UMovieGraphNode;
 
 /**
  * Outermost widget that is used for adding and removing jobs from the Movie Pipeline Queue Subsystem.
@@ -54,6 +56,7 @@ private:
 	void OnConfigWindowClosed();
 
 	void OnSelectionChanged(const TArray<UMoviePipelineExecutorJob*>& InSelectedJobs);
+	TArray<UMovieGraphNode*> GetSelectedModelNodes() const;
 
 	TSharedRef<SWidget> OnGenerateSavedQueuesMenu();
 	bool OpenSaveDialog(const FString& InDefaultPath, const FString& InNewNameSuggestion, FString& OutPackageName);
@@ -70,8 +73,12 @@ private:
 private:
 	/** Allocates a transient preset so that the user can use the pipeline without saving it to an asset first. */
 	//UMoviePipelineConfigBase* AllocateTransientPreset();
+	void MakeEditorCommands();
 
-
+	void SelectAllNodes();
+	bool CanSelectAllNodes() const;
+	bool CanDeleteSelectedNodes() const;
+	void DeleteSelectedNodes();
 private:
 	/** The main movie pipeline queue editor widget */
 	TSharedPtr<SMoviePipelineQueueEditor> PipelineQueueEditorWidget;
@@ -84,4 +91,5 @@ private:
 	int32 NumSelectedJobs;
 
 	FOnGraphSelectionChanged OnGraphSelectionChangedEvent;
+	TSharedPtr<FUICommandList> GraphEditorCommands;
 };

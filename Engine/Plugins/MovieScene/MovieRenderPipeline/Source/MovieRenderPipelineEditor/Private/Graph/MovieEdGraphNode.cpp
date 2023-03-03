@@ -9,6 +9,7 @@
 #include "MovieEdGraph.h"
 #include "PropertyBag.h"
 #include "ToolMenu.h"
+#include "EdGraph/EdGraphSchema.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineEdGraphNodeBase"
 
@@ -199,6 +200,43 @@ void UMoviePipelineEdGraphNodeBase::CreatePins(const TArray<UMovieGraphPin*>& In
 	else if (!bHasAdvancedPin)
 	{
 		AdvancedPinDisplay = ENodeAdvancedPins::NoPins;
+	}
+}
+
+void UMoviePipelineEdGraphNodeBase::AutowireNewNode(UEdGraphPin* FromPin)
+{
+	if (RuntimeNode == nullptr || FromPin == nullptr)
+	{
+		return;
+	}
+
+	const bool bFromPinIsInput = FromPin->Direction == EEdGraphPinDirection::EGPD_Input;
+	const TArray<TObjectPtr<UMovieGraphPin>>& OtherPinsList = bFromPinIsInput ? RuntimeNode->GetOutputPins() : RuntimeNode->GetInputPins();
+
+	// Try to connect to the first compatible pin
+	bool bDidAutoconnect = false;
+	for (const TObjectPtr<UMovieGraphPin>& OtherPin : OtherPinsList)
+	{
+		check(OtherPin);
+
+		const FName& OtherPinName = OtherPin->Properties.Label;
+		UEdGraphPin* ToPin = FindPinChecked(OtherPinName, bFromPinIsInput ? EEdGraphPinDirection::EGPD_Output : EEdGraphPinDirection::EGPD_Input);
+		if (ToPin && GetSchema()->TryCreateConnection(FromPin, ToPin))
+		{
+			// Connection succeeded. Notify our other node that their connections changed.
+			if (ToPin->GetOwningNode())
+			{
+				ToPin->GetOwningNode()->NodeConnectionListChanged();
+			}
+			bDidAutoconnect = true;
+			break;
+		}
+	}
+
+	// Notify ourself of the connection list changing too.
+	if (bDidAutoconnect)
+	{
+		NodeConnectionListChanged();
 	}
 }
 

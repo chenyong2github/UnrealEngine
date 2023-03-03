@@ -117,6 +117,8 @@ public:
 
 	/** Removes the specified node from the graph. */
 	bool RemoveNode(UMovieGraphNode* InNode);
+	bool RemoveNodes(TArray<UMovieGraphNode*> InNodes);
+
 
 	UMovieGraphNode* GetInputNode() const { return InputNode; }
 	UMovieGraphNode* GetOutputNode() const { return OutputNode; }

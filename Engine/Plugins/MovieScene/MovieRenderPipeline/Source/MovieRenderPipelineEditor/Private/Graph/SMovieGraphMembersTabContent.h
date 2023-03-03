@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -78,7 +78,7 @@ private:
 
 private:
 	/** The editor that this widget is associated with. */
-	TSharedPtr<FAssetEditorToolkit> EditorToolkit;
+	TWeakPtr<FAssetEditorToolkit> EditorToolkit;
 
 	/** The action menu displayed in the UI which allows for creation/manipulation of graph members (eg, variables). */
 	TSharedPtr<SGraphActionMenu> ActionMenu;

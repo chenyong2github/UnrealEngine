@@ -241,6 +241,16 @@ bool UMovieGraphConfig::RemoveOutboundEdges(UMovieGraphNode* InNode, const FName
 	return bChanged;
 }
 
+bool UMovieGraphConfig::RemoveNodes(TArray<UMovieGraphNode*> InNodes)
+{
+	bool bChanged = false;
+	for (UMovieGraphNode* Node : InNodes)
+	{
+		bChanged |= RemoveNode(Node);
+	}
+	return bChanged;
+}
+
 bool UMovieGraphConfig::RemoveNode(UMovieGraphNode* InNode)
 {
 	if (!InNode)
@@ -251,6 +261,12 @@ bool UMovieGraphConfig::RemoveNode(UMovieGraphNode* InNode)
 
 	RemoveAllInboundEdges(InNode);
 	RemoveAllOutboundEdges(InNode);
+
+#if WITH_EDITOR
+	TArray<UMovieGraphNode*> RemovedNodes;
+	RemovedNodes.Add(InNode);
+	OnGraphNodesDeletedDelegate.Broadcast(RemovedNodes);
+#endif
 
 	return AllNodes.RemoveSingle(InNode) == 1;
 }
@@ -326,7 +342,7 @@ void UMovieGraphConfig::DeleteVariableMember(UMovieGraphVariable* VariableMember
 			return false;
 		});
 
-	// Remove accessor nodes
+	// Remove accessor nodes (which broadcasts our node changed delegates)
 	TArray<UMovieGraphNode*> RemovedNodes;
 	for (const TObjectPtr<UMovieGraphNode>& NodeToRemove : NodesToRemove)
 	{
@@ -340,9 +356,7 @@ void UMovieGraphConfig::DeleteVariableMember(UMovieGraphVariable* VariableMember
 	// Remove this variable from the variables tracked by the graph
 	Variables.RemoveSingle(VariableMemberToDelete);
 
-#if WITH_EDITOR
-	OnGraphNodesDeletedDelegate.Broadcast(RemovedNodes);
-#endif
 }
+
 
 #undef LOCTEXT_NAMESPACE

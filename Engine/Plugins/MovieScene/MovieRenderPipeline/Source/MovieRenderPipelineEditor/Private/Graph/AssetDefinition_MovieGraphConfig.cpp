@@ -15,7 +15,7 @@ EAssetCommandResult UAssetDefinition_MovieGraphConfig::OpenAssets(const FAssetOp
 	for (UMovieGraphConfig* GraphToEdit : OpenArgs.LoadObjects<UMovieGraphConfig>())
 	{
 		TSharedRef<FMovieGraphAssetToolkit> MovieGraphEditor = MakeShared<FMovieGraphAssetToolkit>();
-		MovieGraphEditor->InitMovieGraphAssetToolkit(EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), GraphToEdit);
+		MovieGraphEditor->InitMovieGraphAssetToolkit(EToolkitMode::Standalone, OpenArgs.ToolkitHost, GraphToEdit);
 	}	
 
 	return EAssetCommandResult::Handled;

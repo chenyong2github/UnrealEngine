@@ -55,7 +55,7 @@ void UMovieGraphSchema::InitMoviePipelineNodeClasses()
 	for (TObjectIterator<UClass> It; It; ++It)
 	{
 		if (It->IsChildOf(UMovieGraphNode::StaticClass())
-			&& !It->HasAnyClassFlags(CLASS_Abstract))
+			&& !It->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
 		{
 			MoviePipelineNodeClasses.Add(*It);
 		}
@@ -83,17 +83,26 @@ void UMovieGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Context
 	for (UClass* PipelineNodeClass : MoviePipelineNodeClasses)
 	{
 		const UMovieGraphNode* PipelineNode = PipelineNodeClass->GetDefaultObject<UMovieGraphNode>();
-		if (!ContextMenuBuilder.FromPin || ContextMenuBuilder.FromPin->Direction == EGPD_Input)
+		if (PipelineNodeClass == UMovieGraphVariableNode::StaticClass())
+		{
+			// Add variable actions separately
+			continue;
+		}
+		if(PipelineNodeClass == UMovieGraphInputNode::StaticClass() ||
+			PipelineNodeClass == UMovieGraphOutputNode::StaticClass())
+		{
+			// Can't place Input and Output nodes manually.
+			continue;
+		}
+
+		// This can be used to sort whether or not an option shows up. For now there's no restrictions
+		// on where nodes can be made, but eventually we might check which branch they're on (if from pin)
+		// to filter out incompatible nodes.
+		// if (!ContextMenuBuilder.FromPin || ContextMenuBuilder.FromPin->Direction == EGPD_Input)
 		{
 			const FText Name = PipelineNode->GetMenuDescription();
 			const FText Category = PipelineNode->GetMenuCategory();
 			const FText Tooltip = LOCTEXT("CreateNode_Tooltip", "Create a node of this type.");
-
-			if (PipelineNodeClass == UMovieGraphVariableNode::StaticClass())
-			{
-				// Add variable actions separately
-				continue;
-			}
 			
 			TSharedPtr<FMovieGraphSchemaAction> NewAction = MakeShared<FMovieGraphSchemaAction_NewNode>(Category, Name, Tooltip); 
 			NewAction->NodeClass = PipelineNodeClass;
@@ -207,7 +216,7 @@ void UMovieGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* 
 
 FLinearColor UMovieGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
-	return FLinearColor::Red;
+	return FLinearColor::Green;
 	/*const FName& TypeName = PinType.PinCategory;
 	if (TypeName == UEdGraphSchema_K2::PC_Struct)
 	{
@@ -268,8 +277,14 @@ UEdGraphNode* FMovieGraphSchemaAction_NewNode::PerformAction(UEdGraph* ParentGra
 	GraphNode->NodePosX = Location.X;
 	GraphNode->NodePosY = Location.Y;
 
+
 	// Finalize generates a guid, calls a post-place callback, and allocates default pins if needed
 	NodeCreator.Finalize();
+
+	if (FromPin)
+	{
+		GraphNode->AutowireNewNode(FromPin);
+	}
 	return GraphNode;
 }
 
@@ -298,9 +313,16 @@ UEdGraphNode* FMovieGraphSchemaAction_NewVariableNode::PerformAction(UEdGraph* P
 	GraphNode->Construct(RuntimeNode);
 	GraphNode->NodePosX = Location.X;
 	GraphNode->NodePosY = Location.Y;
-
+	
 	// Finalize generates a guid, calls a post-place callback, and allocates default pins if needed
 	NodeCreator.Finalize();
+
+	if (FromPin)
+	{
+		GraphNode->AutowireNewNode(FromPin);
+	}
+
+
 	return GraphNode;
 }
 

@@ -23,7 +23,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphNodeChanged, UMovieGraphNode*);
 * In the editor, each node in the network will have an editor-only representation too 
 * which contains data about it's visual position in the graph, comments, etc.
 */
-UCLASS()
+UCLASS(Abstract)
 class MOVIERENDERPIPELINECORE_API UMovieGraphNode : public UObject
 {
 	GENERATED_BODY()
@@ -88,8 +88,8 @@ public:
 #endif
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const { return FText(); }
-	virtual FText GetMenuCategory() const { return FText(); }
+	virtual FText GetMenuDescription() const PURE_VIRTUAL(UMovieGraphNode::GetMenuDescription, return FText(););
+	virtual FText GetMenuCategory() const PURE_VIRTUAL(UMovieGraphNode::GetMenuCategory, return FText(); );
 #endif
 
 protected:
@@ -223,6 +223,11 @@ public:
 		Properties.Add(FMovieGraphPinProperties(TEXT("Output"), false));
 		return Properties;
 	}
+
+#if WITH_EDITOR
+	virtual FText GetMenuDescription() const override { return NSLOCTEXT("MovieGraphNodes", "OutputNode_Description", "Output"); }
+	virtual FText GetMenuCategory() const override { return NSLOCTEXT("MovieGraphNodes", "OutputNode_Category", "Input/Output"); }
+#endif
 };
 
 UCLASS()
@@ -237,6 +242,12 @@ public:
 		Properties.Add(FMovieGraphPinProperties(TEXT("Input"), false));
 		return Properties;
 	}
+
+
+#if WITH_EDITOR
+	virtual FText GetMenuDescription() const override { return NSLOCTEXT("MovieGraphNodes", "InputNode_Description", "Input"); }
+	virtual FText GetMenuCategory() const override { return NSLOCTEXT("MovieGraphNodes", "InputNode_Category", "Input/Output"); }
+#endif
 };
 
 /** A node which gets the value of a variable which has been defined on the graph. */

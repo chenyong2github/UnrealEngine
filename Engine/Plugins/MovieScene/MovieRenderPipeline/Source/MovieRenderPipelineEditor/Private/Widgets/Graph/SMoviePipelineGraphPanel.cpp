@@ -30,6 +30,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SPrimaryButton.h"
+#include "Framework/Commands/GenericCommands.h"
 
 // ContentBrowser Includes
 #include "IContentBrowserSingleton.h"
@@ -103,14 +104,90 @@ void SMoviePipelineGraphPanel::Construct(const FArguments& InArgs)
 
 	const UEdGraphSchema* Schema = GraphToEdit->GetSchema();
 	Schema->CreateDefaultNodesForGraph(*GraphToEdit);
+	MakeEditorCommands();
 
 	ChildSlot
 	[
 		SAssignNew(GraphEditorWidget, SGraphEditor)
 		.IsEditable(true)
 		.GraphToEdit(GraphToEdit)
+		.AdditionalCommands(GraphEditorCommands)
 		.GraphEvents(InEvents)
 	];
+}
+
+void SMoviePipelineGraphPanel::MakeEditorCommands()
+{
+	GraphEditorCommands = MakeShareable(new FUICommandList);
+	{
+		// Editing commands
+		GraphEditorCommands->MapAction(FGenericCommands::Get().SelectAll,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::SelectAllNodes),
+			FCanExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::CanSelectAllNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::DeleteSelectedNodes),
+			FCanExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::CanDeleteSelectedNodes)
+		);
+	}
+}
+
+
+void SMoviePipelineGraphPanel::SelectAllNodes()
+{
+	GraphEditorWidget->SelectAllNodes();
+}
+
+
+bool SMoviePipelineGraphPanel::CanSelectAllNodes() const
+{
+	return GraphEditorWidget.IsValid();
+}
+
+bool SMoviePipelineGraphPanel::CanDeleteSelectedNodes() const
+{
+	if (GraphEditorWidget->GetSelectedNodes().IsEmpty())
+	{
+		return false;
+	}
+
+	for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
+	{
+		UEdGraphNode* GraphNode = Cast<UEdGraphNode>(Object);
+		if (GraphNode && !GraphNode->CanUserDeleteNode())
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void SMoviePipelineGraphPanel::DeleteSelectedNodes()
+{
+	TArray<UMovieGraphNode*> NodesToDelete;
+	for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
+	{
+		UMoviePipelineEdGraphNodeBase* GraphNode = Cast<UMoviePipelineEdGraphNodeBase>(Object);
+		if (GraphNode && GraphNode->CanUserDeleteNode())
+		{
+			NodesToDelete.Add(GraphNode->GetRuntimeNode());
+		}
+	}
+
+	if (NodesToDelete.IsEmpty())
+	{
+		return;
+	}
+
+	UMoviePipelineEdGraph* Graph = Cast<UMoviePipelineEdGraph>(GraphEditorWidget->GetCurrentGraph());
+	if (Graph)
+	{
+		Graph->GetPipelineGraph()->RemoveNodes(NodesToDelete);
+	}
+
+	ClearGraphSelection();
 }
 
 void SMoviePipelineGraphPanel::ClearGraphSelection() const
@@ -569,5 +646,6 @@ void SMoviePipelineGraphPanel::OnImportSavedQueueAssest(const FAssetData& InPres
 		PipelineQueueEditorWidget->SetSelectedJobs(Jobs);
 	}
 }
+
 
 #undef LOCTEXT_NAMESPACE // SMoviePipelineGraphPanel

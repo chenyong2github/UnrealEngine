@@ -197,7 +197,13 @@ TSharedPtr<SWidget> SMovieGraphMembersTabContent::OnContextMenuOpening()
 		return nullptr;
 	}
 
-	FMenuBuilder MenuBuilder(true, EditorToolkit->GetToolkitCommands());
+	TSharedPtr< FAssetEditorToolkit> PinnedToolkit = EditorToolkit.Pin();
+	if(!PinnedToolkit.IsValid())
+	{
+		return nullptr;
+	}
+
+	FMenuBuilder MenuBuilder(true, PinnedToolkit->GetToolkitCommands());
 	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
 	
 	return MenuBuilder.MakeWidget();
