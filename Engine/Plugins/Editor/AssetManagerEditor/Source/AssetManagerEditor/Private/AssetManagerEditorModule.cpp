@@ -1036,7 +1036,11 @@ void FAssetManagerEditorModule::OnReloadComplete(EReloadCompleteReason Reason)
 
 void FAssetManagerEditorModule::OnMarkPackageDirty(UPackage* Pkg, bool bWasDirty)
 {
-	check(UAssetManager::IsInitialized());
+	if (!UAssetManager::IsInitialized())
+	{
+		// Can be called before InitializeObjectReferences; do nothing in that case
+		return;
+	}
 	UAssetManager& AssetManager = UAssetManager::Get();
 
 	// Check if this package is managed, if so invalidate
