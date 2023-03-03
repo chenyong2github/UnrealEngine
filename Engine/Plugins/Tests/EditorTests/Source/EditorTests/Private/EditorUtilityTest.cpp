@@ -75,7 +75,7 @@ void UEditorUtilityTest::Run()
 			CurrentTest->SetEditorUtility(this);
 		}
 
-		if (FAutomationTestFramework::NeedLogBPTestMetadata())
+		if (FAutomationTestFramework::NeedLogBPTestMetadata() && GIsAutomationTesting)
 		{
 			AddInfo(FString::Printf(TEXT("[Owner] %s"), *Owner));
 			AddInfo(FString::Printf(TEXT("[Description] %s"), *Description));

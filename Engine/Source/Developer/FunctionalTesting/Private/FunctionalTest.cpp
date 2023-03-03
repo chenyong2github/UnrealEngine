@@ -295,7 +295,7 @@ void AFunctionalTest::StartTest()
 	StartFrame = GFrameNumber;
 	StartTime = (float)GetWorld()->GetTimeSeconds();
 
-	if (FAutomationTestFramework::NeedLogBPTestMetadata())
+	if (FAutomationTestFramework::NeedLogBPTestMetadata() && GIsAutomationTesting)
 	{
 		AddInfo(FString::Printf(TEXT("[Owner] %s"), *Author));
 		AddInfo(FString::Printf(TEXT("[Description] %s"), *Description));
