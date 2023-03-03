@@ -129,7 +129,7 @@ struct RIGVM_API FRigVMFunctionCompilationData
 
 	bool IsValid() const
 	{
-		return ByteCode.Num() > 0 || WorkPropertyDescriptions.Num() > 0;
+		return Hash != 0;
 	}
 
 	friend uint32 GetTypeHash(const FRigVMFunctionCompilationData& Data) 

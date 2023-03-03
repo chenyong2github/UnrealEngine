@@ -858,17 +858,20 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 		case ERigVMGraphNotifType::PinTypeChanged: // A pin's data type has changed (Subject == URigVMPin)
 		case ERigVMGraphNotifType::PinIndexChanged: // A pin's index has changed (Subject == URigVMPin)
 		{
-			if (URigVMNode* Node = Cast<URigVMNode>(InSubject->GetOuter()))
+			if (URigVMPin* Pin = Cast<URigVMPin>(InSubject))
 			{
-				if (URigVMLibraryNode* LibraryNode = Node->FindFunctionForNode())
+				if (URigVMNode* Node = Cast<URigVMNode>(Pin->GetNode()))
 				{
-					DirtyGraphFunctionCompilationData(LibraryNode);
-				}
-				if(Node->GetOuter()->IsA<URigVMFunctionLibrary>())
-				{
-					if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+					if (URigVMLibraryNode* LibraryNode = Node->FindFunctionForNode())
 					{
-						UpdateGraphFunctionData(CollapseNode);
+						DirtyGraphFunctionCompilationData(LibraryNode);
+					}
+					if(Node->GetOuter()->IsA<URigVMFunctionLibrary>())
+					{
+						if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+						{
+							UpdateGraphFunctionData(CollapseNode);
+						}
 					}
 				}
 			}

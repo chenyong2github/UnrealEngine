@@ -372,7 +372,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 								{
 									if (FRigVMGraphFunctionData* DependencyData = HostObj->GetRigVMGraphFunctionStore()->FindFunction(Pair.Key))
 									{
-										if (Pair.Value != DependencyData->CompilationData.Hash)
+										if (DependencyData->CompilationData.Hash == 0 || Pair.Value != DependencyData->CompilationData.Hash)
 										{
 											FunctionData->ClearCompilationData();
 											break;
@@ -1110,6 +1110,8 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 				}
 			}
 		}
+
+		OutFunctionCompilationData->Hash = GetTypeHash(OutFunctionCompilationData);
 	}
 
 	if (!CurrentCompilationFunction)
@@ -1134,6 +1136,7 @@ bool URigVMCompiler::CompileFunction(const URigVMLibraryNode* InLibraryNode, URi
 		return false;
 	}
 
+	OutFunctionCompilationData->Hash = 0;
 	OutFunctionCompilationData->ByteCode.Reset();
 
 	TArray<FRigVMExternalVariable> ExternalVariables;
@@ -1171,6 +1174,8 @@ bool URigVMCompiler::CompileFunction(const URigVMLibraryNode* InLibraryNode, URi
 							}
 						}
 					}
+
+					ClientHost->GetRigVMClient()->UpdateFunctionReferences(Data->Header, true, false);
 				}
 		
 				Store->UpdateFunctionCompilationData(InLibraryNode->GetFunctionIdentifier(), *OutFunctionCompilationData);
