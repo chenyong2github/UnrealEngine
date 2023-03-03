@@ -711,6 +711,21 @@ namespace Jupiter
         [Required]
         [Key]
         public string CurrentSite { get; set; } = "";
+
+        /// <summary>
+        /// Used to move where domain sockets are allocated
+        /// </summary>
+        public string DomainSocketsRoot { get; set; } = "/tmp/sockets";
+
+        /// <summary>
+        /// Enable to create unix domain sockets for inter process communication
+        /// </summary>
+        public bool UseDomainSockets { get; set; } = false;
+
+        /// <summary>
+        /// Enable to change access (chmod) the sockets to allow for anyone to access them
+        /// </summary>
+        public bool ChmodDomainSockets { get; set; } = false;
     }
 
     public class NamespaceSettings
