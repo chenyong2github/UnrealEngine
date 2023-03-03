@@ -50,7 +50,8 @@ namespace UnrealBuildTool.Rules
 					"MovieSceneTools",
 					"MovieScene",
 					"DataRegistry",
-					"DataRegistryEditor"
+					"DataRegistryEditor",
+					"ToolMenus"
 				}
 			);
 		}
