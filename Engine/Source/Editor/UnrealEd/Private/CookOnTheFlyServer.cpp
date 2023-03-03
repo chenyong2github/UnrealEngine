@@ -5009,6 +5009,10 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 			}
 		}
 	}
+	for (FPackageData* PackageData : GCKeepPackageDatas)
+	{
+		PackageData->SetKeepReferencedDuringGC(true);
+	}
 }
 
 void UCookOnTheFlyServer::CookerAddReferencedObjects(FReferenceCollector& Collector)
