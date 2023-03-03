@@ -4994,20 +4994,21 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 			});
 	}
 
-	// Add packages to GCKeepObjects. 
+	// Add packages and all RF_Public objects outered to them to GCKeepObjects
 	TArray<UObject*> ObjectsWithOuter;
 	for (UPackage* Package : GCKeepPackages)
 	{
 		GCKeepObjects.Add(Package);
+		ObjectsWithOuter.Reset();
+		GetObjectsWithOuter(Package, ObjectsWithOuter);
+		for (UObject* Obj : ObjectsWithOuter)
+		{
+			if (IsValidChecked(Obj) && Obj->HasAnyFlags(RF_Public))
+			{
+				GCKeepObjects.Add(Obj);
+			}
+		}
 	}
-	for (FPackageData* PackageData : GCKeepPackageDatas)
-	{
-		PackageData->SetKeepReferencedDuringGC(true);
-	}
-
-	// Add all public objects within every package in memory to the UPackage::SoftGCPackageToObjectList container,
-	// so they will be kept in memory if the package is kept in memory.
-	ConstructSoftGCPackageToObjectList(this->SoftGCPackageToObjectListBuffer);
 }
 
 void UCookOnTheFlyServer::CookerAddReferencedObjects(FReferenceCollector& Collector)
@@ -5049,8 +5050,6 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 	check(!SavingPackageData || SavingPackageData->GetPackage() != nullptr);
 
 	GCKeepObjects.Empty();
-	UPackage::SoftGCPackageToObjectList.Empty();
-	SoftGCPackageToObjectListBuffer.Empty();
 
 	PackageDatas->LockAndEnumeratePackageDatas([](FPackageData* PackageData)
 	{
