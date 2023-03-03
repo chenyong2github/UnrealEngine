@@ -76,11 +76,19 @@ FName UPCGCreateAttributeSettings::GetDefaultNodeName() const
 TArray<FPCGPinProperties> UPCGCreateAttributeSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Any, /*bInAllowMultipleConnections=*/ true);
+
+	EPCGDataType PrimaryInputType = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
+	if (PrimaryInputType == EPCGDataType::None)
+	{
+		// Fall back to Any if no edges, or no overlap in types (which should not normally occur).
+		PrimaryInputType = EPCGDataType::Any;
+	}
+
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, PrimaryInputType);
 
 	if (bFromSourceParam)
 	{
-		PinProperties.Emplace(PCGCreateAttributeConstants::SourceLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/ false);
+		PinProperties.Emplace(PCGCreateAttributeConstants::SourceLabel, EPCGDataType::Param);
 	}
 
 	return PinProperties;
@@ -88,10 +96,17 @@ TArray<FPCGPinProperties> UPCGCreateAttributeSettings::InputPinProperties() cons
 
 TArray<FPCGPinProperties> UPCGCreateAttributeSettings::OutputPinProperties() const
 {
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
+	FPCGPinProperties PinProperties;
+	PinProperties.Label = PCGPinConstants::DefaultOutputLabel;
 
-	return PinProperties;
+	PinProperties.AllowedTypes = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
+	if (PinProperties.AllowedTypes == EPCGDataType::None)
+	{
+		// Nothing connected or incompatible types - output Param.
+		PinProperties.AllowedTypes = EPCGDataType::Param;
+	}
+
+	return { PinProperties };
 }
 
 FPCGElementPtr UPCGCreateAttributeSettings::CreateElement() const
@@ -139,11 +154,17 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputsByPin(PCGPinConstants::DefaultInputLabel);
 
+	// Only if we have no input connections we'll switch from "adding attribute" to "creating param data"
+	const UPCGPin* InputPin = Context->Node ? Context->Node->GetInputPin(PCGPinConstants::DefaultInputLabel) : nullptr;
+	const bool bHasInputConnections = InputPin && InputPin->EdgeCount() > 0;
+
 	// If the input is empty, we will create a new ParamData.
 	// We can re-use this newly object as the output
 	bool bCanReuseInputData = false;
-	if (Inputs.IsEmpty())
+	if (!bHasInputConnections)
 	{
+		ensure(Inputs.IsEmpty());
+
 		FPCGTaggedData& NewData = Inputs.Emplace_GetRef();
 		NewData.Data = NewObject<UPCGParamData>();
 		NewData.Pin = PCGPinConstants::DefaultInputLabel;

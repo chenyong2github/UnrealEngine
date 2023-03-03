@@ -5,6 +5,7 @@
 #include "PCGComponent.h"
 #include "PCGContext.h"
 #include "PCGCustomVersion.h"
+#include "PCGEdge.h"
 #include "PCGGraph.h"
 #include "PCGHelpers.h"
 #include "PCGModule.h"
@@ -323,6 +324,27 @@ TArray<FPCGPinProperties> UPCGSettings::AllInputPinProperties() const
 	TArray<FPCGPinProperties> InputPins = InputPinProperties();
 	FillOverridableParamsPins(InputPins);
 	return InputPins;
+}
+
+EPCGDataType UPCGSettings::GetTypeUnionOfIncidentEdges(const FName& PinLabel) const
+{
+	EPCGDataType Result = EPCGDataType::None;
+
+	const UPCGNode* Node = Cast<UPCGNode>(GetOuter());
+	const UPCGPin* Pin = Node ? Node->GetInputPin(PinLabel) : nullptr;
+	if (Pin && Pin->EdgeCount() > 0)
+	{
+		for (const UPCGEdge* Edge : Pin->Edges)
+		{
+			const UPCGPin* OtherOutputPin = Edge ? Edge->GetOtherPin(Pin) : nullptr;
+			if (OtherOutputPin)
+			{
+				Result |= OtherOutputPin->Properties.AllowedTypes;
+			}
+		}
+	}
+
+	return Result;
 }
 
 TArray<FPCGPinProperties> UPCGSettings::AllOutputPinProperties() const

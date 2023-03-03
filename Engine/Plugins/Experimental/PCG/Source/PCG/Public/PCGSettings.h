@@ -143,6 +143,9 @@ public:
 	/** If the node has any dynamic pins that can change based on input or settings */
 	virtual bool HasDynamicPins() const { return false; }
 
+	/** Bitwise union of the allowed types of each incident edge on pin. Returns None if no common bits, or no edges. */
+	EPCGDataType GetTypeUnionOfIncidentEdges(const FName& PinLabel) const;
+
 	// Internal functions, should not be used by any user.
 	// Return a different subset for for input/output pin properties, in case of a default object.
 	virtual TArray<FPCGPinProperties> DefaultInputPinProperties() const;

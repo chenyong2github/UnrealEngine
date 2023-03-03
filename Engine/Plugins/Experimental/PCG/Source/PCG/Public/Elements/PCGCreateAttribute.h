@@ -32,6 +32,7 @@ public:
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
+	virtual bool HasDynamicPins() const override { return true; }
 #endif // WITH_EDITOR
 
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
