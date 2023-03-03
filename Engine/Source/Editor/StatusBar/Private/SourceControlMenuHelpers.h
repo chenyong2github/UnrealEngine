@@ -82,6 +82,7 @@ private:
 
 	/** Sync button */
 	static bool IsAtLatestRevision();
+	static bool CanSourceControlSync();
 	static EVisibility GetSourceControlSyncStatusVisibility();
 	static FText GetSourceControlSyncStatusText();
 	static FText GetSourceControlSyncStatusTooltipText();
@@ -90,8 +91,8 @@ private:
 
 	/** Check-in button */
 	static int GetNumLocalChanges();
-	static bool HasLocalChanges();
 	static void SaveUnsavedFiles();
+	static bool CanSourceControlCheckIn();
 	static EVisibility GetSourceControlCheckInStatusVisibility();
 	static FText GetSourceControlCheckInStatusText();
 	static FText GetSourceControlCheckInStatusTooltipText();
