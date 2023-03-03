@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Misc/Base64.h"
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
 template <size_t InputSize>
 struct TBase64Test
@@ -54,7 +54,7 @@ void RunRoundTripSuccessfulBase64Tests(const TestType (&TestVectors)[NumVectors]
 }
 
 // Base64 encode/decode works for the test vectors provided in the RFC
-TEST_CASE("Core::Serialization::Base64::encode/decode RFC test vectors", "[Core][base64][Smoke]")
+TEST_CASE_NAMED(FBase64EncodeDecodeRFCTestVectorsTest, "System::Core::Serialization::Base64::encode/decode RFC test vectors", "[Core][base64][SmokeFilter]")
 {
 	// This test does a good job of verifying the correct padding of various lengths by going through 2 cycles of the padding modulus.
 	const FBase64StringTest TestVectors[] =
@@ -74,7 +74,7 @@ TEST_CASE("Core::Serialization::Base64::encode/decode RFC test vectors", "[Core]
 }
 
 // Standard base64 encode/decode every possible 6 bit input
-TEST_CASE("Core::Serialization::Base64::Standard encode/decode every 6 bit input", "[Core][base64][Smoke]")
+TEST_CASE_NAMED(FBase64StandartEncodeDecodeEverySixBitInputTest, "System::Core::Serialization::Base64::Standard encode/decode every 6 bit input", "[Core][base64][SmokeFilter]")
 {
 	const TBase64Test<48> TestVectors[] =
 	{
@@ -85,7 +85,7 @@ TEST_CASE("Core::Serialization::Base64::Standard encode/decode every 6 bit input
 }
 
 // UrlSafe base64 encode/decode every possible 6 bit input
-TEST_CASE("Core::Serialization::Base64::URLSafe encode/decode every 6 bit input", "[Core][base64][Smoke]")
+TEST_CASE_NAMED(FBase64URLSafeTest, "System::Core::Serialization::Base64::URLSafe encode/decode every 6 bit input", "[Core][base64][SmokeFilter]")
 {
 	const TBase64Test<48> TestVectors[] = 
 	{
@@ -135,7 +135,7 @@ void RunNegativeDecodeBase64Test(EBase64Mode Mode, TFunction<bool(int)>&& IsInDe
 }
 
 // Base64 decode should fail on input that is not in the decoding alphabet
-TEST_CASE("Core::Serialization::Base64::Negative", "[Core][base64][Smoke]")
+TEST_CASE_NAMED(FBase64NegativeTest, "System::Core::Serialization::Base64::Negative", "[Core][base64][SmokeFilter]")
 {
 	auto IsInStandardAlphabet = [](int Ix)
 	{
@@ -159,4 +159,4 @@ TEST_CASE("Core::Serialization::Base64::Negative", "[Core][base64][Smoke]")
 	RunNegativeDecodeBase64Test(EBase64Mode::UrlSafe, MoveTemp(IsInUrlSafeAlphabet));
 }
 
-#endif
+#endif //WITH_TESTS

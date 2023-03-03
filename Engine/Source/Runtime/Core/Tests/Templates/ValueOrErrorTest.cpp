@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Templates/ValueOrError.h"
 
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
 #include <type_traits>
 
-TEST_CASE("Core::Templates::ValueOrError", "[Core][Templates][Smoke]")
+TEST_CASE_NAMED(FTemplatesValueOrErrorTest, "System::Core::Templates::ValueOrError", "[Core][Templates][SmokeFilter]")
 {
 	SECTION("Static")
 	{
@@ -232,4 +232,4 @@ TEST_CASE("Core::Templates::ValueOrError", "[Core][Templates][Smoke]")
 	CHECK(ErrorCount == 0);
 }
 
-#endif
+#endif //WITH_TESTS

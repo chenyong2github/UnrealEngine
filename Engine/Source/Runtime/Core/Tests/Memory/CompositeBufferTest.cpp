@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Memory/CompositeBuffer.h"
 
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 #include <type_traits>
 
-TEST_CASE("Core::Memory::CompositeBuffer", "[Core][Memory][Smoke]")
+TEST_CASE_NAMED(FMemoryCompositeBufferTest, "System::Core::Memory::CompositeBuffer", "[Core][Memory][SmokeFilter]")
 {
 	SECTION("Static")
 	{
@@ -214,4 +214,4 @@ TEST_CASE("Core::Memory::CompositeBuffer", "[Core][Memory][Smoke]")
 	}
 }
 
-#endif // WITH_LOW_LEVEL_TESTS
+#endif // WITH_TESTS

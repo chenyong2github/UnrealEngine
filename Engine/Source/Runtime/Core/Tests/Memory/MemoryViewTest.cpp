@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Memory/MemoryView.h"
 
 #include "Containers/ArrayView.h"
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
 #include <type_traits>
 
-TEST_CASE("Core::Memory::MemoryView", "[Core][Memory][Smoke]")
+TEST_CASE_NAMED(FMemoryMemoryViewTest, "System::Core::Memory::MemoryView", "[Core][Memory][SmokeFilter]")
 {
 	auto TestMemoryView = [](const FMemoryView& View, const void* Data, uint64 Size)
 	{
@@ -270,4 +270,4 @@ TEST_CASE("Core::Memory::MemoryView", "[Core][Memory][Smoke]")
 	}
 }
 
-#endif // WITH_LOW_LEVEL_TESTS
+#endif // WITH_TESTS

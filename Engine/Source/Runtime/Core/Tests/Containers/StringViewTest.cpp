@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Containers/StringView.h"
 
 #include "Containers/UnrealString.h"
 #include "Misc/StringBuilder.h"
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
 static_assert(std::is_same_v<typename FStringView::ElementType, TCHAR>, "FStringView must use TCHAR.");
 static_assert(std::is_same_v<typename FAnsiStringView::ElementType, ANSICHAR>, "FAnsiStringView must use ANSICHAR.");
@@ -34,7 +34,7 @@ int32 GetNum(const FTestType&) { return 3; }
 
 template <> struct TIsContiguousContainer<UE::String::Private::TestArgumentDependentLookup::FTestType> { static constexpr bool Value = true; };
 
-TEST_CASE("Core::String::StringView::Constructor", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewConstructorTest, "System::Core::String::StringView::Constructor", "[Core][String][SmokeFilter]")
 {
 	SECTION("Default View")
 	{
@@ -145,7 +145,7 @@ TEST_CASE("Core::String::StringView::Constructor", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::Iterators", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewIteratorsTest, "System::Core::String::StringView::Iterators", "[Core][String][SmokeFilter]")
 {
 	SECTION("View Iterator")
 	{
@@ -170,7 +170,7 @@ TEST_CASE("Core::String::StringView::Iterators", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::Equality", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewEqualityTest, "System::Core::String::StringView::Equality", "[Core][String][SmokeFilter]")
 {
 	const ANSICHAR* AnsiStringLiteralSrc = "String To Test!";
 	const ANSICHAR* AnsiStringLiteralLower = "string to test!";
@@ -349,7 +349,7 @@ TEST_CASE("Core::String::StringView::Equality", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::ComparisonCaseSensitive", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewComparisonCaseSensitiveTest, "System::Core::String::StringView::ComparisonCaseSensitive", "[Core][String][SmokeFilter]")
 {
 	SECTION("Basic comparisons involving case")
 	{
@@ -437,7 +437,7 @@ TEST_CASE("Core::String::StringView::ComparisonCaseSensitive", "[Core][String][S
 	}
 }
 
-TEST_CASE("Core::String::StringView::ComparisonCaseInsensitive", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewComparisonCaseInsensitiveTest, "System::Core::String::StringView::ComparisonCaseInsensitive", "[Core][String][SmokeFilter]")
 {
 	SECTION("Basic comparisons involving case")
 	{
@@ -501,7 +501,7 @@ TEST_CASE("Core::String::StringView::ComparisonCaseInsensitive", "[Core][String]
 	}
 }
 
-TEST_CASE("Core::String::StringView::ArrayAccessor", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewArrayAccessorTest, "System::Core::String::StringView::ArrayAccessor", "[Core][String][SmokeFilter]")
 {
 	const TCHAR* SrcString = TEXT("String To Test");
 	FStringView View(SrcString);
@@ -512,7 +512,7 @@ TEST_CASE("Core::String::StringView::ArrayAccessor", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::Modifiers", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewModifiersTest, "System::Core::String::StringView::Modifiers", "[Core][String][SmokeFilter]")
 {
 	const TCHAR* FullText = TEXT("PrefixSuffix");
 	const TCHAR* Prefix = TEXT("Prefix");
@@ -537,7 +537,7 @@ TEST_CASE("Core::String::StringView::Modifiers", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::StartsWith", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewStartsWithTest, "System::Core::String::StringView::StartsWith", "[Core][String][SmokeFilter]")
 {
 	SECTION("Test an empty view")
 	{
@@ -571,7 +571,7 @@ TEST_CASE("Core::String::StringView::StartsWith", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::EndsWith", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewEndsWithTest, "System::Core::String::StringView::EndsWith", "[Core][String][SmokeFilter]")
 {
 	SECTION("Test an empty view")
 	{
@@ -605,7 +605,7 @@ TEST_CASE("Core::String::StringView::EndsWith", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::SubStr", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewStringSubStrTest, "System::Core::String::StringView::SubStr", "[Core][String][SmokeFilter]")
 {
 	{
 		FStringView EmptyView;
@@ -635,7 +635,7 @@ TEST_CASE("Core::String::StringView::SubStr", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::Left", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewLeftTest, "System::Core::String::StringView::Left", "[Core][String][SmokeFilter]")
 {
 	{
 		FStringView EmptyView;
@@ -657,7 +657,7 @@ TEST_CASE("Core::String::StringView::Left", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::LeftChop", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewLeftChopTest, "System::Core::String::StringView::LeftChop", "[Core][String][SmokeFilter]")
 {
 	{
 		FStringView EmptyView;
@@ -679,7 +679,7 @@ TEST_CASE("Core::String::StringView::LeftChop", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::Right", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewRightTest, "System::Core::String::StringView::Right", "[Core][String][SmokeFilter]")
 {
 	{
 		FStringView EmptyView;
@@ -701,7 +701,7 @@ TEST_CASE("Core::String::StringView::Right", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::RightChop", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewRightChopTest, "System::Core::String::StringView::RightChop", "[Core][String][SmokeFilter]")
 {
 	{
 		FStringView EmptyView;
@@ -723,7 +723,7 @@ TEST_CASE("Core::String::StringView::RightChop", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::Mid", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewMidTest, "System::Core::String::StringView::Mid", "[Core][String][SmokeFilter]")
 {
 	{
 		FStringView EmptyView;
@@ -755,7 +755,7 @@ TEST_CASE("Core::String::StringView::Mid", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::TrimStartAndEnd", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewTrimStartAndEndTest, "System::Core::String::StringView::TrimStartAndEnd", "[Core][String][SmokeFilter]")
 {
 	CHECK(TEXTVIEW("").TrimStartAndEnd().IsEmpty());
 	CHECK(TEXTVIEW(" ").TrimStartAndEnd().IsEmpty());
@@ -767,7 +767,7 @@ TEST_CASE("Core::String::StringView::TrimStartAndEnd", "[Core][String][Smoke]")
 	CHECK(TEXTVIEW(" \t\r\nABC123\n\r\t ").TrimStartAndEnd() == TEXTVIEW("ABC123"));
 }
 
-TEST_CASE("Core::String::StringView::TrimStart", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewTrimStartTest, "System::Core::String::StringView::TrimStart", "[Core][String][SmokeFilter]")
 {
 	CHECK(TEXTVIEW("").TrimStart().IsEmpty());
 	CHECK(TEXTVIEW(" ").TrimStart().IsEmpty());
@@ -779,7 +779,7 @@ TEST_CASE("Core::String::StringView::TrimStart", "[Core][String][Smoke]")
 	CHECK(TEXTVIEW(" \t\r\nABC123\n\r\t ").TrimStart() == TEXTVIEW("ABC123\n\r\t "));
 }
 
-TEST_CASE("Core::String::StringView::TrimEnd", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewTrimEndTest, "System::Core::String::StringView::TrimEnd", "[Core][String][SmokeFilter]")
 {
 	CHECK(TEXTVIEW("").TrimEnd().IsEmpty());
 	CHECK(TEXTVIEW(" ").TrimEnd().IsEmpty());
@@ -791,7 +791,7 @@ TEST_CASE("Core::String::StringView::TrimEnd", "[Core][String][Smoke]")
 	CHECK(TEXTVIEW(" \t\r\nABC123\n\r\t ").TrimEnd() == TEXTVIEW(" \t\r\nABC123"));
 }
 
-TEST_CASE("Core::String::StringView::FindChar", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewFindCharTest, "System::Core::String::StringView::FindChar", "[Core][String][SmokeFilter]")
 {
 	FStringView EmptyView;
 	FStringView View = TEXT("aBce Fga");
@@ -833,7 +833,7 @@ TEST_CASE("Core::String::StringView::FindChar", "[Core][String][Smoke]")
 	}
 }
 
-TEST_CASE("Core::String::StringView::FindLastChar", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewFindLastCharTest, "System::Core::String::StringView::FindLastChar", "[Core][String][SmokeFilter]")
 {
 	FStringView EmptyView;
 	FStringView View = TEXT("aBce Fga");
@@ -959,7 +959,7 @@ static void TestSlicing(const FString& Str)
 	}
 }
 
-TEST_CASE("Core::String::StringView::Slice", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringViewSliceTest, "System::Core::String::StringView::Slice", "[Core][String][SmokeFilter]")
 {
 	// We assume that FString has already passed its tests, and we just want views to be consistent with it
 
@@ -975,4 +975,4 @@ TEST_CASE("Core::String::StringView::Slice", "[Core][String][Smoke]")
 	TestSlicing(TerminatorOnly);
 }
 
-#endif // WITH_LOW_LEVEL_TESTS
+#endif // WITH_TESTS

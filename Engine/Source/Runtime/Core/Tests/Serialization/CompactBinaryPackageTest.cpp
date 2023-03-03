@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Serialization/CompactBinaryPackage.h"
 
@@ -9,9 +9,9 @@
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/MemoryReader.h"
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
-TEST_CASE("Core::Serialization::CompactBinary::Attachment", "[Core][CompactBinary][Smoke]")
+TEST_CASE_NAMED(FCompactBinaryAttachmentTest, "System::Core::Serialization::CompactBinary::Attachment", "[Core][CompactBinary][SmokeFilter]")
 {
 	const auto TestSaveLoadValidate = [](const FCbAttachment& Attachment)
 	{
@@ -247,7 +247,7 @@ TEST_CASE("Core::Serialization::CompactBinary::Attachment", "[Core][CompactBinar
 	}
 }
 
-TEST_CASE("Core::Serialization::CompactBinary::Package", "[Core][CompactBinary][Smoke]")
+TEST_CASE_NAMED(FCompactBinaryPackageTest, "System::Core::Serialization::CompactBinary::Package", "[Core][CompactBinary][SmokeFilter]")
 {
 	const auto TestSaveLoadValidate = [](const FCbPackage& Package)
 	{
@@ -548,7 +548,7 @@ TEST_CASE("Core::Serialization::CompactBinary::Package", "[Core][CompactBinary][
 	}
 }
 
-TEST_CASE("Core::Serialization::CompactBinary::InvalidPackage", "[Core][CompactBinary][Smoke]")
+TEST_CASE_NAMED(FCompactBinaryInvalidPackageTest, "System::Core::Serialization::CompactBinary::InvalidPackage", "[Core][CompactBinary][SmokeFilter]")
 {
 	const auto TestLoad = [](std::initializer_list<uint8> RawData, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc)
 	{
@@ -599,4 +599,4 @@ TEST_CASE("Core::Serialization::CompactBinary::InvalidPackage", "[Core][CompactB
 	}
 }
 
-#endif // WITH_LOW_LEVEL_TESTS
+#endif // WITH_TESTS
