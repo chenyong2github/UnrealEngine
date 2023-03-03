@@ -64,6 +64,13 @@ Jupiter:
 {{ $config.Jupiter | toYaml | nindent 2 }}
 {{- end }}
 
+{{ if .Values.nginx.useDomainSockets }}
+Jupiter:
+  UseDomainSockets: true
+  DomainSocketsRoot: "/nginx"
+  ChmodDomainSockets: true
+{{ end }}
+
 {{ if .Values.nginx.enabled }}
 Nginx:
   UseNginxRedirect: true

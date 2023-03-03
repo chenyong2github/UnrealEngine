@@ -28,16 +28,18 @@ data:
         proxy_http_version 1.1;
         
         location /api {
-            proxy_set_header X-Jupiter-XAccel-Supported true;
-            proxy_pass http://localhost:80;
+          proxy_set_header X-Jupiter-XAccel-Supported true;
+          proxy_set_header X-Jupiter-Port Public;
+          proxy_pass {{ if .Values.nginx.useDomainSockets -}} http://unix:/nginx/jupiter-http.sock {{- else -}} http://localhost:80 {{- end }};
         }
         location /health {
-            proxy_pass http://localhost:80;
+          proxy_set_header X-Jupiter-Port Public;
+          proxy_pass {{ if .Values.nginx.useDomainSockets -}} http://unix:/nginx/jupiter-http.sock {{- else -}} http://localhost:80 {{- end }};
         }
         location /nginx-blobs {
-            internal;
-            alias {{ printf "%s/Blobs" .Values.persistence.mountPath }};
-            {{ if .Values.nginx.addXAccelDebugHeader }} add_header X-Jupiter-XAccel-Used true; {{ end }}
+          internal;
+          alias {{ printf "%s/Blobs" .Values.persistence.mountPath }};
+          {{ if .Values.nginx.addXAccelDebugHeader }} add_header X-Jupiter-XAccel-Used true; {{ end }}
         }
       }
 
@@ -50,16 +52,18 @@ data:
         proxy_http_version 1.1;
         
         location /api {
-            proxy_set_header X-Jupiter-XAccel-Supported true;
-            proxy_pass http://localhost:8008;
+          proxy_set_header X-Jupiter-XAccel-Supported true;
+          proxy_set_header X-Jupiter-Port Corp;
+          proxy_pass {{ if .Values.nginx.useDomainSockets -}} http://unix:/nginx/jupiter-http.sock {{- else -}} http://localhost:8008 {{- end }};
         }
         location /health {
-            proxy_pass http://localhost:8008;
+          proxy_set_header X-Jupiter-Port Corp;
+          proxy_pass {{ if .Values.nginx.useDomainSockets -}} http://unix:/nginx/jupiter-http.sock {{- else -}} http://localhost:8008 {{- end }};
         }
         location /nginx-blobs {
-            internal;
-            alias {{ printf "%s/Blobs" .Values.persistence.mountPath }};
-            {{ if .Values.nginx.addXAccelDebugHeader }} add_header X-Jupiter-XAccel-Used true; {{ end }}
+          internal;
+          alias {{ printf "%s/Blobs" .Values.persistence.mountPath }};
+          {{ if .Values.nginx.addXAccelDebugHeader }} add_header X-Jupiter-XAccel-Used true; {{ end }}
         }
       }
 
@@ -72,16 +76,18 @@ data:
         proxy_http_version 1.1;
         
         location /api {
-            proxy_set_header X-Jupiter-XAccel-Supported true;
-            proxy_pass http://localhost:80;
+          proxy_set_header X-Jupiter-XAccel-Supported true;
+          proxy_set_header X-Jupiter-Port Public;
+          proxy_pass {{ if .Values.nginx.useDomainSockets -}} http://unix:/nginx/jupiter-http2.sock {{- else -}} http://localhost:80 {{- end }};
         }
         location /health {
-            proxy_pass http://localhost:80;
+          proxy_set_header X-Jupiter-Port Public;
+          proxy_pass {{ if .Values.nginx.useDomainSockets -}} http://unix:/nginx/jupiter-http2.sock {{- else -}} http://localhost:80 {{- end }};
         }
         location /nginx-blobs {
-            internal;
-            alias {{ printf "%s/Blobs" .Values.persistence.mountPath }};
-            {{ if .Values.nginx.addXAccelDebugHeader }} add_header X-Jupiter-XAccel-Used true; {{ end }}
+          internal;
+          alias {{ printf "%s/Blobs" .Values.persistence.mountPath }};
+          {{ if .Values.nginx.addXAccelDebugHeader }} add_header X-Jupiter-XAccel-Used true; {{ end }}
         }
       }
 
@@ -94,11 +100,13 @@ data:
         proxy_http_version 1.1;
         
         location /api {
-            proxy_set_header X-Jupiter-XAccel-Supported true;
-            proxy_pass http://localhost:8008;
+          proxy_set_header X-Jupiter-XAccel-Supported true;
+          proxy_set_header X-Jupiter-Port Corp;
+          proxy_pass {{ if .Values.nginx.useDomainSockets -}} http://unix:/nginx/jupiter-http.sock {{- else -}} http://localhost:8008 {{- end }};
         }
         location /health {
-            proxy_pass http://localhost:8008;
+          proxy_set_header X-Jupiter-Port Corp;
+          proxy_pass {{ if .Values.nginx.useDomainSockets -}} http://unix:/nginx/jupiter-http.sock {{- else -}} http://localhost:8008 {{- end }};
         }
         location /nginx-blobs {
             internal;

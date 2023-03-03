@@ -316,6 +316,9 @@ nginx:
   ## Set this to add a header whenever X-Accel is used from nginx to send blobs
   addXAccelDebugHeader: false
 
+  ## Set this to use Unix domain sockets rather then ports for inter process communication
+  useDomainSockets: false
+
 ## Worker configuration
 
 worker:
