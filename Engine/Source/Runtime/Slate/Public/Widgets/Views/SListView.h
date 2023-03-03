@@ -335,7 +335,12 @@ public:
 				return Reply;
 			}
 		}
+		return OnKeyDown_Internal(MyGeometry, InKeyEvent);
+	}
 
+protected:
+	FReply OnKeyDown_Internal(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+	{
 		const TArrayView<const ItemType> ItemsSourceRef = GetItems();
 
 		// Don't respond to key-presses containing "Alt" as a modifier
@@ -474,11 +479,6 @@ public:
 
 		return STableViewBase::OnKeyDown(MyGeometry, InKeyEvent);
 	}
-
-private:
-
-	FOnKeyDown OnKeyDownHandler;
-
 public:
 
 	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override
@@ -2545,6 +2545,9 @@ protected:
 
 	/** Called when the user double-clicks on an element in the list view with the left mouse button */
 	FOnMouseButtonDoubleClick OnDoubleClick;
+	
+	/** Called when the user presses a keyboard key */
+	FOnKeyDown OnKeyDownHandler;
 
 	/** True when the list view supports keyboard focus */
 	TAttribute<bool> IsFocusable;
