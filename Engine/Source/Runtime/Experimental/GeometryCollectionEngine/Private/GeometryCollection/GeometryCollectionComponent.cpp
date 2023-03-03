@@ -1600,7 +1600,8 @@ void UGeometryCollectionComponent::UpdateRepData()
 					}
 				}
 	
-				if (bProcess && Root->Disabled() == false && ClustersToRep->Find(Root) == nullptr)
+				// The additional physics proxy check is to make sure that we don't try to replicate a cluster union particle.
+				if (bProcess && Root->Disabled() == false && ClustersToRep->Find(Root) == nullptr && Root->PhysicsProxy() == PhysicsProxy)
 				{
 					int32 TransformGroupIdx = INDEX_NONE;
 					int32 Level = INDEX_NONE;
