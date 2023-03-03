@@ -235,6 +235,7 @@ int32 EditorReinit()
 void EditorExit()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(EditorExit);
+	LLM_SCOPE(ELLMTag::EngineMisc);
 
 	// Save out any config settings for the editor so they don't get lost
 	GEditor->SaveConfig();
