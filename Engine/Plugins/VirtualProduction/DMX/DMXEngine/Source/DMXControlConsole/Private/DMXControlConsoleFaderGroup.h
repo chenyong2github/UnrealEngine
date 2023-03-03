@@ -16,7 +16,9 @@ class UDMXControlConsoleFaderGroupRow;
 class UDMXControlConsoleFixturePatchFunctionFader;
 class UDMXControlConsoleFixturePatchMatrixCell;
 class UDMXControlConsoleRawFader;
+class UDMXEntity;
 class UDMXEntityFixturePatch;
+class UDMXLibrary;
 
 
 /** A Group of Faders in the DMX Control Console */
@@ -102,6 +104,7 @@ public:
 	FORCEINLINE static FName GetElementsPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, Elements); }
 	FORCEINLINE static FName GetFaderGroupNamePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, FaderGroupName); }
 	FORCEINLINE static FName GetSoftFixturePatchPtrPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, SoftFixturePatchPtr); }
+	FORCEINLINE static FName GetCachedWeakFixturePatchPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, CachedWeakFixturePatch); }
 #if WITH_EDITOR
 	FORCEINLINE static FName GetEditorColorPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, EditorColor); }
 #endif // WITH_EDITOR
@@ -116,6 +119,24 @@ protected:
 	//~ End UObject interface
 
 private:	
+	/** Called when a Fixture Patch was removed from a DMX Library */
+	void OnFixturePatchRemovedFromLibrary(UDMXLibrary* Library, TArray<UDMXEntity*> Entities);
+
+	/** Called when the Fixture Patch is changed inside its DMX Library */
+	void OnFixturePatchChanged(const UDMXEntityFixturePatch* InFixturePatch);
+
+	/** Updates FaderGroup properties according to the given FixturePatch */
+	void UpdateFaderGroupFromFixturePatch(UDMXEntityFixturePatch* InFixturePatch);
+
+	/** Updates FixtureFunctionFaders properties according to the given FixturePatch */
+	void UpdateFixturePatchFunctionFaders(UDMXEntityFixturePatch* InFixturePatch);
+
+	/** Updates MatrixCells properties according to the given FixturePatch */
+	void UpdateFixturePatchMatrixCells(UDMXEntityFixturePatch* InFixturePatch);
+
+	/** Subscribes this Fader Group to Fixture Patch delegates */
+	void SubscribeToFixturePatchDelegates();
+
 	/** Gets the next Universe and Address available for a new fader */
 	void GetNextAvailableUniverseAndAddress(int32& OutUniverse, int32& OutAddress) const;
 

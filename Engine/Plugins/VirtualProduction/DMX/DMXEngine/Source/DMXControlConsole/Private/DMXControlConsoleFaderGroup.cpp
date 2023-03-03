@@ -12,7 +12,9 @@
 #include "DMXSubsystem.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
+#include "Library/DMXLibrary.h"
 
+#include "Algo/Find.h"
 #include "Algo/Sort.h"
 
 
@@ -114,6 +116,8 @@ void UDMXControlConsoleFaderGroup::GenerateFromFixturePatch(UDMXEntityFixturePat
 	{
 		return;
 	}
+
+	SubscribeToFixturePatchDelegates();
 
 	Modify();
 
@@ -336,7 +340,22 @@ void UDMXControlConsoleFaderGroup::PostLoad()
 {
 	Super::PostLoad();
 
+	if (SoftFixturePatchPtr.IsNull())
+	{
+		return;
+	}
+
 	CachedWeakFixturePatch = Cast<UDMXEntityFixturePatch>(SoftFixturePatchPtr.ToSoftObjectPath().TryLoad());
+	if (CachedWeakFixturePatch.IsValid())
+	{
+		SubscribeToFixturePatchDelegates();	
+		UpdateFaderGroupFromFixturePatch(CachedWeakFixturePatch.Get());
+	}
+	else
+	{
+		Modify();
+		Reset();
+	}
 }
 
 #if WITH_EDITOR
@@ -351,6 +370,269 @@ void UDMXControlConsoleFaderGroup::PostEditChangeProperty(FPropertyChangedEvent&
 	}
 }
 #endif // WITH_EDITOR
+
+void UDMXControlConsoleFaderGroup::OnFixturePatchRemovedFromLibrary(UDMXLibrary* Library, TArray<UDMXEntity*> Entities)
+{
+	const UDMXEntityFixturePatch* FixturePatch = GetFixturePatch();
+	if (!FixturePatch)
+	{
+		return;
+	}
+
+	if (Library != FixturePatch->GetParentLibrary())
+	{
+		return;
+	}
+
+	if (!Entities.Contains(FixturePatch))
+	{
+		return;
+	}
+
+	Modify();
+	Reset();
+}
+
+void UDMXControlConsoleFaderGroup::OnFixturePatchChanged(const UDMXEntityFixturePatch* InFixturePatch)
+{
+	UDMXEntityFixturePatch* MyFixturePatch = GetFixturePatch();
+	if (!MyFixturePatch ||
+		MyFixturePatch != InFixturePatch)
+	{
+		return;
+	}
+
+	UpdateFaderGroupFromFixturePatch(MyFixturePatch);
+}
+
+void UDMXControlConsoleFaderGroup::UpdateFaderGroupFromFixturePatch(UDMXEntityFixturePatch* InFixturePatch)
+{
+	if (!InFixturePatch)
+	{
+		return;
+	}
+
+#if WITH_EDITOR
+	EditorColor = InFixturePatch->EditorColor;
+#endif // WITH_EDITOR
+
+	UpdateFixturePatchFunctionFaders(InFixturePatch);
+	UpdateFixturePatchMatrixCells(InFixturePatch);
+
+	auto SortElementsByEndingAddressLambda = [](const TScriptInterface<IDMXControlConsoleFaderGroupElement>& ItemA, const TScriptInterface<IDMXControlConsoleFaderGroupElement>& ItemB)
+	{
+		const int32 EndingAddressA = ItemA->GetStartingAddress();
+		const int32 EndingAddressB = ItemB->GetStartingAddress();
+
+		return EndingAddressA < EndingAddressB;
+	};
+
+	Algo::Sort(Elements, SortElementsByEndingAddressLambda);
+
+	bForceRefresh = true;
+}
+
+void UDMXControlConsoleFaderGroup::UpdateFixturePatchFunctionFaders(UDMXEntityFixturePatch* InFixturePatch)
+{
+	if (!InFixturePatch || !InFixturePatch->GetActiveMode())
+	{
+		return;
+	}
+
+	const int32 UniverseID = InFixturePatch->GetUniverseID();
+	const int32 StartingChannel = InFixturePatch->GetStartingChannel();
+
+	const TMap<FDMXAttributeName, FDMXFixtureFunction> FunctionsMap = InFixturePatch->GetAttributeFunctionsMap();
+	// Remove all FixturePatchFunctionFaders which Attribute is no longer in use
+	auto IsAttributeNoLongerInUseLambda = [FunctionsMap](const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element)
+	{
+		const UObject* ElementObject = Element.GetObject();
+		if (!ElementObject)
+		{
+			return true;
+		}
+
+		const UDMXControlConsoleFixturePatchFunctionFader* FixturePatchFunctionFader = Cast<UDMXControlConsoleFixturePatchFunctionFader>(ElementObject);
+		if (FixturePatchFunctionFader)
+		{
+			const FDMXAttributeName& AttributeName = FixturePatchFunctionFader->GetAttributeName();
+			if (!FunctionsMap.Contains(AttributeName))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	};
+
+	Elements.RemoveAll(IsAttributeNoLongerInUseLambda);
+
+	// Update FixturePatchFunctionFaders which Attributes are already in use and create Faders for new Attributes
+	for (const TTuple<FDMXAttributeName, FDMXFixtureFunction>& FunctionTuple : FunctionsMap)
+	{
+		const FDMXAttributeName& AttributeName = FunctionTuple.Key;
+		const FDMXFixtureFunction FixtureFunction = FunctionTuple.Value;
+
+		auto IsAttributeAlreadyInUseLambda = [AttributeName](const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element)
+		{
+			const UObject* ElementObject = Element.GetObject();
+			if (!ElementObject)
+			{
+				return false;
+			}
+
+			const UDMXControlConsoleFixturePatchFunctionFader* FixturePatchFunctionFader = Cast<UDMXControlConsoleFixturePatchFunctionFader>(ElementObject);
+			if (!FixturePatchFunctionFader)
+			{
+				return false;
+			}
+
+			if (FixturePatchFunctionFader->GetAttributeName() != AttributeName)
+			{
+				return false;
+			}
+
+			return true;
+		};
+
+		TScriptInterface<IDMXControlConsoleFaderGroupElement>* MyElement = Algo::FindByPredicate(Elements, IsAttributeAlreadyInUseLambda);
+		if (MyElement)
+		{
+			UObject* MyElementObject = MyElement->GetObject();
+			if (MyElementObject)
+			{
+				UDMXControlConsoleFixturePatchFunctionFader* MyFixturePatchFunctionFader = Cast<UDMXControlConsoleFixturePatchFunctionFader>(MyElementObject);
+				if (MyFixturePatchFunctionFader)
+				{
+					// SetPropertiesFromFixtureFunction gets the the default value from the patch and sets it. 
+					// Hence here remember the current value and set it back after setting properties.
+					const uint32 Value = MyFixturePatchFunctionFader->GetValue();
+					MyFixturePatchFunctionFader->SetPropertiesFromFixtureFunction(FixtureFunction, UniverseID, StartingChannel);
+					MyFixturePatchFunctionFader->SetValue(Value);
+				}
+			}
+		}
+		else
+		{
+			AddFixturePatchFunctionFader(FixtureFunction, UniverseID, StartingChannel);
+		}
+	}
+}
+
+void UDMXControlConsoleFaderGroup::UpdateFixturePatchMatrixCells(UDMXEntityFixturePatch* InFixturePatch)
+{
+	if (!InFixturePatch || !InFixturePatch->GetActiveMode())
+	{
+		return;
+	}
+
+	const int32 UniverseID = InFixturePatch->GetUniverseID();
+	const int32 StartingChannel = InFixturePatch->GetStartingChannel();
+
+	// Check changes on Fixture Matrices
+	FDMXFixtureMatrix FixtureMatrix;
+	if (InFixturePatch->GetMatrixProperties(FixtureMatrix))
+	{
+		TArray<FDMXCell> Cells;
+		InFixturePatch->GetAllMatrixCells(Cells);
+
+		// Remove all FixturePatchMatrixCell no longer in use
+		auto IsCellNoLongerInUseLambda = [Cells](const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element)
+		{
+			UObject* ElementObject = Element.GetObject();
+			if (!ElementObject)
+			{
+				return true;
+			}
+
+			UDMXControlConsoleFixturePatchMatrixCell* FixturePatchMatrixCell = Cast<UDMXControlConsoleFixturePatchMatrixCell>(ElementObject);
+			if (FixturePatchMatrixCell)
+			{
+				const int32 CellID = FixturePatchMatrixCell->GetCellID();
+
+				if (!Cells.ContainsByPredicate([CellID](const FDMXCell& Cell)
+					{
+						return CellID == Cell.CellID;
+					}))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		};
+
+		Elements.RemoveAll(IsCellNoLongerInUseLambda);
+
+		// Create Elements for new Matrix Cells
+		for (const FDMXCell& Cell : Cells)
+		{
+			auto IsCellAlreadyInUseLambda = [Cell](const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element)
+			{
+				const UObject* ElementObject = Element.GetObject();
+				if (!ElementObject)
+				{
+					return false;
+				}
+
+				const UDMXControlConsoleFixturePatchMatrixCell* FixturePatchMatrixCell = Cast<UDMXControlConsoleFixturePatchMatrixCell>(ElementObject);
+				if (!FixturePatchMatrixCell)
+				{
+					return false;
+				}
+
+				if (FixturePatchMatrixCell->GetCellID() != Cell.CellID)
+				{
+					return false;
+				}
+
+				return true;
+			};
+
+			const TScriptInterface<IDMXControlConsoleFaderGroupElement>* MyElement = Algo::FindByPredicate(Elements, IsCellAlreadyInUseLambda);
+			if (MyElement)
+			{
+				continue;
+			}
+
+			AddFixturePatchMatrixCell(Cell, UniverseID, StartingChannel);
+		}
+	}
+	else
+	{
+		auto IsMatrixCellLambda = [](const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element)
+			{
+				UObject* ElementObject = Element.GetObject();
+				if (!ElementObject)
+				{
+					return false;
+				}
+
+				UDMXControlConsoleFixturePatchMatrixCell* FixturePatchMatrixCell = Cast<UDMXControlConsoleFixturePatchMatrixCell>(ElementObject);
+				if (!FixturePatchMatrixCell)
+				{
+					return false;
+				}
+
+				return true;
+			};
+
+		Elements.RemoveAll(IsMatrixCellLambda);
+	}
+}
+
+void UDMXControlConsoleFaderGroup::SubscribeToFixturePatchDelegates()
+{
+	if (!UDMXLibrary::GetOnEntitiesRemoved().IsBoundToObject(this))
+	{
+		UDMXLibrary::GetOnEntitiesRemoved().AddUObject(this, &UDMXControlConsoleFaderGroup::OnFixturePatchRemovedFromLibrary);
+	}
+
+	if (!UDMXEntityFixturePatch::GetOnFixturePatchChanged().IsBoundToObject(this))
+	{
+		UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddUObject(this, &UDMXControlConsoleFaderGroup::OnFixturePatchChanged);
+	}
+}
 
 void UDMXControlConsoleFaderGroup::GetNextAvailableUniverseAndAddress(int32& OutUniverse, int32& OutAddress) const
 {

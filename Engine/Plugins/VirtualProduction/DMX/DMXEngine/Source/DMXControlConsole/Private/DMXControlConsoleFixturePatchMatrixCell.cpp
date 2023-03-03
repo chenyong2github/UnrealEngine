@@ -9,6 +9,7 @@
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
 
+#include "Algo/Find.h"
 #include "Algo/Sort.h"
 
 
@@ -134,6 +135,11 @@ void UDMXControlConsoleFixturePatchMatrixCell::SetPropertiesFromCell(const FDMXC
 		return;
 	}
 
+	if (!UDMXEntityFixturePatch::GetOnFixturePatchChanged().IsBoundToObject(this))
+	{
+		UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddUObject(this, &UDMXControlConsoleFixturePatchMatrixCell::OnFixturePatchChanged);
+	}
+
 	const TArray<FDMXFixtureCellAttribute> CellAttributes = FixtureMatrix.CellAttributes;
 	TMap<FDMXAttributeName, int32> AttributeToChannelMap;
 	FixturePatch->GetMatrixCellChannelsRelative(Cell.Coordinate, AttributeToChannelMap);
@@ -145,8 +151,6 @@ void UDMXControlConsoleFixturePatchMatrixCell::SetPropertiesFromCell(const FDMXC
 		const int32 AbsoluteChannel = StartingChannel + RelativeChannel;
 
 		AddFixturePatchCellAttributeFader(CellAttribute, InUniverseID, AbsoluteChannel);
-
-		CellSize += CellAttribute.GetNumChannels();
 	}
 
 	auto SortFadersByStartingAddressLambda = [](const UDMXControlConsoleFaderBase* ItemA, const UDMXControlConsoleFaderBase* ItemB)
@@ -156,6 +160,138 @@ void UDMXControlConsoleFixturePatchMatrixCell::SetPropertiesFromCell(const FDMXC
 
 			return StartingAddressA < StartingAddressB;
 		};
+
+	Algo::Sort(CellAttributeFaders, SortFadersByStartingAddressLambda);
+}
+
+void UDMXControlConsoleFixturePatchMatrixCell::PostLoad()
+{
+	Super::PostLoad();
+
+	UDMXControlConsoleFaderGroup& FaderGroup = GetOwnerFaderGroupChecked();
+	UDMXEntityFixturePatch* FixturePatch = FaderGroup.GetFixturePatch();
+	if (!FixturePatch)
+	{
+		return;
+	}
+
+	if (!UDMXEntityFixturePatch::GetOnFixturePatchChanged().IsBoundToObject(this))
+	{
+		UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddUObject(this, &UDMXControlConsoleFixturePatchMatrixCell::OnFixturePatchChanged);
+	}
+
+	UpdateFixturePatchCellAttributeFaders(FixturePatch);
+}
+
+void UDMXControlConsoleFixturePatchMatrixCell::OnFixturePatchChanged(const UDMXEntityFixturePatch* InFixturePatch)
+{
+	UDMXControlConsoleFaderGroup& FaderGroup = GetOwnerFaderGroupChecked();
+	UDMXEntityFixturePatch* MyFixturePatch = FaderGroup.GetFixturePatch();
+	if (!MyFixturePatch ||
+		MyFixturePatch != InFixturePatch)
+	{
+		return;
+	}
+
+	UpdateFixturePatchCellAttributeFaders(MyFixturePatch);
+}
+
+void UDMXControlConsoleFixturePatchMatrixCell::UpdateFixturePatchCellAttributeFaders(UDMXEntityFixturePatch* InFixturePatch)
+{
+	if (!InFixturePatch || !InFixturePatch->GetActiveMode())
+	{
+		return;
+	}
+
+	FDMXFixtureMatrix FixtureMatrix;
+	if (!InFixturePatch->GetMatrixProperties(FixtureMatrix))
+	{
+		return;
+	}
+
+	const int32 UniverseID = InFixturePatch->GetUniverseID();
+	const int32 StartingChannel = InFixturePatch->GetStartingChannel();
+
+	const TArray<FDMXFixtureCellAttribute> CellAttributes = FixtureMatrix.CellAttributes;
+	const FIntPoint Coordinate = FIntPoint(CellX, CellY);
+	TMap<FDMXAttributeName, int32> AttributeToChannelMap;
+
+	InFixturePatch->GetMatrixCellChannelsRelative(Coordinate, AttributeToChannelMap);
+	// Destroy all FixturePatchCellAttributeFaders which Attribute is no longer in use
+	auto IsAttributNoLongerInUseLambda = [AttributeToChannelMap](UDMXControlConsoleFaderBase* Fader)
+		{
+			const UDMXControlConsoleFixturePatchCellAttributeFader* CellAttributeFader = Cast<UDMXControlConsoleFixturePatchCellAttributeFader>(Fader);
+			if (!CellAttributeFader)
+			{
+				return true;
+			}
+
+			const FDMXAttributeName& AttributeName = CellAttributeFader->GetAttributeName();
+			if (!AttributeToChannelMap.Contains(AttributeName))
+			{
+				return true;
+			}
+
+			return false;
+		};
+
+	CellAttributeFaders.RemoveAll(IsAttributNoLongerInUseLambda);
+
+	// Update FixturePatchCellAttributeFaders which Attributes are already in use and create CellAttributeFaders for new Attributes
+	for (const FDMXFixtureCellAttribute& CellAttribute : CellAttributes)
+	{
+		const FDMXAttributeName& AttributeName = CellAttribute.Attribute;
+
+		auto IsAttributeAlreadyInUseLambda = [AttributeName](UDMXControlConsoleFaderBase* Fader)
+			{
+				if (!Fader)
+				{
+					return false;
+				}
+
+				const UDMXControlConsoleFixturePatchCellAttributeFader* CellAttributeFader = Cast<UDMXControlConsoleFixturePatchCellAttributeFader>(Fader);
+				if (!CellAttributeFader)
+				{
+					return false;
+				}
+
+				if (CellAttributeFader->GetAttributeName() != AttributeName)
+				{
+					return false;
+				}
+
+				return true;
+			};
+
+		const int32 RelativeChannel = AttributeToChannelMap.FindRef(AttributeName) - 1;
+		const int32 AbsoluteChannel = StartingChannel + RelativeChannel;
+
+		TObjectPtr<UDMXControlConsoleFaderBase>* MyFader = Algo::FindByPredicate(CellAttributeFaders, IsAttributeAlreadyInUseLambda);
+		if (MyFader)
+		{
+			UDMXControlConsoleFixturePatchCellAttributeFader* MyCellAttributeFader = Cast<UDMXControlConsoleFixturePatchCellAttributeFader>(MyFader->Get());
+			if (MyCellAttributeFader)
+			{
+				// SetPropertiesFromFixtureCellAttribute gets the the default value from the patch and sets it. 
+				// Hence here remember the current value and set it back after setting properties.
+				const uint32 Value = MyCellAttributeFader->GetValue();
+				MyCellAttributeFader->SetPropertiesFromFixtureCellAttribute(CellAttribute, UniverseID, AbsoluteChannel);
+				MyCellAttributeFader->SetValue(Value);
+			}
+		}
+		else
+		{
+			AddFixturePatchCellAttributeFader(CellAttribute, UniverseID, AbsoluteChannel);
+		}
+	}
+
+	auto SortFadersByStartingAddressLambda = [](const UDMXControlConsoleFaderBase* ItemA, const UDMXControlConsoleFaderBase* ItemB)
+	{
+		const int32 StartingAddressA = ItemA->GetStartingAddress();
+		const int32 StartingAddressB = ItemB->GetStartingAddress();
+
+		return StartingAddressA < StartingAddressB;
+	};
 
 	Algo::Sort(CellAttributeFaders, SortFadersByStartingAddressLambda);
 }

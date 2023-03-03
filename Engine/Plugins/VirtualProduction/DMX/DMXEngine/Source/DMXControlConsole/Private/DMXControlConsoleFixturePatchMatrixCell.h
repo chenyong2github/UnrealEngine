@@ -11,6 +11,7 @@ struct FDMXCell;
 struct FDMXFixtureCellAttribute;
 class UDMXControlConsoleFaderGroup;
 class UDMXControlConsoleFixturePatchCellAttributeFader;
+class UDMXEntityFixturePatch;
 
 
 /** A fader matching a Fixture Patch Matrix Cell in the DMX Control Console. */
@@ -50,15 +51,23 @@ public:
 	/** Gets Y coordinate of this Matrix Cell */
 	int32 GetCellY() const { return CellY; }
 
-	/** Gets Cell's total number of channels */
-	int32 GetCellSize() const { return CellSize; }
-
 	// Property Name getters
 	FORCEINLINE static FName GetCellXPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFixturePatchMatrixCell, CellX); }
 	FORCEINLINE static FName GetCellYPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFixturePatchMatrixCell, CellY); }
 	FORCEINLINE static FName GetCellAttributeFadersPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFixturePatchMatrixCell, CellAttributeFaders); }
 
+protected:
+	//~ Begin UObject interface
+	virtual void PostLoad() override;
+	//~ End UObject interface
+
 private:
+	/** Called when the Fixture Patch is changed inside its DMX Library */
+	void OnFixturePatchChanged(const UDMXEntityFixturePatch* InFixturePatch);
+
+	/** Updates CellAttributeFaders properties according to the given FixturePatch */
+	void UpdateFixturePatchCellAttributeFaders(UDMXEntityFixturePatch* InFixturePatch);
+
 	/** Cell Index ID */
 	UPROPERTY(VisibleAnywhere, Category = "DMX Matrix Cell")
 	int32 CellID = 0;
@@ -74,7 +83,4 @@ private:
 	/** Faders array of this Fader Group */
 	UPROPERTY(VisibleAnywhere, Category = "DMX Matrix Cell")
 	TArray<TObjectPtr<UDMXControlConsoleFaderBase>> CellAttributeFaders;
-
-	/** Size of a single Matrix Cell */
-	int32 CellSize = 0;
 };
