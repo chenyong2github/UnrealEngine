@@ -49,9 +49,9 @@ void UPoseSearchFeatureChannel_Position::PreDebugDraw(UE::PoseSearch::FDebugDraw
 	using namespace UE::PoseSearch;
 	
 	// if the SchemaOriginBoneIdx is not the root bone, the feature vector position doesn't represent a component space delta position for the SchemaBoneIdx, so we shouldn't collect it
-	if (!DrawParams.Database->Schema->BoneReferences[SchemaOriginBoneIdx].HasValidSetup())
+	if (!DrawParams.GetSchema()->BoneReferences[SchemaOriginBoneIdx].HasValidSetup())
 	{
-		const FVector BonePos = DrawParams.RootTransform.TransformPosition(FFeatureVectorHelper::DecodeVector(PoseVector, ChannelDataOffset, ComponentStripping));
+		const FVector BonePos = DrawParams.GetRootTransform().TransformPosition(FFeatureVectorHelper::DecodeVector(PoseVector, ChannelDataOffset, ComponentStripping));
 		DrawParams.AddCachedPosition(SampleTimeOffset, SchemaBoneIdx, BonePos);
 	}
 }
@@ -60,44 +60,20 @@ void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugD
 {
 	using namespace UE::PoseSearch;
 
-	const float LifeTime = DrawParams.DefaultLifeTime;
-	const uint8 DepthPriority = ESceneDepthPriorityGroup::SDPG_Foreground + 2;
-	const bool bPersistent = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::Persistent);
 	const FColor Color = DrawParams.GetColor(ColorPresetIndex);
 
-	if (!DrawParams.Database->Schema->BoneReferences[SchemaOriginBoneIdx].HasValidSetup())
+	if (!DrawParams.GetSchema()->BoneReferences[SchemaOriginBoneIdx].HasValidSetup())
 	{
-		const FVector BonePos = DrawParams.RootTransform.TransformPosition(FFeatureVectorHelper::DecodeVector(PoseVector, ChannelDataOffset, ComponentStripping));
+		const FVector BonePos = DrawParams.GetRootTransform().TransformPosition(FFeatureVectorHelper::DecodeVector(PoseVector, ChannelDataOffset, ComponentStripping));
 
-		if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
-		{
-			DrawDebugPoint(DrawParams.World, BonePos, DrawParams.PointSize, Color, bPersistent, LifeTime, DepthPriority);
-		}
-		else
-		{
-			DrawDebugSphere(DrawParams.World, BonePos, 2.f, 8, Color, bPersistent, LifeTime, DepthPriority);
-		}
-
-		if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawBoneNames))
-		{
-			const UPoseSearchSchema* Schema = DrawParams.GetSchema();
-			check(Schema && Schema->IsValid());
-			DrawDebugString(DrawParams.World, BonePos + FVector(0.0, 0.0, 10.0), Schema->BoneReferences[SchemaBoneIdx].BoneName.ToString(), nullptr, Color, LifeTime, false, 1.0f);
-		}
+		DrawParams.DrawPoint(BonePos, Color);
 	}
 	else
 	{
 		const FVector OriginBonePos = DrawParams.GetCachedPosition(SampleTimeOffset, SchemaOriginBoneIdx);
-		const FVector DeltaPos = DrawParams.RootTransform.TransformVector(FFeatureVectorHelper::DecodeVector(PoseVector, ChannelDataOffset, ComponentStripping));
+		const FVector DeltaPos = DrawParams.GetRootTransform().TransformVector(FFeatureVectorHelper::DecodeVector(PoseVector, ChannelDataOffset, ComponentStripping));
 
-		DrawDebugLine(DrawParams.World, OriginBonePos, OriginBonePos + DeltaPos, Color, bPersistent, LifeTime, DepthPriority);
-
-		if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawBoneNames))
-		{
-			const UPoseSearchSchema* Schema = DrawParams.GetSchema();
-			check(Schema && Schema->IsValid());
-			DrawDebugString(DrawParams.World, OriginBonePos + DeltaPos + FVector(0.0, 0.0, 10.0), Schema->BoneReferences[SchemaBoneIdx].BoneName.ToString(), nullptr, Color, LifeTime, false, 1.0f);
-		}
+		DrawParams.DrawLine(OriginBonePos, OriginBonePos + DeltaPos, Color);
 	}	
 }
 #endif // ENABLE_DRAW_DEBUG

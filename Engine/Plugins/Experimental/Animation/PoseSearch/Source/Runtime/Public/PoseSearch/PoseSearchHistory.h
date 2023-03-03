@@ -5,8 +5,10 @@
 #include "Animation/AnimNodeMessages.h"
 #include "BonePose.h"
 #include "Containers/RingBuffer.h"
+#include "DrawDebugHelpers.h"
 #include "UObject/ObjectKey.h"
 
+struct FAnimInstanceProxy;
 class USkeleton;
 class UWorld;
 
@@ -43,7 +45,7 @@ struct FPoseHistory : public IPoseHistory
 	void Init(int32 InNumPoses, float InTimeHorizon, const TArray<FBoneIndexType>& RequiredBones);
 	void Update(float SecondsElapsed, FCSPose<FCompactPose>& ComponentSpacePose, const FTransform& ComponentTransform);
 	float GetTimeHorizon() const { return TimeHorizon; }
-	void DebugDraw(const UWorld* World, const USkeleton* Skeleton) const;
+
 	const FBoneToTransformMap& GetBoneToTransformMap() const { return BoneToTransformMap; }
 	const FPoseHistoryEntries& GetEntries() const { return Entries; }
 
@@ -52,6 +54,10 @@ struct FPoseHistory : public IPoseHistory
 	virtual bool GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate = true) const override;
 	virtual void GetRootTransformAtTime(float Time, FTransform& OutRootTransform, bool bExtrapolate = true) const override;
 	// End of IPoseHistory interface
+
+#if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
+	void DebugDraw(FAnimInstanceProxy& AnimInstanceProxy) const;
+#endif
 
 private:
 	FBoneToTransformMap BoneToTransformMap;
@@ -71,7 +77,10 @@ struct FExtendedPoseHistory : public IPoseHistory
 
 	void ResetFuturePoses();
 	void AddFuturePose(float SecondsInTheFuture, FCSPose<FCompactPose>& ComponentSpacePose, const FTransform& ComponentTransform);
-	void DebugDraw(const UWorld* World, const USkeleton* Skeleton) const;
+
+#if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
+	void DebugDraw(FAnimInstanceProxy& AnimInstanceProxy) const;
+#endif
 
 private:
 	const FPoseHistory* PoseHistory = nullptr;

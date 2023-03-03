@@ -2,6 +2,7 @@
 
 #include "PoseSearch/PoseSearchHistory.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimRootMotionProvider.h"
 #include "BonePose.h"
@@ -243,10 +244,9 @@ float FPoseHistory::GetSampleTimeInterval() const
 	return TimeHorizon / (Entries.Max() - 1);
 }
 
-void FPoseHistory::DebugDraw(const UWorld* World, const USkeleton* Skeleton) const
+#if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
+void FPoseHistory::DebugDraw(FAnimInstanceProxy& AnimInstanceProxy) const
 {
-#if ENABLE_DRAW_DEBUG
-
 	auto LerpColor = [](FColor A, FColor B, float T) -> FColor
 	{
 		return FColor(
@@ -281,14 +281,14 @@ void FPoseHistory::DebugDraw(const UWorld* World, const USkeleton* Skeleton) con
 			{
 				const FTransform GlobalTransforms = Entry.ComponentSpaceTransforms[i] * Entry.RootTransform;
 
-				DrawDebugLine(World, PrevGlobalTransforms[i].GetTranslation(), GlobalTransforms.GetTranslation(), Color, false, 0.f, ESceneDepthPriorityGroup::SDPG_Foreground + 2);
+				AnimInstanceProxy.AnimDrawDebugLine(PrevGlobalTransforms[i].GetTranslation(), GlobalTransforms.GetTranslation(), Color, false, 0.f, ESceneDepthPriorityGroup::SDPG_Foreground);
 
 				PrevGlobalTransforms[i] = GlobalTransforms;
 			}
 		}
 	}
-#endif // ENABLE_DRAW_DEBUG
 }
+#endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 
 //////////////////////////////////////////////////////////////////////////
 // FExtendedPoseHistory
@@ -409,9 +409,9 @@ void FExtendedPoseHistory::AddFuturePose(float SecondsInTheFuture, FCSPose<FComp
 	FutureEntries.InsertDefaulted_GetRef(LowerBoundIdx).Update(SecondsAgo, ComponentSpacePose, ComponentTransform, PoseHistory->GetBoneToTransformMap());
 }
 
-void FExtendedPoseHistory::DebugDraw(const UWorld* World, const USkeleton* Skeleton) const
+#if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
+void FExtendedPoseHistory::DebugDraw(FAnimInstanceProxy& AnimInstanceProxy) const
 {
-#if ENABLE_DRAW_DEBUG
 	check(PoseHistory);
 
 	auto LerpColor = [](FColor A, FColor B, float T) -> FColor
@@ -448,16 +448,16 @@ void FExtendedPoseHistory::DebugDraw(const UWorld* World, const USkeleton* Skele
 			{
 				const FTransform GlobalTransforms = Entry.ComponentSpaceTransforms[i] * Entry.RootTransform;
 
-				DrawDebugLine(World, PrevGlobalTransforms[i].GetTranslation(), GlobalTransforms.GetTranslation(), Color, false, 0.f, ESceneDepthPriorityGroup::SDPG_Foreground + 2);
+				AnimInstanceProxy.AnimDrawDebugLine(PrevGlobalTransforms[i].GetTranslation(), GlobalTransforms.GetTranslation(), Color, false, 0.f, ESceneDepthPriorityGroup::SDPG_Foreground);
 
 				PrevGlobalTransforms[i] = GlobalTransforms;
 			}
 		}
 	}
 
-	PoseHistory->DebugDraw(World, Skeleton);
-#endif // ENABLE_DRAW_DEBUG
+	PoseHistory->DebugDraw(AnimInstanceProxy);
 }
+#endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseIndicesHistory

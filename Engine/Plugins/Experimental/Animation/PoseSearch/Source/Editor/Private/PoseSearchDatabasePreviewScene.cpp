@@ -67,21 +67,8 @@ namespace UE::PoseSearch
 				{
 					if (UDebugSkelMeshComponent* Mesh = PreviewActor.GetDebugSkelMeshComponent())
 					{
-						UE::PoseSearch::FDebugDrawParams DrawParams;
-						DrawParams.RootTransform = Mesh->GetComponentTransform();
-						DrawParams.Database = Database;
-						DrawParams.World = GetWorld();
-						DrawParams.DefaultLifeTime = 0.f;
-						DrawParams.PointSize = 5.f;
-						DrawParams.Mesh = Mesh;
-
-						if (ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::Detailed))
-						{
-							EnumAddFlags(DrawParams.Flags, UE::PoseSearch::EDebugDrawFlags::DrawBoneNames);
-						}
-
-						EnumAddFlags(DrawParams.Flags, UE::PoseSearch::EDebugDrawFlags::DrawFast);
-						DrawFeatureVector(DrawParams, PreviewActor.CurrentPoseIndex);
+						UE::PoseSearch::FDebugDrawParams DrawParams(GetWorld(), Mesh, Database);
+						DrawParams.DrawFeatureVector(PreviewActor.CurrentPoseIndex);
 					}
 				}
 			}

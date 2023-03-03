@@ -15,12 +15,6 @@ struct FPoseSearchDebuggerFeatureDrawOptions
 
 	UPROPERTY(EditAnywhere, Category="Draw Options")
     bool bDisable = false;
-
-	UPROPERTY(EditAnywhere, Category = "Draw Options", Meta = (EditCondition = "!bDisable"))
-	bool bDrawBoneNames = false;
-
-	UPROPERTY(EditAnywhere, Category = "Draw Options", Meta = (EditCondition = "!bDisable"))
-	bool bDrawSampleLabels = false;
 };
 
 /**

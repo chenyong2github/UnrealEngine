@@ -136,11 +136,7 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 			PrevTimeOffset = CurrTimeOffset;
 		}
 
-		const float LifeTime = DrawParams.DefaultLifeTime;
-		const uint8 DepthPriority = ESceneDepthPriorityGroup::SDPG_Foreground + 2;
-		const bool bPersistent = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::Persistent);
-
-		DrawCentripetalCatmullRomSpline(DrawParams.World, TrajSplinePos, TrajSplineColor, 0.5f, 8.f, bPersistent, LifeTime, DepthPriority, 0.f);
+		DrawParams.DrawCentripetalCatmullRomSpline(TrajSplinePos, TrajSplineColor, 0.5f, 8);
 	}
 
 	Super::DebugDraw(DrawParams, PoseVector);

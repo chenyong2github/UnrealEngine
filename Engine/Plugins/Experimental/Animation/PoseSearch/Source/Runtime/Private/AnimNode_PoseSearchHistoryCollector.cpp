@@ -9,7 +9,7 @@
 
 #define LOCTEXT_NAMESPACE "AnimNode_PoseSearchHistoryCollector"
 
-#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
+#if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<bool> CVarAnimPoseHistoryDebugDraw(TEXT("a.AnimNode.PoseHistory.DebugDraw"), false, TEXT("Enable / Disable Pose History DebugDraw"));
 #endif
 
@@ -72,38 +72,6 @@ void FAnimNode_PoseSearchHistoryCollector_Base::CacheBones_AnyThread(const FAnim
 	PoseHistory.Init(PoseCount, PoseDuration, RequiredBones);
 }
 
-bool FAnimNode_PoseSearchHistoryCollector_Base::HasPreUpdate() const
-{
-	return WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG;
-}
-
-void FAnimNode_PoseSearchHistoryCollector_Base::PreUpdate(const UAnimInstance* InAnimInstance)
-{
-	Super::PreUpdate(InAnimInstance);
-
-#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
-	check(InAnimInstance);
-	if (bWasEvaluated && CVarAnimPoseHistoryDebugDraw.GetValueOnAnyThread())
-	{
-		if (const USkeletalMeshComponent* SkeletalMeshComponent = InAnimInstance->GetSkelMeshComponent())
-		{
-			const USkinnedAsset* SkinnedAsset = SkeletalMeshComponent->GetSkinnedAsset();
-			const UWorld* World = SkeletalMeshComponent->GetWorld();
-			if (SkinnedAsset && World)
-			{
-				if (const USkeleton* Skeleton = SkinnedAsset->GetSkeleton())
-				{
-					PoseHistory.DebugDraw(World, Skeleton);
-				}
-			}
-		}
-	}
-
-	bWasEvaluated = false;
-#endif // WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
-}
-
-
 /////////////////////////////////////////////////////
 // FAnimNode_PoseSearchHistoryCollector
 
@@ -133,9 +101,12 @@ void FAnimNode_PoseSearchHistoryCollector::Evaluate_AnyThread(FPoseContext& Outp
 	ComponentSpacePose.InitPose(Output.Pose);
 	PoseHistory.Update(Output.AnimInstanceProxy->GetDeltaSeconds(), ComponentSpacePose, Output.AnimInstanceProxy->GetComponentTransform());
 
-#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
-	bWasEvaluated = true;
-#endif
+#if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
+	if (CVarAnimPoseHistoryDebugDraw.GetValueOnAnyThread())
+	{
+		PoseHistory.DebugDraw(*Output.AnimInstanceProxy);
+	}
+#endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 }
 
 void FAnimNode_PoseSearchHistoryCollector::Update_AnyThread(const FAnimationUpdateContext& Context)
@@ -180,9 +151,12 @@ void FAnimNode_PoseSearchComponentSpaceHistoryCollector::EvaluateComponentSpace_
 
 	PoseHistory.Update(Output.AnimInstanceProxy->GetDeltaSeconds(), Output.Pose, Output.AnimInstanceProxy->GetComponentTransform());
 
-#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
-	bWasEvaluated = true;
-#endif
+#if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
+	if (CVarAnimPoseHistoryDebugDraw.GetValueOnAnyThread())
+	{
+		PoseHistory.DebugDraw(*Output.AnimInstanceProxy);
+	}
+#endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 }
 
 void FAnimNode_PoseSearchComponentSpaceHistoryCollector::Update_AnyThread(const FAnimationUpdateContext& Context)

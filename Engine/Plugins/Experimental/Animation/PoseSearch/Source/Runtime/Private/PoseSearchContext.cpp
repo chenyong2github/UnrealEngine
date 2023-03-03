@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearch/PoseSearchContext.h"
+#include "Animation/AnimInstanceProxy.h"
 #include "Animation/MotionTrajectoryTypes.h"
 #include "AnimationRuntime.h"
 #include "PoseSearch/PoseSearchDatabase.h"
@@ -14,9 +15,29 @@ namespace UE::PoseSearch
 #if ENABLE_DRAW_DEBUG
 //////////////////////////////////////////////////////////////////////////
 // FDebugDrawParams
+FDebugDrawParams::FDebugDrawParams(FAnimInstanceProxy* InAnimInstanceProxy, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags)
+: AnimInstanceProxy(InAnimInstanceProxy)
+, World(nullptr)
+, Mesh(nullptr)
+, Database(InDatabase)
+, Flags(InFlags)
+, CachedPositions()
+{
+}
+
+FDebugDrawParams::FDebugDrawParams(const UWorld* InWorld, const USkinnedMeshComponent* InMesh, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags)
+: AnimInstanceProxy(nullptr)
+, World(InWorld)
+, Mesh(InMesh)
+, Database(InDatabase)
+, Flags(InFlags)
+, CachedPositions()
+{
+}
+
 bool FDebugDrawParams::CanDraw() const
 {
-	return World && Database && Database->Schema && Database->Schema->IsValid();
+	return (AnimInstanceProxy || World) && Database && Database->Schema && Database->Schema->IsValid();
 }
 
 FColor FDebugDrawParams::GetColor(int32 ColorPreset) const
@@ -86,21 +107,141 @@ FVector FDebugDrawParams::GetCachedPosition(float TimeOffset, int8 SchemaBoneIdx
 			return CachedPosition->Transform;
 		}
 
-		if (Mesh.IsValid() && SchemaBoneIdx >= 0)
+		if (Mesh && SchemaBoneIdx >= 0)
 		{
 			return Mesh->GetSocketTransform(Schema->BoneReferences[SchemaBoneIdx].BoneName).GetTranslation();
 		}
 	}
-	return RootTransform.GetTranslation();
+	return GetRootTransform().GetTranslation();
 }
 
-void DrawFeatureVector(FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector)
+const FTransform& FDebugDrawParams::GetRootTransform() const
 {
-	DrawParams.ClearCachedPositions();
-
-	if (DrawParams.CanDraw())
+	if (AnimInstanceProxy)
 	{
-		const UPoseSearchSchema* Schema = DrawParams.GetSchema();
+		return AnimInstanceProxy->GetComponentTransform();
+	}
+	
+	check(Mesh);
+	return Mesh->GetComponentTransform();
+}
+
+void FDebugDrawParams::DrawLine(const FVector& LineStart, const FVector& LineEnd, const FColor& Color, float Thickness) const
+{
+	if (AnimInstanceProxy)
+	{
+		AnimInstanceProxy->AnimDrawDebugLine(LineStart, LineEnd, Color, false, 0.f, Thickness, SDPG_Foreground);
+	}
+	else if (World)
+	{
+		DrawDebugLine(World, LineStart, LineEnd, Color, false, 0.f, SDPG_Foreground, Thickness);
+	}
+}
+
+void FDebugDrawParams::DrawPoint(const FVector& Position, const FColor& Color, float Thickness) const
+{
+	if (AnimInstanceProxy)
+	{
+		AnimInstanceProxy->AnimDrawDebugPoint(Position, Thickness, Color, false, 0.f, SDPG_Foreground);
+	}
+	else if (World)
+	{
+		DrawDebugPoint(World, Position, Thickness, Color, false, 0.f, SDPG_Foreground);
+	}
+}
+
+void FDebugDrawParams::DrawCircle(const FMatrix& TransformMatrix, float Radius, int32 Segments, const FColor& Color, float Thickness) const
+{
+	if (AnimInstanceProxy)
+	{
+		AnimInstanceProxy->AnimDrawDebugCircle(TransformMatrix.GetOrigin(), Radius, Segments, Color, TransformMatrix.GetScaledAxis(EAxis::X), false, 0.f, SDPG_Foreground, Thickness);
+	}
+	else if (World)
+	{
+		// @todo: use the DrawDebugCircle API with the up vector to communize with the AnimInstanceProxy call
+		DrawDebugCircle(World, TransformMatrix, Radius, Segments, Color, false, 0.f, SDPG_Foreground, Thickness);
+	}
+}
+
+void FDebugDrawParams::DrawCentripetalCatmullRomSpline(TConstArrayView<FVector> Points, TConstArrayView<FColor> Colors, float Alpha, int32 NumSamplesPerSegment, float Thickness) const
+{
+	const int32 NumPoints = Points.Num();
+	const int32 NumColors = Colors.Num();
+	if (NumPoints > 1)
+	{
+		auto GetT = [](float T, float Alpha, const FVector& P0, const FVector& P1)
+		{
+			const FVector P1P0 = P1 - P0;
+			const float Dot = P1P0 | P1P0;
+			const float Pow = FMath::Pow(Dot, Alpha * .5f);
+			return Pow + T;
+		};
+
+		auto LerpColor = [](FColor A, FColor B, float T) -> FColor
+		{
+			return FColor(
+				FMath::RoundToInt(float(A.R) * (1.f - T) + float(B.R) * T),
+				FMath::RoundToInt(float(A.G) * (1.f - T) + float(B.G) * T),
+				FMath::RoundToInt(float(A.B) * (1.f - T) + float(B.B) * T),
+				FMath::RoundToInt(float(A.A) * (1.f - T) + float(B.A) * T));
+		};
+
+		FVector PrevPoint = Points[0];
+		for (int i = 0; i < NumPoints - 1; ++i)
+		{
+			const FVector& P0 = Points[FMath::Max(i - 1, 0)];
+			const FVector& P1 = Points[i];
+			const FVector& P2 = Points[i + 1];
+			const FVector& P3 = Points[FMath::Min(i + 2, NumPoints - 1)];
+
+			const float T0 = 0.0f;
+			const float T1 = GetT(T0, Alpha, P0, P1);
+			const float T2 = GetT(T1, Alpha, P1, P2);
+			const float T3 = GetT(T2, Alpha, P2, P3);
+
+			const float T1T0 = T1 - T0;
+			const float T2T1 = T2 - T1;
+			const float T3T2 = T3 - T2;
+			const float T2T0 = T2 - T0;
+			const float T3T1 = T3 - T1;
+
+			const bool bIsNearlyZeroT1T0 = FMath::IsNearlyZero(T1T0, UE_KINDA_SMALL_NUMBER);
+			const bool bIsNearlyZeroT2T1 = FMath::IsNearlyZero(T2T1, UE_KINDA_SMALL_NUMBER);
+			const bool bIsNearlyZeroT3T2 = FMath::IsNearlyZero(T3T2, UE_KINDA_SMALL_NUMBER);
+			const bool bIsNearlyZeroT2T0 = FMath::IsNearlyZero(T2T0, UE_KINDA_SMALL_NUMBER);
+			const bool bIsNearlyZeroT3T1 = FMath::IsNearlyZero(T3T1, UE_KINDA_SMALL_NUMBER);
+
+			const FColor Color1 = Colors[FMath::Min(i, NumColors - 1)];
+			const FColor Color2 = Colors[FMath::Min(i + 1, NumColors - 1)];
+
+			for (int SampleIndex = 1; SampleIndex < NumSamplesPerSegment; ++SampleIndex)
+			{
+				const float ParametricDistance = float(SampleIndex) / float(NumSamplesPerSegment - 1);
+
+				const float T = FMath::Lerp(T1, T2, ParametricDistance);
+
+				const FVector A1 = bIsNearlyZeroT1T0 ? P0 : (T1 - T) / T1T0 * P0 + (T - T0) / T1T0 * P1;
+				const FVector A2 = bIsNearlyZeroT2T1 ? P1 : (T2 - T) / T2T1 * P1 + (T - T1) / T2T1 * P2;
+				const FVector A3 = bIsNearlyZeroT3T2 ? P2 : (T3 - T) / T3T2 * P2 + (T - T2) / T3T2 * P3;
+				const FVector B1 = bIsNearlyZeroT2T0 ? A1 : (T2 - T) / T2T0 * A1 + (T - T0) / T2T0 * A2;
+				const FVector B2 = bIsNearlyZeroT3T1 ? A2 : (T3 - T) / T3T1 * A2 + (T - T1) / T3T1 * A3;
+				const FVector Point = bIsNearlyZeroT2T1 ? B1 : (T2 - T) / T2T1 * B1 + (T - T1) / T2T1 * B2;
+
+				DrawLine(PrevPoint, Point, LerpColor(Color1, Color2, ParametricDistance));
+
+				PrevPoint = Point;
+			}
+		}
+	}
+}
+
+void FDebugDrawParams::DrawFeatureVector(TConstArrayView<float> PoseVector)
+{
+	ClearCachedPositions();
+
+	if (CanDraw())
+	{
+		const UPoseSearchSchema* Schema = GetSchema();
 		check(Schema);
 
 		if (PoseVector.Num() == Schema->SchemaCardinality)
@@ -109,7 +250,7 @@ void DrawFeatureVector(FDebugDrawParams& DrawParams, TConstArrayView<float> Pose
 			{
 				if (ChannelPtr)
 				{
-					ChannelPtr->PreDebugDraw(DrawParams, PoseVector);
+					ChannelPtr->PreDebugDraw(*this, PoseVector);
 				}
 			}
 
@@ -117,19 +258,19 @@ void DrawFeatureVector(FDebugDrawParams& DrawParams, TConstArrayView<float> Pose
 			{
 				if (ChannelPtr)
 				{
-					ChannelPtr->DebugDraw(DrawParams, PoseVector);
+					ChannelPtr->DebugDraw(*this, PoseVector);
 				}
 			}
 		}
 	}
 }
 
-void DrawFeatureVector(FDebugDrawParams& DrawParams, int32 PoseIdx)
+void FDebugDrawParams::DrawFeatureVector(int32 PoseIdx)
 {
 	// if we're editing the schema while in PIE with Rewind Debugger active, PoseIdx could be out of bound / stale
-	if (DrawParams.CanDraw() && PoseIdx >= 0 && PoseIdx < DrawParams.GetSearchIndex()->GetNumPoses())
+	if (CanDraw() && PoseIdx >= 0 && PoseIdx < GetSearchIndex()->GetNumPoses())
 	{
-		DrawFeatureVector(DrawParams, DrawParams.GetSearchIndex()->GetPoseValues(PoseIdx));
+		DrawFeatureVector(GetSearchIndex()->GetPoseValues(PoseIdx));
 	}
 }
 #endif // ENABLE_DRAW_DEBUG

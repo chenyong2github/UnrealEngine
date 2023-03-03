@@ -107,12 +107,13 @@ struct POSESEARCH_API FMotionMatchingState
 	UPROPERTY(Transient)
 	FTransform RootMotionTransformDelta = FTransform::Identity;
 
-#if WITH_EDITORONLY_DATA
-	enum { SearchCostHistoryNumSamples = 200 };
-	FDebugFloatHistory SearchCostHistoryContinuing = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
-	FDebugFloatHistory SearchCostHistoryBruteForce = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
-	FDebugFloatHistory SearchCostHistoryKDTree = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
-#endif
+	// @todo: add ContinuingPoseCost / BruteForcePoseCost / PoseCost graphs to rewind debugger 
+//#if WITH_EDITORONLY_DATA
+//	enum { SearchCostHistoryNumSamples = 200 };
+//	FDebugFloatHistory SearchCostHistoryContinuing = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
+//	FDebugFloatHistory SearchCostHistoryBruteForce = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
+//	FDebugFloatHistory SearchCostHistoryKDTree = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
+//#endif
 
 	UE::PoseSearch::FPoseIndicesHistory PoseIndicesHistory;
 };
@@ -171,7 +172,7 @@ public:
 	*/
 	UFUNCTION(BlueprintPure, Category = "Animation|Pose Search", meta = (BlueprintThreadSafe, Keywords = "PoseMatch"))
 	static void MotionMatch(
-		const UAnimInstance* AnimInstance,
+		UAnimInstance* AnimInstance,
 		const UPoseSearchSearchableAsset* Searchable,
 		const FTrajectorySampleRange Trajectory,
 		const FName PoseHistoryName,

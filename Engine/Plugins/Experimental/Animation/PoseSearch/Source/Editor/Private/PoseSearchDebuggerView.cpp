@@ -354,48 +354,22 @@ void SDebuggerView::DrawFeatures(
 	const USkinnedMeshComponent* Mesh
 ) const
 {
-	auto SetDrawFlags = [](FDebugDrawParams& InDrawParams, const FPoseSearchDebuggerFeatureDrawOptions& Options)
-	{
-		InDrawParams.Flags = EDebugDrawFlags::None;
-		if (!Options.bDisable)
-		{
-			if (Options.bDrawBoneNames)
-			{
-				EnumAddFlags(InDrawParams.Flags, EDebugDrawFlags::DrawBoneNames);
-			}
-			
-			if (Options.bDrawSampleLabels)
-			{
-				EnumAddFlags(InDrawParams.Flags, EDebugDrawFlags::DrawSampleLabels);
-			}
-		}
-	};
-
 	const TObjectPtr<UPoseSearchDebuggerReflection> Reflection = DetailsView->GetReflection();
 
 	// Draw query vector
+	if (!Reflection || !Reflection->QueryDrawOptions.bDisable)
 	{
 		const UPoseSearchDatabase* CurrentDatabase = ViewModel.Get()->GetCurrentDatabase();
 		if (CurrentDatabase)
 		{
-			// Set shared state
-			FDebugDrawParams DrawParams;
-			DrawParams.World = &DebuggerWorld;
-			DrawParams.RootTransform = Transform;
-			DrawParams.DefaultLifeTime = 0.0f; // Single frame render
-			DrawParams.Mesh = Mesh;
-
 			for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
 			{
 				const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
 				if (Database && Database == CurrentDatabase && DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality && 
 					FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 				{
-					DrawParams.Database = CurrentDatabase;
-					SetDrawFlags(DrawParams, Reflection ? Reflection->QueryDrawOptions : FPoseSearchDebuggerFeatureDrawOptions());
-					EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
-					DrawFeatureVector(DrawParams, DbEntry.QueryVector);
-					EnumRemoveFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
+					FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, CurrentDatabase, EDebugDrawFlags::DrawQuery);
+					DrawParams.DrawFeatureVector(DbEntry.QueryVector);
 					break;
 				}
 			}
@@ -403,25 +377,19 @@ void SDebuggerView::DrawFeatures(
 	}
 
 	// Draw selected poses
+	if (!Reflection || !Reflection->QueryDrawOptions.bDisable)
 	{
 		const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& DatabaseRows = DatabaseView->GetDatabaseRows();
 		TArray<TSharedRef<FDebuggerDatabaseRowData>> SelectedRows = DatabaseRows->GetSelectedItems();
 	
-		// Red for non-active database view
-		FDebugDrawParams DrawParams;
-		DrawParams.World = &DebuggerWorld;
-		DrawParams.RootTransform = Transform;
-		DrawParams.DefaultLifeTime = 0.0f; // Single frame render
-		DrawParams.Mesh = Mesh;
-		SetDrawFlags(DrawParams, Reflection ? Reflection->SelectedPoseDrawOptions : FPoseSearchDebuggerFeatureDrawOptions());
-
 		// Draw any selected database vectors
 		for (const TSharedRef<FDebuggerDatabaseRowData>& Row : SelectedRows)
 		{
-			DrawParams.Database = Row->SourceDatabase.Get();
-			if (DrawParams.Database && FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(DrawParams.Database, ERequestAsyncBuildFlag::ContinueRequest))
+			const UPoseSearchDatabase* RowDatabase = Row->SourceDatabase.Get();
+			if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(RowDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 			{
-				DrawFeatureVector(DrawParams, Row->PoseIdx);
+				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, RowDatabase);
+				DrawParams.DrawFeatureVector(Row->PoseIdx);
 			}
 		}
 	}
@@ -440,13 +408,8 @@ void SDebuggerView::DrawFeatures(
 			if (Database && FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 			{
 				// Use the motion-matching state's pose idx, as the active row may be update-throttled at this point
-				FDebugDrawParams DrawParams;
-				DrawParams.World = &DebuggerWorld;
-				DrawParams.RootTransform = Transform;
-				DrawParams.DefaultLifeTime = 0.0f; // Single frame render
-				DrawParams.Mesh = Mesh;
-				DrawParams.Database = Database;
-				DrawFeatureVector(DrawParams, ActiveRows[0]->PoseIdx);
+				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, Database);
+				DrawParams.DrawFeatureVector(ActiveRows[0]->PoseIdx);
 			}
 		}
 	}
@@ -464,13 +427,8 @@ void SDebuggerView::DrawFeatures(
 			const UPoseSearchDatabase* Database = ContinuingRows[0]->SourceDatabase.Get();
 			if (Database && FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 			{
-				FDebugDrawParams DrawParams;
-				DrawParams.World = &DebuggerWorld;
-				DrawParams.RootTransform = Transform;
-				DrawParams.DefaultLifeTime = 0.0f; // Single frame render
-				DrawParams.Mesh = Mesh;
-				DrawParams.Database = Database;
-				DrawFeatureVector(DrawParams, ContinuingRows[0]->PoseIdx);
+				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, Database);
+				DrawParams.DrawFeatureVector(ContinuingRows[0]->PoseIdx);
 			}
 		}
 	}

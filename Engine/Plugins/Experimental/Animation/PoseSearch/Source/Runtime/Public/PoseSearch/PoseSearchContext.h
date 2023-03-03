@@ -21,26 +21,8 @@ enum class EDebugDrawFlags : uint32
 {
 	None = 0,
 
-	// Draw the entire search index as a point cloud
-	DrawSearchIndex = 1 << 0,
-
 	// Draw using Query colors form the schema / config
 	DrawQuery = 1 << 1,
-
-	/**
-	* Keep rendered data until the next call to FlushPersistentDebugLines().
-	* Combine with DrawSearchIndex to draw the search index only once.
-	*/
-	Persistent = 1 << 2,
-
-	// Label samples with their indices
-	DrawSampleLabels = 1 << 3,
-
-	// Draw Bone Names
-	DrawBoneNames = 1 << 5,
-
-	// Draws simpler shapes to improve performance
-	DrawFast = 1 << 6,
 };
 ENUM_CLASS_FLAGS(EDebugDrawFlags);
 
@@ -111,6 +93,11 @@ struct FCachedTransforms
 		CachedTransforms.Reset();
 	}
 
+	bool IsEmpty() const
+	{
+		return CachedTransforms.IsEmpty();
+	}
+
 private:
 	TArray<FCachedTransform<FTransformType>, TInlineAllocator<64>> CachedTransforms;
 };
@@ -118,19 +105,9 @@ private:
 #if ENABLE_DRAW_DEBUG
 struct POSESEARCH_API FDebugDrawParams
 {
-	const UWorld* World = nullptr;
-	const UPoseSearchDatabase* Database = nullptr;
-	EDebugDrawFlags Flags = EDebugDrawFlags::None;
+	FDebugDrawParams(FAnimInstanceProxy* InAnimInstanceProxy, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags = EDebugDrawFlags::None);
+	FDebugDrawParams(const UWorld* InWorld, const USkinnedMeshComponent* InMesh, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags = EDebugDrawFlags::None);
 
-	float DefaultLifeTime = 5.f;
-	float PointSize = 1.f;
-
-	FTransform RootTransform = FTransform::Identity;
-
-	// Optional Mesh for gathering SocketTransform(s)
-	TWeakObjectPtr<const USkinnedMeshComponent> Mesh = nullptr;
-
-	bool CanDraw() const;
 	FColor GetColor(int32 ColorPreset) const;
 	const FPoseSearchIndex* GetSearchIndex() const;
 	const UPoseSearchSchema* GetSchema() const;
@@ -138,13 +115,26 @@ struct POSESEARCH_API FDebugDrawParams
 	void ClearCachedPositions();
 	void AddCachedPosition(float TimeOffset, int8 SchemaBoneIdx, const FVector& Position);
 	FVector GetCachedPosition(float TimeOffset, int8 SchemaBoneIdx = -1) const;
+	const FTransform& GetRootTransform() const;
+
+	void DrawLine(const FVector& LineStart, const FVector& LineEnd, const FColor& Color, float Thickness = 0.f) const;
+	void DrawPoint(const FVector& Position, const FColor& Color, float Thickness = 6.f) const;
+	void DrawCircle(const FMatrix& TransformMatrix, float Radius, int32 Segments, const FColor& Color, float Thickness = 1.f) const;
+	void DrawCentripetalCatmullRomSpline(TConstArrayView<FVector> Points, TConstArrayView<FColor> Colors, float Alpha, int32 NumSamplesPerSegment, float Thickness = 1.f) const;
+	
+	void DrawFeatureVector(TConstArrayView<float> PoseVector);
+	void DrawFeatureVector(int32 PoseIdx);
 
 private:
+	bool CanDraw() const;
+
+	FAnimInstanceProxy* AnimInstanceProxy = nullptr;
+	const UWorld* World = nullptr;
+	const USkinnedMeshComponent* Mesh = nullptr;
+	const UPoseSearchDatabase* Database = nullptr;
+	EDebugDrawFlags Flags = EDebugDrawFlags::None;
 	FCachedTransforms<FVector> CachedPositions;
 };
-
-POSESEARCH_API void DrawFeatureVector(FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector);
-POSESEARCH_API void DrawFeatureVector(FDebugDrawParams& DrawParams, int32 PoseIdx);
 
 #endif // ENABLE_DRAW_DEBUG
 

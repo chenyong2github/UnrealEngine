@@ -26,19 +26,12 @@ public:
 
 	// FAnimNode_Base interface
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual bool HasPreUpdate() const override;
-	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	// End of FAnimNode_Base interface
 
 	const UE::PoseSearch::FPoseHistory& GetPoseHistory() const { return PoseHistory; }
 
 protected:
 	UE::PoseSearch::FPoseHistory PoseHistory;
-
-#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
-	// Whether this node was evaluated last frame
-	bool bWasEvaluated = false;
-#endif // WITH_EDITORONLY_DATA
 };
 
 USTRUCT(BlueprintInternalUseOnly)

@@ -74,10 +74,6 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::DebugDraw(const UE::PoseSearc
 
 	const float CrashingLegsValue = FFeatureVectorHelper::DecodeFloat(PoseVector, ChannelDataOffset);
 
-	const float LifeTime = DrawParams.DefaultLifeTime;
-	const uint8 DepthPriority = ESceneDepthPriorityGroup::SDPG_Foreground + 2;
-	const bool bPersistent = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::Persistent);
-
 	const FVector LeftThighPosition = DrawParams.GetCachedPosition(0.f, LeftThighIdx);
 	const FVector RightThighPosition = DrawParams.GetCachedPosition(0.f, RightThighIdx);
 	const FVector LeftFootPosition = DrawParams.GetCachedPosition(0.f, LeftFootIdx);
@@ -101,12 +97,10 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::DebugDraw(const UE::PoseSearc
 
 	// when CrossingLegsValue is greater than .5 or lesser than -.5 we draw in Red or Orange
 	const float LerpValue = FMath::Min(CrashingLegsValue * 2.f, 1.f);
-	const FColor Color = LerpValue >= 0.f ?
-		LerpColor(FColor::Green, FColor::Red, LerpValue) :
-		LerpColor(FColor::Green, FColor::Orange, -LerpValue);
+	const FColor Color = LerpValue >= 0.f ? LerpColor(FColor::Green, FColor::Red, LerpValue) : LerpColor(FColor::Green, FColor::Orange, -LerpValue);
 
-	DrawDebugLine(DrawParams.World, LeftFootPosition, LeftFootPosition + CrossingLegsVector, Color, bPersistent, LifeTime, DepthPriority);
-	DrawDebugLine(DrawParams.World, RightFootPosition, RightFootPosition - CrossingLegsVector, Color, bPersistent, LifeTime, DepthPriority);
+	DrawParams.DrawLine(LeftFootPosition, LeftFootPosition + CrossingLegsVector, Color);
+	DrawParams.DrawLine(RightFootPosition, RightFootPosition - CrossingLegsVector, Color);
 }
 #endif // ENABLE_DRAW_DEBUG
 

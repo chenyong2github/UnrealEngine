@@ -22,7 +22,7 @@
 
 #define LOCTEXT_NAMESPACE "PoseSearchLibrary"
 
-#if ENABLE_ANIM_DEBUG
+#if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<int32> CVarAnimMotionMatchDrawQueryEnable(TEXT("a.MotionMatch.DrawQuery.Enable"), 0, TEXT("Enable / Disable MotionMatch Draw Query"));
 TAutoConsoleVariable<int32> CVarAnimMotionMatchDrawMatchEnable(TEXT("a.MotionMatch.DrawMatch.Enable"), 0, TEXT("Enable / Disable MotionMatch Draw Match"));
 TAutoConsoleVariable<int32> CVarAnimMotionMatchDrawHistoryEnable(TEXT("a.MotionMatch.DrawHistory.Enable"), 0, TEXT("Enable / Disable MotionMatch Draw History"));
@@ -420,7 +420,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 }
 
 void UPoseSearchLibrary::MotionMatch(
-	const UAnimInstance* AnimInstance,
+	UAnimInstance* AnimInstance,
 	const UPoseSearchSearchableAsset* Searchable,
 	const FTrajectorySampleRange Trajectory,
 	const FName PoseHistoryName,
@@ -434,6 +434,18 @@ void UPoseSearchLibrary::MotionMatch(
 	float TimeToFutureAnimationStart,
 	const int DebugSessionUniqueIdentifier)
 {
+#if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
+	class UAnimInstanceProxyProvider : public UAnimInstance
+	{
+	public:
+		static FAnimInstanceProxy& GetAnimInstanceProxy(UAnimInstance* AnimInstance)
+		{
+			check(AnimInstance);
+			return static_cast<UAnimInstanceProxyProvider*>(AnimInstance)->GetProxyOnAnyThread<FAnimInstanceProxy>();
+		}
+	};
+#endif //ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
+
 	using namespace UE::Anim;
 	using namespace UE::PoseSearch;
 
@@ -567,7 +579,7 @@ void UPoseSearchLibrary::MotionMatch(
 #if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 					if (CVarAnimMotionMatchDrawHistoryEnable.GetValueOnAnyThread())
 					{
-						ExtendedPoseHistory.DebugDraw(AnimInstance->GetOwningComponent()->GetWorld(), BoneContainer.GetSkeletonAsset());
+						ExtendedPoseHistory.DebugDraw(UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance));
 					}
 #endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 				}
@@ -594,24 +606,16 @@ void UPoseSearchLibrary::MotionMatch(
 #if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 			if (SearchResult.IsValid())
 			{
-				UE::PoseSearch::FDebugDrawParams DrawParams;
-				DrawParams.RootTransform = AnimInstance->GetOwningComponent()->GetComponentTransform();
-				DrawParams.Database = SearchResult.Database.Get();
-				DrawParams.World = AnimInstance->GetOwningComponent()->GetWorld();
-				DrawParams.DefaultLifeTime = 0.0f;
-
-				if (DrawParams.CanDraw())
+				if (CVarAnimMotionMatchDrawMatchEnable.GetValueOnAnyThread())
 				{
-					if (CVarAnimMotionMatchDrawMatchEnable.GetValueOnAnyThread())
-					{
-						DrawFeatureVector(DrawParams, SearchResult.PoseIdx);
-					}
+					UE::PoseSearch::FDebugDrawParams DrawParams(&UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance), SearchResult.Database.Get());
+					DrawParams.DrawFeatureVector(SearchResult.PoseIdx);
+				}
 
-					if (CVarAnimMotionMatchDrawQueryEnable.GetValueOnAnyThread())
-					{
-						EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
-						DrawFeatureVector(DrawParams, SearchResult.ComposedQuery.GetValues());
-					}
+				if (CVarAnimMotionMatchDrawQueryEnable.GetValueOnAnyThread())
+				{
+					UE::PoseSearch::FDebugDrawParams DrawParams(&UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance), SearchResult.Database.Get(), EDebugDrawFlags::DrawQuery);
+					DrawParams.DrawFeatureVector(SearchResult.ComposedQuery.GetValues());
 				}
 			}
 #endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
