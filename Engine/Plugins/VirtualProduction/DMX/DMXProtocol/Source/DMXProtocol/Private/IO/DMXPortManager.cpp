@@ -17,6 +17,19 @@ TUniquePtr<FDMXPortManager> FDMXPortManager::CurrentManager;
 FDMXPortManager::~FDMXPortManager()
 {
 	checkf(!CurrentManager.IsValid(), TEXT("ShutdownManager was not called"));
+
+	// Other objects may still hold shared pointers to ports up until engine shuts down.
+	// Hence unregister all ports when the engine and by that this manager shut down. 
+	// Alike the resource of ports (e.g. sockets) are always properly released.
+	for (const FDMXInputPortSharedRef& InputPort : InputPorts)
+	{
+		InputPort->Unregister();
+	}
+
+	for (const FDMXOutputPortSharedRef& OutputPort : OutputPorts)
+	{
+		OutputPort->Unregister();
+	}
 }
 
 FDMXPortManager& FDMXPortManager::Get()
