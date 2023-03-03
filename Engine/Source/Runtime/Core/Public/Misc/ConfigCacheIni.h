@@ -857,6 +857,13 @@ public:
 		int32&				Value,
 		const FString&	Filename
 	);
+	bool GetInt64
+	(
+		const TCHAR* Section,
+		const TCHAR* Key,
+		int64& Value,
+		const FString& Filename
+	);
 	bool GetFloat
 	(
 		const TCHAR*		Section,
