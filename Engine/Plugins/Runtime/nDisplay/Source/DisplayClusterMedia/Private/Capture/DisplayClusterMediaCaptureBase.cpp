@@ -116,7 +116,7 @@ bool FDisplayClusterMediaCaptureBase::StartMediaCapture()
 	FMediaCaptureOptions MediaCaptureOptions;
 	MediaCaptureOptions.NumberOfFramesToCapture = -1;
 	MediaCaptureOptions.bSkipFrameWhenRunningExpensiveTasks = false;
-	MediaCaptureOptions.OverrunAction = EMediaCaptureOverrunAction::Skip;
+	MediaCaptureOptions.OverrunAction = EMediaCaptureOverrunAction::Flush;
 
 	const bool bCaptureStarted = MediaCapture->CaptureRHITexture(Descriptor, MediaCaptureOptions);
 	if (bCaptureStarted)

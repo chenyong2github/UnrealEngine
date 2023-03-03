@@ -11,6 +11,7 @@
 #include "HAL/CriticalSection.h"
 #include "MediaOutput.h"
 #include "Misc/Timecode.h"
+#include "OrderedAsyncGate.h"
 #include "PixelFormat.h"
 #include "RenderGraphResources.h"
 #include "RHI.h"
@@ -633,6 +634,9 @@ private:
 	TSharedPtr<UE::MediaCapture::Private::FCaptureSource> CaptureSource;
 
 	/** Holds a view extension that callbacks  */
-	TSharedPtr<class FMediaCaptureSceneViewExtension> ViewExtension; 
+	TSharedPtr<class FMediaCaptureSceneViewExtension> ViewExtension;
+
+	/** Helper to ensure that the async processing of frames happens in the expected order */
+	UE::MediaIO::FOrderedAsyncGate OrderedAsyncGateCaptureReady;
 };
  

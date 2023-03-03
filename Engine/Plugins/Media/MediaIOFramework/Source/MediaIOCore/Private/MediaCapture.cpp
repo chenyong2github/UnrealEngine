@@ -53,6 +53,11 @@ static TAutoConsoleVariable<int32> CVarMediaIOScheduleOnAnyThread(
 	TEXT("Whether to wait for resource readback in a separate thread. (Experimental)"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarMediaIOCapturePollTaskPriority(
+	TEXT("MediaIO.Capture.PollTaskPriority"), static_cast<int32>(LowLevelTasks::ETaskPriority::High),
+	TEXT("Priority of the task responsible to poll the render fence"),
+	ECVF_RenderThreadSafe);
+
 /** Time spent in media capture sending a frame. */
 DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread FrameCapture"), STAT_MediaCapture_RenderThread_FrameCapture, STATGROUP_Media);
 DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread LockResource"), STAT_MediaCapture_RenderThread_LockResource, STATGROUP_Media);
@@ -761,10 +766,20 @@ namespace UE::MediaCaptureData
 							RHICmdList.WriteGPUFence(SyncDataPtr->RHIFence);
 							SyncDataPtr->bIsBusy = true;
 
+							// Here we request a number to process the frames in order.
+							const uint32 ExecutionNumber = MediaCapture->OrderedAsyncGateCaptureReady.GetANumber();
+
 							// Spawn a task that will wait (poll) and continue the process of providing a new texture
-							UE::Tasks::FTask Task = UE::Tasks::Launch(UE_SOURCE_LOCATION, [MediaCapture, CapturingFrame, SyncDataPtr]()
+							UE::Tasks::FTask Task = UE::Tasks::Launch(UE_SOURCE_LOCATION, [MediaCapture, CapturingFrame, SyncDataPtr, ExecutionNumber]()
 								{
 									TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::SyncPass);
+
+									ON_SCOPE_EXIT
+									{
+										// Make sure that we give up our turn to execute when exiting this task,
+										// which will allow the other async tasks to execute after waiting for the fence.
+										MediaCapture->OrderedAsyncGateCaptureReady.GiveUpTurn(ExecutionNumber);
+									};
 
 									double WaitTime = 0.0;
 									bool bWaitedForCompletion = false;
@@ -796,6 +811,20 @@ namespace UE::MediaCaptureData
 
 									if (CapturingFrame->bMediaCaptureActive && bWaitedForCompletion && MediaCapture)
 									{
+										// Ensure that we do not run the following code out of order with respect to the other sibling async tasks,
+										// because the Pending Frames are expected to be processed in order.
+										if (!MediaCapture->OrderedAsyncGateCaptureReady.IsMyTurn(ExecutionNumber))
+										{
+											TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::SyncPass::OutOfOrderWait);
+
+											UE_LOG(LogMediaIOCore, Warning, TEXT(
+												"The wait for the GPU fence for the next frame of MediaCapture '%s' unexpectedly happened out of order. "
+												"Order will be enforced by waiting until the previous frames are processed. "),
+												*MediaCapture->MediaOutputName);
+
+											MediaCapture->OrderedAsyncGateCaptureReady.WaitForTurn(ExecutionNumber);
+										}
+
 										if (MediaCapture->UseAnyThreadCapture())
 										{
 											OnReadbackComplete(FRHICommandListExecutor::GetImmediateCommandList(), MediaCapture, CapturingFrame);
@@ -811,13 +840,19 @@ namespace UE::MediaCaptureData
 										}
 									}
 
-								});
+								}, static_cast<LowLevelTasks::ETaskPriority>(CVarMediaIOCapturePollTaskPriority.GetValueOnRenderThread()));
 
 							{
 								// Add the task to the capture's list of pending tasks.
 								FScopeLock ScopedLock(&MediaCapture->PendingReadbackTasksCriticalSection);
 								MediaCapture->PendingReadbackTasks.Add(MoveTemp(Task));
 							}
+						}
+						else
+						{
+							UE_LOG(LogMediaIOCore, Error, TEXT(
+								"GetAvailableSyncHandler of MediaCapture '%s' failed to provide a fence, the captured buffers may not become available anymore."),
+								*MediaCapture->MediaOutputName);
 						}
 					}
 				});
@@ -1508,7 +1543,9 @@ void UMediaCapture::CaptureImmediate_RenderThread(const UE::MediaCaptureData::FC
 
 			if (!CapturingFrame)
 			{
-				UE_LOG(LogMediaIOCore, Error, TEXT("[%s] - No frames available for capture. This should not happen."), *MediaOutputName);
+				UE_LOG(LogMediaIOCore, Error, TEXT("[%s] - No frames available for capture for frame %llu. This should not happen."), 
+					*MediaOutputName, GFrameCounterRenderThread);
+
 				SetState(EMediaCaptureState::Error);
 				return;
 			}
@@ -1516,7 +1553,8 @@ void UMediaCapture::CaptureImmediate_RenderThread(const UE::MediaCaptureData::FC
 		else
 		{
 			//In case we are skipping frames, just keep capture frame as invalid
-			UE_LOG(LogMediaIOCore, Warning, TEXT("[%s] - No frames available for capture. Skipping"), *MediaOutputName);
+			UE_LOG(LogMediaIOCore, Warning, TEXT("[%s] - No frames available for capture of frame %llu. Skipping"), 
+				*MediaOutputName, GFrameCounterRenderThread);
 		}
 	}
 
@@ -1729,7 +1767,7 @@ void UMediaCapture::ProcessCapture_GameThread()
 		CapturingFrame = FrameManager->GetNextAvailable<FCaptureFrame>();
 	}
 
-	// Handle frame overrun (couldn't acquire a frame
+	// Handle frame overrun (couldn't acquire a frame)
 	if (!CapturingFrame && GetState() != EMediaCaptureState::StopRequested)
 	{
 		if (DesiredCaptureOptions.OverrunAction == EMediaCaptureOverrunAction::Flush)
