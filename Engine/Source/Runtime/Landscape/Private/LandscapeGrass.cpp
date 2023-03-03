@@ -814,17 +814,6 @@ DECLARE_CYCLE_STAT(TEXT("Grass Update"), STAT_GrassUpdate, STATGROUP_Foliage);
 
 int32 ALandscapeProxy::GrassUpdateInterval = 1;
 
-void ForceRegenerateAllGrass()
-{
-	for (UWorld* World : TObjectRange<UWorld>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
-	{
-		if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
-		{
-			LandscapeSubsystem->RegenerateGrass(/*bInFlushGrass = */true, /*bInForceSync = */true);
-		}
-	}
-}
-
 static void GrassCVarSinkFunction()
 {
 	static float CachedGrassDensityScale = 1.0f;
@@ -856,7 +845,13 @@ static void GrassCVarSinkFunction()
 		CachedDetailMode = DetailMode;
 		CachedNaniteEnabled = NaniteEnabled;
 
-		ForceRegenerateAllGrass();
+		for (UWorld* World : TObjectRange<UWorld>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
+		{
+			if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
+			{
+				LandscapeSubsystem->RegenerateGrass(/*bInFlushGrass = */true, /*bInForceSync = */true);
+			}
+		}
 	}
 }
 

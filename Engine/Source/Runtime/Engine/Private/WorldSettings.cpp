@@ -838,9 +838,6 @@ void AWorldSettings::InternalPostPropertyChanged(FName PropertyName)
 		{
 			// Need to recreate scene proxies when this flag changes.
 			FGlobalComponentRecreateRenderStateContext Context;
-
-			extern void ForceRegenerateAllGrass();
-			ForceRegenerateAllGrass();
 		}
 	}
 }
