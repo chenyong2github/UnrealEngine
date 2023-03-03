@@ -858,6 +858,13 @@ void UMinimalClient::SendInitialJoin()
 
 		*ControlChanBunch << EncryptionToken;
 
+		EEngineNetworkRuntimeFeatures LocalNetworkFeatures = EEngineNetworkRuntimeFeatures::None;
+		if (UNetDriver* NetDriver = UnitNetDriver.Get())
+		{
+			LocalNetworkFeatures = NetDriver->GetNetworkRuntimeFeatures();
+		}
+		*ControlChanBunch << LocalNetworkFeatures;
+
 		bool bSkipControlJoin = !!(MinClientFlags & EMinClientFlags::SkipControlJoin);
 		bool bBeaconConnect = !!(MinClientFlags & EMinClientFlags::BeaconConnect);
 
