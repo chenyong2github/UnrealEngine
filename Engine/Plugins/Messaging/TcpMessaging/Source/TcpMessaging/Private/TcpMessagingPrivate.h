@@ -39,6 +39,6 @@ namespace ETcpMessagingVersion
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1,
 		// bump this when break need to break compatibility.
-		OldestSupportedVersion = ChangedMessageContext
+		OldestSupportedVersion = ChangedMessageLengthToInt32
 	};
 }
