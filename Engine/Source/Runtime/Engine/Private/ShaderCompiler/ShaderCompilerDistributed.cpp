@@ -23,7 +23,7 @@ namespace DistributedShaderCompilerVariables
 		TEXT("Smaller number of shaders will compile locally."),
 		ECVF_Default);
 
-	static int32 GDistributedControllerTimeout = 5 * 60;	// 
+	static int32 GDistributedControllerTimeout = 15 * 60;
 	static FAutoConsoleVariableRef CVarDistributedControllerTimeout(
 		TEXT("r.ShaderCompiler.DistributedControllerTimeout"),
 		GDistributedControllerTimeout,
