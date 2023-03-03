@@ -33,6 +33,11 @@
 
 #define LOCTEXT_NAMESPACE "PropertyHandleImplementation"
 
+static bool ShouldOwnInstance(const FObjectProperty* ObjectProperty, const FPropertyNode* ParentNode )
+{
+	return ObjectProperty && ParentNode && ObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && !ParentNode->IsIgnoringInstancedReference();
+}
+
 bool IsTemplate(UObject* Obj)
 {
 	return Obj &&
@@ -1224,7 +1229,7 @@ void FPropertyValueImpl::ClearChildren()
 							// If the inner property is an instanced property we must move the old objects to the 
 							// transient package so code looking for objects of this type on the parent doesn't find them
 							FObjectProperty* InnerObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner);
-							if (InnerObjectProperty && InnerObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference))
+							if (ShouldOwnInstance(InnerObjectProperty, PropertyNodePin.Get()))
 							{
 								const int32 ArraySize = ArrayHelper.Num();
 								for (int32 Index = 0; Index < ArraySize; ++Index)
@@ -1246,7 +1251,7 @@ void FPropertyValueImpl::ClearChildren()
 							// If the element property is an instanced property we must move the old objects to the 
 							// transient package so code looking for objects of this type on the parent doesn't find them
 							FObjectProperty* ElementObjectProperty = CastField<FObjectProperty>(SetProperty->ElementProp);
-							if (ElementObjectProperty && ElementObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference))
+							if (ShouldOwnInstance(ElementObjectProperty, PropertyNodePin.Get()))
 							{
 								int32 ElementsToRemove = SetHelper.Num();
 								int32 Index = 0;
@@ -1274,7 +1279,7 @@ void FPropertyValueImpl::ClearChildren()
 							// If the map's value property is an instanced property we must move the old objects to the 
 							// transient package so code looking for objects of this type on the parent doesn't find them
 							FObjectProperty* ValueObjectProperty = CastField<FObjectProperty>(MapProperty->ValueProp);
-							if (ValueObjectProperty && ValueObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference))
+							if (ShouldOwnInstance(ValueObjectProperty, PropertyNodePin.Get()))
 							{
 								int32 ElementsToRemove = MapHelper.Num();
 								int32 Index = 0;
@@ -1512,7 +1517,7 @@ void FPropertyValueImpl::DeleteChild( TSharedPtr<FPropertyNode> ChildNodeToDelet
 						// If the inner property is an instanced property we must move the old object to the 
 						// transient package so code looking for objects of this type on the parent doesn't find it
 						FObjectProperty* InnerObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner);
-						if (InnerObjectProperty && InnerObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference))
+						if (ShouldOwnInstance(InnerObjectProperty, ParentNode))
 						{
 							if (UObject* InstancedObject = *reinterpret_cast<UObject**>(ArrayHelper.GetRawPtr(ChildNodePtr->GetArrayIndex())))
 							{
@@ -1531,7 +1536,7 @@ void FPropertyValueImpl::DeleteChild( TSharedPtr<FPropertyNode> ChildNodeToDelet
 						// If the element property is an instanced property we must move the old object to the 
 						// transient package so code looking for objects of this type on the parent doesn't find it
 						FObjectProperty* ElementObjectProperty = CastField<FObjectProperty>(SetProperty->ElementProp);
-						if (ElementObjectProperty && ElementObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference))
+						if (ShouldOwnInstance(ElementObjectProperty, ParentNode))
 						{
 							if (UObject* InstancedObject = *reinterpret_cast<UObject**>(SetHelper.GetElementPtr(InternalIndex)))
 							{
@@ -1551,7 +1556,7 @@ void FPropertyValueImpl::DeleteChild( TSharedPtr<FPropertyNode> ChildNodeToDelet
 						// If the map's value property is an instanced property we must move the old object to the 
 						// transient package so code looking for objects of this type on the parent doesn't find it
 						FObjectProperty* ValueObjectProperty = CastField<FObjectProperty>(MapProperty->ValueProp);
-						if (ValueObjectProperty && ValueObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference))
+						if (ShouldOwnInstance(ValueObjectProperty, ParentNode))
 						{
 							if (UObject* InstancedObject = *reinterpret_cast<UObject**>(MapHelper.GetValuePtr(InternalIndex)))
 							{
@@ -1650,7 +1655,7 @@ void FPropertyValueImpl::SwapChildren( TSharedPtr<FPropertyNode> FirstChildNode,
 					// If the inner property is an instanced property we must move the old object to the 
 					// transient package so code looking for objects of this type on the parent doesn't find it
 					FObjectProperty* InnerObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner);
-					if (InnerObjectProperty && InnerObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference))
+					if(ShouldOwnInstance(InnerObjectProperty, ParentNode))
 					{
 						if (UObject* InstancedObject = *reinterpret_cast<UObject**>(ArrayHelper.GetRawPtr(FirstIndex)))
 						{

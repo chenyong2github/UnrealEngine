@@ -379,9 +379,9 @@ IDetailPropertyRow& FDetailCategoryImpl::AddProperty(FName PropertyPath, UClass*
 	if (PropertyNode.IsValid())
 	{
 		ParentLayout->SetCustomProperty(PropertyNode);
+		NewCustomization.PropertyRow = MakeShareable(new FDetailPropertyRow(PropertyNode, AsShared()));
 	}
-
-	NewCustomization.PropertyRow = MakeShareable(new FDetailPropertyRow(PropertyNode, AsShared()));
+	
 	NewCustomization.bAdvanced = (Location == EPropertyLocation::Default) ? IsAdvancedLayout(NewCustomization) : (Location == EPropertyLocation::Advanced);
 
 	AddCustomLayout(NewCustomization);
@@ -600,6 +600,25 @@ int32 FDetailCategoryImpl::GetSortOrder() const
 void FDetailCategoryImpl::SetSortOrder(int32 InSortOrder)
 {
 	SortOrder = InSortOrder;
+}
+
+void FDetailCategoryImpl::AddPropertyDisableInstancedReference(TSharedPtr<IPropertyHandle> PropertyHandle)
+{
+	FDetailLayoutCustomization NewCustomization;
+	NewCustomization.bCustom = true;
+
+	TSharedPtr<FDetailLayoutBuilderImpl> ParentLayout = GetParentLayoutImpl();
+	TSharedPtr<FPropertyNode> PropertyNode = ParentLayout->GetPropertyNode(PropertyHandle);
+	if (PropertyNode.IsValid())
+	{
+		ParentLayout->SetCustomProperty(PropertyNode);
+		PropertyNode->SetIgnoreInstancedReference();
+	}
+
+	NewCustomization.PropertyRow = MakeShareable(new FDetailPropertyRow(PropertyNode, AsShared()));
+	NewCustomization.bAdvanced = IsAdvancedLayout(NewCustomization);
+
+	AddCustomLayout(NewCustomization);
 }
 
 bool FDetailCategoryImpl::IsAdvancedDropdownEnabled() const

@@ -1058,6 +1058,12 @@ public:
 	 */
 	const FString& GetPropertyPath() const { return PropertyPath; }
 
+	/** Marks this property node as ignoring CPF_InstancedReference */
+	void SetIgnoreInstancedReference();
+
+	/** Queries whether the node would like to ignore CPF_InstancedReference semantics */
+	bool IsIgnoringInstancedReference() const;
+
 protected:
 	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange ) const;
 	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange, const TSet<UObject*>& InAffectedArchetypeInstances ) const;
@@ -1220,6 +1226,9 @@ protected:
 
 	/** Set to true when RebuildChildren is called on the node */
 	bool bChildrenRebuilt;
+
+	/** Set to true when we want to ignore CPF_InstancedReference */
+	bool bIgnoreInstancedReference;
 
 	/** An array of restrictions limiting this property's potential values in property editors.*/
 	TArray<TSharedRef<const FPropertyRestriction>> Restrictions;

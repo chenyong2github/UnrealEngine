@@ -72,6 +72,7 @@ FPropertyNode::FPropertyNode()
 	, PropertyNodeFlags (EPropertyNodeFlags::NoFlags)
 	, bRebuildChildrenRequested( false )
 	, bChildrenRebuilt(false)
+	, bIgnoreInstancedReference(false)
 	, PropertyPath(TEXT(""))
 	, bIsEditConst(false)
 	, bUpdateEditConstState(true)
@@ -3066,6 +3067,16 @@ void FPropertyNode::SetExpandedChildPropertyNodes(const TSet<FString>& InNodesTo
 			SearchNode->SetNodeFlags(EPropertyNodeFlags::Expanded, false);
 		}
 	} while (RecursiveStack.Num() > 0);
+}
+
+void FPropertyNode::SetIgnoreInstancedReference()
+{
+	bIgnoreInstancedReference = true;
+}
+
+bool FPropertyNode::IsIgnoringInstancedReference() const
+{
+	return bIgnoreInstancedReference;
 }
 
 FDelegateHandle FPropertyNode::SetOnRebuildChildren(const FSimpleDelegate& InOnRebuildChildren)
