@@ -3381,19 +3381,19 @@ void FActiveGameplayEffectsContainer::AddActiveGameplayEffectGrantedTagsAndModif
 		}
 	}
 
-	// Update our owner with the tags this GameplayEffect grants them
-	Owner->UpdateTagMap(Effect.Spec.Def->InheritableOwnedTagsContainer.CombinedTags, 1);
-	Owner->UpdateTagMap(Effect.Spec.DynamicGrantedTags, 1);
-
-	// Update our owner with the blocked ability tags this GameplayEffect adds to them
-	Owner->BlockAbilitiesWithTags(Effect.Spec.Def->InheritableBlockedAbilityTagsContainer.CombinedTags);
-
 	// Update minimal replication if needed.
 	if (ShouldUseMinimalReplication())
 	{
 		Owner->AddMinimalReplicationGameplayTags(Effect.Spec.Def->InheritableOwnedTagsContainer.CombinedTags);
 		Owner->AddMinimalReplicationGameplayTags(Effect.Spec.DynamicGrantedTags);
 	}
+
+	// Update our owner with the tags this GameplayEffect grants them
+	Owner->UpdateTagMap(Effect.Spec.Def->InheritableOwnedTagsContainer.CombinedTags, 1);
+	Owner->UpdateTagMap(Effect.Spec.DynamicGrantedTags, 1);
+
+	// Update our owner with the blocked ability tags this GameplayEffect adds to them
+	Owner->BlockAbilitiesWithTags(Effect.Spec.Def->InheritableBlockedAbilityTagsContainer.CombinedTags);
 
 	// Immunity
 	ApplicationImmunityGameplayTagCountContainer.UpdateTagCount(Effect.Spec.Def->GrantedApplicationImmunityTags.RequireTags, 1);
