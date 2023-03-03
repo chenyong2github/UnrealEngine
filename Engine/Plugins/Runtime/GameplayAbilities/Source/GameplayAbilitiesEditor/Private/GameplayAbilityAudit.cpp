@@ -3,12 +3,13 @@
 #include "GameplayAbilityAudit.h"
 
 #include "Abilities/GameplayAbility.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "GameplayAbilityBlueprint.h"
 
-#include "BlueprintGraph/Classes/K2Node_CallFunction.h"
-#include "BlueprintGraph/Classes/K2Node_BaseAsyncTask.h"
-#include "BlueprintGraph/Classes/K2Node_MacroInstance.h"
-#include "BlueprintGraph/Classes/K2Node_VariableSet.h"
+#include "K2Node_CallFunction.h"
+#include "K2Node_BaseAsyncTask.h"
+#include "K2Node_MacroInstance.h"
+#include "K2Node_VariableSet.h"
 
 #include "Factories/DataTableFactory.h"
 

@@ -6,6 +6,8 @@
 #include "Abilities/GameplayAbility.h"
 #include "GameplayAbilityAudit.generated.h"
 
+class UEdGraph;
+
 /**
  * This file has the implementation of the Gameplay Ability Audit code.  You can right-click on assets and select "Audit" which will produce a DataTable with useful information.
  * The trick to do a full audit is to select all of the GameplayAbility Blueprints in the Content Browser (use filter 'NativeParentClass=GameplayAbility'), then right-click and select the Audit Context Menu Item
