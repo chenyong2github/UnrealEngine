@@ -61,7 +61,6 @@ struct FPendingAsyncPhysicsCommand
 	int32 PhysicsStep;
 	TWeakObjectPtr<UObject> OwningObject;
 	TFunction<void()> Command;
-	bool bEnableResim = true;
 };
 
 
@@ -80,62 +79,16 @@ public:
 	{
 		using namespace Chaos;
 
-		if (!PendingCommands.IsEmpty())
-		{
-			if (!PendingCommands[0].OwningObject.IsStale())
-			{
-				if(UWorld* World = PendingCommands[0].OwningObject->GetWorld())
-				{
-					if (FPhysScene* PhysScene = World->GetPhysicsScene())
-					{
-						PhysScene->GetPhysicsReplication()->SetResimFrame(INDEX_NONE);
-					}
-				}
-			}
-		}
-
-		static IConsoleVariable* ResimNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.ResimNetworkPhysicsPrediction"));
-		const bool bEnableResim =  (ResimNetworkPhysicsCVar && ResimNetworkPhysicsCVar->GetInt() == 1);
-
-		const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
-		const int32 NumFrames = NumFramesCVar ? NumFramesCVar->GetInt() : 0;
-
 		for (int32 Idx = 0; Idx < PendingCommands.Num(); ++Idx)
 		{
 			const int32 CurrentFrame = static_cast<FPBDRigidsSolver*>(GetSolver())->GetCurrentFrame();
 
 			FPendingAsyncPhysicsCommand* PendingCommand = &PendingCommands[Idx];
 			bool bRemove = PendingCommand->OwningObject.IsStale();
-
-			if (bEnableResim && PendingCommand->bEnableResim && PendingCommands[Idx].PhysicsStep > (CurrentFrame - NumFrames))
+			if (!bRemove && PendingCommands[Idx].PhysicsStep <= CurrentFrame)
 			{
-				if (PendingCommands[Idx].PhysicsStep < CurrentFrame && PendingCommands[Idx].OwningObject.IsValid())
-				{
-					if(UWorld* World = PendingCommands[Idx].OwningObject->GetWorld())
-					{
-						if (FPhysScene* PhysScene = World->GetPhysicsScene())
-						{
-							int32 ResimFrame = PhysScene->GetPhysicsReplication()->GetResimFrame();
-							ResimFrame = (ResimFrame == INDEX_NONE) ? PendingCommands[Idx].PhysicsStep :
-								FMath::Min(ResimFrame, PendingCommands[Idx].PhysicsStep);
-
-							PhysScene->GetPhysicsReplication()->SetResimFrame(ResimFrame);
-						}
-					}
-				}
-				else if (!bRemove && PendingCommands[Idx].PhysicsStep == CurrentFrame)
-				{
-					PendingCommands[Idx].Command();
-					bRemove = true;
-				}
-			}
-			else
-			{
-				if (!bRemove && PendingCommands[Idx].PhysicsStep <= CurrentFrame)
-				{
-					PendingCommands[Idx].Command();
-					bRemove = true;
-				}
+				PendingCommands[Idx].Command();
+				bRemove = true;
 			}
 
 			if (bRemove)
@@ -1143,17 +1096,109 @@ void FPhysScene_Chaos::AddCustomPhysics_AssumesLocked(FBodyInstance* BodyInstanc
 
 void FPhysScene_Chaos::AddForce_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Force, bool bAllowSubstepping, bool bAccelChange)
 {
-	FPhysicsInterface::AddForce_AssumesLocked(BodyInstance->GetPhysicsActorHandle(), Force, bAllowSubstepping, bAccelChange);
+	using namespace Chaos;
+
+	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+	if (FPhysicsInterface::IsValid(Handle))
+	{
+		Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
+		EObjectStateType ObjectState = Body_External.ObjectState();
+		Body_External.SetObjectState(EObjectStateType::Dynamic);
+
+		if (bAccelChange)
+		{
+			const Chaos::FReal Mass = Body_External.M();
+			const Chaos::FVec3 Acceleration = Force * Mass;
+			Body_External.AddForce(Acceleration);
+		}
+		else
+		{
+			Body_External.AddForce(Force);
+		}
+	}
 }
 
 void FPhysScene_Chaos::AddForceAtPosition_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Force, const FVector& Position, bool bAllowSubstepping, bool bIsLocalForce /*= false*/)
 {
-	FPhysicsInterface::AddForceAtPosition_AssumesLocked(BodyInstance->GetPhysicsActorHandle(), Force, Position, bAllowSubstepping, bIsLocalForce);
+	using namespace Chaos;
+
+	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+	if (ensure(FPhysicsInterface::IsValid(Handle)))
+	{
+		Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
+		EObjectStateType ObjectState = Body_External.ObjectState();
+		const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(&Body_External);
+
+		Body_External.SetObjectState(EObjectStateType::Dynamic);
+
+		if (bIsLocalForce)
+		{
+			const Chaos::FRigidTransform3 CurrentTransform = FParticleUtilitiesGT::GetActorWorldTransform(&Body_External);
+			const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
+			const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
+			const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);
+			Body_External.AddForce(WorldForce);
+			Body_External.AddTorque(WorldTorque);
+		}
+		else
+		{
+			const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
+			Body_External.AddForce(Force);
+			Body_External.AddTorque(WorldTorque);
+		}
+	}
 }
 
 void FPhysScene_Chaos::AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Origin, const float Radius, const float Strength, const uint8 Falloff, bool bAccelChange, bool bAllowSubstepping)
 {
-	FPhysicsInterface::AddRadialForce_AssumesLocked(BodyInstance->GetPhysicsActorHandle(), Origin, Radius, Strength, Falloff, bAccelChange, bAllowSubstepping);
+	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+	if (ensure(FPhysicsInterface::IsValid(Handle)))
+	{
+		Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
+		Chaos::EObjectStateType ObjectState = Body_External.ObjectState();
+		if (CHAOS_ENSURE(ObjectState == Chaos::EObjectStateType::Dynamic || ObjectState == Chaos::EObjectStateType::Sleeping))
+		{
+			const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&Body_External);
+
+			Chaos::FVec3 Direction = WorldCOM - Origin;
+			const Chaos::FReal Distance = Direction.Size();
+			if (Distance > Radius)
+			{
+				return;
+			}
+
+			Body_External.SetObjectState(Chaos::EObjectStateType::Dynamic);
+
+			if (Distance < 1e-4)
+			{
+				Direction = Chaos::FVec3(1, 0, 0);
+			}
+			else
+			{
+				Direction = Direction.GetUnsafeNormal();
+			}
+			Chaos::FVec3 Force(0, 0, 0);
+			CHAOS_ENSURE(Falloff < RIF_MAX);
+			if (Falloff == ERadialImpulseFalloff::RIF_Constant)
+			{
+				Force = Strength * Direction;
+			}
+			if (Falloff == ERadialImpulseFalloff::RIF_Linear)
+			{
+				Force = (Radius - Distance) / Radius * Strength * Direction;
+			}
+			if (bAccelChange)
+			{
+				const Chaos::FReal Mass = Body_External.M();
+				const Chaos::FVec3 Acceleration = Force * Mass;
+				Body_External.AddForce(Acceleration);
+			}
+			else
+			{
+				Body_External.AddForce(Force);
+			}
+		}
+	}
 }
 
 void FPhysScene_Chaos::ClearForces_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping)
@@ -1167,7 +1212,25 @@ void FPhysScene_Chaos::ClearForces_AssumesLocked(FBodyInstance* BodyInstance, bo
 
 void FPhysScene_Chaos::AddTorque_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Torque, bool bAllowSubstepping, bool bAccelChange)
 {
-	FPhysicsInterface::AddTorque_AssumesLocked(BodyInstance->GetPhysicsActorHandle(), Torque, bAllowSubstepping, bAccelChange);
+	using namespace Chaos;
+
+	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+	if (ensure(FPhysicsInterface::IsValid(Handle)))
+	{
+		Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
+		EObjectStateType ObjectState = Body_External.ObjectState();
+		if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
+		{
+			if (bAccelChange)
+			{
+				Body_External.AddTorque(FParticleUtilitiesXR::GetWorldInertia(&Body_External) * Torque);
+			}
+			else
+			{
+				Body_External.AddTorque(Torque);
+			}
+		}
+	}
 }
 
 void FPhysScene_Chaos::ClearTorques_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping)
@@ -1183,7 +1246,7 @@ void FPhysScene_Chaos::SetKinematicTarget_AssumesLocked(FBodyInstance* BodyInsta
 {
 	// #todo : Implement
 	//for now just pass it into actor directly
-	FPhysicsInterface::SetKinematicTarget_AssumesLocked(BodyInstance->GetPhysicsActorHandle(), TargetTM);
+	FPhysInterface_Chaos::SetKinematicTarget_AssumesLocked(BodyInstance->GetPhysicsActorHandle(), TargetTM);
 }
 
 bool FPhysScene_Chaos::GetKinematicTarget_AssumesLocked(const FBodyInstance* BodyInstance, FTransform& OutTM) const
@@ -2058,10 +2121,10 @@ void FPhysScene_Chaos::UnregisterAsyncPhysicsTickActor(AActor* Actor)
 	}
 }
 
-void FPhysScene_Chaos::EnqueueAsyncPhysicsCommand(int32 PhysicsStep, UObject* OwningObject, const TFunction<void()>& Command, const bool bEnableResim)
+void FPhysScene_Chaos::EnqueueAsyncPhysicsCommand(int32 PhysicsStep, UObject* OwningObject, const TFunction<void()>& Command)
 {
 	EnableAsyncPhysicsTickCallback();
-	AsyncPhysicsTickCallback->PendingCommands.Add({ PhysicsStep, TWeakObjectPtr<UObject>(OwningObject), Command, bEnableResim });
+	AsyncPhysicsTickCallback->PendingCommands.Add({ PhysicsStep, TWeakObjectPtr<UObject>(OwningObject), Command });
 }
 
 TSharedPtr<IPhysicsReplicationFactory> FPhysScene_Chaos::PhysicsReplicationFactory;

@@ -328,11 +328,6 @@ namespace Chaos
 			LLM_SCOPE(ELLMTag::ChaosUpdate);
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 
-			if (FRewindData* RewindData = MSolver->GetRewindData())
-			{
-				RewindData->ApplyInputs(MSolver->GetCurrentFrame(), MSolver->GetEvolution()->IsResetting());
-			}
-
 			MSolver->ApplyCallbacks_Internal();
 			
 			{
@@ -848,14 +843,7 @@ namespace Chaos
 	void FPBDRigidsSolver::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback)
 	{
 		//TODO: this function calls both internal and extrnal - sort of assumed during initialization. Should decide what thread it's called on and mark it as either external or internal
-		if (MRewindData.IsValid())
-		{
-			MRewindData->Init(((FPBDRigidsSolver*)this), NumFrames, InUseCollisionResimCache, ((FPBDRigidsSolver*)this)->GetCurrentFrame());
-		}
-		else
-		{
-			MRewindData = MakeUnique<FRewindData>(((FPBDRigidsSolver*)this), NumFrames, InUseCollisionResimCache, ((FPBDRigidsSolver*)this)->GetCurrentFrame()); // FIXME
-		}
+		MRewindData = MakeUnique<FRewindData>(((FPBDRigidsSolver*)this), NumFrames, InUseCollisionResimCache, ((FPBDRigidsSolver*)this)->GetCurrentFrame()); // FIXME
 		bUseCollisionResimCache = InUseCollisionResimCache;
 		MRewindCallback = MoveTemp(RewindCallback);
 		MarshallingManager.SetHistoryLength_Internal(NumFrames);
@@ -1063,13 +1051,6 @@ namespace Chaos
 	void FPBDRigidsSolver::AdvanceSolverBy(const FSubStepInfo& SubStepInfo)
 	{
 		const FReal StartSimTime = GetSolverTime();
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if(IsNetworkPhysicsPredictionEnabled() && CanDebugNetworkPhysicsPrediction())
-		{
-			UE_LOG(LogChaos, Log, TEXT("-> Simulating Frame = %d"), CurrentFrame);
-		}
-#endif
 
 		AdvanceOneTimeStepTask(this, MLastDt, SubStepInfo).DoWork();
 
@@ -1543,39 +1524,15 @@ namespace Chaos
 		{
 			const int32 LastStep = MRewindData->CurrentFrame() - 1;
 			const int32 ResimStep = MRewindCallback->TriggerRewindIfNeeded_Internal(LastStep);
-			const int32 NumResimSteps = LastStep - ResimStep + 1;
-
-			const bool bEnableNetworlPredictionDebug = IsNetworkPhysicsPredictionEnabled() && CanDebugNetworkPhysicsPrediction();
-			
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (bEnableNetworlPredictionDebug)
-			{
-				UE_LOG(LogChaos, Log, TEXT("	-> Trying to Rewind Frame = %d | At Time = %f | Num Steps = %d | Resim Step = %d | Last Step = %d"), CurrentFrame,  MTime, NumResimSteps, ResimStep, LastStep);
-				for(auto& Handle : GetParticles().GetNonDisabledDynamicView())
-				{
-					if(!Handle.IsSleeping())
-					{
-						UE_LOG(LogChaos, Log, TEXT("Particle Active At Position = %s | Velocity = %s | Quaternion = %s | Omega = %s"),
-							*Handle.X().ToString(), *Handle.V().ToString(), *Handle.R().ToString(), *Handle.W().ToString());
-					}
-					else
-					{
-						UE_LOG(LogChaos, Log, TEXT("Particle Sleeping At Position = %s | Velocity = %s | Quaternion = %s | Omega = %s"), 
-							*Handle.X().ToString(), *Handle.V().ToString(), *Handle.R().ToString(), *Handle.W().ToString());
-					}
-				}
-			}
-#endif
-			
-			if(ResimStep >= 0 && (ResimStep < LastStep) && NumResimSteps <= MarshallingManager.GetNumHistory_Internal())
+			if(ResimStep != INDEX_NONE)
 			{
 				FResimDebugInfo DebugInfo;
 				QUICK_SCOPE_CYCLE_COUNTER(ChaosRewindAndResim);
-				if(MRewindData->RewindToFrame(ResimStep))
+				if(ensure(MRewindData->RewindToFrame(ResimStep)))
 				{
 					GetEvolution()->SetResim(true);
 					CurrentFrame = ResimStep;
-					
+					const int32 NumResimSteps = LastStep - ResimStep + 1;
 					TArray<FPushPhysicsData*> RecordedPushData = MarshallingManager.StealHistory_Internal(NumResimSteps);
 					bool bFirst = true;
 
@@ -1583,54 +1540,28 @@ namespace Chaos
 					// Do rollback as necessary
 					for (int32 Step = ResimStep; Step <= LastStep; ++Step)
 					{
-						if ((LastStep - Step) < RecordedPushData.Num())
+						FPushPhysicsData* PushData = RecordedPushData[LastStep - Step];	//push data is sorted as latest first
+						if(bFirst)
 						{
-							// We need to reset all the particles having received a target from the server even if not at first resim frame
-							MRewindData->ApplyTargets(Step, bFirst);
-
-							FPushPhysicsData* PushData = RecordedPushData[LastStep - Step];	//push data is sorted as latest first
-							if (bFirst)
-							{
-								MTime = PushData->StartTime;	//not sure if sub-steps have proper StartTime so just do this once and let solver evolve remaining time
-								GetEvolution()->ResetCollisions();
-							}
-								
-							GetEvolution()->SetReset(bFirst);
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-							if(bEnableNetworlPredictionDebug)
-							{
-								UE_LOG(LogChaos, Log, TEXT("		-> Re-simulating Frame = %d "), Step);
-								for(auto& Handle : GetParticles().GetNonDisabledDynamicView())
-								{
-									if(!Handle.IsSleeping()) 
-									{
-										UE_LOG(LogChaos, Log, TEXT("Particle Dynamic At Position = %s | Velocity = %s | Quaternion = %s | Omega = %s | Resim Frame = %d | Sync State = %d | Needs Resim = %d"),   
-											*Handle.X().ToString(), *Handle.V().ToString(), *Handle.R().ToString(), *Handle.W().ToString(), 
-												GetEvolution()->GetIslandManager().GetIsland(Handle.IslandIndex())->GetResimFrame(), (uint8)Handle.SyncState(),
-											GetEvolution()->GetIslandManager().GetIsland(Handle.IslandIndex())->NeedsResim());
-									}
-								}
-							}
-#endif
-							MRewindCallback->PreResimStep_Internal(Step, bFirst);
-							
-							FAllSolverTasks ImmediateTask(*this, PushData);
-							//ensure(bSolverHasFrozenGameThreadCallbacks == false);	//We don't support this for resim as it's very expensive and difficult to schedule
-							ImmediateTask.AdvanceSolver();
-							MRewindCallback->PostResimStep_Internal(Step);
-							
-							bFirst = false;
+							MTime = PushData->StartTime;	//not sure if sub-steps have proper StartTime so just do this once and let solver evolve remaining time
 						}
+
+						MRewindCallback->PreResimStep_Internal(Step, bFirst);
+						FAllSolverTasks ImmediateTask(*this, PushData);
+						ensure(bSolverHasFrozenGameThreadCallbacks == false);	//We don't support this for resim as it's very expensive and difficult to schedule
+						ImmediateTask.AdvanceSolver();
+						MRewindCallback->PostResimStep_Internal(Step);
+
+						bFirst = false;
 					}
-					GetEvolution()->GetIslandManager().ResetParticleResimFrame();
 
 					GetEvolution()->SetResim(false);
-					GetEvolution()->SetReset(false);
 
 					ResimTimer.Stop();
 					MRewindCallback->SetResimDebugInfo_Internal(DebugInfo);
 				}
 			}
+
 		}
 	}
 
@@ -2127,7 +2058,7 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 
 	bool FPBDRigidsSolver::IsDetemerministic() const
 	{
-		return bIsDeterministic || (MRewindData != nullptr) || (ChaosSolverDeterministic >= 1) || FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled();
+		return bIsDeterministic || (MRewindData != nullptr) || (ChaosSolverDeterministic >= 1);
 	}
 
 	void FPBDRigidsSolver::SetIsDeterministic(const bool bInIsDeterministic)

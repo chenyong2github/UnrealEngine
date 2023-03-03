@@ -7151,33 +7151,18 @@ void UCharacterMovementComponent::ApplyImpactPhysicsForces(const FHitResult& Imp
 				{
 					PushForceModificator *= BodyMass;
 				}
-				const bool bEnableNetworkPhysics = Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled(); 
 
 				Force *= PushForceModificator;
 				const float ZeroVelocityTolerance = 1.0f;
 				if (ComponentVelocity.IsNearlyZero(ZeroVelocityTolerance))
 				{
 					Force *= InitialPushForceFactor;
-					if (!bEnableNetworkPhysics)
-					{
-						ImpactComponent->AddImpulseAtLocation(Force, ForcePoint, Impact.BoneName);
-					}
-					else
-					{
-						ApplyAsyncPhysicsStateAction(ImpactComponent, Impact.BoneName, EPhysicsStateAction::AddImpulseAtPosition, Force, ForcePoint);
-					}
+					ImpactComponent->AddImpulseAtLocation(Force, ForcePoint, Impact.BoneName);
 				}
 				else
 				{
 					Force *= PushForceFactor;
-					if (!bEnableNetworkPhysics)
-					{
-						ImpactComponent->AddForceAtLocation(Force, ForcePoint, Impact.BoneName);
-					}
-					else
-					{
-						ApplyAsyncPhysicsStateAction(ImpactComponent, Impact.BoneName, EPhysicsStateAction::AddForceAtPosition, Force, ForcePoint);
-					}
+					ImpactComponent->AddForceAtLocation(Force, ForcePoint, Impact.BoneName);
 				}
 			}
 		}

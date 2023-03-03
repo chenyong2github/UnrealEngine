@@ -1163,11 +1163,6 @@ void APawn::GetMoveGoalReachTest(const AActor* MovingActor, const FVector& MoveO
 
 void APawn::PostNetReceiveVelocity(const FVector& NewVelocity)
 {
-	static IConsoleVariable* EnableNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.EnableNetworkPhysicsPrediction"));
-	if (EnableNetworkPhysicsCVar && EnableNetworkPhysicsCVar->GetInt() == 1)
-	{
-		Super::PostNetReceiveVelocity(NewVelocity);
-	}
 	if (GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		UMovementComponent* const MoveComponent = GetMovementComponent();

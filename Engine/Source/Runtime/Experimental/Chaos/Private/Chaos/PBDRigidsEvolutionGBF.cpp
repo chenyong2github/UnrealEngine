@@ -255,7 +255,6 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt,const FSubStepInf
 
 void FPBDRigidsEvolutionGBF::ReloadParticlesCache()
 {
-	
 	// @todo(chaos): Parallelize
 	FEvolutionResimCache* ResimCache = GetCurrentStepResimCache();
 	if ((ResimCache != nullptr) && ResimCache->IsResimming())
@@ -266,12 +265,6 @@ void FPBDRigidsEvolutionGBF::ReloadParticlesCache()
 			bool bIsUsingCache = false;
 			if (!Island->IsSleeping() && !GetIslandManager().IslandNeedsResim(IslandIndex))
 			{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				if (Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled() && Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
-				{
-					UE_LOG(LogChaos, Log, TEXT("Reloading Island[%d] cache for %d particles"), IslandIndex, Island->GetParticles().Num());
-				}
-#endif
 				for (Private::FPBDIslandParticle& IslandParticle : Island->GetParticles())
 				{
 					if (auto Rigid = IslandParticle.GetParticle()->CastToRigidParticle())
@@ -507,13 +500,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_BuildGroups);
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_BuildGroups);
-
-		// If we are resimming and if we have a particle cache we only build the island the groups 
-		// for islands that required to be simulated based of desynced particles
-		FEvolutionResimCache* ResimCache = GetCurrentStepResimCache();
-		const bool bIsResimming = (ResimCache != nullptr) && ResimCache->IsResimming();
-
-		NumGroups = IslandGroupManager.BuildGroups(bIsResimming);
+		NumGroups = IslandGroupManager.BuildGroups();
 	}
 
 
@@ -702,14 +689,6 @@ void FPBDRigidsEvolutionGBF::TestModeResetCollisions()
 	{
 		Collision->GetContact().ResetManifold();
 		Collision->GetContact().ResetModifications();
-		Collision->GetContact().GetGJKWarmStartData().Reset();
-	}
-}
-
-void FPBDRigidsEvolutionGBF::ResetCollisions()
-{
-	for (FPBDCollisionConstraintHandle* Collision : CollisionConstraints.GetConstraintHandles())
-	{
 		Collision->GetContact().GetGJKWarmStartData().Reset();
 	}
 }

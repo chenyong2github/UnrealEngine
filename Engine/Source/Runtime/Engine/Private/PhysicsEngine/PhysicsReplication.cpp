@@ -2,7 +2,7 @@
 
 /*=============================================================================
 	PhysicsReplication.cpp: Code for updating body instance physics state based on replication
-=============================================================================*/
+=============================================================================*/ 
 
 #include "PhysicsReplication.h"
 #include "Engine/World.h"
@@ -142,137 +142,35 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 
 	Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver();
 	Chaos::FRewindData* RewindData = Solver->GetRewindData();
-	const FPhysicsActorHandle& Proxy = BI->GetPhysicsActorHandle();
 
-	if (Proxy && Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled())
+	if (RewindData && LocalFrame > RewindData->GetEarliestFrame_Internal() && LocalFrame < RewindData->CurrentFrame())
 	{
-		if (RewindData && (LocalFrame <= RewindData->CurrentFrame()) && (LocalFrame >= RewindData->GetEarliestFrame_Internal()))
+		auto Proxy = BI->GetPhysicsActorHandle();
+		const auto P = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), LocalFrame);
+
+#if 0
+		// Debugging/test: compare and print out if locations differ
+		if (FVector::DistSquared(PhysicsTarget.TargetState.Position, P.X()) > 1.f)
 		{
-			static constexpr Chaos::FFrameAndPhase::EParticleHistoryPhase RewindPhase = Chaos::FFrameAndPhase::EParticleHistoryPhase::PostPushData;
+			const int32 EarliestFrame = RewindData->GetEarliestFrame_Internal();
+			const int32 CurrentFrame = RewindData->CurrentFrame();
 
-			if (Chaos::FPhysicsSolverBase::CanResimNetworkPhysicsPrediction())
-			{
-				if (LocalFrame < RewindData->CurrentFrame() && !RewindData->IsResim())
-				{
-					if (UWorld* World = GetOwningWorld())
-					{
-						if (World->GetNetMode() == NM_Client)
-						{
-							if (APlayerController* PlayerController = World->GetFirstPlayerController())
-							{
-								FAsyncPhysicsTimestamp TimeStamp;
-								TimeStamp.LocalFrame = RewindData->CurrentFrame();
-								if (Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
-								{
-									UE_LOG(LogTemp, Log, TEXT("Appy Rigid body state at local frame %d with offset = %d"), LocalFrame, PlayerController->GetLocalToServerAsyncPhysicsTickOffset());
-								}
-
-								PlayerController->ExecuteAsyncPhysicsCommand(TimeStamp, BI->OwnerComponent.Get(), [this, Proxy, PhysicsTarget, RewindData, LocalFrame]
-								{
-									if (RewindData->IsResim())
-										return;
-
-									auto PastState = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), LocalFrame, RewindPhase);
-
-									static const float ErrorThreshold = Chaos::FPhysicsSolverBase::NetworkPhysicsErrorThreshold();
-
-									const float ErrorPosition = (PastState.X() - PhysicsTarget.TargetState.Position).Size();
-									float ColorLerp = (ErrorPosition >= ErrorThreshold) ? 1.0f : 0.0f;
-
-									if (Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
-									{
-										UE_LOG(LogTemp, Log, TEXT("Particle Position Error = %f | Resim Trigger = %f | Server Frame = %d | Client Frame = %d"), ErrorPosition, ColorLerp, PhysicsTarget.ServerFrame, LocalFrame);
-										UE_LOG(LogTemp, Log, TEXT("Particle Target Position = %s | Current Position = %s"), *PhysicsTarget.TargetState.Position.ToString(), *PastState.X().ToString());
-										UE_LOG(LogTemp, Log, TEXT("Particle Target Velocity = %s | Current Velocity = %s"), *PhysicsTarget.TargetState.LinVel.ToString(), *PastState.V().ToString());
-										UE_LOG(LogTemp, Log, TEXT("Particle Target Quaternion = %s | Current Quaternion = %s"), *PhysicsTarget.TargetState.Quaternion.ToString(), *PastState.R().ToString());
-										UE_LOG(LogTemp, Log, TEXT("Particle Target Omega = %s | Current Omega= %s"), *PhysicsTarget.TargetState.AngVel.ToString(), *PastState.W().ToString());
-
-										if (UWorld* OwningWorld = GetOwningWorld())
-										{
-											static constexpr float BoxSize = 5.0f;
-											const FColor DebugColor = FLinearColor::LerpUsingHSV(FLinearColor::Green, FLinearColor::Red, ColorLerp).ToFColor(false);
-
-											DrawDebugBox(OwningWorld, PhysicsTarget.TargetState.Position, FVector(BoxSize, BoxSize, BoxSize), PhysicsTarget.TargetState.Quaternion, FColor::Orange, true, CharacterMovementCVars::NetCorrectionLifetime, 0, 1.0f);
-											DrawDebugBox(OwningWorld, PastState.X(), FVector(6, 6, 6), PastState.R(), DebugColor, true, CharacterMovementCVars::NetCorrectionLifetime, 0, 1.0f);
-
-											DrawDebugDirectionalArrow(OwningWorld, PastState.X(), PhysicsTarget.TargetState.Position, 5.0f, FColor::Green, true, CharacterMovementCVars::NetCorrectionLifetime, 0, 0.5f);
-										}
-									}
-
-									const bool bShouldSleep = (PhysicsTarget.TargetState.Flags & ERigidBodyFlags::Sleeping) != 0;
-
-									RewindData->SetTargetStateAtFrame(*Proxy->GetHandle_LowLevel(), LocalFrame, RewindPhase,
-										PhysicsTarget.TargetState.Position, PhysicsTarget.TargetState.Quaternion, 
-										PhysicsTarget.TargetState.LinVel, PhysicsTarget.TargetState.AngVel, bShouldSleep);
-
-									if (ColorLerp == 1.0f)
-									{
-										if (Chaos::FPBDRigidsSolver* RigidSolver = Proxy->GetSolver<Chaos::FPBDRigidsSolver>())
-										{
-											RigidSolver->GetEvolution()->GetIslandManager().SetParticleResimFrame(Proxy->GetHandle_LowLevel(), LocalFrame);
-										}
-										ResimFrame = (ResimFrame == INDEX_NONE) ? LocalFrame : FMath::Min(ResimFrame, LocalFrame);
-									}
-								}, false);
-							}
-						}
-					}
-				}
-			}
-			else
-			{
-				static const float LerpFactor = Chaos::FPhysicsSolverBase::NetworkPhysicsInterpolationLerp();
-
-				FRigidBodyState CurrentState;
-				BI->GetRigidBodyState(CurrentState);
-
-				const float ExtrapolatedDeltaSeconds = (RewindData->CurrentFrame() - LocalFrame) * Solver->GetLastDt();
-
-				FVector LinDiff;
-				float LinDiffSize;
-				FVector AngDiffAxis;
-				float AngDiff;
-				float AngDiffSize;
-
-				ComputeDeltas(CurrentState.Position, CurrentState.Quaternion, PhysicsTarget.TargetState.Position, PhysicsTarget.TargetState.Quaternion, LinDiff, LinDiffSize, AngDiffAxis, AngDiff, AngDiffSize);
-
-				const FVector ExtrapolatedLinVel = FVector(PhysicsTarget.TargetState.LinVel + LinDiff / ExtrapolatedDeltaSeconds);
-				const FVector ExtrapolatedAngVel = FVector(PhysicsTarget.TargetState.AngVel + AngDiffAxis * AngDiff / ExtrapolatedDeltaSeconds);
-
-				const FVector TargetLinVel = FMath::Lerp(CurrentState.LinVel, ExtrapolatedLinVel, LerpFactor);
-				const FVector TargetAngVel = FMath::Lerp(CurrentState.AngVel, ExtrapolatedAngVel, LerpFactor);
-
-				FAsyncPhysicsDesiredState AsyncDesiredState;
-				AsyncDesiredState.WorldTM = FTransform(CurrentState.Quaternion, CurrentState.Position);
-				AsyncDesiredState.LinearVelocity = TargetLinVel;
-				AsyncDesiredState.AngularVelocity = TargetAngVel;
-				AsyncDesiredState.Proxy = static_cast<Chaos::FSingleParticlePhysicsProxy*>(Proxy);
-				AsyncDesiredState.ErrorCorrection = { 0.0f, 0.0f, 0.0f, 0.0f };
-				AsyncDesiredState.bShouldSleep = (PhysicsTarget.TargetState.Flags & ERigidBodyFlags::Sleeping) != 0;
-
-				CurAsyncData->Buffer.Add(AsyncDesiredState);
-				return false;
-			}
+			UE_LOG(LogTemp, Warning, TEXT(""));
+			UE_LOG(LogTemp, Warning, TEXT("Location differs"));
+			UE_LOG(LogTemp, Warning, TEXT("   Replicated: %s"), *PhysicsTarget.TargetState.Position.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("   Historic: %s"), *P.X().ToString());
 		}
-		else if(RewindData && LocalFrame > 0)
-		{
-			UE_LOG(LogPhysics, Warning, TEXT("FPhysicsReplication::ApplyRigidBodyState target frame (%d) out of rewind data bounds (%d,%d)"), LocalFrame,
-				RewindData->GetEarliestFrame_Internal(), RewindData->CurrentFrame());
-		}
-		return true;
+#endif
 	}
-	else
-	{
-		// Call into the old ApplyRigidBodyState function for now,
-		// "new leash mode" should replace this.
-		// Note that old ApplyRigidBodyState is overridden in other projects, so consider backwards compat path
-		const float PingSecondsOneWay = RewindData == nullptr ? InPingSecondsOneWay : (Solver->GetLastDt() * (Solver->GetCurrentFrame() - LocalFrame)) * 0.5f;
-		return ApplyRigidBodyState(DeltaSeconds, BI, PhysicsTarget, ErrorCorrection, PingSecondsOneWay, nullptr);
-	}
+
+	// Call into the old ApplyRigidBodyState function for now,
+	// "new leash mode" should replace this.
+	// Note that old ApplyRigidBodyState is overridden in other projects, so consider backwards compat path
+	float PingSecondsOneWay = RewindData == nullptr ? InPingSecondsOneWay : (Solver->GetLastDt() * NumPredictedFrames) * 0.5f;
+	return ApplyRigidBodyState(DeltaSeconds, BI, PhysicsTarget, ErrorCorrection, PingSecondsOneWay);
 }
 
-bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection,
-	const float PingSecondsOneWay, bool* bDidHardSnap)
+bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay, bool* bDidHardSnap)
 {
 	if (ShouldSkipPhysicsReplication())
 	{
@@ -436,9 +334,9 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 		{
 			PhysicsTarget.AccumulatedErrorSeconds = FMath::Max(PhysicsTarget.AccumulatedErrorSeconds - DeltaSeconds, 0.0f);
 		}
-		
+
 		// Hard snap if error accumulation or linear error is big enough, and clear the error accumulator.
-		const bool bHardSnap = 
+		const bool bHardSnap =
 			LinDiffSize > MaxLinearHardSnapDistance ||
 			PhysicsTarget.AccumulatedErrorSeconds > ErrorAccumulationSeconds ||
 			CharacterMovementCVars::AlwaysHardSnap;
@@ -487,7 +385,7 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 
 				const FVector NewPos = FMath::Lerp(FVector(CurrentState.Position), FVector(TargetPos), PositionLerp);
 				const FQuat NewAng = FQuat::Slerp(CurrentState.Quaternion, TargetQuat, AngleLerp);
-				
+
 				BI->SetBodyTransform(FTransform(NewAng, NewPos), ETeleportType::ResetPhysics);
 				BI->SetLinearVelocity(NewLinVel, false);
 				BI->SetAngularVelocityInRadians(FMath::DegreesToRadians(NewAngVel), false);
@@ -613,7 +511,8 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 				Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver();
 				check(Solver);
 
-				if (FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled())
+				static IConsoleVariable* EnableNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.EnableNetworkPhysicsPrediction"));
+				if (EnableNetworkPhysicsCVar && EnableNetworkPhysicsCVar->GetInt() == 1)
 				{
 					LocalFrameOffset = PlayerController->GetLocalToServerAsyncPhysicsTickOffset();
 				}
@@ -624,19 +523,19 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 	}
 
 	const FRigidBodyErrorCorrection& PhysicErrorCorrection = UPhysicsSettings::Get()->PhysicErrorCorrection;
-	if (AsyncCallback)
+	if(AsyncCallback)
 	{
 		PrepareAsyncData_External(PhysicErrorCorrection);
 	}
-	
+
 	// Get the ping between this PC & the server
 	const float LocalPing = GetLocalPing();
+
 	for (auto Itr = ComponentsToTargets.CreateIterator(); Itr; ++Itr)
 	{
 		bool bRemoveItr = false;
 		if (UPrimitiveComponent* PrimComp = Itr.Key().Get())
 		{
-
 			if (FBodyInstance* BI = PrimComp->GetBodyInstance(Itr.Value().BoneName))
 			{
 				FReplicatedPhysicsTarget& PhysicsTarget = Itr.Value();
@@ -660,13 +559,14 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 
 						if (UpdatedState.Flags & ERigidBodyFlags::NeedsUpdate)
 						{
-							const int32 LocalFrame = PhysicsTarget.ServerFrame - LocalFrameOffset;
+							const int32 LocalFrame = PhysicsTarget.ServerFrame + LocalFrameOffset;
 							const bool bRestoredState = ApplyRigidBodyState(DeltaSeconds, BI, PhysicsTarget, PhysicErrorCorrection, PingSecondsOneWay, LocalFrame, NumPredictedFrames);
 							// Need to update the component to match new position.
 							if (PhysicsReplicationCVars::SkipSkeletalRepOptimization == 0 || Cast<USkeletalMeshComponent>(PrimComp) == nullptr)	//simulated skeletal mesh does its own polling of physics results so we don't need to call this as it'll happen at the end of the physics sim
 							{
 								PrimComp->SyncComponentToRBPhysics();
 							}
+
 							if (bRestoredState)
 							{
 								bRemoveItr = true;
@@ -698,7 +598,7 @@ void FPhysicsReplication::Tick(float DeltaSeconds)
 }
 
 FPhysicsReplication::FPhysicsReplication(FPhysScene* InPhysicsScene)
-	: PhysScene(InPhysicsScene)
+: PhysScene(InPhysicsScene)
 {
 	using namespace Chaos;
 	CurAsyncData = nullptr;
@@ -727,7 +627,7 @@ void FPhysicsReplication::PrepareAsyncData_External(const FRigidBodyErrorCorrect
 void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const FAsyncPhysicsRepCallbackData* AsyncData)
 {
 	using namespace Chaos;
-	if (AsyncData)
+	if(AsyncData)
 	{
 		for (const FAsyncPhysicsDesiredState& State : AsyncData->Buffer)
 		{
@@ -747,7 +647,8 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 			Chaos::FSingleParticlePhysicsProxy* Proxy = State.Proxy;
 			auto* Handle = Proxy->GetPhysicsThreadAPI();
 
-			if (Handle && Handle->CanTreatAsRigid())
+
+			if(Handle && Handle->CanTreatAsRigid())
 			{
 				const FVector TargetPos = State.WorldTM.GetLocation();
 				const FQuat TargetQuat = State.WorldTM.GetRotation();
@@ -771,7 +672,7 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 
 				const FVector NewPos = FMath::Lerp(FVector(CurrentState.Position), TargetPos, PositionLerp);
 				const FQuat NewAng = FQuat::Slerp(CurrentState.Quaternion, TargetQuat, AngleLerp);
-
+				
 				Handle->SetX(NewPos);
 				Handle->SetR(NewAng);
 				Handle->SetV(NewLinVel);
@@ -789,16 +690,6 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 			}
 		}
 	}
-}
-
-int32 FPhysicsReplication::GetResimFrame() const
-{
-	return ResimFrame;
-}
-
-void FPhysicsReplication::SetResimFrame(const int32 InResimFrame)
-{
-	ResimFrame = InResimFrame;
 }
 
 void FPhysicsReplication::SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame)
@@ -822,7 +713,7 @@ void FPhysicsReplication::SetReplicatedTarget(UPrimitiveComponent* Component, FN
 		Target->TargetState = ReplicatedTarget;
 		Target->BoneName = BoneName;
 		Target->ArrivedTimeSeconds = OwningWorld->GetTimeSeconds();
-		
+
 		ensure(!Target->PrevPos.ContainsNaN());
 		ensure(!Target->PrevPosTarget.ContainsNaN());
 		ensure(!Target->TargetState.Position.ContainsNaN());

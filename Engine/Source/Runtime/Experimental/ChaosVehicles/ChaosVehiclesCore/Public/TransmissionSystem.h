@@ -137,30 +137,6 @@ namespace Chaos
 			return TargetGear;
 		}
 
-		/** Get the current gear change time */
-		float GetCurrentGearChangeTime() const
-		{
-			return CurrentGearChangeTime;
-		}
-
-		/** Set the current gear index, (reverse gears < 0, neutral 0, forward gears > 0) */
-		void SetCurrentGear(const int32 InCurrentGear) 
-		{
-			CurrentGear = InCurrentGear;
-		}
-
-		/** Set the target gear index, (reverse gears < 0, neutral 0, forward gears > 0) */
-		void SetTargetGear(const int32 InTargetGear) 
-		{
-			TargetGear = InTargetGear;
-		}
-
-		/** Set the current gear change time */
-		void SetCurrentGearChangeTime(const float InCurrentGearChangeTime) 
-		{
-			CurrentGearChangeTime = InCurrentGearChangeTime;
-		}
-
 		/** Are we currently in the middle of a gear change */
 		bool IsCurrentlyChangingGear() const
 		{
@@ -216,13 +192,13 @@ namespace Chaos
 		 * - implements gear change time, where gear goes through neutral
 		 */
 		void Simulate(float DeltaTime);
-	
+
+
+	private:
 		void CorrectGearInputRange(int32& GearIndexInOut)
 		{
 			GearIndexInOut = FMath::Clamp(GearIndexInOut, -Setup().ReverseRatios.Num(), Setup().ForwardRatios.Num());
 		}
-
-	private:
 
 		int32 CurrentGear; // <0 reverse gear(s), 0 neutral, >0 forward gears
 		int32 TargetGear;  // <0 reverse gear(s), 0 neutral, >0 forward gears

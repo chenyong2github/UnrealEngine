@@ -15,142 +15,6 @@
 namespace Chaos
 {
 
-/** Base states history interface to store additional information required for rewind */
-struct FBaseStatesHistory
-{
-	FORCEINLINE virtual ~FBaseStatesHistory() {}
-
-	/** Rewind the states at some point in time */
-	FORCEINLINE virtual bool RewindStates(const int32 RewindFrame, const bool bResetSolver) { return true; }
-};
-
-/** Base Inputs history interface to continuously apply Inputs inputs while resimulating */
-struct FBaseInputsHistory
-{
-	FORCEINLINE virtual ~FBaseInputsHistory() {}
-
-	/** Apply Inputs given a time */
-	FORCEINLINE virtual bool ApplyInputs(const int32 ApplyFrame, const bool bResetSolver) { return true; }
-};
-
-/** Base history class that is holding a fixed size buffer of datas */
-template<typename DatasType>
-struct FDatasRewindHistory 
-{
-	FORCEINLINE FDatasRewindHistory(const int32 FrameCount, const bool bIsHistoryLocal) : 
-		bIsLocalHistory(bIsHistoryLocal), DatasArray(), CurrentFrame(0), CurrentIndex(0), NumFrames(FrameCount)
-	{
-		DatasArray.SetNum(NumFrames);
-	}
-	FORCEINLINE virtual ~FDatasRewindHistory() {}
-
-protected:
-
-	/** Load the datas from the buffer at a specific frame */
-	FORCEINLINE bool LoadDatas(const int32 LoadFrame)
-	{
-		const int32 LocalFrame = LoadFrame % NumFrames;
-		if (LoadFrame == DatasArray[LocalFrame].DatasFrame)
-		{
-			CurrentFrame = LoadFrame;
-			CurrentIndex = LocalFrame;
-			return true;
-		}
-		return false;
-	}
-
-	/** Read directly the datas from the buffer at a specific frame without chacking the datasframe */
-	FORCEINLINE void ReadDatas(const int32 LoadFrame)
-	{
-		const int32 LocalFrame = LoadFrame % NumFrames;
-		CurrentFrame = LoadFrame;
-		CurrentIndex = LocalFrame;
-	}
-
-	/** Record the datas from the buffer at a specific frame */
-	FORCEINLINE virtual bool RecordDatas(const int32 RecordFrame)
-	{
-		const int32 LocalFrame = RecordFrame % NumFrames;
-		DatasArray[LocalFrame].DatasFrame = RecordFrame;
-		CurrentFrame = RecordFrame;
-		CurrentIndex = LocalFrame;
-		return true;
-	}
-
-	/** Current datas that is being loaded/recorded*/
-	DatasType& GetCurrentDatas() { return DatasArray[CurrentIndex]; }
-	const DatasType& GetCurrentDatas() const { return DatasArray[CurrentIndex]; }
-
-	/** Check if the history is on the local/remote client*/
-	bool bIsLocalHistory;
-
-	/**  Datas buffer holding the history */
-	TArray<DatasType> DatasArray;
-
-	/** Current frame that is being loaded/recorded */
-	int32 CurrentFrame;
-
-	/** Current index that is being loaded/recorded */
-	int32 CurrentIndex;
-
-	/** Number of frames used in that history */
-	int32 NumFrames = 0;
-};
-
-/** Base history class for the states rewind datas */
-template<typename DatasType>
-struct  FStatesRewindHistory : public FDatasRewindHistory<DatasType>, public FBaseStatesHistory
-{
-	using DatasSuper = FDatasRewindHistory<DatasType>;
-
-	FORCEINLINE FStatesRewindHistory(const int32 FrameCount, const bool bIsHistoryLocal) :
-		FDatasRewindHistory<DatasType>(FrameCount, bIsHistoryLocal), FBaseStatesHistory()
-	{}
-
-	FORCEINLINE virtual ~FStatesRewindHistory() override {}
-
-	/** Rewind the states */
-	FORCEINLINE virtual bool RewindStates(const int32 RewindFrame, const bool bResetSolver) override
-	{
-		if (!DatasSuper::LoadDatas(RewindFrame))
-		{
-			if(bResetSolver)
-			{
-				UE_LOG(LogChaos, Warning, TEXT("Unable to read target state at frame %d while rewinding the simulation"), RewindFrame);
-			}
-			return false;
-		}
-		return true;
-	}
-};
-
-/** Base history class for the Inputs rewind datas */
-template<typename DatasType>
-struct  FInputsRewindHistory : public FDatasRewindHistory<DatasType>, public FBaseInputsHistory
-{
-	using DatasSuper = FDatasRewindHistory<DatasType>;
-
-	FORCEINLINE FInputsRewindHistory(const int32 FrameCount, const bool bIsHistoryLocal) :
-		FDatasRewindHistory<DatasType>(FrameCount, bIsHistoryLocal), FBaseInputsHistory()
-	{}
-
-	FORCEINLINE virtual ~FInputsRewindHistory() override {}
-
-	/** Apply the Inputs */
-	FORCEINLINE virtual bool ApplyInputs(const int32 ApplyFrame, const bool bResetSolver) override
-	{
-		if (!DatasSuper::LoadDatas(ApplyFrame))
-		{
-			if (DatasSuper::bIsLocalHistory || (!DatasSuper::bIsLocalHistory && bResetSolver))
-			{
-				UE_LOG(LogChaos, Warning, TEXT("Unable to apply Inputs on the local client at frame %d"), ApplyFrame);
-			}
-			return false;
-		}
-		return true;
-	}
-};
-
 struct FFrameAndPhase
 {
 	enum EParticleHistoryPhase : uint8
@@ -296,11 +160,6 @@ public:
 		NumValid = 0;
 	}
 
-	bool IsEmpty() const
-	{
-		return NumValid == 0;
-	}
-
 	void ClearEntryAndFuture(const FFrameAndPhase FrameAndPhase)
 	{
 		//Move next backwards until FrameAndPhase and anything more future than it is gone
@@ -309,25 +168,13 @@ public:
 			const int32 PotentialNext = Next - 1 >= 0 ? Next - 1 : Buffer.Num() - 1;
 
 			if(Buffer[PotentialNext].FrameAndPhase < FrameAndPhase)
-			{
+	{
 				break;
 			}
 
 			Next = PotentialNext;
 			--NumValid;
 		}
-	}
-
-	void ExtractBufferState(int32& ValidCount, int32& NextIterator) const
-	{
-		ValidCount = NumValid;
-		NextIterator = Next;
-	}
-
-	void RestoreBufferState(const int32& ValidCount, const int32& NextIterator)
-	{
-		NumValid = ValidCount;
-		Next = NextIterator;
 	}
 
 	bool IsClean(const FFrameAndPhase FrameAndPhase) const
@@ -691,8 +538,6 @@ struct FGeometryParticleStateBase
 	, DynamicsMisc(ComputeCircularSize(NumFrames))
 	, MassProps(ComputeCircularSize(NumFrames))
 	, KinematicTarget(ComputeCircularSize(NumFrames))
-	, TargetPositions(ComputeCircularSize(NumFrames))
-	, TargetVelocities(ComputeCircularSize(NumFrames))
 	{
 
 	}
@@ -710,8 +555,6 @@ struct FGeometryParticleStateBase
 		DynamicsMisc.Release(Manager);
 		MassProps.Release(Manager);
 		KinematicTarget.Release(Manager);
-		TargetPositions.Release(Manager);
-		TargetVelocities.Release(Manager);
 	}
 
 	void Reset()
@@ -723,8 +566,6 @@ struct FGeometryParticleStateBase
 		DynamicsMisc.Reset();
 		MassProps.Reset();
 		KinematicTarget.Reset();
-		TargetVelocities.Reset();
-		TargetPositions.Reset();
 	}
 
 	void ClearEntryAndFuture(const FFrameAndPhase FrameAndPhase)
@@ -736,20 +577,6 @@ struct FGeometryParticleStateBase
 		DynamicsMisc.ClearEntryAndFuture(FrameAndPhase);
 		MassProps.ClearEntryAndFuture(FrameAndPhase);
 		KinematicTarget.ClearEntryAndFuture(FrameAndPhase);
-		TargetPositions.ClearEntryAndFuture(FrameAndPhase);
-		TargetVelocities.ClearEntryAndFuture(FrameAndPhase);
-	}
-
-	void ExtractHistoryState(int32& PositionValidCount, int32& VelocityValidCount, int32& PositionNextIterator, int32& VelocityNextIterator) const
-	{
-		ParticlePositionRotation.ExtractBufferState(PositionValidCount, PositionNextIterator);
-		Velocities.ExtractBufferState(VelocityValidCount, VelocityNextIterator);
-	}
-
-	void RestoreHistoryState(const int32& PositionValidCount, const int32& VelocityValidCount, const int32& PositionNextIterator, const int32& VelocityNextIterator)
-	{
-		ParticlePositionRotation.RestoreBufferState(PositionValidCount, PositionNextIterator);
-		Velocities.RestoreBufferState(VelocityValidCount, VelocityNextIterator);
 	}
 
 	bool IsClean(const FFrameAndPhase FrameAndPhase) const
@@ -769,9 +596,6 @@ struct FGeometryParticleStateBase
 
 	template <bool bSkipDynamics = false>
 	bool IsInSync(const FGeometryParticleHandle& Handle, const FFrameAndPhase FrameAndPhase, const FDirtyPropertiesPool& Pool) const;
-
-	/** Check if the handle resim frame is valid (before the current one) */
-	bool IsResimFrameValid(const FGeometryParticleHandle& Handle, const FFrameAndPhase FrameAndPhase) const;
 	
 	template <typename TParticle>
 	static TShapesArrayState<TParticle> ShapesArray(const FGeometryParticleStateBase* State, const TParticle& Particle)
@@ -789,9 +613,6 @@ struct FGeometryParticleStateBase
 	TParticlePropertyBuffer<FParticleDynamicMisc,EChaosProperty::DynamicMisc> DynamicsMisc;
 	TParticlePropertyBuffer<FParticleMassProps,EChaosProperty::MassProps> MassProps;
 	TParticlePropertyBuffer<FKinematicTarget, EChaosProperty::KinematicTarget> KinematicTarget;
-
-	TParticlePropertyBuffer<FParticlePositionRotation, EChaosProperty::XR> TargetPositions;
-	TParticlePropertyBuffer<FParticleVelocities, EChaosProperty::Velocities> TargetVelocities;
 
 	FShapesArrayStateBase ShapesArrayState;
 };
@@ -1005,7 +826,6 @@ private:
 template <typename T> 
 const T* ConstifyHelper(T* Ptr) { return Ptr; }
 
-
 template <typename T>
 T NoRefHelper(const T& Ref) { return Ref; }
 
@@ -1117,14 +937,6 @@ public:
 	{
 	}
 
-	void Init(FPBDRigidsSolver* InSolver, int32 NumFrames, bool InResimOptimization, int32 InCurrentFrame)
-	{
-		Solver = InSolver;
-		CurFrame = InCurrentFrame;
-		bResimOptimization = InResimOptimization;
-		Managers = TCircularBuffer<FFrameManagerInfo>(NumFrames + 1);
-	}
-
 	int32 Capacity() const { return Managers.Capacity(); }
 	int32 CurrentFrame() const { return CurFrame; }
 	int32 GetFramesSaved() const { return FramesSaved; }
@@ -1146,33 +958,6 @@ public:
 	}
 
 	int32 CHAOS_API GetEarliestFrame_Internal() const { return CurFrame - FramesSaved; }
-
-	/* Extend the current history size to be sure to include the given frame */
-	void CHAOS_API ExtendHistoryWithFrame(const int32 Frame);
-
-	/* Clear all the simulation history after Frame */
-	void CHAOS_API ClearPhaseAndFuture(FGeometryParticleHandle& Handle, int32 Frame, FFrameAndPhase::EParticleHistoryPhase Phase);
-
-	/* Push a physics state in the rewind datas at some frame */
-	void CHAOS_API PushStateAtFrame(FGeometryParticleHandle& Handle, int32 Frame, FFrameAndPhase::EParticleHistoryPhase Phase, const FVector& Position, const FQuat& Quaternion,
-					const FVector& LinVelocity, const FVector& AngVelocity, const bool bShouldSleep);
-
-	void CHAOS_API SetTargetStateAtFrame(FGeometryParticleHandle& Handle, const int32 Frame, FFrameAndPhase::EParticleHistoryPhase Phase,
-		const FVector& Position, const FQuat& Quaternion, const FVector& LinVelocity, const FVector& AngVelocity, const bool bShouldSleep);
-
-	/** Extract some history information before cleaning/pushing state*/
-	void CHAOS_API ExtractHistoryState(FGeometryParticleHandle& Handle, int32& PositionValidCount, int32& VelocityValidCount, int32& PositionNextIterator, int32& VelocityNextIterator)
-	{
-		FDirtyParticleInfo& Info = FindOrAddDirtyObj(Handle);
-		Info.GetHistory().ExtractHistoryState(PositionValidCount, VelocityValidCount, PositionNextIterator, VelocityNextIterator);
-	}
-
-	/** Restore some history information after cleaning/pushing state*/
-	void CHAOS_API RestoreHistoryState(FGeometryParticleHandle& Handle, const int32& PositionValidCount, const int32& VelocityValidCount, const int32& PositionNextIterator, const int32& VelocityNextIterator)
-	{
-		FDirtyParticleInfo& Info = FindOrAddDirtyObj(Handle);
-		Info.GetHistory().RestoreHistoryState(PositionValidCount, VelocityValidCount, PositionNextIterator, VelocityNextIterator);
-	}
 
 	/* Query the state of particles from the past. Can only be used when not already resimming*/
 	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const FGeometryParticleHandle& Handle, int32 Frame, FFrameAndPhase::EParticleHistoryPhase Phase = FFrameAndPhase::EParticleHistoryPhase::PostPushData) const;
@@ -1247,39 +1032,6 @@ public:
 	void CHAOS_API MarkDirtyJointFromPT(FPBDJointConstraintHandle& Handle);
 
 	void CHAOS_API SpawnProxyIfNeeded(FSingleParticlePhysicsProxy& Proxy);
-
-	/** Add Inputs history to the rewind datas for future use while resimulating */
-	void CHAOS_API AddInputsHistory(const TSharedPtr<FBaseInputsHistory>& InputsHistory)
-	{
-		InputsHistories.Add(InputsHistory.ToWeakPtr());
-	}
-
-	/** Remove Inputs history from the rewind datasg */
-	void CHAOS_API RemoveInputsHistory(const TSharedPtr<FBaseInputsHistory>& InputsHistory)
-	{
-		InputsHistories.Remove(InputsHistory.ToWeakPtr());
-	}
-
-	/** Add states history to the rewind datas for future use while rewinding */
-	void CHAOS_API AddStatesHistory(const TSharedPtr<FBaseStatesHistory>& StatesHistory)
-	{
-		StatesHistories.Add(StatesHistory.ToWeakPtr());
-	}
-
-	/** Remove states history from the rewind datas */
-	void CHAOS_API RemoveStatesHistory(const TSharedPtr<FBaseStatesHistory>& StatesHistory)
-	{
-		StatesHistories.Remove(StatesHistory.ToWeakPtr());
-	}
-
-	/** Apply the inputs from all the history Inputs datas */
-	void ApplyInputs(const int32 ApplyFrame, const bool bResetSolver);
-
-	/** Rewind the states from all the history states datas */
-	void RewindStates(const int32 RewindFrame, const bool bResetSolver);
-
-	/** Return the rewind data solver */
-	const FPBDRigidsSolver* GetSolver() const { return Solver; }
 
 private:
 
@@ -1359,11 +1111,6 @@ private:
 		{
 			return History;
 		}
-
-		THistoryType& GetHistory()
-		{
-			return History;
-		}
 	};
 
 	using FDirtyParticleInfo = TDirtyObjectInfo<FGeometryParticleStateBase, FGeometryParticleHandle>;
@@ -1404,10 +1151,7 @@ private:
 		return TObjState(State, Handle, PropertiesPool, { Frame, Phase });
 	}
 
-	bool RewindToFrame(int32 RewindFrame);
-
-	/** Apply targets positions and velocities while resimulating */
-	void ApplyTargets(const int32 Frame, const bool bResetSimulation);
+	bool RewindToFrame(int32 Frame);
 
 	template <typename TDirtyInfo>
 	static void DesyncObject(TDirtyInfo& Info, const FFrameAndPhase FrameAndPhase)
@@ -1421,9 +1165,6 @@ private:
 
 	TDirtyObjects<FDirtyParticleInfo> DirtyParticles;
 	TDirtyObjects<FDirtyJointInfo> DirtyJoints;
-
-	TArray<TWeakPtr<FBaseInputsHistory>> InputsHistories;
-	TArray<TWeakPtr<FBaseStatesHistory>> StatesHistories;
 
 	FPBDRigidsSolver* Solver;
 	int32 CurFrame;

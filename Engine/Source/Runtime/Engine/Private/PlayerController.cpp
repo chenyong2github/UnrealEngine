@@ -112,22 +112,8 @@ namespace NetworkPhysicsCvars
 
 	int32 EnableNetworkPhysicsPrediction = 0;
 	FAutoConsoleVariableRef CVarEnableNetworkPhysicsPrediction(TEXT("np2.EnableNetworkPhysicsPrediction"), EnableNetworkPhysicsPrediction, TEXT("Enables network physics prediction"));
-
-	int32 DebugNetworkPhysicsPrediction = 0;
-	FAutoConsoleVariableRef CVarDebugNetworkPhysicsPrediction(TEXT("np2.DebugNetworkPhysicsPrediction"), DebugNetworkPhysicsPrediction, TEXT("Debugs network physics prediction"));
-
-	int32 ResimNetworkPhysicsPrediction = 1;
-	FAutoConsoleVariableRef CVarResimNetworkPhysicsPrediction(TEXT("np2.ResimNetworkPhysicsPrediction"), ResimNetworkPhysicsPrediction, TEXT("Resim network physics prediction"));
-
-	float NetworkPhysicsPredictionErrorThreshold = 10.0f;
-	FAutoConsoleVariableRef CVarNetworkPhysicsPredictionErrorThreshold(TEXT("np2.NetworkPhysicsPredictionErrorThreshold"), NetworkPhysicsPredictionErrorThreshold, TEXT("Position error threshold that will trigger the client correction based on the server prediction"));
-	
-	float NetworkPhysicsPredictionInterpLerp = 0.1f;
-	FAutoConsoleVariableRef CVarNetworkPhysicsPredictionInterpLerp(TEXT("np2.NetworkPhysicsPredictionInterpLerp"), NetworkPhysicsPredictionInterpLerp, TEXT("State lerp value in between the target state and the current one in case resim is disabled or if the pawn is not possessed (continuous correction)"));
-
-	float NetworkPhysicsPredictionResimLerp = 1.0f;
-	FAutoConsoleVariableRef CVarNetworkPhysicsPredictionResimLerp(TEXT("np2.NetworkPhysicsPredictionResimLerp"), NetworkPhysicsPredictionResimLerp, TEXT("State lerp value in between the target state and the matching one in the history when resim is enabled"));
 }
+
 
 const float RetryClientRestartThrottleTime = 0.5f;
 const float RetryServerAcknowledgeThrottleTime = 0.25f;
@@ -213,7 +199,6 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 	if(NetworkPhysicsCvars::EnableNetworkPhysicsPrediction == 1)
 	{
 		bAsyncPhysicsTickEnabled = true;
-		AsyncPhysicsDataClass = UAsyncPhysicsData::StaticClass();
 	}
 }
 
@@ -6052,17 +6037,17 @@ UAsyncPhysicsData* APlayerController::GetAsyncPhysicsDataToWrite() const
 
 const UAsyncPhysicsData* APlayerController::GetAsyncPhysicsDataToConsume() const
 {
-	return AsyncPhysicsDataComponent ? AsyncPhysicsDataComponent->GetDataToConsume() : nullptr;  
+	return AsyncPhysicsDataComponent ? AsyncPhysicsDataComponent->GetDataToConsume() : nullptr;
 }
 
-void APlayerController::ExecuteAsyncPhysicsCommand(const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, UObject* OwningObject, const TFunction<void()>& Command, const bool bEnableResim)
+void APlayerController::ExecuteAsyncPhysicsCommand(const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, UObject* OwningObject, const TFunction<void()>& Command)
 {
 	if(UWorld* World = GetWorld())
 	{
 		if(FPhysScene* PhysScene = World->GetPhysicsScene())
 		{
 			const int32 PhysicsStep = IsLocalController() ? AsyncPhysicsTimestamp.LocalFrame : AsyncPhysicsTimestamp.ServerFrame;
-			PhysScene->EnqueueAsyncPhysicsCommand(PhysicsStep, OwningObject, Command, bEnableResim);
+			PhysScene->EnqueueAsyncPhysicsCommand(PhysicsStep, OwningObject, Command);
 		}
 	}
 }

@@ -110,7 +110,7 @@ namespace Chaos
 			}
 		}
 
-		int32 FPBDIslandGroupManager::BuildGroups(const bool bIsResimming)
+		int32 FPBDIslandGroupManager::BuildGroups()
 		{
 			// The set of islands with some work to do
 			// NOTE: We do not add islands with no constraints even if they have particles. There is no need since the Particles'
@@ -118,18 +118,8 @@ namespace Chaos
 			TArray<FPBDIsland*> Islands;
 			for (int32 IslandIndex = 0; IslandIndex < IslandManager.NumIslands(); ++IslandIndex)
 			{
-				FPBDIsland* Island = IslandManager.GetIsland(IslandIndex); 
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				if (Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled() && Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
-				{
-					if(bIsResimming)
-					{ 
-						UE_LOG(LogChaos, Log, TEXT("Chaos Island[%d] needs resim = %d"), IslandIndex, IslandManager.IslandNeedsResim(IslandIndex));
-					}
-				}
-#endif
-				if (!Island->IsSleeping() && (Island->GetNumConstraints() > 0) && (!bIsResimming || (bIsResimming && IslandManager.IslandNeedsResim(IslandIndex))))
+				FPBDIsland* Island = IslandManager.GetIsland(IslandIndex);
+				if (!Island->IsSleeping() && (Island->GetNumConstraints() > 0))
 				{
 					Islands.Add(Island);
 				}

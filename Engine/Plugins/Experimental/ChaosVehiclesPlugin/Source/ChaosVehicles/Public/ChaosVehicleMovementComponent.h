@@ -17,7 +17,6 @@
 #include "DeferredForces.h"
 #include "ChaosVehicleManagerAsyncCallback.h"
 #include "CollisionQueryParams.h"
-#include "RewindData.h"
 
 #include "ChaosVehicleMovementComponent.generated.h"
 
@@ -30,13 +29,10 @@ class UCanvas;
 struct FChaosVehicleAsyncInput;
 struct FChaosVehicleManagerAsyncOutput;
 
-/** Vehicle inputs from the player controller */
-USTRUCT()
-struct CHAOSVEHICLES_API FVehicleInputs
-{
-	GENERATED_USTRUCT_BODY()
 
-		FVehicleInputs()
+struct CHAOSVEHICLES_API FControlInputs
+{
+	FControlInputs()
 		: SteeringInput(0.f)
 		, ThrottleInput(0.f)
 		, BrakeInput(0.f)
@@ -44,62 +40,36 @@ struct CHAOSVEHICLES_API FVehicleInputs
 		, RollInput(0.f)
 		, YawInput(0.f)
 		, HandbrakeInput(0.f)
-	{}
-
-	/** Copy the parent class properties from another instance */
-	void CopyVehicleInputs(const FVehicleInputs& VehicleInputs)
-	{
-		SteeringInput = VehicleInputs.SteeringInput;
-		ThrottleInput = VehicleInputs.ThrottleInput;
-		BrakeInput = VehicleInputs.BrakeInput;
-		PitchInput = VehicleInputs.PitchInput;
-		RollInput = VehicleInputs.RollInput;
-		YawInput = VehicleInputs.YawInput;
-		HandbrakeInput = VehicleInputs.HandbrakeInput;
-	}
-
-	// Steering output to physics system. Range -1...1
-	UPROPERTY()
-	float SteeringInput;
-
-	// Accelerator output to physics system. Range 0...1
-	UPROPERTY()
-	float ThrottleInput;
-
-	// Brake output to physics system. Range 0...1
-	UPROPERTY()
-	float BrakeInput;
-
-	// Body Pitch output to physics system. Range -1...1
-	UPROPERTY()
-	float PitchInput;
-
-	// Body Roll output to physics system. Range -1...1
-	UPROPERTY()
-	float RollInput;
-
-	// Body Yaw output to physics system. Range -1...1
-	UPROPERTY()
-	float YawInput;
-
-	// Handbrake output to physics system. Range 0...1
-	UPROPERTY()
-	float HandbrakeInput;
-};
-
-USTRUCT()
-struct CHAOSVEHICLES_API FControlInputs : public FVehicleInputs
-{
-	GENERATED_USTRUCT_BODY()
-
-		FControlInputs()
-		: FVehicleInputs()
 		, ParkingEnabled(false)
 		, TransmissionType(Chaos::ETransmissionType::Automatic)
 		, GearUpInput(false)
 		, GearDownInput(false)
-	{}
+	{
 
+	}
+
+	// Steering output to physics system. Range -1...1
+	float SteeringInput;
+
+	// Accelerator output to physics system. Range 0...1
+	float ThrottleInput;
+
+	// Brake output to physics system. Range 0...1
+	float BrakeInput;
+
+	// Body Pitch output to physics system. Range -1...1
+	float PitchInput;
+
+	// Body Roll output to physics system. Range -1...1
+	float RollInput;
+
+	// Body Yaw output to physics system. Range -1...1
+	float YawInput;
+
+	// Handbrake output to physics system. Range 0...1
+	float HandbrakeInput;
+
+	// ParkingEnabled
 	bool ParkingEnabled;
 
 	Chaos::ETransmissionType TransmissionType;
@@ -108,135 +78,6 @@ struct CHAOSVEHICLES_API FControlInputs : public FVehicleInputs
 	bool GearDownInput;
 };
 
-USTRUCT()
-struct CHAOSVEHICLES_API FVehicleHistoryDatas
-{
-	GENERATED_USTRUCT_BODY()
-
-	int32 DatasFrame = INDEX_NONE;
-
-	int32 SmoothFrame = INDEX_NONE;
-};
-
-/** Vehicle Inputs datas that will be used in the Inputs history to be applied while simulating */
-USTRUCT()
-struct CHAOSVEHICLES_API FVehicleInputsDatas : public FVehicleHistoryDatas
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** List of incoming control inputs coming from the local client */
-	UPROPERTY()
-	FVehicleInputs VehicleInputs;
-
-	/** Transmission change time that could be set/changed from GT */
-	UPROPERTY()
-	float TransmissionChangeTime;
-
-	/** Transmission current gear that could be set/changed from GT */
-	UPROPERTY()
-	int32 TransmissionCurrentGear;
-
-	/** Transmission target gear that could be set/changed from GT */
-	UPROPERTY()
-	int32 TransmissionTargetGear;
-};
-
-/** Vehicle states datas that will be used in the states history to rewind the simulation at some point inn time */
-USTRUCT()
-struct CHAOSVEHICLES_API FVehicleStatesDatas : public FVehicleHistoryDatas
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** Vehicle state last velocity */
-	UPROPERTY()
-	FVector StateLastVelocity;
-
-	/** Angular velocity for each wheels */
-	UPROPERTY()
-	TArray<float> WheelsOmega;
-
-	/** Angular position for each wheels */
-	UPROPERTY()
-	TArray<float> WheelsAngularPosition;
-
-	/** Suspension latest displacement to be used while simulating */
-	UPROPERTY()
-	TArray<float> SuspensionLastDisplacement;
-
-	/** Suspension latest spring length to be used while simulating  */
-	UPROPERTY()
-	TArray<float> SuspensionLastSpringLength;
-
-	/** Suspension averaged length for smoothing */
-	UPROPERTY()
-	TArray<float> SuspensionAveragedLength;
-
-	/** Suspension averaged count for smoothing */
-	UPROPERTY()
-	TArray<int32> SuspensionAveragedCount;
-
-	/** Suspension averaged number for smoothing */
-	UPROPERTY()
-	TArray<int32> SuspensionAveragedNum;
-
-	/** Engine angular velocity */
-	UPROPERTY()
-	float EngineOmega;
-};
-
-/** Vehicle states history that will be registered in the rewind datas */
-struct CHAOSVEHICLES_API FVehicleStatesHistory : public Chaos::FStatesRewindHistory<FVehicleStatesDatas>
-{
-	using Super = Chaos::FStatesRewindHistory<FVehicleStatesDatas>;
-	using DatasType = FVehicleStatesDatas;
-
-	FVehicleStatesHistory(const int32 FrameCount, const bool bIsHistoryLocal, class UChaosVehicleSimulation* ChaosSimulation);
-
-	/** Rewind the vehicle state at some point in time */
-	virtual bool RewindStates(const int32 RewindFrame, const bool bResetSolver) override;
-
-	/** Record the vehicle state from the replicated datas */
-	bool RecordStates(const int32 RecordFrame, const DatasType& ReplicatedHistory);
-
-	/** Replicate the states from the vehicle simulation*/
-	void ReplicateStates(DatasType& ReplicatedDatas);
-
-	virtual ~FVehicleStatesHistory() override;
-
-private:
-
-	class UChaosVehicleSimulation* VehicleSimulation = nullptr;
-};
-
-/** Vehicle Inputs history that will be registered in the rewind datas */
-struct CHAOSVEHICLES_API FVehicleInputsHistory : public Chaos::FInputsRewindHistory<FVehicleInputsDatas>
-{
-	using Super = Chaos::FInputsRewindHistory<FVehicleInputsDatas>;
-	using DatasType = FVehicleInputsDatas;
-
-	FVehicleInputsHistory(const int32 FrameCount, const bool bIsHistoryLocal, class UChaosVehicleSimulation* ChaosSimulation);
-
-	/** Apply the Inputs at some point in time */
-	virtual bool ApplyInputs(const int32 ApplyFrame, const bool bResetSolver) override;
-
-	/** Record the vehicle Inputs from the replicated datas */
-	bool RecordInputs(const int32 RecordFrame, const DatasType& ReplicatedHistory);
-
-	/** Replicate the Inputs from the vehicle simulation + external inputs */
-	void ReplicateInputs(
-		const float SteeringInput, const float ThrottleInput,
-		const float BrakeInput, const float HandbrakeInput, const float RollInput,
-		const float PitchInput, const float YawInput, const int32 CurrentGear, DatasType& ReplicatedDatas);
-
-	/** Smooth Inputs inputs (WIP) */
-	void SmoothInputs(const int32 ApplyFrame, const int32 ValidFrame, const bool bApplySmoothing);
-
-	virtual ~FVehicleInputsHistory() override;
-
-private:
-
-	class UChaosVehicleSimulation* VehicleSimulation = nullptr;
-};
 
 struct CHAOSVEHICLES_API FVehicleDebugParams
 {
@@ -263,16 +104,51 @@ struct CHAOSVEHICLES_API FVehicleDebugParams
 struct FBodyInstance;
 
 USTRUCT()
-struct CHAOSVEHICLES_API FVehicleReplicatedState : public FVehicleInputs
+struct CHAOSVEHICLES_API FVehicleReplicatedState
 {
 	GENERATED_USTRUCT_BODY()
 
-	FVehicleReplicatedState() : FVehicleInputs()
+	FVehicleReplicatedState()
 	{
+		SteeringInput = 0.f;
+		ThrottleInput = 0.f;
+		BrakeInput = 0.f;
+		PitchInput = 0.f;
+		RollInput = 0.f;
+		YawInput = 0.f;
+		HandbrakeInput = 0.f;
 		TargetGear = 0;
 		ThrottleUp = 0.f;
 		ThrottleDown = 0.f;
 	}
+
+	// input replication: steering
+	UPROPERTY()
+	float SteeringInput;
+
+	// input replication: throttle
+	UPROPERTY()
+	float ThrottleInput;
+
+	// input replication: brake
+	UPROPERTY()
+	float BrakeInput;
+
+	// input replication: body pitch
+	UPROPERTY()
+	float PitchInput;
+
+	// input replication: body roll
+	UPROPERTY()
+	float RollInput;
+
+	// input replication: body yaw
+	UPROPERTY()
+	float YawInput;
+
+	// input replication: handbrake
+	UPROPERTY()
+	float HandbrakeInput;
 
 	// state replication: gear
 	UPROPERTY()
@@ -285,28 +161,7 @@ struct CHAOSVEHICLES_API FVehicleReplicatedState : public FVehicleInputs
 	// input replication: decrease throttle
 	UPROPERTY()
 	float ThrottleDown;
-};
 
-/** Group of datas that needs to be replicated across all clients for rewind/resim */
-USTRUCT()
-struct CHAOSVEHICLES_API FVehicleReplicatedDatas
-{
-	GENERATED_USTRUCT_BODY()
-
-	FVehicleReplicatedDatas()
-	{}
-
-	/** Server frame at which the datas have been recorded */
-	UPROPERTY()
-	int32 ServerFrame = INDEX_NONE;
-
-	/** Group of inputs to replicate */
-	UPROPERTY()
-	FVehicleStatesDatas StatesDatas;
-
-	/** Group of inputs to replicate */
-	UPROPERTY()
-	FVehicleInputsDatas InputsDatas;
 };
 
 struct CHAOSVEHICLES_API FWheelTraceParams
@@ -318,7 +173,7 @@ struct CHAOSVEHICLES_API FWheelTraceParams
 struct CHAOSVEHICLES_API FChaosVehicleDefaultAsyncInput : public FChaosVehicleAsyncInput
 {
 	float GravityZ;
-	mutable FControlInputs ControlInputs;
+	FControlInputs ControlInputs;
 	mutable FCollisionQueryParams TraceParams;
 	mutable FCollisionResponseContainer TraceCollisionResponse;
 	mutable TArray<FWheelTraceParams> WheelTraceParams;
@@ -326,8 +181,9 @@ struct CHAOSVEHICLES_API FChaosVehicleDefaultAsyncInput : public FChaosVehicleAs
 	FChaosVehicleDefaultAsyncInput();
 
 	virtual TUniquePtr<FChaosVehicleAsyncOutput> Simulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, bool& bWakeOut) const override;
-
+	
 	virtual void ApplyDeferredForces(Chaos::FRigidBodyHandle_Internal* RigidHandle) const override;
+
 };
 
 
@@ -337,7 +193,7 @@ struct CHAOSVEHICLES_API FVehicleTorqueControlConfig
 public:
 	GENERATED_USTRUCT_BODY()
 
-		FVehicleTorqueControlConfig()
+	FVehicleTorqueControlConfig()
 	{
 		InitDefaults();
 	}
@@ -352,7 +208,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float YawFromSteering;
-
+	
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float YawFromRollTorqueScaling;
 
@@ -560,9 +416,9 @@ struct CHAOSVEHICLES_API FVehicleState
 		, VehicleWorldAngularVelocity(FVector::ZeroVector)
 		, VehicleWorldCOM(FVector::ZeroVector)
 		, WorldVelocityNormal(FVector::ZeroVector)
-		, VehicleUpAxis(FVector(0.f, 0.f, 1.f))
-		, VehicleForwardAxis(FVector(1.f, 0.f, 0.f))
-		, VehicleRightAxis(FVector(0.f, 1.f, 0.f))
+		, VehicleUpAxis(FVector(0.f,0.f,1.f))
+		, VehicleForwardAxis(FVector(1.f,0.f,0.f))
+		, VehicleRightAxis(FVector(0.f,1.f,0.f))
 		, LocalAcceleration(FVector::ZeroVector)
 		, LocalGForce(FVector::ZeroVector)
 		, LastFrameVehicleLocalVelocity(FVector::ZeroVector)
@@ -621,7 +477,7 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 {
 	GENERATED_USTRUCT_BODY()
 
-	/**
+	/** 
 	 * Rate at which the input value rises
 	 */
 	UPROPERTY(EditAnywhere, Category=VehicleInputRate)
@@ -649,17 +505,17 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 	FVehicleInputRateConfig() : RiseRate(5.0f), FallRate(5.0f), InputCurveFunction(EInputFunctionType::LinearFunction) { }
 
 	/** Change an output value using max rise and fall rates */
-	float InterpInputValue(float DeltaTime, float CurrentValue, float NewValue) const
+	float InterpInputValue( float DeltaTime, float CurrentValue, float NewValue ) const
 	{
 		const float DeltaValue = NewValue - CurrentValue;
 
 		// We are "rising" when DeltaValue has the same sign as CurrentValue (i.e. delta causes an absolute magnitude gain)
 		// OR we were at 0 before, and our delta is no longer 0.
-		const bool bRising = ((DeltaValue > 0.0f) == (CurrentValue > 0.0f)) ||
-			((DeltaValue != 0.f) && (CurrentValue == 0.f));
+		const bool bRising = (( DeltaValue > 0.0f ) == ( CurrentValue > 0.0f )) ||
+								(( DeltaValue != 0.f ) && ( CurrentValue == 0.f ));
 
-		const float MaxDeltaValue = DeltaTime * (bRising ? RiseRate : FallRate);
-		const float ClampedDeltaValue = FMath::Clamp(DeltaValue, -MaxDeltaValue, MaxDeltaValue);
+		const float MaxDeltaValue = DeltaTime * ( bRising ? RiseRate : FallRate );
+		const float ClampedDeltaValue = FMath::Clamp( DeltaValue, -MaxDeltaValue, MaxDeltaValue );
 		return CurrentValue + ClampedDeltaValue;
 	}
 
@@ -675,7 +531,7 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 			if (UserCurve.GetRichCurveConst() && !UserCurve.GetRichCurveConst()->IsEmpty())
 			{
 				float Output = FMath::Clamp(UserCurve.GetRichCurveConst()->Eval(FMath::Abs(InputValue)), 0.0f, 1.0f);
-				return (InputValue < 0.f) ? -Output : Output;
+				return (InputValue < 0.f)? -Output : Output;
 			}
 			else
 			{
@@ -695,7 +551,7 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 			return InputValue;
 		}
 		break;
-
+		
 		}
 
 	}
@@ -853,7 +709,7 @@ struct CHAOSVEHICLES_API FVehicleThrustConfig
 		ThrustType = EVehicleThrustType::Fixed;
 		BoneName = NAME_None;
 		Offset = FVector::ZeroVector;
-		ThrustAxis = FVector(1, 0, 0);
+		ThrustAxis = FVector(1,0,0);
 		//ThrustCurve.GetRichCurve()->AddKey(0.f, 1.f);
 		//ThrustCurve.GetRichCurve()->AddKey(1.f, 1.f);
 		MaxThrustForce = 1000.0f;
@@ -861,7 +717,7 @@ struct CHAOSVEHICLES_API FVehicleThrustConfig
 	}
 
 private:
-	void FillThrusterSetup(const UChaosVehicleMovementComponent& MovementComponent);
+	void FillThrusterSetup(const UChaosVehicleMovementComponent &MovementComponent);
 
 	Chaos::FSimpleThrustConfig PThrusterConfig;
 
@@ -884,19 +740,11 @@ public:
 
 	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle);
 
-	/** Update the async inputs and the history ones*/
-	void SyncHistoryInputs(const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle);
-
-	/** Apply the defered forces onto the vehicles */
 	virtual void ApplyDeferredForces(Chaos::FRigidBodyHandle_Internal* Handle);
-
-	/** Update the vehicle state */
-	virtual void UpdateState(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle);
 
 	/** Advance the vehicle simulation */
 	virtual void UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle);
-
-	/** Fill the vehicle output state */
+	
 	virtual void FillOutputState(FChaosVehicleAsyncOutput& Output);
 
 	/** Are enough vehicle systems specified such that physics vehicle simulation is possible */
@@ -917,18 +765,15 @@ public:
 	/** Apply direct control over vehicle body rotation */
 	virtual void ApplyTorqueControl(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData);
 
+
 	/** Add a force to this vehicle */
 	void AddForce(const FVector& Force, bool bAllowSubstepping = true, bool bAccelChange = false);
-
 	/** Add a force at a particular position (world space when bIsLocalForce = false, body space otherwise) */
 	void AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping = true, bool bIsLocalForce = false);
-
 	/** Add an impulse to this vehicle */
 	void AddImpulse(const FVector& Impulse, bool bVelChange);
-
 	/** Add an impulse to this vehicle and a particular world position */
 	void AddImpulseAtPosition(const FVector& Impulse, const FVector& Position);
-
 	/** Add a torque to this vehicle */
 	void AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping = true, bool bAccelChange = false);
 
@@ -952,29 +797,13 @@ public:
 
 	FDeferredForces DeferredForces;
 
-	/** Current control inputs that is being used on the PT */
-	FVehicleInputs VehicleInputs;
-
-	/** States history uses to rewind simulation */
-	TSharedPtr<FVehicleStatesHistory> StatesHistory;
-
-	/** Inputs history used during simulation*/
-	TSharedPtr<FVehicleInputsHistory> InputsHistory;
-
-	FVehicleInputRateConfig ThrottleInputRate;
-	FVehicleInputRateConfig SteeringInputRate;
-	FVehicleInputRateConfig BrakeInputRate;
-	FVehicleInputRateConfig HandbrakeInputRate;
-	FVehicleInputRateConfig RollInputRate;
-	FVehicleInputRateConfig PitchInputRate;
-	FVehicleInputRateConfig YawInputRate;
 };
 
 
 /**
  * Base component to handle the vehicle simulation for an actor.
  */
-UCLASS(Abstract, hidecategories = (PlanarMovement, "Components|Movement|Planar", Activation, "Components|Activation"))
+UCLASS(Abstract, hidecategories=(PlanarMovement, "Components|Movement|Planar", Activation, "Components|Activation"))
 class CHAOSVEHICLES_API UChaosVehicleMovementComponent : public UPawnMovementComponent
 {
 	friend struct FChaosVehicleDefaultAsyncInput;
@@ -982,7 +811,7 @@ class CHAOSVEHICLES_API UChaosVehicleMovementComponent : public UPawnMovementCom
 
 	GENERATED_UCLASS_BODY()
 
-	//#todo: these 2 oddities seem out of place
+//#todo: these 2 oddities seem out of place
 
 	/** If true, the brake and reverse controls will behave in a more arcade fashion where holding reverse also functions as brake. For a more realistic approach turn this off*/
 	UPROPERTY(EditAnywhere, Category = VehicleSetup)
@@ -1035,13 +864,13 @@ public:
 	float DebugDragMagnitude;
 
 	/** Scales the vehicle's inertia in each direction (forward, right, up) */
-	UPROPERTY(EditAnywhere, Category = VehicleSetup, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category=VehicleSetup, AdvancedDisplay)
 	FVector InertiaTensorScale;
 
 	/** Option to apply some aggressive sleep logic, larger number is more agressive, 0 disables */
 	UPROPERTY(EditAnywhere, Category = VehicleSetup)
 	float SleepThreshold;
-
+	
 	/** Option to apply some aggressive sleep logic if slopes up Z is less than this value, i.e value = Cos(SlopeAngle) so 0.866 will sleep up to 30 degree slopes */
 	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (ClampMin = "0.01", UIMin = "0.01", ClampMax = "1.0", UIMax = "1.0"))
 	float SleepSlopeLimit;
@@ -1057,7 +886,7 @@ public:
 	/** Arcade style direct control of vehicle rotation via torque force */
 	UPROPERTY(EditAnywhere, Category = ArcadeControl)
 	FVehicleTorqueControlConfig TorqueControl;
-
+	
 	/** Arcade style direct control of vehicle rotation via torque force */
 	UPROPERTY(EditAnywhere, Category = ArcadeControl)
 	FVehicleTargetRotationControlConfig TargetRotationControl;
@@ -1132,7 +961,7 @@ public:
 
 
 	/** Set the user input for the vehicle throttle [range 0 to 1] */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetThrottleInput(float Throttle);
 
 	/** Increase the vehicle throttle position [throttle range normalized 0 to 1] */
@@ -1146,9 +975,9 @@ public:
 	/** Set the user input for the vehicle Brake [range 0 to 1] */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	void SetBrakeInput(float Brake);
-
+	
 	/** Set the user input for the vehicle steering [range -1 to 1] */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetSteeringInput(float Steering);
 
 	/** Set the user input for the vehicle pitch [range -1 to 1] */
@@ -1164,7 +993,7 @@ public:
 	void SetYawInput(float Yaw);
 
 	/** Set the user input for handbrake */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetHandbrakeInput(bool bNewHandbrake);
 
 	/** Set the vehicle in park mode */
@@ -1176,23 +1005,23 @@ public:
 	void SetSleeping(bool bEnableSleep);
 
 	/** Set the user input for gear up */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetChangeUpInput(bool bNewGearUp);
 
 	/** Set the user input for gear down */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetChangeDownInput(bool bNewGearDown);
 
 	/** Set the user input for gear (-1 reverse, 0 neutral, 1+ forward)*/
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetTargetGear(int32 GearNum, bool bImmediate);
 
 	/** Set the flag that will be used to select auto-gears */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetUseAutomaticGears(bool bUseAuto);
 
 	/** Set the flag that determines whether a controller is required to set control inputs */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetRequiresControllerForInputs(bool bRequiresController);
 
 	/** Get current gear */
@@ -1208,7 +1037,7 @@ public:
 	bool GetUseAutoGears() const;
 
 	/** How fast the vehicle is moving forward */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	float GetForwardSpeed() const;
 
 	/** How fast the vehicle is moving forward */
@@ -1298,18 +1127,11 @@ public:
 	};
 	TArray<FAsyncOutputWrapper> OutputsWaitingOn;
 
-	UFUNCTION()
-	virtual void OnRep_SetVehicleHistory();
-
 protected:
 
 	// replicated state of vehicle 
 	UPROPERTY(Transient, Replicated)
 	FVehicleReplicatedState ReplicatedState;
-
-	// replicated state of vehicle 
-	UPROPERTY(Transient, ReplicatedUsing = OnRep_SetVehicleHistory)
-	FVehicleReplicatedDatas ReplicatedDatas;
 
 	// accumulator for RB replication errors 
 	float AngErrorAccumulator;
@@ -1367,15 +1189,15 @@ protected:
 	float HandbrakeInput;
 
 	// Bypass the need for a controller in order for the controls to be processed.
-	UPROPERTY(EditAnywhere, Category = VehicleInput)
+	UPROPERTY(EditAnywhere, Category=VehicleInput)
 	bool bRequiresControllerForInputs;
 
 	// How much to press the brake when the player has release throttle
-	UPROPERTY(EditAnywhere, Category = VehicleInput)
+	UPROPERTY(EditAnywhere, Category=VehicleInput)
 	float IdleBrakeInput;
 
 	// Auto-brake when absolute vehicle forward speed is less than this (cm/s)
-	UPROPERTY(EditAnywhere, Category = VehicleInput)
+	UPROPERTY(EditAnywhere, Category=VehicleInput)
 	float StopThreshold;
 
 	// Auto-brake when vehicle forward speed is opposite of player input by at least this much (cm/s)
@@ -1383,19 +1205,19 @@ protected:
 	float WrongDirectionThreshold;
 
 	// Rate at which input throttle can rise and fall
-	UPROPERTY(EditAnywhere, Category = VehicleInput, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category=VehicleInput, AdvancedDisplay)
 	FVehicleInputRateConfig ThrottleInputRate;
 
 	// Rate at which input brake can rise and fall
-	UPROPERTY(EditAnywhere, Category = VehicleInput, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category=VehicleInput, AdvancedDisplay)
 	FVehicleInputRateConfig BrakeInputRate;
 
 	// Rate at which input steering can rise and fall
-	UPROPERTY(EditAnywhere, Category = VehicleInput, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category=VehicleInput, AdvancedDisplay)
 	FVehicleInputRateConfig SteeringInputRate;
 
 	// Rate at which input handbrake can rise and fall
-	UPROPERTY(EditAnywhere, Category = VehicleInput, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category=VehicleInput, AdvancedDisplay)
 	FVehicleInputRateConfig HandbrakeInputRate;
 
 	// Rate at which input pitch can rise and fall
@@ -1440,7 +1262,7 @@ protected:
 	* Raw input won't be cleared, the vehicle may resume input based movement next frame.
 	*/
 	virtual void ClearInput();
-
+	
 	/**
 	* Clear all raw inputs to default values.
 	* Interpolated input won't be cleared, the vehicle will begin interpolating to no input.
@@ -1466,16 +1288,8 @@ protected:
 	void ServerUpdateState(float InSteeringInput, float InThrottleInput, float InBrakeInput
 			, float InHandbrakeInput, int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput);
 
+
 	// Setup
-
-	/** New method of applying control inputs at a specific time on the server - for network prediction */
-	UFUNCTION(Server, Reliable)
-	void ServerApplyControls(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput,
-			int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput, const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp);
-
-	/** Apply Controls locally */
-	void ApplyControls_Imp(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput,
-		int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput, const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, const bool bEnableResim = true);
 
 	/** Get our controller */
 	virtual AController* GetController() const override;
@@ -1557,11 +1371,10 @@ protected:
 	void WakeAllEnabledRigidBodies();
 	void PutAllEnabledRigidBodiesToSleep();
 
-
 	Chaos::FSimpleAerodynamicsConfig PAerodynamicsSetup;
 	int32 TargetGear;
 
 	float PrevSteeringInput;
 	float PrevReplicatedSteeringInput;
-	bool bUsingNetworkPhysicsPrediction;
+
 };

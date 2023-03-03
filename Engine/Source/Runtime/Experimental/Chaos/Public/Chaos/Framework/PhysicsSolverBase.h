@@ -429,7 +429,6 @@ namespace Chaos
 		void DisableAsyncMode();
 		
 		virtual void ConditionalApplyRewind_Internal(){}
-		virtual bool IsResimming() const {return false;}
 
 		FChaosMarshallingManager& GetMarshallingManager() { return MarshallingManager; }
 		FChaosResultsManager& GetResultsManager() { return *PullResultsManager; }
@@ -588,41 +587,6 @@ namespace Chaos
 		/**/
 		FReal GetLastDt() const { return MLastDt; }
 
-		/** Return the interpolation lerp in case the resim is off */
-		static float NetworkPhysicsInterpolationLerp()
-		{
-			static IConsoleVariable* InterpLerpCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.NetworkPhysicsPredictionInterpLerp"));
-			return InterpLerpCVar ? InterpLerpCVar->GetFloat() : 0.1f;
-		}
-
-		/** Return the error position threshold to trigger a resim*/
-		static float NetworkPhysicsErrorThreshold()
-		{
-			static IConsoleVariable* ErrorThresholdCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.NetworkPhysicsPredictionErrorThreshold"));
-			return ErrorThresholdCVar ? ErrorThresholdCVar->GetFloat() : 10.0f;
-		}
-
-		/** Check if network physics is enables or not */
-		static bool IsNetworkPhysicsPredictionEnabled()
-		{
-			static IConsoleVariable* EnableNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.EnableNetworkPhysicsPrediction"));
-			return EnableNetworkPhysicsCVar && (EnableNetworkPhysicsCVar->GetInt() == 1);
-		}
-
-		/** Check if we can enable debugging informations for network physics */
-		static bool CanDebugNetworkPhysicsPrediction()
-		{
-			static IConsoleVariable* DebugNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.DebugNetworkPhysicsPrediction"));
-			return DebugNetworkPhysicsCVar && (DebugNetworkPhysicsCVar->GetInt() == 1);
-		}
-
-		/** Check if resim is enabled for network physics */
-		static bool CanResimNetworkPhysicsPrediction()
-		{
-			static IConsoleVariable* ResimNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.ResimNetworkPhysicsPrediction"));
-			return ResimNetworkPhysicsCVar && (ResimNetworkPhysicsCVar->GetInt() == 1);
-		}
-
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
 		EMultiBufferMode BufferMode;
@@ -750,5 +714,3 @@ namespace Chaos
 #endif
 	};
 }
-
-

@@ -42,9 +42,6 @@ namespace Chaos
 
 		/** Set of used colors */
 		TSet<int32> ColorIndices;
-
-		/** Resim frame */
-		int32 ResimFrame = INDEX_NONE;
 	};
 
 	/** Graph edge structure */

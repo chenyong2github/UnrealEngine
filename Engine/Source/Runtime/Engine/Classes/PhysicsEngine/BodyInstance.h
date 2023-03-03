@@ -8,7 +8,6 @@
 #include "Engine/EngineTypes.h"
 #include "CollisionQueryParams.h"
 #include "EngineDefines.h"
-#include "GameFramework/PlayerController.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "PhysxUserData.h"
 #endif
@@ -773,8 +772,6 @@ public:
 	/** Enable or disable inertia conditionin.  @see bInertiaConditioning */
 	void SetInertiaConditioningEnabled(bool bEnabled);
 
-	/** Apply async physics command onto the body instance*/
-	void ApplyAsyncPhysicsCommand(FAsyncPhysicsTimestamp TimeStamp, const bool bIsInternal, APlayerController* PlayerController, const TFunction<void()>& Command);
 
 	/** 
 	 * Set this body to either simulate or to be fixed/kinematic. 
@@ -802,9 +799,9 @@ public:
 	/** Add custom forces and torques on the body. The callback will be called more than once, if substepping enabled, for every substep.  */
 	void AddCustomPhysics(FCalculateCustomPhysics& CalculateCustomPhysics);
 	/** Add a force to this body */
-	void AddForce(const FVector& Force, bool bAllowSubstepping = true, bool bAccelChange = false, const FAsyncPhysicsTimestamp TimeStamp = FAsyncPhysicsTimestamp(), APlayerController* PlayerController = nullptr);
+	void AddForce(const FVector& Force, bool bAllowSubstepping = true, bool bAccelChange = false);
 	/** Add a force at a particular position (world space when bIsLocalForce = false, body space otherwise) */
-	void AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping = true, bool bIsLocalForce = false, const FAsyncPhysicsTimestamp TimeStamp = FAsyncPhysicsTimestamp(), APlayerController* PlayerController = nullptr);
+	void AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping = true, bool bIsLocalForce = false);
 	/** Clear accumulated forces on this body */
 	void ClearForces(bool bAllowSubstepping = true);
 
@@ -812,21 +809,21 @@ public:
 	void SetOneWayInteraction(bool InOneWayInteraction = true);
 
 	/** Add a torque to this body */
-	void AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping = true, bool bAccelChange = false, const FAsyncPhysicsTimestamp TimeStamp = FAsyncPhysicsTimestamp(), APlayerController* PlayerController = nullptr);
+	void AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping = true, bool bAccelChange = false);
 	/** Clear accumulated torques on this body */
 	void ClearTorques(bool bAllowSubstepping = true);
 
 	/** Add a rotational impulse to this body */
-	void AddAngularImpulseInRadians(const FVector& Impulse, bool bVelChange, const FAsyncPhysicsTimestamp TimeStamp = FAsyncPhysicsTimestamp(), APlayerController* PlayerController = nullptr);
+	void AddAngularImpulseInRadians(const FVector& Impulse, bool bVelChange);
 
 	/** Add an impulse to this body */
-	void AddImpulse(const FVector& Impulse, bool bVelChange, const FAsyncPhysicsTimestamp TimeStamp = FAsyncPhysicsTimestamp(), APlayerController* PlayerController = nullptr);
+	void AddImpulse(const FVector& Impulse, bool bVelChange);
 	
 	/** Add an impulse to this body and a particular world position */
-	void AddImpulseAtPosition(const FVector& Impulse, const FVector& Position, const FAsyncPhysicsTimestamp TimeStamp = FAsyncPhysicsTimestamp(), APlayerController* PlayerController = nullptr);
+	void AddImpulseAtPosition(const FVector& Impulse, const FVector& Position);
 
 	/** Add a velocity change impulse to this body and a particular world position */
-	void AddVelocityChangeImpulseAtLocation(const FVector& Impulse, const FVector& Position, const FAsyncPhysicsTimestamp TimeStamp = FAsyncPhysicsTimestamp(), APlayerController* PlayerController = nullptr);
+	void AddVelocityChangeImpulseAtLocation(const FVector& Impulse, const FVector& Position);
 
 	/** Set the linear velocity of this body */
 	void SetLinearVelocity(const FVector& NewVel, bool bAddToCurrent, bool bAutoWake = true);

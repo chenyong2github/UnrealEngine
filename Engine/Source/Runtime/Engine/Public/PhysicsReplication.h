@@ -76,6 +76,7 @@ struct FAsyncPhysicsDesiredState
 	Chaos::FSingleParticlePhysicsProxy* Proxy;
 	TOptional<ErrorCorrectionData> ErrorCorrection;
 	bool bShouldSleep;
+	int32 ServerFrame;
 };
 
 struct FBodyInstance;
@@ -104,12 +105,6 @@ public:
 
 	/** Remove the replicated target*/
 	virtual void RemoveReplicatedTarget(UPrimitiveComponent* Component);
-
-	/** Get the resim frame (min server frame from the targets) */
-	int32 GetResimFrame() const;
-
-	/** Set the resim frame for replication */
-	void SetResimFrame(const int32 InResimFrame);
 
 protected:
 
@@ -143,7 +138,5 @@ private:
 	void PrepareAsyncData_External(const FRigidBodyErrorCorrection& ErrorCorrection);	//prepare async data for writing. Call on external thread (i.e. game thread)
 	FAsyncPhysicsRepCallbackData* CurAsyncData;	//async data being written into before we push into callback
 	friend FPhysicsReplicationAsyncCallback;
-
-	int32 ResimFrame = INDEX_NONE;
 
 };

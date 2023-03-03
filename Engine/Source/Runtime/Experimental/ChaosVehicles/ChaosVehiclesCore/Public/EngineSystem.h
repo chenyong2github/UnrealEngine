@@ -131,17 +131,6 @@ namespace Chaos
 			return 0.f;
 		}
 
-		/** get the Engine angular velocity */
-		float GetEngineOmega() const
-		{
-			return Omega;
-		}
-
-		/** Set the Engine angular velocity */
-		void SetEngineOmega( const float EngineOmega)
-		{
-			Omega = EngineOmega;
-		}
 
 		/** 
 		 * Simulate - NOP at the moment

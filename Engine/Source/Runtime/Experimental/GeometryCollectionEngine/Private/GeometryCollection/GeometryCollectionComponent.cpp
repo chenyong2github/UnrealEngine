@@ -2852,7 +2852,7 @@ void UGeometryCollectionComponent::RequestUpdateRepData()
 			[this]()
 			{
 				UpdateRepData();
-			}, false
+			}
 		);
 	}
 }

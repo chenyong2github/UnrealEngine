@@ -342,10 +342,6 @@ public:
 	CHAOS_API FPBDRigidsSOAs& GetParticles() { return Particles; }
 	CHAOS_API const FPBDRigidsSOAs& GetParticles() const { return Particles; }
 
-	/** Reset the collisions warm starting when resimulate. Ideally we should store
-		  that in the RewindData history but probably too expensive for now */
-	virtual void ResetCollisions() {};
-
 	/**
 	* Register a constraint container with the evolution. Constraints added to the container will be solved during the tick.
 	* @note we do not currently support removing containers. In a few places we assume the ContainerId is persistent and equal to the array index.
@@ -888,9 +884,6 @@ public:
 	void SetResim(bool bInResim) { bIsResim = bInResim; }
 	const bool IsResimming() const { return bIsResim; }
 
-	void SetReset(bool bInReset) { bIsReset = bInReset; }
-	const bool IsResetting() const { return bIsReset; }
-
 	void Serialize(FChaosArchive& Ar);
 
 	FUniqueIdx GenerateUniqueIdx()
@@ -960,7 +953,6 @@ public:
 		InternalAcceleration->RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);
 	}
 
-	
 protected:
 
 	void UpdateConstraintPositionBasedState(FReal Dt)
@@ -995,9 +987,9 @@ protected:
 	void CreateIslands()
 	{
 		// Package the constraints and particles into islands
-		IslandManager.UpdateIslands(Particles, IsResimming());
+		IslandManager.UpdateIslands(Particles);
 	}
-
+	
 	void FlushInternalAccelerationQueue();
 	void FlushAsyncAccelerationQueue();
 	void WaitOnAccelerationStructure();
@@ -1114,7 +1106,6 @@ protected:
 
 	TArray<FUniqueIdx> PendingReleaseIndices;	//for now just assume a one frame delay, but may need something more general
 	bool bIsResim = false; 
-	bool bIsReset = false;
 };
 
 

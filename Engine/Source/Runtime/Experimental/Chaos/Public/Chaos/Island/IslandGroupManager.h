@@ -116,7 +116,7 @@ namespace Chaos
 			 * Pull all the active islands from the IslandManager and assign to groups.
 			 * @return 
 			*/
-			int32 BuildGroups(const bool bIsResimming);
+			int32 BuildGroups();
 
 			/**
 			 * Set the default number of iterations to perform in the Solve step (can be increased on a per-island basis by any dynamic body).

@@ -259,18 +259,6 @@ void AActor::PostNetReceiveLocationAndRotation()
 
 void AActor::PostNetReceiveVelocity(const FVector& NewVelocity)
 {
-	static IConsoleVariable* EnableNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.EnableNetworkPhysicsPrediction"));
-	if (EnableNetworkPhysicsCVar && (EnableNetworkPhysicsCVar->GetInt() == 1))
-	{
-		// required to keep client deterministic with server simulation
-		if (RootComponent && RootComponent->IsRegistered() && (NewVelocity != GetVelocity()))
-		{
-			if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(RootComponent))
-			{
-				PrimitiveComponent->SetPhysicsLinearVelocity(NewVelocity);
-			}
-		}
-	}
 }
 
 void AActor::PostNetReceivePhysicState()

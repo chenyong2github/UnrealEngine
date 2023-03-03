@@ -8,18 +8,18 @@ namespace Chaos
 	namespace Private
 	{
 	
-	FPBDIsland::FPBDIsland(const int32 MaxConstraintContainers)
-	: IslandIndex(INDEX_NONE)
-	, bIsSleeping(false)
-	, bNeedsResim(false)
-	, bIsPersistent(true)
-	, SleepCounter(0)
-	, IslandParticles()
-	, IslandConstraintsByType()
-	, NumConstraints(0)
-{
-	IslandConstraintsByType.SetNum(MaxConstraintContainers);
-}
+		FPBDIsland::FPBDIsland(const int32 MaxConstraintContainers)
+		: IslandIndex(INDEX_NONE)
+		, bIsSleeping(false)
+		, bNeedsResim(false)
+		, bIsPersistent(true)
+		, SleepCounter(0)
+		, IslandParticles()
+		, IslandConstraintsByType()
+		, NumConstraints(0)
+		{
+			IslandConstraintsByType.SetNum(MaxConstraintContainers);
+		}
 
 		void FPBDIsland::Reuse()
 		{
@@ -164,24 +164,6 @@ namespace Chaos
 				{
 					bNeedsResim = true;
 					break;
-				}
-			}
-			for (TArray<FPBDIslandConstraint>& TypedIslandConstraints : IslandConstraintsByType)
-			{
-				for (FPBDIslandConstraint& IslandConstraint : TypedIslandConstraints)
-				{
-					const TVec2<FGeometryParticleHandle*>& ConstraintParticles = IslandConstraint.GetConstraint()->GetConstrainedParticles();
-
-					if(ConstraintParticles[0] && (ConstraintParticles[0]->SyncState() != ESyncState::InSync))
-					{
-						bNeedsResim = true;
-						break;
-					}
-					if (ConstraintParticles[1] && (ConstraintParticles[1]->SyncState() != ESyncState::InSync))
-					{
-						bNeedsResim = true;
-						break;
-					}
 				}
 			}
 		}

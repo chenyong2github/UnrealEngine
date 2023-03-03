@@ -178,10 +178,12 @@ void UChaosWheeledVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTim
 	UChaosVehicleSimulation::TickVehicle(WorldIn, DeltaTime, InputData, OutputData, Handle);
 }
 
-
-void UChaosWheeledVehicleSimulation::UpdateState(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
+void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
-	UChaosVehicleSimulation::UpdateState(DeltaTime, InputData, Handle);
+	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicle_UpdateSimulation);
+
+	// Inherit common vehicle simulation stages ApplyAerodynamics, ApplyTorqueControl, etc
+	UChaosVehicleSimulation::UpdateSimulation(DeltaTime, InputData, Handle);
 
 	if (CanSimulate() && Handle)
 	{
@@ -221,6 +223,7 @@ void UChaosWheeledVehicleSimulation::UpdateState(float DeltaTime, const FChaosVe
 				WheelState.CaptureState(WheelIdx, PVehicle->Suspension[WheelIdx].GetLocalRestingPosition(), Handle);
 			}
 		}
+
 		///////////////////////////////////////////////////////////////////////
 		// Suspension Raycast
 
@@ -254,18 +257,11 @@ void UChaosWheeledVehicleSimulation::UpdateState(float DeltaTime, const FChaosVe
 			}
 		}
 		VehicleState.bAllWheelsOnGround = (VehicleState.NumWheelsOnGround == PVehicle->Wheels.Num());
-	}
-}
 
-void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
-{
-	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicle_UpdateSimulation);
-	
-	// Inherit common vehicle simulation stages ApplyAerodynamics, ApplyTorqueControl, etc
-	UChaosVehicleSimulation::UpdateSimulation(DeltaTime, InputData, Handle);
+		///////////////////////////////////////////////////////////////////////
+		// Input
+		ApplyInput(InputData.ControlInputs, DeltaTime);
 
-	if (CanSimulate() && Handle)
-	{
 		///////////////////////////////////////////////////////////////////////
 		// Engine/Transmission
 		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && PVehicle->bMechanicalSimEnabled)
@@ -301,6 +297,7 @@ void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FCh
 		}
 #endif
 	}
+
 }
 
 bool UChaosWheeledVehicleSimulation::ContainsTraces(const FBox& Box, const TArray<Chaos::FSuspensionTrace>& SuspensionTrace)
@@ -530,15 +527,6 @@ void UChaosWheeledVehicleSimulation::ApplyWheelFrictionForces(float DeltaTime)
 			FMatrix Mat = FMatrix(GroundXVector, GroundYVector, GroundZVector, VehicleState.VehicleWorldTransform.GetLocation());
 			FVector FrictionForceVector = Mat.TransformVector(FrictionForceLocal);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled() && Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
-			{
-				UE_LOG(LogVehicle, Log, TEXT("Friction Force Global = %s | Transform = %s | Local = %s | Steering Angle = %f | Velocity = %s | Rotation Angle = %f | Friction Force = %s"),
-					*FrictionForceVector.ToString(), *Mat.ToString(), *FrictionForceLocal.ToString(), 
-					SteerAngleDegrees, *WheelState.LocalWheelVelocity[WheelIdx].ToString(), RotationAngle, *PWheel.GetForceFromFriction().ToString());
-			}
-#endif
-
 			check(PWheel.InContact());
 			if (PVehicle->bLegacyWheelFrictionPosition)
 			{
@@ -548,7 +536,7 @@ void UChaosWheeledVehicleSimulation::ApplyWheelFrictionForces(float DeltaTime)
 			{
 				AddForceAtPosition(FrictionForceVector, HitResult.ImpactPoint);
 			}
-		
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			if (GWheeledVehicleDebugParams.ShowWheelForces)
 			{
@@ -734,15 +722,6 @@ void UChaosWheeledVehicleSimulation::ProcessSteering(const FControlInputs& Contr
 
 			float SteeringAngle = ControlInputs.SteeringInput * SpeedScale;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled() && Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
-			{
-				UE_LOG(LogVehicle, Log, TEXT("Process Sterring Input = %f | Spped Scale = %f | Wheel Side = %f"),
-					ControlInputs.SteeringInput, SpeedScale, PVehicle->GetSuspension(WheelIdx).GetLocalRestingPosition().Y);
-			}
-#endif
-
-
 			if (FMath::Abs(GWheeledVehicleDebugParams.SteeringOverride) > 0.01f)
 			{
 				SteeringAngle = PWheel.MaxSteeringAngle * GWheeledVehicleDebugParams.SteeringOverride;
@@ -839,15 +818,11 @@ void UChaosWheeledVehicleSimulation::ApplyInput(const FControlInputs& ControlInp
 
 bool UChaosWheeledVehicleSimulation::IsWheelSpinning() const
 {
-	if(!Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled())
-	{ 
-		// Disable it for now since it is breaking determinism
-		for (auto& Wheel : PVehicle->Wheels)
+	for (auto& Wheel : PVehicle->Wheels)
+	{
+		if (Wheel.IsSlipping())
 		{
-			if (Wheel.IsSlipping())
-			{
-				return true;
-			}
+			return true;
 		}
 	}
 

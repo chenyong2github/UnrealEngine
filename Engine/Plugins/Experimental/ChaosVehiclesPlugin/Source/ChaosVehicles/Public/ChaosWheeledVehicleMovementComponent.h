@@ -590,9 +590,6 @@ public:
 	/** Advance the vehicle simulation */
 	virtual void UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle) override;
 
-	/** Update the vehicle state */
-	virtual void UpdateState(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle) override;
-
 	virtual void FillOutputState(FChaosVehicleAsyncOutput& Output) override;
 
 	/** Are enough vehicle systems specified such that physics vehicle simulation is possible */

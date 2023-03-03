@@ -12,27 +12,7 @@
 #include "PawnMovementComponent.generated.h"
 
 class APawn;
-class UPrimitiveComponent;
 
-/**
- * Enumerates all the action types that could be applied to the physics state
- */
-UENUM()
-enum class EPhysicsStateAction : uint8
-{
-	AddForce,
-	AddTorque,
-	AddForceAtPosition,
-	AddLinearVelocity,
-	AddAngularVelocity,
-	AddVelocityAtPosition,
-	AddLinearImpulse,
-	AddAngularImpulse,
-	AddImpulseAtPosition,
-	AddAcceleration,
-	NumActions
-};
-  
 /** 
  * PawnMovementComponent can be used to update movement for an associated Pawn.
  * It also provides ways to accumulate and read directional input in a generic way (with AddInputVector(), ConsumeInputVector(), etc).
@@ -102,10 +82,6 @@ public:
 
 	virtual void OnTeleported() override;
 
-	/** Apply the async physics state action onto the solver */
-	void ApplyAsyncPhysicsStateAction(const UPrimitiveComponent* ActionComponent, const FName& BoneName, 
-		const EPhysicsStateAction ActionType, const FVector& ActionDatas, const FVector& ActionPosition = FVector::Zero());
-
 protected:
 
 	/** Pawn that owns this component. */
@@ -124,20 +100,4 @@ protected:
 public:
 
 	virtual void Serialize(FArchive& Ar) override;
-
-private:
-
-	/** Send the physics command to execute to the server */
-	UFUNCTION(Server, Reliable)
-	void ServerAsyncPhysicsStateAction(const UPrimitiveComponent* ActionComponent, const FName BoneName, const FAsyncPhysicsTimestamp Timestamp,
-			const EPhysicsStateAction ActionType, const FVector ActionDatas, const FVector ActionPosition = FVector::Zero());
-
-	/** Dispatch back the physics command onto all the clients */
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastAsyncPhysicsStateAction(const UPrimitiveComponent* ActionComponent, const FName BoneName, const FAsyncPhysicsTimestamp Timestamp,
-			const EPhysicsStateAction ActionType, const FVector ActionDatas, const FVector ActionPosition = FVector::Zero());
-
-	/** Execute the async physics state action at a given timestamp */
-	void ExecuteAsyncPhysicsStateAction(const UPrimitiveComponent* ActionComponent, const FName& BoneName, const FAsyncPhysicsTimestamp& Timestamp,
-		const EPhysicsStateAction ActionType, const FVector& ActionDatas, const FVector& ActionPosition = FVector::Zero());
 };

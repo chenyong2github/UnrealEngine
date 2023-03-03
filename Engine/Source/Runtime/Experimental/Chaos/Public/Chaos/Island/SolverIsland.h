@@ -171,22 +171,13 @@ namespace Chaos
 			FORCEINLINE int32 GetNumConstraints() const { return NumConstraints; }
 
 			/**
-			* Get the resim frame value
-			*/
-			FORCEINLINE int32 GetResimFrame() const { return ResimFrame; }
-
-			/**
-			* Set the resim frame value
-			*/
-			FORCEINLINE void SetResimFrame(const int32 InResimFrame) { ResimFrame = InResimFrame; }
-
-			/**
 			* Members accessors
 			*/
 			FORCEINLINE bool IsSleeping() const { return bIsSleeping; }
 			FORCEINLINE void SetIsSleeping(const bool bInIsSleepingIn) { bIsSleeping = bInIsSleepingIn; }
 			FORCEINLINE bool IsSleepingChanged() const { return bIsSleepingChanged; }
 			FORCEINLINE void SetIsSleepingChanged(const bool bInIsSleepingChanged) { bIsSleepingChanged = bInIsSleepingChanged; }
+
 			FORCEINLINE bool IsPersistent() const { return bIsPersistent; }
 			FORCEINLINE void SetIsPersistent(const bool bIsPersistentIn) { bIsPersistent = bIsPersistentIn; }
 			FORCEINLINE bool NeedsResim() const { return bNeedsResim; }
@@ -247,9 +238,6 @@ namespace Chaos
 
 			/** Sleep counter to trigger island sleeping */
 			int32 SleepCounter = 0;
-
-			/** Resim frame for the island */
-			int32 ResimFrame = INDEX_NONE;
 
 			/** List of all the island particles handles */
 			TArray<FPBDIslandParticle> IslandParticles;

@@ -395,9 +395,6 @@ namespace Chaos
 		void DestroyPendingProxies_Internal();
 
 		virtual void ConditionalApplyRewind_Internal() override;
-
-		/** Check if we are resimming or not */
-		virtual bool IsResimming() const {return GetEvolution()->IsResimming();}
 	};
 
 	template<>

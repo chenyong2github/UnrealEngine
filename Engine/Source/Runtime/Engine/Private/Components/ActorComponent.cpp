@@ -1272,7 +1272,7 @@ void UActorComponent::DeferRemoveAsyncPhysicsTick()
 			{
 				SetAsyncPhysicsTickEnabled(false);
 			}
-		,false);
+		);
 	}
 }
 
