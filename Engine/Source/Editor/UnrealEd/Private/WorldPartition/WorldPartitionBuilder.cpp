@@ -294,7 +294,7 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 
 					bResult = RunInternal(World, CellInfo, PackageHelper);
 
-					if (FWorldPartitionHelpers::HasExceededMaxMemory())
+					if (FWorldPartitionHelpers::ShouldCollectGarbage())
 					{
 						LoaderAdapters.Empty();
 						FWorldPartitionHelpers::DoCollectGarbage();

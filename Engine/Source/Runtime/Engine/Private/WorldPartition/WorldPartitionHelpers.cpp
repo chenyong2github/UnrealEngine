@@ -178,7 +178,7 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 					return false;
 				}
 
-				if (!Params.bKeepReferences && (Params.bGCPerActor || FWorldPartitionHelpers::HasExceededMaxMemory()))
+				if (!Params.bKeepReferences && (Params.bGCPerActor || FWorldPartitionHelpers::ShouldCollectGarbage()))
 				{
 					CallGarbageCollect();
 				}
@@ -224,15 +224,6 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 
 bool FWorldPartitionHelpers::HasExceededMaxMemory()
 {
-	// Even if we're not exhausting memory, GC should be run at periodic intervals
-	static double LastTime = FPlatformTime::Seconds();
-	double ThisTime = FPlatformTime::Seconds();
-	if ((ThisTime - LastTime) > 30)
-	{
-		LastTime = ThisTime;
-		return true;
-	}
-
 	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
 
 	const uint64 MemoryMinFreePhysical = 1llu * 1024 * 1024 * 1024;
@@ -243,7 +234,21 @@ bool FWorldPartitionHelpers::HasExceededMaxMemory()
 	const bool bHasExceededMaxMemory = bHasExceededMinFreePhysical || bHasExceededMaxUsedPhysical;
 
 	return bHasExceededMaxMemory;
-};
+}
+
+bool FWorldPartitionHelpers::ShouldCollectGarbage()
+{
+	// Even if we're not exhausting memory, GC should be run at periodic intervals
+	static double LastTime = FPlatformTime::Seconds();
+	double ThisTime = FPlatformTime::Seconds();
+	if ((ThisTime - LastTime) > 30)
+	{
+		LastTime = ThisTime;
+		return true;
+	}
+
+	return HasExceededMaxMemory();
+}
 
 void FWorldPartitionHelpers::DoCollectGarbage()
 {
@@ -255,7 +260,7 @@ void FWorldPartitionHelpers::DoCollectGarbage()
 		(int64)MemStatsAfter.AvailablePhysical / (1024.0 * 1024.0 * 1024.0),
 		(int64)MemStatsAfter.AvailableVirtual / (1024.0 * 1024.0 * 1024.0)
 	);
-};
+}
 
 void FWorldPartitionHelpers::FakeEngineTick(UWorld* InWorld)
 {

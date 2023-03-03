@@ -106,7 +106,7 @@ static void GameTick(UWorld* InWorld)
 	static const int32 FlushRenderingFrequency = 256;
 
 	// Perform a GC when memory usage exceeds a given threshold
-	if (FWorldPartitionHelpers::HasExceededMaxMemory())
+	if (FWorldPartitionHelpers::ShouldCollectGarbage())
 	{
 		FWorldPartitionHelpers::DoCollectGarbage();
 	}

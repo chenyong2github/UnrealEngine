@@ -501,7 +501,7 @@ bool UWorldPartitionHLODsBuilder::BuildHLODActors()
 			}
 		}
 
-		if (FWorldPartitionHelpers::HasExceededMaxMemory())
+		if (FWorldPartitionHelpers::ShouldCollectGarbage())
 		{
 			FWorldPartitionHelpers::DoCollectGarbage();
 		}

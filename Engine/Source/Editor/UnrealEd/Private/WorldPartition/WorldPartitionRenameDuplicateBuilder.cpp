@@ -363,7 +363,7 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 					}
 				}
 						
-				if (FWorldPartitionHelpers::HasExceededMaxMemory())
+				if (FWorldPartitionHelpers::ShouldCollectGarbage())
 				{
 					if (!ProcessLoadedActors(ActorReferences))
 					{

@@ -316,7 +316,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 				}
 			}
 
-			if (FWorldPartitionHelpers::HasExceededMaxMemory())
+			if (FWorldPartitionHelpers::ShouldCollectGarbage())
 			{
 				if (!UWorldPartitionBuilder::SavePackages(PackagesToSave, PackageHelper))
 				{

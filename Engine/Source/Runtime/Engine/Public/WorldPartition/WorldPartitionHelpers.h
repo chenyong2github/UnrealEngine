@@ -130,6 +130,7 @@ public:
 	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, const FForEachActorWithLoadingParams& Params, FForEachActorWithLoadingResult& Result);
 	
 	static bool HasExceededMaxMemory();
+	static bool ShouldCollectGarbage();
 	static void DoCollectGarbage();
 
 	// Simulate an engine frame tick
