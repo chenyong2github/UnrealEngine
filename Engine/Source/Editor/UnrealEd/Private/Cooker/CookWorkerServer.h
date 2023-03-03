@@ -383,6 +383,7 @@ public:
 	int32 HeartbeatNumber;
 	static FGuid MessageType;
 };
+constexpr FStringView HeartbeatCategoryText(TEXTVIEW("CookWorkerHeartbeat:"));
 
 class FPackageWriterMPCollector : public UE::Cook::IMPCollector
 {
