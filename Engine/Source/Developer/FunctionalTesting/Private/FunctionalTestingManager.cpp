@@ -297,6 +297,7 @@ void UFunctionalTestingManager::AllTestsDone()
 	{
 		OnTestsComplete.Broadcast();
 		bFinished = true;
+		IFunctionalTestingModule::Get().SetManager(nullptr);
 		RemoveFromRoot();
 	}
 }
