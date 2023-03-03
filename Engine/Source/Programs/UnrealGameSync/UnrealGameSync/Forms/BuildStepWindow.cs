@@ -267,6 +267,7 @@ namespace UnrealGameSync
 				_variablesWindow.FormClosed += OnClosedVariablesWindow;
 				_variablesWindow.Show(this);
 
+				components ??= new System.ComponentModel.Container();
 				components.Add(_variablesWindow);
 			}
 			else
