@@ -1501,6 +1501,12 @@ public:
 	virtual TMap<FString, FTexturePlatformData*>* GetCookedPlatformData() { return NULL; }
 
 	void CleanupCachedRunningPlatformData();
+	
+	/**
+	 * Get the dimensions of the largest mip of the texture when built for the target platform
+	 *   accounting for LODBias and other constraints
+	 */
+	void GetBuiltTextureSize( const ITargetPlatform* TargetPlatform , int32 & OutSizeX, int32 & OutSizeY ) const;
 
 	/**
 	 * Serializes cooked platform data.
