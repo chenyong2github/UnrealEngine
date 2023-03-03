@@ -45,6 +45,9 @@ public:
 	virtual bool GetObjectProperties(const FRCObjectReference& ObjectAccess, IStructSerializerBackend& Backend) override;
 	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload, ERCModifyOperation Operation) override;
 	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess, const bool bAllowIntercept) override;
+	virtual bool InsertToObjectArrayProperty(int32 Index, const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InInterceptPayload) override;
+	virtual bool RemoveFromObjectArrayProperty(int32 Index, const FRCObjectReference& ObjectAccess) override;
+	virtual bool AppendToObjectArrayProperty(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InInterceptPayload) override;
 	virtual bool SetPresetController(const FName PresetName, const FName ControllerName, IStructDeserializerBackend& Backend, const TArray<uint8>& InPayload, const bool bAllowIntercept) override;
 	virtual bool SetPresetController(const FName PresetName, class URCVirtualPropertyBase* VirtualProperty, IStructDeserializerBackend& Backend, const TArray<uint8>& InPayload, const bool bAllowIntercept) override;
 	virtual TOptional<FExposedFunction> ResolvePresetFunction(const FResolvePresetFieldArgs& Args) const override;
@@ -121,7 +124,40 @@ private:
 	 */
 	void RegisterMaskingFactories();
 
+	/**
+	 * Add an item to an array property, handling transactions and editor events automatically.
+	 * @param ObjectAccess Reference to the array property to be modified.
+	 * @param Backend Deserialization backend for the value to be added to the array. This will be deserialized into the array at the index provided by ModifyFunction.
+	 * @param ModifyFunction Function which takes an array helper, attempts to modify the array, and returns the index of the new item (or INDEX_NONE if the request is invalid).
+	 */
+	bool AddToArrayProperty(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, TFunctionRef<int32(FScriptArrayHelper&)> ModifyFunction);
+
+	/**
+	 * Modify an array property, handling transactions and editor events automatically.
+	 * @param ObjectAccess Reference to the array property to be modified.
+	 * @param ModifyFunction Function which takes an array helper, attempts to modify the array, and returns true if the request was valid.
+	 */
+	bool ModifyArrayProperty(const FRCObjectReference& ObjectAccess, TFunctionRef<bool(FScriptArrayHelper&)> ModifyFunction);
+
 #if WITH_EDITOR
+
+	/**
+	 * Create a transaction to modify an object's property, taking into account any ongoing transactions before this one.
+	 * @param ObjectReference A reference to the object to be modified.
+	 * @param InChangeDescription The description of the transaction to be created.
+	 * @param bOutGeneratedTransaction Set to true if a transaction needed to be created, else false.
+	 * @return true if the property is ready to be modified, else false.
+	 */
+	bool StartPropertyTransaction(FRCObjectReference& ObjectReference, const FText& InChangeDescription, bool& bOutGeneratedTransaction);
+
+	/**
+	 * Depending on transaction mode, either snapshot the object to the transaction buffer or end the transaction.
+	 * This should be called after StartPropertyTransaction and then modifying the object's properties.
+	 * @param ObjectReference A reference to the object to be modified.
+	 * @param bGeneratedTransaction The value of bOutGeneratedTransaction provided by StartPropertyTransaction.
+	 */
+	void SnapshotOrEndTransaction(FRCObjectReference& ObjectReference, bool bGeneratedTransaction);
+
 	/**
 	 * End the ongoing modification if one exists and is a mismatch for the new object to edit.
 	 * @param TypeHash The type hash of the object we want to modify after this check.

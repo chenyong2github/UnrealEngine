@@ -395,6 +395,35 @@ public:
 	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess, const bool bAllowIntercept = false) = 0;
 
 	/**
+	 * Deserialize the Object Reference from the specified backend and append it to an array property.
+	 * @param ObjectAccess the object reference to deserialize into, it should be a write access reference. if the object is WRITE_TRANSACTION_ACCESS, the setting will be wrapped in a transaction.
+	 * @param Backend the struct deserializer backend to use to deserialize the object properties.
+	 * @param InPayloadType the payload type archive.
+	 * @param InInterceptPayload the payload reference archive for the interception.
+	 * @return true if the operation succeeded
+	 */
+	virtual bool AppendToObjectArrayProperty(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>()) = 0;
+
+	/**
+	 * Deserialize the Object Reference from the specified backend and insert it at the given position in an array property.
+	 * @param Index The index into the array to insert at.
+	 * @param ObjectAccess the object reference to deserialize into, it should be a write access reference. if the object is WRITE_TRANSACTION_ACCESS, the setting will be wrapped in a transaction.
+	 * @param Backend the struct deserializer backend to use to deserialize the object properties.
+	 * @param InPayloadType the payload type archive.
+	 * @param InInterceptPayload the payload reference archive for the interception.
+	 * @return true if the operation succeeded
+	 */
+	virtual bool InsertToObjectArrayProperty(int32 Index, const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>()) = 0;
+
+	/**
+	 * Remove an item from the referenced array.
+	 * @param Index The index into the array to remove.
+	 * @param ObjectAccess The reference to the array. If the object is WRITE_TRANSACTION_ACCESS, the operation will be wrapped in a transaction.
+	 * @return true if the operation succeeded
+	 */
+	virtual bool RemoveFromObjectArrayProperty(int32 Index, const FRCObjectReference& ObjectAccess) = 0;
+
+	/**
 	* Set a controller's value on a Remote Control Preset
 	* @param PresetName - The Remote Control Preset asset's name
 	* @param ControllerName - The name of the controller being manipulated

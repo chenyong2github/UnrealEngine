@@ -1206,6 +1206,121 @@ bool FRemoteControlModule::GetObjectProperties(const FRCObjectReference& ObjectA
 	return false;
 }
 
+#if WITH_EDITOR
+bool FRemoteControlModule::StartPropertyTransaction(FRCObjectReference& ObjectReference, const FText& InChangeDescription, bool& bOutGeneratedTransaction)
+{
+	const bool bUseOngoingChangeOptimization = CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1;
+	if (bUseOngoingChangeOptimization)
+	{
+		const FString ObjectPath = ObjectReference.Object->GetPathName();
+
+		// If we have a change that hasn't yet generated a post edit change property, do that before handling the next change.
+		EndOngoingModificationIfMismatched(GetTypeHash(ObjectReference));
+
+		// This step is necessary because the object might get recreated by a PostEditChange called in TestOrFinalizeOngoingChange.
+		if (!ObjectReference.Object.IsValid())
+		{
+			ObjectReference.Object = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectPath);
+			if (ObjectReference.Object.IsValid() && ObjectReference.PropertyPathInfo.IsResolved())
+			{
+				// Update ContainerAddress as well if the path was resolved.
+				if (ObjectReference.PropertyPathInfo.Resolve(ObjectReference.Object.Get()))
+				{
+					ObjectReference.ContainerAdress = ObjectReference.PropertyPathInfo.GetResolvedData().ContainerAddress;
+				}
+			}
+			else
+			{
+				return false;
+			}
+		}
+	}
+
+	bOutGeneratedTransaction = ObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+	const bool bIsNewTransaction = bOutGeneratedTransaction && (!bUseOngoingChangeOptimization || !OngoingModification);
+
+	if (bIsNewTransaction && GEditor)
+	{
+		GEditor->BeginTransaction(InChangeDescription);
+
+		if (bUseOngoingChangeOptimization)
+		{
+			// Call modify since it's not called by PreEditChange until the end of the ongoing change.
+			ObjectReference.Object->Modify();
+		}
+	}
+
+	if (!bUseOngoingChangeOptimization)
+	{
+		FEditPropertyChain PreEditChain;
+		ObjectReference.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+		ObjectReference.Object->PreEditChange(PreEditChain);
+	}
+
+	return true;
+}
+#endif
+
+#if WITH_EDITOR
+void FRemoteControlModule::SnapshotOrEndTransaction(FRCObjectReference& ObjectReference, bool bGeneratedTransaction)
+{
+	if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
+	{
+		// If we have modified the same object and property in the last frames,
+		// update the triggered flag and snapshot the object to the transaction buffer.
+		if (OngoingModification && GetTypeHash(*OngoingModification) == GetTypeHash(ObjectReference))
+		{
+			OngoingModification->bWasTriggeredSinceLastPass = true;
+			if (OngoingModification->bHasStartedTransaction)
+			{
+				SnapshotTransactionBuffer(ObjectReference.Object.Get());
+				FPropertyChangedEvent PropertyEvent(ObjectReference.PropertyPathInfo.ToPropertyChangedEvent());
+				PropertyEvent.ChangeType = EPropertyChangeType::Interactive;
+				ObjectReference.Object->PostEditChangeProperty(PropertyEvent);
+
+				if (UActorComponent* Component = Cast<UActorComponent>(ObjectReference.Object.Get()))
+				{
+					Component->MarkRenderStateDirty();
+					Component->UpdateComponentToWorld();
+				}
+			}
+
+			// Update the world lighting if we're modifying a color.
+			if (ObjectReference.IsValid())
+			{
+				if (ObjectReference.Object->IsA<ULightComponent>())
+				{
+					UClass* OwnerClass = ObjectReference.Property->GetOwnerClass();
+					if (OwnerClass && OwnerClass->IsChildOf(ULightComponentBase::StaticClass()))
+					{
+						UWorld* World = ObjectReference.Object->GetWorld();
+						if (World && World->Scene)
+						{
+							World->Scene->UpdateLightColorAndBrightness(Cast<ULightComponent>(ObjectReference.Object.Get()));
+						}
+					}
+				}
+			}
+		}
+		else if (ObjectReference.Access != ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS)
+		{
+			OngoingModification = ObjectReference;
+			OngoingModification->bHasStartedTransaction = bGeneratedTransaction;
+		}
+	}
+	else
+	{
+		if (GEditor && bGeneratedTransaction)
+		{
+			GEditor->EndTransaction();
+		}
+
+		FPropertyChangedEvent PropertyEvent(ObjectReference.PropertyPathInfo.ToPropertyChangedEvent());
+		ObjectReference.Object->PostEditChangeProperty(PropertyEvent);
+	}
+}
+#endif
+
 bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload, ERCModifyOperation Operation)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::SetObjectProperties);
@@ -1324,52 +1439,10 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 		FRCObjectReference MutableObjectReference = ObjectAccess;
 
 #if WITH_EDITOR
-		const bool bUseOngoingChangeOptimization = CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1;
-		if (bUseOngoingChangeOptimization)
+		bool bGeneratedTransaction;
+		if (!StartPropertyTransaction(MutableObjectReference, LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"), bGeneratedTransaction))
 		{
-			const FString ObjectPath = MutableObjectReference.Object->GetPathName();
-
-			// If we have a change that hasn't yet generated a post edit change property, do that before handling the next change.
-			EndOngoingModificationIfMismatched(GetTypeHash(MutableObjectReference));
-
-			// This step is necessary because the object might get recreated by a PostEditChange called in TestOrFinalizeOngoingChange.
-			if (!MutableObjectReference.Object.IsValid())
-			{
-				MutableObjectReference.Object = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectPath);
-				if (MutableObjectReference.Object.IsValid() && MutableObjectReference.PropertyPathInfo.IsResolved())
-				{
-					// Update ContainerAddress as well if the path was resolved.
-					if (MutableObjectReference.PropertyPathInfo.Resolve(MutableObjectReference.Object.Get()))
-					{
-						MutableObjectReference.ContainerAdress = MutableObjectReference.PropertyPathInfo.GetResolvedData().ContainerAddress;
-					}
-				}
-				else
-				{
-					return false;
-				}
-			}
-		}
-
-		const bool bGenerateTransaction = MutableObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
-		const bool bIsNewTransaction = bGenerateTransaction && (!bUseOngoingChangeOptimization || !OngoingModification);
-
-		if (bIsNewTransaction && GEditor)
-		{
-			GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
-
-			if (bUseOngoingChangeOptimization)
-			{
-				// Call modify since it's not called by PreEditChange until the end of the ongoing change.
-				MutableObjectReference.Object->Modify();
-			}
-		}
-
-		if (!bUseOngoingChangeOptimization)
-		{
-			FEditPropertyChain PreEditChain;
-			MutableObjectReference.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
-			MutableObjectReference.Object->PreEditChange(PreEditChain);
+			return false;
 		}
 #endif
 
@@ -1421,64 +1494,12 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 		}
 
 #if WITH_EDITOR
-		if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
-		{
-			// If we have modified the same object and property in the last frames,
-			// update the triggered flag and snapshot the object to the transaction buffer.
-			if (OngoingModification && GetTypeHash(*OngoingModification) == GetTypeHash(MutableObjectReference))
-			{
-				OngoingModification->bWasTriggeredSinceLastPass = true;
-				if (OngoingModification->bHasStartedTransaction)
-				{
-					SnapshotTransactionBuffer(MutableObjectReference.Object.Get());
-					FPropertyChangedEvent PropertyEvent(MutableObjectReference.PropertyPathInfo.ToPropertyChangedEvent());
-					PropertyEvent.ChangeType = EPropertyChangeType::Interactive;
-					MutableObjectReference.Object->PostEditChangeProperty(PropertyEvent);
-
-					if (UActorComponent* Component = Cast<UActorComponent>(MutableObjectReference.Object.Get()))
-					{
-						Component->MarkRenderStateDirty();
-						Component->UpdateComponentToWorld();
-					}
-				}
-
-				// Update the world lighting if we're modifying a color.
-				if (MutableObjectReference.IsValid() )
-				{
-					if (MutableObjectReference.Object->IsA<ULightComponent>())
-					{
-						UClass* OwnerClass = MutableObjectReference.Property->GetOwnerClass();
-						if (OwnerClass && OwnerClass->IsChildOf(ULightComponentBase::StaticClass()))
-						{
-							UWorld* World = MutableObjectReference.Object->GetWorld();
-							if (World && World->Scene)
-							{
-								World->Scene->UpdateLightColorAndBrightness(Cast<ULightComponent>(MutableObjectReference.Object.Get()));
-							}
-						}
-					}
-				}
-			}
-			else if (MutableObjectReference.Access != ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS)
-			{
-				OngoingModification = MutableObjectReference;
-				OngoingModification->bHasStartedTransaction = bGenerateTransaction;
-			}
-		}
-		else
-		{
-			if (GEditor && bGenerateTransaction)
-			{
-				GEditor->EndTransaction();
-			}
-
-			FPropertyChangedEvent PropertyEvent(MutableObjectReference.PropertyPathInfo.ToPropertyChangedEvent());
-			MutableObjectReference.Object->PostEditChangeProperty(PropertyEvent);
-		}
+		SnapshotOrEndTransaction(MutableObjectReference, bGeneratedTransaction);
 #endif
+
 		for (const TPair<FName, TSharedPtr<IRemoteControlPropertyFactory>>& EntityFactoryPair : EntityFactories)
 		{
-			EntityFactoryPair.Value->PostSetObjectProperties(ObjectAccess.Object.Get(), bSuccess);
+			EntityFactoryPair.Value->PostSetObjectProperties(MutableObjectReference.Object.Get(), bSuccess);
 		}
 
 		if (bSuccess)
@@ -1489,6 +1510,51 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 		return bSuccess;
 	}
 	return false;
+}
+
+bool FRemoteControlModule::AppendToObjectArrayProperty(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::AppendToObjectArrayProperty);
+	UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Append to Object Array Property"));
+
+	return AddToArrayProperty(ObjectAccess, Backend, [](FScriptArrayHelper& ArrayHelper)
+	{
+		return ArrayHelper.AddValue();
+	});
+}
+
+bool FRemoteControlModule::InsertToObjectArrayProperty(int32 Index, const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::InsertToObjectArrayProperty);
+	UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Insert to Object Array Property"));
+
+	return AddToArrayProperty(ObjectAccess, Backend, [Index](FScriptArrayHelper& ArrayHelper)
+	{
+		if (!ArrayHelper.IsValidIndex(Index))
+		{
+			return (int32)INDEX_NONE;
+		}
+
+		ArrayHelper.InsertValues(Index, 1);
+		return Index;
+	});
+}
+
+bool FRemoteControlModule::RemoveFromObjectArrayProperty(int32 Index, const FRCObjectReference& ObjectAccess)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::RemoveFromObjectArrayProperty);
+	UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Remove from Object Array Property"));
+
+	return ModifyArrayProperty(ObjectAccess, [Index](FScriptArrayHelper& ArrayHelper)
+	{
+		if (!ArrayHelper.IsValidIndex(Index))
+		{
+			return false;
+		}
+
+		ArrayHelper.RemoveValues(Index);
+		return true;
+	});
 }
 
 void FRemoteControlModule::RefreshEditorPostSetObjectProperties(const FRCObjectReference& ObjectAccess)
@@ -2329,6 +2395,71 @@ void FRemoteControlModule::RegisterMaskingFactories()
 	RegisterMaskingFactoryForType(TBaseStructure<FLinearColor>::Get(), FLinearColorMaskingFactory::MakeInstance());
 }
 
+bool FRemoteControlModule::AddToArrayProperty(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, TFunctionRef<int32(FScriptArrayHelper&)> ModifyFunction)
+{
+	return ModifyArrayProperty(ObjectAccess, [&ObjectAccess, &Backend, &ModifyFunction](FScriptArrayHelper& ArrayHelper) {
+		const int32 Index = ModifyFunction(ArrayHelper);
+
+		if (Index == INDEX_NONE)
+		{
+			return false;
+		}
+
+		const FRCFieldPathSegment& LastSegment = ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount() - 1);
+
+		FStructDeserializerPolicies Policies;
+		Policies.PropertyFilter = [&ObjectAccess](const FProperty* CurrentProp, const FProperty* ParentProp)
+		{
+			return CurrentProp == ObjectAccess.Property || ParentProp != nullptr;
+		};
+
+		return FStructDeserializer::DeserializeElement(ObjectAccess.ContainerAdress, *LastSegment.ResolvedData.Struct, Index, Backend, Policies);
+	});
+}
+
+bool FRemoteControlModule::ModifyArrayProperty(const FRCObjectReference& ObjectAccess, TFunctionRef<bool(FScriptArrayHelper&)> ModifyFunction)
+{
+	if (ObjectAccess.IsValid()
+		&& (RemoteControlUtil::IsWriteAccess(ObjectAccess.Access))
+		&& ObjectAccess.Property.IsValid()
+		&& ObjectAccess.PropertyPathInfo.IsResolved())
+	{
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ObjectAccess.Property.Get()))
+		{
+#if WITH_EDITOR
+			FRCObjectReference MutableObjectReference = ObjectAccess;
+
+			bool bGeneratedTransaction;
+			if (!StartPropertyTransaction(MutableObjectReference, LOCTEXT("RemoteArrayAppendTransaction", "Remote Append to Object Array Property"), bGeneratedTransaction))
+			{
+				return false;
+			}
+#endif
+
+			FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(ObjectAccess.ContainerAdress));
+
+			const bool bSuccess = ModifyFunction(ArrayHelper);
+
+#if WITH_EDITOR
+			SnapshotOrEndTransaction(MutableObjectReference, bGeneratedTransaction);
+
+			for (const TPair<FName, TSharedPtr<IRemoteControlPropertyFactory>>& EntityFactoryPair : EntityFactories)
+			{
+				EntityFactoryPair.Value->PostSetObjectProperties(MutableObjectReference.Object.Get(), bSuccess);
+			}
+#endif
+
+			if (bSuccess)
+			{
+				RefreshEditorPostSetObjectProperties(ObjectAccess);
+			}
+
+			return bSuccess;
+		}
+	}
+
+	return false;
+}
 
 #if WITH_EDITOR
 void FRemoteControlModule::EndOngoingModificationIfMismatched(uint32 TypeHash)

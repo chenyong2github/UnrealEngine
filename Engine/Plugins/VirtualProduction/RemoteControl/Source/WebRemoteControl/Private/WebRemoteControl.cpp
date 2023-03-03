@@ -267,6 +267,65 @@ namespace WebRemoteControl
 			}
 		}
 	}
+
+	/**
+	 * Resolve the object referenced in a WebRemoteControl request.
+	 * Returns true if the object was resolved, or else returns false and calls OnComplete with an error response.
+	 */
+	bool ResolveObjectPropertyForRequest(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete, TUniquePtr<FHttpServerResponse>& InResponse,
+		FRCObjectReference& OutObjectRef, FRCObjectRequest& OutDeserializedRequest)
+	{
+		if (!WebRemoteControlInternalUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
+		{
+			return false;
+		}
+
+		if (!RemotePayloadSerializer::DeserializeObjectRef(Request, OutObjectRef, OutDeserializedRequest, OnComplete))
+		{
+			return false;
+		}
+
+		// If we haven't found the object, return a not found error code
+		if (!OutObjectRef.IsValid())
+		{
+			InResponse->Code = EHttpServerResponseCodes::NotFound;
+			WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to find the object."), InResponse->Body);
+			OnComplete(MoveTemp(InResponse));
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Create a memory reader for the deserialized property data contained in a request to add an element to an array.
+	 */
+	FMemoryReader MakePropertyMemoryReaderForArrayAddRequest(FRCObjectRequest& InDeserializedRequest)
+	{
+		const FBlockDelimiters& PropertyValueDelimiters = InDeserializedRequest.GetStructParameters().FindChecked(FRCObjectRequest::PropertyValueLabel());
+		FMemoryReader Reader(InDeserializedRequest.TCHARBody);
+		Reader.Seek(PropertyValueDelimiters.BlockStart);
+		Reader.SetLimitSize(PropertyValueDelimiters.BlockEnd);
+
+		return MoveTemp(Reader);
+	}
+
+	/**
+	 * Retrieve the integer "index" query parameter from a request, or if unable to, call OnComplete with an error response and return false.
+	 */
+	bool GetIndexQueryParamForRequest(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete, TUniquePtr<FHttpServerResponse>& InResponse, int32& OutIndex)
+	{
+		const FString* IndexParam = Request.QueryParams.Find(TEXT("index"));
+		if (!IndexParam) {
+			InResponse->Code = EHttpServerResponseCodes::BadRequest;
+			WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("No 'index' query parameter was provided."), InResponse->Body);
+			OnComplete(MoveTemp(InResponse));
+			return false;
+		}
+
+		OutIndex = FCString::Atoi(**IndexParam);
+		return true;
+	}
 }
 
 void FWebRemoteControlModule::StartupModule()
@@ -577,6 +636,27 @@ void FWebRemoteControlModule::RegisterRoutes()
 		FHttpPath(TEXT("/remote/object/property")),
 		EHttpServerRequestVerbs::VERB_PUT,
 		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleObjectPropertyRoute)
+		});
+
+	RegisterRoute({
+		TEXT("Append a new item to an array property on a remote object."),
+		FHttpPath(TEXT("/remote/object/property/append")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleObjectPropertyAppendRoute)
+		});
+
+	RegisterRoute({
+		TEXT("Insert a new item into an array property on a remote object."),
+		FHttpPath(TEXT("/remote/object/property/insert")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleObjectPropertyInsertRoute)
+		});
+
+	RegisterRoute({
+		TEXT("Remove an item from an array property on a remote object."),
+		FHttpPath(TEXT("/remote/object/property/remove")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleObjectPropertyRemoveRoute)
 		});
 
 	RegisterRoute({
@@ -937,27 +1017,11 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 {
 	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
-	if (!WebRemoteControlInternalUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
-	{
-		return true;
-	}
-
-	FRCObjectReference ObjectRef;
 	bool bResetToDefault = false;
-	FString ErrorText;
+	FRCObjectReference ObjectRef;
 	FRCObjectRequest DeserializedRequest;
-
-	if (!RemotePayloadSerializer::DeserializeObjectRef(Request, ObjectRef, DeserializedRequest, OnComplete))
+	if (!WebRemoteControl::ResolveObjectPropertyForRequest(Request, OnComplete, Response, ObjectRef, DeserializedRequest))
 	{
-		return true;
-	}
-
-	// If we haven't found the object, return a not found error code
-	if (!ObjectRef.IsValid())
-	{
-		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to find the object."), Response->Body);
-		OnComplete(MoveTemp(Response));
 		return true;
 	}
 
@@ -1005,6 +1069,84 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 	default:
 		// Bad request
 		break;
+	}
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandleObjectPropertyAppendRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+	
+	FRCObjectReference ObjectRef;
+	FRCObjectRequest DeserializedRequest;
+	if (!WebRemoteControl::ResolveObjectPropertyForRequest(Request,OnComplete, Response, ObjectRef, DeserializedRequest))
+	{
+		return true;
+	}
+
+	FMemoryReader Reader = WebRemoteControl::MakePropertyMemoryReaderForArrayAddRequest(DeserializedRequest);
+	FRCJsonStructDeserializerBackend DeserializerBackend(Reader);
+
+	if (IRemoteControlModule::Get().AppendToObjectArrayProperty(ObjectRef, DeserializerBackend, ERCPayloadType::Json, DeserializedRequest.TCHARBody))
+	{
+		Response->Code = EHttpServerResponseCodes::Ok;
+	}
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandleObjectPropertyInsertRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+
+	FRCObjectReference ObjectRef;
+	FRCObjectRequest DeserializedRequest;
+	if (!WebRemoteControl::ResolveObjectPropertyForRequest(Request, OnComplete, Response, ObjectRef, DeserializedRequest))
+	{
+		return true;
+	}
+
+	FMemoryReader Reader = WebRemoteControl::MakePropertyMemoryReaderForArrayAddRequest(DeserializedRequest);
+	FRCJsonStructDeserializerBackend DeserializerBackend(Reader);
+
+	int32 Index;
+	if (!WebRemoteControl::GetIndexQueryParamForRequest(Request, OnComplete, Response, Index))
+	{
+		return true;
+	}
+
+	if (IRemoteControlModule::Get().InsertToObjectArrayProperty(Index, ObjectRef, DeserializerBackend, ERCPayloadType::Json, DeserializedRequest.TCHARBody))
+	{
+		Response->Code = EHttpServerResponseCodes::Ok;
+	}
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandleObjectPropertyRemoveRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+
+	FRCObjectReference ObjectRef;
+	FRCObjectRequest DeserializedRequest;
+	if (!WebRemoteControl::ResolveObjectPropertyForRequest(Request, OnComplete, Response, ObjectRef, DeserializedRequest))
+	{
+		return true;
+	}
+
+	int32 Index;
+	if (!WebRemoteControl::GetIndexQueryParamForRequest(Request, OnComplete, Response, Index))
+	{
+		return true;
+	}
+
+	if (IRemoteControlModule::Get().RemoveFromObjectArrayProperty(Index, ObjectRef))
+	{
+		Response->Code = EHttpServerResponseCodes::Ok;
 	}
 
 	OnComplete(MoveTemp(Response));
