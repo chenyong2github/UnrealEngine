@@ -307,6 +307,11 @@ void StitchParallelEdges(TArray<TSharedPtr<FTopologicalVertex>>& VerticesToProce
 						VerticesToProcess.Add(NewVertex);
 					}
 				}
+
+				if (!Vertex.IsValid() || Vertex->IsDeleted() || !Vertex->IsBorderVertex())
+				{
+					break;
+				}
 			}
 		}
 	}

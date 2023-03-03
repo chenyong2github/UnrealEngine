@@ -99,6 +99,11 @@ protected:
 
 public:
 
+	virtual ~FTopologicalFace() override
+	{
+		Empty();
+	}
+
 	virtual void Serialize(FCADKernelArchive& Ar) override
 	{
 		FTopologicalShapeEntity::Serialize(Ar);
@@ -292,10 +297,15 @@ public:
 	{
 #ifndef CADKERNEL_DEV
 		CarrierSurface.Reset();
+		for (TSharedPtr<FTopologicalLoop>& Loop : Loops)
+		{
+			Loop->Empty();
+		}
 		Loops.Empty();
 #endif
-		Mesh.Reset();
+		RemoveOfHost();
 
+		Mesh.Reset();
 		MeshCuttingCoordinates.Empty();
 		CrossingCoordinates.Empty();
 		CrossingPointDeltaMins.Empty();

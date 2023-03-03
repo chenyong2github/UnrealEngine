@@ -137,7 +137,10 @@ public:
 	 */
 	static TSharedPtr<FTopologicalEdge> ReturnIfValid(TSharedRef<FTopologicalEdge>& InEdge, bool bCheckVertices);
 
-	virtual ~FTopologicalEdge() = default;
+	virtual ~FTopologicalEdge() override
+	{
+		Empty();
+	}
 
 	virtual void Empty() override;
 

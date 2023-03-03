@@ -133,7 +133,11 @@ public:
 
 	void RemoveOfHost()
 	{
-		GetHost()->Remove(this);
+		if (FTopologicalShapeEntity* Host = GetHost())
+		{
+			Host->Remove(this);
+			ResetHost();
+		}
 	}
 
 	virtual void Remove(const FTopologicalShapeEntity*) = 0;

@@ -36,6 +36,11 @@ protected:
 
 public:
 
+	virtual ~FTopologicalVertex() override
+	{
+		Empty();
+	}
+
 	static TSharedRef<FTopologicalVertex> Make(const FPoint& InCoordinate)
 	{
 		TSharedRef<FTopologicalVertex> Vertex = FEntity::MakeShared<FTopologicalVertex>(InCoordinate);

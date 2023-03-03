@@ -46,7 +46,7 @@ bool FTopologicalVertex::IsBorderVertex()
 {
 	for (FTopologicalVertex* Vertex : GetTwinEntities())
 	{
-		if (Vertex != nullptr)
+		if (Vertex != nullptr && !Vertex->IsDeleted())
 		{
 			for (const FTopologicalEdge* Edge : Vertex->GetDirectConnectedEdges())
 			{

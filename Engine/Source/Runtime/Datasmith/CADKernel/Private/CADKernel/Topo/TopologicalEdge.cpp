@@ -358,13 +358,18 @@ void FTopologicalEdge::Link(FTopologicalEdge& Twin)
 
 void FTopologicalEdge::Empty()
 {
-	StartVertex->RemoveConnectedEdge(*this);
-	StartVertex->DeleteIfIsolated();
-	EndVertex->RemoveConnectedEdge(*this);
-	EndVertex->DeleteIfIsolated();
-
-	StartVertex.Reset();
-	EndVertex.Reset();
+	if (StartVertex.IsValid())
+	{
+		StartVertex->RemoveConnectedEdge(*this);
+		StartVertex->DeleteIfIsolated();
+		StartVertex.Reset();
+	}
+	if (EndVertex.IsValid())
+	{
+		EndVertex->RemoveConnectedEdge(*this);
+		EndVertex->DeleteIfIsolated();
+		EndVertex.Reset();
+	}
 
 	if (TopologicalLink.IsValid())
 	{
@@ -945,7 +950,10 @@ void FTopologicalEdge::ReplaceEdgeVertex(bool bIsStartVertex, TSharedRef<FTopolo
 	NewVertex->AddConnectedEdge(*this);
 
 	TSharedPtr<FTopologicalVertex>& OldVertex = bIsStartVertex ? StartVertex : EndVertex;
-	OldVertex->Link(*NewVertex);
+	if (OldVertex->GetTwinEntityCount() > 1)
+	{
+		OldVertex->Link(*NewVertex);
+	}
 
 	OldVertex->RemoveConnectedEdge(*this);
 

@@ -81,6 +81,10 @@ public:
 
 	virtual void Empty() override
 	{
+		for (FOrientedEdge& Edge : Edges)
+		{
+			Edge.Entity->Empty();
+		}
 		Edges.Empty();
 		FTopologicalEntity::Empty();
 	}

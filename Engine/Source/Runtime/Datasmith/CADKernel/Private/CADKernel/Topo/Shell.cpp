@@ -395,7 +395,7 @@ int32 FShell::Orient()
 
 		for (FTopologicalFace* Face : Subshell)
 		{
-			if (Face == nullptr)
+			if (Face == nullptr || Face->IsDeleted())
 			{
 				continue;
 			}

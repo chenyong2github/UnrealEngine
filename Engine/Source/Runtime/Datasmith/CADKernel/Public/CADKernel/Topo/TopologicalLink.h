@@ -35,6 +35,10 @@ protected:
 	}
 
 public:
+	virtual ~TTopologicalLink<EntityType>() override
+	{
+		Empty();
+	}
 
 	virtual void Serialize(FCADKernelArchive& Ar) override
 	{
@@ -70,7 +74,7 @@ public:
 
 	int32 GetTwinEntityNum() const
 	{
-		return (int32)TwinEntities.Num();
+		return TwinEntities.Num();
 	}
 
 	const TArray<EntityType*>& GetTwinEntities() const

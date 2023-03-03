@@ -19,6 +19,11 @@ protected:
 public:
 	TLinkable() = default;
 
+	virtual ~TLinkable() override
+	{
+		Empty();
+	}
+
 	void Finalize()
 	{
 		ensureCADKernel(!TopologicalLink.IsValid());
@@ -29,6 +34,11 @@ public:
 	{
 		FTopologicalEntity::Serialize(Ar);
 		SerializeIdent(Ar, TopologicalLink);
+	}
+
+	virtual void Empty() override
+	{
+		TopologicalLink.Reset();
 	}
 
 	const TSharedRef<const EntityType> GetLinkActiveEntity() const
