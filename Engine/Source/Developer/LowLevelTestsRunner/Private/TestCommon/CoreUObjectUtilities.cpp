@@ -87,7 +87,11 @@ void InitCoreUObject()
 	#endif // UE_LLT_USE_PLATFORM_FILE_STUB
 #endif // WITH_ENGINE
 
+		FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::PreObjectSystemReady);
+
 		ProcessNewlyLoadedUObjects();
+
+		FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::ObjectSystemReady);
 	}
 }
 

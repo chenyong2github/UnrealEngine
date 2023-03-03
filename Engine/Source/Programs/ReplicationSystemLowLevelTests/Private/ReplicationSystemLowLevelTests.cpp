@@ -3,6 +3,8 @@
 #include "Iris/IrisConfig.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "Modules/ModuleManager.h"
 #include "Net/Core/Trace/Private/NetTraceInternal.h"
 #include "ProfilingDebugging/TraceAuxiliary.h"
@@ -11,6 +13,25 @@
 #include "TestCommon/Initialization.h"
 
 #include <catch2/catch_test_macros.hpp>
+
+namespace
+{
+	FDelayedAutoRegisterHelper DelayedAutoRegister_PreObjectSystemReady(EDelayedRegisterRunPhase::PreObjectSystemReady, []
+	{
+		// Set up Iris config here in code so we can avoid having to load ini files from disk.
+		const TArray<FString> StructsSupportingNetSerializerList =
+		{
+			TEXT("(StructName=RootMotionSource)"),
+			TEXT("(StructName=RootMotionSource_ConstantForce)"),
+			TEXT("(StructName=RootMotionSource_RadialForce)"),
+			TEXT("(StructName=RootMotionSource_MoveToForce)"),
+			TEXT("(StructName=RootMotionSource_MoveToDynamicForce)"),
+			TEXT("(StructName=RootMotionSource_JumpForce)")
+		};
+
+		GConfig->SetArray(TEXT("/Script/IrisCore.ReplicationStateDescriptorConfig"), TEXT("SupportsStructNetSerializerList"), StructsSupportingNetSerializerList, GEngineIni);
+	});
+}
 
 GROUP_BEFORE_GLOBAL(Catch::DefaultGroup)
 {
