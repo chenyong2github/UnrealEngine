@@ -186,7 +186,7 @@ void FUObjectArray::DisableDisregardForGC()
 	}
 }
 
-void FUObjectArray::AllocateUObjectIndex(UObjectBase* Object, int32 AlreadyAllocatedIndex, int32 SerialNumber)
+void FUObjectArray::AllocateUObjectIndex(UObjectBase* Object, EInternalObjectFlags InitialFlags, int32 AlreadyAllocatedIndex, int32 SerialNumber)
 {
 	int32 Index = INDEX_NONE;
 	check(Object->InternalIndex == INDEX_NONE);
@@ -235,7 +235,7 @@ void FUObjectArray::AllocateUObjectIndex(UObjectBase* Object, int32 AlreadyAlloc
 	UE_CLOG(ObjectItem->Object != nullptr, LogUObjectArray, Fatal, TEXT("Attempting to add %s at index %d but another object (0x%016llx) exists at that index!"), *Object->GetFName().ToString(), Index, (int64)(PTRINT)ObjectItem->Object);
 	ObjectItem->Object = Object;
 	// At this point all not-compiled-in objects are not fully constructed yet and this is the earliest we can mark them as such
-	ObjectItem->Flags = (int32)EInternalObjectFlags::PendingConstruction;
+	ObjectItem->Flags = (int32)(EInternalObjectFlags::PendingConstruction | InitialFlags);
 	ObjectItem->ClusterRootIndex = 0;
 	ObjectItem->SerialNumber = SerialNumber;
 	Object->InternalIndex = Index;

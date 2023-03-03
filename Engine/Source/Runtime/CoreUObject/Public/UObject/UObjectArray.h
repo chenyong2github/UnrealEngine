@@ -693,10 +693,11 @@ public:
 	 * Adds a uobject to the global array which is used for uobject iteration
 	 *
 	 * @param	Object Object to allocate an index for
+	 * @param	InitialFlags Flags to set in the object array before the object pointer becomes visible to other threads. 
 	 * @param	AlreadyAllocatedIndex already allocated internal index to use, negative value means allocate a new index
 	 * @param	SerialNumber serial number to use
 	 */
-	void AllocateUObjectIndex(class UObjectBase* Object, int32 AlreadyAllocatedIndex = -1, int32 SerialNumber = 0);
+	void AllocateUObjectIndex(class UObjectBase* Object, EInternalObjectFlags InitialFlags, int32 AlreadyAllocatedIndex = -1, int32 SerialNumber = 0);
 
 	/**
 	 * Returns a UObject index top to the global uobject array

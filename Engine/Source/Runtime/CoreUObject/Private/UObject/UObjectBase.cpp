@@ -218,13 +218,8 @@ void UObjectBase::AddObject(FName InName, EInternalObjectFlags InSetInternalFlag
 		InternalFlagsToSet |= EInternalObjectFlags::Native;
 		ObjectFlags &= ~RF_MarkAsNative;
 	}
-	GUObjectArray.AllocateUObjectIndex(this, InInternalIndex, InSerialNumber);
+	GUObjectArray.AllocateUObjectIndex(this, InternalFlagsToSet, InInternalIndex, InSerialNumber);
 	check(InName != NAME_None && InternalIndex >= 0);
-	if (InternalFlagsToSet != EInternalObjectFlags::None)
-	{
-		GUObjectArray.IndexToObject(InternalIndex)->SetFlags(InternalFlagsToSet);
-	
-	}	
 	HashObject(this);
 	check(IsValidLowLevel());
 }
