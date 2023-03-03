@@ -12,6 +12,7 @@
 #include "SkeletalRenderPublic.h"
 #include "GroomComponent.h"
 #include "GroomInstance.h"
+#include "DeformerGroomComponentSource.h"
 
 FString UOptimusGroomWriteDataInterface::GetDisplayName() const
 {
@@ -25,8 +26,11 @@ FName UOptimusGroomWriteDataInterface::GetCategory() const
 
 TArray<FOptimusCDIPinDefinition> UOptimusGroomWriteDataInterface::GetPinDefinitions() const
 {
+	FName ControlPoint(UOptimusGroomComponentSource::Domains::ControlPoint);
+	FName Curve(UOptimusGroomComponentSource::Domains::Curve);
+
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({ "Position", "WritePosition", Optimus::DomainName::Vertex, "ReadNumControlPoints" }); // ControlPoint domain?
+	Defs.Add({ "Position", "WritePosition", ControlPoint, "ReadNumControlPoints" });
 	return Defs;
 }
 

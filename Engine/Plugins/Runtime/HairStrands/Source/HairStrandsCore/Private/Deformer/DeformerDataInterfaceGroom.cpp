@@ -12,6 +12,7 @@
 #include "RenderGraphBuilder.h"
 #include "GlobalRenderResources.h"
 #include "HairStrandsDefinitions.h"
+#include "DeformerGroomComponentSource.h"
 
 FString UOptimusGroomDataInterface::GetDisplayName() const
 {
@@ -20,17 +21,20 @@ FString UOptimusGroomDataInterface::GetDisplayName() const
 
 TArray<FOptimusCDIPinDefinition> UOptimusGroomDataInterface::GetPinDefinitions() const
 {
+	FName ControlPoint(UOptimusGroomComponentSource::Domains::ControlPoint);
+	FName Curve(UOptimusGroomComponentSource::Domains::Curve);
+
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({"NumControlPoints", "ReadNumControlPoints"});
-	Defs.Add({"NumCurves",        "ReadNumCurves" });
-	Defs.Add({"Position",         "ReadPosition",          Optimus::DomainName::Vertex,   "ReadPosition"});
-	Defs.Add({"Radius",           "ReadRadius",            Optimus::DomainName::Vertex,   "ReadRadius" });
-	Defs.Add({"CoordU",           "ReadCoordU",            Optimus::DomainName::Vertex,   "ReadCoordU" });
-	Defs.Add({"Length",           "ReadLength",            Optimus::DomainName::Vertex,   "ReadLength" });
-	Defs.Add({"RootUV",           "ReadRootUV",            Optimus::DomainName::Vertex,   "ReadRootUV" });
-	Defs.Add({"Seed",             "ReadSeed",              Optimus::DomainName::Vertex,   "ReadSeed"   });
-	Defs.Add({"CurveOffsetPoint", "ReadCurveOffsetPoint",  Optimus::DomainName::Triangle, "ReadCurveOffsetPoint" });
-	Defs.Add({"CurveNumPoint",    "ReadCurveNumPoint",     Optimus::DomainName::Triangle, "ReadCurveNumPoint" });
+	Defs.Add({ "NumControlPoints", "ReadNumControlPoints" });
+	Defs.Add({ "NumCurves",        "ReadNumCurves" });
+	Defs.Add({ "Position",         "ReadPosition",          ControlPoint,   "ReadPosition" });
+	Defs.Add({ "Radius",           "ReadRadius",            ControlPoint,   "ReadRadius" });
+	Defs.Add({ "CoordU",           "ReadCoordU",            ControlPoint,   "ReadCoordU" });
+	Defs.Add({ "Length",           "ReadLength",            ControlPoint,   "ReadLength" });
+	Defs.Add({ "RootUV",           "ReadRootUV",            ControlPoint,   "ReadRootUV" });
+	Defs.Add({ "Seed",             "ReadSeed",              ControlPoint,   "ReadSeed" });
+	Defs.Add({ "CurveOffsetPoint", "ReadCurveOffsetPoint",  Curve,          "ReadCurveOffsetPoint" });
+	Defs.Add({ "CurveNumPoint",    "ReadCurveNumPoint",     Curve,          "ReadCurveNumPoint" });
 	return Defs;
 }
  
