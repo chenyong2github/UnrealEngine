@@ -1771,21 +1771,43 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 	SegmentStack.Reserve(5 * NodeCycleNum);
 
 	{
+		using BoolIter = TArray<bool>::RangedForConstIteratorType;
+		using SegmentIter = TArray<FIsoSegment*>::RangedForConstIteratorType;
+
+		TFunction<bool(FIsoSegment*, EIsoSegmentStates)> HasTriangleOn = [](FIsoSegment* Segment, EIsoSegmentStates Side) -> bool
+		{
+			if (Segment->HasTriangleOn(Side))
+			{
+#ifdef CADKERNEL_DEV
+				Wait();
+				ensureCADKernel(false);
+#endif
+				return true;
+			}
+			Segment->SetHasTriangleOn(Side);
+			return false;
+		};
+
+
 		// Get cycle's nodes and set segments as they have a triangle outside the cycle (to don't try to mesh outside the cycle)
-		auto SegmentOrientation = CycleOrientation.begin();
-		for (auto Segment = Cycle.begin(); Segment != Cycle.end(); ++Segment, ++SegmentOrientation)
+		BoolIter SegmentOrientation = CycleOrientation.begin();
+		for (SegmentIter Segment = Cycle.begin(); Segment != Cycle.end(); ++Segment, ++SegmentOrientation)
 		{
 			if (*SegmentOrientation)
 			{
 				CycleNodes.Add(&(*Segment)->GetFirstNode());
-				ensureCADKernel(!(*Segment)->HasTriangleOnRight());
-				(*Segment)->SetHasTriangleOnRight();
+				if (HasTriangleOn(*Segment, EIsoSegmentStates::RightTriangle))
+				{
+					return;
+				}
 			}
 			else
 			{
 				CycleNodes.Add(&(*Segment)->GetSecondNode());
-				ensureCADKernel(!(*Segment)->HasTriangleOnLeft());
-				(*Segment)->SetHasTriangleOnLeft();
+				if (HasTriangleOn(*Segment, EIsoSegmentStates::LeftTriangle))
+				{
+					return;
+				}
 			}
 		}
 
@@ -2010,12 +2032,20 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 			double CandidateSlopeAtStartNode = 8.;
 			double CandidateSlopeAtEndNode = 8.;
 
-
 			// To avoid to create triangle crossing natural iso line (a line carrying iso edges)
 			// the iso edges connecting an inside node to an external node (vs the loop) are added to InnerToOuterSegmentsIntersectionTool
 			// the selected triangle is the triangle minimizing the number of intersection with these lines
+			int32 MaxMaxIntersections = 1;
+			for (FIsoNode* Node : CycleNodes)
+			{
+				if (Node->IsALoopNode())
+				{
+					MaxMaxIntersections++;
+				}
+			}
+
 			int32 MaxIntersections = 1;
-			for (int32 IntersectionCountAllow = 0; IntersectionCountAllow < MaxIntersections; IntersectionCountAllow++)
+			for (int32 IntersectionCountAllow = 0; IntersectionCountAllow < MaxIntersections && IntersectionCountAllow <= MaxMaxIntersections; IntersectionCountAllow++)
 			{
 				for (FIsoNode* Node : CycleNodes)
 				{
@@ -2119,15 +2149,18 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 							Wait();
 						}
 #endif
-						int32 IntersectionCount = InnerToOuterSegmentsIntersectionTool.CountIntersections(StartNode, *Node);
-						IntersectionCount = FMath::Max(IntersectionCount, InnerToOuterSegmentsIntersectionTool.CountIntersections(EndNode, *Node));
-						if (IntersectionCount > IntersectionCountAllow)
+						if (IntersectionCountAllow < MaxMaxIntersections)
 						{
-							if (IntersectionCount >= MaxIntersections)
+							int32 IntersectionCount = InnerToOuterSegmentsIntersectionTool.CountIntersections(StartNode, *Node);
+							IntersectionCount = FMath::Max(IntersectionCount, InnerToOuterSegmentsIntersectionTool.CountIntersections(EndNode, *Node));
+							if (IntersectionCount > IntersectionCountAllow)
 							{
-								MaxIntersections = IntersectionCount + 1;
+								if (IntersectionCount >= MaxIntersections)
+								{
+									MaxIntersections = IntersectionCount + 1;
+								}
+								continue;
 							}
-							continue;
 						}
 
 						MinCriteria = PointCriteria;
@@ -3153,12 +3186,14 @@ void FIsoTriangulator::TryToConnectTwoSubLoopsWithTheMostIsoSegment(FCell& Cell,
 #endif
 
 	const double FlatSlope = 0.10; // ~5 deg: The segment must make an angle less than 10 deg with the Iso
-	double MinSlope = FlatSlope + DOUBLE_SMALL_NUMBER;// 0.25; // ~15 deg: The segment must make an angle less than 10 deg with the Iso
 
 	for (FLoopNode* CandidateA : LoopA)
 	{
 		FLoopNode* CandidateB = nullptr;
 		const FPoint2D& ACoordinates = CandidateA->Get2DPoint(EGridSpace::UniformScaled, Grid);
+
+		double MinSlope = FlatSlope + DOUBLE_SMALL_NUMBER;// 0.25; // ~15 deg: The segment must make an angle less than 10 deg with the Iso
+		double MinLengthSquare = HUGE_VALUE;
 
 		for (FLoopNode* NodeB : LoopB)
 		{
@@ -3168,6 +3203,16 @@ void FIsoTriangulator::TryToConnectTwoSubLoopsWithTheMostIsoSegment(FCell& Cell,
 			if (Slope < MinSlope)
 			{
 				MinSlope = Slope;
+				// If the slope of the candidate segments is nearly zero, then select the shortest
+				if (MinSlope < DOUBLE_KINDA_SMALL_NUMBER)
+				{
+					double DistanceSquare = BCoordinates.SquareDistance(ACoordinates);
+					if (DistanceSquare > MinLengthSquare)
+					{
+						continue;
+					}
+					MinLengthSquare = DistanceSquare;
+				}
 				CandidateB = NodeB;
 			}
 		}

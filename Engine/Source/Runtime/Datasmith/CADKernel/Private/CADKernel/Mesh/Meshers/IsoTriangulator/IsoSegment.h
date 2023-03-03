@@ -173,6 +173,16 @@ public:
 		States |= EIsoSegmentStates::RightCycle;
 	}
 
+	bool HasTriangleOn(EIsoSegmentStates Side)
+	{
+		return (States & Side) == Side;
+	}
+
+	void SetHasTriangleOn(EIsoSegmentStates Side)
+	{
+		States |= Side;
+	}
+
 	bool HasTriangleOnLeft()
 	{
 		return (States & EIsoSegmentStates::LeftTriangle) == EIsoSegmentStates::LeftTriangle;

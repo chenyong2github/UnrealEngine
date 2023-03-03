@@ -81,14 +81,15 @@ Only available with CADKernel.\n\
 Default value of ForceFactor is 5.\n"),
 ECVF_Default);
 
-bool FImportParameters::bGStitchingRemoveThinFaces = true;
-FAutoConsoleVariableRef GCADTranslatorStitchingRemoveThinFaces(
+bool FImportParameters::bGStitchingRemoveThinFaces = false;
+/*FAutoConsoleVariableRef GCADTranslatorStitchingRemoveThinFaces(
 	TEXT("ds.CADTranslator.Stitching.RemoveThinFaces"),
 	FImportParameters::bGStitchingRemoveThinFaces,
 	TEXT("During the welding process, Thin faces are removed before the stiching process. The width of the thin faces is equal to the force sew tolerance.\n\
 Only available with CADKernel.\n\
 Default value of RemoveThinFaces is true\n"),
 ECVF_Default);
+*/
 
 bool FImportParameters::bGStitchingRemoveDuplicatedFaces = true;
 FAutoConsoleVariableRef GCADTranslatorStitchingRemoveDuplicatedFaces(
