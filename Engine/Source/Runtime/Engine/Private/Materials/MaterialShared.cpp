@@ -1619,9 +1619,29 @@ bool FMaterialResource::IsUsedWithAPEXCloth() const
 
 bool FMaterialResource::IsUsedWithNanite() const
 {
-	static auto NaniteForceEnableMeshesCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.ForceEnableMeshes"));
+	if (Material->bUsedWithNanite)
+	{
+		return true;
+	}
 
-	return Material->bUsedWithNanite || (NaniteForceEnableMeshesCvar && NaniteForceEnableMeshesCvar->GetValueOnAnyThread() != 0);
+	static const auto NaniteForceEnableMeshesCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.ForceEnableMeshes"));
+	static const bool bNaniteForceEnableMeshes = NaniteForceEnableMeshesCvar && NaniteForceEnableMeshesCvar->GetValueOnAnyThread() != 0;
+
+	if (bNaniteForceEnableMeshes)
+	{
+		const bool bIsInGameThread = (IsInGameThread() || IsInParallelGameThread());
+		const FMaterialShaderMap* ShaderMap = bIsInGameThread ? GetGameThreadShaderMap() : GetRenderingThreadShaderMap();
+
+		bool bIsCookedMaterial = (ShaderMap && ShaderMap->GetShaderMapId().IsCookedId());
+		if (bIsCookedMaterial)
+		{
+			return Material->bUsedWithNanite;
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 bool FMaterialResource::IsUsedWithVolumetricCloud() const

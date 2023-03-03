@@ -2082,6 +2082,11 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 
 			const EBlendMode BlendMode = Entry.Material->GetBlendMode();
 
+			if (bForceEnabled)
+			{
+				const_cast<UMaterial*>(Material)->UsageFlagWarnings |= MATUSAGE_Nanite;
+			}
+
 			const FMaterialCachedExpressionData& CachedMaterialData = Material->GetCachedExpressionData();
 			Entry.bHasVertexInterpolator	= CachedMaterialData.bHasVertexInterpolator;
 			Entry.bHasPerInstanceRandomID	= CachedMaterialData.bHasPerInstanceRandom;
@@ -2089,7 +2094,7 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 			Entry.bHasPixelDepthOffset		= Material->HasPixelDepthOffsetConnected();
 			Entry.bHasWorldPositionOffset	= Material->HasVertexPositionOffsetConnected();
 			Entry.bHasUnsupportedBlendMode	= !IsSupportedBlendMode(BlendMode);
-			Entry.bHasInvalidUsage			= bForceEnabled ? false : !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
+			Entry.bHasInvalidUsage			= !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
 
 			if (BlendMode == BLEND_Masked)
 			{
