@@ -215,6 +215,8 @@ public:
 			Sequencer = nullptr;
 		}
 
+		Content->SetContent(SNew(STextBlock).Text(LOCTEXT("NothingSelected", "Select a sequence")));
+
 		if (WeakBlueprintEditor.IsValid() && WeakBlueprintEditor.Pin()->IsHosted())
 		{
 			const FName CurveEditorTabName = FName(TEXT("SequencerGraphEditor"));
