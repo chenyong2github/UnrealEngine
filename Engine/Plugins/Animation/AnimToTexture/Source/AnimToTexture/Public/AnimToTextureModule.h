@@ -4,6 +4,8 @@
 
 #include "Modules/ModuleManager.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogAnimToTexture, Log, All);
+
 class FAnimToTextureModule : public IModuleInterface
 {
 public:

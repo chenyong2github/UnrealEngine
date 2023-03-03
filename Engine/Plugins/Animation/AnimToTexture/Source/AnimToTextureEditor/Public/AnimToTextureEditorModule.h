@@ -4,6 +4,8 @@
 
 #include "Modules/ModuleManager.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogAnimToTextureEditor, Log, All);
+
 class FAnimToTextureEditorModule : public IModuleInterface
 {
 public:

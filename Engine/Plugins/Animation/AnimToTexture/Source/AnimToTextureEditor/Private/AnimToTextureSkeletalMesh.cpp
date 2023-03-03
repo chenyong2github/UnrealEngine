@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AnimToTextureSkeletalMesh.h"
+#include "AnimToTextureEditorModule.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
@@ -207,7 +208,7 @@ void GetSkinWeights(const USkeletalMesh* SkeletalMesh, const int32 LODIndex,
 
 	if (!RenderData->LODRenderData.IsValidIndex(LODIndex))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid LODIndex: %i"), LODIndex)
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid LODIndex: %i"), LODIndex)
 		return;
 	}
 

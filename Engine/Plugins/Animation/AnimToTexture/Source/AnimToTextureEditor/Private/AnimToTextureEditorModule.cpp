@@ -1,16 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimToTexture.h"
+#include "AnimToTextureEditorModule.h"
 
-#define LOCTEXT_NAMESPACE "FAnimToTextureModule"
+#define LOCTEXT_NAMESPACE "FAnimToTextureEditorModule"
 
-void FAnimToTextureModule::StartupModule()
+DEFINE_LOG_CATEGORY(LogAnimToTextureEditor);
+
+void FAnimToTextureEditorModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 	
 }
 
-void FAnimToTextureModule::ShutdownModule()
+void FAnimToTextureEditorModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
@@ -19,4 +21,4 @@ void FAnimToTextureModule::ShutdownModule()
 
 #undef LOCTEXT_NAMESPACE
 	
-IMPLEMENT_MODULE(FAnimToTextureModule, AnimToTexture)
+IMPLEMENT_MODULE(FAnimToTextureEditorModule, AnimToTextureEditor)

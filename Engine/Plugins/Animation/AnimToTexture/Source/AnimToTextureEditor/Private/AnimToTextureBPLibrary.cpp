@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimToTextureBPLibrary.h"
-#include "AnimToTexture.h"
+#include "AnimToTextureEditorModule.h"
 #include "AnimToTextureUtils.h"
 #include "AnimToTextureSkeletalMesh.h"
-#include "EvaluateSequenceAnimInstance.h"
 
 #include "LevelEditor.h"
 #include "RawMesh.h"
 #include "MeshUtilities.h"
+#include "Modules/ModuleManager.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/Skeleton.h"
@@ -42,35 +42,35 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	// Check StaticMesh
 	if (!DataAsset->GetStaticMesh())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid StaticMesh"));
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid StaticMesh"));
 		return;
 	}
 
 	// Check SkeletalMesh
 	if (!DataAsset->GetSkeletalMesh())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid SkeletalMesh"));
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid SkeletalMesh"));
 		return;
 	}
 
 	// Check Skeleton
 	if (!DataAsset->GetSkeletalMesh()->GetSkeleton())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid SkeletalMesh. No valid Skeleton found"));
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid SkeletalMesh. No valid Skeleton found"));
 		return;
 	}
 
 	// Check StaticMesh LOD
 	if (!DataAsset->GetStaticMesh()->IsSourceModelValid(DataAsset->StaticLODIndex))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid StaticMesh LOD Index"));
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid StaticMesh LOD Index: %i"), DataAsset->StaticLODIndex);
 		return;
 	}
 
 	// Check SkeletalMesh LOD
 	if (!DataAsset->GetSkeletalMesh()->IsValidLODIndex(DataAsset->SkeletalLODIndex))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid SkeletalMesh LOD Index"));
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid SkeletalMesh LOD Index: %i"), DataAsset->SkeletalLODIndex);
 		return;
 	}
 
@@ -84,13 +84,13 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Invalid Socket: %s"), *DataAsset->AttachToSocket.ToString());
+			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid Socket: %s"), *DataAsset->AttachToSocket.ToString());
 			return;
 		}
 	}
 	if (bValidSocket && DataAsset->Mode == EAnimToTextureMode::Vertex)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Unable to use Socket in Vertex Mode. Use Bone Mode instead."));
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Unable to use Socket in Vertex Mode. Use Bone Mode instead."));
 		return;
 	}
 
@@ -99,9 +99,33 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	if (SourceModel.BuildSettings.bGenerateLightmapUVs &&
 		SourceModel.BuildSettings.DstLightmapIndex == DataAsset->UVChannel)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid UVChannel: %i. Already used by LightMap"), DataAsset->UVChannel);
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid UVChannel: %i. Already used by LightMap"), DataAsset->UVChannel);
 		return;
 	}
+
+	// Check Animations
+	int32 NumAnimations = 0;
+	for (const FAnimToTextureAnimSequenceInfo& AnimSequenceInfo : DataAsset->AnimSequences)
+	{
+		const UAnimSequence* AnimSequence = AnimSequenceInfo.AnimSequence;
+		if (AnimSequenceInfo.bEnabled && AnimSequence)
+		{
+			// Check Frame Range
+			if (AnimSequenceInfo.bUseCustomRange && 
+				(AnimSequenceInfo.EndFrame - AnimSequenceInfo.StartFrame) <= 0 )
+			{ 
+				UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid Custom Range for AnimSequence: %s"), *AnimSequence->GetName());
+				return;
+			}
+
+			NumAnimations++;
+		}
+	}
+	if (!NumAnimations)
+	{
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("No Animations found"));
+		return;
+	};
 
 	// ---------------------------------------------------------------------------		
 	// Get Meshes Vertices and Mapping.
@@ -136,14 +160,14 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	check(Actor);
 
 	// Create Temp SkeletalMesh Component
-	USkeletalMeshComponent* MeshComponent = NewObject<USkeletalMeshComponent>(Actor);
-	check(MeshComponent);
-	MeshComponent->SetSkeletalMesh(DataAsset->GetSkeletalMesh());
-	MeshComponent->SetForcedLOD(1); // Force to LOD0;
-	MeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-	MeshComponent->SetUpdateAnimationInEditor(true);
-	MeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
-	MeshComponent->RegisterComponent();
+	USkeletalMeshComponent* SkeletalMeshComponent = NewObject<USkeletalMeshComponent>(Actor);
+	check(SkeletalMeshComponent);
+	SkeletalMeshComponent->SetSkeletalMesh(DataAsset->GetSkeletalMesh());
+	SkeletalMeshComponent->SetForcedLOD(1); // Force to LOD0;
+	SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	SkeletalMeshComponent->SetUpdateAnimationInEditor(true);
+	SkeletalMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	SkeletalMeshComponent->RegisterComponent();
 
 	// ---------------------------------------------------------------------------
 	// Get Reference Skeleton Transforms
@@ -159,18 +183,18 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	if (DataAsset->Mode == EAnimToTextureMode::Bone)
 	{
 		// Gets Ref Bone Position and Rotations.
-		NumBones = GetRefBonePositionsAndRotations(MeshComponent,
+		NumBones = GetRefBonePositionsAndRotations(SkeletalMeshComponent,
 			BoneRefPositions, BoneRefRotations);
 
 		// NOTE: there is a limitation with the number of bones atm.
 		if (NumBones > 256)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Invalid Number of Bones. There is a maximum of 256 bones"))
+			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid Number of Bones. There is a maximum of 256 bones"))
 			return;
 		}
 
 		// Get Bone Names (no virtual)
-		GetBoneNames(MeshComponent->GetSkeletalMeshAsset(), BoneNames);
+		GetBoneNames(SkeletalMeshComponent->GetSkeletalMeshAsset(), BoneNames);
 
 		// Make sure array sizes are correct.
 		check(BoneNames.Num() == NumBones);
@@ -178,7 +202,7 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		// Check if Socket is in BoneNames
 		if (bValidSocket && !BoneNames.Find(DataAsset->AttachToSocket, SocketIndex))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Socket: %s not found in Raw Bone List"), *DataAsset->AttachToSocket.ToString());
+			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Socket: %s not found in Raw Bone List"), *DataAsset->AttachToSocket.ToString());
 			return;
 		}
 
@@ -198,7 +222,7 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	//
 	const float SampleInterval = 1.f / DataAsset->SampleRate;
 
-	for (const FAnimSequenceInfo& AnimSequenceInfo : DataAsset->AnimSequences)
+	for (const FAnimToTextureAnimSequenceInfo& AnimSequenceInfo : DataAsset->AnimSequences)
 	{
 		UAnimSequence* AnimSequence = AnimSequenceInfo.AnimSequence;
 
@@ -208,15 +232,15 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		}
 		
 		// Make sure SkeletalMesh is compatible with AnimSequence
-		if (!MeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatibleForEditor(AnimSequence->GetSkeleton()))
+		if (!SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatibleForEditor(AnimSequence->GetSkeleton()))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Invalid AnimSequence: %s for given SkeletalMesh: %s"), *AnimSequence->GetFName().ToString(), *MeshComponent->GetSkeletalMeshAsset()->GetFName().ToString());
+			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid AnimSequence: %s for given SkeletalMesh: %s"), *AnimSequence->GetFName().ToString(), *SkeletalMeshComponent->GetSkeletalMeshAsset()->GetFName().ToString());
 			continue;
 		}
 		// Set AnimSequence
 		else
 		{			
-			MeshComponent->SetAnimation(AnimSequence);
+			SkeletalMeshComponent->SetAnimation(AnimSequence);
 		}
 
 		// -----------------------------------------------------------------------------------
@@ -255,12 +279,12 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 			SampleIndex++;
 
 			// Go To Time
-			MeshComponent->SetPosition(Time);
+			SkeletalMeshComponent->SetPosition(Time);
 
 			// Update SkelMesh Animation.
-			MeshComponent->TickAnimation(0.f, false /*bNeedsValidRootMotion*/);
-			// MeshComponent->TickComponent(0.f, ELevelTick::LEVELTICK_All, nullptr);
-			MeshComponent->RefreshBoneTransforms(nullptr /*TickFunction*/);
+			SkeletalMeshComponent->TickAnimation(0.f, false /*bNeedsValidRootMotion*/);
+			// SkeletalMeshComponent->TickComponent(0.f, ELevelTick::LEVELTICK_All, nullptr);
+			SkeletalMeshComponent->RefreshBoneTransforms(nullptr /*TickFunction*/);
 			
 			// ---------------------------------------------------------------------------
 			// Store Vertex Deltas & Normals.
@@ -270,7 +294,7 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 				TArray<FVector3f> VertexFrameDeltas;
 				TArray<FVector3f> VertexFrameNormals;
 				
-				GetVertexDeltasAndNormals(MeshComponent, DataAsset->SkeletalLODIndex,
+				GetVertexDeltasAndNormals(SkeletalMeshComponent, DataAsset->SkeletalLODIndex,
 					Vertices, Normals, Mapping,
 					RootTransform,
 					VertexFrameDeltas, VertexFrameNormals);
@@ -288,7 +312,7 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 				TArray<FVector3f> BoneFramePositions;
 				TArray<FVector4> BoneFrameRotations;
 
-				GetBonePositionsAndRotations(MeshComponent, BoneRefPositions,
+				GetBonePositionsAndRotations(SkeletalMeshComponent, BoneRefPositions,
 					BoneFramePositions, BoneFrameRotations);
 
 				BonePositions.Append(BoneFramePositions);
@@ -299,19 +323,18 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		} // End Frame
 
 		// Store Anim Info Data
-		FAnimInfo AnimInfo;
-		AnimInfo.NumFrames = SampleIndex;
-		AnimInfo.AnimStart = DataAsset->NumFrames;
-		AnimInfo.bLooping = AnimSequenceInfo.bLooping;
+		FAnimToTextureAnimInfo AnimInfo;
+		AnimInfo.StartFrame = DataAsset->NumFrames;
+		AnimInfo.EndFrame = DataAsset->NumFrames + EndFrame;
 		DataAsset->Animations.Add(AnimInfo);
 
 		// Accumulate Frames
-		DataAsset->NumFrames += AnimInfo.NumFrames;
+		DataAsset->NumFrames += SampleIndex;
 	} // End Anim
 		
 	// Destroy Temp Component
-	MeshComponent->UnregisterComponent();
-	MeshComponent->DestroyComponent();
+	SkeletalMeshComponent->UnregisterComponent();
+	SkeletalMeshComponent->DestroyComponent();
 
 	Actor->Destroy();
 	
@@ -332,7 +355,7 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 								Height, Width, DataAsset->VertexRowsPerFrame, 
 								DataAsset->MaxHeight, DataAsset->MaxWidth, DataAsset->bEnforcePowerOfTwo))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Vertex Animation data cannot be fit in a %ix%i texture."), DataAsset->MaxHeight, DataAsset->MaxWidth);
+			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Vertex Animation data cannot be fit in a %ix%i texture."), DataAsset->MaxHeight, DataAsset->MaxWidth);
 			return;
 		}
 
@@ -378,7 +401,7 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 								Height, Width, DataAsset->BoneRowsPerFrame, 
 								DataAsset->MaxHeight, DataAsset->MaxWidth, DataAsset->bEnforcePowerOfTwo))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Bone Animation data cannot be fit in a %ix%i texture."), DataAsset->MaxHeight, DataAsset->MaxWidth);
+			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Bone Animation data cannot be fit in a %ix%i texture."), DataAsset->MaxHeight, DataAsset->MaxWidth);
 			return;
 		}
 
@@ -412,7 +435,7 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 								Height, Width, DataAsset->BoneWeightRowsPerFrame, 
 								DataAsset->MaxHeight, DataAsset->MaxWidth, DataAsset->bEnforcePowerOfTwo))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Weights Data cannot be fit in a %ix%i texture."), DataAsset->MaxHeight, DataAsset->MaxWidth);
+			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Weights Data cannot be fit in a %ix%i texture."), DataAsset->MaxHeight, DataAsset->MaxWidth);
 			return;
 		}
 
@@ -482,12 +505,18 @@ void UAnimToTextureBPLibrary::GetVertexDeltasAndNormals(const USkeletalMeshCompo
 	OutVertexNormals.Reset();
 
 	check(Vertices.Num() == Mapping.Num());
+	const int32 NumVertices = Vertices.Num();
 
+	// Get Deformed vertices at current frame
 	TArray<FVector3f> SkinnedVertices;
 	GetSkinnedVertices(SkeletalMeshComponent, LODIndex, SkinnedVertices);
 
+	// Allocate
+	OutVertexDeltas.SetNumUninitialized(NumVertices);
+	OutVertexNormals.SetNumUninitialized(NumVertices);
+
 	// Loop thru static vertices and find the mapped SkeletalMesh Vertex
-	for (int32 VertexIndex = 0; VertexIndex < Vertices.Num(); VertexIndex++)
+	for (int32 VertexIndex = 0; VertexIndex < NumVertices; VertexIndex++)
 	{
 		// Get Static/SkeletalMesh Mapping
 		const FVertexToMeshMapping& VertexMapping = Mapping[VertexIndex];
@@ -506,8 +535,8 @@ void UAnimToTextureBPLibrary::GetVertexDeltasAndNormals(const USkeletalMeshCompo
 		const FVector3f TransformedVertexDelta = ((FVector3f)RootTransform.TransformPosition((FVector)VertexPosition)) - Vertices[VertexIndex];
 		const FVector3f TransformedVertexNormal = (FVector3f)RootTransform.TransformVector((FVector)VertexNormal);
 		
-		OutVertexDeltas.Add(TransformedVertexDelta);
-		OutVertexNormals.Add(TransformedVertexNormal);
+		OutVertexDeltas[VertexIndex] = TransformedVertexDelta;
+		OutVertexNormals[VertexIndex] = TransformedVertexNormal;
 	}
 }
 
@@ -550,6 +579,10 @@ int32 UAnimToTextureBPLibrary::GetBonePositionsAndRotations(const USkeletalMeshC
 	const TArray<FTransform>& CompSpaceTransforms = SkeletalMeshComponent->GetComponentSpaceTransforms();
 	check(CompSpaceTransforms.Num() >= RefToLocals.Num());
 
+	// Allocate
+	BonePositions.SetNumUninitialized(NumBones);
+	BoneRotations.SetNumUninitialized(NumBones);
+
 	for (int32 BoneIndex = 0; BoneIndex < NumBones; BoneIndex++)
 	{
 		// Decompose Transformation (ComponentSpace)
@@ -568,8 +601,8 @@ int32 UAnimToTextureBPLibrary::GetBonePositionsAndRotations(const USkeletalMeshC
 		const FTransform RelativeTransform(RefToLocalMatrix);
 		DecomposeTransformation(RelativeTransform, BoneRelativePosition, BoneRelativeRotation);
 
-		BonePositions.Add(Delta);
-		BoneRotations.Add(BoneRelativeRotation);
+		BonePositions[BoneIndex] = Delta;
+		BoneRotations[BoneIndex] = BoneRelativeRotation;
 	}
 
 	return NumBones;
@@ -577,7 +610,8 @@ int32 UAnimToTextureBPLibrary::GetBonePositionsAndRotations(const USkeletalMeshC
 
 
 void UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(UAnimToTextureDataAsset* DataAsset, UMaterialInstanceConstant* MaterialInstance, 
-	const bool bAnimate, const EAnimToTextureNumBoneInfluences NumBoneInfluences, const EMaterialParameterAssociation MaterialParameterAssociation)
+	const bool bAutoPlay, const int32 AnimationIndex, 
+	const EAnimToTextureNumBoneInfluences NumBoneInfluences, const EMaterialParameterAssociation MaterialParameterAssociation)
 {
 	if (!MaterialInstance || !DataAsset)
 	{
@@ -628,7 +662,6 @@ void UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(UAnimToTexture
 		
 		VectorParameter = FLinearColor(DataAsset->VertexSizeBBox);
 		UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(MaterialInstance, AnimToTextureParamNames::BoundingBoxScale, VectorParameter, MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::NumFrames, DataAsset->NumFrames, MaterialParameterAssociation);
 		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::RowsPerFrame, DataAsset->VertexRowsPerFrame, MaterialParameterAssociation);
 
 		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, AnimToTextureParamNames::VertexPositionTexture, DataAsset->GetVertexPositionTexture(), MaterialParameterAssociation);
@@ -645,7 +678,6 @@ void UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(UAnimToTexture
 
 		VectorParameter = FLinearColor(DataAsset->BoneSizeBBox);
 		UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(MaterialInstance, AnimToTextureParamNames::BoundingBoxScale, VectorParameter, MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::NumFrames, DataAsset->NumFrames, MaterialParameterAssociation);
 		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::RowsPerFrame, DataAsset->BoneRowsPerFrame, MaterialParameterAssociation);
 		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::BoneWeightRowsPerFrame, DataAsset->BoneWeightRowsPerFrame, MaterialParameterAssociation);
 
@@ -672,8 +704,19 @@ void UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(UAnimToTexture
 
 	}
 
-	// Animate
-	UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::Animate, bAnimate, MaterialParameterAssociation);
+	// AutoPlay
+	if (bAutoPlay && DataAsset->Animations.IsValidIndex(AnimationIndex))
+	{
+		UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::AutoPlay, true, MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::StartFrame, DataAsset->Animations[AnimationIndex].StartFrame, MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::EndFrame, DataAsset->Animations[AnimationIndex].EndFrame, MaterialParameterAssociation);
+	}
+	
+	// NumFrames
+	UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::NumFrames, DataAsset->NumFrames, MaterialParameterAssociation);
+
+	// SampleRate
+	UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::SampleRate, DataAsset->SampleRate, MaterialParameterAssociation);
 
 	// Update Material
 	UMaterialEditingLibrary::UpdateMaterialInstance(MaterialInstance);
@@ -703,13 +746,21 @@ bool UAnimToTextureBPLibrary::SetLightMapIndex(UStaticMesh* StaticMesh, const in
 		return false;
 	}
 
-	// 
+	for (int32 Index=0; Index < LightmapIndex; Index++)
+	{
+		if (LightmapIndex > StaticMesh->GetNumUVChannels(LODIndex))
+		{
+			StaticMesh->AddUVChannel(LODIndex);
+		}
+	}
+
+	// Set Build Settings
 	FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(LODIndex);
 	SourceModel.BuildSettings.bGenerateLightmapUVs = bGenerateLightmapUVs;
 	SourceModel.BuildSettings.DstLightmapIndex = LightmapIndex;
 	StaticMesh->SetLightMapCoordinateIndex(LightmapIndex);
 
-	// Build mesh from source
+	// Build Mesh
 	StaticMesh->Build(false);
 	StaticMesh->PostEditChange();
 	StaticMesh->MarkPackageDirty();
@@ -732,7 +783,7 @@ UStaticMesh* UAnimToTextureBPLibrary::ConvertSkeletalMeshToStaticMesh(USkeletalM
 
 	if (LODIndex >= 0 && !SkeletalMesh->IsValidLODIndex(LODIndex))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid LODIndex: %i"), LODIndex);
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid LODIndex: %i"), LODIndex);
 		return nullptr;
 	}
 
@@ -800,7 +851,7 @@ UStaticMesh* UAnimToTextureBPLibrary::ConvertSkeletalMeshToStaticMesh(USkeletalM
 		{
 			if (LODIndex >= TempMesh->GetNumSourceModels())
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Invalid Source Model Index: %i"), LODIndex);
+				UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid Source Model Index: %i"), LODIndex);
 				bGeneratedCorrectly = false;
 			}
 			else
@@ -970,13 +1021,13 @@ bool UAnimToTextureBPLibrary::CreateUVChannel(
 	{
 		if (!StaticMesh->InsertUVChannel(LODIndex, UVChannelIndex))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Unable to Add UVChannel"));
+			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Unable to Add UVChannel"));
 			return false;
 		}
 	}
 	else if (UVChannelIndex > StaticMesh->GetNumUVChannels(LODIndex))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UVChannel: %i Out of Range. Number of existing UVChannels: %i"), UVChannelIndex, StaticMesh->GetNumUVChannels(LODIndex));
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("UVChannel: %i Out of Range. Number of existing UVChannels: %i"), UVChannelIndex, StaticMesh->GetNumUVChannels(LODIndex));
 		return false;
 	}
 
@@ -1005,7 +1056,7 @@ bool UAnimToTextureBPLibrary::CreateUVChannel(
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Unable to Set UVChannel: %i. TexCoords: %i"), UVChannelIndex, TexCoords.Num());
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Unable to Set UVChannel: %i. TexCoords: %i"), UVChannelIndex, TexCoords.Num());
 		return false;
 	};
 

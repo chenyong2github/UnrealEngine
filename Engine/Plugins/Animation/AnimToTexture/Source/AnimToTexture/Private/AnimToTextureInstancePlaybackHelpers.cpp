@@ -3,81 +3,110 @@
 #include "AnimToTextureInstancePlaybackHelpers.h"
 #include "AnimToTextureDataAsset.h"
 
-void UAnimToTextureInstancePlaybackLibrary::SetupInstancedMeshComponent(UInstancedStaticMeshComponent* InstancedMeshComponent, FAnimToTextureInstanceData& InstanceData, int32 NumInstances)
-{
-	if (InstancedMeshComponent)
+bool UAnimToTextureInstancePlaybackLibrary::SetupInstancedMeshComponent(UInstancedStaticMeshComponent* InstancedMeshComponent, int32 NumInstances, bool bAutoPlay)
+{	
+	if (!InstancedMeshComponent)
 	{
-		InstancedMeshComponent->NumCustomDataFloats = InstanceData.PlaybackData.GetTypeSize() / sizeof(float);
-		InstancedMeshComponent->PerInstanceSMData.Reset();
-		InstancedMeshComponent->PerInstanceSMData.AddDefaulted(NumInstances);
-		InstancedMeshComponent->PreAllocateInstancesMemory(NumInstances);
-		InstancedMeshComponent->PerInstanceSMCustomData.SetNumZeroed(NumInstances * InstancedMeshComponent->NumCustomDataFloats);
-		AllocateInstanceData(InstanceData, NumInstances);
-	}
-}
-
-void UAnimToTextureInstancePlaybackLibrary::BatchUpdateInstancedMeshComponent(UInstancedStaticMeshComponent* InstancedMeshComponent, FAnimToTextureInstanceData& InstanceData)
-{
-	SIZE_T CustomDataSizeToCopy = FMath::Min(InstanceData.PlaybackData.Num() * InstanceData.PlaybackData.GetTypeSize(), InstancedMeshComponent->PerInstanceSMCustomData.Num() * InstancedMeshComponent->PerInstanceSMCustomData.GetTypeSize());
-	FMemory::Memcpy(InstancedMeshComponent->PerInstanceSMCustomData.GetData(), InstanceData.PlaybackData.GetData(), CustomDataSizeToCopy);
-
-	int32 TransformsToCopy = FMath::Min(InstancedMeshComponent->GetNumRenderInstances(), InstanceData.StaticMeshInstanceData.Num());
-	InstancedMeshComponent->BatchUpdateInstancesData(0, TransformsToCopy, InstanceData.StaticMeshInstanceData.GetData(), true, false);
-}
-
-void UAnimToTextureInstancePlaybackLibrary::AllocateInstanceData(FAnimToTextureInstanceData& InstanceData, int32 Count)
-{
-	InstanceData.StaticMeshInstanceData.AddDefaulted(Count);
-	InstanceData.PlaybackData.AddDefaulted(Count);
-}
-
-bool UAnimToTextureInstancePlaybackLibrary::UpdateInstanceData(FAnimToTextureInstanceData& InstanceData, int32 InstanceIndex, const FAnimToTextureInstancePlaybackData& PlaybackData, const FTransform& Transform)
-{
-	if (InstanceData.PlaybackData.IsValidIndex(InstanceIndex) && InstanceData.StaticMeshInstanceData.IsValidIndex(InstanceIndex))
-	{
-		InstanceData.PlaybackData[InstanceIndex] = PlaybackData;
-		InstanceData.StaticMeshInstanceData[InstanceIndex].Transform = Transform.ToMatrixWithScale();
-		return true;
+		return false;
 	}
 
-	return false;
-}
+	// Clear data.
+	InstancedMeshComponent->ClearInstances();
 
-bool UAnimToTextureInstancePlaybackLibrary::GetInstancePlaybackData(const FAnimToTextureInstanceData& InstanceData, int32 InstanceIndex, FAnimToTextureInstancePlaybackData& InstancePlaybackData)
-{
-	if (InstanceData.PlaybackData.IsValidIndex(InstanceIndex))
+	if (!NumInstances)
 	{
-		InstancePlaybackData = InstanceData.PlaybackData[InstanceIndex];
-		return true;
-	}
-	
-	return false;
-}
-
-bool UAnimToTextureInstancePlaybackLibrary::GetInstanceTransform(const FAnimToTextureInstanceData& InstanceData, int32 InstanceIndex, FTransform& InstanceTransform)
-{
-	if (InstanceData.StaticMeshInstanceData.IsValidIndex(InstanceIndex))
-	{
-		InstanceTransform = FTransform(InstanceData.StaticMeshInstanceData[InstanceIndex].Transform);
-		return true;
+		return false;
 	}
 
-	return false;
+	// Allocate Transforms
+	TArray<FTransform> InstanceTransforms;
+	InstanceTransforms.AddDefaulted(NumInstances);
+
+	// Set Custom Data Length
+	const SIZE_T DataSize = bAutoPlay ? sizeof(FAnimToTextureAutoPlayData) : sizeof(FAnimToTextureFrameData);
+	InstancedMeshComponent->NumCustomDataFloats = DataSize / sizeof(float);
+
+	// Initizalize Instances
+	InstancedMeshComponent->AddInstances(InstanceTransforms, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ false);
+
+	return true;
 }
 
-bool UAnimToTextureInstancePlaybackLibrary::AnimStateFromDataAsset(const UAnimToTextureDataAsset* DataAsset, int32 StateIndex, FAnimToTextureAnimState& AnimState)
+bool UAnimToTextureInstancePlaybackLibrary::BatchUpdateInstancesAutoPlayData(UInstancedStaticMeshComponent* InstancedMeshComponent, 
+	const TArray<FAnimToTextureAutoPlayData>& AutoPlayData, const TArray<FMatrix>& Transforms, bool bMarkRenderStateDirty)
 {
-	if (DataAsset && DataAsset->Animations.IsValidIndex(StateIndex))
+	return BatchUpdateInstancesData< FAnimToTextureAutoPlayData>(InstancedMeshComponent, AutoPlayData, Transforms, bMarkRenderStateDirty);
+}
+
+bool UAnimToTextureInstancePlaybackLibrary::BatchUpdateInstancesFrameData(UInstancedStaticMeshComponent* InstancedMeshComponent,
+	const TArray<FAnimToTextureFrameData>& FrameData, const TArray<FMatrix>& Transforms, bool bMarkRenderStateDirty)
+{
+	return BatchUpdateInstancesData<FAnimToTextureFrameData>(InstancedMeshComponent, FrameData, Transforms, bMarkRenderStateDirty);
+}
+
+bool UAnimToTextureInstancePlaybackLibrary::UpdateInstanceAutoPlayData(UInstancedStaticMeshComponent* InstancedMeshComponent,
+	int32 InstanceIndex, const FAnimToTextureAutoPlayData& AutoPlayData, bool bMarkRenderStateDirty)
+{
+	return UpdateInstanceCustomData<FAnimToTextureAutoPlayData>(InstancedMeshComponent, InstanceIndex, AutoPlayData, bMarkRenderStateDirty);
+}
+
+bool UAnimToTextureInstancePlaybackLibrary::UpdateInstanceFrameData(UInstancedStaticMeshComponent* InstancedMeshComponent,
+	int32 InstanceIndex, const FAnimToTextureFrameData& FrameData, bool bMarkRenderStateDirty)
+{
+	return UpdateInstanceCustomData<FAnimToTextureFrameData>(InstancedMeshComponent, InstanceIndex, FrameData, bMarkRenderStateDirty);
+}
+
+bool UAnimToTextureInstancePlaybackLibrary::GetAutoPlayDataFromDataAsset(const UAnimToTextureDataAsset* DataAsset, int32 AnimationIndex,
+	FAnimToTextureAutoPlayData& AutoPlayData, float TimeOffset, float PlayRate)
+{
+	if (DataAsset && DataAsset->Animations.IsValidIndex(AnimationIndex))
 	{
-		const FAnimInfo& AnimInfo = DataAsset->Animations[StateIndex];
-		AnimState.StartFrame = AnimInfo.AnimStart;
-		AnimState.NumFrames = AnimInfo.NumFrames;
-		AnimState.bLooping = AnimInfo.bLooping;
+		// Copy Frame Range
+		const FAnimToTextureAnimInfo& AnimInfo = DataAsset->Animations[AnimationIndex];
+		AutoPlayData.StartFrame = AnimInfo.StartFrame;
+		AutoPlayData.EndFrame = AnimInfo.EndFrame;
+
+		AutoPlayData.TimeOffset = TimeOffset;
+		AutoPlayData.PlayRate = PlayRate;
 
 		return true;
 	}
 
-	AnimState = FAnimToTextureAnimState();
+	// Return default
+	AutoPlayData = FAnimToTextureAutoPlayData();
 	return false;
 }
 
+float UAnimToTextureInstancePlaybackLibrary::GetFrame(float Time, float StartFrame, float EndFrame, 
+	float TimeOffset, float PlayRate, float SampleRate)
+{	
+	// Clamp inputs (just in case)
+	Time = FMath::Max(Time, 0.f);
+	TimeOffset = FMath::Max(TimeOffset, 0.f);
+	PlayRate = FMath::Max(PlayRate, 0.f);
+
+	const float Frame = (Time + TimeOffset) * (PlayRate * SampleRate);
+	const float NumFrames = EndFrame - StartFrame + 1.f;
+	return FMath::Fmod(Frame, NumFrames) + StartFrame;
+}
+
+bool UAnimToTextureInstancePlaybackLibrary::GetFrameDataFromDataAsset(const UAnimToTextureDataAsset* DataAsset, int32 AnimationIndex, float Time, FAnimToTextureFrameData& FrameData, float TimeOffset, float PlayRate)
+{
+	if (DataAsset && DataAsset->Animations.IsValidIndex(AnimationIndex))
+	{
+		// Copy Frame Range
+		const FAnimToTextureAnimInfo& AnimInfo = DataAsset->Animations[AnimationIndex];
+		
+		FrameData.Frame = GetFrame(Time, AnimInfo.StartFrame, AnimInfo.EndFrame, 
+			TimeOffset, PlayRate, DataAsset->SampleRate);
+
+		// Previous Frame
+		FrameData.PrevFrame = FMath::Clamp(FrameData.Frame - 1, AnimInfo.StartFrame, AnimInfo.EndFrame);
+
+		return true;
+	}
+
+	// Return default
+	FrameData = FAnimToTextureFrameData();
+	return false;
+}

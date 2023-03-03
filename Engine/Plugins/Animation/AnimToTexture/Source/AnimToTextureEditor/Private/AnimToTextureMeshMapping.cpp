@@ -140,26 +140,6 @@ int32 FVertexToMeshMapping::FindClosestTriangle(const FVector3f& Point, const TA
 	return ClosestTriangle;
 }
 
-//int32 FindClosestVertex(const FVector3f& Point, const TArray<FVector3f>& Vertices)
-//{
-//	float MinDistance = TNumericLimits<float>::Max();
-//	int32 ClosestIndex = INDEX_NONE;
-//
-//	// Find Closest SkeletalMesh Vertex.
-//	for (int32 VertexIndex = 0; VertexIndex < Vertices.Num(); ++VertexIndex)
-//	{
-//		const float Distance = FVector3f::Dist(Point, Vertices[VertexIndex]);
-//		if (Distance < MinDistance)
-//		{
-//			MinDistance = Distance;
-//			ClosestIndex = VertexIndex;
-//		}
-//	}
-//
-//	return ClosestIndex;
-//}
-
-
 void FVertexToMeshMapping::Create(
 	const UStaticMesh* StaticMesh, const int32 StaticMeshLODIndex,	
 	const USkeletalMesh* SkeletalMesh, const int32 SkeletalMeshLODIndex,

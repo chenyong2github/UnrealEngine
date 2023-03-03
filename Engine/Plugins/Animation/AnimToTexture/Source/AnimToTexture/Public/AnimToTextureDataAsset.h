@@ -15,12 +15,16 @@ class UTexture2D;
 
 namespace AnimToTextureParamNames
 {
-	static const FName Animate = TEXT("Animate");
+	static const FName Frame = TEXT("Frame");
+	static const FName AutoPlay = TEXT("AutoPlay");
+	static const FName StartFrame = TEXT("StartFrame");
+	static const FName EndFrame = TEXT("EndFrame");
+	static const FName SampleRate = TEXT("SampleRate");
+	static const FName NumFrames = TEXT("NumFrames");
 	static const FName BoundingBoxMin = TEXT("MinBBox");
 	static const FName BoundingBoxScale = TEXT("SizeBBox");
 	static const FName RowsPerFrame = TEXT("RowsPerFrame");
 	static const FName BoneWeightRowsPerFrame = TEXT("BoneWeightsRowsPerFrame");
-	static const FName NumFrames = TEXT("NumFrames");
 	static const FName VertexPositionTexture = TEXT("PositionTexture");
 	static const FName VertexNormalTexture = TEXT("NormalTexture");
 	static const FName BonePositionTexture = TEXT("BonePositionTexture");
@@ -64,7 +68,7 @@ enum class EAnimToTextureNumBoneInfluences : uint8
 };
 
 USTRUCT(Blueprintable)
-struct FAnimSequenceInfo
+struct FAnimToTextureAnimSequenceInfo
 {
 	GENERATED_BODY()
 
@@ -73,9 +77,6 @@ struct FAnimSequenceInfo
 
 	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled", EditConditionHides))
 	TObjectPtr<UAnimSequence> AnimSequence = nullptr;
-
-	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled", EditConditionHides))
-	bool bLooping = true;
 
 	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled", EditConditionHides))
 	bool bUseCustomRange = false;
@@ -89,18 +90,16 @@ struct FAnimSequenceInfo
 };
 
 USTRUCT(Blueprintable)
-struct FAnimInfo
+struct FAnimToTextureAnimInfo
 {
 	GENERATED_BODY()
+	
+	UPROPERTY(VisibleAnywhere, Category = Default, BlueprintReadOnly)
+	int32 StartFrame = 0;
 
 	UPROPERTY(VisibleAnywhere, Category = Default, BlueprintReadOnly)
-	int32 NumFrames = 0;
+	int32 EndFrame = 0;
 
-	UPROPERTY(VisibleAnywhere, Category = Default, BlueprintReadOnly)
-	int32 AnimStart = 0;
-
-	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadOnly)
-	bool bLooping = true;
 };
 
 UCLASS(Blueprintable, BlueprintType)
@@ -227,7 +226,7 @@ public:
 	float SampleRate = 30.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
-	TArray<FAnimSequenceInfo> AnimSequences;
+	TArray<FAnimToTextureAnimSequenceInfo> AnimSequences;
 
 	// ------------------------------------------------------
 	// Info
@@ -258,8 +257,12 @@ public:
 	FVector BoneSizeBBox;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info")
-	TArray<FAnimInfo> Animations;
+	TArray<FAnimToTextureAnimInfo> Animations;
 
+	/* Finds AnimSequence Index in the Animations Array. 
+	*  Only Enabled elements are returned.
+	*  Returns -1 if not found.
+	*/
 	UFUNCTION(BlueprintCallable, Category = Default)
 	int32 GetIndexFromAnimSequence(const UAnimSequence* Sequence);
 

@@ -37,16 +37,21 @@ class UAnimToTextureBPLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, Category = "AnimToTexture")
 	static UStaticMesh* ConvertSkeletalMeshToStaticMesh(USkeletalMesh* SkeletalMesh, const FString PackageName, const int32 LODIndex = -1);
 
-	// FIXME: you cannot set index to 2 if there is no index 1
+	/**
+	* Utility for setting a StaticMesh LightMapIndex.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "AnimToTexture")
 	static bool SetLightMapIndex(UStaticMesh* StaticMesh, const int32 LODIndex, const int32 LightmapIndex=1, bool bGenerateLightmapUVs=true);
 
 	/**
-	* Updates a material's parameters to match those of an animToTexture data asset
+	* Updates a material's parameters to match those of an AnimToTexture DataAsset
+	* @param AnimationIndex Index of the animation to play.
+	* @param NumBoneInfluences Number of skinning influences. More influences will produce smoother deformation but slower performance. This is only used in Bone Mode.
 	*/
 	UFUNCTION(BlueprintCallable, meta = (Category = "AnimToTexture"))
 	static void UpdateMaterialInstanceFromDataAsset(UAnimToTextureDataAsset* DataAsset, class UMaterialInstanceConstant* MaterialInstance, 
-		const bool bAnimate=false, const EAnimToTextureNumBoneInfluences NumBoneInfluences = EAnimToTextureNumBoneInfluences::One,
+		const bool bAutoPlay=true, const int32 AnimationIndex=0, 
+		const EAnimToTextureNumBoneInfluences NumBoneInfluences = EAnimToTextureNumBoneInfluences::One,
 		const EMaterialParameterAssociation MaterialParameterAssociation = EMaterialParameterAssociation::LayerParameter);
 
 #endif // WITH_EDITOR

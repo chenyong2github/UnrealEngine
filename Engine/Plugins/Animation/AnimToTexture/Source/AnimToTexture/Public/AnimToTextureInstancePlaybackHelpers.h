@@ -7,66 +7,56 @@
 
 #include "AnimToTextureInstancePlaybackHelpers.generated.h"
 
-// Use floats to match custom floats of instanced static mesh
-// We could pack a float w/ more parameters if desired
+class UAnimToTextureDataAsset;
+
 USTRUCT(BlueprintType)
-struct FAnimToTextureAnimState
+struct FAnimToTextureFrameData
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture")
-	float StartFrame = 0.0f;
+	/**
+	* Frame to be played
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture|Playback")
+	float Frame = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture")
-	float NumFrames = 60.0f;
+	/**
+	* Previous Frame (this is needeed for motion blur)
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture|Playback")
+	float PrevFrame = 0.0f;
+};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture")
+USTRUCT(BlueprintType)
+struct FAnimToTextureAutoPlayData
+{
+	GENERATED_USTRUCT_BODY()
+
+	/**
+	* Adds offset to time
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture|Playback")
+	float TimeOffset = 0.0f;
+
+	/**
+	* Rate for increasing and decreasing speed.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture|Playback")
 	float PlayRate = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture")
-	float bLooping = 1.0f; 
+	/**
+	* Starting frame for animation. 
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture|Playback")
+	float StartFrame = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture")
-	float GlobalStartTime = 0.0f; 
+	/**
+	* Last frame of animation
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture|Playback")
+	float EndFrame = 1.0f;
 };
 
-USTRUCT(BlueprintType)
-struct FAnimToTextureInstancePlaybackData
-{
-	GENERATED_USTRUCT_BODY()
-
-	// Store prev state to allow blending of prev->current state in material
-	// Uncomment this if we start blending states
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture")
-	//FAnimToTextureAnimState PrevState;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimToTexture")
-	FAnimToTextureAnimState CurrentState;
-};
-
-USTRUCT(BlueprintType)
-struct FAnimToTextureAnimationSyncData
-{
-	GENERATED_USTRUCT_BODY()
-
-	// The time used for sync when transitioning from skeletal mesh to material animated static mesh.
-	// World real time at the time of the transition
-	float SyncTime;
-};
-
-USTRUCT(BlueprintType)
-struct FAnimToTextureInstanceData
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY()
-	TArray<FAnimToTextureInstancePlaybackData> PlaybackData;
-
-	UPROPERTY()
-	TArray<FInstancedStaticMeshInstanceData> StaticMeshInstanceData;
-};
-
-class UAnimToTextureDataAsset;
 
 UCLASS()
 class ANIMTOTEXTURE_API UAnimToTextureInstancePlaybackLibrary : public UBlueprintFunctionLibrary
@@ -74,25 +64,150 @@ class ANIMTOTEXTURE_API UAnimToTextureInstancePlaybackLibrary : public UBlueprin
 	GENERATED_BODY()
 
 public:
+	
+	/**
+	* Adds Instances and allocates the necessary CustomData.
+	* @param bAutoPlay: if true, it will allocate the required CustomData for working with AutoPlayData. If false, FrameData will be allocated instead./
+	*/
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
+	static bool SetupInstancedMeshComponent(UInstancedStaticMeshComponent* InstancedMeshComponent, int32 NumInstances, bool bAutoPlay);
+
+	/**
+	* Updates all instances with the given Transforms and AutoPlayData
+	* @param bMarkRenderStateDirty: if true, the change should be visible immediatelly. If you are updating many instances you should only set this to true for the last instance
+	*/
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
+	static bool BatchUpdateInstancesAutoPlayData(UInstancedStaticMeshComponent* InstancedMeshComponent,
+		const TArray<FAnimToTextureAutoPlayData>& AutoPlayData, const TArray<FMatrix>& Transforms, bool bMarkRenderStateDirty=true);
+
+	/**
+	* Updates all instances with the given Transforms and FrameData
+	* @param bMarkRenderStateDirty: if true, the change should be visible immediatelly. If you are updating many instances you should only set this to true for the last instance
+	*/
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
+	static bool BatchUpdateInstancesFrameData(UInstancedStaticMeshComponent* InstancedMeshComponent,
+		const TArray<FAnimToTextureFrameData>& FrameData, const TArray<FMatrix>& Transforms, bool bMarkRenderStateDirty=true);
+
+	/**
+	* Updates a single instance with given AutoPlayData
+	* @param bMarkRenderStateDirty: if true, the change should be visible immediatelly. If you are updating many instances you should only set this to true for the last instance
+	*/
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
+	static bool UpdateInstanceAutoPlayData(UInstancedStaticMeshComponent* InstancedMeshComponent, int32 InstanceIndex, 
+		const FAnimToTextureAutoPlayData& AutoPlayData, bool bMarkRenderStateDirty=true);
+
+	/**
+	* * Updates a single instance with given FrameData
+	* @param bMarkRenderStateDirty: if true, the change should be visible immediatelly. If you are updating many instances you should only set this to true for the last instance
+	*/
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
+	static bool UpdateInstanceFrameData(UInstancedStaticMeshComponent* InstancedMeshComponent, int32 InstanceIndex, 
+		const FAnimToTextureFrameData& FrameData, bool bMarkRenderStateDirty=true);
+
+	/**
+	* Returns an AutoPlayData with the Start and End Frame for the given AnimationIndex.
+	* If AnimationIndex is out of range, false will be returned.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
+	static bool GetAutoPlayDataFromDataAsset(const UAnimToTextureDataAsset* DataAsset, int32 AnimationIndex,
+		FAnimToTextureAutoPlayData& AutoPlayData, float TimeOffset = 0.f, float PlayRate = 1.f);
 
 	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
-	static void SetupInstancedMeshComponent(UInstancedStaticMeshComponent* InstancedMeshComponent, UPARAM(ref) FAnimToTextureInstanceData& InstanceData, int32 NumInstances);
+	static float GetFrame(float Time, float StartFrame, float EndFrame, 
+		float TimeOffset = 0.f, float PlayRate = 1.f, float SampleRate = 30.f);
 
 	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
-	static void BatchUpdateInstancedMeshComponent(UInstancedStaticMeshComponent* InstancedMeshComponent, UPARAM(ref) FAnimToTextureInstanceData& InstanceData);
+	static bool GetFrameDataFromDataAsset(const UAnimToTextureDataAsset* DataAsset, int32 AnimationIndex, float Time,
+		FAnimToTextureFrameData& AutoPlayData, float TimeOffset = 0.f, float PlayRate = 1.f);
+	
+private:
+	
+	template <class DataType>
+	static bool BatchUpdateInstancesData(UInstancedStaticMeshComponent* InstancedMeshComponent,
+		const TArray<DataType>& Data, const TArray<FMatrix>& Transforms, bool bMarkRenderStateDirty = true);
+	
+	template <class DataType>
+	static bool UpdateInstanceCustomData(UInstancedStaticMeshComponent* InstancedMeshComponent, int32 InstanceIndex,
+		const DataType& Data, bool bMarkRenderStateDirty = true);
 
-	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
-	static void AllocateInstanceData(UPARAM(ref) FAnimToTextureInstanceData& InstanceData, int32 Count);
+	template <class DataType>
+	static void GetData(const DataType& Data, TArray<float>& CustomData);
 
-	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
-	static bool UpdateInstanceData(UPARAM(ref) FAnimToTextureInstanceData& InstanceData, int32 InstanceIndex, const FAnimToTextureInstancePlaybackData& PlaybackData, const FTransform& Transform);
+	template <class DataType>
+	static void GetCustomData(const TArray<DataType>& Data, TArray<float>& CustomData);
 
-	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
-	static bool GetInstancePlaybackData(UPARAM(ref) const FAnimToTextureInstanceData& InstanceData, int32 InstanceIndex, FAnimToTextureInstancePlaybackData& InstancePlaybackData);
-
-	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
-	static bool GetInstanceTransform(UPARAM(ref) const FAnimToTextureInstanceData& InstanceData, int32 InstanceIndex, FTransform& InstanceTransform);
-
-	UFUNCTION(BlueprintPure, BlueprintCallable, Category = "AnimToTexture|Playback")
-	static bool AnimStateFromDataAsset(const UAnimToTextureDataAsset* DataAsset, int32 StateIndex, FAnimToTextureAnimState& AnimState);
 };
+
+
+template <class DataType>
+bool UAnimToTextureInstancePlaybackLibrary::BatchUpdateInstancesData(UInstancedStaticMeshComponent* InstancedMeshComponent,
+	const TArray<DataType>& Data, const TArray<FMatrix>& Transforms, bool bMarkRenderStateDirty)
+{
+	if (!InstancedMeshComponent)
+	{
+		return false;
+	}
+
+	// Get Number of Instances
+	const int32 NumInstances = InstancedMeshComponent->GetNumRenderInstances();
+
+	// Check number of instances
+	if (NumInstances &&
+		NumInstances == Data.Num() &&
+		NumInstances == Transforms.Num())
+	{
+		// Check data size
+		if (InstancedMeshComponent->NumCustomDataFloats == Data.GetTypeSize() / sizeof(float))
+		{
+			SIZE_T CustomDataSizeToCopy = InstancedMeshComponent->PerInstanceSMCustomData.Num() * InstancedMeshComponent->PerInstanceSMCustomData.GetTypeSize();
+			FMemory::Memcpy(InstancedMeshComponent->PerInstanceSMCustomData.GetData(), Data.GetData(), CustomDataSizeToCopy);
+
+			// FInstancedStaticMeshInstanceData is not exposed to blueprints, so we are duplicating the data here :/
+			TArray<FInstancedStaticMeshInstanceData> InstanceData;
+			InstanceData.AddUninitialized(NumInstances);
+			FMemory::Memcpy(InstanceData.GetData(), Transforms.GetData(), NumInstances * InstanceData.GetTypeSize());
+
+			// Batch Update
+			return InstancedMeshComponent->BatchUpdateInstancesData(0, NumInstances, InstanceData.GetData(), bMarkRenderStateDirty, false);
+		}
+	}
+
+	return false;
+}
+
+template <class DataType>
+void UAnimToTextureInstancePlaybackLibrary::GetData(const DataType& Data, TArray<float>& CustomData)
+{
+	const SIZE_T DataSize = sizeof(Data);
+	CustomData.SetNumUninitialized(DataSize / sizeof(float));
+
+	FMemory::Memcpy(CustomData.GetData(), &Data, DataSize);
+}
+
+template <class DataType>
+void UAnimToTextureInstancePlaybackLibrary::GetCustomData(const TArray<DataType>& Data, TArray<float>& CustomData)
+{
+	const int32 NumCustomDataFloats = Data.GetTypeSize() / sizeof(float);
+	CustomData.SetNumUninitialized(Data.Num() * NumCustomDataFloats);
+	
+	FMemory::Memcpy(CustomData.GetData(), Data.GetData(), Data.Num() * Data.GetTypeSize());
+}
+
+template <class DataType>
+bool UAnimToTextureInstancePlaybackLibrary::UpdateInstanceCustomData(UInstancedStaticMeshComponent* InstancedMeshComponent, int32 InstanceIndex,
+	const DataType& Data, bool bMarkRenderStateDirty)
+{
+	if (InstancedMeshComponent && InstancedMeshComponent->IsValidInstance(InstanceIndex))
+	{
+		// Check if valid size
+		const int32 NumCustomDataFloats = sizeof(Data) / sizeof(float);
+		if (InstancedMeshComponent->NumCustomDataFloats == NumCustomDataFloats)
+		{
+			TArray<float> CustomData;
+			GetData(Data, CustomData);
+			return InstancedMeshComponent->SetCustomData(InstanceIndex, CustomData, bMarkRenderStateDirty);
+		}
+	}
+
+	return false;
+}

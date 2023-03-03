@@ -4,22 +4,19 @@
 
 int32 UAnimToTextureDataAsset::GetIndexFromAnimSequence(const UAnimSequence* Sequence)
 {
-	int32 OutIndex = 0;
-
-	int32 NumSequences = AnimSequences.Num();
+	const int32 NumSequences = AnimSequences.Num();
 	
 	// We can store a sequence to index map for a faster search
-	for (int32 CurrentIndex = 0; CurrentIndex < NumSequences; ++CurrentIndex)
+	for (int32 Index = 0; Index < NumSequences; ++Index)
 	{
-		const FAnimSequenceInfo& SequenceInfo = AnimSequences[CurrentIndex];
-		if (SequenceInfo.AnimSequence == Sequence)
+		const FAnimToTextureAnimSequenceInfo& SequenceInfo = AnimSequences[Index];
+		if (SequenceInfo.bEnabled && SequenceInfo.AnimSequence == Sequence)
 		{
-			OutIndex = CurrentIndex;
-			break;
+			return Index;
 		}
 	}
 
-	return OutIndex;
+	return INDEX_NONE;
 }
 
 void UAnimToTextureDataAsset::ResetInfo()
