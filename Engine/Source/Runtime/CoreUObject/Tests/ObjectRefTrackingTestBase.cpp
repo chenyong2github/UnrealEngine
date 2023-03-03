@@ -235,7 +235,6 @@ TEST_CASE("UE::CoreUObject::ObjectHandleTracking::Callbacks::Verify")
 	//get fires read event
 	CHECK(ObjPtr.Get() != nullptr);
 	CHECK(ReadCount == 1);
-
 	FObjectRef ObjectRef(Obj1);
 	int32 ClassCount = 0;
 	auto ClassResolvedHandle1 = AddObjectHandleClassResolvedCallback([&](const FObjectRef& SourceRef, UPackage* ClassPackage, UClass* Class)
