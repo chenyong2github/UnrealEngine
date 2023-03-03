@@ -1328,6 +1328,7 @@ void FIoStoreShaderCodeArchive::CreateIoStoreShaderCodeArchiveHeader(const FName
 	// (to avoid too large groups that will take too much time to decompress - this is regulated by r.ShaderCodeLibrary.MaxShaderGroupSize). The results of that process (note, it can still be
 	// a single group) is added to the header.
 	// Each group's indices, like in case of shadermaps, are stored in ShaderIndices array. Before we append a new group's indices however, we look if we can find an existing range that we can reuse.
+	const bool bSeparateRaytracingShaders = (Format == FName("PCD3D_SM5"));
 
 	TArray<TPair<uint32, TArray<int32>>> ShaderToShadermapsArray;
 	{
@@ -1566,32 +1567,39 @@ void FIoStoreShaderCodeArchive::CreateIoStoreShaderCodeArchiveHeader(const FName
 	};
 
 	/** First stage of processing a streak of shaders all referenced by the same set of shadermaps. We begin with separating raytracing and non-raytracing shaders, so we can avoid preloading RTX in non-RT runs. */
-	auto ProcessShaderGroup_SplitRaytracing = [&OutHeader, &ProcessShaderGroup_SplitBySize](TArray<uint32>& CurrentShaderGroup)
+	auto ProcessShaderGroup_SplitRaytracing = [&bSeparateRaytracingShaders, &OutHeader, &ProcessShaderGroup_SplitBySize](TArray<uint32>& CurrentShaderGroup)
 	{
-		// The streak changed. Create the group, but first, determine if the group needs to be split in two because of the raytracing shaders.
-		// We want to isolate them into separate groups so their preload can be skipped if raytracing is off.
-		TArray<uint32> RaytracingShaders;
-		TArray<uint32> NonraytracingShaders;
-		for (int32 ShaderIndex : CurrentShaderGroup)
+		if (!bSeparateRaytracingShaders)
 		{
-			if (LIKELY(!IsRayTracingShaderFrequency(static_cast<EShaderFrequency>(OutHeader.ShaderEntries[ShaderIndex].Frequency))))
-			{
-				NonraytracingShaders.Add(ShaderIndex);
-			}
-			else
-			{
-				RaytracingShaders.Add(ShaderIndex);
-			}
+			ProcessShaderGroup_SplitBySize(CurrentShaderGroup);
 		}
-		check(CurrentShaderGroup.Num() == NonraytracingShaders.Num() + RaytracingShaders.Num());
+		else
+		{
+			// The streak changed. Create the group, but first, determine if the group needs to be split in two because of the raytracing shaders.
+			// We want to isolate them into separate groups so their preload can be skipped if raytracing is off.
+			TArray<uint32> RaytracingShaders;
+			TArray<uint32> NonraytracingShaders;
+			for (int32 ShaderIndex : CurrentShaderGroup)
+			{
+				if (LIKELY(!IsRayTracingShaderFrequency(static_cast<EShaderFrequency>(OutHeader.ShaderEntries[ShaderIndex].Frequency))))
+				{
+					NonraytracingShaders.Add(ShaderIndex);
+				}
+				else
+				{
+					RaytracingShaders.Add(ShaderIndex);
+				}
+			}
+			check(CurrentShaderGroup.Num() == NonraytracingShaders.Num() + RaytracingShaders.Num());
 
-		if (LIKELY(!NonraytracingShaders.IsEmpty()))
-		{
-			ProcessShaderGroup_SplitBySize(NonraytracingShaders);
-		}
-		if (UNLIKELY(!RaytracingShaders.IsEmpty()))
-		{
-			ProcessShaderGroup_SplitBySize(RaytracingShaders);
+			if (LIKELY(!NonraytracingShaders.IsEmpty()))
+			{
+				ProcessShaderGroup_SplitBySize(NonraytracingShaders);
+			}
+			if (UNLIKELY(!RaytracingShaders.IsEmpty()))
+			{
+				ProcessShaderGroup_SplitBySize(RaytracingShaders);
+			}
 		}
 	};
 
