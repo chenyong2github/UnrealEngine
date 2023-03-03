@@ -41,6 +41,12 @@ data:
           alias {{ printf "%s/Blobs" .Values.persistence.mountPath }};
           {{ if .Values.nginx.addXAccelDebugHeader }} add_header X-Jupiter-XAccel-Used true; {{ end }}
         }
+
+        error_page 404 @error_page;
+        location @error_page {
+          default_type "";
+          return 200; # error_code is ignored
+        }
       }
 
       # http 1.1 corp port
@@ -64,6 +70,12 @@ data:
           internal;
           alias {{ printf "%s/Blobs" .Values.persistence.mountPath }};
           {{ if .Values.nginx.addXAccelDebugHeader }} add_header X-Jupiter-XAccel-Used true; {{ end }}
+        }
+
+        error_page 404 @error_page;
+        location @error_page {
+          default_type "";
+          return 200; # error_code is ignored
         }
       }
 
@@ -89,6 +101,12 @@ data:
           alias {{ printf "%s/Blobs" .Values.persistence.mountPath }};
           {{ if .Values.nginx.addXAccelDebugHeader }} add_header X-Jupiter-XAccel-Used true; {{ end }}
         }
+
+        error_page 404 @error_page;
+        location @error_page {
+          default_type "";
+          return 200; # error_code is ignored
+        }
       }
 
       # corp port http2
@@ -112,6 +130,12 @@ data:
             internal;
             alias {{ printf "%s/Blobs" .Values.persistence.mountPath }};
             {{ if .Values.nginx.addXAccelDebugHeader }}add_header X-Jupiter-XAccel-Used true; {{ end }}
+        }
+
+        error_page 404 @error_page;
+        location @error_page {
+          default_type "";
+          return 200; # error_code is ignored
         }
       }
     }
