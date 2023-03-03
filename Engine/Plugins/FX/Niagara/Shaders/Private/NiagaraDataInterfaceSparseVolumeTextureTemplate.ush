@@ -1,0 +1,40 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/SparseVolumeTexture/SparseVolumeTextureCommon.ush"
+
+Texture3D<uint>	{ParameterName}_PageTableTexture;
+Texture3D		{ParameterName}_PhysicalTileDataATexture;
+Texture3D		{ParameterName}_PhysicalTileDataBTexture;
+uint4			{ParameterName}_PackedUniforms0;
+uint4			{ParameterName}_PackedUniforms1;
+int3			{ParameterName}_TextureSize;
+int				{ParameterName}_MipLevels;
+
+
+void LoadSparseVolumeTexture_{ParameterName}(in int TexelX, in int TexelY, in int TexelZ, in int MipLevel, out float4 OutAttributesA, out float4 OutAttributesB)
+{
+	const FSparseVolumeTextureUniforms Uniforms = SparseVolumeTextureUnpackUniforms({ParameterName}_PackedUniforms0, {ParameterName}_PackedUniforms1);
+	const int3 VoxelCoord = SparseVolumeTextureLoadPageTable({ParameterName}_PageTableTexture, Uniforms, int3(TexelX, TexelY, TexelZ), MipLevel);
+	OutAttributesA = {ParameterName}_PhysicalTileDataATexture.Load(int4(VoxelCoord, 0));
+	OutAttributesB = {ParameterName}_PhysicalTileDataBTexture.Load(int4(VoxelCoord, 0));
+}
+
+void SampleSparseVolumeTexture_{ParameterName}(in float3 UVW, in int MipLevel, out float4 OutAttributesA, out float4 OutAttributesB)
+{
+	const FSparseVolumeTextureUniforms Uniforms = SparseVolumeTextureUnpackUniforms({ParameterName}_PackedUniforms0, {ParameterName}_PackedUniforms1);
+	const float3 VoxelCoord = SparseVolumeTextureSamplePageTable({ParameterName}_PageTableTexture, Uniforms, UVW, MipLevel);
+	OutAttributesA = {ParameterName}_PhysicalTileDataATexture.Load(int4(int3(VoxelCoord), 0));
+	OutAttributesB = {ParameterName}_PhysicalTileDataBTexture.Load(int4(int3(VoxelCoord), 0));
+}
+
+void GetTextureDimensions_{ParameterName}(int MipLevel, out float3 OutValue)
+{
+	OutValue.x = float(max({ParameterName}_TextureSize.x >> MipLevel, 1));
+	OutValue.y = float(max({ParameterName}_TextureSize.y >> MipLevel, 1));
+	OutValue.z = float(max({ParameterName}_TextureSize.z >> MipLevel, 1));
+}
+
+void GetNumMipLevels_{ParameterName}(out int OutMipLevels)
+{
+	OutMipLevels = {ParameterName}_MipLevels;
+}
