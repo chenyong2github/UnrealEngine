@@ -365,6 +365,15 @@ void UMovieSceneDMXLibrarySection::PostEditImport()
 	UpdateChannelProxy();
 }
 
+#if WITH_EDITOR
+void UMovieSceneDMXLibrarySection::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	UpdateChannelProxy();
+}
+#endif // WITH_EDITOR
+
 void UMovieSceneDMXLibrarySection::RefreshChannels()
 {
 	UpdateChannelProxy();
