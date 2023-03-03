@@ -74,10 +74,11 @@ namespace UnrealGameSync
             this.DiagnosticsTextBox.Size = new System.Drawing.Size(918, 342);
             this.DiagnosticsTextBox.TabIndex = 2;
             this.DiagnosticsTextBox.WordWrap = false;
-            // 
-            // SaveButton
-            // 
-            this.SaveButton.Location = new System.Drawing.Point(15, 366);
+			// 
+			// SaveButton
+			// 
+			this.SaveButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+			this.SaveButton.Location = new System.Drawing.Point(15, 366);
             this.SaveButton.Name = "SaveButton";
             this.SaveButton.Size = new System.Drawing.Size(117, 26);
             this.SaveButton.TabIndex = 3;
