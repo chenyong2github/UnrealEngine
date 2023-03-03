@@ -10,6 +10,7 @@
 #include "MuCO/UnrealPortabilityHelpers.h"
 #include "Rendering/SlateRenderer.h"
 #include "RenderingThread.h"
+#include "Styling/SlateTypes.h"
 #include "UnrealClient.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 
@@ -141,6 +142,7 @@ void SCustomizableObjectLayoutGrid::Construct( const FArguments& InArgs )
 	DeleteBlocksDelegate = InArgs._OnDeleteBlocks;
 	AddBlockAtDelegate = InArgs._OnAddBlockAt;
 	OnSetBlockPriority = InArgs._OnSetBlockPriority;
+	OnSetReduceBlockSymmetrically = InArgs._OnSetReduceBlockSymmetrically;
 
 	HasDragged = false;
 	Dragging = false;
@@ -425,11 +427,12 @@ FReply SCustomizableObjectLayoutGrid::OnMouseButtonDown( const FGeometry& MyGeom
 
 			MenuBuilder.BeginSection("Fixed Layout Strategy", LOCTEXT("BlockActionsTitle", "Fixed Layout Actions"));
 			{
-				if (SelectedBlocks.Num() && LayoutStrategy == ECustomizableObjectTextureLayoutPackingStrategy::Fixed)
+				if (SelectedBlocks.Num())
 				{
 					MenuBuilder.AddWidget(
 						SNew(SBox)
 						.WidthOverride(125.0f)
+						.ToolTipText(LOCTEXT("SetBlockPriority_Tooltip", "Sets the block priority for a Fixed Layout Strategy."))
 						[
 							SNew(SNumericEntryBox<int32>)
 							.MinValue(0)
@@ -439,10 +442,20 @@ FReply SCustomizableObjectLayoutGrid::OnMouseButtonDown( const FGeometry& MyGeom
 							.Value(this, &SCustomizableObjectLayoutGrid::GetBlockPriortyValue)
 							.UndeterminedString(LOCTEXT("MultipleValues", "Multiples Values"))
 							.OnValueChanged(this, &SCustomizableObjectLayoutGrid::OnBlockPriorityChanged)
-							.ToolTipText(LOCTEXT("SetBlockPriorityTooltip", "Sets the block priority for a Fixed Layout Strategy"))
 							.EditableTextBoxStyle(&FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"))
 						]
 					, FText::FromString("Block Priority"), true);
+
+					MenuBuilder.AddWidget(
+						SNew(SBox)
+						.WidthOverride(125.0f)
+						.ToolTipText(LOCTEXT("SetBlockSymmetry_Tooltip", "if true, this block will be reduced in both axes at the same time in a Fixed Layout Strategy."))
+						[
+							SNew(SCheckBox)
+							.IsChecked(this, &SCustomizableObjectLayoutGrid::GetReductionMethodValue)
+							.OnCheckStateChanged(this, &SCustomizableObjectLayoutGrid::OnReduceBlockSymmetricallyChanged)
+						]
+					, FText::FromString("Reduce Symmetrically"), true);
 				}
 			}
 			MenuBuilder.EndSection();
@@ -1066,6 +1079,37 @@ TOptional<int32> SCustomizableObjectLayoutGrid::GetBlockPriortyValue() const
 }
 
 
+ECheckBoxState SCustomizableObjectLayoutGrid::GetReductionMethodValue() const
+{
+	if (SelectedBlocks.Num())
+	{
+		TArray<FCustomizableObjectLayoutBlock> CurrentSelectedBlocks;
+
+		for (const FCustomizableObjectLayoutBlock& Block : Blocks.Get())
+		{
+			if (SelectedBlocks.Contains(Block.Id))
+			{
+				CurrentSelectedBlocks.Add(Block);
+			}
+		}
+
+		bool bUsesSymmetry = CurrentSelectedBlocks[0].bUseSymmetry;
+
+		for (const FCustomizableObjectLayoutBlock& Block : CurrentSelectedBlocks)
+		{
+			if (Block.bUseSymmetry != bUsesSymmetry)
+			{
+				return ECheckBoxState::Undetermined;
+			}
+		}
+
+		return bUsesSymmetry ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+
+	return ECheckBoxState::Undetermined;
+}
+
+
 void SCustomizableObjectLayoutGrid::OnBlockPriorityChanged(int32 InValue)
 {
 	if (SelectedBlocks.Num())
@@ -1075,9 +1119,12 @@ void SCustomizableObjectLayoutGrid::OnBlockPriorityChanged(int32 InValue)
 }
 
 
-void SCustomizableObjectLayoutGrid::SetLayoutStrategy(ECustomizableObjectTextureLayoutPackingStrategy Strategy)
+void SCustomizableObjectLayoutGrid::OnReduceBlockSymmetricallyChanged(ECheckBoxState InCheckboxState)
 {
-	LayoutStrategy = Strategy;
+	if (SelectedBlocks.Num())
+	{
+		OnSetReduceBlockSymmetrically.ExecuteIfBound(InCheckboxState == ECheckBoxState::Checked);
+	}
 }
 
 

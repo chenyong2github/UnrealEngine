@@ -27,6 +27,13 @@ namespace mu
 		FIXED_LAYOUT
 	};
 
+	//! Types of layout reduction methods 
+	enum class EReductionMethod : uint32
+	{
+		HALVE_REDUCTION,	// Divide axis by 2
+		UNITARY_REDUCTION	// Reduces 1 block the axis 
+	};
+
 
     //! \brief Image block layout class.
     //!
@@ -98,8 +105,9 @@ namespace mu
 
 		//! Returns the reduction priority of a block.
 		//! \param index Block to get priority.
-		//! \param[out] priority will be set to the reduction priority of the block
-		void GetBlockPriority(int index, int* priority) const;
+		//! \param[out] priority reduction priority of the block
+		//! \param[out] bUSeSymmetry reduction method of the block
+		void GetBlockOptions(int index, int* priority, bool* bUseSymmetry) const;
 
 		//! Set a block of the layout.
 		//! "Position" here means the lower-left corner of the block.
@@ -112,11 +120,11 @@ namespace mu
 		//! \param sizeY will be set to the y size of the block
         void SetBlock( int index, int minX, int minY, int sizeX, int sizeY );
 
-		//! Set the reduction priority of a block
-		//! The blocks with the highest values will be the last to be reduced
-		//! \param index Block to set priority
-		//! \param priority will be set to the reduction priority of the block
-		void SetBlockPriority(int index, int priority);
+		//! Set the reduction options of a block
+		//! \param index Block to set the options
+		//! \param priority will be set to the reduction priority of the block. The blocks with the highest values will be the last to be reduced
+		//! \param bUseSymmetry will be set to reduce the block in both axis at the same time.
+		void SetBlockOptions(int index, int priority, bool bUseSymmetry);
 
 		//! Set the texture layout packing strategy
 		//! By default the texture layout packing strategy is set to resizable layout
@@ -130,6 +138,12 @@ namespace mu
 
 		//! Get the LOD where the unassigned vertices warnings starts to be ignored
 		int32 GetIgnoreLODWarnings();
+
+		//! Set the block reduction method a the Fixed_Layout strategy
+		void SetBlockReductionMethod(EReductionMethod Method);
+
+		//! Returns the block reduction method
+		EReductionMethod GetBlockReductionMethod() const;
 
 	protected:
 
@@ -148,6 +162,7 @@ namespace mu
 				m_size = size;
 				m_id = -1;
 				m_priority = 0;
+				bUseSymmetry = false;
 			}
 
 			vec2<uint16> m_min;
@@ -159,6 +174,9 @@ namespace mu
 			//! Priority value to control the shrink texture layout strategy
 			int32 m_priority;
 
+			//! Value to control the method to reduce the block
+			bool bUseSymmetry;
+
 
 			//!
 			void Serialise(OutputArchive& arch) const
@@ -167,6 +185,7 @@ namespace mu
 				arch << m_size;
 				arch << m_id;
 				arch << m_priority;
+				arch << bUseSymmetry;
 			}
 
 			//!
@@ -176,6 +195,7 @@ namespace mu
 				arch >> m_size;
 				arch >> m_id;
 				arch >> m_priority;
+				arch >> bUseSymmetry;
 			}
 
 			//!
@@ -184,7 +204,8 @@ namespace mu
 				return (m_min == o.m_min) &&
 					(m_size == o.m_size) &&
 					(m_id == o.m_id) &&
-					(m_priority == o.m_priority);
+					(m_priority == o.m_priority) &&
+					(bUseSymmetry == o.bUseSymmetry);
 			}
 
 			inline bool IsSimilar(const FBlock& o) const
@@ -192,7 +213,18 @@ namespace mu
 				// All but ids
 				return (m_min == o.m_min) &&
 					(m_size == o.m_size) &&
-					(m_priority == o.m_priority);
+					(m_priority == o.m_priority) &&
+					(bUseSymmetry == o.bUseSymmetry);
+			}
+
+			//!
+			void UnserialiseOldVersion(InputArchive& Archive, const int32 Version)
+			{
+				// Use the version if the Layout version changes to 6
+				Archive >> m_min;
+				Archive >> m_size;
+				Archive >> m_id;
+				Archive >> m_priority;
 			}
 		};
 
@@ -210,11 +242,13 @@ namespace mu
 
 		int32 FirstLODToIgnoreWarnings;
 
+		EReductionMethod ReductionMethod = EReductionMethod::HALVE_REDUCTION;
+
 
 		//!
 		void Serialise(OutputArchive& arch) const
 		{
-			uint32 ver = 4;
+			uint32 ver = 5;
 			arch << ver;
 
 			arch << m_size;
@@ -223,6 +257,7 @@ namespace mu
 			arch << m_maxsize;
 			arch << uint32(m_strategy);
 			arch << FirstLODToIgnoreWarnings;
+			arch << uint32(ReductionMethod);
 		}
 
 		//!
@@ -230,11 +265,26 @@ namespace mu
 		{
 			uint32 ver;
 			arch >> ver;
-			check(ver <= 4);
+			check(ver <= 5);
 
 			arch >> m_size;
 
-			arch >> m_blocks;
+			if (ver < 5)
+			{
+				uint32_t Size = 0;
+				arch >> Size;
+				m_blocks.SetNum(Size);
+
+				for (uint32_t BlockIndex = 0; BlockIndex < Size; ++BlockIndex)
+				{
+					m_blocks[BlockIndex].UnserialiseOldVersion(arch, ver);
+				}
+			}
+			else
+			{
+				arch >> m_blocks;
+			}
+
 			arch >> m_maxsize;
 
 			uint32 temp;
@@ -244,6 +294,12 @@ namespace mu
 			if (ver >= 4)
 			{
 				arch >> FirstLODToIgnoreWarnings;
+			}
+
+			if (ver >= 5)
+			{
+				arch >> temp;
+				ReductionMethod = EReductionMethod(temp);
 			}
 		}
 

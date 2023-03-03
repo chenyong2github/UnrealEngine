@@ -2763,9 +2763,10 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				LayoutNode->SetGridSize(GridSize, GridSize);
 				LayoutNode->SetMaxGridSize(GridSize, GridSize);
 				LayoutNode->SetLayoutPackingStrategy(mu::EPackStrategy::RESIZABLE_LAYOUT);
+				LayoutNode->SetBlockReductionMethod(mu::EReductionMethod::HALVE_REDUCTION);
 				LayoutNode->SetBlockCount(1);
 				LayoutNode->SetBlock(0, 0, 0, GridSize, GridSize);
-				LayoutNode->SetBlockPriority(0, 0);
+				LayoutNode->SetBlockOptions(0, 0, false);
 				MeshNode->SetLayout(0, LayoutNode);
 
 				// We need it here because we create multiple nodes.
@@ -2839,9 +2840,10 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 					LayoutNode->SetGridSize(GridSize, GridSize);
 					LayoutNode->SetMaxGridSize(GridSize, GridSize);
 					LayoutNode->SetLayoutPackingStrategy(mu::EPackStrategy::RESIZABLE_LAYOUT);
+					LayoutNode->SetBlockReductionMethod(mu::EReductionMethod::HALVE_REDUCTION);
 					LayoutNode->SetBlockCount(1);
 					LayoutNode->SetBlock(0, 0, 0, GridSize, GridSize);
-					LayoutNode->SetBlockPriority(0, 0);
+					LayoutNode->SetBlockOptions(0, 0, false);
 					MeshNode->SetLayout(0, LayoutNode);
 
 					// We need it here because we create multiple nodes.
@@ -3374,22 +3376,8 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 					LayoutNode->SetGridSize(Layouts[i]->GetGridSize().X, Layouts[i]->GetGridSize().Y);
 					LayoutNode->SetMaxGridSize(Layouts[i]->GetMaxGridSize().X, Layouts[i]->GetMaxGridSize().Y);
 					LayoutNode->SetBlockCount(Layouts[i]->Blocks.Num() ? Layouts[i]->Blocks.Num() : 1);
-
-					mu::EPackStrategy strategy = mu::EPackStrategy::RESIZABLE_LAYOUT;
-
-					switch (Layouts[i]->GetPackingStrategy())
-					{
-					case ECustomizableObjectTextureLayoutPackingStrategy::Resizable:
-						strategy = mu::EPackStrategy::RESIZABLE_LAYOUT;
-						break;
-					case ECustomizableObjectTextureLayoutPackingStrategy::Fixed:
-						strategy = mu::EPackStrategy::FIXED_LAYOUT;
-						break;
-					default:
-						break;
-					}
-
-					LayoutNode->SetLayoutPackingStrategy(strategy);
+					LayoutNode->SetLayoutPackingStrategy(Layouts[i]->GetPackingStrategy() == ECustomizableObjectTextureLayoutPackingStrategy::Fixed ? mu::EPackStrategy::FIXED_LAYOUT : mu::EPackStrategy::RESIZABLE_LAYOUT);
+					LayoutNode->SetBlockReductionMethod(Layouts[i]->GetBlockReductionMethod() == ECustomizableObjectLayoutBlockReductionMethod::Halve ? mu::EReductionMethod::HALVE_REDUCTION : mu::EReductionMethod::UNITARY_REDUCTION);
 
 					if (Layouts[i]->Blocks.Num())
 					{
@@ -3401,7 +3389,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 								Layouts[i]->Blocks[BlockIndex].Max.X - Layouts[i]->Blocks[BlockIndex].Min.X,
 								Layouts[i]->Blocks[BlockIndex].Max.Y - Layouts[i]->Blocks[BlockIndex].Min.Y);
 
-							LayoutNode->SetBlockPriority(BlockIndex, Layouts[i]->Blocks[BlockIndex].Priority);
+							LayoutNode->SetBlockOptions(BlockIndex, Layouts[i]->Blocks[BlockIndex].Priority, Layouts[i]->Blocks[BlockIndex].bUseSymmetry);
 						}
 					}
 					else
@@ -3410,7 +3398,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 						GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node, EMessageSeverity::Warning);
 
 						LayoutNode->SetBlock(0, 0, 0, Layouts[i]->GetGridSize().X, Layouts[i]->GetGridSize().Y);
-						LayoutNode->SetBlockPriority(0, 0);
+						LayoutNode->SetBlockOptions(0, 0, false);
 					}
 
 					MeshTableNode->SetLayout(i, LayoutNode);

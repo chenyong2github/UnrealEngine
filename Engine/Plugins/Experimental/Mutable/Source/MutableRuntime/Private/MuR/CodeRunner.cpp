@@ -5165,6 +5165,7 @@ namespace mu
 					scratch.positions.SetNum(BlockCount);
 					scratch.priorities.SetNum(BlockCount);
 					scratch.reductions.SetNum(BlockCount);
+					scratch.useSymmetry.SetNum(BlockCount);
 
 					LayoutPack3(pResult.get(), pSource.get(), &scratch);
 				}

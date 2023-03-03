@@ -24,9 +24,11 @@ UCustomizableObjectLayout::UCustomizableObjectLayout()
 	Block.Max = FIntPoint(4, 4);
 	Block.Id = FGuid::NewGuid();
 	Block.Priority = 0;
+	Block.bUseSymmetry = false;
 	Blocks.Add(Block);
 
 	PackingStrategy = ECustomizableObjectTextureLayoutPackingStrategy::Resizable;
+	BlockReductionMethod = ECustomizableObjectLayoutBlockReductionMethod::Halve;
 }
 
 
@@ -110,7 +112,7 @@ void UCustomizableObjectLayout::GenerateBlocksFromUVs()
 		{
 			Blocks.Empty();
 		
-			//Generating the layout blocks with the mutable layout		
+			//Generating the layout blocks with the mutable layout
 			for (int i = 0; i < Layout->GetBlockCount(); ++i)
 			{
 				int minX, minY, sizeX, sizeY;
@@ -122,6 +124,7 @@ void UCustomizableObjectLayout::GenerateBlocksFromUVs()
 				block.Max = FIntPoint(minX + sizeX, minY + sizeY);
 				block.Id = FGuid::NewGuid();
 				block.Priority = 0;
+				block.bUseSymmetry = false;
 				Blocks.Add(block);
 			}
 		
@@ -179,4 +182,9 @@ void UCustomizableObjectLayout::SetIgnoreWarningsLOD(int32 LODValue)
 	FirstLODToIgnore = LODValue;
 }
 
+
+void UCustomizableObjectLayout::SetBlockReductionMethod(ECustomizableObjectLayoutBlockReductionMethod Method)
+{
+	BlockReductionMethod = Method;
+}
 #undef LOCTEXT_NAMESPACE

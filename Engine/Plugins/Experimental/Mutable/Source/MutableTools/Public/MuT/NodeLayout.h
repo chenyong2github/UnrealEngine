@@ -140,8 +140,8 @@ namespace mu
 		//! minx and miny refer to the lowest left corner of the block.
 		void GetBlock(int index, int* minx, int* miny, int* sizex, int* sizey);
 
-		//! Set priority of a block.
-		void SetBlockPriority(int index, int priority);
+		//! Set reduction block options like priority or if the block has to be reduced symmetrically.
+		void SetBlockOptions(int index, int priority, bool bUseSymmetry);
 
 		//! Set the texture layout packing strategy 
 		void SetLayoutPackingStrategy(EPackStrategy strategy);
@@ -154,6 +154,12 @@ namespace mu
 
 		//! Get the LOD where the unassigned vertices warnings starts to be ignored
 		int32 GetIgnoreWarningsLOD();
+
+		//! Set the block reduction method a the Fixed_Layout strategy
+		void SetBlockReductionMethod(EReductionMethod strategy);
+
+		//! Returns the block reduction method
+		EReductionMethod GetBlockReductionMethod();
 
 
 		//-----------------------------------------------------------------------------------------

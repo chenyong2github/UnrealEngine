@@ -556,6 +556,7 @@ void UCustomizableObjectNodeTable::RemapPinsData(const TMap<UEdGraphPin*, UEdGra
 							NewLayout->SetGridSize(OldLayout->GetGridSize());
 							NewLayout->SetMaxGridSize(OldLayout->GetMaxGridSize());
 							NewLayout->SetPackingStrategy(OldLayout->GetPackingStrategy());
+							NewLayout->SetBlockReductionMethod(OldLayout->GetBlockReductionMethod());
 
 							break;
 						}

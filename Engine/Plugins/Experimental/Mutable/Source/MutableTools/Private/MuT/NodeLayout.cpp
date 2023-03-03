@@ -186,9 +186,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeLayoutBlocks::SetBlockPriority(int index, int priority)
+	void NodeLayoutBlocks::SetBlockOptions(int index, int priority, bool bUseSymmetry)
 	{
-		m_pD->m_pLayout->SetBlockPriority(index, priority);
+		m_pD->m_pLayout->SetBlockOptions(index, priority, bUseSymmetry);
 	}
 
 
@@ -197,6 +197,7 @@ namespace mu
 	{
 		m_pD->m_pLayout->SetLayoutPackingStrategy(strategy);
 	}
+
 
 	//---------------------------------------------------------------------------------------------
 	NodeLayoutBlocksPtr NodeLayoutBlocks::GenerateLayoutBlocks(const MeshPtr pMesh, int layoutIndex, int gridSizeX, int gridSizeY)
@@ -414,6 +415,20 @@ namespace mu
 	int32 NodeLayoutBlocks::GetIgnoreWarningsLOD()
 	{
 		return m_pD->m_pLayout->GetIgnoreLODWarnings();
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	void NodeLayoutBlocks::SetBlockReductionMethod(EReductionMethod Method)
+	{
+		m_pD->m_pLayout->SetBlockReductionMethod(Method);
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	EReductionMethod NodeLayoutBlocks::GetBlockReductionMethod()
+	{
+		return m_pD->m_pLayout->GetBlockReductionMethod();
 	}
 }
 

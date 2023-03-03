@@ -119,13 +119,9 @@ void SCustomizableObjectNodeLayoutBlocksEditor::SetCurrentLayout(UCustomizableOb
 			.OnDeleteBlocks(this, &SCustomizableObjectNodeLayoutBlocksEditor::OnRemoveBlock)
 			.OnAddBlockAt(this, &SCustomizableObjectNodeLayoutBlocksEditor::OnAddBlockAt)
 			.OnSetBlockPriority(this, &SCustomizableObjectNodeLayoutBlocksEditor::OnSetBlockPriority)
+			.OnSetReduceBlockSymmetrically(this, &SCustomizableObjectNodeLayoutBlocksEditor::OnSetBlockReductionSymmetry)
 		]
-	];
-
-	if (CurrentLayout && LayoutGridWidget.IsValid())
-	{
-		LayoutGridWidget->SetLayoutStrategy(CurrentLayout->GetPackingStrategy());
-	}	
+	];	
 }
 
 
@@ -228,7 +224,7 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksEditor::BuildLayoutToolBa
 		.Padding(4,0)
 		[
 			SNew(SBorder)
-			.Padding(0)
+			.Padding(2.0f)
 			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.IsEnabled( FSlateApplication::Get().GetNormalExecutionAttribute() )
 			[
@@ -248,33 +244,45 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksEditor::BuildLayoutStrate
 		MaxLayoutGridSizes.Add(MakeShareable(new FString(FString::Printf(TEXT("%d x %d"), Size, Size))));
 	}
 
-	MaxLayoutGridSizeCombo = SNew(STextComboBox)
-		.OptionsSource(&MaxLayoutGridSizes)
-		.OnSelectionChanged(this,&SCustomizableObjectNodeLayoutBlocksEditor::OnMaxGridSizeChanged)
-		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
-
 	LayoutPackingStrategies.Empty();
 	LayoutPackingStrategies.Add(MakeShareable(new FString("Resizable")));
 	LayoutPackingStrategies.Add(MakeShareable(new FString("Fixed")));
+
+	BlockReductionMethods.Empty();
+	BlockReductionMethods.Add(MakeShareable(new FString("Halve")));
+	BlockReductionMethods.Add(MakeShareable(new FString("Unitary")));
+	
+	MaxLayoutGridSizeCombo = SNew(STextComboBox)
+		.OptionsSource(&MaxLayoutGridSizes)
+		.OnSelectionChanged(this, &SCustomizableObjectNodeLayoutBlocksEditor::OnMaxGridSizeChanged)
+		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
 
 	LayoutPackingStrategyCombo = SNew(STextComboBox)
 		.OptionsSource(&LayoutPackingStrategies)
 		.OnSelectionChanged(this, &SCustomizableObjectNodeLayoutBlocksEditor::OnLayoutPackingStrategyChanged)
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
 
+	BlockReductionMethodsCombo = SNew(STextComboBox)
+		.OptionsSource(&BlockReductionMethods)
+		.OnSelectionChanged(this, &SCustomizableObjectNodeLayoutBlocksEditor::OnReductionMethodChanged)
+		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
+
 
 	LayoutStrategyWidget = SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot().Padding(2.0f).AutoWidth()
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(0.0f,2.0f,2.0f,0.0f)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("Layout Strategy:", "Layout Strategy:"))
+			.Text(LOCTEXT("LayoutStrategy_Text", "Layout Strategy:"))
 			.ToolTipText(LOCTEXT("LayoutStrategyTooltup","Selects the packing strategy: Resizable Layout or Fixed Layout"))
-			.Margin(FMargin(0, 4, 0, 0))
 			.ShadowOffset(FVector2D::UnitVector)
 			.ColorAndOpacity(FLinearColor::Gray)
 		]
 
-		+ SHorizontalBox::Slot().Padding(2.0f).AutoWidth()
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(EHorizontalAlignment::HAlign_Right)
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
@@ -284,19 +292,53 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksEditor::BuildLayoutStrate
 			]
 		];
 
-	FixedLayoutWidget = SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot().Padding(2.0f).AutoWidth()
+	FixedLayoutWidget = SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("Max Layout Size:", "Max Layout Size:"))
-			.Margin(FMargin(0, 4, 0, 0))
-			.ShadowOffset(FVector2D::UnitVector)
-			.ColorAndOpacity(FLinearColor::Gray)
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.0f, 2.0f, 2.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("MaxLayoutSize_Text", "Max Layout Size:"))
+				.ShadowOffset(FVector2D::UnitVector)
+				.ColorAndOpacity(FLinearColor::Gray)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(EHorizontalAlignment::HAlign_Right)
+			[
+				MaxLayoutGridSizeCombo.ToSharedRef()
+			]
 		]
-		+ SHorizontalBox::Slot().Padding(2.0f).AutoWidth()
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			MaxLayoutGridSizeCombo.ToSharedRef()
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.0f, 2.0f, 2.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ReductionMethod_Text", "Reduction Method:"))
+				.ToolTipText(LOCTEXT("Reduction_Method_Tooltip", "Select how blocks will be reduced in case that they do not fit in the layout:"
+				"\n Halve: blocks will be reduced by half each time."
+				"\n Unit: blocks will be reduced by one unit each time."))
+				.ShadowOffset(FVector2D::UnitVector)
+				.ColorAndOpacity(FLinearColor::Gray)
+			]
+			
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.0f, 0.0f, 0.0f, 8.0f)
+			.HAlign(EHorizontalAlignment::HAlign_Right)
+			[
+				BlockReductionMethodsCombo.ToSharedRef()
+			]
 		];
+
 
 	//Modify after the creation of all the widgets
 	if (CurrentLayout)
@@ -317,6 +359,11 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksEditor::BuildLayoutStrate
 		if (LayoutPackingStrategies.IsValidIndex((uint32)CurrentLayout->GetPackingStrategy()))
 		{
 			LayoutPackingStrategyCombo->SetSelectedItem(LayoutPackingStrategies[(uint32)CurrentLayout->GetPackingStrategy()]);
+		}
+
+		if (BlockReductionMethods.IsValidIndex((uint32)CurrentLayout->GetBlockReductionMethod()))
+		{
+			BlockReductionMethodsCombo->SetSelectedItem(BlockReductionMethods[(uint32)CurrentLayout->GetBlockReductionMethod()]);
 		}
 	}
 
@@ -368,6 +415,7 @@ void SCustomizableObjectNodeLayoutBlocksEditor::OnAddBlock()
 		block.Max = FIntPoint(1, 1);
 		block.Id = FGuid::NewGuid();
 		block.Priority = 0;
+		block.bUseSymmetry = false;
 		CurrentLayout->Blocks.Add( block );
 		CurrentLayout->MarkPackageDirty();
 
@@ -388,12 +436,12 @@ void SCustomizableObjectNodeLayoutBlocksEditor::OnAddBlockAt(const FIntPoint Min
 		block.Max = Max;
 		block.Id = FGuid::NewGuid();
 		block.Priority = 0;
+		block.bUseSymmetry = false;
 
 		CurrentLayout->Blocks.Add(block);
 		CurrentLayout->MarkPackageDirty();
 	}
 }
-
 
 
 void SCustomizableObjectNodeLayoutBlocksEditor::OnRemoveBlock()
@@ -479,7 +527,28 @@ void SCustomizableObjectNodeLayoutBlocksEditor::OnSetBlockPriority(int32 InValue
 				}
 			}
 		}
-	}	
+	}
+}
+
+
+void SCustomizableObjectNodeLayoutBlocksEditor::OnSetBlockReductionSymmetry(bool bInValue)
+{
+	if (CurrentLayout)
+	{
+		if (LayoutGridWidget.IsValid())
+		{
+			TArray<FGuid> SelectedBlocks = LayoutGridWidget->GetSelectedBlocks();
+
+			for (int i = 0; i < CurrentLayout->Blocks.Num(); ++i)
+			{
+				if (SelectedBlocks.Contains(CurrentLayout->Blocks[i].Id))
+				{
+					CurrentLayout->Blocks[i].bUseSymmetry = bInValue;
+					CurrentLayout->MarkPackageDirty();
+				}
+			}
+		}
+	}
 }
 
 
@@ -501,12 +570,6 @@ void SCustomizableObjectNodeLayoutBlocksEditor::OnLayoutPackingStrategyChanged(T
 		if (CurrentLayout->GetPackingStrategy() != (ECustomizableObjectTextureLayoutPackingStrategy)selection)
 		{
 			CurrentLayout->SetPackingStrategy((ECustomizableObjectTextureLayoutPackingStrategy)selection);
-
-			if (LayoutGridWidget.IsValid())
-			{
-				LayoutGridWidget->SetLayoutStrategy(CurrentLayout->GetPackingStrategy());
-			}
-
 			CurrentLayout->MarkPackageDirty();
 		}
 	}
@@ -522,6 +585,21 @@ void SCustomizableObjectNodeLayoutBlocksEditor::OnMaxGridSizeChanged(TSharedPtr<
 		{
 			CurrentLayout->SetMaxGridSize(FIntPoint(Size));
 			
+			CurrentLayout->MarkPackageDirty();
+		}
+	}
+}
+
+
+void SCustomizableObjectNodeLayoutBlocksEditor::OnReductionMethodChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
+{
+	if (CurrentLayout)
+	{
+		uint32 selection = BlockReductionMethods.IndexOfByKey(NewSelection);
+
+		if (CurrentLayout->GetBlockReductionMethod() != (ECustomizableObjectLayoutBlockReductionMethod)selection)
+		{
+			CurrentLayout->SetBlockReductionMethod((ECustomizableObjectLayoutBlockReductionMethod)selection);
 			CurrentLayout->MarkPackageDirty();
 		}
 	}

@@ -15,6 +15,7 @@ struct FKeyEvent;
 struct FPointerEvent;
 //#include "PreviewScene.h"
 
+enum class ECheckBoxState : uint8;
 
 struct FRect2D
 {
@@ -45,6 +46,7 @@ public:
 	DECLARE_DELEGATE(FDeleteBlockDelegate);
 	DECLARE_DELEGATE_TwoParams(FAddBlockAtDelegate, FIntPoint, FIntPoint);
 	DECLARE_DELEGATE_OneParam(FSetBlockPriority, int32);
+	DECLARE_DELEGATE_OneParam(FSetReduceBlockSymmetrically, bool);
 
 	SLATE_BEGIN_ARGS( SCustomizableObjectLayoutGrid ){}
 
@@ -59,6 +61,7 @@ public:
 		SLATE_EVENT(FDeleteBlockDelegate, OnDeleteBlocks)
 		SLATE_EVENT(FAddBlockAtDelegate, OnAddBlockAt)
 		SLATE_EVENT(FSetBlockPriority, OnSetBlockPriority)
+		SLATE_EVENT(FSetReduceBlockSymmetrically, OnSetReduceBlockSymmetrically)
 
 	SLATE_END_ARGS()
 
@@ -114,8 +117,11 @@ public:
 	/** Callback when the priority of a block changes */
 	void OnBlockPriorityChanged(int32 InValue);
 
-	/** Sets the packing strategy of the current layout */
-	void SetLayoutStrategy(ECustomizableObjectTextureLayoutPackingStrategy Strategy);
+	/** Callback when a block reduction method changes */
+	void OnReduceBlockSymmetricallyChanged(ECheckBoxState InCheckboxState);
+
+	/** Gets block reduction value of the selected blocks */
+	ECheckBoxState GetReductionMethodValue() const;
 
 private:
 
@@ -129,6 +135,7 @@ private:
 	FDeleteBlockDelegate DeleteBlocksDelegate;
 	FAddBlockAtDelegate AddBlockAtDelegate;
 	FSetBlockPriority OnSetBlockPriority;
+	FSetReduceBlockSymmetrically OnSetReduceBlockSymmetrically;
 
 	/** Size of the grid in blocks */
 	TAttribute<FIntPoint> GridSize;
@@ -203,6 +210,4 @@ private:
 	/** Custom Slate drawing element. Used to improve the UVs drawing performance. */
 	TSharedPtr<class FUVCanvasDrawer, ESPMode::ThreadSafe> UVCanvasDrawer;
 
-	/** Current packing strategy of the represented layout */
-	ECustomizableObjectTextureLayoutPackingStrategy LayoutStrategy;
 };

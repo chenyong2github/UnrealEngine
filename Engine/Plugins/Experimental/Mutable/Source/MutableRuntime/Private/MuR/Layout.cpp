@@ -43,6 +43,7 @@ namespace mu {
 		pResult->m_blocks = m_blocks;
 		pResult->m_strategy = m_strategy;
 		pResult->FirstLODToIgnoreWarnings = FirstLODToIgnoreWarnings;
+		pResult->ReductionMethod = ReductionMethod;
 		return pResult;
 	}
 
@@ -55,7 +56,8 @@ namespace mu {
 			(m_blocks == o.m_blocks) &&
 			(m_strategy == o.m_strategy) &&
 			// maybe this is not needed
-			(FirstLODToIgnoreWarnings == o.FirstLODToIgnoreWarnings);;
+			(FirstLODToIgnoreWarnings == o.FirstLODToIgnoreWarnings) &&
+			(ReductionMethod==o.ReductionMethod);
 	}
 
 
@@ -130,14 +132,20 @@ namespace mu {
 
 
 	//---------------------------------------------------------------------------------------------
-	void Layout::GetBlockPriority(int index, int* pPriority) const
+	void Layout::GetBlockOptions(int index, int* pPriority, bool* bUseSymmetry) const
 	{
 		check(index >= 0 && index < m_blocks.Num());
 		check(pPriority);
+		check(bUseSymmetry);
 
 		if (pPriority)
 		{
 			*pPriority = m_blocks[index].m_priority;
+		}
+
+		if (bUseSymmetry)
+		{
+			*bUseSymmetry = m_blocks[index].bUseSymmetry;
 		}
 	}
 
@@ -154,11 +162,12 @@ namespace mu {
 
 
 	//---------------------------------------------------------------------------------------------
-	void Layout::SetBlockPriority(int index, int priority)
+	void Layout::SetBlockOptions(int index, int priority, bool bUseSymmetry)
 	{
 		check(index >= 0 && index < m_blocks.Num());
 
 		m_blocks[index].m_priority = priority;
+		m_blocks[index].bUseSymmetry = bUseSymmetry;
 	}
 
 
@@ -234,6 +243,20 @@ namespace mu {
 	int32 Layout::GetIgnoreLODWarnings()
 	{
 		return FirstLODToIgnoreWarnings;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	void Layout::SetBlockReductionMethod(EReductionMethod Method)
+	{
+		ReductionMethod = Method;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	EReductionMethod Layout::GetBlockReductionMethod() const
+	{
+		return ReductionMethod;
 	}
 }
 
