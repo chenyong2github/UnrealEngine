@@ -164,8 +164,12 @@ float3 MixSpecularAndRoughReflections(float InRoughness, bool bHasBackfaceDiffus
 {
 	const float FadeAlpha = LumenCombineReflectionsAlpha(InRoughness, bHasBackfaceDiffuse);
 
-	// (1 - FadeAlpha) applied during Lumen integration to allow direct lighting specular which shouldn't be lerped out
+	#if SUPPORT_LUMEN_DIRECT_LIGHTING
+	// (1 - FadeAlpha) applied during Lumen rough specular integration to allow direct lighting specular which shouldn't be lerped out
 	float3 Lighting = RoughReflections;
+	#else
+	float3 Lighting = RoughReflections * (1 - FadeAlpha);
+	#endif
 
 	if (bLumenReflectionInputIsSSR > 0)
 	{

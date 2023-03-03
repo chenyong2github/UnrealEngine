@@ -13,6 +13,9 @@
 #include "/Engine/Private/Strata/StrataTile.ush"
 #endif
 
+// Currently Substrate does not support direct lighting at it implies pre-blending rough specular, 
+// which makes multi-BSDF lighting/composition incorrect. Furthermore, the direct lighting is not implemented for Substrate yet
+#define SUPPORT_LUMEN_DIRECT_LIGHTING (STRATA_ENABLED == 0)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Strata tile helper function 

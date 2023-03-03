@@ -1404,7 +1404,7 @@ void ScreenProbeIntegrateCS(
 			float3 DirectDiffuseLighting = 0;
 			float3 DirectSpecularLighting = 0;
 
-			#if SUPPORT_DIRECT_LIGHTING && !STRATA_ENABLED
+			#if SUPPORT_DIRECT_LIGHTING && SUPPORT_LUMEN_DIRECT_LIGHTING
 			{
 				float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 				EvaluateDirectLighting(ScreenProbeSample, CameraVector, Material.GBufferData.WorldNormal, Material.GBufferData.SpecularColor, Material.GBufferData.Roughness, DirectDiffuseLighting, DirectSpecularLighting);
@@ -1550,14 +1550,20 @@ void ScreenProbeIntegrateCS(
 			// Premultiply FadeAlpha for blending in MixSpecularAndRoughReflections
 			if (!IsClearCoat(Material) && LumenReflectionInputIsSSR == 0)
 			{
+				#if SUPPORT_LUMEN_DIRECT_LIGHTING
 				SpecularLighting *= (1.0f - LumenSpecularRayAlpha);
+				#endif
 			}
 
 			#if DEBUG_VISUALIZE_TILE_CLASSIFICATION
 				SpecularLighting = TileClassificationColoring;
 			#endif
 
-			RWRoughSpecularIndirect[Coord.SvPositionFlatten] = SpecularLighting + DirectSpecularLighting;
+				float3 OutRoughSpecularIndirect = SpecularLighting;
+				#if SUPPORT_LUMEN_DIRECT_LIGHTING
+				OutRoughSpecularIndirect += DirectSpecularLighting;
+				#endif
+				RWRoughSpecularIndirect[Coord.SvPositionFlatten] = OutRoughSpecularIndirect;
 		}
 		else
 		{
