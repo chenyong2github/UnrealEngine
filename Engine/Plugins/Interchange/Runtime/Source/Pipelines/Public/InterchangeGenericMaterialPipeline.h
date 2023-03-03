@@ -38,8 +38,11 @@ enum class EInterchangeMaterialXShaders : uint8
 	/** Default settings for Autodesk's Standard Surface shader	*/
 	StandardSurface,
 
-	/** Standard Surface shader use for translucency	*/
-	StandardSurfaceTransmission
+	/** Standard Surface shader used for translucency	*/
+	StandardSurfaceTransmission,
+
+	/** Shader used for unlit surface*/
+	SurfaceUnlit
 };
 
 USTRUCT(BlueprintType)
@@ -68,6 +71,8 @@ private:
 	static TSet<FName> StandardSurfaceOutputs;
 	static TSet<FName> TransmissionSurfaceInputs;
 	static TSet<FName> TransmissionSurfaceOutputs;
+	static TSet<FName> SurfaceUnlitInputs;
+	static TSet<FName> SurfaceUnlitOutputs;
 #endif // WITH_EDITOR
 };
 
@@ -149,6 +154,9 @@ private:
 	/** True if the shader graph has the standard surface's shader type name */
 	bool IsStandardSurfaceModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
 
+	/** True if the shader graph has the surface unlit's shader type name */
+	bool IsSurfaceUnlitModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+
 	/** True if the shader graph has an unlit color input. */
 	bool IsUnlitModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
 
@@ -156,6 +164,7 @@ private:
 	bool HandleLambertModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandlePBRModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandleStandardSurfaceModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
+	bool HandleSurfaceUnlitModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandleClearCoat(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandleSubsurface(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandleSheen(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
@@ -227,4 +236,15 @@ private:
 	};
 
 	TArray<FMaterialExpressionCreationContext> MaterialExpressionCreationContextStack;
+
+	using FParameterMaterialInputType = TTuple<FString, EMaterialInputType>;
+
+	struct FSurfaceShader
+	{
+		TArray<FParameterMaterialInputType> Parameters;
+		FString UniqueID;
+		FString Path;
+	};
+
+	FString HandleSurfaceShaderModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode, const FSurfaceShader& SurfaceShader);
 };

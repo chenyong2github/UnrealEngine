@@ -406,6 +406,20 @@ namespace Interchange
 			}
 		}
 
+		namespace SurfaceUnlit
+		{
+			const FName Name = TEXT("surface_unlit");
+
+			namespace Parameters
+			{
+				const FName Emission = TEXT("emission");
+				const FName EmissionColor = TEXT("emission_color");
+				const FName Transmission = TEXT("transmission");
+				const FName TransmissionColor = TEXT("transmission_color");
+				const FName Opacity = TEXT("opacity");
+			}
+		}
+
 		namespace Unlit
 		{
 			namespace Parameters

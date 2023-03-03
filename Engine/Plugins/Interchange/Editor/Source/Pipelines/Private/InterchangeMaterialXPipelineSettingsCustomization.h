@@ -21,4 +21,5 @@ protected:
 
 	bool OnShouldFilterAssetStandardSurface(const FAssetData & InAssetData);
 	bool OnShouldFilterAssetStandardSurfaceTransmission(const FAssetData& InAssetData);
+	bool OnShouldFilterAssetSurfaceUnlit(const FAssetData& InAssetData);
 };

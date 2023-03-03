@@ -129,6 +129,22 @@ MATERIALX_NAMESPACE_BEGIN
 			static constexpr const char* TransmissionColor = "transmission_color";
 			static constexpr const char* Opacity = "opacity";
 		}
+
+		namespace DefaultValue
+		{
+			namespace Float
+			{
+				constexpr float Emission = 1.f;
+				constexpr float Transmission = 0.f;
+				constexpr float Opacity = 1.f;
+			}
+
+			namespace Color3
+			{
+				constexpr FLinearColor EmissionColor{ 1, 1, 1 };
+				constexpr FLinearColor TransmissionColor{ 1, 1, 1 };
+			}
+		}
 	}
 
 	namespace Lights

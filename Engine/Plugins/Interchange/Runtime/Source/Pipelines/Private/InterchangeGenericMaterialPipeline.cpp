@@ -81,6 +81,7 @@ FMaterialXPipelineSettings::FMaterialXPipelineSettings()
 {
 	SurfaceShader.FindOrAdd(EInterchangeMaterialXShaders::StandardSurface, FSoftObjectPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'") });
 	SurfaceShader.FindOrAdd(EInterchangeMaterialXShaders::StandardSurfaceTransmission, FSoftObjectPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_TransmissionSurface.MX_TransmissionSurface'") });
+	SurfaceShader.FindOrAdd(EInterchangeMaterialXShaders::SurfaceUnlit, FSoftObjectPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_SurfaceUnlit.MX_SurfaceUnlit'") });
 }
 
 bool FMaterialXPipelineSettings::AreRequiredPackagesLoaded()
@@ -114,6 +115,10 @@ bool FMaterialXPipelineSettings::AreRequiredPackagesLoaded()
 						else if(Pair.Get<EInterchangeMaterialXShaders>() == EInterchangeMaterialXShaders::StandardSurfaceTransmission)
 						{
 							bAllLoaded = !ShouldFilterAssets(Cast<UMaterialFunction>(Asset), TransmissionSurfaceInputs, TransmissionSurfaceOutputs);
+						}
+						else if(Pair.Get<EInterchangeMaterialXShaders>() == EInterchangeMaterialXShaders::SurfaceUnlit)
+						{
+							bAllLoaded = !ShouldFilterAssets(Cast<UMaterialFunction>(Asset), SurfaceUnlitInputs, SurfaceUnlitOutputs);
 						}
 
 					}
@@ -243,6 +248,21 @@ TSet<FName> FMaterialXPipelineSettings::TransmissionSurfaceOutputs
 	UE::Interchange::Materials::ThinTranslucent::Parameters::TransmissionColor
 };
 
+TSet<FName> FMaterialXPipelineSettings::SurfaceUnlitInputs
+{
+	UE::Interchange::Materials::SurfaceUnlit::Parameters::Emission,
+	UE::Interchange::Materials::SurfaceUnlit::Parameters::EmissionColor,
+	UE::Interchange::Materials::SurfaceUnlit::Parameters::Transmission,
+	UE::Interchange::Materials::SurfaceUnlit::Parameters::TransmissionColor,
+	UE::Interchange::Materials::SurfaceUnlit::Parameters::Opacity
+};
+
+TSet<FName> FMaterialXPipelineSettings::SurfaceUnlitOutputs
+{
+	UE::Interchange::Materials::Common::Parameters::EmissiveColor,
+	UE::Interchange::Materials::Common::Parameters::Opacity,
+	TEXT("OpacityMask")
+};
 
 bool FMaterialXPipelineSettings::ShouldFilterAssets(UMaterialFunction* Asset, const TSet<FName>& Inputs, const TSet<FName>& Outputs)
 {
@@ -659,6 +679,20 @@ bool UInterchangeGenericMaterialPipeline::IsStandardSurfaceModel(const UIntercha
 	return false;
 }
 
+bool UInterchangeGenericMaterialPipeline::IsSurfaceUnlitModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+{
+	using namespace UE::Interchange::Materials;
+	FString ShaderType;
+	ShaderGraphNode->GetCustomShaderType(ShaderType);
+
+	if(ShaderType == SurfaceUnlit::Name.ToString())
+	{
+		return true;
+	}
+
+	return false;
+}
+
 bool UInterchangeGenericMaterialPipeline::HandlePhongModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Phong;
@@ -858,91 +892,104 @@ bool UInterchangeGenericMaterialPipeline::HandlePBRModel(const UInterchangeShade
 	return bShadingModelHandled;
 }
 
+FString UInterchangeGenericMaterialPipeline::HandleSurfaceShaderModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode, const FSurfaceShader& SurfaceShader)
+{
+	UInterchangeMaterialExpressionFactoryNode* FunctionCallExpression = NewObject<UInterchangeMaterialExpressionFactoryNode>(BaseNodeContainer, NAME_None);
+	FunctionCallExpression->SetCustomExpressionClassName(UMaterialExpressionMaterialFunctionCall::StaticClass()->GetName());
+	FString FunctionCallExpressionUid = MaterialFactoryNode->GetUniqueID() + SurfaceShader.UniqueID;
+	FunctionCallExpression->InitializeNode(FunctionCallExpressionUid, SurfaceShader.UniqueID, EInterchangeNodeContainerType::FactoryData);
+
+	BaseNodeContainer->AddNode(FunctionCallExpression);
+	BaseNodeContainer->SetNodeParentUid(FunctionCallExpressionUid, MaterialFactoryNode->GetUniqueID());
+
+	const FName MaterialFunctionMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialFunctionCall, MaterialFunction);
+
+
+	FunctionCallExpression->AddStringAttribute(
+		MaterialFunctionMemberName,
+		SurfaceShader.Path);
+	FunctionCallExpression->AddApplyAndFillDelegates<FString>(MaterialFunctionMemberName, UMaterialExpressionMaterialFunctionCall::StaticClass(), MaterialFunctionMemberName);
+
+	auto ConnectMaterialExpressionOutputToInput = [&](const FString& InputName, EMaterialInputType InputType)
+	{
+		TGuardValue<EMaterialInputType> InputTypeBeingProcessedGuard(MaterialCreationContext.InputTypeBeingProcessed, InputType);
+
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, InputName, FunctionCallExpression->GetUniqueID());
+
+		if(ExpressionFactoryNode.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(FunctionCallExpression, InputName,
+															ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
+		}
+	};
+
+	for(auto& Arguments : SurfaceShader.Parameters)
+	{
+		const FString& InputName = Arguments.Get<0>();
+		EMaterialInputType InputType = Arguments.Get<1>();
+		ConnectMaterialExpressionOutputToInput(InputName, InputType);
+	}
+
+	return FunctionCallExpressionUid;
+}
+
 bool UInterchangeGenericMaterialPipeline::HandleStandardSurfaceModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
 {
+	using namespace UE::Interchange::Materials;
+
 	if(IsStandardSurfaceModel(ShaderGraphNode))
 	{
-		UInterchangeMaterialExpressionFactoryNode* FunctionCallExpression = NewObject<UInterchangeMaterialExpressionFactoryNode>(BaseNodeContainer, NAME_None);
-		FunctionCallExpression->SetCustomExpressionClassName(UMaterialExpressionMaterialFunctionCall::StaticClass()->GetName());
-		FString FunctionCallExpressionUid = MaterialFactoryNode->GetUniqueID() + TEXT("StandardSurface");
-		FunctionCallExpression->InitializeNode(FunctionCallExpressionUid, TEXT("StandardSurface"), EInterchangeNodeContainerType::FactoryData);
+		static FSurfaceShader StandardSurfaceShader
+		{
+			// Parameters
+			{
+			{StandardSurface::Parameters::Base.ToString(), EMaterialInputType::Scalar},                          // Base
+			{StandardSurface::Parameters::BaseColor.ToString(), EMaterialInputType::Color},                      // BaseColor
+			{StandardSurface::Parameters::DiffuseRoughness.ToString(),  EMaterialInputType::Scalar},             // DiffuseRoughness
+			{StandardSurface::Parameters::Metalness.ToString(), EMaterialInputType::Scalar},                     // Metalness
+			{StandardSurface::Parameters::Specular.ToString(), EMaterialInputType::Scalar},                      // Specular
+			{StandardSurface::Parameters::SpecularRoughness.ToString(), EMaterialInputType::Scalar},             // SpecularRoughness
+			{StandardSurface::Parameters::SpecularIOR.ToString(), EMaterialInputType::Scalar},                   // SpecularIOR
+			{StandardSurface::Parameters::SpecularAnisotropy.ToString(), EMaterialInputType::Scalar},            // SpecularAnisotropy
+			{StandardSurface::Parameters::SpecularRotation.ToString(), EMaterialInputType::Scalar},              // SpecularRotation
+			{StandardSurface::Parameters::Subsurface.ToString(), EMaterialInputType::Scalar},                    // Subsurface
+			{StandardSurface::Parameters::SubsurfaceColor.ToString(), EMaterialInputType::Scalar},               // SubsurfaceColor
+			{StandardSurface::Parameters::SubsurfaceRadius.ToString(), EMaterialInputType::Scalar},              // SubsurfaceRadius
+			{StandardSurface::Parameters::SubsurfaceScale.ToString(), EMaterialInputType::Scalar},               // SubsurfaceScale
+			{StandardSurface::Parameters::Sheen.ToString(), EMaterialInputType::Scalar},                         // Sheen
+			{StandardSurface::Parameters::SheenColor.ToString(), EMaterialInputType::Color},                     // SheenColor
+			{StandardSurface::Parameters::SheenRoughness.ToString(), EMaterialInputType::Scalar},                // SheenRoughness
+			{StandardSurface::Parameters::Coat.ToString(), EMaterialInputType::Scalar},                          // Coat
+			{StandardSurface::Parameters::CoatColor.ToString(),  EMaterialInputType::Color},                     // CoatColor
+			{StandardSurface::Parameters::CoatNormal.ToString(),  EMaterialInputType::Vector},                   // CoatNormal
+			{StandardSurface::Parameters::CoatRoughness.ToString(), EMaterialInputType::Scalar},                 // CoatRoughness
+			{StandardSurface::Parameters::ThinFilmThickness.ToString(), EMaterialInputType::Scalar},             // ThinFilmThickness
+			{StandardSurface::Parameters::Emission.ToString(), EMaterialInputType::Scalar},                      // Emission
+			{StandardSurface::Parameters::EmissionColor.ToString(), EMaterialInputType::Color},                  // EmissionColor
+			{StandardSurface::Parameters::Normal.ToString(), EMaterialInputType::Vector},                        // Normal
+			{StandardSurface::Parameters::Tangent.ToString(), EMaterialInputType::Vector},                       // Tangent
+			{StandardSurface::Parameters::Transmission.ToString(),  EMaterialInputType::Scalar},                 // Transmission
+			{StandardSurface::Parameters::TransmissionColor.ToString(), EMaterialInputType::Color},              // TransmissionColor
+			{StandardSurface::Parameters::TransmissionDepth.ToString(), EMaterialInputType::Scalar},             // TransmissionDepth
+			{StandardSurface::Parameters::TransmissionScatter.ToString(), EMaterialInputType::Color},            // TransmissionScatter
+			{StandardSurface::Parameters::TransmissionScatterAnisotropy.ToString(), EMaterialInputType::Scalar}, // TransmissionScatterAnisotropy
+			{StandardSurface::Parameters::TransmissionDispersion.ToString(), EMaterialInputType::Scalar},        // TransmissionDispersion
+			{StandardSurface::Parameters::TransmissionExtraRoughness.ToString(), EMaterialInputType::Scalar},    // TransmissionExtraRoughness
+			},
 
-		BaseNodeContainer->AddNode(FunctionCallExpression);
-		BaseNodeContainer->SetNodeParentUid(FunctionCallExpressionUid, MaterialFactoryNode->GetUniqueID());
+			// UniqueID
+			TEXT("StandardSurface")
+		};
 
-		const FName MaterialFunctionMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialFunctionCall, MaterialFunction);
-
-		using namespace UE::Interchange::Materials;
-		FString StandardSurfaceOrTransmissionPath = MaterialXSettings.GetAssetPathString(EInterchangeMaterialXShaders::StandardSurface);
+		StandardSurfaceShader.Path = MaterialXSettings.GetAssetPathString(EInterchangeMaterialXShaders::StandardSurface);
 
 		if(UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, StandardSurface::Parameters::Transmission))
 		{
-			StandardSurfaceOrTransmissionPath = MaterialXSettings.GetAssetPathString(EInterchangeMaterialXShaders::StandardSurfaceTransmission);
+			StandardSurfaceShader.Path = MaterialXSettings.GetAssetPathString(EInterchangeMaterialXShaders::StandardSurfaceTransmission);
 		}
 
-		FunctionCallExpression->AddStringAttribute(
-			MaterialFunctionMemberName,
-			StandardSurfaceOrTransmissionPath);
-		FunctionCallExpression->AddApplyAndFillDelegates<FString>(MaterialFunctionMemberName, UMaterialExpressionMaterialFunctionCall::StaticClass(), MaterialFunctionMemberName);
-
-		auto ConnectMaterialExpressionOutputToInput = [&](const FString & InputName, EMaterialInputType InputType)
-		{
-			TGuardValue<EMaterialInputType> InputTypeBeingProcessedGuard(MaterialCreationContext.InputTypeBeingProcessed, InputType);
-
-			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
-				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, InputName, FunctionCallExpression->GetUniqueID());
-
-			if(ExpressionFactoryNode.Get<0>())
-			{
-				UInterchangeShaderPortsAPI::ConnectOuputToInput(FunctionCallExpression, InputName,
-																ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
-			}
-		};
-
-		using ArgumentsType = TTuple<FString, EMaterialInputType>;
-		
-		static ArgumentsType ArgumentsPerInputs[]
-		{
-			ArgumentsType{StandardSurface::Parameters::Base.ToString(), EMaterialInputType::Scalar},                          // Base
-			ArgumentsType{StandardSurface::Parameters::BaseColor.ToString(), EMaterialInputType::Color},                      // BaseColor
-			ArgumentsType{StandardSurface::Parameters::DiffuseRoughness.ToString(),  EMaterialInputType::Scalar},             // DiffuseRoughness
-			ArgumentsType{StandardSurface::Parameters::Metalness.ToString(), EMaterialInputType::Scalar},                     // Metalness
-			ArgumentsType{StandardSurface::Parameters::Specular.ToString(), EMaterialInputType::Scalar},                      // Specular
-			ArgumentsType{StandardSurface::Parameters::SpecularRoughness.ToString(), EMaterialInputType::Scalar},             // SpecularRoughness
-			ArgumentsType{StandardSurface::Parameters::SpecularIOR.ToString(), EMaterialInputType::Scalar},                   // SpecularIOR
-			ArgumentsType{StandardSurface::Parameters::SpecularAnisotropy.ToString(), EMaterialInputType::Scalar},            // SpecularAnisotropy
-			ArgumentsType{StandardSurface::Parameters::SpecularRotation.ToString(), EMaterialInputType::Scalar},              // SpecularRotation
-			ArgumentsType{StandardSurface::Parameters::Subsurface.ToString(), EMaterialInputType::Scalar},                    // Subsurface
-			ArgumentsType{StandardSurface::Parameters::SubsurfaceColor.ToString(), EMaterialInputType::Scalar},               // SubsurfaceColor
-			ArgumentsType{StandardSurface::Parameters::SubsurfaceRadius.ToString(), EMaterialInputType::Scalar},              // SubsurfaceRadius
-			ArgumentsType{StandardSurface::Parameters::SubsurfaceScale.ToString(), EMaterialInputType::Scalar},               // SubsurfaceScale
-			ArgumentsType{StandardSurface::Parameters::Sheen.ToString(), EMaterialInputType::Scalar},                         // Sheen
-			ArgumentsType{StandardSurface::Parameters::SheenColor.ToString(), EMaterialInputType::Color},                     // SheenColor
-			ArgumentsType{StandardSurface::Parameters::SheenRoughness.ToString(), EMaterialInputType::Scalar},                // SheenRoughness
-			ArgumentsType{StandardSurface::Parameters::Coat.ToString(), EMaterialInputType::Scalar},                          // Coat
-			ArgumentsType{StandardSurface::Parameters::CoatColor.ToString(),  EMaterialInputType::Color},                     // CoatColor
-			ArgumentsType{StandardSurface::Parameters::CoatNormal.ToString(),  EMaterialInputType::Vector},                   // CoatNormal
-			ArgumentsType{StandardSurface::Parameters::CoatRoughness.ToString(), EMaterialInputType::Scalar},                 // CoatRoughness
-			ArgumentsType{StandardSurface::Parameters::ThinFilmThickness.ToString(), EMaterialInputType::Scalar},             // ThinFilmThickness
-			ArgumentsType{StandardSurface::Parameters::Emission.ToString(), EMaterialInputType::Scalar},                      // Emission
-			ArgumentsType{StandardSurface::Parameters::EmissionColor.ToString(), EMaterialInputType::Color},                  // EmissionColor
-			ArgumentsType{StandardSurface::Parameters::Normal.ToString(), EMaterialInputType::Vector},                        // Normal
-			ArgumentsType{StandardSurface::Parameters::Tangent.ToString(), EMaterialInputType::Vector},                       // Tangent
-			ArgumentsType{StandardSurface::Parameters::Transmission.ToString(),  EMaterialInputType::Scalar},                 // Transmission
-			ArgumentsType{StandardSurface::Parameters::TransmissionColor.ToString(), EMaterialInputType::Color},              // TransmissionColor
-			ArgumentsType{StandardSurface::Parameters::TransmissionDepth.ToString(), EMaterialInputType::Scalar},             // TransmissionDepth
-			ArgumentsType{StandardSurface::Parameters::TransmissionScatter.ToString(), EMaterialInputType::Color},            // TransmissionScatter
-			ArgumentsType{StandardSurface::Parameters::TransmissionScatterAnisotropy.ToString(), EMaterialInputType::Scalar}, // TransmissionScatterAnisotropy
-			ArgumentsType{StandardSurface::Parameters::TransmissionDispersion.ToString(), EMaterialInputType::Scalar},        // TransmissionDispersion
-			ArgumentsType{StandardSurface::Parameters::TransmissionExtraRoughness.ToString(), EMaterialInputType::Scalar},    // TransmissionExtraRoughness
-		};
-
-		for(const ArgumentsType & Arguments : ArgumentsPerInputs)
-		{
-			const FString& InputName = Arguments.Get<0>();
-			EMaterialInputType InputType = Arguments.Get<1>();
-			ConnectMaterialExpressionOutputToInput(InputName, InputType);
-		}
+		const FString FunctionCallExpressionUid = HandleSurfaceShaderModel(ShaderGraphNode, MaterialFactoryNode, StandardSurfaceShader);
 		
 		MaterialFactoryNode->ConnectOutputToBaseColor(FunctionCallExpressionUid,  PBR::Parameters::BaseColor.ToString());
 		MaterialFactoryNode->ConnectOutputToMetallic(FunctionCallExpressionUid, PBR::Parameters::Metallic.ToString());
@@ -987,6 +1034,62 @@ bool UInterchangeGenericMaterialPipeline::HandleStandardSurfaceModel(const UInte
 		{
 			MaterialFactoryNode->SetCustomShadingModel(MSM_DefaultLit);
 		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool UInterchangeGenericMaterialPipeline::HandleSurfaceUnlitModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
+{
+	using namespace UE::Interchange::Materials;
+	using namespace UE::Interchange::InterchangeGenericMaterialPipeline;
+
+	if(IsSurfaceUnlitModel(ShaderGraphNode))
+	{
+		static FSurfaceShader StandardSurfaceShader
+		{
+			// Parameters
+			{
+			{SurfaceUnlit::Parameters::Emission.ToString(), EMaterialInputType::Scalar},                      // Emission
+			{SurfaceUnlit::Parameters::EmissionColor.ToString(), EMaterialInputType::Color},                  // EmissionColor
+			{SurfaceUnlit::Parameters::Opacity.ToString(), EMaterialInputType::Scalar},                       // Opacity
+			{SurfaceUnlit::Parameters::Transmission.ToString(),  EMaterialInputType::Scalar},                 // Transmission
+			{SurfaceUnlit::Parameters::TransmissionColor.ToString(), EMaterialInputType::Color},              // TransmissionColor
+			},
+
+			// UniqueID
+			TEXT("SurfaceUnlit"),
+
+			// Path
+			MaterialXSettings.GetAssetPathString(EInterchangeMaterialXShaders::SurfaceUnlit)
+		};
+
+		const FString FunctionCallExpressionUid = HandleSurfaceShaderModel(ShaderGraphNode, MaterialFactoryNode, StandardSurfaceShader);
+
+		MaterialFactoryNode->ConnectOutputToEmissiveColor(FunctionCallExpressionUid, PBR::Parameters::EmissiveColor.ToString());
+		
+		//We can't have both Opacity and Opacity Mask we need to make a choice
+		bool bHasOpacityOrTransmission = false;
+		if(UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, SurfaceUnlit::Parameters::Transmission))
+		{
+			MaterialFactoryNode->ConnectOutputToOpacity(FunctionCallExpressionUid, PBR::Parameters::Opacity.ToString());
+			bHasOpacityOrTransmission = true;
+		}
+		else if(UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, SurfaceUnlit::Parameters::Opacity))
+		{
+			MaterialFactoryNode->ConnectOutputToOpacity(FunctionCallExpressionUid, "OpacityMask");
+			MaterialFactoryNode->SetCustomOpacityMaskClipValue(0.f); // just to connect to the opacity mask
+			bHasOpacityOrTransmission = true;
+		}
+
+		if(bHasOpacityOrTransmission)
+		{
+			Private::UpdateBlendModeBasedOnOpacityAttributes(ShaderGraphNode, MaterialFactoryNode);
+		}
+
+		MaterialFactoryNode->SetCustomShadingModel(EMaterialShadingModel::MSM_Unlit);
 
 		return true;
 	}
@@ -2393,6 +2496,11 @@ UInterchangeMaterialFactoryNode* UInterchangeGenericMaterialPipeline::CreateMate
 	UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFactoryNode>( CreateBaseMaterialFactoryNode(ShaderGraphNode, UInterchangeMaterialFactoryNode::StaticClass()) );
 
 	if(HandleStandardSurfaceModel(ShaderGraphNode, MaterialFactoryNode))
+	{
+		return MaterialFactoryNode;
+	}
+
+	if(HandleSurfaceUnlitModel(ShaderGraphNode, MaterialFactoryNode))
 	{
 		return MaterialFactoryNode;
 	}

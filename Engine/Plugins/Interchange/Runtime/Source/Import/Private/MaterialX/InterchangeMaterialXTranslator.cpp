@@ -38,34 +38,36 @@ namespace mx = MaterialX;
 
 namespace UE::Interchange::MaterialX
 {
-	bool IsMaterialFunctionPackageLoaded()
+	bool AreMaterialFunctionPackagesLoaded()
 	{
-		auto IsPackageLoaded = [](const FString& TextPath) -> bool
+		auto ArePackagesLoaded = [](const TArray<FString> & TextPaths) -> bool
 		{
-			const FString FunctionPath{ FPackageName::ExportTextPathToObjectPath(TextPath) };
-			if(FPackageName::DoesPackageExist(FunctionPath))
+			bool bAllLoaded = true;
+			for(const FString & TextPath : TextPaths)
 			{
-				if(FSoftObjectPath(FunctionPath).TryLoad())
+				const FString FunctionPath{ FPackageName::ExportTextPathToObjectPath(TextPath) };
+				if(FPackageName::DoesPackageExist(FunctionPath))
 				{
-					return true;
+					if(!FSoftObjectPath(FunctionPath).TryLoad())
+					{
+						UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't load %s"), *FunctionPath);
+						bAllLoaded = false;
+					}
 				}
 				else
 				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't load %s"), *FunctionPath);
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't find %s"), *FunctionPath);
+					bAllLoaded = false;
 				}
 			}
-			else
-			{
-				UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't find %s"), *FunctionPath);
-			}
 
-			return false;
+			return bAllLoaded;
 		};
 
-		static const bool bNormalFromHeightMapPackageLoaded = 
-			IsPackageLoaded(TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions03/Procedurals/NormalFromHeightmap.NormalFromHeightmap'"));
+		static const bool bPackagesLoaded = 
+			ArePackagesLoaded({ TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions03/Procedurals/NormalFromHeightmap.NormalFromHeightmap'") });
 
-		return bNormalFromHeightMapPackageLoaded;
+		return bPackagesLoaded;
 	}
 }
 
@@ -256,7 +258,7 @@ TArray<FString> UInterchangeMaterialXTranslator::GetSupportedFormats() const
 		return TArray<FString>{};
 	}
 
-	return UE::Interchange::MaterialX::IsMaterialFunctionPackageLoaded() ? TArray<FString>{ TEXT("mtlx;MaterialX File Format") } : TArray<FString>{};
+	return UE::Interchange::MaterialX::AreMaterialFunctionPackagesLoaded() ? TArray<FString>{ TEXT("mtlx;MaterialX File Format") } : TArray<FString>{};
 }
 
 bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
@@ -304,6 +306,9 @@ bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& B
 			return false;
 		}
 
+		//Update the document by initializing and reorganizing the different nodes and subgraphs
+		UpdateDocumentRecursively(Document);
+
 		for(mx::ElementPtr Elem : Document->traverseTree())
 		{
 			//make sure to read only the current file otherwise we'll process the entire library
@@ -333,7 +338,8 @@ bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& B
 					//The entry point for materials is only on a surfacematerial node
 					if(bIsMaterialShader && Node->getCategory() == mx::SURFACE_MATERIAL_NODE_STRING)
 					{
-						bool bHasStandardSurface = false;
+						//standard_surface and surface_unlit are the only surface shaders supported for now
+						bool bHasSupportedSurfaceShader = false;
 
 						for(mx::InputPtr Input : Node->getInputs())
 						{
@@ -343,14 +349,19 @@ bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& B
 							if(ConnectedNode && ConnectedNode->getCategory() == mx::Category::StandardSurface)
 							{
 								ProcessStandardSurface(BaseNodeContainer, ConnectedNode, Document);
-								bHasStandardSurface = true;
+								bHasSupportedSurfaceShader = true;
+							}
+							else if(ConnectedNode && ConnectedNode->getCategory() == mx::Category::SurfaceUnlit)
+							{
+								ProcessSurfaceUnlit(BaseNodeContainer, ConnectedNode, Document);
+								bHasSupportedSurfaceShader = true;
 							}
 						}
 
-						if(!bHasStandardSurface)
+						if(!bHasSupportedSurfaceShader)
 						{
 							UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
-							Message->Text = FText::Format(LOCTEXT("StandardSurfaceNotFound", "<{0}> has no standard_surface inputs"),
+							Message->Text = FText::Format(LOCTEXT("SurfaceShaderNotFound", "the surfaceshader of <{0}> is not supported"),
 														  FText::FromString(Node->getName().c_str()));
 						}
 					}
@@ -414,349 +425,167 @@ void UInterchangeMaterialXTranslator::ProcessStandardSurface(UInterchangeBaseNod
 
 	UInterchangeShaderGraphNode* ShaderGraphNode = CreateShaderNode<UInterchangeShaderGraphNode>(StandardSurfaceNode->getName().c_str(), StandardSurface::Name.ToString(), NamesToShaderNodes, NodeContainer);
 
+	auto ConnectNodeOutputToInput = [&](const char* InputName, UInterchangeShaderNode * ShaderGraphNode, const FString & InputShaderName, auto DefaultValue)
+	{
+		mx::InputPtr Input = GetStandardSurfaceInput(StandardSurfaceNode, InputName, Document);
+
+		if(!ConnectNodeGraphOutputToInput(Input, ShaderGraphNode, InputShaderName, NamesToShaderNodes, NodeContainer))
+		{
+			if(!ConnectNodeNameOutputToInput(Input, ShaderGraphNode, InputShaderName, NamesToShaderNodes, NodeContainer))
+			{
+				//the different inputs from a standard surface are either float, linear color, or no attribute at all
+				if constexpr(std::is_same_v<decltype(DefaultValue), float>)
+				{
+					AddFloatAttribute(Input, InputShaderName, ShaderGraphNode, DefaultValue);
+				}
+				else if constexpr(std::is_same_v<decltype(DefaultValue), FLinearColor>)
+				{
+					AddLinearColorAttribute(Input, InputShaderName, ShaderGraphNode, DefaultValue);
+				}
+			}
+		}
+	};
+
 	//Base
-	{
-		//Weight
-		{
-			mx::InputPtr InputBase = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::Base, Document);
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::Base, ShaderGraphNode, StandardSurface::Parameters::Base.ToString(), mx::StandardSurface::DefaultValue::Float::Base);
+	
+	//Base Color
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::BaseColor, ShaderGraphNode, StandardSurface::Parameters::BaseColor.ToString(), mx::StandardSurface::DefaultValue::Color3::BaseColor);
 
-			if(!ConnectNodeGraphOutputToInput(InputBase, ShaderGraphNode, StandardSurface::Parameters::Base.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputBase, StandardSurface::Parameters::Base.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::Base);
-			}
-		}
-
-		//Color
-		{
-			mx::InputPtr InputBaseColor = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::BaseColor, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputBaseColor, ShaderGraphNode, StandardSurface::Parameters::BaseColor.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddLinearColorAttribute(InputBaseColor, StandardSurface::Parameters::BaseColor.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Color3::BaseColor);
-			}
-		}
-	}
-
-	//DiffuseRoughness
-	{
-		mx::InputPtr InputDiffuseRoughness = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::DiffuseRoughness, Document);
-
-		if(!ConnectNodeGraphOutputToInput(InputDiffuseRoughness, ShaderGraphNode, StandardSurface::Parameters::DiffuseRoughness.ToString(), NamesToShaderNodes, NodeContainer))
-		{
-			AddFloatAttribute(InputDiffuseRoughness, StandardSurface::Parameters::DiffuseRoughness.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::DiffuseRoughness);
-		}
-	}
+	//Diffuse Roughness
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::DiffuseRoughness, ShaderGraphNode, StandardSurface::Parameters::DiffuseRoughness.ToString(), mx::StandardSurface::DefaultValue::Float::DiffuseRoughness);
 
 	//Specular
-	{
-		//Weight
-		{
-			mx::InputPtr InputSpecular = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::Specular, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSpecular, ShaderGraphNode, StandardSurface::Parameters::Specular.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputSpecular, StandardSurface::Parameters::Specular.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::Specular);
-			}
-		}
-
-		//Roughness
-		{
-			mx::InputPtr InputSpecularRoughness = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::SpecularRoughness, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSpecularRoughness, ShaderGraphNode, StandardSurface::Parameters::SpecularRoughness.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputSpecularRoughness, StandardSurface::Parameters::SpecularRoughness.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::SpecularRoughness);
-			}
-		}
-
-		//IOR
-		{
-			mx::InputPtr InputSpecularIOR = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::SpecularIOR, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSpecularIOR, ShaderGraphNode, StandardSurface::Parameters::SpecularIOR.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputSpecularIOR, StandardSurface::Parameters::SpecularIOR.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::SpecularIOR);
-			}
-		}
-
-		//Anisotropy
-		{
-			mx::InputPtr InputSpecularAnisotropy = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::SpecularAnisotropy, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSpecularAnisotropy, ShaderGraphNode, StandardSurface::Parameters::SpecularAnisotropy.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputSpecularAnisotropy, StandardSurface::Parameters::SpecularAnisotropy.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::SpecularAnisotropy);
-			}
-		}
-
-		//Rotation
-		{
-			mx::InputPtr InputSpecularRotation = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::SpecularRotation, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSpecularRotation, ShaderGraphNode, StandardSurface::Parameters::SpecularRotation.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputSpecularRotation, StandardSurface::Parameters::SpecularRotation.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::SpecularRotation);
-			}
-		}
-	}
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::Specular, ShaderGraphNode, StandardSurface::Parameters::Specular.ToString(), mx::StandardSurface::DefaultValue::Float::Specular);
+	
+	//Specular Roughness
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::SpecularRoughness, ShaderGraphNode, StandardSurface::Parameters::SpecularRoughness.ToString(), mx::StandardSurface::DefaultValue::Float::SpecularRoughness);
+	
+	//Specular IOR
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::SpecularIOR, ShaderGraphNode, StandardSurface::Parameters::SpecularIOR.ToString(), mx::StandardSurface::DefaultValue::Float::SpecularIOR);
+	
+	//Specular Anisotropy
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::SpecularAnisotropy, ShaderGraphNode, StandardSurface::Parameters::SpecularAnisotropy.ToString(), mx::StandardSurface::DefaultValue::Float::SpecularAnisotropy);
+	
+	//Specular Rotation
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::SpecularRotation, ShaderGraphNode, StandardSurface::Parameters::SpecularRotation.ToString(), mx::StandardSurface::DefaultValue::Float::SpecularRotation);
 
 	//Metallic
-	{
-		mx::InputPtr InputMetalness = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::Metalness, Document);
-
-		if(!ConnectNodeGraphOutputToInput(InputMetalness, ShaderGraphNode, StandardSurface::Parameters::Metalness.ToString(), NamesToShaderNodes, NodeContainer))
-		{
-			AddFloatAttribute(InputMetalness, StandardSurface::Parameters::Metalness.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::Metalness);
-		}
-	}
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::Metalness, ShaderGraphNode, StandardSurface::Parameters::Metalness.ToString(), mx::StandardSurface::DefaultValue::Float::Metalness);
 
 	//Subsurface
-	{
-		//Weight
-		{
-			mx::InputPtr InputSubsurface = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::Subsurface, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSubsurface, ShaderGraphNode, StandardSurface::Parameters::Subsurface.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputSubsurface, StandardSurface::Parameters::Subsurface.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::Subsurface);
-			}
-		}
-
-		//Color
-		{
-			mx::InputPtr InputSubsurfaceColor = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::SubsurfaceColor, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSubsurfaceColor, ShaderGraphNode, StandardSurface::Parameters::SubsurfaceColor.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddLinearColorAttribute(InputSubsurfaceColor, StandardSurface::Parameters::SubsurfaceColor.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Color3::SubsurfaceColor);
-			}
-		}
-
-		//Radius
-		{
-			mx::InputPtr InputSubsurfaceRadius = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::SubsurfaceRadius, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSubsurfaceRadius, ShaderGraphNode, StandardSurface::Parameters::SubsurfaceRadius.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddLinearColorAttribute(InputSubsurfaceRadius, StandardSurface::Parameters::SubsurfaceRadius.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Color3::SubsurfaceRadius);
-			}
-		}
-
-		//Scale
-		{
-			mx::InputPtr InputSubsurfaceScale = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::SubsurfaceScale, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSubsurfaceScale, ShaderGraphNode, StandardSurface::Parameters::SubsurfaceScale.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputSubsurfaceScale, StandardSurface::Parameters::SubsurfaceScale.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::SubsurfaceScale);
-			}
-		}
-	}
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::Subsurface, ShaderGraphNode, StandardSurface::Parameters::Subsurface.ToString(), mx::StandardSurface::DefaultValue::Float::Subsurface);
+	
+	//Subsurface Color
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::SubsurfaceColor, ShaderGraphNode, StandardSurface::Parameters::SubsurfaceColor.ToString(), mx::StandardSurface::DefaultValue::Color3::SubsurfaceColor);
+	
+	//Subsurface Radius
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::SubsurfaceRadius, ShaderGraphNode, StandardSurface::Parameters::SubsurfaceRadius.ToString(), mx::StandardSurface::DefaultValue::Color3::SubsurfaceRadius);
+	
+	//Subsurface Scale
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::SubsurfaceScale, ShaderGraphNode, StandardSurface::Parameters::SubsurfaceScale.ToString(), mx::StandardSurface::DefaultValue::Float::SubsurfaceScale);
 
 	//Sheen
-	{
-		//Weight
-		{
-			mx::InputPtr InputSheen = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::Sheen, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSheen, ShaderGraphNode, StandardSurface::Parameters::Sheen.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputSheen, StandardSurface::Parameters::Sheen.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::Sheen);
-			}
-		}
-
-		//Color
-		{
-			mx::InputPtr InputSheenColor = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::SheenColor, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSheenColor, ShaderGraphNode, StandardSurface::Parameters::SubsurfaceColor.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddLinearColorAttribute(InputSheenColor, StandardSurface::Parameters::SheenColor.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Color3::SheenColor);
-			}
-		}
-
-		//Roughness
-		{
-			mx::InputPtr InputSheenRoughness = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::SheenRoughness, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputSheenRoughness, ShaderGraphNode, StandardSurface::Parameters::SheenRoughness.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputSheenRoughness, StandardSurface::Parameters::SheenRoughness.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::SheenRoughness);
-			}
-		}
-	}
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::Sheen, ShaderGraphNode, StandardSurface::Parameters::Sheen.ToString(), mx::StandardSurface::DefaultValue::Float::Sheen);
+	
+	//Sheen Color
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::SheenColor, ShaderGraphNode, StandardSurface::Parameters::SheenColor.ToString(), mx::StandardSurface::DefaultValue::Color3::SheenColor);
+	
+	//Sheen Roughness
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::SheenRoughness, ShaderGraphNode, StandardSurface::Parameters::SheenRoughness.ToString(), mx::StandardSurface::DefaultValue::Float::SheenRoughness);
 
 	//Coat
-	{
-		//Weight
-		{
-			mx::InputPtr InputCoat = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::Coat, Document);
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::Coat, ShaderGraphNode, StandardSurface::Parameters::Coat.ToString(), mx::StandardSurface::DefaultValue::Float::Coat);
+	
+	//Coat Color
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::CoatColor, ShaderGraphNode, StandardSurface::Parameters::CoatColor.ToString(), mx::StandardSurface::DefaultValue::Color3::CoatColor);
+	
+	//Coat Roughness
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::CoatRoughness, ShaderGraphNode, StandardSurface::Parameters::CoatRoughness.ToString(), mx::StandardSurface::DefaultValue::Float::CoatRoughness);
+	
+	//Coat Normal: No need to take the default input if there is no CoatNormal input
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::CoatNormal, ShaderGraphNode, StandardSurface::Parameters::CoatNormal.ToString(), nullptr);
 
-			if(!ConnectNodeGraphOutputToInput(InputCoat, ShaderGraphNode, StandardSurface::Parameters::Coat.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputCoat, StandardSurface::Parameters::Coat.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::Coat);
-			}
-		}
-
-		//Color
-		{
-			mx::InputPtr InputCoatColor = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::CoatColor, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputCoatColor, ShaderGraphNode, StandardSurface::Parameters::CoatColor.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddLinearColorAttribute(InputCoatColor, StandardSurface::Parameters::CoatColor.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Color3::CoatColor);
-			}
-		}
-
-		//Roughness
-		{
-			mx::InputPtr InputCoatRoughness = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::CoatRoughness, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputCoatRoughness, ShaderGraphNode, StandardSurface::Parameters::CoatRoughness.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputCoatRoughness, StandardSurface::Parameters::CoatRoughness.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::CoatRoughness);
-			}
-		}
-
-		//Normal
-		{
-			//No need to take the default input if there is no Normal input
-			mx::InputPtr InputCoatNormal = StandardSurfaceNode->getInput(mx::StandardSurface::Input::CoatNormal);
-
-			if(InputCoatNormal)
-			{
-				ConnectNodeGraphOutputToInput(InputCoatNormal, ShaderGraphNode, StandardSurface::Parameters::CoatNormal.ToString(), NamesToShaderNodes, NodeContainer);
-			}
-		}
-	}
-
-	//ThinFilmThickness
-	{
-		mx::InputPtr InputThinFilmThickness = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::ThinFilmThickness, Document);
-
-		if(!ConnectNodeGraphOutputToInput(InputThinFilmThickness, ShaderGraphNode, StandardSurface::Parameters::ThinFilmThickness.ToString(), NamesToShaderNodes, NodeContainer))
-		{
-			AddFloatAttribute(InputThinFilmThickness, StandardSurface::Parameters::ThinFilmThickness.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::ThinFilmThickness);
-		}
-	}
+	//Thin Film Thickness
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::ThinFilmThickness, ShaderGraphNode, StandardSurface::Parameters::ThinFilmThickness.ToString(), mx::StandardSurface::DefaultValue::Float::ThinFilmThickness);
 
 	//Emission
-	{
-		//Weight
-		{
-			mx::InputPtr InputEmission = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::Emission, Document);
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::Emission, ShaderGraphNode, StandardSurface::Parameters::Emission.ToString(), mx::StandardSurface::DefaultValue::Float::Emission);
+	
+	//Emission Color
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::EmissionColor, ShaderGraphNode, StandardSurface::Parameters::EmissionColor.ToString(), mx::StandardSurface::DefaultValue::Color3::EmissionColor);
 
-			if(!ConnectNodeGraphOutputToInput(InputEmission, ShaderGraphNode, StandardSurface::Parameters::Emission.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputEmission, StandardSurface::Parameters::Emission.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::Emission);
-			}
-		}
+	//Normal: No need to take the default input if there is no Normal input
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::Normal, ShaderGraphNode, StandardSurface::Parameters::Normal.ToString(), nullptr);
 
-		//Color
-		{
-			mx::InputPtr InputEmissionColor = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::EmissionColor, Document);
-
-			if(!ConnectNodeGraphOutputToInput(InputEmissionColor, ShaderGraphNode, StandardSurface::Parameters::EmissionColor.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddLinearColorAttribute(InputEmissionColor, StandardSurface::Parameters::EmissionColor.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Color3::EmissionColor);
-			}
-		}
-	}
-
-	//Normal
-	{
-		//No need to take the default input if there is no Normal input
-		mx::InputPtr InputNormal = StandardSurfaceNode->getInput(mx::StandardSurface::Input::Normal);
-
-		if(InputNormal)
-		{
-			ConnectNodeGraphOutputToInput(InputNormal, ShaderGraphNode, StandardSurface::Parameters::Normal.ToString(), NamesToShaderNodes, NodeContainer);
-		}
-	}
-
-	//Tangent
-	{
-		//No need to take the default input if there is no Tangent input
-		mx::InputPtr InputTangent = StandardSurfaceNode->getInput(mx::StandardSurface::Input::Tangent);
-
-		if(InputTangent)
-		{
-			ConnectNodeGraphOutputToInput(InputTangent, ShaderGraphNode, StandardSurface::Parameters::Tangent.ToString(), NamesToShaderNodes, NodeContainer);
-		}
-	}
+	//Tangent: No need to take the default input if there is no Tangent input
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::Tangent, ShaderGraphNode, StandardSurface::Parameters::Tangent.ToString(), nullptr);
 
 	//Transmission
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::Transmission, ShaderGraphNode, StandardSurface::Parameters::Transmission.ToString(), mx::StandardSurface::DefaultValue::Float::Transmission);
+	
+	//Transmission Color
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::TransmissionColor, ShaderGraphNode, StandardSurface::Parameters::TransmissionColor.ToString(), mx::StandardSurface::DefaultValue::Color3::TransmissionColor);
+	
+	//Transmission Depth
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::TransmissionDepth, ShaderGraphNode, StandardSurface::Parameters::TransmissionDepth.ToString(), mx::StandardSurface::DefaultValue::Float::TransmissionDepth);
+	
+	//Transmission Scatter
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::TransmissionScatter, ShaderGraphNode, StandardSurface::Parameters::TransmissionScatter.ToString(), mx::StandardSurface::DefaultValue::Color3::TransmissionScatter);
+	
+	//Transmission Scatter Anisotropy
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::TransmissionScatterAnisotropy, ShaderGraphNode, StandardSurface::Parameters::TransmissionScatterAnisotropy.ToString(), mx::StandardSurface::DefaultValue::Float::TransmissionScatterAnisotropy);
+
+	//Transmission Dispersion
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::TransmissionDispersion, ShaderGraphNode, StandardSurface::Parameters::TransmissionDispersion.ToString(), mx::StandardSurface::DefaultValue::Float::TransmissionDispersion);
+	
+	//Transmission Extra Roughness
+	ConnectNodeOutputToInput(mx::StandardSurface::Input::TransmissionExtraRoughness, ShaderGraphNode, StandardSurface::Parameters::TransmissionExtraRoughness.ToString(), mx::StandardSurface::DefaultValue::Float::TransmissionExtraRoughness);
+}
+
+void UInterchangeMaterialXTranslator::ProcessSurfaceUnlit(UInterchangeBaseNodeContainer& NodeContainer, MaterialX::NodePtr SurfaceUnlitNode, MaterialX::DocumentPtr Document) const
+{
+	using namespace UE::Interchange::Materials;
+
+	TMap<FString, UInterchangeShaderNode*> NamesToShaderNodes;
+
+	UInterchangeShaderGraphNode* ShaderGraphNode = CreateShaderNode<UInterchangeShaderGraphNode>(SurfaceUnlitNode->getName().c_str(), SurfaceUnlit::Name.ToString(), NamesToShaderNodes, NodeContainer);
+
+	auto ConnectNodeOutputToInput = [&](const char* InputName, UInterchangeShaderNode* ShaderGraphNode, const FString& InputShaderName, auto DefaultValue)
 	{
-		//Weight
-		{
-			mx::InputPtr InputTransmission = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::Transmission, Document);
+		mx::InputPtr Input = GetSurfaceUnlitInput(SurfaceUnlitNode, InputName, Document);
 
-			if (!ConnectNodeGraphOutputToInput(InputTransmission, ShaderGraphNode, StandardSurface::Parameters::Transmission.ToString(), NamesToShaderNodes, NodeContainer))
+		if(!ConnectNodeGraphOutputToInput(Input, ShaderGraphNode, InputShaderName, NamesToShaderNodes, NodeContainer))
+		{
+			if(!ConnectNodeNameOutputToInput(Input, ShaderGraphNode, InputShaderName, NamesToShaderNodes, NodeContainer))
 			{
-				AddFloatAttribute(InputTransmission, StandardSurface::Parameters::Transmission.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::Transmission);
+				//the different inputs from a surface unlit are either float or linear color
+				if constexpr(std::is_same_v<decltype(DefaultValue), float>)
+				{
+					AddFloatAttribute(Input, InputShaderName, ShaderGraphNode, DefaultValue);
+				}
+				else if constexpr(std::is_same_v<decltype(DefaultValue), FLinearColor>)
+				{
+					AddLinearColorAttribute(Input, InputShaderName, ShaderGraphNode, DefaultValue);
+				}
 			}
 		}
+	};
 
-		//Color
-		{
-			mx::InputPtr InputTransmissionColor = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionColor, Document);
+	//Emission
+	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::Emission, ShaderGraphNode, SurfaceUnlit::Parameters::Emission.ToString(), mx::SurfaceUnlit::DefaultValue::Float::Emission);
 
-			if (!ConnectNodeGraphOutputToInput(InputTransmissionColor, ShaderGraphNode, StandardSurface::Parameters::TransmissionColor.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddLinearColorAttribute(InputTransmissionColor, StandardSurface::Parameters::TransmissionColor.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Color3::TransmissionColor);
-			}
-		}
+	//Emission Color
+	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::EmissionColor, ShaderGraphNode, SurfaceUnlit::Parameters::EmissionColor.ToString(), mx::SurfaceUnlit::DefaultValue::Color3::EmissionColor);
 
-		//Depth
-		{
-			mx::InputPtr InputTransmissionDepth = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionDepth, Document);
+	//Opacity
+	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::Opacity, ShaderGraphNode, SurfaceUnlit::Parameters::Opacity.ToString(), mx::SurfaceUnlit::DefaultValue::Float::Opacity);
 
-			if (!ConnectNodeGraphOutputToInput(InputTransmissionDepth, ShaderGraphNode, StandardSurface::Parameters::TransmissionDepth.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputTransmissionDepth, StandardSurface::Parameters::TransmissionDepth.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::TransmissionDepth);
-			}
-		}
+	//Transmission
+	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::Transmission, ShaderGraphNode, SurfaceUnlit::Parameters::Transmission.ToString(), mx::SurfaceUnlit::DefaultValue::Float::Transmission);
 
-		//Scatter
-		{
-			mx::InputPtr InputTransmissionScatter = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionScatter, Document);
-
-			if (!ConnectNodeGraphOutputToInput(InputTransmissionScatter, ShaderGraphNode, StandardSurface::Parameters::TransmissionScatter.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddLinearColorAttribute(InputTransmissionScatter, StandardSurface::Parameters::TransmissionScatter.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Color3::TransmissionScatter);
-			}
-		}
-
-		//Scatter Anisotropy
-		{
-			mx::InputPtr InputTransmissionScatterAnisotropy = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionScatterAnisotropy, Document);
-
-			if (!ConnectNodeGraphOutputToInput(InputTransmissionScatterAnisotropy, ShaderGraphNode, StandardSurface::Parameters::TransmissionScatterAnisotropy.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputTransmissionScatterAnisotropy, StandardSurface::Parameters::TransmissionScatterAnisotropy.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::TransmissionScatterAnisotropy);
-			}
-		}
-
-		//Dispersion
-		{
-			mx::InputPtr InputTransmissionDispersion = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionDispersion, Document);
-
-			if (!ConnectNodeGraphOutputToInput(InputTransmissionDispersion, ShaderGraphNode, StandardSurface::Parameters::TransmissionDispersion.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputTransmissionDispersion, StandardSurface::Parameters::TransmissionDispersion.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::TransmissionDispersion);
-			}
-		}
-
-		//Extra Roughness
-		{
-			mx::InputPtr InputTransmissionExtraRoughness = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionExtraRoughness, Document);
-
-			if (!ConnectNodeGraphOutputToInput(InputTransmissionExtraRoughness, ShaderGraphNode, StandardSurface::Parameters::TransmissionExtraRoughness.ToString(), NamesToShaderNodes, NodeContainer))
-			{
-				AddFloatAttribute(InputTransmissionExtraRoughness, StandardSurface::Parameters::TransmissionExtraRoughness.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::TransmissionExtraRoughness);
-			}
-		}
-	}
+	//Transmission Color
+	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::TransmissionColor, ShaderGraphNode, SurfaceUnlit::Parameters::TransmissionColor.ToString(), mx::SurfaceUnlit::DefaultValue::Color3::TransmissionColor);
 }
 
 void UInterchangeMaterialXTranslator::ProcessLightShader(UInterchangeBaseNodeContainer& NodeContainer, MaterialX::NodePtr LightShaderNode, MaterialX::DocumentPtr Document) const
@@ -929,157 +758,10 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 										  FText::FromString(GetInputName(InputToNodeGraph)));
 			return false;
 		}
-	
-		//extract and separate nodes will be handled by ourselves, since they are defined with a swizzle node, which is not present in UE
-		auto FilterNodes = [](mx::NodePtr Node) ->bool
-		{
-			const std::string& Category= Node->getCategory();
-			return
-				Category != mx::Category::Extract &&
-				Category != mx::Category::Saturate &&
-				Category != mx::Category::Separate2 &&
-				Category != mx::Category::Separate3 &&
-				Category != mx::Category::Separate4;
-		};
-
-		mx::NodeGraphPtr NodeGraph = Output->getParent()->asA<mx::NodeGraph>();
-
-		AddTexCoordToTiledImageNodes(NodeGraph);
-
-		//This function will replace all the nodes that are defined with a nodegraph with their equivalent node network
-		//This allows us to handle nodes defined with a nodegraph, with nodes that we already support while traversing the current node graph
-		//For example the node tiledimage is just a succession of the nodes image, multiply, add, etc.
-		NodeGraph->flattenSubgraphs(mx::EMPTY_STRING, FilterNodes);
-
-		ConvertNeutralNodesToDot(NodeGraph);
 
 		for(mx::Edge Edge : Output->traverseGraph())
 		{
-			if(mx::NodePtr UpstreamNode = Edge.getUpstreamElement()->asA<mx::Node>())
-			{
-				UInterchangeShaderNode* ParentShaderNode = ShaderNode;
-				FString InputChannelName = ParentInputName;
-
-				//Replace the input's name by the one used in UE
-				RenameNodeInputs(UpstreamNode);
-
-				if(mx::NodePtr DownstreamNode = Edge.getDownstreamElement()->asA<mx::Node>())
-				{
-					if(UInterchangeShaderNode** FoundNode = NamesToShaderNodes.Find(GetAttributeParentName(DownstreamNode)))// DownstreamNode->getName().c_str()))
-					{
-						ParentShaderNode = *FoundNode;
-					}
-
-					if(mx::InputPtr ConnectedInput = Edge.getConnectingElement()->asA<mx::Input>())
-					{
-						InputChannelName = GetInputName(ConnectedInput);
-					}
-				}
-
-				if(ConnectNodeOutputToInput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer))
-				{
-					continue;
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Constant)
-				{
-					ConnectConstantInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Extract)
-				{
-					ConnectExtractInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				//dot means identity, input == output
-				else if(UpstreamNode->getCategory() == mx::Category::Dot || UpstreamNode->getCategory() == mx::Category::NormalMap)
-				{
-					ConnectDotInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::TransformPoint)
-				{
-					ConnectTransformPositionInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::TransformVector || UpstreamNode->getCategory() == mx::Category::TransformNormal)
-				{
-					ConnectTransformVectorInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Rotate2D)
-				{
-					ConnectRotate2DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Rotate3D)
-				{
-					ConnectRotate3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Image)
-				{
-					ConnectImageInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Convert)
-				{
-					ConnectConvertInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::IfGreater)
-				{
-					ConnectIfGreaterInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::IfGreaterEq)
-				{
-					ConnectIfGreaterEqInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::IfEqual)
-				{
-					ConnectIfEqualInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Outside)
-				{
-					ConnectOutsideInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Position)
-				{
-					ConnectPositionInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Normal)
-				{
-					ConnectNormalInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Tangent)
-				{
-					ConnectTangentInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Bitangent)
-				{
-					ConnectBitangentInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Time)
-				{
-					ConnectTimeInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Noise3D)
-				{
-					ConnectNoise3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::CellNoise3D)
-				{
-					ConnectCellNoise3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::WorleyNoise3D)
-				{
-					ConnectWorleyNoise3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::Blur)
-				{
-					ConnectBlurInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else if(UpstreamNode->getCategory() == mx::Category::HeightToNormal)
-				{
-					ConnectHeightToNormalInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
-				}
-				else
-				{
-					UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
-					Message->Text = FText::Format(LOCTEXT("NodeCategoryNotSupported", "<{0}> is not supported yet"),
-												  FText::FromString(UpstreamNode->getCategory().c_str()));
-				}
-			}
+			ConnectNodeCategoryOutputToInput(Edge, ShaderNode, ParentInputName, NamesToShaderNodes, NodeContainer);
 		}
 	}
 
@@ -1108,6 +790,172 @@ bool UInterchangeMaterialXTranslator::ConnectNodeOutputToInput(MaterialX::NodePt
 	}
 
 	return bIsConnected;
+}
+
+void UInterchangeMaterialXTranslator::ConnectNodeCategoryOutputToInput(const MaterialX::Edge& Edge, UInterchangeShaderNode* ShaderNode, const FString& ParentInputName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	if(mx::NodePtr UpstreamNode = Edge.getUpstreamElement()->asA<mx::Node>())
+	{
+		UInterchangeShaderNode* ParentShaderNode = ShaderNode;
+		FString InputChannelName = ParentInputName;
+
+		//Replace the input's name by the one used in UE
+		RenameNodeInputs(UpstreamNode);
+
+		if(mx::ElementPtr DownstreamElement = Edge.getDownstreamElement())
+		{
+			if(mx::NodePtr DownstreamNode = DownstreamElement->asA<mx::Node>())
+			{
+				if(UInterchangeShaderNode** FoundNode = NamesToShaderNodes.Find(GetAttributeParentName(DownstreamNode)))// DownstreamNode->getName().c_str()))
+				{
+					ParentShaderNode = *FoundNode;
+				}
+
+				if(mx::InputPtr ConnectedInput = Edge.getConnectingElement()->asA<mx::Input>())
+				{
+					InputChannelName = GetInputName(ConnectedInput);
+				}
+			}
+		}
+
+		if(ConnectNodeOutputToInput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer))
+		{
+			return;
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Constant)
+		{
+			ConnectConstantInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Extract)
+		{
+			ConnectExtractInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		//dot means identity, input == output
+		else if(UpstreamNode->getCategory() == mx::Category::Dot || UpstreamNode->getCategory() == mx::Category::NormalMap)
+		{
+			ConnectDotInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::TransformPoint)
+		{
+			ConnectTransformPositionInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::TransformVector || UpstreamNode->getCategory() == mx::Category::TransformNormal)
+		{
+			ConnectTransformVectorInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Rotate2D)
+		{
+			ConnectRotate2DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Rotate3D)
+		{
+			ConnectRotate3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Image)
+		{
+			ConnectImageInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Convert)
+		{
+			ConnectConvertInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::IfGreater)
+		{
+			ConnectIfGreaterInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::IfGreaterEq)
+		{
+			ConnectIfGreaterEqInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::IfEqual)
+		{
+			ConnectIfEqualInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Outside)
+		{
+			ConnectOutsideInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Position)
+		{
+			ConnectPositionInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Normal)
+		{
+			ConnectNormalInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Tangent)
+		{
+			ConnectTangentInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Bitangent)
+		{
+			ConnectBitangentInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Time)
+		{
+			ConnectTimeInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Noise3D)
+		{
+			ConnectNoise3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::CellNoise3D)
+		{
+			ConnectCellNoise3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::WorleyNoise3D)
+		{
+			ConnectWorleyNoise3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::Blur)
+		{
+			ConnectBlurInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else if(UpstreamNode->getCategory() == mx::Category::HeightToNormal)
+		{
+			ConnectHeightToNormalInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+		}
+		else
+		{
+			UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
+			Message->Text = FText::Format(LOCTEXT("NodeCategoryNotSupported", "<{0}> is not supported yet"),
+										  FText::FromString(UpstreamNode->getCategory().c_str()));
+		}
+	}
+}
+
+bool UInterchangeMaterialXTranslator::ConnectNodeNameOutputToInput(MaterialX::InputPtr InputToConnectedNode, UInterchangeShaderNode* ShaderNode, const FString& ParentInputName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	mx::NodePtr ConnectedNode = InputToConnectedNode->getConnectedNode();
+
+	if(!ConnectedNode)
+	{
+		return false;
+	}
+
+	UInterchangeShaderNode* ParentShaderNode = ShaderNode;
+	FString InputChannelName = ParentInputName;
+
+	mx::Edge Edge(nullptr, InputToConnectedNode, ConnectedNode);
+
+	TArray<mx::Edge> Stack{ Edge };
+
+	while(!Stack.IsEmpty())
+	{
+		Edge = Stack.Pop();
+		
+		if(Edge.getUpstreamElement())
+		{
+			ConnectNodeCategoryOutputToInput(Edge, ShaderNode, ParentInputName, NamesToShaderNodes, NodeContainer);
+			ConnectedNode = Edge.getUpstreamElement()->asA<mx::Node>();
+			for(mx::InputPtr Input : ConnectedNode->getInputs())
+			{
+				Stack.Emplace(ConnectedNode, Input, Input->getConnectedNode());
+			}
+		}
+	}
+
+	return true;
 }
 
 const FString& UInterchangeMaterialXTranslator::GetMatchedInputName(MaterialX::NodePtr Node, MaterialX::InputPtr Input) const
@@ -1175,6 +1023,18 @@ MaterialX::InputPtr UInterchangeMaterialXTranslator::GetStandardSurfaceInput(Mat
 	if(!Input)
 	{
 		Input = Document->getNodeDef(mx::NodeDefinition::StandardSurface)->getActiveInput(InputName);
+	}
+
+	return Input;
+}
+
+MaterialX::InputPtr UInterchangeMaterialXTranslator::GetSurfaceUnlitInput(MaterialX::NodePtr SurfaceUnlit, const char* InputName, MaterialX::DocumentPtr Document) const
+{
+	mx::InputPtr Input = SurfaceUnlit->getInput(InputName);
+
+	if(!Input)
+	{
+		Input = Document->getNodeDef(mx::NodeDefinition::SurfaceUnlit)->getActiveInput(InputName);
 	}
 
 	return Input;
@@ -2216,11 +2076,11 @@ FLinearColor UInterchangeMaterialXTranslator::GetVector(MaterialX::InputPtr Inpu
 	return LinearColor;
 }
 
-MaterialX::NodePtr UInterchangeMaterialXTranslator::CreateNode(MaterialX::NodeGraphPtr NodeGraph, const char* NodeName, const char* Category, TArray<FInputToCopy> InputsToCopy, TArray<FInputToCreate> InputsToCreate) const
+MaterialX::NodePtr UInterchangeMaterialXTranslator::CreateNode(MaterialX::ElementPtr NodeGraph, const char* NodeName, const char* Category, TArray<FInputToCopy> InputsToCopy, TArray<FInputToCreate> InputsToCreate) const
 {
 	std::string UniqueNodeName{ NodeName + std::string{"_"} + Category };
 
-	mx::NodePtr Node = NodeGraph->getNode(UniqueNodeName);
+	mx::NodePtr Node = NodeGraph->getChildOfType<mx::Node>(UniqueNodeName);
 
 	if(!Node)
 	{
@@ -2261,9 +2121,9 @@ MaterialX::NodePtr UInterchangeMaterialXTranslator::CreateNode(MaterialX::NodeGr
 	return Node;
 }
 
-void UInterchangeMaterialXTranslator::ConvertNeutralNodesToDot(MaterialX::NodeGraphPtr NodeGraph) const
+void UInterchangeMaterialXTranslator::ConvertNeutralNodesToDot(MaterialX::ElementPtr NodeGraph) const
 {
-	const std::vector<mx::NodePtr> Nodes = NodeGraph->getNodes();
+	const std::vector<mx::NodePtr> Nodes = NodeGraph->getChildrenOfType<mx::Node>();
 	for(mx::NodePtr Node : Nodes)
 	{
 		const std::string& Category = Node->getCategory();
@@ -2326,6 +2186,15 @@ void UInterchangeMaterialXTranslator::ConvertNeutralNodesToDot(MaterialX::NodeGr
 					{
 						IsValueStringNeutral(mx::Color4());
 					}
+
+					if(bIsNeutral)
+					{
+						Node->removeInput("in2");
+						if(mx::InputPtr Input1 = Node->getInput("in1"))
+						{
+							Input1->setName("in");
+						}
+					}
 				}
 			}
 
@@ -2337,22 +2206,59 @@ void UInterchangeMaterialXTranslator::ConvertNeutralNodesToDot(MaterialX::NodeGr
 	}
 }
 
-void UInterchangeMaterialXTranslator::AddTexCoordToTiledImageNodes(MaterialX::NodeGraphPtr NodeGraph) const
+void UInterchangeMaterialXTranslator::AddTexCoordToTiledImageNodes(MaterialX::ElementPtr Graph) const
 {
-	for(mx::NodePtr Node : NodeGraph->getNodes(mx::Category::TiledImage))
+	for(mx::NodePtr Node : Graph->getChildrenOfType<mx::Node>(mx::Category::TiledImage))
 	{
-		mx::InputPtr InputTexCoord = Node->getInput("texcoord");
-
-		if(!InputTexCoord)
+		if(Node->getCategory() == mx::Category::TiledImage)
 		{
-			mx::NodePtr NodeTexCoord = CreateNode(Node->getParent()->asA<mx::NodeGraph>(),
-												  "node_ue_texcoord",
-												  mx::Category::TexCoord,
-												  {},
-												  { {"index", FAttributeValueArray{{"type", "integer"}, {"value", "0"}}} });
+			mx::InputPtr InputTexCoord = Node->getInput("texcoord");
 
-			InputTexCoord = Node->addInput(mx::NodeGroup::Texture2D::Inputs::TexCoord, mx::Type::Vector2);
-			InputTexCoord->setNodeName(NodeTexCoord->getName());
+			if(!InputTexCoord)
+			{
+				mx::NodePtr NodeTexCoord = CreateNode(Node->getParent(),
+													  "node_ue_texcoord",
+													  mx::Category::TexCoord,
+													  {},
+													  { {"index", FAttributeValueArray{{"type", "integer"}, {"value", "0"}}} });
+
+				InputTexCoord = Node->addInput(mx::NodeGroup::Texture2D::Inputs::TexCoord, mx::Type::Vector2);
+				InputTexCoord->setNodeName(NodeTexCoord->getName());
+			}
+		}
+	}
+}
+
+void UInterchangeMaterialXTranslator::UpdateDocumentRecursively(MaterialX::GraphElementPtr Graph) const
+{
+	AddTexCoordToTiledImageNodes(Graph);
+
+	auto FilterNode = [](mx::NodePtr Node)
+	{
+		const std::string& Category = Node->getCategory();
+		return
+			Category != mx::Category::StandardSurface &&
+			Category != mx::Category::Extract &&
+			Category != mx::Category::Saturate &&
+			Category != mx::Category::Separate2 &&
+			Category != mx::Category::Separate3 &&
+			Category != mx::Category::Separate4;
+	};
+
+	//This function will replace all the nodes that are defined with a nodegraph with their equivalent node network
+	//This allows us to handle nodes defined with a nodegraph, with nodes that we already support while traversing the current node graph
+	//For example the node tiledimage is just a succession of the nodes image, multiply, add, etc.
+	Graph->flattenSubgraphs(mx::EMPTY_STRING, FilterNode);
+
+	ConvertNeutralNodesToDot(Graph);
+
+	mx::DocumentPtr Document = Graph->getDocument();
+	//we also need need to flatten the subgraphs
+	for(mx::NodeGraphPtr SubGraph : Graph->getChildrenOfType<mx::NodeGraph>())
+	{
+		if(SubGraph->getActiveSourceUri() == Document->getSourceUri())
+		{
+			UpdateDocumentRecursively(SubGraph);
 		}
 	}
 }

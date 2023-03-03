@@ -44,6 +44,10 @@ void FInterchangeMaterialXPipelineSettingsCustomization::CustomizeChildren(TShar
 				{
 					OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetStandardSurfaceTransmission;
 				}
+				else if(Str == TEXT("Surface Unlit"))
+				{
+					OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetSurfaceUnlit;
+				}
 			}
 
 			IDetailPropertyRow& SurfaceShaderTypeRow = ChildBuilder.AddProperty(ChildPropertyHandle.ToSharedRef());
@@ -88,4 +92,9 @@ bool FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetStan
 bool FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetStandardSurfaceTransmission(const FAssetData& InAssetData)
 {
 	return FMaterialXPipelineSettings::ShouldFilterAssets(Cast<UMaterialFunction>(InAssetData.GetAsset()), FMaterialXPipelineSettings::TransmissionSurfaceInputs, FMaterialXPipelineSettings::TransmissionSurfaceOutputs);
+}
+
+bool FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetSurfaceUnlit(const FAssetData& InAssetData)
+{
+	return FMaterialXPipelineSettings::ShouldFilterAssets(Cast<UMaterialFunction>(InAssetData.GetAsset()), FMaterialXPipelineSettings::SurfaceUnlitInputs, FMaterialXPipelineSettings::SurfaceUnlitOutputs);
 }

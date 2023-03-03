@@ -63,6 +63,15 @@ protected:
 	void ProcessStandardSurface(UInterchangeBaseNodeContainer & NodeContainer, MaterialX::NodePtr StandardSurfaceNode, MaterialX::DocumentPtr Document) const;
 
 	/**
+	 * Process surface_unlit shader
+	 *
+	 * @param NodeContainer - The container where to add the translated Interchange nodes.
+	 * @param SurfaceUnlitNode - The <surface_unlit> in the MaterialX file
+	 * @param Document - The MaterialX Document that contains all the definitions of the loaded libraries
+	 */
+	void ProcessSurfaceUnlit(UInterchangeBaseNodeContainer& NodeContainer, MaterialX::NodePtr SurfaceUnlitNode, MaterialX::DocumentPtr Document) const;
+
+	/**
 	 * Process light shader, MaterialX doesn't standardized lights, but defines the 3 common ones, directional, point and spot
 	 * 
 	 * @param The container where to add the translated Interchange nodes.
@@ -114,7 +123,7 @@ protected:
 	bool ConnectNodeGraphOutputToInput(MaterialX::InputPtr InputToNodeGraph, UInterchangeShaderNode * ShaderNode, const FString& ParentInputName, TMap<FString, UInterchangeShaderNode*> & NamesToShaderNodes, UInterchangeBaseNodeContainer & NodeContainer) const;
 
 	/**
-	 * Create and Connect the output of a node to a shader node
+	 * Create and Connect the output of a MaterialX node that has already a matching in UE to a shader node
 	 * 
 	 * @param Node - The MaterialX node of a given type used to create the appropriate shader node
 	 * @param ParentShaderNode - The shader node to connect to
@@ -126,6 +135,32 @@ protected:
 	 */
 	bool ConnectNodeOutputToInput(MaterialX::NodePtr Node, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
 
+	/**
+	 * Create and Connect manually the output of a MaterialX node to a shader node
+	 *
+	 * @param Edge - The MaterialX edge that has the current node, its parent and the input bridge between the two
+	 * @param ParentShaderNode - The shader node to connect to
+	 * @param InputChannelName - The input of the ParentShaderNode to connect to
+	 * @param NamesToShaderNodes - Map of the shader nodes already created
+	 * @param The container where to add the translated Interchange nodes.
+	 *
+	 * @return true if a shader node has been successfully created and is connected to the given input
+	 */
+	void ConnectNodeCategoryOutputToInput(const MaterialX::Edge & Edge, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
+
+	/**
+     * Create and Connect a node name directly connected from an input to a shader node
+     *
+     * @param Node - The MaterialX node of a given type used to create the appropriate shader node
+     * @param ParentShaderNode - The shader node to connect to
+     * @param InputChannelName - The input of the ParentShaderNode to connect to
+     * @param NamesToShaderNodes - Map of the shader nodes already created
+     * @param The container where to add the translated Interchange nodes.
+     *
+     * @return true if a shader node has been successfully created and is connected to the given input
+     */
+	bool ConnectNodeNameOutputToInput(MaterialX::InputPtr Input, UInterchangeShaderNode* ShaderNode, const FString& ParentInputName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
+	
 	/**
 	 * Helper template function to create an InterchangeShaderNode
 	 * 
@@ -260,6 +295,19 @@ protected:
 	 * @return the input from the given name
 	 */
 	MaterialX::InputPtr GetStandardSurfaceInput(MaterialX::NodePtr StandardSurface, const char* InputName, MaterialX::DocumentPtr Document) const;
+
+	/**
+	 * Retrieve the input from a surface_unlit node, or take the default input from the library,
+	 * this function should only be called after testing the MaterialX libraries have been successfully imported, meaning the node definition of the surface_unlit
+	 * should always be valid
+	 *
+	 * @param SurfaceUnlit - the <surface_unlit> node
+	 * @param InputName - the input name to retrieve
+	 * @param Document - the MaterialX library which has the node definition of the surface_unlit
+	 *
+	 * @return the input from the given name
+	 */
+	MaterialX::InputPtr GetSurfaceUnlitInput(MaterialX::NodePtr SurfaceUnlit, const char* InputName, MaterialX::DocumentPtr Document) const;
 
 	/**
 	 * Retrieve the input from a point_light node, or take the default input from the library,
@@ -400,7 +448,7 @@ protected:
 	
 	/** <image> */
 	void ConnectImageInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
-	
+
 	/** <convert> */
 	void ConnectConvertInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
 	
@@ -493,7 +541,7 @@ protected:
 	 * 
 	 * @return The newly created node
 	 */
-	MaterialX::NodePtr CreateNode(MaterialX::NodeGraphPtr NodeGraph, const char * NodeName, const char * Category, TArray<FInputToCopy> InputsToCopy, TArray<FInputToCreate> InputsToCreate) const;
+	MaterialX::NodePtr CreateNode(MaterialX::ElementPtr NodeGraph, const char * NodeName, const char * Category, TArray<FInputToCopy> InputsToCopy, TArray<FInputToCreate> InputsToCreate) const;
 
 	/**
 	 * Convert math nodes (add, sub, div, mul) that have a neutral input, to the MaterialX <dot> node which is simply the identity or a noop
@@ -502,7 +550,7 @@ protected:
 	 * 
 	 * @param NodeGraph - The node graph to retrieve the different math nodes
 	 */
-	void ConvertNeutralNodesToDot(MaterialX::NodeGraphPtr NodeGraph) const;
+	void ConvertNeutralNodesToDot(MaterialX::ElementPtr NodeGraph) const;
 
 	/**
 	 * Add a texcoord input to the tiledimage nodes if the input is missing, and connect it to a texcoord node in the nodegraph
@@ -511,7 +559,14 @@ protected:
 	 * 
 	 * @param Node - The nodegraph to retrieve the different tiledimage nodes
 	 */
-	void AddTexCoordToTiledImageNodes(MaterialX::NodeGraphPtr NodeGraph) const;
+	void AddTexCoordToTiledImageNodes(MaterialX::ElementPtr Graph) const;
+
+	/**
+	 * Update a MaterialX Document recursively by either initializing nodes (like <tiledimage>) or updating some nodes (e.g: math nodes with neutral elements)
+	 * 
+	 * @param Graph - The graph to update and all of its sub graphs
+	 */
+	void UpdateDocumentRecursively(MaterialX::GraphElementPtr Graph) const;
 
 	/**
 	 * Retrieve the interchange parent name of a MaterialX node, useful when a node is a combination of several nodes connected to different inputs (look for example Noise3D)
