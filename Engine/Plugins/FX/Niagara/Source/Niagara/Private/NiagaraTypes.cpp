@@ -20,7 +20,7 @@ void FNiagaraVariableBase::SetNamespacedName(const FString& InNamespace, FName I
 	NameBuilder.Append(InNamespace);
 	NameBuilder.AppendChar(TEXT('.'));
 	InVariableName.AppendString(NameBuilder);
-	Name = FName(NameBuilder.ToString());
+	Name = FName(NameBuilder);
 }
 
 bool FNiagaraVariableBase::RemoveRootNamespace(const FStringView& ExpectedNamespace)

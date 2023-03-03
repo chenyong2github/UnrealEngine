@@ -326,7 +326,7 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 			NameBuilder.Append(FNiagaraConstants::InternalNamespaceString);
 			NameBuilder.AppendChar(TEXT('.'));
 			Info.Name.AppendString(NameBuilder);
-			ParameterName = FName(NameBuilder.ToString()); ;
+			ParameterName = FName(NameBuilder);
 		}
 
 		FNiagaraVariable Var(Info.Type, ParameterName);
