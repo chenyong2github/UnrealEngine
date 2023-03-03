@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 #if WITH_TESTS
 
@@ -8,6 +7,8 @@ PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 #include "Containers/UnrealString.h"
 #include "Math/UnitConversion.h"
 #include "Tests/TestHarnessAdapter.h"
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 bool IsRoughlyEqual(double One, double Two, float Epsilon)
 {
@@ -148,6 +149,6 @@ TEST_CASE_NAMED(FParsingUnitTests, "System::Core::Math::Unit Parsing", "[Applica
 	}
 }
 
-#endif //WITH_TESTS
-
 PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
+
+#endif //WITH_TESTS
