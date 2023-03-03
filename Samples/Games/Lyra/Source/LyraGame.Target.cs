@@ -108,6 +108,8 @@ public class LyraGameTarget : TargetRules
 		return false;
 	}
 
+	private static Dictionary<string, JsonObject> AllPluginRootJsonObjectsByName = new Dictionary<string, JsonObject>();
+
 	// Configures which game feature plugins we want to have enabled
 	// This is a fairly simple implementation, but you might do things like build different
 	// plugins based on the target release version of the current branch, e.g., enabling 
@@ -129,7 +131,6 @@ public class LyraGameTarget : TargetRules
 
 		if (CombinedPluginList.Count > 0)
 		{
-			Dictionary<string, JsonObject> AllPluginRootJsonObjectsByName = new Dictionary<string, JsonObject>();
 			Dictionary<string, List<string>> AllPluginReferencesByName = new Dictionary<string, List<string>>();
 
 			foreach (FileReference PluginFile in CombinedPluginList)
@@ -140,8 +141,12 @@ public class LyraGameTarget : TargetRules
 					bool bForceDisabled = false;
 					try
 					{
-						JsonObject RawObject = JsonObject.Read(PluginFile);
-						AllPluginRootJsonObjectsByName.Add(PluginFile.GetFileNameWithoutExtension(), RawObject);
+						JsonObject RawObject;
+						if (!AllPluginRootJsonObjectsByName.TryGetValue(PluginFile.GetFileNameWithoutExtension(), out RawObject))
+						{
+							RawObject = JsonObject.Read(PluginFile);
+							AllPluginRootJsonObjectsByName.Add(PluginFile.GetFileNameWithoutExtension(), RawObject);
+						}
 
 						// Validate that all GameFeaturePlugins are disabled by default
 						// If EnabledByDefault is true and a plugin is disabled the name will be embedded in the executable
