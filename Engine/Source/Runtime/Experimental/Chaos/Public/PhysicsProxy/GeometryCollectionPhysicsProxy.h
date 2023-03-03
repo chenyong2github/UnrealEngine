@@ -383,6 +383,15 @@ public:
 		return FGeometryCollectionItemIndex::CreateInvalidItemIndex();
 	}
 
+	FGeometryCollectionItemIndex GetItemIndexFromGTParticleNoInternalCluster_External(const FParticle* GTPParticle) const
+	{
+		if (const int32* TransformGroupIndex = GTParticlesToTransformGroupIndex.Find(GTPParticle))
+		{
+			return FGeometryCollectionItemIndex::CreateTransformItemIndex(*TransformGroupIndex);
+		}
+		return FGeometryCollectionItemIndex::CreateInvalidItemIndex();
+	}
+
 	bool GetIsObjectDynamic() const { return IsObjectDynamic; }
 
 	void DisableParticles_External(TArray<int32>&& TransformGroupIndices);

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PhysicsObject.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Interface.h"
@@ -22,4 +23,6 @@ public:
 	virtual Chaos::FPhysicsObject* GetPhysicsObjectById(int32 Id) const = 0;
 	virtual Chaos::FPhysicsObject* GetPhysicsObjectByName(const FName& Name) const = 0;
 	virtual TArray<Chaos::FPhysicsObject*> GetAllPhysicsObjects() const = 0;
+	
+	virtual int32 GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const = 0;
 };

@@ -1206,4 +1206,9 @@ TArray<Chaos::FPhysicsObject*> UPrimitiveComponent::GetAllPhysicsObjects() const
 	return Bodies;
 }
 
+int32 UPrimitiveComponent::GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const
+{
+	return 0;
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -1278,5 +1278,6 @@ public:
 	virtual Chaos::FPhysicsObject* GetPhysicsObjectById(int32 Id) const override;
 	virtual Chaos::FPhysicsObject* GetPhysicsObjectByName(const FName& Name) const override;
 	virtual TArray<Chaos::FPhysicsObject*> GetAllPhysicsObjects() const override;
+	virtual int32 GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const override;
 	//~ End IPhysicsComponent Interface.
 };

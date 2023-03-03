@@ -5013,6 +5013,23 @@ TArray<Chaos::FPhysicsObject*> UGeometryCollectionComponent::GetAllPhysicsObject
 	return Objects;
 }
 
+int32 UGeometryCollectionComponent::GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const
+{
+	if (!PhysicsProxy || !Particle)
+	{
+		return INDEX_NONE;
+	}
+	FGeometryCollectionItemIndex Index = PhysicsProxy->GetItemIndexFromGTParticleNoInternalCluster_External(Particle->CastToRigidParticle());
+	if (Index.IsValid())
+	{
+		return Index.GetTransformIndex();
+	}
+	else
+	{
+		return INDEX_NONE;
+	}
+}
+
 void UGeometryCollectionComponent::SetEnableDamageFromCollision(bool bValue)
 {
 	bEnableDamageFromCollision = bValue;
