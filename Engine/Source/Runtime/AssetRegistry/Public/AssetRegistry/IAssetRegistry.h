@@ -502,11 +502,20 @@ public:
 	virtual void PrioritizeAssetInstall(const FAssetData& AssetData) const = 0;
 
 	/**
-	 * Gets paths for all Verse files in the supplied folder path
+	 * Returns whether the supplied folder contains any verse file
+	 * 
+	 * @param PackagePath the path to query asset data in (e.g. /Game/MyFolder)
+	 * @param bRecursive if true, the supplied path will be searched recursively
+	 * @return True if any verse file is found under the supplied folder
+	 */
+	virtual bool HasVerseFiles(FName PackagePath, bool bRecursive = false) const = 0;
+
+	/**
+	 * Gets paths for all Verse files in the supplied folder
 	 *
 	 * @param PackagePath the path to query asset data in (e.g. /Game/MyFolder)
 	 * @param OutFilePaths the list of Verse files in this path, as pseudo UE LongPackagePaths with extension (e.g. /Game/MyFolder/MyVerseFile.verse)
-	 * @param bRecursive if true, all supplied paths will be searched recursively
+	 * @param bRecursive if true, the supplied path will be searched recursively
 	 */
 	virtual bool GetVerseFilesByPath(FName PackagePath, TArray<FName>& OutFilePaths, bool bRecursive = false) const = 0;
 

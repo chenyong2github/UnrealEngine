@@ -3322,35 +3322,48 @@ void PrioritizeAssetInstall(const FAssetData& AssetData)
 
 }
 
+bool UAssetRegistryImpl::HasVerseFiles(FName PackagePath, bool bRecursive /*= false*/) const
+{
+	FReadScopeLock InterfaceScopeLock(InterfaceLock);
+	return GuardedData.GetVerseFilesByPath(PackagePath, /*OutFilePaths=*/nullptr, bRecursive);
+}
+
 bool UAssetRegistryImpl::GetVerseFilesByPath(FName PackagePath, TArray<FName>& OutFilePaths, bool bRecursive /*= false*/) const
 {
 	FReadScopeLock InterfaceScopeLock(InterfaceLock);
-	return GuardedData.GetVerseFilesByPath(PackagePath, OutFilePaths, bRecursive);
+	return GuardedData.GetVerseFilesByPath(PackagePath, &OutFilePaths, bRecursive);
 }
 
 namespace UE::AssetRegistry
 {
 
-bool FAssetRegistryImpl::GetVerseFilesByPath(FName PackagePath, TArray<FName>& OutFilePaths, bool bRecursive /*= false*/) const
+bool FAssetRegistryImpl::GetVerseFilesByPath(FName PackagePath, TArray<FName>* OutFilePaths, bool bRecursive) const
 {
-	bool bFoundAnything = false;
 	TSet<FName> PathList;
 	PathList.Reserve(32);
+	PathList.Add(PackagePath);
 	if (bRecursive)
 	{
 		CachedPathTree.GetSubPaths(PackagePath, PathList, true);
 	}
-	PathList.Add(PackagePath);
+
+	bool bFoundAnything = false;
 	for (const FName& PathName : PathList)
 	{
 		const TArray<FName>* FilePaths = CachedVerseFilesByPath.Find(PathName);
 		if (FilePaths)
 		{
-			OutFilePaths.Append(*FilePaths);
 			bFoundAnything = true;
+			if (OutFilePaths)
+			{
+				OutFilePaths->Append(*FilePaths);
+			}
+			else
+			{
+				break;
+			}
 		}
 	}
-
 	return bFoundAnything;
 }
 
