@@ -457,6 +457,18 @@ namespace UnrealBuildTool
 		public HashSet<DirectoryReference> SystemIncludePaths;
 
 		/// <summary>
+		/// The include paths which were previously in UserIncludePaths, but are now in a shared response file, persisted in the environment for validation.
+		/// Do not add to this set unless a shared response is in use, and only when removing those headers from UserIncludePaths.
+		/// </summary>
+		public HashSet<DirectoryReference> SharedUserIncludePaths;
+
+		/// <summary>
+		/// The include paths which were previously in SystemIncludePaths, but are now in a shared response file, persisted in the environment for validation.
+		/// Do not add to this set unless a shared response is in use, and only when removing those headers from SystemIncludePaths.
+		/// </summary>
+		public HashSet<DirectoryReference> SharedSystemIncludePaths;
+
+		/// <summary>
 		/// List of paths to search for compiled module interface (*.ifc) files
 		/// </summary>
 		public HashSet<DirectoryReference> ModuleInterfacePaths;
@@ -607,6 +619,8 @@ namespace UnrealBuildTool
 			this.SharedPCHs = new List<PrecompiledHeaderTemplate>();
 			this.UserIncludePaths = new HashSet<DirectoryReference>();
 			this.SystemIncludePaths = new HashSet<DirectoryReference>();
+			this.SharedUserIncludePaths = new HashSet<DirectoryReference>();
+			this.SharedSystemIncludePaths = new HashSet<DirectoryReference>();
 			this.ModuleInterfacePaths = new HashSet<DirectoryReference>();
 		}
 
@@ -671,6 +685,8 @@ namespace UnrealBuildTool
 			bAllowRemotelyCompiledPCHs = Other.bAllowRemotelyCompiledPCHs;
 			UserIncludePaths = new HashSet<DirectoryReference>(Other.UserIncludePaths);
 			SystemIncludePaths = new HashSet<DirectoryReference>(Other.SystemIncludePaths);
+			SharedUserIncludePaths = new HashSet<DirectoryReference>(Other.SharedUserIncludePaths);
+			SharedSystemIncludePaths = new HashSet<DirectoryReference>(Other.SharedSystemIncludePaths);
 			ModuleInterfacePaths = new HashSet<DirectoryReference>(Other.ModuleInterfacePaths);
 			bCheckSystemHeadersForModification = Other.bCheckSystemHeadersForModification;
 			ForceIncludeFiles.AddRange(Other.ForceIncludeFiles);

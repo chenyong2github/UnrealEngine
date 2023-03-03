@@ -1378,8 +1378,7 @@ namespace UnrealBuildTool
 			BaseCompileAction.IncludePaths.AddRange(CompileEnvironment.UserIncludePaths);
 			BaseCompileAction.SystemIncludePaths.AddRange(CompileEnvironment.SystemIncludePaths);
 			
-			// Maybe not the nicest way of checking but if we don't have any user include paths it means we have added them to a shared rsp instead
-			if (CompileEnvironment.UserIncludePaths.Count != 0)
+			if (!CompileEnvironment.SharedSystemIncludePaths.Any())
 			{
 				BaseCompileAction.SystemIncludePaths.AddRange(EnvVars.IncludePaths);
 			}
@@ -2069,6 +2068,11 @@ namespace UnrealBuildTool
 			{
 				AddSystemIncludePath(Arguments, IncludePath, Target.WindowsPlatform.Compiler);
 			}
+
+			// Stash shared include paths for validation purposes
+			NewCompileEnvironment.SharedUserIncludePaths = new(NewCompileEnvironment.UserIncludePaths);
+			NewCompileEnvironment.SharedSystemIncludePaths = new(NewCompileEnvironment.SystemIncludePaths);
+			NewCompileEnvironment.SharedSystemIncludePaths.UnionWith(EnvVars.IncludePaths);
 
 			NewCompileEnvironment.UserIncludePaths.Clear();
 			NewCompileEnvironment.SystemIncludePaths.Clear();

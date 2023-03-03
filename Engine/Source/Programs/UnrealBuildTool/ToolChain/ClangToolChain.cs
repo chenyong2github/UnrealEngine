@@ -1056,6 +1056,11 @@ namespace UnrealBuildTool
 			List<string> Arguments = new List<string>();
 
 			GetCompileArguments_Global(CompileEnvironment, Arguments);
+
+			// Stash shared include paths for validation purposes
+			NewCompileEnvironment.SharedUserIncludePaths = new(NewCompileEnvironment.UserIncludePaths);
+			NewCompileEnvironment.SharedSystemIncludePaths = new(NewCompileEnvironment.SystemIncludePaths);
+
 			NewCompileEnvironment.UserIncludePaths.Clear();
 			NewCompileEnvironment.SystemIncludePaths.Clear();
 
