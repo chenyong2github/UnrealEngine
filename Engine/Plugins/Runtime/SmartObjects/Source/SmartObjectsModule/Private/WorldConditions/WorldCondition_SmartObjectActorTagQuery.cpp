@@ -25,9 +25,7 @@ bool FWorldCondition_SmartObjectActorTagQuery::Initialize(const UWorldConditionS
 	const USmartObjectWorldConditionSchema* SmartObjectSchema = Cast<USmartObjectWorldConditionSchema>(&Schema);
 	if (SmartObjectSchema == nullptr)
 	{
-		UE_LOG(LogSmartObject, Error, TEXT("[%s] Expecting schema based on %s."), ANSI_TO_TCHAR(__FUNCTION__), *USmartObjectWorldConditionSchema::StaticClass()->GetName());
 		UE_LOG(LogSmartObject, Error, TEXT("[%hs] Expecting schema based on %s."), __FUNCTION__, *USmartObjectWorldConditionSchema::StaticClass()->GetName());
-		UE_LOG(LogSmartObject, Error, TEXT("[%hs] Expecting schema based on %s."), ANSI_TO_TCHAR(__FUNCTION__), *USmartObjectWorldConditionSchema::StaticClass()->GetName());
 		return false;
 	}
 
