@@ -8464,37 +8464,7 @@ FHeaderParser::FHeaderParser(FUnrealPackageDefinitionInfo& InPackageDef, FUnreal
 	, Filename(IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*InSourceFile.GetFilename()))
 	, PackageDef(InPackageDef)
 {
-
-	const FManifestModule& Module = PackageDef.GetModule();
-
-	// Determine if the current module is part of the engine or a game (we are more strict about things for Engine modules)
-	switch (Module.ModuleType)
-	{
-	case EBuildModuleType::Program:
-		{
-			const FString AbsoluteEngineDir = FPaths::ConvertRelativePathToFull(FPaths::EngineDir());
-			const FString ModuleDir = FPaths::ConvertRelativePathToFull(Module.BaseDirectory);
-			bIsCurrentModulePartOfEngine = ModuleDir.StartsWith(AbsoluteEngineDir);
-		}
-		break;
-	case EBuildModuleType::EngineRuntime:
-	case EBuildModuleType::EngineUncooked:
-	case EBuildModuleType::EngineDeveloper:
-	case EBuildModuleType::EngineEditor:
-	case EBuildModuleType::EngineThirdParty:
-		bIsCurrentModulePartOfEngine = true;
-		break;
-	case EBuildModuleType::GameRuntime:
-	case EBuildModuleType::GameUncooked:
-	case EBuildModuleType::GameDeveloper:
-	case EBuildModuleType::GameEditor:
-	case EBuildModuleType::GameThirdParty:
-		bIsCurrentModulePartOfEngine = false;
-		break;
-	default:
-		bIsCurrentModulePartOfEngine = true;
-		check(false);
-	}
+	bIsCurrentModulePartOfEngine = PackageDef.IsPartOfEngine();
 }
 
 // Throws if a specifier value wasn't provided
@@ -9067,10 +9037,10 @@ void FHeaderParser::SimplifiedClassParse(FUnrealSourceFile& SourceFile, const TC
 			{
 				if (UInterfaceMacroDecl == FCString::Strspn(Str, TEXT("\t ")) + Str)
 				{
-					if (UInterfaceMacroDecl[10] != TEXT('('))
-					{
-						FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("Missing open parenthesis after UINTERFACE"));
-					}
+					//if (UInterfaceMacroDecl[10] != TEXT('('))
+					//{
+					//	FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("Missing open parenthesis after UINTERFACE"));
+					//}
 
 					TSharedRef<FUnrealTypeDefinitionInfo> ClassDecl = Parser.ParseClassDeclaration(StartOfLine + (UInterfaceMacroDecl - Str), CurrentLine, true, TEXT("UINTERFACE"));
 					bGeneratedIncludeRequired |= !ClassDecl->AsClassChecked().IsNoExport();
@@ -9082,10 +9052,10 @@ void FHeaderParser::SimplifiedClassParse(FUnrealSourceFile& SourceFile, const TC
 			{
 				if (UClassMacroDecl == FCString::Strspn(Str, TEXT("\t ")) + Str)
 				{
-					if (UClassMacroDecl[6] != TEXT('('))
-					{
-						FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("Missing open parenthesis after UCLASS"));
-					}
+					//if (UClassMacroDecl[6] != TEXT('('))
+					//{
+					//	FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("Missing open parenthesis after UCLASS"));
+					//}
 
 					TSharedRef<FUnrealTypeDefinitionInfo> ClassDecl = Parser.ParseClassDeclaration(StartOfLine + (UClassMacroDecl - Str), CurrentLine, false, TEXT("UCLASS"));
 					bGeneratedIncludeRequired |= !ClassDecl->AsClassChecked().IsNoExport();
@@ -9097,10 +9067,10 @@ void FHeaderParser::SimplifiedClassParse(FUnrealSourceFile& SourceFile, const TC
 			{
 				if (UEnumMacroDecl == FCString::Strspn(Str, TEXT("\t ")) + Str)
 				{
-					if (UEnumMacroDecl[5] != TEXT('('))
-					{
-						FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("Missing open parenthesis after UENUM"));
-					}
+					//if (UEnumMacroDecl[5] != TEXT('('))
+					//{
+					//	FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("Missing open parenthesis after UENUM"));
+					//}
 
 					TSharedRef<FUnrealTypeDefinitionInfo> EnumDecl = Parser.ParseEnumDeclaration(StartOfLine + (UEnumMacroDecl - Str), CurrentLine);
 					SourceFile.AddDefinedEnum(MoveTemp(EnumDecl));
@@ -9111,10 +9081,10 @@ void FHeaderParser::SimplifiedClassParse(FUnrealSourceFile& SourceFile, const TC
 			{
 				if (UDelegateMacroDecl == FCString::Strspn(Str, TEXT("\t ")) + Str)
 				{
-					if (UDelegateMacroDecl[9] != TEXT('('))
-					{
-						FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("Missing open parenthesis after UDELEGATE"));
-					}
+					//if (UDelegateMacroDecl[9] != TEXT('('))
+					//{
+					//	FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("Missing open parenthesis after UDELEGATE"));
+					//}
 					// We don't preparse the delegates, but we need to make sure the include is there
 					bGeneratedIncludeRequired = true;
 				}
@@ -9124,10 +9094,10 @@ void FHeaderParser::SimplifiedClassParse(FUnrealSourceFile& SourceFile, const TC
 			{
 				if (UStructMacroDecl == FCString::Strspn(Str, TEXT("\t ")) + Str)
 				{
-					if (UStructMacroDecl[7] != TEXT('('))
-					{
-						FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("Missing open parenthesis after USTRUCT"));
-					}
+					//if (UStructMacroDecl[7] != TEXT('('))
+					//{
+					//	FUHTMessage(SourceFile, CurrentLine).Throwf(TEXT("Missing open parenthesis after USTRUCT"));
+					//}
 
 					TSharedRef<FUnrealTypeDefinitionInfo> StructDecl = Parser.ParseStructDeclaration(StartOfLine + (UStructMacroDecl - Str), CurrentLine);
 					bGeneratedIncludeRequired |= !StructDecl->AsScriptStructChecked().HasAnyStructFlags(STRUCT_NoExport);

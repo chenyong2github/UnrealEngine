@@ -1385,6 +1385,14 @@ public:
 	}
 
 	/**
+	 * If true, this package is part of the engine
+	 */
+	bool IsPartOfEngine() const
+	{
+		return bIsPartOfEngine;
+	}
+
+	/**
 	 * Set the flag indicating that the classes H file should be generated.
 	 */
 	void SetWriteClassesH(bool bInWriteClassesH)
@@ -1469,6 +1477,7 @@ private:
 	FString API;
 	uint32 PackageFlags = 0;
 	bool bWriteClassesH = false;
+	bool bIsPartOfEngine = false;
 };
 
 /**

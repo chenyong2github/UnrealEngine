@@ -5,6 +5,7 @@
 #include "ClassMaps.h"
 #include "EngineAPI.h"
 #include "HeaderParser.h"
+#include "Manifest.h"
 #include "NativeClassExporter.h"
 #include "PropertyTypes.h"
 #include "Scope.h"
@@ -1081,6 +1082,34 @@ FUnrealPackageDefinitionInfo::FUnrealPackageDefinitionInfo(const FManifestModule
 	, API(FString::Printf(TEXT("%s_API "), *ShortUpperName))
 	, PackageFlags(InPackage->GetPackageFlags())
 {
+	// Determine if the current module is part of the engine or a game (we are more strict about things for Engine modules)
+	switch (Module.ModuleType)
+	{
+	case EBuildModuleType::Program:
+	{
+		const FString AbsoluteEngineDir = FPaths::ConvertRelativePathToFull(FPaths::EngineDir());
+		const FString ModuleDir = FPaths::ConvertRelativePathToFull(Module.BaseDirectory);
+		bIsPartOfEngine = ModuleDir.StartsWith(AbsoluteEngineDir);
+	}
+	break;
+	case EBuildModuleType::EngineRuntime:
+	case EBuildModuleType::EngineUncooked:
+	case EBuildModuleType::EngineDeveloper:
+	case EBuildModuleType::EngineEditor:
+	case EBuildModuleType::EngineThirdParty:
+		bIsPartOfEngine = true;
+		break;
+	case EBuildModuleType::GameRuntime:
+	case EBuildModuleType::GameUncooked:
+	case EBuildModuleType::GameDeveloper:
+	case EBuildModuleType::GameEditor:
+	case EBuildModuleType::GameThirdParty:
+		bIsPartOfEngine = false;
+		break;
+	default:
+		bIsPartOfEngine = true;
+		check(false);
+	}
 }
 
 void FUnrealPackageDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePhase Phase)

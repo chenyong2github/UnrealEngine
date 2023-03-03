@@ -686,6 +686,11 @@ private:
 	*/
 	static FString GetFunctionParameterString(FUnrealFunctionDefinitionInfo& FunctionDef, FReferenceGatherers& OutReferenceGatherers);
 
+	/**
+	 * Exports the static assert for the property count
+	 */
+	static void ExportPropertiesParamsCountStaticAssert(FOutputDevice& Out, FUnrealStructDefinitionInfo& StructDef, FString& StaticsName);
+
 public:
 
 	// @todo: BP2CPP_remove

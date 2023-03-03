@@ -118,6 +118,8 @@ FFindDelcarationResults FindDeclaration(const FUnrealStructDefinitionInfo& Struc
 
 namespace
 {
+	static const FName NAME_Comment(TEXT("Comment"));
+	static const FName NAME_ToolTip(TEXT("ToolTip"));
 	static const FName NAME_SerializeToFArchive("SerializeToFArchive");
 	static const FName NAME_SerializeToFStructuredArchive("SerializeToFStructuredArchive");
 	static const FName NAME_ObjectInitializerConstructorDeclared("ObjectInitializerConstructorDeclared");
@@ -640,19 +642,29 @@ static FString OutputMetaDataCodeForObject(FOutputDevice& OutDeclaration, FOutpu
 		Out.Log (TEXT("#if WITH_METADATA\r\n"));
 		Out.Logf(TEXT("%sconst UECodeGen_Private::FMetaDataPairParam %s[] = {\r\n"), Spaces, MetaDataBlockName);
 
+		bool bIsPartOfEngine = TypeDef.GetUnrealSourceFile().GetPackageDef().IsPartOfEngine();
 		for (const KVPType& KVP : KVPs)
 		{
+			bool bRestricted = !bIsPartOfEngine && (KVP.Key == NAME_Comment || KVP.Key == NAME_ToolTip);
+			if (bRestricted)
+			{
+				Out.Log(TEXT("#if !UE_BUILD_SHIPPING\r\n"));
+			}
 			Out.Logf(TEXT("%s\t{ %s, %s },\r\n"), Spaces, *CreateUTF8LiteralString(KVP.Key.ToString()), *CreateUTF8LiteralString(*KVP.Value));
+			if (bRestricted)
+			{
+				Out.Log(TEXT("#endif\r\n"));
+			}
 		}
 
 		Out.Logf(TEXT("%s};\r\n"), Spaces);
 		Out.Log (TEXT("#endif\r\n"));
 
-		Result = FString::Printf(TEXT("METADATA_PARAMS(%s, UE_ARRAY_COUNT(%s))"), MetaDataBlockName, MetaDataBlockName);
+		Result = FString::Printf(TEXT("METADATA_PARAMS(UE_ARRAY_COUNT(%s), %s)"), MetaDataBlockName, MetaDataBlockName);
 	}
 	else
 	{
-		Result = TEXT("METADATA_PARAMS(nullptr, 0)");
+		Result = TEXT("METADATA_PARAMS(0, nullptr)");
 	}
 
 	return Result;
@@ -823,9 +835,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*GetSingletonNameFuncAddr(PropertyBase.EnumDef, OutReferenceGatherers.UniqueCrossModuleReferences),
 			*MetaDataParams,
@@ -855,9 +867,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -879,9 +891,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -906,9 +918,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -930,9 +942,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -954,9 +966,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -981,9 +993,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -1005,9 +1017,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -1029,9 +1041,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -1053,9 +1065,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -1077,9 +1089,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -1128,9 +1140,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			PropFlags,
 			bIsNativeBool ? TEXT("| UECodeGen_Private::EPropertyGenFlags::NativeBool") : TEXT(""),
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			*PropertyDef.GetCPPType(nullptr, 0),
 			*OuterSize,
 			*Setter,
@@ -1156,9 +1168,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 				*PropNotifyFunc,
 				PropFlags,
 				FPropertyObjectFlags,
-				*ArrayDim,
 				*SetterFunc,
 				*GetterFunc,
+				*ArrayDim,
 				OffsetStr,
 				*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
 				*GetSingletonNameFuncAddr(PropertyBase.MetaClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),				
@@ -1178,9 +1190,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 				*PropNotifyFunc,
 				PropFlags,
 				FPropertyObjectFlags,
-				*ArrayDim,
 				*SetterFunc,
 				*GetterFunc,
+				*ArrayDim,
 				OffsetStr,
 				*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
 				*MetaDataParams,
@@ -1206,9 +1218,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 				*PropNotifyFunc,
 				PropFlags,
 				FPropertyObjectFlags,
-				*ArrayDim,
 				*SetterFunc,
 				*GetterFunc,
+				*ArrayDim,
 				OffsetStr,
 				*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
 				*GetSingletonNameFuncAddr(PropertyBase.MetaClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
@@ -1228,9 +1240,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 				*PropNotifyFunc,
 				PropFlags,
 				FPropertyObjectFlags,
-				*ArrayDim,
 				*SetterFunc,
 				*GetterFunc,
+				*ArrayDim,
 				OffsetStr,
 				*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
 				*MetaDataParams,
@@ -1256,9 +1268,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 				*PropNotifyFunc,
 				PropFlags,
 				FPropertyObjectFlags,
-				*ArrayDim,
 				*SetterFunc,
 				*GetterFunc,
+				*ArrayDim,
 				OffsetStr,
 				*GetSingletonNameFuncAddr(PropertyBase.MetaClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
 				*MetaDataParams,
@@ -1277,9 +1289,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 				*PropNotifyFunc,
 				PropFlags,
 				FPropertyObjectFlags,
-				*ArrayDim,
 				*SetterFunc,
 				*GetterFunc,
+				*ArrayDim,
 				OffsetStr,
 				*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
 				*MetaDataParams,
@@ -1303,9 +1315,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
 			*MetaDataParams,
@@ -1328,9 +1340,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
 			*MetaDataParams,
@@ -1353,9 +1365,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
 			*MetaDataParams,
@@ -1378,9 +1390,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -1402,9 +1414,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -1432,9 +1444,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			PropertyDef.GetAllocatorType() == EAllocatorType::MemoryImage ? TEXT("EArrayPropertyFlags::UsesMemoryImageAllocator") : TEXT("EArrayPropertyFlags::None"),
 			*MetaDataParams,
@@ -1466,9 +1478,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			PropertyDef.GetAllocatorType() == EAllocatorType::MemoryImage ? TEXT("EMapPropertyFlags::UsesMemoryImageAllocator") : TEXT("EMapPropertyFlags::None"),
 			*MetaDataParams,
@@ -1503,9 +1515,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -1527,9 +1539,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*GetSingletonNameFuncAddr(PropertyBase.ScriptStructDef, OutReferenceGatherers.UniqueCrossModuleReferences),
 			*MetaDataParams,
@@ -1552,9 +1564,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*GetSingletonNameFuncAddr(PropertyBase.FunctionDef, OutReferenceGatherers.UniqueCrossModuleReferences),
 			*MetaDataParams,
@@ -1580,9 +1592,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			PropFlags,
 			!bIsSparse ? TEXT("Inline") : TEXT("Sparse"),
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*GetSingletonNameFuncAddr(PropertyBase.FunctionDef, OutReferenceGatherers.UniqueCrossModuleReferences),
 			*MetaDataParams,
@@ -1605,9 +1617,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*MetaDataParams,
 			*PropTag
@@ -1639,9 +1651,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 				*PropNotifyFunc,
 				PropFlags,
 				FPropertyObjectFlags,
-				*ArrayDim,
 				*SetterFunc,
 				*GetterFunc,
+				*ArrayDim,
 				OffsetStr,
 				*GetSingletonNameFuncAddr(PropertyBase.EnumDef, OutReferenceGatherers.UniqueCrossModuleReferences),
 				*MetaDataParams,
@@ -1665,9 +1677,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
-			*ArrayDim,
 			*SetterFunc,
 			*GetterFunc,
+			*ArrayDim,
 			OffsetStr,
 			*FString::Printf(TEXT("&F%s::StaticClass"), *PropertyBase.FieldClassName.ToString()),
 			*MetaDataParams,
@@ -1718,6 +1730,35 @@ FString GetEventStructParamsName(FUnrealObjectDefinitionInfo& OuterDef, const TC
 		Result.InsertAt(0, TCHAR('_'));
 	}
 	return Result;
+}
+
+void FNativeClassHeaderGenerator::ExportPropertiesParamsCountStaticAssert(FOutputDevice& Out, FUnrealStructDefinitionInfo& StructDef, FString& StaticsName)
+{
+	if (StructDef.GetProperties().Num() == 0)
+	{
+		return;
+	}
+
+	bool bHasAllEditorOnlyDataProperties = true;
+	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : StructDef.GetProperties())
+	{
+		if (!IsEditorOnlyDataProperty(*PropertyDef))
+		{
+			bHasAllEditorOnlyDataProperties = false;
+			break;
+		}
+	}
+
+	if (!bHasAllEditorOnlyDataProperties)
+	{
+		Out.Logf(TEXT("\tstatic_assert(UE_ARRAY_COUNT(%s::PropPointers) < 2048);\r\n"), *StaticsName);
+	}
+	else
+	{
+		Out.Log(TEXT("#if WITH_EDITORONLY_DATA\r\n"));
+		Out.Logf(TEXT("\tstatic_assert(UE_ARRAY_COUNT(%s::PropPointers) < 2048);\r\n"), *StaticsName);
+		Out.Log(TEXT("#endif\r\n"));
+	}
 }
 
 TTuple<FString, FString> FNativeClassHeaderGenerator::OutputProperties(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, FUnrealStructDefinitionInfo& StructDef, const TCHAR* DeclSpaces, const TCHAR* Spaces) const
@@ -2085,6 +2126,8 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			StaticDefinitions.Log (*Singletons);
 			StaticDefinitions.Logf(TEXT("\t};\r\n"));
 
+			StaticDefinitions.Logf(TEXT("\tstatic_assert(UE_ARRAY_COUNT(%s::DependentSingletons) < 16);\r\n"), *StaticsStructName);
+
 			SingletonsArray = TEXT("DependentSingletons");
 			SingletonsCount = TEXT("UE_ARRAY_COUNT(DependentSingletons)");
 		}
@@ -2128,6 +2171,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			}
 
 			StaticDefinitions.Log(TEXT("\t};\r\n"));
+			StaticDefinitions.Logf(TEXT("\tstatic_assert(UE_ARRAY_COUNT(%s::FuncInfo) < 2048);\r\n"), *StaticsStructName);
 			StaticDefinitions.Log(END_WRAP_EDITOR_ONLY(bAllEditorOnlyFunctions));
 
 			if (bAllEditorOnlyFunctions)
@@ -2197,6 +2241,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 				);
 			}
 			StaticDefinitions.Log(TEXT("\t\t};\r\n"));
+			StaticDefinitions.Logf(TEXT("\tstatic_assert(UE_ARRAY_COUNT(%s::InterfaceParams) < 64);\r\n"), *StaticsStructName);
 
 			InterfaceArray = TEXT("InterfaceParams");
 			InterfaceCount = TEXT("UE_ARRAY_COUNT(InterfaceParams)");
@@ -2237,6 +2282,8 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		StaticDefinitions.Logf(TEXT("\t\t0x%08Xu,\r\n"), ClassFlags);
 		StaticDefinitions.Logf(TEXT("\t\t%s\r\n"), *MetaDataParams);
 		StaticDefinitions.Log (TEXT("\t};\r\n"));
+
+		ExportPropertiesParamsCountStaticAssert(StaticDefinitions, ClassDef, StaticsStructName);
 
 		GeneratedClassRegisterFunctionText.Logf(TEXT("\t};\r\n"));
 		GeneratedClassRegisterFunctionText.Log(*StaticDefinitions);
@@ -2461,15 +2508,22 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 		*CreateUTF8LiteralString(FunctionDef.GetName()),
 		(bIsSparse ? *CreateUTF8LiteralString(FunctionDef.GetSparseOwningClassName().ToString()) : TEXT("nullptr")),
 		(bIsSparse ? *CreateUTF8LiteralString(FunctionDef.GetSparseDelegateName().ToString()) : TEXT("nullptr")),
-		*StructureSize,
 		*PropertyRange.Get<0>(),
 		*PropertyRange.Get<1>(),
+		*StructureSize,
 		UFunctionObjectFlags,
 		(uint32)FunctionDef.GetFunctionFlags(),
 		bIsNet ? FunctionData.RPCId : 0,
 		bIsNet ? FunctionData.RPCResponseId : 0,
 		*MetaDataParams
 	);
+
+	ExportPropertiesParamsCountStaticAssert(StaticDefinitions, FunctionDef, StaticsStructName);
+
+	if (StructureSize != TEXT("0"))
+	{
+		StaticDefinitions.Logf(TEXT("\tstatic_assert(%s < MAX_uint16);\r\n"), *StructureSize);
+	}
 
 	CurrentFunctionText.Log(TEXT("\t};\r\n"));
 	CurrentFunctionText.Log(*StaticDefinitions);
@@ -3749,6 +3803,8 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	for (FUnrealScriptStructDefinitionInfo* NoExportStructDef : NoExportStructs)
 	{
 		ExportMirrorsForNoexportStruct(GeneratedStructRegisterFunctionText, *NoExportStructDef, /*Indent=*/ 2);
+		GeneratedStructRegisterFunctionText.Appendf(TEXT("\t\tstatic_assert(sizeof(%s) < MAX_uint16);\r\n"), *NoExportStructDef->GetNameCPP());
+		GeneratedStructRegisterFunctionText.Appendf(TEXT("\t\tstatic_assert(alignof(%s) < MAX_uint8);\r\n"), *NoExportStructDef->GetNameCPP());
 	}
 
 	if (BaseStructDef)
@@ -3788,15 +3844,17 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), *GetSingletonNameFuncAddr(BaseStructDef, OutReferenceGatherers.UniqueCrossModuleReferences));
 	StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), *NewStructOps);
 	StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), *CreateUTF8LiteralString(ActualStructName));
-	StaticDefinitions.Logf(TEXT("\t\tsizeof(%s),\r\n"), *StructNameCPP);
-	StaticDefinitions.Logf(TEXT("\t\talignof(%s),\r\n"), *StructNameCPP);
 	StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), *PropertyRange.Get<0>());
 	StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), *PropertyRange.Get<1>());
+	StaticDefinitions.Logf(TEXT("\t\tsizeof(%s),\r\n"), *StructNameCPP);
+	StaticDefinitions.Logf(TEXT("\t\talignof(%s),\r\n"), *StructNameCPP);
 	StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), TEXT("RF_Public|RF_Transient|RF_MarkAsNative"));
 	StaticDefinitions.Logf(TEXT("\t\tEStructFlags(0x%08X),\r\n"), (uint32)UncomputedFlags);
 	StaticDefinitions.Logf(TEXT("\t\t%s\r\n"), *MetaDataParams);
 	StaticDefinitions.Log (TEXT("\t};\r\n"));
 
+	ExportPropertiesParamsCountStaticAssert(StaticDefinitions, ScriptStructDef, StaticsStructName);
+		
 	GeneratedStructRegisterFunctionText.Log (TEXT("\t};\r\n"));
 
 	GeneratedStructRegisterFunctionText.Log(StaticDefinitions);
@@ -4022,8 +4080,8 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 		StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), *CreateUTF8LiteralString(EnumNameCpp));
 		StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), *CreateUTF8LiteralString(EnumDef.GetCppType()));
 		StaticDefinitions.Logf(TEXT("\t\t%s::Enumerators,\r\n"), *StaticsStructName);
-		StaticDefinitions.Logf(TEXT("\t\tUE_ARRAY_COUNT(%s::Enumerators),\r\n"), *StaticsStructName);
 		StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), UEnumObjectFlags);
+		StaticDefinitions.Logf(TEXT("\t\tUE_ARRAY_COUNT(%s::Enumerators),\r\n"), *StaticsStructName);
 		StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), EnumFlags);
 		StaticDefinitions.Logf(TEXT("\t\t(uint8)%s,\r\n"), EnumFormStr);
 		StaticDefinitions.Logf(TEXT("\t\t%s\r\n"), *MetaDataParams);
