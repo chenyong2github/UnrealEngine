@@ -27,7 +27,8 @@ void USmartObjectComponent::PostInitProperties()
 #if WITH_EDITORONLY_DATA
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
-		if (AActor* Actor = GetOwner())
+		AActor* Actor = GetOwner();
+		if (Actor != nullptr && Actor->HasAnyFlags(RF_ClassDefaultObject) == false)
 		{
 			// tagging owner actors since the tags get included in FWorldPartitionActorDesc 
 			// and that's the only way we can tell a given actor has a SmartObjectComponent 
