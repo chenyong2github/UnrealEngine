@@ -2,6 +2,7 @@
 
 #include "RivermaxMediaCapture.h"
 
+#include "Async/Fundamental/Task.h"
 #include "IRivermaxCoreModule.h"
 #include "IRivermaxManager.h"
 #include "IRivermaxOutputStream.h"
@@ -21,6 +22,13 @@
 
 DECLARE_GPU_STAT(Rivermax_Capture);
 DECLARE_GPU_STAT(Rivermax_SyncPointPass);
+
+
+static TAutoConsoleVariable<int32> CVarRivermaxPollTaskPriority(
+	TEXT("Rivermax.Output.PollTaskPriority"), static_cast<int32>(LowLevelTasks::ETaskPriority::High),
+	TEXT("Priority of the task responsible to poll the render fence"),
+	ECVF_Default);
+
 
 
 /** Structure holding data used for synchronization of buffer output */
@@ -355,7 +363,8 @@ void URivermaxMediaCapture::AddSyncPointPass(FRDGBuilder& GraphBuilder, const FC
 						// Wait until fence has been written (shader has completed)
 						while (SyncDataPtr->RHIFence->Poll() == false && Capturer->bIsActive)
 						{
-							FPlatformProcess::SleepNoStats(0);
+							constexpr float SleepTimeSeconds = 50 * 1E-6;
+							FPlatformProcess::SleepNoStats(SleepTimeSeconds);
 						}
 
 						SyncDataPtr->RHIFence->Clear();
@@ -370,7 +379,7 @@ void URivermaxMediaCapture::AddSyncPointPass(FRDGBuilder& GraphBuilder, const FC
 							}
 						}
 
-					}, LowLevelTasks::ETaskPriority::BackgroundHigh);
+					}, static_cast<LowLevelTasks::ETaskPriority>(CVarRivermaxPollTaskPriority.GetValueOnAnyThread()));
 				}
 			}
 		});

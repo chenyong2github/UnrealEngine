@@ -306,6 +306,8 @@ namespace UE::RivermaxCore::Private
 		{
 			UE_LOG(LogRivermax, Warning, TEXT("Rivermax Input stream failed to get next chunk. Status: %d"), Status);
 		}
+
+		FPlatformProcess::SleepNoStats(UE::RivermaxCore::Private::Utils::SleepTimeSeconds);
 	}
 
 	bool FRivermaxInputStream::Init()
@@ -976,6 +978,7 @@ namespace UE::RivermaxCore::Private
 					const double CallbackTimestamp = FPlatformTime::Seconds();
 					while (CallbackPayload->bIsWaitingForPendingCopy == true && bIsShuttingDown == false)
 					{
+						FPlatformProcess::SleepNoStats(UE::RivermaxCore::Private::Utils::SleepTimeSeconds);
 						if (FPlatformTime::Seconds() - CallbackTimestamp > CVarWaitForCompletionTimeout.GetValueOnAnyThread())
 						{
 							UE_LOG(LogRivermax, Error, TEXT("Waiting for gpu copy of sample timed out."));

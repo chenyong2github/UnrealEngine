@@ -147,8 +147,8 @@ namespace UE::MediaCaptureData
 		/** Returns true if the readback is ready to be used */
 		virtual bool IsReadbackReady(FRHIGPUMask GPUMask) = 0;
 		
-		virtual void EnqueueCopy(FRDGBuilder& RDGBuilder, FRDGViewableResource* ResourceToReadback) const = 0;
-
+		virtual void EnqueueCopy(FRDGBuilder& RDGBuilder, FRDGViewableResource* ResourceToReadback) = 0;
+		
 		virtual FRHITexture* GetTextureResource() { return nullptr; }
 		virtual FRHIBuffer* GetBufferResource() { return nullptr; }
 		virtual FRHIResource* GetRHIResource() = 0;
@@ -227,7 +227,7 @@ namespace UE::MediaCaptureData
 
 		virtual void Unlock_Unsafe(FRHIGPUMask GPUMask) override
 		{
-			GDynamicRHI->RHIUnmapStagingSurface(ReadbackTexture->DestinationStagingTextures[0], GPUMask.GetFirstIndex());
+			GDynamicRHI->RHIUnmapStagingSurface(ReadbackTexture->DestinationStagingTextures[GPUMask.GetFirstIndex()], GPUMask.GetFirstIndex());
 		}
 
 		virtual bool IsReadbackReady(FRHIGPUMask GPUMask) override
@@ -244,7 +244,7 @@ namespace UE::MediaCaptureData
 		}
 
 		/** Adds a readback pass to the graph */
-		virtual void EnqueueCopy(FRDGBuilder& RDGBuilder, FRDGViewableResource* ResourceToReadback) const override
+		virtual void EnqueueCopy(FRDGBuilder& RDGBuilder, FRDGViewableResource* ResourceToReadback) override
 		{
 			AddEnqueueCopyPass(RDGBuilder, ReadbackTexture.Get(), static_cast<FRDGTexture*>(ResourceToReadback));
 		}
@@ -265,7 +265,7 @@ namespace UE::MediaCaptureData
 		TUniquePtr<FRHIGPUTextureReadback> ReadbackTexture;
 	};
 
-	class FBufferCaptureFrame : public FCaptureFrame
+	class FBufferCaptureFrame : public FCaptureFrame, public TSharedFromThis<UE::MediaCaptureData::FBufferCaptureFrame, ESPMode::ThreadSafe>
 	{
 	public:
 		/** Type alias for the output resource type used during capture frame */
@@ -305,9 +305,21 @@ namespace UE::MediaCaptureData
 			return ReadbackBuffer->Lock(Buffer->GetRHI()->GetSize());
 		}
 
+		virtual void* Lock_Unsafe(FRHIGPUMask GPUMask, int32& OutRowStride) override
+		{
+			void* ReadbackPointer = GDynamicRHI->RHILockStagingBuffer(DestinationStagingBuffers[GPUMask.GetFirstIndex()], nullptr, 0, Buffer->GetRHI()->GetSize());
+			OutRowStride = Buffer->GetRHI()->GetStride();
+			return ReadbackPointer;
+		}
+		
 		virtual void Unlock() override
 		{
 			ReadbackBuffer->Unlock();
+		}
+		
+		virtual void Unlock_Unsafe(FRHIGPUMask GPUMask) override
+		{
+			GDynamicRHI->RHIUnlockStagingBuffer(DestinationStagingBuffers[GPUMask.GetFirstIndex()]);
 		}
 
 		virtual bool IsReadbackReady(FRHIGPUMask GPUMask) override
@@ -322,10 +334,45 @@ namespace UE::MediaCaptureData
 			return RDGBuilder.RegisterExternalBuffer(Buffer, TEXT("OutputBuffer"));
 		}
 
+		BEGIN_SHADER_PARAMETER_STRUCT(FEnqueueCopyBufferPass, )
+		RDG_BUFFER_ACCESS(Buffer, ERHIAccess::CopySrc)
+		END_SHADER_PARAMETER_STRUCT()
+
+
 		/** Adds a readback pass to the graph */
-		virtual void EnqueueCopy(FRDGBuilder& RDGBuilder, FRDGViewableResource* ResourceToReadback) const
+		virtual void EnqueueCopy(FRDGBuilder& RDGBuilder, FRDGViewableResource* ResourceToReadback) override
 		{
-			AddEnqueueCopyPass(RDGBuilder, ReadbackBuffer.Get(), static_cast<FRDGBuffer*>(ResourceToReadback), Buffer->GetRHI()->GetSize());
+			if (CVarMediaIOScheduleOnAnyThread.GetValueOnAnyThread() && CVarMediaIOEnableExperimentalScheduling.GetValueOnAnyThread())
+            {
+				FEnqueueCopyBufferPass* PassParameters = RDGBuilder.AllocParameters<FEnqueueCopyBufferPass>();
+				PassParameters->Buffer = static_cast<FRDGBuffer*>(ResourceToReadback);
+
+				TSharedPtr<FBufferCaptureFrame> CaptureFramePtr = AsShared();
+				RDGBuilder.AddPass(
+					RDG_EVENT_NAME("EnqueueCopy(%s)", ResourceToReadback->Name),
+					PassParameters,
+					ERDGPassFlags::Readback,
+					[CaptureFramePtr, ResourceToReadback](FRHICommandList& RHICmdList)
+				{
+					CaptureFramePtr->LastCopyGPUMask = RHICmdList.GetGPUMask();
+
+					for (uint32 GPUIndex : CaptureFramePtr->LastCopyGPUMask)
+					{
+						SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::FromIndex(GPUIndex));
+
+						if (!CaptureFramePtr->DestinationStagingBuffers[GPUIndex])
+						{
+							CaptureFramePtr->DestinationStagingBuffers[GPUIndex] = RHICreateStagingBuffer();
+						}
+
+						RHICmdList.CopyToStagingBuffer(static_cast<FRHIBuffer*>(ResourceToReadback->GetRHI()), CaptureFramePtr->DestinationStagingBuffers[GPUIndex], 0, CaptureFramePtr->Buffer->GetRHI()->GetSize());
+					}
+				});
+            }
+			else
+			{
+				AddEnqueueCopyPass(RDGBuilder, ReadbackBuffer.Get(), static_cast<FRDGBuffer*>(ResourceToReadback), Buffer->GetRHI()->GetSize());
+			}
 		}
 
 		virtual FRHIBuffer* GetBufferResource() override
@@ -342,6 +389,17 @@ namespace UE::MediaCaptureData
 	public:
 		TRefCountPtr<FRDGPooledBuffer> Buffer;
 		TUniquePtr<FRHIGPUBufferReadback> ReadbackBuffer;
+		
+// Used for the ExperimentalScheduling path
+#if WITH_MGPU
+		FStagingBufferRHIRef DestinationStagingBuffers[MAX_NUM_GPUS];
+#else
+		FStagingBufferRHIRef DestinationStagingBuffers[1];
+#endif
+
+		// Copied from FRHIGPUReadback.h
+		FRHIGPUMask LastCopyGPUMask;
+		uint32 LastLockGPUIndex = 0; 
 	};
 
 	/** Helper struct to contain arguments for CaptureFrame */
@@ -600,7 +658,7 @@ namespace UE::MediaCaptureData
 
 						TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::RHIResourceCaptured);
 						TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapture Output Frame %d"), ReadyFrame->CaptureBaseData.SourceFrameNumberRenderThread));
-						SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_CaptureCallback)
+						SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_RHI_CaptureCallback)
 
 						if (IsInRenderingThread())
 						{
@@ -633,13 +691,10 @@ namespace UE::MediaCaptureData
 					int32 RowStride = 0;
 
 					// Readback should be ready since we're after the sync point.
-					ensure(ReadyFrame->IsReadbackReady(GPUMask));
-					{
-						SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_LockResource);
-						ColorDataBuffer = ReadyFrame->Lock_Unsafe(GPUMask, RowStride);
-					}
+					SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_LockResource);
+					ColorDataBuffer = ReadyFrame->Lock_Unsafe(GPUMask, RowStride);
 
-					if (ColorDataBuffer)
+					if (ensure(ColorDataBuffer))
 					{
 						{
 							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapture Output Frame %d"), ReadyFrame->GetId()));
@@ -731,14 +786,15 @@ namespace UE::MediaCaptureData
 												break;
 											}
 
-											FPlatformProcess::SleepNoStats(0);
+											constexpr float SleepTimeSeconds = 50 * 1E-6;
+											FPlatformProcess::SleepNoStats(SleepTimeSeconds);
 										}
 
 										SyncDataPtr->RHIFence->Clear();
 										SyncDataPtr->bIsBusy = false;
 									}
 
-									if (CapturingFrame->bMediaCaptureActive && bWaitedForCompletion)
+									if (CapturingFrame->bMediaCaptureActive && bWaitedForCompletion && MediaCapture)
 									{
 										if (MediaCapture->UseAnyThreadCapture())
 										{
@@ -1105,6 +1161,7 @@ bool UMediaCapture::StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCa
 #if WITH_EDITOR
 	MediaCaptureAnalytics::SendCaptureEvent(GetCaptureSourceType());
 #endif
+
 
 	if (!GRHISupportsMultithreading)
 	{

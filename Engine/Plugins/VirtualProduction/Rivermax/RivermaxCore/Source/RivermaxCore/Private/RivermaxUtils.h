@@ -26,6 +26,9 @@ namespace UE::RivermaxCore::Private::Utils
 
 	/** SMTPE 2110-10.The Media Clock and RTP Clock rate for streams compliant to this standard shall be 90 kHz. */
 	static constexpr double MediaClockSampleRate = 90000.0;
+	
+	/** Common sleep time used in places where we are waiting for something to complete */
+	static constexpr float SleepTimeSeconds = 50 * 1E-6;
 
 	/** Convert a set of streaming option to its SDP description. Currently only support video type. */
 	void StreamOptionsToSDPDescription(const UE::RivermaxCore::FRivermaxOutputStreamOptions& Options, FAnsiStringBuilderBase& OutSDPDescription);

@@ -22,20 +22,16 @@ bool URivermaxCustomTimeStep::Initialize(UEngine* InEngine)
 		return false;
 	}
 
-	if (RivermaxModule->IsAvailable() == false)
+	if (RivermaxModule->GetRivermaxManager()->IsInitialized() == false)
 	{
+		UE_LOG(LogRivermaxMedia, Warning, TEXT("Can't initialize Rivermax custom timestep. Library isn't available."))
 		State = ECustomTimeStepSynchronizationState::Error;
 		return false;
 	}
 
 	if (RivermaxModule->GetRivermaxManager()->GetDevices().Num() <= 0)
 	{
-		State = ECustomTimeStepSynchronizationState::Error;
-		return false;
-	}
-
-	if (RivermaxModule->GetRivermaxManager()->GetTimeSource() != ERivermaxTimeSource::PTP)
-	{
+		UE_LOG(LogRivermaxMedia, Warning, TEXT("Can't initialize Rivermax custom timestep. No devices were found."))
 		State = ECustomTimeStepSynchronizationState::Error;
 		return false;
 	}
