@@ -21,6 +21,7 @@
 #include "NativeGameplayTags.h"
 #include "PlatformFeatures.h"
 #include "SaveGameSystem.h"
+#include "EnhancedActionKeyMapping.h"
 
 #define LOCTEXT_NAMESPACE "EnhancedInputMappableUserSettings"
 
@@ -32,7 +33,7 @@ namespace UE::EnhancedInput
 	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_DefaultProfileIdentifier, "InputUserSettings.Profiles.Default");
 	static const FText DefaultProfileDisplayName = LOCTEXT("Default_Profile_name", "Default Profile");
 	
-	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_InvalidActionName, "InputUserSettings.FailureReasons.InvalidActionName");
+	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_InvalidMappingName, "InputUserSettings.FailureReasons.InvalidMappingName");
 	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_NoKeyProfile, "InputUserSettings.FailureReasons.NoKeyProfile");
 	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_NoMatchingMappings, "InputUserSettings.FailureReasons.NoMatchingMappings");
 	
@@ -74,7 +75,7 @@ namespace UE::EnhancedInput
 // FMapPlayerKeyArgs
 
 FMapPlayerKeyArgs::FMapPlayerKeyArgs()
-	: ActionName(NAME_None)
+	: MappingName(NAME_None)
 	, Slot(EPlayerMappableKeySlot::Unspecified)
 	, NewKey(EKeys::Invalid)
 	, HardwareDeviceId(NAME_None)
@@ -86,7 +87,7 @@ FMapPlayerKeyArgs::FMapPlayerKeyArgs()
 // FPlayerKeyMapping
 
 FPlayerKeyMapping::FPlayerKeyMapping()
-	: ActionName(NAME_None)
+	: MappingName(NAME_None)
 	, DisplayName(FText::GetEmpty())
 	, Slot(EPlayerMappableKeySlot::Unspecified)
 	, DefaultKey(EKeys::Invalid)
@@ -96,7 +97,7 @@ FPlayerKeyMapping::FPlayerKeyMapping()
 }
 
 FPlayerKeyMapping::FPlayerKeyMapping(const FEnhancedActionKeyMapping& OriginalMapping, EPlayerMappableKeySlot InSlot /* = EPlayerMappableKeySlot::Unspecified */)
-	: ActionName(OriginalMapping.GetMappingName())
+	: MappingName(OriginalMapping.GetMappingName())
 	, DisplayName(OriginalMapping.GetDisplayName())
 	, Slot(InSlot)
 	, DefaultKey(OriginalMapping.Key)
@@ -116,7 +117,7 @@ bool FPlayerKeyMapping::IsCustomized() const
 
 bool FPlayerKeyMapping::IsValid() const
 {
-	return ActionName.IsValid() && CurrentKey.IsValid();
+	return MappingName.IsValid() && CurrentKey.IsValid();
 }
 
 const FKey& FPlayerKeyMapping::GetCurrentKey() const
@@ -135,16 +136,16 @@ FString FPlayerKeyMapping::ToString() const
 	check(PlayerMappableEnumClass);
 	return
 		FString::Printf(TEXT("Action Name: '%s'  Slot: '%s'  Default Key: '%s'  Player Mapped Key: '%s'  HardwareDevice:  '%s'"),
-			*ActionName.ToString(),
+			*MappingName.ToString(),
 			*PlayerMappableEnumClass->GetNameStringByValue(static_cast<int64>(Slot)),
 			*DefaultKey.ToString(),
 			*CurrentKey.ToString(),
 			*HardwareDeviceId.ToString());
 }
 
-const FName FPlayerKeyMapping::GetActionName() const
+const FName FPlayerKeyMapping::GetMappingName() const
 {
-	return ActionName;
+	return MappingName;
 }
 
 const FText& FPlayerKeyMapping::GetDisplayName() const
@@ -165,7 +166,7 @@ const FHardwareDeviceIdentifier& FPlayerKeyMapping::GetHardwareDeviceId() const
 uint32 GetTypeHash(const FPlayerKeyMapping& InMapping)
 {
 	uint32 Hash = 0;
-	Hash = HashCombine(Hash, GetTypeHash(InMapping.ActionName));
+	Hash = HashCombine(Hash, GetTypeHash(InMapping.MappingName));
 	Hash = HashCombine(Hash, GetTypeHash(InMapping.Slot));
 	Hash = HashCombine(Hash, GetTypeHash(InMapping.CurrentKey));
 	Hash = HashCombine(Hash, GetTypeHash(InMapping.HardwareDeviceId));
@@ -192,7 +193,7 @@ void FPlayerKeyMapping::SetCurrentKey(const FKey& NewKey)
 
 void FPlayerKeyMapping::UpdateOriginalKey(const FEnhancedActionKeyMapping& OriginalMapping)
 {
-	ensure(OriginalMapping.IsPlayerMappable() && OriginalMapping.GetMappingName() == ActionName);
+	ensure(OriginalMapping.IsPlayerMappable() && OriginalMapping.GetMappingName() == MappingName);
 	
 	DefaultKey = OriginalMapping.Key;
 	DisplayName = OriginalMapping.GetDisplayName();
@@ -208,7 +209,7 @@ void FPlayerKeyMapping::UpdateOriginalKey(const FEnhancedActionKeyMapping& Origi
 bool FPlayerKeyMapping::operator==(const FPlayerKeyMapping& Other) const
 {
 	return
-	       ActionName			== Other.ActionName
+	       MappingName			== Other.MappingName
 		&& Slot					== Other.Slot
 		&& HardwareDeviceId		== Other.HardwareDeviceId
 		&& CurrentKey			== Other.CurrentKey
@@ -267,14 +268,14 @@ const FText& UEnhancedPlayerMappableKeyProfile::GetProfileDisplayName() const
 	return DisplayName;
 }
 
-const TMap<FName, FKeyMappingRow>& UEnhancedPlayerMappableKeyProfile::GetPlayerMappedActions() const
+const TMap<FName, FKeyMappingRow>& UEnhancedPlayerMappableKeyProfile::GetPlayerMappingRows() const
 {
 	return PlayerMappedKeys;
 }
 
-void UEnhancedPlayerMappableKeyProfile::ResetActionMappingsToDefault(const FName InActionName)
+void UEnhancedPlayerMappableKeyProfile::ResetMappingToDefault(const FName InMappingName)
 {
-	if (FKeyMappingRow* MappingRow = FindKeyMappingRowMutable(InActionName))
+	if (FKeyMappingRow* MappingRow = FindKeyMappingRowMutable(InMappingName))
 	{
 		for (FPlayerKeyMapping& Mapping : MappingRow->Mappings)
 		{
@@ -283,14 +284,14 @@ void UEnhancedPlayerMappableKeyProfile::ResetActionMappingsToDefault(const FName
 	}
 }
 
-FKeyMappingRow* UEnhancedPlayerMappableKeyProfile::FindKeyMappingRowMutable(const FName InActionName)
+FKeyMappingRow* UEnhancedPlayerMappableKeyProfile::FindKeyMappingRowMutable(const FName InMappingName)
 {
-	return const_cast<FKeyMappingRow*>(FindKeyMappingRow(InActionName));
+	return const_cast<FKeyMappingRow*>(FindKeyMappingRow(InMappingName));
 }
 
-const FKeyMappingRow* UEnhancedPlayerMappableKeyProfile::FindKeyMappingRow(const FName InActionName) const
+const FKeyMappingRow* UEnhancedPlayerMappableKeyProfile::FindKeyMappingRow(const FName InMappingName) const
 {
-	return PlayerMappedKeys.Find(InActionName);
+	return PlayerMappedKeys.Find(InMappingName);
 }
 
 void UEnhancedPlayerMappableKeyProfile::DumpProfileToLog() const
@@ -317,11 +318,11 @@ FString UEnhancedPlayerMappableKeyProfile::ToString() const
 	return Builder.ToString();
 }
 
-int32 UEnhancedPlayerMappableKeyProfile::GetKeysMappedToAction(const FName ActionName, TArray<FKey>& OutKeys) const
+int32 UEnhancedPlayerMappableKeyProfile::GetMappedKeysInRow(const FName MappingName, TArray<FKey>& OutKeys) const
 {
 	OutKeys.Reset();
 	
-	if (const FKeyMappingRow* MappingRow = FindKeyMappingRow(ActionName))
+	if (const FKeyMappingRow* MappingRow = FindKeyMappingRow(MappingName))
 	{
 		for (const FPlayerKeyMapping& Mapping : MappingRow->Mappings)
 		{
@@ -330,14 +331,14 @@ int32 UEnhancedPlayerMappableKeyProfile::GetKeysMappedToAction(const FName Actio
 	}
 	else
 	{
-		UE_LOG(LogEnhancedInput, Warning, TEXT("Player Mappable Key Profile '%s' doesn't have any mappings for action '%s'"), *ProfileIdentifier.ToString(), *ActionName.ToString());
+		UE_LOG(LogEnhancedInput, Warning, TEXT("Player Mappable Key Profile '%s' doesn't have any mappings for action '%s'"), *ProfileIdentifier.ToString(), *MappingName.ToString());
 	}
 	return OutKeys.Num();
 }
 
-int32 UEnhancedPlayerMappableKeyProfile::GetActionsMappedToKey(const FKey& InKey, TArray<FName>& OutMappedActionNames) const
+int32 UEnhancedPlayerMappableKeyProfile::GetMappingNamesForKey(const FKey& InKey, TArray<FName>& OutMappingNames) const
 {
-	OutMappedActionNames.Reset();
+	OutMappingNames.Reset();
 
 	for (const TPair<FName, FKeyMappingRow>& Pair : PlayerMappedKeys)
 	{
@@ -347,13 +348,13 @@ int32 UEnhancedPlayerMappableKeyProfile::GetActionsMappedToKey(const FKey& InKey
 			{
 				// We know that this action has the key mapped to it, so there is no need to continue checking
 				// the rest of it's mappings
-				OutMappedActionNames.Add(Pair.Key);
+				OutMappingNames.Add(Pair.Key);
 				break;
 			}
 		}
 	}
 
-	return OutMappedActionNames.Num();
+	return OutMappingNames.Num();
 }
 
 bool FKeyMappingRow::HasAnyMappings() const
@@ -370,7 +371,7 @@ void UEnhancedPlayerMappableKeyProfile::Serialize(FArchive& Ar)
 FPlayerKeyMapping* UEnhancedPlayerMappableKeyProfile::FindKeyMapping(const FMapPlayerKeyArgs& InArgs) const
 {
 	// Get the current mappings for the desired action name.
-	if (const FKeyMappingRow* MappingRow = PlayerMappedKeys.Find(InArgs.ActionName))
+	if (const FKeyMappingRow* MappingRow = PlayerMappedKeys.Find(InArgs.MappingName))
 	{
 		// If mapping already exists for the given slot and hardware device, then we can
 		// just change that key
@@ -582,7 +583,7 @@ void UEnhancedInputUserSettings::Serialize(FArchive& Ar)
 					{
 						Header.DirtyMappings.Push(
 							{
-								/* .ActionName = */ Mapping.ActionName,
+								/* .MappingName = */ Mapping.MappingName,
 								/* .CurrentKeyName = */ Mapping.CurrentKey.GetFName(),
 								/* .HardwareDeviceId = */ Mapping.HardwareDeviceId, 
 								/* .Slot = */ Mapping.Slot
@@ -612,7 +613,7 @@ void UEnhancedInputUserSettings::Serialize(FArchive& Ar)
 					FKeyMappingRow& MappingRow = NewProfile->PlayerMappedKeys.FindOrAdd(SavedKeyData.ActionName);
 
 					FPlayerKeyMapping PlayerMapping = {};
-					PlayerMapping.ActionName = SavedKeyData.ActionName;
+					PlayerMapping.MappingName = SavedKeyData.ActionName;
 					PlayerMapping.CurrentKey = FKey(SavedKeyData.CurrentKeyName);
 					PlayerMapping.Slot = SavedKeyData.Slot;
 					PlayerMapping.HardwareDeviceId = SavedKeyData.HardwareDeviceId;
@@ -665,9 +666,9 @@ ULocalPlayer* UEnhancedInputUserSettings::GetLocalPlayer() const
 
 void UEnhancedInputUserSettings::MapPlayerKey(const FMapPlayerKeyArgs& InArgs, FGameplayTagContainer& FailureReason)
 {
-	if (!InArgs.ActionName.IsValid())
+	if (!InArgs.MappingName.IsValid())
 	{
-		FailureReason.AddTag(UE::EnhancedInput::TAG_InvalidActionName);
+		FailureReason.AddTag(UE::EnhancedInput::TAG_InvalidMappingName);
 		return;
 	}
 	
@@ -687,7 +688,7 @@ void UEnhancedInputUserSettings::MapPlayerKey(const FMapPlayerKeyArgs& InArgs, F
 		OnSettingsChanged.Broadcast(this);
 	}
 	// If it doesn't exist, then we need to make it if there is a valid action name
-	else if (FKeyMappingRow* MappingRow = KeyProfile->PlayerMappedKeys.Find(InArgs.ActionName))
+	else if (FKeyMappingRow* MappingRow = KeyProfile->PlayerMappedKeys.Find(InArgs.MappingName))
 	{
 		// If one doesn't exist, then we need to create a new mapping in the given slot.
 		// 
@@ -700,7 +701,7 @@ void UEnhancedInputUserSettings::MapPlayerKey(const FMapPlayerKeyArgs& InArgs, F
 			
 			// Add a default mapping to this row
 			FPlayerKeyMapping PlayerMappingData = {};
-			PlayerMappingData.ActionName = InArgs.ActionName;
+			PlayerMappingData.MappingName = InArgs.MappingName;
 			PlayerMappingData.Slot = InArgs.Slot;
 
 			// If there is some valid hardware then keep track of that
@@ -728,9 +729,9 @@ void UEnhancedInputUserSettings::MapPlayerKey(const FMapPlayerKeyArgs& InArgs, F
 
 void UEnhancedInputUserSettings::UnMapPlayerKey(const FMapPlayerKeyArgs& InArgs, FGameplayTagContainer& FailureReason)
 {
-	if (!InArgs.ActionName.IsValid())
+	if (!InArgs.MappingName.IsValid())
 	{
-		FailureReason.AddTag(UE::EnhancedInput::TAG_InvalidActionName);
+		FailureReason.AddTag(UE::EnhancedInput::TAG_InvalidMappingName);
 		return;
 	}
 	
@@ -762,11 +763,11 @@ void UEnhancedInputUserSettings::UnMapPlayerKey(const FMapPlayerKeyArgs& InArgs,
 	}
 }
 
-const TSet<FPlayerKeyMapping>& UEnhancedInputUserSettings::FindMappingsForAction(const FName ActionName) const
+const TSet<FPlayerKeyMapping>& UEnhancedInputUserSettings::FindMappingsInRow(const FName MappingName) const
 {
 	if (UEnhancedPlayerMappableKeyProfile* KeyProfile = GetCurrentKeyProfile())
 	{
-		FKeyMappingRow& ExistingMappings = KeyProfile->PlayerMappedKeys.FindOrAdd(ActionName);
+		FKeyMappingRow& ExistingMappings = KeyProfile->PlayerMappedKeys.FindOrAdd(MappingName);
 		return ExistingMappings.Mappings;
 	}
 	
@@ -778,7 +779,7 @@ const TSet<FPlayerKeyMapping>& UEnhancedInputUserSettings::FindMappingsForAction
 
 const FPlayerKeyMapping* UEnhancedInputUserSettings::FindCurrentMappingForSlot(const FName ActionName, const EPlayerMappableKeySlot InSlot) const
 {
-	const TSet<FPlayerKeyMapping>& AllMappings = FindMappingsForAction(ActionName);
+	const TSet<FPlayerKeyMapping>& AllMappings = FindMappingsInRow(ActionName);
 	for (const FPlayerKeyMapping& Mapping : AllMappings)
 	{
 		if (Mapping.Slot == InSlot)

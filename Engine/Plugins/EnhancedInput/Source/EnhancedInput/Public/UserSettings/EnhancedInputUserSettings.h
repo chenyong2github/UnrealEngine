@@ -6,7 +6,6 @@
 #include "UObject/Object.h"
 #include "InputCoreTypes.h"					// For FKey
 #include "GameFramework/InputSettings.h"	// For FHardwareDeviceIdentifier
-#include "EnhancedActionKeyMapping.h"
 #include "GameplayTagContainer.h"
 
 #include "EnhancedInputUserSettings.generated.h"
@@ -14,12 +13,13 @@
 class UInputMappingContext;
 class UEnhancedPlayerInput;
 class ULocalPlayer;
+struct FEnhancedActionKeyMapping;
 
 /**
  * The "Slot" that a player mappable key is in.
- * Used by UI to allow for multiple keys to be bound by the player for a single action
+ * Used by UI to allow for multiple keys to be bound by the player for a single player mapping
  * 
- * | <Action Name>  | Slot 1 | Slot 2 | Slot 3 | Slot.... N |
+ * | <Mapping Name>  | Slot 1 | Slot 2 | Slot 3 | Slot.... N |
  */
 UENUM(BlueprintType)
 enum class EPlayerMappableKeySlot : uint8 
@@ -50,17 +50,17 @@ struct ENHANCEDINPUT_API FMapPlayerKeyArgs
 	FMapPlayerKeyArgs();	
 	
 	/**
-	 * The name of the action for this key. This is either the default mapping name from an Input Action asset, or one
-	 * that is overriden in the Input Mapping Context.
+	 * The name of the mapping for this key. This is either the default mapping name from an Input Action asset, or one
+	 * that is overridden in the Input Mapping Context.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Enhanced Input|User Settings")
-	FName ActionName;
+	FName MappingName;
 
 	/** What slot this key mapping is for */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Enhanced Input|User Settings")
 	EPlayerMappableKeySlot Slot;
 
-	/** The new Key that this action should be mapped to */
+	/** The new Key that this should be mapped to */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Enhanced Input|User Settings")
 	FKey NewKey;
 	
@@ -112,10 +112,10 @@ public:
 	FString ToString() const;
 
 	/**
-	 * The unique FName associated with this action. This is defined by this mappings owning Input Action
+	 * The unique FName associated with this mapping. This is defined by this mappings owning Input Action
 	 * or the individual Enhanced Action Key Mapping if it is overriden
 	 */
-	const FName GetActionName() const;
+	const FName GetMappingName() const;
 
 	/** The localized display name to use for this mapping */
 	const FText& GetDisplayName() const;
@@ -148,11 +148,11 @@ public:
 
 protected:
 	
-	/** The name of the action for this key */
+	/** The name of the mapping for this key */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
-	FName ActionName;
+	FName MappingName;
 	
-	/** Localized display name of this action */
+	/** Localized display name of this mapping */
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
 	FText DisplayName;
 
@@ -168,7 +168,7 @@ protected:
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings", meta = (AllowPrivateAccess = "True"))
 	FKey DefaultKey;
 	
-	/** The key that the player has mapped this action to */
+	/** The key that the player has mapped to */
 	UPROPERTY(VisibleAnywhere,  BlueprintReadOnly, Category="Enhanced Input|User Settings", meta = (AllowPrivateAccess = "True"))
 	FKey CurrentKey;
 
@@ -178,9 +178,9 @@ protected:
 };
 
 /**
- * Stores all mappings bound to a single action.
+ * Stores all mappings bound to a single mapping name.
  *
- * Since a single action can have multiple bindings to it and this system should be Blueprint friendly,
+ * Since a single mapping can have multiple bindings to it and this system should be Blueprint friendly,
  * this needs to be a struct (blueprint don't support nested containers).
  */
 USTRUCT(BlueprintType)
@@ -229,20 +229,20 @@ public:
 	/**
 	 * Get all known key mappings for this profile.
 	 *
-	 * This returns a map of "Action Name" -> Mappings to that action
+	 * This returns a map of "Mapping Name" -> Player Mappings to that name
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Enhanced Input|User Settings")
-	const TMap<FName, FKeyMappingRow>& GetPlayerMappedActions() const;
+	const TMap<FName, FKeyMappingRow>& GetPlayerMappingRows() const;
 
-	/** Resets every player key mapping to this action back to it's default value */
+	/** Resets every player key mapping to this mapping back to it's default value */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
-	void ResetActionMappingsToDefault(const FName InActionName);
+	void ResetMappingToDefault(const FName InMappingName);
 	
-	/** Get all the key mappings associated with the given action name on this profile */
-	FKeyMappingRow* FindKeyMappingRowMutable(const FName InActionName);
+	/** Get all the key mappings associated with the given mapping name on this profile */
+	FKeyMappingRow* FindKeyMappingRowMutable(const FName InMappingName);
 
-	/** Get all the key mappings associated with the given action name on this profile */
-	const FKeyMappingRow* FindKeyMappingRow(const FName InActionName) const;
+	/** Get all the key mappings associated with the given mapping name on this profile */
+	const FKeyMappingRow* FindKeyMappingRow(const FName InMappingName) const;
 
 	/** A helper function to print out all the current profile settings to the log. */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
@@ -253,20 +253,20 @@ public:
 	virtual FString ToString() const;
 	
 	/**
-	 * Returns all FKey's bound to the given Action Name on this profile.
+	 * Returns all FKey's bound to the given mapping Name on this profile.
 	 *
-	 * Returns the number of keys mapped to this action
+	 * Returns the number of keys for the given mapping name
 	 */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (ReturnDisplayName = "Number of keys"))
-	virtual int32 GetKeysMappedToAction(const FName ActionName, /*OUT*/ TArray<FKey>& OutKeys) const;
+	virtual int32 GetMappedKeysInRow(const FName MappingName, /*OUT*/ TArray<FKey>& OutKeys) const;
 
 	/**
-	 * Populates the OutMappedActionNames with every action on this profile that has a mapping to the given key.
+	 * Populates the OutMappedMappingNames with every mapping on this profile that has a mapping to the given key.
 	 *
-	 * Returns the number of actions mapped to this key
+	 * Returns the number of mappings to this key
 	 */
-	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (ReturnDisplayName = "Number of actions"))
-	virtual int32 GetActionsMappedToKey(const FKey& InKey, /*OUT*/ TArray<FName>& OutMappedActionNames) const;
+	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (ReturnDisplayName = "Number of mappings"))
+	virtual int32 GetMappingNamesForKey(const FKey& InKey, /*OUT*/ TArray<FName>& OutMappingNames) const;
 
 	/** Returns a pointer to the player key mapping that fits with the given arguments. Returns null if none exist. */
 	virtual FPlayerKeyMapping* FindKeyMapping(const FMapPlayerKeyArgs& InArgs) const;
@@ -308,7 +308,7 @@ protected:
 	FText DisplayName;
 	
 	/**
-	 * A map of "Action Name" to all key mappings associated with it.
+	 * A map of "Mapping Row Name" to all key mappings associated with it.
 	 * Note: Dirty mappings will be serialized from UEnhancedInputUserSettings::Serialize
 	 */
 	UPROPERTY(BlueprintReadOnly, Transient, EditAnywhere, Category="Enhanced Input|User Settings")
@@ -413,20 +413,21 @@ public:
 	// Remappable keys API
 
 	/**
-	 * Sets the player mapped key for this action on the current key profile.
+	 * Sets the player mapped key on the current key profile.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (AutoCreateRefTerm = "FailureReason"))
 	virtual void MapPlayerKey(const FMapPlayerKeyArgs& InArgs, FGameplayTagContainer& FailureReason);
 
-	/** Unmap what is currently mapped to the given action in the given slot */
+	/** Unmap what is currently mapped to the given mapping in the given slot */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (AutoCreateRefTerm = "FailureReason"))
 	virtual void UnMapPlayerKey(const FMapPlayerKeyArgs& InArgs, FGameplayTagContainer& FailureReason);
 
+	/** Returns a set of all player key mappings for the given mapping name. */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
-	virtual const TSet<FPlayerKeyMapping>& FindMappingsForAction(const FName ActionName) const;
+	virtual const TSet<FPlayerKeyMapping>& FindMappingsInRow(const FName MappingName) const;
 
-	/** Returns the current player key mapping for the given action in the given slot */
-	virtual const FPlayerKeyMapping* FindCurrentMappingForSlot(const FName ActionName, const EPlayerMappableKeySlot InSlot) const;
+	/** Returns the current player key mapping for the given row name in the given slot */
+	virtual const FPlayerKeyMapping* FindCurrentMappingForSlot(const FName MappingName, const EPlayerMappableKeySlot InSlot) const;
 	
 	// Modifying key profile
 
@@ -448,9 +449,11 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Enhanced Input|User Settings")
 	UEnhancedPlayerMappableKeyProfile* GetCurrentKeyProfile() const;
 
+	/** Get the current key profile that the user has set */
 	template<class T>
-	T* GetCurrentKeyProfile() const
+	inline T* GetCurrentKeyProfile() const
 	{
+		static_assert(TIsDerivedFrom<T, UEnhancedPlayerMappableKeyProfile>::IsDerived, "T must be a UEnhancedPlayerMappableKeyProfile-based type!");
 		return Cast<T>(GetCurrentKeyProfile());
 	}
 
@@ -467,14 +470,16 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Enhanced Input|User Settings")
 	virtual UEnhancedPlayerMappableKeyProfile* GetKeyProfileWithIdentifier(const FGameplayTag& ProfileId) const;
 
+	/** Returns the key profile with the given name if one exists. Null if one doesn't exist */
 	template<class T>
-	T* GetKeyProfileWithIdentifier(const FGameplayTag& ProfileId) const
+	inline T* GetKeyProfileWithIdentifier(const FGameplayTag& ProfileId) const
 	{
+		static_assert(TIsDerivedFrom<T, UEnhancedPlayerMappableKeyProfile>::IsDerived, "T must be a UEnhancedPlayerMappableKeyProfile-based type!");
 		return Cast<T>(GetKeyProfileWithIdentifier(ProfileId));
 	}
 
 	// Registering input mapping contexts for access to them from your UI,
-	// even if they are froma plugin
+	// even if they are from a plugin
 
 	/** Fired when a new input mapping context is registered. Useful if you need to update your UI */
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMappingContextRegisteredWithSettings, const UInputMappingContext*, IMC);
@@ -485,7 +490,7 @@ public:
 	 * in the context and create an initial Player Mappable Key for every mapping that is marked as mappable.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
-	bool RegisterInputMappingContext(UInputMappingContext* IMC);
+	virtual bool RegisterInputMappingContext(UInputMappingContext* IMC);
 
 	/** Registers multiple mapping contexts with the settings */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
@@ -493,7 +498,7 @@ public:
 
 	/** Removes this mapping context from the registered mapping contexts */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
-	bool UnregisterInputMappingContext(const UInputMappingContext* IMC);
+	virtual bool UnregisterInputMappingContext(const UInputMappingContext* IMC);
 
 	/** Removes miltiple mapping contexts from the registered mapping contexts */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")

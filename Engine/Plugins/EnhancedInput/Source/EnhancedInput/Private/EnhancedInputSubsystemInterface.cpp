@@ -784,7 +784,7 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 			// See if there are any player mapped keys to this action
 			if (PlayerKeyProfile && GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
 			{
-				PlayerKeyProfile->GetKeysMappedToAction(Mapping.GetMappingName(), MappedKeysToActionName);
+				PlayerKeyProfile->GetMappedKeysInRow(Mapping.GetMappingName(), MappedKeysToActionName);
 				bIsPlayerMapping = !MappedKeysToActionName.IsEmpty();
 			}
 			else if (const TMap<FPlayerMappableKeySlot, FKey>* PlayerMappedKeySlots = PlayerMappedSettings.Find(Mapping.GetMappingName()))
