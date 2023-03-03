@@ -41,6 +41,8 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 
 	SharedData = DMXEditorPtr.Pin()->GetFixturePatchSharedData();
 		
+	const UDMXEditorSettings* DMXEditorSettings = GetDefault<UDMXEditorSettings>();
+	const ECheckBoxState InitialDMXMonitorEnabledCheckBoxState = DMXEditorSettings->bFixturePatcherDMXMonitorEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	const FLinearColor BackgroundTint(0.6f, 0.6f, 0.6f, 1.0f);
 	ChildSlot			
 		[
@@ -144,7 +146,7 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
 						[
 							SAssignNew(EnableDMXMonitorCheckBox, SCheckBox)
-							.IsChecked(false)
+							.IsChecked(InitialDMXMonitorEnabledCheckBoxState)
 							.OnCheckStateChanged(this, &SDMXFixturePatcher::OnToggleDMXMonitorEnabled)
 						]
 					]
@@ -188,7 +190,6 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 
 	ShowSelectedUniverse();
 
-	const UDMXEditorSettings* DMXEditorSettings = GetDefault<UDMXEditorSettings>();
 	SetDMXMonitorEnabled(DMXEditorSettings->bFixturePatcherDMXMonitorEnabled);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

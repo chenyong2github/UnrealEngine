@@ -137,6 +137,8 @@ void SDMXMonitorSourceSelector::Construct(const FArguments& InArgs)
 	];
 
 	UpdateMonitoredPorts();
+
+	FDMXPortManager::Get().OnPortsChanged.AddSP(this, &SDMXMonitorSourceSelector::UpdateMonitoredPorts);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 

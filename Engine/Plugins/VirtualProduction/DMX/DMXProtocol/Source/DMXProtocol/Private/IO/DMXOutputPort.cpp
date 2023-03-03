@@ -558,9 +558,6 @@ FDMXOutputPortSharedRef FDMXOutputPort::CreateFromConfig(FDMXOutputPortConfig& O
 
 FDMXOutputPort::~FDMXOutputPort()
 {	
-	// All Listeners need to be explicitly removed before destruction 
-	check(RawListeners.Num() == 0);
-	
 	// Port needs be unregistered before destruction
 	check(DMXSenderArray.Num() == 0);
 

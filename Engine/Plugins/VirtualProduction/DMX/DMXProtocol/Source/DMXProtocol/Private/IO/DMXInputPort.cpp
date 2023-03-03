@@ -438,10 +438,6 @@ FDMXInputPortSharedRef FDMXInputPort::CreateFromConfig(FDMXInputPortConfig& Inpu
 
 FDMXInputPort::~FDMXInputPort()
 {
-	// All Listeners need to be explicitly removed before destruction 
-	check(RawListeners.Num() == 0);
-	check(LocalUniverseToListenerGroupMap.Num() == 0);
-
 	// Port needs be unregistered before destruction
 	check(!bRegistered);
 

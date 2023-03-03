@@ -8,6 +8,7 @@
 #include "DMXProtocolTypes.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
+#include "IO/DMXPortManager.h"
 #include "IO/DMXRawListener.h"
 #include "Widgets/Monitors/SDMXActivityInUniverse.h"
 #include "Widgets/Monitors/SDMXMonitorSourceSelector.h"
@@ -194,6 +195,8 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 	LoadMonitorSettings();
 
 	UpdateListenerRegistration();
+
+	FDMXPortManager::Get().OnPortsChanged.AddSP(this, &SDMXActivityMonitor::UpdateListenerRegistration);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
