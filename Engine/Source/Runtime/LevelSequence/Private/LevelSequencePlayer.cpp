@@ -171,6 +171,7 @@ void ULevelSequencePlayer::OnStopped()
 		}
 	}
 
+	LastCameraObject = nullptr;
 	LastViewTarget.Reset();
 }
 
@@ -330,7 +331,7 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSc
 	}
 
 	// Save the last view target/aspect ratio constraint/etc. so that it can all be restored when the camera object is null.
-	if (!LastViewTarget.IsValid())
+	if (!LastViewTarget.IsValid() || (ViewTarget != CameraObject && ViewTarget != LastCameraObject))
 	{
 		LastViewTarget = ViewTarget;
 	}
@@ -341,6 +342,8 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSc
 			LastAspectRatioAxisConstraint = LocalPlayer->AspectRatioAxisConstraint;
 		}
 	}
+
+	LastCameraObject = CameraObject;
 
 	bool bDoSetViewTarget = true;
 	FViewTargetTransitionParams TransitionParams;

@@ -185,6 +185,9 @@ private:
 	/** The last aspect ratio axis constraint to reset to when the camera cut is null */
 	TOptional<EAspectRatioAxisConstraint> LastAspectRatioAxisConstraint;
 
+	/** The last camera cut object received during a cinematic */
+	UObject* LastCameraObject = nullptr;
+
 protected:
 
 	TOptional<int32> SnapshotOffsetTime;
