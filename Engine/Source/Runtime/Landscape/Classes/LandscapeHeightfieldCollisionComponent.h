@@ -250,12 +250,17 @@ public:
 	struct FWriteRuntimeDataParams
 	{
 		bool bUseDefaultMaterialOnly = false;
+		bool bProcessRenderIndices = true;
+		bool bProcessVisibilityLayer = true;
 		TArrayView<const uint16> Heights;
 		TArrayView<const uint16> SimpleHeights;
 		TArrayView<const uint8> DominantLayers;
 		TArrayView<const uint8> SimpleDominantLayers;
 		TArrayView<const uint8> RenderPhysicalMaterialIds;
 		TArrayView<const uint8> SimpleRenderPhysicalMaterialIds;
+		TArrayView<const TObjectPtr<UPhysicalMaterial>> PhysicalMaterialRenderObjects;
+		TArrayView<const TObjectPtr<ULandscapeLayerInfoObject>> ComponentLayerInfos;
+		int32 VisibilityLayerIndex = INDEX_NONE;
 	};
 
 	void GetCollisionSampleInfo(int32& OutCollisionSizeVerts, int32& OutSimpleCollisionSizeVerts, int32& OutNumSamples, int32& OutNumSimpleSamples) const;
