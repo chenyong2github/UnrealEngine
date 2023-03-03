@@ -191,9 +191,7 @@ void UPCGGraph::BeginDestroy()
 	// Notify the compiler to remove this graph from its cache
 	if (GEditor)
 	{
-		UWorld* World = GEditor->GetEditorWorldContext().World();
-		UPCGSubsystem* PCGSubsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
-		if (PCGSubsystem)
+		if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World()))
 		{
 			PCGSubsystem->NotifyGraphChanged(this);
 		}
@@ -670,9 +668,7 @@ void UPCGGraph::NotifyGraphChanged(EPCGChangeType ChangeType)
 	const bool bNotifySubsystem = ((ChangeType & (EPCGChangeType::Structural | EPCGChangeType::Edge)) != EPCGChangeType::None);
 	if (bNotifySubsystem && GEditor)
 	{
-		UWorld* World = GEditor->GetEditorWorldContext().World();
-		UPCGSubsystem* PCGSubsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
-		if (PCGSubsystem)
+		if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World()))
 		{
 			PCGSubsystem->NotifyGraphChanged(this);
 		}

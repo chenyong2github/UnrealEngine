@@ -20,7 +20,7 @@ namespace UPCGEditorGraphNodeHelpers
 	void GetGraphCacheDebugInfo(const UPCGNode* InNode, bool& bOutDebuggingEnabled, uint32& OutNumCacheEntries)
 	{
 		UWorld* World = GEditor ? (GEditor->PlayWorld ? GEditor->PlayWorld.Get() : GEditor->GetEditorWorldContext().World()) : nullptr;
-		UPCGSubsystem* Subsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
+		UPCGSubsystem* Subsystem = UPCGSubsystem::GetInstance(World);
 		bOutDebuggingEnabled = Subsystem && Subsystem->IsGraphCacheDebuggingEnabled();
 
 		if (bOutDebuggingEnabled)

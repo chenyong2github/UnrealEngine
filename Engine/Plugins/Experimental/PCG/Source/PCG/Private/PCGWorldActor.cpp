@@ -73,8 +73,7 @@ APCGWorldActor* APCGWorldActor::CreatePCGWorldActor(UWorld* InWorld)
 
 void APCGWorldActor::RegisterToSubsystem()
 {
-	UPCGSubsystem* PCGSubsystem = GetWorld() ? GetWorld()->GetSubsystem<UPCGSubsystem>() : nullptr;
-	if (PCGSubsystem)
+	if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GetWorld()))
 	{
 		PCGSubsystem->RegisterPCGWorldActor(this);
 	}
@@ -82,8 +81,7 @@ void APCGWorldActor::RegisterToSubsystem()
 
 void APCGWorldActor::UnregisterFromSubsystem()
 {
-	UPCGSubsystem* PCGSubsystem = GetWorld() ? GetWorld()->GetSubsystem<UPCGSubsystem>() : nullptr;
-	if (PCGSubsystem)
+	if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GetWorld()))
 	{
 		PCGSubsystem->UnregisterPCGWorldActor(this);
 	}
@@ -100,7 +98,7 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 		return;
 	}
 
-	UPCGSubsystem* PCGSubsystem = World->GetSubsystem<UPCGSubsystem>();
+	UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(World);
 	ULevel* Level = World->GetCurrentLevel();
 	if (!PCGSubsystem || !Level)
 	{

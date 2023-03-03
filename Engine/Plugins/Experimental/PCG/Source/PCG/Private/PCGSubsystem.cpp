@@ -56,9 +56,9 @@ namespace PCGSubsystemConsole
 					World = GEngine->GetCurrentPlayWorld();
 				}
 
-				if (World && World->GetSubsystem<UPCGSubsystem>())
+				if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(World))
 				{
-					World->GetSubsystem<UPCGSubsystem>()->FlushCache();
+					PCGSubsystem->FlushCache();
 				}
 			}));
 
@@ -69,9 +69,9 @@ namespace PCGSubsystemConsole
 		FConsoleCommandDelegate::CreateLambda([]()
 			{
 				UWorld* World = (GEditor ? (GEditor->PlayWorld ? GEditor->PlayWorld.Get() : GEditor->GetEditorWorldContext().World()) : (GEngine ? GEngine->GetCurrentPlayWorld() : nullptr));
-				if(World && World->GetSubsystem<UPCGSubsystem>())
+				if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(World))
 				{
-					World->GetSubsystem<UPCGSubsystem>()->BuildLandscapeCache();
+					PCGSubsystem->FlushCache();
 				}
 			}));
 
@@ -139,6 +139,19 @@ void UPCGSubsystem::PostInitialize()
 				return PCGWorldActor == nullptr;
 			});
 		}
+	}
+}
+
+UPCGSubsystem* UPCGSubsystem::GetInstance(UWorld* World)
+{
+	if (World)
+	{
+		UPCGSubsystem* Subsystem = World->GetSubsystem<UPCGSubsystem>();
+		return (Subsystem && Subsystem->IsInitialized()) ? Subsystem : nullptr;
+	}
+	else
+	{
+		return nullptr;
 	}
 }
 

@@ -2442,7 +2442,7 @@ FBox UPCGComponent::GetGridBounds(const AActor* Actor) const
 
 UPCGSubsystem* UPCGComponent::GetSubsystem() const
 {
-	return (GetOwner() && GetOwner()->GetWorld()) ? GetOwner()->GetWorld()->GetSubsystem<UPCGSubsystem>() : nullptr;
+	return GetOwner() ? UPCGSubsystem::GetInstance(GetOwner()->GetWorld()) : nullptr;
 }
 
 #if WITH_EDITOR

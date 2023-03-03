@@ -157,9 +157,9 @@ void FPCGEditorModule::PopulateMenuActions(FMenuBuilder& MenuBuilder)
 			FExecuteAction::CreateLambda([]() {
 				if (GEditor)
 				{
-					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World()))
 					{
-						World->GetSubsystem<UPCGSubsystem>()->DeletePartitionActors(/*bOnlyDeleteUnused=*/false);
+						PCGSubsystem->DeletePartitionActors(/*bOnlyDeleteUnused=*/false);
 					}
 				}
 			})),
@@ -173,9 +173,9 @@ void FPCGEditorModule::PopulateMenuActions(FMenuBuilder& MenuBuilder)
 			FExecuteAction::CreateLambda([]() {
 				if (GEditor)
 				{
-					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World()))
 					{
-						World->GetSubsystem<UPCGSubsystem>()->DeletePartitionActors(/*bOnlyDeleteUnused=*/true);
+						PCGSubsystem->DeletePartitionActors(/*bOnlyDeleteUnused=*/true);
 					}
 				}
 			})),
@@ -189,11 +189,11 @@ void FPCGEditorModule::PopulateMenuActions(FMenuBuilder& MenuBuilder)
 			FExecuteAction::CreateLambda([]() {
 				if (GEditor)
 				{
-					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World()))
 					{
-						if (APCGWorldActor* PCGWorldActor = World->GetSubsystem<UPCGSubsystem>()->GetPCGWorldActor())
+						if (APCGWorldActor* PCGWorldActor = PCGSubsystem->GetPCGWorldActor())
 						{
-							World->GetSubsystem<UPCGSubsystem>()->DestroyPCGWorldActor();
+							PCGSubsystem->DestroyPCGWorldActor();
 						}
 					}
 				}
@@ -208,12 +208,9 @@ void FPCGEditorModule::PopulateMenuActions(FMenuBuilder& MenuBuilder)
 			FExecuteAction::CreateLambda([]() {
 				if (GEditor)
 				{
-					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World()))
 					{
-						if (UPCGSubsystem* Subsystem = World->GetSubsystem<UPCGSubsystem>())
-						{
-							Subsystem->BuildLandscapeCache();
-						}
+						PCGSubsystem->BuildLandscapeCache();
 					}
 				}
 			})),
@@ -227,12 +224,9 @@ void FPCGEditorModule::PopulateMenuActions(FMenuBuilder& MenuBuilder)
 			FExecuteAction::CreateLambda([]() {
 				if (GEditor)
 				{
-					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World()))
 					{
-						if (UPCGSubsystem* Subsystem = World->GetSubsystem<UPCGSubsystem>())
-						{
-							Subsystem->ClearLandscapeCache();
-						}
+						PCGSubsystem->ClearLandscapeCache();
 					}
 				}
 				})),
@@ -246,12 +240,9 @@ void FPCGEditorModule::PopulateMenuActions(FMenuBuilder& MenuBuilder)
 			FExecuteAction::CreateLambda([]() {
 				if (GEditor)
 				{
-					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World()))
 					{
-						if (UPCGSubsystem* Subsystem = World->GetSubsystem<UPCGSubsystem>())
-						{
-							Subsystem->CancelAllGeneration();
-						}
+						PCGSubsystem->CancelAllGeneration();
 					}
 				}
 				})),

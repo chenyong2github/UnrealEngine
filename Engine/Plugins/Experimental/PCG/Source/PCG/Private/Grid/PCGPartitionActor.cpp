@@ -34,7 +34,7 @@ APCGPartitionActor::APCGPartitionActor(const FObjectInitializer& ObjectInitializ
 
 UPCGSubsystem* APCGPartitionActor::GetSubsystem() const 
 {
-	return GetWorld() ? GetWorld()->GetSubsystem<UPCGSubsystem>() : nullptr;
+	return UPCGSubsystem::GetInstance(GetWorld());
 }
 
 void APCGPartitionActor::PostLoad()

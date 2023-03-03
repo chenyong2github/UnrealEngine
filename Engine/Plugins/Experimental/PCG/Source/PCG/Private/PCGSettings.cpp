@@ -415,9 +415,7 @@ void UPCGSettings::DirtyCache()
 {
 	if (GEditor)
 	{
-		UWorld* World = GEditor->GetEditorWorldContext().World();
-		UPCGSubsystem* PCGSubsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
-		if (PCGSubsystem)
+		if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World()))
 		{
 			PCGSubsystem->CleanFromCache(GetElement().Get(), this);
 		}

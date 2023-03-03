@@ -2215,7 +2215,7 @@ bool FPCGEditor::IsVisibleProperty(const FPropertyAndParent& InPropertyAndParent
 UPCGSubsystem* FPCGEditor::GetSubsystem()
 {
 	UWorld* World = (GEditor ? (GEditor->PlayWorld ? GEditor->PlayWorld.Get() : GEditor->GetEditorWorldContext().World()) : nullptr);
-	return World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
+	return UPCGSubsystem::GetInstance(World);
 }
 
 TSharedRef<SDockTab> FPCGEditor::SpawnTab_GraphEditor(const FSpawnTabArgs& Args)

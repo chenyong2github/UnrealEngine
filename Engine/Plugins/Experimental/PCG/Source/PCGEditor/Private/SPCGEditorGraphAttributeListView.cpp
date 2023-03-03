@@ -88,7 +88,7 @@ namespace PCGEditorGraphAttributeListView
 	bool IsGraphCacheDebuggingEnabled()
 	{
 		UWorld* World = GEditor ? (GEditor->PlayWorld ? GEditor->PlayWorld.Get() : GEditor->GetEditorWorldContext().World()) : nullptr;
-		UPCGSubsystem* Subsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
+		UPCGSubsystem* Subsystem = UPCGSubsystem::GetInstance(World);
 		return Subsystem && Subsystem->IsGraphCacheDebuggingEnabled();
 	}
 

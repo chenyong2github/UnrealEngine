@@ -28,6 +28,8 @@ class UPCGSettings;
 class IPCGElement;
 typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
 
+class UWorld;
+
 /**
 * UPCGSubsystem
 */
@@ -56,6 +58,12 @@ public:
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual TStatId GetStatId() const override;
 	//~ End FTickableGameObject
+
+	/** Will return the subsystem from the World if it exists and if it is initialized */
+	static UPCGSubsystem* GetInstance(UWorld* World);
+
+	/** Subsytem must not be used without this condition being true. */
+	bool IsInitialized() const { return GraphExecutor != nullptr; }
 
 	APCGWorldActor* GetPCGWorldActor();
 #if WITH_EDITOR

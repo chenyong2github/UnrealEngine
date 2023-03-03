@@ -39,7 +39,8 @@ void UPCGLandscapeData::Initialize(const TArray<TWeakObjectPtr<ALandscapeProxy>>
 	Transform = FirstLandscape->GetActorTransform();
 
 	// Store cache pointer for easier access
-	LandscapeCache = (FirstLandscape->GetWorld() && FirstLandscape->GetWorld()->GetSubsystem<UPCGSubsystem>()) ? FirstLandscape->GetWorld()->GetSubsystem<UPCGSubsystem>()->GetLandscapeCache() : nullptr;
+	UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(FirstLandscape->GetWorld());
+	LandscapeCache = PCGSubsystem ? PCGSubsystem->GetLandscapeCache() : nullptr;
 
 	// TODO: find a better way to do this - maybe there should be a prototype metadata in the landscape cache
 	if (LandscapeCache)
@@ -91,7 +92,8 @@ void UPCGLandscapeData::PostLoad()
 	}
 
 	TargetActor = FirstLandscape;
-	LandscapeCache = (FirstLandscape && FirstLandscape->GetWorld() && FirstLandscape->GetWorld()->GetSubsystem<UPCGSubsystem>()) ? FirstLandscape->GetWorld()->GetSubsystem<UPCGSubsystem>()->GetLandscapeCache() : nullptr;
+	UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(FirstLandscape->GetWorld());
+	LandscapeCache = PCGSubsystem ? PCGSubsystem->GetLandscapeCache() : nullptr;
 }
 
 FBox UPCGLandscapeData::GetBounds() const

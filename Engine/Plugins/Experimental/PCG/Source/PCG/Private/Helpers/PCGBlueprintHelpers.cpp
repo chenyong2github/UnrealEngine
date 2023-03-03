@@ -132,7 +132,7 @@ TArray<FPCGLandscapeLayerWeight> UPCGBlueprintHelpers::GetInterpolatedPCGLandsca
 		return {};
 	}
 
-	UPCGSubsystem* PCGSubSystem = UWorld::GetSubsystem<UPCGSubsystem>(World);
+	UPCGSubsystem* PCGSubSystem = UPCGSubsystem::GetInstance(World);
 	if (!PCGSubSystem)
 	{
 		return {};
