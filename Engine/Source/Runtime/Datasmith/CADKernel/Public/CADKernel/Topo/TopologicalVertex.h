@@ -38,7 +38,7 @@ public:
 
 	virtual ~FTopologicalVertex() override
 	{
-		Empty();
+		FTopologicalVertex::Empty();
 	}
 
 	static TSharedRef<FTopologicalVertex> Make(const FPoint& InCoordinate)

@@ -35,9 +35,9 @@ protected:
 	}
 
 public:
-	virtual ~TTopologicalLink<EntityType>() override
+	virtual ~TTopologicalLink() override
 	{
-		Empty();
+		TTopologicalLink::Empty();
 	}
 
 	virtual void Serialize(FCADKernelArchive& Ar) override

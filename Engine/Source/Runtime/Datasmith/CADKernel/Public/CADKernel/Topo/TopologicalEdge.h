@@ -139,7 +139,7 @@ public:
 
 	virtual ~FTopologicalEdge() override
 	{
-		Empty();
+		FTopologicalEdge::Empty();
 	}
 
 	virtual void Empty() override;

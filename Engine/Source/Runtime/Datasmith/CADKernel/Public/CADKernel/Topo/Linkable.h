@@ -21,7 +21,7 @@ public:
 
 	virtual ~TLinkable() override
 	{
-		Empty();
+		TLinkable::Empty();
 	}
 
 	void Finalize()

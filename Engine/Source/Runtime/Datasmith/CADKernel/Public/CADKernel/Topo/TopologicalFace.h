@@ -101,7 +101,7 @@ public:
 
 	virtual ~FTopologicalFace() override
 	{
-		Empty();
+		FTopologicalFace::Empty();
 	}
 
 	virtual void Serialize(FCADKernelArchive& Ar) override
