@@ -321,7 +321,7 @@ struct FRayTracingBuildInstanceBufferCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return RHISupportsRayTracing(Parameters.Platform);
+		return IsRayTracingEnabledForProject(Parameters.Platform);
 	}
 };
 
