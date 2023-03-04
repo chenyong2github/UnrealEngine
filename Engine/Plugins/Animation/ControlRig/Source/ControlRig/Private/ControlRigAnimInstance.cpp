@@ -23,10 +23,15 @@ bool FControlRigAnimInstanceProxy::Evaluate(FPoseContext& Output)
 	CSContext.Pose.InitPose(Output.Pose);
 
 	TArray<FCompactPoseBoneIndex> ModifiedBones;
-	for (TPair<int32, FTransform>& StoredTransform : StoredTransforms)
+	
+	const FBoneContainer& BoneContainer = Output.Pose.GetBoneContainer();
+	
+	for (TPair<FMeshPoseBoneIndex, FTransform>& StoredTransform : StoredTransforms)
 	{
-		const int32 BoneIndexToModify = StoredTransform.Key;
-		FCompactPoseBoneIndex CompactIndex = Output.Pose.GetBoneContainer().GetCompactPoseIndexFromSkeletonIndex(BoneIndexToModify);
+		const FMeshPoseBoneIndex& MeshPoseBoneIndexToModify = StoredTransform.Key;
+		FSkeletonPoseBoneIndex SkeletonPoseBoneIndex = BoneContainer.GetSkeletonPoseIndexFromMeshPoseIndex(MeshPoseBoneIndexToModify);
+		FCompactPoseBoneIndex CompactIndex = BoneContainer.GetCompactPoseIndexFromSkeletonPoseIndex(SkeletonPoseBoneIndex);
+		
 		if (CompactIndex.GetInt() != INDEX_NONE)
 		{
 			CSContext.Pose.SetComponentSpaceTransform(CompactIndex, StoredTransform.Value);

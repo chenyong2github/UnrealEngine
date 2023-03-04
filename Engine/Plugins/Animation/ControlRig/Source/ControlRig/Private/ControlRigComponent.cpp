@@ -648,9 +648,9 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 		{
 			if (const USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 			{
-				CR->GetHierarchy()->ForEach<FRigBoneElement>([Skeleton, &BonesToMap](FRigBoneElement* BoneElement) -> bool
+				CR->GetHierarchy()->ForEach<FRigBoneElement>([SkeletalMeshComponent, &BonesToMap](FRigBoneElement* BoneElement) -> bool
 				{
-					if (Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneElement->GetName()) != INDEX_NONE)
+					if (SkeletalMeshComponent->GetBoneIndex(BoneElement->GetName()) != INDEX_NONE)
 					{
 						FControlRigComponentMappedBone BoneToMap;
 						BoneToMap.Source = BoneElement->GetName();
@@ -1351,7 +1351,8 @@ void UControlRigComponent::ValidateMappingData()
 						{
 							if (MappedElement.ElementType != ERigElementType::Curve)
 							{
-								MappedElement.SubIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(MappedElement.TransformName);
+								// this is really getting the FMeshPoseBoneIndex
+								MappedElement.SubIndex = SkeletalMeshComponent->GetBoneIndex(MappedElement.TransformName);
 							}
 						}
 						else
@@ -1557,7 +1558,7 @@ void UControlRigComponent::TransferOutputs()
 						{
 							Transform = Transform.GetRelativeTransform(MappedElement.SceneComponent->GetComponentToWorld());
 						}
-						Proxy->StoredTransforms.FindOrAdd(MappedElement.SubIndex) = Transform;
+						Proxy->StoredTransforms.FindOrAdd(FMeshPoseBoneIndex(MappedElement.SubIndex)) = Transform;
 					}
 					else if (UInstancedStaticMeshComponent* InstancingComponent = Cast<UInstancedStaticMeshComponent>(MappedElement.SceneComponent))
 					{

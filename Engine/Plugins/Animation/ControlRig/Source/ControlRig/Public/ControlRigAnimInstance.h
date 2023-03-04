@@ -6,6 +6,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "ControlRigAnimInstance.generated.h"
 
+struct FMeshPoseBoneIndex;
+
 /** Proxy override for this UAnimInstance-derived class */
 USTRUCT()
 struct CONTROLRIG_API FControlRigAnimInstanceProxy : public FAnimInstanceProxy
@@ -29,7 +31,7 @@ public:
 	virtual bool Evaluate(FPoseContext& Output) override;
 	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
 
-	TMap<int32, FTransform> StoredTransforms;
+	TMap<FMeshPoseBoneIndex, FTransform> StoredTransforms;
 	TMap<FName, float> StoredCurves;
 };
 
