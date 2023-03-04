@@ -32,6 +32,10 @@
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
 
+#if WITH_EDITORONLY_DATA
+#include "UObject/Package.h"
+#endif
+
 #if NANITE_ENABLE_DEBUG_RENDERING
 #include "AI/Navigation/NavCollisionBase.h"
 #include "PhysicsEngine/BodySetup.h"
