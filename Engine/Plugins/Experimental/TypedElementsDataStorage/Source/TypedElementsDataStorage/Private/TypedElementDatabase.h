@@ -6,6 +6,7 @@
 #include "Elements/Interfaces/TypedElementDataStorageInterface.h"
 #include "MassArchetypeTypes.h"
 #include "MassEntityQuery.h"
+#include "MassProcessor.h"
 #include "TypedElementHandleStore.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/StrongObjectPtr.h"
