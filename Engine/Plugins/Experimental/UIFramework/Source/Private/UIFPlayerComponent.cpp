@@ -386,7 +386,8 @@ void UUIFrameworkPlayerComponent::LocalOnClassLoaded(TSoftClassPtr<UWidget> Widg
 		}
 		else
 		{
-			ensureMsgf(false, TEXT("Load request failed"));
+			UE_LOG(LogUIFramework, Error, TEXT("Failed to load widget class %s."), *WidgetClass.ToString());
+			ensure(false);
 		}
 	}
 	else

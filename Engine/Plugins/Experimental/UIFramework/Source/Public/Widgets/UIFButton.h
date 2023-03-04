@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Components/Button.h"
 #include "Types/UIFSlotBase.h"
 #include "Types/UIFEvents.h"
 #include "UIFWidget.h"
@@ -53,4 +54,13 @@ public:
 private:
 	UPROPERTY(/*ExposeOnSpawn, */ReplicatedUsing = OnRep_Slot)
 	FUIFrameworkSimpleSlot Slot;
+};
+
+UCLASS()
+class UIFRAMEWORK_API UUIFrameworkButtonWidget : public UButton
+{
+	GENERATED_BODY()
+
+public:
+	UUIFrameworkButtonWidget();
 };

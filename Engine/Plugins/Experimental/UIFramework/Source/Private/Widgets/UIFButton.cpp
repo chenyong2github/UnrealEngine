@@ -8,17 +8,35 @@
 #include "Components/Button.h"
 #include "Components/ButtonSlot.h"
 
+#include "Misc/RedirectCollector.h"
 #include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UIFButton)
 
+
+UUIFrameworkButtonWidget::UUIFrameworkButtonWidget()
+{
+	WidgetStyle.NormalPadding = FMargin(0.0f);
+	WidgetStyle.Normal.DrawAs = ESlateBrushDrawType::NoDrawType;
+	WidgetStyle.Hovered.DrawAs = ESlateBrushDrawType::NoDrawType;
+	WidgetStyle.Pressed.DrawAs = ESlateBrushDrawType::NoDrawType;
+}
 
 /**
  * 
  */
 UUIFrameworkButton::UUIFrameworkButton()
 {
-	WidgetClass = FSoftObjectPath(TEXT("/UIFramework/Widgets/WBP_UIF_Button.WBP_UIF_Button"));
+// TODO: FIXME: Loading this asset fails. Temporary fixed by using UUIFrameworkButtonWidget::StaticClass()
+// 	            Does this actually need to be an asset meant to be customizable or can it be set like above?
+
+//	WidgetClass = FSoftObjectPath(TEXT("/UIFramework/Widgets/WBP_UIF_Button.WBP_UIF_Button"));
+//#if WITH_EDITOR
+//	// We need to ensure that this asset is cooked
+//	GRedirectCollector.OnSoftObjectPathLoaded(WidgetClass.ToSoftObjectPath(), nullptr);
+//#endif
+
+	WidgetClass = UUIFrameworkButtonWidget::StaticClass();
 }
 
 void UUIFrameworkButton::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
