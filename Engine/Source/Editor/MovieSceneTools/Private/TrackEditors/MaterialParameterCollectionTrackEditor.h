@@ -12,6 +12,7 @@ class ISequencer;
 class ISequencerSection;
 class ISequencerTrackEditor;
 class SWidget;
+class UMaterialParameterCollection;
 class UMovieSceneMaterialParameterCollectionTrack;
 class UMovieSceneSection;
 class UMovieSceneSequence;

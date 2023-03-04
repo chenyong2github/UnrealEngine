@@ -8,6 +8,7 @@
 #include "MassEntityQuery.h"
 #include "TypedElementHandleStore.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/StrongObjectPtr.h"
 
 #include "TypedElementDatabase.generated.h"
 

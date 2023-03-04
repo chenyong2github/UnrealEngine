@@ -9,6 +9,7 @@
 #include "ContentBrowserDelegates.h"
 #include "ContentBrowserModule.h"
 #include "Delegates/Delegate.h"
+#include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
