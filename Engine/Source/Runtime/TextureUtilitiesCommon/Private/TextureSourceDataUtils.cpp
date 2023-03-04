@@ -2,6 +2,8 @@
 
 #include "TextureSourceDataUtils.h"
 
+#if WITH_EDITOR
+
 #include "ImageCoreUtils.h"
 #include "Engine/Texture.h"
 #include "HAL/UnrealMemory.h"
@@ -278,3 +280,5 @@ bool DownsizeTexureSourceDataNearRenderingSize(UTexture* Texture, const ITargetP
 }
 
 } // End namespace UE::TextureUtilitiesCommon::Experimental
+
+#endif //WITH_EDITOR
