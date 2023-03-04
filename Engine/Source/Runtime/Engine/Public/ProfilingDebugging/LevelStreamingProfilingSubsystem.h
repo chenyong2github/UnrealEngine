@@ -63,6 +63,7 @@ protected:
 
 #if !UE_BUILD_SHIPPING
 	enum class ELevelState;
+	struct FLevelStats;
 
 	/** 
 	 * Gives child classes an opportunity to track additional data along with the main report.
@@ -75,6 +76,7 @@ protected:
 	 */
 	ENGINE_API virtual void UpdateTrackingData(
 		int32 TrackingIndex, 
+		FLevelStats& BaseStats,
 		const ULevelStreaming* StreamingLevel, 
 		ELevelState PreviousState, 
 		ELevelState NewState) {}
@@ -96,7 +98,6 @@ protected:
 
 	ENGINE_API static const TCHAR* EnumToString(ULevelStreamingProfilingSubsystem::ELevelState State);
 
-	struct FLevelStats;
 	ENGINE_API TConstArrayView<FLevelStats> GetLevelStats() const;
 
 	enum class ELevelState
@@ -178,6 +179,7 @@ private:
 	void OnStreamingLevelRemoved(UWorld* World, const ULevelStreaming* StreamingLevel);
 
 	TUniquePtr<FActiveLevel> MakeActiveLevel(const ULevelStreaming* StreamingLevel, ELevelState InitialState, ULevel* LoadedLevel=nullptr);
+	void UpdateLevelState(FActiveLevel& Level, const ULevelStreaming* StreamingLevel, ELevelState NewState, double Time);
 
 	// Handles for registered callbacks
 	FDelegateHandle Handle_OnLevelStreamingTargetStateChanged;
