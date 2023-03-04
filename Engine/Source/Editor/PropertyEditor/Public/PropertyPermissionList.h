@@ -110,8 +110,8 @@ protected:
 	~FPropertyPermissionList();
 
 private:
+	bool Tick(float DeltaTime);
 	void RegisterOnBlueprintCompiled();
-
 	void ClearCacheAndBroadcast(TSoftObjectPtr<UStruct> ObjectStruct = nullptr, FName OwnerName = NAME_None);
 	
 	/** Whether DoesPropertyPassFilter should perform its PermissionList check or always return true */
@@ -120,6 +120,17 @@ private:
 	/** Stores assigned PermissionLists from AddPermissionList(), which are later flattened and stored in CachedPropertyPermissionList. */
 	TMap<TSoftObjectPtr<UStruct>, FPropertyPermissionListEntry> RawPropertyPermissionList;
 
+	/** Handle for our tick function */
+	FTSTicker::FDelegateHandle OnTickHandle;
+
+	struct FPermissionListUpdate
+	{
+		TSoftObjectPtr<UStruct> ObjectStruct;
+		FName OwnerName;
+	};
+	friend bool operator==(const FPermissionListUpdate& A, const FPermissionListUpdate& B);
+	friend uint32 GetTypeHash(const FPermissionListUpdate& PermisisonList);
+	TSet< FPermissionListUpdate > PendingUpdates;
 	/** Lazily-constructed combined cache of both the flattened class PermissionList and struct PermissionList */
 	mutable TMap<TWeakObjectPtr<const UStruct>, FNamePermissionList> CachedPropertyPermissionList;
 

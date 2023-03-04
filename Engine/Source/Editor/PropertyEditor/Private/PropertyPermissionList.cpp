@@ -13,7 +13,18 @@ namespace
 	const FName PropertyPermissionListOwner = "PropertyPermissionList";
 }
 
-FPropertyPermissionList::FPropertyPermissionList()
+bool operator==(const FPropertyPermissionList::FPermissionListUpdate& A, const FPropertyPermissionList::FPermissionListUpdate& B)
+{
+	return A.ObjectStruct == B.ObjectStruct && A.OwnerName == B.OwnerName;
+}
+
+uint32 GetTypeHash(const FPropertyPermissionList::FPermissionListUpdate& PermisisonList)
+{
+	return HashCombine(
+		GetTypeHash(PermisisonList.ObjectStruct), 
+		GetTypeHash(PermisisonList.OwnerName));
+}
+
 {
 	if (GEditor)
 	{
@@ -23,6 +34,32 @@ FPropertyPermissionList::FPropertyPermissionList()
 	{
 		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FPropertyPermissionList::RegisterOnBlueprintCompiled);
 	}
+	OnTickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FPropertyPermissionList::Tick), 1.0f);
+}
+
+FPropertyPermissionList::~FPropertyPermissionList()
+{
+	FTSTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+	if (GEditor)
+	{
+		GEditor->OnBlueprintCompiled().RemoveAll(this);
+	}
+}
+
+bool FPropertyPermissionList::Tick(float DeltaTime)
+{
+	if (PendingUpdates.Num() == 0)
+	{
+		return true;
+	}
+
+	TArray<FPermissionListUpdate> PendingUpdatesCopy = PendingUpdates.Array();
+	PendingUpdates.Reset();
+	for (const FPermissionListUpdate& PermissionListUpdate : PendingUpdatesCopy)
+	{
+		PermissionListUpdatedDelegate.Broadcast(PermissionListUpdate.ObjectStruct, PermissionListUpdate.OwnerName);
+	}
+	return true;
 }
 
 void FPropertyPermissionList::RegisterOnBlueprintCompiled()
@@ -30,14 +67,6 @@ void FPropertyPermissionList::RegisterOnBlueprintCompiled()
 	if (ensure(GEditor))
 	{
 		GEditor->OnBlueprintCompiled().AddRaw(this, &FPropertyPermissionList::ClearCache);
-	}
-}
-
-FPropertyPermissionList::~FPropertyPermissionList()
-{
-	if (GEditor)
-	{
-		GEditor->OnBlueprintCompiled().RemoveAll(this);
 	}
 }
 
@@ -49,7 +78,7 @@ void FPropertyPermissionList::ClearCacheAndBroadcast(TSoftObjectPtr<UStruct> Obj
 
 	if (!bSuppressUpdateDelegate)
 	{
-		PermissionListUpdatedDelegate.Broadcast(ObjectStruct, OwnerName);
+		PendingUpdates.Add({ObjectStruct, OwnerName});
 	}
 }
 
