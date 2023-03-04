@@ -1212,6 +1212,10 @@ static FDelayedAutoRegisterHelper GPreloadARHelper(EDelayedRegisterRunPhase::Ear
 						GPreloadedARState.Serialize(*Reader.Get(), FAssetRegistrySerializationOptions());
 					}
 				}
+				else
+				{
+					GPreloadARInfoEvent->Trigger();
+				}
 
 				GPreloadAREvent->Trigger();
 			}
