@@ -2049,18 +2049,14 @@ uint32 FSceneProxy::GetMemoryFootprint() const
 
 void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit)
 {
+	static const auto NaniteForceEnableMeshesCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.ForceEnableMeshes"));
+	static const bool bNaniteForceEnableMeshes = NaniteForceEnableMeshesCvar && NaniteForceEnableMeshesCvar->GetValueOnAnyThread() != 0;
+
 	Audit.bHasAnyError = false;
 	Audit.Entries.Reset();
 
 	if (Component != nullptr)
 	{
-		// When all meshes are forced to Nanite, we want to silence warnings, and assume Nanite usage is forced on as well
-		bool bForceEnabled = false;
-		if (const Nanite::FResources* NaniteResources = Component->GetNaniteResources())
-		{
-			bForceEnabled = (NaniteResources->ResourceFlags & NANITE_RESOURCE_FLAG_FORCE_ENABLED) != 0u;
-		}
-
 		const int32 NumMaterials = Component->GetNumMaterials();
 		const TArray<FName> MaterialSlotNames = Component->GetMaterialSlotNames();
 		for (const FName& SlotName : MaterialSlotNames)
@@ -2082,10 +2078,11 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 
 			const EBlendMode BlendMode = Entry.Material->GetBlendMode();
 
-			if (bForceEnabled)
-			{
-				const_cast<UMaterial*>(Material)->UsageFlagWarnings |= MATUSAGE_Nanite;
-			}
+			bool bUsingCookedEditorData = false;
+#if WITH_EDITORONLY_DATA
+			bUsingCookedEditorData = Material->GetOutermost()->bIsCookedForEditor;
+#endif
+			bool bUsageSetSuccessfully = false;
 
 			const FMaterialCachedExpressionData& CachedMaterialData = Material->GetCachedExpressionData();
 			Entry.bHasVertexInterpolator	= CachedMaterialData.bHasVertexInterpolator;
@@ -2094,7 +2091,7 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 			Entry.bHasPixelDepthOffset		= Material->HasPixelDepthOffsetConnected();
 			Entry.bHasWorldPositionOffset	= Material->HasVertexPositionOffsetConnected();
 			Entry.bHasUnsupportedBlendMode	= !IsSupportedBlendMode(BlendMode);
-			Entry.bHasInvalidUsage			= !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
+			Entry.bHasInvalidUsage			= bUsingCookedEditorData ? Material->NeedsSetMaterialUsage_Concurrent(bUsageSetSuccessfully, MATUSAGE_Nanite) : !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
 
 			if (BlendMode == BLEND_Masked)
 			{
@@ -2111,7 +2108,7 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 				Entry.bHasUnsupportedBlendMode |
 				Entry.bHasInvalidUsage;
 
-			if (!bForceEnabled && Entry.bHasAnyError && !Audit.bHasAnyError)
+			if (!bUsingCookedEditorData && Entry.bHasAnyError && !Audit.bHasAnyError)
 			{
 				// Only populate on error for performance/memory reasons
 				Audit.AssetName = Component->GetStaticMesh()->GetName();
@@ -2120,25 +2117,20 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 
 			Audit.bHasAnyError |= Entry.bHasAnyError;
 
-			if (!bForceEnabled)
+#if !(UE_BUILD_SHIPPING) || WITH_EDITOR
+			if (!bUsingCookedEditorData && !bNaniteForceEnableMeshes && Entry.bHasUnsupportedBlendMode)
 			{
-				if (Entry.bHasInvalidUsage)
-				{
-					UE_LOG(LogStaticMesh, Warning, TEXT("Invalid usage flag on material [%s] for Nanite static mesh [%s]."), *GetNameSafe(Entry.Material), *Audit.AssetName);
-				}
-				else if (Entry.bHasUnsupportedBlendMode)
-				{
-					const FString BlendModeName = GetBlendModeString(Entry.Material->GetBlendMode());
-					UE_LOG
-					(
-						LogStaticMesh, Warning,
-						TEXT("Invalid material [%s] used on Nanite static mesh [%s]. Only opaque or masked blend modes are currently supported, [%s] blend mode was specified."),
-						*Entry.Material->GetName(),
-						*Audit.AssetName,
-						*BlendModeName
-					);
-				}
+				const FString BlendModeName = GetBlendModeString(Entry.Material->GetBlendMode());
+				UE_LOG
+				(
+					LogStaticMesh, Warning,
+					TEXT("Invalid material [%s] used on Nanite static mesh [%s]. Only opaque or masked blend modes are currently supported, [%s] blend mode was specified."),
+					*Entry.Material->GetName(),
+					*Audit.AssetName,
+					*BlendModeName
+				);
 			}
+#endif
 		}
 	}
 }
