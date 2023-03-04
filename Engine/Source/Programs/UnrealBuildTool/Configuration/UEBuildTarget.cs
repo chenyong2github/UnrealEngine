@@ -1241,6 +1241,13 @@ namespace UnrealBuildTool
 				RulesObject.bDisableLinking = true;
 			}
 
+			// Don't link if we're compiling specific files and ignore build outputs
+			if (Descriptor.SpecificFilesToCompile.Any())
+			{
+				RulesObject.bDisableLinking = true;
+				RulesObject.bIgnoreBuildOutputs = true;
+			}
+
 			// Generate a build target from this rules module
 			UEBuildTarget Target;
 			using (GlobalTracer.Instance.BuildSpan("UEBuildTarget constructor").StartActive())

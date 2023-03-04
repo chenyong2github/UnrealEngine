@@ -145,12 +145,9 @@ namespace UnrealBuildTool
 				foreach (FileReference FileList in FileLists)
 				{
 					string[] Files = FileReference.ReadAllLines(FileList);
-					foreach (string File in Files)
+					foreach (string File in Files.Where(x => !string.IsNullOrWhiteSpace(x)))
 					{
-						if (!String.IsNullOrWhiteSpace(File))
-						{
-							SpecificFilesToCompile.Add(FileReference.Combine(Unreal.RootDirectory, File));
-						}
+						SpecificFilesToCompile.Add(FileReference.Combine(Unreal.RootDirectory, File));
 					}
 				}
 
