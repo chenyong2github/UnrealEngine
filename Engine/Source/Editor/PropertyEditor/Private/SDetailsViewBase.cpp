@@ -1052,7 +1052,12 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 				DeferredAction.ExecuteIfBound();
 			}
 		} while (DeferredActions.Num() > 0);
+	}
 
+	if (bHadDeferredActions)
+	{
+		// Restore expansion state after processing all deferred actions. Must be done outside of the scope where
+		// bRunningDeferredActions is true since RestoreAllExpandedItems returns immediately when it is true
 		RestoreAllExpandedItems();
 	}
 
