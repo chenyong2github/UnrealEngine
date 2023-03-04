@@ -1506,7 +1506,7 @@ public:
 	 * Get the dimensions of the largest mip of the texture when built for the target platform
 	 *   accounting for LODBias and other constraints
 	 */
-	void GetBuiltTextureSize( const ITargetPlatform* TargetPlatform , int32 & OutSizeX, int32 & OutSizeY ) const;
+	ENGINE_API void GetBuiltTextureSize( const ITargetPlatform* TargetPlatform , int32 & OutSizeX, int32 & OutSizeY ) const;
 
 	/**
 	 * Serializes cooked platform data.
@@ -1848,6 +1848,12 @@ public:
 	* this is not for the current RHI (which may have a lower limit), this is for a Texture in general
 	*/
 	ENGINE_API static int32 GetMaximumDimensionOfNonVT();
+
+	/*
+	 * Downsize the 2D Image with the build setting of the texture.
+	 * Try to get as close as it can to the target resolution but it will stay above it if it can reach it
+	 */
+	ENGINE_API bool DownsizeImageUsingTextureSettings(const ITargetPlatform* TargetPlatform, FImage& InOutImage, int32 TargetSize, int32 LayerIndex);
 #endif
 
 protected:

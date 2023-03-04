@@ -39,6 +39,7 @@
 #include "VT/LightmapVirtualTexture.h"
 #include "TextureBuildUtilities.h"
 #include "TextureCompiler.h"
+#include "TextureCompressorModule.h"
 #include "TextureEncodingSettings.h"
 
 static TAutoConsoleVariable<int32> CVarTexturesCookToDerivedDataReferences(
@@ -1097,6 +1098,56 @@ static void GetTextureBuildSettings(
 }
 
 /**
+ * Sets build settings for a texture on the target platform
+ * @param Texture - The texture for which to build compressor settings.
+ * @param OutBuildSettings - Array of desired texture settings
+ */
+static void GetBuildSettingsForTargetPlatform(
+	const UTexture& Texture,
+	const ITargetPlatform* TargetPlatform,
+	ETextureEncodeSpeed InEncodeSpeed, //  must be Fast or Final
+	TArray<FTextureBuildSettings>& OutSettingPerLayer,
+	TArray<FTexturePlatformData::FTextureEncodeResultMetadata>* OutResultMetadataPerLayer // can be nullptr if not needed
+)
+{
+	check(TargetPlatform != NULL);
+
+	const UTextureLODSettings* LODSettings = (UTextureLODSettings*)UDeviceProfileManager::Get().FindProfile(TargetPlatform->PlatformName());
+	FTextureBuildSettings SourceBuildSettings;
+	FTexturePlatformData::FTextureEncodeResultMetadata SourceMetadata;
+	GetTextureBuildSettings(Texture, *LODSettings, *TargetPlatform, InEncodeSpeed, SourceBuildSettings, &SourceMetadata);
+
+	TArray< TArray<FName> > PlatformFormats;
+	Texture.GetPlatformTextureFormatNamesWithPrefix(TargetPlatform,PlatformFormats);
+
+	// this code only uses PlatformFormats[0] , so it would be wrong for Android_Multi
+	//	but it's only used for the platform running the Editor
+	check(PlatformFormats.Num() == 1);
+
+	const int32 NumLayers = Texture.Source.GetNumLayers();
+	check(PlatformFormats[0].Num() == NumLayers);
+
+	OutSettingPerLayer.Reserve(NumLayers);
+	if (OutResultMetadataPerLayer)
+	{
+		OutResultMetadataPerLayer->Reserve(NumLayers);
+	}
+	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
+	{
+		FTextureBuildSettings& OutSettings = OutSettingPerLayer.Add_GetRef(SourceBuildSettings);
+		OutSettings.TextureFormatName = PlatformFormats[0][LayerIndex];
+
+		FTexturePlatformData::FTextureEncodeResultMetadata* OutMetadata = nullptr;
+		if (OutResultMetadataPerLayer)
+		{
+			OutMetadata = &OutResultMetadataPerLayer->Add_GetRef(SourceMetadata);
+		}
+			
+		FinalizeBuildSettingsForLayer(Texture, LayerIndex, TargetPlatform, InEncodeSpeed, OutSettings, OutMetadata);
+	}
+}
+
+/**
  * Sets build settings for a texture on the current running platform
  * @param Texture - The texture for which to build compressor settings.
  * @param OutBuildSettings - Array of desired texture settings
@@ -1130,39 +1181,7 @@ static void GetBuildSettingsForRunningPlatform(
 
 		check(TargetPlatform != NULL);
 
-		const UTextureLODSettings* LODSettings = (UTextureLODSettings*)UDeviceProfileManager::Get().FindProfile(TargetPlatform->PlatformName());
-		FTextureBuildSettings SourceBuildSettings;
-		FTexturePlatformData::FTextureEncodeResultMetadata SourceMetadata;
-		GetTextureBuildSettings(Texture, *LODSettings, *TargetPlatform, InEncodeSpeed, SourceBuildSettings, &SourceMetadata);
-
-		TArray< TArray<FName> > PlatformFormats;
-		Texture.GetPlatformTextureFormatNamesWithPrefix(TargetPlatform,PlatformFormats);
-
-		// this code only uses PlatformFormats[0] , so it would be wrong for Android_Multi
-		//	but it's only used for the platform running the Editor
-		check(PlatformFormats.Num() == 1);
-
-		const int32 NumLayers = Texture.Source.GetNumLayers();
-		check(PlatformFormats[0].Num() == NumLayers);
-
-		OutSettingPerLayer.Reserve(NumLayers);
-		if (OutResultMetadataPerLayer)
-		{
-			OutResultMetadataPerLayer->Reserve(NumLayers);
-		}
-		for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
-		{
-			FTextureBuildSettings& OutSettings = OutSettingPerLayer.Add_GetRef(SourceBuildSettings);
-			OutSettings.TextureFormatName = PlatformFormats[0][LayerIndex];
-
-			FTexturePlatformData::FTextureEncodeResultMetadata* OutMetadata = nullptr;
-			if (OutResultMetadataPerLayer)
-			{
-				OutMetadata = &OutResultMetadataPerLayer->Add_GetRef(SourceMetadata);
-			}
-			
-			FinalizeBuildSettingsForLayer(Texture, LayerIndex, TargetPlatform, InEncodeSpeed, OutSettings, OutMetadata);
-		}
+		GetBuildSettingsForTargetPlatform(Texture, TargetPlatform, InEncodeSpeed, OutSettingPerLayer, OutResultMetadataPerLayer);
 	}
 }
 
@@ -3833,3 +3852,70 @@ void UTexture::SetMinTextureResidentMipCount(int32 InMinTextureResidentMipCount)
 	int32 MinAllowedMipCount = FPlatformProperties::RequiresCookedData() ? 1 : NUM_INLINE_DERIVED_MIPS;
 	GMinTextureResidentMipCount = FMath::Max(InMinTextureResidentMipCount, MinAllowedMipCount);
 }
+
+#if WITH_EDITOR
+bool UTexture::DownsizeImageUsingTextureSettings(const ITargetPlatform* TargetPlatform, FImage& InOutImage, int32 TargetSize, int32 LayerIndex)
+{
+	if (TargetSize >= InOutImage.SizeX && TargetSize >= InOutImage.SizeY)
+	{
+		return false;
+	}
+
+	// Ideally this code wouldn't live here but at the moment of writing this code the coupling between the texture and the texture compressor make it hard to move that logic elsewhere
+	TArray<FTextureBuildSettings> SettingPerLayer;
+	TArray<FTexturePlatformData::FTextureEncodeResultMetadata>* ResultMetadataPerLayer = nullptr;
+	GetBuildSettingsForTargetPlatform(*this, TargetPlatform, ETextureEncodeSpeed::Final, SettingPerLayer, nullptr);
+
+	// Teak the build setting to generate a mip for our image
+	FTextureBuildSettings& BuildSettings = SettingPerLayer[LayerIndex];
+	BuildSettings.bCubemap = false;
+	BuildSettings.bTextureArray = false;
+	BuildSettings.bVolume = false;
+	BuildSettings.bLongLatSource = false;
+
+	FImage Temp;
+	// convert to RGBA32F linear for the compressor
+	InOutImage.CopyTo(Temp, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+
+	TArray<FImage> BuildSourceImageMips;
+	// make sure BuildSourceImageMips doesn't reallocate :
+	constexpr int BuildSourceImageMipsMaxCount = 20; // plenty
+	BuildSourceImageMips.Empty(BuildSourceImageMipsMaxCount);
+
+	ITextureCompressorModule::GenerateMipChain(BuildSettings, Temp, BuildSourceImageMips, 1);
+
+	while (BuildSourceImageMips.Last().SizeX > TargetSize ||
+		BuildSourceImageMips.Last().SizeY > TargetSize)
+	{
+		ITextureCompressorModule::GenerateMipChain(BuildSettings, BuildSourceImageMips.Last(), BuildSourceImageMips, 1);
+	}
+
+	FImage* SelectedOutput = nullptr;
+	if (BuildSourceImageMips.Last().SizeX < TargetSize ||
+		BuildSourceImageMips.Last().SizeY < TargetSize)
+	{
+		if (BuildSourceImageMips.Num() == 1)
+		{
+			return false;
+		}
+
+		SelectedOutput = &BuildSourceImageMips[BuildSourceImageMips.Num() - 2];
+	}
+	else
+	{
+		SelectedOutput = &BuildSourceImageMips.Last();
+	}
+
+
+	if (SelectedOutput->Format == InOutImage.Format && SelectedOutput->GammaSpace == InOutImage.GammaSpace)
+	{
+		InOutImage = MoveTemp(*SelectedOutput);
+	}
+	else
+	{
+		SelectedOutput->CopyTo(InOutImage, InOutImage.Format, InOutImage.GammaSpace);
+	}
+
+	return true;
+}
+#endif

@@ -3230,8 +3230,9 @@ void UTexture::GetBuiltTextureSize( const ITargetPlatform* TargetPlatform , int3
 	int32 SizeX,SizeY;
 
 #if WITH_EDITORONLY_DATA
-	SizeX = Source.GetSizeX();
-	SizeY = Source.GetSizeY();
+	FIntPoint SourceSize = Source.GetLogicalSize();
+	SizeX = SourceSize.X;
+	SizeY = SourceSize.Y;
 
 	if (PowerOfTwoMode == ETexturePowerOfTwoSetting::PadToPowerOfTwo || PowerOfTwoMode == ETexturePowerOfTwoSetting::PadToSquarePowerOfTwo)
 	{
