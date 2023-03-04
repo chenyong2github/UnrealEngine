@@ -11,6 +11,24 @@ using UnrealBuildBase;
 
 namespace AutomationTool
 {
+	[ParamHelp("platform", "Platform of the target", ParamType = typeof(string))]
+	[ParamHelp("config", "Config of the target", ParamType = typeof(string))]
+	[ParamHelp("project", "Config of the target", ParamType = typeof(string))]
+	[ParamHelp("client", "Build, cook and run a client and a server, uses client target configuration", ParamType = typeof(bool))]
+	[ParamHelp("noclient", "Do not run the client, just run the server", ParamType = typeof(bool))]
+	[ParamHelp("server", "Is this a server target?", ParamType = typeof(bool))]
+	[ParamHelp("build", "True if build step should be executed", ParamType = typeof(bool))]
+	[ParamHelp("ubtargs", "Extra options to pass to ubt")]
+	[ParamHelp("cook", "Determines if the build is going to use cooked data", ParamType = typeof(bool))]
+	[ParamHelp("AdditionalCookerOptions", "Additional arguments sent to the cooking step", ParamType = typeof(string))]
+	[ParamHelp("pak", "Generate a pak file", ParamType = typeof(bool))]
+	[ParamHelp("deploy", "Deploy the project for the target platform", ParamType = typeof(bool))]
+	[ParamHelp("stage", "Put this build in a stage director", ParamType = typeof(bool))]
+	[ParamHelp("run", "Run the game after it is built (including server, if -server)", ParamType = typeof(bool))]
+	public interface IProjectParamsHelpers
+	{
+	}
+
 	[Help("targetplatform=PlatformName", "target platform for building, cooking and deployment (also -Platform)")]
 	[Help("servertargetplatform=PlatformName", "target platform for building, cooking and deployment of the dedicated server (also -ServerPlatform)")]
 	public class ProjectParams

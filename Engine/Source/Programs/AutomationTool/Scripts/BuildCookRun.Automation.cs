@@ -20,7 +20,7 @@ If no DefaultMap can be found, the command falls back to /Engine/Maps/Entry.")]
 [Help(typeof(ProjectParams))]
 [Help(typeof(UnrealBuild))]
 [Help(typeof(CodeSign))]
-public class BuildCookRun : BuildCommand
+public class BuildCookRun : BuildCommand, IProjectParamsHelpers
 {
 	public override void ExecuteBuild()
 	{
