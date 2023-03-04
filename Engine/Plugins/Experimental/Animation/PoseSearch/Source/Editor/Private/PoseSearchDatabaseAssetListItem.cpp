@@ -162,14 +162,6 @@ namespace UE::PoseSearch
 					.DecoratorStyleSet(&FAppStyle::Get())
 					.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 				]
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Right)
-				.Padding(2, 0, 0, 0)
-				[
-					GenerateAddButtonWidget()
-				]
 			];
 		}
 		else
@@ -311,62 +303,6 @@ namespace UE::PoseSearch
 
 		return ItemWidget.ToSharedRef();
 	}
-
-	TSharedRef<SWidget> SDatabaseAssetListItem::GenerateAddButtonWidget()
-	{
-		FMenuBuilder AddOptions(true, nullptr);
-
-		AddOptions.AddMenuEntry(
-			LOCTEXT("AddSequence", "Add Sequence"),
-			LOCTEXT("AddSequenceTooltip", "Add new sequence to this group"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetListItem::OnAddSequence)),
-			NAME_None,
-			EUserInterfaceActionType::Button);
-
-		AddOptions.AddMenuEntry(
-			LOCTEXT("AddBlendSpaceOption", "Add Blend Space"),
-			LOCTEXT("AddBlendSpaceOptionTooltip", "Add new blend space to this group"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetListItem::OnAddBlendSpace)),
-			NAME_None,
-			EUserInterfaceActionType::Button);
-
-		AddOptions.AddMenuEntry(
-			LOCTEXT("AnimCompositeOption", "Add Anim Composite"),
-			LOCTEXT("AddAnimCompositeToDefaultGroupTooltip", "Add new anim composite to this group"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetListItem::OnAddAnimComposite)),
-			NAME_None,
-			EUserInterfaceActionType::Button);
-
-		AddOptions.AddMenuEntry(
-			LOCTEXT("AnimMontageOption", "Add Anim Montage"),
-			LOCTEXT("AddAnimMontageToDefaultGroupTooltip", "Add new anim montage to this group"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetListItem::OnAddAnimMontage)),
-			NAME_None,
-			EUserInterfaceActionType::Button);
-
-		TSharedPtr<SComboButton> AddButton;
-		SAssignNew(AddButton, SComboButton)
-		.ContentPadding(0)
-		.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
-		.HasDownArrow(false)
-		.ButtonContent()
-		[
-			SNew(SImage)
-			.ColorAndOpacity(FSlateColor::UseForeground())
-			.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
-		]
-		.MenuContent()
-		[
-			AddOptions.MakeWidget()
-		];
-
-		return AddButton.ToSharedRef();
-	}
-
 
 	const FSlateBrush* SDatabaseAssetListItem::GetGroupBackgroundImage() const
 	{

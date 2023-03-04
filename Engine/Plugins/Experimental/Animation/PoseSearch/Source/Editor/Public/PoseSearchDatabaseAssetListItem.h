@@ -27,7 +27,6 @@ namespace UE::PoseSearch
 	protected:
 		FText GetName() const;
 		TSharedRef<SWidget> GenerateItemWidget();
-		TSharedRef<SWidget> GenerateAddButtonWidget();
 
 		const FSlateBrush* GetGroupBackgroundImage() const;
 		void ConstructGroupItem(const TSharedRef<STableViewBase>& OwnerTable);

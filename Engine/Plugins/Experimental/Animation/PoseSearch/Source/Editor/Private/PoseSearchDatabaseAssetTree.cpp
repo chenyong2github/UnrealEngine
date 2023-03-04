@@ -2,6 +2,7 @@
 
 #include "PoseSearchDatabaseAssetTree.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 #include "AssetSelection.h"
@@ -99,7 +100,7 @@ namespace UE::PoseSearch
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.Text(FText::FromString(TEXT("Drag and drop Animation Sequences, Anim Composites or Blendspaces")))
+							.Text(FText::FromString(TEXT("Drag and drop Animation Sequences, Anim Composites, Blendspaces, or Anim Montages")))
 							.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 						]
 					]
@@ -135,7 +136,8 @@ namespace UE::PoseSearch
 						{
 							if (AssetClass->IsChildOf(UAnimSequence::StaticClass()) ||
 								AssetClass->IsChildOf(UAnimComposite::StaticClass()) ||
-								AssetClass->IsChildOf(UBlendSpace::StaticClass()))
+								AssetClass->IsChildOf(UBlendSpace::StaticClass()) ||
+								AssetClass->IsChildOf(UAnimMontage::StaticClass()))
 							{
 								Reply = FReply::Handled();
 								break;
@@ -350,7 +352,8 @@ namespace UE::PoseSearch
 				{
 					if (AssetClass->IsChildOf(UAnimSequence::StaticClass()) ||
 						AssetClass->IsChildOf(UAnimComposite::StaticClass()) ||
-						AssetClass->IsChildOf(UBlendSpace::StaticClass()))
+						AssetClass->IsChildOf(UBlendSpace::StaticClass()) ||
+						AssetClass->IsChildOf(UAnimMontage::StaticClass()))
 					{
 						ReturnedDropZone = EItemDropZone::OntoItem;
 						break;
@@ -423,6 +426,11 @@ namespace UE::PoseSearch
 					else if (AssetClass->IsChildOf(UBlendSpace::StaticClass()))
 					{
 						ViewModel->AddBlendSpaceToDatabase(Cast<UBlendSpace>(Asset));
+						++AddedAssets;
+					}
+					else if (AssetClass->IsChildOf(UAnimMontage::StaticClass()))
+					{
+						ViewModel->AddAnimMontageToDatabase(Cast<UAnimMontage>(Asset));
 						++AddedAssets;
 					}
 				}
