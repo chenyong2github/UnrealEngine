@@ -18,6 +18,7 @@
 _Pragma("clang diagnostic push") \
 _Pragma("clang diagnostic ignored \"-Wimplicit-int-float-conversion\"")
 _Pragma("clang diagnostic ignored \"-Wimplicit-int-conversion\"")
+_Pragma("clang diagnostic ignored \"-Wdeprecated-pragma\"")
 #endif
 
 #include "ThirdParty/mimalloc/src/static.c"
