@@ -566,14 +566,43 @@ void FGameFeaturePluginState::UpdateStateMachineDeferred(float Delay /*= 0.0f*/)
 	}), Delay);
 }
 
-void FGameFeaturePluginState::GarbageCollectAndUpdateStateMachineDeferred() const
+void FGameFeaturePluginState::InsertCleanupObjectsFence() const
+{
+	class FLevelStreamoutFence : public FDeferredCleanupInterface
+	{
+	public:
+		FLevelStreamoutFence(const FGameFeaturePluginState& InState)
+			: State(InState)
+		{
+
+		}
+		virtual ~FLevelStreamoutFence()
+		{
+			State.UpdateStateMachineDeferred();
+		}
+
+	private:
+		const FGameFeaturePluginState& State;
+	};
+
+	BeginCleanup(new FLevelStreamoutFence(*this));
+}
+
+void FGameFeaturePluginState::GarbageCollectAndUpdateStateMachineDeferred(bool bWaitForCleanupQueue /*= false*/) const
 {
 	GEngine->ForceGarbageCollection(true); // Tick Delayed
 
 	CleanupDeferredUpdateCallbacks();
-	FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FGameFeaturePluginState::UpdateStateMachineDeferred, 0.0f);
-}
 
+	if (bWaitForCleanupQueue)
+	{
+		FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FGameFeaturePluginState::InsertCleanupObjectsFence);
+	}
+	else
+	{
+		FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FGameFeaturePluginState::UpdateStateMachineDeferred, 0.0f);
+	}
+}
 
 void FGameFeaturePluginState::MarkPluginAsGarbage(bool bMarkGameFeatureDataAsGarbage)
 {
@@ -2036,7 +2065,7 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 		UGameplayTagsManager::Get().RemoveTagIniSearchPath(PluginFolder / TEXT("Config") / TEXT("Tags"));
 
 		bRequestedGC = true;
-		GarbageCollectAndUpdateStateMachineDeferred();
+		GarbageCollectAndUpdateStateMachineDeferred(true);
 	}
 };
 

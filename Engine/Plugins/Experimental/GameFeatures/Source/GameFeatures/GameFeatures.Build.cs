@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 					"Json",
 					"PakFile",
 					"Projects",
+					"RenderCore", // required for FDeferredCleanupInterface
 				}
 			);
 
