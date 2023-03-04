@@ -419,6 +419,32 @@ namespace UE::AssetTools::Private
 		TEXT("When set, The package migration will use the new implementation made for 5.1.")
 	);
 
+	enum class EAdvancedCopyConsolidationMethod : uint8
+	{
+		/** Consolidate everything once (new, fast) */
+		Lazy = 0,
+		/** Consolidate once per-asset (default, slow) */
+		PerAsset = 1,
+		/** Consolidate once per-asset dependency (legacy, glacial) */
+		PerAssetDependency = 2,
+	};
+
+	int32 AdvancedCopyConsolidationMethodInt = static_cast<int32>(EAdvancedCopyConsolidationMethod::PerAsset);
+	FAutoConsoleVariableRef CVarAdvancedCopyConsolidationMethod(
+		TEXT("AssetTools.AdvancedCopyConsolidationMethod"),
+		AdvancedCopyConsolidationMethodInt,
+		TEXT("0: Lazy (new, fast), 1: PerAsset (default, slow), 2: PerAssetDependency (legacy, glacial)")
+	);
+
+	EAdvancedCopyConsolidationMethod GetAdvancedCopyConsolidationMethod()
+	{
+		if (AdvancedCopyConsolidationMethodInt >= static_cast<int32>(EAdvancedCopyConsolidationMethod::Lazy) && AdvancedCopyConsolidationMethodInt <= static_cast<int32>(EAdvancedCopyConsolidationMethod::PerAssetDependency))
+		{
+			return static_cast<EAdvancedCopyConsolidationMethod>(AdvancedCopyConsolidationMethodInt);
+		}
+		return EAdvancedCopyConsolidationMethod::PerAsset;
+	}
+
 	// use a struct as a namespace to allow easier friend declarations
 	struct FPackageMigrationImpl
 	{
@@ -2119,8 +2145,8 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 		ExistingObjectSet.Reserve(SourceAndDestPackages.Num());
 		NewObjectSet.Reserve(SourceAndDestPackages.Num());
 
-		FScopedSlowTask LoopProgress(SourceAndDestPackages.Num(), LOCTEXT("AdvancedCopying", "Copying files and dependencies..."));
-		LoopProgress.MakeDialog();
+		TUniquePtr<FScopedSlowTask> LoopProgress = MakeUnique<FScopedSlowTask>(SourceAndDestPackages.Num(), LOCTEXT("AdvancedCopyPackages.CopyingFilesAndDependencies", "Copying Files and Dependencies..."));
+		LoopProgress->MakeDialog();
 
 		for (const auto& Package : SourceAndDestPackages)
 		{
@@ -2130,7 +2156,7 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 
 			if (FPackageName::DoesPackageExist(PackageName, &SrcFilename))
 			{
-				LoopProgress.EnterProgressFrame();
+				LoopProgress->EnterProgressFrame();
 				UPackage* Pkg = LoadPackage(nullptr, *PackageName, LOAD_None);
 				if (Pkg)
 				{
@@ -2182,9 +2208,35 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 		TSet<UObject*> ObjectsAndSubObjectsToReplaceWithin;
 		ObjectTools::GatherSubObjectsForReferenceReplacement(NewObjectSet, ExistingObjectSet, ObjectsAndSubObjectsToReplaceWithin);
 
+		LoopProgress.Reset(); // Note: Reset first as FScopedSlowTask asserts about out-of-order scoping if assigning over an existing FScopedSlowTask
+		LoopProgress = MakeUnique<FScopedSlowTask>(SuccessfullyCopiedSourcePackages.Num(), LOCTEXT("AdvancedCopyPackages.ReplacingAssetReferences", "Replacing Asset References..."));
+		LoopProgress->MakeDialog();
+
+		TMap<UObject*, TArray<UObject*, TInlineAllocator<1>>> Consolidations;
+		TArray<ObjectTools::FReplaceRequest> Requests;
+		auto ConsolidatePendingObjects = [&Consolidations, &Requests, &ObjectsAndSubObjectsToReplaceWithin, &ExistingObjectSet]()
+		{
+			check(Requests.Num() == 0);
+
+			if (Consolidations.Num() > 0)
+			{
+				Requests.Reserve(Consolidations.Num());
+				for (TPair<UObject*, TArray<UObject*, TInlineAllocator<1>>>&Consolidation : Consolidations)
+				{
+					Requests.Add(ObjectTools::FReplaceRequest{ Consolidation.Key, Consolidation.Value });
+				}
+				ObjectTools::ConsolidateObjects(Requests, ObjectsAndSubObjectsToReplaceWithin, ExistingObjectSet, false);
+
+				Consolidations.Reset();
+				Requests.Reset();
+			}
+		};
+
 		TArray<FName> Dependencies;
 		for (FName SuccessfullyCopiedPackage : SuccessfullyCopiedSourcePackages)
 		{
+			LoopProgress->EnterProgressFrame();
+
 			Dependencies.Reset();
 			AssetRegistryModule.Get().GetDependencies(SuccessfullyCopiedPackage, Dependencies);
 
@@ -2207,30 +2259,38 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 				const int32 DependencyIndex = SuccessfullyCopiedSourcePackages.IndexOfByKey(Dependency);
 				if (DependencyIndex != INDEX_NONE)
 				{
-					TMap<UObject*, TArray<UObject*, TInlineAllocator<1>>> Consolidations;
-					Consolidations.Reserve(DuplicatedObjectsForEachPackage[DependencyIndex].Num());
-
+					Consolidations.Reserve(Consolidations.Num() + DuplicatedObjectsForEachPackage[DependencyIndex].Num());
 					for (const TPair<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>>& Duplication : DuplicatedObjectsForEachPackage[DependencyIndex])
 					{
 						UObject* SourceObject = Duplication.Key.Get();
 						UObject* NewObject = Duplication.Value.Get();
 						if (SourceObject && NewObject)
 						{
-							Consolidations.FindOrAdd(NewObject).Add(SourceObject);
+							Consolidations.FindOrAdd(NewObject).AddUnique(SourceObject);
 						}
 					}
+				}
 
-					TArray<ObjectTools::FReplaceRequest> Requests;
-					Requests.Reserve(Consolidations.Num());
-					for (TPair<UObject*, TArray<UObject*, TInlineAllocator<1>>>& Consolidation : Consolidations)
-					{
-						Requests.Add(ObjectTools::FReplaceRequest{Consolidation.Key, Consolidation.Value});
-					}
-
-					ObjectTools::ConsolidateObjects(Requests, ObjectsAndSubObjectsToReplaceWithin, ExistingObjectSet, false);
+				if (UE::AssetTools::Private::GetAdvancedCopyConsolidationMethod() == UE::AssetTools::Private::EAdvancedCopyConsolidationMethod::PerAssetDependency)
+				{
+					ConsolidatePendingObjects();
 				}
 			}
+
+			if (UE::AssetTools::Private::GetAdvancedCopyConsolidationMethod() == UE::AssetTools::Private::EAdvancedCopyConsolidationMethod::PerAsset)
+			{
+				ConsolidatePendingObjects();
+			}
 		}
+
+		LoopProgress.Reset();
+
+		if (UE::AssetTools::Private::GetAdvancedCopyConsolidationMethod() == UE::AssetTools::Private::EAdvancedCopyConsolidationMethod::Lazy)
+		{
+			ConsolidatePendingObjects();
+		}
+
+		check(Consolidations.Num() == 0);
 
 		ObjectTools::CompileBlueprintsAfterRefUpdate(NewObjectSet.Array());
 
