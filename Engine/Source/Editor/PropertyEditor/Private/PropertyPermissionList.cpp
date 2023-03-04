@@ -25,6 +25,7 @@ uint32 GetTypeHash(const FPropertyPermissionList::FPermissionListUpdate& Permisi
 		GetTypeHash(PermisisonList.OwnerName));
 }
 
+FPropertyPermissionList::FPropertyPermissionList()
 {
 	if (GEditor)
 	{
