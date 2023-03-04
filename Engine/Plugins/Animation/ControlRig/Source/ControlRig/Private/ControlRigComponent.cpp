@@ -1351,7 +1351,7 @@ void UControlRigComponent::ValidateMappingData()
 						{
 							if (MappedElement.ElementType != ERigElementType::Curve)
 							{
-								MappedElement.SubIndex = SkeletalMeshComponent->GetBoneIndex(MappedElement.TransformName);
+								MappedElement.SubIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(MappedElement.TransformName);
 							}
 						}
 						else
