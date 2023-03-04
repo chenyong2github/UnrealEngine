@@ -20,6 +20,7 @@
 #include "Misc/WildcardString.h"
 #include "Algo/AllOf.h"
 #include "Misc/TVariantMeta.h"
+#include "RenderDeferredCleanup.h"
 #include "Serialization/MemoryReader.h"
 #include "String/ParseTokens.h"
 #include "GameFeaturesProjectPolicies.h"
