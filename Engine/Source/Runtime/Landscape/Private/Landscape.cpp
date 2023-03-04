@@ -72,6 +72,7 @@ Landscape.cpp: Terrain rendering
 #include "RenderCaptureInterface.h"
 #include "VisualLogger/VisualLogger.h"
 #include "LandscapeSettings.h"
+#include "NaniteSceneProxy.h"
 #include "Misc/ArchiveMD5.h"
 
 #if WITH_EDITOR
@@ -5541,6 +5542,16 @@ void ALandscapeProxy::UpdateRenderingMethod()
 			}
 		}
 #endif
+	}
+
+	if (bNaniteActive)
+	{
+		Nanite::FMaterialAudit NaniteMaterials;
+		Nanite::AuditMaterials(NaniteComponent, NaniteMaterials);
+
+		//const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;
+		const bool bIsMaskingAllowed = true;
+		bNaniteActive = NaniteMaterials.IsValid(bIsMaskingAllowed);
 	}
 
 	for (ULandscapeComponent* Component : LandscapeComponents)
