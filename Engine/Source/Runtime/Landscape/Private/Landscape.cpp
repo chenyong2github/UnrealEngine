@@ -318,6 +318,7 @@ void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* InTarget
 			NaniteComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 			NaniteComponent->bSelectable = false;
 			NaniteComponent->DepthPriorityGroup = SDPG_World;
+			NaniteComponent->bForceNaniteForMasked = true;
 			NaniteComponent->RegisterComponent();
 			NaniteComponent->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		}
@@ -5549,8 +5550,7 @@ void ALandscapeProxy::UpdateRenderingMethod()
 		Nanite::FMaterialAudit NaniteMaterials;
 		Nanite::AuditMaterials(NaniteComponent, NaniteMaterials);
 
-		//const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;
-		const bool bIsMaskingAllowed = true;
+		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || NaniteComponent->bForceNaniteForMasked;
 		bNaniteActive = NaniteMaterials.IsValid(bIsMaskingAllowed);
 	}
 
