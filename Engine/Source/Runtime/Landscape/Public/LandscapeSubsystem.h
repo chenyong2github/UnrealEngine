@@ -8,6 +8,7 @@
 #include "LandscapeSubsystem.generated.h"
 
 class ALandscapeProxy;
+class AWorldSettings;
 class ULandscapeInfo;
 class FLandscapeNotificationManager;
 struct FDateTime;
@@ -100,8 +101,11 @@ private:
 	virtual void Deinitialize() override;
 	// End USubsystem
 
+	void OnNaniteWorldSettingsChanged(AWorldSettings* WorldSettings) { RegenerateGrass(true, true); }
+
 	bool bIsGrassCreationPrioritized;
 	TArray<TWeakObjectPtr<ALandscapeProxy>> Proxies;
+	FDelegateHandle OnNaniteWorldSettingsChangedHandle;
 
 #if WITH_EDITOR
 	class FLandscapeGrassMapsBuilder* GrassMapsBuilder;

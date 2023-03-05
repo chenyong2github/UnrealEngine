@@ -77,6 +77,14 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
+	if (UWorld* World = GetWorld())
+	{
+		if (AWorldSettings* WorldSettings = World->GetWorldSettings())
+		{
+			OnNaniteWorldSettingsChangedHandle = WorldSettings->OnNaniteSettingsChanged.AddUObject(this, &ULandscapeSubsystem::OnNaniteWorldSettingsChanged);
+		}
+	}
+
 #if WITH_EDITOR
 	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
 	GIBakedTextureBuilder = new FLandscapeGIBakedTextureBuilder(GetWorld());
@@ -91,6 +99,18 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void ULandscapeSubsystem::Deinitialize()
 {
+	if (OnNaniteWorldSettingsChangedHandle.IsValid())
+	{
+		UWorld* World = GetWorld();
+		check(World != nullptr);
+
+		AWorldSettings* WorldSettings = World->GetWorldSettings();
+		check(WorldSettings != nullptr);
+
+		WorldSettings->OnNaniteSettingsChanged.Remove(OnNaniteWorldSettingsChangedHandle);
+		OnNaniteWorldSettingsChangedHandle.Reset();
+	}
+	
 #if WITH_EDITOR
 	delete GrassMapsBuilder;
 	delete GIBakedTextureBuilder;

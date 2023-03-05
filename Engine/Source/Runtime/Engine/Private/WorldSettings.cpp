@@ -51,6 +51,7 @@ ENGINE_API float GNewWorldToMetersScale = 0.0f;
 AWorldSettings::FOnBookmarkClassChanged AWorldSettings::OnBookmarkClassChanged;
 AWorldSettings::FOnNumberOfBookmarksChanged AWorldSettings::OnNumberOfBoomarksChanged;
 #endif
+AWorldSettings::FOnNaniteSettingsChanged AWorldSettings::OnNaniteSettingsChanged;
 
 AWorldSettings::AWorldSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.DoNotCreateDefaultSubobject(TEXT("Sprite")))
@@ -261,6 +262,8 @@ void AWorldSettings::OnRep_NaniteSettings()
 {
 	// Need to recreate scene proxies when Nanite settings changes.
 	FGlobalComponentRecreateRenderStateContext Context;
+
+	OnNaniteSettingsChanged.Broadcast(this);
 }
 
 void AWorldSettings::SetAllowMaskedMaterials(bool bState)
@@ -838,6 +841,8 @@ void AWorldSettings::InternalPostPropertyChanged(FName PropertyName)
 		{
 			// Need to recreate scene proxies when this flag changes.
 			FGlobalComponentRecreateRenderStateContext Context;
+		
+			OnNaniteSettingsChanged.Broadcast(this);
 		}
 	}
 }

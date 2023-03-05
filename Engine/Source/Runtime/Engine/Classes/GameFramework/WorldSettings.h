@@ -1011,6 +1011,9 @@ public:
 	static FOnNumberOfBookmarksChanged OnNumberOfBoomarksChanged;
 #endif
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNaniteSettingsChanged, AWorldSettings*);
+	static FOnNaniteSettingsChanged OnNaniteSettingsChanged;
+
 	const int32 GetMaxNumberOfBookmarks() const
 	{
 		return MaxNumberOfBookmarks;
