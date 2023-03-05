@@ -13,10 +13,11 @@ public class RenderGridDeveloper : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"Blutility",
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"KismetCompiler",
+				"KismetCompiler", 
 			}
 		);
 

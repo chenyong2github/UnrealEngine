@@ -168,7 +168,12 @@ URenderGridMoviePipelineRenderJob* URenderGridMoviePipelineRenderJob::Create(URe
 		Setting->CustomStartFrame = Job->GetSequenceStartFrame().Get(0);
 		Setting->CustomEndFrame = Job->GetSequenceEndFrame().Get(0);
 
-		if (Args.FramePosition.IsSet())
+		if (Args.Frame.IsSet())
+		{
+			Setting->CustomStartFrame = Args.Frame.Get(0);
+			Setting->CustomEndFrame = Setting->CustomStartFrame + 1;
+		}
+		else if (Args.FramePosition.IsSet())
 		{
 			double FramePosition = FMath::Clamp<double>(Args.FramePosition.Get(0.0), 0.0, 1.0);
 			int32 Frame = FMath::Lerp<int32, double>(Setting->CustomStartFrame, Setting->CustomEndFrame - 1, FramePosition);

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Factories/Factory.h"
 #include "RenderGrid/RenderGridPropsSource.h"
-#include "RenderGridFactory.generated.h"
+#include "RenderGridBlueprintFactory.generated.h"
 
 
 class URenderGridBlueprint;

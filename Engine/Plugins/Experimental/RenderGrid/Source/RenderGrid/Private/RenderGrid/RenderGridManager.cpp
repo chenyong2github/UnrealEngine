@@ -20,7 +20,23 @@ URenderGridQueue* UE::RenderGrid::FRenderGridManager::CreateBatchRenderQueue(URe
 	return NewRenderQueue;
 }
 
-URenderGridQueue* UE::RenderGrid::FRenderGridManager::CreateBatchRenderQueueSingleFrame(URenderGrid* Grid, const TArray<URenderGridJob*>& Jobs, const double FramePosition)
+URenderGridQueue* UE::RenderGrid::FRenderGridManager::CreateBatchRenderQueueSingleFrame(URenderGrid* Grid, const TArray<URenderGridJob*>& Jobs, const int32 Frame)
+{
+	FRenderGridQueueCreateArgs JobArgs;
+	JobArgs.RenderGrid = TStrongObjectPtr(Grid);
+	JobArgs.RenderGridJobs.Append(Jobs);
+	JobArgs.bIsBatchRender = true;
+	JobArgs.bForceUseSequenceFrameRate = true;
+	JobArgs.Frame = Frame;
+	URenderGridQueue* NewRenderQueue = URenderGridQueue::Create(JobArgs);
+	if (!IsValid(NewRenderQueue))
+	{
+		return nullptr;
+	}
+	return NewRenderQueue;
+}
+
+URenderGridQueue* UE::RenderGrid::FRenderGridManager::CreateBatchRenderQueueSingleFramePosition(URenderGrid* Grid, const TArray<URenderGridJob*>& Jobs, const double FramePosition)
 {
 	FRenderGridQueueCreateArgs JobArgs;
 	JobArgs.RenderGrid = TStrongObjectPtr(Grid);

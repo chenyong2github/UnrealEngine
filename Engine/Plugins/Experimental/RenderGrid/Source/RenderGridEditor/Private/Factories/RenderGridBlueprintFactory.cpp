@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Factories/RenderGridFactory.h"
+#include "Factories/RenderGridBlueprintFactory.h"
 #include "Blueprints/RenderGridBlueprint.h"
 #include "IContentBrowserSingleton.h"
 #include "Kismet2/BlueprintEditorUtils.h"

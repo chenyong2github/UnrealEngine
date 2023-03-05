@@ -54,6 +54,9 @@ namespace UE::RenderGrid
 		TArray<TSubclassOf<UMoviePipelineSetting>> DisablePipelineSettingsClasses;
 
 		/** The specific frame number that will be rendered. */
+		TOptional<int32> Frame;
+
+		/** The specific frame number (percentage-wise, between 0.0 and 1.0) that will be rendered. */
 		TOptional<double> FramePosition;
 
 		/** Whether it should run the Begin and End Batch Render events or not. */

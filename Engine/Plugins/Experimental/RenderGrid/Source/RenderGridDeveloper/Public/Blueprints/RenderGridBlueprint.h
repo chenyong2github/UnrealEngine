@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/Blueprint.h"
+#include "EditorUtilityBlueprint.h"
 #include "RenderGrid/RenderGrid.h"
 #include "RenderGridBlueprint.generated.h"
 
@@ -21,7 +21,7 @@ namespace UE::RenderGrid
  * Required in order for a RenderGrid to be able to have a blueprint graph.
  */
 UCLASS(BlueprintType, Meta=(IgnoreClassThumbnail, DontUseGenericSpawnObject="true"))
-class RENDERGRIDDEVELOPER_API URenderGridBlueprint : public UBlueprint
+class RENDERGRIDDEVELOPER_API URenderGridBlueprint : public UEditorUtilityBlueprint
 {
 	GENERATED_BODY()
 
@@ -30,6 +30,7 @@ public:
 
 	//~ Begin UBlueprint Interface
 	virtual bool SupportedByDefaultBlueprintFactory() const override { return false; }
+	virtual bool AlwaysCompileOnLoad() const override { return true; }
 	virtual bool IsValidForBytecodeOnlyRecompile() const override { return false; }
 	virtual bool SupportsGlobalVariables() const override { return true; }
 	virtual bool SupportsLocalVariables() const override { return true; }
