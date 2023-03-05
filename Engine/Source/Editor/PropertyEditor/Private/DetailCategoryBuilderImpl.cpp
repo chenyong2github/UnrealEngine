@@ -379,9 +379,9 @@ IDetailPropertyRow& FDetailCategoryImpl::AddProperty(FName PropertyPath, UClass*
 	if (PropertyNode.IsValid())
 	{
 		ParentLayout->SetCustomProperty(PropertyNode);
-		NewCustomization.PropertyRow = MakeShareable(new FDetailPropertyRow(PropertyNode, AsShared()));
 	}
-	
+
+	NewCustomization.PropertyRow = MakeShareable(new FDetailPropertyRow(PropertyNode, AsShared()));
 	NewCustomization.bAdvanced = (Location == EPropertyLocation::Default) ? IsAdvancedLayout(NewCustomization) : (Location == EPropertyLocation::Advanced);
 
 	AddCustomLayout(NewCustomization);
