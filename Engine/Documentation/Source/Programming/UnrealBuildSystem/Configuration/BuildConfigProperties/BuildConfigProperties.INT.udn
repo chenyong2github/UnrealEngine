@@ -220,6 +220,10 @@ $ bUsePerFileIntellisense : Whether to generate per-file intellisense data.
 
 $ bEditorDependsOnShaderCompileWorker : Whether to include a dependency on ShaderCompileWorker when generating project files for the editor.
 
+$ TempDirectory : If set TMP\TEMP will be overidden to this directory, each process will create a unique subdirectory in this folder.
+
+$ bDeleteTempDirectory : If set the application temp directory will be deleted on exit, only when running with a single instance mutex.
+
 ### UEBuildConfiguration
 
 $ bForceHeaderGeneration : If true, force header regeneration. Intended for the build machine.

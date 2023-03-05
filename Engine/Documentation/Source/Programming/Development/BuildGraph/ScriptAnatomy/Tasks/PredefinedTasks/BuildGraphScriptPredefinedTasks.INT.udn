@@ -162,6 +162,18 @@ Delete a set of files.
 | Verbose                | Boolean   | Optional | Whether or not to use verbose logging.                                                                              |
 | If                     | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                                   |
 
+### DeployTool
+
+Deploys a tool update through Horde
+
+|           |           |          |                                                                                                         |
+| --------- | --------- | -------- | ------------------------------------------------------------------------------------------------------- |
+| Id        | String    | Required | Identifier for the tool                                                                                 |
+| Settings  | String    | Required | Settings file to use for the deployment. Should be a JSON file containing server name and access token. |
+| File      | String    | Optional | Zip file containing the data to upload                                                                  |
+| Directory | String    | Optional | Directory to zip and upload for the tool                                                                |
+| If        | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                       |
+
 ### Docker
 
 Spawns Docker and waits for it to complete.
