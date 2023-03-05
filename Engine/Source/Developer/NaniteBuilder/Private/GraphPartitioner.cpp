@@ -178,7 +178,8 @@ void FGraphPartitioner::BisectGraph( FGraphData* Graph, FGraphData* ChildGraphs[
 		PartitionIDs.GetData() + Graph->Offset
 	);
 
-	if( ensureAlways( r == METIS_OK ) )
+	checkf(r == METIS_OK, TEXT("Call to METIS_PartGraphRecursive() failed - error code: %d, Graph->Num: %d"), r, Graph->Num);
+
 	{
 		// In place divide the array
 		// Both sides remain sorted but back is reversed.
