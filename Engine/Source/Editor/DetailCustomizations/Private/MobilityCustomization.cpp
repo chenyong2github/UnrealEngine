@@ -22,6 +22,11 @@
 #include "Widgets/Input/SSegmentedControl.h"
 #include "Widgets/Text/STextBlock.h"
 
+TAutoConsoleVariable<bool> CVarHideLightStaticMobilityWhenStaticLightingDisabled(
+	TEXT("r.Editor.HideLightStaticMobilityWhenStaticLightingDisabled"),
+	false,
+	TEXT("Hide Static mobility on Light components when project has Static Lighting disabled."),
+	ECVF_RenderThreadSafe);
 
 #define LOCTEXT_NAMESPACE "MobilityCustomization" 
 
@@ -66,6 +71,14 @@ void FMobilityCustomization::GenerateHeaderRowContent(FDetailWidgetRow& WidgetRo
 
 	bool bShowStatic = !( RestrictedMobilityBits & StaticMobilityBitMask );
 	bool bShowStationary = !( RestrictedMobilityBits & StationaryMobilityBitMask );
+
+	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnGameThread() != 0);
+
+	if (bForLight && CVarHideLightStaticMobilityWhenStaticLightingDisabled.GetValueOnGameThread())
+	{
+		bShowStatic &= bAllowStaticLighting;
+	}
 
 	int32 ColumnIndex = 0;
 
