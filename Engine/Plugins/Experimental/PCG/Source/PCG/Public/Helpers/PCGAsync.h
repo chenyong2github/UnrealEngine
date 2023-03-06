@@ -339,8 +339,9 @@ namespace FPCGAsync
 		if (AsyncState && !AsyncState->bIsRunningAsyncCall)
 		{
 			AsyncState->bIsRunningAsyncCall = true;
-			return Private::AsyncProcessing<OutputType>(*AsyncState, NumIterations, OutData, IterationInnerLoop, bEnableTimeSlicing, ChunkSize);
+			bool bIsDone = Private::AsyncProcessing<OutputType>(*AsyncState, NumIterations, OutData, IterationInnerLoop, bEnableTimeSlicing, ChunkSize);
 			AsyncState->bIsRunningAsyncCall = false;
+			return bIsDone;
 		}
 		else
 		{
@@ -348,6 +349,7 @@ namespace FPCGAsync
 			// We also force using one thread (the current one).
 			FPCGAsyncState DummyState;
 			DummyState.NumAvailableTasks = 1;
+			DummyState.bIsRunningAsyncCall = true;
 			return Private::AsyncProcessing<OutputType>(DummyState, NumIterations, OutData, IterationInnerLoop, /*bEnableTimeSlicing=*/false, ChunkSize);
 		}
 	}
