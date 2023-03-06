@@ -6,6 +6,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 
 namespace EpicGames.Serialization
 {
@@ -687,6 +688,19 @@ namespace EpicGames.Serialization
 
 			_freeChunks.AddRange(_chunks);
 			_chunks.Clear();
+		}
+
+		/// <summary>
+		/// Ensures that the required space is available in a contiguous chunk
+		/// </summary>
+		/// <param name="reserve">Minimum required space</param>
+		public void Reserve(int reserve)
+		{
+			int allocate = Math.Max(DefaultChunkSize, reserve);
+			if (!_freeChunks.Any(x => x.Length >= reserve))
+			{
+				_freeChunks.Add(new byte[allocate + 4096]);
+			}
 		}
 
 		/// <inheritdoc/>

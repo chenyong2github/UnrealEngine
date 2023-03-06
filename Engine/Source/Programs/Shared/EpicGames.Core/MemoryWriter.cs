@@ -145,6 +145,111 @@ namespace EpicGames.Core
 	}
 
 	/// <summary>
+	/// Writes into an expandable memory block
+	/// </summary>
+	public class PooledMemoryWriter : IMemoryWriter, IDisposable
+	{
+		MemoryPool<byte> _pool;
+		IMemoryOwner<byte> _owner;
+		Memory<byte> _memory;
+		int _length;
+
+		/// <summary>
+		/// Returns the span that has been written to
+		/// </summary>
+		public Span<byte> WrittenSpan => _memory.Span.Slice(0, _length);
+
+		/// <summary>
+		/// Returns the memory that has been written to
+		/// </summary>
+		public Memory<byte> WrittenMemory => _memory.Slice(0, _length);
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="initialSize">Initial size of the allocated data</param>
+		public PooledMemoryWriter(int initialSize = 4096)
+			: this(MemoryPool<byte>.Shared, initialSize)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="pool">Pool to allocate data from</param>
+		/// <param name="initialSize">Initial size of the allocated data</param>
+		public PooledMemoryWriter(MemoryPool<byte> pool, int initialSize = 4096)
+		{
+			_pool = pool;
+			_owner = pool.Rent(initialSize);
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// Overridable dispose method
+		/// </summary>
+		/// <param name="disposing">Whether the </param>
+		protected virtual void Dispose(bool disposing)
+		{
+			_owner.Dispose();
+		}
+
+		/// <inheritdoc/>
+		public int Length => _length;
+
+		/// <summary>
+		/// Resets the current contents of the buffer
+		/// </summary>
+		public void Clear()
+		{
+			_length = 0;
+		}
+
+		/// <summary>
+		/// Resets the current contents of the buffer
+		/// </summary>
+		public void Clear(int minSize)
+		{
+			Clear();
+			if (minSize > _owner.Memory.Length)
+			{
+				_owner.Dispose();
+				_owner = _pool.Rent(minSize);
+			}
+		}
+
+		/// <inheritdoc/>
+		public Span<byte> GetSpan(int sizeHint = 0) => GetMemory(sizeHint).Span;
+
+		/// <inheritdoc/>
+		public Memory<byte> GetMemory(int minSize = 0)
+		{
+			int requiredLength = _length + Math.Max(minSize, 1);
+			if (_memory.Length < requiredLength)
+			{
+				IMemoryOwner<byte> newOwner = _pool.Rent(requiredLength + Math.Max(requiredLength / 2, 4096));
+				_memory.CopyTo(newOwner.Memory);
+				_memory = newOwner.Memory;
+				_owner.Dispose();
+				_owner = newOwner;
+			}
+			return _memory.Slice(_length);
+		}
+
+		/// <inheritdoc/>
+		public void Advance(int length)
+		{
+			_length += length;
+		}
+	}
+
+	/// <summary>
 	/// Class for building byte sequences, similar to StringBuilder. Allocates memory in chunks to avoid copying data.
 	/// </summary>
 	public sealed class ChunkedMemoryWriter : IMemoryWriter, IDisposable

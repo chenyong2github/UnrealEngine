@@ -48,17 +48,12 @@ namespace Horde.Build.Compute
 		/// <summary>
 		/// AES key for the channel, as a hex string
 		/// </summary>
-		public string AesKey { get; set; } = String.Empty;
-
-		/// <summary>
-		/// AES IV for the channel, as a hex string
-		/// </summary>
-		public string AesIv { get; set; } = String.Empty;
+		public string Key { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Resources assigned to this machine
 		/// </summary>
-		public Dictionary<string, int> Resources { get; set; } = new Dictionary<string, int>();
+		public Dictionary<string, int> AssignedResources { get; set; } = new Dictionary<string, int>();
 	}
 
 	/// <summary>
@@ -114,8 +109,12 @@ namespace Horde.Build.Compute
 			response.Ip = computeResource.Ip.ToString();
 			response.Port = computeResource.Port;
 			response.Nonce = StringUtils.FormatHexString(computeResource.Task.Nonce.Span);
-			response.AesKey = StringUtils.FormatHexString(computeResource.Task.AesKey.Span);
-			response.AesIv = StringUtils.FormatHexString(computeResource.Task.AesIv.Span);
+			response.Key = StringUtils.FormatHexString(computeResource.Task.Key.Span);
+
+			foreach (KeyValuePair<string, int> pair in computeResource.Task.Resources)
+			{
+				response.AssignedResources.Add(pair.Key, pair.Value);
+			}
 
 			return response;
 		}

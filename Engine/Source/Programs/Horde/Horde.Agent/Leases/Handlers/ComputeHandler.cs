@@ -57,9 +57,9 @@ namespace Horde.Agent.Leases.Handlers
 					return LeaseResult.Success;
 				}
 
-				using (SocketComputeChannel channel = new SocketComputeChannel(tcpClient.Client, computeTask.AesKey.Memory, computeTask.AesIv.Memory))
+				await using (ComputeLease lease = new ComputeLease(tcpClient.Client, computeTask.Key.Span, computeTask.Nonce.Span.Slice(0, ComputeLease.NonceLength), computeTask.Resources))
 				{
-					await RunAsync(channel, cancellationToken);
+					await RunAsync(lease, cancellationToken);
 					return LeaseResult.Success;
 				}
 			}
@@ -74,37 +74,55 @@ namespace Horde.Agent.Leases.Handlers
 			}
 		}
 
-		public async Task RunAsync(IComputeChannel channel, CancellationToken cancellationToken)
+		public async Task RunAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
+			IComputeChannel channel = lease.DefaultChannel;
 			for (; ; )
 			{
-				object? request = await channel.ReadCbMessageAsync(cancellationToken);
-				switch (request)
+				using IComputeMessage message = await channel.ReadAsync(cancellationToken);
+				switch (message.Type)
 				{
-					case null:
-					case CloseMessage _:
+					case ComputeMessageType.None:
+					case ComputeMessageType.Close:
 						return;
-					case XorRequestMessage xorRequest:
+					case ComputeMessageType.XorRequest:
 						{
-							XorResponseMessage response = new XorResponseMessage();
-							response.Payload = new byte[xorRequest.Payload.Length];
-							for (int idx = 0; idx < xorRequest.Payload.Length; idx++)
-							{
-								response.Payload[idx] = (byte)(xorRequest.Payload[idx] ^ xorRequest.Value);
-							}
-							await channel.WriteCbMessageAsync(response, cancellationToken);
+							XorRequestMessage xorRequest = message.AsXorRequest();
+							await RunXorAsync(channel, xorRequest.Data, xorRequest.Value, cancellationToken);
 						}
 						break;
-					case CppComputeMessage cppCompute:
-						await RunCppAsync(channel, cppCompute.Locator, cancellationToken);
+					case ComputeMessageType.CppBegin:
+						{
+							CppBeginMessage cppBegin = message.AsCppBegin();
+							await RunCppAsync(lease.OpenChannel(cppBegin.ReplyChannelId), cppBegin.Locator, cancellationToken);
+						}
 						break;
+					default:
+						throw new NotImplementedException();
 				}
+			}
+		}
+
+		static async Task RunXorAsync(IComputeChannel channel, ReadOnlyMemory<byte> source, byte value, CancellationToken cancellationToken)
+		{
+			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.XorResponse, source.Length))
+			{
+				XorData(source.Span, writer.GetSpanAndAdvance(source.Length), value);
+				await writer.SendAsync(cancellationToken);
+			}
+		}
+
+		static void XorData(ReadOnlySpan<byte> source, Span<byte> target, byte value)
+		{
+			for (int idx = 0; idx < source.Length; idx++)
+			{
+				target[idx] = (byte)(source[idx] ^ value);
 			}
 		}
 
 		public async Task RunCppAsync(IComputeChannel channel, NodeLocator locator, CancellationToken cancellationToken)
 		{
-			DirectoryReference sandboxDir = DirectoryReference.Combine(Program.DataDir, "Sandbox");
+			DirectoryReference sandboxDir = DirectoryReference.Combine(Program.DataDir, "Sandbox", channel.Id.ToString());
 
 			using ComputeStorageClient store = new ComputeStorageClient(channel);
 			TreeReader reader = new TreeReader(store, _memoryCache, _logger);
@@ -164,21 +182,25 @@ namespace Horde.Agent.Leases.Handlers
 				CppComputeOutputNode outputNode = new CppComputeOutputNode(exitCode, logNodeRef, new TreeNodeRef<DirectoryNode>(outputTree));
 				NodeHandle outputHandle = await writer.FlushAsync(outputNode, cancellationToken);
 
-				CppComputeOutputMessage outputMessage = new CppComputeOutputMessage { Locator = outputHandle.Locator };
-				await channel.WriteCbMessageAsync(outputMessage, cancellationToken);
+				await channel.CppResultAsync(outputHandle.Locator, cancellationToken);
 			}
 
 			for (; ; )
 			{
-				object? request = await channel.ReadCbMessageAsync(cancellationToken);
-				switch (request)
+				using IComputeMessage message = await channel.ReadAsync(cancellationToken);
+				switch (message.Type)
 				{
-					case null:
-					case CppComputeFinishMessage _:
+					case ComputeMessageType.CppEnd:
+						FileUtils.ForceDeleteDirectory(sandboxDir);
 						return;
-					case BlobReadMessage blobRead:
-						await channel.WriteBlobDataAsync(blobRead, storage, cancellationToken);
+					case ComputeMessageType.CppBlobRead:
+						{
+							CppBlobReadMessage cppBlobRead = message.AsCppBlobRead();
+							await channel.CppBlobDataAsync(cppBlobRead, storage, cancellationToken);
+						}
 						break;
+					default:
+						throw new NotImplementedException();
 				}
 			}
 		}

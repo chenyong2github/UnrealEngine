@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
@@ -71,30 +72,36 @@ namespace Horde.Agent.Commands
 			return result? 0 : 1;
 		}
 
-		async Task<bool> HandleRequestAsync(IComputeChannel channel, CancellationToken cancellationToken)
+		async Task<bool> HandleRequestAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
-			MemoryStorageClient storage = new MemoryStorageClient();
-			NodeLocator node = await CreateComputeNodeAsync(TaskFile, storage, cancellationToken);
+			IComputeChannel channel = lease.OpenChannel(1);
 
-			CppComputeMessage message = new CppComputeMessage { Locator = node };
-			await channel.WriteCbMessageAsync(message, cancellationToken);
+			MemoryStorageClient storage = new MemoryStorageClient();
+
+			NodeLocator node = await CreateComputeNodeAsync(TaskFile, storage, cancellationToken);
+			await lease.DefaultChannel.CppStartAsync(node, channel.Id, cancellationToken);
 
 			for (; ; )
 			{
-				object? obj = await channel.ReadCbMessageAsync(cancellationToken);
-				switch (obj)
+				IComputeMessage message = await channel.ReadAsync(cancellationToken);
+				switch (message.Type)
 				{
-					case null:
+					case ComputeMessageType.None:
 						return false;
-					case BlobReadMessage readBlob:
-						await channel.WriteBlobDataAsync(readBlob, storage, cancellationToken);
-						break;
-					case CppComputeOutputMessage cppOutput:
+					case ComputeMessageType.CppBlobRead:
 						{
+							CppBlobReadMessage cppBlobRead = message.AsCppBlobRead();
+							await channel.CppBlobDataAsync(cppBlobRead, storage, cancellationToken);
+						}
+						break;
+					case ComputeMessageType.CppResult:
+						{
+							NodeLocator cppOutputLocator = message.AsCppResult();
+
 							using ComputeStorageClient remoteStorage = new ComputeStorageClient(channel);
 							TreeReader reader = new TreeReader(remoteStorage, null, _logger);
 
-							CppComputeOutputNode computeOutput = await reader.ReadNodeAsync<CppComputeOutputNode>(cppOutput.Locator, cancellationToken);
+							CppComputeOutputNode computeOutput = await reader.ReadNodeAsync<CppComputeOutputNode>(cppOutputLocator, cancellationToken);
 							_logger.LogInformation("Exit code: {ExitCode}", computeOutput.ExitCode);
 
 							LogNode logNode = await computeOutput.Log.ExpandAsync(reader, cancellationToken);
@@ -107,10 +114,10 @@ namespace Horde.Agent.Commands
 								}
 							}
 
-							await channel.WriteCbMessageAsync(new CppComputeFinishMessage(), cancellationToken);
-							await channel.WriteCbMessageAsync(new CloseMessage(), cancellationToken);
+							await channel.CppFinishAsync(cancellationToken);
+							await lease.DefaultChannel.CloseAsync(cancellationToken);
 						}
-						return true;
+						return false;
 					default:
 						throw new NotImplementedException();
 				}
@@ -163,10 +170,10 @@ namespace Horde.Agent.Commands
 			return client;
 		}
 
-		async Task RunListenerAsync(IComputeChannel channel, CancellationToken cancellationToken)
+		async Task RunListenerAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
 			ComputeHandler handler = ActivatorUtilities.CreateInstance<ComputeHandler>(_serviceProvider);
-			await handler.RunAsync(channel, cancellationToken);
+			await handler.RunAsync(lease, cancellationToken);
 		}
 	}
 }

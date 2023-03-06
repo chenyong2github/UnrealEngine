@@ -43,19 +43,13 @@ namespace Horde.Build.Compute
 		public ComputeTask Task { get; }
 
 		/// <summary>
-		/// Resources assigned to this lease
-		/// </summary>
-		public Dictionary<string, int> AssignedResources { get; }
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeResource(IPAddress ip, int port, ComputeTask task, Dictionary<string, int> assignedResources)
+		public ComputeResource(IPAddress ip, int port, ComputeTask task)
 		{
 			Ip = ip;
 			Port = port;
 			Task = task;
-			AssignedResources = assignedResources;
 		}
 	}
 
@@ -117,7 +111,7 @@ namespace Horde.Build.Compute
 						Dictionary<string, int> assignedResources = new Dictionary<string, int>(); 
 						if (node.Value.Agent.MeetsRequirements(requirements, assignedResources))
 						{
-							computeTask ??= CreateComputeTask();
+							computeTask ??= CreateComputeTask(assignedResources);
 
 							byte[] payload = Any.Pack(computeTask).ToByteArray();
 							AgentLease lease = new AgentLease(LeaseId.GenerateNewId(), "Compute task", null, null, null, LeaseState.Pending, assignedResources, requirements.Exclusive, payload);
@@ -125,7 +119,7 @@ namespace Horde.Build.Compute
 							if (node.Value.Lease.TrySetResult(lease))
 							{
 								Waiter waiter = node.Value;
-								return new ComputeResource(waiter.Ip, waiter.Port, computeTask, assignedResources);
+								return new ComputeResource(waiter.Ip, waiter.Port, computeTask);
 							}
 						}
 					}
@@ -134,17 +128,12 @@ namespace Horde.Build.Compute
 			return null;
 		}
 
-		static ComputeTask CreateComputeTask()
+		static ComputeTask CreateComputeTask(Dictionary<string, int> assignedResources)
 		{
 			ComputeTask computeTask = new ComputeTask();
 			computeTask.Nonce = UnsafeByteOperations.UnsafeWrap(RandomNumberGenerator.GetBytes(ServerComputeClient.NonceLength));
-
-			using (Aes aes = Aes.Create())
-			{
-				computeTask.AesKey = UnsafeByteOperations.UnsafeWrap(aes.Key);
-				computeTask.AesIv = UnsafeByteOperations.UnsafeWrap(aes.IV);
-			}
-
+			computeTask.Key = UnsafeByteOperations.UnsafeWrap(ComputeLease.CreateKey());
+			computeTask.Resources.Add(assignedResources);
 			return computeTask;
 		}
 

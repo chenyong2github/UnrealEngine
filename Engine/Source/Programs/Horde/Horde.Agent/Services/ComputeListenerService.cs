@@ -174,7 +174,7 @@ namespace Horde.Agent.Services
 
 				// Read the nonce for the connection
 				byte[] nonceBuffer = new byte[ServerComputeClient.NonceLength];
-				await socket.ReceiveFullAsync(nonceBuffer, SocketFlags.None, cancellationToken);
+				await socket.ReceiveMessageAsync(nonceBuffer, SocketFlags.None, cancellationToken);
 
 				// Register the socket
 				ByteString nonce = new ByteString(nonceBuffer);

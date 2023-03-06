@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,14 +53,21 @@ namespace Horde.Agent.Commands
 			return client;
 		}
 
-		async Task<object?> TestCommandAsync(IComputeChannel channel, CancellationToken cancellationToken)
+		async Task<object?> TestCommandAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
-			ComputeMessageWriter writer = new ComputeMessageWriter(channel);
-			await writer.WriteCbMessageAsync(new XorRequestMessage { Value = 123, Payload = new byte[] { 1, 2, 3, 4, 5 } }, cancellationToken);
+			IComputeChannel channel = lease.DefaultChannel;
 
-			XorResponseMessage response = await channel.ReadCbMessageAsync<XorResponseMessage>(cancellationToken);
+			await channel.XorRequestAsync(new byte[] { 1, 2, 3, 4, 5 }, (byte)123, cancellationToken);
+			IComputeMessage response = await channel.ReadAsync(cancellationToken);
 
-			await writer.WriteCbMessageAsync(new CloseMessage(), cancellationToken);
+			byte[] result = response.Data.ToArray();
+			Debug.Assert(result[0] == (byte)(1 ^ 123));
+			Debug.Assert(result[1] == (byte)(2 ^ 123));
+			Debug.Assert(result[2] == (byte)(3 ^ 123));
+			Debug.Assert(result[3] == (byte)(4 ^ 123));
+			Debug.Assert(result[4] == (byte)(5 ^ 123));
+
+			await channel.CloseAsync(cancellationToken);
 			return null;
 		}
 	}

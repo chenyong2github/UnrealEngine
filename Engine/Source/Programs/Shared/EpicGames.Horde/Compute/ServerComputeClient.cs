@@ -3,6 +3,7 @@
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -32,8 +33,8 @@ namespace EpicGames.Horde.Compute
 			public string Ip { get; set; } = String.Empty;
 			public int Port { get; set; }
 			public string Nonce { get; set; } = String.Empty;
-			public string AesKey { get; set; } = String.Empty;
-			public string AesIv { get; set; } = String.Empty;
+			public string Key { get; set; } = String.Empty;
+			public Dictionary<string, int> AssignedResources { get; set; } = new Dictionary<string, int>();
 		}
 
 		readonly HttpClient? _defaultHttpClient;
@@ -93,7 +94,7 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeChannel, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
+		public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeLease, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
 		{
 			// Assign a compute worker
 			HttpClient client = _createHttpClient();
@@ -118,14 +119,13 @@ namespace EpicGames.Horde.Compute
 
 			// Send the nonce
 			byte[] nonce = StringUtils.ParseHexString(responseMessage.Nonce);
-			await socket.SendFullAsync(nonce, SocketFlags.None, cancellationToken);
+			await socket.SendMessageAsync(nonce, SocketFlags.None, cancellationToken);
 			_logger.LogInformation("Connected to {Ip} with nonce {Nonce}", responseMessage.Ip, responseMessage.Nonce);
 
 			// Pass the rest of the call over to the handler
-			byte[] aesKey = StringUtils.ParseHexString(responseMessage.AesKey);
-			byte[] aesIv = StringUtils.ParseHexString(responseMessage.AesIv);
+			byte[] key = StringUtils.ParseHexString(responseMessage.Key);
 
-			using SocketComputeChannel channel = new SocketComputeChannel(socket, aesKey, aesIv);
+			await using ComputeLease channel = new ComputeLease(socket, key, nonce, responseMessage.AssignedResources);
 			return await handler(channel, cancellationToken);
 		}
 	}

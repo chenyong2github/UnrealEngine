@@ -36,6 +36,27 @@ namespace EpicGames.Horde.Compute
 
 		#region Blobs
 
+		sealed class BlobStream : ReadOnlyMemoryStream
+		{
+			readonly IComputeMessage _message;
+
+			public BlobStream(IComputeMessage message)
+				: base(message.Data)
+			{
+				_message = message;
+			}
+
+			protected override void Dispose(bool disposing)
+			{
+				base.Dispose(disposing);
+
+				if (disposing)
+				{
+					_message.Dispose();
+				}
+			}
+		}
+
 		/// <inheritdoc/>
 		public override async Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
@@ -48,11 +69,16 @@ namespace EpicGames.Horde.Compute
 			await _semaphore.WaitAsync(cancellationToken);
 			try
 			{
-				BlobReadMessage request = new BlobReadMessage { Locator = locator, Offset = offset, Length = length };
-				await _channel.WriteCbMessageAsync(request, cancellationToken);
+				await _channel.CppBlobReadAsync(locator, offset, length, cancellationToken);
 
-				BlobDataMessage response = await _channel.ReadCbMessageAsync<BlobDataMessage>(cancellationToken);
-				return new ReadOnlyMemoryStream(response.Data);
+				IComputeMessage response = await _channel.ReadAsync(cancellationToken);
+				if (response.Type != ComputeMessageType.CppBlobData)
+				{
+					response.Dispose();
+					throw new NotImplementedException();
+				}
+
+				return new BlobStream(response);
 			}
 			finally
 			{
