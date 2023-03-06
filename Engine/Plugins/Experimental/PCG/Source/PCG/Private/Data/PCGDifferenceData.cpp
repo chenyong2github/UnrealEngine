@@ -175,20 +175,24 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 		return SourcePointData;
 	}
 
+	const UPCGMetadata* SourceMetadata = SourcePointData->Metadata;
+
 	UPCGPointData* Data = NewObject<UPCGPointData>();
-	Data->InitializeFromData(this, SourcePointData->Metadata);
+	Data->InitializeFromData(this, SourceMetadata);
+	
+	UPCGMetadata* OutMetadata = Data->Metadata;
 
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 	TArray<FPCGPoint>& TargetPoints = Data->GetMutablePoints();
 
 	UPCGMetadata* TempDiffMetadata = nullptr;
-	if (bDiffMetadata && Data->Metadata && Difference->Metadata)
+	if (bDiffMetadata && OutMetadata && Difference->Metadata)
 	{
 		TempDiffMetadata = NewObject<UPCGMetadata>();
 		TempDiffMetadata->Initialize(Difference->Metadata);
 	}
 
-	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, Data, SourcePointData, TempDiffMetadata, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, Data, OutMetadata, SourcePointData, SourceMetadata, TempDiffMetadata, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
 	{
 		const FPCGPoint& Point = SourcePoints[Index];
 
@@ -202,7 +206,7 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 
 			if (TempDiffMetadata && OutPoint.Density > 0 && PointFromDiff.MetadataEntry != PCGInvalidEntryKey)
 			{
-				Data->Metadata->MergePointAttributesSubset(Point, SourcePointData->Metadata, SourcePointData->Metadata, PointFromDiff, TempDiffMetadata, TempDiffMetadata, OutPoint, EPCGMetadataOp::Sub);
+				OutMetadata->MergePointAttributesSubset(Point, SourceMetadata, SourceMetadata, PointFromDiff, TempDiffMetadata, TempDiffMetadata, OutPoint, EPCGMetadataOp::Sub);
 			}
 
 #if WITH_EDITOR

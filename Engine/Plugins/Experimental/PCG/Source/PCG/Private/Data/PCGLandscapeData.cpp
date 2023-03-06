@@ -130,7 +130,6 @@ bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& I
 
 bool UPCGLandscapeData::ProjectPoint(const FTransform& InTransform, const FBox& InBounds, const FPCGProjectionParams& InParams, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
-	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGLandscapeData::SamplePoint);
 	if (!LandscapeCache)
 	{
 		return false;
@@ -216,6 +215,8 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context, co
 		return Data;
 	}
 
+	UPCGMetadata* OutMetadata = bUseMetadata ? Data->Metadata : nullptr;
+
 	for (const TPair<FBox, ULandscapeInfo*>& LandscapeInfoPair : LandscapeInfos)
 	{
 		ULandscapeInfo* LandscapeInfo = LandscapeInfoPair.Value;
@@ -295,7 +296,7 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context, co
 						}
 						else
 						{
-							LandscapeCacheEntry->GetPoint(PointIndex, Point, bUseMetadata ? Data->Metadata : nullptr);
+							LandscapeCacheEntry->GetPoint(PointIndex, Point, OutMetadata);
 						}
 					}
 				}

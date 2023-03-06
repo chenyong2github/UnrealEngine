@@ -116,17 +116,19 @@ bool UPCGUnionData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 		}
 	}
 
+	TArray<const UPCGSpatialData*> DataRawPtr = Data;
+
 	const bool bSkipLoop = (bHasSetPoint && !OutMetadata && OutPoint.Density >= 1.0f);
-	const int32 DataCount = Data.Num();
+	const int32 DataCount = DataRawPtr.Num();
 	for (int32 DataIndex = 0; DataIndex < DataCount && !bSkipLoop; ++DataIndex)
 	{
-		if (Data[DataIndex] == FirstNonTrivialTransformData)
+		if (DataRawPtr[DataIndex] == FirstNonTrivialTransformData)
 		{
 			continue;
 		}
 
 		FPCGPoint PointInData;
-		if(Data[DataIndex]->SamplePoint(PointTransform, InBounds, PointInData, OutMetadata))
+		if(DataRawPtr[DataIndex]->SamplePoint(PointTransform, InBounds, PointInData, OutMetadata))
 		{
 			if (!bHasSetPoint)
 			{
@@ -149,7 +151,7 @@ bool UPCGUnionData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 				{
 					if (OutPoint.MetadataEntry != PCGInvalidEntryKey && PointInData.MetadataEntry != PCGInvalidEntryKey)
 					{
-						OutMetadata->MergePointAttributesSubset(OutPoint, OutMetadata, OutMetadata, PointInData, OutMetadata, Data[DataIndex]->Metadata, OutPoint, EPCGMetadataOp::Max);
+						OutMetadata->MergePointAttributesSubset(OutPoint, OutMetadata, OutMetadata, PointInData, OutMetadata, DataRawPtr[DataIndex]->Metadata, OutPoint, EPCGMetadataOp::Max);
 					}
 					else if (PointInData.MetadataEntry != PCGInvalidEntryKey)
 					{
@@ -243,35 +245,46 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 		return Data[0]->ToPointData(Context);
 	}
 
+	// Cache raw pointers for metadata as these are much faster to use
+	TArray<const UPCGSpatialData*> DataRawPtr = Data;
+	TArray<const UPCGMetadata*> InputMetadatas;
+	InputMetadatas.SetNumUninitialized(Data.Num());
+	for (int32 i = 0; i < DataRawPtr.Num(); i++)
+	{
+		InputMetadatas[i] = DataRawPtr[i]->ToPointData(Context)->Metadata;
+	}
+
 	UPCGPointData* PointData = NewObject<UPCGPointData>();
-	PointData->InitializeFromData(this, Data[0]->Metadata);
-	check(PointData->Metadata);
+	PointData->InitializeFromData(this, InputMetadatas[0]);
+
+	UPCGMetadata* OutMetadata = PointData->Metadata;
+	check(OutMetadata);
 
 	// Initialize metadata
-	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
+	for (const UPCGMetadata* InputMetadata : InputMetadatas)
 	{
-		PointData->Metadata->AddAttributes(Datum->Metadata);
+		OutMetadata->AddAttributes(InputMetadata);
 	}
 
 	switch (UnionType)
 	{
 	case EPCGUnionType::LeftToRightPriority:
 	default:
-		CreateSequentialPointData(Context, PointData, /*bLeftToRight=*/true);
+		CreateSequentialPointData(Context, DataRawPtr, InputMetadatas, PointData, OutMetadata, /*bLeftToRight=*/true);
 		break;
 
 	case EPCGUnionType::RightToLeftPriority:
-		CreateSequentialPointData(Context, PointData, /*bLeftToRight=*/false);
+		CreateSequentialPointData(Context, DataRawPtr, InputMetadatas, PointData, OutMetadata, /*bLeftToRight=*/false);
 		break;
 
 	case EPCGUnionType::KeepAll:
 		{
 			TArray<FPCGPoint>& TargetPoints = PointData->GetMutablePoints();
-			for(int32 DataIndex = 0; DataIndex < Data.Num(); ++DataIndex)
+			for(int32 DataIndex = 0; DataIndex < DataRawPtr.Num(); ++DataIndex)
 			{
-				TObjectPtr<const UPCGSpatialData> Datum = Data[DataIndex];
-
+				const UPCGSpatialData* Datum = DataRawPtr[DataIndex];
 				const UPCGPointData* DatumPointData = Datum->ToPointData(Context);
+				const UPCGMetadata* DatumPointMetadata = DatumPointData->Metadata;
 
 				int32 TargetPointOffset = TargetPoints.Num();
 				TargetPoints.Append(DatumPointData->GetPoints());
@@ -285,9 +298,9 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 						Point.MetadataEntry = PCGInvalidEntryKey;
 					}
 
-					if (PointData->Metadata && DatumPointData->Metadata && DatumPointData->Metadata->GetAttributeCount() > 0)
+					if (OutMetadata && DatumPointMetadata && DatumPointMetadata->GetAttributeCount() > 0)
 					{
-						PointData->Metadata->SetPointAttributes(MakeArrayView(DatumPointData->GetPoints()), DatumPointData->Metadata, TargetPointsSubset);
+						OutMetadata->SetPointAttributes(MakeArrayView(DatumPointData->GetPoints()), DatumPointMetadata, TargetPointsSubset);
 					}
 				}
 			}
@@ -309,15 +322,15 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 	return PointData;
 }
 
-void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointData* PointData, bool bLeftToRight) const
+void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, TArray<const UPCGSpatialData*>& InputDatas, TArray<const UPCGMetadata*>& InputMetadatas, UPCGPointData* PointData, UPCGMetadata* OutMetadata, bool bLeftToRight) const
 {
 	check(PointData);
 
 	TArray<FPCGPoint>& TargetPoints = PointData->GetMutablePoints();
 	TArray<FPCGPoint> SelectedDataPoints;
 
-	int32 FirstDataIndex = (bLeftToRight ? 0 : Data.Num() - 1);
-	int32 LastDataIndex = (bLeftToRight ? Data.Num() : -1);
+	int32 FirstDataIndex = (bLeftToRight ? 0 : InputDatas.Num() - 1);
+	int32 LastDataIndex = (bLeftToRight ? InputDatas.Num() : -1);
 	int32 DataIndexIncrement = (bLeftToRight ? 1 : -1);
 
 	// Note: this is a O(N^2) implementation. 
@@ -326,9 +339,10 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 	{
 		// For each point, if it is not already "processed" by previous data,
 		// add it & compute its final density
-		const TArray<FPCGPoint>& Points = Data[DataIndex]->ToPointData(Context)->GetPoints();
+		const UPCGPointData* CurrentPointData = InputDatas[DataIndex]->ToPointData(Context);
+		const TArray<FPCGPoint>& Points = CurrentPointData->GetPoints();
 
-		FPCGAsync::AsyncPointProcessing(Context, Points.Num(), SelectedDataPoints, [this, PointData, &Points, DataIndex, FirstDataIndex, LastDataIndex, DataIndexIncrement](int32 Index, FPCGPoint& OutPoint)
+		FPCGAsync::AsyncPointProcessing(Context, Points.Num(), SelectedDataPoints, [this, PointData, OutMetadata, &Points, &InputDatas, &InputMetadatas, DataIndex, FirstDataIndex, LastDataIndex, DataIndexIncrement](int32 Index, FPCGPoint& OutPoint)
 		{
 			const FPCGPoint& Point = Points[Index];
 
@@ -336,7 +350,7 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 			bool bPointToExclude = false;
 			for (int32 PreviousDataIndex = FirstDataIndex; PreviousDataIndex != DataIndex; PreviousDataIndex += DataIndexIncrement)
 			{
-				if (Data[PreviousDataIndex]->GetDensityAtPosition(Point.Transform.GetLocation()) != 0)
+				if (InputDatas[PreviousDataIndex]->GetDensityAtPosition(Point.Transform.GetLocation()) != 0)
 				{
 					bPointToExclude = true;
 					break;
@@ -348,14 +362,14 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 				return false;
 			}
 
-			check(PointData && PointData->Metadata);
+			check(PointData && OutMetadata);
 
 			OutPoint = Point;
-			if (PointData->Metadata->GetParent() != Data[DataIndex]->Metadata)
+			if (OutMetadata->GetParent() != InputMetadatas[DataIndex])
 			{
-				UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, PointData->Metadata);
+				UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, OutMetadata);
 				// Since we can't inherit from the parent point, we'll set the values directly here
-				PointData->Metadata->SetPointAttributes(Point, Data[DataIndex]->Metadata, OutPoint);
+				OutMetadata->SetPointAttributes(Point, InputMetadatas[DataIndex], OutPoint);
 			}
 
 			if (DensityFunction == EPCGUnionDensityFunction::Binary && OutPoint.Density > 0)
@@ -364,11 +378,11 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 			}
 
 			// Update density & metadata based on current & following data
-			const bool bSkipLoop = (OutPoint.Density >= 1.0f && !PointData->Metadata);
+			const bool bSkipLoop = (OutPoint.Density >= 1.0f && !OutMetadata);
 			for (int32 FollowingDataIndex = DataIndex + DataIndexIncrement; FollowingDataIndex != LastDataIndex && !bSkipLoop; FollowingDataIndex += DataIndexIncrement)
 			{
 				FPCGPoint PointInData;
-				if(Data[FollowingDataIndex]->SamplePoint(OutPoint.Transform, OutPoint.GetLocalBounds(), PointInData, PointData->Metadata))
+				if(InputDatas[FollowingDataIndex]->SamplePoint(OutPoint.Transform, OutPoint.GetLocalBounds(), PointInData, OutMetadata))
 				{
 					// Update density
 					PCGUnionDataMaths::UpdateDensity(OutPoint.Density, PointInData.Density, DensityFunction);
@@ -380,11 +394,11 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 						FMath::Max(OutPoint.Color.Z, PointInData.Color.Z),
 						FMath::Max(OutPoint.Color.W, PointInData.Color.W));
 
-					if (PointData->Metadata)
+					if (OutMetadata)
 					{
 						if (OutPoint.MetadataEntry != PCGInvalidEntryKey && PointInData.MetadataEntry != PCGInvalidEntryKey)
 						{
-							PointData->Metadata->MergePointAttributesSubset(OutPoint, PointData->Metadata, PointData->Metadata, PointInData, PointData->Metadata, Data[FollowingDataIndex]->Metadata, OutPoint, EPCGMetadataOp::Max);
+							OutMetadata->MergePointAttributesSubset(OutPoint, OutMetadata, OutMetadata, PointInData, OutMetadata, InputMetadatas[FollowingDataIndex], OutPoint, EPCGMetadataOp::Max);
 						}
 						else if (PointInData.MetadataEntry != PCGInvalidEntryKey)
 						{
@@ -421,4 +435,3 @@ UPCGSpatialData* UPCGUnionData::CopyInternal() const
 
 	return NewUnionData;
 }
-

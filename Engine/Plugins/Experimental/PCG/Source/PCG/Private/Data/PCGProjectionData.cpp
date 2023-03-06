@@ -173,13 +173,15 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 	// TODO: add mechanism in the ToPointData so we can pass in a transform
 	// so we can forego creating the points twice if they're not used.
 	const UPCGPointData* SourcePointData = Source->ToPointData(Context);
+	const UPCGMetadata* SourceMetadata = SourcePointData->Metadata;
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 
 	UPCGPointData* PointData = NewObject<UPCGPointData>();
 
 	// Copy metadata attributes from source point including values
-	PointData->InitializeFromData(this, SourcePointData->Metadata);
-	check(PointData->Metadata);
+	PointData->InitializeFromData(this, SourceMetadata);
+	UPCGMetadata* OutMetadata = PointData->Metadata;
+	check(OutMetadata);
 
 	// The projection operation will write into this temporary metadata
 	UPCGMetadata* TempTargetMetadata = nullptr;
@@ -203,11 +205,11 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 	}
 
 	// Add any attributes from filtered metadata to produce final list
-	PointData->Metadata->AddAttributes(TempTargetMetadata);
+	OutMetadata->AddAttributes(TempTargetMetadata);
 
 	TArray<FPCGPoint>& Points = PointData->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), Points, [this, SourcePointData, PointData, TempTargetMetadata, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), Points, [this, SourcePointData, SourceMetadata, PointData, OutMetadata, TempTargetMetadata, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
 	{
 		const FPCGPoint& SourcePoint = SourcePoints[Index];
 
@@ -230,10 +232,10 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 		OutPoint.Color = ProjectionParams.bProjectColors ? (PointFromTarget.Color * SourcePoint.Color) : SourcePoint.Color;
 		OutPoint.Density *= PointFromTarget.Density;
 		
-		if (PointData->Metadata && TempTargetMetadata && PointFromTarget.MetadataEntry != PCGInvalidEntryKey)
+		if (OutMetadata && TempTargetMetadata && PointFromTarget.MetadataEntry != PCGInvalidEntryKey)
 		{
 			// Merge metadata to produce final attribute values
-			PointData->Metadata->MergePointAttributesSubset(SourcePoint, SourcePointData->Metadata, SourcePointData->Metadata, PointFromTarget, TempTargetMetadata, TempTargetMetadata, OutPoint, ProjectionParams.AttributeMergeOperation);
+			OutMetadata->MergePointAttributesSubset(SourcePoint, SourceMetadata, SourceMetadata, PointFromTarget, TempTargetMetadata, TempTargetMetadata, OutPoint, ProjectionParams.AttributeMergeOperation);
 		}
 
 		return true;

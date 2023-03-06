@@ -87,6 +87,9 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
+	const UPCGMetadata* SourcePointMetadata = SourcePointData->Metadata;
+	const UPCGMetadata* TargetPointMetadata = TargetPointData->Metadata;
+
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 	const TArray<FPCGPoint>& TargetPoints = TargetPointData->GetPoints();
 
@@ -99,8 +102,8 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGMetadata* RootMetadata = nullptr;
 	const UPCGMetadata* NonRootMetadata = nullptr;
 
-	const bool bSourceHasMetadata = (SourcePointData->Metadata->GetAttributeCount() > 0 && SourcePointData->Metadata->GetItemCountForChild() > 0);
-	const bool bTargetHasMetadata = (TargetPointData->Metadata->GetAttributeCount() > 0 && TargetPointData->Metadata->GetItemCountForChild() > 0);
+	const bool bSourceHasMetadata = (SourcePointMetadata->GetAttributeCount() > 0 && SourcePointMetadata->GetItemCountForChild() > 0);
+	const bool bTargetHasMetadata = (TargetPointMetadata->GetAttributeCount() > 0 && TargetPointMetadata->GetItemCountForChild() > 0);
 
 	bool bInheritMetadataFromSource = true;
 	bool bProcessMetadata = (bSourceHasMetadata || bTargetHasMetadata);
@@ -111,7 +114,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 		bProcessMetadata = bSourceHasMetadata;
 
 		OutPointData->InitializeFromData(SourcePointData);
-		RootMetadata = SourcePointData->Metadata;
+		RootMetadata = SourcePointMetadata;
 		NonRootMetadata = nullptr;
 	}
 	else if (AttributeInheritance == EPCGCopyPointsMetadataInheritanceMode::TargetOnly)
@@ -121,7 +124,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 		OutPointData->InitializeFromData(TargetPointData);
 
-		RootMetadata = TargetPointData->Metadata;
+		RootMetadata = TargetPointMetadata;
 		NonRootMetadata = nullptr;
 	}
 	else if (AttributeInheritance == EPCGCopyPointsMetadataInheritanceMode::SourceFirst)
@@ -129,8 +132,8 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 		bInheritMetadataFromSource = bSourceHasMetadata || !bTargetHasMetadata;
 
 		OutPointData->InitializeFromData(SourcePointData);
-		RootMetadata = SourcePointData->Metadata;
-		NonRootMetadata = TargetPointData->Metadata;
+		RootMetadata = SourcePointMetadata;
+		NonRootMetadata = TargetPointMetadata;
 	}
 	else if (AttributeInheritance == EPCGCopyPointsMetadataInheritanceMode::TargetFirst)
 	{
@@ -138,8 +141,8 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 		OutPointData->InitializeFromData(TargetPointData);
 
-		RootMetadata = TargetPointData->Metadata;
-		NonRootMetadata = SourcePointData->Metadata;
+		RootMetadata = TargetPointMetadata;
+		NonRootMetadata = SourcePointMetadata;
 	}
 	else // None
 	{
@@ -152,7 +155,8 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 	// Priorize use the target actor from the target, irrespective of the source
 	OutPointData->TargetActor = TargetPointData->TargetActor.IsValid() ? TargetPointData->TargetActor : SourcePointData->TargetActor;
 
-	check(OutPointData->Metadata);
+	UPCGMetadata* OutMetadata = OutPointData->Metadata;
+	check(OutMetadata);
 
 	TArray<FPCGMetadataAttributeBase*> AttributesToSet;
 	TArray<const FPCGMetadataAttributeBase*> NonRootAttributes;
@@ -171,10 +175,10 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 			for (const FName& AttributeName : AttributeNames)
 			{
-				if (!OutPointData->Metadata->HasAttribute(AttributeName))
+				if (!OutMetadata->HasAttribute(AttributeName))
 				{
 					const FPCGMetadataAttributeBase* Attribute = NonRootMetadata->GetConstAttribute(AttributeName);
-					if (FPCGMetadataAttributeBase* NewAttribute = OutPointData->Metadata->CopyAttribute(Attribute, AttributeName, /*bKeepRoot=*/false, /*bCopyEntries=*/false, /*bCopyValues=*/true))
+					if (FPCGMetadataAttributeBase* NewAttribute = OutMetadata->CopyAttribute(Attribute, AttributeName, /*bKeepRoot=*/false, /*bCopyEntries=*/false, /*bCopyValues=*/true))
 					{
 						AttributesToSet.Add(NewAttribute);
 						NonRootAttributes.Add(Attribute);
@@ -261,7 +265,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 		{
 			const FPCGPoint* RootPoint = (bInheritMetadataFromSource ? &SourcePoint : &TargetPoint);
 
-			OutPoint.MetadataEntry = OutPointData->Metadata->AddEntryPlaceholder();
+			OutPoint.MetadataEntry = OutMetadata->AddEntryPlaceholder();
 			AllMetadataEntries[Index] = TTuple<int64, int64>(OutPoint.MetadataEntry, RootPoint->MetadataEntry);
 
 			if (NonRootMetadata)
@@ -313,7 +317,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 			}
 		}
 
-		OutPointData->Metadata->AddDelayedEntries(AllMetadataEntries);
+		OutMetadata->AddDelayedEntries(AllMetadataEntries);
 	}
 
 	return true;
