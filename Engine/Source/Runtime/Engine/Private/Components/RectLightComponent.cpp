@@ -117,6 +117,10 @@ float URectLightComponent::ComputeLightBrightness() const
 	{
 		LightBrightness *= (100.f * 100.f / UE_PI); // Conversion from cm2 to m2 and PI from the cosine distribution
 	}
+	else if (IntensityUnits == ELightUnits::EV)
+	{
+		LightBrightness *= (100.f * 100.f) * EV100ToLuminance(LightBrightness);
+	}
 	else
 	{
 		LightBrightness *= 16; // Legacy scale of 16
@@ -135,6 +139,10 @@ void URectLightComponent::SetLightBrightness(float InBrightness)
 	else if (IntensityUnits == ELightUnits::Lumens)
 	{
 		Super::SetLightBrightness(InBrightness / (100.f * 100.f / UE_PI)); // Conversion from cm2 to m2 and PI from the cosine distribution
+	}
+	else if (IntensityUnits == ELightUnits::EV)
+	{
+		Super::SetLightBrightness(LuminanceToEV100(InBrightness / (100.f * 100.f)));
 	}
 	else
 	{

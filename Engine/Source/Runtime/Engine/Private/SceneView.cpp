@@ -339,12 +339,6 @@ static TAutoConsoleVariable<float> CVarOverrideTimeMaterialExpressions(
 
 #endif
 
-// Conversion factor used when "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange" 
-FORCEINLINE float LuminanceToEV100(float Luminance)
-{
-	return FMath::Log2(Luminance / 1.2f);
-}
-
 /** Global vertex color view mode setting when SHOW_VertexColors show flag is set */
 EVertexColorViewMode::Type GVertexColorViewMode = EVertexColorViewMode::Color;
 
@@ -1954,8 +1948,9 @@ void FSceneView::StartFinalPostprocessSettings(FVector InViewLocation)
 			FinalPostProcessSettings.AutoExposureMaxBrightness = 1;
 			if (CVarDefaultAutoExposureExtendDefaultLuminanceRange.GetValueOnGameThread())
 			{
-				FinalPostProcessSettings.AutoExposureMinBrightness = LuminanceToEV100(FinalPostProcessSettings.AutoExposureMinBrightness);
-				FinalPostProcessSettings.AutoExposureMaxBrightness = LuminanceToEV100(FinalPostProcessSettings.AutoExposureMaxBrightness);
+				const float MaxLuminance = 1.2f; // Should we use const LuminanceMaxFromLensAttenuation() instead?
+				FinalPostProcessSettings.AutoExposureMinBrightness = LuminanceToEV100(MaxLuminance, FinalPostProcessSettings.AutoExposureMinBrightness);
+				FinalPostProcessSettings.AutoExposureMaxBrightness = LuminanceToEV100(MaxLuminance, FinalPostProcessSettings.AutoExposureMaxBrightness);
 			}
 		}
 		else

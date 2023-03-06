@@ -73,6 +73,7 @@ public:
 	{
 		return LightmassSettings;
 	}
+	virtual ELightUnits GetLightUnits() const { return IntensityUnits; }
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;

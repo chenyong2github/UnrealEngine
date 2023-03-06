@@ -72,6 +72,7 @@ enum class ELightUnits : uint8
 	Unitless,
 	Candelas,
 	Lumens,
+	EV,
 };
 
 UENUM()

@@ -52,9 +52,18 @@ void FLocalLightComponentDetails::CustomizeDetails( IDetailLayoutBuilder& Detail
 	IntensityUnitsProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FLocalLightComponentDetails::OnIntensityUnitsChanged, Component));
 
 	// Inverse squared falloff point lights (the default) are in units of lumens, instead of just being a brightness scale
-	LightIntensityProperty->SetInstanceMetaData("UIMin",TEXT("0.0f"));
-	LightIntensityProperty->SetInstanceMetaData("UIMax",  *FString::SanitizeFloat(100000.0f * ConversionFactor));
-	LightIntensityProperty->SetInstanceMetaData("SliderExponent", TEXT("2.0f"));
+	if (Component->IntensityUnits == ELightUnits::EV)
+	{
+		// +/-32 stops give a large enough range
+		LightIntensityProperty->SetInstanceMetaData("UIMin",TEXT("-32.0f"));
+		LightIntensityProperty->SetInstanceMetaData("UIMax",TEXT("32.0f"));
+	}
+	else
+	{
+		LightIntensityProperty->SetInstanceMetaData("UIMin",TEXT("0.0f"));
+		LightIntensityProperty->SetInstanceMetaData("UIMax",  *FString::SanitizeFloat(100000.0f * ConversionFactor));
+		LightIntensityProperty->SetInstanceMetaData("SliderExponent", TEXT("2.0f"));
+	}
 	if (Component->IntensityUnits == ELightUnits::Lumens)
 	{
 		LightIntensityProperty->SetInstanceMetaData("Units", TEXT("lm"));
@@ -64,6 +73,11 @@ void FLocalLightComponentDetails::CustomizeDetails( IDetailLayoutBuilder& Detail
 	{
 		LightIntensityProperty->SetInstanceMetaData("Units", TEXT("cd"));
 		LightIntensityProperty->SetToolTipText(LOCTEXT("LightIntensityInCandelasToolTipText", "Luminous intensity in candelas"));
+	}
+	else if (Component->IntensityUnits == ELightUnits::EV)
+	{
+		LightIntensityProperty->SetInstanceMetaData("Units", TEXT("ev"));
+		LightIntensityProperty->SetToolTipText(LOCTEXT("LightIntensityInCandelasToolTipText", "Luminous intensity in EV100"));
 	}
 
 	// Make these come first

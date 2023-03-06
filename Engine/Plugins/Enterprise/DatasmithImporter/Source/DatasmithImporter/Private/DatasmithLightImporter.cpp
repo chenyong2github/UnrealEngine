@@ -361,6 +361,9 @@ void FDatasmithLightImporter::SetupPointLightComponent( UPointLightComponent* Po
 	case EDatasmithLightUnits::Lumens:
 		PointLightComponentTemplate->IntensityUnits = ELightUnits::Lumens;
 		break;
+	case EDatasmithLightUnits::EV:
+		PointLightComponentTemplate->IntensityUnits = ELightUnits::EV;
+		break;
 	default:
 		PointLightComponentTemplate->IntensityUnits = ELightUnits::Unitless;
 		break;

@@ -459,15 +459,19 @@ bool ULightComponent::IsShadowCast(UPrimitiveComponent* Primitive) const
 float ULightComponent::ComputeLightBrightness() const
 {
 	float LightBrightness = Intensity;
-
-	if(IESTexture)
+	if (IESTexture)
 	{
-		if(bUseIESBrightness)
+		// When using EV100 unit, do conversion back and force so that IES brigthness can be computed on linear value
+		const bool bEVUnit = GetLightUnits() == ELightUnits::EV;
+		if (bEVUnit) { LightBrightness = EV100ToLuminance(Intensity); }
+		
+		if (bUseIESBrightness)
 		{
 			LightBrightness = IESTexture->Brightness * IESBrightnessScale;
 		}
-
 		LightBrightness *= IESTexture->TextureMultiplier;
+
+		if (bEVUnit) { LightBrightness = LuminanceToEV100(LightBrightness); }
 	}
 
 	return LightBrightness;
@@ -478,7 +482,11 @@ void ULightComponent::SetLightBrightness(float InBrightness)
 {
 	if (IESTexture && IESTexture->TextureMultiplier > 0)
 	{
-		if(bUseIESBrightness && IESBrightnessScale > 0)
+		// When using EV100 unit, do conversion back and force so that IES brigthness can be computed on linear value
+		const bool bEVUnit = GetLightUnits() == ELightUnits::EV;
+		if (bEVUnit) { InBrightness = EV100ToLuminance(InBrightness); }
+
+		if (bUseIESBrightness && IESBrightnessScale > 0)
 		{
 			IESTexture->Brightness = InBrightness / IESBrightnessScale / IESTexture->TextureMultiplier;
 		}
@@ -486,6 +494,8 @@ void ULightComponent::SetLightBrightness(float InBrightness)
 		{
 			Intensity = InBrightness / IESTexture->TextureMultiplier;
 		}
+
+		if (bEVUnit) { Intensity = LuminanceToEV100(Intensity); }
 	}
 	else
 	{
@@ -644,7 +654,11 @@ void ULightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FString PropertyName = PropertyThatChanged ? PropertyThatChanged->GetName() : TEXT("");
 
-	Intensity = FMath::Max(0.0f, Intensity);
+
+	if (GetLightUnits() != ELightUnits::EV)
+	{
+		Intensity = FMath::Max(0.0f, Intensity);
+	}
 	SpecularScale = FMath::Clamp( SpecularScale, 0.0f, 1.0f );
 
 	if (HasStaticLighting())

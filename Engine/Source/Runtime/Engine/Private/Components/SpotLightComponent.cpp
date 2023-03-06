@@ -245,6 +245,10 @@ float USpotLightComponent::ComputeLightBrightness() const
 		{
 			LightBrightness *= (100.f * 100.f / 2.f / UE_PI / (1.f - GetCosHalfConeAngle())); // Conversion from cm2 to m2 and cone remapping.
 		}
+		else if (IntensityUnits == ELightUnits::EV)
+		{
+			LightBrightness = EV100ToLuminance(LightBrightness * (100.f * 100.f));
+		}
 		else
 		{
 			LightBrightness *= 16; // Legacy scale of 16
@@ -265,6 +269,10 @@ void USpotLightComponent::SetLightBrightness(float InBrightness)
 		else if (IntensityUnits == ELightUnits::Lumens)
 		{
 			ULightComponent::SetLightBrightness(InBrightness / (100.f * 100.f / 2.f / UE_PI / (1.f - GetCosHalfConeAngle()))); // Conversion from cm2 to m2 and cone remapping
+		}
+		else if (IntensityUnits == ELightUnits::EV)
+		{
+			ULightComponent::SetLightBrightness(LuminanceToEV100(InBrightness / (100.f * 100.f)));
 		}
 		else
 		{

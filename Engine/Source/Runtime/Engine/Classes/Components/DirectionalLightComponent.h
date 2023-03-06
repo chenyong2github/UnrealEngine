@@ -338,6 +338,7 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	{
 		return AtmosphereSunDiskColorScale;
 	}
+	virtual ELightUnits GetLightUnits() const { return ELightUnits::Unitless; /* Lux */ }
 	//~ End ULightComponent Interface
 
 	//~ Begin UObject Interface

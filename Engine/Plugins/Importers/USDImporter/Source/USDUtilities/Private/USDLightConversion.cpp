@@ -25,6 +25,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/TextureCube.h"
 #include "Misc/Paths.h"
+#include "RenderUtils.h"
 
 #if USE_USD_SDK
 
@@ -65,6 +66,10 @@ namespace LightConversionImpl
 			// Nit = lumen / ( sr * area );
 			// https://docs.unrealengine.com/en-US/Engine/Rendering/LightingAndShadows/PhysicalLightUnits/index.html#point,spot,andrectlights
 			return Intensity / ( Steradians * AreaInSqMeters );
+			break;
+		case ELightUnits::EV:
+			// Nit = luminance (cd/m2)
+			return EV100ToLuminance(Intensity);
 			break;
 		case ELightUnits::Unitless:
 			// Nit = ( unitless / 625 ) / area = candela / area
@@ -531,6 +536,10 @@ bool UnrealToUsd::ConvertRectLightComponent( const URectLightComponent& LightCom
 			// https://docs.unrealengine.com/en-US/Engine/Rendering/LightingAndShadows/PhysicalLightUnits/index.html#point,spot,andrectlights
 			FinalIntensityNits = OldIntensity / ( PI * AreaInSqMeters );
 			break;
+		case ELightUnits::EV:
+			// Nit = luminance (cd/m2)
+			FinalIntensityNits = EV100ToLuminance(OldIntensity);
+			break;
 		case ELightUnits::Unitless:
 			// Nit = (unitless/625) / area = candela / area
 			// https://docs.unrealengine.com/en-US/Engine/Rendering/LightingAndShadows/PhysicalLightUnits/index.html#point,spot,andrectlights
@@ -600,6 +609,10 @@ bool UnrealToUsd::ConvertPointLightComponent( const UPointLightComponent& LightC
 		case ELightUnits::Lumens:
 			// Nit = lumen / (sr * area); For a full sphere sr = 4PI
 			FinalIntensityNits = OldIntensity / ( SolidAngle * AreaInSqMeters );
+			break;
+		case ELightUnits::EV:
+			// Nit = luminance (cd/m2)
+			FinalIntensityNits = EV100ToLuminance(OldIntensity);
 			break;
 		case ELightUnits::Unitless:
 			// Nit = (unitless/625) / area = candela / area

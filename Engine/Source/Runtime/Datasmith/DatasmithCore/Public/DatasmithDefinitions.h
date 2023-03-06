@@ -159,6 +159,7 @@ enum class EDatasmithLightUnits
 	Unitless,
 	Candelas,
 	Lumens,
+	EV,
 };
 
 /** Different usage for textures.  Note: Preserve enum order. */

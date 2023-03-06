@@ -14,6 +14,7 @@ enum class EInterchangeLightUnits : uint8
 	Unitless,
 	Candelas,
 	Lumens,
+	EV,
 };
 
 UCLASS(BlueprintType)

@@ -669,6 +669,9 @@ namespace FDatasmithImporterUtilsHelper
 		case ELightUnits::Lumens:
 			PointLightElement->SetIntensityUnits( EDatasmithLightUnits::Lumens );
 			break;
+		case ELightUnits::EV:
+			PointLightElement->SetIntensityUnits( EDatasmithLightUnits::EV );
+			break;
 		default:
 			PointLightElement->SetIntensityUnits( EDatasmithLightUnits::Unitless );
 			break;

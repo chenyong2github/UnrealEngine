@@ -4,28 +4,6 @@
 
 #include "ScreenPass.h"
 
-// LuminanceMax is the amount of light that will cause the sensor to saturate at EV100.
-//  See also https://en.wikipedia.org/wiki/Film_speed and https://en.wikipedia.org/wiki/Exposure_value for more info.
-FORCEINLINE float EV100ToLuminance(float LuminanceMax, float EV100)
-{
-	return LuminanceMax * FMath::Pow(2.0f, EV100);
-}
-
-FORCEINLINE float EV100ToLog2(float LuminanceMax, float EV100)
-{
-	return EV100 + FMath::Log2(LuminanceMax);
-}
-
-FORCEINLINE float LuminanceToEV100(float LuminanceMax, float Luminance)
-{
-	return FMath::Log2(Luminance / LuminanceMax);
-}
-
-FORCEINLINE float Log2ToEV100(float LuminanceMax, float Log2)
-{
-	return Log2 - FMath::Log2(LuminanceMax);
-}
-
 namespace AutoExposurePermutation
 {
 	class FUsePrecalculatedLuminanceDim : SHADER_PERMUTATION_BOOL("USE_PRECALCULATED_LUMINANCE");

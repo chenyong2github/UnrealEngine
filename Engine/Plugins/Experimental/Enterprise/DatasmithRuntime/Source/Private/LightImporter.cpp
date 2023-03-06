@@ -221,6 +221,9 @@ namespace DatasmithRuntime
 				case EDatasmithLightUnits::Lumens:
 					PointLightComponent->IntensityUnits = ELightUnits::Lumens;
 					break;
+				case EDatasmithLightUnits::EV:
+					PointLightComponent->IntensityUnits = ELightUnits::EV;
+					break;
 				default:
 					PointLightComponent->IntensityUnits = ELightUnits::Unitless;
 					break;

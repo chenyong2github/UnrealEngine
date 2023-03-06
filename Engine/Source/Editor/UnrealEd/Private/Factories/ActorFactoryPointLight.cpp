@@ -21,7 +21,7 @@ void UActorFactoryPointLight::PostSpawnActor(UObject* Asset, AActor* NewActor)
 			static const auto CVarDefaultLightUnits = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultFeature.LightUnits"));
 			ELightUnits DefaultUnits = (ELightUnits)CVarDefaultLightUnits->GetValueOnAnyThread();
 
-			Component->Intensity *= UPointLightComponent::GetUnitsConversionFactor(Component->IntensityUnits, DefaultUnits);
+			Component->Intensity *= UPointLightComponent::GetUnitsConversionFactor(Component->IntensityUnits, DefaultUnits, -1.f);
 			Component->IntensityUnits = DefaultUnits;
 		}
 	}

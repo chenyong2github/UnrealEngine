@@ -500,3 +500,37 @@ namespace Strata
 	RENDERCORE_API uint32 GetShadingQuality();
 	RENDERCORE_API uint32 GetShadingQuality(EShaderPlatform InPlatform);
 }
+
+// LuminanceMax is the amount of light that will cause the sensor to saturate at EV100.
+//  See also https://en.wikipedia.org/wiki/Film_speed and https://en.wikipedia.org/wiki/Exposure_value for more info.
+FORCEINLINE float EV100ToLuminance(float LuminanceMax, float EV100)
+{
+	return LuminanceMax * FMath::Pow(2.0f, EV100);
+}
+
+FORCEINLINE float EV100ToLuminance(float EV100)
+{
+	// LuminanceMax set to 1 for lighting to be unitless (1.0cd/m^2 becomes 1.0 at EV100)
+	return EV100ToLuminance(1.0f, EV100);
+}
+
+FORCEINLINE float EV100ToLog2(float LuminanceMax, float EV100)
+{
+	return EV100 + FMath::Log2(LuminanceMax);
+}
+
+FORCEINLINE float LuminanceToEV100(float LuminanceMax, float Luminance)
+{
+	return FMath::Log2(Luminance / LuminanceMax);
+}
+
+FORCEINLINE float LuminanceToEV100(float Luminance)
+{
+	// LuminanceMax set to 1 for lighting to be unitless (1.0cd/m^2 becomes 1.0 at EV100)
+	return FMath::Log2(Luminance);
+}
+
+FORCEINLINE float Log2ToEV100(float LuminanceMax, float Log2)
+{
+	return Log2 - FMath::Log2(LuminanceMax);
+}
