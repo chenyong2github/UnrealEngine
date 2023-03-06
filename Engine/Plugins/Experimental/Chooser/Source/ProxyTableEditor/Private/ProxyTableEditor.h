@@ -7,6 +7,7 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Editor/PropertyEditor/Public/PropertyEditorDelegates.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STreeView.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "ProxyTable.h"
 #include "EditorUndoClient.h"
@@ -88,12 +89,14 @@ namespace UE::ProxyTableEditor
 			
 			UProxyTable* ProxyTable;
 			int32 RowIndex;
+			TArray<TSharedPtr<FProxyTableRow>> Children;			
 		};
 
 		void UpdateTableColumns();
 		void UpdateTableRows();
 		void MoveRow(int SourceRowIndex, int TargetIndex);
 		void InsertEntry(FProxyEntry& Entry, int RowIndex);
+		void DeleteSelectedRows();
 	private:
 		void AddInheritedRows(UProxyTable* ProxyTable);
 		void SelectRootProperties();
@@ -106,6 +109,7 @@ namespace UE::ProxyTableEditor
 		TSharedRef<SDockTab> SpawnTableTab( const FSpawnTabArgs& Args );
 	
 		TSharedRef<ITableRow> GenerateTableRow(TSharedPtr<FProxyTableRow> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+		void TreeViewExpansionChanged(TSharedPtr<FProxyTableEditor::FProxyTableRow> InItem, bool bShouldBeExpanded);
 
 		/** Called when objects need to be swapped out for new versions, like after a blueprint recompile. */
 		void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
@@ -132,9 +136,21 @@ namespace UE::ProxyTableEditor
 		TSharedPtr<SComboButton> CreateRowComboButton;
 		
 		TSharedPtr<SHeaderRow> HeaderRow;
-		TSharedPtr<SListView<TSharedPtr<FProxyTableRow>>> TableView;
+		TSharedPtr<STreeView<TSharedPtr<FProxyTableRow>>> TableView;
 		
 	public:
+		TMap<UProxyTable*, bool> ImportedTablesExpansionState;
+		TSet<UProxyAsset*> ReferencedProxyAssets;
+		TSet<UProxyTable*> ReferencedProxyTables;
+		
+		void SelectRow(TSharedPtr<FProxyTableRow> Row)
+		{
+			if (!TableView->IsItemSelected(Row))
+			{
+				TableView->ClearSelection();
+				TableView->SetItemSelection(Row, true, ESelectInfo::OnMouseClick);
+			}
+		}
 		TSharedPtr<SComboButton>& GetCreateRowComboButton() { return CreateRowComboButton; };
 
 		/** The name given to all instances of this type of editor */

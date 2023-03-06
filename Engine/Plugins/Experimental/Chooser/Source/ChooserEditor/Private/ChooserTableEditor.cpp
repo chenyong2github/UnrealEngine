@@ -35,6 +35,7 @@
 #include "ScopedTransaction.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "ChooserTableEditorCommands.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "ChooserEditor"
 
@@ -915,7 +916,12 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 		.TabColorScale( GetTabColorScale() )
 		.OnCanCloseTab_Lambda([]() { return false; })
 		[
-			TableView.ToSharedRef()
+			
+			SNew(SScrollBox).Orientation(Orient_Horizontal)
+			+ SScrollBox::Slot()
+			[
+				TableView.ToSharedRef()
+			]
 		];
 }
 
