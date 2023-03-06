@@ -32,6 +32,12 @@ struct FHairStrandsRestResource;
 struct FHairStrandsInterpolationResource;
 struct FHairStrandsRaytracingResource;
 
+enum class EHairGroupInfoFlags : uint8
+{
+	HasTrimmedPoint = 1,
+	HasTrimmedCurve = 2
+};
+
 USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FHairGroupInfo
 {
@@ -60,6 +66,9 @@ struct HAIRSTRANDSCORE_API FHairGroupInfo
 
 	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Card Group ID for split hair card generation"))
 	int32 GroupCardsID = 0;
+
+	UPROPERTY()
+	uint32 Flags = 0;
 };
 
 USTRUCT(BlueprintType)

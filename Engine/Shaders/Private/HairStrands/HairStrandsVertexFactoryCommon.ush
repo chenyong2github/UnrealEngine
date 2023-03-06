@@ -124,8 +124,12 @@ struct FHairCurve
 
 FHairCurve UnpackHairCurve(uint In)
 {
+	#if HAIR_MAX_NUM_POINT_PER_CURVE != 0xFF || HAIR_MAX_NUM_POINT_PER_GROUP != 0xFFFFFFFF
+	#error Update hair curve ENCODING_TYPE
+	#endif
+
 	FHairCurve Out = (FHairCurve)0;
-	Out.PointIndex = In & 0xFFFFFF;
+	Out.PointIndex = In & HAIR_MAX_NUM_POINT_PER_GROUP;
 	Out.PointCount = In >> 24;
 	return Out;
 }

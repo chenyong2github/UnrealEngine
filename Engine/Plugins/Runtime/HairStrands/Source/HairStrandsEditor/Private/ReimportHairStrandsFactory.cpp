@@ -385,7 +385,7 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 				OutGroup.CurveCount = Group.Info.NumCurves;
 				OutGroup.GuideCount = Group.Info.NumGuides;
 				OutGroup.Attributes = Group.Attributes;
-
+				OutGroup.Flags		= Group.Info.Flags;
 				if (OutGroup.GroupID < OutDescription.HairGroups.Num())
 				{
 					OutGroup.InterpolationSettings = GroomReimportOptions->InterpolationSettings[OutGroup.GroupID];

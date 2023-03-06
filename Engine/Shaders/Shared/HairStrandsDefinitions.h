@@ -20,6 +20,13 @@
 #define HAIR_ATTRIBUTE_AO 6
 #define HAIR_ATTRIBUTE_COUNT 7
 
+// Groom limits (based on encoding)
+#define HAIR_MAX_NUM_POINT_PER_CURVE ((1u<<8)-1u)
+#define HAIR_MAX_NUM_POINT_PER_GROUP ((1u<<24)-1u)
+#define HAIR_MAX_NUM_CURVE_PER_GROUP ((1u<<22)-1u)
+
+#define HAIR_ATRIBUTE_INVALID_OFFSET 0xFFFFFFFF
+
 // Max number of discrete LOD that a hair group can have
 #define MAX_HAIR_LOD 8
 

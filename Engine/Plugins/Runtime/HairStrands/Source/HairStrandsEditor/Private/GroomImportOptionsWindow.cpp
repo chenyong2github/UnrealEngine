@@ -31,6 +31,9 @@ enum class EHairDescriptionStatus
 	GuidesOnly, // guides-only with unspecified groom asset
 	GuidesOnlyCompatible,
 	GuidesOnlyIncompatible,
+	ValidPointLimit,
+	ValidCurveLimit,
+	ValidCurveAndPointLimit,
 	Unknown
 };
 
@@ -70,6 +73,23 @@ void SGroomImportOptionsWindow::UpdateStatus(UGroomHairGroupsPreview* Descriptio
 				bGuidesOnly = true;
 			}
 			break;
+		}
+	}
+
+	// Check if any curve or point have been trimmed
+	for (const FGroomHairGroupPreview& Group : Description->Groups)
+	{
+		if ((Group.Flags & uint32(EHairGroupInfoFlags::HasTrimmedCurve)) && (Group.Flags & uint32(EHairGroupInfoFlags::HasTrimmedPoint)))
+		{
+			CurrentStatus = EHairDescriptionStatus::ValidCurveAndPointLimit;
+		}
+		else if (Group.Flags & uint32(EHairGroupInfoFlags::HasTrimmedCurve))
+		{
+			CurrentStatus = EHairDescriptionStatus::ValidCurveLimit;
+		}
+		else if (Group.Flags & uint32(EHairGroupInfoFlags::HasTrimmedPoint))
+		{
+			CurrentStatus = EHairDescriptionStatus::ValidPointLimit;
 		}
 	}
 
@@ -152,6 +172,12 @@ FText SGroomImportOptionsWindow::GetStatusText() const
 			return LOCTEXT("GroomOptionsWindow_ValidationText8", "Only guides were detected. The groom asset provided is compatible.");
 		case EHairDescriptionStatus::GuidesOnlyIncompatible:
 			return LOCTEXT("GroomOptionsWindow_ValidationText9", "Only guides were detected. The groom asset provided is incompatible.");
+		case EHairDescriptionStatus::ValidCurveLimit:
+			return LOCTEXT("GroomOptionsWindow_ValidationText10", "Valid. At least one group contains more curves than allowed limit (Max:4M). Curves beyond that limit will be trimmed."); static_assert(HAIR_MAX_NUM_CURVE_PER_GROUP == 4194303);
+		case EHairDescriptionStatus::ValidPointLimit:
+			return LOCTEXT("GroomOptionsWindow_ValidationText11", "Valid. At least one group contains more control points per curve than the allowed limit (Max:255). Control points beyond that limit will be trimmed."); static_assert(HAIR_MAX_NUM_POINT_PER_CURVE == 255);
+		case EHairDescriptionStatus::ValidCurveAndPointLimit:
+			return LOCTEXT("GroomOptionsWindow_ValidationText12", "Valid. At least one group contains more control points per curve and more curves than the allowed limit (curve limit:4M, point limit:255). Curves and control points beyond that limit will be trimmed.");
 		case EHairDescriptionStatus::Unset:
 		case EHairDescriptionStatus::Unknown:
 		default:
@@ -175,6 +201,10 @@ FSlateColor SGroomImportOptionsWindow::GetStatusColor() const
 			return FLinearColor(1, 0, 0, 1);
 		case EHairDescriptionStatus::GroomCache:
 		case EHairDescriptionStatus::GuidesOnly:
+			return FLinearColor(0.80f, 0.80f, 0, 1);
+		case EHairDescriptionStatus::ValidCurveLimit:
+		case EHairDescriptionStatus::ValidPointLimit:
+		case EHairDescriptionStatus::ValidCurveAndPointLimit:
 			return FLinearColor(0.80f, 0.80f, 0, 1);
 		case EHairDescriptionStatus::Unset:
 		case EHairDescriptionStatus::Unknown:
@@ -443,6 +473,9 @@ bool SGroomImportOptionsWindow::CanImport() const
 		case EHairDescriptionStatus::Valid:
 		case EHairDescriptionStatus::GroomCacheCompatible:
 		case EHairDescriptionStatus::GuidesOnlyCompatible:
+		case EHairDescriptionStatus::ValidPointLimit:
+		case EHairDescriptionStatus::ValidCurveLimit:
+		case EHairDescriptionStatus::ValidCurveAndPointLimit:
 			return true;
 		case EHairDescriptionStatus::Unset:
 		case EHairDescriptionStatus::NoGroup:

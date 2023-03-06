@@ -324,11 +324,14 @@ namespace HairStrandsBuilder
 
 			// Curves
 			{
-				UE_CLOG(PointCount > 0xFF, LogGroomBuilder, Warning, TEXT("[Groom] Curve point count is > 256, which is not supported."));
-				UE_CLOG(IndexOffset > 0xFFFFFF, LogGroomBuilder, Warning, TEXT("[Groom] Curve point offset is > 24M, which is not supported."));
+				// If the limit change, update this encoding
+				static_assert(HAIR_MAX_NUM_POINT_PER_CURVE == 0xFF);
+				static_assert(HAIR_MAX_NUM_POINT_PER_GROUP == 0xFFFFFF);
+				UE_CLOG(PointCount > HAIR_MAX_NUM_POINT_PER_CURVE, LogGroomBuilder, Warning, TEXT("[Groom] Curve point count is greater than the allowed limit (%d/%d)"), PointCount, uint32(HAIR_MAX_NUM_POINT_PER_CURVE));
+				UE_CLOG(IndexOffset > HAIR_MAX_NUM_POINT_PER_GROUP, LogGroomBuilder, Warning, TEXT("[Groom] Curve point offset is greater than the allowed limit (%d/%d)"), IndexOffset, uint32(HAIR_MAX_NUM_POINT_PER_GROUP));
 				FHairStrandsCurveFormat::Type& Curve = OutPackedCurves[CurveIndex];
-				Curve.PointCount  = FMath::Min(uint32(PointCount), 0xFFu);
-				Curve.PointOffset = FMath::Min(uint32(IndexOffset), 0xFFFFFFu);
+				Curve.PointCount  = FMath::Min(uint32(PointCount), HAIR_MAX_NUM_POINT_PER_CURVE);
+				Curve.PointOffset = FMath::Min(uint32(IndexOffset), HAIR_MAX_NUM_POINT_PER_GROUP);
 			}
 		}
 
@@ -355,7 +358,7 @@ namespace HairStrandsBuilder
 
 			for (uint32 AttributeIt=0; AttributeIt< HAIR_ATTRIBUTE_COUNT; ++AttributeIt)
 			{
-				OutBulkData.AttributeOffsets[AttributeIt] = 0xFFFFFFFF;
+				OutBulkData.AttributeOffsets[AttributeIt] = HAIR_ATRIBUTE_INVALID_OFFSET;
 			}
 
 			if (HasHairAttribute(Attributes, EHairAttribute::RootUV))
@@ -1563,9 +1566,10 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 	// Track the imported max hair width among all imported CVs. This information is displayed to artsits to set/tune groom asset later.
 	float DDCMaxHairWidth = -1.f;
 
+	bool bCurveCountWarningIssued = false;
+	bool bPointCountWarningIssued = false;
+
 	int32 GlobalVertexIndex = 0;
-	int32 NumHairPoints = 0;
-	int32 NumGuidePoints = 0;
 	for (int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 	{
 		FStrandID StrandID(CurveIndex);
@@ -1595,19 +1599,24 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 		FHairStrandsDatas* CurrentHairStrandsDatas = nullptr;
 		FHairDescriptionGroup& Group = FindOrAdd(GroupID, GroupName);
 		check(Group.Info.GroupID == GroupID);
+		bool bNumCurveValid = false;
 		if (!bIsGuide)
 		{
-			NumHairPoints += CurveNumVertices;
 			CurrentHairStrandsDatas = &Group.Strands;
-
-			++Group.Info.NumCurves;
+			if (Group.Info.NumCurves < HAIR_MAX_NUM_CURVE_PER_GROUP)
+			{
+				bNumCurveValid = true;
+				++Group.Info.NumCurves;
+			}
 		}
 		else if (bImportGuides)
 		{
-			NumGuidePoints += CurveNumVertices;
 			CurrentHairStrandsDatas = &Group.Guides;
-
-			++Group.Info.NumGuides;
+			if (Group.Info.NumGuides < HAIR_MAX_NUM_CURVE_PER_GROUP)
+			{
+				bNumCurveValid = true;
+				++Group.Info.NumGuides;
+			}
 		}
 		else
 		{
@@ -1616,10 +1625,35 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 			continue;
 		}
 
-		if (!CurrentHairStrandsDatas)
-			continue;
+		// If the current curve has more control point than allows, issue a warning
+		if (CurveNumVertices > HAIR_MAX_NUM_POINT_PER_CURVE && !bPointCountWarningIssued)
+		{
+			UE_LOG(LogGroomBuilder, Warning, TEXT("[Groom] Groom contains strands with more than %d control points. Control points beyond that limit will be trimmed"), uint32(HAIR_MAX_NUM_POINT_PER_CURVE));
+			Group.Info.Flags |= uint32(EHairGroupInfoFlags::HasTrimmedPoint);
+		}
 
-		CurrentHairStrandsDatas->StrandsCurves.CurvesCount.Add(CurveNumVertices);
+		// If the current group has reached the max number of curve, skip them
+		if (!bNumCurveValid)
+		{
+			if (!bCurveCountWarningIssued)
+			{
+				UE_LOG(LogGroomBuilder, Warning, TEXT("[Groom] Group has more than %d curves per group. Curve beyong that limit won't be part of the groom"), uint32(HAIR_MAX_NUM_CURVE_PER_GROUP));
+				bCurveCountWarningIssued = true;
+			}
+			Group.Info.Flags |= uint32(EHairGroupInfoFlags::HasTrimmedCurve);
+
+
+			// Skip it
+			GlobalVertexIndex += CurveNumVertices;
+			continue;
+		}
+
+		if (!CurrentHairStrandsDatas)
+		{
+			continue;
+		}
+
+		CurrentHairStrandsDatas->StrandsCurves.CurvesCount.Add(FMath::Min(uint32(CurveNumVertices), HAIR_MAX_NUM_POINT_PER_CURVE));
 
 		if (bCanUseClosestGuidesAndWeights)
 		{
@@ -1672,6 +1706,12 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 		for (int32 VertexIndex = 0; VertexIndex < CurveNumVertices; ++VertexIndex, ++GlobalVertexIndex)
 		{
 			FVertexID VertexID(GlobalVertexIndex);
+
+			// Skip vertex beyond the supported limit. Continue to loop for incrementing GlobalVertexIndex
+			if (VertexIndex >= HAIR_MAX_NUM_POINT_PER_CURVE)
+			{
+				continue;
+			}
 
 			CurrentHairStrandsDatas->StrandsPoints.PointsPosition.Add(VertexPositions[VertexID]);
 

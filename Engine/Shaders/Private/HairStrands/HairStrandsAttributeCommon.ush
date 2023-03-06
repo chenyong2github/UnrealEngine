@@ -60,7 +60,7 @@ float InternalGetHairStrandsWorldRadius(Buffer<uint4> InPositionBuffer, uint Ver
 
 bool IsAttributeValid(uint InOffset)
 {
-	return InOffset != 0xFFFFFFFF;
+	return InOffset != HAIR_ATRIBUTE_INVALID_OFFSET;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -27,28 +27,23 @@ struct HAIRSTRANDSCORE_API FGroomHairGroupPreview
 {
 	GENERATED_USTRUCT_BODY()
 
-	FGroomHairGroupPreview()
-	: GroupID(0)
-	, CurveCount(0)
-	, GuideCount(0)
-	, Attributes(0)
-	, InterpolationSettings()
-	{}
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
 	FName GroupName;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
-	int32 GroupID;
+	int32 GroupID = 0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
-	int32 CurveCount;
+	int32 CurveCount = 0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
-	int32 GuideCount;
+	int32 GuideCount = 0;
 
 	UPROPERTY()
-	uint32 Attributes;
+	uint32 Attributes = 0;
+
+	UPROPERTY()
+	uint32 Flags = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Preview)
 	FHairGroupsInterpolation InterpolationSettings;
