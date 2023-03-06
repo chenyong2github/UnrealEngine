@@ -195,6 +195,68 @@ void UMoviePipelineExecutorJob::PostEditChangeProperty(FPropertyChangedEvent& Pr
 }
 #endif
 
+void UMoviePipelineExecutorJob::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
+
+	CleanUpInvalidVariableAssignments();
+}
+
+bool UMoviePipelineExecutorJob::AddVariableAssignment(const UMovieGraphVariable* InGraphVariable)
+{
+	return InGraphVariable && (FindOrAddVariableAssignment(InGraphVariable) != nullptr);
+}
+
+bool UMoviePipelineExecutorJob::SetVariableAssignmentValue(const UMovieGraphVariable* InGraphVariable, float NewValue)
+{
+	const bool bAddIfNotExists = true;
+	if (FMoviePipelineGraphVariableValueAssignment* Assignment = FindOrAddVariableAssignment(InGraphVariable, bAddIfNotExists))
+	{
+		Modify();
+		Assignment->VariableValue = NewValue;
+		return true;
+	}
+
+	return false;
+}
+
+bool UMoviePipelineExecutorJob::SetVariableAssignmentEnableState(const UMovieGraphVariable* InGraphVariable, bool bIsEnabled)
+{
+	const bool bAddIfNotExists = true;
+	if (FMoviePipelineGraphVariableValueAssignment* Assignment = FindOrAddVariableAssignment(InGraphVariable, bAddIfNotExists))
+	{
+		Modify();
+		Assignment->bIsValueSet = bIsEnabled;
+		return true;
+	}
+
+	return false;
+}
+
+bool UMoviePipelineExecutorJob::GetVariableAssignmentValue(const UMovieGraphVariable* InGraphVariable, float& OutValue)
+{
+	const bool bAddIfNotExists = false;
+	if (const FMoviePipelineGraphVariableValueAssignment* Assignment = FindOrAddVariableAssignment(InGraphVariable, bAddIfNotExists))
+	{
+		OutValue = Assignment->VariableValue;
+		return true;
+	}
+
+	return false;
+}
+
+bool UMoviePipelineExecutorJob::GetVariableAssignmentEnableState(const UMovieGraphVariable* InGraphVariable, bool& bOutIsEnabled)
+{
+	const bool bAddIfNotExists = false;
+	if (const FMoviePipelineGraphVariableValueAssignment* Assignment = FindOrAddVariableAssignment(InGraphVariable, bAddIfNotExists))
+	{
+		bOutIsEnabled = Assignment->bIsValueSet;
+		return true;
+	}
+
+	return false;
+}
+
 void UMoviePipelineExecutorJob::SetSequence(FSoftObjectPath InSequence)
 {
 	Sequence = InSequence;
@@ -241,6 +303,47 @@ void UMoviePipelineExecutorJob::OnDuplicated_Implementation()
 	StatusMessage = FString();
 	StatusProgress = 0.f;
 	SetConsumed(false);
+}
+
+FMoviePipelineGraphVariableValueAssignment* UMoviePipelineExecutorJob::FindOrAddVariableAssignment(const UMovieGraphVariable* InGraphVariable, bool bAddIfNotExists)
+{
+	if (InGraphVariable)
+	{
+		for (FMoviePipelineGraphVariableValueAssignment& Assignment : GraphVariableAssignments)
+		{
+			if (Assignment.VariableGuid == InGraphVariable->GetGuid())
+			{
+				return &Assignment;
+			}
+		}
+
+		// Didn't find an existing one; add a new assignment
+		if (bAddIfNotExists)
+		{
+			Modify();
+			
+			FMoviePipelineGraphVariableValueAssignment NewAssignment;
+			NewAssignment.VariableGuid = InGraphVariable->GetGuid();
+			return &GraphVariableAssignments.Add_GetRef(MoveTemp(NewAssignment));
+		}
+	}
+
+	return nullptr;
+}
+
+void UMoviePipelineExecutorJob::CleanUpInvalidVariableAssignments()
+{
+	// TODO: This should get the graph preset OR config
+	const UMovieGraphConfig* Graph = GetGraphPreset();
+	if (!Graph)
+	{
+		return;
+	}
+	
+	GraphVariableAssignments.RemoveAll([Graph](const FMoviePipelineGraphVariableValueAssignment& Assignment)
+	{
+		return Graph->GetVariableByGuid(Assignment.VariableGuid) == nullptr;
+	});
 }
 
 UMoviePipelineShotConfig* UMoviePipelineExecutorShot::AllocateNewShotOverrideConfig(TSubclassOf<UMoviePipelineShotConfig> InConfigType)

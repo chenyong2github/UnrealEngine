@@ -53,6 +53,7 @@ void UMovieGraphConfig::OnVariableUpdated(UMovieGraphVariable* UpdatedVariable)
 {
 #if WITH_EDITOR
 	OnGraphChangedDelegate.Broadcast();
+	OnGraphVariablesChangedDelegate.Broadcast();
 #endif
 }
 
@@ -281,14 +282,15 @@ UMovieGraphVariable* UMovieGraphConfig::AddVariable()
 	NewVariable->Type = EMovieGraphVariableType::Float;
 	NewVariable->SetGuid(FGuid::NewGuid());
 
-#if WITH_EDITOR
-	NewVariable->OnMovieGraphVariableChangedDelegate.AddUObject(this, &UMovieGraphConfig::OnVariableUpdated);
-#endif
-
 	// Generate and set a unique name
 	TArray<FString> ExistingVariableNames;
 	Algo::Transform(GetVariables(), ExistingVariableNames, [](const UMovieGraphVariable* Variable) { return Variable->Name; });
 	NewVariable->Name = GetUniqueName(ExistingVariableNames, "Variable");
+
+#if WITH_EDITOR
+	NewVariable->OnMovieGraphVariableChangedDelegate.AddUObject(this, &UMovieGraphConfig::OnVariableUpdated);
+	OnGraphVariablesChangedDelegate.Broadcast();
+#endif
 
 	return NewVariable;
 }
@@ -346,7 +348,6 @@ void UMovieGraphConfig::DeleteVariableMember(UMovieGraphVariable* VariableMember
 	TArray<UMovieGraphNode*> RemovedNodes;
 	for (const TObjectPtr<UMovieGraphNode>& NodeToRemove : NodesToRemove)
 	{
-		const FGuid& NodeGuid = NodeToRemove->GetGuid();
 		if (RemoveNode(NodeToRemove.Get()))
 		{
 			RemovedNodes.Add(NodeToRemove.Get());
@@ -356,7 +357,9 @@ void UMovieGraphConfig::DeleteVariableMember(UMovieGraphVariable* VariableMember
 	// Remove this variable from the variables tracked by the graph
 	Variables.RemoveSingle(VariableMemberToDelete);
 
+#if WITH_EDITOR
+	OnGraphVariablesChangedDelegate.Broadcast();
+#endif
 }
-
 
 #undef LOCTEXT_NAMESPACE

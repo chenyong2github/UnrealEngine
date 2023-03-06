@@ -92,6 +92,7 @@ private:
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnMovieGraphChanged);
+	DECLARE_MULTICAST_DELEGATE(FOnMovieGraphVariablesChanged);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphNodesDeleted, TArray<UMovieGraphNode*>);
 #endif // WITH_EDITOR
 
@@ -145,6 +146,7 @@ protected:
 public:
 #if WITH_EDITOR
 	FOnMovieGraphChanged OnGraphChangedDelegate;
+	FOnMovieGraphVariablesChanged OnGraphVariablesChangedDelegate;
 	FOnMovieGraphNodesDeleted OnGraphNodesDeletedDelegate;
 #endif
 	

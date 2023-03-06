@@ -2,6 +2,7 @@
 
 // Movie Pipeline Includes
 #include "Widgets/SMoviePipelineQueuePanel.h"
+#include "Customizations/JobCustomization.h"
 #include "Widgets/MoviePipelineWidgetConstants.h"
 #include "SMoviePipelineQueueEditor.h"
 #include "SMoviePipelineConfigPanel.h"
@@ -66,6 +67,10 @@ void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 	DetailsViewArgs.ColumnWidth = 0.7f;
 
 	JobDetailsPanelWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+
+	JobDetailsPanelWidget->RegisterInstancedCustomPropertyLayout(
+		UMoviePipelineExecutorJob::StaticClass(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FJobDetailsCustomization::MakeInstance));
 
 	// Create the child widgets that need to know about our pipeline
 	PipelineQueueEditorWidget = SNew(SMoviePipelineQueueEditor)
