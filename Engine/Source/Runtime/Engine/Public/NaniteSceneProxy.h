@@ -42,10 +42,17 @@ struct FMaterialAudit
 {
 	FString AssetName;
 	TArray<FMaterialAuditEntry, TInlineAllocator<4>> Entries;
-	UMaterialInterface* FallbackMaterial = nullptr;
+	UMaterialInterface* FallbackMaterial;
 	uint8 bHasAnyError : 1;
 	uint8 bHasMasked : 1;
 	uint8 bHasSky : 1;
+
+	FMaterialAudit()
+		: FallbackMaterial(nullptr)
+		, bHasAnyError(false)
+		, bHasMasked(false)
+		, bHasSky(false)
+	{}
 
 	FORCEINLINE bool IsValid(bool bAllowMasked) const
 	{
