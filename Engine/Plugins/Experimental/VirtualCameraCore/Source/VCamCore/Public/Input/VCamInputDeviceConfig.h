@@ -64,9 +64,11 @@ struct VCAMCORE_API FVCamInputDeviceID
 	 *
 	 * Note: Keyboards always have ID = 0, mice ID = -1.
 	 * Note: The first gamepad will have ID = 0 even though keyboards will also have ID 0.
+	 * 
+	 * Default value of -10 means no input device. There is nothing special about -10 (-1 already used by mice).
 	 */
 	UPROPERTY(EditAnywhere, Category = "Input")
-	int32 DeviceId;
+	int32 DeviceId = -10;
 
 	friend bool operator==(const FVCamInputDeviceID& Left, const FVCamInputDeviceID& Right) { return Left.DeviceId == Right.DeviceId; }
 	friend bool operator!=(const FVCamInputDeviceID& Left, const FVCamInputDeviceID& Right) { return !(Left == Right); }
