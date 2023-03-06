@@ -205,10 +205,10 @@ void FMVVMViewBlueprintCompiler::CreateVariables(const FWidgetBlueprintCompilerC
 			{
 				NewProperty->SetMetaData(FBlueprintMetadata::MD_ExposeOnSpawn, TEXT("true"));
 			}
-			if (!SourceContext.bPublicGetter)
-			{
-				NewProperty->SetMetaData(FBlueprintMetadata::MD_Private, TEXT("true"));
-			}
+			//if (!SourceContext.bPublicGetter)
+			//{
+			//	NewProperty->SetMetaData(FBlueprintMetadata::MD_Private, TEXT("true"));
+			//}
 #endif
 		}
 		return NewProperty;
