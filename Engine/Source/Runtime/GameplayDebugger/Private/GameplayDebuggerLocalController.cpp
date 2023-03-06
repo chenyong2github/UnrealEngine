@@ -555,7 +555,7 @@ void UGameplayDebuggerLocalController::OnActivationPressed()
 {
 	if (CachedReplicator)
 	{
-		const double HoldTimeThr = 0. * (FApp::UseFixedTimeStep() ? (FApp::GetFixedDeltaTime() * 60.) : 1.);
+		const double HoldTimeThr = 0.2 * (FApp::UseFixedTimeStep() ? (FApp::GetFixedDeltaTime() * 60.) : 1.);
 
 		CachedReplicator->GetWorldTimerManager().SetTimer(StartSelectingActorHandle, this, &UGameplayDebuggerLocalController::OnStartSelectingActor, static_cast<float>(HoldTimeThr));
 	}
