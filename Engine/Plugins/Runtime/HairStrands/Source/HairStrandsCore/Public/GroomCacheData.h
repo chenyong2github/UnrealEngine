@@ -5,6 +5,8 @@
 #include "UObject/Object.h"
 #include "GroomCacheData.generated.h"
 
+class FRDGPooledBuffer;
+
 /** Attributes in groom that can be animated */
 UENUM()
 enum class EGroomCacheAttributes : uint8
