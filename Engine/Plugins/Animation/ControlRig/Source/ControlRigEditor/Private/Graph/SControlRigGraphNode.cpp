@@ -1421,6 +1421,24 @@ void SControlRigGraphNode::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			}
 			break;
 		}
+		case ERigVMGraphNotifType::LibraryTemplateChanged:
+		{
+			if(!ModelNode.IsValid())
+			{
+				return;
+			}
+			
+			if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InSubject))
+			{
+				if(LibraryNode == ModelNode.Get() ||
+					LibraryNode->GetEntryNode() == ModelNode.Get() ||
+					LibraryNode->GetReturnNode() == ModelNode.Get())
+				{
+					HandleNodePinsChanged();
+				}
+			}
+			break;
+		}
 		default:
 		{
 			break;
@@ -1441,6 +1459,12 @@ void SControlRigGraphNode::UpdatePinTreeView()
 	LeftNodeBox->ClearChildren();
 
 	UControlRigGraphNode* RigGraphNode = Cast<UControlRigGraphNode>(GraphNode);
+	URigVMNode* Node = RigGraphNode->GetModelNode();
+	const FRigVMTemplate* Template = nullptr;
+	if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
+	{
+		Template = TemplateNode->GetTemplate();
+	}
 
 	TMap<UEdGraphPin*, int32> EdGraphPinToInputPin;
 	for(int32 InputPinIndex = 0; InputPinIndex < InputPins.Num(); InputPinIndex++)
@@ -1603,6 +1627,22 @@ void SControlRigGraphNode::UpdatePinTreeView()
 				PinWidgetForExpander = PinInfo.OutputPinWidget;
 				bPinWidgetForExpanderLeft = false;
 				bPinInfoIsValid = true;
+				if (Template)
+				{
+					if (URigVMPin* RootPin = ModelPin->GetRootPin())
+					{
+						FLinearColor PinColorAndOpacity = PinInfo.OutputPinWidget->GetColorAndOpacity();
+						if (Template->FindArgument(RootPin->GetFName()) == nullptr)
+						{
+							PinColorAndOpacity.A = 0.2f;
+						}
+						else
+						{
+							PinColorAndOpacity.A = 1.0f;
+						}
+						PinInfo.OutputPinWidget->SetColorAndOpacity(PinColorAndOpacity);
+					}
+				}
 			}
 		}
 		
@@ -1615,6 +1655,22 @@ void SControlRigGraphNode::UpdatePinTreeView()
 				PinWidgetForExpander = PinInfo.InputPinWidget;
 				bPinWidgetForExpanderLeft = true;
 				bPinInfoIsValid = true;
+				if (Template)
+				{
+					if (URigVMPin* RootPin = ModelPin->GetRootPin())
+					{
+						FLinearColor PinColorAndOpacity = PinInfo.InputPinWidget->GetColorAndOpacity();
+						if (Template->FindArgument(RootPin->GetFName()) == nullptr)
+						{
+							PinColorAndOpacity.A = 0.2f;
+						}
+						else
+						{
+							PinColorAndOpacity.A = 1.0f;
+						}
+						PinInfo.InputPinWidget->SetColorAndOpacity(PinColorAndOpacity);
+					}
+				}
 			}
 		}
 

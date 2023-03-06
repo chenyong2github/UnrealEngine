@@ -14942,30 +14942,24 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 						bRequireDetachLinks = true;
 						bRequirePinStates = true;
 					}
-					
-					if(!PreviousPinsToOrphan.Contains(RootIndex))
-					{
-						URigVMPin* RootPin = Pin->GetRootPin();
 
-						bool bPinShouldBeOrphaned = bSetupOrphanPinsForThisNode; 
-						if(!bPinShouldBeOrphaned)
+					if (bSetupOrphanPinsForThisNode)
+					{
+						if(!PreviousPinsToOrphan.Contains(RootIndex))
 						{
+							URigVMPin* RootPin = Pin->GetRootPin();
+
 							if(RootPin->GetSourceLinks(true).Num() > 0 ||
-								RootPin->GetTargetLinks(true).Num() > 0)
+							   RootPin->GetTargetLinks(true).Num() > 0)
 							{
-								bPinShouldBeOrphaned = true;
-							}
-						}
-		
-						if(bPinShouldBeOrphaned)
-						{
-							PreviousPinsToOrphan.Add(RootIndex);
+								PreviousPinsToOrphan.Add(RootIndex);
 							
-							bRequireDetachLinks = true;
-							bRequirePinStates = true;
+								bRequireDetachLinks = true;
+								bRequirePinStates = true;
 #if UE_RIGVMCONTROLLER_VERBOSE_REPOPULATE
-							UE_LOG(LogRigVMDeveloper, Display, TEXT("Previously existing pin '%s' needs to be orphaned."), *RootPin->GetPinPath());
+								UE_LOG(LogRigVMDeveloper, Display, TEXT("Previously existing pin '%s' needs to be orphaned."), *RootPin->GetPinPath());
 #endif
+							}
 						}
 					}
 				}
