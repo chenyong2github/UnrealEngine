@@ -16,7 +16,13 @@
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_CompositePanel"
 
+ANIMTIMELINE_IMPLEMENT_TRACK(FAnimTimelineTrack_CompositeRoot);
 ANIMTIMELINE_IMPLEMENT_TRACK(FAnimTimelineTrack_CompositePanel);
+
+FAnimTimelineTrack_CompositeRoot::FAnimTimelineTrack_CompositeRoot(const TSharedPtr<FAnimModel>& InModel)
+	: FAnimTimelineTrack(LOCTEXT("CompositeTitle", "Composite"), LOCTEXT("CompositeTooltip", "Composite animation track"), InModel, true)
+{
+}
 
 FAnimTimelineTrack_CompositePanel::FAnimTimelineTrack_CompositePanel(const TSharedRef<FAnimModel>& InModel)
 	: FAnimTimelineTrack(LOCTEXT("TrackTitle", "Composite"), LOCTEXT("TrackTooltip", "Composite sections"), InModel)

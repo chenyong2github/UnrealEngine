@@ -27,7 +27,7 @@ void FAnimModel_AnimComposite::RefreshTracks()
 	// Add the composite root track
 	if(!CompositeRoot.IsValid())
 	{
-		CompositeRoot = MakeShared<FAnimTimelineTrack>(LOCTEXT("CompositeTitle", "Composite"), LOCTEXT("CompositeTooltip", "Composite animation track"), SharedThis(this), true);
+		CompositeRoot = MakeShared<FAnimTimelineTrack_CompositeRoot>(SharedThis(this));
 	}
 
 	CompositeRoot->ClearChildren();
