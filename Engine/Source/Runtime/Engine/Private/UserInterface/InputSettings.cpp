@@ -506,8 +506,21 @@ void UInputSettings::SetDefaultInputComponentClass(TSubclassOf<UInputComponent> 
 /////////////////////////////////////////////////////////////
 // FHardwareDeviceIdentifier
 
-FHardwareDeviceIdentifier FHardwareDeviceIdentifier::Invalid = { NAME_None, NAME_None };
-FHardwareDeviceIdentifier FHardwareDeviceIdentifier::DefaultKeyboardAndMouse = { TEXT("DefaultKeyboardAndMouse"), TEXT("KBM") };
+FHardwareDeviceIdentifier FHardwareDeviceIdentifier::Invalid =
+	{
+		/* .InputClassName= */ NAME_None,
+		/* .HardwareDeviceIdentifier= */ NAME_None,
+		/* .PrimaryDeviceType= */ EHardwareDevicePrimaryType::Unspecified,
+		/* .SupportedFeaturesMask= */ EHardwareDeviceSupportedFeatures::Type::Unspecified
+	};
+
+FHardwareDeviceIdentifier FHardwareDeviceIdentifier::DefaultKeyboardAndMouse = 
+	{
+		/* .InputClassName= */ TEXT("DefaultKeyboardAndMouse"),
+		/* .HardwareDeviceIdentifier= */ TEXT("KBM"),
+		/* .PrimaryDeviceType= */ EHardwareDevicePrimaryType::KeyboardAndMouse,
+		/* .SupportedFeaturesMask= */ EHardwareDeviceSupportedFeatures::Type::Keypress | EHardwareDeviceSupportedFeatures::Type::Pointer
+	};
 
 // Default to the invalid hardware device identifier
 FHardwareDeviceIdentifier::FHardwareDeviceIdentifier()
@@ -517,9 +530,11 @@ FHardwareDeviceIdentifier::FHardwareDeviceIdentifier()
 	
 }
 
-FHardwareDeviceIdentifier::FHardwareDeviceIdentifier(const FName InClassName, const FName InHardwareDeviceIdentifier)
+FHardwareDeviceIdentifier::FHardwareDeviceIdentifier(const FName InClassName, const FName InHardwareDeviceIdentifier, EHardwareDevicePrimaryType InPrimaryType, EHardwareDeviceSupportedFeatures::Type Flags)
 	: InputClassName(InClassName)
 	, HardwareDeviceIdentifier(InHardwareDeviceIdentifier)
+	, PrimaryDeviceType(InPrimaryType)
+	, SupportedFeaturesMask(Flags)
 {
 
 }
@@ -533,8 +548,20 @@ FArchive& operator<<(FArchive& Ar, FHardwareDeviceIdentifier& InDevice)
 {
 	Ar << InDevice.InputClassName;
 	Ar << InDevice.HardwareDeviceIdentifier;
+	Ar << InDevice.PrimaryDeviceType;
+	Ar << InDevice.SupportedFeaturesMask;
 	
 	return Ar;
+}
+
+bool FHardwareDeviceIdentifier::HasAnySupportedFeatures(const EHardwareDeviceSupportedFeatures::Type FlagsToCheck) const
+{
+	return (SupportedFeaturesMask & static_cast<int32>(FlagsToCheck)) != 0;
+}
+
+bool FHardwareDeviceIdentifier::HasAllSupportedFeatures(const EHardwareDeviceSupportedFeatures::Type FlagsToCheck) const
+{
+	return ((SupportedFeaturesMask & FlagsToCheck) == FlagsToCheck);
 }
 
 bool FHardwareDeviceIdentifier::IsValid() const
@@ -545,6 +572,15 @@ bool FHardwareDeviceIdentifier::IsValid() const
 FString FHardwareDeviceIdentifier::ToString() const
 {
 	return FString::Printf(TEXT("%s::%s"), *InputClassName.ToString(), *HardwareDeviceIdentifier.ToString());
+}
+
+bool FHardwareDeviceIdentifier::operator==(const FHardwareDeviceIdentifier& Other) const
+{
+	return
+		Other.InputClassName == InputClassName &&
+		Other.HardwareDeviceIdentifier == HardwareDeviceIdentifier &&
+		Other.SupportedFeaturesMask == SupportedFeaturesMask &&
+		Other.PrimaryDeviceType == PrimaryDeviceType;	
 }
 
 //////////////////////////////////////////////////////////////////

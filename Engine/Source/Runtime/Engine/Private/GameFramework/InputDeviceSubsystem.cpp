@@ -42,7 +42,17 @@ class FInputDeviceSubsystemProcessor : public IInputProcessor
 			if (const FInputDeviceScope* Scope = FInputDeviceScope::GetCurrent())
 			{
 				// TODO: Refactor FInputDeviceScope to use FName's instead of a FString for HardwareDeviceIdentifier
-				SubSystem->SetMostRecentlyUsedHardwareDevice(InDeviceId, { Scope->InputDeviceName, FName(*Scope->HardwareDeviceIdentifier) });
+				// Look up a hardware device ID from the config that matches this identifier
+				const FName DeviceScopeName(*Scope->HardwareDeviceIdentifier);
+				if (const FHardwareDeviceIdentifier* Hardware = UInputPlatformSettings::Get()->GetHardwareDeviceForClassName(DeviceScopeName))
+				{
+					SubSystem->SetMostRecentlyUsedHardwareDevice(InDeviceId, *Hardware);
+				}
+				// If there isn't one specified in the config file, we can just use the device name and scope name to make one.
+				else
+				{
+					SubSystem->SetMostRecentlyUsedHardwareDevice(InDeviceId, { Scope->InputDeviceName, DeviceScopeName });
+				}
 			}
 			// If there isn't a recent input device scope, then we can check if the key was from a keyboard and mouse
 			else if (!Key.IsGamepadKey())
