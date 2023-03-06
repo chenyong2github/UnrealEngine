@@ -5,6 +5,7 @@
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraRendererDecals.h"
+#include "Components/DecalComponent.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Modules/ModuleManager.h"
 
@@ -14,7 +15,6 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SWidget.h"
-#include "Styling/SlateBrush.h"
 #include "Styling/SlateIconFinder.h"
 #include "AssetThumbnail.h"
 #endif
@@ -304,7 +304,13 @@ const TArray<FNiagaraVariable>& UNiagaraDecalRendererProperties::GetOptionalAttr
 
 void UNiagaraDecalRendererProperties::GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
 {
-	OutWidgets.Add(SNew(SImage).Image(FSlateIconFinder::FindIconBrushForClass(GetClass())));
+	TSharedRef<SWidget> Widget = SNew(SImage).Image(GetStackIcon());
+	OutWidgets.Add(Widget);
+}
+
+const FSlateBrush* UNiagaraDecalRendererProperties::GetStackIcon() const
+{
+	return FSlateIconFinder::FindIconBrushForClass(UDecalComponent::StaticClass());
 }
 
 void UNiagaraDecalRendererProperties::GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
