@@ -75,7 +75,7 @@ struct FPCGGraphCache
 	void ClearCache();
 
 	/** While memory usage is more than budget, remove cache entries for elements, LRU policy. Returns true if something removed. */
-	void EnforceMemoryBudget();
+	bool EnforceMemoryBudget();
 
 	/** True if debugging features enabled. Exposes a CVar so it can be called from editor module. */
 	bool IsDebuggingEnabled() const;

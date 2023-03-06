@@ -24,7 +24,7 @@ static TAutoConsoleVariable<bool> CVarCacheMemoryBudgetEnabled(
 	true,
 	TEXT("Whether memory budget is enforced (items purged from cache to respect pcg.Cache.MemoryBudgetMB."));
 
-static int32 GPCGGraphCacheMaxElements = 16384;
+static int32 GPCGGraphCacheMaxElements = 65536;
 static FAutoConsoleVariableRef CVarNiagaraGraphDataCacheSize(
 	TEXT("pcg.Cache.GraphCacheMaxElements"),
 	GPCGGraphCacheMaxElements,
@@ -126,13 +126,13 @@ void FPCGGraphCache::ClearCache()
 	CacheData.Empty(GPCGGraphCacheMaxElements);
 }
 
-void FPCGGraphCache::EnforceMemoryBudget()
+bool FPCGGraphCache::EnforceMemoryBudget()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphCache::FPCGGraphCache::EnforceMemoryBudget);
 
 	if (!CVarCacheMemoryBudgetEnabled.GetValueOnAnyThread())
 	{
-		return;
+		return false;
 	}
 
 	if (CacheData.Num() == GPCGGraphCacheMaxElements)
@@ -141,9 +141,9 @@ void FPCGGraphCache::EnforceMemoryBudget()
 	}
 
 	const uint64 MemoryBudget = static_cast<uint64>(CVarCacheMemoryBudgetMB.GetValueOnAnyThread()) * 1024 * 1024;
-	if (TotalMemoryUsed < MemoryBudget)
+	if (TotalMemoryUsed <= MemoryBudget)
 	{
-		return;
+		return false;
 	}
 
 	{
@@ -156,6 +156,8 @@ void FPCGGraphCache::EnforceMemoryBudget()
 			RemoveFromMemoryTotal(RemovedData);
 		}
 	}
+
+	return true;
 }
 
 #if WITH_EDITOR

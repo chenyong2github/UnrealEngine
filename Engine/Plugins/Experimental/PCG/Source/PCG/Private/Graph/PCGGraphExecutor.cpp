@@ -880,7 +880,19 @@ void FPCGGraphExecutor::Execute()
 		}
 
 		// Purge things from cache if memory usage is too high
-		GraphCache.EnforceMemoryBudget();
+		const bool bSomethingTidied = GraphCache.EnforceMemoryBudget();
+
+#if WITH_EDITOR
+		if (bSomethingTidied && !PCGHelpers::IsRuntimeOrPIE())
+		{
+			--TidyCacheCountUntilGC;
+			if (TidyCacheCountUntilGC <= 0)
+			{
+				TidyCacheCountUntilGC = 100;
+				CollectGarbage(RF_NoFlags, true);
+			}
+		}
+#endif
 
 #if WITH_EDITOR
 		// Save & release resources when running in-editor
@@ -1189,10 +1201,10 @@ void FPCGGraphExecutor::ReleaseUnusedActors()
 #if WITH_EDITOR
 	if (bRunGC && !PCGHelpers::IsRuntimeOrPIE())
 	{
-		--CountUntilGC;
-		if (CountUntilGC <= 0)
+		--ReleaseActorsCountUntilGC;
+		if (ReleaseActorsCountUntilGC <= 0)
 		{
-			CountUntilGC = 30;
+			ReleaseActorsCountUntilGC = 30;
 			CollectGarbage(RF_NoFlags, true);
 		}
 	}

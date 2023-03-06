@@ -187,8 +187,10 @@ private:
 	TSet<AActor*> ActorsToSave;
 	TSet<FWorldPartitionReference> ActorsToRelease;
 
-	int32 CountUntilGC = 30;
+	int32 ReleaseActorsCountUntilGC = 30;
 	FAsyncCompilationNotification GenerationProgressNotification;
+
+	int32 TidyCacheCountUntilGC = 100;
 #endif
 };
 
