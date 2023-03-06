@@ -60,9 +60,9 @@ public:
 	}
 
 	// Shader parameter structs don't have a way to push variable sized data yet. So the we use the old shader parameter API.
-	void SetPlatformData(FRHIComputeCommandList& RHICmdList, const void* PlatformDataPtr, uint32 PlatformDataSize)
+	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const void* PlatformDataPtr, uint32 PlatformDataSize)
 	{
-		RHICmdList.SetShaderParameter(RHICmdList.GetBoundComputeShader(), PlatformDataParam.GetBufferIndex(), PlatformDataParam.GetBaseIndex(), PlatformDataSize, PlatformDataPtr);
+		BatchedParameters.SetShaderParameter(PlatformDataParam.GetBufferIndex(), PlatformDataParam.GetBaseIndex(), PlatformDataSize, PlatformDataPtr);
 	}
 
 private:
@@ -158,8 +158,8 @@ void FRenderTargetWriteMask::Decode(
 		}
 
 		SetComputePipelineState(RHICmdList, DecodeCS.GetComputeShader());
-		SetShaderParameters(RHICmdList, DecodeCS, DecodeCS.GetComputeShader(), *PassParameters);
-		DecodeCS->SetPlatformData(RHICmdList, PlatformDataPtr, PlatformDataSize);
+
+		SetShaderParametersMixedCS(RHICmdList, DecodeCS, *PassParameters, PlatformDataPtr, PlatformDataSize);
 
 		RHICmdList.DispatchComputeShader(
 			FMath::DivideAndRoundUp((uint32)RTWriteMaskDims.X, FRTWriteMaskDecodeCS::ThreadGroupSizeX),
