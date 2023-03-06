@@ -56,6 +56,30 @@ struct FContextualAnimRepTransitionData : public FContextualAnimRepData
 	uint8 AnimSetIdx = 0;
 };
 
+USTRUCT(BlueprintType)
+struct FContextualAnimWarpTarget
+{
+	GENERATED_BODY()
+
+	FContextualAnimWarpTarget() = default;
+	FContextualAnimWarpTarget(const FName InRole, const FName InWarpTargetName, const FTransform& InTargetTransform)
+		: Role(InRole)
+		, TargetName(InWarpTargetName)
+		, TargetTransform(InTargetTransform)
+	{
+	}
+	
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FName Role;
+
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FName TargetName;
+
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FTransform TargetTransform;
+};
+
+
 UCLASS(meta = (BlueprintSpawnableComponent))
 class CONTEXTUALANIMATION_API UContextualAnimSceneActorComponent : public UPrimitiveComponent, public IIKGoalCreatorInterface
 {
@@ -105,15 +129,20 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Actor Component")
 	bool StartContextualAnimScene(const FContextualAnimSceneBindings& InBindings);
-
+	
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Actor Component")
 	bool LateJoinContextualAnimScene(AActor* Actor, FName Role);
-
+	
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Actor Component")
 	bool TransitionContextualAnimScene(FName SectionName);
-
+	
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Actor Component")
 	bool TransitionSingleActor(int32 SectionIdx, int32 AnimSetIdx);
+
+	bool StartContextualAnimScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& WarpTargets);
+	bool LateJoinContextualAnimScene(AActor* Actor, FName Role, const TArray<FContextualAnimWarpTarget>& WarpTargets);
+	bool TransitionContextualAnimScene(FName SectionName, const TArray<FContextualAnimWarpTarget>& WarpTargets);
+	bool TransitionSingleActor(int32 SectionIdx, int32 AnimSetIdx, const TArray<FContextualAnimWarpTarget>& WarpTargets);
 
 	void EarlyOutContextualAnimScene();
 
@@ -189,13 +218,13 @@ protected:
 	// @TODO: These two functions are going to replace OnJoinedScene and OnLeftScene
 	// main different is that these new functions are taking care of animation playback too
 
-	void JoinScene(const FContextualAnimSceneBindings& InBindings);
+	void JoinScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& WarpTargets);
 
 	void LeaveScene();
 
-	void LateJoinScene(const FContextualAnimSceneBindings& InBindings);
+	void LateJoinScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& WarpTargets);
 
-	bool HandleLateJoin(AActor* Actor, FName Role);
+	bool HandleLateJoin(AActor* Actor, FName Role, const TArray<FContextualAnimWarpTarget>& WarpTargets);
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerStartContextualAnimScene(const FContextualAnimSceneBindings& InBindings);

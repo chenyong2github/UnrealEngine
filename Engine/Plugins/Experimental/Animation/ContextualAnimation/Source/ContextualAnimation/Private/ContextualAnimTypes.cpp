@@ -274,6 +274,11 @@ void FContextualAnimSceneBinding::SetAnimTrack(const FContextualAnimTrack& InAni
 	AnimTrackIdx = InAnimTrack.AnimTrackIdx;
 }
 
+void FContextualAnimSceneBinding::SetExternalWarpTargetTransform(const FName TargetName, const FTransform& Transform)
+{
+	Context.SetExternalWarpTargetTransform(TargetName, Transform);
+}
+
 FAnimMontageInstance* FContextualAnimSceneBinding::GetAnimMontageInstance() const
 {
 	if (UAnimInstance* AnimInstance = GetAnimInstance())
@@ -384,6 +389,16 @@ bool FContextualAnimSceneBindings::BindActorToRole(AActor& ActorRef, FName Role)
 	Data.Add(FContextualAnimSceneBinding(FContextualAnimSceneBindingContext(&ActorRef), *AnimTrackPtr));
 
 	return true;
+}
+
+bool FContextualAnimSceneBindings::SetRoleWarpTarget(const FName Role, const FName WarpTargetName, const FTransform& Transform)
+{
+	if (const FContextualAnimSceneBinding* Binding = FindBindingByRole(Role))
+	{
+		const_cast<FContextualAnimSceneBinding*>(Binding)->SetExternalWarpTargetTransform(WarpTargetName, Transform);
+		return true;
+	}
+	return false;
 }
 
 const FContextualAnimTrack& FContextualAnimSceneBindings::GetAnimTrackFromBinding(const FContextualAnimSceneBinding& Binding) const

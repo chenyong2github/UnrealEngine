@@ -149,10 +149,15 @@ void UContextualAnimSceneActorComponent::AddOrUpdateWarpTargets(int32 SectionIdx
 				}
 			}
 		}
+
+		if (Binding->HasExternalWarpTarget())
+		{
+			MotionWarpComp->AddOrUpdateWarpTargetFromTransform(Binding->GetExternalWarpTargetName(), Binding->GetExternalWarpTargetTransform());
+		}
 	}
 }
 
-bool UContextualAnimSceneActorComponent::LateJoinContextualAnimScene(AActor* Actor, FName Role)
+bool UContextualAnimSceneActorComponent::LateJoinContextualAnimScene(AActor* Actor, FName Role, const TArray<FContextualAnimWarpTarget>& WarpTargets)
 {
 	if (!Bindings.IsValid())
 	{
@@ -168,7 +173,7 @@ bool UContextualAnimSceneActorComponent::LateJoinContextualAnimScene(AActor* Act
 		{
 			if (UContextualAnimSceneActorComponent* Comp = Leader->GetSceneActorComponent())
 			{
-				return Comp->LateJoinContextualAnimScene(Actor, Role);
+				return Comp->LateJoinContextualAnimScene(Actor, Role, WarpTargets);
 			}
 		}
 	}
@@ -177,7 +182,7 @@ bool UContextualAnimSceneActorComponent::LateJoinContextualAnimScene(AActor* Act
 		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), Bindings.GetID(), Bindings.GetSectionIdx(), *GetNameSafe(Bindings.GetSceneAsset()), *GetNameSafe(Actor), *Role.ToString());
 
 	// Play animation and set state on this new actor that is joining us and update bindings for everyone else
-	if (HandleLateJoin(Actor, Role))
+	if (HandleLateJoin(Actor, Role, WarpTargets))
 	{
 		// Replicate late join event. See OnRep_LateJoinData
 		if (GetOwner()->HasAuthority())
@@ -195,7 +200,7 @@ bool UContextualAnimSceneActorComponent::LateJoinContextualAnimScene(AActor* Act
 	return false;
 }
 
-bool UContextualAnimSceneActorComponent::HandleLateJoin(AActor* Actor, FName Role)
+bool UContextualAnimSceneActorComponent::HandleLateJoin(AActor* Actor, FName Role, const TArray<FContextualAnimWarpTarget>& WarpTargets)
 {
 	if (!Bindings.BindActorToRole(*Actor, Role))
 	{
@@ -222,15 +227,14 @@ bool UContextualAnimSceneActorComponent::HandleLateJoin(AActor* Actor, FName Rol
 	{
 		if (UContextualAnimSceneActorComponent* Comp = Binding->GetSceneActorComponent())
 		{
-			Comp->LateJoinScene(Bindings);
+			Comp->LateJoinScene(Bindings, WarpTargets);
 		}
 	}
-	
 
 	return true;
 }
 
-void UContextualAnimSceneActorComponent::LateJoinScene(const FContextualAnimSceneBindings& InBindings)
+void UContextualAnimSceneActorComponent::LateJoinScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& WarpTargets)
 {
 	if (Bindings.IsValid())
 	{
@@ -246,6 +250,11 @@ void UContextualAnimSceneActorComponent::LateJoinScene(const FContextualAnimScen
 			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *InBindings.GetRoleFromBinding(*Binding).ToString(), InBindings.GetID(), InBindings.GetSectionIdx(), *GetNameSafe(InBindings.GetSceneAsset()));
 
 		Bindings = InBindings;
+
+		for (const FContextualAnimWarpTarget& WarpTarget : WarpTargets)
+		{
+			Bindings.SetRoleWarpTarget(WarpTarget.Role, WarpTarget.TargetName, WarpTarget.TargetTransform);
+		}
 
 		// For now when late joining an scene always play animation from first section
 		const int32 SectionIdx = 0;
@@ -277,10 +286,10 @@ void UContextualAnimSceneActorComponent::OnRep_LateJoinData()
 		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), Bindings.GetID(), Bindings.GetSectionIdx(), *GetNameSafe(Bindings.GetSceneAsset()), *GetNameSafe(RepLateJoinData.Actor), *RepLateJoinData.Role.ToString());
 
 	// Play animation and set state on this new actor that is joining us and update bindings for everyone else
-	HandleLateJoin(RepLateJoinData.Actor, RepLateJoinData.Role);
+	HandleLateJoin(RepLateJoinData.Actor, RepLateJoinData.Role, {});
 }
 
-bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName SectionName)
+bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName SectionName, const TArray<FContextualAnimWarpTarget>& WarpTargets)
 {
 	if (!GetOwner()->HasAuthority())
 	{
@@ -295,13 +304,18 @@ bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName Sec
 		{
 			if (UContextualAnimSceneActorComponent* Comp = Leader->GetSceneActorComponent())
 			{
-				return Comp->TransitionContextualAnimScene(SectionName);
+				return Comp->TransitionContextualAnimScene(SectionName, WarpTargets);
 			}
 		}
 	}
 
 	if (const FContextualAnimSceneBinding* OwnerBinding = Bindings.FindBindingByActor(GetOwner()))
 	{
+		for (const FContextualAnimWarpTarget& WarpTarget : WarpTargets)
+		{
+			Bindings.SetRoleWarpTarget(WarpTarget.Role, WarpTarget.TargetName, WarpTarget.TargetTransform);
+		}
+
 		const int32 SectionIdx = Bindings.GetSceneAsset()->GetSectionIndex(SectionName);
 		if (SectionIdx != INDEX_NONE)
 		{
@@ -355,7 +369,7 @@ void UContextualAnimSceneActorComponent::HandleTransitionSelf(int32 NewSectionId
 	AddOrUpdateWarpTargets(NewSectionIdx, NewAnimSetIdx);
 }
 
-bool UContextualAnimSceneActorComponent::TransitionSingleActor(int32 SectionIdx, int32 AnimSetIdx)
+bool UContextualAnimSceneActorComponent::TransitionSingleActor(int32 SectionIdx, int32 AnimSetIdx, const TArray<FContextualAnimWarpTarget>& WarpTargets)
 {
 	if (!GetOwner()->HasAuthority())
 	{
@@ -364,6 +378,11 @@ bool UContextualAnimSceneActorComponent::TransitionSingleActor(int32 SectionIdx,
 
 	if (const FContextualAnimSceneBinding* OwnerBinding = Bindings.FindBindingByActor(GetOwner()))
 	{
+		for (const FContextualAnimWarpTarget& WarpTarget : WarpTargets)
+		{
+			Bindings.SetRoleWarpTarget(WarpTarget.Role, WarpTarget.TargetName, WarpTarget.TargetTransform);
+		}
+
 		if (const UContextualAnimSceneAsset* Asset = Bindings.GetSceneAsset())
 		{
 			const FContextualAnimTrack* AnimTrack = Asset->GetAnimTrack(SectionIdx, AnimSetIdx, Bindings.GetRoleFromBinding(*OwnerBinding));
@@ -411,6 +430,26 @@ void UContextualAnimSceneActorComponent::OnRep_RepTransitionSingleActor()
 
 bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContextualAnimSceneBindings& InBindings)
 {
+	return StartContextualAnimScene(InBindings, {});
+}
+	
+bool UContextualAnimSceneActorComponent::LateJoinContextualAnimScene(AActor* Actor, FName Role)
+{
+	return LateJoinContextualAnimScene(Actor, Role, {});
+}
+	
+bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName SectionName)
+{
+	return TransitionContextualAnimScene(SectionName, {});
+}
+	
+bool UContextualAnimSceneActorComponent::TransitionSingleActor(int32 SectionIdx, int32 AnimSetIdx)
+{
+	return TransitionSingleActor(SectionIdx, AnimSetIdx, {});
+}
+
+bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& WarpTargets)
+{
 	UE_LOG(LogContextualAnim, Log, TEXT("%-21s UContextualAnimSceneActorComponent::StartContextualAnim Actor: %s"),
 		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()));
 
@@ -419,7 +458,7 @@ bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContext
 	{
 		if (GetOwner()->HasAuthority())
 		{
-			JoinScene(InBindings);
+			JoinScene(InBindings, WarpTargets);
 
 			for (const FContextualAnimSceneBinding& Binding : InBindings)
 			{
@@ -427,7 +466,7 @@ bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContext
 				{
 					if (UContextualAnimSceneActorComponent* Comp = Binding.GetSceneActorComponent())
 					{
-						Comp->JoinScene(InBindings);
+						Comp->JoinScene(InBindings, WarpTargets);
 					}
 				}
 			}
@@ -440,7 +479,7 @@ bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContext
 		}
 		else if (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
 		{
-			JoinScene(InBindings);
+			JoinScene(InBindings, WarpTargets);
 
 			ServerStartContextualAnimScene(InBindings);
 
@@ -453,7 +492,7 @@ bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContext
 
 void UContextualAnimSceneActorComponent::ServerStartContextualAnimScene_Implementation(const FContextualAnimSceneBindings& InBindings)
 {
-	StartContextualAnimScene(InBindings);
+	StartContextualAnimScene(InBindings, {});
 }
 
 bool UContextualAnimSceneActorComponent::ServerStartContextualAnimScene_Validate(const FContextualAnimSceneBindings& InBindings)
@@ -530,7 +569,7 @@ void UContextualAnimSceneActorComponent::OnRep_Bindings()
 			// Join the scene (start playing animation, etc.)
 			if (GetOwner()->GetLocalRole() != ROLE_AutonomousProxy)
 			{
-				JoinScene(RepBindings);
+				JoinScene(RepBindings, {});
 			}
 
 			// RepBindings is only replicated from the initiator of the action.
@@ -543,7 +582,7 @@ void UContextualAnimSceneActorComponent::OnRep_Bindings()
 				{
 					if (UContextualAnimSceneActorComponent* Comp = Binding.GetSceneActorComponent())
 					{
-						Comp->JoinScene(RepBindings);
+						Comp->JoinScene(RepBindings, {});
 					}
 				}
 			}
@@ -681,7 +720,7 @@ void UContextualAnimSceneActorComponent::OnLeftScene()
 	}
 }
 
-void UContextualAnimSceneActorComponent::JoinScene(const FContextualAnimSceneBindings& InBindings)
+void UContextualAnimSceneActorComponent::JoinScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& WarpTargets)
 {
 	if (Bindings.IsValid())
 	{
@@ -694,6 +733,11 @@ void UContextualAnimSceneActorComponent::JoinScene(const FContextualAnimSceneBin
 			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *InBindings.GetRoleFromBinding(*Binding).ToString(), InBindings.GetID(), InBindings.GetSectionIdx(), *GetNameSafe(InBindings.GetSceneAsset()));
 
 		Bindings = InBindings;
+
+		for (const FContextualAnimWarpTarget& WarpTarget : WarpTargets)
+		{
+			Bindings.SetRoleWarpTarget(WarpTarget.Role, WarpTarget.TargetName, WarpTarget.TargetTransform);
+		}
 
 		const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(*Binding);
 		PlayAnimation_Internal(AnimTrack.Animation, 0.f, true);

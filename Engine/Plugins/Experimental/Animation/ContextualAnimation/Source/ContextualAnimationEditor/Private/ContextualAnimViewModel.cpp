@@ -525,7 +525,7 @@ void FContextualAnimViewModel::RefreshPreviewScene()
 
 	// Pause all anims and disable auto blend out
 	const FContextualAnimSceneBinding* Leader = SceneBindings.GetSyncLeader();
-	if (Leader && Leader->GetSceneActorComponent()->StartContextualAnimScene(SceneBindings))
+	if (Leader && Leader->GetSceneActorComponent()->StartContextualAnimScene(SceneBindings, {}))
 	{
 		for (const FContextualAnimSceneBinding& Binding : SceneBindings)
 		{
@@ -744,7 +744,7 @@ void FContextualAnimViewModel::StartSimulation()
 	if (FContextualAnimSceneBindings::TryCreateBindings(*GetSceneAsset(), ActiveSectionIdx, RoleToActorMap, SceneBindings))
 	{
 		const FContextualAnimSceneBinding* Leader = SceneBindings.GetSyncLeader();
-		if (Leader && Leader->GetSceneActorComponent()->StartContextualAnimScene(SceneBindings))
+		if (Leader && Leader->GetSceneActorComponent()->StartContextualAnimScene(SceneBindings, {}))
 		{
 			SimulateModeState = ESimulateModeState::Playing;
 		}
