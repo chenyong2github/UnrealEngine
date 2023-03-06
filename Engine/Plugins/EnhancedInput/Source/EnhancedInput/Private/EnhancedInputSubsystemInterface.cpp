@@ -58,8 +58,8 @@ void IEnhancedInputSubsystemInterface::BindUserSettingDelegates()
 		return;
 	}
 
-	Settings->OnSettingsChanged.AddDynamic(this, &IEnhancedInputSubsystemInterface::OnUserSettingsChanged);
-	Settings->OnKeyProfileChanged.AddDynamic(this, &IEnhancedInputSubsystemInterface::OnUserKeyProfileChanged);
+	Settings->OnSettingsChanged.AddUniqueDynamic(this, &IEnhancedInputSubsystemInterface::OnUserSettingsChanged);
+	Settings->OnKeyProfileChanged.AddUniqueDynamic(this, &IEnhancedInputSubsystemInterface::OnUserKeyProfileChanged);
 }
 
 void IEnhancedInputSubsystemInterface::OnUserSettingsChanged(UEnhancedInputUserSettings* Settings)
