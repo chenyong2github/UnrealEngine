@@ -103,7 +103,7 @@ namespace UnrealBuildTool
 					{
 						foreach (UEBuildModuleCPP Module in Binary.Modules.OfType<UEBuildModuleCPP>())
 						{
-							UEBuildModuleCPP.InputFileCollection InputFileCollection = Module.FindInputFiles(Target.Platform, new Dictionary<DirectoryItem, FileItem[]>());
+							UEBuildModuleCPP.InputFileCollection InputFileCollection = Module.FindInputFiles(Target.Platform, new Dictionary<DirectoryItem, FileItem[]>(), Logger);
 							List<FileItem> InputFiles = new List<FileItem>();
 							InputFiles.AddRange(InputFileCollection.HeaderFiles);
 							InputFiles.AddRange(InputFileCollection.CPPFiles);

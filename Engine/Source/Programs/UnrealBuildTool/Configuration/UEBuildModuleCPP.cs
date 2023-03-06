@@ -381,7 +381,7 @@ namespace UnrealBuildTool
 
 			// Find all the input files
 			Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles = new Dictionary<DirectoryItem, FileItem[]>();
-			InputFileCollection InputFiles = FindInputFiles(Target.Platform, DirectoryToSourceFiles);
+			InputFileCollection InputFiles = FindInputFiles(Target.Platform, DirectoryToSourceFiles, Logger);
 
 			foreach (KeyValuePair<DirectoryItem, FileItem[]> Pair in DirectoryToSourceFiles)
 			{
@@ -1823,8 +1823,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Platform">The platform the module is being built for</param>
 		/// <param name="DirectoryToSourceFiles">Map of directory to source files inside it</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Set of source files that should be built</returns>
-		public InputFileCollection FindInputFiles(UnrealTargetPlatform Platform, Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles)
+		public InputFileCollection FindInputFiles(UnrealTargetPlatform Platform, Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles, ILogger Logger)
 		{
 			ReadOnlyHashSet<string> ExcludedNames = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
 
@@ -1834,7 +1835,7 @@ namespace UnrealBuildTool
 			foreach (DirectoryReference Dir in ModuleDirectories)
 			{
 				DirectoryItem ModuleDirectoryItem = DirectoryItem.GetItemByDirectoryReference(Dir);
-				FindInputFilesFromDirectoryRecursive(ModuleDirectoryItem, ExcludedNames, SourceDirectories, DirectoryToSourceFiles, InputFiles);
+				FindInputFilesFromDirectoryRecursive(ModuleDirectoryItem, ExcludedNames, SourceDirectories, DirectoryToSourceFiles, InputFiles, Logger);
 			}
 
 			return InputFiles;
@@ -1848,10 +1849,11 @@ namespace UnrealBuildTool
 		/// <param name="SourceDirectories">Set of all non-empty source directories.</param>
 		/// <param name="DirectoryToSourceFiles">Map from directory to source files inside it</param>
 		/// <param name="InputFiles">Collection of source files, categorized by type</param>
-		static void FindInputFilesFromDirectoryRecursive(DirectoryItem BaseDirectory, ReadOnlyHashSet<string> ExcludedNames, HashSet<DirectoryReference> SourceDirectories, Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles, InputFileCollection InputFiles)
+		/// <param name="Logger">Logger for output</param>
+		static void FindInputFilesFromDirectoryRecursive(DirectoryItem BaseDirectory, ReadOnlyHashSet<string> ExcludedNames, HashSet<DirectoryReference> SourceDirectories, Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles, InputFileCollection InputFiles, ILogger Logger)
 		{
 			bool bIgnoreFileFound;
-			FileItem[] SourceFiles = FindInputFilesFromDirectory(BaseDirectory, InputFiles, out bIgnoreFileFound);
+			FileItem[] SourceFiles = FindInputFilesFromDirectory(BaseDirectory, InputFiles, out bIgnoreFileFound, Logger);
 
 			if (bIgnoreFileFound)
 			{
@@ -1862,7 +1864,7 @@ namespace UnrealBuildTool
 			{
 				if (!ExcludedNames.Contains(SubDirectory.Name))
 				{
-					FindInputFilesFromDirectoryRecursive(SubDirectory, ExcludedNames, SourceDirectories, DirectoryToSourceFiles, InputFiles);
+					FindInputFilesFromDirectoryRecursive(SubDirectory, ExcludedNames, SourceDirectories, DirectoryToSourceFiles, InputFiles, Logger);
 				}
 			}
 
@@ -1873,20 +1875,44 @@ namespace UnrealBuildTool
 			DirectoryToSourceFiles.Add(BaseDirectory, SourceFiles);
 		}
 
+		// List of known extensions that are checked in FindInputFilesFromDirectory, so we can log out only if a hidden file
+		// is skipped, only if it has an extension that would normally be compiled
+		static string[] KnownInputFileExtensions =
+		{
+			".h", ".ipsh",
+			".cpp", ".ixx", ".c", ".cc",
+			".m", ".mm", 
+			".rc", ".ispc",
+		};
+
 		/// <summary>
 		/// Finds the input files that should be built for this module, from a given directory
 		/// </summary>
 		/// <param name="BaseDirectory"></param>
 		/// <param name="InputFiles"></param>
 		/// <param name="bIgnoreFileFound"></param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Array of source files</returns>
-		static FileItem[] FindInputFilesFromDirectory(DirectoryItem BaseDirectory, InputFileCollection InputFiles, out bool bIgnoreFileFound)
+		static FileItem[] FindInputFilesFromDirectory(DirectoryItem BaseDirectory, InputFileCollection InputFiles, out bool bIgnoreFileFound, ILogger Logger)
 		{
 			bIgnoreFileFound = false;
 			List<FileItem> SourceFiles = new List<FileItem>();
 			foreach(FileItem InputFile in BaseDirectory.EnumerateFiles())
 			{
-				if (InputFile.HasExtension(".h"))
+				if (InputFile.Name == ".ubtignore")
+				{
+					bIgnoreFileFound = true;
+				}
+				// some text editors will leave temp files that start with . next to a, say, .cpp file, and we do not want to compile them,
+				// but skip files like .DS_Store that don't have an extension (so, no more .'s after the first)
+				else if (InputFile.Name.StartsWith(".") && InputFile.Name.IndexOf('.', 1) != -1)
+				{
+					if (KnownInputFileExtensions.Contains(InputFile.Location.GetExtension()))
+					{
+						Logger.LogInformation("Hidden file '{HiddenFile}' found, skipping.", InputFile.FullName);
+					}
+				}
+				else if (InputFile.HasExtension(".h"))
 				{
 					InputFiles.HeaderFiles.Add(InputFile);
 				}
@@ -1929,10 +1955,7 @@ namespace UnrealBuildTool
 					SourceFiles.Add(InputFile);
 					InputFiles.ISPCFiles.Add(InputFile);
 				}
-				else if (InputFile.Name == ".ubtignore")
-				{
-					bIgnoreFileFound = true;
-				}
+				// if you add any extension checks here, make sure to update KnownInputFileExtensions
 			}
 			return SourceFiles.ToArray();
 		}
@@ -1941,11 +1964,12 @@ namespace UnrealBuildTool
 		/// Gets a set of source files for the given directory. Used to detect when the makefile is out of date.
 		/// </summary>
 		/// <param name="Directory"></param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Array of source files</returns>
-		public static FileItem[] GetSourceFiles(DirectoryItem Directory)
+		public static FileItem[] GetSourceFiles(DirectoryItem Directory, ILogger Logger)
 		{
 			bool bIgnoreFileFound;
-			FileItem[] Files = FindInputFilesFromDirectory(Directory, new InputFileCollection(), out bIgnoreFileFound);
+			FileItem[] Files = FindInputFilesFromDirectory(Directory, new InputFileCollection(), out bIgnoreFileFound, Logger);
 			if (bIgnoreFileFound)
 			{
 				return Array.Empty<FileItem>();

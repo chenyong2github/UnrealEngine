@@ -175,7 +175,7 @@ namespace UnrealBuildTool
 							if (!Module.Rules.bUsePrecompiled)
 							{
 								// Gather all the files we care about
-								UEBuildModuleCPP.InputFileCollection InputFileCollection = Module.FindInputFiles(Target.Platform, new Dictionary<DirectoryItem, FileItem[]>());
+								UEBuildModuleCPP.InputFileCollection InputFileCollection = Module.FindInputFiles(Target.Platform, new Dictionary<DirectoryItem, FileItem[]>(), Logger);
 								List<FileItem> InputFiles = new List<FileItem>();
 								InputFiles.AddRange(InputFileCollection.CPPFiles);
 								InputFiles.AddRange(InputFileCollection.CCFiles);

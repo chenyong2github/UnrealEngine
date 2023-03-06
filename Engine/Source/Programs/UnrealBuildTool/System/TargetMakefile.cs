@@ -746,7 +746,7 @@ namespace UnrealBuildTool
 				{
 					if(!InputDirectory.Exists || InputDirectory.LastWriteTimeUtc > Makefile.CreateTimeUtc)
 					{
-						FileItem[] SourceFiles = UEBuildModuleCPP.GetSourceFiles(InputDirectory);
+						FileItem[] SourceFiles = UEBuildModuleCPP.GetSourceFiles(InputDirectory, Logger);
 						if(SourceFiles.Length < SourceFileInfos.Length)
 						{
 							ReasonNotLoaded = "source file removed";
@@ -765,7 +765,7 @@ namespace UnrealBuildTool
 
 						foreach(DirectoryItem Directory in InputDirectory.EnumerateDirectories())
 						{
-							if(!Makefile.DirectoryToSourceFiles.ContainsKey(Directory) && ContainsSourceFiles(Directory, ExcludedFolderNames))
+							if(!Makefile.DirectoryToSourceFiles.ContainsKey(Directory) && ContainsSourceFiles(Directory, ExcludedFolderNames, Logger))
 							{
 								ReasonNotLoaded = "directory added";
 								return false;
@@ -888,14 +888,15 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Directory">Directory to search through</param>
 		/// <param name="ExcludedFolderNames">Set of directory names to exclude</param>
+		/// <param name="Logger">Logger for output diagnostics</param>
 		/// <returns>True if the directory contains any source files</returns>
-		static bool ContainsSourceFiles(DirectoryItem Directory, ReadOnlyHashSet<string> ExcludedFolderNames)
+		static bool ContainsSourceFiles(DirectoryItem Directory, ReadOnlyHashSet<string> ExcludedFolderNames, ILogger Logger)
 		{
 			// Check this directory isn't ignored
 			if(!ExcludedFolderNames.Contains(Directory.Name))
 			{
 				// Check for any source files in this actual directory
-				FileItem[] SourceFiles = UEBuildModuleCPP.GetSourceFiles(Directory);
+				FileItem[] SourceFiles = UEBuildModuleCPP.GetSourceFiles(Directory, Logger);
 				if(SourceFiles.Length > 0)
 				{
 					return true;
@@ -904,7 +905,7 @@ namespace UnrealBuildTool
 				// Check for any source files in a subdirectory
 				foreach(DirectoryItem SubDirectory in Directory.EnumerateDirectories())
 				{
-					if(ContainsSourceFiles(SubDirectory, ExcludedFolderNames))
+					if(ContainsSourceFiles(SubDirectory, ExcludedFolderNames, Logger))
 					{
 						return true;
 					}
