@@ -161,32 +161,44 @@ static const char* GetClassCode()
 
  CORE_API FMacMallocCrashHandler* GCrashMalloc = nullptr;
 
+// e.g. 13.2.1
 static void MacPlatformGetOSProductVersion(FString &OutOSVersion)
 {
-	SIZE_T OSProductVersionStringSize = 0;
-	if (0 == (sysctlbyname("kern.osproductversion", NULL, &OSProductVersionStringSize, NULL, 0)))
+	static FString OSVersion = TEXT("");
+	if (OSVersion.IsEmpty())
 	{
-		ANSICHAR *OSProductVersionCString = new ANSICHAR[OSProductVersionStringSize];
-		if (0 == (sysctlbyname("kern.osproductversion", OSProductVersionCString, &OSProductVersionStringSize, NULL, 0)))
+		SIZE_T OSProductVersionStringSize = 0;
+		if (0 == (sysctlbyname("kern.osproductversion", NULL, &OSProductVersionStringSize, NULL, 0)))
 		{
-			OutOSVersion = ANSI_TO_TCHAR(OSProductVersionCString);
+			ANSICHAR *OSProductVersionCString = new ANSICHAR[OSProductVersionStringSize];
+			if (0 == (sysctlbyname("kern.osproductversion", OSProductVersionCString, &OSProductVersionStringSize, NULL, 0)))
+			{
+				OSVersion = ANSI_TO_TCHAR(OSProductVersionCString);
+			}
+			delete [] OSProductVersionCString;
 		}
-		delete [] OSProductVersionCString;
 	}
+	OutOSVersion = OSVersion;
 }
 
+// e.g. 22D68
 static void MacPlatformGetOSVersion(FString &OutOSBuild)
 {
-	SIZE_T OSVersionStringSize = 0;
-	if (0 == (sysctlbyname("kern.osversion", NULL, &OSVersionStringSize, NULL, 0)))
+	static FString OSBuild = TEXT("");
+	if (OSBuild.IsEmpty())
 	{
-		ANSICHAR *OSVersionCString = new ANSICHAR[OSVersionStringSize];
-		if (0 == (sysctlbyname("kern.osversion", OSVersionCString, &OSVersionStringSize, NULL, 0)))
+		SIZE_T OSVersionStringSize = 0;
+		if (0 == (sysctlbyname("kern.osversion", NULL, &OSVersionStringSize, NULL, 0)))
 		{
-			OutOSBuild = ANSI_TO_TCHAR(OSVersionCString);
+			ANSICHAR *OSVersionCString = new ANSICHAR[OSVersionStringSize];
+			if (0 == (sysctlbyname("kern.osversion", OSVersionCString, &OSVersionStringSize, NULL, 0)))
+			{
+				OSBuild = ANSI_TO_TCHAR(OSVersionCString);
+			}
+			delete [] OSVersionCString;
 		}
-		delete [] OSVersionCString;
 	}
+	OutOSBuild = OSBuild;
 }
 
 /**
@@ -236,7 +248,7 @@ struct FMacApplicationInfo
 		
 		MacPlatformGetOSVersion(OSBuild);
 
-		OSXVersion = [[NSProcessInfo processInfo] operatingSystemVersion];
+		OSXVersion = FMacPlatformMisc::GetNSOperatingSystemVersion();
 		RunningOnMavericks = OSXVersion.majorVersion == 10 && OSXVersion.minorVersion == 9;
 
 		XcodeVersion.majorVersion = XcodeVersion.minorVersion = XcodeVersion.patchVersion = 0;
@@ -1615,6 +1627,21 @@ FString FMacPlatformMisc::GetOSVersion()
 	FString OSVersion;
 	MacPlatformGetOSProductVersion(OSVersion);
 	return OSVersion;
+}
+
+NSOperatingSystemVersion FMacPlatformMisc::GetNSOperatingSystemVersion()
+{
+	FString OSVersionString;
+	NSOperatingSystemVersion SystemVersion = {};
+	MacPlatformGetOSProductVersion(OSVersionString);
+	if (sscanf(TCHAR_TO_ANSI(*OSVersionString), "%ld.%ld.%ld", &SystemVersion.majorVersion, &SystemVersion.minorVersion, &SystemVersion.patchVersion))
+	{
+		return SystemVersion;
+	}
+	else
+	{
+		return {0,0,0};
+	}
 }
 
 bool FMacPlatformMisc::GetDiskTotalAndFreeSpace(const FString& InPath, uint64& TotalNumberOfBytes, uint64& NumberOfFreeBytes)
