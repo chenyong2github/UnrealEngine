@@ -48,7 +48,20 @@ URigVMNode* URigVMAggregateNode::GetFirstInnerNode() const
 			TArray<URigVMNode*> ConnectedNodes;
 			for (const URigVMPin* EntryPin : EntryNode->GetPins())
 			{
-				const TArray<URigVMPin*> TargetPins = EntryPin->GetLinkedTargetPins();
+				TArray<URigVMPin*> TargetPins = EntryPin->GetLinkedTargetPins();
+				if (TargetPins.IsEmpty())
+				{
+					// If there are no target pins, they might not be reattached yet
+					const TArray<URigVMLink*>& Links = GetContainedLinks();
+					for (const URigVMLink* Link : Links)
+					{
+						if (Link->GetSourcePin() == EntryPin)
+						{
+							TargetPins.Add(Link->GetTargetPin());
+							break;
+						}
+					}
+				}
 				if (TargetPins.Num() > 0)
 				{
 					if (TargetPins[0]->GetName() == Arg1Name || TargetPins[0]->GetName() == Arg2Name)
@@ -72,7 +85,20 @@ URigVMNode* URigVMAggregateNode::GetFirstInnerNode() const
 			const URigVMFunctionEntryNode* EntryNode = GetEntryNode();
 			if (const URigVMPin* EntryPin = EntryNode->FindPin(ArgOppositeName))
 			{
-				const TArray<URigVMPin*> TargetPins = EntryPin->GetLinkedTargetPins();
+				TArray<URigVMPin*> TargetPins = EntryPin->GetLinkedTargetPins();
+				if (TargetPins.IsEmpty())
+				{
+					// If there are no target pins, they might not be reattached yet
+					const TArray<URigVMLink*>& Links = GetContainedLinks();
+					for (const URigVMLink* Link : Links)
+					{
+						if (Link->GetSourcePin() == EntryPin)
+						{
+							TargetPins.Add(Link->GetTargetPin());
+							break;
+						}
+					}
+				}
 				if (TargetPins.Num() > 0)
 				{
 					FirstInnerNodeCache = TargetPins[0]->GetNode();
