@@ -2481,6 +2481,7 @@ void FMaterial::SetupMaterialEnvironment(
 	OutEnvironment.SetDefine(TEXT("MATERIAL_OUTPUT_OPACITY_AS_ALPHA"), GetBlendableOutputAlpha());
 	OutEnvironment.SetDefine(TEXT("TRANSLUCENT_SHADOW_WITH_MASKED_OPACITY"), GetCastDynamicShadowAsMasked());
 	OutEnvironment.SetDefine(TEXT("TRANSLUCENT_WRITING_VELOCITY"), IsTranslucencyWritingVelocity());
+	OutEnvironment.SetDefine(TEXT("TRANSLUCENT_WRITING_FRONT_LAYER_TRANSPARENCY"), IsTranslucencyWritingFrontLayerTransparency());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_USE_ALPHA_TO_COVERAGE"), IsUsingAlphaToCoverage());
 	OutEnvironment.SetDefine(TEXT("MOBILE_HIGH_QUALITY_BRDF"), IsMobileHighQualityBRDFEnabled());
 

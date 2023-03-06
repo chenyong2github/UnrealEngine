@@ -60,6 +60,7 @@ bool UseFrontLayerReflection(float2 BufferUV, float SceneDepth)
 {
 	bool bValid = false;
 
+	#if TRANSLUCENT_WRITING_FRONT_LAYER_TRANSPARENCY
 	if (FrontLayerTranslucencyReflectionsStruct.Enabled > 0)
 	{
 		float SingleLayerDeviceZ = Texture2DSampleLevel(FrontLayerTranslucencyReflectionsStruct.SceneDepth, GlobalPointClampedSampler, BufferUV, 0.0f).x;
@@ -70,6 +71,7 @@ bool UseFrontLayerReflection(float2 BufferUV, float SceneDepth)
 			bValid = true;
 		}
 	}
+	#endif
 
 	return bValid;
 }
