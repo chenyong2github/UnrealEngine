@@ -1430,3 +1430,4 @@ void UDirectionalLightComponent::InvalidateLightingCacheDetailed(bool bInvalidat
 	}
 }
 
+ELightUnits UDirectionalLightComponent::GetLightUnits() const { return ELightUnits::Unitless; /* Lux */ }
