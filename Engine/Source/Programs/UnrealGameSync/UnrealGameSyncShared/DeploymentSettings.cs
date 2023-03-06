@@ -21,6 +21,11 @@ namespace UnrealGameSync
 	public partial class DeploymentSettings
 	{
 		/// <summary>
+		/// Url for the Horde server
+		/// </summary>
+		public string? HordeUrl { get; set; }
+
+		/// <summary>
 		/// SQL connection string used to connect to the database for telemetry and review data.
 		/// </summary>
 		public string? ApiUrl { get; set; }
