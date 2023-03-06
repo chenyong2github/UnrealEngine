@@ -7,6 +7,7 @@
 #include "MeshRegionBoundaryLoops.h"
 #include "DynamicSubmesh3.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/DynamicBoneAttribute.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "MeshQueries.h"
 #include "Selections/MeshConnectedComponents.h"
@@ -1705,12 +1706,48 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 			}
 		}
 
-		for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : AppendMesh->Attributes()->GetSkinWeightsAttributes())
+		if (AppendMesh->Attributes()->HasBones() && Mesh->Attributes()->HasBones())
 		{
-			FDynamicMeshVertexSkinWeightsAttribute* ToAttrib = Mesh->Attributes()->GetSkinWeightsAttribute(AttribPair.Key);
-			if (ToAttrib)
+			const bool bSameSkeletons = AppendMesh->Attributes()->GetBoneNames()->IsSameAs(*Mesh->Attributes()->GetBoneNames());
+
+			if (!bSameSkeletons)
 			{
-				ToAttrib->CopyThroughMapping(AttribPair.Value.Get(), IndexMapsOut);
+				Mesh->Attributes()->AppendBonesUnique(*AppendMesh->Attributes());
+			}
+			
+			for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : AppendMesh->Attributes()->GetSkinWeightsAttributes())
+			{
+				FDynamicMeshVertexSkinWeightsAttribute* ToAttrib = Mesh->Attributes()->GetSkinWeightsAttribute(AttribPair.Key);
+				if (ToAttrib)
+				{	
+					if (bSameSkeletons)
+					{
+						// If the skeletons are the same then we do not need to re-index and we simply copy
+						ToAttrib->CopyThroughMapping(AttribPair.Value.Get(), IndexMapsOut);
+					}
+					else
+					{
+						// Make a copy of the append mesh skinning weights and reindex them with respect to the new skeleton
+						FDynamicMeshVertexSkinWeightsAttribute CopyAppendMeshAttrib;
+						CopyAppendMeshAttrib.Copy(*AttribPair.Value.Get());
+						CopyAppendMeshAttrib.ReindexBoneIndicesToSkeleton(AppendMesh->Attributes()->GetBoneNames()->GetAttribValues(),
+						 											  	  Mesh->Attributes()->GetBoneNames()->GetAttribValues());
+
+						// Now copy re-indexed weights to the mesh we are appending to
+						ToAttrib->CopyThroughMapping(&CopyAppendMeshAttrib, IndexMapsOut);
+					}
+				}
+			}
+		}
+		else
+		{
+			for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : AppendMesh->Attributes()->GetSkinWeightsAttributes())
+			{
+				FDynamicMeshVertexSkinWeightsAttribute* ToAttrib = Mesh->Attributes()->GetSkinWeightsAttribute(AttribPair.Key);
+				if (ToAttrib)
+				{
+					ToAttrib->CopyThroughMapping(AttribPair.Value.Get(), IndexMapsOut);
+				}
 			}
 		}
 		

@@ -16,6 +16,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "SkeletalMeshAttributes.h"
+#include "ReferenceSkeleton.h"
 
 /*-----------------------------------------------------------------------------
 FSkelMeshImportedMeshInfo
@@ -1384,12 +1385,20 @@ void FSkeletalMeshLODModel::GetMeshDescription(FMeshDescription& MeshDescription
 
 	TPolygonGroupAttributesRef<FName> PolygonGroupMaterialSlotNames = MeshAttributes.GetPolygonGroupMaterialSlotNames();
 	
+	FSkeletalMeshAttributes::FBoneNameAttributesRef BoneNames = MeshAttributes.GetBoneNames();
+	FSkeletalMeshAttributes::FBoneParentIndexAttributesRef BoneParentIndices = MeshAttributes.GetBoneParentIndices();
+	FSkeletalMeshAttributes::FBonePoseAttributesRef BonePoses = MeshAttributes.GetBonePoses();
+
 	const int32 NumTriangles = IndexBuffer.Num() / 3;
+
+	const FReferenceSkeleton& RefSkeleton = Owner->GetRefSkeleton();
+	const int NumBones = RefSkeleton.GetRawBoneNum();
 
 	MeshDescription.ReserveNewPolygonGroups(Sections.Num());
 	MeshDescription.ReserveNewTriangles(NumTriangles);
 	MeshDescription.ReserveNewVertexInstances(NumTriangles * 3);
 	MeshDescription.ReserveNewVertices(static_cast<int32>(NumVertices));
+	MeshAttributes.ReserveNewBones(NumBones);
 
 	TArray<FVertexID> VertexIDs;
 	VertexIDs.Reserve(NumVertices);
@@ -1481,6 +1490,19 @@ void FSkeletalMeshLODModel::GetMeshDescription(FMeshDescription& MeshDescription
 
 			MeshDescription.CreateTriangle(PolygonGroupID, TriangleVertexInstanceIDs);
 		}
+	}
+
+	// Set Bone Attributes
+	for (int Idx = 0; Idx < NumBones; ++Idx)
+	{
+		const FMeshBoneInfo& BoneInfo = RefSkeleton.GetRawRefBoneInfo()[Idx];
+		const FTransform& BoneTransform = RefSkeleton.GetRawRefBonePose()[Idx];
+
+		const FBoneID BoneID = MeshAttributes.CreateBone();
+		
+		BoneNames.Set(BoneID, BoneInfo.Name);
+		BoneParentIndices.Set(BoneID, BoneInfo.ParentIndex);
+		BonePoses.Set(BoneID, BoneTransform);
 	}
 }
 

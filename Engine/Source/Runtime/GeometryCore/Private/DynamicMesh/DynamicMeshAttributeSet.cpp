@@ -1457,9 +1457,12 @@ namespace BoneAttributeHelpers
 		if (bWantAttrib)
 		{	
 			const int32 NumBones = ToMatch ? ToMatch->Num() : 0;
-			TDynamicBoneAttributeBase<ParentType, AttribValueType>* Ptr = new TDynamicBoneAttributeBase<ParentType, AttribValueType>(Mesh);
-			Attribute = TUniquePtr<TDynamicBoneAttributeBase<ParentType, AttribValueType>>(Ptr);
-			Attribute->Initialize(NumBones, InitialValue);
+			if (!Attribute)
+			{
+				TDynamicBoneAttributeBase<ParentType, AttribValueType>* Ptr = new TDynamicBoneAttributeBase<ParentType, AttribValueType>(Mesh);
+				Attribute = TUniquePtr<TDynamicBoneAttributeBase<ParentType, AttribValueType>>(Ptr);
+				Attribute->Initialize(NumBones, InitialValue);
+			}
 		}
 	}
 
