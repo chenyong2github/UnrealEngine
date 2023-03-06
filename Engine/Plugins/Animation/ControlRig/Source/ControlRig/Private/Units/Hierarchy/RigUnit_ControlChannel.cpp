@@ -7,6 +7,11 @@
 
 bool FRigUnit_GetAnimationChannelBase::UpdateCache(const URigHierarchy* InHierarchy, const FName& Control, const FName& Channel, FRigElementKey& Key, int32& Hash)
 {
+	if (!IsValid(InHierarchy))
+	{
+		return false;
+	}
+	
 	if(!Key.IsValid())
 	{
 		Hash = INDEX_NONE;
