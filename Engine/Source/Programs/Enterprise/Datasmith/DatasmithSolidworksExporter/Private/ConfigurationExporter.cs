@@ -1,18 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
-using System.Runtime.InteropServices;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Diagnostics;
+
 using DatasmithSolidworks.Names;
 using static DatasmithSolidworks.FConfigurationTree;
-using System.ComponentModel;
-using System.Diagnostics;
-using static DatasmithSolidworks.FMeshes;
+using static DatasmithSolidworks.Addin;
 
 namespace DatasmithSolidworks
 {
@@ -43,9 +41,13 @@ namespace DatasmithSolidworks
 
 	public class FMeshes
 	{
+		private readonly string MainConfigurationName;
 		private Dictionary<string, FConfiguration> Configurations = new Dictionary<string, FConfiguration>();
 
-		private HashSet<FMesh> Meshes = new HashSet<FMesh>();
+		// Store unique meshes(identical mesh from different component will use the same FMesh object)
+		// Using Dictionary instead of HashSet to be able to retrieve stored object by the key(which is a different object for identical bu different mesh)
+		private Dictionary<FMesh, FMesh> Meshes = new Dictionary<FMesh, FMesh>();  
+		private Dictionary<object, FMeshName> MeshNames = new Dictionary<object, FMeshName>();
 
 		public struct FMesh
 		{
@@ -143,6 +145,11 @@ namespace DatasmithSolidworks
 			}
 		}
 
+		public FMeshes(string InMainConfigurationName)
+		{
+			MainConfigurationName = InMainConfigurationName;
+		}
+
 		public FConfiguration GetMeshesConfiguration(string ConfigurationName)
 		{
 			if (Configurations.TryGetValue(ConfigurationName, out var Configuration))
@@ -150,7 +157,7 @@ namespace DatasmithSolidworks
 				return Configuration;
 			}			
 
-			Configuration = new FConfiguration(this, ConfigurationName);
+			Configuration = new FConfiguration(this, ConfigurationName, MainConfigurationName==ConfigurationName);
 			Configurations.Add(ConfigurationName, Configuration);
 			return Configuration;
 		}
@@ -173,28 +180,42 @@ namespace DatasmithSolidworks
 			public class FComponentMesh
 			{
 				public Component2 Component;
-				public FActorName ActorName;
 				public FMesh Mesh = new FMesh();
+				public FMeshName MeshName;
 			}
 
+			private readonly FMeshes Meshes;
+			private readonly string Name;
+			private readonly bool bIsMainConfiguration;
 			private ConcurrentDictionary<FComponentName, FComponentMesh> MeshForComponent = new ConcurrentDictionary<FComponentName, FComponentMesh>();
 
-			public FConfiguration(FMeshes Meshes, string Name)
+			public FConfiguration(FMeshes InMeshes, string InName, bool bInIsMainConfiguration)
 			{
+				Meshes = InMeshes;
+				Name = InName;
+				bIsMainConfiguration = bInIsMainConfiguration;
 			}
 
-			public void AddComponentWhichNeedsMesh(Component2 InComponent, FComponentName InComponentName, FActorName InActorName)
+			public void AddComponentWhichNeedsMesh(Component2 InComponent, FComponentName InComponentName)
 			{
-				MeshForComponent.TryAdd(InComponentName, new FComponentMesh() {Component = InComponent, ActorName = InActorName});
+				MeshForComponent.TryAdd(InComponentName, new FComponentMesh() {Component = InComponent});
 			}
 
-			public void AddMesh(Component2 Component, FMeshData MeshData)
+			public void AddMesh(FComponentName ComponentName, FMeshData MeshData, out FMeshName MeshName)
 			{
 				FComponentMesh ComponentMesh;
-				if (MeshForComponent.TryGetValue(new FComponentName(Component), out ComponentMesh))
+				if (MeshForComponent.TryGetValue(ComponentName, out ComponentMesh))
 				{
-					ComponentMesh.Mesh = new FMesh(MeshData);
+					// MeshName for active configuration is simplified(doesn't contain config name)
+					FMeshName MeshNameDesired = bIsMainConfiguration ? new FMeshName(ComponentName) : new FMeshName(ComponentName, Name);
+
+					// AddMesh may return mesh(and mesh name) of an identical mesh already processed - use these instead then
+					Meshes.AddMesh(MeshNameDesired,  MeshData, out ComponentMesh.MeshName, out ComponentMesh.Mesh);
+					MeshName = ComponentMesh.MeshName;
+					return;
 				}
+				MeshName = new FMeshName();
+				Debug.Assert(false);  // unexpected - component which can have mesh added should already be registered...
 			}
 
 			public bool GetMeshForComponent(FComponentName ComponentName, out FMesh Result)
@@ -217,6 +238,32 @@ namespace DatasmithSolidworks
 			{
 				return MeshForComponent.Select(KVP => KVP.Value.Component);
 			}
+
+			public FMeshName GetMeshNameForComponent(FComponentName ComponentName)
+			{
+				return MeshForComponent[ComponentName].MeshName;
+			}
+		}
+
+		// Returns true if this mesh was already there
+		private bool AddMesh(FMeshName MeshName, FMeshData MeshData, out FMeshName OutMeshName, out FMesh OutMesh)
+		{
+			LogDebug($"FMeshes.AddMesh('{MeshName}')");
+			// Store only one instance of identical mesh
+			FMesh Mesh = new FMesh(MeshData);
+			if (Meshes.TryGetValue(Mesh, out OutMesh))
+			{
+				OutMeshName = MeshNames[OutMesh];
+				LogDebug($"    identical mesh found: '{OutMeshName}'");
+				return true;
+			}
+
+			Meshes.Add(Mesh, Mesh);
+			MeshNames.Add(Mesh, MeshName); // Record name for the instance of the mesh also
+
+			OutMesh = Mesh;
+			OutMeshName = MeshName;
+			return false;;
 		}
 
 		public string GetConfigurationNameForComponentMesh(FComponentName ComponentName)
@@ -230,6 +277,11 @@ namespace DatasmithSolidworks
 			}
 			return null;
 		}
+
+		public FMeshName GetMeshName(string ConfigName, FComponentName ComponentName)
+		{
+			return Configurations[ConfigName].GetMeshNameForComponent(ComponentName);
+		}
 	}
 
 	public class FConfigurationExporter
@@ -237,19 +289,27 @@ namespace DatasmithSolidworks
 		public readonly FMeshes Meshes;
 		public readonly string[] ConfigurationNames;
 		private readonly string MainConfigurationName;
+		private readonly bool bExportDisplayStates;
 
 		public FConfigurationTree.FComponentTreeNode CombinedTree;
 
-		public FConfigurationExporter(FMeshes InMeshes, string[] InConfigurationNames, string InMainConfigurationName)
+		private List<FDatasmithExporter.FMeshExportInfo> ExtractedMeshes = new List<FDatasmithExporter.FMeshExportInfo>();
+		public Dictionary<FMeshName, List<FActorName>> ActorsForMesh = new Dictionary<FMeshName, List<FActorName>>();
+		public Dictionary<FComponentName, List<FMeshName>> MeshesForComponent = new Dictionary<FComponentName, List<FMeshName>>();
+
+		public FConfigurationExporter(FMeshes InMeshes, 
+			string[] InConfigurationNames, string InMainConfigurationName,
+			bool bInExportDisplayStates)
 		{
 			Meshes = InMeshes;
 			ConfigurationNames = InConfigurationNames;
 			MainConfigurationName = InMainConfigurationName;
+			bExportDisplayStates = bInExportDisplayStates;
 		}
 
 		public List<FConfigurationData> ExportConfigurations(FDocumentTracker InDoc)
 		{
-			Addin.Instance.LogDebug($"FConfigurationExporter.ExportConfigurations [{string.Join(",", ConfigurationNames)}]");
+			LogDebug($"FConfigurationExporter.ExportConfigurations [{string.Join(",", ConfigurationNames)}]");
 			// todo: may refactor to union behavior for 'no configuration'(i.e. active) and one-to-many configurations export
 			// Not sure how CfgNames might be technically null though
 			if (ConfigurationNames == null) // || CfgNames.Length <= 1)
@@ -283,27 +343,31 @@ namespace DatasmithSolidworks
 			bool bIsActiveConfiguration = true;
 			foreach (string CfgName in ConfigurationNamesActiveFirst)
 			{
-				Addin.Instance.LogDebug($"Configuration '{CfgName}'");
+				LogDebug($"Configuration '{CfgName}'");
 				IConfiguration swConfiguration = InDoc.SwDoc.GetConfigurationByName(CfgName) as IConfiguration;
 
 				if (!bIsActiveConfiguration)
 				{
-					Addin.Instance.LogDebug($"ShowConfiguration2 '{CfgName}'");
+					LogDebug($"ShowConfiguration2 '{CfgName}'");
 					InDoc.SwDoc.ShowConfiguration2(CfgName);
 				}
-				Addin.Instance.LogDebug($"ActiveConfiguration '{ConfigManager.ActiveConfiguration.Name}'");
+				LogDebug($"ActiveConfiguration '{ConfigManager.ActiveConfiguration.Name}'");
 
 				string ConfigName = CfgName;
 
-				int DisplayStateCount = swConfiguration.GetDisplayStatesCount();
 				string[] DisplayStates = null;
+				int DisplayStateCount = 0;
 
-				if (ConfigManager.LinkDisplayStatesToConfigurations && DisplayStateCount > 1)
+				if (bExportDisplayStates)
 				{
-					DisplayStates = swConfiguration.GetDisplayStates();
-					ConfigName = $"{CfgName}_{DisplayStates[0]}";
-				}
+					DisplayStateCount = swConfiguration.GetDisplayStatesCount();
 
+					if (ConfigManager.LinkDisplayStatesToConfigurations && DisplayStateCount > 1)
+					{
+						DisplayStates = swConfiguration.GetDisplayStates();
+						ConfigName = $"{CfgName}_{DisplayStates[0]}";
+					}
+				}
 				FConfigurationTree.FComponentTreeNode ConfigNode = new FConfigurationTree.FComponentTreeNode();
 				ConfigNode.ComponentInfo.ComponentName = FComponentName.FromCustomString(ConfigName);
 
@@ -314,13 +378,13 @@ namespace DatasmithSolidworks
 				// Build the tree and get default materials (which aren't affected by any configuration)
 				// Use GetRootComponent3() with Resolve = true to ensure suppressed components will be loaded
 				// todo: docs says that Part document SW returns null. Not the case. But probably better to add a guard
-				Addin.Instance.LogDebug($"Components:");
+				LogDebug($"Components:");
 				CollectComponentsRecursive(InDoc, swConfiguration.GetRootComponent3(true), ConfigNode, MeshesConfiguration, CfgName);
 
 				ExportedConfigurationNames.Add(CfgName, ConfigName);
 
-				Addin.Instance.LogDebug($"Materials:");
-				Dictionary<FComponentName, FObjectMaterials> MaterialsMap = GetComponentMaterials(InDoc, DisplayStates != null ? DisplayStates[0] : null, swConfiguration);
+				LogDebug($"Materials:");
+				Dictionary<FComponentName, FObjectMaterials> MaterialsMap = GetComponentMaterials(InDoc, DisplayStates?[0], swConfiguration);
 				SetComponentTreeMaterials(ConfigNode, MaterialsMap, null, false);
 
 				if (DisplayStates != null)
@@ -331,7 +395,7 @@ namespace DatasmithSolidworks
 					{
 						string DisplayState = DisplayStates[Index];
 						string DisplayStateTreeName = $"{CfgName}_DisplayState_{FDatasmithExporter.SanitizeName(DisplayState)}";
-						Addin.Instance.LogDebug($"Linked DisplayState '{DisplayState}' Materials for variant '{DisplayStateTreeName}'");
+						LogDebug($"Linked DisplayState '{DisplayState}' Materials for variant '{DisplayStateTreeName}'");
 
 						MaterialsMap = GetComponentMaterials(InDoc, DisplayState, swConfiguration);
 						SetComponentTreeMaterials(ConfigNode, MaterialsMap, DisplayStateTreeName, false);
@@ -362,10 +426,7 @@ namespace DatasmithSolidworks
 				// Export meshes
 				InDoc.SetExportStatus($"Component Meshes");
 
-				string MeshSuffix = bIsActiveConfiguration ? null : CfgName; // Suffix for main configuration is absent(so in default or single configuration export we don't have unnecessary long names)
-				List<FDatasmithExporter.FMeshExportInfo> CreatedMeshes = InDoc.ProcessConfigurationMeshes(MeshesConfiguration, MeshSuffix);
-				InDoc.ExportMaterials();
-				InDoc.AssignMaterialsToDatasmithMeshes(CreatedMeshes);
+				InDoc.ProcessConfigurationMeshes(ExtractedMeshes, MeshesConfiguration);
 
 				// Combine separate scene trees into the single one with configuration-specific data
 				FConfigurationTree.Merge(CombinedTree, ConfigNode, CfgName, bIsActiveConfiguration);
@@ -375,7 +436,7 @@ namespace DatasmithSolidworks
 
 			if (OriginalConfiguration != null && ConfigurationNames.Length > 1)
 			{
-				Addin.Instance.LogDebug($"ShowConfiguration2 '{OriginalConfiguration.Name}'");
+				LogDebug($"ShowConfiguration2 '{OriginalConfiguration.Name}'");
 				bool bShowConfigurationResult = InDoc.SwDoc.ShowConfiguration2(OriginalConfiguration.Name);
 				Debug.Assert(bShowConfigurationResult);
 			}
@@ -407,7 +468,7 @@ namespace DatasmithSolidworks
 
 			List<string> DisplayStateConfigurations = new List<string>();
 
-			if (!ConfigManager.LinkDisplayStatesToConfigurations)
+			if (bExportDisplayStates && !ConfigManager.LinkDisplayStatesToConfigurations)
 			{
 				// Export display states as separate configurations
 				string[] DisplayStates = OriginalConfiguration.GetDisplayStates();
@@ -422,7 +483,7 @@ namespace DatasmithSolidworks
 
 					string DisplayStateConfigName = $"DisplayState_{FDatasmithExporter.SanitizeName(DisplayState)}";
 					DisplayStateConfigurations.Add(DisplayStateConfigName);
-					Addin.Instance.LogDebug(
+					LogDebug(
 						$"DisplayState '{DisplayState}' Materials for variant '{DisplayStateConfigName}'");
 
 					// Specifying display state doesn't seem to work in the api like this:
@@ -479,6 +540,45 @@ namespace DatasmithSolidworks
 			return FlatConfigurationData;
 		}
 
+		// Assign meshes to actors, export materials and assign materials
+		public void FinalizeExport(FDocumentTracker InDoc)
+		{
+			List<FDatasmithExporter.FMeshExportInfo> ExportedMeshes = InDoc.Exporter.ExportMeshes(ExtractedMeshes).ToList();
+
+			foreach (FDatasmithExporter.FMeshExportInfo Info in ExportedMeshes)
+			{
+				LogDebug($"  AddMesh(DatasmithMeshName: {Info}");
+
+				InDoc.Exporter.AddMesh(Info);
+
+				// Assign to child variant actors of component actors registered 
+				if (ActorsForMesh.TryGetValue(Info.MeshName, out List<FActorName> Names))
+				{
+					foreach (FActorName ActorName in Names)
+					{
+
+						InDoc.Exporter.AssignMeshToDatasmithMeshActor(ActorName, Info.MeshElement);
+					}
+				}
+			}
+
+			foreach (KeyValuePair<FComponentName, List<FMeshName>> KVP in MeshesForComponent)
+			{
+				FComponentName ComponentName = KVP.Key;
+				InDoc.ReleaseComponentMeshes(ComponentName);
+				// Register that this mesh was used for the component
+				foreach (FMeshName MeshName in KVP.Value)
+				{
+					InDoc.AddMeshForComponent(ComponentName, MeshName);
+				}
+			}
+
+			InDoc.CleanupComponentMeshes();
+
+			InDoc.ExportMaterials();
+			InDoc.AssignMaterialsToDatasmithMeshes(ExportedMeshes);
+		}
+
 		private static Dictionary<FComponentName, FObjectMaterials> GetComponentMaterials(FDocumentTracker InDoc, string InDisplayState, IConfiguration InConfiguration)
 		{
 			Dictionary<FComponentName, FObjectMaterials> MaterialsMap = new Dictionary<FComponentName, FObjectMaterials>();
@@ -520,7 +620,7 @@ namespace DatasmithSolidworks
 
 		private static void SetComponentTreeMaterials(FConfigurationTree.FComponentTreeNode InComponentTree, Dictionary<FComponentName, FObjectMaterials> InComponentMaterialsMap, string InConfigurationName, bool bIsDisplayState)
 		{
-			Addin.Instance.LogDebug($"SetComponentTreeMaterials: '{InComponentTree.ComponentName}'");
+			LogDebug($"SetComponentTreeMaterials: '{InComponentTree.ComponentName}'");
 
 			FConfigurationTree.FComponentConfig TargetConfig = null;
 
@@ -543,20 +643,20 @@ namespace DatasmithSolidworks
 				TargetConfig.Materials = Materials;
 			}
 
-			Addin.Instance.LogDebug($"  Materials: {TargetConfig.Materials}");
+			LogDebug($"  Materials: {TargetConfig.Materials}");
 
 			foreach (FConfigurationTree.FComponentTreeNode Child in InComponentTree.EnumChildren())
 			{
-				Addin.Instance.LogIndent();
+				LogIndent();
 				SetComponentTreeMaterials(Child, InComponentMaterialsMap, InConfigurationName, bIsDisplayState);
-				Addin.Instance.LogDedent();
+				LogDedent();
 			}
 		}
 
 		private static void CollectComponentsRecursive(FDocumentTracker InDoc, Component2 InComponent,
 			FComponentTreeNode InParentNode, FMeshes.FConfiguration Meshes, string CfgName)
 		{
-			Addin.Instance.LogDebug($"'{InComponent.Name2}'");
+			LogDebug($"'{InComponent.Name2}'");
 
 			FConfigurationTree.FComponentTreeNode NewNode = new FConfigurationTree.FComponentTreeNode(InComponent);
 			InParentNode.Children.Add(NewNode);
@@ -606,9 +706,9 @@ namespace DatasmithSolidworks
 				foreach (object ObjChild in Children)
 				{
 					Component2 Child = (Component2)ObjChild;
-					Addin.Instance.LogIndent();
+					LogIndent();
 					CollectComponentsRecursive(InDoc, Child, NewNode, Meshes, CfgName);
-					Addin.Instance.LogDedent();
+					LogDedent();
 				}
 
 				// todo: sorting ensures that component order is stable in export(e.g. in variant property bindings order)
@@ -617,14 +717,13 @@ namespace DatasmithSolidworks
 				NewNode.Children.Sort((InA, InB) => InA.ComponentId - InB.ComponentId);
 			}
 
-			if (InDoc.NeedExportComponent(NewNode, NewNode.CommonConfig))
+			if (NewNode.IsPartComponent())
 			{
-				if (NewNode.IsPartComponent())
+				if (InDoc.NeedExportComponent(NewNode, NewNode.CommonConfig))
 				{
-					// Collect meshes to export when it's a part component
 					InDoc.AddPartDocument(NewNode);
-					Meshes.AddComponentWhichNeedsMesh(NewNode.Component, NewNode.ComponentName, NewNode.ActorName);
 				}
+				Meshes.AddComponentWhichNeedsMesh(NewNode.Component, NewNode.ComponentName);
 			}
 			InDoc.AddExportedComponent(NewNode);
 		}
@@ -642,7 +741,7 @@ namespace DatasmithSolidworks
 
 		public FMeshName GetMeshName(string ConfigName, FComponentName ComponentName)
 		{
-			return FMeshName.FromString(ConfigName == MainConfigurationName ? $"{ComponentName}_Mesh" : $"{ComponentName}_{ConfigName}_Mesh");
+			return Meshes.GetMeshName(ConfigName, ComponentName);
 		}
 
 		// Get mesh for component which has only single mesh configuration
@@ -650,6 +749,35 @@ namespace DatasmithSolidworks
 		{
 			string ConfigName = Meshes.GetConfigurationNameForComponentMesh(ComponentName);
 			return GetMeshName(ConfigName, ComponentName);
+		}
+
+		// Register actor which needs mesh of a component in specific config
+		// this is needed for mesh actors for variants
+		public void AddActorForMesh(FActorName ActorName, string ConfigName, FComponentName ComponentName)
+		{
+			LogDebug($"AddActorForMesh(ActorName='{ActorName}', ConfigName='{ConfigName}', ComponentName='{ComponentName}')");
+			AddActorForMesh(ActorName, ComponentName, GetMeshName(ConfigName, ComponentName));
+		}
+
+		// Register actor which needs mesh of a component in any config(i.e. single actor of a component which doesn't have different meshes in different configs)
+		// this is needed for mesh actors for variants
+		public void AddActorForMesh(FActorName ActorName, FComponentName ComponentName)
+		{
+			LogDebug($"AddActorForMesh(ActorName='{ActorName}', ComponentName='{ComponentName}')");
+			AddActorForMesh(ActorName, ComponentName, GetMeshName(ComponentName));
+		}
+		private void AddActorForMesh(FActorName ActorName, FComponentName ComponentName, FMeshName MeshName)
+		{
+			LogDebug($"  MeshName='{MeshName}')");
+			if (!MeshName.IsValid())
+			{
+				LogDebug(
+					$"  mesh INVALID for this component/configuration(e.g. empty mesh would not be exported)");
+				return;
+			}
+
+			FindOrAdd(ActorsForMesh, MeshName).Add(ActorName);
+			FindOrAdd(MeshesForComponent, ComponentName).Add(MeshName);
 		}
 	}
 }

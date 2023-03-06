@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using DatasmithSolidworks.Names;
+using static DatasmithSolidworks.Addin;
 
 namespace DatasmithSolidworks
 {
@@ -46,8 +47,12 @@ namespace DatasmithSolidworks
 				new Dictionary<FComponentName, Component2>();
 
 			/** Stores which mesh was exported for each component*/
-			public Dictionary<FComponentName, FMeshName> ComponentNameToMeshNameMap =
-				new Dictionary<FComponentName, FMeshName>();
+			public Dictionary<FComponentName, List<FMeshName>> ComponentNameToMeshNameMap =
+				new Dictionary<FComponentName, List<FMeshName>>();
+			public Dictionary<FMeshName, HashSet<FComponentName>> ComponentsForMesh =
+				new Dictionary<FMeshName, HashSet<FComponentName>>();
+
+			public FMeshes Meshes = null;
 		}
 
 		public AssemblyDoc SwAsmDoc { get; private set; } = null;
@@ -70,8 +75,9 @@ namespace DatasmithSolidworks
 			base.Destroy();
 		}
 
-		public override void PreExport(FMeshes Meshes, bool bConfigurations)
+		public override FMeshes GetMeshes(string ActiveConfigName)
 		{
+			return SyncState.Meshes ?? (SyncState.Meshes = new FMeshes(ActiveConfigName));
 		}
 
 		// Export to datasmith scene extracted configurations data
@@ -88,6 +94,8 @@ namespace DatasmithSolidworks
 			ExportComponentRecursive(CurrentConfig.Name, ConfigurationExporter,
 				ConfigurationExporter.CombinedTree.Children[0], null);
 			SyncState.DirtyComponents.Clear();
+
+			ConfigurationExporter.FinalizeExport(this);
 
 			// todo: check animation export for DL
 			// Export animations (only allow when exporting to file)
@@ -114,11 +122,7 @@ namespace DatasmithSolidworks
 				SyncState.ComponentToPartMap.Remove(CompName);
 				SyncState.ExportedComponentsMap.Remove(CompName);
 
-				if (SyncState.ComponentNameToMeshNameMap.TryGetValue(CompName, out FMeshName MeshName))
-				{
-					SyncState.ComponentNameToMeshNameMap.Remove(CompName);
-					Exporter.RemoveMesh(MeshName);
-				}
+				ReleaseComponentMeshes(CompName);
 
 				SyncState.ComponentsMaterialsMap?.TryRemove(CompName, out FObjectMaterials _);
 				SyncState.ComponentsTransformsMap.Remove(CompName);
@@ -126,6 +130,39 @@ namespace DatasmithSolidworks
 			}
 
 			SyncState.ComponentsToDelete.Clear();
+		}
+
+		public override void ReleaseComponentMeshes(FComponentName CompName)
+		{
+			if (SyncState.ComponentNameToMeshNameMap.TryGetValue(CompName, out List<FMeshName> MeshNames))
+			{
+				SyncState.ComponentNameToMeshNameMap.Remove(CompName);
+
+				foreach (FMeshName MeshName in MeshNames)
+				{
+					HashSet<FComponentName> ComponentNames = SyncState.ComponentsForMesh[MeshName];
+					ComponentNames.Remove(CompName);
+					if (ComponentNames.Count == 0)
+					{
+						SyncState.ComponentsForMesh.Remove(MeshName);
+					}
+				}
+			}
+		}
+		public override void CleanupComponentMeshes()
+		{
+			// Filter meshes without components using them
+			List<FMeshName> MeshesToRemove = (SyncState.ComponentsForMesh.Where(KVP => KVP.Value.Count == 0).Select(KVP => KVP.Key)).ToList();
+
+			LogDebug("Removing unused meshes:");
+			foreach (FMeshName MeshName in MeshesToRemove)
+			{
+				LogIndent();
+				Exporter.RemoveMesh(MeshName);
+				LogDedent();
+
+				SyncState.ComponentsForMesh.Remove(MeshName);
+			}
 		}
 
 		public override ConcurrentDictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(
@@ -137,7 +174,7 @@ namespace DatasmithSolidworks
 
 		public override void AddComponentMaterials(FComponentName ComponentName, FObjectMaterials Materials)
 		{
-			Addin.Instance.LogDebug($"AddComponentMaterials: {ComponentName} - {Materials}");
+			LogDebug($"AddComponentMaterials: {ComponentName} - {Materials}");
 
 			if (SyncState.ComponentsMaterialsMap == null)
 			{
@@ -148,7 +185,8 @@ namespace DatasmithSolidworks
 
 		public override void AddMeshForComponent(FComponentName ComponentName, FMeshName MeshName)
 		{
-			SyncState.ComponentNameToMeshNameMap[ComponentName] = MeshName;
+			FindOrAdd(SyncState.ComponentNameToMeshNameMap, ComponentName).Add(MeshName);
+			FindOrAdd(SyncState.ComponentsForMesh, MeshName).Add(ComponentName);
 		}
 
 		public override FObjectMaterials GetComponentMaterials(Component2 Comp)
@@ -156,71 +194,6 @@ namespace DatasmithSolidworks
 			FObjectMaterials ComponentMaterials = null;
 			SyncState.ComponentsMaterialsMap?.TryGetValue(new FComponentName(Comp), out ComponentMaterials);
 			return ComponentMaterials;
-		}
-
-		// Export to datasmith scene current configuration only
-		public override void ExportToDatasmithScene(FMeshes Meshes)
-		{
-			SetExportStatus("Actors");
-			ProcessComponentsPendingDelete();
-
-			Configuration CurrentConfig = SwDoc.GetActiveConfiguration() as Configuration;
-
-			SetExportStatus("");
-			Component2 Root = CurrentConfig.GetRootComponent3(true);
-
-			// Track components that need their mesh exported: we want to do that in parallel after the 
-			// actor hierarchy has been exported
-			FMeshes.FConfiguration MeshesConfiguration = Meshes.GetMeshesConfiguration(ConfigurationName: CurrentConfig.Name);
-
-			ExportComponentRecursive(Root, null, MeshesConfiguration);
-
-			// Export materials
-			SetExportStatus($"Component Materials");
-
-			HashSet<FComponentName> ComponentNamesToExportSet = new HashSet<FComponentName>();
-			foreach (FComponentName ComponentName in MeshesConfiguration.EnumerateComponentNames())
-			{
-				if (!ComponentNamesToExportSet.Contains(ComponentName))
-				{
-					ComponentNamesToExportSet.Add(ComponentName);
-				}
-			}
-
-			ConcurrentDictionary<FComponentName, FObjectMaterials> ModifiedComponentsMaterials =
-				FObjectMaterials.LoadAssemblyMaterials(this, ComponentNamesToExportSet,
-					swDisplayStateOpts_e.swThisDisplayState, null);
-
-			if (ModifiedComponentsMaterials != null)
-			{
-				foreach (var MatKVP in ModifiedComponentsMaterials)
-				{
-					AddComponentMaterials(MatKVP.Key, MatKVP.Value);
-				}
-			}
-
-			// Export meshes
-			SetExportStatus($"Component Meshes");
-			List<FDatasmithExporter.FMeshExportInfo> CreatedMeshes = ProcessConfigurationMeshes(MeshesConfiguration, null);
-			ExportMaterials();
-			AssignMaterialsToDatasmithMeshes(CreatedMeshes);
-
-			SyncState.DirtyComponents.Clear();
-
-			// Export animations (only allow when exporting to file)
-			//	if (bFileExportInProgress)
-			{
-				List<FAnimation> Animations = FAnimationExtractor.ExtractAnimations(SwAsmDoc, Root);
-				if (Animations != null)
-				{
-					SetExportStatus($"Animations");
-
-					foreach (FAnimation Anim in Animations)
-					{
-						Exporter.ExportAnimation(Anim);
-					}
-				}
-			}
 		}
 
 		public override FMeshData ExtractComponentMeshData(Component2 Comp)
@@ -249,7 +222,7 @@ namespace DatasmithSolidworks
 			// Components which stayed in the materials map
 			HashSet<FComponentName> CommonComponents = new HashSet<FComponentName>(CurrentComponents.Intersect(Components));
 
-			// Check components that have material added or removed
+			 
 			bool bHasDirtyMaterials = false;
 			IEnumerable<FComponentName> ComponentsWithAddedOrRemovedMaterial = Components.Union(CurrentComponents).Except(CommonComponents);
 			foreach (FComponentName CompName in ComponentsWithAddedOrRemovedMaterial)
@@ -267,7 +240,12 @@ namespace DatasmithSolidworks
 					}
 					catch
 					{
-						// todo: needs a comment on how this happens
+						// todo: exceptions here(and other places loading materials) thrown because of multi-threaded FMaterialUpdateChecker
+						// calling this code from its thread  performing COM calls into SW API 
+						// calling the API from any other thread than main is extremely slow so update checker is running forever
+						// meaning it has increased probability to have model update while it's running and have a race condition of any kind
+						// there's UE-177970 fot this
+						Debug.Assert(false);
 					}
 				}
 
@@ -288,7 +266,6 @@ namespace DatasmithSolidworks
 					bHasDirtyComponents = true;
 				}
 			}
-
 			return bHasDirtyComponents || bHasDirtyMaterials;
 		}
 
@@ -318,126 +295,6 @@ namespace DatasmithSolidworks
 			FConfigurationTree.FComponentConfig ComponentConfig)
 		{
 			return ComponentConfig?.Transform ?? InNode.CommonConfig.Transform ?? MathUtils.TransformIdentity();
-		}
-
-		private void ExportComponentRecursive(Component2 InComponent, Component2 InParent,
-			FMeshes.FConfiguration OutMeshesToExportMap)
-		{
-			bool bHasDirtyTransform = false;
-
-			FComponentName ComponentName = new FComponentName(InComponent);
-			if (SyncState.ComponentsTransformsMap.ContainsKey(ComponentName))
-			{
-				float[] ComponentTm = GetComponentDatasmithTransform(InComponent);
-				bHasDirtyTransform =
-					!MathUtils.TransformsAreEqual(SyncState.ComponentsTransformsMap[ComponentName], ComponentTm);
-			}
-
-			if (bHasDirtyTransform || !SyncState.CleanComponents.Contains(ComponentName))
-			{
-				SetExportStatus(ComponentName.GetString());
-
-				FDatasmithActorExportInfo ActorExportInfo = new FDatasmithActorExportInfo();
-
-				FActorName ActorName = Exporter.GetComponentActorName(ComponentName);
-
-				ActorExportInfo.Label = ComponentName.GetLabel();
-				ActorExportInfo.Name = ActorName;
-
-				if (InParent != null)
-				{
-					ActorExportInfo.ParentName = Exporter.GetComponentActorName(InParent);
-				}
-
-				ActorExportInfo.bVisible = true;
-				ActorExportInfo.Type = Exporter.GetExportedActorType(ActorName) ?? EActorType.SimpleActor;
-				ActorExportInfo.Transform = GetComponentDatasmithTransform(InComponent);
-
-				SyncState.ComponentsTransformsMap[ComponentName] = ActorExportInfo.Transform;
-
-				// When exporting configurations we need to load all components to make their data available for export
-				// Suppressed or lightweight components don't have this
-
-				if (!InComponent.IsSuppressed())
-				{
-					dynamic ComponentVisibility =
-						InComponent.GetVisibilityInAsmDisplayStates((int)swDisplayStateOpts_e.swThisDisplayState, null);
-					if (ComponentVisibility != null)
-					{
-						int Visible = ComponentVisibility[0];
-						if (Visible == (int)swComponentVisibilityState_e.swComponentHidden)
-						{
-							ActorExportInfo.bVisible = false;
-						}
-					}
-				}
-				else
-				{
-					ActorExportInfo.bVisible = false;
-				}
-
-				bool bNeedsGeometryExport = false;
-
-				// ComponentDoc is null if component is suppressed or lightweight
-				ModelDoc2 ComponentDoc = InComponent.GetModelDoc2();
-
-				if (ComponentDoc is PartDoc) // Also possible to test document type with swDocumentTypes_e.swDocPART
-				{
-					bool bFirstExport = !SyncState.ExportedComponentsMap.ContainsKey(ComponentName);
-					bNeedsGeometryExport = bFirstExport;
-
-					if (!bFirstExport && SyncState.DirtyComponents.ContainsKey(ComponentName))
-					{
-						uint DirtyState = SyncState.DirtyComponents[ComponentName];
-						bNeedsGeometryExport =
-							((DirtyState & (1u << (int)EComponentDirtyState.Material)) != 0) ||
-							((DirtyState & (1u << (int)EComponentDirtyState.Geometry)) != 0) ||
-							((DirtyState & (1u << (int)EComponentDirtyState.Delete)) != 0);
-					}
-				}
-
-				if (bNeedsGeometryExport)
-				{
-					//TODO this will be null for new part, think of more solid solution
-					string PartPath = ComponentDoc.GetPathName();
-					if (!SyncState.PartsMap.ContainsKey(PartPath))
-					{
-						// New part
-						SyncState.PartsMap[PartPath] = AddTrackedAssemblyPart(InComponent, ComponentName);
-					}
-
-					SyncState.ComponentToPartMap[ComponentName] = PartPath;
-
-					// This component has associated part document -- treat is as a mesh actor
-					ActorExportInfo.Type = EActorType.MeshActor;
-
-					OutMeshesToExportMap.AddComponentWhichNeedsMesh(InComponent, ComponentName, ActorExportInfo.Name);
-				}
-
-				if (ActorExportInfo.Type == EActorType.MeshActor)
-				{
-					// todo: deduplicate mesh name calculation
-					ActorExportInfo.MeshName = new FMeshName(ComponentName);
-				}
-
-				Exporter.ExportOrUpdateActor(ActorExportInfo);
-
-				SyncState.CleanComponents.Add(ComponentName);
-			}
-
-			SyncState.ExportedComponentsMap[ComponentName] = InComponent;
-
-			// Export component children
-			object[] Children = (object[])InComponent.GetChildren();
-
-			if (Children != null)
-			{
-				foreach (object Obj in Children)
-				{
-					Component2 Child = (Component2)Obj;
-					ExportComponentRecursive(Child, InComponent, OutMeshesToExportMap);
-				}
-			}
 		}
 
 		private void ExportComponentRecursive(string ActiveConfigName,
@@ -478,9 +335,7 @@ namespace DatasmithSolidworks
 
 				if (ActorExportInfo.Type == EActorType.MeshActor)
 				{
-					// todo: deduplicate mesh name calculation
-					
-					ActorExportInfo.MeshName = ConfigurationExporter.GetMeshName(InNode.ComponentName);
+					ConfigurationExporter.AddActorForMesh(ActorExportInfo.Name, InNode.ComponentName);
 				}
 
 				Exporter.ExportOrUpdateActor(ActorExportInfo);
@@ -533,12 +388,9 @@ namespace DatasmithSolidworks
 
 					ActorExportInfo.bVisible = ComponentConfig.bVisible && (ComponentConfig.ConfigName == ActiveConfigName);
 
-					// This component has associated part document -- treat is as a mesh actor
 					ActorExportInfo.Type = EActorType.MeshActor;
 
-					;
-					// todo: deduplicate mesh name calculation
-					ActorExportInfo.MeshName = ConfigurationExporter.GetMeshName(ComponentConfig.ConfigName, InNode.ComponentName);
+					ConfigurationExporter.AddActorForMesh(ActorExportInfo.Name, ComponentConfig.ConfigName, InNode.ComponentName);
 
 					Exporter.ExportOrUpdateActor(ActorExportInfo);
 				}
@@ -1092,6 +944,11 @@ namespace DatasmithSolidworks
 		public bool GetDirty()  // i.e. in autosync
 		{
 			return DocumentTracker.GetDirty();
+		}
+
+		public FDocumentTracker GetTracker()
+		{
+			return DocumentTracker;
 		}
 
 		public void SetDirty(bool bInDirty)  // After Sync, where called with true??? Probably not needed at all(i.e. all SetDirty is inside in notifiers, and with false can be in Sync)

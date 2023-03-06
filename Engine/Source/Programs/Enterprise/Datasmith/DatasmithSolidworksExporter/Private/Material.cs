@@ -7,6 +7,7 @@ using System.Drawing;
 using System.Collections.Generic;
 using System.Globalization;
 using SolidWorks.Interop.sldworks;
+using System.Diagnostics;
 
 namespace DatasmithSolidworks
 {
@@ -791,6 +792,7 @@ namespace DatasmithSolidworks
 						}
 						catch
 						{
+							Debug.Assert(false);
 						}
 						if (Appearances != null && Appearances.Length > 0)
 						{

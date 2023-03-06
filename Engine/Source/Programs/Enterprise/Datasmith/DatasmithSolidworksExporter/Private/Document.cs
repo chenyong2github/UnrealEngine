@@ -6,12 +6,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using DatasmithSolidworks.Names;
-using static DatasmithSolidworks.FAssemblyDocumentTracker;
-using System.Windows.Forms;
+using static DatasmithSolidworks.Addin;
 
 namespace DatasmithSolidworks
 {
@@ -35,6 +32,7 @@ namespace DatasmithSolidworks
 			MaterialCheckerEvent.Set();
 
 			MaterialCheckerThread = new Thread(CheckForMaterialUpdatesProc);
+			MaterialCheckerThread.Name = "DatasmithSolidworks.FMaterialUpdateChecker Thread";
 			MaterialCheckerThread.Start();
 		}
 
@@ -72,11 +70,25 @@ namespace DatasmithSolidworks
 					{
 						bSketchMode = (DocumentTracker.SwDoc.SketchManager?.ActiveSketch != null);
 					}
-					catch { }
-				
-					if (!bSketchMode && DocumentTracker.HasMaterialUpdates())
+					catch
 					{
-						DocumentTracker.SetDirty(true);
+						Debug.Assert(false);
+					}
+				
+					if (!bSketchMode)
+					{
+#if DEBUG
+						Stopwatch Watch = Stopwatch.StartNew();
+#endif
+						bool bHasMaterialUpdates = DocumentTracker.HasMaterialUpdates();
+#if DEBUG
+						Watch.Stop();
+						Debug.WriteLine($"FMaterialUpdateChecker->HasMaterialUpdates: {(double)Watch.ElapsedMilliseconds / 1000.0}");
+#endif
+						if (bHasMaterialUpdates)
+						{
+							DocumentTracker.SetDirty(true);
+						}
 					}
 				}
 				Thread.Sleep(600);
@@ -175,6 +187,7 @@ namespace DatasmithSolidworks
 				Exporter.ExportLevelVariantSets(Configs, MaterialBindings);
 			}
 
+			// Export materials after processing variants - so that any material used in variant is registered and exported
 			ExportMaterials();
 
 			// Assign exported datasmith material instances to bindings
@@ -205,6 +218,8 @@ namespace DatasmithSolidworks
 			}
 		}
 
+		public abstract FMeshes GetMeshes(string ActiveConfigName);
+
 		public void Export()
 		{
 			string OutDir = Path.GetDirectoryName(DatasmithFileExportPath);
@@ -220,13 +235,14 @@ namespace DatasmithSolidworks
 
 			Exporter = new FDatasmithExporter(DatasmithScene);
 
-			FMeshes Meshes = new FMeshes();
-
-			PreExport(Meshes, true);
-
 			ConfigurationManager ConfigManager = SwDoc.ConfigurationManager;
 			string[] ConfigurationNames = SwDoc?.GetConfigurationNames();
-			FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, ConfigurationNames, ConfigManager.ActiveConfiguration.Name);
+			string ActiveConfigurationName = ConfigManager.ActiveConfiguration.Name;
+
+
+			FMeshes Meshes = new FMeshes(ActiveConfigurationName);
+
+			FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, ConfigurationNames, ActiveConfigurationName, true);
 
 			List<FConfigurationData> Configs = ConfigurationExporter.ExportConfigurations(this);
 
@@ -246,16 +262,24 @@ namespace DatasmithSolidworks
 
 		public void Sync(string InOutputPath)
 		{
+			LogDebug($"Sync('{InOutputPath}')");
+			LogIndent();
+
 			DatasmithScene.SetName(SwDoc.GetTitle());
 			DatasmithScene.SetOutputPath(InOutputPath);
 
 #if DEBUG
 			Stopwatch Watch = Stopwatch.StartNew();
 #endif
-			FMeshes Meshes = new FMeshes();
+			ConfigurationManager ConfigManager = SwDoc.ConfigurationManager;
+			string ActiveConfigurationName = ConfigManager.ActiveConfiguration.Name;
 
-			PreExport(Meshes, false);
-			ExportToDatasmithScene(Meshes);
+			FMeshes Meshes = GetMeshes(ActiveConfigurationName);
+			FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, new []{ ActiveConfigurationName }, ActiveConfigurationName, false);
+			List<FConfigurationData> Configs = ConfigurationExporter.ExportConfigurations(this);
+			bHasConfigurations = (Configs != null) && (Configs.Count != 0);
+			ExportToDatasmithScene(ConfigurationExporter);
+
 
 			ExportLights();
 
@@ -263,6 +287,7 @@ namespace DatasmithSolidworks
 			Watch.Stop();
 			Debug.WriteLine($"EXPORT TIME: {(double)Watch.ElapsedMilliseconds / 1000.0}");
 #endif
+			LogDedent();
 		}
 
 		// todo: make abstract
@@ -270,9 +295,6 @@ namespace DatasmithSolidworks
 		{
 			throw new NotImplementedException();
 		}
-
-		public abstract void ExportToDatasmithScene(FMeshes Meshes);
-		public abstract void PreExport(FMeshes Meshes, bool bConfigurations);  // Called before configurations are parsed to prepare meshes needed to identify if they create different configurations
 
 		public virtual bool NeedExportComponent(FConfigurationTree.FComponentTreeNode InComponent,
 			FConfigurationTree.FComponentConfig ActiveComponentConfig)
@@ -288,7 +310,13 @@ namespace DatasmithSolidworks
 		public abstract void AddComponentMaterials(FComponentName ComponentName, FObjectMaterials Materials);
 		public abstract FObjectMaterials GetComponentMaterials(Component2 Comp);
 
+
+		// Record which meshes are used aby a component
 		public abstract void AddMeshForComponent(FComponentName ComponentName, FMeshName MeshName);
+		public abstract void ReleaseComponentMeshes(FComponentName CompName);
+
+		// Remove unused meshes from Datasmith scene
+		public abstract void CleanupComponentMeshes();
 
 		public virtual void Destroy()
 		{
@@ -296,51 +324,36 @@ namespace DatasmithSolidworks
 
 		public abstract FMeshData ExtractComponentMeshData(Component2 Comp);
 
-		// Extracts, exports meshes used for the assembly configuration, assigns them to actors
-		// todo: separate just Datasmith Mesh export to its own thread, all other code should be in single thread
-		// Datasmith actor assignment doesn't need threading(and not supposed to be thread-safe?) and Solidworks multithreading is supposed to be slower(SW does all the work in main thread)
-		public List<FDatasmithExporter.FMeshExportInfo> ProcessConfigurationMeshes(FMeshes.FConfiguration MeshesConfiguration, string MeshSuffix)
+
+		// Extracts meshes used for the assembly configuration
+		public void ProcessConfigurationMeshes(List<FDatasmithExporter.FMeshExportInfo> MeshExportInfos, FMeshes.FConfiguration MeshesConfiguration)
 		{
 			
-			List<FDatasmithExporter.FMeshExportInfo> MeshExportInfos = new List<FDatasmithExporter.FMeshExportInfo>();
-
 			// Extract meshes data and prepare for parallel datasmith export
+			// note: mesh data need to be extracted from the component when required configuration is active(i.e. can't move it outside of configuration enumeration loop)
 			foreach (Component2 Comp in MeshesConfiguration.EnumerateComponents())
 			{
 				FMeshData MeshData = ExtractComponentMeshData(Comp);
-				MeshesConfiguration.AddMesh(Comp, MeshData);
-
+				FComponentName ComponentName = new FComponentName(Comp);
+				
 				if (MeshData != null)
 				{
-
-					FActorName ComponentActorName = Exporter.GetComponentActorName(Comp);
-					FComponentName ComponentName = new FComponentName(Comp);
+					MeshesConfiguration.AddMesh(ComponentName, MeshData, out FMeshName MeshName);
 					MeshExportInfos.Add(new FDatasmithExporter.FMeshExportInfo()
 					{
 						ComponentName = ComponentName,
-						MeshName = FMeshName.FromString(MeshSuffix == null
-							? $"{ComponentName}_Mesh"
-							: $"{ComponentName}_{MeshSuffix}_Mesh"),
-						ActorName = ComponentActorName,
+						MeshName = MeshName,
 						MeshData = MeshData
 					});
 				}
 			}
-
-			Exporter.ExportMeshes(MeshExportInfos, out List<FDatasmithExporter.FMeshExportInfo> CreatedMeshes);
-
-			foreach (FDatasmithExporter.FMeshExportInfo Info in CreatedMeshes)
-			{
-				AddMeshForComponent(Info.ComponentName, Info.MeshName);  // Register that this mesh was used for the component
-			}
-
-			return CreatedMeshes;
 		}
 
 		public void AssignMaterialsToDatasmithMeshes(List<FDatasmithExporter.FMeshExportInfo> CreatedMeshes)
 		{
 			Exporter.AssignMaterialsToDatasmithMeshes(CreatedMeshes);
 		}
+
 	};
 
 
@@ -361,6 +374,8 @@ namespace DatasmithSolidworks
 
 		// Is any changes pending(simple test for AutoSync)
 		bool GetDirty();
+
+		FDocumentTracker GetTracker();
 
 		// After Sync
 		// todo: Probably not needed at all(i.e. all SetDirty(false) is only deep inside in notifiers, and with false can be moved  into Sync?)

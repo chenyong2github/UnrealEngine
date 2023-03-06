@@ -6,10 +6,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
 using DatasmithSolidworks.Names;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using static DatasmithSolidworks.FDatasmithExporter;
+using System.Diagnostics;
+using System.Linq;
 
 namespace DatasmithSolidworks
 {
@@ -20,6 +20,8 @@ namespace DatasmithSolidworks
 		private FComponentName ComponentName;
 		private FMeshName MeshName = new FMeshName();
 		public readonly FPartDocument PartDocument;
+
+		private FMeshes Meshes;
 
 		public FObjectMaterials ExportedPartMaterials { get; set; }
 
@@ -56,6 +58,7 @@ namespace DatasmithSolidworks
 				}
 				catch
 				{
+					Debug.Assert(false);
 				}
 			}
 
@@ -76,6 +79,7 @@ namespace DatasmithSolidworks
 				}
 				catch
 				{
+					Debug.Assert(false);
 				}
 			}
 
@@ -93,26 +97,16 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		public override void PreExport(FMeshes Meshes, bool bConfigurations)
+		public override FMeshes GetMeshes(string ActiveConfigName)
 		{
-			if (!bConfigurations)
-			{
-				// Not exporting configurations - just load materials here
-				ExportedPartMaterials =
-					FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
-			}
+			return Meshes ?? (Meshes = new FMeshes(ActiveConfigName));
 		}
 
 		public override void ExportToDatasmithScene(FConfigurationExporter ConfigurationExporter)
 		{
-			ExportToDatasmithScene(ConfigurationExporter.Meshes);
-		}
+			FMeshes Meshes = ConfigurationExporter.Meshes;
 
-		public override void ExportToDatasmithScene(FMeshes Meshes)
-		{
 			string PartName = Path.GetFileNameWithoutExtension(PathName);
-
-			SetExportStatus($"{PartName} Materials");
 
 			SetExportStatus($"{PartName} Meshes");
 
@@ -120,7 +114,6 @@ namespace DatasmithSolidworks
 			if (bHasConfigurations)
 			{
 				string ActiveConfigurationName = ConfigManager.ActiveConfiguration.Name;
-				FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, null, ActiveConfigurationName);
 
 				foreach (string ConfigurationName in SwDoc.GetConfigurationNames())
 				{
@@ -146,12 +139,18 @@ namespace DatasmithSolidworks
 						{
 							ComponentName = RootComponentName,
 							MeshName = MeshNameForConfiguration,
-							ActorName = ActorName,
 							MeshData = MeshData
 						}
 					};
 
-					Exporter.ExportMeshes(MeshExportInfos, out List<FMeshExportInfo> OutCreatedMeshes);
+					List<FMeshExportInfo> OutCreatedMeshes = Exporter.ExportMeshes(MeshExportInfos).ToList();
+
+					// OutCreatedMeshes might be empty(e.g. mesh is empty it won't be created)
+					foreach (FMeshExportInfo Info in OutCreatedMeshes)
+					{
+						Exporter.AddMesh(Info);
+					}
+
 					ExportMaterials();
 					Exporter.AssignMaterialsToDatasmithMeshes(OutCreatedMeshes);
 					bool bHasMesh = OutCreatedMeshes.Count > 0;
@@ -189,12 +188,18 @@ namespace DatasmithSolidworks
 						{
 							ComponentName = RootComponentName,
 							MeshName = MeshName,
-							ActorName = ActorName,
 							MeshData = MeshData
 						}
 					};
 
-					Exporter.ExportMeshes(MeshExportInfos, out List<FMeshExportInfo> OutCreatedMeshes);
+					List<FMeshExportInfo> OutCreatedMeshes = Exporter.ExportMeshes(MeshExportInfos).ToList();
+
+					// OutCreatedMeshes might be empty(e.g. mesh is empty it won't be created)
+					foreach (FMeshExportInfo Info in OutCreatedMeshes)
+					{
+						Exporter.AddMesh(Info);
+					}
+
 					ExportMaterials();
 					Exporter.AssignMaterialsToDatasmithMeshes(OutCreatedMeshes);
 					bHasMesh = OutCreatedMeshes.Count > 0;
@@ -235,6 +240,14 @@ namespace DatasmithSolidworks
 		}
 
 		public override void AddMeshForComponent(FComponentName ComponentName, FMeshName MeshName)
+		{
+		}
+
+		public override void ReleaseComponentMeshes(FComponentName CompName)
+		{
+		}
+
+		public override void CleanupComponentMeshes()
 		{
 		}
 
@@ -293,6 +306,7 @@ namespace DatasmithSolidworks
 			SwPartDoc.BodyVisibleChangeNotify += new DPartDocEvents_BodyVisibleChangeNotifyEventHandler(OnPartBodyVisibleChangeNotify);
 			SwPartDoc.FileSaveAsNotify2 += new DPartDocEvents_FileSaveAsNotify2EventHandler(OnPartFileSaveAsNotify2);
 			SwPartDoc.FileSavePostNotify += new DPartDocEvents_FileSavePostNotifyEventHandler(OnPartFileSavePostNotify);
+
 		}
 
 		public void Destroy()
@@ -320,7 +334,6 @@ namespace DatasmithSolidworks
 			SwPartDoc.FileSaveAsNotify2 -= new DPartDocEvents_FileSaveAsNotify2EventHandler(OnPartFileSaveAsNotify2);
 			SwPartDoc.FileSavePostNotify -= new DPartDocEvents_FileSavePostNotifyEventHandler(OnPartFileSavePostNotify);
 		}
-
 
 		int OnPartDocumentDestroyNotify2(int DestroyType)
 		{
@@ -514,6 +527,11 @@ namespace DatasmithSolidworks
 		public bool GetDirty()  // i.e. in autosync
 		{
 			return DocumentTracker.GetDirty();
+		}
+
+		public FDocumentTracker GetTracker()
+		{
+			return DocumentTracker;
 		}
 
 		public void SetDirty(bool bInDirty)

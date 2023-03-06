@@ -627,29 +627,41 @@ namespace DatasmithSolidworks
 		}
 
 		[Conditional("DatasmithSolidworksDebugOutput")]
-		public void LogDebug(string Message)  
+		public static void LogDebug(string Message)
 		{
-			DebugLog.LogDebug(Message);
+			Instance.DebugLog.LogDebug(Message);
 		}
 
 		[Conditional("DatasmithSolidworksDebugOutput")]
-		public void LogDebugThread(string Message)  
+		public static void LogDebugThread(string Message)  
 		{
-			DebugLog.LogDebugThread(Message);
+			Instance.DebugLog.LogDebugThread(Message);
 		}
 
 		[Conditional("DatasmithSolidworksDebugOutput")]
-		public void LogIndent()  
+		public static void LogIndent()  
 		{
-			DebugLog.Indent();
+			Instance.DebugLog.Indent();
 		}
 
 		[Conditional("DatasmithSolidworksDebugOutput")]
-		public void LogDedent()  
+		public static void LogDedent()  
 		{
-			DebugLog.Dedent();
+			Instance.DebugLog.Dedent();
 		}
 
 		#endregion
+
+		public static V FindOrAdd<K, V>(Dictionary<K, V> Map, K Key) 
+			where V : new()
+		{
+			if (!Map.TryGetValue(Key, out V Value))
+			{
+				Value = new V();
+				Map.Add(Key, Value);
+			}
+			return Value;
+		}
+
 	}
 }

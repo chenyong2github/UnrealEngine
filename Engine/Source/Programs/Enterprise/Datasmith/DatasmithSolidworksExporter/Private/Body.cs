@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using SolidWorks.Interop.swconst;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace DatasmithSolidworks
 {
@@ -94,7 +95,10 @@ namespace DatasmithSolidworks
 					}
 				} while (Body != null);
 			}
-			catch { }
+			catch
+			{
+				Debug.Assert(false);
+			}
 
 			return Bodies;
 		}
