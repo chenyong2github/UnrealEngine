@@ -413,6 +413,13 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 
 		case ETargetPlatformFeatures::DistanceFieldAO:
 			return UsesDistanceFields();
+
+		case ETargetPlatformFeatures::NormalmapLAEncodingMode:
+		{
+			static IConsoleVariable* CompressorCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("cook.ASTCTextureCompressor"));
+			const bool bUsesARMCompressor = (CompressorCVar ? (CompressorCVar->GetInt() != 0) : false);
+			return SupportsTextureFormatCategory(EAndroidTextureFormatCategory::ASTC) && bUsesARMCompressor;
+		}
 			
 		default:
 			break;
@@ -573,18 +580,6 @@ void FAndroidTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) con
 	{
 		OutFormats.AddUnique(AndroidTexFormat::GenericRemap[RemapIndex][1]);
 	}
-}
-
-bool FAndroid_ASTCTargetPlatform::SupportsFeature(ETargetPlatformFeatures Feature) const
-{
-	if (Feature == ETargetPlatformFeatures::NormalmapLAEncodingMode)
-	{
-		static IConsoleVariable* CompressorCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("cook.ASTCTextureCompressor"));
-		const bool bUsesARMCompressor = (CompressorCVar ? (CompressorCVar->GetInt() != 0) : false);
-		return bUsesARMCompressor;
-	}
-
-	return FAndroidTargetPlatform::SupportsFeature(Feature);
 }
 
 void FAndroid_ASTCTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const

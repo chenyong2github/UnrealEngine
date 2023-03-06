@@ -273,8 +273,6 @@ public:
 	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
 #endif
 
-	virtual bool SupportsFeature(ETargetPlatformFeatures Feature) const override;
-
 	virtual bool SupportedByExtensionsString(const FString& ExtensionsString, const int GLESVersion) const override
 	{
 		return ExtensionsString.Contains(TEXT("GL_KHR_texture_compression_astc_ldr"));
