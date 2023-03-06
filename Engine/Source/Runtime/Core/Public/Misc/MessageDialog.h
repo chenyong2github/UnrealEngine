@@ -11,7 +11,7 @@ class FText;
 /** 
  * FMessageDialog
  * These functions open a message dialog and display the specified informations
- * these.
+ * there.
  **/
 struct CORE_API FMessageDialog
 {
