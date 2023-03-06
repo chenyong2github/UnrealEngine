@@ -7,6 +7,7 @@
 #include "PoseSearch/PoseSearchContext.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchSchema.h"
+#include "PoseSearchFeatureChannel_Position.h"
 
 void UPoseSearchFeatureChannel_Heading::Finalize(UPoseSearchSchema* Schema)
 {
@@ -14,6 +15,14 @@ void UPoseSearchFeatureChannel_Heading::Finalize(UPoseSearchSchema* Schema)
 	ChannelCardinality = UE::PoseSearch::FFeatureVectorHelper::GetVectorCardinality(ComponentStripping);
 	Schema->SchemaCardinality += ChannelCardinality;
 	SchemaBoneIdx = Schema->AddBoneReference(Bone);
+}
+
+void UPoseSearchFeatureChannel_Heading::AddDependentChannels(UPoseSearchSchema* Schema) const
+{
+	if (Schema->bInjectAdditionalDebugChannels)
+	{
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, Bone.BoneName, SampleTimeOffset, ColorPresetIndex);
+	}
 }
 
 FVector UPoseSearchFeatureChannel_Heading::GetAxis(const FQuat& Rotation) const

@@ -122,12 +122,9 @@ private:
 		for (int32 SchemaIndex = 0; SchemaIndex < Schemas.Num(); ++SchemaIndex)
 		{
 			const UPoseSearchSchema* Schema = Schemas[SchemaIndex];
-			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->Channels)
+			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->GetChannels())
 			{
-				if (const UPoseSearchFeatureChannel* Channel = ChannelPtr.Get())
-				{
-					AnalyzeChannelRecursively(Channel, SchemaIndex, EntriesGroup);
-				}
+				AnalyzeChannelRecursively(ChannelPtr.Get(), SchemaIndex, EntriesGroup);
 			}
 		}
 	}
@@ -422,12 +419,9 @@ static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UP
 	const int32 NumDimensions = Schema->SchemaCardinality;
 	SearchIndex.WeightsSqrt.Init(1.f, NumDimensions);
 
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->Channels)
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->GetChannels())
 	{
-		if (ChannelPtr)
-		{
-			ChannelPtr->FillWeights(SearchIndex.WeightsSqrt);
-		}
+		ChannelPtr->FillWeights(SearchIndex.WeightsSqrt);
 	}
 
 	EPoseSearchDataPreprocessor DataPreprocessor = Schema->DataPreprocessor;

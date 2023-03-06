@@ -5,17 +5,11 @@
 #include "BoneContainer.h"
 #include "Engine/DataAsset.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
+#include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "PoseSearchSchema.generated.h"
 
 struct FBoneReference;
-struct FPoseSearchFeatureVectorBuilder;
 class UMirrorDataTable;
-class UPoseSearchFeatureChannel;
-
-namespace UE::PoseSearch
-{
-	struct FSearchContext;
-} // namespace UE::PoseSearch
 
 UENUM()
 enum class EPoseSearchDataPreprocessor : int32
@@ -58,6 +52,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Schema")
 	TArray<TObjectPtr<UPoseSearchFeatureChannel>> Channels;
+
+	// FinalizedChannels gets populated with UPoseSearchFeatureChannel(s) from Channels and additional injected ones during the Finalize
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPoseSearchFeatureChannel>> FinalizedChannels;
 
 	// If set, this schema will support mirroring pose search databases
 	UPROPERTY(EditAnywhere, Category = "Schema")
@@ -109,21 +107,28 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Debug", meta = (ExcludeFromHash))
 	TArray<FPoseSearchSchemaColorPreset> ColorPresets;
 	
+	// if bInjectAdditionalDebugChannels is true, channels will be asked to injecting additional channels into this schema.
+	// the original intent is to add UPoseSearchFeatureChannel_Position(s) to help with the complexity of the debug drawing
+	// (the database will have all the necessary positions to draw lines at the right location and time)
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bInjectAdditionalDebugChannels;
+
 	bool IsValid () const;
 
 	float GetSamplingInterval() const { return 1.0f / SampleRate; }
 
+	TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetChannels() const { return FinalizedChannels; }
+
+	template <typename FindPredicateType>
+	const UPoseSearchFeatureChannel* FindChannel(FindPredicateType FindPredicate) const
+	{
+		return FindChannelRecursive(GetChannels(), FindPredicate);
+	}
+
 	template<typename ChannelType>
 	const ChannelType* FindFirstChannelOfType() const
 	{
-		for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Channels)
-		{
-			if (const ChannelType* Channel = Cast<const ChannelType>(ChannelPtr.Get()))
-			{
-				return Channel;
-			}
-		}
-		return nullptr;
+		return static_cast<const ChannelType*>(FindChannel([this](const UPoseSearchFeatureChannel* Channel) -> const UPoseSearchFeatureChannel* { return Cast<ChannelType>(Channel); }));
 	}
 
 	// UObject
@@ -146,6 +151,27 @@ public:
 	bool IsRootBone(int8 SchemaBoneIdx) const;
 	
 private:
+	template <typename FindPredicateType>
+	static const UPoseSearchFeatureChannel* FindChannelRecursive(TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> Channels, FindPredicateType FindPredicate)
+	{
+		for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Channels)
+		{
+			if (ChannelPtr)
+			{
+				if (const UPoseSearchFeatureChannel* Channel = FindPredicate(ChannelPtr))
+				{
+					return Channel;
+				}
+
+				if (const UPoseSearchFeatureChannel* Channel = FindChannelRecursive(ChannelPtr->GetSubChannels(), FindPredicate))
+				{
+					return Channel;
+				}
+			}
+		}
+		return nullptr;
+	}
+
 	void Finalize();
 	void ResolveBoneReferences();
 };

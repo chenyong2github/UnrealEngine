@@ -8,6 +8,30 @@
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
+void UPoseSearchFeatureChannel_Position::FindOrAddToSchema(UPoseSearchSchema* Schema, const FName& InBoneName, float InSampleTimeOffset, int32 InColorPresetIndex)
+{
+	if (!Schema->FindChannel([&InBoneName, InSampleTimeOffset](const UPoseSearchFeatureChannel* Channel) -> const UPoseSearchFeatureChannel_Position*
+		{
+			if (const UPoseSearchFeatureChannel_Position* Position = Cast<UPoseSearchFeatureChannel_Position>(Channel))
+			{
+				if (Position->Bone.BoneName == InBoneName && Position->OriginBone.BoneName == NAME_None && Position->SampleTimeOffset == InSampleTimeOffset)
+				{
+					return Position;
+				}
+			}
+			return nullptr;
+		}))
+	{
+		UPoseSearchFeatureChannel_Position* Position = NewObject<UPoseSearchFeatureChannel_Position>(Schema, NAME_None, RF_Transient);
+		Position->Bone.BoneName = InBoneName;
+		Position->Weight = 0.f;
+		Position->SampleTimeOffset = InSampleTimeOffset;
+		Position->ColorPresetIndex = InColorPresetIndex;
+		Position->Finalize(Schema);
+		Schema->FinalizedChannels.Add(Position);
+	}
+}
+
 void UPoseSearchFeatureChannel_Position::Finalize(UPoseSearchSchema* Schema)
 {
 	ChannelDataOffset = Schema->SchemaCardinality;
@@ -16,6 +40,18 @@ void UPoseSearchFeatureChannel_Position::Finalize(UPoseSearchSchema* Schema)
 
 	SchemaBoneIdx = Schema->AddBoneReference(Bone);
 	SchemaOriginBoneIdx = Schema->AddBoneReference(OriginBone);
+}
+
+void UPoseSearchFeatureChannel_Position::AddDependentChannels(UPoseSearchSchema* Schema) const
+{
+	if (Schema->bInjectAdditionalDebugChannels)
+	{
+		if (OriginBone.BoneName != NAME_None)
+		{
+			UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, Bone.BoneName, SampleTimeOffset, ColorPresetIndex);
+			UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, OriginBone.BoneName, SampleTimeOffset, ColorPresetIndex);
+		}
+	}
 }
 
 void UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const

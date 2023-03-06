@@ -16,6 +16,17 @@ void UPoseSearchFeatureChannel_GroupBase::Finalize(UPoseSearchSchema* Schema)
 	ChannelCardinality = Schema->SchemaCardinality - ChannelDataOffset;
 }
 
+void UPoseSearchFeatureChannel_GroupBase::AddDependentChannels(UPoseSearchSchema* Schema) const
+{
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
+	{
+		if (SubChannelPtr)
+		{
+			SubChannelPtr->AddDependentChannels(Schema);
+		}
+	}
+}
+
 #if WITH_EDITOR
 void UPoseSearchFeatureChannel_GroupBase::FillWeights(TArray<float>& Weights) const
 {

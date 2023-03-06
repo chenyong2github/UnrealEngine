@@ -122,8 +122,12 @@ const FTransform& FDebugDrawParams::GetRootTransform() const
 		return AnimInstanceProxy->GetComponentTransform();
 	}
 	
-	check(Mesh);
-	return Mesh->GetComponentTransform();
+	if (Mesh)
+	{
+		return Mesh->GetComponentTransform();
+	}
+
+	return FTransform::Identity;
 }
 
 void FDebugDrawParams::DrawLine(const FVector& LineStart, const FVector& LineEnd, const FColor& Color, float Thickness) const
@@ -246,20 +250,14 @@ void FDebugDrawParams::DrawFeatureVector(TConstArrayView<float> PoseVector)
 
 		if (PoseVector.Num() == Schema->SchemaCardinality)
 		{
-			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->Channels)
+			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->GetChannels())
 			{
-				if (ChannelPtr)
-				{
-					ChannelPtr->PreDebugDraw(*this, PoseVector);
-				}
+				ChannelPtr->PreDebugDraw(*this, PoseVector);
 			}
 
-			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->Channels)
+			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->GetChannels())
 			{
-				if (ChannelPtr)
-				{
-					ChannelPtr->DebugDraw(*this, PoseVector);
-				}
+				ChannelPtr->DebugDraw(*this, PoseVector);
 			}
 		}
 	}

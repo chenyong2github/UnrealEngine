@@ -6,6 +6,7 @@
 #include "PoseSearch/PoseSearchContext.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchSchema.h"
+#include "PoseSearchFeatureChannel_Position.h"
 
 #if WITH_EDITOR
 namespace UE::PoseSearch
@@ -285,6 +286,14 @@ void UPoseSearchFeatureChannel_Phase::Finalize(UPoseSearchSchema* Schema)
 	ChannelCardinality = 2;
 	Schema->SchemaCardinality += ChannelCardinality;
 	SchemaBoneIdx = Schema->AddBoneReference(Bone);
+}
+
+void UPoseSearchFeatureChannel_Phase::AddDependentChannels(UPoseSearchSchema* Schema) const
+{
+	if (Schema->bInjectAdditionalDebugChannels)
+	{
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, Bone.BoneName, 0.f, ColorPresetIndex);
+	}
 }
 
 void UPoseSearchFeatureChannel_Phase::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const

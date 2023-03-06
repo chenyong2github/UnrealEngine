@@ -3,7 +3,6 @@
 #include "PoseSearch/PoseSearchSchema.h"
 #include "AnimationRuntime.h"
 #include "PoseSearch/PoseSearchDefines.h"
-#include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "PoseSearch/PoseSearchResult.h"
 #include "UObject/ObjectSaveContext.h"
 
@@ -45,12 +44,9 @@ void UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext
 
 	InOutQuery.Init(this);
 
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Channels)
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : GetChannels())
 	{
-		if (ChannelPtr)
-		{
-			ChannelPtr->BuildQuery(SearchContext, InOutQuery);
-		}
+		ChannelPtr->BuildQuery(SearchContext, InOutQuery);
 	}
 }
 
@@ -70,12 +66,22 @@ void UPoseSearchSchema::Finalize()
 
 	SchemaCardinality = 0;
 
+	FinalizedChannels.Reset();
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Channels)
 	{
 		if (ChannelPtr)
 		{
+			FinalizedChannels.Add(ChannelPtr);
 			ChannelPtr->Finalize(this);
 		}
+	}
+
+	// AddDependentChannels can add channels to FinalizedChannels, so we need a while loop
+	int32 ChannelIndex = 0;
+	while (ChannelIndex < FinalizedChannels.Num())
+	{
+		FinalizedChannels[ChannelIndex]->AddDependentChannels(this);
+		++ChannelIndex;
 	}
 
 	ResolveBoneReferences();

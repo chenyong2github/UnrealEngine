@@ -6,6 +6,7 @@
 #include "PoseSearch/PoseSearchContext.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchSchema.h"
+#include "PoseSearchFeatureChannel_Position.h"
 
 static void ComputeThighsSideAndForward(const FVector& RightThighPos, const FVector& LeftThighPos, FVector& ThighsSide, FVector& ThighsForward)
 {
@@ -38,6 +39,16 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::Finalize(UPoseSearchSchema* S
 	RightFootIdx = Schema->AddBoneReference(RightFoot);
 }
 
+void UPoseSearchFeatureChannel_FilterCrashingLegs::AddDependentChannels(UPoseSearchSchema* Schema) const
+{
+	if (Schema->bInjectAdditionalDebugChannels)
+	{
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, LeftThigh.BoneName, 0.f, 0);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, RightThigh.BoneName, 0.f, 0);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, LeftFoot.BoneName, 0.f, 0);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, RightFoot.BoneName, 0.f, 0);
+	}
+}
 void UPoseSearchFeatureChannel_FilterCrashingLegs::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;

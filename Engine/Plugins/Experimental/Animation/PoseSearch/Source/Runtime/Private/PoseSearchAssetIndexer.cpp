@@ -146,12 +146,9 @@ void FAssetIndexer::Process(int32 AssetIdx)
 	// Generate pose features data
 	if (IndexingContext.Schema->SchemaCardinality > 0)
 	{
-		for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : IndexingContext.Schema->Channels)
+		for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : IndexingContext.Schema->GetChannels())
 		{
-			if (ChannelPtr)
-			{
-				ChannelPtr->IndexAsset(*this);
-			}
+			ChannelPtr->IndexAsset(*this);
 		}
 	}
 

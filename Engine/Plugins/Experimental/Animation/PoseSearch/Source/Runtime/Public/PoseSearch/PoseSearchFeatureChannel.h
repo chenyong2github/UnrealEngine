@@ -100,6 +100,9 @@ public:
 	virtual TArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() { return TArrayView<TObjectPtr<UPoseSearchFeatureChannel>>(); }
 	virtual TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() const { return TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>>(); }
 
+	// @todo: should this API be under ENABLE_DRAW_DEBUG?
+	virtual void AddDependentChannels(UPoseSearchSchema* Schema) const {}
+
 #if ENABLE_DRAW_DEBUG
 	// API called before DebugDraw to collect shared channel informations such as decoded positions form the PoseVector
 	virtual void PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const {}

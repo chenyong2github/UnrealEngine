@@ -150,9 +150,9 @@ struct FPoseFilters
 			AllPoseFilters.Add(&NonSelectableIdxPoseFilter);
 		}
 
-		for (const IPoseFilter* ChannelPoseFilter : Schema->Channels)
+		for (const IPoseFilter* ChannelPoseFilter : Schema->GetChannels())
 		{
-			if (ChannelPoseFilter && ChannelPoseFilter->IsPoseFilterActive())
+			if (ChannelPoseFilter->IsPoseFilterActive())
 			{
 				AllPoseFilters.Add(ChannelPoseFilter);
 			}

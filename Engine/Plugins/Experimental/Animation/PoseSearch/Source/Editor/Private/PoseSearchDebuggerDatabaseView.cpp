@@ -37,12 +37,9 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 				const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
 				if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 				{
-					for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Database->Schema->Channels)
+					for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Database->Schema->GetChannels())
 					{
-						if (const UPoseSearchFeatureChannel* Channel = ChannelPtr.Get())
-						{
-							AnalyzeChannelRecursively(Channel, bIsVerbose);
-						}
+						AnalyzeChannelRecursively(ChannelPtr.Get(), bIsVerbose);
 					}
 				}
 			}
