@@ -120,6 +120,12 @@ namespace EpicGames.OIDC
 					refreshToken = "";
 					return false;
 				}
+				if (e.NativeErrorCode == unchecked((int)0x8009000B)) // key not valid for use in specified state
+				{
+					// unable to decrypt the data, ignore it
+					refreshToken = "";
+					return false;
+				}
 				throw;
 			}
 		}
