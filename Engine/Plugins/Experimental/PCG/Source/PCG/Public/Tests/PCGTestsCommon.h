@@ -7,7 +7,9 @@
 #include "GameFramework/Actor.h"
 #include "Misc/AutomationTest.h"
 
+class IPCGElement;
 class UPCGComponent;
+class UPCGNode;
 class UPCGParamData;
 class UPCGPointData;
 class UPCGPolyLineData;
@@ -15,6 +17,7 @@ class UPCGPrimitiveData;
 class UPCGSettings;
 class UPCGSurfaceData;
 class UPCGVolumeData;
+struct FPCGContext;
 struct FPCGPinProperties;
 struct FPCGPoint;
 
@@ -22,12 +25,18 @@ namespace PCGTestsCommon
 {
 	constexpr int TestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
 
+	/** If you are using a FTestData, you can use FTestData::InitializeTestContext. Initialize a context and set the number of tasks available to 1. */
+	TUniquePtr<FPCGContext> InitializeTestContext(IPCGElement* InElement, const FPCGDataCollection& InputData, UPCGComponent* InSourceComponent, const UPCGNode* InNode);
+
 	struct PCG_API FTestData
 	{
 		FTestData(int32 Seed, UPCGSettings* DefaultSettings = nullptr, TSubclassOf<AActor> ActorClass = AActor::StaticClass());
 		~FTestData();
 
 		void Reset(UPCGSettings* InSettings = nullptr);
+
+		/** Initialize a context and set the number of tasks available to 1. */
+		TUniquePtr<FPCGContext> InitializeTestContext(const UPCGNode* InNode = nullptr) const;
 
 		AActor* TestActor;
 		UPCGComponent* TestPCGComponent;

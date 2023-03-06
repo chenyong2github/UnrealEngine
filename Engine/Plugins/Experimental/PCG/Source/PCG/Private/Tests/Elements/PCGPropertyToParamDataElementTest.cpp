@@ -45,8 +45,7 @@ bool VerifyAttributeValue(FPCGTestBaseClass* TestInstance, PCGTestsCommon::FTest
 	TestNode->GetOutputPins()[0]->AddEdgeTo(TrivialNode->GetInputPins()[0]);
 
 	FPCGElementPtr Element = Settings->GetElement();
-	TUniquePtr<FPCGContext> Context(Element->Initialize(FPCGDataCollection(), TestData.TestPCGComponent, TestNode));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = PCGTestsCommon::InitializeTestContext(Element.Get(), FPCGDataCollection(), TestData.TestPCGComponent, TestNode);
 
 	// Run the element, can throw an error.
 	while (!Element->Execute(Context.Get()))

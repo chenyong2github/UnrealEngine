@@ -49,8 +49,7 @@ bool FPCGMetadataBooleanOpTest::RunTest(const FString& Parameters)
 
 	auto ValidateOp = [this, &MetadataBooleanElement, &TestData, &Settings](bool bExpectedResult, bool bIsValid = true) -> bool
 	{
-		TUniquePtr<FPCGContext> Context = TUniquePtr<FPCGContext>(MetadataBooleanElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-		Context->NumAvailableTasks = 1;
+		TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 		while (!MetadataBooleanElement->Execute(Context.Get()))
 		{

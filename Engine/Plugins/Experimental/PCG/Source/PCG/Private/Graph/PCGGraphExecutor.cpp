@@ -35,6 +35,11 @@ static TAutoConsoleVariable<int32> CVarMaxNumTasks(
 	4096,
 	TEXT("Maximum number of concurrent tasks for PCG processing"));
 
+static TAutoConsoleVariable<float> CVarMaxPercentageOfThreadsToUse(
+	TEXT("pcg.MaxPercentageOfThreadsToUse"),
+	0.9f,
+	TEXT("Maximum percentage of number of threads for concurrent PCG processing"));
+
 static TAutoConsoleVariable<float> CVarTimePerFrame(
 	TEXT("pcg.FrameTime"),
 	1000.0f / 60.0f,
@@ -450,7 +455,8 @@ void FPCGGraphExecutor::Execute()
 #endif
 
 	const double EndTime = StartTime + VarTimePerFrame;
-	const int32 MaxNumThreads = FMath::Max(0, FMath::Min(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, CVarMaxNumTasks.GetValueOnAnyThread() - 1));
+	const float MaxPercentageOfThreadsToUse = FMath::Clamp(CVarMaxPercentageOfThreadsToUse.GetValueOnAnyThread(), 0.0f, 1.0f);
+	const int32 MaxNumThreads = FMath::Max(0, FMath::Min((int32)(FPlatformMisc::NumberOfCoresIncludingHyperthreads() * MaxPercentageOfThreadsToUse), CVarMaxNumTasks.GetValueOnAnyThread() - 1));
 	const bool bAllowMultiDispatch = CVarGraphMultithreading.GetValueOnAnyThread();
 	const bool bGraphCacheDebuggingEnabled = IsGraphCacheDebuggingEnabled();
 
@@ -668,10 +674,10 @@ void FPCGGraphExecutor::Execute()
 				FPCGGraphActiveTask& ActiveTask = ActiveTasks[ExecutionIndex];
 
 				// Tasks that were already launched already have assigned tasks, so don't touch them
-				if (ActiveTask.Context->NumAvailableTasks == 0)
+				if (ActiveTask.Context->AsyncState.NumAvailableTasks == 0)
 				{
-					ActiveTask.Context->NumAvailableTasks = 1 + NumAdditionalThreads;
-					CurrentlyUsedThreads += ActiveTask.Context->NumAvailableTasks;
+					ActiveTask.Context->AsyncState.NumAvailableTasks = 1 + NumAdditionalThreads;
+					CurrentlyUsedThreads += ActiveTask.Context->AsyncState.NumAvailableTasks;
 				}
 			}
 		}
@@ -691,8 +697,8 @@ void FPCGGraphExecutor::Execute()
 	#endif
 				{
 					check(!ActiveTask.Element->CanExecuteOnlyOnMainThread(ActiveTask.Context.Get()));
-					ActiveTask.Context->EndTime = EndTime;
-					ActiveTask.Context->bIsRunningOnMainThread = false;
+					ActiveTask.Context->AsyncState.EndTime = EndTime;
+					ActiveTask.Context->AsyncState.bIsRunningOnMainThread = false;
 					// Remove the precreated data so we properly count in the root set
 					ActiveTask.Context->OutputData.RemoveFromRootSet(DataRootSet);
 
@@ -728,8 +734,8 @@ void FPCGGraphExecutor::Execute()
 				}
 			}
 
-			check(ActiveTask.Context->NumAvailableTasks >= 0);
-			CurrentlyUsedThreads -= ActiveTask.Context->NumAvailableTasks;
+			check(ActiveTask.Context->AsyncState.NumAvailableTasks >= 0);
+			CurrentlyUsedThreads -= ActiveTask.Context->AsyncState.NumAvailableTasks;
 
 #if WITH_EDITOR
 			// Execute debug display code as needed - done here because it needs to be done on the main thread
@@ -770,8 +776,8 @@ void FPCGGraphExecutor::Execute()
 				TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphExecutor::Execute::ExecuteTasks::MainThreadTask);
 				FPCGGraphActiveTask& MainThreadTask = ActiveTasks[0];
 				check(!MainThreadTask.Context->bIsPaused);
-				MainThreadTask.Context->EndTime = EndTime;
-				MainThreadTask.Context->bIsRunningOnMainThread = true;
+				MainThreadTask.Context->AsyncState.EndTime = EndTime;
+				MainThreadTask.Context->AsyncState.bIsRunningOnMainThread = true;
 				// Remove the precreated data so we properly count in the root set
 				MainThreadTask.Context->OutputData.RemoveFromRootSet(DataRootSet);
 
@@ -835,9 +841,9 @@ void FPCGGraphExecutor::Execute()
 
 				if(bTaskShouldBePutAside)
 				{
-					check(ActiveTask.Context->NumAvailableTasks > 0);
-					CurrentlyUsedThreads -= ActiveTask.Context->NumAvailableTasks;
-					ActiveTask.Context->NumAvailableTasks = 0;
+					check(ActiveTask.Context->AsyncState.NumAvailableTasks > 0);
+					CurrentlyUsedThreads -= ActiveTask.Context->AsyncState.NumAvailableTasks;
+					ActiveTask.Context->AsyncState.NumAvailableTasks = 0;
 
 					SleepingTasks.Emplace(MoveTemp(ActiveTask));
 					ActiveTasks.RemoveAtSwap(ActiveTaskIndex);

@@ -24,8 +24,7 @@ bool FPCGGatherTest_Basic::RunTest(const FString& Parameters)
 		SourcePin.Data = PCGTestsCommon::CreateRandomPointData(100, 42);
 	}
 
-	TUniquePtr<FPCGContext> Context(TestElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!TestElement->Execute(Context.Get())) {}
 

@@ -119,8 +119,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		Settings->OutputTarget.AttributeName = OutputAttributeName;
 		FPCGElementPtr MetadataBreakVectorElement = TestData.Settings->GetElement();
 
-		TUniquePtr<FPCGContext> Context = TUniquePtr<FPCGContext>(MetadataBreakVectorElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-		Context->NumAvailableTasks = 1;
+		TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 		while (!MetadataBreakVectorElement->Execute(Context.Get()))
 		{}

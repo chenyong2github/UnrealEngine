@@ -1485,9 +1485,7 @@ namespace PCGDeterminismTests
 	{
 		FPCGElementPtr Element = TestData.Settings->GetElement();
 
-		TUniquePtr<FPCGContext> Context(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, PCGNode));
-
-		Context->NumAvailableTasks = 1;
+		TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext(PCGNode);
 
 		// Execute both elements until complete
 		while (!Element->Execute(Context.Get()))
@@ -1502,11 +1500,8 @@ namespace PCGDeterminismTests
 		FPCGElementPtr FirstElement = TestData.Settings->GetElement();
 		FPCGElementPtr SecondElement = TestData.Settings->GetElement();
 
-		TUniquePtr<FPCGContext> FirstContext(FirstElement->Initialize(TestData.InputData, TestData.TestPCGComponent, PCGNode));
-		TUniquePtr<FPCGContext> SecondContext(SecondElement->Initialize(TestData.InputData, TestData.TestPCGComponent, PCGNode));
-
-		FirstContext->NumAvailableTasks = 1;
-		SecondContext->NumAvailableTasks = 1;
+		TUniquePtr<FPCGContext> FirstContext = PCGTestsCommon::InitializeTestContext(FirstElement.Get(), TestData.InputData, TestData.TestPCGComponent, PCGNode);
+		TUniquePtr<FPCGContext> SecondContext = PCGTestsCommon::InitializeTestContext(SecondElement.Get(), TestData.InputData, TestData.TestPCGComponent, PCGNode);
 
 		// Execute both elements until complete
 		while (!FirstElement->Execute(FirstContext.Get()))
@@ -1526,11 +1521,8 @@ namespace PCGDeterminismTests
 	{
 		FPCGElementPtr Element = TestData.Settings->GetElement();
 
-		TUniquePtr<FPCGContext> FirstContext(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, PCGNode));
-		TUniquePtr<FPCGContext> SecondContext(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, PCGNode));
-
-		FirstContext->NumAvailableTasks = 1;
-		SecondContext->NumAvailableTasks = 1;
+		TUniquePtr<FPCGContext> FirstContext = TestData.InitializeTestContext(PCGNode);
+		TUniquePtr<FPCGContext> SecondContext = TestData.InitializeTestContext(PCGNode);
 
 		// Execute both elements until complete
 		while (!Element->Execute(FirstContext.Get()))

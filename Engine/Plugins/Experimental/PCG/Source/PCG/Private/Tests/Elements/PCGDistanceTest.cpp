@@ -39,8 +39,7 @@ bool FPCGDistanceTest_PointToPoint::RunTest(const FString& Parameters)
 		TargetPin.Data = PCGTestsCommon::CreatePointData(FVector(0, 0, 0));		
 	}
 
-	TUniquePtr<FPCGContext> Context(TestElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!TestElement->Execute(Context.Get())) {}
 
@@ -100,8 +99,7 @@ bool FPCGDistanceTest_SetDensity::RunTest(const FString& Parameters)
 		TargetPin.Data = PCGTestsCommon::CreatePointData(FVector(0, 0, 0));		
 	}
 
-	TUniquePtr<FPCGContext> Context(TestElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!TestElement->Execute(Context.Get())) {}
 
@@ -163,8 +161,7 @@ bool FPCGDistanceTest_PointToSphere::RunTest(const FString& Parameters)
 		TargetPin.Data = TargetData;
 	}
 
-	TUniquePtr<FPCGContext> Context(TestElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!TestElement->Execute(Context.Get())) {}
 
@@ -229,8 +226,7 @@ bool FPCGDistanceTest_PointToBox::RunTest(const FString& Parameters)
 		TargetPin.Data = TargetData;
 	}
 
-	TUniquePtr<FPCGContext> Context(TestElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!TestElement->Execute(Context.Get())) {}
 

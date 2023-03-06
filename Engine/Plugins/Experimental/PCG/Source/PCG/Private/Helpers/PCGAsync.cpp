@@ -1,13 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Helpers/PCGAsync.h"
-#include "PCGPoint.h"
+
 #include "PCGContext.h"
+#include "PCGPoint.h"
 
 #include "Async/Async.h"
 
 namespace FPCGAsync
 {
+	TAutoConsoleVariable<bool> ConsoleVar::CVarDisableAsyncTimeSlicing{
+		TEXT("pcg.DisableAsyncTimeSlicing"),
+		false,
+		TEXT("To help debug, we can disable time slicing for async tasks.")
+	};
+
 	void AsyncPointProcessing(int32 NumAvailableTasks, int32 MinIterationsPerTask, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<int32(int32, int32)>& IterationInnerLoop)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing);
@@ -87,12 +94,14 @@ namespace FPCGAsync
 	void AsyncPointProcessing(FPCGContext* Context, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<bool(int32, FPCGPoint&)>& PointFunc)
 	{
 		const int32 MinIterationsPerTask = 256;
+
+		FPCGAsyncState* AsyncState = Context ? &Context->AsyncState : nullptr;
 		
-		if (Context && !Context->bIsRunningAsyncCall)
+		if (AsyncState && !AsyncState->bIsRunningAsyncCall)
 		{
-			Context->bIsRunningAsyncCall = true;
-			AsyncPointProcessing(Context->NumAvailableTasks, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
-			Context->bIsRunningAsyncCall = false;
+			AsyncState->bIsRunningAsyncCall = true;
+			AsyncPointProcessing(AsyncState->NumAvailableTasks, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
+			AsyncState->bIsRunningAsyncCall = false;
 		}
 		else
 		{
@@ -120,11 +129,13 @@ namespace FPCGAsync
 			return NumPointsWritten;
 		};
 
-		if (Context && !Context->bIsRunningAsyncCall)
+		FPCGAsyncState* AsyncState = Context ? &Context->AsyncState : nullptr;
+
+		if (AsyncState && !AsyncState->bIsRunningAsyncCall)
 		{
-			Context->bIsRunningAsyncCall = true;
-			AsyncPointProcessing(Context->NumAvailableTasks, MinIterationsPerTask, InPoints.Num(), OutPoints, IterationInnerLoop);
-			Context->bIsRunningAsyncCall = false;
+			AsyncState->bIsRunningAsyncCall = true;
+			AsyncPointProcessing(AsyncState->NumAvailableTasks, MinIterationsPerTask, InPoints.Num(), OutPoints, IterationInnerLoop);
+			AsyncState->bIsRunningAsyncCall = false;
 		}
 		else
 		{
@@ -157,11 +168,13 @@ namespace FPCGAsync
 	{
 		const int32 MinIterationsPerTask = 256;
 
-		if (Context && !Context->bIsRunningAsyncCall)
+		FPCGAsyncState* AsyncState = Context ? &Context->AsyncState : nullptr;
+
+		if (AsyncState && !AsyncState->bIsRunningAsyncCall)
 		{
-			Context->bIsRunningAsyncCall = true;
-			AsyncPointFilterProcessing(Context->NumAvailableTasks, MinIterationsPerTask, NumIterations, InFilterPoints, OutFilterPoints, PointFunc);
-			Context->bIsRunningAsyncCall = false;
+			AsyncState->bIsRunningAsyncCall = true;
+			AsyncPointFilterProcessing(AsyncState->NumAvailableTasks, MinIterationsPerTask, NumIterations, InFilterPoints, OutFilterPoints, PointFunc);
+			AsyncState->bIsRunningAsyncCall = false;
 		}
 		else
 		{
@@ -294,12 +307,14 @@ namespace FPCGAsync
 
 	void AsyncMultiPointProcessing(FPCGContext* Context, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<TArray<FPCGPoint>(int32)>& PointFunc)
 	{
+		FPCGAsyncState* AsyncState = Context ? &Context->AsyncState : nullptr;
+
 		const int32 MinIterationsPerTask = 256;
-		if (Context && !Context->bIsRunningAsyncCall)
+		if (AsyncState && !AsyncState->bIsRunningAsyncCall)
 		{
-			Context->bIsRunningAsyncCall = true;
-			AsyncMultiPointProcessing(Context->NumAvailableTasks, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
-			Context->bIsRunningAsyncCall = false;
+			AsyncState->bIsRunningAsyncCall = true;
+			AsyncMultiPointProcessing(AsyncState->NumAvailableTasks, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
+			AsyncState->bIsRunningAsyncCall = false;
 		}
 		else
 		{

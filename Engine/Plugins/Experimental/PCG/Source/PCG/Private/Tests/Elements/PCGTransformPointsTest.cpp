@@ -60,8 +60,7 @@ bool FPCGTransformPointsTest::RunTest(const FString& Parameters)
 
 	auto ValidateTransformPoints = [this, &TestData, TransformPointsElement, Settings]() -> bool
 	{
-		TUniquePtr<FPCGContext> Context(TransformPointsElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-		Context->NumAvailableTasks = 1;
+		TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 		while (!TransformPointsElement->Execute(Context.Get()))
 		{}

@@ -31,8 +31,7 @@ CCC,"C Name","C String","333","3333","3.3","3.33","(X=3.0,Y=3.0)","(X=3.0,Y=3.0,
 
 	FPCGElementPtr TestElement = TestData.Settings->GetElement();
 
-	TUniquePtr<FPCGContext> Context(TestElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!TestElement->Execute(Context.Get())) {}
 
@@ -99,8 +98,7 @@ CCC,"C Name","C String","333","3333","3.3","3.33","(X=3.0,Y=3.0)","(X=3.0,Y=3.0,
 
 	FPCGElementPtr TestElement = TestData.Settings->GetElement();
 
-	TUniquePtr<FPCGContext> Context(TestElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!TestElement->Execute(Context.Get())) {}
 

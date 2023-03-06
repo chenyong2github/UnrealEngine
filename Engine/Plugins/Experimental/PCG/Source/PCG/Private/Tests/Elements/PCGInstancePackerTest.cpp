@@ -49,13 +49,13 @@ namespace
 	bool ValidateInstancePacker(
 		FPCGTestBaseClass* Test,
 		const PCGTestsCommon::FTestData& TestData,
-		const FPCGElementPtr& StaticMeshSpawnerElement,
 		const UPCGStaticMeshSpawnerSettings* Settings,
 		TArray<float> ExpectedCustomData, 
 		int NumCustomDataFloats)
 	{
-		TUniquePtr<FPCGContext> Context(StaticMeshSpawnerElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-		Context->NumAvailableTasks = 1;
+		FPCGElementPtr StaticMeshSpawnerElement = Settings->GetElement();
+
+		TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 		while (!StaticMeshSpawnerElement->Execute(Context.Get()))
 		{}
@@ -103,7 +103,6 @@ bool FPCGStaticMeshSpawnerInstancePackerByAttributeTest::RunTest(const FString& 
 	PCGTestsCommon::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
 	PCGDeterminismTests::GenerateSettings<UPCGStaticMeshSpawnerSettings>(TestData);
 	UPCGStaticMeshSpawnerSettings* Settings = CastChecked<UPCGStaticMeshSpawnerSettings>(TestData.Settings);
-	FPCGElementPtr StaticMeshSpawnerElement = TestData.Settings->GetElement();
 
 	FPCGTaggedData& SourceTaggedData = TestData.InputData.TaggedData.Emplace_GetRef(FPCGTaggedData());
 	TObjectPtr<UPCGPointData> SourceData = PCGTestsCommon::CreateRandomPointData(5, TestData.Seed);
@@ -182,43 +181,43 @@ bool FPCGStaticMeshSpawnerInstancePackerByAttributeTest::RunTest(const FString& 
 	// No attributes
 	{
 		InstancePacker->AttributeNames = {};
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, {}, 0);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, {}, 0);
 	}
 
 	// Float Attribute
 	{
 		InstancePacker->AttributeNames = { FloatName };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, FloatValues, 1);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, FloatValues, 1);
 	}
 
 	// Double Attribute
 	{
 		InstancePacker->AttributeNames = { DoubleName };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, DoubleValues, 1);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, DoubleValues, 1);
 	}
 
 	// Int Attribute
 	{
 		InstancePacker->AttributeNames = { IntName };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, IntValues, 1);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, IntValues, 1);
 	}
 
 	// Vector Attribute
 	{
 		InstancePacker->AttributeNames = { VecName };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, VecValues, 3);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, VecValues, 3);
 	}
 
 	// Vector4 Attribute
 	{
 		InstancePacker->AttributeNames = { Vec4Name };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, Vec4Values, 4);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, Vec4Values, 4);
 	}
 
 	// Rotator Attribute
 	{
 		InstancePacker->AttributeNames = { RotatorName };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, RotatorValues, 3);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, RotatorValues, 3);
 	}
 
 	// Float + Vector
@@ -226,7 +225,7 @@ bool FPCGStaticMeshSpawnerInstancePackerByAttributeTest::RunTest(const FString& 
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { FloatValues, 1 }, { VecValues, 3 } }, NumPoints);
 
 		InstancePacker->AttributeNames = { FloatName, VecName };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 4);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 4);
 	}
 
 	// Vector + Float
@@ -234,7 +233,7 @@ bool FPCGStaticMeshSpawnerInstancePackerByAttributeTest::RunTest(const FString& 
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { VecValues, 3 }, { FloatValues, 1 } }, NumPoints);
 
 		InstancePacker->AttributeNames = { VecName, FloatName };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 4);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 4);
 	}
 
 	// Vector + Float + Vector
@@ -242,7 +241,7 @@ bool FPCGStaticMeshSpawnerInstancePackerByAttributeTest::RunTest(const FString& 
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { VecValues, 3 }, { FloatValues, 1 }, { VecValues, 3 } }, NumPoints);
 
 		InstancePacker->AttributeNames = { VecName, FloatName, VecName };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 7);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 7);
 	}
 
 	// Vector + Float + Vector + Vector4
@@ -250,7 +249,7 @@ bool FPCGStaticMeshSpawnerInstancePackerByAttributeTest::RunTest(const FString& 
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { VecValues, 3 }, { FloatValues, 1 }, { VecValues, 3 }, { Vec4Values, 4 } }, NumPoints);
 
 		InstancePacker->AttributeNames = { VecName, FloatName, VecName, Vec4Name };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 11);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 11);
 	}
 
 	return bTestPassed;
@@ -261,7 +260,6 @@ bool FPCGStaticMeshSpawnerInstancePackerByRegexTest::RunTest(const FString& Para
 	PCGTestsCommon::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
 	PCGDeterminismTests::GenerateSettings<UPCGStaticMeshSpawnerSettings>(TestData);
 	UPCGStaticMeshSpawnerSettings* Settings = CastChecked<UPCGStaticMeshSpawnerSettings>(TestData.Settings);
-	FPCGElementPtr StaticMeshSpawnerElement = TestData.Settings->GetElement();
 
 	FPCGTaggedData& SourceTaggedData = TestData.InputData.TaggedData.Emplace_GetRef(FPCGTaggedData());
 	TObjectPtr<UPCGPointData> SourceData = PCGTestsCommon::CreateRandomPointData(5, TestData.Seed);
@@ -332,68 +330,68 @@ bool FPCGStaticMeshSpawnerInstancePackerByRegexTest::RunTest(const FString& Para
 	// No attributes
 	{
 		InstancePacker->RegexPatterns = {};
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, {}, 0);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, {}, 0);
 	}
 
 	{
 		InstancePacker->RegexPatterns = { TEXT("A1") };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, FloatValues, 1);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, FloatValues, 1);
 	}
 
 	{
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { FloatValues, 1 }, { Vec4Values, 4 } }, NumPoints);
 
 		InstancePacker->RegexPatterns = { TEXT("A1"), TEXT("B2") };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 5);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 5);
 	}
 
 	{
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { FloatValues, 1 }, { DoubleValues, 1 }, { IntValues, 1 } }, NumPoints);
 
 		InstancePacker->RegexPatterns = { TEXT("A.") };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 3);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 3);
 	}
 
 	{
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { VecValues, 3 }, { Vec4Values, 4 } }, NumPoints);
 
 		InstancePacker->RegexPatterns = { TEXT("B.") };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 7);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 7);
 	}
 
 	{
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { FloatValues, 1 }, { DoubleValues, 1 }, { IntValues, 1 }, { VecValues, 3 }, { Vec4Values, 4 } }, NumPoints);
 
 		InstancePacker->RegexPatterns = { TEXT("A."), TEXT("B.") };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 10);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 10);
 	}
 
 	{
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { VecValues, 3 }, { Vec4Values, 4 }, { FloatValues, 1 }, { DoubleValues, 1 }, { IntValues, 1 } }, NumPoints);
 
 		InstancePacker->RegexPatterns = { TEXT("B."), TEXT("A.") };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 10);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 10);
 	}
 
 	{
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { FloatValues, 1 }, { VecValues, 3 } }, NumPoints);
 
 		InstancePacker->RegexPatterns = { TEXT(".1") };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 4);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 4);
 	}
 
 	{
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { FloatValues, 1 }, { VecValues, 3 } }, NumPoints);
 
 		InstancePacker->RegexPatterns = { TEXT(".1"), TEXT(".1") };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 4);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 4);
 	}
 
 	{
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { FloatValues, 1 }, { VecValues, 3 }, { DoubleValues, 1 }, { Vec4Values, 4 } }, NumPoints);
 
 		InstancePacker->RegexPatterns = { TEXT(".1"), TEXT(".2") };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 9);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 9);
 	}
 
 	// Capture all attributes
@@ -401,7 +399,7 @@ bool FPCGStaticMeshSpawnerInstancePackerByRegexTest::RunTest(const FString& Para
 		TArray<float> ExpectedCustomData = LocalPackFloats({ { FloatValues, 1 }, { DoubleValues, 1 }, { IntValues, 1 }, { VecValues, 3 }, { Vec4Values, 4 } }, NumPoints);
 
 		InstancePacker->RegexPatterns = { TEXT("[A-Z][0-9]") };
-		bTestPassed &= ValidateInstancePacker(this, TestData, StaticMeshSpawnerElement, Settings, ExpectedCustomData, 10);
+		bTestPassed &= ValidateInstancePacker(this, TestData, Settings, ExpectedCustomData, 10);
 	}
 
 	return bTestPassed;

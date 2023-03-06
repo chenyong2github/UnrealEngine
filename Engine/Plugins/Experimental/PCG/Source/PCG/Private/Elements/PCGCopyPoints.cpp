@@ -300,7 +300,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 		if (AttributesToSet.Num() > 0)
 		{
 			int32 AttributeOffset = 0;
-			const int32 AttributePerDispatch = FMath::Max(1, Context->NumAvailableTasks);
+			const int32 AttributePerDispatch = FMath::Max(1, Context->AsyncState.NumAvailableTasks);
 
 			while (AttributeOffset < AttributesToSet.Num())
 			{

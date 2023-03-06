@@ -4,6 +4,7 @@
 
 #include "PCGComponent.h"
 #include "PCGContext.h"
+#include "PCGElement.h"
 #include "PCGGraph.h"
 #include "PCGParamData.h"
 #include "Data/PCGPointData.h"
@@ -77,6 +78,20 @@ namespace PCGTestsCommon
 		InputData.TaggedData.Empty();
 		OutputData.TaggedData.Empty();
 		Settings = InSettings;
+	}
+
+	TUniquePtr<FPCGContext> InitializeTestContext(IPCGElement* InElement, const FPCGDataCollection& InputData, UPCGComponent* InSourceComponent, const UPCGNode* InNode)
+	{
+		check(InElement);
+		TUniquePtr<FPCGContext> Context{ InElement->Initialize(InputData, InSourceComponent, InNode) };
+		Context->AsyncState.NumAvailableTasks = 1;
+		return Context;
+	}
+
+	TUniquePtr<FPCGContext> FTestData::InitializeTestContext(const UPCGNode* InNode) const
+	{
+		check(Settings)
+		return PCGTestsCommon::InitializeTestContext(Settings->GetElement().Get(), InputData, TestPCGComponent, InNode);
 	}
 
 	AActor* CreateTemporaryActor()
@@ -285,8 +300,7 @@ bool FPCGTestBaseClass::SmokeTestAnyValidInput(UPCGSettings* InSettings, TFuncti
 			InputData.TaggedData.Append(InputsPerProperties[PinIndex][InputIndices[PinIndex]].TaggedData);
 		}
 
-		TUniquePtr<FPCGContext> Context(Element->Initialize(InputData, nullptr, nullptr));
-		Context->NumAvailableTasks = 1;
+		TUniquePtr<FPCGContext> Context = PCGTestsCommon::InitializeTestContext(Element.Get(), InputData, nullptr, nullptr);
 		
 		// Execute element until done
 		while (!Element->Execute(Context.Get()))

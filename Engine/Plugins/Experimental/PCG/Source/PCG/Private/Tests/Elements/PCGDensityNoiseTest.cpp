@@ -34,8 +34,7 @@ bool FPCGDensityNoiseTest::RunTest(const FString& Parameters)
 
 	auto ValidateDensityNoise = [this, &TestData, DensityNoiseElement, Settings](TArray<float> ExpectedOutput) -> bool
 	{
-		TUniquePtr<FPCGContext> Context(DensityNoiseElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-		Context->NumAvailableTasks = 1;
+		TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 		while (!DensityNoiseElement->Execute(Context.Get()))
 		{}

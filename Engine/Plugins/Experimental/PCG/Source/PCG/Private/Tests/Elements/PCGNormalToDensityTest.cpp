@@ -32,8 +32,7 @@ bool FPCGNormalToDensityTest_Set::RunTest(const FString& Parameters)
 		TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
 	}
 
-	TUniquePtr<FPCGContext> Context(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!Element->Execute(Context.Get())) {}
 
@@ -80,8 +79,7 @@ bool FPCGNormalToDensityTest_CustomNormal::RunTest(const FString& Parameters)
 		TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
 	}
 
-	TUniquePtr<FPCGContext> Context(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!Element->Execute(Context.Get())) {}
 
@@ -128,8 +126,7 @@ bool FPCGNormalToDensityTest_Strength::RunTest(const FString& Parameters)
 		TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
 	}
 
-	TUniquePtr<FPCGContext> Context(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!Element->Execute(Context.Get())) {}
 
@@ -177,8 +174,7 @@ bool FPCGNormalToDensityTest_Minimum::RunTest(const FString& Parameters)
 		TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
 	}
 
-	TUniquePtr<FPCGContext> Context(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!Element->Execute(Context.Get())) {}
 
@@ -226,8 +222,7 @@ bool FPCGNormalToDensityTest_Maximum::RunTest(const FString& Parameters)
 		TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
 	}
 
-	TUniquePtr<FPCGContext> Context(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!Element->Execute(Context.Get())) {}
 
@@ -276,8 +271,7 @@ bool FPCGNormalToDensityTest_Add::RunTest(const FString& Parameters)
 		TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
 	}
 
-	TUniquePtr<FPCGContext> Context(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!Element->Execute(Context.Get())) {}
 
@@ -325,8 +319,7 @@ bool FPCGNormalToDensityTest_Subtract::RunTest(const FString& Parameters)
 		TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
 	}
 
-	TUniquePtr<FPCGContext> Context(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!Element->Execute(Context.Get())) {}
 
@@ -374,8 +367,7 @@ bool FPCGNormalToDensityTest_Multiply::RunTest(const FString& Parameters)
 		TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
 	}
 
-	TUniquePtr<FPCGContext> Context(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!Element->Execute(Context.Get())) {}
 
@@ -423,8 +415,7 @@ bool FPCGNormalToDensityTest_Divide::RunTest(const FString& Parameters)
 		TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
 	}
 
-	TUniquePtr<FPCGContext> Context(Element->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-	Context->NumAvailableTasks = 1;
+	TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 	while (!Element->Execute(Context.Get())) {}
 

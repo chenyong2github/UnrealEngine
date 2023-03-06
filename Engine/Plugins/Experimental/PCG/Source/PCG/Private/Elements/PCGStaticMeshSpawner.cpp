@@ -190,7 +190,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 		InstanceListData.PackedCustomData = MoveTemp(PackedCustomData);
 
 		// Continue on to next iteration if there is time left, otherwise, exit here
-		if (Context->ShouldStop() && Context->CurrentInputIndex < Inputs.Num())
+		if (Context->AsyncState.ShouldStop() && Context->CurrentInputIndex < Inputs.Num())
 		{
 			return false;
 		}
@@ -220,7 +220,7 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* InContext) const
 				SpawnStaticMeshInstances(Context, InstanceList.MeshInstances[Context->CurrentDataIndex], InstanceList.TargetActor, InstanceList.PackedCustomData[Context->CurrentDataIndex]);
 				++Context->CurrentDataIndex;
 
-				if (Context->ShouldStop())
+				if (Context->AsyncState.ShouldStop())
 				{
 					break;
 				}
@@ -233,7 +233,7 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* InContext) const
 			Context->CurrentDataIndex = 0;
 		}
 
-		if (Context->ShouldStop())
+		if (Context->AsyncState.ShouldStop())
 		{
 			break;
 		}

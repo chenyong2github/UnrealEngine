@@ -2,15 +2,17 @@
 
 #pragma once
 
+#include "PCGContext.h"
+#include "PCGSettings.h"
 
 #include "Math/Box.h"
-#include "PCGSettings.h"
 
 #include "PCGSurfaceSampler.generated.h"
 
 class UPCGNode;
 class UPCGPointData;
 class UPCGSpatialData;
+struct FPCGContext;
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGSurfaceSamplerSettings : public UPCGSettings
@@ -76,15 +78,6 @@ public:
 #endif
 };
 
-class FPCGSurfaceSamplerElement : public FSimplePCGElement
-{
-public:
-	virtual void GetDependenciesCrc(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, UPCGComponent* InComponent, FPCGCrc& OutCrc) const override;
-
-protected:
-	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-};
-
 namespace PCGSurfaceSampler
 {
 	struct FSurfaceSamplerSettings
@@ -119,11 +112,41 @@ namespace PCGSurfaceSampler
 
 		FVector::FReal InputBoundsMinZ;
 		FVector::FReal InputBoundsMaxZ;
+
+		bool bEnableTimeSlicing = false;
 	};
 
+	/** Sample a surface and returns the resulting point data. Can't be timesliced. */
 	UPCGPointData* SampleSurface(FPCGContext* Context, const UPCGSpatialData* InSurface, const UPCGSpatialData* InBoundingShape, const FSurfaceSamplerSettings& LoopData);
-	void SampleSurface(FPCGContext* Context, const UPCGSpatialData* InSurface, const UPCGSpatialData* InBoundingShape, const FSurfaceSamplerSettings& LoopData, UPCGPointData* SampledData);
+
+	/** Sample a surface and write the results in the given point data. Can be timesliced, and will return false if the processing is not done, true otherwise. */
+	bool SampleSurface(FPCGContext* Context, const UPCGSpatialData* InSurface, const UPCGSpatialData* InBoundingShape, const FSurfaceSamplerSettings& LoopData, UPCGPointData* SampledData);
 }
+
+struct FPCGSurfaceSamplerContext : public FPCGContext
+{
+	// Keep all data that won't be recomputed at every execution
+	const UPCGSpatialData* BoundingShapeSpatialInput = nullptr;
+	TArray<const UPCGSpatialData*, TInlineAllocator<16>> GeneratingShapes;
+	TArray<PCGSurfaceSampler::FSurfaceSamplerSettings, TInlineAllocator<16>> LoopData;
+	FBox BoundingShapeBounds = FBox(EForceInit::ForceInit);
+	int32 CurrentGeneratingShape = 0;
+	bool bDataPrepared = false;
+};
+
+class FPCGSurfaceSamplerElement : public IPCGElement
+{
+public:
+	virtual void GetDependenciesCrc(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, UPCGComponent* InComponent, FPCGCrc& OutCrc) const override;
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node) override;
+protected:
+	virtual bool PrepareDataInternal(FPCGContext* InContext) const override;
+	virtual bool ExecuteInternal(FPCGContext* InContext) const override;
+
+private:
+	bool AddGeneratingShapesToContext(FPCGSurfaceSamplerContext* InContext) const;
+	void AllocateOutputs(FPCGSurfaceSamplerContext* InContext) const;
+};
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"

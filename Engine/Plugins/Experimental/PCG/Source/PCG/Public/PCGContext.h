@@ -4,6 +4,7 @@
 
 #include "PCGData.h"
 #include "PCGNode.h" // IWYU pragma: keep
+#include "Helpers/PCGAsyncState.h"
 
 #include "PCGContext.generated.h"
 
@@ -49,8 +50,8 @@ struct PCG_API FPCGContext
 	FPCGDataCollection InputData;
 	FPCGDataCollection OutputData;
 	TWeakObjectPtr<UPCGComponent> SourceComponent = nullptr;
-	int32 NumAvailableTasks = 0;
 
+	FPCGAsyncState AsyncState;
 	FPCGCrc DependenciesCrc;
 
 	// TODO: replace this by a better identification mechanism
@@ -61,12 +62,6 @@ struct PCG_API FPCGContext
 
 	EPCGExecutionPhase CurrentPhase = EPCGExecutionPhase::NotExecuted;
 	int32 BypassedOutputCount = 0;
-
-	double EndTime = 0.0;
-	bool bIsRunningOnMainThread = true;
-
-	/** True if currently inside a PCGAsync scope - will prevent further async processing */
-	bool bIsRunningAsyncCall = false;
 
 	const UPCGSettingsInterface* GetInputSettingsInterface() const;
 	
@@ -91,7 +86,7 @@ struct PCG_API FPCGContext
 
 	FString GetTaskName() const;
 	FString GetComponentName() const;
-	bool ShouldStop() const;
+	bool ShouldStop() const { return AsyncState.ShouldStop(); }
 
 	AActor* GetTargetActor(const UPCGSpatialData* InSpatialData) const;
 

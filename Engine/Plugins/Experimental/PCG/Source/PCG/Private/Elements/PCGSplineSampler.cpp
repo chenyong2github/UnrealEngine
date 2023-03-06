@@ -856,7 +856,7 @@ namespace PCGSplineSampler
 
 		constexpr int32 MinIterationPerDispatch = 4;
 		const int32 NumIterations = (MaxY + UE_KINDA_SMALL_NUMBER - MinY) / Params.InteriorSampleSpacing;
-		const int32 NumDispatch = FMath::Max(1, FMath::Min(Context->NumAvailableTasks, NumIterations / MinIterationPerDispatch));
+		const int32 NumDispatch = FMath::Max(1, FMath::Min(Context->AsyncState.NumAvailableTasks, NumIterations / MinIterationPerDispatch));
 		const int32 NumIterationsPerDispatch = NumIterations / NumDispatch;
 
 		TArray<TArray<TTuple<FTransform, FVector, float>>> InteriorSplinePointData;

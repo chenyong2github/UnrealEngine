@@ -24,8 +24,8 @@ static TAutoConsoleVariable<bool> CVarCacheUseDependenciesCrc(
 
 bool IPCGElement::Execute(FPCGContext* Context) const
 {
-	check(Context && Context->NumAvailableTasks > 0 && Context->CurrentPhase < EPCGExecutionPhase::Done);
-	check(Context->bIsRunningOnMainThread || !CanExecuteOnlyOnMainThread(Context));
+	check(Context && Context->AsyncState.NumAvailableTasks > 0 && Context->CurrentPhase < EPCGExecutionPhase::Done);
+	check(Context->AsyncState.bIsRunningOnMainThread || !CanExecuteOnlyOnMainThread(Context));
 
 	while (Context->CurrentPhase != EPCGExecutionPhase::Done)
 	{
@@ -89,8 +89,8 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 		}
 
 		if (bExecutionPostponed || 
-			Context->ShouldStop() ||
-			(!Context->bIsRunningOnMainThread && CanExecuteOnlyOnMainThread(Context))) // phase change might require access to main thread
+			Context->AsyncState.ShouldStop() ||
+			(!Context->AsyncState.bIsRunningOnMainThread && CanExecuteOnlyOnMainThread(Context))) // phase change might require access to main thread
 		{
 			break;
 		}

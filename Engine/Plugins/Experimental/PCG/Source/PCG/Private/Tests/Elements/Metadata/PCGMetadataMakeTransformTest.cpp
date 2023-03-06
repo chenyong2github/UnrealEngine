@@ -97,8 +97,7 @@ bool FPCGMetadataMakeTransformTest::RunTest(const FString& Parameters)
 		Settings->OutputTarget.AttributeName = OutputAttributeName;
 		FPCGElementPtr MetadataBreakTransformElement = TestData.Settings->GetElement();
 
-		TUniquePtr<FPCGContext> Context = TUniquePtr<FPCGContext>(MetadataBreakTransformElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
-		Context->NumAvailableTasks = 1;
+		TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
 		while (!MetadataBreakTransformElement->Execute(Context.Get()))
 		{}
