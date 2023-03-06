@@ -199,6 +199,11 @@ void UUIFrameworkPlayerComponent::AuthorityRemoveChild(UUIFrameworkWidget* Widge
 	RootList.RemoveEntry(Widget);
 }
 
+FOnPendingReplicationProcessed& UUIFrameworkPlayerComponent::GetOnPendingReplicationProcessed()
+{
+	return OnPendingReplicationProcessed;
+}
+
 FUIFrameworkWidgetTree& UUIFrameworkPlayerComponent::GetWidgetTree()
 {
 	return WidgetTree;
@@ -245,6 +250,8 @@ void UUIFrameworkPlayerComponent::TickComponent(float DeltaTime, enum ELevelTick
 		NetReplicationPending.Empty();
 		AddPending.Empty();
 		ClassesToLoad.Empty();
+
+		OnPendingReplicationProcessed.Broadcast();
 
 		PrimaryComponentTick.SetTickFunctionEnable(false);
 	}

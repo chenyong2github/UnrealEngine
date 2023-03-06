@@ -15,6 +15,7 @@ class UUIFrameworkWidget;
 class UWidget;
 struct FStreamableHandle;
 
+DECLARE_MULTICAST_DELEGATE(FOnPendingReplicationProcessed);
 
 /**
  *
@@ -153,6 +154,7 @@ public:
 	//~ End UActorComponent
 
 	void AuthorityRemoveChild(UUIFrameworkWidget* Widget);
+	FOnPendingReplicationProcessed& GetOnPendingReplicationProcessed();
 
 	virtual FUIFrameworkWidgetTree& GetWidgetTree() override;
 	virtual FUIFrameworkWidgetOwner GetWidgetOwner() const override;
@@ -184,6 +186,9 @@ private:
 	//~ Widgets are created and ready to be added.
 	UPROPERTY(Transient)
 	TSet<int32> AddPending;
+
+	//~ Once widgets are created and constructed, allow for actions such as focus to occur
+	FOnPendingReplicationProcessed OnPendingReplicationProcessed;
 
 	struct FWidgetClassToLoad
 	{
