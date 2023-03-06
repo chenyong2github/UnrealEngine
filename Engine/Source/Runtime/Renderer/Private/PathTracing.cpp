@@ -145,6 +145,14 @@ TAutoConsoleVariable<int32> CVarPathTracingMaxSSSBounces(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<float> CVarPathTracingSSSGuidingRatio(
+	TEXT("r.PathTracing.SSSGuidingRatio"),
+	0.5f,
+	TEXT("Sets the ratio between classical random walks and walks guided towards the surface. A value of 0.0 corresponds to a purely classical random walk, while a value of 1.0 is fully guided towards the surface (at the expense of fireflies in non-flat regions of the model. (default = 0.5)"),
+	ECVF_RenderThreadSafe
+);
+
+
 TAutoConsoleVariable<float> CVarPathTracingMaxPathIntensity(
 	TEXT("r.PathTracing.MaxPathIntensity"),
 	-1,
@@ -336,6 +344,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(uint32, MaxSamples)
 	SHADER_PARAMETER(uint32, MaxBounces)
 	SHADER_PARAMETER(uint32, MaxSSSBounces)
+	SHADER_PARAMETER(float , SSSGuidingRatio)
 	SHADER_PARAMETER(uint32, MISMode)
 	SHADER_PARAMETER(uint32, VolumeMISMode)
 	SHADER_PARAMETER(uint32, ApproximateCaustics)
@@ -383,6 +392,7 @@ struct FPathTracingConfig
 			PathTracingData.MaxSamples != Other.PathTracingData.MaxSamples ||
 			PathTracingData.MaxBounces != Other.PathTracingData.MaxBounces ||
 			PathTracingData.MaxSSSBounces != Other.PathTracingData.MaxSSSBounces ||
+			PathTracingData.SSSGuidingRatio != Other.PathTracingData.SSSGuidingRatio ||
 			PathTracingData.MISMode != Other.PathTracingData.MISMode ||
 			PathTracingData.VolumeMISMode != Other.PathTracingData.VolumeMISMode ||
 			PathTracingData.SamplerType != Other.PathTracingData.SamplerType ||
@@ -511,6 +521,7 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 
 	PathTracingData.MaxBounces = MaxBounces;
 	PathTracingData.MaxSSSBounces = ShowFlags.SubsurfaceScattering ? CVarPathTracingMaxSSSBounces.GetValueOnRenderThread() : 0;
+	PathTracingData.SSSGuidingRatio = FMath::Clamp(CVarPathTracingSSSGuidingRatio.GetValueOnRenderThread(), 0.0f, 1.0f);
 	PathTracingData.MaxNormalBias = GetRaytracingMaxNormalBias();
 	PathTracingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
 	PathTracingData.VolumeMISMode = CVarPathTracingVolumeMISMode.GetValueOnRenderThread();
@@ -2036,8 +2047,6 @@ void FDeferredShadingSceneRenderer::PreparePathTracing(const FSceneViewFamily& V
 		const int CompactionType = CVarPathTracingCompaction.GetValueOnRenderThread();
 		FPathTracingRG::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FPathTracingRG::FCompactionType>(CompactionType);
-		FGlobalShaderPermutationParameters Parameters(FPathTracingRG::StaticGetTypeLayout().Name, ViewFamily.GetShaderPlatform(), PermutationVector.ToDimensionValueId());
-		if (FPathTracingRG::ShouldCompilePermutation(Parameters))
 		{
 			auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FPathTracingRG>(PermutationVector);
 			OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
