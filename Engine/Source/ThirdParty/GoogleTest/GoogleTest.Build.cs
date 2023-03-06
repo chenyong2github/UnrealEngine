@@ -5,7 +5,10 @@ using System.IO;
 
 public class GoogleTest : ModuleRules
 {
-    public GoogleTest(ReadOnlyTargetRules Target) : base(Target)
+	// TODO: gmock does not compile with C++20 with the current version. There is an update that addresses this.
+	// Any modules that reference this will need to compile with c++17: CppStandard = CppStandardVersion.Cpp17
+	// include/gmock/gmock-actions.h(819): error C2039: 'result_of': is not a member of 'std'
+	public GoogleTest(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
