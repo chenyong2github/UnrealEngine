@@ -59,11 +59,11 @@ public class Catch2 : ModuleRules
 			else if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				Arch = "x64";
-				if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2019)
+				if (Target.WindowsPlatform.ToolChain == WindowsCompiler.VisualStudio2019)
 				{
 					Variation = "VS2019";
 				}
-				else if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2022)
+				else if (Target.WindowsPlatform.ToolChain == WindowsCompiler.VisualStudio2022)
 				{
 					Variation = "VS2022";
 				}

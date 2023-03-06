@@ -572,7 +572,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public string? DiaSdkDir
 		{
-			get { return MicrosoftPlatformSDK.FindDiaSdkDirs(Environment!.Compiler).Select(x => x.FullName).FirstOrDefault(); }
+			get { return MicrosoftPlatformSDK.FindDiaSdkDirs(Environment!.ToolChain).Select(x => x.FullName).FirstOrDefault(); }
 		}
 
 		/// <summary>
@@ -584,7 +584,7 @@ namespace UnrealBuildTool
 			{
 				try
 				{
-					return MicrosoftPlatformSDK.FindVisualStudioInstallations(Environment!.Compiler, Target.Logger).Select(x => x.BaseDir.FullName).FirstOrDefault();
+					return MicrosoftPlatformSDK.FindVisualStudioInstallations(Environment!.ToolChain, Target.Logger).Select(x => x.BaseDir.FullName).FirstOrDefault();
 				}
 				catch(Exception) // Find function will throw if there is no visual studio installed! This can happen w/ clang builds
 				{
@@ -875,6 +875,11 @@ namespace UnrealBuildTool
 		internal VCEnvironment? Environment
 		{
 			get { return Inner.Environment; }
+		}
+
+		public WindowsCompiler ToolChain
+		{
+			get { return Inner.ToolChain; }
 		}
 
 		public string? ToolChainDir
