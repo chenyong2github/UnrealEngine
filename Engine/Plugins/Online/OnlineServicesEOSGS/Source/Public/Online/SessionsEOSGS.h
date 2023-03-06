@@ -254,7 +254,7 @@ protected:
 	/**
 	 * Internal method called by SendSessionInvite for every user
 	 */
-	TOnlineAsyncOpHandle<FSendSingleSessionInviteImpl> SendSingleSessionInviteImpl(FSendSingleSessionInviteImpl::Params&& Params);
+	TFuture<TDefaultErrorResult<FSendSingleSessionInviteImpl>> SendSingleSessionInviteImpl(FSendSingleSessionInviteImpl::Params&& Params);
 
 	static FOnlineSessionId CreateSessionId(const FString& SessionId);
 	FSessionInviteId CreateSessionInviteId(const FString& SessionInviteId) const;
