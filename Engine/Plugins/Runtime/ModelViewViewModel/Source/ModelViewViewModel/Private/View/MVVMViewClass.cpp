@@ -102,99 +102,85 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 
 	UObject* Result = nullptr;
 
-	FObjectPropertyBase* FoundObjectProperty = FindFProperty<FObjectPropertyBase>(InUserWidget->GetClass(), PropertyName);
-	if (ensureAlwaysMsgf(FoundObjectProperty, TEXT("The compiler should have added the property")))
+	if (bCreateInstance)
 	{
-		auto AssignProperty = [FoundObjectProperty, InUserWidget](UObject* NewObject)
+		if (ExpectedSourceType.Get() != nullptr)
 		{
-			if (NewObject && NewObject->GetClass()->IsChildOf(FoundObjectProperty->PropertyClass))
-			{
-				FoundObjectProperty->SetObjectPropertyValue_InContainer(InUserWidget, NewObject);
-			}
-		};
-
-		if (bCreateInstance)
-		{
-			if (ExpectedSourceType.Get() != nullptr)
-			{
-				Result = NewObject<UObject>(InUserWidget, ExpectedSourceType.Get(), NAME_None, RF_Transient);
-			}
-			else if (!bOptional)
-			{
-				UE::MVVM::FMessageLog Log(InUserWidget);
-				Log.Error(FText::Format(LOCTEXT("CreateInstanceCreateInstance", "The source '{0}' could not be created. The class is not loaded."), FText::FromName(PropertyName)));
-			}
+			Result = NewObject<UObject>(InUserWidget, ExpectedSourceType.Get(), NAME_None, RF_Transient);
 		}
-		else if (Resolver)
+		else if (!bOptional)
 		{
-			Result = Resolver->CreateInstance(ExpectedSourceType.Get(), InUserWidget, InView);
-			if (!Result && !bOptional)
-			{
-				UE::MVVM::FMessageLog Log(InUserWidget);
-				Log.Error(FText::Format(LOCTEXT("CreateInstanceFailResolver", "The source '{0}' could not be created. Resolver returned an invalid value."), FText::FromName(PropertyName)));
-			}
-			if (Result && !Result->IsA(ExpectedSourceType.Get()))
-			{
-				Result = nullptr;
-
-				UE::MVVM::FMessageLog Log(InUserWidget);
-				Log.Error(FText::Format(LOCTEXT("CreateInstanceFailResolverExpected", "The source '{0}' could not be created. Resolver returned viewodel of an unexpected type."), FText::FromName(PropertyName)));
-			}
+			UE::MVVM::FMessageLog Log(InUserWidget);
+			Log.Error(FText::Format(LOCTEXT("CreateInstanceCreateInstance", "The source '{0}' could not be created. The class is not loaded."), FText::FromName(PropertyName)));
 		}
-		else if (GlobalViewModelInstance.IsValid())
+	}
+	else if (Resolver)
+	{
+		Result = Resolver->CreateInstance(ExpectedSourceType.Get(), InUserWidget, InView);
+		if (!Result && !bOptional)
 		{
-			UMVVMViewModelCollectionObject* Collection = nullptr;
-			UMVVMViewModelBase* FoundViewModelInstance = nullptr;
-			if (const UWorld* World = InUserWidget->GetWorld())
-			{
-				if (const UGameInstance* GameInstance = World->GetGameInstance())
-				{
-					Collection = GameInstance->GetSubsystem<UMVVMGameSubsystem>()->GetViewModelCollection();
-					if (Collection)
-					{
-						FoundViewModelInstance = Collection->FindViewModelInstance(GlobalViewModelInstance);
-					}
-				}
-			}
+			UE::MVVM::FMessageLog Log(InUserWidget);
+			Log.Error(FText::Format(LOCTEXT("CreateInstanceFailResolver", "The source '{0}' could not be created. Resolver returned an invalid value."), FText::FromName(PropertyName)));
+		}
+		if (Result && !Result->IsA(ExpectedSourceType.Get()))
+		{
+			Result = nullptr;
 
-			if (FoundViewModelInstance != nullptr)
+			UE::MVVM::FMessageLog Log(InUserWidget);
+			Log.Error(FText::Format(LOCTEXT("CreateInstanceFailResolverExpected", "The source '{0}' could not be created. Resolver returned viewodel of an unexpected type."), FText::FromName(PropertyName)));
+		}
+	}
+	else if (GlobalViewModelInstance.IsValid())
+	{
+		UMVVMViewModelCollectionObject* Collection = nullptr;
+		UMVVMViewModelBase* FoundViewModelInstance = nullptr;
+		if (const UWorld* World = InUserWidget->GetWorld())
+		{
+			if (const UGameInstance* GameInstance = World->GetGameInstance())
 			{
-				ensureMsgf(FoundViewModelInstance->IsA(GlobalViewModelInstance.ContextClass), TEXT("The Global View Model Instance is not of the expected type."));
-				Result = FoundViewModelInstance;
-			}
-			else if (!bOptional)
-			{
-				UE::MVVM::FMessageLog Log(InUserWidget);
+				Collection = GameInstance->GetSubsystem<UMVVMGameSubsystem>()->GetViewModelCollection();
 				if (Collection)
 				{
-					Log.Error(FText::Format(LOCTEXT("CreateInstanceFailedGlobal", "The source '{0}' was not found in the global view model collection."), FText::FromName(GlobalViewModelInstance.ContextName)));
-				}
-				else
-				{
-					Log.Error(FText::Format(LOCTEXT("CreateInstanceFailedGlobalInstance", "The source '{0}' will be invalid because the global view model collection could not be found."), FText::FromName(GlobalViewModelInstance.ContextName)));
+					FoundViewModelInstance = Collection->FindViewModelInstance(GlobalViewModelInstance);
 				}
 			}
 		}
-		else if (FieldPath.IsValid())
+
+		if (FoundViewModelInstance != nullptr)
 		{
-			TValueOrError<UE::MVVM::FFieldContext, void> FieldPathResult = InViewClass->GetBindingLibrary().EvaluateFieldPath(InUserWidget, FieldPath);
-			if (FieldPathResult.HasValue())
+			ensureMsgf(FoundViewModelInstance->IsA(GlobalViewModelInstance.ContextClass), TEXT("The Global View Model Instance is not of the expected type."));
+			Result = FoundViewModelInstance;
+		}
+		else if (!bOptional)
+		{
+			UE::MVVM::FMessageLog Log(InUserWidget);
+			if (Collection)
 			{
-				TValueOrError<UObject*, void> ObjectResult = UE::MVVM::FieldPathHelper::EvaluateObjectProperty(FieldPathResult.GetValue());
-				if (ObjectResult.HasValue() && ObjectResult.GetValue() != nullptr)
-				{
-					Result = ObjectResult.GetValue();
-				}
+				Log.Error(FText::Format(LOCTEXT("CreateInstanceFailedGlobal", "The source '{0}' was not found in the global view model collection."), FText::FromName(GlobalViewModelInstance.ContextName)));
 			}
-
-			if (Result == nullptr && !bOptional)
+			else
 			{
-				UE::MVVM::FMessageLog Log(InUserWidget);
-				Log.Error(FText::Format(LOCTEXT("CreateInstanceInvalidBiding", "The source '{0}' was evaluated to be invalid at initialization."), FText::FromName(PropertyName)));
+				Log.Error(FText::Format(LOCTEXT("CreateInstanceFailedGlobalInstance", "The source '{0}' will be invalid because the global view model collection could not be found."), FText::FromName(GlobalViewModelInstance.ContextName)));
+			}
+		}
+	}
+	else if (FieldPath.IsValid())
+	{
+		TValueOrError<UE::MVVM::FFieldContext, void> FieldPathResult = InViewClass->GetBindingLibrary().EvaluateFieldPath(InUserWidget, FieldPath);
+		if (FieldPathResult.HasValue())
+		{
+			TValueOrError<UObject*, void> ObjectResult = UE::MVVM::FieldPathHelper::EvaluateObjectProperty(FieldPathResult.GetValue());
+			if (ObjectResult.HasValue() && ObjectResult.GetValue() != nullptr)
+			{
+				Result = ObjectResult.GetValue();
 			}
 		}
 
-		AssignProperty(Result);
+		if (Result == nullptr && !bOptional)
+		{
+			UE::MVVM::FMessageLog Log(InUserWidget);
+			Log.Error(FText::Format(LOCTEXT("CreateInstanceInvalidBiding", "The source '{0}' was evaluated to be invalid at initialization."), FText::FromName(PropertyName)));
+		}
 	}
 
 	return Result;
@@ -222,7 +208,13 @@ EMVVMExecutionMode FMVVMViewClass_CompiledBinding::GetExecuteMode() const
 
 FString FMVVMViewClass_CompiledBinding::ToString() const
 {
-	return TEXT("[PH]");
+	return FString::Printf(TEXT("FieldId: '%d', PropertyName: '%s', Mode: '%s', Flags: '%d' \n")
+			TEXT("Binding: '%s'")
+		, TEXT("")
+		, *SourcePropertyName.ToString()
+		, *StaticEnum<EMVVMExecutionMode>()->GetNameByValue((int64)ExecutionMode).ToString()
+		, Flags
+		, TEXT(""));
 }
 
 

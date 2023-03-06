@@ -21,6 +21,19 @@ namespace UE::MVVM
 	class FDebugging;
 }
 
+USTRUCT()
+struct FMVVMViewSource
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UObject> Source; // TScriptInterface<INotifyFieldValueChanged>
+
+	FName SourceName;
+	int32 RegisteredCout = 0;
+	bool bCreatedSource = false;
+};
+
 /**
  * Instance UMVVMClassExtension_View for the UUserWdiget
  */
@@ -55,6 +68,9 @@ public:
 	//bool IsLibraryBindingEnabled(FGuid ViewModelId, FMVVMBindingName BindingName) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
+	TScriptInterface<INotifyFieldValueChanged> GetViewModel(FName ViewModelName) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	bool SetViewModel(FName ViewModelName, TScriptInterface<INotifyFieldValueChanged> ViewModel);
 
 private:
@@ -71,23 +87,19 @@ private:
 	void UnregisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding);
 
 	TScriptInterface<INotifyFieldValueChanged> FindSource(const FMVVMViewClass_CompiledBinding& Binding, bool bAllowNull) const;
+	FMVVMViewSource* FindViewSource(const FName SourceName);
+	const FMVVMViewSource* FindViewSource(const FName SourceName) const;
 
 private:
 // todo support dynamic runtime binding.
 	/** Binding that are added dynamically at runtime. */
 	//TArray<FMVVMView_Binding> RegisteredDynamicBindings;
 
-	struct FRegisteredSource
-	{
-		TWeakObjectPtr<UObject> Source;
-		int32 Count = 0;
-	};
-
 	UPROPERTY(Transient)
 	TObjectPtr<const UMVVMViewClass> ClassExtension;
 
-	/** A list of all source and the amount of registered binding. */
-	TArray<FRegisteredSource> AllSources;
+	UPROPERTY(Transient)
+	TArray<FMVVMViewSource> Sources;
 
 	/** The binding that are enabled for the instance. */
 	TBitArray<> EnabledLibraryBindings;
@@ -98,7 +110,7 @@ private:
 	/** Is the Construct method was called. */
 	bool bConstructed = false;
 
-	/** Is the Construct method was called. */
+	/** The view has at least one binding that need to be ticked every frame. */
 	bool bHasEveryTickBinding = false;
 };
 

@@ -80,9 +80,8 @@ private:
 
 private:
 	/**
-	 * Describe the Property that is needed to start a PropertyPath on the UserWidget.
+	 * Describe the Property that need to be added (if it doesn't already exist)
 	 * They can be a Widget, a viewmodel, or any object owned by the UserWidget.
-	 * The property will be created if it doesn't exist yet.
 	 */
 	struct FCompilerUserWidgetPropertyContext
 	{
@@ -96,6 +95,7 @@ private:
 		FGuid ViewModelId;
 
 		bool bExposeOnSpawn = false;
+		bool bPublicGetter = false;
 	};
 	TArray<FCompilerUserWidgetPropertyContext> CompilerUserWidgetPropertyContexts;
 
@@ -104,7 +104,8 @@ private:
 	 */
 	enum class ECompilerSourceCreatorType
 	{
-		ViewModel,
+		ViewModel, // added manually
+		ViewModelDynamic, // added by a long binding chain
 	};
 	struct FCompilerSourceCreatorContext
 	{
@@ -115,6 +116,7 @@ private:
 		UEdGraph* SetterGraph = nullptr;
 	};
 	TArray<FCompilerSourceCreatorContext> CompilerSourceCreatorContexts;
+	int32 ViewModelDynamicCounter = 0;
 
 	/** 
 	 * Describe a binding for the compiler.
@@ -128,6 +130,7 @@ private:
 	{
 		int32 BindingIndex = INDEX_NONE;
 		int32 UserWidgetPropertyContextIndex = INDEX_NONE;
+		int32 SourceCreatorContextIndex = INDEX_NONE;
 		bool bSourceIsUserWidget = false;
 		bool bFieldIdNeeded = false;
 		bool bIsConversionFunctionComplex = false;
@@ -166,6 +169,8 @@ private:
 
 		// The source if it's a property
 		int32 UserWidgetPropertyContextIndex = INDEX_NONE;
+		// The source if it's a property
+		int32 SourceCreatorContextIndex = INDEX_NONE;
 		// The source is the UserWidget itself
 		bool bIsRootWidget = false;
 	};

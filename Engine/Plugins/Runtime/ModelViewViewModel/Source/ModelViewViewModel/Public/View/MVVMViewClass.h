@@ -48,7 +48,12 @@ public:
 		return ExpectedSourceType.Get();
 	}
 
-	FName GetSourcePropertyName() const
+	bool IsSourceAUserWidgetProperty() const
+	{
+		return bIsUserWidgetProperty;
+	}
+
+	FName GetSourceName() const
 	{
 		return PropertyName;
 	}
@@ -81,6 +86,9 @@ private:
 	bool bCreateInstance = false;
 
 	UPROPERTY()
+	bool bIsUserWidgetProperty = true;
+
+	UPROPERTY()
 	bool bOptional = false;
 };
 
@@ -103,16 +111,17 @@ public:
 	}
 
 	/**
-	 * @return The property name of the object that contains the SourceFieldId.
+	 * @return The unique name of the source object that contains the SourceFieldId.
 	 * It implements INotifyFieldValueChanged if it's not a One Time.
+	 * It can also be the name of a FProperty on the source object.
 	 */
-	FName GetSourceObjectPropertyName() const
+	FName GetSourceName() const
 	{
 		return SourcePropertyName;
 	}
 
-	/** @return true if SourceFieldId is not from a property but on the object itserf (UserWidget). */
-	bool IsSourceObjectItself() const
+	/** @return true if SourceFieldId is not from a property but the object is the UserWidget. */
+	bool IsSourceUserWidget() const
 	{
 		return (Flags & EBindingFlags::SourceObjectIsSelf) != 0;
 	}

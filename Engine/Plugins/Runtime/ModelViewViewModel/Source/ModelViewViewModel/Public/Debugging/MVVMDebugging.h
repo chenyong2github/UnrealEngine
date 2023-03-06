@@ -73,6 +73,7 @@ public:
 		Failed_InvalidSource,
 		Failed_InvalidSourceField,
 		Failed_InvalidDestinationField,
+		Failed_Unknown,
 	};
 
 	struct FLibraryBindingRegisteredArgs

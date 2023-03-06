@@ -61,6 +61,11 @@ void FMVVMCompiledBindingLibrary::Load()
 
 	for (const FMVVMVCompiledFields& Field : CompiledFields)
 	{
+		if (const UClass* Class = Cast<UClass>(Field.GetStruct()))
+		{
+			ensureAlwaysMsgf(!Class->HasAnyClassFlags(CLASS_NewerVersionExists), TEXT("The field is invalid. Property and Functions will not be loaded correctly."));
+		}
+
 		{
 			const int32 NumberOfProperties = Field.GetPropertyNum();
 			for (int32 Index = 0; Index < NumberOfProperties; ++Index)
