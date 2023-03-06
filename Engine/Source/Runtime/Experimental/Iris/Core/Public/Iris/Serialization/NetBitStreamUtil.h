@@ -109,6 +109,18 @@ inline int64 ReadInt64(FNetBitStreamReader* Reader)
 	return static_cast<int64>(Value);
 }
 
+/** Write a uint64 using as few bytes as possible */
+IRISCORE_API void WritePackedUint64(FNetBitStreamWriter* Writer, uint64 Value);
+
+/** Read a uint64 that was written using WritePackedUint64 */
+IRISCORE_API uint64 ReadPackedUint64(FNetBitStreamReader* Reader);
+
+/** Write an int64 using as few bytes as possible */
+IRISCORE_API void WritePackedInt64(FNetBitStreamWriter* Writer, int64 Value);
+
+/** Read an int64 that was written using WritePackedInt64 */
+IRISCORE_API int64 ReadPackedInt64(FNetBitStreamReader* Reader);
+
 /** Write a uint32 using as few bytes as possible */
 IRISCORE_API void WritePackedUint32(FNetBitStreamWriter* Writer, uint32 Value);
 

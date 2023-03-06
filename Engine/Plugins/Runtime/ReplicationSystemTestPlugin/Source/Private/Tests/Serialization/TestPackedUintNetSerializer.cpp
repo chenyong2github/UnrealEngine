@@ -6,18 +6,18 @@
 namespace UE::Net::Private
 {
 
-static FTestMessage& PrintPackedIntNetSerializerConfig(FTestMessage& Message, const FNetSerializerConfig& InConfig)
+static FTestMessage& PrintPackedUintNetSerializerConfig(FTestMessage& Message, const FNetSerializerConfig& InConfig)
 {
 	return Message;
 }
 
 template<typename SourceType>
-class TTestPackedIntNetSerializer : public TTestNetSerializerFixture<PrintPackedIntNetSerializerConfig, SourceType>
+class TTestPackedUintNetSerializer : public TTestNetSerializerFixture<PrintPackedUintNetSerializerConfig, SourceType>
 {
-	typedef TTestNetSerializerFixture<PrintPackedIntNetSerializerConfig, SourceType> Super;
+	typedef TTestNetSerializerFixture<PrintPackedUintNetSerializerConfig, SourceType> Super;
 
 public:
-	TTestPackedIntNetSerializer(const FNetSerializer& Serializer) : Super(Serializer) {}
+	TTestPackedUintNetSerializer(const FNetSerializer& Serializer) : Super(Serializer) {}
 
 	void TestIsEqual();
 	void TestSerialize();
@@ -27,14 +27,14 @@ public:
 protected:
 	static const SourceType Values[];
 	static const SIZE_T ValueCount;
-	const FPackedInt32NetSerializerConfig Config;
+	const FPackedUint32NetSerializerConfig Config;
 };
 
-#define UE_NET_IMPLEMENT_PACKEDINT_NETSERIALIZER_TEST(TestClassName, NetSerializerType, SourceType) \
-class TestClassName : public TTestPackedIntNetSerializer<SourceType> \
+#define UE_NET_IMPLEMENT_PACKEDUINT_NETSERIALIZER_TEST(TestClassName, NetSerializerType, SourceType) \
+class TestClassName : public TTestPackedUintNetSerializer<SourceType> \
 { \
 public: \
-	TestClassName() : TTestPackedIntNetSerializer<SourceType>(UE_NET_GET_SERIALIZER(NetSerializerType)) {} \
+	TestClassName() : TTestPackedUintNetSerializer<SourceType>(UE_NET_GET_SERIALIZER(NetSerializerType)) {} \
 }; \
 \
 UE_NET_TEST_FIXTURE(TestClassName, HasTestValues) \
@@ -62,20 +62,20 @@ UE_NET_TEST_FIXTURE(TestClassName, TestSmallValuesArePacked) \
 	TestSmallValuesArePacked(); \
 }
 
-UE_NET_IMPLEMENT_PACKEDINT_NETSERIALIZER_TEST(FTestPackedInt64NetSerializer, FPackedInt64NetSerializer, int64);
-UE_NET_IMPLEMENT_PACKEDINT_NETSERIALIZER_TEST(FTestPackedInt32NetSerializer, FPackedInt32NetSerializer, int32);
+UE_NET_IMPLEMENT_PACKEDUINT_NETSERIALIZER_TEST(FTestPackedUint64NetSerializer, FPackedUint64NetSerializer, uint64);
+UE_NET_IMPLEMENT_PACKEDUINT_NETSERIALIZER_TEST(FTestPackedUint32NetSerializer, FPackedUint32NetSerializer, uint32);
 
-#undef UE_NET_IMPLEMENT_PACKEDINT_NETSERIALIZER_TEST
+#undef UE_NET_IMPLEMENT_PACKEDUINT_NETSERIALIZER_TEST
 
 //
-template<typename SourceType> const SourceType TTestPackedIntNetSerializer<SourceType>::Values[] =
+template<typename SourceType> const SourceType TTestPackedUintNetSerializer<SourceType>::Values[] =
 {
-	TNumericLimits<SourceType>::Lowest(), TNumericLimits<SourceType>::Max(), SourceType(0), SourceType(-1), (TNumericLimits<SourceType>::Max() + TNumericLimits<SourceType>::Lowest())/SourceType(2) - SourceType(15), SourceType(2048458 % TNumericLimits<SourceType>::Max())
+	TNumericLimits<SourceType>::Lowest(), TNumericLimits<SourceType>::Max(), SourceType(0), (TNumericLimits<SourceType>::Max() + TNumericLimits<SourceType>::Lowest())/SourceType(2) - SourceType(15), SourceType(2048458 % TNumericLimits<SourceType>::Max())
 };
-template<typename SourceType> const SIZE_T TTestPackedIntNetSerializer<SourceType>::ValueCount = sizeof(Values)/sizeof(Values[0]);
+template<typename SourceType> const SIZE_T TTestPackedUintNetSerializer<SourceType>::ValueCount = sizeof(Values)/sizeof(Values[0]);
 
 template<typename SourceType>
-void TTestPackedIntNetSerializer<SourceType>::TestIsEqual()
+void TTestPackedUintNetSerializer<SourceType>::TestIsEqual()
 {
 	SourceType CompareValues[2][sizeof(Values)/sizeof(Values[0])];
 	bool ExpectedResults[2][sizeof(Values)/sizeof(Values[0])];
@@ -104,7 +104,7 @@ void TTestPackedIntNetSerializer<SourceType>::TestIsEqual()
 }
 
 template<typename SourceType>
-void TTestPackedIntNetSerializer<SourceType>::TestSerialize()
+void TTestPackedUintNetSerializer<SourceType>::TestSerialize()
 {
 	SourceType ExpectedValues[sizeof(Values) / sizeof(Values[0])];
 	for (SIZE_T ValueIt = 0; ValueIt < ValueCount; ++ValueIt)
@@ -124,13 +124,13 @@ void TTestPackedIntNetSerializer<SourceType>::TestSerialize()
 }
 
 template<typename SourceType>
-void TTestPackedIntNetSerializer<SourceType>::TestSerializeDelta()
+void TTestPackedUintNetSerializer<SourceType>::TestSerializeDelta()
 {
 	Super::TestSerializeDelta(Values, ValueCount, Config);
 }
 
 template<typename SourceType>
-void TTestPackedIntNetSerializer<SourceType>::TestSmallValuesArePacked()
+void TTestPackedUintNetSerializer<SourceType>::TestSmallValuesArePacked()
 {
 	constexpr SourceType SmallValue = SourceType(0);
 	constexpr SourceType LargeValue = TNumericLimits<SourceType>::Max();

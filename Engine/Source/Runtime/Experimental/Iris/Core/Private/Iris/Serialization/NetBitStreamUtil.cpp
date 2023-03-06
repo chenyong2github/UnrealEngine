@@ -10,6 +10,85 @@
 namespace UE::Net
 {
 
+void WritePackedUint64(FNetBitStreamWriter* Writer, uint64 Value)
+{
+	// As we represent the number of bytes to write with two bits we want bits needed to be >= 1
+	const uint32 BitCountNeeded = GetBitsNeeded(Value | 1U);
+	const uint32 ByteCountNeeded = (BitCountNeeded + 7U) / 8U;
+	const uint32 BitCountToWrite = ByteCountNeeded * 8U;
+
+	Writer->WriteBits(ByteCountNeeded - 1U, 3U);
+	if (BitCountToWrite <= 32U)
+	{
+		Writer->WriteBits(Value & 0xFFFFFFFFU, BitCountToWrite);
+	}
+	else
+	{
+		Writer->WriteBits(Value & 0xFFFFFFFFU, 32U);
+		Writer->WriteBits(static_cast<uint32>(Value >> 32U), BitCountToWrite - 32U);
+	}
+}
+
+uint64 ReadPackedUint64(FNetBitStreamReader* Reader)
+{
+	const uint32 ByteCountToRead = Reader->ReadBits(3U) + 1U;
+	const uint32 BitCountToRead = ByteCountToRead * 8U;
+
+	if (BitCountToRead <= 32)
+	{
+		const uint64 Value = Reader->ReadBits(BitCountToRead);
+		return Value;
+	}
+	else
+	{
+		uint64 Value = Reader->ReadBits(32U);
+		Value |= (static_cast<uint64>(Reader->ReadBits(BitCountToRead - 32U)) << 32U);
+		return Value;
+	}
+}
+
+void WritePackedInt64(FNetBitStreamWriter* Writer, int64 Value)
+{
+	const uint32 BitCountNeeded = GetBitsNeeded(Value | 1U);
+	const uint32 ByteCountNeeded = (BitCountNeeded + 7U) / 8U;
+	const uint32 BitCountToWrite = ByteCountNeeded * 8U;
+
+	Writer->WriteBits(ByteCountNeeded - 1U, 3U);
+	if (BitCountToWrite <= 32U)
+	{
+		Writer->WriteBits(static_cast<uint64>(Value) & 0xFFFFFFFFU, BitCountToWrite);
+	}
+	else
+	{
+		const uint64 UnsignedValue = static_cast<uint64>(Value);
+		Writer->WriteBits(UnsignedValue & 0xFFFFFFFFU, 32U);
+		Writer->WriteBits(static_cast<uint32>(UnsignedValue >> 32U), BitCountToWrite - 32U);
+	}
+}
+
+int64 ReadPackedInt64(FNetBitStreamReader* Reader)
+{
+	const uint32 ByteCountToRead = Reader->ReadBits(3U) + 1U;
+	const uint32 BitCountToRead = ByteCountToRead * 8U;
+
+	uint64 UnsignedValue;
+	if (BitCountToRead <= 32U)
+	{
+		UnsignedValue = Reader->ReadBits(BitCountToRead);
+	}
+	else
+	{
+		UnsignedValue = Reader->ReadBits(32U);
+		UnsignedValue |= (static_cast<uint64>(Reader->ReadBits(BitCountToRead - 32U)) << 32U);
+	}
+
+	// Sign-extend the value
+	const uint64 Mask = 1ULL << (BitCountToRead - 1U);
+	UnsignedValue = (UnsignedValue ^ Mask) - Mask;
+	const int64 Value = static_cast<int64>(UnsignedValue);
+	return Value;
+}
+
 void WritePackedUint32(FNetBitStreamWriter* Writer, uint32 Value)
 {
 	// As we represent the number of bytes to write with two bits we want bits needed to be >= 1
