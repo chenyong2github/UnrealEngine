@@ -4836,6 +4836,20 @@ static void ConstructSoftGCPackageToObjectList(TArray<UObject*>& PackageToObject
 	}
 }
 
+UCookOnTheFlyServer::FScopeFindCookReferences::FScopeFindCookReferences(UCookOnTheFlyServer& InCOTFS)
+	:COTFS(InCOTFS),
+	SoftGCGuard(UPackage::bSupportCookerSoftGC, true)
+{
+	check(COTFS.SoftGCPackageToObjectListBuffer.IsEmpty())
+	ConstructSoftGCPackageToObjectList(COTFS.SoftGCPackageToObjectListBuffer);
+}
+
+UCookOnTheFlyServer::FScopeFindCookReferences::~FScopeFindCookReferences()
+{
+	UPackage::SoftGCPackageToObjectList.Empty();
+	COTFS.SoftGCPackageToObjectListBuffer.Empty();
+}
+
 void UCookOnTheFlyServer::PreGarbageCollect()
 {
 	using namespace UE::Cook;

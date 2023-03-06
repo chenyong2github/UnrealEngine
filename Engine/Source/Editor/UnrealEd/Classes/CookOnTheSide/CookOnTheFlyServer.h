@@ -1353,6 +1353,15 @@ private:
 
 		UCookOnTheFlyServer& COTFS;
 	};
+	/** Scoped type to call Set/Clear SoftGCPackageToObjectListBuffer. */
+	struct FScopeFindCookReferences
+	{
+		FScopeFindCookReferences(UCookOnTheFlyServer& InCOTFS);
+		~FScopeFindCookReferences();
+
+		UCookOnTheFlyServer& COTFS;
+		TGuardValue<bool> SoftGCGuard;
+	};
 	/** Callback for FGenericCrashContext; provides the current ActivePackage as context. */
 	void DumpCrashContext(FCrashContextExtendedWriter& Writer);
 	/** Callback for analytics when a new UPackage is loaded. */

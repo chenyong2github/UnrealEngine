@@ -1773,6 +1773,14 @@ void FGeneratorPackage::PostGarbageCollect()
 			{
 				UE_LOG(LogCook, Warning, TEXT("PackageSplitter found a package it generated that was not removed from memory during garbage collection. This will cause errors later during population.")
 					TEXT("\n\tSplitter=%s, Generated=%s."), *GetSplitDataObjectName().ToString(), *Info.PackageData->GetPackageName().ToString());
+				
+				{
+					// Compute UCookOnTheFlyServer's references so they are gathered by OBJ REFS below 
+					UCookOnTheFlyServer::FScopeFindCookReferences(Owner.GetPackageDatas().GetCookOnTheFlyServer());
+
+					StaticExec(nullptr, *FString::Printf(TEXT("OBJ REFS NAME=%s"), *Info.PackageData->GetPackageName().ToString()));
+				}
+				
 				bHasIssuedWarning = true; // Only issue the warning once per GC
 			}
 		}
