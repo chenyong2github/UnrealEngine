@@ -865,6 +865,8 @@ bool ULightComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutO
 }
 #endif // WITH_EDITOR
 
+ELightUnits ULightComponent::GetLightUnits() const { return ELightUnits::Unitless; }
+
 /** Set brightness of the light */
 void ULightComponent::SetIntensity(float NewIntensity)
 {

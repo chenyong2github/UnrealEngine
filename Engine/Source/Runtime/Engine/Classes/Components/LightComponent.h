@@ -377,7 +377,7 @@ public:
 
 	virtual float GetUniformPenumbraSize() const PURE_VIRTUAL(ULightComponent::GetUniformPenumbraSize,return 0;);
 
-	virtual ELightUnits GetLightUnits() const { return ELightUnits::Unitless; }
+	virtual ELightUnits GetLightUnits() const;
 
 	/**
 	 * Check whether a given primitive will cast shadows from this light.
