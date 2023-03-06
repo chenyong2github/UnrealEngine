@@ -25,6 +25,7 @@ struct FDelaunay2Connectivity
 
 	void Empty(int32 ExpectedMaxVertices = 0)
 	{
+		bHasDuplicates = false;
 		EdgeToVert.Empty(ExpectedMaxVertices * 2 * 3);
 		DisableVertexAdjacency();
 	}
@@ -539,6 +540,18 @@ struct FDelaunay2Connectivity
 		return bTrackDuplicateVertices;
 	}
 
+	// called during triangulation when a duplicate vertex is found
+	void SetHasDuplicates()
+	{
+		bHasDuplicates = true;
+	}
+
+	// @return whether duplicate vertices were detected during triangulation
+	bool HasDuplicates() const
+	{
+		return bHasDuplicates;
+	}
+
 	void FixDuplicatesOnEdge(FIndex2i& Edge) const
 	{
 		const int32* OrigA = DuplicateVertices.Find(Edge.A);
@@ -551,6 +564,12 @@ struct FDelaunay2Connectivity
 		{
 			Edge.B = *OrigB;
 		}
+	}
+
+	int32 RemapIfDuplicate(int32 Index) const
+	{
+		const int32* Remap = DuplicateVertices.Find(Index);
+		return Remap ? *Remap : Index;
 	}
 
 	// Get any edge BC opposite vertex A, such that triangle ABC is in the mesh (or return InvalidIndex edge if no such edge is present)
@@ -640,6 +659,7 @@ protected:
 	TArray<int32> VertexAdjCache;
 	bool bUseAdjCache = false;
 
+	bool bHasDuplicates = false;
 	bool bTrackDuplicateVertices = false;
 	TMap<int32, int32> DuplicateVertices;
 
@@ -1389,12 +1409,17 @@ namespace DelaunayInternal
 			int32 DuplicateOf = -1;
 			constexpr bool bAssumeDelaunay = true; // initial construction, before constraint edges, so safe to assume Delaunay
 			FIndex3i ContainingTri = WalkToContainingTri<RealType>(Random, Connectivity, Vertices, SearchTri, Vertex, bAssumeDelaunay, DuplicateOf);
-			if (DuplicateOf >= 0 || ContainingTri[0] == FDelaunay2Connectivity::InvalidIndex)
+			if (DuplicateOf >= 0)
 			{
-				if (DuplicateOf >= 0 && Connectivity.HasDuplicateTracking())
+				Connectivity.SetHasDuplicates();
+				if (Connectivity.HasDuplicateTracking())
 				{
 					Connectivity.MarkDuplicateVertex(DuplicateOf, Vertex);
 				}
+				continue;
+			}
+			if (ContainingTri[0] == FDelaunay2Connectivity::InvalidIndex)
+			{
 				continue;
 			}
 			SearchTri = Insert<RealType>(Connectivity, Vertices, ContainingTri, Vertex);
@@ -1555,6 +1580,17 @@ bool FDelaunay2::HasEdge(const FIndex2i& Edge, bool bRemapDuplicates)
 		return Connectivity->HasEdge(RemapEdge);
 	}
 	return Connectivity->HasEdge(Edge);
+}
+
+bool FDelaunay2::HasDuplicates() const
+{
+	return Connectivity->HasDuplicates();
+}
+
+int32 FDelaunay2::RemapIfDuplicate(int32 Index) const
+{
+	checkSlow(Connectivity->HasDuplicateTracking());
+	return Connectivity->RemapIfDuplicate(Index);
 }
 
 } // end namespace UE::Geometry

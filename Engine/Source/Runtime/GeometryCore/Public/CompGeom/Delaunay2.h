@@ -226,6 +226,14 @@ public:
 	// @return true if the edge is in the triangulation
 	bool HasEdge(const FIndex2i& Edge, bool bRemapDuplicates);
 
+	// @return true if the input had duplicate vertices, and so not all vertices could be used in the triangulation.
+	bool HasDuplicates() const;
+
+	// @return if bAutomaticallyFixEdgesToDuplicateVertices was set during triangulation, will return the remapped vertex index for any duplicate vertices, or Index if the vertex was not remapped.
+	int32 RemapIfDuplicate(int32 Index) const;
+
+
+
 	/**
 	 * Get Voronoi diagram cells as dual of the Delaunay triangulation.  You must call Triangulate() before calling this.
 	 * @param Vertices			Vertices of the Delaunay triangulation, to be used as the sites of the Voronoi diagram

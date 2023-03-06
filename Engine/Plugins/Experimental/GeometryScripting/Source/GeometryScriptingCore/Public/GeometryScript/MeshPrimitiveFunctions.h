@@ -30,6 +30,23 @@ enum class EGeometryScriptPrimitiveUVMode : uint8
 	ScaleToFill = 1
 };
 
+UENUM(BlueprintType)
+enum class EGeometryScriptPolygonFillMode : uint8
+{
+	// Keep all triangles, regardless of whether they were enclosed by constrained edges
+	All = 0,
+	// Fill everything inside the outer boundaries of constrained edges, ignoring edge orientation and any internal holes
+	Solid = 1,
+	// Fill where the 'winding number' is positive
+	PositiveWinding = 2,
+	// Fill where the 'winding number' is not zero
+	NonZeroWinding = 3,
+	// Fill where the 'winding number' is negative
+	NegativeWinding = 4,
+	// Fill where the 'winding number' is an odd number
+	OddWinding = 5
+};
+
 
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPrimitiveOptions
@@ -92,6 +109,29 @@ public:
 	/** Whether to include the bordering Voronoi cells (which extend 'infinitely' to any boundary) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bIncludeBoundary = true;
+};
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptConstrainedDelaunayTriangulationOptions
+{
+	GENERATED_BODY()
+public:
+	/** How to decide which parts of the shape defined by constrained edges should be filled with triangles */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	EGeometryScriptPolygonFillMode ConstrainedEdgesFillMode = EGeometryScriptPolygonFillMode::All;
+
+	/**
+	 * Whether the triangulation should be considered a failure if it doesn't include the requested Constrained Edges.
+	 * (Edges may be missing e.g. due to intersecting edges in the input.) 
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bValidateEdgesInResult = true;
+
+	/** Whether to remove duplicate vertices from the output.  If false, duplicate vertices will not be used in any triangles, but will remain in the output mesh. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bRemoveDuplicateVertices = false;
+
 };
 
 
@@ -466,6 +506,25 @@ public:
 		FTransform Transform,
 		const TArray<FVector2D>& VoronoiSites,
 		FGeometryScriptVoronoiOptions VoronoiOptions,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	* Generates a Delaunay Triangulation of the provided vertices, and appends it to the Target Mesh.
+	* If optional Constrained Edges are provided, will generate a Constrained Delaunay Triangulation which connects the specified vertices with edges.
+	* On success, all vertices are always appended to the output mesh, though duplicate vertices will not be used in any triangles and may optionally be removed.
+	* Use PositionsToVertexIDs to map indices in the input VertexPositions array to vertex IDs in the Dynamic Mesh.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta = (ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
+	AppendDelaunayTriangulation2D(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptPrimitiveOptions PrimitiveOptions,
+		FTransform Transform,
+		const TArray<FVector2D>& VertexPositions,
+		const TArray<FIntPoint>& ConstrainedEdges,
+		FGeometryScriptConstrainedDelaunayTriangulationOptions TriangulationOptions,
+		TArray<int32>& PositionsToVertexIDs,
+		bool& bHasDuplicateVertices,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
