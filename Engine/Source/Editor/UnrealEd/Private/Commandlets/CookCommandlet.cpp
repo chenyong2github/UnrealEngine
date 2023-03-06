@@ -641,6 +641,7 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 
 	UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), *GCType, *GCReason);
 	{
+		TGuardValue<bool> SoftGCGuard(UPackage::bSupportCookerSoftGC, true);
 		CollectGarbage(RF_NoFlags);
 	}
 
