@@ -35,6 +35,12 @@ namespace AutomationTool.Tasks
 		public string Settings = String.Empty;
 
 		/// <summary>
+		/// Version number for the new tool
+		/// </summary>
+		[TaskParameter]
+		public string Version = String.Empty;
+
+		/// <summary>
 		/// Zip file containing the data to upload
 		/// </summary>
 		[TaskParameter(Optional = true)]
@@ -131,6 +137,7 @@ namespace AutomationTool.Tasks
 						StreamContent streamContent = new StreamContent(stream);
 
 						MultipartFormDataContent content = new MultipartFormDataContent();
+						content.Add(new StringContent(Parameters.Version), "version");
 						content.Add(streamContent, "file", file.GetFileName());
 						request.Content = content;
 
