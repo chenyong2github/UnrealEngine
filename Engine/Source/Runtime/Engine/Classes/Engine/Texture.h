@@ -457,6 +457,15 @@ struct FTextureSource
 		/** Get a copy of a given texture mip, to be stored in OutMipData */
 		bool GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
 
+		/** 
+		 * Access the given texture mip in the form of a read only FSharedBuffer.
+		 * This method does not make a copy of the mip but instead returns a view.
+		 * The returned buffer will keep a ref count on the original full mip chain
+		 * allocation, so will remain valid even after the FMipData object has been 
+		 * destroyed.
+		 */
+		FSharedBuffer GetMipData(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
+
 	private:
 		// We only want to allow FTextureSource to create FMipData objects
 		friend struct FTextureSource;

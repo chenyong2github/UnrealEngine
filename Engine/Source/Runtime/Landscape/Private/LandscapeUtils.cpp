@@ -121,7 +121,7 @@ bool FBatchTextureCopy::AddWeightmapCopy(UTexture2D* InDestination, int8 InDesti
 
 struct FSourceDataMipNumber
 {
-	TArray<const uint8*> SourceDataPtr;
+	TOptional<FTextureSource::FMipData> MipData;
 	int32 MipNumber = 0;
 };
 
@@ -152,18 +152,10 @@ bool FBatchTextureCopy::ProcessTextureCopies()
 		DestinationData.MipNumber = CopyRequest.Key.Destination->Source.GetNumMips();
 	}
 
-	// Lock all sources mips
+	// Decompress (if needed) and get the source textures ready for access
 	for (TPair<UTexture2D*, FSourceDataMipNumber>& Source : Sources)
 	{
-		int32 MipNumber = Source.Value.MipNumber;
-		TArray<const uint8*>& SourceDataPtr = Source.Value.SourceDataPtr;
-		
-		SourceDataPtr.Reserve(MipNumber);
-
-		for (int32 MipLevel = 0; MipLevel < MipNumber; ++MipLevel)
-		{
-			SourceDataPtr.Add(Source.Key->Source.LockMipReadOnly(MipLevel));
-		}
+		Source.Value.MipData = Source.Key->Source.GetMipData(nullptr);
 	}
 
 	// Lock all destinations mips
@@ -194,7 +186,8 @@ bool FBatchTextureCopy::ProcessTextureCopies()
 			check(MipSize == (CopyRequest.Key.Destination->Source.GetSizeY() >> MipLevel));
 
 			int32 MipSizeSquare = FMath::Square(MipSize);
-			const uint8* SourceTextureData = SourceDataMipNumber->SourceDataPtr[MipLevel];
+			FSharedBuffer MipSrcData = SourceDataMipNumber->MipData->GetMipData(0, 0, MipLevel);
+			const uint8* SourceTextureData = static_cast<const uint8*>(MipSrcData.GetData());
 			uint8* DestTextureData = DestinationDataMipNumber->DestinationDataPtr[MipLevel];
 
 			check((SourceTextureData != nullptr) && (DestTextureData != nullptr));
@@ -219,16 +212,7 @@ bool FBatchTextureCopy::ProcessTextureCopies()
 		}
 	}
 
-	// Unlock all sources mips
-	for (TPair<UTexture2D*, FSourceDataMipNumber>& Source : Sources)
-	{
-		int32 MipNumber = Source.Value.MipNumber;
-		
-		for (int32 MipLevel = 0; MipLevel < MipNumber; ++MipLevel)
-		{
-			Source.Key->Source.UnlockMip(MipLevel);
-		}
-	}
+	// Note that source textures do not need unlocking, data will be released once the FMipData go out of scope
 	
 	// Unlock all destination mips
 	for (TPair<UTexture2D*, FDestinationDataMipNumber>& Destination : Destinations)
