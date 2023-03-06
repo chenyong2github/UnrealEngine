@@ -138,7 +138,7 @@ namespace Horde.Agent.Services
 		public async Task StopAsync(CancellationToken cancellationToken)
 		{
 			_cancellationSource.Cancel();
-			await _serverTask;
+			await _serverTask.IgnoreCanceledExceptionsAsync();
 		}
 
 		async Task RunTcpListenerAsync(IPAddress address, int port, CancellationToken cancellationToken)
