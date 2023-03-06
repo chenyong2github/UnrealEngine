@@ -6,7 +6,10 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Elements/PCGVolumeSampler.h"
+
+#include "Components/BoxComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "Serialization/ArchiveCrc32.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPrimitiveData)
 
@@ -17,6 +20,26 @@ void UPCGPrimitiveData::Initialize(UPrimitiveComponent* InPrimitive)
 	TargetActor = InPrimitive->GetOwner();
 	CachedBounds = Primitive->Bounds.GetBox();
 	// Not obvious to find strict bounds, leave at the default value
+}
+
+void UPCGPrimitiveData::AddToCrc(FArchiveCrc32& Ar) const
+{
+	check(Primitive.Get());
+
+	// Can implement specific CRC's for different primitive types.
+	if (UBoxComponent* Box = Cast<UBoxComponent>(Primitive.Get()))
+	{
+		FVector Extent = Box->GetUnscaledBoxExtent();
+		Ar << Extent;
+
+		FTransform Transform = Box->GetComponentTransform();
+		Ar << Transform;
+	}
+	else
+	{
+		// Fallback is the UID which changes when data recreated.
+		Super::AddToCrc(Ar);
+	}
 }
 
 bool UPCGPrimitiveData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const

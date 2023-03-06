@@ -6,9 +6,22 @@
 #include "PCGHelpers.h"
 #include "Elements/PCGVolumeSampler.h"
 
+#include "Components/BrushComponent.h"
 #include "GameFramework/Volume.h"
+#include "Serialization/ArchiveCrc32.h"
+#include "Serialization/ArchiveObjectCrc32.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGVolumeData)
+
+/** Does CRC on Brush data within BrushComponent. */
+class FPCGBrushCrc32 : public FArchiveObjectCrc32
+{
+public:
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
+	{
+		return InProperty && (InProperty->GetFName() != FName("Brush"));
+	}
+};
 
 void UPCGVolumeData::Initialize(AVolume* InVolume, AActor* InTargetActor)
 {
@@ -28,6 +41,25 @@ void UPCGVolumeData::Initialize(const FBox& InBounds, AActor* InTargetActor)
 	Bounds = InBounds;
 	StrictBounds = InBounds;
 	TargetActor = InTargetActor;
+}
+
+void UPCGVolumeData::AddToCrc(FArchiveCrc32& Ar) const
+{
+	Ar << const_cast<FBox&>(Bounds);
+
+	Ar << const_cast<FBox&>(StrictBounds);
+
+	if (Volume.IsValid())
+	{
+		if (UBrushComponent* Brush = Volume->GetBrushComponent())
+		{
+			Ar << const_cast<FTransform&>(Brush->GetComponentTransform());
+
+			FPCGBrushCrc32 VolumeCrc;
+			uint32 BrushCrc = VolumeCrc.Crc32(Brush);
+			Ar << BrushCrc;
+		}
+	}
 }
 
 FBox UPCGVolumeData::GetBounds() const
