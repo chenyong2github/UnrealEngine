@@ -101,9 +101,7 @@ FPCGCrc UPCGUnionData::ComputeCrc() const
 		}
 	}
 
-	Crc = FPCGCrc(Ar.GetCrc());
-
-	return Crc;
+	return FPCGCrc(Ar.GetCrc());
 }
 
 void UPCGUnionData::AddToCrc(FArchiveCrc32& Ar) const

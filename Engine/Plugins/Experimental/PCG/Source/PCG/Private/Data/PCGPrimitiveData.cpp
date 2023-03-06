@@ -24,18 +24,20 @@ void UPCGPrimitiveData::Initialize(UPrimitiveComponent* InPrimitive)
 
 void UPCGPrimitiveData::AddToCrc(FArchiveCrc32& Ar) const
 {
-	check(Primitive.Get());
+	//TODO: we need a way to keep the primitive alive or some mechanism to eject this from the cache if it's deleted
+	// Until then, use the unique id.
+	//check(Primitive.Get());
 
-	// Can implement specific CRC's for different primitive types.
-	if (UBoxComponent* Box = Cast<UBoxComponent>(Primitive.Get()))
-	{
-		FVector Extent = Box->GetUnscaledBoxExtent();
-		Ar << Extent;
+	//// Can implement specific CRC's for different primitive types.
+	//if (UBoxComponent* Box = Cast<UBoxComponent>(Primitive.Get()))
+	//{
+	//	FVector Extent = Box->GetUnscaledBoxExtent();
+	//	Ar << Extent;
 
-		FTransform Transform = Box->GetComponentTransform();
-		Ar << Transform;
-	}
-	else
+	//	FTransform Transform = Box->GetComponentTransform();
+	//	Ar << Transform;
+	//}
+	//else
 	{
 		// Fallback is the UID which changes when data recreated.
 		Super::AddToCrc(Ar);

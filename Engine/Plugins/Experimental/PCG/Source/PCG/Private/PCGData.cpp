@@ -84,12 +84,10 @@ UPCGData::UPCGData(const FObjectInitializer& ObjectInitializer)
 
 FPCGCrc UPCGData::GetOrComputeCrc() const
 {
-	if (Crc.IsValid())
+	if (!Crc.IsValid())
 	{
-		return Crc;
+		Crc = ComputeCrc();
 	}
-
-	Crc = ComputeCrc();
 
 	return Crc;
 }
@@ -99,9 +97,7 @@ FPCGCrc UPCGData::ComputeCrc() const
 	FArchiveCrc32 Ar;
 	AddToCrc(Ar);
 
-	Crc = FPCGCrc(Ar.GetCrc());
-
-	return Crc;
+	return FPCGCrc(Ar.GetCrc());
 }
 
 void UPCGData::AddToCrc(FArchiveCrc32& Ar) const

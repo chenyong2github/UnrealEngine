@@ -118,9 +118,7 @@ FPCGCrc UPCGDifferenceData::ComputeCrc() const
 		Ar << DifferenceCrc;
 	}
 
-	Crc = FPCGCrc(Ar.GetCrc());
-
-	return Crc;
+	return FPCGCrc(Ar.GetCrc());
 }
 
 void UPCGDifferenceData::AddToCrc(FArchiveCrc32& Ar) const
