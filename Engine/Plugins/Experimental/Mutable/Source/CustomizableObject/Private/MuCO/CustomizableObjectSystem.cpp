@@ -2172,6 +2172,7 @@ namespace impl
 		// Skip update, the requested update is equal to the running update.
 		if (Operation->InstanceDescriptorRuntimeHash.IsSubset(CandidateInstance->GetDescriptorRuntimeHash()))
 		{
+			CandidateInstance->SkeletalMeshStatus = ESkeletalMeshState::Correct;
 			UpdateSkeletalMesh(CandidateInstance, CandidateInstance->GetDescriptorRuntimeHash());
 			bCancel = true;
 		}
