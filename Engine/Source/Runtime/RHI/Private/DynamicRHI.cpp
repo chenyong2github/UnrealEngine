@@ -434,28 +434,6 @@ void RHIExit()
 	FRHICommandListImmediate::CleanupGraphEvents();
 }
 
-
-static void BaseRHISetGPUCaptureOptions(const TArray<FString>& Args, UWorld* World)
-{
-	if (Args.Num() > 0)
-	{
-		const bool bEnabled = Args[0].ToBool();
-		GDynamicRHI->EnableIdealGPUCaptureOptions(bEnabled);
-	}
-	else
-	{
-		UE_LOG(LogRHI, Display, TEXT("Usage: r.RHISetGPUCaptureOptions 0 or r.RHISetGPUCaptureOptions 1"));
-	}
-}
-
-static FAutoConsoleCommandWithWorldAndArgs GBaseRHISetGPUCaptureOptions(
-	TEXT("r.RHISetGPUCaptureOptions"),
-	TEXT("Utility function to change multiple CVARs useful when profiling or debugging GPU rendering. Setting to 1 or 0 will guarantee all options are in the appropriate state.\n")
-	TEXT("r.rhithread.enable, r.rhicmdbypass, r.showmaterialdrawevents, toggledrawevents\n")
-	TEXT("Platform RHI's may implement more feature toggles."),
-	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&BaseRHISetGPUCaptureOptions)
-	);
-
 // Default fallback; will not work for non-8-bit surfaces and it's extremely slow.
 void FDynamicRHI::RHIReadSurfaceData(FRHITexture* Texture, FIntRect Rect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags)
 {
