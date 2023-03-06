@@ -992,11 +992,6 @@ public:
 		return NextFrame;
 	}
 
-	virtual const FGroomCacheAnimationData& GetInterpolatedFrameBuffer() override
-	{
-		return InterpolatedFrame;
-	}
-
 	virtual int32 GetCurrentFrameIndex() const override
 	{
 		return CurrentFrameIndex;
@@ -1019,14 +1014,11 @@ public:
 		// Find the frame indices and interpolation factor to interpolate between
 		int32 FrameIndexA = 0;
 		int32 FrameIndexB = 0;
-		float OutInterpolationFactor = 0.0f;
-		GroomCache->GetFrameIndicesAtTime(Time, bIsLooping, false, FrameIndexA, FrameIndexB, OutInterpolationFactor);
+		GroomCache->GetFrameIndicesAtTime(Time, bIsLooping, false, FrameIndexA, FrameIndexB, InterpolationFactor);
 
 		// Update and cache the frame data as needed
-		bool bComputeInterpolation = false;
 		if (FrameIndexA != CurrentFrameIndex)
 		{
-			bComputeInterpolation = true;
 			if (FrameIndexA == NextFrameIndex)
 			{
 				Swap(CurrentFrame, NextFrame);
@@ -1041,96 +1033,8 @@ public:
 
 		if (FrameIndexB != NextFrameIndex)
 		{
-			bComputeInterpolation = true;
 			GroomCache->GetGroomDataAtFrameIndex(FrameIndexB, NextFrame);
 			NextFrameIndex = FrameIndexB;
-		}
-
-		// Make sure the initial interpolated frame is populated with valid data
-		if (InterpolatedFrame.GroupsData.Num() != CurrentFrame.GroupsData.Num())
-		{
-			InterpolatedFrame = CurrentFrame;
-		}
-
-		bComputeInterpolation = bComputeInterpolation || !FMath::IsNearlyEqual(InterpolationFactor, OutInterpolationFactor, KINDA_SMALL_NUMBER);
-
-		// Do interpolation of vertex positions if needed
-		if (bComputeInterpolation)
-		{
-			Interpolate(CurrentFrame, NextFrame, OutInterpolationFactor);
-		}
-	}
-
-	void Interpolate(const FGroomCacheAnimationData& FrameA, const FGroomCacheAnimationData& FrameB, float InInterpolationFactor)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FGroomCacheBuffers::InterpolateCPU);
-
-		InterpolationFactor = InInterpolationFactor;
-
-		FScopeLock Lock(GetCriticalSection());
-
-		const int32 NumGroups = FrameA.GroupsData.Num();
-		for (int32 GroupIndex = 0; GroupIndex < NumGroups; ++GroupIndex)
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FGroomCacheBuffers::InterpolateCPU_Group);
-
-			const FGroomCacheGroupData& CurrentGroupData = FrameA.GroupsData[GroupIndex];
-			const FGroomCacheGroupData& NextGroupData = FrameB.GroupsData[GroupIndex];
-			FGroomCacheGroupData& InterpolatedGroupData = InterpolatedFrame.GroupsData[GroupIndex];
-			const int32 NumVertices = CurrentGroupData.VertexData.PointsPosition.Num();
-			const int32 NextNumVertices = NextGroupData.VertexData.PointsPosition.Num();
-
-			// Update the bounding box used for hair strands rendering computation
-			FVector InterpolatedCenter = FMath::Lerp(CurrentGroupData.BoundingBox.GetCenter(), NextGroupData.BoundingBox.GetCenter(), InterpolationFactor);
-			InterpolatedGroupData.BoundingBox = CurrentGroupData.BoundingBox.MoveTo(InterpolatedCenter) + NextGroupData.BoundingBox.MoveTo(InterpolatedCenter);
-
-			const bool bHasRadiusData = InterpolatedGroupData.VertexData.PointsRadius.Num() > 0;
-			if (bHasRadiusData)
-			{
-				InterpolatedGroupData.StrandData.MaxRadius = FMath::Lerp(CurrentGroupData.StrandData.MaxRadius, NextGroupData.StrandData.MaxRadius, InterpolationFactor);
-			}
-
-			if (NumVertices == NextNumVertices)
-			{
-				// In case the topology is varying, make sure the interpolated group data can hold the required number of vertices
-				InterpolatedGroupData.VertexData.PointsPosition.SetNum(NumVertices);
-
-			// Parallel batched interpolation
-			const int32 BatchSize = 1024;
-			const int32 BatchCount = (NumVertices + BatchSize - 1) / BatchSize;
-
-			ParallelFor(BatchCount, [&](int32 BatchIndex)
-			{
-				const int32 Start = BatchIndex * BatchSize;
-				const int32 End = FMath::Min(Start + BatchSize, NumVertices); // one-past end index
-
-				for (int32 VertexIndex = Start; VertexIndex < End; ++VertexIndex)
-				{
-					const FVector3f& CurrentPosition = CurrentGroupData.VertexData.PointsPosition[VertexIndex];
-					const FVector3f& NextPosition = NextGroupData.VertexData.PointsPosition[VertexIndex];
-
-					InterpolatedGroupData.VertexData.PointsPosition[VertexIndex] = FMath::Lerp(CurrentPosition, NextPosition, InterpolationFactor);
-
-					if (bHasRadiusData)
-					{
-						const float CurrentRadius = CurrentGroupData.VertexData.PointsRadius[VertexIndex];
-						const float NextRadius = NextGroupData.VertexData.PointsRadius[VertexIndex];
-
-						InterpolatedGroupData.VertexData.PointsRadius[VertexIndex] = FMath::Lerp(CurrentRadius, NextRadius, InterpolationFactor);
-					}
-				}
-			});
-		}
-			else
-			{
-				// Cannot interpolate, use the closest frame
-				InterpolatedGroupData.VertexData.PointsPosition = InterpolationFactor < 0.5f ? CurrentGroupData.VertexData.PointsPosition : NextGroupData.VertexData.PointsPosition;
-
-				if (bHasRadiusData)
-				{
-					InterpolatedGroupData.VertexData.PointsRadius = InterpolationFactor < 0.5f ? CurrentGroupData.VertexData.PointsRadius : NextGroupData.VertexData.PointsRadius;
-				}
-	}
 		}
 	}
 
@@ -1160,9 +1064,6 @@ protected:
 	/** Used with synchronous loading */
 	FGroomCacheAnimationData CurrentFrame;
 	FGroomCacheAnimationData NextFrame;
-
-	/** Used for CPU interpolation */
-	FGroomCacheAnimationData InterpolatedFrame;
 
 	int32 CurrentFrameIndex = -1;
 	int32 NextFrameIndex = -1;
@@ -1238,14 +1139,11 @@ public:
 		// Find the frame indices and interpolation factor to interpolate between
 		int32 FrameIndexA = 0;
 		int32 FrameIndexB = 0;
-		float OutInterpolationFactor = 0.0f;
-		GroomCache->GetFrameIndicesAtTime(Time, bIsLooping, false, FrameIndexA, FrameIndexB, OutInterpolationFactor);
+		GroomCache->GetFrameIndicesAtTime(Time, bIsLooping, false, FrameIndexA, FrameIndexB, InterpolationFactor);
 
 		// Update and cache the frame data as needed
-		bool bComputeInterpolation = false;
 		if (FrameIndexA != CurrentFrameIndex)
 		{
-			bComputeInterpolation = true;
 			if (FrameIndexA == NextFrameIndex)
 			{
 				// NextFrame is mapped to increment its ref count, but this could fail if the frame was evicted
@@ -1272,8 +1170,6 @@ public:
 
 		if (FrameIndexB != NextFrameIndex)
 		{
-			bComputeInterpolation = true;
-
 			const FGroomCacheAnimationData* DataPtr = IGroomCacheStreamingManager::Get().MapAnimationData(GroomCache, FrameIndexB);
 			if (DataPtr)
 			{
@@ -1286,20 +1182,6 @@ public:
 		if (CurrentFramePtr == nullptr || NextFramePtr == nullptr)
 		{
 			return;
-		}
-
-		// Make sure the initial interpolated frame is populated with valid data
-		if (InterpolatedFrame.GroupsData.Num() != CurrentFramePtr->GroupsData.Num())
-		{
-			InterpolatedFrame = *CurrentFramePtr;
-		}
-
-		bComputeInterpolation = bComputeInterpolation || !FMath::IsNearlyEqual(InterpolationFactor, OutInterpolationFactor, KINDA_SMALL_NUMBER);
-
-		// Do interpolation of vertex positions if needed
-		if (bComputeInterpolation)
-		{
-			Interpolate(*CurrentFramePtr, *NextFramePtr, OutInterpolationFactor);
 		}
 	}
 

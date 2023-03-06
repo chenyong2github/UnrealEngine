@@ -120,6 +120,10 @@ struct FGroomCacheVertexData
 	TArray<float> PointsCoordU;
 	TArray<FLinearColor> PointsBaseColor;
 
+	// GPU resources. Lazily allocated
+	TRefCountPtr<FRDGPooledBuffer> PositionBuffer;
+	TRefCountPtr<FRDGPooledBuffer> RadiusBuffer;
+
 	void Serialize(FArchive& Ar, int32 Version, EGroomCacheAttributes InAttributes);
 };
 
@@ -171,7 +175,6 @@ public:
 
 	virtual const FGroomCacheAnimationData& GetCurrentFrameBuffer() = 0;
 	virtual const FGroomCacheAnimationData& GetNextFrameBuffer() = 0;
-	virtual const FGroomCacheAnimationData& GetInterpolatedFrameBuffer() = 0;
 
 	virtual int32 GetCurrentFrameIndex() const = 0;
 	virtual int32 GetNextFrameIndex() const = 0;
