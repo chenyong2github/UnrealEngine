@@ -1388,6 +1388,9 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 	}
 
 	TransitionAllToReadable(RHICmdList, BuffersToTransitionToRead);
+
+	// Need to flush here since we're a scene-less process.
+	RHICmdList.FlushAllPendingComputeParameters();
 }
 
 void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, int32 Section, int32 RevisionNumber)
@@ -1441,6 +1444,9 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCac
 	SkinCacheEntry->UpdateVertexFactoryDeclaration(Section);
 
 	TransitionAllToReadable(RHICmdList, BuffersToTransitionToRead);
+
+	// Need to flush here since we're a scene-less process.
+	RHICmdList.FlushAllPendingComputeParameters();
 }
 
 bool FGPUSkinCache::ProcessEntry(
