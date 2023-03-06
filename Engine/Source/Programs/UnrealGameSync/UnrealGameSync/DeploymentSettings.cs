@@ -97,21 +97,5 @@ namespace UnrealGameSync
 		/// </summary>
 		public readonly CreateTelemetrySinkDelegate CreateTelemetrySink = (userName, sessionId, log) => new NullTelemetrySink();
 #endif
-
-#if !UGS_LAUNCHER
-		/// <summary>
-		/// Delegate to allow validating a project being opened
-		/// </summary>
-		/// <param name="openProjectInfo">The detected settings for the project</param>
-		/// <param name="logger">The logger</param>
-		/// <param name="error">Receives an error on failure</param>
-		/// <returns></returns>
-		public delegate bool DetectProjectSettingsEvent(OpenProjectInfo openProjectInfo, ILogger logger, [NotNullWhen(false)] out string? error);
-
-		/// <summary>
-		/// Called to validate the project settings
-		/// </summary>
-		public DetectProjectSettingsEvent? OnDetectProjectSettings = null;
-#endif
 	}
 }

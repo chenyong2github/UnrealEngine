@@ -27,6 +27,13 @@ namespace UnrealGameSync
 		readonly UserSettings _settings;
 		readonly ILogger _logger;
 
+		delegate bool DetectProjectSettingsEvent(OpenProjectInfo openProjectInfo, ILogger logger, [NotNullWhen(false)] out string? error);
+
+#pragma warning disable CS0649 // Avoid unused private fields
+		// Hook called once the project settings have been established. Can be overridden in a specific deployment to log telemetry or perform additional validation.
+		static readonly DetectProjectSettingsEvent? s_onDetectProjectSettings;
+#pragma warning restore CS0649 // Avoid unused private fields
+
 		private OpenProjectWindow(UserSelectedProjectSettings? project, UserSettings settings, IPerforceSettings defaultSettings, IServiceProvider serviceProvider, ILogger logger)
 		{
 			InitializeComponent();
@@ -296,10 +303,10 @@ namespace UnrealGameSync
 		public static async Task<OpenProjectInfo> DetectSettingsAsync(IPerforceConnection perforce, UserSelectedProjectSettings selectedProject, UserSettings userSettings, OidcTokenManager oidcTokenManager, ILogger<OpenProjectInfo> logger, CancellationToken cancellationToken)
 		{
 			OpenProjectInfo settings = await OpenProjectInfo.CreateAsync(perforce, selectedProject, userSettings, oidcTokenManager, logger, cancellationToken);
-			if (DeploymentSettings.Instance.OnDetectProjectSettings != null)
+			if (s_onDetectProjectSettings != null)
 			{
 				string? message;
-				if (!DeploymentSettings.Instance.OnDetectProjectSettings(settings, logger, out message))
+				if (!s_onDetectProjectSettings(settings, logger, out message))
 				{
 					throw new UserErrorException(message);
 				}
