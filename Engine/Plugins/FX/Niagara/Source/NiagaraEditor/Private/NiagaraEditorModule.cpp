@@ -211,6 +211,7 @@ class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
 		if (System != nullptr)
 		{
 			UNiagaraSystemEditorData* SystemEditorData = NewObject<UNiagaraSystemEditorData>(InOuter);
+			SystemEditorData->SetFlags(RF_Transactional);
 			SystemEditorData->SynchronizeOverviewGraphWithSystem(*System);
 			SystemEditorData->InitOnSyncScriptVariables(*System);
 			return SystemEditorData;
@@ -220,7 +221,10 @@ class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
 
 	virtual UNiagaraEditorParametersAdapterBase* CreateDefaultEditorParameters(UObject* InOuter) const override
 	{
-		return NewObject<UNiagaraEditorParametersAdapter>(InOuter);
+		UNiagaraEditorParametersAdapter* Adapter = NewObject<UNiagaraEditorParametersAdapter>(InOuter);
+		Adapter->SetFlags(RF_Transactional);
+		
+		return Adapter;
 	}
 
 	virtual UObject::FAssetRegistryTag CreateClassUsageAssetRegistryTag(const UObject* SourceObject) const override

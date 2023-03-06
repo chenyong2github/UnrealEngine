@@ -15,6 +15,8 @@ void UNiagaraEditorParametersAdapter::PostLoad()
 {
 	Super::PostLoad();
 
+	SetFlags(RF_Transactional);
+	
 	// Remove null entries from EditorOnlyScriptVars predating null checks on add methods.
 	for (int32 Idx = EditorOnlyScriptVars.Num() - 1; Idx > -1; --Idx)
 	{
