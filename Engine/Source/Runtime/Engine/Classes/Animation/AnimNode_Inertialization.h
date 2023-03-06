@@ -238,8 +238,7 @@ struct FInertializationBoneDiff
 
 struct FInertializationCurveDiffElement : public UE::Anim::FCurveElement
 {
-	UE_DEPRECATED(5.3, "Please use Value instead.")
-	static float Delta;
+	float Delta = 0.0f;
 	float Derivative = 0.0f;
 
 	FInertializationCurveDiffElement() = default;
@@ -247,6 +246,7 @@ struct FInertializationCurveDiffElement : public UE::Anim::FCurveElement
 	void Clear()
 	{
 		Value = 0.0f;
+		Delta = 0.0f;
 		Derivative = 0.0f;
 	}
 };
