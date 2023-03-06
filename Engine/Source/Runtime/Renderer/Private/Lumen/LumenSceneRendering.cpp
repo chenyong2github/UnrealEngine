@@ -3072,9 +3072,9 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 						{
 							TRACE_CPUPROFILER_EVENT_SCOPE(CreateLumenPackedViews);
 		
-							for (int32 NextCardIndex = 0; NextCardIndex < CardPagesToCreatePackedView.Num(); ++NextCardIndex)
+							for (const int32 CardPageToRenderIndex : CardPagesToCreatePackedView)
 							{
-								const FCardPageRenderData& CardPageRenderData = CardPagesToRender[NextCardIndex];
+								const FCardPageRenderData& CardPageRenderData = CardPagesToRender[CardPageToRenderIndex];
 
 								Nanite::FPackedViewParams Params;
 								Params.ViewMatrices = CardPageRenderData.ViewMatrices;
