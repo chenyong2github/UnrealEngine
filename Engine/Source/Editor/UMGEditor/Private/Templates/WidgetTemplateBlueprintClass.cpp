@@ -24,9 +24,12 @@ FWidgetTemplateBlueprintClass::FWidgetTemplateBlueprintClass(const FAssetData& I
 	: FWidgetTemplateClass(InWidgetAssetData, InUserWidgetClass)
 {
 	// Blueprints get the class type actions for their parent native class - this avoids us having to load the blueprint
-	static const FTopLevelAssetPath BlueprintGeneratedClassAssetPath = UWidgetBlueprintGeneratedClass::StaticClass()->GetClassPathName();
+	static const FTopLevelAssetPath WidgetBlueprintGeneratedClassAssetPath = UWidgetBlueprintGeneratedClass::StaticClass()->GetClassPathName();
+	static const FTopLevelAssetPath BlueprintGeneratedClassAssetPath = UBlueprintGeneratedClass::StaticClass()->GetClassPathName();
 	bool bClassIsUWidgetBlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(InUserWidgetClass.Get()) != nullptr;
-	bIsBlueprintGeneratedClass = BlueprintGeneratedClassAssetPath == InWidgetAssetData.AssetClassPath || bClassIsUWidgetBlueprintGeneratedClass;
+	bIsBlueprintGeneratedClass = WidgetBlueprintGeneratedClassAssetPath == InWidgetAssetData.AssetClassPath 
+								|| BlueprintGeneratedClassAssetPath == InWidgetAssetData.AssetClassPath 
+								|| bClassIsUWidgetBlueprintGeneratedClass;
 	if (bIsBlueprintGeneratedClass && !InUserWidgetClass && InWidgetAssetData.IsValid())
 	{
 		FString ParentClassName;

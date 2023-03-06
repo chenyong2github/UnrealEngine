@@ -160,6 +160,11 @@ void FWidgetTemplateClass::OnObjectsReplaced(const TMap<UObject*, UObject*>& Rep
 
 UWidget* FWidgetTemplateClass::CreateNamed(class UWidgetTree* Tree, FName NameOverride)
 {
+	if (Tree == nullptr || !WidgetClass.IsValid() || WidgetClass.Get()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated))
+	{
+		return nullptr;
+	}
+
 	if (NameOverride != NAME_None)
 	{
 		UObject* ExistingObject = StaticFindObject(UObject::StaticClass(), Tree, *NameOverride.ToString());
@@ -167,11 +172,6 @@ UWidget* FWidgetTemplateClass::CreateNamed(class UWidgetTree* Tree, FName NameOv
 		{
 			NameOverride = MakeUniqueObjectName(Tree, WidgetClass.Get(), NameOverride);
 		}
-	}
-
-	if (WidgetClass.Get()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated))
-	{
-		return nullptr;
 	}
 
 	UWidget* NewWidget = Tree->ConstructWidget<UWidget>(WidgetClass.Get(), NameOverride);
