@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "GameplayTagContainer.h"
+
 #include "PlayerMappableKeySettings.generated.h"
 
 struct FEnhancedActionKeyMapping;
@@ -49,4 +51,12 @@ public:
 	/** The category that this player mapping is in */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
 	FText DisplayCategory = FText::GetEmpty();
+
+	/** 
+	* If this key mapping should only be added when a specific key profile is equipped, then set those here.
+	* 
+	* If this is empty, then the key mapping will not be filtered out based on the current profile.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
+	FGameplayTagContainer SupportedKeyProfiles;
 };

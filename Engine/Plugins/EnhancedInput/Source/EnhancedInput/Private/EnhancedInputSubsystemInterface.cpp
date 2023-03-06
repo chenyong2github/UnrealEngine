@@ -11,6 +11,7 @@
 #include "InputMappingContext.h"
 #include "InputMappingQuery.h"
 #include "PlayerMappableInputConfig.h"
+#include "PlayerMappableKeySettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputSubsystemInterface)
 
@@ -780,6 +781,14 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 
 			// True if there were any player mapped keys to this mapping and we are using those instead.
 			bool bIsPlayerMapping = false;
+			
+			const UPlayerMappableKeySettings* KeySettings = Mapping.GetPlayerMappableKeySettings();
+
+			// If this mapping has specified a specific key profile, and the current profile isn't it, then don't add this key mapping
+			if (KeySettings && PlayerKeyProfile && !KeySettings->SupportedKeyProfiles.IsEmpty() && !KeySettings->SupportedKeyProfiles.HasTag(PlayerKeyProfile->GetProfileIdentifer()))
+			{
+				continue;			
+			}
 			
 			// See if there are any player mapped keys to this action
 			if (PlayerKeyProfile && GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
