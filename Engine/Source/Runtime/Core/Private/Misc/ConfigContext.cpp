@@ -434,6 +434,18 @@ FString FConfigContext::PerformFinalExpansions(const FString& InString, const FS
 	OutString = OutString.Replace(TEXT("{RESTRICTEDPROJECT_NFL}"), *ProjectNotForLicenseesDir);
 	OutString = OutString.Replace(TEXT("{RESTRICTEDPROJECT_NR}"), *ProjectNoRedistDir);
 
+	if (FPaths::IsUnderDirectory(ProjectRootDir, EngineRootDir))
+	{
+		FString RelativeDir = ProjectRootDir;
+		FPaths::MakePathRelativeTo(RelativeDir, *EngineRootDir);
+		
+		OutString = OutString.Replace(TEXT("{OPT_SUBDIR}"), *RelativeDir);
+	}
+	else
+	{
+		OutString = OutString.Replace(TEXT("{OPT_SUBDIR}"), TEXT(""));
+	}
+	
 	if (Platform.Len() > 0)
 	{
 		OutString = OutString.Replace(TEXT("{EXTENGINE}"), *GetPerPlatformDirs(InPlatform).PlatformExtensionEngineDir);
