@@ -253,7 +253,12 @@ bool FCommonCommandsExecCommandTest::RunTest(const FString& Parameters)
 	FMemoryWriter MemoryWriter(Buffer);
 	MemoryOutput.Dump(MemoryWriter);
 
-	FString ConsoleCommandsDump(reinterpret_cast<ANSICHAR*>(Buffer.GetData()), Buffer.Num());
+	if (static_cast<ANSICHAR>(Buffer.Last()) != '\0')
+	{
+		Buffer.Add('\0');
+	}
+
+	FString ConsoleCommandsDump(reinterpret_cast<ANSICHAR*>(Buffer.GetData()));
 
 	TArray<FString> CommandList;
 	ConsoleCommandsDump.ParseIntoArrayLines(CommandList);
