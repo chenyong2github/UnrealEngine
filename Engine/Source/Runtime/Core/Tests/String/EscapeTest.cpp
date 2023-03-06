@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "String/Escape.h"
 
 #include "Containers/StringView.h"
 #include "Misc/StringBuilder.h"
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
 namespace UE::String
 {
 
-TEST_CASE("Core::String::Escape", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringEscapeTest, "System::Core::String::Escape", "[Core][String][SmokeFilter]")
 {
 	SECTION("Escape")
 	{
@@ -38,4 +38,4 @@ TEST_CASE("Core::String::Escape", "[Core][String][Smoke]")
 
 } // UE::String
 
-#endif
+#endif //WITH_TESTS

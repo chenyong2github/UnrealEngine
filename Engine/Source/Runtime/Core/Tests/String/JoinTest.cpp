@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "String/Join.h"
 
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "Misc/StringBuilder.h"
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
 namespace UE::String
 {
 
-TEST_CASE("Core::String::Join", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringJoinTest, "System::Core::String::Join", "[Core][String][SmokeFilter]")
 {
 	SECTION("Join")
 	{
@@ -39,4 +39,4 @@ TEST_CASE("Core::String::Join", "[Core][String][Smoke]")
 
 } // UE::String
 
-#endif
+#endif //WITH_TESTS

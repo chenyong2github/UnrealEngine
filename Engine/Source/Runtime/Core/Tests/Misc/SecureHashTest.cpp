@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Misc/SecureHash.h"
 
@@ -11,9 +11,9 @@
 #include "Containers/Array.h"
 #include "Misc/StringBuilder.h"
 
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
-TEST_CASE("Core::Hash::SecureHash", "[Core][SHA1][Smoke]")
+TEST_CASE_NAMED(FHashSecureHashTest, "System::Core::Hash::SecureHash", "[Core][SHA1][SmokeFilter]")
 {
 	struct FSHA1TestCase
 	{
@@ -208,4 +208,4 @@ TEST_CASE("Core::Hash::SecureHash", "[Core][SHA1][Smoke]")
 	}
 }
 
-#endif
+#endif //WITH_TESTS

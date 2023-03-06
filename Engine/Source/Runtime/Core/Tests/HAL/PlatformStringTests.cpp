@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "HAL/PlatformString.h"
 #include "Containers/Array.h"
 #include "Templates/UnrealTemplate.h"
 
-#include <catch2/catch_test_macros.hpp>
+#include "Tests/TestHarnessAdapter.h"
 
-TEST_CASE("Core::HAL::PlatformString", "[Core]")
+TEST_CASE_NAMED(FHALPlatformStringTest, "System::Core::HAL::PlatformString", "[Core]")
 {
 	SECTION("Strupr TCHAR null-termination")
 	{
@@ -79,4 +79,4 @@ TEST_CASE("Core::HAL::PlatformString", "[Core]")
 	}
 }
 
-#endif
+#endif //WITH_TESTS

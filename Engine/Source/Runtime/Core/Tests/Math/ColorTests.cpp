@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "CoreMinimal.h"
 #include "Math/Color.h"
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
-TEST_CASE("Core::Math::FLinearColor::Smoke Test", "[Core][Math][Smoke]")
+TEST_CASE_NAMED(FFLinearColorSmokeTest, "System::Core::Math::FLinearColor::Smoke Test", "[Core][Math][SmokeFilter]")
 {
 	SECTION("FLinearColor")
 	{
@@ -37,7 +37,7 @@ TEST_CASE("Core::Math::FLinearColor::Smoke Test", "[Core][Math][Smoke]")
 	}
 }
 
-TEST_CASE("Core::Math::FColor::Smoke Test", "[Core][Math][Smoke]")
+TEST_CASE_NAMED(FFColorSmokeTest, "System::Core::Math::FColor::Smoke Test", "[Core][Math][SmokeFilter]")
 {
 	SECTION("FColor")
 	{
@@ -67,4 +67,4 @@ TEST_CASE("Core::Math::FColor::Smoke Test", "[Core][Math][Smoke]")
 	}
 }
 
-#endif
+#endif //WITH_TESTS

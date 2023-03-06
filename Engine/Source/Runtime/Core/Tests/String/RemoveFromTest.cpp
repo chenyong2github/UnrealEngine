@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "String/RemoveFrom.h"
 
 #include "Containers/StringView.h"
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
-TEST_CASE("Core::String::RemoveFrom", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringRemoveFromTest, "System::Core::String::RemoveFrom", "[Core][String][SmokeFilter]")
 {
 	SECTION("RemoveFromStart")
 	{
@@ -76,4 +76,4 @@ TEST_CASE("Core::String::RemoveFrom", "[Core][String][Smoke]")
 	}
 }
 
-#endif // WITH_LOW_LEVEL_TESTS
+#endif //WITH_TESTS

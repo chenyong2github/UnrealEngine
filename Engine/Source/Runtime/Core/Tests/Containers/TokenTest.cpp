@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "TokenTest.h"
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
-TEST_CASE("Core::Containers::TToken::Default", "[Core][Containers][TToken]")
+TEST_CASE_NAMED(FTokenDefaultTest, "System::Core::Containers::TToken::Default", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
@@ -20,7 +20,7 @@ TEST_CASE("Core::Containers::TToken::Default", "[Core][Containers][TToken]")
 	CHECK(int32Token::NumDestructionCalls() == 1);
 }
 
-TEST_CASE("Core::Containers::TToken::Explicit constructor", "[Core][Containers][TToken]")
+TEST_CASE_NAMED(FTokenExplicitConstructorTest, "System::Core::Containers::TToken::Explicit constructor", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
@@ -37,7 +37,7 @@ TEST_CASE("Core::Containers::TToken::Explicit constructor", "[Core][Containers][
 	CHECK(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Core::Containers::TToken::Copy constructor", "[Core][Containers][TToken]")
+TEST_CASE_NAMED(FTokenCopyConstructorTest, "System::Core::Containers::TToken::Copy constructor", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
@@ -55,7 +55,7 @@ TEST_CASE("Core::Containers::TToken::Copy constructor", "[Core][Containers][TTok
 	CHECK(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Core::Containers::TToken::Move constructor", "[Core][Containers][TToken]")
+TEST_CASE_NAMED(FTokenMoveConstructorTest, "System::Core::Containers::TToken::Move constructor", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
@@ -73,7 +73,7 @@ TEST_CASE("Core::Containers::TToken::Move constructor", "[Core][Containers][TTok
 	CHECK(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Core::Containers::TToken::Copy assignment", "[Core][Containers][TToken]")
+TEST_CASE_NAMED(FTokenCopyAssignmentTest, "System::Core::Containers::TToken::Copy assignment", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
@@ -92,7 +92,7 @@ TEST_CASE("Core::Containers::TToken::Copy assignment", "[Core][Containers][TToke
 	CHECK(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Core::Containers::TToken::Move assignment", "[Core][Containers][TToken]")
+TEST_CASE_NAMED(FTokenMoveAssignmentTest, "System::Core::Containers::TToken::Move assignment", "[Core][Containers][TToken]")
 {
 	int32Token::Reset();
 	{
@@ -111,4 +111,4 @@ TEST_CASE("Core::Containers::TToken::Move assignment", "[Core][Containers][TToke
 	CHECK(int32Token::NumMoveAssignmentCalls() == 1);
 }
 
-#endif
+#endif //WITH_TESTS

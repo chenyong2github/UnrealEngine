@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Misc/URLRequestFilter.h"
 #include "Misc/ConfigCacheIni.h"
@@ -10,7 +10,7 @@
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 
-#include <catch2/catch_test_macros.hpp>
+#include "Tests/TestHarnessAdapter.h"
 
 namespace UE::Core::Private
 {
@@ -63,7 +63,7 @@ private:
 };
 
 
-TEST_CASE("Core::Misc::URLRequestFilter", "[Core]")
+TEST_CASE_NAMED(FMiscURLRequestFilterTest, "System::Core::Misc::URLRequestFilter", "[Core]")
 {
 	SECTION("Empty filter")
 	{
@@ -525,4 +525,4 @@ TEST_CASE("Core::Misc::URLRequestFilter", "[Core]")
 
 }
 
-#endif
+#endif //WITH_TESTS

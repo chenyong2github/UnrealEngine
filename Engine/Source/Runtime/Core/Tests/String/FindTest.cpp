@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "String/Find.h"
 
 #include "Containers/StringView.h"
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
 namespace UE::String
 {
 
-TEST_CASE("Core::String::Find", "[Core][String][Smoke]")
+TEST_CASE_NAMED(FStringFindTest, "System::Core::String::Find", "[Core][String][SmokeFilter]")
 {
 	SECTION("FindFirst")
 	{
@@ -225,4 +225,4 @@ TEST_CASE("Core::String::Find", "[Core][String][Smoke]")
 
 } // UE::String
 
-#endif
+#endif //WITH_TESTS

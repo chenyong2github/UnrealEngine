@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Hash/Blake3.h"
 
 #include "Misc/StringBuilder.h"
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
-TEST_CASE("Core::Hash::Blake3", "[Core][Hash][Smoke]")
+TEST_CASE_NAMED(FHashBlake3Test, "System::Core::Hash::Blake3", "[Core][Hash][SmokeFilter]")
 {
 	struct FBlake3TestCase
 	{
@@ -62,4 +62,4 @@ TEST_CASE("Core::Hash::Blake3", "[Core][Hash][Smoke]")
 	}
 }
 
-#endif
+#endif //WITH_TESTS

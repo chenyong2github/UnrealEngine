@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Misc/AES.h"
 
@@ -11,9 +11,9 @@
 #include "Containers/Array.h"
 #include "Misc/StringBuilder.h"
 
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
-TEST_CASE("Core::Misc::AES", "[Core][AES][Smoke]")
+TEST_CASE_NAMED(FMiscAESTest, "System::Core::Misc::AES", "[Core][AES][SmokeFilter]")
 {
 	auto RunTest = [](FAnsiStringView Key, FAnsiStringView PlainText, FAnsiStringView CipherText, int IterCount = 1)
 	{
@@ -855,4 +855,4 @@ TEST_CASE("Core::Misc::AES", "[Core][AES][Smoke]")
 	}
 }
 
-#endif
+#endif //WITH_TESTS
