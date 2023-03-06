@@ -399,7 +399,8 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, TArray<const
 				return false;
 			}
 
-			check(PointData && OutMetadata);
+			check(PointData);
+			check(OutMetadata);
 
 			OutPoint = Point;
 			if (OutMetadata->GetParent() != InputMetadatas[DataIndex])
