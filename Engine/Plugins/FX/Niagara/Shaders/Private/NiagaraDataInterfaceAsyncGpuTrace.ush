@@ -47,7 +47,7 @@ void NDIAsyncGpuTrace_ReserveRayTraceIndex(uint MaxRayTraceCount, RWBuffer<uint>
 	Out_StartQueryID = -1;
 	Out_IndicesValid = false;
 
-	if ((In_TraceCount + RWRayTraceCounts[RayTraceCountsOffset + 0]) < MaxRayTraceCount)
+	if ((In_TraceCount + RWRayTraceCounts[RayTraceCountsOffset + 0]) <= MaxRayTraceCount)
 	{
 		uint RequestIndex = 0;
 		InterlockedAdd(RWRayTraceCounts[RayTraceCountsOffset + 0], In_TraceCount, RequestIndex);
