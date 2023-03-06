@@ -44,17 +44,6 @@ namespace UnrealGameSync
 			}
 		}
 
-#if WITH_TELEMETRY
-		/// <summary>
-		/// Delegate used to create a telemetry sink
-		/// </summary>
-		/// <param name="userName">The default Perforce user name</param>
-		/// <param name="sessionId">Unique identifier for this session</param>
-		/// <param name="logger">Log writer</param>
-		/// <returns>New telemetry sink instance</returns>
-		public delegate ITelemetrySink CreateTelemetrySinkDelegate(string userName, string sessionId, ILogger logger);
-#endif
-
 		/// <summary>
 		/// SQL connection string used to connect to the database for telemetry and review data.
 		/// </summary>
@@ -90,12 +79,5 @@ namespace UnrealGameSync
 		/// Whether to allow notifications about build failures
 		/// </summary>
 		public bool EnableAlerts { get; set; } = true;
-
-#if WITH_TELEMETRY
-		/// <summary>
-		/// Delegate used to create a new telemetry sink
-		/// </summary>
-		public readonly CreateTelemetrySinkDelegate CreateTelemetrySink = (userName, sessionId, log) => new NullTelemetrySink();
-#endif
 	}
 }

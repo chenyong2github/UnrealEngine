@@ -19,8 +19,22 @@ using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
-	static class Program
+	/// <summary>
+	/// Delegate used to create a telemetry sink
+	/// </summary>
+	/// <param name="userName">The default Perforce user name</param>
+	/// <param name="sessionId">Unique identifier for this session</param>
+	/// <param name="logger">Log writer</param>
+	/// <returns>New telemetry sink instance</returns>
+	public delegate ITelemetrySink CreateTelemetrySinkDelegate(string userName, string sessionId, ILogger logger);
+
+	static partial class Program
 	{
+		/// <summary>
+		/// Delegate used to create a new telemetry sink
+		/// </summary>
+		static CreateTelemetrySinkDelegate CreateTelemetrySink { get; } = (userName, sessionId, log) => new NullTelemetrySink();
+
 		public static string GetVersionString()
 		{
 			AssemblyInformationalVersionAttribute? version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>();
@@ -194,7 +208,7 @@ namespace UnrealGameSync
 					ILogger telemetryLogger = loggerProvider.CreateLogger("Telemetry");
 					telemetryLogger.LogInformation("Creating telemetry sink for session {SessionId}", sessionId);
 
-					using (ITelemetrySink telemetrySink = DeploymentSettings.Instance.CreateTelemetrySink(userName, sessionId, telemetryLogger))
+					using (ITelemetrySink telemetrySink = CreateTelemetrySink(userName, sessionId, telemetryLogger))
 					{
 						ITelemetrySink? prevTelemetrySink = Telemetry.ActiveSink;
 						try
