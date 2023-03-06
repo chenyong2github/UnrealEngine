@@ -2911,7 +2911,6 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyBuildTree(FClusterBuilder& 
 	check(BuiltInstanceData->GetNumInstances() == NumBuiltRenderInstances);
 
 	InstanceCountToRender = NumBuiltInstances;
-	InstanceUpdateCmdBuffer.Reset();
 
 	check(InstanceReorderTable.Num() == PerInstanceSMData.Num());
 
