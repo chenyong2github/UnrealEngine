@@ -18,32 +18,8 @@ namespace UnrealGameSync
 	/// <summary>
 	/// This class contains settings for a site-specific deployment of UGS, and is read from the Deployment.json file in the application directory.
 	/// </summary>
-	partial class DeploymentSettings
+	public partial class DeploymentSettings
 	{
-		static DeploymentSettings? s_instance;
-
-		public static DeploymentSettings Instance
-		{
-			get
-			{
-				if (s_instance == null)
-				{
-					FileReference assemblyFile = new FileReference(Assembly.GetExecutingAssembly().Location);
-					FileReference settingsFile = FileReference.Combine(assemblyFile.Directory, "Deployment.json");
-
-					if (FileReference.Exists(settingsFile))
-					{
-						byte[] data = FileReference.ReadAllBytes(settingsFile);
-						JsonSerializerOptions options = new JsonSerializerOptions { AllowTrailingCommas = true, PropertyNameCaseInsensitive = true, ReadCommentHandling = JsonCommentHandling.Skip };
-						s_instance = JsonSerializer.Deserialize<DeploymentSettings>(data, options);
-					}
-
-					s_instance ??= new DeploymentSettings();
-				}
-				return s_instance;
-			}
-		}
-
 		/// <summary>
 		/// SQL connection string used to connect to the database for telemetry and review data.
 		/// </summary>
@@ -52,7 +28,9 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Servers to connect to for issue details by default
 		/// </summary>
+#pragma warning disable CA2227 // Collection properties should be read only
 		public List<string> DefaultIssueApiUrls { get; set; } = new List<string>();
+#pragma warning restore CA2227 // Collection properties should be read only
 
 		/// <summary>
 		/// The issue api to use for URL handler events
@@ -79,5 +57,29 @@ namespace UnrealGameSync
 		/// Whether to allow notifications about build failures
 		/// </summary>
 		public bool EnableAlerts { get; set; } = true;
+
+		static DeploymentSettings? s_instance;
+
+		public static DeploymentSettings Instance
+		{
+			get
+			{
+				if (s_instance == null)
+				{
+					FileReference assemblyFile = new FileReference(Assembly.GetExecutingAssembly().Location);
+					FileReference settingsFile = FileReference.Combine(assemblyFile.Directory, "Deployment.json");
+
+					if (FileReference.Exists(settingsFile))
+					{
+						byte[] data = FileReference.ReadAllBytes(settingsFile);
+						JsonSerializerOptions options = new JsonSerializerOptions { AllowTrailingCommas = true, PropertyNameCaseInsensitive = true, ReadCommentHandling = JsonCommentHandling.Skip };
+						s_instance = JsonSerializer.Deserialize<DeploymentSettings>(data, options);
+					}
+
+					s_instance ??= new DeploymentSettings();
+				}
+				return s_instance;
+			}
+		}
 	}
 }
