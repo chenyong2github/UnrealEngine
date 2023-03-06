@@ -453,6 +453,14 @@ class FWorldPartitionStreamingGenerator
 				continue;
 			}
 
+			if (ContainerInstancesStack.Contains(SubContainerInstance.Container->ContainerPackageName))
+			{
+				ErrorHandler->OnLevelInstanceInvalidWorldAsset(ContainerInstanceView, ContainerInstanceView.GetLevelPackage(), IStreamingGenerationErrorHandler::ELevelInstanceInvalidReason::CirculalReference);
+				continue;
+			}
+
+			ContainerInstancesStack.Add(SubContainerInstance.Container->ContainerPackageName);
+
 			check(SubContainerInstance.Container);
 			FContainerInstanceDescriptor SubContainerInstanceDescriptor;
 
@@ -460,8 +468,6 @@ class FWorldPartitionStreamingGenerator
 			SubContainerInstanceDescriptor.ID = SubContainerInstance.GetID();
 			SubContainerInstanceDescriptor.Container = SubContainerInstance.Container;
 			SubContainerInstanceDescriptor.Transform = SubContainerInstance.Transform * InContainerInstanceDescriptor.Transform;
-
-
 			SubContainerInstanceDescriptor.ParentID = InContainerInstanceDescriptor.ID;
 			SubContainerInstanceDescriptor.OwnerName = *ContainerInstanceView.GetActorLabelOrName().ToString();
 
@@ -476,6 +482,8 @@ class FWorldPartitionStreamingGenerator
 			SubContainerInstanceDescriptor.RuntimeDataLayers = InheritedRuntimeDataLayers;
 
 			CreateActorDescriptorViewsRecursive(SubContainerInstanceDescriptor);
+
+			verify(ContainerInstancesStack.Remove(SubContainerInstance.Container->ContainerPackageName));
 		}
 							
 		if (!InContainerInstanceDescriptor.ID.IsMainContainer())
@@ -999,6 +1007,9 @@ private:
 
 	/** List of containers participating in this streaming generation step */
 	TMap<FGuid, const UActorDescContainer*> ActorGuidsToContainerMap;
+
+	/** List of current container instances on the stack to detect circular references */
+	TSet<FName> ContainerInstancesStack;
 };
 
 bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)

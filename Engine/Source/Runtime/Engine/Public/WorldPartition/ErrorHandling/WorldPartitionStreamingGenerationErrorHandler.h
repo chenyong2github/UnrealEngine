@@ -79,7 +79,8 @@ public:
 		WorldAssetNotFound,
 		WorldAssetNotUsingExternalActors,
 		WorldAssetImcompatiblePartitioned,
-		WorldAssetHasInvalidContainer
+		WorldAssetHasInvalidContainer,
+		CirculalReference
 	};
 
 	virtual void OnLevelInstanceInvalidWorldAsset(const FWorldPartitionActorDescView& ActorDescView, FName WorldAsset, ELevelInstanceInvalidReason Reason) = 0;
