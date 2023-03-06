@@ -226,5 +226,29 @@ namespace EpicGames.Serialization.Tests
 			Assert.IsTrue(obj.ObjectAttachments.Select(x => x.Hash).SequenceEqual(objHashes));
 			Assert.IsTrue(obj.BinaryAttachments.Select(x => x.Hash).SequenceEqual(binHashes));
 		}
+
+		[TestMethod]
+		public void EmbeddedObject()
+		{
+			// Create an empty CbObject
+			CbObject obj;
+			{
+				CbWriter writer = new CbWriter();
+				writer.BeginObject();
+				writer.EndObject();
+				obj = writer.ToObject();
+			}
+
+			// Embed it in another writer at the root
+			{
+				CbWriter writer = new CbWriter();
+				writer.WriteObject(obj);
+
+				byte[] data = writer.ToByteArray();
+				Assert.AreEqual(2, data.Length);
+				Assert.AreEqual((byte)CbFieldType.Object, data[0]);
+				Assert.AreEqual(0, data[1]);
+			}
+		}
 	}
 }

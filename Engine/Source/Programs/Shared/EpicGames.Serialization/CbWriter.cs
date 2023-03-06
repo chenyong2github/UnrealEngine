@@ -127,7 +127,7 @@ namespace EpicGames.Serialization
 			}
 		}
 
-		readonly Scope _rootScope = new Scope();
+		readonly Scope _rootScope = new Scope { _fieldType = CbFieldType.Array };
 		readonly Stack<Scope> _openScopes = new Stack<Scope>();
 		readonly Stack<Scope> _freeScopes = new Stack<Scope>();
 
@@ -383,7 +383,14 @@ namespace EpicGames.Serialization
 		public Span<byte> WriteField(CbFieldType type, Utf8String name, int size)
 		{
 			WriteFieldHeader(type, name);
-			return Allocate(size).Span;
+
+			Span<byte> span = Allocate(size).Span;
+			if (_openScopes.Count == 1)
+			{
+				// If this field is at the root, flush it immediately
+				WriteFields();
+			}
+			return span;
 		}
 
 		void WriteFieldHeader(CbFieldType type, Utf8String name)
