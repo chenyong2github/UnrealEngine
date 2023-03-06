@@ -31,6 +31,8 @@ private:
 	friend class TSubclassOf;
 
 public:
+	using ElementType = T;
+
 	TSubclassOf() = default;
 	TSubclassOf(TSubclassOf&&) = default;
 	TSubclassOf(const TSubclassOf&) = default;
