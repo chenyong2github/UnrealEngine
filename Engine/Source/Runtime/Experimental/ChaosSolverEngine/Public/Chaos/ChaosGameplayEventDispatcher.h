@@ -194,6 +194,8 @@ class CHAOSSOLVERENGINE_API UChaosGameplayEventDispatcher : public UChaosEventLi
 
 public:
 
+	UChaosGameplayEventDispatcher();
+
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 

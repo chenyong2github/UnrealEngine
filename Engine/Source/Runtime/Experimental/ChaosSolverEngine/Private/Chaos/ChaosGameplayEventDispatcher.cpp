@@ -50,6 +50,14 @@ FChaosRemovalEvent::FChaosRemovalEvent()
 
 }
 
+UChaosGameplayEventDispatcher::UChaosGameplayEventDispatcher()
+{
+	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
+	PrimaryComponentTick.bAllowTickOnDedicatedServer = false;
+	PrimaryComponentTick.SetTickFunctionEnable(false);
+}
+
 void UChaosGameplayEventDispatcher::OnRegister()
 {
 	Super::OnRegister();
