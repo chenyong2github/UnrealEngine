@@ -2467,7 +2467,8 @@ bool GenerateGlslShader(std::string& OutString, GLSLCompileParameters& GLSLCompi
 			{
 				std::string SamplerName = "SPIRV_Cross_Combined";
 				SamplerName += TCHAR_TO_ANSI(*(Texture + Sampler));
-				size_t FindCombinedSampler = OutString.find(SamplerName.c_str());
+				std::string SamplerNameDecl = SamplerName + ";";
+				size_t FindCombinedSampler = OutString.find(SamplerNameDecl.c_str());
 
 				if (FindCombinedSampler != std::string::npos)
 				{
