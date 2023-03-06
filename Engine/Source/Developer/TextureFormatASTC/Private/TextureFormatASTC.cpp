@@ -50,7 +50,7 @@ static FAutoConsoleVariableRef CVarASTCCompressor(
 #endif
 
 // increment this if you change anything that will affect compression in this file
-#define BASE_ASTC_FORMAT_VERSION 47
+#define BASE_ASTC_FORMAT_VERSION 48
 
 #define MAX_QUALITY_BY_SIZE 4
 #define MAX_QUALITY_BY_SPEED 3
@@ -120,6 +120,13 @@ class FASTCTextureBuildFunction final : public FTextureBuildFunction
 	#pragma pack(pop)
 #endif
 
+static bool IsNormalMapFormat(FName TextureFormatName)
+{
+	return
+		TextureFormatName == GTextureFormatNameASTC_NormalAG || 
+		TextureFormatName == GTextureFormatNameASTC_NormalRG || 
+		TextureFormatName == GTextureFormatNameASTC_NormalLA;
+}
 
 static int32 GetDefaultCompressionBySizeValue(FCbObjectView InFormatConfigOverride)
 {
@@ -193,10 +200,7 @@ static EPixelFormat GetQualityFormat(const FTextureBuildSettings& BuildSettings)
 	const FCbObjectView& InFormatConfigOverride = BuildSettings.FormatConfigOverride;
 	int32 OverrideSizeValue= BuildSettings.CompressionQuality;
 
-	bool bIsNormalMap =
-		BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG || 
-		BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG || 
-		BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalLA;
+	bool bIsNormalMap = IsNormalMapFormat(BuildSettings.TextureFormatName);
 	bool bIsHQ = BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBA_HQ;
 	bool bHDRFormat = BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB_HDR;
 
@@ -272,10 +276,7 @@ static bool ASTCEnc_Compress(
 		FImageCore::SanitizeFloat16AndSetAlphaOpaqueForBC6H(Image);
 	}
 
-	bool bIsNormalMap =
-		BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG || 
-		BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG || 
-		BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalLA;
+	bool bIsNormalMap = IsNormalMapFormat(BuildSettings.TextureFormatName);
 		
 	// Determine the compressed pixel format and compression parameters
 	EPixelFormat CompressedPixelFormat = GetQualityFormat(BuildSettings);

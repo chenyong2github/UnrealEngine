@@ -273,6 +273,8 @@ public:
 	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
 #endif
 
+	virtual bool SupportsFeature(ETargetPlatformFeatures Feature) const override;
+
 	virtual bool SupportedByExtensionsString(const FString& ExtensionsString, const int GLESVersion) const override
 	{
 		return ExtensionsString.Contains(TEXT("GL_KHR_texture_compression_astc_ldr"));
@@ -383,33 +385,8 @@ public:
 	}
 
 #if WITH_ENGINE
-	virtual void GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const
-	{
-		// Ask each platform variant to choose texture formats
-		for (ITargetPlatform* Platform : FormatTargetPlatforms)
-		{
-			TArray< TArray<FName> > PlatformFormats;
-			Platform->GetTextureFormats(Texture, PlatformFormats);
-			for (const TArray<FName>& FormatPerLayer : PlatformFormats)
-			{
-				OutFormats.AddUnique(FormatPerLayer);
-			}
-		}
-	}
-
-	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override
-	{
-		// Ask each platform variant to choose texture formats
-		for (ITargetPlatform* Platform : FormatTargetPlatforms)
-		{
-			TArray<FName> PlatformFormats;
-			Platform->GetAllTextureFormats(PlatformFormats);
-			for (FName Format : PlatformFormats)
-			{
-				OutFormats.AddUnique(Format);
-			}
-		}
-	}
+	virtual void GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const;
+	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
 #endif	
 
 	virtual float GetVariantPriority() const override

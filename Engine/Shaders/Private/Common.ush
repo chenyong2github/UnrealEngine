@@ -1381,6 +1381,8 @@ MaterialFloat4 UnpackNormalMap( MaterialFloat4 TextureSample )
 {
 	#if DXT5_NORMALMAPS
 		MaterialFloat2 NormalXY = TextureSample.ag;
+	#elif LA_NORMALMAPS
+		MaterialFloat2 NormalXY = TextureSample.ra;
 	#else
 		MaterialFloat2 NormalXY = TextureSample.rg;
 	#endif

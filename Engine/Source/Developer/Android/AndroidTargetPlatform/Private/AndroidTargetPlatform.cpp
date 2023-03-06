@@ -71,6 +71,9 @@ namespace AndroidTexFormat
 	const static FName NameAutoETC2(TEXT("AutoETC2"));
 
 	const static FName NameAutoASTC(TEXT("ASTC_RGBAuto"));
+	const static FName NameASTC_NormalRG(TEXT("ASTC_NormalRG"));
+	// L+A mode suppoprted by ARM ASTC encoder 
+	const static FName NameASTC_NormalLA(TEXT("ASTC_NormalLA"));
 	
 	// Uncompressed Texture Formats
 	const static FName NameBGRA8(TEXT("BGRA8"));
@@ -97,7 +100,7 @@ namespace AndroidTexFormat
 		{ NameDXT1,			FName(TEXT("ASTC_RGB"))		},
 		{ NameDXT5,			FName(TEXT("ASTC_RGBA"))	},
 		{ NameDXT5n,		FName(TEXT("ASTC_NormalAG"))},
-		{ NameBC5,			FName(TEXT("ASTC_NormalRG"))},
+		{ NameBC5,			NameASTC_NormalRG			},
 		{ NameBC4,			NameETC2_R11				},
 		{ NameBC6H,			NameASTC_RGB_HDR			},
 		{ NameBC7,			FName(TEXT("ASTC_RGBA_HQ"))	},
@@ -539,7 +542,8 @@ FName FAndroidTargetPlatform::FinalizeVirtualTextureLayerFormat(FName Format) co
 //		{ { FName(TEXT("ASTC_RGB_HDR")) },		{ NameRGBA16F } }, // ?
 		{ { FName(TEXT("ASTC_RGBAuto")) },		{ AndroidTexFormat::NameAutoETC2 } },
 		{ { FName(TEXT("ASTC_NormalAG")) },		{ AndroidTexFormat::NameETC2_RGB } },
-		{ { FName(TEXT("ASTC_NormalRG")) },		{ AndroidTexFormat::NameETC2_RG11 } },
+		{ { AndroidTexFormat::NameASTC_NormalRG },	{ AndroidTexFormat::NameETC2_RG11 } },
+		{ { AndroidTexFormat::NameASTC_NormalLA	},	{ AndroidTexFormat::NameETC2_RG11 } },
 		{ { AndroidTexFormat::NameDXT1 },		{ AndroidTexFormat::NameETC2_RGB } },
 		{ { AndroidTexFormat::NameDXT5 },		{ AndroidTexFormat::NameETC2_RGBA } },
 		{ { AndroidTexFormat::NameAutoDXT },	{ AndroidTexFormat::NameAutoETC2 } }
@@ -571,6 +575,18 @@ void FAndroidTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) con
 	}
 }
 
+bool FAndroid_ASTCTargetPlatform::SupportsFeature(ETargetPlatformFeatures Feature) const
+{
+	if (Feature == ETargetPlatformFeatures::NormalmapLAEncodingMode)
+	{
+		static IConsoleVariable* CompressorCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("cook.ASTCTextureCompressor"));
+		const bool bUsesARMCompressor = (CompressorCVar ? (CompressorCVar->GetInt() != 0) : false);
+		return bUsesARMCompressor;
+	}
+
+	return FAndroidTargetPlatform::SupportsFeature(Feature);
+}
+
 void FAndroid_ASTCTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 {
 	FAndroidTargetPlatform::GetAllTextureFormats(OutFormats);
@@ -590,10 +606,19 @@ void FAndroid_ASTCTargetPlatform::GetTextureFormats(const UTexture* Texture, TAr
 {
 	FAndroidTargetPlatform::GetTextureFormats(Texture, OutFormats);
 
+	// L+A mode for normal map compression
+	const bool bSupportsNormalLA = SupportsFeature(ETargetPlatformFeatures::NormalmapLAEncodingMode);
+
 	// perform any remapping away from defaults
 	TArray<FName>& LayerFormats = OutFormats.Last();
 	for (FName& TextureFormatName : LayerFormats)
 	{
+		if (bSupportsNormalLA && TextureFormatName == AndroidTexFormat::NameBC5)
+		{
+			TextureFormatName = AndroidTexFormat::NameASTC_NormalLA;
+			continue;
+		}
+
 		for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::ASTCRemap); ++RemapIndex)
 		{
 			if (TextureFormatName == AndroidTexFormat::ASTCRemap[RemapIndex][0])
@@ -670,6 +695,43 @@ void FAndroid_ETC2TargetPlatform::GetTextureFormats(const UTexture* Texture, TAr
 				TextureFormatName = AndroidTexFormat::ETCRemap[RemapIndex][1];
 				break;
 			}
+		}
+	}
+}
+
+void FAndroid_MultiTargetPlatform::GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const
+{
+	// Ask each platform variant to choose texture formats
+	for (ITargetPlatform* Platform : FormatTargetPlatforms)
+	{
+		TArray< TArray<FName> > PlatformFormats;
+		Platform->GetTextureFormats(Texture, PlatformFormats);
+		for (TArray<FName>& FormatPerLayer : PlatformFormats)
+		{
+			// For multiformat case we have to disable L+A normal map compression as only ASTC textures support it 
+			for (FName& TextureFormatName : FormatPerLayer)
+			{
+				if (TextureFormatName == AndroidTexFormat::NameASTC_NormalLA)
+				{
+					TextureFormatName = AndroidTexFormat::NameASTC_NormalRG;
+				}
+			}
+			
+			OutFormats.AddUnique(FormatPerLayer);
+		}
+	}
+}
+
+void FAndroid_MultiTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
+{
+	// Ask each platform variant to choose texture formats
+	for (ITargetPlatform* Platform : FormatTargetPlatforms)
+	{
+		TArray<FName> PlatformFormats;
+		Platform->GetAllTextureFormats(PlatformFormats);
+		for (FName Format : PlatformFormats)
+		{
+			OutFormats.AddUnique(Format);
 		}
 	}
 }
