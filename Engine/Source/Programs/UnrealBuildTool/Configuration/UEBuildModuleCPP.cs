@@ -1710,21 +1710,20 @@ namespace UnrealBuildTool
 				Result.OptimizationLevel = Rules.OptimizationLevel;
 			}
 
-
 			// If the module overrides the C++ language version, override it on the compile environment
-			if (Rules.CppStandard != CppStandardVersion.Default)
+			if (Rules.CppStandard != null)
 			{
-				Result.CppStandard = Rules.CppStandard;
+				Result.CppStandard = (CppStandardVersion)Rules.CppStandard;
 			}
-			if (Target.bEnableCppModules && Result.CppStandard == CppStandardVersion.Default)
+			if (Target.bEnableCppModules && Result.CppStandard < CppStandardVersion.Cpp20)
 			{
 				Result.CppStandard = CppStandardVersion.Cpp20;
 			}
 
 			// If the module overrides the C language version, override it on the compile environment
-			if (Rules.CStandard != CStandardVersion.Default)
+			if (Rules.CStandard != null)
 			{
-				Result.CStandard = Rules.CStandard;
+				Result.CStandard = (CStandardVersion)Rules.CStandard;
 			}
 
 			// Set the macro used to check whether monolithic headers can be used

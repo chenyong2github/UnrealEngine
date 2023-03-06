@@ -257,7 +257,7 @@ namespace UnrealBuildTool
 			}
 
 			SetIntelliSenseEnableCoroutines(CompileEnvironment.bEnableCoroutines);
-			SetIntelliSenseCppVersion(Module.Rules.CppStandard);
+			SetIntelliSenseCppVersion(Module.Rules.CppStandard ?? CompileEnvironment.CppStandard);
 		}
 
 		/// <summary>
