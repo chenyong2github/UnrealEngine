@@ -18,6 +18,7 @@ class ULevel;
 class UMaterialInterface;
 class UPrimitiveComponent;
 class UTextureLightProfile;
+enum class ELightUnits : uint8;
 
 /** 
  * A texture containing depth values of static objects that was computed during the lighting build.
