@@ -232,6 +232,51 @@ namespace EpicGames.Horde.Tests
 		}
 
 		[TestMethod]
+		public async Task StreamTestAsync()
+		{
+			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			MemoryStorageClient store = new MemoryStorageClient();
+
+			const int length = 4096;
+
+			byte[] chunk = new byte[length];
+			new Random(0).NextBytes(chunk);
+
+			// Generate a tree
+			NodeLocator locator;
+			{
+				using TreeWriter writer = new TreeWriter(store, new TreeOptions { MaxBlobSize = 1024 });
+
+				ChunkingOptions options = new ChunkingOptions();
+				options.LeafOptions.MinSize = 128;
+				options.LeafOptions.TargetSize = 256;
+				options.LeafOptions.MaxSize = 64 * 1024;
+
+				FileNodeWriter fileWriter = new FileNodeWriter(writer, options);
+				for (int idx = 0; idx < chunk.Length / 16; idx++)
+				{
+					await fileWriter.AppendAsync(chunk.AsMemory(idx * 16, 16), CancellationToken.None);
+				}
+
+				NodeHandle handle = await fileWriter.FlushAsync(CancellationToken.None);
+				locator = handle.Locator;
+			}
+
+			// Check we can read it back in
+			{
+				TreeReader reader = new TreeReader(store, cache, NullLogger.Instance);
+
+				FileNode newRoot = await reader.ReadNodeAsync<FileNode>(locator);
+
+				using MemoryStream stream = new MemoryStream();
+				await newRoot.CopyToStreamAsync(reader, stream, CancellationToken.None);
+
+				byte[] output = stream.ToArray();
+				Assert.IsTrue(chunk.SequenceEqual(output));
+			}
+		}
+
+		[TestMethod]
 		public async Task LargeFileTestAsync()
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());

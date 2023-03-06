@@ -701,13 +701,6 @@ namespace EpicGames.Horde.Storage
 		/// <returns>Buffer to be written into.</returns>
 		public Memory<byte> GetOutputBuffer(int usedSize, int desiredSize)
 		{
-			// If the bundle is full, start the process of writing it to disk
-			if (_currentBundle != null && _currentBundle.UncompressedLength > 0 && _currentBundle.UncompressedLength + desiredSize > _options.MaxBlobSize)
-			{
-				Complete();
-			}
-
-			// If we don't yet have a bundle in this writer, create one
 			PendingBundle currentBundle = GetCurrentBundle();
 			return currentBundle.GetBuffer(usedSize, desiredSize);
 		}
