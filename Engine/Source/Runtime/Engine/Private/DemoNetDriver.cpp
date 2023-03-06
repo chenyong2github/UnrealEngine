@@ -5368,13 +5368,15 @@ void UDemoNetDriver::ForceNetUpdate(AActor* Actor)
 	}
 	else
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (FNetworkObjectInfo* NetActor = FindNetworkObjectInfo(Actor))
 		{
 			// replays use update times relative to DemoCurrentTime and not World->TimeSeconds
 			NetActor->NextUpdateTime = GetDemoCurrentTime() - 0.01f;
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
-	}
+}
 
 UChannel* UDemoNetDriver::InternalCreateChannelByName(const FName& ChName)
 {

@@ -417,9 +417,10 @@ void FNetworkObjectList::ClearRecentlyDormantConnection(AActor* const Actor, UNe
 void FNetworkObjectList::OnActorIsTraveling(AActor* TravelingAtor)
 {
 	TSharedPtr<FNetworkObjectInfo>* NetworkObjectInfoPtr = AllNetworkObjects.Find(TravelingAtor);
-	check(NetworkObjectInfoPtr);
-
-	SeamlessTravelingObjects.Add(*NetworkObjectInfoPtr);
+	if (NetworkObjectInfoPtr)
+	{
+		SeamlessTravelingObjects.Add(*NetworkObjectInfoPtr);
+	}
 }
 
 void FNetworkObjectList::OnPostSeamlessTravel()

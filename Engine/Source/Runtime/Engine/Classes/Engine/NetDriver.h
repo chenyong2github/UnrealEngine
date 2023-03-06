@@ -1671,13 +1671,19 @@ public:
      *	Get the network object matching the given Actor.
 	 *	If the Actor is not present in the NetworkObjectInfo list, it will be added.
 	 */
+	UE_DEPRECATED(5.3, "Will be made private in a future release")
 	ENGINE_API FNetworkObjectInfo* FindOrAddNetworkObjectInfo(const AActor* InActor);
 
 	/** Get the network object matching the given Actor. */
+	UE_DEPRECATED(5.3, "Will be made private in a future release")
 	ENGINE_API FNetworkObjectInfo* FindNetworkObjectInfo(const AActor* InActor);
+
+	UE_DEPRECATED(5.3, "Will be made private in a future release")
 	ENGINE_API const FNetworkObjectInfo* FindNetworkObjectInfo(const AActor* InActor) const
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return const_cast<UNetDriver*>(this)->FindNetworkObjectInfo(InActor);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/**
@@ -1690,10 +1696,17 @@ public:
 	ENGINE_API bool IsNetworkActorUpdateFrequencyThrottled(const AActor* InActor) const;
 
 	/** Returns true if adaptive net update frequency is enabled and the given actor is having its update rate lowered from its standard rate. */
+	UE_DEPRECATED(5.3, "Will be made private in a future release, please use version that takes an actor")
 	ENGINE_API bool IsNetworkActorUpdateFrequencyThrottled(const FNetworkObjectInfo& InNetworkActor) const;
 
 	/** Stop adaptive replication for the given actor if it's currently throttled. It maybe be allowed to throttle again later. */
+	UE_DEPRECATED(5.3, "Will be made private in a future release, please use version that takes an actor")
 	ENGINE_API void CancelAdaptiveReplication(FNetworkObjectInfo& InNetworkActor);
+
+	ENGINE_API void CancelAdaptiveReplication(const AActor* InActor);
+
+	/** Returns true if the driver's world time has exceeded the next replication update time for this actor, or if it is pending replication from a previous frame. */
+	ENGINE_API bool IsPendingNetUpdate(const AActor* InActor) const;
 
 	/** Returns the level ID/PIE instance ID for this netdriver to use. */
 	ENGINE_API int32 GetDuplicateLevelID() const { return DuplicateLevelID; }

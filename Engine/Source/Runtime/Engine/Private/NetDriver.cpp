@@ -739,7 +739,9 @@ FNetworkObjectInfo* UNetDriver::FindOrAddNetworkObjectInfo(const AActor* InActor
 #if UE_WITH_IRIS
 	if (ReplicationSystem)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return FindNetworkObjectInfo(InActor);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 #endif // UE_WITH_IRIS
 
@@ -805,13 +807,28 @@ bool UNetDriver::IsNetworkActorUpdateFrequencyThrottled(const AActor* InActor) c
 	bool bThrottled = false;
 	if (InActor && IsAdaptiveNetUpdateFrequencyEnabled())
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (const FNetworkObjectInfo* NetActor = FindNetworkObjectInfo(InActor))
 		{
 			bThrottled = IsNetworkActorUpdateFrequencyThrottled(*NetActor);
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	return bThrottled;
+}
+
+void UNetDriver::CancelAdaptiveReplication(const AActor* InActor)
+{
+	if (InActor && IsAdaptiveNetUpdateFrequencyEnabled())
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (FNetworkObjectInfo* NetActor = FindNetworkObjectInfo(InActor))
+		{
+			CancelAdaptiveReplication(*NetActor);
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 }
 
 void UNetDriver::CancelAdaptiveReplication(FNetworkObjectInfo& InNetworkActor)
@@ -832,6 +849,21 @@ void UNetDriver::CancelAdaptiveReplication(FNetworkObjectInfo& InNetworkActor)
 			}
 		}
 	}
+}
+
+bool UNetDriver::IsPendingNetUpdate(const AActor* InActor) const
+{
+	if (World)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (const FNetworkObjectInfo* NetActor = FindNetworkObjectInfo(InActor))
+		{
+			return NetActor->bPendingNetUpdate || (NetActor->NextUpdateTime < World->GetTimeSeconds());
+		}
+		PRAGMA_ENABLE_BUFFER_OVERRUN_WARNING
+	}
+		
+	return false;
 }
 
 static TAutoConsoleVariable<int32> CVarOptimizedRemapping( TEXT( "net.OptimizedRemapping" ), 1, TEXT( "Uses optimized path to remap unmapped network guids" ) );
@@ -3600,10 +3632,12 @@ void UNetDriver::ForceNetUpdate(AActor* Actor)
 #endif // UE_WITH_IRIS
 	
 	// Legacy implementation
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (FNetworkObjectInfo* NetActor = FindNetworkObjectInfo(Actor))
 	{
 		NetActor->NextUpdateTime = World ? (World->TimeSeconds - 0.01f) : 0.0;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UNetDriver::ForceAllActorsNetUpdateTime(float NetUpdateTimeOffset, TFunctionRef<bool(const AActor* const)> ValidActorTestFunc)
@@ -5590,7 +5624,9 @@ void UNetDriver::DrawNetDriverDebug()
 			ExtraStateDrawColor = FColor::Red;
 		}
 		
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		const FNetworkObjectInfo* NetworkObjectInfo = Connection->Driver->FindNetworkObjectInfo( *It );
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		FColor DrawColor;
 		if ( NetworkObjectInfo && NetworkObjectInfo->DormantConnections.Contains( Connection ) )

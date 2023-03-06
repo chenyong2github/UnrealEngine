@@ -395,7 +395,7 @@ void APawn::BecomeViewTarget(APlayerController* PC)
 
 	if (GetNetMode() != NM_Client)
 	{
-		PC->ForceSingleNetUpdateFor(this);
+		ForceNetUpdate();
 	}
 
 	if (GetNetMode() != NM_DedicatedServer)

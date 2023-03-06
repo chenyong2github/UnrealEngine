@@ -2076,6 +2076,7 @@ public:
 	/** forces a full replication check of the specified Actor on only the client that owns this PlayerController
 	 * this function has no effect if this PC is not a remote client or if the Actor is not relevant to that client
 	 */
+	UE_DEPRECATED(5.3, "Deprecated in favor of using ForceNetUpdate on the target actor instead.")
 	void ForceSingleNetUpdateFor(class AActor* Target);
 
 	/** Set the view target

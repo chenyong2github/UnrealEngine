@@ -7162,21 +7162,16 @@ UWorld* FSeamlessTravelHandler::Tick()
 			// Rename dynamic actors in the old world's PersistentLevel that we want to keep into the new world
 			auto ProcessActor = [this, &KeepAnnotation, &ActuallyKeptActors, NetDriver](AActor* TheActor) -> bool
 			{
-				const FNetworkObjectInfo* NetworkObjectInfo = NetDriver ? NetDriver->FindNetworkObjectInfo(TheActor) : nullptr;
-
 				const bool bIsInCurrentLevel	= TheActor->GetLevel() == CurrentWorld->PersistentLevel;
 				const bool bManuallyMarkedKeep	= KeepAnnotation.Get(TheActor);
-				const bool bDormant				= NetworkObjectInfo && NetDriver && NetDriver->ServerConnection && NetworkObjectInfo->DormantConnections.Contains(NetDriver->ServerConnection);
+				const bool bDormant				= TheActor->GetIsReplicated() && (TheActor->NetDormancy > DORM_Awake);
 				const bool bKeepNonOwnedActor	= TheActor->GetLocalRole() < ROLE_Authority && !bDormant && !TheActor->IsNetStartupActor();
 				const bool bForceExcludeActor	= TheActor->IsA(ALevelScriptActor::StaticClass());
 
 				// Keep if it's in the current level AND it isn't specifically excluded AND it was either marked as should keep OR we don't own this actor
 				if (bIsInCurrentLevel && !bForceExcludeActor && (bManuallyMarkedKeep || bKeepNonOwnedActor))
 				{
-					if (NetworkObjectInfo)
-					{
-						NetDriver->NotifyActorIsTraveling(TheActor);
-					}
+					NetDriver->NotifyActorIsTraveling(TheActor);
 
 					ActuallyKeptActors.Add(TheActor);
 					return true;

@@ -681,31 +681,9 @@ void APlayerController::ForceSingleNetUpdateFor(AActor* Target)
 	{
 		UE_LOG(LogPlayerController, Warning, TEXT("PlayerController::ForceSingleNetUpdateFor(): No Target specified"));
 	}
-	else if (GetNetMode() == NM_Client)
-	{
-		UE_LOG(LogPlayerController, Warning, TEXT("PlayerController::ForceSingleNetUpdateFor(): Only valid on server"));
-	}
 	else
 	{
-		if (UNetConnection* Conn = Cast<UNetConnection>(Player))
-		{
-			if (Conn->GetUChildConnection() != NULL)
-			{
-				Conn = ((UChildConnection*)Conn)->Parent;
-				checkSlow(Conn != NULL);
-			}
-
-			if (UActorChannel* Channel = Conn->FindActorChannelRef(Target))
-			{
-				if (UNetDriver* NetDriver = Conn->GetDriver())
-				{
-					if (FNetworkObjectInfo* NetActor = NetDriver->FindOrAddNetworkObjectInfo(Target))
-					{
-						NetActor->bPendingNetUpdate = true; // will cause some other clients to do lesser checks too, but that's unavoidable with the current functionality
-					}
-				}
-			}
-		}
+		Target->ForceNetUpdate();
 	}
 }
 
@@ -1948,9 +1926,10 @@ bool APlayerController::SetPause( bool bPause, FCanUnpause CanUnpauseDelegate)
 				// Pause gamepad rumbling too if needed
 				bResult = GameMode->SetPause(this, CanUnpauseDelegate);
 
-				// Force an update, otherwise since the game time is not updating, the net driver
-				// might not see that it is time for the world settings actor to replicate
-				ForceSingleNetUpdateFor(GetWorldSettings());
+				if (AWorldSettings* WorldSettings = GetWorldSettings())
+				{
+					WorldSettings->ForceNetUpdate();
+				}
 			}
 			else if (!bPause && bCurrentPauseState)
 			{
