@@ -843,10 +843,14 @@ static void ClearGBufferAtMaxZ(
 			GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-			VertexShader->SetDepthParameter(RHICmdList, float(ERHIZBuffer::FarPlane));
+
+			SetShaderParametersLegacyVS(RHICmdList, VertexShader, float(ERHIZBuffer::FarPlane));
 
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
-			PixelShader->SetColors(RHICmdList, PixelShader, ClearColors, ActiveTargetCount);
+
+			TOneColorPixelShaderMRT::FParameters PixelParameters;
+			PixelShader->FillParameters(PixelParameters, ClearColors, ActiveTargetCount);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PixelParameters);
 
 			RHICmdList.SetStreamSource(0, GClearVertexBuffer.VertexBufferRHI, 0);
 			RHICmdList.DrawPrimitive(0, 2, 1);

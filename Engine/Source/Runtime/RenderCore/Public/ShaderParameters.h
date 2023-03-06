@@ -113,7 +113,7 @@ private:
 };
 
 /** A class that binds either a UAV or SRV of a resource. */
-class FRWShaderParameter
+class UE_DEPRECATED(5.3, "Individual shader parameters should be used instead of FRWShaderParameter.") FRWShaderParameter
 {
 	DECLARE_EXPORTED_TYPE_LAYOUT(FRWShaderParameter, RENDERCORE_API, NonVirtual);
 public:

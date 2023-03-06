@@ -47,7 +47,8 @@ void IssueScalableLongGPUTask(FRHICommandListImmediate& RHICmdList, int32 NumIte
 		GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-		VertexShader->SetDepthParameter(RHICmdList, 0.0f);
+
+		SetShaderParametersLegacyVS(RHICmdList, VertexShader, 0.0f);
 
 		RHICmdList.SetStreamSource(0, GClearVertexBuffer.VertexBufferRHI, 0);
 

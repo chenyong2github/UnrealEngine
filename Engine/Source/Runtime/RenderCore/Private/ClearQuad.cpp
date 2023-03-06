@@ -76,8 +76,11 @@ static void ClearQuadSetup(FRHICommandList& RHICmdList, int32 NumClearColors, co
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, Stencil);
 
-	VertexShader->SetDepthParameter(RHICmdList, Depth);
-	PixelShader->SetColors(RHICmdList, PixelShader, ClearColorArray, NumClearColors);
+	SetShaderParametersLegacyVS(RHICmdList, VertexShader, Depth);
+	
+	TOneColorPixelShaderMRT::FParameters PixelParameters;
+	PixelShader->FillParameters(PixelParameters, ClearColorArray, NumClearColors);
+	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PixelParameters);
 }
 
 void DrawClearQuadAlpha(FRHICommandList& RHICmdList, float Alpha)

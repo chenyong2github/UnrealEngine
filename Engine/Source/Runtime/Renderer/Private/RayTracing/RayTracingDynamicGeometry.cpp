@@ -42,7 +42,7 @@ public:
 	{
 		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTextureUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName());
 
-		RWVertexPositions.Bind(Initializer.ParameterMap, TEXT("VertexPositions"));
+		RWVertexPositions.Bind(Initializer.ParameterMap, TEXT("RWVertexPositions"));
 		UsingIndirectDraw.Bind(Initializer.ParameterMap, TEXT("UsingIndirectDraw"));
 		NumVertices.Bind(Initializer.ParameterMap, TEXT("NumVertices"));
 		MinVertexIndex.Bind(Initializer.ParameterMap, TEXT("MinVertexIndex"));
@@ -96,7 +96,7 @@ public:
 		FMeshMaterialShader::GetElementShaderBindings(PointerTable, Scene, ViewIfDynamicMeshCommand, VertexFactory, InputStreamType, FeatureLevel, PrimitiveSceneProxy, MeshBatch, BatchElement, ShaderElementData, ShaderBindings, VertexStreams);
 	}
 
-	LAYOUT_FIELD(FRWShaderParameter, RWVertexPositions);
+	LAYOUT_FIELD(FShaderResourceParameter, RWVertexPositions);
 	LAYOUT_FIELD(FShaderParameter, UsingIndirectDraw);
 	LAYOUT_FIELD(FShaderParameter, NumVertices);
 	LAYOUT_FIELD(FShaderParameter, MinVertexIndex);
@@ -514,14 +514,19 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHICommandListImmedi
 						ShaderBindingState = FShaderBindingState();
 					}
 
+					FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+
 					FRWBuffer* TargetBuffer = Cmd.TargetBuffer;
 					if (CurrentBuffer != TargetBuffer)
 					{
 						CurrentBuffer = TargetBuffer;
-						Shader->RWVertexPositions.SetBuffer(RHICmdList, CurrentShader, *Cmd.TargetBuffer);
+
+						SetUAVParameter(BatchedParameters, Shader->RWVertexPositions, Cmd.TargetBuffer->UAV);
 					}
 
-					Cmd.ShaderBindings.SetOnCommandList(RHICmdList, ComputeShader, &ShaderBindingState);
+					Cmd.ShaderBindings.SetParameters(BatchedParameters, ComputeShader, &ShaderBindingState);
+					RHICmdList.SetBatchedShaderParameters(CurrentShader, BatchedParameters);
+
 					RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(Cmd.NumMaxVertices, 64), 1, 1);
 				}
 

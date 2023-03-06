@@ -15,7 +15,9 @@
 
 IMPLEMENT_TYPE_LAYOUT(FShaderParameter);
 IMPLEMENT_TYPE_LAYOUT(FShaderResourceParameter);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 IMPLEMENT_TYPE_LAYOUT(FRWShaderParameter);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 IMPLEMENT_TYPE_LAYOUT(FShaderUniformBufferParameter);
 
 void FShaderParameter::Bind(const FShaderParameterMap& ParameterMap,const TCHAR* ParameterName,EShaderParameterFlags Flags)
