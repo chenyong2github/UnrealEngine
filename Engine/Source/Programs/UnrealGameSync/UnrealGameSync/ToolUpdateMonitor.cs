@@ -92,7 +92,7 @@ namespace UnrealGameSync
 
 		public void Start()
 		{
-			if (DeploymentSettings.ToolsDepotPath != null)
+			if (DeploymentSettings.Instance.ToolsDepotPath != null)
 			{
 				_workerTask = Task.Run(() => PollForUpdatesAsync(_cancellationSource.Token));
 			}
@@ -168,13 +168,13 @@ namespace UnrealGameSync
 		{
 			using IPerforceConnection perforce = await PerforceConnection.CreateAsync(PerforceSettings, logger);
 
-			List<ChangesRecord> changes = await perforce.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, $"{DeploymentSettings.ToolsDepotPath}/...", cancellationToken);
+			List<ChangesRecord> changes = await perforce.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, $"{DeploymentSettings.Instance.ToolsDepotPath}/...", cancellationToken);
 			if (changes.Count == 0 || changes[0].Number == _lastChange)
 			{
 				return;
 			}
 
-			List<FStatRecord> fileRecords = await perforce.FStatAsync($"{DeploymentSettings.ToolsDepotPath}/...", cancellationToken).ToListAsync(cancellationToken);
+			List<FStatRecord> fileRecords = await perforce.FStatAsync($"{DeploymentSettings.Instance.ToolsDepotPath}/...", cancellationToken).ToListAsync(cancellationToken);
 
 			// Update the tools list
 			List<ToolDefinition> newTools = new List<ToolDefinition>();

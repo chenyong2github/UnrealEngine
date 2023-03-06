@@ -88,7 +88,7 @@ namespace UnrealGameSync
 						key.SetValue("UserName", userName);
 					}
 
-					if (String.IsNullOrEmpty(depotPath) || (DeploymentSettings.DefaultDepotPath != null && String.Equals(depotPath, DeploymentSettings.DefaultDepotPath, StringComparison.OrdinalIgnoreCase)))
+					if (String.IsNullOrEmpty(depotPath) || (DeploymentSettings.Instance.DefaultDepotPath != null && String.Equals(depotPath, DeploymentSettings.Instance.DefaultDepotPath, StringComparison.OrdinalIgnoreCase)))
 					{
 						DeleteRegistryKey(key, "DepotPath");
 					}

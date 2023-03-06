@@ -91,7 +91,7 @@ namespace UnrealGameSync
 
 			DepotPathTextBox.Text = _initialDepotPath;
 			DepotPathTextBox.Select(DepotPathTextBox.TextLength, 0);
-			DepotPathTextBox.CueBanner = DeploymentSettings.DefaultDepotPath ?? String.Empty;
+			DepotPathTextBox.CueBanner = DeploymentSettings.Instance.DefaultDepotPath ?? String.Empty;
 
 			UsePreviewBuildCheckBox.Checked = preview;
 
@@ -163,7 +163,7 @@ namespace UnrealGameSync
 			}
 
 			string? depotPath = DepotPathTextBox.Text.Trim();
-			if(depotPath.Length == 0 || depotPath == DeploymentSettings.DefaultDepotPath)
+			if(depotPath.Length == 0 || depotPath == DeploymentSettings.Instance.DefaultDepotPath)
 			{
 				depotPath = null;
 			}
@@ -183,7 +183,7 @@ namespace UnrealGameSync
 				{
 					PerforceSettings settings = Utility.OverridePerforceSettings(_defaultPerforceSettings, serverAndPort, userName);
 
-					string? testDepotPath = depotPath ?? DeploymentSettings.DefaultDepotPath;
+					string? testDepotPath = depotPath ?? DeploymentSettings.Instance.DefaultDepotPath;
 					if (testDepotPath != null)
 					{
 						ModalTask? task = PerforceModalTask.Execute(this, "Checking connection", "Checking connection, please wait...", settings, (p, c) => PerforceTestConnectionTask.RunAsync(p, testDepotPath, c), _logger);

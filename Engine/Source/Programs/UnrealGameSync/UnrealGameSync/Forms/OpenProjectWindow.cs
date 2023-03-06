@@ -296,10 +296,10 @@ namespace UnrealGameSync
 		public static async Task<OpenProjectInfo> DetectSettingsAsync(IPerforceConnection perforce, UserSelectedProjectSettings selectedProject, UserSettings userSettings, OidcTokenManager oidcTokenManager, ILogger<OpenProjectInfo> logger, CancellationToken cancellationToken)
 		{
 			OpenProjectInfo settings = await OpenProjectInfo.CreateAsync(perforce, selectedProject, userSettings, oidcTokenManager, logger, cancellationToken);
-			if (DeploymentSettings.OnDetectProjectSettings != null)
+			if (DeploymentSettings.Instance.OnDetectProjectSettings != null)
 			{
 				string? message;
-				if (!DeploymentSettings.OnDetectProjectSettings(settings, logger, out message))
+				if (!DeploymentSettings.Instance.OnDetectProjectSettings(settings, logger, out message))
 				{
 					throw new UserErrorException(message);
 				}

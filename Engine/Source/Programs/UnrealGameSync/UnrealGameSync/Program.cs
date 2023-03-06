@@ -31,7 +31,7 @@ namespace UnrealGameSync
 
 		public static void CaptureException(Exception exception)
 		{
-			if (DeploymentSettings.SentryDsn != null)
+			if (DeploymentSettings.Instance.SentryDsn != null)
 			{
 				SentrySdk.CaptureException(exception);
 			}
@@ -40,10 +40,10 @@ namespace UnrealGameSync
 		[STAThread]
 		static void Main(string[] args)
 		{
-			if (DeploymentSettings.SentryDsn != null)
+			if (DeploymentSettings.Instance.SentryDsn != null)
 			{
 				SentryOptions sentryOptions = new SentryOptions();
-				sentryOptions.Dsn = DeploymentSettings.SentryDsn;
+				sentryOptions.Dsn = DeploymentSettings.Instance.SentryDsn;
 				sentryOptions.StackTraceMode = StackTraceMode.Enhanced;
 				sentryOptions.AttachStacktrace = true;
 				sentryOptions.TracesSampleRate = 1.0;
@@ -194,7 +194,7 @@ namespace UnrealGameSync
 					ILogger telemetryLogger = loggerProvider.CreateLogger("Telemetry");
 					telemetryLogger.LogInformation("Creating telemetry sink for session {SessionId}", sessionId);
 
-					using (ITelemetrySink telemetrySink = DeploymentSettings.CreateTelemetrySink(userName, sessionId, telemetryLogger))
+					using (ITelemetrySink telemetrySink = DeploymentSettings.Instance.CreateTelemetrySink(userName, sessionId, telemetryLogger))
 					{
 						ITelemetrySink? prevTelemetrySink = Telemetry.ActiveSink;
 						try
@@ -211,7 +211,7 @@ namespace UnrealGameSync
 
 							using (UpdateMonitor updateMonitor = new UpdateMonitor(defaultSettings, updatePath, serviceProvider))
 							{
-								using ProgramApplicationContext context = new ProgramApplicationContext(defaultSettings, updateMonitor, DeploymentSettings.ApiUrl, dataFolder, activateEvent, restoreState, updateSpawn, projectFileName, preview, serviceProvider, uri);
+								using ProgramApplicationContext context = new ProgramApplicationContext(defaultSettings, updateMonitor, DeploymentSettings.Instance.ApiUrl, dataFolder, activateEvent, restoreState, updateSpawn, projectFileName, preview, serviceProvider, uri);
 								Application.Run(context);
 
 								if (updateMonitor.IsUpdateAvailable && updateSpawn != null)
@@ -238,7 +238,7 @@ namespace UnrealGameSync
 
 		private static void TraceException(Exception ex, ILogger logger)
 		{
-			if (DeploymentSettings.SentryDsn != null)
+			if (DeploymentSettings.Instance.SentryDsn != null)
 			{
 				SentrySdk.CaptureException(ex);
 			}

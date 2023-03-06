@@ -1792,7 +1792,7 @@ namespace UnrealGameSync
 
 		void UpdateBuildFailureNotification()
 		{
-			if (!DeploymentSettings.EnableAlerts)
+			if (!DeploymentSettings.Instance.EnableAlerts)
 			{
 				return;
 			}

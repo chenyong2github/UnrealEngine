@@ -3,18 +3,47 @@
 #pragma warning disable IDE0005
 #pragma warning disable CA1802 // warning CA1802: Field 'EnableAlerts' is declared as 'readonly' but is initialized with a constant value. Mark this field as 'const' instead.
 
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Reflection;
+using System.Text.Json;
+using System.Xml;
 
 namespace UnrealGameSync
 {
 	/// <summary>
-	/// This class contains settings for a site-specific deployment of UGS. Epic's internal implementation uses a static constructor in a NotForLicensees folder to initialize these values.
+	/// This class contains settings for a site-specific deployment of UGS, and is read from the Deployment.json file in the application directory.
 	/// </summary>
-	static partial class DeploymentSettings
+	partial class DeploymentSettings
 	{
+		static DeploymentSettings? s_instance;
+
+		public static DeploymentSettings Instance
+		{
+			get
+			{
+				if (s_instance == null)
+				{
+					FileReference assemblyFile = new FileReference(Assembly.GetExecutingAssembly().Location);
+					FileReference settingsFile = FileReference.Combine(assemblyFile.Directory, "Deployment.json");
+
+					if (FileReference.Exists(settingsFile))
+					{
+						byte[] data = FileReference.ReadAllBytes(settingsFile);
+						JsonSerializerOptions options = new JsonSerializerOptions { AllowTrailingCommas = true, PropertyNameCaseInsensitive = true, ReadCommentHandling = JsonCommentHandling.Skip };
+						s_instance = JsonSerializer.Deserialize<DeploymentSettings>(data, options);
+					}
+
+					s_instance ??= new DeploymentSettings();
+				}
+				return s_instance;
+			}
+		}
+
 #if WITH_TELEMETRY
 		/// <summary>
 		/// Delegate used to create a telemetry sink
@@ -27,54 +56,53 @@ namespace UnrealGameSync
 #endif
 
 		/// <summary>
-		/// SQL connection string used to connect to the database for telemetry and review data. The 'Program' class is a partial class, to allow an
-		/// opportunistically included C# source file in NotForLicensees/ProgramSettings.cs to override this value in a static constructor.
+		/// SQL connection string used to connect to the database for telemetry and review data.
 		/// </summary>
-		public static readonly string? ApiUrl = null;
+		public string? ApiUrl { get; set; }
 
 		/// <summary>
 		/// Servers to connect to for issue details by default
 		/// </summary>
-		public static readonly List<string> DefaultIssueApiUrls = new List<string>();
+		public List<string> DefaultIssueApiUrls { get; set; } = new List<string>();
 
 		/// <summary>
 		/// The issue api to use for URL handler events
 		/// </summary>
-		public static readonly string? UrlHandleIssueApi = null;
+		public string? UrlHandleIssueApi { get; set; } = null;
 
 		/// <summary>
 		/// Specifies the depot path to sync down the stable version of UGS from, without a trailing slash (eg. //depot/UnrealGameSync/bin). This is a site-specific setting. 
 		/// The UnrealGameSync executable should be located at Release/UnrealGameSync.exe under this path, with any dependent DLLs.
 		/// </summary>
-		public static readonly string? DefaultDepotPath = null;
+		public string? DefaultDepotPath { get; set; } = null;
 
 		/// <summary>
 		/// Depot path to sync additional tools from
 		/// </summary>
-		public static readonly string? ToolsDepotPath = null;
+		public string? ToolsDepotPath { get; set; } = null;
 
 		/// <summary>
 		/// DSN for sending crash reports to Sentry.
 		/// </summary>
-		public static readonly string? SentryDsn = null;
+		public string? SentryDsn { get; set; } = null;
 
 		/// <summary>
 		/// Whether to allow notifications about build failures
 		/// </summary>
-		public static readonly bool EnableAlerts = true;
+		public bool EnableAlerts { get; set; } = true;
 
 #if WITH_TELEMETRY
 		/// <summary>
 		/// Delegate used to create a new telemetry sink
 		/// </summary>
-		public static readonly CreateTelemetrySinkDelegate CreateTelemetrySink = (userName, sessionId, log) => new NullTelemetrySink();
+		public readonly CreateTelemetrySinkDelegate CreateTelemetrySink = (userName, sessionId, log) => new NullTelemetrySink();
 #endif
 
 #if !UGS_LAUNCHER
 		/// <summary>
 		/// Delegate to allow validating a project being opened
 		/// </summary>
-		/// <param name="Workspace">The detected settings for the project</param>
+		/// <param name="openProjectInfo">The detected settings for the project</param>
 		/// <param name="logger">The logger</param>
 		/// <param name="error">Receives an error on failure</param>
 		/// <returns></returns>
@@ -83,7 +111,7 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Called to validate the project settings
 		/// </summary>
-		public static DetectProjectSettingsEvent? OnDetectProjectSettings = null;
+		public DetectProjectSettingsEvent? OnDetectProjectSettings = null;
 #endif
 	}
 }

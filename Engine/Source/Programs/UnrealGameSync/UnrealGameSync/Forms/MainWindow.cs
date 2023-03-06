@@ -201,7 +201,7 @@ namespace UnrealGameSync
 			TabPanel.ResumeLayout(false);
 			ResumeLayout(false);
 
-			foreach (string defaultIssueApiUrl in DeploymentSettings.DefaultIssueApiUrls)
+			foreach (string defaultIssueApiUrl in DeploymentSettings.Instance.DefaultIssueApiUrls)
 			{
 				_defaultIssueMonitors.Add(CreateIssueMonitor(defaultIssueApiUrl, defaultPerforceSettings.UserName));
 			}
@@ -469,7 +469,7 @@ namespace UnrealGameSync
 				if (existingWorkspace != null)
 				{
 					IssueMonitor issueMonitor = existingWorkspace.GetIssueMonitor();
-					if (issueMonitor != null && (DeploymentSettings.UrlHandleIssueApi == null || String.Equals(issueMonitor.ApiUrl, DeploymentSettings.UrlHandleIssueApi, StringComparison.OrdinalIgnoreCase)))
+					if (issueMonitor != null && (DeploymentSettings.Instance.UrlHandleIssueApi == null || String.Equals(issueMonitor.ApiUrl, DeploymentSettings.Instance.UrlHandleIssueApi, StringComparison.OrdinalIgnoreCase)))
 					{
 						issueMonitor.AddRef();
 						try
@@ -1575,7 +1575,7 @@ namespace UnrealGameSync
 
 		public void UpdateAlertWindows()
 		{
-			if (!DeploymentSettings.EnableAlerts)
+			if (!DeploymentSettings.Instance.EnableAlerts)
 			{
 				return;
 			}
