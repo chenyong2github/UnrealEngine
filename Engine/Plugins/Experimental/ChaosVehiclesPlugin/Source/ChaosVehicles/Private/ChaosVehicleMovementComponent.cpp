@@ -1068,7 +1068,7 @@ void UChaosVehicleMovementComponent::OnCreatePhysicsState()
 							AController* Controller = GetController();
 							const bool bIsLocalHistory = (Controller && Controller->IsLocalController());
 
-							const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
+							static const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
 							const int32 NumFrames = NumFramesCVar ? NumFramesCVar->GetInt() : 50;
 
 							VehicleSimulationPT->InputsHistory = MakeShared<FVehicleInputsHistory>(NumFrames, bIsLocalHistory, VehicleSimulationPT.Get());

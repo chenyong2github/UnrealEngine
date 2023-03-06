@@ -343,7 +343,7 @@ void UAsyncPhysicsInputComponent::SetDataClass(TSubclassOf<UAsyncPhysicsData> In
 				// -------------------------------------------------------------------------------------
 
 				int32 NumFrames = 64;
-				const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
+				static const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
 				if (ensure(NumFramesCVar))
 				{
 					// 1 frame is required to enable rewind capture. 
