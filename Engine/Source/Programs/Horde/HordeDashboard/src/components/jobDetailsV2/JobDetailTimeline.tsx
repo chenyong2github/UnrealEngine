@@ -754,7 +754,7 @@ const GraphTooltip: React.FC<{ dataView: TimelineDataView }> = observer(({ dataV
       }
 
       if (agent) {
-         valueElement = <button className="horde-link" style={{ borderWidth: 0, padding: 0, backgroundColor: modeColors.background }}>
+         valueElement = <button className="horde-link" style={{ borderWidth: 0, padding: 0, backgroundColor: modeColors.background, cursor: "pointer" }}>
             {valueElement}
          </button>
       }
