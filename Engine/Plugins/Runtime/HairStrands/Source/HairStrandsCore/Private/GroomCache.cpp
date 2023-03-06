@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomCache.h"
+
+#include "EditorFramework/AssetImportData.h"
 #include "GroomAsset.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
@@ -28,6 +30,18 @@ void UGroomCache::Serialize(FArchive& Ar)
 	{
 		Chunks[ChunkId].Serialize(Ar, this, ChunkId);
 	}
+}
+
+void UGroomCache::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+#if WITH_EDITORONLY_DATA
+	if (AssetImportData)
+	{
+		OutTags.Add(FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden));
+	}
+#endif
+
+	Super::GetAssetRegistryTags(OutTags);
 }
 
 void UGroomCache::Initialize(EGroomCacheType Type)

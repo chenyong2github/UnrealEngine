@@ -21,6 +21,7 @@ public:
 
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
 	//~ End UObject Interface.
 
 	void Initialize(EGroomCacheType Type);
