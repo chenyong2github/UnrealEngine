@@ -26,6 +26,21 @@ using namespace BuildPatchServices;
 // incase of previous partial write.
 #define NUM_BYTES_RESUME_IGNORE     1024
 
+static int32 SleepTimeWhenFileSystemThrottledSeconds = 15;
+static FAutoConsoleVariableRef CVarSleepTimeWhenFileSystemThrottledSeconds(
+	TEXT("BuildPatchFileConstructor.SleepTimeWhenFileSystemThrottledSeconds"),
+	SleepTimeWhenFileSystemThrottledSeconds,
+	TEXT("The amount of time to sleep if the destination filesystem is throttled."),
+	ECVF_Default);
+
+static bool bStallWhenFileSystemThrottled = false;
+static FAutoConsoleVariableRef CVarStallWhenFileSystemThrottled(
+	TEXT("BuildPatchFileConstructor.bStallWhenFileSystemThrottled"),
+	bStallWhenFileSystemThrottled,
+	TEXT("Whether to stall if the file system is throttled"),
+	ECVF_Default);
+
+
 // Helper functions wrapping common code.
 namespace FileConstructorHelpers
 {
@@ -835,6 +850,18 @@ bool FBuildPatchFileConstructor::ConstructFileFromChunks(const FFileManifest& Fi
 
 bool FBuildPatchFileConstructor::InsertChunkData(const FChunkPart& ChunkPart, FArchive& DestinationFile, FSHA1& HashState, EConstructionError& ConstructionError)
 {
+	if (bStallWhenFileSystemThrottled)
+	{
+		int64 AvailableBytes = FileSystem->GetAllowedBytesToWriteThrottledStorage(*DestinationFile.GetArchiveName());
+		while (ChunkPart.Size > AvailableBytes)
+		{
+			UE_LOG(LogBuildPatchServices, Display, TEXT("Avaliable write bytes to write throttled storage exhausted (%s).  Sleeping %ds.  Bytes needed: %u, bytes available: %lld")
+				, *DestinationFile.GetArchiveName(), SleepTimeWhenFileSystemThrottledSeconds, ChunkPart.Size, AvailableBytes);
+			FPlatformProcess::Sleep(SleepTimeWhenFileSystemThrottledSeconds);
+			AvailableBytes = FileSystem->GetAllowedBytesToWriteThrottledStorage(*DestinationFile.GetArchiveName());
+		}
+	}
+
 	uint8* Data;
 	uint8* DataStart;
 	ConstructionError = EConstructionError::None;

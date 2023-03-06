@@ -272,6 +272,7 @@ namespace BuildPatchServices
 		virtual void FindFiles(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension = nullptr) const override;
 		virtual void FindFilesRecursively(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension = nullptr) const override;
 		virtual void ParallelFindFilesRecursively(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension = nullptr, EAsyncExecution AsyncExecution = EAsyncExecution::ThreadPool) const override;
+		virtual int64 GetAllowedBytesToWriteThrottledStorage(const TCHAR* DestinationPath = nullptr) const override;
 		// IFileSystem interface end.
 
 	private:
@@ -387,6 +388,11 @@ namespace BuildPatchServices
 		FParallelDirectoryEnumerator DirectoryEnumerator(PlatformFile, FileExtension, AsyncExecution);
 		PlatformFile.IterateDirectory(Directory, DirectoryEnumerator);
 		DirectoryEnumerator.GetFiles(FoundFiles);
+	}
+
+	int64 FFileSystem::GetAllowedBytesToWriteThrottledStorage(const TCHAR* DestinationPath) const
+	{
+		return PlatformFile.GetAllowedBytesToWriteThrottledStorage(DestinationPath);
 	}
 
 	IFileSystem* FFileSystemFactory::Create()

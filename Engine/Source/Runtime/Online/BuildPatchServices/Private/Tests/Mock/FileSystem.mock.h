@@ -152,6 +152,12 @@ namespace BuildPatchServices
 			FindFilesRecursively(FoundFiles, Directory, FileExtension);
 		}
 
+		virtual int64 GetAllowedBytesToWriteThrottledStorage(const TCHAR* DestinationPath = nullptr) const override
+		{
+			MOCK_FUNC_NOT_IMPLEMENTED("FMockFileSystem::GetAllowedBytesToWriteThrottledStorage");
+			return INT64_MAX;
+		}
+
 	public:
 		mutable FCriticalSection ThreadLock;
 		mutable TArray<FCreateFileReader> RxCreateFileReader;
