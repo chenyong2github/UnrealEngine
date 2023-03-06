@@ -134,7 +134,7 @@ spec:
           containerPort: 8009
         - name: nginx-h2
           containerPort: 8091
-        - name: nginx-corp-h
+        - name: nginx-corp-h2
           containerPort: 8092
         volumeMounts:
           - name: nginx
