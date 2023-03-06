@@ -957,12 +957,10 @@ FSpecularIndirectHistory FetchHistory(FBilinear InBilinearPrimary, uint InBSDFIn
 	const float4 HistorySpecularIndirect01 = Texture2DSampleLevel(SpecularIndirectHistory, GlobalPointClampedSampler, InBilinearExtended.UV01, 0).xyzw;
 	const float4 HistorySpecularIndirect11 = Texture2DSampleLevel(SpecularIndirectHistory, GlobalPointClampedSampler, InBilinearExtended.UV11, 0).xyzw;
 
-#if STRATA_ENABLED
 	Out.Weights.x *= HistorySpecularIndirect00.w > 0 ? 1.f : 0.f;
 	Out.Weights.y *= HistorySpecularIndirect10.w > 0 ? 1.f : 0.f;
 	Out.Weights.z *= HistorySpecularIndirect01.w > 0 ? 1.f : 0.f;
 	Out.Weights.w *= HistorySpecularIndirect11.w > 0 ? 1.f : 0.f;
-#endif
 
 	Out.SpecularIndirect = WeightedAverage(HistorySpecularIndirect00.xyz, HistorySpecularIndirect10.xyz, HistorySpecularIndirect01.xyz, HistorySpecularIndirect11.xyz, Out.Weights) * (PrevInvPreExposure * View.PreExposure);
 	return Out;
