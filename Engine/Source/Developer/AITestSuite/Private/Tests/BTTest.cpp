@@ -3848,9 +3848,9 @@ IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringTaskServiceCeaseRelevant, "Syste
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // Restart tests
 //////////////////////////////////////////////////////////////////////////////////////////////////
-struct FAITest_BTRestartDuringTaskExecute : public FAITest_SimpleBT
+struct FAITest_BTDefaultRestartDuringTaskExecute : public FAITest_SimpleBT
 {
-	FAITest_BTRestartDuringTaskExecute()
+	FAITest_BTDefaultRestartDuringTaskExecute()
 	{
 		enum
 		{
@@ -3876,7 +3876,7 @@ struct FAITest_BTRestartDuringTaskExecute : public FAITest_SimpleBT
 				FBTBuilder::WithServiceLog(Comp1Node, ServiceActivate2, ServiceDeactivate2, ServiceTick2, /*TickBoolKeyName*/NAME_None, /*bCallOnTickSearch*/false, /*BecomeRelevantBoolKeyName*/TEXT("Bool1"));
 
 				// RestartTask
-				FBTBuilder::AddTaskBTStopAction(Comp1Node, RestartTaskTaskExecute, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringExecute, EBTTestStopAction::RestartTree);
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, RestartTaskTaskExecute, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringExecute, EBTTestStopAction::Restart_ForceReevaluateRootNode);
 			}
 			FBTBuilder::AddTask(CompNode, Task2Execute, EBTNodeResult::Succeeded);
 		}
@@ -3894,11 +3894,11 @@ struct FAITest_BTRestartDuringTaskExecute : public FAITest_SimpleBT
 		ExpectedResult.Add(ServiceDeactivate/*2*/);
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_BTRestartDuringTaskExecute, "System.AI.Behavior Trees.Restart: during task execute")
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTDefaultRestartDuringTaskExecute, "System.AI.Behavior Trees.Restart: default during task execute")
 
-struct FAITest_BTFullRestartDuringTaskExecute : public FAITest_SimpleBT
+struct FAITest_BTCompleteRestartDuringTaskExecute : public FAITest_SimpleBT
 {
-	FAITest_BTFullRestartDuringTaskExecute()
+	FAITest_BTCompleteRestartDuringTaskExecute()
 	{
 		enum
 		{
@@ -3924,7 +3924,7 @@ struct FAITest_BTFullRestartDuringTaskExecute : public FAITest_SimpleBT
 				FBTBuilder::WithServiceLog(Comp1Node, ServiceActivate2, ServiceDeactivate2, ServiceTick2, /*TickBoolKeyName*/NAME_None, /*bCallOnTickSearch*/false, /*BecomeRelevantBoolKeyName*/TEXT("Bool1"));
 
 				// RestartTask
-				FBTBuilder::AddTaskBTStopAction(Comp1Node, RestartTaskTaskExecute, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringExecute, EBTTestStopAction::FullRestartTree);
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, RestartTaskTaskExecute, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringExecute, EBTTestStopAction::Restart_Complete);
 			}
 			FBTBuilder::AddTask(CompNode, Task2Execute, EBTNodeResult::Succeeded);
 		}
@@ -3943,5 +3943,5 @@ struct FAITest_BTFullRestartDuringTaskExecute : public FAITest_SimpleBT
 		ExpectedResult.Add(ServiceDeactivate/*2*/);
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_BTFullRestartDuringTaskExecute, "System.AI.Behavior Trees.Restart: full during task execute")
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCompleteRestartDuringTaskExecute, "System.AI.Behavior Trees.Restart: complete during task execute")
 #undef LOCTEXT_NAMESPACE

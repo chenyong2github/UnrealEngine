@@ -106,8 +106,8 @@ namespace EBTStopMode
 
 enum class EBTRestartMode : uint8
 {
-	SkipReAddedNodes,
-	ForceRestartAllNodes,
+	ForceReevaluateRootNode, // (Default) will just request a new execution on the root node and any active nodes that gets re-added will not get CeaseRelevant/BecomeRelevant notification
+	CompleteRestart, // essentially equivalent to calling StopTree and then StartTree. Every active node is going to be removed and the execution started from the root
 };
 
 namespace EBTMemoryInit

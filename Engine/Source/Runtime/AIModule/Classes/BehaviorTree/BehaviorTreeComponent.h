@@ -139,8 +139,11 @@ public:
 	/** stops execution */
 	void StopTree(EBTStopMode::Type StopMode = EBTStopMode::Safe);
 
-	/** restarts execution from root */
-	void RestartTree(EBTRestartMode RestartMode = EBTRestartMode::SkipReAddedNodes);
+	/** restarts execution from root
+	 * @param RestartMode to force the reevaluation of the root node, which could skip active nodes that are removed and then readded (default)
+	 *        or a complete restart from scratch of the tree (equivalent of StopTree then StartTree)
+	 */
+	void RestartTree(EBTRestartMode RestartMode = EBTRestartMode::ForceReevaluateRootNode);
 
 	/** request execution change */
 	void RequestExecution(const UBTCompositeNode* RequestedOn, const int32 InstanceIdx, 

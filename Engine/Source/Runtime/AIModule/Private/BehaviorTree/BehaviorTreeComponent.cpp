@@ -442,20 +442,20 @@ void UBehaviorTreeComponent::RestartTree(EBTRestartMode RestartMode /*= EBTResta
 	{
 		switch(RestartMode)
 		{
-			case EBTRestartMode::SkipReAddedNodes:
+			case EBTRestartMode::ForceReevaluateRootNode:
 			{
 				FBehaviorTreeInstance& TopInstance = InstanceStack[0];
 				RequestExecution(TopInstance.RootNode, 0, TopInstance.RootNode, -1, EBTNodeResult::Aborted);
 				break;
 			}
-			case EBTRestartMode::ForceRestartAllNodes:
+			case EBTRestartMode::CompleteRestart:
 			{
-				StopTree(EBTStopMode::Safe);
-
 				TreeStartInfo.Asset = GetRootTree();
 				TreeStartInfo.ExecuteMode = bLoopExecution ? EBTExecutionMode::Looped : EBTExecutionMode::SingleRun;
 				TreeStartInfo.bPendingInitialize = true;
 				ProcessPendingInitialize();
+
+				StopTree(EBTStopMode::Safe);
 				break;
 			}
 		}
