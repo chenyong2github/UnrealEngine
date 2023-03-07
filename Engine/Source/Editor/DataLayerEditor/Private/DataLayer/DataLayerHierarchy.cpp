@@ -172,6 +172,14 @@ void FDataLayerHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItem
 	{
 		if (InDataLayerManager)
 		{
+			if (AWorldDataLayers* WorldDataLayers = InDataLayerManager->GetWorldDataLayers())
+			{
+				if (FSceneOutlinerTreeItemPtr WorldDataLayersItem = Mode->CreateItemFor<FWorldDataLayersTreeItem>(WorldDataLayers))
+				{
+					OutItems.Add(WorldDataLayersItem);
+				}
+			}
+
 			InDataLayerManager->ForEachDataLayerInstance([this, &OutItems, IsDataLayerShown](UDataLayerInstance* DataLayerInstance)
 			{
 				if (IsDataLayerShown(DataLayerInstance))
