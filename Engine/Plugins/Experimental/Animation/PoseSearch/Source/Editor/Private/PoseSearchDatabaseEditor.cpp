@@ -525,7 +525,9 @@ namespace UE::PoseSearch
 				{
 					UPoseSearchDatabaseSequenceReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseSequenceReflection>();
 					NewSelectionReflection->AddToRoot();
-					NewSelectionReflection->Sequence = *DatabaseSequence;
+					static_cast<FPoseSearchDatabaseSequence&>(NewSelectionReflection->Sequence) = *DatabaseSequence;
+					NewSelectionReflection->Sequence.bLooping = DatabaseSequence->IsLooping();
+					NewSelectionReflection->Sequence.bHasRootMotion = DatabaseSequence->IsRootMotionEnabled();
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					NewSelectionReflection->SetFlags(RF_Transactional);
 
@@ -535,7 +537,9 @@ namespace UE::PoseSearch
 				{
 					UPoseSearchDatabaseAnimCompositeReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseAnimCompositeReflection>();
 					NewSelectionReflection->AddToRoot();
-					NewSelectionReflection->AnimComposite = *DatabaseAnimComposite;
+					static_cast<FPoseSearchDatabaseAnimComposite&>(NewSelectionReflection->AnimComposite) = *DatabaseAnimComposite;
+					NewSelectionReflection->AnimComposite.bLooping = DatabaseAnimComposite->IsLooping();
+					NewSelectionReflection->AnimComposite.bHasRootMotion = DatabaseAnimComposite->IsRootMotionEnabled();
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					NewSelectionReflection->SetFlags(RF_Transactional);
 					
@@ -545,7 +549,9 @@ namespace UE::PoseSearch
 				{
 					UPoseSearchDatabaseBlendSpaceReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseBlendSpaceReflection>();
 					NewSelectionReflection->AddToRoot();
-					NewSelectionReflection->BlendSpace = *DatabaseBlendSpace;
+					static_cast<FPoseSearchDatabaseBlendSpace&>(NewSelectionReflection->BlendSpace) = *DatabaseBlendSpace;
+					NewSelectionReflection->BlendSpace.bLooping = DatabaseBlendSpace->IsLooping();
+					NewSelectionReflection->BlendSpace.bHasRootMotion = DatabaseBlendSpace->IsRootMotionEnabled();
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					NewSelectionReflection->SetFlags(RF_Transactional);
 					
@@ -555,7 +561,9 @@ namespace UE::PoseSearch
 				{
 					UPoseSearchDatabaseAnimMontageReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseAnimMontageReflection>();
 					NewSelectionReflection->AddToRoot();
-					NewSelectionReflection->AnimMontage = *DatabaseAnimMontage;
+					static_cast<FPoseSearchDatabaseAnimMontage&>(NewSelectionReflection->AnimMontage) = *DatabaseAnimMontage;
+					NewSelectionReflection->AnimMontage.bLooping = DatabaseAnimMontage->IsLooping();
+					NewSelectionReflection->AnimMontage.bHasRootMotion = DatabaseAnimMontage->IsRootMotionEnabled();
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					NewSelectionReflection->SetFlags(RF_Transactional);
 

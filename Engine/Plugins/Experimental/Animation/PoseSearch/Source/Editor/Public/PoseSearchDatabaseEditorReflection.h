@@ -29,6 +29,18 @@ protected:
 	TSharedPtr<UE::PoseSearch::SDatabaseAssetTree> AssetTreeWidget;
 };
 
+USTRUCT()
+struct FPoseSearchDatabaseSequenceEx : public FPoseSearchDatabaseSequence
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category="Sequence", meta = (DisplayPriority = 10))
+	bool bLooping = false;
+
+	UPROPERTY(VisibleAnywhere, Category="Sequence", meta = (DisplayPriority = 11))
+	bool bHasRootMotion = false;
+};
+
 UCLASS()
 class UPoseSearchDatabaseSequenceReflection : public UPoseSearchDatabaseReflectionBase
 {
@@ -36,11 +48,23 @@ class UPoseSearchDatabaseSequenceReflection : public UPoseSearchDatabaseReflecti
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Selected Sequence")
-	FPoseSearchDatabaseSequence Sequence;
+	FPoseSearchDatabaseSequenceEx Sequence;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+};
+
+USTRUCT()
+struct FPoseSearchDatabaseBlendSpaceEx : public FPoseSearchDatabaseBlendSpace
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category="Sequence", meta = (DisplayPriority = 10))
+	bool bLooping = false;
+
+	UPROPERTY(VisibleAnywhere, Category="Sequence", meta = (DisplayPriority = 11))
+	bool bHasRootMotion = false;
 };
 
 UCLASS()
@@ -50,11 +74,23 @@ class UPoseSearchDatabaseBlendSpaceReflection : public UPoseSearchDatabaseReflec
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Selected Blend Space")
-	FPoseSearchDatabaseBlendSpace BlendSpace;
+	FPoseSearchDatabaseBlendSpaceEx BlendSpace;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+};
+
+USTRUCT()
+struct FPoseSearchDatabaseAnimCompositeEx : public FPoseSearchDatabaseAnimComposite
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category="Sequence", meta = (DisplayPriority = 10))
+	bool bLooping = false;
+
+	UPROPERTY(VisibleAnywhere, Category="Sequence", meta = (DisplayPriority = 11))
+	bool bHasRootMotion = false;
 };
 
 UCLASS()
@@ -64,11 +100,23 @@ class UPoseSearchDatabaseAnimCompositeReflection : public UPoseSearchDatabaseRef
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Selected Anim Composite")
-	FPoseSearchDatabaseAnimComposite AnimComposite;
+	FPoseSearchDatabaseAnimCompositeEx AnimComposite;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+};
+
+USTRUCT()
+struct FPoseSearchDatabaseAnimMontageEx : public FPoseSearchDatabaseAnimMontage
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category="Sequence", meta = (DisplayPriority = 10))
+	bool bLooping = false;
+
+	UPROPERTY(VisibleAnywhere, Category="Sequence", meta = (DisplayPriority = 11))
+	bool bHasRootMotion = false;
 };
 
 UCLASS()
@@ -78,7 +126,7 @@ class UPoseSearchDatabaseAnimMontageReflection : public UPoseSearchDatabaseRefle
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Selected Anim Montage")
-	FPoseSearchDatabaseAnimMontage AnimMontage;
+	FPoseSearchDatabaseAnimMontageEx AnimMontage;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

@@ -74,16 +74,16 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 	GENERATED_BODY()
 	virtual ~FPoseSearchDatabaseSequence() = default;
 
-	UPROPERTY(EditAnywhere, Category="Sequence")
+	UPROPERTY(EditAnywhere, Category="Sequence", meta = (DisplayPriority = 0))
 	TObjectPtr<UAnimSequence> Sequence;
 
-	UPROPERTY(EditAnywhere, Category = "Sequence")
+	UPROPERTY(EditAnywhere, Category = "Sequence", meta = (DisplayPriority = 3))
 	bool bEnabled = true;
 
-	UPROPERTY(EditAnywhere, Category="Sequence")
+	UPROPERTY(EditAnywhere, Category="Sequence", meta = (DisplayPriority = 1))
 	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
 
-	UPROPERTY(EditAnywhere, Category = "Sequence")
+	UPROPERTY(EditAnywhere, Category = "Sequence", meta = (DisplayPriority = 2))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
 
 	UAnimationAsset* GetAnimationAsset() const override;
@@ -103,24 +103,24 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 	GENERATED_BODY()
 	virtual ~FPoseSearchDatabaseBlendSpace() = default;
 
-	UPROPERTY(EditAnywhere, Category = "BlendSpace")
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 0))
 	TObjectPtr<UBlendSpace> BlendSpace;
 
-	UPROPERTY(EditAnywhere, Category = "BlendSpace")
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 5))
 	bool bEnabled = true;
 
-	UPROPERTY(EditAnywhere, Category = "BlendSpace")
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 1))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
 
 	// If to use the blendspace grid locations as parameter sample locations.
 	// When enabled, NumberOfHorizontalSamples and NumberOfVerticalSamples are ignored.
-	UPROPERTY(EditAnywhere, Category = "BlendSpace")
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 4))
 	bool bUseGridForSampling = false;
 
-	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25"))
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25", DisplayPriority = 2))
 	int32 NumberOfHorizontalSamples = 9;
 
-	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25"))
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25", DisplayPriority = 3))
 	int32 NumberOfVerticalSamples = 2;
 
 	UAnimationAsset* GetAnimationAsset() const override;
@@ -143,16 +143,16 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimComposite : public FPoseSearchDatab
 	GENERATED_BODY()
 	virtual ~FPoseSearchDatabaseAnimComposite() = default;
 
-	UPROPERTY(EditAnywhere, Category = "AnimComposite")
+	UPROPERTY(EditAnywhere, Category = "AnimComposite", meta = (DisplayPriority = 0))
 	TObjectPtr<UAnimComposite> AnimComposite;
 
-	UPROPERTY(EditAnywhere, Category = "AnimComposite")
+	UPROPERTY(EditAnywhere, Category = "AnimComposite", meta = (DisplayPriority = 3))
 	bool bEnabled = true;
 
-	UPROPERTY(EditAnywhere, Category = "AnimComposite")
+	UPROPERTY(EditAnywhere, Category = "AnimComposite", meta = (DisplayPriority = 1))
 	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
 
-	UPROPERTY(EditAnywhere, Category = "AnimComposite")
+	UPROPERTY(EditAnywhere, Category = "AnimComposite", meta = (DisplayPriority = 2))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
 
 	UAnimationAsset* GetAnimationAsset() const override;
@@ -172,16 +172,16 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimMontage : public FPoseSearchDatabas
 	GENERATED_BODY()
 	virtual ~FPoseSearchDatabaseAnimMontage() = default;
 
-	UPROPERTY(EditAnywhere, Category="AnimMontage")
+	UPROPERTY(EditAnywhere, Category="AnimMontage", meta = (DisplayPriority = 0))
 	TObjectPtr<UAnimMontage> AnimMontage;
 
-	UPROPERTY(EditAnywhere, Category = "AnimMontage")
+	UPROPERTY(EditAnywhere, Category = "AnimMontage", meta = (DisplayPriority = 3))
 	bool bEnabled = true;
 
-	UPROPERTY(EditAnywhere, Category="AnimMontage")
+	UPROPERTY(EditAnywhere, Category="AnimMontage", meta = (DisplayPriority = 1))
 	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
 
-	UPROPERTY(EditAnywhere, Category = "AnimMontage")
+	UPROPERTY(EditAnywhere, Category = "AnimMontage", meta = (DisplayPriority = 2))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
 
 	UAnimationAsset* GetAnimationAsset() const override;
