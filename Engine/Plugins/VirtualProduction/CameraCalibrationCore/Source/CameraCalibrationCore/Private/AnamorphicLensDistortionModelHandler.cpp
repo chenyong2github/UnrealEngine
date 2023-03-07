@@ -70,7 +70,11 @@ void UAnamorphicLensDistortionModelHandler::InitDistortionMaterials()
 		DistortionPostProcessMID = UMaterialInstanceDynamic::Create(DistortionMaterialParent, this);
 	}
 
-	// TODO: Add an undistortion displacement map MID once the material is authored
+	if (UndistortionDisplacementMapMID == nullptr)
+	{
+		UMaterialInterface* MaterialParent = GetDefault<UCameraCalibrationSettings>()->GetDefaultUndistortionDisplacementMaterial(this->StaticClass());
+		UndistortionDisplacementMapMID = UMaterialInstanceDynamic::Create(MaterialParent, this);
+	}
 
 	if (DistortionDisplacementMapMID == nullptr)
 	{
@@ -78,7 +82,7 @@ void UAnamorphicLensDistortionModelHandler::InitDistortionMaterials()
 		DistortionDisplacementMapMID = UMaterialInstanceDynamic::Create(MaterialParent, this);
 	}
 
-	// TODO: Add the UndistortionDisplacementMap parameter
+	DistortionPostProcessMID->SetTextureParameterValue("UndistortionDisplacementMap", UndistortionDisplacementMapRT);
 	DistortionPostProcessMID->SetTextureParameterValue("DistortionDisplacementMap", DistortionDisplacementMapRT);
 
 	SetDistortionState(CurrentState);
@@ -112,7 +116,7 @@ void UAnamorphicLensDistortionModelHandler::UpdateMaterialParameters()
 		MID->SetScalarParameterValue("phi_mnt", AnamorphicParameters.LensRotation);
 	};
 
-	// TODO: Update the undistortion material parameters
+	SetDistortionMaterialParameters(UndistortionDisplacementMapMID);
 	SetDistortionMaterialParameters(DistortionDisplacementMapMID);
 }
 
