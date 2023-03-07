@@ -376,6 +376,7 @@ void PackStrataOut(
 		}
 
 		// Now evaluate Specular Occlusion and Indirect Irradiance.
+		#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
 		{
 			float BSDFCount = 0;
 			float2 SpecMultiBounceAO_IndirectIrradiance_Acc = 0.0f;
@@ -391,7 +392,6 @@ void PackStrataOut(
 				if (bIsVisible)
 				{
 					// Convert BSDF to data ready to evaluate precomputed lighting
-					#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
 					float2 SpecMultiBounceAO_IndirectIrradiance = 0.0f;
 					EmissiveColor += StrataGetBSDFPrecomputedLighting(
 						Settings,
@@ -406,7 +406,6 @@ void PackStrataOut(
 						VolumetricLightmapBrickTextureUVs,
 						SpecMultiBounceAO_IndirectIrradiance);
 					SpecMultiBounceAO_IndirectIrradiance_Acc += SpecMultiBounceAO_IndirectIrradiance;
-					#endif
 
 					// Stop writing if above budget.
 					BSDFCount++;
@@ -420,6 +419,7 @@ void PackStrataOut(
 			StrataPixelHeader.IrradianceAO.MaterialAO			= SpecMultiBounceAO_IndirectIrradiance.x;
 			StrataPixelHeader.IrradianceAO.IndirectIrradiance	= SpecMultiBounceAO_IndirectIrradiance.y;
 		}
+		#endif
 		
 		// Store irradiance and AO into the state bits of the header so that they can be written later as part of the common header state bits.
 	#if STRATA_INLINE_SHADING
