@@ -1145,7 +1145,9 @@ namespace UE::PixelStreamingInput
 					FVector2D WindowClientOffset = ArrangedWidget.Geometry.GetAbsolutePosition();
 					FVector2D WindowClientSize = ArrangedWidget.Geometry.GetAbsoluteSize();
 
-					FVector2D OutTemp = bIncludeOffset ? WindowOrigin + WindowClientOffset + (ScreenLocation * WindowClientSize) : (ScreenLocation * WindowClientSize);
+					FVector2D OutTemp = bIncludeOffset
+						? (ScreenLocation * WindowClientSize) + WindowOrigin + WindowClientOffset
+						: (ScreenLocation * WindowClientSize);
 					UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("%.4f, %.4f"), ScreenLocation.X, ScreenLocation.Y);
 					OutVector = FIntPoint((int32)OutTemp.X, (int32)OutTemp.Y);
 				}
@@ -1153,7 +1155,9 @@ namespace UE::PixelStreamingInput
 			else
 			{
 				FVector2D SizeInScreen = ApplicationWindow->GetSizeInScreen();
-				FVector2D OutTemp = SizeInScreen * ScreenLocation;
+				FVector2D OutTemp = bIncludeOffset
+					? (SizeInScreen * ScreenLocation) + ApplicationWindow->GetPositionInScreen()
+					: (SizeInScreen * ScreenLocation);
 				OutVector = FIntPoint((int32)OutTemp.X, (int32)OutTemp.Y);
 			}
 		}
@@ -1318,7 +1322,7 @@ namespace UE::PixelStreamingInput
 				}
 				else if (FocusedWidget->GetType() == TEXT("SMultiLineEditableText"))
 				{
-					SMultiLineEditableTextBox* TextBox = static_cast<SMultiLineEditableTextBox*>(FocusedWidget.Get());
+					SMultiLineEditableText* TextBox = static_cast<SMultiLineEditableText*>(FocusedWidget.Get());
 					TextboxContents = TextBox->GetText();
 				}
 

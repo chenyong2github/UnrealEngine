@@ -400,15 +400,14 @@ namespace UE::PixelStreaming
 			// default to the scene viewport if we have a game engine
 			if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
 			{
-				TSharedPtr<FSceneViewport> TargetViewport = GameEngine->SceneViewport;
-				if (TargetViewport.IsValid())
+				TSharedPtr<SWindow> TargetWindow = GameEngine->GameViewport->GetWindow();
+				if (TargetWindow.IsValid())
 				{
-					DefaultStreamer->SetTargetViewport(TargetViewport->GetViewportWidget());
-					DefaultStreamer->SetTargetWindow(TargetViewport->FindWindow());
+					DefaultStreamer->SetTargetWindow(TargetWindow);
 				}
 				else
 				{
-					UE_LOG(LogPixelStreaming, Error, TEXT("Cannot set target viewport/window - target viewport is not valid."));
+					UE_LOG(LogPixelStreaming, Error, TEXT("Cannot set target window - target window is not valid."));
 				}
 			}
 		}
