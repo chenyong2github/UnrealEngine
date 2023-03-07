@@ -5,6 +5,7 @@
 #include "EnhancedPlayerInput.h"
 #include "EnhancedInputModule.h"
 #include "InputMappingContext.h"
+#include "InputAction.h"
 #include "PlayerMappableKeySettings.h"
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputSubsystems.h"
@@ -93,6 +94,7 @@ FPlayerKeyMapping::FPlayerKeyMapping()
 	, DefaultKey(EKeys::Invalid)
 	, CurrentKey(EKeys::Invalid)
 	, HardwareDeviceId(FHardwareDeviceIdentifier::Invalid)
+	, AssociatedInputAction(nullptr)
 {
 }
 
@@ -103,6 +105,7 @@ FPlayerKeyMapping::FPlayerKeyMapping(const FEnhancedActionKeyMapping& OriginalMa
 	, DefaultKey(OriginalMapping.Key)
 	, CurrentKey(EKeys::Invalid)
 	, HardwareDeviceId(FHardwareDeviceIdentifier::Invalid)
+	, AssociatedInputAction(OriginalMapping.Action)
 {
 }
 
@@ -135,12 +138,13 @@ FString FPlayerKeyMapping::ToString() const
 	const UEnum* PlayerMappableEnumClass = StaticEnum<EPlayerMappableKeySlot>();
 	check(PlayerMappableEnumClass);
 	return
-		FString::Printf(TEXT("Action Name: '%s'  Slot: '%s'  Default Key: '%s'  Player Mapped Key: '%s'  HardwareDevice:  '%s'"),
+		FString::Printf(TEXT("Mapping Name: '%s'  Slot: '%s'  Default Key: '%s'  Player Mapped Key: '%s'  HardwareDevice:  '%s'   AssociatedInputAction: '%s'"),
 			*MappingName.ToString(),
 			*PlayerMappableEnumClass->GetNameStringByValue(static_cast<int64>(Slot)),
 			*DefaultKey.ToString(),
 			*CurrentKey.ToString(),
-			*HardwareDeviceId.ToString());
+			*HardwareDeviceId.ToString(),
+			AssociatedInputAction ? *AssociatedInputAction->GetFName().ToString() : TEXT("NULL INPUT ACTION"));
 }
 
 const FName FPlayerKeyMapping::GetMappingName() const
@@ -161,6 +165,11 @@ EPlayerMappableKeySlot FPlayerKeyMapping::GetSlot() const
 const FHardwareDeviceIdentifier& FPlayerKeyMapping::GetHardwareDeviceId() const
 {
 	return HardwareDeviceId;
+}
+
+const UInputAction* FPlayerKeyMapping::GetAssociatedInputAction() const
+{
+	return AssociatedInputAction;
 }
 
 uint32 GetTypeHash(const FPlayerKeyMapping& InMapping)
@@ -197,6 +206,7 @@ void FPlayerKeyMapping::UpdateOriginalKey(const FEnhancedActionKeyMapping& Origi
 	
 	DefaultKey = OriginalMapping.Key;
 	DisplayName = OriginalMapping.GetDisplayName();
+	AssociatedInputAction = OriginalMapping.Action;
 
 	// If the mapping is the same as the default key, make sure that it is not marked as
 	// dirty so that we don't serialize it
@@ -445,8 +455,11 @@ void UEnhancedInputUserSettings::Initialize(UEnhancedPlayerInput* InPlayerInput)
 	// Create a default key mapping profile in the case where one doesn't exist
 	if (!GetCurrentKeyProfile())
 	{
+		const ULocalPlayer* LP = GetLocalPlayer();
+		
 		FPlayerMappableKeyProfileCreationArgs Args = {};
 		Args.ProfileIdentifier = UE::EnhancedInput::TAG_DefaultProfileIdentifier;
+		Args.UserId = LP ? LP->GetPlatformUserId() : PLATFORMUSERID_NONE;
 		Args.DisplayName = UE::EnhancedInput::DefaultProfileDisplayName;
 		Args.bSetAsCurrentProfile = true;
 		
@@ -792,6 +805,21 @@ const FPlayerKeyMapping* UEnhancedInputUserSettings::FindCurrentMappingForSlot(c
 	return nullptr;
 }
 
+const UInputAction* UEnhancedInputUserSettings::FindInputActionForMapping(const FName MappingName) const
+{
+	const TSet<FPlayerKeyMapping>& AllMappings = FindMappingsInRow(MappingName);
+	// Return the first instance of the input action from the player mappings. All of them will have the same Input Action pointer
+	// as long as they are in the same row.
+	for (const FPlayerKeyMapping& Mapping : AllMappings)
+	{
+		if (const UInputAction* Action = Mapping.GetAssociatedInputAction())
+		{
+			return Action;
+		}
+	}
+	return nullptr;
+}
+
 bool UEnhancedInputUserSettings::SetKeyProfile(const FGameplayTag& InProfileId)
 {
 	UEnhancedPlayerInput* PlayerInput = GetPlayerInput();
@@ -844,6 +872,7 @@ UEnhancedPlayerMappableKeyProfile* UEnhancedInputUserSettings::GetCurrentKeyProf
 FPlayerMappableKeyProfileCreationArgs::FPlayerMappableKeyProfileCreationArgs()
 	: ProfileType(GetDefault<UEnhancedInputDeveloperSettings>()->DefaultPlayerMappableKeyProfileClass.Get())
 	, ProfileIdentifier(FGameplayTag::EmptyTag)
+	, UserId(PLATFORMUSERID_NONE)
 	, DisplayName(FText::GetEmpty())
 	, bSetAsCurrentProfile(true)
 {
@@ -875,6 +904,7 @@ UEnhancedPlayerMappableKeyProfile* UEnhancedInputUserSettings::CreateNewKeyProfi
 		OutProfile = NewObject<UEnhancedPlayerMappableKeyProfile>(/* outer */ this, /* class */ InArgs.ProfileType);
 		OutProfile->ProfileIdentifier = InArgs.ProfileIdentifier;
 		OutProfile->DisplayName = InArgs.DisplayName;
+		OutProfile->OwningUserId = InArgs.UserId;
 		
 		SavedKeyProfiles.Add(InArgs.ProfileIdentifier, OutProfile);
 	}

@@ -14,6 +14,7 @@ class UInputMappingContext;
 class UEnhancedPlayerInput;
 class ULocalPlayer;
 struct FEnhancedActionKeyMapping;
+class UInputAction;
 
 /**
  * The "Slot" that a player mappable key is in.
@@ -126,6 +127,9 @@ public:
 	/** Returns the optional hardware device ID that this mapping is specific to */
 	const FHardwareDeviceIdentifier& GetHardwareDeviceId() const; 
 
+	/** Returns the input actoin asset associated with this player key mapping */
+	const UInputAction* GetAssociatedInputAction() const;
+
 	/** Resets the current mapping to the default one */
 	void ResetToDefault();
 
@@ -175,6 +179,10 @@ protected:
 	/** An optional Hardware Device specifier for this mapping */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
 	FHardwareDeviceIdentifier HardwareDeviceId;
+
+	/** The input action associated with this player key mapping */
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
+	TObjectPtr<const UInputAction> AssociatedInputAction; 
 };
 
 /**
@@ -302,6 +310,10 @@ protected:
 	/** The ID of this profile. This can be used by each Key Mapping to filter down which profile is required for it be equipped. */
 	UPROPERTY(BlueprintReadOnly, SaveGame, EditAnywhere, Category="Enhanced Input|User Settings")
 	FGameplayTag ProfileIdentifier;
+
+	/** The platform user id of the owning Local Player of this profile. */
+	UPROPERTY(Transient, BlueprintReadOnly, VisibleAnywhere, Category="Enhanced Input|User Settings")
+	FPlatformUserId OwningUserId;
 	
 	/** The localized display name of this profile */
 	UPROPERTY(BlueprintReadWrite, SaveGame, EditAnywhere, Category="Enhanced Input|User Settings")
@@ -329,6 +341,10 @@ struct ENHANCEDINPUT_API FPlayerMappableKeyProfileCreationArgs
 	/** The uniqiue identifier that this profile should have */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Enhanced Input|User Settings")
 	FGameplayTag ProfileIdentifier;
+
+	/** The user ID of the ULocalPlayer that this profile is associated with */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Enhanced Input|User Settings")
+	FPlatformUserId UserId;
 	
 	/** The display name of this profile */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Enhanced Input|User Settings")
@@ -428,6 +444,9 @@ public:
 
 	/** Returns the current player key mapping for the given row name in the given slot */
 	virtual const FPlayerKeyMapping* FindCurrentMappingForSlot(const FName MappingName, const EPlayerMappableKeySlot InSlot) const;
+
+	/** Returns the Input Action associated with the given player mapping name */
+	const UInputAction* FindInputActionForMapping(const FName MappingName) const;
 	
 	// Modifying key profile
 
@@ -451,7 +470,7 @@ public:
 
 	/** Get the current key profile that the user has set */
 	template<class T>
-	inline T* GetCurrentKeyProfile() const
+	inline T* GetCurrentKeyProfileAs() const
 	{
 		static_assert(TIsDerivedFrom<T, UEnhancedPlayerMappableKeyProfile>::IsDerived, "T must be a UEnhancedPlayerMappableKeyProfile-based type!");
 		return Cast<T>(GetCurrentKeyProfile());
@@ -472,7 +491,7 @@ public:
 
 	/** Returns the key profile with the given name if one exists. Null if one doesn't exist */
 	template<class T>
-	inline T* GetKeyProfileWithIdentifier(const FGameplayTag& ProfileId) const
+	inline T* GetKeyProfileWithIdentifierAs(const FGameplayTag& ProfileId) const
 	{
 		static_assert(TIsDerivedFrom<T, UEnhancedPlayerMappableKeyProfile>::IsDerived, "T must be a UEnhancedPlayerMappableKeyProfile-based type!");
 		return Cast<T>(GetKeyProfileWithIdentifier(ProfileId));

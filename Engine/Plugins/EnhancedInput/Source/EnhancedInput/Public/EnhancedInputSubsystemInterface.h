@@ -123,6 +123,30 @@ public:
 	virtual void InjectInputVectorForAction(const UInputAction* Action, FVector Value, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
 
 	/**
+	 * Input simulation via injection. Runs modifiers and triggers delegates as if the input had come through the underlying input system as FKeys.
+	 * Applies action modifiers and triggers on top.
+	 *
+	 * @param MappingName		The name of the player mapping that can be used for look up an associated UInputAction object.
+	 * @param RawValue			The value to set the action to
+	 * @param Modifiers			The modifiers to apply to the injected input.
+	 * @param Triggers			The triggers to apply to the injected input.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Input", meta=(AutoCreateRefTerm="Modifiers,Triggers"))
+	virtual void InjectInputForPlayerMapping(const FName MappingName, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
+	
+	/**
+	 * Input simulation via injection. Runs modifiers and triggers delegates as if the input had come through the underlying input system as FKeys.
+	 * Applies action modifiers and triggers on top.
+	 *
+	 * @param MappingName		The name of the player mapping that can be used for look up an associated UInputAction object.
+	 * @param Value				The value to set the action to (the type will be controlled by the Action)
+	 * @param Modifiers			The modifiers to apply to the injected input.
+	 * @param Triggers			The triggers to apply to the injected input.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Input", meta=(AutoCreateRefTerm="Modifiers,Triggers"))
+	virtual void InjectInputVectorForPlayerMapping(const FName MappingName, FVector Value, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
+	
+	/**
 	 * Remove all applied mapping contexts.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input")
