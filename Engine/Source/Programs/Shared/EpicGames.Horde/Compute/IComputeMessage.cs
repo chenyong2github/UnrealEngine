@@ -222,7 +222,8 @@ namespace EpicGames.Horde.Compute
 		/// <param name="message"></param>
 		public static string AsCppFailure(this IComputeMessage message)
 		{
-			return new Utf8String(message.Data).ToString();
+			MemoryReader reader = new MemoryReader(message.Data);
+			return reader.ReadString();
 		}
 
 		/// <summary>
