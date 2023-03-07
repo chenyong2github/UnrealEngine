@@ -31,7 +31,8 @@ public:
 		uint32 D3DCompileFlags,
 		uint32 AutoBindingSpace,
 		const TCHAR* InOptValidatorVersion,
-		uint32 HlslVersion = 2018
+		uint32 HlslVersion,
+		bool bBindlessResources
 	)
 		: ShaderProfile(InShaderProfile)
 		, EntryPoint(InEntryPoint)
@@ -195,6 +196,13 @@ public:
 
 		// disable undesired warnings
 		ExtraArguments.Add(TEXT("-Wno-parentheses-equality"));
+
+		// working around bindless conversion specific issue where globallycoherent on a function return type is flagged as ignored even though it is necessary.
+		// github issue: https://github.com/microsoft/DirectXShaderCompiler/issues/4537
+		if (bBindlessResources)
+		{
+			ExtraArguments.Add(TEXT("-Wno-ignored-attributes"));
+		}
 
 		// @lh-todo: This fixes a loop unrolling issue that showed up in DOFGatherKernel with cs_6_6 with the latest DXC revision
 		ExtraArguments.Add(TEXT("-disable-lifetime-markers"));

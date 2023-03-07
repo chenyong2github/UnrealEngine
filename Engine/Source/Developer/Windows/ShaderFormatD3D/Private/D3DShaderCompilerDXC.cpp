@@ -785,6 +785,7 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	const bool bSymbolsBasedOnSource = Input.Environment.CompilerFlags.Contains(CFLAG_AllowUniqueSymbols);
 	const bool bHlslVersion2021 = Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021);
 	const uint32 HlslVersion = (bHlslVersion2021 ? 2021 : 2018);
+	const bool bBindlessResources = Input.Environment.CompilerFlags.Contains(CFLAG_BindlessResources);
 
 	FDxcArguments Args
 	(
@@ -799,7 +800,8 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 		DXCFlags,
 		AutoBindingSpace,
 		ValidatorVersion,
-		HlslVersion
+		HlslVersion,
+		bBindlessResources
 	);
 
 	if (bDumpDebugInfo)
