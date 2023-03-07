@@ -2,9 +2,12 @@
 #include "InstancedStruct.h"
 #include "StructView.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
+
+#if WITH_ENGINE
 #include "Engine/PackageMapClient.h"
 #include "Engine/NetConnection.h"
 #include "Net/RepLayout.h"
+#endif // WITH_ENGINE
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStruct)
 
@@ -389,6 +392,7 @@ void FInstancedStruct::AddStructReferencedObjects(class FReferenceCollector& Col
 
 bool FInstancedStruct::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
 {
+#if WITH_ENGINE
 	uint8 bValidData = Ar.IsSaving() ? IsValid() : 0;
 	Ar.SerializeBits(&bValidData, 1);
 
@@ -457,4 +461,11 @@ bool FInstancedStruct::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSu
 	}
 
 	return true;
+
+#else // WITH_ENGINE
+
+	// The implementation above relies on types in the Engine module, so it can't be compiled without the engine.
+	return false;
+
+#endif // WITH_ENGINE
 }

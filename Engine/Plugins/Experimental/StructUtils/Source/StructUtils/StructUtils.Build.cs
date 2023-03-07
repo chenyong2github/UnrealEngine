@@ -12,9 +12,15 @@ namespace UnrealBuildTool.Rules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
 			}
 			);
+
+			// Code such as FInstancedStruct::NetSerialize relies on the engine, but if the engine
+			// isn't available, this code will be compiled out using #if WITH_ENGINE.
+			if (Target.bCompileAgainstEngine)
+			{
+				PrivateDependencyModuleNames.Add("Engine");
+			}
 		}
 	}
 }

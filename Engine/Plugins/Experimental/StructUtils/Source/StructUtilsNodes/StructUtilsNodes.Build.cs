@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"KismetCompiler",
 					"PropertyEditor",
 					"StructUtils",
+					"StructUtilsEngine",
 					"UnrealEd"
 				}
 			);

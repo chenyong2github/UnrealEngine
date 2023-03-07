@@ -18,7 +18,7 @@ struct FConstSharedStruct;
  *	UPROPERTY(EditAnywhere, Category = Foo, meta = (BaseStruct = "/Script/ModuleName.TestStructBase"))
  *	TArray<FInstancedStruct> TestArray;
  */
-USTRUCT(BlueprintType, meta = (HasNativeMake = "/Script/StructUtils.StructUtilsFunctionLibrary.MakeInstancedStruct"))
+USTRUCT(BlueprintType, meta = (HasNativeMake = "/Script/StructUtilsEngine.StructUtilsFunctionLibrary.MakeInstancedStruct"))
 struct STRUCTUTILS_API FInstancedStruct
 {
 	GENERATED_BODY()

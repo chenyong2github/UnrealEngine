@@ -16,7 +16,7 @@ enum class EStructUtilsResult : uint8
 };
 
 UCLASS()
-class STRUCTUTILS_API UStructUtilsFunctionLibrary : public UBlueprintFunctionLibrary
+class STRUCTUTILSENGINE_API UStructUtilsFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
