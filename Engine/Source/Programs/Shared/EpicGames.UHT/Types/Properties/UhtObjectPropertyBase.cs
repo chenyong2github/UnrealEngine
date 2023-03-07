@@ -61,7 +61,7 @@ namespace EpicGames.UHT.Types
 			}
 
 			PropertyCaps &= ~(UhtPropertyCaps.CanHaveConfig);
-			if (Session.Config!.AreRigVMUObjectProeprtiesEnabled)
+			if (Session.Config!.AreRigVMUObjectPropertiesEnabled)
 			{
 				PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
 			}

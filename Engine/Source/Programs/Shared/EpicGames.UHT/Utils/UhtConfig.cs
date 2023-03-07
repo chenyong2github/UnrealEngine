@@ -78,7 +78,7 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// If true, UObject properties are enabled in RigVM
 		/// </summary>
-		public bool AreRigVMUObjectProeprtiesEnabled { get; }
+		public bool AreRigVMUObjectPropertiesEnabled { get; }
 
 		/// <summary>
 		/// If true, UInterface properties are enabled in RigVM

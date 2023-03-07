@@ -99,7 +99,7 @@ namespace UnrealBuildTool.Modes
 		/// <summary>
 		/// If true, UObject properties are enabled in RigVM
 		/// </summary>
-		private readonly bool _areRigVMUObjectProeprtiesEnabled = false;
+		private readonly bool _areRigVMUObjectPropertiesEnabled = false;
 
 		/// <summary>
 		/// If true, UInterface properties are enabled in RigVM
@@ -161,7 +161,7 @@ namespace UnrealBuildTool.Modes
 		/// <summary>
 		/// If true, UObject properties are enabled in RigVM
 		/// </summary>
-		public bool AreRigVMUObjectProeprtiesEnabled => this._areRigVMUObjectProeprtiesEnabled;
+		public bool AreRigVMUObjectPropertiesEnabled => this._areRigVMUObjectPropertiesEnabled;
 
 		/// <summary>
 		/// If true, UInterface properties are enabled in RigVM
@@ -281,7 +281,7 @@ namespace UnrealBuildTool.Modes
 			this._enginePluginObjectPtrMemberBehavior = GetIssueBehavior("UnrealHeaderTool", "EnginePluginObjectPtrMemberBehavior", UhtIssueBehavior.AllowSilently);
 			this._nonEngineNativePointerMemberBehavior = GetIssueBehavior("UnrealHeaderTool", "NonEngineNativePointerMemberBehavior", UhtIssueBehavior.AllowSilently);
 			this._nonEngineObjectPtrMemberBehavior = GetIssueBehavior("UnrealHeaderTool", "NonEngineObjectPtrMemberBehavior", UhtIssueBehavior.AllowSilently);
-			this._areRigVMUObjectProeprtiesEnabled = GetBoolean("UnrealHeaderTool", "AreRigVMUObjectProeprtiesEnabled", false);
+			this._areRigVMUObjectPropertiesEnabled = GetBoolean("UnrealHeaderTool", "AreRigVMUObjectPropertiesEnabled", false);
 			this._areRigVMUInterfaceProeprtiesEnabled = GetBoolean("UnrealHeaderTool", "AreRigVMUInterfaceProeprtiesEnabled", false);
 			this._showDeprecations = GetBoolean("UnrealHeaderTool", "ShowDeprecations", true);
 			this._engineMissingGeneratedHeaderIncludeBehavior = GetIssueBehavior("UnrealHeaderTool", "EngineMissingGeneratedHeaderIncludeBehavior", UhtIssueBehavior.AllowSilently);
