@@ -146,12 +146,50 @@ namespace UE::PixelStreaming
 
 	void FStreamer::SetTargetScreenSize(TWeakPtr<FIntPoint> InTargetScreenSize)
 	{
+		// This method is marked as deprecated but still calls the deprecated method on the input handler. As such, we disable
+		// the warnings that arise from using the input handlers method
+#if PLATFORM_WINDOWS
+	#pragma warning(push)
+	#pragma warning(disable : 4996)
+#elif PLATFORM_LINUX
+	#pragma clang diagnostic push
+	#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 		InputHandler->SetTargetScreenSize(InTargetScreenSize);
+#if PLATFORM_WINDOWS
+	#pragma warning(pop)
+#elif PLATFORM_LINUX
+	#pragma clang diagnostic pop
+#endif
 	}
 
 	TWeakPtr<FIntPoint> FStreamer::GetTargetScreenSize()
 	{
+		// This method is marked as deprecated but still calls the deprecated method on the input handler. As such, we disable
+		// the warnings that arise from using the input handlers method
+#if PLATFORM_WINDOWS
+	#pragma warning(push)
+	#pragma warning(disable : 4996)
+#elif PLATFORM_LINUX
+	#pragma clang diagnostic push
+	#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 		return InputHandler->GetTargetScreenSize();
+#if PLATFORM_WINDOWS
+	#pragma warning(pop)
+#elif PLATFORM_LINUX
+	#pragma clang diagnostic pop
+#endif
+	}
+
+	void FStreamer::SetTargetScreenRect(TWeakPtr<FIntRect> InTargetScreenRect)
+	{
+		InputHandler->SetTargetScreenRect(InTargetScreenRect);
+	}
+
+	TWeakPtr<FIntRect> FStreamer::GetTargetScreenRect()
+	{
+		return InputHandler->GetTargetScreenRect();
 	}
 
 	TWeakPtr<IPixelStreamingSignallingConnection> FStreamer::GetSignallingConnection()

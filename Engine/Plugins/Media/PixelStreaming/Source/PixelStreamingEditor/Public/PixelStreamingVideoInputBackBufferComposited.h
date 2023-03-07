@@ -20,11 +20,12 @@ public:
 
 	virtual FString ToString() override;
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnFrameSizeChanged, TWeakPtr<FIntPoint>);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnFrameSizeChanged, TWeakPtr<FIntRect>);
 	FOnFrameSizeChanged OnFrameSizeChanged;
 
 private:
 	FPixelStreamingVideoInputBackBufferComposited();
+	void CompositeWindows();
 
 	void OnBackBufferReady(SWindow& SlateWindow, const FTexture2DRHIRef& FrameBuffer);
 
@@ -35,5 +36,21 @@ private:
 	TMap<FString, FTextureRHIRef> StagingTextures;
 
 	FCriticalSection TopLevelWindowsCriticalSection;
-	TSharedPtr<FIntPoint> CompositedFrameSize;
+	TSharedPtr<FIntRect> SharedFrameRect;
+
+private:
+	// Util functions for 2D vectors
+	template <class T>
+	T VectorMax(const T A, const T B)
+	{
+		// Returns the component-wise maximum of two vectors
+		return T(FMath::Max(A.X, B.X), FMath::Max(A.Y, B.Y));
+	}
+
+	template <class T>
+	T VectorMin(const T A, const T B)
+	{
+		// Returns the component-wise minimum of two vectors
+		return T(FMath::Min(A.X, B.X), FMath::Min(A.Y, B.Y));
+	}
 };

@@ -14,7 +14,7 @@
 #include "IPixelStreamingInputModule.h"
 #include "Modules/ModuleManager.h"
 #include "Math/Matrix.h"
-#include "PixelStreamingEditorModule.h"
+#include "IPixelStreamingEditorModule.h"
 #include "PixelStreamingVCamLog.h"
 #include "PixelStreamingInputProtocol.h"
 #include "PixelStreamingInputMessage.h"
@@ -313,7 +313,7 @@ void UVCamPixelStreamingSession::SetupSignallingServer()
 {
 	// Only start the signalling server if we aren't using an external signalling server
 	UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get();
-	if (PixelStreamingSubsystem && !FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
+	if (PixelStreamingSubsystem && !IPixelStreamingEditorModule::Get().UseExternalSignallingServer())
 	{
 		PixelStreamingSubsystem->LaunchSignallingServer();
 	}
@@ -323,7 +323,7 @@ void UVCamPixelStreamingSession::StopSignallingServer()
 {
 	// Only stop the signalling server if we've been the ones to start it
 	UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get();
-	if (PixelStreamingSubsystem && !FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
+	if (PixelStreamingSubsystem && !IPixelStreamingEditorModule::Get().UseExternalSignallingServer())
 	{
 		PixelStreamingSubsystem->StopSignallingServer();
 	}

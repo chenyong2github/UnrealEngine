@@ -53,13 +53,28 @@ public:
 	 * and as such we just use the manual scale
 	 * @param InTargetWindow The target screen size
 	 */
+	UE_DEPRECATED(5.2, "SetTargetScreenSize() is deprecated. Please use SetTargetScreenRect() instead.")
 	virtual void SetTargetScreenSize(TWeakPtr<FIntPoint> InTargetScreenSize) = 0;
 
 	/**
 	 * @brief Get the target screen size for this streamer
 	 * @return The target screen size
 	 */
+	UE_DEPRECATED(5.2, "GetTargetScreenSize() is deprecated. Please use GetTargetScreenRect() instead.")
 	virtual TWeakPtr<FIntPoint> GetTargetScreenSize() = 0;
+
+	/**
+	 * @brief Set the target screen rectangle for this streamer. This is used to when the streamer doesn't have a singular target window / viewport
+	 * and as such we just use the manual scale
+	 * @param InTargetScreenRect The target screen rectangle
+	 */
+	virtual void SetTargetScreenRect(TWeakPtr<FIntRect> InTargetScreenRect) = 0;
+
+	/**
+	 * @brief Get the target screen rectangle for this streamer
+	 * @return The target screen rectangle
+	 */
+	virtual TWeakPtr<FIntRect> GetTargetScreenRect() = 0;
 
 	/**
 	 * @brief Set whether the input devices is faking touch events using keyboard and mouse this can be useful for debugging.

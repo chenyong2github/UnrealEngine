@@ -51,11 +51,11 @@ namespace UE::EditorPixelStreaming
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().ExternalSignalling,
 			FExecuteAction::CreateLambda([]() {
-				FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer = !FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer;
-				FPixelStreamingEditorModule::GetModule()->StopSignalling();
+				IPixelStreamingEditorModule::Get().UseExternalSignallingServer(!IPixelStreamingEditorModule::Get().UseExternalSignallingServer());
+				IPixelStreamingEditorModule::Get().StopSignalling();
 			}),
 			FCanExecuteAction::CreateLambda([] {
-				TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = FPixelStreamingEditorModule::GetModule()->GetSignallingServer();
+				TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = IPixelStreamingEditorModule::Get().GetSignallingServer();
 				if (!SignallingServer.IsValid() || !SignallingServer->HasLaunched())
 				{
 					return true;
@@ -63,13 +63,13 @@ namespace UE::EditorPixelStreaming
 				return false;
 			}),
 			FIsActionChecked::CreateLambda([]() {
-				return FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer;
+				return IPixelStreamingEditorModule::Get().UseExternalSignallingServer();
 			}));
 
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().StreamLevelEditor,
 			FExecuteAction::CreateLambda([]() {
-				FPixelStreamingEditorModule::GetModule()->StartStreaming(EStreamTypes::LevelEditorViewport);
+				IPixelStreamingEditorModule::Get().StartStreaming(EStreamTypes::LevelEditorViewport);
 			}),
 			FCanExecuteAction::CreateLambda([] {
 				if (TSharedPtr<IPixelStreamingStreamer> Streamer = IPixelStreamingModule::Get().GetStreamer("Editor"))
@@ -82,7 +82,7 @@ namespace UE::EditorPixelStreaming
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().StreamEditor,
 			FExecuteAction::CreateLambda([]() {
-				FPixelStreamingEditorModule::GetModule()->StartStreaming(EStreamTypes::Editor);
+				IPixelStreamingEditorModule::Get().StartStreaming(EStreamTypes::Editor);
 			}),
 			FCanExecuteAction::CreateLambda([] {
 				if (TSharedPtr<IPixelStreamingStreamer> Streamer = IPixelStreamingModule::Get().GetStreamer("Editor"))
@@ -95,10 +95,10 @@ namespace UE::EditorPixelStreaming
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().StartSignalling,
 			FExecuteAction::CreateLambda([]() {
-				FPixelStreamingEditorModule::GetModule()->StartSignalling();
+				IPixelStreamingEditorModule::Get().StartSignalling();
 			}),
 			FCanExecuteAction::CreateLambda([] {
-				TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = FPixelStreamingEditorModule::GetModule()->GetSignallingServer();
+				TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = IPixelStreamingEditorModule::Get().GetSignallingServer();
 				if (!SignallingServer.IsValid() || !SignallingServer->HasLaunched())
 				{
 					return true;
@@ -109,10 +109,10 @@ namespace UE::EditorPixelStreaming
 		PluginCommands->MapAction(
 			FPixelStreamingCommands::Get().StopSignalling,
 			FExecuteAction::CreateLambda([]() {
-				FPixelStreamingEditorModule::GetModule()->StopSignalling();
+				IPixelStreamingEditorModule::Get().StopSignalling();
 			}),
 			FCanExecuteAction::CreateLambda([] {
-				TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = FPixelStreamingEditorModule::GetModule()->GetSignallingServer();
+				TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = IPixelStreamingEditorModule::Get().GetSignallingServer();
 				if (SignallingServer.IsValid() && SignallingServer->HasLaunched())
 				{
 					return true;
@@ -201,13 +201,13 @@ namespace UE::EditorPixelStreaming
 								MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().ExternalSignalling);
 								MenuBuilder.EndSection();
 
-								if (!FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
+								if (!IPixelStreamingEditorModule::Get().UseExternalSignallingServer())
 								{
 									// Embedded Signalling Server Config (streamer port & http port)
 									RegisterEmbeddedSignallingServerConfig(MenuBuilder);
 
 									// Signalling Server Viewer URLs
-									TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = FPixelStreamingEditorModule::GetModule()->GetSignallingServer();
+									TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = IPixelStreamingEditorModule::Get().GetSignallingServer();
 									if (SignallingServer.IsValid() && SignallingServer->HasLaunched())
 									{
 										RegisterSignallingServerURLs(MenuBuilder);
@@ -244,7 +244,7 @@ namespace UE::EditorPixelStreaming
 	{
 		MenuBuilder.BeginSection("Signalling Server Options", LOCTEXT("PixelStreamingEmbeddedSSOptions", "Embedded Signalling Server Options"));
 
-		TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = FPixelStreamingEditorModule::GetModule()->GetSignallingServer();
+		TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = IPixelStreamingEditorModule::Get().GetSignallingServer();
 		if (!SignallingServer.IsValid() || !SignallingServer->HasLaunched())
 		{
 			TSharedRef<SWidget> StreamerPortInputBlock = SNew(SHorizontalBox)
@@ -260,13 +260,13 @@ namespace UE::EditorPixelStreaming
 						  [SNew(SNumericEntryBox<int32>)
 								  .MinValue(1)
 								  .Value_Lambda([]() {
-									  return FPixelStreamingEditorModule::GetModule()->GetStreamerPort();
+									  return IPixelStreamingEditorModule::Get().GetStreamerPort();
 								  })
 								  .OnValueChanged_Lambda([](int32 InStreamerPort) {
-									  FPixelStreamingEditorModule::GetModule()->SetStreamerPort(InStreamerPort);
+									  IPixelStreamingEditorModule::Get().SetStreamerPort(InStreamerPort);
 								  })
 								  .OnValueCommitted_Lambda([](int32 InStreamerPort, ETextCommit::Type InCommitType) {
-									  FPixelStreamingEditorModule::GetModule()->SetStreamerPort(InStreamerPort);
+									  IPixelStreamingEditorModule::Get().SetStreamerPort(InStreamerPort);
 								  })];
 			MenuBuilder.AddWidget(StreamerPortInputBlock, FText(), true);
 			TSharedRef<SWidget> ViewerPortInputBlock = SNew(SHorizontalBox)
@@ -282,13 +282,13 @@ namespace UE::EditorPixelStreaming
 						  [SNew(SNumericEntryBox<int32>)
 								  .MinValue(1)
 								  .Value_Lambda([]() {
-									  return FPixelStreamingEditorModule::GetModule()->GetViewerPort();
+									  return IPixelStreamingEditorModule::Get().GetViewerPort();
 								  })
 								  .OnValueChanged_Lambda([](int32 InViewerPort) {
-									  FPixelStreamingEditorModule::GetModule()->SetViewerPort(InViewerPort);
+									  IPixelStreamingEditorModule::Get().SetViewerPort(InViewerPort);
 								  })
 								  .OnValueCommitted_Lambda([](int32 InViewerPort, ETextCommit::Type InCommitType) {
-									  FPixelStreamingEditorModule::GetModule()->SetViewerPort(InViewerPort);
+									  IPixelStreamingEditorModule::Get().SetViewerPort(InViewerPort);
 								  })];
 			MenuBuilder.AddWidget(ViewerPortInputBlock, FText(), true);
 			MenuBuilder.AddMenuEntry(FPixelStreamingCommands::Get().StartSignalling);
@@ -303,7 +303,7 @@ namespace UE::EditorPixelStreaming
 
 	void FPixelStreamingToolbar::RegisterRemoteSignallingServerConfig(FMenuBuilder& MenuBuilder)
 	{
-		TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = FPixelStreamingEditorModule::GetModule()->GetSignallingServer();
+		TSharedPtr<UE::PixelStreamingServers::IServer> SignallingServer = IPixelStreamingEditorModule::Get().GetSignallingServer();
 		MenuBuilder.BeginSection("Remote Signalling Server Options", LOCTEXT("PixelStreamingRemoteSSOptions", "Remote Signalling Server Options"));
 		{
 			TSharedRef<SWidget> URLInputBlock = SNew(SHorizontalBox)
@@ -359,7 +359,7 @@ namespace UE::EditorPixelStreaming
 									  .Padding(FMargin(32.0f, 3.0f))
 										  [SNew(STextBlock)
 												  .ColorAndOpacity(FSlateColor::UseSubduedForeground())
-												  .Text(FText::FromString(FString::Printf(TEXT("127.0.0.1:%d"), FPixelStreamingEditorModule::GetModule()->GetViewerPort())))],
+												  .Text(FText::FromString(FString::Printf(TEXT("127.0.0.1:%d"), IPixelStreamingEditorModule::Get().GetViewerPort())))],
 				FText());
 
 			TArray<TSharedPtr<FInternetAddr>> AdapterAddresses;
@@ -371,7 +371,7 @@ namespace UE::EditorPixelStreaming
 											  .Padding(FMargin(32.0f, 3.0f))
 												  [SNew(STextBlock)
 														  .ColorAndOpacity(FSlateColor::UseSubduedForeground())
-														  .Text(FText::FromString(FString::Printf(TEXT("%s:%d"), *AdapterAddress->ToString(false), FPixelStreamingEditorModule::GetModule()->GetViewerPort())))],
+														  .Text(FText::FromString(FString::Printf(TEXT("%s:%d"), *AdapterAddress->ToString(false), IPixelStreamingEditorModule::Get().GetViewerPort())))],
 						FText());
 				}
 			}

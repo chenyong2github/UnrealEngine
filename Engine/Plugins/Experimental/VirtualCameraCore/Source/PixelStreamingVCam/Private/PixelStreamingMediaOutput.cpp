@@ -6,7 +6,7 @@
 #include "PixelStreamingPlayerId.h"
 #include "IPixelStreamingStreamer.h"
 #include "CineCameraComponent.h"
-#include "PixelStreamingEditorModule.h"
+#include "IPixelStreamingEditorModule.h"
 #include "PixelStreamingEditorUtils.h"
 #include "PixelStreamingVideoInputRHI.h"
 #include "PixelStreamingUtils.h"
@@ -51,7 +51,7 @@ void UPixelStreamingMediaOutput::RegisterRemoteResolutionCommandHandler()
 		TSharedPtr<IPixelStreamingInputHandler> InputHandler = Streamer->GetInputHandler().Pin();
 		if (InputHandler)
 		{
-			InputHandler->SetCommandHandler(TEXT("Resolution.Width"), [this](FString Descriptor, FString WidthString){
+			InputHandler->SetCommandHandler(TEXT("Resolution.Width"), [this](FString Descriptor, FString WidthString) {
 				bool bSuccess = false;
 				FString HeightString;
 				UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
@@ -73,8 +73,8 @@ void UPixelStreamingMediaOutput::StartStreaming()
 {
 	if (Streamer)
 	{
-		const FString SignallingDomain = FPixelStreamingEditorModule::GetModule()->GetSignallingDomain();
-		const int32 StreamerPort = FPixelStreamingEditorModule::GetModule()->GetStreamerPort();
+		const FString SignallingDomain = IPixelStreamingEditorModule::Get().GetSignallingDomain();
+		const int32 StreamerPort = IPixelStreamingEditorModule::Get().GetStreamerPort();
 		const FString SignallingServerURL = FString::Printf(TEXT("%s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort));
 		Streamer->SetSignallingServerURL(SignallingServerURL);
 

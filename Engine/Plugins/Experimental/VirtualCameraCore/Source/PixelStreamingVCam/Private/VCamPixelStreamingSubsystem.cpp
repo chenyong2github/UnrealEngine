@@ -4,7 +4,7 @@
 
 #include "Engine/Engine.h"
 
-#include "PixelStreamingEditorModule.h"
+#include "IPixelStreamingEditorModule.h"
 #include "VCamPixelStreamingLiveLink.h"
 #include "VCamPixelStreamingSession.h"
 
@@ -35,8 +35,11 @@ UVCamPixelStreamingSubsystem* UVCamPixelStreamingSubsystem::Get()
 
 void UVCamPixelStreamingSubsystem::RegisterActiveOutputProvider(UVCamPixelStreamingSession* OutputProvider)
 {
-	if (!OutputProvider) return;
-	
+	if (!OutputProvider)
+	{
+		return;
+	}
+
 	ActiveOutputProviders.AddUnique(OutputProvider);
 	if (LiveLinkSource)
 	{
@@ -47,7 +50,11 @@ void UVCamPixelStreamingSubsystem::RegisterActiveOutputProvider(UVCamPixelStream
 
 void UVCamPixelStreamingSubsystem::UnregisterActiveOutputProvider(UVCamPixelStreamingSession* OutputProvider)
 {
-	if (!OutputProvider) return;
+	if (!OutputProvider)
+	{
+		return;
+	}
+
 	if (ActiveOutputProviders.Remove(OutputProvider) && LiveLinkSource)
 	{
 		LiveLinkSource->RemoveSubject(OutputProvider->GetFName());
@@ -93,10 +100,10 @@ TSharedPtr<FPixelStreamingLiveLinkSource> UVCamPixelStreamingSubsystem::TryGetLi
 
 void UVCamPixelStreamingSubsystem::LaunchSignallingServer()
 {
-	FPixelStreamingEditorModule::GetModule()->StartSignalling();
+	IPixelStreamingEditorModule::Get().StartSignalling();
 }
 
 void UVCamPixelStreamingSubsystem::StopSignallingServer()
 {
-	FPixelStreamingEditorModule::GetModule()->StopSignalling();
+	IPixelStreamingEditorModule::Get().StopSignalling();
 }

@@ -37,6 +37,8 @@ namespace UE::PixelStreaming
 		virtual TWeakPtr<SWindow> GetTargetWindow() override;
 		virtual void SetTargetScreenSize(TWeakPtr<FIntPoint> InTargetScreenSize) override;
 		virtual TWeakPtr<FIntPoint> GetTargetScreenSize() override;
+		virtual void SetTargetScreenRect(TWeakPtr<FIntRect> InTargetScreenRect) override;
+		virtual TWeakPtr<FIntRect> GetTargetScreenRect() override;
 
 		virtual TWeakPtr<IPixelStreamingSignallingConnection> GetSignallingConnection() override;
 		virtual void SetSignallingConnection(TSharedPtr<IPixelStreamingSignallingConnection> InSignallingConnection) override;

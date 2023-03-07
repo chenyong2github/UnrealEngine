@@ -296,6 +296,16 @@ namespace UE::PixelStreamingInput
 		return TargetScreenSize;
 	}
 
+	void FPixelStreamingInputHandler::SetTargetScreenRect(TWeakPtr<FIntRect> InScreenRect)
+	{
+		TargetScreenRect = InScreenRect;
+	}
+
+	TWeakPtr<FIntRect> FPixelStreamingInputHandler::GetTargetScreenRect()
+	{
+		return TargetScreenRect;
+	}
+
 	void FPixelStreamingInputHandler::SetTargetViewport(TWeakPtr<SViewport> InViewport)
 	{
 		TargetViewport = InViewport;
@@ -1147,8 +1157,16 @@ namespace UE::PixelStreamingInput
 				OutVector = FIntPoint((int32)OutTemp.X, (int32)OutTemp.Y);
 			}
 		}
+		else if (TSharedPtr<FIntRect> ScreenRectPtr = TargetScreenRect.Pin())
+		{
+			FIntRect ScreenRect = *ScreenRectPtr;
+			FIntPoint SizeInScreen = ScreenRect.Max - ScreenRect.Min;
+			FVector2D OutTemp = FVector2D(SizeInScreen.X, SizeInScreen.Y) * ScreenLocation + (bIncludeOffset ? FVector2D(ScreenRect.Min.X, ScreenRect.Min.Y) : FVector2D(0, 0));
+			OutVector = FIntPoint((int32)OutTemp.X, (int32)OutTemp.Y);
+		}
 		else if (TSharedPtr<FIntPoint> ScreenSize = TargetScreenSize.Pin())
 		{
+			UE_LOG(LogPixelStreamingInputHandler, Warning, TEXT("You're using deprecated functionality by setting a target screen size. This functionality will be removed in later versions. Please use SetTargetScreenRect instead!"));
 			FIntPoint SizeInScreen = *ScreenSize;
 			FVector2D OutTemp = FVector2D(SizeInScreen) * ScreenLocation;
 			OutVector = FIntPoint((int32)OutTemp.X, (int32)OutTemp.Y);
@@ -1280,9 +1298,10 @@ namespace UE::PixelStreamingInput
 						NormalizedLocation = FVector2D(Pos / SizeInScreen);
 					}
 				}
-				else if (TSharedPtr<FIntPoint> ScreenSize = TargetScreenSize.Pin())
+				else if (TSharedPtr<FIntRect> ScreenRectPtr = TargetScreenRect.Pin())
 				{
-					FIntPoint SizeInScreen = *ScreenSize;
+					FIntRect ScreenRect = *ScreenRectPtr;
+					FIntPoint SizeInScreen = ScreenRect.Max - ScreenRect.Min;
 					NormalizedLocation = FocusedPos / SizeInScreen;
 				}
 

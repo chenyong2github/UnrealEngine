@@ -25,8 +25,6 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingEditor, Log, All);
 DEFINE_LOG_CATEGORY(LogPixelStreamingEditor);
 
-FPixelStreamingEditorModule* FPixelStreamingEditorModule::PixelStreamingEditorModule = nullptr;
-
 /**
  * IModuleInterface implementation
  */
@@ -157,7 +155,7 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 			EditorStreamer->SetInputHandlerType(EPixelStreamingInputType::RouteToWindow);
 
 			TSharedPtr<FPixelStreamingVideoInputBackBufferComposited> VideoInput = FPixelStreamingVideoInputBackBufferComposited::Create();
-			VideoInput->OnFrameSizeChanged.AddSP(EditorStreamer.ToSharedRef(), &IPixelStreamingStreamer::SetTargetScreenSize);
+			VideoInput->OnFrameSizeChanged.AddSP(EditorStreamer.ToSharedRef(), &IPixelStreamingStreamer::SetTargetScreenRect);
 			EditorStreamer->SetVideoInput(VideoInput);
 		}
 		break;
@@ -192,6 +190,7 @@ void FPixelStreamingEditorModule::StopStreaming()
 
 	EditorStreamer->SetTargetViewport(nullptr);
 	EditorStreamer->SetTargetWindow(nullptr);
+
 	EditorStreamer->StopStreaming();
 }
 
@@ -265,18 +264,13 @@ void FPixelStreamingEditorModule::SetViewerPort(int32 InViewerPort)
 	ViewerPort = InViewerPort;
 }
 
-FPixelStreamingEditorModule* FPixelStreamingEditorModule::GetModule()
+bool FPixelStreamingEditorModule::UseExternalSignallingServer()
 {
-	if (PixelStreamingEditorModule)
-	{
-		return PixelStreamingEditorModule;
-	}
-	FPixelStreamingEditorModule* Module = FModuleManager::Get().LoadModulePtr<FPixelStreamingEditorModule>("PixelStreamingEditor");
-	if (Module)
-	{
-		PixelStreamingEditorModule = Module;
-	}
-	return PixelStreamingEditorModule;
+	return bUseExternalSignallingServer;
+}
+void FPixelStreamingEditorModule::UseExternalSignallingServer(bool bInUseExternalSignallingServer)
+{
+	bUseExternalSignallingServer = bInUseExternalSignallingServer;
 }
 
 bool FPixelStreamingEditorModule::ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY)

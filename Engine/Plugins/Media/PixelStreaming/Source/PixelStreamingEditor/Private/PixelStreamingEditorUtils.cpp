@@ -9,14 +9,12 @@ namespace UE::EditorPixelStreaming
 {
 	FString ToString(EStreamTypes StreamType)
 	{
-		switch(StreamType)
+		switch (StreamType)
 		{
 			case EStreamTypes::LevelEditorViewport:
 				return TEXT("the Level Editor");
 			case EStreamTypes::Editor:
 				return TEXT("the Full Editor");
-			case EStreamTypes::VCam:
-				return TEXT("a Virtual Camera");
 			default:
 				return TEXT("Unknown stream type!");
 		}
@@ -24,7 +22,8 @@ namespace UE::EditorPixelStreaming
 
 	const TCHAR* ToString(EWindowType Type)
 	{
-		switch(Type) {
+		switch (Type)
+		{
 			case EWindowType::Normal:
 				return TEXT("Normal");
 
@@ -48,8 +47,8 @@ namespace UE::EditorPixelStreaming
 		}
 	}
 
-	const FString HashWindow(SWindow& SlateWindow, const FTexture2DRHIRef& FrameBuffer) 
+	const FString HashWindow(SWindow& SlateWindow, const FTexture2DRHIRef& FrameBuffer)
 	{
 		return FString::Printf(TEXT("%s-%s-%dx%d"), ToString(SlateWindow.GetType()), *SlateWindow.GetTitle().ToString(), FrameBuffer->GetSizeXY().X, FrameBuffer->GetSizeXY().Y);
 	}
-}
+} // namespace UE::EditorPixelStreaming
