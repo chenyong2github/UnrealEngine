@@ -36,6 +36,7 @@ namespace UE::PoseSearch
 		void OnAddBlendSpace();
 		void OnAddAnimComposite();
 		void OnAddAnimMontage();
+		virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 
 		EVisibility GetSelectedActorIconVisbility() const;
 

@@ -26,6 +26,8 @@
 
 #include "ScopedTransaction.h"
 #include "Styling/StyleColors.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "SDatabaseAssetListItem"
 
@@ -108,6 +110,24 @@ namespace UE::PoseSearch
 	{
 		EditorViewModel.Pin()->AddAnimMontageToDatabase(nullptr);
 		SkeletonView.Pin()->RefreshTreeView(false);
+	}
+
+	FReply SDatabaseAssetListItem::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+	{
+		TSharedPtr<FDatabaseAssetTreeNode> Node = WeakAssetTreeNode.Pin();
+		TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin();
+		if (const UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase())
+		{
+			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAsset = Database->GetAnimationAssetBase(Node->SourceAssetIdx))
+			{
+				if (UAssetEditorSubsystem* AssetEditorSS = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+				{
+					AssetEditorSS->OpenEditorForAsset(DatabaseAnimationAsset->GetAnimationAsset());
+				}
+			}
+		}
+
+		return STableRow<TSharedPtr<FDatabaseAssetTreeNode>>::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent);
 	}
 
 	FText SDatabaseAssetListItem::GetName() const
