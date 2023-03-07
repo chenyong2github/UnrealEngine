@@ -40,6 +40,11 @@ void AWorldPartitionMiniMap::PostLoad()
 		WorldUnitsPerPixel = FMath::Clamp(WorldUnitsPerPixel, 10, 100000);
 		MiniMapTileSize_DEPRECATED = 0;
 	}
+
+	if (MiniMapTexture)
+	{
+		MiniMapTexture->SetFlags(RF_TextExportTransient);
+	}
 }
 
 #if WITH_EDITOR
