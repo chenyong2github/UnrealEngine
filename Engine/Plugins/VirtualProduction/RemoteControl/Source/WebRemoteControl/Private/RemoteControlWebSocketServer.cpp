@@ -287,6 +287,11 @@ EWebsocketConnectionFilterResult FRCWebSocketServer::FilterConnection(FString Or
 			// Allow requests from localhost
 			if (ClientIP != TEXT("localhost") && ClientIP != TEXT("127.0.0.1"))
 			{
+				if (!Settings->IsClientAllowed(ClientIP))
+				{
+					return EWebsocketConnectionFilterResult::ConnectionRefused;
+				}
+
 				const FWildcardString WildcardAllowedIP = SimplifyAddress(Settings->AllowedIP);
 				if (!WildcardAllowedIP.IsEmpty() && WildcardAllowedIP.IsMatch(ClientIP))
 				{
