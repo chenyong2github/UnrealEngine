@@ -510,7 +510,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 					.Padding(0, 5, 10, 5)
 					[
 						SNew(SButton)
-							.ContentPadding(3)
+							.ContentPadding(3.0f)
 							.VAlign(VAlign_Center)
 							.HAlign(HAlign_Center)
 							.OnClicked(this, &FMediaPlateCustomization::OnOpenMediaPlate)
@@ -602,7 +602,7 @@ void FMediaPlateCustomization::AddMeshCustomization(IDetailCategoryBuilder& Medi
 				[
 					SNew(SComboButton)
 						.OnGetMenuContent(this, &FMediaPlateCustomization::OnGetAspectRatios)
-						.ContentPadding(2)
+						.ContentPadding(2.0f)
 						.ButtonContent()
 						[
 							SNew(STextBlock)
@@ -644,7 +644,7 @@ void FMediaPlateCustomization::AddMeshCustomization(IDetailCategoryBuilder& Medi
 				[
 					SNew(SComboButton)
 						.OnGetMenuContent(this, &FMediaPlateCustomization::OnGetLetterboxAspectRatios)
-						.ContentPadding(2)
+						.ContentPadding(2.0f)
 						.ButtonContent()
 						[
 							SNew(STextBlock)
@@ -955,7 +955,7 @@ TOptional<float> FMediaPlateCustomization::GetMeshHorizontalRange() const
 		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 		if (MediaPlate != nullptr)
 		{
-			return MediaPlate->GetMeshRange().X;
+			return static_cast<float>(MediaPlate->GetMeshRange().X);
 		}
 	}
 
@@ -981,7 +981,7 @@ TOptional<float> FMediaPlateCustomization::GetMeshVerticalRange() const
 		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 		if (MediaPlate != nullptr)
 		{
-			return MediaPlate->GetMeshRange().Y;
+			return static_cast<float>(MediaPlate->GetMeshRange().Y);
 		}
 	}
 

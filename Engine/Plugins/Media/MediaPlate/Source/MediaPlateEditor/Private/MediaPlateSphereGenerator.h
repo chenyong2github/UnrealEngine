@@ -95,8 +95,8 @@ private:
 	{
 		// generate the UV's
 		int32 ThetaDivide = bIsClosed ? NumTheta : NumTheta - 1;
-		const float DUVphi = 1.0 / float(NumPhi - 1);
-		const float DUVtheta = 1.0 / float(ThetaDivide);
+		const float DUVphi = 1.0f / float(NumPhi - 1);
+		const float DUVtheta = 1.0f / float(ThetaDivide);
 
 		int32 UVIdx = 0;
 		int32 p,t;

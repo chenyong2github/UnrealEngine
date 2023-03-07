@@ -191,7 +191,7 @@ void UMediaPlateComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 				if (MediaPlayer->IsPlaying())
 				{
 					MediaPlayer->Pause();
-					TimeWhenPlaybackPaused = FApp::GetGameTime();
+					TimeWhenPlaybackPaused = static_cast<float>(FApp::GetGameTime());
 				}
 			}
 		}
@@ -255,7 +255,7 @@ void UMediaPlateComponent::Open()
 	else
 	{
 		bWantsToPlayWhenVisible = true;
-		TimeWhenPlaybackPaused = FApp::GetGameTime();
+		TimeWhenPlaybackPaused = static_cast<float>(FApp::GetGameTime());
 	}
 
 	UpdateTicking();
@@ -512,7 +512,7 @@ float UMediaPlateComponent::GetAspectRatio()
 		float AspectRatio = 0.0f;
 		if (Scale.Z != 0.0f)
 		{
-			AspectRatio = Scale.Y / Scale.Z;
+			AspectRatio = static_cast<float>(Scale.Y / Scale.Z);
 		}
 		return AspectRatio;
 	}
@@ -817,7 +817,7 @@ FTimespan UMediaPlateComponent::GetResumeTime()
 	if (MediaPlayer != nullptr)
 	{
 		PlayerTime = MediaPlayer->GetTime();
-		float CurrentTime = FApp::GetGameTime();
+		float CurrentTime = static_cast<float>(FApp::GetGameTime());
 		float ElapsedTime = CurrentTime - TimeWhenPlaybackPaused;
 		PlayerTime += FTimespan::FromSeconds(ElapsedTime);
 		
