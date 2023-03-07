@@ -923,7 +923,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (RigVMStructInfo != null)
 			{
-				if (this.MetaData.TryGetValueHierarchical("ExecuteContext", out string? ExecuteContextMetadata))
+				if (MetaData.TryGetValueHierarchical("ExecuteContext", out string? ExecuteContextMetadata))
 				{
 					RigVMStructInfo.ExecuteContextType = ExecuteContextMetadata;
 				}
@@ -935,7 +935,7 @@ namespace EpicGames.UHT.Types
 						UhtRigVMParameter parameter = new UhtRigVMParameter(property, RigVMStructInfo.Members.Count);
 						if (parameter.IsExecuteContext())
 						{
-							if (RigVMStructInfo.ExecuteContextMember == String.Empty)
+							if (String.IsNullOrEmpty(RigVMStructInfo.ExecuteContextMember))
 							{
 								RigVMStructInfo.ExecuteContextMember = parameter.Name;
 							}

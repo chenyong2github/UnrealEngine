@@ -146,7 +146,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					builder.Append("#define ").Append(scriptStruct.SourceName).Append('_').Append(methodInfo.Name).Append("() \\\r\n");
 					builder.Append('\t').Append(methodInfo.ReturnType).Append(' ').Append(scriptStruct.SourceName).Append("::Static").Append(methodInfo.Name).Append("( \\\r\n");
 					builder.Append("\t\t");
-					if (scriptStruct.RigVMStructInfo.ExecuteContextMember == String.Empty)
+					if (String.IsNullOrEmpty(scriptStruct.RigVMStructInfo.ExecuteContextMember))
 					{
 						builder.Append("const ");
 					}
@@ -175,7 +175,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					if (scriptStruct.RigVMStructInfo != null)
 					{
 						string constPrefix = "";
-						if (scriptStruct.RigVMStructInfo.ExecuteContextMember == String.Empty)
+						if (String.IsNullOrEmpty(scriptStruct.RigVMStructInfo.ExecuteContextMember))
 						{
 							constPrefix = "const ";
 						}
@@ -185,7 +185,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							builder.Append('\t').Append(methodInfo.ReturnType).Append(' ').Append(methodInfo.Name).Append('(').Append(constPrefix).Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& InExecuteContext); \\\r\n");
 							builder.Append("\tstatic ").Append(methodInfo.ReturnType).Append(" Static").Append(methodInfo.Name).Append("( \\\r\n");
 							builder.Append("\t\t");
-							if (scriptStruct.RigVMStructInfo.ExecuteContextMember == String.Empty)
+							if (String.IsNullOrEmpty(scriptStruct.RigVMStructInfo.ExecuteContextMember))
 							{
 								builder.Append("const ");
 							}

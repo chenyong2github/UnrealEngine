@@ -707,7 +707,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			if (scriptStruct.RigVMStructInfo != null)
 			{
 				string constPrefix = "";
-				if (scriptStruct.RigVMStructInfo.ExecuteContextMember == String.Empty)
+				if (String.IsNullOrEmpty(scriptStruct.RigVMStructInfo.ExecuteContextMember))
 				{
 					constPrefix = "const ";
 				}
@@ -724,7 +724,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						.Append(methodInfo.Name)
 						.Append("()\r\n");
 					builder.Append("{\r\n");
-					if (scriptStruct.RigVMStructInfo.ExecuteContextMember == String.Empty)
+					if (String.IsNullOrEmpty(scriptStruct.RigVMStructInfo.ExecuteContextMember))
 					{
 						builder.Append("\t").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append(" TemporaryExecuteContext;\r\n");
 					}
