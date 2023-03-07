@@ -15,6 +15,33 @@ class UAnimSequenceBase;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FContextualAnimSceneActorCompDelegate, class UContextualAnimSceneActorComponent*, SceneActorComponent);
 
+USTRUCT(BlueprintType)
+struct FContextualAnimWarpTarget
+{
+	GENERATED_BODY()
+
+	FContextualAnimWarpTarget() = default;
+	FContextualAnimWarpTarget(const FName InRole, const FName InWarpTargetName, const FTransform& InTargetTransform)
+		: Role(InRole)
+		, TargetName(InWarpTargetName)
+		, TargetLocation(InTargetTransform.GetLocation())
+		, TargetRotation(InTargetTransform.GetRotation())
+	{
+	}
+
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FName Role;
+
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FName TargetName;
+
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FVector TargetLocation;
+
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FQuat TargetRotation;
+};
+
 /** Base struct for replicated data with a rep counter */
 USTRUCT()
 struct FContextualAnimRepData
@@ -26,6 +53,19 @@ struct FContextualAnimRepData
 	uint8 RepCounter = 0;
 
 	void IncrementRepCounter();
+};
+
+/** Used to replicate start/stop contextual anim events */
+USTRUCT()
+struct FContextualAnimRepBindingsData : public FContextualAnimRepData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FContextualAnimSceneBindings Bindings;
+
+	UPROPERTY()
+	TArray<FContextualAnimWarpTarget> ExternalWarpTargets;
 };
 
 /** Used to replicate a late join event */
@@ -41,9 +81,12 @@ struct FContextualAnimRepLateJoinData : public FContextualAnimRepData
 	/** Role in the interaction the actor is gonna play */
 	UPROPERTY()
 	FName Role = NAME_None;
+
+	UPROPERTY()
+	TArray<FContextualAnimWarpTarget> ExternalWarpTargets;
 };
 
-/** Used to replicate a transition to a new AnimSet in the interaction */
+/** Used to transition events */
 USTRUCT()
 struct FContextualAnimRepTransitionData : public FContextualAnimRepData
 {
@@ -54,31 +97,10 @@ struct FContextualAnimRepTransitionData : public FContextualAnimRepData
 
 	UPROPERTY()
 	uint8 AnimSetIdx = 0;
+
+	UPROPERTY()
+	TArray<FContextualAnimWarpTarget> ExternalWarpTargets;
 };
-
-USTRUCT(BlueprintType)
-struct FContextualAnimWarpTarget
-{
-	GENERATED_BODY()
-
-	FContextualAnimWarpTarget() = default;
-	FContextualAnimWarpTarget(const FName InRole, const FName InWarpTargetName, const FTransform& InTargetTransform)
-		: Role(InRole)
-		, TargetName(InWarpTargetName)
-		, TargetTransform(InTargetTransform)
-	{
-	}
-	
-	UPROPERTY(EditAnywhere, Category = "Default")
-	FName Role;
-
-	UPROPERTY(EditAnywhere, Category = "Default")
-	FName TargetName;
-
-	UPROPERTY(EditAnywhere, Category = "Default")
-	FTransform TargetTransform;
-};
-
 
 UCLASS(meta = (BlueprintSpawnableComponent))
 class CONTEXTUALANIMATION_API UContextualAnimSceneActorComponent : public UPrimitiveComponent, public IIKGoalCreatorInterface
@@ -139,10 +161,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Actor Component")
 	bool TransitionSingleActor(int32 SectionIdx, int32 AnimSetIdx);
 
-	bool StartContextualAnimScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& WarpTargets);
-	bool LateJoinContextualAnimScene(AActor* Actor, FName Role, const TArray<FContextualAnimWarpTarget>& WarpTargets);
-	bool TransitionContextualAnimScene(FName SectionName, const TArray<FContextualAnimWarpTarget>& WarpTargets);
-	bool TransitionSingleActor(int32 SectionIdx, int32 AnimSetIdx, const TArray<FContextualAnimWarpTarget>& WarpTargets);
+	bool StartContextualAnimScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets);
+	bool LateJoinContextualAnimScene(AActor* Actor, FName Role, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets);
+	bool TransitionContextualAnimScene(FName SectionName, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets);
+	bool TransitionSingleActor(int32 SectionIdx, int32 AnimSetIdx, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets);
 
 	void EarlyOutContextualAnimScene();
 
@@ -155,7 +177,7 @@ protected:
 	 * This gets replicated only from the initiator of the action and then set on all the other members of the interaction
 	 */
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_Bindings)
-	FContextualAnimSceneBindings RepBindings;
+	FContextualAnimRepBindingsData RepBindings;
 
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_LateJoinData)
 	FContextualAnimRepLateJoinData RepLateJoinData;
@@ -218,13 +240,13 @@ protected:
 	// @TODO: These two functions are going to replace OnJoinedScene and OnLeftScene
 	// main different is that these new functions are taking care of animation playback too
 
-	void JoinScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& WarpTargets);
+	void JoinScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets);
 
 	void LeaveScene();
 
-	void LateJoinScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& WarpTargets);
+	void LateJoinScene(const FContextualAnimSceneBindings& InBindings, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets);
 
-	bool HandleLateJoin(AActor* Actor, FName Role, const TArray<FContextualAnimWarpTarget>& WarpTargets);
+	bool HandleLateJoin(AActor* Actor, FName Role, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets);
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerStartContextualAnimScene(const FContextualAnimSceneBindings& InBindings);
@@ -234,11 +256,11 @@ protected:
 
 	void PlayAnimation_Internal(UAnimSequenceBase* Animation, float StartTime, bool bSyncPlaybackTime);
 
-	void AddOrUpdateWarpTargets(int32 SectionIdx, int32 AnimSetIdx);
+	void AddOrUpdateWarpTargets(int32 SectionIdx, int32 AnimSetIdx, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets);
 
-	void HandleTransitionSelf(int32 NewSectionIdx, int32 NewAnimSetIdx);
+	void HandleTransitionSelf(int32 NewSectionIdx, int32 NewAnimSetIdx, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets);
 
-	void HandleTransitionEveryone(int32 NewSectionIdx, int32 NewAnimSetIdx);
+	void HandleTransitionEveryone(int32 NewSectionIdx, int32 NewAnimSetIdx, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets);
 
 private:
 

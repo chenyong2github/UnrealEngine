@@ -343,16 +343,6 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindingContext
 
 	FVector GetVelocity() const;
 
-	void SetExternalWarpTargetTransform(const FName TargetName, const FTransform& Transform)
-	{
-		ExternalWarpTargetName = TargetName;
-		ExternalWarpTargetTransform = Transform;
-	}
-
-	bool HasExternalWarpTarget() const { return !ExternalWarpTargetName.IsNone(); }
-	FName GetExternalWarpTargetName() const { return ExternalWarpTargetName; }
-	const FTransform& GetExternalWarpTargetTransform() const { return ExternalWarpTargetTransform; }
-
 	//@TODO: Add accessors for GameplayTags
 
 private:
@@ -374,12 +364,6 @@ private:
 	TOptional<FVector> ExternalVelocity;
 
 	FGameplayTagContainer ExternalGameplayTags;
-
-	UPROPERTY()
-	FName ExternalWarpTargetName;
-	
-	UPROPERTY()
-	FTransform ExternalWarpTargetTransform;
 };
 
 /** Represent an actor bound to a role in the scene */
@@ -402,12 +386,6 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBinding
 	FORCEINLINE int32 GetAnimTrackIdx() const { return AnimTrackIdx; }
 	
 	void SetAnimTrack(const FContextualAnimTrack& InAnimTrack);
-
-	void SetExternalWarpTargetTransform(const FName TargetName, const FTransform& Transform);
-
-	bool HasExternalWarpTarget() const { return Context.HasExternalWarpTarget(); }
-	FName GetExternalWarpTargetName() const { return Context.GetExternalWarpTargetName(); }
-	const FTransform& GetExternalWarpTargetTransform() const { return Context.GetExternalWarpTargetTransform(); }
 
 	/** Return the current playback time of the animation this actor is playing */
 	float GetAnimMontageTime() const;
