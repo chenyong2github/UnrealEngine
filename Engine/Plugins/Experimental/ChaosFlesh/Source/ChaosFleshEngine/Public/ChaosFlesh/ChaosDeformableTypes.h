@@ -2,6 +2,7 @@
 
 #pragma once
 #include "CoreMinimal.h"
+#include "Chaos/DebugDrawQueue.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/EngineBaseTypes.h"
 
@@ -28,6 +29,7 @@ struct FChaosEngineDeformableCVarParams
 	bool bDoDrawSkeletalMeshBindingPositions = false;
 	float DrawSkeletalMeshBindingPositionsSimulationBlendWeight = 1.f;
 	bool bDoDrawSceneRaycasts = false;
+	bool bDoDrawCandidateRaycasts = false;
 
 	int32 EnvCollisionsLineTraceBatchSize = 10;
 
