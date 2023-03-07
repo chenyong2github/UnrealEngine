@@ -336,6 +336,7 @@ namespace Gauntlet
 			AdditionalArtifactDirectories = new List<EIntendedBaseCopyDirectory>();
 			RoleType = ERoleModifier.None;
 			InstallOnly = false;
+			DeferredLaunch = false;
 			CommandLineParams = new GauntletCommandLine();
 		}
 
@@ -345,6 +346,11 @@ namespace Gauntlet
 		/// Whether this role should be responsible only for installing the build and not monitoring a process.
 		/// </summary>
 		public bool InstallOnly { get; set; }
+
+		/// <summary>
+		/// Whether this role will launched by the test node at a later time, typically during TickTest(). By default, all roles are launched immediately.
+		/// </summary>
+		public bool DeferredLaunch { get; set; }
 
 		/// <summary>
 		/// Type of process this role represents

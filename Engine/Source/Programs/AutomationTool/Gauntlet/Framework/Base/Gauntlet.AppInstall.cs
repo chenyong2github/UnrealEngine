@@ -26,5 +26,22 @@ namespace Gauntlet
 		/// The device that we'll be run on
 		/// </summary>
 		ITargetDevice Device { get; }
+
+
+
+		/// <summary>
+		/// IAppInstallDynamicCommandLine can be implemented by IAppInstall classes where the platform
+		/// allows the command line to be updated after installation
+		/// </summary>
+		public interface IDynamicCommandLine
+		{
+			/// <summary>
+			/// Appends the given string to the installed application's command line
+			/// </summary>
+			/// <param name="AdditionalCommandLine"></param>
+			void AppendCommandline(string AdditionalCommandLine);
+		}
 	}
+
+
 }

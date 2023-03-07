@@ -505,7 +505,7 @@ namespace Gauntlet
 				// nothing missing, keep going.
 				return true;
 			}
-			
+
 			// if all roles are gone, we're done
 			if (MissingRoles.Count == TestInstance.RunningRoles.Count())
 			{
@@ -607,6 +607,7 @@ namespace Gauntlet
 
 					UnrealSessionRole SessionRole = new UnrealSessionRole(RoleContext.Type, SessionPlatform, RoleContext.Configuration, TestRole.CommandLine);
 					SessionRole.InstallOnly = TestRole.InstallOnly;
+					SessionRole.DeferredLaunch = TestRole.DeferredLaunch;
 					SessionRole.CommandLineParams = TestRole.CommandLineParams;
  					SessionRole.RoleModifier = TestRole.RoleType;
 					SessionRole.Constraint = UseContextConstraint ? Context.Constraint : new UnrealDeviceTargetConstraint(SessionPlatform);
@@ -1087,6 +1088,12 @@ namespace Gauntlet
 		public override void StopTest(StopReason InReason)
 		{
 			base.StopTest(InReason);
+
+			// Warn if there are still deferred roles that have not been launched when the test is finished
+			foreach (UnrealSessionInstance.RoleInstance DeferredRole in TestInstance.DeferredRoles)
+			{
+				Log.Warning("Deferred role {Role} was not started before the test was stopped", DeferredRole);
+			}
 
 			// Shutdown the instance so we can access all files, but do not null it or shutdown the UnrealApp because we still need
 			// access to these objects and their resources! Final cleanup is done in CleanupTest()

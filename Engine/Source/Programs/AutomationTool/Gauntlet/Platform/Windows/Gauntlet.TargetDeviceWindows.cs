@@ -143,7 +143,7 @@ namespace Gauntlet
 	}
 
 
-	class WindowsAppInstall : IAppInstall
+	class WindowsAppInstall : IAppInstall, IAppInstall.IDynamicCommandLine
 	{
 		public string Name { get; private set; }
 
@@ -175,6 +175,11 @@ namespace Gauntlet
 		public IAppInstance Run()
 		{
 			return Device.Run(this);
+		}
+
+		public void AppendCommandline(string AdditionalCommandline)
+		{
+			CommandArguments += AdditionalCommandline;
 		}
 
 		public bool ForceCleanDeviceArtifacts()
