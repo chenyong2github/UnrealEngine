@@ -30,7 +30,7 @@ struct FDummyTestStruct
 // Unit tests
 //---------------------------------------------------------------------------------------------------------------------
 
-TEST_CASE_NAMED(FPagedArrayReserveWithoutDataTest, "System::Core::Containers::TPagedArray::Reserve without data", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Reserve without data", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	int32Token::Reset();
 	using ArrayType = TPagedArray<int32Token, 128>;
@@ -45,8 +45,7 @@ TEST_CASE_NAMED(FPagedArrayReserveWithoutDataTest, "System::Core::Containers::TP
 	CHECK(int32Token::EvenConstructionDestructionCalls(0));
 }
 
-TEST_CASE_NAMED(
-	FPagedArrayReserveEmplaceSingleElementTest,
+TEST_CASE(
 	"System::Core::Containers::TPagedArray::Reserve Emplace single element",
 	"[SmokeFilter][Core][Containers][PagedArray]")
 {
@@ -75,7 +74,7 @@ TEST_CASE_NAMED(
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
 }
 
-TEST_CASE_NAMED(FPagedArrayAddTest, "System::Core::Containers::TPagedArray::Add", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Add", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	int32Token::Reset();
 	{
@@ -95,8 +94,7 @@ TEST_CASE_NAMED(FPagedArrayAddTest, "System::Core::Containers::TPagedArray::Add"
 	CHECK(int32Token::EvenConstructionDestructionCalls(4));
 }
 
-TEST_CASE_NAMED(
-	FPagedArrayEmplaceMultipleElementsTest,
+TEST_CASE(
 	"System::Core::Containers::TPagedArray::Emplace multiple elements",
 	"[SmokeFilter][Core][Containers][PagedArray]")
 {
@@ -123,7 +121,7 @@ TEST_CASE_NAMED(
 	CHECK(int32Token::EvenConstructionDestructionCalls(5));
 }
 
-TEST_CASE_NAMED(FPagedArrayResetTest, "System::Core::Containers::TPagedArray::Reset", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Reset", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	int32Token::Reset();
 	{
@@ -155,8 +153,7 @@ TEST_CASE_NAMED(FPagedArrayResetTest, "System::Core::Containers::TPagedArray::Re
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
 }
 
-TEST_CASE_NAMED(
-	FPagedArrayResetMultiplePageAddressCheckTest,
+TEST_CASE(
 	"System::Core::Containers::TPagedArray::Reset multiple-page plus consistent address check",
 	"[SmokeFilter][Core][Containers][PagedArray]")
 {
@@ -188,7 +185,7 @@ TEST_CASE_NAMED(
 	CHECK(int32Token::EvenConstructionDestructionCalls(10 * 4));
 }
 
-TEST_CASE_NAMED(FPagedArrayEmptyTest, "System::Core::Containers::TPagedArray::Empty", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Empty", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	int32Token::Reset();
 	{
@@ -202,8 +199,7 @@ TEST_CASE_NAMED(FPagedArrayEmptyTest, "System::Core::Containers::TPagedArray::Em
 	CHECK(int32Token::EvenConstructionDestructionCalls(0));
 }
 
-TEST_CASE_NAMED(
-	FPagedArrayEmptyAfterSingleEmplaceTest,
+TEST_CASE(
 	"System::Core::Containers::TPagedArray::Empty after single Emplace",
 	"[SmokeFilter][Core][Containers][PagedArray]")
 {
@@ -223,7 +219,7 @@ TEST_CASE_NAMED(
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
 }
 
-TEST_CASE_NAMED(FPagedArrayIndexingTest, "System::Core::Containers::TPagedArray::Indexing", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Indexing", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 128>;
 	int32Token::Reset();
@@ -255,7 +251,7 @@ TEST_CASE_NAMED(FPagedArrayIndexingTest, "System::Core::Containers::TPagedArray:
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 2));
 }
 
-TEST_CASE_NAMED(FPagedArrayIterationTest, "System::Core::Containers::TPagedArray::Iteration", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Iteration", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 128>;
 	int32Token::Reset();
@@ -289,7 +285,7 @@ TEST_CASE_NAMED(FPagedArrayIterationTest, "System::Core::Containers::TPagedArray
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 2));
 }
 
-TEST_CASE_NAMED(FPagedArrayGetLastTest, "System::Core::Containers::TPagedArray::Last", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Last", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 128>;
 	int32Token::Reset();
@@ -304,7 +300,7 @@ TEST_CASE_NAMED(FPagedArrayGetLastTest, "System::Core::Containers::TPagedArray::
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 2));
 }
 
-TEST_CASE_NAMED(FPagedArraySetNumTest, "System::Core::Containers::TPagedArray::SetNum", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::SetNum", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 128>;
 	int32Token::Reset();
@@ -400,7 +396,7 @@ TEST_CASE_NAMED(FPagedArraySetNumTest, "System::Core::Containers::TPagedArray::S
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 6 * 2));
 }
 
-TEST_CASE_NAMED(FPagedArraySetNumAfterResetTest, "System::Core::Containers::TPagedArray::SetNum after Reset", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::SetNum after Reset", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 16>;
 	int32Token::Reset();
@@ -444,8 +440,7 @@ TEST_CASE_NAMED(FPagedArraySetNumAfterResetTest, "System::Core::Containers::TPag
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * (3 * 3 + 5)));
 }
 
-TEST_CASE_NAMED(
-	FPagedArraySetNumSmallPageSizeTest,
+TEST_CASE(
 	"System::Core::Containers::TPagedArray::SetNum small page size",
 	"[SmokeFilter][Core][Containers][PagedArray]")
 {
@@ -482,7 +477,7 @@ TEST_CASE_NAMED(
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 10 - 1));
 }
 
-TEST_CASE_NAMED(FPagedArraySetZeroTest, "System::Core::Containers::TPagedArray::SetZero", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::SetZero", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 16>;
 	int32Token::Reset();
@@ -533,7 +528,7 @@ TEST_CASE_NAMED(FPagedArraySetZeroTest, "System::Core::Containers::TPagedArray::
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 7 + 1));
 }
 
-TEST_CASE_NAMED(FPagedArrayRemoveAtSwapTest, "System::Core::Containers::TPagedArray::RemoveAtSwap", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::RemoveAtSwap", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 128>;
 	int32Token::Reset();
@@ -597,7 +592,7 @@ TEST_CASE_NAMED(FPagedArrayRemoveAtSwapTest, "System::Core::Containers::TPagedAr
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 9 + 2));
 }
 
-TEST_CASE_NAMED(FPagedArrayPopTest, "System::Core::Containers::TPagedArray::Pop", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Pop", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 128>;
 	int32Token::Reset();
@@ -627,7 +622,7 @@ TEST_CASE_NAMED(FPagedArrayPopTest, "System::Core::Containers::TPagedArray::Pop"
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 2 + 2));
 }
 
-TEST_CASE_NAMED(FPagedArrayCopyTest, "System::Core::Containers::TPagedArray::Copy", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Copy", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 128>;
 	int32Token::Reset();
@@ -679,7 +674,7 @@ TEST_CASE_NAMED(FPagedArrayCopyTest, "System::Core::Containers::TPagedArray::Cop
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 8));
 }
 
-TEST_CASE_NAMED(FPagedArrayMoveTest, "System::Core::Containers::TPagedArray::Move", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Move", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 128>;
 	int32Token::Reset();
@@ -734,8 +729,7 @@ TEST_CASE_NAMED(FPagedArrayMoveTest, "System::Core::Containers::TPagedArray::Mov
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 4));
 }
 
-TEST_CASE_NAMED(
-	FPagedArrayConstructFromStdInitializerListTest,
+TEST_CASE(
 	"System::Core::Containers::TPagedArray::Construct from std initializer_list",
 	"[SmokeFilter][Core][Containers][PagedArray]")
 {
@@ -771,8 +765,7 @@ TEST_CASE_NAMED(
 	CHECK(int32Token::EvenConstructionDestructionCalls((4 + 10) * 2));
 }
 
-TEST_CASE_NAMED(
-	FPagedArrayAssignFromStdInitializerListTest,
+TEST_CASE(
 	"System::Core::Containers::TPagedArray::Assign from std initializer_list",
 	"[SmokeFilter][Core][Containers][PagedArray]")
 {
@@ -812,7 +805,7 @@ TEST_CASE_NAMED(
 	CHECK(int32Token::EvenConstructionDestructionCalls((4 + 10) * 2));
 }
 
-TEST_CASE_NAMED(FPagedArrayComparisonTest, "System::Core::Containers::TPagedArray::Comparison", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Comparison", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 128>;
 	int32Token::Reset();
@@ -849,7 +842,7 @@ TEST_CASE_NAMED(FPagedArrayComparisonTest, "System::Core::Containers::TPagedArra
 	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 2 + 2));
 }
 
-TEST_CASE_NAMED(FPagedArrayAssignFromArrayTest, "System::Core::Containers::TPagedArray::Assign from TArray", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Assign from TArray", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 16>;
 	int32Token::Reset();
@@ -892,7 +885,7 @@ TEST_CASE_NAMED(FPagedArrayAssignFromArrayTest, "System::Core::Containers::TPage
 	CHECK(int32Token::EvenConstructionDestructionCalls((4 + 10) * 3));
 }
 
-TEST_CASE_NAMED(FPagedArrayCopyToArrayTest, "System::Core::Containers::TPagedArray::Copy to TArray", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Copy to TArray", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 16>;
 	int32Token::Reset();
@@ -939,7 +932,7 @@ TEST_CASE_NAMED(FPagedArrayCopyToArrayTest, "System::Core::Containers::TPagedArr
 	CHECK(int32Token::EvenConstructionDestructionCalls(4 * 4 + 10 * 3));
 }
 
-TEST_CASE_NAMED(FPagedArrayMoveToArrayTest, "System::Core::Containers::TPagedArray::Move to TArray", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Move to TArray", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 16>;
 	int32Token::Reset();
@@ -990,8 +983,7 @@ TEST_CASE_NAMED(FPagedArrayMoveToArrayTest, "System::Core::Containers::TPagedArr
 	CHECK(int32Token::EvenConstructionDestructionCalls(4 * 4 + 10 * 2));
 }
 
-TEST_CASE_NAMED(
-	FPagedArrayAssignFromCompatiblePagedArrayTest,
+TEST_CASE(
 	"System::Core::Containers::TPagedArray::Assign from compatible paged array",
 	"[SmokeFilter][Core][Containers][PagedArray]")
 {
@@ -1067,8 +1059,7 @@ TEST_CASE_NAMED(
 	CHECK(int32Token::EvenConstructionDestructionCalls((10 + 8 + 8 + 4) * 3));
 }
 
-TEST_CASE_NAMED(
-	FPagedArrayAppendFromCompatiblePagedArrayTest,
+TEST_CASE(
 	"System::Core::Containers::TPagedArray::Append from compatible paged array",
 	"[SmokeFilter][Core][Containers][PagedArray]")
 {
@@ -1176,7 +1167,7 @@ TEST_CASE_NAMED(
 	CHECK(int32Token::EvenConstructionDestructionCalls((8 + 16) * 6));
 }
 
-TEST_CASE_NAMED(FPagedArrayAppendMultipleTest, "System::Core::Containers::TPagedArray::Append multiple", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Append multiple", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 16>;
 	int32Token::Reset();
@@ -1208,7 +1199,7 @@ TEST_CASE_NAMED(FPagedArrayAppendMultipleTest, "System::Core::Containers::TPaged
 	CHECK(int32Token::EvenConstructionDestructionCalls(8 * 2));
 }
 
-TEST_CASE_NAMED(FPagedArrayIteratorArithmeticTest, "System::Core::Containers::TPagedArray::Iterator arithmetic", "[SmokeFilter][Core][Containers][PagedArray]")
+TEST_CASE("System::Core::Containers::TPagedArray::Iterator arithmetic", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	using ArrayType = TPagedArray<int32Token, 16>;
 	int32Token::Reset();
