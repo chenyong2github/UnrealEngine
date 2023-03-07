@@ -74,6 +74,38 @@ TEST_CASE(
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
 }
 
+TEST_CASE(
+	"System::Core::Containers::TPagedArray::Reserve Emplace multiple pages",
+	"[SmokeFilter][Core][Containers][PagedArray]")
+{
+	int32Token::Reset();
+	{
+		using ArrayType = TPagedArray<int32Token, 128>;
+		ArrayType PagedArray;
+		CHECK(!PagedArray.Max());
+		CHECK(!PagedArray.Num());
+
+		PagedArray.Reserve(0);	// innocuous
+		PagedArray.Reserve(1);
+		PagedArray.Emplace(0);
+		const int32Token* ElementAddress = &PagedArray[0];
+	
+		CHECK(PagedArray.Max() >= 1);
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage());
+		CHECK(PagedArray.Num() == 1);
+
+		PagedArray.Reset();
+		PagedArray.Reserve(ArrayType::MaxPerPage() + 1);
+		PagedArray.Emplace(0);
+		const int32Token* NewElementAddress = &PagedArray[0];
+
+		CHECK(NewElementAddress == ElementAddress);
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage() * 2);
+		CHECK(PagedArray.Num() == 1);
+	}
+	CHECK(int32Token::EvenConstructionDestructionCalls(2));
+}
+
 TEST_CASE("System::Core::Containers::TPagedArray::Add", "[SmokeFilter][Core][Containers][PagedArray]")
 {
 	int32Token::Reset();
@@ -119,6 +151,44 @@ TEST_CASE(
 		CHECK(PagedArray.Num() == CheckValue);
 	}
 	CHECK(int32Token::EvenConstructionDestructionCalls(5));
+}
+
+TEST_CASE(
+	"System::Core::Containers::TPagedArray::Emplace variants",
+	"[SmokeFilter][Core][Containers][PagedArray]")
+{
+	using ArrayType = TPagedArray<int32Token, 128>;
+	int32Token::Reset();
+	{
+		ArrayType PagedArray;
+		int32Token* CheckAddress = nullptr;
+		int32Token* ElementAddress = nullptr;
+		int32 CheckIndex = INDEX_NONE;
+
+		// These are compile-error checks: uncomment to test
+		// PagedArray.Emplace_GetRef(); //nodiscard compile-error
+		// PagedArray.Add_GetRef(); //nodiscard compile-error
+
+		ElementAddress = &PagedArray.Emplace_GetRef(0);
+		CheckAddress = &PagedArray[0];
+		CHECK(ElementAddress == CheckAddress);
+		CheckIndex = PagedArray.Emplace(13);
+		CHECK(CheckIndex == PagedArray.Num() - 1);
+		CHECK(PagedArray[CheckIndex] == 13);
+
+		PagedArray.Reset(PagedArray.Max() * 3);
+		ElementAddress = &PagedArray.Emplace_GetRef(0);
+		CheckAddress = &PagedArray[0];
+		CHECK(ElementAddress == CheckAddress);
+
+		for (int32 i = 0; i < ArrayType::MaxPerPage(); ++i)
+		{
+			CheckIndex = PagedArray.Emplace(i + 1);
+			CHECK(CheckIndex == PagedArray.Num() - 1);
+			CHECK(PagedArray[CheckIndex] == i + 1);
+		}
+	}
+	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() + 3));
 }
 
 TEST_CASE("System::Core::Containers::TPagedArray::Reset", "[SmokeFilter][Core][Containers][PagedArray]")
@@ -217,6 +287,89 @@ TEST_CASE(
 		CHECK(PagedArray.IsEmpty());
 	}
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
+}
+
+TEST_CASE(
+	"System::Core::Containers::TPagedArray::Empty with target capacity",
+	"[SmokeFilter][Core][Containers][PagedArray]")
+{
+	using ArrayType = TPagedArray<int32Token, 128>;
+
+	int32Token::Reset();
+	{
+		ArrayType PagedArray;
+		PagedArray.Emplace(0);
+		CHECK(PagedArray.Max());
+		CHECK(PagedArray.Num() == 1);
+		CHECK(!PagedArray.IsEmpty());
+		
+		PagedArray.Empty(ArrayType::MaxPerPage() + 1);
+		CHECK(int32Token::EvenConstructionDestructionCalls(1));
+
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage() * 2);
+		CHECK(!PagedArray.Num());
+		CHECK(PagedArray.IsEmpty());
+
+		PagedArray.SetNum(ArrayType::MaxPerPage() * 3 + 1);
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage() * 4);
+		
+		PagedArray.Empty(ArrayType::MaxPerPage() + 1);
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage() * 2);
+		CHECK(!PagedArray.Num());
+		CHECK(PagedArray.IsEmpty());
+
+		PagedArray.Empty(ArrayType::MaxPerPage());
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage());
+		CHECK(!PagedArray.Num());
+		CHECK(PagedArray.IsEmpty());
+
+		PagedArray.Empty(0);
+		CHECK(!PagedArray.Max());
+		CHECK(!PagedArray.Num());
+		CHECK(PagedArray.IsEmpty());
+	}
+	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 3 + 2));
+}
+
+TEST_CASE(
+	"System::Core::Containers::TPagedArray::Empty vs Reset with target capacity",
+	"[SmokeFilter][Core][Containers][PagedArray]")
+{
+	using ArrayType = TPagedArray<int32Token, 128>;
+
+	int32Token::Reset();
+	{
+		ArrayType PagedArray;
+		
+		// Requesting higher capacity through Reset or Empty have the same effect
+		PagedArray.Emplace(0);
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage());
+
+		PagedArray.Reset(ArrayType::MaxPerPage() + 1);
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage() * 2);
+		CHECK(!PagedArray.Num());
+		CHECK(PagedArray.IsEmpty());
+
+		PagedArray.Empty(ArrayType::MaxPerPage() + 1);
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage() * 2);
+		CHECK(!PagedArray.Num());
+		CHECK(PagedArray.IsEmpty());
+
+		// Requesting lower capacity through Reset or Empty DO NOT have the same effect: Empty shrinks
+		PagedArray.SetNum(ArrayType::MaxPerPage() * 4);
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage() * 4);
+
+		PagedArray.Reset(ArrayType::MaxPerPage() + 1);
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage() * 4);
+		CHECK(!PagedArray.Num());
+		CHECK(PagedArray.IsEmpty());
+
+		PagedArray.Empty(ArrayType::MaxPerPage() + 1);
+		CHECK(PagedArray.Max() == ArrayType::MaxPerPage() * 2);
+		CHECK(!PagedArray.Num());
+		CHECK(PagedArray.IsEmpty());
+	}
+	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 4 + 1));
 }
 
 TEST_CASE("System::Core::Containers::TPagedArray::Indexing", "[SmokeFilter][Core][Containers][PagedArray]")

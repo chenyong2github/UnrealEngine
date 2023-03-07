@@ -200,7 +200,7 @@ public:
 	 *
 	 * @returns Number of bytes allocated by this container.
 	 */
-	FORCEINLINE SIZE_T GetAllocatedSize() const
+	[[nodiscard]] FORCEINLINE SIZE_T GetAllocatedSize() const
 	{
 		SIZE_T Size = 0;
 		Size += Pages.GetAllocatedSize();
@@ -211,34 +211,34 @@ public:
 		return Size;
 	}
 
-	FORCEINLINE SizeType Max() const
+	[[nodiscard]] FORCEINLINE SizeType Max() const
 	{
 		return Pages.Num() * PageTraits::Capacity;
 	}
 
-	FORCEINLINE SizeType Num() const
+	[[nodiscard]] FORCEINLINE SizeType Num() const
 	{
 		return Count;
 	}
 
-	FORCEINLINE SizeType NumPages() const
+	[[nodiscard]] FORCEINLINE SizeType NumPages() const
 	{
 		return Pages.Num();
 	}
 
-	FORCEINLINE bool IsEmpty() const
+	[[nodiscard]] FORCEINLINE bool IsEmpty() const
 	{
 		return !Count;
 	}
 
-	FORCEINLINE const ElementType& Last() const
+	[[nodiscard]] FORCEINLINE const ElementType& Last() const
 	{
 		CheckValidIndex(0);
 		const SizeType LastIndex = Num() - 1;
 		return Pages[GetPageIndex(LastIndex)][GetPageOffset(LastIndex)];
 	}
 
-	FORCEINLINE ElementType& Last()
+	[[nodiscard]] FORCEINLINE ElementType& Last()
 	{
 		CheckValidIndex(0);
 		const SizeType LastIndex = Num() - 1;
@@ -380,10 +380,26 @@ public:
 	 * This method returns a reference to the constructed element.
 	 */
 	template <typename... ArgsType>
-	ElementType& Emplace(ArgsType&&... Args)
+	SizeType Emplace(ArgsType&&... Args)
 	{
 		GrowIfRequired();
-		ElementType& Result = Pages.Last().Emplace_GetRef(Forward<ArgsType>(Args)...);
+		const SizeType ElementIndex = Num();
+		const SizeType PageIndex = GetPageIndex(ElementIndex);
+		Pages[PageIndex].Emplace(Forward<ArgsType>(Args)...);
+		++Count;
+		return ElementIndex;
+	}
+
+	/*
+	 * Constructs an element in place using the parameter arguments and adds it at the back of the container.
+	 * This method returns a reference to the constructed element.
+	 */
+	template <typename... ArgsType>
+	[[nodiscard]] ElementType& Emplace_GetRef(ArgsType&&... Args)
+	{
+		GrowIfRequired();
+		const SizeType PageIndex = GetPageIndex(Num());
+		ElementType& Result = Pages[PageIndex].Emplace_GetRef(Forward<ArgsType>(Args)...);
 		++Count;
 		return Result;
 	}
@@ -391,14 +407,24 @@ public:
 	/*
 	 * Adds the parameter element at the back of the container.
 	 */
-	FORCEINLINE void Add(const ElementType& Element)
+	FORCEINLINE SizeType Add(const ElementType& Element)
 	{
-		Emplace(Element);
+		return Emplace(Element);
 	}
 
-	FORCEINLINE void Add(ElementType&& Element)
+	FORCEINLINE SizeType Add(ElementType&& Element)
 	{
-		Emplace(MoveTempIfPossible(Element));
+		return Emplace(MoveTempIfPossible(Element));
+	}
+
+	[[nodiscard]] FORCEINLINE ElementType& Add_GetRef(const ElementType& Element)
+	{
+		return Emplace_GetRef(Element);
+	}
+
+	[[nodiscard]] FORCEINLINE ElementType& Add_GetRef(ElementType&& Element)
+	{
+		return Emplace_GetRef(MoveTempIfPossible(Element));
 	}
 
 	FORCEINLINE void Push(const ElementType& Element)
@@ -467,6 +493,23 @@ public:
 	}
 
 	/*
+	 * Empties the container effectively destroying all contained elements and ensures storage for the parameter
+	 * capacity. Storage is adjusted to meet the parameter capacity value.
+	 */
+	void Empty(SizeType InCapacity)
+	{
+		Reset();
+
+		const SizeType PageCount = Pages.Num();
+		const SizeType RequiredPageCount = NumRequiredPages(InCapacity);
+		Pages.SetNum(RequiredPageCount);
+		for (SizeType Index = PageCount; Index < RequiredPageCount; ++Index)
+		{
+			Pages[Index].Reserve(PageTraits::Capacity);
+		}
+	}
+
+	/*
 	 * Destroys all contained elements but doesn't release the container's storage.
 	 */
 	void Reset()
@@ -476,6 +519,16 @@ public:
 			Page.Reset();
 		}
 		Count = 0;
+	}
+
+	/*
+	 * Destroys all contained elements and ensures storage for the parameter capacity. Storage is only acquired
+	 * if the current container's storage cannot meet the parameter capacity value.
+	 */
+	void Reset(SizeType InCapacity)
+	{
+		Reset();
+		Reserve(InCapacity);
 	}
 
 	/*
