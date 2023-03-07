@@ -252,6 +252,7 @@ namespace Chaos::Softs
 			typedef FFleshThreadingProxy Source;
 
 			FFleshInputBuffer(
+				const FManagedArrayCollection InSimulationCollection,
 				const FTransform& InWorldToComponentXf,
 				const FTransform& InComponentToBoneXf,
 				const int32 InSimSpaceBoneIndex,
@@ -263,6 +264,7 @@ namespace Chaos::Softs
 				const float InInflationMultiplier,
 				const UObject* InOwner = nullptr)
 				: Super(InOwner, FFleshThreadingProxy::TypeName())
+				, SimulationCollection(InSimulationCollection)
 				, WorldToComponentXf(InWorldToComponentXf)
 				, ComponentToBoneXf(InComponentToBoneXf)
 				, Transforms(TArray<FTransform>())
@@ -277,6 +279,7 @@ namespace Chaos::Softs
 			{}
 
 			FFleshInputBuffer(
+				const FManagedArrayCollection InSimulationCollection,
 				const FTransform& InWorldToComponentXf,
 				const FTransform& InComponentToBoneXf, 
 				const int32 InSimSpaceBoneIndex,
@@ -290,6 +293,7 @@ namespace Chaos::Softs
 				const float InInflationMultiplier,
 				const UObject* InOwner = nullptr)
 				: Super(InOwner, FFleshThreadingProxy::TypeName())
+				, SimulationCollection(InSimulationCollection)
 				, WorldToComponentXf(InWorldToComponentXf)
 				, ComponentToBoneXf(InComponentToBoneXf)
 				, Transforms(InTransforms)
@@ -303,6 +307,8 @@ namespace Chaos::Softs
 				, SimSpaceBoneIndex(InSimSpaceBoneIndex)
 			{}
 			virtual ~FFleshInputBuffer() {}
+
+			const FManagedArrayCollection SimulationCollection;
 
 			FTransform WorldToComponentXf;
 			FTransform ComponentToBoneXf;

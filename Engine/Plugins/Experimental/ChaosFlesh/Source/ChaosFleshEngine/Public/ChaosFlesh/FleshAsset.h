@@ -85,6 +85,9 @@ public:
 	const FFleshCollection* GetCollection() const { return FleshCollection.Get(); }
 	FFleshCollection* GetCollection() { return FleshCollection.Get(); }
 
+	TManagedArray<FVector3f>& GetPositions();
+	const TManagedArray<FVector3f>* FindPositions() const;
+
 	FFleshAssetEdit EditCollection() const {
 		UFleshAsset* ThisNC = const_cast<UFleshAsset*>(this); 
 		return FFleshAssetEdit(ThisNC, [ThisNC]() {ThisNC->PostEditCallback(); });

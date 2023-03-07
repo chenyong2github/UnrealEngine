@@ -7,6 +7,7 @@
 #include "Dataflow/DataflowEngineUtil.h"
 #include "Engine/SkeletalMesh.h"
 #include "Dataflow/DataflowInputOutput.h"
+#include "GeometryCollection/Facades/CollectionConstraintOverrideFacade.h"
 #include "GeometryCollection/Facades/CollectionKinematicBindingFacade.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "GeometryCollection/Facades/CollectionVertexBoneWeightsFacade.h"
@@ -17,7 +18,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosFleshKinematicInitializationNodes)
 
-//DEFINE_LOG_CATEGORY_STATIC(FKinematicInitializationNodesLog, Log, All);
+DEFINE_LOG_CATEGORY(LogKinematicInit);
 
 namespace Dataflow
 {
@@ -29,6 +30,9 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FKinematicOriginInsertionInitializationDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FKinematicTetrahedralBindingsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVerticesKinematicDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FAuthorSceneCollisionCandidates);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBindVerticesToSkeleton);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FAppendToCollectionTransformAttributeDataflowNode);
 	}
 }
 
@@ -425,6 +429,7 @@ void FSetVerticesKinematicDataflowNode::Evaluate(Dataflow::FContext& Context, co
 	}
 }
 
+
 void FKinematicBodySetupInitializationDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<DataType>(&Collection))
@@ -576,5 +581,142 @@ void FKinematicSkeletalMeshInitializationDataflowNode::Evaluate(Dataflow::FConte
 		}
 		SetValue<DataType>(Context, InCollection, &Collection);
 		SetValue<TArray<int32>>(Context, Indices, &IndicesOut);
+	}
+}
+
+
+void
+FBindVerticesToSkeleton::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<DataType>(&Collection))
+	{
+		DataType InCollection = GetValue<DataType>(Context, &Collection);
+
+		if (IsConnected(&VertexIndices))
+		{
+			const int32 BoneIndex = GetValue<int32>(Context, &OriginBoneIndex);
+			if (TManagedArray<FVector3f>* Vertices = InCollection.FindAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup))
+			{
+				const TArray<int32>& Indices = GetValue<TArray<int32>>(Context, &VertexIndices);
+				if (Indices.Num())
+				{
+					GeometryCollection::Facades::FVertexBoneWeightsFacade WeightsFacade(InCollection);
+					if (WeightsFacade.IsValid())
+					{
+						for (int32 i = 0; i < Indices.Num(); i++)
+						{
+							if (Indices[i] >= 0 && Indices[i] < Vertices->Num())
+							{
+								WeightsFacade.AddBoneWeight(Indices[i], BoneIndex, 1.0);
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		SetValue<DataType>(Context, InCollection, &Collection);
+	}
+}
+
+void
+FAuthorSceneCollisionCandidates::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<DataType>(&Collection))
+	{
+		DataType InCollection = GetValue<DataType>(Context, &Collection);
+		const int32 BoneIndex = GetValue<int32>(Context, &OriginBoneIndex);
+
+		int32 Num = 0;
+		GeometryCollection::Facades::FConstraintOverrideCandidateFacade CnstrCandidates(InCollection);
+		CnstrCandidates.DefineSchema();
+
+		if (IsConnected(&VertexIndices))
+		{
+			if (TManagedArray<FVector3f>* Vertices = InCollection.FindAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup))
+			{
+				const TArray<int32>& Indices = GetValue<TArray<int32>>(Context, &VertexIndices);
+				for (int32 i = 0; i < Indices.Num(); i++)
+				{
+					if (Indices[i] >= 0 && Indices[i] < Vertices->Num())
+					{
+						GeometryCollection::Facades::FConstraintOverridesCandidateData Data;
+						Data.VertexIndex = Indices[i];
+						Data.BoneIndex = BoneIndex;
+						CnstrCandidates.Add(Data);
+						Num++;
+					}
+				}
+			}
+		}
+		else
+		{
+			TSet<int32> UniqueIndices;
+			if (bSurfaceVerticesOnly)
+			{
+				if (TManagedArray<FIntVector>* Indices =
+					InCollection.FindAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup))
+				{
+					for (int32 i = 0; i < Indices->Num(); i++)
+					{
+						for (int32 j = 0; j < 3; j++)
+						{
+							UniqueIndices.Add((*Indices)[i][j]);
+						}
+					}
+				}
+			}
+			else
+			{
+				if (TManagedArray<FIntVector4>* Indices =
+					InCollection.FindAttribute<FIntVector4>(
+						FTetrahedralCollection::TetrahedronAttribute, FTetrahedralCollection::TetrahedralGroup))
+				{
+					for (int32 i = 0; i < Indices->Num(); i++)
+					{
+						for (int32 j = 0; j < 4; j++)
+						{
+							UniqueIndices.Add((*Indices)[i][j]);
+						}
+					}
+				}
+			}
+			for (TSet<int32>::TConstIterator It = UniqueIndices.CreateConstIterator(); It; ++It)
+			{
+				GeometryCollection::Facades::FConstraintOverridesCandidateData Data;
+				Data.VertexIndex = *It;
+				Data.BoneIndex = BoneIndex;
+				CnstrCandidates.Add(Data);
+				Num++;
+			}
+		}
+		UE_LOG(LogKinematicInit, Display,
+			TEXT("'%s' - Added %d scene collision candidates."),
+			*GetName().ToString(), Num);
+		SetValue<DataType>(Context, InCollection, &Collection);
+	}
+}
+
+void
+FAppendToCollectionTransformAttributeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<DataType>(&Collection))
+	{
+		const FTransform& Transform = GetValue<FTransform>(Context, &TransformIn);
+		FManagedArrayCollection CollectionValue = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const TManagedArray<FTransform>* ConstTransformsPtr = CollectionValue.FindAttributeTyped<FTransform>(FName(AttributeName), FName(GroupName));
+		if (!ConstTransformsPtr)
+		{
+			CollectionValue.AddAttribute<FTransform>(FName(AttributeName), FName(GroupName));
+			ConstTransformsPtr = CollectionValue.FindAttributeTyped<FTransform>(FName(AttributeName), FName(GroupName));
+		}
+
+		if(ConstTransformsPtr)
+		{
+			int32 Index = CollectionValue.AddElements(1, FName(GroupName));
+			TManagedArray<FTransform>& Transforms = CollectionValue.ModifyAttribute<FTransform>(FName(AttributeName), FName(GroupName));
+			Transforms[Index] = Transform;
+		}
+		SetValue<DataType>(Context, CollectionValue, &Collection);
 	}
 }

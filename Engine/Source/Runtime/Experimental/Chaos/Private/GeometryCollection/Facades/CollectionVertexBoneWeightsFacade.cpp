@@ -21,6 +21,7 @@ namespace GeometryCollection::Facades
 		, BoneIndexAttribute(InCollection, BoneIndexAttributeName, FGeometryCollection::VerticesGroup, FTransformCollection::TransformGroup)
 		, BoneWeightAttribute(InCollection, BoneWeightAttributeName, FGeometryCollection::VerticesGroup, FTransformCollection::TransformGroup)
 		, ParentAttribute(InCollection, FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup)
+		, VerticesAttribute(InCollection, "Vertex", FGeometryCollection::VerticesGroup)
 	{
 		DefineSchema();
 	}
@@ -31,6 +32,7 @@ namespace GeometryCollection::Facades
 		, BoneIndexAttribute(InCollection, BoneIndexAttributeName, FGeometryCollection::VerticesGroup, FTransformCollection::TransformGroup)
 		, BoneWeightAttribute(InCollection, BoneWeightAttributeName, FGeometryCollection::VerticesGroup, FTransformCollection::TransformGroup)
 		, ParentAttribute(InCollection, FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup)
+		, VerticesAttribute(InCollection, "Vertex", FGeometryCollection::VerticesGroup)
 	{
 	}
 
@@ -49,8 +51,28 @@ namespace GeometryCollection::Facades
 
 	bool FVertexBoneWeightsFacade::IsValid() const
 	{
-		return BoneIndexAttribute.IsValid() && BoneWeightAttribute.IsValid() && ParentAttribute.IsValid();
+		return BoneIndexAttribute.IsValid() && BoneWeightAttribute.IsValid() && ParentAttribute.IsValid() && VerticesAttribute.IsValid();
 	}
+
+
+	//
+	//  Add Weights from a bone to a vertex 
+	//
+	void FVertexBoneWeightsFacade::AddBoneWeight(int32 VertexIndex, int32 BoneIndex, float BoneWeight)
+	{
+		TManagedArray< TArray<int32> >& IndicesArray = BoneIndexAttribute.Modify();
+		TManagedArray< TArray<float> >& WeightsArray = BoneWeightAttribute.Modify();
+		const TManagedArray<FVector3f>& Vertices = VerticesAttribute.Modify();
+		if (0 <= VertexIndex && VertexIndex < Vertices.Num())
+		{
+			if (0 < BoneIndex && BoneIndex < ParentAttribute.Num())
+			{
+				IndicesArray[VertexIndex].Add(BoneIndex);
+				WeightsArray[VertexIndex].Add(BoneWeight);
+			}
+		}
+	}
+
 
 	//
 	//  Add Weights from Selection 

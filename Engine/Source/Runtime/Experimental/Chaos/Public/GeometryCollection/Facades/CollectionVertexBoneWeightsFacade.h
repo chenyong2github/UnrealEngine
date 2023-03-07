@@ -55,6 +55,9 @@ namespace GeometryCollection::Facades
 		/** Add bone weight based on the kinematic bindings. */
 		void AddBoneWeightsFromKinematicBindings();
 
+		/** Add bone weight based on the kinematic bindings. */
+		void AddBoneWeight(int32 VertexIndex, int32 BoneIndex, float BoneWeight);
+
 		/** Return the vertex bone indices from the collection. Null if not initialized.  */
 		const TManagedArray< TArray<int32> >* FindBoneIndices()  const { return BoneIndexAttribute.Find(); }
 		const TManagedArray< TArray<int32> >& GetBoneIndices() const { return BoneIndexAttribute.Get(); }
@@ -71,6 +74,7 @@ namespace GeometryCollection::Facades
 		TManagedArrayAccessor<TArray<int32>> BoneIndexAttribute;
 		TManagedArrayAccessor<TArray<float>> BoneWeightAttribute;
 		TManagedArrayAccessor<int32> ParentAttribute;
+		TManagedArrayAccessor<FVector3f> VerticesAttribute;
 
 	};
 

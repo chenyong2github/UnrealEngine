@@ -116,6 +116,8 @@ namespace Chaos::Softs
 		void InitializeSimulationObjects();
 		void InitializeSimulationObject(FThreadingProxy&);
 		void InitializeDeformableParticles(FFleshThreadingProxy&);
+		void UpdateTransientConstraints();
+		void PostProcessTransientConstraints();
 		void InitializeKinematicParticles(FFleshThreadingProxy&);
 		void InitializeTetrahedralConstraint(FFleshThreadingProxy&);
 		void InitializeGidBasedConstraints(FFleshThreadingProxy&);
@@ -179,6 +181,10 @@ namespace Chaos::Softs
 		TUniquePtr <TArray<TVec3<int32>>> SurfaceElements;
 		TUniquePtr <TArray<Chaos::TVec4<int32>>> AllElements;
 		TUniquePtr <FTriangleMesh> SurfaceTriangleMesh;
+
+		//typedef TMap<int32, TTuple<float, Chaos::Softs::FPAndInvM, FVector3f>> TransientConstraintBufferMap;
+		typedef TMap<int32, TTuple<float, float, FVector3f>> TransientConstraintBufferMap;
+		TransientConstraintBufferMap TransientConstraintBuffer;
 
 		bool bEnableSolver = true;
 		FSolverReal Time = 0.f;

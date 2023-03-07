@@ -264,6 +264,7 @@ void UDeformableSolverComponent::UpdateFromGameThread(float DeltaTime)
 			{
 				if (IsSimulating(DeformableComponent))
 				{
+					DeformableComponent->PreSolverUpdate();
 					if (FDataMapValue Value = DeformableComponent->NewDeformableData())
 					{
 						DataMap.Add(DeformableComponent, Value);

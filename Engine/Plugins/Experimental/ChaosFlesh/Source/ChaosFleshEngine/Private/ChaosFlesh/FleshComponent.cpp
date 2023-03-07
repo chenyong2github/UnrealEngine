@@ -29,6 +29,7 @@ FAutoConsoleVariableRef CVarDeforambleDoDrawSimulationMesh(TEXT("p.Chaos.DebugDr
 FAutoConsoleVariableRef CVarDeforambleDoDrawSkeletalMeshBindingPositions(TEXT("p.Chaos.DebugDraw.Deformable.SkeletalMeshBindingPositions"), CVarParams.bDoDrawSkeletalMeshBindingPositions, TEXT("Debug draw the deformable simulation's SkeletalMeshBindingPositions on the game thread. [def: false]"));
 FAutoConsoleVariableRef CVarDeforambleDoDrawSkeletalMeshBindingPositionsSimulationBlendWeight(TEXT("p.Chaos.DebugDraw.Deformable.SkeletalMeshBindingPositions.SimulationBlendWeight"), CVarParams.DrawSkeletalMeshBindingPositionsSimulationBlendWeight, TEXT("Set the simulation blend weight of the skeletal mesh debug draw.[def: 1.]"));
 
+
 #define PERF_SCOPE(X) SCOPE_CYCLE_COUNTER(X); TRACE_CPUPROFILER_EVENT_SCOPE(X);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UFleshComponent.TickComponent"), STAT_ChaosDeformable_UFleshComponent_TickComponent, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UFleshComponent.NewProxy"), STAT_ChaosDeformable_UFleshComponent_NewProxy, STATGROUP_Chaos);
@@ -47,6 +48,7 @@ UFleshComponent::UFleshComponent(const FObjectInitializer& ObjectInitializer)
 	bTickInEditor = CVarParams.bDoDrawSimulationMesh;
 
 	DynamicCollection = ObjectInitializer.CreateDefaultSubobject<UFleshDynamicAsset>(this, TEXT("Flesh Dynamic Asset"));
+	SimulationCollection = ObjectInitializer.CreateDefaultSubobject<USimulationAsset>(this, TEXT("Flesh Simulation Asset"));
 }
 
 UFleshComponent::~UFleshComponent()
@@ -75,6 +77,10 @@ void UFleshComponent::EndPlay(const EEndPlayReason::Type ReasonEnd)
 	{
 		GetDynamicCollection()->Reset();
 	}
+	if (GetSimulationCollection())
+	{
+		GetSimulationCollection()->Reset();
+	}
 }
 
 void UFleshComponent::SetRestCollection(const UFleshAsset* InRestCollection)
@@ -100,6 +106,10 @@ UDeformablePhysicsComponent::FThreadingProxy* UFleshComponent::NewProxy()
 				if (!GetDynamicCollection())
 				{
 					DynamicCollection = NewObject<UFleshDynamicAsset>(this, TEXT("Flesh Dynamic Asset"));
+				}
+				if (!GetSimulationCollection())
+				{
+					SimulationCollection = NewObject<USimulationAsset>(this, TEXT("Flesh Simulation Asset"));
 				}
 
 				GetDynamicCollection()->Reset(Rest);
@@ -194,7 +204,8 @@ UDeformablePhysicsComponent::FDataMapValue UFleshComponent::NewDeformableData()
 
 						return FDataMapValue(
 							new Chaos::Softs::FFleshThreadingProxy::FFleshInputBuffer(
-								this->GetComponentTransform(), 
+								*GetSimulationCollection()->GetCollection(),
+								this->GetComponentTransform(),
 								BoneSpaceXf, 
 								SimSpaceTransformGlobalIndex,
 								AnimationTransforms, 
@@ -213,7 +224,8 @@ UDeformablePhysicsComponent::FDataMapValue UFleshComponent::NewDeformableData()
 	}
 	return FDataMapValue(
 		new Chaos::Softs::FFleshThreadingProxy::FFleshInputBuffer(
-			this->GetComponentTransform(), 
+			*GetSimulationCollection()->GetCollection(),
+			this->GetComponentTransform(),
 			GetSimSpaceRestTransform(),
 			SimSpaceTransformGlobalIndex,
 			bTempEnableGravity,
@@ -927,3 +939,5 @@ TArray<FVector> UFleshComponent::GetSkeletalMeshBindingPositionsInternal(const U
 	}
 	return TransformPositions;
 }
+
+

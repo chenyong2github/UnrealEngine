@@ -50,6 +50,16 @@ void UFleshAsset::PostEditCallback()
 	//UE_LOG(LogFleshAssetInternal, Log, TEXT("UFleshAsset::PostEditCallback()"));
 }
 
+TManagedArray<FVector3f>& UFleshAsset::GetPositions()
+{
+	return FleshCollection->ModifyAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
+}
+
+const TManagedArray<FVector3f>* UFleshAsset::FindPositions() const
+{
+	return FleshCollection->FindAttributeTyped<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
+}
+
 /** Serialize */
 void UFleshAsset::Serialize(FArchive& Ar)
 {

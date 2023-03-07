@@ -1,4 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once 
 
@@ -9,6 +8,9 @@
 #include "ChaosFleshKinematicInitializationNodes.generated.h"
 
 class USkeletalMesh;
+
+DECLARE_LOG_CATEGORY_EXTERN(LogKinematicInit, Verbose, All);
+
 
 USTRUCT(meta = (DataflowFlesh))
 struct FKinematicTetrahedralBindingsDataflowNode : public FDataflowNode
@@ -62,9 +64,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	float Radius = 40.f;
-
-	UPROPERTY(EditAnywhere, Category = "Dataflow")
-	FTransform Transform;
 
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	ESkeletalSeletionMode SkeletalSelectionMode = ESkeletalSeletionMode::Dataflow_SkeletalSelection_Single;
@@ -213,6 +212,120 @@ public:
 		RegisterInputConnection(&SkeletalMeshIn);
 		RegisterOutputConnection(&Collection);
 		RegisterOutputConnection(&IndicesOut);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
+
+/**
+* Connects vertices to a rig so that the vertices can be animated
+*/
+USTRUCT(meta = (DataflowFlesh))
+struct FBindVerticesToSkeleton : public FDataflowNode
+{
+
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FBindVerticesToSkeleton, "BindVerticesToSkeleton", "Flesh", "")
+
+public:
+	typedef FManagedArrayCollection DataType;
+
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
+		FManagedArrayCollection Collection;
+
+	//! Indices to use with environment collisions.  If this input is not connected, then all 
+	//! indicies are used.
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (DataflowInput, DisplayName = "Vertex Indices"))
+	TArray<int32> VertexIndices;
+
+	//! Bone index to use as the world raycast origin.  -1 denotes the component transform.
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (DataflowInput, DisplayName = "Raycast Origin Bone Index"))
+		int32 OriginBoneIndex = 0;
+
+	FBindVerticesToSkeleton(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Collection, &Collection);
+		RegisterInputConnection(&VertexIndices);
+		RegisterInputConnection(&OriginBoneIndex);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
+/**
+* Marks mesh vertices as candidates for scene collision raycasts.  Each vertex has an associated 
+* bone index to use as the origin of the raycast.  The runtime distance between the vertex and the
+* bone designates the range of the scene query depth.
+*/
+USTRUCT(meta = (DataflowFlesh))
+struct FAuthorSceneCollisionCandidates : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FAuthorSceneCollisionCandidates, "AuthorSceneCollisionCandidates", "Flesh", "")
+
+public:
+	typedef FManagedArrayCollection DataType;
+
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
+	FManagedArrayCollection Collection;
+
+	//! Restricts vertices to only ones on the surface.  All vertices otherwise.
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	bool bSurfaceVerticesOnly = true;
+
+	//! Indices to use with environment collisions.  If this input is not connected, then all 
+	//! indicies are used.
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (DataflowInput, DisplayName = "Vertex Indices"))
+	TArray<int32> VertexIndices;
+
+	//! Bone index to use as the world raycast origin.  -1 denotes the component transform.
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (DataflowInput, DisplayName = "Raycast Origin Bone Index"))
+	int32 OriginBoneIndex = 0;
+
+	FAuthorSceneCollisionCandidates(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Collection, &Collection);
+		RegisterInputConnection(&VertexIndices);
+		RegisterInputConnection(&OriginBoneIndex);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
+
+USTRUCT(meta = (DataflowFlesh))
+struct FAppendToCollectionTransformAttributeDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FAppendToCollectionTransformAttributeDataflowNode, "AppendToCollectionTransformAttribute", "Flesh", "")
+
+public:
+	typedef FManagedArrayCollection DataType;
+
+
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
+		FManagedArrayCollection Collection;
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "Transform"))
+		FTransform TransformIn = FTransform::Identity;
+
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+		FString AttributeName = FString("ComponentTransform");
+
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+		FString GroupName = FString("ComponentTransformGroup");
+
+	FAppendToCollectionTransformAttributeDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&TransformIn);
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Collection, &Collection);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;

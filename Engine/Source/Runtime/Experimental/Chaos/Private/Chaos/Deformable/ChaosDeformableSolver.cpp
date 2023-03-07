@@ -29,6 +29,7 @@
 #include "GeometryCollection/Facades/CollectionKinematicBindingFacade.h"
 #include "GeometryCollection/Facades/CollectionVertexBoneWeightsFacade.h"
 #include "GeometryCollection/Facades/CollectionPositionTargetFacade.h"
+#include "GeometryCollection/Facades/CollectionConstraintOverrideFacade.h"
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/IConsoleManager.h"
@@ -70,6 +71,7 @@ namespace Chaos::Softs
 
 	FAutoConsoleVariableRef CVarDeformableDebugParamsDrawTetrahedralParticles(TEXT("p.Chaos.DebugDraw.Deformable.TetrahedralParticle"), GDeformableDebugParams.bDoDrawTetrahedralParticles, TEXT("Debug draw the deformable solvers tetrahedron. [def: false]"));
 	FAutoConsoleVariableRef CVarDeformableDebugParamsDrawKinematicParticles(TEXT("p.Chaos.DebugDraw.Deformable.KinematicParticle"), GDeformableDebugParams.bDoDrawKinematicParticles, TEXT("Debug draw the deformables kinematic particles. [def: false]"));
+	FAutoConsoleVariableRef CVarDeformableDebugParamsDrawTransientKinematicParticles(TEXT("p.Chaos.DebugDraw.Deformable.TransientKinematicParticle"), GDeformableDebugParams.bDoDrawTransientKinematicParticles, TEXT("Debug draw the deformables transient kinematic particles. [def: false]"));
 	FAutoConsoleVariableRef CVarDeformableDebugParamsDrawRigidCollisionGeometry(TEXT("p.Chaos.DebugDraw.Deformable.RigidCollisionGeometry"), GDeformableDebugParams.bDoDrawRigidCollisionGeometry, TEXT("Debug draw the deformable solvers rigid collision geometry. [def: false]"));
 
 	FDeformableXPBDCorotatedParams GDeformableXPBDCorotatedParams;
@@ -172,6 +174,98 @@ namespace Chaos::Softs
 		}
 	}
 
+	void FDeformableSolver::UpdateTransientConstraints()
+	{
+		for(TMap<FThreadingProxy::FKey, TUniquePtr<FThreadingProxy>>::TConstIterator ProxyIt=Proxies.CreateConstIterator(); ProxyIt; ++ProxyIt)
+		{
+			const FThreadingProxy::FKey& Owner = ProxyIt.Key();
+			if (const FFleshThreadingProxy* Proxy = ProxyIt.Value()->As<FFleshThreadingProxy>())
+			{
+				if (FFleshThreadingProxy::FFleshInputBuffer* FleshInputBuffer =
+					this->CurrentInputPackage->ObjectMap.Contains(Owner) ?
+					this->CurrentInputPackage->ObjectMap[Owner]->As<FFleshThreadingProxy::FFleshInputBuffer>() :
+					nullptr)
+				{
+					GeometryCollection::Facades::FConstraintOverrideTargetFacade CnstrTargets(FleshInputBuffer->SimulationCollection);
+					if (CnstrTargets.IsValid() && CnstrTargets.Num())
+					{
+						const FIntVector2& Range = Proxy->GetSolverParticleRange();
+						const FSolverReal CurrentRatio = FSolverReal(this->Iteration) / FSolverReal(this->Property.NumSolverSubSteps);
+						const FTransform WorldToSim = Proxy->GetCurrentPointsTransform();
+
+						if (this->Iteration == 1)
+						{
+							TransientConstraintBuffer.Reserve(TransientConstraintBuffer.Num() + CnstrTargets.Num());
+							for (int32 i = 0; i < CnstrTargets.Num(); i++)
+							{
+								int32 LocalIndex = CnstrTargets.GetIndex(i);
+								int32 ParticleIndex = Range[0] + LocalIndex;
+								// Set particle kinematic state to kinematic, saving prior state.
+								TransientConstraintBuffer.Add(
+									TPair<int32, TTuple<float, float, FVector3f>>(
+										ParticleIndex,
+										TTuple<float, float, FVector3f>(
+											Evolution->Particles().InvM(ParticleIndex),
+											Evolution->Particles().PAndInvM(ParticleIndex).InvM,
+											Evolution->Particles().X(ParticleIndex))));
+
+								Evolution->Particles().InvM(ParticleIndex) = 0.f;
+								Evolution->Particles().PAndInvM(ParticleIndex).InvM = 0.f;
+							}
+						}
+
+						auto ToDouble = [](FVector3f V) { return FVector(V[0], V[1], V[2]); };
+						auto ToSingle = [](FVector V) { return FVector3f(static_cast<float>(V[0]), static_cast<float>(V[1]), static_cast<float>(V[2])); };
+
+						for (int32 i = 0; i < CnstrTargets.Num(); i++)
+						{
+							int32 LocalIndex = CnstrTargets.GetIndex(i);
+							int32 ParticleIndex = Range[0] + LocalIndex;
+
+							const FVector3f& WorldSpaceTarget = CnstrTargets.GetPosition(i);
+							FVector3f SimSpaceTarget = ToSingle(WorldToSim.TransformPosition(ToDouble(WorldSpaceTarget)));
+							const FVector3f& SimSpaceSource = TransientConstraintBuffer[ParticleIndex].Get<2>();
+
+							// Lerp from prevoius particle position to the target over the solver iterations.
+							Evolution->Particles().X(ParticleIndex) =
+								SimSpaceTarget * CurrentRatio +
+								SimSpaceSource * (static_cast<FSolverReal>(1.) - CurrentRatio);
+							Evolution->Particles().PAndInvM(ParticleIndex).P =
+								Evolution->Particles().X(ParticleIndex);
+						}
+#if WITH_EDITOR
+						if (GDeformableDebugParams.IsDebugDrawingEnabled() && GDeformableDebugParams.bDoDrawTransientKinematicParticles)
+						{
+							auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
+							for (int32 i = 0; i < CnstrTargets.Num(); i++)
+							{
+								int32 LocalIndex = CnstrTargets.GetIndex(i);
+								int32 ParticleIndex = Range[0] + LocalIndex;
+								Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(ToDouble(Evolution->Particles().X(ParticleIndex)), FColor::Orange, false, -1.0f, 0, 5);
+							}
+						}
+#endif
+					} // if has constraint overrides
+				} // if flesh input buffer
+			}
+		} // for all proxies
+	}
+
+	void FDeformableSolver::PostProcessTransientConstraints()
+	{
+		// Restore transient constraint particle kinematic state.
+		if (!TransientConstraintBuffer.IsEmpty())
+		{
+			for (TransientConstraintBufferMap::TConstIterator It = TransientConstraintBuffer.CreateConstIterator(); It; ++It)
+			{
+				const int32 ParticleIndex = It.Key();
+				Evolution->Particles().InvM(ParticleIndex) = It.Value().Get<0>();
+				Evolution->Particles().PAndInvM(ParticleIndex).InvM = It.Value().Get<1>();
+			}
+			TransientConstraintBuffer.Reset(); // retains memory
+		}
+	}
+
 	void FDeformableSolver::InitializeSimulationSpace()
 	{
 		for (int32 Index = 0; Index < this->MObjects.Num(); Index++)
@@ -242,6 +336,8 @@ namespace Chaos::Softs
 				}
 			}
 		}
+
+		UpdateTransientConstraints();
 	}
 
 	void FDeformableSolver::InitializeSimulationObject(FThreadingProxy& InProxy)
@@ -756,6 +852,11 @@ namespace Chaos::Softs
 
 			if (0 <= Index && Index < this->MObjects.Num())
 			{
+				if (TransientConstraintBuffer.Contains(Index))
+				{
+					return;
+				}
+
 				if (const UObject* Owner = this->MObjects[Index])
 				{
 					if (const FFleshThreadingProxy* Proxy = Proxies[Owner]->As<FFleshThreadingProxy>())
@@ -1013,6 +1114,7 @@ namespace Chaos::Softs
 					Iteration = i+1;
 					Update(SubDeltaTime);
 				}
+				PostProcessTransientConstraints();
 
 				Frame++;
 				EventPostSolve.Broadcast(DeltaTime);

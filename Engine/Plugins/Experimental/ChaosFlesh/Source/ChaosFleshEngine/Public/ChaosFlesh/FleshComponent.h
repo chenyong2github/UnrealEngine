@@ -7,6 +7,7 @@
 #include "ChaosFlesh/ChaosDeformablePhysicsComponent.h"
 #include "ChaosFlesh/FleshAsset.h"
 #include "ChaosFlesh/FleshDynamicAsset.h"
+#include "ChaosFlesh/SimulationAsset.h"
 #include "Components/MeshComponent.h"
 #include "UObject/ObjectMacros.h"
 #include "ProceduralMeshComponent.h"
@@ -69,6 +70,10 @@ public:
 	UFleshDynamicAsset* GetDynamicCollection() { return DynamicCollection; }
 	const UFleshDynamicAsset* GetDynamicCollection() const { return DynamicCollection; }
 
+	/** SimulationCollection */
+	void ResetSimulationCollection();
+	USimulationAsset* GetSimulationCollection() { return SimulationCollection; }
+	const USimulationAsset* GetSimulationCollection() const { return SimulationCollection; }
 
 	UPROPERTY()
 	TObjectPtr<UProceduralMeshComponent> Mesh;
@@ -101,6 +106,10 @@ private:
 	/** Current simulation state. */
 	UPROPERTY()
 	TObjectPtr<UFleshDynamicAsset> DynamicCollection;
+
+	/** Simulator input */
+	UPROPERTY()
+	TObjectPtr<USimulationAsset> SimulationCollection;
 
 	//
 	// Sim Space
@@ -162,5 +171,6 @@ private:
 
 	int32 SimSpaceTransformIndex = INDEX_NONE;
 	int32 SimSpaceTransformGlobalIndex = INDEX_NONE;
+
 };
 

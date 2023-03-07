@@ -27,4 +27,17 @@ struct FChaosEngineDeformableCVarParams
 #endif
 	bool bDoDrawSkeletalMeshBindingPositions = false;
 	float DrawSkeletalMeshBindingPositionsSimulationBlendWeight = 1.f;
+	bool bDoDrawSceneRaycasts = false;
+
+	int32 EnvCollisionsLineTraceBatchSize = 10;
+
+	bool IsDebugDrawingEnabled()
+	{
+#if WITH_EDITOR
+		// p.Chaos.DebugDraw.Enabled 1
+		return Chaos::FDebugDrawQueue::GetInstance().IsDebugDrawingEnabled();
+#else
+		return false;
+#endif
+	}
 };
