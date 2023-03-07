@@ -2089,13 +2089,14 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 			bool bUsageSetSuccessfully = false;
 
 			const FMaterialCachedExpressionData& CachedMaterialData = Material->GetCachedExpressionData();
-			Entry.bHasVertexInterpolator	= CachedMaterialData.bHasVertexInterpolator;
-			Entry.bHasPerInstanceRandomID	= CachedMaterialData.bHasPerInstanceRandom;
-			Entry.bHasPerInstanceCustomData	= CachedMaterialData.bHasPerInstanceCustomData;
-			Entry.bHasPixelDepthOffset		= Material->HasPixelDepthOffsetConnected();
-			Entry.bHasWorldPositionOffset	= Material->HasVertexPositionOffsetConnected();
-			Entry.bHasUnsupportedBlendMode	= !IsSupportedBlendMode(BlendMode);
-			Entry.bHasInvalidUsage			= bUsingCookedEditorData ? Material->NeedsSetMaterialUsage_Concurrent(bUsageSetSuccessfully, MATUSAGE_Nanite) : !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
+			Entry.bHasVertexInterpolator		= CachedMaterialData.bHasVertexInterpolator;
+			Entry.bHasPerInstanceRandomID		= CachedMaterialData.bHasPerInstanceRandom;
+			Entry.bHasPerInstanceCustomData		= CachedMaterialData.bHasPerInstanceCustomData;
+			Entry.bHasPixelDepthOffset			= Material->HasPixelDepthOffsetConnected();
+			Entry.bHasWorldPositionOffset		= Material->HasVertexPositionOffsetConnected();
+			Entry.bHasUnsupportedBlendMode		= !IsSupportedBlendMode(BlendMode);
+			Entry.bHasUnsupportedShadingModel	= !IsSupportedShadingModel(Material->GetShadingModels());
+			Entry.bHasInvalidUsage				= bUsingCookedEditorData ? Material->NeedsSetMaterialUsage_Concurrent(bUsageSetSuccessfully, MATUSAGE_Nanite) : !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
 
 			if (BlendMode == BLEND_Masked)
 			{
@@ -2110,6 +2111,7 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 
 			Entry.bHasAnyError =
 				Entry.bHasUnsupportedBlendMode |
+				Entry.bHasUnsupportedShadingModel |
 				Entry.bHasInvalidUsage;
 
 			if (!bUsingCookedEditorData && Entry.bHasAnyError && !Audit.bHasAnyError)
@@ -2122,17 +2124,32 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 			Audit.bHasAnyError |= Entry.bHasAnyError;
 
 #if !(UE_BUILD_SHIPPING) || WITH_EDITOR
-			if (!bUsingCookedEditorData && !bNaniteForceEnableMeshes && Entry.bHasUnsupportedBlendMode)
+			if (!bUsingCookedEditorData && !bNaniteForceEnableMeshes)
 			{
-				const FString BlendModeName = GetBlendModeString(Entry.Material->GetBlendMode());
-				UE_LOG
-				(
-					LogStaticMesh, Warning,
-					TEXT("Invalid material [%s] used on Nanite static mesh [%s]. Only opaque or masked blend modes are currently supported, [%s] blend mode was specified."),
-					*Entry.Material->GetName(),
-					*Audit.AssetName,
-					*BlendModeName
-				);
+				if (Entry.bHasUnsupportedBlendMode)
+				{
+					const FString BlendModeName = GetBlendModeString(Entry.Material->GetBlendMode());
+					UE_LOG
+					(
+						LogStaticMesh, Warning,
+						TEXT("Invalid material [%s] used on Nanite static mesh [%s]. Only opaque or masked blend modes are currently supported, [%s] blend mode was specified."),
+						*Entry.Material->GetName(),
+						*Audit.AssetName,
+						*BlendModeName
+					);
+				}
+				if (Entry.bHasUnsupportedShadingModel)
+				{
+					const FString ShadingModelString = GetShadingModelFieldString(Entry.Material->GetShadingModels());
+					UE_LOG
+					(
+						LogStaticMesh, Warning,
+						TEXT("Invalid material [%s] used on Nanite static mesh [%s]. The SingleLayerWater shading model is currently not supported, [%s] shading model was specified."),
+						*Entry.Material->GetName(),
+						*Audit.AssetName,
+						*ShadingModelString
+					);
+				}
 			}
 #endif
 		}
@@ -2150,6 +2167,11 @@ bool IsSupportedBlendMode(const UMaterialInterface& In)			{ return IsSupportedBl
 bool IsSupportedMaterialDomain(EMaterialDomain Domain)
 {
 	return Domain == EMaterialDomain::MD_Surface;
+}
+
+bool IsSupportedShadingModel(FMaterialShadingModelField ShadingModelField)
+{
+	return !ShadingModelField.HasShadingModel(MSM_SingleLayerWater);
 }
 
 bool IsMaskingAllowedForWorld(UWorld* World)

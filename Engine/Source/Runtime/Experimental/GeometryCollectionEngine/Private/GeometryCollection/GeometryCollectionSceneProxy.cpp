@@ -1056,7 +1056,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		UMaterialInterface* MaterialInterface = bValidMeshSection ? Component->GetMaterial(MeshSection.MaterialID) : nullptr;
 
 		// TODO: PROG_RASTER (Implement programmable raster support)
-		const bool bInvalidMaterial = !MaterialInterface || !IsOpaqueBlendMode(*MaterialInterface);
+		const bool bInvalidMaterial = !MaterialInterface || !IsOpaqueBlendMode(*MaterialInterface) || MaterialInterface->GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
 		if (bInvalidMaterial)
 		{
 			bHasMaterialErrors = true;
@@ -1065,10 +1065,11 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 				UE_LOG
 				(
 					LogStaticMesh, Warning,
-					TEXT("Invalid material [%s] used on Nanite geometry collection [%s] - forcing default material instead. Only opaque blend mode is currently supported, [%s] blend mode was specified."),
+					TEXT("Invalid material [%s] used on Nanite geometry collection [%s] - forcing default material instead. Only opaque blend mode and a shading model that is not SingleLayerWater is currently supported, [%s] blend mode and [%s] shading model was specified."),
 					*MaterialInterface->GetName(),
 					*GeometryCollection->GetName(),
-					*GetBlendModeString(MaterialInterface->GetBlendMode())
+					*GetBlendModeString(MaterialInterface->GetBlendMode()),
+					*GetShadingModelFieldString(MaterialInterface->GetShadingModels())
 				);
 			}
 		}

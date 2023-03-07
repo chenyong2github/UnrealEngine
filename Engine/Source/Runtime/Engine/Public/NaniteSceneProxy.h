@@ -27,15 +27,16 @@ struct FMaterialAuditEntry
 	FName MaterialSlotName;
 	int32 MaterialIndex = INDEX_NONE;
 
-	uint8 bHasAnyError				: 1;
-	uint8 bHasNullMaterial			: 1;
-	uint8 bHasWorldPositionOffset	: 1;
-	uint8 bHasUnsupportedBlendMode	: 1;
-	uint8 bHasPixelDepthOffset		: 1;
-	uint8 bHasVertexInterpolator	: 1;
-	uint8 bHasPerInstanceRandomID	: 1;
-	uint8 bHasPerInstanceCustomData	: 1;
-	uint8 bHasInvalidUsage			: 1;
+	uint8 bHasAnyError					: 1;
+	uint8 bHasNullMaterial				: 1;
+	uint8 bHasWorldPositionOffset		: 1;
+	uint8 bHasUnsupportedBlendMode		: 1;
+	uint8 bHasUnsupportedShadingModel	: 1;
+	uint8 bHasPixelDepthOffset			: 1;
+	uint8 bHasVertexInterpolator		: 1;
+	uint8 bHasPerInstanceRandomID		: 1;
+	uint8 bHasPerInstanceCustomData		: 1;
+	uint8 bHasInvalidUsage				: 1;
 };
 
 struct FMaterialAudit
@@ -107,6 +108,7 @@ ENGINE_API bool IsSupportedBlendMode(const FMaterial& In);
 ENGINE_API bool IsSupportedBlendMode(const FMaterialShaderParameters& In);
 ENGINE_API bool IsSupportedBlendMode(const UMaterialInterface& In);
 ENGINE_API bool IsSupportedMaterialDomain(EMaterialDomain Domain);
+ENGINE_API bool IsSupportedShadingModel(FMaterialShadingModelField ShadingModelField);
 
 ENGINE_API bool IsMaskingAllowedForWorld(UWorld* World);
 
