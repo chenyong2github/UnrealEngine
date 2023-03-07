@@ -316,6 +316,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, EnableClustering(true)
 	, ClusterGroupIndex(0)
 	, MaxClusterLevel(100)
+	, MaxSimulatedLevel(100)
 	, DamageThreshold({ 500000.f, 50000.f, 5000.f })
 	, bUseSizeSpecificDamageThreshold(false)
 	, bEnableDamageFromCollision(true)
@@ -2657,6 +2658,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.EnableClustering = EnableClustering;
 		SimulationParameters.ClusterGroupIndex = EnableClustering ? ClusterGroupIndex : 0;
 		SimulationParameters.MaxClusterLevel = MaxClusterLevel;
+		SimulationParameters.MaxSimulatedLevel = MaxSimulatedLevel;
 		SimulationParameters.bUseSizeSpecificDamageThresholds = bUseSizeSpecificDamageThreshold;
 		SimulationParameters.DamageThreshold = DamageThreshold;
 		SimulationParameters.bUsePerClusterOnlyDamageThreshold = RestCollection? RestCollection->PerClusterOnlyDamageThreshold: false; 
@@ -2943,28 +2945,32 @@ void UGeometryCollectionComponent::LoadCollisionProfiles()
 	const CollisionProfileDataCache* AbandonedData = (bEnableAbandonAfterLevel && GetIsReplicated()) ? CreateOrGetCollisionProfileData(AbandonedCollisionProfileName) : nullptr;
 
 	Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(*RestCollection->GetGeometryCollection());
-	TArray<Chaos::FPhysicsObjectHandle> PhysicsObjects = PhysicsProxy->GetAllPhysicsObjects();
+	// Use GetAllPhysicsObjectIncludingNulls instead of GetAllPhysicsObjects if you need to use Level data or any data from HierarchyFacade
+	TArray<Chaos::FPhysicsObjectHandle> PhysicsObjects = PhysicsProxy->GetAllPhysicsObjectIncludingNulls();
 	FLockedWritePhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockWrite(PhysicsObjects);
 
-	for (int32 ParticleIndex = 0; ParticleIndex < PhysicsProxy->GetNumParticles(); ++ParticleIndex)
+	for (int32 ParticleIndex = 0; ParticleIndex < PhysicsObjects.Num(); ++ParticleIndex)
 	{
-		const int32 Level = HierarchyFacade.GetInitialLevel(ParticleIndex);
+		if (PhysicsObjects[ParticleIndex] != nullptr)
+		{
+			const int32 Level = HierarchyFacade.GetInitialLevel(ParticleIndex);
 
-		TArrayView<Chaos::FPhysicsObjectHandle> ParticleView{ &PhysicsObjects[ParticleIndex], 1 };
-		const CollisionProfileDataCache* Data = nullptr;
-		if (AbandonedData && Level >= ReplicationAbandonAfterLevel + 1)
-		{
-			Data = AbandonedData;
-		}
-		else if (!CollisionProfilePerLevel.IsEmpty())
-		{
-			Data = CreateOrGetCollisionProfileData(CollisionProfilePerLevel[FMath::Min(CollisionProfilePerLevel.Num() - 1, Level)]);
-		}
+			TArrayView<Chaos::FPhysicsObjectHandle> ParticleView{ &PhysicsObjects[ParticleIndex], 1 };
+			const CollisionProfileDataCache* Data = nullptr;
+			if (AbandonedData && Level >= ReplicationAbandonAfterLevel + 1)
+			{
+				Data = AbandonedData;
+			}
+			else if (!CollisionProfilePerLevel.IsEmpty())
+			{
+				Data = CreateOrGetCollisionProfileData(CollisionProfilePerLevel[FMath::Min(CollisionProfilePerLevel.Num() - 1, Level)]);
+			}
 
-		if (Data)
-		{
-			Interface->UpdateShapeCollisionFlags(ParticleView, CollisionEnabledHasPhysics(Data->Template.CollisionEnabled), CollisionEnabledHasQuery(Data->Template.CollisionEnabled));
-			Interface->UpdateShapeFilterData(ParticleView, Data->QueryFilter, Data->SimFilter);
+			if (Data)
+			{
+				Interface->UpdateShapeCollisionFlags(ParticleView, CollisionEnabledHasPhysics(Data->Template.CollisionEnabled), CollisionEnabledHasQuery(Data->Template.CollisionEnabled));
+				Interface->UpdateShapeFilterData(ParticleView, Data->QueryFilter, Data->SimFilter);
+			}
 		}
 	}
 }

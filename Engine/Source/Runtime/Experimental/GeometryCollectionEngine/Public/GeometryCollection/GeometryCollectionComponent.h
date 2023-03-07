@@ -746,6 +746,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
 	int32 MaxClusterLevel;
 
+	/** The maximum level to create rigid bodies that could be simulated.
+	Example: If we have a Geometry Collection with 2 levels, where:
+	0 = Root
+	1 = Clusters
+	2 = Leaf Nodes
+	A setting of '1' would only generate a physics representation of the Root transform and Level 1 clusters. 
+	The leaf nodes on Level 2 would never be created on the solver, and would therefore never be considered as part of the simulation. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
+	int32 MaxSimulatedLevel;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Damage", meta = (EditCondition = "!bUseSizeSpecificDamageThreshold"))
 	TArray<float> DamageThreshold;
 

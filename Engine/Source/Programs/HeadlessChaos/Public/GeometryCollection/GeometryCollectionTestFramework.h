@@ -91,6 +91,7 @@ namespace GeometryCollectionTest
 		FTransform GeomTransform = FTransform::Identity;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		int32 MaxClusterLevel = 100;
+		int32 MaxSimulatedLevel = 100;
 		TArray<float> DamageThreshold = { 1000.0 };
 		Chaos::FClusterCreationParameters::EConnectionMethod ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::PointImplicit;
 		int32 CollisionGroup = 0;

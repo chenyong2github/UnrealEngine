@@ -177,6 +177,7 @@ struct FSimulationParameters
 		, EnableClustering(true)
 		, ClusterGroupIndex(0)
 		, MaxClusterLevel(100)
+		, MaxSimulatedLevel(100)
 		, bUseSizeSpecificDamageThresholds(false)
 		, DamageThreshold({500000.f, 50000.f, 5000.f})
 		, bUsePerClusterOnlyDamageThreshold(false)
@@ -225,6 +226,7 @@ struct FSimulationParameters
 		, EnableClustering(Other.EnableClustering)
 		, ClusterGroupIndex(Other.ClusterGroupIndex)
 		, MaxClusterLevel(Other.MaxClusterLevel)
+		, MaxSimulatedLevel(Other.MaxSimulatedLevel)
 		, bUseSizeSpecificDamageThresholds(Other.bUseSizeSpecificDamageThresholds)
 		, DamageThreshold(Other.DamageThreshold)
 		, bUsePerClusterOnlyDamageThreshold(Other.bUsePerClusterOnlyDamageThreshold)
@@ -290,6 +292,7 @@ struct FSimulationParameters
 	bool EnableClustering;
 	int32 ClusterGroupIndex;
 	int32 MaxClusterLevel;
+	int32 MaxSimulatedLevel;
 	bool bUseSizeSpecificDamageThresholds;
 	TArray<float> DamageThreshold;
 	bool bUsePerClusterOnlyDamageThreshold;

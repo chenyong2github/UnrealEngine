@@ -169,6 +169,7 @@ namespace GeometryCollectionTest
 			SimulationParams.InitialVelocityType = Params.InitialVelocityType;
 			SimulationParams.DamageThreshold = Params.DamageThreshold;
 			SimulationParams.MaxClusterLevel = Params.MaxClusterLevel;
+			SimulationParams.MaxSimulatedLevel = Params.MaxSimulatedLevel;
 			SimulationParams.ClusterConnectionMethod = Params.ClusterConnectionMethod;
 			SimulationParams.CollisionGroup = Params.CollisionGroup;
 			SimulationParams.ClusterGroupIndex = Params.ClusterGroupIndex;
