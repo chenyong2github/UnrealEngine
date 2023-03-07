@@ -3160,6 +3160,8 @@ static bool CompressMipChain(
 				Settings,
 				Mip0Dimensions,
 				Mip0NumSlicesNoDepth,
+				MipIndex,
+				OutMips.Num(),
 				DebugTexturePathName,
 				bImageHasAlphaChannel,
 				ExtData,

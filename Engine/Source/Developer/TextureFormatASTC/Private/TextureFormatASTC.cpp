@@ -563,6 +563,8 @@ public:
 			const FTextureBuildSettings& BuildSettings,
 			const FIntVector3& InMip0Dimensions,
 			int32 InMip0NumSlicesNoDepth,
+			int32 InMipIndex,
+			int32 InMipCount,
 			FStringView DebugTexturePathName,
 			bool bImageHasAlphaChannel,
 			FCompressedImage2D& OutCompressedImage
@@ -577,7 +579,7 @@ public:
 
 			// Route ASTC compression work to the ISPC module instead.
 			// note: ISPC can't do HDR, will throw an error
-			return IntelISPCTexCompFormat.CompressImage(InImage, BuildSettings, InMip0Dimensions, InMip0NumSlicesNoDepth, DebugTexturePathName, bImageHasAlphaChannel, OutCompressedImage);
+			return IntelISPCTexCompFormat.CompressImage(InImage, BuildSettings, InMip0Dimensions, InMip0NumSlicesNoDepth, InMipIndex, InMipCount, DebugTexturePathName, bImageHasAlphaChannel, OutCompressedImage);
 		}
 #endif
 

@@ -213,6 +213,8 @@ public:
 		const FTextureBuildSettings& BuildSettings,
 		const FIntVector3& InMip0Dimensions, 
 		int32 InMip0NumSlicesNoDepth,
+		int32 InMipIndex,
+		int32 InMipCount,
 		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,
 		FCompressedImage2D& OutCompressedImage
@@ -221,7 +223,7 @@ public:
 		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
 
 		// pass along the compression to the base format
-		if (GetBaseFormatObject(BuildSettings.TextureFormatName)->CompressImage(InImage, BaseSettings, InMip0Dimensions, InMip0NumSlicesNoDepth, DebugTexturePathName, bImageHasAlphaChannel, OutCompressedImage) == false)
+		if (GetBaseFormatObject(BuildSettings.TextureFormatName)->CompressImage(InImage, BaseSettings, InMip0Dimensions, InMip0NumSlicesNoDepth, InMipIndex, InMipCount, DebugTexturePathName, bImageHasAlphaChannel, OutCompressedImage) == false)
 		{
 			UE_LOG(LogTemp, Error, TEXT("Failed to compress with base compressor [format %s]"), *BaseSettings.TextureFormatName.ToString());
 			return false;
