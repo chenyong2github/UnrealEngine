@@ -1309,9 +1309,22 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 			return EventIcon;
 		}
 
-		while(const URigVMAggregateNode* AggregateNode = Cast<URigVMAggregateNode>(ModelNode))
+		URigVMNode* InnerNode = ModelNode;
+		while(const URigVMAggregateNode* AggregateNode = Cast<URigVMAggregateNode>(InnerNode))
 		{
-			ModelNode = AggregateNode->GetFirstInnerNode();
+			InnerNode = AggregateNode->GetFirstInnerNode();
+		}
+		if (InnerNode)
+		{
+			ModelNode = InnerNode;
+		}
+		else
+		{
+			if(!ModelNode->HasAnyFlags(RF_NeedLoad))
+			{
+				const FString Message = FString::Printf(TEXT("Could not find first inner node in aggregate node %s in package %s"), *ModelNode->GetPathName(), *GetPackage()->GetPathName());
+				FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Warning, *Message, *FString());
+			}
 		}
 
 		if (ModelNode->IsA<URigVMFunctionReferenceNode>())
