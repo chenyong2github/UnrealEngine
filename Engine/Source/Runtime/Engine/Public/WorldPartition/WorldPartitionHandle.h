@@ -28,8 +28,8 @@ public:
 		virtual ~IContext();
 
 	private:
-		virtual void RegisterActor(FWorldPartitionActorDesc* ActorDesc) =0;
-		virtual void UnregisterActor(FWorldPartitionActorDesc* ActorDesc) =0;
+		virtual void RegisterActor(FWorldPartitionActorDesc* ActorDesc) = 0;
+		virtual void UnregisterActor(FWorldPartitionActorDesc* ActorDesc) = 0;
 	};
 
 	/**
@@ -69,6 +69,16 @@ public:
 
 		int32 NumRegistrations = 0;
 		int32 NumUnregistrations = 0;
+	};
+
+	/**
+	 * Null loading context, which will ignore all loading/unloading commands.
+	 */
+	class ENGINE_API FNull : public IContext
+	{
+	private:
+		virtual void RegisterActor(FWorldPartitionActorDesc* ActorDesc) override {}
+		virtual void UnregisterActor(FWorldPartitionActorDesc* ActorDesc) override {}
 	};
 
 	static void LoadAndRegisterActor(FWorldPartitionActorDesc* ActorDesc);

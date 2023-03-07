@@ -101,7 +101,6 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RegisterDelegates()
 {
 	ActorLoaderInterfaceRefreshState.AddRaw(this, &IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnRefreshLoadedState);
 
-	check(World->GetWorldPartition());
 	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 	{
 		WorldPartition->OnActorDescContainerRegistered.AddRaw(this, &IWorldPartitionActorLoaderInterface::ILoaderAdapter::ILoaderAdapter::OnActorDescContainerInitialize);
@@ -113,7 +112,6 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::UnregisterDelegates()
 {
 	ActorLoaderInterfaceRefreshState.RemoveAll(this);
 
-	check(World->GetWorldPartition());
 	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 	{
 		WorldPartition->OnActorDescContainerRegistered.RemoveAll(this);

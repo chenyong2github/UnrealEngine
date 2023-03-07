@@ -96,7 +96,7 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailBuil
 					.HAlign(HAlign_Center)
 					.IsEnabled_Lambda([this]()
 					{
-						return !WorldPartition->IsStreamingEnabled();
+						return WorldPartition.IsValid() && !WorldPartition->IsStreamingEnabled();
 					})
 					.OnClicked_Lambda([this]()
 					{

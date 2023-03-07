@@ -977,6 +977,8 @@ bool UWorldPartition::RemoveWorldPartition(AWorldSettings* WorldSettings)
 	{
 		if (!WorldPartition->IsStreamingEnabled())
 		{
+			FWorldPartitionLoadingContext::FNull LoadingContext;
+
 			WorldSettings->Modify();
 			
 			ULevel* PersistentLevel = WorldSettings->GetLevel();
