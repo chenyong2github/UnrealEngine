@@ -57,7 +57,7 @@ struct FRigUnit_RigLogic_Data
 	  * if value is valid, it is cast to appropriate uint type
 	**/
 
-	/** RL input index to ControlRig's input curve index for each LOD **/
+	/** RL input index to ControlRig's input curve index **/
 	UPROPERTY(transient)
 	TArray<int32> InputCurveIndices;
 

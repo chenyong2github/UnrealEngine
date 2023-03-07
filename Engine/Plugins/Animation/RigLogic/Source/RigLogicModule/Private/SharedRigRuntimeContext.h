@@ -15,7 +15,7 @@ struct FSharedRigRuntimeContext
 	};
 
 	// Redundant but stored here as well so the runtime context can be updated / queried atomically
-	TSharedPtr<IBehaviorReader> BehaviorReader;
+	TSharedPtr<IDNAReader> BehaviorReader;
 
 	/** RigLogic itself is stateless, and is designed to be shared between
 	  * multiple rig instances based on the same DNA.
