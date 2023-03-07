@@ -102,9 +102,6 @@ private:
 	/** Unregister console commands. */
 	void UnregisterConsoleCommands();
 
-	/** Checking ApiKey using Md5. */
-	bool CheckPassphrase(const FString& HashedPassphrase) const;
-
 	//~ Route handlers
 	bool HandleInfoRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleBatchRequest(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);

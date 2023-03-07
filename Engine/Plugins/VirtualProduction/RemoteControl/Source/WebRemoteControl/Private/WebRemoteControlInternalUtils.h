@@ -51,6 +51,8 @@ namespace WebRemoteControlInternalUtils
 	static const TCHAR* WrappedRequestHeader = TEXT("UE-Wrapped-Request");
 	static const FString PassphraseHeader = TEXT("Passphrase");
 	static const TCHAR* OriginHeader = TEXT("Origin");
+	static const TCHAR* ForwardedIPHeader = TEXT("x-forwarded-for");
+	static const TCHAR* InvalidPassphraseError = TEXT("Given Passphrase is not correct!");
 
 	/**
 	 * Construct a default http response with CORS headers.
@@ -58,6 +60,11 @@ namespace WebRemoteControlInternalUtils
 	 * @return The constructed server response.
 	 */
 	TUniquePtr<FHttpServerResponse> CreateHttpResponse(EHttpServerResponseCodes InResponseCode = EHttpServerResponseCodes::BadRequest);
+
+	/**
+	 * Create a http response for a request denied because of an invalid passphrase.
+	 */
+	TUniquePtr<FHttpServerResponse> CreatedInvalidPassphraseResponse();
 
 	/**
 	 * Create a json structure containing an error message.
@@ -447,4 +454,7 @@ namespace WebRemoteControlInternalUtils
 
 		return bSuccess;
 	}
+
+	/** Checking ApiKey using Md5. */
+	bool CheckPassphrase(const FString& HashedPassphrase);
 }

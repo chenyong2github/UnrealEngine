@@ -37,6 +37,7 @@ public class RemoteControl : ModuleRules
 					"AssetTools",
 					"DeveloperSettings",
 					"MessageLog",
+					"SharedSettingsWidgets",
 					"UnrealEd",
 				}
 			);

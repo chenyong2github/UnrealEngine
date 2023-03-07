@@ -263,8 +263,8 @@ EWebsocketConnectionFilterResult FRCWebSocketServer::FilterConnection(FString Or
 	{
 		OriginHeader.RemoveSpacesInline();
 		OriginHeader.TrimStartAndEndInline();
-		
-		auto SimplifyAddress = [] (FString Address)
+
+		auto SimplifyAddress = [](FString Address)
 		{
 			Address.RemoveFromStart(TEXT("https://www."));
 			Address.RemoveFromStart(TEXT("http://www."));
@@ -275,22 +275,23 @@ EWebsocketConnectionFilterResult FRCWebSocketServer::FilterConnection(FString Or
 		};
 
 		const FString SimplifiedOrigin = SimplifyAddress(OriginHeader);
-		if (Settings->AllowedOrigin != TEXT("*"))
+		const FWildcardString SimplifiedAllowedOrigin = SimplifyAddress(GetDefault<URemoteControlSettings>()->AllowedOrigin);
+
+		if (!SimplifiedOrigin.IsEmpty() && GetDefault<URemoteControlSettings>()->AllowedOrigin != TEXT("*"))
 		{
-			const FWildcardString SimplifiedAllowedOrigin = SimplifyAddress(Settings->AllowedOrigin);
 			if (!SimplifiedAllowedOrigin.IsMatch(SimplifiedOrigin))
 			{
 				return EWebsocketConnectionFilterResult::ConnectionRefused;
 			}
-		}
 
-		// Allow requests from localhost
-		if (ClientIP != TEXT("localhost") && ClientIP != TEXT("127.0.0.1"))
-		{
-			const FWildcardString WildcardAllowedIP = SimplifyAddress(Settings->AllowedIP);
-			if (!WildcardAllowedIP.IsEmpty() && WildcardAllowedIP.IsMatch(ClientIP))
+			// Allow requests from localhost
+			if (ClientIP != TEXT("localhost") && ClientIP != TEXT("127.0.0.1"))
 			{
-				return EWebsocketConnectionFilterResult::ConnectionRefused;
+				const FWildcardString WildcardAllowedIP = SimplifyAddress(Settings->AllowedIP);
+				if (!WildcardAllowedIP.IsEmpty() && WildcardAllowedIP.IsMatch(ClientIP))
+				{
+					return EWebsocketConnectionFilterResult::ConnectionRefused;
+				}
 			}
 		}
 	}

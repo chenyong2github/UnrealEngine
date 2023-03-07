@@ -261,6 +261,13 @@ TUniquePtr<FHttpServerResponse> WebRemoteControlInternalUtils::CreateHttpRespons
 	return Response;
 }
 
+TUniquePtr<FHttpServerResponse> WebRemoteControlInternalUtils::CreatedInvalidPassphraseResponse()
+{
+	TUniquePtr<FHttpServerResponse> Response = CreateHttpResponse(EHttpServerResponseCodes::Denied);
+	CreateUTF8ErrorMessage(InvalidPassphraseError, Response->Body);
+	return Response;
+}
+
 void WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(const FString& InMessage, TArray<uint8>& OutUTF8Message)
 {
 	WebRemoteControlUtils::ConvertToUTF8(FString::Printf(TEXT("{ \"errorMessage\": \"%s\" }"), *InMessage), OutUTF8Message);
@@ -592,4 +599,32 @@ bool WebRemoteControlInternalUtils::IsRequestContentType(const FHttpServerReques
 	}
 	
 	return false;
+}
+
+bool WebRemoteControlInternalUtils::CheckPassphrase(const FString& HashedPassphrase)
+{
+	bool bOutResult = !(GetDefault<URemoteControlSettings>()->bUseRemoteControlPassphrase);
+
+	if (bOutResult)
+	{
+		return true;
+	}
+
+	TArray<FString> HashedPassphrases = GetDefault<URemoteControlSettings>()->GetHashedPassphrases();
+	if (HashedPassphrases.IsEmpty())
+	{
+		return true;
+	}
+
+	for (const FString& InPassphrase : HashedPassphrases)
+	{
+		bOutResult = bOutResult || InPassphrase == HashedPassphrase;
+
+		if (bOutResult)
+		{
+			break;
+		}
+	}
+
+	return bOutResult;
 }

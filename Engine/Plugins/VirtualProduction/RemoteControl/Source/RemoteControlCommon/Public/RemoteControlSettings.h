@@ -123,6 +123,10 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category = "Remote Control Preset")
 	bool bIgnoreWarnings = false;
+
+	/** Whether to restrict access to a list of hostname/IPs in the AllowedOrigins setting. */
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security")
+	bool bRestrictServerAccess = false;
 	
 	/** Whether communication with the Web Interface should only be allowed with an Passphrase */
 	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security", DisplayName = "Use Passphrase to block Access")
@@ -135,10 +139,6 @@ public:
 	/** Enable remote python execution, enabling this could open you open to vulnerabilities if an outside actor has access to your server. */
 	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security")
 	bool bEnableRemotePythonExecution = false;
-
-	/** Whether to restrict access to a list of hostname/IPs in the AllowedOrigins setting. */
-	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security")
-	bool bRestrictServerAccess = false;
 	
 	/** 
 	 * Origin that can make requests to the remote control server. Should contain the hostname or IP of the server making requests to remote control. ie. "http://yourdomain.com", or "*" to allow all origins. 
@@ -156,6 +156,18 @@ public:
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Remote Control | Security", meta = (EditCondition = bRestrictServerAccess))
 	FString AllowedIP = TEXT("127.0.0.1");
+
+	/**
+	 * Controls whether a passphrase should be required when remote control is accessed by a client outside of localhost.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control | Security")
+	bool bEnforcePassphraseForRemoteClients = false;
+	
+	/**
+     * List of IPs that are explicitly *not* required to have a passphrase when accessing remote control.
+     */
+    UPROPERTY(config, EditAnywhere, Category = "Remote Control | Security", meta= (EditCondition = bEnforcePassphraseForRemoteClients))
+    TArray<FString> AllowedIPsForRemotePassphrases;
 	
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control | Security", DisplayName = "Remote Control Passphrase")
 	TArray<FRCPassphrase> Passphrases = {};

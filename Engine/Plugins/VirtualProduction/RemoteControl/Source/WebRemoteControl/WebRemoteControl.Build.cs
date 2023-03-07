@@ -36,8 +36,10 @@ public class WebRemoteControl : ModuleRules
 					"ImageWrapper",
 					"RemoteControlUI",
 					"Settings",
+					"SharedSettingsWidgets",
 					"Slate",
 					"SlateCore",
+					"SourceControl",
 					"UnrealEd",
 				}
 			);
