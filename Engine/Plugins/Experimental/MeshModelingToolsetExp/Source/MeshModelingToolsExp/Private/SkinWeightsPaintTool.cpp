@@ -10,6 +10,7 @@
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
+#include "ToolBuilderUtil.h"
 
 #include "MeshDescription.h"
 #include "DynamicMesh/NonManifoldMappingSupport.h"
@@ -502,6 +503,7 @@ void USkinWeightsPaintTool::Setup()
 
 	// initialize the tool properties
 	BrushProperties->RestoreProperties(this); // hides strength and falloff
+	
 	ToolProps = NewObject<USkinWeightsPaintToolProperties>(this);
 	ToolProps->RestoreProperties(this);
 	ToolProps->SkeletalMesh = Component->GetSkeletalMeshAsset();

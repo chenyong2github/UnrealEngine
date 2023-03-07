@@ -11,6 +11,7 @@
 #include "Containers/Map.h"
 #include "DynamicMesh/DynamicMeshOctree3.h"
 #include "SkeletalMesh/SkeletalMeshEditionInterface.h"
+#include "Engine/SkeletalMesh.h"
 
 #include "SkinWeightsPaintTool.generated.h"
 
