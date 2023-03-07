@@ -1320,8 +1320,11 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 		}
 		else
 		{
-			const FString Message = FString::Printf(TEXT("Could not find first inner node in aggregate node %s in package %s"), *ModelNode->GetPathName(), *GetPackage()->GetPathName());
-			FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Warning, *Message, *FString());
+			if(!ModelNode->HasAnyFlags(RF_NeedLoad))
+			{
+				const FString Message = FString::Printf(TEXT("Could not find first inner node in aggregate node %s in package %s"), *ModelNode->GetPathName(), *GetPackage()->GetPathName());
+				FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Warning, *Message, *FString());
+			}
 		}
 
 		if (ModelNode->IsA<URigVMFunctionReferenceNode>())
