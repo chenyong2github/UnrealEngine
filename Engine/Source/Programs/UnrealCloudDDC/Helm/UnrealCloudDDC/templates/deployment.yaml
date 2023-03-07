@@ -136,6 +136,28 @@ spec:
           containerPort: 8091
         - name: nginx-corp-h2
           containerPort: 8092
+        {{- if .Values.nginx.livenessProbe.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ default "health/liveness" .Values.nginx.livenessProbe.path }}
+            port: nginx-http
+          initialDelaySeconds: {{ .Values.nginx.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.nginx.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.nginx.livenessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.nginx.livenessProbe.successThreshold }}
+          failureThreshold: {{ .Values.nginx.livenessProbe.failureThreshold }}
+        {{- end }}
+        {{- if .Values.nginx.readinessProbe.enabled }}
+        readinessProbe:
+          httpGet:
+            path:  {{ default "health/readiness" .Values.nginx.readinessProbe.path }}
+            port: nginx-http
+          initialDelaySeconds: {{ .Values.nginx.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.nginx.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.nginx.readinessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.nginx.readinessProbe.successThreshold }}
+          failureThreshold: {{ .Values.nginx.readinessProbe.failureThreshold }}
+        {{- end }}
         volumeMounts:
           - name: nginx
             mountPath: /nginx

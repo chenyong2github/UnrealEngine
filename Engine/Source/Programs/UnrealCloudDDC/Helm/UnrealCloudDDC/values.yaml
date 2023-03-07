@@ -319,8 +319,24 @@ nginx:
   ## Set this to use Unix domain sockets rather then ports for inter process communication
   useDomainSockets: false
 
-## Worker configuration
+  ## Liveness and readiness probes, defaults to corresponding endpoints
+  ##
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 5
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 1
+    successThreshold: 1
+    failureThreshold: 5
 
+## Worker configuration
 worker:
 
   ## Set to enable seperate deployments for background workers
