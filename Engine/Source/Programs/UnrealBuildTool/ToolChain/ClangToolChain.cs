@@ -358,7 +358,7 @@ namespace UnrealBuildTool
 		{
 			switch (CompileEnvironment.CStandard)
 			{
-				case CStandardVersion.Default:
+				case CStandardVersion.None:
 					break;
 				case CStandardVersion.C89:
 					Arguments.Add("-std=c89");

@@ -61,9 +61,9 @@ namespace UnrealBuildTool
 	public enum CStandardVersion
 	{
 		/// <summary>
-		/// Use the default standard version
+		/// Supports no additional standard version flag
 		/// </summary>
-		Default,
+		None,
 
 		/// <summary>
 		/// Supports C89
@@ -89,6 +89,11 @@ namespace UnrealBuildTool
 		/// Latest standard supported by the compiler
 		/// </summary>
 		Latest,
+
+		/// <summary>
+		/// Use the default standard version
+		/// </summary>
+		Default = None,
 	}
 
 	/// <summary>

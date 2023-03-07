@@ -1096,13 +1096,22 @@ namespace UnrealBuildTool
 			Arguments.Add("/W0");
 
 			// Select C Standard version available
-			if (CompileEnvironment.CStandard == CStandardVersion.C11)
+			// Select C Standard version available
+			switch (CompileEnvironment.CStandard)
 			{
-				Arguments.Add("/std:c11");
-			}
-			else if (CompileEnvironment.CStandard >= CStandardVersion.C17)
-			{
-				Arguments.Add("/std:c17");
+				case CStandardVersion.None:
+				case CStandardVersion.C89:
+				case CStandardVersion.C99:
+					break;
+				case CStandardVersion.C11:
+					Arguments.Add("/std:c11");
+					break;
+				case CStandardVersion.C17:
+				case CStandardVersion.Latest:
+					Arguments.Add("/std:c17");
+					break;
+				default:
+					throw new BuildException($"Unsupported C standard type set: {CompileEnvironment.CStandard}");
 			}
 		}
 
