@@ -31,7 +31,7 @@ uint GetCulledLightDataGrid(uint GridIndex)
 #endif
 }
 
-#if INSTANCED_STEREO
+#if (INSTANCED_STEREO || MOBILE_MULTI_VIEW)
 uint GetCulledLightDataGridISR(uint GridIndex)
 {
 #if LIGHT_GRID_USES_16BIT_BUFFERS
