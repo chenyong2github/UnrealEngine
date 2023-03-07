@@ -25,7 +25,7 @@ void FMaterialOverrideNanite::RefreshOverrideMaterial(UObject* OptionalOwner)
 	// Instead we defer any resolve to LoadOverrideForPlatform() which should be called in BeginCacheForCookedPlatformData().
 	if (FApp::CanEverRender())
 	{
-		check(IsInGameThread());
+		check(IsInGameThread() || IsInParallelGameThread());
 		
 		if (bEnableOverride && !OverrideMaterialRef.IsNull())
 		{
