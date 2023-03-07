@@ -36,21 +36,18 @@ void UPCGSplineData::Initialize(USplineComponent* InSpline)
 
 void UPCGSplineData::AddToCrc(FArchiveCrc32& Ar) const
 {
-	// TODO: do not rely on having a live spline if we want to CRC this.
-	Super::AddToCrc(Ar);
+	check(Spline);
 
-	//check(Spline);
+	Ar << const_cast<FBox&>(CachedBounds);
 
-	//Ar << const_cast<FBox&>(CachedBounds);
+	Ar << const_cast<FInterpCurveVector&>(Spline->GetSplinePointsPosition());
+	Ar << const_cast<FInterpCurveQuat&>(Spline->GetSplinePointsRotation());
+	Ar << const_cast<FInterpCurveVector&>(Spline->GetSplinePointsScale());
 
-	//Ar << const_cast<FInterpCurveVector&>(Spline->GetSplinePointsPosition());
-	//Ar << const_cast<FInterpCurveQuat&>(Spline->GetSplinePointsRotation());
-	//Ar << const_cast<FInterpCurveVector&>(Spline->GetSplinePointsScale());
+	Ar << const_cast<FTransform&>(Spline->GetComponentTransform());
 
-	//Ar << const_cast<FTransform&>(Spline->GetComponentTransform());
-
-	//bool bIsClosed = Spline->IsClosedLoop();
-	//Ar << bIsClosed;
+	bool bIsClosed = Spline->IsClosedLoop();
+	Ar << bIsClosed;
 }
 
 FTransform UPCGSplineData::GetTransform() const

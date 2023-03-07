@@ -45,26 +45,21 @@ void UPCGVolumeData::Initialize(const FBox& InBounds, AActor* InTargetActor)
 
 void UPCGVolumeData::AddToCrc(FArchiveCrc32& Ar) const
 {
-	// Until we can track the destruction of the volume, we must use the UID
-	if (Volume.IsValid())
-	{
-		return Super::AddToCrc(Ar);
-	}
-
 	Ar << const_cast<FBox&>(Bounds);
+
 	Ar << const_cast<FBox&>(StrictBounds);
 
-	//if (Volume.IsValid())
-	//{
-	//	if (UBrushComponent* Brush = Volume->GetBrushComponent())
-	//	{
-	//		Ar << const_cast<FTransform&>(Brush->GetComponentTransform());
+	if (Volume.IsValid())
+	{
+		if (UBrushComponent* Brush = Volume->GetBrushComponent())
+		{
+			Ar << const_cast<FTransform&>(Brush->GetComponentTransform());
 
-	//		FPCGBrushCrc32 VolumeCrc;
-	//		uint32 BrushCrc = VolumeCrc.Crc32(Brush);
-	//		Ar << BrushCrc;
-	//	}
-	//}
+			FPCGBrushCrc32 VolumeCrc;
+			uint32 BrushCrc = VolumeCrc.Crc32(Brush);
+			Ar << BrushCrc;
+		}
+	}
 }
 
 FBox UPCGVolumeData::GetBounds() const
