@@ -56,7 +56,7 @@ namespace UnrealBuildTool
 		static readonly string[] VisualStudio2022SuggestedComponents = new string[]
 		{
 			"Microsoft.VisualStudio.Workload.ManagedDesktop",
-			"Microsoft.VisualStudio.Component.VC.14.35.17.5.x86.x64",
+			"Microsoft.VisualStudio.Component.VC.14.34.17.4.x86.x64",
 			"Microsoft.Net.Component.4.6.2.TargetingPack",
 		};
 
@@ -66,7 +66,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		static readonly string[] VisualStudio2022SuggestedHololensComponents = new string[]
 		{
-			"Microsoft.VisualStudio.Component.VC.14.35.17.5.ARM64",
+			"Microsoft.VisualStudio.Component.VC.14.34.17.4.ARM64",
 		};
 
 		/// <summary>
