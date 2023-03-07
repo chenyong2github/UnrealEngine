@@ -2651,6 +2651,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		{
 			RestCollection->GetSharedSimulationParams(SimulationParameters.Shared);
 			SimulationParameters.RestCollection = RestCollection->GetGeometryCollection().Get();
+			SimulationParameters.InitialRootIndex = RestCollection->GetRootIndex();
 			ClusterCollectionType = RestCollection->ClusterConnectionType;
 			ConnectionGraphBoundsFilteringMargin = RestCollection->ConnectionGraphBoundsFilteringMargin;
 		}

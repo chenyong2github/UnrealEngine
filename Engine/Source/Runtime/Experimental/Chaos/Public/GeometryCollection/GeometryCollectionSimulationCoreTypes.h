@@ -170,6 +170,7 @@ struct FSimulationParameters
 	FSimulationParameters()
 		: Name("")
 		, RestCollection(nullptr)
+		, InitialRootIndex(INDEX_NONE)
 		, RecordedTrack(nullptr)
 		, bOwnsTrack(false)
 		, Simulating(false)
@@ -218,6 +219,7 @@ struct FSimulationParameters
 	FSimulationParameters(const FSimulationParameters& Other)
 		: Name(Other.Name)
 		, RestCollection(Other.RestCollection)
+		, InitialRootIndex(Other.InitialRootIndex)
 		, InitializationCommands(Other.InitializationCommands)
 		, RecordedTrack(Other.RecordedTrack)
 		, bOwnsTrack(false)
@@ -280,6 +282,7 @@ struct FSimulationParameters
 
 	FString Name;
 	const FGeometryCollection* RestCollection;
+	int32 InitialRootIndex;
 	TArray<FFieldSystemCommand> InitializationCommands;
 	const FRecordedTransformTrack* RecordedTrack;
 	bool bOwnsTrack;
