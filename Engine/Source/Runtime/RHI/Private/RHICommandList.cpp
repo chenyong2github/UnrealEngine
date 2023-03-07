@@ -136,111 +136,12 @@ static TStatId GCurrentExecuteStat;
 static FCriticalSection GRHIThreadOnTasksCritical;
 static std::atomic<int32> GRHIThreadStallRequestCount;
 
-int32 GRHICommandParameterBatching = 1;
-static FAutoConsoleVariableRef CVarRHICommandParameterBatching(
-	TEXT("r.RHICmdParamBatching"),
-	GRHICommandParameterBatching,
-	TEXT("Controls if parameters can be batched in RHI command lists."),
-	ECVF_ReadOnly
-);
-
-FRHIParameterBatcher::FRHIParameterBatcher()
-{
-	bEnabled = GRHICommandParameterBatching != 0;
-}
-
-FRHIParameterBatcher::FRHIParameterBatcher(const FBoundShaderStateInput& InBoundShaderStateInput, FRHIComputeShader* InBoundComputeShaderRHI)
-{
-	AllBatchedShaders[SF_Vertex] = InBoundShaderStateInput.GetVertexShader();
-	AllBatchedShaders[SF_Mesh] = InBoundShaderStateInput.GetMeshShader();
-	AllBatchedShaders[SF_Amplification] = InBoundShaderStateInput.GetAmplificationShader();
-	AllBatchedShaders[SF_Pixel] = InBoundShaderStateInput.GetPixelShader();
-	AllBatchedShaders[SF_Geometry] = InBoundShaderStateInput.GetGeometryShader();
-	AllBatchedShaders[SF_Compute] = InBoundComputeShaderRHI;
-
-	bEnabled = GRHICommandParameterBatching != 0;
-}
-
-FRHIParameterBatcher::FRHIParameterBatcher(FRHIParameterBatcher&&) = default;
-FRHIParameterBatcher::~FRHIParameterBatcher()
-{
-	for (int32 Index = 0; Index < SF_NumStandardFrequencies; Index++)
-	{
-		checkSlow(AllBatchedShaderParameters[Index].HasParameters() == false);
-	}
-}
-
-void FRHIParameterBatcher::OnBoundShaderChanged(FRHICommandList& InCommandList, const FBoundShaderStateInput& InBoundShaderStateInput)
-{
-	// Make sure we flush all parameters before binding new shaders, even if we make a pipeline switch
-	PreDispatch(InCommandList);
-	PreDraw(InCommandList);
-
-	AllBatchedShaders[SF_Vertex]        = InBoundShaderStateInput.GetVertexShader();
-	AllBatchedShaders[SF_Mesh]          = InBoundShaderStateInput.GetMeshShader();
-	AllBatchedShaders[SF_Amplification] = InBoundShaderStateInput.GetAmplificationShader();
-	AllBatchedShaders[SF_Pixel]         = InBoundShaderStateInput.GetPixelShader();
-	AllBatchedShaders[SF_Geometry]      = InBoundShaderStateInput.GetGeometryShader();
-}
-
-void FRHIParameterBatcher::OnBoundShaderChanged(FRHIComputeCommandList& InCommandList, FRHIComputeShader* InBoundComputeShaderRHI)
-{
-	// Make sure we flush all parameters before binding new shaders, even if we make a pipeline switch
-	PreDraw((FRHICommandList&)InCommandList);
-	PreDispatch(InCommandList);
-
-	AllBatchedShaders[SF_Compute] = InBoundComputeShaderRHI;
-}
-
-void FRHIParameterBatcher::PreDispatch(FRHIComputeCommandList& InCommandList)
-{
-	InCommandList.SetShaderParametersFromInternalBatched(GetBatchedComputeShader(), AllBatchedShaderParameters[SF_Compute]);
-}
-
-void FRHIParameterBatcher::PreDraw(FRHICommandList& InCommandList)
-{
-	for (uint32 Index = 0; Index < SF_NumGraphicsFrequencies; Index++)
-	{
-		InCommandList.SetShaderParametersFromInternalBatched(GetBatchedGraphicsShader(Index), AllBatchedShaderParameters[Index]);
-	}
-}
-
-void FRHIParameterBatcher::FlushAllParameters(class FRHIComputeCommandList& InCommandList)
-{
-	PreDispatch(InCommandList);
-}
-
-void FRHIParameterBatcher::FlushAllParameters(class FRHICommandList& InCommandList)
-{
-	PreDraw(InCommandList);
-	PreDispatch(InCommandList);
-}
-
-void FRHIParameterBatcher::FlushPendingParameters(FRHIComputeCommandList& InCommandList, FRHIComputeShader* InShader)
-{
-	const EShaderFrequency Frequency = InShader->GetFrequency();
-	if (Frequency == SF_Compute)
-	{
-		InCommandList.SetShaderParametersFromInternalBatched(GetBatchedComputeShader(), AllBatchedShaderParameters[SF_Compute]);
-	}
-}
-
-void FRHIParameterBatcher::FlushPendingParameters(FRHICommandList& InCommandList, FRHIGraphicsShader* InShader)
-{
-	const EShaderFrequency Frequency = InShader->GetFrequency();
-	if (Frequency < SF_NumGraphicsFrequencies)
-	{
-		InCommandList.SetShaderParametersFromInternalBatched(GetBatchedGraphicsShader(Frequency), AllBatchedShaderParameters[Frequency]);
-	}
-}
-
 FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask, ERecordingThread InRecordingThread)
 	: FRHICommandListBase(FPersistentState(InGPUMask, InRecordingThread))
 {}
 
 FRHICommandListBase::FRHICommandListBase(FPersistentState&& InPersistentState)
-	: ParameterBatcher(InPersistentState.BoundShaderInput, InPersistentState.BoundComputeShaderRHI)
-	, DispatchEvent(FGraphEvent::CreateGraphEvent())
+	: DispatchEvent(FGraphEvent::CreateGraphEvent())
 	, PersistentState(MoveTemp(InPersistentState))
 {
 	DispatchEvent->SetDebugName(TEXT("FRHICommandListBase::DispatchEvent"));
@@ -271,7 +172,6 @@ FRHICommandListBase::FRHICommandListBase(FRHICommandListBase&& Other)
     , GraphicsContext (MoveTemp(Other.GraphicsContext))
     , ComputeContext  (MoveTemp(Other.ComputeContext))
     , Contexts        (MoveTemp(Other.Contexts))
-	, ParameterBatcher(MoveTemp(Other.ParameterBatcher))
 #if RHI_COUNT_COMMANDS
     , NumCommands     (MoveTemp(Other.NumCommands))
 #endif				  
@@ -371,16 +271,6 @@ void FRHICommandListBase::FinishRecording()
 {
 	checkf(!IsImmediate(), TEXT("Do not call FinishRecording() on the immediate RHI command list."));
 
-	if (IsGraphics())
-	{
-		// Make sure the batcher is cleared out. If there are pending graphics parameters, this cast is safe.
-		ParameterBatcher.FlushAllParameters(static_cast<FRHICommandList&>(*this));
-	}
-	else
-	{
-		ParameterBatcher.FlushAllParameters(static_cast<FRHIComputeCommandList&>(*this));
-	}
-
 	PersistentState.FenceCandidate->Fence = PersistentState.RHIThreadBufferLockFence;
 
 	// "Complete" the dispatch event. This unblocks waiting tasks but only when
@@ -447,15 +337,6 @@ ERHIPipeline FRHICommandListBase::SwitchPipeline(ERHIPipeline Pipeline)
 	Exchange(ActivePipeline, Pipeline);
 	if (ActivePipeline != Pipeline)
 	{
-		if (Pipeline == ERHIPipeline::Graphics)
-		{
-			ParameterBatcher.FlushAllParameters(static_cast<FRHICommandList&>(*this));
-		}
-		else if (Pipeline == ERHIPipeline::AsyncCompute)
-		{
-			ParameterBatcher.FlushAllParameters(static_cast<FRHIComputeCommandList&>(*this));
-		}
-
 		EnqueueLambda([NewPipeline = ActivePipeline](FRHICommandListBase& ExecutingCmdList)
 		{
 			ExecutingCmdList.ActivePipeline = NewPipeline;
@@ -820,8 +701,6 @@ void FRHICommandListImmediate::ExecuteAndReset()
 
 	// Always reset the immediate command list when we're done.
 	ON_SCOPE_EXIT { Reset(); };
-
-	ParameterBatcher.FlushAllParameters(*this);
 
 	//
 	// In bypass mode, the immediate command list will never contain recorded commands (since these were forwarded directly into the immediate RHI contexts).
