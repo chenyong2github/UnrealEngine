@@ -80,10 +80,10 @@ void UTraceUtilLibrary::TraceBookmark(const FString& Name)
 
 void UTraceUtilLibrary::TraceMarkRegionStart(const FString& Name)
 {
-	TRACE_BOOKMARK(TEXT("RegionStart:%s"), *Name);
+	TRACE_BEGIN_REGION(*Name);
 }
 
 void UTraceUtilLibrary::TraceMarkRegionEnd(const FString& Name)
 {
-	TRACE_BOOKMARK(TEXT("RegionEnd:%s"), *Name);
+	TRACE_END_REGION(*Name);
 }

@@ -10,6 +10,7 @@
 
 UE_TRACE_CHANNEL(FrameChannel)
 UE_TRACE_CHANNEL(BookmarkChannel)
+UE_TRACE_CHANNEL(RegionChannel)
 UE_TRACE_CHANNEL(ScreenshotChannel)
 
 UE_TRACE_EVENT_BEGIN(Misc, BookmarkSpec, NoSync|Important)
@@ -23,6 +24,16 @@ UE_TRACE_EVENT_BEGIN(Misc, Bookmark)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(const void*, BookmarkPoint)
 	UE_TRACE_EVENT_FIELD(uint8[], FormatArgs)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Misc, RegionBegin)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, RegionName)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Misc, RegionEnd)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, RegionName)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Misc, BeginFrame)
@@ -63,6 +74,20 @@ void FMiscTrace::OutputBookmarkSpec(const void* BookmarkPoint, const ANSICHAR* F
 		<< BookmarkSpec.Line(Line)
 		<< BookmarkSpec.FormatString(Format, FormatStringLen)
 		<< BookmarkSpec.FileName(File, FileNameLen);
+}
+
+void FMiscTrace::OutputBeginRegion(const TCHAR* RegionName)
+{
+	UE_TRACE_LOG(Misc, RegionBegin, RegionChannel)
+		<< RegionBegin.Cycle(FPlatformTime::Cycles64())
+		<< RegionBegin.RegionName(RegionName);
+}
+
+void FMiscTrace::OutputEndRegion(const TCHAR* RegionName)
+{
+	UE_TRACE_LOG(Misc, RegionEnd, RegionChannel)
+		<< RegionEnd.Cycle(FPlatformTime::Cycles64())
+		<< RegionEnd.RegionName(RegionName);
 }
 
 void FMiscTrace::OutputBookmarkInternal(const void* BookmarkPoint, uint16 EncodedFormatArgsSize, uint8* EncodedFormatArgs)
