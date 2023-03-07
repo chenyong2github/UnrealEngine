@@ -61,7 +61,13 @@ void FAnimCurveBase::PostSerialize(const FArchive& Ar)
 	{
 		if (Ar.CustomVer(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::SmartNameRefactor)
 		{
-			Name_DEPRECATED.DisplayName = LastObservedName_DEPRECATED;
+			// Between CLs 3002109 (SmartNameRefactor) and 3026802 (PoseAssetSupportPerBoneMask), PoseAssets had no custom version serialized into their archive, so we
+			// cant properly upgrade curves stored there. We instead assume that if LastObservedName_DEPRECATED is not
+			// NAME_None, we can use it
+			if(LastObservedName_DEPRECATED != NAME_None)
+			{
+				Name_DEPRECATED.DisplayName = LastObservedName_DEPRECATED;
+			}
 		}
 		
 		if(Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::AnimSequenceCurveColors)

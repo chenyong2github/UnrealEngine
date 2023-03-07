@@ -2,6 +2,7 @@
 
 #include "AnimNodes/AnimNode_PoseDriver.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimCurveUtils.h"
 #include "Serialization/CustomVersion.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "RBF/RBFSolver.h"
@@ -433,14 +434,25 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 				Output = SourceData;
 
 				// Then set curves based on target weights
+				FBlendedCurve DrivenCurves;
 				for (const FRBFOutputWeight& Weight : OutputWeights)
 				{
 					FPoseDriverTarget& PoseTarget = PoseTargets[Weight.TargetIndex];
 					if (PoseTarget.DrivenName != NAME_None)
 					{
-						Output.Curve.Set(PoseTarget.DrivenName, Weight.TargetWeight);
+						DrivenCurves.Add(PoseTarget.DrivenName, Weight.TargetWeight);
 					}
 				}
+
+				// Merge driven curves into output
+				UE::Anim::FNamedValueArrayUtils::Union(Output.Curve, DrivenCurves, [](UE::Anim::FCurveElement& InOutElement, const UE::Anim::FCurveElement& InElement0, UE::Anim::ENamedValueUnionFlags InFlags)
+				{
+					if(EnumHasAnyFlags(InFlags, UE::Anim::ENamedValueUnionFlags::ValidArg1))
+					{
+						InOutElement.Value = InElement0.Value;
+						InOutElement.Flags |= InElement0.Flags;
+					}
+				});
 
 				bHaveValidPose = true;
 			}

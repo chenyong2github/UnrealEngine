@@ -102,7 +102,7 @@ void FPoseDataContainer::BlendPoseCurve(const FPoseData* PoseData, FBlendedCurve
 		FBlendedCurve Curve;
 		Curve.SetFilter(InOutCurve.GetFilter());
 
-		GetPoseCurve(PoseData, InOutCurve);
+		GetPoseCurve(PoseData, Curve);
 
 		UE::Anim::FNamedValueArrayUtils::Union(InOutCurve, Curve,
 			[Weight](UE::Anim::FCurveElement& InOutElement, const UE::Anim::FCurveElement& InElement, UE::Anim::ENamedValueUnionFlags InFlags)

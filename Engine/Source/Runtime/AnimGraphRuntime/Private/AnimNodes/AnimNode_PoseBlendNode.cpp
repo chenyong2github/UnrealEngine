@@ -20,14 +20,7 @@ void FAnimNode_PoseBlendNode::Initialize_AnyThread(const FAnimationInitializeCon
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_PoseHandler::Initialize_AnyThread(Context);
-
-	BulkCurves.Empty();
-	for (int32 PoseIdx = 0; PoseIdx < PoseExtractContext.PoseCurves.Num(); ++PoseIdx)
-	{
-		FPoseCurve& PoseCurve = PoseExtractContext.PoseCurves[PoseIdx];
-		BulkCurves.Add(PoseCurve.Name, BulkCurves.Num());
-	}
-
+	
 	SourcePose.Initialize(Context);
 }
 
@@ -105,4 +98,14 @@ void FAnimNode_PoseBlendNode::GatherDebugData(FNodeDebugData& DebugData)
 	SourcePose.GatherDebugData(DebugData.BranchFlow(1.f));
 }
 
-
+void FAnimNode_PoseBlendNode::RebuildPoseList(const FBoneContainer& InBoneContainer, const UPoseAsset* InPoseAsset)
+{
+	FAnimNode_PoseHandler::RebuildPoseList(InBoneContainer, InPoseAsset);
+	
+	BulkCurves.Empty();
+	for (int32 PoseIdx = 0; PoseIdx < PoseExtractContext.PoseCurves.Num(); ++PoseIdx)
+	{
+		FPoseCurve& PoseCurve = PoseExtractContext.PoseCurves[PoseIdx];
+		BulkCurves.Add(PoseCurve.Name, BulkCurves.Num());
+	}
+}

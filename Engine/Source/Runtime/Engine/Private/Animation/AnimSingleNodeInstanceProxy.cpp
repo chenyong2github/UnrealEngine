@@ -9,6 +9,7 @@
 #include "Animation/AnimStreamable.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Animation/AnimationPoseData.h"
+#include "Animation/AnimCurveUtils.h"
 #include "Animation/AnimSyncScope.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSingleNodeInstanceProxy)
@@ -62,10 +63,10 @@ void FAnimSingleNodeInstanceProxy::PropagatePreviewCurve(FPoseContext& Output)
 {
 	USkeleton* MySkeleton = GetSkeleton();
 
-	for (auto Iter = PreviewCurveOverride.CreateConstIterator(); Iter; ++Iter)
-	{
-		Output.Curve.Set(Iter.Key(), Iter.Value());
-	}
+	FBlendedCurve Curve;
+	UE::Anim::FCurveUtils::BuildUnsorted(Curve, PreviewCurveOverride);
+
+	Output.Curve.Combine(Curve);
 }
 #endif // WITH_EDITORONLY_DATA
 

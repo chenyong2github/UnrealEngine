@@ -2,6 +2,7 @@
 
 #include "ControlRigAnimInstance.h"
 
+#include "Animation/AnimCurveUtils.h"
 #include "Animation/AnimNodeBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigAnimInstance)
@@ -50,10 +51,9 @@ bool FControlRigAnimInstanceProxy::Evaluate(FPoseContext& Output)
 		Output.Pose[ModifiedBone] = CompactPose[ModifiedBone];
 	}
 
-	for (const TPair<FName, float>& Pair : StoredCurves)
-	{
-		Output.Curve.Set(Pair.Key, Pair.Value);
-	}
+	FBlendedCurve Curve;
+	UE::Anim::FCurveUtils::BuildUnsorted(Curve, StoredCurves);
+	Output.Curve.Combine(Curve);
 
 	return true;
 }

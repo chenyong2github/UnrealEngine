@@ -569,8 +569,9 @@ public:
 	}
 
 	/**
-	 * Set value of curve named InName to InValue. Has no effect if the curve does not contain an element for InName.
-	 * Note that this performs a binary search per-call. Consider using a combiner operation to set multiple element's values.
+	 * Set value of curve named InName to InValue. Inserts a new value if an element for InName does not already exist.
+	 * Note that this performs a binary search per-call and can potentially cause a re-sort. Consider using a combiner
+	 * operation to set multiple element's values.
 	 * @param	InName	the name of the curve to set
 	 * @param	InValue	the value of the curve to set
 	 */
@@ -580,11 +581,17 @@ public:
 		{
 			CurveElement->Value = InValue;
 		}
+		else
+		{
+			Super::Add(InName, InValue);
+		}
 	}
 
 	/**
-	 * Set flags of curve named InName to InValue. Has no effect if the curve does not contain an element for InName.
-	 * Note that this performs a binary search per-call. Consider using a combiner operation to set multiple element's flags.
+	 * Set flags of curve named InName to InFlags.  Inserts a new default value if an element for InName does not
+	 * already exist and then sets its flags to InFlags.
+	 * Note that this performs a binary search per-call and can potentially cause a re-sort. Consider using a combiner
+	 * operation to set multiple element's flags.
 	 * @param	InName	the name of the curve to set
 	 * @param	InFlags	the flags of the curve to set
 	 */
@@ -593,6 +600,10 @@ public:
 		if(ElementType* CurveElement = Super::Find(InName))
 		{
 			CurveElement->Flags = InFlags;
+		}
+		else
+		{
+			Super::Add(InName, InFlags);
 		}
 	}
 

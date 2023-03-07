@@ -6,6 +6,7 @@
 #include "Animation/AnimTypes.h"
 #include "Animation/Skeleton.h"
 #include "BonePose.h"
+#include "Animation/AnimCurveUtils.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 
@@ -27,23 +28,33 @@ void ULiveLinkRetargetAsset::BuildCurveData(const FLiveLinkSkeletonStaticData* I
 
 	if (InSkeletonData->PropertyNames.Num() == InFrameData->PropertyValues.Num())
 	{
-		for (int32 CurveIdx = 0; CurveIdx < InSkeletonData->PropertyNames.Num(); ++CurveIdx)
+		auto GetCurveNameFromIndex = [InSkeletonData](int32 InCurveIndex)
 		{
-			const float Curve = InFrameData->PropertyValues[CurveIdx];
+			return InSkeletonData->PropertyNames[InCurveIndex];
+		};
+
+		auto GetCurveValueFromIndex = [InFrameData](int32 InCurveIndex)
+		{
+			const float Curve = InFrameData->PropertyValues[InCurveIndex];
 			if (FMath::IsFinite(Curve))
 			{
-				ApplyCurveValue(Skeleton, InSkeletonData->PropertyNames[CurveIdx], Curve, OutCurve);
+				return InFrameData->PropertyValues[InCurveIndex];
 			}
-		}
+			else
+			{
+				return 0.0f;
+			}
+		};
+
+		FBlendedCurve Curve;
+		UE::Anim::FCurveUtils::BuildUnsorted(Curve, InSkeletonData->PropertyNames.Num(), GetCurveNameFromIndex, GetCurveValueFromIndex);
+		OutCurve.Combine(Curve);
 	}
 }
 
 void ULiveLinkRetargetAsset::BuildCurveData(const TMap<FName, float>& CurveMap, const FCompactPose& InPose, FBlendedCurve& OutCurve) const
 {
-	const USkeleton* Skeleton = InPose.GetBoneContainer().GetSkeletonAsset();
-
-	for (const TPair<FName, float>& Pair : CurveMap)
-	{
-		ApplyCurveValue(Skeleton, Pair.Key, Pair.Value, OutCurve);
-	}
+	FBlendedCurve Curve;
+	UE::Anim::FCurveUtils::BuildUnsorted(Curve, CurveMap);
+	OutCurve.Combine(Curve);
 }
