@@ -39,9 +39,11 @@
 
 #include "Components/DisplayClusterICVFXCameraComponent.h"
 
-
 #include "Misc/DisplayClusterLog.h"
 #include "TextureResource.h"
+
+#include "HAL/IConsoleManager.h"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Experimental feature: to be approved after testing
@@ -626,17 +628,22 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 	// Set media related configuration (runtime only for now)
 	if (IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster)
 	{
-		const FDisplayClusterConfigurationMediaICVFX& MediaICVFXSettings = InCameraComponent.CameraSettings.RenderSettings.Media;
-
-		if (MediaICVFXSettings.bEnable)
+		// Check if nDisplay media enabled
+		static const TConsoleVariableData<int32>* const ICVarMediaEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("nDisplay.media.Enabled"));
+		if (ICVarMediaEnabled && !!ICVarMediaEnabled->GetValueOnGameThread())
 		{
-			const FString ThisClusterNodeId = DstViewport.GetClusterNodeId();
+			const FDisplayClusterConfigurationMediaICVFX& MediaICVFXSettings = InCameraComponent.CameraSettings.RenderSettings.Media;
 
-			// Don't render the viewport if media input assigned
-			DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaICVFXSettings.IsMediaInputAssigned(ThisClusterNodeId);
+			if (MediaICVFXSettings.bEnable)
+			{
+				const FString ThisClusterNodeId = DstViewport.GetClusterNodeId();
 
-			// Mark this viewport is going to be captured by a capture device
-			DstViewport.RenderSettings.bIsBeingCaptured = MediaICVFXSettings.IsMediaOutputAssigned(ThisClusterNodeId);
+				// Don't render the viewport if media input assigned
+				DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaICVFXSettings.IsMediaInputAssigned(ThisClusterNodeId);
+
+				// Mark this viewport is going to be captured by a capture device
+				DstViewport.RenderSettings.bIsBeingCaptured = MediaICVFXSettings.IsMediaOutputAssigned(ThisClusterNodeId);
+			}
 		}
 	}
 }

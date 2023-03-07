@@ -35,6 +35,9 @@
 #include "Misc/DisplayClusterLog.h"
 #include "TextureResource.h"
 
+#include "HAL/IConsoleManager.h"
+
+
 void FDisplayClusterViewportConfigurationHelpers::UpdateViewportStereoMode(FDisplayClusterViewport& DstViewport, const EDisplayClusterConfigurationViewport_StereoMode StereoMode)
 {
 	switch (StereoMode)
@@ -211,15 +214,20 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 	// Set media related configuration (runtime only for now)
 	if (IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster)
 	{
-		const FDisplayClusterConfigurationMedia& MediaSettings = InConfigurationViewport.RenderSettings.Media;
-
-		if (MediaSettings.bEnable)
+		// Check if nDisplay media enabled
+		static const TConsoleVariableData<int32>* const ICVarMediaEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("nDisplay.media.Enabled"));
+		if (ICVarMediaEnabled && !!ICVarMediaEnabled->GetValueOnGameThread())
 		{
-			// Don't render the viewport if media input assigned
-			DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = !!MediaSettings.MediaSource;
+			const FDisplayClusterConfigurationMedia& MediaSettings = InConfigurationViewport.RenderSettings.Media;
 
-			// Mark this viewport is going to be captured by a capture device
-			DstViewport.RenderSettings.bIsBeingCaptured = !!MediaSettings.MediaOutput;
+			if (MediaSettings.bEnable)
+			{
+				// Don't render the viewport if media input assigned
+				DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = !!MediaSettings.MediaSource;
+
+				// Mark this viewport is going to be captured by a capture device
+				DstViewport.RenderSettings.bIsBeingCaptured = !!MediaSettings.MediaOutput;
+			}
 		}
 	}
 

@@ -26,6 +26,17 @@
 #include "Misc/CoreDelegates.h"
 
 
+static TAutoConsoleVariable<int32> CVarMediaEnabled(
+	TEXT("nDisplay.media.Enabled"),
+	1,
+	TEXT("nDisplay media subsystem\n")
+	TEXT("0 : Disabled\n")
+	TEXT("1 : Enabled\n")
+	,
+	ECVF_ReadOnly
+);
+
+
 void FDisplayClusterMediaModule::StartupModule()
 {
 	UE_LOG(LogDisplayClusterMedia, Log, TEXT("Starting module 'DisplayClusterMedia'..."));
@@ -87,6 +98,13 @@ void FDisplayClusterMediaModule::InitializeMedia()
 	if (IDisplayCluster::Get().GetOperationMode() != EDisplayClusterOperationMode::Cluster)
 	{
 		UE_LOG(LogDisplayClusterMedia, Warning, TEXT("DisplayClusterMedia is available in 'cluster' operation mode only"));
+		return;
+	}
+
+	// Check if media enabled
+	if (CVarMediaEnabled.GetValueOnGameThread() == 0)
+	{
+		UE_LOG(LogDisplayClusterMedia, Log, TEXT("nDisplay media subsytem is disabled by a cvar"));
 		return;
 	}
 
