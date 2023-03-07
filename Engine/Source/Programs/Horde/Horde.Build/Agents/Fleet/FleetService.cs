@@ -189,7 +189,7 @@ namespace Horde.Build.Agents.Fleet
 
 		internal async Task<List<PoolWithAgents>> GetPoolsWithAgentsAsync()
 		{
-			List<IAgent> agents = await _agentCollection.FindAsync(status: AgentStatus.Ok, enabled: true);
+			List<IAgent> agents = (await _agentCollection.FindAsync(status: AgentStatus.Ok, enabled: true)).Where(x => !x.RequestShutdown).ToList();
 			List<IAgent> GetAgentsInPool(PoolId poolId) => agents.FindAll(a => a.GetPools().Any(p => p == poolId));
 			List<IPool> pools = await _poolCollection.GetAsync();
 
@@ -265,7 +265,9 @@ namespace Horde.Build.Agents.Fleet
 					}
 					else
 					{
-						result = await fleetManager.ExpandPoolAsync(pool, agents, deltaAgentCount, cancellationToken);
+						result = await ExpandWithPendingShutdownsFirstAsync(pool, deltaAgentCount, (agentsToAdd) =>
+							fleetManager.ExpandPoolAsync(pool, agents, agentsToAdd, cancellationToken));
+						
 						scaleOutTime = _clock.UtcNow;
 					}
 				}
@@ -278,14 +280,14 @@ namespace Horde.Build.Agents.Fleet
 					else
 					{
 						result = await fleetManager.ShrinkPoolAsync(pool, agents, -deltaAgentCount, cancellationToken);
-						scaleInTime = _clock.UtcNow;	
+						scaleInTime = _clock.UtcNow;
 					}
 				}
 			}
 			catch (Exception ex)
 			{
 				_logger.LogInformation(ex, "Failed to scale {PoolName}", pool.Name);
-				return new ScaleResult(FleetManagerOutcome.Failure, 0, 0);
+				return new ScaleResult(FleetManagerOutcome.Failure, 0, 0, "Exception during scaling. See log.");
 			}
 
 			if (pool.LastScaleResult == null || !pool.LastScaleResult.Equals(result))
@@ -400,6 +402,50 @@ namespace Horde.Build.Agents.Fleet
 				default:
 					throw new ArgumentException("Unknown pool size strategy " + pool.SizeStrategy);
 			}
+		}
+
+		/// <summary>
+		/// </summary>
+		
+		
+		/// <summary>
+		/// Cancel a number of pending agent shutdowns for a pool
+		/// 
+		/// By preventing a shutdown, the agent can immediately be put back
+		/// to service without requiring the provisioning of a new one
+		/// </summary>
+		/// <param name="pool">Pool to cancel shutdowns in</param>
+		/// <param name="count">Number of shutdowns to cancel</param>
+		/// <returns>Number of pending shutdown cancelled</returns>
+		private async Task<int> CancelPendingShutdownsAsync(IPool pool, int count)
+		{
+			List<IAgent> agents = await _agentCollection.FindAsync(status: AgentStatus.Ok, enabled: true, poolId: pool.Id);
+			int numShutdownsCancelled = 0;
+			foreach (IAgent agent in agents)
+			{
+				if (agent.RequestShutdown && numShutdownsCancelled < count)
+				{
+					await _agentCollection.TryUpdateSettingsAsync(agent, requestShutdown: false);
+					numShutdownsCancelled++;
+				}
+			}
+			
+			return numShutdownsCancelled;
+		}
+
+		private async Task<ScaleResult> ExpandWithPendingShutdownsFirstAsync(IPool pool, int agentsToAdd, Func<int, Task<ScaleResult>> scaleOutFunc)
+		{
+			int numShutdownsCancelled = await CancelPendingShutdownsAsync(pool, agentsToAdd);
+			agentsToAdd -= numShutdownsCancelled;
+			GlobalTracer.Instance.ActiveSpan?.SetTag("NumShutdownsCancelled", numShutdownsCancelled);
+
+			if (agentsToAdd <= 0)
+			{
+				return new ScaleResult(FleetManagerOutcome.Success, numShutdownsCancelled, 0, "Scaled out by only cancelling shutdowns");
+			}
+			
+			ScaleResult result = await scaleOutFunc(agentsToAdd);
+			return new ScaleResult(result.Outcome, result.AgentsAddedCount + numShutdownsCancelled, result.AgentsRemovedCount, result.Message);
 		}
 
 		private static T DeserializeConfig<T>(string json)

@@ -348,10 +348,15 @@ namespace Horde.Build.Tests
 		}
 		
 		private static int s_agentIdCounter = 1;
-		public async Task<IAgent> CreateAgentAsync(IPool pool, bool enabled = true)
+		public async Task<IAgent> CreateAgentAsync(IPool pool, bool enabled = true, bool requestShutdown = false)
 		{
 			IAgent agent = await AgentService.CreateAgentAsync("TestAgent" + s_agentIdCounter++, enabled, new List<PoolId> { pool.Id });
 			agent = await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
+			if (requestShutdown)
+			{
+				await AgentCollection.TryUpdateSettingsAsync(agent, requestShutdown: true);
+			}
+			
 			return agent;
 		}
 

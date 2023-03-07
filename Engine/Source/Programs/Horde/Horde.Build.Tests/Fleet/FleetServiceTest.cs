@@ -52,6 +52,9 @@ namespace Horde.Build.Tests.Fleet
 
 	public class FakeFleetManager : IFleetManager
 	{
+		public const string ScaleOutMessage = "Pool scaled out by fake fleet manager";
+		public const string ScaleInMessage = "Pool scaled in by fake fleet manager";
+		
 		public int AgentsAddedCount { get; private set; }
 		public int AgentsRemovedCount { get; private set; }
 
@@ -60,14 +63,14 @@ namespace Horde.Build.Tests.Fleet
 		public Task<ScaleResult> ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken = default)
 		{
 			AgentsAddedCount += count;
-			ScaleResult scaleResult = new (FleetManagerOutcome.Success, count, 0, "Pool scaled out");
+			ScaleResult scaleResult = new (FleetManagerOutcome.Success, count, 0, ScaleOutMessage);
 			return Task.FromResult(ForceResult ?? scaleResult);
 		}
 
 		public Task<ScaleResult> ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken = default)
 		{
 			AgentsRemovedCount += count;
-			ScaleResult scaleResult = new (FleetManagerOutcome.Success, 0, count, "Pool scaled in");
+			ScaleResult scaleResult = new (FleetManagerOutcome.Success, 0, count, ScaleInMessage);
 			return Task.FromResult(ForceResult ?? scaleResult);
 		}
 
@@ -123,7 +126,44 @@ namespace Horde.Build.Tests.Fleet
 			Assert.IsTrue(_fleetManagerSpy.ExpandAgents[0].Enabled);
 			Assert.IsTrue(_fleetManagerSpy.ExpandAgents[1].Enabled);
 		}
+
+		[TestMethod]
+		public async Task ScaleOutWithPendingShutdowns()
+		{
+			using FleetService service = GetFleetService(new FakeFleetManager());
+			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.LeaseUtilization);
+			IAgent agent1 = await CreateAgentAsync(pool, true);
+			IAgent agent2 = await CreateAgentAsync(pool, true, requestShutdown: true);
+
+			PoolWithAgents poolWithAgents = (await service.GetPoolsWithAgentsAsync())[0];
+			Assert.AreEqual(1, poolWithAgents.Agents.Count);
+			ScaleResult result = await service.ScalePoolAsync(pool, poolWithAgents.Agents, new PoolSizeResult(poolWithAgents.Agents.Count, 2), CancellationToken.None);
+//			Assert.AreEqual(FleetManagerOutcome.Success, result.Outcome);
+			Assert.AreEqual("Scaled out by only cancelling shutdowns", result.Message);
+			Assert.AreEqual(1, result.AgentsAddedCount);
+
+			Assert.IsFalse((await AgentService.GetAgentAsync(agent2.Id))!.RequestShutdown);
+		}
 		
+		[TestMethod]
+		public async Task ScaleOutWithPendingShutdownsWithStoppedAgents()
+		{
+			using FleetService service = GetFleetService(new FakeFleetManager());
+			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.LeaseUtilization);
+			IAgent agent1 = await CreateAgentAsync(pool, true);
+			IAgent agent2 = await CreateAgentAsync(pool, false);
+			IAgent agent3 = await CreateAgentAsync(pool, true, requestShutdown: true);
+
+			PoolWithAgents poolWithAgents = (await service.GetPoolsWithAgentsAsync())[0];
+			Assert.AreEqual(1, poolWithAgents.Agents.Count);
+			ScaleResult result = await service.ScalePoolAsync(pool, poolWithAgents.Agents, new PoolSizeResult(poolWithAgents.Agents.Count, 3), CancellationToken.None);
+			Assert.AreEqual(FleetManagerOutcome.Success, result.Outcome);
+			Assert.AreEqual(FakeFleetManager.ScaleOutMessage, result.Message);
+			Assert.AreEqual(2, result.AgentsAddedCount);
+
+			Assert.IsFalse((await AgentService.GetAgentAsync(agent3.Id))!.RequestShutdown);
+		}
+
 		[TestMethod]
 		public async Task ScaleOutCooldown()
 		{
