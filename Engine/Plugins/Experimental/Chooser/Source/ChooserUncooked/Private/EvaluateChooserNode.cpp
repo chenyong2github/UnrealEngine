@@ -40,6 +40,7 @@ UK2Node_EvaluateChooser::UK2Node_EvaluateChooser(const FObjectInitializer& Objec
 	NodeTooltip = LOCTEXT("NodeTooltip", "Evaluates an Chooser Table, and returns the resulting Object or Objects.");
 
 	// need to unregister this somewhere - also this is pretty excessive
+	/*
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddLambda([this](UObject* Object, struct FPropertyChangedEvent& Event)
 	{
 		if (Object == Chooser)
@@ -47,6 +48,7 @@ UK2Node_EvaluateChooser::UK2Node_EvaluateChooser(const FObjectInitializer& Objec
 			AllocateDefaultPins();
 		}
 	});
+	*/
 }
 
 void UK2Node_EvaluateChooser::PreloadRequiredAssets()

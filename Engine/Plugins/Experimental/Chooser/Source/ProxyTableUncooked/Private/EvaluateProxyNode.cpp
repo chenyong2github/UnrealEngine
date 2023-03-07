@@ -40,6 +40,7 @@ UK2Node_EvaluateProxy::UK2Node_EvaluateProxy(const FObjectInitializer& ObjectIni
 	NodeTooltip = LOCTEXT("NodeTooltip", "Evaluates an Proxy Table, and returns the resulting Object or Objects.");
 
 	// need to unregister this somewhere - also this is pretty excessive
+	/*
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddLambda([this](UObject* Object, struct FPropertyChangedEvent& Event)
 	{
 		if (Object == Proxy)
@@ -47,6 +48,7 @@ UK2Node_EvaluateProxy::UK2Node_EvaluateProxy(const FObjectInitializer& ObjectIni
 			AllocateDefaultPins();
 		}
 	});
+	*/
 }
 
 void UK2Node_EvaluateProxy::PreloadRequiredAssets()
