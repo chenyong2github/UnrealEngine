@@ -24,6 +24,7 @@ class FText;
 class IAsyncReadFileHandle;
 class ITargetPlatform;
 class UAnimInstance;
+class UAssetUserData;
 class UCustomizableObject;
 class UEdGraph;
 class UMaterialInterface;
@@ -667,13 +668,24 @@ struct CUSTOMIZABLEOBJECT_API FMutableCachedPlatformData
 };
 
 
+USTRUCT()
 struct FMutableRefLODInfo
 {
+	GENERATED_BODY()
+
+	UPROPERTY()
 	float ScreenSize = 0.f;
+
+	UPROPERTY()
 	float LODHysteresis = 0.f;
+
+	UPROPERTY()
 	bool bSupportUniformlyDistributedSampling = false;
+
+	UPROPERTY()
 	bool bAllowCPUAccess = false;
 
+#if WITH_EDITORONLY_DATA
 	friend FArchive& operator<<(FArchive& Ar, FMutableRefLODInfo& Data)
 	{
 		Ar << Data.ScreenSize;
@@ -683,14 +695,22 @@ struct FMutableRefLODInfo
 
 		return Ar;
 	}
+#endif
 };
 
 
+USTRUCT()
 struct FMutableRefLODRenderData
 {
+	GENERATED_BODY()
+
+	UPROPERTY()
 	bool bIsLODOptional = false;
+
+	UPROPERTY()
 	bool bStreamedDataInlined = false;
 	
+#if WITH_EDITORONLY_DATA
 	friend FArchive& operator<<(FArchive& Ar, FMutableRefLODRenderData& Data)
 	{
 		Ar << Data.bIsLODOptional;
@@ -698,15 +718,22 @@ struct FMutableRefLODRenderData
 
 		return Ar;
 	}
+#endif
 };
 
 
+USTRUCT()
 struct FMutableRefLODData
 {
+	GENERATED_BODY()
+
+	UPROPERTY()
 	FMutableRefLODInfo LODInfo;
 
+	UPROPERTY()
 	FMutableRefLODRenderData RenderData;
 	
+#if WITH_EDITORONLY_DATA
 	friend FArchive& operator<<(FArchive& Ar, FMutableRefLODData& Data)
 	{
 		Ar << Data.LODInfo;
@@ -714,6 +741,7 @@ struct FMutableRefLODData
 		
 		return Ar;
 	}
+#endif
 };
 
 
@@ -758,6 +786,7 @@ struct FMutableRefSocket
 		return false;
 	}
 	
+#if WITH_EDITORONLY_DATA
 	friend FArchive& operator<<(FArchive& Ar, FMutableRefSocket& Data)
 	{
 		Ar << Data.SocketName;
@@ -770,15 +799,22 @@ struct FMutableRefSocket
 
 		return Ar;
 	}
+#endif
 };
 
 
+USTRUCT()
 struct FMutableRefSkeletalMeshSettings
 {
+	GENERATED_BODY()
+
+	UPROPERTY()
 	bool bEnablePerPolyCollision = false;
 
+	UPROPERTY()
 	float DefaultUVChannelDensity = 0.f;
 
+#if WITH_EDITORONLY_DATA
 	friend FArchive& operator<<(FArchive& Ar, FMutableRefSkeletalMeshSettings& Data)
 	{
 		Ar << Data.bEnablePerPolyCollision;
@@ -786,7 +822,29 @@ struct FMutableRefSkeletalMeshSettings
 
 		return Ar;
 	}
+#endif
 };
+
+
+USTRUCT()
+struct FMutableRefAssetUserData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UAssetUserData> AssetUserData;
+
+#if WITH_EDITORONLY_DATA
+	FString ClassPath;
+	TArray<uint8> Bytes;
+
+	friend FArchive& operator<<(FArchive& Ar, FMutableRefAssetUserData& Data);
+
+	void InitResources(UObject* InOuter);
+#endif
+
+};
+
 
 USTRUCT()
 struct FMutableRefSkeletalMeshData
@@ -794,34 +852,42 @@ struct FMutableRefSkeletalMeshData
 	GENERATED_BODY()
 	
 	// LOD info
+	UPROPERTY()
 	TArray<FMutableRefLODData> LODData;
 	
 	// Sockets
+	UPROPERTY()
 	TArray<FMutableRefSocket> Sockets;
 
 	// Bounding Box
+	UPROPERTY()
 	FBoxSphereBounds Bounds;
 
 	// Settings
+	UPROPERTY()
 	FMutableRefSkeletalMeshSettings Settings;
 
 	// Skeleton, must be stored in the ReferencedSkeletons too
-	UPROPERTY(Transient)
+	UPROPERTY()
 	TSoftObjectPtr<USkeleton> Skeleton;
 	
 	// PhysicsAsset, must be stored in the PhysicsAssetMap too
-	UPROPERTY(Transient)
+	UPROPERTY()
 	TSoftObjectPtr<UPhysicsAsset> PhysicsAsset;
 	
 	// Post Processing AnimBP, must be stored in the AnimBPAssetsMap too
-	UPROPERTY(Transient) 
+	UPROPERTY() 
 	TSoftClassPtr<UAnimInstance> PostProcessAnimInst;
 	
 	// Shadow PhysicsAsset, must be stored in the PhysicsAssetMap too
-	UPROPERTY(Transient)
+	UPROPERTY()
 	TSoftObjectPtr<UPhysicsAsset> ShadowPhysicsAsset;
 
+	// Asset user data
+	UPROPERTY()
+	TArray<FMutableRefAssetUserData> AssetUserData;
 
+#if WITH_EDITORONLY_DATA
 	friend FArchive& operator<<(FArchive& Ar, FMutableRefSkeletalMeshData& Data)
 	{
 		Ar << Data.LODData;
@@ -829,8 +895,7 @@ struct FMutableRefSkeletalMeshData
 		Ar << Data.Bounds;
 		Ar << Data.Settings;
 
-
-		if(Ar.IsSaving())
+		if (Ar.IsSaving())
 		{
 			FString AssetPath = Data.Skeleton.ToSoftObjectPath().ToString();
 			Ar << AssetPath;
@@ -864,8 +929,20 @@ struct FMutableRefSkeletalMeshData
 			Data.ShadowPhysicsAsset = TSoftObjectPtr<UPhysicsAsset>(FSoftObjectPath(ShadowPhysicsAssetPath));
 		}
 
+		Ar << Data.AssetUserData;
+
 		return Ar;
 	}
+
+	void InitResources(UObject* InOuter)
+	{
+		check(InOuter);
+		for (FMutableRefAssetUserData& Data : AssetUserData)
+		{
+			Data.InitResources(InOuter);
+		}
+	}
+#endif
 
 };
 
@@ -1004,7 +1081,7 @@ public:
 	 * the Reference Skeletal Meshes to avoid having them loaded at all times. This includes data like LOD distances,
 	 * LOD render data settings, Mesh sockets, Bounding volumes, etc.
 	 */
-	UPROPERTY(Transient)
+	UPROPERTY()
 	TArray<FMutableRefSkeletalMeshData> ReferenceSkeletalMeshesData;
 
 	// Hide for now, since it is not supported yet
@@ -1288,7 +1365,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 371;
+	static const int32 CurrentSupportedVersion = 372;
 
 public:
 

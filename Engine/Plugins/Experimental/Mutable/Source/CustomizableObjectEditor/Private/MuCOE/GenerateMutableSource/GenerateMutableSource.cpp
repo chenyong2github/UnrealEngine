@@ -1339,6 +1339,21 @@ void PopulateReferenceSkeletalMeshesData(FMutableGraphGenerationContext& Generat
 			Data.PhysicsAsset = PhysicsAsset;
 			GenerationContext.PhysicsAssetMap.FindOrAdd(Data.PhysicsAsset.ToString(), Data.PhysicsAsset);
 		}
+
+		// Asset User Data
+		if (const TArray<UAssetUserData*>* AssetUserDataArray = RefSkeletalMesh->GetAssetUserDataArray())
+		{
+			for (UAssetUserData* AssetUserData : *AssetUserDataArray)
+			{
+				if (AssetUserData)
+				{
+					FMutableRefAssetUserData& MutAssetUserData = Data.AssetUserData.AddDefaulted_GetRef();
+
+					// Duplicate the AssetUserData using the CO as an outer, so we can save it.
+					MutAssetUserData.AssetUserData = Cast<UAssetUserData>(StaticDuplicateObject(AssetUserData, GenerationContext.Object));
+				}
+			}
+		}
 	}
 }
 

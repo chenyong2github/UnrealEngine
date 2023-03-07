@@ -2868,7 +2868,14 @@ void UCustomizableInstancePrivateData::InitSkeletalMeshData(const TSharedPtr<FMu
 	SkeletalMesh->SetPhysicsAsset(RefSkeletalMeshData->PhysicsAsset.Get());
 	SkeletalMesh->SetEnablePerPolyCollision(RefSkeletalMeshData->Settings.bEnablePerPolyCollision);
 
-
+	// Asset User Data
+	for (const FMutableRefAssetUserData& MutAssetUserData : RefSkeletalMeshData->AssetUserData)
+	{
+		if (MutAssetUserData.AssetUserData)
+		{
+			SkeletalMesh->AddAssetUserData(MutAssetUserData.AssetUserData);
+		}
+	}
 
 	// Allocate resources for rendering and add LOD Info
 	{

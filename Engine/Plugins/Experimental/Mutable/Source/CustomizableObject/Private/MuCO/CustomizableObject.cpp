@@ -7,6 +7,7 @@
 #include "Async/AsyncFileHandle.h"
 #include "EdGraph/EdGraph.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/AssetUserData.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Input/Reply.h"
@@ -457,7 +458,13 @@ void UCustomizableObject::LoadCompiledData(FArchive& MemoryReader, bool bSkipEdi
 		UCustomizableObjectSystem::GetInstance();
 
 		MemoryReader << ReferenceSkeletalMeshesData;
-		
+
+		// Some resources require an outer to initialize themselves. 
+		for(FMutableRefSkeletalMeshData& ReferenceSkeletalMeshData : ReferenceSkeletalMeshesData)
+		{
+			ReferenceSkeletalMeshData.InitResources(this);
+		}
+
 		// We can load
 		int32 NumReferencedMaterials = 0;
 		MemoryReader << NumReferencedMaterials;
@@ -831,11 +838,6 @@ void UCustomizableObject::SaveEmbeddedData(FArchive& Ar)
 
 	if (PrivateData->GetModel())
 	{
-		// Serialize RefSkeletalMeshesData
-		{
-			Ar << ReferenceSkeletalMeshesData;
-		}
-		
 		// Serialize morph data
 		{
 			Ar << ContributingMorphTargetsInfo;
@@ -876,11 +878,6 @@ void UCustomizableObject::LoadEmbeddedData(FArchive& Ar)
 
 	if(CurrentSupportedVersion == InternalVersion)
 	{
-		// Load RefSkeletalMeshesData
-		{
-			Ar << ReferenceSkeletalMeshesData;
-		}
-	
 		// Load morph data
 		{
 			Ar << ContributingMorphTargetsInfo;
@@ -2001,6 +1998,58 @@ void UCustomizableObjectBulk::PrepareBulkData(UCustomizableObject* InOuter, cons
 		BulkDataFileNames.Add(BulkFileName + FString::Printf(TEXT("%d.mut"), CurrentFileIndex));
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+void FMutableRefAssetUserData::InitResources(UObject* InOuter)
+{
+	UClass* AssetUserDataClass = FindObject<UClass>(nullptr, *ClassPath);
+	if (AssetUserDataClass)
+	{
+		AssetUserData = NewObject<UAssetUserData>(InOuter, AssetUserDataClass);
+		if (AssetUserData)
+		{
+			FMemoryReaderView MemoryReader(Bytes);
+			AssetUserData->Serialize(MemoryReader);
+
+			ClassPath.Empty();
+			Bytes.Empty();
+		}
+	}
+}
+
+
+FArchive& operator<<(FArchive& Ar, FMutableRefAssetUserData& Data)
+{
+	if (Ar.IsSaving())
+	{
+		if (Data.AssetUserData)
+		{
+			Data.ClassPath = Data.AssetUserData->GetClass()->GetPathName();
+
+			FMemoryWriter MemoryWriter(Data.Bytes);
+			Data.AssetUserData->Serialize(MemoryWriter);
+		}
+
+		Ar << Data.ClassPath;
+		Ar << Data.Bytes;
+
+		Data.ClassPath.Empty();
+		Data.Bytes.Empty();
+	}
+	else
+	{
+		Ar << Data.ClassPath;
+		Ar << Data.Bytes;
+	}
+
+	return Ar;
+}
+
+#endif
 
 #endif
 
