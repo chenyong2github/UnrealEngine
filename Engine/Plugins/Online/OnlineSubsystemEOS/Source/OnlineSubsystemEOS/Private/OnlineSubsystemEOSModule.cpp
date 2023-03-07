@@ -90,11 +90,6 @@ IMPLEMENT_MODULE(FOnlineSubsystemEOSModule, OnlineSubsystemEOS);
 
 void FOnlineSubsystemEOSModule::StartupModule()
 {
-	if (IsRunningCommandlet())
-	{
-		return;
-	}
-
 	EOSFactory = new FOnlineFactoryEOS();
 
 	// Create and register our singleton factory with the main online subsystem for easy access
@@ -137,11 +132,6 @@ void FOnlineSubsystemEOSModule::OnPreExit()
 
 void FOnlineSubsystemEOSModule::ShutdownModule()
 {
-	if (IsRunningCommandlet())
-	{
-		return;
-	}
-
 #if WITH_EDITOR
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	FCoreDelegates::OnPreExit.RemoveAll(this);
