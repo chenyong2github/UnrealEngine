@@ -221,24 +221,6 @@ bool WillNeedAudioVisualData()
 	return true;
 }
 
-//-----------------------------------------------------------------------------
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
-class FCoreTicker : public FTicker {};
-
-FTicker& FTicker::GetCoreTicker()
-{
-	return TLazySingleton<FCoreTicker>::Get();
-}
-
-void FTicker::TearDownCoreTicker()
-{
-	TLazySingleton<FCoreTicker>::TearDown();
-}
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 /*----------------------------------------------------------------------------
 	Runtime functions.
 ----------------------------------------------------------------------------*/
