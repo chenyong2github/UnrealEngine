@@ -19,7 +19,6 @@ public:
 
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Volume; }
-	virtual void AddToCrc(FArchiveCrc32& Ar) const;
 	// ~End UPCGData interface
 
 	// ~Begin UPGCSpatialData interface

@@ -10,7 +10,6 @@
 
 #include "Components/SplineComponent.h"
 #include "Data/PCGSpatialData.h"
-#include "Serialization/ArchiveCrc32.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSplineData)
 
@@ -32,22 +31,6 @@ void UPCGSplineData::Initialize(USplineComponent* InSpline)
 	}
 
 	CachedBounds = CachedBounds.ExpandBy(SplinePointsRadius, SplinePointsRadius);
-}
-
-void UPCGSplineData::AddToCrc(FArchiveCrc32& Ar) const
-{
-	check(Spline);
-
-	Ar << const_cast<FBox&>(CachedBounds);
-
-	Ar << const_cast<FInterpCurveVector&>(Spline->GetSplinePointsPosition());
-	Ar << const_cast<FInterpCurveQuat&>(Spline->GetSplinePointsRotation());
-	Ar << const_cast<FInterpCurveVector&>(Spline->GetSplinePointsScale());
-
-	Ar << const_cast<FTransform&>(Spline->GetComponentTransform());
-
-	bool bIsClosed = Spline->IsClosedLoop();
-	Ar << bIsClosed;
 }
 
 FTransform UPCGSplineData::GetTransform() const

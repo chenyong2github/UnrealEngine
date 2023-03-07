@@ -7,8 +7,6 @@
 #include "Metadata/PCGMetadataAccessor.h"
 #include "PCGHelpers.h"
 
-#include "Serialization/ArchiveCrc32.h"
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGUnionData)
 
 namespace PCGUnionDataMaths
@@ -81,41 +79,6 @@ void UPCGUnionData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action)
 			Datum->VisitDataNetwork(Action);
 		}
 	}
-}
-
-FPCGCrc UPCGUnionData::ComputeCrc() const
-{
-	FArchiveCrc32 Ar;
-	AddToCrc(Ar);
-
-	// Chain together CRCs of operands
-	int32 NumOperands = Data.Num();
-	Ar << NumOperands;
-
-	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
-	{
-		if (Datum)
-		{
-			uint32 DatumCrc = Datum->GetOrComputeCrc().GetValue();
-			Ar << DatumCrc;
-		}
-	}
-
-	Crc = FPCGCrc(Ar.GetCrc());
-
-	return Crc;
-}
-
-void UPCGUnionData::AddToCrc(FArchiveCrc32& Ar) const
-{
-	uint32 UniqueTypeID = StaticClass()->GetDefaultObject()->GetUniqueID();
-	Ar << UniqueTypeID;
-
-	uint32 UnionTypeValue = static_cast<uint32>(UnionType);
-	Ar << UnionTypeValue;
-
-	uint32 DensityFunctionValue = static_cast<uint32>(DensityFunction);
-	Ar << DensityFunctionValue;
 }
 
 int UPCGUnionData::GetDimension() const

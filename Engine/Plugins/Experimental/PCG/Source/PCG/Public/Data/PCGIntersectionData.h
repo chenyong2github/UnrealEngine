@@ -33,13 +33,8 @@ public:
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial; }
 	virtual void VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const override;
-
-protected:
-	virtual FPCGCrc ComputeCrc() const override;
-	virtual void AddToCrc(FArchiveCrc32& Ar) const override;
 	// ~End UPCGData interface
 
-public:
 	//~Begin UPCGSpatialData interface
 	virtual int GetDimension() const override;
 	virtual FBox GetBounds() const override;

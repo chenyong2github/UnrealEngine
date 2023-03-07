@@ -89,13 +89,6 @@ FPCGCrc UPCGData::GetOrComputeCrc() const
 		return Crc;
 	}
 
-	Crc = ComputeCrc();
-
-	return Crc;
-}
-
-FPCGCrc UPCGData::ComputeCrc() const
-{
 	FArchiveCrc32 Ar;
 	AddToCrc(Ar);
 
