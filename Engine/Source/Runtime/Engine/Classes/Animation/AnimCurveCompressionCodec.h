@@ -34,22 +34,19 @@ class ENGINE_API UAnimCurveCompressionCodec : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-#if WITH_EDITORONLY_DATA
 	/** A GUID that is unique to this codec instance. After creation, it never changes. */
 	FGuid InstanceGuid;
-#endif
 
 	/** Allow us to convert DDC serialized path back into codec object */
 	virtual UAnimCurveCompressionCodec* GetCodec(const FString& Path) { return this; }
 
 	//////////////////////////////////////////////////////////////////////////
 
+	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITORONLY_DATA
 	// UObject overrides
 	virtual void PostInitProperties() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
-	virtual void Serialize(FArchive& Ar) override;
-
 	/** Returns whether or not we can use this codec to compress. */
 	virtual bool IsCodecValid() const { return true; }
 

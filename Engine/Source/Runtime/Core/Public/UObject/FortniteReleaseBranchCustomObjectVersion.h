@@ -30,6 +30,9 @@ struct CORE_API FFortniteReleaseBranchCustomObjectVersion
 		// Remove any cooked collision data from nanite landscape / editor spline meshes since collisions are not needed there :
 		RemoveUselessLandscapeMeshesCookedCollisionData,
 
+		// Serialize out UAnimCurveCompressionCodec::InstanceGUID to maintain deterministic DDC key generation in cooked-editor
+		SerializeAnimCurveCompressionCodecGuidOnCook,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
