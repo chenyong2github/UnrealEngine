@@ -29,15 +29,12 @@ void FDMXEntityReference::SetEntity(UDMXEntity* NewEntity)
 		
 		CachedEntity = NewEntity;
 	}
-	else if (EntityId.IsValid())
+	else
 	{
-		InvalidateId();
+		DMXLibrary = nullptr;
+		EntityId.Invalidate();
+		CachedEntity.Reset();
 	}
-}
-
-void FDMXEntityReference::InvalidateId()
-{
-	EntityId.Invalidate();
 }
 
 UDMXEntity* FDMXEntityReference::GetEntity() const

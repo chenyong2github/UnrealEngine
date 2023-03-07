@@ -76,14 +76,6 @@ public:
 protected:
 	UPROPERTY()
 	TSubclassOf<UDMXEntity> EntityType;
-
-private:
-	/** 
-	 * Set the EntityId to an invalid state.
-	 * Called automatically when the DMX Library is changed or SetEntityId is called with an Id that doesn't
-	 * belong to the current DMX Library.
-	 */
-	void InvalidateId();
 	
 private:
 	/** The entity's unique ID */
