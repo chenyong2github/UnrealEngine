@@ -988,10 +988,13 @@ public:
 					PackageRef.SetPackage(FoundPackage);
 					FoundPackage->SetCanBeImportedFlag(true);
 					FoundPackage->SetPackageId(PackageId);
-					if (FoundPackage->bHasBeenFullyLoaded)
-					{
-						PackageRef.SetAllPublicExportsLoaded();
-					}
+				}
+			}
+			if (PackageRef.HasPackage())
+			{
+				if (PackageRef.GetPackage()->bHasBeenFullyLoaded)
+				{
+					PackageRef.SetAllPublicExportsLoaded();
 				}
 			}
 #endif
