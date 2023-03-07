@@ -132,6 +132,13 @@ static TAutoConsoleVariable<float> CVarLumenReflectionsSampleSceneColorNormalTre
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenReflectionsMaxBounces(
+	TEXT("r.Lumen.Reflections.MaxBounces"),
+	0,
+	TEXT("Sets the maximum number of recursive reflection bounces. Values above 0 override Post Process Volume settings. 1 means a single reflection ray (no secondary reflections in mirrors). Currently only supported by Hardware Ray Tracing with Hit Lighting."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarLumenReflectionsVisualizeTraces(
 	TEXT("r.Lumen.Reflections.VisualizeTraces"),
 	0,
@@ -143,6 +150,16 @@ float LumenReflections::GetSampleSceneColorNormalTreshold()
 {
 	const float Radians = FMath::DegreesToRadians(FMath::Clamp(CVarLumenReflectionsSampleSceneColorNormalTreshold.GetValueOnRenderThread(), 0.0f, 180.0f));
 	return FMath::Cos(Radians);
+}
+
+uint32 LumenReflections::GetMaxReflectionBounces(const FViewInfo& View)
+{
+	int32 MaxBounces = CVarLumenReflectionsMaxBounces.GetValueOnRenderThread();
+	if (MaxBounces <= 0)
+	{
+		MaxBounces = View.FinalPostProcessSettings.LumenMaxReflectionBounces;
+	}
+	return FMath::Clamp(MaxBounces, 1, 8);
 }
 
 class FReflectionClearTracesCS : public FGlobalShader

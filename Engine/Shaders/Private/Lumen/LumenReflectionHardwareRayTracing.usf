@@ -70,6 +70,7 @@ uint MaxTraversalIterations;
 int ApplySkyLight;
 int SampleSceneColor;
 float RelativeDepthThickness;
+uint MaxReflectionBounces;
 
 RWTexture2D<float3> RWTraceRadiance;
 RWTexture2D<float> RWTraceHit;
@@ -144,6 +145,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		const bool bHiResSurface = UseHighResSurface ? 1 : 0;
 		const uint CullingMode = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 		FRayTracedLightingContext Context = CreateRayTracedLightingContext(RayCone, ReflectionTracingCoord.Coord, LinearCoord, CullingMode, MaxTranslucentSkipCount, MaxTraversalIterations, bHiResSurface);
+		Context.MaxReflectionBounces = MaxReflectionBounces;
 		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
 		Context.bUseBookmark = true;

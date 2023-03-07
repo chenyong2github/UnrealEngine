@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenScreenProbeGather.cpp
-=============================================================================*/
-
 #include "LumenScreenProbeGather.h"
 #include "BasePassRendering.h"
 #include "Lumen/LumenRadianceCache.h"
@@ -19,6 +15,7 @@
 #include "HairStrands/HairStrandsEnvironment.h"
 #include "ShaderPrint.h"
 #include "Strata/Strata.h"
+#include "LumenReflections.h"
 
 extern FLumenGatherCvarState GLumenGatherCvars;
 

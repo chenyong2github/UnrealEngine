@@ -498,6 +498,19 @@ void SetupVisualizeParameters(
 	int32 VisualizeTileIndex, 
 	FLumenVisualizeSceneSoftwareRayTracingParameters& VisualizeParameters)
 {
+	float MaxMeshSDFTraceDistance = GVisualizeLumenSceneMaxMeshSDFTraceDistance >= 0.0f ? GVisualizeLumenSceneMaxMeshSDFTraceDistance : FLT_MAX;
+	float MaxTraceDistance = GVisualizeLumenSceneMaxTraceDistance;
+	uint32 MaxReflectionBounces = 1;
+
+	// Reflection scene view uses reflection setup
+	if (VisualizeMode == VISUALIZE_MODE_REFLECTION_VIEW)
+	{
+		extern FLumenGatherCvarState GLumenGatherCvars;
+		MaxMeshSDFTraceDistance = GLumenGatherCvars.MeshSDFTraceDistance;
+		MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
+		MaxReflectionBounces = LumenReflections::GetMaxReflectionBounces(View);
+	}
+
 	// FLumenVisualizeSceneParameters
 	{
 		FLumenVisualizeSceneParameters& CommonParameters = VisualizeParameters.CommonParameters;
@@ -505,6 +518,11 @@ void SetupVisualizeParameters(
 		CommonParameters.VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;
 		CommonParameters.Tonemap = (EyeAdaptationBuffer != nullptr && ColorGradingTexture != nullptr) ? 1 : 0;
 		CommonParameters.VisualizeMode = VisualizeMode;
+		CommonParameters.MaxReflectionBounces = MaxReflectionBounces;
+
+		LumenReflections::SetupCompositeParameters(CommonParameters.ReflectionsCompositeParameters);
+		CommonParameters.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
+		CommonParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 		CommonParameters.InputViewOffset = ViewRect.Min;
 		CommonParameters.OutputViewOffset = ViewRect.Min;
@@ -524,17 +542,6 @@ void SetupVisualizeParameters(
 
 	// FLumenVisualizeSceneSoftwareRayTracingParameters
 	{
-		float MaxMeshSDFTraceDistance = GVisualizeLumenSceneMaxMeshSDFTraceDistance >= 0.0f ? GVisualizeLumenSceneMaxMeshSDFTraceDistance : FLT_MAX;
-		float MaxTraceDistance = GVisualizeLumenSceneMaxTraceDistance;
-
-		// Reflection scene view uses reflection setup
-		if (VisualizeMode == VISUALIZE_MODE_REFLECTION_VIEW)
-		{
-			extern FLumenGatherCvarState GLumenGatherCvars;
-			MaxMeshSDFTraceDistance = GLumenGatherCvars.MeshSDFTraceDistance;
-			MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
-		}
-
 		bool bTraceMeshSDF = GVisualizeLumenSceneTraceMeshSDFs != 0 && View.Family->EngineShowFlags.LumenDetailTraces;
 		if (!bTraceMeshSDF)
 		{

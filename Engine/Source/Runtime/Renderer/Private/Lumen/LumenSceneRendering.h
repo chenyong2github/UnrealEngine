@@ -102,18 +102,6 @@ namespace LumenDiffuseIndirect
 	bool UseAsyncCompute(const FViewFamilyInfo& ViewFamily);
 }
 
-namespace LumenReflections
-{
-	BEGIN_SHADER_PARAMETER_STRUCT(FCompositeParameters, )
-		SHADER_PARAMETER(float, MaxRoughnessToTrace)
-		SHADER_PARAMETER(float, MaxRoughnessToTraceForFoliage)
-		SHADER_PARAMETER(float, InvRoughnessFadeLength)
-	END_SHADER_PARAMETER_STRUCT()
-
-	void SetupCompositeParameters(LumenReflections::FCompositeParameters& OutParameters);
-	bool UseAsyncCompute(const FViewFamilyInfo& ViewFamily);
-}
-
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenScreenSpaceBentNormalParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, ScreenBentNormal)
 	SHADER_PARAMETER(uint32, UseShortRangeAO)

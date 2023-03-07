@@ -1660,6 +1660,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.LumenFrontLayerTranslucencyReflections = Src.LumenFrontLayerTranslucencyReflections;
 		}
 
+		if (Src.bOverride_LumenMaxReflectionBounces)
+		{
+			Dest.LumenMaxReflectionBounces = Src.LumenMaxReflectionBounces;
+		}
+
 		if (Src.bOverride_ReflectionMethod)
 		{
 			Dest.ReflectionMethod = Src.ReflectionMethod;

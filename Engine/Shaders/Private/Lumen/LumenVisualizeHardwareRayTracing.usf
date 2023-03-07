@@ -428,6 +428,7 @@ uint MaxTraversalIterations;
 float3 FarFieldReferencePos;
 float FarFieldDitheredStartDistanceFactor;
 uint ApplySkylightStage;
+uint MaxReflectionBounces;
 
 LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 {
@@ -489,6 +490,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 			MaxTranslucentSkipCount,
 			MaxTraversalIterations,
 			bHiResSurface);
+		Context.MaxReflectionBounces = MaxReflectionBounces;
 		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
 

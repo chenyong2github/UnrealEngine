@@ -29,6 +29,8 @@
 #include "../RayTracing/TraceRayInline.ush"
 #endif
 
+#include "LumenReflectionsCombine.ush"
+
 float3 CalcPrevTranslatedWorldPositionFromGPUSceneInstanceIndex(float3 TranslatedWorldPosition, uint GPUSceneInstanceIndex)
 {
 	FInstanceSceneData InstanceSceneData = GetInstanceSceneData(GPUSceneInstanceIndex, Scene.GPUScene.InstanceDataSOAStride);
@@ -105,6 +107,7 @@ struct FRayTracedLightingContext
 	// Any hit shading
 	bool bAlphaMasking;
 	uint TranslucentSkipCountMax;
+	uint MaxReflectionBounces;
 
 	uint CullingMode;
 	bool bHiResSurface;	// Whether to sample high res surface cache data or low res always resident pages
@@ -131,6 +134,7 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
 	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
 	Context.bAlphaMasking = true;
+	Context.MaxReflectionBounces = 1;
 	Context.FarFieldMaxTraceDistance = -1.0;
 	Context.FarFieldReferencePos = 0;
 	Context.MaxTraversalIterations = MaxTraversalIterations;
@@ -457,13 +461,11 @@ float3 CalculateDirectLighting(
 	in FRayDesc Ray,
 	in FRayTracedLightingContext Context,
 	inout FPackedMaterialClosestHitPayload Payload,
+	RandomSequence RandSequence,
 	float3 RayHitTranslatedWorldPosition,
 	float3 RayHitWorldNormal
 )
 {
-	RandomSequence RandSequence;
-	uint SampleOffset = 0;
-	RandomSequence_Initialize(RandSequence, Context.LinearCoord, View.StateFrameIndex + SampleOffset * 16);
 	float MaxNormalBias = 0.05;
 	uint ReflectedShadowsType = 1; // Point sampled shadows, as soft shadows can be too noisy with 1 sample and no denosing
 	bool bShouldDoDirectLighting = true;
@@ -490,14 +492,29 @@ float3 CalculateDirectLighting(
 	return DirectLighting;
 }
 
-/**
- * Return approximate diffuse color as if the entire surface was diffuse in order to conserve energy in secondary bounces
- * Keep in sync with LumenCardPixelShader.usf
- * #lumen_todo: refactor and merge with LumenCardPixelShader.usf to ensure that their logic is the same
- */
-float3 GetApproxFullyRoughDiffuseColor(inout FPackedMaterialClosestHitPayload PackedPayload, in FRayDesc Ray)
+struct FLumenHitLightingMaterial
 {
-	float3 DiffuseColor = 0.0f;
+	float3 TopLayerSpecularColor;
+	float TopLayerRoughness;
+
+	// Return approximate diffuse color as if the entire surface was diffuse in order to conserve energy in secondary bounces
+	// Keep in sync with LumenCardPixelShader.usf
+	// #lumen_todo: refactor and merge with LumenCardPixelShader.usf to ensure that their logic is the same
+	float3 ApproxFullyRoughDiffuseColor;
+	float3 ApproxFullyRoughDiffuseColor_Diffuse;
+	float3 ApproxFullyRoughDiffuseColor_Specular;
+};
+
+FLumenHitLightingMaterial GetLumenHitLightingMaterial(FPackedMaterialClosestHitPayload PackedPayload, FRayDesc Ray)
+{
+	FLumenHitLightingMaterial LumenMaterial;
+	LumenMaterial.TopLayerSpecularColor = 0.0f;
+	LumenMaterial.TopLayerRoughness = 1.0f;
+	LumenMaterial.ApproxFullyRoughDiffuseColor = 0.0f;
+	LumenMaterial.ApproxFullyRoughDiffuseColor_Diffuse = 0.0f;
+	LumenMaterial.ApproxFullyRoughDiffuseColor_Specular = 0.0f;
+
+	float3 DiffuseAndSubsurfaceColor = 0.0f;
 	float3 SpecularColor = 0.0f;
 
 	#if STRATA_ENABLED
@@ -520,91 +537,42 @@ float3 GetApproxFullyRoughDiffuseColor(inout FPackedMaterialClosestHitPayload Pa
 				// Evaluate environment lighting
 				FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, Settings);
 
-				DiffuseColor += BSDFThroughput * (StrataEnvLight.DiffuseWeight + StrataEnvLight.DiffuseBackFaceWeight);
+				DiffuseAndSubsurfaceColor += BSDFThroughput * (StrataEnvLight.DiffuseWeight + StrataEnvLight.DiffuseBackFaceWeight);
 				SpecularColor += BSDFThroughput * StrataEnvLight.SpecularWeight;
 			}
 		}
+
+		FStrataTopLayerData StrataTopLayerData = StrataUnpackTopLayerData(PackedPayload.StrataData.PackedTopLayerData);
+		LumenMaterial.TopLayerRoughness = StrataTopLayerData.Roughness;
+		LumenMaterial.TopLayerSpecularColor = SpecularColor;
 	}
 	#else
 	{
-		DiffuseColor = PackedPayload.GetDiffuseColor();
+		DiffuseAndSubsurfaceColor = PackedPayload.GetDiffuseColor();
 		SpecularColor = PackedPayload.GetSpecularColor();
+
+		LumenMaterial.TopLayerRoughness = PackedPayload.GetRoughness();
+		LumenMaterial.TopLayerSpecularColor = PackedPayload.GetSpecularColor();
 
 		const uint ShadingModelID = PackedPayload.GetShadingModelID();
 		if (ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE || ShadingModelID == SHADINGMODELID_SUBSURFACE)
 		{
 			// Add subsurface following EncodeSubsurfaceColor/ExtractSubsurfaceColor
-			DiffuseColor += Pow2(PackedPayload.GetCustomData().xyz);
+			DiffuseAndSubsurfaceColor += Pow2(PackedPayload.GetCustomData().xyz);
 		}
 	}
 	#endif // STRATA_ENABLED
 
-	EnvBRDFApproxFullyRough(DiffuseColor, SpecularColor);
-	return DiffuseColor;
+	LumenMaterial.ApproxFullyRoughDiffuseColor_Diffuse = DiffuseAndSubsurfaceColor;
+	EnvBRDFApproxFullyRough(LumenMaterial.ApproxFullyRoughDiffuseColor_Specular, SpecularColor);
+	LumenMaterial.ApproxFullyRoughDiffuseColor = LumenMaterial.ApproxFullyRoughDiffuseColor_Diffuse + LumenMaterial.ApproxFullyRoughDiffuseColor_Specular;
+
+	return LumenMaterial;
 }
 
-float3 CalculateRayTracedLighting(
-	in RaytracingAccelerationStructure TLAS,
-	in FRayDesc Ray,
-	in FRayTracedLightingContext Context,
-	inout FPackedMaterialClosestHitPayload Payload,
-	float HitDistance,
-	uint SceneInstanceIndex,
-	int LightingMode
-)
-{
-	// Apply emissive material
-	float3 Radiance = Payload.GetRadiance() * Payload.GetOpacity();
-
-	float3 RayHitWorldNormal = Payload.GetWorldNormal();
-
-	float3 RayHitTranslatedWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
-	if (LightingMode >= EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
-	{
-		Radiance += CalculateDirectLighting(TLAS, Ray, Context, Payload, RayHitTranslatedWorldPosition, RayHitWorldNormal);
-	}
-	
-	float3 ApproxFullyRoughDiffuseColor = GetApproxFullyRoughDiffuseColor(Payload, Ray);
-
-	if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING)
-	{
-		// STRATA_TODO: this path is not supported yet, as PackedPayload does not have space for indirect irradiance
-		Radiance += ApproxFullyRoughDiffuseColor * Payload.GetIndirectIrradiance();
-	}
-	else
-	{
-		float3 RayHitGeometryWorldNormal = Payload.GetGeometryNormal();
-
-		// The Surface Cache lighting was computed using the front face, don't leak to the backface
-		if (dot(Ray.Direction, RayHitGeometryWorldNormal) <= 0 || Payload.IsTwoSided())
-		{
-			// Reverse surface cache lookup normal to match non hit lighting path (usually surface cache is only valid on front faces)
-			if (Payload.IsTwoSided() && !Payload.IsFrontFace())
-			{
-				RayHitGeometryWorldNormal = -RayHitGeometryWorldNormal;
-			}
-
-			FSurfaceCacheSample SurfaceCacheSample = CalculateSurfaceCacheLighting(
-				Ray,
-				Context,
-				RayHitTranslatedWorldPosition,
-				RayHitGeometryWorldNormal,
-				HitDistance,
-				SceneInstanceIndex);
-
-			if (LightingMode == EVALUATE_MATERIAL)
-			{
-				Radiance += Diffuse_Lambert(ApproxFullyRoughDiffuseColor) * (SurfaceCacheSample.DirectLighting + SurfaceCacheSample.IndirectLighting);
-			}
-			else
-			{
-				Radiance += Diffuse_Lambert(ApproxFullyRoughDiffuseColor) * SurfaceCacheSample.IndirectLighting;	
-			}
-		}
-	}
-	return Radiance;
-}
-
+/**
+ * Traces a ray and calculates lighting at a hit point using hit lighting.
+ */
 FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 	in RaytracingAccelerationStructure TLAS,
 	in FRayDesc Ray,
@@ -613,36 +581,158 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 	inout FLumenRayHitBookmark Bookmark
 )
 {
+	RandomSequence RandSequence;
+	RandomSequence_Initialize(RandSequence, Context.LinearCoord, View.StateFrameIndex);
+
 	FRayTracedLightingResult Result = CreateRayTracedLightingResult();
+	Result.bIsHit = false;
 	Result.TraceHitDistance = Ray.TMax;
 
-	uint RayFlags = 0;
+	float PathRoughness = 0.0f;
+	float3 PathThroughput = 1.0f;
 
-	FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
-	Payload.SetLumenPayload();
-	Payload.SetIgnoreTranslucentMaterials();
-	if (LightingMode == LIGHTING_FROM_SURFACE_CACHE)
+	#if !RECURSIVE_REFLECTION_TRACES
 	{
-		Payload.SetMinimalPayloadMode();
+		Context.MaxReflectionBounces = 1;
 	}
-	else if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING)
-	{
-		Payload.SetEnableSkyLightContribution();
-	}
+	#endif
 
-	// Permute ray origin if tracing against far-field
-	float3 RayOrigin = Ray.Origin;
-	Ray.Origin += Context.InstanceMask == RAY_TRACING_MASK_FAR_FIELD ? Context.FarFieldReferencePos : 0.0;
-	TraceLumenHitLightingRay(TLAS, Ray, Context, Bookmark, Payload);
-
-	Ray.Origin = RayOrigin;
-	Result.bIsHit = Payload.IsHit();
-	if (Result.bIsHit)
+	for (uint ReflectionBounceIndex = 0; ReflectionBounceIndex < Context.MaxReflectionBounces; ++ReflectionBounceIndex)
 	{
-		uint SceneInstanceIndex = Payload.GetSceneInstanceIndex();
-		Result.TraceHitDistance = Payload.HitT;
-		Result.Radiance = CalculateRayTracedLighting(TLAS, Ray, Context, Payload, Result.TraceHitDistance, SceneInstanceIndex, LightingMode);
-		Result.GeometryWorldNormal = Payload.GetGeometryNormal();
+		float NextReflectionRayAlpha = 0.0f;
+
+		FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
+		Payload.SetLumenPayload();
+		Payload.SetIgnoreTranslucentMaterials();
+		if (LightingMode == LIGHTING_FROM_SURFACE_CACHE)
+		{
+			Payload.SetMinimalPayloadMode();
+		}
+		else if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING)
+		{
+			Payload.SetEnableSkyLightContribution();
+		}
+
+		// Offset ray origin if tracing against far-field
+		float3 RayOrigin = Ray.Origin;
+		Ray.Origin += Context.InstanceMask == RAY_TRACING_MASK_FAR_FIELD ? Context.FarFieldReferencePos : 0.0;
+		TraceLumenHitLightingRay(TLAS, Ray, Context, Bookmark, Payload);
+		Ray.Origin = RayOrigin;
+
+		if (Payload.IsHit())
+		{
+			bool bTraceNextReflectionRay = false;
+
+			// Apply emissive material
+			float3 Radiance = Payload.GetRadiance() * Payload.GetOpacity();
+
+			FLumenHitLightingMaterial LumenMaterial = GetLumenHitLightingMaterial(Payload, Ray);
+
+			// Accumulate roughness in order to terminate recursive rays earlier on rough surfaces
+			PathRoughness = 1.0f - (1.0f - PathRoughness) * (1.0f - LumenMaterial.TopLayerRoughness);
+
+			float3 RayHitTranslatedWorldPosition = Ray.Origin + Ray.Direction * Payload.HitT;
+
+			if (LightingMode >= EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
+			{
+				Radiance += CalculateDirectLighting(TLAS, Ray, Context, Payload, RandSequence, RayHitTranslatedWorldPosition, Payload.GetWorldNormal());
+			}
+	
+			if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING)
+			{
+				// STRATA_TODO: this path is not supported yet, as PackedPayload does not have space for indirect irradiance
+				Radiance += LumenMaterial.ApproxFullyRoughDiffuseColor * Payload.GetIndirectIrradiance();
+			}
+			else
+			{
+				float3 RayHitGeometryWorldNormal = Payload.GetGeometryNormal();
+
+				// The Surface Cache lighting was computed using the front face, don't leak to the backface
+				if (dot(Ray.Direction, RayHitGeometryWorldNormal) <= 0 || Payload.IsTwoSided())
+				{
+					// Reverse surface cache lookup normal to match non hit lighting path (usually surface cache is only valid on front faces)
+					if (Payload.IsTwoSided() && !Payload.IsFrontFace())
+					{
+						RayHitGeometryWorldNormal = -RayHitGeometryWorldNormal;
+					}
+
+					FSurfaceCacheSample SurfaceCacheSample = CalculateSurfaceCacheLighting(
+						Ray,
+						Context,
+						RayHitTranslatedWorldPosition,
+						RayHitGeometryWorldNormal,
+						Payload.HitT,
+						Payload.GetSceneInstanceIndex());
+
+					if (LightingMode == EVALUATE_MATERIAL)
+					{
+						Radiance += Diffuse_Lambert(LumenMaterial.ApproxFullyRoughDiffuseColor) * (SurfaceCacheSample.DirectLighting + SurfaceCacheSample.IndirectLighting);
+					}
+					else
+					{
+						// Blend between rough reflections approximation and a single reflection ray
+						if (ReflectionBounceIndex + 1 < MaxReflectionBounces)
+						{
+							NextReflectionRayAlpha = LumenCombineReflectionsAlpha(PathRoughness, /*bHasBackfaceDiffuse*/ false);
+						}
+
+						// Add diffuse part
+						Radiance += Diffuse_Lambert(LumenMaterial.ApproxFullyRoughDiffuseColor_Diffuse) * SurfaceCacheSample.IndirectLighting;
+
+						// Add rough specular part
+						Radiance += Diffuse_Lambert(LumenMaterial.ApproxFullyRoughDiffuseColor_Specular) * (1.0f - NextReflectionRayAlpha) * SurfaceCacheSample.IndirectLighting;
+					}
+				}
+			}
+
+			Result.Radiance += PathThroughput * Radiance;
+
+			// Capture hit properties at first hit
+			if (ReflectionBounceIndex == 0)
+			{
+				Result.bIsHit = true;
+				Result.TraceHitDistance = Payload.HitT;
+				Result.GeometryWorldNormal = Payload.GetGeometryNormal();
+			}
+
+			if (NextReflectionRayAlpha > 0.0f)
+			{
+				// Fresnel
+				const float NoV = saturate(dot(-Ray.Direction, Payload.GetWorldNormal()));
+				PathThroughput *= EnvBRDF(LumenMaterial.TopLayerSpecularColor, LumenMaterial.TopLayerRoughness, NoV);
+
+				float3 ReflectedRayOrigin = Ray.Origin + Ray.Direction * Payload.HitT + 0.05f * Payload.GetGeometryNormal();
+				
+				float GGXSamplingBias = 0.1f;
+				float2 E = RandomSequence_GenerateSample2D(RandSequence);
+				E.y *= 1.0f - GGXSamplingBias;
+
+				float3x3 TangentBasis = GetTangentBasis(Payload.GetWorldNormal());
+				float3 TangentV = mul(TangentBasis, -Ray.Direction);
+
+				float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(LumenMaterial.TopLayerRoughness), TangentV);
+				float3 WorldH = mul(GGXSample.xyz, TangentBasis);
+				float3 ReflectedRayDirection = reflect(Ray.Direction, WorldH);
+				
+				// Setup next ray
+				Ray.Origin = ReflectedRayOrigin;
+				Ray.Direction = ReflectedRayDirection;
+				Ray.TMin = 0.0f;
+				Ray.TMax = Ray.TMax;
+			}
+			else
+			{
+				break;
+			}
+		}
+		else
+		{
+			if (ReflectionBounceIndex > 0)
+			{
+				Result.Radiance  += PathThroughput * EvaluateSkyRadiance(Ray.Direction);
+			}
+			break;
+		}
 	}
 
 	return Result;

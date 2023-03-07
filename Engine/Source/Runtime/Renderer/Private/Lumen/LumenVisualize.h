@@ -7,6 +7,7 @@
 #include "ScreenPass.h"
 #include "ShaderParameterMacros.h"
 #include "Math/IntPoint.h"
+#include "LumenReflections.h"
 
 class FScene;
 class FSceneTextureParameters;
@@ -31,6 +32,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenVisualizeSceneParameters, )
 	SHADER_PARAMETER(int32, VisualizeHiResSurface)
 	SHADER_PARAMETER(int32, Tonemap)
 	SHADER_PARAMETER(int32, VisualizeMode)
+	SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
+	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
+	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
+	SHADER_PARAMETER(uint32, MaxReflectionBounces)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, ColorGradingLUT)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorGradingLUTSampler)

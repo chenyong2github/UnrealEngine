@@ -29,6 +29,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Lumen/LumenTracingUtils.h"
 #include "Lumen/LumenSceneLighting.h"
+#include "Lumen/LumenReflections.h"
 
 // This is the project default dynamic global illumination, NOT the scalability setting (see r.Lumen.DiffuseIndirect.Allow for scalability)
 // Must match EDynamicGlobalIlluminationMethod

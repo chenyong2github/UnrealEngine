@@ -427,6 +427,7 @@ class FLumenVisualizeHardwareRayTracing : public FLumenHardwareRayTracingShaderB
 	{
 		FLumenHardwareRayTracingShaderBase::ModifyCompilationEnvironment(Parameters, ShaderDispatchType, Lumen::ESurfaceCacheSampling::HighResPages, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("ENABLE_VISUALIZE_MODE"), 1);
+		OutEnvironment.SetDefine(TEXT("RECURSIVE_REFLECTION_TRACES"), 1);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 	}

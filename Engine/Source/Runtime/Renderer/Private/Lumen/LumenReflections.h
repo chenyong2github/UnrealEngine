@@ -16,14 +16,28 @@ class FScene;
 class FSceneTextureParameters;
 class FSceneView;
 class FSceneViewFamily;
+class FViewFamilyInfo;
 class FViewInfo;
 
 struct FLumenSceneFrameTemporaries;
 struct FSceneTextures;
 
-namespace LumenRadianceCache { class FRadianceCacheInterpolationParameters; }
+namespace LumenRadianceCache
+{ 
+	class FRadianceCacheInterpolationParameters; 
+}
 
-const static int32 ReflectionThreadGroupSize2D = 8;
+namespace LumenReflections
+{
+	BEGIN_SHADER_PARAMETER_STRUCT(FCompositeParameters, )
+		SHADER_PARAMETER(float, MaxRoughnessToTrace)
+		SHADER_PARAMETER(float, MaxRoughnessToTraceForFoliage)
+		SHADER_PARAMETER(float, InvRoughnessFadeLength)
+	END_SHADER_PARAMETER_STRUCT()
+
+	void SetupCompositeParameters(LumenReflections::FCompositeParameters& OutParameters);
+	bool UseAsyncCompute(const FViewFamilyInfo& ViewFamily);
+}
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionsVisualizeTracesParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, RWVisualizeTracesData)
@@ -40,6 +54,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTracingParameters, )
 	SHADER_PARAMETER(uint32, ReflectionPass)
 	SHADER_PARAMETER(uint32, UseJitter)
 	SHADER_PARAMETER(uint32, UseHighResSurface)
+	SHADER_PARAMETER(uint32, MaxReflectionBounces)
+
+	SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
+	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
+	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, RayBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, RayTraceDistance)
@@ -76,6 +95,7 @@ namespace LumenReflections
 	bool IsHitLightingForceEnabled(const FViewInfo& View);
 	bool UseSurfaceCacheFeedback();
 	float GetSampleSceneColorNormalTreshold();
+	uint32 GetMaxReflectionBounces(const FViewInfo& View);
 };
 
 extern void TraceReflections(

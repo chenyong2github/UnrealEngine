@@ -612,6 +612,7 @@ FPostProcessSettings::FPostProcessSettings()
 	LumenReflectionQuality = 1;
 	LumenRayLightingMode = ELumenRayLightingModeOverride::Default;
 	LumenFrontLayerTranslucencyReflections = false;
+	LumenMaxReflectionBounces = 1;
 	ScreenSpaceReflectionIntensity = 100.0f;
 	ScreenSpaceReflectionQuality = 50.0f;
 	ScreenSpaceReflectionMaxRoughness = 0.6f;
@@ -840,6 +841,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_LumenFullSkylightLeakingDistance(Settings.bOverride_LumenFullSkylightLeakingDistance)
 	, bOverride_LumenRayLightingMode(Settings.bOverride_LumenRayLightingMode)
 	, bOverride_LumenFrontLayerTranslucencyReflections(Settings.bOverride_LumenFrontLayerTranslucencyReflections)
+	, bOverride_LumenMaxReflectionBounces(Settings.bOverride_LumenMaxReflectionBounces)
 	, bOverride_LumenSurfaceCacheResolution(Settings.bOverride_LumenSurfaceCacheResolution)
 	, bOverride_RayTracingGI(Settings.bOverride_RayTracingGI)
 	, bOverride_RayTracingGIMaxBounces(Settings.bOverride_RayTracingGIMaxBounces)
@@ -948,6 +950,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, LumenReflectionQuality(Settings.LumenReflectionQuality)
 	, LumenRayLightingMode(Settings.LumenRayLightingMode)
 	, LumenFrontLayerTranslucencyReflections(Settings.LumenFrontLayerTranslucencyReflections)
+	, LumenMaxReflectionBounces(Settings.LumenMaxReflectionBounces)
 	, ScreenSpaceReflectionIntensity(Settings.ScreenSpaceReflectionIntensity)
 	, ScreenSpaceReflectionQuality(Settings.ScreenSpaceReflectionQuality)
 	, ScreenSpaceReflectionMaxRoughness(Settings.ScreenSpaceReflectionMaxRoughness)

@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenIrradianceFieldGather.cpp
-=============================================================================*/
-
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneUtils.h"
@@ -15,6 +11,7 @@
 #include "ScreenSpaceDenoise.h"
 #include "LumenRadianceCache.h"
 #include "LumenTracingUtils.h"
+#include "LumenReflections.h"
 
 int32 GLumenIrradianceFieldGather = 0;
 FAutoConsoleVariableRef CVarLumenIrradianceFieldGather(
