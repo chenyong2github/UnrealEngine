@@ -3,6 +3,10 @@
 #include "SInputDeviceSelector.h"
 
 #include "InputDeviceDetectionProcessor.h"
+
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SSimpleComboButton.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SBoxPanel.h"
@@ -12,6 +16,8 @@
 
 namespace UE::VCamCoreEditor::Private
 {
+	static FInputDeviceSelectionSettings GVCamInputCapturingSettings;
+	
 	SInputDeviceSelector::~SInputDeviceSelector()
 	{
 		StopListeningForInput();
@@ -26,6 +32,7 @@ namespace UE::VCamCoreEditor::Private
 			SNew(SHorizontalBox)
 			
 			+SHorizontalBox::Slot()
+			.AutoWidth()
 			[
 				SNew(SButton)
 				.PressMethod(EButtonPressMethod::DownAndUp)
@@ -43,6 +50,29 @@ namespace UE::VCamCoreEditor::Private
 						.ColorAndOpacity(this, &SInputDeviceSelector::GetKeyIconColor)
 					]
 				]
+			]
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SSimpleComboButton)
+				.Icon(FAppStyle::Get().GetBrush("DetailsView.ViewOptions"))
+				.OnGetMenuContent_Lambda([this]()
+				{
+					FMenuBuilder Menu(true, nullptr);
+					Menu.AddMenuEntry(
+						LOCTEXT("AllowAnalog.Label", "Allow analog detection"),
+						LOCTEXT("AllowAnalog.Tooltip", "Some devices emit analog events every tick which would interfer with auto detection."),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &SInputDeviceSelector::OnAllowAnalogInputSettingToggled),
+							FCanExecuteAction::CreateLambda([](){ return true; }),
+							FIsActionChecked::CreateLambda([](){ return GVCamInputCapturingSettings.bAllowAnalog; })),
+						NAME_None,
+						EUserInterfaceActionType::Check
+						);
+					return Menu.MakeWidget();
+				})
 			]
 			
 			+SHorizontalBox::Slot()
@@ -67,7 +97,7 @@ namespace UE::VCamCoreEditor::Private
 		{
 			OnInputDeviceIDChangedDelegate.Execute(DeviceID);
 			StopListeningForInput();
-		}));
+		}), GVCamInputCapturingSettings);
 		return FReply::Handled();
 	}
 
@@ -77,6 +107,15 @@ namespace UE::VCamCoreEditor::Private
 		{
 			InputDeviceDetector->Unregister();
 			InputDeviceDetector.Reset();
+		}
+	}
+
+	void SInputDeviceSelector::OnAllowAnalogInputSettingToggled()
+	{
+		GVCamInputCapturingSettings.bAllowAnalog = !GVCamInputCapturingSettings.bAllowAnalog;
+		if (InputDeviceDetector)
+		{
+			InputDeviceDetector->UpdateInputSettings(GVCamInputCapturingSettings);
 		}
 	}
 

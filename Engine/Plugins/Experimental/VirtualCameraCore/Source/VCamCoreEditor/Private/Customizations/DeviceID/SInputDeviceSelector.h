@@ -43,6 +43,8 @@ namespace UE::VCamCoreEditor::Private
 		FReply ListenForInput();
 		/** Util for destroying InputDeviceDetector */
 		void StopListeningForInput();
+
+		void OnAllowAnalogInputSettingToggled();
 		
 		/** Tints button orange while listening */
 		FSlateColor GetKeyIconColor() const;
