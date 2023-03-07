@@ -260,12 +260,13 @@ TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeFbxTranslator:
 			}
 			break;
 		case EInterchangeMeshPayLoadType::MORPHTARGET:
-		{
-			//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
-			FLargeMemoryReader Ar(FileData, FileDataSize);
-			MeshPayloadData.MeshDescription.Serialize(Ar);
-		}
+			{
+				//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
+				FLargeMemoryReader Ar(FileData, FileDataSize);
+				MeshPayloadData.MeshDescription.Serialize(Ar);
+			}
 			break;
+		case EInterchangeMeshPayLoadType::NONE:
 		default:
 			break;
 		}

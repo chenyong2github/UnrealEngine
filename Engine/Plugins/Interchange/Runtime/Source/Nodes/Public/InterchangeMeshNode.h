@@ -32,7 +32,8 @@ namespace UE
 UENUM(BlueprintType)
 enum class EInterchangeMeshPayLoadType : uint8
 {
-	STATIC = 0,
+	NONE = 0,
+	STATIC,
 	SKELETAL,
 	MORPHTARGET
 };
@@ -46,10 +47,10 @@ struct INTERCHANGENODES_API FInterchangeMeshPayLoadKey
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange | Mesh")
-	FString UniqueId;
+	FString UniqueId = "";
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange | Mesh")
-	EInterchangeMeshPayLoadType Type;
+	EInterchangeMeshPayLoadType Type = EInterchangeMeshPayLoadType::NONE;
 
 	FInterchangeMeshPayLoadKey() {}
 

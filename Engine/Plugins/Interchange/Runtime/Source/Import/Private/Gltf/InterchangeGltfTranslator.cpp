@@ -1910,6 +1910,7 @@ TFuture< TOptional< UE::Interchange::FMeshPayloadData > > UInterchangeGltfTransl
 				//GLTF handles morph targets as simple Meshes
 				bSuccessfullAcquisition = UE::Interchange::Gltf::Private::GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, PayLoadKey.UniqueId, MeshPayLoadData.MeshDescription);
 				break;
+			case EInterchangeMeshPayLoadType::NONE:
 			default:
 				break;
 			}
