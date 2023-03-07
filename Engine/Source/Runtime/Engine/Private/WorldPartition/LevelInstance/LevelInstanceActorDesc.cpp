@@ -115,8 +115,9 @@ void FLevelInstanceActorDesc::UnregisterContainerInstance()
 
 		LevelInstanceSubsystem->UnregisterContainer(LevelInstanceContainer.Get());
 		LevelInstanceContainer.Reset();
-		LevelInstanceContainerWorldContext.Reset();
 	}
+
+	LevelInstanceContainerWorldContext.Reset();
 }
 
 void FLevelInstanceActorDesc::SetContainer(UActorDescContainer* InContainer, UWorld* InWorldContext)
