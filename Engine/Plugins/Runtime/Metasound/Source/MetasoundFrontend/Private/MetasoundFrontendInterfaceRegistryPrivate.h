@@ -17,7 +17,6 @@ namespace Metasound
 		class FInterfaceRegistry : public IInterfaceRegistry
 		{
 		public:
-
 			static FInterfaceRegistry& Get();
 
 			FInterfaceRegistry();
@@ -30,9 +29,16 @@ namespace Metasound
 
 			virtual bool FindInterface(const FInterfaceRegistryKey& InKey, FMetasoundFrontendInterface& OutInterface) const override;
 
+			virtual void AddInterfaceOutputBindings(const FMetasoundFrontendVersion& InInputInterfaceVersion, TArray<FMetasoundFrontendInterfaceBinding>&& InBinding) override;
+
+			virtual bool RemoveInterfaceOutputBinding(const FMetasoundFrontendVersion& InInputInterfaceVersion, const FMetasoundFrontendVersion& InOutputInterfaceVersion) override;
+
+			virtual bool RemoveAllInterfaceOutputBindings(const FMetasoundFrontendVersion& InInputInterfaceVersion) override;
+
 			TUniquePtr<FInterfaceTransactionStream> CreateTransactionStream();
 
 			virtual void ForEachRegistryTransactionSince(FRegistryTransactionID InSince, FRegistryTransactionID* OutCurrentRegistryTransactionID, TFunctionRef<void(const FInterfaceRegistryTransaction&)> InFunc) const override;
+
 		private:
 			using FInterfaceTransactionBuffer = TTransactionBuffer<FInterfaceRegistryTransaction>;
 

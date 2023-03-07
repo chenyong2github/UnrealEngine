@@ -5,6 +5,7 @@
 
 #include "EdGraph/EdGraph.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundDocumentInterface.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendTransform.h"
@@ -47,12 +48,13 @@ namespace Metasound
 	struct FMetaSoundEngineAssetHelper;
 }
 
+
 /**
  * This asset type is used for Metasound assets that can only be used as nodes in other Metasound graphs.
  * Because of this, they contain no required inputs or outputs.
  */
 UCLASS(hidecategories = object, BlueprintType)
-class METASOUNDENGINE_API UMetaSoundPatch : public UObject, public FMetasoundAssetBase
+class METASOUNDENGINE_API UMetaSoundPatch : public UObject, public FMetasoundAssetBase, public IMetaSoundDocumentInterface
 {
 	GENERATED_BODY()
 
@@ -128,6 +130,10 @@ public:
 
 #endif // #if WITH_EDITORONLY_DATA
 
+	virtual const FMetasoundFrontendDocument& GetDocument() const override
+	{
+		return RootMetaSoundDocument;
+	}
 
 #if WITH_EDITOR
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
@@ -167,7 +173,7 @@ protected:
 	virtual void SetReferencedAssetClasses(TSet<Metasound::Frontend::IMetaSoundAssetManager::FAssetInfo>&& InAssetClasses) override;
 #endif // #if WITH_EDITOR
 
-	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
+	Metasound::Frontend::FDocumentAccessPtr GetDocumentAccessPtr() override
 	{
 		using namespace Metasound::Frontend;
 		// Return document using FAccessPoint to inform the TAccessPtr when the 
@@ -175,11 +181,17 @@ protected:
 		return MakeAccessPtr<FDocumentAccessPtr>(RootMetaSoundDocument.AccessPoint, RootMetaSoundDocument);
 	}
 
-	Metasound::Frontend::FConstDocumentAccessPtr GetDocument() const override
+	Metasound::Frontend::FConstDocumentAccessPtr GetDocumentConstAccessPtr() const override
 	{
 		using namespace Metasound::Frontend;
 		// Return document using FAccessPoint to inform the TAccessPtr when the 
 		// object is no longer valid.
 		return MakeAccessPtr<FConstDocumentAccessPtr>(RootMetaSoundDocument.AccessPoint, RootMetaSoundDocument);
+	}
+
+private:
+	virtual FMetasoundFrontendDocument& GetDocument() override
+	{
+		return RootMetaSoundDocument;
 	}
 };

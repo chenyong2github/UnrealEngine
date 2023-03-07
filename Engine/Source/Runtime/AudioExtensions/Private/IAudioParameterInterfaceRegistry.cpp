@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "IAudioParameterInterfaceRegistry.h"
 
+#include "Algo/Transform.h"
+
 
 namespace Audio
 {
@@ -32,6 +34,78 @@ namespace Audio
 			}
 		};
 	} // namespace ParameterInterfaceRegistryPrivate
+
+	FParameterInterface::FParameterInterface(
+		FName InName,
+		const FVersion& InVersion,
+		const UClass& InType
+	)
+		: NamePrivate(InName)
+		, VersionPrivate(InVersion)
+		, SupportedUClassNames({ InType.GetFullName() })
+	{
+	}
+
+	FParameterInterface::FParameterInterface(FName InName, const FVersion& InVersion)
+		: NamePrivate(InName)
+		, VersionPrivate(InVersion)
+	{
+	}
+
+	FParameterInterface::FParameterInterface(FName InName, const FVersion& InVersion, const TArray<UClass*>& InClasses)
+		: NamePrivate(InName)
+		, VersionPrivate(InVersion)
+	{
+		Algo::Transform(InClasses, SupportedUClassNames, [](const UClass* Class)
+		{
+			check(Class);
+			return Class->GetFullName();
+		});
+	}
+
+	FName FParameterInterface::GetName() const
+	{
+		return NamePrivate;
+	}
+
+	const FParameterInterface::FVersion& FParameterInterface::GetVersion() const
+	{
+		return VersionPrivate;
+	}
+
+	const UClass& FParameterInterface::GetType() const
+	{
+		return *UObject::StaticClass();
+	}
+
+	const TArray<FParameterInterface::FInput>& FParameterInterface::GetInputs() const
+	{
+		return Inputs;
+	}
+
+	const TArray<FParameterInterface::FOutput>& FParameterInterface::GetOutputs() const
+	{
+		return Outputs;
+	}
+
+	const TArray<FParameterInterface::FEnvironmentVariable>& FParameterInterface::GetEnvironment() const
+	{
+		return Environment;
+	}
+
+	TArray<const UClass*> FParameterInterface::FindSupportedUClasses() const
+	{
+		TArray<const UClass*> SupportedUClasses;
+		for (const FString& Name : SupportedUClassNames)
+		{
+			if (const UClass* Class = FindObject<const UClass>(nullptr, *Name))
+			{
+				SupportedUClasses.Add(Class);
+			}
+		}
+
+		return SupportedUClasses;
+	}
 
 	TUniquePtr<IAudioParameterInterfaceRegistry> IAudioParameterInterfaceRegistry::Instance;
 

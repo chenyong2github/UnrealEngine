@@ -453,6 +453,13 @@ namespace Metasound
 			return bDidEdit;
 		}
 
+		bool FModifyRootGraphInterfaces::Transform(FMetasoundFrontendDocument& InOutDocument) const
+		{
+			// TODO: Swap implementation to not use access pointers/controllers
+			FDocumentAccessPtr DocAccessPtr = MakeAccessPtr<FDocumentAccessPtr>(InOutDocument.AccessPoint, InOutDocument);
+			return Transform(FDocumentController::CreateDocumentHandle(DocAccessPtr));
+		}
+
 		bool FUpdateRootGraphInterface::Transform(FDocumentHandle InDocument) const
 		{
 			bool bDidEdit = false;

@@ -35,9 +35,6 @@ namespace Metasound
 			}
 
 			virtual ~FNodeTemplatePreprocessTransformBase() = default;
-
-			virtual FMetasoundFrontendDocument& GetOwningDocument() const override { return Document; };
-			virtual FMetasoundFrontendGraph& GetOwningGraph() const override { return Graph; };
 		};
 
 	} // namespace Frontend

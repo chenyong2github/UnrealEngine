@@ -18,6 +18,7 @@
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendDocumentBuilder.h"
 #include "MetasoundFrontendDocumentVersioning.h"
 #include "MetasoundFrontendGraph.h"
 #include "MetasoundFrontendNodeTemplateRegistry.h"
@@ -26,6 +27,7 @@
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundJsonBackend.h"
 #include "MetasoundLog.h"
+#include "MetasoundParameterPack.h"
 #include "MetasoundParameterTransmitter.h"
 #include "MetasoundTrace.h"
 #include "MetasoundVertex.h"
@@ -33,7 +35,6 @@
 #include "StructSerializer.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/MetaData.h"
-#include "MetasoundParameterPack.h"
 
 #define LOCTEXT_NAMESPACE "MetaSound"
 
@@ -295,30 +296,7 @@ void FMetasoundAssetBase::SetMetadata(FMetasoundFrontendClassMetadata& InMetadat
 
 bool FMetasoundAssetBase::GetDeclaredInterfaces(TArray<const Metasound::Frontend::IInterfaceRegistryEntry*>& OutInterfaces) const
 {
-	using namespace Metasound;
-	using namespace Metasound::Frontend;
-
-	if (const FMetasoundFrontendDocument* Document = GetDocument().Get())
-	{
-		bool bInterfacesFound = true;
-
-		Algo::Transform(Document->Interfaces, OutInterfaces, [&](const FMetasoundFrontendVersion& Version)
-		{
-			const FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(Version);
-			const IInterfaceRegistryEntry* RegistryEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(InterfaceKey);
-			if (!RegistryEntry)
-			{
-				bInterfacesFound = false;
-				UE_LOG(LogMetaSound, Warning, TEXT("No registered interface matching interface version on document [InterfaceVersion:%s]"), *Version.ToString());
-			}
-
-			return RegistryEntry;
-		});
-	
-		return bInterfacesFound;
-	}
-
-	return false;
+	return FMetaSoundFrontendDocumentBuilder::FindDeclaredInterfaces(GetDocumentChecked(), OutInterfaces);
 }
 
 bool FMetasoundAssetBase::IsInterfaceDeclared(const FMetasoundFrontendVersion& InVersion) const
@@ -349,6 +327,13 @@ void FMetasoundAssetBase::AddDefaultInterfaces()
 	FModifyRootGraphInterfaces({ }, InitInterfaces).Transform(DocumentHandle);
 }
 
+void FMetasoundAssetBase::SetDocument(FMetasoundFrontendDocument&& InDocument)
+{
+	FMetasoundFrontendDocument& Document = GetDocumentChecked();
+	Document = MoveTemp(InDocument);
+	MarkMetasoundDocumentDirty();
+}
+
 bool FMetasoundAssetBase::VersionAsset()
 {
 	using namespace Metasound;
@@ -363,7 +348,7 @@ bool FMetasoundAssetBase::VersionAsset()
 		AssetPath = OwningAsset->GetPathName();
 	}
 
-	FMetasoundFrontendDocument* Doc = GetDocument().Get();
+	FMetasoundFrontendDocument* Doc = GetDocumentAccessPtr().Get();
 	if (!ensure(Doc))
 	{
 		return false;
@@ -410,7 +395,7 @@ void FMetasoundAssetBase::CacheRegistryMetadata()
 {
 	using namespace Metasound::Frontend;
 
-	FMetasoundFrontendDocument* Document = GetDocument().Get();
+	FMetasoundFrontendDocument* Document = GetDocumentAccessPtr().Get();
 	if (!ensure(Document))
 	{
 		return;
@@ -710,12 +695,12 @@ bool FMetasoundAssetBase::MarkMetasoundDocumentDirty() const
 
 Metasound::Frontend::FDocumentHandle FMetasoundAssetBase::GetDocumentHandle()
 {
-	return Metasound::Frontend::IDocumentController::CreateDocumentHandle(GetDocument());
+	return Metasound::Frontend::IDocumentController::CreateDocumentHandle(GetDocumentAccessPtr());
 }
 
 Metasound::Frontend::FConstDocumentHandle FMetasoundAssetBase::GetDocumentHandle() const
 {
-	return Metasound::Frontend::IDocumentController::CreateDocumentHandle(GetDocument());
+	return Metasound::Frontend::IDocumentController::CreateDocumentHandle(GetDocumentConstAccessPtr());
 }
 
 Metasound::Frontend::FGraphHandle FMetasoundAssetBase::GetRootGraphHandle()
@@ -732,7 +717,7 @@ bool FMetasoundAssetBase::ImportFromJSON(const FString& InJSON)
 {
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::ImportFromJSON);
 
-	FMetasoundFrontendDocument* Document = GetDocument().Get();
+	FMetasoundFrontendDocument* Document = GetDocumentAccessPtr().Get();
 	if (ensure(nullptr != Document))
 	{
 		bool bSuccess = Metasound::Frontend::ImportJSONToMetasound(InJSON, *Document);
@@ -751,7 +736,7 @@ bool FMetasoundAssetBase::ImportFromJSONAsset(const FString& InAbsolutePath)
 {
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::ImportFromJSONAsset);
 
-	Metasound::Frontend::FDocumentAccessPtr DocumentPtr = GetDocument();
+	Metasound::Frontend::FDocumentAccessPtr DocumentPtr = GetDocumentAccessPtr();
 	if (FMetasoundFrontendDocument* Document = DocumentPtr.Get())
 	{
 		bool bSuccess = Metasound::Frontend::ImportJSONAssetToMetasound(InAbsolutePath, *Document);
@@ -768,14 +753,14 @@ bool FMetasoundAssetBase::ImportFromJSONAsset(const FString& InAbsolutePath)
 
 FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked()
 {
-	FMetasoundFrontendDocument* Document = GetDocument().Get();
+	FMetasoundFrontendDocument* Document = GetDocumentAccessPtr().Get();
 	check(nullptr != Document);
 	return *Document;
 }
 
 const FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked() const
 {
-	const FMetasoundFrontendDocument* Document = GetDocument().Get();
+	const FMetasoundFrontendDocument* Document = GetDocumentConstAccessPtr().Get();
 
 	check(nullptr != Document);
 	return *Document;
@@ -802,7 +787,7 @@ TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetPublicClassInputs()
 	// Inputs which are controlled by an interface are private. 
 	TArray<const IInterfaceRegistryEntry*> Interfaces;
 	TSet<FVertexName> PrivateInputs;
-	GetDeclaredInterfaces(Interfaces);
+	FMetaSoundFrontendDocumentBuilder::FindDeclaredInterfaces(GetDocumentChecked(), Interfaces);
 	for (const IInterfaceRegistryEntry* InterfaceEntry : Interfaces)
 	{
 		if (InterfaceEntry)

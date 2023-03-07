@@ -34,6 +34,8 @@ namespace Metasound
 
 				virtual TArray<FMetasoundFrontendInterface> FindUClassDefaultInterfaces(FName InUClassName) = 0;
 
+				virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeAllVersions = false) = 0;
+
 #if WITH_EDITORONLY_DATA
 				/** Find all FMetasoundFrontendClasses.
 				  * (Optional) Include all versions (i.e. deprecated classes and versions of classes that are not the highest major version).
@@ -47,10 +49,7 @@ namespace Metasound
 
 				/** Find the highest version of a class with the given ClassName. Returns false if not found, true if found. */
 				virtual bool FindClassWithHighestVersion(const FMetasoundFrontendClassName& InName, FMetasoundFrontendClass& OutClass) = 0;
-
-				virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeAllVersions = false) = 0;
 #endif
-
 
 			protected:
 				ISearchEngine() = default;

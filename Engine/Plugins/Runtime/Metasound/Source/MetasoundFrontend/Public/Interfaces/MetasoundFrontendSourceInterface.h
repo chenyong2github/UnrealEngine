@@ -22,7 +22,10 @@ namespace Metasound
 			}
 
 			METASOUNDFRONTEND_API const FMetasoundFrontendVersion& GetVersion();
+
+			UE_DEPRECATED(5.3, "ParameterInterface is now only registered for given UClasses at registration time, not in interface definition.")
 			METASOUNDFRONTEND_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
+			METASOUNDFRONTEND_API Audio::FParameterInterfacePtr CreateInterface();
 		}
 
 		namespace SourceInterfaceV1_0
@@ -47,7 +50,10 @@ namespace Metasound
 			}
 
 			METASOUNDFRONTEND_API const FMetasoundFrontendVersion& GetVersion();
+
+			UE_DEPRECATED(5.3, "ParameterInterface is now only registered for given UClasses at registration time, not in interface definition.")
 			METASOUNDFRONTEND_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
+			METASOUNDFRONTEND_API Audio::FParameterInterfacePtr CreateInterface();
 		}
 
 		namespace SourceInterface
@@ -68,7 +74,10 @@ namespace Metasound
 			}
 
 			METASOUNDFRONTEND_API const FMetasoundFrontendVersion& GetVersion();
+
+			UE_DEPRECATED(5.3, "ParameterInterface is now only registered for given UClasses at registration time, not in interface definition.")
 			METASOUNDFRONTEND_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
+			METASOUNDFRONTEND_API Audio::FParameterInterfacePtr CreateInterface();
 
 			class METASOUNDFRONTEND_API FUpdateInterface : public Frontend::IDocumentTransform
 			{

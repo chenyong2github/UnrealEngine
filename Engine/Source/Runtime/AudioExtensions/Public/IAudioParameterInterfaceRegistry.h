@@ -23,13 +23,13 @@ namespace Audio
 
 	struct AUDIOEXTENSIONS_API FParameterInterface
 	{
-		struct FVersion
+		struct AUDIOEXTENSIONS_API FVersion
 		{
 			const int32 Major = 1;
 			const int32 Minor = 0;
 		};
 
-		struct FInput
+		struct AUDIOEXTENSIONS_API FInput
 		{
 			const FText DisplayName;
 			const FText Description;
@@ -41,7 +41,7 @@ namespace Audio
 			const int32 SortOrderIndex = 0;
 		};
 
-		struct FOutput
+		struct AUDIOEXTENSIONS_API FOutput
 		{
 			const FText DisplayName;
 			const FText Description;
@@ -54,7 +54,7 @@ namespace Audio
 			const int32 SortOrderIndex = 0;
 		};
 
-		struct FEnvironmentVariable
+		struct AUDIOEXTENSIONS_API FEnvironmentVariable
 		{
 			const FText DisplayName;
 			const FText Description;
@@ -65,52 +65,31 @@ namespace Audio
 		};
 
 		FParameterInterface() = default;
-		FParameterInterface(
-			FName InName,
-			const FVersion& InVersion,
-			const UClass& InType
-		)
-			: NamePrivate(InName)
-			, VersionPrivate(InVersion)
-			, Type(&InType)
-		{
-		}
 
-		FName GetName() const
-		{
-			return NamePrivate;
-		}
+		// Constructor used for parameter interface not limited to any particular UClass types
+		FParameterInterface(FName InName, const FVersion& InVersion);
 
-		const FVersion& GetVersion() const
-		{
-			return VersionPrivate;
-		}
+		// Constructor used for parameter interface with support for explicit UClass types
+		FParameterInterface(FName InName, const FVersion& InVersion, const TArray<UClass*>& InClasses);
 
-		const UClass& GetType() const
-		{
-			check(Type);
-			return *Type;
-		}
+		UE_DEPRECATED(5.3, "Use FParameterInterface ctor that supports array of classes.")
+		FParameterInterface(FName InName, const FVersion& InVersion, const UClass& InClass);
 
-		const TArray<FInput>& GetInputs() const
-		{
-			return Inputs;
-		}
+		FName GetName() const;
+		const FVersion& GetVersion() const;
 
-		const TArray<FOutput>& GetOutputs() const
-		{
-			return Outputs;
-		}
+		UE_DEPRECATED(5.3, "Use FParameterInterface::FindSupportedUClasses instead")
+		const UClass& GetType() const;
 
-		const TArray<FEnvironmentVariable>& GetEnvironment() const
-		{
-			return Environment;
-		}
+		TArray<const UClass*> FindSupportedUClasses() const;
+		const TArray<FInput>& GetInputs() const;
+		const TArray<FOutput>& GetOutputs() const;
+		const TArray<FEnvironmentVariable>& GetEnvironment() const;
 
 	private:
 		FName NamePrivate;
 		FVersion VersionPrivate;
-		const UClass* Type = nullptr;
+		TArray<FString> SupportedUClassNames;
 
 	protected:
 		TArray<FInput> Inputs;

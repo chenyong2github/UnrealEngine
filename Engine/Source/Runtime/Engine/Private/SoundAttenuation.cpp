@@ -162,7 +162,7 @@ namespace Audio
 			struct FInterface : public Audio::FParameterInterface
 			{
 				FInterface()
-					: FParameterInterface(AttenuationInterface::Name, { 1, 0 }, *USoundBase::StaticClass())
+					: FParameterInterface(AttenuationInterface::Name, { 1, 0 })
 				{
 					Inputs =
 					{
@@ -203,7 +203,7 @@ namespace Audio
 			struct FInterface : public Audio::FParameterInterface
 			{
 				FInterface()
-					: FParameterInterface(SpatializationInterface::Name, { 1, 0 }, *USoundBase::StaticClass())
+					: FParameterInterface(SpatializationInterface::Name, { 1, 0 })
 				{
 					Inputs =
 					{
@@ -250,7 +250,7 @@ namespace Audio
 			struct FInterface : public Audio::FParameterInterface
 			{
 				FInterface()
-					: FParameterInterface(SourceOrientationInterface::Name, { 1, 0 }, *USoundBase::StaticClass())
+					: FParameterInterface(SourceOrientationInterface::Name, { 1, 0 })
 				{
 					Inputs =
 					{
@@ -297,7 +297,7 @@ namespace Audio
 			struct FInterface : public Audio::FParameterInterface
 			{
 				FInterface()
-					: FParameterInterface(ListenerOrientationInterface::Name, { 1, 0 }, *USoundBase::StaticClass())
+					: FParameterInterface(ListenerOrientationInterface::Name, { 1, 0 })
 				{
 					Inputs =
 					{

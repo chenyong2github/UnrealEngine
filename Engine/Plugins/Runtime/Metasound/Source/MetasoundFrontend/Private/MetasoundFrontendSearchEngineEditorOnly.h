@@ -60,24 +60,6 @@ namespace Metasound
 			static ResultType BuildResult(const FFrontendQueryPartition& InPartition);
 		};
 
-		// Policy for finding all registered interfaces. 
-		struct FFindAllInterfacesQueryPolicy
-		{
-			using ResultType = TArray<FMetasoundFrontendInterface>;
-
-			static FFrontendQuery CreateQuery();
-			static ResultType BuildResult(const FFrontendQueryPartition& InPartition);
-		};
-
-		// Policy for finding all registered interfaces (including deprecated). 
-		struct FFindAllInterfacesIncludingAllVersionsQueryPolicy
-		{
-			using ResultType = TArray<FMetasoundFrontendInterface>;
-
-			static FFrontendQuery CreateQuery();
-			static TArray<FMetasoundFrontendInterface> BuildResult(const FFrontendQueryPartition& InPartition);
-		};
-
 		// To minimize runtime memory costs during gampeplay, some search engine
 		// queries are only exposed when the editor only data is available. This
 		// class supports the editor only functionality of the search engine.
@@ -98,7 +80,6 @@ namespace Metasound
 			virtual TArray<FMetasoundFrontendClass> FindAllClasses(bool bInIncludeAllVersions) override;
 			virtual TArray<FMetasoundFrontendClass> FindClassesWithName(const FMetasoundFrontendClassName& InName, bool bInSortByVersion) override;
 			virtual bool FindClassWithHighestVersion(const FMetasoundFrontendClassName& InName, FMetasoundFrontendClass& OutClass) override;
-			virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeAllVersions) override;
 
 		private:
 
@@ -107,8 +88,6 @@ namespace Metasound
 			TSearchEngineQuery<FFindClassesWithNameUnsortedQueryPolicy> FindClassesWithNameUnsortedQuery;
 			TSearchEngineQuery<FFindClassesWithNameSortedQueryPolicy> FindClassesWithNameSortedQuery;
 			TSearchEngineQuery<FFindClassWithHighestVersionQueryPolicy> FindClassWithHighestVersionQuery;
-			TSearchEngineQuery<FFindAllInterfacesQueryPolicy> FindAllInterfacesQuery;
-			TSearchEngineQuery<FFindAllInterfacesIncludingAllVersionsQueryPolicy> FindAllInterfacesIncludingAllVersionsQuery;
 		};
 	}
 }

@@ -177,21 +177,6 @@ namespace Metasound
 				return false;
 			}
 
-			bool FRemoveInterfacesWhichAreNotDefault::Filter(const FFrontendQueryEntry& InEntry) const
-			{
-				if (InEntry.Value.IsType<FMetasoundFrontendInterface>())
-				{
-					FInterfaceRegistryKey RegistryKey = GetInterfaceRegistryKey(InEntry.Value.Get<FMetasoundFrontendInterface>());
-					const IInterfaceRegistryEntry* RegEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(RegistryKey);
-
-					if (nullptr != RegEntry)
-					{
-						return RegEntry->IsDefault();
-					}
-				}
-				return false;
-			}
-
 			class FMapNodeRegistrationEventsToClassAndMajorVersion : public IFrontendQueryMapStep
 			{
 			public:
@@ -281,9 +266,7 @@ namespace Metasound
 				}
 				return Result;
 			}
-
-
-		}
+		} // namespace SearchEngineQuerySteps
 
 
 		FFrontendQuery FFindClassWithHighestMinorVersionQueryPolicy::CreateQuery()
@@ -323,27 +306,6 @@ namespace Metasound
 			return Key;
 		}
 
-		FFrontendQuery FFindAllDefaultInterfacesQueryPolicy::CreateQuery()
-		{
-			using namespace SearchEngineQuerySteps;
-			FFrontendQuery Query;
-			Query.AddStep<FInterfaceRegistryTransactionSource>()
-				.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
-				.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
-				.AddStep<FTransformInterfaceRegistryTransactionToInterface>()
-				.AddStep<FMapInterfaceToInterfaceNameAndMajorVersion>()
-				.AddStep<FReduceInterfacesToHighestVersion>()
-				.AddStep<FRemoveInterfacesWhichAreNotDefault>()
-				.AddStep<FMapToNull>();
-			return Query;
-		}
-
-		TArray<FMetasoundFrontendInterface> FFindAllDefaultInterfacesQueryPolicy::BuildResult(const FFrontendQueryPartition& InPartition)
-		{
-			using namespace SearchEngineQuerySteps;
-			return BuildArrayOfInterfacesFromPartition(InPartition);
-		}
-
 		FFrontendQuery FFindAllRegisteredInterfacesWithNameQueryPolicy::CreateQuery()
 		{
 			using namespace SearchEngineQuerySteps;
@@ -381,15 +343,54 @@ namespace Metasound
 			return BuildSingleInterfaceFromPartition(InPartition);
 		}
 
+		FFrontendQuery FFindAllInterfacesQueryPolicy::CreateQuery()
+		{
+			using namespace SearchEngineQuerySteps;
+			FFrontendQuery Query;
+			Query.AddStep<FInterfaceRegistryTransactionSource>()
+				.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
+				.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
+				.AddStep<FTransformInterfaceRegistryTransactionToInterface>()
+				.AddStep<FMapInterfaceToInterfaceNameAndMajorVersion>()
+				.AddStep<FReduceInterfacesToHighestVersion>()
+				.AddStep<FMapToNull>();
+			return Query;
+		}
+
+		TArray<FMetasoundFrontendInterface> FFindAllInterfacesQueryPolicy::BuildResult(const FFrontendQueryPartition& InPartition)
+		{
+			using namespace SearchEngineQuerySteps;
+			return BuildArrayOfInterfacesFromPartition(InPartition);
+		}
+
+		FFrontendQuery FFindAllInterfacesIncludingAllVersionsQueryPolicy::CreateQuery()
+		{
+			using namespace SearchEngineQuerySteps;
+			FFrontendQuery Query;
+			Query.AddStep<FInterfaceRegistryTransactionSource>()
+				.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
+				.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
+				.AddStep<FTransformInterfaceRegistryTransactionToInterface>()
+				.AddStep<FMapToNull>();
+			return Query;
+		}
+
+		TArray<FMetasoundFrontendInterface> FFindAllInterfacesIncludingAllVersionsQueryPolicy::BuildResult(const FFrontendQueryPartition& InPartition)
+			{
+				using namespace SearchEngineQuerySteps;
+				return BuildArrayOfInterfacesFromPartition(InPartition);
+			}
+
 		void FSearchEngineCore::Prime()
 		{
 			METASOUND_LLM_SCOPE;
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngineCore::Prime);
 
 			FindClassWithHighestMinorVersionQuery.Prime();
-			FindAllDefaultInterfacesQuery.Prime();
 			FindAllRegisteredInterfacesWithNameQuery.Prime();
 			FindInterfaceWithHighestVersionQuery.Prime();
+			FindAllInterfacesIncludingAllVersionsQuery.Prime();
+			FindAllInterfacesQuery.Prime();
 		}
 
 		bool FSearchEngineCore::FindClassWithHighestMinorVersion(const FMetasoundFrontendClassName& InName, int32 InMajorVersion, FMetasoundFrontendClass& OutClass)
@@ -413,26 +414,27 @@ namespace Metasound
 		{
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngineCore::FindUClassDefaultInterfaces);
 
+			constexpr bool bIncludeAllVersions = false;
 			const FFrontendQueryKey NullKey;
-			TArray<FMetasoundFrontendInterface> DefaultInterfaces = FindAllDefaultInterfacesQuery.UpdateAndFindResult(NullKey);
+			TArray<FMetasoundFrontendInterface> DefaultInterfaces = FindAllInterfaces(bIncludeAllVersions);
 
 			// All default interfaces are filtered here because a UClass name cannot effectively 
 			// be used as a "Key" for this query.
 			//
 			// We cannot know all the UClasses associated with each default interface given only a UClassName
 			// because we need to inspect UClass inheritance to handle derived UClasses
-			// which should be compatible with their parent's default interfaces. 
+			// which should be compatible with their parent's default interfaces.
 			//
 			// This module does not have access to the UClass inheritance structure.
 			// Instead, this information is accessed in the IInterfaceRegistryEntry
-			// concrete implementation. 
+			// concrete implementation.
 			auto DoesNotSupportUClass = [&InUClassName](const FMetasoundFrontendInterface& InInterface)
 			{
 				FInterfaceRegistryKey RegistryKey = GetInterfaceRegistryKey(InInterface);
 				const IInterfaceRegistryEntry* RegEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(RegistryKey);
 				if (ensure(RegEntry))
 				{
-					return !RegEntry->UClassIsSupported(InUClassName);
+					return !RegEntry->IsDefault(InUClassName);
 				}
 
 				return true;
@@ -458,5 +460,20 @@ namespace Metasound
 			const FFrontendQueryKey Key{InInterfaceName};
 			return FindInterfaceWithHighestVersionQuery.UpdateAndFindResult(Key, OutInterface);
 		}
-	}
-}
+
+		TArray<FMetasoundFrontendInterface> FSearchEngineCore::FindAllInterfaces(bool bInIncludeAllVersions)
+		{
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::FindAllInterfaces);
+
+			const FFrontendQueryKey NullKey;
+			if (bInIncludeAllVersions)
+			{
+				return FindAllInterfacesIncludingAllVersionsQuery.UpdateAndFindResult(NullKey);
+			}
+			else
+			{
+				return FindAllInterfacesQuery.UpdateAndFindResult(NullKey);
+			}
+		}
+	} // namespace Frontend
+} // namespace Metasound

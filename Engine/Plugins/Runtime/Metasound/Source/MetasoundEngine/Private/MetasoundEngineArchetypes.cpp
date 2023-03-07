@@ -3,7 +3,7 @@
 #include "MetasoundEngineArchetypes.h"
 
 #include "IAudioParameterInterfaceRegistry.h"
-#include "Interfaces/MetasoundFrontendOutputFormatInterfaces.h"
+#include "Interfaces/MetasoundOutputFormatInterfaces.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundFrontendArchetypeRegistry.h"

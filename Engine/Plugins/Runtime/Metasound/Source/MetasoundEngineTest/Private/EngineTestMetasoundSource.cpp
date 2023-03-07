@@ -4,7 +4,7 @@
 #include "Components/AudioComponent.h"
 #include "IAudioParameterInterfaceRegistry.h"
 #include "Interfaces/IPluginManager.h"
-#include "Interfaces/MetasoundFrontendOutputFormatInterfaces.h"
+#include "Interfaces/MetasoundOutputFormatInterfaces.h"
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendSearchEngine.h"
@@ -69,6 +69,7 @@ namespace EngineTestMetasoundSourcePrivate
 	{
 		using namespace Audio;
 		using namespace Metasound;
+		using namespace Metasound::Engine;
 		using namespace Metasound::Frontend;
 
 		FMetasoundFrontendDocument Document;
@@ -83,10 +84,10 @@ namespace EngineTestMetasoundSourcePrivate
 		// Add default source & mono interface members (OnPlay, OnFinished & Mono Out)
 		FModifyRootGraphInterfaces InterfaceTransform(
 		{ },
-		{	
-			SourceInterface::GetVersion(), 
+		{
+			SourceInterface::GetVersion(),
 			SourceOneShotInterface::GetVersion(),
-			OutputFormatMonoInterface::GetVersion() 
+			OutputFormatMonoInterface::GetVersion()
 		}); 
 		InterfaceTransform.Transform(DocumentHandle);
 

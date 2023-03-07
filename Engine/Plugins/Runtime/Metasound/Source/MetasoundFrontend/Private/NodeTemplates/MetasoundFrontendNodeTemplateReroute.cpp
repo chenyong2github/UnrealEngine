@@ -24,8 +24,8 @@ namespace Metasound
 					for (int32 i = 0; i < Edges.Num(); ++i)
 					{
 						FMetasoundFrontendEdge& Edge = Edges[i];
-						InputEdgeMap.Add({ Edge.ToNodeID, Edge.ToVertexID }, &Edge);
-						OutputEdgeMap.FindOrAdd({ Edge.FromNodeID, Edge.FromVertexID }).Add(&Edge);
+						InputEdgeMap.Add(Edge.GetToVertexHandle(), &Edge);
+						OutputEdgeMap.FindOrAdd(Edge.GetFromVertexHandle()).Add(&Edge);
 					}
 				}
 
@@ -34,10 +34,8 @@ namespace Metasound
 				virtual bool Transform(FMetasoundFrontendNode& InOutNode) const override;
 
 			private:
-				using FNodeVertexGuidPair = TPair<FGuid, FGuid>;
-
-				mutable TMap<FNodeVertexGuidPair, FMetasoundFrontendEdge*> InputEdgeMap;
-				mutable TMap<FNodeVertexGuidPair, TArray<FMetasoundFrontendEdge*>> OutputEdgeMap;
+				mutable TMap<FMetasoundFrontendVertexHandle, FMetasoundFrontendEdge*> InputEdgeMap;
+				mutable TMap<FMetasoundFrontendVertexHandle, TArray<FMetasoundFrontendEdge*>> OutputEdgeMap;
 			};
 
 			bool FRerouteNodeTemplatePreprocessTransform::Transform(FMetasoundFrontendNode& InOutNode) const
@@ -53,8 +51,8 @@ namespace Metasound
 					}
 
 					const FMetasoundFrontendVertex& InputVertex = InOutNode.Interface.Inputs.Last();
-					FNodeVertexGuidPair InputNodeVertexPair{ InOutNode.GetID(), InputVertex.VertexID };
-					InputEdge = InputEdgeMap.FindRef(InputNodeVertexPair);
+					FMetasoundFrontendVertexHandle InputNodeVertexHandle { InOutNode.GetID(), InputVertex.VertexID };
+					InputEdge = InputEdgeMap.FindRef(InputNodeVertexHandle);
 
 					// This can happen if the reroute node isn't provided an input, so its perfectly
 					// acceptable to just ignore this node as it ultimately provides no sourced input.
@@ -66,14 +64,14 @@ namespace Metasound
 
 				TArray<FMetasoundFrontendEdge*>* OutputEdges = nullptr;
 				const FMetasoundFrontendVertex& OutputVertex = InOutNode.Interface.Outputs.Last();
-				FNodeVertexGuidPair OutputNodeVertexPair{ InOutNode.GetID(), OutputVertex.VertexID };
+				const FMetasoundFrontendVertexHandle OutputVertexHandle { InOutNode.GetID(), OutputVertex.VertexID };
 				{
 					if (!ensure(InOutNode.Interface.Outputs.Num() == 1))
 					{
 						return false;
 					}
 
-					OutputEdges = OutputEdgeMap.Find(OutputNodeVertexPair);
+					OutputEdges = OutputEdgeMap.Find(OutputVertexHandle);
 
 					// This can happen if the reroute node isn't provided any outputs to connect to, so its
 					// perfectly acceptable to just ignore this node as it ultimately provides no sourced input.
@@ -84,16 +82,17 @@ namespace Metasound
 				}
 
 				// Update the output edges with the input edge 
+				FMetasoundFrontendVertexHandle NewOutputEdgeNodeVertexHandle { InputEdge->FromNodeID, InputEdge->FromVertexID };
 				FNodeVertexGuidPair NewOutputEdgeNodeVertexPair{ InputEdge->FromNodeID, InputEdge->FromVertexID };
 
 				for (FMetasoundFrontendEdge* OutputEdge : *OutputEdges)
 				{
-					OutputEdge->FromNodeID = NewOutputEdgeNodeVertexPair.Key;
-					OutputEdge->FromVertexID = NewOutputEdgeNodeVertexPair.Value;
+					OutputEdge->FromNodeID = NewOutputEdgeNodeVertexHandle.NodeID;
+					OutputEdge->FromVertexID = NewOutputEdgeNodeVertexHandle.VertexID;
 				}
 
-				OutputEdgeMap.FindOrAdd(NewOutputEdgeNodeVertexPair).Append(*OutputEdges);
-				OutputEdgeMap.Remove(OutputNodeVertexPair);
+				OutputEdgeMap.FindOrAdd(NewOutputEdgeNodeVertexHandle).Append(*OutputEdges);
+				OutputEdgeMap.Remove(OutputVertexHandle);
 
 				return true;
 			}

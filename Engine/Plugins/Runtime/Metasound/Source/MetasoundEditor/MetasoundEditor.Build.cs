@@ -56,6 +56,7 @@ namespace UnrealBuildTool.Rules
 					"DetailCustomizations",
 					"EditorFramework",
 					"EditorStyle",
+					"EditorSubsystem",
 					"Engine",
 					"GraphEditor",
 					"InputCore",

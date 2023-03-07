@@ -29,6 +29,8 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Logging/TokenizedMessage.h"
 #include "Metasound.h"
+#include "MetasoundBuilderSubsystem.h"
+#include "MetasoundDocumentInterface.h"
 #include "MetasoundEditorCommands.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
@@ -40,6 +42,7 @@
 #include "MetasoundEditorTabFactory.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendDocumentBuilder.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundFrontendTransform.h"
@@ -58,6 +61,7 @@
 #include "Styling/AppStyle.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/ScriptInterface.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -1359,11 +1363,7 @@ namespace Metasound
 			{
 				TSet<UClass*> ImportClasses;
 
-				for (const FMetasoundFrontendVersion& InterfaceVersion : MetasoundDoc.Interfaces)
-				{
-					TArray<UClass*> InterfaceClasses = IMetasoundUObjectRegistry::Get().FindSupportedInterfaceClasses(InterfaceVersion);
-					ImportClasses.Append(MoveTemp(InterfaceClasses));
-				}
+				// TODO: Update importing to support interfaces
 
 				if (ImportClasses.Num() < 1)
 				{
@@ -1386,7 +1386,7 @@ namespace Metasound
 						}
 					}
 
-					IMetasoundUObjectRegistry::Get().NewObject(AnyClass, MetasoundDoc, OutputPath);
+					// TODO: Update to just use simple UObject NewObject
 				}
 			}
 			else
@@ -1722,13 +1722,18 @@ namespace Metasound
 
 		void FEditor::ConvertFromPreset()
 		{
+			using namespace Frontend;
+
 			check(GEditor);
 
 			if (Metasound)
 			{
 				FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 				check(MetasoundAsset);
-				MetasoundAsset->ConvertFromPreset();
+
+				TScriptInterface<IMetaSoundDocumentInterface> DocInterface = MetasoundAsset->GetOwningAsset();
+				FMetaSoundFrontendDocumentBuilder Builder(DocInterface);
+				Builder.ConvertFromPreset();
 
 				// Hack until toolbar is polished up & corner text properly dynamically updates
 				if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())

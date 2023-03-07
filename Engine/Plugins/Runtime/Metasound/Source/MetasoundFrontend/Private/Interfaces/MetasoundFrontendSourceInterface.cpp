@@ -14,7 +14,6 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-	
 #define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UE.Source.OneShot"
 
 		namespace SourceOneShotInterface
@@ -30,12 +29,17 @@ namespace Metasound
 				const FName OnFinished = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("OnFinished");
 			}
 
-			Audio::FParameterInterfacePtr CreateInterface(const UClass& InUClass)
+			Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass)
+			{
+				return CreateInterface();
+			}
+
+			Audio::FParameterInterfacePtr CreateInterface()
 			{
 				struct FInterface : public Audio::FParameterInterface
 				{
-					FInterface(const UClass& InAssetClass)
-						: FParameterInterface(SourceOneShotInterface::GetVersion().Name, SourceOneShotInterface::GetVersion().Number.ToInterfaceVersion(), InAssetClass)
+					FInterface()
+						: FParameterInterface(SourceOneShotInterface::GetVersion().Name, SourceOneShotInterface::GetVersion().Number.ToInterfaceVersion())
 					{
 						Outputs =
 						{
@@ -43,19 +47,18 @@ namespace Metasound
 								LOCTEXT("OnFinished", "On Finished"),
 								LOCTEXT("OnFinishedDescription", "Trigger executed to initiate stopping the source."),
 								GetMetasoundDataTypeName<FTrigger>(),
-								Outputs::OnFinished,								
+								Outputs::OnFinished,
 								LOCTEXT("OnFinishedWarning", "\"On Finished\" should be connected for OneShot MetaSound sources. For sources with undefined duration (e.g. looping), remove the OneShot interface and use an audio component to avoid leaking the source."),
 							}
 						};
 					}
 				};
 
-				return MakeShared<FInterface>(InUClass);
+				return MakeShared<FInterface>();
 			}
 		} // namespace SourceOneShotInterface
 
 #undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
-
 
 #define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UE.Source"
 
@@ -86,12 +89,17 @@ namespace Metasound
 				const FName TransmitterID = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("TransmitterID");
 			}
 
-			Audio::FParameterInterfacePtr CreateInterface(const UClass& InUClass)
+			Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass)
+			{
+				return CreateInterface();
+			}
+
+			Audio::FParameterInterfacePtr CreateInterface()
 			{
 				struct FInterface : public Audio::FParameterInterface
 				{
-					FInterface(const UClass& InAssetClass)
-						: FParameterInterface(SourceInterfaceV1_0::GetVersion().Name, SourceInterfaceV1_0::GetVersion().Number.ToInterfaceVersion(), InAssetClass)
+					FInterface()
+						: FParameterInterface(SourceInterfaceV1_0::GetVersion().Name, SourceInterfaceV1_0::GetVersion().Number.ToInterfaceVersion())
 					{
 						Inputs =
 						{
@@ -149,10 +157,9 @@ namespace Metasound
 					}
 				};
 
-				return MakeShared<FInterface>(InUClass);
+				return MakeShared<FInterface>();
 			}
 		} // namespace SourceInterfaceV1_0
-
 
 		namespace SourceInterface
 		{
@@ -177,12 +184,17 @@ namespace Metasound
 				const FName AudioMixerNumOutputFrames = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("AudioMixerNumOutputFrames");
 			}
 
-			Audio::FParameterInterfacePtr CreateInterface(const UClass& InUClass)
+			Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass)
+			{
+				return CreateInterface();
+			}
+
+			Audio::FParameterInterfacePtr CreateInterface()
 			{
 				struct FInterface : public Audio::FParameterInterface
 				{
-					FInterface(const UClass& InAssetClass)
-						: FParameterInterface(SourceInterface::GetVersion().Name, SourceInterface::GetVersion().Number.ToInterfaceVersion(), InAssetClass)
+					FInterface()
+						: FParameterInterface(SourceInterface::GetVersion().Name, SourceInterface::GetVersion().Number.ToInterfaceVersion())
 					{
 						Inputs =
 						{
@@ -236,7 +248,7 @@ namespace Metasound
 					}
 				};
 
-				return MakeShared<FInterface>(InUClass);
+				return MakeShared<FInterface>();
 			}
 
 			bool FUpdateInterface::Transform(Frontend::FDocumentHandle InDocument) const
@@ -245,9 +257,9 @@ namespace Metasound
 
 				// When upgrading, we only want to add the one-shot interface if the MetaSound actually has the OnFinished trigger connected.
 				bool bIsOnFinishedConnected = false;
-				InDocument->GetRootGraph()->IterateConstNodes([&](FConstNodeHandle NodeHandle)
+				InDocument->GetRootGraph()->IterateConstNodes([&](Frontend::FConstNodeHandle NodeHandle)
 				{
-					NodeHandle->IterateConstInputs([&](FConstInputHandle InputHandle)
+					NodeHandle->IterateConstInputs([&](Frontend::FConstInputHandle InputHandle)
 					{
 						if (InputHandle->GetName() == SourceInterfaceV1_0::Outputs::OnFinished)
 						{
@@ -271,14 +283,13 @@ namespace Metasound
 					InterfacesToAdd.Add(SourceOneShotInterface::GetVersion());
 				}
 
-				FModifyRootGraphInterfaces InterfaceTransform(InterfacesToRemove, InterfacesToAdd);
+				Frontend::FModifyRootGraphInterfaces InterfaceTransform(InterfacesToRemove, InterfacesToAdd);
 				return InterfaceTransform.Transform(InDocument);
 			}
 
 } // namespace SourceInterface
 
 #undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
-
 	} // namespace Frontend
 } // namespace Metasound
 

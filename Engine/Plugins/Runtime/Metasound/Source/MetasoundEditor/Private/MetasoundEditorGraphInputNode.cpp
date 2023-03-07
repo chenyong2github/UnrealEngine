@@ -85,7 +85,7 @@ void UMetasoundEditorGraphInputNode::Validate(Metasound::Editor::FGraphNodeValid
 
 	Super::Validate(OutResult);
 
-	FNodeHandle NodeHandle = GetNodeHandle();
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
 	const FMetasoundFrontendClassMetadata& Metadata = NodeHandle->GetClassMetadata();
 
 	const FMetasoundFrontendVersion& MetasoundFrontendVersion = NodeHandle->GetInterfaceVersion();
@@ -98,11 +98,11 @@ void UMetasoundEditorGraphInputNode::Validate(Metasound::Editor::FGraphNodeValid
 		FText RequiredText;
 		if (InterfaceToValidate.IsMemberInputRequired(NodeName, RequiredText))
 		{
-			TArray<FConstInputHandle> InputHandles = NodeHandle->GetConstInputs();
-			if (ensure(!InputHandles.IsEmpty()))
+			TArray<FConstOutputHandle> OutputHandles = NodeHandle->GetConstOutputs();
+			if (ensure(!OutputHandles.IsEmpty()))
 			{
-				const FConstInputHandle& InputHandle = InputHandles.Last();
-				if (!InputHandle->IsConnected())
+				const FConstOutputHandle& OutputHandle = OutputHandles.Last();
+				if (!OutputHandle->IsConnected())
 				{
 					OutResult.SetMessage(EMessageSeverity::Warning, *RequiredText.ToString());
 				}

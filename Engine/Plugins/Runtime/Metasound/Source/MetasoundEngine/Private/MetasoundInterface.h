@@ -6,6 +6,7 @@ namespace Metasound
 {
 	namespace Engine
 	{
+		void RegisterUClasses();
 		void RegisterInterfaces();
 	} // namespace Engine
 } // namespace Metasound

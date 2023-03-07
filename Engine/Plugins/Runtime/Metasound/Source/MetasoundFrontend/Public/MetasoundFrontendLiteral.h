@@ -55,7 +55,7 @@ static_assert(std::is_same<std::underlying_type<Metasound::ELiteralType>::type, 
 
 
 // Represents the serialized version of variant literal types. 
-USTRUCT()
+USTRUCT(BlueprintType, meta = (DisplayName = "MetaSound Literal"))
 struct METASOUNDFRONTEND_API FMetasoundFrontendLiteral
 {
 	GENERATED_BODY()

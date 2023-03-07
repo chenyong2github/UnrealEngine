@@ -1542,25 +1542,33 @@ namespace Metasound
 			using namespace Frontend;
 			using namespace GraphBuilderPrivate;
 
-			FMetasoundFrontendClassMetadata Metadata;
-
-			// 1. Set default class Metadata
-			Metadata.SetClassName(FMetasoundFrontendClassName(FName(), *FGuid::NewGuid().ToString(), FName()));
-			Metadata.SetVersion({ 1, 0 });
-			Metadata.SetType(EMetasoundFrontendClassType::Graph);
-			Metadata.SetAuthor(InAuthor);
-
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
-			MetaSoundAsset->SetMetadata(Metadata);
+			FMetasoundFrontendDocument& Doc = MetaSoundAsset->GetDocumentChecked();
+
+			// 1. Set default class Metadata
+			Doc.RootGraph.Metadata.SetClassName(FMetasoundFrontendClassName(FName(), *FGuid::NewGuid().ToString(), FName()));
+			Doc.RootGraph.Metadata.SetVersion({ 1, 0 });
+			Doc.RootGraph.Metadata.SetType(EMetasoundFrontendClassType::Graph);
+			Doc.RootGraph.Metadata.SetAuthor(InAuthor);
+
+			if (Doc.RootGraph.Metadata.GetType() != EMetasoundFrontendClassType::Graph)
+			{
+				UE_LOG(LogMetaSound, Display, TEXT("Forcing class type to EMetasoundFrontendClassType::Graph on root graph metadata"));
+				Doc.RootGraph.Metadata.SetType(EMetasoundFrontendClassType::Graph);
+			}
 
 			// 2. Set default doc version Metadata
-			FDocumentHandle DocumentHandle = MetaSoundAsset->GetDocumentHandle();
-			FMetasoundFrontendDocumentMetadata* DocMetadata = DocumentHandle->GetMetadata();
-			check(DocMetadata);
-			DocMetadata->Version.Number = FMetasoundFrontendDocument::GetMaxVersion();
+			Doc.Metadata.Version.Number = FMetasoundFrontendDocument::GetMaxVersion();
 
-			MetaSoundAsset->AddDefaultInterfaces();
+			// 3. Add default interfaces
+			{
+				UClass* AssetClass = InMetaSound.GetClass();
+				check(AssetClass);
+
+				TArray<FMetasoundFrontendInterface> InitInterfaces = ISearchEngine::Get().FindUClassDefaultInterfaces(AssetClass->GetFName());
+				FModifyRootGraphInterfaces({ }, InitInterfaces).Transform(Doc);
+			}
 
 			FGraphHandle GraphHandle = MetaSoundAsset->GetRootGraphHandle();
 			FVector2D InputNodeLocation = FVector2D::ZeroVector;

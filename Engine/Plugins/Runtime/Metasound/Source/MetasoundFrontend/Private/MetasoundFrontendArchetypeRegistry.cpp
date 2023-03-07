@@ -62,6 +62,50 @@ namespace Metasound
 			return false;
 		}
 
+		void FInterfaceRegistry::AddInterfaceOutputBindings(const FMetasoundFrontendVersion& InInputInterfaceVersion, TArray<FMetasoundFrontendInterfaceBinding>&& InOutputBindings)
+		{
+			using namespace Frontend;
+
+			FInterfaceRegistryKey Key = GetInterfaceRegistryKey(InInputInterfaceVersion);
+			if (TUniquePtr<IInterfaceRegistryEntry>* EntryPtr = Entries.Find(Key))
+			{
+				IInterfaceRegistryEntry* Entry = (*EntryPtr).Get();
+				check(Entry);
+				Entry->AddOutputBindings(MoveTemp(InOutputBindings));
+			}
+		}
+
+		bool FInterfaceRegistry::RemoveInterfaceOutputBinding(const FMetasoundFrontendVersion& InInputInterfaceVersion, const FMetasoundFrontendVersion& InOutputInterfaceVersion)
+		{
+			using namespace Frontend;
+
+			FInterfaceRegistryKey Key = GetInterfaceRegistryKey(InInputInterfaceVersion);
+			if (TUniquePtr<IInterfaceRegistryEntry>* EntryPtr = Entries.Find(Key))
+			{
+				IInterfaceRegistryEntry* Entry = (*EntryPtr).Get();
+				check(Entry);
+				return Entry->RemoveOutputBinding(InOutputInterfaceVersion);
+			}
+
+			return false;
+		}
+
+		bool FInterfaceRegistry::RemoveAllInterfaceOutputBindings(const FMetasoundFrontendVersion& InInputInterfaceVersion)
+		{
+			using namespace Frontend;
+
+			FInterfaceRegistryKey Key = GetInterfaceRegistryKey(InInputInterfaceVersion);
+			if (TUniquePtr<IInterfaceRegistryEntry>* EntryPtr = Entries.Find(Key))
+			{
+				IInterfaceRegistryEntry* Entry = (*EntryPtr).Get();
+				check(Entry);
+				Entry->ResetOutputBindings();
+				return true;
+			}
+
+			return false;
+		}
+
 		TUniquePtr<FInterfaceTransactionStream> FInterfaceRegistry::CreateTransactionStream()
 		{
 			return MakeUnique<FInterfaceTransactionStream>(TransactionBuffer);

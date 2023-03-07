@@ -1,22 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundSource.h"
 
+#include "Algo/Find.h"
 #include "Algo/Transform.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AudioDeviceManager.h"
 #include "IAudioParameterInterfaceRegistry.h"
-#include "Interfaces/MetasoundFrontendOutputFormatInterfaces.h"
+#include "Interfaces/MetasoundOutputFormatInterfaces.h"
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundAssetManager.h"
 #include "MetasoundAudioFormats.h"
+#include "MetasoundBuilderSubsystem.h"
 #include "MetasoundEngineArchetypes.h"
 #include "MetasoundEngineAsset.h"
 #include "MetasoundEngineEnvironment.h"
 #include "MetasoundEnvironment.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDataTypeRegistry.h"
+#include "MetasoundFrontendDocumentBuilder.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
 #include "MetasoundFrontendTransform.h"
@@ -32,6 +35,7 @@
 #include "MetasoundTrigger.h"
 #include "MetasoundUObjectRegistry.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/ScriptInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundSource)
 
@@ -44,95 +48,7 @@
 namespace Metasound
 {
 	namespace SourcePrivate
-	{
-		// Contains information on output audio formats
-		struct FOutputFormatInfo
-		{
-			FMetasoundFrontendVersion InterfaceVersion;
-			TArray<Metasound::FVertexName> OutputVertexChannelOrder;
-		};
-
-		using FFormatInfoMap = TMap<EMetasoundSourceAudioFormat, FOutputFormatInfo>;
-		using FFormatInfoPair = TPair<EMetasoundSourceAudioFormat, FOutputFormatInfo>;
-
-		// Return a map containing all the supported audio formats for a MetaSound
-		// Source. 
-		const FFormatInfoMap& GetFormatInfoMap()
-		{
-			auto CreateFormatInfoMap = []()
-			{
-				using namespace Metasound::Frontend;
-
-				return FFormatInfoMap
-				{
-					{
-						EMetasoundSourceAudioFormat::Mono,
-						{
-							OutputFormatMonoInterface::GetVersion(),
-							{
-								OutputFormatMonoInterface::Outputs::MonoOut
-							}
-						}
-					},
-					{
-						EMetasoundSourceAudioFormat::Stereo,
-						{
-							OutputFormatStereoInterface::GetVersion(),
-							{
-								OutputFormatStereoInterface::Outputs::LeftOut,
-								OutputFormatStereoInterface::Outputs::RightOut
-							}
-						}
-					},
-					{
-						EMetasoundSourceAudioFormat::Quad,
-						{
-							OutputFormatQuadInterface::GetVersion(),
-							{
-								OutputFormatQuadInterface::Outputs::FrontLeftOut,
-								OutputFormatQuadInterface::Outputs::FrontRightOut,
-								OutputFormatQuadInterface::Outputs::SideLeftOut,
-								OutputFormatQuadInterface::Outputs::SideRightOut
-							}
-						}
-					},
-					{
-						EMetasoundSourceAudioFormat::FiveDotOne,
-						{
-							OutputFormatFiveDotOneInterface::GetVersion(),
-							{
-								OutputFormatFiveDotOneInterface::Outputs::FrontLeftOut,
-								OutputFormatFiveDotOneInterface::Outputs::FrontRightOut,
-								OutputFormatFiveDotOneInterface::Outputs::FrontCenterOut,
-								OutputFormatFiveDotOneInterface::Outputs::LowFrequencyOut,
-								OutputFormatFiveDotOneInterface::Outputs::SideLeftOut,
-								OutputFormatFiveDotOneInterface::Outputs::SideRightOut
-							}
-						}
-					},
-					{
-						EMetasoundSourceAudioFormat::SevenDotOne,
-						{
-							OutputFormatSevenDotOneInterface::GetVersion(),
-							{
-								OutputFormatSevenDotOneInterface::Outputs::FrontLeftOut,
-								OutputFormatSevenDotOneInterface::Outputs::FrontRightOut,
-								OutputFormatSevenDotOneInterface::Outputs::FrontCenterOut,
-								OutputFormatSevenDotOneInterface::Outputs::LowFrequencyOut,
-								OutputFormatSevenDotOneInterface::Outputs::SideLeftOut,
-								OutputFormatSevenDotOneInterface::Outputs::SideRightOut,
-								OutputFormatSevenDotOneInterface::Outputs::BackLeftOut,
-								OutputFormatSevenDotOneInterface::Outputs::BackRightOut
-							}
-						}
-					}
-				};
-			};
-
-			static const FFormatInfoMap Map = CreateFormatInfoMap();
-			return Map;
-		}
-		
+	{		
 		Frontend::FMetaSoundAssetRegistrationOptions GetInitRegistrationOptions()
 		{
 			Frontend::FMetaSoundAssetRegistrationOptions RegOptions;
@@ -144,25 +60,6 @@ namespace Metasound
 
 			return RegOptions;
 		}
-
-		// Return an array of all the audio format versions.
-		const TArray<FMetasoundFrontendVersion>& GetFormatInterfaceVersions()
-		{
-			auto CreateFormatInterfaceVersions = []() -> TArray<FMetasoundFrontendVersion>
-			{
-				TArray<FMetasoundFrontendVersion> FormatVersions;
-				const FFormatInfoMap& FormatMap = GetFormatInfoMap();
-				for (const auto& Pair : FormatMap)
-				{
-					FormatVersions.Add(Pair.Value.InterfaceVersion);
-				}
-				return FormatVersions;
-			};
-
-			static const TArray<FMetasoundFrontendVersion> Versions = CreateFormatInterfaceVersions();
-			return Versions;
-		}
-
 	} // namespace SourcePrivate
 } // namespace Metasound
 
@@ -211,37 +108,18 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 
 void UMetaSoundSource::PostEditChangeOutputFormat()
 {
-	using namespace Metasound::SourcePrivate;
 	using namespace Metasound::Frontend;
 
-	// If this is a preset, convert to normal metasound source since it is being
-	// altered. 
-	ConvertFromPreset();
+	// Add and/or remove output format interfaces from the root document.
+	TScriptInterface<IMetaSoundDocumentInterface> DocInterface = this;
+	FMetaSoundFrontendDocumentBuilder Builder(DocInterface);
 
-	// Determine which interfaces to add and remove from the document due to the
-	// output format being changed.
-	TArray<FMetasoundFrontendVersion> OutputFormatsToAdd;
-	if (const FOutputFormatInfo* FormatInfo = GetFormatInfoMap().Find(OutputFormat))
-	{
-		OutputFormatsToAdd.Add(FormatInfo->InterfaceVersion);
-	}
-
-	TArray<FMetasoundFrontendVersion> OutputFormatsToRemove;
-	for (const FMetasoundFrontendVersion& FormatVersion : GetFormatInterfaceVersions())
-	{
-		if (RootMetasoundDocument.Interfaces.Contains(FormatVersion))
-		{
-			if (!OutputFormatsToAdd.Contains(FormatVersion))
-			{
-				OutputFormatsToRemove.Add(FormatVersion);
-			}
-		}
-	}
-
-	// Add and/or remove interfaces from the root document.
-	const bool bDidModifyDocument = FModifyRootGraphInterfaces(OutputFormatsToRemove, OutputFormatsToAdd).Transform(GetDocumentHandle());
-
-	if (bDidModifyDocument)
+	const UMetaSoundBuilderSubsystem* BuilderSubsystem = GEngine->GetEngineSubsystem<UMetaSoundBuilderSubsystem>();
+	check(BuilderSubsystem);
+	UMetaSoundSourceBuilder* SourceBuilder = BuilderSubsystem->AttachSourceBuilderToAsset(this);
+	EMetaSoundBuilderResult Result;
+	SourceBuilder->SetFormat(OutputFormat, Result);
+	if (Result == EMetaSoundBuilderResult::Succeeded)
 	{
 		// Update the data in this UMetaSoundSource to reflect what is in the metasound document.
 		ConformObjectDataToInterfaces();
@@ -259,14 +137,15 @@ void UMetaSoundSource::PostEditChangeOutputFormat()
 
 bool UMetaSoundSource::ConformObjectDataToInterfaces()
 {
-	using namespace Metasound::SourcePrivate;
+	using namespace Metasound::Engine;
+	using namespace Metasound::Frontend;
 
 	bool bDidAlterObjectData = false;
 
 	// Update the OutputFormat and NumChannels to match the audio format interface
 	// on the root document.
-	const FFormatInfoMap& FormatInfo = GetFormatInfoMap();
-	for (const FFormatInfoPair& Pair : FormatInfo)
+	const FOutputAudioFormatInfoMap& FormatInfo = GetOutputAudioFormatInfo();
+	for (const FOutputAudioFormatInfoPair& Pair : FormatInfo)
 	{
 		if (RootMetasoundDocument.Interfaces.Contains(Pair.Value.InterfaceVersion))
 		{
@@ -996,9 +875,10 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment(const Audio
 
 const TArray<Metasound::FVertexName>& UMetaSoundSource::GetOutputAudioChannelOrder() const
 {
-	using namespace Metasound::SourcePrivate;
+	using namespace Metasound::Engine;
+	using namespace Metasound::Frontend;
 
-	if (const FOutputFormatInfo* FormatInfo = GetFormatInfoMap().Find(OutputFormat))
+	if (const FOutputAudioFormatInfo* FormatInfo = GetOutputAudioFormatInfo().Find(OutputFormat))
 	{
 		return FormatInfo->OutputVertexChannelOrder;
 	}
@@ -1045,6 +925,4 @@ TWeakPtr<Metasound::FMetasoundGenerator> UMetaSoundSource::GetGeneratorForAudioC
 	}
 	return *Result;
 }
-
 #undef LOCTEXT_NAMESPACE // MetaSound
-

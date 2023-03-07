@@ -534,17 +534,19 @@ namespace Metasound
 			AddableInterfaceNames.Reset();
 			ImplementedInterfaceNames.Reset();
 
-			if (const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get()))
+			const UObject* MetaSoundObject = MetaSound.Get();
+			if (const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSoundObject))
 			{
 				auto GetVersionName = [](const FMetasoundFrontendVersion& Version) { return Version.Name; };
-				auto CanAddOrRemoveInterface = [](const FMetasoundFrontendVersion& Version)
+				const UClass* MetaSoundClass = MetaSoundObject->GetClass();
+				auto CanAddOrRemoveInterface = [ClassName = MetaSoundClass->GetFName()](const FMetasoundFrontendVersion& Version)
 				{
 					using namespace Metasound::Frontend;
 
 					const FInterfaceRegistryKey Key = GetInterfaceRegistryKey(Version);
 					if (const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(Key))
 					{
-						return Entry->EditorCanAddOrRemove();
+						return Entry->EditorCanAddOrRemove(ClassName);
 					}
 
 					return false;
@@ -565,6 +567,8 @@ namespace Metasound
 						}
 					}
 				}
+
+				AddableInterfaceNames.Sort([](const TSharedPtr<FString>& A, const TSharedPtr<FString>& B) { return A->Compare(*B) < 0; });
 			}
 		}
 	} // namespace Editor

@@ -8,7 +8,7 @@
 #include "UObject/Object.h"
 
 
-class IMetasoundEditor : public FAssetEditorToolkit
+class METASOUNDEDITOR_API IMetasoundEditor : public FAssetEditorToolkit
 {
 public:
 	// Returns the editor's assigned MetaSound UObject.

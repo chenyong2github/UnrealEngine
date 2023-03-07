@@ -49,8 +49,8 @@ namespace Metasound
 		public:
 			virtual ~IGraphTransform() = default;
 
-			// Returns reference to the node's owning document.
-			virtual FMetasoundFrontendDocument& GetOwningDocument() const = 0;
+			UE_DEPRECATED(5.3, "Deprecated: unused function which encouraged breaking const behavior of transform state.")
+			virtual FMetasoundFrontendDocument& GetOwningDocument() const { static FMetasoundFrontendDocument BaseDoc; return BaseDoc; };
 
 			/** Return true if the graph was modified, false otherwise. */
 			virtual bool Transform(FMetasoundFrontendGraph& InOutGraph) const = 0;
@@ -62,11 +62,11 @@ namespace Metasound
 		public:
 			virtual ~INodeTransform() = default;
 
-			// Returns reference to the node's owning document.
-			virtual FMetasoundFrontendDocument& GetOwningDocument() const = 0;
+			UE_DEPRECATED(5.3, "Deprecated: unused function which encouraged breaking const behavior of transform state.")
+			virtual FMetasoundFrontendDocument& GetOwningDocument() const { static FMetasoundFrontendDocument BaseDoc; return BaseDoc; };
 
-			// Returns reference to the node's owning graph.
-			virtual FMetasoundFrontendGraph& GetOwningGraph() const = 0;
+			UE_DEPRECATED(5.3, "Deprecated: unused function which encouraged breaking const behavior of transform state.")
+			virtual FMetasoundFrontendGraph& GetOwningGraph() const { static FMetasoundFrontendGraph BaseGraph; return BaseGraph; }
 
 			/** Return true if the node was modified, false otherwise. */
 			virtual bool Transform(FMetasoundFrontendNode& InOutNode) const = 0;
@@ -90,7 +90,8 @@ namespace Metasound
 			// that may be related but not be named the same.
 			void SetNamePairingFunction(const TFunction<bool(FName, FName)>& InNamePairingFunction);
 
-			bool Transform(FDocumentHandle InDocument) const override;
+			virtual bool Transform(FDocumentHandle InDocument) const override;
+			virtual bool Transform(FMetasoundFrontendDocument& InOutDocument) const override;
 
 		private:
 			void Init(const TFunction<bool(FName, FName)>* InNamePairingFunction = nullptr);

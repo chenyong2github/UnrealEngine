@@ -44,7 +44,8 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		check(AudioSettings);
 		AudioSettings->RegisterParameterInterfaces();
 
-		// Register interfaces
+		// Register supported MetaSound UClasses & interfaces
+		Metasound::Engine::RegisterUClasses();
 		Metasound::Engine::RegisterInterfaces();
 
 		// Flush node registration queue

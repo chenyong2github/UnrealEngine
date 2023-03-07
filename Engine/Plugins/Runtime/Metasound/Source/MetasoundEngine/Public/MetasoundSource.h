@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EdGraph/EdGraph.h"
 #include "HAL/CriticalSection.h"
 #include "IAudioParameterTransmitter.h"
+#include "Interfaces/MetasoundOutputFormatInterfaces.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
@@ -18,25 +18,14 @@
 
 #include "MetasoundSource.generated.h"
 
+
+// Forward Declarations
 namespace Metasound
 {
-	// Forward declare
 	struct FMetaSoundEngineAssetHelper;
 	class FMetasoundGenerator;
-}
 
-/** Declares the output audio format of the UMetaSoundSource */
-UENUM()
-enum class EMetasoundSourceAudioFormat : uint8
-{
-	Mono,
-	Stereo,
-	Quad,
-	FiveDotOne UMETA(DisplayName="5.1"),
-	SevenDotOne UMETA(DisplayName="7.1"),
-
-	COUNT UMETA(Hidden)
-};
+} // namespace Metasound
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGeneratorInstanceCreated, uint64, TSharedPtr<Metasound::FMetasoundGenerator>);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGeneratorInstanceDestroyed, uint64, TSharedPtr<Metasound::FMetasoundGenerator>);
@@ -45,7 +34,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGeneratorInstanceDestroyed, uint64, TSha
  * This Metasound type can be played as an audio source.
  */
 UCLASS(hidecategories = object, BlueprintType)
-class METASOUNDENGINE_API UMetaSoundSource : public USoundWaveProcedural, public FMetasoundAssetBase
+class METASOUNDENGINE_API UMetaSoundSource : public USoundWaveProcedural, public FMetasoundAssetBase, public IMetaSoundDocumentInterface
 {
 	GENERATED_BODY()
 
@@ -73,7 +62,7 @@ public:
 
 	// The output audio format of the metasound source.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Metasound)
-	EMetasoundSourceAudioFormat OutputFormat;
+	EMetaSoundOutputAudioFormat OutputFormat;
 
 	UPROPERTY(AssetRegistrySearchable)
 	FGuid AssetClassID;
@@ -201,8 +190,7 @@ public:
 	FOnGeneratorInstanceDestroyed OnGeneratorInstanceDestroyed;
 
 protected:
-
-	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
+	Metasound::Frontend::FDocumentAccessPtr GetDocumentAccessPtr() override
 	{
 		using namespace Metasound::Frontend;
 		// Return document using FAccessPoint to inform the TAccessPtr when the 
@@ -210,12 +198,17 @@ protected:
 		return MakeAccessPtr<FDocumentAccessPtr>(RootMetasoundDocument.AccessPoint, RootMetasoundDocument);
 	}
 
-	Metasound::Frontend::FConstDocumentAccessPtr GetDocument() const override
+	Metasound::Frontend::FConstDocumentAccessPtr GetDocumentConstAccessPtr() const override
 	{
 		using namespace Metasound::Frontend;
 		// Return document using FAccessPoint to inform the TAccessPtr when the 
 		// object is no longer valid.
 		return MakeAccessPtr<FConstDocumentAccessPtr>(RootMetasoundDocument.AccessPoint, RootMetasoundDocument);
+	}
+
+	virtual const FMetasoundFrontendDocument& GetDocument() const override
+	{
+		return RootMetasoundDocument;
 	}
 
 	/** Gets all the default parameters for this Asset.  */
@@ -226,6 +219,10 @@ protected:
 #endif // #if WITH_EDITOR
 
 private:
+	virtual FMetasoundFrontendDocument& GetDocument() override
+	{
+		return RootMetasoundDocument;
+	}
 
 	bool IsParameterValid(const FAudioParameter& InParameter, const TMap<FName, FMetasoundFrontendVertex>& InInputNameVertexMap) const;
 
