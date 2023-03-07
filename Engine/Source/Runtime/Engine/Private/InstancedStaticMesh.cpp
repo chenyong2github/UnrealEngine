@@ -155,7 +155,8 @@ class FISMExecHelper : public FSelfRegisteringExec
 			for(TObjectIterator<UInstancedStaticMeshComponent> It; It; ++It)
 			{
 				UInstancedStaticMeshComponent* ISMComponent = *It;
-				if((!ISMComponent->GetWorld() || !ISMComponent->GetWorld()->IsGameWorld()))
+				const UWorld* ComponentWorld = ISMComponent->GetWorld();
+				if (ComponentWorld!=InWorld || !ComponentWorld || !ComponentWorld->IsGameWorld())
 				{
 					continue;
 				}
@@ -218,7 +219,8 @@ class FISMExecHelper : public FSelfRegisteringExec
 			for (TObjectIterator<UInstancedStaticMeshComponent> It; It; ++It)
 			{
 				UInstancedStaticMeshComponent* ISMComponent = *It;
-				if ((!ISMComponent->GetWorld() || !ISMComponent->GetWorld()->IsGameWorld()))
+				const UWorld* ComponentWorld = ISMComponent->GetWorld();
+				if (ComponentWorld != InWorld || !ComponentWorld || !ComponentWorld->IsGameWorld())
 				{
 					continue;
 				}
