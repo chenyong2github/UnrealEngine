@@ -1637,6 +1637,31 @@ public:
 	*/
 	void ComputeRequiredBones(TArray<FBoneIndexType>& OutRequiredBones, TArray<FBoneIndexType>& OutFillComponentSpaceTransformsRequiredBones, int32 LODIndex, bool bIgnorePhysicsAsset) const;
 
+	// Get the required virtual bones from the SkeletalMesh Reference Skeleton
+	static void GetRequiredVirtualBones(const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones);
+
+	// Get the bones used by the physics asset (if any), as these have to be updated even if LODed out
+	static void GetPhysicsRequiredBones(const USkeletalMesh* SkeletalMesh, const UPhysicsAsset* PhysicsAsset, TArray<FBoneIndexType>& OutRequiredBones);
+
+	// Removes the bones expicitly hidden or hiden by parent
+	static void ExcludeHiddenBones(const USkeletalMeshComponent* SkeletalMeshComponent, const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones);
+
+	// Get the bones used for mirroring in the skeletal mesh asset (if any)
+	static void GetMirroringRequiredBones(const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones);
+
+	// Get the bones that are used by sockets
+	// OutRequiredBones : the bones used by sockets that are set as always animate
+	// NeededBonesForFillComponentSpaceTransforms : the rest of bones used by sockets (that are not set to always animate)
+	static void GetSocketRequiredBones(const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones, TArray<FBoneIndexType>& NeededBonesForFillComponentSpaceTransforms);
+
+	// Get the bones required for shadow shapes
+	static void GetShadowShapeRequiredBones(const USkeletalMeshComponent* SkeletalMeshComponent, TArray<FBoneIndexType>& OutRequiredBones);
+
+	/** Takes sorted array Base and then adds any elements from sorted array Insert which is missing from it, preserving order.
+	 * this assumes both arrays are sorted and contain unique bone indices.
+	 */
+	static void MergeInBoneIndexArrays(TArray<FBoneIndexType>& BaseArray, const TArray<FBoneIndexType>& InsertArray);
+
 	/**
 	* Recalculates the AnimCurveUids array in RequiredBone of this SkeletalMeshComponent based on current required bone set
 	* Is called when Skeleton->IsRequiredCurvesUpToDate() = false
