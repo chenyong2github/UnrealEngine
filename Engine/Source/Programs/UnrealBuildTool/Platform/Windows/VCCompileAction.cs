@@ -213,6 +213,10 @@ namespace UnrealBuildTool
 				{
 					yield return ObjectFile;
 				}
+				if (AssemblyFile != null)
+				{
+					yield return AssemblyFile;
+				}
 				if (PreprocessedFile != null)
 				{
 					yield return PreprocessedFile;
