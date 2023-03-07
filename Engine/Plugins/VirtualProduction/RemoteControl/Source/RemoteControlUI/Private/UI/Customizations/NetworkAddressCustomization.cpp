@@ -6,7 +6,9 @@
 #include "IDetailChildrenBuilder.h"
 #include "PropertyHandle.h"
 #include "RemoteControlSettings.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SWrapBox.h"
 
 #define LOCTEXT_NAMESPACE "NetworkAddressCustomization"
