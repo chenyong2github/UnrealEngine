@@ -22,18 +22,6 @@ enum class EPoseSearchDataPreprocessor : int32
 	Invalid = Num UMETA(Hidden)
 };
 
-USTRUCT()
-struct FPoseSearchSchemaColorPreset
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = "Colors", meta = (ExcludeFromHash))
-	FLinearColor Query = FLinearColor::Blue;
-
-	UPROPERTY(EditAnywhere, Category = "Colors", meta = (ExcludeFromHash))
-	FLinearColor Result = FLinearColor::Yellow;
-};
-
 /**
 * Specifies the format of a pose search index. At runtime, queries are built according to the schema for searching.
 */
@@ -104,9 +92,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Permutations")
 	float PermutationsTimeOffset = 0.f;
 
-	UPROPERTY(EditAnywhere, Category = "Debug", meta = (ExcludeFromHash))
-	TArray<FPoseSearchSchemaColorPreset> ColorPresets;
-	
 	// if bInjectAdditionalDebugChannels is true, channels will be asked to injecting additional channels into this schema.
 	// the original intent is to add UPoseSearchFeatureChannel_Position(s) to help with the complexity of the debug drawing
 	// (the database will have all the necessary positions to draw lines at the right location and time)

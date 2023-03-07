@@ -292,7 +292,7 @@ void UPoseSearchFeatureChannel_Phase::AddDependentChannels(UPoseSearchSchema* Sc
 {
 	if (Schema->bInjectAdditionalDebugChannels)
 	{
-		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, ColorPresetIndex, Bone.BoneName);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, Bone.BoneName);
 	}
 }
 
@@ -326,10 +326,10 @@ void UPoseSearchFeatureChannel_Phase::DebugDraw(const UE::PoseSearch::FDebugDraw
 	static float ScaleFactor = 1.f;
 
 
-	const FColor Color = DrawParams.GetColor(ColorPresetIndex);
+	const FColor Color = DebugColor.ToFColor(true);
 
 	const FVector2D Phase = FFeatureVectorHelper::DecodeVector2D(PoseVector, ChannelDataOffset);
-	const FVector BonePos = DrawParams.GetCachedPosition(0.f, SchemaBoneIdx);
+	const FVector BonePos = DrawParams.ExtractPosition(PoseVector, 0.f, SchemaBoneIdx);
 
 	const FVector TransformXAxisVector = DrawParams.GetRootTransform().TransformVector(FVector::XAxisVector);
 	const FVector TransformYAxisVector = DrawParams.GetRootTransform().TransformVector(FVector::YAxisVector);

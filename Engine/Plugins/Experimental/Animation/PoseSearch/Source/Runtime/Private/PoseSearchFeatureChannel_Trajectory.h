@@ -39,7 +39,7 @@ struct POSESEARCH_API FPoseSearchTrajectorySample
 	float Weight = 1.f;
 
 	UPROPERTY(EditAnywhere, Category = Config, meta = (ExcludeFromHash))
-	int32 ColorPresetIndex = 0;
+	FLinearColor DebugColor = FLinearColor::Blue;
 };
 UCLASS(BlueprintType, EditInlineNew, meta = (DisplayName = "Trajectory Channel"), CollapseCategories)
 class POSESEARCH_API UPoseSearchFeatureChannel_Trajectory : public UPoseSearchFeatureChannel_GroupBase

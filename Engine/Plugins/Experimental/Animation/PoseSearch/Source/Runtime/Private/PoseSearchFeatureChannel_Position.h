@@ -31,7 +31,7 @@ public:
 	int8 SchemaOriginBoneIdx = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ExcludeFromHash))
-	int32 ColorPresetIndex = 0;
+	FLinearColor DebugColor = FLinearColor::Blue;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	EInputQueryPose InputQueryPose = EInputQueryPose::UseContinuingPose;
@@ -50,7 +50,6 @@ public:
 	virtual void AddDependentChannels(UPoseSearchSchema* Schema) const override;
 
 #if ENABLE_DRAW_DEBUG
-	virtual void PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const override;
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const override;
 #endif // ENABLE_DRAW_DEBUG
 
@@ -60,5 +59,5 @@ public:
 	virtual FString GetLabel() const override;
 #endif
 
-	static void FindOrAddToSchema(UPoseSearchSchema* Schema, float SampleTimeOffset, int32 ColorPresetIndex, const FName& BoneName = NAME_None, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime);
+	static void FindOrAddToSchema(UPoseSearchSchema* Schema, float SampleTimeOffset, const FName& BoneName = NAME_None, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime);
 };

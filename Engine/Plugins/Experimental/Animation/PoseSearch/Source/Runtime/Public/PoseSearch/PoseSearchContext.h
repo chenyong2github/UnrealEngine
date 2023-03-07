@@ -10,6 +10,7 @@
 
 struct FTrajectorySampleRange;
 class UPoseSearchDatabase;
+class UPoseSearchFeatureChannel_Position;
 
 namespace UE::PoseSearch
 {
@@ -107,13 +108,11 @@ struct POSESEARCH_API FDebugDrawParams
 	FDebugDrawParams(FAnimInstanceProxy* InAnimInstanceProxy, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags = EDebugDrawFlags::None);
 	FDebugDrawParams(const UWorld* InWorld, const USkinnedMeshComponent* InMesh, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags = EDebugDrawFlags::None);
 
-	FColor GetColor(int32 ColorPreset) const;
 	const FPoseSearchIndex* GetSearchIndex() const;
 	const UPoseSearchSchema* GetSchema() const;
 
-	void ClearCachedPositions();
-	void AddCachedPosition(float TimeOffset, int8 SchemaBoneIdx, const FVector& Position);
-	FVector GetCachedPosition(float TimeOffset, int8 SchemaBoneIdx = -1) const;
+	FVector ExtractPosition(TConstArrayView<float> PoseVector, const UPoseSearchFeatureChannel_Position* Position) const;
+	FVector ExtractPosition(TConstArrayView<float> PoseVector, float SampleTimeOffset, int8 SchemaBoneIdx = RootSchemaBoneIdx, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime) const;
 	const FTransform& GetRootTransform() const;
 
 	void DrawLine(const FVector& LineStart, const FVector& LineEnd, const FColor& Color, float Thickness = 0.f) const;
@@ -132,7 +131,6 @@ private:
 	const USkinnedMeshComponent* Mesh = nullptr;
 	const UPoseSearchDatabase* Database = nullptr;
 	EDebugDrawFlags Flags = EDebugDrawFlags::None;
-	FCachedTransforms<FVector> CachedPositions;
 };
 
 #endif // ENABLE_DRAW_DEBUG

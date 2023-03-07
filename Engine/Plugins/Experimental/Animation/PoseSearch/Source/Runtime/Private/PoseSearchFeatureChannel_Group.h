@@ -19,7 +19,6 @@ public:
 	virtual void AddDependentChannels(UPoseSearchSchema* Schema) const override; 
 
 #if ENABLE_DRAW_DEBUG
-	virtual void PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const override;
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const override;
 #endif // ENABLE_DRAW_DEBUG
 

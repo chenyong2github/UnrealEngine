@@ -24,7 +24,7 @@ void UPoseSearchFeatureChannel_Pose::Finalize(UPoseSearchSchema* Schema)
 			Position->Bone = SampledBone.Reference;
 			Position->Weight = SampledBone.Weight * Weight;
 			Position->SampleTimeOffset = 0.f;
-			Position->ColorPresetIndex = SampledBone.ColorPresetIndex;
+			Position->DebugColor = SampledBone.DebugColor;
 			Position->InputQueryPose = InputQueryPose;
 			SubChannels.Add(Position);
 		}
@@ -36,7 +36,7 @@ void UPoseSearchFeatureChannel_Pose::Finalize(UPoseSearchSchema* Schema)
 			HeadingX->Weight = SampledBone.Weight * Weight;
 			HeadingX->SampleTimeOffset = 0.f;
 			HeadingX->HeadingAxis = EHeadingAxis::X;
-			HeadingX->ColorPresetIndex = SampledBone.ColorPresetIndex;
+			HeadingX->DebugColor = SampledBone.DebugColor;
 			HeadingX->InputQueryPose = InputQueryPose;
 			SubChannels.Add(HeadingX);
 
@@ -45,7 +45,7 @@ void UPoseSearchFeatureChannel_Pose::Finalize(UPoseSearchSchema* Schema)
 			HeadingY->Weight = SampledBone.Weight * Weight;
 			HeadingY->SampleTimeOffset = 0.f;
 			HeadingY->HeadingAxis = EHeadingAxis::Y;
-			HeadingY->ColorPresetIndex = SampledBone.ColorPresetIndex;
+			HeadingY->DebugColor = SampledBone.DebugColor;
 			HeadingY->InputQueryPose = InputQueryPose;
 			SubChannels.Add(HeadingY);
 		}
@@ -56,7 +56,7 @@ void UPoseSearchFeatureChannel_Pose::Finalize(UPoseSearchSchema* Schema)
 			Velocity->Bone = SampledBone.Reference;
 			Velocity->Weight = SampledBone.Weight * Weight;
 			Velocity->SampleTimeOffset = 0.f;
-			Velocity->ColorPresetIndex = SampledBone.ColorPresetIndex;
+			Velocity->DebugColor = SampledBone.DebugColor;
 			Velocity->InputQueryPose = InputQueryPose;
 			Velocity->bUseCharacterSpaceVelocities = bUseCharacterSpaceVelocities;
 			SubChannels.Add(Velocity);
@@ -67,7 +67,7 @@ void UPoseSearchFeatureChannel_Pose::Finalize(UPoseSearchSchema* Schema)
 			UPoseSearchFeatureChannel_Phase* Phase = NewObject<UPoseSearchFeatureChannel_Phase>(this, NAME_None, RF_Transient);
 			Phase->Bone = SampledBone.Reference;
 			Phase->Weight = SampledBone.Weight * Weight;
-			Phase->ColorPresetIndex = SampledBone.ColorPresetIndex;
+			Phase->DebugColor = SampledBone.DebugColor;
 			Phase->InputQueryPose = InputQueryPose;
 			SubChannels.Add(Phase);
 		}

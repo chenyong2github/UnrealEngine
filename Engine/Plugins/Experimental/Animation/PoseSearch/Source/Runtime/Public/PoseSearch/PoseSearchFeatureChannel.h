@@ -126,9 +126,6 @@ public:
 	static void GetPermutationTimeOffsets(EPermutationTimeType PermutationTimeType, float DesiredPermutationTimeOffset, float& OutPermutationSampleTimeOffset, float& OutPermutationOriginTimeOffset);
 
 #if ENABLE_DRAW_DEBUG
-	// API called before DebugDraw to collect shared channel informations such as decoded positions form the PoseVector
-	virtual void PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const {}
-
 	// Draw this channel's data for the given pose vector
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const {}
 #endif //ENABLE_DRAW_DEBUG

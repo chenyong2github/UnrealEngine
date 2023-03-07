@@ -48,48 +48,53 @@ bool UPoseSearchSchema::IsRootBone(int8 SchemaBoneIdx) const
 int8 UPoseSearchSchema::AddBoneReference(const FBoneReference& BoneReference)
 {
 	int32 SchemaBoneIdx = 0;
-	if (Skeleton)
+	check(Skeleton);
+	
+	bool bDefaultToRootBone = true;
+	FBoneReference TempBoneReference = BoneReference;
+	if (TempBoneReference.BoneName != NAME_None)
 	{
-		bool bDefaultToRootBone = true;
-		FBoneReference TempBoneReference = BoneReference;
-		if (TempBoneReference.BoneName != NAME_None)
+		TempBoneReference.Initialize(Skeleton);
+		if (!TempBoneReference.HasValidSetup())
 		{
-			TempBoneReference.Initialize(Skeleton);
-			if (!TempBoneReference.HasValidSetup())
-			{
-				UE_LOG(LogPoseSearch, Error, TEXT("UPoseSearchSchema::AddBoneReference: couldn't initialize FBoneReference '%s' with Skeleton '%s' in UPoseSearchSchema '%s'. Defaulting to root bone instead"),
-					*TempBoneReference.BoneName.ToString(), *GetNameSafe(Skeleton), *GetNameSafe(this));
-			}
-			else
-			{
-				bDefaultToRootBone = false;
-			}
+			UE_LOG(LogPoseSearch, Error, TEXT("UPoseSearchSchema::AddBoneReference: couldn't initialize FBoneReference '%s' with Skeleton '%s' in UPoseSearchSchema '%s'. Defaulting to root bone instead"),
+				*TempBoneReference.BoneName.ToString(), *GetNameSafe(Skeleton), *GetNameSafe(this));
 		}
-
-		if (bDefaultToRootBone)
+		else
 		{
-			TempBoneReference.BoneName = Skeleton->GetReferenceSkeleton().GetBoneName(int32(RootBoneIndexType));
-			TempBoneReference.Initialize(Skeleton);
-			check(TempBoneReference.HasValidSetup());
+			bDefaultToRootBone = false;
 		}
-
-		SchemaBoneIdx = BoneReferences.AddUnique(TempBoneReference);
-		check(SchemaBoneIdx >= 0 && SchemaBoneIdx < 128);
 	}
-	else if (BoneReferences.IsEmpty())
+
+	if (bDefaultToRootBone)
 	{
-		BoneReferences.Add(FBoneReference());
+		TempBoneReference.BoneName = Skeleton->GetReferenceSkeleton().GetBoneName(int32(RootBoneIndexType));
+		TempBoneReference.Initialize(Skeleton);
+		check(TempBoneReference.HasValidSetup());
 	}
+
+	SchemaBoneIdx = BoneReferences.AddUnique(TempBoneReference);
+	check(SchemaBoneIdx >= 0 && SchemaBoneIdx < 128);
 	return int8(SchemaBoneIdx);
 }
 
 void UPoseSearchSchema::Finalize()
 {
 	BoneReferences.Reset();
-
+	BoneIndicesWithParents.Reset();
+	FinalizedChannels.Reset();
 	SchemaCardinality = 0;
 
-	FinalizedChannels.Reset();
+	if (!Skeleton)
+	{
+		UE_LOG(LogPoseSearch, Error, TEXT("UPoseSearchSchema::Finalize: couldn't Finalize '%s' because Skeleton is null"), *GetNameSafe(this));
+		return;
+	}
+
+	// adding as first bone reference the root bone
+	const int8 SchemaBoneIdx = AddBoneReference(FBoneReference());
+	check(SchemaBoneIdx == RootSchemaBoneIdx);
+
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Channels)
 	{
 		if (ChannelPtr)
@@ -117,27 +122,18 @@ void UPoseSearchSchema::Finalize()
 			break;
 		}
 	}
-
-	BoneIndicesWithParents.Reset();
-	if (Skeleton)
+	
+	// Initialize references to obtain bone indices and fill out bone index array
+	for (FBoneReference& BoneRef : BoneReferences)
 	{
-		// Initialize references to obtain bone indices and fill out bone index array
-		for (FBoneReference& BoneRef : BoneReferences)
-		{
-			check(BoneRef.HasValidSetup());
-			BoneIndicesWithParents.Add(BoneRef.BoneIndex);
-		}
-
-		// Build separate index array with parent indices guaranteed to be present. Sort for EnsureParentsPresent.
-		BoneIndicesWithParents.Sort();
-		FAnimationRuntime::EnsureParentsPresent(BoneIndicesWithParents, Skeleton->GetReferenceSkeleton());
+		check(BoneRef.HasValidSetup());
+		BoneIndicesWithParents.Add(BoneRef.BoneIndex);
 	}
 
-	// BoneIndicesWithParents should at least contain the root to support mirroring root motion
-	if (BoneIndicesWithParents.IsEmpty())
-	{
-		BoneIndicesWithParents.Add(0);
-	}
+	// Build separate index array with parent indices guaranteed to be present. Sort for EnsureParentsPresent.
+	check(!BoneIndicesWithParents.IsEmpty());
+	BoneIndicesWithParents.Sort();
+	FAnimationRuntime::EnsureParentsPresent(BoneIndicesWithParents, Skeleton->GetReferenceSkeleton());
 }
 
 void UPoseSearchSchema::PreSave(FObjectPreSaveContext ObjectSaveContext)

@@ -5,9 +5,9 @@
 #include "Animation/MotionTrajectoryTypes.h"
 #include "AnimationRuntime.h"
 #include "PoseSearch/PoseSearchDatabase.h"
-#include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "PoseSearch/PoseSearchHistory.h"
 #include "PoseSearch/PoseSearchSchema.h"
+#include "PoseSearchFeatureChannel_Position.h"
 
 namespace UE::PoseSearch
 {
@@ -21,7 +21,6 @@ FDebugDrawParams::FDebugDrawParams(FAnimInstanceProxy* InAnimInstanceProxy, cons
 , Mesh(nullptr)
 , Database(InDatabase)
 , Flags(InFlags)
-, CachedPositions()
 {
 }
 
@@ -31,48 +30,12 @@ FDebugDrawParams::FDebugDrawParams(const UWorld* InWorld, const USkinnedMeshComp
 , Mesh(InMesh)
 , Database(InDatabase)
 , Flags(InFlags)
-, CachedPositions()
 {
 }
 
 bool FDebugDrawParams::CanDraw() const
 {
 	return (AnimInstanceProxy || World) && Database && Database->Schema && Database->Schema->IsValid();
-}
-
-FColor FDebugDrawParams::GetColor(int32 ColorPreset) const
-{
-	FLinearColor Color = FLinearColor::Red;
-
-	const UPoseSearchSchema* Schema = GetSchema();
-	if (!Schema || !Schema->IsValid())
-	{
-		Color = FLinearColor::Red;
-	}
-	else if (ColorPreset < 0 || ColorPreset >= Schema->ColorPresets.Num())
-	{
-		if (EnumHasAnyFlags(Flags, EDebugDrawFlags::DrawQuery))
-		{
-			Color = FLinearColor::Blue;
-		}
-		else
-		{
-			Color = FLinearColor::Green;
-		}
-	}
-	else
-	{
-		if (EnumHasAnyFlags(Flags, EDebugDrawFlags::DrawQuery))
-		{
-			Color = Schema->ColorPresets[ColorPreset].Query;
-		}
-		else
-		{
-			Color = Schema->ColorPresets[ColorPreset].Result;
-		}
-	}
-
-	return Color.ToFColor(true);
 }
 
 const FPoseSearchIndex* FDebugDrawParams::GetSearchIndex() const
@@ -85,26 +48,39 @@ const UPoseSearchSchema* FDebugDrawParams::GetSchema() const
 	return Database ? Database->Schema : nullptr;
 }
 
-void FDebugDrawParams::ClearCachedPositions()
+FVector FDebugDrawParams::ExtractPosition(TConstArrayView<float> PoseVector, const UPoseSearchFeatureChannel_Position* Position) const
 {
-	CachedPositions.Reset();
+	check(Position);
+	const FVector BonePosition = FFeatureVectorHelper::DecodeVector(PoseVector, Position->GetChannelDataOffset(), Position->ComponentStripping);
+	const FVector WorldBonePosition = GetRootTransform().TransformPosition(BonePosition);
+	return WorldBonePosition;
 }
 
-void FDebugDrawParams::AddCachedPosition(float TimeOffset, int8 SchemaBoneIdx, const FVector& Position)
+FVector FDebugDrawParams::ExtractPosition(TConstArrayView<float> PoseVector, float SampleTimeOffset, int8 SchemaBoneIdx, EPermutationTimeType PermutationTimeType) const
 {
+	// we don't wanna ask for a SchemaOriginBoneIdx in the future or past
+	check(PermutationTimeType != EPermutationTimeType::UsePermutationTime);
 	if (const UPoseSearchSchema* Schema = GetSchema())
 	{
-		CachedPositions.Add(TimeOffset, Schema->GetBoneIndexType(SchemaBoneIdx), Position);
-	}
-}
-
-FVector FDebugDrawParams::GetCachedPosition(float TimeOffset, int8 SchemaBoneIdx) const
-{
-	if (const UPoseSearchSchema* Schema = GetSchema())
-	{
-		if (auto CachedPosition = CachedPositions.Find(TimeOffset, Schema->GetBoneIndexType(SchemaBoneIdx)))
+		// looking for a UPoseSearchFeatureChannel_Position that matches the TimeOffset and SchemaBoneIdx,
+		// with SchemaOriginBoneIdx to be the root bone and the appropriate PermutationTimeType 
+		if (const UPoseSearchFeatureChannel_Position* FoundPosition = static_cast<const UPoseSearchFeatureChannel_Position*>(
+				Schema->FindChannel([SampleTimeOffset, SchemaBoneIdx, PermutationTimeType, Schema](const UPoseSearchFeatureChannel* Channel) -> const UPoseSearchFeatureChannel_Position*
+			{
+				if (const UPoseSearchFeatureChannel_Position* Position = Cast<UPoseSearchFeatureChannel_Position>(Channel))
+				{
+					if (Position->SchemaBoneIdx == SchemaBoneIdx &&
+						Position->SampleTimeOffset == SampleTimeOffset &&
+						Position->PermutationTimeType == PermutationTimeType &&
+						Schema->IsRootBone(Position->SchemaOriginBoneIdx))
+					{
+						return Position;
+					}
+				}
+		return nullptr;
+			})))
 		{
-			return CachedPosition->Transform;
+			return ExtractPosition(PoseVector, FoundPosition);
 		}
 
 		if (Mesh && SchemaBoneIdx >= 0)
@@ -241,8 +217,6 @@ void FDebugDrawParams::DrawCentripetalCatmullRomSpline(TConstArrayView<FVector> 
 
 void FDebugDrawParams::DrawFeatureVector(TConstArrayView<float> PoseVector)
 {
-	ClearCachedPositions();
-
 	if (CanDraw())
 	{
 		const UPoseSearchSchema* Schema = GetSchema();
@@ -250,11 +224,6 @@ void FDebugDrawParams::DrawFeatureVector(TConstArrayView<float> PoseVector)
 
 		if (PoseVector.Num() == Schema->SchemaCardinality)
 		{
-			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->GetChannels())
-			{
-				ChannelPtr->PreDebugDraw(*this, PoseVector);
-			}
-
 			for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Schema->GetChannels())
 			{
 				ChannelPtr->DebugDraw(*this, PoseVector);

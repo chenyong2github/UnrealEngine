@@ -43,10 +43,10 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::AddDependentChannels(UPoseSea
 {
 	if (Schema->bInjectAdditionalDebugChannels)
 	{
-		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, 0, LeftThigh.BoneName);
-		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, 0, RightThigh.BoneName);
-		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, 0, LeftFoot.BoneName);
-		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, 0, RightFoot.BoneName);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, LeftThigh.BoneName);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, RightThigh.BoneName);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, LeftFoot.BoneName);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, RightFoot.BoneName);
 	}
 }
 void UPoseSearchFeatureChannel_FilterCrashingLegs::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
@@ -85,10 +85,10 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::DebugDraw(const UE::PoseSearc
 
 	const float CrashingLegsValue = FFeatureVectorHelper::DecodeFloat(PoseVector, ChannelDataOffset);
 
-	const FVector LeftThighPosition = DrawParams.GetCachedPosition(0.f, LeftThighIdx);
-	const FVector RightThighPosition = DrawParams.GetCachedPosition(0.f, RightThighIdx);
-	const FVector LeftFootPosition = DrawParams.GetCachedPosition(0.f, LeftFootIdx);
-	const FVector RightFootPosition = DrawParams.GetCachedPosition(0.f, RightFootIdx);
+	const FVector LeftThighPosition = DrawParams.ExtractPosition(PoseVector, 0.f, LeftThighIdx);
+	const FVector RightThighPosition = DrawParams.ExtractPosition(PoseVector, 0.f, RightThighIdx);
+	const FVector LeftFootPosition = DrawParams.ExtractPosition(PoseVector, 0.f, LeftFootIdx);
+	const FVector RightFootPosition = DrawParams.ExtractPosition(PoseVector, 0.f, RightFootIdx);
 
 	const float FeetDistance = (RightFootPosition - LeftFootPosition).Length();
 

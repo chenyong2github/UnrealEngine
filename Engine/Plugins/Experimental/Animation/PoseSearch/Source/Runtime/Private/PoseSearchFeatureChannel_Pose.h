@@ -32,7 +32,7 @@ struct POSESEARCH_API FPoseSearchBone
 	float Weight = 1.f;
 
 	UPROPERTY(EditAnywhere, Category = Config, meta=(ExcludeFromHash))
-	int32 ColorPresetIndex = 0;
+	FLinearColor DebugColor = FLinearColor::Green;
 };
 
 // UPoseSearchFeatureChannel_Pose

@@ -21,7 +21,7 @@ constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::None;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPoseSearch, Log, All);
 
-static constexpr int8 RootSchemaBoneIdx = -1;
+static constexpr int8 RootSchemaBoneIdx = 0;
 static constexpr FBoneIndexType RootBoneIndexType = 0;
 
 

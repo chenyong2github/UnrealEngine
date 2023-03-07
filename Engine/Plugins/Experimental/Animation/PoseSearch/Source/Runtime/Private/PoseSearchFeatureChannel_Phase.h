@@ -22,7 +22,7 @@ public:
 	int8 SchemaBoneIdx = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ExcludeFromHash))
-	int32 ColorPresetIndex = 0;
+	FLinearColor DebugColor = FLinearColor::Yellow;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	EInputQueryPose InputQueryPose = EInputQueryPose::UseContinuingPose;

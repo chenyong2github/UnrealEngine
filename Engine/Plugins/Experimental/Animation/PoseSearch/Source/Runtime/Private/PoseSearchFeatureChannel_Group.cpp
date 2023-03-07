@@ -63,17 +63,6 @@ void UPoseSearchFeatureChannel_GroupBase::BuildQuery(UE::PoseSearch::FSearchCont
 }
 
 #if ENABLE_DRAW_DEBUG
-void UPoseSearchFeatureChannel_GroupBase::PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
-{
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
-	{
-		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
-		{
-			SubChannel->PreDebugDraw(DrawParams, PoseVector);
-		}
-	}
-}
-
 void UPoseSearchFeatureChannel_GroupBase::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
 {
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())

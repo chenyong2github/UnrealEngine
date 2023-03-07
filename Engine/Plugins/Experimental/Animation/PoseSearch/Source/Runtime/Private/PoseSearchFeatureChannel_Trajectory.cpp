@@ -17,10 +17,10 @@ UPoseSearchFeatureChannel_Trajectory::UPoseSearchFeatureChannel_Trajectory()
 #if WITH_EDITOR
 	// defaulting UPoseSearchFeatureChannel_Trajectory to a meaningful locomotion setup
 	Weight = 7.f;
-	Samples.Add(FPoseSearchTrajectorySample({ -0.4f, int32(EPoseSearchTrajectoryFlags::PositionXY), 0.4f, 0 }));
-	Samples.Add(FPoseSearchTrajectorySample({ 0.f, int32(EPoseSearchTrajectoryFlags::VelocityXY | EPoseSearchTrajectoryFlags::FacingDirectionXY), 2.f }));
-	Samples.Add(FPoseSearchTrajectorySample({ 0.35f, int32(EPoseSearchTrajectoryFlags::PositionXY | EPoseSearchTrajectoryFlags::FacingDirectionXY), 0.7f }));
-	Samples.Add(FPoseSearchTrajectorySample({ 0.7f, int32(EPoseSearchTrajectoryFlags::VelocityXY | EPoseSearchTrajectoryFlags::PositionXY | EPoseSearchTrajectoryFlags::FacingDirectionXY), 0.5f }));
+	Samples.Add(FPoseSearchTrajectorySample({ -0.4f, int32(EPoseSearchTrajectoryFlags::PositionXY), 0.4f, FLinearColor::Red }));
+	Samples.Add(FPoseSearchTrajectorySample({ 0.f, int32(EPoseSearchTrajectoryFlags::VelocityXY | EPoseSearchTrajectoryFlags::FacingDirectionXY), 2.f, FLinearColor::Blue }));
+	Samples.Add(FPoseSearchTrajectorySample({ 0.35f, int32(EPoseSearchTrajectoryFlags::PositionXY | EPoseSearchTrajectoryFlags::FacingDirectionXY), 0.7f, FLinearColor::Blue }));
+	Samples.Add(FPoseSearchTrajectorySample({ 0.7f, int32(EPoseSearchTrajectoryFlags::VelocityXY | EPoseSearchTrajectoryFlags::PositionXY | EPoseSearchTrajectoryFlags::FacingDirectionXY), 0.5f, FLinearColor::Blue }));
 #endif
 }
 
@@ -35,7 +35,7 @@ void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 			UPoseSearchFeatureChannel_Position* Position = NewObject<UPoseSearchFeatureChannel_Position>(this, NAME_None, RF_Transient);
 			Position->Weight = Sample.Weight * Weight;
 			Position->SampleTimeOffset = Sample.Offset;
-			Position->ColorPresetIndex = Sample.ColorPresetIndex;
+			Position->DebugColor = Sample.DebugColor;
 			Position->InputQueryPose = EInputQueryPose::UseCharacterPose;
 			if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::PositionXY))
 			{
@@ -49,7 +49,7 @@ void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 			UPoseSearchFeatureChannel_Velocity* Velocity = NewObject<UPoseSearchFeatureChannel_Velocity>(this, NAME_None, RF_Transient);
 			Velocity->Weight = Sample.Weight * Weight;
 			Velocity->SampleTimeOffset = Sample.Offset;
-			Velocity->ColorPresetIndex = Sample.ColorPresetIndex;
+			Velocity->DebugColor = Sample.DebugColor;
 			Velocity->InputQueryPose = EInputQueryPose::UseCharacterPose;
 			Velocity->bUseCharacterSpaceVelocities = false;
 			if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityXY))
@@ -64,7 +64,7 @@ void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 			UPoseSearchFeatureChannel_Velocity* Velocity = NewObject<UPoseSearchFeatureChannel_Velocity>(this, NAME_None, RF_Transient);
 			Velocity->Weight = Sample.Weight * Weight;
 			Velocity->SampleTimeOffset = Sample.Offset;
-			Velocity->ColorPresetIndex = Sample.ColorPresetIndex;
+			Velocity->DebugColor = Sample.DebugColor;
 			Velocity->InputQueryPose = EInputQueryPose::UseCharacterPose;
 			Velocity->bUseCharacterSpaceVelocities = false;
 			Velocity->bNormalize = true;
@@ -80,7 +80,7 @@ void UPoseSearchFeatureChannel_Trajectory::Finalize(UPoseSearchSchema* Schema)
 			UPoseSearchFeatureChannel_Heading* Heading = NewObject<UPoseSearchFeatureChannel_Heading>(this, NAME_None, RF_Transient);
 			Heading->Weight = Sample.Weight * Weight;
 			Heading->SampleTimeOffset = Sample.Offset;
-			Heading->ColorPresetIndex = Sample.ColorPresetIndex;
+			Heading->DebugColor = Sample.DebugColor;
 			Heading->InputQueryPose = EInputQueryPose::UseCharacterPose;
 			if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
 			{
@@ -121,17 +121,17 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 		for (int32 i = 0; i < Positions.Num(); ++i)
 		{
 			const float CurrTimeOffset = Positions[i]->SampleTimeOffset;
-			const int32 CurrColorPresetIndex = Positions[i]->ColorPresetIndex;
+			const FColor Color = Positions[i]->DebugColor.ToFColor(true);;
 
 			if (PrevTimeOffset * CurrTimeOffset < UE_KINDA_SMALL_NUMBER)
 			{
 				// we jumped from negative to positive time offset without having a zero time offset. so we add the zero
-				TrajSplinePos.Add(DrawParams.GetCachedPosition(0.f));
-				TrajSplineColor.Add(DrawParams.GetColor(CurrColorPresetIndex));
+				TrajSplinePos.Add(DrawParams.ExtractPosition(PoseVector, 0.f));
+				TrajSplineColor.Add(Color);
 			}
 
-			TrajSplinePos.Add(DrawParams.GetCachedPosition(CurrTimeOffset));
-			TrajSplineColor.Add(DrawParams.GetColor(CurrColorPresetIndex));
+			TrajSplinePos.Add(DrawParams.ExtractPosition(PoseVector, CurrTimeOffset));
+			TrajSplineColor.Add(Color);
 
 			PrevTimeOffset = CurrTimeOffset;
 		}

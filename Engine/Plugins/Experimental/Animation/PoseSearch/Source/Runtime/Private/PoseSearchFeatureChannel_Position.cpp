@@ -8,7 +8,7 @@
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
-void UPoseSearchFeatureChannel_Position::FindOrAddToSchema(UPoseSearchSchema* Schema, float SampleTimeOffset, int32 ColorPresetIndex, const FName& BoneName, EPermutationTimeType PermutationTimeType)
+void UPoseSearchFeatureChannel_Position::FindOrAddToSchema(UPoseSearchSchema* Schema, float SampleTimeOffset, const FName& BoneName, EPermutationTimeType PermutationTimeType)
 {
 	if (!Schema->FindChannel([SampleTimeOffset, &BoneName, PermutationTimeType](const UPoseSearchFeatureChannel* Channel) -> const UPoseSearchFeatureChannel_Position*
 		{
@@ -26,7 +26,8 @@ void UPoseSearchFeatureChannel_Position::FindOrAddToSchema(UPoseSearchSchema* Sc
 		Position->Bone.BoneName = BoneName;
 		Position->Weight = 0.f;
 		Position->SampleTimeOffset = SampleTimeOffset;
-		Position->ColorPresetIndex = ColorPresetIndex;
+		// @todo: perhaps add a tunable color for injected channels
+		Position->DebugColor = FLinearColor::Gray;
 		Position->PermutationTimeType = PermutationTimeType;
 		Position->Finalize(Schema);
 		Schema->FinalizedChannels.Add(Position);
@@ -50,7 +51,7 @@ void UPoseSearchFeatureChannel_Position::AddDependentChannels(UPoseSearchSchema*
 		if (!Schema->IsRootBone(SchemaOriginBoneIdx))
 		{
 			const EPermutationTimeType DependentChannelsPermutationTimeType = PermutationTimeType == EPermutationTimeType::UsePermutationTime ? EPermutationTimeType::UseSampleToPermutationTime : EPermutationTimeType::UseSampleTime;
-			UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, ColorPresetIndex, OriginBone.BoneName, DependentChannelsPermutationTimeType);
+			UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, OriginBone.BoneName, DependentChannelsPermutationTimeType);
 		}
 	}
 }
@@ -81,23 +82,11 @@ void UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchConte
 }
 
 #if ENABLE_DRAW_DEBUG
-void UPoseSearchFeatureChannel_Position::PreDebugDraw(UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
-{
-	using namespace UE::PoseSearch;
-	
-	// if the SchemaOriginBoneIdx is not the root bone, the feature vector position doesn't represent a component space delta position for the SchemaBoneIdx, so we shouldn't collect it
-	if (DrawParams.GetSchema()->IsRootBone(SchemaOriginBoneIdx) && PermutationTimeType != EPermutationTimeType::UsePermutationTime)
-	{
-		const FVector BonePos = DrawParams.GetRootTransform().TransformPosition(FFeatureVectorHelper::DecodeVector(PoseVector, ChannelDataOffset, ComponentStripping));
-		DrawParams.AddCachedPosition(SampleTimeOffset, SchemaBoneIdx, BonePos);
-	}
-}
-
 void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
 {
 	using namespace UE::PoseSearch;
 
-	const FColor Color = DrawParams.GetColor(ColorPresetIndex);
+	const FColor Color = DebugColor.ToFColor(true);
 
 	const FVector FeaturesVector = FFeatureVectorHelper::DecodeVector(PoseVector, ChannelDataOffset, ComponentStripping);
 	if (DrawParams.GetSchema()->IsRootBone(SchemaOriginBoneIdx))
@@ -107,7 +96,8 @@ void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugD
 	}
 	else
 	{
-		const FVector OriginBonePos = DrawParams.GetCachedPosition(SampleTimeOffset, SchemaOriginBoneIdx);
+		const EPermutationTimeType TimeType = PermutationTimeType == EPermutationTimeType::UsePermutationTime ? EPermutationTimeType::UseSampleToPermutationTime : EPermutationTimeType::UseSampleTime;
+		const FVector OriginBonePos = DrawParams.ExtractPosition(PoseVector, SampleTimeOffset, SchemaOriginBoneIdx, TimeType);
 		const FVector DeltaPos = DrawParams.GetRootTransform().TransformVector(FeaturesVector);
 		const FVector BonePos = OriginBonePos + DeltaPos;
 		DrawParams.DrawLine(OriginBonePos, BonePos, Color);
