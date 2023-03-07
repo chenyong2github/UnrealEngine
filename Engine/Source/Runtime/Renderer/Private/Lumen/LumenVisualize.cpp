@@ -17,6 +17,7 @@
 #include "LumenSurfaceCacheFeedback.h"
 #include "LumenVisualizationData.h"
 #include "MeshCardBuild.h"
+#include "LumenReflections.h"
 
 // Must be in sync with VISUALIZE_MODE_* in LumenVisualize.h
 int32 GLumenVisualize = 0;
@@ -29,8 +30,8 @@ FAutoConsoleVariableRef CVarLumenVisualize(
 	TEXT("2 - Reflection View\n")
 	TEXT("3 - Surface Cache Coverage\n")
 	TEXT("4 - Overview\n")
-	TEXT("5 - Albedo\n")
-	TEXT("6 - Geometry normals\n")
+	TEXT("5 - Geometry normals\n")
+	TEXT("6 - Albedo\n")
 	TEXT("7 - Normals\n")
 	TEXT("8 - Emissive\n")
 	TEXT("9 - Opacity (disable alpha masking)\n")
@@ -754,19 +755,19 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 				};
 
 				FVisualizeTile VisualizeTiles[LumenVisualize::NumOverviewTilesPerRow];
-				VisualizeTiles[0].Mode = VISUALIZE_MODE_LUMEN_SCENE;
+				VisualizeTiles[0].Mode = VISUALIZE_MODE_GEOMETRY_NORMALS;
+				VisualizeTiles[0].Name = TEXT("Geometry Normals");
+				VisualizeTiles[1].Mode = VISUALIZE_MODE_REFLECTION_VIEW;
 				if (Lumen::UseHardwareRayTracing(ViewFamily))
 				{
-					VisualizeTiles[0].Name = LumenVisualize::IsHitLightingForceEnabled(View) ? TEXT("Lumen Scene (HWRT with hit lighting)") : TEXT("Lumen Scene (HWRT)");
+					VisualizeTiles[1].Name = LumenReflections::IsHitLightingForceEnabled(View) ? TEXT("Reflection View, HWRT with hit lighting") : TEXT("Reflection View, HWRT");
 				}
 				else
 				{
-					VisualizeTiles[0].Name = Lumen::UseMeshSDFTracing(ViewFamily) ? TEXT("Lumen Scene (SWRT with detail tracing)") : TEXT("Lumen Scene (SWRT)");
+					VisualizeTiles[1].Name = Lumen::UseMeshSDFTracing(ViewFamily) ? TEXT("Reflection View, SWRT with detail tracing") : TEXT("Reflection View, SWRT");
 				}
-				VisualizeTiles[1].Mode = VISUALIZE_MODE_REFLECTION_VIEW;
-				VisualizeTiles[1].Name = TEXT("Reflection View");
 				VisualizeTiles[2].Mode = VISUALIZE_MODE_SURFACE_CACHE;
-				VisualizeTiles[2].Name = TEXT("Surface Cache");
+				VisualizeTiles[2].Name = TEXT("Lumen Scene, Pink - missing Surface Cache coverage, Yellow - culled Surface Cache");
 
 				for (int32 TileIndex = 0; TileIndex < LumenVisualize::NumOverviewTilesPerRow; ++TileIndex)
 				{

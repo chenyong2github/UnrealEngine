@@ -9,10 +9,11 @@
 static FLumenVisualizationData GLumenVisualizationData;
 
 // Must match appropriate values in r.Lumen.Visualize
-#define LUMEN_VISUALIZE_LUMEN_SCENE		1
-#define LUMEN_VISUALIZE_REFLECTION_VIEW	2
-#define LUMEN_VISUALIZE_SURFACE_CACHE	3
-#define LUMEN_VISUALIZE_OVERVIEW		4
+#define LUMEN_VISUALIZE_LUMEN_SCENE				1
+#define LUMEN_VISUALIZE_REFLECTION_VIEW			2
+#define LUMEN_VISUALIZE_SURFACE_CACHE			3
+#define LUMEN_VISUALIZE_OVERVIEW				4
+#define LUMEN_VISUALIZE_MODE_GEOMETRY_NORMALS	5
 
 void FLumenVisualizationData::Initialize()
 {
@@ -35,6 +36,14 @@ void FLumenVisualizationData::Initialize()
 			true);
 
 		AddVisualizationMode(
+			TEXT("GeometryNormals"),
+			LOCTEXT("GeometryNormals", "Geometry Normals"),
+			LOCTEXT("LumenSceneDesc", "Visualizes Geometry Normals with current Lumen settings."),
+			FModeType::Standard,
+			LUMEN_VISUALIZE_MODE_GEOMETRY_NORMALS,
+			true);
+
+		AddVisualizationMode(
 			TEXT("ReflectionView"),
 			LOCTEXT("ReflectionView", "Reflection View"),
 			LOCTEXT("ReflectionViewDesc", "Visualizes Lumen scene representation with current reflection settings"),
@@ -43,7 +52,7 @@ void FLumenVisualizationData::Initialize()
 		AddVisualizationMode(
 			TEXT("SurfaceCache"),
 			LOCTEXT("SurfaceCache", "Surface Cache"),
-			LOCTEXT("SurfaceCacheDesc", "Visualizes Lumen surface cache. Pink - missing surface cache coverage. Yellow - culled meshes."),
+			LOCTEXT("SurfaceCacheDesc", "Visualizes Lumen Surface Cache. Pink - missing surface cache coverage. Yellow - culled meshes."),
 			FModeType::Standard,
 			LUMEN_VISUALIZE_SURFACE_CACHE,
 			true);
