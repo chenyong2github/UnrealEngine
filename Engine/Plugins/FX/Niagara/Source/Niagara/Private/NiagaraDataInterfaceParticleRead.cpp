@@ -2150,10 +2150,9 @@ void UNiagaraDataInterfaceParticleRead::SetShaderParameters(const FNiagaraDataIn
 
 	if (InstanceData->SourceEmitterGPUContext == nullptr)
 	{
-		// This means the source emitter isn't running on GPU.
 		if (!InstanceData->bSourceEmitterNotGPUErrorShown)
 		{
-			UE_LOG(LogNiagara, Error, TEXT("GPU particle read DI is set to access CPU emitter '%s'."), *InstanceData->DebugSourceName);
+			UE_LOG(LogNiagara, Error, TEXT("GPU particle read could not find GPU context for '%s', emitter either doesn't exist or is not a GPU simulation."), *InstanceData->DebugSourceName);
 			InstanceData->bSourceEmitterNotGPUErrorShown = true;
 		}
 		SetErrorParams(true);
