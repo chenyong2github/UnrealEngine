@@ -115,6 +115,11 @@ public:
 
 		// opening angle used to detect/assign sharp edges
 		double HardNormalAngleDeg = 15.0;
+
+
+		bool bMergeCoplanarFaces = true;
+		int32 MergeCoplanarFacesStartLOD = 1;
+		TFunction<UE::Geometry::FIndex3i(const UE::Geometry::FDynamicMesh3& Mesh, int32 TriangleID)> TriangleGroupingIDFunc;
 	};
 
 

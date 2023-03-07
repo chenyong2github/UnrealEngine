@@ -39,7 +39,7 @@ IGeometryProcessing_ApproximateActors* FGeometryProcessingInterfacesModule::GetA
 }
 IGeometryProcessing_CombineMeshInstances* FGeometryProcessingInterfacesModule::GetCombineMeshInstancesImplementation()
 {
-	if (ApproximateActors == nullptr)
+	if (CombineMeshInstances == nullptr)
 	{
 		TArray<IGeometryProcessing_CombineMeshInstances*> CombineMeshInstancesOptions =
 			IModularFeatures::Get().GetModularFeatureImplementations<IGeometryProcessing_CombineMeshInstances>(IGeometryProcessing_CombineMeshInstances::GetModularFeatureName());
