@@ -49,22 +49,27 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Gives output from a C++ build
 		/// </summary>
-		CppResult = 0x21,
+		CppSuccess = 0x21,
+
+		/// <summary>
+		/// Information about a failed C++ task
+		/// </summary>
+		CppFailure = 0x22,
 
 		/// <summary>
 		/// Finish a C++ build and close the current channel
 		/// </summary>
-		CppEnd = 0x22,
+		CppEnd = 0x23,
 
 		/// <summary>
 		/// Reads a blob pertaining to a C++ build
 		/// </summary>
-		CppBlobRead = 0x23,
+		CppBlobRead = 0x24,
 
 		/// <summary>
 		/// Response to a <see cref="CppBlobRead"/> request.
 		/// </summary>
-		CppBlobData = 0x24,
+		CppBlobData = 0x25,
 
 		#endregion
 	}
@@ -190,7 +195,7 @@ namespace EpicGames.Horde.Compute
 		/// Sends the result for a C++ compute task
 		/// </summary>
 		/// <param name="message"></param>
-		public static NodeLocator AsCppResult(this IComputeMessage message)
+		public static NodeLocator AsCppSuccess(this IComputeMessage message)
 		{
 			MemoryReader reader = new MemoryReader(message.Data);
 			return reader.ReadNodeLocator();
@@ -202,11 +207,35 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channel">Channel to write to</param>
 		/// <param name="locator">Locator for the result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CppResultAsync(this IComputeChannel channel, NodeLocator locator, CancellationToken cancellationToken)
+		public static async Task CppSuccessAsync(this IComputeChannel channel, NodeLocator locator, CancellationToken cancellationToken)
 		{
-			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.CppResult))
+			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.CppSuccess))
 			{
 				writer.WriteNodeLocator(locator);
+				await writer.SendAsync(cancellationToken);
+			}
+		}
+
+		/// <summary>
+		/// Sends the result for a C++ compute task
+		/// </summary>
+		/// <param name="message"></param>
+		public static string AsCppFailure(this IComputeMessage message)
+		{
+			return new Utf8String(message.Data).ToString();
+		}
+
+		/// <summary>
+		/// Sends the failure error for a C++ compute task
+		/// </summary>
+		/// <param name="channel">Channel to write to</param>
+		/// <param name="error">Error string to send to the caller</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static async Task CppFailureAsync(this IComputeChannel channel, string error, CancellationToken cancellationToken)
+		{
+			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.CppFailure))
+			{
+				writer.WriteString(error);
 				await writer.SendAsync(cancellationToken);
 			}
 		}

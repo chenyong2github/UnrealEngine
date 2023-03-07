@@ -94,9 +94,9 @@ namespace Horde.Agent.Commands
 							await channel.CppBlobDataAsync(cppBlobRead, storage, cancellationToken);
 						}
 						break;
-					case ComputeMessageType.CppResult:
+					case ComputeMessageType.CppSuccess:
 						{
-							NodeLocator cppOutputLocator = message.AsCppResult();
+							NodeLocator cppOutputLocator = message.AsCppSuccess();
 
 							using ComputeStorageClient remoteStorage = new ComputeStorageClient(channel);
 							TreeReader reader = new TreeReader(remoteStorage, null, _logger);
@@ -116,6 +116,12 @@ namespace Horde.Agent.Commands
 
 							await channel.CppFinishAsync(cancellationToken);
 							await lease.DefaultChannel.CloseAsync(cancellationToken);
+						}
+						return false;
+					case ComputeMessageType.CppFailure:
+						{
+							string error = message.AsCppFailure();
+							_logger.LogError("Failed: {Error}", error);
 						}
 						return false;
 					default:

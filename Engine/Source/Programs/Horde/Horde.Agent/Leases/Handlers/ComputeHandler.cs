@@ -122,6 +122,18 @@ namespace Horde.Agent.Leases.Handlers
 
 		public async Task RunCppAsync(IComputeChannel channel, NodeLocator locator, CancellationToken cancellationToken)
 		{
+			try
+			{
+				await RunCppInternalAsync(channel, locator, cancellationToken);
+			}
+			catch (Exception ex)
+			{
+				await channel.CppFailureAsync(ex.ToString(), cancellationToken);
+			}
+		}
+
+		async Task RunCppInternalAsync(IComputeChannel channel, NodeLocator locator, CancellationToken cancellationToken)
+		{
 			DirectoryReference sandboxDir = DirectoryReference.Combine(Program.DataDir, "Sandbox", channel.Id.ToString());
 
 			using ComputeStorageClient store = new ComputeStorageClient(channel);
@@ -182,7 +194,7 @@ namespace Horde.Agent.Leases.Handlers
 				CppComputeOutputNode outputNode = new CppComputeOutputNode(exitCode, logNodeRef, new TreeNodeRef<DirectoryNode>(outputTree));
 				NodeHandle outputHandle = await writer.FlushAsync(outputNode, cancellationToken);
 
-				await channel.CppResultAsync(outputHandle.Locator, cancellationToken);
+				await channel.CppSuccessAsync(outputHandle.Locator, cancellationToken);
 			}
 
 			for (; ; )
