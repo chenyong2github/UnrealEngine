@@ -278,7 +278,7 @@ namespace Metasound
 			{
 				FClassAccessPtr ClassPtr = DocumentPtr.GetClassWithRegistryKey(InKey);
 
-				auto AddClass = [=](FMetasoundFrontendClass&& NewClassDescription, const FGuid& NewClassID)
+				auto AddClass = [this, InKey, Document](FMetasoundFrontendClass&& NewClassDescription, const FGuid& NewClassID)
 				{
 					FConstClassAccessPtr NewClassPtr;
 

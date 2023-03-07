@@ -1021,7 +1021,7 @@ FPrimitiveSceneProxy* UContextualAnimSceneActorComponent::CreateSceneProxy()
 
 					//DrawCircle(PDI, ToWorldTransform.GetLocation(), FVector(1, 0, 0), FVector(0, 1, 0), FColor::Red, SceneAssetPtr->GetRadius(), 12, SDPG_World, 1.f);
 
-					SceneAssetPtr->ForEachAnimTrack([=](const FContextualAnimTrack& AnimTrack)
+					SceneAssetPtr->ForEachAnimTrack([this, ToWorldTransform, PDI](const FContextualAnimTrack& AnimTrack)
 					{
 						if (AnimTrack.Role != SceneAssetPtr->GetPrimaryRole())
 						{

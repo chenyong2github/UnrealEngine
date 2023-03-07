@@ -3327,8 +3327,8 @@ void UEngine::InitializePortalServices()
 
 		PortalRpcLocator = PortalRpcModule->CreateLocator();
 		{
-			PortalRpcLocator->OnServerLocated().BindLambda([=]() { PortalRpcClient->Connect(PortalRpcLocator->GetServerAddress()); });
-			PortalRpcLocator->OnServerLost().BindLambda([=]() { PortalRpcClient->Disconnect(); });
+			PortalRpcLocator->OnServerLocated().BindLambda([this]() { PortalRpcClient->Connect(PortalRpcLocator->GetServerAddress()); });
+			PortalRpcLocator->OnServerLost().BindLambda([this]() { PortalRpcClient->Disconnect(); });
 		}
 
 		ServiceDependencies = MakeShareable(new FTypeContainer);

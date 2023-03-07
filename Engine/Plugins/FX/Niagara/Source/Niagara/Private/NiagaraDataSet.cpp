@@ -189,7 +189,7 @@ void FNiagaraDataSet::ResetBuffers()
 	{
 		checkSlow(GetSimTarget() == ENiagaraSimTarget::GPUComputeSim);
 		ENQUEUE_RENDER_COMMAND(ResetBuffersCommand)(
-			[=](FRHICommandListImmediate& RHICmdList)
+			[this](FRHICommandListImmediate& RHICmdList)
 			{
 				for (FNiagaraDataBuffer* Buffer : Data)
 				{

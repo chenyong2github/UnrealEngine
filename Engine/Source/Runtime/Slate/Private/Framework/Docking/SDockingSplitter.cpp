@@ -390,7 +390,7 @@ TSharedRef<SDockingTabStack> SDockingSplitter::FindTabStackToHouseWindowIcon() c
 
 TSharedRef<SDockingNode> SDockingSplitter::FindTabStack(ETabStackToFind FindMe) const
 {
-	auto FindFirstVisibleChild = [=]() -> TSharedRef<SDockingNode>
+	auto FindFirstVisibleChild = [this]() -> TSharedRef<SDockingNode>
 	{
 		for (auto ChildNode : Children)
 		{
@@ -404,7 +404,7 @@ TSharedRef<SDockingNode> SDockingSplitter::FindTabStack(ETabStackToFind FindMe) 
 		return Children[0];
 	};
 
-	auto FindLastVisibleChild = [=]() -> TSharedRef<SDockingNode>
+	auto FindLastVisibleChild = [this]() -> TSharedRef<SDockingNode>
 	{
 		for (int32 i = Children.Num() - 1; i >= 0; --i)
 		{

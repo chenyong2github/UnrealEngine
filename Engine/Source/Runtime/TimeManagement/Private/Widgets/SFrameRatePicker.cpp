@@ -102,7 +102,7 @@ TSharedRef<SWidget> SFrameRatePicker::BuildMenu()
 			FUIAction MenuAction(
 				FExecuteAction::CreateSP(this, &SFrameRatePicker::SetValue, ThisFrameRate),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([=]{ return ValueAttribute.IsSet() && ValueAttribute.Get() == ThisFrameRate; })
+				FIsActionChecked::CreateLambda([this, ThisFrameRate]{ return ValueAttribute.IsSet() && ValueAttribute.Get() == ThisFrameRate; })
 				);
 			MenuBuilder.AddMenuEntry(Preset.DisplayName, Preset.Description, FSlateIcon(), MenuAction, NAME_None, EUserInterfaceActionType::RadioButton);
 		}
@@ -135,7 +135,7 @@ TSharedRef<SWidget> SFrameRatePicker::BuildMenu()
 				FUIAction MenuAction(
 					FExecuteAction::CreateSP(this, &SFrameRatePicker::SetValue, ThisFrameRate),
 					FCanExecuteAction(),
-					FIsActionChecked::CreateLambda([=]{ return ValueAttribute.IsSet() && ValueAttribute.Get() == ThisFrameRate; })
+					FIsActionChecked::CreateLambda([this, ThisFrameRate]{ return ValueAttribute.IsSet() && ValueAttribute.Get() == ThisFrameRate; })
 					);
 				MenuBuilder.AddMenuEntry(Preset.DisplayName, Preset.Description, FSlateIcon(), MenuAction, NAME_None, EUserInterfaceActionType::RadioButton);
 			}
@@ -184,7 +184,7 @@ void SFrameRatePicker::PopulateNotRecommendedMenu(FMenuBuilder& MenuBuilder)
 		FUIAction MenuAction(
 			FExecuteAction::CreateSP(this, &SFrameRatePicker::SetValue, ThisFrameRate),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([=]{ return ValueAttribute.IsSet() && ValueAttribute.Get() == ThisFrameRate; })
+			FIsActionChecked::CreateLambda([this, ThisFrameRate]{ return ValueAttribute.IsSet() && ValueAttribute.Get() == ThisFrameRate; })
 			);
 		MenuBuilder.AddMenuEntry(Preset.DisplayName, Preset.Description, FSlateIcon(), MenuAction, NAME_None, EUserInterfaceActionType::RadioButton);
 

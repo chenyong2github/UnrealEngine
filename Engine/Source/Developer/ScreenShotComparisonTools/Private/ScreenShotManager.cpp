@@ -211,7 +211,7 @@ TArray<FString> FScreenShotManager::FindApprovedImages(const FAutomationScreensh
 
 TFuture<FImageComparisonResult> FScreenShotManager::CompareScreenshotAsync(const FString& IncomingPath, const FAutomationScreenshotMetadata& MetaData, const EScreenShotCompareOptions Options)
 {
-	return Async(EAsyncExecution::Thread, [=] () { return CompareScreenshot(IncomingPath, MetaData, Options); });
+	return Async(EAsyncExecution::Thread, [this, IncomingPath, MetaData, Options] () { return CompareScreenshot(IncomingPath, MetaData, Options); });
 }
 
 

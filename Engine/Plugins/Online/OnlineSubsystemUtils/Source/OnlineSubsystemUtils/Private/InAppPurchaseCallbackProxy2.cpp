@@ -213,7 +213,7 @@ void UInAppPurchaseCallbackProxy2::OnPurchaseComplete()
 		DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.DelayInAppPurchaseComplete"), STAT_FSimpleDelegateGraphTask_DelayInAppPurchaseComplete, STATGROUP_TaskGraphTasks);
 
 		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-			FSimpleDelegateGraphTask::FDelegate::CreateLambda([=]() {
+			FSimpleDelegateGraphTask::FDelegate::CreateLambda([this]() {
 
 			OnInAppPurchaseComplete_Delayed();
 

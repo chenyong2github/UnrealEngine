@@ -215,7 +215,7 @@ public:
 		{
 			AddCall(Call);
 
-			Call->OnCancelled().BindLambda([=]() {
+			Call->OnCancelled().BindLambda([this, CallId]() {
 				CancelCall(CallId);
 			});	
 		}

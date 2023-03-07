@@ -74,7 +74,7 @@ void FNiagaraSystemGpuComputeProxy::AddToRenderThread(FNiagaraGpuComputeDispatch
 	DebugOwnerComputeDispatchInterface = ComputeDispatchInterface;
 
 	ENQUEUE_RENDER_COMMAND(AddProxyToComputeDispatchInterface)(
-		[=](FRHICommandListImmediate& RHICmdList)
+		[this, ComputeDispatchInterface](FRHICommandListImmediate& RHICmdList)
 		{
 			ComputeDispatchInterface->AddGpuComputeProxy(this);
 
@@ -104,7 +104,7 @@ void FNiagaraSystemGpuComputeProxy::RemoveFromRenderThread(FNiagaraGpuComputeDis
 	DebugOwnerComputeDispatchInterface = nullptr;
 
 	ENQUEUE_RENDER_COMMAND(RemoveFromRenderThread)(
-		[=](FRHICommandListImmediate& RHICmdList)
+		[this, ComputeDispatchInterface, bDeleteProxy](FRHICommandListImmediate& RHICmdList)
 		{
 			ComputeDispatchInterface->RemoveGpuComputeProxy(this);
 			ReleaseTicks(ComputeDispatchInterface->GetGPUInstanceCounterManager(), TNumericLimits<int32>::Max());
@@ -137,7 +137,7 @@ void FNiagaraSystemGpuComputeProxy::ClearTicksFromRenderThread(FNiagaraGpuComput
 	check(DebugOwnerComputeDispatchInterface == ComputeDispatchInterface);
 
 	ENQUEUE_RENDER_COMMAND(ClearTicksFromProxy)(
-		[=](FRHICommandListImmediate& RHICmdList)
+		[this, ComputeDispatchInterface](FRHICommandListImmediate& RHICmdList)
 		{
 			ReleaseTicks(ComputeDispatchInterface->GetGPUInstanceCounterManager(), TNumericLimits<int32>::Max());
 		}

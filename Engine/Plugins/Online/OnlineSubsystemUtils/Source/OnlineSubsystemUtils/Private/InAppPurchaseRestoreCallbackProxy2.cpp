@@ -112,7 +112,7 @@ void UInAppPurchaseRestoreCallbackProxy2::OnInAppPurchaseRestoreComplete()
 		DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.DelayInAppPurchaseRestoreComplete"), STAT_FSimpleDelegateGraphTask_DelayInAppPurchaseRestoreComplete, STATGROUP_TaskGraphTasks);
 
 		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-			FSimpleDelegateGraphTask::FDelegate::CreateLambda([=](){
+			FSimpleDelegateGraphTask::FDelegate::CreateLambda([this](){
 
 				OnInAppPurchaseRestoreComplete_Delayed();
 

@@ -280,7 +280,7 @@ public:
 	 */
 	value_iteration<FEdge> Edges() const
 	{
-		return edges_refcount.MappedIndices<FEdge>([=](int EID) {
+		return edges_refcount.MappedIndices<FEdge>([this](int EID) {
 			return edges[EID];
 		});
 	}

@@ -368,7 +368,7 @@ public:
 				Role: "main", "alternate", "supplementary", "commentary", "dub", "emergency", "caption", "subtitle", "sign" or "description"
 				Accessibility: "sign", "caption", "description", "enhanced-audio-intelligibility", or starts with "608:"/"708:" followed by the Value
 			*/
-			auto IsCEAService = [=]() -> bool
+			auto IsCEAService = [this]() -> bool
 			{
 				for(auto &Acc : Accessibilities)
 				{

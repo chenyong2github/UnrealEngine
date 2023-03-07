@@ -1276,7 +1276,7 @@ void FScriptMapHelper::Rehash()
 	WithScriptMap([this](auto* Map)
 	{
 		// Moved out-of-line to maybe fix a weird link error
-		Map->Rehash(MapLayout, [=](const void* Src) {
+		Map->Rehash(MapLayout, [this](const void* Src) {
 			return KeyProp->GetValueTypeHash(Src);
 		});
 	});

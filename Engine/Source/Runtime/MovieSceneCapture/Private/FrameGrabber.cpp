@@ -408,7 +408,7 @@ void FFrameGrabber::OnBackBufferReadyToPresentCallback(SWindow& SlateWindow, con
 		PrevFrameTarget = nullptr;
 	}
 
-	Surfaces[ThisCaptureIndex].Surface.ResolveRenderTarget(PrevFrameTarget, BackBuffer, [=](FColor* ColorBuffer, int32 Width, int32 Height){
+	Surfaces[ThisCaptureIndex].Surface.ResolveRenderTarget(PrevFrameTarget, BackBuffer, [this, ThisCaptureIndex](FColor* ColorBuffer, int32 Width, int32 Height){
 		// Handle the frame
 		OnFrameReady(ThisCaptureIndex, ColorBuffer, Width, Height);
 	});

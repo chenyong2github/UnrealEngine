@@ -106,7 +106,7 @@ void UProceduralFoliageSpawner::Simulate(int32 NumSteps)
 		const int32 RandomNumber = GetRandomNumber();
 		const int32 LastCancelInit = LastCancel.GetValue();
 
-		Futures.Add(Async(EAsyncExecution::ThreadPool, [=]()
+		Futures.Add(Async(EAsyncExecution::ThreadPool, [this, NewTile, RandomNumber, NumSteps, LastCancelInit]()
 		{
 			NewTile->Simulate(this, RandomNumber, NumSteps, LastCancelInit);
 			return NewTile;

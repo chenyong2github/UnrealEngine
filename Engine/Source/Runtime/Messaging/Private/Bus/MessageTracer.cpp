@@ -35,7 +35,7 @@ void FMessageTracer::TraceAddedInterceptor(const TSharedRef<IMessageInterceptor,
 {
 	double Timestamp = FPlatformTime::Seconds();
 
-	Traces.Enqueue([=]() {
+	Traces.Enqueue([this, Interceptor, Timestamp]() {
 		// create interceptor information
 		auto& InterceptorInfo = Interceptors.FindOrAdd(Interceptor->GetInterceptorId());
 
@@ -56,7 +56,7 @@ void FMessageTracer::TraceAddedRecipient(const FMessageAddress& Address, const T
 {
 	double Timestamp = FPlatformTime::Seconds();
 
-	Traces.Enqueue([=]() {
+	Traces.Enqueue([this, Address, Recipient, Timestamp]() {
 		// create endpoint information
 		TSharedPtr<FMessageTracerEndpointInfo>& EndpointInfo = RecipientsToEndpointInfos.FindOrAdd(Recipient->GetRecipientId());
 
@@ -107,7 +107,7 @@ void FMessageTracer::TraceDispatchedMessage(const TSharedRef<IMessageContext, ES
 
 	double Timestamp = FPlatformTime::Seconds();
 
-	Traces.Enqueue([=]() {
+	Traces.Enqueue([this, Context, Recipient, Async, Timestamp]() {
 		// look up message & endpoint info
 		TSharedPtr<FMessageTracerMessageInfo> MessageInfo = MessageInfos.FindRef(Context);
 
@@ -151,7 +151,7 @@ void FMessageTracer::TraceHandledMessage(const TSharedRef<IMessageContext, ESPMo
 
 	double Timestamp = FPlatformTime::Seconds();
 
-	Traces.Enqueue([=]() {
+	Traces.Enqueue([this, Context, Recipient, Timestamp]() {
 		// look up message & endpoint info
 		TSharedPtr<FMessageTracerMessageInfo> MessageInfo = MessageInfos.FindRef(Context);
 
@@ -187,7 +187,7 @@ void FMessageTracer::TraceInterceptedMessage(const TSharedRef<IMessageContext, E
 
 	double Timestamp = FPlatformTime::Seconds();
 
-	Traces.Enqueue([=]() {
+	Traces.Enqueue([this, Context, Interceptor, Timestamp]() {
 		// look up message & interceptor info
 		auto MessageInfo = MessageInfos.FindRef(Context);
 
@@ -215,7 +215,7 @@ void FMessageTracer::TraceRemovedInterceptor(const TSharedRef<IMessageIntercepto
 {
 	double Timestamp = FPlatformTime::Seconds();
 
-	Traces.Enqueue([=]() {
+	Traces.Enqueue([this, Interceptor, MessageType, Timestamp]() {
 		auto InterceptorInfo = Interceptors.FindRef(Interceptor->GetInterceptorId());
 
 		if (!InterceptorInfo.IsValid())
@@ -233,7 +233,7 @@ void FMessageTracer::TraceRemovedRecipient(const FMessageAddress& Address)
 {
 	double Timestamp = FPlatformTime::Seconds();
 
-	Traces.Enqueue([=]() {
+	Traces.Enqueue([this, Address, Timestamp]() {
 		TSharedPtr<FMessageTracerEndpointInfo> EndpointInfo = AddressesToEndpointInfos.FindRef(Address);
 
 		if (!EndpointInfo.IsValid())
@@ -261,7 +261,7 @@ void FMessageTracer::TraceRemovedSubscription(const TSharedRef<IMessageSubscript
 
 	double Timestamp = FPlatformTime::Seconds();
 
-	Traces.Enqueue([=]() {
+	Traces.Enqueue([this, Subscription, MessageType]() {
 		// @todo gmp: trace removed message subscriptions
 	});
 }
@@ -282,7 +282,7 @@ void FMessageTracer::TraceRoutedMessage(const TSharedRef<IMessageContext, ESPMod
 
 	double Timestamp = FPlatformTime::Seconds();
 
-	Traces.Enqueue([=]() {
+	Traces.Enqueue([this, Context, Timestamp]() {
 		// update message information
 		TSharedPtr<FMessageTracerMessageInfo> MessageInfo = MessageInfos.FindRef(Context);
 
@@ -303,7 +303,7 @@ void FMessageTracer::TraceSentMessage(const TSharedRef<IMessageContext, ESPMode:
 
 	double Timestamp = FPlatformTime::Seconds();
 
-	Traces.Enqueue([=]() {
+	Traces.Enqueue([this, Context, Timestamp]() {
 		// look up endpoint info
 		TSharedPtr<FMessageTracerEndpointInfo> EndpointInfo = AddressesToEndpointInfos.FindRef(Context->GetSender());
 

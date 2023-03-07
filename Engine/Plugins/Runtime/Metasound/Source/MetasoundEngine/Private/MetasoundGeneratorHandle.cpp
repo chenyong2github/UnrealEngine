@@ -66,12 +66,12 @@ void UMetasoundGeneratorHandle::CacheMetasoundSource()
 void UMetasoundGeneratorHandle::AttachGeneratorDelegates()
 {
 	GeneratorCreatedDelegateHandle = CachedMetasoundSource->OnGeneratorInstanceCreated.AddLambda(
-		[=](uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator)
+		[this](uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator)
 		{
 			OnSourceCreatedAGenerator(InAudioComponentId, InGenerator);
 		});
 	GeneratorDestroyedDelegateHandle = CachedMetasoundSource->OnGeneratorInstanceDestroyed.AddLambda(
-		[=](uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator)
+		[this](uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator)
 		{
 			OnSourceDestroyedAGenerator(InAudioComponentId, InGenerator);
 		});

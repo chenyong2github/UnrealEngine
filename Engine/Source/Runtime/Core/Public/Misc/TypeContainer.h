@@ -285,7 +285,7 @@ public:
 
 		TSharedPtr<IInstanceProvider> Provider = MakeShareable(
 			new TFunctionInstanceProvider<R>(
-				[=]() -> TSharedPtr<void, Mode> {
+				[this, Delegate]() -> TSharedPtr<void, Mode> {
 					return Delegate.Execute(GetInstance<P>()...);
 				}
 			)
@@ -355,7 +355,7 @@ public:
 	{
 		TSharedPtr<IInstanceProvider> Provider = MakeShareable(
 			new TFunctionInstanceProvider<R>(
-				[=]() -> TSharedPtr<void, Mode> {
+				[this, CreateFunc]() -> TSharedPtr<void, Mode> {
 					return CreateFunc(GetInstance<P>()...);
 				}
 			)

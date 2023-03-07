@@ -458,7 +458,7 @@ uint32 TAsyncRunnable<ResultType>::Run()
 	FRunnableThread* Thread = ThreadFuture.Get();
 
 	// Enqueue deletion of the thread to a different thread.
-	Async(EAsyncExecution::TaskGraph, [=]() {
+	Async(EAsyncExecution::TaskGraph, [Thread, this]() {
 			delete Thread;
 			delete this;
 		}
