@@ -49,14 +49,14 @@ IMPLEMENT_MODULE( FCustomizableObjectPopulationEditorModule, CustomizableObjectP
 static void LogWarning(const char* msg)
 {
 	// Can be called from any thread.
-	UE_LOG(LogMutable, Warning, TEXT("%s"), ANSI_TO_TCHAR(msg) );
+	UE_LOG(LogMutable, Warning, TEXT("%s"), StringCast<TCHAR>(msg).Get() );
 }
 
 
 static void LogError(const char* msg)
 {
 	// Can be called from any thread.
-	UE_LOG(LogMutable, Error, TEXT("%s"), ANSI_TO_TCHAR(msg));
+	UE_LOG(LogMutable, Error, TEXT("%s"), StringCast<TCHAR>(msg).Get());
 }
 
 

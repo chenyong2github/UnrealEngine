@@ -265,8 +265,8 @@ namespace mu
 						"The state [%s] refers to a parameter [%s] "
 						"that has not been found in the model. This error can be "
 						"safely dismissed in case of partial compilation."), 
-						ANSI_TO_TCHAR(s.nodeState.m_name.c_str()),
-						ANSI_TO_TCHAR(s.nodeState.m_runtimeParams[p].c_str()));
+						StringCast<TCHAR>(s.nodeState.m_name.c_str()).Get(),
+						StringCast<TCHAR>(s.nodeState.m_runtimeParams[p].c_str()).Get());
                     m_pD->m_pErrorLog->GetPrivate()->Add(Temp, ELMT_WARNING, pNode->GetBasePrivate()->m_errorContext );
                 }
             }

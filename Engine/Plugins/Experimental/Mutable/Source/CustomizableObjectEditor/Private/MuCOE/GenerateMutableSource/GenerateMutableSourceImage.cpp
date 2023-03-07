@@ -175,8 +175,8 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 
 		GenerationContext.AddParameterNameUnique(Node, TypedNodeParam->ParameterName);
 
-		TextureNode->SetName(TCHAR_TO_ANSI(*TypedNodeParam->ParameterName));
-		TextureNode->SetUid(TCHAR_TO_ANSI(*GenerationContext.GetNodeIdUnique(Node).ToString()));
+		TextureNode->SetName(StringCast<ANSICHAR>(*TypedNodeParam->ParameterName).Get());
+		TextureNode->SetUid(StringCast<ANSICHAR>(*GenerationContext.GetNodeIdUnique(Node).ToString()).Get());
 
 		// TODO: Set a default value for the texture parameter?
 		//ColorNode->SetDefaultValue(TypedNodeParam->DefaultValue.R, TypedNodeParam->DefaultValue.G, TypedNodeParam->DefaultValue.B);
@@ -428,7 +428,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 			const UEdGraphPin* VariationPin = TypedNodeImageVar->VariationPin(VariationIndex);
 			if (!VariationPin) continue;
 
-			TextureNode->SetVariationTag(VariationIndex, TCHAR_TO_ANSI(*TypedNodeImageVar->Variations[VariationIndex].Tag));
+			TextureNode->SetVariationTag(VariationIndex, StringCast<ANSICHAR>(*TypedNodeImageVar->Variations[VariationIndex].Tag).Get());
 			if (const UEdGraphPin* ConnectedPin = FollowInputPin(*VariationPin))
 			{
 				mu::NodeImagePtr ChildNode = GenerateMutableSourceImage(ConnectedPin, GenerationContext, MaxTextureSize);
@@ -851,18 +851,18 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 				Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), Pin, GenerationContext);
 
 				// Generating a new Texture column if not exists
-				if (Table && Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == INDEX_NONE)
+				if (Table && Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
 				{
 					GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
 				}
 				
 				ImageTableNode->SetTable(Table);
-				ImageTableNode->SetColumn(TCHAR_TO_ANSI(*ColumnName));
-				ImageTableNode->SetParameterName(TCHAR_TO_ANSI(*TypedNodeTable->ParameterName));
+				ImageTableNode->SetColumn(StringCast<ANSICHAR>(*ColumnName).Get());
+				ImageTableNode->SetParameterName(StringCast<ANSICHAR>(*TypedNodeTable->ParameterName).Get());
 
 				GenerationContext.AddParameterNameUnique(Node, TypedNodeTable->ParameterName);
 				
-				if (Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == INDEX_NONE)
+				if (Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
 				{
 					FString Msg = FString::Printf(TEXT("Couldn't find pin column with name %s"), *ColumnName);
 					GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);

@@ -59,7 +59,7 @@ void SMutableParametersWidget::Tick(const FGeometry& AllottedGeometry, const dou
 
 	for ( int32 ParamIndex=0; ParamIndex< MutableParameters->GetCount(); ++ParamIndex )
 	{
-		FString ParamName = ANSI_TO_TCHAR(MutableParameters->GetName(ParamIndex));
+		FString ParamName = StringCast<TCHAR>(MutableParameters->GetName(ParamIndex)).Get();
 		TSharedPtr<SHorizontalBox> ParameterBox;
 
 		ParamBox->AddSlot()
@@ -139,7 +139,7 @@ void SMutableParametersWidget::Tick(const FGeometry& AllottedGeometry, const dou
 				for (int i = 0; i < ValueCount; ++i)
 				{
 					const char* ValueText = MutableParameters->GetIntPossibleValueName( ParamIndex, i );
-					OptionNamesAttribute.Add( FString(ANSI_TO_TCHAR(ValueText)) );				
+					OptionNamesAttribute.Add( FString(StringCast<TCHAR>(ValueText).Get()) );
 				}
 
 				ParameterBox->AddSlot()
@@ -373,8 +373,7 @@ void SMutableParametersWidget::OnIntParameterChanged(int32 InValue, int32 ParamI
 		// Update the text combo if any
 		if (Combo)
 		{
-			FString Text = TEXT("Invalid");
-			Text = ANSI_TO_TCHAR(MutableParameters->GetIntPossibleValueName(ParamIndex, InValue));
+			const FString Text = StringCast<TCHAR>(MutableParameters->GetIntPossibleValueName(ParamIndex, InValue)).Get();
 			Combo->SetText(FText::FromString(Text));
 		}
 
@@ -393,7 +392,7 @@ void SMutableParametersWidget::OnIntParameterTextChanged(TSharedPtr<FString> Sel
 		return;
 	}
 
-	int32 ValueIndex = MutableParameters->GetIntValueIndex(ParamIndex, TCHAR_TO_ANSI(**Selection));
+	int32 ValueIndex = MutableParameters->GetIntValueIndex(ParamIndex, StringCast<ANSICHAR>(**Selection).Get());
 	if (ValueIndex >= 0 && ValueIndex < MutableParameters->GetIntPossibleValueCount(ParamIndex))
 	{
 		int32 RealValue = MutableParameters->GetIntPossibleValue(ParamIndex, ValueIndex);

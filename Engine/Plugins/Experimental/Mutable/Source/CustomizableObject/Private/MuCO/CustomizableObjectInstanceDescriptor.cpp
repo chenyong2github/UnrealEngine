@@ -2058,7 +2058,7 @@ void FCustomizableObjectInstanceDescriptor::SetCurrentState(const FString& State
 	}
 	else
 	{
-		UE_LOG(LogMutable, Error, TEXT("%s: Unknown %s state."), ANSI_TO_TCHAR(__FUNCTION__), *StateName);
+		UE_LOG(LogMutable, Error, TEXT("%s: Unknown %s state."), StringCast<TCHAR>(__FUNCTION__).Get(), *StateName);
 	}
 }
 

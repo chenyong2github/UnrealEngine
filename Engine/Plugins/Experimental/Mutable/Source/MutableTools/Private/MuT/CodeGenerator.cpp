@@ -1305,7 +1305,7 @@ namespace mu
 
 							// It is already visible in the error log
 							//UE_LOG( LogMutableCore, Warning, TEXT("A texture [%s] has been resized from [%d x %d] to [%d x %d] because it didn't fit the layout [%d x %d]. "),
-							//	ANSI_TO_TCHAR(node.m_images[t].m_name.c_str()), oldSize[0], oldSize[1], desc.m_size[0], desc.m_size[1], grid[0], grid[1] );
+							//	StringCast<TCHAR>(node.m_images[t].m_name.c_str()).Get(), oldSize[0], oldSize[1], desc.m_size[0], desc.m_size[1], grid[0], grid[1] );
 
 							int currentLOD = m_currentParents.Last().m_lod;
 							char buf[256];

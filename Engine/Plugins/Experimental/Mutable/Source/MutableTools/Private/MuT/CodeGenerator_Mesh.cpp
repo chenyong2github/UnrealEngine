@@ -807,7 +807,7 @@ class Node;
 				const char* Aux = nullptr;
 				Aux = tag.c_str();
                 m_pErrorLog->GetPrivate()->Add( 
-					FString::Printf(TEXT("Unknown tag found in mesh variation [%s]."), ANSI_TO_TCHAR(Aux)),
+					FString::Printf(TEXT("Unknown tag found in mesh variation [%s]."), StringCast<TCHAR>(Aux).Get()),
 					ELMT_WARNING, 
 					node.m_errorContext
 				);

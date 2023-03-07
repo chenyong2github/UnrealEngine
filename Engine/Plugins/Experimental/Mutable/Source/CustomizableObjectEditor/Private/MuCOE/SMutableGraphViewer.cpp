@@ -44,10 +44,10 @@ public:
 
 		const char* TypeName = RowItem->MutableNode->GetType()->m_strName;
 
-		FText MainLabel = FText::FromString(ANSI_TO_TCHAR(TypeName));
+		FText MainLabel = FText::FromString(StringCast<TCHAR>(TypeName).Get());
 		if (RowItem->DuplicatedOf)
 		{
-			MainLabel = FText::FromString( FString::Printf(TEXT("%s (Duplicated)"), ANSI_TO_TCHAR(TypeName)));
+			MainLabel = FText::FromString( FString::Printf(TEXT("%s (Duplicated)"), StringCast<TCHAR>(TypeName).Get()));
 		}
 
 		// TODO
@@ -153,7 +153,7 @@ void SMutableGraphViewer::Construct(const FArguments& InArgs, const mu::NodePtr&
 
 					// Dump source model to a file.
 					FString SaveFileName = FString(SaveFilenames[0]);
-					mu::OutputFileStream stream(TCHAR_TO_ANSI(*SaveFileName));
+					mu::OutputFileStream stream(StringCast<ANSICHAR>(*SaveFileName).Get());
 					stream.Write(MUTABLE_SOURCE_MODEL_FILETAG, 4);
 					mu::OutputArchive arch(&stream);
 					mu::Node::Serialise(InRootNode.get(), arch);
@@ -460,7 +460,7 @@ FReply SMutableGraphViewer::OnDragOver(const FGeometry& MyGeometry, const FDragD
 				if (DraggedFileExtension == TEXT(".mutable_source"))
 				{
 					// Dump source model to a file.
-					mu::InputFileStream stream(TCHAR_TO_ANSI(*Files[0]));
+					mu::InputFileStream stream(StringCast<ANSICHAR>(*Files[0]).Get());
 
 					char MutableSourceTag[4] = {};
 					stream.Read(MutableSourceTag, 4);
@@ -496,7 +496,7 @@ FReply SMutableGraphViewer::OnDrop(const FGeometry& MyGeometry, const FDragDropE
 				if (DraggedFileExtension == TEXT(".mutable_source"))
 				{
 					// Dump source model to a file.
-					mu::InputFileStream stream(TCHAR_TO_ANSI(*Files[0]));
+					mu::InputFileStream stream(StringCast<ANSICHAR>(*Files[0]).Get());
 
 					char MutableSourceTag[4] = {};
 					stream.Read(MutableSourceTag, 4);

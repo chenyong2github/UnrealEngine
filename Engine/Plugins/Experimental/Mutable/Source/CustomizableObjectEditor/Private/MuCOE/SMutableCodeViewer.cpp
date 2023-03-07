@@ -149,7 +149,7 @@ public:
 			{
 				mu::OP::ParameterArgs Args = Program.GetOpArgs<mu::OP::ParameterArgs>(RowItem->MutableOperation);
 				OpName += TEXT(" ");
-				OpName += ANSI_TO_TCHAR(Program.m_parameters[int32(Args.variable)].m_name.c_str());
+				OpName += StringCast<TCHAR>(Program.m_parameters[int32(Args.variable)].m_name.c_str()).Get();
 				break;
 			}
 
@@ -157,7 +157,7 @@ public:
 			{
 				mu::OP::ImageSwizzleArgs Args = Program.GetOpArgs<mu::OP::ImageSwizzleArgs>(RowItem->MutableOperation);
 				OpName += TEXT(" ");
-				OpName += ANSI_TO_TCHAR(mu::TypeInfo::s_imageFormatName[int32(Args.format)]);
+				OpName += StringCast<TCHAR>(mu::TypeInfo::s_imageFormatName[int32(Args.format)]).Get();
 				break;
 			}
 
@@ -165,9 +165,9 @@ public:
 			{
 				mu::OP::ImagePixelFormatArgs Args = Program.GetOpArgs<mu::OP::ImagePixelFormatArgs>(RowItem->MutableOperation);
 				OpName += TEXT(" ");
-				OpName += ANSI_TO_TCHAR(mu::TypeInfo::s_imageFormatName[int32(Args.format)]);
+				OpName += StringCast<TCHAR>(mu::TypeInfo::s_imageFormatName[int32(Args.format)]).Get();
 				OpName += TEXT(" or ");
-				OpName += ANSI_TO_TCHAR(mu::TypeInfo::s_imageFormatName[int32(Args.formatIfAlpha)]);
+				OpName += StringCast<TCHAR>(mu::TypeInfo::s_imageFormatName[int32(Args.formatIfAlpha)]).Get();
 				break;
 			}
 
@@ -511,7 +511,7 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const TSharedPtr<mu
 					{
 						const FString SaveFileName = FString(SaveFilenames[0]);
 
-						mu::OutputFileStream Stream(TCHAR_TO_ANSI(*SaveFileName));
+						mu::OutputFileStream Stream(StringCast<ANSICHAR>(*SaveFileName).Get());
 						Stream.Write(MUTABLE_COMPILED_MODEL_FILETAG, 4);
 						mu::OutputArchive Archive(&Stream);
 						mu::Model::Serialise(InMutableModel.Get(), Archive);
@@ -1218,7 +1218,7 @@ void SMutableCodeViewer::GenerateAllTreeElements()
 	for ( uint32 StateIndex=0; StateIndex<StateCount; ++StateIndex )
 	{
 		const mu::FProgram::FState& State = ModelPrivate->m_program.m_states[StateIndex];
-		FString Caption = FString::Printf( TEXT("state [%s]"), ANSI_TO_TCHAR(State.m_name.c_str()) );
+		FString Caption = FString::Printf( TEXT("state [%s]"), StringCast<TCHAR>(State.m_name.c_str()).Get() );
 
 		const FSlateColor LabelColor = ColorPerComputationalCost[StaticCast<uint8>(GetOperationTypeComputationalCost(
 			ModelPrivate->m_program.GetOpType(State.m_root)))];
@@ -2652,7 +2652,7 @@ FReply SMutableCodeViewer::OnDragOver(const FGeometry& MyGeometry, const FDragDr
 				if (DraggedFileExtension == TEXT(".mutable_compiled"))
 				{
 					// Dump source model to a file.
-					mu::InputFileStream stream(TCHAR_TO_ANSI(*Files[0]));
+					mu::InputFileStream stream(StringCast<ANSICHAR>(*Files[0]).Get());
 
 					char MutableSourceTag[4] = {};
 					stream.Read(MutableSourceTag, 4);
@@ -2688,7 +2688,7 @@ FReply SMutableCodeViewer::OnDrop(const FGeometry& MyGeometry, const FDragDropEv
 				if (DraggedFileExtension == TEXT(".mutable_compiled"))
 				{
 					// Read a mutable compiled model file.
-					mu::InputFileStream stream(TCHAR_TO_ANSI(*Files[0]));
+					mu::InputFileStream stream(StringCast<ANSICHAR>(*Files[0]).Get());
 
 					char MutableSourceTag[4] = {};
 					stream.Read(MutableSourceTag, 4);

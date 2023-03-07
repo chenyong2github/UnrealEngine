@@ -1317,7 +1317,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 				MutableSkeleton->SetBoneCount(BoneMapIndex + 1);
 			}
 
-			MutableSkeleton->SetBoneName(BoneMapIndex, TCHAR_TO_ANSI(*BoneName));
+			MutableSkeleton->SetBoneName(BoneMapIndex, StringCast<ANSICHAR>(*BoneName).Get());
 			int32 ParentRefSkeletonIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(RefSkelIndex);
 			int ParentBoneMapIndex = ParentRefSkeletonIndex >= 0 ? InverseBoneMap[ParentRefSkeletonIndex] : -1;
 			MutableSkeleton->SetBoneParent(BoneMapIndex, ParentBoneMapIndex);
@@ -1333,7 +1333,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 				EnumAddFlags(BoneUsageFlags, mu::EBoneUsageFlags::Root);
 			}
 
-			MutableMesh->SetBonePose(BoneMapIndex, TCHAR_TO_ANSI(*BoneName), BaseInvTransform.Inverse(), BoneUsageFlags);
+			MutableMesh->SetBonePose(BoneMapIndex, StringCast<ANSICHAR>(*BoneName).Get(), BaseInvTransform.Inverse(), BoneUsageFlags);
 		}
 	}
 
@@ -1367,7 +1367,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 				{
 					RelevantBodySetups.Add(BodySetup);
 					DiscardedBodySetups[BodySetupIndex] = 0;
-					int32 BonePoseIndex = MutableMesh->FindBonePose(TCHAR_TO_ANSI(*BodyBoneName));
+					int32 BonePoseIndex = MutableMesh->FindBonePose(StringCast<ANSICHAR>(*BodyBoneName).Get());
 					
 					EnumAddFlags(MutableMesh->BonePoses[BonePoseIndex].BoneUsageFlags, mu::EBoneUsageFlags::Physics);
 				}
@@ -1426,7 +1426,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 			TObjectPtr<USkeletalBodySetup>& BodySetup = RelevantBodySetups[B];
 			
 			FString BodyBoneName = BodySetup->BoneName.ToString();
-			PhysicsBody->SetBodyBoneName( B, TCHAR_TO_ANSI(*BodyBoneName) );
+			PhysicsBody->SetBodyBoneName( B, StringCast<ANSICHAR>(*BodyBoneName).Get() );
 			
 			const int32 NumSpheres = BodySetup->AggGeom.SphereElems.Num();
 			PhysicsBody->SetSphereCount( B, NumSpheres );
@@ -1437,7 +1437,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 				PhysicsBody->SetSphere( B, I, FVector3f(SphereElem.Center), SphereElem.Radius );
 
 				const FString ElemName = SphereElem.GetName().ToString();
-				PhysicsBody->SetSphereName(B, I, TCHAR_TO_ANSI(*ElemName));	
+				PhysicsBody->SetSphereName(B, I, StringCast<ANSICHAR>(*ElemName).Get());	
 				PhysicsBody->SetSphereFlags(B, I, GetKBodyElemFlags(SphereElem));
 			}
 
@@ -1453,7 +1453,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 						FVector3f(BoxElem.X, BoxElem.Y, BoxElem.Z));
 
 				const FString KElemName = BoxElem.GetName().ToString();
-				PhysicsBody->SetBoxName(B, I, TCHAR_TO_ANSI(*KElemName));
+				PhysicsBody->SetBoxName(B, I, StringCast<ANSICHAR>(*KElemName).Get());
 				PhysicsBody->SetBoxFlags(B, I, GetKBodyElemFlags(BoxElem));
 			}
 
@@ -1478,7 +1478,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 				PhysicsBody->SetConvexTransform(B, I, FTransform3f(ConvexElem.GetTransform()));
 				
 				const FString KElemName = ConvexElem.GetName().ToString();
-				PhysicsBody->SetConvexName(B, I, TCHAR_TO_ANSI(*KElemName));
+				PhysicsBody->SetConvexName(B, I, StringCast<ANSICHAR>(*KElemName).Get());
 				PhysicsBody->SetConvexFlags(B, I, GetKBodyElemFlags(ConvexElem));
 			}
 
@@ -1494,7 +1494,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 						SphylElem.Radius, SphylElem.Length );
 
 				const FString KElemName = SphylElem.GetName().ToString();
-				PhysicsBody->SetSphylName(B, I, TCHAR_TO_ANSI(*KElemName));
+				PhysicsBody->SetSphylName(B, I, StringCast<ANSICHAR>(*KElemName).Get());
 				PhysicsBody->SetSphylFlags(B, I, GetKBodyElemFlags(SphylElem));
 			}
 
@@ -1510,7 +1510,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 						TaperedCapsuleElem.Radius0, TaperedCapsuleElem.Radius1, TaperedCapsuleElem.Length );
 				
 				const FString KElemName = TaperedCapsuleElem.GetName().ToString();
-				PhysicsBody->SetTaperedCapsuleName(B, I, TCHAR_TO_ANSI(*KElemName));
+				PhysicsBody->SetTaperedCapsuleName(B, I, StringCast<ANSICHAR>(*KElemName).Get());
 				PhysicsBody->SetTaperedCapsuleFlags( B, I, GetKBodyElemFlags(TaperedCapsuleElem));
 			}
 		}
@@ -2381,11 +2381,11 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 		{
 			const FName RowName = TypedNodeTable->GetRowNames()[RowIndex];
 
-			ColumnIndex = Table->FindColumn(TCHAR_TO_ANSI(*ColumnName));
+			ColumnIndex = Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get());
 
 			if (ColumnIndex == INDEX_NONE)
 			{
-				ColumnIndex = Table->AddColumn(TCHAR_TO_ANSI(*ColumnName), mu::TABLE_COLUMN_TYPE::TCT_MESH);
+				ColumnIndex = Table->AddColumn(StringCast<ANSICHAR>(*ColumnName).Get(), mu::TABLE_COLUMN_TYPE::TCT_MESH);
 			}
 
 			mu::MeshPtr MorphedSourceTableMesh = BuildMorphedMutableMesh(Pin, TypedNodeMorphs[MorphIndex].MorphTargetName, GenerationContext, RowName);
@@ -2398,8 +2398,8 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 
 			mu::NodeMeshTablePtr MorphedSourceMeshNodeTable = new mu::NodeMeshTable;
 			MorphedSourceMeshNodeTable->SetTable(Table);
-			MorphedSourceMeshNodeTable->SetColumn(TCHAR_TO_ANSI(*ColumnName));
-			MorphedSourceMeshNodeTable->SetParameterName(TCHAR_TO_ANSI(*TypedNodeTable->ParameterName));
+			MorphedSourceMeshNodeTable->SetColumn(StringCast<ANSICHAR>(*ColumnName).Get());
+			MorphedSourceMeshNodeTable->SetParameterName(StringCast<ANSICHAR>(*TypedNodeTable->ParameterName).Get());
 			MorphedSourceMeshNodeTable->SetMessageContext(MorphNode);
 
 			// A null target will leave the base unchanged
@@ -2460,7 +2460,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 
 						for (const FString& BoneName : BonesToDeform)
 						{
-							Result->AddBoneToDeform(TCHAR_TO_ANSI(*BoneName));
+							Result->AddBoneToDeform(StringCast<ANSICHAR>(*BoneName).Get());
 						}
 					}
 
@@ -2476,7 +2476,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 	
 						for (const FString& PhysicsBoneName : PhysicsToDeform)
 						{
-							Result->AddPhysicsBodyToDeform(TCHAR_TO_ANSI(*PhysicsBoneName));
+							Result->AddPhysicsBodyToDeform(StringCast<ANSICHAR>(*PhysicsBoneName).Get());
 						}
 					}
 						
@@ -3045,7 +3045,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			const UEdGraphPin* VariationPin = TypedNodeMeshVar->VariationPin(VariationIndex);
 			if (!VariationPin) continue;
 
-			MeshNode->SetVariationTag(VariationIndex, TCHAR_TO_ANSI(*TypedNodeMeshVar->Variations[VariationIndex].Tag));
+			MeshNode->SetVariationTag(VariationIndex, StringCast<ANSICHAR>(*TypedNodeMeshVar->Variations[VariationIndex].Tag).Get());
 			if (const UEdGraphPin* ConnectedPin = FollowInputPin(*VariationPin))
 			{
 				FMutableGraphMeshGenerationData VariationMeshData;
@@ -3166,7 +3166,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				
 				for (const FString& BoneName : BonesToDeform)
 				{
-					MeshNode->AddBoneToDeform(TCHAR_TO_ANSI(*BoneName));
+					MeshNode->AddBoneToDeform(StringCast<ANSICHAR>(*BoneName).Get());
 				}
 			}
 
@@ -3181,7 +3181,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 				for (const FString& PhysicsBoneName : PhysicsToDeform)
 				{
-					MeshNode->AddPhysicsBodyToDeform(TCHAR_TO_ANSI(*PhysicsBoneName));
+					MeshNode->AddPhysicsBodyToDeform(StringCast<ANSICHAR>(*PhysicsBoneName).Get());
 				}	
 			}
 			
@@ -3337,14 +3337,14 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			FString DataTableColumnName = TypedNodeTable->GetColumnNameByPin(Pin);
 
 			// Generating a new Mesh column if not exists
-			if (Table && Table->FindColumn(TCHAR_TO_ANSI(*MutableColumnName)) == INDEX_NONE)
+			if (Table && Table->FindColumn(StringCast<ANSICHAR>(*MutableColumnName).Get()) == INDEX_NONE)
 			{
 				GenerateTableColumn(TypedNodeTable, Pin, Table, DataTableColumnName, CurrentLOD, GenerationContext);
 			}
 
 			MeshTableNode->SetTable(Table);
-			MeshTableNode->SetColumn(TCHAR_TO_ANSI(*MutableColumnName));
-			MeshTableNode->SetParameterName(TCHAR_TO_ANSI(*TypedNodeTable->ParameterName));
+			MeshTableNode->SetColumn(StringCast<ANSICHAR>(*MutableColumnName).Get());
+			MeshTableNode->SetParameterName(StringCast<ANSICHAR>(*TypedNodeTable->ParameterName).Get());
 
 			GenerationContext.AddParameterNameUnique(Node, TypedNodeTable->ParameterName);
 
@@ -3411,7 +3411,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				MorphResult = GenerateMorphMesh(Pin, GenerationContext.MeshMorphStack, 0, Result, GenerationContext, MeshData, MutableColumnName);
 			}
 
-			if (Table->FindColumn(TCHAR_TO_ANSI(*MutableColumnName)) == INDEX_NONE)
+			if (Table->FindColumn(StringCast<ANSICHAR>(*MutableColumnName).Get()) == INDEX_NONE)
 			{
 				FString Msg = FString::Printf(TEXT("Couldn't find pin column with name %s"), *MutableColumnName);
 				GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);

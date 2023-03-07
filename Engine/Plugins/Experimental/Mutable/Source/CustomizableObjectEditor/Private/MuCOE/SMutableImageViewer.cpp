@@ -285,7 +285,7 @@ FText SMutableImageViewer::GetImageDescriptionLabel() const
 
 	mu::EImageFormat Format = MutableImage->GetFormat();
 	FString Label = FString::Printf(TEXT("%s - %d x %d - %d LODs"), 
-		ANSI_TO_TCHAR(mu::TypeInfo::s_imageFormatName[(size_t)Format]),
+		StringCast<TCHAR>(mu::TypeInfo::s_imageFormatName[(size_t)Format]).Get(),
 		MutableImage->GetSizeX(), 
 		MutableImage->GetSizeY(),
 		MutableImage->GetLODCount() );

@@ -968,7 +968,7 @@ int32 UCustomizableObject::FindState( const FString& Name ) const
 	int32 Result = -1;
 	if (PrivateData->GetModel())
 	{
-		Result = PrivateData->GetModel()->FindState( TCHAR_TO_ANSI(*Name) );
+		Result = PrivateData->GetModel()->FindState( StringCast<ANSICHAR>(*Name).Get() );
 	}
 
 	return Result;
@@ -994,7 +994,7 @@ FString UCustomizableObject::GetStateName(int32 StateIndex) const
 
 	if (PrivateData->GetModel())
 	{
-		Result = ANSI_TO_TCHAR( PrivateData->GetModel()->GetStateName(StateIndex) );
+		Result = StringCast<TCHAR>( PrivateData->GetModel()->GetStateName(StateIndex) ).Get();
 	}
 
 	return Result;

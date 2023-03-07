@@ -58,11 +58,11 @@ mu::NodeModifierPtr GenerateMutableSourceModifier(const UEdGraphPin * Pin, FMuta
 		ClipNode->SetParams(TypedNodeClip->B, TypedNodeClip->Exponent);
 		ClipNode->SetMorphEllipse(TypedNodeClip->Radius, TypedNodeClip->Radius2, TypedNodeClip->RotationAngle);
 
-		ClipNode->SetVertexSelectionBone(TCHAR_TO_ANSI(*TypedNodeClip->BoneName.ToString()), TypedNodeClip->MaxEffectRadius);
+		ClipNode->SetVertexSelectionBone(StringCast<ANSICHAR>(*TypedNodeClip->BoneName.ToString()).Get(), TypedNodeClip->MaxEffectRadius);
 
 		for (const FString& Tag : TypedNodeClip->Tags)
 		{
-			 ClipNode->AddTag(TCHAR_TO_ANSI(*Tag));
+			 ClipNode->AddTag(StringCast<ANSICHAR>(*Tag).Get());
 		}
 	}
 
@@ -100,7 +100,7 @@ mu::NodeModifierPtr GenerateMutableSourceModifier(const UEdGraphPin * Pin, FMuta
 	
 		for (const FString& Tag : TypedNodeClipDeform->Tags)
 		{
-			ClipNode->AddTag(TCHAR_TO_ANSI(*Tag));
+			ClipNode->AddTag(StringCast<ANSICHAR>(*Tag).Get());
 		}		
 	}
 
@@ -165,7 +165,7 @@ mu::NodeModifierPtr GenerateMutableSourceModifier(const UEdGraphPin * Pin, FMuta
 
 		for (const FString& Tag : TypedNodeClipMesh->Tags)
 		{
-			 ClipNode->AddTag(TCHAR_TO_ANSI(*Tag));
+			 ClipNode->AddTag(StringCast<ANSICHAR>(*Tag).Get());
 		}
 
 		if (TypedNodeClipMesh->CustomizableObjectToClipWith != nullptr)

@@ -432,8 +432,8 @@ bool GenerateMutableSourceGroupProjector(const UEdGraphPin* Pin, FMutableGraphGe
 
 			mu::NodeScalarParameterPtr NodeScalarParam = new mu::NodeScalarParameter;
 			FString NodeScalarParamName = ProjParamNode->ParameterName + FMultilayerProjector::NUM_LAYERS_PARAMETER_POSTFIX;
-			NodeScalarParam->SetName(TCHAR_TO_ANSI(*(NodeScalarParamName)));
-			NodeScalarParam->SetUid(TCHAR_TO_ANSI(*(ProjectorParamUid + FString("_NL"))));
+			NodeScalarParam->SetName(StringCast<ANSICHAR>(*(NodeScalarParamName)).Get());
+			NodeScalarParam->SetUid(StringCast<ANSICHAR>(*(ProjectorParamUid + FString("_NL"))).Get());
 			GenerationContext.AddParameterNameUnique(originalGroup, NodeScalarParamName);
 			NodeScalarParam->SetDefaultValue(0.f);
 
@@ -451,8 +451,8 @@ bool GenerateMutableSourceGroupProjector(const UEdGraphPin* Pin, FMutableGraphGe
 			
 			mu::NodeScalarEnumParameterPtr PoseEnumParameterNode = new mu::NodeScalarEnumParameter;
 			FString PoseNodeEnumParamName = ProjParamNode->ParameterName + FMultilayerProjector::POSE_PARAMETER_POSTFIX;
-			PoseEnumParameterNode->SetName(TCHAR_TO_ANSI(*(PoseNodeEnumParamName)));
-			PoseEnumParameterNode->SetUid(TCHAR_TO_ANSI(*(ProjectorParamUid + FString("_SP"))));
+			PoseEnumParameterNode->SetName(StringCast<ANSICHAR>(*(PoseNodeEnumParamName)).Get());
+			PoseEnumParameterNode->SetUid(StringCast<ANSICHAR>(*(ProjectorParamUid + FString("_SP"))).Get());
 			GenerationContext.AddParameterNameUnique(originalGroup, PoseNodeEnumParamName);
 			PoseEnumParameterNode->SetValueCount(ProjParamNode->OptionPoses.Num() + 1);
 			PoseEnumParameterNode->SetDefaultValueIndex(0);
@@ -465,8 +465,8 @@ bool GenerateMutableSourceGroupProjector(const UEdGraphPin* Pin, FMutableGraphGe
 
 			mu::NodeScalarParameterPtr OpacityParameterNode = new mu::NodeScalarParameter;
 			FString OpacityParameterNodeName = ProjParamNode->ParameterName + FMultilayerProjector::OPACITY_PARAMETER_POSTFIX;
-			OpacityParameterNode->SetName(TCHAR_TO_ANSI(*(OpacityParameterNodeName)));
-			OpacityParameterNode->SetUid(TCHAR_TO_ANSI(*(ProjectorParamUid + FString("_O"))));
+			OpacityParameterNode->SetName(StringCast<ANSICHAR>(*(OpacityParameterNodeName)).Get());
+			OpacityParameterNode->SetUid(StringCast<ANSICHAR>(*(ProjectorParamUid + FString("_O"))).Get());
 			GenerationContext.AddParameterNameUnique(originalGroup, OpacityParameterNodeName);
 			OpacityParameterNode->SetDefaultValue(0.75f);
 			OpacityParameterNode->SetRangeCount(1);
@@ -491,7 +491,7 @@ bool GenerateMutableSourceGroupProjector(const UEdGraphPin* Pin, FMutableGraphGe
 
 			for (int PoseIndex = 0; PoseIndex < ProjParamNode->OptionPoses.Num(); ++PoseIndex)
 			{
-				PoseEnumParameterNode->SetValue(PoseIndex + 1, (float)PoseIndex + 1.f, TCHAR_TO_ANSI(*ProjParamNode->OptionPoses[PoseIndex].PoseName));
+				PoseEnumParameterNode->SetValue(PoseIndex + 1, (float)PoseIndex + 1.f, StringCast<ANSICHAR>(*ProjParamNode->OptionPoses[PoseIndex].PoseName).Get());
 
 				TArray<FString> ArrayBoneName;
 				TArray<FTransform> ArrayTransform;
@@ -512,8 +512,8 @@ bool GenerateMutableSourceGroupProjector(const UEdGraphPin* Pin, FMutableGraphGe
 		
 			mu::NodeScalarEnumParameterPtr EnumParameterNode = new mu::NodeScalarEnumParameter;
 			FString NodeEnumParamName = ProjParamNode->ParameterName + FMultilayerProjector::IMAGE_PARAMETER_POSTFIX;
-			EnumParameterNode->SetName(TCHAR_TO_ANSI(*(NodeEnumParamName)));
-			EnumParameterNode->SetUid(TCHAR_TO_ANSI(*(ProjectorParamUid + FString("_SI"))));
+			EnumParameterNode->SetName(StringCast<ANSICHAR>(*NodeEnumParamName).Get());
+			EnumParameterNode->SetUid(StringCast<ANSICHAR>(*(ProjectorParamUid + FString("_SI"))).Get());
 			GenerationContext.AddParameterNameUnique(originalGroup, NodeEnumParamName);
 			EnumParameterNode->SetValueCount(ArrayOptionImage.Num());
 			EnumParameterNode->SetDefaultValueIndex(0);
@@ -526,7 +526,7 @@ bool GenerateMutableSourceGroupProjector(const UEdGraphPin* Pin, FMutableGraphGe
 
 			for (int ImageIndex = 0; ImageIndex < ArrayOptionImage.Num(); ++ImageIndex)
 			{
-				EnumParameterNode->SetValue(ImageIndex, (float)ImageIndex, TCHAR_TO_ANSI(*ArrayOptionImage[ImageIndex].OptionName));
+				EnumParameterNode->SetValue(ImageIndex, (float)ImageIndex, StringCast<ANSICHAR>(*ArrayOptionImage[ImageIndex].OptionName).Get());
 
 				FMutableParamUIMetadata optionMetadata = ParameterUIData.ParamUIMetadata;
 				optionMetadata.UIThumbnail = ArrayOptionImage[ImageIndex].OptionImage;

@@ -193,7 +193,7 @@ void FCustomizableObjectNodeLayoutBlocksDetails::OnGridComboBoxSelectionChanged(
 		mu::Model* Model = CustomInstance->CustomizableObject->GetModel();
 
 		CustomInstance->PreEditChange(NULL);
-		CustomInstance->State = Model->FindState( TCHAR_TO_ANSI(**Selection) );
+		CustomInstance->State = Model->FindState( StringCast<ANSICHAR>(**Selection).Get() );
 		CustomInstance->PostEditChange();
 
 		ResetParamBox();
