@@ -237,6 +237,8 @@ namespace Metasound
 			/** Provides all names of registered DataTypes. */
 			virtual void GetRegisteredDataTypeNames(TArray<FName>& OutNames) const = 0;
 
+			virtual const IDataTypeRegistryEntry* FindDataTypeRegistryEntry(const FName& InDataTypeName) const = 0;
+
 			/** Returns DataType info associated with the provided object. */
 			virtual bool GetDataTypeInfo(const UObject* InObject, FDataTypeRegistryInfo& OutInfo) const = 0;
 
