@@ -213,7 +213,7 @@ namespace Gauntlet
 					}
 
 					// look for-args= and then -clientargs= and -editorargs etc
-					Role.ExtraArgs = string.Join(' ', Globals.Params.ParseValues("Args", true));
+					Role.ExtraArgs = string.Join(' ', Globals.Params.ParseValue("Args", string.Empty));
 					string ExtraRoleArgs = Globals.Params.ParseValue(Type.ToString() + "Args", string.Empty);
 					if (!string.IsNullOrEmpty(ExtraRoleArgs))
 					{
