@@ -847,12 +847,20 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected virtual void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		protected virtual void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments, DirectoryReference OutputDir)
 		{
 			if (Target.WindowsPlatform.Compiler.IsMSVC())
 			{
 				// Explicitly compile the file as C++.
 				Arguments.Add("/TP");
+
+				if (CompileEnvironment.bWithAssembly)
+				{
+					// Write out an assembly file (.asm) with the c++ code embedded in it via comments
+					Arguments.Add("/FAs");
+					// Set the output directory for the asm files
+					Arguments.Add("/Fa" + OutputDir.FullName + "\\");
+				}
 			}
 			else
 			{
@@ -1478,6 +1486,14 @@ namespace UnrealBuildTool
 						}
 					}
 
+					if (CompileEnvironment.bWithAssembly && SourceFile.HasExtension(".cpp"))
+					{
+						if (Target.WindowsPlatform.Compiler.IsMSVC())
+						{
+							CompileAction.AdditionalProducedItems.Add(FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".asm")));
+						}
+					}
+
 					// Experimental: support for JSON output of timing data
 					if (Target.WindowsPlatform.Compiler.IsClang() && (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bClangTimeTrace))
 					{
@@ -1538,7 +1554,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					AppendCLArguments_CPP(CompileEnvironment, CompileAction.Arguments);
+					AppendCLArguments_CPP(CompileEnvironment, CompileAction.Arguments, OutputDir);
 				}
 
 				List<FileItem>? InlinedFiles;
@@ -2097,7 +2113,7 @@ namespace UnrealBuildTool
 				return;
 
 			VCCompileAction BaseCompileAction = CreateBaseCompileAction(CompileEnvironment);
-			AppendCLArguments_CPP(CompileEnvironment, BaseCompileAction.Arguments);
+			AppendCLArguments_CPP(CompileEnvironment, BaseCompileAction.Arguments, OutputDir);
 			BaseCompileAction.AdditionalPrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites); // Primarily for ispc.generated.h files
 			Graph.AddAction(new VcSpecificFileAction(SourceDir, OutputDir, BaseCompileAction));
 		}

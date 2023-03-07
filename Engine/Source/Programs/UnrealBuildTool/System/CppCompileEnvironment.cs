@@ -401,6 +401,11 @@ namespace UnrealBuildTool
 		public bool bPreprocessOnly = false;
 
 		/// <summary>
+		/// Should an assembly file be generated while compiling. Works exclusively on MSVC compilers for now.
+		/// </summary>
+		public bool bWithAssembly = false;
+
+		/// <summary>
 		/// Whether to support edit and continue.  Only works on Microsoft compilers in 32-bit compiles.
 		/// </summary>
 		public bool bSupportEditAndContinue;
@@ -674,6 +679,7 @@ namespace UnrealBuildTool
 			bEnableOSX109Support = Other.bEnableOSX109Support;
 			bUsePDBFiles = Other.bUsePDBFiles;
 			bPreprocessOnly = Other.bPreprocessOnly;
+			bWithAssembly = Other.bWithAssembly;
 			bSupportEditAndContinue = Other.bSupportEditAndContinue;
 			bUseIncrementalLinking = Other.bUseIncrementalLinking;
 			bAllowLTCG = Other.bAllowLTCG;

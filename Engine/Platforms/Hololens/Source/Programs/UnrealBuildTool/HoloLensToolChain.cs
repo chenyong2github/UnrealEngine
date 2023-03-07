@@ -75,9 +75,9 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected override void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		protected override void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments, DirectoryReference OutputDir)
 		{
-			base.AppendCLArguments_CPP(CompileEnvironment, Arguments);
+			base.AppendCLArguments_CPP(CompileEnvironment, Arguments, OutputDir);
 
 			// Enable Windows Runtime extensions.  Do this even for libs (plugins) so that these too can consume WinRT APIs
 			Arguments.Add("/ZW");

@@ -1701,6 +1701,12 @@ namespace UnrealBuildTool
 		public bool bPreprocessDepends = false;
 
 		/// <summary>
+		/// Whether to generate assembly data while compiling this target. Works exclusively on MSVC for now.
+		/// </summary>
+		[CommandLine("-WithAssembly")]
+		public bool bWithAssembly = false;
+
+		/// <summary>
 		/// Whether static code analysis should be enabled.
 		/// </summary>
 		[CommandLine("-StaticAnalyzer")]
@@ -3503,6 +3509,11 @@ namespace UnrealBuildTool
 		public bool bPreprocessDepends
 		{
 			get { return Inner.bPreprocessDepends; }
+		}
+
+		public bool bWithAssembly
+		{
+			get { return Inner.bWithAssembly; }
 		}
 
 		public StaticAnalyzer StaticAnalyzer

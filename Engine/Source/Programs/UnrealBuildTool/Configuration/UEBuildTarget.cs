@@ -4409,6 +4409,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bUsePDBFiles = Rules.bUsePDBFiles;
 			GlobalCompileEnvironment.bSupportEditAndContinue = Rules.bSupportEditAndContinue;
 			GlobalCompileEnvironment.bPreprocessOnly = Rules.bPreprocessOnly;
+			GlobalCompileEnvironment.bWithAssembly = Rules.bWithAssembly;
 			GlobalCompileEnvironment.bUseIncrementalLinking = Rules.bUseIncrementalLinking;
 			GlobalCompileEnvironment.bAllowLTCG = Rules.bAllowLTCG;
 			GlobalCompileEnvironment.bPGOOptimize = Rules.bPGOOptimize;
