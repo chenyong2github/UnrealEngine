@@ -25,6 +25,8 @@ public:
 #endif // !UE_BUILD_SHIPPING
 
 protected:
+	void ReadStatsFromCache(const FUserStats* ExistingUserStats, const TArray<FString>& StatNames, TMap<FString, FStatValue>& OutStats);
+
 	// TODO: Save UsersStats into local user profile
 	TArray<FUserStats> UsersStats;
 };

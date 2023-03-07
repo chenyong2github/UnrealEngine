@@ -94,10 +94,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsNull::UpdateStats(FUpdateStats::Params&
 	return Op->GetHandle();
 }
 
-namespace StatsNullPrivate
-{
-
-void ReadStatsFromCache(const FUserStats* ExistingUserStats, const TArray<FString>& StatNames, TMap<FString, FStatValue>& OutStats)
+void FStatsNull::ReadStatsFromCache(const FUserStats* ExistingUserStats, const TArray<FString>& StatNames, TMap<FString, FStatValue>& OutStats)
 {
 	for (const FString& StatName : StatNames)
 	{
@@ -110,10 +107,10 @@ void ReadStatsFromCache(const FUserStats* ExistingUserStats, const TArray<FStrin
 			}
 		}
 
-		OutStats.Add(StatName, FStatValue(static_cast<int64>(0)));
+		const FStatDefinition* StatDefinition = GetStatDefinition(StatName);
+		check(StatDefinition);
+		OutStats.Add(StatName, StatDefinition->DefaultValue);
 	}
-}
-
 }
 
 TOnlineAsyncOpHandle<FQueryStats> FStatsNull::QueryStats(FQueryStats::Params&& Params)
@@ -131,7 +128,7 @@ TOnlineAsyncOpHandle<FQueryStats> FStatsNull::QueryStats(FQueryStats::Params&& P
 		FQueryStats::Result Result;
 
 		FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(InAsyncOp.GetParams().TargetAccountId));
-		StatsNullPrivate::ReadStatsFromCache(ExistingUserStats, InAsyncOp.GetParams().StatNames, Result.Stats);
+		ReadStatsFromCache(ExistingUserStats, InAsyncOp.GetParams().StatNames, Result.Stats);
 
 		InAsyncOp.SetResult(MoveTemp(Result));
 	})
@@ -158,7 +155,7 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsNull::BatchQueryStats(FBatchQuerySt
 			FUserStats& UserStats = Result.UsersStats.Emplace_GetRef();
 			UserStats.AccountId = TargetAccountId;
 			FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(TargetAccountId));
-			StatsNullPrivate::ReadStatsFromCache(ExistingUserStats, InAsyncOp.GetParams().StatNames, UserStats.Stats);
+			ReadStatsFromCache(ExistingUserStats, InAsyncOp.GetParams().StatNames, UserStats.Stats);
 		}
 
 		InAsyncOp.SetResult(MoveTemp(Result));

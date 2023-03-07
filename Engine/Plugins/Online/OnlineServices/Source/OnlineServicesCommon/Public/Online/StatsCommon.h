@@ -30,6 +30,8 @@ struct FStatDefinition
 	int32 Id = 0;
 	/* How the stat will be modified */
 	EStatModifyMethod ModifyMethod = EStatModifyMethod::Set;
+	/* Store the default type and value */
+	FStatValue DefaultValue = FStatValue(int64(0));
 };
 
 struct FStatsCommonConfig
@@ -42,7 +44,8 @@ namespace Meta {
 BEGIN_ONLINE_STRUCT_META(FStatDefinition)
 	ONLINE_STRUCT_FIELD(FStatDefinition, Name),
 	ONLINE_STRUCT_FIELD(FStatDefinition, Id),
-	ONLINE_STRUCT_FIELD(FStatDefinition, ModifyMethod)
+	ONLINE_STRUCT_FIELD(FStatDefinition, ModifyMethod),
+	ONLINE_STRUCT_FIELD(FStatDefinition, DefaultValue)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FStatsCommonConfig)

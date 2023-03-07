@@ -14,6 +14,12 @@ namespace UE::Online {
 
 class FOnlineServicesEOSGS;
 
+/**
+ * Because the value type is int32 in EOS, stats types are converted to int32. So these are limitations: 
+ *	- String type of Stats is not supported;
+ *	- double type of Stats is casted to int32, and precision is UE_ONLINE_STAT_EOS_DOUBLE_PRECISION. Out of range value will be clamped;
+ *	- int64 type of Stats is casted to int32. Out of range value will be clamped;
+ */
 class ONLINESERVICESEOSGS_API FStatsEOSGS : public FStatsCommon
 {
 public:
@@ -29,7 +35,9 @@ public:
 	virtual TOnlineAsyncOpHandle<FQueryStats> QueryStats(FQueryStats::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FBatchQueryStats> BatchQueryStats(FBatchQueryStats::Params&& Params) override;
 
-private:
+protected:
+	void ReadStatsFromEOSResult(const EOS_Stats_OnQueryStatsCompleteCallbackInfo* Data, const TArray<FString>& StatNames, TMap<FString, FStatValue>& OutStats);
+
 	EOS_HStats StatsHandle = nullptr;
 	TArray<FUserStats> BatchQueriedUsersStats;
 };
