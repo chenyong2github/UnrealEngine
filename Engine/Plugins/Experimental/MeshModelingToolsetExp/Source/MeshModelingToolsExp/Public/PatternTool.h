@@ -42,6 +42,8 @@ public:
 	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
 	virtual void InitializeNewTool(UMultiSelectionMeshEditingTool* NewTool, const FToolBuilderState& SceneState) const override;
+
+	bool bEnableCreateISMCs = true;
 	
 protected:
 	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
@@ -403,12 +405,16 @@ public:
 	bool bConvertToDynamic = false;
 
 	/** Create InstancedStaticMeshComponents instead multiple StaticMeshComponents, for StaticMesh pattern elements */
-	UPROPERTY(EditAnywhere, Category = Output, meta = (EditCondition = "bHaveStaticMeshes == true && bSeparateActors == false && bConvertToDynamic == false", HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = Output, meta = (EditCondition = "bHaveStaticMeshes == true && bSeparateActors == false && bConvertToDynamic == false && bEnableCreateISMCs == true", HideEditConditionToggle))
 	bool bCreateISMCs = false;
 
 	/** internal, used to control state of Instance settings */
 	UPROPERTY(meta = (TransientToolProperty))
 	bool bHaveStaticMeshes = false;
+
+	// internal, used to disable the creation of ISMCs
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bEnableCreateISMCs = true;
 };
 
 
@@ -437,6 +443,8 @@ public:
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override { return true; }
+
+	virtual void SetEnableCreateISMCs(bool bEnable);
 
 public:
 	UPROPERTY()
@@ -567,7 +575,8 @@ protected:
 	
 	bool bHaveNonUniformScaleElements = false;
 
-	
+	bool bEnableCreateISMCs = true;
+
 	struct FComponentSet
 	{
 		TArray<UPrimitiveComponent*> Components;

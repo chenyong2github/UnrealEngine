@@ -371,9 +371,12 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 
 	TArray<TSharedPtr<FUICommandInfo>> LODPaletteItems({
 		Commands.BeginLODManagerTool,
-		Commands.BeginGenerateStaticMeshLODAssetTool,
-		Commands.BeginISMEditorTool
+		Commands.BeginGenerateStaticMeshLODAssetTool
 	});
+	if (Commands.BeginISMEditorTool)
+	{
+		LODPaletteItems.Add(Commands.BeginISMEditorTool);
+	}
 	ToolkitBuilder->AddPalette(
 		MakeShareable( new FToolPalette( Commands.LoadLodsTools.ToSharedRef(), LODPaletteItems)) );
 
@@ -1488,7 +1491,10 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginLODManagerTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGenerateStaticMeshLODAssetTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginISMEditorTool);
+		if (Commands.BeginISMEditorTool)
+		{
+			ToolbarBuilder.AddToolBarButton(Commands.BeginISMEditorTool);
+		}
 	}
 	else if (PaletteIndex == VoxToolsTabName)
 	{

@@ -69,7 +69,10 @@ bool UPatternToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) cons
 
 UMultiSelectionMeshEditingTool* UPatternToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return NewObject<UPatternTool>(SceneState.ToolManager);
+	UPatternTool* NewTool = NewObject<UPatternTool>(SceneState.ToolManager);
+	NewTool->SetEnableCreateISMCs(bEnableCreateISMCs);
+	return NewTool;
+	
 }
 
 void UPatternToolBuilder::InitializeNewTool(UMultiSelectionMeshEditingTool* NewTool, const FToolBuilderState& SceneState) const
@@ -704,6 +707,8 @@ void UPatternTool::Setup()
 	OutputSettings = NewObject<UPatternTool_OutputSettings>();
 	AddToolPropertySource(OutputSettings);
 	OutputSettings->RestoreProperties(this);
+	OutputSettings->bCreateISMCs &= bEnableCreateISMCs;
+	OutputSettings->bEnableCreateISMCs = bEnableCreateISMCs;
 
 	BoundingBoxVisualizer.LineThickness = 2.0f;
 	
@@ -1060,6 +1065,15 @@ void UPatternTool::OnParametersUpdated()
 	MarkPatternDirty();
 }
 
+void UPatternTool::SetEnableCreateISMCs(bool bEnable)
+{
+	bEnableCreateISMCs = bEnable;
+	if (OutputSettings)
+	{
+		OutputSettings->bCreateISMCs &= bEnableCreateISMCs;
+		OutputSettings->bEnableCreateISMCs = bEnableCreateISMCs;
+	}
+}
 
 void UPatternTool::OnTransformGizmoUpdated(UTransformProxy* Proxy, FTransform Transform)
 {

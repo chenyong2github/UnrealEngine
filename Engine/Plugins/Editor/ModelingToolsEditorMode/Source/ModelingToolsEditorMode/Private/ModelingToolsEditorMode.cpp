@@ -591,7 +591,10 @@ void UModelingToolsEditorMode::Enter()
 	RegisterTool(ToolManagerCommands.BeginTransformUVIslandsTool, TEXT("BeginTransformUVIslandsTool"), NewObject<UEditUVIslandsToolBuilder>());
 	RegisterTool(ToolManagerCommands.BeginLatticeDeformerTool, TEXT("BeginLatticeDeformerTool"), NewObject<ULatticeDeformerToolBuilder>());
 	RegisterTool(ToolManagerCommands.BeginSubdividePolyTool, TEXT("BeginSubdividePolyTool"), NewObject<USubdividePolyToolBuilder>());
-	RegisterTool(ToolManagerCommands.BeginPatternTool, TEXT("BeginPatternTool"), NewObject<UPatternToolBuilder>());
+
+	UPatternToolBuilder* PatternToolBuilder = NewObject<UPatternToolBuilder>();
+	PatternToolBuilder->bEnableCreateISMCs = !ModelingModeSettings->InRestrictiveMode();
+	RegisterTool(ToolManagerCommands.BeginPatternTool, TEXT("BeginPatternTool"), PatternToolBuilder);
 
 	UCombineMeshesToolBuilder* CombineMeshesToolBuilder = NewObject<UCombineMeshesToolBuilder>();
 	RegisterTool(ToolManagerCommands.BeginCombineMeshesTool, TEXT("BeginCombineMeshesTool"), CombineMeshesToolBuilder);
@@ -608,8 +611,12 @@ void UModelingToolsEditorMode::Enter()
 	GenerateSMLODToolBuilder->bInRestrictiveMode = ModelingModeSettings->InRestrictiveMode();
 	RegisterTool(ToolManagerCommands.BeginGenerateStaticMeshLODAssetTool, TEXT("BeginGenerateStaticMeshLODAssetTool"), GenerateSMLODToolBuilder);
 
-	UISMEditorToolBuilder* ISMEditorToolBuilder = NewObject<UISMEditorToolBuilder>();
-	RegisterTool(ToolManagerCommands.BeginISMEditorTool, TEXT("BeginISMEditorTool"), ISMEditorToolBuilder);
+	// ISMEd is disabled in Restrictive Mode.
+	if (ToolManagerCommands.BeginISMEditorTool)
+	{
+		UISMEditorToolBuilder* ISMEditorToolBuilder = NewObject<UISMEditorToolBuilder>();
+		RegisterTool(ToolManagerCommands.BeginISMEditorTool, TEXT("BeginISMEditorTool"), ISMEditorToolBuilder);
+	}
 
 
 	// edit tools
