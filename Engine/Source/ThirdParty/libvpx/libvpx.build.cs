@@ -30,6 +30,6 @@ public class LibVpx : ModuleRules
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(LibvpxLibraryPath, "Mac", ((Target.LinkType == TargetLinkType.Monolithic) ? "libvpx.a" : "libvpx_fPIC.a")));
 		}
-		PublicIncludePaths.Add(LibvpxIncludePath);
+		PublicSystemIncludePaths.Add(LibvpxIncludePath);
 	}
 }

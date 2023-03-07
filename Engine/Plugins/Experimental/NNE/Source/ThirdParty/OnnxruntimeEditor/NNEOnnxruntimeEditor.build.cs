@@ -19,7 +19,7 @@ public class NNEOnnxruntimeEditor : ModuleRules
 			// PublicSystemIncludePaths.Add(IncPath);
 
 			// PublicSystemIncludePaths
-			PublicIncludePaths.AddRange(
+			PublicSystemIncludePaths.AddRange(
 				new string[] {
 					System.IO.Path.Combine(ModuleDirectory, "include/"),
 					System.IO.Path.Combine(ModuleDirectory, "include/onnxruntime"),
