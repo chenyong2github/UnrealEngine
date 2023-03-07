@@ -16,6 +16,7 @@ class FLogProvider;
 class FFrameProvider;
 class FChannelProvider;
 class FScreenshotProvider;
+class FRegionProvider;
 
 class FMiscTraceAnalyzer
 	: public UE::Trace::IAnalyzer
@@ -26,8 +27,10 @@ public:
 					   FLogProvider& LogProvider,
 					   FFrameProvider& FrameProvider, 
 					   FChannelProvider& ChannelProvider,
-					   FScreenshotProvider& ScreenshotProvider);
+					   FScreenshotProvider& ScreenshotProvider,
+					   FRegionProvider& RegionProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
+	virtual void OnAnalysisEnd() override;
 	virtual void OnThreadInfo(const FThreadInfo& ThreadInfo) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
@@ -49,6 +52,8 @@ private:
 		RouteId_ChannelToggle,
 		RouteId_ScreenshotHeader,
 		RouteId_ScreenshotChunk,
+		RouteId_RegionBegin,
+		RouteId_RegionEnd
 	};
 
 	struct FThreadState
@@ -66,6 +71,8 @@ private:
 	FFrameProvider& FrameProvider;
 	FChannelProvider& ChannelProvider;
 	FScreenshotProvider& ScreenshotProvider;
+	FRegionProvider& RegionProvider;
+	
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStateMap;
 	uint64 LastFrameCycle[TraceFrameType_Count] = { 0, 0 };
 	uint64 ScreenshotLogCategoryId = uint64(-1);

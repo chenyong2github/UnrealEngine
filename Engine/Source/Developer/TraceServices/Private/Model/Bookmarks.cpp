@@ -4,11 +4,16 @@
 #include "Common/FormatArgs.h"
 #include "Model/BookmarksPrivate.h"
 #include "AnalysisServicePrivate.h"
+#include "RegionsPrivate.h"
+#include "Common/ProviderLock.h"
+#include "TraceServices/Model/Regions.h"
 
 namespace TraceServices
 {
 
 const FName FBookmarkProvider::ProviderName("BookmarkProvider");
+static constexpr FStringView RegionStartToken = TEXTVIEW("RegionStart:");
+static constexpr FStringView RegionEndToken = TEXTVIEW("RegionEnd:");
 
 FBookmarkProvider::FBookmarkProvider(IAnalysisSession& InSession)
 	: Session(InSession)
@@ -50,6 +55,9 @@ void FBookmarkProvider::AppendBookmark(uint64 BookmarkPoint, double Time, const 
 	Bookmark->Time = Time;
 	Bookmark->Text = Session.StoreString(FormatBuffer);
 	Bookmarks.Add(Bookmark);
+
+	CheckBookmarkForRegion(Bookmark);
+	
 	Session.UpdateDurationSeconds(Time);
 }
 
@@ -60,7 +68,35 @@ void FBookmarkProvider::AppendBookmark(uint64 BookmarkPoint, double Time, const 
 	Bookmark->Time = Time;
 	Bookmark->Text = Text;
 	Bookmarks.Add(Bookmark);
+
+	CheckBookmarkForRegion(Bookmark);
+	
 	Session.UpdateDurationSeconds(Time);
+}
+
+void FBookmarkProvider::CheckBookmarkForRegion(const TSharedRef<FBookmarkInternal> Bookmark) const
+{
+	const FStringView Text = Bookmark->Text;
+	IEditableRegionProvider* EditableRegionProvider = Session.EditProvider<IEditableRegionProvider>(FRegionProvider::ProviderName);
+
+	if (!EditableRegionProvider)
+	{
+		return;
+	}
+	
+	if (Text.StartsWith(RegionStartToken))
+	{
+		// StringView.GetData() is not necessarily null-terminated. Since we started from a null terminated string
+		// and only called RightChop() we should still be fine.
+		
+		FProviderEditScopeLock _(*EditableRegionProvider);
+		EditableRegionProvider->AppendRegionBegin(Text.RightChop(RegionStartToken.Len()).GetData(), Bookmark->Time);
+	}
+	if (Text.StartsWith(RegionEndToken))
+	{
+		FProviderEditScopeLock _(*EditableRegionProvider);
+		EditableRegionProvider->AppendRegionEnd(Text.RightChop(RegionEndToken.Len()).GetData(), Bookmark->Time);
+	}
 }
 
 void FBookmarkProvider::EnumerateBookmarks(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FBookmark &)> Callback) const

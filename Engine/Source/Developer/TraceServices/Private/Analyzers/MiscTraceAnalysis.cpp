@@ -2,12 +2,15 @@
 
 #include "MiscTraceAnalysis.h"
 
+#include "Common/ProviderLock.h"
 #include "Common/Utils.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Logging/MessageLog.h"
 #include "Model/BookmarksPrivate.h"
 #include "Model/Channel.h"
 #include "Model/FramesPrivate.h"
 #include "Model/LogPrivate.h"
+#include "Model/RegionsPrivate.h"
 #include "Model/ScreenshotProviderPrivate.h"
 #include "Model/ThreadsPrivate.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -20,13 +23,15 @@ FMiscTraceAnalyzer::FMiscTraceAnalyzer(IAnalysisSession& InSession,
 									   FLogProvider& InLogProvider,
 									   FFrameProvider& InFrameProvider,
 									   FChannelProvider& InChannelProvider,
-									   FScreenshotProvider& InScreenshotProvider)
+									   FScreenshotProvider& InScreenshotProvider,
+									   FRegionProvider& InRegionProvider)
 	: Session(InSession)
 	, ThreadProvider(InThreadProvider)
 	, LogProvider(InLogProvider)
 	, FrameProvider(InFrameProvider)
 	, ChannelProvider(InChannelProvider)
 	, ScreenshotProvider(InScreenshotProvider)
+	, RegionProvider(InRegionProvider)
 {
 	// Todo: update this to use provider locking instead of session locking
 	// FProviderEditScopeLock LogProviderLock (LogProvider);
@@ -55,6 +60,15 @@ void FMiscTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_ChannelToggle, "Trace", "ChannelToggle");
 	Builder.RouteEvent(RouteId_ScreenshotHeader, "Misc", "ScreenshotHeader");
 	Builder.RouteEvent(RouteId_ScreenshotChunk, "Misc", "ScreenshotChunk");
+	
+	Builder.RouteEvent(RouteId_RegionBegin, "Misc", "RegionBegin");
+	Builder.RouteEvent(RouteId_RegionEnd, "Misc", "RegionEnd");
+}
+
+void FMiscTraceAnalyzer::OnAnalysisEnd()
+{
+	FProviderEditScopeLock RegionProviderScopedLock(static_cast<IEditableProvider&>(RegionProvider));
+	RegionProvider.OnAnalysisSessionEnded();
 }
 
 void FMiscTraceAnalyzer::OnThreadInfo(const FThreadInfo& ThreadInfo)
@@ -228,6 +242,29 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		ThreadState->ThreadGroupStack.Pop();
 		break;
 	}
+	
+	case RouteId_RegionBegin:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		FString Name;
+		EventData.GetString("RegionName", Name);
+
+		FProviderEditScopeLock RegionProviderScopedLock(static_cast<const IRegionProvider&>(RegionProvider));
+		RegionProvider.AppendRegionBegin(*Name, Context.EventTime.AsSeconds(Cycle));
+		break;
+	}
+	
+	case RouteId_RegionEnd:
+	{
+		uint64 EndCycle = EventData.GetValue<uint64>("Cycle");
+		FString Name = TEXT("Invalid");
+		EventData.GetString("RegionName", Name);
+
+		FProviderEditScopeLock RegionProviderScopedLock(static_cast<const IRegionProvider&>(RegionProvider));
+		RegionProvider.AppendRegionEnd(*Name, Context.EventTime.AsSeconds(EndCycle));
+		break;
+	}
+		
 	//
 	// End retired events
 	}

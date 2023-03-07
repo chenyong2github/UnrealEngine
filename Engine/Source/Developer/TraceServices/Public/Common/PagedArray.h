@@ -756,4 +756,98 @@ inline SIZE_T GetNum(const TPagedArray<ItemType, PageType>& PagedArray)
 	return PagedArray.NumPages();
 }
 
+/**
+ *	Use binary search to find the first and last element inside a TPagedArray that overlaps a given input interval.
+ *	This requires the elements in the array to be sorted by the value returned from the Projection.
+ *	Example usage for Timeline events would require a projection that returns Item.StartTime and the resulting range.Min
+ *	will point to the last element where Item.End > StartTime and range.Max to the last element where
+ *	Item.StartTime < EndTime.
+ */
+template<typename ItemType, typename PageType>	
+FInt32Interval GetElementRangeOverlappingGivenRange(const TPagedArray<ItemType, PageType>& PagedArray,
+	double StartTime, double EndTime,
+	TFunctionRef<double(const ItemType&)> ItemStartProjection,
+	TFunctionRef<double(const ItemType&)> ItemEndProjection
+	)
+{
+	FInt32Interval Result = { -1, -1 };
+	check(EndTime >= StartTime);
+
+	const PageType* PageData = PagedArray.GetPages();
+	if (!PageData)
+	{
+		return Result;
+	}
+	
+	const int32 NumPoints = static_cast<int32>(PagedArray.Num());
+	const int32 NumPages = static_cast<int32>(PagedArray.NumPages());
+	const int32 PageSize = static_cast<int32>(PagedArray.GetPageSize());
+
+	if (ItemStartProjection(PagedArray.First()) > EndTime || ItemEndProjection(PagedArray.Last()) <= StartTime)
+	{
+		return Result;
+	}
+	
+	TArrayView<const PageType, int32> Pages = MakeArrayView(PageData, NumPages);
+
+	// find the page before the first page that's already inside the range (thus -1)
+	int32 StartPageIndex = Algo::UpperBoundBy(Pages, StartTime,
+		[&ItemEndProjection](const PageType& Page) { return ItemEndProjection(Page.Items[0]); });
+	StartPageIndex -= 1;
+
+	if (StartPageIndex < 0)
+	{
+		Result.Min = 0;
+		StartPageIndex = 0;
+	}
+	else 
+	{
+		// if we went past the end with StartPageIndex we still have to search the last page
+		const PageType& Page = PageData[StartPageIndex];
+		TArrayView<ItemType> PageValues(Page.Items, Page.Count);
+		const int32 Index = Algo::UpperBoundBy(PageValues, StartTime, ItemEndProjection);
+		check(Index >= 0);
+		// Index may point past the end of the page, but the first item in the next page could be valid
+		// as long as we're not in the last page
+		if (Index >= Page.Count && StartPageIndex + 1 == NumPages )
+		{
+			return Result;
+		}
+	
+		Result.Min = StartPageIndex * PageSize + Index;
+		check(Index <= NumPoints);
+	}
+	
+	TArrayView<const PageType, int32> RemainingPages = MakeArrayView(&PageData[StartPageIndex], NumPages - StartPageIndex);
+
+	int32 EndPageIndex = Algo::UpperBoundBy(RemainingPages, EndTime,
+		[&ItemStartProjection](const PageType& Page) { return ItemStartProjection(Page.Items[0]); });
+	// EndPageIndex needs to be remapped back to the full page range
+	EndPageIndex += StartPageIndex;
+
+	// past the end means we still have to search the last page, so no early out here
+	check(EndPageIndex > 0)
+	// find the page before the first page that outside the range (thus -1)
+	EndPageIndex -= 1;
+	
+	{
+		const PageType& Page = PageData[EndPageIndex];
+		TArrayView<ItemType> PageValues(Page.Items, Page.Count);
+		int32 Index = Algo::UpperBoundBy(PageValues, EndTime, ItemStartProjection);
+		check(Index >= 0);
+		// Index may point past the end of the page, that means include last element in result
+		if (Index >= PageValues.Num())
+		{
+			Index = PageValues.Num() - 1;
+		}
+		else
+		{
+			Index -= 1;
+		}
+		Result.Max = EndPageIndex * PageSize + Index;
+	}
+
+	return Result;
+}
+
 } // namespace TraceServices

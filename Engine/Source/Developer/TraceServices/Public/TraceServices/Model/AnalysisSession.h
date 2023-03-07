@@ -54,6 +54,11 @@ public:
 	virtual uint32 GetTraceId() const = 0;
 	virtual bool IsAnalysisComplete() const = 0;
 	virtual double GetDurationSeconds() const = 0;
+	/**
+	 * Update the internal estimation of the session duration with a new timestamp.
+	 * This function should be called with any timestamps from individual events so the full session duration can be
+	 * estimated.
+	 */
 	virtual void UpdateDurationSeconds(double Duration) = 0;
 	virtual FMessageLog* GetLog() const = 0;
 
