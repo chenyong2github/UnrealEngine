@@ -501,36 +501,45 @@ void FGenerateOriginInsertionNode::Evaluate(Dataflow::FContext& Context, const F
 		// these via an input on the node...
 		//
 		auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
-		// Origin vertices
-		if (!InOriginIndices.IsEmpty())
+		if (TManagedArray<int32>* ComponentIndex = InCollection.FindAttribute<int32>("ComponentIndex", FGeometryCollection::VerticesGroup))
 		{
-			for (int32 i = 0; i < InOriginIndices.Num(); ++i)
+			// Origin vertices
+			if (!InOriginIndices.IsEmpty())
 			{
-				if (InOriginIndices[i] < Vertex->Num())
+				for (int32 i = 0; i < InOriginIndices.Num(); ++i)
 				{
-					for (int32 j = 0; j < Vertex->Num(); ++j)
+					if (InOriginIndices[i] < Vertex->Num())
 					{
-						if (FVector::Distance(DoubleVert((*Vertex)[InOriginIndices[i]]), DoubleVert((*Vertex)[j])) < Radius)
+						for (int32 j = 0; j < Vertex->Num(); ++j)
 						{
-							OutOriginIndices.Add(j);
+							if ((*ComponentIndex)[InOriginIndices[i]] == (*ComponentIndex)[j] 
+								&& (*ComponentIndex)[InOriginIndices[i]] >= 0
+								&& (*ComponentIndex)[j] >= 0
+								&& ((*Vertex)[InOriginIndices[i]] - (*Vertex)[j]).Size() < Radius)
+							{
+								OutOriginIndices.Add(j);
+							}
 						}
 					}
 				}
 			}
-		}
 
-		// Insertion vertices
-		if (!InInsertionIndices.IsEmpty())
-		{
-			for (int32 i = 0; i < InInsertionIndices.Num(); ++i)
+			// Insertion vertices
+			if (!InInsertionIndices.IsEmpty())
 			{
-				if (InInsertionIndices[i] < Vertex->Num())
+				for (int32 i = 0; i < InInsertionIndices.Num(); ++i)
 				{
-					for (int32 j = 0; j < Vertex->Num(); ++j)
+					if (InInsertionIndices[i] < Vertex->Num())
 					{
-						if (FVector::Distance(DoubleVert((*Vertex)[InInsertionIndices[i]]), DoubleVert((*Vertex)[j])) < Radius)
+						for (int32 j = 0; j < Vertex->Num(); ++j)
 						{
-							OutInsertionIndices.Add(j);
+							if ((*ComponentIndex)[InInsertionIndices[i]] == (*ComponentIndex)[j]
+								&& (*ComponentIndex)[InInsertionIndices[i]] >= 0
+								&& (*ComponentIndex)[j] >= 0
+								&& ((*Vertex)[InInsertionIndices[i]] - (*Vertex)[j]).Size() < Radius)
+							{
+								OutInsertionIndices.Add(j);
+							}
 						}
 					}
 				}
