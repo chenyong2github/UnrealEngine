@@ -783,55 +783,6 @@ void FMenuStack::OnWindowDestroyed(TSharedRef<SWindow> InWindow)
 	}
 }
 
-namespace
-{
-	void AddChildrenToStack(TSharedPtr<SWidget> Root, TArray<TSharedPtr<SWidget>>& Stack)
-	{
-		if (!Root.IsValid())
-		{
-			return;
-		}
-
-		FChildren* Children = Root->GetChildren();
-		if (!Children)
-		{
-			return;
-		}
-
-		Stack.Reserve(Stack.Num() + Children->Num());
-
-		for (int ChildIndex = 0; ChildIndex < Children->Num(); ChildIndex++)
-		{
-			Stack.Push(Children->GetChildAt(ChildIndex));
-		}
-	}
-
-	// Iterative DFS for the first instance of a keyboard-focusable widget in the descendants of Root
-	void FindFirstKeyboardFocusableChildIteratively(TSharedPtr<SWidget> Root, TSharedPtr<SWidget>& OutWidget)
-	{
-		if (!Root.IsValid())
-		{
-			return;
-		}
-
-		TArray<TSharedPtr<SWidget>> Stack;
-		AddChildrenToStack(Root, Stack);
-
-		while (!Stack.IsEmpty())
-		{
-			TSharedPtr CurrentWidget = Stack.Pop();
-
-			if (CurrentWidget->SupportsKeyboardFocus())
-			{
-				OutWidget = CurrentWidget;
-				return;
-			}
-
-			AddChildrenToStack(CurrentWidget, Stack);
-		}
-	}
-}
-
 void FMenuStack::OnWindowActivated( TSharedRef<SWindow> ActivatedWindow )
 {
 	if (ActivatedWindow != PendingNewWindow && HasMenus() && !FSlateApplication::Get().IsWindowHousingInteractiveTooltip(ActivatedWindow))
@@ -851,13 +802,6 @@ void FMenuStack::OnWindowActivated( TSharedRef<SWindow> ActivatedWindow )
 					DismissFrom(Stack[DismissIndex]);
 					break;
 				}
-			}
-
-			TSharedPtr<SWidget> KeyboardFocusableChild = nullptr;
-			FindFirstKeyboardFocusableChildIteratively(ActivatedMenu.Pin()->GetContent(), KeyboardFocusableChild);
-			if (KeyboardFocusableChild.IsValid())
-			{
-				FSlateApplication::Get().SetKeyboardFocus(KeyboardFocusableChild, EFocusCause::SetDirectly);
 			}
 		}
 		else
