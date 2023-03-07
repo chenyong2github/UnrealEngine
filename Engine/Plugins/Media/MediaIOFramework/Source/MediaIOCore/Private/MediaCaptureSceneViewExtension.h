@@ -65,34 +65,14 @@ public:
 		}
 	};
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {}; 
-
-	virtual void PrePostProcessPass_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessingInputs& Inputs) override
-	{
-		if (CapturePhase == EMediaCapturePhase::BeforePostProcessing)
-		{
-			Inputs.Validate();
-
-			if (FRDGTextureRef TextureRef = Inputs.ViewFamilyTexture)
-			{
-				RDG_EVENT_SCOPE(GraphBuilder, "MediaCaptureSceneExtension");
-				if (UMediaCapture* MediaCapture = WeakCapture.Get())
-				{
-					MediaCapture->CaptureImmediate_RenderThread(GraphBuilder, TextureRef);
-				}
-			}
-		}
-	}
-
+	
 	virtual void SubscribeToPostProcessingPass(EPostProcessingPass PassId, FAfterPassCallbackDelegateArray& InOutPassCallbacks, bool bIsPassEnabled) override
-	{		
+	{
 		if ((CapturePhase == EMediaCapturePhase::AfterMotionBlur && PassId == EPostProcessingPass::MotionBlur)
 			|| (CapturePhase == EMediaCapturePhase::AfterToneMap && PassId == EPostProcessingPass::Tonemap)
-			|| (CapturePhase == EMediaCapturePhase::AfterFXAA && PassId == EPostProcessingPass::FXAA))
+			|| (CapturePhase == EMediaCapturePhase::AfterFXAA && PassId == EPostProcessingPass::FXAA)
+			|| (CapturePhase == EMediaCapturePhase::BeforePostProcessing && PassId == EPostProcessingPass::SSRInput))
 		{
-			if (!bIsPassEnabled)
-			{
-				UE_LOG(LogMediaIOCore, Warning, TEXT("Media Capture will not work since the selected capture phase is not enabled."));
-			}
 			InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateSP(this, &FMediaCaptureSceneViewExtension::PostProcessCallback_RenderThread));
 		}
 	}
@@ -108,13 +88,13 @@ public:
 
 		FScreenPassTexture SceneColor = InOutInputs.GetInput(EPostProcessMaterialInput::SceneColor);
 		InOutInputs.Validate();
-		
+
 		if (FRDGTextureRef TextureRef = SceneColor.Texture)
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "MediaCaptureSceneExtension");
 			if (WeakCapture.IsValid())
 			{
-				WeakCapture->CaptureImmediate_RenderThread(GraphBuilder, TextureRef);
+				WeakCapture->CaptureImmediate_RenderThread(GraphBuilder, TextureRef, SceneColor.ViewRect);
 			}
 		}
 

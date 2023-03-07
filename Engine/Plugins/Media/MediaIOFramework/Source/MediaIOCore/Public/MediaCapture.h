@@ -125,10 +125,10 @@ struct MEDIAIOCORE_API FRHICaptureResourceDescription
 UENUM(BlueprintType)
 enum class EMediaCapturePhase : uint8
 {
-	BeforePostProcessing,
+	BeforePostProcessing, // Will happen after TSR in order to get a texture of the right size.
+	AfterMotionBlur,
 	AfterToneMap,
 	AfterFXAA,
-	AfterMotionBlur,
 	EndFrame
 };
 
@@ -286,9 +286,9 @@ public:
 	bool UpdateTextureRenderTarget2D(UTextureRenderTarget2D* RenderTarget);
 	
 	/** Captures a resource immediately from the render thread. Used in RHI_RESOURCE capture mode */
-	void CaptureImmediate_RenderThread(FRDGBuilder& GraphBuilder, FRHITexture* InSourceTexture);
+	void CaptureImmediate_RenderThread(FRDGBuilder& GraphBuilder, FRHITexture* InSourceTexture, FIntRect SourceViewRect = FIntRect(0,0,0,0));
 	
-	void CaptureImmediate_RenderThread(FRDGBuilder& GraphBuilder, FRDGTextureRef InSourceTextureRef);
+	void CaptureImmediate_RenderThread(FRDGBuilder& GraphBuilder, FRDGTextureRef InSourceTextureRef, FIntRect SourceViewRect = FIntRect(0,0,0,0));
 
 	/**
 	 * Stop the previous requested capture.
@@ -607,7 +607,11 @@ private:
 		FCaptureBaseData BaseData;
 		TSharedPtr<FMediaCaptureUserData> UserData;
 	};
-	TSpscQueue<FQueuedCaptureData> CaptureDataQueue;
+
+	/** Used to synchronize access to the capture data queue. */
+	FCriticalSection CaptureDataQueueCriticalSection;
+	TArray<FQueuedCaptureData> CaptureDataQueue;
+	static constexpr int32 MaxCaptureDataAgeInFrames = 20;
 
 	/** Structure holding data used for synchronization of buffer output */
 	struct FMediaCaptureSyncData
