@@ -526,6 +526,8 @@ FHardwareDeviceIdentifier FHardwareDeviceIdentifier::DefaultKeyboardAndMouse =
 FHardwareDeviceIdentifier::FHardwareDeviceIdentifier()
 	: InputClassName(Invalid.InputClassName)
 	, HardwareDeviceIdentifier(Invalid.HardwareDeviceIdentifier)
+	, PrimaryDeviceType(EHardwareDevicePrimaryType::Unspecified)
+	, SupportedFeaturesMask(EHardwareDeviceSupportedFeatures::Type::Unspecified)
 {
 	
 }
