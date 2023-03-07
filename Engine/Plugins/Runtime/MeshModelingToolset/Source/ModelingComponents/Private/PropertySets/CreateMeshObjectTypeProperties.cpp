@@ -110,15 +110,6 @@ bool UCreateMeshObjectTypeProperties::ConfigureCreateMeshObjectParams(FCreateMes
 	// client has to handle this case
 	ensure(OutputType != AutoIdentifier);
 
-	const UModelingComponentsSettings* Settings = GetDefault<UModelingComponentsSettings>();
-	if (Settings)
-	{
-		ParamsOut.bEnableCollision = Settings->bEnableCollision;
-		ParamsOut.CollisionMode = Settings->CollisionMode;
-
-		ParamsOut.bEnableRaytracingSupport = Settings->bEnableRayTracing;
-	}
-
 	if (OutputType == StaticMeshIdentifier)
 	{
 		ParamsOut.TypeHint = ECreateObjectTypeHint::StaticMesh;

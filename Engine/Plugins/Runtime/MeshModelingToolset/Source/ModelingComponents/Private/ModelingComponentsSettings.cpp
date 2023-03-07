@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingComponentsSettings.h"
+#include "ModelingObjectsCreationAPI.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ModelingComponentsSettings)
 
@@ -29,5 +30,17 @@ FText UModelingComponentsEditorSettings::GetSectionDescription() const
 }
 #endif
 
+
+void UModelingComponentsSettings::ApplyDefaultsToCreateMeshObjectParams(FCreateMeshObjectParams& Params)
+{
+	const UModelingComponentsSettings* Settings = GetDefault<UModelingComponentsSettings>();
+	if (Settings)
+	{
+		Params.bEnableCollision = Settings->bEnableCollision;
+		Params.CollisionMode = Settings->CollisionMode;
+		Params.bGenerateLightmapUVs = Settings->bGenerateLightmapUVs;
+		Params.bEnableRaytracingSupport = Settings->bEnableRayTracing;
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

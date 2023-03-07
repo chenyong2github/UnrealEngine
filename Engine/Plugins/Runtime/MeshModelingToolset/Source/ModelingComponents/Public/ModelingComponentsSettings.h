@@ -6,7 +6,7 @@
 #include "BodySetupEnums.h"
 #include "ModelingComponentsSettings.generated.h"
 
-
+struct FCreateMeshObjectParams;
 
 /**
  * Settings for the Modeling Components plug-in. These settings are primarily used to configure two things:
@@ -48,6 +48,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Modeling Tools|New Mesh Objects")
 	bool bEnableRayTracing = false;
 
+	/** Enable auto-generated Lightmap UVs for new Mesh Objects created by Modeling Tools, where supported */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Tools|New Mesh Objects")
+	bool bGenerateLightmapUVs = false;
+
 	/** Enable Collision Support for new Mesh Objects created by Modeling Tools */
 	UPROPERTY(config, EditAnywhere, Category = "Modeling Tools|New Mesh Objects")
 	bool bEnableCollision = true;
@@ -55,6 +59,8 @@ public:
 	/** Default Collision Mode set on new Mesh Objects created by Modeling Tools */
 	UPROPERTY(config, EditAnywhere, Category = "Modeling Tools|New Mesh Objects")
 	TEnumAsByte<enum ECollisionTraceFlag> CollisionMode = ECollisionTraceFlag::CTF_UseComplexAsSimple;
+
+	static void ApplyDefaultsToCreateMeshObjectParams(FCreateMeshObjectParams& Params);
 
 
 };

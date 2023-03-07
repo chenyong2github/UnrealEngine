@@ -162,6 +162,14 @@ UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 	// Distance field
 	NewStaticMesh->bGenerateMeshDistanceField = Options.bAllowDistanceField;
 
+	// Set the initial overall static mesh lightmap settings to match the first lightmap build settings
+	if (Options.bGenerateLightmapUVs)
+	{
+		FMeshBuildSettings& BuildSettings = NewStaticMesh->GetSourceModel(0).BuildSettings;
+		NewStaticMesh->SetLightMapCoordinateIndex(BuildSettings.DstLightmapIndex);
+		NewStaticMesh->SetLightMapResolution(BuildSettings.MinLightmapResolution);
+	}
+
 	[[maybe_unused]] bool MarkedDirty = NewStaticMesh->MarkPackageDirty();
 	if (Options.bDeferPostEditChange == false)
 	{

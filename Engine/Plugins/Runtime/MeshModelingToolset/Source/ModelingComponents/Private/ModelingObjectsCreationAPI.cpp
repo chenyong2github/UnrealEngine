@@ -7,11 +7,25 @@
 #include "Misc/Paths.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "ModelingComponentsSettings.h"
 #include "DynamicMesh/NonManifoldMappingSupport.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ModelingObjectsCreationAPI)
 
+// if set to 1, then we do not default-initialize our new mesh object parameters based on the Modeling Components Settings (the Modeling Tools' Project Settings)
+static TAutoConsoleVariable<bool> CVarConstructMeshObjectsWithoutModelingComponentSettings(
+	TEXT("modeling.CreateMesh.IgnoreProjectSettings"),
+	false,
+	TEXT("If enabled, do not use the preferences set in Modeling Tools' Project Settings when constructing new mesh objects"));
 
+FCreateMeshObjectParams::FCreateMeshObjectParams(bool bConstructWithDefaultModelingComponentSettings)
+{
+	if (bConstructWithDefaultModelingComponentSettings && 
+		!CVarConstructMeshObjectsWithoutModelingComponentSettings.GetValueOnGameThread())
+	{
+		UModelingComponentsSettings::ApplyDefaultsToCreateMeshObjectParams(*this);
+	}
+}
 
 void FCreateMeshObjectParams::SetMesh(FMeshDescription&& MeshDescriptionIn)
 {

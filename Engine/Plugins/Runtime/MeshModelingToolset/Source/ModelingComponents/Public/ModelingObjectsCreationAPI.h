@@ -76,6 +76,10 @@ enum class ECreateObjectTypeHint : uint8
 USTRUCT(Blueprintable)
 struct MODELINGCOMPONENTS_API FCreateMeshObjectParams
 {
+	// @param bConstructWithDefaultModelingComponentSettings	Whether to initialize with the default project settings.
+	// Note the modeling component settings will not be used if the CVar "modeling.CreateMesh.IgnoreProjectSettings" is enabled
+	FCreateMeshObjectParams(bool bConstructWithDefaultModelingComponentSettings = true);
+
 	GENERATED_BODY()
 
 	//
@@ -142,6 +146,10 @@ struct MODELINGCOMPONENTS_API FCreateMeshObjectParams
 	/** Specify whether normals should be automatically recomputed for this new mesh object */
 	UPROPERTY(Category = "CreateMeshObjectParams", EditAnywhere)
 	bool bEnableRaytracingSupport = true;
+
+	/** Specify whether to auto-generate Lightmap UVs (if applicable for the output mesh type) */
+	UPROPERTY(Category = "CreateMeshObjectParams", EditAnywhere)
+	bool bGenerateLightmapUVs = false;
 
 	//
 	// Mesh Build Options, if this is applicable for the given mesh object
