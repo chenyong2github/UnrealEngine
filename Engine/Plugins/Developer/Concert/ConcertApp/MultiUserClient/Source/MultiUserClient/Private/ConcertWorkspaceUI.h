@@ -25,6 +25,22 @@ struct FSequencerInitParams;
  */
 class FConcertWorkspaceUI : public TSharedFromThis<FConcertWorkspaceUI>
 {
+	/** Name of menu extensions going into source control (bottom-right) */
+	static FName ConcertSourceControlMenuOwnerName;
+	/** Name for menu entry in source control that will persist changes */
+	static FName ConcertPersistSessionChangesMenuEntryName;
+
+	/** Name of UE section in asset context */
+	static FName AssetActionSectionNameToExtend;
+	/** Name of menu extensions going to asset context menu */
+	static FName ConcertAssetActionsMenuOwnerName;
+	/** Name of the new section in the asset action menu*/
+	static FName ConcertAssetActionsSectionName;
+	/** Name of entry added to asset context menu */
+	static FName ConcertAssetActionsDynamicEntryName;
+	/** Name of submenu added by ConcertAssetActionsDynamicEntryName */
+	static FName ConcertAssetActionsSubMenuName;
+
 public:
 	FConcertWorkspaceUI();
 	~FConcertWorkspaceUI();
@@ -100,11 +116,12 @@ private:
 	bool IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum = nullptr, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo = nullptr, int32 OtherClientsWithModifMaxFetchNum = 0) const;
 
 	/** Delegate called when a package is marked dirty. */
-	void OnMarkPackageDirty(class UPackage* InPackage, bool bDirty);
+	void OnMarkPackageDirty(UPackage* InPackage, bool bDirty);
 
-	/** Delegate to extend the content browser asset context menu. */
-	TSharedRef<FExtender> OnExtendContentBrowserAssetSelectionMenu(const TArray<FAssetData>& SelectedAssets);
-
+	/** Extends the toolbar with MU source control options */
+	void ExtendToolbarWithSourceControlMenu();
+	/** Extends the content browser asset context menu with MU options. */
+	void ExtendAssetContextMenuOptions();
 	/** Called to generate concert asset context menu. */
 	void GenerateConcertAssetContextMenu(FMenuBuilder& MenuBuilder, TArray<FName> AssetObjectPaths);
 

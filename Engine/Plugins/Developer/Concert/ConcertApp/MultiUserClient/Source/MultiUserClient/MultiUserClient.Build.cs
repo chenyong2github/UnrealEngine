@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"ConcertSyncClient",
 					"ConcertSyncCore",
 					"ConcertTransport",
+					"ContentBrowser",
 					"DesktopPlatform",
 					"EditorStyle",
 					"InputCore",
