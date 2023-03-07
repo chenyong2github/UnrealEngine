@@ -13,7 +13,7 @@ namespace TypedElementQueryBuilder
 		template<typename Target, typename ArgsCurrent, typename... ArgsRemainder>
 		constexpr uint32 GetVarArgIndex()
 		{
-			if constexpr (TIsSame<Target, ArgsCurrent>::Value)
+			if constexpr (std::is_same_v<Target, ArgsCurrent>)
 			{
 				return 0;
 			}
@@ -151,7 +151,7 @@ namespace TypedElementQueryBuilder
 			uint32 ColumnSize[] = { sizeof(Args)... };																		\
 																															\
 			using BaseContextType = typename TRemoveReference<ContextType>::Type;											\
-			if constexpr(TIsSame<BaseContextType, QueryContext>::Value)														\
+			if constexpr(std::is_same_v<BaseContextType, QueryContext>)														\
 			{																												\
 				const uint32 RowCount = Context.GetRowCount();																\
 				for (uint32 Index = 0; Index < RowCount; ++Index)															\
@@ -302,7 +302,7 @@ namespace TypedElementQueryBuilder
 		constexpr bool IsValidContextType()
 		{
 			using BaseContextType = typename std::remove_const_t<typename TRemoveReference<Context>::Type>;
-			if constexpr (TIsSame<BaseContextType, QueryContext>::Value)
+			if constexpr (std::is_same_v<BaseContextType, QueryContext>)
 			{
 				return true;
 			}

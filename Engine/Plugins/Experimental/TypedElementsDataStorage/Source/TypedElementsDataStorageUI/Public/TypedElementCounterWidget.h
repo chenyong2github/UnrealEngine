@@ -2,12 +2,26 @@
 
 #pragma once
 
+#include "Elements/Interfaces/TypedElementDataStorageFactory.h"
 #include "Elements/Interfaces/TypedElementDataStorageInterface.h"
 #include "Elements/Interfaces/TypedElementDataStorageUiInterface.h"
 #include "Internationalization/Text.h"
 #include "UObject/ObjectMacros.h"
 
-#include "TypedElementCounterWidgetConstructor.generated.h"
+#include "TypedElementCounterWidget.generated.h"
+
+UCLASS()
+class TYPEDELEMENTSDATASTORAGEUI_API UTypedElementCounterWidgetFactory : public UTypedElementDataStorageFactory
+{
+	GENERATED_BODY()
+
+public:
+	~UTypedElementCounterWidgetFactory() override = default;
+
+	void RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const override;
+	void RegisterWidgetConstructor(ITypedElementDataStorageInterface& DataStorage,
+		ITypedElementDataStorageUiInterface& DataStorageUi) const override;
+};
 
 /**
  * Constructor for the counter widget. The counter widget accepts a "count"-query. The query will be periodically
@@ -26,8 +40,6 @@ public:
 	FText ToolTipText{ NSLOCTEXT("TypedElementUI_CounterWidget", "Tooltip", "Shows the total number found in the editor.") };
 	FText LabelText{ NSLOCTEXT("TypedElementUI_CounterWidget", "Label", "Counted") };
 	TypedElementQueryHandle Query;
-
-	static void Register(ITypedElementDataStorageInterface& DataStorage, ITypedElementDataStorageUiInterface& DataStorageUi);
 
 protected:
 	TSharedPtr<SWidget> CreateWidget() override;

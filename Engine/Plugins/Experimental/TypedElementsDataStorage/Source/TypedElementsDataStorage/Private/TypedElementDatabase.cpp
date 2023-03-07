@@ -448,6 +448,11 @@ FName UTypedElementDatabase::GetQueryTickGroupName(EQueryTickGroups Group) const
 			return UE::Mass::ProcessorGroupNames::SyncWorldToMass;
 		case EQueryTickGroups::SyncDataStorageToExternal:
 			return UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
+		case EQueryTickGroups::SyncWidgets:
+		{
+			static const FName SyncWidgetGroupName(TEXT("SyncWidgets"));
+			return SyncWidgetGroupName;
+		}
 		default:
 			checkf(false, TEXT("EQueryTickGroups value %i can't be translated to a group name by this Data Storage backend."), static_cast<int>(Group));
 			return NAME_None;

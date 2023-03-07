@@ -7,9 +7,7 @@
 #include "UObject/GCObject.h"
 #include "UObject/ObjectPtr.h"
 
-struct FMassEntityManager;
 class FReferenceCollector;
-class ITypedElementDataStorageInterface;
 class UTypedElementDatabase;
 class UTypedElementDatabaseCompatibility;
 class UTypedElementDatabaseUi;

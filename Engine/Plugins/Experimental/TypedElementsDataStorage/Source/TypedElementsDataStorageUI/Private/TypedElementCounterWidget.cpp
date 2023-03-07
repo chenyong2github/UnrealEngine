@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TypedElementCounterWidgetConstructor.h"
+#include "TypedElementCounterWidget.h"
 
 #include "Elements/Columns/TypedElementSlateWidgetColumns.h"
 #include "Elements/Columns/TypedElementValueCacheColumns.h"
@@ -9,11 +9,56 @@
 #include "Layout/Margin.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/STextBlock.h"
+#include "TypedElementSubsystems.h"
 
 #define LOCTEXT_NAMESPACE "TypedElementUI_CounterWidget"
 
-void FTypedElementCounterWidgetConstructor::Register(
-	ITypedElementDataStorageInterface& DataStorage, ITypedElementDataStorageUiInterface& DataStorageUi)
+
+//
+// UTypedElementCounterWidgetFactory
+//
+
+void UTypedElementCounterWidgetFactory::RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const
+{
+	using namespace TypedElementQueryBuilder;
+	using DSI = ITypedElementDataStorageInterface;
+
+	DataStorage.RegisterQuery(Select(TEXT("Sync Counter Widgets"), 
+		FProcessor(DSI::EQueryTickPhase::FrameEnd, DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncWidgets)).ForceToGameThread(true),
+		[](
+			FCachedQueryContext<UTypedElementDataStorageSubsystem>& Context, 
+			FTypedElementSlateWidgetReferenceColumn& Widget,
+			FTypedElementU32IntValueCacheColumn& Comparison, 
+			const FTypedElementCounterWidgetColumn& Counter
+		)
+		{
+			UTypedElementDataStorageSubsystem* Subsystem = Context.GetCachedMutableSubsystem<UTypedElementDataStorageSubsystem>();
+			DSI* DataInterface = Subsystem->Get();
+			checkf(DataInterface, TEXT("FTypedElementsDataStorageUiModule tried to process widgets before the "
+				"Typed Elements Data Storage interface is available."));
+
+			DSI::FQueryResult Result = DataInterface->RunQuery(Counter.Query);
+			if (Result.Completed == DSI::FQueryResult::ECompletion::Fully && Result.Count != Comparison.Value)
+			{
+				TSharedPtr<SWidget> WidgetPointer = Widget.Widget.Pin();
+				checkf(WidgetPointer, TEXT("Referenced widget is not valid. A constructed widget may not have been cleaned up. This can "
+					"also happen if this processor is running in the same phase as the processors responsible for cleaning up old "
+					"references."));
+				checkf(WidgetPointer->GetType() == STextBlock::StaticWidgetClass().GetWidgetType(),
+					TEXT("Stored widget with FTypedElementCounterWidgetFragment doesn't match type %s, but was a %s."),
+					*(STextBlock::StaticWidgetClass().GetWidgetType().ToString()),
+					*(WidgetPointer->GetTypeAsString()));
+
+				STextBlock* WidgetInstance = static_cast<STextBlock*>(WidgetPointer.Get());
+				WidgetInstance->SetText(FText::Format(Counter.LabelTextFormatter, Result.Count));
+				Comparison.Value = Result.Count;
+			}
+		}
+	).Compile());
+}
+
+void UTypedElementCounterWidgetFactory::RegisterWidgetConstructor(ITypedElementDataStorageInterface& DataStorage,
+	ITypedElementDataStorageUiInterface& DataStorageUi) const
 {
 	using namespace TypedElementQueryBuilder;
 
@@ -43,6 +88,11 @@ void FTypedElementCounterWidgetConstructor::Register(
 		Compile());
 	DataStorageUi.RegisterWidgetFactory(Purpose, MoveTemp(WidgetCounter));
 }
+
+
+//
+// FTypedElementCounterWidgetConstructor
+//
 
 TSharedPtr<SWidget> FTypedElementCounterWidgetConstructor::CreateWidget()
 {

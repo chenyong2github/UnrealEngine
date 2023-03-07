@@ -21,7 +21,7 @@ struct FTypedElementDatabaseExtendedQuery
 	FMassEntityQuery NativeQuery;
 	ITypedElementDataStorageInterface::FQueryDescription::EActionType Action{ ITypedElementDataStorageInterface::FQueryDescription::EActionType::None };
 	ITypedElementDataStorageInterface::FQueryDescription::FCallbackData Callback;
-	TStrongObjectPtr<UMassProcessor> Processor{ nullptr };
+	TStrongObjectPtr<UMassProcessor> Processor;
 	bool bSimpleQuery{ false };
 };
 

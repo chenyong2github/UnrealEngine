@@ -169,7 +169,11 @@ public:
 		 * The group for processors that need to sync data from the Data Storage to external sources such as subsystems 
 		 * or the world into. These typically run late in a phase.
 		 */
-		SyncDataStorageToExternal
+		SyncDataStorageToExternal,
+		/**
+		 * Processors grouped under this name will sync data to/from widgets.
+		 */
+		SyncWidgets
 	};
 
 	enum class EQueryCallbackType : uint8

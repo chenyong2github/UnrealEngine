@@ -3,6 +3,7 @@
 #include "TypedElementsDataStorage.h"
 
 #include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementDataStorageFactory.h"
 #include "MassEntityTypes.h"
 #include "Misc/CoreDelegates.h"
 #include "Templates/IsPolymorphic.h"
@@ -63,12 +64,28 @@ void FTypedElementsDataStorageModule::StartupModule()
 				DatabaseUi = NewObject<UTypedElementDatabaseUi>();
 				DatabaseUi->Initialize(Database.Get());
 
+				// Register the various database instances.
 				UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 				checkf(Registry, TEXT(
 					"FTypedElementsDataStorageModule tried to register itself, but there was no Typed Element Registry to register to."));
 				Registry->SetDataStorage(Database.Get());
 				Registry->SetDataStorageCompatibility(DatabaseCompatibility.Get());
 				Registry->SetDataStorageUi(DatabaseUi.Get());
+
+				// Allow any factories to register their content.
+				TArray<UClass*> FactoryClasses;
+				GetDerivedClasses(UTypedElementDataStorageFactory::StaticClass(), FactoryClasses);
+				for (UClass* Factory : FactoryClasses)
+				{
+					if (Factory->HasAnyClassFlags(CLASS_Abstract))
+					{
+						continue;
+					}
+
+					UTypedElementDataStorageFactory* FactoryCDO = GetMutableDefault<UTypedElementDataStorageFactory>(Factory);
+					FactoryCDO->RegisterQueries(*Database);
+					FactoryCDO->RegisterWidgetConstructor(*Database, *DatabaseUi);
+				}
 
 				bInitialized = true;
 			}

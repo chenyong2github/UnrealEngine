@@ -7,30 +7,14 @@
 #include "Misc/CoreDelegates.h"
 #include "ToolMenu.h"
 #include "ToolMenus.h"
-#include "TypedElementCounterWidgetConstructor.h"
 #include "UObject/UObjectGlobals.h"
 #include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "FTypedElementsDataStorageModule"
 
 void FTypedElementsDataStorageUiModule::StartupModule()
-{	
-	FCoreDelegates::OnAllModuleLoadingPhasesComplete.AddLambda(
-		[this]()
-		{
-			UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-			checkf(Registry, TEXT(
-				"FTypedElementsDataStorageUiModule tried to retrieve the UTypedElementRegistry "
-				"before it was available."));
-			if (Registry->AreDataStorageInterfacesSet())
-			{
-				LateInitialization();
-			}
-			else
-			{
-				Registry->OnDataStorageInterfacesSet().AddStatic(&FTypedElementsDataStorageUiModule::LateInitialization);
-			}
-		});
+{
+	IMainFrameModule::Get().OnMainFrameCreationFinished().AddStatic(&FTypedElementsDataStorageUiModule::SetupMainWindowIntegrations);
 }
 
 void FTypedElementsDataStorageUiModule::ShutdownModule()
@@ -44,30 +28,6 @@ void FTypedElementsDataStorageUiModule::AddReferencedObjects(FReferenceCollector
 FString FTypedElementsDataStorageUiModule::GetReferencerName() const
 {
 	return TEXT("Typed Elements: Data Storage UI Module");
-}
-
-void FTypedElementsDataStorageUiModule::LateInitialization()
-{
-	RegisterWidgetFactories();
-	IMainFrameModule::Get().OnMainFrameCreationFinished().AddStatic(&FTypedElementsDataStorageUiModule::SetupMainWindowIntegrations);
-}
-
-void FTypedElementsDataStorageUiModule::RegisterWidgetFactories()
-{
-	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-	checkf(Registry, TEXT(
-		"FTypedElementsDataStorageUiModule didn't find the UTypedElementRegistry during widget registration when it should be available."));
-
-	ITypedElementDataStorageInterface* DataInterface = Registry->GetMutableDataStorage();
-	checkf(DataInterface, TEXT(
-		"FTypedElementsDataStorageUiModule tried to register widgets before the "
-		"Typed Elements Data Storage interface is available."));
-	ITypedElementDataStorageUiInterface* UiInterface = Registry->GetMutableDataStorageUi();
-	checkf(UiInterface, TEXT(
-		"FTypedElementsDataStorageUiModule tried to register widgets before the "
-		"Typed Elements Data Storage UI interface is available."));
-
-	FTypedElementCounterWidgetConstructor::Register(*DataInterface, *UiInterface);
 }
 
 void FTypedElementsDataStorageUiModule::SetupMainWindowIntegrations(TSharedPtr<SWindow> ParentWindow, bool bIsRunningStartupDialog)
