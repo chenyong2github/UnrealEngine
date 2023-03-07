@@ -116,6 +116,9 @@ namespace mu
         //! Refer to Settings::SetStreamingCache for more information.
         void SetStreamingCache( uint64 bytes );
 
+        //! Clears the streaming cache content. It does not modify the memory limit.
+		void ClearStreamingCache();
+		
         //! Set a new provider for external image data. This is only necessary if image parameters
         //! are used in the models.
 		//! The provided pointer becomes owned by the system.

@@ -974,8 +974,8 @@ namespace mu
 		MUTABLERUNTIME_API Ptr<const Mesh> BuildMesh(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
 		MUTABLERUNTIME_API Ptr<const Layout> BuildLayout(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
     	MUTABLERUNTIME_API Ptr<const Projector> BuildProjector(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		void ClearCache() ;
 		void SetStreamingCache(uint64 bytes) ;
+		void ClearStreamingCache() ;
 
         //!
         SettingsPtrConst m_pSettings;

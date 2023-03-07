@@ -147,7 +147,16 @@ namespace mu
         m_pD->SetStreamingCache( bytes );
     }
 
+	
+	//---------------------------------------------------------------------------------------------
+	void System::ClearStreamingCache()
+    {
+		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
+        m_pD->ClearStreamingCache();
+   }
+
+	
     //---------------------------------------------------------------------------------------------
     void System::SetImageParameterGenerator( ImageParameterGenerator* pInterface )
     {
@@ -616,6 +625,24 @@ namespace mu
 		m_modelCache.EnsureCacheBelowBudget(0);
 	}
 
+
+	//---------------------------------------------------------------------------------------------
+	void System::Private::ClearStreamingCache()
+	{
+		for (FModelCache::FModelCacheEntry& ModelCache : m_modelCache.m_cachePerModel)
+	    {
+		    if (const TSharedPtr<const Model> CacheModel = ModelCache.m_pModel.Pin())
+			{
+				FProgram& Program = CacheModel->GetPrivate()->m_program;
+
+				for (int32 RomIndex=0; RomIndex < Program.m_roms.Num(); ++RomIndex)
+				{
+					Program.UnloadRom(RomIndex);		
+    			}
+			}
+ 		}
+	}
+	
 
 	//---------------------------------------------------------------------------------------------
 	void System::Private::BeginBuild(const TSharedPtr<const Model>& pModel)

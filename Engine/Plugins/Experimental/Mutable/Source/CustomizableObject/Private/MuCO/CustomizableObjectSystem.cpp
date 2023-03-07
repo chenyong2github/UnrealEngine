@@ -78,9 +78,16 @@ UCustomizableObjectSystem* FCustomizableObjectSystemPrivate::SSystem = nullptr;
 
 
 static TAutoConsoleVariable<int32> CVarStreamingMemory(
-	TEXT("b.MutableStreamingMemory"),
+	TEXT("mutable.StreamingCacheMemory"),
 	-1,
 	TEXT("If different than 0, limit the amount of memory (in KB) to use to cache streaming data when building characters. 0 means no limit, -1 means use default (40Mb in PC and 20Mb in consoles)."),
+	ECVF_Scalability);
+
+
+TAutoConsoleVariable<bool> CVarClearStreamingCacheOnUpdateEnd(
+	TEXT("mutable.ClearStreamingCahceOnUpdateEnd"),
+	false,
+	TEXT("Clear the Streaming Cache when releasing an Instance."),
 	ECVF_Scalability);
 
 
@@ -777,8 +784,6 @@ void UpdateSkeletalMesh(UCustomizableObjectInstance* CustomizableObjectInstance,
 
 
 #if WITH_EDITOR
-			CustomizableObjectInstance->InstanceUpdated = true;
-
 			// \TODO: Review if we can avoid all this editor code here.
 			for (int32 MeshIndex = 0; MeshIndex < CustomizableObjectInstance->SkeletalMeshes.Num(); ++MeshIndex)
 			{
@@ -1709,6 +1714,11 @@ namespace impl
 				OperationData->InstanceID = 0;
 			}
 		}
+
+		if (CVarClearStreamingCacheOnUpdateEnd.GetValueOnAnyThread())
+		{
+			MutableSystem->ClearStreamingCache();
+		}
 	}
 
 
@@ -1723,6 +1733,11 @@ namespace impl
 		{
 			MutableSystem->ReleaseInstance(OperationData->InstanceID);
 			OperationData->InstanceID = 0;
+		}
+
+		if (CVarClearStreamingCacheOnUpdateEnd.GetValueOnAnyThread())
+		{
+			MutableSystem->ClearStreamingCache();			
 		}
 	}
 
@@ -2704,10 +2719,6 @@ void FMutableOperation::MutableIsDisabledCase()
 
 	// We must invalidate the current DescriptorRuntimeHash, since we're discarding everything.
 	CustomizableObjectInstance->Updated(EUpdateResult::Success, FDescriptorRuntimeHash());
-
-#if WITH_EDITOR
-	CustomizableObjectInstance->InstanceUpdated = true;
-#endif
 }
 
 
