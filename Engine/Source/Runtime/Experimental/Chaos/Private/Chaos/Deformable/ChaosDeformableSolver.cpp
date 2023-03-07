@@ -590,6 +590,7 @@ namespace Chaos::Softs
 				CollisionsInputBuffer = this->CurrentInputPackage->ObjectMap[Owner]->As<FCollisionManagerProxy::FCollisionsInputBuffer>();
 				if (CollisionsInputBuffer)
 				{
+					TArray<FCollisionObjectAddedBodies> IgnoredAdditions;
 					for (auto& AddBody : CollisionsInputBuffer->Added)
 					{
 						if (AddBody.Shapes)
@@ -603,6 +604,32 @@ namespace Chaos::Softs
 								TUniquePtr<FImplicitObject> UniquePtr(AddBody.Shapes); AddBody.Shapes = nullptr;
 								Evolution->CollisionParticles().SetDynamicGeometry(Index, MoveTemp(UniquePtr));
 								Proxy.CollisionBodies.Add(AddBody.Key, FCollisionObjectParticleHandel(Index, ViewIndex, AddBody.Transform));
+							}
+							else
+							{
+								IgnoredAdditions.Add(AddBody);
+							}
+						}
+					}
+
+					// If we tried to add a body that already was added, this means their
+					// should be a matching delete as the body was removed and added
+					// back before the physics thread could evaluate. 
+					for (auto& AddedBody : IgnoredAdditions)
+					{
+						for (int i=0; i<CollisionsInputBuffer->Removed.Num();)
+						{
+							if ((void*)CollisionsInputBuffer->Removed[i].Key.Get<0>() == (void*)AddedBody.Key.Get<0>())
+							{
+								CollisionsInputBuffer->Removed.RemoveAtSwap(i);
+								if (i == CollisionsInputBuffer->Removed.Num() - 1)
+								{
+									break;
+								}
+							}
+							else
+							{
+								i++;
 							}
 						}
 					}
