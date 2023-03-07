@@ -148,17 +148,17 @@ bool FRemoteControlField::CanBindObject(const UObject* InObjectToBind) const
 
 void FRemoteControlField::ClearMask(ERCMask InMaskBit)
 {
-	ActiveMasks &= ~InMaskBit;
+	ActiveMasks &= ~(uint8)InMaskBit;
 }
 
 void FRemoteControlField::EnableMask(ERCMask InMaskBit)
 {
-	ActiveMasks |= InMaskBit;
+	ActiveMasks |= (uint8)InMaskBit;
 }
 
 bool FRemoteControlField::HasMask(ERCMask InMaskBit) const
 {
-	return (ActiveMasks & InMaskBit) != ERCMask::NoMask;
+	return (ActiveMasks & (uint8)InMaskBit) != (uint8)ERCMask::NoMask;
 }
 
 void FRemoteControlField::PostSerialize(const FArchive& Ar)

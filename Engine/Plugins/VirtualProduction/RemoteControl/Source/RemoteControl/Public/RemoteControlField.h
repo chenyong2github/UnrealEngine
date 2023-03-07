@@ -55,7 +55,7 @@ struct REMOTECONTROL_API FRemoteControlField : public FRemoteControlEntity
 	virtual bool SupportsMasking() const { return false; }
 
 	/** Retrieves the enabled masks. */
-	ERCMask GetActiveMasks() const { return ActiveMasks; }
+	ERCMask GetActiveMasks() const { return (ERCMask)ActiveMasks; }
 
 	/**	Returns whether the field is only available in editor. */
 	bool IsEditorOnly() const { return bIsEditorOnly; }
@@ -106,7 +106,7 @@ protected:
 	
 	/** Holds the actively enabled masks. */
 	UPROPERTY()
-	ERCMask ActiveMasks = RC_AllMasks;
+	uint8 ActiveMasks = (uint8)RC_AllMasks;
 
 protected:
 	FRemoteControlField(URemoteControlPreset* InPreset, EExposedFieldType InType, FName InLabel, FRCFieldPathInfo InFieldPathInfo, const TArray<URemoteControlBinding*> InBindings);
