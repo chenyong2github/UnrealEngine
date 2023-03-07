@@ -364,13 +364,14 @@ bool UControlRig::Execute(const FName& InEventName)
 	}	
 #endif
 
+	// setup the draw interface for debug drawing
+	if(!bIsEventInQueue || bIsEventFirstInQueue)
+	{
+		DrawInterface.Reset();
+	}
+
 	if (bEnableDrawInterface)
 	{
-		// setup the draw interface for debug drawing
-		if(!bIsEventInQueue || bIsEventFirstInQueue)
-		{
-			DrawInterface.Reset();
-		}
 		PublicContext.SetDrawInterface(&DrawInterface);
 	}
 	else
