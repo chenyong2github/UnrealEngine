@@ -866,9 +866,13 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
+	virtual bool RequiresForceLoadMembers(UObject* InObject) const { return true; }
+
 	static bool ForceLoad(UObject* Obj);
 
 	static void ForceLoadMembers(UObject* InObject);
+
+	static void ForceLoadMembers(UObject* InObject, const UBlueprint* InBlueprint);
 
 	static void ForceLoadMetaData(UObject* InObject);
 

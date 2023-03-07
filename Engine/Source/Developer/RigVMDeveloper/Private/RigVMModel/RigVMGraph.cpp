@@ -172,7 +172,15 @@ URigVMNode* URigVMGraph::FindNode(const FString& InNodePath) const
 
 	if (URigVMCollapseNode* CollapseNode = Cast< URigVMCollapseNode>(FindNodeByName(*Left)))
 	{
-		return CollapseNode->GetContainedGraph()->FindNode(Right);
+		if(const URigVMGraph* ContainedGraph = CollapseNode->GetContainedGraph())
+		{
+			return ContainedGraph->FindNode(Right);
+		}
+		else
+		{
+			static constexpr TCHAR Format[] = TEXT("Collapse Node '%s' does not contain a subgraph.");
+			UE_LOG(LogRigVMDeveloper, Warning, Format, *CollapseNode->GetPathName());
+		}
 	}
 
 	return nullptr;

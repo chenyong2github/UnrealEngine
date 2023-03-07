@@ -117,14 +117,17 @@ URigVMNode* URigVMAggregateNode::GetLastInnerNode() const
 
 	if (LastInnerNodeCache == nullptr)
 	{
-		const FString ArgOppositeName = GetOppositeAggregatePin()->GetName();
-		if (IsInputAggregate())
+		if(const URigVMPin* OppositeAggregatePin = GetOppositeAggregatePin())
 		{
-			LastInnerNodeCache = GetAggregateInputs().Last()->GetLinkedTargetPins()[0]->GetNode();
-		}
-		else
-		{
-			LastInnerNodeCache = GetAggregateOutputs().Last()->GetLinkedSourcePins()[0]->GetNode();
+			const FString ArgOppositeName = OppositeAggregatePin->GetName();
+			if (IsInputAggregate())
+			{
+				LastInnerNodeCache = GetAggregateInputs().Last()->GetLinkedTargetPins()[0]->GetNode();
+			}
+			else
+			{
+				LastInnerNodeCache = GetAggregateOutputs().Last()->GetLinkedSourcePins()[0]->GetNode();
+			}
 		}
 	}
 #endif

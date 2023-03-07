@@ -1206,6 +1206,42 @@ bool UBlueprint::ForceLoad(UObject* Obj)
 
 void UBlueprint::ForceLoadMembers(UObject* InObject)
 {
+	if(const UBlueprint* Blueprint = Cast<UBlueprint>(InObject))
+	{
+		ForceLoadMembers(InObject, Blueprint);
+		return;
+	}
+
+	if(const UClass* Class = Cast<UClass>(InObject))
+	{
+		ForceLoadMembers(InObject, Cast<UBlueprint>(Class->ClassGeneratedBy));
+		return;
+	}
+
+	if(InObject->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		if(const UClass* Class = InObject->GetClass())
+		{
+			ForceLoadMembers(InObject, Cast<UBlueprint>(Class->ClassGeneratedBy));
+			return;
+		}
+	}
+
+	ForceLoadMembers(InObject, nullptr);
+}
+
+void UBlueprint::ForceLoadMembers(UObject* InObject, const UBlueprint* InBlueprint)
+{
+	check(InObject);
+	
+	if(InObject && InBlueprint)
+	{
+		if(!InBlueprint->RequiresForceLoadMembers(InObject))
+		{
+			return;
+		}
+	}
+	
 	// Collect a list of all things this element owns
 	TArray<UObject*> MemberReferences;
 	FReferenceFinder ComponentCollector(MemberReferences, InObject, false, true, true, true);
@@ -1217,7 +1253,7 @@ void UBlueprint::ForceLoadMembers(UObject* InObject)
 		UObject* CurrentObject = *it;
 		if (ForceLoad(CurrentObject))
 		{
-			ForceLoadMembers(CurrentObject);
+			ForceLoadMembers(CurrentObject, InBlueprint);
 		}
 	}
 }

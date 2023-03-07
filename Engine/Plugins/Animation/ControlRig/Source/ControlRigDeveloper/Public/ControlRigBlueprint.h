@@ -257,6 +257,7 @@ public:
 	virtual bool ExportGraphToText(UEdGraph* InEdGraph, FString& OutText) override;
 	virtual bool TryImportGraphFromText(const FString& InClipboardText, UEdGraph** OutGraphPtr = nullptr) override;
 	virtual bool CanImportGraphFromText(const FString& InClipboardText) override;
+	virtual bool RequiresForceLoadMembers(UObject* InObject) const override;
 
 	// UObject interface
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
@@ -415,6 +416,16 @@ protected:
 
 	UPROPERTY()
 	FRigVMClient RigVMClient;
+
+#if WITH_EDITORONLY_DATA
+
+	UPROPERTY()
+	bool ReferencedObjectPathsStored;
+
+	UPROPERTY()
+	TArray<FSoftObjectPath> ReferencedObjectPaths;
+
+#endif
 
 	/** Asset searchable information about exposed public functions on this rig */
 	UPROPERTY(AssetRegistrySearchable)

@@ -1369,7 +1369,7 @@ UClass* FBlueprintEditorUtils::RegenerateBlueprintClass(UBlueprint* Blueprint, U
 		UBlueprint::ForceLoadMetaData(Blueprint);
 		if (ensure(PreviousCDO))
 		{
-			UBlueprint::ForceLoadMembers(PreviousCDO);
+			UBlueprint::ForceLoadMembers(PreviousCDO, Blueprint);
 		}
 		UBlueprint::ForceLoadMembers(Blueprint);
 	}

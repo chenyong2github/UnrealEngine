@@ -55,6 +55,11 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprint"
 
+TAutoConsoleVariable<bool> CVarEnablePreLoadFiltering(
+	TEXT("ControlRig.EnablePreLoadFiltering"),
+	true,
+	TEXT("When true the RigVMGraphs will be skipped during preload to speed up load times."));
+
 TAutoConsoleVariable<bool> CVarEnablePostLoadHashing(
 	TEXT("ControlRig.EnablePostLoadHashing"),
 	true,
@@ -123,6 +128,7 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	bSuspendPythonMessagesForRigVMClient = true;
 
 #if WITH_EDITORONLY_DATA
+	ReferencedObjectPathsStored = false;
 	GizmoLibrary_DEPRECATED = nullptr;
 	ShapeLibraries.Add(UControlRigSettings::Get()->DefaultShapeLibrary);
 #endif
@@ -271,6 +277,23 @@ bool UControlRigBlueprint::ExportGraphToText(UEdGraph* InEdGraph, FString& OutTe
 bool UControlRigBlueprint::CanImportGraphFromText(const FString& InClipboardText)
 {
 	return GetTemplateController(true)->CanImportNodesFromText(InClipboardText);
+}
+
+bool UControlRigBlueprint::RequiresForceLoadMembers(UObject* InObject) const
+{
+	// we can stop traversing when hitting a URigVMNode
+	// (except for collapse nodes - since they contain a graphs again)
+	if(InObject->IsA<URigVMNode>())
+	{
+		if(!InObject->IsA<URigVMCollapseNode>())
+		{
+			if(CVarEnablePreLoadFiltering->GetBool())
+			{
+				return false;
+			}
+		}
+	}
+	return UBlueprint::RequiresForceLoadMembers(InObject);
 }
 
 void UControlRigBlueprint::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
@@ -704,22 +727,37 @@ void UControlRigBlueprint::Serialize(FArchive& Ar)
 
 	if(Ar.IsObjectReferenceCollector())
 	{
-		TArray<IRigVMGraphFunctionHost*> ReferencedFunctionHosts = GetReferencedFunctionHosts(false);
+		Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
 
-		for(IRigVMGraphFunctionHost* ReferencedFunctionHost : ReferencedFunctionHosts)
+
+#if WITH_EDITORONLY_DATA
+		if (Ar.IsCooking() && ReferencedObjectPathsStored)
 		{
-			if (URigVMBlueprintGeneratedClass* BPGeneratedClass = Cast<URigVMBlueprintGeneratedClass>(ReferencedFunctionHost))
+			for (FSoftObjectPath ObjectPath : ReferencedObjectPaths)
 			{
-				Ar << BPGeneratedClass;
+				ObjectPath.Serialize(Ar);
 			}
 		}
-
-		for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibraryPtr : ShapeLibraries)
+		else
+#endif
 		{
-			if(ShapeLibraryPtr.IsValid())
+			TArray<IRigVMGraphFunctionHost*> ReferencedFunctionHosts = GetReferencedFunctionHosts(false);
+
+			for(IRigVMGraphFunctionHost* ReferencedFunctionHost : ReferencedFunctionHosts)
 			{
-				UControlRigShapeLibrary* ShapeLibrary = ShapeLibraryPtr.Get();
-				Ar << ShapeLibrary;
+				if (URigVMBlueprintGeneratedClass* BPGeneratedClass = Cast<URigVMBlueprintGeneratedClass>(ReferencedFunctionHost))
+				{
+					Ar << BPGeneratedClass;
+				}
+			}
+
+			for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibraryPtr : ShapeLibraries)
+			{
+				if(ShapeLibraryPtr.IsValid())
+				{
+					UControlRigShapeLibrary* ShapeLibrary = ShapeLibraryPtr.Get();
+					Ar << ShapeLibrary;
+				}
 			}
 		}
 	}
@@ -762,6 +800,29 @@ void UControlRigBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 			PublicGraphFunctions[i] = RigClass->GetRigVMGraphFunctionStore()->PublicFunctions[i].Header;
 		}
 	}
+
+#if WITH_EDITORONLY_DATA
+	ReferencedObjectPaths.Reset();
+
+	TArray<IRigVMGraphFunctionHost*> ReferencedFunctionHosts = GetReferencedFunctionHosts(false);
+	for(IRigVMGraphFunctionHost* ReferencedFunctionHost : ReferencedFunctionHosts)
+	{
+		if (URigVMBlueprintGeneratedClass* BPGeneratedClass = Cast<URigVMBlueprintGeneratedClass>(ReferencedFunctionHost))
+		{
+			ReferencedObjectPaths.AddUnique(BPGeneratedClass);
+		}
+	}
+
+	for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibraryPtr : ShapeLibraries)
+	{
+		if(ShapeLibraryPtr.IsValid())
+		{
+			UControlRigShapeLibrary* ShapeLibrary = ShapeLibraryPtr.Get();
+			ReferencedObjectPaths.AddUnique(ShapeLibrary);
+		}
+	}
+	ReferencedObjectPathsStored = true;
+#endif
 
 	bExposesAnimatableControls = false;
 	Hierarchy->ForEach<FRigControlElement>([this](FRigControlElement* ControlElement) -> bool

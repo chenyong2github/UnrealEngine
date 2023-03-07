@@ -767,7 +767,7 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 	{
 		if( !WidgetBP->bHasBeenRegenerated )
 		{
-			UBlueprint::ForceLoadMembers(WidgetBP->WidgetTree);
+			UBlueprint::ForceLoadMembers(WidgetBP->WidgetTree, WidgetBP);
 		}
 
 		FixAbandonedWidgetTree(WidgetBP);
