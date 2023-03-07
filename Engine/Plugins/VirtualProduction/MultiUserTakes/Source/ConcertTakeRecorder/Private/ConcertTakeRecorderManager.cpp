@@ -677,7 +677,6 @@ void FConcertTakeRecorderManager::ConnectToSession(IConcertClientSession& InSess
 
 	ClientChangeDelegate = InSession.OnSessionClientChanged().AddRaw(this, &FConcertTakeRecorderManager::OnSessionClientChanged);
 
-	
 	SendInitialState(InSession);
 	UpdateSessionClientList();
 }
@@ -693,6 +692,15 @@ void FConcertTakeRecorderManager::OnSessionConnectionChanged(IConcertClientSessi
 	{
 		UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multi-user Take Recorder Disconnecting from Session: %s"), *InSession.GetSessionInfo().SessionName);
 		DisconnectFromSession();
+	}
+
+	if (UTakeRecorder* ActiveTakeRecorder = UTakeRecorder::GetActiveRecorder())
+	{
+		ETakeRecorderState ActiveState = ActiveTakeRecorder->GetState();
+		if (ActiveState != ETakeRecorderState::Stopped && ActiveState != ETakeRecorderState::Cancelled)
+		{
+			ActiveTakeRecorder->Cancel();
+		}
 	}
 }
 
