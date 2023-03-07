@@ -24,6 +24,7 @@
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 
+class FTimingRegionsSharedState;
 class FFileActivitySharedState;
 class FFrameSharedState;
 class FLoadingSharedState;
@@ -544,6 +545,9 @@ protected:
 	// Shared state for File Activity (I/O) tracks
 	TSharedPtr<FFileActivitySharedState> FileActivitySharedState;
 
+	// Shared state for Regions tracks
+	TSharedPtr<FTimingRegionsSharedState> TimingRegionsSharedState;
+	
 	////////////////////////////////////////////////////////////
 
 	/** The time ruler track. It includes the custom time markers (ones user can drag with mouse). */
