@@ -474,8 +474,12 @@ namespace UnrealBuildTool
 			{
 				if (Framework.ZipFile != null)
 				{
-					FileItem ExtractedTokenFile = ExtractFramework(Framework, Graph, Logger);
-					FrameworkTokenFiles.Add(ExtractedTokenFile);
+					// modern xcode manages all this in xcode script
+					if (!bUseModernXcode)
+					{
+						ExtractFramework(Framework, Graph, Logger);
+					}
+					FrameworkTokenFiles.Add(Framework.ExtractedTokenFile!);
 				}
 			}
 
@@ -938,18 +942,19 @@ namespace UnrealBuildTool
 			{
 				throw new BuildException("Unable to extract framework '{0}' - no zip file specified", Framework.Name);
 			}
-			if(Framework.ExtractedTokenFile == null)
+			if (!Framework.bHasMadeUnzipAction)
 			{
+				Framework.bHasMadeUnzipAction = true;
+
 				FileItem InputFile = FileItem.GetItemByFileReference(Framework.ZipFile);
-				Framework.ExtractedTokenFile = FileItem.GetItemByFileReference(new FileReference(Framework.ZipOutputDirectory!.FullName + ".extracted"));
 
 				StringBuilder ExtractScript = new StringBuilder();
 				ExtractScript.AppendLine("#!/bin/sh");
 				ExtractScript.AppendLine("set -e");
 				// ExtractScript.AppendLine("set -x"); // For debugging
-				ExtractScript.AppendLine(String.Format("[ -d {0} ] && rm -rf {0}", Utils.MakePathSafeToUseWithCommandLine(Framework.ZipOutputDirectory.FullName)));
+				ExtractScript.AppendLine(String.Format("[ -d {0} ] && rm -rf {0}", Utils.MakePathSafeToUseWithCommandLine(Framework.ZipOutputDirectory!.FullName)));
 				ExtractScript.AppendLine(String.Format("unzip -q -o {0} -d {1}", Utils.MakePathSafeToUseWithCommandLine(Framework.ZipFile.FullName), Utils.MakePathSafeToUseWithCommandLine(Framework.ZipOutputDirectory.ParentDirectory!.FullName))); // Zip contains folder with the same name, hence ParentDirectory
-				ExtractScript.AppendLine(String.Format("touch {0}", Utils.MakePathSafeToUseWithCommandLine(Framework.ExtractedTokenFile.AbsolutePath)));
+				ExtractScript.AppendLine(String.Format("touch {0}", Utils.MakePathSafeToUseWithCommandLine(Framework.ExtractedTokenFile!.AbsolutePath)));
 
 				FileItem ExtractScriptFileItem = Graph.CreateIntermediateTextFile(new FileReference(Framework.ZipOutputDirectory.FullName + ".sh"), ExtractScript.ToString());
 
@@ -964,7 +969,7 @@ namespace UnrealBuildTool
 				UnzipAction.StatusDescription = String.Format("Unzipping : {0} -> {1}", Framework.ZipFile, Framework.ZipOutputDirectory);
 				UnzipAction.bCanExecuteRemotely = false;
 			}
-			return Framework.ExtractedTokenFile;
+			return Framework.ExtractedTokenFile!;
 		}
 
 		public static DirectoryReference GenerateAssetCatalog(FileReference? ProjectFile, UnrealTargetPlatform Platform, ref bool bUserImagesExist)

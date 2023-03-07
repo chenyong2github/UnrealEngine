@@ -1169,6 +1169,7 @@ namespace UnrealBuildTool
 				// Figure out which targets we need about IntelliSense for.  We only need to worry about targets for projects
 				// that we're actually generating in this session.
 				List<Tuple<ProjectFile, ProjectTarget>> IntelliSenseTargetFiles = new List<Tuple<ProjectFile, ProjectTarget>>();
+				List<Tuple<ProjectFile, ProjectTarget>> AllProjectTargetFiles = new List<Tuple<ProjectFile, ProjectTarget>>();
 				{
 					// Engine targets
 					foreach (ProjectFile EngineProject in EngineProjects)
@@ -1182,6 +1183,7 @@ namespace UnrealBuildTool
 							{
 								IntelliSenseTargetFiles.Add(Tuple.Create(EngineProject, EngineTarget));
 							}
+							AllProjectTargetFiles.Add(Tuple.Create(EngineProject, EngineTarget));
 						}
 					}
 
@@ -1194,6 +1196,7 @@ namespace UnrealBuildTool
 							{
 								IntelliSenseTargetFiles.Add(Tuple.Create(ProgramProject, ProjectTarget));
 							}
+							AllProjectTargetFiles.Add(Tuple.Create(ProgramProject, ProjectTarget));
 						}
 					}
 
@@ -1208,12 +1211,16 @@ namespace UnrealBuildTool
 							{
 								IntelliSenseTargetFiles.Add(Tuple.Create(GameProject, ProjectTarget));
 							}
+							AllProjectTargetFiles.Add(Tuple.Create(GameProject, ProjectTarget));
 						}
 					}
 				}
 
 				// write out any additional debug information for the solution (such as UnrealVS configuration)
 				WriteDebugSolutionFiles(PlatformProjectGenerators, IntermediateProjectFilesPath, Logger);
+
+				// add any native project information for all Targets we are generating
+				AddAdditionalNativeTargetInformation(PlatformProjectGenerators, AllProjectTargetFiles, Logger);
 
 				// Generate IntelliSense data if we need to.  This involves having UBT simulate the action compilation of
 				// the targets so that we can extra the compiler defines, include paths, etc.
@@ -2932,6 +2939,17 @@ namespace UnrealBuildTool
 		protected virtual void WriteDebugSolutionFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, DirectoryReference IntermediateProjectFilesPath, ILogger Logger)
 		{
 		}
+
+		/// <summary>
+		/// Allows the generator to XXXXXXXxXXXXXXXxXXXXXXXxXXXXXXXx
+		/// </summary>
+		/// <param name="PlatformProjectGenerators"></param>
+		/// <param name="Targets"></param>
+		/// <param name="Logger"></param>
+		protected virtual void AddAdditionalNativeTargetInformation(PlatformProjectGeneratorCollection PlatformProjectGenerators, List<Tuple<ProjectFile, ProjectTarget>> Targets, ILogger Logger)
+		{
+		}
+		
 
 
 		/// <summary>

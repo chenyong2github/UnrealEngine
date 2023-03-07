@@ -47,9 +47,17 @@ namespace UnrealBuildTool
 		public readonly bool bCopyFramework = false;
 
 		/// <summary>
-		/// File created after the framework has been extracted. Used to add dependencies into the action graph.
+		/// File created after the framework has been extracted. Used to add dependencies into the action graph, used by Modern Xcode as well
 		/// </summary>
-		public FileItem? ExtractedTokenFile;
+		public FileItem? ExtractedTokenFile
+		{
+			get { return ZipOutputDirectory == null ? null : FileItem.GetItemByFileReference(new FileReference(ZipOutputDirectory!.FullName + ".extracted")); }
+		}
+		/// <summary>
+		/// For legacy xcode projects, we unzip in UBT (isntead of xcode), so we track if we've made an action for this framework yet (if two
+		/// modules use the same framework, we only want to unzip it once. Other than time waste, there could be conflicts
+		/// </summary>
+		public bool bHasMadeUnzipAction;
 
 		/// <summary>
 		/// List of variants contained in this XCFramework. Only non null for XCFrameworks
@@ -75,7 +83,7 @@ namespace UnrealBuildTool
 		/// <param name="OutputDirectory">Path for the extracted zip file</param>
 		/// <param name="CopyBundledAssets"></param>
 		/// <param name="bCopyFramework">Copy the framework to the target's Framework directory</param>
-		public UEBuildFramework(string Name, FileReference? ZipFile, DirectoryReference? OutputDirectory, string? CopyBundledAssets, bool bCopyFramework)
+		public UEBuildFramework(string Name, FileReference? ZipFile, DirectoryReference OutputDirectory, string? CopyBundledAssets, bool bCopyFramework)
 		{
 			this.Name = Name;
 			this.ZipFile = ZipFile;
@@ -92,13 +100,13 @@ namespace UnrealBuildTool
 		/// <param name="FrameworkDirectory">Path for the framework on disk</param>
 		/// <param name="CopyBundledAssets"></param>
 		/// <param name="bCopyFramework">Copy the framework to the target's Framework directory</param>
-		public UEBuildFramework(String Name, DirectoryReference? FrameworkDirectory, string? CopyBundledAssets, bool bCopyFramework)
+		public UEBuildFramework(String Name, DirectoryReference FrameworkDirectory, string? CopyBundledAssets, bool bCopyFramework)
 		{
 			this.Name = Name;
 			this.FrameworkDirectory = FrameworkDirectory;
 			this.CopyBundledAssets = CopyBundledAssets;
 			this.bCopyFramework = bCopyFramework;
-			if( this.FrameworkDirectory != null && this.FrameworkDirectory.FullName.EndsWith(".xcframework"))
+			if(this.FrameworkDirectory.FullName.EndsWith(".xcframework"))
 			{
 				this.XCFrameworkVariants = LoadXCFrameworkVariants();
 			}
@@ -109,11 +117,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Platform"></param>
 		/// <param name="Architecture"></param>
-		public DirectoryReference? GetFrameworkDirectory(UnrealTargetPlatform Platform, UnrealArch Architecture)
+		public DirectoryReference? GetFrameworkDirectory(UnrealTargetPlatform? Platform, UnrealArch? Architecture)
 		{
-			if( XCFrameworkVariants != null)
+			if( XCFrameworkVariants != null && Platform != null && Architecture != null)
 			{
-				XCFrameworkVariantEntry? FrameworkVariant = XCFrameworkVariants.Find(x => x.Matches(Platform, Architecture));
+				XCFrameworkVariantEntry? FrameworkVariant = XCFrameworkVariants.Find(x => x.Matches(Platform.Value, Architecture.Value));
 				if( FrameworkVariant != null )
 				{
 					return DirectoryReference.Combine(FrameworkDirectory!, FrameworkVariant.LibraryIdentifier);

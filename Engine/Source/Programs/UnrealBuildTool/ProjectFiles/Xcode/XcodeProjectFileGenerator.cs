@@ -214,7 +214,7 @@ namespace UnrealBuildTool
 
 			// if we want one workspace with multiple platforms, and we have at least one modern project, then process each platform individually
 			// otherwise use null as Platform which means to merge all platforms
-			List<UnrealTargetPlatform?> PlatformsToProcess = bHasModernProjects ? WorkspacePlatforms : NullPlatformList; 
+			List<UnrealTargetPlatform?> PlatformsToProcess = bHasModernProjects ? WorkspacePlatforms : NullPlatformList;
 			foreach (UnrealTargetPlatform? Platform in PlatformsToProcess)
 			{
 				StringBuilder WorkspaceDataContent = new();
@@ -327,7 +327,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		static public List<UnrealTargetPlatform> XcodePlatforms = new();
 
-		static public List<UnrealTargetPlatform?> WorkspacePlatforms = new ();
+		static public List<UnrealTargetPlatform?> WorkspacePlatforms = new();
 		static public List<UnrealTargetPlatform?> RunTargetPlatforms = new();
 		static public List<UnrealTargetPlatform?> NullPlatformList = new() { null };
 
@@ -404,6 +404,79 @@ namespace UnrealBuildTool
 					bGeneratingGameProjectFiles = true;
 				}
 			}
+		}
+
+		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, List<UEBuildFramework>> TargetFrameworks = new();
+		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, List<UEBuildBundleResource>> TargetBundles = new();
+
+		protected override void AddAdditionalNativeTargetInformation(PlatformProjectGeneratorCollection PlatformProjectGenerators, List<Tuple<ProjectFile, ProjectTarget>> Targets, ILogger Logger)
+		{
+			DateTime MainStart = DateTime.UtcNow;
+			foreach (var TargetPair in Targets)
+			{
+				ProjectFile TargetProjectFile = TargetPair.Item1;
+				// don't do this for legacy projets, for speed
+				((XcodeProjectXcconfig.XcodeProjectFile)TargetProjectFile).ConditionalCreateLegacyProject();
+				if (((XcodeProjectXcconfig.XcodeProjectFile)TargetProjectFile).bHasLegacyProject)
+				{
+					continue;
+				}
+
+				ProjectTarget CurTarget = TargetPair.Item2;
+
+				UnrealTargetPlatform Platform = UnrealTargetPlatform.IOS;
+				UnrealArch Arch = UnrealArch.Arm64;
+
+				if (!CurTarget.SupportedPlatforms.Any(x => x == Platform))
+				{
+					continue;
+				}
+				TargetDescriptor TargetDesc = new TargetDescriptor(CurTarget.UnrealProjectFilePath, CurTarget.Name, Platform, UnrealTargetConfiguration.Development,
+					new UnrealArchitectures(Arch), new CommandLineArguments(new string[] { "-skipclangvalidation" }));
+				DateTime Start = DateTime.UtcNow;
+
+				try
+				{
+					// Create the target
+					UEBuildTarget Target = UEBuildTarget.Create(TargetDesc, true, false, bUsePrecompiled, Logger);
+
+					List<UEBuildFramework> Frameworks = new();
+					List<UEBuildBundleResource> Bundles = new();
+					// Generate a compile environment for each module in the binary
+					CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles(Logger);
+					foreach (UEBuildBinary Binary in Target.Binaries)
+					{
+						CppCompileEnvironment BinaryCompileEnvironment = Binary.CreateBinaryCompileEnvironment(GlobalCompileEnvironment);
+						foreach (UEBuildModuleCPP Module in Binary.Modules.OfType<UEBuildModuleCPP>())
+						{
+							CppCompileEnvironment CompileEnvironment = Module.CreateModuleCompileEnvironment(Target.Rules, BinaryCompileEnvironment, Logger);
+							Frameworks.AddRange(CompileEnvironment.AdditionalFrameworks);
+						}
+					}
+
+					// track frameworks if we found any
+					if (Frameworks.Count > 0)
+					{
+						lock (TargetFrameworks)
+						{
+							TargetFrameworks.Add(Tuple.Create(TargetProjectFile, Platform), Frameworks);
+						}
+					}
+					if (Bundles.Count > 0)
+					{
+						lock (TargetBundles)
+						{
+							TargetBundles.Add(Tuple.Create(TargetProjectFile, Platform), Bundles);
+						}
+					}
+				}
+				catch (Exception)
+				{
+
+				}
+			}
+
+			Log.TraceInformation("GettingNativeInfo {0}ms overall", (DateTime.UtcNow - MainStart).TotalMilliseconds);
 		}
 	}
 }
