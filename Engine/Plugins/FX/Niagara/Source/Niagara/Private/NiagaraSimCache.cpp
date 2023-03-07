@@ -430,9 +430,17 @@ bool UNiagaraSimCache::EndWrite()
 					return;
 				}
 
+				TMap<int32, int32> BufferIndexMap;
+				BufferIndexMap.Reserve(BufferB.InterpMapping.Num());
+				for (int32 i = 0; i < BufferB.InterpMapping.Num(); ++i)
+				{
+					BufferIndexMap.Add(BufferB.InterpMapping[i], i);
+				}
+				
 				for (int32 i = 0; i < BufferA.InterpMapping.Num(); ++i)
 				{
-					BufferA.InterpMapping[i] = BufferB.InterpMapping.IndexOfByKey(BufferA.InterpMapping[i]);
+					int32* Mapping = BufferIndexMap.Find(BufferA.InterpMapping[i]);
+					BufferA.InterpMapping[i] = Mapping ? *Mapping : INDEX_NONE;
 				}
 			};
 
