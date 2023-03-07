@@ -137,7 +137,7 @@ namespace UnrealBuildTool
 						NameSuffixes.Add("");
 					}
 					NameSuffixes.Add(String.Format("-{0}-{1}", Target.Platform.ToString(), Target.Configuration.ToString()));
-					if (!UnrealArchitectureConfig.ForPlatform(Target.Platform).RequiresArchitectureFilenames(Target.Architectures))
+					if (UnrealArchitectureConfig.ForPlatform(Target.Platform).RequiresArchitectureFilenames(Target.Architectures))
 					{
 						NameSuffixes.AddRange(NameSuffixes.ToArray().Select(x => x + Target.Architecture.ToString()));
 					}
