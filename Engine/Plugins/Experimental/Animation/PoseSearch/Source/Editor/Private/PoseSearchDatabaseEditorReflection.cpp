@@ -133,10 +133,11 @@ void UPoseSearchDatabaseStatistics::Initialize(const UPoseSearchDatabase* PoseSe
 			
 		// Kinematic Information
 	
-		AverageSpeed = SearchIndex.Stats.AverageSpeed;
-		MaxSpeed = SearchIndex.Stats.MaxSpeed;
-		AverageAcceleration = SearchIndex.Stats.AverageAcceleration;
-		MaxAcceleration = SearchIndex.Stats.MaxAcceleration;
+		// using FText instead of meta = (ForceUnits = "cm/s") to keep properties consistent
+		AverageSpeed = FText::Format(LOCTEXT("StatsAverageSpeed", "{0} cm/s"), SearchIndex.Stats.AverageSpeed);
+		MaxSpeed = FText::Format(LOCTEXT("StatsMaxSpeed", "{0} cm/s"), SearchIndex.Stats.MaxSpeed);
+		AverageAcceleration = FText::Format(LOCTEXT("StatsAverageAcceleration", "{0} cm/s²"), SearchIndex.Stats.AverageAcceleration);
+		MaxAcceleration = FText::Format(LOCTEXT("StatsMaxAcceleration", "{0} cm/s²"), SearchIndex.Stats.MaxAcceleration);
 
 		// Principal Component Analysis
 			

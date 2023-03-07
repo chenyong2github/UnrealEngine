@@ -157,7 +157,6 @@ struct FPoseSearchDatabaseMemoryStats
 	FText AssetsSize;
 	
 	void Initialize(const UPoseSearchDatabase* PoseSearchDatabase);
-	static FText ToMemoryBudgetText(int32 Size);
 };
 
 UCLASS()
@@ -187,16 +186,16 @@ public:
 	// Kinematic Information
 
 	UPROPERTY(VisibleAnywhere, Category = "Kinematic Information")
-	float AverageSpeed;
+	FText AverageSpeed;
 
 	UPROPERTY(VisibleAnywhere, Category = "Kinematic Information")
-	float MaxSpeed;
+	FText MaxSpeed;
 
 	UPROPERTY(VisibleAnywhere, Category = "Kinematic Information")
-	float AverageAcceleration;
+	FText AverageAcceleration;
 
 	UPROPERTY(VisibleAnywhere, Category = "Kinematic Information")
-	float MaxAcceleration;
+	FText MaxAcceleration;
 
 	// Principal Component Analysis Information
 
