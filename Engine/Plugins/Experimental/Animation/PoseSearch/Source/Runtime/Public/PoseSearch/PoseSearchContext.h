@@ -4,12 +4,12 @@
 
 #include "DrawDebugHelpers.h"
 #include "PoseSearch/PoseSearchDefines.h"
+#include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "PoseSearch/PoseSearchIndex.h"
 #include "PoseSearch/PoseSearchResult.h"
 
 struct FTrajectorySampleRange;
 class UPoseSearchDatabase;
-class UPoseSearchSchema;
 
 namespace UE::PoseSearch
 {
@@ -50,8 +50,8 @@ struct POSESEARCH_API FCachedTransform
 {
 	FCachedTransform()
 		: SampleTime(0.f)
-		, BoneIndexType(-1)
-		, Transform()
+		, BoneIndexType(RootBoneIndexType)
+		, Transform(FTransformType::Identity)
 	{
 	}
 
@@ -62,13 +62,12 @@ struct POSESEARCH_API FCachedTransform
 	{
 	}
 
-	float SampleTime;
+	float SampleTime = 0.f;
 	
-	// if -1 it represents the root bone
-	FBoneIndexType BoneIndexType;
+	FBoneIndexType BoneIndexType = RootBoneIndexType;
 
 	// associated transform to BoneIndexType in ComponentSpace (except for the root bone stored in global space)
-	FTransformType Transform;
+	FTransformType Transform = FTransformType::Identity;
 };
 
 template<typename FTransformType>
@@ -149,9 +148,9 @@ struct POSESEARCH_API FSearchContext
 	// can the continuing pose advance? (if not we skip evaluating it)
 	bool bCanAdvance = true;
 
-	FQuat GetSampleRotation(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false);
-	FVector GetSamplePosition(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false);
-	FVector GetSampleVelocity(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseCharacterSpaceVelocities = true, bool bUseHistoryRoot = false);
+	FQuat GetSampleRotation(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime);
+	FVector GetSamplePosition(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime);
+	FVector GetSampleVelocity(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseCharacterSpaceVelocities = true, bool bUseHistoryRoot = false, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime);
 
 	void ClearCachedEntries();
 
@@ -168,9 +167,6 @@ struct POSESEARCH_API FSearchContext
 	TConstArrayView<float> GetCurrentResultPoseVector() const;
 	TConstArrayView<float> GetCurrentResultNextPoseVector() const;
 
-	void SetPermutationTimeOffsets(float InPermutationSampleTimeOffset, float InPermutationOriginTimeOffset);
-	void ResetPermutationTimeOffsets();
-	
 	float DesiredPermutationTimeOffset = 0.f;
 
 	const FPoseIndicesHistory* PoseIndicesHistory = nullptr;
@@ -186,10 +182,6 @@ private:
 
 	float CurrentBestTotalCost = MAX_flt;
 	
-	// time offsets controlled by sampling data permutations
-	float PermutationSampleTimeOffset = 0.f;
-	float PermutationOriginTimeOffset = 0.f;
-
 #if UE_POSE_SEARCH_TRACE_ENABLED
 
 public:

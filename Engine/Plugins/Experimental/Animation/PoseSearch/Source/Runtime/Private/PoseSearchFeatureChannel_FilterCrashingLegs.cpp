@@ -43,10 +43,10 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::AddDependentChannels(UPoseSea
 {
 	if (Schema->bInjectAdditionalDebugChannels)
 	{
-		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, LeftThigh.BoneName, 0.f, 0);
-		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, RightThigh.BoneName, 0.f, 0);
-		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, LeftFoot.BoneName, 0.f, 0);
-		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, RightFoot.BoneName, 0.f, 0);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, 0, LeftThigh.BoneName);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, 0, RightThigh.BoneName);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, 0, LeftFoot.BoneName);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, 0, RightFoot.BoneName);
 	}
 }
 void UPoseSearchFeatureChannel_FilterCrashingLegs::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const

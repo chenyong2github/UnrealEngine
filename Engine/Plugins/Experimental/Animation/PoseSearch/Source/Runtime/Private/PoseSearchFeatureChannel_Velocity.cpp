@@ -23,7 +23,7 @@ void UPoseSearchFeatureChannel_Velocity::AddDependentChannels(UPoseSearchSchema*
 {
 	if (Schema->bInjectAdditionalDebugChannels)
 	{
-		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, Bone.BoneName, SampleTimeOffset, ColorPresetIndex);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, SampleTimeOffset, ColorPresetIndex, Bone.BoneName);
 	}
 }
 
@@ -33,8 +33,8 @@ void UPoseSearchFeatureChannel_Velocity::BuildQuery(UE::PoseSearch::FSearchConte
 
 	const bool bIsCurrentResultValid = SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
 	const bool bSkip = InputQueryPose != EInputQueryPose::UseCharacterPose && bIsCurrentResultValid;
-	const bool bBoneValid = InOutQuery.GetSchema()->BoneReferences[SchemaBoneIdx].HasValidSetup();
-	if (bSkip || (!SearchContext.History && bBoneValid))
+	const bool bIsRootBone = InOutQuery.GetSchema()->IsRootBone(SchemaBoneIdx);
+	if (bSkip || (!SearchContext.History && !bIsRootBone))
 	{
 		if (bIsCurrentResultValid)
 		{
@@ -47,7 +47,7 @@ void UPoseSearchFeatureChannel_Velocity::BuildQuery(UE::PoseSearch::FSearchConte
 	else
 	{
 		// calculating the LinearVelocity for the bone indexed by SchemaBoneIdx
-		FVector LinearVelocity = SearchContext.GetSampleVelocity(SampleTimeOffset, InOutQuery.GetSchema(), SchemaBoneIdx, RootSchemaBoneIdx, bUseCharacterSpaceVelocities, bBoneValid);
+		FVector LinearVelocity = SearchContext.GetSampleVelocity(SampleTimeOffset, InOutQuery.GetSchema(), SchemaBoneIdx, RootSchemaBoneIdx, bUseCharacterSpaceVelocities, !bIsRootBone);
 		if (bNormalize)
 		{
 			LinearVelocity = LinearVelocity.GetClampedToMaxSize(1.f);
@@ -121,11 +121,12 @@ FString UPoseSearchFeatureChannel_Velocity::GetLabel() const
 		Label.Append(TEXT("_xy"));
 	}
 
-	const FBoneReference& BoneReference = GetSchema()->BoneReferences[SchemaBoneIdx];
-	if (BoneReference.HasValidSetup())
+	const UPoseSearchSchema* Schema = GetSchema();
+	check(Schema);
+	if (!Schema->IsRootBone(SchemaBoneIdx))
 	{
 		Label.Append(TEXT("_"));
-		Label.Append(BoneReference.BoneName.ToString());
+		Label.Append(Schema->BoneReferences[SchemaBoneIdx].BoneName.ToString());
 	}
 
 	Label.Appendf(TEXT(" %.1f"), SampleTimeOffset);

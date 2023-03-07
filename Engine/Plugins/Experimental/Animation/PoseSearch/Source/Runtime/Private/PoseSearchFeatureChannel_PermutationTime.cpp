@@ -5,6 +5,17 @@
 #include "PoseSearch/PoseSearchContext.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
+void UPoseSearchFeatureChannel_PermutationTime::FindOrAddToSchema(UPoseSearchSchema* Schema)
+{
+	if (Schema->FindFirstChannelOfType<UPoseSearchFeatureChannel_PermutationTime>() == nullptr)
+	{
+		UPoseSearchFeatureChannel_PermutationTime* PermutationTime = NewObject<UPoseSearchFeatureChannel_PermutationTime>(Schema, NAME_None, RF_Transient);
+		PermutationTime->Weight = 0.f;
+		PermutationTime->Finalize(Schema);
+		Schema->FinalizedChannels.Add(PermutationTime);
+	}
+}
+
 void UPoseSearchFeatureChannel_PermutationTime::Finalize(UPoseSearchSchema* Schema)
 {
 	ChannelDataOffset = Schema->SchemaCardinality;

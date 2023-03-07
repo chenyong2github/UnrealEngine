@@ -173,5 +173,4 @@ private:
 	}
 
 	void Finalize();
-	void ResolveBoneReferences();
 };

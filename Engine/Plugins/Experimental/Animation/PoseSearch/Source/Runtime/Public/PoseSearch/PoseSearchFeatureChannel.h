@@ -37,6 +37,25 @@ enum class EInputQueryPose : uint8
 	UseInterpolatedContinuingPose,
 };
 
+// this enumeration controls the channel sampling time:
+// for example if a channel specifies a bone and an origin bone (used to generate the reference system of the features associated to the bone),
+// bone and origin bone will be evaluated at potentially different times:
+UENUM()
+enum class EPermutationTimeType : uint8
+{
+	// bone and origin bone are sampled at the same sample time (plus eventual SampleTimeOffset for the bone):
+	// it's defined as the current animation evaluation time
+	UseSampleTime,
+
+	// bone and origin bone are sampled at the same permutation time (plus eventual SampleTimeOffset for the bone):
+	// it's defined as SamplingTime (as UseSampleTime) + Schema->PermutationsTimeOffset + PermutationIndex / Schema->PermutationsSampleRate
+	// where PermutationIndex is in range [0, Schema->NumberOfPermutations)
+	UsePermutationTime,
+
+	// bone is evaluated at sample time (and plus eventual SampleTimeOffset) and origin bone is evaluated at permutation time
+	UseSampleToPermutationTime,
+};
+
 namespace UE::PoseSearch
 {
 
@@ -102,6 +121,9 @@ public:
 
 	// @todo: should this API be under ENABLE_DRAW_DEBUG?
 	virtual void AddDependentChannels(UPoseSearchSchema* Schema) const {}
+
+	virtual EPermutationTimeType GetPermutationTimeType() const { return EPermutationTimeType::UseSampleTime; }
+	static void GetPermutationTimeOffsets(EPermutationTimeType PermutationTimeType, float DesiredPermutationTimeOffset, float& OutPermutationSampleTimeOffset, float& OutPermutationOriginTimeOffset);
 
 #if ENABLE_DRAW_DEBUG
 	// API called before DebugDraw to collect shared channel informations such as decoded positions form the PoseVector

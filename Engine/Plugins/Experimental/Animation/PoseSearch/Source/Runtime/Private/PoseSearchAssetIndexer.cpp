@@ -387,8 +387,12 @@ FTransform FAssetIndexer::CalculateComponentSpaceTransform(FAssetIndexer::Cached
 	return Entry.ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex);
 }
 
-FQuat FAssetIndexer::GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx)
+FQuat FAssetIndexer::GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, EPermutationTimeType PermutationTimeType)
 {
+	float PermutationSampleTimeOffset = 0.f;
+	float PermutationOriginTimeOffset = 0.f;
+	UPoseSearchFeatureChannel::GetPermutationTimeOffsets(PermutationTimeType, CalculatePermutationTimeOffset(), PermutationSampleTimeOffset, PermutationOriginTimeOffset);
+
 	const float Time = SampleIdx * IndexingContext.Schema->GetSamplingInterval();
 	const float SampleTime = Time + SampleTimeOffset + PermutationSampleTimeOffset;
 	const float OriginTime = Time + PermutationOriginTimeOffset;
@@ -415,8 +419,12 @@ FQuat FAssetIndexer::GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, 
 	return BoneTransform.GetRotation();
 }
 
-FVector FAssetIndexer::GetSamplePosition(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx)
+FVector FAssetIndexer::GetSamplePosition(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, EPermutationTimeType PermutationTimeType)
 {
+	float PermutationSampleTimeOffset = 0.f;
+	float PermutationOriginTimeOffset = 0.f;
+	UPoseSearchFeatureChannel::GetPermutationTimeOffsets(PermutationTimeType, CalculatePermutationTimeOffset(), PermutationSampleTimeOffset, PermutationOriginTimeOffset);
+
 	const float Time = SampleIdx * IndexingContext.Schema->GetSamplingInterval();
 	const float SampleTime = Time + SampleTimeOffset + PermutationSampleTimeOffset;
 	const float OriginTime = Time + PermutationOriginTimeOffset;
@@ -456,8 +464,12 @@ FVector FAssetIndexer::GetSamplePositionInternal(float SampleTime, float OriginT
 	return RootBoneTransform.InverseTransformVector(DeltaBoneTranslation);
 }
 
-FVector FAssetIndexer::GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseCharacterSpaceVelocities)
+FVector FAssetIndexer::GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseCharacterSpaceVelocities, EPermutationTimeType PermutationTimeType)
 {
+	float PermutationSampleTimeOffset = 0.f;
+	float PermutationOriginTimeOffset = 0.f;
+	UPoseSearchFeatureChannel::GetPermutationTimeOffsets(PermutationTimeType, CalculatePermutationTimeOffset(), PermutationSampleTimeOffset, PermutationOriginTimeOffset);
+
 	const float Time = SampleIdx * IndexingContext.Schema->GetSamplingInterval();
 	const float SampleTime = Time + SampleTimeOffset + PermutationSampleTimeOffset;
 	const float OriginTime = Time + PermutationOriginTimeOffset;
@@ -496,20 +508,6 @@ const UPoseSearchSchema* FAssetIndexer::GetSchema() const
 {
 	check(IndexingContext.Schema);
 	return IndexingContext.Schema;
-}
-
-void FAssetIndexer::SetPermutationTimeOffsets(float InPermutationSampleTimeOffset, float InPermutationOriginTimeOffset)
-{
-	// right now we disallow having nested channel controlling time offsets
-	check(PermutationSampleTimeOffset == 0.f && PermutationOriginTimeOffset == 0.f);
-	PermutationSampleTimeOffset = InPermutationSampleTimeOffset;
-	PermutationOriginTimeOffset = InPermutationOriginTimeOffset;
-}
-
-void FAssetIndexer::ResetPermutationTimeOffsets()
-{
-	PermutationSampleTimeOffset = 0.f;
-	PermutationOriginTimeOffset = 0.f;
 }
 
 float FAssetIndexer::CalculatePermutationTimeOffset() const

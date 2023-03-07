@@ -292,7 +292,7 @@ void UPoseSearchFeatureChannel_Phase::AddDependentChannels(UPoseSearchSchema* Sc
 {
 	if (Schema->bInjectAdditionalDebugChannels)
 	{
-		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, Bone.BoneName, 0.f, ColorPresetIndex);
+		UPoseSearchFeatureChannel_Position::FindOrAddToSchema(Schema, 0.f, ColorPresetIndex, Bone.BoneName);
 	}
 }
 
@@ -405,11 +405,13 @@ FString UPoseSearchFeatureChannel_Phase::GetLabel() const
 	}
 
 	Label.Append(TEXT("Pha"));
-	const FBoneReference& BoneReference = GetSchema()->BoneReferences[SchemaBoneIdx];
-	if (BoneReference.HasValidSetup())
+
+	const UPoseSearchSchema* Schema = GetSchema();
+	check(Schema);
+	if (!Schema->IsRootBone(SchemaBoneIdx))
 	{
 		Label.Append(TEXT("_"));
-		Label.Append(BoneReference.BoneName.ToString());
+		Label.Append(Schema->BoneReferences[SchemaBoneIdx].BoneName.ToString());
 	}
 
 	return Label.ToString();

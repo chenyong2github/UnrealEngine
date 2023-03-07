@@ -157,6 +157,30 @@ float FFeatureVectorHelper::DecodeFloat(TConstArrayView<float> Values, int32 Dat
 
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel
+void UPoseSearchFeatureChannel::GetPermutationTimeOffsets(EPermutationTimeType PermutationTimeType, float DesiredPermutationTimeOffset, float& OutPermutationSampleTimeOffset, float& OutPermutationOriginTimeOffset)
+{
+	switch (PermutationTimeType)
+	{
+	case EPermutationTimeType::UseSampleTime:
+		OutPermutationSampleTimeOffset = 0.f;
+		OutPermutationOriginTimeOffset = 0.f;
+		break;
+	case EPermutationTimeType::UsePermutationTime:
+		OutPermutationSampleTimeOffset = DesiredPermutationTimeOffset;
+		OutPermutationOriginTimeOffset = DesiredPermutationTimeOffset;
+		break;
+	case EPermutationTimeType::UseSampleToPermutationTime:
+		OutPermutationSampleTimeOffset = DesiredPermutationTimeOffset;
+		OutPermutationOriginTimeOffset = 0.f;
+		break;
+	default:
+		checkNoEntry();
+		OutPermutationSampleTimeOffset = 0.f;
+		OutPermutationOriginTimeOffset = 0.f;
+		break;
+	}
+}
+
 #if WITH_EDITOR
 FString UPoseSearchFeatureChannel::GetLabel() const
 {

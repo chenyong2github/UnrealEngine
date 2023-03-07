@@ -23,4 +23,6 @@ public:
 	virtual void IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const override;
 	virtual FString GetLabel() const override;
 #endif
+
+	static void FindOrAddToSchema(UPoseSearchSchema* Schema);
 };

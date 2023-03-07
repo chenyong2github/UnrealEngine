@@ -39,10 +39,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	EComponentStrippingVector ComponentStripping = EComponentStrippingVector::None;
 
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime;
+
 	// UPoseSearchFeatureChannel interface
 	virtual void Finalize(UPoseSearchSchema* Schema) override;
 	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const override;
 
+	virtual EPermutationTimeType GetPermutationTimeType() const override { return PermutationTimeType; }
 	virtual void AddDependentChannels(UPoseSearchSchema* Schema) const override;
 
 #if ENABLE_DRAW_DEBUG
@@ -56,5 +60,5 @@ public:
 	virtual FString GetLabel() const override;
 #endif
 
-	static void FindOrAddToSchema(UPoseSearchSchema* Schema, const FName& InBoneName, float InSampleTimeOffset, int32 InColorPresetIndex);
+	static void FindOrAddToSchema(UPoseSearchSchema* Schema, float SampleTimeOffset, int32 ColorPresetIndex, const FName& BoneName = NAME_None, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime);
 };
