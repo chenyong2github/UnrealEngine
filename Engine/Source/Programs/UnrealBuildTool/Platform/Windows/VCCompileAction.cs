@@ -55,6 +55,11 @@ namespace UnrealBuildTool
 		public FileItem? ObjectFile { get; set; }
 
 		/// <summary>
+		/// The assembly file to output
+		/// </summary>
+		public FileItem? AssemblyFile { get; set; }
+
+		/// <summary>
 		/// The output preprocessed file
 		/// </summary>
 		public FileItem? PreprocessedFile { get; set; }
@@ -301,6 +306,7 @@ namespace UnrealBuildTool
 			ToolChainVersion = InAction.ToolChainVersion;
 			SourceFile = InAction.SourceFile;
 			ObjectFile = InAction.ObjectFile;
+			AssemblyFile = InAction.AssemblyFile;
 			PreprocessedFile = InAction.PreprocessedFile;
 			DependencyListFile = InAction.DependencyListFile;
 			CompiledModuleInterfaceFile = InAction.CompiledModuleInterfaceFile;
@@ -336,6 +342,7 @@ namespace UnrealBuildTool
 			ToolChainVersion = Reader.ReadString()!;
 			SourceFile = Reader.ReadFileItem();
 			ObjectFile = Reader.ReadFileItem();
+			AssemblyFile = Reader.ReadFileItem();
 			PreprocessedFile = Reader.ReadFileItem();
 			DependencyListFile = Reader.ReadFileItem();
 			CompiledModuleInterfaceFile = Reader.ReadFileItem();
@@ -367,6 +374,7 @@ namespace UnrealBuildTool
 			Writer.WriteString(ToolChainVersion);
 			Writer.WriteFileItem(SourceFile);
 			Writer.WriteFileItem(ObjectFile);
+			Writer.WriteFileItem(AssemblyFile);
 			Writer.WriteFileItem(PreprocessedFile);
 			Writer.WriteFileItem(DependencyListFile);
 			Writer.WriteFileItem(CompiledModuleInterfaceFile);
@@ -453,6 +461,11 @@ namespace UnrealBuildTool
 			if (ObjectFile != null)
 			{
 				VCToolChain.AddObjectFile(Arguments, ObjectFile);
+			}
+
+			if (AssemblyFile != null)
+			{
+				VCToolChain.AddAssemblyFile(Arguments, AssemblyFile);
 			}
 
 			// A better way to express this? .json is used as output for /sourceDependencies), but .md.json is used as output for /sourceDependencies:directives)

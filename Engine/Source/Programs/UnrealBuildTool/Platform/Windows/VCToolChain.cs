@@ -248,6 +248,13 @@ namespace UnrealBuildTool
 			Arguments.Add($"/Fo\"{ObjectFileString}\"");
 		}
 
+		public static void AddAssemblyFile(List<string> Arguments, FileItem AssemblyFile)
+		{
+			string AssemblyFileString = NormalizeCommandLinePath(AssemblyFile);
+			Arguments.Add("/FAs");// Write out an assembly file (.asm) with the c++ code embedded in it via comments
+			Arguments.Add($"/Fa\"{AssemblyFileString}\""); // Set the output patj for the asm file
+		}
+
 		public static void AddSourceDependenciesFile(List<string> Arguments, FileItem SourceDependenciesFile)
 		{
 			string SourceDependenciesFileString = NormalizeCommandLinePath(SourceDependenciesFile);
@@ -847,20 +854,12 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected virtual void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments, DirectoryReference OutputDir)
+		protected virtual void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			if (Target.WindowsPlatform.Compiler.IsMSVC())
 			{
 				// Explicitly compile the file as C++.
 				Arguments.Add("/TP");
-
-				if (CompileEnvironment.bWithAssembly)
-				{
-					// Write out an assembly file (.asm) with the c++ code embedded in it via comments
-					Arguments.Add("/FAs");
-					// Set the output directory for the asm files
-					Arguments.Add("/Fa" + OutputDir.FullName + "\\");
-				}
 			}
 			else
 			{
@@ -1486,12 +1485,9 @@ namespace UnrealBuildTool
 						}
 					}
 
-					if (CompileEnvironment.bWithAssembly && SourceFile.HasExtension(".cpp"))
+					if (Target.WindowsPlatform.Compiler.IsMSVC() && CompileEnvironment.bWithAssembly && SourceFile.HasExtension(".cpp"))
 					{
-						if (Target.WindowsPlatform.Compiler.IsMSVC())
-						{
-							CompileAction.AdditionalProducedItems.Add(FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".asm")));
-						}
+						CompileAction.AssemblyFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".asm"));
 					}
 
 					// Experimental: support for JSON output of timing data
@@ -1554,7 +1550,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					AppendCLArguments_CPP(CompileEnvironment, CompileAction.Arguments, OutputDir);
+					AppendCLArguments_CPP(CompileEnvironment, CompileAction.Arguments);
 				}
 
 				List<FileItem>? InlinedFiles;
@@ -2113,9 +2109,9 @@ namespace UnrealBuildTool
 				return;
 
 			VCCompileAction BaseCompileAction = CreateBaseCompileAction(CompileEnvironment);
-			AppendCLArguments_CPP(CompileEnvironment, BaseCompileAction.Arguments, OutputDir);
+			AppendCLArguments_CPP(CompileEnvironment, BaseCompileAction.Arguments);
 			BaseCompileAction.AdditionalPrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites); // Primarily for ispc.generated.h files
-			Graph.AddAction(new VcSpecificFileAction(SourceDir, OutputDir, BaseCompileAction));
+			Graph.AddAction(new VcSpecificFileAction(SourceDir, OutputDir, BaseCompileAction, CompileEnvironment));
 		}
 
 		/// <summary>

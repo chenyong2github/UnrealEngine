@@ -13,19 +13,27 @@ namespace UnrealBuildTool
 		DirectoryReference SourceDir;
 		DirectoryReference OutputDir;
 		VCCompileAction BaseAction;
+
+		// TODO: Entire CppCompileEnvironment needs to be saved with BinaryArchiveWriter, some options may still be unused
+		bool bPreprocessOnly;
+		bool bWithAssembly;
 		int SingleFileCounter;
 
-		internal VcSpecificFileAction(DirectoryReference Source, DirectoryReference Output, VCCompileAction Action) : base(ActionType.Compile)
+		internal VcSpecificFileAction(DirectoryReference Source, DirectoryReference Output, VCCompileAction Action, CppCompileEnvironment? CompileEnvironment = null) : base(ActionType.Compile)
 		{
 			SourceDir = Source;
 			OutputDir = Output;
 			BaseAction = Action;
+			bPreprocessOnly = CompileEnvironment?.bPreprocessOnly ?? false;
+			bWithAssembly = CompileEnvironment?.bWithAssembly ?? false;
 		}
 
 		public VcSpecificFileAction(BinaryArchiveReader Reader) : base(ActionType.Compile)
 		{
 			SourceDir = Reader.ReadCompactDirectoryReference();
 			OutputDir = Reader.ReadCompactDirectoryReference();
+			bPreprocessOnly = Reader.ReadBool();
+			bWithAssembly = Reader.ReadBool();
 			BaseAction = new VCCompileAction(Reader);
 		}
 
@@ -33,6 +41,8 @@ namespace UnrealBuildTool
 		{
 			Writer.WriteCompactDirectoryReference(SourceDir);
 			Writer.WriteCompactDirectoryReference(OutputDir);
+			Writer.WriteBool(bPreprocessOnly);
+			Writer.WriteBool(bWithAssembly);
 			BaseAction.Write(Writer);
 		}
 
@@ -54,17 +64,33 @@ namespace UnrealBuildTool
 				return null;
 			}
 
-			FileItem ResponseFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"SingleFile{SingleFileCounter}.rsp"));
-			FileItem ObjectFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"SingleFile{SingleFileCounter}.obj"));
-			++SingleFileCounter;
-
 			VCCompileAction Action = new VCCompileAction(BaseAction);
-			Action.ObjectFile = ObjectFile;
 			Action.SourceFile = SourceFile;
-			FileItem TempFile = FileItem.GetItemByPath(System.IO.Path.GetTempFileName());
-			Action.ResponseFile = ResponseFile;
-			List<string> Arguments = Action.GetCompilerArguments(Logger);
-			System.IO.File.WriteAllLines(ResponseFile.FullName, Arguments);
+			if (bPreprocessOnly)
+			{
+				Action.PreprocessedFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"SingleFile{SingleFileCounter}.i"));
+			}
+			else
+			{
+				Action.ObjectFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"SingleFile{SingleFileCounter}.obj"));
+				if (BaseAction.CompilerType.IsMSVC() && bWithAssembly)
+				{
+					Action.AssemblyFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"SingleFile{SingleFileCounter}.asm"));
+				}
+			}
+
+			if (BaseAction.CompilerType.IsMSVC())
+			{
+				Action.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"SingleFile{SingleFileCounter}.dep.json"));
+			}
+			else if (BaseAction.CompilerType.IsMSVC())
+			{
+				Action.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"SingleFile{SingleFileCounter}.d"));
+			}
+			Action.ResponseFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"SingleFile{SingleFileCounter}.rsp"));
+			File.WriteAllLines(Action.ResponseFile.FullName, Action.GetCompilerArguments(Logger));
+
+			++SingleFileCounter;
 			return Action;
 		}
 	}
