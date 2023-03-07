@@ -2,10 +2,9 @@
 
 #pragma once
 
+#include "MuR/MutableMemory.h"
 #include "MuR/Parameters.h"
 #include "MuR/Ptr.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 
 enum class ECheckBoxState : uint8;
@@ -65,44 +64,26 @@ private:
 	/** Dynamically filled box with per-parameter widgets */
 	TSharedPtr<SVerticalBox> ParamBox;
 
-	/** Check if the Parameter index provided is from a parameter that controls the amount of values another parameter/s
-	 * should have exposed in the UI. If the parameter does so then the redraw of the parameters widget will be scheduled
-	 * for the next update.
-	 * @param InParameterIndex The index of the parameter we changed it's value and want to check if that should or not
-	 * trigger the Parameter's Widget redraw.
-	 */
-	void ScheduleUpdateIfRequired(const int32& InParameterIndex);
-	
-	/** Parameter slate generation methods. */
-
-	/** Generate a new slate for the provided parameter index and attaches it to the also provided Horizontal box slate.
-	 * @param ParamIndex The index of the mutable parameter to represent using a slate object.
-	 * @param ParameterHorizontalBox The Horizontal box slate object to contain the newly generated slate object representing the parameter.
-	 * @param RangeIndex Range object pointing at the parameters' target dimension and position. Providing a nullptr is expected for parameters with
-	 * a single value (not a multivalue parameter)
-	 * This object can also represent single value parameters but must be provided in either case.
-	 */
-	void GenerateAndAttachParameterSlate(const int32 ParamIndex, TSharedPtr<SHorizontalBox> ParameterHorizontalBox, mu::RangeIndexPtrConst RangeIndex);
-	
 	/** Internal UI callbacks. */
 	EVisibility GetParameterVisibility(int32 ParamIndex) const;
-	ECheckBoxState GetBoolParameterValue(int32 ParamIndex, mu::RangeIndexPtrConst RangeIndex) const;
-	void OnBoolParameterChanged(ECheckBoxState CheckboxState, int32 ParamIndex, mu::RangeIndexPtrConst RangeIndex);
-	TOptional<float> GetFloatParameterValue(int32 ParamIndex, mu::RangeIndexPtrConst RangeIndex) const;
-	void OnFloatParameterChanged(float Value, int32 ParamIndex, mu::RangeIndexPtrConst RangeIndex);
-	void OnFloatParameterCommitted(float Value, ETextCommit::Type CommitType, int32 ParamIndex);
-	FLinearColor GetColorParameterValue(int32 ParamIndex, mu::RangeIndexPtrConst RangeIndex) const;
-	FReply OnColorBlockMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 ParamIndex, mu::RangeIndexPtrConst RangeIndex);
-	void OnSetColorFromColorPicker(FLinearColor NewColor, int32 ParamIndex, mu::RangeIndexPtrConst RangeIndex);
-	TOptional<int32> GetIntParameterValue(int32 ParamIndex,  mu::RangeIndexPtrConst RangeIndex) const;
+	ECheckBoxState GetBoolParameterValue(int32 ParamIndex) const;
+	void OnBoolParameterChanged(ECheckBoxState CheckboxState, int32 ParamIndex);
+	TOptional<float> GetFloatParameterValue(int32 ParamIndex) const;
+	void OnFloatParameterChanged(float Value, int32 ParamIndex);
+	FLinearColor GetColorParameterValue(int32 ParamIndex) const;
+	FReply OnColorBlockMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 ParamIndex);
+	void OnSetColorFromColorPicker(FLinearColor NewColor, int32 ParamIndex);
+	TOptional<int32> GetIntParameterValue(int32 ParamIndex) const;
 	TOptional<int32> GetIntParameterValueMax(int32 ParamIndex) const;
-	void OnIntParameterChanged(int32 Value, int32 ParamIndex, TSharedPtr<SMutableTextSearchBox> Combo,  mu::RangeIndexPtrConst RangeIndex);
-	void OnIntParameterTextChanged(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo, int32 ParamIndex, mu::RangeIndexPtrConst RangeIndex);
+	void OnIntParameterChanged(int32 Value, int32 ParamIndex, TSharedPtr<SMutableTextSearchBox> );
+	void OnIntParameterTextChanged(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo, int32 ParamIndex);
 
 	/** Projector UI callbacks */
-	TOptional<FVector::FReal> GetProjectorLocation(EAxis::Type Axis, int32 ParamIndex,  mu::RangeIndexPtrConst RangeIndex) const;
-	void SetProjectorLocation(FVector::FReal NewValue, ETextCommit::Type, EAxis::Type, bool bCommitted, int32 ParamIndex,  mu::RangeIndexPtrConst RangeIndex);
-	TOptional<FVector::FReal> GetProjectorScale(EAxis::Type Axis, int32 ParamIndex, mu::RangeIndexPtrConst RangeIndex) const;
-	void SetProjectorScale(FVector::FReal NewValue, ETextCommit::Type, EAxis::Type, bool bCommitted, int32 ParamIndex, mu::RangeIndexPtrConst RangeIndex);
+	TOptional<FVector::FReal> GetProjectorLocation(EAxis::Type Axis, int32 ParamIndex) const;
+	void SetProjectorLocation(FVector::FReal NewValue, ETextCommit::Type, EAxis::Type, bool bCommitted, int32 ParamIndex);
+	TOptional<FVector::FReal> GetProjectorScale(EAxis::Type Axis, int32 ParamIndex) const;
+	void SetProjectorScale(FVector::FReal NewValue, ETextCommit::Type, EAxis::Type, bool bCommitted, int32 ParamIndex);
+
 
 };
+
