@@ -519,6 +519,11 @@ namespace UnrealBuildTool
 		public List<FileItem> AdditionalResponseFiles = new();
 
 		/// <summary>
+		/// Whether the compile environment has a response file in AdditionalResponseFiles that contains global compiler arguments.
+		/// </summary>
+		public bool bHasSharedResponseFile = false;
+
+		/// <summary>
 		/// Additional arguments to pass to the compiler.
 		/// </summary>
 		public string AdditionalArguments = "";

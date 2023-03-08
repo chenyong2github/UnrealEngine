@@ -1394,7 +1394,7 @@ namespace UnrealBuildTool
 			BaseCompileAction.IncludePaths.AddRange(CompileEnvironment.UserIncludePaths);
 			BaseCompileAction.SystemIncludePaths.AddRange(CompileEnvironment.SystemIncludePaths);
 			
-			if (!CompileEnvironment.SharedSystemIncludePaths.Any())
+			if (!CompileEnvironment.bHasSharedResponseFile)
 			{
 				BaseCompileAction.SystemIncludePaths.AddRange(EnvVars.IncludePaths);
 			}
@@ -2107,6 +2107,7 @@ namespace UnrealBuildTool
 
 			NewCompileEnvironment.AdditionalPrerequisites.Add(FileItem);
 			NewCompileEnvironment.AdditionalResponseFiles.Add(FileItem);
+			NewCompileEnvironment.bHasSharedResponseFile = true;
 
 			return NewCompileEnvironment;
 		}

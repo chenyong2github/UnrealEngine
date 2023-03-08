@@ -1071,6 +1071,7 @@ namespace UnrealBuildTool
 
 			NewCompileEnvironment.AdditionalPrerequisites.Add(FileItem);
 			NewCompileEnvironment.AdditionalResponseFiles.Add(FileItem);
+			NewCompileEnvironment.bHasSharedResponseFile = true;
 
 
 			return NewCompileEnvironment;
@@ -1083,7 +1084,7 @@ namespace UnrealBuildTool
 				return;
 
 			List<string> GlobalArguments = new();
-			if (CompileEnvironment.SystemIncludePaths.Count != 0)
+			if (!CompileEnvironment.bHasSharedResponseFile)
 			{
 				GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
 			}
@@ -1217,9 +1218,8 @@ namespace UnrealBuildTool
 		protected override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			List<string> GlobalArguments = new();
-			
-			// Maybe not the nicest way of checking but if we don't have any system include paths it means we are not using a shared rsp file
-			if (CompileEnvironment.SystemIncludePaths.Count != 0)
+
+			if (!CompileEnvironment.bHasSharedResponseFile)
 			{
 				GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
 			}
