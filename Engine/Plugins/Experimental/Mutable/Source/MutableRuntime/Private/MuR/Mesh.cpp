@@ -610,9 +610,9 @@ bool Mesh::HasCompatibleFormat( const Mesh* pOther ) const
 
 
 //---------------------------------------------------------------------------------------------
-vec3<uint32_t>  Mesh::GetFaceVertexIndices( int f ) const
+UE::Math::TIntVector3<uint32_t>  Mesh::GetFaceVertexIndices( int f ) const
 {
-    vec3<uint32_t> res;
+	UE::Math::TIntVector3<uint32> res;
 
     MeshBufferIteratorConst<MBF_UINT32,uint32_t,1> it( m_IndexBuffers, MBS_VERTEXINDEX );
     it += f*3;
@@ -640,13 +640,13 @@ bool Mesh::HasFace
 {
     bool found = false;
 
-    vec3<uint32_t> ov = other.GetFaceVertexIndices( otherFaceIndex );
+	UE::Math::TIntVector3<uint32> ov = other.GetFaceVertexIndices( otherFaceIndex );
 
     UntypedMeshBufferIteratorConst it( m_IndexBuffers, MBS_VERTEXINDEX );
 
     for ( int f=0; !found && f<m_FaceBuffers.GetElementCount(); f++ )
     {
-        vec3<uint32_t> v;
+		UE::Math::TIntVector3<uint32> v;
         v[0] = it.GetAsUINT32(); ++it;
         v[1] = it.GetAsUINT32(); ++it;
         v[2] = it.GetAsUINT32(); ++it;

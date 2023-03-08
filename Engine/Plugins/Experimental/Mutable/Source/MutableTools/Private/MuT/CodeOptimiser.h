@@ -215,7 +215,7 @@ namespace mu
     {
     public:
 
-        RuntimeTextureCompressionRemoverAST( STATE_COMPILATION_DATA* state );
+        RuntimeTextureCompressionRemoverAST( STATE_COMPILATION_DATA* state, bool bInAlwaysUncompress );
 
     protected:
 
@@ -224,6 +224,7 @@ namespace mu
     private:
 
         RuntimeParameterVisitorAST m_hasRuntimeParamVisitor;
+		bool bAlwaysUncompress = false;
 
     };
 

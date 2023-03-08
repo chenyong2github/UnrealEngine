@@ -15,6 +15,7 @@ namespace mu
 	MUTABLE_DEFINE_ENUM_SERIALISABLE( ECompositeImageMode );
 	MUTABLE_DEFINE_ENUM_SERIALISABLE( ESamplingMethod );
 	MUTABLE_DEFINE_ENUM_SERIALISABLE( EMinFilterMethod );
+	MUTABLE_DEFINE_ENUM_SERIALISABLE( EImageFormat );
 
     struct FImageFormatData
 	{

@@ -7,7 +7,6 @@
 #include "MuR/RefCounted.h"
 #include "Templates/SharedPointer.h"
 
-
 namespace mu
 {
     // Forward declarations

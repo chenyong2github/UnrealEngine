@@ -28,7 +28,6 @@ namespace mu
 		{
 			New = 0,
 			Group = 1,
-			State = 2,
 
 			None
 		};

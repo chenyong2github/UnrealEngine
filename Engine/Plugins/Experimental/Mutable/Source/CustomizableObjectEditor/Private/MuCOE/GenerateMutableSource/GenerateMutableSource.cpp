@@ -604,7 +604,7 @@ mu::NodeObjectPtr GenerateMutableSource(const UEdGraphPin * Pin, FMutableGraphGe
 			bStartedComponent = true;
 		}
 
-		mu::NodeObjectNewPtr ObjectNode = new mu::NodeObjectNew();
+		mu::Ptr<mu::NodeObjectNew> ObjectNode = new mu::NodeObjectNew();
 		Result = ObjectNode;
 
 		ObjectNode->SetName(StringCast<ANSICHAR>(*TypedNodeObj->ObjectName).Get());
@@ -716,11 +716,11 @@ mu::NodeObjectPtr GenerateMutableSource(const UEdGraphPin * Pin, FMutableGraphGe
 				NumExtraLODsToBuildAfterFirstLOD = *AuxNumExtraLODs;
 			}
 
-			ObjectNode->SetStateProperties(StateIndex, State.bDontCompressRuntimeTextures, State.bBuildOnlyFirstLOD, GenerationContext.FirstLODAvailable, NumExtraLODsToBuildAfterFirstLOD);
+			ObjectNode->SetStateProperties(StateIndex, State.TextureCompressionStrategy, State.bBuildOnlyFirstLOD, GenerationContext.FirstLODAvailable, NumExtraLODsToBuildAfterFirstLOD);
 
 			// UI Data
 			FParameterUIData ParameterUIData(State.Name, State.StateUIMetadata, EMutableParameterType::None);
-			ParameterUIData.bDontCompressRuntimeTextures = State.bDontCompressRuntimeTextures;
+			ParameterUIData.TextureCompressionStrategy = State.TextureCompressionStrategy;
 			ParameterUIData.bLiveUpdateMode = State.bLiveUpdateMode;
 			ParameterUIData.bReuseInstanceTextures = State.bReuseInstanceTextures;
 			ParameterUIData.ForcedParameterValues = State.ForcedParameterValues;

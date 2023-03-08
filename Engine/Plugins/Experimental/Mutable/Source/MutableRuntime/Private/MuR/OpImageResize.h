@@ -207,7 +207,6 @@ namespace mu
         default:
             // Case not implemented
             check( false );
-            mu::Halt();
         }
     }
 
@@ -490,7 +489,6 @@ namespace mu
         default:
             // Case not implemented
             check( false );
-            mu::Halt();
         }
 
     }
@@ -619,7 +617,6 @@ namespace mu
         default:
             // Case not implemented
             check( false );
-            mu::Halt();
         }
     }
 

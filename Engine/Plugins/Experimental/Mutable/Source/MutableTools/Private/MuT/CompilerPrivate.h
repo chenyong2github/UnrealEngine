@@ -13,32 +13,25 @@
 
 namespace mu
 {
+	MUTABLE_DEFINE_ENUM_SERIALISABLE(ETextureCompressionStrategy);
 
     //!
-    struct STATE_OPTIMIZATION_OPTIONS
+    struct FStateOptimizationOptions
     {
-        STATE_OPTIMIZATION_OPTIONS()
-        {
-			m_firstLOD = 0;
-            m_onlyFirstLOD = false;
-            m_avoidRuntimeCompression = false;
-			m_numExtraLODsToBuildAfterFirstLOD = 0;
-        }
-
-		uint8 m_firstLOD;
-		bool m_onlyFirstLOD;
-        bool m_avoidRuntimeCompression;
-		int32 m_numExtraLODsToBuildAfterFirstLOD;
+		uint8 FirstLOD = 0;
+		uint8 NumExtraLODsToBuildAfterFirstLOD = 0;
+		bool bOnlyFirstLOD = false;
+		ETextureCompressionStrategy TextureCompressionStrategy = ETextureCompressionStrategy::None;
 
         void Serialise( OutputArchive& arch ) const
         {
-            const int32_t ver = 3;
+            const int32_t ver = 4;
             arch << ver;
 
-			arch << m_firstLOD;
-			arch << m_onlyFirstLOD;
-            arch << m_avoidRuntimeCompression;
-			arch << m_numExtraLODsToBuildAfterFirstLOD;
+			arch << FirstLOD;
+			arch << bOnlyFirstLOD;
+            arch << TextureCompressionStrategy;
+			arch << NumExtraLODsToBuildAfterFirstLOD;
         }
 
 
@@ -46,29 +39,46 @@ namespace mu
         {
             int32_t ver = 0;
             arch >> ver;
-			check(ver <= 3);
-
-			if (ver >= 3)
-			{
-				arch >> m_numExtraLODsToBuildAfterFirstLOD;
-			}
-			else
-			{
-				m_numExtraLODsToBuildAfterFirstLOD = 0;
-			}
+			check(ver <= 4);
 
 			if (ver >= 2)
 			{
-				arch >> m_firstLOD;
+				arch >> FirstLOD;
 			}
 			else
 			{
-				m_firstLOD = 0;
+				FirstLOD = 0;
 			}
 
-            arch >> m_onlyFirstLOD;
-            arch >> m_avoidRuntimeCompression;
-        }
+            arch >> bOnlyFirstLOD;
+
+			if (ver >= 4)
+			{
+				arch >> TextureCompressionStrategy;
+			}
+			else
+			{
+				bool bAvoidRuntimeCompression;
+				arch >> bAvoidRuntimeCompression;
+				TextureCompressionStrategy = bAvoidRuntimeCompression ? ETextureCompressionStrategy::DontCompressRuntime : ETextureCompressionStrategy::None;
+			}
+
+			if (ver == 3)
+			{
+				int32 OldNumExtraLODsToBuildAfterFirstLOD;
+				arch >> OldNumExtraLODsToBuildAfterFirstLOD;
+				NumExtraLODsToBuildAfterFirstLOD = OldNumExtraLODsToBuildAfterFirstLOD;
+			}
+			else if (ver >= 4)
+			{
+				arch >> NumExtraLODsToBuildAfterFirstLOD;
+			}
+			else
+			{
+				NumExtraLODsToBuildAfterFirstLOD = 0;
+			}
+
+		}
     };
 
 
@@ -94,13 +104,13 @@ namespace mu
 
 
     //! Information about an object state in the source data
-    struct OBJECT_STATE
+    struct FObjectState
     {
         //! Name used to identify the state from the code and user interface.
         string m_name;
 
         //! GPU Optimisation options
-        STATE_OPTIMIZATION_OPTIONS m_optimisation;
+		FStateOptimizationOptions m_optimisation;
 
         //! List of names of the runtime parameters in this state
         TArray<string> m_runtimeParams;
@@ -132,10 +142,10 @@ namespace mu
     //!
     struct STATE_COMPILATION_DATA
     {
-        OBJECT_STATE nodeState;
+        FObjectState nodeState;
         Ptr<ASTOp> root;
         FProgram::FState state;
-        STATE_OPTIMIZATION_OPTIONS optimisationFlags;
+		//FStateOptimizationOptions optimisationFlags;
 
         //! List of instructions that need to be cached to efficiently update this state
         TArray<Ptr<ASTOp>> m_updateCache;

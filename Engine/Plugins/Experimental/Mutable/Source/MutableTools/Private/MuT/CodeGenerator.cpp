@@ -70,7 +70,6 @@
 #include "MuT/NodeObject.h"
 #include "MuT/NodeObjectGroupPrivate.h"
 #include "MuT/NodeObjectNewPrivate.h"
-#include "MuT/NodeObjectStatePrivate.h"
 #include "MuT/NodePatchImagePrivate.h"
 #include "MuT/NodePatchMesh.h"
 #include "MuT/NodePrivate.h"
@@ -1209,8 +1208,9 @@ namespace mu
 
                     // Generate the image
                     IMAGE_STATE newState;
-                    newState.m_imageSize = desc.m_size;
-                    newState.m_imageRect = box<vec2<int>>::FromMinSize( vec2<int>(0,0), desc.m_size );
+					newState.m_imageSize[0] = desc.m_size[0];
+					newState.m_imageSize[1] = desc.m_size[1];
+					newState.m_imageRect = box<UE::Math::TIntVector2<int>>::FromMinSize(UE::Math::TIntVector2<int>(0,0), UE::Math::TIntVector2<int>(desc.m_size) );
                     newState.m_layoutBlockId = -1;
                     newState.m_pLayout = nullptr;
                     m_imageState.Add( newState );
@@ -1350,7 +1350,7 @@ namespace mu
                         for( int b=0; b<pLayout->GetBlockCount(); ++b )
                         {
                             // Block in layout grid units
-                            box< vec2<int> > rectInCells;
+                            box< UE::Math::TIntVector2<int32> > rectInCells;
                             pLayout->GetBlock
                                 (
                                     b,
@@ -1359,7 +1359,7 @@ namespace mu
                                 );
 
                             // Transform to pixels
-                            box< vec2<int> > rect = rectInCells;
+                            box< UE::Math::TIntVector2<int32> > rect = rectInCells;
                             rect.min[0] *= blockSizeX;
                             rect.min[1] *= blockSizeY;
                             rect.size[0] *= blockSizeX;
@@ -1367,7 +1367,7 @@ namespace mu
 
                             // Generate the image
                             IMAGE_STATE newState;
-                            newState.m_imageSize = desc.m_size;
+                            newState.m_imageSize = FIntVector2(desc.m_size);
                             newState.m_imageRect = rect;
                             newState.m_layoutBlockId = pLayout->m_blocks[b].m_id;
                             newState.m_pLayout = pLayout;
@@ -1395,8 +1395,6 @@ namespace mu
                             // Compose layout operation
                             Ptr<ASTOpImageCompose> composeOp = new ASTOpImageCompose();
                             composeOp->Layout = meshResults.layoutOps[ layout ];
-                            // Direct compression support
-                            //composeOp.args.ImageCompose.base = GenerateImageUncompressed( imageAd );
                             composeOp->Base = imageAd;
 							EImageFormat baseFormat = imageAd->GetImageDesc().m_format;
                             composeOp->BlockImage = GenerateImageFormat( blockAd, baseFormat );
@@ -1451,7 +1449,7 @@ namespace mu
                                         for (int b=0; b<pExtendLayout->GetBlockCount(); ++b)
                                         {
                                             // Block in layout grid units
-                                            box< vec2<int> > blockRect;
+                                            box< UE::Math::TIntVector2<int32> > blockRect;
                                             pExtendLayout->GetBlock
                                                 (
                                                     b,
@@ -1460,7 +1458,7 @@ namespace mu
                                                 );
 
                                             // Transform to pixels
-                                            box< vec2<int> > rect = blockRect;
+                                            box< UE::Math::TIntVector2<int32> > rect = blockRect;
                                             rect.min[0] = (rect.min[0] * extendDesc.m_size[0]) / extlayout[0];
                                             rect.min[1] = (rect.min[1] * extendDesc.m_size[1]) / extlayout[1];
                                             rect.size[0] = (rect.size[0] * extendDesc.m_size[0]) / extlayout[0];
@@ -1468,7 +1466,7 @@ namespace mu
 
                                             // Generate the image block
                                             IMAGE_STATE newState;
-                                            newState.m_imageSize = extendDesc.m_size;
+                                            newState.m_imageSize = FIntVector2(extendDesc.m_size);
                                             newState.m_imageRect = rect;
                                             newState.m_layoutBlockId = pExtendLayout->m_blocks[b].m_id;
                                             newState.m_pLayout = pExtendLayout;
@@ -1831,22 +1829,6 @@ namespace mu
         // parent components furing the first and second passes.
 
         return nullptr;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    Ptr<ASTOp> CodeGenerator::Visit( const NodeObjectState::Private& node )
-    {
-        // Generate the source object
-        Ptr<ASTOp> source;
-
-        if (node.m_pSource)
-        {
-            // Generate the base object where we will add the state.
-            source = Generate( node.m_pSource );
-        }
-
-        return source;
     }
 
 

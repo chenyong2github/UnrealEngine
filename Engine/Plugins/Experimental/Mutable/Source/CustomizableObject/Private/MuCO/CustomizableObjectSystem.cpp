@@ -821,7 +821,9 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 	
 	const FString CurrentState = Instance.GetCurrentState();
 	const FParameterUIData* State = Instance.GetCustomizableObject()->StateUIDataMap.Find(CurrentState);
-	const bool bNeverStream = State ? State->bDontCompressRuntimeTextures : false;
+
+	// \TODO: This should be controllable independently
+	const bool bNeverStream = State ? State->TextureCompressionStrategy!=ETextureCompressionStrategy::None : false;
 	const bool bUseMipmapStreaming = !bNeverStream;
 	int32 MipsToSkip = 0; // 0 means all mips
 
@@ -1235,18 +1237,13 @@ namespace impl
 		// Main instance generation step
 		{
 			// LOD mask, set to all ones to build  all LODs
-			uint32 LODMask = 0xFFFFFFFF;
+			uint32 LODMask = mu::System::AllLODs;
 
 			Instance = System->BeginUpdate(OperationData->InstanceID, MutableParameters, State, LODMask);
 
 			if (!Instance)
 			{
-				const mu::Error MutableError = mu::GetError();
-				if (MutableError == mu::Error::Unsupported)
-				{
-					UE_LOG(LogMutable, Log, TEXT("The necessary functionality is not supported in this version of Mutable"));
-				}
-
+				UE_LOG(LogMutable, Log, TEXT("An Instace update has failed."));
 				return;
 			}
 		}

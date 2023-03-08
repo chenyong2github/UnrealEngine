@@ -5,6 +5,8 @@
 #include "Engine/Texture2D.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCO/CustomizableObjectCustomVersion.h"
+#include "MuR/System.h"
+
 #include "CustomizableObjectUIData.generated.h"
 
 class UTexture2D;
@@ -256,8 +258,14 @@ struct FParameterUIData
 	UPROPERTY(BlueprintReadWrite, Category = UI)
 	ECustomizableObjectGroupType IntegerParameterGroupType;
 
-	UPROPERTY(BlueprintReadWrite, Category = CustomizableObject)
-	bool bDontCompressRuntimeTextures = false; // Only useful for state metadata
+	/** Replaced by TextureCompressionStrategy */
+	UPROPERTY()
+	bool bDontCompressRuntimeTextures_DEPRECATED = false; // Only useful for state metadata
+
+	/** Not really relevant for UI, but apparently bDontCompressRuntimeTextures_DEPRECATED was used to decided some texture properties at runtime.
+	* TODO: Try to handle the NeverStream without going through this.
+	*/
+	ETextureCompressionStrategy TextureCompressionStrategy = ETextureCompressionStrategy::None;
 
 	/** In this mode instances and their temp data will be reused between updates. It will be much faster but spend as much as ten times the memory.
 	    Useful for customization lockers with few characters that are going to have their parameters changed many times, not for in-game */
@@ -291,7 +299,7 @@ struct FParameterUIData
 		Ar << UIData.Type;
 		Ar << UIData.ArrayIntegerParameterOption;
 		Ar << UIData.IntegerParameterGroupType;
-		Ar << UIData.bDontCompressRuntimeTextures;
+		Ar << UIData.TextureCompressionStrategy;
 		Ar << UIData.bLiveUpdateMode;
 		Ar << UIData.bReuseInstanceTextures;
 		Ar << UIData.ForcedParameterValues;

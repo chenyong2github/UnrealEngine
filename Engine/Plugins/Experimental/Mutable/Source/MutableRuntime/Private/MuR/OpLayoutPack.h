@@ -5,8 +5,7 @@
 #include "MuR/Layout.h"
 #include "MuR/MutableTrace.h"
 #include "MuR/Platform.h"
-
-#include <limits>
+#include "GenericPlatform/GenericPlatformMath.h"
 
 
 namespace mu
@@ -506,9 +505,9 @@ namespace mu
 				auto candidateSizeY = scratch->sorted[candidate].size[1];
 
 				// Seek for the lowest span where the block fits
-				int currentLevel = std::numeric_limits<int>::max();
+				int currentLevel = TNumericLimits<int>::Max();
 				int currentX = 0;
-				int currentLevelWithoutHole = std::numeric_limits<int>::max();
+				int currentLevelWithoutHole = TNumericLimits<int>::Max();
 				int currentXWithoutHole = 0;
 				for (int x = 0; x <= *maxX - candidateSizeX; ++x)
 				{
@@ -525,8 +524,8 @@ namespace mu
 					}
 
 					// Does it make an unfillable hole with the top or side?
-					int minX = std::numeric_limits<int>::max();
-					int minY = std::numeric_limits<int>::max();
+					int minX = TNumericLimits<int>::Max();
+					int minY = TNumericLimits<int>::Max();
 					for (size_t b = 0; b < scratch->sorted.Num(); ++b)
 					{
 						if (!packedFlag[b] && b != candidate)
@@ -539,7 +538,7 @@ namespace mu
 					bool hole =
 						// Vertical unfillable gap
 						(
-						(minY != std::numeric_limits<int>::max())
+						(minY != TNumericLimits<int>::Max())
 							&&
 							(currentLevel + candidateSizeY) < bestY
 							&&
@@ -548,7 +547,7 @@ namespace mu
 						||
 						// Horizontal unfillable gap
 						(
-						(minX != std::numeric_limits<int>::max())
+						(minX != TNumericLimits<int>::Max())
 							&&
 							(currentX + candidateSizeX) < *maxX
 							&&
@@ -633,7 +632,7 @@ namespace mu
 			fits = false;
 		}
 
-		*maxY = ceilPow2(*maxY);
+		*maxY = FGenericPlatformMath::RoundUpToPowerOfTwo(*maxY);
 
 		return fits;
 	}
@@ -694,8 +693,8 @@ namespace mu
         // in case we cannot pack everything, we will grow Y with the current horizon algorithm.
 		if (pSourceLayout->GetLayoutPackingStrategy() == EPackStrategy::RESIZABLE_LAYOUT)
 		{
-			maxX = ceilPow2(maxX);
-			maxY = ceilPow2(maxY);
+			maxX = FGenericPlatformMath::RoundUpToPowerOfTwo(maxX);
+			maxY = FGenericPlatformMath::RoundUpToPowerOfTwo(maxY);
 
 			while (maxX*maxY < area)
 			{
@@ -779,8 +778,8 @@ namespace mu
 				}
 			}
 
-			maxX = ceilPow2(maxX);
-			maxY = ceilPow2(maxY);
+			maxX = FGenericPlatformMath::RoundUpToPowerOfTwo(maxX);
+			maxY = FGenericPlatformMath::RoundUpToPowerOfTwo(maxY);
 
 			// Grow until the area is big enough to fit all blocks or the size is equal to the max layout size.
 			while (maxX*maxY < area && (maxX < layoutSizeX || maxY < layoutSizeY))

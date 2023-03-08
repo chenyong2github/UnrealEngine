@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
+#include "MuR/System.h"
 
 #include "CustomizableObjectNodeObject.generated.h"
 
@@ -27,8 +28,13 @@ struct CUSTOMIZABLEOBJECTEDITOR_API FCustomizableObjectState
 	UPROPERTY(EditAnywhere, Category=CustomizableObject)
 	TArray<FString> RuntimeParameters;
 
+	/** This is now TextureCompressionStrategy.  */
+	UPROPERTY()
+	bool bDontCompressRuntimeTextures_DEPRECATED = false;
+		
+	/** Special treatment of texture compression for this state. */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
-	bool bDontCompressRuntimeTextures = false;
+	ETextureCompressionStrategy TextureCompressionStrategy = ETextureCompressionStrategy::None;
 
 	/** LiveUpdateMode will reuse instance temp. data between updates and speed up update times, but spend much more memory. Good for customization screens, not for actual gameplay modes. */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
@@ -153,6 +159,7 @@ public:
 
 	// UObject interface.
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	void PostLoad() override;
 
 	// EdGraphNode interface
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;

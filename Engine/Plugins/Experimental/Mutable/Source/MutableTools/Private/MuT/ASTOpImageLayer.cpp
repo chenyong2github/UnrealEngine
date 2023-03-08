@@ -512,7 +512,8 @@ namespace mu
 					Ptr<ASTOpImagePatch> patch = new ASTOpImagePatch();
 					patch->base = baseAt;
 					patch->patch = newLayer;
-					patch->location = maskUsage.min;
+					patch->location[0] = maskUsage.min[0];
+					patch->location[1] = maskUsage.min[1];
 					at = patch;
 				}
 			}

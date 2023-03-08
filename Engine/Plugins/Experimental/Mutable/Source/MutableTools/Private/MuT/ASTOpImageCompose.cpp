@@ -237,7 +237,7 @@ mu::Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const FModelOptimizationOptio
 		// Constant single-block full layout?
 		if (pLayout->GetBlockCount() == 1
 			&&
-			pLayout->m_blocks[0].m_min == vec2<uint16>(0, 0)
+			pLayout->m_blocks[0].m_min == UE::Math::TIntVector2<uint16>(0, 0)
 			&&
 			pLayout->m_blocks[0].m_size == pLayout->m_size
 			&&

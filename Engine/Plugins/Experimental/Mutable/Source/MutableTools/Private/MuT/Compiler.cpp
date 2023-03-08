@@ -197,7 +197,6 @@ namespace mu
                 data.nodeState = s.first;
                 data.root = s.second;
                 data.state.m_name = s.first.m_name;
-                data.optimisationFlags = s.first.m_optimisation;
                 states.push_back( data );
             }
 

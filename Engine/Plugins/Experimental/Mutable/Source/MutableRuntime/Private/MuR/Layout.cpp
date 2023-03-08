@@ -156,8 +156,8 @@ namespace mu {
 		check( index >=0 && index < m_blocks.Num() );
 
 		// Keeps the id
-		m_blocks[index].m_min = vec2<uint16>((uint16)minx, (uint16)miny);
-		m_blocks[index].m_size = vec2<uint16>((uint16)sizex, (uint16)sizey);
+		m_blocks[index].m_min = UE::Math::TIntVector2<uint16>((uint16)minx, (uint16)miny);
+		m_blocks[index].m_size = UE::Math::TIntVector2<uint16>((uint16)sizex, (uint16)sizey);
 	}
 
 
@@ -223,7 +223,7 @@ namespace mu {
 	bool Layout::IsSingleBlockAndFull() const
 	{
 		if (m_blocks.Num() == 1
-			&& m_blocks[0].m_min == vec2<uint16>(0, 0)
+			&& m_blocks[0].m_min == UE::Math::TIntVector2<uint16>(0, 0)
 			&& m_blocks[0].m_size == m_size)
 		{
 			return true;

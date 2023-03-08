@@ -441,10 +441,12 @@ namespace mu
 
             auto rectOp = typedPatch->patch.child();
             ASTOp::FGetImageDescContext context;
-            auto patchDesc = rectOp->GetImageDesc( false, &context );
-            box<vec2<int16_t>> patchBox;
-            patchBox.min = typedPatch->location;
-            patchBox.size = patchDesc.m_size;
+            FImageDesc patchDesc = rectOp->GetImageDesc( false, &context );
+            box<vec2<int16>> patchBox;
+			patchBox.min[0] = typedPatch->location[0];
+			patchBox.min[1] = typedPatch->location[1];
+			patchBox.size[0] = patchDesc.m_size[0];
+			patchBox.size[1] = patchDesc.m_size[1];
 
             box<vec2<int16_t>> cropBox;
             cropBox.min[0] = currentCropOp->op.args.ImageCrop.minX;
@@ -464,7 +466,7 @@ namespace mu
                 auto newOp = mu::Clone<ASTOpImagePatch>(at);
                 newOp->base = Visit(newOp->base.child(), currentCropOp);
 
-                box<vec2<int16_t>> ibox = patchBox.Intersect(cropBox);
+                box<vec2<int16>> ibox = patchBox.Intersect(cropBox);
                 check(ibox.size[0]>0 && ibox.size[1]>0);
 
                 Ptr<ASTOpFixed> patchCropOp = mu::Clone<ASTOpFixed>(currentCropOp);

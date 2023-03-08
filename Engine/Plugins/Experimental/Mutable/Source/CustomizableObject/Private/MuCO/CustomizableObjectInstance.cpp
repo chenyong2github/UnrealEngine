@@ -2601,8 +2601,8 @@ void CopyTextureProperties(UTexture2D* Texture, const UTexture2D* SourceTexture)
 // If assigned to a UTexture2D, it will be freed by that UTexture2D
 FTexturePlatformData* UCustomizableInstancePrivateData::MutableCreateImagePlatformData(mu::Ptr<const mu::Image> MutableImage, int32 OnlyLOD, uint16 FullSizeX, uint16 FullSizeY)
 {
-	int32 SizeX = FMath::Max(MutableImage->GetSize().x(), FullSizeX);
-	int32 SizeY = FMath::Max(MutableImage->GetSize().y(), FullSizeY);
+	int32 SizeX = FMath::Max(MutableImage->GetSize()[0], FullSizeX);
+	int32 SizeY = FMath::Max(MutableImage->GetSize()[1], FullSizeY);
 
 	if (SizeX <= 0 || SizeY <= 0)
 	{

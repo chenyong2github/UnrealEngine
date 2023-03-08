@@ -38,27 +38,6 @@ namespace mu
 {
     static_assert( sizeof(mat4f) == 64, "UNEXPECTED_STRUCT_PACKING" );
 
-    //!
-    static std::atomic<mu::Error> s_error(mu::Error::None);
-
-
-    //---------------------------------------------------------------------------------------------
-    //!
-    //---------------------------------------------------------------------------------------------
-    Error GetError()
-    {
-        return s_error;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    //!
-    //---------------------------------------------------------------------------------------------
-    void ClearError()
-    {
-        s_error = Error::None;
-    }
-
 
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
@@ -370,7 +349,7 @@ namespace mu
 				if (GetOpDataType(opType) == DT_IMAGE)
 				{
 					int8 executionOptions = 0;
-					CodeRunner Runner(m_pD->m_pSettings, m_pD, pLiveInstance->m_pModel, pLiveInstance->m_pOldParameters.get(), at, System::AllLODs, executionOptions, 0, FScheduledOp::EType::ImageDesc);
+					CodeRunner Runner(m_pD->m_pSettings, m_pD, EExecutionStrategy::MinimizeMemory, pLiveInstance->m_pModel, pLiveInstance->m_pOldParameters.get(), at, System::AllLODs, executionOptions, 0, FScheduledOp::EType::ImageDesc);
 					Runner.Run();
 					Runner.GetImageDescResult(OutDesc);
 				}
@@ -670,7 +649,7 @@ namespace mu
 	void System::Private::RunCode(const TSharedPtr<const Model>& InModel,
 		const Parameters* InParameters, OP::ADDRESS InCodeRoot, uint32 InLODs, uint8 executionOptions, int32 InImageLOD)
 	{
-		CodeRunner Runner(m_pSettings, this, InModel, InParameters, InCodeRoot, InLODs, 
+		CodeRunner Runner(m_pSettings, this, EExecutionStrategy::MinimizeMemory, InModel, InParameters, InCodeRoot, InLODs,
 			executionOptions, InImageLOD, FScheduledOp::EType::Full);
 		Runner.Run();
 		bUnrecoverableError = Runner.bUnrecoverableError;

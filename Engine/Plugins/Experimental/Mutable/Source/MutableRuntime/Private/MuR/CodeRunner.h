@@ -43,6 +43,7 @@ namespace  mu
     {
     public:
 		CodeRunner(const SettingsPtrConst&, class System::Private*, 
+			EExecutionStrategy,
 			const TSharedPtr<const Model>&, const Parameters* pParams,
 			OP::ADDRESS at, uint32 lodMask, uint8 executionOptions, int32 InImageLOD, FScheduledOp::EType );
 
@@ -214,6 +215,7 @@ namespace  mu
 
 		void AddOp(const FScheduledOp& op)
 		{
+			// It has no dependencies, so add it directly to the open tasks list.
 			OpenTasks.Add(op);
 			ScheduledStagePerOp[op] = op.Stage + 1;
 		}
@@ -301,10 +303,19 @@ namespace  mu
 
 	protected:
 
-		//! Stack of pending operations, and the execution stage they are in.
+		/** Strategy to choose the order of execution of operations. */
+		EExecutionStrategy ExecutionStrategy = EExecutionStrategy::None; 
+
+		/** List of pending operations that we don't know if they cannot be run yet because of dependencies. */
 		TArray< FTask > ClosedTasks;
+
+		/** List of tasks that can be run because they don't have any unmet dependency. */
 		TArray< FScheduledOp > OpenTasks;
+
+		/** For every op, up to what stage it has been scheduled to run. */
 		CodeContainer<uint8> ScheduledStagePerOp;
+
+		/** List of tasks that have been set to run concurrently and their completion is unknown. */
 		TArray< TSharedPtr<FIssuedTask> > IssuedTasks;
 
 	// TODO: protect this.
@@ -355,6 +366,9 @@ namespace  mu
 
 		/** Try to create a concurrent task for the given op. Return null if not possible. */
 		TSharedPtr<FIssuedTask> IssueOp(FScheduledOp item);
+
+		/** Calculate an heuristic to select op execution based on memory usage. */
+		int32 GetOpEstimatedMemoryDelta(const FScheduledOp& Candidate, const FProgram& Program);
 
 		/** */
 		void CompleteRomLoadOp(FRomLoadOp& o);

@@ -17,7 +17,6 @@
 #include "MuT/NodeModifierMeshClipWithMesh.h"
 #include "MuT/NodeObjectGroup.h"
 #include "MuT/NodeObjectNew.h"
-#include "MuT/NodeObjectState.h"
 #include "MuT/NodePatchMesh.h"
 #include "MuT/NodeSurfaceEdit.h"
 #include "MuT/NodeSurfaceNew.h"
@@ -31,7 +30,7 @@
 namespace mu
 {
 	class Layout;
-	struct OBJECT_STATE;
+	struct FObjectState;
 
 	//---------------------------------------------------------------------------------------------
 	//! First pass of the code generation process.
@@ -50,7 +49,6 @@ namespace mu
         public Visitor<NodeLOD::Private, Ptr<ASTOp>, true>,
         public Visitor<NodeObjectNew::Private, Ptr<ASTOp>, true>,
         public Visitor<NodeObjectGroup::Private, Ptr<ASTOp>, true>,
-        public Visitor<NodeObjectState::Private, Ptr<ASTOp>, true>,
         public Visitor<NodePatchMesh::Private, Ptr<ASTOp>, true>,
 
         public Visitor<NodeModifierMeshClipMorphPlane::Private, Ptr<ASTOp>, true>,
@@ -182,7 +180,7 @@ namespace mu
 
         //! Accumulate the model states found while generating code, with their generated root
         //! nodes.
-        typedef TArray< TPair<OBJECT_STATE, const Node::Private*> > StateList;
+        typedef TArray< TPair<FObjectState, const Node::Private*> > StateList;
         StateList m_states;
 
 	public:
@@ -195,7 +193,6 @@ namespace mu
         Ptr<ASTOp> Visit(const NodeLOD::Private&) override;
         Ptr<ASTOp> Visit(const NodeObjectNew::Private& node) override;
         Ptr<ASTOp> Visit(const NodeObjectGroup::Private&) override;
-        Ptr<ASTOp> Visit(const NodeObjectState::Private&) override;
         Ptr<ASTOp> Visit(const NodeModifierMeshClipMorphPlane::Private&) override;
         Ptr<ASTOp> Visit(const NodeModifierMeshClipWithMesh::Private&) override;
         Ptr<ASTOp> Visit(const NodeModifierMeshClipDeform::Private&) override;

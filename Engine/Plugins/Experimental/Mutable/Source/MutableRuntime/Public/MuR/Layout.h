@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "MuR/MutableMath.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
 #include "MuR/SerialisationPrivate.h"
 #include "Containers/Array.h"
-#include "Math/UnrealMathSSE.h"
 #include "Misc/AssertionMacros.h"
+#include "Math/IntVector.h"
 
 namespace mu
 {
@@ -156,7 +155,7 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 		struct FBlock
 		{
-			FBlock(vec2<uint16> min = vec2<uint16>(), vec2<uint16> size = vec2<uint16>())
+			FBlock(UE::Math::TIntVector2<uint16> min = UE::Math::TIntVector2<uint16>(), UE::Math::TIntVector2<uint16> size = UE::Math::TIntVector2<uint16>())
 			{
 				m_min = min;
 				m_size = size;
@@ -165,8 +164,8 @@ namespace mu
 				bUseSymmetry = false;
 			}
 
-			vec2<uint16> m_min;
-			vec2<uint16> m_size;
+			UE::Math::TIntVector2<uint16> m_min;
+			UE::Math::TIntVector2<uint16> m_size;
 
 			//! Absolute id used to control merging of various layouts
 			int32 m_id;
@@ -230,9 +229,9 @@ namespace mu
 
 
 		//!
-		vec2<uint16> m_size;
+		UE::Math::TIntVector2<uint16> m_size;
 
-		vec2<uint16> m_maxsize;
+		UE::Math::TIntVector2<uint16> m_maxsize;
 
 		//!
 		TArray<FBlock> m_blocks;

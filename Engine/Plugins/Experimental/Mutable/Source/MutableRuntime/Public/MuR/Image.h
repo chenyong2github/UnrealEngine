@@ -7,7 +7,6 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
-#include "MuR/SerialisationPrivate.h"
 #include "Containers/Array.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/Platform.h"
@@ -23,7 +22,7 @@ namespace mu
 	typedef Ptr<const Image> ImagePtrConst;
 
 	//!
-	using FImageSize = vec2<uint16>;
+	using FImageSize = UE::Math::TIntVector2<uint16>;
 	using FImageRect = box<vec2<uint16>>;
 
 	//! Pixel formats supported by the images.
@@ -74,7 +73,6 @@ namespace mu
 
         IF_COUNT
 	};
-	MUTABLE_DEFINE_ENUM_SERIALISABLE(EImageFormat);
 
 	struct MUTABLERUNTIME_API FImageDesc
 	{
@@ -317,38 +315,10 @@ namespace mu
 
 
 		//!
-		void Serialise(OutputArchive& arch) const
-		{
-			uint32 ver = 3;
-			arch << ver;
-
-			arch << m_size;
-			arch << m_lods;
-			arch << (uint8)m_format;
-			arch << m_data;
-
-			// Remove non-persistent flags.
-			uint8 flags = m_flags & ~IF_HAS_RELEVANCY_MAP;
-			arch << flags;
-		}
+		void Serialise(OutputArchive& arch) const;
 
 		//!
-		void Unserialise(InputArchive& arch)
-		{
-			uint32 ver;
-			arch >> ver;
-			check(ver == 3);
-
-			arch >> m_size;
-			arch >> m_lods;
-
-			uint8 format;
-			arch >> format;
-			m_format = (EImageFormat)format;
-			arch >> m_data;
-
-			arch >> m_flags;
-		}
+		void Unserialise(InputArchive& arch);
 
 		//!
 		inline bool operator==(const Image& o) const

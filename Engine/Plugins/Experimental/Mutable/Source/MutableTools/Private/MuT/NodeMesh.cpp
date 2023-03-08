@@ -17,7 +17,6 @@
 #include "MuT/NodeMeshMakeMorph.h"
 #include "MuT/NodeMeshMorph.h"
 #include "MuT/NodeMeshReshape.h"
-#include "MuT/NodeMeshSubtract.h"
 #include "MuT/NodeMeshSwitch.h"
 #include "MuT/NodeMeshTable.h"
 #include "MuT/NodeMeshTangents.h"
@@ -61,7 +60,6 @@ namespace mu
 		case EType::Constant:		return NodeMeshConstant::StaticUnserialise( arch ); break;
 		case EType::Interpolate:	return NodeMeshInterpolate::StaticUnserialise( arch ); break;
 		case EType::Table:			return NodeMeshTable::StaticUnserialise( arch ); break;
-		case EType::Subtract:		return NodeMeshSubtract::StaticUnserialise( arch ); break;
 		case EType::Format:			return NodeMeshFormat::StaticUnserialise( arch ); break;
 		case EType::Tangents:		return NodeMeshTangents::StaticUnserialise( arch ); break;
 		case EType::Morph:			return NodeMeshMorph::StaticUnserialise( arch ); break;

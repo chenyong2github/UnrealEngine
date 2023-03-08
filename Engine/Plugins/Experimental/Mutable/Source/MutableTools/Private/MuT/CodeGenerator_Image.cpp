@@ -136,7 +136,7 @@ namespace mu
 			IMAGE_STATE newState;
 			newState.m_imageSize[0] = desc.m_size[0] ? desc.m_size[0] : 256;
 			newState.m_imageSize[1] = desc.m_size[1] ? desc.m_size[1] : 256;
-			newState.m_imageRect.size = desc.m_size;
+			newState.m_imageRect.size = FIntVector2(desc.m_size);
 			newState.m_imageRect.min[0] = 0;
 			newState.m_imageRect.min[1] = 0;
 			newState.m_layoutBlockId = -1;
@@ -225,7 +225,7 @@ namespace mu
             m_pErrorLog->GetPrivate()->Add( "Constant image not set.", ELMT_WARNING, node.m_errorContext );
         }
 
-        vec2<int> imageSize( pImage->GetSizeX(), pImage->GetSizeY() );
+		FIntVector2 imageSize( pImage->GetSizeX(), pImage->GetSizeY() );
 
         // The constant image size may be different than the parent rect we are generating
         // In that case we need to crop the proportional part and the code generator will
@@ -234,9 +234,11 @@ namespace mu
 
         // Order of the operations is important: multiply first to avoid losing precision.
         // It will not overflow since image sizes are limited to 16 bit
-		vec2<int> RectDivisor = vec2<int>::max(vec2<int>(1,1),m_imageState.Last().m_imageSize);
-        cropRect.min = ( m_imageState.Last().m_imageRect.min * imageSize ) / RectDivisor;
-        cropRect.size = ( m_imageState.Last().m_imageRect.size * imageSize ) / RectDivisor;
+		FIntVector2 RectDivisor = FIntVector2( FMath::Max(1, m_imageState.Last().m_imageSize[0]), FMath::Max(1, m_imageState.Last().m_imageSize[1]));
+		cropRect.min[0] = (m_imageState.Last().m_imageRect.min[0] * imageSize[0]) / RectDivisor[0];
+		cropRect.min[1] = (m_imageState.Last().m_imageRect.min[1] * imageSize[1]) / RectDivisor[1];
+		cropRect.size[0] = (m_imageState.Last().m_imageRect.size[0] * imageSize[0]) / RectDivisor[0];
+		cropRect.size[1] = (m_imageState.Last().m_imageRect.size[1] * imageSize[1]) / RectDivisor[1];
 
         //check( cropRect.size[0]>0 && cropRect.size[1]>0 );
         cropRect.size[0] = FMath::Max( cropRect.size[0], 1 );
@@ -1547,17 +1549,16 @@ namespace mu
 
             // We take whatever size will be produced
             FImageDesc desc = CalculateImageDesc( *node.m_pImage->GetBasePrivate() );
-            newState.m_imageSize = desc.m_size;
-            newState.m_imageRect.min[0] = 0;
-            newState.m_imageRect.min[1] = 0;
-            newState.m_imageRect.size = desc.m_size;
+            newState.m_imageSize = FIntVector2(desc.m_size);
+            newState.m_imageRect.min = FIntVector2(0,0);
+            newState.m_imageRect.size = FIntVector2(desc.m_size);
             newState.m_layoutBlockId = -1;
             m_imageState.Add( newState );
 
             // Generate
             op->image = Generate( node.m_pImage.get() );
-			op->SourceSizeX = desc.m_size.x();
-			op->SourceSizeY = desc.m_size.y();
+			op->SourceSizeX = desc.m_size[0];
+			op->SourceSizeY = desc.m_size[1];
 
             // Restore rect
             m_imageState.Pop();

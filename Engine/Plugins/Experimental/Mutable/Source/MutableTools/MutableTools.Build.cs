@@ -27,7 +27,7 @@ namespace UnrealBuildTool.Rules
                 new string[] {
 					"MutableRuntime", 
 					"Core",
-                }
+				}
             );
 		}
 	}

@@ -1901,9 +1901,11 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     RuntimeTextureCompressionRemoverAST::RuntimeTextureCompressionRemoverAST(
-            STATE_COMPILATION_DATA* pState
-            )
+		STATE_COMPILATION_DATA* pState,
+		bool bInAlwaysUncompress
+	)
         : m_hasRuntimeParamVisitor(pState)
+		, bAlwaysUncompress(bInAlwaysUncompress)
     {
         Traverse( pState->root );
     }
@@ -1914,7 +1916,7 @@ namespace mu
         OP_TYPE type = at->GetOpType();
         processChildren = GetOpDataType(type)==DT_INSTANCE;
 
-        // TODO: Finer grained: what if the runtime parameter just selectes between compressed
+        // TODO: Finer grained: what if the runtime parameter just selects between compressed
         // textures? We don't want them uncompressed.
         if( type==OP_TYPE::IN_ADDIMAGE )
         {
@@ -1924,7 +1926,7 @@ namespace mu
             // Does it have a runtime parameter in its subtree?
             bool hasRuntimeParameter = m_hasRuntimeParamVisitor.HasAny( imageAt );
 
-            if (hasRuntimeParameter)
+            if (bAlwaysUncompress || hasRuntimeParameter)
             {
                 FImageDesc imageDesc = imageAt->GetImageDesc( true );
 
@@ -1998,21 +2000,35 @@ namespace mu
          for ( size_t s=0; s<m_states.size(); ++s )
          {
             // Remove the unnecessary lods
-            if (m_states[s].optimisationFlags.m_onlyFirstLOD)
+            if (m_states[s].nodeState.m_optimisation.bOnlyFirstLOD)
             {
-				LODCountReducerAST(m_states[s].root, m_states[s].optimisationFlags.m_firstLOD + 1 + m_states[s].optimisationFlags.m_numExtraLODsToBuildAfterFirstLOD);
+				LODCountReducerAST(m_states[s].root, m_states[s].nodeState.m_optimisation.FirstLOD + 1 + m_states[s].nodeState.m_optimisation.NumExtraLODsToBuildAfterFirstLOD);
             }
+
+			// Apply texture compression strategy
+			switch (m_states[s].nodeState.m_optimisation.TextureCompressionStrategy)
+			{
+			case ETextureCompressionStrategy::DontCompressRuntime:
+			{
+				MUTABLE_CPUPROFILER_SCOPE(RuntimeTextureCompressionRemover);
+				RuntimeTextureCompressionRemoverAST r(&m_states[s], false);
+				break;
+			}
+
+			case ETextureCompressionStrategy::NeverCompress:
+			{
+				MUTABLE_CPUPROFILER_SCOPE(RuntimeTextureCompressionRemover);
+				RuntimeTextureCompressionRemoverAST r(&m_states[s], true);
+				break;
+			}
+
+			default:
+				break;
+			}
 
             // If a state has no runtime parameters, skip its optimisation alltogether
             if (m_states[s].nodeState.m_runtimeParams.Num())
             {
-                // Remove unnecessary image compression
-                if (m_states[s].optimisationFlags.m_avoidRuntimeCompression)
-                {
-                    MUTABLE_CPUPROFILER_SCOPE(RuntimeTextureCompressionRemover);
-                    RuntimeTextureCompressionRemoverAST r(&m_states[s]);
-                }
-
                 // Promote the intructions that depend on runtime parameters, and sink new
                 // format instructions.
                 bool modified = true;

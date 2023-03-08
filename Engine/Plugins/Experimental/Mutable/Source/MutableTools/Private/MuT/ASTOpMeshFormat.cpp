@@ -387,7 +387,6 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 		break;
 
 	case OP_TYPE::ME_DIFFERENCE:
-	case OP_TYPE::ME_SUBTRACT:
 
 	default:
 		if (at != m_initialSource)

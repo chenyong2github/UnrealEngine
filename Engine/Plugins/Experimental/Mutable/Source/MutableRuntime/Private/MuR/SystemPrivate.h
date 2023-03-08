@@ -158,7 +158,7 @@ namespace mu
 		//! may have more steges to schedule children that are optional for execution, etc.
 		uint8 Stage : 7;
 
-		//! Type of calculation we are requestinf for this operation.
+		//! Type of calculation we are requesting for this operation.
 		enum class EType : uint8
 		{
 			//! Execute the operation to calculate the full result

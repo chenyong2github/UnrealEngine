@@ -12,7 +12,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
-    #define OP_DESC_COUNT		size_t(OP_TYPE::COUNT)
+    #define OP_DESC_COUNT		int32(OP_TYPE::COUNT)
 
     // clang-format off
     static const OP_DESC s_opDescs[OP_DESC_COUNT] =
@@ -109,7 +109,6 @@ namespace mu
 		{ DT_MESH,		true,	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// ME_INTERPOLATE
 		{ DT_MESH,		true,	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// ME_MASKCLIPMESH
 		{ DT_MESH,		true,	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// ME_MASKDIFF
-		{ DT_MESH,		true,	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// ME_SUBTRACT
 		{ DT_MESH,		true,	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// ME_REMOVEMASK
 		{ DT_MESH,		true,	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// ME_FORMAT
 		{ DT_MESH,		true,	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// ME_EXTRACTLAYOUTBLOCK
@@ -358,11 +357,6 @@ namespace mu
         case OP_TYPE::ME_MASKDIFF:
             f(&op.args.MeshMaskDiff.source );
             f(&op.args.MeshMaskDiff.fragment );
-            break;
-
-        case OP_TYPE::ME_SUBTRACT:
-            f(&op.args.MeshSubtract.a );
-            f(&op.args.MeshSubtract.b );
             break;
 
         case OP_TYPE::ME_EXTRACTFACEGROUP:
@@ -930,14 +924,6 @@ namespace mu
 			OP::MeshMaskDiffArgs args = program.GetOpArgs<OP::MeshMaskDiffArgs>(at);
             f(args.source );
             f(args.fragment );
-            break;
-        }
-
-        case OP_TYPE::ME_SUBTRACT:
-        {
-			OP::MeshSubtractArgs args = program.GetOpArgs<OP::MeshSubtractArgs>(at);
-            f(args.a );
-            f(args.b );
             break;
         }
 

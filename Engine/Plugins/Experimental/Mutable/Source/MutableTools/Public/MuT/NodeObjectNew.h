@@ -5,20 +5,12 @@
 #include "MuR/RefCounted.h"
 #include "MuT/Node.h"
 #include "MuT/NodeObject.h"
+#include "MuR/System.h"
 
 
 namespace mu
 {
-
-	// Forward definitions
-	class NodeObjectNew;
-	typedef Ptr<NodeObjectNew> NodeObjectNewPtr;
-	typedef Ptr<const NodeObjectNew> NodeObjectNewPtrConst;
-
 	class NodeLOD;
-	typedef Ptr<NodeLOD> NodeLODPtr;
-	typedef Ptr<const NodeLOD> NodeLODPtrConst;
-
 
 	//! Node that creates a new object by setting its levels-of-detail and its children.
 	//! \ingroup model
@@ -34,7 +26,7 @@ namespace mu
 
 		void SerialiseWrapper(OutputArchive& arch) const override;
 		static void Serialise( const NodeObjectNew* pNode, OutputArchive& arch );
-		static NodeObjectNewPtr StaticUnserialise( InputArchive& arch );
+		static Ptr<NodeObjectNew> StaticUnserialise( InputArchive& arch );
 
 
 		//-----------------------------------------------------------------------------------------
@@ -67,8 +59,8 @@ namespace mu
 		void SetLODCount( int );
 
 		//! Get a level of detail node from the object.
-		NodeLODPtr GetLOD( int index ) const;
-		void SetLOD( int index, NodeLODPtr );
+		Ptr<NodeLOD> GetLOD( int index ) const;
+		void SetLOD( int index, Ptr<NodeLOD>);
 
 		//! Get the number of child objects
 		int GetChildCount() const;
@@ -102,7 +94,11 @@ namespace mu
 		void RemoveStateParam( int s, const char* param );
 
         //! Set the optimisation properties of a state
-        void SetStateProperties( int s, bool avoidRuntimeCompression, bool onlyFirstLOD, int firstLOD, int numExtraLODsToBuildAfterFirstLOD);
+		void SetStateProperties(int32 StateIndex,
+			ETextureCompressionStrategy TextureCompressionStrategy,
+			bool bOnlyFirstLOD,
+			uint8 FirstLOD,
+			uint8 NumExtraLODsToBuildAfterFirstLOD);
 
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern

@@ -1288,7 +1288,7 @@ void SMutableConstantsWidget::LoadConstantMatrices()
 		ConstantMatrixElement->Matrix = &(MutableProgramPtr->m_constantMatrices[MatrixIndex]);
 		ConstantMatrixElement->IndexOnSourceVector = MatrixIndex;
 		
-		ConstantMatrixElement->Matrix->Serialise(Archive);
+		Archive << *ConstantMatrixElement->Matrix;
 		
 		ConstantMatrixElements.Add(ConstantMatrixElement);
 	}

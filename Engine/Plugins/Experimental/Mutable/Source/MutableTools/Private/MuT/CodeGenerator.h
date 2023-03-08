@@ -31,7 +31,6 @@
 #include "MuT/NodeMeshTable.h"
 #include "MuT/NodeObjectGroup.h"
 #include "MuT/NodeObjectNew.h"
-#include "MuT/NodeObjectState.h"
 #include "MuT/NodePatchImage.h"
 #include "MuT/NodeProjector.h"
 #include "MuT/NodeString.h"
@@ -92,7 +91,6 @@ namespace mu
 	class NodeMeshMakeMorph;
 	class NodeMeshMorph;
 	class NodeMeshReshape;
-	class NodeMeshSubtract;
 	class NodeMeshSwitch;
 	class NodeMeshTransform;
 	class NodeMeshVariation;
@@ -107,7 +105,7 @@ namespace mu
 	class NodeScalarVariation;
 	class NodeStringConstant;
 	class NodeStringParameter;
-	struct OBJECT_STATE;
+	struct FObjectState;
 	struct FProgram;
 
 
@@ -122,7 +120,6 @@ namespace mu
                           public Visitor<NodeComponentEdit::Private, Ptr<ASTOp>, true>,
                           public Visitor<NodeLOD::Private, Ptr<ASTOp>, true>,
                           public Visitor<NodeObjectNew::Private, Ptr<ASTOp>, true>,
-                          public Visitor<NodeObjectState::Private, Ptr<ASTOp>, true>,
                           public Visitor<NodeObjectGroup::Private, Ptr<ASTOp>, true>,
                           public Visitor<NodePatchImage::Private, Ptr<ASTOp>, true>
     {
@@ -143,7 +140,6 @@ namespace mu
         Ptr<ASTOp> Visit( const NodeComponentEdit::Private& ) override;
         Ptr<ASTOp> Visit( const NodeLOD::Private& ) override;
         Ptr<ASTOp> Visit( const NodeObjectNew::Private& ) override;
-        Ptr<ASTOp> Visit( const NodeObjectState::Private& ) override;
         Ptr<ASTOp> Visit( const NodeObjectGroup::Private& ) override;
         Ptr<ASTOp> Visit( const NodePatchImage::Private& ) override;
 
@@ -192,8 +188,8 @@ namespace mu
             // This reference has to be the smart pointer to avoid memory aliasing, keeping
             // processed nodes alive.
             NodePtrConst pNode;
-            vec2<int> imageSize;
-            box< vec2<int> > imageRect;
+			UE::Math::TIntVector2<int> imageSize;
+            box< UE::Math::TIntVector2<int> > imageRect;
             int state = -1;
 			TArray<mu::string> activeTags;
 			TArray<LayoutPtrConst> overrideLayouts;
@@ -219,7 +215,7 @@ namespace mu
         int m_currentStateIndex = -1;
 
         //! After the entire code generation this contains the information about all the states
-        typedef TArray< std::pair<OBJECT_STATE, Ptr<ASTOp>> > StateList;
+        typedef TArray< std::pair<FObjectState, Ptr<ASTOp>> > StateList;
         StateList m_states;
 
     private:
@@ -241,8 +237,8 @@ namespace mu
         //! image that we are generating.
         struct IMAGE_STATE
         {
-            vec2<int> m_imageSize;
-            box< vec2<int> > m_imageRect;
+            UE::Math::TIntVector2<int32> m_imageSize;
+            box< UE::Math::TIntVector2<int32> > m_imageRect;
             int32 m_layoutBlockId;
             LayoutPtrConst m_pLayout;
         };
@@ -535,7 +531,6 @@ namespace mu
         void GenerateMesh_Fragment(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshFragment* );
         void GenerateMesh_Interpolate(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshInterpolate* );
         void GenerateMesh_Switch(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshSwitch* );
-        void GenerateMesh_Subtract(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshSubtract* );
         void GenerateMesh_Transform(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshTransform* );
         void GenerateMesh_ClipMorphPlane(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshClipMorphPlane* );
         void GenerateMesh_ClipWithMesh(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshClipWithMesh* );

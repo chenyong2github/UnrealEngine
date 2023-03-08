@@ -256,10 +256,6 @@ namespace mu
         //! Create a new mask mesh selecting all the faces of a source that match another mesh.
         ME_MASKDIFF,
 
-        //! Remove from a source mesh all the faces in common with another mesh
-		//! \TODO: Deprecated?
-		ME_SUBTRACT,
-
         //! Remove all the geometry selected by a mask.
         ME_REMOVEMASK,
 
@@ -873,12 +869,6 @@ namespace mu
             ADDRESS fragment;
         };
 
-        struct MeshSubtractArgs
-        {
-            ADDRESS a;
-            ADDRESS b;
-        };
-
         struct MeshFormatArgs
         {
             ADDRESS source;
@@ -1145,7 +1135,6 @@ namespace mu
             MeshMergeArgs MeshMerge;
             MeshInterpolateArgs MeshInterpolate;
             MeshMaskDiffArgs MeshMaskDiff;
-            MeshSubtractArgs MeshSubtract;
             MeshExtractFaceGroupArgs MeshExtractFaceGroup;
 			MeshClipMorphPlaneArgs MeshClipMorphPlane;
             MeshClipWithMeshArgs MeshClipWithMesh;

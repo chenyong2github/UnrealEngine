@@ -25,7 +25,6 @@
 #include "MuT/NodeObject.h"
 #include "MuT/NodeObjectGroupPrivate.h"
 #include "MuT/NodeObjectNewPrivate.h"
-#include "MuT/NodeObjectStatePrivate.h"
 #include "MuT/NodePrivate.h"
 #include "MuT/NodeSurface.h"
 #include "MuT/NodeSurfaceEditPrivate.h"
@@ -152,7 +151,7 @@ namespace mu
 
         if ( m_states.IsEmpty() )
         {
-            OBJECT_STATE data;
+            FObjectState data;
             data.m_name = "Default";
             m_states.Emplace( data, root );
         }
@@ -632,28 +631,6 @@ namespace mu
 
         return nullptr;
  	}
-
-
-    //---------------------------------------------------------------------------------------------
-    Ptr<ASTOp> FirstPassGenerator::Visit( const NodeObjectState::Private& node )
-    {
-        // Generate the source object
-        Ptr<ASTOp> source;
-
-        if (node.m_pSource)
-        {
-            // Process the source
-            node.m_pSource->GetBasePrivate()->Accept(*this);
-
-            if (node.m_pRoot)
-            {
-                // Remember the new state with the new root.
-                m_states.Emplace( node.m_state, node.m_pRoot->GetBasePrivate() );
-            }
-        }
-
-        return source;
-    }
 
 
 	//---------------------------------------------------------------------------------------------

@@ -185,6 +185,175 @@ namespace mu
 	}
 
 
+	//---------------------------------------------------------------------------------------------
+	/** This table encodes an heuristic for every execution stage of every operation  that tries to 
+	* guess the memory delta of that stage: 
+	* - if negative: after the stage the working memory may have reduced
+	* - if positive: after the stage the working memory may have increased
+	* The actual number is just a unit-less weight that represents "amount of additional memory that will be used".
+	* Some operations don't have a constant memory delta and are dealt with specially, but still need 
+	* to be in this table.
+	*/
+	static constexpr int32 sMemoryWeightsStageCount = 4;
+	static const int8 sMemoryWeights[int32(OP_TYPE::COUNT)][sMemoryWeightsStageCount] =
+	{ 
+		{   0,   0,   0,   0 },	// NONE
+		    
+		{   0,   0,   0,   0 },	// BO_CONSTANT
+		{   0,   0,   0,   0 },	// NU_CONSTANT
+		{   0,   0,   0,   0 },	// SC_CONSTANT
+		{   0,   0,   0,   0 },	// CO_CONSTANT
+		{  20,   0,   0,   0 },	// IM_CONSTANT
+		{  20,   0,   0,   0 },	// ME_CONSTANT
+		{   0,   0,   0,   0 },	// LA_CONSTANT
+		{   0,   0,   0,   0 },	// PR_CONSTANT
+		{   0,   0,   0,   0 },	// ST_CONSTANT
+		    
+		{   0,   0,   0,   0 },	// BO_PARAMETER
+		{   0,   0,   0,   0 },	// NU_PARAMETER
+		{   0,   0,   0,   0 },	// SC_PARAMETER
+		{   0,   0,   0,   0 },	// CO_PARAMETER
+		{   0,   0,   0,   0 },	// PR_PARAMETER
+		{  20,   0,   0,   0 },	// IM_PARAMETER
+		{   0,   0,   0,   0 },	// ST_PARAMETER
+		    
+		{   0,   0,   0,   0 },	// NU_CONDITIONAL
+		{   0,   0,   0,   0 },	// SC_CONDITIONAL
+		{   0,   0,   0,   0 },	// CO_CONDITIONAL
+		{   0,   0,   0,   0 },	// IM_CONDITIONAL
+		{   0,   0,   0,   0 },	// ME_CONDITIONAL
+		{   0,   0,   0,   0 },	// LA_CONDITIONAL
+		{   0,   0,   0,   0 },	// IN_CONDITIONAL
+		    
+		{   0,   0,   0,   0 },	// NU_SWITCH
+		{   0,   0,   0,   0 },	// SC_SWITCH
+		{   0,   0,   0,   0 },	// CO_SWITCH
+		{   0,   0,   0,   0 },	// IM_SWITCH
+		{   0,   0,   0,   0 },	// ME_SWITCH
+		{   0,   0,   0,   0 },	// LA_SWITCH
+		{   0,   0,   0,   0 },	// IN_SWITCH
+		    
+		{   0,   0,   0,   0 },	// BO_LESS
+		{   0,   0,   0,   0 },	// BO_EQUAL_SC_CONST
+		{   0,   0,   0,   0 },	// BO_AND
+		{   0,   0,   0,   0 },	// BO_OR
+		{   0,   0,   0,   0 },	// BO_NOT
+		    
+		{   0,   0,   0,   0 },	// SC_MULTIPLYADD
+		{   0,   0,   0,   0 },	// SC_ARITHMETIC
+		{   0,   0,   0,   0 },	// SC_CURVE
+		    
+		{   0,   0,   0,   0 },	// CO_SAMPLEIMAGE
+		{   0,   0,   0,   0 },	// CO_SWIZZLE
+		{   0,   0,   0,   0 },	// CO_IMAGESIZE
+		{   0,   0,   0,   0 },	// CO_LAYOUTBLOCKTRANSFORM
+		{   0,   0,   0,   0 },	// CO_FROMSCALARS
+		{   0,   0,   0,   0 },	// CO_ARITHMETIC
+		    
+		{   0, -20, -20,   0 },	// IM_LAYER
+		{   0,   0,   0,   0 },	// IM_LAYERCOLOUR
+		{   0,   0,   0,   0 },	// IM_PIXELFORMAT	(special case)
+		{   0,  10,   0,   0 },	// IM_MIPMAP
+		{   0,   0,   0,   0 },	// IM_RESIZE		(special case)
+		{   0,   0,   0,   0 },	// IM_RESIZELIKE	(to be deprecated?)
+		{   0,   0,   0,   0 },	// IM_RESIZEREL		(special case)
+		{   0,  20,   0,   0 },	// IM_BLANKLAYOUT
+		{   0,   0, -20,   0 },	// IM_COMPOSE
+		{   0,   0,   0,   0 },	// IM_DIFFERENCE
+		{   0,   0, -20,   0 },	// IM_INTERPOLATE
+		{   0,   0, -30,   0 },	// IM_INTERPOLATE3
+		{   0,   0,   0,   0 },	// IM_SATURATE
+		{   0,   0,   0,   0 },	// IM_LUMINANCE
+		{   0,   0,   0,   0 },	// IM_SWIZZLE
+		{   0,   0,   0,   0 },	// IM_SELECTCOLOUR
+		{   0,   0,   0,   0 },	// IM_COLOURMAP
+		{   0,   5,   0,   0 },	// IM_GRADIENT
+		{   0,   0,   0,   0 },	// IM_BINARISE
+		{   0,  20,   0,   0 },	// IM_PLAINCOLOUR
+		{   0,   0,   0,   0 },	// IM_GPU
+		{   0, -10,   0,   0 },	// IM_CROP
+		{   0, -10,   0,   0 },	// IM_PATCH
+		{   0,  10,  10,   0 },	// IM_RASTERMESH
+		{   0,   0,   0,   0 },	// IM_MAKEGROWMAP
+		{   0, -10,   0,   0 },	// IM_DISPLACE
+		{   0,   0, -20, -20 },	// IM_MULTILAYER
+		{   0,   0,   0,   0 },	// IM_INVERT
+		{   0,   0,   0,   0 },	// IM_NORMALCOMPOSITE
+		{   0,   0,   0,   0 },	// IM_TRANSFORM
+		    
+		{   0,   0,   0,   0 },	// ME_APPLYLAYOUT
+		{   0, -20,   0,   0 },	// ME_DIFFERENCE
+		{   0,   0, -10,   0 },	// ME_MORPH2
+		{   0,   0,   0,   0 },	// ME_MERGE
+		{   0,   0, -20,   0 },	// ME_INTERPOLATE
+		{   0, -10,   0,   0 },	// ME_MASKCLIPMESH
+		{   0, -10,   0,   0 },	// ME_MASKDIFF
+		{   0,   0, -10,   0 },	// ME_REMOVEMASK
+		{   0,   0,   0,   0 },	// ME_FORMAT
+		{   0, -10,   0,   0 },	// ME_EXTRACTLAYOUTBLOCK
+		{   0, -10,   0,   0 },	// ME_EXTRACTFACEGROUP
+		{   0,   0,   0,   0 },	// ME_TRANSFORM
+		{   0, -10,   0,   0 },	// ME_CLIPMORPHPLANE
+		{   0, -10,   0,   0 },	// ME_CLIPWITHMESH
+		{   0,   0,   0,   0 },	// ME_SETSKELETON
+		{   0,   0,   0,   0 },	// ME_PROJECT
+		{   0,   0,   0,   0 },	// ME_APPLYPOSE
+		{   0,   0,   0,   0 },	// ME_REMAPINDICES
+		{   0,   0,   0,   0 },	// ME_GEOMETRYOPERATION
+		{   0, -20,   0,   0 },	// ME_BINDSHAPE
+		{   0, -10,   0,   0 },	// ME_APPLYSHAPE
+		{   0, -10,   0,   0 },	// ME_CLIPDEFORM
+		{   0, -10,   0,   0 },	// ME_MORPHRESHAPE
+		{   0,   0,   0,   0 },	// ME_OPTIMIZESKINNING
+		    
+		{   0,   0,   0,   0 },	// IN_ADDMESH
+		{   0,   0,   0,   0 },	// IN_ADDIMAGE
+		{   0,   0,   0,   0 },	// IN_ADDVECTOR
+		{   0,   0,   0,   0 },	// IN_ADDSCALAR
+		{   0,   0,   0,   0 },	// IN_ADDSTRING
+		{   0,   0,   0,   0 },	// IN_ADDSURFACE
+		{   0,   0,   0,   0 },	// IN_ADDCOMPONENT
+		{   0,   0,   0,   0 },	// IN_ADDLOD
+		    
+		{   0,   0,   0,   0 },	// LA_PACK
+		{   0,   0,   0,   0 },	// LA_MERGE
+		{   0,  -1,   0,   0 },	// LA_REMOVEBLOCKS
+		{   0,   0,   0,   0 },	// LA_FROMMESH
+	};
+
+	static_assert(sizeof(sMemoryWeights)/sMemoryWeightsStageCount == int32(OP_TYPE::COUNT));
+
+
+	int32 CodeRunner::GetOpEstimatedMemoryDelta( const FScheduledOp& Candidate, const FProgram& Program )
+	{
+		int32 OpDelta = 0;
+		int32 Stage = FMath::Min(int32(Candidate.Stage), sMemoryWeightsStageCount - 1);
+		OP_TYPE OpType = Program.GetOpType(Candidate.At);
+
+		if (OpType == OP_TYPE::IM_PIXELFORMAT && Stage == 1)
+		{
+			// TODO: We should get the actual format from the arguments for a more precise calculation.
+			OP::ImagePixelFormatArgs args = Program.GetOpArgs<OP::ImagePixelFormatArgs>(Candidate.At);
+			bool bIsCompressed = GetUncompressedFormat(args.format) != args.format;
+			bool bIsSmallish = GetImageFormatData(args.format).m_bytesPerBlock < 2;
+			if (bIsCompressed || bIsSmallish)
+			{
+				OpDelta = -10;
+			}
+			else
+			{
+				OpDelta = 10;
+			}
+		}
+		else
+		{
+			OpDelta = sMemoryWeights[int32(OpType)][Stage];
+		}
+
+		return OpDelta;
+	}
+
+
     //---------------------------------------------------------------------------------------------
     void CodeRunner::Run()
     {
@@ -249,7 +418,47 @@ namespace mu
 
 			while (!OpenTasks.IsEmpty())
 			{
-				FScheduledOp item = OpenTasks.Pop();
+				// Get a new task to run
+				FScheduledOp item;
+				switch (ExecutionStrategy)
+				{
+				case EExecutionStrategy::MinimizeMemory:
+				{
+					// TODO: This should be done when an operation is added to the OpenTasks array instead of every time.
+					int32 BestOp = 0;
+					int8 BestDelta = TNumericLimits<int8>::Max();
+					int32 OpenOpCount = OpenTasks.Num();
+					const FProgram& Program = m_pModel->GetPrivate()->m_program;
+					for (int32 OpIndex = 0; OpIndex < OpenOpCount; ++OpIndex)
+					{
+						const FScheduledOp& Candidate = OpenTasks[OpIndex];
+						int32 OpDelta = GetOpEstimatedMemoryDelta(Candidate, Program);
+
+						if (OpDelta < BestDelta)
+						{
+							BestOp = OpIndex;
+							BestDelta = OpDelta;
+
+							// Shortcut: If we are freeing memory, we don't care how much: it is already the best op
+							if (BestDelta < 0)
+							{
+								break;
+							}
+						}
+					}
+
+					item = OpenTasks[BestOp];
+					OpenTasks.RemoveAtSwap(BestOp);
+					break;
+				}
+
+				case EExecutionStrategy::None:
+				default:
+					// Just get one.
+					item = OpenTasks.Pop();
+					break;
+
+				}
 
 				// Special processing in case it is an ImageDesc operation
 				if ( item.Type==FScheduledOp::EType::ImageDesc )
@@ -362,12 +571,11 @@ namespace mu
 				if (o.m_romIndex>=0 && m_pSystem->m_pStreamInterface->IsReadCompleted(o.m_streamID))
 				{
 					CompleteRomLoadOp(o);
+					UpdateTraces();
 				}
-
-				UpdateTraces();
 			}
 
-			// Look for a closed task with dependencies satisfied and move them to open.
+			// Look for a closed task with dependencies satisfied and move them to the open task list.
 			bool bSomeWasReady = false;
 			for (int Index = 0; Index<ClosedTasks.Num(); )
 			{
@@ -418,6 +626,9 @@ namespace mu
 					UE_LOG(LogMutableCore, Log, TEXT("%s"), *TaskDesc);
 				}
 				check(false);
+
+				// This should never happen but if it does, abort the code execution.
+				return;
 			}
 
 			// If at this point there is no open op and we haven't finished, we need to wait for an issued op to complete.
@@ -2077,7 +2288,10 @@ namespace mu
 
 		case OP_TYPE::IM_LAYER:
 		{
-			if (item.Stage == 2)
+			if ((ExecutionStrategy == EExecutionStrategy::MinimizeMemory && item.Stage == 2)
+				||
+				(ExecutionStrategy != EExecutionStrategy::MinimizeMemory && item.Stage == 1)
+				)
 			{
 				OP::ImageLayerArgs args = program.GetOpArgs<OP::ImageLayerArgs>(item.At);
 				Issued = MakeShared<FImageLayerTask>(item, GetMemory(), args, m_pSettings->GetPrivate()->m_imageCompressionQuality);

@@ -3,38 +3,12 @@
 #pragma once
 
 #include "MuR/Types.h"
-#include "MuR/SerialisationPrivate.h"
-#include "MuR/Platform.h"
 #include "Math/Matrix.h"
 #include "Math/IntVector.h"
 
 
 namespace mu
 {
-
-	// Unreal POD Serializables
-	MUTABLE_DEFINE_POD_SERIALISABLE(FUintVector2)
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(FUintVector2)
-
-    //---------------------------------------------------------------------------------------------
-    //! Find the first larger-or-equal power of 2 of the given number.
-    //---------------------------------------------------------------------------------------------
-    inline int ceilPow2( int v )
-    {
-        int r = 0;
-
-        if (v>0)
-        {
-            r = 1;
-            while( r < v  )
-            {
-                r <<= 1;
-            }
-        }
-
-        return r;
-    }
-
 
     //---------------------------------------------------------------------------------------------
     //!
@@ -453,25 +427,6 @@ namespace mu
 			}
 			return res;
 		}
-
-		//-----------------------------------------------------------------------------------------
-		inline void Serialise( OutputArchive& arch ) const
-		{
-			for( int i=0; i<DIM; ++i )
-			{
-				arch << m[i];
-			}
-		}
-
-		//-----------------------------------------------------------------------------------------
-		inline void Unserialise( InputArchive& arch )
-		{
-			for( int i=0; i<DIM; ++i )
-			{
-				arch >> m[i];
-			}
-		}
-
 	};
 
     //!
@@ -552,7 +507,6 @@ namespace mu
 
     //!
     typedef vec2<float> vec2f;
-    MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE( vec2f );
 
 	//!
 	template <class SCALAR>
@@ -653,7 +607,6 @@ namespace mu
 
 	//!
 	typedef vec3<float> vec3f;
-    MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE( vec3f );
 
 
 	//---------------------------------------------------------------------------------------------
@@ -1103,21 +1056,6 @@ namespace mu
 				&&
 				(min == other.min);
 		}
-
-        //-----------------------------------------------------------------------------------------
-		inline void Serialise( OutputArchive& arch ) const
-		{
-			arch << min;
-			arch << size;
-		}
-
-		//-----------------------------------------------------------------------------------------
-		inline void Unserialise( InputArchive& arch )
-		{
-			arch >> min;
-			arch >> size;
-		}
-
 	};
 
 
@@ -1446,24 +1384,6 @@ namespace mu
 			return res;
 		}
 
-		//-----------------------------------------------------------------------------------------
-		inline void Serialise( OutputArchive& arch ) const
-		{
-			for( int i=0; i<DIM; ++i )
-			{
-				arch << m[i];
-			}
-		}
-
-		//-----------------------------------------------------------------------------------------
-		inline void Unserialise( InputArchive& arch )
-		{
-			for( int i=0; i<DIM; ++i )
-			{
-				arch >> m[i];
-			}
-		}
-
 	};
 
 
@@ -1506,8 +1426,6 @@ namespace mu
 	//!
 	typedef mat3<float> mat3f;
     typedef mat<float,4> mat4f;
-    MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE( mat3f );
-    MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE( mat4f );
 
 	//---------------------------------------------------------------------------------------------
 	// Temp while transitioning to UE math.

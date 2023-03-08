@@ -310,10 +310,12 @@ namespace mu
 			// We take whatever size will be produced
 			FImageDesc desc = CalculateImageDesc(*pSource->GetBasePrivate());
 			IMAGE_STATE newState;
-			newState.m_imageSize = desc.m_size;
+			newState.m_imageSize[0] = desc.m_size[0];
+			newState.m_imageSize[1] = desc.m_size[1];
 			newState.m_imageRect.min[0] = 0;
 			newState.m_imageRect.min[1] = 0;
-			newState.m_imageRect.size = desc.m_size;
+			newState.m_imageRect.size[0] = desc.m_size[0];
+			newState.m_imageRect.size[1] = desc.m_size[1];
 			m_imageState.Add(newState);
 
 			// Generate

@@ -34,6 +34,23 @@ UCustomizableObjectNodeObject::UCustomizableObjectNodeObject()
 }
 
 
+void UCustomizableObjectNodeObject::PostLoad()
+{
+	Super::PostLoad();
+
+	for (FCustomizableObjectState& State : States)
+	{
+		if (State.TextureCompressionStrategy== ETextureCompressionStrategy::None
+			&&
+			State.bDontCompressRuntimeTextures_DEPRECATED)
+		{
+			State.bDontCompressRuntimeTextures_DEPRECATED = false;
+			State.TextureCompressionStrategy = ETextureCompressionStrategy::DontCompressRuntime;
+		}
+	}
+}
+
+
 void UCustomizableObjectNodeObject::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (!Identifier.IsValid())

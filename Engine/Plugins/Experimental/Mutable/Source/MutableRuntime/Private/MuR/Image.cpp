@@ -150,6 +150,38 @@ namespace mu
         arch << *p;
     }
 
+	void Image::Serialise(OutputArchive& arch) const
+	{
+		uint32 ver = 3;
+		arch << ver;
+
+		arch << m_size;
+		arch << m_lods;
+		arch << (uint8)m_format;
+		arch << m_data;
+
+		// Remove non-persistent flags.
+		uint8 flags = m_flags & ~IF_HAS_RELEVANCY_MAP;
+		arch << flags;
+	}
+
+	void Image::Unserialise(InputArchive& arch)
+	{
+		uint32 ver;
+		arch >> ver;
+		check(ver == 3);
+
+		arch >> m_size;
+		arch >> m_lods;
+
+		uint8 format;
+		arch >> format;
+		m_format = (EImageFormat)format;
+		arch >> m_data;
+
+		arch >> m_flags;
+	}
+
 
     //---------------------------------------------------------------------------------------------
     Ptr<Image> Image::StaticUnserialise( InputArchive& arch )
@@ -406,7 +438,7 @@ namespace mu
     {
 		FIntVector2 res(0,0);
 
-		FIntVector2 s = FIntVector2(m_size.x(), m_size.y());
+		FIntVector2 s = FIntVector2(m_size[0], m_size[1]);
 
         for ( int l=0; l<mip+1; ++l )
         {
@@ -781,7 +813,8 @@ namespace mu
      void Image::GetNonBlackRect_Reference(FImageRect& rect) const
      {            
          rect.min[0] = rect.min[1] = 0;
-         rect.size = m_size;
+		 rect.size[0] = m_size[0];
+		 rect.size[1] = m_size[1];
 
          if ( !rect.size[0] || !rect.size[1] )
              return;

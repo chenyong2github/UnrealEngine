@@ -59,7 +59,6 @@
 #include "MuR/OpMeshRemapIndices.h"
 #include "MuR/OpMeshRemoveChart.h"
 #include "MuR/OpMeshReshape.h"
-#include "MuR/OpMeshSubtract.h"
 #include "MuR/OpMeshTransform.h"
 #include "MuR/OpMeshOptimizeSkinning.h"
 #include "MuR/Operations.h"
@@ -78,13 +77,19 @@ namespace mu
 {
 
     //---------------------------------------------------------------------------------------------
-    CodeRunner::CodeRunner(const SettingsPtrConst& pSettings,
-		class System::Private* s,
-		const TSharedPtr<const Model>& pModel,
-		const Parameters* pParams,
+    CodeRunner::CodeRunner(const SettingsPtrConst& InSettings,
+		class System::Private* InSystem,
+		EExecutionStrategy InExecutionStrategy,
+		const TSharedPtr<const Model>& InModel,
+		const Parameters* InParams,
 		OP::ADDRESS at,
-		uint32 lodMask, uint8 executionOptions, int32 InImageLOD, FScheduledOp::EType Type )
-		: m_pSettings(pSettings), m_pSystem(s), m_pModel(pModel), m_pParams(pParams), m_lodMask(lodMask)
+		uint32 InLodMask, uint8 executionOptions, int32 InImageLOD, FScheduledOp::EType Type )
+		: m_pSettings(InSettings)
+		, ExecutionStrategy(InExecutionStrategy)
+		, m_pSystem(InSystem)
+		, m_pModel(InModel)
+		, m_pParams(InParams)
+		, m_lodMask(InLodMask)
 	{
 		ScheduledStagePerOp.resize(m_pModel->GetPrivate()->m_program.m_opAddress.Num());
 
@@ -1514,37 +1519,6 @@ namespace mu
             break;
         }
 
-        case OP_TYPE::ME_SUBTRACT:
-        {
-			OP::MeshSubtractArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshSubtractArgs>(item.At);
-            switch (item.Stage)
-            {
-            case 0:
-                    AddOp( FScheduledOp( item.At, item, 1),
-                           FScheduledOp( args.a, item),
-                           FScheduledOp( args.b, item) );
-                break;
-
-            case 1:
-            {
-           		MUTABLE_CPUPROFILER_SCOPE(ME_SUBTRACT_1)
-            	
-                Ptr<const Mesh> pA = GetMemory().GetMesh( FCacheAddress(args.a,item) );
-                Ptr<const Mesh> pB = GetMemory().GetMesh( FCacheAddress(args.b,item) );
-
-                MeshPtr pResult = MeshSubtract( pA.get(), pB.get() );
-
-                GetMemory().SetMesh( item, pResult );
-                break;
-            }
-
-            default:
-                check(false);
-            }
-
-            break;
-        }
-
         case OP_TYPE::ME_FORMAT:
         {
 			OP::MeshFormatArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshFormatArgs>(item.At);
@@ -2528,28 +2502,52 @@ namespace mu
         case OP_TYPE::IM_LAYER:
         {
 			OP::ImageLayerArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLayerArgs>(item.At);
-            switch (item.Stage)
-            {
-			case 0:
-				AddOp(FScheduledOp(item.At, item, 1),
-					FScheduledOp(args.base, item));
-				break;
 
-			case 1:
-				// Request the rest of the data.
-				AddOp(FScheduledOp(item.At, item, 2),
-					FScheduledOp(args.blended, item),
-					FScheduledOp(args.mask, item));
-				break;
+			if (ExecutionStrategy == EExecutionStrategy::MinimizeMemory)
+			{
+				switch (item.Stage)
+				{
+				case 0:
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.base, item));
+					break;
 
-			case 2:
-				// This has been moved to a task. It should have been intercepted in IssueOp.
-				check(false);
-				break;
-			
-            default:
-                check(false);
-            }
+				case 1:
+					// Request the rest of the data.
+					AddOp(FScheduledOp(item.At, item, 2),
+						FScheduledOp(args.blended, item),
+						FScheduledOp(args.mask, item));
+					break;
+
+				case 2:
+					// This has been moved to a task. It should have been intercepted in IssueOp.
+					check(false);
+					break;
+
+				default:
+					check(false);
+				}
+			}
+			else
+			{
+				switch (item.Stage)
+				{
+				case 0:
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.base, item),
+						FScheduledOp(args.blended, item),
+						FScheduledOp(args.mask, item));
+					break;
+
+				case 1:
+					// This has been moved to a task. It should have been intercepted in IssueOp.
+					check(false);
+					break;
+
+				default:
+					check(false);
+				}
+			}
 
             break;
         }
@@ -4142,7 +4140,7 @@ namespace mu
 				// is resolution sensitive (pixel offsets). If the size doesn't match, scale the source, apply 
 				// displacement and then unscale it.
 				FImageSize OriginalSourceScale = pSource->GetSize();
-				if (OriginalSourceScale.x()>0 && OriginalSourceScale.y()>0 && OriginalSourceScale != pMap->GetSize())
+				if (OriginalSourceScale[0]>0 && OriginalSourceScale[1]>0 && OriginalSourceScale != pMap->GetSize())
 				{
 					MUTABLE_CPUPROFILER_SCOPE(ImageResize_EmergencyHackForDisplacementStep1);
 					pSource = ImageResizeLinear(0, pSource.get(), pMap->GetSize());
@@ -4153,7 +4151,7 @@ namespace mu
 				//ImagePtr pNew = new Image(pSource->GetSizeX(), pSource->GetSizeY(), 1, pSource->GetFormat());
 				Ptr<Image> pNew = mu::CloneOrTakeOver(pSource.get());
 
-				if (OriginalSourceScale.x() > 0 && OriginalSourceScale.y() > 0)
+				if (OriginalSourceScale[0] > 0 && OriginalSourceScale[1] > 0)
 				{
 					ImageDisplace(pNew.get(), pSource.get(), pMap.get());
 

@@ -26,6 +26,25 @@
 #else
 #endif
 
+#include "System.generated.h"
+
+
+/** Despite being an UEnum, this is not always version-serialized (in MutableTools).
+ * Beware of changing the enum options or order.
+ */
+UENUM()
+enum class ETextureCompressionStrategy : uint8
+{
+	/** Don't change the generated format. */
+	None,
+
+	/** If a texture depends on run-time parameters for an object state, don't compress. */
+	DontCompressRuntime,
+
+	/** Never compress the textures for this state. */
+	NeverCompress
+};
+
 
 namespace mu
 {
@@ -41,35 +60,21 @@ namespace mu
 
 
 
-    //! List of critical errors that may happen during execution of mutable code
-    enum class Error
-    {
-        //! No error happened.
-        None = 0,
+	/** */
+	enum class EExecutionStrategy : uint8
+	{
+		/** Undefined. */
+		None = 0,
 
-        //! A memory allocation failed
-        OutOfMemory,
+		/** Always try to run operations that reduce working memory first. */
+		MinimizeMemory,
 
+		/** Always try to run operations that unlock more operations first. */
+		MaximizeConcurrency,
 
-        //! A file was missing or the data was corrupted.
-        StreamingError,
-
-        //! The necessary functionality is not supported in this version of Mutable.
-        Unsupported,
-
-        //! Utility value with the number of error types.
-        Count
-    };
-
-    //! \brief Get an error code for the most critical error that happened since mutable
-    //! initialisation.
-    //! \ingroup runtime
-	MUTABLERUNTIME_API extern Error GetError();
-
-    //! \brief Remove the last error code, setting it to Error::None. This should obnly be used
-    //! in case of possible recovery from one of the critical errors, which is very unlikely.
-    //! \ingroup runtime
-	MUTABLERUNTIME_API extern void ClearError();
+		/** Utility value with the number of error types. */
+		Count
+	};
 
 
     //! \brief Interface to request external images used as parameters.

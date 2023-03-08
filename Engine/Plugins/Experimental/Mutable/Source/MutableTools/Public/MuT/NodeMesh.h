@@ -28,7 +28,7 @@ namespace mu
 			Constant = 0,
 			Interpolate = 2,
 			Table = 4,
-			Subtract = 6,
+			Subtract_Deprecated = 6,
 			Format = 7,
 			Tangents = 8,
 			Morph = 9,

@@ -8,9 +8,6 @@
 #include "MuR/SerialisationPrivate.h"
 #include "MuT/NodeObjectGroup.h"
 #include "MuT/NodeObjectNew.h"
-#include "MuT/NodeObjectState.h"
-
-#include <stdint.h>
 
 
 namespace mu
@@ -47,7 +44,7 @@ namespace mu
 		{
 		case 0 :  return NodeObjectNew::StaticUnserialise( arch ); break;
 		case 1 :  return NodeObjectGroup::StaticUnserialise( arch ); break;
-        case 2 :  return NodeObjectState::StaticUnserialise( arch ); break;
+        //case 2 :  return NodeObjectState::StaticUnserialise( arch ); break;
         //case 3 :  return NodeObjectTransform::StaticUnserialise( arch ); break;
         default : check(false);
 		}

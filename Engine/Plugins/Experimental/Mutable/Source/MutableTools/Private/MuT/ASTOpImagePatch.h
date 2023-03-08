@@ -20,7 +20,7 @@ struct FProgram;
 
 		ASTChild base;
 		ASTChild patch;
-		vec2<uint16> location;
+		UE::Math::TIntVector2<uint16> location;
 
 	public:
 

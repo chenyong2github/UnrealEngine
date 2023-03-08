@@ -30,7 +30,6 @@ public class CustomizableObject : ModuleRules
 			"ClothingSystemRuntimeInterface",
 			//"ClothingSystemEditor",
 			"UMG",
-
 			"MutableRuntime",
 		});
 
@@ -40,7 +39,8 @@ public class CustomizableObject : ModuleRules
             "Engine",
 			"SkeletalMerging",
 			"ClothingSystemRuntimeCommon",
-            "GameplayTags"
+            "GameplayTags",
+			"MutableRuntime",
 		});
 
         PrivateIncludePathModuleNames.AddRange(

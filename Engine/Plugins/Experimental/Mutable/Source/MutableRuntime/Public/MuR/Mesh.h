@@ -11,7 +11,6 @@
 #include "Misc/EnumClassFlags.h"
 #include "MuR/Layout.h"
 #include "MuR/MeshBufferSet.h"
-#include "MuR/MutableMath.h"
 #include "MuR/PhysicsBody.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
@@ -595,7 +594,7 @@ namespace mu
 		bool HasFace( const Mesh& other, int otherFaceIndex, const VERTEX_MATCH_MAP& vertexMap ) const;
 
 		//! Compare the vertex attributes to check if they match.
-		vec3<uint32> GetFaceVertexIndices(int f) const;
+		UE::Math::TIntVector3<uint32> GetFaceVertexIndices(int f) const;
 
 		//! Return true if the given mesh has the same vertex and index formats, and in the same
 		//! buffer structure.

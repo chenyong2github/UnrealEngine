@@ -33,7 +33,7 @@ namespace mu
 
 
 		//! List of states
-        TArray<OBJECT_STATE> m_states;
+        TArray<FObjectState> m_states;
 
 
 		//!

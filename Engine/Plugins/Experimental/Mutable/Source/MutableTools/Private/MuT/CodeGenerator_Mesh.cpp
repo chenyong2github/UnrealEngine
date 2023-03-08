@@ -63,7 +63,6 @@
 #include "MuT/NodeMeshMorphPrivate.h"
 #include "MuT/NodeMeshReshape.h"
 #include "MuT/NodeMeshReshapePrivate.h"
-#include "MuT/NodeMeshSubtract.h"
 #include "MuT/NodeMeshSwitch.h"
 #include "MuT/NodeMeshSwitchPrivate.h"
 #include "MuT/NodeMeshTable.h"
@@ -319,7 +318,6 @@ class Node;
 		case NodeMesh::EType::Fragment: GenerateMesh_Fragment(InOptions, OutResult, static_cast<const NodeMeshFragment*>(Node)); break;
 		case NodeMesh::EType::Interpolate: GenerateMesh_Interpolate(InOptions, OutResult, static_cast<const NodeMeshInterpolate*>(Node)); break;
 		case NodeMesh::EType::Switch: GenerateMesh_Switch(InOptions, OutResult, static_cast<const NodeMeshSwitch*>(Node)); break;
-		case NodeMesh::EType::Subtract: GenerateMesh_Subtract(InOptions, OutResult, static_cast<const NodeMeshSubtract*>(Node)); break;
 		case NodeMesh::EType::Transform: GenerateMesh_Transform(InOptions, OutResult, static_cast<const NodeMeshTransform*>(Node)); break;
 		case NodeMesh::EType::ClipMorphPlane: GenerateMesh_ClipMorphPlane(InOptions, OutResult, static_cast<const NodeMeshClipMorphPlane*>(Node)); break;
 		case NodeMesh::EType::ClipWithMesh: GenerateMesh_ClipWithMesh(InOptions, OutResult, static_cast<const NodeMeshClipWithMesh*>(Node)); break;
@@ -1100,15 +1098,6 @@ class Node;
             // Put something there
             GenerateMesh(InOptions, OutResult, new NodeMeshConstant() );
         }
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    void CodeGenerator::GenerateMesh_Subtract(const FMeshGenerationOptions& InOptions, FMeshGenerationResult& OutResult,
-		const NodeMeshSubtract* subs )
-    {
-		// This node is deprecated.
-		check(false);        
     }
 
 

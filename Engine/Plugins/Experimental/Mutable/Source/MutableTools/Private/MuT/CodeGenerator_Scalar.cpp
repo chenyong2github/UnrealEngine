@@ -167,10 +167,10 @@ namespace mu
 					// We take whatever size will be produced
 					IMAGE_STATE newState;
 					FImageDesc desc = CalculateImageDesc(*node.m_additionalImages[a]->GetBasePrivate());
-					newState.m_imageSize = desc.m_size;
+					newState.m_imageSize = FIntVector2(desc.m_size);
 					newState.m_imageRect.min[0] = 0;
 					newState.m_imageRect.min[1] = 0;
-					newState.m_imageRect.size = desc.m_size;
+					newState.m_imageRect.size = FIntVector2(desc.m_size);
 					newState.m_layoutBlockId = -1;
 					m_imageState.Add(newState);
 

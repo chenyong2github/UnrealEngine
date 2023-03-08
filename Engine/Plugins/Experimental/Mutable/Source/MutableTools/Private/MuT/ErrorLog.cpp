@@ -284,7 +284,6 @@ namespace mu
 		TEXT("ME_INTERPOLATE   "),
 		TEXT("ME_MASKCLIPMESH  "),
 		TEXT("ME_MASKDIFF      "),
-        TEXT("ME_SUBTRACT      "),
         TEXT("ME_REMOVEMASK    "),
         TEXT("ME_FORMAT        "),
         TEXT("ME_EXTRACTLABLOCK"),
