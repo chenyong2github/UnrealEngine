@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool
 {
 	/// <summary>
@@ -251,18 +253,18 @@ namespace AutomationTool
 			}
 
 			// Write all the environment variables to the log
-			Log.TraceLog("Perforce Environment Variables:");
-			Log.TraceLog("  {0}={1}", EnvVarNames.P4Port, InternalUtils.GetEnvironmentVariable(EnvVarNames.P4Port, "", true));
-			Log.TraceLog("  {0}={1}", EnvVarNames.User, InternalUtils.GetEnvironmentVariable(EnvVarNames.User, "", true));
-			Log.TraceLog("  {0}={1}", EnvVarNames.Client, InternalUtils.GetEnvironmentVariable(EnvVarNames.Client, "", true));
-			Log.TraceLog("  {0}={1}", EnvVarNames.BuildRootP4, InternalUtils.GetEnvironmentVariable(EnvVarNames.BuildRootP4, "", true));
-			Log.TraceLog("  {0}={1}", EnvVarNames.BuildRootEscaped, InternalUtils.GetEnvironmentVariable(EnvVarNames.BuildRootEscaped, "", true));
-			Log.TraceLog("  {0}={1}", EnvVarNames.ClientRoot, InternalUtils.GetEnvironmentVariable(EnvVarNames.ClientRoot, "", true));
-			Log.TraceLog("  {0}={1}", EnvVarNames.Changelist, InternalUtils.GetEnvironmentVariable(EnvVarNames.Changelist, "", true));
-			Log.TraceLog("  {0}={1}", EnvVarNames.CodeChangelist, InternalUtils.GetEnvironmentVariable(EnvVarNames.CodeChangelist, "", true));
-			Log.TraceLog("  {0}={1}", "P4PORT", InternalUtils.GetEnvironmentVariable("P4PORT", "", true));
-			Log.TraceLog("  {0}={1}", "P4USER", InternalUtils.GetEnvironmentVariable("P4USER", "", true));
-			Log.TraceLog("  {0}={1}", "P4CLIENT", InternalUtils.GetEnvironmentVariable("P4CLIENT", "", true));
+			Logger.LogDebug("Perforce Environment Variables:");
+			Logger.LogDebug("  {Arg0}={Arg1}", EnvVarNames.P4Port, InternalUtils.GetEnvironmentVariable(EnvVarNames.P4Port, "", true));
+			Logger.LogDebug("  {Arg0}={Arg1}", EnvVarNames.User, InternalUtils.GetEnvironmentVariable(EnvVarNames.User, "", true));
+			Logger.LogDebug("  {Arg0}={Arg1}", EnvVarNames.Client, InternalUtils.GetEnvironmentVariable(EnvVarNames.Client, "", true));
+			Logger.LogDebug("  {Arg0}={Arg1}", EnvVarNames.BuildRootP4, InternalUtils.GetEnvironmentVariable(EnvVarNames.BuildRootP4, "", true));
+			Logger.LogDebug("  {Arg0}={Arg1}", EnvVarNames.BuildRootEscaped, InternalUtils.GetEnvironmentVariable(EnvVarNames.BuildRootEscaped, "", true));
+			Logger.LogDebug("  {Arg0}={Arg1}", EnvVarNames.ClientRoot, InternalUtils.GetEnvironmentVariable(EnvVarNames.ClientRoot, "", true));
+			Logger.LogDebug("  {Arg0}={Arg1}", EnvVarNames.Changelist, InternalUtils.GetEnvironmentVariable(EnvVarNames.Changelist, "", true));
+			Logger.LogDebug("  {Arg0}={Arg1}", EnvVarNames.CodeChangelist, InternalUtils.GetEnvironmentVariable(EnvVarNames.CodeChangelist, "", true));
+			Logger.LogDebug("  {Arg0}={Arg1}", "P4PORT", InternalUtils.GetEnvironmentVariable("P4PORT", "", true));
+			Logger.LogDebug("  {Arg0}={Arg1}", "P4USER", InternalUtils.GetEnvironmentVariable("P4USER", "", true));
+			Logger.LogDebug("  {Arg0}={Arg1}", "P4CLIENT", InternalUtils.GetEnvironmentVariable("P4CLIENT", "", true));
 		}
 
 		/// <summary>
@@ -338,7 +340,7 @@ namespace AutomationTool
 		/// <returns>Client to use.</returns>
 		private static P4ClientInfo DetectClient(P4Connection Connection, string UserName, string HostName, string AutomationToolDll)
 		{
-			CommandUtils.LogVerbose("uebp_CLIENT not set, detecting current client...");
+			Logger.LogDebug("uebp_CLIENT not set, detecting current client...");
 
 			// Check the default client. If it matches we can save any guess work.
 			IProcessResult Result = CommandUtils.Run(HostPlatform.Current.P4Exe, "set -q P4CLIENT", null, CommandUtils.ERunOptions.NoLoggingOfRunCommand);
@@ -432,7 +434,7 @@ namespace AutomationTool
 		/// <returns>Changelist number as a string.</returns>
 		private static string DetectCurrentCL(P4Connection Connection, string ClientRootPath)
 		{
-			CommandUtils.LogVerbose("uebp_CL not set, detecting 'have' CL...");
+			Logger.LogDebug("uebp_CL not set, detecting 'have' CL...");
 
 			// Retrieve the current changelist 
 			IProcessResult P4Result = Connection.P4("changes -m 1 " + CommandUtils.CombinePaths(PathSeparator.Depot, ClientRootPath, "/...#have"), AllowSpew: false);
@@ -460,7 +462,7 @@ namespace AutomationTool
 		/// <returns>Changelist number as a string.</returns>
 		private static async Task<int> DetectCurrentCodeCL(PerforceConnection Connection, int Changelist)
 		{
-			CommandUtils.LogVerbose("uebp_CodeCL not set, detecting last code CL...");
+			Logger.LogDebug("uebp_CodeCL not set, detecting last code CL...");
 
 			// Start by just testing whether the current change is a code change, so we can early out without any expensive p4 calls.
 			int[] Changes = new[] { Changelist };

@@ -13,6 +13,9 @@ using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 #pragma warning disable SYSLIB0014
 
@@ -93,7 +96,7 @@ namespace AutomationTool.Tasks
 			}
 
 			int ExitCode = 0;
-			CommandUtils.LogInformation("Uploading {0} to the notarization server...", Dmg.FullName);
+			Logger.LogInformation("Uploading {Arg0} to the notarization server...", Dmg.FullName);
 			string CommandLine = string.Format("altool --notarize-app --primary-bundle-id \"{0}\" --username \"{1}\" --password \"@keychain:{2}\" --file \"{3}\"", Parameters.BundleID, Parameters.UserName, Parameters.KeyChainID, Dmg.FullName);
 			string Output = "";
 			const int MaxNumRetries = 5;
@@ -109,12 +112,12 @@ namespace AutomationTool.Tasks
 				
 				if (NumRetries < MaxNumRetries)
 				{
-					CommandUtils.LogInformation("--notarize-app failed with exit {0} attempting retry {1} of {2}", ExitCode, NumRetries, MaxNumRetries);
+					Logger.LogInformation("--notarize-app failed with exit {ExitCode} attempting retry {NumRetries} of {MaxNumRetries}", ExitCode, NumRetries, MaxNumRetries);
 					Thread.Sleep(2000);
 					continue;
 				}
 				
-				CommandUtils.LogInformation("Retries have been exhausted");
+				Logger.LogInformation("Retries have been exhausted");
 				throw new AutomationException("--notarize-app failed with exit {0}", ExitCode);
 			}
 
@@ -131,7 +134,7 @@ namespace AutomationTool.Tasks
 
 			// Wait 2 minutes for the server to associate this build with the UUID it passes back.
 			// Trying instantly just returns back and says it can't find it.
-			CommandUtils.LogInformation("Waiting 3 minutes for the UUID to propagate...");
+			Logger.LogInformation("Waiting 3 minutes for the UUID to propagate...");
 			Thread.Sleep(180000);
 
 			// Repeat for an hour until we get something back.
@@ -156,25 +159,25 @@ namespace AutomationTool.Tasks
 
 					if (Status == "invalid")
 					{
-						CommandUtils.LogInformation(GetLogFile(LogFileUrl));
+						Logger.LogInformation("{Text}", GetLogFile(LogFileUrl));
 						throw new AutomationException("Could not notarize the app. See log output above.");
 					}
 					else if (Status == "in progress")
 					{
-						CommandUtils.LogInformation("Notarization still in progress, waiting 30 seconds...");
+						Logger.LogInformation("Notarization still in progress, waiting 30 seconds...");
 						Thread.Sleep(WaitTime);
 					}
 					else if (Status == "success")
 					{
 						if (LogFileUrl == "(null)")
 						{
-							CommandUtils.LogInformation("Notarization success but no log file has been generated, waiting 30 seconds...");
+							Logger.LogInformation("Notarization success but no log file has been generated, waiting 30 seconds...");
 							Thread.Sleep(WaitTime);
 						}
 						else if(Parameters.RequireStapling)
 						{
 							// once we have a log file, print it out, staple, and we're done.
-							CommandUtils.LogInformation(GetLogFile(LogFileUrl));
+							Logger.LogInformation("{Text}", GetLogFile(LogFileUrl));
 							CommandLine = string.Format("stapler staple {0}", Dmg.FullName);
 							Output = CommandUtils.RunAndLog("xcrun", CommandLine, out ExitCode);
 							if (ExitCode != 0)
@@ -191,7 +194,7 @@ namespace AutomationTool.Tasks
 					}
 					else
 					{
-						CommandUtils.LogInformation("Status is? {0}", Status);
+						Logger.LogInformation("Status is? {Status}", Status);
 						Thread.Sleep(WaitTime);
 					}
 					Timeout++;

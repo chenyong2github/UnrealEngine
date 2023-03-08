@@ -8,6 +8,8 @@ using UnrealBuildTool;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 /*
  - You can also use the full program to test compiling all or a subset of libs:
  - From Engine/Build/BatchFiles, do:
@@ -96,7 +98,7 @@ class ThirdPartyLibraryInfo
 
 				if (!bAllowed)
 				{
-					CommandUtils.LogWarning("{0} is {1} with an unexpected extension", Filename, AnalyzeThirdPartyLibs.ToMegabytes(Size));
+					Logger.LogWarning("{Filename} is {Arg1} with an unexpected extension", Filename, AnalyzeThirdPartyLibs.ToMegabytes(Size));
 				}
 			}
 		}

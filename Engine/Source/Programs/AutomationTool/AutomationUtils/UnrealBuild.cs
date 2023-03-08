@@ -14,6 +14,9 @@ using OpenTracing.Util;
 using UnrealBuildBase;
 
 using CommandLine = UnrealBuildBase.CommandLine;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool
 {
@@ -332,13 +335,13 @@ namespace AutomationTool
 			{
 				if (bDoUpdateVersionFiles)
 				{
-					CommandUtils.LogLog("Updating {0} with:", BuildVersionFile);
-					CommandUtils.LogLog("  Changelist={0}", ChangelistNumber);
-					CommandUtils.LogLog("  CompatibleChangelist={0}", CompatibleChangelistNumber);
-					CommandUtils.LogLog("  IsLicenseeVersion={0}", bIsLicenseeVersion? 1 : 0);
-					CommandUtils.LogLog("  IsPromotedBuild={0}", bIsPromotedBuild? 1 : 0);
-					CommandUtils.LogLog("  BranchName={0}", Branch);
-					CommandUtils.LogLog("  BuildVersion={0}", Build);
+					Logger.LogDebug("Updating {BuildVersionFile} with:", BuildVersionFile);
+					Logger.LogDebug("  Changelist={ChangelistNumber}", ChangelistNumber);
+					Logger.LogDebug("  CompatibleChangelist={CompatibleChangelistNumber}", CompatibleChangelistNumber);
+					Logger.LogDebug("  IsLicenseeVersion={Arg0}", bIsLicenseeVersion? 1 : 0);
+					Logger.LogDebug("  IsPromotedBuild={Arg0}", bIsPromotedBuild? 1 : 0);
+					Logger.LogDebug("  BranchName={Branch}", Branch);
+					Logger.LogDebug("  BuildVersion={Build}", Build);
 
 					Version.Changelist = ChangelistNumber;
 					if(CompatibleChangelistNumber > 0)
@@ -363,7 +366,7 @@ namespace AutomationTool
 				}
 				else
 				{
-					CommandUtils.LogVerbose("{0} will not be updated because P4 is not enabled.", BuildVersionFile);
+					Logger.LogDebug("{BuildVersionFile} will not be updated because P4 is not enabled.", BuildVersionFile);
 				}
 				Result.Add(BuildVersionFile);
 			}
@@ -569,9 +572,9 @@ namespace AutomationTool
 
 			// only run ParallelExecutor if not running XGE (and we've requested ParallelExecutor and it exists)
 			bool bCanUseParallelExecutor = InUseParallelExecutor && (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64);
-			CommandUtils.LogLog("************************* UnrealBuild:");
-			CommandUtils.LogLog("************************* UseXGE: {0}", bCanUseXGE);
-			CommandUtils.LogLog("************************* UseParallelExecutor: {0}", bCanUseParallelExecutor);
+			Logger.LogDebug("************************* UnrealBuild:");
+			Logger.LogDebug("************************* UseXGE: {bCanUseXGE}", bCanUseXGE);
+			Logger.LogDebug("************************* UseParallelExecutor: {bCanUseParallelExecutor}", bCanUseParallelExecutor);
 
 			// Clean all the targets
 			foreach (BuildTarget Target in Agenda.Targets)
@@ -623,10 +626,10 @@ namespace AutomationTool
 		{
 			// Check build products
 			{
-				CommandUtils.LogLog("Build products *******");
+				Logger.LogDebug("Build products *******");
 				if (BuildProductFiles.Count < 1)
 				{
-					CommandUtils.LogInformation("No build products were made");
+					Logger.LogInformation("No build products were made");
 				}
 				else
 				{
@@ -636,10 +639,10 @@ namespace AutomationTool
 						{
 							throw new UnrealBuildException("{0} was a build product but no longer exists", Product);
 						}
-						CommandUtils.LogLog(Product);
+						Logger.LogDebug("{Text}", Product);
 					}
 				}
-				CommandUtils.LogLog("End Build products *******");
+				Logger.LogDebug("End Build products *******");
 			}
 		}
 
@@ -650,7 +653,7 @@ namespace AutomationTool
 		/// <param name="Files">List of files to check out</param>
 		public static void AddBuildProductsToChangelist(int WorkingCL, IEnumerable<string> Files)
 		{
-			CommandUtils.LogInformation("Adding {0} build products to changelist {1}...", Files.Count(), WorkingCL);
+			Logger.LogInformation("Adding {Arg0} build products to changelist {WorkingCL}...", Files.Count(), WorkingCL);
 			foreach (var File in Files)
 			{
 				CommandUtils.P4.Sync("-f -k " + CommandUtils.MakePathSafeToUseWithCommandLine(File) + "#head"); // sync the file without overwriting local one

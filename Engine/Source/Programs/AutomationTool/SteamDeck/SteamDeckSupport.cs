@@ -7,6 +7,9 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 public static class SteamDeckSupport
 {
@@ -67,7 +70,7 @@ public static class SteamDeckSupport
 				}
 				else
 				{
-					CommandUtils.LogError("You must specify the 'IpAddr' field to connect to a SteamDeck!");
+					Logger.LogError("You must specify the 'IpAddr' field to connect to a SteamDeck!");
 				}
 			}
 		}
@@ -82,7 +85,7 @@ public static class SteamDeckSupport
 	{
 		if (Params.DeviceNames.Count != 1)
 		{
-			CommandUtils.LogWarning("SteamDeck deployment requires 1, and only, device");
+			Logger.LogWarning("SteamDeck deployment requires 1, and only, device");
 			IpAddr = UserName = null;
 			return false;
 		}
@@ -116,7 +119,7 @@ public static class SteamDeckSupport
 
 		if (string.IsNullOrEmpty(UserName) || string.IsNullOrEmpty(IpAddr))
 		{
-			CommandUtils.LogWarning("Unable to discover Ip Adress and Username for your Steamdeck. Use -device to specify device, and if that device is not in your Engine.ini, then you will need to specify -deviceuser= to set the username.");
+			Logger.LogWarning("Unable to discover Ip Adress and Username for your Steamdeck. Use -device to specify device, and if that device is not in your Engine.ini, then you will need to specify -deviceuser= to set the username.");
 			return false;
 		}
 
@@ -262,7 +265,7 @@ public static class SteamDeckSupport
 
 		if (!File.Exists(DevKitRSAPath))
 		{
-			CommandUtils.LogWarning("Unable to find '{0}' rsa key needed to deploy to the steam deck. Make sure you've installed the SteamOS Devkit client", DevKitRSAPath);
+			Logger.LogWarning("Unable to find '{DevKitRSAPath}' rsa key needed to deploy to the steam deck. Make sure you've installed the SteamOS Devkit client", DevKitRSAPath);
 			return;
 		}
 
@@ -291,7 +294,7 @@ public static class SteamDeckSupport
 
 		if (Result.ExitCode > 0)
 		{
-			CommandUtils.LogWarning($"Failed to rsync the {SC.StageDirectory.FullName} to {GameFolderPath}. Check connection on ip Check connection on ip {UserName}@{IpAddr}");
+			Logger.LogWarning("Failed to rsync the {Arg0} to {GameFolderPath}. Check connection on ip Check connection on ip {UserName}@{IpAddr}", SC.StageDirectory.FullName, GameFolderPath, UserName, IpAddr);
 			return;
 		}
 
@@ -301,7 +304,7 @@ public static class SteamDeckSupport
 
 		if (Result.ExitCode > 0)
 		{
-			CommandUtils.LogWarning($"Failed to rsync the {SteamDeckScripts} to {DevkitUtilsPath}. Check connection on ip Check connection on ip {UserName}@{IpAddr}");
+			Logger.LogWarning("Failed to rsync the {SteamDeckScripts} to {DevkitUtilsPath}. Check connection on ip Check connection on ip {UserName}@{IpAddr}", SteamDeckScripts, DevkitUtilsPath, UserName, IpAddr);
 			return;
 		}
 
@@ -310,7 +313,7 @@ public static class SteamDeckSupport
 
 		if (Result.ExitCode > 0)
 		{
-			CommandUtils.LogWarning($"Failed to run the {CreateShortcutScriptFileName}.sh script. Check connection on ip Check connection on ip {UserName}@{IpAddr}");
+			Logger.LogWarning("Failed to run the {CreateShortcutScriptFileName}.sh script. Check connection on ip Check connection on ip {UserName}@{IpAddr}", CreateShortcutScriptFileName, UserName, IpAddr);
 			return;
 		}
 	}
@@ -335,7 +338,7 @@ public static class SteamDeckSupport
 		IProcessResult Result = Rsync(MsvsmonPath, TargetMsvsmonPath, UserName, IpAddr, null);
 		if (Result.ExitCode > 0)
 		{
-			CommandUtils.LogWarning($"Failed to rsync debugger support files to the SteamDeck. Check connection on ip {UserName}@{IpAddr}");
+			Logger.LogWarning("Failed to rsync debugger support files to the SteamDeck. Check connection on ip {UserName}@{IpAddr}", UserName, IpAddr);
 			return false;
 		}
 

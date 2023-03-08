@@ -14,6 +14,8 @@ using System.Runtime.Serialization;
 using System.Collections;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool
 {
 	public class SingleTargetProperties
@@ -447,14 +449,14 @@ namespace AutomationTool
 					// Check if the plugin is required for this platform
 					if(!Reference.IsEnabledForPlatform(Platform) || !Reference.IsEnabledForTargetConfiguration(Configuration) || !Reference.IsEnabledForTarget(TargetType))
 					{
-						Log.TraceLog("Ignoring plugin '{0}' for platform/configuration", Reference.Name);
+						Logger.LogDebug("Ignoring plugin '{Arg0}' for platform/configuration", Reference.Name);
 						continue;
 					}
 
 					// Check if the plugin is required for this platform
 					if(!bLoadPluginsForTargetPlatforms && !Reference.IsSupportedTargetPlatform(Platform))
 					{
-						Log.TraceLog("Ignoring plugin '{0}' due to unsupported platform", Reference.Name);
+						Logger.LogDebug("Ignoring plugin '{Arg0}' due to unsupported platform", Reference.Name);
 						continue;
 					}
 
@@ -465,7 +467,7 @@ namespace AutomationTool
 						// Ignore any optional plugins
 						if (Reference.bOptional)
 						{
-							Log.TraceLog("Ignored optional reference to '%s' plugin; plugin was not found.", Reference.Name);
+							Logger.LogDebug("Ignored optional reference to '%s' plugin; plugin was not found.", Reference.Name);
 							continue;
 						}
 
@@ -477,14 +479,14 @@ namespace AutomationTool
 					// Check the plugin supports this platform
 					if(!bLoadPluginsForTargetPlatforms && !Plugin.Descriptor.SupportsTargetPlatform(Platform))
 					{
-						Log.TraceLog("Ignoring plugin '{0}' due to unsupported platform in plugin descriptor", Reference.Name);
+						Logger.LogDebug("Ignoring plugin '{Arg0}' due to unsupported platform in plugin descriptor", Reference.Name);
 						continue;
 					}
 
 					// Check that this plugin supports the current program
 					if (TargetType == TargetType.Program && !Plugin.Descriptor.SupportedPrograms.Contains(TargetName))
 					{
-						Log.TraceLog("Ignoring plugin '{0}' due to absence from the supported programs list", Reference.Name);
+						Logger.LogDebug("Ignoring plugin '{Arg0}' due to absence from the supported programs list", Reference.Name);
 						continue;
 					}
 
@@ -663,7 +665,7 @@ namespace AutomationTool
 			// Get all ini files
 			if (RawProjectPath != null)
 			{
-				CommandUtils.LogVerbose("Loading ini files for {0}", RawProjectPath);
+				Logger.LogDebug("Loading ini files for {RawProjectPath}", RawProjectPath);
 
 				foreach (UnrealTargetPlatform TargetPlatformType in UnrealTargetPlatform.GetValidPlatforms())
 				{
@@ -741,7 +743,7 @@ namespace AutomationTool
 			DirectoryReference RulesFolder = new DirectoryReference(GetRulesAssemblyFolder());
 			if (Properties.RawProjectPath != null)
 			{
-				CommandUtils.LogVerbose("Looking for targets for project {0}", Properties.RawProjectPath);
+				Logger.LogDebug("Looking for targets for project {Arg0}", Properties.RawProjectPath);
 
 				TargetsDllFilename = FileReference.Combine(RulesFolder, String.Format("UATRules-{0}.dll", ContentHash.MD5(Properties.RawProjectPath.FullName.ToUpperInvariant()).ToString()));
 
@@ -755,7 +757,7 @@ namespace AutomationTool
 				}
 
 				GameFolders.Add(new DirectoryReference(FullProjectPath));
-				CommandUtils.LogVerbose("Searching for target rule files in {0}", FullProjectPath);
+				Logger.LogDebug("Searching for target rule files in {FullProjectPath}", FullProjectPath);
 			}
 			else
 			{
@@ -803,10 +805,10 @@ namespace AutomationTool
 
 			if (!CommandUtils.IsNullOrEmpty(TargetScripts))
 			{
-				CommandUtils.LogVerbose("Found {0} target rule files:", TargetScripts.Count);
+				Logger.LogDebug("Found {Arg0} target rule files:", TargetScripts.Count);
 				foreach (FileReference Filename in TargetScripts)
 				{
-					CommandUtils.LogVerbose("  {0}", Filename);
+					Logger.LogDebug("  {Filename}", Filename);
 				}
 
 				// Check if the scripts require compilation
@@ -822,7 +824,7 @@ namespace AutomationTool
 					if (!CommandUtils.DeleteFile_NoExceptions(TargetsDllFilename.FullName, true))
 					{
 						DoNotCompile = true;
-						CommandUtils.LogVerbose("Could not delete {0} assuming it is up to date and reusable for a recursive UAT call.", TargetsDllFilename);
+						Logger.LogDebug("Could not delete {TargetsDllFilename} assuming it is up to date and reusable for a recursive UAT call.", TargetsDllFilename);
 					}
 				}
 
@@ -841,7 +843,7 @@ namespace AutomationTool
 		{
 			Properties.TargetScripts = new List<FileReference>(TargetScripts);
 
-			CommandUtils.LogVerbose("Compiling targets DLL: {0}", TargetsDllFilename);
+			Logger.LogDebug("Compiling targets DLL: {TargetsDllFilename}", TargetsDllFilename);
 
 			List<string> ReferencedAssemblies = new List<string>() 
 					{ 
@@ -860,9 +862,9 @@ namespace AutomationTool
 					TargetInfo DummyTargetInfo = new TargetInfo(TargetName, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, null, Properties.RawProjectPath, null);
 
 					// Create an instance of this type
-					CommandUtils.LogVerbose("Creating target rules object: {0}", TargetType.Name);
+					Logger.LogDebug("Creating target rules object: {Arg0}", TargetType.Name);
 					TargetRules Rules = TargetRules.Create(TargetType, DummyTargetInfo, null, null, null, null, Log.Logger);
-					CommandUtils.LogVerbose("Adding target: {0} ({1})", TargetType.Name, Rules.Type);
+					Logger.LogDebug("Adding target: {Arg0} ({Arg1})", TargetType.Name, Rules.Type);
 
 					SingleTargetProperties TargetData = new SingleTargetProperties();
 					TargetData.TargetName = GetTargetName(TargetType);
@@ -930,7 +932,7 @@ namespace AutomationTool
 		/// </summary>
 		public static void CleanupFolders()
 		{
-			CommandUtils.LogVerbose("Cleaning up project rules folder");
+			Logger.LogDebug("Cleaning up project rules folder");
 			string RulesFolder = GetRulesAssemblyFolder();
 			if (CommandUtils.DirectoryExists(RulesFolder))
 			{
@@ -1103,10 +1105,10 @@ namespace AutomationTool
 				AllProjects.Add(new BranchUProject(InfoEntry));
 			}
 
-			CommandUtils.LogVerbose("  {0} projects:", AllProjects.Count);
+			Logger.LogDebug("  {Arg0} projects:", AllProjects.Count);
 			foreach (BranchUProject Proj in AllProjects)
 			{
-				CommandUtils.LogLog(" {0}: {1}", Proj.GameName, Proj.FilePath);
+				Logger.LogDebug(" {Arg0}: {Arg1}", Proj.GameName, Proj.FilePath);
 			}
         }
 

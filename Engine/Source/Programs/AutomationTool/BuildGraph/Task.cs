@@ -15,6 +15,8 @@ using UnrealBuildBase;
 using UnrealBuildTool;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool
 {
 	/// <summary>
@@ -321,7 +323,7 @@ namespace AutomationTool
 			// If we got a null reference, it's because the tag is not listed as an input for this node (see RunGraph.BuildSingleNode). Fill it in, but only with an error.
 			if(Files == null)
 			{
-				CommandUtils.LogError("Attempt to reference tag '{0}', which is not listed as a dependency of this node.", TagName);
+				Logger.LogError("Attempt to reference tag '{TagName}', which is not listed as a dependency of this node.", TagName);
 				Files = new HashSet<FileReference>();
 				TagNameToFileSet.Add(TagName, Files);
 			}

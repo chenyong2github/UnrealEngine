@@ -14,6 +14,9 @@ using Google.Apis.Drive.v3.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
 using Google.Apis.Upload;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace DriveHelper
 {
@@ -180,7 +183,7 @@ namespace DriveHelper
 				case MIMETypes.BinaryDefault:
 					return "application/octet-stream";
 				default:
-					CommandUtils.LogError("Called ToString() on an unsupported MIME type! Did you forget to add a return case when adding a new type?");
+					Logger.LogError("Called ToString() on an unsupported MIME type! Did you forget to add a return case when adding a new type?");
 					return "";
 			}
 		}
@@ -281,7 +284,7 @@ namespace DriveHelper
 		{
 			if (!DoesFileExist(FileID))
 			{
-				CommandUtils.LogWarning("Attempted to download file that does not exist in Google Drive to {0} with FileID {1}.", new string[] { DestinationFilePathAndName, FileID });
+				Logger.LogWarning("Attempted to download file that does not exist in Google Drive to {Arg0} with FileID {Arg1}.", DestinationFilePathAndName, FileID);
 				return;
 			}
 			FilesResource.GetRequest Request = Service.Files.Get(FileID);
@@ -302,7 +305,7 @@ namespace DriveHelper
 		{
 			if (!DoesFileExist(FileID))
 			{
-				CommandUtils.LogWarning("Attempted to download doc that does not exist in Google Drive to {0} with FileID {1}.", new string[] { DestinationFilePathAndName, FileID });
+				Logger.LogWarning("Attempted to download doc that does not exist in Google Drive to {Arg0} with FileID {Arg1}.", DestinationFilePathAndName, FileID);
 				return;
 			}
 			FilesResource.ExportRequest Request = Service.Files.Export(FileID, ExportFormat.ToMimeString());
@@ -325,12 +328,12 @@ namespace DriveHelper
 					}
 				case Google.Apis.Download.DownloadStatus.Failed:
 					{
-						CommandUtils.LogWarning("Download failed! New file will not be created at {0}. {1}", DestinationFilePathAndName, Progress.Exception.Message);
+						Logger.LogWarning("Download failed! New file will not be created at {DestinationFilePathAndName}. {Arg1}", DestinationFilePathAndName, Progress.Exception.Message);
 						break;
 					}
 				case Google.Apis.Download.DownloadStatus.Completed:
 					{
-						CommandUtils.LogInformation("Download completed. Attempting to create file at {0}.", DestinationFilePathAndName);
+						Logger.LogInformation("Download completed. Attempting to create file at {DestinationFilePathAndName}.", DestinationFilePathAndName);
 						try
 						{
 							FileStream.Close();
@@ -387,7 +390,7 @@ namespace DriveHelper
 			if (MatchingFiles.Count != 1)
 			{
 				OutFileID = string.Empty;
-				CommandUtils.LogWarning("Failed to get a file ID when searching for {0}. Found {1} results instead of 1.", new string[] { FileName, MatchingFiles.Count.ToString() });
+				Logger.LogWarning("Failed to get a file ID when searching for {Arg0}. Found {Arg1} results instead of 1.", FileName, MatchingFiles.Count.ToString());
 				return false;
 			}
 			OutFileID = MatchingFiles[0].Id;
@@ -410,11 +413,11 @@ namespace DriveHelper
 		{
 			if (!DoesFileExist(FileID))
 			{
-				CommandUtils.LogWarning("Could not move file because no file exists with ID {0}.", FileID);
+				Logger.LogWarning("Could not move file because no file exists with ID {FileID}.", FileID);
 			}
 			if (!DoesFileExist(DestinationFolderID))
 			{
-				CommandUtils.LogWarning("Could not move file because destination folder does not exist with ID {0}.", DestinationFolderID);
+				Logger.LogWarning("Could not move file because destination folder does not exist with ID {DestinationFolderID}.", DestinationFolderID);
 			}
 			FilesResource.GetRequest Request = Service.Files.Get(FileID);
 			Request.Fields = "parents";
@@ -502,14 +505,14 @@ namespace DriveHelper
 		{
 			if (FileToUpload == null || !FileToUpload.Exists)
 			{
-				CommandUtils.LogWarning("Local file could not be uploaded to Google Drive as {0} because file does not exist!", UploadedFileName);
+				Logger.LogWarning("Local file could not be uploaded to Google Drive as {UploadedFileName} because file does not exist!", UploadedFileName);
 				return string.Empty;
 			}
 
 			DriveFolderWrapper OutputDriveFolder = GetNewFolderWrapper(DestinationFolderID);
 			if (!OutputDriveFolder.Exists)
 			{
-				CommandUtils.LogWarning("Local file could not be uploaded to Google Drive because destination folder does not exist! Intended Drive folder ID: {0}", DestinationFolderID);
+				Logger.LogWarning("Local file could not be uploaded to Google Drive because destination folder does not exist! Intended Drive folder ID: {DestinationFolderID}", DestinationFolderID);
 				return string.Empty;
 			}
 
@@ -527,7 +530,7 @@ namespace DriveHelper
 
 			if (Request.ResponseBody == null)
 			{
-				CommandUtils.LogWarning("Upload failed for {0}!", FileToUpload.Name);
+				Logger.LogWarning("Upload failed for {Arg0}!", FileToUpload.Name);
 				return string.Empty;
 			}
 			return Request.ResponseBody.Id;

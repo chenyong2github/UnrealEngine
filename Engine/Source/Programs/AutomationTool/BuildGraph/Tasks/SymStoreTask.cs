@@ -11,6 +11,9 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool.Tasks
 {
@@ -122,7 +125,7 @@ namespace AutomationTool.Tasks
 
 			if (Parameters.IndexSources && TargetPlatform.SymbolServerSourceIndexingRequiresListOfSourceFiles)
 			{
-				CommandUtils.LogInformation("Discovering source code files...");
+				Logger.LogInformation("Discovering source code files...");
 
 				SourceFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.SourceFiles, TagNameToFileSet).ToList();
 			}

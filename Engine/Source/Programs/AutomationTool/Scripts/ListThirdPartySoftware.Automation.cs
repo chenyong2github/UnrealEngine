@@ -9,6 +9,9 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 [Help("Lists TPS files associated with any source used to build a specified target(s). Grabs TPS files associated with source modules, content, and engine shaders.")]
 [Help("Target", "One or more UBT command lines to enumerate associated TPS files for (eg. UnrealGame Win64 Development).")]
@@ -16,7 +19,7 @@ class ListThirdPartySoftware : BuildCommand
 {
 	public override void ExecuteBuild()
 	{
-		CommandUtils.LogInformation("************************* List Third Party Software");
+		Logger.LogInformation("************************* List Third Party Software");
 
 		string ProjectPath = ParseParamValue("Project", String.Empty);
 
@@ -142,7 +145,7 @@ class ListThirdPartySoftware : BuildCommand
 		// Print them all out
 		foreach(string OutputMessage in OutputMessages)
 		{
-			CommandUtils.LogInformation(OutputMessage);
+			Logger.LogInformation("{Text}", OutputMessage);
 		}
 	}
 }

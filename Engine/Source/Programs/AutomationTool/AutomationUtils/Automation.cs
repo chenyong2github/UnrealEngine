@@ -13,6 +13,8 @@ using UnrealBuildBase;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool
 {
 
@@ -103,7 +105,7 @@ namespace AutomationTool
 				}
 
 				// Setup environment
-				Log.TraceLog("Setting up command environment.");
+				Logger.LogDebug("Setting up command environment.");
 				CommandUtils.InitCommandEnvironment();
 
 				// Create the log file, and flush the startup listener to it
@@ -148,7 +150,7 @@ namespace AutomationTool
 				CommandUtils.InitP4Support(AutomationToolCommandLine.CommandsToExecute, ScriptManager.Commands);
 				if (CommandUtils.P4Enabled)
 				{
-					Log.TraceLog("Setting up Perforce environment.");
+					Logger.LogDebug("Setting up Perforce environment.");
 					using (GlobalTracer.Instance.BuildSpan("InitP4").StartActive())
 					{
 						CommandUtils.InitP4Environment();
@@ -184,7 +186,7 @@ namespace AutomationTool
 				// Output the message in the desired format
 				if (Ex.OutputFormat == AutomationExceptionOutputFormat.Silent)
 				{
-					Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
+					Logger.LogDebug("{Arg0}", ExceptionUtils.FormatExceptionDetails(Ex));
 				}
 				else if (Ex.OutputFormat == AutomationExceptionOutputFormat.Minimal)
 				{
@@ -245,7 +247,7 @@ namespace AutomationTool
 		/// <param name="Commands"></param>
 		public static async Task<ExitCode> ExecuteAsync(List<CommandInfo> CommandsToExecute, Dictionary<string, Type> Commands)
 		{
-			CommandUtils.LogInformation("Executing commands...");
+			Logger.LogInformation("Executing commands...");
 			for (int CommandIndex = 0; CommandIndex < CommandsToExecute.Count; ++CommandIndex)
 			{
 				var CommandInfo = CommandsToExecute[CommandIndex];
@@ -265,7 +267,7 @@ namespace AutomationTool
 					{
 						return Result;
 					}
-					CommandUtils.LogInformation("BUILD SUCCESSFUL");
+					Logger.LogInformation("BUILD SUCCESSFUL");
 				}
 				finally
 				{
@@ -339,7 +341,7 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 				Message += String.Format($"    {AvailableCommand.Key}\n");
 			}
 			
-			CommandUtils.LogInformation(Message);
+			Logger.LogInformation("{Text}", Message);
 		}
 
 		/// <summary>

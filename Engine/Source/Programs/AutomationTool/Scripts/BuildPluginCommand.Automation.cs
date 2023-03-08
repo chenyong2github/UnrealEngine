@@ -12,6 +12,8 @@ using System.Text;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 [Help("Builds a plugin, and packages it for distribution")]
 [Help("Plugin", "Specify the path to the descriptor file for the plugin that should be packaged")]
 [Help("NoHostPlatform", "Prevent compiling for the editor platform on the host")]
@@ -104,14 +106,14 @@ public sealed class BuildPlugin : BuildCommand
 		FileReference HostProjectPluginFile = CreateHostProject(HostProjectFile, PluginFile);
 
 		// Read the plugin
-		CommandUtils.LogInformation("Reading plugin from {0}...", HostProjectPluginFile);
+		Logger.LogInformation("Reading plugin from {HostProjectPluginFile}...", HostProjectPluginFile);
 		PluginDescriptor Plugin = PluginDescriptor.FromFile(HostProjectPluginFile);
 
 		// Get the arguments for the compile
 		StringBuilder AdditionalArgs = new StringBuilder();
 		if (bStrictIncludes)
 		{
-			CommandUtils.LogInformation("Building with precompiled headers and unity disabled");
+			Logger.LogInformation("Building with precompiled headers and unity disabled");
 			AdditionalArgs.Append(" -NoPCH -NoSharedPCH -DisableUnity");
 		}
 
@@ -220,7 +222,7 @@ public sealed class BuildPlugin : BuildCommand
 		// Build the host platforms
 		if(HostPlatforms.Count > 0)
 		{
-			CommandUtils.LogInformation("Building plugin for host platforms: {0}", String.Join(", ", HostPlatforms));
+			Logger.LogInformation("Building plugin for host platforms: {Arg0}", String.Join(", ", HostPlatforms));
 			foreach (UnrealTargetPlatform HostPlatform in HostPlatforms)
 			{
 				CompilePluginWithUBT(UBTExe, HostProjectFile, HostProjectPluginFile, Plugin, "UnrealEditor", TargetType.Editor, HostPlatform, UnrealTargetConfiguration.Development, ManifestFileNames, AdditionalArgs);
@@ -231,7 +233,7 @@ public sealed class BuildPlugin : BuildCommand
 		if(TargetPlatforms.Count > 0)
 		{
 			List<UnrealTargetPlatform> SupportedTargetPlatforms = TargetPlatforms.FindAll(Plugin.SupportsTargetPlatform);
-			CommandUtils.LogInformation("Building plugin for target platforms: {0}", String.Join(", ", SupportedTargetPlatforms));
+			Logger.LogInformation("Building plugin for target platforms: {Arg0}", String.Join(", ", SupportedTargetPlatforms));
 			foreach (UnrealTargetPlatform TargetPlatform in SupportedTargetPlatforms)
 			{
 				string AdditionalTargetArgs = AdditionalArgs;
@@ -257,7 +259,7 @@ public sealed class BuildPlugin : BuildCommand
 		// Build the host platforms
 		if(HostPlatforms.Count > 0)
 		{
-			CommandUtils.LogInformation("Building plugin for host platforms: {0}", String.Join(", ", HostPlatforms));
+			Logger.LogInformation("Building plugin for host platforms: {Arg0}", String.Join(", ", HostPlatforms));
 			foreach (UnrealTargetPlatform HostPlatform in HostPlatforms)
 			{
 				CompilePluginWithUBT(UnrealBuildToolDll, HostProjectFile, HostProjectPluginFile, Plugin, "UnrealEditor", TargetType.Editor, HostPlatform, UnrealTargetConfiguration.Development, ManifestFileNames, AdditionalArgs);
@@ -268,7 +270,7 @@ public sealed class BuildPlugin : BuildCommand
 		if(TargetPlatforms.Count > 0)
 		{
 			List<UnrealTargetPlatform> SupportedTargetPlatforms = TargetPlatforms.FindAll(Plugin.SupportsTargetPlatform);
-			CommandUtils.LogInformation("Building plugin for target platforms: {0}", String.Join(", ", SupportedTargetPlatforms));
+			Logger.LogInformation("Building plugin for target platforms: {Arg0}", String.Join(", ", SupportedTargetPlatforms));
 			foreach (UnrealTargetPlatform TargetPlatform in SupportedTargetPlatforms)
 			{
 				string AdditionalTargetArgs = AdditionalArgs;
@@ -413,7 +415,7 @@ public sealed class BuildPlugin : BuildCommand
 	{
 		if (FileReference.Exists(FilterFile))
 		{
-			CommandUtils.LogInformation("Reading filter rules from {0}", FilterFile);
+			Logger.LogInformation("Reading filter rules from {FilterFile}", FilterFile);
 			Filter.ReadRulesFromFile(FilterFile, "FilterPlugin");
 		}
 	}

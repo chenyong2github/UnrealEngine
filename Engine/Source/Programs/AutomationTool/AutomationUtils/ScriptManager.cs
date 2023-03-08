@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool
 {
 	/// <summary>
@@ -111,7 +113,7 @@ namespace AutomationTool
 			foreach (FileReference AssemblyLocation in AssemblyPaths)
 			{
 				// Load the assembly into our app domain
-				CommandUtils.LogLog("Loading script DLL: {0}", AssemblyLocation);
+				Logger.LogDebug("Loading script DLL: {AssemblyLocation}", AssemblyLocation);
 				try
 				{
 					AssemblyUtils.AddFileToAssemblyCache(AssemblyLocation.FullName);

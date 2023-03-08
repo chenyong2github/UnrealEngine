@@ -12,6 +12,8 @@ using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 public class BuildDerivedDataCache : BuildCommand
 {
 	public override void ExecuteBuild()
@@ -83,7 +85,7 @@ public class BuildDerivedDataCache : BuildCommand
 				}
 				ProjectSpecificPlatforms = CommandUtils.CombineCommandletParams(FilteredPlatforms.Distinct().ToArray());
 			}
-			CommandUtils.LogInformation("Generating DDC data for {0} on {1}", GameName, ProjectSpecificPlatforms);
+			Logger.LogInformation("Generating DDC data for {GameName} on {ProjectSpecificPlatforms}", GameName, ProjectSpecificPlatforms);
 			CommandUtils.DDCCommandlet(FileRef, EditorExe, null, ProjectSpecificPlatforms, String.Format("-fill -DDC={0} -ProjectOnly", BackendName));
 
 			string ProjectPakFile = CommandUtils.CombinePaths(Path.GetDirectoryName(OutputPakFile), String.Format("Compressed-{0}.ddp", GameName));
@@ -103,7 +105,7 @@ public class BuildDerivedDataCache : BuildCommand
 		CommandUtils.DeleteDirectory(CommandUtils.CombinePaths(TempDir, "Engine", "Saved", "Config"));
 
 		// Generate DDC for the editor, and merge all the other PAK files in
-		CommandUtils.LogInformation("Generating DDC data for engine content on {0}", TargetPlatforms);
+		Logger.LogInformation("Generating DDC data for engine content on {TargetPlatforms}", TargetPlatforms);
 		CommandUtils.DDCCommandlet(null, EditorExe, null, TargetPlatforms, String.Format("-fill -DDC={0} -MergePaks={1}{2}", BackendName, CommandUtils.MakePathSafeToUseWithCommandLine(String.Join("+", ProjectPakFiles)), bSkipEngine? " -projectonly" : ""));
 
 		string SavedPakFile = CommandUtils.CombinePaths(SavedDir, RelativePakPath);

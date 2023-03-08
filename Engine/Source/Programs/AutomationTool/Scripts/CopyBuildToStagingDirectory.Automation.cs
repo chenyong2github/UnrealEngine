@@ -19,6 +19,8 @@ using UnrealBuildBase;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationScripts
 {
 	/// <summary>
@@ -593,12 +595,12 @@ namespace AutomationScripts
 
 							if (EnvVarValue == null)
 							{
-								CommandUtils.LogWarning($"Using envvar that isn't set, so it can't be used to pull files from : '{EnvVar}'");
+								Logger.LogWarning("Using envvar that isn't set, so it can't be used to pull files from : '{EnvVar}'", EnvVar);
 								continue;
 							}
 							if (!Directory.Exists(EnvVarValue))
 							{
-								CommandUtils.LogWarning($"Using envvar path that doesn't exist, so it can't be used to pull files from : '{EnvVarValue}' (from env var {EnvVar})");
+								Logger.LogWarning("Using envvar path that doesn't exist, so it can't be used to pull files from : '{EnvVarValue}' (from env var {EnvVar})", EnvVarValue, EnvVar);
 								continue;
 							}
 
@@ -610,7 +612,7 @@ namespace AutomationScripts
 								ExpandedSubPath = $"{SC.CookerSupportFilesSubdirectory}/{EnvVar}/{ExpandedSubPath}";
 
 								StagedFileReference DestPath = new StagedFileReference(ExpandedSubPath);
-								CommandUtils.LogInformation($"  Staging support file '{ExpandedPath}' to '{DestPath}'");
+								Logger.LogInformation("  Staging support file '{ExpandedPath}' to '{DestPath}'", ExpandedPath, DestPath);
 								SC.StageFile(StagedFileType.SystemNonUFS, File, DestPath);
 							}
 
@@ -657,7 +659,7 @@ namespace AutomationScripts
 						DirectoryReference InputDir = DirectoryReference.Combine(ProjectContentRoot, RelativePath);
 						if (Directory.Exists(InputDir.FullName)==false)
 						{
-							CommandUtils.LogWarning("Unable to find directory \"{0}\" for staging, retrieved from \"/Script/UnrealEd.ProjectPackagingSettings\" \"{1}\"", InputDir.FullName, ConfigKeyName);
+							Logger.LogWarning("Unable to find directory \"{Arg0}\" for staging, retrieved from \"/Script/UnrealEd.ProjectPackagingSettings\" \"{ConfigKeyName}\"", InputDir.FullName, ConfigKeyName);
 							continue;
 						}
 						StagedDirectoryReference OutputDir = StagedDirectoryReference.Combine(StageContentRoot, RelativePath);
@@ -1557,7 +1559,7 @@ namespace AutomationScripts
 				Nullable<bool> ShouldStage = ShouldStageConfigFile(SC, ConfigDir, ConfigFile, PlatformExtensionName);
 				if (ShouldStage == null)
 				{
-					CommandUtils.LogWarning("The config file '{0}' will be staged, but is not explicitly allowed or denied. Add +AllowedConfigFiles={0} or +DisallowedConfigFiles={0} to the [Staging] section of DefaultGame.ini", SC.GetStagedFileLocation(ConfigFile));
+					Logger.LogWarning("The config file '{Arg0}' will be staged, but is not explicitly allowed or denied. Add +AllowedConfigFiles={Unknown1} or +DisallowedConfigFiles={Unknown2} to the [Staging] section of DefaultGame.ini", SC.GetStagedFileLocation(ConfigFile));
 				}
 
 				if (ShouldStage ?? true)
@@ -1566,7 +1568,7 @@ namespace AutomationScripts
 				}
 				else
 				{
-					CommandUtils.LogInformation("Excluding config file {0}", ConfigFile);
+					Logger.LogInformation("Excluding config file {ConfigFile}", ConfigFile);
 				}
 			}
 		}

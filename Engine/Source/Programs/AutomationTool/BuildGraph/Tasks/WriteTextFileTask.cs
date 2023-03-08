@@ -9,6 +9,9 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool.Tasks
 {
@@ -101,12 +104,12 @@ namespace AutomationTool.Tasks
 
 			if (Parameters.Append)
 			{
-				CommandUtils.LogInformation(string.Format("Appending text to file '{0}': {1}", Parameters.File, FileText));
+				Logger.LogInformation("{Text}", string.Format("Appending text to file '{0}': {1}", Parameters.File, FileText));
 				await FileReference.AppendAllTextAsync(Parameters.File, Environment.NewLine + FileText);
 			}
 			else
 			{
-				CommandUtils.LogInformation(string.Format("Writing text to file '{0}': {1}", Parameters.File, FileText));
+				Logger.LogInformation("{Text}", string.Format("Writing text to file '{0}': {1}", Parameters.File, FileText));
 				await FileReference.WriteAllTextAsync(Parameters.File, FileText);
 			}
 		}

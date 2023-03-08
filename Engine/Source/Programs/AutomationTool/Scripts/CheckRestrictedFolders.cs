@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool
 {
@@ -34,23 +37,23 @@ namespace AutomationTool
 			}
 
 			// Find all the folders which are problematic
-			CommandUtils.LogInformation("Searching for folders under {0} named {1}...", BaseDir, String.Join(", ", RestrictedNames));
+			Logger.LogInformation("Searching for folders under {BaseDir} named {Arg1}...", BaseDir, String.Join(", ", RestrictedNames));
 			List<DirectoryInfo> ProblemFolders = new List<DirectoryInfo>();
 			FindRestrictedFolders(new DirectoryInfo(BaseDir.FullName), RestrictedNames, ProblemFolders);
 
 			// Print out all the restricted folders
 			if(ProblemFolders.Count > 0)
 			{
-				CommandUtils.LogError("Found {0} {1} which should not be distributed:", ProblemFolders.Count, (ProblemFolders.Count == 1) ? "folder" : "folders");
+				Logger.LogError("Found {Arg0} {Arg1} which should not be distributed:", ProblemFolders.Count, (ProblemFolders.Count == 1) ? "folder" : "folders");
 				foreach(DirectoryInfo ProblemFolder in ProblemFolders)
 				{
-					CommandUtils.LogError("    {0}{1}...", new DirectoryReference(ProblemFolder).MakeRelativeTo(BaseDir), Path.DirectorySeparatorChar);
+					Logger.LogError("    {Arg0}{Arg1}...", new DirectoryReference(ProblemFolder).MakeRelativeTo(BaseDir), Path.DirectorySeparatorChar);
 				}
 				return ExitCode.Error_Unknown;
 			}
 
 			// Otherwise return success
-			CommandUtils.LogInformation("No restricted folders found under {0}", BaseDir);
+			Logger.LogInformation("No restricted folders found under {BaseDir}", BaseDir);
 			return ExitCode.Success;
 		}
 

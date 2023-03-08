@@ -17,6 +17,8 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Logging = Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace Gauntlet
 {
 	public static class Globals
@@ -267,7 +269,7 @@ namespace Gauntlet
 			{
 				if (CommandUtils.IsBuildMachine)
 				{
-					CommandUtils.LogInformation("<-- Suspend Log Parsing -->");
+					Logger.LogInformation("<-- Suspend Log Parsing -->");
 				}
 			}
 		}
@@ -278,7 +280,7 @@ namespace Gauntlet
 			{
 				if (CommandUtils.IsBuildMachine)
 				{
-					CommandUtils.LogInformation("<-- Resume Log Parsing -->");
+					Logger.LogInformation("<-- Resume Log Parsing -->");
 				}
 			}
 		}

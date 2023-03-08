@@ -19,6 +19,8 @@ using System.Drawing;
 using System.Security.Policy;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 public class AndroidPlatform : Platform
 {
 	// Maximum allowed OBB size (1 GiB, 2 GiB or 4 GiB based on project settings)
@@ -2155,7 +2157,7 @@ public class AndroidPlatform : Platform
 					}
 					else
 					{
-						CommandUtils.LogWarning("Device attached but in bad state {0}:{1}", DeviceLine[0], DeviceLine[1]);
+						Logger.LogWarning("Device attached but in bad state {Arg0}:{Arg1}", DeviceLine[0], DeviceLine[1]);
 					}
 				}
 			}
@@ -3889,7 +3891,7 @@ public class AndroidPlatform : Platform
 			}
 
 			// Message back to the Unreal Editor to correctly set the app id for each device
-			CommandUtils.LogInformation("Running Package@Device:{0}@{1}", PackageName, DeviceName);
+			Logger.LogInformation("Running Package@Device:{PackageName}@{DeviceName}", PackageName, DeviceName);
 
 			// clear the log for the device
 			RunAdbCommand(DeviceName, "logcat -c");

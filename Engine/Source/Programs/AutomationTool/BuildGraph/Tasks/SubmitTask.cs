@@ -13,6 +13,8 @@ using UnrealBuildBase;
 using UnrealBuildTool;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool.Tasks
 {
 	/// <summary>
@@ -168,7 +170,7 @@ namespace AutomationTool.Tasks
 						SubmitP4.RevertUnchanged(NewCL);
 						if(SubmitP4.TryDeleteEmptyChange(NewCL))
 						{
-							CommandUtils.LogInformation("No files to submit; ignored.");
+							Logger.LogInformation("No files to submit; ignored.");
 							return Task.CompletedTask;
 						}
 					}
@@ -181,7 +183,7 @@ namespace AutomationTool.Tasks
 						throw new AutomationException("Submit failed.");
 					}
 
-					CommandUtils.LogInformation("Submitted in changelist {0}", SubmittedCL);
+					Logger.LogInformation("Submitted in changelist {SubmittedCL}", SubmittedCL);
 				}
 				catch (P4Exception Ex)
 				{

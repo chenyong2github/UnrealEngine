@@ -11,6 +11,8 @@ using UnrealBuildBase;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 public class ConfigHelper
 {
 	private string SpecificConfigSection;
@@ -123,7 +125,7 @@ public class ModifyStageContext
 		IniPlatformName = ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.IniPlatformType);
 		bIsDLC = Params.DLCFile != null && SC.MetadataDir != null; // MetadataDir needs to be set for DLC
 
-		CommandUtils.LogInformation("---> ReleaseOverrideDir = {0}, MetadataDir = {1}", Params.BasedOnReleaseVersionPathOverride, SC.MetadataDir);
+		Logger.LogInformation("---> ReleaseOverrideDir = {Arg0}, MetadataDir = {Arg1}", Params.BasedOnReleaseVersionPathOverride, SC.MetadataDir);
 
 
 		// cache info for DLC against a release

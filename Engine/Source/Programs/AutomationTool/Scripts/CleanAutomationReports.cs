@@ -8,6 +8,9 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool
 {
@@ -52,17 +55,17 @@ namespace AutomationTool
 			int DirsScanned = CleanDirectories(ReportDirInfo, RetainTime, DirectoriesToDelete, TargetDepth);
 
 			// Delete old folders.
-			CommandUtils.LogInformation("Found {0} builds; {1} to delete.", DirsScanned, DirectoriesToDelete.Count);
+			Logger.LogInformation("Found {DirsScanned} builds; {Arg1} to delete.", DirsScanned, DirectoriesToDelete.Count);
 			for(int Idx = 0; Idx < DirectoriesToDelete.Count; Idx++)
 			{
 				try
 				{
-					CommandUtils.LogInformation("[{0}/{1}] Deleting {2}...", Idx + 1, DirectoriesToDelete.Count, DirectoriesToDelete[Idx].FullName);
+					Logger.LogInformation("[{Arg0}/{Arg1}] Deleting {Arg2}...", Idx + 1, DirectoriesToDelete.Count, DirectoriesToDelete[Idx].FullName);
 					DirectoriesToDelete[Idx].Delete(true);
 				}
 				catch(Exception Ex)
 				{
-					CommandUtils.LogWarning("Failed to delete folder; will try one file at a time: {0}", Ex);
+					Logger.LogWarning("Failed to delete folder; will try one file at a time: {Ex}", Ex);
 					CommandUtils.DeleteDirectory_NoExceptions(true, DirectoriesToDelete[Idx].FullName);
 				}
 			}
@@ -79,7 +82,7 @@ namespace AutomationTool
 					// If we find a DO_NOT_CLEANUP.txt file before we reach the target depth we want to ignore that entire portion of the directory structure.
 					if (File.Exists(Path.Combine(SubDirectory.FullName, "DO_NOT_CLEANUP.txt")))
 					{
-						CommandUtils.LogInformation("Found DO_NOT_CLEANUP.txt file in {0} before target depth, excluding it from cleanup process.", SubDirectory);
+						Logger.LogInformation("Found DO_NOT_CLEANUP.txt file in {SubDirectory} before target depth, excluding it from cleanup process.", SubDirectory);
 						continue;
 					}
 					DirsFound += CleanDirectories(SubDirectory, RetainTime, DirectoriesToDelete, TargetDepth, CurrentDepth + 1);
@@ -88,7 +91,7 @@ namespace AutomationTool
 			}
 			else
 			{
-				CommandUtils.LogInformation("Scanning {0}...", Directory);
+				Logger.LogInformation("Scanning {Directory}...", Directory);
 				IEnumerable<DirectoryInfo> DirsToScan = Directory.EnumerateDirectories();
 				foreach(DirectoryInfo BuildDirectory in DirsToScan)
 				{
@@ -97,7 +100,7 @@ namespace AutomationTool
 						// If we find a DO_NOT_CLEANUP.txt file recursively anywhere in a build folder, leave that build alone.
 						if (BuildDirectory.EnumerateFiles("*", SearchOption.AllDirectories).Any(x => x.Name.ToLower() == "do_not_cleanup.txt"))
 						{
-							CommandUtils.LogInformation("Found DO_NOT_CLEANUP.txt file in {0}, skipping it!", BuildDirectory);
+							Logger.LogInformation("Found DO_NOT_CLEANUP.txt file in {BuildDirectory}, skipping it!", BuildDirectory);
 							continue;
 						}
 						if(!BuildDirectory.EnumerateFiles("*", SearchOption.AllDirectories).Any(x => x.LastWriteTimeUtc > RetainTime))
@@ -107,7 +110,7 @@ namespace AutomationTool
 					}
 					catch(Exception Ex)
 					{
-						CommandUtils.LogWarning("Unable to enumerate {0}: {1}", BuildDirectory.FullName, Ex.ToString());
+						Logger.LogWarning("Unable to enumerate {Arg0}: {Arg1}", BuildDirectory.FullName, Ex.ToString());
 					}
 				}
 				return DirsToScan.Count();

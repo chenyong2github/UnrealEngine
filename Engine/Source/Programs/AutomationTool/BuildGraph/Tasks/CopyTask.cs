@@ -14,6 +14,8 @@ using UnrealBuildTool;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool.Tasks
 {
 	/// <summary>
@@ -108,17 +110,17 @@ namespace AutomationTool.Tasks
 			{
 				if (Parameters.ErrorIfNotFound)
 				{
-					CommandUtils.LogError("No files found matching '{0}'", SourcePattern);
+					Logger.LogError("No files found matching '{SourcePattern}'", SourcePattern);
 				}
 				else
 				{
-					CommandUtils.LogInformation("No files found matching '{0}'", SourcePattern);
+					Logger.LogInformation("No files found matching '{SourcePattern}'", SourcePattern);
 				}
 				return;
 			}
 
 			// Run the copy
-			CommandUtils.LogInformation("Copying {0} file{1} from {2} to {3}...", TargetFileToSourceFile.Count, (TargetFileToSourceFile.Count == 1) ? "" : "s", SourcePattern.BaseDirectory, TargetPattern.BaseDirectory);
+			Logger.LogInformation("Copying {Arg0} file{Arg1} from {Arg2} to {Arg3}...", TargetFileToSourceFile.Count, (TargetFileToSourceFile.Count == 1) ? "" : "s", SourcePattern.BaseDirectory, TargetPattern.BaseDirectory);
 			await ExecuteAsync(TargetFileToSourceFile, Parameters.Overwrite);
 
 			// Update the list of build products
@@ -147,14 +149,14 @@ namespace AutomationTool.Tasks
 				{
 					if (FileReference.Exists(File.Key))
 					{
-						CommandUtils.LogInformation("Not copying existing file {0}", File.Key);
+						Logger.LogInformation("Not copying existing file {Arg0}", File.Key);
 						continue;
 					}
 					FilteredTargetToSourceFile.Add(File.Key, File.Value);
 				}
 				if(FilteredTargetToSourceFile.Count == 0)
 				{
-					CommandUtils.LogWarning("All files already exist, exiting early.");
+					Logger.LogWarning("All files already exist, exiting early.");
 					return Task.CompletedTask;
 				}
 				TargetFileToSourceFile = FilteredTargetToSourceFile;
@@ -187,7 +189,7 @@ namespace AutomationTool.Tasks
 							Logger.LogInformation("Unable to create directory '{FirstTargetDirectory}' on first attempt. Retrying {MaxNumRetries} times...", FirstTargetDirectory, MaxNumRetries);
 						}
 
-						Log.TraceLog("  {0}", Ex);
+						Logger.LogDebug("  {Ex}", Ex);
 
 						if(NumRetries >= 15)
 						{
@@ -203,7 +205,7 @@ namespace AutomationTool.Tasks
 			KeyValuePair<FileReference, FileReference>[] FilePairs = TargetFileToSourceFile.ToArray();
 			foreach(KeyValuePair<FileReference, FileReference> FilePair in FilePairs)
 			{
-				CommandUtils.LogLog("  {0} -> {1}", FilePair.Value, FilePair.Key);
+				Logger.LogDebug("  {Arg0} -> {Arg1}", FilePair.Value, FilePair.Key);
 			}
 			CommandUtils.ThreadedCopyFiles(FilePairs.Select(x => x.Value.FullName).ToList(), FilePairs.Select(x => x.Key.FullName).ToList(), bQuiet: true, bRetry: true);
 			return Task.CompletedTask;

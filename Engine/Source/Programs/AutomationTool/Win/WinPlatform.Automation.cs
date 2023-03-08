@@ -16,6 +16,8 @@ using System.Threading.Tasks;
 using System.Reflection.PortableExecutable;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 public class Win64Platform : Platform
 {
 	public Win64Platform()
@@ -106,7 +108,7 @@ public class Win64Platform : Platform
 		}
 		else
 		{
-			CommandUtils.LogLog("Can't find cloud directory {0}", ProjectCloudPath.FullName);
+			Logger.LogDebug("Can't find cloud directory {Arg0}", ProjectCloudPath.FullName);
 		}
 
 		// Stage the bootstrap executable
@@ -277,7 +279,7 @@ public class Win64Platform : Platform
 			FileReference IconFile = FileReference.Combine(Params.RawProjectPath.Directory, "Build", "Windows", "Application.ico");
 			if(FileReference.Exists(IconFile))
 			{
-				CommandUtils.LogInformation("Updating executable with custom icon from {0}", IconFile);
+				Logger.LogInformation("Updating executable with custom icon from {IconFile}", IconFile);
 
 				GroupIconResource GroupIcon = GroupIconResource.FromIco(IconFile.FullName);
 
@@ -726,7 +728,7 @@ public class Win64Platform : Platform
 		{
 			lock (State)
 			{
-				CommandUtils.LogInformation("Skipping indexing of {0} because it would make the file larger than 4GB (not supported by pdbstr.exe tool).", PdbFile.GetFileName());
+				Logger.LogInformation("Skipping indexing of {Arg0} because it would make the file larger than 4GB (not supported by pdbstr.exe tool).", PdbFile.GetFileName());
 			}
 
 			return;
@@ -762,7 +764,7 @@ public class Win64Platform : Platform
 			{
 				foreach (string Message in Messages)
 				{
-					CommandUtils.LogInformation(Message);
+					Logger.LogInformation("{Text}", Message);
 				}
 			}
 		}

@@ -11,6 +11,8 @@ using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool
 {
 	public interface ITurnkeyContext
@@ -761,11 +763,11 @@ namespace AutomationTool
 		{
 			if (SourceFile == TargetFile)
 			{
-				CommandUtils.LogWarning("StripSymbols() has not been implemented for {0}", PlatformType.ToString());
+				Logger.LogWarning("StripSymbols() has not been implemented for {Arg0}", PlatformType.ToString());
 			}
 			else
 			{
-				CommandUtils.LogWarning("StripSymbols() has not been implemented for {0}; copying files", PlatformType.ToString());
+				Logger.LogWarning("StripSymbols() has not been implemented for {Arg0}; copying files", PlatformType.ToString());
 				File.Copy(SourceFile.FullName, TargetFile.FullName, true);
 			}
 		}
@@ -774,7 +776,7 @@ namespace AutomationTool
 			bool bIndexSources, List<FileReference> SourceFiles,
 			string Product, string Branch, int Change, string BuildVersion = null)
 		{
-			CommandUtils.LogWarning("PublishSymbols() has not been implemented for {0}", PlatformType.ToString());
+			Logger.LogWarning("PublishSymbols() has not been implemented for {Arg0}", PlatformType.ToString());
 			return false;
 		}
 

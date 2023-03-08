@@ -20,6 +20,8 @@ using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool
 {
 	class UploadDDCToAWS : BuildCommand
@@ -230,7 +232,7 @@ namespace AutomationTool
 							catch (Exception Ex)
 							{
 								Logger.LogWarning("Unable to delete: {Arg0}", Ex.Message);
-								Log.TraceLog(ExceptionUtils.FormatExceptionDetails(Ex));
+								Logger.LogDebug("{Text}", ExceptionUtils.FormatExceptionDetails(Ex));
 							}
 						}
 					}
@@ -818,7 +820,7 @@ namespace AutomationTool
 				{
 					if (NumAttempts < MaxAttempts)
 					{
-						Log.TraceLog("Attempt {0}: {1}", NumAttempts, ExceptionUtils.FormatExceptionDetails(Ex));
+						Logger.LogDebug("Attempt {NumAttempts}: {Arg1}", NumAttempts, ExceptionUtils.FormatExceptionDetails(Ex));
 					}
 					else
 					{

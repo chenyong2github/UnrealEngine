@@ -24,6 +24,8 @@ using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 using System.Runtime.Versioning;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool
 {
 	/// <summary>
@@ -1305,7 +1307,7 @@ namespace AutomationTool
 				{
 					if (bRetry && AttemptsRemaining > 0)
 					{
-						Log.TraceLog("Failed to delete {0} for copy, retrying..", Dest);
+						Logger.LogDebug("Failed to delete {Dest} for copy, retrying..", Dest);
 						Thread.Sleep(1000);
 						continue;
 					}
@@ -1315,7 +1317,7 @@ namespace AutomationTool
 				{
 					if (bRetry && AttemptsRemaining > 0)
 					{
-						Log.TraceLog("Failed to copy {0} to {1}, retrying..", Source, Dest);
+						Logger.LogDebug("Failed to copy {Source} to {Dest}, retrying..", Source, Dest);
 						Thread.Sleep(1000);
 						continue;
 					}
@@ -2316,7 +2318,7 @@ namespace AutomationTool
 
 				foreach (string LogLine in Lines)
 				{
-					CommandUtils.LogInformation(LogLine);
+					Logger.LogInformation("{Text}", LogLine);
 
 					// Split each line into two by whitespace
 					string[] SplitLine = LogLine.Split(new char[] { ' ', '\t' }, 2, StringSplitOptions.RemoveEmptyEntries);
@@ -2324,7 +2326,7 @@ namespace AutomationTool
 					{
 						// Second part of line should be a path
 						string FilePath = SplitLine[1].Trim();
-						CommandUtils.LogInformation(FilePath);
+						Logger.LogInformation("{Text}", FilePath);
 						if (File.Exists(FilePath) && !OutputFileNames.Contains(FilePath) && FilePath != ZipFileName)
 						{
 							if (CommandUtils.IsProbablyAMacOrIOSExe(FilePath) || CommandUtils.IsProbablyALinuxExe(FilePath))
@@ -2337,7 +2339,7 @@ namespace AutomationTool
 				}
 				if (OutputFileNames.Count == 0)
 				{
-					CommandUtils.LogWarning("Unable to parse unzipped files from {0}", ZipFileName);
+					Logger.LogWarning("Unable to parse unzipped files from {ZipFileName}", ZipFileName);
 				}
 			}
 			else
@@ -2609,7 +2611,7 @@ namespace AutomationTool
 		{
 			Samples.RemoveAll(x => x.Name == Name);
 			Samples.Add(new TelemetrySample() { Name = Name, Value = Value, Units = Units });
-			Log.TraceLog("Added telemetry value: {0} = {1} ({2})", Name, Value, Units);
+			Logger.LogDebug("Added telemetry value: {Name} = {Value} ({Units})", Name, Value, Units);
 		}
 
 		/// <summary>
@@ -2672,7 +2674,7 @@ namespace AutomationTool
 		/// <param name="FileName"></param>
 		public void Write(string FileName)
 		{
-			Log.TraceLog("Writing telemetry to {0}...", FileName);
+			Logger.LogDebug("Writing telemetry to {FileName}...", FileName);
 			using (JsonWriter Writer = new JsonWriter(FileName))
 			{
 				Writer.WriteObjectStart();
@@ -2728,7 +2730,7 @@ namespace AutomationTool
                 }
 
                 var OutputStr = String.Format("UAT,{0},{1},{2}" + Environment.NewLine, Name, StartTime, DateTime.Now);
-                CommandUtils.LogVerbose(OutputStr);
+                Logger.LogDebug("{Text}", OutputStr);
                 if (CommandUtils.IsBuildMachine && !String.IsNullOrEmpty(CommandUtils.CmdEnv.CSVFile) && CommandUtils.CmdEnv.CSVFile != "nul")
                 {
                     try
@@ -2737,7 +2739,7 @@ namespace AutomationTool
                     }
                     catch (Exception Ex)
                     {
-                        CommandUtils.LogWarning("Could not append to csv file ({0}) : {1}", CommandUtils.CmdEnv.CSVFile, Ex.ToString());
+                        Logger.LogWarning("Could not append to csv file ({Arg0}) : {Arg1}", CommandUtils.CmdEnv.CSVFile, Ex.ToString());
                     }
                 }
             }
@@ -2929,7 +2931,7 @@ namespace AutomationTool
 					{
 						if (Result.ExitCode == 2)
 						{
-							CommandUtils.LogError(String.Format("Signtool returned a warning."));
+							Logger.LogError("{Text}", String.Format("Signtool returned a warning."));
 						}
 						// Success!
 						FileIdx = NextFileIdx;
@@ -2992,7 +2994,7 @@ namespace AutomationTool
 		{
             if (!OperatingSystem.IsWindows())
             {
-                CommandUtils.LogLog(String.Format("Can't sign '{0}' on non-Windows platform.", Filename));
+                Logger.LogDebug("{Text}", String.Format("Can't sign '{0}' on non-Windows platform.", Filename));
                 return;
             }
             if (!CommandUtils.FileExists(Filename))
@@ -3019,7 +3021,7 @@ namespace AutomationTool
 			}
 			if (!IsExecutable)
 			{
-				CommandUtils.LogLog(String.Format("Won't sign '{0}', not an executable.", TargetFileInfo.FullName));
+				Logger.LogDebug("{Text}", String.Format("Won't sign '{0}', not an executable.", TargetFileInfo.FullName));
 				return;
 			}
 
@@ -3094,7 +3096,7 @@ namespace AutomationTool
 			{
 				if (!bIsDirectory)
 				{
-					CommandUtils.LogLog(String.Format("Won't sign '{0}', not an executable.", InPath));
+					Logger.LogDebug("{Text}", String.Format("Won't sign '{0}', not an executable.", InPath));
 				}
 				return;
 			}
@@ -3154,7 +3156,7 @@ namespace AutomationTool
 		{
 			if (!Command.ParseParam("NoSign"))
 			{
-				CommandUtils.LogInformation("Signing up to {0} files...", Files.Count());
+				Logger.LogInformation("Signing up to {Arg0} files...", Files.Count());
 				UnrealBuildTool.UnrealTargetPlatform TargetPlatform = UnrealBuildTool.BuildHostPlatform.Current.Platform;
 				if (TargetPlatform == UnrealBuildTool.UnrealTargetPlatform.Mac)
 				{
@@ -3175,7 +3177,7 @@ namespace AutomationTool
 			}
 			else
 			{
-				CommandUtils.LogLog("Skipping signing {0} files due to -nosign.", Files.Count());
+				Logger.LogDebug("Skipping signing {Arg0} files due to -nosign.", Files.Count());
 			}
 		}
 
@@ -3183,7 +3185,7 @@ namespace AutomationTool
 		{
 			if (!OperatingSystem.IsWindows())
 			{
-				CommandUtils.LogLog(String.Format("Can't sign on non-Windows platform."));
+				Logger.LogDebug("{Text}", String.Format("Can't sign on non-Windows platform."));
 				return;
 			}
 			List<FileReference> FinalFiles = new List<FileReference>();

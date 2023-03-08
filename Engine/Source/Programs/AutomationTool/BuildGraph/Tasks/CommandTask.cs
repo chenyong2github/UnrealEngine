@@ -15,6 +15,8 @@ using EpicGames.BuildGraph;
 using AutomationTool.Tasks;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool.Tasks
 {
 	static class StringExtensions
@@ -117,7 +119,7 @@ namespace AutomationTool.Tasks
 			// Merge in any new telemetry data that was produced
 			if (TelemetryFile != null && FileReference.Exists(TelemetryFile))
 			{
-				Log.TraceLog("Merging telemetry from {0}", TelemetryFile);
+				Logger.LogDebug("Merging telemetry from {TelemetryFile}", TelemetryFile);
 
 				TelemetryData NewTelemetry;
 				if (TelemetryData.TryRead(TelemetryFile, out NewTelemetry))

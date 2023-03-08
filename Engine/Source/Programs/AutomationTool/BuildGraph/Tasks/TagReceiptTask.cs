@@ -11,6 +11,9 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool.Tasks
 {
@@ -118,7 +121,7 @@ namespace AutomationTool.Tasks
 			// Output a warning if the project directory is specified
 			if (Parameters.ProjectDir != null)
 			{
-				CommandUtils.LogWarning("The ProjectDir argument to the TagReceipt parameter is deprecated. This path is now determined automatically from the receipt.");
+				Logger.LogWarning("The ProjectDir argument to the TagReceipt parameter is deprecated. This path is now determined automatically from the receipt.");
 			}
 
 			// Set the Engine directory
@@ -150,7 +153,7 @@ namespace AutomationTool.Tasks
 				TargetReceipt Receipt;
 				if (!TargetReceipt.TryRead(TargetFile, EngineDir, out Receipt))
 				{
-					CommandUtils.LogWarning("Unable to load file using TagReceipt task ({0})", TargetFile.FullName);
+					Logger.LogWarning("Unable to load file using TagReceipt task ({Arg0})", TargetFile.FullName);
 					continue;
 				}
 
@@ -192,7 +195,7 @@ namespace AutomationTool.Tasks
 						}
 						else if(RuntimeDependency.Type != UnrealBuildTool.StagedFileType.DebugNonUFS)
 						{
-							CommandUtils.LogWarning("File listed as RuntimeDependency in {0} does not exist ({1})", TargetFile.FullName, DependencyPath.FullName);
+							Logger.LogWarning("File listed as RuntimeDependency in {Arg0} does not exist ({Arg1})", TargetFile.FullName, DependencyPath.FullName);
 						}
 					}
 				}

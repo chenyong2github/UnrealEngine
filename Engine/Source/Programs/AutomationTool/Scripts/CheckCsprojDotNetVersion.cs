@@ -6,6 +6,9 @@ using System.Text.RegularExpressions;
 using AutomationTool;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 class CheckCsprojDotNetVersion : BuildCommand
 {
@@ -20,7 +23,7 @@ class CheckCsprojDotNetVersion : BuildCommand
 
 		string[] DesiredTargetVersions = DesiredTargetVersionParam.Split('+');
 
-		CommandUtils.LogInformation("Scanning for all csproj's...");
+		Logger.LogInformation("Scanning for all csproj's...");
 		// Check for all csproj's in the engine dir
 		DirectoryReference EngineDir = Unreal.EngineDirectory;
 
@@ -60,7 +63,7 @@ class CheckCsprojDotNetVersion : BuildCommand
 				// make sure we match, throw warning otherwise
 				if (!DesiredTargetVersions.Any(DesiredTargetVersion => DesiredTargetVersion.Equals(TargetedVersion, StringComparison.InvariantCultureIgnoreCase)))
 				{
-					CommandUtils.LogWarning("Targeted Framework version for project: {0} was not {1}! Targeted Version: {2}", CsProj, String.Join("/", DesiredTargetVersions), TargetedVersion);
+					Logger.LogWarning("Targeted Framework version for project: {CsProj} was not {Arg1}! Targeted Version: {TargetedVersion}", CsProj, String.Join("/", DesiredTargetVersions), TargetedVersion);
 				}
 			}
 			// if we don't have a TargetFrameworkVersion, check for the existence of TargetFrameworkProfile.
@@ -69,7 +72,7 @@ class CheckCsprojDotNetVersion : BuildCommand
 				Match = PossibleAppConfigRegex.Match(Contents);
 				if (!Match.Success)
 				{
-					CommandUtils.LogInformation("No TargetFrameworkVersion or TargetFrameworkProfile found for project {0}, is it a mono project? If not, does it compile properly?", CsProj);
+					Logger.LogInformation("No TargetFrameworkVersion or TargetFrameworkProfile found for project {CsProj}, is it a mono project? If not, does it compile properly?", CsProj);
 					continue;
 				}
 
@@ -78,7 +81,7 @@ class CheckCsprojDotNetVersion : BuildCommand
 				string Profile = Match.Groups[1].Value;
 				if (!FileReference.Exists(AppConfigFile))
 				{
-					CommandUtils.LogInformation("Found TargetFrameworkProfile but no associated app.config containing the version for project {0}.", CsProj);
+					Logger.LogInformation("Found TargetFrameworkProfile but no associated app.config containing the version for project {CsProj}.", CsProj);
 					continue;
 				}
 
@@ -87,7 +90,7 @@ class CheckCsprojDotNetVersion : BuildCommand
 				Match = AppConfigRegex.Match(Contents);
 				if (!Match.Success)
 				{
-					CommandUtils.LogInformation("Couldn't find a supportedRuntime match for the version in the app.config for project {0}.", CsProj);
+					Logger.LogInformation("Couldn't find a supportedRuntime match for the version in the app.config for project {CsProj}.", CsProj);
 					continue;
 				}
 
@@ -101,21 +104,21 @@ class CheckCsprojDotNetVersion : BuildCommand
 				// not sure how this is possible, but check for it anyway
 				if (!ProfileString.Equals(Profile, StringComparison.InvariantCultureIgnoreCase))
 				{
-					CommandUtils.LogWarning("The TargetFrameworkProfile in csproj {0} ({1}) doesn't match the sku in it's app.config ({2}).", CsProj, Profile, ProfileString);
+					Logger.LogWarning("The TargetFrameworkProfile in csproj {CsProj} ({Profile}) doesn't match the sku in it's app.config ({ProfileString}).", CsProj, Profile, ProfileString);
 					continue;
 				}
 
 				// if the version numbers don't match the app.config is probably corrupt.
 				if (!Version1String.Equals(Version2String, StringComparison.InvariantCultureIgnoreCase))
 				{
-					CommandUtils.LogWarning("The supportedRunTimeVersion ({0}) and the sku version ({1}) in the app.config for project {2} don't match.", Version1String, Version2String, CsProj);
+					Logger.LogWarning("The supportedRunTimeVersion ({Version1String}) and the sku version ({Version2String}) in the app.config for project {CsProj} don't match.", Version1String, Version2String, CsProj);
 					continue;
 				}
 
 				// make sure the versions match
 				if (!(DesiredTargetVersions.Any(DesiredTargetVersion => DesiredTargetVersion.Equals(Version1String, StringComparison.InvariantCultureIgnoreCase))))
 				{
-					CommandUtils.LogWarning("Targeted Framework version for project: {0} was not {1}! Targeted Version: {2}", CsProj, String.Join("/", DesiredTargetVersions), Version1String);
+					Logger.LogWarning("Targeted Framework version for project: {CsProj} was not {Arg1}! Targeted Version: {Version1String}", CsProj, String.Join("/", DesiredTargetVersions), Version1String);
 				}
 			}
 		}

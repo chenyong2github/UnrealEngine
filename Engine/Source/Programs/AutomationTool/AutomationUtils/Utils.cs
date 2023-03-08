@@ -13,6 +13,8 @@ using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool
 {
 	/// <summary>
@@ -37,7 +39,7 @@ namespace AutomationTool
 			}
 			if (!bQuiet)
 			{
-				Log.TraceLog("GetEnvironmentVariable {0}={1}", VarName, Value);
+				Logger.LogDebug("GetEnvironmentVariable {VarName}={Value}", VarName, Value);
 			}
 			return Value;
 		}
@@ -52,7 +54,7 @@ namespace AutomationTool
 		{
 			if(!bQuiet)
 			{
-				Log.TraceLog("SafeCreateDirectory {0}", Path);
+				Logger.LogDebug("SafeCreateDirectory {Path}", Path);
 			}
 
 			const int MaxAttempts = 10;
@@ -84,7 +86,7 @@ namespace AutomationTool
 			{
 				if (bQuiet)
 				{
-					Log.TraceLog("Failed to create directory {0} in {1} attempts.", Path, MaxAttempts);
+					Logger.LogDebug("Failed to create directory {Path} in {MaxAttempts} attempts.", Path, MaxAttempts);
 				}
 				else
 				{
@@ -105,7 +107,7 @@ namespace AutomationTool
 		{
 			if (!bQuiet)
 			{
-				Log.TraceLog("SafeDeleteFile {0}", Path);
+				Logger.LogDebug("SafeDeleteFile {Path}", Path);
 			}
 			int MaxAttempts = bQuiet ? 1 : 10;
 			int Attempts = 0;
@@ -146,7 +148,7 @@ namespace AutomationTool
 			{
 				if (bQuiet)
 				{
-					Log.TraceLog("Failed to delete file {0} in {1} attempts.", Path, MaxAttempts);
+					Logger.LogDebug("Failed to delete file {Path} in {MaxAttempts} attempts.", Path, MaxAttempts);
 				}
 				else
 				{
@@ -167,7 +169,7 @@ namespace AutomationTool
 		{
 			if (!bQuiet)
 			{
-				Log.TraceLog("RecursivelyDeleteDirectory {0}", Path);
+				Logger.LogDebug("RecursivelyDeleteDirectory {Path}", Path);
 			}
 			// Delete all files. This will also delete read-only files.
 			var FilesInDirectory = Directory.EnumerateFiles(Path);
@@ -203,7 +205,7 @@ namespace AutomationTool
 		{
 			if (!bQuiet)
 			{
-				Log.TraceLog("SafeDeleteEmptyDirectory {0}", Path);
+				Logger.LogDebug("SafeDeleteEmptyDirectory {Path}", Path);
 			}
 			const int MaxAttempts = 10;
 			int Attempts = 0;
@@ -249,7 +251,7 @@ namespace AutomationTool
 		{
 			if (!bQuiet)
 			{
-				Log.TraceLog("SafeDeleteDirectory {0}", Path);
+				Logger.LogDebug("SafeDeleteDirectory {Path}", Path);
 			}
 			if (Directory.Exists(Path))
 			{
@@ -273,7 +275,7 @@ namespace AutomationTool
 		{
 			if (!bQuiet)
 			{
-				Log.TraceLog("SafeRenameDirectory {0} {1}", OldName, NewName);
+				Logger.LogDebug("SafeRenameDirectory {OldName} {NewName}", OldName, NewName);
 			}
 			const int MaxAttempts = 10;
 			int Attempts = 0;
@@ -325,7 +327,7 @@ namespace AutomationTool
 		{
 			if( !bQuiet )
 			{
-				Log.TraceLog("SafeRenameFile {0} {1}", OldName, NewName);
+				Logger.LogDebug("SafeRenameFile {OldName} {NewName}", OldName, NewName);
 			}
 			const int MaxAttempts = 10;
 			int Attempts = 0;
@@ -405,7 +407,7 @@ namespace AutomationTool
 
 						if (bFilteringSection)
 						{
-							Log.TraceLog("Filtering config section '{0}'", SectionName);
+							Logger.LogDebug("Filtering config section '{SectionName}'", SectionName);
 						}
 					}
 				}
@@ -438,7 +440,7 @@ namespace AutomationTool
 		{
 			if (!bQuiet)
 			{
-				Log.TraceLog("SafeCopyFile {0} {1}", SourceName, TargetName);
+				Logger.LogDebug("SafeCopyFile {SourceName} {TargetName}", SourceName, TargetName);
 			}
 
 			if (bSafeCreateDirectory)
@@ -539,7 +541,7 @@ namespace AutomationTool
 		/// <returns>An array containing all lines read from the file or null if the file could not be read.</returns>
 		public static string[] SafeReadAllLines(string Filename)
 		{
-			Log.TraceLog("SafeReadAllLines {0}", Filename);
+			Logger.LogDebug("SafeReadAllLines {Filename}", Filename);
 			string[] Result = null;
 			try
 			{
@@ -560,7 +562,7 @@ namespace AutomationTool
 		/// <returns>String containing all text read from the file or null if the file could not be read.</returns>
 		public static string SafeReadAllText(string Filename)
 		{
-			Log.TraceLog("SafeReadAllLines {0}", Filename);
+			Logger.LogDebug("SafeReadAllLines {Filename}", Filename);
 			string Result = null;
 			try
 			{
@@ -585,7 +587,7 @@ namespace AutomationTool
 		{
 			if (!bQuiet)
 			{
-				Log.TraceLog("FindFiles {0} {1} {2}", Path, SearchPattern, Recursive);
+				Logger.LogDebug("FindFiles {Path} {SearchPattern} {Recursive}", Path, SearchPattern, Recursive);
 			}
 
 			// On Linux, filter out symlinks since we (usually) create them to fix mispelled case-sensitive filenames in content, and if they aren't filtered, 
@@ -630,7 +632,7 @@ namespace AutomationTool
 		{
 			if (!bQuiet)
 			{
-				Log.TraceLog("FindDirectories {0} {1} {2}", Path, SearchPattern, Recursive);
+				Logger.LogDebug("FindDirectories {Path} {SearchPattern} {Recursive}", Path, SearchPattern, Recursive);
 			}
 			return Directory.GetDirectories(Path, SearchPattern, Recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
 		}
@@ -646,7 +648,7 @@ namespace AutomationTool
 		{
 			if (!bQuiet)
 			{
-				Log.TraceLog("SafeFindFiles {0} {1} {2}", Path, SearchPattern, Recursive);
+				Logger.LogDebug("SafeFindFiles {Path} {SearchPattern} {Recursive}", Path, SearchPattern, Recursive);
 			}
 			string[] Files = null;
 			try
@@ -672,7 +674,7 @@ namespace AutomationTool
 		{
 			if (!bQuiet)
 			{
-				Log.TraceLog("SafeFindDirectories {0} {1} {2}", Path, SearchPattern, Recursive);
+				Logger.LogDebug("SafeFindDirectories {Path} {SearchPattern} {Recursive}", Path, SearchPattern, Recursive);
 			}
 			string[] Directories = null;
 			try
@@ -701,7 +703,7 @@ namespace AutomationTool
 				Result = File.Exists(Path);
 				if (!bQuiet)
 				{
-					Log.TraceLog("SafeFileExists {0}={1}", Path, Result);
+					Logger.LogDebug("SafeFileExists {Path}={Result}", Path, Result);
 				}
 			}
 			catch (Exception Ex)
@@ -727,7 +729,7 @@ namespace AutomationTool
 				Result = Directory.Exists(Path);
 				if (!bQuiet)
 				{
-					Log.TraceLog("SafeDirectoryExists {0}={1}", Path, Result);
+					Logger.LogDebug("SafeDirectoryExists {Path}={Result}", Path, Result);
 				}
 			}
 			catch (Exception Ex)
@@ -746,7 +748,7 @@ namespace AutomationTool
 		/// <returns>True if the operation was successful, false otherwise.</returns>
 		public static bool SafeWriteAllLines(string Path, string[] Text)
 		{
-			Log.TraceLog("SafeWriteAllLines {0}", Path);
+			Logger.LogDebug("SafeWriteAllLines {Path}", Path);
 			bool Result = false;
 			try
 			{
@@ -769,7 +771,7 @@ namespace AutomationTool
 		/// <returns>True if the operation was successful, false otherwise.</returns>
 		public static bool SafeWriteAllText(string Path, string Text)
 		{
-			Log.TraceLog("SafeWriteAllText {0}", Path);
+			Logger.LogDebug("SafeWriteAllText {Path}", Path);
 			bool Result = false;
 			try
 			{
@@ -792,7 +794,7 @@ namespace AutomationTool
 		/// <returns>True if the operation was successful, false otherwise.</returns>
 		public static bool SafeWriteAllBytes(string Path, byte[] Bytes)
 		{
-			Log.TraceLog("SafeWriteAllBytes {0}", Path);
+			Logger.LogDebug("SafeWriteAllBytes {Path}", Path);
 			bool Result = false;
 			try
 			{
@@ -819,7 +821,7 @@ namespace AutomationTool
 	                if (Retry > 0)
 	                {
                         //@todo: These retries should be reported so we can track how often they are occurring.
-                        CommandUtils.LogInformation("*** Mac temp storage retry {0}", OutputFileName);
+                        Logger.LogInformation("*** Mac temp storage retry {OutputFileName}", OutputFileName);
 	                    System.Threading.Thread.Sleep(1000);
 	                }
 	                bCopied = CommandUtils.CopyFile_NoExceptions(InputFileName, OutputFileName, true);
@@ -849,7 +851,7 @@ namespace AutomationTool
 	                while (!bFound && Retry < 60)
 	                {
                         //@todo: These retries should be reported so we can track how often they are occurring.
-                        CommandUtils.LogInformation("*** Mac temp storage retry {0}", Filename);
+                        Logger.LogInformation("*** Mac temp storage retry {Filename}", Filename);
 	                    System.Threading.Thread.Sleep(10000);
 	                    bFound = CommandUtils.FileExists_NoExceptions(bQuiet, Filename);
 	                    Retry++;
@@ -874,7 +876,7 @@ namespace AutomationTool
 	                while (!bFound && Retry < 60)
 	                {
                         //@todo: These retries should be reported so we can track how often they are occurring.
-                        CommandUtils.LogInformation("*** Mac temp storage retry {0}", Directoryname);
+                        Logger.LogInformation("*** Mac temp storage retry {Directoryname}", Directoryname);
 	                    System.Threading.Thread.Sleep(10000);
 	                    bFound = CommandUtils.DirectoryExists_NoExceptions(Directoryname);
 	                    Retry++;
@@ -905,7 +907,7 @@ namespace AutomationTool
 	                while (!bFound && Retry < NumRetries)
 	                {
                         //@todo: These retries should be reported so we can track how often they are occurring.
-                        CommandUtils.LogInformation("*** Mac temp storage retry {0}", Directoryname);
+                        Logger.LogInformation("*** Mac temp storage retry {Directoryname}", Directoryname);
 	                    System.Threading.Thread.Sleep(1000);
 	                    bFound = CommandUtils.DirectoryExistsAndIsWritable_NoExceptions(Directoryname);
 	                    Retry++;
@@ -1017,7 +1019,7 @@ namespace AutomationTool
             {
                 throw new AutomationException("Failed to find MAJOR, MINOR, and PATCH fields from version file {0}", Filename);
             }
-			CommandUtils.LogInformation("Read {0}.{1}.{2} from {3}", foundElements["MAJOR"], foundElements["MINOR"], foundElements["PATCH"], Filename);
+			Logger.LogInformation("Read {Arg0}.{Arg1}.{Arg2} from {Filename}", foundElements["MAJOR"], foundElements["MINOR"], foundElements["PATCH"], Filename);
             return new Version(foundElements["MAJOR"], foundElements["MINOR"], foundElements["PATCH"]);
         }
 

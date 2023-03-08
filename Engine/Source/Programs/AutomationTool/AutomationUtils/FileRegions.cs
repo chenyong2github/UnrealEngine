@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool
 {
@@ -60,9 +63,9 @@ namespace AutomationTool
         {
 			var RegionsByType = (from Region in Regions group Region by Region.Type).ToDictionary(g => g.Key, g => g.ToList());
 
-			CommandUtils.LogInformation(" +-------------------+----------------------------------+---------------+");
-			CommandUtils.LogInformation(" |        Type       |           Total Length           |  Num Regions  |");
-			CommandUtils.LogInformation(" +-------------------+----------------------------------+---------------+");
+			Logger.LogInformation(" +-------------------+----------------------------------+---------------+");
+			Logger.LogInformation(" |        Type       |           Total Length           |  Num Regions  |");
+			Logger.LogInformation(" +-------------------+----------------------------------+---------------+");
 			foreach (var Pair in RegionsByType)
 			{
 				// Find the total number of bytes covered by regions with this pattern
@@ -85,7 +88,7 @@ namespace AutomationTool
 					Suffixes[Suffix],
 					Pair.Value.Count);
 			}
-			CommandUtils.LogInformation(" +-------------------+----------------------------------+---------------+");
+			Logger.LogInformation(" +-------------------+----------------------------------+---------------+");
 		}
 	}
 }

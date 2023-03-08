@@ -9,6 +9,9 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool.Tasks
 {
@@ -76,11 +79,11 @@ namespace AutomationTool.Tasks
 			try
 			{
 				Directory.Delete(true);
-                CommandUtils.LogInformation("Removed '{0}'", Directory.FullName);
+                Logger.LogInformation("Removed '{Arg0}'", Directory.FullName);
 			}
 			catch
 			{
-				CommandUtils.LogWarning("Couldn't delete '{0}' - skipping", Directory.FullName);
+				Logger.LogWarning("Couldn't delete '{Arg0}' - skipping", Directory.FullName);
 			}
 		}
 
@@ -89,11 +92,11 @@ namespace AutomationTool.Tasks
 			try
 			{
 				File.Delete();
-				CommandUtils.LogInformation("Removed '{0}'", File.FullName);
+				Logger.LogInformation("Removed '{Arg0}'", File.FullName);
 			}
 			catch
 			{
-				CommandUtils.LogWarning("Couldn't delete '{0}' - skipping", File.FullName);
+				Logger.LogWarning("Couldn't delete '{Arg0}' - skipping", File.FullName);
 			}
 		}
 
@@ -115,14 +118,14 @@ namespace AutomationTool.Tasks
 						string FilePointerName = File.ReadAllText(BuildVersionFile.FullName).Trim();
 						if(FilePointerName == Path.GetFileNameWithoutExtension(IndividualFilePath))
 						{
-							CommandUtils.LogInformation("Found existing build {0} in the BuildDir with matching individual file {1} - skipping.", BuildVersion, IndividualFilePath);
+							Logger.LogInformation("Found existing build {BuildVersion} in the BuildDir with matching individual file {IndividualFilePath} - skipping.", BuildVersion, IndividualFilePath);
 							return false;
 						}
 					}
 					// otherwise it's okay to just mark the entire folder for delete
 					else
 					{
-						CommandUtils.LogInformation("Found existing build {0} in the BuildDir - skipping.", BuildVersion);
+						Logger.LogInformation("Found existing build {BuildVersion} in the BuildDir - skipping.", BuildVersion);
 						return false;
 					}
 				}
@@ -207,13 +210,13 @@ namespace AutomationTool.Tasks
 				}
 				else
 				{
-					CommandUtils.LogWarning("BuildDir of {0} was provided but it doesn't exist! Will not check buildversions against it.", Parameters.BuildDir);
+					Logger.LogWarning("BuildDir of {Arg0} was provided but it doesn't exist! Will not check buildversions against it.", Parameters.BuildDir);
 				}
 			}
 
 			// Get the time at which to expire files
 			DateTime ExpireTimeUtc = DateTime.UtcNow - TimeSpan.FromDays(Parameters.Days);
-            CommandUtils.LogInformation("Expiring all files before {0}...", ExpireTimeUtc);
+            Logger.LogInformation("Expiring all files before {ExpireTimeUtc}...", ExpireTimeUtc);
 
 			// Scan the store directory and delete old symbol files
 			DirectoryReference SymbolServerDirectory = ResolveDirectory(Parameters.StoreDir);

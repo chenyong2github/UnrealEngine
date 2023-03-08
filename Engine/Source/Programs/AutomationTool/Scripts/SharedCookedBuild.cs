@@ -11,6 +11,9 @@ using UnrealBuildTool;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 public class SharedCookedBuild
 {
@@ -209,8 +212,8 @@ public class SharedCookedBuild
 
 		if (BestCL < 0)
 		{
-			CommandUtils.LogError("Could not locate valid shared cooked build for all target platforms");
-			CommandUtils.LogError("Current CL: {0}, Current Code CL: {1}", LocalSync.Changelist, LocalSync.CompatibleChangelist);
+			Logger.LogError("Could not locate valid shared cooked build for all target platforms");
+			Logger.LogError("Current CL: {Arg0}, Current Code CL: {Arg1}", LocalSync.Changelist, LocalSync.CompatibleChangelist);
 		}
 
 		return CandidateBuilds.Where(x => x.CL == BestCL).ToList();
@@ -326,7 +329,7 @@ public class SharedCookedBuild
 
 		public bool CopyBuild(DirectoryReference InstallPath)
 		{
-			CommandUtils.LogInformation("Installing shared cooked build from manifest: {0} to {1}", Manifest.FullName, InstallPath.FullName);
+			Logger.LogInformation("Installing shared cooked build from manifest: {Arg0} to {Arg1}", Manifest.FullName, InstallPath.FullName);
 
 			DirectoryReference PlatformInstallPath = DirectoryReference.Combine(InstallPath, Platform.ToString());
 
@@ -335,7 +338,7 @@ public class SharedCookedBuild
 			FileReference BPTI = FileReference.Combine(Unreal.RootDirectory, "Engine", "Restricted", "NotForLicensees", "Binaries", "Win64", "BuildPatchToolInstaller.exe");
 			if (!FileReference.Exists(BPTI))
 			{
-				CommandUtils.LogInformation("Could not locate BuildPatchToolInstaller.exe");
+				Logger.LogInformation("Could not locate BuildPatchToolInstaller.exe");
 				return false;
 			}
 
@@ -348,7 +351,7 @@ public class SharedCookedBuild
 			IProcessResult Result = CommandUtils.Run(BPTI.FullName, string.Format("-Manifest={0} -OutputDir={1} -stdout -GenericConsoleOutput", Manifest.FullName, PlatformInstallPath.FullName), null, CommandUtils.ERunOptions.Default);
 			if (Result.ExitCode != 0)
 			{
-				CommandUtils.LogWarning("Failed to install manifest {0} to {1}", Manifest.FullName, PlatformInstallPath.FullName);
+				Logger.LogWarning("Failed to install manifest {Arg0} to {Arg1}", Manifest.FullName, PlatformInstallPath.FullName);
 				return false;
 			}
 
@@ -366,7 +369,7 @@ public class SharedCookedBuild
 		public DirectoryReference Path { get; set; }
 		public bool CopyBuild(DirectoryReference InstallPath)
 		{
-			CommandUtils.LogInformation("Copying shared cooked build from stage directory: {0} to {1}", Path.FullName, InstallPath.FullName);
+			Logger.LogInformation("Copying shared cooked build from stage directory: {Arg0} to {Arg1}", Path.FullName, InstallPath.FullName);
 
 			// Delete existing
 			if (DirectoryReference.Exists(InstallPath))
@@ -378,7 +381,7 @@ public class SharedCookedBuild
 			// Copy new
 			if (!CommandUtils.CopyDirectory_NoExceptions(Path.FullName, InstallPath.FullName))
 			{
-				CommandUtils.LogWarning("Failed to copy {0} -> {1}", Path.FullName, InstallPath.FullName);
+				Logger.LogWarning("Failed to copy {Arg0} -> {Arg1}", Path.FullName, InstallPath.FullName);
 				return false;
 			}
 			FileReference SyncedBuildFile = new FileReference(CommandUtils.CombinePaths(InstallPath.FullName, SyncedBuildFileName));
@@ -395,7 +398,7 @@ public class SharedCookedBuild
 
 		public bool CopyBuild(DirectoryReference InstallPath)
 		{
-			CommandUtils.LogInformation("Using previously synced shared cooked build");
+			Logger.LogInformation("Using previously synced shared cooked build");
 			return true;
 		}
 	}

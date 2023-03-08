@@ -13,6 +13,8 @@ using EpicGames.Core;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 [Help("Updates the external localization data using the arguments provided.")]
 [Help("UEProjectRoot", "Optional root-path to the project we're gathering for (defaults to CmdEnv.LocalRoot if unset).")]
 [Help("UEProjectDirectory", "Sub-path to the project we're gathering for (relative to UEProjectRoot).")]
@@ -737,7 +739,7 @@ public class ExportMcpTemplates : BuildCommand
 			CommandUtils.P4.PreviewSync(out FilesPreviewSynced, FolderToGenerateIn + "/...");
 			if (FilesPreviewSynced.Count() > 0)
 			{
-				CommandUtils.LogInformation("Some files in folder {0} are not latest, which means that these files might have already been updated by an earlier exporting job.  Skip this one.", FolderToGenerateIn);
+				Logger.LogInformation("Some files in folder {FolderToGenerateIn} are not latest, which means that these files might have already been updated by an earlier exporting job.  Skip this one.", FolderToGenerateIn);
 				return;
 			}
 

@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool.Tasks
 {
@@ -97,11 +100,11 @@ namespace AutomationTool.Tasks
 				DirectoryReference.CreateDirectory(TargetFiles[Idx].Directory);
 				if (SourceFiles[Idx] == TargetFiles[Idx])
 				{
-					CommandUtils.LogInformation("Stripping symbols: {0}", SourceFiles[Idx].FullName);
+					Logger.LogInformation("Stripping symbols: {Arg0}", SourceFiles[Idx].FullName);
 				}
 				else
 				{
-					CommandUtils.LogInformation("Stripping symbols: {0} -> {1}", SourceFiles[Idx].FullName, TargetFiles[Idx].FullName);
+					Logger.LogInformation("Stripping symbols: {Arg0} -> {Arg1}", SourceFiles[Idx].FullName, TargetFiles[Idx].FullName);
 				}
 				TargetPlatform.StripSymbols(SourceFiles[Idx], TargetFiles[Idx]);
 			}

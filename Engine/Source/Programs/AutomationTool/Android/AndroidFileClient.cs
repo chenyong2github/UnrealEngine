@@ -21,6 +21,8 @@ using System.IO.Compression;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 
 namespace AutomationTool
 {
@@ -557,7 +559,7 @@ namespace AutomationTool
 						}
 						else
 						{
-							CommandUtils.LogWarning("Device attached but in bad state {0}:{1}", DeviceLine[0], DeviceLine[1]);
+							Logger.LogWarning("Device attached but in bad state {Arg0}:{Arg1}", DeviceLine[0], DeviceLine[1]);
 						}
 					}
 				}

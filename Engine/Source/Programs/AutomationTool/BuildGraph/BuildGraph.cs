@@ -21,6 +21,8 @@ using System.Threading.Tasks;
 using EpicGames.BuildGraph.Expressions;
 using AutomationTool.Tasks;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool
 {
 	/// <summary>
@@ -512,12 +514,12 @@ namespace AutomationTool
 				// List out all the required tokens
 				if (SingleNodeName == null)
 				{
-					CommandUtils.LogInformation("Required tokens:");
+					Logger.LogInformation("Required tokens:");
 					foreach(BgNodeDef Node in TargetNodes)
 					{
 						foreach(FileReference RequiredToken in Node.RequiredTokens)
 						{
-							CommandUtils.LogInformation("  '{0}' requires {1}", Node, RequiredToken);
+							Logger.LogInformation("  '{Node}' requires {RequiredToken}", Node, RequiredToken);
 						}
 					}
 				}
@@ -633,15 +635,15 @@ namespace AutomationTool
 				{
 					if(Diagnostic.Level == LogLevel.Information)
 					{
-						CommandUtils.LogInformation("{0}({1}): {2}", Diagnostic.File, Diagnostic.Line, Diagnostic.Message);
+						Logger.LogInformation("{Arg0}({Arg1}): {Arg2}", Diagnostic.File, Diagnostic.Line, Diagnostic.Message);
 					}
 					else if(Diagnostic.Level == LogLevel.Warning)
 					{
-						CommandUtils.LogWarning("{0}({1}): warning: {2}", Diagnostic.File, Diagnostic.Line, Diagnostic.Message);
+						Logger.LogWarning("{Arg0}({Arg1}): warning: {Arg2}", Diagnostic.File, Diagnostic.Line, Diagnostic.Message);
 					}
 					else
 					{
-						CommandUtils.LogError("{0}({1}): error: {2}", Diagnostic.File, Diagnostic.Line, Diagnostic.Message);
+						Logger.LogError("{Arg0}({Arg1}): error: {Arg2}", Diagnostic.File, Diagnostic.Line, Diagnostic.Message);
 					}
 				}
 				if (Diagnostics.Any(x => x.Level == LogLevel.Error))
@@ -787,12 +789,12 @@ namespace AutomationTool
 					{
 						if(!Type.IsSubclassOf(typeof(BgTaskImpl)))
 						{
-							CommandUtils.LogError("Class '{0}' has TaskElementAttribute, but is not derived from 'BgTaskImpl'", Type.Name);
+							Logger.LogError("Class '{Arg0}' has TaskElementAttribute, but is not derived from 'BgTaskImpl'", Type.Name);
 							return false;
 						}
 						if(NameToTask.ContainsKey(ElementAttribute.Name))
 						{
-							CommandUtils.LogError("Found multiple handlers for task elements called '{0}'", ElementAttribute.Name);
+							Logger.LogError("Found multiple handlers for task elements called '{Arg0}'", ElementAttribute.Name);
 							return false;
 						}
 						NameToTask.Add(ElementAttribute.Name, new ScriptTaskBinding(ElementAttribute.Name, Type, ElementAttribute.ParametersType));
@@ -1017,7 +1019,7 @@ namespace AutomationTool
 			if(bWithBanner)
 			{
 				Console.WriteLine();
-				CommandUtils.LogInformation("========== Starting: {0} ==========", Node.Name);
+				Logger.LogInformation("========== Starting: {Arg0} ==========", Node.Name);
 			}
 			if(!await NodeToExecutor[Node].ExecuteAsync(Job, TagNameToFileSet))
 			{
@@ -1025,7 +1027,7 @@ namespace AutomationTool
 			}
 			if(bWithBanner)
 			{
-				CommandUtils.LogInformation("========== Finished: {0} ==========", Node.Name);
+				Logger.LogInformation("========== Finished: {Arg0} ==========", Node.Name);
 				Console.WriteLine();
 			}
 

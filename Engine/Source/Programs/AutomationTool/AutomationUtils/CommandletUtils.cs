@@ -10,6 +10,8 @@ using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool
 {
 	/// <summary>
@@ -316,7 +318,7 @@ namespace AutomationTool
 							DirectoryInfo OutputCrashesDir = new DirectoryInfo(Path.Combine(CmdEnv.LogFolder, "Crashes", CrashDir.Name));
 							try
 							{
-								CommandUtils.LogInformation("Copying crash data to {0}...", OutputCrashesDir.FullName);
+								Logger.LogInformation("Copying crash data to {Arg0}...", OutputCrashesDir.FullName);
 								OutputCrashesDir.Create();
 
 								foreach(FileInfo CrashFile in CrashDir.EnumerateFiles())
@@ -326,8 +328,8 @@ namespace AutomationTool
 							}
 							catch(Exception Ex)
 							{
-								CommandUtils.LogWarning("Unable to copy crash data; skipping. See log for exception details.");
-								CommandUtils.LogVerbose(EpicGames.Core.ExceptionUtils.FormatExceptionDetails(Ex));
+								Logger.LogWarning("Unable to copy crash data; skipping. See log for exception details.");
+								Logger.LogDebug("{Text}", EpicGames.Core.ExceptionUtils.FormatExceptionDetails(Ex));
 							}
 						}
 					}
@@ -341,7 +343,7 @@ namespace AutomationTool
 				// If we exited normally, still check without waiting in case SCW or some other child process crashed.
 				if(RunResult.ExitCode > 128)
 				{
-					CommandUtils.LogInformation("Pausing before checking for crash logs...");
+					Logger.LogInformation("Pausing before checking for crash logs...");
 					Thread.Sleep(10 * 1000);
 				}
 				
@@ -381,18 +383,18 @@ namespace AutomationTool
 					// also ignore spotlight crash with the excel plugin
 					if(!CrashFileInfo.Name.StartsWith("snmpd_") && !CrashFileInfo.Name.StartsWith("mdworker32_") && !CrashFileInfo.Name.StartsWith("Dock_"))
 					{
-						CommandUtils.LogInformation("Found crash log - {0}", CrashFileInfo.FullName);
+						Logger.LogInformation("Found crash log - {Arg0}", CrashFileInfo.FullName);
 						try
 						{
 							string[] Lines = File.ReadAllLines(CrashFileInfo.FullName);
 							foreach(string Line in Lines)
 							{
-								CommandUtils.LogInformation("Crash: {0}", Line);
+								Logger.LogInformation("Crash: {Line}", Line);
 							}
 						}
 						catch(Exception Ex)
 						{
-							CommandUtils.LogWarning("Failed to read file ({0})", Ex.Message);
+							Logger.LogWarning("Failed to read file ({Arg0})", Ex.Message);
 						}
 					}
 				}
@@ -402,7 +404,7 @@ namespace AutomationTool
 			DestLogFile = LogUtils.GetUniqueLogName(CombinePaths(CmdEnv.LogFolder, Commandlet));
 			if (!CommandUtils.CopyFile_NoExceptions(LocalLogFile, DestLogFile))
 			{
-				CommandUtils.LogWarning("Commandlet {0} failed to copy the local log file from {1} to {2}. The log file will be lost.", Commandlet, LocalLogFile, DestLogFile);
+				Logger.LogWarning("Commandlet {Commandlet} failed to copy the local log file from {LocalLogFile} to {DestLogFile}. The log file will be lost.", Commandlet, LocalLogFile, DestLogFile);
 			}
             string ProjectStatsDirectory = CombinePaths((ProjectName == null)? CombinePaths(CmdEnv.LocalRoot, "Engine") : Path.GetDirectoryName(ProjectName.FullName), "Saved", "Stats");
             if (Directory.Exists(ProjectStatsDirectory))
@@ -412,7 +414,7 @@ namespace AutomationTool
                 {
                     if (!CommandUtils.CopyFile_NoExceptions(StatsFile, CombinePaths(DestCookerStats, Path.GetFileName(StatsFile))))
                     {
-						CommandUtils.LogWarning("Commandlet {0} failed to copy the local log file from {1} to {2}. The log file will be lost.", Commandlet, StatsFile, CombinePaths(DestCookerStats, Path.GetFileName(StatsFile)));
+						Logger.LogWarning("Commandlet {Commandlet} failed to copy the local log file from {StatsFile} to {Arg2}. The log file will be lost.", Commandlet, StatsFile, CombinePaths(DestCookerStats, Path.GetFileName(StatsFile)));
                     }
                 }
             }

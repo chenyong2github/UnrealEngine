@@ -5,6 +5,9 @@ using System.IO;
 using System.Reflection;
 using AutomationTool;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace EpicGames.OneSkyLocalization.Config
 {
@@ -75,8 +78,8 @@ namespace EpicGames.OneSkyLocalization.Config
 
 		public void SpewValues()
 		{
-			CommandUtils.LogInformation("Name : {0}", Name);
-			CommandUtils.LogInformation("ApiKey : {0}", ApiKey);
+			Logger.LogInformation("Name : {Name}", Name);
+			Logger.LogInformation("ApiKey : {ApiKey}", ApiKey);
 			//CommandUtils.LogConsole("ApiSecret : {0}", ApiSecret);  // This should probably never be revealed.
 		}
 	}

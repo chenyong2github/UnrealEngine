@@ -9,6 +9,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool
 {
@@ -85,7 +88,7 @@ namespace AutomationTool
 		{
 			List<BuildAction> Actions = ReadActions(ActionsFileName);
 
-			CommandUtils.LogInformation("Building {0} {1} with {2} {3}...", Actions.Count, (Actions.Count == 1) ? "action" : "actions", MaxProcesses, (MaxProcesses == 1)? "process" : "processes");
+			Logger.LogInformation("Building {Arg0} {Arg1} with {MaxProcesses} {Arg3}...", Actions.Count, (Actions.Count == 1) ? "action" : "actions", MaxProcesses, (MaxProcesses == 1)? "process" : "processes");
 
 			using (LogIndentScope Indent = new LogIndentScope("  "))
 			{
@@ -148,11 +151,11 @@ namespace AutomationTool
 										if(CurrentPrefix != CompletedAction.Action.GroupPrefix)
 										{
 											CurrentPrefix = CompletedAction.Action.GroupPrefix;
-											CommandUtils.LogInformation(CurrentPrefix);
+											Logger.LogInformation("{Text}", CurrentPrefix);
 										}
 										foreach(string LogLine in CompletedAction.LogLines)
 										{
-											CommandUtils.LogInformation(LogLine);
+											Logger.LogInformation("{Text}", LogLine);
 										}
 									}
 
@@ -385,7 +388,7 @@ namespace AutomationTool
 				}
 				else
 				{
-					CommandUtils.LogWarning("Unknown environment variable '{0}' in script", VariableName);
+					Logger.LogWarning("Unknown environment variable '{VariableName}' in script", VariableName);
 					StartIndex = EndIndex + 1;
 				}
 			}

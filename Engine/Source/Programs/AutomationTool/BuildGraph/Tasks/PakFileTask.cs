@@ -12,6 +12,9 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool.Tasks
 {
@@ -172,7 +175,7 @@ namespace AutomationTool.Tasks
 			}
 
 			// Run it
-			CommandUtils.LogInformation("Running '{0} {1}'", CommandUtils.MakePathSafeToUseWithCommandLine(UnrealPakExe.FullName), CommandLine.ToString());
+			Logger.LogInformation("Running '{Arg0} {Arg1}'", CommandUtils.MakePathSafeToUseWithCommandLine(UnrealPakExe.FullName), CommandLine.ToString());
 			CommandUtils.RunAndLog(CommandUtils.CmdEnv, UnrealPakExe.FullName, CommandLine.ToString(), Options: CommandUtils.ERunOptions.Default | CommandUtils.ERunOptions.UTF8Output);
 			BuildProducts.Add(OutputFile);
 

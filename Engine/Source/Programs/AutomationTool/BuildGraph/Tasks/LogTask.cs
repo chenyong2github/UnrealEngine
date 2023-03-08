@@ -12,6 +12,9 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool.Tasks
 {
@@ -70,7 +73,7 @@ namespace AutomationTool.Tasks
 			// Print the message
 			if(!String.IsNullOrEmpty(Parameters.Message))
 			{
-				CommandUtils.LogInformation(Parameters.Message);
+				Logger.LogInformation("{Text}", Parameters.Message);
 			}
 
 			// Print the contents of the given tag, if specified
@@ -79,12 +82,12 @@ namespace AutomationTool.Tasks
 				HashSet<FileReference> Files = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet);
 				foreach(FileReference File in Files.OrderBy(x => x.FullName))
 				{
-					CommandUtils.LogInformation("  {0}", File.FullName);
+					Logger.LogInformation("  {Arg0}", File.FullName);
 					if(Parameters.IncludeContents)
 					{
 						foreach(string Line in System.IO.File.ReadAllLines(File.FullName))
 						{
-							CommandUtils.LogInformation("    {0}", Line);
+							Logger.LogInformation("    {Line}", Line);
 						}
 					}
 				}

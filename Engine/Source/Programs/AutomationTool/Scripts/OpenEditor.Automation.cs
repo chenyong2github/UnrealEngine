@@ -8,6 +8,9 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool
 {
@@ -95,7 +98,7 @@ namespace AutomationTool
 	{ 
 		public static bool RunUntrackedProcess(string BinaryPath, string Args)
 		{
-			CommandUtils.LogInformation("Running {0} {1}", BinaryPath, Args);
+			Logger.LogInformation("Running {BinaryPath} {Args}", BinaryPath, Args);
 
 			var NewProcess = HostPlatform.Current.CreateProcess(BinaryPath);
 			var Result = new ProcessResult(BinaryPath, NewProcess, false, false);

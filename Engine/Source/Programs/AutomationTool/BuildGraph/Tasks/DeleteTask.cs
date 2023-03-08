@@ -14,6 +14,8 @@ using UnrealBuildTool;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool.Tasks
 {
 	/// <summary>
@@ -86,7 +88,7 @@ namespace AutomationTool.Tasks
 					}
 					if (!InternalUtils.SafeDeleteFile(File.FullName))
 					{
-						CommandUtils.LogWarning("Couldn't delete file {0}", File.FullName);
+						Logger.LogWarning("Couldn't delete file {Arg0}", File.FullName);
 					}
 				}
 
@@ -161,7 +163,7 @@ namespace AutomationTool.Tasks
 			}
 			catch(Exception Ex)
 			{
-				CommandUtils.LogWarning("Couldn't delete directory {0} ({1})", CandidateDirectory.FullName, Ex.Message);
+				Logger.LogWarning("Couldn't delete directory {Arg0} ({Arg1})", CandidateDirectory.FullName, Ex.Message);
 				return false;
 			}
 		}

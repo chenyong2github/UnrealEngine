@@ -9,6 +9,9 @@ using System.Xml;
 
 using EpicGames.Core;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace AutomationTool.Tasks
 {	
@@ -36,20 +39,20 @@ namespace AutomationTool.Tasks
 		{
 			List<FileReference> CleanupFiles = new List<FileReference>();
 
-			CommandUtils.LogInformation("Gathering BuildProducts from {0}...", Parameters.BuildProductsFile);
+			Logger.LogInformation("Gathering BuildProducts from {Arg0}...", Parameters.BuildProductsFile);
 
 			try
 			{
 				var FileBuildProducts = File.ReadAllLines(Parameters.BuildProductsFile);
 				foreach(var BuildProduct in FileBuildProducts)
 				{
-					CommandUtils.LogInformation("Adding file to build products: {0}", BuildProduct);
+					Logger.LogInformation("Adding file to build products: {BuildProduct}", BuildProduct);
 					BuildProducts.Add(new FileReference(BuildProduct));
 				}
 			}
 			catch (Exception Ex)
 			{
-				CommandUtils.LogInformation("Failed to gather build products: {0}", Ex.Message);
+				Logger.LogInformation("Failed to gather build products: {Arg0}", Ex.Message);
 			}
 
 			return Task.CompletedTask;

@@ -12,6 +12,8 @@ using UnrealBuildBase;
 using UnrealBuildTool;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace AutomationTool.Tasks
 {
 	/// <summary>
@@ -88,7 +90,7 @@ namespace AutomationTool.Tasks
 					TargetReceipt Receipt;
 					if (!TargetReceipt.TryRead(TargetFile, EngineDir, out Receipt))
 					{
-						CommandUtils.LogWarning("Unable to load file using TagReceipt task ({0})", TargetFile.FullName);
+						Logger.LogWarning("Unable to load file using TagReceipt task ({Arg0})", TargetFile.FullName);
 						continue;
 					}
 
