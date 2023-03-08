@@ -74,6 +74,17 @@ namespace DisplayClusterMediaHelpers
 
 	void ResampleTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture, const FIntRect& SrcRect, const FIntRect& DstRect)
 	{
-		ResampleTextureImpl_RenderThread<FScreenPS>(RHICmdList, SrcTexture, DstTexture, SrcRect, DstRect);
+		check(SrcTexture);
+
+		const bool bSrcSrgb = EnumHasAnyFlags(SrcTexture->GetFlags(), TexCreate_SRGB);
+
+		if (bSrcSrgb)
+		{
+			ResampleTextureImpl_RenderThread<FScreenPSsRGBSource>(RHICmdList, SrcTexture, DstTexture, SrcRect, DstRect);
+		}
+		else
+		{
+			ResampleTextureImpl_RenderThread<FScreenPS>(RHICmdList, SrcTexture, DstTexture, SrcRect, DstRect);
+		}
 	}
 }

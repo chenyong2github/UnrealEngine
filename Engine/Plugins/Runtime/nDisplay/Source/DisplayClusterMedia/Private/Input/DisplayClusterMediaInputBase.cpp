@@ -85,8 +85,13 @@ void FDisplayClusterMediaInputBase::ImportMediaData(FRHICommandListImmediate& RH
 	{
 		const FIntPoint DstRegionSize = TextureInfo.Region.Size();
 
-		if (SrcTexture->GetDesc().Format == DstTexture->GetDesc().Format &&
-			SrcTexture->GetDesc().Extent == DstRegionSize)
+		const bool bSrcSrgb = EnumHasAnyFlags(SrcTexture->GetFlags(), TexCreate_SRGB);
+		const bool bDstSrgb = EnumHasAnyFlags(DstTexture->GetFlags(), TexCreate_SRGB);
+
+		if ((SrcTexture->GetDesc().Format == DstTexture->GetDesc().Format)
+			&& (SrcTexture->GetDesc().Extent == DstRegionSize)
+			&& (bSrcSrgb == bDstSrgb)
+		)
 		{
 			FRHICopyTextureInfo CopyInfo;
 
