@@ -428,16 +428,16 @@ FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x
 
     #undef EVAL_POINTS
 
-	float MinTest = ViewToClip[3][2] - MinW * ViewToClip[2][2];
-	float MaxTest = ViewToClip[3][2] - MaxW * ViewToClip[2][2];
+	float MinZ = MaxW * ViewToClip[2][2] + ViewToClip[3][2];
+	float MaxZ = MinW * ViewToClip[2][2] + ViewToClip[3][2];
 	
 	// Near is z=1
-	bool bInFrontNearPlane = MinW <= MinTest;
-	bool bBehindNearPlane  = MaxW >  MaxTest;
+	bool bInFrontNearPlane = MinW <= MaxZ;
+	bool bBehindNearPlane  = MaxW >  MinZ;
 
 	// Far is z=0
-	bool bInFrontFarPlane = 0 <  MinTest;
-	bool bBehindFarPlane  = 0 >= MaxTest;
+	bool bInFrontFarPlane = 0 <  MaxZ;
+	bool bBehindFarPlane  = 0 >= MinZ;
 	
 	Cull.bCrossesNearPlane	= bInFrontNearPlane;
 	Cull.bCrossesFarPlane	= bBehindFarPlane;
@@ -451,8 +451,8 @@ FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x
 	}
 	else
 	{
-		Cull.RectMin.z = ViewToClip[3][2] / MaxW + ViewToClip[2][2];
-		Cull.RectMax.z = ViewToClip[3][2] / MinW + ViewToClip[2][2];
+		Cull.RectMin.z = MinZ / MaxW;
+		Cull.RectMax.z = MaxZ / MinW;
 	}
 
 	Cull.bFrustumSideCulled = false;
