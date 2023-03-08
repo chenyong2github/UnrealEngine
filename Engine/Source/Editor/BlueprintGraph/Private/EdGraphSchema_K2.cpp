@@ -6141,7 +6141,7 @@ struct FBackwardCompatibilityConversionHelper
 
 		for (UEdGraphPin* OldLink : OldLinks)
 		{
-			if (!NewPin || !NewPin->LinkedTo.Contains(OldLink))
+			if (!NewPin || (!NewPin->LinkedTo.Contains(OldLink) && NewNode->GetSchema()->CanCreateConnection(NewPin, OldLink).Response != CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE))
 			{
 				OrphanedLinks.Add(OldLink);
 			}
