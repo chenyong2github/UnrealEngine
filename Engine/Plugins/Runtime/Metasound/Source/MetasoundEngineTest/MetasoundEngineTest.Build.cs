@@ -18,10 +18,6 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"AudioExtensions",
 					"AudioMixer",
-					"MetasoundGraphCore",
-					"MetasoundGenerator",
-					"MetasoundFrontend",
-					"MetasoundEngine",
 					"SignalProcessing",
 					"Projects"
 				}
@@ -31,6 +27,10 @@ namespace UnrealBuildTool.Rules
 			(
 				new string[]
 				{
+					"MetasoundGraphCore",
+					"MetasoundGenerator",
+					"MetasoundFrontend",
+					"MetasoundEngine"
 				}
 			);
 		}

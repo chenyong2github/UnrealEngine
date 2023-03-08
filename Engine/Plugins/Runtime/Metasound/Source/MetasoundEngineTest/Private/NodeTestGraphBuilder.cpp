@@ -83,6 +83,47 @@ namespace Metasound::Test
 		return nullptr;
 	}
 
+	TUniquePtr<FMetasoundGenerator> FNodeTestGraphBuilder::BuildGenerator(FSampleRate SampleRate, int32 SamplesPerBlock)
+	{
+		// Because a generator is tied to the concept of a source, go ahead and add the "OnPlay" input.
+		// Otherwise we get warnings when we run our tests.
+		AddInput(SourceInterface::Inputs::OnPlay, Metasound::GetMetasoundDataTypeName<FTrigger>());
+		
+		const TSet<FName> TransmittableInputNames;
+		const FString UnknownAsset = TEXT("UnknownAsset");
+		if (const TUniquePtr<FFrontendGraph> Graph = FFrontendGraphBuilder::CreateGraph(Document, TransmittableInputNames, UnknownAsset))
+		{
+			FOperatorBuilderSettings BuilderSettings;
+			BuilderSettings.bFailOnAnyError = true;
+			BuilderSettings.bPopulateInternalDataReferences = true;
+			BuilderSettings.bValidateEdgeDataTypesMatch = true;
+			BuilderSettings.bValidateNoCyclesInGraph = true;
+			BuilderSettings.bValidateNoDuplicateInputs = true;
+			BuilderSettings.bValidateOperatorOutputsAreBound = true;
+			BuilderSettings.bValidateVerticesExist = true;
+
+			const FOperatorSettings OperatorSettings{SampleRate, static_cast<float>(SampleRate) / SamplesPerBlock};
+
+			FMetasoundEnvironment Environment;
+			Environment.SetValue<uint64>(SourceInterface::Environment::TransmitterID, 123);
+			
+			FMetasoundGeneratorInitParams GeneratorInitParams{
+				OperatorSettings,
+				BuilderSettings,
+				MakeShared<const FFrontendGraph, ESPMode::ThreadSafe>(*Graph),
+				Environment,
+				"TestMetasound",
+				TArray<FVertexName>(),
+				TArray<FAudioParameter>(),
+				true // bBuildSynchronous, so we don't have to do latent tasks
+			};
+
+			return MakeUnique<FMetasoundGenerator>(MoveTemp(GeneratorInitParams));
+		}
+
+		return nullptr;
+	}
+
 	TUniquePtr<IOperator> FNodeTestGraphBuilder::MakeSingleNodeGraph(
 		const FNodeClassName& ClassName,
 		int32 MajorVersion,

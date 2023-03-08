@@ -33,6 +33,7 @@ namespace Metasound
 		FString MetaSoundName;
 		TArray<FVertexName> AudioOutputNames;
 		TArray<FAudioParameter> DefaultParameters;
+		bool bBuildSynchronous = false;
 
 		void Release();
 	};
@@ -58,6 +59,7 @@ namespace Metasound
 	{
 		FOperatorSettings OperatorSettings;
 		TUniquePtr<IOperator> GraphOperator;
+		FVertexInterfaceData VertexInterfaceData;
 		TMap<FName, FParameterSetter> ParameterSetters;
 		TUniquePtr<Frontend::FGraphAnalyzer> GraphAnalyzer;
 		TArray<TDataReadReference<FAudioBuffer>> OutputBuffers;
@@ -119,20 +121,11 @@ namespace Metasound
 		 * @param InData - The value to assign.
 		 */
 		template<typename DataType>
-		void SetInputValue(const FString& InName, DataType InData)
+		void SetInputValue(const FVertexName& InName, DataType InData)
 		{
-			typedef TDataWriteReference< typename TDecay<DataType>::Type > FDataWriteRef;
-
-			const FDataReferenceCollection& InputCollection = RootExecuter.GetInputs();
-
-			// Check if an input data reference with the given name and type exist in the graph.
-			bool bContainsWriteReference = InputCollection.ContainsDataWriteReference< typename TDecay<DataType>::Type >(InName);
-			if (ensureMsgf(bContainsWriteReference, TEXT("Operator does not contain write reference name \"%s\" of type \"%s\""), *InName, *GetMetasoundDataTypeName<DataType>().ToString()))
+			if (const FAnyDataReference* Ref = VertexInterfaceData.GetInputs().FindDataReference(InName))
 			{
-				FDataWriteRef WriteRef = InputCollection.GetDataWriteReference<DataType>(InName);
-
-				// call assignment operator of DataType.
-				*WriteRef = InData;
+				*(Ref->GetDataWriteReference<typename TDecay<DataType>::Type>()) = InData;
 			}
 		}
 
@@ -142,26 +135,58 @@ namespace Metasound
 		 * @param InFunc - A function which takes the DataType as an input.
 		 */ 
 		template<typename DataType>
-		void ApplyToInputValue(const FString& InName, TUniqueFunction<void(DataType&)> InFunc)
+		void ApplyToInputValue(const FVertexName& InName, TFunctionRef<void(DataType&)> InFunc)
 		{
-			// Get decayed type as InFunc could take a const qualified type.
-			typedef TDataWriteReference< typename TDecay<DataType>::Type > FDataWriteRef;
-
-			const FDataReferenceCollection& InputCollection = RootExecuter.GetInputs();
-
-			// Check if an input data reference with the given name and type exists in the graph.
-			bool bContainsWriteReference = InputCollection.ContainsDataWriteReference< typename TDecay<DataType>::Type >(InName);
-			if (ensureMsgf(bContainsWriteReference, TEXT("Operator does not contain write reference name \"%s\" of type \"%s\""), *InName, *GetMetasoundDataTypeName<DataType>().ToString()))
+			if (const FAnyDataReference* Ref = VertexInterfaceData.GetInputs().FindDataReference(InName))
 			{
-				FDataWriteRef WriteRef = InputCollection.GetDataWriteReference<DataType>(InName);
-
-				// Apply function to DataType
-				InFunc(*WriteRef);
+				InFunc(*(Ref->GetDataWriteReference<typename TDecay<DataType>::Type>()));
 			}
 		}
 
 		void QueueParameterPack(TSharedPtr<FMetasoundParameterPackStorage> ParameterPack);
 
+		/**
+		 * Get a write reference to one of the generator's inputs, if it exists.
+		 * NOTE: This reference is only safe to use immediately on the same thread that this generator's
+		 * OnGenerateAudio() is called.
+		 *
+		 * @tparam DataType - The expected data type of the input
+		 * @param InputName - The user-defined name of the input
+		 */
+		template<typename DataType>
+		TOptional<TDataWriteReference<DataType>> GetInputWriteReference(const FVertexName InputName)
+		{
+			TOptional<TDataWriteReference<DataType>> WriteRef;
+			
+			if (const FAnyDataReference* Ref = VertexInterfaceData.GetInputs().FindDataReference(InputName))
+			{
+				WriteRef = Ref->GetDataWriteReference<typename TDecay<DataType>::Type>();
+			}
+			
+			return WriteRef;
+		}
+		
+		/**
+		 * Get a read reference to one of the generator's outputs, if it exists.
+		 * NOTE: This reference is only safe to use immediately on the same thread that this generator's
+		 * OnGenerateAudio() is called.
+		 *
+		 * @tparam DataType - The expected data type of the output
+		 * @param OutputName - The user-defined name of the output
+		 */
+		template<typename DataType>
+		TOptional<TDataReadReference<DataType>> GetOutputReadReference(const FVertexName OutputName)
+		{
+			TOptional<TDataReadReference<DataType>> ReadRef;
+
+			if (const FAnyDataReference* Ref = VertexInterfaceData.GetOutputs().FindDataReference(OutputName))
+			{
+				ReadRef = Ref->GetDataReadReference<typename TDecay<DataType>::Type>();
+			}
+			
+			return ReadRef;
+		}
+		
 		/** Return the number of audio channels. */
 		int32 GetNumChannels() const;
 
@@ -197,6 +222,7 @@ namespace Metasound
 		void UnpackAndTransmitUpdatedParameters();
 
 		FExecuter RootExecuter;
+		FVertexInterfaceData VertexInterfaceData;
 
 		bool bIsGraphBuilding;
 		bool bIsFinishTriggered;
