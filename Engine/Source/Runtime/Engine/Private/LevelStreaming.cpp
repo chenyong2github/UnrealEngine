@@ -751,8 +751,15 @@ bool ULevelStreaming::ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLe
 	return false;
 };
 
+bool ULevelStreaming::RequestVisibilityChange(bool bVisible)
+{
+	return true;
+}
+
 bool ULevelStreaming::CanMakeInvisible()
 {
+	const bool bCanMakeInvisible = RequestVisibilityChange(false);
+
 	if (ShouldClientUseMakingInvisibleTransactionRequest())
 	{
 		if (ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest::MakingInvisible, bShouldBeVisible))
@@ -760,11 +767,14 @@ bool ULevelStreaming::CanMakeInvisible()
 			return false;
 		}
 	}
-	return true;
+
+	return bCanMakeInvisible;
 }
 
 bool ULevelStreaming::CanMakeVisible()
 {
+	const bool bCanMakeVisible = RequestVisibilityChange(true);
+
 	if (ShouldClientUseMakingVisibleTransactionRequest())
 	{
 		if (ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest::MakingVisible, true))
@@ -780,7 +790,8 @@ bool ULevelStreaming::CanMakeVisible()
 			return false;
 		}
 	}
-	return true;
+
+	return bCanMakeVisible;
 }
 
 void ULevelStreaming::UpdateNetVisibilityTransactionState(bool bInShouldBeVisible, FNetLevelVisibilityTransactionId TransactionId)

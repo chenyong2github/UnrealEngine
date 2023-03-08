@@ -37,8 +37,7 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 	virtual bool ShouldBlockOnUnload() const override;
 	virtual bool ShouldRequireFullVisibilityToRender() const override { return true; }
 
-	virtual bool CanMakeVisible() override;
-	virtual bool CanMakeInvisible() override;
+	virtual bool RequestVisibilityChange(bool bVisible) override;
 
 #if !WITH_EDITOR
 	virtual void PostLoad();

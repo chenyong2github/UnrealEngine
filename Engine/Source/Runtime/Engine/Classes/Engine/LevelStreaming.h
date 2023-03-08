@@ -352,10 +352,17 @@ protected:
 	/** Updates the current state of the streaming level and notifies any observers. */
 	void SetCurrentState(ELevelStreamingState NewState);
 
+	/** 
+	 * Prepare the transition to the new state.
+	 * @return true if the state change can be performed, false otherwise.
+	 **/
+	virtual bool RequestVisibilityChange(bool bVisible);
+
 	/** Returns whether the streaming level can make visible (can call AddToWorld). */
-	virtual bool CanMakeVisible();
+	bool CanMakeVisible();
+
 	/** Returns whether the streaming level can make invisible (can call RemoveFromWorld). */
-	virtual bool CanMakeInvisible();
+	bool CanMakeInvisible();
 
 private:
 

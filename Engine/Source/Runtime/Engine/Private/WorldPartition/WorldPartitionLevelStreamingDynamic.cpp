@@ -667,16 +667,11 @@ bool UWorldPartitionLevelStreamingDynamic::CanChangeVisibility(bool bMakeVisible
 	return true;
 }
 
-bool UWorldPartitionLevelStreamingDynamic::CanMakeVisible()
+bool UWorldPartitionLevelStreamingDynamic::RequestVisibilityChange(bool bVisible)
 {
-	const bool bCanMakeVisible = CanChangeVisibility(true);
-	return bCanMakeVisible && Super::CanMakeVisible();
-}
-
-bool UWorldPartitionLevelStreamingDynamic::CanMakeInvisible()
-{
-	const bool bCanMakeInvisible = CanChangeVisibility(false);
-	return bCanMakeInvisible && Super::CanMakeInvisible();
+	const bool bSuperAllowsVisibilityChange = Super::RequestVisibilityChange(bVisible);
+	const bool bAllowVisibilityChange = CanChangeVisibility(bVisible);
+	return bSuperAllowsVisibilityChange && bAllowVisibilityChange;
 }
 
 bool UWorldPartitionLevelStreamingDynamic::ShouldBlockOnUnload() const
