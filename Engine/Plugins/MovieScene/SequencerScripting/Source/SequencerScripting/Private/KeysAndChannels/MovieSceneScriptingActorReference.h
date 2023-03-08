@@ -36,7 +36,7 @@ public:
 	* @param TimeUnit		Should the NewFrameNumber be interpreted as Display Rate frames or in Tick Resolution?
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Time (Actor Reference)"))
-	void SetTime(const FFrameNumber& NewFrameNumber, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) { SetTimeInChannel(KeyHandle, OwningSequence, NewFrameNumber, TimeUnit, SubFrame); }
+	void SetTime(const FFrameNumber& NewFrameNumber, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) { SetTimeInChannel(KeyHandle, OwningSequence, OwningSection, NewFrameNumber, TimeUnit, SubFrame); }
 
 	/**
 	* Gets the value for this key from the owning channel.
@@ -57,7 +57,7 @@ public:
 	void SetValue(const FMovieSceneObjectBindingID& InNewValue)
 	{
 		FMovieSceneActorReferenceKey ReferenceKey = FMovieSceneActorReferenceKey(InNewValue);
-		SetValueInChannel(KeyHandle, ReferenceKey);
+		SetValueInChannel(KeyHandle, OwningSection, ReferenceKey);
 	}
 };
 
@@ -140,12 +140,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Remove Default (Actor Reference)"))
 	void RemoveDefault()
 	{
+		if (OwningSection.IsValid())
+		{
+			OwningSection->Modify();
+		}
+
 		// FMovieSceneActorReferenceData doesn't implement RemoveDefault, instead it implements ClearDefault(). Wrapping this function by hand,
 		// and not falling back to the template as a result, but keeping the same function name so it is consistent with the other scripting channels.
 		FMovieSceneActorReferenceData* Channel = ChannelHandle.Get();
 		if (Channel)
 		{
 			Channel->ClearDefault();
+
+#if WITH_EDITOR
+			const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData();
+			if (MetaData && OwningSection.IsValid() && OwningSequence.IsValid() && OwningSequence->GetMovieScene())
+			{
+				OwningSequence->GetMovieScene()->OnChannelChanged().Broadcast(MetaData, OwningSection.Get());
+			}
+#endif
 			return;
 		}
 		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to remove default value."), ELogVerbosity::Error);

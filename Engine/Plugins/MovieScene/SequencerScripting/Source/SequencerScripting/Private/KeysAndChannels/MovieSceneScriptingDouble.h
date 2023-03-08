@@ -39,7 +39,7 @@ public:
 	* @param TimeUnit		Should the NewFrameNumber be interpreted as Display Rate frames or in Tick Resolution?
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Time (Double)"))
-	void SetTime(const FFrameNumber& NewFrameNumber, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) { SetTimeInChannel(KeyHandle, OwningSequence, NewFrameNumber, TimeUnit, SubFrame); }
+	void SetTime(const FFrameNumber& NewFrameNumber, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) { SetTimeInChannel(KeyHandle, OwningSequence, OwningSection, NewFrameNumber, TimeUnit, SubFrame); }
 
 	/**
 	* Gets the value for this key from the owning channel.
@@ -60,7 +60,7 @@ public:
 	{
 		FMovieSceneDoubleValue ExistValue = GetValueFromChannel(KeyHandle);
 		ExistValue.Value = InNewValue;
-		SetValueInChannel(KeyHandle, ExistValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistValue);
 	}
 
 	/**
@@ -82,7 +82,7 @@ public:
 	{
 		FMovieSceneDoubleValue ExistValue = GetValueFromChannel(KeyHandle);
 		ExistValue.InterpMode = InNewValue;
-		SetValueInChannel(KeyHandle, ExistValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistValue);
 	}
 
 	/**
@@ -104,7 +104,7 @@ public:
 	{
 		FMovieSceneDoubleValue ExistValue = GetValueFromChannel(KeyHandle);
 		ExistValue.TangentMode = InNewValue;
-		SetValueInChannel(KeyHandle, ExistValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistValue);
 	}
 
 	/**
@@ -127,7 +127,7 @@ public:
 		FMovieSceneDoubleValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.ArriveTangent = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 
 	/**
@@ -150,7 +150,7 @@ public:
 		FMovieSceneDoubleValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.LeaveTangent = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 
 	/**
@@ -173,7 +173,7 @@ public:
 		FMovieSceneDoubleValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.TangentWeightMode = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 
 	/**
@@ -196,7 +196,7 @@ public:
 		FMovieSceneDoubleValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.ArriveTangentWeight = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 
 	/**
@@ -219,7 +219,7 @@ public:
 		FMovieSceneDoubleValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.LeaveTangentWeight = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 };
 
@@ -390,7 +390,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Remove Default (Double)"))
 	void RemoveDefault()
 	{
-		Impl::RemoveDefaultFromChannel(ChannelHandle);
+		Impl::RemoveDefaultFromChannel(ChannelHandle, OwningSequence, OwningSection);
 	}
 
 	/**

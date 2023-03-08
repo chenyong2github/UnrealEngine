@@ -164,7 +164,7 @@ public:
 	}
 	virtual void SetTime(const FFrameNumber& NewFrameNumber, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) override
 	{
-		SetTimeInChannel(KeyHandle, OwningSequence, NewFrameNumber, TimeUnit, SubFrame);
+		SetTimeInChannel(KeyHandle, OwningSequence, OwningSection, NewFrameNumber, TimeUnit, SubFrame);
 	}
 	virtual float GetValue() const override
 	{
@@ -174,7 +174,7 @@ public:
 	{
 		FMovieSceneFloatValue ExistValue = GetValueFromChannel(KeyHandle);
 		ExistValue.Value = InNewValue;
-		SetValueInChannel(KeyHandle, ExistValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistValue);
 	}
 	virtual ERichCurveInterpMode GetInterpolationMode() const override
 	{
@@ -184,7 +184,7 @@ public:
 	{
 		FMovieSceneFloatValue ExistValue = GetValueFromChannel(KeyHandle);
 		ExistValue.InterpMode = InNewValue;
-		SetValueInChannel(KeyHandle, ExistValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistValue);
 	}
 	virtual ERichCurveTangentMode GetTangentMode() const override
 	{
@@ -194,7 +194,7 @@ public:
 	{
 		FMovieSceneFloatValue ExistValue = GetValueFromChannel(KeyHandle);
 		ExistValue.TangentMode = InNewValue;
-		SetValueInChannel(KeyHandle, ExistValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistValue);
 	}
 	virtual float GetArriveTangent() const override
 	{
@@ -205,7 +205,7 @@ public:
 		FMovieSceneFloatValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.ArriveTangent = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 	virtual float GetLeaveTangent() const override
 	{
@@ -216,7 +216,7 @@ public:
 		FMovieSceneFloatValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.LeaveTangent = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 	virtual ERichCurveTangentWeightMode GetTangentWeightMode() const override
 	{
@@ -227,7 +227,7 @@ public:
 		FMovieSceneFloatValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.TangentWeightMode = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 	virtual float GetArriveTangentWeight() const override
 	{
@@ -238,7 +238,7 @@ public:
 		FMovieSceneFloatValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.ArriveTangentWeight = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 	virtual float GetLeaveTangentWeight() const override
 	{
@@ -249,7 +249,7 @@ public:
 		FMovieSceneFloatValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.LeaveTangentWeight = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 };
 
@@ -264,7 +264,7 @@ public:
 	}
 	virtual void SetTime(const FFrameNumber& NewFrameNumber, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) override
 	{
-		SetTimeInChannel(KeyHandle, OwningSequence, NewFrameNumber, TimeUnit, SubFrame);
+		SetTimeInChannel(KeyHandle, OwningSequence, OwningSection, NewFrameNumber, TimeUnit, SubFrame);
 	}
 	virtual float GetValue() const override
 	{
@@ -274,7 +274,7 @@ public:
 	{
 		FMovieSceneDoubleValue ExistValue = GetValueFromChannel(KeyHandle);
 		ExistValue.Value = (double)InNewValue;
-		SetValueInChannel(KeyHandle, ExistValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistValue);
 	}
 	virtual ERichCurveInterpMode GetInterpolationMode() const override
 	{
@@ -284,7 +284,7 @@ public:
 	{
 		FMovieSceneDoubleValue ExistValue = GetValueFromChannel(KeyHandle);
 		ExistValue.InterpMode = InNewValue;
-		SetValueInChannel(KeyHandle, ExistValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistValue);
 	}
 	virtual ERichCurveTangentMode GetTangentMode() const override
 	{
@@ -294,7 +294,7 @@ public:
 	{
 		FMovieSceneDoubleValue ExistValue = GetValueFromChannel(KeyHandle);
 		ExistValue.TangentMode = InNewValue;
-		SetValueInChannel(KeyHandle, ExistValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistValue);
 	}
 	virtual float GetArriveTangent() const override
 	{
@@ -305,7 +305,7 @@ public:
 		FMovieSceneDoubleValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.ArriveTangent = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 	virtual float GetLeaveTangent() const override
 	{
@@ -316,7 +316,7 @@ public:
 		FMovieSceneDoubleValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.LeaveTangent = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 	virtual ERichCurveTangentWeightMode GetTangentWeightMode() const override
 	{
@@ -327,7 +327,7 @@ public:
 		FMovieSceneDoubleValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.TangentWeightMode = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 	virtual float GetArriveTangentWeight() const override
 	{
@@ -338,7 +338,7 @@ public:
 		FMovieSceneDoubleValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.ArriveTangentWeight = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 	virtual float GetLeaveTangentWeight() const override
 	{
@@ -349,7 +349,7 @@ public:
 		FMovieSceneDoubleValue ExistKeyValue = GetValueFromChannel(KeyHandle);
 		FMovieSceneTangentData& ExistTangentData = ExistKeyValue.Tangent;
 		ExistTangentData.LeaveTangentWeight = InNewValue;
-		SetValueInChannel(KeyHandle, ExistKeyValue);
+		SetValueInChannel(KeyHandle, OwningSection, ExistKeyValue);
 	}
 };
 
@@ -616,11 +616,11 @@ public:
 	{
 		if (FloatChannelHandle.Get())
 		{
-			FloatImpl::RemoveDefaultFromChannel(FloatChannelHandle);
+			FloatImpl::RemoveDefaultFromChannel(FloatChannelHandle, OwningSequence, OwningSection);
 		}
 		else
 		{
-			DoubleImpl::RemoveDefaultFromChannel(DoubleChannelHandle);
+			DoubleImpl::RemoveDefaultFromChannel(DoubleChannelHandle, OwningSequence, OwningSection);
 		}
 	}
 

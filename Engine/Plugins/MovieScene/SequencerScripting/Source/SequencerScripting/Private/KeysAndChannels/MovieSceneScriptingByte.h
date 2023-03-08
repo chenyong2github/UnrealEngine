@@ -37,7 +37,7 @@ public:
 	* @param TimeUnit		Should the NewFrameNumber be interpreted as Display Rate frames or in Tick Resolution?
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Time (Enum)"))
-	void SetTime(const FFrameNumber& NewFrameNumber, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) { SetTimeInChannel(KeyHandle, OwningSequence, NewFrameNumber, TimeUnit, SubFrame); }
+	void SetTime(const FFrameNumber& NewFrameNumber, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) { SetTimeInChannel(KeyHandle, OwningSequence, OwningSection, NewFrameNumber, TimeUnit, SubFrame); }
 
 	/**
 	* Gets the value for this key from the owning channel.
@@ -56,7 +56,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Value (Enum)"))
 	void SetValue(uint8 InNewValue)
 	{
-		SetValueInChannel(KeyHandle, InNewValue);
+		SetValueInChannel(KeyHandle, OwningSection, InNewValue);
 	}
 };
 
@@ -130,7 +130,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Remove Default (Enum)"))
 	void RemoveDefault()
 	{
-		Impl::RemoveDefaultFromChannel(ChannelHandle);
+		Impl::RemoveDefaultFromChannel(ChannelHandle, OwningSequence, OwningSection);
 	}
 
 	/**
