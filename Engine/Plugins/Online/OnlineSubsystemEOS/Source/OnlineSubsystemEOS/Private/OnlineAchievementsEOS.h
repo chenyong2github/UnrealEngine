@@ -23,6 +23,10 @@ public:
 	FOnlineAchievementsEOS() = delete;
 	virtual ~FOnlineAchievementsEOS() = default;
 
+	FOnlineAchievementsEOS(FOnlineSubsystemEOS* InSubsystem);
+
+	void Init();
+
 // IOnlineAchievements Interface
 	virtual void WriteAchievements(const FUniqueNetId& PlayerId, FOnlineAchievementsWriteRef& WriteObject, const FOnAchievementsWrittenDelegate& Delegate = FOnAchievementsWrittenDelegate())  override;
 	virtual void QueryAchievements(const FUniqueNetId& PlayerId, const FOnQueryAchievementsCompleteDelegate& Delegate = FOnQueryAchievementsCompleteDelegate())  override;
@@ -35,12 +39,15 @@ public:
 #endif
 // ~IOnlineAchievements Interface
 
-	FOnlineAchievementsEOS(FOnlineSubsystemEOS* InSubsystem)
-		: EOSSubsystem(InSubsystem)
-	{
-	}
+private:
+	void UnlockAchievements(const FUniqueNetId& PlayerId, FOnlineAchievementsWriteRef& WriteObject, const FOnAchievementsWrittenDelegate& Delegate);
+
+	UE_DEPRECATED(5.3, "UnlockAchievementsThroughStats is deprecated, please set the config variable bUseUnlockAchievements=true under [/Script/OnlineSubsystemEOS.OnlineAchievementsEOS] to use UnlockAchievements instead")
+	void UnlockAchievementsThroughStats(const FUniqueNetId& PlayerId, FOnlineAchievementsWriteRef& WriteObject, const FOnAchievementsWrittenDelegate& Delegate) const;
 
 private:
+	/** Whether we'll use the Achievements API (true) or the Stats API (false) to track achievements. The latter is deprecated */
+	bool bUseUnlockAchievements = false;
 	/** Reference to the main EOS subsystem */
 	FOnlineSubsystemEOS* EOSSubsystem;
 	/** Holds the cached info from the last time this was called */
