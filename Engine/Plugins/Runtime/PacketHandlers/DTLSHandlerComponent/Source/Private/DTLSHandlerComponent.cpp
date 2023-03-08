@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DTLSHandlerComponent.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_SSL
 
@@ -12,7 +13,6 @@ THIRD_PARTY_INCLUDES_START
 #include <openssl/dtls1.h>
 #include "Interfaces/ISslManager.h"
 #include <openssl/err.h>
-#include "Modules/ModuleManager.h"
 #include "SslModule.h"
 #include "Stats/Stats.h"
 #include <openssl/bio.h>
