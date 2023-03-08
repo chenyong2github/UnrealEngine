@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -79,17 +80,17 @@ namespace AutomationTool
 			}
 
 			// Print what we're going to do
-			LogInformation("Ready to rename {0} files:", SourceFiles.Count);
+			Logger.LogInformation("Ready to rename {Arg0} files:", SourceFiles.Count);
 			for (int Idx = 0; Idx < SourceFiles.Count; Idx++)
 			{
-				LogInformation("{0,3}: {1}", Idx, SourceFiles[Idx]);
-				LogInformation("{0,3}  {1}", "", TargetFiles[Idx]);
+				Logger.LogInformation("{0,3}: {Arg1}", Idx, SourceFiles[Idx]);
+				Logger.LogInformation("{0,3}  {Arg1}", "", TargetFiles[Idx]);
 			}
 
 			// If we're not going through with it, print the renames
 			if (!AllowSubmit)
 			{
-				LogWarning("Skipping due to no -Submit option");
+				Logger.LogWarning("Skipping due to no -Submit option");
 				return;
 			}
 

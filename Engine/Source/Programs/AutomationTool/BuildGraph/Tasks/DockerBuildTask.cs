@@ -115,7 +115,7 @@ namespace AutomationTool.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			Log.Logger.LogInformation("Building Docker image");
+			Logger.LogInformation("Building Docker image");
 			using (LogIndentScope Scope = new LogIndentScope("  "))
 			{
 				DirectoryReference BaseDir = ResolveDirectory(Parameters.BaseDir);

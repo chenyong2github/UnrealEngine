@@ -20,6 +20,7 @@ using Microsoft.Tools.WindowsDevicePortal;
 using UnrealBuildBase;
 using AutomationScripts;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 
 namespace HoloLens.Automation
 {
@@ -388,7 +389,7 @@ namespace HoloLens.Automation
 				{
 					if (!IsLocalDevice(DeviceAddress))
 					{
-						LogWarning("Project will be packaged to support deployment to remote HoloLens device {0}.", DeviceAddress);
+						Logger.LogWarning("Project will be packaged to support deployment to remote HoloLens device {DeviceAddress}.", DeviceAddress);
 						ProjParams.Package = true;
 						break;
 					}
@@ -426,7 +427,7 @@ namespace HoloLens.Automation
 						}
 
 						ArchSet.Add(Arch);
-						LogInformation(String.Format("Project will be compiled for the architecture {0} of the HoloLens device {1}.", Arch, DeviceAddress));
+						Logger.LogInformation("Project will be compiled for the architecture {Arch} of the HoloLens device {Device}.", Arch, DeviceAddress);
 					}
 				}
 
@@ -436,18 +437,18 @@ namespace HoloLens.Automation
 					if (PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bBuildForEmulation", out bBuildForEmulation) && bBuildForEmulation)
 					{
 						ArchSet.Add(UnrealArch.X64);
-						LogInformation(String.Format("Project will be compiled for the architecture X64 of the HoloLens  device for packaging because bBuildForEmulation is true in project settings."));
+						Logger.LogInformation("Project will be compiled for the architecture X64 of the HoloLens  device for packaging because bBuildForEmulation is true in project settings.");
 					}
 					else
 					{
 						ArchSet.Add(UnrealArch.Arm64);
-						LogInformation(String.Format("Project will be compiled for the architecture Arm64 of the HoloLens device for packaging."));
+						Logger.LogInformation("Project will be compiled for the architecture Arm64 of the HoloLens device for packaging.");
 					}
 				}
 
 				if (ArchSet.Count > 0)
 				{
-					LogInformation(String.Format("Project will be compiled for the architectures {0} for HoloLens.", string.Join(", ", ArchSet)));
+					Logger.LogInformation("Project will be compiled for the architectures {Archs} for HoloLens.", string.Join(", ", ArchSet));
 					ProjParams.ClientArchitecture = new UnrealArchitectures(ArchSet);
 				}
 			}
@@ -463,7 +464,7 @@ namespace HoloLens.Automation
 				Windows10SDKVersion = "Latest";
 			}
 
-			if(!HoloLensExports.InitWindowsSdkToolPath(Windows10SDKVersion, Log.Logger))
+			if(!HoloLensExports.InitWindowsSdkToolPath(Windows10SDKVersion, Logger))
 			{
 				throw new AutomationException(ExitCode.Error_Arguments, "Wrong WinSDK toolchain selected on \'Platforms/HoloLens/Toolchain\' page. Please check.");
 			}
@@ -547,7 +548,7 @@ namespace HoloLens.Automation
 			{
 				// Stage all the build products
 				DirectoryReference ProjectBinariesFolder = Params.GetProjectBinariesPathForPlatform(PlatformType);
-				HoloLensExports DeployExports = new HoloLensExports(Log.Logger);
+				HoloLensExports DeployExports = new HoloLensExports(Logger);
 				foreach (StageTarget Target in SC.StageTargets)
 				{
 					SC.StageBuildProductsFromReceipt(Target.Receipt, Target.RequireFilesExist, Params.bTreatNonShippingBinariesAsDebugFiles);
@@ -678,7 +679,7 @@ namespace HoloLens.Automation
 		private void PackagePakFiles(ProjectParams Params, DeploymentContext SC, string OutputNameBase)
 		{
 			string IntermediateDirectory = Path.Combine(SC.ProjectRoot.FullName, "Intermediate", "Deploy", "neutral");
-			var ListResources = new HoloLensManifestGenerator(Log.Logger).CreateAssetsManifest(SC.StageTargetPlatform.PlatformType, SC.StageDirectory.FullName, IntermediateDirectory, SC.RawProjectPath, SC.ProjectRoot.FullName);
+			var ListResources = new HoloLensManifestGenerator(Logger).CreateAssetsManifest(SC.StageTargetPlatform.PlatformType, SC.StageDirectory.FullName, IntermediateDirectory, SC.RawProjectPath, SC.ProjectRoot.FullName);
 
 			string OutputName = OutputNameBase + "_pak";
 
@@ -981,7 +982,7 @@ namespace HoloLens.Automation
 			{
 				if (!IsBuildMachine && !Params.Unattended)
 				{
-					LogError("Certificate is required.  Please go to Project Settings > HoloLens > Create Signing Certificate");
+					Logger.LogError("Certificate is required.  Please go to Project Settings > HoloLens > Create Signing Certificate");
 				}
 			}
 		}
@@ -1037,7 +1038,7 @@ namespace HoloLens.Automation
 				if (Params.GameConfigs.TryGetValue(PlatformType, out PlatformGameConfig))
 				{
 					PlatformGameConfig.GetBool("/Script/EngineSettings.GeneralProjectSettings", "bStartInVR", out bStartInVR);
-					Log.TraceInformation("bStartInVR = {0}", bStartInVR.ToString());
+					Logger.LogInformation("bStartInVR = {StartInVr}", bStartInVR.ToString());
 				}
 
 				if (bStartInVR)
@@ -1058,7 +1059,7 @@ namespace HoloLens.Automation
 					{
 						// Update the uecommandline.txt
 						FileReference IntermediateCmdLineFile = FileReference.Combine(SC.StageDirectory, "UECommandLine.txt");
-						Log.TraceInformation("Writing cmd line to: " + IntermediateCmdLineFile.FullName);
+						Logger.LogInformation("Writing cmd line to: {File}", IntermediateCmdLineFile.FullName);
 						Project.WriteStageCommandline(IntermediateCmdLineFile, Params, SC);
 					}
 				}
@@ -1189,7 +1190,7 @@ namespace HoloLens.Automation
 			StartInfo.Arguments = String.Format("\"{0}\" \"{1}\" -p", SourceFile.FullName, TargetFile.FullName);
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
-			Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
+			Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
 
 			if (bStripInPlace)
 			{
@@ -1239,8 +1240,8 @@ namespace HoloLens.Automation
 			if (deploymentOperation.Status == AsyncStatus.Error)
 			{
 				DeploymentResult deploymentResult = deploymentOperation.GetResults();
-				LogInformation("Error code: {0}", deploymentOperation.ErrorCode);
-				LogInformation("Error text: {0}", deploymentResult.ErrorText);
+				Logger.LogInformation("Error code: {ErrorCode}", deploymentOperation.ErrorCode);
+				Logger.LogInformation("Error text: {ErrorText}", deploymentResult.ErrorText);
 				throw new AutomationException(ExitCode.Error_AppInstallFailed, deploymentResult.ErrorText, "");
 			}
 			else if (deploymentOperation.Status == AsyncStatus.Canceled)
@@ -1292,7 +1293,7 @@ namespace HoloLens.Automation
 					string PackagePath = Path.Combine(SC.StageDirectory.FullName, "AppxManifest.xml");
 
 
-					LogInformation(String.Format("Registring {0}", PackagePath));
+					Logger.LogInformation("Registring {Path}", PackagePath);
 					WaitFor(PackMgr.RegisterPackageAsync(new Uri(PackagePath), null, DeploymentOptions.DevelopmentMode));
 				}
 			}
@@ -1310,7 +1311,7 @@ namespace HoloLens.Automation
 			}
 			catch
 			{
-				LogWarning("Failed to apply a loopback exemption to the deployed app.  Connection to a local cook server will fail.");
+				Logger.LogWarning("Failed to apply a loopback exemption to the deployed app.  Connection to a local cook server will fail.");
 			}
 		}
 
@@ -1348,7 +1349,7 @@ namespace HoloLens.Automation
 			string[] osBlocks = OsVersionString.Split('.');
 			if (osBlocks.Length < 3)
 			{
-				LogError(String.Format("Wrong OS version string {0} from {1} device", OsVersionString, DeviceAddress));
+				Logger.LogError("Wrong OS version string {VersionString} from {DeviceAddress} device", OsVersionString, DeviceAddress);
 				throw new AutomationException(ExitCode.Error_AppInstallFailed, "Wrong OS version string");
 			}
 
@@ -1364,7 +1365,7 @@ namespace HoloLens.Automation
 			}
 			else
 			{
-				LogError(String.Format("Unsupported OS architecture {0} from {1} device", osArchBlock, DeviceAddress));
+				Logger.LogError("Unsupported OS architecture {Arch} from {DeviceAddress} device", osArchBlock, DeviceAddress);
 				throw new AutomationException(ExitCode.Error_AppInstallFailed, "Unsupported OS architecture");
 			}
 		}
@@ -1685,7 +1686,7 @@ namespace HoloLens.Automation
 			}
 			else
 			{
-				LogLog(args.Message);
+				Logger.LogDebug("{Text}", args.Message);
 			}
 		}
 
@@ -1697,7 +1698,7 @@ namespace HoloLens.Automation
 			}
 			else
 			{
-				LogLog(args.Message);
+				Logger.LogDebug("{Text}", args.Message);
 			}
 		}
 
@@ -1723,7 +1724,7 @@ namespace HoloLens.Automation
 			}
 
 
-			HoloLensExports.CreateManifestForDLC(Params.DLCFile, SC.StageDirectory, Log.Logger);
+			HoloLensExports.CreateManifestForDLC(Params.DLCFile, SC.StageDirectory, Logger);
 		}
 
 		private static List<string> AcceptThumbprints = new List<string>();

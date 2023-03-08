@@ -6,6 +6,7 @@ using System.IO;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 [Help("Compiles a bunch of stuff together with megaxge: Example arguments: -ubtargs=\"-nopdb\" -Target1=\"PlatformerGame win32|ios debug|development\"")]
 [Help(typeof(UnrealBuild))]
@@ -31,7 +32,7 @@ class MegaXGE : BuildCommand
 		}
 
 		string UbtArgs = ParseParamValue("ubtargs", "");
-		LogInformation("************************* MegaXGE");
+		Logger.LogInformation("************************* MegaXGE");
 
 		bool Clean = ParseParam("Clean");
 		string CleanToolLocation = CombinePaths(CmdEnv.LocalRoot, "Engine", "Build", "Batchfiles", "Clean.bat");
@@ -42,7 +43,7 @@ class MegaXGE : BuildCommand
 
 		var Agenda = new UnrealBuild.BuildAgenda();
 
-		LogInformation("*************************");
+		Logger.LogInformation("*************************");
 		for (int Arg = 1; Arg < 100; Arg++)
 		{
 			string Parm = String.Format("Target{0}", Arg);
@@ -135,7 +136,7 @@ class MegaXGE : BuildCommand
 					foreach (var Configuration in Configurations)
 					{
 						Agenda.AddTargets(new string[] { CurTarget }, Platform, Configuration, ProjectFile, UbtArgs);
-						LogInformation("Target {0} {1} {2}", CurTarget, Platform.ToString(), Configuration.ToString());
+						Logger.LogInformation("Target {CurTarget} {Arg1} {Arg2}", CurTarget, Platform.ToString(), Configuration.ToString());
 						if (Clean)
 						{
 							string Args = String.Format("{0} {1} {2}", CurTarget, Platform.ToString(), Configuration.ToString());
@@ -145,7 +146,7 @@ class MegaXGE : BuildCommand
 				}
 			}
 		}
-		LogInformation("*************************");
+		Logger.LogInformation("*************************");
 
 		UnrealBuild.Build(Agenda, InUpdateVersionFiles: IsBuildMachine, InUseParallelExecutor: ParseParam("useparallelexecutor"), InShowProgress: ShowProgress);
 

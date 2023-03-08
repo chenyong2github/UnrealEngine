@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using AutomationTool;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Common UEBuild utilities
@@ -35,7 +36,7 @@ public class UnrealBuildUtils : CommandUtils
 			throw new AutomationException("Target is required when calling UnrealBuildUtils.BuildProduct");
 		}
 
-		LogInformation("Building {0}", Target.TargetName);
+		Logger.LogInformation("Building {Arg0}", Target.TargetName);
 
 		if (Command == null)
 		{

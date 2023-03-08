@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -57,7 +58,7 @@ namespace AutomationTool
 			foreach(FileReference SourceFile in FilesToMove)
 			{
 				FileReference TargetFile = FileReference.Combine(ToDir, SourceFile.MakeRelativeTo(Unreal.RootDirectory));
-				LogInformation("Copying {0} to {1}", SourceFile, TargetFile);
+				Logger.LogInformation("Copying {SourceFile} to {TargetFile}", SourceFile, TargetFile);
 				CommandUtils.CopyFile(SourceFile.FullName, TargetFile.FullName);
 			}
 		}
@@ -80,7 +81,7 @@ namespace AutomationTool
 			foreach(FileReference SourceFile in DirectoryReference.EnumerateFiles(FromDir, "*", SearchOption.AllDirectories))
 			{
 				FileReference TargetFile = FileReference.Combine(Unreal.RootDirectory, SourceFile.MakeRelativeTo(FromDir));
-				LogInformation("Copying {0} to {1}", SourceFile, TargetFile);
+				Logger.LogInformation("Copying {SourceFile} to {TargetFile}", SourceFile, TargetFile);
 				CopyFile(SourceFile.FullName, TargetFile.FullName);
 			}
 		}

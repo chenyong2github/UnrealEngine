@@ -5,6 +5,7 @@ using System.Text;
 using System.IO;
 using AutomationTool;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 
 
@@ -56,7 +57,7 @@ class BuildThirdPartyLibs : BuildCommand
 
 	public override void ExecuteBuild()
 	{
-		LogInformation("************************* Build Third Party Libs");
+		Logger.LogInformation("************************* Build Third Party Libs");
 
 		// figure out what batch/script to run
 		string CompileScriptName;
@@ -85,7 +86,7 @@ class BuildThirdPartyLibs : BuildCommand
 		{
 			WorkingCL = P4.CreateChange(P4Env.Client, String.Format("Third party libs built from changelist {0}", P4Env.Changelist));
 		}
-		LogInformation("Build from {0}    Working in {1}", P4Env.Changelist, WorkingCL);
+		Logger.LogInformation("Build from {Arg0}    Working in {WorkingCL}", P4Env.Changelist, WorkingCL);
 
 		// go to the third party lib dir
 		string SearchLibraryDir = ParseParamValue("SearchDir", DefaultLibraryDir);
@@ -120,7 +121,7 @@ class BuildThirdPartyLibs : BuildCommand
 				}
 				else
 				{
-					LogError("Error: Requested lib {0} does not have a {1}", Dir, CompileScriptName);
+					Logger.LogError("Error: Requested lib {Dir} does not have a {CompileScriptName}", Dir, CompileScriptName);
 					bHadError = true;
 				}
 			}
@@ -137,7 +138,7 @@ class BuildThirdPartyLibs : BuildCommand
 		// now go through and run each batch file, 
 		foreach (string Lib in LibsToCompile)
 		{
-			LogInformation("Building {0}", Lib);
+			Logger.LogInformation("Building {Lib}", Lib);
 
 			// go into the lib dir
 			CommandUtils.PushDir(Lib);
@@ -161,7 +162,7 @@ class BuildThirdPartyLibs : BuildCommand
 		{
 			int SubmittedCL;
 			P4.Submit(WorkingCL, out SubmittedCL, true, true);
-			LogInformation("Submitted changelist {0}", SubmittedCL);
+			Logger.LogInformation("Submitted changelist {SubmittedCL}", SubmittedCL);
 		}
 	}
 }

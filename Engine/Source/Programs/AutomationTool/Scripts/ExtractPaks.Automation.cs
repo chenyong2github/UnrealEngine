@@ -10,6 +10,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 public class ExtractPaks : BuildCommand
 {
@@ -54,7 +55,7 @@ public class ExtractPaks : BuildCommand
 
 		DirectoryInfo SourceDirectoryInfo = new DirectoryInfo(SourceDirectory);
 
-		LogInformation("Extracting paks from {0} to {1}", SourceDirectory, TargetDirectory);
+		Logger.LogInformation("Extracting paks from {SourceDirectory} to {TargetDirectory}", SourceDirectory, TargetDirectory);
 
 		FileReference ProjectFile = null;
 		if (!string.IsNullOrEmpty(Project))

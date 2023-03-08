@@ -130,7 +130,7 @@ namespace AutomationTool
 			}
 		}
 
-
+		private static ILogger Logger => Log.Logger;
 		private static Dictionary<PropertyCacheKey, ProjectProperties> PropertiesCache = new Dictionary<PropertyCacheKey, ProjectProperties>();
 
 		/// <summary>
@@ -241,7 +241,7 @@ namespace AutomationTool
 					string Reason;
 					if(RequiresTempTarget(RawProjectPath, bHasCode, Platform, Configuration, TargetType.Game, AssetNativizationRequested, true, out Reason))
 					{
-						Log.Logger.LogInformation("{Project} requires a temporary target.cs to be generated ({Reason})", RawProjectPath.GetFileName(), Reason);
+						Logger.LogInformation("{Project} requires a temporary target.cs to be generated ({Reason})", RawProjectPath.GetFileName(), Reason);
 						return true;
 					}
 				}
@@ -814,7 +814,7 @@ namespace AutomationTool
 
 				if (!CommandUtils.IsBuildMachine && !CheckIfScriptAssemblyIsOutOfDate(TargetsDllFilename, TargetScripts))
 				{
-					Log.Logger.LogDebug("Targets DLL {Filename} is up to date.", TargetsDllFilename);
+					Logger.LogDebug("Targets DLL {Filename} is up to date.", TargetsDllFilename);
 					DoNotCompile = true;
 				}
 				if (!DoNotCompile && CommandUtils.FileExists_NoExceptions(TargetsDllFilename.FullName))

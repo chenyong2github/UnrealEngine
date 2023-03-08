@@ -108,7 +108,7 @@ namespace AutomationTool
 		private static Dictionary<TargetPlatformDescriptor, Platform> AllPlatforms = new Dictionary<TargetPlatformDescriptor, Platform>();
 		internal static void InitializePlatforms(HashSet<Assembly> AssembliesWithPlatforms)
 		{
-			Log.Logger.LogDebug("Creating platforms.");
+			Logger.LogDebug("Creating platforms.");
 
 			// Create all available platforms.
 			foreach (var ScriptAssembly in AssembliesWithPlatforms)
@@ -122,7 +122,7 @@ namespace AutomationTool
 				Platform ExistingInstance;
 				if (AllPlatforms.TryGetValue(TargetDesc, out ExistingInstance) == false)
 				{
-					Log.Logger.LogDebug("Creating placeholder platform for target: {TargetType}", TargetDesc.Type);
+					Logger.LogDebug("Creating placeholder platform for target: {TargetType}", TargetDesc.Type);
 					AllPlatforms.Add(TargetDesc, new Platform(TargetDesc.Type));
 				}
 			}
@@ -130,7 +130,7 @@ namespace AutomationTool
 
 		private static void CreatePlatformsFromAssembly(Assembly ScriptAssembly)
 		{
-			Log.Logger.LogDebug("Looking for platforms in {Location}", ScriptAssembly.Location);
+			Logger.LogDebug("Looking for platforms in {Location}", ScriptAssembly.Location);
 			Type[] AllTypes = null;
 			try
 			{
@@ -138,21 +138,21 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.Logger.LogError("Failed to get assembly types for {Location}", ScriptAssembly.Location);
+				Logger.LogError("Failed to get assembly types for {Location}", ScriptAssembly.Location);
 				if (Ex is ReflectionTypeLoadException)
 				{
 					var TypeLoadException = (ReflectionTypeLoadException)Ex;
 					if (!IsNullOrEmpty(TypeLoadException.LoaderExceptions))
 					{
-						Log.Logger.LogError("Loader Exceptions:");
+						Logger.LogError("Loader Exceptions:");
 						foreach (var LoaderException in TypeLoadException.LoaderExceptions)
 						{
-							Log.Logger.LogError(LoaderException, "{Text}", LogUtils.FormatException(LoaderException));
+							Logger.LogError(LoaderException, "{Text}", LogUtils.FormatException(LoaderException));
 						}
 					}
 					else
 					{
-						Log.Logger.LogError("No Loader Exceptions available.");
+						Logger.LogError("No Loader Exceptions available.");
 					}
 				}
 				// Re-throw, this is still a critical error!
@@ -162,7 +162,7 @@ namespace AutomationTool
 			{
 				if (PotentialPlatformType != typeof(Platform) && typeof(Platform).IsAssignableFrom(PotentialPlatformType) && !PotentialPlatformType.IsAbstract)
 				{
-					Log.Logger.LogDebug("Creating platform {Platform} from {Location}.", PotentialPlatformType.Name, ScriptAssembly.Location);
+					Logger.LogDebug("Creating platform {Platform} from {Location}.", PotentialPlatformType.Name, ScriptAssembly.Location);
 					var PlatformInstance = Activator.CreateInstance(PotentialPlatformType) as Platform;
 					var PlatformDesc = PlatformInstance.GetTargetPlatformDescriptor();
 
@@ -175,7 +175,7 @@ namespace AutomationTool
 					{
 						if (ExistingInstance.GetType() != PlatformInstance.GetType())
 						{
-							Log.Logger.LogWarning("Platform {Platform} already exists", PotentialPlatformType.Name);
+							Logger.LogWarning("Platform {Platform} already exists", PotentialPlatformType.Name);
 						}
 					}
 				}
@@ -319,7 +319,7 @@ namespace AutomationTool
 
 		public virtual bool SetDeviceAutoSoftwareUpdateMode(DeviceInfo Device, bool bEnableAutoSoftwareUpdates)
 		{
-			LogWarning("{0} does not implement SetDeviceAutoSoftwareUpdateMode", PlatformType);
+			Logger.LogWarning("{PlatformType} does not implement SetDeviceAutoSoftwareUpdateMode", PlatformType);
 			return false;
 		}
 

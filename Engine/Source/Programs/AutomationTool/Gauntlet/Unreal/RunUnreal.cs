@@ -10,6 +10,7 @@ using UnrealBuildTool;
 using System.IO;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace Gauntlet
 {
@@ -339,7 +340,7 @@ namespace Gauntlet
 
 				if (ParseParam("clean"))
 				{
-					LogInformation("Deleting temp dir {0}", Options.TempDir);
+					Logger.LogInformation("Deleting temp dir {Arg0}", Options.TempDir);
 					DirectoryInfo Di = new DirectoryInfo(Options.TempDir);
 					if (Di.Exists)
 					{

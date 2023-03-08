@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Benchmark
 {
@@ -193,7 +194,7 @@ namespace AutomationTool.Benchmark
 				{
 					if (Message.Contains("TEST COMPLETE"))
 					{
-						Log.TraceInformation("Automation test reported as complete.");
+						Logger.LogInformation("Automation test reported as complete.");
 						//TestCompleted = true;
 					}
 
@@ -228,7 +229,7 @@ namespace AutomationTool.Benchmark
 				{
 					if ((DateTime.Now - LastStdOutTime).TotalMinutes >= TimeoutMins)
 					{
-						Log.TraceError("Gave up waiting for task after {0} minutes of no output", TimeoutMins);
+						Logger.LogError("Gave up waiting for task after {TimeoutMins} minutes of no output", TimeoutMins);
 						CurrentProcess.ProcessObject.Kill();
 					}
 				}
@@ -262,7 +263,7 @@ namespace AutomationTool.Benchmark
 
 				if (Command.Execute() != ExitCode.Success)
 				{
-					Log.TraceError("Failed to build editor!");
+					Logger.LogError("Failed to build editor!");
 					return false;
 				}
 				else
@@ -273,7 +274,7 @@ namespace AutomationTool.Benchmark
 			}
 			else if (BuiltEditors.Contains(ProjectName) == false)
 			{
-				Log.TraceError("SkipBuild = true but no editor has been built for {0}", ProjectName);
+				Logger.LogError("SkipBuild = true but no editor has been built for {ProjectName}", ProjectName);
 				return false;
 			}	
 

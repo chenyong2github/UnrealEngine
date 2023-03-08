@@ -129,7 +129,7 @@ namespace AutomationTool.Tasks
 			}
 
 			// Create the jupiter tree
-			Log.Logger.LogInformation("Uploading {NumFiles} files to {Url}...", Files.Count, Parameters.JupiterUrl);
+			Logger.LogInformation("Uploading {NumFiles} files to {Url}...", Files.Count, Parameters.JupiterUrl);
 
 			JupiterFileTree FileTree = new JupiterFileTree(Parameters.FromDir, Parameters.LimitMemoryUsage);
 			foreach (FileReference File in Files)

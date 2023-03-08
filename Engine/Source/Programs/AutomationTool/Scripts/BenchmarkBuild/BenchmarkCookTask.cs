@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildTool;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Benchmark
 {
@@ -107,7 +108,7 @@ namespace AutomationTool.Benchmark
 
 			if (AssetFile == null)
 			{
-				Log.TraceError("Could not find asset file to touch under {0}", ContentDir);
+				Logger.LogError("Could not find asset file to touch under {ContentDir}", ContentDir);
 				return false;
 			}
 

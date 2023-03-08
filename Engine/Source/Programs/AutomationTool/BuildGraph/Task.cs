@@ -13,6 +13,7 @@ using EpicGames.Core;
 using OpenTracing;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -97,6 +98,11 @@ namespace AutomationTool
 	/// </summary>
 	public abstract class BgTaskImpl
 	{
+		/// <summary>
+		/// Accessor for the default log interface
+		/// </summary>
+		protected static ILogger Logger => Log.Logger;
+
 		/// <summary>
 		/// Line number in a source file that this task was declared. Optional; used for log messages.
 		/// </summary>

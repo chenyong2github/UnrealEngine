@@ -9,6 +9,7 @@ using AutomationTool;
 using Ionic.Zip;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 [Help("ZipUtils is used to zip/unzip (i.e:RunUAT.bat ZipUtils -archive=D:/Content.zip -add=D:/UE/Pojects/SampleGame/Content/) or (i.e:RunUAT.bat ZipUtils -archive=D:/Content.zip -extract=D:/UE/Pojects/SampleGame/Content/)")]
 [Help("archive=<PathToArchive>", "Path to folder that should be add to the archive.")]
@@ -20,11 +21,11 @@ public class ZipUtils : BuildCommand
 	public override ExitCode Execute()
 	{
 
-		LogInformation("************************ STARTING ZIPUTILS ************************");
+		Logger.LogInformation("************************ STARTING ZIPUTILS ************************");
 
 		if (Params.Length < 2)
 		{
-			LogError("Invalid number of arguments {0}", Params.Length);
+			Logger.LogError("Invalid number of arguments {Arg0}", Params.Length);
 			return ExitCode.Error_Arguments;
 		}
 
@@ -36,7 +37,7 @@ public class ZipUtils : BuildCommand
 
 		if (string.IsNullOrWhiteSpace(ZipFilePath) || System.IO.Path.GetExtension(ZipFilePath) != ".zip")
 		{
-			LogError("No zip file specified");
+			Logger.LogError("No zip file specified");
 			return ExitCode.Error_Arguments;
 		}
 
@@ -45,7 +46,7 @@ public class ZipUtils : BuildCommand
 
 		if (!bUnzip && !bZip)
 		{
-			LogError("Invalid arguments. Please specify -archive or -extract option.");
+			Logger.LogError("Invalid arguments. Please specify -archive or -extract option.");
 			return ExitCode.Error_Arguments;
 		}
 
@@ -57,11 +58,11 @@ public class ZipUtils : BuildCommand
 		{
 			string OutputFolderPath = ExtractArgs[0];
 
-			LogInformation("Running unzip : {0} OuputFolder:{1}", ZipFilePath.ToString(), OutputFolderPath);
+			Logger.LogInformation("Running unzip : {Arg0} OuputFolder:{OutputFolderPath}", ZipFilePath.ToString(), OutputFolderPath);
 
 			if (!System.IO.File.Exists(ZipFilePath))
 			{
-				LogError("Invalid zip file path.");
+				Logger.LogError("Invalid zip file path.");
 				return ExitCode.Error_Arguments;
 			}
 
@@ -69,15 +70,15 @@ public class ZipUtils : BuildCommand
 
 			if (ExtractedFiles.Count() == 0)
 			{
-				LogWarning("No files extracted from file zip.");
+				Logger.LogWarning("No files extracted from file zip.");
 				return ExitCode.Error_Unknown;
 			}
 			else
 			{
-				LogInformation("List of files extracted:");
+				Logger.LogInformation("List of files extracted:");
 				foreach (var file in ExtractedFiles)
 				{
-					LogInformation("\t{0}", file);
+					Logger.LogInformation("\t{file}", file);
 				}
 			}
 		}
@@ -85,21 +86,21 @@ public class ZipUtils : BuildCommand
 		{
 
 			string ArchiveFolder = AddArgs[0];
-			LogInformation("Compress level : {0}", CompressionLevel);
-			LogInformation("Running zip : {0}", ArchiveFolder.ToString());
+			Logger.LogInformation("Compress level : {CompressionLevel}", CompressionLevel);
+			Logger.LogInformation("Running zip : {Arg0}", ArchiveFolder.ToString());
 
 			FileAttributes attr = File.GetAttributes(ArchiveFolder);
 
 			if (!System.IO.Directory.Exists(ArchiveFolder) || !attr.HasFlag(FileAttributes.Directory))
 			{
-				LogError("Invalid zip file path.");
+				Logger.LogError("Invalid zip file path.");
 				return ExitCode.Error_Arguments;
 			}
 
 			InternalZipFiles(new FileReference(ZipFilePath), new DirectoryReference(ArchiveFolder), Filter, CompressionLevel);
 		}
 
-		LogInformation("************************ ZIPUTIL WORK COMPLETED ************************");
+		Logger.LogInformation("************************ ZIPUTIL WORK COMPLETED ************************");
 
 		return ExitCode.Success;
 	}

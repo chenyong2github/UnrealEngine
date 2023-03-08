@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -75,7 +76,7 @@ namespace AutomationTool
 				throw new AutomationException("FortniteEditor receipt not found ({0})", ReceiptFile);
 			}
 
-			LogInformation("Found {0}", ReceiptFile);
+			Logger.LogInformation("Found {ReceiptFile}", ReceiptFile);
 		}
 	}
 }

@@ -10,6 +10,7 @@ using Ionic.Zip;
 using EpicGames.Core;
 using UnrealBuildBase;
 using SheetsHelper;
+using Microsoft.Extensions.Logging;
 
 
 [Help("MemreportToHelper is used to take a memreport file, extract the CSV sections and generate a GSheet from them (i.e:RunUAT.bat MemReportToGSheet -report=myFile.memreport -name=SheetName (optional)")]
@@ -98,11 +99,11 @@ public class MemreportHelper : BuildCommand
 
 	public override ExitCode Execute()
 	{
-		LogInformation("************************ STARTING MemreportHelper ************************");
+		Logger.LogInformation("************************ STARTING MemreportHelper ************************");
 
 		if (Params.Length < 1)
 		{
-			LogError("Invalid number of arguments {0}", Params.Length);
+			Logger.LogError("Invalid number of arguments {Arg0}", Params.Length);
 			return ExitCode.Error_Arguments;
 		}
 
@@ -115,7 +116,7 @@ public class MemreportHelper : BuildCommand
 		
 		if (string.IsNullOrWhiteSpace(MemreportFileorPath))
 		{
-			LogError("No memreport file or directory specified");
+			Logger.LogError("No memreport file or directory specified");
 			return ExitCode.Error_Arguments;
 		}
 
@@ -151,7 +152,7 @@ public class MemreportHelper : BuildCommand
 		{
 			if (File.Exists(MemreportFileorPath) == false)
 			{
-				LogError("Memreport file not found: " + MemreportFileorPath);
+				Logger.LogError("{Text}", "Memreport file not found: " + MemreportFileorPath);
 				return ExitCode.Error_Arguments;
 			}
 
@@ -418,7 +419,7 @@ public class MemreportHelper : BuildCommand
 			}
 		}
 
-		LogInformation("************************ MemreportHelper WORK COMPLETED ************************");
+		Logger.LogInformation("************************ MemreportHelper WORK COMPLETED ************************");
 
 		return ExitCode.Success;
 	}

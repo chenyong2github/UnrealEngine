@@ -33,22 +33,22 @@ namespace BuildScripts.Automation
 			if (TargetCL == -1)
 			{
 				TargetCL = P4.CreateChange(Description: $"Shelving changelists " + string.Join(", ", SourceCLs));
-				Log.TraceInformation($"Creating target changelist >> {TargetCL} << to shelve into");
-				Log.TraceInformation($"");
+				Logger.LogInformation("Creating target changelist >> {TargetCL} << to shelve into", TargetCL);
+				Logger.LogInformation("");
 			}
 			// make sure there aren't files already in the target CL
 			else
 			{
 				if (P4.ChangeFiles(TargetCL, out _, AllowSpew: bAllowSpew).Count > 0)
 				{
-					Log.TraceInformation($"");
-					Log.TraceInformation($"Changelist {TargetCL} already contains files. Note that these files will be reshelved for each source CL.");
+					Logger.LogInformation("");
+					Logger.LogInformation("Changelist {TargetCL} already contains files. Note that these files will be reshelved for each source CL.", TargetCL);
 				}
 
 				if (bCleanTarget)
 				{
-					Log.TraceInformation($"");
-					Log.TraceInformation($"Deleting shelved files in target CL {TargetCL}");
+					Logger.LogInformation("");
+					Logger.LogInformation("Deleting shelved files in target CL {TargetCL}", TargetCL);
 					P4.DeleteShelvedFiles(TargetCL, AllowSpew: bAllowSpew);
 				}	
 			}
@@ -57,28 +57,28 @@ namespace BuildScripts.Automation
 			{
 				List<string> Files = P4.ChangeFiles(CL, out _, AllowSpew: bAllowSpew);
 
-				Log.TraceInformation($"");
+				Logger.LogInformation("");
 				if (Files.Count == 0)
 				{
-					Log.TraceInformation($"Skipping CL {CL}, it had no files!");
+					Logger.LogInformation("Skipping CL {CL}, it had no files!", CL);
 					continue;
 				}
-				Log.TraceInformation($"Shelving from {CL}:");
+				Logger.LogInformation("Shelving from {CL}:", CL);
 
 
-				Log.TraceInformation($"  Moving {Files.Count} files from {CL}");
+				Logger.LogInformation("  Moving {Arg0} files from {CL}", Files.Count, CL);
 				P4.Reopen(TargetCL, Files, AllowSpew: bAllowSpew);
 
-				Log.TraceInformation($"  Shelving...");
+				Logger.LogInformation("  Shelving...");
 				P4.ShelveNoRevert(TargetCL, AllowSpew: bAllowSpew);
 
-				Log.TraceInformation($"  Moving back...");
+				Logger.LogInformation("  Moving back...");
 				P4.Reopen(CL, Files, AllowSpew: bAllowSpew);
 			}
-			Log.TraceInformation($"");
-			Log.TraceInformation($"All done!");
-			Log.TraceInformation($"");
-			Log.TraceInformation($"");
+			Logger.LogInformation("");
+			Logger.LogInformation("All done!");
+			Logger.LogInformation("");
+			Logger.LogInformation("");
 		}
 	}
 }

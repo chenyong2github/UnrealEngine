@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -72,7 +73,7 @@ namespace AutomationTool
 			}
 
 			// Enumerate all the files in the workspace
-			LogInformation("Finding files in workspace...");
+			Logger.LogInformation("Finding files in workspace...");
 
 			List<FileInfo> FilesToCheck = new List<FileInfo>();
 			using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
@@ -83,7 +84,7 @@ namespace AutomationTool
 			}
 
 			// Scan all of the files for invalid comments
-			LogInformation("Scanning files...", FilesToCheck.Count);
+			Logger.LogInformation("Scanning files...", FilesToCheck.Count);
 			using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 			{
 				foreach(FileInfo File in FilesToCheck)
@@ -95,7 +96,7 @@ namespace AutomationTool
 				{
 					lock(this)
 					{
-						LogInformation("Scanning files... [{0}/{1}]", FilesToCheck.Count - Queue.NumRemaining, FilesToCheck.Count);
+						Logger.LogInformation("Scanning files... [{Arg0}/{Arg1}]", FilesToCheck.Count - Queue.NumRemaining, FilesToCheck.Count);
 					}
 				}
 			}

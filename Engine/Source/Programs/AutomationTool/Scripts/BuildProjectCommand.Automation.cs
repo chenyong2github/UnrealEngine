@@ -9,6 +9,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 [Flags]
 public enum ProjectBuildTargets
@@ -69,7 +70,7 @@ namespace AutomationScripts
 				return;
 			}
 
-			LogInformation("********** BUILD COMMAND STARTED **********");
+			Logger.LogInformation("********** BUILD COMMAND STARTED **********");
 			var StartTime = DateTime.UtcNow;
 
 			var UnrealBuild = new UnrealBuild(Command);
@@ -241,8 +242,8 @@ namespace AutomationScripts
 				UnrealBuild.AddBuildProductsToChangelist(WorkingCL, UnrealBuild.BuildProductFiles);
 			}
 
-			LogInformation("Build command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
-			LogInformation("********** BUILD COMMAND COMPLETED **********");
+			Logger.LogInformation("Build command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
+			Logger.LogInformation("********** BUILD COMMAND COMPLETED **********");
 		}
 	}
 }

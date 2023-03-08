@@ -8,6 +8,7 @@ using System.Text;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 [Help("Builds common tools used by the engine which are not part of typical editor or game builds. Useful when syncing source-only on GitHub.")]
 [Help("platforms=<X>+<Y>+...", "Specifies on or more platforms to build for (defaults to the current host platform)")]
@@ -16,7 +17,7 @@ public class BuildCommonTools : BuildCommand
 {
 	public override void ExecuteBuild()
 	{
-		LogInformation("************************* BuildCommonTools");
+		Logger.LogInformation("************************* BuildCommonTools");
 
 		List<UnrealTargetPlatform> Platforms = new List<UnrealTargetPlatform>();
 
@@ -146,10 +147,10 @@ public class ZipProjectUp : BuildCommand
 		string InstallDirectory = ParseParamValue("install", "");
 		ProjectDirectory = Path.GetDirectoryName(ProjectDirectory);
 
-		LogInformation("Started zipping project up");
-		LogInformation("Project directory: {0}", ProjectDirectory);
-		LogInformation("Install directory: {0}", InstallDirectory);
-		LogInformation("Packaging up the project...");
+		Logger.LogInformation("Started zipping project up");
+		Logger.LogInformation("Project directory: {ProjectDirectory}", ProjectDirectory);
+		Logger.LogInformation("Install directory: {InstallDirectory}", InstallDirectory);
+		Logger.LogInformation("Packaging up the project...");
 
 		// Setup filters
 		FileFilter Filter = new FileFilter();
@@ -163,6 +164,6 @@ public class ZipProjectUp : BuildCommand
 
 		ZipFiles(new FileReference(InstallDirectory), new DirectoryReference(ProjectDirectory), Filter);
 
-		LogInformation("Completed zipping project up");
+		Logger.LogInformation("Completed zipping project up");
 	}
 }

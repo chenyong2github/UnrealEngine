@@ -8,6 +8,7 @@ using System.Reflection;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationScripts
 {
@@ -21,7 +22,7 @@ namespace AutomationScripts
 				return;
 			}
 
-			LogInformation("********** GETFILE COMMAND STARTED **********");
+			Logger.LogInformation("********** GETFILE COMMAND STARTED **********");
 			var StartTime = DateTime.UtcNow;
 
 			var FileName = Path.GetFileName(Params.GetFile);
@@ -35,8 +36,8 @@ namespace AutomationScripts
 
 			SC[0].StageTargetPlatform.GetTargetFile(Params.GetFile, LocalFile, Params);
 
-			LogInformation("GetFile command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
-			LogInformation("********** GETFILE COMMAND COMPLETED **********");
+			Logger.LogInformation("GetFile command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
+			Logger.LogInformation("********** GETFILE COMMAND COMPLETED **********");
 		}
 	}
 }

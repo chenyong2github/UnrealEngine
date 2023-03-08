@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildTool;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Benchmark
 {
@@ -57,7 +58,7 @@ namespace AutomationTool.Benchmark
 				SourceFile = FileReference.Combine(Unreal.EngineDirectory, "Source/Runtime/Engine/Private/UnrealEngine.cpp");
 			}
 
-			Log.TraceVerbose("Will compile {0} for single-file compilation test for {1}", SourceFile, ProjectName);
+			Logger.LogDebug("Will compile {SourceFile} for single-file compilation test for {ProjectName}", SourceFile, ProjectName);
 		}
 
 		protected override bool PerformPrequisites()

@@ -7,6 +7,7 @@ using UnrealBuildTool;
 using System;
 using System.Text;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -45,7 +46,7 @@ namespace AutomationTool
 			PlatformReport Report = GenerateDDPIReport(Platforms, DDPISection);
 			if (Report.Rows.Count <= 1)
 			{
-				Log.TraceError("cannot generate report");
+				Logger.LogError("cannot generate report");
 				return;
 			}
 

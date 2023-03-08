@@ -19,12 +19,15 @@ using System.Net;
 using System.Net.Sockets;
 using System.IO.Compression;
 using Newtonsoft.Json.Linq;
+using Microsoft.Extensions.Logging;
 
 
 namespace AutomationTool
 {
 	public class AndroidFileClient
 	{
+		protected static ILogger Logger => Log.Logger;
+
 		private const bool TimeBatching = false;
 
 		private const int DefaultPort = 57099;
@@ -137,7 +140,7 @@ namespace AutomationTool
 					IProcessResult Result = CommandUtils.Run(Executable, "start-server", null, CommandUtils.ERunOptions.NoLoggingOfRunCommand);
 					if (Result.ExitCode != 0)
 					{
-						Log.TraceError("Unable to execute adb to start adb server");
+						Logger.LogError("Unable to execute adb to start adb server");
 						return false;
 					}
 
@@ -159,11 +162,11 @@ namespace AutomationTool
 					}
 					catch (SocketException se)
 					{
-						Log.TraceWarning("SocketException: {0}", se.ToString());
+						Logger.LogWarning("SocketException: {Arg0}", se.ToString());
 					}
 					catch (Exception e)
 					{
-						Log.TraceError("Unexpected Exception: {0}", e.ToString());
+						Logger.LogError("Unexpected Exception: {Arg0}", e.ToString());
 					}
 					finally
 					{
@@ -741,17 +744,17 @@ namespace AutomationTool
 
 		public void Stats_Report()
 		{
-			Log.TraceInformation("Total bytes received:    {0}", Stats_TotalBytesReceived);
-			Log.TraceInformation("Payload bytes received:  {0}", Stats_PayloadBytesReceived);
-			Log.TraceInformation("Total files read:        {0}", Stats_FilesRead);
-			Log.TraceInformation(".");
-			Log.TraceInformation("Total bytes sent:        {0}", Stats_TotalBytesSent);
-			Log.TraceInformation("Payload bytes sent:      {0}", Stats_PayloadBytesSent);
-			Log.TraceInformation("Total files written:     {0}", Stats_FilesWrite);
-			Log.TraceInformation(".");
-			Log.TraceInformation("Uncompressed bytes recv: {0}", Stats_CompressedBytesReceived);
-			Log.TraceInformation("Uncompressed bytes sent: {0}", Stats_CompressedBytesSent);
-			Log.TraceInformation(".");
+			Logger.LogInformation("Total bytes received:    {Stats_TotalBytesReceived}", Stats_TotalBytesReceived);
+			Logger.LogInformation("Payload bytes received:  {Stats_PayloadBytesReceived}", Stats_PayloadBytesReceived);
+			Logger.LogInformation("Total files read:        {Stats_FilesRead}", Stats_FilesRead);
+			Logger.LogInformation(".");
+			Logger.LogInformation("Total bytes sent:        {Stats_TotalBytesSent}", Stats_TotalBytesSent);
+			Logger.LogInformation("Payload bytes sent:      {Stats_PayloadBytesSent}", Stats_PayloadBytesSent);
+			Logger.LogInformation("Total files written:     {Stats_FilesWrite}", Stats_FilesWrite);
+			Logger.LogInformation(".");
+			Logger.LogInformation("Uncompressed bytes recv: {Stats_CompressedBytesReceived}", Stats_CompressedBytesReceived);
+			Logger.LogInformation("Uncompressed bytes sent: {Stats_CompressedBytesSent}", Stats_CompressedBytesSent);
+			Logger.LogInformation(".");
 
 			if (Stats_Stopwatch != null)
 			{
@@ -759,9 +762,9 @@ namespace AutomationTool
 
 				var ElapsedMs = Stats_Stopwatch.ElapsedMilliseconds;
 				double MBPerSec = (double)Stats_TotalBytesSent / ((double)ElapsedMs / 1000.0) / 1024.0 / 1024.0;
-				Log.TraceInformation("Actual sent:  {0:N1} MB/s ({1} in {2:N3}s)", MBPerSec, Stats_TotalBytesSent, (float)(ElapsedMs / 1000.0));
+				Logger.LogInformation("Actual sent:  {0:N1} MB/s ({Stats_TotalBytesSent} in {2:N3}s)", MBPerSec, Stats_TotalBytesSent, (float)(ElapsedMs / 1000.0));
 				MBPerSec = (double)Stats_CompressedBytesSent / ((double)ElapsedMs / 1000.0) / 1024.0 / 1024.0;
-				Log.TraceInformation("Uncompressed: {0:N1} MB/s ({1} in {2:N3}s)", MBPerSec, Stats_CompressedBytesSent, (float)(ElapsedMs / 1000.0));
+				Logger.LogInformation("Uncompressed: {0:N1} MB/s ({Stats_CompressedBytesSent} in {2:N3}s)", MBPerSec, Stats_CompressedBytesSent, (float)(ElapsedMs / 1000.0));
 			}
 		}
 
@@ -839,7 +842,7 @@ namespace AutomationTool
 				}
 				catch (Exception e)
 				{
-					Log.TraceError("Unexpected Exception: {0}", e.ToString());
+					Logger.LogError("Unexpected Exception: {Arg0}", e.ToString());
 					CloseConnection();
 				}
 			}
@@ -1037,7 +1040,7 @@ namespace AutomationTool
 			}
 			catch (Exception e)
 			{
-				Log.TraceError("Unexpected Exception: {0}", e.ToString());
+				Logger.LogError("Unexpected Exception: {Arg0}", e.ToString());
 				CloseConnection();
 			}
 			return Result;
@@ -1079,7 +1082,7 @@ namespace AutomationTool
 			}
 			catch (Exception e)
 			{
-				Log.TraceError("Unexpected Exception: {0}", e.ToString());
+				Logger.LogError("Unexpected Exception: {Arg0}", e.ToString());
 				CloseConnection();
 			}
 			return Result;
@@ -1259,7 +1262,7 @@ namespace AutomationTool
 						int version = message[0] + (message[1] << 8);
 						if (version == ServerVersion)
 						{
-							Log.TraceInformation("Connected to RemoteFileManager");
+							Logger.LogInformation("Connected to RemoteFileManager");
 							return true;
 						}
 					}
@@ -1274,7 +1277,7 @@ namespace AutomationTool
 			}
 			catch (ArgumentNullException ane)
 			{
-				Log.TraceWarning("ArgumentNullException: {0}", ane.ToString());
+				Logger.LogWarning("ArgumentNullException: {Arg0}", ane.ToString());
 			}
 			catch (SocketException se)
 			{
@@ -1285,12 +1288,12 @@ namespace AutomationTool
 				}
 				else
 				{
-					Log.TraceWarning("SocketException: {0}", message);
+					Logger.LogWarning("SocketException: {message}", message);
 				}
 			}
 			catch (Exception e)
 			{
-				Log.TraceWarning("OpenConnection failed: {0}", e.ToString());
+				Logger.LogWarning("OpenConnection failed: {Arg0}", e.ToString());
 			}
 
 			if (ClientSocket != null)
@@ -1636,7 +1639,7 @@ namespace AutomationTool
 				}
 				if (!bFound)
 				{
-					Log.TraceInformation("Did not find package with receiver");
+					Logger.LogInformation("Did not find package with receiver");
 					return false;
 				}
 			}
@@ -1662,7 +1665,7 @@ namespace AutomationTool
 				}
 				if (!bFound)
 				{
-					Log.TraceInformation("Did not find package with activity");
+					Logger.LogInformation("Did not find package with activity");
 					return false;
 				}
 			}
@@ -1701,7 +1704,7 @@ namespace AutomationTool
 					GetListenStatus(Device, ServerPort, out bUSB, out bWifi, out WifiAddress);
 				}
 
-				Log.TraceInformation("Did not find a bind listener");
+				Logger.LogInformation("Did not find a bind listener");
 				return false;
 			}
 
@@ -1720,7 +1723,7 @@ namespace AutomationTool
 				adb.Shell(Device, StartCommand);
 			}
 
-			Log.TraceInformation("Timed out on connection attempts");
+			Logger.LogInformation("Timed out on connection attempts");
 			return false;
 		}
 
@@ -1749,7 +1752,7 @@ namespace AutomationTool
 				}
 				catch (SocketException se)
 				{
-					Log.TraceWarning("SocketException: {0}", se.ToString());
+					Logger.LogWarning("SocketException: {Arg0}", se.ToString());
 				}
 				catch (ObjectDisposedException)
 				{
@@ -1757,7 +1760,7 @@ namespace AutomationTool
 				}
 				catch (Exception e)
 				{
-					Log.TraceError("Unexpected Exception: {0}", e.ToString());
+					Logger.LogError("Unexpected Exception: {Arg0}", e.ToString());
 				}
 			}
 		}
@@ -1779,7 +1782,7 @@ namespace AutomationTool
 				}
 				catch (SocketException se)
 				{
-					Log.TraceWarning("SocketException: {0}", se.ToString());
+					Logger.LogWarning("SocketException: {Arg0}", se.ToString());
 				}
 				catch (ObjectDisposedException)
 				{
@@ -1787,7 +1790,7 @@ namespace AutomationTool
 				}
 				catch (Exception e)
 				{
-					Log.TraceError("Unexpected Exception: {0}", e.ToString());
+					Logger.LogError("Unexpected Exception: {Arg0}", e.ToString());
 				}
 			}
 
@@ -1877,7 +1880,7 @@ namespace AutomationTool
 		{
 			Boolean Result = false;
 
-			Log.TraceInformation("FileRead {0}", SourcePath);
+			Logger.LogInformation("FileRead {SourcePath}", SourcePath);
 
 			if (ClientSocket == null)
 			{
@@ -1930,7 +1933,7 @@ namespace AutomationTool
 					}
 					catch (Exception e)
 					{
-						Log.TraceError("Unexpected Exception: {0}", e.ToString());
+						Logger.LogError("Unexpected Exception: {Arg0}", e.ToString());
 						// ignore received data
 						long remainingSkip = resultSize;
 						while (remainingSkip > 0)
@@ -1947,7 +1950,7 @@ namespace AutomationTool
 			}
 			catch (Exception e)
 			{
-				Log.TraceError("Unexpected Exception: {0}", e.ToString());
+				Logger.LogError("Unexpected Exception: {Arg0}", e.ToString());
 				CloseConnection();
 			}
 			return Result;
@@ -1970,7 +1973,7 @@ namespace AutomationTool
 					DestPath = OptimizePath(DestPath);
 					if (bLog > 0)
 					{
-						Log.TraceInformation("{0}> Writing {1}", bLog, DestPath);
+						Logger.LogInformation("{bLog}> Writing {DestPath}", bLog, DestPath);
 					}
 
 					long fileSize = fileStream.Length;
@@ -2050,7 +2053,7 @@ namespace AutomationTool
 			}
 			catch (Exception e)
 			{
-				Log.TraceError("{0}> Unexpected Exception: {1}", bLog, e.ToString());
+				Logger.LogError("{bLog}> Unexpected Exception: {Arg1}", bLog, e.ToString());
 				CloseConnection();
 			}
 			return Result;
@@ -2080,7 +2083,7 @@ namespace AutomationTool
 					DestPath = OptimizePath(DestPath);
 					if (bLog > 0)
 					{
-						Log.TraceInformation("{0}> Writing Compressed {1}", bLog, DestPath);
+						Logger.LogInformation("{bLog}> Writing Compressed {DestPath}", bLog, DestPath);
 					}
 
 					Stats_FilesWrite++;
@@ -2184,7 +2187,7 @@ namespace AutomationTool
 			}
 			catch (Exception e)
 			{
-				Log.TraceError("{0}> Unexpected Exception: {1}", bLog, e.ToString());
+				Logger.LogError("{bLog}> Unexpected Exception: {Arg1}", bLog, e.ToString());
 				CloseConnection();
 			}
 			return Result;
@@ -2231,7 +2234,7 @@ namespace AutomationTool
 			}
 			catch (Exception e)
 			{
-				Log.TraceError("Unexpected Exception: {0}", e.ToString());
+				Logger.LogError("Unexpected Exception: {Arg0}", e.ToString());
 				CloseConnection();
 			}
 			return Result;
@@ -2253,14 +2256,14 @@ namespace AutomationTool
 			}
 			if (!Result && bLog > 0)
 			{
-				Log.TraceInformation("{0}> Failed to copy {1} to {2}", bLog, InSource, InDest);
+				Logger.LogInformation("{bLog}> Failed to copy {InSource} to {InDest}", bLog, InSource, InDest);
 				return false;
 			}
 
 			/*
 			if (bLog > 0)
 			{
-				Log.TraceInformation("{0}> Copied: {1}", bLog, InSource);
+				Logger.LogInformation("{bLog}> Copied: {InSource}", bLog, InSource);
 			}
 			*/
 			return true;
@@ -2399,7 +2402,7 @@ namespace AutomationTool
 			var ElapsedMs = stopwatch.ElapsedMilliseconds;
 			if (bReportStats)
 			{
-				Log.TraceInformation("Time to create directories:  {0:N3}s", (float)(ElapsedMs / 1000.0));
+				Logger.LogInformation("Time to create directories:  {0:N3}s", (float)(ElapsedMs / 1000.0));
 			}
 
 			Stats_Clear();
@@ -2511,7 +2514,7 @@ namespace AutomationTool
 				if (bReportStats)
 				{
 					ElapsedMs = stopwatch.ElapsedMilliseconds;
-					Log.TraceInformation("Time to build batch:  {0:N3}s", (float)(ElapsedMs / 1000.0));
+					Logger.LogInformation("Time to build batch:  {0:N3}s", (float)(ElapsedMs / 1000.0));
 				}
 				Stats_Stopwatch.Stop();
 				Stats_StartStopwatch();
@@ -2530,7 +2533,7 @@ namespace AutomationTool
 				Stats_Report();
 
 				ElapsedMs = totalwatch.ElapsedMilliseconds;
-				Log.TraceInformation("Total time to Deploy AFS:  {0:N3}s", (float)(ElapsedMs / 1000.0));
+				Logger.LogInformation("Total time to Deploy AFS:  {0:N3}s", (float)(ElapsedMs / 1000.0));
 			}
 
 			return Result;
@@ -2539,29 +2542,29 @@ namespace AutomationTool
 		/*
 		public void TestOptimizePath()
 		{
-			Log.TraceInformation("{0}", OptimizePath("/storage/emulated/0/Android/data/com.epicgames.SaveTest/files/UE4Game/SaveTest/Manifest_DebugFiles_Android.txt"));
-			Log.TraceInformation("{0}", OptimizePath("/storage/emulated/0/Android/data/com.epicgames.SaveTest/files/UE4Game/SaveTest/DataDrivenPlatformInfo.ini"));
-			Log.TraceInformation("{0}", OptimizePath("/storage/emulated/0/Android/data/com.epicgames.SaveTest/files/UE4Game/SaveTest/Engine/Config/Layouts/DefaultLayout.ini"));
-			Log.TraceInformation("{0}", OptimizePath("/storage/emulated/0/Android/data/com.epicgames.SaveTest/files/UE4Game/SaveTest/Engine/Content/ArtTools/RenderToTexture/Materials/Debug/M_Emissive_Color.uasset"));
+			Logger.LogInformation("{Arg0}", OptimizePath("/storage/emulated/0/Android/data/com.epicgames.SaveTest/files/UE4Game/SaveTest/Manifest_DebugFiles_Android.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("/storage/emulated/0/Android/data/com.epicgames.SaveTest/files/UE4Game/SaveTest/DataDrivenPlatformInfo.ini"));
+			Logger.LogInformation("{Arg0}", OptimizePath("/storage/emulated/0/Android/data/com.epicgames.SaveTest/files/UE4Game/SaveTest/Engine/Config/Layouts/DefaultLayout.ini"));
+			Logger.LogInformation("{Arg0}", OptimizePath("/storage/emulated/0/Android/data/com.epicgames.SaveTest/files/UE4Game/SaveTest/Engine/Content/ArtTools/RenderToTexture/Materials/Debug/M_Emissive_Color.uasset"));
 
-			Log.TraceInformation("{0}", OptimizePath("/storage/0/emulated/commandfile.txt"));
-			Log.TraceInformation("{0}", OptimizePath("/storage/0/emulated/123.txt"));
-			Log.TraceInformation("{0}", OptimizePath("/storage/0/emulated/game/123.txt"));
-			Log.TraceInformation("{0}", OptimizePath("/storage/0/emulated/every.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("/storage/0/emulated/commandfile.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("/storage/0/emulated/123.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("/storage/0/emulated/game/123.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("/storage/0/emulated/every.txt"));
 
-			Log.TraceInformation("{0}", OptimizePath("^commandfile"));
-			Log.TraceInformation("{0}", OptimizePath("^commandfile"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^commandfile"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^commandfile"));
 
-			Log.TraceInformation("{0}", OptimizePath("^ext/z.txt"));
-			Log.TraceInformation("{0}", OptimizePath("^ext/abc.txt"));
-			Log.TraceInformation("{0}", OptimizePath("^ext/cde.txt"));
-			Log.TraceInformation("{0}", OptimizePath("^ext/1/abc.txt"));
-			Log.TraceInformation("{0}", OptimizePath("^ext/1/2/abc.txt"));
-			Log.TraceInformation("{0}", OptimizePath("^ext/xyz.txt"));
-			Log.TraceInformation("{0}", OptimizePath("^ext/1/2/stu.txt"));
-			Log.TraceInformation("{0}", OptimizePath("^ext/1/wer.txt"));
-			Log.TraceInformation("{0}", OptimizePath("^int/1/2/stu.txt"));
-			Log.TraceInformation("{0}", OptimizePath("^int/1/abc.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^ext/z.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^ext/abc.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^ext/cde.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^ext/1/abc.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^ext/1/2/abc.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^ext/xyz.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^ext/1/2/stu.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^ext/1/wer.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^int/1/2/stu.txt"));
+			Logger.LogInformation("{Arg0}", OptimizePath("^int/1/abc.txt"));
 		}
 		*/
 	}

@@ -15,6 +15,7 @@ using System.Diagnostics;
 using EpicGames.Core;
 using System.Xml;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 static class IOSEnvVarNames
 {
@@ -712,7 +713,7 @@ public class IOSPlatform : ApplePlatform
 		}
 		else
 		{
-			LogWarning("Use Custom Launch Screen Storyboard is checked but not compiled storyboard could be found. Have you compiled on Mac first ? Falling back to Standard Storyboard");
+			Logger.LogWarning("Use Custom Launch Screen Storyboard is checked but not compiled storyboard could be found. Have you compiled on Mac first ? Falling back to Standard Storyboard");
 			StageStandardLaunchScreenStoryboard(Params, SC);
 		}
 	}
@@ -747,7 +748,7 @@ public class IOSPlatform : ApplePlatform
 
 	public override void Package(ProjectParams Params, DeploymentContext SC, int WorkingCL)
 	{
-		LogInformation("Package {0}", Params.RawProjectPath);
+		Logger.LogInformation("Package {Arg0}", Params.RawProjectPath);
 
 		bool bIsBuiltAsFramework = IsBuiltAsFramework(Params, SC);
 
@@ -757,7 +758,7 @@ public class IOSPlatform : ApplePlatform
 		string FullExePath = CombinePaths(Path.GetDirectoryName(ProjectGameExeFilename), SC.StageExecutables[0] + (UnrealBuildTool.BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac ? ".stub" : ""));
 		if (!SC.IsCodeBasedProject && !FileExists_NoExceptions(FullExePath) && !bIsBuiltAsFramework)
 		{
-			LogError("Failed to find game binary " + FullExePath);
+			Logger.LogError("{Text}", "Failed to find game binary " + FullExePath);
 			throw new AutomationException(ExitCode.Error_MissingExecutable, "Stage Failed. Could not find binary {0}. You may need to build the Unreal Engine project with your target configuration and platform.", FullExePath);
 		}
 #endif // PLATFORM_MAC
@@ -908,11 +909,11 @@ public class IOSPlatform : ApplePlatform
 			// package a .ipa from the now staged directory
 			var IPPExe = CombinePaths(CmdEnv.LocalRoot, "Engine/Binaries/DotNET/IOS/IPhonePackager.exe");
 
-			LogLog("ProjectName={0}", Params.ShortProjectName);
-			LogLog("ProjectStub={0}", ProjectStub);
-			LogLog("ProjectIPA={0}", ProjectIPA);
-			LogLog("IPPProjectIPA={0}", IPPProjectIPA);
-			LogLog("IPPExe={0}", IPPExe);
+			Logger.LogDebug("ProjectName={Arg0}", Params.ShortProjectName);
+			Logger.LogDebug("ProjectStub={ProjectStub}", ProjectStub);
+			Logger.LogDebug("ProjectIPA={ProjectIPA}", ProjectIPA);
+			Logger.LogDebug("IPPProjectIPA={IPPProjectIPA}", IPPProjectIPA);
+			Logger.LogDebug("IPPExe={IPPExe}", IPPExe);
 
 			bool cookonthefly = Params.CookOnTheFly || Params.SkipCookOnTheFly;
 
@@ -1166,7 +1167,7 @@ public class IOSPlatform : ApplePlatform
 							UUID = AllText.Substring(idx, AllText.IndexOf("</string>", idx) - idx);
 							Arguments += " PROVISIONING_PROFILE_SPECIFIER=" + UUID;
 
-							LogInformation("Extracted Provision UUID {0} from {1}", UUID, Provision);
+							Logger.LogInformation("Extracted Provision UUID {UUID} from {Provision}", UUID, Provision);
 						}
 					}
 				}
@@ -1344,7 +1345,7 @@ public class IOSPlatform : ApplePlatform
 		string DestSymlink = Path.Combine(DestOuterApp, "WrappedBundle");
 		string DestInnerApp = Path.Combine(DestOuterApp, "Wrapper", $"{GameName}.app");
 
-		LogInformation($"Creating IOSOnMac app {DestOuterApp}");
+		Logger.LogInformation("Creating IOSOnMac app {DestOuterApp}", DestOuterApp);
 
 		DeleteDirectory_NoExceptions(DestOuterApp);
 		CopyDirectory_NoExceptions(SourceApp, DestInnerApp);
@@ -1682,7 +1683,7 @@ public class IOSPlatform : ApplePlatform
 		}
 		else if (bXCArchive && RuntimePlatform.IsWindows)
 		{
-			LogWarning("Can not produce an XCArchive on windows");
+			Logger.LogWarning("Can not produce an XCArchive on windows");
 		}
 		SC.ArchiveFiles(Path.GetDirectoryName(ProjectIPA), Path.GetFileName(ProjectIPA));
 	}
@@ -1714,7 +1715,7 @@ public class IOSPlatform : ApplePlatform
 			IdeviceInstallerArgs = GetLibimobileDeviceNetworkedArgument(IdeviceInstallerArgs, Params.DeviceNames[0]);
 
 			var DeviceInstaller = GetPathToLibiMobileDeviceTool("ideviceinstaller");
-			LogInformation("Checking if bundle {0} is installed", BundleIdentifier);
+			Logger.LogInformation("Checking if bundle {BundleIdentifier} is installed", BundleIdentifier);
 
 			string Output = CommandUtils.RunAndLog(DeviceInstaller, IdeviceInstallerArgs);
 			bool bBundleIsInstalled = Output.Contains(string.Format("CFBundleIdentifier -> {0}{1}", BundleIdentifier, Environment.NewLine));
@@ -1722,7 +1723,7 @@ public class IOSPlatform : ApplePlatform
 
 			if (bBundleIsInstalled)
 			{
-				LogInformation("Bundle {0} found, retrieving deployed manifests...", BundleIdentifier);
+				Logger.LogInformation("Bundle {BundleIdentifier} found, retrieving deployed manifests...", BundleIdentifier);
 
 				var DeviceFS = GetPathToLibiMobileDeviceTool("idevicefs");
 
@@ -1747,7 +1748,7 @@ public class IOSPlatform : ApplePlatform
 			}
 			else
 			{
-				LogInformation("Bundle {0} not found, skipping retrieving deployed manifests", BundleIdentifier);
+				Logger.LogInformation("Bundle {BundleIdentifier} not found, skipping retrieving deployed manifests", BundleIdentifier);
 			}
 		}
 		catch (System.Exception)
@@ -2357,17 +2358,17 @@ public class IOSPlatform : ApplePlatform
 			if (!File.Exists(SourcePackage))
             {
 				IPAFiles = Directory.GetFiles(PackagePath, "*.ipa");
-				LogWarning("Source package not found : {0}, trying to find another IPA file in the same folder.", SourcePackage);
+				Logger.LogWarning("Source package not found : {SourcePackage}, trying to find another IPA file in the same folder.", SourcePackage);
 				if (IPAFiles.Length == 0)
                 {
-					LogError("No IPA file found in : {0}. Aborting.", PackagePath);
+					Logger.LogError("No IPA file found in : {PackagePath}. Aborting.", PackagePath);
 					throw new AutomationException(ExitCode.Error_MissingExecutable, "No IPA file found in {0}.", PackagePath);
 				}
 				else
                 {
 					if (IPAFiles.Length > 1)
                     {
-						LogWarning("More than one IPA file found. Taking the first one found, {0}", IPAFiles[0]);
+						Logger.LogWarning("More than one IPA file found. Taking the first one found, {Arg0}", IPAFiles[0]);
 					}
 					SourcePackage = IPAFiles[0];
 				}					
@@ -2379,16 +2380,16 @@ public class IOSPlatform : ApplePlatform
 			PayloadPath = PayloadPath.Substring(0, PayloadPath.LastIndexOf('\\'));
 			string CookedDataDirectory = Path.Combine(Path.GetDirectoryName(PayloadPath), ClientPlatform, "Payload", PackageName + ".app", "cookeddata");
 
-			LogInformation("ClientPlatform : {0}", ClientPlatform);
-			LogInformation("ProjectFilePath : {0}", ProjectFilePath);
-			LogInformation("Source : {0}", SourcePackage);
-			LogInformation("ZipFile {0}", ZipFile);
-			LogInformation("PackageName {0}", PackageName);
-			LogInformation("PayloadPath {0}", PayloadPath);
+			Logger.LogInformation("ClientPlatform : {ClientPlatform}", ClientPlatform);
+			Logger.LogInformation("ProjectFilePath : {ProjectFilePath}", ProjectFilePath);
+			Logger.LogInformation("Source : {SourcePackage}", SourcePackage);
+			Logger.LogInformation("ZipFile {ZipFile}", ZipFile);
+			Logger.LogInformation("PackageName {PackageName}", PackageName);
+			Logger.LogInformation("PayloadPath {PayloadPath}", PayloadPath);
 
 			if (File.Exists(ZipFile))
 			{
-				LogInformation("Deleting previously present ZIP file created from IPA");
+				Logger.LogInformation("Deleting previously present ZIP file created from IPA");
 				File.Delete(ZipFile);
 			}
 
@@ -2414,13 +2415,13 @@ public class IOSPlatform : ApplePlatform
 				}
 			}
 			//cleanup
-			LogInformation("Deleting temp files ...");
+			Logger.LogInformation("Deleting temp files ...");
 			File.Delete(ZipFile);
-			LogInformation("{0} deleted", ZipFile);
+			Logger.LogInformation("{ZipFile} deleted", ZipFile);
 		}
 		else
 		{
-			LogInformation("Wrangling data for debug for an iOS/tvOS app for XCode is a Mac and Windows (Remote) only feature. Aborting command.");
+			Logger.LogInformation("Wrangling data for debug for an iOS/tvOS app for XCode is a Mac and Windows (Remote) only feature. Aborting command.");
 			return;
 		}
 	}
@@ -2429,7 +2430,7 @@ public class IOSPlatform : ApplePlatform
 	{
 		string UnzipPath = PackageToUnzip;
 		UnzipPath = UnzipPath.Substring(0, UnzipPath.LastIndexOf('\\'));
-		LogInformation("Unzipping to {0}", UnzipPath);
+		Logger.LogInformation("Unzipping to {UnzipPath}", UnzipPath);
 
 		using (Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(PackageToUnzip))
 		{
@@ -2441,7 +2442,7 @@ public class IOSPlatform : ApplePlatform
 				{
 					Entry.Extract(OutputStream);
 				}
-				LogInformation("Extracted {0}", OutputFileName);
+				Logger.LogInformation("Extracted {OutputFileName}", OutputFileName);
 			}
 		}
 	}

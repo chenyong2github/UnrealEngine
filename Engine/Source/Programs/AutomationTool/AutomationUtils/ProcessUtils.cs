@@ -820,11 +820,11 @@ namespace AutomationTool
 
 			if (ResolvedPath != null)
 			{
-				Log.Logger.LogTrace("Resolved {App} to {ResolvedPath}", App, ResolvedPath);
+				Logger.LogTrace("Resolved {App} to {ResolvedPath}", App, ResolvedPath);
 			}
 			else
 			{
-				Log.Logger.LogDebug("Could not resolve app {App}", App);
+				Logger.LogDebug("Could not resolve app {App}", App);
 			}
 
 			return ResolvedPath;
@@ -1134,7 +1134,7 @@ namespace AutomationTool
 		{
 			while (!FileExists(LogFilename) && !LogProcess.HasExited)
 			{
-				Log.Logger.LogInformation("Waiting for logging process to start...");
+				Logger.LogInformation("Waiting for logging process to start...");
 				Thread.Sleep(2000);
 			}
 			Thread.Sleep(1000);

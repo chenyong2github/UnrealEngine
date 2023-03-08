@@ -25,7 +25,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Populates ScriptCommands
 		/// </summary>
-		static void EnumerateScriptCommands()
+		static void EnumerateScriptCommands(ILogger Logger)
 		{
 			ScriptCommands = new Dictionary<string, Type>(StringComparer.InvariantCultureIgnoreCase);
 			foreach (Assembly CompiledScripts in AllScriptAssemblies)
@@ -46,7 +46,7 @@ namespace AutomationTool
 
 								if (IsSame == false)
 								{
-									Log.TraceWarning("Unable to add command {0} twice. Previous: {1}, Current: {2}", ClassType.Name,
+									Logger.LogWarning("Unable to add command {ClassName} twice. Previous: {OldQualifiedName}, Current: {NewQualifiedName}", ClassType.Name,
 										ClassType.AssemblyQualifiedName, ScriptCommands[ClassType.Name].AssemblyQualifiedName);
 								}
 							}
@@ -57,7 +57,7 @@ namespace AutomationTool
 				{
 					foreach (Exception SubEx in LoadEx.LoaderExceptions)
 					{
-						Log.Logger.LogWarning(SubEx, "Got type loader exception: {SubEx}", SubEx.ToString());
+						Logger.LogWarning(SubEx, "Got type loader exception: {SubEx}", SubEx.ToString());
 					}
 					throw new AutomationException("Failed to add commands from {0}. {1}", CompiledScripts, LoadEx);
 				}
@@ -103,9 +103,10 @@ namespace AutomationTool
 		/// <summary>
 		/// Loads all precompiled assemblies (DLLs that end with *Scripts.dll).
 		/// </summary>
-		/// <param name="Projects">Projects to load</param>
+		/// <param name="AssemblyPaths"></param>
+		/// <param name="Logger"></param>
 		/// <returns>List of compiled assemblies</returns>
-		public static void LoadScriptAssemblies(IEnumerable<FileReference> AssemblyPaths)
+		public static void LoadScriptAssemblies(IEnumerable<FileReference> AssemblyPaths, ILogger Logger)
 		{
 			foreach (FileReference AssemblyLocation in AssemblyPaths)
 			{
@@ -127,7 +128,7 @@ namespace AutomationTool
 
 			Platform.InitializePlatforms(AllScriptAssemblies);
 
-			EnumerateScriptCommands();
+			EnumerateScriptCommands(Logger);
 
 			EnumerateBuildProducts();
 		}

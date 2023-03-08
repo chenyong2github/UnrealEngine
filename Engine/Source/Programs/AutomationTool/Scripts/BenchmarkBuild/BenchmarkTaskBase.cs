@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Benchmark
 {
@@ -67,6 +68,11 @@ namespace AutomationTool.Benchmark
 	/// </summary>
 	abstract class BenchmarkTaskBase
 	{
+		/// <summary>
+		/// Default logger instance
+		/// </summary>
+		protected static ILogger Logger => Log.Logger;
+
 		/// <summary>
 		/// True or false based on whether the task failed
 		/// </summary>
@@ -224,7 +230,7 @@ namespace AutomationTool.Benchmark
 			
 			if (Failed)
 			{
-				Log.TraceError("{0} failed. {1}", FullName, FailureString);
+				Logger.LogError("{FullName} failed. {FailureString}", FullName, FailureString);
 			}
 
 			try
@@ -233,7 +239,7 @@ namespace AutomationTool.Benchmark
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceError("Cleanup of {0} failed. {1}", FullName, Ex);
+				Logger.LogError("Cleanup of {FullName} failed. {Ex}", FullName, Ex);
 			}
 		}
 
@@ -244,11 +250,11 @@ namespace AutomationTool.Benchmark
 		{
 			if (!Failed)
 			{
-				Log.TraceInformation("Task {0}:\t\t\t\t{1}", FullName, TaskTime.ToString(@"hh\:mm\:ss"));
+				Logger.LogInformation("Task {FullName}:\t\t\t\t{Arg1}", FullName, TaskTime.ToString(@"hh\:mm\:ss"));
 			}
 			else
 			{
-				Log.TraceInformation("Task {0}::\t\t\t\t{1} Failed. {2}", FullName, TaskTime.ToString(@"hh\:mm\:ss"), FailureString);
+				Logger.LogInformation("Task {FullName}::\t\t\t\t{Arg1} Failed. {FailureString}", FullName, TaskTime.ToString(@"hh\:mm\:ss"), FailureString);
 			}
 		}
 

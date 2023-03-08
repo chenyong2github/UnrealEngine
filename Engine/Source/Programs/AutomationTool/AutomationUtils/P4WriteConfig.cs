@@ -20,7 +20,7 @@ namespace AutomationTool
 	{
 		public override ExitCode Execute()
 		{
-			Log.Logger.LogInformation("Setting up Perforce environment.");
+			Logger.LogInformation("Setting up Perforce environment.");
 
 			// User can specify these to help auto detection
 			string Port = ParseParamValue("p4port", "");
@@ -52,7 +52,7 @@ namespace AutomationTool
 			{
 				Log.TraceError(
 					"Unable to find matching Perforce info. If the below does not help try P4WriteConfig -p4port=<server:port> and -p4user=<username> to supply more info");
-				Log.Logger.LogError(Ex, "{Message}", Ex.Message);
+				Logger.LogError(Ex, "{Message}", Ex.Message);
 				return ExitCode.Error_Arguments;
 			}
 
@@ -96,14 +96,14 @@ namespace AutomationTool
 
 				string OutputFile = Path.GetFileName(OutputPath);
 
-				Log.Logger.LogInformation("Wrote P4 settings to {OutputPath}", OutputPath);
+				Logger.LogInformation("Wrote P4 settings to {OutputPath}", OutputPath);
 
 				P4.P4(string.Format("set P4CONFIG={0}", OutputFile));
-				Log.Logger.LogInformation("set P4CONFIG={OutputFile}", OutputFile);
+				Logger.LogInformation("set P4CONFIG={OutputFile}", OutputFile);
 			}
 			else
 			{
-				Log.Logger.LogInformation("Skipped write");
+				Logger.LogInformation("Skipped write");
 			}
 
 			return ExitCode.Success;

@@ -76,7 +76,7 @@ namespace AutomationTool.Tasks
 			}
 
 			DirectoryReference Dir = ResolveDirectory(Parameters.Dir);
-			Log.Logger.LogInformation("Cloning Git repository into {Dir}", Parameters.Dir);
+			Logger.LogInformation("Cloning Git repository into {Dir}", Parameters.Dir);
 			using (LogIndentScope Scope = new LogIndentScope("  "))
 			{
 				DirectoryReference GitDir = DirectoryReference.Combine(Dir, ".git");

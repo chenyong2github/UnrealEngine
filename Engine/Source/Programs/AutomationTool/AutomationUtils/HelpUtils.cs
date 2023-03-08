@@ -312,12 +312,12 @@ namespace AutomationTool
 					}
 					else
 					{
-						Log.Logger.LogWarning("Duplicated help parameter \"{ParamName}\"", ParamName);
+						Logger.LogWarning("Duplicated help parameter \"{ParamName}\"", ParamName);
 					}
 				}
 			}
 
-			Log.Logger.LogInformation("");
+			Logger.LogInformation("");
 			HelpUtils.PrintHelp(String.Format("{0} Help:", Command.Name), Description, ParamDict.ToList());
 		}
 

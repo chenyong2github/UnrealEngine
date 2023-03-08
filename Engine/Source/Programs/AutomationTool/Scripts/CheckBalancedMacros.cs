@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -147,7 +148,7 @@ namespace AutomationTool
 				}
 
 				// Recurse through the tree
-				LogInformation("Finding source files...");
+				Logger.LogInformation("Finding source files...");
 				List<FileReference> SourceFiles = new List<FileReference>();
 				using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 				{

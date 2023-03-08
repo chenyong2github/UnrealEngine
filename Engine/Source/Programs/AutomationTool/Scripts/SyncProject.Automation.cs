@@ -10,6 +10,7 @@ using EpicGames.Core;
 using System.Text.RegularExpressions;
 using System.Threading;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 abstract class SyncProjectBase : BuildCommand
 {
@@ -41,7 +42,7 @@ abstract class SyncProjectBase : BuildCommand
 				RelativePath = CommandUtils.CombinePaths(PathSeparator.Slash, Path.GetFileNameWithoutExtension(RelativePath), RelativePath);
 			}
 
-			Log.TraceInformation("{0} not on disk. Searching P4 for {1}", InProjectArgument, RelativePath);
+			Logger.LogInformation("{InProjectArgument} not on disk. Searching P4 for {RelativePath}", InProjectArgument, RelativePath);
 
 			List<string> SearchPaths = new List<string>();
 			SearchPaths.Add("");
@@ -70,13 +71,13 @@ abstract class SyncProjectBase : BuildCommand
 					P4WhereRecord Record = GetP4RecordForPath(P4Path);
 					// make sure to sync with //workspace/path as it cleans up files if the user has stream switched
 					OutP4ProjectPath = Record.ClientFile;
-					Log.TraceInformation("Found project at {0}", OutP4ProjectPath);
+					Logger.LogInformation("Found project at {OutP4ProjectPath}", OutP4ProjectPath);
 					break;
 				}
 			}
 		}
 
-		Log.TraceVerbose("Resolved {0} to P4 Path {1}", InProjectArgument, OutP4ProjectPath);
+		Logger.LogDebug("Resolved {InProjectArgument} to P4 Path {OutP4ProjectPath}", InProjectArgument, OutP4ProjectPath);
 
 		return OutP4ProjectPath != null && OutProjectFile != null;
 	}
@@ -110,20 +111,20 @@ class SyncProject : SyncProjectBase
 	{
 		if (!ParseParam("Deprecated"))
 		{
-			LogError("**************************************************************************");
-			LogError("The SyncProject command has been deprecated, and will be removed in an");
-			LogError("upcoming UnrealEngine release.");
-			LogError("");
-			LogError("Similar functionality is available through the UnrealGameSync command-line");
-			LogError("tool, which is supported on Windows, Mac and Linux.");
-			LogError("");
-			LogError("To ignore this warning and continue to using SyncProject anyway, add the");
-			LogError("-Deprecated argument to the command line.");
-			LogError("**************************************************************************");
+			Logger.LogError("**************************************************************************");
+			Logger.LogError("The SyncProject command has been deprecated, and will be removed in an");
+			Logger.LogError("upcoming UnrealEngine release.");
+			Logger.LogError("");
+			Logger.LogError("Similar functionality is available through the UnrealGameSync command-line");
+			Logger.LogError("tool, which is supported on Windows, Mac and Linux.");
+			Logger.LogError("");
+			Logger.LogError("To ignore this warning and continue to using SyncProject anyway, add the");
+			Logger.LogError("-Deprecated argument to the command line.");
+			Logger.LogError("**************************************************************************");
 			return ExitCode.Error_Unknown;
 		}
 
-		LogInformation("************************* SyncProject");
+		Logger.LogInformation("************************* SyncProject");
 
 		// These are files that should always be synced because tools update them
 		string[] ForceSyncFiles = new string[]
@@ -238,7 +239,7 @@ class SyncProject : SyncProjectBase
 
 			foreach (var F in ForceSyncList)
 			{
-				LogInformation("Force-updating {0}", F);
+				Logger.LogInformation("Force-updating {F}", F);
 
 				string SyncCommand = string.Format("-f {0}@{1}", F, CL);
 
@@ -271,7 +272,7 @@ class SyncProject : SyncProjectBase
 			}
 			else
 			{
-				LogInformation("sync {0}", SyncCommand);
+				Logger.LogInformation("sync {SyncCommand}", SyncCommand);
 			}
 		}
 
@@ -298,7 +299,7 @@ class SyncProject : SyncProjectBase
 
 			if (GenerateProject)
 			{
-				Log.TraceVerbose("Generating project files for {0}", ProjectArgForEditor);
+				Logger.LogDebug("Generating project files for {ProjectArgForEditor}", ProjectArgForEditor);
 
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 				{
@@ -313,14 +314,14 @@ class SyncProject : SyncProjectBase
 			UnrealBuild Build = new UnrealBuild(this);
 			if (!Unversioned && !ProjectOnly)
 			{
-				LogInformation("Updating Version files to CL: {0}", CL);
+				Logger.LogInformation("Updating Version files to CL: {CL}", CL);
 				Build.UpdateVersionFiles(ActuallyUpdateVersionFiles: true, ChangelistNumberOverride: CL, IsPromotedOverride: false);
 			}
 
 			// Build everything
 			if (BuildProject && ExitStatus == ExitCode.Success)
 			{
-				Log.TraceVerbose("Building Editor for {0}", ProjectArgForEditor);
+				Logger.LogDebug("Building Editor for {ProjectArgForEditor}", ProjectArgForEditor);
 
 				// Invalidate the location of the Target.cs files incase they were synced
 				if (ProjectFile != null)
@@ -339,7 +340,7 @@ class SyncProject : SyncProjectBase
 			// it's open of the editor. Otherwise just open the editor
 			if (!BuildProject && OpenProject && ExitStatus == ExitCode.Success)
 			{
-				Log.TraceVerbose("Opening Editor for {0}", ProjectArgForEditor);
+				Logger.LogDebug("Opening Editor for {ProjectArgForEditor}", ProjectArgForEditor);
 
 				OpenEditor OpenCmd = new OpenEditor();
 				OpenCmd.Params = this.Params;

@@ -96,7 +96,7 @@ namespace AutomationTool.Tasks
 				BuildProducts.Add(file);
 			}
 
-			Job.OwnerCommand.Logger.LogInformation("Created {NumFiles:n0} files of {Size:n0} bytes in {OutputDir} (Different={Different})", Parameters.Count, Parameters.Size, OutputDir, Parameters.Different);
+			Logger.LogInformation("Created {NumFiles:n0} files of {Size:n0} bytes in {OutputDir} (Different={Different})", Parameters.Count, Parameters.Size, OutputDir, Parameters.Different);
 
 			// Apply the optional output tag to them
 			foreach (string TagName in FindTagNamesFromList(Parameters.Tag))

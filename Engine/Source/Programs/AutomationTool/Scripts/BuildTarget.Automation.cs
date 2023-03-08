@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -95,7 +96,7 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				LogError("Failed to parse configuration string. {0}", Ex.Message);
+				Logger.LogError("Failed to parse configuration string. {Arg0}", Ex.Message);
 				return ExitCode.Error_Arguments;
 			}
 
@@ -114,7 +115,7 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				LogError("Failed to parse configuration string. {0}", Ex.Message);
+				Logger.LogError("Failed to parse configuration string. {Arg0}", Ex.Message);
 				return ExitCode.Error_Arguments;
 			}
 
@@ -179,7 +180,7 @@ namespace AutomationTool
 
 				foreach (var Target in Agenda.Targets)
 				{
-					Log.TraceInformation("Will {0}build {1}", Clean ? "clean and " : "", Target);
+					Logger.LogInformation("Will {Arg0}build {Target}", Clean ? "clean and " : "", Target);
 					if (Clean)
 					{
 						Target.Clean = Clean;
@@ -210,7 +211,7 @@ namespace AutomationTool
 				}
 				else
 				{ 
-					Log.TraceInformation("Will {0}build {1} {2} {3}", Clean ? "clean and " : "", TargetToBuild, PlatformToBuild, ConfigToBuild);
+					Logger.LogInformation("Will {Arg0}build {TargetToBuild} {PlatformToBuild} {ConfigToBuild}", Clean ? "clean and " : "", TargetToBuild, PlatformToBuild, ConfigToBuild);
 				}
 				
 			}

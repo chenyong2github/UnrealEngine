@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using AutomationTool;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 [Help(@"Creates an IPA from an xarchive file")]
 [Help("method=<method>", @"Purpose of the IPA. (Development, Adhoc, Store)")]
@@ -131,7 +132,7 @@ public class ExportIPAFromArchive : BuildCommand
 
 		string ExportArgs = string.Format("-exportArchive -archivePath \"{0}\" -exportOptionsPlist {1} -exportPath \"{2}\" {3}", Archive, PlistPath, OutputPath, ProvisioningArgs);
 
-		LogInformation("Creating IPA at at {0} with {1} profile.", OutputPath, Method);
+		Logger.LogInformation("Creating IPA at at {OutputPath} with {Method} profile.", OutputPath, Method);
 
 
 		DateTime ExportStartTime = DateTime.Now;
@@ -140,7 +141,7 @@ public class ExportIPAFromArchive : BuildCommand
 
 		if (Result != 0)
 		{
-			LogError("XcodeBuild failed to export archive. {0} might help diagose the issue..", PlistPath);
+			Logger.LogError("XcodeBuild failed to export archive. {PlistPath} might help diagose the issue..", PlistPath);
 			return ExitCode.Error_FailedToCreateIPA;
 		}
 		

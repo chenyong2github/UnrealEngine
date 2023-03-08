@@ -10,6 +10,7 @@ using UnrealBuildTool;
 using EpicGames.Core;
 using System.Text;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 [Help("Builds a plugin, and packages it for distribution")]
 [Help("Plugin", "Specify the path to the descriptor file for the plugin that should be packaged")]
@@ -436,7 +437,7 @@ public sealed class BuildPlugin : BuildCommand
 		// Add custom rules for targeted platforms.
 		foreach (UnrealTargetPlatform Platform in TargetPlatforms)
 		{
-			Log.TraceInformation("Loading FilterPlugin{0}.ini", Platform);
+			Logger.LogInformation("Loading FilterPlugin{Platform}.ini", Platform);
 			AddRulesFromFileToFilter(Filter, FileReference.Combine(PluginFile.Directory, "Config", $"FilterPlugin{Platform}.ini"));
 		}
 
@@ -547,7 +548,7 @@ public sealed class BuildPlugin : BuildCommand
 			}
 			else
 			{
-				LogWarning($"HostPlatform {HostPlatformName} not supported on current platform {CurrentPlatform}");
+				Logger.LogWarning("HostPlatform {HostPlatformName} not supported on current platform {CurrentPlatform}", HostPlatformName, CurrentPlatform);
 			}
 		}
 		return NewHostPlatforms;

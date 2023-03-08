@@ -7,6 +7,7 @@ using System.Reflection;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationScripts
 {
@@ -53,10 +54,10 @@ namespace AutomationScripts
 				return;
 			}
 
-			LogInformation("********** ARCHIVE COMMAND STARTED **********");
+			Logger.LogInformation("********** ARCHIVE COMMAND STARTED **********");
 			var StartTime = DateTime.UtcNow;
 
-			LogInformation("Archiving to {0}", Params.ArchiveDirectoryParam);
+			Logger.LogInformation("Archiving to {Arg0}", Params.ArchiveDirectoryParam);
 
 			if (!Params.NoClient)
 			{
@@ -80,8 +81,8 @@ namespace AutomationScripts
 					SC.StageTargetPlatform.ProcessArchivedProject(Params, SC);
 				}
 			}
-			LogInformation("Archive command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
-			LogInformation("********** ARCHIVE COMMAND COMPLETED **********");
+			Logger.LogInformation("Archive command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
+			Logger.LogInformation("********** ARCHIVE COMMAND COMPLETED **********");
 		}
 	}
 }

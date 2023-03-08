@@ -12,6 +12,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 [Help("Builds Hlslcc using CMake build system.")]
 [Help("TargetPlatforms", "Specify a list of target platforms to build, separated by '+' characters (eg. -TargetPlatforms=Win64+Linux+Mac). Architectures are specified with '-'. Default is Win64+Linux.")]
@@ -72,7 +73,7 @@ class BuildHlslcc : BuildCommand
 		}
 
 		Environment.SetEnvironmentVariable("CMAKE_ROOT", DirectoryReference.Combine(CMakeRootDirectory, "share").ToString());
-		LogInformation("set {0}={1}", "CMAKE_ROOT", Environment.GetEnvironmentVariable("CMAKE_ROOT"));
+		Logger.LogInformation("set {Arg0}={Arg1}", "CMAKE_ROOT", Environment.GetEnvironmentVariable("CMAKE_ROOT"));
 
 		if (TargetData.Platform == UnrealTargetPlatform.Mac)
 		{
@@ -137,7 +138,7 @@ class BuildHlslcc : BuildCommand
 			{
 				// try to find bundled toolchain
 				DirectoryReference ToolchainDir  = DirectoryReference.Combine(ThirdPartySourceDirectory, "..", "..", "Extras", "ThirdPartyNotUE", "SDKs", "HostLinux", "Linux_x64");
-				LogInformation("LINUX_MULTIARCH_ROOT not defined. Looking for Linux toolchain in {0}...", ToolchainDir);
+				Logger.LogInformation("LINUX_MULTIARCH_ROOT not defined. Looking for Linux toolchain in {ToolchainDir}...", ToolchainDir);
 
 				IEnumerable<DirectoryReference> AvailableToolchains = DirectoryReference.EnumerateDirectories(ToolchainDir);
 				if (AvailableToolchains.Count() > 0)
@@ -149,7 +150,7 @@ class BuildHlslcc : BuildCommand
 
 			if (string.IsNullOrEmpty(ToolchainPath))
 			{
-				LogInformation("Bundled toolchain not found. Using system clang.");
+				Logger.LogInformation("Bundled toolchain not found. Using system clang.");
 			}
 			else
 			{
@@ -157,7 +158,7 @@ class BuildHlslcc : BuildCommand
 				ToolchainPath += "/bin/";
 			}
 
-			LogInformation("Using toolchain: {0}", ToolchainPath);
+			Logger.LogInformation("Using toolchain: {ToolchainPath}", ToolchainPath);
 
 			return string.Format(" -DCMAKE_C_COMPILER={0}clang -DCMAKE_CXX_COMPILER={0}clang++ ", ToolchainPath) + ExtraSettings;
 		}
@@ -406,7 +407,7 @@ class BuildHlslcc : BuildCommand
 
 				if (!bCleanOnly)
 				{
-					LogInformation("Generating projects for lib " + TargetData.ToString());
+					Logger.LogInformation("{Text}", "Generating projects for lib " + TargetData.ToString());
 
 					ProcessStartInfo StartInfo = new ProcessStartInfo();
 					StartInfo.FileName = CMakeName;
@@ -430,7 +431,7 @@ class BuildHlslcc : BuildCommand
 
 				if (!bCleanOnly)
 				{
-					LogInformation("Generating projects for lib " + TargetData.ToString());
+					Logger.LogInformation("{Text}", "Generating projects for lib " + TargetData.ToString());
 
 					ProcessStartInfo StartInfo = new ProcessStartInfo();
 					StartInfo.FileName = CMakeName;
@@ -438,10 +439,10 @@ class BuildHlslcc : BuildCommand
 					StartInfo.Arguments = GetCMakeArguments(TargetData, BuildConfig);
 
 					System.Console.WriteLine("Working in '{0}'", StartInfo.WorkingDirectory);
-					LogInformation("Working in '{0}'", StartInfo.WorkingDirectory);
+					Logger.LogInformation("Working in '{Arg0}'", StartInfo.WorkingDirectory);
 
 					System.Console.WriteLine("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
-					LogInformation("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
+					Logger.LogInformation("{Arg0} {Arg1}", StartInfo.FileName, StartInfo.Arguments);
 
 					if (RunLocalProcessAndLogOutput(StartInfo) != 0)
 					{
@@ -457,7 +458,7 @@ class BuildHlslcc : BuildCommand
 
 			if (!bCleanOnly)
 			{
-				LogInformation("Generating projects for lib " + TargetData.ToString());
+				Logger.LogInformation("{Text}", "Generating projects for lib " + TargetData.ToString());
 
 				ProcessStartInfo StartInfo = new ProcessStartInfo();
 				StartInfo.FileName = CMakeName;
@@ -508,7 +509,7 @@ class BuildHlslcc : BuildCommand
 				if (File.Exists(PathComponent + "/make.exe") || File.Exists(PathComponent + "make.exe") || File.Exists(PathComponent + "/cygwin1.dll"))
 				{
 					// gotcha!
-					LogInformation("Removing {0} from PATH since it contains possibly colliding make.exe", PathComponent);
+					Logger.LogInformation("Removing {PathComponent} from PATH since it contains possibly colliding make.exe", PathComponent);
 					continue;
 				}
 			}
@@ -543,7 +544,7 @@ class BuildHlslcc : BuildCommand
 				string PathWithoutCygwin = RemoveOtherMakeAndCygwinFromPath(PrevPath);
 				Environment.SetEnvironmentVariable("PATH", CMakePath + ";" + MakePath + ";" + PathWithoutCygwin);
 				Environment.SetEnvironmentVariable("PATH", CMakePath + ";" + MakePath + ";" + Environment.GetEnvironmentVariable("PATH"));
-				LogInformation("set {0}={1}", "PATH", Environment.GetEnvironmentVariable("PATH"));
+				Logger.LogInformation("set {Arg0}={Arg1}", "PATH", Environment.GetEnvironmentVariable("PATH"));
 			}
 		}
 	}
@@ -601,8 +602,8 @@ class BuildHlslcc : BuildCommand
 			StartInfo.WorkingDirectory = ConfigDirectory.ToString();
 			StartInfo.Arguments = MakeOptions;
 
-			LogInformation("Working in: {0}", StartInfo.WorkingDirectory);
-			LogInformation("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
+			Logger.LogInformation("Working in: {Arg0}", StartInfo.WorkingDirectory);
+			Logger.LogInformation("{Arg0} {Arg1}", StartInfo.FileName, StartInfo.Arguments);
 
 			if (RunLocalProcessAndLogOutput(StartInfo) != 0)
 			{
@@ -938,13 +939,13 @@ class BuildHlslcc : BuildCommand
 		{
 			if (!P4.TryDeleteEmptyChange(P4ChangeList))
 			{
-				LogInformation("Submitting changelist " + P4ChangeList.ToString());
+				Logger.LogInformation("{Text}", "Submitting changelist " + P4ChangeList.ToString());
 				int SubmittedChangeList = InvalidChangeList;
 				P4.Submit(P4ChangeList, out SubmittedChangeList);
 			}
 			else
 			{
-				LogInformation("Nothing to submit!");
+				Logger.LogInformation("Nothing to submit!");
 			}
 		}
 	}

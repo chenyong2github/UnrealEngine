@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Diagnostics;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -15,6 +16,8 @@ namespace AutomationTool
 	/// </summary>
 	public abstract class HostPlatform
 	{
+		protected static ILogger Logger => Log.Logger;
+
 		/// <summary>
 		/// Current running host platform.
 		/// </summary>

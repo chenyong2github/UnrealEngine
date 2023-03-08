@@ -10,9 +10,12 @@ using UnrealBuildBase;
 using Gauntlet;
 using System.Text.RegularExpressions;
 using AutomationTool.DeviceReservation;
+using Microsoft.Extensions.Logging;
 
 namespace LowLevelTests
 {
+	using LogLevel = Gauntlet.LogLevel;
+
 	public class RunLowLevelTests : BuildCommand
 	{
 		public override ExitCode Execute()
@@ -114,7 +117,7 @@ namespace LowLevelTests
 
 				if (ParseParam("clean"))
 				{
-					LogInformation("Deleting temp dir {0}", Options.TempDir);
+					Logger.LogInformation("Deleting temp dir {Arg0}", Options.TempDir);
 					DirectoryInfo TempDirInfo = new DirectoryInfo(Options.TempDir);
 					if (TempDirInfo.Exists)
 					{

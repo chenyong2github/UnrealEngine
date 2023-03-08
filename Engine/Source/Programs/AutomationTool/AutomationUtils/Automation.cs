@@ -18,6 +18,8 @@ namespace AutomationTool
 
     public static class Automation
 	{
+		static ILogger Logger => Log.Logger;
+
 		/// <summary>
 		/// Keep a persistent reference to the delegate for handling Ctrl-C events. Since it's passed to non-managed code, we have to prevent it from being garbage collected.
 		/// </summary>
@@ -70,7 +72,7 @@ namespace AutomationTool
 					}
 				}
 
-				Log.Logger.LogDebug("IsBuildMachine={IsBuildMachine}", IsBuildMachine);
+				Logger.LogDebug("IsBuildMachine={IsBuildMachine}", IsBuildMachine);
 				Environment.SetEnvironmentVariable("IsBuildMachine", IsBuildMachine ? "1" : "0");
 
 				// Register all the log event matchers
@@ -86,7 +88,7 @@ namespace AutomationTool
 
 				// should we kill processes on exit
 				ShouldKillProcesses = !GlobalCommandLine.NoKill;
-				Log.Logger.LogDebug("ShouldKillProcesses={ShouldKillProcesses}", ShouldKillProcesses);
+				Logger.LogDebug("ShouldKillProcesses={ShouldKillProcesses}", ShouldKillProcesses);
 
 				if (AutomationToolCommandLine.CommandsToExecute.Count == 0 && GlobalCommandLine.Help)
 				{
@@ -108,13 +110,13 @@ namespace AutomationTool
 				LogUtils.AddLogFileListener(new DirectoryReference(CommandUtils.CmdEnv.LogFolder), new DirectoryReference(CommandUtils.CmdEnv.FinalLogFolder));
 				if (LogUtils.FinalLogFileName != LogUtils.LogFileName)
 				{
-					Log.Logger.LogInformation("Final log location: {Location}", LogUtils.FinalLogFileName);
+					Logger.LogInformation("Final log location: {Location}", LogUtils.FinalLogFileName);
 				}
 				
 				// Initialize UBT
 				if (!UnrealBuildTool.PlatformExports.Initialize(Log.Logger))
 				{
-					Log.Logger.LogInformation("Failed to initialize UBT");
+					Logger.LogInformation("Failed to initialize UBT");
 					return ExitCode.Error_Unknown;
 				}
 				
@@ -127,7 +129,7 @@ namespace AutomationTool
 				// Compile scripts.
 				using (GlobalTracer.Instance.BuildSpan("ScriptLoad").StartActive())
 				{
-					ScriptManager.LoadScriptAssemblies(ScriptModuleAssemblies);
+					ScriptManager.LoadScriptAssemblies(ScriptModuleAssemblies, Logger);
 				}
 
 				if (GlobalCommandLine.List)
@@ -186,8 +188,8 @@ namespace AutomationTool
 				}
 				else if (Ex.OutputFormat == AutomationExceptionOutputFormat.Minimal)
 				{
-					Log.Logger.LogInformation(Ex, "{Message}", Ex.ToString().Replace("\n", "\n  "));
-					Log.Logger.LogDebug(Ex, "{Details}", ExceptionUtils.FormatExceptionDetails(Ex));
+					Logger.LogInformation(Ex, "{Message}", Ex.ToString().Replace("\n", "\n  "));
+					Logger.LogDebug(Ex, "{Details}", ExceptionUtils.FormatExceptionDetails(Ex));
 				}
 				else
 				{
@@ -232,7 +234,7 @@ namespace AutomationTool
             }
             catch (Exception Ex)
             {
-                Log.Logger.LogError(Ex, "Exception performing nothrow action \"{ActionDesc}\": {Exception}", ActionDesc, ExceptionUtils.FormatException(Ex));
+                Logger.LogError(Ex, "Exception performing nothrow action \"{ActionDesc}\": {Exception}", ActionDesc, ExceptionUtils.FormatException(Ex));
             }
         }
 
@@ -247,7 +249,7 @@ namespace AutomationTool
 			for (int CommandIndex = 0; CommandIndex < CommandsToExecute.Count; ++CommandIndex)
 			{
 				var CommandInfo = CommandsToExecute[CommandIndex];
-				Log.Logger.LogDebug("Attempting to execute {CommandInfo}", CommandInfo.ToString());
+				Logger.LogDebug("Attempting to execute {CommandInfo}", CommandInfo.ToString());
 				Type CommandType;
 				if (!Commands.TryGetValue(CommandInfo.CommandName, out CommandType))
 				{
@@ -294,7 +296,7 @@ namespace AutomationTool
 				Type CommandType;
 				if (Commands.TryGetValue(CommandInfo.CommandName, out CommandType) == false)
 				{
-					Log.Logger.LogError("Help: Failed to find command {CommandName}", CommandInfo.CommandName);
+					Logger.LogError("Help: Failed to find command {CommandName}", CommandInfo.CommandName);
 				}
 				else
 				{

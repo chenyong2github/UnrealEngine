@@ -126,7 +126,7 @@ namespace AutomationTool.Tasks
 				}
 				else
 				{
-					Log.Logger.LogWarning("Unable to read UAT telemetry file from {TelemetryFile}", TelemetryFile);
+					Logger.LogWarning("Unable to read UAT telemetry file from {TelemetryFile}", TelemetryFile);
 				}
 			}
 			return Task.CompletedTask;

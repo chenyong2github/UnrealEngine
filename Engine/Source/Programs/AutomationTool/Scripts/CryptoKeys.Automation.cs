@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -22,7 +23,7 @@ namespace AutomationTool
 				RawProjectPath: ProjectPath
 			);
 
-			LogInformation("********** CRYPTOKEYS COMMAND STARTED **********");
+			Logger.LogInformation("********** CRYPTOKEYS COMMAND STARTED **********");
 
 			string UEEditorExe = HostPlatform.Current.GetUnrealExePath(Params.UnrealExe);
 			if (!FileExists(UEEditorExe))
@@ -87,7 +88,7 @@ namespace AutomationTool
 			}
 			else
 			{
-				LogInformation(ChangeDescription);
+				Logger.LogInformation("{Text}", ChangeDescription);
 				FileReference.MakeWriteable(OutputFile);
 			}
 

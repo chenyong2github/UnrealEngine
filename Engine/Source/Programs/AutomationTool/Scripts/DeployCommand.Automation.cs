@@ -6,6 +6,7 @@ using System.Threading;
 using System.Reflection;
 using AutomationTool;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationScripts
 {
@@ -19,7 +20,7 @@ namespace AutomationScripts
 				return;
 			}
 
-			LogInformation("********** DEPLOY COMMAND STARTED **********");
+			Logger.LogInformation("********** DEPLOY COMMAND STARTED **********");
 			var StartTime = DateTime.UtcNow;
 
 			if (!Params.NoClient)
@@ -35,8 +36,8 @@ namespace AutomationScripts
 						ClientCmdLine += "-SourceDir=\"" + CombinePaths(Params.BaseStageDirectory, SC.StageTargetPlatform.PlatformType.ToString()) + "\" ";
 						string ClientApp = CombinePaths(CmdEnv.LocalRoot, "Engine/Binaries/Win64/UnrealFrontend.exe");
 
-						LogInformation("Deploying via UFE:");
-						LogInformation("\tClientCmdLine: " + ClientCmdLine + "");
+						Logger.LogInformation("Deploying via UFE:");
+						Logger.LogInformation("\tClientCmdLine: " + ClientCmdLine + "");
 
 						//@todo UAT: Consolidate running of external applications like UFE (See 'RunProjectCommand' for other instances)
 						PushDir(Path.GetDirectoryName(ClientApp));
@@ -69,8 +70,8 @@ namespace AutomationScripts
 				}
 			}
 
-			LogInformation("Deploy command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
-			LogInformation("********** DEPLOY COMMAND COMPLETED **********");
+			Logger.LogInformation("Deploy command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
+			Logger.LogInformation("********** DEPLOY COMMAND COMPLETED **********");
 		}
 	}
 }

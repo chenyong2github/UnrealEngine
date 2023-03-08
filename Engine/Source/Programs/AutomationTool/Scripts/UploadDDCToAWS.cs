@@ -18,6 +18,7 @@ using System.Text;
 using System.Threading;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -207,7 +208,7 @@ namespace AutomationTool
 						TimeSpan Age = DateTime.UtcNow - FilterFile.LastWriteTimeUtc;
 						if (Age < TimeSpan.FromDays(3))
 						{
-							Log.TraceInformation("Reading {0}", FilterFile.FullName);
+							Logger.LogInformation("Reading {Arg0}", FilterFile.FullName);
 
 							string[] Lines = File.ReadAllLines(FilterFile.FullName);
 							foreach (string Line in Lines)
@@ -223,29 +224,29 @@ namespace AutomationTool
 						{
 							try
 							{
-								Log.TraceInformation("Deleting {0}", FilterFile.FullName);
+								Logger.LogInformation("Deleting {Arg0}", FilterFile.FullName);
 								FilterFile.Delete();
 							}
 							catch (Exception Ex)
 							{
-								Log.TraceWarning("Unable to delete: {0}", Ex.Message);
+								Logger.LogWarning("Unable to delete: {Arg0}", Ex.Message);
 								Log.TraceLog(ExceptionUtils.FormatExceptionDetails(Ex));
 							}
 						}
 					}
-					Log.TraceInformation("Found {0:n0} files", Paths.Count);
+					Logger.LogInformation("Found {0:n0} files", Paths.Count);
 
 					// Enumerate all the files that are in the network DDC
-					Log.TraceInformation("");
-					Log.TraceInformation("Filtering files in {0}...", CacheDir);
+					Logger.LogInformation("");
+					Logger.LogInformation("Filtering files in {CacheDir}...", CacheDir);
 					List<DerivedDataFile> Files = ParallelExecute<string, DerivedDataFile>(Paths, (Path, FilesBag) => ReadFileInfo(CacheDir, Path, FilesBag));
 
 					// Filter to the maximum size
 					if (MaxFileSize != 0)
 					{
 						int NumRemovedMaxSize = Files.RemoveAll(x => x.Info.Length > MaxFileSize);
-						Log.TraceInformation("");
-						Log.TraceInformation("Removed {0} files above size limit ({1:n0} bytes)", NumRemovedMaxSize, MaxFileSize);
+						Logger.LogInformation("");
+						Logger.LogInformation("Removed {NumRemovedMaxSize} files above size limit ({1:n0} bytes)", NumRemovedMaxSize, MaxFileSize);
 					}
 
 					// Create the working directory
@@ -284,12 +285,12 @@ namespace AutomationTool
 							FileReference BundleFile = FileReference.Combine(WorkingDir, Bundle.Name);
 							if (!FileReference.Exists(BundleFile))
 							{
-								Log.TraceInformation("Downloading {0}", BundleFile);
+								Logger.LogInformation("Downloading {BundleFile}", BundleFile);
 
 								FileReference TempCompressedFile = new FileReference(BundleFile.FullName + ".incoming.gz");
 								if (!TryDownloadFile(Client, BucketName, Bundle.ObjectKey, TempCompressedFile))
 								{
-									Log.TraceWarning("Unable to download {0}", Bundle.ObjectKey);
+									Logger.LogWarning("Unable to download {Arg0}", Bundle.ObjectKey);
 									continue;
 								}
 
@@ -300,7 +301,7 @@ namespace AutomationTool
 								}
 								catch (Exception Ex)
 								{
-									Log.TraceWarning("Unable to uncompress {0}: {1}", Bundle.ObjectKey, Ex.ToString());
+									Logger.LogWarning("Unable to uncompress {Arg0}: {Arg1}", Bundle.ObjectKey, Ex.ToString());
 									continue;
 								}
 
@@ -368,16 +369,16 @@ namespace AutomationTool
 					int NumRemovedExist = Files.RemoveAll(x => ReusedKeyHashes.Contains(x.KeyHash));
 					if (NumRemovedExist > 0)
 					{
-						Log.TraceInformation("");
-						Log.TraceInformation("Removed {0:n0} files which already exist", NumRemovedExist);
+						Logger.LogInformation("");
+						Logger.LogInformation("Removed {0:n0} files which already exist", NumRemovedExist);
 					}
 
 					// Read all the files we want to include
 					List<Tuple<DerivedDataFile, byte[]>> FilesToInclude = new List<Tuple<DerivedDataFile, byte[]>>();
 					if (Files.Count > 0)
 					{
-						Log.TraceInformation("");
-						Log.TraceInformation("Reading remaining {0:n0} files into memory ({1:n1}mb)...", Files.Count, (float)Files.Sum(x => (long)x.Info.Length) / (1024 * 1024));
+						Logger.LogInformation("");
+						Logger.LogInformation("Reading remaining {0:n0} files into memory ({1:n1}mb)...", Files.Count, (float)Files.Sum(x => (long)x.Info.Length) / (1024 * 1024));
 						FilesToInclude.AddRange(ParallelExecute<DerivedDataFile, Tuple<DerivedDataFile, byte[]>>(Files, (x, y) => ReadFileData(x, y)));
 					}
 
@@ -387,15 +388,15 @@ namespace AutomationTool
 						bool bUpdateManifest = false;
 
 						// Upload the new bundle
-						Log.TraceInformation("");
+						Logger.LogInformation("");
 						if (FilesToInclude.Count == 0)
 						{
-							Log.TraceInformation("No new files to add.");
+							Logger.LogInformation("No new files to add.");
 						}
 						else
 						{
 							// Sort the files to include by creation time. This will bias towards grouping older, more "permanent", items together.
-							Log.TraceInformation("Sorting input files");
+							Logger.LogInformation("Sorting input files");
 							List<Tuple<DerivedDataFile, byte[]>> SortedFilesToInclude = FilesToInclude.OrderBy(x => x.Item1.Info.CreationTimeUtc).ToList();
 
 							// Get the target bundle size
@@ -449,7 +450,7 @@ namespace AutomationTool
 
 								// Create the output file
 								FileReference NewBundleFile = FileReference.Combine(WorkingDir, NewBundleName + ".gz");
-								Log.TraceInformation("Writing {0}", NewBundleFile);
+								Logger.LogInformation("Writing {NewBundleFile}", NewBundleFile);
 								using (FileStream BundleStream = FileReference.Open(NewBundleFile, FileMode.Create, FileAccess.Write, FileShare.Read))
 								{
 									using (GZipStream ZipStream = new GZipStream(BundleStream, CompressionLevel.Optimal, true))
@@ -465,7 +466,7 @@ namespace AutomationTool
 								// Upload the file
 								long NewBundleCompressedLength = NewBundleFile.ToFileInfo().Length;
 								long NewBundleUncompressedLength = Header.Length + BundleFilesToInclude.Sum(x => (long)x.Item2.Length);
-								Log.TraceInformation("Uploading bundle to {0} ({1:n1}mb)", NewBundleObjectKey, NewBundleCompressedLength / (1024.0f * 1024.0f));
+								Logger.LogInformation("Uploading bundle to {NewBundleObjectKey} ({1:n1}mb)", NewBundleObjectKey, NewBundleCompressedLength / (1024.0f * 1024.0f));
 								UploadFile(Client, BucketName, NewBundleFile, 0, NewBundleObjectKey, RequestSemaphore, null);
 
 								// Add the bundle to the new manifest
@@ -517,7 +518,7 @@ namespace AutomationTool
 							// Update all the bundle manifests still valid
 							foreach (RootManifest.Entry Entry in NewRootManifest.Entries)
 							{
-								Log.TraceInformation("Uploading bundle manifest to {0}", Entry.Key);
+								Logger.LogInformation("Uploading bundle manifest to {Arg0}", Entry.Key);
 								UploadFile(Client, BucketName, NewBundleManifestFile, 0, Entry.Key, RequestSemaphore, null);
 							}
 
@@ -571,7 +572,7 @@ namespace AutomationTool
 								{
 									if (!KeepObjectKeys.Contains(OldEntry.ObjectKey))
 									{
-										Log.TraceInformation("Deleting unreferenced bundle {0}", OldEntry.ObjectKey);
+										Logger.LogInformation("Deleting unreferenced bundle {Arg0}", OldEntry.ObjectKey);
 										DeleteFile(Client, BucketName, OldEntry.ObjectKey, RequestSemaphore, null);
 									}
 								}
@@ -582,7 +583,7 @@ namespace AutomationTool
 								{
 									if (!KeepManifestKeys.Contains(OldEntry.Key))
 									{
-										Log.TraceInformation("Deleting unreferenced manifest {0}", OldEntry.Key);
+										Logger.LogInformation("Deleting unreferenced manifest {Arg0}", OldEntry.Key);
 										DeleteFile(Client, BucketName, OldEntry.Key, RequestSemaphore, null);
 									}
 								}
@@ -590,7 +591,7 @@ namespace AutomationTool
 							else
 							{
 								// Skip submitting
-								Log.TraceWarning("Skipping manifest submit due to missing -Submit argument.");
+								Logger.LogWarning("Skipping manifest submit due to missing -Submit argument.");
 							}
 
 							// Update the new download size
@@ -599,9 +600,9 @@ namespace AutomationTool
 					}
 
 					// Print some stats about the final manifest
-					Log.TraceInformation("");
-					Log.TraceInformation("Total download size {0:n1}mb", DownloadSize / (1024.0 * 1024.0));
-					Log.TraceInformation("");
+					Logger.LogInformation("");
+					Logger.LogInformation("Total download size {0:n1}mb", DownloadSize / (1024.0 * 1024.0));
+					Logger.LogInformation("");
 				}
 			}
 		}
@@ -639,7 +640,7 @@ namespace AutomationTool
 				AmazonS3Exception AmazonEx = Ex as AmazonS3Exception;
 				if (AmazonEx == null || AmazonEx.StatusCode != HttpStatusCode.NotFound)
 				{
-					Log.TraceWarning("Exception while downloading {0}: {1}", Key, Ex);
+					Logger.LogWarning("Exception while downloading {Key}: {Ex}", Key, Ex);
 				}
 				return false;
 			}
@@ -671,7 +672,7 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Unable to read file info {0}: {1}", Location, Ex);
+				Logger.LogWarning("Unable to read file info {Location}: {Ex}", Location, Ex);
 			}
 		}
 
@@ -684,7 +685,7 @@ namespace AutomationTool
 			}
 			catch(Exception Ex)
 			{
-				Log.TraceWarning("Unable to read file {0}: {1}", DerivedDataFile.Info.FullName, Ex);
+				Logger.LogWarning("Unable to read file {Arg0}: {Ex}", DerivedDataFile.Info.FullName, Ex);
 			}
 		}
 
@@ -704,7 +705,7 @@ namespace AutomationTool
 					Queue.Wait(TimeSpan.FromSeconds(10.0));
 
 					int NumRemaining = Queue.NumRemaining;
-					Log.TraceInformation("Processed {0:n0} ({1}%)", TotalCount - NumRemaining, ((TotalCount - NumRemaining) * 100) / TotalCount);
+					Logger.LogInformation("Processed {0:n0} ({Arg1}%)", TotalCount - NumRemaining, ((TotalCount - NumRemaining) * 100) / TotalCount);
 
 					if (NumRemaining == 0)
 					{
@@ -733,7 +734,7 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Exception trying to upload {0}: {1}", File, ExceptionUtils.FormatExceptionDetails(Ex));
+				Logger.LogWarning("Exception trying to upload {File}: {Arg1}", File, ExceptionUtils.FormatExceptionDetails(Ex));
 			}
 		}
 
@@ -773,7 +774,7 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Exception trying to delete {0}: {1}", Key, ExceptionUtils.FormatExceptionDetails(Ex));
+				Logger.LogWarning("Exception trying to delete {Key}: {Arg1}", Key, ExceptionUtils.FormatExceptionDetails(Ex));
 			}
 		}
 

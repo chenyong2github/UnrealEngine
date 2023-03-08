@@ -9,6 +9,7 @@ using AutomationScripts;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 public class ConfigHelper
 {
@@ -353,7 +354,7 @@ public class MakeCookedEditor : BuildCommand
 
 	public override void ExecuteBuild()
 	{
-		LogInformation("************************* MakeCookedEditor");
+		Logger.LogInformation("************************* MakeCookedEditor");
 
 		bIsCookedCooker = ParseParam("cookedcooker");
 		ProjectFile = ParseProjectParam();
@@ -402,11 +403,11 @@ public class MakeCookedEditor : BuildCommand
 			{
 				if (CookedEditorStageDirectory == null || ReleaseStageDirectory == null)
 				{
-					LogError("Combining Release and CookedEditor together currently requires that both are staged this run (-stage -makerelease=stage)");
+					Logger.LogError("Combining Release and CookedEditor together currently requires that both are staged this run (-stage -makerelease=stage)");
 					return;
 				}
 
-				LogInformation($"Combinging {ReleaseStageDirectory} + {CookedEditorStageDirectory} -> {CombinedPath}");
+				Logger.LogInformation("Combinging {ReleaseStageDirectory} + {CookedEditorStageDirectory} -> {CombinedPath}", ReleaseStageDirectory, CookedEditorStageDirectory, CombinedPath);
 				DirectoryReference Combined = new DirectoryReference(CombinedPath);
 				CopyDirectory_NoExceptions(ReleaseStageDirectory.FullName, Combined.FullName, CopyDirectoryOptions.Default);
 				CopyDirectory_NoExceptions(CookedEditorStageDirectory.FullName, Combined.FullName, CopyDirectoryOptions.Merge);
@@ -510,10 +511,10 @@ public class MakeCookedEditor : BuildCommand
 			// these could be just copied, but StageFiles handles copying easily
 			SC.StageFiles(StagedFileType.NonUFS, ReleaseOptionalFileStageDirectory, StageFilesSearch.AllDirectories, new StagedDirectoryReference($"{Context.ProjectName}/Content/Paks"));
 
-			Log.TraceInformation($"Staging optional files from {ReleaseOptionalFileStageDirectory.FullName}:");
+			Logger.LogInformation("Staging optional files from {Arg0}:", ReleaseOptionalFileStageDirectory.FullName);
 			foreach (var OptionalFile in DirectoryReference.EnumerateFiles(ReleaseOptionalFileStageDirectory, "*"))
 			{
-				Log.TraceInformation($"  '{OptionalFile.FullName}'");
+				Logger.LogInformation("  '{Arg0}'", OptionalFile.FullName);
 			}
 		}
 	}
@@ -720,7 +721,7 @@ public class MakeCookedEditor : BuildCommand
 
 		if (ParseParamValue("MakeRelease", null) != null && !bBuildAgainstRelease)
 		{
-			LogWarning("-makerelease is meant for projects that have bBuildAgainstRelease set. Will force it on, with default settings for [DLCPluginName, ReleaseName, ReleaseTargetType]");
+			Logger.LogWarning("-makerelease is meant for projects that have bBuildAgainstRelease set. Will force it on, with default settings for [DLCPluginName, ReleaseName, ReleaseTargetType]");
 			bBuildAgainstRelease = true;
 		}
 

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +9,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using UnrealBuildBase;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 public class MacPlatform : ApplePlatform
 {
@@ -513,7 +514,7 @@ public class MacPlatform : ApplePlatform
 
 							RenameFile(FoundDebugFile, MovedDebugFile);
 
-							Log.TraceInformation("Moving debug file: '{0}')", FoundDebugFile);
+							Logger.LogInformation("Moving debug file: '{FoundDebugFile}')", FoundDebugFile);
 							ManifestLines.RemoveAt(ManifestLineIndex);
 							ModifyManifest = true;
 						}
@@ -592,29 +593,29 @@ public class MacPlatform : ApplePlatform
 			if (Params.Archive)
 			{
 				// Remove extra RPATHs if we will be archiving the project
-				LogInformation("Removing extraneous rpath entries");
+				Logger.LogInformation("Removing extraneous rpath entries");
 				RemoveExtraRPaths(Params, SC);
 			}
 
 			// Sign everything we built
 			List<FileReference> FilesToSign = GetExecutableNames(SC);
-			LogInformation("RuntimeProjectRootDir: " + SC.RuntimeProjectRootDir);
+			Logger.LogInformation("{Text}", "RuntimeProjectRootDir: " + SC.RuntimeProjectRootDir);
 			foreach (var Exe in FilesToSign)
 			{
-				LogInformation("Signing: " + Exe);
+				Logger.LogInformation("{Text}", "Signing: " + Exe);
 				string AppBundlePath = "";
 				if (Exe.IsUnderDirectory(DirectoryReference.Combine(SC.RuntimeProjectRootDir, "Binaries", SC.PlatformDir)))
 				{
-					LogInformation("Starts with Binaries");
+					Logger.LogInformation("Starts with Binaries");
 					AppBundlePath = CombinePaths(SC.RuntimeProjectRootDir.FullName, "Binaries", SC.PlatformDir, Path.GetFileNameWithoutExtension(Exe.FullName) + ".app");
 				}
 				else if (Exe.IsUnderDirectory(DirectoryReference.Combine(SC.RuntimeRootDir, "Engine/Binaries", SC.PlatformDir)))
 				{
-					LogInformation("Starts with Engine/Binaries");
+					Logger.LogInformation("Starts with Engine/Binaries");
 					AppBundlePath = CombinePaths("Engine/Binaries", SC.PlatformDir, Path.GetFileNameWithoutExtension(Exe.FullName) + ".app");
 				}
 
-				LogInformation("Signing: " + AppBundlePath);
+				Logger.LogInformation("{Text}", "Signing: " + AppBundlePath);
 				CodeSign.SignMacFileOrFolder(AppBundlePath);
 			}
 

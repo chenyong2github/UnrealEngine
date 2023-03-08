@@ -6,6 +6,7 @@ using System.IO;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 /*
  - You can also use the full program to test compiling all or a subset of libs:
@@ -127,7 +128,7 @@ class AnalyzeThirdPartyLibs : BuildCommand
 
 	public override void ExecuteBuild()
 	{
-		LogInformation("************************* Analyze Third Party Libs");
+		Logger.LogInformation("************************* Analyze Third Party Libs");
 
 		// figure out what batch/script to run
 		if (UnrealBuildTool.BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64 &&
@@ -188,19 +189,19 @@ class AnalyzeThirdPartyLibs : BuildCommand
 
 			long Size = Info.GetSize(Platforms);
 
-			LogInformation("Library {0} is {1}", Lib, ToMegabytes(Size));
+			Logger.LogInformation("Library {Lib} is {Arg1}", Lib, ToMegabytes(Size));
 
 			long Total = 0;
 			for (int Index = 0; Index < Platforms.Count; ++Index)
 			{
 				PlatformLibraryInfo Platform = Platforms[Index];
 				long Growth = Platform.TotalSize - LastSizes[Index];
-				LogInformation("  {0} is {1}", Platform.PlatformName, ToMegabytes(Growth));
+				Logger.LogInformation("  {Arg0} is {Arg1}", Platform.PlatformName, ToMegabytes(Growth));
 
 				LastSizes[Index] = Platform.TotalSize;
 				Total += Growth;
 			}
-			LogInformation("  Platform neutral is probably {0} (specific sum {1})", ToMegabytes(Size - Total), ToMegabytes(Total));
+			Logger.LogInformation("  Platform neutral is probably {Arg0} (specific sum {Arg1})", ToMegabytes(Size - Total), ToMegabytes(Total));
 
 			TotalSize += Size;
 		}
@@ -211,19 +212,19 @@ class AnalyzeThirdPartyLibs : BuildCommand
 		LargeFileExtensions.AddRange(new string[] { ".pdb", ".a", ".lib", ".dll", ".dylib", ".bc", ".so" });
 
 		// Hackery, look for big files (re-traverses everything)
-		LogInformation("----");
+		Logger.LogInformation("----");
 		foreach (string Lib in LibsToEvaluate)
 		{
 			ThirdPartyLibraryInfo Info = new ThirdPartyLibraryInfo(Lib);
 			Info.FindLargeFiles(LargeFileExtensions, 1024 * 1024);
 		}
 
-		LogInformation("----");
+		Logger.LogInformation("----");
 		foreach (var Platform in Platforms)
 		{
-			LogInformation("  {0} is {1} (estimate)", Platform.PlatformName, ToMegabytes(Platform.TotalSize));
+			Logger.LogInformation("  {Arg0} is {Arg1} (estimate)", Platform.PlatformName, ToMegabytes(Platform.TotalSize));
 		}
-		LogInformation("  OVERALL is {0} (accurate)", ToMegabytes(TotalSize));
+		Logger.LogInformation("  OVERALL is {Arg0} (accurate)", ToMegabytes(TotalSize));
 
 		// undo the LibDir push
 		CommandUtils.PopDir();

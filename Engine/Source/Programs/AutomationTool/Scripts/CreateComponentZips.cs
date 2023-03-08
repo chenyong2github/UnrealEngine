@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace Rocket.Automation
 {
@@ -62,7 +63,7 @@ namespace Rocket.Automation
 			}
 
 			List<FileInfo> SourceFiles = SourceDir.ToDirectoryInfo().EnumerateFiles("*", SearchOption.AllDirectories).ToList();
-			Log.TraceInformation("Found {0} source files", SourceFiles.Count);
+			Logger.LogInformation("Found {Arg0} source files", SourceFiles.Count);
 
 			FileReference MainOutputFile = FileReference.Combine(OutputDir, $"UnrealEngine.zip");
 			CreateZip(SourceDir, SourceFiles, x => !Categories.Any(y => y.Filter.Matches(x)), MainOutputFile);
@@ -88,7 +89,7 @@ namespace Rocket.Automation
 				}
 			}
 
-			Log.TraceInformation("Creating {0} ({1:n0} files, {2:n1}mb)", OutputFile, SourceFileRefs.Count, TotalSize / (1024.0 * 1024.0));
+			Logger.LogInformation("Creating {OutputFile} ({1:n0} files, {2:n1}mb)", OutputFile, SourceFileRefs.Count, TotalSize / (1024.0 * 1024.0));
 			CommandUtils.ZipFiles(OutputFile, SourceDir, SourceFileRefs);
 		}
 	}

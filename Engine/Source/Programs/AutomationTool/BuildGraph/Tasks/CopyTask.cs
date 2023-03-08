@@ -172,11 +172,11 @@ namespace AutomationTool.Tasks
 						DirectoryReference.CreateDirectory(FirstTargetDirectory);
 						if(NumRetries == 1)
 						{
-							Log.Logger.LogInformation("Created target directory {FirstTargetDirectory} after 1 retry.", FirstTargetDirectory);
+							Logger.LogInformation("Created target directory {FirstTargetDirectory} after 1 retry.", FirstTargetDirectory);
 						}
 						else if(NumRetries > 1)
 						{
-							Log.Logger.LogInformation("Created target directory {FirstTargetDirectory} after {NumRetries} retries.", FirstTargetDirectory, NumRetries);
+							Logger.LogInformation("Created target directory {FirstTargetDirectory} after {NumRetries} retries.", FirstTargetDirectory, NumRetries);
 						}
 						break;
 					}
@@ -184,7 +184,7 @@ namespace AutomationTool.Tasks
 					{
 						if(NumRetries == 0)
 						{
-							Log.Logger.LogInformation("Unable to create directory '{FirstTargetDirectory}' on first attempt. Retrying {MaxNumRetries} times...", FirstTargetDirectory, MaxNumRetries);
+							Logger.LogInformation("Unable to create directory '{FirstTargetDirectory}' on first attempt. Retrying {MaxNumRetries} times...", FirstTargetDirectory, MaxNumRetries);
 						}
 
 						Log.TraceLog("  {0}", Ex);

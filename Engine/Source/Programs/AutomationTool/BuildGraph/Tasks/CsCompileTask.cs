@@ -142,7 +142,7 @@ namespace AutomationTool.Tasks
 						int EqualsIdx = Property.IndexOf('=');
 						if (EqualsIdx == -1)
 						{
-							Log.Logger.LogWarning("Missing '=' in property assignment");
+							Logger.LogWarning("Missing '=' in property assignment");
 						}
 						else
 						{

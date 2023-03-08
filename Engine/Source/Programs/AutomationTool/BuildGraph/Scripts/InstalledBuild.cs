@@ -248,7 +248,7 @@ namespace AutomationTool
 			if (State.Get(EmbedSrcSrvInfo))
 			{
 				// Embed source info into the PDB files. Should be done from this machine to ensure that paths are correct.
-				Log.Logger.LogInformation("Embedding source file information into PDB files...");
+				Logger.LogInformation("Embedding source file information into PDB files...");
 				FileSet SourceFiles = Workspace.Filter("Engine/Source/...;Engine/Plugins/...").Except("Engine/Source/ThirdParty/...").Filter("*.c;*.h;*.cpp;*.hpp;*.inl");
 //				State.SrcSrv(BinaryFiles: Full, SourceFiles: SourceFiles);
 			}

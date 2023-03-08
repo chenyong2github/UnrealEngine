@@ -114,9 +114,9 @@ namespace BuildScripts.Automation
 			}
 
 			// Find all the matching files
-			LogInformation("Finding files matching {0}", Filter);
+			Logger.LogInformation("Finding files matching {Filter}", Filter);
 			List<string> Files = P4.Files(String.Format("-e {0}", Filter));
-			LogInformation("Found {0} files", Files.Count);
+			Logger.LogInformation("Found {Arg0} files", Files.Count);
 
 			// Build a tree of all the conflicting paths and print them out
 			TreeNode RootNode = new TreeNode("//");
@@ -124,7 +124,7 @@ namespace BuildScripts.Automation
 			{
 				if (!File.StartsWith("//", StringComparison.Ordinal))
 				{
-					LogWarning("File '{0}' does not start with '//'", File);
+					Logger.LogWarning("File '{File}' does not start with '//'", File);
 					continue;
 				}
 				RootNode.Add(File, 2);

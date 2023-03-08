@@ -10,6 +10,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Helper command used for resaving a projects packages.
@@ -28,7 +29,7 @@ namespace AutomationScripts.Automation
 	{
         public override void ExecuteBuild()
 		{
-			LogInformation("********** RESAVE PACKAGES COMMAND STARTED **********");
+			Logger.LogInformation("********** RESAVE PACKAGES COMMAND STARTED **********");
 
 			try
 			{
@@ -54,8 +55,8 @@ namespace AutomationScripts.Automation
 			}
 			catch (Exception ProcessEx)
 			{
-				LogInformation("********** RESAVE PACKAGES COMMAND FAILED **********");
-                LogInformation("Error message: {0}", ProcessEx.Message);
+				Logger.LogInformation("********** RESAVE PACKAGES COMMAND FAILED **********");
+                Logger.LogInformation("Error message: {Arg0}", ProcessEx.Message);
 				HandleFailure(ProcessEx.Message);
 				throw;
 			}
@@ -63,12 +64,12 @@ namespace AutomationScripts.Automation
 			// The processes steps have completed successfully.
 			HandleSuccess();
 
-			LogInformation("********** RESAVE PACKAGES COMMAND COMPLETED **********");
+			Logger.LogInformation("********** RESAVE PACKAGES COMMAND COMPLETED **********");
 		}
 
 		private void BuildNecessaryTargets()
 		{
-			LogInformation("Running Step:- RebuildLightMaps::BuildNecessaryTargets");
+			Logger.LogInformation("Running Step:- RebuildLightMaps::BuildNecessaryTargets");
 			UnrealBuild.BuildAgenda Agenda = new UnrealBuild.BuildAgenda();
 			Agenda.AddTarget("ShaderCompileWorker", UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);
 			Agenda.AddTarget("UnrealLightmass", UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);
@@ -82,7 +83,7 @@ namespace AutomationScripts.Automation
 			}
 			catch (AutomationException)
 			{
-				LogError("Rebuild Light Maps has failed.");
+				Logger.LogError("Rebuild Light Maps has failed.");
 				throw;
 			}
 		}
@@ -99,22 +100,22 @@ namespace AutomationScripts.Automation
 
 		private void CreateChangelist(ProjectParams Params)
 		{
-			LogInformation("Running Step:- RebuildLightMaps::CheckOutMaps");
+			Logger.LogInformation("Running Step:- RebuildLightMaps::CheckOutMaps");
 			// Setup a P4 Cl we will use to submit the new lightmaps
 			WorkingCL = P4.CreateChange(P4Env.Client, String.Format("{0} rebuilding lightmaps from changelist {1}\n#rb None\n#tests None", Params.ShortProjectName, P4Env.Changelist));
-			LogInformation("Working in {0}", WorkingCL);
+			Logger.LogInformation("Working in {WorkingCL}", WorkingCL);
 
 		}
 
 		private void RunResavePackagesCommandlet(ProjectParams Params)
 		{
-			LogInformation("Running Step:- ResavePackages::RunResavePackagesCommandlet");
+			Logger.LogInformation("Running Step:- ResavePackages::RunResavePackagesCommandlet");
 
 			// Find the commandlet binary
 			string UEEditorExe = HostPlatform.Current.GetUnrealExePath(Params.UnrealExe);
 			if (!FileExists(UEEditorExe))
 			{
-				LogError("Missing " + UEEditorExe + " executable. Needs to be built first.");
+				Logger.LogError("Missing " + UEEditorExe + " executable. Needs to be built first.");
 				throw new AutomationException("Missing " + UEEditorExe + " executable. Needs to be built first.");
 			}
 
@@ -157,28 +158,28 @@ namespace AutomationScripts.Automation
                         catch (Exception)
                         {
                             // we don't care about this because if this is hit then there is no log file the exception probably has more info
-                            LogError("Could not find log file " + LogFile);
+                            Logger.LogError("{Text}", "Could not find log file " + LogFile);
                         }
                     }
                 }
 
 				// Something went wrong with the commandlet. Abandon this run, don't check in any updated files, etc.
-				LogError("Resave Packages has failed. because "+ Ex.ToString());
+				Logger.LogError("{Text}", "Resave Packages has failed. because "+ Ex.ToString());
 				throw new AutomationException(ExitCode.Error_Unknown, Ex, "ResavePackages failed. {0}", FinalLogLines);
 			}
 		}
 
 		private void SubmitResavedPackages()
 		{
-			LogInformation("Running Step:- ResavePackages::SubmitResavedPackages");
+			Logger.LogInformation("Running Step:- ResavePackages::SubmitResavedPackages");
 
 			// Check everything in!
 			if (WorkingCL != -1)
 			{
-                LogInformation("Running Step:- Submitting CL " + WorkingCL);
+                Logger.LogInformation("{Text}", "Running Step:- Submitting CL " + WorkingCL);
 				int SubmittedCL;
 				P4.Submit(WorkingCL, out SubmittedCL, true, true);
-				LogInformation("INFO: Packages successfully submitted in cl "+ SubmittedCL.ToString());
+				Logger.LogInformation("{Text}", "INFO: Packages successfully submitted in cl "+ SubmittedCL.ToString());
 			}
 		}
 
@@ -222,11 +223,11 @@ namespace AutomationScripts.Automation
 			}
 			catch (P4Exception P4Ex)
 			{
-				LogError("Failed to clean up P4 changelist: " + P4Ex.Message);
+				Logger.LogError("{Text}", "Failed to clean up P4 changelist: " + P4Ex.Message);
 			}
 			catch (Exception SendMailEx)
 			{
-				LogError("Failed to notify that build succeeded: " + SendMailEx.Message);
+				Logger.LogError("{Text}", "Failed to notify that build succeeded: " + SendMailEx.Message);
 			}
 		}
 
@@ -241,7 +242,7 @@ namespace AutomationScripts.Automation
 			}
 			catch (Exception SendMailEx)
 			{
-				LogError("Failed to notify that build succeeded: " + SendMailEx.Message);
+				Logger.LogError("{Text}", "Failed to notify that build succeeded: " + SendMailEx.Message);
 			}
 		}
 
@@ -278,7 +279,7 @@ namespace AutomationScripts.Automation
 				}
 				catch (Exception Ex)
 				{
-					LogError("Failed to send notify email to {0} ({1})", String.Join(", ", StakeholdersEmailAddresses.ToArray()), Ex.Message);
+					Logger.LogError("Failed to send notify email to {Arg0} ({Arg1})", String.Join(", ", StakeholdersEmailAddresses.ToArray()), Ex.Message);
 				}
 			}
 		}

@@ -81,7 +81,7 @@ namespace AutomationTool.Tasks
 				}
 
 				// Print the name of the file being scanned
-				Log.Logger.LogInformation("Sanitizing {TargetFile}", TargetFile);
+				Logger.LogInformation("Sanitizing {TargetFile}", TargetFile);
 				using(new LogIndentScope("  "))
 				{
 					// Read the receipt
@@ -102,7 +102,7 @@ namespace AutomationTool.Tasks
 						}
 						else
 						{
-							Log.Logger.LogInformation("Removing build product: {File}", BuildProduct.Path);
+							Logger.LogInformation("Removing build product: {File}", BuildProduct.Path);
 						}
 					}
 					Receipt.BuildProducts = NewBuildProducts;
@@ -117,7 +117,7 @@ namespace AutomationTool.Tasks
 						}
 						else
 						{
-							Log.Logger.LogInformation("Removing runtime dependency: {File}", RuntimeDependency.Path);
+							Logger.LogInformation("Removing runtime dependency: {File}", RuntimeDependency.Path);
 						}
 					}
 					Receipt.RuntimeDependencies = NewRuntimeDependencies;

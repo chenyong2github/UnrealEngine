@@ -7,6 +7,7 @@ using System.Linq;
 using EpicGames.Core;
 using System.IO;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 [Help(@"Generates IOS debug symbols for a remote project.")]
 [Help("project=Name", @"Project name (required), i.e: -project=QAGame")]
@@ -47,7 +48,7 @@ public class GenerateDSYM : BuildCommand
 				UnrealTargetPlatform Platform;
 				if (!UnrealTargetPlatform.TryParse(PlatformName, out Platform) || !Platform.IsInGroup(UnrealPlatformGroup.Apple))
 				{
-					Log.TraceError("Platform must be one of Mac, IOS, TVOS");
+					Logger.LogError("Platform must be one of Mac, IOS, TVOS");
 					return;
 				}
 
@@ -66,7 +67,7 @@ public class GenerateDSYM : BuildCommand
 			// in one test, doing this sped up some tests by around 30%
 			if (Binaries.Count > 5)
 			{
-				Log.TraceInformation("Sorting binaries by size...");
+				Logger.LogInformation("Sorting binaries by size...");
 				Binaries.Sort((A, B) => new FileInfo(B).Length.CompareTo(new FileInfo(A).Length));
 			}
 
@@ -75,7 +76,7 @@ public class GenerateDSYM : BuildCommand
 			Dictionary<string, TimeSpan> Timers = new Dictionary<string, TimeSpan>();
 			Int64 TotalAmountProcessed = 0;
 			int Counter = 1;
-			Log.TraceInformation("Starting dSYM generation...");
+			Logger.LogInformation("Starting dSYM generation...");
 			System.Threading.Tasks.Parallel.ForEach(Binaries, (Binary) =>
 			{
 				int Index;
@@ -100,19 +101,19 @@ public class GenerateDSYM : BuildCommand
 					TotalAmountProcessed += Filesize;
 				}
 
-				Log.TraceInformation("  [{0}/{1}] {2} took {3:g}, source is {4:N2} mb", Index, Binaries.Count, Path.GetFileName(dSYM), Diff, Filesize / 1024.0 / 1024.0);
+				Logger.LogInformation("  [{Index}/{Arg1}] {Arg2} took {3:g}, source is {4:N2} mb", Index, Binaries.Count, Path.GetFileName(dSYM), Diff, Filesize / 1024.0 / 1024.0);
 
 			});
 
-			Log.TraceInformation("\n\n-------------------------------------------------------------------");
-			Log.TraceInformation("GeneratedSYM took {0}, processed {1:N2} mb of binary data.", DateTime.Now - Start, (double)TotalAmountProcessed / 1024.0 / 1024.0);
+			Logger.LogInformation("\n\n-------------------------------------------------------------------");
+			Logger.LogInformation("GeneratedSYM took {Arg0}, processed {1:N2} mb of binary data.", DateTime.Now - Start, (double)TotalAmountProcessed / 1024.0 / 1024.0);
 			if (Binaries.Count > 5)
 			{
-				Log.TraceInformation("Slowest dSYMS were:");
+				Logger.LogInformation("Slowest dSYMS were:");
 	
 				List<string> SlowDSYMs = Timers.Keys.ToList();
 				SlowDSYMs.Sort((A, B) => Timers[B].CompareTo(Timers[A]));
-				Log.TraceInformation(string.Join("\n", SlowDSYMs.Take(10).Select(x => string.Format("{0} took {1}", Path.GetFileName(x), Timers[x]))));
+				Logger.LogInformation("{Text}", string.Join("\n", SlowDSYMs.Take(10).Select(x => string.Format("{0} took {1}", Path.GetFileName(x), Timers[x]))));
 			}
 		}
 		else

@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildTool;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Benchmark
 {
@@ -294,7 +295,7 @@ namespace AutomationTool.Benchmark
 					/*&& (PlatformsToTest.Count() > 1 || ProjectsToTest.Count() > 1)*/)
 				{
 					BuildOptions |= UBTBuildOptions.PostClean;
-					Log.TraceInformation("Building multiple platforms. Will clean each platform after build step to save space. (use -nopostclean to prevent this)");
+					Logger.LogInformation("Building multiple platforms. Will clean each platform after build step to save space. (use -nopostclean to prevent this)");
 				}
 
 				// parse processor args
@@ -383,7 +384,7 @@ namespace AutomationTool.Benchmark
 					if (XGEOptions.Contains(XGETaskOptions.WithXGE) 
 						|| XGEOptions.Contains(XGETaskOptions.WithEditorXGE))
 					{
-						Log.TraceWarning("XGE requested but is not available. Removing XGE options");
+						Logger.LogWarning("XGE requested but is not available. Removing XGE options");
 						XGEOptions.Remove(XGETaskOptions.WithXGE);
 						XGEOptions.Remove(XGETaskOptions.WithEditorXGE);
 					}					
@@ -499,11 +500,11 @@ namespace AutomationTool.Benchmark
 				Tasks.AddRange(EditorTasks);
 			}
 
-			Log.TraceInformation("Will execute tasks:");
+			Logger.LogInformation("Will execute tasks:");
 
 			foreach (var Task in Tasks)
 			{
-				Log.TraceInformation("{0}", Task.FullName);
+				Logger.LogInformation("{Arg0}", Task.FullName);
 			}
 
 			if (!Options.Preview)
@@ -520,20 +521,20 @@ namespace AutomationTool.Benchmark
 				{
 					foreach (var Task in Tasks)
 					{
-						Log.TraceInformation("Starting task {0} (Pass {1})", Task.FullName, i + 1);
+						Logger.LogInformation("Starting task {Arg0} (Pass {Arg1})", Task.FullName, i + 1);
 
 						Task.Run();
 
-						Log.TraceInformation("Task {0} took {1}", Task.FullName, Task.TaskTime.ToString(@"hh\:mm\:ss"));
+						Logger.LogInformation("Task {Arg0} took {Arg1}", Task.FullName, Task.TaskTime.ToString(@"hh\:mm\:ss"));
 
 						if (Task.Failed)
 						{
-							Log.TraceError("Task failed! Benchmark time may be inaccurate.");
+							Logger.LogError("Task failed! Benchmark time may be inaccurate.");
 						}
 
 						if (Task.SkipReport)
 						{
-							Log.TraceInformation("Skipping reporting of {0}", Task.FullName);
+							Logger.LogInformation("Skipping reporting of {Arg0}", Task.FullName);
 						}
 						else
 						{
@@ -547,13 +548,13 @@ namespace AutomationTool.Benchmark
 							WriteCSVResults(Options.FileName, Tasks, Results);
 						}
 
-						Log.TraceInformation("Waiting {0} secs until next task", Options.TimeBetweenTasks);
+						Logger.LogInformation("Waiting {Arg0} secs until next task", Options.TimeBetweenTasks);
 						Thread.Sleep(Options.TimeBetweenTasks * 1000);
 					}
 				}
 
-				Log.TraceInformation("**********************************************************************");
-				Log.TraceInformation("Test Results:");
+				Logger.LogInformation("**********************************************************************");
+				Logger.LogInformation("Test Results:");
 
 				foreach (var Task in Tasks)
 				{
@@ -592,13 +593,13 @@ namespace AutomationTool.Benchmark
 						AvgTimeString = string.Format(" (Avg: {0})", AvgTime.ToString(@"hh\:mm\:ss"));
 					}
 
-					Log.TraceInformation("Task {0}:\t\t{1}{2}", Task.FullName, TimeString, AvgTimeString);
+					Logger.LogInformation("Task {Arg0}:\t\t{TimeString}{AvgTimeString}", Task.FullName, TimeString, AvgTimeString);
 				}
-				Log.TraceInformation("**********************************************************************");
+				Logger.LogInformation("**********************************************************************");
 
 				TimeSpan Elapsed = DateTime.Now - StartTime;
 
-				Log.TraceInformation("Total benchmark time: {0}", Elapsed.ToString(@"hh\:mm\:ss"));
+				Logger.LogInformation("Total benchmark time: {Arg0}", Elapsed.ToString(@"hh\:mm\:ss"));
 
 				WriteCSVResults(Options.FileName, Tasks, Results);
 			}
@@ -730,7 +731,7 @@ namespace AutomationTool.Benchmark
 		/// </summary>
 		void WriteCSVResults(string InFileName, IEnumerable<BenchmarkTaskBase> InTasks, Dictionary<BenchmarkTaskBase, List<BenchmarkResult>> InResults)
 		{
-			Log.TraceInformation("Writing results to {0}", InFileName);
+			Logger.LogInformation("Writing results to {InFileName}", InFileName);
 
 			try
 			{
@@ -804,7 +805,7 @@ namespace AutomationTool.Benchmark
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceError("Failed to write CSV to {0}. {1}", InFileName, Ex);
+				Logger.LogError("Failed to write CSV to {InFileName}. {Ex}", InFileName, Ex);
 			}
 		}
 

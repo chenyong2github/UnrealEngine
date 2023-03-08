@@ -142,7 +142,7 @@ namespace AutomationTool.Tasks
 						content.Add(streamContent, "file", file.GetFileName());
 						request.Content = content;
 
-						Log.Logger.LogInformation("Uploading {File} to {Url}", file, request.RequestUri);
+						Logger.LogInformation("Uploading {File} to {Url}", file, request.RequestUri);
 						using (HttpResponseMessage response = await httpClient.SendAsync(request))
 						{
 							if (!response.IsSuccessStatusCode)

@@ -71,7 +71,7 @@ namespace AutomationTool.Tasks
 				Arguments.Append($" {Parameters.Arguments}");
 			}
 
-			Log.Logger.LogInformation("Running docker compose {Arguments}", Arguments.ToString());
+			Logger.LogInformation("Running docker compose {Arguments}", Arguments.ToString());
 			using (LogIndentScope Scope = new LogIndentScope("  "))
 			{
 				await SpawnTaskBase.ExecuteAsync("docker-compose", Arguments.ToString());

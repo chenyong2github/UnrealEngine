@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildTool;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 [Help("Builds PhysX/APEX libraries using CMake build system.")]
 [Help("TargetLibs", "Specify a list of target libraries to build, separated by '+' characters (eg. -TargetLibs=PhysX+APEX). Default is PhysX+APEX+NvCloth.")]
@@ -262,20 +263,20 @@ public sealed class BuildPhysX : BuildCommand
 		{
 			// make sure we set up the environment variable specifying where the root of the PhysX SDK is
 			Environment.SetEnvironmentVariable("GW_DEPS_ROOT", PhysX3RootDirectory.FullName.Replace('\\', '/'));
-			LogInformation("set {0}={1}", "GW_DEPS_ROOT", Environment.GetEnvironmentVariable("GW_DEPS_ROOT"));
+			Logger.LogInformation("set {Arg0}={Arg1}", "GW_DEPS_ROOT", Environment.GetEnvironmentVariable("GW_DEPS_ROOT"));
 			Environment.SetEnvironmentVariable("CMAKE_MODULE_PATH", DirectoryReference.Combine(PhysX3RootDirectory, "Externals", "CMakeModules").FullName.Replace('\\', '/'));
-			LogInformation("set {0}={1}", "CMAKE_MODULE_PATH", Environment.GetEnvironmentVariable("CMAKE_MODULE_PATH"));
+			Logger.LogInformation("set {Arg0}={Arg1}", "CMAKE_MODULE_PATH", Environment.GetEnvironmentVariable("CMAKE_MODULE_PATH"));
 
 			if (BuildHostPlatform.Current.Platform.IsInGroup(UnrealPlatformGroup.Unix))
 			{
 				Environment.SetEnvironmentVariable("CMAKE_ROOT", DirectoryReference.Combine(CMakeRootDirectory, "share").FullName);
-				LogInformation("set {0}={1}", "CMAKE_ROOT", Environment.GetEnvironmentVariable("CMAKE_ROOT"));
+				Logger.LogInformation("set {Arg0}={Arg1}", "CMAKE_ROOT", Environment.GetEnvironmentVariable("CMAKE_ROOT"));
 			}
 
 			DirectoryReference CMakeTargetDirectory = GetProjectsDirectory(TargetLib, TargetConfiguration);
 			MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
 
-			LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + FriendlyName);
+			Logger.LogInformation("{Text}", "Generating projects for lib " + TargetLib.ToString() + ", " + FriendlyName);
 
 			ProcessStartInfo StartInfo = new ProcessStartInfo();
 			StartInfo.FileName = CMakeCommand;
@@ -396,8 +397,8 @@ public sealed class BuildPhysX : BuildCommand
 				? string.Format("{1} \"MAKE={0} {1}\"", MakeCommand, MakeOptions)
 				: MakeOptions;
 
-			LogInformation("Working in: {0}", StartInfo.WorkingDirectory);
-			LogInformation("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
+			Logger.LogInformation("Working in: {Arg0}", StartInfo.WorkingDirectory);
+			Logger.LogInformation("{Arg0} {Arg1}", StartInfo.FileName, StartInfo.Arguments);
 
 			if (Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger) != 0)
 			{
@@ -584,7 +585,7 @@ public sealed class BuildPhysX : BuildCommand
 				if (File.Exists(PathComponent + "/make.exe") || File.Exists(PathComponent + "make.exe") || File.Exists(PathComponent + "/cygwin1.dll"))
 				{
 					// gotcha!
-					LogInformation("Removing {0} from PATH since it contains possibly colliding make.exe", PathComponent);
+					Logger.LogInformation("Removing {PathComponent} from PATH since it contains possibly colliding make.exe", PathComponent);
 					continue;
 				}
 			}
@@ -611,7 +612,7 @@ public sealed class BuildPhysX : BuildCommand
 			string PathWithoutCygwin = RemoveOtherMakeAndCygwinFromPath(PrevPath);
 			Environment.SetEnvironmentVariable("PATH", CMakePath + ";" + MakePath + ";" + PathWithoutCygwin);
 			Environment.SetEnvironmentVariable("PATH", CMakePath + ";" + MakePath + ";" + Environment.GetEnvironmentVariable("PATH"));
-			LogInformation("set {0}={1}", "PATH", Environment.GetEnvironmentVariable("PATH"));
+			Logger.LogInformation("set {Arg0}={Arg1}", "PATH", Environment.GetEnvironmentVariable("PATH"));
 		}
 	}
 
@@ -808,13 +809,13 @@ public sealed class BuildPhysX : BuildCommand
 			{
 				if (!P4.TryDeleteEmptyChange(P4ChangeList))
 				{
-					LogInformation("Submitting changelist " + P4ChangeList.ToString());
+					Logger.LogInformation("{Text}", "Submitting changelist " + P4ChangeList.ToString());
 					int SubmittedChangeList = InvalidChangeList;
 					P4.Submit(P4ChangeList, out SubmittedChangeList);
 				}
 				else
 				{
-					LogInformation("Nothing to submit!");
+					Logger.LogInformation("Nothing to submit!");
 				}
 			}
 		}
@@ -1036,12 +1037,12 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 		if (!string.IsNullOrEmpty(OriginalToolchainPath))
 		{
 			string ToolchainPathToUse = OriginalToolchainPath.Replace("v16_clang-9.0.1-centos7", "v12_clang-6.0.1-centos7");
-			LogInformation("Working around problems with newer clangs: {0} -> {1}", OriginalToolchainPath, ToolchainPathToUse);
+			Logger.LogInformation("Working around problems with newer clangs: {OriginalToolchainPath} -> {ToolchainPathToUse}", OriginalToolchainPath, ToolchainPathToUse);
 			Environment.SetEnvironmentVariable("LINUX_MULTIARCH_ROOT", ToolchainPathToUse);
 		}
 		else
 		{
-			LogWarning("LINUX_MULTIARCH_ROOT is not set!");
+			Logger.LogWarning("LINUX_MULTIARCH_ROOT is not set!");
 		}
 
 		base.SetupTargetLib(TargetLib, TargetConfiguration);
@@ -1082,14 +1083,14 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 			StartInfo.Arguments = SOFile.FullName + " " + PSymbolFile.FullName;
 			StartInfo.RedirectStandardError = true;
 
-			LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
+			Logger.LogInformation("Running: '{Arg0} {Arg1}'", StartInfo.FileName, StartInfo.Arguments);
 			Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 			// BreakpadSymbolEncoder
 			StartInfo.FileName = BreakpadSymbolEncoderPath.FullName + ExeSuffix;
 			StartInfo.Arguments = PSymbolFile.FullName + " " + SymbolFile.FullName;
 
-			LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
+			Logger.LogInformation("Running: '{Arg0} {Arg1}'", StartInfo.FileName, StartInfo.Arguments);
 			Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 			// Clean up the Temp *.psym file, as they are no longer needed
@@ -1103,7 +1104,7 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 					SOFile.FullName + " " +
 					StrippedFile.FullName;
 
-				LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
+				Logger.LogInformation("Running: '{Arg0} {Arg1}'", StartInfo.FileName, StartInfo.Arguments);
 				Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 				// objcopy --only-keep-debug sofile.so sofile.debug
@@ -1112,7 +1113,7 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 					SOFile.FullName + " " +
 					DebugFile.FullName;
 
-				LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
+				Logger.LogInformation("Running: '{Arg0} {Arg1}'", StartInfo.FileName, StartInfo.Arguments);
 				Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 				// objcopy --add-gnu-debuglink=sofile.debug sofile_stripped sofile.so
@@ -1122,7 +1123,7 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 					StrippedFile.FullName + " " +
 					SOFile.FullName;
 
-				LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
+				Logger.LogInformation("Running: '{Arg0} {Arg1}'", StartInfo.FileName, StartInfo.Arguments);
 				Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 				GeneratedDebugSymbols.Add(SOFile.FullName, true);
@@ -1229,7 +1230,7 @@ class BuildPhysX_Mac : BuildPhysX.TargetPlatform
 	{
 		// build for x86
 		x86Build.SetupTargetLib(TargetLib, TargetConfiguration);
-		LogInformation("Building x86_64 lib slice");
+		Logger.LogInformation("Building x86_64 lib slice");
 		x86Build.BuildTargetLib(TargetLib, TargetConfiguration);
 
 		IEnumerable<FileReference> x86Libs = x86Build.EnumerateOutputFiles(TargetLib, TargetConfiguration).Distinct();
@@ -1239,7 +1240,7 @@ class BuildPhysX_Mac : BuildPhysX.TargetPlatform
 		{
 			string Extension = LibFile.GetExtension();
 			FileReference x86File = LibFile.ChangeExtension(Extension + "_x86_64");
-			LogInformation("Moving {0} to {1}", LibFile, x86File);
+			Logger.LogInformation("Moving {LibFile} to {x86File}", LibFile, x86File);
 			FileReference.Delete(x86File);
 			FileReference.Move(LibFile, x86File);
 
@@ -1248,7 +1249,7 @@ class BuildPhysX_Mac : BuildPhysX.TargetPlatform
 
 		// build for arm
 		ArmBuild.SetupTargetLib(TargetLib, TargetConfiguration);
-		LogInformation("Building arm64 lib slice");
+		Logger.LogInformation("Building arm64 lib slice");
 		ArmBuild.BuildTargetLib(TargetLib, TargetConfiguration);
 
 		IEnumerable<FileReference> ArmLibs = ArmBuild.EnumerateOutputFiles(TargetLib, TargetConfiguration).Distinct();
@@ -1259,7 +1260,7 @@ class BuildPhysX_Mac : BuildPhysX.TargetPlatform
 			string Extension = LibFile.GetExtension();
 			FileReference x86File = LibFile.ChangeExtension(Extension + "_x86_64");
 			FileReference ArmFile = LibFile.ChangeExtension(Extension + "_arm");
-			LogInformation("Moving {0} to {1}", LibFile, ArmFile);
+			Logger.LogInformation("Moving {LibFile} to {ArmFile}", LibFile, ArmFile);
 			FileReference.Delete(ArmFile);
 			FileReference.Move(LibFile, ArmFile);
 
@@ -1272,8 +1273,8 @@ class BuildPhysX_Mac : BuildPhysX.TargetPlatform
 		x86Slices = x86Slices.Distinct().ToList();
 		ArmSlices = ArmSlices.Distinct().ToList();
 
-		LogInformation("x86_64 slices generated: {0}", string.Join(", ", x86Slices));
-		LogInformation("arm64 slices generated: {0}", string.Join(", ", ArmSlices));
+		Logger.LogInformation("x86_64 slices generated: {Arg0}", string.Join(", ", x86Slices));
+		Logger.LogInformation("arm64 slices generated: {Arg0}", string.Join(", ", ArmSlices));
 
 		foreach (FileReference LibFile in x86Slices)
 		{ 
@@ -1291,10 +1292,10 @@ class BuildPhysX_Mac : BuildPhysX.TargetPlatform
 			StartInfo.Arguments = string.Format("-create {0} {1} -output {2}", ArmFile, x86File, OutputFile);
 			StartInfo.RedirectStandardError = true;
 
-			LogInformation("Running: 'lipo {0}'", StartInfo.Arguments);
+			Logger.LogInformation("Running: 'lipo {Arg0}'", StartInfo.Arguments);
 			if (Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger) != 0)
 			{
-				LogError("Failed to create universal binary for {0}", LibFile);
+				Logger.LogError("Failed to create universal binary for {LibFile}", LibFile);
 			}
 			else
 			{

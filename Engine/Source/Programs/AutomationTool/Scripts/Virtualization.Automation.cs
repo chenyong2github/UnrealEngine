@@ -10,6 +10,7 @@ using AutomationTool;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationScripts.Automation
 {
@@ -25,7 +26,7 @@ namespace AutomationScripts.Automation
 		{
 			try
 			{
-				LogInformation("********** {0} COMMAND STARTED **********", CommandletName.ToUpper());
+				Logger.LogInformation("********** {Arg0} COMMAND STARTED **********", CommandletName.ToUpper());
 
 				bool NoBuild = ParseParam("nobuild");
 
@@ -49,8 +50,8 @@ namespace AutomationScripts.Automation
 			}
 			catch (Exception ProcessEx)
 			{
-				LogInformation("********** {0} COMMAND FAILED **********", CommandletName.ToUpper());
-				LogInformation("Error message: {0}", ProcessEx.Message);
+				Logger.LogInformation("********** {Arg0} COMMAND FAILED **********", CommandletName.ToUpper());
+				Logger.LogInformation("Error message: {Arg0}", ProcessEx.Message);
 
 				HandleFailure();
 
@@ -61,7 +62,7 @@ namespace AutomationScripts.Automation
 		protected abstract void RunCommandlet(ProjectParams Params);
 		private void BuildEditor(ProjectParams Params)
 		{
-			LogInformation("Running Step:- BuildEditor");
+			Logger.LogInformation("Running Step:- BuildEditor");
 			Project.Build(this, Params, WorkingCL: -1, ProjectBuildTargets.Editor);
 		}
 
@@ -87,24 +88,24 @@ namespace AutomationScripts.Automation
 
 		private void CreateChangelist(ProjectParams Params)
 		{
-			LogInformation("Running Step:- CreateChangelist");
+			Logger.LogInformation("Running Step:- CreateChangelist");
 
 			string Description = String.Format("{0}: Running '{1} on the project project from engine changelist {2}\n#rb None", Params.ShortProjectName, CommandletName, P4Env.Changelist);
 			WorkingCL = ProjectP4.CreateChange(ProjectP4Client, Description);
-			LogInformation("Working in {0}", WorkingCL);		
+			Logger.LogInformation("Working in {WorkingCL}", WorkingCL);
 		}
 
 		private void SubmitPackages()
 		{
-			LogInformation("Running Step:- SubmitResavedPackages");
+			Logger.LogInformation("Running Step:- SubmitResavedPackages");
 
 			// Check everything in!
 			if (WorkingCL != -1)
 			{
-				LogInformation("Running Step:- Submitting CL " + WorkingCL);
+				Logger.LogInformation("{Text}", "Running Step:- Submitting CL " + WorkingCL);
 				int SubmittedCL;
 				ProjectP4.Submit(WorkingCL, out SubmittedCL, true, true);
-				LogInformation("INFO: Packages successfully submitted in cl " + SubmittedCL.ToString());
+				Logger.LogInformation("{Text}", "INFO: Packages successfully submitted in cl " + SubmittedCL.ToString());
 
 				WorkingCL = -1;
 			}
@@ -124,11 +125,11 @@ namespace AutomationScripts.Automation
 			}
 			catch (P4Exception P4Ex)
 			{
-				LogError("Failed to clean up P4 changelist: " + P4Ex.Message);
+				Logger.LogError("{Text}", "Failed to clean up P4 changelist: " + P4Ex.Message);
 			}
 			catch (Exception SendMailEx)
 			{
-				LogError("Failed to notify that build succeeded: " + SendMailEx.Message);
+				Logger.LogError("{Text}", "Failed to notify that build succeeded: " + SendMailEx.Message);
 			}
 		}
 
@@ -175,12 +176,12 @@ namespace AutomationScripts.Automation
 		}
 		protected override void RunCommandlet(ProjectParams Params)
 		{
-			LogInformation("Running Step:- RunCommandlet");
+			Logger.LogInformation("Running Step:- RunCommandlet");
 
 			string EditorExe = HostPlatform.Current.GetUnrealExePath(Params.UnrealExe);
 			if (!FileExists(EditorExe))
 			{
-				LogError("Missing " + EditorExe + " executable. Needs to be built first.");
+				Logger.LogError("Missing " + EditorExe + " executable. Needs to be built first.");
 				throw new AutomationException("Missing " + EditorExe + " executable. Needs to be built first.");
 			}
 
@@ -204,12 +205,12 @@ namespace AutomationScripts.Automation
 		}
 		protected override void RunCommandlet(ProjectParams Params)
 		{
-			LogInformation("Running Step:- RunCommandlet");
+			Logger.LogInformation("Running Step:- RunCommandlet");
 
 			string EditorExe = HostPlatform.Current.GetUnrealExePath(Params.UnrealExe);
 			if (!FileExists(EditorExe))
 			{
-				LogError("Missing " + EditorExe + " executable. Needs to be built first.");
+				Logger.LogError("Missing " + EditorExe + " executable. Needs to be built first.");
 				throw new AutomationException("Missing " + EditorExe + " executable. Needs to be built first.");
 			}
 

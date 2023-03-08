@@ -170,18 +170,19 @@ namespace AutomationTool
 		/// <param name="RHS"></param>
 		public void LogDifferences(HashCollection RHS)
 		{
+			ILogger Logger = Log.Logger;
 			foreach (var Entry in Hashes)
 			{
 				if (!RHS.HasEntryForName(Entry.Name))
 				{
-					Log.Logger.LogInformation("RHS does not have an entry for {Name}", Entry.Name);
+					Logger.LogInformation("RHS does not have an entry for {Name}", Entry.Name);
 				}
 				else if (!RHS.Hashes.Contains(Entry))
 				{
 					HashEntry RHSEntry = RHS.GetEntryForName(Entry.Name);
-					Log.Logger.LogInformation("RHS hash mismatch for {Name}", Entry.Name);
-					Log.Logger.LogInformation("LHS:\n\t{Hash}\n\t{Name}\n\t{MetaData}", Entry.Hash, Entry.Name, Entry.MetaData);
-					Log.Logger.LogInformation("RHS:\n\t{Hash}\n\t{Name}\n\t{MetaData}", RHSEntry.Hash, RHSEntry.Name, RHSEntry.MetaData);
+					Logger.LogInformation("RHS hash mismatch for {Name}", Entry.Name);
+					Logger.LogInformation("LHS:\n\t{Hash}\n\t{Name}\n\t{MetaData}", Entry.Hash, Entry.Name, Entry.MetaData);
+					Logger.LogInformation("RHS:\n\t{Hash}\n\t{Name}\n\t{MetaData}", RHSEntry.Hash, RHSEntry.Name, RHSEntry.MetaData);
 				}
 			}
 		}

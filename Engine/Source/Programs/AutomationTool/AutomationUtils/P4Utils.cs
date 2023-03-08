@@ -1082,7 +1082,7 @@ namespace AutomationTool
 			// Init AllowSubmit
 			// If we do not specify on the commandline if submitting is allowed or not, this is 
 			// depending on whether we run locally or on a build machine.
-			Log.Logger.LogDebug("Initializing AllowSubmit.");
+			Logger.LogDebug("Initializing AllowSubmit.");
 			if (GlobalCommandLine.Submit || GlobalCommandLine.NoSubmit)
 			{
 				AllowSubmit = GlobalCommandLine.Submit;
@@ -1091,10 +1091,10 @@ namespace AutomationTool
 			{
 				AllowSubmit = Automation.IsBuildMachine;
 			}
-			Log.Logger.LogDebug("AllowSubmit={AllowSubmit}", AllowSubmit);
+			Logger.LogDebug("AllowSubmit={AllowSubmit}", AllowSubmit);
 
 			// Init P4Enabled
-			Log.Logger.LogDebug("Initializing P4Enabled.");
+			Logger.LogDebug("Initializing P4Enabled.");
 			if (Automation.IsBuildMachine)
 			{
 				P4Enabled = !GlobalCommandLine.NoP4;
@@ -1109,8 +1109,8 @@ namespace AutomationTool
 				P4Enabled = GlobalCommandLine.P4 || bRequireP4;
 				P4CLRequired = GlobalCommandLine.P4 || bRequireCL;
 			}
-			Log.Logger.LogDebug("P4Enabled={P4Enabled}", P4Enabled);
-			Log.Logger.LogDebug("P4CLRequired={P4CLRequired}", P4CLRequired);
+			Logger.LogDebug("P4Enabled={P4Enabled}", P4Enabled);
+			Logger.LogDebug("P4CLRequired={P4CLRequired}", P4CLRequired);
 		}
 
 		/// <summary>
@@ -1133,7 +1133,7 @@ namespace AutomationTool
 					{
 						if(!GlobalCommandLine.P4)
 						{
-							Log.Logger.LogInformation("Command {CommandName} requires P4 functionality.", Command.Name);
+							Logger.LogInformation("Command {CommandName} requires P4 functionality.", Command.Name);
 						}
 						bRequireP4 = true;
 

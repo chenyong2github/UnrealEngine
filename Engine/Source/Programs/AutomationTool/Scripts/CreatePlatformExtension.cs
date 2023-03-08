@@ -8,6 +8,7 @@ using UnrealBuildTool;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 [Help("Create stub code for platform extension")]
 [Help("Source", "Path to source .uplugin, .build.cs or .target.cs, or a source folder to search")]
@@ -57,7 +58,7 @@ public class CreatePlatformExtension : BuildCommand
 		// make sure we have somewhere to look
 		if (string.IsNullOrEmpty(Source))
 		{
-			Log.TraceError("No -Source= directory/file specified");
+			Logger.LogError("No -Source= directory/file specified");
 			return;
 		}
 
@@ -65,7 +66,7 @@ public class CreatePlatformExtension : BuildCommand
 		SrcPlatforms = VerifyPlatforms(SrcPlatforms);
 		if (SrcPlatforms.Length == 0)
 		{
-			Log.TraceError("Please specify at least one platform or platform group");
+			Logger.LogError("Please specify at least one platform or platform group");
 			return;
 		}
 
@@ -73,14 +74,14 @@ public class CreatePlatformExtension : BuildCommand
 		bIsTest = ParseParam("DebugTest") && System.Diagnostics.Debugger.IsAttached; //NB. -DebugTest is for debugging this program only
 		if (CommandUtils.P4Enabled && bIsTest)
 		{
-			Log.TraceError("Cannot specify both -P4 and -DebugTest");
+			Logger.LogError("Cannot specify both -P4 and -DebugTest");
 			return;
 		}
 
 		// cannot have -CL without -P4
 		if (!CommandUtils.P4Enabled && CL >= 0)
 		{
-			Log.TraceError("-CL requires -P4");
+			Logger.LogError("-CL requires -P4");
 			return;
 		}
 
@@ -90,7 +91,7 @@ public class CreatePlatformExtension : BuildCommand
 			bool bPending;
 			if (!P4.ChangeExists(CL, out bPending) || !bPending)
 			{
-				Log.TraceError($"Changelist {CL} cannot be used or is not valid");
+				Logger.LogError("Changelist {CL} cannot be used or is not valid", CL);
 				return;
 			}
 		}
@@ -104,30 +105,30 @@ public class CreatePlatformExtension : BuildCommand
 			if (NewFiles.Count > 0 || ModifiedFiles.Count > 0)
 			{
 				// display final report
-				Log.TraceInformation(System.Environment.NewLine);
-				Log.TraceInformation(System.Environment.NewLine);
-				Log.TraceInformation(System.Environment.NewLine);
-				Log.TraceInformation("The following files should have been added or edited" + ((CL > 0) ? $" in changelist {CL}:" : ":") );
+				Logger.LogInformation("{Text}", System.Environment.NewLine);
+				Logger.LogInformation("{Text}", System.Environment.NewLine);
+				Logger.LogInformation("{Text}", System.Environment.NewLine);
+				Logger.LogInformation("{Text}", "The following files should have been added or edited" + ((CL > 0) ? $" in changelist {CL}:" : ":") );
 				foreach (string NewFile in NewFiles)
 				{
-					Log.TraceInformation($"\t{NewFile} (added)");
+					Logger.LogInformation("\t{NewFile} (added)", NewFile);
 				}
 				foreach (string ModifiedFile in ModifiedFiles)
 				{
-					Log.TraceInformation($"\t{ModifiedFile} (edit)");
+					Logger.LogInformation("\t{ModifiedFile} (edit)", ModifiedFile);
 				}
-				Log.TraceInformation(System.Environment.NewLine);
-				Log.TraceInformation(System.Environment.NewLine);
-				Log.TraceInformation(System.Environment.NewLine);
-				Log.TraceWarning("*** It is strongly recommended that each file is manually verified! ***");
-				Log.TraceInformation(System.Environment.NewLine);
-				Log.TraceInformation(System.Environment.NewLine);
-				Log.TraceInformation(System.Environment.NewLine);
+				Logger.LogInformation("{Text}", System.Environment.NewLine);
+				Logger.LogInformation("{Text}", System.Environment.NewLine);
+				Logger.LogInformation("{Text}", System.Environment.NewLine);
+				Logger.LogWarning("*** It is strongly recommended that each file is manually verified! ***");
+				Logger.LogInformation("{Text}", System.Environment.NewLine);
+				Logger.LogInformation("{Text}", System.Environment.NewLine);
+				Logger.LogInformation("{Text}", System.Environment.NewLine);
 
 				// remove everything if requested (for debugging etc)
 				if (bIsTest)
 				{
-					Log.TraceInformation("Deleting all the files because this is just a test...");
+					Logger.LogInformation("Deleting all the files because this is just a test...");
 					foreach (string NewFile in NewFiles)
 					{
 						File.Delete(NewFile);
@@ -146,12 +147,12 @@ public class CreatePlatformExtension : BuildCommand
 			// something went wrong - clean up anything we've created so far
 			foreach (string NewFile in NewFiles)
 			{
-				Log.TraceInformation($"Removing partial file ${NewFile} due to error");
+				Logger.LogInformation("Removing partial file ${NewFile} due to error", NewFile);
 				File.Delete(NewFile);
 			}
 			foreach (string WritableFile in WritableFiles)
 			{
-				Log.TraceInformation($"Restoring read-only file ${WritableFile} due to error");
+				Logger.LogInformation("Restoring read-only file ${WritableFile} due to error", WritableFile);
 				File.Delete(WritableFile);
 				File.Move(WritableFile + ".tmp.bak", WritableFile);
 				File.SetAttributes( WritableFile, File.GetAttributes(WritableFile) | FileAttributes.ReadOnly );
@@ -163,13 +164,13 @@ public class CreatePlatformExtension : BuildCommand
 			{
 				if (CL > 0 && CommandUtils.P4Enabled && ParseParamInt("CL", -1) != CL)
 				{
-					Log.TraceInformation($"Removing partial changelist ${CL} due to error");
+					Logger.LogInformation("Removing partial changelist ${CL} due to error", CL);
 					P4.DeleteChange(CL,true);
 				}
 			}
 			catch(Exception e)
 			{
-				Log.TraceError(e.Message);
+				Logger.LogError("{Text}", e.Message);
 			}
 
 
@@ -215,7 +216,7 @@ public class CreatePlatformExtension : BuildCommand
 				}
 				else
 				{
-					Log.TraceError($"Cannot find any supported files in {InSource}");
+					Logger.LogError("Cannot find any supported files in {InSource}", InSource);
 				}
 			}
 		}
@@ -227,7 +228,7 @@ public class CreatePlatformExtension : BuildCommand
 		}
 		else
 		{
-			Log.TraceError($"Invalid path or file name {InSource}");
+			Logger.LogError("Invalid path or file name {InSource}", InSource);
 		}
 	}
 
@@ -241,21 +242,21 @@ public class CreatePlatformExtension : BuildCommand
 		// sanity check plugin path
 		if (!File.Exists(PluginPath.FullName))
 		{
-			Log.TraceError($"File not found: {PluginPath}");
+			Logger.LogError("File not found: {PluginPath}", PluginPath);
 			return;
 		}
 
 		DirectoryReference PluginDir = PluginPath.Directory;
 		if (ProjectDir == null && !PluginDir.IsUnderDirectory(Unreal.EngineDirectory))
 		{
-			Log.TraceError($"{PluginPath} is not under the Engine directory, and no -project= has been specified");
+			Logger.LogError("{PluginPath} is not under the Engine directory, and no -project= has been specified", PluginPath);
 			return;
 		}
 
 		DirectoryReference RootDir = ProjectDir ?? Unreal.EngineDirectory;
 		if (!PluginDir.IsUnderDirectory(RootDir))
 		{
-			Log.TraceError($"{PluginPath} is not under {RootDir}");
+			Logger.LogError("{PluginPath} is not under {RootDir}", PluginPath, RootDir);
 			return;
 		}
 
@@ -292,7 +293,7 @@ public class CreatePlatformExtension : BuildCommand
 			string FinalFileName = MakePlatformExtensionPathFromSource(RootDir, PluginDir, PlatformName, BasePluginName + "_" + PlatformName + ".uplugin");
 			if (File.Exists(FinalFileName) && !(bOverwriteExistingFile && EditFile(FinalFileName)))
 			{
-				Log.TraceWarning($"Skipping {FinalFileName} as it already exists");
+				Logger.LogWarning("Skipping {FinalFileName} as it already exists", FinalFileName);
 				continue;
 			}
 
@@ -427,21 +428,21 @@ public class CreatePlatformExtension : BuildCommand
 		// sanity check module path
 		if (!File.Exists(ModulePath.FullName))
 		{
-			Log.TraceError($"File not found: {ModulePath}");
+			Logger.LogError("File not found: {ModulePath}", ModulePath);
 			return;
 		}
 
 		DirectoryReference ModuleDir = ModulePath.Directory;
 		if (ProjectDir == null && !ModuleDir.IsUnderDirectory(Unreal.EngineDirectory))
 		{
-			Log.TraceError($"{ModulePath} is not under the Engine directory, and no -project= has been specified");
+			Logger.LogError("{ModulePath} is not under the Engine directory, and no -project= has been specified", ModulePath);
 			return;
 		}
 
 		DirectoryReference RootDir = ProjectDir ?? Unreal.EngineDirectory;
 		if (!ModuleDir.IsUnderDirectory(RootDir))
 		{
-			Log.TraceError($"{ModulePath} is not under {RootDir}");
+			Logger.LogError("{ModulePath} is not under {RootDir}", ModulePath, RootDir);
 			return;
 		}
 
@@ -451,7 +452,7 @@ public class CreatePlatformExtension : BuildCommand
 		ModuleFilename = ModuleFilename.Substring( 0, ModuleFilename.Length - ModuleExtension.Length );
 		if (!ModuleExtension.Equals(".build.cs", System.StringComparison.InvariantCultureIgnoreCase ) && !ModuleExtension.Equals(".target.cs", System.StringComparison.InvariantCultureIgnoreCase))
 		{
-			Log.TraceError($"{ModulePath} is a module/rules file. Expecting .build.cs or .target.cs");
+			Logger.LogError("{ModulePath} is a module/rules file. Expecting .build.cs or .target.cs", ModulePath);
 			return;
 		}
 
@@ -464,7 +465,7 @@ public class CreatePlatformExtension : BuildCommand
 		string ModuleNamespaceDeclaration = ModuleContents.FirstOrDefault( L => L.Trim().StartsWith(NamespaceDeclaration) );
 		if (string.IsNullOrEmpty(ModuleClassDeclaration))
 		{
-			Log.TraceError($"Cannot find class declaration in ${ModulePath}");
+			Logger.LogError("Cannot find class declaration in ${ModulePath}", ModulePath);
 			return;
 		}
 		string ParentModuleName = ModuleClassDeclaration.Trim().Remove(0, ClassDeclaration.Length).Split(ClassNameSeparators, StringSplitOptions.None).Last();
@@ -474,7 +475,7 @@ public class CreatePlatformExtension : BuildCommand
 		}
 		if (string.IsNullOrEmpty(ParentModuleName))
 		{
-			Log.TraceError($"Cannot parse class declaration in ${ModulePath}");
+			Logger.LogError("Cannot parse class declaration in ${ModulePath}", ModulePath);
 			return;
 		}
 		string ParentNamespace = string.IsNullOrEmpty(ModuleNamespaceDeclaration) ? "" : (ModuleNamespaceDeclaration.Trim().Remove(0, NamespaceDeclaration.Length ).Split(' ', StringSplitOptions.None ).First() + ".");
@@ -502,7 +503,7 @@ public class CreatePlatformExtension : BuildCommand
 			string FinalFileName = MakePlatformExtensionPathFromSource(RootDir, ModuleDir, PlatformName, BaseModuleFileName + "_" + PlatformName + ModuleExtension );
 			if (File.Exists(FinalFileName) && !(bOverwriteExistingFile && EditFile(FinalFileName) ))
 			{
-				Log.TraceWarning($"Skipping {FinalFileName} as it already exists");
+				Logger.LogWarning("Skipping {FinalFileName} as it already exists", FinalFileName);
 				continue;
 			}
 
@@ -537,7 +538,7 @@ public class CreatePlatformExtension : BuildCommand
 		}
 		else
 		{
-			Log.TraceError($"unsupported file type {Source}");
+			Logger.LogError("unsupported file type {Source}", Source);
 		}
 	}
 
@@ -773,7 +774,7 @@ public class CreatePlatformExtension : BuildCommand
 			}
 			else
 			{
-				Log.TraceWarning($"Cannot edit {ExistingFile} because it is read-only");
+				Logger.LogWarning("Cannot edit {ExistingFile} because it is read-only", ExistingFile);
 				return false;
 			}
 		}
@@ -824,12 +825,12 @@ public class CreatePlatformExtension : BuildCommand
 			// this is an unknown item - see if we will accept it anyway...
 			if (bAllowUnknownPlatforms)
 			{
-				Log.TraceWarning($"{PlatformName} is not a known Platform or Platform Group. The code will still be generated but you may not be able to test it locally");
+				Logger.LogWarning("{PlatformName} is not a known Platform or Platform Group. The code will still be generated but you may not be able to test it locally", PlatformName);
 				Result.Add(PlatformName);
 			}
 			else
 			{
-				Log.TraceWarning($"{PlatformName} is not a known Platform or Platform Group and so it will be ignored. Specify -AllowUnknownPlatforms to allow it anyway");
+				Logger.LogWarning("{PlatformName} is not a known Platform or Platform Group and so it will be ignored. Specify -AllowUnknownPlatforms to allow it anyway", PlatformName);
 			}
 		}
 

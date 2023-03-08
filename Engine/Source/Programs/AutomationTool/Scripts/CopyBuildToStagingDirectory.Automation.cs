@@ -17,6 +17,7 @@ using System.Diagnostics;
 using System.Collections.Concurrent;
 using UnrealBuildBase;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationScripts
 {
@@ -364,24 +365,24 @@ namespace AutomationScripts
 
 		static public void LogDeploymentContext(DeploymentContext SC)
 		{
-			LogLog("Deployment Context **************");
-			LogLog("ProjectFile = {0}", SC.RawProjectPath);
-			LogLog("ArchiveDir = {0}", SC.ArchiveDirectory);
-			LogLog("IsCodeBasedUprojectFile = {0}", SC.IsCodeBasedProject);
-			LogLog("DedicatedServer = {0}", SC.DedicatedServer);
-			LogLog("Stage = {0}", SC.Stage);
-			LogLog("StageTargetPlatform = {0}", SC.StageTargetPlatform.PlatformType.ToString());
-			LogLog("InputRootDir = {0}", SC.LocalRoot);
-			LogLog("InputProjectDir = {0}", SC.ProjectRoot);
-			LogLog("PlatformDir = {0}", SC.PlatformDir);
-			LogLog("StagedOutputDir = {0}", SC.StageDirectory);
-			LogLog("ShortProjectName = {0}", SC.ShortProjectName);
-			LogLog("ProjectArgForCommandLines = {0}", SC.ProjectArgForCommandLines);
-			LogLog("RunRootDir = {0}", SC.RuntimeRootDir);
-			LogLog("RunProjectDir = {0}", SC.RuntimeProjectRootDir);
-			LogLog("PakFileInternalRoot = {0}", SC.PakFileInternalRoot);
-			LogLog("PlatformUsesChunkManifests = {0}", SC.PlatformUsesChunkManifests);
-			LogLog("End Deployment Context **************");
+			Logger.LogDebug("Deployment Context **************");
+			Logger.LogDebug("ProjectFile = {Arg0}", SC.RawProjectPath);
+			Logger.LogDebug("ArchiveDir = {Arg0}", SC.ArchiveDirectory);
+			Logger.LogDebug("IsCodeBasedUprojectFile = {Arg0}", SC.IsCodeBasedProject);
+			Logger.LogDebug("DedicatedServer = {Arg0}", SC.DedicatedServer);
+			Logger.LogDebug("Stage = {Arg0}", SC.Stage);
+			Logger.LogDebug("StageTargetPlatform = {Arg0}", SC.StageTargetPlatform.PlatformType.ToString());
+			Logger.LogDebug("InputRootDir = {Arg0}", SC.LocalRoot);
+			Logger.LogDebug("InputProjectDir = {Arg0}", SC.ProjectRoot);
+			Logger.LogDebug("PlatformDir = {Arg0}", SC.PlatformDir);
+			Logger.LogDebug("StagedOutputDir = {Arg0}", SC.StageDirectory);
+			Logger.LogDebug("ShortProjectName = {Arg0}", SC.ShortProjectName);
+			Logger.LogDebug("ProjectArgForCommandLines = {Arg0}", SC.ProjectArgForCommandLines);
+			Logger.LogDebug("RunRootDir = {Arg0}", SC.RuntimeRootDir);
+			Logger.LogDebug("RunProjectDir = {Arg0}", SC.RuntimeProjectRootDir);
+			Logger.LogDebug("PakFileInternalRoot = {Arg0}", SC.PakFileInternalRoot);
+			Logger.LogDebug("PlatformUsesChunkManifests = {Arg0}", SC.PlatformUsesChunkManifests);
+			Logger.LogDebug("End Deployment Context **************");
 		}
 
 		private static string GetInternationalizationPreset(ProjectParams Params, ConfigHierarchy PlatformGameConfig, bool bMustExist = true)
@@ -482,7 +483,7 @@ namespace AutomationScripts
 		{
 			if (!DirectoryReference.Exists(SourceDirectory))
 			{
-				Log.TraceWarning("Failed to stage '{0}' localization target as the directory does not exist! Full path: {1}", SourceDirectory.GetDirectoryName(), SourceDirectory.FullName);
+				Logger.LogWarning("Failed to stage '{Arg0}' localization target as the directory does not exist! Full path: {Arg1}", SourceDirectory.GetDirectoryName(), SourceDirectory.FullName);
 				return;
 			}
 
@@ -769,7 +770,7 @@ namespace AutomationScripts
 			}
 			var ThisPlatform = SC.StageTargetPlatform;
 
-			LogInformation("Creating Staging Manifest...");
+			Logger.LogInformation("Creating Staging Manifest...");
 
 			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType, SC.CustomConfig);
 
@@ -1373,7 +1374,7 @@ namespace AutomationScripts
 						FileReference OutputFile = FileReference.Combine(SC.ProjectRoot, "Intermediate", "Config", TargetPlatformName, "BinaryConfig.ini");
 						String UnrealPakParams = String.Format("MakeBinaryConfig -Project=\"{0}\" -Platform={1} -OutputFile=\"{2}\" -StagedPluginsFile=\"{3}\"", SC.RawProjectPath, ConfigHierarchy.GetIniPlatformName(ThisPlatform.IniPlatformType), OutputFile.FullName, PluginListFile.FullName);
 
-						LogInformation("Running UnrealPak with arguments: {0}", UnrealPakParams);
+						Logger.LogInformation("Running UnrealPak with arguments: {UnrealPakParams}", UnrealPakParams);
 						RunAndLog(CmdEnv, GetUnrealPakLocation().FullName, UnrealPakParams, Options: ERunOptions.Default | ERunOptions.UTF8Output);
 
 						SC.StageFile(StagedFileType.UFS, OutputFile, StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Config", OutputFile.GetFileName()));
@@ -1919,7 +1920,7 @@ namespace AutomationScripts
 			if (bPerformCopy)
 			{
 				var StageDirectory = ManifestName == "DebugFiles" ? SC.DebugStageDirectory : SC.StageDirectory;
-				LogInformation("Copying {0} to staging directory: {1}", ManifestName, StageDirectory);
+				Logger.LogInformation("Copying {ManifestName} to staging directory: {StageDirectory}", ManifestName, StageDirectory);
 				foreach (KeyValuePair<StagedFileReference, FileReference> Pair in Mapping)
 				{
 					FileReference Src = Pair.Value;
@@ -2142,7 +2143,7 @@ namespace AutomationScripts
 
 					if (!bMatches)
 					{
-						LogInformation("No matching platform for PakFileRules for Section {0} : {1}", SectionName, IniPlatformName);
+						Logger.LogInformation("No matching platform for PakFileRules for Section {SectionName} : {IniPlatformName}", SectionName, IniPlatformName);
 						continue;
 					}
 				}
@@ -2173,7 +2174,7 @@ namespace AutomationScripts
 					else if (SC.StageTargetConfigurations.Count > 0 && !bWarnedAboutMultipleTargets)
 					{
 						bWarnedAboutMultipleTargets = true;
-						LogInformation("Staging with more than one target, PakFileRules may apply too many rules!");
+						Logger.LogInformation("Staging with more than one target, PakFileRules may apply too many rules!");
 					}
 				}
 
@@ -2200,18 +2201,18 @@ namespace AutomationScripts
 				{
 					if (PakRules.OverridePaks != null)
 					{
-						LogWarning("Error in PakFileRules {0}, set to exclude but also sets override!", PakRules.Name);
+						Logger.LogWarning("Error in PakFileRules {Arg0}, set to exclude but also sets override!", PakRules.Name);
 						continue;
 					}
 					if (PakRules.bOnDemand)
 					{
-						LogWarning("Error in PakFileRules {0}, set to exclude but also sets to ondemand!", PakRules.Name);
+						Logger.LogWarning("Error in PakFileRules {Arg0}, set to exclude but also sets to ondemand!", PakRules.Name);
 						continue;
 					}
 				}
 				else if (PakRules.OverridePaks == null && !PakRules.bOnDemand)
 				{
-					LogWarning("Error in PakFileRules {0}, set to include but did not specify paks!", PakRules.Name);
+					Logger.LogWarning("Error in PakFileRules {Arg0}, set to include but did not specify paks!", PakRules.Name);
 					continue;
 				}
 
@@ -2274,7 +2275,7 @@ namespace AutomationScripts
 							}
 							else
 							{
-								LogWarning("Undefined PAK override '{0}' in PAK rule '{1}'", OverrideChunkName, Rule.Name);
+								Logger.LogWarning("Undefined PAK override '{OverrideChunkName}' in PAK rule '{Arg1}'", OverrideChunkName, Rule.Name);
 							}
 						}
 
@@ -2285,7 +2286,7 @@ namespace AutomationScripts
 						}
 						else
 						{
-							LogWarning("Undefined chunk name '{0}' in PAK rule '{1}'", ChunkName, Rule.Name);
+							Logger.LogWarning("Undefined chunk name '{ChunkName}' in PAK rule '{Arg1}'", ChunkName, Rule.Name);
 						}
 						
 						return;
@@ -2310,11 +2311,11 @@ namespace AutomationScripts
 						bOverrideChunkAssignment = true;
 						if (PakRules.OverridePaks != null)
 						{
-							LogInformation("Overridding chunk assignment {0} to {1}, this can cause broken references", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
+							Logger.LogInformation("Overridding chunk assignment {Arg0} to {Arg1}, this can cause broken references", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
 						}
 						else if (bExcludeFromPaks)
 						{
-							LogInformation("Removing {0} from pak despite chunk assignment, this can cause broken references", StagingFile.Key);
+							Logger.LogInformation("Removing {Arg0} from pak despite chunk assignment, this can cause broken references", StagingFile.Key);
 						}
 					}
 
@@ -2323,7 +2324,7 @@ namespace AutomationScripts
 					{
 						if (!bOverrideChunkAssignment)
 						{
-							LogInformation("Setting pak assignment for file {0} to {1}", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
+							Logger.LogInformation("Setting pak assignment for file {Arg0} to {Arg1}", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
 						}
 
 						ModifyPakList.Clear();
@@ -2341,7 +2342,7 @@ namespace AutomationScripts
 					{
 						if (!bOverrideChunkAssignment)
 						{
-							LogInformation("Excluding {0} from pak files", StagingFile.Key);
+							Logger.LogInformation("Excluding {Arg0} from pak files", StagingFile.Key);
 						}
 					}
 
@@ -2357,7 +2358,7 @@ namespace AutomationScripts
 		/// <param name="SC"></param>
 		private static void CreatePakUsingStagingManifest(ProjectParams Params, DeploymentContext SC)
 		{
-			LogInformation("Creating pak using staging manifest.");
+			Logger.LogInformation("Creating pak using staging manifest.");
 
 			DumpManifest(SC, CombinePaths(CmdEnv.LogFolder, "PrePak" + (SC.DedicatedServer ? "_Server" : "") + "_" + SC.CookPlatform));
 
@@ -2400,7 +2401,7 @@ namespace AutomationScripts
 		/// <param name="SC">Staging context</param>
 		private static void CreatePakForCrashReporter(ProjectParams Params, DeploymentContext SC)
 		{
-			LogInformation("Creating pak for crash reporter.");
+			Logger.LogInformation("Creating pak for crash reporter.");
 
 			Dictionary<string, string> PakResponseFile = CreatePakResponseFileFromStagingManifest(SC, SC.CrashReporterUFSFiles);
 			FileReference OutputLocation = FileReference.Combine(SC.RuntimeRootDir, "Engine", "Programs", "CrashReportClient", "Content", "Paks", "CrashReportClient.pak");
@@ -2426,7 +2427,7 @@ namespace AutomationScripts
 				}
 				if (FileReference.Exists(PakDenyListFilename))
 				{
-					LogInformation("Applying PAK deny list file {0}. This is deprecated in favor of DefaultPakFileRules.ini", PakDenyListFilename);
+					Logger.LogInformation("Applying PAK deny list file {PakDenyListFilename}. This is deprecated in favor of DefaultPakFileRules.ini", PakDenyListFilename);
 					string[] DenyListContents = FileReference.ReadAllLines(PakDenyListFilename);
 					foreach (string Candidate in DenyListContents)
 					{
@@ -2464,7 +2465,7 @@ namespace AutomationScripts
 
 					if (bExcludeFile)
 					{
-						LogInformation("Excluding {0}", Src);
+						Logger.LogInformation("Excluding {Src}", Src);
 						continue;
 					}
 				}
@@ -2472,7 +2473,7 @@ namespace AutomationScripts
 				// Filter I/O store container files
 				if (Src.HasExtension(".ucas") || Src.HasExtension(".utoc"))
 				{
-					LogInformation("Excluding {0}", Src);
+					Logger.LogInformation("Excluding {Src}", Src);
 					continue;
 				}
 
@@ -2493,7 +2494,7 @@ namespace AutomationScripts
 					{
 						throw new AutomationException("Staging manifest already contains {0} (or a file that differs in case only)", Src);
 					}
-					LogWarning("Tried to add duplicate file to stage " + Src + " ignoring second attempt pls fix");
+					Logger.LogWarning("Tried to add duplicate file to stage " + Src + " ignoring second attempt pls fix");
 					continue;
 				}
 
@@ -2595,32 +2596,32 @@ namespace AutomationScripts
 			if (FileReference.Exists(InUcasFile))
 			{
 				FileReference OutUcasFile = OutputLocation.ChangeExtension(".ucas");
-				LogInformation("Copying ucas from {0} to {1}", InUcasFile, OutUcasFile);
+				Logger.LogInformation("Copying ucas from {InUcasFile} to {OutUcasFile}", InUcasFile, OutUcasFile);
 				if (!InternalUtils.SafeCopyFile(InUcasFile.FullName, OutUcasFile.FullName))
 				{
-					LogInformation("Failed to copy ucas {0} to {1}, creating new pak", InUcasFile, OutUcasFile);
+					Logger.LogInformation("Failed to copy ucas {InUcasFile} to {OutUcasFile}, creating new pak", InUcasFile, OutUcasFile);
 					bCopiedExistingPak = false;
 				}
 			}
 			else
 			{
-				LogInformation("Missing ucas file {0}, creating new pak", InUcasFile);
+				Logger.LogInformation("Missing ucas file {InUcasFile}, creating new pak", InUcasFile);
 				bCopiedExistingPak = false;
 			}
 
 			if (FileReference.Exists(InUtocFile))
 			{
 				FileReference OutUtocFile = OutputLocation.ChangeExtension(".utoc");
-				LogInformation("Copying utoc from {0} to {1}", InUtocFile, OutUtocFile);
+				Logger.LogInformation("Copying utoc from {InUtocFile} to {OutUtocFile}", InUtocFile, OutUtocFile);
 				if (!InternalUtils.SafeCopyFile(InUtocFile.FullName, OutUtocFile.FullName))
 				{
-					LogInformation("Failed to copy utoc {0} to {1}, creating new pak", InUtocFile, OutUtocFile);
+					Logger.LogInformation("Failed to copy utoc {InUtocFile} to {OutUtocFile}, creating new pak", InUtocFile, OutUtocFile);
 					bCopiedExistingPak = false;
 				}
 			}
 			else
 			{
-				LogInformation("Missing utoc file {0}, creating new pak", InUtocFile);
+				Logger.LogInformation("Missing utoc file {InUtocFile}, creating new pak", InUtocFile);
 				bCopiedExistingPak = false;
 			}
 			return bCopiedExistingPak;
@@ -2640,7 +2641,7 @@ namespace AutomationScripts
 
 			if (bShouldGeneratePatch && !Params.HasBasedOnReleaseVersion)
 			{
-				LogInformation("Generating patch required a based on release version flag");
+				Logger.LogInformation("Generating patch required a based on release version flag");
 			}
 
 			const string OutputFilenameExtension = ".pak";
@@ -2679,7 +2680,7 @@ namespace AutomationScripts
 			string CompressionFormats;
 			if (!string.IsNullOrEmpty(HardwareCompressionFormat))
 			{
-				LogInformation("Overriding to HardwareCompressionFormat = {0}",HardwareCompressionFormat);
+				Logger.LogInformation("Overriding to HardwareCompressionFormat = {HardwareCompressionFormat}", HardwareCompressionFormat);
 				CompressionFormats = HardwareCompressionFormat;
 			}
 			else
@@ -3025,10 +3026,10 @@ namespace AutomationScripts
 				bUseSecondaryOrder = OrderFiles.Any(x => x.OrderType == OrderFile.OrderFileType.Cooker);
 			}
 
-			LogInformation("Using {0} pak order files:", OrderFiles.Count);
+			Logger.LogInformation("Using {Arg0} pak order files:", OrderFiles.Count);
 			foreach( OrderFile File in OrderFiles )
 			{
-				LogInformation("    {0} Priority {1}", File.File.ToString(), File.Priority);
+				Logger.LogInformation("    {Arg0} Priority {Arg1}", File.File.ToString(), File.Priority);
 			}
 
 			List<OrderFile> PrimaryOrderFiles = OrderFiles.FindAll(x => (x.OrderType != OrderFile.OrderFileType.Cooker));
@@ -3141,7 +3142,7 @@ namespace AutomationScripts
 
 						if (InternalUtils.SafeCopyFile(SourceOutputLocation.FullName, OutputLocation.FullName))
 						{
-							LogInformation("Copying source pak from {0} to {1} instead of creating new pak", SourceOutputLocation, OutputLocation);
+							Logger.LogInformation("Copying source pak from {SourceOutputLocation} to {OutputLocation} instead of creating new pak", SourceOutputLocation, OutputLocation);
 							bCopiedExistingPak = true;
 
 							FileReference InSigFile = SourceOutputLocation.ChangeExtension(".sig");
@@ -3149,11 +3150,11 @@ namespace AutomationScripts
 							{
 								FileReference OutSigFile = OutputLocation.ChangeExtension(".sig");
 
-								LogInformation("Copying pak sig from {0} to {1}", InSigFile, OutSigFile);
+								Logger.LogInformation("Copying pak sig from {InSigFile} to {OutSigFile}", InSigFile, OutSigFile);
 
 								if (!InternalUtils.SafeCopyFile(InSigFile.FullName, OutSigFile.FullName))
 								{
-									LogInformation("Failed to copy pak sig {0} to {1}, creating new pak", InSigFile, InSigFile);
+									Logger.LogInformation("Failed to copy pak sig {InSigFile} to {InSigFile2}, creating new pak", InSigFile, InSigFile);
 									bCopiedExistingPak = false;
 								}
 							}
@@ -3170,7 +3171,7 @@ namespace AutomationScripts
 					}
 					if (!bCopiedExistingPak)
 					{
-						LogInformation("Failed to copy source pak from {0} to {1}, creating new pak", SourceOutputLocation, OutputLocation);
+						Logger.LogInformation("Failed to copy source pak from {SourceOutputLocation} to {OutputLocation}, creating new pak", SourceOutputLocation, OutputLocation);
 					}
 
 					if (bCopiedExistingPak && !bCopiedExistingGlobalUtoc)
@@ -3675,7 +3676,7 @@ namespace AutomationScripts
 				CommandletParams += " -unattended";
 			}
 
-			LogInformation("Running UnrealPak with arguments: {0}", CommandletParams);
+			Logger.LogInformation("Running UnrealPak with arguments: {CommandletParams}", CommandletParams);
 			RunAndLog(CmdEnv, GetUnrealPakLocation().FullName, CommandletParams, Options: ERunOptions.Default | ERunOptions.UTF8Output);
 		}
 
@@ -3686,7 +3687,7 @@ namespace AutomationScripts
 		/// <param name="SC"></param>
 		private static void CopyPaksFromNetwork(ProjectParams Params, DeploymentContext SC)
 		{
-			LogInformation("Copying paks from network.");
+			Logger.LogInformation("Copying paks from network.");
 
 			if (!CommandUtils.P4Enabled)
 			{
@@ -3765,7 +3766,7 @@ namespace AutomationScripts
 								var InfoCache = new System.IO.FileInfo(CacheSrcFile);
 								if (Info.Exists && InfoCache.Exists && Info.Length == InfoCache.Length)
 								{
-									LogInformation("Copying from cache {0} -> {1}", CacheSrcFile, DestFileName);
+									Logger.LogInformation("Copying from cache {CacheSrcFile} -> {DestFileName}", CacheSrcFile, DestFileName);
 									CopyFileIncremental(new FileReference(CacheSrcFile), new FileReference(DestFileName));
 									continue;
 								}
@@ -3776,7 +3777,7 @@ namespace AutomationScripts
 
 						}
 					}
-					LogInformation("Copying {0} -> {1}", SrcFile, DestFileName);
+					Logger.LogInformation("Copying {SrcFile} -> {DestFileName}", SrcFile, DestFileName);
 					CopyFileIncremental(new FileReference(SrcFile), new FileReference(DestFileName));
 				}
 			}
@@ -3819,7 +3820,7 @@ namespace AutomationScripts
 		/// <param name="SC"></param>
 		private static void CreatePaksUsingChunkManifests(ProjectParams Params, DeploymentContext SC)
 		{
-			LogInformation("Creating pak using streaming install manifests.");
+			Logger.LogInformation("Creating pak using streaming install manifests.");
 			DumpManifest(SC, CombinePaths(CmdEnv.LogFolder, "PrePak" + (SC.DedicatedServer ? "_Server" : "") + "_" + SC.CookPlatform));
 
 			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType, SC.CustomConfig);
@@ -3853,7 +3854,7 @@ namespace AutomationScripts
 
 				var ChunkListFilename = GetChunkPakManifestListFilename(Params, SC);
 				List<string> ChunkList = new List<string>(ReadAllLines(ChunkListFilename));
-				Log.TraceInformation("Reading chunk list file {0} which contains {1} entries", ChunkListFilename, ChunkList.Count);
+				Logger.LogInformation("Reading chunk list file {ChunkListFilename} which contains {Arg1} entries", ChunkListFilename, ChunkList.Count);
 
 				for (int Index = 0; Index < ChunkList.Count; ++Index)
 				{
@@ -3886,7 +3887,7 @@ namespace AutomationScripts
 						}
 					}
 					CD.Manifest = ReadPakChunkManifest(ChunkManifestFilename);
-					Log.TraceInformation("Reading chunk manifest {0} which contains {1} entries", ChunkManifestFilename, CD.Manifest.Count);
+					Logger.LogInformation("Reading chunk manifest {ChunkManifestFilename} which contains {Arg1} entries", ChunkManifestFilename, CD.Manifest.Count);
 					ChunkDefinitions.Add(CD);
 				}
 
@@ -3925,7 +3926,7 @@ namespace AutomationScripts
 							continue;
 						}
 
-						Log.TraceInformation("Creating content-on-demand chunk definition '{0}' for PAK rule '{1}'", ChunkName, Rule.Name);
+						Logger.LogInformation("Creating content-on-demand chunk definition '{ChunkName}' for PAK rule '{Arg1}'", ChunkName, Rule.Name);
 
 						//TODO: Add encryption/compression settings
 						ChunkDefinition Chunk = new ChunkDefinition(ChunkName);
@@ -4085,7 +4086,7 @@ namespace AutomationScripts
 
 			System.Threading.Tasks.ParallelOptions Options = new System.Threading.Tasks.ParallelOptions();
 
-			LogInformation("Creating Pak files utilizing {0} cores", Environment.ProcessorCount);
+			Logger.LogInformation("Creating Pak files utilizing {Arg0} cores", Environment.ProcessorCount);
 			Options.MaxDegreeOfParallelism = Environment.ProcessorCount;
 
 			// Check for chunks that requested an encryption key that we don't have. This can happen for Epic contractors who don't have access to our keychains. Emit a warning though, just in case
@@ -4094,7 +4095,7 @@ namespace AutomationScripts
 			{
 				if (!string.IsNullOrEmpty(CD.RequestedEncryptionKeyGuid) && (CD.RequestedEncryptionKeyGuid != CD.EncryptionKeyGuid))
 				{
-					LogWarning("Chunk '" + CD.ChunkName + "' requested encryption key '" + CD.RequestedEncryptionKeyGuid + "' but it couldn't be found in the project keychain.");
+					Logger.LogWarning("Chunk '" + CD.ChunkName + "' requested encryption key '" + CD.RequestedEncryptionKeyGuid + "' but it couldn't be found in the project keychain.");
 				}
 			}
 
@@ -4287,18 +4288,18 @@ namespace AutomationScripts
 		{
 			if (Params.NoCleanStage)
 			{
-				LogInformation("Skipping clean of staging directory due to -NoCleanStage argument.");
+				Logger.LogInformation("Skipping clean of staging directory due to -NoCleanStage argument.");
 			}
 			else if (SC.Stage && !Params.SkipStage)
 			{
 				if (Params.SkipPak)
 				{
-					LogInformation("Cleaning Stage Directory (exluding PAK files): {0}", SC.StageDirectory.FullName);
+					Logger.LogInformation("Cleaning Stage Directory (exluding PAK files): {Arg0}", SC.StageDirectory.FullName);
 					CleanDirectoryExcludingPakFiles(new DirectoryInfo(SC.StageDirectory.FullName));
 				}
 				else
 				{
-					LogInformation("Cleaning Stage Directory: {0}", SC.StageDirectory.FullName);
+					Logger.LogInformation("Cleaning Stage Directory: {Arg0}", SC.StageDirectory.FullName);
 					try
 					{
 						DeleteDirectory(SC.StageDirectory.FullName);
@@ -4310,7 +4311,7 @@ namespace AutomationScripts
 					}
 					if (SC.OptionalFileStageDirectory != null && DirectoryReference.Exists(SC.OptionalFileStageDirectory))
 					{
-						LogInformation("Cleaning Optional Stage Directory: {0}", SC.OptionalFileStageDirectory.FullName);
+						Logger.LogInformation("Cleaning Optional Stage Directory: {Arg0}", SC.OptionalFileStageDirectory.FullName);
 						try
 						{
 							DeleteDirectory(SC.OptionalFileStageDirectory.FullName);
@@ -4325,7 +4326,7 @@ namespace AutomationScripts
 			}
 			else
 			{
-				LogInformation("Cleaning PAK files in stage directory: {0}", SC.StageDirectory.FullName);
+				Logger.LogInformation("Cleaning PAK files in stage directory: {Arg0}", SC.StageDirectory.FullName);
 				try
 				{
 					// delete old pak files
@@ -4450,7 +4451,7 @@ namespace AutomationScripts
 				return;
 			}
 
-			LogInformation("Creating UECommandLine.txt");
+			Logger.LogInformation("Creating UECommandLine.txt");
 			DirectoryReference.CreateDirectory(GetIntermediateCommandlineDir(SC));
 			File.WriteAllText(IntermediateCmdLineFile.FullName, CompleteCommandLine);
 		}
@@ -4805,7 +4806,7 @@ namespace AutomationScripts
 			{
 				Params.ValidateAndLog();
 
-				LogInformation("********** STAGE COMMAND STARTED **********");
+				Logger.LogInformation("********** STAGE COMMAND STARTED **********");
 				var StartTime = DateTime.UtcNow;
 
 				if (!Params.NoClient)
@@ -4880,8 +4881,8 @@ namespace AutomationScripts
 						ApplyStagingManifest(Params, SC);
 					}
 				}
-				LogInformation("Stage command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
-				LogInformation("********** STAGE COMMAND COMPLETED **********");
+				Logger.LogInformation("Stage command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
+				Logger.LogInformation("********** STAGE COMMAND COMPLETED **********");
 			}
 		}
 	}

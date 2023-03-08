@@ -7,6 +7,7 @@ using System.Linq;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 class CopySharedCookedBuild : BuildCommand
 {
@@ -59,7 +60,7 @@ class CopySharedCookedBuild : BuildCommand
 
 	public override void ExecuteBuild()
 	{
-		LogInformation("************************* CopySharedCookedBuild");
+		Logger.LogInformation("************************* CopySharedCookedBuild");
 
 		// Parse the project filename (as a local path)
 		

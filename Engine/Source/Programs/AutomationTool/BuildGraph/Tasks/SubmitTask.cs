@@ -112,11 +112,11 @@ namespace AutomationTool.Tasks
 			HashSet<FileReference> Files = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet);
 			if (Files.Count == 0)
 			{
-				Log.Logger.LogInformation("No files to submit.");
+				Logger.LogInformation("No files to submit.");
 			}
 			else if (!CommandUtils.AllowSubmit)
 			{
-				Log.Logger.LogWarning("Submitting to Perforce is disabled by default. Run with the -submit argument to allow.");
+				Logger.LogWarning("Submitting to Perforce is disabled by default. Run with the -submit argument to allow.");
 			}
 			else
 			{
@@ -185,7 +185,7 @@ namespace AutomationTool.Tasks
 				}
 				catch (P4Exception Ex)
 				{
-					Job.OwnerCommand.Logger.LogError(KnownLogEvents.Systemic_Perforce, "{Message}", Ex.Message);
+					Logger.LogError(KnownLogEvents.Systemic_Perforce, "{Message}", Ex.Message);
 					throw new AutomationException(Ex.ErrorCode, Ex, "{0}", Ex.Message) { OutputFormat = AutomationExceptionOutputFormat.Silent };
 				}
 			}

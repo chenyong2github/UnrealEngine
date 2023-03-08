@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -30,7 +31,7 @@ namespace AutomationTool
 			
 			if (InstalledSdkVersion != RequestedVersion)
 			{
-				LogWarning("Installed Xcode version is {0} - expected {1}", InstalledSdkVersion, RequestedVersion);
+				Logger.LogWarning("Installed Xcode version is {InstalledSdkVersion} - expected {RequestedVersion}", InstalledSdkVersion, RequestedVersion);
 			}
 		}
 	}

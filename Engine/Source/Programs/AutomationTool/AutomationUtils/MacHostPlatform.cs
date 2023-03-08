@@ -27,13 +27,13 @@ namespace AutomationTool
 
 				if (CanUseMsBuild)
 				{
-					Log.Logger.LogInformation("using {DotNet}!", CommandUtils.WhichApp("dotnet"));
+					Logger.LogInformation("using {DotNet}!", CommandUtils.WhichApp("dotnet"));
 
 					CachedFrameworkMsbuildExe = "dotnet msbuild";
 				}
 				else
 				{
-					Log.Logger.LogInformation("Using xbuild. Install Mono 5.0 or greater for faster builds!");
+					Logger.LogInformation("Using xbuild. Install Mono 5.0 or greater for faster builds!");
 					CachedFrameworkMsbuildExe = "xbuild";
 				}
 			}

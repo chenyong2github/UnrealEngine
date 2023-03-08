@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using AutomationTool;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 [Help(@"Pulls a value from an ini file and inserts it into a plist.")]
 [Help(@"Note currently only looks at values irrespective of sections!")]
@@ -88,7 +89,7 @@ public class WriteIniValueToPlist : BuildCommand
 
 			string IniValue = IniMatch.Groups[1].ToString().Trim();
 
-			LogInformation("Found ini value {0} for property {1}", IniValue, IniProperty);
+			Logger.LogInformation("Found ini value {IniValue} for property {IniProperty}", IniValue, IniProperty);
 
 			string PlistFileContents = File.ReadAllText(PlistFile);
 
@@ -105,23 +106,23 @@ public class WriteIniValueToPlist : BuildCommand
 			string PListEntry = PlistMatch.Groups[0].ToString();
 			string PListValue = PlistMatch.Groups[1].ToString();
 
-			LogInformation("Found existing value {0} for plist entry {1}", PListValue, PlistProperty);
+			Logger.LogInformation("Found existing value {PListValue} for plist entry {PlistProperty}", PListValue, PlistProperty);
 
 			string NewPlistEntry = PListEntry.Replace(PListValue, IniValue);
 
-			LogInformation("Set entry {0} to {1}", PlistProperty, IniValue);
+			Logger.LogInformation("Set entry {PlistProperty} to {IniValue}", PlistProperty, IniValue);
 
 			PlistFileContents = PlistFileContents.Replace(PListEntry, NewPlistEntry);
 
-			LogInformation("Saving new plist to {0}", PlistFile);
+			Logger.LogInformation("Saving new plist to {PlistFile}", PlistFile);
 
 			File.WriteAllText(PlistFile, PlistFileContents);
 
-			LogInformation("Done");
+			Logger.LogInformation("Done");
 		}
 		catch (Exception Ex)
 		{
-			LogWarning("Failed to update plist {0}. {1}", PlistFile, Ex);
+			Logger.LogWarning("Failed to update plist {PlistFile}. {Ex}", PlistFile, Ex);
 		}
 
 		return ExitCode.Success;

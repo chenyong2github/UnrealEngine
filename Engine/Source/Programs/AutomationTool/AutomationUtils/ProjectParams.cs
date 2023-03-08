@@ -34,6 +34,8 @@ namespace AutomationTool
 	[Help("servertargetplatform=PlatformName", "target platform for building, cooking and deployment of the dedicated server (also -ServerPlatform)")]
 	public class ProjectParams
 	{
+		static ILogger Logger => Log.Logger;
+
 		/// <summary>
 		/// Gets a parameter from the command line if it hasn't been specified in the constructor. 
 		/// If the command line is not available, default value will be used.
@@ -130,12 +132,12 @@ namespace AutomationTool
 			{
 				if (SpecifiedValue == null)
 				{
-					Log.Logger.LogWarning("Value was provided for \"{ParamName}\" using obsolete name \"{ObsoleteParamName}\"", ParamName, ObsoleteParamName);
+					Logger.LogWarning("Value was provided for \"{ParamName}\" using obsolete name \"{ObsoleteParamName}\"", ParamName, ObsoleteParamName);
 					Result = SpecifiedValue;
 				}
 				else
 				{
-					Log.Logger.LogWarning("Value provided for obsolete name \"{ObsoleteParamName}\" will be ignored as \"{ParamName}\" was provided", ObsoleteParamName, ParamName);
+					Logger.LogWarning("Value provided for obsolete name \"{ObsoleteParamName}\" will be ignored as \"{ParamName}\" was provided", ObsoleteParamName, ParamName);
 				}
 			}
 			else if (SpecifiedValue != null)
@@ -154,14 +156,14 @@ namespace AutomationTool
 						// Didn't find the new name on the command line. If the obsolete name was found, use it, and warn.
 						if (ParsedObsolete != null)
 						{
-							Log.Logger.LogWarning("Obsolete argument \"{ObsoleteParamName}\" on command line - use \"{ParamName}\" instead", ObsoleteParamName, ParamName);
+							Logger.LogWarning("Obsolete argument \"{ObsoleteParamName}\" on command line - use \"{ParamName}\" instead", ObsoleteParamName, ParamName);
 							Parsed = ParsedObsolete;
 						}
 					}
 					else if (ParsedObsolete != null)
 					{
 						// Did find the new name on the command line - check for the obsolete name. If found, do not use it, and warn.
-						Log.Logger.LogWarning("Obsolete argument \"{ObsoleteParamName}\" will be ignored as \"{ParamName}\" was provided", ObsoleteParamName, ParamName);
+						Logger.LogWarning("Obsolete argument \"{ObsoleteParamName}\" will be ignored as \"{ParamName}\" was provided", ObsoleteParamName, ParamName);
 					}
 				}
 

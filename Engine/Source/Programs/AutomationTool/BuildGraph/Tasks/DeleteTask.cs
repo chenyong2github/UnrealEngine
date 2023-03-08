@@ -82,7 +82,7 @@ namespace AutomationTool.Tasks
 				{
 					if (Parameters.Verbose)
 					{
-						Log.Logger.LogInformation("Deleting {File}", File.FullName);
+						Logger.LogInformation("Deleting {File}", File.FullName);
 					}
 					if (!InternalUtils.SafeDeleteFile(File.FullName))
 					{
@@ -121,7 +121,7 @@ namespace AutomationTool.Tasks
 					{
 						if (Parameters.Verbose)
 						{
-							Log.Logger.LogInformation("Deleting {Directory}", Directory);
+							Logger.LogInformation("Deleting {Directory}", Directory);
 						}
 						DirectoryReference FullDir = new DirectoryReference(Directory);
 						if (DirectoryReference.Exists(FullDir))

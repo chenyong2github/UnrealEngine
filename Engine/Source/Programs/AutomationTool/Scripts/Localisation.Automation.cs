@@ -11,6 +11,7 @@ using UnrealBuildTool;
 using EpicGames.Localization;
 using EpicGames.Core;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 [Help("Updates the external localization data using the arguments provided.")]
 [Help("UEProjectRoot", "Optional root-path to the project we're gathering for (defaults to CmdEnv.LocalRoot if unset).")]
@@ -165,7 +166,7 @@ class Localize : BuildCommand
 		// We pass the preview switch along to have the gather text commandlets exhibit different behaviors. See UGatherTextCommandlet
 		if (IsRunningInPreview)
 		{
-			LogInformation("Running in preview mode. Preview switch will be passed along to all localization commandlets to be run.");
+			Logger.LogInformation("Running in preview mode. Preview switch will be passed along to all localization commandlets to be run.");
 			AdditionalCommandletArguments += " -Preview";
 		}
 			
@@ -234,7 +235,7 @@ class Localize : BuildCommand
 			{
 				if (!AvailablePluginNames.Contains(PluginName))
 				{
-					LogWarning("The plugin '{0}' specified by -IncludePlugins wasn't found and will be skipped.", PluginName);
+					Logger.LogWarning("The plugin '{PluginName}' specified by -IncludePlugins wasn't found and will be skipped.", PluginName);
 				}
 			}
 		}
@@ -263,7 +264,7 @@ class Localize : BuildCommand
 			// we still run this in preview mode to bring all the gather configs up to date
 			if (P4Enabled)
 			{
-				LogInformation("Sync necessary content to head revision");
+				Logger.LogInformation("Sync necessary content to head revision");
 				P4.Sync(P4Env.Branch + "/" + LocalizationTask.Batch.LocalizationTargetDirectory + "/Config/Localization/...");
 				P4.Sync(P4Env.Branch + "/" + LocalizationTask.Batch.LocalizationTargetDirectory + "/Content/Localization/...");
 			}
@@ -359,7 +360,7 @@ class Localize : BuildCommand
 					if (LocalizationConfigFiles.Count > 0)
 					{
 						var Arguments = String.Format("{0} -run=GatherText -config=\"{1}\" {2}", ProjectArgument, String.Join(";", LocalizationConfigFiles), EditorArguments);
-						LogInformation("Running localization commandlet for '{0}': {1}", ProjectInfo.ProjectName, Arguments);
+						Logger.LogInformation("Running localization commandlet for '{Arg0}': {Arguments}", ProjectInfo.ProjectName, Arguments);
 						LocalizationTask.GatherProcessResults.Add(Run(EditorExe, Arguments, null, CommandletRunOptions));
 					}
 					else
@@ -387,11 +388,11 @@ class Localize : BuildCommand
 					
 					if (RunResult.ExitCode == 0)
 					{
-						LogInformation("The localization commandlet for '{0}' exited with code 0.", ProjectInfo.ProjectName);
+						Logger.LogInformation("The localization commandlet for '{Arg0}' exited with code 0.", ProjectInfo.ProjectName);
 					}
 					else
 					{
-						LogWarning("The localization commandlet for '{0}' exited with code {1} which likely indicates a crash.", ProjectInfo.ProjectName, RunResult.ExitCode);
+						Logger.LogWarning("The localization commandlet for '{Arg0}' exited with code {Arg1} which likely indicates a crash.", ProjectInfo.ProjectName, RunResult.ExitCode);
 					}
 				}
 			}
@@ -403,14 +404,14 @@ class Localize : BuildCommand
 			var PreviewManifestFiles= GetPreviewManifestFilesToDelete(LocalizationBatches, UEProjectRoot);
 			foreach (var PreviewManifestFile in PreviewManifestFiles) 
 			{
-				LogInformation("Deleting preview manifest file {0}.", PreviewManifestFile);
+				Logger.LogInformation("Deleting preview manifest file {PreviewManifestFile}.", PreviewManifestFile);
 				try
 				{
 					File.Delete(PreviewManifestFile);
 				}
 				catch (Exception Ex)
 				{
-					LogInformation("[FAILED] Deleting preview file: '{0}' - {1}", PreviewManifestFile, Ex);
+					Logger.LogInformation("[FAILED] Deleting preview file: '{PreviewManifestFile}' - {Ex}", PreviewManifestFile, Ex);
 				}
 			}
 		}
@@ -437,7 +438,7 @@ class Localize : BuildCommand
 						}
 						else
 						{
-							LogWarning("Skipping upload to the localization provider for '{0}' due to an earlier commandlet failure.", ProjectInfo.ProjectName);
+							Logger.LogWarning("Skipping upload to the localization provider for '{Arg0}' due to an earlier commandlet failure.", ProjectInfo.ProjectName);
 						}
 					}
 				}
@@ -490,7 +491,7 @@ class Localize : BuildCommand
 		}
 
 		var RunDuration = (DateTime.UtcNow - StartTime).TotalMilliseconds;
-		LogInformation("Localize command finished in {0} seconds", RunDuration / 1000);
+		Logger.LogInformation("Localize command finished in {Arg0} seconds", RunDuration / 1000);
 	}
 
 	private ProjectInfo GenerateProjectInfo(string RootWorkingDirectory, string ProjectName, IReadOnlyList<string> LocalizationStepNames)

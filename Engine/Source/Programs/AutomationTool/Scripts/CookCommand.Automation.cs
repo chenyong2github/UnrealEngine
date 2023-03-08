@@ -12,6 +12,7 @@ using UnrealBuildTool;
 using System.Collections.Concurrent;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationScripts
 {
@@ -122,7 +123,7 @@ namespace AutomationScripts
 
 			if (Params.Clean.HasValue && Params.Clean.Value && !Params.IterativeCooking)
 			{
-				LogInformation("Cleaning cooked data.");
+				Logger.LogInformation("Cleaning cooked data.");
 				CleanupCookedData(PlatformsToCookSet.ToList(), Params);
 			}
 
@@ -133,11 +134,11 @@ namespace AutomationScripts
 				Maps = Params.MapsToCook.ToArray();
 				foreach (var M in Maps)
 				{
-					LogInformation("HasMapsToCook " + M.ToString());
+					Logger.LogInformation("{Text}", "HasMapsToCook " + M.ToString());
 				}
 				foreach (var M in Params.MapsToCook)
 				{
-					LogInformation("Params.HasMapsToCook " + M.ToString());
+					Logger.LogInformation("{Text}", "Params.HasMapsToCook " + M.ToString());
 				}
 			}
 
@@ -240,7 +241,7 @@ namespace AutomationScripts
 			}
 			Params.ValidateAndLog();
 
-			LogInformation("********** COOK COMMAND STARTED **********");
+			Logger.LogInformation("********** COOK COMMAND STARTED **********");
 			var StartTime = DateTime.UtcNow;
 
 			string UEEditorExe = HostPlatform.Current.GetUnrealExePath(Params.UnrealExe);
@@ -294,7 +295,7 @@ namespace AutomationScripts
 				{
 					if (Params.IgnoreCookErrors)
 					{
-						LogWarning("Ignoring cook failure.");
+						Logger.LogWarning("Ignoring cook failure.");
 					}
 					else
 					{
@@ -317,8 +318,8 @@ namespace AutomationScripts
 			}
 
 
-			LogInformation("Cook command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
-			LogInformation("********** COOK COMMAND COMPLETED **********");
+			Logger.LogInformation("Cook command time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
+			Logger.LogInformation("********** COOK COMMAND COMPLETED **********");
 		}
 
 		public struct FileInfo
@@ -370,7 +371,7 @@ namespace AutomationScripts
 				{
 					if (!(Ex is System.IO.DirectoryNotFoundException))
 					{
-						LogInformation("Failed deleting temporary directories " + TemporaryPakPath + " continuing. " + Ex.GetType().ToString());
+						Logger.LogInformation("{Text}", "Failed deleting temporary directories " + TemporaryPakPath + " continuing. " + Ex.GetType().ToString());
 					}
 				}
 				try
@@ -381,7 +382,7 @@ namespace AutomationScripts
 				{
 					if (!(Ex is System.IO.DirectoryNotFoundException))
 					{
-						LogInformation("Failed deleting temporary directories " + TemporaryFilesPath + " continuing. " + Ex.GetType().ToString());
+						Logger.LogInformation("{Text}", "Failed deleting temporary directories " + TemporaryFilesPath + " continuing. " + Ex.GetType().ToString());
 					}
 				}
 
@@ -429,7 +430,7 @@ namespace AutomationScripts
 
 						if (PakFiles.Count <= 0)
 						{
-							LogInformation("No Pak files found in " + SourceCookedContentPlatformPath + " :(");
+							Logger.LogInformation("No Pak files found in " + SourceCookedContentPlatformPath + " :(");
 						}
 					}
 					else if (SourceCookedContentPath.EndsWith(".pak"))
@@ -447,7 +448,7 @@ namespace AutomationScripts
 
 					foreach (var Name in PakFiles)
 					{
-						LogInformation("Extracting pak " + Name + " for comparision to location " + TemporaryFilesPath);
+						Logger.LogInformation("{Text}", "Extracting pak " + Name + " for comparision to location " + TemporaryFilesPath);
 
 						string UnrealPakParams = Name + " -Extract " + " " + TemporaryFilesPath + " -ExtractToMountPoint";
 						try
@@ -456,7 +457,7 @@ namespace AutomationScripts
 						}
 						catch (Exception Ex)
 						{
-							LogInformation("Pak failed to extract because of " + Ex.GetType().ToString());
+							Logger.LogInformation("{Text}", "Pak failed to extract because of " + Ex.GetType().ToString());
 						}
 					}
 
@@ -507,8 +508,8 @@ namespace AutomationScripts
 
 						if (SourceFile == null || DestFile == null)
 						{
-							LogInformation(LogStringBuilder.ToString());
-							LogError("Diff cooked content failed on file " + SourceFilename + " when comparing against " + DestFilename + " " + (SourceFile == null ? SourceFilename : DestFilename) + " file is missing");
+							Logger.LogInformation("{Text}", LogStringBuilder.ToString());
+							Logger.LogError("Diff cooked content failed on file " + SourceFilename + " when comparing against " + DestFilename + " " + (SourceFile == null ? SourceFilename : DestFilename) + " file is missing");
 							return;
 						}
 
@@ -561,16 +562,16 @@ namespace AutomationScripts
 								bool bFailedToSaveDestFile = !Directory.Exists(Path.GetDirectoryName(SavedDestFilename));
 								if (bFailedToSaveSourceFile || bFailedToSaveDestFile)
 								{
-									LogInformation(LogStringBuilder.ToString());
+									Logger.LogInformation("{Text}", LogStringBuilder.ToString());
 
 									if (bFailedToSaveSourceFile)
 									{
-										LogError("Failed to save source file" + SavedSourceFilename);
+										Logger.LogError("{Text}", "Failed to save source file" + SavedSourceFilename);
 									}
 
 									if (bFailedToSaveDestFile)
 									{
-										LogError("Failed to save dest file" + SavedDestFilename);
+										Logger.LogError("{Text}", "Failed to save dest file" + SavedDestFilename);
 									}
 
 									return;
@@ -597,26 +598,26 @@ namespace AutomationScripts
 							FileReport.Add(DiffFileInfo);
 						}
 
-						LogInformation(LogStringBuilder.ToString());
+						Logger.LogInformation("{Text}", LogStringBuilder.ToString());
 					});
 
-					LogInformation("Mismatching files:");
+					Logger.LogInformation("Mismatching files:");
 					foreach (var Report in FileReport)
 					{
 						if (Report.FirstByteFailed == -1)
 						{
-							LogInformation("File " + Report.Filename + " size mismatch: " + Report.File1Size + " VS " + Report.File2Size);
+							Logger.LogInformation("{Text}", "File " + Report.Filename + " size mismatch: " + Report.File1Size + " VS " + Report.File2Size);
 						}
 						else
 						{
-							LogInformation("File " + Report.Filename + " bytes mismatch: " + Report.BytesMismatch + " first byte failed at: " + Report.FirstByteFailed + " file size: " + Report.File1Size);
+							Logger.LogInformation("{Text}", "File " + Report.Filename + " bytes mismatch: " + Report.BytesMismatch + " first byte failed at: " + Report.FirstByteFailed + " file size: " + Report.File1Size);
 						}
 					}
 
 				}
 				catch (Exception Ex)
 				{
-					LogInformation("Exception " + Ex.ToString());
+					Logger.LogInformation("{Text}", "Exception " + Ex.ToString());
 					continue;
 				}
 			}

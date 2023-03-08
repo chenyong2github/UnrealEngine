@@ -7,6 +7,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 [Help("UAT command to run performance test demo using different RHIs and compare results")]
 class RecordPerformance : BuildCommand
@@ -59,7 +60,7 @@ class RecordPerformance : BuildCommand
 				var Platform = GetPlatformByName(PlatformName);
 				if (Platform == null)
 				{
-					LogInformation("Cannot find platform '{0}'. Skipping.", PlatformName);
+					Logger.LogInformation("Cannot find platform '{PlatformName}'. Skipping.", PlatformName);
 					continue;
 				}
 
@@ -98,7 +99,7 @@ class RecordPerformance : BuildCommand
 			CreateChart(Stat);
 		}
 
-		LogInformation("Performance charts stored in {0}", OutputDir);
+		Logger.LogInformation("Performance charts stored in {OutputDir}", OutputDir);
 	}
 
 	private IEnumerable<string> ParseMultipleParams(string ParamName)
@@ -182,7 +183,7 @@ class RecordPerformance : BuildCommand
 		var AdditionalCommandLineParameters = "-savevulkanpsocacheonexit";
 		var StatFileName = Path.Combine(ProjectToRun, "Saved", "FXPerformance", PerformanceMonitorConfig + ".csv");
 
-		LogInformation("Running {0} on {1}...", Rhi, Platform.PlatformType);
+		Logger.LogInformation("Running {Rhi} on {Arg1}...", Rhi, Platform.PlatformType);
 
 		var RhiParam = (Rhi != "default") ? "-" + Rhi : "";
 
@@ -193,7 +194,7 @@ class RecordPerformance : BuildCommand
 		}
 		catch
 		{
-			LogInformation("Running game failed. Stats might be wrong / incomplete.");
+			Logger.LogInformation("Running game failed. Stats might be wrong / incomplete.");
 		}
 
 		if (UseStats)
@@ -215,7 +216,7 @@ class RecordPerformance : BuildCommand
 
 	private void BuildAndCookPlatform(UnrealTargetPlatform Platform)
 	{
-		LogInformation("Building {0}...", Platform.ToString());
+		Logger.LogInformation("Building {Arg0}...", Platform.ToString());
 
 		RunBCR(string.Format("-project={0} -platform={1} -build -cook -stage -pak -deploy", ProjectToRun, Platform));
 	}

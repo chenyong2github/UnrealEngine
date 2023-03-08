@@ -17,6 +17,7 @@ using System.Text.RegularExpressions;
 using AutomationScripts;
 using System.Drawing;
 using System.Security.Policy;
+using Microsoft.Extensions.Logging;
 
 public class AndroidPlatform : Platform
 {
@@ -804,7 +805,7 @@ public class AndroidPlatform : Platform
 				if (PluginExtras.FirstOrDefault(x => x == PluginPath) == null)
 				{
 					PluginExtras.Add(PluginPath);
-					LogInformation("AndroidPlugin: {0}", PluginPath);
+					Logger.LogInformation("AndroidPlugin: {PluginPath}", PluginPath);
 				}
 			}
 		}
@@ -903,7 +904,7 @@ public class AndroidPlatform : Platform
 		}
 		if (!bAllowNetworkConnection && ConnectionType != EConnectionType.USBOnly)
 		{
-			Log.TraceWarning("AFS will only use USB connection due to network connection disabled");
+			Logger.LogWarning("AFS will only use USB connection due to network connection disabled");
 			ConnectionType = EConnectionType.USBOnly;
 		}
 
@@ -967,7 +968,7 @@ public class AndroidPlatform : Platform
 
 	private bool CreateOBBFile(DeploymentContext SC, string OutputFilename, List<FileReference> FilesForObb)
 	{
-		LogInformation("Creating {0} from {1}", OutputFilename, SC.StageDirectory);
+		Logger.LogInformation("Creating {OutputFilename} from {Arg1}", OutputFilename, SC.StageDirectory);
 		using (ZipFile ObbFile = new ZipFile(OutputFilename))
 		{
 			ObbFile.CompressionMethod = CompressionMethod.None;
@@ -1067,7 +1068,7 @@ public class AndroidPlatform : Platform
 		}
 
 		string BaseApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, Architecture:null);
-		LogInformation("BaseApkName = {0}", BaseApkName);
+		Logger.LogInformation("BaseApkName = {BaseApkName}", BaseApkName);
 
 		// Create main OBB with entire contents of staging dir. This
 		// includes any PAK files, movie files, etc.
@@ -1124,7 +1125,7 @@ public class AndroidPlatform : Platform
 
 		if (!OBBNeedsUpdate)
 		{
-			LogInformation("OBB is up to date: " + LocalObbName);
+			Logger.LogInformation("{Text}", "OBB is up to date: " + LocalObbName);
 		}
 		else
 		{
@@ -1205,14 +1206,14 @@ public class AndroidPlatform : Platform
 						else
 						{
 							// no room in either file
-							LogInformation("Failed to build OBB: " + LocalObbName);
+							Logger.LogInformation("{Text}", "Failed to build OBB: " + LocalObbName);
 							throw new AutomationException(ExitCode.Error_AndroidOBBError, "Stage Failed. Could not build OBB {0}. The file may be too big to fit in an OBB ({1} limit)", LocalObbName, LimitString);
 						}
 					}
 					else
 					{
 						// no room in either file
-						LogInformation("Failed to build OBB: " + LocalObbName);
+						Logger.LogInformation("{Text}", "Failed to build OBB: " + LocalObbName);
 						throw new AutomationException(ExitCode.Error_AndroidOBBError, "Stage Failed. Could not build OBB {0}. The file may be too big to fit in an OBB ({1} limit)", LocalObbName, LimitString);
 					}
 				}
@@ -1221,7 +1222,7 @@ public class AndroidPlatform : Platform
 			// Now create the main OBB as a ZIP archive.
 			if (!CreateOBBFile(SC, LocalObbName, FilesToObb))
 			{
-				LogInformation("Failed to build OBB: " + LocalObbName);
+				Logger.LogInformation("{Text}", "Failed to build OBB: " + LocalObbName);
 				throw new AutomationException(ExitCode.Error_AndroidOBBError, "Stage Failed. Could not build OBB {0}. The file may be too big to fit in an OBB ({1} limit)", LocalObbName, LimitString);
 			}
 
@@ -1230,7 +1231,7 @@ public class AndroidPlatform : Platform
 			{
 				if (!CreateOBBFile(SC, LocalPatchName, FilesToPatch))
 				{
-					LogInformation("Failed to build OBB: " + LocalPatchName);
+					Logger.LogInformation("{Text}", "Failed to build OBB: " + LocalPatchName);
 					throw new AutomationException(ExitCode.Error_AndroidOBBError, "Stage Failed. Could not build OBB {0}. The file may be too big to fit in an OBB ({1} limit)", LocalPatchName, LimitString);
 				}
 			}
@@ -1240,7 +1241,7 @@ public class AndroidPlatform : Platform
 			{
 				if (!CreateOBBFile(SC, LocalOverflow1Name, FilesToOverflow1))
 				{
-					LogInformation("Failed to build OBB: " + LocalOverflow1Name);
+					Logger.LogInformation("{Text}", "Failed to build OBB: " + LocalOverflow1Name);
 					throw new AutomationException(ExitCode.Error_AndroidOBBError, "Stage Failed. Could not build OBB {0}. The file may be too big to fit in an OBB ({1} limit)", LocalPatchName, LimitString);
 				}
 			}
@@ -1250,7 +1251,7 @@ public class AndroidPlatform : Platform
 			{
 				if (!CreateOBBFile(SC, LocalOverflow2Name, FilesToOverflow2))
 				{
-					LogInformation("Failed to build OBB: " + LocalOverflow2Name);
+					Logger.LogInformation("{Text}", "Failed to build OBB: " + LocalOverflow2Name);
 					throw new AutomationException(ExitCode.Error_AndroidOBBError, "Stage Failed. Could not build OBB {0}. The file may be too big to fit in an OBB ({1} limit)", LocalPatchName, LimitString);
 				}
 			}
@@ -1261,7 +1262,7 @@ public class AndroidPlatform : Platform
 		Int64 ObbFileLength = OBBFileInfo.Length;
 		if (ObbFileLength > OBBSizeAllowed)
 		{
-			LogInformation("OBB exceeds " + LimitString + " limit: " + ObbFileLength + " bytes");
+			Logger.LogInformation("OBB exceeds " + LimitString + " limit: " + ObbFileLength + " bytes");
 			throw new AutomationException(ExitCode.Error_AndroidOBBError, "Stage Failed. OBB {0} exceeds {1} limit)", LocalObbName, LimitString);
 		}
 
@@ -1273,7 +1274,7 @@ public class AndroidPlatform : Platform
 		Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "MinSDKVersion", out MinSDKVersion);
 		int TargetSDKVersion = MinSDKVersion;
 		Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "TargetSDKVersion", out TargetSDKVersion);
-		LogInformation("Target SDK Version " + TargetSDKVersion);
+		Logger.LogInformation("{Text}", "Target SDK Version " + TargetSDKVersion);
 		bool bDisablePerfHarden = false;
         if (TargetConfiguration != UnrealTargetConfiguration.Shipping)
         {
@@ -1291,7 +1292,7 @@ public class AndroidPlatform : Platform
                 UnrealSOName = UnrealSOName.Replace(".apk", ".so");
                 if (FileExists_NoExceptions(UnrealSOName) == false)
 				{
-					LogInformation("Failed to find game .so " + UnrealSOName);
+					Logger.LogInformation("{Text}", "Failed to find game .so " + UnrealSOName);
                     throw new AutomationException(ExitCode.Error_MissingExecutable, "Stage Failed. Could not find .so {0}. You may need to build the UE project with your target configuration and platform.", UnrealSOName);
 				}
 			}
@@ -1320,7 +1321,7 @@ public class AndroidPlatform : Platform
 					{
 						Type = TargetType.Server;
 					}
-					LogInformation("SavePackageInfo");
+					Logger.LogInformation("SavePackageInfo");
 					Deploy.SavePackageInfo(Params.ShortProjectName, SC.ProjectRoot.FullName, Type, true);
 				}
 				Deploy.PrepForUATPackageOrDeploy(Params.RawProjectPath, Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, SC.StageTargets[0].Receipt.Configuration, false, bShouldCompileAsDll);
@@ -1508,7 +1509,7 @@ public class AndroidPlatform : Platform
 		{
 			return "linux-x64/UnrealAndroidFileTool";
 		}
-		Log.TraceWarning("GetAFSExecutable unsupported target, assuming Win64");
+		Logger.LogWarning("GetAFSExecutable unsupported target, assuming Win64");
 		return "win-x64/UnrealAndroidFileTool.exe";
 	}
 
@@ -1570,7 +1571,7 @@ public class AndroidPlatform : Platform
 				Overflow2InstallCommand = bNoOverflow2Install ? AFSCommand + " deletefile '^overflow2obb'" : AFSCommand + " push " + Path.GetFileName(Overflow2Name) + " '^overflow2obb'";
 			}
 
-			LogInformation("Writing shell script for install with {0}", bPackageDataInsideApk ? "data in APK" : "separate obb");
+			Logger.LogInformation("Writing shell script for install with {Arg0}", bPackageDataInsideApk ? "data in APK" : "separate obb");
             BatchLines = new string[] {
 						"#!/bin/sh",
 						"cd \"`dirname \"$0\"`\"",
@@ -1655,7 +1656,7 @@ public class AndroidPlatform : Platform
 				Overflow2InstallCommand = bNoOverflow2Install ? AFSCommand + " deletefile \"^overflow2obb\"" : AFSCommand + " push " + Path.GetFileName(Overflow2Name) + " \"^overflow2obb\"";
 			}
 
-			LogInformation("Writing bat for install with {0}", bPackageDataInsideApk ? "data in APK" : "separate OBB");
+			Logger.LogInformation("Writing bat for install with {Arg0}", bPackageDataInsideApk ? "data in APK" : "separate OBB");
             BatchLines = new string[] {
 						"setlocal",
 						"if NOT \"%UE_SDKS_ROOT%\"==\"\" (call %UE_SDKS_ROOT%\\HostWin64\\Android\\SetupEnvironmentVars.bat)",
@@ -1723,7 +1724,7 @@ public class AndroidPlatform : Platform
 
 		if (!bIsPC)
 		{
-			LogInformation("Writing shell script for uninstall with {0}", bPackageDataInsideApk ? "data in APK" : "separate obb");
+			Logger.LogInformation("Writing shell script for uninstall with {Arg0}", bPackageDataInsideApk ? "data in APK" : "separate obb");
 			BatchLines = new string[] {
 						"#!/bin/sh",
 						"cd \"`dirname \"$0\"`\"",
@@ -1747,7 +1748,7 @@ public class AndroidPlatform : Platform
 		}
 		else
 		{
-			LogInformation("Writing bat for uninstall with {0}", bPackageDataInsideApk ? "data in APK" : "separate OBB");
+			Logger.LogInformation("Writing bat for uninstall with {Arg0}", bPackageDataInsideApk ? "data in APK" : "separate OBB");
 			BatchLines = new string[] {
 						"setlocal",
 						"if NOT \"%UE_SDKS_ROOT%\"==\"\" (call %UE_SDKS_ROOT%\\HostWin64\\Android\\SetupEnvironmentVars.bat)",
@@ -1779,7 +1780,7 @@ public class AndroidPlatform : Platform
 
 		if (!bIsPC)
 		{
-			LogInformation("Writing shell script for symbolize with {0}", "data in APK" );
+			Logger.LogInformation("Writing shell script for symbolize with {Arg0}", "data in APK" );
 			BatchLines = new string[] {
 				"#!/bin/sh",
 				"if [ $? -ne 0]; then",
@@ -1795,7 +1796,7 @@ public class AndroidPlatform : Platform
 		}
 		else
 		{
-			LogInformation("Writing bat for symbolize");
+			Logger.LogInformation("Writing bat for symbolize");
 			BatchLines = new string[] {
 						"@echo off",
 						"IF %1.==. GOTO NoArgs",
@@ -2200,13 +2201,13 @@ public class AndroidPlatform : Platform
 		{
 			if (PackageName == null || PackageName == "")
 			{
-				Log.TraceInformation("Retrieve Manifests: Unable to start file server without package name, ignoring manifests");
+				Logger.LogInformation("Retrieve Manifests: Unable to start file server without package name, ignoring manifests");
 				return false;
 			}
-			Log.TraceInformation("Retrieve Manifests: Trying to start file server {0}", PackageName);
+			Logger.LogInformation("Retrieve Manifests: Trying to start file server {PackageName}", PackageName);
 			if (!client.StartServer(PackageName, AFSToken))
 			{
-				Log.TraceInformation("Retrieve Manifests: Failed to start server, ignoring manifests");
+				Logger.LogInformation("Retrieve Manifests: Failed to start server, ignoring manifests");
 				return false;
 			}
 		}
@@ -2217,18 +2218,18 @@ public class AndroidPlatform : Platform
 		{
 			if (PackageName == null || PackageName == "")
 			{
-				Log.TraceInformation("Retrieve Manifests: Unable to start file server without package name, ignoring manifests");
+				Logger.LogInformation("Retrieve Manifests: Unable to start file server without package name, ignoring manifests");
 				client.CloseConnection();
 				return false;
 			}
 
-			Log.TraceInformation("Connected to wrong server {0}, trying again", DevicePackageName);
+			Logger.LogInformation("Connected to wrong server {DevicePackageName}, trying again", DevicePackageName);
 			client.TerminateServer();
 
-			Log.TraceInformation("Retrieve Manifests: Trying to start file server {0}", PackageName);
+			Logger.LogInformation("Retrieve Manifests: Trying to start file server {PackageName}", PackageName);
 			if (!client.StartServer(PackageName, AFSToken))
 			{
-				Log.TraceInformation("Retrieve Manifests: Failed to start server, ignoring manifests");
+				Logger.LogInformation("Retrieve Manifests: Failed to start server, ignoring manifests");
 				return false;
 			}
 		}
@@ -2255,7 +2256,7 @@ public class AndroidPlatform : Platform
 		NonUFSManifests = new List<string>();
 		NonUFSManifests.Add(NonUFSManifestFileName);
 
-		Log.TraceInformation("Retrieve Manifests: Success!!");
+		Logger.LogInformation("Retrieve Manifests: Success!!");
 
 		return true;
 	}
@@ -2286,7 +2287,7 @@ public class AndroidPlatform : Platform
 		IProcessResult UFSResult = RunAdbCommand(Params, DeviceName, " pull " + RemoteDir + "/" + SC.GetUFSDeployedManifestFileName(null) + " \"" + RetrievedUFSManifestFileName + "\"", null, ERunOptions.AppMustExist);
 		if (!(UFSResult.Output.Contains("bytes") || UFSResult.Output.Contains("[100%]")))
 		{
-			LogWarning("Failed retrieving UFS Manifest: {0}", UFSResult.Output);
+			Logger.LogWarning("Failed retrieving UFS Manifest: {Arg0}", UFSResult.Output);
 			return false;
 		}
 
@@ -2295,7 +2296,7 @@ public class AndroidPlatform : Platform
 		IProcessResult NonUFSResult = RunAdbCommand(Params, DeviceName, " pull " + RemoteDir + "/" + SC.GetNonUFSDeployedManifestFileName(null) + " \"" + RetrievedNonUFSManifestFileName + "\"", null, ERunOptions.AppMustExist);
 		if (!(NonUFSResult.Output.Contains("bytes") || NonUFSResult.Output.Contains("[100%]")))
 		{
-			LogWarning("Failed retrieving NonUFS Manifest: {0}", NonUFSResult.Output);
+			Logger.LogWarning("Failed retrieving NonUFS Manifest: {Arg0}", NonUFSResult.Output);
 			// Did not retrieve both so delete one we did retrieve
 			File.Delete(RetrievedUFSManifestFileName);
 			return false;
@@ -2425,7 +2426,7 @@ public class AndroidPlatform : Platform
 				String InstalledResult = adb.Shell(DeviceName, "pm list packages " + PackageName);
 				if (InstalledResult.Contains(PackageName))
 				{
-					Log.TraceInformation("{0} already installed!", PackageName);
+					Logger.LogInformation("{PackageName} already installed!", PackageName);
 					// already installed so enable --fast-deploy option if need to update apk
 					bFastDeploy = true;
 
@@ -2433,13 +2434,13 @@ public class AndroidPlatform : Platform
 					InstalledResult = adb.Shell(DeviceName, "cat " + ExtFiles + "/APKFileStamp.txt");
 					if (InstalledResult.StartsWith("APK: "))
 					{
-						Log.TraceInformation("Found APKFileStamp.txt! {0}", InstalledResult);
+						Logger.LogInformation("Found APKFileStamp.txt! {InstalledResult}", InstalledResult);
 						if (InstalledResult.Substring(5).Trim() == APKLastUpdateTime)
 							bNeedAPKInstall = false;
 
 						if (InstalledResult.Substring(5).Trim() != APKLastUpdateTime)
 						{
-							Log.TraceInformation("{0} != {1}", InstalledResult.Substring(5).Trim(), APKLastUpdateTime);
+							Logger.LogInformation("{Arg0} != {APKLastUpdateTime}", InstalledResult.Substring(5).Trim(), APKLastUpdateTime);
 						}
 
 						// Stop the previously running copy (uninstall/install did this before)
@@ -2486,7 +2487,7 @@ public class AndroidPlatform : Platform
 					}
 					if (ErrorMessage.Contains("OLDER_SDK"))
 					{
-						LogError("minSdkVersion is higher than Android version installed on device, possibly due to NDK API Level");
+						Logger.LogError("minSdkVersion is higher than Android version installed on device, possibly due to NDK API Level");
 						throw new AutomationException(ExitCode.Error_AppInstallFailed, ErrorMessage);
 					}
 
@@ -2515,7 +2516,7 @@ public class AndroidPlatform : Platform
 						}
 						if (ErrorMessage.Contains("OLDER_SDK"))
 						{
-							LogError("minSdkVersion is higher than Android version installed on device, possibly due to NDK API Level");
+							Logger.LogError("minSdkVersion is higher than Android version installed on device, possibly due to NDK API Level");
 						}
 						throw new AutomationException(ExitCode.Error_AppInstallFailed, ErrorMessage);
 					}
@@ -2534,18 +2535,18 @@ public class AndroidPlatform : Platform
 
 			// reopen file server connection (either USB or Network)
 			IPAddress = (ConnectionType == EConnectionType.NetworkOnly) ? (bUseManualIPAddress ? ManualIPAddress : (DeviceIPAddress != null ? DeviceIPAddress : "127.0.0.1")) : "127.0.0.1";
-			Log.TraceInformation("Attempting to connect to file server [{0}]", (IPAddress == "127.0.0.1" ? "USB" : IPAddress));
+			Logger.LogInformation("Attempting to connect to file server [{Arg0}]", (IPAddress == "127.0.0.1" ? "USB" : IPAddress));
 			if (!client.OpenConnection(IPAddress))
 			{
-				Log.TraceInformation("Not connected, attempting to start file server");
+				Logger.LogInformation("Not connected, attempting to start file server");
 				if (!client.StartServer(PackageName, AFSToken, IPAddress))
 				{
 					// try one more time with longer delay
-					Log.TraceInformation("Trying again");
+					Logger.LogInformation("Trying again");
 					Thread.Sleep(1000);
 					if (!client.StartServer(PackageName, AFSToken, IPAddress))
 					{
-						Log.TraceWarning("Failed to start Android file server for {0}, skipping deploy for {1}", PackageName, DeviceName);
+						Logger.LogWarning("Failed to start Android file server for {PackageName}, skipping deploy for {DeviceName}", PackageName, DeviceName);
 						continue;
 					}
 				}
@@ -2555,18 +2556,18 @@ public class AndroidPlatform : Platform
 			string DevicePackageName = client.Query("^packagename");
 			if (DevicePackageName != PackageName)
 			{
-				Log.TraceInformation("Connected to wrong server {0}, trying again", DevicePackageName);
+				Logger.LogInformation("Connected to wrong server {DevicePackageName}, trying again", DevicePackageName);
 				client.TerminateServer();
 
-				Log.TraceInformation("Trying to start file server {0}", PackageName);
+				Logger.LogInformation("Trying to start file server {PackageName}", PackageName);
 				if (!client.StartServer(PackageName, AFSToken, IPAddress))
 				{
 					// try one more time with longer delay
-					Log.TraceInformation("Trying again");
+					Logger.LogInformation("Trying again");
 					Thread.Sleep(1000);
 					if (!client.StartServer(PackageName, AFSToken, IPAddress))
 					{
-						Log.TraceWarning("Failed to start Android file server for {0}, skipping deploy for {1}", PackageName, DeviceName);
+						Logger.LogWarning("Failed to start Android file server for {PackageName}, skipping deploy for {DeviceName}", PackageName, DeviceName);
 						continue;
 					}
 				}
@@ -2577,13 +2578,13 @@ public class AndroidPlatform : Platform
 				IPAddress = (bUseManualIPAddress ? ManualIPAddress : client.Query("^ip"));
 				client2 = new AndroidFileClient(DeviceName);
 
-				Log.TraceInformation("Attempting to connect to file server [{0}]", IPAddress);
+				Logger.LogInformation("Attempting to connect to file server [{IPAddress}]", IPAddress);
 				if (!client2.OpenConnection(IPAddress))
 				{
-					Log.TraceInformation("Not connected, attempting to start file server");
+					Logger.LogInformation("Not connected, attempting to start file server");
 					if (!client2.StartServer(PackageName, AFSToken, IPAddress, false))
 					{
-						Log.TraceWarning("Failed to start Android file server for {0}, only using one connection for {1}", PackageName, DeviceName);
+						Logger.LogWarning("Failed to start Android file server for {PackageName}, only using one connection for {DeviceName}", PackageName, DeviceName);
 						client2 = null;
 					}
 				}
@@ -2592,7 +2593,7 @@ public class AndroidPlatform : Platform
 				DevicePackageName = client2.Query("^packagename");
 				if (DevicePackageName != PackageName)
 				{
-					Log.TraceInformation("Connected to wrong server {0} for [{1}], not using network", DevicePackageName, IPAddress, DeviceName);
+					Logger.LogInformation("Connected to wrong server {DevicePackageName} for [{IPAddress}], not using network", DevicePackageName, IPAddress);
 					client2.CloseConnection();
 					client2 = null;
 				}
@@ -2671,12 +2672,12 @@ public class AndroidPlatform : Platform
 
 						if (CommandResult == null)
 						{
-							Log.TraceWarning("Failed to read remote dir: {0}", RemoteDir);
+							Logger.LogWarning("Failed to read remote dir: {RemoteDir}", RemoteDir);
 							RemoteDir = client.Query("^project", true);
 							CommandResult = client.DirListFlat(RemoteDir);
 							if (CommandResult == null)
 							{
-								Log.TraceWarning("Failed to read remote dir again: {0}", RemoteDir);
+								Logger.LogWarning("Failed to read remote dir again: {RemoteDir}", RemoteDir);
 							}
 						}
 
@@ -2701,7 +2702,7 @@ public class AndroidPlatform : Platform
 								string ProjectConfig = Params.ShortProjectName + "/Config";
 								const string EngineSaved = "Engine/Saved"; // is this safe to use, or should we use SC.EngineRoot.GetDirectoryName()?
 								const string EngineConfig = "Engine/Config";
-								LogWarning("Excluding {0} {1} {2} {3} from clean during deployment.", ProjectSaved, ProjectConfig, EngineSaved, EngineConfig);
+								Logger.LogWarning("Excluding {ProjectSaved} {ProjectConfig} {EngineSaved} {EngineConfig} from clean during deployment.", ProjectSaved, ProjectConfig, EngineSaved, EngineConfig);
 
 								string CurrentDir = "";
 								bool SkipFiles = false;
@@ -2761,7 +2762,7 @@ public class AndroidPlatform : Platform
 											{
 												// delete file from device
 												string FilePath = CurrentDir.Length == 0 ? FileName : (CurrentDir + "/" + FileName); // use / for Android target, no matter the development system
-												LogWarning("Deleting {0} from device; not found in staging area", FilePath);
+												Logger.LogWarning("Deleting {FilePath} from device; not found in staging area", FilePath);
 												FilesToDeleteFromDevice.Add(FilePath);
 											}
 										}
@@ -2779,7 +2780,7 @@ public class AndroidPlatform : Platform
 								bool ParentMarkedForDeletion = DirsToDeleteFromDevice.Contains(ParentDir);
 								if (!ParentMarkedForDeletion)
 								{
-									LogWarning("Deleting {0} and its contents from device; not found in staging area", DirToDelete);
+									Logger.LogWarning("Deleting {DirToDelete} and its contents from device; not found in staging area", DirToDelete);
 									client.DirDeleteRecurse(RemoteDir + "/" + DirToDelete);
 								}
 							}
@@ -2873,7 +2874,7 @@ public class AndroidPlatform : Platform
 				// to deploy. Files we deploy will get individually copied
 				// and dirs will get the tree copies by default (that's
 				// what ADB does, too).
-				Log.TraceInformation("Deploying files using AFS");
+				Logger.LogInformation("Deploying files using AFS");
 				string SourceDir = SC.StageDirectory.FullName;
 				client.Deploy(EntriesToDeploy, SourceDir, RemoteDir, bUseCompression, bLogFiles, bReportStats, client2);
 			}
@@ -3037,7 +3038,7 @@ public class AndroidPlatform : Platform
                     }
                     if (ErrorMessage.Contains("OLDER_SDK"))
                     {
-                        LogError("minSdkVersion is higher than Android version installed on device, possibly due to NDK API Level");
+                        Logger.LogError("minSdkVersion is higher than Android version installed on device, possibly due to NDK API Level");
                     }
                     throw new AutomationException(ExitCode.Error_AppInstallFailed, ErrorMessage);
                 }
@@ -3152,7 +3153,7 @@ public class AndroidPlatform : Platform
 							string ProjectConfig = Params.ShortProjectName + "/Config";
 							const string EngineSaved = "Engine/Saved"; // is this safe to use, or should we use SC.EngineRoot.GetDirectoryName()?
 							const string EngineConfig = "Engine/Config";
-							LogWarning("Excluding {0} {1} {2} {3} from clean during deployment.", ProjectSaved, ProjectConfig, EngineSaved, EngineConfig);
+							Logger.LogWarning("Excluding {ProjectSaved} {ProjectConfig} {EngineSaved} {EngineConfig} from clean during deployment.", ProjectSaved, ProjectConfig, EngineSaved, EngineConfig);
 
 							string CurrentDir = "";
 							bool SkipFiles = false;
@@ -3212,7 +3213,7 @@ public class AndroidPlatform : Platform
 										{
 											// delete file from device
 											string FilePath = CurrentDir.Length == 0 ? FileName : (CurrentDir + "/" + FileName); // use / for Android target, no matter the development system
-											LogWarning("Deleting {0} from device; not found in staging area", FilePath);
+											Logger.LogWarning("Deleting {FilePath} from device; not found in staging area", FilePath);
 											FilesToDeleteFromDevice.Add(FilePath);
 										}
 									}
@@ -3230,7 +3231,7 @@ public class AndroidPlatform : Platform
 							bool ParentMarkedForDeletion = DirsToDeleteFromDevice.Contains(ParentDir);
 							if (!ParentMarkedForDeletion)
 							{
-								LogWarning("Deleting {0} and its contents from device; not found in staging area", DirToDelete);
+								Logger.LogWarning("Deleting {DirToDelete} and its contents from device; not found in staging area", DirToDelete);
 								RunAdbCommand(Params, DeviceName, "shell rm -r " + RemoteDir + "/" + DirToDelete);
 							}
 						}
@@ -3495,7 +3496,7 @@ public class AndroidPlatform : Platform
 					ReturnValue = Tokens[TokenIndex];
 				}
 			}
-			LogInformation("GetPackageInfo ReturnValue: {0}", ReturnValue);
+			Logger.LogInformation("GetPackageInfo ReturnValue: {ReturnValue}", ReturnValue);
 		}
 
 		return ReturnValue;
@@ -3524,7 +3525,7 @@ public class AndroidPlatform : Platform
 		{
 			string[] Lines = File.ReadAllLines(PackageInfoPath);
 			int LineIndex = bRetrieveVersionCode ? 1 : 0;
-			LogInformation("packageInfo line index: {0}", LineIndex);
+			Logger.LogInformation("packageInfo line index: {LineIndex}", LineIndex);
 			if (Lines.Length >= 2)
 			{
 				ReturnValue = Lines[LineIndex];
@@ -3552,9 +3553,9 @@ public class AndroidPlatform : Platform
 			ReturnValue = StoreVersion.ToString("0");
 		}
 
-		LogInformation("packageInfo.txt file exists: {0}", fileExists);
-		LogInformation("packageInfo return MetaAppTypeLine: {0}", MetaAppTypeLine);
-		LogInformation("packageInfo return value: {0}", ReturnValue);
+		Logger.LogInformation("packageInfo.txt file exists: {fileExists}", fileExists);
+		Logger.LogInformation("packageInfo return MetaAppTypeLine: {MetaAppTypeLine}", MetaAppTypeLine);
+		Logger.LogInformation("packageInfo return value: {ReturnValue}", ReturnValue);
 
 		return ReturnValue;
 	}
@@ -3649,12 +3650,12 @@ public class AndroidPlatform : Platform
 					}
 					catch (Exception ex)
 					{
-						LogWarning(@"Ignoring duplicate package metadata entry '"+Line+"\'.\n" + ex.ToString());
+						Logger.LogWarning("{Text}", @"Ignoring duplicate package metadata entry '"+Line+"\'.\n" + ex.ToString());
 					}
 				}
 				else
 				{
-					LogWarning("Unexpected layout of package metadata: " + Line);
+					Logger.LogWarning("{Text}", "Unexpected layout of package metadata: " + Line);
 				}
 			}
 		}
@@ -3740,7 +3741,7 @@ public class AndroidPlatform : Platform
 		CachedAaptPath = BestToolPath;
 		LastAndroidHomePath = HomePath;
 
-		LogInformation("Using this aapt: {0}", CachedAaptPath);
+		Logger.LogInformation("Using this aapt: {CachedAaptPath}", CachedAaptPath);
 
 		return CachedAaptPath;
 	}
@@ -3787,10 +3788,10 @@ public class AndroidPlatform : Platform
 		AndroidFileClient client = new AndroidFileClient(DeviceName);
 		if (!client.OpenConnection())
 		{
-			Log.TraceInformation("DeployClientCmdLine: Trying to start file server {0}", PackageName);
+			Logger.LogInformation("DeployClientCmdLine: Trying to start file server {PackageName}", PackageName);
 			if (!client.StartServer(PackageName, AFSToken))
 			{
-				Log.TraceInformation("DeployClientCmdLine: Failed to start server {0}, ignoring client command line", PackageName);
+				Logger.LogInformation("DeployClientCmdLine: Failed to start server {PackageName}, ignoring client command line", PackageName);
 				return false;
 			}
 		}
@@ -3799,18 +3800,18 @@ public class AndroidPlatform : Platform
 		string DevicePackageName = client.Query("^packagename");
 		if (DevicePackageName != PackageName)
 		{
-			Log.TraceInformation("DeployClientCmdLine: Connected to wrong server {0}, trying again", DevicePackageName);
+			Logger.LogInformation("DeployClientCmdLine: Connected to wrong server {DevicePackageName}, trying again", DevicePackageName);
 			client.TerminateServer();
 
-			Log.TraceInformation("DeployClientCmdLine: Trying to start file server {0}", PackageName);
+			Logger.LogInformation("DeployClientCmdLine: Trying to start file server {PackageName}", PackageName);
 			if (!client.StartServer(PackageName, AFSToken))
 			{
-				Log.TraceInformation("DeployClientCmdLine: Failed to start server {0}, ignoring client command line", PackageName);
+				Logger.LogInformation("DeployClientCmdLine: Failed to start server {PackageName}, ignoring client command line", PackageName);
 				return false;
 			}
 		}
 
-		Log.TraceInformation("Writing ClientCmdLine to remote ^commandfile: {0}", ClientCmdLine);
+		Logger.LogInformation("Writing ClientCmdLine to remote ^commandfile: {ClientCmdLine}", ClientCmdLine);
 		client.FileWriteString(ClientCmdLine, "^commandfile");
 		client.TerminateServer();
 		client.CloseConnection();
@@ -3826,7 +3827,7 @@ public class AndroidPlatform : Platform
 		string ClientCmdLineTmpFile = Path.GetTempFileName();
 		string ClientCmdLineRemoteFile = RemoteDir + "/UECommandLine.txt";
 		File.WriteAllText(ClientCmdLineTmpFile, ClientCmdLine);
-		Log.TraceInformation("Pushing ClientCmdLine to remote file {0}: {1}", ClientCmdLineRemoteFile, ClientCmdLine);
+		Logger.LogInformation("Pushing ClientCmdLine to remote file {ClientCmdLineRemoteFile}: {ClientCmdLine}", ClientCmdLineRemoteFile, ClientCmdLine);
 		RunAdbCommand(DeviceName, String.Format("push {0} {1}", ClientCmdLineTmpFile, ClientCmdLineRemoteFile));
 		File.Delete(ClientCmdLineTmpFile);
 		return true;

@@ -14,6 +14,7 @@ using UnrealBuildBase;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using System.Reflection.PortableExecutable;
+using Microsoft.Extensions.Logging;
 
 public class Win64Platform : Platform
 {
@@ -193,7 +194,7 @@ public class Win64Platform : Platform
 			// currently the icon updating doesn't run under mono
 			if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
-				LogInformation("Patching bootstrap executable; {0}", IntermediateFile.FullName);
+				Logger.LogInformation("Patching bootstrap executable; {Arg0}", IntermediateFile.FullName);
 
 				// Get the icon from the build directory if possible
 				GroupIconResource GroupIcon = null;
@@ -221,7 +222,7 @@ public class Win64Platform : Platform
 			}
 			else
 			{
-				LogInformation("Skipping patching of bootstrap executable (unsupported host platform)");
+				Logger.LogInformation("Skipping patching of bootstrap executable (unsupported host platform)");
 			}
 
 			// Copy it to the staging directory
@@ -351,7 +352,7 @@ public class Win64Platform : Platform
 			}
 			else
 			{
-				LogWarning("Unable to deploy AppLocalDirectory dependencies. No such path: {0}", BaseAppLocalDependenciesPath);
+				Logger.LogWarning("Unable to deploy AppLocalDirectory dependencies. No such path: {BaseAppLocalDependenciesPath}", BaseAppLocalDependenciesPath);
 			}
 		}
 	}
@@ -363,7 +364,7 @@ public class Win64Platform : Platform
 		List<StagedFileReference> FilesInTargetDir = SC.FilesToStage.NonUFSFiles.Keys.Where(x => x.IsUnderDirectory(StagedBinariesDir) && (x.HasExtension(".exe") || x.HasExtension(".dll"))).ToList();
 		if(FilesInTargetDir.Count > 0)
 		{
-			LogInformation("Copying AppLocal dependencies from {0} to {1}", BaseAppLocalDependenciesPath, StagedBinariesDir);
+			Logger.LogInformation("Copying AppLocal dependencies from {BaseAppLocalDependenciesPath} to {StagedBinariesDir}", BaseAppLocalDependenciesPath, StagedBinariesDir);
 
 			// Stage files in subdirs
 			foreach (DirectoryReference DependencyDirectory in DirectoryReference.EnumerateDirectories(BaseAppLocalDependenciesPath))
@@ -472,7 +473,7 @@ public class Win64Platform : Platform
 			bool bIndexSources, List<FileReference> SourceFiles,
 			string Product, string Branch, int Change, string BuildVersion = null)
     {
-		LogInformation($"Publishing symbols to \"{SymbolStoreDirectory}\" (source indexing: {bIndexSources})");
+		Logger.LogInformation("Publishing symbols to \"{SymbolStoreDirectory}\" (source indexing: {bIndexSources})", SymbolStoreDirectory, bIndexSources);
 
 		// Get the SYMSTORE.EXE path, using the latest SDK version we can find.
 		FileReference SymStoreExe = GetSymStoreExe();
@@ -527,7 +528,7 @@ public class Win64Platform : Platform
 				CommandUtils.DeleteDirectory(TempSymStoreIndexedDir);
 			}
 			DateTime CompressDone = DateTime.Now;
-			LogInformation("Took {0}s to compress the symbol files to temp path {1}", (CompressDone - Start).TotalSeconds, TempSymStoreDir);
+			Logger.LogInformation("Took {Arg0}s to compress the symbol files to temp path {TempSymStoreDir}", (CompressDone - Start).TotalSeconds, TempSymStoreDir);
 
 			int CopiedCount = 0;
 
@@ -549,14 +550,14 @@ public class Win64Platform : Platform
 					}
 					catch (Exception Ex)
 					{
-						LogWarning("Failed to write the version file, reason {0}", Ex.ToString());
+						Logger.LogWarning("Failed to write the version file, reason {Arg0}", Ex.ToString());
 					}
 				}
 
 				// Don't bother copying the temp file if the destination file is there already.
 				if (FileReference.Exists(ActualDestinationFile))
 				{
-					LogInformation("Destination file {0} already exists, skipping", ActualDestinationFile.FullName);
+					Logger.LogInformation("Destination file {Arg0} already exists, skipping", ActualDestinationFile.FullName);
 					continue;
 				}
 
@@ -582,13 +583,13 @@ public class Win64Platform : Platform
 					// Either way, it's fine to just continue on.
 					if (FileReference.Exists(ActualDestinationFile))
 					{
-						LogInformation("Destination file {0} already exists or was in use, skipping.", ActualDestinationFile.FullName);
+						Logger.LogInformation("Destination file {Arg0} already exists or was in use, skipping.", ActualDestinationFile.FullName);
 						continue;
 					}
 					// If it doesn't exist, we actually failed to copy it entirely.
 					else
 					{
-						LogWarning("Couldn't move temp file {0} to the symbol store at location {1}! Reason: {2}", TempDestinationFile.FullName, ActualDestinationFile.FullName, Ex.ToString());
+						Logger.LogWarning("Couldn't move temp file {Arg0} to the symbol store at location {Arg1}! Reason: {Arg2}", TempDestinationFile.FullName, ActualDestinationFile.FullName, Ex.ToString());
 					}
 				}
 				// Delete the temp one no matter what, don't want them hanging around in the symstore
@@ -597,12 +598,12 @@ public class Win64Platform : Platform
 					FileReference.Delete(TempDestinationFile);
 				}
 			}
-			LogInformation("Took {0}s to copy {1} symbol files to the store at {2}", (DateTime.Now - CompressDone).TotalSeconds, CopiedCount, SymbolStoreDirectory);
+			Logger.LogInformation("Took {Arg0}s to copy {CopiedCount} symbol files to the store at {SymbolStoreDirectory}", (DateTime.Now - CompressDone).TotalSeconds, CopiedCount, SymbolStoreDirectory);
 
 			FileReference PingmeFile = FileReference.Combine(SymbolStoreDirectory, "pingme.txt");
 			if (!FileReference.Exists(PingmeFile))
 			{
-				LogInformation("Creating {0} to mark path as three-tiered symbol location", PingmeFile);
+				Logger.LogInformation("Creating {PingmeFile} to mark path as three-tiered symbol location", PingmeFile);
 				File.WriteAllText(PingmeFile.FullName, "Exists to mark this as a three-tiered symbol location");
 			}
 		}
@@ -670,7 +671,7 @@ public class Win64Platform : Platform
 	[SupportedOSPlatform("windows")]
 	public void AddSourceIndexToSymbols(IEnumerable<FileReference> PdbFiles, IEnumerable<FileReference> SourceFiles, string Branch, int Change)
 	{
-		LogInformation("Adding source control information to PDB files...");
+		Logger.LogInformation("Adding source control information to PDB files...");
 
 		// Get the PDBSTR.EXE path, using the latest SDK version we can find.
 		FileReference PdbStrExe = GetPdbStrExe();
