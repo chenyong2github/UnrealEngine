@@ -109,6 +109,7 @@ struct ENHANCEDINPUT_API FEnhancedActionKeyMapping
 	EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors);
 #endif
 	
+	/** Identical comparison, including Triggers and Modifiers current inner values. */
 	bool operator==(const FEnhancedActionKeyMapping& Other) const;
 
 #if WITH_EDITORONLY_DATA
@@ -181,6 +182,67 @@ public:
 	T* GetPlayerMappableKeySettings() const
 	{
 		return Cast<T>(GetPlayerMappableKeySettings());
+	}
+
+	/**
+	 * If the template bIgnoreModifierAndTriggerValues is true, compare to Other ignoring
+	 * different trigger states, like pending activation time, but only accept
+	 * both as equal if the Trigger types are the same and in the same order.
+	 */
+	template<bool bIgnoreModifierAndTriggerValues = true>
+	bool Equals(const FEnhancedActionKeyMapping& Other) const
+	{
+		if constexpr (bIgnoreModifierAndTriggerValues)
+		{
+			return (Action == Other.Action &&
+					Key == Other.Key &&
+					CompareByObjectTypes(Modifiers, Other.Modifiers) &&
+					CompareByObjectTypes(Triggers, Other.Triggers));
+		}
+		else
+		{
+			return *this == Other;
+		}
+	}
+	
+	/**
+	 * Compares if two TArray of UObjects contain the same number and types of
+	 * objects, but doesn't compare their values.
+	 *
+	 * This is needed because TArray::operator== returns false when the objects'
+	 * inner values differ. And for keeping old Trigger states, we need their
+	 * comparison to ignore their current values.
+	 */
+	template<typename T>
+	static bool CompareByObjectTypes(const TArray<TObjectPtr<T>>& A, const TArray<TObjectPtr<T>>& B)
+	{
+		if (A.Num() != B.Num())
+		{
+			return false;
+		}
+
+		for (int32 Idx = 0; Idx < A.Num(); ++Idx)
+		{
+			const T* ObjectA = A[Idx];
+			const T* ObjectB = B[Idx];
+
+			if ((ObjectA == nullptr) != (ObjectB == nullptr))
+			{
+				// One is nullptr, the other isn't
+				return false;
+			}
+			if (!ObjectA)
+			{
+				// Both are nullptr. Consider that as same type.
+				continue;
+			}
+			if (ObjectA->GetClass() != ObjectB->GetClass())
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 };

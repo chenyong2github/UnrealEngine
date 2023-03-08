@@ -934,7 +934,16 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 			}
 
 			// Retain old mapping trigger/modifier state for identical key -> action mappings.
-			TArray<FEnhancedActionKeyMapping>::SizeType Idx = OldMappings.IndexOfByPredicate([&Mapping](const FEnhancedActionKeyMapping& Other) {return Mapping == Other; });
+			TArray<FEnhancedActionKeyMapping>::SizeType Idx = OldMappings.IndexOfByPredicate(
+				[&Mapping](const FEnhancedActionKeyMapping& Other)
+				{
+					// Use Equals() to ignore Triggers' values. We want to keep their values from before remapping to
+					// prevent resets. Otherwise, triggers like UInputTriggerPressed re-trigger when their value is
+					// reset to 0; and time counting triggers, like UInputTriggerHold, restart their time.
+					// But don't ignore Modifier and Trigger types and their order in the comparison. If we did, we'd
+					// replace new mappings for old ones with different Trigger and Modifier settings.
+					return Mapping.Equals(Other);
+				});
 			if (Idx != INDEX_NONE)
 			{
 				Mapping = MoveTemp(OldMappings[Idx]);
