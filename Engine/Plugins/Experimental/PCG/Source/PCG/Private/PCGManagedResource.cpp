@@ -127,6 +127,7 @@ bool UPCGManagedActors::MoveResourceToNewActor(AActor* NewActor)
 		}
 
 		Actor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		Actor->SetOwner(nullptr);
 		Actor->AttachToActor(NewActor, FAttachmentTransformRules::KeepWorldTransform);
 	}
 
