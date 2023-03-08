@@ -20,6 +20,7 @@ namespace UnrealVS
 		private const int PreprocessSingleFileButtonID = 0x1076;
 		private const int CompileSingleModuleButtonID = 0x1077;
 		private const int CompileAndProfileSingleFileButtonID = 0x1078;
+		private const int GenerateAssemblyFileButtonID = 0x1079;
 		private const int UBTSubMenuID = 0x3103;
 		private string	  FileToCompileOriginalExt = "";
 
@@ -47,6 +48,10 @@ namespace UnrealVS
 			CommandID CommandID4 = new CommandID(GuidList.UnrealVSCmdSet, CompileAndProfileSingleFileButtonID);
 			MenuCommand CompileAndProfileSingleFileButtonCommand = new MenuCommand(new EventHandler(CompileSingleFileButtonHandler), CommandID4);
 			UnrealVSPackage.Instance.MenuCommandService.AddCommand(CompileAndProfileSingleFileButtonCommand);
+
+			CommandID CommandID5 = new CommandID(GuidList.UnrealVSCmdSet, GenerateAssemblyFileButtonID);
+			MenuCommand GenerateAssemblyFileButtonCommand = new MenuCommand(new EventHandler(CompileSingleFileButtonHandler), CommandID5);
+			UnrealVSPackage.Instance.MenuCommandService.AddCommand(GenerateAssemblyFileButtonCommand);
 
 			// add sub menu for UBT commands
 			SubMenuCommand = new OleMenuCommand(null, new CommandID(GuidList.UnrealVSCmdSet, UBTSubMenuID));
@@ -88,8 +93,9 @@ namespace UnrealVS
 			bool bIsFile = SenderSubMenuCommand.CommandID.ID != CompileSingleModuleButtonID;
 			bool bPreprocessOnly = SenderSubMenuCommand.CommandID.ID == PreprocessSingleFileButtonID;
 			bool bProfile = SenderSubMenuCommand.CommandID.ID == CompileAndProfileSingleFileButtonID;
+			bool bGenerateAssembly = SenderSubMenuCommand.CommandID.ID == GenerateAssemblyFileButtonID;
 
-			if (!TryCompileSingleFileOrModule(bIsFile, bPreprocessOnly, bProfile))
+			if (!TryCompileSingleFileOrModule(bIsFile, bPreprocessOnly, bProfile, bGenerateAssembly))
 			{
 				DTE DTE = UnrealVSPackage.Instance.DTE;
 				DTE.ExecuteCommand("Build.Compile");
@@ -126,7 +132,7 @@ namespace UnrealVS
 			return FindModuleForFile(directory, rootDirectory);
 		}
 
-		bool TryCompileSingleFileOrModule(bool bIsFile, bool bPreProcessOnly, bool bProfile)
+		bool TryCompileSingleFileOrModule(bool bIsFile, bool bPreProcessOnly, bool bProfile, bool bGenerateAssembly)
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();
 			DTE DTE = UnrealVSPackage.Instance.DTE;
@@ -290,12 +296,21 @@ namespace UnrealVS
 
 			FileToCompileOriginalExt = FileToCompileExt;
 
-			string PreProcess = bPreProcessOnly ? " -NoXGE -Preprocess " : "";
+			string ExtraArgs = "";
+
+			if (bPreProcessOnly)
+			{
+				ExtraArgs = " -NoXGE -Preprocess ";
+			}
+			else if (bGenerateAssembly)
+			{
+				ExtraArgs = " -NOXGE -WithAssembly ";
+			}
 
 			// Spawn the new process
 			ChildProcess = new System.Diagnostics.Process();
 			ChildProcess.StartInfo.FileName = Path.Combine(Environment.SystemDirectory, "cmd.exe");
-			ChildProcess.StartInfo.Arguments = $"/C \"{BuildCommandLine} {PreProcess} {UBTArgument}\"\"";
+			ChildProcess.StartInfo.Arguments = $"/C \"{BuildCommandLine} {ExtraArgs} {UBTArgument}\"\"";
 			ChildProcess.StartInfo.WorkingDirectory = Path.GetDirectoryName(StartupProject.FullName);
 			ChildProcess.StartInfo.UseShellExecute = false;
 			ChildProcess.StartInfo.RedirectStandardOutput = true;
@@ -304,7 +319,7 @@ namespace UnrealVS
 			ChildProcess.OutputDataReceived += OutputHandler;
 			ChildProcess.ErrorDataReceived += OutputHandler;
 			if (bPreProcessOnly || bProfile)
-			{ 
+			{
 				// add an event handler to respond to the exit of the preprocess request
 				// and open the generated file if it exists.
 				ChildProcess.EnableRaisingEvents = true;

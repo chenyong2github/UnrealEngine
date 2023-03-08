@@ -1,3 +1,6 @@
+1.84.3
+* Added command to generate assembly file while compiling single file
+
 1.84.2
 * Fix to Unreal.TestAdapater to output test results to a file
 

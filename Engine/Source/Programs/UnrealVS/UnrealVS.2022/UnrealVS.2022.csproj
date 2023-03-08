@@ -95,7 +95,6 @@
     <None Include="Key.snk" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="ReleaseNotes.txt" />
     <Resource Include="..\UnrealVS.2019\Resources\BatchBuilder.png">
       <Link>Resources\BatchBuilder.png</Link>
     </Resource>
