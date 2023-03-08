@@ -306,7 +306,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint32>, BlockDestInstanceOffsets)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint32>, InstanceIdsBufferOut)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4f>, InstanceIdsBufferOutMobile)		
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, InstanceIdsBufferOutMobile)		
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FCompactVisibleInstancesCs, "/Engine/Private/InstanceCulling/CompactVisibleInstances.usf", "CompactVisibleInstances", SF_Compute);
@@ -394,7 +394,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, InstanceIdOffsetBuffer)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, InstanceIdsBufferOut)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, InstanceIdsBufferOutMobile)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, InstanceIdsBufferOutMobile)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectArgsBufferOut)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FInstanceCullingContext::FCompactionData>, DrawCommandCompactionData)
@@ -447,16 +447,34 @@ public:
 	void ProcessBatched(TStaticArray<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters*, static_cast<uint32>(EBatchProcessingMode::Num)> PassParameters);
 };
 
-static FRDGBufferDesc CreateInstanceIdsBufferDesc(ERHIFeatureLevel::Type FeatureLevel, uint32 BufferSize)
+static uint32 GetInstanceIdsNumElements(ERHIFeatureLevel::Type FeatureLevel, uint32 NumInstances)
 {
-	FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(FInstanceCullingContext::GetInstanceIdBufferStride(FeatureLevel), BufferSize);
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		// Mobile uses ByteAddressBuffer which is 4 bytes per element
+		const uint32 ByteBufferStride = FInstanceCullingContext::GetInstanceIdBufferStride(ERHIFeatureLevel::ES3_1) / 4u;
+		return (ByteBufferStride * NumInstances);
+	}
+	else
+	{
+		// Desktop uses StructuredBuffer<uint> NumElements==NumInstances
+		return NumInstances;
+	}
+}
+
+static FRDGBufferDesc CreateInstanceIdsBufferDesc(ERHIFeatureLevel::Type FeatureLevel, uint32 NumInstances)
+{
+	const uint32 BufferNumElements = GetInstanceIdsNumElements(FeatureLevel, NumInstances);
 	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		// Mobile writes to this buffer from compute and then uses as a vertex input
-		// D3D does not allow a storage buffer with vertex buffer usage
-		BufferDesc.Usage |= (IsD3DPlatform(GMaxRHIShaderPlatform) ? BUF_None : BUF_VertexBuffer);
+		// We can't expose this as typed buffer to compute, because Android has a 64K limit for texel buffers which is not enough 
+		// Use ByteAddress buffer here since this is the only way D3D allows it to mix with vertex buffer usage, and it translates to a storage buffer on GL and VK
+		FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateByteAddressDesc(4u * BufferNumElements);
+		BufferDesc.Usage |= BUF_VertexBuffer;
+		return BufferDesc;
 	}
-	return BufferDesc;
+	return FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), BufferNumElements);
 }
 
 void FInstanceCullingContext::BuildRenderingCommands(
@@ -867,7 +885,11 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 	FRDGBufferRef InstanceIdOffsetBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("InstanceCulling.InstanceIdOffsetBuffer"), INST_CULL_CALLBACK(DeferredContext->InstanceIdOffsets.Num()));
 	GraphBuilder.QueueBufferUpload(InstanceIdOffsetBuffer, INST_CULL_CALLBACK(DeferredContext->InstanceIdOffsets.GetData()), INST_CULL_CALLBACK(DeferredContext->InstanceIdOffsets.GetTypeSize() * DeferredContext->InstanceIdOffsets.Num()));
 
-	FRDGBufferRef InstanceIdsBuffer = GraphBuilder.CreateBuffer(CreateInstanceIdsBufferDesc(FeatureLevel, 1), TEXT("InstanceCulling.InstanceIdsBuffer"), INST_CULL_CALLBACK(DeferredContext->InstanceIdBufferSize));
+	FRDGBufferRef InstanceIdsBuffer = GraphBuilder.CreateBuffer(
+			CreateInstanceIdsBufferDesc(FeatureLevel, 1), 
+			TEXT("InstanceCulling.InstanceIdsBuffer"), 
+			INST_CULL_CALLBACK(GetInstanceIdsNumElements(DeferredContext->FeatureLevel, DeferredContext->InstanceIdBufferSize))
+	);
 	FRDGBufferUAVRef InstanceIdsBufferUAV = GraphBuilder.CreateUAV(InstanceIdsBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
 	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
 	{

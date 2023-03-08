@@ -102,7 +102,7 @@ StructuredBuffer<uint> BlockDestInstanceOffsets;
 /** The compacted output buffer of InstanceIds (non-mobile) */
 RWStructuredBuffer<uint> InstanceIdsBufferOut;
 /** The compacted output buffer of instance data consumed by vertex shaders on mobile */
-RWStructuredBuffer<float4> InstanceIdsBufferOutMobile;
+RWByteAddressBuffer InstanceIdsBufferOutMobile;
 
 /** Entry point */
 [numthreads(NUM_THREADS_PER_GROUP, 1, 1)]

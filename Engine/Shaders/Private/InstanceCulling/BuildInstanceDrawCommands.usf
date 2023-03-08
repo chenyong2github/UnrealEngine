@@ -50,7 +50,7 @@ int bDrawOnlyVSMInvalidatingGeometry;
 
 
 RWStructuredBuffer<uint> InstanceIdsBufferOut;
-RWStructuredBuffer<float4> InstanceIdsBufferOutMobile;
+RWByteAddressBuffer InstanceIdsBufferOutMobile;
 RWBuffer<uint> DrawIndirectArgsBufferOut;
 
 // Used for draw commands that need to use compaction to preserve instance order
@@ -123,8 +123,9 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 	InstanceAuxData4 = PackLightmapData(LightMapUVScaleBias, ShadowMapUVScaleBias);
 	InstanceAuxData1 = asfloat(PrimitiveData.LightmapDataIndex);
 #else
-	InstanceAuxData4.xy = PackLocalBoundsCenter(InstanceData.LocalBoundsCenter);
-	InstanceAuxData4.zw = PackLocalBoundsExtent(InstanceData.LocalBoundsExtent);
+	float2 PackedCenter = PackLocalBoundsCenter(InstanceData.LocalBoundsCenter);
+	float2 PackedExtent = PackLocalBoundsExtent(InstanceData.LocalBoundsExtent);
+	InstanceAuxData4 = float4(PackedCenter, PackedExtent);
 	InstanceAuxData1 = InstanceData.RandomID;
 #endif // ALLOW_STATIC_LIGHTING
 
@@ -142,16 +143,16 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 	InstanceTransform1.w = asfloat(PackedPrimitiveFlags); 
 	InstanceTransform2.w = InstanceAuxData1; 
 
-	uint CustomDataCount;
+	uint CustomDataCount = 0u;
 	LoadInstanceRelativeIdAndCustomDataCount(InstanceId, InstanceSceneDataSOAStride, InstanceData.RelativeId, CustomDataCount);
 	FInstancePayloadDataOffsets Offsets = GetInstancePayloadDataOffsets(InstanceData.PrimitiveId, InstanceData.Flags, InstanceData.RelativeId);
 	InstanceTransform3.w = asfloat((CustomDataCount & ((1 << INSTANCE_CUSTOM_DATA_COUNT_NUM_BITS) - 1)) | (Offsets.CustomData << INSTANCE_CUSTOM_DATA_COUNT_NUM_BITS));
 		
-	InstanceIdsBufferOutMobile[Offset*5 + 0] = InstanceOriginAndId;
-	InstanceIdsBufferOutMobile[Offset*5 + 1] = InstanceTransform1;
-	InstanceIdsBufferOutMobile[Offset*5 + 2] = InstanceTransform2;
-	InstanceIdsBufferOutMobile[Offset*5 + 3] = InstanceTransform3;
-	InstanceIdsBufferOutMobile[Offset*5 + 4] = InstanceAuxData4;
+	InstanceIdsBufferOutMobile.Store4((Offset*5 + 0) * 16, asuint(InstanceOriginAndId));
+	InstanceIdsBufferOutMobile.Store4((Offset*5 + 1) * 16, asuint(InstanceTransform1));
+	InstanceIdsBufferOutMobile.Store4((Offset*5 + 2) * 16, asuint(InstanceTransform2));
+	InstanceIdsBufferOutMobile.Store4((Offset*5 + 3) * 16, asuint(InstanceTransform3));
+	InstanceIdsBufferOutMobile.Store4((Offset*5 + 4) * 16, asuint(InstanceAuxData4));
 }
 #endif
 
