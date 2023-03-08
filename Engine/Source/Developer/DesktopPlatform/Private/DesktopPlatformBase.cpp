@@ -1778,6 +1778,7 @@ bool FDesktopPlatformBase::ReadTargetInfo(const FString& FileName, TArray<FTarge
 	Targets.SetNum(TargetArray->Num());
 
 	// Parse the entries
+	FString BaseDir = FPaths::GetPath(FileName);
 	for (int Idx = 0; Idx < TargetArray->Num(); Idx++)
 	{
 		const FJsonValue& TargetValue = *(*TargetArray)[Idx].Get();
@@ -1801,6 +1802,11 @@ bool FDesktopPlatformBase::ReadTargetInfo(const FString& FileName, TArray<FTarge
 		{
 			return false;
 		}
+
+		FString Path = FPaths::ConvertRelativePathToFull(FPaths::Combine(BaseDir, Targets[Idx].Path));
+		FPaths::MakePlatformFilename(Path);
+
+		Targets[Idx].Path = Path;
 	}
 
 	return true;

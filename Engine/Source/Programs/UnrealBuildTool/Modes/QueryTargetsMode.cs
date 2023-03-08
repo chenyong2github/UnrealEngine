@@ -143,11 +143,17 @@ namespace UnrealBuildTool
 							continue;
 						}
 					}
-					
+
+					// Get the path to the target
+					FileReference? path = Assembly.GetTargetFileName(TargetName);
+
 					// Write the target info
 					Writer.WriteObjectStart();
 					Writer.WriteValue("Name", TargetName);
-					Writer.WriteValue("Path", Assembly.GetTargetFileName(TargetName)?.ToString());
+					if (path != null)
+					{
+						Writer.WriteValue("Path", path.MakeRelativeTo(OutputFile.Directory));
+					}
 					Writer.WriteValue("Type", TargetRules.Type.ToString());
 					Writer.WriteObjectEnd();
 				}
