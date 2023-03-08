@@ -711,7 +711,12 @@ namespace Metasound
 			PresetGraphHandle->IterateConstNodes([InPresetNodeID = &PresetNodeID](FConstNodeHandle PresetNodeHandle)
 			{
 				*InPresetNodeID = PresetNodeHandle->GetID();
-			}, EMetasoundFrontendClassType::External);
+			}, EMetasoundFrontendClassType::External); 
+
+			if (!PresetNodeID.IsValid())
+			{
+				PresetNodeID = FGuid::NewGuid();
+			}
 
 			// Clear the root graph so it can be rebuilt.
 			PresetGraphHandle->ClearGraph();

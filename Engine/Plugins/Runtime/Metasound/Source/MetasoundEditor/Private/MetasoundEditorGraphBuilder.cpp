@@ -503,8 +503,8 @@ namespace Metasound
 					{
 						NewGraphNode->ClassName = InNodeHandle->GetClassMetadata().GetClassName();
 						NewGraphNode->ClassType = ClassType;
-						NodeCreator.Finalize();
 						InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
+						NodeCreator.Finalize();
 
 						UMetasoundEditorGraphVariable* Variable = MetasoundGraph->FindOrAddVariable(FrontendVariable);
 						if (ensure(Variable))
