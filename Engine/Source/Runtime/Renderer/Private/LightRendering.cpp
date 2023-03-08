@@ -1924,8 +1924,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 
 					if (bDrawPreviewIndicator)
 					{
-						RenderPreviewShadowsIndicator(GraphBuilder, SceneTextures, &LightSceneInfo, ScreenShadowMaskTexture, bUsedShadowMaskTexture, false);
-						bUsedShadowMaskTexture = true;
+						bUsedShadowMaskTexture |= RenderPreviewShadowsIndicator(GraphBuilder, SceneTextures, &LightSceneInfo, ScreenShadowMaskTexture, bUsedShadowMaskTexture, false);
 					}
 
 					if (!bDrawShadows)
