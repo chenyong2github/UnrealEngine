@@ -10,6 +10,7 @@
 #include "PixelStreamingPrivate.h"
 #include "AudioSink.h"
 #include "CoreMinimal.h"
+#include "Engine/GameViewportClient.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/Texture2D.h"
