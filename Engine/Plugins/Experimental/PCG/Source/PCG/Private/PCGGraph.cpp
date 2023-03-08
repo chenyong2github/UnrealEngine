@@ -668,6 +668,14 @@ void UPCGGraph::NotifyGraphChanged(EPCGChangeType ChangeType)
 	const bool bNotifySubsystem = ((ChangeType & (EPCGChangeType::Structural | EPCGChangeType::Edge)) != EPCGChangeType::None);
 	if (bNotifySubsystem && GEditor)
 	{
+		if (GEditor->PlayWorld)
+		{
+			if (UPCGSubsystem* PCGPIESubsystem = UPCGSubsystem::GetInstance(GEditor->PlayWorld.Get()))
+			{
+				PCGPIESubsystem->NotifyGraphChanged(this);
+			}
+		}
+
 		if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World()))
 		{
 			PCGSubsystem->NotifyGraphChanged(this);

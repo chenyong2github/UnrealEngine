@@ -415,6 +415,14 @@ void UPCGSettings::DirtyCache()
 {
 	if (GEditor)
 	{
+		if (GEditor->PlayWorld)
+		{
+			if (UPCGSubsystem* PCGPIESubsystem = UPCGSubsystem::GetInstance(GEditor->PlayWorld.Get()))
+			{
+				PCGPIESubsystem->CleanFromCache(GetElement().Get(), this);
+			}
+		}
+
 		if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World()))
 		{
 			PCGSubsystem->CleanFromCache(GetElement().Get(), this);

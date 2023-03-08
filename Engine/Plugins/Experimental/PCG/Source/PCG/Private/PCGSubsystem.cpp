@@ -71,7 +71,7 @@ namespace PCGSubsystemConsole
 				UWorld* World = (GEditor ? (GEditor->PlayWorld ? GEditor->PlayWorld.Get() : GEditor->GetEditorWorldContext().World()) : (GEngine ? GEngine->GetCurrentPlayWorld() : nullptr));
 				if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(World))
 				{
-					PCGSubsystem->FlushCache();
+					PCGSubsystem->BuildLandscapeCache();
 				}
 			}));
 
