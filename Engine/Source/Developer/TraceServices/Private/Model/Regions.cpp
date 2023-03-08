@@ -6,6 +6,7 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
 #include "Logging/MessageLog.h"
+#include "Internationalization/Internationalization.h"
 
 #define LOCTEXT_NAMESPACE "RegionProvider"
 
