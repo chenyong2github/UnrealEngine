@@ -198,4 +198,41 @@ public:
 		FGeometryScriptBoneWeightProfile Profile = FGeometryScriptBoneWeightProfile(),
 		UGeometryScriptDebug* Debug = nullptr);
 	
+	/**
+	 * Copy the bone attributes (skeleton) from the SourceMesh to the TargetMesh.
+	 * @param SourceMesh Mesh we are copying the bone attributes from.
+	 * @param TargetMesh Mesh we are copying the bone attributes to.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	CopyBonesFromMesh(
+		UDynamicMesh* SourceMesh,
+		UDynamicMesh* TargetMesh,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Discard the bone attributes (skeleton) from the TargetMesh.
+	 * @param TargetMesh Mesh we are discarding bone attributes from.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	DiscardBonesFromMesh(
+		UDynamicMesh* TargetMesh,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Get the index of the bone with the given name.
+	 * @param TargetMesh Mesh containing the bone attributes.
+	 * @param BoneName The name of the bone whose index we are getting.
+	 * @param bIsValidBoneName Set to true if the TargetMesh contains a bone with the given name, false otherwise.
+	 * @param BoneIndex The index of the bone with the given name. Will be set to -1 if bIsValidBoneName is false.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	GetBoneIndexForName(
+		UDynamicMesh* TargetMesh,
+		FString BoneName,
+		bool& bIsValidBoneName,
+		int& BoneIndex,
+		UGeometryScriptDebug* Debug = nullptr);
 };

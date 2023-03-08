@@ -7,6 +7,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/DynamicBoneAttribute.h"
 #include "SkinningOps/SkinBindingOp.h"
 #include "UDynamicMesh.h"
 
@@ -342,5 +343,102 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::ComputeSmoothBoneW
 	return TargetMesh;
 }
 
+UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::CopyBonesFromMesh(
+	UDynamicMesh* SourceMesh, 
+	UDynamicMesh* TargetMesh, 
+	UGeometryScriptDebug* Debug)
+{
+	if (SourceMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyBonesFromMesh_InvalidSourceMesh", "CopyBonesFromMesh: SourceMesh is Null"));
+		return TargetMesh;
+	}
+
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyBonesFromMesh_InvalidTargetMesh", "CopyBonesFromMesh: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	SourceMesh->EditMesh([&](const FDynamicMesh3& ReadMesh)
+	{
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			if (!ReadMesh.HasAttributes() || !ReadMesh.Attributes()->HasBones())
+			{
+				AppendWarning(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyBonesFromMesh_SourceMeshHasNoBones", "SourceMesh has no bone attributes"));
+				return;
+			}
+
+			if (!ReadMesh.Attributes()->CheckBoneValidity(EValidityCheckFailMode::ReturnOnly))
+			{
+				AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyBonesFromMesh_InvalidSourceMeshBones", "SourceMesh has invalid bone attributes"));
+				return;
+			}
+
+			if (!EditMesh.HasAttributes())
+			{
+				EditMesh.EnableAttributes();
+			}
+				
+			EditMesh.Attributes()->CopyBoneAttributes(*ReadMesh.Attributes());
+		}, EDynamicMeshChangeType::AttributeEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+	});
+
+	return TargetMesh;
+}
+
+UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::DiscardBonesFromMesh(
+	UDynamicMesh* TargetMesh, 
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("DiscardBonesFromMesh_InvalidTargetMesh", "DiscardBonesFromMesh: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+	{
+		if (EditMesh.HasAttributes())
+		{
+			EditMesh.Attributes()->DisableBones();
+		}
+		
+	}, EDynamicMeshChangeType::AttributeEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
+UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::GetBoneIndexForName(
+	UDynamicMesh* TargetMesh,
+	FString BoneName,
+	bool& bIsValidBoneName,
+	int& BoneIndex,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetBoneIndexForName_InvalidTargetMesh", "GetBoneIndexForName: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& EditMesh)
+	{	
+		if (!EditMesh.HasAttributes() || !EditMesh.Attributes()->HasBones())
+		{
+			AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetBoneIndexForName_TargetMeshHasNoBones", "TargetMesh has no bone attributes"));
+			return;
+		}
+
+		// INDEX_NONE if BoneName doesn't exist in the bone names attribute
+		BoneIndex = EditMesh.Attributes()->GetBoneNames()->GetAttribValues().Find(FName(BoneName));
+		
+		bIsValidBoneName = BoneIndex == INDEX_NONE;
+
+	});
+
+	return TargetMesh;
+}
 
 #undef LOCTEXT_NAMESPACE
