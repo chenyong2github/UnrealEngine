@@ -32,6 +32,11 @@
 
 void FPlasticSourceControlMenu::Register()
 {
+	if (bHasRegistered)
+	{
+		return;
+	}
+
 	// Register the menu extension with the level editor
 	FToolMenuOwnerScoped SourceControlMenuOwner("PlasticSourceControlMenu");
 	if (UToolMenus* ToolMenus = UToolMenus::Get())
@@ -40,15 +45,23 @@ void FPlasticSourceControlMenu::Register()
 		FToolMenuSection& Section = SourceControlMenu->AddSection("PlasticSourceControlActions", LOCTEXT("PlasticSourceControlMenuHeadingActions", "Plastic SCM"), FToolMenuInsert(NAME_None, EToolMenuInsertType::First));
 
 		AddMenuExtension(Section);
+
+		bHasRegistered = true;
 	}
 }
 
 void FPlasticSourceControlMenu::Unregister()
 {
+	if (!bHasRegistered)
+	{
+		return;
+	}
+
 	// Unregister the menu extension from the level editor
-	if (UToolMenus* ToolMenus = UToolMenus::Get())
+	if (UToolMenus* ToolMenus = UToolMenus::TryGet())
 	{
 		UToolMenus::Get()->UnregisterOwnerByName("PlasticSourceControlMenu");
+		bHasRegistered = false;
 	}
 }
 

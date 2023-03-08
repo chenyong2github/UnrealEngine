@@ -39,6 +39,10 @@ private:
 	void DisplayFailureNotification(const FName& InOperationName);
 
 private:
+
+	/** Tracks if the menu extension has been registered with the editor or not */
+	bool bHasRegistered = false;
+
 	/** Current source control operation from extended menu if any */
 	TWeakPtr<class SNotificationItem> OperationInProgressNotification;
 
