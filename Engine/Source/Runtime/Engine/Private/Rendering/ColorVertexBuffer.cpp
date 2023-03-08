@@ -246,6 +246,11 @@ void FColorVertexBuffer::Serialize( FArchive& Ar, bool bNeedsCPUAccess )
 				}
 			}
 		}
+		if (StripFlags.IsDataStrippedForServer())
+		{
+			// if we stripped all the other stuff and decided not to serialize it in probably need to strip the NumVertices Too
+			NumVertices = Stride = 0;
+		}
 	}
 }
 
