@@ -2,6 +2,7 @@
 
 #include "StageAppLibrary.h"
 #include "StageAppVersion.h"
+#include "RemoteControlSettings.h"
 
 FString UStageAppFunctionLibrary::GetAPIVersion()
 {
@@ -9,4 +10,9 @@ FString UStageAppFunctionLibrary::GetAPIVersion()
 		FEpicStageAppAPIVersion::Major,
 		FEpicStageAppAPIVersion::Minor,
 		FEpicStageAppAPIVersion::Patch);
+}
+
+int32 UStageAppFunctionLibrary::GetRemoteControlWebInterfacePort()
+{
+	return static_cast<int32>(GetDefault<URemoteControlSettings>()->RemoteControlWebInterfacePort);
 }

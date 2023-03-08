@@ -16,7 +16,11 @@ class EPICSTAGEAPP_API UStageAppFunctionLibrary : public UBlueprintFunctionLibra
 
 public:
 
-	/** The current semantic version for the stage app API as a formatted string. */
+	/** Get the current semantic version for the stage app API as a formatted string. */
 	UFUNCTION(BlueprintPure, Category = "Development", meta = (BlueprintThreadSafe))
 	static FString GetAPIVersion();
+
+	/** Get the port number used to access the remote control web interface for this engine instance. */
+	UFUNCTION(BlueprintPure, Category = "Development", meta = (BlueprintThreadSafe))
+	static int32 GetRemoteControlWebInterfacePort();
 };
