@@ -9,7 +9,7 @@
 #include "SMovieGraphMembersTabContent.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Graph/SMoviePipelineGraphPanel.h"
+#include "Widgets/Graph/SMovieGraphConfigPanel.h"
 
 #define LOCTEXT_NAMESPACE "MovieGraphAssetToolkit"
 

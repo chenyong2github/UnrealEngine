@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 // Movie Pipeline Includes
-#include "Widgets/Graph/SMoviePipelineGraphPanel.h"
+#include "Widgets/Graph/SMovieGraphConfigPanel.h"
 #include "Widgets/MoviePipelineWidgetConstants.h"
 #include "Widgets/SMoviePipelineQueueEditor.h"
 #include "Widgets/SMoviePipelineConfigPanel.h"
