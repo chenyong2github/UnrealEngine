@@ -145,7 +145,7 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 			EditorStreamer->SetTargetViewport(SceneViewport->GetViewportWidget());
 			EditorStreamer->SetTargetWindow(SceneViewport->FindWindow());
 			EditorStreamer->SetInputHandlerType(EPixelStreamingInputType::RouteToWindow);
-			EditorStreamer->SetVideoInput(FPixelStreamingVideoInputViewport::Create());
+			EditorStreamer->SetVideoInput(FPixelStreamingVideoInputViewport::Create(EditorStreamer));
 		}
 		break;
 		case UE::EditorPixelStreaming::EStreamTypes::Editor:

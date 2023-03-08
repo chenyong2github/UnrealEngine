@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PixelStreamingVideoInputRHI.h"
+#include "IPixelStreamingStreamer.h"
 #include "Delegates/IDelegateInstance.h"
 #include "UnrealClient.h"
 
@@ -12,7 +13,7 @@
 class PIXELSTREAMINGEDITOR_API FPixelStreamingVideoInputViewport : public FPixelStreamingVideoInputRHI
 {
 public:
-	static TSharedPtr<FPixelStreamingVideoInputViewport> Create();
+	static TSharedPtr<FPixelStreamingVideoInputViewport> Create(TSharedPtr<IPixelStreamingStreamer> InAssociatedStreamer);
 	virtual ~FPixelStreamingVideoInputViewport();
 
 	virtual FString ToString() override;
@@ -20,9 +21,12 @@ public:
 private:
 	FPixelStreamingVideoInputViewport() = default;
 
+	bool FilterViewport(const FViewport* InViewport);
 	void OnViewportRendered(FViewport* Viewport);
 
 	FDelegateHandle DelegateHandle;
 
 	FName TargetViewportType = FName(FString(TEXT("SceneViewport")));
+
+	TWeakPtr<IPixelStreamingStreamer> AssociatedStreamer;
 };

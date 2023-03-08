@@ -15,9 +15,10 @@
 #include "Slate/SceneViewport.h"
 #include "IPixelStreamingModule.h"
 
-TSharedPtr<FPixelStreamingVideoInputViewport> FPixelStreamingVideoInputViewport::Create()
+TSharedPtr<FPixelStreamingVideoInputViewport> FPixelStreamingVideoInputViewport::Create(TSharedPtr<IPixelStreamingStreamer> InAssociatedStreamer)
 {
 	TSharedPtr<FPixelStreamingVideoInputViewport> NewInput = TSharedPtr<FPixelStreamingVideoInputViewport>(new FPixelStreamingVideoInputViewport());
+	NewInput->AssociatedStreamer = InAssociatedStreamer;
 	TWeakPtr<FPixelStreamingVideoInputViewport> WeakInput = NewInput;
 
 	// Set up the callback on the game thread since FSlateApplication::Get() can only be used there
@@ -41,36 +42,47 @@ FPixelStreamingVideoInputViewport::~FPixelStreamingVideoInputViewport()
 	}
 }
 
-void FPixelStreamingVideoInputViewport::OnViewportRendered(FViewport* InViewport)
+bool FPixelStreamingVideoInputViewport::FilterViewport(const FViewport* InViewport)
 {
-	IPixelStreamingModule& Module = IPixelStreamingModule::Get();
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module.GetStreamer(Module.GetDefaultStreamerID());
+	TSharedPtr<IPixelStreamingStreamer> Streamer = AssociatedStreamer.Pin();
 	if (!Streamer.IsValid() || !Streamer->IsStreaming())
 	{
-		return;
+		return false;
 	}
 
 	TSharedPtr<SViewport> TargetScene = Streamer->GetTargetViewport().Pin();
 	if (!TargetScene.IsValid())
 	{
-		return;
+		return false;
 	}
 
 	if (InViewport == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	if (InViewport->GetViewportType() != TargetViewportType)
 	{
-		return;
+		return false;
 	}
 
 	// Bit dirty to do a static cast here, but we check viewport type just above so it is somewhat "safe".
-	TSharedPtr<SViewport> InScene = static_cast<FSceneViewport*>(InViewport)->GetViewportWidget().Pin();
+	TSharedPtr<SViewport> InScene = StaticCast<const FSceneViewport*>(InViewport)->GetViewportWidget().Pin();
 
 	// If the viewport we were passed is not our target viewport we are not interested in getting its texture.
 	if (TargetScene != InScene)
+	{
+		return false;
+	}
+
+
+
+	return true;
+}
+
+void FPixelStreamingVideoInputViewport::OnViewportRendered(FViewport* InViewport)
+{
+	if (!FilterViewport(InViewport))
 	{
 		return;
 	}
