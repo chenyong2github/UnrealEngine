@@ -10,13 +10,16 @@
 #include "Containers/Array.h"
 #include "UnrealClient.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Engine/TextureDefines.h"
 
 #include "SparseVolumeTexture.generated.h"
 
 namespace UE { namespace Shader	{ enum class EValueType : uint8; } }
 namespace UE { namespace DerivedData { class FRequestOwner; } }
 
-#define SPARSE_VOLUME_TILE_RES	16
+#define SPARSE_VOLUME_TILE_RES 16
+#define SPARSE_VOLUME_TILE_BORDER 1
+#define SPARSE_VOLUME_TILE_RES_PADDED (SPARSE_VOLUME_TILE_RES + 2 * SPARSE_VOLUME_TILE_BORDER)
 
 struct FSparseVolumeTextureData;
 class FSparseVolumeTextureSceneProxy;
@@ -53,7 +56,7 @@ struct ENGINE_API FSparseVolumeTextureFrame
 
 	FSparseVolumeTextureFrame();
 	virtual ~FSparseVolumeTextureFrame();
-	bool BuildDerivedData(FSparseVolumeTextureData* OutMippedTextureData);
+	bool BuildDerivedData(const FIntVector3& VolumeResolution, TextureAddress AddressX, TextureAddress AddressY, TextureAddress AddressZ, FSparseVolumeTextureData* OutMippedTextureData);
 	void Serialize(FArchive& Ar, class UStreamableSparseVolumeTexture* Owner, int32 FrameIndex);
 };
 
@@ -89,8 +92,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Texture")
 	virtual int32 GetNumFrames() const { return 0; }
+
+	UFUNCTION(BlueprintCallable, Category = "Texture")
 	virtual int32 GetNumMipLevels() const { return 0; }
+
 	virtual FIntVector GetVolumeResolution() const { return FIntVector(); }
+	virtual TextureAddress GetTextureAddressX() const { return TA_Wrap; }
+	virtual TextureAddress GetTextureAddressY() const { return TA_Wrap; }
+	virtual TextureAddress GetTextureAddressZ() const { return TA_Wrap; }
+
 	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const { return nullptr; }
 
 	/** Getter for the shader uniform parameters with index as ESparseVolumeTextureShaderUniform. */
@@ -116,11 +126,23 @@ class UStreamableSparseVolumeTexture : public USparseVolumeTexture
 
 public:
 
-	UPROPERTY(VisibleAnywhere, Category = "Rendering")
+	UPROPERTY(VisibleAnywhere, Category = "Texture")
 	FIntVector VolumeResolution;
 
-	UPROPERTY(VisibleAnywhere, Category = "Rendering")
+	UPROPERTY(VisibleAnywhere, Category = "Texture")
 	int32 NumMipLevels;
+
+	/** The addressing mode to use for the X axis.								*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (DisplayName = "X-axis Tiling Method"), AssetRegistrySearchable, AdvancedDisplay)
+	TEnumAsByte<enum TextureAddress> AddressX;
+
+	/** The addressing mode to use for the Y axis.								*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (DisplayName = "Y-axis Tiling Method"), AssetRegistrySearchable, AdvancedDisplay)
+	TEnumAsByte<enum TextureAddress> AddressY;
+
+	/** The addressing mode to use for the Z axis.								*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (DisplayName = "Z-axis Tiling Method"), AssetRegistrySearchable, AdvancedDisplay)
+	TEnumAsByte<enum TextureAddress> AddressZ;
 
 	UStreamableSparseVolumeTexture();
 	virtual ~UStreamableSparseVolumeTexture() = default;
@@ -137,17 +159,32 @@ public:
 	//~ End UObject Interface.
 
 	//~ Begin USparseVolumeTexture Interface.
-	int32 GetNumFrames() const override { return Frames.Num(); }
-	int32 GetNumMipLevels() const override { return NumMipLevels; }
-	FIntVector GetVolumeResolution() const override { return VolumeResolution; };
-	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return GetStreamedFrameProxyOrFallback(0 /*FrameIndex*/, 0 /*MipLevel*/); };
+	virtual int32 GetNumFrames() const override { return Frames.Num(); }
+	virtual int32 GetNumMipLevels() const override { return NumMipLevels; }
+	virtual FIntVector GetVolumeResolution() const override { return VolumeResolution; };
+	virtual TextureAddress GetTextureAddressX() const override { return AddressX; }
+	virtual TextureAddress GetTextureAddressY() const override { return AddressY; }
+	virtual TextureAddress GetTextureAddressZ() const override { return AddressZ; }
+	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return GetStreamedFrameProxyOrFallback(0 /*FrameIndex*/, 0 /*MipLevel*/); };
 	//~ End USparseVolumeTexture Interface.
 
 	const FSparseVolumeTextureSceneProxy* GetStreamedFrameProxyOrFallback(int32 FrameIndex, int32 MipLevel) const;
 	TArrayView<const FSparseVolumeTextureFrame> GetFrames() const;
 
 protected:
+
 	TArray<FSparseVolumeTextureFrame> Frames;
+
+#if WITH_EDITOR
+	enum class ENotifyMaterialsEffectOnShaders
+	{
+		Default,
+		DoesNotInvalidate
+	};
+
+	/** Notify any loaded material instances that the texture has changed. */
+	void NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders = ENotifyMaterialsEffectOnShaders::Default);
+#endif // WITH_EDITOR
 
 	void GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
 	void GenerateOrLoadDDCRuntimeDataForFrame(FSparseVolumeTextureFrame& Frame, UE::DerivedData::FRequestOwner& DDCRequestOwner);
@@ -211,17 +248,23 @@ public:
 
 	static USparseVolumeTextureFrame* CreateFrame(USparseVolumeTexture* Texture, int32 FrameIndex, int32 MipLevel);
 
-	void Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FIntVector& InVolumeResolution);
+	void Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FIntVector& InVolumeResolution, TextureAddress InAddressX, TextureAddress InAddressY, TextureAddress InAddressZ);
 
 	//~ Begin USparseVolumeTexture Interface.
-	int32 GetNumFrames() const override { return 1; }
-	int32 GetNumMipLevels() const override { return 1; }
-	FIntVector GetVolumeResolution() const override { return VolumeResolution; };
-	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return SceneProxy; };
+	virtual int32 GetNumFrames() const override { return 1; }
+	virtual int32 GetNumMipLevels() const override { return 1; }
+	virtual FIntVector GetVolumeResolution() const override { return VolumeResolution; };
+	virtual TextureAddress GetTextureAddressX() const override { return AddressX; }
+	virtual TextureAddress GetTextureAddressY() const override { return AddressY; }
+	virtual TextureAddress GetTextureAddressZ() const override { return AddressZ; }
+	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return SceneProxy; };
 	//~ End USparseVolumeTexture Interface.
 
 private:
 	FIntVector3 VolumeResolution;
+	TEnumAsByte<enum TextureAddress> AddressX;
+	TEnumAsByte<enum TextureAddress> AddressY;
+	TEnumAsByte<enum TextureAddress> AddressZ;
 	const FSparseVolumeTextureSceneProxy* SceneProxy;
 };
 

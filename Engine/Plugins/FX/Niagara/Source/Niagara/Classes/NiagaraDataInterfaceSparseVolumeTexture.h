@@ -16,6 +16,7 @@ class NIAGARA_API UNiagaraDataInterfaceSparseVolumeTexture : public UNiagaraData
 	GENERATED_UCLASS_BODY()
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER_SAMPLER(SamplerState, TileDataTextureSampler)
 		SHADER_PARAMETER_TEXTURE(Texture3D<uint>, PageTableTexture)
 		SHADER_PARAMETER_TEXTURE(Texture3D, PhysicalTileDataATexture)
 		SHADER_PARAMETER_TEXTURE(Texture3D, PhysicalTileDataBTexture)

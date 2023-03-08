@@ -1287,7 +1287,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 					FTextureRHIRef TileDataBTexture = SVTextureProxy->GetPhysicalTileDataBTextureRHI();
 					*ResourceTableTexturePhysicalBPtr = TileDataBTexture ? TileDataBTexture : GBlackVolumeTexture->TextureRHI;
 
-					*ResourceTablePhysicalSamplerPtr = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp, 0, 8>::GetRHI();
+					*ResourceTablePhysicalSamplerPtr = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 				}
 			}
 		}

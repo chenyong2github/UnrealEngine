@@ -308,6 +308,7 @@ void UNiagaraDataInterfaceSparseVolumeTexture::SetShaderParameters(const FNiagar
 	FNDISparseVolumeTextureInstanceData_RenderThread* RTInstanceData = TextureProxy.InstanceData_RT.Find(Context.GetSystemInstanceID());
 
 	FShaderParameters* Parameters = Context.GetParameterNestedStruct<FShaderParameters>();
+	Parameters->TileDataTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	if (RTInstanceData && RTInstanceData->PageTableTextureRHI.IsValid() && (RTInstanceData->PhysicalTileDataATextureRHI.IsValid() || RTInstanceData->PhysicalTileDataBTextureRHI.IsValid()))
 	{
 		Parameters->PageTableTexture = RTInstanceData->PageTableTextureRHI;

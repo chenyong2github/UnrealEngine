@@ -12634,7 +12634,18 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureUniformParameter(FName Paramet
 	return AddUniformExpression(new FMaterialUniformExpressionSparseVolumeTextureUniform(ParameterInfo, TextureIndex, VectorIndex), GetMaterialValueType(Type), TEXT(""));
 }
 
-int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable(int32 SparseVolumeTextureIndex, int32 UVWIndex, int32 MipLevelIndex)
+static const TCHAR* GetSparseVolumeTextureAddressMode(TextureAddress Address)
+{
+	switch (Address)
+	{
+	case TA_Wrap: return TEXT("SVTADDRESSMODE_WRAP");
+	case TA_Clamp: return TEXT("SVTADDRESSMODE_CLAMP");
+	case TA_Mirror: return TEXT("SVTADDRESSMODE_MIRROR");
+	default: checkNoEntry(); return nullptr;
+	}
+}
+
+int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable(int32 SparseVolumeTextureIndex, int32 UVWIndex, int32 MipLevelIndex, ESamplerSourceMode SamplerSource)
 {
 	if (SparseVolumeTextureIndex == INDEX_NONE || UVWIndex == INDEX_NONE || MipLevelIndex == INDEX_NONE)
 	{
@@ -12667,9 +12678,48 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePageTable(int32 SparseVo
 	int32 SVTReferenceIndex = UniformTextureExpressions[(uint32)EMaterialTextureParameterType::SparseVolume].Find(TextureUniformExpression);
 	check(UniformTextureExpressions[(uint32)EMaterialTextureParameterType::SparseVolume].IsValidIndex(SVTReferenceIndex));
 
+	const USparseVolumeTexture* SVTexture = Cast<USparseVolumeTexture>(Material->GetReferencedTextures()[TextureUniformExpression->GetTextureIndex()]);
+
+	// StaticAddress mode at time of compile
+	// Similar to VirtualTextures, this may not be 100% correct, if SamplerSource is set to 'SSM_FromTextureAsset', as texture parameter may change the address mode in a derived instance
+	TextureAddress StaticAddressX = TA_Wrap;
+	TextureAddress StaticAddressY = TA_Wrap;
+	TextureAddress StaticAddressZ = TA_Wrap;
+	switch (SamplerSource)
+	{
+	case SSM_FromTextureAsset:
+		if (SVTexture)
+		{
+			StaticAddressX = SVTexture->GetTextureAddressX();
+			StaticAddressY = SVTexture->GetTextureAddressY();
+			StaticAddressZ = SVTexture->GetTextureAddressZ();
+		}
+		break;
+	case SSM_Wrap_WorldGroupSettings:
+		StaticAddressX = TA_Wrap;
+		StaticAddressY = TA_Wrap;
+		StaticAddressZ = TA_Wrap;
+		break;
+	case SSM_Clamp_WorldGroupSettings: // fallthrough
+	case SSM_TerrainWeightmapGroupSettings:
+		StaticAddressX = TA_Clamp;
+		StaticAddressY = TA_Clamp;
+		StaticAddressZ = TA_Clamp;
+		break;
+	default:
+		checkNoEntry();
+		break;
+	}
+
 	AddEstimatedTextureSample();
-	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureSamplePageTable(Material.SparseVolumeTexturePageTable_%d, %s, %s, %s)"),
-		SVTReferenceIndex , *GetParameterCode(SparseVolumeTextureIndex), *GetParameterCode(UVWAsFloat3Index), *GetParameterCode(MipLevelAsFloatIndex));
+	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureSamplePageTable(Material.SparseVolumeTexturePageTable_%d, %s, %s, %s, %s, %s, %s)"),
+		SVTReferenceIndex, 
+		*GetParameterCode(SparseVolumeTextureIndex), 
+		*GetParameterCode(UVWAsFloat3Index), 
+		GetSparseVolumeTextureAddressMode(StaticAddressX), 
+		GetSparseVolumeTextureAddressMode(StaticAddressY), 
+		GetSparseVolumeTextureAddressMode(StaticAddressZ), 
+		*GetParameterCode(MipLevelAsFloatIndex));
 	return AddCodeChunk(MCT_Float3, *SampleCode);
 }
 
@@ -12707,8 +12757,8 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureSamplePhysicalTileData(int32 S
 	check(UniformTextureExpressions[(uint32)EMaterialTextureParameterType::SparseVolume].IsValidIndex(SVTReferenceIndex));
 
 	AddEstimatedTextureSample();
-	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureSamplePhysicalTileData(Material.SparseVolumeTexturePhysicalA_%d, Material.SparseVolumeTexturePhysicalB_%d, %s, %s)"),
-		SVTReferenceIndex, SVTReferenceIndex, *GetParameterCode(VoxelCoordAsFloat3Index), *GetParameterCode(IndexAsFloatIndex));
+	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureSamplePhysicalTileData(Material.SparseVolumeTexturePhysicalA_%d, Material.SparseVolumeTexturePhysicalB_%d, Material.SparseVolumeTexturePhysical_%dSampler, %s, %s)"),
+		SVTReferenceIndex, SVTReferenceIndex, SVTReferenceIndex, *GetParameterCode(VoxelCoordAsFloat3Index), *GetParameterCode(IndexAsFloatIndex));
 	return AddCodeChunk(MCT_Float4, *SampleCode);
 }
 

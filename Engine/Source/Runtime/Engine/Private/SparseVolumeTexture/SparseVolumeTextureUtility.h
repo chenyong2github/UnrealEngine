@@ -13,6 +13,7 @@ namespace SVT
 	// the asset is imported on. 2048 should be a safe value that should be supported by all our platforms.
 	static constexpr int32 SVTMaxVolumeTextureDim = 2048;
 	static constexpr int32 SVTNumVoxelsPerTile = SPARSE_VOLUME_TILE_RES * SPARSE_VOLUME_TILE_RES * SPARSE_VOLUME_TILE_RES;
+	static constexpr int32 SVTNumVoxelsPerPaddedTile = SPARSE_VOLUME_TILE_RES_PADDED * SPARSE_VOLUME_TILE_RES_PADDED * SPARSE_VOLUME_TILE_RES_PADDED;
 
 	uint32 PackPageTableEntry(const FIntVector3& Coord);
 	FIntVector3 UnpackPageTableEntry(uint32 Packed);

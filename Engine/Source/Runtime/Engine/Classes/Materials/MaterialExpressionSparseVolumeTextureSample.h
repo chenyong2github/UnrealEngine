@@ -29,6 +29,15 @@ class ENGINE_API UMaterialExpressionSparseVolumeTextureSample : public UMaterial
 	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Defaults to 0 if not specified"))
 	FExpressionInput MipLevel;
 
+	/**
+	 * Controls where the sampler for this texture lookup will come from.
+	 * Choose 'from texture asset' to make use of the USparseVolumeTexture addressing settings,
+	 * Otherwise use one of the global samplers, which will not consume a sampler slot.
+	 * This allows materials to use more than 16 unique textures on SM5 platforms.
+	 */
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample, Meta = (ShowAsInputPin = "Advanced"))
+	TEnumAsByte<ESamplerSourceMode> SamplerSource;
+
 protected:
 
 #if WITH_EDITOR

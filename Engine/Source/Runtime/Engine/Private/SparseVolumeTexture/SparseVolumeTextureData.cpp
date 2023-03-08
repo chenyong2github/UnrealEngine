@@ -2,8 +2,12 @@
 
 #include "SparseVolumeTexture/SparseVolumeTextureData.h"
 #include "SparseVolumeTexture/SparseVolumeTextureUtility.h"
+#include "Async/ParallelFor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTextureData, Log, All);
+
+// Enabling this ensures proper bilinear filtering between physical pages and empty pages by tagging neighboring empty pages as resident/physical. This causes more physical tiles to be generated though.
+#define SVT_CORRECT_TILE_ALLOCATION_FOR_LINEAR_FILTERING 0
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -103,15 +107,44 @@ bool FSparseVolumeTextureData::Construct(const ISparseVolumeTextureDataConstruct
 			const bool bIsFallbackValue = (VoxelValue == AttributesInfo[AttributesIdx].FallbackValue[ComponentIdx]);
 			if (!bIsFallbackValue)
 			{
+				check(Coord.X >= Header.VirtualVolumeAABBMin.X && Coord.Y >= Header.VirtualVolumeAABBMin.Y && Coord.Z >= Header.VirtualVolumeAABBMin.Z);
+				check(Coord.X < Header.VirtualVolumeAABBMax.X && Coord.Y < Header.VirtualVolumeAABBMax.Y && Coord.Z < Header.VirtualVolumeAABBMax.Z);
+
+#if SVT_CORRECT_TILE_ALLOCATION_FOR_LINEAR_FILTERING
+				// Tag all pages touching the 3x3 area around this voxel in order to properly support bilinear/border voxels
+				for (int32 OffsetZ = -1; OffsetZ < 2; ++OffsetZ)
+				{
+					for (int32 OffsetY = -1; OffsetY < 2; ++OffsetY)
+					{
+						for (int32 OffsetX = -1; OffsetX < 2; ++OffsetX)
+						{
+							const FIntVector3 GridCoord = Coord + FIntVector3(OffsetX, OffsetY, OffsetZ);
+							if (GridCoord.X >= Header.VirtualVolumeAABBMin.X
+								&& GridCoord.Y >= Header.VirtualVolumeAABBMin.Y 
+								&& GridCoord.Z >= Header.VirtualVolumeAABBMin.Z
+								&& GridCoord.X < Header.VirtualVolumeAABBMax.X
+								&& GridCoord.Y < Header.VirtualVolumeAABBMax.Y
+								&& GridCoord.Z < Header.VirtualVolumeAABBMax.Z)
+							{
+								const FIntVector3 PageCoord = (GridCoord / SPARSE_VOLUME_TILE_RES) - Header.PageTableVolumeAABBMin;
+								check(PageCoord.X >= 0 && PageCoord.Y >= 0 && PageCoord.Z >= 0);
+								check(PageCoord.X < Header.PageTableVolumeResolution.X && PageCoord.Y < Header.PageTableVolumeResolution.Y && PageCoord.Z < Header.PageTableVolumeResolution.Z);
+
+								const int32 PageIndex = PageCoord.Z * (Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.X) + PageCoord.Y * Header.PageTableVolumeResolution.X + PageCoord.X;
+								PagesWithData[PageIndex] = true;
+							}
+						}
+					}
+				}
+#else // SVT_CORRECT_TILE_ALLOCATION_FOR_LINEAR_FILTERING
 				const FIntVector3 GridCoord = Coord;
-				check(GridCoord.X >= 0 && GridCoord.Y >= 0 && GridCoord.Z >= 0);
-				check(GridCoord.X < Header.VirtualVolumeAABBMax.X&& GridCoord.Y < Header.VirtualVolumeAABBMax.Y&& GridCoord.Z < Header.VirtualVolumeAABBMax.Z);
 				const FIntVector3 PageCoord = (GridCoord / SPARSE_VOLUME_TILE_RES) - Header.PageTableVolumeAABBMin;
 				check(PageCoord.X >= 0 && PageCoord.Y >= 0 && PageCoord.Z >= 0);
-				check(PageCoord.X < Header.PageTableVolumeResolution.X&& PageCoord.Y < Header.PageTableVolumeResolution.Y&& PageCoord.Z < Header.PageTableVolumeResolution.Z);
+				check(PageCoord.X < Header.PageTableVolumeResolution.X && PageCoord.Y < Header.PageTableVolumeResolution.Y && PageCoord.Z < Header.PageTableVolumeResolution.Z);
 
 				const int32 PageIndex = PageCoord.Z * (Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.X) + PageCoord.Y * Header.PageTableVolumeResolution.X + PageCoord.X;
 				PagesWithData[PageIndex] = true;
+#endif // SVT_CORRECT_TILE_ALLOCATION_FOR_LINEAR_FILTERING
 			}
 		});
 
@@ -122,11 +155,11 @@ bool FSparseVolumeTextureData::Construct(const ISparseVolumeTextureDataConstruct
 	// Go over each potential page from the source data and push allocate it if it has any data.
 	// Otherwise point to the default empty page.
 	int32 NumAllocatedPages = 0;
-	for (int32_t PageZ = 0; PageZ < Header.PageTableVolumeResolution.Z; ++PageZ)
+	for (int32 PageZ = 0; PageZ < Header.PageTableVolumeResolution.Z; ++PageZ)
 	{
-		for (int32_t PageY = 0; PageY < Header.PageTableVolumeResolution.Y; ++PageY)
+		for (int32 PageY = 0; PageY < Header.PageTableVolumeResolution.Y; ++PageY)
 		{
-			for (int32_t PageX = 0; PageX < Header.PageTableVolumeResolution.X; ++PageX)
+			for (int32 PageX = 0; PageX < Header.PageTableVolumeResolution.X; ++PageX)
 			{
 				const int32 PageIndex = PageZ * (Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.X) + PageY * Header.PageTableVolumeResolution.X + PageX;
 				const bool bHasAnyData = PagesWithData[PageIndex];
@@ -138,6 +171,7 @@ bool FSparseVolumeTextureData::Construct(const ISparseVolumeTextureDataConstruct
 			}
 		}
 	}
+	LinearAllocatedPages.SetNum(NumAllocatedPages);
 
 	const int32 EffectivelyAllocatedTiles = NumAllocatedPages + 1 /*null tile*/;
 
@@ -145,16 +179,16 @@ bool FSparseVolumeTextureData::Construct(const ISparseVolumeTextureDataConstruct
 	const int32 FormatSize[] = { GPixelFormats[Header.AttributesFormats[0]].BlockBytes, GPixelFormats[Header.AttributesFormats[1]].BlockBytes };
 	PageTable.SetNum(1);
 	PageTable[0].SetNumZeroed(Header.PageTableVolumeResolution.X * Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.Z);
-	PhysicalTileDataA.SetNumZeroed(EffectivelyAllocatedTiles * SVTNumVoxelsPerTile * FormatSize[0]);
-	PhysicalTileDataB.SetNumZeroed(EffectivelyAllocatedTiles * SVTNumVoxelsPerTile * FormatSize[1]);
+	PhysicalTileDataA.SetNumZeroed(EffectivelyAllocatedTiles * SVTNumVoxelsPerPaddedTile * FormatSize[0]);
+	PhysicalTileDataB.SetNumZeroed(EffectivelyAllocatedTiles * SVTNumVoxelsPerPaddedTile * FormatSize[1]);
 
 	// Generate page table and tile volume data by splatting the data
 	{
 		uint32 DstTileIndex = 0;
 
-		// Add an empty tile, reserve slot at coord 0
+		// Add an empty tile, reserve slot at coord 0 and fill all tiles with null tile data
 		{
-			// Fill null tile with fallback/background value
+			// Compute potentially normalized fallback values
 			FVector4f FallbackValues[] = { AttributesInfo[0].FallbackValue, AttributesInfo[1].FallbackValue };
 			for (int32 AttributesIdx = 0; AttributesIdx < 2; ++AttributesIdx)
 			{
@@ -163,21 +197,25 @@ bool FSparseVolumeTextureData::Construct(const ISparseVolumeTextureDataConstruct
 					FallbackValues[AttributesIdx] = FallbackValues[AttributesIdx] * AttributesInfo[AttributesIdx].NormalizeScale + AttributesInfo[AttributesIdx].NormalizeBias;
 				}
 			}
-			for (int32 Z = 0; Z < SPARSE_VOLUME_TILE_RES; ++Z)
-			{
-				for (int32 Y = 0; Y < SPARSE_VOLUME_TILE_RES; ++Y)
-				{
-					for (int32 X = 0; X < SPARSE_VOLUME_TILE_RES; ++X)
-					{
-						const FIntVector3 WriteCoord = FIntVector3(X, Y, Z);
-						WriteTileDataVoxel(0 /*TileIndex*/, WriteCoord, 0 /*AttributesIndex*/, FallbackValues[0]);
-						WriteTileDataVoxel(0 /*TileIndex*/, WriteCoord, 1 /*AttributesIndex*/, FallbackValues[1]);
-					}
-				}
-			}
-
 			Header.NullTileValues[0] = FallbackValues[0];
 			Header.NullTileValues[1] = FallbackValues[1];
+
+			// Fill all tiles with fallback values since we can't guarantee that all voxels of a page will be written to in the next step.
+			ParallelFor(EffectivelyAllocatedTiles, [&FallbackValues, this](int32 TileIndex)
+				{
+					for (int32 Z = 0; Z < SPARSE_VOLUME_TILE_RES_PADDED; ++Z)
+					{
+						for (int32 Y = 0; Y < SPARSE_VOLUME_TILE_RES_PADDED; ++Y)
+						{
+							for (int32 X = 0; X < SPARSE_VOLUME_TILE_RES_PADDED; ++X)
+							{
+								const FIntVector3 WriteCoord = FIntVector3(X - 1, Y - 1, Z - 1);
+								WriteTileDataVoxel(TileIndex, WriteCoord, 0 /*AttributesIndex*/, FallbackValues[0]);
+								WriteTileDataVoxel(TileIndex, WriteCoord, 1 /*AttributesIndex*/, FallbackValues[1]);
+							}
+						}
+					}
+				});
 
 			// PageTable is all cleared to zero, simply skip a tile
 			++DstTileIndex;
@@ -198,8 +236,8 @@ bool FSparseVolumeTextureData::Construct(const ISparseVolumeTextureDataConstruct
 			// Set the next tile to be written to
 			++DstTileIndex;
 		}
-		MipInfo.TileOffset = 0;
-		MipInfo.TileCount = EffectivelyAllocatedTiles;
+		MipInfo.TileOffset = 1; // Don't include the null tile in the list of physical tiles of mip0. The runtime SVT will create a null of its own.
+		MipInfo.TileCount = NumAllocatedPages;
 	}
 
 	// Write physical tile data
@@ -239,11 +277,10 @@ uint32 FSparseVolumeTextureData::ReadPageTable(const FIntVector3& PageTableCoord
 	{
 		return INDEX_NONE;
 	}
-	const int32 MipLevelFactor = 1 << MipLevel;
 	const FIntVector3 PageTableResolution = FIntVector3(
-		FMath::Max(1, Header.PageTableVolumeResolution.X / MipLevelFactor), 
-		FMath::Max(1, Header.PageTableVolumeResolution.Y / MipLevelFactor), 
-		FMath::Max(1, Header.PageTableVolumeResolution.Z / MipLevelFactor));
+		FMath::Max(1, Header.PageTableVolumeResolution.X >> MipLevel), 
+		FMath::Max(1, Header.PageTableVolumeResolution.Y >> MipLevel), 
+		FMath::Max(1, Header.PageTableVolumeResolution.Z >> MipLevel));
 	if (PageTableCoord.X < 0 || PageTableCoord.Y < 0 || PageTableCoord.Z < 0
 		|| PageTableCoord.X >= PageTableResolution.X
 		|| PageTableCoord.Y >= PageTableResolution.Y
@@ -263,7 +300,7 @@ uint32 FSparseVolumeTextureData::ReadPageTable(const FIntVector3& PageTableCoord
 FVector4f FSparseVolumeTextureData::ReadTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 AttributesIdx) const
 {
 	check(AttributesIdx >= 0 && AttributesIdx <= 1);
-	if ((AttributesIdx == 0 && PhysicalTileDataA.IsEmpty()) || (AttributesIdx == 1 && PhysicalTileDataB.IsEmpty()))
+	if (TileIndex == INDEX_NONE || (AttributesIdx == 0 && PhysicalTileDataA.IsEmpty()) || (AttributesIdx == 1 && PhysicalTileDataB.IsEmpty()))
 	{
 		return FVector4f();
 	}
@@ -278,21 +315,41 @@ FVector4f FSparseVolumeTextureData::ReadTileDataVoxel(int32 TileIndex, const FIn
 		return FVector4f();
 	}
 
-	const int32 VoxelIndex = TileIndex * UE::SVT::SVTNumVoxelsPerTile + TileDataCoord.Z * (SPARSE_VOLUME_TILE_RES * SPARSE_VOLUME_TILE_RES) + TileDataCoord.Y * SPARSE_VOLUME_TILE_RES + TileDataCoord.X;
+	const FIntVector3 CoordPadded = TileDataCoord + FIntVector3(SPARSE_VOLUME_TILE_BORDER);
+	const int32 VoxelIndex = TileIndex * UE::SVT::SVTNumVoxelsPerPaddedTile + CoordPadded.Z * (SPARSE_VOLUME_TILE_RES_PADDED * SPARSE_VOLUME_TILE_RES_PADDED) + CoordPadded.Y * SPARSE_VOLUME_TILE_RES_PADDED + CoordPadded.X;
 	const uint8* TileData = AttributesIdx == 0 ? PhysicalTileDataA.GetData() : PhysicalTileDataB.GetData();
 	const EPixelFormat Format = Header.AttributesFormats[AttributesIdx];
 	return UE::SVT::ReadVoxel(VoxelIndex, TileData, Format);
 }
 
-FVector4f FSparseVolumeTextureData::Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx) const
+FVector4f FSparseVolumeTextureData::Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx, const FSparseVolumeTextureDataAddressingInfo& AddressingInfo) const
 {
+	auto ApplyAddressMode = [](int32 x, int32 Width, TextureAddress Mode)
+	{
+		switch (Mode)
+		{
+		case TA_Wrap:
+			return (x % Width + Width) % Width; // Make sure it's a proper modulo for negative numbers ....
+		case TA_Clamp:
+			return FMath::Clamp(x, 0, Width - 1);
+		case TA_Mirror:
+			int32 DoubleWidth = Width + Width;
+			int32 DoubleWrap = (x % DoubleWidth + DoubleWidth) % DoubleWidth;
+			return (DoubleWrap < Width) ? DoubleWrap : (Width - 1) - (DoubleWrap - Width);
+		}
+		return x;
+	};
 	if (!Header.MipInfo.IsValidIndex(MipLevel))
 	{
 		return FVector4f();
 	}
-	const FIntVector3 PageTableCoord = (VolumeCoord / SPARSE_VOLUME_TILE_RES) - (Header.PageTableVolumeAABBMin / (1 << MipLevel));
+	const FIntVector3 AddressModeVolumeCoord = FIntVector3(
+		ApplyAddressMode(VolumeCoord.X, AddressingInfo.VolumeResolution.X, AddressingInfo.AddressX),
+		ApplyAddressMode(VolumeCoord.Y, AddressingInfo.VolumeResolution.Y, AddressingInfo.AddressY), 
+		ApplyAddressMode(VolumeCoord.Z, AddressingInfo.VolumeResolution.Z, AddressingInfo.AddressZ));
+	const FIntVector3 PageTableCoord = (AddressModeVolumeCoord / SPARSE_VOLUME_TILE_RES) - (Header.PageTableVolumeAABBMin >> MipLevel);
 	const uint32 TileIndex = ReadPageTable(PageTableCoord, MipLevel);
-	const FIntVector3 VoxelCoord = VolumeCoord % SPARSE_VOLUME_TILE_RES;
+	const FIntVector3 VoxelCoord = AddressModeVolumeCoord % SPARSE_VOLUME_TILE_RES;
 	const FVector4f Sample = ReadTileDataVoxel(TileIndex, VoxelCoord, AttributesIdx);
 	return Sample;
 }
@@ -307,21 +364,26 @@ void FSparseVolumeTextureData::WriteTileDataVoxel(int32 TileIndex, const FIntVec
 
 	// SV_TODO check for TileIndex oob
 
-	if (TileDataCoord.X < 0 || TileDataCoord.Y < 0 || TileDataCoord.Z < 0
-		|| TileDataCoord.X >= SPARSE_VOLUME_TILE_RES
-		|| TileDataCoord.Y >= SPARSE_VOLUME_TILE_RES
-		|| TileDataCoord.Z >= SPARSE_VOLUME_TILE_RES)
+	// Allow TileDataCoord to extend past SPARSE_VOLUME_TILE_RES by SPARSE_VOLUME_TILE_BORDER.
+	// This allows us to write the border voxels without changing how TileDataCoord needs to be computed for other use cases.
+	if (TileDataCoord.X < -SPARSE_VOLUME_TILE_BORDER 
+		|| TileDataCoord.Y < -SPARSE_VOLUME_TILE_BORDER 
+		|| TileDataCoord.Z < -SPARSE_VOLUME_TILE_BORDER
+		|| TileDataCoord.X >= (SPARSE_VOLUME_TILE_RES + SPARSE_VOLUME_TILE_BORDER)
+		|| TileDataCoord.Y >= (SPARSE_VOLUME_TILE_RES + SPARSE_VOLUME_TILE_BORDER)
+		|| TileDataCoord.Z >= (SPARSE_VOLUME_TILE_RES + SPARSE_VOLUME_TILE_BORDER))
 	{
 		return;
 	}
 
-	const int32 VoxelIndex = TileIndex * UE::SVT::SVTNumVoxelsPerTile + TileDataCoord.Z * (SPARSE_VOLUME_TILE_RES * SPARSE_VOLUME_TILE_RES) + TileDataCoord.Y * SPARSE_VOLUME_TILE_RES + TileDataCoord.X;
+	const FIntVector3 CoordPadded = TileDataCoord + FIntVector3(SPARSE_VOLUME_TILE_BORDER);
+	const int32 VoxelIndex = TileIndex * UE::SVT::SVTNumVoxelsPerPaddedTile + CoordPadded.Z * (SPARSE_VOLUME_TILE_RES_PADDED * SPARSE_VOLUME_TILE_RES_PADDED) + CoordPadded.Y * SPARSE_VOLUME_TILE_RES_PADDED + CoordPadded.X;
 	uint8* TileData = AttributesIdx == 0 ? PhysicalTileDataA.GetData() : PhysicalTileDataB.GetData();
 	const EPixelFormat Format = Header.AttributesFormats[AttributesIdx];
 	UE::SVT::WriteVoxel(VoxelIndex, TileData, Format, Value, DstComponent);
 }
 
-void FSparseVolumeTextureData::GenerateMipMaps(int32 NumMipLevels)
+void FSparseVolumeTextureData::GenerateMipMaps(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels)
 {
 	check(!Header.MipInfo.IsEmpty());
 	check(FMath::IsPowerOfTwo(Header.PageTableVolumeResolution.X) 
@@ -346,11 +408,12 @@ void FSparseVolumeTextureData::GenerateMipMaps(int32 NumMipLevels)
 		FSparseVolumeTextureMipInfo& MipInfo = Header.MipInfo[MipLevel];
 		MipInfo.TileOffset = Header.MipInfo[MipLevel - 1].TileOffset + Header.MipInfo[MipLevel - 1].TileCount;
 
-		const int32 MipLevelFactor = 1 << MipLevel;
-		const int32 ParentMipLevelFactor = 1 << (MipLevel - 1);
-		const FIntVector3 PageTableVolumeAABBMin = (Header.VirtualVolumeAABBMin / SPARSE_VOLUME_TILE_RES) / MipLevelFactor;
-		const FIntVector3 ParentPageTableVolumeAABBMin = (Header.VirtualVolumeAABBMin / SPARSE_VOLUME_TILE_RES) / ParentMipLevelFactor;
-		const FIntVector3 PageTableVolumeResolution = FIntVector3(FMath::Max(1, Header.PageTableVolumeResolution.X / MipLevelFactor), FMath::Max(1, Header.PageTableVolumeResolution.Y / MipLevelFactor), FMath::Max(1, Header.PageTableVolumeResolution.Z / MipLevelFactor));
+		const FIntVector3 PageTableVolumeAABBMin = (Header.VirtualVolumeAABBMin / SPARSE_VOLUME_TILE_RES) >> MipLevel;
+		const FIntVector3 ParentPageTableVolumeAABBMin = (Header.VirtualVolumeAABBMin / SPARSE_VOLUME_TILE_RES) >> (MipLevel - 1);
+		const FIntVector3 PageTableVolumeResolution = FIntVector3(
+			FMath::Max(1, Header.PageTableVolumeResolution.X >> MipLevel), 
+			FMath::Max(1, Header.PageTableVolumeResolution.Y >> MipLevel), 
+			FMath::Max(1, Header.PageTableVolumeResolution.Z >> MipLevel));
 		
 		check(FMath::IsPowerOfTwo(PageTableVolumeResolution.X)
 			&& FMath::IsPowerOfTwo(PageTableVolumeResolution.Y)
@@ -363,15 +426,15 @@ void FSparseVolumeTextureData::GenerateMipMaps(int32 NumMipLevels)
 		// Go over each potential page from the source data and push allocate it if it has any data.
 		// Otherwise point to the default empty page.
 		int32 NumAllocatedPages = 0;
-		for (int32_t PageZ = 0; PageZ < PageTableVolumeResolution.Z; ++PageZ)
+		for (int32 PageZ = 0; PageZ < PageTableVolumeResolution.Z; ++PageZ)
 		{
-			for (int32_t PageY = 0; PageY < PageTableVolumeResolution.Y; ++PageY)
+			for (int32 PageY = 0; PageY < PageTableVolumeResolution.Y; ++PageY)
 			{
-				for (int32_t PageX = 0; PageX < PageTableVolumeResolution.X; ++PageX)
+				for (int32 PageX = 0; PageX < PageTableVolumeResolution.X; ++PageX)
 				{
 					const FIntVector3 PageCoord = FIntVector3(PageX, PageY, PageZ);
 					bool bHasAnyData = false;
-					for (int32_t OffsetIdx = 0; OffsetIdx < 8; ++OffsetIdx)
+					for (int32 OffsetIdx = 0; OffsetIdx < 8; ++OffsetIdx)
 					{
 						const FIntVector3 Offset = FIntVector3(OffsetIdx, OffsetIdx >> 1, OffsetIdx >> 2) & 1;
 						const FIntVector3 ParentPageTableCoord = (PageTableVolumeAABBMin + PageCoord) * 2 + Offset - ParentPageTableVolumeAABBMin;
@@ -390,68 +453,135 @@ void FSparseVolumeTextureData::GenerateMipMaps(int32 NumMipLevels)
 				}
 			}
 		}
+		LinearAllocatedPages.SetNum(NumAllocatedPages);
 
 		// Initialize the SparseVolumeTexture page and tile.
 		const int32 FormatSize[] = { GPixelFormats[Header.AttributesFormats[0]].BlockBytes, GPixelFormats[Header.AttributesFormats[1]].BlockBytes };
 		PageTable.AddDefaulted();
 		PageTable[MipLevel].SetNumZeroed(PageTableVolumeResolution.X * PageTableVolumeResolution.Y * PageTableVolumeResolution.Z);
-		PhysicalTileDataA.AddZeroed(NumAllocatedPages * UE::SVT::SVTNumVoxelsPerTile * FormatSize[0]);
-		PhysicalTileDataB.AddZeroed(NumAllocatedPages * UE::SVT::SVTNumVoxelsPerTile * FormatSize[1]);
+		PhysicalTileDataA.AddZeroed(NumAllocatedPages * UE::SVT::SVTNumVoxelsPerPaddedTile * FormatSize[0]);
+		PhysicalTileDataB.AddZeroed(NumAllocatedPages * UE::SVT::SVTNumVoxelsPerPaddedTile * FormatSize[1]);
 
 		// Generate page table and tile volume data by splatting the data
 		{
-			uint32 DstTileIndex = (uint32)MipInfo.TileOffset;
-
-			for (int32 i = 0; i < NumAllocatedPages; ++i)
-			{
-				const FIntVector3 PageCoordToSplat = LinearAllocatedPages[i];
-
-				// Setup the page table entry
-				PageTable[MipLevel]
-					[
-						PageCoordToSplat.Z * PageTableVolumeResolution.X * PageTableVolumeResolution.Y +
-						PageCoordToSplat.Y * PageTableVolumeResolution.X +
-						PageCoordToSplat.X
-					] = DstTileIndex;
-
-				// Write tile data
-				const FIntVector3 ParentVolumeCoordBase = (PageTableVolumeAABBMin + PageCoordToSplat) * SPARSE_VOLUME_TILE_RES * 2;
-				for (int32 AttributesIdx = 0; AttributesIdx < 2; ++AttributesIdx)
+			ParallelFor(NumAllocatedPages, [this, &LinearAllocatedPages, &PageTableVolumeResolution, &PageTableVolumeAABBMin, &AddressingInfo, MipLevel, BaseDstTileIndex = (uint32)MipInfo.TileOffset](int32 PageIndex)
 				{
-					if ((AttributesIdx == 0 && PhysicalTileDataA.IsEmpty()) || (AttributesIdx == 1 && PhysicalTileDataB.IsEmpty()))
-					{
-						continue;
-					}
+					const FIntVector3 PageCoordToSplat = LinearAllocatedPages[PageIndex];
+					const uint32 DstTileIndex = BaseDstTileIndex + PageIndex;
 
-					for (int32 Z = 0; Z < SPARSE_VOLUME_TILE_RES; ++Z)
+					// Setup the page table entry
+					PageTable[MipLevel]
+						[
+							PageCoordToSplat.Z * PageTableVolumeResolution.X * PageTableVolumeResolution.Y +
+							PageCoordToSplat.Y * PageTableVolumeResolution.X +
+							PageCoordToSplat.X
+						] = DstTileIndex;
+
+					// Write tile data
+					const FIntVector3 ParentVolumeCoordBase = (PageTableVolumeAABBMin + PageCoordToSplat) * SPARSE_VOLUME_TILE_RES * 2;
+					for (int32 AttributesIdx = 0; AttributesIdx < 2; ++AttributesIdx)
 					{
-						for (int32 Y = 0; Y < SPARSE_VOLUME_TILE_RES; ++Y)
+						if ((AttributesIdx == 0 && PhysicalTileDataA.IsEmpty()) || (AttributesIdx == 1 && PhysicalTileDataB.IsEmpty()))
 						{
-							for (int32 X = 0; X < SPARSE_VOLUME_TILE_RES; ++X)
-							{
-								FVector4f DownsampledValue = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
-								for (int32_t OffsetIdx = 0; OffsetIdx < 8; ++OffsetIdx)
-								{
-									const FIntVector3 Offset = FIntVector3(OffsetIdx, OffsetIdx >> 1, OffsetIdx >> 2) & 1;
-									const FIntVector3 SourceCoord = ParentVolumeCoordBase + FIntVector3(X, Y, Z) * 2 + Offset;
-									const FVector4f SampleValue = Load(SourceCoord, MipLevel - 1, AttributesIdx);
-									DownsampledValue += SampleValue;
-								}
-								DownsampledValue /= 8.0f;
+							continue;
+						}
 
-								const FIntVector3 WriteCoord = FIntVector3(X, Y, Z);
-								WriteTileDataVoxel(DstTileIndex, WriteCoord, AttributesIdx, DownsampledValue);
+						for (int32 Z = 0; Z < SPARSE_VOLUME_TILE_RES; ++Z)
+						{
+							for (int32 Y = 0; Y < SPARSE_VOLUME_TILE_RES; ++Y)
+							{
+								for (int32 X = 0; X < SPARSE_VOLUME_TILE_RES; ++X)
+								{
+									FVector4f DownsampledValue = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+									for (int32 OffsetIdx = 0; OffsetIdx < 8; ++OffsetIdx)
+									{
+										const FIntVector3 Offset = FIntVector3(OffsetIdx, OffsetIdx >> 1, OffsetIdx >> 2) & 1;
+										const FIntVector3 SourceCoord = ParentVolumeCoordBase + FIntVector3(X, Y, Z) * 2 + Offset;
+										const FVector4f SampleValue = Load(SourceCoord, MipLevel - 1, AttributesIdx, AddressingInfo);
+										DownsampledValue += SampleValue;
+									}
+									DownsampledValue /= 8.0f;
+
+									const FIntVector3 WriteCoord = FIntVector3(X, Y, Z);
+									WriteTileDataVoxel(DstTileIndex, WriteCoord, AttributesIdx, DownsampledValue);
+								}
 							}
 						}
 					}
-				}
+				});
 
-				// Set the next tile to be written to
-				++DstTileIndex;
-			}
 			MipInfo.TileCount = NumAllocatedPages;
 		}
+
+		GenerateBorderVoxels(AddressingInfo, MipLevel, LinearAllocatedPages);
 	}
+}
+
+void FSparseVolumeTextureData::GenerateBorderVoxels(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 MipLevel, const TArray<FIntVector3>& PageCoords)
+{
+	const FIntVector3 PageTableVolumeResolution = FIntVector3(
+		FMath::Max(1, Header.PageTableVolumeResolution.X >> MipLevel), 
+		FMath::Max(1, Header.PageTableVolumeResolution.Y >> MipLevel), 
+		FMath::Max(1, Header.PageTableVolumeResolution.Z >> MipLevel));
+
+	ParallelFor(PageCoords.Num(), [this, MipLevel, &PageCoords, &PageTableVolumeResolution, &AddressingInfo](int32 PageIndex)
+		{
+			const FIntVector3& PageCoord = PageCoords[PageIndex];
+			const uint32 DstTileIndex = PageTable[MipLevel]
+			[
+				PageCoord.Z * PageTableVolumeResolution.X * PageTableVolumeResolution.Y +
+				PageCoord.Y * PageTableVolumeResolution.X +
+				PageCoord.X
+			];
+			const FIntVector3 PageTableOffset = (Header.PageTableVolumeAABBMin >> MipLevel);
+			for (int32 Z = -SPARSE_VOLUME_TILE_BORDER; Z < (SPARSE_VOLUME_TILE_RES + SPARSE_VOLUME_TILE_BORDER); ++Z)
+			{
+				for (int32 Y = -SPARSE_VOLUME_TILE_BORDER; Y < (SPARSE_VOLUME_TILE_RES + SPARSE_VOLUME_TILE_BORDER); ++Y)
+				{
+					for (int32 X = -SPARSE_VOLUME_TILE_BORDER; X < (SPARSE_VOLUME_TILE_RES + SPARSE_VOLUME_TILE_BORDER); ++X)
+					{
+						if (X < 0 || Y < 0 || Z < 0 || X >= SPARSE_VOLUME_TILE_RES || Y >= SPARSE_VOLUME_TILE_RES || Z >= SPARSE_VOLUME_TILE_RES)
+						{
+							const FIntVector3 LocalCoord = FIntVector3(X, Y, Z);
+							const FIntVector3 VolumeCoord = (PageTableOffset + PageCoord) * SPARSE_VOLUME_TILE_RES + LocalCoord;
+							const FVector4f Border0 = Load(VolumeCoord, MipLevel, 0, AddressingInfo);
+							const FVector4f Border1 = Load(VolumeCoord, MipLevel, 1, AddressingInfo);
+							WriteTileDataVoxel(DstTileIndex, LocalCoord, 0, Border0);
+							WriteTileDataVoxel(DstTileIndex, LocalCoord, 1, Border1);
+						}
+					}
+				}
+			}
+		});
+}
+
+void FSparseVolumeTextureData::BuildDerivedData(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels)
+{
+	// Generate border voxels of mip0
+	{
+		// Collect the page table coordinates of all non-zero pages
+		TArray<FIntVector3> PageCoords;
+		for (int32 PageZ = 0; PageZ < Header.PageTableVolumeResolution.Z; ++PageZ)
+		{
+			for (int32 PageY = 0; PageY < Header.PageTableVolumeResolution.Y; ++PageY)
+			{
+				for (int32 PageX = 0; PageX < Header.PageTableVolumeResolution.X; ++PageX)
+				{
+					const int32 PageIndex = PageZ * (Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.X) + PageY * Header.PageTableVolumeResolution.X + PageX;
+					const uint32 PageTableEntry = PageTable[0][PageIndex];
+					if (PageTableEntry != 0)
+					{
+						PageCoords.Add(FIntVector3(PageX, PageY, PageZ));
+					}
+				}
+			}
+		}
+
+		GenerateBorderVoxels(AddressingInfo, 0, PageCoords);
+	}
+
+	// Generate all remaining mips. Also generates border voxels.
+	GenerateMipMaps(AddressingInfo, NumMipLevels);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

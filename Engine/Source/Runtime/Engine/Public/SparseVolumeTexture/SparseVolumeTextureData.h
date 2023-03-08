@@ -40,6 +40,14 @@ struct ENGINE_API FSparseVolumeTextureDataHeader : public FSparseVolumeTextureHe
 	void Serialize(FArchive& Ar);
 };
 
+struct ENGINE_API FSparseVolumeTextureDataAddressingInfo
+{
+	FIntVector3 VolumeResolution;
+	TextureAddress AddressX;
+	TextureAddress AddressY;
+	TextureAddress AddressZ;
+};
+
 // Holds the data for a SparseVolumeTexture that is stored on disk. It only has a single mip after importing a source asset. The mip chain is built during cooking.
 // Tiles are addressed by a flat index; unlike the runtime representation, this one stores all tiles in a 1D array and doesn't have the concept of a 3D physical tile texture.
 // The page table itself is 3D though.
@@ -57,7 +65,9 @@ struct ENGINE_API FSparseVolumeTextureData
 	bool Construct(const ISparseVolumeTextureDataConstructionAdapter& Adapter);
 	uint32 ReadPageTable(const FIntVector3& PageTableCoord, int32 MipLevel) const;
 	FVector4f ReadTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 AttributesIdx) const;
-	FVector4f Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx) const;
+	FVector4f Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx, const FSparseVolumeTextureDataAddressingInfo& AddressingInfo) const;
 	void WriteTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 AttributesIdx, const FVector4f& Value, int32 DstComponent = -1);
-	void GenerateMipMaps(int32 NumMipLevels = -1);
+	void GenerateMipMaps(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels = -1);
+	void GenerateBorderVoxels(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 MipLevel, const TArray<FIntVector3>& PageCoords);
+	void BuildDerivedData(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels = -1);
 };

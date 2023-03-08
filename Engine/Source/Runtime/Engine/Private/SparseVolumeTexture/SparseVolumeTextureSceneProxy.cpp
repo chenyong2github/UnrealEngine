@@ -42,7 +42,7 @@ namespace Private
 			TileDataVolumeResolution.Z--;	// We then trim an edge to get back space.
 		}
 
-		return TileDataVolumeResolution * SPARSE_VOLUME_TILE_RES;
+		return TileDataVolumeResolution * SPARSE_VOLUME_TILE_RES_PADDED;
 	}
 } // Private
 } // SVT
@@ -60,8 +60,8 @@ bool FSparseVolumeTextureRuntime::Create(const FSparseVolumeTextureData& Texture
 	}
 
 	const int32 NumMipLevels = TextureData.Header.MipInfo.Num();
-	const int32 TileSizeBytesA = GPixelFormats[Header.AttributesFormats[0]].BlockBytes * UE::SVT::SVTNumVoxelsPerTile;
-	const int32 TileSizeBytesB = GPixelFormats[Header.AttributesFormats[1]].BlockBytes * UE::SVT::SVTNumVoxelsPerTile;
+	const int32 TileSizeBytesA = GPixelFormats[Header.AttributesFormats[0]].BlockBytes * UE::SVT::SVTNumVoxelsPerPaddedTile;
+	const int32 TileSizeBytesB = GPixelFormats[Header.AttributesFormats[1]].BlockBytes * UE::SVT::SVTNumVoxelsPerPaddedTile;
 
 	TArray<FSparseVolumeTextureTileMapping> Mappings;
 	Mappings.Empty(NumMipLevels);
@@ -183,10 +183,10 @@ bool FSparseVolumeTextureRuntime::SetTileMappings(const TArrayView<const FSparse
 	}
 
 	Header.TileDataVolumeResolution = TileDataVolumeRes;
-	const FIntVector3 TileCoordSpace = TileDataVolumeRes / SPARSE_VOLUME_TILE_RES;
-	check((TileCoordSpace.X * SPARSE_VOLUME_TILE_RES) == TileDataVolumeRes.X
-		&& (TileCoordSpace.Y * SPARSE_VOLUME_TILE_RES) == TileDataVolumeRes.Y
-		&& (TileCoordSpace.Z * SPARSE_VOLUME_TILE_RES) == TileDataVolumeRes.Z);
+	const FIntVector3 TileCoordSpace = TileDataVolumeRes / SPARSE_VOLUME_TILE_RES_PADDED;
+	check((TileCoordSpace.X * SPARSE_VOLUME_TILE_RES_PADDED) == TileDataVolumeRes.X
+		&& (TileCoordSpace.Y * SPARSE_VOLUME_TILE_RES_PADDED) == TileDataVolumeRes.Y
+		&& (TileCoordSpace.Z * SPARSE_VOLUME_TILE_RES_PADDED) == TileDataVolumeRes.Z);
 
 	// Clear page table
 	for (TArray<uint32>& PageTableMip : PageTable)
@@ -204,13 +204,13 @@ bool FSparseVolumeTextureRuntime::SetTileMappings(const TArrayView<const FSparse
 	FIntVector3 DstTileCoord = FIntVector3::ZeroValue;
 
 	// Write null tile
-	for (int32 Z = 0; Z < SPARSE_VOLUME_TILE_RES; ++Z)
+	for (int32 Z = 0; Z < SPARSE_VOLUME_TILE_RES_PADDED; ++Z)
 	{
-		for (int32 Y = 0; Y < SPARSE_VOLUME_TILE_RES; ++Y)
+		for (int32 Y = 0; Y < SPARSE_VOLUME_TILE_RES_PADDED; ++Y)
 		{
-			for (int32 X = 0; X < SPARSE_VOLUME_TILE_RES; ++X)
+			for (int32 X = 0; X < SPARSE_VOLUME_TILE_RES_PADDED; ++X)
 			{
-				const int32 VoxelIndex = Z * (SPARSE_VOLUME_TILE_RES * SPARSE_VOLUME_TILE_RES) + Y * SPARSE_VOLUME_TILE_RES + X;
+				const int32 VoxelIndex = Z * (SPARSE_VOLUME_TILE_RES_PADDED * SPARSE_VOLUME_TILE_RES_PADDED) + Y * SPARSE_VOLUME_TILE_RES_PADDED + X;
 				WriteVoxel(VoxelIndex, PhysicalTileDataPtrs[0], Header.AttributesFormats[0], Header.NullTileValues[0]);
 				WriteVoxel(VoxelIndex, PhysicalTileDataPtrs[1], Header.AttributesFormats[1], Header.NullTileValues[1]);
 			}
@@ -273,17 +273,17 @@ bool FSparseVolumeTextureRuntime::SetTileMappings(const TArrayView<const FSparse
 		// Write to tile data
 		for (int32 PhysicalTileIndex = 0; PhysicalTileIndex < Mapping.NumPhysicalTiles; ++PhysicalTileIndex)
 		{
-			for (int32 Z = 0; Z < SPARSE_VOLUME_TILE_RES; ++Z)
+			for (int32 Z = 0; Z < SPARSE_VOLUME_TILE_RES_PADDED; ++Z)
 			{
-				for (int32 Y = 0; Y < SPARSE_VOLUME_TILE_RES; ++Y)
+				for (int32 Y = 0; Y < SPARSE_VOLUME_TILE_RES_PADDED; ++Y)
 				{
-					for (int32 X = 0; X < SPARSE_VOLUME_TILE_RES; ++X)
+					for (int32 X = 0; X < SPARSE_VOLUME_TILE_RES_PADDED; ++X)
 					{
-						const int32 SrcVoxelIndex = PhysicalTileIndex * SVTNumVoxelsPerTile + Z * (SPARSE_VOLUME_TILE_RES * SPARSE_VOLUME_TILE_RES) + Y * SPARSE_VOLUME_TILE_RES + X;
+						const int32 SrcVoxelIndex = PhysicalTileIndex * SVTNumVoxelsPerPaddedTile + Z * (SPARSE_VOLUME_TILE_RES_PADDED * SPARSE_VOLUME_TILE_RES_PADDED) + Y * SPARSE_VOLUME_TILE_RES_PADDED + X;
 						const FVector4f ValueA = ReadVoxel(SrcVoxelIndex, Mapping.TileDataA, Header.AttributesFormats[0]);
 						const FVector4f ValueB = ReadVoxel(SrcVoxelIndex, Mapping.TileDataB, Header.AttributesFormats[1]);
 
-						const FIntVector3 VoxelCoord = DstTileCoord * SPARSE_VOLUME_TILE_RES + FIntVector3(X, Y, Z);
+						const FIntVector3 VoxelCoord = DstTileCoord * SPARSE_VOLUME_TILE_RES_PADDED + FIntVector3(X, Y, Z);
 						const int32 DstVoxelIndex = VoxelCoord.Z * (Header.TileDataVolumeResolution.Y * Header.TileDataVolumeResolution.X) + VoxelCoord.Y * Header.TileDataVolumeResolution.X + VoxelCoord.X;
 						WriteVoxel(DstVoxelIndex, PhysicalTileDataPtrs[0], Header.AttributesFormats[0], ValueA);
 						WriteVoxel(DstVoxelIndex, PhysicalTileDataPtrs[1], Header.AttributesFormats[1], ValueB);

@@ -41,6 +41,7 @@ bool Slabs(float3 p0, float3 p1, float3 rayOrigin, float3 invRaydir, out float o
 	return maxtmin <= mintmax;
 }
 
+SamplerState TileDataTextureSampler;
 Texture3D<uint> SparseVolumeTexturePageTable;
 Texture3D<float4> SparseVolumeTextureA;
 Texture3D<float4> SparseVolumeTextureB;
@@ -138,11 +139,12 @@ void VisualizeSparseVolumeTexturePS(
 		while (P.x >= 0 && P.y >= 0 && P.z >= 0 && P.x <= VolumeResolution.x && P.y <= VolumeResolution.y && P.z <= VolumeResolution.z)
 		{
 			const float3 UVW = P * RcpVolumeResolution;
-			const float3 VoxelCoord = SparseVolumeTextureSamplePageTable(SparseVolumeTexturePageTable, SVTUniforms, UVW, MipLevel);
-			if (any(VoxelCoord >= SVTUniforms.TileSize)) // skip on null tile
+			const float3 VoxelUVW = SparseVolumeTextureSamplePageTable(SparseVolumeTexturePageTable, SVTUniforms, UVW, SVTADDRESSMODE_CLAMP, SVTADDRESSMODE_CLAMP, SVTADDRESSMODE_CLAMP, MipLevel);
+			const float3 UVWTileSize = (SVTUniforms.TileSize + 2.0f * SVTUniforms.BorderSize) * SVTUniforms.TileDataTexelSize;
+			if (any(VoxelUVW >= UVWTileSize)) // skip on null tile
 			{
 				const int PhysicalTileDataIndex = ComponentToVisualize < 4 ? 0 : 1;
-				const float4 VoxelData = SparseVolumeTextureSamplePhysicalTileData(SparseVolumeTextureA, SparseVolumeTextureB, VoxelCoord, PhysicalTileDataIndex);
+				const float4 VoxelData = SparseVolumeTextureSamplePhysicalTileData(SparseVolumeTextureA, SparseVolumeTextureB, TileDataTextureSampler, VoxelUVW, PhysicalTileDataIndex);
 
 				float Density = 0.0f;
 				if (ComponentToVisualize < 4)

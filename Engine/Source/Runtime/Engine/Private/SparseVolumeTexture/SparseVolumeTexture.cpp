@@ -6,6 +6,9 @@
 
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
 
+#include "Materials/Material.h"
+#include "MaterialShared.h"
+#include "UObject/UObjectIterator.h"
 #include "Misc/SecureHash.h"
 #include "EngineUtils.h"
 #include "Shader/ShaderTypes.h"
@@ -74,7 +77,7 @@ FSparseVolumeTextureFrame::~FSparseVolumeTextureFrame()
 {
 }
 
-bool FSparseVolumeTextureFrame::BuildDerivedData(FSparseVolumeTextureData* OutMippedTextureData)
+bool FSparseVolumeTextureFrame::BuildDerivedData(const FIntVector3& VolumeResolution, TextureAddress AddressX, TextureAddress AddressY, TextureAddress AddressZ, FSparseVolumeTextureData* OutMippedTextureData)
 {
 #if WITH_EDITORONLY_DATA
 	// Check if the virtualized bulk data payload is available now
@@ -85,7 +88,13 @@ bool FSparseVolumeTextureFrame::BuildDerivedData(FSparseVolumeTextureData* OutMi
 		FSparseVolumeTextureData TextureData;
 		TextureData.Serialize(RawDataArchiveReader);
 
-		TextureData.GenerateMipMaps();
+		FSparseVolumeTextureDataAddressingInfo AddressingInfo{};
+		AddressingInfo.VolumeResolution = VolumeResolution;
+		AddressingInfo.AddressX = AddressX;
+		AddressingInfo.AddressY = AddressY;
+		AddressingInfo.AddressZ = AddressZ;
+
+		TextureData.BuildDerivedData(AddressingInfo);
 
 		*OutMippedTextureData = MoveTemp(TextureData);
 
@@ -137,7 +146,7 @@ void FSparseVolumeTextureFrame::Serialize(FArchive& Ar, UStreamableSparseVolumeT
 		// We are cooking the game, serialize the asset out.
 
 		FSparseVolumeTextureData DerivedData;
-		const bool bBuiltDerivedData = BuildDerivedData(&DerivedData);
+		const bool bBuiltDerivedData = BuildDerivedData(Owner->VolumeResolution, Owner->AddressX, Owner->AddressY, Owner->AddressZ, &DerivedData);
 		check(bBuiltDerivedData); // SVT_TODO: actual error handling
 
 		// Write derived data into RuntimeStreamedInData
@@ -208,6 +217,7 @@ FVector4 USparseVolumeTexture::GetUniformParameter(int32 Index) const
 void USparseVolumeTexture::GetPackedUniforms(FUintVector4& OutPacked0, FUintVector4& OutPacked1) const
 {
 	FIntVector3 PageTableOffset = FIntVector3::ZeroValue;
+	FVector3f TileDataTexelSize = FVector3f(0.0f, 0.0f, 0.0f);
 	int32 MinMipLevel = 0;
 	int32 MaxMipLevel = 0;
 	const FSparseVolumeTextureSceneProxy* Proxy = GetSparseVolumeTextureSceneProxy();
@@ -215,12 +225,14 @@ void USparseVolumeTexture::GetPackedUniforms(FUintVector4& OutPacked0, FUintVect
 	{
 		const FSparseVolumeTextureRuntimeHeader& Header = Proxy->GetHeader();
 		PageTableOffset = Header.PageTableVolumeAABBMin;
+		TileDataTexelSize.X = 1.0f / Header.TileDataVolumeResolution.X;
+		TileDataTexelSize.Y = 1.0f / Header.TileDataVolumeResolution.Y;
+		TileDataTexelSize.Z = 1.0f / Header.TileDataVolumeResolution.Z;
 		MinMipLevel = Header.LowestResidentLevel;
 		MaxMipLevel = Header.HighestResidentLevel;
 	}
 	const FIntVector3 VolumeResolution = GetVolumeResolution();
 	const FVector3f VolumePageResolution = FVector3f(VolumeResolution) / SPARSE_VOLUME_TILE_RES;
-	const FVector4 TileSize = GetUniformParameter(ESparseVolumeTexture_TileSize);
 
 	auto AsUint = [](float X)
 	{
@@ -231,11 +243,15 @@ void USparseVolumeTexture::GetPackedUniforms(FUintVector4& OutPacked0, FUintVect
 	OutPacked0.X = AsUint(VolumePageResolution.X);
 	OutPacked0.Y = AsUint(VolumePageResolution.Y);
 	OutPacked0.Z = AsUint(VolumePageResolution.Z);
-	OutPacked0.W = (uint32)((MinMipLevel & 0xFF) | ((MaxMipLevel & 0xFF) << 8));
-	OutPacked1.X = AsUint((float)PageTableOffset.X);
-	OutPacked1.Y = AsUint((float)PageTableOffset.Y);
-	OutPacked1.Z = AsUint((float)PageTableOffset.Z);
-	OutPacked1.W = AsUint((float)TileSize.X);
+	OutPacked0.W = UE::SVT::PackPageTableEntry(PageTableOffset);
+	OutPacked1.X = AsUint(TileDataTexelSize.X);
+	OutPacked1.Y = AsUint(TileDataTexelSize.Y);
+	OutPacked1.Z = AsUint(TileDataTexelSize.Z);
+	OutPacked1.W = 0;
+	OutPacked1.W |= (uint32)((MinMipLevel & 0xFF) << 0);
+	OutPacked1.W |= (uint32)((MaxMipLevel & 0xFF) << 8);
+	OutPacked1.W |= (uint32)((int32(SPARSE_VOLUME_TILE_RES) & 0xFF) << 16);
+	OutPacked1.W |= (uint32)((int32(SPARSE_VOLUME_TILE_BORDER) & 0xFF) << 24);
 }
 
 void USparseVolumeTexture::GetFrameUVScaleBias(FVector* OutScale, FVector* OutBias) const
@@ -336,6 +352,14 @@ void UStreamableSparseVolumeTexture::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 void UStreamableSparseVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UStreamableSparseVolumeTexture, AddressX)
+		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UStreamableSparseVolumeTexture, AddressY)
+		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UStreamableSparseVolumeTexture, AddressZ))
+	{
+		// SVT need to recompile shaders when address mode changes
+		NotifyMaterials();
+	}
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
@@ -386,6 +410,50 @@ TArrayView<const FSparseVolumeTextureFrame> UStreamableSparseVolumeTexture::GetF
 	return Frames;
 }
 
+#if WITH_EDITOR
+void UStreamableSparseVolumeTexture::NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders)
+{
+	// Create a material update context to safely update materials.
+	{
+		FMaterialUpdateContext UpdateContext;
+
+		// Notify any material that uses this texture
+		TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
+		for (TObjectIterator<UMaterialInterface> It; It; ++It)
+		{
+			UMaterialInterface* MaterialInterface = *It;
+			if (!FPlatformProperties::IsServerOnly() && MaterialInterface->GetReferencedTextures().Contains(this))
+			{
+				UpdateContext.AddMaterialInterface(MaterialInterface);
+				// This is a bit tricky. We want to make sure all materials using this texture are
+				// updated. Materials are always updated. Material instances may also have to be
+				// updated and if they have static permutations their children must be updated
+				// whether they use the texture or not! The safe thing to do is to add the instance's
+				// base material to the update context causing all materials in the tree to update.
+				BaseMaterialsThatUseThisTexture.Add(MaterialInterface->GetMaterial());
+			}
+		}
+
+		// Go ahead and update any base materials that need to be.
+		if (EffectOnShaders == ENotifyMaterialsEffectOnShaders::Default)
+		{
+			for (TSet<UMaterial*>::TConstIterator It(BaseMaterialsThatUseThisTexture); It; ++It)
+			{
+				(*It)->PostEditChange();
+			}
+		}
+		else
+		{
+			FPropertyChangedEvent EmptyPropertyUpdateStruct(nullptr);
+			for (TSet<UMaterial*>::TConstIterator It(BaseMaterialsThatUseThisTexture); It; ++It)
+			{
+				(*It)->PostEditChangePropertyInternal(EmptyPropertyUpdateStruct, UMaterial::EPostEditChangeEffectOnShaders::DoesNotInvalidate);
+			}
+		}
+	}
+}
+#endif //WITH_EDITOR
+
 void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy()
 {
 #if WITH_EDITORONLY_DATA
@@ -427,7 +495,9 @@ void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataForFrame(FSpars
 	using namespace UE::DerivedData;
 
 	static const FString SparseVolumeTextureDDCVersion = TEXT("381AE2A9-A903-4C8F-8486-891E24D6EC70");	// Bump this if you want to ignore all cached data so far.
-	const FString DerivedDataKey = Frame.RawData.GetIdentifier().ToString() + SparseVolumeTextureDDCVersion;
+	const FString DerivedDataKey = Frame.RawData.GetIdentifier().ToString() 
+		+ FString::Format(TEXT("{0},{1},{2}"), {AddressX.GetIntValue(), AddressY.GetIntValue(), AddressZ.GetIntValue()}) 
+		+ SparseVolumeTextureDDCVersion;
 
 	const FCacheKey Key = ConvertLegacyCacheKey(DerivedDataKey);
 	const FSharedString Name = MakeStringView(GetPathName());
@@ -459,7 +529,7 @@ void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataForFrame(FSpars
 						if (Frame.RawData.HasPayloadData())
 						{
 							FSparseVolumeTextureData TextureData;
-							bool bSuccess = Frame.BuildDerivedData(&TextureData);
+							bool bSuccess = Frame.BuildDerivedData(VolumeResolution, AddressX, AddressY, AddressZ, &TextureData);
 							ensure(bSuccess);
 
 							bSuccess = RuntimeData.Create(TextureData);
@@ -547,17 +617,20 @@ USparseVolumeTextureFrame* USparseVolumeTextureFrame::CreateFrame(USparseVolumeT
 	if (Proxy)
 	{
 		USparseVolumeTextureFrame* Frame = NewObject<USparseVolumeTextureFrame>();
-		Frame->Initialize(Proxy, Texture->GetVolumeResolution());
+		Frame->Initialize(Proxy, Texture->GetVolumeResolution(), Texture->GetTextureAddressX(), Texture->GetTextureAddressY(), Texture->GetTextureAddressZ());
 		return Frame;
 	}
 	
 	return nullptr;
 }
 
-void USparseVolumeTextureFrame::Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FIntVector& InVolumeResolution)
+void USparseVolumeTextureFrame::Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FIntVector& InVolumeResolution, TextureAddress InAddressX, TextureAddress InAddressY, TextureAddress InAddressZ)
 {
 	SceneProxy = InSceneProxy;
 	VolumeResolution = InVolumeResolution;
+	AddressX = InAddressX;
+	AddressY = InAddressY;
+	AddressZ = InAddressZ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
