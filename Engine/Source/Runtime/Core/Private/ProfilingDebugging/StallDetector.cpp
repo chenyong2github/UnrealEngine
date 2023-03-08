@@ -41,7 +41,7 @@ static const double InvalidSeconds = -1.0;
 * Stall Detector Thread
 **/
 
-namespace UE::StallDetector::Private
+namespace UE
 {
 	class FStallDetectorRunnable : public FRunnable
 	{
@@ -84,7 +84,7 @@ namespace UE::StallDetector::Private
 	static FRunnableThread* StallDetectorThread = nullptr;
 }
 
-UE::StallDetector::Private::FStallDetectorRunnable::FStallDetectorRunnable()
+UE::FStallDetectorRunnable::FStallDetectorRunnable()
 	: StartedThread(false)
 	, StopThread(false)
 #if STALL_DETECTOR_HEART_BEAT_CLOCK
@@ -93,7 +93,7 @@ UE::StallDetector::Private::FStallDetectorRunnable::FStallDetectorRunnable()
 {
 }
 
-uint32 UE::StallDetector::Private::FStallDetectorRunnable::Run()
+uint32 UE::FStallDetectorRunnable::Run()
 {
 	while (!StopThread)
 	{
