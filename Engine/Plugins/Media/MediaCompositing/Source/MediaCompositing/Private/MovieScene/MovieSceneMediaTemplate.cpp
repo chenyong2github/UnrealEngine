@@ -333,7 +333,7 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 		const FFrameNumber StartFrame = Context.HasPreRollEndTime() ? Context.GetPreRollEndFrame() - Params.SectionStartFrame + Params.StartFrameOffset : Params.StartFrameOffset;
 
 		const double StartFrameInSeconds = FrameRate.AsSeconds(StartFrame);
-		const int64 StartTicks = StartFrameInSeconds * ETimespan::TicksPerSecond;
+		const int64 StartTicks = static_cast<int64>(StartFrameInSeconds * ETimespan::TicksPerSecond);
 
 		ExecutionTokens.Add(FMediaSectionPreRollExecutionToken(MediaSource, Params.MediaSourceProxy, Params.MediaSourceProxyIndex, FTimespan(StartTicks)));
 	}
@@ -343,11 +343,11 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 		const FFrameTime FrameTime(Context.GetTime().FrameNumber - Params.SectionStartFrame + Params.StartFrameOffset);
 
 		const double FrameTimeInSeconds = FrameRate.AsSeconds(FrameTime);
-		const int64 FrameTicks = FrameTimeInSeconds * ETimespan::TicksPerSecond;
+		const int64 FrameTicks = static_cast<int64>(FrameTimeInSeconds * ETimespan::TicksPerSecond);
 
 		// With zero-length frames (which can occur occasionally), we use the fixed frame time, matching previous behavior.
 		const double FrameDurationInSeconds = FMath::Max(FrameRate.AsSeconds(FFrameTime(1)), (Context.GetRange().Size<FFrameTime>()) / Context.GetFrameRate());
-		const int64 FrameDurationTicks = FrameDurationInSeconds * ETimespan::TicksPerSecond;
+		const int64 FrameDurationTicks = static_cast<int64>(FrameDurationInSeconds * ETimespan::TicksPerSecond);
 
 		float ProxyTextureBlend = MediaSection->EvaluateEasing(Context.GetTime());
 

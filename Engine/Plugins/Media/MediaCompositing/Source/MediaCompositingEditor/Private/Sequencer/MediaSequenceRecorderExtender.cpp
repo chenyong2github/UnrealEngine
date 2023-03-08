@@ -70,7 +70,7 @@ public:
 		{
 			return
 				SNew(SButton)
-				.ContentPadding(0)
+				.ContentPadding(0.0f)
 				.OnClicked(this, &SSequenceRecorderMediaPlayerListRow::ToggleRecordingActive)
 				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.ToolTipText(LOCTEXT("ActiveButtonToolTip", "Toggle Recording Active"))
@@ -86,7 +86,7 @@ public:
 		{
 			return
 				SNew(SButton)
-				.ContentPadding(0)
+				.ContentPadding(0.0f)
 				.OnClicked(this, &SSequenceRecorderMediaPlayerListRow::ToggleRecordingFrame)
 				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.ToolTipText(LOCTEXT("VideoFramesButtonToolTip", "Toggle Recording Video Frames\nSelect Media Player to show Media Player Recording Options"))

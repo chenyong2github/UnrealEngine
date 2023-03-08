@@ -162,7 +162,7 @@ void FMediaThumbnailSection::SetSingleTime(double GlobalTime)
 	if (MediaSection != nullptr)
 	{
 		double StartTime = MediaSection->GetInclusiveStartFrame() / MediaSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
-		MediaSection->SetThumbnailReferenceOffset(GlobalTime - StartTime);
+		MediaSection->SetThumbnailReferenceOffset(static_cast<float>(GlobalTime - StartTime));
 	}
 }
 
@@ -297,7 +297,7 @@ void FMediaThumbnailSection::DrawLoopIndicators(FSequencerSectionPainter& InPain
 
 	FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
 	double SectionDuration = FFrameTime(UE::MovieScene::DiscreteSize(Section->GetRange())) / TickResolution;
-	const float MediaSizeX = MediaDuration.GetTotalSeconds() * SectionSize.X / SectionDuration;
+	const float MediaSizeX = static_cast<float>(MediaDuration.GetTotalSeconds() * SectionSize.X / SectionDuration);
 	const FFrameNumber SectionOffset = MediaSection->GetRange().HasLowerBound() ? MediaSection->GetRange().GetLowerBoundValue() : 0;
 	float DrawOffset = MediaSizeX - TimeToPixelConverter.SecondsToPixel(TickResolution.AsSeconds(SectionOffset + MediaSection->StartFrameOffset));
 
@@ -329,7 +329,7 @@ void FMediaThumbnailSection::DrawSampleStates(FSequencerSectionPainter& InPainte
 
 	FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
 	double SectionDuration = FFrameTime(UE::MovieScene::DiscreteSize(Section->GetRange())) / TickResolution;
-	const float MediaSizeX = MediaDuration.GetTotalSeconds() * SectionSize.X / SectionDuration;
+	const float MediaSizeX = static_cast<float>(MediaDuration.GetTotalSeconds() * SectionSize.X / SectionDuration);
 
 	TArray<TRange<FTimespan>> Ranges;
 	RangeSet.GetRanges(Ranges);
@@ -339,10 +339,10 @@ void FMediaThumbnailSection::DrawSampleStates(FSequencerSectionPainter& InPainte
 	{
 		for (auto& Range : Ranges)
 		{
-			const float DrawOffset = FMath::RoundToNegativeInfinity(FTimespan::Ratio(Range.GetLowerBoundValue(), MediaDuration) * MediaSizeX) +	
+			const float DrawOffset = static_cast<float>(FMath::RoundToNegativeInfinity(FTimespan::Ratio(Range.GetLowerBoundValue(), MediaDuration) * MediaSizeX) +	
 				LoopDrawOffset +
-				TimeToPixelConverter.SecondsToPixel(0.0);
-			const float DrawSize = FMath::RoundToPositiveInfinity(FTimespan::Ratio(Range.Size<FTimespan>(), MediaDuration) * MediaSizeX);
+				TimeToPixelConverter.SecondsToPixel(0.0));
+			const float DrawSize = static_cast<float>(FMath::RoundToPositiveInfinity(FTimespan::Ratio(Range.Size<FTimespan>(), MediaDuration) * MediaSizeX));
 			const float BarHeight = 4.0f;
 
 			FSlateDrawElement::MakeBox(
@@ -386,7 +386,7 @@ void FMediaThumbnailSection::DrawMediaInfo(FSequencerSectionPainter& InPainter,
 	const FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
 	const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	
-	FVector2D TextSize(EForceInit::ForceInitToZero);
+	FVector2f TextSize(EForceInit::ForceInitToZero);
 	FMargin ContentPadding = GetContentPadding();
 	FVector2D TextOffset(EForceInit::ForceInitToZero);
 	float BaseYOffset = 0.0f;
