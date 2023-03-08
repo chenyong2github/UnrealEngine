@@ -186,7 +186,7 @@ UWorldPartitionHLODsBuilder::UWorldPartitionHLODsBuilder(const FObjectInitialize
 
 	if (!HLODActorToBuild.IsNone() || !HLODLayerToBuild.IsNone())
 	{
-		BuildOptions = EHLODBuildStep::HLOD_Build;
+		BuildOptions |= EHLODBuildStep::HLOD_Build;
 		bForceBuild = bForceBuild || !HLODActorToBuild.IsNone();
 	}
 	
