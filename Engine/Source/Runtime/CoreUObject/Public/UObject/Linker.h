@@ -483,7 +483,6 @@ public:
 	 * @param	Ar	the archive to read/write into
 	 */
 	void Serialize(FArchive& Ar);
-	void AddReferencedObjects(FReferenceCollector& Collector);
 	
 	/**
 	 * Return the path name of the UObject represented by the specified export.

@@ -216,16 +216,6 @@ void FLinker::Serialize( FArchive& Ar )
 	}
 }
 
-void FLinker::AddReferencedObjects(FReferenceCollector& Collector)
-{
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		Collector.AddReferencedObject(*(UObject**)&LinkerRoot);
-	}
-#endif
-}
-
 /**
  * Return the path name of the UObject represented by the specified import. 
  * (can be used with StaticFindObject)
