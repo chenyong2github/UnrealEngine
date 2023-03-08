@@ -228,7 +228,7 @@ namespace Turnkey.Commands
 					}
 				}
 
-				// now check software verison of each device
+				// now check software version of each device
 				if (DevicesToCheck != null)
 				{
 					foreach (DeviceInfo Device in DevicesToCheck.Where(x => x.Platform == Platform))
@@ -263,6 +263,14 @@ namespace Turnkey.Commands
 							DeviceState |= SdkUtils.LocalAvailability.Device_CannotConnect;
 						}
 
+						if (Device.AutoSoftwareUpdates == AutomationTool.DeviceInfo.AutoSoftwareUpdateMode.Disabled)
+						{
+							DeviceState |= SdkUtils.LocalAvailability.Device_AutoSoftwareUpdates_Disabled;
+						}
+						else if (Device.AutoSoftwareUpdates == AutomationTool.DeviceInfo.AutoSoftwareUpdateMode.Enabled)
+						{
+							DeviceState |= SdkUtils.LocalAvailability.Device_AutoSoftwareUpdates_Enabled;
+						}
 
 						List<string> DeviceProperties = new List<string>()
 							{

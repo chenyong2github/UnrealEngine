@@ -31,12 +31,19 @@ namespace AutomationTool
 
 	public class DeviceInfo
 	{
+		public enum AutoSoftwareUpdateMode
+		{
+			Unknown,
+			Disabled,
+			Enabled
+		}
+
 		public DeviceInfo(UnrealTargetPlatform Platform)
 		{
 			this.Platform = Platform;
 		}
 
-		public DeviceInfo(UnrealTargetPlatform Platform, string Name, string Id, string SoftwareVersion, string Type, bool bIsDefault, bool bCanConnect, Dictionary<string, string> PlatformValues=null)
+		public DeviceInfo(UnrealTargetPlatform Platform, string Name, string Id, string SoftwareVersion, string Type, bool bIsDefault, bool bCanConnect, Dictionary<string, string> PlatformValues = null, AutoSoftwareUpdateMode AutoSoftwareUpdates = AutoSoftwareUpdateMode.Unknown)
 		{
 			this.Platform = Platform;
 			this.Name = Name;
@@ -45,6 +52,7 @@ namespace AutomationTool
 			this.Type = Type;
 			this.bIsDefault = bIsDefault;
 			this.bCanConnect = bCanConnect;
+			this.AutoSoftwareUpdates = AutoSoftwareUpdates;
 			if (PlatformValues != null)
 			{
 				this.PlatformValues = new Dictionary<string, string>(PlatformValues);
@@ -58,10 +66,11 @@ namespace AutomationTool
 		public string Type;
 		public bool bIsDefault = false;
 		// is the device able to be connected to (this is more about able to flash SDK or run, not about matching SDK version)
-		// if false, any of the above fields are suspect, especually SoftwareVersion
+		// if false, any of the above fields are suspect, especially SoftwareVersion
 		public bool bCanConnect = true;
+		public AutoSoftwareUpdateMode AutoSoftwareUpdates = AutoSoftwareUpdateMode.Unknown;
 
-		// case insesitive platform value dictionary. turnkey doesn't use this, but the platform can look up the device during deployment, etc to get this out
+		// case insensitive platform value dictionary. turnkey doesn't use this, but the platform can look up the device during deployment, etc to get this out
 		public Dictionary<string, string> PlatformValues = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
 	}
 
@@ -268,10 +277,12 @@ namespace AutomationTool
 			Params = null;
 			return false;
 		}
+
 		public virtual bool GetSDKInstallCommand(out string Command, out string Params, ref bool bRequiresPrivilegeElevation, ref bool bCreateWindow, ITurnkeyContext TurnkeyContext, bool bSdkAlreadyInstalled)
 		{
 			return GetSDKInstallCommand(out Command, out Params, ref bRequiresPrivilegeElevation, ref bCreateWindow, TurnkeyContext);
 		}
+
 		public virtual bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, ref bool bRequiresPrivilegeElevation, ref bool bCreateWindow, ITurnkeyContext TurnkeyContext, DeviceInfo Device = null)
 		{
 			Command = null;
@@ -303,6 +314,12 @@ namespace AutomationTool
 		public virtual bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, ITurnkeyContext TurnkeyContext, bool bVerifyOnly)
 		{
 			return true;
+		}
+
+		public virtual bool SetDeviceAutoSoftwareUpdateMode(DeviceInfo Device, bool bEnableAutoSoftwareUpdates)
+		{
+			LogWarning("{0} does not implement SetDeviceAutoSoftwareUpdateMode", PlatformType);
+			return false;
 		}
 
 		#endregion

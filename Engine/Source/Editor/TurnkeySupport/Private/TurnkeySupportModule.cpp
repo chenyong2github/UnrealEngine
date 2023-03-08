@@ -1097,6 +1097,26 @@ static void MakeCustomBuildMenuEntries(FToolMenuSection& Section, const TArray<F
 
 }
 
+
+static void TurnkeySetDeviceAutoSoftwareUpdates(FString PlatformName, FString DeviceId, bool bEnableAutoSoftwareUpdates)
+{
+	FString CommandLine;
+	const FString ProjectPath = GetProjectPathForTurnkey();
+	if (!ProjectPath.IsEmpty())
+	{
+		CommandLine.Appendf(TEXT(" -ScriptsForProject=\"%s\" "), *ProjectPath);
+	}
+	CommandLine.Appendf(TEXT("Turnkey -command=DeviceAutoSoftwareUpdates -device=%s -enable=%s"), *DeviceId, bEnableAutoSoftwareUpdates ? TEXT("true") : TEXT("false"));
+
+	FText TaskName = LOCTEXT("SetDeviceAutoSoftwareUpdates", "Set device auto software updates");
+	FTurnkeyEditorSupport::RunUAT(CommandLine, FText::FromString(PlatformName), TaskName, TaskName, FAppStyle::GetBrush(TEXT("MainFrame.PackageProject")), nullptr,
+		[DeviceId](FString, double)
+		{
+			ITurnkeySupportModule::Get().UpdateSdkInfoForDevices(TArray<FString>{DeviceId});
+		});	
+}
+
+
 static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, ITargetDeviceServicesModule* TargetDeviceServicesModule)
 {
 	const FDataDrivenPlatformInfo& DDPI = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName);
@@ -1360,6 +1380,27 @@ static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, 
 							FText::GetEmpty()
 						)
 					);
+
+					ETurnkeyDeviceAutoSoftwareUpdateMode DeviceAutoUpdateStatus = SdkInfo.DeviceAutoSoftwareUpdates;
+					if (DeviceAutoUpdateStatus != ETurnkeyDeviceAutoSoftwareUpdateMode::Unknown)
+					{
+
+						Section.AddMenuEntry(
+							NAME_None,
+							LOCTEXT("Turnkey_EnableAutoSoftwareUpdates", "Enable auto software updates"),
+							LOCTEXT("Turnkey_EnableAutoSoftwareUpdatesDescription", "This device will automatically update its software when new versions are released"),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateStatic(TurnkeySetDeviceAutoSoftwareUpdates, IniPlatformName.ToString(), DeviceId, DeviceAutoUpdateStatus != ETurnkeyDeviceAutoSoftwareUpdateMode::Enabled),
+								FCanExecuteAction(),
+								FIsActionChecked::CreateLambda([DeviceAutoUpdateStatus]()
+						{
+							return DeviceAutoUpdateStatus == ETurnkeyDeviceAutoSoftwareUpdateMode::Enabled;
+						})
+							),
+							EUserInterfaceActionType::ToggleButton
+							);
+					}
 
 					if (SdkInfo.DeviceStatus == ETurnkeyDeviceStatus::SoftwareValid)
 					{
@@ -2116,6 +2157,17 @@ bool GetSdkInfoFromTurnkey(FString Line, FName& PlatformName, FString& DeviceId,
 	else if (FlagsString.Contains(TEXT("Device_InstallSoftwareInvalid")))
 	{
 		SdkInfo.DeviceStatus = ETurnkeyDeviceStatus::SoftwareInvalid;
+	}
+
+	// Device auto update support
+	SdkInfo.DeviceAutoSoftwareUpdates = ETurnkeyDeviceAutoSoftwareUpdateMode::Unknown;
+	if (FlagsString.Contains(TEXT("Device_AutoSoftwareUpdates_Disabled")))
+	{
+		SdkInfo.DeviceAutoSoftwareUpdates = ETurnkeyDeviceAutoSoftwareUpdateMode::Disabled;
+	}
+	else if (FlagsString.Contains(TEXT("Device_AutoSoftwareUpdates_Enabled")))
+	{
+		SdkInfo.DeviceAutoSoftwareUpdates = ETurnkeyDeviceAutoSoftwareUpdateMode::Enabled;
 	}
 
 	return true;

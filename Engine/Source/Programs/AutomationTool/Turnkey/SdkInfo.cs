@@ -18,26 +18,29 @@ namespace Turnkey
 		public enum LocalAvailability
 		{
 			None = 0,
-			AutoSdk_VariableExists                  = (1 << 0),
-			AutoSdk_ValidVersionExists              = (1 << 1),
-			AutoSdk_InvalidVersionExists            = (1 << 2),
+			AutoSdk_VariableExists					= (1 << 0),
+			AutoSdk_ValidVersionExists				= (1 << 1),
+			AutoSdk_InvalidVersionExists			= (1 << 2),
 			
-			InstalledSdk_ValidInactiveVersionExists = (1 << 3),
-			InstalledSdk_ValidVersionExists         = (1 << 4),
-			InstalledSdk_InvalidVersionExists       = (1 << 5),
+			InstalledSdk_ValidInactiveVersionExists	= (1 << 3),
+			InstalledSdk_ValidVersionExists			= (1 << 4),
+			InstalledSdk_InvalidVersionExists		= (1 << 5),
 
-			Platform_ValidHostPrerequisites         = (1 << 6),
-			Platform_InvalidHostPrerequisites       = (1 << 7),
+			Platform_ValidHostPrerequisites			= (1 << 6),
+			Platform_InvalidHostPrerequisites		= (1 << 7),
 
-			Device_InvalidPrerequisites             = (1 << 8),
-			Device_InstallSoftwareValid             = (1 << 9),
-			Device_InstallSoftwareInvalid           = (1 << 10),
-			Device_CannotConnect                    = (1 << 11),
+			Device_InvalidPrerequisites				= (1 << 8),
+			Device_InstallSoftwareValid				= (1 << 9),
+			Device_InstallSoftwareInvalid			= (1 << 10),
+			Device_CannotConnect					= (1 << 11),
 
-			Support_FullSdk                         = (1 << 12),
-			Support_AutoSdk                         = (1 << 13),
+			Support_FullSdk							= (1 << 12),
+			Support_AutoSdk							= (1 << 13),
 
-			Sdk_HasBestVersion                      = (1 << 14),
+			Sdk_HasBestVersion						= (1 << 14),
+
+			Device_AutoSoftwareUpdates_Disabled		= (1 << 15),
+			Device_AutoSoftwareUpdates_Enabled		= (1 << 16),
 		}
 
 		static public LocalAvailability GetLocalAvailability(AutomationTool.Platform AutomationPlatform, bool bAllowUpdatingPrerequisites, TurnkeyContextImpl TurnkeyContext)

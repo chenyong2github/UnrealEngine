@@ -28,11 +28,19 @@ enum class ETurnkeyDeviceStatus : uint8
 	SoftwareInvalid,
 };
 
+enum class ETurnkeyDeviceAutoSoftwareUpdateMode : uint8
+{
+	Unknown,
+	Disabled,
+	Enabled,
+};
+
 struct FTurnkeySdkInfo
 {
 	struct Version { FString Min, Max, Current; };
 	ETurnkeyPlatformSdkStatus Status = ETurnkeyPlatformSdkStatus::Unknown;
 	ETurnkeyDeviceStatus DeviceStatus = ETurnkeyDeviceStatus::Unknown;
+	ETurnkeyDeviceAutoSoftwareUpdateMode DeviceAutoSoftwareUpdates = ETurnkeyDeviceAutoSoftwareUpdateMode::Unknown;
 	FText SdkErrorInformation;
 	TMap<FString, Version> SDKVersions;
 	bool bCanInstallFullSdk;
