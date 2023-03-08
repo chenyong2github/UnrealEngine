@@ -4,6 +4,7 @@
 #include "PCGComponent.h"
 #include "PCGContext.h"
 #include "PCGHelpers.h"
+#include "PCGModule.h"
 #include "PCGPoint.h"
 #include "PCGSubsystem.h"
 #include "Grid/PCGPartitionActor.h"
@@ -156,7 +157,11 @@ TArray<FPCGLandscapeLayerWeight> UPCGBlueprintHelpers::GetInterpolatedPCGLandsca
 	check(Landscape);
 
 	ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
-	check(LandscapeInfo);
+	if (!LandscapeInfo)
+	{
+		UE_LOG(LogPCG, Warning, TEXT("Unable to get landscape layer weights because the landscape info is not available (landscape not registered yet?"));
+		return {};
+	}
 
 	const FVector LocalPoint = Landscape->GetTransform().InverseTransformPosition(Location);
 	const FIntPoint ComponentMapKey(FMath::FloorToInt(LocalPoint.X / LandscapeInfo->ComponentSizeQuads), FMath::FloorToInt(LocalPoint.Y / LandscapeInfo->ComponentSizeQuads));
