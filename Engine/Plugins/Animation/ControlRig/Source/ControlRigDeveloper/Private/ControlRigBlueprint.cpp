@@ -159,6 +159,8 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	Validator = ObjectInitializer.CreateDefaultSubobject<UControlRigValidator>(this, TEXT("ControlRigValidator"));
 
 	DebugBoneRadius = 1.f;
+
+	bUpdatingExternalVariables = false;
 	
 	bDirtyDuringLoad = false;
 	bErrorsDuringCompilation = false;
@@ -4997,6 +4999,12 @@ void UControlRigBlueprint::OnPostVariableChange(UBlueprint* InBlueprint)
 		return;
 	}
 
+	if (bUpdatingExternalVariables)
+	{
+		return;
+	}
+
+	TGuardValue<bool> UpdatingVariablesGuard(bUpdatingExternalVariables, true);
 	TArray<FBPVariableDescription> LocalLastNewVariables = LastNewVariables;
 
 	TMap<FGuid, int32> NewVariablesByGuid;
