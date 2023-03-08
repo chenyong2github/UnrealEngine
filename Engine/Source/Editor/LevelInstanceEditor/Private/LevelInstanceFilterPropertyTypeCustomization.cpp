@@ -7,6 +7,7 @@
 #include "WorldPartition/Filter/WorldPartitionActorFilter.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionActorFilter"
 

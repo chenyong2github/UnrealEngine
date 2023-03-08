@@ -7,6 +7,8 @@
 #include "Containers/Array.h"
 #include "CoreTypes.h"
 #include "DetailWidgetRow.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SButton.h"
 #include "Internationalization/Internationalization.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceInterface.h"
