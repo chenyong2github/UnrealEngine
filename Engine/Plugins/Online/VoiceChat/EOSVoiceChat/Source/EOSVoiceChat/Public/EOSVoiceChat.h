@@ -123,9 +123,9 @@ public:
 	virtual FOnVoiceChatPlayerVolumeUpdatedDelegate& OnVoiceChatPlayerVolumeUpdated() override;
 	virtual void TransmitToAllChannels() override;
 	virtual void TransmitToNoChannels() override;
-	virtual void TransmitToSpecificChannel(const FString& ChannelName) override;
+	virtual void TransmitToSpecificChannels(const TSet<FString>& ChannelNames) override;
 	virtual EVoiceChatTransmitMode GetTransmitMode() const override;
-	virtual FString GetTransmitChannel() const override;
+	virtual TSet<FString> GetTransmitChannels() const override;
 	virtual FDelegateHandle StartRecording(const FOnVoiceChatRecordSamplesAvailableDelegate::FDelegate& Delegate) override;
 	virtual void StopRecording(FDelegateHandle Handle) override;
 	virtual FDelegateHandle RegisterOnVoiceChatAfterCaptureAudioReadDelegate(const FOnVoiceChatAfterCaptureAudioReadDelegate::FDelegate& Delegate) override;

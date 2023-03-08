@@ -703,9 +703,9 @@ void FEOSVoiceChat::TransmitToNoChannels()
 	GetVoiceChatUser().TransmitToNoChannels();
 }
 
-void FEOSVoiceChat::TransmitToSpecificChannel(const FString& ChannelName)
+void FEOSVoiceChat::TransmitToSpecificChannels(const TSet<FString>& ChannelNames)
 {
-	GetVoiceChatUser().TransmitToSpecificChannel(ChannelName);
+	GetVoiceChatUser().TransmitToSpecificChannels(ChannelNames);
 }
 
 EVoiceChatTransmitMode FEOSVoiceChat::GetTransmitMode() const
@@ -713,9 +713,9 @@ EVoiceChatTransmitMode FEOSVoiceChat::GetTransmitMode() const
 	return GetVoiceChatUser().GetTransmitMode();
 }
 
-FString FEOSVoiceChat::GetTransmitChannel() const
+TSet<FString> FEOSVoiceChat::GetTransmitChannels() const
 {
-	return GetVoiceChatUser().GetTransmitChannel();
+	return GetVoiceChatUser().GetTransmitChannels();
 }
 
 FDelegateHandle FEOSVoiceChat::StartRecording(const FOnVoiceChatRecordSamplesAvailableDelegate::FDelegate& Delegate)

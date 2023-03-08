@@ -49,7 +49,9 @@ enum class EVoiceChatTransmitMode
 	/** Transmit to all of the channels you are in */
 	All,
 	/** Transmit to a specific channel */
-	Channel
+	Channel UE_DEPRECATED(5.3, "EVoiceChatTransmitMode::Channel is deprecated. Please use EVoiceChatTransmitMode::SpecificChannels instead!"),
+	/** Transmit to specific channel(s) */
+	SpecificChannels,
 };
 
 struct FVoiceChatCallStats
@@ -570,7 +572,7 @@ public:
 	 * Transmit to all channels that you are currently in
 	 */
 	virtual void TransmitToAllChannels() = 0;
-
+	
 	/**
 	 * Stop transmitting to all channels that you are currently in. This does not apply to channels you will join.
 	 */
@@ -581,21 +583,48 @@ public:
 	 *
 	 * @param ChannelName Channel to transmit to
 	 */
-	virtual void TransmitToSpecificChannel(const FString& ChannelName) = 0;
+	UE_DEPRECATED(5.3, "TransmitToSpecificChannel is deprecated. Please use TransmitToSpecificChannels instead!")
+	virtual void TransmitToSpecificChannel(const FString& ChannelName) { TransmitToSpecificChannels({ChannelName}); }
+
+	/**
+	 * Transmit to Specified set of channels
+	 * @param ChannelNames Channels to transmit to
+	 */
+	virtual void TransmitToSpecificChannels(const TSet<FString>& ChannelNames) = 0;
+
+	/**
+	 * Add specific channels to transmit
+	 * @param ChannelNames New channels to add to the current transmit set
+	 */
+	virtual void AddSpecificChannelsToTransmit(const TSet<FString>& ChannelNames) { TransmitToSpecificChannels(GetTransmitChannels().Union(ChannelNames)); }
+
+	/**
+	 * Remove specific channels from transmit
+	 * @param ChannelNames Channels to remove from the current transmit set
+	 */
+	virtual void RemoveSpecificChannelsFromTransmit(const TSet<FString>& ChannelNames) { TransmitToSpecificChannels(GetTransmitChannels().Difference(ChannelNames)); }
 
 	/**
 	 * Get the current transmit mode
 	 *
-	 * @return Transmit mode. If it is EVoiceChatTransmitMode::Channel, the channel can be retrieved using GetTransmitChannel()
+	 * @return Transmit mode. If it is EVoiceChatTransmitMode::SpecificChannels, the current channels can be retrieved using GetTransmitChannels()
 	 */
 	virtual EVoiceChatTransmitMode GetTransmitMode() const = 0;
 
 	/**
-	 * Get the specific channel we are transmitting to
+	 * Get the first channel we are transmitting to
 	 *
-	 * @return Channel we are transmitting to. Will be empty if GetTransmissionMode() returned a value other than EVoiceChatTransmitMode::Channel
+	 * @return Channel we are transmitting to. Will be empty if GetTransmitMode() returned a value other than EVoiceChatTransmitMode::SpecificChannels
 	 */
-	virtual FString GetTransmitChannel() const = 0;
+	UE_DEPRECATED(5.3, "GetTransmitChannel is deprecated. Please use GetTransmitChannels instead!")
+		virtual FString GetTransmitChannel() const { return ((GetTransmitMode() == EVoiceChatTransmitMode::SpecificChannels) && !GetTransmitChannels().IsEmpty()) ? GetTransmitChannels().Array()[0] : FString(); };
+
+	/**
+	 * Get all channels we are transmitting to
+	 *
+	 * @return Channels	 we are transmitting to. Will be empty if GetTransmissionMode() returned a value other than EVoiceChatTransmitMode::SpecificChannels
+	 */
+	virtual TSet<FString> GetTransmitChannels() const = 0;
 
 	/*
 	 * Start recording

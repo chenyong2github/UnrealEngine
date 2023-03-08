@@ -800,13 +800,14 @@ void FEOSVoiceChatUser::TransmitToNoChannels()
 	}
 }
 
-void FEOSVoiceChatUser::TransmitToSpecificChannel(const FString& Channel)
+void FEOSVoiceChatUser::TransmitToSpecificChannels(const TSet<FString>& ChannelNames)
 {
-	if (TransmitState.Mode != EVoiceChatTransmitMode::Channel ||
-		TransmitState.ChannelName != Channel)
+	if (TransmitState.Mode != EVoiceChatTransmitMode::SpecificChannels || 
+		!TransmitState.SpecificChannels.Difference(ChannelNames).IsEmpty() || 
+		!ChannelNames.Difference(TransmitState.SpecificChannels).IsEmpty())
 	{
-		TransmitState.Mode = EVoiceChatTransmitMode::Channel;
-		TransmitState.ChannelName = Channel;
+		TransmitState.Mode = EVoiceChatTransmitMode::SpecificChannels;
+		TransmitState.SpecificChannels = ChannelNames;
 		ApplySendingOptions();
 	}
 }
@@ -816,14 +817,13 @@ EVoiceChatTransmitMode FEOSVoiceChatUser::GetTransmitMode() const
 	return TransmitState.Mode;
 }
 
-FString FEOSVoiceChatUser::GetTransmitChannel() const
+TSet<FString> FEOSVoiceChatUser::GetTransmitChannels() const
 {
-	FString TransmitChannel;
-	if (TransmitState.Mode == EVoiceChatTransmitMode::Channel)
+	if (TransmitState.Mode == EVoiceChatTransmitMode::SpecificChannels)
 	{
-		TransmitChannel = TransmitState.ChannelName;
+		return TransmitState.SpecificChannels;
 	}
-	return TransmitChannel;
+	return TSet<FString>();
 }
 
 FDelegateHandle FEOSVoiceChatUser::StartRecording(const FOnVoiceChatRecordSamplesAvailableDelegate::FDelegate& Delegate)
@@ -1308,8 +1308,8 @@ void FEOSVoiceChatUser::ApplySendingOptions()
 
 void FEOSVoiceChatUser::ApplySendingOptions(FChannelSession& ChannelSession)
 {
-	const bool bCanTransmitToChannel = TransmitState.Mode == EVoiceChatTransmitMode::All ||
-		(TransmitState.Mode == EVoiceChatTransmitMode::Channel && TransmitState.ChannelName == ChannelSession.ChannelName);
+	const bool bCanTransmitToChannel = TransmitState.Mode == EVoiceChatTransmitMode::All
+	|| (TransmitState.Mode == EVoiceChatTransmitMode::SpecificChannels && TransmitState.SpecificChannels.Contains(ChannelSession.ChannelName));
 
 	ChannelSession.DesiredSendingState.bAudioEnabled = bCanTransmitToChannel && !AudioInputOptions.bMuted && !ChannelSession.bIsNotListening;
 
@@ -2415,8 +2415,8 @@ bool FEOSVoiceChatUser::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& A
 					case EVoiceChatTransmitMode::None:
 						TransmitString = TEXT("NONE");
 						break;
-					case EVoiceChatTransmitMode::Channel:
-						TransmitString = FString::Printf(TEXT("CHANNEL:%s"), *GetTransmitChannel());
+					case EVoiceChatTransmitMode::SpecificChannels:
+						TransmitString = FString::Printf(TEXT("CHANNELS:[%s]"), *FString::Join(GetTransmitChannels(), TEXT(", ")));
 						break;
 					}
 					EOS_EXEC_LOG(TEXT("    Channels: transmitting:%s"), *TransmitString);
@@ -2610,7 +2610,7 @@ bool FEOSVoiceChatUser::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& A
 			FString ChannelName;
 			if (FParse::Value(Cmd, TEXT("ChannelName="), ChannelName))
 			{
-				TransmitToSpecificChannel(ChannelName);
+				TransmitToSpecificChannels({ ChannelName });
 				return true;
 			}
 		}

@@ -104,9 +104,9 @@ public:
 	virtual FOnVoiceChatPlayerVolumeUpdatedDelegate& OnVoiceChatPlayerVolumeUpdated() override { return VoiceChatUser.OnVoiceChatPlayerVolumeUpdated(); }
 	virtual void TransmitToAllChannels() override { VoiceChatUser.TransmitToAllChannels(); }
 	virtual void TransmitToNoChannels() override { VoiceChatUser.TransmitToNoChannels(); }
-	virtual void TransmitToSpecificChannel(const FString& ChannelName) override { VoiceChatUser.TransmitToSpecificChannel(ChannelName); }
+	virtual void TransmitToSpecificChannels(const TSet<FString>& ChannelNames) override { VoiceChatUser.TransmitToSpecificChannels(ChannelNames); }
 	virtual EVoiceChatTransmitMode GetTransmitMode() const override { return VoiceChatUser.GetTransmitMode(); }
-	virtual FString GetTransmitChannel() const override { return VoiceChatUser.GetTransmitChannel(); }
+	virtual TSet<FString> GetTransmitChannels() const override { return VoiceChatUser.GetTransmitChannels(); }
 	virtual FDelegateHandle StartRecording(const FOnVoiceChatRecordSamplesAvailableDelegate::FDelegate& Delegate) override { return VoiceChatUser.StartRecording(Delegate); }
 	virtual void StopRecording(FDelegateHandle Handle) override { VoiceChatUser.StopRecording(Handle); }
 	virtual FDelegateHandle RegisterOnVoiceChatAfterCaptureAudioReadDelegate(const FOnVoiceChatAfterCaptureAudioReadDelegate::FDelegate& Delegate) override { return VoiceChatUser.RegisterOnVoiceChatAfterCaptureAudioReadDelegate(Delegate); }
