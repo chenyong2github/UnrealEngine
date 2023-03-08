@@ -472,9 +472,13 @@ void UExporter::EmitBeginObject( FOutputDevice& Ar, UObject* Obj, uint32 PortFla
 		}
 	}
 
-	// Emit the object path
-	Ar.Logf(TEXT(" ExportPath=%s"), *FObjectPropertyBase::GetExportPath(Obj, nullptr, nullptr, PortFlags | (PPF_Delimited  & ~PPF_ExportsNotFullyQualified)));
-
+	// When exporting for diffs, export paths can cause false positives. since diff files don't get imported, we can
+	// skip adding this info the file.
+	if (!(PortFlags & PPF_ForDiff))
+	{
+		// Emit the object path
+		Ar.Logf(TEXT(" ExportPath=%s"), *FObjectPropertyBase::GetExportPath(Obj, nullptr, nullptr, PortFlags | (PPF_Delimited  & ~PPF_ExportsNotFullyQualified)));
+	}
 	// end in a return
 	Ar.Logf(TEXT("\r\n"));
 

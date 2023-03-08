@@ -2860,7 +2860,10 @@ FString UAssetToolsImpl::DumpAssetToTempFile(UObject* Asset) const
 	// Export asset to archive
 	if (Asset)
 	{
-		UExporter::ExportToOutputDevice(&Context, Asset, nullptr, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified|PPF_Copy|PPF_Delimited, false, Asset->GetOuter());
+		UExporter::ExportToOutputDevice(&Context, Asset, nullptr,
+			Archive, TEXT("copy"), 0,
+			PPF_ExportsNotFullyQualified|PPF_Copy|PPF_Delimited|PPF_ForDiff,
+			false, Asset->GetOuter());
 	}
 	// Used to generate unique file names during a run
 	static int TempFileNum = 0;
