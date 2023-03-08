@@ -39,6 +39,7 @@ from switchboard.switchboard_logging import ConsoleStream, LOGGER
 from switchboard.tools.insights_launcher import InsightsLauncher
 from switchboard.tools.listener_launcher import ListenerLauncher
 from switchboard.devices.unreal.plugin_unreal import DeviceUnreal
+from switchboard.devices.unreal.redeploy_dialog import RedeployListenerDialog
 from switchboard.util import collect_logs
 
 ENGINE_PATH = "../../../../.."
@@ -315,6 +316,9 @@ class SwitchboardDialog(QtCore.QObject):
         # Convenience Open Logs Folder menu item
         self.register_open_logs_menuitem()
         self.register_zip_logs_menuitem()
+
+        # Redeploy menu item
+        self.register_redeploy_menuitem()
 
         # Transport Manager
         #self.transport_queue = recording.TransportQueue(CONFIG.SWITCHBOARD_DIR)
@@ -640,6 +644,15 @@ class SwitchboardDialog(QtCore.QObject):
                 collect_logs.open_logs_folder()
         action = self.register_tools_menu_action("&Zip Logs")
         action.triggered.connect(save_logs)
+
+    def register_redeploy_menuitem(self):
+        def show_redeploy_dialog():
+            dlg = RedeployListenerDialog(DeviceUnreal.active_unreal_devices,
+                                         DeviceUnreal.listener_watcher)
+            dlg.exec()
+
+        action = self.register_tools_menu_action("Listener &Redeployer")
+        action.triggered.connect(show_redeploy_dialog)
 
     def add_tools_menu(self):
         ''' Adds tools menu to menu bar and populates built-in items '''

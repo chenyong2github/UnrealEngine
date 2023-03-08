@@ -100,7 +100,7 @@ class ListenerClient(object):
             return False
         return False
 
-    def connect(self, address=None):
+    def connect(self, address=None, *, timeout: Optional[float] = None):
         '''
         Initiates a connection.
 
@@ -122,16 +122,19 @@ class ListenerClient(object):
         self.last_activity = datetime.datetime.now()
 
         self.listener_qt_handler.listener_connecting.emit(self)
-        establish_connection_thread = Thread(target=self._establish_connection)
+        establish_connection_thread = Thread(target=self._establish_connection,
+                                             kwargs={'timeout': timeout})
         establish_connection_thread.start()
 
         return True
 
-    def _establish_connection(self):
+    def _establish_connection(self, *, timeout: Optional[float] = None):
         try:
             LOGGER.info(f"Connecting to {self.address}:{self.port}")
 
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            if timeout is not None:
+                self.socket.settimeout(timeout)
             self.socket.connect(self.server_address)
 
             # Create a thread that waits for messages from the server
