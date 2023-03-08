@@ -13,17 +13,18 @@
 #if WITH_EDITOR
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
-#include "RenderUtils.h"
-#include "Serialization/MemoryHasher.h"
-#include "Serialization/MemoryReader.h"
-#include "StaticMeshAttributes.h"
-#include "Serialization/MemoryWriter.h"
-#include "StaticMeshBuilder.h"
 #include "Experimental/Misc/ExecutionResource.h"
 #include "MeshDescriptionHelper.h"
 #include "NaniteBuilder.h"
 #include "NaniteDisplacedMeshAlgo.h"
 #include "NaniteDisplacedMeshCompiler.h"
+#include "RenderUtils.h"
+#include "Serialization/MemoryHasher.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
+#include "StaticMeshAttributes.h"
+#include "StaticMeshBuilder.h"
+#include "StaticMeshCompiler.h"
 #endif
 
 static bool DoesTargetPlatformSupportNanite(const ITargetPlatform* TargetPlatform)
@@ -90,6 +91,11 @@ public:
 
 	inline void Wait()
 	{
+		if (bIsWaitingOnMeshCompilation)
+		{
+			WaitForDependenciesAndBeginCache();
+		}
+
 		if (BuildTask != nullptr)
 		{
 			BuildTask->EnsureCompletion();
@@ -98,8 +104,14 @@ public:
 		Owner.Wait();
 	}
 
-	inline bool Poll() const
+	inline bool Poll()
 	{
+		if (bIsWaitingOnMeshCompilation)
+		{
+			BeginCacheIfDependenciesAreFree();
+			return false;
+		}
+
 		if (BuildTask && !BuildTask->IsDone())
 		{
 			return false;
@@ -109,7 +121,10 @@ public:
 	}
 
 	inline void Cancel()
-	{ 
+	{
+		// Cancel the waiting on the static mesh build
+		bIsWaitingOnMeshCompilation = false;
+
 		if (BuildTask)
 		{
 			BuildTask->Cancel();
@@ -121,6 +136,9 @@ public:
 	void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
 
 private:
+	void BeginCacheIfDependenciesAreFree();
+	void WaitForDependenciesAndBeginCache();
+
 	void BeginCache(const FIoHash& KeyHash);
 	void EndCache(UE::DerivedData::FCacheGetValueResponse&& Response);
 	bool BuildData(const UE::DerivedData::FSharedString& Name, const UE::DerivedData::FCacheKey& Key);
@@ -136,6 +154,9 @@ private:
 
 	UE::DerivedData::FRequestOwner Owner;
 	TRefCountPtr<IExecutionResource> ExecutionResource;
+
+	bool bIsWaitingOnMeshCompilation;
+	FIoHash KeyHash;
 };
 
 FNaniteBuildAsyncCacheTask::FNaniteBuildAsyncCacheTask(
@@ -151,8 +172,19 @@ FNaniteBuildAsyncCacheTask::FNaniteBuildAsyncCacheTask(
 	// to avoid holding on to memory for a long time. We use the highest priority for all
 	// subsequent task.
 	, Owner(UE::DerivedData::EPriority::Highest)
+	, bIsWaitingOnMeshCompilation(InDisplacedMesh.Parameters.BaseMesh->IsCompiling())
+	, KeyHash(InKeyHash)
 {
-	BeginCache(InKeyHash);
+	/**
+	 * Unfortunately our async builds are not made to handle the assets that use data from other assets
+	 * This will delay the start of the actual cache until the build of the base static is done
+	 * This will fix a race condition with the static mesh build without blocking the game thread by default.
+	 * Note: This is not a perfect solution since it also delay the DDC data pull.
+	 */
+	if (!bIsWaitingOnMeshCompilation)
+	{
+		BeginCache(InKeyHash);
+	}
 }
 
 void FNaniteDisplacedMeshAsyncBuildWorker::DoWork()
@@ -170,7 +202,39 @@ void FNaniteDisplacedMeshAsyncBuildWorker::DoWork()
 	}
 }
 
-void FNaniteBuildAsyncCacheTask::BeginCache(const FIoHash& KeyHash)
+void FNaniteBuildAsyncCacheTask::BeginCacheIfDependenciesAreFree()
+{
+	if (UNaniteDisplacedMesh* DisplacedMesh = WeakDisplacedMesh.Get())
+	{
+		if (!DisplacedMesh->Parameters.BaseMesh->IsCompiling())
+		{
+			bIsWaitingOnMeshCompilation = false;
+			BeginCache(KeyHash);
+		}
+	}
+	else
+	{
+		bIsWaitingOnMeshCompilation = false;
+	}
+}
+
+void FNaniteBuildAsyncCacheTask::WaitForDependenciesAndBeginCache()
+{
+	if (UNaniteDisplacedMesh* DisplacedMesh = WeakDisplacedMesh.Get())
+	{
+		FStaticMeshCompilingManager::Get().FinishCompilation({DisplacedMesh->Parameters.BaseMesh});
+
+		bIsWaitingOnMeshCompilation = false;
+		BeginCache(KeyHash);
+	}
+	else
+	{
+		bIsWaitingOnMeshCompilation = false;
+	}
+
+}
+
+void FNaniteBuildAsyncCacheTask::BeginCache(const FIoHash& InKeyHash)
 {
 	using namespace UE::DerivedData;
 
@@ -184,7 +248,7 @@ void FNaniteBuildAsyncCacheTask::BeginCache(const FIoHash& KeyHash)
 		int64 RequiredMemory = -1; // @todo RequiredMemory
 
 		check(BuildTask == nullptr);
-		BuildTask = MakeUnique<FNaniteDisplacedMeshAsyncBuildTask>(this, KeyHash);
+		BuildTask = MakeUnique<FNaniteDisplacedMeshAsyncBuildTask>(this, InKeyHash);
 		BuildTask->StartBackgroundTask(ThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, RequiredMemory, TEXT("NaniteDisplacedMesh"));
 	}
 }

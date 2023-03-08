@@ -463,8 +463,7 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::UpdateDisplacedMeshesDueToAss
 		{
 			if (UNaniteDisplacedMesh* Mesh = MeshKey.ResolveObjectPtr())
 			{
-				// Kick the asset build
-				Mesh->PreEditChange(nullptr);
+				// Kick the asset build (pre edit is not needed here and it would dirty the asset)
 				Mesh->PostEditChange();
 			}
 		}
