@@ -49,13 +49,18 @@ FShell::FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, c
 	}
 }
 
-void FShell::Empty()
+void FShell::RemoveFaces()
 {
-	for(FOrientedFace& Face : TopologicalFaces)
+	for (FOrientedFace& Face : TopologicalFaces)
 	{
 		Face.Entity->ResetHost();
 	}
 	TopologicalFaces.Empty();
+}
+
+void FShell::Empty()
+{
+	RemoveFaces();
 	FTopologicalShapeEntity::Empty();
 }
 

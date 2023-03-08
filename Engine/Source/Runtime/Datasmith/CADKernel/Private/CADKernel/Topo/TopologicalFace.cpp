@@ -537,9 +537,9 @@ void FTopologicalFace::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Crite
 		return ElemLength;
 	};
 
-	for (int32 IndexV = 0; IndexV < Grid.GetCoordinateCount(EIso::IsoV) - 1; ++IndexV)
+	for (int32 IndexV = 0; IndexV < CrossingCoordinates[EIso::IsoV].Num() - 1; ++IndexV)
 	{
-		for (int32 IndexU = 0; IndexU < Grid.GetCoordinateCount(EIso::IsoU) - 1; ++IndexU)
+		for (int32 IndexU = 0; IndexU < CrossingCoordinates[EIso::IsoU].Num() - 1; ++IndexU)
 		{
 			const FPoint& Point_U0_V0 = Grid.GetPoint(IndexU, IndexV);
 			const FPoint& Point_U1_V1 = Grid.GetPoint(IndexU + 1, IndexV + 1);
@@ -562,8 +562,8 @@ void FTopologicalFace::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Crite
 			double& DeltaVMin = DeltaVMinArray[IndexV];
 			double& DeltaVMax = DeltaVMaxArray[IndexV];
 
-			const double UNextMinusU = Grid.GetCoordinate(EIso::IsoU, IndexU + 1) - Grid.GetCoordinate(EIso::IsoU, IndexU);
-			const double VNextMinusV = Grid.GetCoordinate(EIso::IsoV, IndexV + 1) - Grid.GetCoordinate(EIso::IsoV, IndexV);
+			const double UNextMinusU = CrossingCoordinates[EIso::IsoU][IndexU + 1] - CrossingCoordinates[EIso::IsoU][IndexU];
+			const double VNextMinusV = CrossingCoordinates[EIso::IsoV][IndexV + 1] - CrossingCoordinates[EIso::IsoV][IndexV];
 
 			for (const TSharedPtr<FCriterion>& Criterion : Criteria)
 			{
@@ -577,17 +577,17 @@ void FTopologicalFace::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Crite
 	}
 
 	// Delta of the extremities are smooth to avoid big disparity 
-	if (DeltaUMaxArray.Num() > 2)
+	TFunction<void(TArray<double>&)> SmoothExtremities = [](TArray<double>& DeltaMaxArray)
 	{
-		DeltaUMaxArray[0] = (DeltaUMaxArray[0] + DeltaUMaxArray[1] * 2) * AThird;
-		DeltaUMaxArray.Last() = (DeltaUMaxArray.Last() + DeltaUMaxArray[DeltaUMaxArray.Num() - 2] * 2) * AThird;
-	}
+		if (DeltaMaxArray.Num() > 2)
+		{
+			DeltaMaxArray[0] = (DeltaMaxArray[0] + DeltaMaxArray[1] * 2) * AThird;
+			DeltaMaxArray.Last() = (DeltaMaxArray.Last() + DeltaMaxArray[DeltaMaxArray.Num() - 2] * 2) * AThird;
+		}
+	};
 
-	if (DeltaVMaxArray.Num() > 2)
-	{
-		DeltaVMaxArray[0] = (DeltaVMaxArray[0] + DeltaVMaxArray[1] * 2) * AThird;
-		DeltaVMaxArray.Last() = (DeltaVMaxArray.Last() + DeltaVMaxArray[DeltaVMaxArray.Num() - 2] * 2) * AThird;
-	}
+	SmoothExtremities(DeltaUMaxArray);
+	SmoothExtremities(DeltaVMaxArray);
 
 	SetEstimatedMinimalElementLength(ElementLengthMin);
 	SetApplyCriteriaMarker();

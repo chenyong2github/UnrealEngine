@@ -167,10 +167,21 @@ inline void SubArrayWithoutBoundary(const TArray<double>& InitialArray, const FL
 			return;
 		}
 
-		MaxIndex++;
 		if (InitialArray[MaxIndex] < Boundary.GetMin())
 		{
 			return;
+		}
+
+		// MinIndex >= 0, if MinIndex == 0, Boundary.GetMin() can be < InitialArray[0]
+		if (InitialArray[MinIndex] < Boundary.GetMin())
+		{
+			MinIndex++;
+		}
+
+		// FDichotomyFinder return the low index, so MaxIndex < InitialArray.Num() - 1
+		if (InitialArray[MaxIndex + 1] < Boundary.GetMax())
+		{
+			MaxIndex++;
 		}
 
 		if (Boundary.GetMin() + 5 * Tolerance > InitialArray[MinIndex])
@@ -178,14 +189,15 @@ inline void SubArrayWithoutBoundary(const TArray<double>& InitialArray, const FL
 			MinIndex++;
 		}
 
-		if (Boundary.GetMax() - 5 * Tolerance > InitialArray[MaxIndex])
+		if (Boundary.GetMax() - 5 * Tolerance < InitialArray[MaxIndex])
 		{
-			MaxIndex++;
+			MaxIndex--;
 		}
 
-		if (MaxIndex - MinIndex)
+		const int32 ElementCount = MaxIndex - MinIndex + 1;
+		if (ElementCount > 0)
 		{
-			OutArray.Append(InitialArray.GetData() + MinIndex, MaxIndex - MinIndex);
+			OutArray.Append(InitialArray.GetData() + MinIndex, ElementCount);
 		}
 	}
 	else if (InitialSize == 1)

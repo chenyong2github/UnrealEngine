@@ -217,7 +217,7 @@ void StitchParallelEdges(TArray<TSharedPtr<FTopologicalVertex>>& VerticesToProce
 
 	for (int32 VertexI = 0; VertexI < VerticesToProcess.Num(); ++VertexI)
 	{
-		TSharedPtr<FTopologicalVertex>& Vertex = VerticesToProcess[VertexI];
+		TSharedPtr<FTopologicalVertex> Vertex = VerticesToProcess[VertexI];
 
 		if (!Vertex.IsValid() || Vertex->IsDeleted() || !Vertex->IsBorderVertex())
 		{
@@ -338,9 +338,8 @@ void MergeCoincidentEdges(FTopologicalEdge* Edge, double MinEdgeLength)
 
 	const bool bFirstEdgeBorder = Edge->IsBorder();
 
-	for (int32 Index = 0; Index < ConnectedEdgeCount; ++Index)
+	for (FTopologicalEdge* SecondEdge : ConnectedEdges)
 	{
-		FTopologicalEdge* SecondEdge = ConnectedEdges[Index];
 		if (SecondEdge == Edge || !SecondEdge->IsActiveEntity() || SecondEdge->IsDegenerated())
 		{
 			continue;
@@ -534,7 +533,7 @@ void FTopomaker::EmptyShells()
 {
 	for (FShell* Shell : Shells)
 	{
-		Shell->Empty();
+		Shell->RemoveFaces();
 	}
 }
 
@@ -658,7 +657,6 @@ void FTopomaker::MergeUnconnectedSuccessiveEdges()
 		{
 			TArray<FOrientedEdge>& Edges = Loop->GetEdges();
 			int32 EdgeCount = Edges.Num();
-
 
 			// Find the starting edge i.e. the next edge of the first edge that its ending vertex is connecting to 3 or more edges 
 			// The algorithm start to the last edge of the loop, if it verifies the criteria then the first edge is the edges[0]
@@ -1138,7 +1136,6 @@ void FTopomaker::SplitIntoConnectedShells()
 		if (FaceSubset.MainShell != nullptr)
 		{
 			FShell* Shell = (FShell*)FaceSubset.MainShell;
-			Shell->Empty();
 			Shell->Add(FaceSubset.Faces);
 		}
 		else

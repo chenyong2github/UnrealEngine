@@ -32,6 +32,11 @@ protected:
 	}
 
 public:
+	
+	virtual ~FModel() override
+	{
+		FModel::Empty();
+	}
 
 	virtual void Serialize(FCADKernelArchive& Ar) override
 	{

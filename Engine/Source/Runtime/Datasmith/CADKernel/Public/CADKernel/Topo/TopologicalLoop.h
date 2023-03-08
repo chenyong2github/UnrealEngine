@@ -77,7 +77,10 @@ private:
 
 public:
 
-	~FTopologicalLoop() = default;
+	virtual ~FTopologicalLoop() override
+	{
+		FTopologicalLoop::Empty();
+	}
 
 	virtual void Empty() override
 	{
