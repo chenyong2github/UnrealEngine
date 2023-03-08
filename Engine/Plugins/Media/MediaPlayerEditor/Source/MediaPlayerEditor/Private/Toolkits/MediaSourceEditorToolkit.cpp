@@ -443,14 +443,14 @@ void FMediaSourceEditorToolkit::GenerateThumbnail()
 				[PipelineState, Extent = RDGSourceTexture->Desc.Extent, PixelShader, PixelShaderParameters](FRHICommandList& RHICmdList) {
 				PipelineState.Validate();
 
-				RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, Extent.X, Extent.Y, 1.0f);
+				RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, static_cast<float>(Extent.X), static_cast<float>(Extent.Y), 1.0f);
 				SetScreenPassPipelineState(RHICmdList, PipelineState);
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PixelShaderParameters);
 
 				DrawRectangle(
 					RHICmdList,
-					0, 0, Extent.X, Extent.Y,
-					0, 0, Extent.X, Extent.Y,
+					0.0f, 0.0f, static_cast<float>(Extent.X), static_cast<float>(Extent.Y),
+					0.0f, 0.0f, static_cast<float>(Extent.X), static_cast<float>(Extent.Y),
 					Extent,
 					Extent,
 					PipelineState.VertexShader,

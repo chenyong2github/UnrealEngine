@@ -16,8 +16,8 @@ void UMediaSourceThumbnailRenderer::GetThumbnailSize(UObject* Object, float Zoom
 	UTexture* ObjectTexture = GetThumbnailTextureFromObject(Object);
 	if (ObjectTexture != nullptr)
 	{
-		OutWidth = Zoom * ObjectTexture->GetSurfaceWidth();
-		OutHeight = Zoom * ObjectTexture->GetSurfaceHeight();
+		OutWidth = static_cast<uint32>(Zoom * ObjectTexture->GetSurfaceWidth());
+		OutHeight = static_cast<uint32>(Zoom * ObjectTexture->GetSurfaceHeight());
 	}
 	else
 	{

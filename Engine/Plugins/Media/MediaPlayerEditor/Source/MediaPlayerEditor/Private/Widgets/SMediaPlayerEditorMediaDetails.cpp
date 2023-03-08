@@ -160,8 +160,8 @@ void SMediaPlayerEditorMediaDetails::UpdateDetails()
 				: LOCTEXT("MethodStreamed", "Streamed"));
 		NumMips = MediaTexture->GetTextureNumMips();
 		ResourceSize = (MediaTexture->GetResourceSizeBytes(EResourceSizeMode::Exclusive) + 512) / 1024;
-		SurfaceWidth = MediaTexture->GetSurfaceWidth();
-		SurfaceHeight = MediaTexture->GetSurfaceHeight();
+		SurfaceWidth = static_cast<int32>(MediaTexture->GetSurfaceWidth());
+		SurfaceHeight = static_cast<int32>(MediaTexture->GetSurfaceHeight());
 	}
 
 	// Update text.

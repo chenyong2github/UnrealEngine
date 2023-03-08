@@ -80,7 +80,7 @@ void SMediaPlayerEditorCache::DrawPlayerPosition(FTimespan Time, const FGeometry
 	const FTimespan Duration = MediaPlayer->GetDuration();
 	const float MarkerSize = PositionMarkerSize.Get();
 
-	const float DrawOffset = FTimespan::Ratio(Time, Duration) * AllottedGeometry.Size.X - 0.5f * MarkerSize;
+	const float DrawOffset = static_cast<float>(FTimespan::Ratio(Time, Duration) * AllottedGeometry.Size.X - 0.5f * MarkerSize);
 
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
@@ -132,8 +132,8 @@ void SMediaPlayerEditorCache::DrawSampleStates(const TRangeSet<FTimespan>& Range
 
 	for (auto& Range : Ranges)
 	{
-		const float DrawOffset = FMath::RoundToNegativeInfinity(FTimespan::Ratio(Range.GetLowerBoundValue(), Duration) * AllottedGeometry.Size.X);
-		const float DrawSize = FMath::RoundToPositiveInfinity(FTimespan::Ratio(Range.Size<FTimespan>(), Duration) * AllottedGeometry.Size.X);
+		const float DrawOffset = static_cast<float>(FMath::RoundToNegativeInfinity(FTimespan::Ratio(Range.GetLowerBoundValue(), Duration) * AllottedGeometry.Size.X));
+		const float DrawSize = static_cast<float>(FMath::RoundToPositiveInfinity(FTimespan::Ratio(Range.Size<FTimespan>(), Duration) * AllottedGeometry.Size.X));
 		const float BarHeight = ProgressBarHeight.Get();
 
 		FSlateDrawElement::MakeBox(

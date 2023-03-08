@@ -381,7 +381,7 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 													})
 													.OnMouseCaptureBegin_Lambda([this]()
 													{
-														ScrubValue = FTimespan::Ratio(MediaPlayer->GetDisplayTime(), MediaPlayer->GetDuration());
+														ScrubValue = static_cast<float>(FTimespan::Ratio(MediaPlayer->GetDisplayTime(), MediaPlayer->GetDuration()));
 
 														if (MediaPlayer->SupportsScrubbing())
 														{
@@ -416,7 +416,7 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 														}
 
 														return (MediaPlayer->GetDuration() > FTimespan::Zero())
-															? FTimespan::Ratio(MediaPlayer->GetDisplayTime(), MediaPlayer->GetDuration())
+															? static_cast<float>(FTimespan::Ratio(MediaPlayer->GetDisplayTime(), MediaPlayer->GetDuration()))
 															: 0.0f;
 													})
 													.Visibility_Lambda([this]() -> EVisibility {

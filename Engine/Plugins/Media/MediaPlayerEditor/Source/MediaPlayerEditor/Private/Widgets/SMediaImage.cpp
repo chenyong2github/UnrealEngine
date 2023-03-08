@@ -92,7 +92,7 @@ void SMediaImage::Tick(const FGeometry& InAllottedGeometry, const double InCurre
 	if (BrushImageSize.IsSet())
 	{
 		FVector2D Size = BrushImageSize.Get();
-		MaterialBrush->ImageSize.X = Size.X;
-		MaterialBrush->ImageSize.Y = Size.Y;
+		MaterialBrush->ImageSize.X = static_cast<float>(Size.X);
+		MaterialBrush->ImageSize.Y = static_cast<float>(Size.Y);
 	}
 }
