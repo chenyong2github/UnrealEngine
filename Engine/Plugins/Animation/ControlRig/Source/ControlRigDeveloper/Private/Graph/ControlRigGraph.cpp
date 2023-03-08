@@ -1155,6 +1155,11 @@ void UControlRigGraph::RemoveNode(UEdGraphNode* InNode)
 	// Make sure EdGraph is not part of the transaction
 	TGuardValue<ITransaction*> TransactionGuard(GUndo, nullptr);
 
+	if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InNode))
+	{
+		RigNode->OnNodeBeginRemoval().Broadcast();
+	}
+
 	// clear out the pin relationships
 	for(UEdGraphPin* Pin : InNode->Pins)
 	{
@@ -1176,9 +1181,9 @@ void UControlRigGraph::RemoveNode(UEdGraphNode* InNode)
 		while (ExistingObject);
 	}
 	InNode->Rename(*DeletedName, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DontCreateRedirectors);	
-	Super::RemoveNode(InNode);
 
-	NotifyGraphChanged(FEdGraphEditAction(EEdGraphActionType::GRAPHACTION_RemoveNode, this, InNode, false));
+	// this also subsequently calls NotifyGraphChanged
+	Super::RemoveNode(InNode);
 }
 
 URigVMController* UControlRigGraph::GetTemplateController()

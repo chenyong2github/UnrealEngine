@@ -906,6 +906,12 @@ void SGraphPin::Tick( const FGeometry& AllottedGeometry, const double InCurrentT
 UEdGraphPin* SGraphPin::GetPinObj() const
 {
 	ensureMsgf(!bGraphDataInvalid, TEXT("The Graph Pin Object has been invalidated. Someone is keeping a hard ref on the SGraphPin (%s). See InvalidateGraphData for more info"), *ToString());
+
+	if(GraphPinObj && GraphPinObj->bWasTrashed)
+	{
+		return nullptr;
+	}
+
 	return !bGraphDataInvalid ? GraphPinObj : nullptr;
 }
 
@@ -914,6 +920,11 @@ void SGraphPin::SetOwner( const TSharedRef<SGraphNode> OwnerNode )
 {
 	check( !OwnerNodePtr.IsValid() );
 	OwnerNodePtr = OwnerNode;
+}
+
+void SGraphPin::SetPinObj(UEdGraphPin* PinObj)
+{
+	GraphPinObj = PinObj;
 }
 
 EVisibility SGraphPin::IsPinVisibleAsAdvanced() const

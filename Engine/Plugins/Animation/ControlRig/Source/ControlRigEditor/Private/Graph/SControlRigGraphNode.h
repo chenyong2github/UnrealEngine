@@ -81,6 +81,7 @@ private:
 
 	void HandleNodeTitleDirtied();
 	void HandleNodePinsChanged();
+	void HandleNodeBeginRemoval();
 
 	FText GetInstructionCountText() const;
 	FText GetInstructionDurationText() const;

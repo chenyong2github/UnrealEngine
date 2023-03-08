@@ -81,6 +81,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FNodeTitleDirtied);
 	DECLARE_MULTICAST_DELEGATE(FNodePinsChanged);
 	DECLARE_MULTICAST_DELEGATE(FNodePinExpansionChanged);
+	DECLARE_MULTICAST_DELEGATE(FNodeBeginRemoval);
 
 	struct FPinPair
 	{
@@ -190,6 +191,7 @@ public:
 	FNodeTitleDirtied& OnNodeTitleDirtied() { return NodeTitleDirtied; }
 	FNodePinsChanged& OnNodePinsChanged() { return NodePinsChanged; }
 	FNodePinExpansionChanged& OnNodePinExpansionChanged() { return NodePinExpansionChanged; }
+	FNodeBeginRemoval& OnNodeBeginRemoval() { return NodeBeginRemoval; }
 
 	/** Called when there's a drastic change in the pins */
 	bool ModelPinsChanged(bool bForce = false);
@@ -268,6 +270,7 @@ private:
 	FNodeTitleDirtied NodeTitleDirtied;
 	FNodePinsChanged NodePinsChanged;
 	FNodePinExpansionChanged NodePinExpansionChanged;
+	FNodeBeginRemoval NodeBeginRemoval;
 
 	mutable const FRigVMTemplate* CachedTemplate;
 	mutable TOptional<bool> DrawAsCompactNodeCache;

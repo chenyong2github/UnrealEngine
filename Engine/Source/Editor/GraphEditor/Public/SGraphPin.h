@@ -157,6 +157,9 @@ public:
 	/** @param OwnerNode  The SGraphNode that this pin belongs to */
 	void SetOwner( const TSharedRef<SGraphNode> OwnerNode );
 
+	/** @param PinObj The UEdGraphPin object this pin widget represents */
+	void SetPinObj(UEdGraphPin* PinObj);
+
 	/** @return whether this pin is incoming or outgoing */
 	EEdGraphPinDirection GetDirection() const;
 

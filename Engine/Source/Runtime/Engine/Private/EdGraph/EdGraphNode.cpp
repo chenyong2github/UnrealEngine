@@ -507,7 +507,10 @@ class UEdGraph* UEdGraphNode::GetGraph() const
 	UEdGraph* Graph = Cast<UEdGraph>(GetOuter());
 	if (Graph == nullptr && IsValid(this))
 	{
-		ensureMsgf(false, TEXT("EdGraphNode::GetGraph : '%s' does not have a UEdGraph as an Outer."), *GetPathName());
+		if(GetOuter() != GetTransientPackage())
+		{
+			ensureMsgf(false, TEXT("EdGraphNode::GetGraph : '%s' does not have a UEdGraph as an Outer."), *GetPathName());
+		}
 	}
 	return Graph;
 }

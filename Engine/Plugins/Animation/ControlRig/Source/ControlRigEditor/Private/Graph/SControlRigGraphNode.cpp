@@ -112,6 +112,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 
 	EdGraphNode->OnNodeTitleDirtied().AddSP(this, &SControlRigGraphNode::HandleNodeTitleDirtied);
 	EdGraphNode->OnNodePinsChanged().AddSP(this, &SControlRigGraphNode::HandleNodePinsChanged);
+	EdGraphNode->OnNodeBeginRemoval().AddSP(this, &SControlRigGraphNode::HandleNodeBeginRemoval);
 
 	LastHighDetailSize = FVector2D::ZeroVector;
 }
@@ -1167,6 +1168,37 @@ void SControlRigGraphNode::HandleNodePinsChanged()
 	PinsToKeep.Reset();
 
 	UpdatePinTreeView();
+}
+
+void SControlRigGraphNode::HandleNodeBeginRemoval()
+{
+	if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GraphNode))
+	{
+		RigNode->OnNodeTitleDirtied().RemoveAll(this);
+		RigNode->OnNodePinsChanged().RemoveAll(this);
+		RigNode->OnNodeBeginRemoval().RemoveAll(this);
+		
+		if(URigVMController* Controller = RigNode->GetController())
+		{
+			Controller->OnModified().RemoveAll(this);
+		}
+	}
+	
+	for (const TSharedRef<SGraphPin>& GraphPin: InputPins)
+	{
+		GraphPin->SetPinObj(nullptr);
+	}
+	for (const TSharedRef<SGraphPin>& GraphPin: OutputPins)
+	{
+		GraphPin->SetPinObj(nullptr);
+	}
+
+	InputPins.Reset();
+	OutputPins.Reset();
+	PinInfos.Reset();
+	PinsToKeep.Reset();
+	
+	InvalidateGraphData();
 }
 
 FText SControlRigGraphNode::GetInstructionCountText() const
