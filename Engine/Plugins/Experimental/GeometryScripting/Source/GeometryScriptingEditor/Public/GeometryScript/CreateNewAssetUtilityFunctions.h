@@ -128,6 +128,9 @@ public:
 		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	 * Create a new StaticMesh asset from a DynamicMesh. Save the asset at the AssetPathAndName location.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|AssetManagement", meta = (ExpandEnumAsExecs = "Outcome"))
 	static UPARAM(DisplayName = "Static Mesh Asset") UStaticMesh* 
 	CreateNewStaticMeshAssetFromMesh(
@@ -137,10 +140,41 @@ public:
 		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 	
+	/**
+	 * Create a new StaticMesh asset from a collection of LODs represented by an array of DynamicMeshes.
+	 * Save the asset at the AssetPathAndName location.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|AssetManagement", meta = (ExpandEnumAsExecs = "Outcome"))
+	static UPARAM(DisplayName = "Static Mesh Asset") UStaticMesh* 
+	CreateNewStaticMeshAssetFromMeshLODs(
+		TArray<UDynamicMesh*> FromDynamicMesh, 
+		FString AssetPathAndName,
+		FGeometryScriptCreateNewStaticMeshAssetOptions Options,
+		EGeometryScriptOutcomePins& Outcome,
+		UGeometryScriptDebug* Debug = nullptr);
+	
+	/**
+	 * Create a new SkeletalMesh asset from a DynamicMesh and a Skeleton.
+	 * Save the asset at the AssetPathAndName location.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|AssetManagement", meta = (ExpandEnumAsExecs = "Outcome"))
 	static UPARAM(DisplayName = "Skeletal Mesh Asset") USkeletalMesh* 
 	CreateNewSkeletalMeshAssetFromMesh(
 		UDynamicMesh* FromDynamicMesh, 
+		USkeleton* InSkeleton,
+		FString AssetPathAndName,
+		FGeometryScriptCreateNewSkeletalMeshAssetOptions Options,
+		EGeometryScriptOutcomePins& Outcome,
+		UGeometryScriptDebug* Debug = nullptr);
+	
+	/**
+	 * Create a new SkeletalMesh asset from a collection of LODs represented by an array of DynamicMeshes and a Skeleton.
+	 * Save the asset at the AssetPathAndName location.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|AssetManagement", meta = (ExpandEnumAsExecs = "Outcome"))
+	static UPARAM(DisplayName = "Skeletal Mesh Asset") USkeletalMesh* 
+	CreateNewSkeletalMeshAssetFromMeshLODs(
+		TArray<UDynamicMesh*> FromDynamicMeshLODs, 
 		USkeleton* InSkeleton,
 		FString AssetPathAndName,
 		FGeometryScriptCreateNewSkeletalMeshAssetOptions Options,
