@@ -19,6 +19,7 @@
 
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/DynamicBoneAttribute.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMesh/MeshTransforms.h"
 
@@ -43,33 +44,6 @@
 
 namespace ClothTransferSkinWeightsToolHelpers
 {
-	/** 
-	 * Compute mappings between indices and bone names.
-	 * 
-     * @note We assume that each mesh inherits its reference skeleton from the same USkeleton asset. However, their  
-     * internal indexing can be different and hence when transfering weights we need to make sure we reference the correct  
-     * bones via their names instead of indices. 
-     */
-	void GetBoneMaps(const USkinnedAsset* SourceSkinnedAsset, 
-						  const USkinnedAsset* TargetSkinnedAsset, 
-						  TMap<FBoneIndexType, FName>& SourceIndexToBone,
-						  TMap<FName, FBoneIndexType>& TargetBoneToIndex)
-	{
-		TargetBoneToIndex.Reset();
-		SourceIndexToBone.Reset();
-		const FReferenceSkeleton& SourceRefSkeleton = SourceSkinnedAsset->GetRefSkeleton();
-		for (int32 Index = 0; Index < SourceRefSkeleton.GetRawBoneNum(); ++Index)
-		{
-			SourceIndexToBone.Add(Index, SourceRefSkeleton.GetRawRefBoneInfo()[Index].Name);
-		}
-
-		const FReferenceSkeleton& TargetRefSkeleton = TargetSkinnedAsset->GetRefSkeleton();
-		for (int32 Index = 0; Index < TargetRefSkeleton.GetRawBoneNum(); ++Index)
-		{
-			TargetBoneToIndex.Add(TargetRefSkeleton.GetRawRefBoneInfo()[Index].Name, Index);
-		}
-	};
-
 	void SkeletalMeshToDynamicMesh(USkeletalMesh* FromSkeletalMeshAsset, int32 SourceLODIdx, FDynamicMesh3& ToDynamicMesh)
 	{
 		FMeshDescription SourceMesh;
@@ -294,8 +268,7 @@ void UClothTransferSkinWeightsTool::UpdatePreviewMesh()
 
 	// Convert source Skeletal Mesh to Dynamic Mesh
 	FDynamicMesh3 SourceDynamicMesh;
-	USkeletalMesh* FromSkeletalMeshAsset = ToolProperties->SourceMesh;
-	ClothTransferSkinWeightsToolHelpers::SkeletalMeshToDynamicMesh(FromSkeletalMeshAsset, SourceLODIdx, SourceDynamicMesh);
+	ClothTransferSkinWeightsToolHelpers::SkeletalMeshToDynamicMesh(ToolProperties->SourceMesh, SourceLODIdx, SourceDynamicMesh);
 	MeshTransforms::ApplyTransform(SourceDynamicMesh, ToolProperties->SourceMeshTransform, true);
 
 	// Convert target ClothComponent to Dynamic Mesh
@@ -304,16 +277,22 @@ void UClothTransferSkinWeightsTool::UpdatePreviewMesh()
 	TargetDynamicMesh.Attributes()->AttachSkinWeightsAttribute(FSkeletalMeshAttributes::DefaultSkinWeightProfileName, new FDynamicMeshVertexSkinWeightsAttribute(&TargetDynamicMesh));
 	ClothTransferSkinWeightsToolHelpers::ClothComponentToDynamicMesh(ClothComponent, TargetDynamicMesh);
 
+	// Enable bone attribute for the target mesh and copy over the bone data from the cloth asset
+	// TODO: Once we support skin weights and bones in ToDynamicMesh converter we can remove this logic
+	const UChaosClothAsset* TargetClothAsset = ClothComponent->GetClothAsset();
+	const FReferenceSkeleton& TargetRefSkeleton = TargetClothAsset->GetRefSkeleton();
+	TargetDynamicMesh.Attributes()->EnableBones(TargetRefSkeleton.GetRawBoneNum());
+	UE::Geometry::FDynamicMeshBoneNameAttribute* BoneNameAttrib = TargetDynamicMesh.Attributes()->GetBoneNames();
+	this->TargetMeshBoneNameToIndex.Reset();
+	for (int BoneID = 0; BoneID < TargetRefSkeleton.GetRawBoneNum(); ++BoneID)
+	{	
+		const FName& BoneName = TargetRefSkeleton.GetRawRefBoneInfo()[BoneID].Name;
+		BoneNameAttrib->SetValue(BoneID, BoneName);
+		this->TargetMeshBoneNameToIndex.Add(BoneName, BoneID);
+	}
 
+	// Do the transfer
 	FTransferBoneWeights TransferBoneWeights(&SourceDynamicMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
-
-	// Compute bone index mappings
-	TMap<FBoneIndexType, FName> SourceIndexToBone;
-	ClothTransferSkinWeightsToolHelpers::GetBoneMaps(FromSkeletalMeshAsset, ClothComponent->GetClothAsset(), SourceIndexToBone, this->TargetMeshBoneNameToIndex);
-	TransferBoneWeights.SourceIndexToBone = &SourceIndexToBone;
-	TransferBoneWeights.TargetBoneToIndex = &this->TargetMeshBoneNameToIndex;
-
-	// Do the actual transfer
 	const FTransformSRT3d TargetToWorld = ClothComponent->GetComponentTransform();
 	if (TransferBoneWeights.Validate() == EOperationValidationResult::Ok)
 	{
@@ -322,7 +301,6 @@ void UClothTransferSkinWeightsTool::UpdatePreviewMesh()
 
 	// Get set of bone indices used in the target mesh
 	TMap<FName, FBoneIndexType> UsedBoneNames;
-	const FReferenceSkeleton& TargetRefSkeleton = ClothComponent->GetClothAsset()->GetRefSkeleton();
 
 	const TMap<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& WeightLayers = TargetDynamicMesh.Attributes()->GetSkinWeightsAttributes();
 	for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& LayerPair : WeightLayers)
@@ -388,22 +366,21 @@ void UClothTransferSkinWeightsTool::TransferWeights()
 
 	// Convert source Skeletal Mesh to Dynamic Mesh
 	FDynamicMesh3 SourceDynamicMesh;
-	USkeletalMesh* FromSkeletalMeshAsset = ToolProperties->SourceMesh;
-	ClothTransferSkinWeightsToolHelpers::SkeletalMeshToDynamicMesh(FromSkeletalMeshAsset, SourceLODIdx, SourceDynamicMesh);
-	FTransformSRT3d SourceToWorld; //TODO: Allows the user to set this value or infer it from an editor
-	MeshTransforms::ApplyTransform(SourceDynamicMesh, SourceToWorld, true);
+	ClothTransferSkinWeightsToolHelpers::SkeletalMeshToDynamicMesh(ToolProperties->SourceMesh, SourceLODIdx, SourceDynamicMesh);
+	MeshTransforms::ApplyTransform(SourceDynamicMesh, ToolProperties->SourceMeshTransform, true);
 
 	UChaosClothAsset* TargetClothAsset = ClothComponent->GetClothAsset(); 
 
 	// Compute bone index mappings
-	TMap<FBoneIndexType, FName> SourceIndexToBone;
 	TMap<FName, FBoneIndexType> TargetBoneToIndex;
-	ClothTransferSkinWeightsToolHelpers::GetBoneMaps(static_cast<USkinnedAsset*>(FromSkeletalMeshAsset), static_cast<USkinnedAsset*>(TargetClothAsset), SourceIndexToBone, TargetBoneToIndex);
-	
+	const FReferenceSkeleton& TargetRefSkeleton = TargetClothAsset->GetRefSkeleton();
+	for (int32 Index = 0; Index < TargetRefSkeleton.GetRawBoneNum(); ++Index)
+	{
+		TargetBoneToIndex.Add(TargetRefSkeleton.GetRawRefBoneInfo()[Index].Name, Index);
+	}
+
 	// Setup bone weight transfer operator
 	FTransferBoneWeights TransferBoneWeights(&SourceDynamicMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName); 
-	TransferBoneWeights.SourceIndexToBone = &SourceIndexToBone;
-	TransferBoneWeights.TargetBoneToIndex = &TargetBoneToIndex;
 	if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)
 	{
 		//TODO: Display error message
@@ -411,7 +388,7 @@ void UClothTransferSkinWeightsTool::TransferWeights()
 	}
 
 	UE::Chaos::ClothAsset::FClothAdapter ClothAdapter(TargetClothAsset->GetClothCollection());
-    FTransformSRT3d TargetToWorld; //TODO: Allows the user to set this value or infer it from an editor
+    FTransformSRT3d TargetToWorld = ClothComponent->GetComponentTransform();
 
 	// Iterate over the LODs and transfer the bone weights from the source Skeletal mesh to the Cloth asset
 	for (int TargetLODIdx = 0; TargetLODIdx < ClothAdapter.GetNumLods(); ++TargetLODIdx) 
@@ -441,7 +418,7 @@ void UClothTransferSkinWeightsTool::TransferWeights()
 			const FVector3d PosD = FVector3d((double)Pos[0], (double)Pos[1], (double)Pos[2]);
 			
 			UE::AnimationCore::FBoneWeights BoneWeights;
-			TransferBoneWeights.Compute(PosD, TargetToWorld, BoneWeights);
+			TransferBoneWeights.Compute(PosD, TargetToWorld, BoneWeights, &TargetBoneToIndex);
 			
 			const int32 NumBones = BoneWeights.Num();
 			

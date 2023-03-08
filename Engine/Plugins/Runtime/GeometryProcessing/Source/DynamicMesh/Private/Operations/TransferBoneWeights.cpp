@@ -3,6 +3,7 @@
 #include "Operations/TransferBoneWeights.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/DynamicBoneAttribute.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Async/ParallelFor.h"
@@ -32,7 +33,7 @@ namespace TransferBoneWeightsLocals
 								const FIndex3i& TriVertices,
 								const FVector3f& Bary,
 								const FDynamicMeshVertexSkinWeightsAttribute* Attribute,
-								const TMap<FBoneIndexType, FName>* SourceIndexToBone = nullptr,
+								const TArray<FName>* SourceIndexToBone = nullptr,
 								const TMap<FName, FBoneIndexType>* TargetBoneToIndex = nullptr,
 								bool bNormalizeToOne = true)
 	{
@@ -61,7 +62,8 @@ namespace TransferBoneWeightsLocals
 				FBoneIndexType FromIdx = BoneWeight.GetBoneIndex();
 				uint16 FromWeight = BoneWeight.GetRawWeight();
 
-				if (ensure(SourceIndexToBone->Contains(FromIdx))) // the map must contain the index
+				checkSlow(FromIdx < SourceIndexToBone->Num());
+				if (FromIdx < SourceIndexToBone->Num())
 				{
 					FName BoneName = (*SourceIndexToBone)[FromIdx];
 					if (TargetBoneToIndex->Contains(BoneName))
@@ -72,7 +74,7 @@ namespace TransferBoneWeightsLocals
 					}
 					else 
 					{	
-						UE_LOG(LogGeometry, Warning, TEXT("FTransferBoneWeights: Bone name %s does not exist in the target mesh."), *BoneName.ToString());
+						UE_LOG(LogGeometry, Error, TEXT("FTransferBoneWeights: Bone name %s does not exist in the target mesh."), *BoneName.ToString());
 					}
 				}
 			}
@@ -91,11 +93,12 @@ namespace TransferBoneWeightsLocals
 
 			OutWeights = MappedWeights;
 		}
-	};
+	}
 
 	
 	FDynamicMeshVertexSkinWeightsAttribute* GetOrCreateSkinWeightsAttribute(FDynamicMesh3& InMesh, const FName& InProfileName)
 	{
+		checkSlow(InMesh.HasAttributes());
 		FDynamicMeshVertexSkinWeightsAttribute* Attribute = InMesh.Attributes()->GetSkinWeightsAttribute(InProfileName);
 		if (Attribute == nullptr)
 		{
@@ -103,7 +106,7 @@ namespace TransferBoneWeightsLocals
 			InMesh.Attributes()->AttachSkinWeightsAttribute(InProfileName, Attribute);
 		}
 		return Attribute;
-	};
+	}
 }
 
 FTransferBoneWeights::FTransferBoneWeights(const FDynamicMesh3* InSourceMesh, 
@@ -153,6 +156,11 @@ EOperationValidationResult FTransferBoneWeights::Validate()
 		return EOperationValidationResult::Failed_UnknownReason;
 	}
 
+	if (bIgnoreBoneAttributes == false && SourceMesh->Attributes()->HasBones() == false) 
+	{
+		return EOperationValidationResult::Failed_UnknownReason;
+	}
+
 	return EOperationValidationResult::Ok;
 }
 
@@ -160,12 +168,47 @@ bool FTransferBoneWeights::Compute(FDynamicMesh3& InOutTargetMesh, const FTransf
 {	
 	if (Validate() != EOperationValidationResult::Ok) 
 	{
-		checkNoEntry();
 		return false;
+	}
+
+	if (!InOutTargetMesh.HasAttributes())
+	{
+		InOutTargetMesh.EnableAttributes(); 
+	}
+
+	if (!bIgnoreBoneAttributes && !InOutTargetMesh.Attributes()->HasBones())
+	{
+		return false; // the target mesh must have bone attributes
 	}
 	
 	FDynamicMeshVertexSkinWeightsAttribute* TargetSkinWeights = TransferBoneWeightsLocals::GetOrCreateSkinWeightsAttribute(InOutTargetMesh, InTargetProfileName);
 	checkSlow(TargetSkinWeights);
+	
+	// Map the bone name to its index for the target mesh.
+	// Will be null if either the target and the source skeletons are the same or the caller forced the attributes to be ignored
+	TUniquePtr<TMap<FName, uint16>> TargetBoneToIndex;
+	if (!bIgnoreBoneAttributes)
+	{	
+		const TArray<FName>& SourceBoneNames = SourceMesh->Attributes()->GetBoneNames()->GetAttribValues();
+		const TArray<FName>& TargetBoneNames = InOutTargetMesh.Attributes()->GetBoneNames()->GetAttribValues();
+
+		if (SourceBoneNames != TargetBoneNames)
+		{
+			TargetBoneToIndex = MakeUnique<TMap<FName, uint16>>();
+			TargetBoneToIndex->Reserve(TargetBoneNames.Num());
+
+			for (int BoneID = 0; BoneID < TargetBoneNames.Num(); ++BoneID)
+			{
+				const FName& BoneName = TargetBoneNames[BoneID];
+				if (TargetBoneToIndex->Contains(BoneName))
+				{
+					checkSlow(false);
+					return false; // there should be no duplicates
+				}
+				TargetBoneToIndex->Add(BoneName, static_cast<uint16>(BoneID));
+			}
+		}
+	}
 
 	bool bFailed = false;
 	
@@ -181,7 +224,7 @@ bool FTransferBoneWeights::Compute(FDynamicMesh3& InOutTargetMesh, const FTransf
 			FVector3d Point = InOutTargetMesh.GetVertex(VertexID);
 		
 			FBoneWeights Weights;
-			if (Compute(Point, InToWorld, Weights) == false)
+			if (Compute(Point, InToWorld, Weights, TargetBoneToIndex.Get()) == false)
 			{
 				bFailed = true;
 				return;
@@ -200,10 +243,16 @@ bool FTransferBoneWeights::Compute(FDynamicMesh3& InOutTargetMesh, const FTransf
 	return true;
 }
 
-bool FTransferBoneWeights::Compute(const FVector3d& InPoint, const FTransformSRT3d& InToWorld, FBoneWeights& OutWeights) 
+bool FTransferBoneWeights::Compute(const FVector3d& InPoint, const FTransformSRT3d& InToWorld, FBoneWeights& OutWeights, const TMap<FName, uint16>* TargetBoneToIndex) 
 {
 	const FDynamicMeshVertexSkinWeightsAttribute* SourceSkinWeights = SourceMesh->Attributes()->GetSkinWeightsAttribute(SourceProfileName);
 	checkSlow(SourceSkinWeights);
+
+	const TArray<FName>* SourceBoneNames = nullptr;
+	if (!bIgnoreBoneAttributes) 
+	{
+		SourceBoneNames = &SourceMesh->Attributes()->GetBoneNames()->GetAttribValues();
+	}
 
 	IMeshSpatial::FQueryOptions Options;
 	double NearestDistSqr;
@@ -219,9 +268,8 @@ bool FTransferBoneWeights::Compute(const FVector3d& InPoint, const FTransformSRT
 		NearTriID = InternalSourceBVH->FindNearestTriangle(WorldPoint, NearestDistSqr, Options);
 	}
 
-	if (NearTriID == IndexConstants::InvalidID) 
+	if (!ensure(NearTriID != IndexConstants::InvalidID))
 	{
-		checkNoEntry();
 		return false;
 	}
 
@@ -238,7 +286,7 @@ bool FTransferBoneWeights::Compute(const FVector3d& InPoint, const FTransformSRT
 													  TriVertex,
 													  FVector3f((float)Bary[0], (float)Bary[1], (float)Bary[2]),
 													  SourceSkinWeights,
-													  SourceIndexToBone,
+													  SourceBoneNames,
 													  TargetBoneToIndex);
 
 	return true;
