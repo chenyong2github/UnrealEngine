@@ -29,6 +29,7 @@
 #include "NiagaraMeshRendererProperties.h"
 #include "NiagaraRibbonRendererProperties.h"
 #include "NiagaraComponentRendererProperties.h"
+#include "NiagaraVolumeRendererProperties.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraShaderModule.h"
 #include "UObject/CoreRedirects.h"
@@ -424,6 +425,7 @@ void INiagaraModule::StartupModule()
 	UNiagaraRibbonRendererProperties::InitCDOPropertiesAfterModuleStartup();
 	UNiagaraMeshRendererProperties::InitCDOPropertiesAfterModuleStartup();
 	UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup();
+	UNiagaraVolumeRendererProperties::InitCDOPropertiesAfterModuleStartup();
 
 	// Register the data interface CDO finder with the shader module..
 	INiagaraShaderModule& NiagaraShaderModule = FModuleManager::LoadModuleChecked<INiagaraShaderModule>("NiagaraShader");
