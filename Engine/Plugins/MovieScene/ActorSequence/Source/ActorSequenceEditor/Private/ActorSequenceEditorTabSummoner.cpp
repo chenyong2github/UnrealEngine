@@ -215,7 +215,15 @@ public:
 			Sequencer = nullptr;
 		}
 
-		Content->SetContent(SNew(STextBlock).Text(LOCTEXT("NothingSelected", "Select a sequence")));
+		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor"))
+		{
+			LevelEditorModule->OnMapChanged().RemoveAll(this);
+		}
+
+		if (Content)
+		{
+			Content->SetContent(SNew(STextBlock).Text(LOCTEXT("NothingSelected", "Select a sequence")));
+		}
 
 		if (WeakBlueprintEditor.IsValid() && WeakBlueprintEditor.Pin()->IsHosted())
 		{
