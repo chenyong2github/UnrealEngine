@@ -257,7 +257,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::PostLoadedStateChanged
 
 		if (NumUnloads)
 		{
-			if (!GIsTransacting)
+			if (!GIsTransacting && World->HasAnyFlags(RF_Transactional))
 			{
 				GEditor->ResetTransaction(LOCTEXT("UnloadingEditorActorResetTrans", "Editor Actors Unloaded"));
 			}
