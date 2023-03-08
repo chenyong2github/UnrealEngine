@@ -11,14 +11,28 @@
 class UMovieGraphNode;
 
 USTRUCT(BlueprintType)
+struct FMovieGraphBranch
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MovieGraph")
+	FName BranchName;
+};
+
+
+USTRUCT(BlueprintType)
 struct FMovieGraphTraversalContext
 {
 	GENERATED_BODY();
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Blah")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MovieGraph")
+	FMovieGraphBranch RootBranch;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MovieGraph")
 	FString ShotName;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Blah")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MovieGraph")
 	FString RenderLayerName;
 };
 
@@ -140,8 +154,38 @@ public:
 	/** Remove the specified variable member from the graph. */
 	void DeleteVariableMember(UMovieGraphVariable* VariableMemberToDelete);
 
+	/** Returns only the names of the root branches in the Output Node, with no depth information. */
+	TArray<FMovieGraphBranch> GetOutputBranches() const;
+
+	template<typename NodeType>
+	NodeType* IterateGraphForClass(const FMovieGraphTraversalContext& InContext) const
+	{
+		TArray<NodeType*> AllSettings = IterateGraphForClassAll<NodeType>(InContext);
+		if (AllSettings.Num() > 0)
+		{
+			return AllSettings[0];
+		}
+		return nullptr;
+	}
+	
+	template<typename NodeType>
+	TArray<NodeType*> IterateGraphForClassAll(const FMovieGraphTraversalContext& InContext) const
+	{
+		TArray<NodeType*> TypedNodes;
+		const TArray<UMovieGraphNode*> FoundNodes = TraverseGraph(NodeType::StaticClass(), InContext);
+		for (UMovieGraphNode* Node : FoundNodes)
+		{
+			TypedNodes.Add(CastChecked<NodeType>(Node));
+		}
+
+		return TypedNodes;
+	}
+
+	TArray<UMovieGraphNode*> TraverseGraph(TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext) const;
+
+
 protected:
-	UMovieGraphNode* FindTraversalStartForContext(const FMovieGraphTraversalContext& InContext) const;
+	void TraverseGraphRecursive(UMovieGraphNode* InNode, TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext, TArray<UMovieGraphNode*>& OutNodes) const;
 
 public:
 #if WITH_EDITOR
@@ -181,9 +225,6 @@ public:
 #endif
 		return RuntimeNode;
 	}
-
-	void TraversalTest();
-	void TraverseTest(UMovieGraphNode* InNode);
 
 private:
 	void OnVariableUpdated(UMovieGraphVariable* UpdatedVariable);

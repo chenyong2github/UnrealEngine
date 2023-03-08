@@ -30,23 +30,59 @@ UMovieGraphConfig::UMovieGraphConfig()
 	}
 }
 
-void UMovieGraphConfig::TraverseTest(UMovieGraphNode* InNode)
+void UMovieGraphConfig::TraverseGraphRecursive(UMovieGraphNode* InNode, TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext, TArray<UMovieGraphNode*>& OutNodes) const
 {
-	UE_LOG(LogTemp, Warning, TEXT("Visiting Node: %s"), *InNode->GetFName().ToString());
-
-	for (UMovieGraphPin* Pin : InNode->InputPins)
+	check(InNode);
+	
+	if (InNode->IsA(InClassType))
 	{
-		for (UMovieGraphEdge* Edge : Pin->Edges)
+		OutNodes.Add(InNode);
+	}
+
+	// Loop through the input pins on each node
+	for (UMovieGraphPin* Pin : InNode->GetInputPins())
+	{
+		// ToDo: Pins should have a type (property, branch line, etc.) and we can mask following them.
+
+		bool bFollowPath = true;
+		// If this is an output node we mask their pins against the traversal context
+		if (UMovieGraphOutputNode* NodeAsOutputNode = Cast<UMovieGraphOutputNode>(InNode))
 		{
-			if (UMovieGraphPin* OtherPin = Edge->GetOtherPin(Pin))
+			if (InContext.RootBranch.BranchName != NAME_None)
 			{
-				if (OtherPin->Node != InNode)
+				bFollowPath = Pin->Properties.Label == InContext.RootBranch.BranchName;
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Traversing Graph with Root Branch: %s (bMatch: %d)"), *InContext.RootBranch.BranchName.ToString(), bFollowPath);
+			}
+		}
+
+		if (bFollowPath)
+		{
+			for (UMovieGraphEdge* Edge : Pin->Edges)
+			{
+				if (UMovieGraphPin* OtherPin = Edge->GetOtherPin(Pin))
 				{
-					TraverseTest(OtherPin->Node);
+					// ToDo: This needs to be upgraded to a full cyclic detection so we don't get stuck in an infinite
+					// loop through some badly malformed graph created via scripting/etc.
+					if (OtherPin->Node != InNode)
+					{
+						TraverseGraphRecursive(OtherPin->Node, InClassType, InContext, OutNodes);
+					}
 				}
 			}
 		}
 	}
+
+}
+
+TArray<UMovieGraphNode*> UMovieGraphConfig::TraverseGraph(TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext) const
+{
+	TArray<UMovieGraphNode*> OutNodes;
+
+	if (OutputNode)
+	{
+		TraverseGraphRecursive(OutputNode, InClassType, InContext, /*Out*/OutNodes);
+	}
+	return OutNodes;
 }
 
 void UMovieGraphConfig::OnVariableUpdated(UMovieGraphVariable* UpdatedVariable)
@@ -55,29 +91,6 @@ void UMovieGraphConfig::OnVariableUpdated(UMovieGraphVariable* UpdatedVariable)
 	OnGraphChangedDelegate.Broadcast();
 	OnGraphVariablesChangedDelegate.Broadcast();
 #endif
-}
-
-UMovieGraphNode* UMovieGraphConfig::FindTraversalStartForContext(const FMovieGraphTraversalContext& InContext) const
-{
-	return OutputNode;
-}
-
-void UMovieGraphConfig::TraversalTest()
-{
-	FMovieGraphTraversalContext Context;
-	Context.ShotName = TEXT("Test");
-	Context.RenderLayerName = TEXT("Test2");
-
-	UMovieGraphNode* StartNode = FindTraversalStartForContext(Context);
-	if (StartNode)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Traversing!"));
-		TraverseTest(StartNode);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Could not find traversal entry point for context"));
-	}
 }
 
 bool UMovieGraphConfig::AddLabeledEdge(UMovieGraphNode* FromNode, const FName& FromPinLabel, UMovieGraphNode* ToNode, const FName& ToPinLabel)
@@ -360,6 +373,21 @@ void UMovieGraphConfig::DeleteVariableMember(UMovieGraphVariable* VariableMember
 #if WITH_EDITOR
 	OnGraphVariablesChangedDelegate.Broadcast();
 #endif
+}
+
+TArray<FMovieGraphBranch> UMovieGraphConfig::GetOutputBranches() const
+{
+	TArray<FMovieGraphBranch> Branches;
+	if (OutputNode)
+	{
+		for (UMovieGraphPin* Pin : OutputNode->GetInputPins())
+		{
+			FMovieGraphBranch& NewBranch = Branches.AddDefaulted_GetRef();
+			NewBranch.BranchName = Pin->Properties.Label;
+		}
+	}
+
+	return Branches;
 }
 
 #undef LOCTEXT_NAMESPACE

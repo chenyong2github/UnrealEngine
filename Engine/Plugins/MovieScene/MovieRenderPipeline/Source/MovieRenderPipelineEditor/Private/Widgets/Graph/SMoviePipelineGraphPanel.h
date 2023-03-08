@@ -68,7 +68,6 @@ private:
 	void OnNodeDoubleClicked(class UEdGraphNode* Node);
 	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
 	
-	FReply OnDebugButtonClicked();
 	TObjectPtr<class UMovieGraphConfig> CurrentGraph;
 private:
 	/** Allocates a transient preset so that the user can use the pipeline without saving it to an asset first. */

@@ -196,11 +196,6 @@ void SMoviePipelineGraphPanel::ClearGraphSelection() const
 }
 
 UE_ENABLE_OPTIMIZATION_SHIP
-FReply SMoviePipelineGraphPanel::OnDebugButtonClicked()
-{
-	CurrentGraph->TraversalTest();
-	return FReply::Handled();
-}
 
 void SMoviePipelineGraphPanel::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {

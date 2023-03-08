@@ -4,6 +4,7 @@
 #include "UObject/Object.h"
 #include "MoviePipelineBase.h"
 #include "MovieGraphDataTypes.h"
+#include "MovieGraphConfig.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MovieGraphPipeline.generated.h"
 
@@ -26,7 +27,9 @@ public:
 	UMoviePipelineExecutorJob* GetCurrentJob() const { return CurrentJob; }
 
 
-
+public:
+	UMovieGraphConfig* GetRootGraphForShot(UMoviePipelineExecutorShot* InShot) const;
+	FMovieGraphTraversalContext GetTraversalContextForShot(UMoviePipelineExecutorShot* InShot) const;
 protected:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	virtual void OnMoviePipelineFinishedImpl();

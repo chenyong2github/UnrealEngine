@@ -541,7 +541,7 @@ void UMovieGraphPipeline::TransitionToState(const EMovieRenderPipelineState InNe
 
 			// Unregister our OnEngineTickEndFrame delegate. We don't unregister BeginFrame as we need
 			// to continue to call it to allow ticking the Finalization stage.
-			// FCoreDelegates::OnEndFrame.RemoveAll(this);
+			FCoreDelegates::OnEndFrame.RemoveAll(this);
 
 			// Reset the Custom Timestep because we don't care how long the engine takes now
 			// GEngine->SetCustomTimeStep(CachedPrevCustomTimeStep);
@@ -693,3 +693,44 @@ void UMovieGraphPipeline::OnMoviePipelineFinishedImpl()
 //		}
 //	}
 //}
+
+UMovieGraphConfig* UMovieGraphPipeline::GetRootGraphForShot(UMoviePipelineExecutorShot* InShot) const
+{
+	if (GetCurrentJob())
+	{
+		for (UMoviePipelineExecutorShot* Shot : GetCurrentJob()->ShotInfo)
+		{
+			if (Shot == InShot)
+			{
+				if (Shot->GetGraphPreset())
+				{
+					return Shot->GetGraphPreset();
+				}
+				else if (Shot->GetGraphConfig())
+				{
+					return Shot->GetGraphConfig();
+				}
+			}
+
+		}
+
+		// If the shot hasn't overwritten the preset then we return the root one for the whole job.
+		if (GetCurrentJob()->GetGraphPreset())
+		{
+			return GetCurrentJob()->GetGraphPreset();
+		}
+		else if (GetCurrentJob()->GetGraphConfig())
+		{
+			return GetCurrentJob()->GetGraphConfig();
+		}
+	}
+
+	return nullptr;
+}
+
+FMovieGraphTraversalContext UMovieGraphPipeline::GetTraversalContextForShot(UMoviePipelineExecutorShot* InShot) const
+{
+	// ToDo: Fill out shot index/current shot/current frame/job/etc.
+	return FMovieGraphTraversalContext();
+}
+

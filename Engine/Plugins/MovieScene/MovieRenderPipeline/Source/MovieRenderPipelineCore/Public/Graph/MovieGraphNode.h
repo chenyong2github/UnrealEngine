@@ -172,44 +172,6 @@ public:
 #endif
 };
 
-UCLASS()
-class UMoviePipelineRenderLayerNode : public UMovieGraphNode
-{
-	GENERATED_BODY()
-	
-public:
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override
-	{
-		TArray<FMovieGraphPinProperties> Properties;
-		Properties.Add(FMovieGraphPinProperties(TEXT("Test Input 3"), false));
-		Properties.Add(FMovieGraphPinProperties(TEXT("Test Input 4"), false));
-		Properties.Add(FMovieGraphPinProperties(TEXT("Test Input 5"), false));
-		Properties.Add(FMovieGraphPinProperties(TEXT("Test Input 6"), false));
-		return Properties;
-	}
-
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override
-	{
-		TArray<FMovieGraphPinProperties> Properties;
-		Properties.Add(FMovieGraphPinProperties(TEXT("Test Output 2"), false));
-		return Properties;
-	}
-
-#if WITH_EDITOR
-	virtual FText GetMenuDescription() const override
-	{
-		return NSLOCTEXT("debug", "collection nodename2", "Deferred Render Layer");
-	}
-	
-	virtual FText GetMenuCategory() const override
-	{
-		return NSLOCTEXT("debug", "collection cat", "Rendering");
-	}
-#endif
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings2")
-	FString LayerName;
-};
-
 
 UCLASS()
 class MOVIERENDERPIPELINECORE_API UMovieGraphOutputNode : public UMovieGraphNode

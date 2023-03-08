@@ -101,3 +101,13 @@ protected:
 	UMovieGraphPipeline* GetOwningGraph() const;
 };
 
+struct FMovieGraphRenderPassLayerData
+{
+	FString LayerName;
+};
+
+struct FMovieGraphRenderPassSetupData
+{
+	TWeakObjectPtr<class UMovieGraphDefaultRenderer> Renderer;
+	TArray<FMovieGraphRenderPassLayerData> Layers;
+};
