@@ -248,6 +248,7 @@ public:
 	static const FName KeywordsMetaName;
 	static const FName TemplateNameMetaName;
 	static const FName FixedSizeArrayMetaName;
+	static const FName ArraySizeMetaName;
 	static const FName AggregateMetaName;
 	static const FName ExpandPinByDefaultMetaName;
 	static const FName DefaultArraySizeMetaName;

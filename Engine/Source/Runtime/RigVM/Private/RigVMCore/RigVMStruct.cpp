@@ -295,6 +295,7 @@ const FName FRigVMStruct::IconMetaName("Icon");
 const FName FRigVMStruct::KeywordsMetaName("Keywords");
 const FName FRigVMStruct::TemplateNameMetaName = FRigVMRegistry::TemplateNameMetaName;
 const FName FRigVMStruct::FixedSizeArrayMetaName("FixedSizeArray");
+const FName FRigVMStruct::ArraySizeMetaName("ArraySize");
 const FName FRigVMStruct::AggregateMetaName("Aggregate");
 const FName FRigVMStruct::ExpandPinByDefaultMetaName("ExpandByDefault");
 const FName FRigVMStruct::DefaultArraySizeMetaName("DefaultArraySize");
