@@ -22,6 +22,8 @@ using AutomationScripts;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 
+using static AutomationTool.CommandUtils;
+
 namespace HoloLens.Automation
 {
 	class HoloLensLauncherCreatedProcess : IProcessResult
@@ -136,25 +138,25 @@ namespace HoloLens.Automation
 				ExternallyLaunchedProcess = null;
 				if (!ProcessToKill.CloseMainWindow())
 				{
-					CommandUtils.LogWarning("{0} did not respond to close request.  Killing...", ProcessNameForLogging);
+					Logger.LogWarning("{ProcessNameForLogging} did not respond to close request.  Killing...", ProcessNameForLogging);
 					ProcessToKill.Kill();
 					ProcessToKill.WaitForExit(60000);
 				}
 				if (!ProcessToKill.HasExited)
 				{
-					CommandUtils.LogLog("Process {0} failed to exit.", ProcessNameForLogging);
+					Logger.LogDebug("Process {ProcessNameForLogging} failed to exit.", ProcessNameForLogging);
 				}
 				else
 				{
-					CommandUtils.LogLog("Process {0} successfully exited.", ProcessNameForLogging);
+					Logger.LogDebug("Process {ProcessNameForLogging} successfully exited.", ProcessNameForLogging);
 					OnProcessExited();
 				}
 				ProcessToKill.Close();
 			}
 			catch (Exception Ex)
 			{
-				CommandUtils.LogWarning("Exception while trying to kill process {0}:", ProcessNameForLogging);
-				CommandUtils.LogWarning(LogUtils.FormatException(Ex));
+				Logger.LogWarning("Exception while trying to kill process {ProcessNameForLogging}:", ProcessNameForLogging);
+				Logger.LogWarning("{Text}", LogUtils.FormatException(Ex));
 			}
 		}
 

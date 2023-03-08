@@ -208,8 +208,7 @@ namespace AutomationScripts
 							Logger.LogInformation("Stopping cook server...");
 							CookServerProcess.StopProcess();
 						}
-						LogInformation("Cook server exited with error code: {0} (see {1} for more info)",
-								CookServerProcess.ExitCode, CookServerLogFile);
+						Logger.LogInformation("Cook server exited with error code: {ExitCode} (see {File} for more info)", CookServerProcess.ExitCode, CookServerLogFile);
 					}
 					if (DedicatedServerProcess != null)
 					{
@@ -218,8 +217,7 @@ namespace AutomationScripts
 							Logger.LogInformation("Stopping dedicated server...");
 							DedicatedServerProcess.StopProcess();
 						}
-						LogInformation("Dedicated server exited with error code: {0} (see {1} for more info)",
-								DedicatedServerProcess.ExitCode, DedicatedServerLogFile);
+						Logger.LogInformation("Dedicated server exited with error code: {ExitCode} (see {File} for more info)", DedicatedServerProcess.ExitCode, DedicatedServerLogFile);
 					}
 				}
 				CopyLogsBackToLogFolder();
@@ -377,8 +375,7 @@ namespace AutomationScripts
 								Logger.LogInformation("Welcomed by server or client loaded");
 							}
 							Logger.LogInformation("Test complete");
-							LogInformation("**** UNATTENDED TEST COMPLETE: {0:0.00} seconds ****",
-								(DateTime.UtcNow - ClientStartTime).TotalMilliseconds / 1000);
+							Logger.LogInformation("**** UNATTENDED TEST COMPLETE: {Time} seconds ****", $"{(DateTime.UtcNow - ClientStartTime).TotalMilliseconds / 1000:0.00}");
 							bTestExitTextFound = true;
 							bKeepReading = false;
 						}

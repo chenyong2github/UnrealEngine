@@ -720,7 +720,7 @@ namespace AutomationTool
 			{
 				foreach (var Item in ExeToTimeInMs)
 				{
-					LogVerbose("Total {0}s to run " + Item.Key, Item.Value / 1000);
+					Logger.LogDebug("Total {Time}s to run {Exe}", Item.Value / 1000, Item.Key);
 				}
 				ExeToTimeInMs.Clear();
 			}

@@ -81,12 +81,12 @@ namespace AutomationTool
 					Suffix++;
 				}
 
-				CommandUtils.LogInformation(" | {0,-17} | {1,18:#,##} ({2,7:0.00} {3}) | {4,13:#,##} |",
+				Logger.LogInformation("{Message}", String.Format(" | {0,-17} | {1,18:#,##} ({2,7:0.00} {3}) | {4,13:#,##} |",
 					Pair.Key.ToString().ToUpperInvariant(),
 					TotalSizeInBytes,
 					TotalSizeInUnits,
 					Suffixes[Suffix],
-					Pair.Value.Count);
+					Pair.Value.Count));
 			}
 			Logger.LogInformation(" +-------------------+----------------------------------+---------------+");
 		}
